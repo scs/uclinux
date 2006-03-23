@@ -34,19 +34,13 @@ static int this_adap;
 static struct i2c_client client_template;
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {I2C_CLIENT_END};
-static unsigned short normal_i2c_range[] = {0x60, 0x61, I2C_CLIENT_END};
-static unsigned short probe[2]        = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2]  = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2]       = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2]        = { I2C_CLIENT_END, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x60, 0x61, I2C_CLIENT_END };
+static unsigned short ignore = I2C_CLIENT_END;
 
 static struct i2c_client_address_data addr_data = {
-	normal_i2c, normal_i2c_range, 
-	probe, probe_range, 
-	ignore, ignore_range, 
-	force
+	.normal_i2c	= normal_i2c,
+	.probe		= &ignore,
+	.ignore		= &ignore,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -157,7 +151,7 @@ tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	switch (cmd) 
 	{
-		case TUNER_SET_TVFREQ:
+		case VIDIOCSFREQ:
 			set_tv_freq(client, *iarg);
 			break;
 	    
@@ -171,7 +165,7 @@ static int
 tuner_probe(struct i2c_adapter *adap)
 {
 	this_adap = 0;
-	if (adap->id == (I2C_ALGO_BIT | I2C_HW_B_LP))
+	if (adap->id == I2C_HW_B_LP)
 		return i2c_probe(adap, &addr_data, tuner_attach);
 	return 0;
 }
@@ -181,10 +175,10 @@ tuner_probe(struct i2c_adapter *adap)
 static struct i2c_driver 
 i2c_driver_tuner = 
 {
-	.owner		=	THIS_MODULE,
-	.name		=	"sab3036",
+	.driver = {
+		.name	=	"sab3036",
+	},
 	.id		=	I2C_DRIVERID_SAB3036,
-        .flags		=	I2C_DF_NOTIFY,
 	.attach_adapter =	tuner_probe,
 	.detach_client  =	tuner_detach,
 	.command	=	tuner_command
@@ -199,8 +193,7 @@ static struct i2c_client client_template =
 static int __init
 tuner3036_init(void)
 {
-	i2c_add_driver(&i2c_driver_tuner);
-	return 0;
+	return i2c_add_driver(&i2c_driver_tuner);
 }
 
 static void __exit

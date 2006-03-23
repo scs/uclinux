@@ -1,5 +1,4 @@
 /*
- * $Id$
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -47,8 +46,8 @@ void cx8800_vbi_fmt(struct cx8800_dev *dev, struct v4l2_format *f)
 }
 
 static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
-				struct cx88_dmaqueue *q,
-				struct cx88_buffer   *buf)
+			 struct cx88_dmaqueue *q,
+			 struct cx88_buffer   *buf)
 {
 	struct cx88_core *core = dev->core;
 

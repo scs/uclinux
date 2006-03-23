@@ -80,6 +80,7 @@ static struct file_operations maxiradio_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl	        = radio_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 static struct video_device maxiradio_radio =
@@ -166,7 +167,7 @@ static int get_tune(__u16 io)
 }
 
 
-inline static int radio_function(struct inode *inode, struct file *file,
+static inline int radio_function(struct inode *inode, struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
@@ -337,7 +338,7 @@ static struct pci_driver maxiradio_driver = {
 
 static int __init maxiradio_radio_init(void)
 {
-	return pci_module_init(&maxiradio_driver);
+	return pci_register_driver(&maxiradio_driver);
 }
 
 static void __exit maxiradio_radio_exit(void)

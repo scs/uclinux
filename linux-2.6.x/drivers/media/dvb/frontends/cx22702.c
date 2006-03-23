@@ -2,12 +2,12 @@
     Conexant 22702 DVB OFDM demodulator driver
 
     based on:
-        Alps TDMB7 DVB OFDM demodulator driver
+	Alps TDMB7 DVB OFDM demodulator driver
 
     Copyright (C) 2001-2002 Convergence Integrated Media GmbH
 	  Holger Waechtler <holger@convergence.de>
 
-    Copyright (C) 2004 Steven Toth <steve@toth.demon.co.uk>
+    Copyright (C) 2004 Steven Toth <stoth@hauppauge.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -76,7 +76,6 @@ static u8 init_tab [] = {
 	0x49, 0x56,
 	0x6b, 0x1e,
 	0xc8, 0x02,
-	0xf8, 0x02,
 	0xf9, 0x00,
 	0xfa, 0x00,
 	0xfb, 0x00,
@@ -196,6 +195,16 @@ static int cx22702_get_tps (struct cx22702_state *state, struct dvb_ofdm_paramet
 	return 0;
 }
 
+static int cx22702_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
+{
+	struct cx22702_state* state = fe->demodulator_priv;
+	dprintk ("%s(%d)\n", __FUNCTION__, enable);
+	if (enable)
+		return cx22702_writereg (state, 0x0D, cx22702_readreg(state, 0x0D) & 0xfe);
+	else
+		return cx22702_writereg (state, 0x0D, cx22702_readreg(state, 0x0D) | 1);
+}
+
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
 static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
@@ -203,7 +212,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 	struct cx22702_state* state = fe->demodulator_priv;
 
 	/* set PLL */
-        cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) &0xfe);
+	cx22702_i2c_gate_ctrl(fe, 1);
 	if (state->config->pll_set) {
 		state->config->pll_set(fe, p);
 	} else if (state->config->pll_desc) {
@@ -217,7 +226,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 	} else {
 		BUG();
 	}
-        cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) | 1);
+	cx22702_i2c_gate_ctrl(fe, 0);
 
 	/* set inversion */
 	cx22702_set_inversion (state, p->inversion);
@@ -256,7 +265,7 @@ static int cx22702_set_tps (struct dvb_frontend* fe, struct dvb_frontend_paramet
 		cx22702_writereg(state, 0x0B, cx22702_readreg(state, 0x0B) & 0xfc );
 		cx22702_writereg(state, 0x0C, (cx22702_readreg(state, 0x0C) & 0xBF) | 0x40 );
 		cx22702_writereg(state, 0x00, 0x01); /* Begin aquisition */
-		printk("%s: Autodetecting\n",__FUNCTION__);
+		dprintk("%s: Autodetecting\n",__FUNCTION__);
 		return 0;
 	}
 
@@ -347,13 +356,13 @@ static int cx22702_init (struct dvb_frontend* fe)
 	for (i=0; i<sizeof(init_tab); i+=2)
 		cx22702_writereg (state, init_tab[i], init_tab[i+1]);
 
+	cx22702_writereg (state, 0xf8, (state->config->output_mode << 1) & 0x02);
 
 	/* init PLL */
-	if (state->config->pll_init) {
-	        cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) &0xfe);
+	if (state->config->pll_init)
 		state->config->pll_init(fe);
-		cx22702_writereg (state, 0x0D, cx22702_readreg(state,0x0D) | 1);
-	}
+
+	cx22702_i2c_gate_ctrl(fe, 0);
 
 	return 0;
 }
@@ -440,8 +449,10 @@ static int cx22702_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 
 	/* RS Uncorrectable Packet Count then reset */
 	_ucblocks = cx22702_readreg (state, 0xE3);
-	if (state->prevUCBlocks < _ucblocks) *ucblocks = (_ucblocks - state->prevUCBlocks);
-	else *ucblocks = state->prevUCBlocks - _ucblocks;
+	if (state->prevUCBlocks < _ucblocks)
+		*ucblocks = (_ucblocks - state->prevUCBlocks);
+	else
+		*ucblocks = state->prevUCBlocks - _ucblocks;
 	state->prevUCBlocks = _ucblocks;
 
 	return 0;
@@ -455,6 +466,12 @@ static int cx22702_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 
 	p->inversion = reg0C & 0x1 ? INVERSION_ON : INVERSION_OFF;
 	return cx22702_get_tps (state, &p->u.ofdm);
+}
+
+static int cx22702_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
+{
+	tune->min_delay_ms = 1000;
+	return 0;
 }
 
 static void cx22702_release(struct dvb_frontend* fe)
@@ -472,7 +489,8 @@ struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct cx22702_state), GFP_KERNEL);
-	if (state == NULL) goto error;
+	if (state == NULL)
+		goto error;
 
 	/* setup the state */
 	state->config = config;
@@ -481,7 +499,8 @@ struct dvb_frontend* cx22702_attach(const struct cx22702_config* config,
 	state->prevUCBlocks = 0;
 
 	/* check if the demod is there */
-	if (cx22702_readreg(state, 0x1f) != 0x3) goto error;
+	if (cx22702_readreg(state, 0x1f) != 0x3)
+		goto error;
 
 	/* create dvb_frontend */
 	state->frontend.ops = &state->ops;
@@ -514,12 +533,14 @@ static struct dvb_frontend_ops cx22702_ops = {
 
 	.set_frontend = cx22702_set_tps,
 	.get_frontend = cx22702_get_frontend,
+	.get_tune_settings = cx22702_get_tune_settings,
 
 	.read_status = cx22702_read_status,
 	.read_ber = cx22702_read_ber,
 	.read_signal_strength = cx22702_read_signal_strength,
 	.read_snr = cx22702_read_snr,
 	.read_ucblocks = cx22702_read_ucblocks,
+	.i2c_gate_ctrl = cx22702_i2c_gate_ctrl,
 };
 
 module_param(debug, int, 0644);

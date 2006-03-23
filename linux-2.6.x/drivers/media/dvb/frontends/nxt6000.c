@@ -482,6 +482,7 @@ static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if ((result = nxt6000_set_inversion(state, param->inversion)) < 0)
 		return result;
 
+	msleep(500);
 	return 0;
 }
 
@@ -522,6 +523,12 @@ static int nxt6000_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 		(nxt6000_readreg(state, AGC_GAIN_1) +
 		((nxt6000_readreg(state, AGC_GAIN_2) & 0x03) << 8)));
 
+	return 0;
+}
+
+static int nxt6000_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
+{
+	tune->min_delay_ms = 500;
 	return 0;
 }
 
@@ -567,16 +574,18 @@ static struct dvb_frontend_ops nxt6000_ops = {
 		.symbol_rate_max = 9360000,	/* FIXME */
 		.symbol_rate_tolerance = 4000,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
-	                FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
-	                FE_CAN_FEC_7_8 | FE_CAN_FEC_8_9 | FE_CAN_FEC_AUTO |
-	                FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |
-	                FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO |
-	                FE_CAN_HIERARCHY_AUTO,
+			FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
+			FE_CAN_FEC_7_8 | FE_CAN_FEC_8_9 | FE_CAN_FEC_AUTO |
+			FE_CAN_QAM_16 | FE_CAN_QAM_64 | FE_CAN_QAM_AUTO |
+			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_GUARD_INTERVAL_AUTO |
+			FE_CAN_HIERARCHY_AUTO,
 	},
 
 	.release = nxt6000_release,
 
 	.init = nxt6000_init,
+
+	.get_tune_settings = nxt6000_fe_get_tune_settings,
 
 	.set_frontend = nxt6000_set_frontend,
 

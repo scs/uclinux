@@ -164,10 +164,10 @@ static int ov6x20_init(struct i2c_client *c)
 	DDEBUG(4, &c->dev, "entered");
 
 	switch (c->adapter->id) {
-	case I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV511:
+	case I2C_HW_SMBUS_OV511:
 		rc = ov_write_regvals(c, regvals_init_6x20_511);
 		break;
-	case I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV518:
+	case I2C_HW_SMBUS_OV518:
 		rc = ov_write_regvals(c, regvals_init_6x20_518);
 		break;
 	default:
@@ -178,10 +178,9 @@ static int ov6x20_init(struct i2c_client *c)
 	if (rc < 0)
 		return rc;
 
-	ov->spriv = s = kmalloc(sizeof *s, GFP_KERNEL);
+	ov->spriv = s = kzalloc(sizeof *s, GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
-	memset(s, 0, sizeof *s);
 
 	s->auto_brt = 1;
 	s->auto_exp = 1;
@@ -338,7 +337,7 @@ static int ov6x20_mode_init(struct i2c_client *c, struct ovcamchip_window *win)
 	/******** Palette-specific regs ********/
 
 	/* OV518 needs 8 bit multiplexed in color mode, and 16 bit in B&W */
-	if (c->adapter->id == (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV518)) {
+	if (c->adapter->id == I2C_HW_SMBUS_OV518) {
 		if (win->format == VIDEO_PALETTE_GREY)
 			ov_write_mask(c, 0x13, 0x00, 0x20);
 		else

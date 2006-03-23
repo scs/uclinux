@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/time.h>
+#include <linux/dvb/dmx.h>
 
 /*--------------------------------------------------------------------------*/
 /* Common definitions */
@@ -47,8 +48,11 @@
  * DMX_MAX_SECFEED_SIZE: Maximum length (in bytes) of a private section feed filter.
  */
 
+#ifndef DMX_MAX_SECTION_SIZE
+#define DMX_MAX_SECTION_SIZE 4096
+#endif
 #ifndef DMX_MAX_SECFEED_SIZE
-#define DMX_MAX_SECFEED_SIZE 4096
+#define DMX_MAX_SECFEED_SIZE (DMX_MAX_SECTION_SIZE + 188)
 #endif
 
 
@@ -82,25 +86,25 @@ enum dmx_success {
 
 enum dmx_ts_pes
 {  /* also send packets to decoder (if it exists) */
-        DMX_TS_PES_AUDIO0,
+	DMX_TS_PES_AUDIO0,
 	DMX_TS_PES_VIDEO0,
 	DMX_TS_PES_TELETEXT0,
 	DMX_TS_PES_SUBTITLE0,
 	DMX_TS_PES_PCR0,
 
-        DMX_TS_PES_AUDIO1,
+	DMX_TS_PES_AUDIO1,
 	DMX_TS_PES_VIDEO1,
 	DMX_TS_PES_TELETEXT1,
 	DMX_TS_PES_SUBTITLE1,
 	DMX_TS_PES_PCR1,
 
-        DMX_TS_PES_AUDIO2,
+	DMX_TS_PES_AUDIO2,
 	DMX_TS_PES_VIDEO2,
 	DMX_TS_PES_TELETEXT2,
 	DMX_TS_PES_SUBTITLE2,
 	DMX_TS_PES_PCR2,
 
-        DMX_TS_PES_AUDIO3,
+	DMX_TS_PES_AUDIO3,
 	DMX_TS_PES_VIDEO3,
 	DMX_TS_PES_TELETEXT3,
 	DMX_TS_PES_SUBTITLE3,
@@ -117,19 +121,17 @@ enum dmx_ts_pes
 
 
 struct dmx_ts_feed {
-        int is_filtering; /* Set to non-zero when filtering in progress */
-        struct dmx_demux *parent; /* Back-pointer */
-        void *priv; /* Pointer to private data of the API client */
-        int (*set) (struct dmx_ts_feed *feed,
+	int is_filtering; /* Set to non-zero when filtering in progress */
+	struct dmx_demux *parent; /* Back-pointer */
+	void *priv; /* Pointer to private data of the API client */
+	int (*set) (struct dmx_ts_feed *feed,
 		    u16 pid,
 		    int type,
 		    enum dmx_ts_pes pes_type,
-		    size_t callback_length,
 		    size_t circular_buffer_size,
-		    int descramble,
 		    struct timespec timeout);
-        int (*start_filtering) (struct dmx_ts_feed* feed);
-        int (*stop_filtering) (struct dmx_ts_feed* feed);
+	int (*start_filtering) (struct dmx_ts_feed* feed);
+	int (*stop_filtering) (struct dmx_ts_feed* feed);
 };
 
 /*--------------------------------------------------------------------------*/
@@ -137,36 +139,35 @@ struct dmx_ts_feed {
 /*--------------------------------------------------------------------------*/
 
 struct dmx_section_filter {
-        u8 filter_value [DMX_MAX_FILTER_SIZE];
-        u8 filter_mask [DMX_MAX_FILTER_SIZE];
-        u8 filter_mode [DMX_MAX_FILTER_SIZE];
-        struct dmx_section_feed* parent; /* Back-pointer */
-        void* priv; /* Pointer to private data of the API client */
+	u8 filter_value [DMX_MAX_FILTER_SIZE];
+	u8 filter_mask [DMX_MAX_FILTER_SIZE];
+	u8 filter_mode [DMX_MAX_FILTER_SIZE];
+	struct dmx_section_feed* parent; /* Back-pointer */
+	void* priv; /* Pointer to private data of the API client */
 };
 
 struct dmx_section_feed {
-        int is_filtering; /* Set to non-zero when filtering in progress */
-        struct dmx_demux* parent; /* Back-pointer */
-        void* priv; /* Pointer to private data of the API client */
+	int is_filtering; /* Set to non-zero when filtering in progress */
+	struct dmx_demux* parent; /* Back-pointer */
+	void* priv; /* Pointer to private data of the API client */
 
-        int check_crc;
+	int check_crc;
 	u32 crc_val;
 
-        u8 *secbuf;
-        u8 secbuf_base[DMX_MAX_SECFEED_SIZE];
-        u16 secbufp, seclen, tsfeedp;
+	u8 *secbuf;
+	u8 secbuf_base[DMX_MAX_SECFEED_SIZE];
+	u16 secbufp, seclen, tsfeedp;
 
-        int (*set) (struct dmx_section_feed* feed,
+	int (*set) (struct dmx_section_feed* feed,
 		    u16 pid,
 		    size_t circular_buffer_size,
-		    int descramble,
 		    int check_crc);
-        int (*allocate_filter) (struct dmx_section_feed* feed,
+	int (*allocate_filter) (struct dmx_section_feed* feed,
 				struct dmx_section_filter** filter);
-        int (*release_filter) (struct dmx_section_feed* feed,
+	int (*release_filter) (struct dmx_section_feed* feed,
 			       struct dmx_section_filter* filter);
-        int (*start_filtering) (struct dmx_section_feed* feed);
-        int (*stop_filtering) (struct dmx_section_feed* feed);
+	int (*start_filtering) (struct dmx_section_feed* feed);
+	int (*stop_filtering) (struct dmx_section_feed* feed);
 };
 
 /*--------------------------------------------------------------------------*/
@@ -204,11 +205,10 @@ enum dmx_frontend_source {
 };
 
 struct dmx_frontend {
-        struct list_head connectivity_list; /* List of front-ends that can
+	struct list_head connectivity_list; /* List of front-ends that can
 					       be connected to a particular
 					       demux */
-        void* priv;     /* Pointer to private data of the API client */
-        enum dmx_frontend_source source;
+	enum dmx_frontend_source source;
 };
 
 /*--------------------------------------------------------------------------*/
@@ -216,7 +216,7 @@ struct dmx_frontend {
 /*--------------------------------------------------------------------------*/
 
 /*
- * Flags OR'ed in the capabilites field of struct dmx_demux.
+ * Flags OR'ed in the capabilities field of struct dmx_demux.
  */
 
 #define DMX_TS_FILTERING                        1
@@ -225,8 +225,6 @@ struct dmx_frontend {
 #define DMX_MEMORY_BASED_FILTERING              8    /* write() available */
 #define DMX_CRC_CHECKING                        16
 #define DMX_TS_DESCRAMBLING                     32
-#define DMX_SECTION_PAYLOAD_DESCRAMBLING        64
-#define DMX_MAC_ADDRESS_DESCRAMBLING            128
 
 /*
  * Demux resource type identifier.
@@ -242,60 +240,39 @@ struct dmx_frontend {
 #define DMX_FE_ENTRY(list) list_entry(list, struct dmx_frontend, connectivity_list)
 
 struct dmx_demux {
-        u32 capabilities;            /* Bitfield of capability flags */
-        struct dmx_frontend* frontend;    /* Front-end connected to the demux */
-        struct list_head reg_list;   /* List of registered demuxes */
-        void* priv;                  /* Pointer to private data of the API client */
-        int users;                   /* Number of users */
-        int (*open) (struct dmx_demux* demux);
-        int (*close) (struct dmx_demux* demux);
-        int (*write) (struct dmx_demux* demux, const char* buf, size_t count);
-        int (*allocate_ts_feed) (struct dmx_demux* demux,
+	u32 capabilities;            /* Bitfield of capability flags */
+	struct dmx_frontend* frontend;    /* Front-end connected to the demux */
+	void* priv;                  /* Pointer to private data of the API client */
+	int (*open) (struct dmx_demux* demux);
+	int (*close) (struct dmx_demux* demux);
+	int (*write) (struct dmx_demux* demux, const char* buf, size_t count);
+	int (*allocate_ts_feed) (struct dmx_demux* demux,
 				 struct dmx_ts_feed** feed,
 				 dmx_ts_cb callback);
-        int (*release_ts_feed) (struct dmx_demux* demux,
+	int (*release_ts_feed) (struct dmx_demux* demux,
 				struct dmx_ts_feed* feed);
-        int (*allocate_section_feed) (struct dmx_demux* demux,
+	int (*allocate_section_feed) (struct dmx_demux* demux,
 				      struct dmx_section_feed** feed,
 				      dmx_section_cb callback);
-        int (*release_section_feed) (struct dmx_demux* demux,
+	int (*release_section_feed) (struct dmx_demux* demux,
 				     struct dmx_section_feed* feed);
-        int (*descramble_mac_address) (struct dmx_demux* demux,
-				       u8* buffer1,
-				       size_t buffer1_length,
-				       u8* buffer2,
-				       size_t buffer2_length,
-				       u16 pid);
-        int (*descramble_section_payload) (struct dmx_demux* demux,
-					   u8* buffer1,
-					   size_t buffer1_length,
-					   u8* buffer2, size_t buffer2_length,
-					   u16 pid);
-        int (*add_frontend) (struct dmx_demux* demux,
+	int (*add_frontend) (struct dmx_demux* demux,
 			     struct dmx_frontend* frontend);
-        int (*remove_frontend) (struct dmx_demux* demux,
+	int (*remove_frontend) (struct dmx_demux* demux,
 				struct dmx_frontend* frontend);
-        struct list_head* (*get_frontends) (struct dmx_demux* demux);
-        int (*connect_frontend) (struct dmx_demux* demux,
+	struct list_head* (*get_frontends) (struct dmx_demux* demux);
+	int (*connect_frontend) (struct dmx_demux* demux,
 				 struct dmx_frontend* frontend);
-        int (*disconnect_frontend) (struct dmx_demux* demux);
+	int (*disconnect_frontend) (struct dmx_demux* demux);
 
-        int (*get_pes_pids) (struct dmx_demux* demux, u16 *pids);
+	int (*get_pes_pids) (struct dmx_demux* demux, u16 *pids);
 
-        int (*get_stc) (struct dmx_demux* demux, unsigned int num,
+	int (*get_caps) (struct dmx_demux* demux, struct dmx_caps *caps);
+
+	int (*set_source) (struct dmx_demux* demux, const dmx_source_t *src);
+
+	int (*get_stc) (struct dmx_demux* demux, unsigned int num,
 			u64 *stc, unsigned int *base);
 };
-
-/*--------------------------------------------------------------------------*/
-/* Demux directory */
-/*--------------------------------------------------------------------------*/
-
-/*
- * DMX_DIR_ENTRY(): Casts elements in the list of registered
- * demuxes from the generic type struct list_head* to the type struct dmx_demux
- *.
- */
-
-#define DMX_DIR_ENTRY(list) list_entry(list, struct dmx_demux, reg_list)
 
 #endif /* #ifndef __DEMUX_H */

@@ -203,7 +203,7 @@ static const unsigned short init_ntsc[] = {
 	0x8c, 640,		/* Horizontal length */
 	0x8d, 640,		/* Number of pixels */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x173,		/* 13.5 MHz transport, Forced
+	0xf0, 0x73,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x13,		/* NTSC M, composite input */
 	0xe7, 0x1e1,		/* Enable vertical standard
@@ -212,38 +212,36 @@ static const unsigned short init_ntsc[] = {
 
 static const unsigned short init_pal[] = {
 	0x88, 23,		/* Window 1 vertical begin */
-	0x89, 288 + 16,		/* Vertical lines in (16 lines
+	0x89, 288,		/* Vertical lines in (16 lines
 				 * skipped by the VFE) */
-	0x8a, 288 + 16,		/* Vertical lines out (16 lines
+	0x8a, 288,		/* Vertical lines out (16 lines
 				 * skipped by the VFE) */
 	0x8b, 16,		/* Horizontal begin */
 	0x8c, 768,		/* Horizontal length */
 	0x8d, 784, 		/* Number of pixels
 				 * Must be >= Horizontal begin + Horizontal length */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x177,		/* 13.5 MHz transport, Forced
+	0xf0, 0x77,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x3d1,		/* PAL B,G,H,I, composite input */
-	0xe7, 0x261,		/* PAL/SECAM set to 288 + 16 lines 
-				 * change to 0x241 for 288 lines */
+	0xe7, 0x241,		/* PAL/SECAM set to 288 lines */
 };
 
 static const unsigned short init_secam[] = {
-	0x88, 23  - 16,		/* Window 1 vertical begin */
-	0x89, 288 + 16,		/* Vertical lines in (16 lines
+	0x88, 23,		/* Window 1 vertical begin */
+	0x89, 288,		/* Vertical lines in (16 lines
 				 * skipped by the VFE) */
-	0x8a, 288 + 16,		/* Vertical lines out (16 lines
+	0x8a, 288,		/* Vertical lines out (16 lines
 				 * skipped by the VFE) */
 	0x8b, 16,		/* Horizontal begin */
 	0x8c, 768,		/* Horizontal length */
 	0x8d, 784,		/* Number of pixels
 				 * Must be >= Horizontal begin + Horizontal length */
 	0x8f, 0xc00,		/* Disable window 2 */
-	0xf0, 0x177,		/* 13.5 MHz transport, Forced
+	0xf0, 0x77,		/* 13.5 MHz transport, Forced
 				 * mode, latch windows */
 	0xf2, 0x3d5,		/* SECAM, composite input */
-	0xe7, 0x261,		/* PAL/SECAM set to 288 + 16 lines 
-				 * change to 0x241 for 288 lines */
+	0xe7, 0x241,		/* PAL/SECAM set to 288 lines */
 };
 
 static const unsigned char init_common[] = {
@@ -410,6 +408,12 @@ vpx3220_command (struct i2c_client *client,
 	case DECODER_SET_NORM:
 	{
 		int *iarg = arg, data;
+		int temp_input;
+
+		/* Here we back up the input selection because it gets
+		   overwritten when we fill the registers with the
+                   choosen video norm */
+		temp_input = vpx3220_fp_read(client, 0xf2);
 
 		dprintk(1, KERN_DEBUG "%s: DECODER_SET_NORM %d\n",
 			I2C_NAME(client), *iarg);
@@ -449,6 +453,10 @@ vpx3220_command (struct i2c_client *client,
 
 		}
 		decoder->norm = *iarg;
+
+		/* And here we set the backed up video input again */
+		vpx3220_fp_write(client, 0xf2, temp_input | 0x0010);
+		udelay(10);
 	}
 		break;
 
@@ -569,22 +577,13 @@ static unsigned short normal_i2c[] =
     { I2C_VPX3220 >> 1, (I2C_VPX3220 >> 1) + 4,
 	I2C_CLIENT_END
 };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
-static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
+static unsigned short ignore = I2C_CLIENT_END;
                                                                                 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
-	.normal_i2c_range	= normal_i2c_range,
-	.probe			= probe,
-	.probe_range		= probe_range,
-	.ignore			= ignore,
-	.ignore_range		= ignore_range,
-	.force			= force
+	.probe			= &ignore,
+	.ignore			= &ignore,
 };
 
 static struct i2c_driver vpx3220_i2c_driver;
@@ -622,17 +621,14 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 	    (adapter, I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == NULL) {
 		return -ENOMEM;
 	}
 
-	memset(client, 0, sizeof(struct i2c_client));
-
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &vpx3220_i2c_driver;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 
 	/* Check for manufacture ID and part number */
 	if (kind < 0) {
@@ -677,12 +673,11 @@ vpx3220_detect_client (struct i2c_adapter *adapter,
 			sizeof(I2C_NAME(client)));
 	}
 
-	decoder = kmalloc(sizeof(struct vpx3220), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct vpx3220));
 	decoder->norm = VIDEO_MODE_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -723,11 +718,11 @@ vpx3220_attach_adapter (struct i2c_adapter *adapter)
  */
 
 static struct i2c_driver vpx3220_i2c_driver = {
-	.owner = THIS_MODULE,
-	.name = "vpx3220",
+	.driver = {
+		.name = "vpx3220",
+	},
 
 	.id = I2C_DRIVERID_VPX3220,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = vpx3220_attach_adapter,
 	.detach_client = vpx3220_detach_client,

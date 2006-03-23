@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * generic helper functions for video4linux capture buffers, to handle
  * memory management and PCI DMA.  Right now bttv + saa7134 use it.
@@ -53,10 +52,9 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kmalloc(sizeof(struct scatterlist)*nr_pages, GFP_KERNEL);
+	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist,0,sizeof(struct scatterlist)*nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
@@ -81,10 +79,9 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 
 	if (NULL == pages[0])
 		return NULL;
-	sglist = kmalloc(sizeof(*sglist) * nr_pages, GFP_KERNEL);
+	sglist = kcalloc(nr_pages, sizeof(*sglist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
-	memset(sglist, 0, sizeof(*sglist) * nr_pages);
 
 	if (NULL == pages[0])
 		goto nopage;
@@ -148,7 +145,7 @@ int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 		data,size,dma->nr_pages);
 
 	down_read(&current->mm->mmap_sem);
-        err = get_user_pages(current,current->mm,
+	err = get_user_pages(current,current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
 			     rw == READ, 1, /* force */
 			     dma->pages, NULL);
@@ -268,10 +265,10 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 		kfree(dma->pages);
 		dma->pages = NULL;
 	}
-	if (dma->vmalloc) {
-		vfree(dma->vmalloc);
-		dma->vmalloc = NULL;
-	}
+
+	vfree(dma->vmalloc);
+	dma->vmalloc = NULL;
+
 	if (dma->bus_addr) {
 		dma->bus_addr = 0;
 	}
@@ -285,9 +282,8 @@ void* videobuf_alloc(unsigned int size)
 {
 	struct videobuf_buffer *vb;
 
-	vb = kmalloc(size,GFP_KERNEL);
+	vb = kzalloc(size,GFP_KERNEL);
 	if (NULL != vb) {
-		memset(vb,0,size);
 		videobuf_dma_init(&vb->dma);
 		init_waitqueue_head(&vb->done);
 		vb->magic     = MAGIC_BUFFER;
@@ -751,28 +747,27 @@ videobuf_read_zerocopy(struct videobuf_queue *q, char __user *data,
 {
 	enum v4l2_field field;
 	unsigned long flags;
-        int retval;
+	int retval;
 
-        /* setup stuff */
-	retval = -ENOMEM;
+	/* setup stuff */
 	q->read_buf = videobuf_alloc(q->msize);
 	if (NULL == q->read_buf)
-		goto done;
+		return -ENOMEM;
 
 	q->read_buf->memory = V4L2_MEMORY_USERPTR;
 	q->read_buf->baddr  = (unsigned long)data;
-        q->read_buf->bsize  = count;
+	q->read_buf->bsize  = count;
 	field = videobuf_next_field(q);
 	retval = q->ops->buf_prepare(q,q->read_buf,field);
 	if (0 != retval)
 		goto done;
 
-        /* start capture & wait */
+	/* start capture & wait */
 	spin_lock_irqsave(q->irqlock,flags);
 	q->ops->buf_queue(q,q->read_buf);
 	spin_unlock_irqrestore(q->irqlock,flags);
-        retval = videobuf_waiton(q->read_buf,0,0);
-        if (0 == retval) {
+	retval = videobuf_waiton(q->read_buf,0,0);
+	if (0 == retval) {
 		videobuf_dma_pci_sync(q->pci,&q->read_buf->dma);
 		if (STATE_ERROR == q->read_buf->state)
 			retval = -EIO;
@@ -818,10 +813,14 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 		if (NULL == q->read_buf)
 			goto done;
 		q->read_buf->memory = V4L2_MEMORY_USERPTR;
+		q->read_buf->bsize = count; /* preferred size */
 		field = videobuf_next_field(q);
 		retval = q->ops->buf_prepare(q,q->read_buf,field);
-		if (0 != retval)
+		if (0 != retval) {
+			kfree (q->read_buf);
+			q->read_buf = NULL;
 			goto done;
+		}
 		spin_lock_irqsave(q->irqlock,flags);
 		q->ops->buf_queue(q,q->read_buf);
 		spin_unlock_irqrestore(q->irqlock,flags);
@@ -829,7 +828,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	}
 
 	/* wait until capture is done */
-        retval = videobuf_waiton(q->read_buf, nonblocking, 1);
+	retval = videobuf_waiton(q->read_buf, nonblocking, 1);
 	if (0 != retval)
 		goto done;
 	videobuf_dma_pci_sync(q->pci,&q->read_buf->dma);
@@ -1097,7 +1096,7 @@ videobuf_vm_nopage(struct vm_area_struct *vma, unsigned long vaddr,
 
 	dprintk(3,"nopage: fault @ %08lx [vma %08lx-%08lx]\n",
 		vaddr,vma->vm_start,vma->vm_end);
-        if (vaddr > vma->vm_end)
+	if (vaddr > vma->vm_end)
 		return NOPAGE_SIGBUS;
 	page = alloc_page(GFP_USER);
 	if (!page)

@@ -18,7 +18,7 @@ enum av7110_bootstate
 {
 	BOOTSTATE_BUFFER_EMPTY	= 0,
 	BOOTSTATE_BUFFER_FULL	= 1,
-	BOOTSTATE_BOOT_COMPLETE	= 2
+	BOOTSTATE_AV7110_BOOT_COMPLETE	= 2
 };
 
 enum av7110_type_rec_play_format
@@ -143,7 +143,8 @@ enum av7110_audio_command {
 	MainSwitch,
 	ADSwitch,
 	SendDiSEqC,
-	SetRegister
+	SetRegister,
+	SpdifSwitch
 };
 
 enum av7110_request_command {
@@ -166,7 +167,8 @@ enum av7110_encoder_command {
 	LoadVidCode,
 	SetMonitorType,
 	SetPanScanType,
-	SetFreezeMode
+	SetFreezeMode,
+	SetWSSConfig
 };
 
 enum av7110_rec_play_state {
@@ -293,11 +295,11 @@ enum av7110_command_type {
 #define	DPRAM_BASE 0x4000
 
 /* boot protocol area */
-#define BOOT_STATE	(DPRAM_BASE + 0x3F8)
-#define BOOT_SIZE	(DPRAM_BASE + 0x3FA)
-#define BOOT_BASE	(DPRAM_BASE + 0x3FC)
-#define BOOT_BLOCK	(DPRAM_BASE + 0x400)
-#define BOOT_MAX_SIZE	0xc00
+#define AV7110_BOOT_STATE	(DPRAM_BASE + 0x3F8)
+#define AV7110_BOOT_SIZE	(DPRAM_BASE + 0x3FA)
+#define AV7110_BOOT_BASE	(DPRAM_BASE + 0x3FC)
+#define AV7110_BOOT_BLOCK	(DPRAM_BASE + 0x400)
+#define AV7110_BOOT_MAX_SIZE	0xc00
 
 /* firmware command protocol area */
 #define IRQ_STATE	(DPRAM_BASE + 0x0F4)
@@ -458,27 +460,27 @@ static inline int SendDAC(struct av7110 *av7110, u8 addr, u8 data)
 	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, AudioDAC, 2, addr, data);
 }
 
-static inline void av7710_set_video_mode(struct av7110 *av7110, int mode)
+static inline int av7710_set_video_mode(struct av7110 *av7110, int mode)
 {
-	av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetVidMode, 1, mode);
+	return av7110_fw_cmd(av7110, COMTYPE_ENCODER, SetVidMode, 1, mode);
 }
 
-static int inline vidcom(struct av7110 *av7110, u32 com, u32 arg)
+static inline int vidcom(struct av7110 *av7110, u32 com, u32 arg)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_VIDEO_COMMAND, 4,
 			     (com>>16), (com&0xffff),
 			     (arg>>16), (arg&0xffff));
 }
 
-static int inline audcom(struct av7110 *av7110, u32 com)
+static inline int audcom(struct av7110 *av7110, u32 com)
 {
 	return av7110_fw_cmd(av7110, COMTYPE_MISC, AV7110_FW_AUDIO_COMMAND, 2,
 			     (com>>16), (com&0xffff));
 }
 
-static inline void Set22K(struct av7110 *av7110, int state)
+static inline int Set22K(struct av7110 *av7110, int state)
 {
-	av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
+	return av7110_fw_cmd(av7110, COMTYPE_AUDIODAC, (state ? ON22K : OFF22K), 0);
 }
 
 

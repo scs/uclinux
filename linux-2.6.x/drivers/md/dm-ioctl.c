@@ -122,14 +122,6 @@ static struct hash_cell *__get_uuid_cell(const char *str)
 /*-----------------------------------------------------------------
  * Inserting, removing and renaming a device.
  *---------------------------------------------------------------*/
-static inline char *kstrdup(const char *str)
-{
-	char *r = kmalloc(strlen(str) + 1, GFP_KERNEL);
-	if (r)
-		strcpy(r, str);
-	return r;
-}
-
 static struct hash_cell *alloc_cell(const char *name, const char *uuid,
 				    struct mapped_device *md)
 {
@@ -139,7 +131,7 @@ static struct hash_cell *alloc_cell(const char *name, const char *uuid,
 	if (!hc)
 		return NULL;
 
-	hc->name = kstrdup(name);
+	hc->name = kstrdup(name, GFP_KERNEL);
 	if (!hc->name) {
 		kfree(hc);
 		return NULL;
@@ -149,7 +141,7 @@ static struct hash_cell *alloc_cell(const char *name, const char *uuid,
 		hc->uuid = NULL;
 
 	else {
-		hc->uuid = kstrdup(uuid);
+		hc->uuid = kstrdup(uuid, GFP_KERNEL);
 		if (!hc->uuid) {
 			kfree(hc->name);
 			kfree(hc);
@@ -238,11 +230,20 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 
 static void __hash_remove(struct hash_cell *hc)
 {
+	struct dm_table *table;
+
 	/* remove from the dev hash */
 	list_del(&hc->uuid_list);
 	list_del(&hc->name_list);
 	unregister_with_devfs(hc);
 	dm_set_mdptr(hc->md, NULL);
+
+	table = dm_get_table(hc->md);
+	if (table) {
+		dm_table_event(table);
+		dm_table_put(table);
+	}
+
 	dm_put(hc->md);
 	if (hc->new_map)
 		dm_table_put(hc->new_map);
@@ -269,11 +270,12 @@ static int dm_hash_rename(const char *old, const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
+	struct dm_table *table;
 
 	/*
 	 * duplicate new.
 	 */
-	new_name = kstrdup(new);
+	new_name = kstrdup(new, GFP_KERNEL);
 	if (!new_name)
 		return -ENOMEM;
 
@@ -315,6 +317,15 @@ static int dm_hash_rename(const char *old, const char *new)
 
 	/* rename the device node in devfs */
 	register_with_devfs(hc);
+
+	/*
+	 * Wake up any dm event waiters.
+	 */
+	table = dm_get_table(hc->md);
+	if (table) {
+		dm_table_event(table);
+		dm_table_put(table);
+	}
 
 	up_write(&_hash_lock);
 	kfree(old_name);
@@ -424,8 +435,8 @@ static void list_version_get_needed(struct target_type *tt, void *needed_param)
 {
     size_t *needed = needed_param;
 
+    *needed += sizeof(struct dm_target_versions);
     *needed += strlen(tt->name);
-    *needed += sizeof(tt->version);
     *needed += ALIGN_MASK;
 }
 
@@ -587,7 +598,7 @@ static int dev_create(struct dm_ioctl *param, size_t param_size)
 /*
  * Always use UUID for lookups if it's present, otherwise use name or dev.
  */
-static inline struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
+static struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 {
 	if (*param->uuid)
 		return __get_uuid_cell(param->uuid);
@@ -597,7 +608,7 @@ static inline struct hash_cell *__find_device_hash_cell(struct dm_ioctl *param)
 		return dm_get_mdptr(huge_decode_dev(param->dev));
 }
 
-static inline struct mapped_device *find_device(struct dm_ioctl *param)
+static struct mapped_device *find_device(struct dm_ioctl *param)
 {
 	struct hash_cell *hc;
 	struct mapped_device *md = NULL;
@@ -682,14 +693,18 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 static int do_suspend(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct mapped_device *md;
 
 	md = find_device(param);
 	if (!md)
 		return -ENXIO;
 
+	if (param->flags & DM_SKIP_LOCKFS_FLAG)
+		do_lockfs = 0;
+
 	if (!dm_suspended(md))
-		r = dm_suspend(md);
+		r = dm_suspend(md, do_lockfs);
 
 	if (!r)
 		r = __dev_status(md, param);
@@ -701,6 +716,7 @@ static int do_suspend(struct dm_ioctl *param)
 static int do_resume(struct dm_ioctl *param)
 {
 	int r = 0;
+	int do_lockfs = 1;
 	struct hash_cell *hc;
 	struct mapped_device *md;
 	struct dm_table *new_map;
@@ -726,8 +742,10 @@ static int do_resume(struct dm_ioctl *param)
 	/* Do we need to load a new map ? */
 	if (new_map) {
 		/* Suspend if it isn't already suspended */
+		if (param->flags & DM_SKIP_LOCKFS_FLAG)
+			do_lockfs = 0;
 		if (!dm_suspended(md))
-			dm_suspend(md);
+			dm_suspend(md, do_lockfs);
 
 		r = dm_swap_table(md, new_map);
 		if (r) {
@@ -973,6 +991,7 @@ static int table_load(struct dm_ioctl *param, size_t param_size)
 	if (!hc) {
 		DMWARN("device doesn't appear to be in the dev hash table.");
 		up_write(&_hash_lock);
+		dm_table_put(t);
 		return -ENXIO;
 	}
 
@@ -1340,16 +1359,11 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 	 * Copy the parameters into kernel space.
 	 */
 	r = copy_params(user, &param);
-	if (r) {
-		current->flags &= ~PF_MEMALLOC;
-		return r;
-	}
 
-	/*
-	 * FIXME: eventually we will remove the PF_MEMALLOC flag
-	 * here.  However the tools still do nasty things like
-	 * 'load' while a device is suspended.
-	 */
+	current->flags &= ~PF_MEMALLOC;
+
+	if (r)
+		return r;
 
 	r = validate_params(cmd, param);
 	if (r)
@@ -1367,7 +1381,6 @@ static int ctl_ioctl(struct inode *inode, struct file *file,
 
  out:
 	free_params(param);
-	current->flags &= ~PF_MEMALLOC;
 	return r;
 }
 

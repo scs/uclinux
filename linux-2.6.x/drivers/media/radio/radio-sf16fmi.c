@@ -18,7 +18,7 @@
 #include <linux/kernel.h>	/* __setup			*/
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
-#include <linux/ioport.h>	/* check_region, request_region	*/
+#include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
 #include <linux/videodev.h>	/* kernel radio structs		*/
 #include <linux/isapnp.h>
@@ -225,6 +225,7 @@ static struct file_operations fmi_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl		= fmi_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 

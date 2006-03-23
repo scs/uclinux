@@ -1,5 +1,4 @@
 /*
-    $Id$
 
     bttv - Bt848 frame grabber driver
 
@@ -27,7 +26,7 @@
 #define _BTTVP_H_
 
 #include <linux/version.h>
-#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,15)
+#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,16)
 
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -36,6 +35,7 @@
 #include <linux/videodev.h>
 #include <linux/pci.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 #include <asm/scatterlist.h>
 #include <asm/io.h>
 
@@ -45,6 +45,7 @@
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>
+
 
 #include "bt848.h"
 #include "bttv.h"
@@ -73,21 +74,26 @@
 
 #define UNSET (-1U)
 
+#define clamp(x, low, high) min (max (low, x), high)
+
 /* ---------------------------------------------------------- */
 
 struct bttv_tvnorm {
 	int   v4l2_id;
 	char  *name;
-        u32   Fsc;
-        u16   swidth, sheight; /* scaled standard width, height */
+	u32   Fsc;
+	u16   swidth, sheight; /* scaled standard width, height */
 	u16   totalwidth;
 	u8    adelay, bdelay, iform;
 	u32   scaledtwidth;
 	u16   hdelayx1, hactivex1;
 	u16   vdelay;
-        u8    vbipack;
+	u8    vbipack;
 	u16   vtotal;
 	int   sram;
+	/* ITU-R frame line number of the first VBI line we can
+	   capture, of the first and second field. */
+	u16   vbistart[2];
 };
 extern const struct bttv_tvnorm bttv_tvnorms[];
 
@@ -222,13 +228,9 @@ extern void bttv_gpio_tracking(struct bttv *btv, char *comment);
 extern int init_bttv_i2c(struct bttv *btv);
 extern int fini_bttv_i2c(struct bttv *btv);
 
-#define vprintk  if (bttv_verbose) printk
+#define bttv_printk if (bttv_verbose) printk
 #define dprintk  if (bttv_debug >= 1) printk
 #define d2printk if (bttv_debug >= 2) printk
-
-/* our devices */
-#define BTTV_MAX 16
-extern unsigned int bttv_num;
 
 #define BTTV_MAX_FBUF   0x208000
 #define VBIBUF_SIZE     (2048*VBI_MAXLINES*2)
@@ -245,7 +247,7 @@ struct bttv_pll_info {
 
 /* for gpio-connected remote control */
 struct bttv_input {
-	struct input_dev      dev;
+	struct input_dev      *dev;
 	struct ir_input_state ir;
 	char                  name[32];
 	char                  phys[32];
@@ -272,12 +274,14 @@ struct bttv {
 
 	/* card configuration info */
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
-        unsigned int tuner_type;  /* tuner chip type */
-        unsigned int pinnacle_id;
+	unsigned int tuner_type;  /* tuner chip type */
+	unsigned int tda9887_conf;
 	unsigned int svhs;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
+	int (*custom_irq)(struct bttv *btv);
+
 	int use_i2c_hw;
 
 	/* old gpio interface */
@@ -302,13 +306,13 @@ struct bttv {
 
 	/* infrared remote */
 	int has_remote;
-	struct bttv_input *remote;
+	struct bttv_ir *remote;
 
 	/* locking */
 	spinlock_t s_lock;
-        struct semaphore lock;
+	struct mutex lock;
 	int resources;
-        struct semaphore reslock;
+	struct mutex reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif
@@ -330,6 +334,9 @@ struct bttv {
 	int opt_vcr_hack;
 	int opt_whitecrush_upper;
 	int opt_whitecrush_lower;
+	int opt_uv_ratio;
+	int opt_full_luma_range;
+	int opt_coring;
 
 	/* radio data/state */
 	int has_radio;
@@ -375,6 +382,10 @@ struct bttv {
 	unsigned int users;
 	struct bttv_fh init;
 };
+
+/* our devices */
+#define BTTV_MAX 16
+extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 
 /* private ioctls */

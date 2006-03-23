@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * some helper function for simple DVB cards which simply DMA the
  * complete transport stream and let the computer sort everything else
@@ -13,6 +12,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
+
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -62,8 +62,7 @@ static int videobuf_dvb_thread(void *data)
 			break;
 		if (kthread_should_stop())
 			break;
-		if (current->flags & PF_FREEZE)
-			refrigerator(PF_FREEZE);
+		try_to_freeze();
 
 		/* feed buffer data to demux */
 		if (buf->state == STATE_DONE)
@@ -249,3 +248,4 @@ EXPORT_SYMBOL(videobuf_dvb_unregister);
  * compile-command: "make DVB=1"
  * End:
  */
+

@@ -43,7 +43,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/sched.h>
-#include <asm/segment.h>
 #include <linux/types.h>
 
 #include <linux/videodev.h>
@@ -384,22 +383,13 @@ static unsigned short normal_i2c[] =
 	I2C_ADV7171 >> 1, (I2C_ADV7171 >> 1) + 1,
 	I2C_CLIENT_END
 };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
-static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
+static unsigned short ignore = I2C_CLIENT_END;
                                                                                 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
-	.normal_i2c_range	= normal_i2c_range,
-	.probe			= probe,
-	.probe_range		= probe_range,
-	.ignore			= ignore,
-	.ignore_range		= ignore_range,
-	.force			= force
+	.probe			= &ignore,
+	.ignore			= &ignore,
 };
 
 static struct i2c_driver i2c_driver_adv7170;
@@ -423,14 +413,12 @@ adv7170_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_adv7170;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 	if ((client->addr == I2C_ADV7170 >> 1) ||
 	    (client->addr == (I2C_ADV7170 >> 1) + 1)) {
 		dname = adv7170_name;
@@ -444,12 +432,11 @@ adv7170_detect_client (struct i2c_adapter *adapter,
 	}
 	strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
 
-	encoder = kmalloc(sizeof(struct adv7170), GFP_KERNEL);
+	encoder = kzalloc(sizeof(struct adv7170), GFP_KERNEL);
 	if (encoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(encoder, 0, sizeof(struct adv7170));
 	encoder->norm = VIDEO_MODE_NTSC;
 	encoder->input = 0;
 	encoder->enable = 1;
@@ -508,11 +495,11 @@ adv7170_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_adv7170 = {
-	.owner = THIS_MODULE,
-	.name = "adv7170",	/* name */
+	.driver = {
+		.name = "adv7170",	/* name */
+	},
 
 	.id = I2C_DRIVERID_ADV7170,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = adv7170_attach_adapter,
 	.detach_client = adv7170_detach_client,

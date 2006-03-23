@@ -31,7 +31,7 @@
 
 #include <linux/module.h>	/* Modules                        */
 #include <linux/init.h>		/* Initdata                       */
-#include <linux/ioport.h>	/* check_region, request_region   */
+#include <linux/ioport.h>	/* request_region		  */
 #include <linux/proc_fs.h>	/* radio card status report	  */
 #include <asm/io.h>		/* outb, outb_p                   */
 #include <asm/uaccess.h>	/* copy to/from user              */
@@ -261,6 +261,7 @@ static struct file_operations typhoon_fops = {
 	.open           = video_exclusive_open,
 	.release        = video_exclusive_release,
 	.ioctl		= typhoon_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.llseek         = no_llseek,
 };
 

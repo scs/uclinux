@@ -36,14 +36,13 @@ static int debug = 0;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-            do { if (debug) { printk("%s: %s()[%d]: ",__stringify(KBUILD_MODNAME), __FUNCTION__, __LINE__); printk(args); } } while (0)
+            do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
 
 #define TEA6415C_NUM_INPUTS	8
 #define TEA6415C_NUM_OUTPUTS	6
 
 /* addresses to scan, found only at 0x03 and/or 0x43 (7-bit) */
 static unsigned short normal_i2c[] = { I2C_TEA6415C_1, I2C_TEA6415C_2, I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 /* magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;
@@ -87,7 +86,7 @@ static int detect(struct i2c_adapter *adapter, int address, int kind)
 static int attach(struct i2c_adapter *adapter)
 {
 	/* let's see whether this is a know adapter we can attach to */
-	if (adapter->id != I2C_ALGO_SAA7146) {
+	if (adapter->id != I2C_HW_SAA7146) {
 		dprintk("refusing to probe on unknown adapter [name='%s',id=0x%x]\n", adapter->name, adapter->id);
 		return -ENODEV;
 	}
@@ -191,17 +190,17 @@ static int command(struct i2c_client *client, unsigned int cmd, void *arg)
 }
 
 static struct i2c_driver driver = {
-	.owner	= THIS_MODULE,
-	.name 	= "tea6415c",
+	.driver = {
+		.name 	= "tea6415c",
+	},
 	.id 	= I2C_DRIVERID_TEA6415C,
-	.flags 	= I2C_DF_NOTIFY,
 	.attach_adapter	= attach,
 	.detach_client	= detach,
 	.command	= command,
 };
 
 static struct i2c_client client_template = {
-	I2C_DEVNAME("tea6415c"),
+	.name = "tea6415c",
 	.driver = &driver,
 };
 

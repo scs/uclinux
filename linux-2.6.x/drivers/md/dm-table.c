@@ -508,7 +508,7 @@ int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
 		if (q->merge_bvec_fn)
 			rs->max_sectors =
 				min_not_zero(rs->max_sectors,
-					     (unsigned short)(PAGE_SIZE >> 9));
+					     (unsigned int) (PAGE_SIZE >> 9));
 
 		rs->max_phys_segments =
 			min_not_zero(rs->max_phys_segments,
@@ -638,7 +638,7 @@ int dm_split_args(int *argc, char ***argvp, char *input)
 static void check_for_valid_limits(struct io_restrictions *rs)
 {
 	if (!rs->max_sectors)
-		rs->max_sectors = MAX_SECTORS;
+		rs->max_sectors = SAFE_MAX_SECTORS;
 	if (!rs->max_phys_segments)
 		rs->max_phys_segments = MAX_PHYS_SEGMENTS;
 	if (!rs->max_hw_segments)
@@ -869,11 +869,17 @@ static void suspend_targets(struct dm_table *t, unsigned postsuspend)
 
 void dm_table_presuspend_targets(struct dm_table *t)
 {
+	if (!t)
+		return;
+
 	return suspend_targets(t, 0);
 }
 
 void dm_table_postsuspend_targets(struct dm_table *t)
 {
+	if (!t)
+		return;
+
 	return suspend_targets(t, 1);
 }
 
@@ -943,6 +949,7 @@ EXPORT_SYMBOL(dm_vcalloc);
 EXPORT_SYMBOL(dm_get_device);
 EXPORT_SYMBOL(dm_put_device);
 EXPORT_SYMBOL(dm_table_event);
+EXPORT_SYMBOL(dm_table_get_size);
 EXPORT_SYMBOL(dm_table_get_mode);
 EXPORT_SYMBOL(dm_table_put);
 EXPORT_SYMBOL(dm_table_get);

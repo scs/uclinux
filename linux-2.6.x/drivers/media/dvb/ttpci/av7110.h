@@ -98,7 +98,8 @@ struct av7110 {
 	int adac_type;	       /* audio DAC type */
 #define DVB_ADAC_TI	  0
 #define DVB_ADAC_CRYSTAL  1
-#define DVB_ADAC_MSP	  2
+#define DVB_ADAC_MSP34x0  2
+#define DVB_ADAC_MSP34x5  3
 #define DVB_ADAC_NONE	 -1
 
 
@@ -119,8 +120,7 @@ struct av7110 {
 	volatile int		bmp_state;
 #define BMP_NONE     0
 #define BMP_LOADING  1
-#define BMP_LOADINGS 2
-#define BMP_LOADED   3
+#define BMP_LOADED   2
 	wait_queue_head_t	bmpq;
 
 
@@ -229,7 +229,13 @@ struct av7110 {
 	struct dvb_video_events  video_events;
 	video_size_t		 video_size;
 
-	u32		    ir_config;
+	u16			wssMode;
+	u16			wssData;
+
+	u32			ir_config;
+	u32			ir_command;
+	void			(*ir_handler)(struct av7110 *av7110, u32 ircom);
+	struct tasklet_struct	ir_tasklet;
 
 	/* firmware stuff */
 	unsigned char *bin_fw;
@@ -243,6 +249,15 @@ struct av7110 {
 
 	struct dvb_frontend* fe;
 	fe_status_t fe_status;
+
+	/* crash recovery */
+	void				(*recover)(struct av7110* av7110);
+	struct dvb_frontend_parameters	saved_fe_params;
+	fe_sec_voltage_t		saved_voltage;
+	fe_sec_tone_mode_t		saved_tone;
+	struct dvb_diseqc_master_cmd	saved_master_cmd;
+	fe_sec_mini_cmd_t		saved_minicmd;
+
 	int (*fe_init)(struct dvb_frontend* fe);
 	int (*fe_read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*fe_diseqc_reset_overload)(struct dvb_frontend* fe);
@@ -250,20 +265,16 @@ struct av7110 {
 	int (*fe_diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
 	int (*fe_set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
 	int (*fe_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*fe_dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
 	int (*fe_set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 };
 
 
-extern void ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
+extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
 		       u16 subpid, u16 pcrpid);
 
-extern void av7110_register_irc_handler(void (*func)(u32));
-extern void av7110_unregister_irc_handler(void (*func)(u32));
-extern void av7110_setup_irc_config (struct av7110 *av7110, u32 ir_config);
-
-extern int av7110_ir_init (void);
-extern void av7110_ir_exit (void);
+extern int av7110_ir_init(struct av7110 *av7110);
+extern void av7110_ir_exit(struct av7110 *av7110);
 
 /* msp3400 i2c subaddresses */
 #define MSP_WR_DEM 0x10

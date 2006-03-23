@@ -34,7 +34,7 @@ static int debug = 0;		/* insmod parameter */
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 #define dprintk(args...) \
-            do { if (debug) { printk("%s: %s()[%d]: ",__stringify(KBUILD_MODNAME), __FUNCTION__, __LINE__); printk(args); } } while (0)
+            do { if (debug) { printk("%s: %s()[%d]: ", KBUILD_MODNAME, __FUNCTION__, __LINE__); printk(args); } } while (0)
 
 #define	SWITCH		0x00
 #define	LEVEL_ADJUST	0x02
@@ -43,7 +43,6 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 
 /* addresses to scan, found only at 0x42 (7-Bit) */
 static unsigned short normal_i2c[] = { I2C_TDA9840, I2C_CLIENT_END };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 /* magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;
@@ -206,7 +205,7 @@ static int detect(struct i2c_adapter *adapter, int address, int kind)
 static int attach(struct i2c_adapter *adapter)
 {
 	/* let's see whether this is a know adapter we can attach to */
-	if (adapter->id != I2C_ALGO_SAA7146) {
+	if (adapter->id != I2C_HW_SAA7146) {
 		dprintk("refusing to probe on unknown adapter [name='%s',id=0x%x]\n", adapter->name, adapter->id);
 		return -ENODEV;
 	}
@@ -222,17 +221,17 @@ static int detach(struct i2c_client *client)
 }
 
 static struct i2c_driver driver = {
-	.owner	= THIS_MODULE,
-	.name	= "tda9840",
+	.driver = {
+		.name	= "tda9840",
+	},
 	.id	= I2C_DRIVERID_TDA9840,
-	.flags	= I2C_DF_NOTIFY,
 	.attach_adapter	= attach,
 	.detach_client	= detach,
 	.command	= command,
 };
 
 static struct i2c_client client_template = {
-	I2C_DEVNAME("tda9840"),
+	.name = "tda9840",
 	.driver = &driver,
 };
 

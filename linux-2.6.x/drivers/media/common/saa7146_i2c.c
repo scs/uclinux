@@ -1,4 +1,3 @@
-#include <linux/version.h>
 #include <media/saa7146_vv.h>
 
 static u32 saa7146_i2c_func(struct i2c_adapter *adapter)
@@ -277,8 +276,8 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 	int i = 0, count = 0;
 	u32* buffer = dev->d_i2c.cpu_addr;
 	int err = 0;
-        int address_err = 0;
-        int short_delay = 0;
+	int address_err = 0;
+	int short_delay = 0;
 
 	if (down_interruptible (&dev->i2c_lock))
 		return -ERESTARTSYS;
@@ -326,7 +325,7 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 					if( 0 != (SAA7146_USE_I2C_IRQ & dev->ext->flags)) {
 						goto out;
 					}
-				        address_err++;
+					address_err++;
 				}
 				DEB_I2C(("error while sending message(s). starting again.\n"));
 				break;
@@ -337,14 +336,14 @@ int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *msgs, in
 			break;
 		}
 
-	        /* delay a bit before retrying */
-	        msleep(10);
+		/* delay a bit before retrying */
+		msleep(10);
 
 	} while (err != num && retries--);
 
-        /* if every retry had an address error, exit right away */
-        if (address_err == retries) {
-	        goto out;
+	/* if every retry had an address error, exit right away */
+	if (address_err == retries) {
+		goto out;
 	}
 
 	/* if any things had to be read, get the results */
@@ -387,8 +386,6 @@ static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, in
 
 /* exported algorithm data */
 static struct i2c_algorithm saa7146_algo = {
-	.name		= "saa7146 i2c algorithm",
-	.id		= I2C_ALGO_SAA7146,
 	.master_xfer	= saa7146_i2c_xfer,
 	.functionality	= saa7146_i2c_func,
 };
@@ -404,15 +401,12 @@ int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c
 	saa7146_i2c_reset(dev);
 
 	if( NULL != i2c_adapter ) {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-		i2c_adapter->data = dev;
-#else
 		BUG_ON(!i2c_adapter->class);
 		i2c_set_adapdata(i2c_adapter,dev);
-#endif
+		i2c_adapter->dev.parent    = &dev->pci->dev;
 		i2c_adapter->algo	   = &saa7146_algo;
 		i2c_adapter->algo_data     = NULL;
-		i2c_adapter->id		   = I2C_ALGO_SAA7146;
+		i2c_adapter->id		   = I2C_HW_SAA7146;
 		i2c_adapter->timeout = SAA7146_I2C_TIMEOUT;
 		i2c_adapter->retries = SAA7146_I2C_RETRIES;
 	}

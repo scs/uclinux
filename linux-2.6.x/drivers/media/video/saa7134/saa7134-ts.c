@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -47,16 +46,10 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *buf,
 			   struct saa7134_buf *next)
 {
-	u32 control;
 
 	dprintk("buffer_activate [%p]",buf);
 	buf->vb.state = STATE_ACTIVE;
 	buf->top_seen = 0;
-
-        /* dma: setup channel 5 (= TS) */
-        control = SAA7134_RS_CONTROL_BURST_16 |
-                SAA7134_RS_CONTROL_ME |
-                (buf->pt->dma >> 12);
 
 	if (NULL == next)
 		next = buf;
@@ -69,8 +62,6 @@ static int buffer_activate(struct saa7134_dev *dev,
 		saa_writel(SAA7134_RS_BA1(5),saa7134_buffer_base(next));
 		saa_writel(SAA7134_RS_BA2(5),saa7134_buffer_base(buf));
 	}
-	saa_writel(SAA7134_RS_PITCH(5),TS_PACKET_SIZE);
-	saa_writel(SAA7134_RS_CONTROL(5),control);
 
 	/* start DMA */
 	saa7134_set_dmabits(dev);
@@ -85,6 +76,7 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct saa7134_dev *dev = q->priv_data;
 	struct saa7134_buf *buf = container_of(vb,struct saa7134_buf,vb);
 	unsigned int lines, llength, size;
+	u32 control;
 	int err;
 
 	dprintk("buffer_prepare [%p,%s]\n",buf,v4l2_field_names[field]);
@@ -116,6 +108,18 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		if (err)
 			goto oops;
 	}
+
+	/* dma: setup channel 5 (= TS) */
+	control = SAA7134_RS_CONTROL_BURST_16 |
+		  SAA7134_RS_CONTROL_ME |
+		  (buf->pt->dma >> 12);
+
+	saa_writeb(SAA7134_TS_DMA0, ((lines-1)&0xff));
+	saa_writeb(SAA7134_TS_DMA1, (((lines-1)>>8)&0xff));
+	saa_writeb(SAA7134_TS_DMA2, ((((lines-1)>>16)&0x3f) | 0x00)); /* TSNOPIT=0, TSCOLAP=0 */
+	saa_writel(SAA7134_RS_PITCH(5),TS_PACKET_SIZE);
+	saa_writel(SAA7134_RS_CONTROL(5),control);
+
 	buf->vb.state = STATE_PREPARED;
 	buf->activate = buffer_activate;
 	buf->vb.field = field;
@@ -165,11 +169,11 @@ EXPORT_SYMBOL_GPL(saa7134_ts_qops);
 /* ----------------------------------------------------------- */
 /* exported stuff                                              */
 
-static unsigned int tsbufs = 4;
+static unsigned int tsbufs = 8;
 module_param(tsbufs, int, 0444);
 MODULE_PARM_DESC(tsbufs,"number of ts buffers, range 2-32");
 
-static unsigned int ts_nr_packets = 30;
+static unsigned int ts_nr_packets = 64;
 module_param(ts_nr_packets, int, 0444);
 MODULE_PARM_DESC(ts_nr_packets,"size of a ts buffers (in ts packets)");
 

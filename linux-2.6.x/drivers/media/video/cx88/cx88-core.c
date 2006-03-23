@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * device driver for Conexant 2388x based TV cards
  * driver core
@@ -32,9 +31,11 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
+#include <linux/mutex.h>
 
 #include "cx88.h"
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
@@ -51,12 +52,15 @@ module_param(latency,int,0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
 static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
+static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 static unsigned int card[]  = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(tuner, int, NULL, 0444);
+module_param_array(radio, int, NULL, 0444);
 module_param_array(card,  int, NULL, 0444);
 
 MODULE_PARM_DESC(tuner,"tuner type");
+MODULE_PARM_DESC(radio,"radio tuner type");
 MODULE_PARM_DESC(card,"card type");
 
 static unsigned int nicam = 0;
@@ -72,62 +76,8 @@ MODULE_PARM_DESC(nocomb,"disable comb filter");
 
 static unsigned int cx88_devcount;
 static LIST_HEAD(cx88_devlist);
-static DECLARE_MUTEX(devlist);
+static DEFINE_MUTEX(devlist);
 
-/* ------------------------------------------------------------------ */
-/* debug help functions                                               */
-
-static const char *v4l1_ioctls[] = {
-	"0", "CGAP", "GCHAN", "SCHAN", "GTUNER", "STUNER", "GPICT", "SPICT",
-	"CCAPTURE", "GWIN", "SWIN", "GFBUF", "SFBUF", "KEY", "GFREQ",
-	"SFREQ", "GAUDIO", "SAUDIO", "SYNC", "MCAPTURE", "GMBUF", "GUNIT",
-	"GCAPTURE", "SCAPTURE", "SPLAYMODE", "SWRITEMODE", "GPLAYINFO",
-	"SMICROCODE", "GVBIFMT", "SVBIFMT" };
-#define V4L1_IOCTLS ARRAY_SIZE(v4l1_ioctls)
-
-static const char *v4l2_ioctls[] = {
-	"QUERYCAP", "1", "ENUM_PIXFMT", "ENUM_FBUFFMT", "G_FMT", "S_FMT",
-	"G_COMP", "S_COMP", "REQBUFS", "QUERYBUF", "G_FBUF", "S_FBUF",
-	"G_WIN", "S_WIN", "PREVIEW", "QBUF", "16", "DQBUF", "STREAMON",
-	"STREAMOFF", "G_PERF", "G_PARM", "S_PARM", "G_STD", "S_STD",
-	"ENUMSTD", "ENUMINPUT", "G_CTRL", "S_CTRL", "G_TUNER", "S_TUNER",
-	"G_FREQ", "S_FREQ", "G_AUDIO", "S_AUDIO", "35", "QUERYCTRL",
-	"QUERYMENU", "G_INPUT", "S_INPUT", "ENUMCVT", "41", "42", "43",
-	"44", "45",  "G_OUTPUT", "S_OUTPUT", "ENUMOUTPUT", "G_AUDOUT",
-	"S_AUDOUT", "ENUMFX", "G_EFFECT", "S_EFFECT", "G_MODULATOR",
-	"S_MODULATOR"
-};
-#define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
-
-void cx88_print_ioctl(char *name, unsigned int cmd)
-{
-	char *dir;
-
-	switch (_IOC_DIR(cmd)) {
-	case _IOC_NONE:              dir = "--"; break;
-	case _IOC_READ:              dir = "r-"; break;
-	case _IOC_WRITE:             dir = "-w"; break;
-	case _IOC_READ | _IOC_WRITE: dir = "rw"; break;
-	default:                     dir = "??"; break;
-	}
-	switch (_IOC_TYPE(cmd)) {
-	case 'v':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l1, %s, VIDIOC%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L1_IOCTLS) ?
-		       v4l1_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	case 'V':
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (v4l2, %s, VIDIOC_%s)\n",
-		       name, cmd, dir, (_IOC_NR(cmd) < V4L2_IOCTLS) ?
-		       v4l2_ioctls[_IOC_NR(cmd)] : "???");
-		break;
-	default:
-		printk(KERN_DEBUG "%s: ioctl 0x%08x (???, %s, #%d)\n",
-		       name, cmd, dir, _IOC_NR(cmd));
-	}
-}
-
-/* ------------------------------------------------------------------ */
 #define NO_SYNC_LINE (-1U)
 
 static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
@@ -151,26 +101,26 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 		}
 		if (bpl <= sg_dma_len(sg)-offset) {
 			/* fits into current chunk */
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|RISC_EOL|bpl);
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        offset+=bpl;
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|RISC_EOL|bpl);
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			offset+=bpl;
 		} else {
 			/* scanline needs to be splitted */
-                        todo = bpl;
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
+			todo = bpl;
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
 					    (sg_dma_len(sg)-offset));
-                        *(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
-                        todo -= (sg_dma_len(sg)-offset);
-                        offset = 0;
-                        sg++;
-                        while (todo > sg_dma_len(sg)) {
-                                *(rp++)=cpu_to_le32(RISC_WRITE|
+			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
+			todo -= (sg_dma_len(sg)-offset);
+			offset = 0;
+			sg++;
+			while (todo > sg_dma_len(sg)) {
+				*(rp++)=cpu_to_le32(RISC_WRITE|
 						    sg_dma_len(sg));
-                                *(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg++;
 			}
-                        *(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
+			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_EOL|todo);
 			*(rp++)=cpu_to_le32(sg_dma_address(sg));
 			offset += todo;
 		}
@@ -289,9 +239,9 @@ cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
  *    channel  22    (u video)  -  2.0k
  *    channel  23    (v video)  -  2.0k
  *    channel  24    (vbi)      -  4.0k
- *    channels 25+26 (audio)    -  0.5k
+ *    channels 25+26 (audio)    -  4.0k
  *    channel  28    (mpeg)     -  4.0k
- *    TOTAL                     = 25.5k
+ *    TOTAL                     = 29.0k
  *
  * Every channel has 160 bytes control data (64 bytes instruction
  * queue and 6 CDT entries), which is close to 2k total.
@@ -307,7 +257,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video y / packed",
 		.cmds_start = 0x180040,
 		.ctrl_start = 0x180400,
-	        .cdt        = 0x180400 + 64,
+		.cdt        = 0x180400 + 64,
 		.fifo_start = 0x180c00,
 		.fifo_size  = 0x002800,
 		.ptr1_reg   = MO_DMA21_PTR1,
@@ -319,7 +269,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video u",
 		.cmds_start = 0x180080,
 		.ctrl_start = 0x1804a0,
-	        .cdt        = 0x1804a0 + 64,
+		.cdt        = 0x1804a0 + 64,
 		.fifo_start = 0x183400,
 		.fifo_size  = 0x000800,
 		.ptr1_reg   = MO_DMA22_PTR1,
@@ -331,7 +281,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "video v",
 		.cmds_start = 0x1800c0,
 		.ctrl_start = 0x180540,
-	        .cdt        = 0x180540 + 64,
+		.cdt        = 0x180540 + 64,
 		.fifo_start = 0x183c00,
 		.fifo_size  = 0x000800,
 		.ptr1_reg   = MO_DMA23_PTR1,
@@ -343,7 +293,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "vbi",
 		.cmds_start = 0x180100,
 		.ctrl_start = 0x1805e0,
-	        .cdt        = 0x1805e0 + 64,
+		.cdt        = 0x1805e0 + 64,
 		.fifo_start = 0x184400,
 		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA24_PTR1,
@@ -355,9 +305,9 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "audio from",
 		.cmds_start = 0x180140,
 		.ctrl_start = 0x180680,
-	        .cdt        = 0x180680 + 64,
+		.cdt        = 0x180680 + 64,
 		.fifo_start = 0x185400,
-		.fifo_size  = 0x000200,
+		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA25_PTR1,
 		.ptr2_reg   = MO_DMA25_PTR2,
 		.cnt1_reg   = MO_DMA25_CNT1,
@@ -367,9 +317,9 @@ struct sram_channel cx88_sram_channels[] = {
 		.name       = "audio to",
 		.cmds_start = 0x180180,
 		.ctrl_start = 0x180720,
-	        .cdt        = 0x180680 + 64,  /* same as audio IN */
+		.cdt        = 0x180680 + 64,  /* same as audio IN */
 		.fifo_start = 0x185400,       /* same as audio IN */
-		.fifo_size  = 0x000200,       /* same as audio IN */
+		.fifo_size  = 0x001000,       /* same as audio IN */
 		.ptr1_reg   = MO_DMA26_PTR1,
 		.ptr2_reg   = MO_DMA26_PTR2,
 		.cnt1_reg   = MO_DMA26_CNT1,
@@ -380,7 +330,7 @@ struct sram_channel cx88_sram_channels[] = {
 		.cmds_start = 0x180200,
 		.ctrl_start = 0x1807C0,
 		.cdt        = 0x1807C0 + 64,
-		.fifo_start = 0x185600,
+		.fifo_start = 0x186400,
 		.fifo_size  = 0x001000,
 		.ptr1_reg   = MO_DMA28_PTR1,
 		.ptr2_reg   = MO_DMA28_PTR2,
@@ -467,25 +417,6 @@ static int cx88_risc_decode(u32 risc)
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
-#if 0 /* currently unused, but useful for debugging */
-void cx88_risc_disasm(struct cx88_core *core,
-		      struct btcx_riscmem *risc)
-{
-	unsigned int i,j,n;
-
-	printk("%s: risc disasm: %p [dma=0x%08lx]\n",
-	       core->name, risc->cpu, (unsigned long)risc->dma);
-	for (i = 0; i < (risc->size >> 2); i += n) {
-		printk("%s:   %04d: ", core->name, i);
-		n = cx88_risc_decode(risc->cpu[i]);
-		for (j = 1; j < n; j++)
-			printk("%s:   %04d: 0x%08x [ arg #%d ]\n",
-			       core->name, i+j, risc->cpu[i+j], j);
-		if (risc->cpu[i] == RISC_JUMP)
-			break;
-	}
-}
-#endif
 
 void cx88_sram_channel_dump(struct cx88_core *core,
 			    struct sram_channel *ch)
@@ -548,21 +479,6 @@ static char *cx88_pci_irqs[32] = {
 	"brdg_err", "src_dma_err", "dst_dma_err", "ipb_dma_err",
 	"i2c", "i2c_rack", "ir_smp", "gpio0", "gpio1"
 };
-char *cx88_vid_irqs[32] = {
-	"y_risci1", "u_risci1", "v_risci1", "vbi_risc1",
-	"y_risci2", "u_risci2", "v_risci2", "vbi_risc2",
-	"y_oflow",  "u_oflow",  "v_oflow",  "vbi_oflow",
-	"y_sync",   "u_sync",   "v_sync",   "vbi_sync",
-	"opc_err",  "par_err",  "rip_err",  "pci_abort",
-};
-char *cx88_mpeg_irqs[32] = {
-	"ts_risci1", NULL, NULL, NULL,
-	"ts_risci2", NULL, NULL, NULL,
-	"ts_oflow",  NULL, NULL, NULL,
-	"ts_sync",   NULL, NULL, NULL,
-	"opc_err", "par_err", "rip_err", "pci_abort",
-	"ts_err?",
-};
 
 void cx88_print_irqbits(char *name, char *tag, char **strings,
 			u32 bits, u32 mask)
@@ -612,16 +528,11 @@ void cx88_wakeup(struct cx88_core *core,
 			break;
 		buf = list_entry(q->active.next,
 				 struct cx88_buffer, vb.queue);
-#if 0
-		if (buf->count > count)
-			break;
-#else
 		/* count comes from the hw and is is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
 		 * up to 32767 buffers in flight... */
 		if ((s16) (count - buf->count) < 0)
 			break;
-#endif
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
 			count, buf->count);
@@ -736,6 +647,10 @@ static unsigned int inline norm_fsc8(struct cx88_tvnorm *norm)
 {
 	static const unsigned int ntsc = 28636360;
 	static const unsigned int pal  = 35468950;
+	static const unsigned int palm  = 28604892;
+
+	if (norm->id & V4L2_STD_PAL_M)
+		return palm;
 
 	return (norm->id & V4L2_STD_625_50) ? pal : ntsc;
 }
@@ -749,6 +664,11 @@ static unsigned int inline norm_notchfilter(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 {
+	/* Should always be Line Draw Time / (4*FSC) */
+
+	if (norm->id & V4L2_STD_PAL_M)
+		return 909;
+
 	return (norm->id & V4L2_STD_625_50) ? 1135 : 910;
 }
 
@@ -865,6 +785,30 @@ static int set_pll(struct cx88_core *core, int prescale, u32 ofreq)
 	return -1;
 }
 
+int cx88_start_audio_dma(struct cx88_core *core)
+{
+	/* constant 128 made buzz in analog Nicam-stereo for bigger fifo_size */
+	int bpl = cx88_sram_channels[SRAM_CH25].fifo_size/4;
+	/* setup fifo + format */
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH25], bpl, 0);
+	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH26], bpl, 0);
+
+	cx_write(MO_AUDD_LNGTH, bpl); /* fifo bpl size */
+	cx_write(MO_AUDR_LNGTH, bpl); /* fifo bpl size */
+
+	/* start dma */
+	cx_write(MO_AUD_DMACNTRL, 0x0003); /* Up and Down fifo enable */
+	return 0;
+}
+
+int cx88_stop_audio_dma(struct cx88_core *core)
+{
+	/* stop dma */
+	cx_write(MO_AUD_DMACNTRL, 0x0000);
+
+	return 0;
+}
+
 static int set_tvaudio(struct cx88_core *core)
 {
 	struct cx88_tvnorm *norm = core->tvnorm;
@@ -873,19 +817,19 @@ static int set_tvaudio(struct cx88_core *core)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_BG;
+		core->tvaudio = WW_BG;
 
 	} else if (V4L2_STD_PAL_DK & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if (V4L2_STD_PAL_I & norm->id) {
-		core->tvaudio = WW_NICAM_I;
+		core->tvaudio = WW_I;
 
 	} else if (V4L2_STD_SECAM_L & norm->id) {
-		core->tvaudio = WW_SYSTEM_L_AM;
+		core->tvaudio = WW_L;
 
 	} else if (V4L2_STD_SECAM_DK & norm->id) {
-		core->tvaudio = WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if ((V4L2_STD_NTSC_M & norm->id) ||
 		   (V4L2_STD_PAL_M  & norm->id)) {
@@ -903,13 +847,17 @@ static int set_tvaudio(struct cx88_core *core)
 
 	cx_andor(MO_AFECFG_IO, 0x1f, 0x0);
 	cx88_set_tvaudio(core);
-	// cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO);
+	/* cx88_set_stereo(dev,V4L2_TUNER_MODE_STEREO); */
 
-	cx_write(MO_AUDD_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUDR_LNGTH,    128); /* fifo size */
-	cx_write(MO_AUD_DMACNTRL, 0x03); /* need audio fifo */
+/*
+   This should be needed only on cx88-alsa. It seems that some cx88 chips have
+   bugs and does require DMA enabled for it to work.
+ */
+	cx88_start_audio_dma(core);
 	return 0;
 }
+
+
 
 int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 {
@@ -940,12 +888,10 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 		norm->cxiformat, cx_read(MO_INPUT_FORMAT) & 0x0f);
 	cx_andor(MO_INPUT_FORMAT, 0xf, norm->cxiformat);
 
-#if 1
 	// FIXME: as-is from DScaler
 	dprintk(1,"set_tvnorm: MO_OUTPUT_FORMAT 0x%08x [old=0x%08x]\n",
 		norm->cxoformat, cx_read(MO_OUTPUT_FORMAT));
 	cx_write(MO_OUTPUT_FORMAT, norm->cxoformat);
-#endif
 
 	// MO_SCONV_REG = adc clock / video dec clock * 2^17
 	tmp64  = adc_clock * (u64)(1 << 17);
@@ -994,21 +940,7 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-#ifdef V4L2_I2C_CLIENTS
 	cx88_call_i2c_clients(core,VIDIOC_S_STD,&norm->id);
-#else
-	{
-		struct video_channel c;
-		memset(&c,0,sizeof(c));
-		c.channel = core->input;
-		c.norm = VIDEO_MODE_PAL;
-		if ((norm->id & (V4L2_STD_NTSC_M|V4L2_STD_NTSC_M_JP)))
-			c.norm = VIDEO_MODE_NTSC;
-		if (norm->id & V4L2_STD_SECAM)
-			c.norm = VIDEO_MODE_SECAM;
-		cx88_call_i2c_clients(core,VIDIOCSCHAN,&c);
-	}
-#endif
 
 	// done
 	return 0;
@@ -1107,7 +1039,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	struct list_head *item;
 	int i;
 
-	down(&devlist);
+	mutex_lock(&devlist);
 	list_for_each(item,&cx88_devlist) {
 		core = list_entry(item, struct cx88_core, devlist);
 		if (pci->bus->number != core->pci_bus)
@@ -1118,22 +1050,28 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		if (0 != get_ressources(core,pci))
 			goto fail_unlock;
 		atomic_inc(&core->refcount);
-		up(&devlist);
+		mutex_unlock(&devlist);
 		return core;
 	}
-	core = kmalloc(sizeof(*core),GFP_KERNEL);
+	core = kzalloc(sizeof(*core),GFP_KERNEL);
 	if (NULL == core)
 		goto fail_unlock;
 
-	memset(core,0,sizeof(*core));
 	atomic_inc(&core->refcount);
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);
 	core->pci_irqmask = 0x00fc00;
+	init_MUTEX(&core->lock);
 
 	core->nr = cx88_devcount++;
 	sprintf(core->name,"cx88[%d]",core->nr);
 	if (0 != get_ressources(core,pci)) {
+		printk(KERN_ERR "CORE %s No more PCI ressources for "
+			"subsystem: %04x:%04x, board: %s\n",
+			core->name,pci->subsystem_vendor,
+			pci->subsystem_device,
+			cx88_boards[core->board].name);
+
 		cx88_devcount--;
 		goto fail_free;
 	}
@@ -1157,30 +1095,43 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		core->board = CX88_BOARD_UNKNOWN;
 		cx88_card_list(core,pci);
 	}
-        printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
-	       core->name,pci->subsystem_vendor,
-	       pci->subsystem_device,cx88_boards[core->board].name,
-	       core->board, card[core->nr] == core->board ?
-	       "insmod option" : "autodetected");
+	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+		core->name,pci->subsystem_vendor,
+		pci->subsystem_device,cx88_boards[core->board].name,
+		core->board, card[core->nr] == core->board ?
+		"insmod option" : "autodetected");
 
 	core->tuner_type = tuner[core->nr];
+	core->radio_type = radio[core->nr];
 	if (UNSET == core->tuner_type)
 		core->tuner_type = cx88_boards[core->board].tuner_type;
+	if (UNSET == core->radio_type)
+		core->radio_type = cx88_boards[core->board].radio_type;
+	if (!core->tuner_addr)
+		core->tuner_addr = cx88_boards[core->board].tuner_addr;
+	if (!core->radio_addr)
+		core->radio_addr = cx88_boards[core->board].radio_addr;
+
+	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
+		core->tuner_type, core->tuner_addr<<1,
+		core->radio_type, core->radio_addr<<1);
+
 	core->tda9887_conf = cx88_boards[core->board].tda9887_conf;
 
 	/* init hardware */
 	cx88_reset(core);
 	cx88_i2c_init(core,pci);
+	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
 	cx88_ir_init(core,pci);
 
-	up(&devlist);
+	mutex_unlock(&devlist);
 	return core;
 
 fail_free:
 	kfree(core);
 fail_unlock:
-	up(&devlist);
+	mutex_unlock(&devlist);
 	return NULL;
 }
 
@@ -1192,22 +1143,19 @@ void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
 	if (!atomic_dec_and_test(&core->refcount))
 		return;
 
-	down(&devlist);
+	mutex_lock(&devlist);
 	cx88_ir_fini(core);
 	if (0 == core->i2c_rc)
 		i2c_bit_del_bus(&core->i2c_adap);
 	list_del(&core->devlist);
 	iounmap(core->lmmio);
 	cx88_devcount--;
-	up(&devlist);
+	mutex_unlock(&devlist);
 	kfree(core);
 }
 
 /* ------------------------------------------------------------------ */
 
-EXPORT_SYMBOL(cx88_print_ioctl);
-EXPORT_SYMBOL(cx88_vid_irqs);
-EXPORT_SYMBOL(cx88_mpeg_irqs);
 EXPORT_SYMBOL(cx88_print_irqbits);
 
 EXPORT_SYMBOL(cx88_core_irq);
@@ -1230,9 +1178,12 @@ EXPORT_SYMBOL(cx88_set_scale);
 EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
+EXPORT_SYMBOL(cx88_start_audio_dma);
+EXPORT_SYMBOL(cx88_stop_audio_dma);
 
 /*
  * Local variables:
  * c-basic-offset: 8
  * End:
+ * kate: eol "unix"; indent-width 3; remove-trailing-space on; replace-trailing-space-save on; tab-width 8; replace-tabs off; space-indent off; mixed-indent off
  */

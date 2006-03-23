@@ -22,6 +22,7 @@
 #ifndef DST_COMMON_H
 #define DST_COMMON_H
 
+#include <linux/smp_lock.h>
 #include <linux/dvb/frontend.h>
 #include <linux/device.h>
 #include "bt878.h"
@@ -47,6 +48,9 @@
 #define DST_TYPE_HAS_FW_2	16
 #define DST_TYPE_HAS_FW_3	32
 #define DST_TYPE_HAS_FW_BUILD	64
+#define DST_TYPE_HAS_OBS_REGS	128
+#define DST_TYPE_HAS_INC_COUNT	256
+#define DST_TYPE_HAS_MULTI_FE	512
 
 /*	Card capability list	*/
 
@@ -58,7 +62,6 @@
 #define DST_TYPE_HAS_CA		32
 #define	DST_TYPE_HAS_ANALOG	64	/*	Analog inputs	*/
 #define DST_TYPE_HAS_SESSION	128
-
 
 #define RDC_8820_PIO_0_DISABLE	0
 #define RDC_8820_PIO_0_ENABLE	1
@@ -110,7 +113,15 @@ struct dst_state {
 	u32 dst_hw_cap;
 	u8 dst_fw_version;
 	fe_sec_mini_cmd_t minicmd;
+	fe_modulation_t modulation;
 	u8 messages[256];
+	u8 mac_address[8];
+	u8 fw_version[8];
+	u8 card_info[8];
+	u8 vendor[8];
+	u8 board_info[8];
+
+	struct semaphore dst_mutex;
 };
 
 struct dst_types {
@@ -121,14 +132,11 @@ struct dst_types {
 	u32 dst_feature;
 };
 
-
-
 struct dst_config
 {
 	/* the ASIC i2c address */
 	u8 demod_address;
 };
-
 
 int rdc_reset_state(struct dst_state *state);
 int rdc_8820_reset(struct dst_state *state);

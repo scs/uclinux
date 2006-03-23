@@ -36,23 +36,25 @@ void flexcop_determine_revision(struct flexcop_device *fc)
 	/* bus parts have to decide if hw pid filtering is used or not. */
 }
 
-const char *flexcop_revision_names[] = {
+static const char *flexcop_revision_names[] = {
 	"Unkown chip",
 	"FlexCopII",
 	"FlexCopIIb",
 	"FlexCopIII",
 };
 
-const char *flexcop_device_names[] = {
+static const char *flexcop_device_names[] = {
 	"Unkown device",
-	"AirStar 2 DVB-T",
-	"AirStar 2 ATSC",
-	"SkyStar 2 DVB-S",
-	"SkyStar 2 DVB-S (old version)",
-	"CableStar 2 DVB-C",
+	"Air2PC/AirStar 2 DVB-T",
+	"Air2PC/AirStar 2 ATSC 1st generation",
+	"Air2PC/AirStar 2 ATSC 2nd generation",
+	"Sky2PC/SkyStar 2 DVB-S",
+	"Sky2PC/SkyStar 2 DVB-S (old version)",
+	"Cable2PC/CableStar 2 DVB-C",
+	"Air2PC/AirStar 2 ATSC 3rd generation (HD5000)",
 };
 
-const char *flexcop_bus_names[] = {
+static const char *flexcop_bus_names[] = {
 	"USB",
 	"PCI",
 };
@@ -64,3 +66,15 @@ void flexcop_device_name(struct flexcop_device *fc,const char *prefix,const
 			flexcop_device_names[fc->dev_type],flexcop_bus_names[fc->bus_type],
 			flexcop_revision_names[fc->rev],suffix);
 }
+
+void flexcop_dump_reg(struct flexcop_device *fc, flexcop_ibi_register reg, int num)
+{
+	flexcop_ibi_value v;
+	int i;
+	for (i = 0; i < num; i++) {
+		v = fc->read_ibi_reg(fc,reg+4*i);
+		deb_rdump("0x%03x: %08x, ",reg+4*i, v.raw);
+	}
+	deb_rdump("\n");
+}
+EXPORT_SYMBOL(flexcop_dump_reg);

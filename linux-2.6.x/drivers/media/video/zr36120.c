@@ -820,11 +820,9 @@ void zoran_close(struct video_device* dev)
         msleep(100);			/* Wait 1/10th of a second */
 
 	/* free the allocated framebuffer */
-	if (ztv->fbuffer)
-		bfree( ztv->fbuffer, ZORAN_MAX_FBUFSIZE );
+	bfree(ztv->fbuffer, ZORAN_MAX_FBUFSIZE);
 	ztv->fbuffer = 0;
-	if (ztv->overinfo.overlay)
-		kfree( ztv->overinfo.overlay );
+	kfree(ztv->overinfo.overlay);
 	ztv->overinfo.overlay = 0;
 
 }
@@ -1492,6 +1490,7 @@ static struct video_device zr36120_template=
 	.write		= zoran_write,
 	.poll		= zoran_poll,
 	.ioctl		= zoran_ioctl,
+	.compat_ioctl	= v4l_compat_ioctl32,
 	.mmap		= zoran_mmap,
 	.minor		= -1,
 };

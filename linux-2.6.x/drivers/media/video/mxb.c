@@ -1,7 +1,7 @@
 /*
     mxb - v4l2 driver for the Multimedia eXtension Board
     
-    Copyright (C) 1998-2003 Michael Hunold <michael@mihu.de>
+    Copyright (C) 1998-2006 Michael Hunold <michael@mihu.de>
 
     Visit http://www.mihu.de/linux/saa7146/mxb/
     for further details about this card.
@@ -26,6 +26,7 @@
 #include <media/saa7146_vv.h>
 #include <media/tuner.h>
 #include <linux/video_decoder.h>
+#include <media/v4l2-common.h>
 
 #include "mxb.h"
 #include "tea6415c.h"
@@ -142,8 +143,8 @@ struct mxb
 
 	int	cur_mode;	/* current audio mode (mono, stereo, ...) */
 	int	cur_input;	/* current input */
-	int	cur_freq;	/* current frequency the tuner is tuned to */
 	int	cur_mute;	/* current mute status */
+	struct v4l2_frequency	cur_freq;	/* current frequency the tuner is tuned to */
 };
 
 static struct saa7146_extension extension;
@@ -176,12 +177,11 @@ static int mxb_probe(struct saa7146_dev* dev)
 		return -ENODEV;
 	}
 
-	mxb = (struct mxb*)kmalloc(sizeof(struct mxb), GFP_KERNEL);
+	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
 	if( NULL == mxb ) {
 		DEB_D(("not enough kernel memory.\n"));
 		return -ENOMEM;
 	}
-	memset(mxb, 0x0, sizeof(struct mxb));	
 
 	mxb->i2c_adapter = (struct i2c_adapter) {
 		.class = I2C_CLASS_TV_ANALOG,
@@ -326,6 +326,8 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	struct mxb* mxb = (struct mxb*)dev->ext_priv;
 	struct video_decoder_init init;
 	struct i2c_msg msg;
+	struct tuner_setup tun_setup;
+	v4l2_std_id std = V4L2_STD_PAL_BG;
 
 	int i = 0, err = 0;
 	struct	tea6415c_multiplex vm;	
@@ -349,9 +351,20 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_VBI_BYPASS, &i);
 
 	/* select a tuner type */
-	i = 5; 
-	mxb->tuner->driver->command(mxb->tuner,TUNER_SET_TYPE, &i);
-	
+	tun_setup.mode_mask = T_ANALOG_TV;
+	tun_setup.addr = ADDR_UNSET;
+	tun_setup.type = TUNER_PHILIPS_PAL;
+	mxb->tuner->driver->command(mxb->tuner,TUNER_SET_TYPE_ADDR, &tun_setup);
+	/* tune in some frequency on tuner */
+	mxb->cur_freq.tuner = 0;
+	mxb->cur_freq.type = V4L2_TUNER_ANALOG_TV;
+	mxb->cur_freq.frequency = freq;
+	mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_FREQUENCY,
+					&mxb->cur_freq);
+
+	/* set a default video standard */
+	mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_STD, &std);
+
 	/* mute audio on tea6420s */
 	mxb->tea6420_1->driver->command(mxb->tea6420_1,TEA6420_SWITCH, &TEA6420_line[6][0]);
 	mxb->tea6420_2->driver->command(mxb->tea6420_2,TEA6420_SWITCH, &TEA6420_line[6][1]);
@@ -368,12 +381,8 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	vm.out = 13;
 	mxb->tea6415c->driver->command(mxb->tea6415c,TEA6415C_SWITCH, &vm);
 				
-	/* tune in some frequency on tuner */
-	mxb->tuner->driver->command(mxb->tuner, VIDIOCSFREQ, &freq);
-
 	/* the rest for mxb */
 	mxb->cur_input = 0;
-	mxb->cur_freq = freq;
 	mxb->cur_mute = 1;
 
 	mxb->cur_mode = V4L2_TUNER_MODE_STEREO;
@@ -816,18 +825,14 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 
-		memset(f,0,sizeof(*f));
-		f->type = V4L2_TUNER_ANALOG_TV;
-		f->frequency =  mxb->cur_freq;
+		*f = mxb->cur_freq;
 
-		DEB_EE(("VIDIOC_G_FREQ: freq:0x%08x.\n", mxb->cur_freq));
+		DEB_EE(("VIDIOC_G_FREQ: freq:0x%08x.\n", mxb->cur_freq.frequency));
 		return 0;
 	}
 	case VIDIOC_S_FREQUENCY:
 	{
 		struct v4l2_frequency *f = arg;
-		int t_locked = 0;
-		int v_byte = 0;
 
 		if (0 != f->tuner)
 			return -EINVAL;
@@ -840,20 +845,11 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 			return -EINVAL;
 		}
 
-		DEB_EE(("VIDIOC_S_FREQUENCY: freq:0x%08x.\n",f->frequency));
-
-		mxb->cur_freq = f->frequency;
+		mxb->cur_freq = *f;
+		DEB_EE(("VIDIOC_S_FREQUENCY: freq:0x%08x.\n", mxb->cur_freq.frequency));
 
 		/* tune in desired frequency */			
-		mxb->tuner->driver->command(mxb->tuner, VIDIOCSFREQ, &mxb->cur_freq);
-
-		/* check if pll of tuner & saa7111a is locked */
-//		mxb->tuner->driver->command(mxb->tuner,TUNER_IS_LOCKED, &t_locked);
-		mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_GET_STATUS, &v_byte);
-
-		/* not locked -- anything to do here ? */
-		if( 0 == t_locked || 0 == (v_byte & DECODER_STATUS_GOOD)) {
-		}
+		mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_FREQUENCY, &mxb->cur_freq);
 
 		/* hack: changing the frequency should invalidate the vbi-counter (=> alevt) */
 		spin_lock(&dev->slock);
@@ -929,17 +925,21 @@ static int std_callback(struct saa7146_dev* dev, struct saa7146_standard *std)
 	int one = 1;
 
 	if(V4L2_STD_PAL_I == std->id ) {
+		v4l2_std_id std = V4L2_STD_PAL_I;
 		DEB_D(("VIDIOC_S_STD: setting mxb for PAL_I.\n"));
 		/* set the 7146 gpio register -- I don't know what this does exactly */
       		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* unset the 7111 gpio register -- I don't know what this does exactly */
 		mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_GPIO, &zero);
+		mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_STD, &std);
 	} else {
+		v4l2_std_id std = V4L2_STD_PAL_BG;
 		DEB_D(("VIDIOC_S_STD: setting mxb for PAL/NTSC/SECAM.\n"));
 		/* set the 7146 gpio register -- I don't know what this does exactly */
       		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* set the 7111 gpio register -- I don't know what this does exactly */
 		mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_GPIO, &one);
+		mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_STD, &std);
 	}
 	return 0;
 }

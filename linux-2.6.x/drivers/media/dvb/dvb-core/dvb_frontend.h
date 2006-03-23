@@ -40,33 +40,11 @@
 
 #include "dvbdev.h"
 
-/* FIXME: Move to i2c-id.h */
-#define I2C_DRIVERID_DVBFE_SP8870	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_CX22700	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_AT76C651	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_CX24110	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_CX22702	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_DIB3000MB	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_DST		I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_DUMMY	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_L64781	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_MT312	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_MT352	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_NXT6000	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_SP887X	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_STV0299	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_TDA1004X	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_TDA8083	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_VES1820	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_VES1X93	I2C_DRIVERID_EXP2
-#define I2C_DRIVERID_DVBFE_TDA80XX	I2C_DRIVERID_EXP2
-
-
 struct dvb_frontend_tune_settings {
-        int min_delay_ms;
-        int step_size;
-        int max_drift;
-        struct dvb_frontend_parameters parameters;
+	int min_delay_ms;
+	int step_size;
+	int max_drift;
+	struct dvb_frontend_parameters parameters;
 };
 
 struct dvb_frontend;
@@ -80,9 +58,18 @@ struct dvb_frontend_ops {
 	int (*init)(struct dvb_frontend* fe);
 	int (*sleep)(struct dvb_frontend* fe);
 
+	/* if this is set, it overrides the default swzigzag */
+	int (*tune)(struct dvb_frontend* fe,
+		    struct dvb_frontend_parameters* params,
+		    unsigned int mode_flags,
+		    int *delay,
+		    fe_status_t *status);
+
+	/* these two are only used for the swzigzag code */
 	int (*set_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
-	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 	int (*get_tune_settings)(struct dvb_frontend* fe, struct dvb_frontend_tune_settings* settings);
+
+	int (*get_frontend)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	int (*read_status)(struct dvb_frontend* fe, fe_status_t* status);
 	int (*read_ber)(struct dvb_frontend* fe, u32* ber);
@@ -96,8 +83,9 @@ struct dvb_frontend_ops {
 	int (*diseqc_send_burst)(struct dvb_frontend* fe, fe_sec_mini_cmd_t minicmd);
 	int (*set_tone)(struct dvb_frontend* fe, fe_sec_tone_mode_t tone);
 	int (*set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
-	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, int arg);
-	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned int cmd);
+	int (*enable_high_lnb_voltage)(struct dvb_frontend* fe, long arg);
+	int (*dishnetwork_send_legacy_command)(struct dvb_frontend* fe, unsigned long cmd);
+	int (*i2c_gate_ctrl)(struct dvb_frontend* fe, int enable);
 };
 
 #define MAX_EVENT 8
@@ -122,5 +110,8 @@ extern int dvb_register_frontend(struct dvb_adapter* dvb,
 				 struct dvb_frontend* fe);
 
 extern int dvb_unregister_frontend(struct dvb_frontend* fe);
+
+extern void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec);
+extern s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime);
 
 #endif

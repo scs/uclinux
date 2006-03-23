@@ -43,7 +43,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/sched.h>
-#include <asm/segment.h>
 #include <linux/types.h>
 
 #include <linux/videodev.h>
@@ -500,22 +499,13 @@ static unsigned short normal_i2c[] = {
 	I2C_BT819 >> 1,
 	I2C_CLIENT_END,
 };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
-static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
+static unsigned short ignore = I2C_CLIENT_END;
                                                                                 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
-	.normal_i2c_range	= normal_i2c_range,
-	.probe			= probe,
-	.probe_range		= probe_range,
-	.ignore			= ignore,
-	.ignore_range		= ignore_range,
-	.force			= force
+	.probe			= &ignore,
+	.ignore			= &ignore,
 };
 
 static struct i2c_driver i2c_driver_bt819;
@@ -538,22 +528,18 @@ bt819_detect_client (struct i2c_adapter *adapter,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (client == 0)
 		return -ENOMEM;
-	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_bt819;
-	client->flags = I2C_CLIENT_ALLOW_USE;
 
-	decoder = kmalloc(sizeof(struct bt819), GFP_KERNEL);
+	decoder = kzalloc(sizeof(struct bt819), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-
-	memset(decoder, 0, sizeof(struct bt819));
 	decoder->norm = VIDEO_MODE_NTSC;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -633,11 +619,11 @@ bt819_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_bt819 = {
-	.owner = THIS_MODULE,
-	.name = "bt819",
+	.driver = {
+		.name = "bt819",
+	},
 
 	.id = I2C_DRIVERID_BT819,
-	.flags = I2C_DF_NOTIFY,
 
 	.attach_adapter = bt819_attach_adapter,
 	.detach_client = bt819_detach_client,

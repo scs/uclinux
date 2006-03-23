@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * device driver for philips saa7134 based TV cards
  * i2c interface support
@@ -31,6 +30,7 @@
 
 #include "saa7134-reg.h"
 #include "saa7134.h"
+#include <media/v4l2-common.h>
 
 /* ----------------------------------------------------------- */
 
@@ -197,10 +197,6 @@ static inline int i2c_send_byte(struct saa7134_dev *dev,
 	enum i2c_status status;
 	__u32 dword;
 
-#if 0
-	i2c_set_attr(dev,attr);
-	saa_writeb(SAA7134_I2C_DATA, data);
-#else
 	/* have to write both attr + data in one 32bit word */
 	dword  = saa_readl(SAA7134_I2C_ATTR_STATUS >> 2);
 	dword &= 0x0f;
@@ -210,7 +206,6 @@ static inline int i2c_send_byte(struct saa7134_dev *dev,
 //	dword |= 0x40 << 16;  /* 400 kHz */
 	dword |= 0xf0 << 24;
 	saa_writel(SAA7134_I2C_ATTR_STATUS >> 2, dword);
-#endif
 	d2printk(KERN_DEBUG "%s: i2c data => 0x%x\n",dev->name,data);
 
 	if (!i2c_is_busy_wait(dev))
@@ -245,7 +240,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	unsigned char data;
 	int addr,rc,i,byte;
 
-  	status = i2c_get_status(dev);
+	status = i2c_get_status(dev);
 	if (!i2c_is_idle(status))
 		if (!i2c_reset(dev))
 			return -EIO;
@@ -302,9 +297,11 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 	rc = -EIO;
 	if (!i2c_is_busy_wait(dev))
 		goto err;
-  	status = i2c_get_status(dev);
+	status = i2c_get_status(dev);
 	if (i2c_is_error(status))
 		goto err;
+	/* ensure that the bus is idle for at least one bit slot */
+	msleep(1);
 
 	d1printk("\n");
 	return num;
@@ -331,18 +328,62 @@ static u32 functionality(struct i2c_adapter *adap)
 
 static int attach_inform(struct i2c_client *client)
 {
-        struct saa7134_dev *dev = client->adapter->algo_data;
+	struct saa7134_dev *dev = client->adapter->algo_data;
 	int tuner = dev->tuner_type;
 	int conf  = dev->tda9887_conf;
+	struct tuner_setup tun_setup;
 
-	saa7134_i2c_call_clients(dev,TUNER_SET_TYPE,&tuner);
-	saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG,&conf);
-        return 0;
+	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
+		client->driver->driver.name, client->addr, client->name);
+
+	/* Am I an i2c remote control? */
+
+	switch (client->addr) {
+		case 0x7a:
+		case 0x47:
+		{
+			struct IR_i2c *ir = i2c_get_clientdata(client);
+			d1printk("%s i2c IR detected (%s).\n",
+				 client->driver->driver.name, ir->phys);
+			saa7134_set_i2c_ir(dev,ir);
+			break;
+		}
+	}
+
+	if (!client->driver->command)
+		return 0;
+
+	if (saa7134_boards[dev->board].radio_type != UNSET) {
+
+		tun_setup.type = saa7134_boards[dev->board].radio_type;
+		tun_setup.addr = saa7134_boards[dev->board].radio_addr;
+
+		if ((tun_setup.addr == ADDR_UNSET) || (tun_setup.addr == client->addr)) {
+			tun_setup.mode_mask = T_RADIO;
+
+			client->driver->command(client, TUNER_SET_TYPE_ADDR, &tun_setup);
+		}
+	}
+
+	if (tuner != UNSET) {
+
+		tun_setup.type = tuner;
+		tun_setup.addr = saa7134_boards[dev->board].tuner_addr;
+
+		if ((tun_setup.addr == ADDR_UNSET)||(tun_setup.addr == client->addr)) {
+
+			tun_setup.mode_mask = T_ANALOG_TV;
+
+			client->driver->command(client,TUNER_SET_TYPE_ADDR, &tun_setup);
+		}
+	}
+
+	client->driver->command(client, TDA9887_SET_CONFIG, &conf);
+
+	return 0;
 }
 
 static struct i2c_algorithm saa7134_algo = {
-	.name          = "saa7134",
-	.id            = I2C_ALGO_SAA7134,
 	.master_xfer   = saa7134_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,
@@ -350,17 +391,15 @@ static struct i2c_algorithm saa7134_algo = {
 
 static struct i2c_adapter saa7134_adap_template = {
 	.owner         = THIS_MODULE,
-#ifdef I2C_CLASS_TV_ANALOG
 	.class         = I2C_CLASS_TV_ANALOG,
-#endif
-	I2C_DEVNAME("saa7134"),
-	.id            = I2C_ALGO_SAA7134,
+	.name          = "saa7134",
+	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
 	.client_register = attach_inform,
 };
 
 static struct i2c_client saa7134_client_template = {
-	I2C_DEVNAME("saa7134 internal"),
+	.name	= "saa7134 internal",
 };
 
 /* ----------------------------------------------------------- */

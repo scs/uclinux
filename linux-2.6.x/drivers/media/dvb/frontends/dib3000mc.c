@@ -22,11 +22,12 @@
  */
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dib3000-common.h"
 #include "dib3000mc_priv.h"
@@ -47,8 +48,6 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,2=xfer,4=setfe,8=getfe,16=s
 #define deb_setf(args...) dprintk(0x04,args)
 #define deb_getf(args...) dprintk(0x08,args)
 #define deb_stat(args...) dprintk(0x10,args)
-
-static int dib3000mc_tuner_pass_ctrl(struct dvb_frontend *fe, int onoff, u8 pll_addr);
 
 static int dib3000mc_set_impulse_noise(struct dib3000_state * state, int mode,
 	fe_transmit_mode_t transmission_mode, fe_bandwidth_t bandwidth)
@@ -463,10 +462,8 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 	int search_state,auto_val;
 	u16 val;
 
-	if (tuner && state->config.pll_addr && state->config.pll_set) { /* initial call from dvb */
-		dib3000mc_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
-		state->config.pll_set(fe,fep,NULL);
-		dib3000mc_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));
+	if (tuner && state->config.pll_set) { /* initial call from dvb */
+		state->config.pll_set(fe,fep);
 
 		state->last_tuned_freq = fep->frequency;
 	//	if (!scanboost) {
@@ -554,19 +551,15 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 			dib3000mc_set_adp_cfg(state,ofdm->constellation);
 		wr_foreach(dib3000mc_reg_offset,
 				dib3000mc_offset[(ofdm->transmission_mode == TRANSMISSION_MODE_8K)+1]);
-
-
 	}
 	return 0;
 }
 
 static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 {
-	struct dib3000_state *state;
-
+	struct dib3000_state *state = fe->demodulator_priv;
 	deb_info("init start\n");
 
-	state = fe->demodulator_priv;
 	state->timing_offset = 0;
 	state->timing_offset_comp_done = 0;
 
@@ -649,11 +642,9 @@ static int dib3000mc_fe_init(struct dvb_frontend* fe, int mobile_mode)
 
 	set_or(DIB3000MC_REG_CLK_CFG_7,DIB3000MC_CLK_CFG_7_DIV_IN_OFF);
 
-/*	if (state->config->pll_init) {
-		dib3000mc_tuner_pass_ctrl(fe,1,state->config.pll_addr(fe));
-		state->config->pll_init(fe,NULL);
-		dib3000mc_tuner_pass_ctrl(fe,0,state->config.pll_addr(fe));
-	}*/
+	if (state->config.pll_init)
+		state->config.pll_init(fe);
+
 	deb_info("init end\n");
 	return 0;
 }
@@ -688,7 +679,7 @@ static int dib3000mc_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 {
 	struct dib3000_state* state = fe->demodulator_priv;
 
-	*unc = rd(DIB3000MC_REG_PACKET_ERROR_COUNT);
+	*unc = rd(DIB3000MC_REG_PACKET_ERRORS);
 	return 0;
 }
 
@@ -737,10 +728,7 @@ static int dib3000mc_sleep(struct dvb_frontend* fe)
 
 static int dib3000mc_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
 {
-	tune->min_delay_ms = 2000;
-	tune->step_size = 166667;
-	tune->max_drift = 166667 * 2;
-
+	tune->min_delay_ms = 1000;
 	return 0;
 }
 
@@ -844,10 +832,9 @@ struct dvb_frontend* dib3000mc_attach(const struct dib3000_config* config,
 	u16 devid;
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct dib3000_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct dib3000_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
-	memset(state,0,sizeof(struct dib3000_state));
 
 	/* setup the state */
 	state->i2c = i2c;

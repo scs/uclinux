@@ -296,10 +296,10 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	 * attach to adapters that are known to contain OV camera chips. */
 
 	switch (adap->id) {
-	case (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV511):
-	case (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV518):
-	case (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OVFX2):
-	case (I2C_ALGO_SMBUS | I2C_HW_SMBUS_W9968CF):
+	case I2C_HW_SMBUS_OV511:
+	case I2C_HW_SMBUS_OV518:
+	case I2C_HW_SMBUS_OVFX2:
+	case I2C_HW_SMBUS_W9968CF:
 		PDEBUG(1, "Adapter ID 0x%06x accepted", adap->id);
 		break;
 	default:
@@ -314,21 +314,20 @@ static int ovcamchip_attach(struct i2c_adapter *adap)
 	}
 	memcpy(c, &client_template, sizeof *c);
 	c->adapter = adap;
-	strcpy(i2c_clientname(c), "OV????");
+	strcpy(c->name, "OV????");
 
-	ov = kmalloc(sizeof *ov, GFP_KERNEL);
+	ov = kzalloc(sizeof *ov, GFP_KERNEL);
 	if (!ov) {
 		rc = -ENOMEM;
 		goto no_ov;
 	}
-	memset(ov, 0, sizeof *ov);
 	i2c_set_clientdata(c, ov);
 
 	rc = ovcamchip_detect(c);
 	if (rc < 0)
 		goto error;
 
-	strcpy(i2c_clientname(c), chip_names[ov->subtype]);
+	strcpy(c->name, chip_names[ov->subtype]);
 
 	PDEBUG(1, "Camera chip detection complete");
 
@@ -410,18 +409,18 @@ static int ovcamchip_command(struct i2c_client *c, unsigned int cmd, void *arg)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver driver = {
-	.owner =		THIS_MODULE,
-	.name =			"ovcamchip",
+	.driver = {
+		.name =		"ovcamchip",
+	},
 	.id =			I2C_DRIVERID_OVCAMCHIP,
 	.class =		I2C_CLASS_CAM_DIGITAL,
-	.flags =		I2C_DF_NOTIFY,
 	.attach_adapter =	ovcamchip_attach,
 	.detach_client =	ovcamchip_detach,
 	.command =		ovcamchip_command,
 };
 
 static struct i2c_client client_template = {
-	I2C_DEVNAME("(unset)"),
+	.name =		"(unset)",
 	.driver =	&driver,
 };
 
