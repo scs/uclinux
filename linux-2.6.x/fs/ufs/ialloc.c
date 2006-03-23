@@ -72,7 +72,7 @@ void ufs_free_inode (struct inode * inode)
 
 	sb = inode->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 	
 	ino = inode->i_ino;
 
@@ -124,8 +124,7 @@ void ufs_free_inode (struct inode * inode)
 	ubh_mark_buffer_dirty (USPI_UBH);
 	ubh_mark_buffer_dirty (UCPI_UBH);
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_wait_on_buffer (UCPI_UBH);
-		ubh_ll_rw_block (WRITE, 1, (struct ufs_buffer_head **) &ucpi);
+		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
 		ubh_wait_on_buffer (UCPI_UBH);
 	}
 	
@@ -168,7 +167,7 @@ struct inode * ufs_new_inode(struct inode * dir, int mode)
 	ufsi = UFS_I(inode);
 	sbi = UFS_SB(sb);
 	uspi = sbi->s_uspi;
-	usb1 = ubh_get_usb_first(USPI_UBH);
+	usb1 = ubh_get_usb_first(uspi);
 
 	lock_super (sb);
 
@@ -249,8 +248,7 @@ cg_found:
 	ubh_mark_buffer_dirty (USPI_UBH);
 	ubh_mark_buffer_dirty (UCPI_UBH);
 	if (sb->s_flags & MS_SYNCHRONOUS) {
-		ubh_wait_on_buffer (UCPI_UBH);
-		ubh_ll_rw_block (WRITE, 1, (struct ufs_buffer_head **) &ucpi);
+		ubh_ll_rw_block (SWRITE, 1, (struct ufs_buffer_head **) &ucpi);
 		ubh_wait_on_buffer (UCPI_UBH);
 	}
 	sb->s_dirt = 1;

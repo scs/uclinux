@@ -4,11 +4,6 @@
  * PURPOSE
  *      Inode name handling routines for the OSTA-UDF(tm) filesystem.
  *
- * CONTACTS
- *      E-mail regarding any portion of the Linux UDF file system should be
- *      directed to the development team mailing list (run by majordomo):
- *              linux_udf@hpesjro.fc.hp.com
- *
  * COPYRIGHT
  *      This file is distributed under the terms of the GNU General Public
  *      License (GPL). Copies of the GPL can be obtained from:
@@ -159,14 +154,12 @@ udf_find_entry(struct inode *dir, struct dentry *dentry,
 	char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
-	loff_t size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
+	loff_t size;
 	kernel_lb_addr bloc, eloc;
 	uint32_t extoffset, elen, offset;
 	struct buffer_head *bh = NULL;
 
-	if (!dir)
-		return NULL;
-
+	size = (udf_ext0_offset(dir) + dir->i_size) >> 2;
 	f_pos = (udf_ext0_offset(dir) >> 2);
 
 	fibh->soffset = fibh->eoffset = (f_pos & ((dir->i_sb->s_blocksize - 1) >> 2)) << 2;
@@ -303,7 +296,7 @@ static struct dentry *
 udf_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
 	struct inode *inode = NULL;
-	struct fileIdentDesc cfi, *fi;
+	struct fileIdentDesc cfi;
 	struct udf_fileident_bh fibh;
 
 	if (dentry->d_name.len > UDF_NAME_LEN-2)
@@ -325,7 +318,7 @@ udf_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	else
 #endif /* UDF_RECOVERY */
 
-	if ((fi = udf_find_entry(dir, dentry, &fibh, &cfi)))
+	if (udf_find_entry(dir, dentry, &fibh, &cfi))
 	{
 		if (fibh.sbh != fibh.ebh)
 			udf_release_data(fibh.ebh);

@@ -8,6 +8,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
@@ -2397,8 +2398,7 @@ smb_proc_readdir_long(struct file *filp, void *dirent, filldir_t filldir,
 		if (req->rq_rcls == ERRSRV && req->rq_err == ERRerror) {
 			/* a damn Win95 bug - sometimes it clags if you 
 			   ask it too fast */
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(HZ/5);
+			schedule_timeout_interruptible(msecs_to_jiffies(200));
 			continue;
                 }
 
@@ -3114,7 +3114,7 @@ smb_proc_setattr_unix(struct dentry *d, struct iattr *attr,
 	LSET(data, 32, SMB_TIME_NO_CHANGE);
 	LSET(data, 40, SMB_UID_NO_CHANGE);
 	LSET(data, 48, SMB_GID_NO_CHANGE);
-	LSET(data, 56, smb_filetype_from_mode(attr->ia_mode));
+	DSET(data, 56, smb_filetype_from_mode(attr->ia_mode));
 	LSET(data, 60, major);
 	LSET(data, 68, minor);
 	LSET(data, 76, 0);

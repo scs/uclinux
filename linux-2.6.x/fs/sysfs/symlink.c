@@ -43,7 +43,7 @@ static void fill_object_path(struct kobject * kobj, char * buffer, int length)
 	}
 }
 
-static int sysfs_add_link(struct dentry * parent, char * name, struct kobject * target)
+static int sysfs_add_link(struct dentry * parent, const char * name, struct kobject * target)
 {
 	struct sysfs_dirent * parent_sd = parent->d_fsdata;
 	struct sysfs_symlink * sl;
@@ -79,16 +79,16 @@ exit1:
  *	@target:	object we're pointing to.
  *	@name:		name of the symlink.
  */
-int sysfs_create_link(struct kobject * kobj, struct kobject * target, char * name)
+int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char * name)
 {
 	struct dentry * dentry = kobj->dentry;
 	int error = 0;
 
 	BUG_ON(!kobj || !kobj->dentry || !name);
 
-	down(&dentry->d_inode->i_sem);
+	mutex_lock(&dentry->d_inode->i_mutex);
 	error = sysfs_add_link(dentry, name, target);
-	up(&dentry->d_inode->i_sem);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return error;
 }
 
@@ -99,13 +99,13 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, char * nam
  *	@name:	name of the symlink to remove.
  */
 
-void sysfs_remove_link(struct kobject * kobj, char * name)
+void sysfs_remove_link(struct kobject * kobj, const char * name)
 {
 	sysfs_hash_and_remove(kobj->dentry,name);
 }
 
 static int sysfs_get_target_path(struct kobject * kobj, struct kobject * target,
-				   char *path)
+				 char *path)
 {
 	char * s;
 	int depth, size;
@@ -151,17 +151,17 @@ static int sysfs_getlink(struct dentry *dentry, char * path)
 
 }
 
-static int sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *sysfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	int error = -ENOMEM;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	if (page)
 		error = sysfs_getlink(dentry, (char *) page); 
 	nd_set_link(nd, error ? ERR_PTR(error) : (char *)page);
-	return 0;
+	return NULL;
 }
 
-static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd)
+static void sysfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
 {
 	char *page = nd_get_link(nd);
 	if (!IS_ERR(page))
@@ -177,4 +177,3 @@ struct inode_operations sysfs_symlink_inode_operations = {
 
 EXPORT_SYMBOL_GPL(sysfs_create_link);
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
-

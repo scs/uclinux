@@ -11,6 +11,7 @@
 #include <linux/pagemap.h>
 #include <linux/namei.h>
 #include <linux/backing-dev.h>
+#include <linux/capability.h>
 #include "sysfs.h"
 
 extern struct super_block * sysfs_sb;
@@ -26,18 +27,107 @@ static struct backing_dev_info sysfs_backing_dev_info = {
 	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK,
 };
 
-struct inode * sysfs_new_inode(mode_t mode)
+static struct inode_operations sysfs_inode_operations ={
+	.setattr	= sysfs_setattr,
+};
+
+int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
+{
+	struct inode * inode = dentry->d_inode;
+	struct sysfs_dirent * sd = dentry->d_fsdata;
+	struct iattr * sd_iattr;
+	unsigned int ia_valid = iattr->ia_valid;
+	int error;
+
+	if (!sd)
+		return -EINVAL;
+
+	sd_iattr = sd->s_iattr;
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	error = inode_setattr(inode, iattr);
+	if (error)
+		return error;
+
+	if (!sd_iattr) {
+		/* setting attributes for the first time, allocate now */
+		sd_iattr = kmalloc(sizeof(struct iattr), GFP_KERNEL);
+		if (!sd_iattr)
+			return -ENOMEM;
+		/* assign default attributes */
+		memset(sd_iattr, 0, sizeof(struct iattr));
+		sd_iattr->ia_mode = sd->s_mode;
+		sd_iattr->ia_uid = 0;
+		sd_iattr->ia_gid = 0;
+		sd_iattr->ia_atime = sd_iattr->ia_mtime = sd_iattr->ia_ctime = CURRENT_TIME;
+		sd->s_iattr = sd_iattr;
+	}
+
+	/* attributes were changed atleast once in past */
+
+	if (ia_valid & ATTR_UID)
+		sd_iattr->ia_uid = iattr->ia_uid;
+	if (ia_valid & ATTR_GID)
+		sd_iattr->ia_gid = iattr->ia_gid;
+	if (ia_valid & ATTR_ATIME)
+		sd_iattr->ia_atime = timespec_trunc(iattr->ia_atime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_MTIME)
+		sd_iattr->ia_mtime = timespec_trunc(iattr->ia_mtime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_CTIME)
+		sd_iattr->ia_ctime = timespec_trunc(iattr->ia_ctime,
+						inode->i_sb->s_time_gran);
+	if (ia_valid & ATTR_MODE) {
+		umode_t mode = iattr->ia_mode;
+
+		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
+			mode &= ~S_ISGID;
+		sd_iattr->ia_mode = sd->s_mode = mode;
+	}
+
+	return error;
+}
+
+static inline void set_default_inode_attr(struct inode * inode, mode_t mode)
+{
+	inode->i_mode = mode;
+	inode->i_uid = 0;
+	inode->i_gid = 0;
+	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+}
+
+static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
+{
+	inode->i_mode = iattr->ia_mode;
+	inode->i_uid = iattr->ia_uid;
+	inode->i_gid = iattr->ia_gid;
+	inode->i_atime = iattr->ia_atime;
+	inode->i_mtime = iattr->ia_mtime;
+	inode->i_ctime = iattr->ia_ctime;
+}
+
+struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 {
 	struct inode * inode = new_inode(sysfs_sb);
 	if (inode) {
-		inode->i_mode = mode;
-		inode->i_uid = 0;
-		inode->i_gid = 0;
 		inode->i_blksize = PAGE_CACHE_SIZE;
 		inode->i_blocks = 0;
-		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_mapping->a_ops = &sysfs_aops;
 		inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
+		inode->i_op = &sysfs_inode_operations;
+
+		if (sd->s_iattr) {
+			/* sysfs_dirent has non-default attributes
+			 * get them for the new inode from persistent copy
+			 * in sysfs_dirent
+			 */
+			set_inode_attr(inode, sd->s_iattr);
+		} else
+			set_default_inode_attr(inode, mode);
 	}
 	return inode;
 }
@@ -48,7 +138,8 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 	struct inode * inode = NULL;
 	if (dentry) {
 		if (!dentry->d_inode) {
-			if ((inode = sysfs_new_inode(mode))) {
+			struct sysfs_dirent * sd = dentry->d_fsdata;
+			if ((inode = sysfs_new_inode(mode, sd))) {
 				if (dentry->d_parent && dentry->d_parent->d_inode) {
 					struct inode *p_inode = dentry->d_parent->d_inode;
 					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
@@ -74,16 +165,6 @@ int sysfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
 		iput(inode);
  Done:
 	return error;
-}
-
-struct dentry * sysfs_get_dentry(struct dentry * parent, const char * name)
-{
-	struct qstr qstr;
-
-	qstr.name = name;
-	qstr.len = strlen(name);
-	qstr.hash = full_name_hash(name,qstr.len);
-	return lookup_hash(&qstr,parent);
 }
 
 /*
@@ -121,7 +202,7 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 
 /*
  * Unhashes the dentry corresponding to given sysfs_dirent
- * Called with parent inode's i_sem held.
+ * Called with parent inode's i_mutex held.
  */
 void sysfs_drop_dentry(struct sysfs_dirent * sd, struct dentry * parent)
 {
@@ -148,7 +229,11 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 	struct sysfs_dirent * sd;
 	struct sysfs_dirent * parent_sd = dir->d_fsdata;
 
-	down(&dir->d_inode->i_sem);
+	if (dir->d_inode == NULL)
+		/* no inode means this hasn't been made visible yet */
+		return;
+
+	mutex_lock(&dir->d_inode->i_mutex);
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -159,7 +244,5 @@ void sysfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	up(&dir->d_inode->i_sem);
+	mutex_unlock(&dir->d_inode->i_mutex);
 }
-
-
