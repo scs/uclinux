@@ -31,9 +31,16 @@
 
 static inline unsigned int __prepare_ICR (unsigned int shortcut, int vector, unsigned int dest)
 {
-	unsigned int icr =  APIC_DM_FIXED | shortcut | vector | dest;
-	if (vector == KDB_VECTOR)
-		icr = (icr & (~APIC_VECTOR_MASK)) | APIC_DM_NMI;
+	unsigned int icr = shortcut | dest;
+
+	switch (vector) {
+	default:
+		icr |= APIC_DM_FIXED | vector;
+		break;
+	case NMI_VECTOR:
+		icr |= APIC_DM_NMI;
+		break;
+	}
 	return icr;
 }
 
@@ -66,7 +73,7 @@ static inline void __send_IPI_shortcut(unsigned int shortcut, int vector, unsign
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
-	apic_write_around(APIC_ICR, cfg);
+	apic_write(APIC_ICR, cfg);
 }
 
 
@@ -82,30 +89,27 @@ static inline void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */
 	local_irq_save(flags);
 
-	for (query_cpu = 0; query_cpu < NR_CPUS; ++query_cpu) {
-		if (cpu_isset(query_cpu, mask)) {
+	for_each_cpu_mask(query_cpu, mask) {
+		/*
+		 * Wait for idle.
+		 */
+		apic_wait_icr_idle();
 
-			/*
-			 * Wait for idle.
-			 */
-			apic_wait_icr_idle();
+		/*
+		 * prepare target chip field
+		 */
+		cfg = __prepare_ICR2(x86_cpu_to_apicid[query_cpu]);
+		apic_write(APIC_ICR2, cfg);
 
-			/*
-			 * prepare target chip field
-			 */
-			cfg = __prepare_ICR2(x86_cpu_to_apicid[query_cpu]);
-			apic_write_around(APIC_ICR2, cfg);
+		/*
+		 * program the ICR
+		 */
+		cfg = __prepare_ICR(0, vector, APIC_DEST_PHYSICAL);
 
-			/*
-			 * program the ICR
-			 */
-			cfg = __prepare_ICR(0, vector, APIC_DEST_PHYSICAL);
-
-			/*
-			 * Send the IPI. The write to APIC_ICR fires this off.
-			 */
-			apic_write_around(APIC_ICR, cfg);
-		}
+		/*
+		 * Send the IPI. The write to APIC_ICR fires this off.
+		 */
+		apic_write(APIC_ICR, cfg);
 	}
 	local_irq_restore(flags);
 }

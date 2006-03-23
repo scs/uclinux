@@ -32,7 +32,7 @@
 #define ID_MASK		0x00200000
 
 #define desc_empty(desc) \
-               (!((desc)->a + (desc)->b))
+               (!((desc)->a | (desc)->b))
 
 #define desc_equal(desc1, desc2) \
                (((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
@@ -61,10 +61,12 @@ struct cpuinfo_x86 {
 	int	x86_cache_alignment;
 	int	x86_tlbsize;	/* number of 4K pages in DTLB/ITLB combined(in pages)*/
         __u8    x86_virt_bits, x86_phys_bits;
-	__u8	x86_num_cores;
+	__u8	x86_max_cores;	/* cpuid returned max cores value */
         __u32   x86_power; 	
 	__u32   extended_cpuid_level;	/* Max extended CPUID function supported */
 	unsigned long loops_per_jiffy;
+	__u8	apicid;
+	__u8	booted_cores;	/* number of cores as seen by OS */
 } ____cacheline_aligned;
 
 #define X86_VENDOR_INTEL 0
@@ -160,16 +162,17 @@ static inline void clear_in_cr4 (unsigned long mask)
 /*
  * User space process size. 47bits minus one guard page.
  */
-#define TASK_SIZE	(0x800000000000UL - 4096)
+#define TASK_SIZE64	(0x800000000000UL - 4096)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
 #define IA32_PAGE_OFFSET ((current->personality & ADDR_LIMIT_3GB) ? 0xc0000000 : 0xFFFFe000)
-#define TASK_UNMAPPED_32 PAGE_ALIGN(IA32_PAGE_OFFSET/3)
-#define TASK_UNMAPPED_64 PAGE_ALIGN(TASK_SIZE/3) 
-#define TASK_UNMAPPED_BASE	\
-	(test_thread_flag(TIF_IA32) ? TASK_UNMAPPED_32 : TASK_UNMAPPED_64)  
+
+#define TASK_SIZE 		(test_thread_flag(TIF_IA32) ? IA32_PAGE_OFFSET : TASK_SIZE64)
+#define TASK_SIZE_OF(child) 	((test_tsk_thread_flag(child, TIF_IA32)) ? IA32_PAGE_OFFSET : TASK_SIZE64)
+
+#define TASK_UNMAPPED_BASE	PAGE_ALIGN(TASK_SIZE/3)
 
 /*
  * Size of io_bitmap.
@@ -224,7 +227,13 @@ struct tss_struct {
 extern struct cpuinfo_x86 boot_cpu_data;
 DECLARE_PER_CPU(struct tss_struct,init_tss);
 
+#ifdef CONFIG_X86_VSMP
+#define ARCH_MIN_TASKALIGN	(1 << INTERNODE_CACHE_SHIFT)
+#define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
+#else
 #define ARCH_MIN_TASKALIGN	16
+#define ARCH_MIN_MMSTRUCT_ALIGN	0
+#endif
 
 struct thread_struct {
 	unsigned long	rsp0;
@@ -253,19 +262,16 @@ struct thread_struct {
 	u64 tls_array[GDT_ENTRY_TLS_ENTRIES];
 } __attribute__((aligned(16)));
 
-#define INIT_THREAD  {}
+#define INIT_THREAD  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
+
+#define INIT_TSS  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
 
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
-
-#define STACKFAULT_STACK 1
-#define DOUBLEFAULT_STACK 2 
-#define NMI_STACK 3 
-#define DEBUG_STACK 4 
-#define MCE_STACK 5
-#define N_EXCEPTION_STACKS 5  /* hw limit: 7 */
-#define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
-#define EXCEPTION_STACK_ORDER 0 
 
 #define start_thread(regs,new_rip,new_rsp) do { \
 	asm volatile("movl %0,%%fs; movl %0,%%es; movl %0,%%ds": :"r" (0));	 \
@@ -278,6 +284,14 @@ struct thread_struct {
 	(regs)->eflags = 0x200;							 \
 	set_fs(USER_DS);							 \
 } while(0) 
+
+#define get_debugreg(var, register)				\
+		__asm__("movq %%db" #register ", %0"		\
+			:"=r" (var))
+#define set_debugreg(value, register)			\
+		__asm__("movq %0,%%db" #register		\
+			: /* no output */			\
+			:"r" (value))
 
 struct task_struct;
 struct mm_struct;
@@ -300,8 +314,8 @@ extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 #define thread_saved_pc(t) (*(unsigned long *)((t)->thread.rsp - 8))
 
 extern unsigned long get_wchan(struct task_struct *p);
-#define KSTK_EIP(tsk) \
-	(((struct pt_regs *)(tsk->thread.rsp0 - sizeof(struct pt_regs)))->rip)
+#define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.rsp0 - 1)
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->rip)
 #define KSTK_ESP(tsk) -1 /* sorry. doesn't work for syscall. */
 
 
@@ -366,13 +380,13 @@ struct extended_sigtable {
 #define ASM_NOP_MAX 8
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-extern inline void rep_nop(void)
+static inline void rep_nop(void)
 {
 	__asm__ __volatile__("rep;nop": : :"memory");
 }
 
 /* Stop speculative execution */
-extern inline void sync_core(void)
+static inline void sync_core(void)
 { 
 	int tmp;
 	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
@@ -389,7 +403,7 @@ static inline void prefetch(void *x)
 #define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
-	alternative_input(ASM_NOP5,
+	alternative_input("prefetcht0 (%1)",
 			  "prefetchw (%1)",
 			  X86_FEATURE_3DNOW,
 			  "r" (x));
@@ -428,6 +442,11 @@ static inline void prefetchw(void *x)
 	outb((data), 0x23); \
 } while (0)
 
+static inline void serialize_cpu(void)
+{
+	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+}
+
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)
 {
@@ -457,5 +476,7 @@ static inline void __mwait(unsigned long eax, unsigned long ecx)
 extern unsigned long boot_option_idle_override;
 /* Boot loader type from the setup header */
 extern int bootloader_type;
+
+#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 
 #endif /* __ASM_X86_64_PROCESSOR_H */

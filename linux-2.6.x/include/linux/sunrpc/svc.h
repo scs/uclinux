@@ -171,7 +171,8 @@ xdr_argsize_check(struct svc_rqst *rqstp, u32 *p)
 {
 	char *cp = (char *)p;
 	struct kvec *vec = &rqstp->rq_arg.head[0];
-	return cp - (char*)vec->iov_base <= vec->iov_len;
+	return cp >= (char*)vec->iov_base
+		&& cp <= (char*)vec->iov_base + vec->iov_len;
 }
 
 static inline int
@@ -183,6 +184,17 @@ xdr_ressize_check(struct svc_rqst *rqstp, u32 *p)
 	vec->iov_len = cp - (char*)vec->iov_base;
 
 	return vec->iov_len <= PAGE_SIZE;
+}
+
+static inline struct page *
+svc_take_res_page(struct svc_rqst *rqstp)
+{
+	if (rqstp->rq_arghi <= rqstp->rq_argused)
+		return NULL;
+	rqstp->rq_arghi--;
+	rqstp->rq_respages[rqstp->rq_resused] =
+		rqstp->rq_argpages[rqstp->rq_arghi];
+	return rqstp->rq_respages[rqstp->rq_resused++];
 }
 
 static inline int svc_take_page(struct svc_rqst *rqstp)
@@ -234,15 +246,17 @@ struct svc_deferred_req {
 	u32			prot;	/* protocol (UDP or TCP) */
 	struct sockaddr_in	addr;
 	struct svc_sock		*svsk;	/* where reply must go */
+	u32			daddr;	/* where reply must come from */
 	struct cache_deferred_req handle;
 	int			argslen;
 	u32			args[0];
 };
 
 /*
- * RPC program
+ * List of RPC programs on the same transport endpoint
  */
 struct svc_program {
+	struct svc_program *	pg_next;	/* other programs (same xprt) */
 	u32			pg_prog;	/* program number */
 	unsigned int		pg_lovers;	/* lowest version */
 	unsigned int		pg_hivers;	/* lowest version */

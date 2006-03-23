@@ -64,9 +64,15 @@ static __inline__ int hard_smp_processor_id(void)
 	}
 }
 
-#define smp_processor_id() (current_thread_info()->cpu)
+#define raw_smp_processor_id() (current_thread_info()->cpu)
+
+extern void smp_setup_cpu_possible_map(void);
 
 #endif /* !(__ASSEMBLY__) */
+
+#else
+
+#define smp_setup_cpu_possible_map() do { } while (0)
 
 #endif /* !(CONFIG_SMP) */
 

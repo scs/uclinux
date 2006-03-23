@@ -17,6 +17,7 @@
 #define APIC_DEBUG   2
 
 extern int apic_verbosity;
+extern int apic_runs_main_timer;
 
 /*
  * Define the default level of output to be very little
@@ -42,11 +43,6 @@ static __inline void apic_write(unsigned long reg, unsigned int v)
 	*((volatile unsigned int *)(APIC_BASE+reg)) = v;
 }
 
-static __inline void apic_write_atomic(unsigned long reg, unsigned int v)
-{
-	xchg((volatile unsigned int *)(APIC_BASE+reg), v);
-}
-
 static __inline unsigned int apic_read(unsigned long reg)
 {
 	return *((volatile unsigned int *)(APIC_BASE+reg));
@@ -56,10 +52,6 @@ static __inline__ void apic_wait_icr_idle(void)
 {
 	while ( apic_read( APIC_ICR ) & APIC_ICR_BUSY );
 }
-
-#define FORCE_READ_AROUND_WRITE 0
-#define apic_read_around(x)
-#define apic_write_around(x,y) apic_write((x),(y))
 
 static inline void ack_APIC_irq(void)
 {
@@ -71,13 +63,13 @@ static inline void ack_APIC_irq(void)
 	 */
 
 	/* Docs say use 0 for future compatibility */
-	apic_write_around(APIC_EOI, 0);
+	apic_write(APIC_EOI, 0);
 }
 
 extern int get_maxlvt (void);
 extern void clear_local_APIC (void);
 extern void connect_bsp_APIC (void);
-extern void disconnect_bsp_APIC (void);
+extern void disconnect_bsp_APIC (int virt_wire_setup);
 extern void disable_local_APIC (void);
 extern int verify_local_APIC (void);
 extern void cache_APIC_registers (void);
@@ -109,9 +101,18 @@ extern unsigned int nmi_watchdog;
 #define NMI_LOCAL_APIC	2
 #define NMI_INVALID	3
 
+extern int disable_timer_pin_1;
+
+extern void setup_threshold_lvt(unsigned long lvt_off);
+
+void smp_send_timer_broadcast_ipi(void);
+void switch_APIC_timer_to_ipi(void *cpumask);
+void switch_ipi_to_APIC_timer(void *cpumask);
+
+#define ARCH_APICTIMER_STOPS_ON_C3	1
+
 #endif /* CONFIG_X86_LOCAL_APIC */
 
-#define esr_disable 0
 extern unsigned boot_cpu_id;
 
 #endif /* __ASM_APIC_H */

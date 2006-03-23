@@ -11,15 +11,27 @@
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #endif
 #define PAGE_MASK	(~(PAGE_SIZE-1))
-#define PHYSICAL_PAGE_MASK	(~(PAGE_SIZE-1) & (__PHYSICAL_MASK << PAGE_SHIFT))
+#define PHYSICAL_PAGE_MASK	(~(PAGE_SIZE-1) & __PHYSICAL_MASK)
 
 #define THREAD_ORDER 1 
-#ifdef __ASSEMBLY__
-#define THREAD_SIZE  (1 << (PAGE_SHIFT + THREAD_ORDER))
-#else
-#define THREAD_SIZE  (1UL << (PAGE_SHIFT + THREAD_ORDER))
-#endif
+#define THREAD_SIZE  (PAGE_SIZE << THREAD_ORDER)
 #define CURRENT_MASK (~(THREAD_SIZE-1))
+
+#define EXCEPTION_STACK_ORDER 0
+#define EXCEPTION_STKSZ (PAGE_SIZE << EXCEPTION_STACK_ORDER)
+
+#define DEBUG_STACK_ORDER EXCEPTION_STACK_ORDER
+#define DEBUG_STKSZ (PAGE_SIZE << DEBUG_STACK_ORDER)
+
+#define IRQSTACK_ORDER 2
+#define IRQSTACKSIZE (PAGE_SIZE << IRQSTACK_ORDER)
+
+#define STACKFAULT_STACK 1
+#define DOUBLEFAULT_STACK 2
+#define NMI_STACK 3
+#define DEBUG_STACK 4
+#define MCE_STACK 5
+#define N_EXCEPTION_STACKS 5  /* hw limit: 7 */
 
 #define LARGE_PAGE_MASK (~(LARGE_PAGE_SIZE-1))
 #define LARGE_PAGE_SIZE (1UL << PMD_SHIFT)
@@ -31,6 +43,8 @@
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
+
+extern unsigned long end_pfn;
 
 void clear_page(void *);
 void copy_page(void *, void *);
@@ -63,12 +77,14 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __pgd(x) ((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-#define __START_KERNEL		0xffffffff80100000UL
+#define __PHYSICAL_START	((unsigned long)CONFIG_PHYSICAL_START)
+#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
 #define __START_KERNEL_map	0xffffffff80000000UL
 #define __PAGE_OFFSET           0xffff810000000000UL
 
 #else
-#define __START_KERNEL		0xffffffff80100000
+#define __PHYSICAL_START	CONFIG_PHYSICAL_START
+#define __START_KERNEL		(__START_KERNEL_map + __PHYSICAL_START)
 #define __START_KERNEL_map	0xffffffff80000000
 #define __PAGE_OFFSET           0xffff810000000000
 #endif /* !__ASSEMBLY__ */
@@ -89,20 +105,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #include <asm/bug.h>
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 #endif /* __ASSEMBLY__ */
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
@@ -118,10 +120,12 @@ extern __inline__ int get_order(unsigned long size)
 	  __pa(v); })
 
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
-#ifndef CONFIG_DISCONTIGMEM
+#define __boot_va(x)		__va(x)
+#define __boot_pa(x)		__pa(x)
+#ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
-#define pfn_valid(pfn)		((pfn) < max_mapnr)
+#define pfn_valid(pfn)		((pfn) < end_pfn)
 #endif
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
@@ -135,5 +139,7 @@ extern __inline__ int get_order(unsigned long size)
 #define __HAVE_ARCH_GATE_AREA 1	
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _X86_64_PAGE_H */

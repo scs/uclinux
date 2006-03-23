@@ -31,6 +31,7 @@
 #define HPAGE_SIZE		(1UL << HPAGE_SHIFT)
 #define HPAGE_MASK		(~(HPAGE_SIZE-1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT-PAGE_SHIFT)
+#define ARCH_HAS_SETCLEAR_HUGE_PTE
 #endif
 
 #ifdef __KERNEL__
@@ -92,11 +93,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
-#ifdef CONFIG_DISCONTIGMEM
-/* Just for HP690, for now.. */
-#define __MEMORY_START_2ND	(__MEMORY_START+0x02000000)
-#define __MEMORY_SIZE_2ND	0x001000000 /* 16MB */
-#endif
 
 #define PAGE_OFFSET		(0x80000000UL)
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
@@ -104,10 +100,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define MAP_NR(addr)		(((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT)
 
-#ifndef CONFIG_DISCONTIGMEM
 #define phys_to_page(phys)	(mem_map + (((phys)-__MEMORY_START) >> PAGE_SHIFT))
 #define page_to_phys(page)	(((page - mem_map) << PAGE_SHIFT) + __MEMORY_START)
-#endif
 
 /* PFN start number, because of __MEMORY_START */
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
@@ -121,24 +115,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#ifndef __ASSEMBLY__
-
-/* Pure 2^n version of get_order */
-static __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
-#endif
-
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* __ASM_SH_PAGE_H */

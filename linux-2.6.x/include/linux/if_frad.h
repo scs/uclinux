@@ -131,17 +131,17 @@ struct frad_conf
 /* these are the fields of an RFC 1490 header */
 struct frhdr
 {
-   unsigned char  control	__attribute__((packed));
+   unsigned char  control;
 
    /* for IP packets, this can be the NLPID */
-   unsigned char  pad		__attribute__((packed)); 
+   unsigned char  pad;
 
-   unsigned char  NLPID		__attribute__((packed));
-   unsigned char  OUI[3]	__attribute__((packed));
-   unsigned short PID		__attribute__((packed));
+   unsigned char  NLPID;
+   unsigned char  OUI[3];
+   unsigned short PID;
 
 #define IP_NLPID pad 
-};
+} __attribute__((packed));
 
 /* see RFC 1490 for the definition of the following */
 #define FRAD_I_UI		0x03
@@ -191,10 +191,12 @@ struct frad_local
    int               buffer;		/* current buffer for S508 firmware */
 };
 
-extern void dlci_ioctl_set(int (*hook)(unsigned int, void __user *));
-
 #endif /* __KERNEL__ */
 
 #endif /* CONFIG_DLCI || CONFIG_DLCI_MODULE */
+
+#ifdef __KERNEL__
+extern void dlci_ioctl_set(int (*hook)(unsigned int, void __user *));
+#endif
 
 #endif

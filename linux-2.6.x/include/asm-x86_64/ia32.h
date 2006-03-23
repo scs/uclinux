@@ -94,7 +94,7 @@ typedef struct compat_siginfo{
 
 		/* POSIX.1b timers */
 		struct {
-			int _tid;		/* timer id */
+			compat_timer_t _tid;	/* timer id */
 			int _overrun;		/* overrun count */
 			compat_sigval_t _sigval;	/* same as below */
 			int _sys_private;	/* not to be passed to user */
@@ -165,6 +165,13 @@ struct siginfo_t;
 int do_get_thread_area(struct thread_struct *t, struct user_desc __user *info);
 int do_set_thread_area(struct thread_struct *t, struct user_desc __user *info);
 int ia32_child_tls(struct task_struct *p, struct pt_regs *childregs);
+
+struct linux_binprm;
+extern int ia32_setup_arg_pages(struct linux_binprm *bprm,
+				unsigned long stack_top, int exec_stack);
+struct mm_struct;
+extern void ia32_pick_mmap_layout(struct mm_struct *mm);
+
 #endif
 
 #endif /* !CONFIG_IA32_SUPPORT */

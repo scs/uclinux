@@ -35,6 +35,7 @@ extern cpumask_t cpu_present_mask;
 extern cpumask_t cpu_possible_map;
 extern cpumask_t cpu_online_map;
 extern cpumask_t cpu_callout_map;
+extern cpumask_t cpu_initialized;
 
 /*
  * Private routines/data
@@ -43,13 +44,14 @@ extern cpumask_t cpu_callout_map;
 extern void smp_alloc_memory(void);
 extern volatile unsigned long smp_invalidate_needed;
 extern int pic_mode;
+extern void lock_ipi_call_lock(void);
+extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
-extern void smp_flush_tlb(void);
-extern void smp_message_irq(int cpl, void *dev_id, struct pt_regs *regs);
 extern void smp_send_reschedule(int cpu);
-extern void smp_invalidate_rcv(void);		/* Process an NMI */
-extern void zap_low_mappings(void);
 void smp_stop_cpu(void);
+extern int smp_call_function_single(int cpuid, void (*func) (void *info),
+				void *info, int retry, int wait);
+
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
 extern u8 phys_proc_id[NR_CPUS];
@@ -68,15 +70,20 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 
-#define __smp_processor_id() read_pda(cpunumber)
+#define raw_smp_processor_id() read_pda(cpunumber)
 
-extern __inline int hard_smp_processor_id(void)
+static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
 }
 
 extern int safe_smp_processor_id(void);
+extern int __cpu_disable(void);
+extern void __cpu_die(unsigned int cpu);
+extern void prefill_possible_map(void);
+extern unsigned num_processors;
+extern unsigned disabled_cpus;
 
 #endif /* !ASSEMBLY */
 
@@ -128,6 +135,12 @@ static __inline int logical_smp_processor_id(void)
 	/* we don't want to mark this access volatile - bad code generation */
 	return GET_APIC_LOGICAL_ID(*(unsigned long *)(APIC_BASE+APIC_LDR));
 }
+#endif
+
+#ifdef CONFIG_SMP
+#define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
+#else
+#define cpu_physical_id(cpu)		boot_cpu_id
 #endif
 
 #endif

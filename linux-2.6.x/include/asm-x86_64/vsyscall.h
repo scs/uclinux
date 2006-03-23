@@ -29,7 +29,6 @@ enum vsyscall_num {
 
 struct vxtime_data {
 	long hpet_address;	/* HPET base address */
-	unsigned long hz;	/* HPET clocks / sec */
 	int last;
 	unsigned long last_tsc;
 	long quot;
@@ -37,8 +36,8 @@ struct vxtime_data {
 	int mode;
 };
 
-#define hpet_readl(a)           readl((void *)fix_to_virt(FIX_HPET_BASE) + a)
-#define hpet_writel(d,a)        writel(d, (void *)fix_to_virt(FIX_HPET_BASE) + a)
+#define hpet_readl(a)           readl((const void __iomem *)fix_to_virt(FIX_HPET_BASE) + a)
+#define hpet_writel(d,a)        writel(d, (void __iomem *)fix_to_virt(FIX_HPET_BASE) + a)
 
 /* vsyscall space (readonly) */
 extern struct vxtime_data __vxtime;

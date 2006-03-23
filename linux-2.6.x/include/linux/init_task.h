@@ -2,17 +2,27 @@
 #define _LINUX__INIT_TASK_H
 
 #include <linux/file.h>
+#include <linux/rcupdate.h>
 
-#define INIT_FILES \
-{ 							\
-	.count		= ATOMIC_INIT(1), 		\
-	.file_lock	= SPIN_LOCK_UNLOCKED, 		\
+#define INIT_FDTABLE \
+{							\
 	.max_fds	= NR_OPEN_DEFAULT, 		\
 	.max_fdset	= __FD_SETSIZE, 		\
 	.next_fd	= 0, 				\
 	.fd		= &init_files.fd_array[0], 	\
 	.close_on_exec	= &init_files.close_on_exec_init, \
 	.open_fds	= &init_files.open_fds_init, 	\
+	.rcu		= RCU_HEAD_INIT, 		\
+	.free_files	= NULL,		 		\
+	.next		= NULL,		 		\
+}
+
+#define INIT_FILES \
+{ 							\
+	.count		= ATOMIC_INIT(1), 		\
+	.file_lock	= SPIN_LOCK_UNLOCKED, 		\
+	.fdt		= &init_files.fdtab, 		\
+	.fdtab		= INIT_FDTABLE,			\
 	.close_on_exec_init = { { 0, } }, 		\
 	.open_fds_init	= { { 0, } }, 			\
 	.fd_array	= { NULL, } 			\
@@ -41,7 +51,6 @@
 	.page_table_lock =  SPIN_LOCK_UNLOCKED, 		\
 	.mmlist		= LIST_HEAD_INIT(name.mmlist),		\
 	.cpu_vm_mask	= CPU_MASK_ALL,				\
-	.default_kioctx = INIT_KIOCTX(name.default_kioctx, name),	\
 }
 
 #define INIT_SIGNALS(sig) {	\
@@ -81,6 +90,7 @@ extern struct group_info init_groups;
 	.mm		= NULL,						\
 	.active_mm	= &init_mm,					\
 	.run_list	= LIST_HEAD_INIT(tsk.run_list),			\
+	.ioprio		= 0,						\
 	.time_slice	= HZ,						\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
 	.ptrace_children= LIST_HEAD_INIT(tsk.ptrace_children),		\
@@ -108,9 +118,9 @@ extern struct group_info init_groups;
 	.blocked	= {{0}},					\
 	.alloc_lock	= SPIN_LOCK_UNLOCKED,				\
 	.proc_lock	= SPIN_LOCK_UNLOCKED,				\
-	.switch_lock	= SPIN_LOCK_UNLOCKED,				\
 	.journal_info	= NULL,						\
 	.cpu_timers	= INIT_CPU_TIMERS(tsk.cpu_timers),		\
+	.fs_excl	= ATOMIC_INIT(0),				\
 }
 
 

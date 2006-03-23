@@ -12,8 +12,11 @@
 #define _LINUX_SERIAL_8250_H
 
 #include <linux/serial_core.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
+/*
+ * This is the platform device platform_data structure
+ */
 struct plat_serial8250_port {
 	unsigned long	iobase;		/* io base address */
 	void __iomem	*membase;	/* ioremap cookie or NULL */
@@ -22,7 +25,37 @@ struct plat_serial8250_port {
 	unsigned int	uartclk;	/* UART clock rate */
 	unsigned char	regshift;	/* register shift */
 	unsigned char	iotype;		/* UPIO_* */
-	unsigned int	flags;		/* UPF_* flags */
+	unsigned char	hub6;
+	upf_t		flags;		/* UPF_* flags */
 };
+
+/*
+ * Allocate 8250 platform device IDs.  Nothing is implied by
+ * the numbering here, except for the legacy entry being -1.
+ */
+enum {
+	PLAT8250_DEV_LEGACY = -1,
+	PLAT8250_DEV_PLATFORM,
+	PLAT8250_DEV_PLATFORM1,
+	PLAT8250_DEV_FOURPORT,
+	PLAT8250_DEV_ACCENT,
+	PLAT8250_DEV_BOCA,
+	PLAT8250_DEV_HUB6,
+	PLAT8250_DEV_MCA,
+	PLAT8250_DEV_AU1X00,
+};
+
+/*
+ * This should be used by drivers which want to register
+ * their own 8250 ports without registering their own
+ * platform device.  Using these will make your driver
+ * dependent on the 8250 driver.
+ */
+struct uart_port;
+
+int serial8250_register_port(struct uart_port *);
+void serial8250_unregister_port(int line);
+void serial8250_suspend_port(int line);
+void serial8250_resume_port(int line);
 
 #endif

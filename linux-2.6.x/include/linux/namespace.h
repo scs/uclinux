@@ -9,16 +9,18 @@ struct namespace {
 	atomic_t		count;
 	struct vfsmount *	root;
 	struct list_head	list;
-	struct rw_semaphore	sem;
+	wait_queue_head_t poll;
+	int event;
 };
 
-extern void umount_tree(struct vfsmount *);
 extern int copy_namespace(int, struct task_struct *);
 extern void __put_namespace(struct namespace *namespace);
+extern struct namespace *dup_namespace(struct task_struct *, struct fs_struct *);
 
 static inline void put_namespace(struct namespace *namespace)
 {
-	if (atomic_dec_and_test(&namespace->count))
+	if (atomic_dec_and_lock(&namespace->count, &vfsmount_lock))
+		/* releases vfsmount_lock */
 		__put_namespace(namespace);
 }
 

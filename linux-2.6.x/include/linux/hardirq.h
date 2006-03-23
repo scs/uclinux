@@ -2,6 +2,7 @@
 #define LINUX_HARDIRQ_H
 
 #include <linux/config.h>
+#include <linux/preempt.h>
 #include <linux/smp_lock.h>
 #include <asm/hardirq.h>
 #include <asm/system.h>
@@ -89,11 +90,9 @@ extern void synchronize_irq(unsigned int irq);
 #define nmi_enter()		irq_enter()
 #define nmi_exit()		sub_preempt_count(HARDIRQ_OFFSET)
 
-#ifndef CONFIG_VIRT_CPU_ACCOUNTING
-static inline void account_user_vtime(struct task_struct *tsk)
-{
-}
+struct task_struct;
 
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
 static inline void account_system_vtime(struct task_struct *tsk)
 {
 }

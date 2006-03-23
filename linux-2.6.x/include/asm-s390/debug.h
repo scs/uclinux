@@ -9,6 +9,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <linux/config.h>
+#include <linux/fs.h>
 #include <linux/string.h>
 
 /* Note:
@@ -31,27 +33,24 @@ struct __debug_entry{
 } __attribute__((packed));
 
 
-#define __DEBUG_FEATURE_VERSION      1  /* version of debug feature */
+#define __DEBUG_FEATURE_VERSION      2  /* version of debug feature */
 
 #ifdef __KERNEL__
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
-#include <linux/proc_fs.h>
 
 #define DEBUG_MAX_LEVEL            6  /* debug levels range from 0 to 6 */
 #define DEBUG_OFF_LEVEL            -1 /* level where debug is switched off */
 #define DEBUG_FLUSH_ALL            -1 /* parameter to flush all areas */
 #define DEBUG_MAX_VIEWS            10 /* max number of views in proc fs */
-#define DEBUG_MAX_PROCF_LEN        64 /* max length for a proc file name */
+#define DEBUG_MAX_NAME_LEN         64 /* max length for a debugfs file name */
 #define DEBUG_DEFAULT_LEVEL        3  /* initial debug level */
 
 #define DEBUG_DIR_ROOT "s390dbf" /* name of debug root directory in proc fs */
 
 #define DEBUG_DATA(entry) (char*)(entry + 1) /* data is stored behind */
                                              /* the entry information */
-
-#define STCK(x)	asm volatile ("STCK 0(%1)" : "=m" (x) : "a" (&(x)) : "cc")
 
 typedef struct __debug_entry debug_entry_t;
 
@@ -64,16 +63,17 @@ typedef struct debug_info {
 	spinlock_t lock;			
 	int level;
 	int nr_areas;
-	int page_order;
+	int pages_per_area;
 	int buf_size;
 	int entry_size;	
-	debug_entry_t** areas;
+	debug_entry_t*** areas;
 	int active_area;
-	int *active_entry;
-	struct proc_dir_entry* proc_root_entry;
-	struct proc_dir_entry* proc_entries[DEBUG_MAX_VIEWS];
+	int *active_pages;
+	int *active_entries;
+	struct dentry* debugfs_root_entry;
+	struct dentry* debugfs_entries[DEBUG_MAX_VIEWS];
 	struct debug_view* views[DEBUG_MAX_VIEWS];	
-	char name[DEBUG_MAX_PROCF_LEN];
+	char name[DEBUG_MAX_NAME_LEN];
 } debug_info_t;
 
 typedef int (debug_header_proc_t) (debug_info_t* id,
@@ -98,7 +98,7 @@ int debug_dflt_header_fn(debug_info_t* id, struct debug_view* view,
 		         int area, debug_entry_t* entry, char* out_buf);						
 				
 struct debug_view {
-	char name[DEBUG_MAX_PROCF_LEN];
+	char name[DEBUG_MAX_NAME_LEN];
 	debug_prolog_proc_t* prolog_proc;
 	debug_header_proc_t* header_proc;
 	debug_format_proc_t* format_proc;
@@ -120,7 +120,7 @@ debug_entry_t* debug_exception_common(debug_info_t* id, int level,
 
 /* Debug Feature API: */
 
-debug_info_t* debug_register(char* name, int pages_index, int nr_areas,
+debug_info_t* debug_register(char* name, int pages, int nr_areas,
                              int buf_size);
 
 void debug_unregister(debug_info_t* id);
@@ -129,33 +129,37 @@ void debug_set_level(debug_info_t* id, int new_level);
 
 void debug_stop_all(void);
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_event(debug_info_t* id, int level, void* data, int length)
 {
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_event_common(id,level,data,length);
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_int_event(debug_info_t* id, int level, unsigned int tag)
 {
         unsigned int t=tag;
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_event_common(id,level,&t,sizeof(unsigned int));
 }
 
-extern inline debug_entry_t *
+static inline debug_entry_t *
 debug_long_event (debug_info_t* id, int level, unsigned long tag)
 {
         unsigned long t=tag;
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_event_common(id,level,&t,sizeof(unsigned long));
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_text_event(debug_info_t* id, int level, const char* txt)
 {
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_event_common(id,level,txt,strlen(txt));
 }
 
@@ -164,33 +168,37 @@ debug_sprintf_event(debug_info_t* id,int level,char *string,...)
 	__attribute__ ((format(printf, 3, 4)));
 
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_exception(debug_info_t* id, int level, void* data, int length)
 {
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_exception_common(id,level,data,length);
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_int_exception(debug_info_t* id, int level, unsigned int tag)
 {
         unsigned int t=tag;
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_exception_common(id,level,&t,sizeof(unsigned int));
 }
 
-extern inline debug_entry_t * 
+static inline debug_entry_t *
 debug_long_exception (debug_info_t* id, int level, unsigned long tag)
 {
         unsigned long t=tag;
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_exception_common(id,level,&t,sizeof(unsigned long));
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_text_exception(debug_info_t* id, int level, const char* txt)
 {
-	if ((!id) || (level > id->level)) return NULL;
+	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
+		return NULL;
         return debug_exception_common(id,level,txt,strlen(txt));
 }
 

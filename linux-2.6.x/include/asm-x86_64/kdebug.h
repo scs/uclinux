@@ -14,7 +14,7 @@ struct die_args {
 }; 
 
 /* Note - you should never unregister because that can race with NMIs.
-   If you really want to do it first unregister - then synchronize_kernel - then free. 
+   If you really want to do it first unregister - then synchronize_sched - then free.
   */
 int register_die_notifier(struct notifier_block *nb);
 extern struct notifier_block *die_chain;
@@ -35,9 +35,16 @@ enum die_val {
 	DIE_PAGE_FAULT,
 }; 
 	
-static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
-{ 
-	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig }; 
+static inline int notify_die(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
 	return notifier_call_chain(&die_chain, val, &args); 
 } 
 
@@ -46,7 +53,7 @@ extern void die(const char *,struct pt_regs *,long);
 extern void __die(const char *,struct pt_regs *,long);
 extern void show_registers(struct pt_regs *regs);
 extern void dump_pagetable(unsigned long);
-extern void oops_begin(void);
-extern void oops_end(void);
+extern unsigned long oops_begin(void);
+extern void oops_end(unsigned long);
 
 #endif

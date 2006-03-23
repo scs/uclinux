@@ -22,14 +22,14 @@ struct mb_cache_entry {
 };
 
 struct mb_cache_op {
-	int (*free)(struct mb_cache_entry *, int);
+	int (*free)(struct mb_cache_entry *, gfp_t);
 };
 
 /* Functions on caches */
 
 struct mb_cache * mb_cache_create(const char *, struct mb_cache_op *, size_t,
 				  int, int);
-void mb_cache_shrink(struct mb_cache *, struct block_device *);
+void mb_cache_shrink(struct block_device *);
 void mb_cache_destroy(struct mb_cache *);
 
 /* Functions on cache entries */

@@ -88,10 +88,12 @@ struct nfsd_readdirargs {
 
 struct nfsd_attrstat {
 	struct svc_fh		fh;
+	struct kstat		stat;
 };
 
 struct nfsd_diropres  {
 	struct svc_fh		fh;
+	struct kstat		stat;
 };
 
 struct nfsd_readlinkres {
@@ -101,6 +103,7 @@ struct nfsd_readlinkres {
 struct nfsd_readres {
 	struct svc_fh		fh;
 	unsigned long		count;
+	struct kstat		stat;
 };
 
 struct nfsd_readdirres {
@@ -168,5 +171,9 @@ int nfssvc_encode_entry(struct readdir_cd *, const char *name,
 				int namlen, loff_t offset, ino_t ino, unsigned int);
 
 int nfssvc_release_fhandle(struct svc_rqst *, u32 *, struct nfsd_fhandle *);
+
+/* Helper functions for NFSv2 ACL code */
+u32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, u32 *p, struct svc_fh *fhp);
+u32 *nfs2svc_decode_fh(u32 *p, struct svc_fh *fhp);
 
 #endif /* LINUX_NFSD_H */

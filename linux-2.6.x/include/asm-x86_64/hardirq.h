@@ -9,29 +9,13 @@
 
 #define __ARCH_IRQ_STAT 1
 
-/* Generate a lvalue for a pda member. Should fix softirq.c instead to use
-   special access macros. This would generate better code. */ 
-#define __IRQ_STAT(cpu,member) (read_pda(me)->member)
+#define local_softirq_pending() read_pda(__softirq_pending)
 
-#include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
+#define __ARCH_SET_SOFTIRQ_PENDING 1
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-static inline void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-#ifdef CONFIG_X86_LOCAL_APIC
-	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 */
-	ack_APIC_irq();
-#endif
-}
+#define set_softirq_pending(x) write_pda(__softirq_pending, (x))
+#define or_softirq_pending(x)  or_pda(__softirq_pending, (x))
+
+extern void ack_bad_irq(unsigned int irq);
+
 #endif /* __ASM_HARDIRQ_H */

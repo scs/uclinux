@@ -19,12 +19,13 @@
 #ifndef _LINUX_RADIX_TREE_H
 #define _LINUX_RADIX_TREE_H
 
+#include <linux/sched.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
 
 struct radix_tree_root {
 	unsigned int		height;
-	int			gfp_mask;
+	gfp_t			gfp_mask;
 	struct radix_tree_node	*rnode;
 };
 
@@ -46,11 +47,12 @@ do {									\
 
 int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
 void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
 void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 unsigned int
 radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
 			unsigned long first_index, unsigned int max_items);
-int radix_tree_preload(int gfp_mask);
+int radix_tree_preload(gfp_t gfp_mask);
 void radix_tree_init(void);
 void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, int tag);

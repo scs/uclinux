@@ -140,7 +140,7 @@ extern int find_via_pmu(void);
 
 extern int pmu_request(struct adb_request *req,
 		void (*done)(struct adb_request *), int nbytes, ...);
-
+extern int pmu_queue_request(struct adb_request *req);
 extern void pmu_poll(void);
 extern void pmu_poll_adb(void); /* For use by xmon */
 extern void pmu_wait_complete(struct adb_request *req);
@@ -160,13 +160,7 @@ extern void pmu_unlock(void);
 extern int pmu_present(void);
 extern int pmu_get_model(void);
 
-extern int pmu_i2c_combined_read(int bus, int addr, int subaddr,  u8* data, int len);
-extern int pmu_i2c_stdsub_write(int bus, int addr, int subaddr,  u8* data, int len);
-extern int pmu_i2c_simple_read(int bus, int addr,  u8* data, int len);
-extern int pmu_i2c_simple_write(int bus, int addr,  u8* data, int len);
-
-
-#ifdef CONFIG_PMAC_PBOOK
+#ifdef CONFIG_PM
 /*
  * Stuff for putting the powerbook to sleep and waking it again.
  *
@@ -208,6 +202,8 @@ struct pmu_sleep_notifier
 int pmu_register_sleep_notifier(struct pmu_sleep_notifier* notifier);
 int pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* notifier);
 
+#endif /* CONFIG_PM */
+
 #define PMU_MAX_BATTERIES	2
 
 /* values for pmu_power_flags */
@@ -234,7 +230,5 @@ struct pmu_battery_info
 extern int pmu_battery_count;
 extern struct pmu_battery_info pmu_batteries[PMU_MAX_BATTERIES];
 extern unsigned int pmu_power_flags;
-
-#endif /* CONFIG_PMAC_PBOOK */
 
 #endif	/* __KERNEL__ */

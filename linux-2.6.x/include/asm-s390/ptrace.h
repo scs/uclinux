@@ -276,7 +276,7 @@ typedef struct
 #endif /* __s390x__ */
 
 #define PSW_KERNEL_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_PRIMARY | \
-			 PSW_DEFAULT_KEY)
+			 PSW_MASK_MCHECK | PSW_DEFAULT_KEY)
 #define PSW_USER_BITS	(PSW_BASE_BITS | PSW_MASK_DAT | PSW_ASC_HOME | \
 			 PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK | \
 			 PSW_MASK_PSTATE | PSW_DEFAULT_KEY)
@@ -468,6 +468,8 @@ struct user_regs_struct
 };
 
 #ifdef __KERNEL__
+#define __ARCH_SYS_PTRACE	1
+
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)
 #define instruction_pointer(regs) ((regs)->psw.addr & PSW_ADDR_INSN)
 #define profile_pc(regs) instruction_pointer(regs)

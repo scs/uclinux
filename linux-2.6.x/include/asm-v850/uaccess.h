@@ -14,7 +14,7 @@
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
-extern inline int access_ok (int type, const void *addr, unsigned long size)
+static inline int access_ok (int type, const void *addr, unsigned long size)
 {
 	/* XXX I guess we should check against real ram bounds at least, and
 	   possibly make sure ADDR is not within the kernel.
@@ -25,12 +25,6 @@ extern inline int access_ok (int type, const void *addr, unsigned long size)
 	   peripheral-I/O area, which is located just _before_ zero.  */
 	unsigned long val = (unsigned long)addr;
 	return val >= (0x80 + NUM_CPU_IRQS*16) && val < 0xFFFFF000;
-}
-
-/* this function will go away soon - use access_ok() instead */
-extern inline int __deprecated verify_area (int type, const void *addr, unsigned long size)
-{
-	return access_ok (type, addr, size) ? 0 : -EFAULT;
 }
 
 /*

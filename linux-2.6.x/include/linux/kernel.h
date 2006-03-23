@@ -47,6 +47,8 @@ extern int console_printk[];
 #define default_console_loglevel (console_printk[3])
 
 struct completion;
+struct pt_regs;
+struct user;
 
 /**
  * might_sleep - annotation for functions that can sleep
@@ -58,14 +60,22 @@ struct completion;
  * be biten later when the calling function happens to sleep when it is not
  * supposed to.
  */
-#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
-#define might_sleep() __might_sleep(__FILE__, __LINE__)
-#define might_sleep_if(cond) do { if (unlikely(cond)) might_sleep(); } while (0)
-void __might_sleep(char *file, int line);
+#ifdef CONFIG_PREEMPT_VOLUNTARY
+extern int cond_resched(void);
+# define might_resched() cond_resched()
 #else
-#define might_sleep() do {} while(0)
-#define might_sleep_if(cond) do {} while (0)
+# define might_resched() do { } while (0)
 #endif
+
+#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+  void __might_sleep(char *file, int line);
+# define might_sleep() \
+	do { __might_sleep(__FILE__, __LINE__); might_resched(); } while (0)
+#else
+# define might_sleep() do { might_resched(); } while (0)
+#endif
+
+#define might_sleep_if(cond) do { if (unlikely(cond)) might_sleep(); } while (0)
 
 #define abs(x) ({				\
 		int __x = (x);			\
@@ -115,6 +125,8 @@ extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int session_of_pgrp(int pgrp);
 
+extern void dump_thread(struct pt_regs *regs, struct user *dump);
+
 #ifdef CONFIG_PRINTK
 asmlinkage int vprintk(const char *fmt, va_list args)
 	__attribute__ ((format (printf, 1, 0)));
@@ -160,7 +172,7 @@ static inline void console_verbose(void)
 
 extern void bust_spinlocks(int yes);
 extern int oops_in_progress;		/* If set, an oops, panic(), BUG() or die() is in progress */
-extern int panic_timeout;
+extern __deprecated_for_modules int panic_timeout;
 extern int panic_on_oops;
 extern int tainted;
 extern const char *print_tainted(void);
@@ -173,6 +185,7 @@ extern enum system_states {
 	SYSTEM_HALT,
 	SYSTEM_POWER_OFF,
 	SYSTEM_RESTART,
+	SYSTEM_SUSPEND_DISK,
 } system_state;
 
 #define TAINT_PROPRIETARY_MODULE	(1<<0)
@@ -204,6 +217,7 @@ extern void dump_stack(void);
 	((unsigned char *)&addr)[1], \
 	((unsigned char *)&addr)[2], \
 	((unsigned char *)&addr)[3]
+#define NIPQUAD_FMT "%u.%u.%u.%u"
 
 #define NIP6(addr) \
 	ntohs((addr).s6_addr16[0]), \
@@ -214,6 +228,8 @@ extern void dump_stack(void);
 	ntohs((addr).s6_addr16[5]), \
 	ntohs((addr).s6_addr16[6]), \
 	ntohs((addr).s6_addr16[7])
+#define NIP6_FMT "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x"
+#define NIP6_SEQFMT "%04x%04x%04x%04x%04x%04x%04x%04x"
 
 #if defined(__LITTLE_ENDIAN)
 #define HIPQUAD(addr) \
@@ -258,7 +274,6 @@ extern void dump_stack(void);
 
 /**
  * container_of - cast a member of a structure out to the containing structure
- *
  * @ptr:	the pointer to the member.
  * @type:	the type of the container struct this is embedded in.
  * @member:	the name of the member within the struct.
@@ -277,6 +292,15 @@ extern void dump_stack(void);
 	typeof(x) __dummy2; \
 	(void)(&__dummy == &__dummy2); \
 	1; \
+})
+
+/*
+ * Check at compile time that 'function' is a certain type, or is a pointer
+ * to that type (needs to use typedef for the function type.)
+ */
+#define typecheck_fn(type,function) \
+({	typeof(type) __tmp = function; \
+	(void)__tmp; \
 })
 
 #endif /* __KERNEL__ */
@@ -299,18 +323,10 @@ struct sysinfo {
 	char _f[20-2*sizeof(long)-sizeof(int)];	/* Padding: libc5 uses this.. */
 };
 
-extern void BUILD_BUG(void);
-#define BUILD_BUG_ON(condition) do { if (condition) BUILD_BUG(); } while(0)
-
-#ifdef CONFIG_SYSCTL
-extern int randomize_va_space;
-#else
-#define randomize_va_space 1
-#endif
+/* Force a compilation error if condition is true */
+#define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 /* Trap pasters of __FUNCTION__ at compile-time */
-#if __GNUC__ > 2 || __GNUC_MINOR__ >= 95
 #define __FUNCTION__ (__func__)
-#endif
 
 #endif

@@ -4,6 +4,7 @@
 #ifdef CONFIG_HUGETLB_PAGE
 
 #include <linux/mempolicy.h>
+#include <asm/tlbflush.h>
 
 struct ctl_table;
 
@@ -15,25 +16,31 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 int hugetlb_sysctl_handler(struct ctl_table *, int, struct file *, void __user *, size_t *, loff_t *);
 int copy_hugetlb_page_range(struct mm_struct *, struct mm_struct *, struct vm_area_struct *);
 int follow_hugetlb_page(struct mm_struct *, struct vm_area_struct *, struct page **, struct vm_area_struct **, unsigned long *, int *, int);
-void zap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
 void unmap_hugepage_range(struct vm_area_struct *, unsigned long, unsigned long);
 int hugetlb_prefault(struct address_space *, struct vm_area_struct *);
 int hugetlb_report_meminfo(char *);
 int hugetlb_report_node_meminfo(int, char *);
 int is_hugepage_mem_enough(size_t);
 unsigned long hugetlb_total_pages(void);
+struct page *alloc_huge_page(struct vm_area_struct *, unsigned long);
+void free_huge_page(struct page *);
+int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+			unsigned long address, int write_access);
+
+extern unsigned long max_huge_pages;
+extern const unsigned long hugetlb_zero, hugetlb_infinity;
+extern int sysctl_hugetlb_shm_group;
+
+/* arch callbacks */
+
+pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr);
+pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr);
 struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
 			      int write);
 struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 				pmd_t *pmd, int write);
 int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
 int pmd_huge(pmd_t pmd);
-struct page *alloc_huge_page(void);
-void free_huge_page(struct page *);
-
-extern unsigned long max_huge_pages;
-extern const unsigned long hugetlb_zero, hugetlb_infinity;
-extern int sysctl_hugetlb_shm_group;
 
 #ifndef ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define is_hugepage_only_range(mm, addr, len)	0
@@ -46,6 +53,22 @@ extern int sysctl_hugetlb_shm_group;
 	is_aligned_hugepage_range(addr, len)
 #else
 int prepare_hugepage_range(unsigned long addr, unsigned long len);
+#endif
+
+#ifndef ARCH_HAS_SETCLEAR_HUGE_PTE
+#define set_huge_pte_at(mm, addr, ptep, pte)	set_pte_at(mm, addr, ptep, pte)
+#define huge_ptep_get_and_clear(mm, addr, ptep) ptep_get_and_clear(mm, addr, ptep)
+#else
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
+		     pte_t *ptep, pte_t pte);
+pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep);
+#endif
+
+#ifndef ARCH_HAS_HUGETLB_PREFAULT_HOOK
+#define hugetlb_prefault_arch_hook(mm)		do { } while (0)
+#else
+void hugetlb_prefault_arch_hook(struct mm_struct *mm);
 #endif
 
 #else /* !CONFIG_HUGETLB_PAGE */
@@ -63,7 +86,6 @@ static inline unsigned long hugetlb_total_pages(void)
 #define follow_huge_addr(mm, addr, write)	ERR_PTR(-EINVAL)
 #define copy_hugetlb_page_range(src, dst, vma)	({ BUG(); 0; })
 #define hugetlb_prefault(mapping, vma)		({ BUG(); 0; })
-#define zap_hugepage_range(vma, start, len)	BUG()
 #define unmap_hugepage_range(vma, start, end)	BUG()
 #define is_hugepage_mem_enough(size)		0
 #define hugetlb_report_meminfo(buf)		0
@@ -75,12 +97,13 @@ static inline unsigned long hugetlb_total_pages(void)
 #define is_hugepage_only_range(mm, addr, len)	0
 #define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
 						do { } while (0)
-#define alloc_huge_page()			({ NULL; })
+#define alloc_huge_page(vma, addr)		({ NULL; })
 #define free_huge_page(p)			({ (void)(p); BUG(); })
+#define hugetlb_fault(mm, vma, addr, write)	({ BUG(); 0; })
 
 #ifndef HPAGE_MASK
-#define HPAGE_MASK	0		/* Keep the compiler happy */
-#define HPAGE_SIZE	0
+#define HPAGE_MASK	PAGE_MASK		/* Keep the compiler happy */
+#define HPAGE_SIZE	PAGE_SIZE
 #endif
 
 #endif /* !CONFIG_HUGETLB_PAGE */

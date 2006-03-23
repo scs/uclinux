@@ -50,6 +50,8 @@ struct timezone;
 struct tms;
 struct utimbuf;
 struct mq_attr;
+struct compat_stat;
+struct compat_timeval;
 
 #include <linux/config.h>
 #include <linux/types.h>
@@ -159,8 +161,9 @@ asmlinkage long sys_shutdown(int, int);
 asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd,
 				void __user *arg);
 asmlinkage long sys_restart_syscall(void);
-asmlinkage long sys_kexec_load(void *entry, unsigned long nr_segments,
-			struct kexec_segment *segments, unsigned long flags);
+asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
+				struct kexec_segment __user *segments,
+				unsigned long flags);
 
 asmlinkage long sys_exit(int error_code);
 asmlinkage void sys_exit_group(int error_code);
@@ -490,6 +493,7 @@ asmlinkage long sys_nfsservctl(int cmd,
 asmlinkage long sys_syslog(int type, char __user *buf, int len);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_ni_syscall(void);
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
 
 asmlinkage long sys_add_key(const char __user *_type,
 			    const char __user *_description,
@@ -504,5 +508,65 @@ asmlinkage long sys_request_key(const char __user *_type,
 
 asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5);
+
+asmlinkage long sys_ioprio_set(int which, int who, int ioprio);
+asmlinkage long sys_ioprio_get(int which, int who);
+asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
+				unsigned long maxnode);
+asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
+				const unsigned long __user *from,
+				const unsigned long __user *to);
+asmlinkage long sys_mbind(unsigned long start, unsigned long len,
+				unsigned long mode,
+				unsigned long __user *nmask,
+				unsigned long maxnode,
+				unsigned flags);
+asmlinkage long sys_get_mempolicy(int __user *policy,
+				unsigned long __user *nmask,
+				unsigned long maxnode,
+				unsigned long addr, unsigned long flags);
+
+asmlinkage long sys_inotify_init(void);
+asmlinkage long sys_inotify_add_watch(int fd, const char __user *path,
+					u32 mask);
+asmlinkage long sys_inotify_rm_watch(int fd, u32 wd);
+
+asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
+				 __u32 __user *ustatus);
+asmlinkage long sys_spu_create(const char __user *name,
+		unsigned int flags, mode_t mode);
+
+asmlinkage long sys_mknodat(int dfd, const char __user * filename, int mode,
+			    unsigned dev);
+asmlinkage long sys_mkdirat(int dfd, const char __user * pathname, int mode);
+asmlinkage long sys_unlinkat(int dfd, const char __user * pathname, int flag);
+asmlinkage long sys_symlinkat(const char __user * oldname,
+			      int newdfd, const char __user * newname);
+asmlinkage long sys_linkat(int olddfd, const char __user *oldname,
+			   int newdfd, const char __user *newname, int flags);
+asmlinkage long sys_renameat(int olddfd, const char __user * oldname,
+			     int newdfd, const char __user * newname);
+asmlinkage long sys_futimesat(int dfd, char __user *filename,
+			      struct timeval __user *utimes);
+asmlinkage long sys_faccessat(int dfd, const char __user *filename, int mode);
+asmlinkage long sys_fchmodat(int dfd, const char __user * filename,
+			     mode_t mode);
+asmlinkage long sys_fchownat(int dfd, const char __user *filename, uid_t user,
+			     gid_t group, int flag);
+asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
+			   int mode);
+asmlinkage long sys_newfstatat(int dfd, char __user *filename,
+			       struct stat __user *statbuf, int flag);
+asmlinkage long sys_fstatat64(int dfd, char __user *filename,
+			       struct stat64 __user *statbuf, int flag);
+asmlinkage long sys_readlinkat(int dfd, const char __user *path, char __user *buf,
+			       int bufsiz);
+asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
+				     struct compat_timeval __user *t);
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
+				      struct compat_stat __user *statbuf,
+				      int flag);
+asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
+				   int flags, int mode);
 
 #endif

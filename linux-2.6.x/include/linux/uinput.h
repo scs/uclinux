@@ -34,16 +34,14 @@
 #define UINPUT_BUFFER_SIZE	16
 #define UINPUT_NUM_REQUESTS	16
 
-/* state flags => bit index for {set|clear|test}_bit ops */
-#define UIST_CREATED		0
+enum uinput_state { UIST_NEW_DEVICE, UIST_SETUP_COMPLETE, UIST_CREATED };
 
 struct uinput_request {
 	int			id;
 	int			code;	/* UI_FF_UPLOAD, UI_FF_ERASE */
 
 	int			retval;
-	wait_queue_head_t	waitq;
-	int			completed;
+	struct completion	done;
 
 	union {
 		int		effect_id;
@@ -53,16 +51,17 @@ struct uinput_request {
 
 struct uinput_device {
 	struct input_dev	*dev;
-	unsigned long		state;
+	struct semaphore	sem;
+	enum uinput_state	state;
 	wait_queue_head_t	waitq;
-	unsigned char		ready,
-				head,
-				tail;
+	unsigned char		ready;
+	unsigned char		head;
+	unsigned char		tail;
 	struct input_event	buff[UINPUT_BUFFER_SIZE];
 
 	struct uinput_request	*requests[UINPUT_NUM_REQUESTS];
 	wait_queue_head_t	requests_waitq;
-	struct semaphore	requests_sem;
+	spinlock_t		requests_lock;
 };
 #endif	/* __KERNEL__ */
 
@@ -92,6 +91,7 @@ struct uinput_ff_erase {
 #define UI_SET_SNDBIT		_IOW(UINPUT_IOCTL_BASE, 106, int)
 #define UI_SET_FFBIT		_IOW(UINPUT_IOCTL_BASE, 107, int)
 #define UI_SET_PHYS		_IOW(UINPUT_IOCTL_BASE, 108, char*)
+#define UI_SET_SWBIT		_IOW(UINPUT_IOCTL_BASE, 109, int)
 
 #define UI_BEGIN_FF_UPLOAD	_IOWR(UINPUT_IOCTL_BASE, 200, struct uinput_ff_upload)
 #define UI_END_FF_UPLOAD	_IOW(UINPUT_IOCTL_BASE, 201, struct uinput_ff_upload)

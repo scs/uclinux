@@ -49,13 +49,6 @@
 
 #define access_ok(type, addr, size) (__range_not_ok(addr,size) == 0)
 
-/* this function will go away soon - use access_ok() instead */
-extern inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
-
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is
@@ -251,7 +244,7 @@ extern unsigned long copy_to_user(void __user *to, const void *from, unsigned le
 extern unsigned long copy_from_user(void *to, const void __user *from, unsigned len); 
 extern unsigned long copy_in_user(void __user *to, const void __user *from, unsigned len); 
 
-static inline int __copy_from_user(void *dst, const void __user *src, unsigned size) 
+static __always_inline int __copy_from_user(void *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -280,7 +273,7 @@ static inline int __copy_from_user(void *dst, const void __user *src, unsigned s
 	}
 }	
 
-static inline int __copy_to_user(void __user *dst, const void *src, unsigned size) 
+static __always_inline int __copy_to_user(void __user *dst, const void *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -312,7 +305,7 @@ static inline int __copy_to_user(void __user *dst, const void *src, unsigned siz
 }	
 
 
-static inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size) 
+static __always_inline int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 { 
        int ret = 0;
 	if (!__builtin_constant_p(size))
@@ -355,6 +348,7 @@ static inline int __copy_in_user(void __user *dst, const void __user *src, unsig
 long strncpy_from_user(char *dst, const char __user *src, long count);
 long __strncpy_from_user(char *dst, const char __user *src, long count);
 long strnlen_user(const char __user *str, long n);
+long __strnlen_user(const char __user *str, long n);
 long strlen_user(const char __user *str);
 unsigned long clear_user(void __user *mem, unsigned long len);
 unsigned long __clear_user(void __user *mem, unsigned long len);

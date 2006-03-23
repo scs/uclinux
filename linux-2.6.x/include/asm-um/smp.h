@@ -8,7 +8,8 @@
 #include "asm/current.h"
 #include "linux/cpumask.h"
 
-#define smp_processor_id() (current_thread->cpu)
+#define raw_smp_processor_id() (current_thread->cpu)
+
 #define cpu_logical_map(n) (n)
 #define cpu_number_map(n) (n)
 #define PROC_CHANGE_PENALTY	15 /* Pick a number, any number */
@@ -21,6 +22,8 @@ extern int ncpus;
 extern inline void smp_cpus_done(unsigned int maxcpus)
 {
 }
+
+extern struct task_struct *idle_threads[NR_CPUS];
 
 #endif
 

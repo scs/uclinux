@@ -1,5 +1,4 @@
 /*
- * $Id$
  *
  * generic helper functions for video4linux capture buffers, to handle
  * memory management and PCI DMA.  Right now bttv + saa7134 use it.
@@ -18,7 +17,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 #define UNSET (-1U)
 
@@ -178,7 +177,7 @@ struct videobuf_queue_ops {
 };
 
 struct videobuf_queue {
-        struct semaphore           lock;
+	struct semaphore           lock;
 	spinlock_t                 *irqlock;
 	struct pci_dev             *pci;
 

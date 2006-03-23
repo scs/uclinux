@@ -41,7 +41,7 @@
 #include <asm/acpi.h>
 
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -206,7 +206,10 @@ struct acpi_table_plat_int_src {
 	u8			eid;
 	u8			iosapic_vector;
 	u32			global_irq;
-	u32			reserved;
+	struct {
+		u32			cpei_override_flag:1;
+		u32			reserved:31;
+	}			plint_flags;
 } __attribute__ ((packed));
 
 enum acpi_interrupt_id {
@@ -342,11 +345,19 @@ struct acpi_table_ecdt {
 
 /* PCI MMCONFIG */
 
+/* Defined in PCI Firmware Specification 3.0 */
+struct acpi_table_mcfg_config {
+	u32				base_address;
+	u32				base_reserved;
+	u16				pci_segment_group_number;
+	u8				start_bus_number;
+	u8				end_bus_number;
+	u8				reserved[4];
+} __attribute__ ((packed));
 struct acpi_table_mcfg {
 	struct acpi_table_header	header;
 	u8				reserved[8];
-	u32				base_address;
-	u32				base_reserved;
+	struct acpi_table_mcfg_config	config[0];
 } __attribute__ ((packed));
 
 /* Table Handlers */
@@ -391,6 +402,7 @@ int acpi_table_parse (enum acpi_table_id id, acpi_table_handler handler);
 int acpi_get_table_header_early (enum acpi_table_id id, struct acpi_table_header **header);
 int acpi_table_parse_madt (enum acpi_madt_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
 int acpi_table_parse_srat (enum acpi_srat_entry_id id, acpi_madt_entry_handler handler, unsigned int max_entries);
+int acpi_parse_mcfg (unsigned long phys_addr, unsigned long size);
 void acpi_table_print (struct acpi_table_header *header, unsigned long phys_addr);
 void acpi_table_print_madt_entry (acpi_table_entry_header *madt);
 void acpi_table_print_srat_entry (acpi_table_entry_header *srat);
@@ -407,29 +419,24 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu);
 int acpi_unmap_lsapic(int cpu);
 #endif /* CONFIG_ACPI_HOTPLUG_CPU */
 
+int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base);
+int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
+
 extern int acpi_mp_config;
 
-extern u32 pci_mmcfg_base_addr;
+extern struct acpi_table_mcfg_config *pci_mmcfg_config;
+extern int pci_mmcfg_config_num;
 
-extern int sbf_port ;
+extern int sbf_port;
+extern unsigned long acpi_video_flags;
 
-#else	/*!CONFIG_ACPI_BOOT*/
+#else	/* !CONFIG_ACPI */
 
 #define acpi_mp_config	0
 
-static inline int acpi_boot_init(void)
-{
-	return 0;
-}
+#endif 	/* !CONFIG_ACPI */
 
-static inline int acpi_boot_table_init(void)
-{
-	return 0;
-}
-
-#endif 	/*!CONFIG_ACPI_BOOT*/
-
-unsigned int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
+int acpi_register_gsi (u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
 /*
@@ -437,11 +444,9 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
  * If this matches the last registration, any IRQ resources for gsi
  * are freed.
  */
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_unregister_gsi (u32 gsi);
-#endif
 
-#ifdef CONFIG_ACPI_PCI
+#ifdef CONFIG_ACPI
 
 struct acpi_prt_entry {
 	struct list_head	node;
@@ -462,11 +467,9 @@ struct acpi_prt_list {
 struct pci_dev;
 
 int acpi_pci_irq_enable (struct pci_dev *dev);
-void acpi_penalize_isa_irq(int irq);
+void acpi_penalize_isa_irq(int irq, int active);
 
-#ifdef CONFIG_ACPI_DEALLOCATE_IRQ
 void acpi_pci_irq_disable (struct pci_dev *dev);
-#endif
 
 struct acpi_pci_driver {
 	struct acpi_pci_driver *next;
@@ -477,7 +480,7 @@ struct acpi_pci_driver {
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
-#endif /*CONFIG_ACPI_PCI*/
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_EC
 
@@ -486,19 +489,8 @@ extern int ec_write(u8 addr, u8 val);
 
 #endif /*CONFIG_ACPI_EC*/
 
-#ifdef CONFIG_ACPI_INTERPRETER
-
 extern int acpi_blacklisted(void);
 extern void acpi_bios_year(char *s);
-
-#else /*!CONFIG_ACPI_INTERPRETER*/
-
-static inline int acpi_blacklisted(void)
-{
-	return 0;
-}
-
-#endif /*!CONFIG_ACPI_INTERPRETER*/
 
 #define	ACPI_CSTATE_LIMIT_DEFINED	/* for driver builds */
 #ifdef	CONFIG_ACPI
@@ -536,6 +528,18 @@ static inline int acpi_get_pxm(acpi_handle handle)
 #endif
 
 extern int pnpacpi_disabled;
+
+#else	/* CONFIG_ACPI */
+
+static inline int acpi_boot_init(void)
+{
+	return 0;
+}
+
+static inline int acpi_boot_table_init(void)
+{
+	return 0;
+}
 
 #endif	/* CONFIG_ACPI */
 #endif	/*_LINUX_ACPI_H*/

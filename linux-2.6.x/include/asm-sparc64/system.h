@@ -28,6 +28,49 @@ enum sparc_cpu {
 #define ARCH_SUN4C_SUN4 0
 #define ARCH_SUN4 0
 
+/* These are here in an effort to more fully work around Spitfire Errata
+ * #51.  Essentially, if a memory barrier occurs soon after a mispredicted
+ * branch, the chip can stop executing instructions until a trap occurs.
+ * Therefore, if interrupts are disabled, the chip can hang forever.
+ *
+ * It used to be believed that the memory barrier had to be right in the
+ * delay slot, but a case has been traced recently wherein the memory barrier
+ * was one instruction after the branch delay slot and the chip still hung.
+ * The offending sequence was the following in sym_wakeup_done() of the
+ * sym53c8xx_2 driver:
+ *
+ *	call	sym_ccb_from_dsa, 0
+ *	 movge	%icc, 0, %l0
+ *	brz,pn	%o0, .LL1303
+ *	 mov	%o0, %l2
+ *	membar	#LoadLoad
+ *
+ * The branch has to be mispredicted for the bug to occur.  Therefore, we put
+ * the memory barrier explicitly into a "branch always, predicted taken"
+ * delay slot to avoid the problem case.
+ */
+#define membar_safe(type) \
+do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
+			     " membar	" type "\n" \
+			     "1:\n" \
+			     : : : "memory"); \
+} while (0)
+
+#define mb()	\
+	membar_safe("#LoadLoad | #LoadStore | #StoreStore | #StoreLoad")
+#define rmb()	\
+	membar_safe("#LoadLoad")
+#define wmb()	\
+	membar_safe("#StoreStore")
+#define membar_storeload() \
+	membar_safe("#StoreLoad")
+#define membar_storeload_storestore() \
+	membar_safe("#StoreLoad | #StoreStore")
+#define membar_storeload_loadload() \
+	membar_safe("#StoreLoad | #LoadLoad")
+#define membar_storestore_loadstore() \
+	membar_safe("#StoreStore | #LoadStore")
+
 #endif
 
 #define setipl(__new_ipl) \
@@ -78,16 +121,11 @@ enum sparc_cpu {
 
 #define nop() 		__asm__ __volatile__ ("nop")
 
-#define membar(type)	__asm__ __volatile__ ("membar " type : : : "memory")
-#define mb()		\
-	membar("#LoadLoad | #LoadStore | #StoreStore | #StoreLoad")
-#define rmb()		membar("#LoadLoad")
-#define wmb()		membar("#StoreStore")
 #define read_barrier_depends()		do { } while(0)
 #define set_mb(__var, __value) \
-	do { __var = __value; membar("#StoreLoad | #StoreStore"); } while(0)
+	do { __var = __value; membar_storeload_storestore(); } while(0)
 #define set_wmb(__var, __value) \
-	do { __var = __value; membar("#StoreStore"); } while(0)
+	do { __var = __value; wmb(); } while(0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
@@ -139,18 +177,12 @@ extern void __flushw_user(void);
 #define flush_user_windows flushw_user
 #define flush_register_windows flushw_all
 
-#define prepare_arch_switch(rq, next)		\
-do {	spin_lock(&(next)->switch_lock);	\
-	spin_unlock(&(rq)->lock);		\
+/* Don't hold the runqueue lock over context switch */
+#define __ARCH_WANT_UNLOCKED_CTXSW
+#define prepare_arch_switch(next)		\
+do {						\
 	flushw_all();				\
 } while (0)
-
-#define finish_arch_switch(rq, prev)		\
-do {	spin_unlock_irq(&(prev)->switch_lock);	\
-} while (0)
-
-#define task_running(rq, p) \
-	((rq)->curr == (p) || spin_is_locked(&(p)->switch_lock))
 
 	/* See what happens when you design the chip correctly?
 	 *
@@ -161,11 +193,7 @@ do {	spin_unlock_irq(&(prev)->switch_lock);	\
 	 * not preserve it's value.  Hairy, but it lets us remove 2 loads
 	 * and 2 stores in this critical code path.  -DaveM
 	 */
-#if __GNUC__ >= 3
 #define EXTRA_CLOBBER ,"%l1"
-#else
-#define EXTRA_CLOBBER
-#endif
 #define switch_to(prev, next, last)					\
 do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		unsigned long __tmp;					\
@@ -180,7 +208,7 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	/* If you are tempted to conditionalize the following */	\
 	/* so that ASI is only written if it changes, think again. */	\
 	__asm__ __volatile__("wr %%g0, %0, %%asi"			\
-	: : "r" (__thread_flag_byte_ptr(next->thread_info)[TI_FLAG_BYTE_CURRENT_DS]));\
+	: : "r" (__thread_flag_byte_ptr(task_thread_info(next))[TI_FLAG_BYTE_CURRENT_DS]));\
 	__asm__ __volatile__(						\
 	"mov	%%g4, %%g7\n\t"						\
 	"wrpr	%%g0, 0x95, %%pstate\n\t"				\
@@ -196,24 +224,23 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"wrpr	%%g1, %%cwp\n\t"					\
 	"ldx	[%%g6 + %3], %%o6\n\t"					\
 	"ldub	[%%g6 + %2], %%o5\n\t"					\
-	"ldx	[%%g6 + %4], %%o7\n\t"					\
+	"ldub	[%%g6 + %4], %%o7\n\t"					\
 	"mov	%%g6, %%l2\n\t"						\
 	"wrpr	%%o5, 0x0, %%wstate\n\t"				\
 	"ldx	[%%sp + 2047 + 0x70], %%i6\n\t"				\
 	"ldx	[%%sp + 2047 + 0x78], %%i7\n\t"				\
 	"wrpr	%%g0, 0x94, %%pstate\n\t"				\
 	"mov	%%l2, %%g6\n\t"						\
-	"ldx	[%%g6 + %7], %%g4\n\t"					\
+	"ldx	[%%g6 + %6], %%g4\n\t"					\
 	"wrpr	%%g0, 0x96, %%pstate\n\t"				\
-	"andcc	%%o7, %6, %%g0\n\t"					\
-	"beq,pt %%icc, 1f\n\t"						\
+	"brz,pt %%o7, 1f\n\t"						\
 	" mov	%%g7, %0\n\t"						\
 	"b,a ret_from_syscall\n\t"					\
 	"1:\n\t"							\
 	: "=&r" (last)							\
-	: "0" (next->thread_info),					\
-	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_FLAGS), "i" (TI_CWP),	\
-	  "i" (_TIF_NEWCHILD), "i" (TI_TASK)				\
+	: "0" (task_thread_info(next)),					\
+	  "i" (TI_WSTATE), "i" (TI_KSP), "i" (TI_NEW_CHILD),            \
+	  "i" (TI_CWP), "i" (TI_TASK)					\
 	: "cc",								\
 	        "g1", "g2", "g3",                   "g7",		\
 	              "l2", "l3", "l4", "l5", "l6", "l7",		\
@@ -225,6 +252,16 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 		reset_pic();						\
 	}								\
 } while(0)
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 static inline unsigned long xchg32(__volatile__ unsigned int *m, unsigned int val)
 {

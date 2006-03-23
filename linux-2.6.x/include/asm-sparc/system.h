@@ -9,7 +9,6 @@
 #include <linux/threads.h>	/* NR_CPUS */
 #include <linux/thread_info.h>
 
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/psr.h>
 #include <asm/ptrace.h>
@@ -101,7 +100,7 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
  * SWITCH_ENTER and SWITH_DO_LAZY_FPU do not work yet (e.g. SMP does not work)
  * XXX WTF is the above comment? Found in late teen 2.4.x.
  */
-#define prepare_arch_switch(rq, next) do { \
+#define prepare_arch_switch(next) do { \
 	__asm__ __volatile__( \
 	".globl\tflush_patch_switch\nflush_patch_switch:\n\t" \
 	"save %sp, -0x40, %sp; save %sp, -0x40, %sp; save %sp, -0x40, %sp\n\t" \
@@ -109,8 +108,6 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	"save %sp, -0x40, %sp\n\t" \
 	"restore; restore; restore; restore; restore; restore; restore"); \
 } while(0)
-#define finish_arch_switch(rq, next)	spin_unlock_irq(&(rq)->lock)
-#define task_running(rq, p)		((rq)->curr == (p))
 
 	/* Much care has gone into this code, do not touch it.
 	 *
@@ -158,7 +155,7 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	"here:\n"									\
         : "=&r" (last)									\
         : "r" (&(current_set[hard_smp_processor_id()])),	\
-	  "r" ((next)->thread_info),				\
+	  "r" (task_thread_info(next)),				\
 	  "i" (TI_KPSR),					\
 	  "i" (TI_KSP),						\
 	  "i" (TI_TASK)						\
@@ -167,6 +164,16 @@ extern void fpsave(unsigned long *fpregs, unsigned long *fsr,
 	  "i0", "i1", "i2", "i3", "i4", "i5",			\
 	  "o0", "o1", "o2", "o3",                   "o7");	\
 	} while(0)
+
+/*
+ * On SMP systems, when the scheduler does migration-cost autodetection,
+ * it needs a way to flush as much of the CPU's caches as possible.
+ *
+ * TODO: fill this in!
+ */
+static inline void sched_cacheflush(void)
+{
+}
 
 /*
  * Changing the IRQ level on the Sparc.
@@ -207,7 +214,7 @@ static inline unsigned long getipl(void)
 BTFIXUPDEF_CALL(void, ___xchg32, void)
 #endif
 
-extern __inline__ unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
+static inline unsigned long xchg_u32(__volatile__ unsigned long *m, unsigned long val)
 {
 #ifdef CONFIG_SMP
 	__asm__ __volatile__("swap [%2], %0"

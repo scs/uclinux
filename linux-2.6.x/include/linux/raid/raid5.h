@@ -126,7 +126,7 @@
  */
 
 struct stripe_head {
-	struct stripe_head	*hash_next, **hash_pprev; /* hash pointers */
+	struct hlist_node	hash;
 	struct list_head	lru;			/* inactive_list or handle_list */
 	struct raid5_private_data	*raid_conf;
 	sector_t		sector;			/* sector of this row */
@@ -134,6 +134,7 @@ struct stripe_head {
 	unsigned long		state;			/* state flags */
 	atomic_t		count;			/* nr of active thread/requests */
 	spinlock_t		lock;
+	int			bm_seq;	/* sequence number for bitmap flushes */
 	struct r5dev {
 		struct bio	req;
 		struct bio_vec	vec;
@@ -151,8 +152,9 @@ struct stripe_head {
 #define	R5_Insync	3	/* rdev && rdev->in_sync at start */
 #define	R5_Wantread	4	/* want to schedule a read */
 #define	R5_Wantwrite	5
-#define	R5_Syncio	6	/* this io need to be accounted as resync io */
 #define	R5_Overlap	7	/* There is a pending overlapping request on this block */
+#define	R5_ReadError	8	/* seen a read error here recently */
+#define	R5_ReWrite	9	/* have tried to over-write the readerror */
 
 /*
  * Write method
@@ -165,12 +167,13 @@ struct stripe_head {
 /*
  * Stripe state
  */
-#define STRIPE_ERROR		1
 #define STRIPE_HANDLE		2
 #define	STRIPE_SYNCING		3
 #define	STRIPE_INSYNC		4
 #define	STRIPE_PREREAD_ACTIVE	5
 #define	STRIPE_DELAYED		6
+#define	STRIPE_DEGRADED		7
+#define	STRIPE_BIT_DELAY	8
 
 /*
  * Plugging:
@@ -201,7 +204,7 @@ struct disk_info {
 };
 
 struct raid5_private_data {
-	struct stripe_head	**stripe_hashtbl;
+	struct hlist_head	*stripe_hashtbl;
 	mddev_t			*mddev;
 	struct disk_info	*spare;
 	int			chunk_size, level, algorithm;
@@ -210,10 +213,22 @@ struct raid5_private_data {
 
 	struct list_head	handle_list; /* stripes needing handling */
 	struct list_head	delayed_list; /* stripes that have plugged requests */
+	struct list_head	bitmap_list; /* stripes delaying awaiting bitmap update */
 	atomic_t		preread_active_stripes; /* stripes with scheduled io */
 
 	char			cache_name[20];
 	kmem_cache_t		*slab_cache; /* for allocating stripes */
+
+	int			seq_flush, seq_write;
+	int			quiesce;
+
+	int			fullsync;  /* set to 1 if a full sync is needed,
+					    * (fresh device added).
+					    * Cleared when a sync completes.
+					    */
+
+	struct page 		*spare_page; /* Used when checking P/Q in raid6 */
+
 	/*
 	 * Free stripes pool
 	 */

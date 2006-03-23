@@ -29,7 +29,6 @@
 
 #define TUN_MINOR	     200
 #define	HPET_MINOR	     228
-#define COREB_MINOR	229
 
 struct device;
 struct class_device;

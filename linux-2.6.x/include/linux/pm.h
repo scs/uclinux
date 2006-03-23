@@ -94,54 +94,6 @@ struct pm_dev
 	struct list_head entry;
 };
 
-#ifdef CONFIG_PM
-
-extern int pm_active;
-
-#define PM_IS_ACTIVE() (pm_active != 0)
-
-/*
- * Register a device with power management
- */
-struct pm_dev __deprecated *pm_register(pm_dev_t type, unsigned long id, pm_callback callback);
-
-/*
- * Unregister a device with power management
- */
-void __deprecated pm_unregister(struct pm_dev *dev);
-
-/*
- * Unregister all devices with matching callback
- */
-void __deprecated pm_unregister_all(pm_callback callback);
-
-/*
- * Send a request to all devices
- */
-int __deprecated pm_send_all(pm_request_t rqst, void *data);
-
-#else /* CONFIG_PM */
-
-#define PM_IS_ACTIVE() 0
-
-static inline struct pm_dev *pm_register(pm_dev_t type,
-					 unsigned long id,
-					 pm_callback callback)
-{
-	return NULL;
-}
-
-static inline void pm_unregister(struct pm_dev *dev) {}
-
-static inline void pm_unregister_all(pm_callback callback) {}
-
-static inline int pm_send_all(pm_request_t rqst, void *data)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PM */
-
 /* Functions above this comment are list-based old-style power
  * managment. Please avoid using them.  */
 
@@ -169,13 +121,14 @@ typedef int __bitwise suspend_disk_method_t;
 
 struct pm_ops {
 	suspend_disk_method_t pm_disk_mode;
+	int (*valid)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
 	int (*enter)(suspend_state_t state);
 	int (*finish)(suspend_state_t state);
 };
 
 extern void pm_set_ops(struct pm_ops *);
-
+extern struct pm_ops *pm_ops;
 extern int pm_suspend(suspend_state_t state);
 
 
@@ -185,36 +138,44 @@ extern int pm_suspend(suspend_state_t state);
 
 struct device;
 
-typedef u32 __bitwise pm_message_t;
+typedef struct pm_message {
+	int event;
+} pm_message_t;
 
 /*
  * There are 4 important states driver can be in:
  * ON     -- driver is working
- * FREEZE -- stop operations and apply whatever policy is applicable to a suspended driver
- *           of that class, freeze queues for block like IDE does, drop packets for
- *           ethernet, etc... stop DMA engine too etc... so a consistent image can be
- *           saved; but do not power any hardware down.
- * SUSPEND - like FREEZE, but hardware is doing as much powersaving as possible. Roughly
- *           pci D3.
+ * FREEZE -- stop operations and apply whatever policy is applicable to a
+ *           suspended driver of that class, freeze queues for block like IDE
+ *           does, drop packets for ethernet, etc... stop DMA engine too etc...
+ *           so a consistent image can be saved; but do not power any hardware
+ *           down.
+ * SUSPEND - like FREEZE, but hardware is doing as much powersaving as
+ *           possible. Roughly pci D3.
  *
- * Unfortunately, current drivers only recognize numeric values 0 (ON) and 3 (SUSPEND).
- * We'll need to fix the drivers. So yes, putting 3 to all diferent defines is intentional,
- * and will go away as soon as drivers are fixed. Also note that typedef is neccessary,
- * we'll probably want to switch to
+ * Unfortunately, current drivers only recognize numeric values 0 (ON) and 3
+ * (SUSPEND).  We'll need to fix the drivers. So yes, putting 3 to all different
+ * defines is intentional, and will go away as soon as drivers are fixed.  Also
+ * note that typedef is neccessary, we'll probably want to switch to
  *   typedef struct pm_message_t { int event; int flags; } pm_message_t
  * or something similar soon.
  */
 
-#define PMSG_FREEZE	((__force pm_message_t) 3)
-#define PMSG_SUSPEND	((__force pm_message_t) 3)
-#define PMSG_ON		((__force pm_message_t) 0)
+#define PM_EVENT_ON 0
+#define PM_EVENT_FREEZE 1
+#define PM_EVENT_SUSPEND 2
+
+#define PMSG_FREEZE	((struct pm_message){ .event = PM_EVENT_FREEZE, })
+#define PMSG_SUSPEND	((struct pm_message){ .event = PM_EVENT_SUSPEND, })
+#define PMSG_ON		((struct pm_message){ .event = PM_EVENT_ON, })
 
 struct dev_pm_info {
 	pm_message_t		power_state;
+	unsigned		can_wakeup:1;
 #ifdef	CONFIG_PM
+	unsigned		should_wakeup:1;
 	pm_message_t		prev_state;
 	void			* saved_state;
-	atomic_t		pm_users;
 	struct device		* pm_parent;
 	struct list_head	entry;
 #endif
@@ -222,11 +183,53 @@ struct dev_pm_info {
 
 extern void device_pm_set_parent(struct device * dev, struct device * parent);
 
-extern int device_suspend(pm_message_t state);
 extern int device_power_down(pm_message_t state);
 extern void device_power_up(void);
 extern void device_resume(void);
 
+#ifdef CONFIG_PM
+extern int device_suspend(pm_message_t state);
+
+#define device_set_wakeup_enable(dev,val) \
+	((dev)->power.should_wakeup = !!(val))
+#define device_may_wakeup(dev) \
+	(device_can_wakeup(dev) && (dev)->power.should_wakeup)
+
+extern int dpm_runtime_suspend(struct device *, pm_message_t);
+extern void dpm_runtime_resume(struct device *);
+
+#else /* !CONFIG_PM */
+
+static inline int device_suspend(pm_message_t state)
+{
+	return 0;
+}
+
+#define device_set_wakeup_enable(dev,val)	do{}while(0)
+#define device_may_wakeup(dev)			(0)
+
+static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
+{
+	return 0;
+}
+
+static inline void dpm_runtime_resume(struct device * dev)
+{
+
+}
+
+#endif
+
+/* changes to device_may_wakeup take effect on the next pm state change.
+ * by default, devices should wakeup if they can.
+ */
+#define device_can_wakeup(dev) \
+	((dev)->power.can_wakeup)
+#define device_init_wakeup(dev,val) \
+	do { \
+		device_can_wakeup(dev) = !!(val); \
+		device_set_wakeup_enable(dev,val); \
+	} while(0)
 
 #endif /* __KERNEL__ */
 

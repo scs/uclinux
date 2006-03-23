@@ -4,7 +4,7 @@
  * Definitions for any platform device related flags or structures for
  * Freescale processor devices
  *
- * Maintainer: Kumar Gala (kumar.gala@freescale.com)
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *
@@ -47,13 +47,17 @@
 struct gianfar_platform_data {
 	/* device specific information */
 	u32 device_flags;
-	u32 phy_reg_addr;
 
 	/* board specific information */
 	u32 board_flags;
-	u32 phyid;
-	u32 interruptPHY;
+	u32 bus_id;
+	u32 phy_id;
 	u8 mac_addr[6];
+};
+
+struct gianfar_mdio_data {
+	/* board specific information */
+	int irq[32];
 };
 
 /* Flags related to gianfar device features */
@@ -61,9 +65,14 @@ struct gianfar_platform_data {
 #define FSL_GIANFAR_DEV_HAS_COALESCE		0x00000002
 #define FSL_GIANFAR_DEV_HAS_RMON		0x00000004
 #define FSL_GIANFAR_DEV_HAS_MULTI_INTR		0x00000008
+#define FSL_GIANFAR_DEV_HAS_CSUM		0x00000010
+#define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
+#define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
+#define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
 
 /* Flags in gianfar_platform_data */
-#define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001	/* if not set use a timer */
+#define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001 /* set or use a timer */
+#define FSL_GIANFAR_BRD_IS_REDUCED	0x00000002 /* Set if RGMII, RMII */
 
 struct fsl_i2c_platform_data {
 	/* device specific information */

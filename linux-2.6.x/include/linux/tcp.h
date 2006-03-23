@@ -55,40 +55,6 @@ struct tcphdr {
 	__u16	urg_ptr;
 };
 
-
-enum {
-  TCP_ESTABLISHED = 1,
-  TCP_SYN_SENT,
-  TCP_SYN_RECV,
-  TCP_FIN_WAIT1,
-  TCP_FIN_WAIT2,
-  TCP_TIME_WAIT,
-  TCP_CLOSE,
-  TCP_CLOSE_WAIT,
-  TCP_LAST_ACK,
-  TCP_LISTEN,
-  TCP_CLOSING,	 /* now a valid state */
-
-  TCP_MAX_STATES /* Leave at the end! */
-};
-
-#define TCP_STATE_MASK	0xF
-#define TCP_ACTION_FIN	(1 << 7)
-
-enum {
-  TCPF_ESTABLISHED = (1 << 1),
-  TCPF_SYN_SENT  = (1 << 2),
-  TCPF_SYN_RECV  = (1 << 3),
-  TCPF_FIN_WAIT1 = (1 << 4),
-  TCPF_FIN_WAIT2 = (1 << 5),
-  TCPF_TIME_WAIT = (1 << 6),
-  TCPF_CLOSE     = (1 << 7),
-  TCPF_CLOSE_WAIT = (1 << 8),
-  TCPF_LAST_ACK  = (1 << 9),
-  TCPF_LISTEN    = (1 << 10),
-  TCPF_CLOSING   = (1 << 11) 
-};
-
 /*
  *	The union cast uses a gcc extension to avoid aliasing problems
  *  (union is compatible to any of its members)
@@ -127,6 +93,7 @@ enum {
 #define TCP_WINDOW_CLAMP	10	/* Bound advertised window */
 #define TCP_INFO		11	/* Information about this connection. */
 #define TCP_QUICKACK		12	/* Block/reenable quick acks */
+#define TCP_CONGESTION		13	/* Congestion control algorithm */
 
 #define TCPI_OPT_TIMESTAMPS	1
 #define TCPI_OPT_SACK		2
@@ -194,20 +161,14 @@ struct tcp_info
 
 #include <linux/config.h>
 #include <linux/skbuff.h>
-#include <linux/ip.h>
 #include <net/sock.h>
+#include <net/inet_connection_sock.h>
+#include <net/inet_timewait_sock.h>
 
 /* This defines a selective acknowledgement block. */
 struct tcp_sack_block {
 	__u32	start_seq;
 	__u32	end_seq;
-};
-
-enum tcp_congestion_algo {
-	TCP_RENO=0,
-	TCP_VEGAS,
-	TCP_WESTWOOD,
-	TCP_BIC,
 };
 
 struct tcp_options_received {
@@ -230,9 +191,20 @@ struct tcp_options_received {
 	__u16	mss_clamp;	/* Maximal mss, negotiated at connection setup */
 };
 
+struct tcp_request_sock {
+	struct inet_request_sock req;
+	__u32			 rcv_isn;
+	__u32			 snt_isn;
+};
+
+static inline struct tcp_request_sock *tcp_rsk(const struct request_sock *req)
+{
+	return (struct tcp_request_sock *)req;
+}
+
 struct tcp_sock {
-	/* inet_sock has to be the first member of tcp_sock */
-	struct inet_sock	inet;
+	/* inet_connection_sock has to be the first member of tcp_sock */
+	struct inet_connection_sock	inet_conn;
 	int	tcp_header_len;	/* Bytes of tcp header to send		*/
 
 /*
@@ -253,19 +225,6 @@ struct tcp_sock {
  	__u32	snd_sml;	/* Last byte of the most recently transmitted small packet */
 	__u32	rcv_tstamp;	/* timestamp of last received ACK (for keepalives) */
 	__u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
-	struct tcp_bind_bucket *bind_hash;
-	/* Delayed ACK control data */
-	struct {
-		__u8	pending;	/* ACK is pending */
-		__u8	quick;		/* Scheduled number of quick acks	*/
-		__u8	pingpong;	/* The session is interactive		*/
-		__u8	blocked;	/* Delayed ACK was blocked by socket lock*/
-		__u32	ato;		/* Predicted tick of soft clock		*/
-		unsigned long timeout;	/* Currently scheduled timeout		*/
-		__u32	lrcvtime;	/* timestamp of last received data packet*/
-		__u16	last_seg_size;	/* Size of last incoming segment	*/
-		__u16	rcv_mss;	/* MSS used for delayed ACK decisions	*/ 
-	} ack;
 
 	/* Data for direct copy to user */
 	struct {
@@ -279,23 +238,18 @@ struct tcp_sock {
 	__u32	snd_wl1;	/* Sequence for window update		*/
 	__u32	snd_wnd;	/* The window we expect to receive	*/
 	__u32	max_window;	/* Maximal window ever seen from peer	*/
-	__u32	pmtu_cookie;	/* Last pmtu seen by socket		*/
 	__u32	mss_cache;	/* Cached effective mss, not including SACKS */
-	__u16	mss_cache_std;	/* Like mss_cache, but without TSO */
-	__u16	ext_header_len;	/* Network protocol overhead (IP/IPv6 options) */
-	__u8	ca_state;	/* State of fast-retransmit machine 	*/
-	__u8	retransmits;	/* Number of unrecovered RTO timeouts.	*/
+	__u16	xmit_size_goal;	/* Goal for segmenting output packets	*/
+	/* XXX Two bytes hole, try to pack */
 
-	__u16	advmss;		/* Advertised MSS			*/
 	__u32	window_clamp;	/* Maximal window to advertise		*/
 	__u32	rcv_ssthresh;	/* Current window clamp			*/
 
 	__u32	frto_highmark;	/* snd_nxt when RTO occurred */
 	__u8	reordering;	/* Packet reordering metric.		*/
 	__u8	frto_counter;	/* Number of new acks after RTO */
-
-	__u8	adv_cong;	/* Using Vegas, Westwood, or BIC */
-	__u8	defer_accept;	/* User waits for some data after accept() */
+	__u8	nonagle;	/* Disable Nagle algorithm?             */
+	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
 
 /* RTT measurement */
 	__u32	srtt;		/* smoothed round trip time << 3	*/
@@ -303,19 +257,13 @@ struct tcp_sock {
 	__u32	mdev_max;	/* maximal mdev for the last rtt period	*/
 	__u32	rttvar;		/* smoothed mdev_max			*/
 	__u32	rtt_seq;	/* sequence number to update rttvar	*/
-	__u32	rto;		/* retransmit timeout			*/
 
 	__u32	packets_out;	/* Packets which are "in flight"	*/
 	__u32	left_out;	/* Packets which leaved network	*/
 	__u32	retrans_out;	/* Retransmitted packets out		*/
-	__u8	backoff;	/* backoff				*/
 /*
  *      Options received (usually on last packet, some only on SYN packets).
  */
-	__u8	nonagle;	/* Disable Nagle algorithm?             */
-	__u8	keepalive_probes; /* num of allowed keep alive probes	*/
-
-	__u8	probes_out;	/* unanswered 0 window probes		*/
 	struct tcp_options_received rx_opt;
 
 /*
@@ -328,14 +276,7 @@ struct tcp_sock {
 	__u32	snd_cwnd_used;
 	__u32	snd_cwnd_stamp;
 
-	/* Two commonly used timers in both sender and receiver paths. */
-	unsigned long		timeout;
- 	struct timer_list	retransmit_timer;	/* Resend (no ack)	*/
- 	struct timer_list	delack_timer;		/* Ack delay 		*/
-
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
-
-	struct tcp_func		*af_specific;	/* Operations which are AF_INET{4,6} specific	*/
 
  	__u32	rcv_wnd;	/* Current receiver window		*/
 	__u32	rcv_wup;	/* rcv_nxt on last window update sent	*/
@@ -347,8 +288,22 @@ struct tcp_sock {
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
 	struct tcp_sack_block selective_acks[4]; /* The SACKS themselves*/
 
-	__u8	syn_retries;	/* num of allowed syn retries */
-	__u8	ecn_flags;	/* ECN status bits.			*/
+	struct tcp_sack_block recv_sack_cache[4];
+
+	/* from STCP, retrans queue hinting */
+	struct sk_buff* lost_skb_hint;
+
+	struct sk_buff *scoreboard_skb_hint;
+	struct sk_buff *retransmit_skb_hint;
+	struct sk_buff *forward_skb_hint;
+	struct sk_buff *fastpath_skb_hint;
+
+	int     fastpath_cnt_hint;
+	int     lost_cnt_hint;
+	int     retransmit_cnt_hint;
+	int     forward_cnt_hint;
+
+	__u16	advmss;		/* Advertised MSS			*/
 	__u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	__u32	lost_out;	/* Lost packets			*/
 	__u32	sacked_out;	/* SACK'd packets			*/
@@ -362,28 +317,12 @@ struct tcp_sock {
 	int	undo_retrans;	/* number of undoable retransmissions. */
 	__u32	urg_seq;	/* Seq of received urgent pointer */
 	__u16	urg_data;	/* Saved octet of OOB data and control flags */
-	__u8	pending;	/* Scheduled timer event	*/
 	__u8	urg_mode;	/* In urgent mode		*/
+	__u8	ecn_flags;	/* ECN status bits.			*/
 	__u32	snd_up;		/* Urgent pointer		*/
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
-
-	/* The syn_wait_lock is necessary only to avoid proc interface having
-	 * to grab the main lock sock while browsing the listening hash
-	 * (otherwise it's deadlock prone).
-	 * This lock is acquired in read mode only from listening_get_next()
-	 * and it's acquired in write mode _only_ from code that is actively
-	 * changing the syn_wait_queue. All readers that are holding
-	 * the master sock lock don't need to grab this lock in read mode
-	 * too as the syn_wait_queue writes are always protected from
-	 * the main sock lock.
-	 */
-	rwlock_t		syn_wait_lock;
-	struct tcp_listen_opt	*listen_opt;
-
-	/* FIFO of established children */
-	struct open_request	*accept_queue;
-	struct open_request	*accept_queue_tail;
+	__u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */
@@ -404,43 +343,25 @@ struct tcp_sock {
 		__u32	seq;
 		__u32	time;
 	} rcvq_space;
-
-/* TCP Westwood structure */
-        struct {
-                __u32    bw_ns_est;        /* first bandwidth estimation..not too smoothed 8) */
-                __u32    bw_est;           /* bandwidth estimate */
-                __u32    rtt_win_sx;       /* here starts a new evaluation... */
-                __u32    bk;
-                __u32    snd_una;          /* used for evaluating the number of acked bytes */
-                __u32    cumul_ack;
-                __u32    accounted;
-                __u32    rtt;
-                __u32    rtt_min;          /* minimum observed RTT */
-        } westwood;
-
-/* Vegas variables */
-	struct {
-		__u32	beg_snd_nxt;	/* right edge during last RTT */
-		__u32	beg_snd_una;	/* left edge  during last RTT */
-		__u32	beg_snd_cwnd;	/* saves the size of the cwnd */
-		__u8	doing_vegas_now;/* if true, do vegas for this RTT */
-		__u16	cntRTT;		/* # of RTTs measured within last RTT */
-		__u32	minRTT;		/* min of RTTs measured within last RTT (in usec) */
-		__u32	baseRTT;	/* the min of all Vegas RTT measurements seen (in usec) */
-	} vegas;
-
-	/* BI TCP Parameters */
-	struct {
-		__u32	cnt;		/* increase cwnd by 1 after this number of ACKs */
-		__u32 	last_max_cwnd;	/* last maximium snd_cwnd */
-		__u32	last_cwnd;	/* the last snd_cwnd */
-		__u32   last_stamp;     /* time when updated last_cwnd */
-	} bictcp;
 };
 
 static inline struct tcp_sock *tcp_sk(const struct sock *sk)
 {
 	return (struct tcp_sock *)sk;
+}
+
+struct tcp_timewait_sock {
+	struct inet_timewait_sock tw_sk;
+	__u32			  tw_rcv_nxt;
+	__u32			  tw_snd_nxt;
+	__u32			  tw_rcv_wnd;
+	__u32			  tw_ts_recent;
+	long			  tw_ts_recent_stamp;
+};
+
+static inline struct tcp_timewait_sock *tcp_twsk(const struct sock *sk)
+{
+	return (struct tcp_timewait_sock *)sk;
 }
 
 #endif

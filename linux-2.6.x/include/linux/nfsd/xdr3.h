@@ -42,7 +42,7 @@ struct nfsd3_writeargs {
 	__u64			offset;
 	__u32			count;
 	int			stable;
-	int			len;
+	__u32			len;
 	struct kvec		vec[RPCSVC_MAXPAGES];
 	int			vlen;
 };
@@ -110,9 +110,23 @@ struct nfsd3_commitargs {
 	__u32			count;
 };
 
+struct nfsd3_getaclargs {
+	struct svc_fh		fh;
+	int			mask;
+};
+
+struct posix_acl;
+struct nfsd3_setaclargs {
+	struct svc_fh		fh;
+	int			mask;
+	struct posix_acl	*acl_access;
+	struct posix_acl	*acl_default;
+};
+
 struct nfsd3_attrstat {
 	__u32			status;
 	struct svc_fh		fh;
+	struct kstat            stat;
 };
 
 /* LOOKUP, CREATE, MKDIR, SYMLINK, MKNOD */
@@ -209,6 +223,14 @@ struct nfsd3_commitres {
 	struct svc_fh		fh;
 };
 
+struct nfsd3_getaclres {
+	__u32			status;
+	struct svc_fh		fh;
+	int			mask;
+	struct posix_acl	*acl_access;
+	struct posix_acl	*acl_default;
+};
+
 /* dummy type for release */
 struct nfsd3_fhandle_pair {
 	__u32			dummy;
@@ -241,6 +263,7 @@ union nfsd3_xdrstore {
 	struct nfsd3_fsinfores		fsinfores;
 	struct nfsd3_pathconfres	pathconfres;
 	struct nfsd3_commitres		commitres;
+	struct nfsd3_getaclres		getaclres;
 };
 
 #define NFS3_SVC_XDRSIZE		sizeof(union nfsd3_xdrstore)
@@ -316,6 +339,10 @@ int nfs3svc_encode_entry(struct readdir_cd *, const char *name,
 int nfs3svc_encode_entry_plus(struct readdir_cd *, const char *name,
 				int namlen, loff_t offset, ino_t ino,
 				unsigned int);
+/* Helper functions for NFSv3 ACL code */
+u32 *nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, u32 *p,
+				struct svc_fh *fhp);
+u32 *nfs3svc_decode_fh(u32 *p, struct svc_fh *fhp);
 
 
 #endif /* _LINUX_NFSD_XDR3_H */

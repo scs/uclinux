@@ -1,6 +1,6 @@
 /*
  * Device tables which are exported to userspace via
- * scripts/table2alias.c.  You must keep that file in sync with this
+ * scripts/mod/file2alias.c.  You must keep that file in sync with this
  * header.
  */
 
@@ -33,7 +33,8 @@ struct ieee1394_device_id {
 	__u32 model_id;
 	__u32 specifier_id;
 	__u32 version;
-	kernel_ulong_t driver_data;
+	kernel_ulong_t driver_data
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
 };
 
 
@@ -174,5 +175,78 @@ struct serio_device_id {
 	__u8 proto;
 };
 
+/*
+ * Struct used for matching a device
+ */
+struct of_device_id
+{
+	char	name[32];
+	char	type[32];
+	char	compatible[128];
+#ifdef __KERNEL__
+	void	*data;
+#else
+	kernel_ulong_t data;
+#endif
+};
+
+/* VIO */
+struct vio_device_id {
+	char type[32];
+	char compat[32];
+};
+
+/* PCMCIA */
+
+struct pcmcia_device_id {
+	__u16		match_flags;
+
+	__u16		manf_id;
+	__u16 		card_id;
+
+	__u8  		func_id;
+
+	/* for real multi-function devices */
+	__u8  		function;
+
+	/* for pseudo multi-function devices */
+	__u8  		device_no;
+
+	__u32 		prod_id_hash[4]
+		__attribute__((aligned(sizeof(__u32))));
+
+	/* not matched against in kernelspace*/
+#ifdef __KERNEL__
+	const char *	prod_id[4];
+#else
+	kernel_ulong_t	prod_id[4]
+		__attribute__((aligned(sizeof(kernel_ulong_t))));
+#endif
+
+	/* not matched against */
+	kernel_ulong_t	driver_info;
+#ifdef __KERNEL__
+	char *		cisfile;
+#else
+	kernel_ulong_t	cisfile;
+#endif
+};
+
+#define PCMCIA_DEV_ID_MATCH_MANF_ID	0x0001
+#define PCMCIA_DEV_ID_MATCH_CARD_ID	0x0002
+#define PCMCIA_DEV_ID_MATCH_FUNC_ID	0x0004
+#define PCMCIA_DEV_ID_MATCH_FUNCTION	0x0008
+#define PCMCIA_DEV_ID_MATCH_PROD_ID1	0x0010
+#define PCMCIA_DEV_ID_MATCH_PROD_ID2	0x0020
+#define PCMCIA_DEV_ID_MATCH_PROD_ID3	0x0040
+#define PCMCIA_DEV_ID_MATCH_PROD_ID4	0x0080
+#define PCMCIA_DEV_ID_MATCH_DEVICE_NO	0x0100
+#define PCMCIA_DEV_ID_MATCH_FAKE_CIS	0x0200
+#define PCMCIA_DEV_ID_MATCH_ANONYMOUS	0x0400
+
+/* I2C */
+struct i2c_device_id {
+	__u16 id;
+};
 
 #endif /* LINUX_MOD_DEVICETABLE_H */
