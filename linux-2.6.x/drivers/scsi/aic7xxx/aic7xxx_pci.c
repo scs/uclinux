@@ -40,8 +40,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  *
  * $Id$
- *
- * $FreeBSD$
  */
 
 #ifdef __linux__
@@ -393,6 +391,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec aic7892 Ultra160 SCSI adapter (ARO)",
 		ahc_aic7892_setup
 	},
+	{
+		ID_AHA_2915_30LP,
+		ID_ALL_MASK,
+		"Adaptec 2915/30LP Ultra160 SCSI adapter",
+		ahc_aic7892_setup
+	},
 	/* aic7895 based controllers */	
 	{
 		ID_AHA_2940U_DUAL,
@@ -704,7 +708,6 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 int
 ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 {
-	u_long	 l;
 	u_int	 command;
 	u_int	 our_id;
 	u_int	 sxfrctl1;
@@ -964,12 +967,7 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	if (error != 0)
 		return (error);
 
-	ahc_list_lock(&l);
-	/*
-	 * Link this softc in with all other ahc instances.
-	 */
-	ahc_softc_insert(ahc);
-	ahc_list_unlock(&l);
+	ahc->init_level++;
 	return (0);
 }
 
@@ -1199,8 +1197,18 @@ ahc_pci_test_register_access(struct ahc_softc *ahc)
 	 * use for this test.
 	 */
 	hcntrl = ahc_inb(ahc, HCNTRL);
+
 	if (hcntrl == 0xFF)
 		goto fail;
+
+	if ((hcntrl & CHIPRST) != 0) {
+		/*
+		 * The chip has not been initialized since
+		 * PCI/EISA/VLB bus reset.  Don't trust
+		 * "left over BIOS data".
+		 */
+		ahc->flags |= AHC_NO_BIOS_INIT;
+	}
 
 	/*
 	 * Next create a situation where write combining
@@ -1313,6 +1321,10 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 			sd.sd_chip = C56_66;
 		}
 		ahc_release_seeprom(&sd);
+
+		/* Remember the SEEPROM type for later */
+		if (sd.sd_chip == C56_66)
+			ahc->flags |= AHC_LARGE_SEEPROM;
 	}
 
 	if (!have_seeprom) {

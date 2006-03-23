@@ -75,8 +75,7 @@ struct scb_platform_data;
 #define INITIATOR_WILDCARD	(~0)
 #define	SCB_LIST_NULL		0xFF00
 #define	SCB_LIST_NULL_LE	(ahd_htole16(SCB_LIST_NULL))
-#define QOUTFIFO_ENTRY_VALID 0x8000
-#define QOUTFIFO_ENTRY_VALID_LE (ahd_htole16(0x8000))
+#define QOUTFIFO_ENTRY_VALID 0x80
 #define SCBID_IS_NULL(scbid) (((scbid) & 0xFF00 ) == SCB_LIST_NULL)
 
 #define SCSIID_TARGET(ahd, scsiid)	\
@@ -223,6 +222,7 @@ typedef enum {
 typedef enum {
 	AHD_FENONE		= 0x00000,
 	AHD_WIDE  		= 0x00001,/* Wide Channel */
+	AHD_AIC79XXB_SLOWCRC    = 0x00002,/* SLOWCRC bit should be set */
 	AHD_MULTI_FUNC		= 0x00100,/* Multi-Function/Channel Device */
 	AHD_TARGETMODE		= 0x01000,/* Has tested target mode support */
 	AHD_MULTIROLE		= 0x02000,/* Space for two roles at a time */
@@ -1053,6 +1053,13 @@ typedef uint8_t ahd_mode_state;
 
 typedef void ahd_callback_t (void *);
 
+struct ahd_completion
+{
+	uint16_t	tag;
+	uint8_t		sg_status;
+	uint8_t		valid_tag;
+};
+
 struct ahd_softc {
 	bus_space_tag_t           tags[2];
 	bus_space_handle_t        bshs[2];
@@ -1062,6 +1069,7 @@ struct ahd_softc {
 	struct scb_data		  scb_data;
 
 	struct hardware_scb	 *next_queued_hscb;
+	struct map_node		 *next_queued_hscb_map;
 
 	/*
 	 * SCBs that have been sent to the controller
@@ -1140,16 +1148,23 @@ struct ahd_softc {
 	ahd_flag		  flags;
 	struct seeprom_config	 *seep_config;
 
-	/* Values to store in the SEQCTL register for pause and unpause */
-	uint8_t			  unpause;
-	uint8_t			  pause;
-
 	/* Command Queues */
+	struct ahd_completion	  *qoutfifo;
 	uint16_t		  qoutfifonext;
 	uint16_t		  qoutfifonext_valid_tag;
 	uint16_t		  qinfifonext;
 	uint16_t		  qinfifo[AHD_SCB_MAX];
-	uint16_t		 *qoutfifo;
+
+	/*
+	 * Our qfreeze count.  The sequencer compares
+	 * this value with its own counter to determine
+	 * whether to allow selections to occur.
+	 */
+	uint16_t		  qfreeze_cnt;
+
+	/* Values to store in the SEQCTL register for pause and unpause */
+	uint8_t			  unpause;
+	uint8_t			  pause;
 
 	/* Critical Section Data */
 	struct cs		 *critical_sections;
@@ -1197,8 +1212,7 @@ struct ahd_softc {
 	 */
 	bus_dma_tag_t		  parent_dmat;
 	bus_dma_tag_t		  shared_data_dmat;
-	bus_dmamap_t		  shared_data_dmamap;
-	dma_addr_t		  shared_data_busaddr;
+	struct map_node		  shared_data_map;
 
 	/* Information saved through suspend/resume cycles */
 	struct ahd_suspend_state  suspend_state;
@@ -1246,9 +1260,6 @@ struct ahd_softc {
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
 };
-
-TAILQ_HEAD(ahd_softc_tailq, ahd_softc);
-extern struct ahd_softc_tailq ahd_tailq;
 
 /*************************** IO Cell Configuration ****************************/
 #define	AHD_PRECOMP_SLEW_INDEX						\
@@ -1299,9 +1310,9 @@ struct ahd_devinfo {
 };
 
 /****************************** PCI Structures ********************************/
-#define AHD_PCI_IOADDR0	PCIR_MAPS	/* I/O BAR*/
-#define AHD_PCI_MEMADDR	(PCIR_MAPS + 4)	/* Memory BAR */
-#define AHD_PCI_IOADDR1	(PCIR_MAPS + 12)/* Second I/O BAR */
+#define AHD_PCI_IOADDR0	PCIR_BAR(0)	/* I/O BAR*/
+#define AHD_PCI_MEMADDR	PCIR_BAR(1)	/* Memory BAR */
+#define AHD_PCI_IOADDR1	PCIR_BAR(3)	/* Second I/O BAR */
 
 typedef int (ahd_device_setup_t)(struct ahd_softc *);
 
@@ -1374,8 +1385,6 @@ void			 ahd_enable_coalescing(struct ahd_softc *ahd,
 void			 ahd_pause_and_flushwork(struct ahd_softc *ahd);
 int			 ahd_suspend(struct ahd_softc *ahd); 
 int			 ahd_resume(struct ahd_softc *ahd);
-void			 ahd_softc_insert(struct ahd_softc *);
-struct ahd_softc	*ahd_find_softc(struct ahd_softc *ahd);
 void			 ahd_set_unit(struct ahd_softc *, int);
 void			 ahd_set_name(struct ahd_softc *, char *);
 struct scb		*ahd_get_scb(struct ahd_softc *ahd, u_int col_idx);
@@ -1524,7 +1533,6 @@ void			ahd_print_scb(struct scb *scb);
 void			ahd_print_devinfo(struct ahd_softc *ahd,
 					  struct ahd_devinfo *devinfo);
 void			ahd_dump_sglist(struct scb *scb);
-void			ahd_dump_all_cards_state(void);
 void			ahd_dump_card_state(struct ahd_softc *ahd);
 int			ahd_print_register(ahd_reg_parse_entry_t *table,
 					   u_int num_entries,

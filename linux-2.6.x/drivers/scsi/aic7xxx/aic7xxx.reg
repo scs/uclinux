@@ -1306,7 +1306,6 @@ scratch_ram {
 	 */
 	MWI_RESIDUAL {
 		size		1
-		alias	TARG_IMMEDIATE_SCB
 	}
 	/*
 	 * SCBID of the next SCB to be started by the controller.
@@ -1461,6 +1460,7 @@ scratch_ram {
 	 */
 	LAST_MSG {
 		size		1
+		alias	TARG_IMMEDIATE_SCB
 	}
 
 	/*

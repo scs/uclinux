@@ -66,7 +66,6 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/smp_lock.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -79,6 +78,8 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
+#include <scsi/scsi_transport.h>
+#include <scsi/scsi_transport_spi.h>
 
 /* Core SCSI definitions */
 #define AIC_LIB_PREFIX ahc
@@ -127,27 +128,9 @@ typedef struct scsi_cmnd      *ahc_io_ctx_t;
 #define ahc_le32toh(x)	le32_to_cpu(x)
 #define ahc_le64toh(x)	le64_to_cpu(x)
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN 1234
-#endif
-
-#ifndef BIG_ENDIAN
-#define BIG_ENDIAN 4321
-#endif
-
-#ifndef BYTE_ORDER
-#if defined(__BIG_ENDIAN)
-#define BYTE_ORDER BIG_ENDIAN
-#endif
-#if defined(__LITTLE_ENDIAN)
-#define BYTE_ORDER LITTLE_ENDIAN
-#endif
-#endif /* BYTE_ORDER */
-
 /************************* Configuration Data *********************************/
 extern u_int aic7xxx_no_probe;
 extern u_int aic7xxx_allow_memio;
-extern int aic7xxx_detect_complete;
 extern struct scsi_host_template aic7xxx_driver_template;
 
 /***************************** Bus Space/DMA **********************************/
@@ -240,9 +223,6 @@ int	ahc_dmamap_unload(struct ahc_softc *, bus_dma_tag_t, bus_dmamap_t);
  */
 #define ahc_dmamap_sync(ahc, dma_tag, dmamap, offset, len, op)
 
-/************************** Timer DataStructures ******************************/
-typedef struct timer_list ahc_timer_t;
-
 /********************************** Includes **********************************/
 #ifdef CONFIG_AIC7XXX_REG_PRETTY_PRINT
 #define AIC_DEBUG_REGISTERS 1
@@ -252,65 +232,15 @@ typedef struct timer_list ahc_timer_t;
 #include "aic7xxx.h"
 
 /***************************** Timer Facilities *******************************/
-#define ahc_timer_init init_timer
-#define ahc_timer_stop del_timer_sync
-typedef void ahc_linux_callback_t (u_long);  
-static __inline void ahc_timer_reset(ahc_timer_t *timer, int usec,
-				     ahc_callback_t *func, void *arg);
-static __inline void ahc_scb_timer_reset(struct scb *scb, u_int usec);
-
-static __inline void
-ahc_timer_reset(ahc_timer_t *timer, int usec, ahc_callback_t *func, void *arg)
-{
-	struct ahc_softc *ahc;
-
-	ahc = (struct ahc_softc *)arg;
-	del_timer(timer);
-	timer->data = (u_long)arg;
-	timer->expires = jiffies + (usec * HZ)/1000000;
-	timer->function = (ahc_linux_callback_t*)func;
-	add_timer(timer);
-}
-
 static __inline void
 ahc_scb_timer_reset(struct scb *scb, u_int usec)
 {
-	mod_timer(&scb->io_ctx->eh_timeout, jiffies + (usec * HZ)/1000000);
 }
 
 /***************************** SMP support ************************************/
 #include <linux/spinlock.h>
 
-#define AIC7XXX_DRIVER_VERSION "6.2.36"
-
-/**************************** Front End Queues ********************************/
-/*
- * Data structure used to cast the Linux struct scsi_cmnd to something
- * that allows us to use the queue macros.  The linux structure has
- * plenty of space to hold the links fields as required by the queue
- * macros, but the queue macors require them to have the correct type.
- */
-struct ahc_cmd_internal {
-	/* Area owned by the Linux scsi layer. */
-	uint8_t	private[offsetof(struct scsi_cmnd, SCp.Status)];
-	union {
-		STAILQ_ENTRY(ahc_cmd)	ste;
-		LIST_ENTRY(ahc_cmd)	le;
-		TAILQ_ENTRY(ahc_cmd)	tqe;
-	} links;
-	uint32_t			end;
-};
-
-struct ahc_cmd {
-	union {
-		struct ahc_cmd_internal	icmd;
-		struct scsi_cmnd	scsi_cmd;
-	} un;
-};
-
-#define acmd_icmd(cmd) ((cmd)->un.icmd)
-#define acmd_scsi_cmd(cmd) ((cmd)->un.scsi_cmd)
-#define acmd_links un.icmd.links
+#define AIC7XXX_DRIVER_VERSION "7.0"
 
 /*************************** Device Data Structures ***************************/
 /*
@@ -320,7 +250,6 @@ struct ahc_cmd {
  * after a successfully completed inquiry command to the target when
  * that inquiry data indicates a lun is present.
  */
-TAILQ_HEAD(ahc_busyq, ahc_cmd);
 typedef enum {
 	AHC_DEV_FREEZE_TIL_EMPTY = 0x02, /* Freeze queue until active == 0 */
 	AHC_DEV_Q_BASIC		 = 0x10, /* Allow basic device queuing */
@@ -330,8 +259,6 @@ typedef enum {
 
 struct ahc_linux_target;
 struct ahc_linux_device {
-	TAILQ_ENTRY(ahc_linux_device) links;
-
 	/*
 	 * The number of transactions currently
 	 * queued to the device.
@@ -401,17 +328,10 @@ struct ahc_linux_device {
 	 */
 	u_int			commands_since_idle_or_otag;
 #define AHC_OTAG_THRESH	500
-
-	int			lun;
-	struct scsi_device       *scsi_device;
-	struct			ahc_linux_target *target;
 };
 
 struct ahc_linux_target {
-	struct ahc_linux_device	 *devices[AHC_NUM_LUNS];
-	int			  channel;
-	int			  target;
-	int			  refcount;
+	struct scsi_device	 *sdev[AHC_NUM_LUNS];
 	struct ahc_transinfo	  last_tinfo;
 	struct ahc_softc	 *ahc;
 };
@@ -445,11 +365,10 @@ struct ahc_platform_data {
 	/*
 	 * Fields accessed from interrupt context.
 	 */
-	struct ahc_linux_target *targets[AHC_NUM_TARGETS]; 
+	struct scsi_target *starget[AHC_NUM_TARGETS]; 
 
 	spinlock_t		 spin_lock;
 	u_int			 qfrozen;
-	struct timer_list	 reset_timer;
 	struct semaphore	 eh_sem;
 	struct Scsi_Host        *host;		/* pointer to scsi host */
 #define AHC_LINUX_NOIRQ	((uint32_t)~0)
@@ -549,8 +468,6 @@ ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 int		ahc_linux_register_host(struct ahc_softc *,
 					struct scsi_host_template *);
 
-uint64_t	ahc_linux_get_memsize(void);
-
 /*************************** Pretty Printing **********************************/
 struct info_str {
 	char *buffer;
@@ -564,15 +481,6 @@ void	ahc_format_transinfo(struct info_str *info,
 
 /******************************** Locking *************************************/
 /* Lock protecting internal data structures */
-static __inline void ahc_lockinit(struct ahc_softc *);
-static __inline void ahc_lock(struct ahc_softc *, unsigned long *flags);
-static __inline void ahc_unlock(struct ahc_softc *, unsigned long *flags);
-
-/* Lock held during ahc_list manipulation and ahc softc frees */
-extern spinlock_t ahc_list_spinlock;
-static __inline void ahc_list_lockinit(void);
-static __inline void ahc_list_lock(unsigned long *flags);
-static __inline void ahc_list_unlock(unsigned long *flags);
 
 static __inline void
 ahc_lockinit(struct ahc_softc *ahc)
@@ -590,24 +498,6 @@ static __inline void
 ahc_unlock(struct ahc_softc *ahc, unsigned long *flags)
 {
 	spin_unlock_irqrestore(&ahc->platform_data->spin_lock, *flags);
-}
-
-static __inline void
-ahc_list_lockinit(void)
-{
-	spin_lock_init(&ahc_list_spinlock);
-}
-
-static __inline void
-ahc_list_lock(unsigned long *flags)
-{
-	spin_lock_irqsave(&ahc_list_spinlock, *flags);
-}
-
-static __inline void
-ahc_list_unlock(unsigned long *flags)
-{
-	spin_unlock_irqrestore(&ahc_list_spinlock, *flags);
 }
 
 /******************************* PCI Definitions ******************************/
@@ -659,7 +549,6 @@ typedef enum
 
 /**************************** VL/EISA Routines ********************************/
 #ifdef CONFIG_EISA
-extern uint32_t aic7xxx_probe_eisa_vl;
 int			 ahc_linux_eisa_init(void);
 void			 ahc_linux_eisa_exit(void);
 int			 aic7770_map_registers(struct ahc_softc *ahc,
@@ -924,7 +813,6 @@ ahc_notify_xfer_settings_change(struct ahc_softc *ahc,
 static __inline void
 ahc_platform_scb_free(struct ahc_softc *ahc, struct scb *scb)
 {
-	ahc->flags &= ~AHC_RESOURCE_SHORTAGE;
 }
 
 int	ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg);
@@ -948,7 +836,6 @@ int	ahc_platform_abort_scbs(struct ahc_softc *ahc, int target,
 irqreturn_t
 	ahc_linux_isr(int irq, void *dev_id, struct pt_regs * regs);
 void	ahc_platform_flushwork(struct ahc_softc *ahc);
-int	ahc_softc_comp(struct ahc_softc *, struct ahc_softc *);
 void	ahc_done(struct ahc_softc*, struct scb*);
 void	ahc_send_async(struct ahc_softc *, char channel,
 		       u_int target, u_int lun, ac_code, void *);

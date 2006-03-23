@@ -50,9 +50,52 @@ static void	ahc_dump_target_state(struct ahc_softc *ahc,
 				      u_int our_id, char channel,
 				      u_int target_id, u_int target_offset);
 static void	ahc_dump_device_state(struct info_str *info,
-				      struct ahc_linux_device *dev);
+				      struct scsi_device *dev);
 static int	ahc_proc_write_seeprom(struct ahc_softc *ahc,
 				       char *buffer, int length);
+
+/*
+ * Table of syncrates that don't follow the "divisible by 4"
+ * rule. This table will be expanded in future SCSI specs.
+ */
+static struct {
+	u_int period_factor;
+	u_int period;	/* in 100ths of ns */
+} scsi_syncrates[] = {
+	{ 0x08, 625 },	/* FAST-160 */
+	{ 0x09, 1250 },	/* FAST-80 */
+	{ 0x0a, 2500 },	/* FAST-40 40MHz */
+	{ 0x0b, 3030 },	/* FAST-40 33MHz */
+	{ 0x0c, 5000 }	/* FAST-20 */
+};
+
+/*
+ * Return the frequency in kHz corresponding to the given
+ * sync period factor.
+ */
+static u_int
+ahc_calc_syncsrate(u_int period_factor)
+{
+	int i;
+	int num_syncrates;
+
+	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
+	/* See if the period is in the "exception" table */
+	for (i = 0; i < num_syncrates; i++) {
+
+		if (period_factor == scsi_syncrates[i].period_factor) {
+			/* Period in kHz */
+			return (100000000 / scsi_syncrates[i].period);
+		}
+	}
+
+	/*
+	 * Wasn't in the table, so use the standard
+	 * 4 times conversion.
+	 */
+	return (10000000 / (period_factor * 4 * 10));
+}
+
 
 static void
 copy_mem_info(struct info_str *info, char *data, int len)
@@ -106,7 +149,7 @@ ahc_format_transinfo(struct info_str *info, struct ahc_transinfo *tinfo)
         speed = 3300;
         freq = 0;
 	if (tinfo->offset != 0) {
-		freq = aic_calc_syncsrate(tinfo->period);
+		freq = ahc_calc_syncsrate(tinfo->period);
 		speed = freq;
 	}
 	speed *= (0x01 << tinfo->width);
@@ -142,6 +185,7 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 		      u_int target_offset)
 {
 	struct	ahc_linux_target *targ;
+	struct	scsi_target *starget;
 	struct	ahc_initiator_tinfo *tinfo;
 	struct	ahc_tmode_tstate *tstate;
 	int	lun;
@@ -153,9 +197,10 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 	copy_info(info, "Target %d Negotiation Settings\n", target_id);
 	copy_info(info, "\tUser: ");
 	ahc_format_transinfo(info, &tinfo->user);
-	targ = ahc->platform_data->targets[target_offset];
-	if (targ == NULL)
+	starget = ahc->platform_data->starget[target_offset];
+	if (!starget)
 		return;
+	targ = scsi_transport_target_data(starget);
 
 	copy_info(info, "\tGoal: ");
 	ahc_format_transinfo(info, &tinfo->goal);
@@ -163,22 +208,25 @@ ahc_dump_target_state(struct ahc_softc *ahc, struct info_str *info,
 	ahc_format_transinfo(info, &tinfo->curr);
 
 	for (lun = 0; lun < AHC_NUM_LUNS; lun++) {
-		struct ahc_linux_device *dev;
+		struct scsi_device *sdev;
 
-		dev = targ->devices[lun];
+		sdev = targ->sdev[lun];
 
-		if (dev == NULL)
+		if (sdev == NULL)
 			continue;
 
-		ahc_dump_device_state(info, dev);
+		ahc_dump_device_state(info, sdev);
 	}
 }
 
 static void
-ahc_dump_device_state(struct info_str *info, struct ahc_linux_device *dev)
+ahc_dump_device_state(struct info_str *info, struct scsi_device *sdev)
 {
+	struct ahc_linux_device *dev = scsi_transport_device_data(sdev);
+
 	copy_info(info, "\tChannel %c Target %d Lun %d Settings\n",
-		  dev->target->channel + 'A', dev->target->target, dev->lun);
+		  sdev->sdev_target->channel + 'A',
+		  sdev->sdev_target->id, sdev->lun);
 
 	copy_info(info, "\t\tCommands Queued %ld\n", dev->commands_issued);
 	copy_info(info, "\t\tCommands Active %d\n", dev->active);
@@ -292,19 +340,12 @@ int
 ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 		    off_t offset, int length, int inout)
 {
-	struct	ahc_softc *ahc;
+	struct	ahc_softc *ahc = *(struct ahc_softc **)shost->hostdata;
 	struct	info_str info;
 	char	ahc_info[256];
-	u_long	s;
 	u_int	max_targ;
 	u_int	i;
 	int	retval;
-
-	retval = -EINVAL;
-	ahc_list_lock(&s);
-	ahc = ahc_find_softc(*(struct ahc_softc **)shost->hostdata);
-	if (ahc == NULL)
-		goto done;
 
 	 /* Has data been written to the file? */ 
 	if (inout == TRUE) {
@@ -367,6 +408,5 @@ ahc_linux_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	}
 	retval = info.pos > info.offset ? info.pos - info.offset : 0;
 done:
-	ahc_list_unlock(&s);
 	return (retval);
 }
