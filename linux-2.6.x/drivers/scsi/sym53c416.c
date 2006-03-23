@@ -633,7 +633,7 @@ static void sym53c416_probe(void)
 	}
 }
 
-int __init sym53c416_detect(Scsi_Host_Template *tpnt)
+int __init sym53c416_detect(struct scsi_host_template *tpnt)
 {
 	unsigned long flags;
 	struct Scsi_Host * shpnt = NULL;
@@ -773,7 +773,7 @@ int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	current_command->SCp.Message = 0;
 
 	spin_lock_irqsave(&sym53c416_lock, flags);
-	outb(SCpnt->device->id, base + DEST_BUS_ID); /* Set scsi id target        */
+	outb(scmd_id(SCpnt), base + DEST_BUS_ID); /* Set scsi id target        */
 	outb(FLUSH_FIFO, base + COMMAND_REG);    /* Flush SCSI and PIO FIFO's */
 	/* Write SCSI command into the SCSI fifo */
 	for(i = 0; i < SCpnt->cmd_len; i++)
@@ -785,26 +785,14 @@ int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	return 0;
 }
 
-static int sym53c416_abort(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
-static int sym53c416_bus_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
-static int sym53c416_device_reset(Scsi_Cmnd *SCpnt)
-{
-	return FAILED;
-}
-
 static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 {
 	int base;
 	int scsi_id = -1;	
 	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sym53c416_lock, flags);
 
 	/* printk("sym53c416_reset\n"); */
 	base = SCpnt->device->host->io_port;
@@ -816,6 +804,8 @@ static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 	outb(NOOP | PIO_MODE, base + COMMAND_REG);
 	outb(RESET_SCSI_BUS, base + COMMAND_REG);
 	sym53c416_init(base, scsi_id);
+
+	spin_unlock_irqrestore(&sym53c416_lock, flags);
 	return SUCCESS;
 }
 
@@ -859,16 +849,13 @@ module_param_array(sym53c416_3, uint, NULL, 0);
 
 #endif
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name =		"sym53c416",
 	.name =			"Symbios Logic 53c416",
 	.detect =		sym53c416_detect,
 	.info =			sym53c416_info,	
 	.queuecommand =		sym53c416_queuecommand,
-	.eh_abort_handler =	sym53c416_abort,
 	.eh_host_reset_handler =sym53c416_host_reset,
-	.eh_bus_reset_handler = sym53c416_bus_reset,
-	.eh_device_reset_handler =sym53c416_device_reset,
 	.release = 		sym53c416_release,
 	.bios_param =		sym53c416_bios_param,
 	.can_queue =		1,

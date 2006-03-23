@@ -36,8 +36,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/23 03:23:43  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -46,6 +46,7 @@
 
 #define T128_PUBLIC_RELEASE 3
 
+#define TDEBUG		0
 #define TDEBUG_INIT	0x1
 #define TDEBUG_TRANSFER 0x2
 
@@ -97,11 +98,9 @@
 static int t128_abort(Scsi_Cmnd *);
 static int t128_biosparam(struct scsi_device *, struct block_device *,
 			  sector_t, int*);
-static int t128_detect(Scsi_Host_Template *);
+static int t128_detect(struct scsi_host_template *);
 static int t128_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
-static int t128_host_reset(Scsi_Cmnd *);
 static int t128_bus_reset(Scsi_Cmnd *);
-static int t128_device_reset(Scsi_Cmnd *);
 
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
@@ -143,8 +142,6 @@ static int t128_device_reset(Scsi_Cmnd *);
 #define do_NCR5380_intr do_t128_intr
 #define NCR5380_queue_command t128_queue_command
 #define NCR5380_abort t128_abort
-#define NCR5380_host_reset t128_host_reset
-#define NCR5380_device_reset t128_device_reset
 #define NCR5380_bus_reset t128_bus_reset
 #define NCR5380_proc_info t128_proc_info
 

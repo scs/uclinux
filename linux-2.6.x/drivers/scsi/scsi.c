@@ -55,6 +55,7 @@
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/mutex.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -68,6 +69,7 @@
 #include "scsi_priv.h"
 #include "scsi_logging.h"
 
+static void scsi_done(struct scsi_cmnd *cmd);
 
 /*
  * Definitions and constants.
@@ -111,6 +113,7 @@ const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE] = {
 	"Unknown          ",
 	"RAID             ",
 	"Enclosure        ",
+	"Direct-Access-RBC",
 };
 EXPORT_SYMBOL(scsi_device_types);
 
@@ -127,7 +130,7 @@ EXPORT_SYMBOL(scsi_device_types);
  * Returns:     Pointer to request block.
  */
 struct scsi_request *scsi_allocate_request(struct scsi_device *sdev,
-					   int gfp_mask)
+					   gfp_t gfp_mask)
 {
 	const int offset = ALIGN(sizeof(struct scsi_request), 4);
 	const int size = offset + sizeof(struct request);
@@ -193,7 +196,7 @@ struct scsi_host_cmd_pool {
 	unsigned int	users;
 	char		*name;
 	unsigned int	slab_flags;
-	unsigned int	gfp_mask;
+	gfp_t		gfp_mask;
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_pool = {
@@ -207,10 +210,10 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 	.gfp_mask	= __GFP_DMA,
 };
 
-static DECLARE_MUTEX(host_cmd_pool_mutex);
+static DEFINE_MUTEX(host_cmd_pool_mutex);
 
 static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
-					    int gfp_mask)
+					    gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -242,7 +245,7 @@ static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
  *
  * Returns:	The allocated scsi command structure.
  */
-struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
+struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -257,13 +260,12 @@ struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
 
 		memset(cmd, 0, sizeof(*cmd));
 		cmd->device = dev;
-		cmd->state = SCSI_STATE_UNUSED;
-		cmd->owner = SCSI_OWNER_NOBODY;
 		init_timer(&cmd->eh_timeout);
 		INIT_LIST_HEAD(&cmd->list);
 		spin_lock_irqsave(&dev->list_lock, flags);
 		list_add_tail(&cmd->list, &dev->cmd_list);
 		spin_unlock_irqrestore(&dev->list_lock, flags);
+		cmd->jiffies_at_alloc = jiffies;
 	} else
 		put_device(&dev->sdev_gendev);
 
@@ -329,7 +331,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	 * Select a command slab for this host and create it if not
 	 * yet existant.
 	 */
-	down(&host_cmd_pool_mutex);
+	mutex_lock(&host_cmd_pool_mutex);
 	pool = (shost->unchecked_isa_dma ? &scsi_cmd_dma_pool : &scsi_cmd_pool);
 	if (!pool->users) {
 		pool->slab = kmem_cache_create(pool->name,
@@ -341,7 +343,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 
 	pool->users++;
 	shost->cmd_pool = pool;
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 
 	/*
 	 * Get one backup command for this host.
@@ -358,7 +360,7 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 		kmem_cache_destroy(pool->slab);
 	return -ENOMEM;
  fail:
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 	return -ENOMEM;
 
 }
@@ -380,10 +382,10 @@ void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 		kmem_cache_free(shost->cmd_pool->slab, cmd);
 	}
 
-	down(&host_cmd_pool_mutex);
+	mutex_lock(&host_cmd_pool_mutex);
 	if (!--shost->cmd_pool->users)
 		kmem_cache_destroy(shost->cmd_pool->slab);
-	up(&host_cmd_pool_mutex);
+	mutex_unlock(&host_cmd_pool_mutex);
 }
 
 #ifdef CONFIG_SCSI_LOGGING
@@ -408,9 +410,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 				       SCSI_LOG_MLQUEUE_BITS);
 		if (level > 1) {
 			sdev = cmd->device;
-			printk(KERN_INFO "scsi <%d:%d:%d:%d> send ",
-			       sdev->host->host_no, sdev->channel, sdev->id,
-			       sdev->lun);
+			sdev_printk(KERN_INFO, sdev, "send ");
 			if (level > 2)
 				printk("0x%p ", cmd);
 			/*
@@ -454,9 +454,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 		if (((level > 0) && (cmd->result || disposition != SUCCESS)) ||
 		    (level > 1)) {
 			sdev = cmd->device;
-			printk(KERN_INFO "scsi <%d:%d:%d:%d> done ",
-			       sdev->host->host_no, sdev->channel, sdev->id,
-			       sdev->lun);
+			sdev_printk(KERN_INFO, sdev, "done ");
 			if (level > 2)
 				printk("0x%p ", cmd);
 			/*
@@ -608,10 +606,6 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	 * We will use a queued command if possible, otherwise we will
 	 * emulate the queuing and calling of completion function ourselves.
 	 */
-
-	cmd->state = SCSI_STATE_QUEUED;
-	cmd->owner = SCSI_OWNER_LOWLEVEL;
-
 	atomic_inc(&cmd->device->iorequest_cnt);
 
 	/*
@@ -630,7 +624,7 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	spin_lock_irqsave(host->host_lock, flags);
 	scsi_cmd_get_serial(host, cmd); 
 
-	if (unlikely(test_bit(SHOST_CANCEL, &host->shost_state))) {
+	if (unlikely(host->shost_state == SHOST_DEL)) {
 		cmd->result = (DID_NO_CONNECT << 16);
 		scsi_done(cmd);
 	} else {
@@ -638,10 +632,12 @@ int scsi_dispatch_cmd(struct scsi_cmnd *cmd)
 	}
 	spin_unlock_irqrestore(host->host_lock, flags);
 	if (rtn) {
-		atomic_inc(&cmd->device->iodone_cnt);
-		scsi_queue_insert(cmd,
-				(rtn == SCSI_MLQUEUE_DEVICE_BUSY) ?
-				 rtn : SCSI_MLQUEUE_HOST_BUSY);
+		if (scsi_delete_timer(cmd)) {
+			atomic_inc(&cmd->device->iodone_cnt);
+			scsi_queue_insert(cmd,
+					  (rtn == SCSI_MLQUEUE_DEVICE_BUSY) ?
+					  rtn : SCSI_MLQUEUE_HOST_BUSY);
+		}
 		SCSI_LOG_MLQUEUE(3,
 		    printk("queuecommand : request rejected\n"));
 	}
@@ -679,7 +675,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 {
 	sreq->sr_command = cmd;
 
-	cmd->owner = SCSI_OWNER_MIDLEVEL;
 	cmd->cmd_len = sreq->sr_cmd_len;
 	cmd->use_sg = sreq->sr_use_sg;
 
@@ -715,7 +710,6 @@ void scsi_init_cmd_from_req(struct scsi_cmnd *cmd, struct scsi_request *sreq)
 	/*
 	 * Start the timer ticking.
 	 */
-	cmd->abort_reason = 0;
 	cmd->result = 0;
 
 	SCSI_LOG_MLQUEUE(3, printk("Leaving scsi_init_cmd_from_req()\n"));
@@ -739,7 +733,7 @@ static DEFINE_PER_CPU(struct list_head, scsi_done_q);
  *
  * This function is interrupt context safe.
  */
-void scsi_done(struct scsi_cmnd *cmd)
+static void scsi_done(struct scsi_cmnd *cmd)
 {
 	/*
 	 * We don't have to worry about this one timing out any more.
@@ -758,70 +752,25 @@ void scsi_done(struct scsi_cmnd *cmd)
  * isn't running --- used by scsi_times_out */
 void __scsi_done(struct scsi_cmnd *cmd)
 {
-	unsigned long flags;
+	struct request *rq = cmd->request;
 
 	/*
 	 * Set the serial numbers back to zero
 	 */
 	cmd->serial_number = 0;
-	cmd->state = SCSI_STATE_BHQUEUE;
-	cmd->owner = SCSI_OWNER_BH_HANDLER;
 
 	atomic_inc(&cmd->device->iodone_cnt);
 	if (cmd->result)
 		atomic_inc(&cmd->device->ioerr_cnt);
 
+	BUG_ON(!rq);
+
 	/*
-	 * Next, enqueue the command into the done queue.
-	 * It is a per-CPU queue, so we just disable local interrupts
-	 * and need no spinlock.
+	 * The uptodate/nbytes values don't matter, as we allow partial
+	 * completes and thus will check this in the softirq callback
 	 */
-	local_irq_save(flags);
-	list_add_tail(&cmd->eh_entry, &__get_cpu_var(scsi_done_q));
-	raise_softirq_irqoff(SCSI_SOFTIRQ);
-	local_irq_restore(flags);
-}
-
-/**
- * scsi_softirq - Perform post-interrupt processing of finished SCSI commands.
- *
- * This is the consumer of the done queue.
- *
- * This is called with all interrupts enabled.  This should reduce
- * interrupt latency, stack depth, and reentrancy of the low-level
- * drivers.
- */
-static void scsi_softirq(struct softirq_action *h)
-{
-	int disposition;
-	LIST_HEAD(local_q);
-
-	local_irq_disable();
-	list_splice_init(&__get_cpu_var(scsi_done_q), &local_q);
-	local_irq_enable();
-
-	while (!list_empty(&local_q)) {
-		struct scsi_cmnd *cmd = list_entry(local_q.next,
-						   struct scsi_cmnd, eh_entry);
-		list_del_init(&cmd->eh_entry);
-
-		disposition = scsi_decide_disposition(cmd);
-		scsi_log_completion(cmd, disposition);
-		switch (disposition) {
-		case SUCCESS:
-			scsi_finish_command(cmd);
-			break;
-		case NEEDS_RETRY:
-			scsi_retry_command(cmd);
-			break;
-		case ADD_TO_MLQUEUE:
-			scsi_queue_insert(cmd, SCSI_MLQUEUE_DEVICE_BUSY);
-			break;
-		default:
-			if (!scsi_eh_scmd_add(cmd, 0))
-				scsi_finish_command(cmd);
-		}
-	}
+	rq->completion_data = cmd;
+	blk_complete_request(rq);
 }
 
 /*
@@ -883,11 +832,9 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	if (SCSI_SENSE_VALID(cmd))
 		cmd->result |= (DRIVER_SENSE << 24);
 
-	SCSI_LOG_MLCOMPLETE(4, printk("Notifying upper driver of completion "
-				"for device %d %x\n", sdev->id, cmd->result));
-
-	cmd->owner = SCSI_OWNER_HIGHLEVEL;
-	cmd->state = SCSI_STATE_FINISHED;
+	SCSI_LOG_MLCOMPLETE(4, sdev_printk(KERN_INFO, sdev,
+				"Notifying upper driver of completion "
+				"(result %x)\n", cmd->result));
 
 	/*
 	 * We can get here with use_sg=0, causing a panic in the upper level
@@ -963,10 +910,9 @@ void scsi_adjust_queue_depth(struct scsi_device *sdev, int tagged, int tags)
 			sdev->simple_tags = 1;
 			break;
 		default:
-			printk(KERN_WARNING "(scsi%d:%d:%d:%d) "
-				"scsi_adjust_queue_depth, bad queue type, "
-				"disabled\n", sdev->host->host_no,
-				sdev->channel, sdev->id, sdev->lun); 
+			sdev_printk(KERN_WARNING, sdev,
+				    "scsi_adjust_queue_depth, bad queue type, "
+				    "disabled\n");
 		case 0:
 			sdev->ordered_tags = sdev->simple_tags = 0;
 			sdev->queue_depth = tags;
@@ -1258,9 +1204,8 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 		list_for_each_safe(lh, lh_sf, &active_list) {
 			scmd = list_entry(lh, struct scsi_cmnd, eh_entry);
 			list_del_init(lh);
-			if (recovery) {
-				scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD);
-			} else {
+			if (recovery &&
+			    !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD)) {
 				scmd->result = (DID_ABORT << 16);
 				scsi_finish_command(scmd);
 			}
@@ -1270,38 +1215,6 @@ int scsi_device_cancel(struct scsi_device *sdev, int recovery)
 	return 0;
 }
 EXPORT_SYMBOL(scsi_device_cancel);
-
-#ifdef CONFIG_HOTPLUG_CPU
-static int scsi_cpu_notify(struct notifier_block *self,
-			   unsigned long action, void *hcpu)
-{
-	int cpu = (unsigned long)hcpu;
-
-	switch(action) {
-	case CPU_DEAD:
-		/* Drain scsi_done_q. */
-		local_irq_disable();
-		list_splice_init(&per_cpu(scsi_done_q, cpu),
-				 &__get_cpu_var(scsi_done_q));
-		raise_softirq_irqoff(SCSI_SOFTIRQ);
-		local_irq_enable();
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block __devinitdata scsi_cpu_nb = {
-	.notifier_call	= scsi_cpu_notify,
-};
-
-#define register_scsi_cpu() register_cpu_notifier(&scsi_cpu_nb)
-#define unregister_scsi_cpu() unregister_cpu_notifier(&scsi_cpu_nb)
-#else
-#define register_scsi_cpu()
-#define unregister_scsi_cpu()
-#endif /* CONFIG_HOTPLUG_CPU */
 
 MODULE_DESCRIPTION("SCSI core");
 MODULE_LICENSE("GPL");
@@ -1332,12 +1245,10 @@ static int __init init_scsi(void)
 	if (error)
 		goto cleanup_sysctl;
 
-	for (i = 0; i < NR_CPUS; i++)
+	for_each_cpu(i)
 		INIT_LIST_HEAD(&per_cpu(scsi_done_q, i));
 
 	devfs_mk_dir("scsi");
-	open_softirq(SCSI_SOFTIRQ, scsi_softirq, NULL);
-	register_scsi_cpu();
 	printk(KERN_NOTICE "SCSI subsystem initialized\n");
 	return 0;
 
@@ -1365,7 +1276,6 @@ static void __exit exit_scsi(void)
 	devfs_remove("scsi");
 	scsi_exit_procfs();
 	scsi_exit_queue();
-	unregister_scsi_cpu();
 }
 
 subsys_initcall(init_scsi);

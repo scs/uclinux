@@ -988,7 +988,15 @@ din_1:
 
 	    if( residual )
 	    {
+		static int feedback_requested;
 		bval = DC390_read8 (ScsiFifo);	    /* get one residual byte */
+
+		if (!feedback_requested) {
+			feedback_requested = 1;
+			printk(KERN_WARNING "%s: Please, contact <linux-scsi@vger.kernel.org> "
+			       "to help improve support for your system.\n", __FILE__);
+		}
+
 		ptr = (u8 *) bus_to_virt( pSRB->SGBusAddr );
 		*ptr = bval;
 		pSRB->SGBusAddr++; xferCnt++;
@@ -2077,8 +2085,8 @@ static int DC390_abort(struct scsi_cmnd *cmd)
 	struct dc390_acb *pACB = (struct dc390_acb*) cmd->device->host->hostdata;
 	struct dc390_dcb *pDCB = (struct dc390_dcb*) cmd->device->hostdata;
 
-	printk("DC390: Abort command (pid %li, Device %02i-%02i)\n",
-	       cmd->pid, cmd->device->id, cmd->device->lun);
+	scmd_printk(KERN_WARNING, cmd,
+		"DC390: Abort command (pid %li)\n", cmd->pid);
 
 	/* abort() is too stupid for already sent commands at the moment. 
 	 * If it's called we are in trouble anyway, so let's dump some info 
@@ -2120,6 +2128,8 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 	struct dc390_acb*    pACB = (struct dc390_acb*) cmd->device->host->hostdata;
 	u8   bval;
 
+	spin_lock_irq(cmd->device->host->host_lock);
+
 	bval = DC390_read8(CtrlReg1) | DIS_INT_ON_SCSI_RST;
 	DC390_write8(CtrlReg1, bval);	/* disable IRQ on bus reset */
 
@@ -2127,7 +2137,7 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 	dc390_ResetSCSIBus(pACB);
 
 	dc390_ResetDevParam(pACB);
-	udelay(1000);
+	mdelay(1);
 	pACB->pScsiHost->last_reset = jiffies + 3*HZ/2 
 		+ HZ * dc390_eepromBuf[pACB->AdapterIndex][EE_DELAY];
     
@@ -2141,6 +2151,8 @@ static int DC390_bus_reset (struct scsi_cmnd *cmd)
 
 	bval = DC390_read8(CtrlReg1) & ~DIS_INT_ON_SCSI_RST;
 	DC390_write8(CtrlReg1, bval);	/* re-enable interrupt */
+
+	spin_unlock_irq(cmd->device->host->host_lock);
 
 	return SUCCESS;
 }

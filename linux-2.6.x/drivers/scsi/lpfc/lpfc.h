@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 struct lpfc_sli2_slim;
 
@@ -32,9 +29,10 @@ struct lpfc_sli2_slim;
 #define LPFC_LC_HBA_Q_DEPTH	1024	/* max cmds per low cost hba */
 #define LPFC_LP101_HBA_Q_DEPTH	128	/* max cmds per low cost hba */
 
-#define LPFC_CMD_PER_LUN	30	/* max outstanding cmds per lun */
+#define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
+#define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -47,6 +45,11 @@ struct lpfc_sli2_slim;
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32
+
+enum lpfc_polling_flags {
+	ENABLE_FCP_RING_POLLING = 0x1,
+	DISABLE_FCP_RING_INT    = 0x2
+};
 
 /* Provide DMA memory definitions the driver uses per port instance. */
 struct lpfc_dmabuf {
@@ -170,6 +173,7 @@ struct lpfc_hba {
 	dma_addr_t slim2p_mapping;
 	uint16_t pci_cfg_value;
 
+	struct semaphore hba_can_block;
 	uint32_t hba_state;
 
 #define LPFC_INIT_START           1	/* Initial state after board reset */
@@ -270,10 +274,6 @@ struct lpfc_hba {
 	struct lpfc_nodelist fc_fcpnodev; /* nodelist entry for no device */
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
 
-#define LPFC_RPI_HASH_SIZE     64
-#define LPFC_RPI_HASH_FUNC(x)  ((x) & (0x3f))
-	/* ptr to active D_ID / RPIs */
-	struct lpfc_nodelist *fc_nlplookup[LPFC_RPI_HASH_SIZE];
 	uint32_t wwnn[2];
 	uint32_t RandomData[7];
 
@@ -293,6 +293,8 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_bind_method;
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_max_luns;
+	uint32_t cfg_poll;
+	uint32_t cfg_poll_tmo;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 
@@ -344,9 +346,8 @@ struct lpfc_hba {
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
 
+	struct timer_list fcp_poll_timer;
 	struct timer_list els_tmofunc;
-
-	void *link_stats;
 
 	/*
 	 * stat  counters
@@ -358,6 +359,7 @@ struct lpfc_hba {
 	struct lpfc_sysfs_mbox sysfs_mbox;
 
 	/* fastpath list. */
+	spinlock_t scsi_buf_list_lock;
 	struct list_head lpfc_scsi_buf_list;
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;
@@ -373,6 +375,8 @@ struct lpfc_hba {
 	struct list_head freebufList;
 	struct list_head ctrspbuflist;
 	struct list_head rnidrspbuflist;
+
+	struct fc_host_statistics link_stats;
 };
 
 

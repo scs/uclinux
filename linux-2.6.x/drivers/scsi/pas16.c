@@ -2,6 +2,7 @@
 #define PSEUDO_DMA
 #define FOO
 #define UNSAFE  /* Not unsafe for PAS16 -- use it */
+#define PDEBUG 0
 
 /*
  * This driver adapted from Drew Eckhardt's Trantor T128 driver
@@ -368,7 +369,7 @@ void __init pas16_setup(char *str, int *ints)
 }
 
 /* 
- * Function : int pas16_detect(Scsi_Host_Template * tpnt)
+ * Function : int pas16_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : detects and initializes PAS16 controllers
  *	that were autoprobed, overridden on the LILO command line, 
@@ -380,7 +381,7 @@ void __init pas16_setup(char *str, int *ints)
  *
  */
 
-int __init pas16_detect(Scsi_Host_Template * tpnt)
+int __init pas16_detect(struct scsi_host_template * tpnt)
 {
     static int current_override = 0;
     static unsigned short current_base = 0;
@@ -614,15 +615,13 @@ static int pas16_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name           = "Pro Audio Spectrum-16 SCSI",
 	.detect         = pas16_detect,
 	.release        = pas16_release,
 	.queuecommand   = pas16_queue_command,
 	.eh_abort_handler = pas16_abort,
 	.eh_bus_reset_handler = pas16_bus_reset,
-	.eh_device_reset_handler = pas16_device_reset,
-	.eh_host_reset_handler = pas16_host_reset,
 	.bios_param     = pas16_biosparam, 
 	.can_queue      = CAN_QUEUE,
 	.this_id        = 7,

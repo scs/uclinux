@@ -22,7 +22,6 @@
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/pgtable.h>
 
 #include "../scsi.h"
@@ -132,7 +131,7 @@ powertecscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
  * Returns  : type of transfer to be performed
  */
 static fasdmatype_t
-powertecscsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
+powertecscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 		       fasdmadir_t direction, fasdmatype_t min_type)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
@@ -174,7 +173,7 @@ powertecscsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
  *	      SCpnt - command
  */
 static void
-powertecscsi_dma_stop(struct Scsi_Host *host, Scsi_Pointer *SCp)
+powertecscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
 	if (info->info.scsi.dma != NO_DMA)
@@ -269,7 +268,7 @@ int powertecscsi_proc_info(struct Scsi_Host *host, char *buffer, char **start, o
 	return pos;
 }
 
-static ssize_t powertecscsi_show_term(struct device *dev, char *buf)
+static ssize_t powertecscsi_show_term(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
@@ -279,7 +278,7 @@ static ssize_t powertecscsi_show_term(struct device *dev, char *buf)
 }
 
 static ssize_t
-powertecscsi_store_term(struct device *dev, const char *buf, size_t len)
+powertecscsi_store_term(struct device *dev, struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct expansion_card *ec = ECARD_DEV(dev);
 	struct Scsi_Host *host = ecard_get_drvdata(ec);
@@ -293,7 +292,7 @@ powertecscsi_store_term(struct device *dev, const char *buf, size_t len)
 static DEVICE_ATTR(bus_term, S_IRUGO | S_IWUSR,
 		   powertecscsi_show_term, powertecscsi_store_term);
 
-static Scsi_Host_Template powertecscsi_template = {
+static struct scsi_host_template powertecscsi_template = {
 	.module				= THIS_MODULE,
 	.proc_info			= powertecscsi_proc_info,
 	.name				= "PowerTec SCSI",

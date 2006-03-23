@@ -68,6 +68,8 @@ struct srp_event_struct {
 	void (*cmnd_done) (struct scsi_cmnd *);
 	struct completion comp;
 	union viosrp_iu *sync_srp;
+	struct memory_descriptor *ext_list;
+	dma_addr_t ext_list_token;
 };
 
 /* a pool of event structs for use */
@@ -98,8 +100,11 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 void ibmvscsi_release_crq_queue(struct crq_queue *queue,
 				struct ibmvscsi_host_data *hostdata,
 				int max_requests);
-void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
+int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 			      struct ibmvscsi_host_data *hostdata);
+
+int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
+				struct ibmvscsi_host_data *hostdata);
 
 void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			 struct ibmvscsi_host_data *hostdata);

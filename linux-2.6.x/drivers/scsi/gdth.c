@@ -30,7 +30,7 @@
  * Linux kernel 2.2.x, 2.4.x, 2.6.x supported                           *
  *                                                                      *
  * $Log$
- * Revision 1.5  2006/03/22 08:11:06  magicyang
+ * Revision 1.6  2006/03/23 03:23:43  magicyang
  * update kernel to 2.6.16
  *
  * Revision 1.73  2004/03/31 13:33:03  achim

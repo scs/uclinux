@@ -1,26 +1,22 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -66,10 +62,6 @@ void lpfc_disc_timeout(unsigned long);
 void lpfc_scan_timeout(unsigned long);
 
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi);
-struct lpfc_nodelist *lpfc_findnode_remove_rpi(struct lpfc_hba * phba,
-					       uint16_t rpi);
-void lpfc_addnode_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
-		      uint16_t rpi);
 
 int lpfc_workq_post_event(struct lpfc_hba *, void *, void *, uint32_t);
 int lpfc_do_work(void *);
@@ -151,6 +143,12 @@ LPFC_MBOXQ_t *lpfc_mbox_get(struct lpfc_hba *);
 int lpfc_mem_alloc(struct lpfc_hba *);
 void lpfc_mem_free(struct lpfc_hba *);
 
+void lpfc_poll_timeout(unsigned long ptr);
+void lpfc_poll_start_timer(struct lpfc_hba * phba);
+void lpfc_sli_poll_fcp_ring(struct lpfc_hba * hba);
+struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
+void lpfc_sli_release_iocbq(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
+uint16_t lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocb);
 int lpfc_sli_hba_setup(struct lpfc_hba *);
 int lpfc_sli_hba_down(struct lpfc_hba *);
 int lpfc_sli_issue_mbox(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
@@ -186,15 +184,14 @@ struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order,
 int lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout);
 
-int lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
-					   struct lpfc_sli_ring * pring,
-					   struct lpfc_iocbq * piocb,
-					   uint32_t flag,
-					   struct lpfc_iocbq * prspiocbq,
-					   uint32_t timeout);
-void lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
-				      struct lpfc_iocbq * queue1,
-				      struct lpfc_iocbq * queue2);
+int lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
+			     struct lpfc_sli_ring * pring,
+			     struct lpfc_iocbq * piocb,
+			     struct lpfc_iocbq * prspiocbq,
+			     uint32_t timeout);
+void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba,
+			     struct lpfc_iocbq * cmdiocb,
+			     struct lpfc_iocbq * rspiocb);
 
 void *lpfc_mbuf_alloc(struct lpfc_hba *, int, dma_addr_t *);
 void lpfc_mbuf_free(struct lpfc_hba *, void *, dma_addr_t);

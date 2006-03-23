@@ -1,31 +1,29 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -104,9 +102,8 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 		   uint16_t cmdSize,
 		   uint8_t retry, struct lpfc_nodelist * ndlp, uint32_t elscmd)
 {
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
 	struct lpfc_sli_ring *pring;
-	struct lpfc_iocbq *elsiocb = NULL;
+	struct lpfc_iocbq *elsiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *pbuflist;
 	struct ulp_bde64 *bpl;
 	IOCB_t *icmd;
@@ -116,15 +113,13 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	if (phba->hba_state < LPFC_LINK_UP)
 		return  NULL;
 
-
 	/* Allocate buffer for  command iocb */
 	spin_lock_irq(phba->host->host_lock);
-	list_remove_head(lpfc_iocb_list, elsiocb, struct lpfc_iocbq, list);
+	elsiocb = lpfc_sli_get_iocbq(phba);
 	spin_unlock_irq(phba->host->host_lock);
 
 	if (elsiocb == NULL)
 		return NULL;
-	memset(elsiocb, 0, sizeof (struct lpfc_iocbq));
 	icmd = &elsiocb->iocb;
 
 	/* fill in BDEs for command */
@@ -132,10 +127,11 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	if (((pcmd = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == 0) ||
 	    ((pcmd->virt = lpfc_mbuf_alloc(phba,
 					   MEM_PRI, &(pcmd->phys))) == 0)) {
-		if (pcmd)
-			kfree(pcmd);
+		kfree(pcmd);
 
-		list_add_tail(&elsiocb->list, lpfc_iocb_list);
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_sli_release_iocbq(phba, elsiocb);
+		spin_unlock_irq(phba->host->host_lock);
 		return NULL;
 	}
 
@@ -148,11 +144,12 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 			prsp->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						     &prsp->phys);
 		if (prsp == 0 || prsp->virt == 0) {
-			if (prsp)
-				kfree(prsp);
+			kfree(prsp);
 			lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 			kfree(pcmd);
-			list_add_tail(&elsiocb->list, lpfc_iocb_list);
+			spin_lock_irq(phba->host->host_lock);
+			lpfc_sli_release_iocbq(phba, elsiocb);
+			spin_unlock_irq(phba->host->host_lock);
 			return NULL;
 		}
 		INIT_LIST_HEAD(&prsp->list);
@@ -166,13 +163,14 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	    pbuflist->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 					     &pbuflist->phys);
 	if (pbuflist == 0 || pbuflist->virt == 0) {
-		list_add_tail(&elsiocb->list, lpfc_iocb_list);
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_sli_release_iocbq(phba, elsiocb);
+		spin_unlock_irq(phba->host->host_lock);
 		lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 		lpfc_mbuf_free(phba, prsp->virt, prsp->phys);
 		kfree(pcmd);
 		kfree(prsp);
-		if (pbuflist)
-			kfree(pbuflist);
+		kfree(pbuflist);
 		return NULL;
 	}
 
@@ -598,10 +596,8 @@ lpfc_els_abort_flogi(struct lpfc_hba * phba)
 					spin_unlock_irq(phba->host->host_lock);
 					(iocb->iocb_cmpl) (phba, iocb, iocb);
 					spin_lock_irq(phba->host->host_lock);
-				} else {
-					list_add_tail(&iocb->list,
-						      &phba->lpfc_iocb_list);
-				}
+				} else
+					lpfc_sli_release_iocbq(phba, iocb);
 			}
 		}
 	}
@@ -724,6 +720,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			disc = (ndlp->nlp_flag & NLP_NPR_2B_DISC);
 		}
@@ -873,6 +870,7 @@ lpfc_cmpl_els_prli(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
 		}
@@ -1058,6 +1056,7 @@ lpfc_cmpl_els_adisc(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			disc = (ndlp->nlp_flag & NLP_NPR_2B_DISC);
 		}
@@ -1209,6 +1208,7 @@ lpfc_cmpl_els_logo(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
 		if ((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
 		   ((irsp->un.ulpWord[4] == IOERR_SLI_ABORTED) ||
+		   (irsp->un.ulpWord[4] == IOERR_LINK_DOWN) ||
 		   (irsp->un.ulpWord[4] == IOERR_SLI_DOWN))) {
 			goto out;
 		}
@@ -1715,7 +1715,7 @@ lpfc_els_free_iocb(struct lpfc_hba * phba, struct lpfc_iocbq * elsiocb)
 		kfree(buf_ptr);
 	}
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&elsiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, elsiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return 0;
 }
@@ -2931,9 +2931,8 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 			spin_unlock_irq(phba->host->host_lock);
 			(piocb->iocb_cmpl) (phba, piocb, piocb);
 			spin_lock_irq(phba->host->host_lock);
-		} else {
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
-		}
+		} else
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt) {
 		phba->els_tmofunc.expires = jiffies + HZ * timeout;
@@ -2998,7 +2997,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_lock_irq(phba->host->host_lock);
 		}
 		else
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
@@ -3035,7 +3034,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_lock_irq(phba->host->host_lock);
 		}
 		else
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 	spin_unlock_irq(phba->host->host_lock);
 	return;
@@ -3139,7 +3138,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PLOGI:
 		phba->fc_stat.elsRcvPLOGI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PLOGI);
@@ -3154,7 +3153,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_LOGO:
 		phba->fc_stat.elsRcvLOGO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_LOGO);
@@ -3162,7 +3161,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLO:
 		phba->fc_stat.elsRcvPRLO++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLO);
@@ -3177,7 +3176,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_ADISC:
 		phba->fc_stat.elsRcvADISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_ADISC);
@@ -3185,7 +3184,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PDISC:
 		phba->fc_stat.elsRcvPDISC++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PDISC);
@@ -3209,7 +3208,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	case ELS_CMD_PRLI:
 		phba->fc_stat.elsRcvPRLI++;
 		if (phba->hba_state < LPFC_DISC_AUTH) {
-			rjt_err = LSEXP_NOTHING_MORE;
+			rjt_err = 1;
 			break;
 		}
 		lpfc_disc_state_machine(phba, ndlp, elsiocb, NLP_EVT_RCV_PRLI);
@@ -3220,7 +3219,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 		break;
 	default:
 		/* Unsupported ELS command, reject */
-		rjt_err = LSEXP_NOTHING_MORE;
+		rjt_err = 1;
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
@@ -3236,7 +3235,7 @@ lpfc_els_unsol_event(struct lpfc_hba * phba,
 	if (rjt_err) {
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
-		stat.un.b.lsRjtRsnCodeExp = rjt_err;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_NOTHING_MORE;
 		stat.un.b.vendorUnique = 0;
 		lpfc_els_rsp_reject(phba, stat.un.lsRjtError, elsiocb, ndlp);
 	}

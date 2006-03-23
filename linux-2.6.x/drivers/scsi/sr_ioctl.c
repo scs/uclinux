@@ -17,7 +17,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
-#include <scsi/scsi_request.h>
+#include <scsi/scsi_cmnd.h>
 
 #include "sr.h"
 
@@ -31,6 +31,79 @@ static int xa_test = 0;
 
 module_param(xa_test, int, S_IRUGO | S_IWUSR);
 
+/* primitive to determine whether we need to have GFP_DMA set based on
+ * the status of the unchecked_isa_dma flag in the host structure */
+#define SR_GFP_DMA(cd) (((cd)->device->host->unchecked_isa_dma) ? GFP_DMA : 0)
+
+
+static int sr_read_tochdr(struct cdrom_device_info *cdi,
+		struct cdrom_tochdr *tochdr)
+{
+	struct scsi_cd *cd = cdi->handle;
+	struct packet_command cgc;
+	int result;
+	unsigned char *buffer;
+
+	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+	if (!buffer)
+		return -ENOMEM;
+
+	memset(&cgc, 0, sizeof(struct packet_command));
+	cgc.timeout = IOCTL_TIMEOUT;
+	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
+	cgc.cmd[8] = 12;		/* LSB of length */
+	cgc.buffer = buffer;
+	cgc.buflen = 12;
+	cgc.quiet = 1;
+	cgc.data_direction = DMA_FROM_DEVICE;
+
+	result = sr_do_ioctl(cd, &cgc);
+
+	tochdr->cdth_trk0 = buffer[2];
+	tochdr->cdth_trk1 = buffer[3];
+
+	kfree(buffer);
+	return result;
+}
+
+static int sr_read_tocentry(struct cdrom_device_info *cdi,
+		struct cdrom_tocentry *tocentry)
+{
+	struct scsi_cd *cd = cdi->handle;
+	struct packet_command cgc;
+	int result;
+	unsigned char *buffer;
+
+	buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
+	if (!buffer)
+		return -ENOMEM;
+
+	memset(&cgc, 0, sizeof(struct packet_command));
+	cgc.timeout = IOCTL_TIMEOUT;
+	cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
+	cgc.cmd[1] |= (tocentry->cdte_format == CDROM_MSF) ? 0x02 : 0;
+	cgc.cmd[6] = tocentry->cdte_track;
+	cgc.cmd[8] = 12;		/* LSB of length */
+	cgc.buffer = buffer;
+	cgc.buflen = 12;
+	cgc.data_direction = DMA_FROM_DEVICE;
+
+	result = sr_do_ioctl(cd, &cgc);
+
+	tocentry->cdte_ctrl = buffer[5] & 0xf;
+	tocentry->cdte_adr = buffer[5] >> 4;
+	tocentry->cdte_datamode = (tocentry->cdte_ctrl & 0x04) ? 1 : 0;
+	if (tocentry->cdte_format == CDROM_MSF) {
+		tocentry->cdte_addr.msf.minute = buffer[9];
+		tocentry->cdte_addr.msf.second = buffer[10];
+		tocentry->cdte_addr.msf.frame = buffer[11];
+	} else
+		tocentry->cdte_addr.lba = (((((buffer[8] << 8) + buffer[9]) << 8)
+			+ buffer[10]) << 8) + buffer[11];
+
+	kfree(buffer);
+	return result;
+}
 
 #define IOCTL_RETRIES 3
 
@@ -45,7 +118,8 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 	struct packet_command cgc;
 	int ntracks, ret;
 
-	if ((ret = sr_audio_ioctl(cdi, CDROMREADTOCHDR, &tochdr)))
+	ret = sr_read_tochdr(cdi, &tochdr);
+	if (ret)
 		return ret;
 
 	ntracks = tochdr.cdth_trk1 - tochdr.cdth_trk0 + 1;
@@ -60,9 +134,11 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 	trk1_te.cdte_track = ti->cdti_trk1;
 	trk1_te.cdte_format = CDROM_MSF;
 	
-	if ((ret = sr_audio_ioctl(cdi, CDROMREADTOCENTRY, &trk0_te)))
+	ret = sr_read_tocentry(cdi, &trk0_te);
+	if (ret)
 		return ret;
-	if ((ret = sr_audio_ioctl(cdi, CDROMREADTOCENTRY, &trk1_te)))
+	ret = sr_read_tocentry(cdi, &trk1_te);
+	if (ret)
 		return ret;
 
 	memset(&cgc, 0, sizeof(struct packet_command));
@@ -78,47 +154,67 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 	return sr_do_ioctl(cdi->handle, &cgc);
 }
 
+static int sr_play_trkind(struct cdrom_device_info *cdi,
+		struct cdrom_ti *ti)
+
+{
+	struct scsi_cd *cd = cdi->handle;
+	struct packet_command cgc;
+	int result;
+
+	memset(&cgc, 0, sizeof(struct packet_command));
+	cgc.timeout = IOCTL_TIMEOUT;
+	cgc.cmd[0] = GPCMD_PLAYAUDIO_TI;
+	cgc.cmd[4] = ti->cdti_trk0;
+	cgc.cmd[5] = ti->cdti_ind0;
+	cgc.cmd[7] = ti->cdti_trk1;
+	cgc.cmd[8] = ti->cdti_ind1;
+	cgc.data_direction = DMA_NONE;
+
+	result = sr_do_ioctl(cd, &cgc);
+	if (result == -EDRIVE_CANT_DO_THIS)
+		result = sr_fake_playtrkind(cdi, ti);
+
+	return result;
+}
+
 /* We do our own retries because we want to know what the specific
    error code is.  Normally the UNIT_ATTENTION code will automatically
    clear after one error */
 
 int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 {
-	struct scsi_request *SRpnt;
 	struct scsi_device *SDev;
-        struct request *req;
+	struct scsi_sense_hdr sshdr;
 	int result, err = 0, retries = 0;
+	struct request_sense *sense = cgc->sense;
 
 	SDev = cd->device;
-	SRpnt = scsi_allocate_request(SDev, GFP_KERNEL);
-        if (!SRpnt) {
-                printk(KERN_ERR "Unable to allocate SCSI request in sr_do_ioctl");
-		err = -ENOMEM;
-		goto out;
-        }
-	SRpnt->sr_data_direction = cgc->data_direction;
+
+	if (!sense) {
+		sense = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
+		if (!sense) {
+			err = -ENOMEM;
+			goto out;
+		}
+	}
 
       retry:
 	if (!scsi_block_when_processing_errors(SDev)) {
 		err = -ENODEV;
-		goto out_free;
+		goto out;
 	}
 
-	scsi_wait_req(SRpnt, cgc->cmd, cgc->buffer, cgc->buflen,
-		      cgc->timeout, IOCTL_RETRIES);
+	memset(sense, 0, sizeof(*sense));
+	result = scsi_execute(SDev, cgc->cmd, cgc->data_direction,
+			      cgc->buffer, cgc->buflen, (char *)sense,
+			      cgc->timeout, IOCTL_RETRIES, 0);
 
-	req = SRpnt->sr_request;
-	if (SRpnt->sr_buffer && req->buffer && SRpnt->sr_buffer != req->buffer) {
-		memcpy(req->buffer, SRpnt->sr_buffer, SRpnt->sr_bufflen);
-		kfree(SRpnt->sr_buffer);
-		SRpnt->sr_buffer = req->buffer;
-        }
-
-	result = SRpnt->sr_result;
+	scsi_normalize_sense((char *)sense, sizeof(*sense), &sshdr);
 
 	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
 	if (driver_byte(result) != 0) {
-		switch (SRpnt->sr_sense_buffer[2] & 0xf) {
+		switch (sshdr.sense_key) {
 		case UNIT_ATTENTION:
 			SDev->changed = 1;
 			if (!cgc->quiet)
@@ -128,8 +224,8 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			err = -ENOMEDIUM;
 			break;
 		case NOT_READY:	/* This happens if there is no disc in drive */
-			if (SRpnt->sr_sense_buffer[12] == 0x04 &&
-			    SRpnt->sr_sense_buffer[13] == 0x01) {
+			if (sshdr.asc == 0x04 &&
+			    sshdr.ascq == 0x01) {
 				/* sense: Logical unit is in process of becoming ready */
 				if (!cgc->quiet)
 					printk(KERN_INFO "%s: CDROM not ready yet.\n", cd->cdi.name);
@@ -146,37 +242,33 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			if (!cgc->quiet)
 				printk(KERN_INFO "%s: CDROM not ready.  Make sure there is a disc in the drive.\n", cd->cdi.name);
 #ifdef DEBUG
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 #endif
 			err = -ENOMEDIUM;
 			break;
 		case ILLEGAL_REQUEST:
 			err = -EIO;
-			if (SRpnt->sr_sense_buffer[12] == 0x20 &&
-			    SRpnt->sr_sense_buffer[13] == 0x00)
+			if (sshdr.asc == 0x20 &&
+			    sshdr.ascq == 0x00)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
 #ifdef DEBUG
 			__scsi_print_command(cgc->cmd);
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 #endif
 			break;
 		default:
 			printk(KERN_ERR "%s: CDROM (ioctl) error, command: ", cd->cdi.name);
 			__scsi_print_command(cgc->cmd);
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 			err = -EIO;
 		}
 	}
 
-	if (cgc->sense)
-		memcpy(cgc->sense, SRpnt->sr_sense_buffer, sizeof(*cgc->sense));
-
 	/* Wake up a process waiting for device */
-      out_free:
-	scsi_release_request(SRpnt);
-	SRpnt = NULL;
       out:
+	if (!cgc->sense)
+		kfree(sense);
 	cgc->stat = err;
 	return err;
 }
@@ -237,13 +329,14 @@ int sr_disk_status(struct cdrom_device_info *cdi)
 	int i, rc, have_datatracks = 0;
 
 	/* look for data tracks */
-	if (0 != (rc = sr_audio_ioctl(cdi, CDROMREADTOCHDR, &toc_h)))
+	rc = sr_read_tochdr(cdi, &toc_h);
+	if (rc)
 		return (rc == -ENOMEDIUM) ? CDS_NO_DISC : CDS_NO_INFO;
 
 	for (i = toc_h.cdth_trk0; i <= toc_h.cdth_trk1; i++) {
 		toc_e.cdte_track = i;
 		toc_e.cdte_format = CDROM_LBA;
-		if (sr_audio_ioctl(cdi, CDROMREADTOCENTRY, &toc_e))
+		if (sr_read_tocentry(cdi, &toc_e))
 			return CDS_NO_INFO;
 		if (toc_e.cdte_ctrl & CDROM_DATA_TRACK) {
 			have_datatracks = 1;
@@ -269,10 +362,6 @@ int sr_get_last_session(struct cdrom_device_info *cdi,
 
 	return 0;
 }
-
-/* primitive to determine whether we need to have GFP_DMA set based on
- * the status of the unchecked_isa_dma flag in the host structure */
-#define SR_GFP_DMA(cd) (((cd)->device->host->unchecked_isa_dma) ? GFP_DMA : 0)
 
 int sr_get_mcn(struct cdrom_device_info *cdi, struct cdrom_mcn *mcn)
 {
@@ -337,93 +426,16 @@ int sr_select_speed(struct cdrom_device_info *cdi, int speed)
 
 int sr_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd, void *arg)
 {
-	Scsi_CD *cd = cdi->handle;
-	struct packet_command cgc;
-	int result;
-	unsigned char *buffer = kmalloc(32, GFP_KERNEL | SR_GFP_DMA(cd));
-
-	if (!buffer)
-		return -ENOMEM;
-
-	memset(&cgc, 0, sizeof(struct packet_command));
-	cgc.timeout = IOCTL_TIMEOUT;
-
 	switch (cmd) {
 	case CDROMREADTOCHDR:
-		{
-			struct cdrom_tochdr *tochdr = (struct cdrom_tochdr *) arg;
-
-			cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
-			cgc.cmd[8] = 12;		/* LSB of length */
-			cgc.buffer = buffer;
-			cgc.buflen = 12;
-			cgc.quiet = 1;
-			cgc.data_direction = DMA_FROM_DEVICE;
-
-			result = sr_do_ioctl(cd, &cgc);
-
-			tochdr->cdth_trk0 = buffer[2];
-			tochdr->cdth_trk1 = buffer[3];
-
-			break;
-		}
-
+		return sr_read_tochdr(cdi, arg);
 	case CDROMREADTOCENTRY:
-		{
-			struct cdrom_tocentry *tocentry = (struct cdrom_tocentry *) arg;
-
-			cgc.cmd[0] = GPCMD_READ_TOC_PMA_ATIP;
-			cgc.cmd[1] |= (tocentry->cdte_format == CDROM_MSF) ? 0x02 : 0;
-			cgc.cmd[6] = tocentry->cdte_track;
-			cgc.cmd[8] = 12;		/* LSB of length */
-			cgc.buffer = buffer;
-			cgc.buflen = 12;
-			cgc.data_direction = DMA_FROM_DEVICE;
-
-			result = sr_do_ioctl(cd, &cgc);
-
-			tocentry->cdte_ctrl = buffer[5] & 0xf;
-			tocentry->cdte_adr = buffer[5] >> 4;
-			tocentry->cdte_datamode = (tocentry->cdte_ctrl & 0x04) ? 1 : 0;
-			if (tocentry->cdte_format == CDROM_MSF) {
-				tocentry->cdte_addr.msf.minute = buffer[9];
-				tocentry->cdte_addr.msf.second = buffer[10];
-				tocentry->cdte_addr.msf.frame = buffer[11];
-			} else
-				tocentry->cdte_addr.lba = (((((buffer[8] << 8) + buffer[9]) << 8)
-					+ buffer[10]) << 8) + buffer[11];
-
-			break;
-		}
-
-	case CDROMPLAYTRKIND: {
-		struct cdrom_ti* ti = (struct cdrom_ti*)arg;
-
-		cgc.cmd[0] = GPCMD_PLAYAUDIO_TI;
-		cgc.cmd[4] = ti->cdti_trk0;
-		cgc.cmd[5] = ti->cdti_ind0;
-		cgc.cmd[7] = ti->cdti_trk1;
-		cgc.cmd[8] = ti->cdti_ind1;
-		cgc.data_direction = DMA_NONE;
-
-		result = sr_do_ioctl(cd, &cgc);
-		if (result == -EDRIVE_CANT_DO_THIS)
-			result = sr_fake_playtrkind(cdi, ti);
-
-		break;
-	}
-
+		return sr_read_tocentry(cdi, arg);
+	case CDROMPLAYTRKIND:
+		return sr_play_trkind(cdi, arg);
 	default:
-		result = -EINVAL;
+		return -EINVAL;
 	}
-
-#if 0
-	if (result)
-		printk("DEBUG: sr_audio: result for ioctl %x: %x\n", cmd, result);
-#endif
-
-	kfree(buffer);
-	return result;
 }
 
 /* -----------------------------------------------------------------------

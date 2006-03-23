@@ -23,8 +23,6 @@
 #include <asm/dvma.h>
 #include <asm/irq.h>
 
-extern struct NCR_ESP *espchain;
-
 static void dma_barrier(struct NCR_ESP *esp);
 static int  dma_bytes_sent(struct NCR_ESP *esp, int fifo_count);
 static int  dma_can_transfer(struct NCR_ESP *esp, Scsi_Cmnd *sp);
@@ -49,7 +47,7 @@ static void dma_advance_sg (Scsi_Cmnd *sp);
 /* Detecting ESP chips on the machine.  This is the simple and easy
  * version.
  */
-int sun3x_esp_detect(Scsi_Host_Template *tpnt)
+int sun3x_esp_detect(struct scsi_host_template *tpnt)
 {
 	struct NCR_ESP *esp;
 	struct ConfigDev *esp_dev;
@@ -369,7 +367,7 @@ static int sun3x_esp_release(struct Scsi_Host *instance)
 
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "sun3x_esp",
 	.proc_info		= &esp_proc_info,
 	.name			= "Sun ESP 100/100a/200",

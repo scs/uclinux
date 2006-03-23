@@ -68,7 +68,6 @@
  */
 #define	SYM_CONF_TIMER_INTERVAL		((HZ+1)/2)
 
-#define SYM_OPT_HANDLE_DIR_UNKNOWN
 #define SYM_OPT_HANDLE_DEVICE_QUEUEING
 #define SYM_OPT_LIMIT_COMMAND_REORDERING
 
@@ -140,33 +139,6 @@
 
 #define cpu_to_scr(dw)	cpu_to_le32(dw)
 #define scr_to_cpu(dw)	le32_to_cpu(dw)
-
-/*
- *  Remap some status field values.
- */
-#define CAM_REQ_CMP		DID_OK
-#define CAM_SEL_TIMEOUT		DID_NO_CONNECT
-#define CAM_CMD_TIMEOUT		DID_TIME_OUT
-#define CAM_REQ_ABORTED		DID_ABORT
-#define CAM_UNCOR_PARITY	DID_PARITY
-#define CAM_SCSI_BUS_RESET	DID_RESET	
-#define CAM_REQUEUE_REQ		DID_SOFT_ERROR
-#define	CAM_UNEXP_BUSFREE	DID_ERROR
-#define	CAM_SCSI_BUSY		DID_BUS_BUSY
-
-#define	CAM_DEV_NOT_THERE	DID_NO_CONNECT
-#define	CAM_REQ_INVALID		DID_ERROR
-#define	CAM_REQ_TOO_BIG		DID_ERROR
-
-#define	CAM_RESRC_UNAVAIL	DID_ERROR
-
-/*
- *  Remap data direction values.
- */
-#define CAM_DIR_NONE		DMA_NONE
-#define CAM_DIR_IN		DMA_FROM_DEVICE
-#define CAM_DIR_OUT		DMA_TO_DEVICE
-#define CAM_DIR_UNKNOWN		DMA_BIDIRECTIONAL
 
 /*
  *  These ones are used as return code from 
@@ -295,6 +267,5 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np);
 void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target);
 int  sym_setup_data_and_start (struct sym_hcb *np, struct scsi_cmnd *csio, struct sym_ccb *cp);
 void sym_log_bus_error(struct sym_hcb *np);
-void sym_sniff_inquiry(struct sym_hcb *np, struct scsi_cmnd *cmd, int resid);
 
 #endif /* SYM_GLUE_H */

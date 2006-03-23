@@ -1,31 +1,29 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
@@ -202,18 +200,12 @@ lpfc_num_discovered_ports_show(struct class_device *cdev, char *buf)
 }
 
 
-static ssize_t
-lpfc_issue_lip (struct class_device *cdev, const char *buf, size_t count)
+static int
+lpfc_issue_lip(struct Scsi_Host *host)
 {
-	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba *) host->hostdata[0];
-	int val = 0;
 	LPFC_MBOXQ_t *pmboxq;
 	int mbxstatus = MBXERR_ERROR;
-
-	if ((sscanf(buf, "%d", &val) != 1) ||
-	    (val != 1))
-		return -EINVAL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
 	    (phba->hba_state != LPFC_HBA_READY))
@@ -231,12 +223,12 @@ lpfc_issue_lip (struct class_device *cdev, const char *buf, size_t count)
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	else
-		mempool_free( pmboxq, phba->mbox_mem_pool);
+		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 	if (mbxstatus == MBXERR_ERROR)
 		return -EIO;
 
-	return strlen(buf);
+	return 0;
 }
 
 static ssize_t
@@ -252,8 +244,6 @@ lpfc_board_online_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
-
-	if (!phba) return 0;
 
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return snprintf(buf, PAGE_SIZE, "0\n");
@@ -271,7 +261,7 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 	int val=0, status=0;
 
 	if (sscanf(buf, "%d", &val) != 1)
-		return 0;
+		return -EINVAL;
 
 	init_completion(&online_compl);
 
@@ -285,9 +275,74 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 	if (!status)
 		return strlen(buf);
 	else
-		return 0;
+		return -EIO;
 }
 
+static ssize_t
+lpfc_poll_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
+
+	return snprintf(buf, PAGE_SIZE, "%#x\n", phba->cfg_poll);
+}
+
+static ssize_t
+lpfc_poll_store(struct class_device *cdev, const char *buf,
+		size_t count)
+{
+	struct Scsi_Host *host = class_to_shost(cdev);
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
+	uint32_t creg_val;
+	uint32_t old_val;
+	int val=0;
+
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+
+	if (sscanf(buf, "%i", &val) != 1)
+		return -EINVAL;
+
+	if ((val & 0x3) != val)
+		return -EINVAL;
+
+	spin_lock_irq(phba->host->host_lock);
+
+	old_val = phba->cfg_poll;
+
+	if (val & ENABLE_FCP_RING_POLLING) {
+		if ((val & DISABLE_FCP_RING_INT) &&
+		    !(old_val & DISABLE_FCP_RING_INT)) {
+			creg_val = readl(phba->HCregaddr);
+			creg_val &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+			writel(creg_val, phba->HCregaddr);
+			readl(phba->HCregaddr); /* flush */
+
+			lpfc_poll_start_timer(phba);
+		}
+	} else if (val != 0x0) {
+		spin_unlock_irq(phba->host->host_lock);
+		return -EINVAL;
+	}
+
+	if (!(val & DISABLE_FCP_RING_INT) &&
+	    (old_val & DISABLE_FCP_RING_INT))
+	{
+		spin_unlock_irq(phba->host->host_lock);
+		del_timer(&phba->fcp_poll_timer);
+		spin_lock_irq(phba->host->host_lock);
+		creg_val = readl(phba->HCregaddr);
+		creg_val |= (HC_R0INT_ENA << LPFC_FCP_RING);
+		writel(creg_val, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+	}
+
+	phba->cfg_poll = val;
+
+	spin_unlock_irq(phba->host->host_lock);
+
+	return strlen(buf);
+}
 
 #define lpfc_param_show(attr)	\
 static ssize_t \
@@ -296,47 +351,83 @@ lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 	struct Scsi_Host *host = class_to_shost(cdev);\
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];\
 	int val = 0;\
-	if (phba){\
-		val = phba->cfg_##attr;\
-		return snprintf(buf, PAGE_SIZE, "%d\n",\
-				phba->cfg_##attr);\
-	}\
-	return 0;\
+	val = phba->cfg_##attr;\
+	return snprintf(buf, PAGE_SIZE, "%d\n",\
+			phba->cfg_##attr);\
 }
 
-#define lpfc_param_store(attr, minval, maxval)	\
+#define lpfc_param_hex_show(attr)	\
+static ssize_t \
+lpfc_##attr##_show(struct class_device *cdev, char *buf) \
+{ \
+	struct Scsi_Host *host = class_to_shost(cdev);\
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];\
+	int val = 0;\
+	val = phba->cfg_##attr;\
+	return snprintf(buf, PAGE_SIZE, "%#x\n",\
+			phba->cfg_##attr);\
+}
+
+#define lpfc_param_init(attr, default, minval, maxval)	\
+static int \
+lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
+{ \
+	if (val >= minval && val <= maxval) {\
+		phba->cfg_##attr = val;\
+		return 0;\
+	}\
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
+			"%d:0449 lpfc_"#attr" attribute cannot be set to %d, "\
+			"allowed range is ["#minval", "#maxval"]\n", \
+			phba->brd_no, val); \
+	phba->cfg_##attr = default;\
+	return -EINVAL;\
+}
+
+#define lpfc_param_set(attr, default, minval, maxval)	\
+static int \
+lpfc_##attr##_set(struct lpfc_hba *phba, int val) \
+{ \
+	if (val >= minval && val <= maxval) {\
+		phba->cfg_##attr = val;\
+		return 0;\
+	}\
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
+			"%d:0450 lpfc_"#attr" attribute cannot be set to %d, "\
+			"allowed range is ["#minval", "#maxval"]\n", \
+			phba->brd_no, val); \
+	return -EINVAL;\
+}
+
+#define lpfc_param_store(attr)	\
 static ssize_t \
 lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
 { \
 	struct Scsi_Host *host = class_to_shost(cdev);\
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];\
-	int val = 0;\
+	int val=0;\
 	if (!isdigit(buf[0]))\
 		return -EINVAL;\
-	if (sscanf(buf, "0x%x", &val) != 1)\
-		if (sscanf(buf, "%d", &val) != 1)\
-			return -EINVAL;\
-	if (phba){\
-		if (val >= minval && val <= maxval) {\
-			phba->cfg_##attr = val;\
-			return strlen(buf);\
-		}\
-	}\
-	return 0;\
+	if (sscanf(buf, "%i", &val) != 1)\
+		return -EINVAL;\
+	if (lpfc_##attr##_set(phba, val) == 0) \
+		return strlen(buf);\
+	else \
+		return -EINVAL;\
 }
 
-#define LPFC_ATTR_R_NOINIT(name, desc) \
-extern int lpfc_##name;\
+#define LPFC_ATTR(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
 module_param(lpfc_##name, int, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
-lpfc_param_show(name)\
-static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+lpfc_param_init(name, defval, minval, maxval)
 
 #define LPFC_ATTR_R(name, defval, minval, maxval, desc) \
 static int lpfc_##name = defval;\
 module_param(lpfc_##name, int, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
 static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
 
 #define LPFC_ATTR_RW(name, defval, minval, maxval, desc) \
@@ -344,7 +435,28 @@ static int lpfc_##name = defval;\
 module_param(lpfc_##name, int, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
-lpfc_param_store(name, minval, maxval)\
+lpfc_param_init(name, defval, minval, maxval)\
+lpfc_param_set(name, defval, minval, maxval)\
+lpfc_param_store(name)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
+			 lpfc_##name##_show, lpfc_##name##_store)
+
+#define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_param_hex_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+
+#define LPFC_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_param_hex_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
+lpfc_param_set(name, defval, minval, maxval)\
+lpfc_param_store(name)\
 static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 			 lpfc_##name##_show, lpfc_##name##_store)
 
@@ -366,10 +478,18 @@ static CLASS_DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show,
 			 NULL);
 static CLASS_DEVICE_ATTR(management_version, S_IRUGO, management_version_show,
 			 NULL);
-static CLASS_DEVICE_ATTR(issue_lip, S_IWUSR, NULL, lpfc_issue_lip);
 static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 			 lpfc_board_online_show, lpfc_board_online_store);
 
+static int lpfc_poll = 0;
+module_param(lpfc_poll, int, 0);
+MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
+		 " 0 - none,"
+		 " 1 - poll with interrupts enabled"
+		 " 3 - poll and disable FCP ring interrupts");
+
+static CLASS_DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
+			 lpfc_poll_show, lpfc_poll_store);
 
 /*
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
@@ -390,7 +510,7 @@ static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 # LOG_LIBDFC                    0x2000     LIBDFC events
 # LOG_ALL_MSG                   0xffff     LOG all messages
 */
-LPFC_ATTR_RW(log_verbose, 0x0, 0x0, 0xffff, "Verbose logging bit-mask");
+LPFC_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff, "Verbose logging bit-mask");
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
@@ -421,7 +541,7 @@ LPFC_ATTR_R(scan_down, 1, 0, 1,
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
-# until the timer expires. Value range is [0,255]. Default value is 20.
+# until the timer expires. Value range is [0,255]. Default value is 30.
 # NOTE: this MUST be less then the SCSI Layer command timeout - 1.
 */
 LPFC_ATTR_RW(nodev_tmo, 30, 0, 255,
@@ -477,14 +597,10 @@ LPFC_ATTR_R(ack0, 0, 0, 1, "Enable ACK0 support");
 # is 0. Default value of cr_count is 1. The cr_count feature is disabled if
 # cr_delay is set to 0.
 */
-static int lpfc_cr_delay = 0;
-module_param(lpfc_cr_delay, int , 0);
-MODULE_PARM_DESC(lpfc_cr_delay, "A count of milliseconds after which an "
+LPFC_ATTR_RW(cr_delay, 0, 0, 63, "A count of milliseconds after which an"
 		"interrupt response is generated");
 
-static int lpfc_cr_count = 1;
-module_param(lpfc_cr_count, int, 0);
-MODULE_PARM_DESC(lpfc_cr_count, "A count of I/O completions after which an "
+LPFC_ATTR_RW(cr_count, 1, 1, 255, "A count of I/O completions after which an"
 		"interrupt response is generated");
 
 /*
@@ -500,9 +616,7 @@ LPFC_ATTR_RW(fdmi_on, 0, 0, 2, "Enable FDMI support");
 # Specifies the maximum number of ELS cmds we can have outstanding (for
 # discovery). Value range is [1,64]. Default value = 32.
 */
-static int lpfc_discovery_threads = 32;
-module_param(lpfc_discovery_threads, int, 0);
-MODULE_PARM_DESC(lpfc_discovery_threads, "Maximum number of ELS commands "
+LPFC_ATTR(discovery_threads, 32, 1, 64, "Maximum number of ELS commands"
 		 "during discovery");
 
 /*
@@ -512,6 +626,13 @@ MODULE_PARM_DESC(lpfc_discovery_threads, "Maximum number of ELS commands "
 */
 LPFC_ATTR_R(max_luns, 256, 1, 32768,
 	     "Maximum number of LUNs per target driver will support");
+
+/*
+# lpfc_poll_tmo: .Milliseconds driver will wait between polling FCP ring.
+# Value range is [1,255], default value is 10.
+*/
+LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
+	     "Milliseconds driver will wait between polling FCP ring");
 
 struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_info,
@@ -535,12 +656,15 @@ struct class_device_attribute *lpfc_host_attrs[] = {
 	&class_device_attr_lpfc_topology,
 	&class_device_attr_lpfc_scan_down,
 	&class_device_attr_lpfc_link_speed,
+	&class_device_attr_lpfc_cr_delay,
+	&class_device_attr_lpfc_cr_count,
 	&class_device_attr_lpfc_fdmi_on,
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_management_version,
-	&class_device_attr_issue_lip,
 	&class_device_attr_board_online,
+	&class_device_attr_lpfc_poll,
+	&class_device_attr_lpfc_poll_tmo,
 	NULL,
 };
 
@@ -968,21 +1092,21 @@ static void
 lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba*)shost->hostdata[0];
-	u64 nodename;
+	u64 node_name;
 
 	spin_lock_irq(shost->host_lock);
 
 	if ((phba->fc_flag & FC_FABRIC) ||
 	    ((phba->fc_topology == TOPOLOGY_LOOP) &&
 	     (phba->fc_flag & FC_PUBLIC_LOOP)))
-		memcpy(&nodename, &phba->fc_fabparam.nodeName, sizeof(u64));
+		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		memcpy(&nodename, &phba->fc_nodename, sizeof(u64));
+		node_name = wwn_to_u64(phba->fc_nodename.u.wwn);
 
 	spin_unlock_irq(shost->host_lock);
 
-	fc_host_fabric_name(shost) = be64_to_cpu(nodename);
+	fc_host_fabric_name(shost) = node_name;
 }
 
 
@@ -991,11 +1115,10 @@ lpfc_get_stats(struct Scsi_Host *shost)
 {
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
 	struct lpfc_sli *psli = &phba->sli;
-	struct fc_host_statistics *hs =
-			(struct fc_host_statistics *)phba->link_stats;
+	struct fc_host_statistics *hs = &phba->link_stats;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
-	int rc=0;
+	int rc = 0;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)
@@ -1008,44 +1131,42 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->context1 = NULL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE))){
+		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
-	} else
+	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (pmboxq) {
-			if (rc == MBX_TIMEOUT)
-				pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			else
-				mempool_free( pmboxq, phba->mbox_mem_pool);
-		}
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
+
+	memset(hs, 0, sizeof (struct fc_host_statistics));
 
 	hs->tx_frames = pmb->un.varRdStatus.xmitFrameCnt;
 	hs->tx_words = (pmb->un.varRdStatus.xmitByteCnt * 256);
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
 	hs->rx_words = (pmb->un.varRdStatus.rcvByteCnt * 256);
 
-	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE))) {
+	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
-	} else
+	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (pmboxq) {
-			if (rc == MBX_TIMEOUT)
-				pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			else
-				mempool_free( pmboxq, phba->mbox_mem_pool);
-		}
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free( pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
 
@@ -1104,21 +1225,20 @@ lpfc_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata[0];
-	uint64_t node_name = 0;
+	u64 node_name = 0;
 	struct lpfc_nodelist *ndlp = NULL;
 
 	spin_lock_irq(shost->host_lock);
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			memcpy(&node_name, &ndlp->nlp_nodename,
-						sizeof(struct lpfc_name));
+			node_name = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
 			break;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	fc_starget_node_name(starget) = be64_to_cpu(node_name);
+	fc_starget_node_name(starget) = node_name;
 }
 
 static void
@@ -1126,21 +1246,20 @@ lpfc_get_starget_port_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_hba *phba = (struct lpfc_hba *) shost->hostdata[0];
-	uint64_t port_name = 0;
+	u64 port_name = 0;
 	struct lpfc_nodelist *ndlp = NULL;
 
 	spin_lock_irq(shost->host_lock);
 	/* Search the mapped list for this target ID */
 	list_for_each_entry(ndlp, &phba->fc_nlpmap_list, nlp_listp) {
 		if (starget->id == ndlp->nlp_sid) {
-			memcpy(&port_name, &ndlp->nlp_portname,
-						sizeof(struct lpfc_name));
+			port_name = wwn_to_u64(ndlp->nlp_portname.u.wwn);
 			break;
 		}
 	}
 	spin_unlock_irq(shost->host_lock);
 
-	fc_starget_port_name(starget) = be64_to_cpu(port_name);
+	fc_starget_port_name(starget) = port_name;
 }
 
 static void
@@ -1237,25 +1356,30 @@ struct fc_function_template lpfc_transport_functions = {
 
 	.get_starget_port_name = lpfc_get_starget_port_name,
 	.show_starget_port_name = 1,
+
+	.issue_fc_host_lip = lpfc_issue_lip,
 };
 
 void
 lpfc_get_cfgparam(struct lpfc_hba *phba)
 {
-	phba->cfg_log_verbose = lpfc_log_verbose;
-	phba->cfg_cr_delay = lpfc_cr_delay;
-	phba->cfg_cr_count = lpfc_cr_count;
-	phba->cfg_lun_queue_depth = lpfc_lun_queue_depth;
-	phba->cfg_fcp_class = lpfc_fcp_class;
-	phba->cfg_use_adisc = lpfc_use_adisc;
-	phba->cfg_ack0 = lpfc_ack0;
-	phba->cfg_topology = lpfc_topology;
-	phba->cfg_scan_down = lpfc_scan_down;
-	phba->cfg_nodev_tmo = lpfc_nodev_tmo;
-	phba->cfg_link_speed = lpfc_link_speed;
-	phba->cfg_fdmi_on = lpfc_fdmi_on;
-	phba->cfg_discovery_threads = lpfc_discovery_threads;
-	phba->cfg_max_luns = lpfc_max_luns;
+	lpfc_log_verbose_init(phba, lpfc_log_verbose);
+	lpfc_cr_delay_init(phba, lpfc_cr_delay);
+	lpfc_cr_count_init(phba, lpfc_cr_count);
+	lpfc_lun_queue_depth_init(phba, lpfc_lun_queue_depth);
+	lpfc_fcp_class_init(phba, lpfc_fcp_class);
+	lpfc_use_adisc_init(phba, lpfc_use_adisc);
+	lpfc_ack0_init(phba, lpfc_ack0);
+	lpfc_topology_init(phba, lpfc_topology);
+	lpfc_scan_down_init(phba, lpfc_scan_down);
+	lpfc_nodev_tmo_init(phba, lpfc_nodev_tmo);
+	lpfc_link_speed_init(phba, lpfc_link_speed);
+	lpfc_fdmi_on_init(phba, lpfc_fdmi_on);
+	lpfc_discovery_threads_init(phba, lpfc_discovery_threads);
+	lpfc_max_luns_init(phba, lpfc_max_luns);
+	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
+
+	phba->cfg_poll = lpfc_poll;
 
 	/*
 	 * The total number of segments is the configuration value plus 2

@@ -1,26 +1,24 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
 
-/*
- * $Id$
- */
+#include <asm/byteorder.h>
 
 struct lpfc_hba;
 
@@ -80,18 +78,7 @@ struct fcp_rsp {
 };
 
 struct fcp_cmnd {
-	uint32_t fcpLunMsl;	/* most  significant lun word (32 bits) */
-	uint32_t fcpLunLsl;	/* least significant lun word (32 bits) */
-	/* # of bits to shift lun id to end up in right
-	 * payload word, little endian = 8, big = 16.
-	 */
-#if __BIG_ENDIAN
-#define FC_LUN_SHIFT         16
-#define FC_ADDR_MODE_SHIFT   24
-#else	/*  __LITTLE_ENDIAN */
-#define FC_LUN_SHIFT         8
-#define FC_ADDR_MODE_SHIFT   0
-#endif
+	struct scsi_lun  fcp_lun;
 
 	uint8_t fcpCntl0;	/* FCP_CNTL byte 0 (reserved) */
 	uint8_t fcpCntl1;	/* FCP_CNTL byte 1 task codes */

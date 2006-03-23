@@ -92,29 +92,32 @@ void sym_nvram_setup_host(struct Scsi_Host *shost, struct sym_hcb *np, struct sy
  *  Get target set-up from Symbios format NVRAM.
  */
 static void
-sym_Symbios_setup_target(struct sym_hcb *np, int target, Symbios_nvram *nvram)
+sym_Symbios_setup_target(struct sym_tcb *tp, int target, Symbios_nvram *nvram)
 {
-	struct sym_tcb *tp = &np->target[target];
 	Symbios_target *tn = &nvram->target[target];
 
-	tp->usrtags =
-		(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED)? SYM_SETUP_MAX_TAG : 0;
-
+	if (!(tn->flags & SYMBIOS_QUEUE_TAGS_ENABLED))
+		tp->usrtags = 0;
 	if (!(tn->flags & SYMBIOS_DISCONNECT_ENABLE))
 		tp->usrflags &= ~SYM_DISC_ENABLED;
 	if (!(tn->flags & SYMBIOS_SCAN_AT_BOOT_TIME))
 		tp->usrflags |= SYM_SCAN_BOOT_DISABLED;
 	if (!(tn->flags & SYMBIOS_SCAN_LUNS))
 		tp->usrflags |= SYM_SCAN_LUNS_DISABLED;
+	tp->usr_period = (tn->sync_period + 3) / 4;
+	tp->usr_width = (tn->bus_width == 0x8) ? 0 : 1;
 }
+
+static const unsigned char Tekram_sync[16] = {
+	25, 31, 37, 43, 50, 62, 75, 125, 12, 15, 18, 21, 6, 7, 9, 10
+};
 
 /*
  *  Get target set-up from Tekram format NVRAM.
  */
 static void
-sym_Tekram_setup_target(struct sym_hcb *np, int target, Tekram_nvram *nvram)
+sym_Tekram_setup_target(struct sym_tcb *tp, int target, Tekram_nvram *nvram)
 {
-	struct sym_tcb *tp = &np->target[target];
 	struct Tekram_target *tn = &nvram->target[target];
 
 	if (tn->flags & TEKRAM_TAGGED_COMMANDS) {
@@ -124,22 +127,22 @@ sym_Tekram_setup_target(struct sym_hcb *np, int target, Tekram_nvram *nvram)
 	if (tn->flags & TEKRAM_DISCONNECT_ENABLE)
 		tp->usrflags |= SYM_DISC_ENABLED;
  
-	/* If any device does not support parity, we will not use this option */
-	if (!(tn->flags & TEKRAM_PARITY_CHECK))
-		np->rv_scntl0  &= ~0x0a; /* SCSI parity checking disabled */
+	if (tn->flags & TEKRAM_SYNC_NEGO)
+		tp->usr_period = Tekram_sync[tn->sync_index & 0xf];
+	tp->usr_width = (tn->flags & TEKRAM_WIDE_NEGO) ? 1 : 0;
 }
 
 /*
  *  Get target setup from NVRAM.
  */
-void sym_nvram_setup_target(struct sym_hcb *np, int target, struct sym_nvram *nvp)
+void sym_nvram_setup_target(struct sym_tcb *tp, int target, struct sym_nvram *nvp)
 {
 	switch (nvp->type) {
 	case SYM_SYMBIOS_NVRAM:
-		sym_Symbios_setup_target(np, target, &nvp->data.Symbios);
+		sym_Symbios_setup_target(tp, target, &nvp->data.Symbios);
 		break;
 	case SYM_TEKRAM_NVRAM:
-		sym_Tekram_setup_target(np, target, &nvp->data.Tekram);
+		sym_Tekram_setup_target(tp, target, &nvp->data.Tekram);
 		break;
 	default:
 		break;
@@ -270,6 +273,7 @@ static void S24C16_set_bit(struct sym_device *np, u_char write_bit, u_char *gpre
 
 	}
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(5);
 }
 
@@ -366,7 +370,7 @@ static void S24C16_read_byte(struct sym_device *np, u_char *read_data, u_char ac
 	S24C16_write_ack(np, ack_data, gpreg, gpcntl);
 }
 
-#if SYM_CONF_NVRAM_WRITE_SUPPORT
+#ifdef SYM_CONF_NVRAM_WRITE_SUPPORT
 /*
  *  Write 'len' bytes starting at 'offset'.
  */
@@ -547,6 +551,7 @@ static int sym_read_Symbios_nvram(struct sym_device *np, Symbios_nvram *nvram)
 static void T93C46_Clk(struct sym_device *np, u_char *gpreg)
 {
 	OUTB(np, nc_gpreg, *gpreg | 0x04);
+	INB(np, nc_mbox1);
 	udelay(2);
 	OUTB(np, nc_gpreg, *gpreg);
 }
@@ -574,6 +579,7 @@ static void T93C46_Write_Bit(struct sym_device *np, u_char write_bit, u_char *gp
 	*gpreg |= 0x10;
 		
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(2);
 
 	T93C46_Clk(np, gpreg);
@@ -586,6 +592,7 @@ static void T93C46_Stop(struct sym_device *np, u_char *gpreg)
 {
 	*gpreg &= 0xef;
 	OUTB(np, nc_gpreg, *gpreg);
+	INB(np, nc_mbox1);
 	udelay(2);
 
 	T93C46_Clk(np, gpreg);
@@ -733,7 +740,8 @@ static int sym_read_parisc_pdc(struct sym_device *np, struct pdc_initiator *pdc)
 	return SYM_PARISC_PDC;
 }
 #else
-static int sym_read_parisc_pdc(struct sym_device *np, struct pdc_initiator *x)
+static inline int sym_read_parisc_pdc(struct sym_device *np,
+					struct pdc_initiator *x)
 {
 	return 0;
 }

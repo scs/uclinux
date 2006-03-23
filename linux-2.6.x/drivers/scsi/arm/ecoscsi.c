@@ -155,16 +155,14 @@ printk("reading %p len %d\n",addr, len);
 
 #include "../NCR5380.c"
 
-static Scsi_Host_Template ecoscsi_template =  {
+static struct scsi_host_template ecoscsi_template =  {
 	.module		= THIS_MODULE,
 	.name		= "Serial Port EcoSCSI NCR5380",
 	.proc_name	= "ecoscsi",
 	.info		= ecoscsi_info,
 	.queuecommand	= ecoscsi_queue_command,
 	.eh_abort_handler	= NCR5380_abort,
-	.eh_device_reset_handler= NCR5380_device_reset,
 	.eh_bus_reset_handler	= NCR5380_bus_reset,
-	.eh_host_reset_handler	= NCR5380_host_reset,
 	.can_queue	= 16,
 	.this_id	= 7,
 	.sg_tablesize	= SG_ALL,

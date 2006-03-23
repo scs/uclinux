@@ -47,8 +47,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/23 03:23:43  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -188,7 +188,7 @@ static inline void sun3_udc_write(unsigned short val, unsigned char reg)
 static struct Scsi_Host *default_instance;
 
 /*
- * Function : int sun3scsi_detect(Scsi_Host_Template * tpnt)
+ * Function : int sun3scsi_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : initializes mac NCR5380 driver based on the
  *	command line / compile time port and irq definitions.
@@ -199,7 +199,7 @@ static struct Scsi_Host *default_instance;
  *
  */
  
-int sun3scsi_detect(Scsi_Host_Template * tpnt)
+int sun3scsi_detect(struct scsi_host_template * tpnt)
 {
 	unsigned long ioaddr;
 	static int called = 0;
@@ -624,7 +624,7 @@ static int sun3scsi_dma_finish(int write_flag)
 	
 #include "sun3_NCR5380.c"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= SUN3_SCSI_NAME,
 	.detect			= sun3scsi_detect,
 	.release		= sun3scsi_release,

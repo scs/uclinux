@@ -31,8 +31,8 @@
 
 /*
  * $Log$
- * Revision 1.4  2005/08/12 06:42:46  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/23 03:23:43  magicyang
+ * update kernel to 2.6.16
  *
  */
 
@@ -51,7 +51,7 @@
 #define IOBASE_SUN3_VMESCSI 0xff200000
 
 static int sun3scsi_abort (Scsi_Cmnd *);
-static int sun3scsi_detect (Scsi_Host_Template *);
+static int sun3scsi_detect (struct scsi_host_template *);
 static const char *sun3scsi_info (struct Scsi_Host *);
 static int sun3scsi_bus_reset(Scsi_Cmnd *);
 static int sun3scsi_queue_command (Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

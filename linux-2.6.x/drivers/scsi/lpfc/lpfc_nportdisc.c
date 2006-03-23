@@ -1,31 +1,29 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -57,55 +55,76 @@ lpfc_check_adisc(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 	return (1);
 }
 
-
 int
 lpfc_check_sparm(struct lpfc_hba * phba,
 		 struct lpfc_nodelist * ndlp, struct serv_parm * sp,
 		 uint32_t class)
 {
 	volatile struct serv_parm *hsp = &phba->fc_sparam;
-	/* First check for supported version */
+	uint16_t hsp_value, ssp_value = 0;
 
-	/* Next check for class validity */
+	/*
+	 * The receive data field size and buffer-to-buffer receive data field
+	 * size entries are 16 bits but are represented as two 8-bit fields in
+	 * the driver data structure to account for rsvd bits and other control
+	 * bits.  Reconstruct and compare the fields as a 16-bit values before
+	 * correcting the byte values.
+	 */
 	if (sp->cls1.classValid) {
-
-		if (sp->cls1.rcvDataSizeMsb > hsp->cls1.rcvDataSizeMsb)
-			sp->cls1.rcvDataSizeMsb = hsp->cls1.rcvDataSizeMsb;
-		if (sp->cls1.rcvDataSizeLsb > hsp->cls1.rcvDataSizeLsb)
+		hsp_value = (hsp->cls1.rcvDataSizeMsb << 8) |
+				hsp->cls1.rcvDataSizeLsb;
+		ssp_value = (sp->cls1.rcvDataSizeMsb << 8) |
+				sp->cls1.rcvDataSizeLsb;
+		if (ssp_value > hsp_value) {
 			sp->cls1.rcvDataSizeLsb = hsp->cls1.rcvDataSizeLsb;
+			sp->cls1.rcvDataSizeMsb = hsp->cls1.rcvDataSizeMsb;
+		}
 	} else if (class == CLASS1) {
-		return (0);
+		return 0;
 	}
 
 	if (sp->cls2.classValid) {
-
-		if (sp->cls2.rcvDataSizeMsb > hsp->cls2.rcvDataSizeMsb)
-			sp->cls2.rcvDataSizeMsb = hsp->cls2.rcvDataSizeMsb;
-		if (sp->cls2.rcvDataSizeLsb > hsp->cls2.rcvDataSizeLsb)
+		hsp_value = (hsp->cls2.rcvDataSizeMsb << 8) |
+				hsp->cls2.rcvDataSizeLsb;
+		ssp_value = (sp->cls2.rcvDataSizeMsb << 8) |
+				sp->cls2.rcvDataSizeLsb;
+		if (ssp_value > hsp_value) {
 			sp->cls2.rcvDataSizeLsb = hsp->cls2.rcvDataSizeLsb;
+			sp->cls2.rcvDataSizeMsb = hsp->cls2.rcvDataSizeMsb;
+		}
 	} else if (class == CLASS2) {
-		return (0);
+		return 0;
 	}
 
 	if (sp->cls3.classValid) {
-
-		if (sp->cls3.rcvDataSizeMsb > hsp->cls3.rcvDataSizeMsb)
-			sp->cls3.rcvDataSizeMsb = hsp->cls3.rcvDataSizeMsb;
-		if (sp->cls3.rcvDataSizeLsb > hsp->cls3.rcvDataSizeLsb)
+		hsp_value = (hsp->cls3.rcvDataSizeMsb << 8) |
+				hsp->cls3.rcvDataSizeLsb;
+		ssp_value = (sp->cls3.rcvDataSizeMsb << 8) |
+				sp->cls3.rcvDataSizeLsb;
+		if (ssp_value > hsp_value) {
 			sp->cls3.rcvDataSizeLsb = hsp->cls3.rcvDataSizeLsb;
+			sp->cls3.rcvDataSizeMsb = hsp->cls3.rcvDataSizeMsb;
+		}
 	} else if (class == CLASS3) {
-		return (0);
+		return 0;
 	}
 
-	if (sp->cmn.bbRcvSizeMsb > hsp->cmn.bbRcvSizeMsb)
-		sp->cmn.bbRcvSizeMsb = hsp->cmn.bbRcvSizeMsb;
-	if (sp->cmn.bbRcvSizeLsb > hsp->cmn.bbRcvSizeLsb)
+	/*
+	 * Preserve the upper four bits of the MSB from the PLOGI response.
+	 * These bits contain the Buffer-to-Buffer State Change Number
+	 * from the target and need to be passed to the FW.
+	 */
+	hsp_value = (hsp->cmn.bbRcvSizeMsb << 8) | hsp->cmn.bbRcvSizeLsb;
+	ssp_value = (sp->cmn.bbRcvSizeMsb << 8) | sp->cmn.bbRcvSizeLsb;
+	if (ssp_value > hsp_value) {
 		sp->cmn.bbRcvSizeLsb = hsp->cmn.bbRcvSizeLsb;
+		sp->cmn.bbRcvSizeMsb = (sp->cmn.bbRcvSizeMsb & 0xF0) |
+				       (hsp->cmn.bbRcvSizeMsb & 0x0F);
+	}
 
-	/* If check is good, copy wwpn wwnn into ndlp */
 	memcpy(&ndlp->nlp_nodename, &sp->nodeName, sizeof (struct lpfc_name));
 	memcpy(&ndlp->nlp_portname, &sp->portName, sizeof (struct lpfc_name));
-	return (1);
+	return 1;
 }
 
 static void *
@@ -189,10 +208,8 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 					spin_unlock_irq(phba->host->host_lock);
 					(iocb->iocb_cmpl) (phba, iocb, iocb);
 					spin_lock_irq(phba->host->host_lock);
-				} else {
-					list_add_tail(&iocb->list,
-							&phba->lpfc_iocb_list);
-				}
+				} else
+					lpfc_sli_release_iocbq(phba, iocb);
 				break;
 			}
 		}
@@ -234,10 +251,8 @@ lpfc_els_abort(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
 					spin_unlock_irq(phba->host->host_lock);
 					(iocb->iocb_cmpl) (phba, iocb, iocb);
 					spin_lock_irq(phba->host->host_lock);
-				} else {
-					list_add_tail(&iocb->list,
-							&phba->lpfc_iocb_list);
-				}
+				} else
+					lpfc_sli_release_iocbq(phba, iocb);
 				break;
 			}
 		}
@@ -950,8 +965,13 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_hba * phba,
 		lpfc_unreg_rpi(phba, ndlp);
 		return (ndlp->nlp_state);
 	}
-	ndlp->nlp_state = NLP_STE_MAPPED_NODE;
-	lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	if (ndlp->nlp_type & NLP_FCP_TARGET) {
+		ndlp->nlp_state = NLP_STE_MAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_MAPPED_LIST);
+	} else {
+		ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
+		lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
+	}
 	return (ndlp->nlp_state);
 }
 
@@ -1083,11 +1103,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_hba * phba,
 		return (ndlp->nlp_state);
 	}
 
-	if (ndlp->nlp_rpi != 0)
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
-
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	lpfc_addnode_rpi(phba, ndlp, ndlp->nlp_rpi);
 
 	/* Only if we are not a fabric nport do we issue PRLI */
 	if (!(ndlp->nlp_type & NLP_FABRIC)) {
@@ -1590,12 +1606,7 @@ lpfc_cmpl_reglogin_npr_node(struct lpfc_hba * phba,
 	pmb = (LPFC_MBOXQ_t *) arg;
 	mb = &pmb->mb;
 
-	/* save rpi */
-	if (ndlp->nlp_rpi != 0)
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
-
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	lpfc_addnode_rpi(phba, ndlp, ndlp->nlp_rpi);
 
 	return (ndlp->nlp_state);
 }

@@ -3,7 +3,8 @@
 #define _ST_H
 
 #include <linux/completion.h>
-
+#include <linux/kref.h>
+#include <scsi/scsi_cmnd.h>
 
 /* Descriptor for analyzed sense data */
 struct st_cmdstatus {
@@ -17,6 +18,17 @@ struct st_cmdstatus {
 	u8 deferred;
 };
 
+struct scsi_tape;
+
+/* scsi tape command */
+struct st_request {
+	unsigned char cmd[MAX_COMMAND_SIZE];
+	unsigned char sense[SCSI_SENSE_BUFFERSIZE];
+	int result;
+	struct scsi_tape *stp;
+	struct completion *waiting;
+};
+
 /* The tape buffer descriptor. */
 struct st_buffer {
 	unsigned char in_use;
@@ -28,7 +40,7 @@ struct st_buffer {
 	int read_pointer;
 	int writing;
 	int syscall_result;
-	struct scsi_request *last_SRpnt;
+	struct st_request *last_SRpnt;
 	struct st_cmdstatus cmdstat;
 	unsigned char *b_data;
 	unsigned short use_sg;	/* zero or max number of s/g segments for this adapter */
@@ -156,6 +168,7 @@ struct scsi_tape {
 	unsigned char last_sense[16];
 #endif
 	struct gendisk *disk;
+	struct kref     kref;
 };
 
 /* Bit masks for use_pf */

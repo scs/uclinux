@@ -173,7 +173,7 @@ static void fas216_dumpstate(FAS216_Info *info)
 		fas216_readb(info, REG_CTCH));
 }
 
-static void print_SCp(Scsi_Pointer *SCp, const char *prefix, const char *suffix)
+static void print_SCp(struct scsi_pointer *SCp, const char *prefix, const char *suffix)
 {
 	printk("%sptr %p this_residual 0x%x buffer %p buffers_residual 0x%x%s",
 		prefix, SCp->ptr, SCp->this_residual, SCp->buffer,
@@ -628,7 +628,7 @@ static void fas216_handlesync(FAS216_Info *info, char *msg)
  */
 static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
 {
-	Scsi_Pointer *SCp = &info->scsi.SCp;
+	struct scsi_pointer *SCp = &info->scsi.SCp;
 
 	fas216_checkmagic(info);
 
@@ -668,7 +668,7 @@ static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
  */
 static void fas216_pio(FAS216_Info *info, fasdmadir_t direction)
 {
-	Scsi_Pointer *SCp = &info->scsi.SCp;
+	struct scsi_pointer *SCp = &info->scsi.SCp;
 
 	fas216_checkmagic(info);
 
@@ -2559,7 +2559,7 @@ int fas216_eh_bus_reset(Scsi_Cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 	unsigned long flags;
-	Scsi_Device *SDpnt;
+	struct scsi_device *SDpnt;
 
 	fas216_checkmagic(info);
 	fas216_log(info, LOG_ERROR, "resetting bus");
@@ -2659,6 +2659,8 @@ int fas216_eh_host_reset(Scsi_Cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 
+	spin_lock_irq(info->host->host_lock);
+
 	fas216_checkmagic(info);
 
 	printk("scsi%d.%c: %s: resetting host\n",
@@ -2686,6 +2688,7 @@ int fas216_eh_host_reset(Scsi_Cmnd *SCpnt)
 
 	fas216_init_chip(info);
 
+	spin_unlock_irq(info->host->host_lock);
 	return SUCCESS;
 }
 
@@ -2997,7 +3000,7 @@ int fas216_print_stats(FAS216_Info *info, char *buffer)
 int fas216_print_devices(FAS216_Info *info, char *buffer)
 {
 	struct fas216_device *dev;
-	Scsi_Device *scd;
+	struct scsi_device *scd;
 	char *p = buffer;
 
 	p += sprintf(p, "Device/Lun TaggedQ       Parity   Sync\n");

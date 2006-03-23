@@ -1,30 +1,32 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport_fc.h>
+
+#include <scsi/scsi.h>
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -246,8 +248,7 @@ lpfc_read_sparam(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == 0) ||
 	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
-		if (mp)
-			kfree(mp);
+		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
 		/* READ_SPARAM: no buffers */
 		lpfc_printf_log(phba,
@@ -361,9 +362,7 @@ lpfc_reg_login(struct lpfc_hba * phba,
 	/* Get a buffer to hold NPorts Service Parameters */
 	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == NULL) ||
 	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
-		if (mp)
-			kfree(mp);
-
+		kfree(mp);
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
 		lpfc_printf_log(phba,
@@ -422,7 +421,6 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 	uint32_t iocbCnt;
 	int i;
 
-	psli->MBhostaddr = (uint32_t *)&phba->slim2p->mbx;
 	pcbp->maxRing = (psli->num_rings - 1);
 
 	iocbCnt = 0;
@@ -528,8 +526,9 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	dma_addr_t pdma_addr;
 	uint32_t bar_low, bar_high;
 	size_t offset;
-	HGP hgp;
+	struct lpfc_hgp hgp;
 	void __iomem *to_slim;
+	int i;
 
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_CONFIG_PORT;
@@ -584,9 +583,13 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	else
 		phba->slim2p->pcb.hgpAddrHigh = 0;
 	/* write HGP data to SLIM at the required longword offset */
-	memset(&hgp, 0, sizeof(HGP));
+	memset(&hgp, 0, sizeof(struct lpfc_hgp));
 	to_slim = phba->MBslimaddr + (SLIMOFF*sizeof (uint32_t));
-	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof (HGP));
+
+	for (i=0; i < phba->sli.num_rings; i++) {
+		lpfc_memcpy_to_slim(to_slim, &hgp, sizeof(struct lpfc_hgp));
+		to_slim += sizeof (struct lpfc_hgp);
+	}
 
 	/* Setup Port Group ring pointer */
 	offset = (uint8_t *)&phba->slim2p->mbx.us.s2.port -

@@ -282,7 +282,7 @@
  *  clustering is enabled. ENABLE_CLUSTERING provides a performance increase
  *  up to 50% on sequential access.
  *
- *  Since the Scsi_Host_Template structure is shared among all 14F and 34F,
+ *  Since the struct scsi_host_template structure is shared among all 14F and 34F,
  *  the last setting of use_clustering is in effect for all of these boards.
  *
  *  Here a sample configuration using two U14F boards:
@@ -446,8 +446,6 @@ static struct scsi_host_template driver_template = {
                 .release                 = u14_34f_release,
                 .queuecommand            = u14_34f_queuecommand,
                 .eh_abort_handler        = u14_34f_eh_abort,
-                .eh_device_reset_handler = NULL,
-                .eh_bus_reset_handler    = NULL,
                 .eh_host_reset_handler   = u14_34f_eh_host_reset,
                 .bios_param              = u14_34f_bios_param,
                 .slave_configure         = u14_34f_slave_configure,
@@ -728,8 +726,7 @@ static int u14_34f_slave_configure(struct scsi_device *dev) {
    else
       link_suffix = "";
 
-   printk("%s: scsi%d, channel %d, id %d, lun %d, cmds/lun %d%s%s.\n",
-          BN(j), host->host_no, dev->channel, dev->id, dev->lun,
+   sdev_printk(KERN_INFO, dev, "cmds/lun %d%s%s.\n",
           dev->queue_depth, link_suffix, tag_suffix);
 
    return FALSE;
@@ -1321,8 +1318,8 @@ static int u14_34f_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scs
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       unmap_dma(i, j);
       SCpnt->host_scribble = NULL;
-      printk("%s: qcomm, target %d.%d:%d, pid %ld, adapter busy.\n",
-             BN(j), SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid);
+      scmd_printk(KERN_INFO, SCpnt,
+      		"qcomm, pid %ld, adapter busy.\n", SCpnt->pid);
       return 1;
       }
 
@@ -1342,14 +1339,14 @@ static int u14_34f_eh_abort(struct scsi_cmnd *SCarg) {
    j = ((struct hostdata *) SCarg->device->host->hostdata)->board_number;
 
    if (SCarg->host_scribble == NULL) {
-      printk("%s: abort, target %d.%d:%d, pid %ld inactive.\n",
-             BN(j), SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+      scmd_printk(KERN_INFO, SCarg, "abort, pid %ld inactive.\n",
+             SCarg->pid);
       return SUCCESS;
       }
 
    i = *(unsigned int *)SCarg->host_scribble;
-   printk("%s: abort, mbox %d, target %d.%d:%d, pid %ld.\n",
-          BN(j), i, SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+   scmd_printk(KERN_INFO, SCarg, "abort, mbox %d, pid %ld.\n",
+	       i, SCarg->pid);
 
    if (i >= sh[j]->can_queue)
       panic("%s: abort, invalid SCarg->host_scribble.\n", BN(j));
@@ -1373,15 +1370,6 @@ static int u14_34f_eh_abort(struct scsi_cmnd *SCarg) {
 
       if (inb(sh[j]->io_port + REG_SYS_INTR) & IRQ_ASSERTED)
          printk("%s: abort, mbox %d, interrupt pending.\n", BN(j), i);
-
-      if (SCarg->eh_state == SCSI_STATE_TIMEOUT) {
-         unmap_dma(i, j);
-         SCarg->host_scribble = NULL;
-         HD(j)->cp_stat[i] = FREE;
-         printk("%s, abort, mbox %d, eh_state timeout, pid %ld.\n",
-                BN(j), i, SCarg->pid);
-         return SUCCESS;
-         }
 
       return FAILED;
       }
@@ -1416,19 +1404,22 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
    struct scsi_cmnd *SCpnt;
 
    j = ((struct hostdata *) SCarg->device->host->hostdata)->board_number;
-   printk("%s: reset, enter, target %d.%d:%d, pid %ld.\n",
-          BN(j), SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+   scmd_printk(KERN_INFO, SCarg, "reset, enter, pid %ld.\n", SCarg->pid);
+
+   spin_lock_irq(sh[j]->host_lock);
 
    if (SCarg->host_scribble == NULL)
       printk("%s: reset, pid %ld inactive.\n", BN(j), SCarg->pid);
 
    if (HD(j)->in_reset) {
       printk("%s: reset, exit, already in reset.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       printk("%s: reset, exit, timeout error.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
@@ -1479,6 +1470,7 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
 
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       printk("%s: reset, cannot reset, timeout error.\n", BN(j));
+      spin_unlock_irq(sh[j]->host_lock);
       return FAILED;
       }
 
@@ -1540,6 +1532,7 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
    if (arg_done) printk("%s: reset, exit, pid %ld done.\n", BN(j), SCarg->pid);
    else          printk("%s: reset, exit.\n", BN(j));
 
+   spin_unlock_irq(sh[j]->host_lock);
    return SUCCESS;
 }
 
@@ -1714,9 +1707,10 @@ static void flush_dev(struct scsi_device *dev, unsigned long cursec, unsigned in
       k = il[n]; cpp = &HD(j)->cp[k]; SCpnt = cpp->SCpnt;
 
       if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
-         printk("%s: %s, target %d.%d:%d, pid %ld, mbox %d, adapter"\
-                " busy, will abort.\n", BN(j), (ihdlr ? "ihdlr" : "qcomm"),
-                SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid, k);
+         scmd_printk(KERN_INFO, SCpnt,
+	 	"%s, pid %ld, mbox %d, adapter"
+                " busy, will abort.\n", (ihdlr ? "ihdlr" : "qcomm"),
+                SCpnt->pid, k);
          HD(j)->cp_stat[k] = ABORTING;
          continue;
          }
@@ -1828,7 +1822,7 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
 
          /* If there was a bus reset, redo operation on each target */
          else if (tstatus != GOOD && SCpnt->device->type == TYPE_DISK
-                  && HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel])
+                  && HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)])
             status = DID_BUS_BUSY << 16;
 
          /* Works around a flaw in scsi.c */
@@ -1841,29 +1835,28 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
             status = DID_OK << 16;
 
          if (tstatus == GOOD)
-            HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel] = FALSE;
+            HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)] = FALSE;
 
          if (spp->target_status && SCpnt->device->type == TYPE_DISK &&
              (!(tstatus == CHECK_CONDITION && HD(j)->iocount <= 1000 &&
                (SCpnt->sense_buffer[2] & 0xf) == NOT_READY)))
-            printk("%s: ihdlr, target %d.%d:%d, pid %ld, "\
-                   "target_status 0x%x, sense key 0x%x.\n", BN(j),
-                   SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun,
+            scmd_printk(KERN_INFO, SCpnt,
+	    	"ihdlr, pid %ld, target_status 0x%x, sense key 0x%x.\n",
                    SCpnt->pid, spp->target_status,
                    SCpnt->sense_buffer[2]);
 
-         HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] = 0;
+         HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] = 0;
 
          if (HD(j)->last_retried_pid == SCpnt->pid) HD(j)->retries = 0;
 
          break;
       case ASST:     /* Selection Time Out */
 
-         if (HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] > 1)
+         if (HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] > 1)
             status = DID_ERROR << 16;
          else {
             status = DID_TIME_OUT << 16;
-            HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel]++;
+            HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)]++;
             }
 
          break;
@@ -1919,10 +1912,9 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
         spp->adapter_status != ASST && HD(j)->iocount <= 1000) ||
         do_trace || msg_byte(spp->target_status))
 #endif
-      printk("%s: ihdlr, mbox %2d, err 0x%x:%x,"\
-             " target %d.%d:%d, pid %ld, reg 0x%x, count %d.\n",
-             BN(j), i, spp->adapter_status, spp->target_status,
-             SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid,
+      scmd_printk(KERN_INFO, SCpnt, "ihdlr, mbox %2d, err 0x%x:%x,"\
+             " pid %ld, reg 0x%x, count %d.\n",
+             i, spp->adapter_status, spp->target_status, SCpnt->pid,
              reg, HD(j)->iocount);
 
    unmap_dma(i, j);
@@ -1961,11 +1953,11 @@ static int u14_34f_release(struct Scsi_Host *shpnt) {
 
    for (j = 0; sh[j] != NULL && sh[j] != shpnt; j++);
 
-   if (sh[j] == NULL) panic("%s: release, invalid Scsi_Host pointer.\n",
-                            driver_name);
+   if (sh[j] == NULL)
+      panic("%s: release, invalid Scsi_Host pointer.\n", driver_name);
 
    for (i = 0; i < sh[j]->can_queue; i++)
-      if ((&HD(j)->cp[i])->sglist) kfree((&HD(j)->cp[i])->sglist);
+      kfree((&HD(j)->cp[i])->sglist);
 
    for (i = 0; i < sh[j]->can_queue; i++)
       pci_unmap_single(HD(j)->pdev, HD(j)->cp[i].cp_dma_addr,
@@ -1973,7 +1965,8 @@ static int u14_34f_release(struct Scsi_Host *shpnt) {
 
    free_irq(sh[j]->irq, &sha[j]);
 
-   if (sh[j]->dma_channel != NO_DMA) free_dma(sh[j]->dma_channel);
+   if (sh[j]->dma_channel != NO_DMA)
+      free_dma(sh[j]->dma_channel);
 
    release_region(sh[j]->io_port, sh[j]->n_io_port);
    scsi_unregister(sh[j]);

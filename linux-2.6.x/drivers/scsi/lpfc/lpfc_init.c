@@ -1,26 +1,23 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
+ * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -31,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 
+#include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
@@ -128,34 +126,26 @@ lpfc_config_port_prep(struct lpfc_hba * phba)
 		return -ERESTART;
 	}
 
-	/* The HBA's current state is provided by the ProgType and rr fields.
-	 * Read and check the value of these fields before continuing to config
-	 * this port.
+	/*
+	 * The value of rr must be 1 since the driver set the cv field to 1.
+	 * This setting requires the FW to set all revision fields.
 	 */
-	if (mb->un.varRdRev.rr == 0 || mb->un.varRdRev.un.b.ProgType != 2) {
-		/* Old firmware */
+	if (mb->un.varRdRev.rr == 0) {
 		vp->rev.rBit = 0;
-		lpfc_printf_log(phba,
-				KERN_ERR,
-				LOG_INIT,
-				"%d:0440 Adapter failed to init, mbxCmd x%x "
-				"READ_REV detected outdated firmware"
-				"Data: x%x\n",
-				phba->brd_no,
-				mb->mbxCommand, 0);
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"%d:0440 Adapter failed to init, READ_REV has "
+				"missing revision information.\n",
+				phba->brd_no);
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -ERESTART;
-	} else {
-		vp->rev.rBit = 1;
-		vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
-		memcpy(vp->rev.sli1FwName,
-			(char*)mb->un.varRdRev.sli1FwName, 16);
-		vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
-		memcpy(vp->rev.sli2FwName,
-					(char *)mb->un.varRdRev.sli2FwName, 16);
 	}
 
 	/* Save information as VPD data */
+	vp->rev.rBit = 1;
+	vp->rev.sli1FwRev = mb->un.varRdRev.sli1FwRev;
+	memcpy(vp->rev.sli1FwName, (char*) mb->un.varRdRev.sli1FwName, 16);
+	vp->rev.sli2FwRev = mb->un.varRdRev.sli2FwRev;
+	memcpy(vp->rev.sli2FwName, (char *) mb->un.varRdRev.sli2FwName, 16);
 	vp->rev.biuRev = mb->un.varRdRev.biuRev;
 	vp->rev.smRev = mb->un.varRdRev.smRev;
 	vp->rev.smFwRev = mb->un.varRdRev.un.smFwRev;
@@ -287,7 +277,7 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 	if (phba->SerialNumber[0] == 0) {
 		uint8_t *outptr;
 
-		outptr = (uint8_t *) & phba->fc_nodename.IEEE[0];
+		outptr = &phba->fc_nodename.u.s.IEEE[0];
 		for (i = 0; i < 12; i++) {
 			status = *outptr++;
 			j = ((status & 0xf0) >> 4);
@@ -379,6 +369,10 @@ lpfc_config_port_post(struct lpfc_hba * phba)
 		status |= HC_R2INT_ENA;
 	if (psli->num_rings > 3)
 		status |= HC_R3INT_ENA;
+
+	if ((phba->cfg_poll & ENABLE_FCP_RING_POLLING) &&
+	    (phba->cfg_poll & DISABLE_FCP_RING_INT))
+		status &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
 
 	writel(status, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
@@ -539,12 +533,6 @@ lpfc_handle_eratt(struct lpfc_hba * phba)
 
 		lpfc_offline(phba);
 
-		/*
-		 * Restart all traffic to this host.  Since the fc_transport
-		 * block functions (future) were not called in lpfc_offline,
-		 * don't call them here.
-		 */
-		scsi_unblock_requests(phba->host);
 	}
 }
 
@@ -579,6 +567,8 @@ lpfc_handle_latt(struct lpfc_hba * phba)
 
 	rc = -EIO;
 
+	/* Cleanup any outstanding ELS commands */
+	lpfc_els_flush_cmd(phba);
 
 	psli->slistat.link_event++;
 	lpfc_read_la(phba, pmb, mp);
@@ -773,76 +763,139 @@ static void
 lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
-	uint32_t id;
-	char str[16];
+	uint16_t dev_id = phba->pcidev->device;
+	uint16_t dev_subid = phba->pcidev->subsystem_device;
+	uint8_t hdrtype = phba->pcidev->hdr_type;
+	char *model_str = "";
 
 	vp = &phba->vpd;
-	pci_read_config_dword(phba->pcidev, PCI_VENDOR_ID, &id);
 
-	switch ((id >> 16) & 0xffff) {
+	switch (dev_id) {
+	case PCI_DEVICE_ID_FIREFLY:
+		model_str = "LP6000 1Gb PCI";
+		break;
 	case PCI_DEVICE_ID_SUPERFLY:
 		if (vp->rev.biuRev >= 1 && vp->rev.biuRev <= 3)
-			strcpy(str, "LP7000 1");
+			model_str = "LP7000 1Gb PCI";
 		else
-			strcpy(str, "LP7000E 1");
+			model_str = "LP7000E 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_DRAGONFLY:
-		strcpy(str, "LP8000 1");
+		model_str = "LP8000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_CENTAUR:
 		if (FC_JEDEC_ID(vp->rev.biuRev) == CENTAUR_2G_JEDEC_ID)
-			strcpy(str, "LP9002 2");
+			model_str = "LP9002 2Gb PCI";
 		else
-			strcpy(str, "LP9000 1");
+			model_str = "LP9000 1Gb PCI";
 		break;
 	case PCI_DEVICE_ID_RFLY:
-		strcpy(str, "LP952 2");
+		model_str = "LP952 2Gb PCI";
 		break;
 	case PCI_DEVICE_ID_PEGASUS:
-		strcpy(str, "LP9802 2");
+		model_str = "LP9802 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_THOR:
-		strcpy(str, "LP10000 2");
+		if (hdrtype == 0x80)
+			model_str = "LP10000DC 2Gb 2-port PCI-X";
+		else
+			model_str = "LP10000 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_VIPER:
-		strcpy(str, "LPX1000 10");
+		model_str = "LPX1000 10Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_PFLY:
-		strcpy(str, "LP982 2");
+		model_str = "LP982 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_TFLY:
-		strcpy(str, "LP1050 2");
+		if (hdrtype == 0x80)
+			model_str = "LP1050DC 2Gb 2-port PCI-X";
+		else
+			model_str = "LP1050 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_HELIOS:
-		strcpy(str, "LP11000 4");
+		if (hdrtype == 0x80)
+			model_str = "LP11002 4Gb 2-port PCI-X2";
+		else
+			model_str = "LP11000 4Gb PCI-X2";
+		break;
+	case PCI_DEVICE_ID_HELIOS_SCSP:
+		model_str = "LP11000-SP 4Gb PCI-X2";
+		break;
+	case PCI_DEVICE_ID_HELIOS_DCSP:
+		model_str = "LP11002-SP 4Gb 2-port PCI-X2";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE:
+		if (hdrtype == 0x80)
+			model_str = "LPe1002 4Gb 2-port";
+		else
+			model_str = "LPe1000 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE_SCSP:
+		model_str = "LPe1000-SP 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_NEPTUNE_DCSP:
+		model_str = "LPe1002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_BMID:
-		strcpy(str, "LP1150 4");
+		model_str = "LP1150 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_BSMB:
-		strcpy(str, "LP111 4");
+		model_str = "LP111 4Gb PCI-X2";
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
-		strcpy(str, "LP11000e 4");
+		if (hdrtype == 0x80)
+			model_str = "LPe11002 4Gb 2-port PCIe";
+		else
+			model_str = "LPe11000 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_ZEPHYR_SCSP:
+		model_str = "LPe11000-SP 4Gb PCIe";
+		break;
+	case PCI_DEVICE_ID_ZEPHYR_DCSP:
+		model_str = "LPe11002-SP 4Gb 2-port PCIe";
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		strcpy(str, "LP1150e 4");
+		model_str = "LPe1150 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		strcpy(str, "LP111e 4");
+		model_str = "LPe111 4Gb PCIe";
 		break;
 	case PCI_DEVICE_ID_LP101:
-		strcpy(str, "LP101 2");
+		model_str = "LP101 2Gb PCI-X";
 		break;
 	case PCI_DEVICE_ID_LP10000S:
-		strcpy(str, "LP10000-S 2");
+		model_str = "LP10000-S 2Gb PCI";
+		break;
+	case PCI_DEVICE_ID_LP11000S:
+	case PCI_DEVICE_ID_LPE11000S:
+		switch (dev_subid) {
+		case PCI_SUBSYSTEM_ID_LP11000S:
+			model_str = "LP11002-S 4Gb PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LP11002S:
+			model_str = "LP11000-S 4Gb 2-port PCI-X2";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11000S:
+			model_str = "LPe11002-S 4Gb PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11002S:
+			model_str = "LPe11002-S 4Gb 2-port PCIe";
+			break;
+		case PCI_SUBSYSTEM_ID_LPE11010S:
+			model_str = "LPe11010-S 4Gb 10-port PCIe";
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
 		break;
 	}
 	if (mdp)
-		sscanf(str, "%s", mdp);
+		sscanf(model_str, "%s", mdp);
 	if (descp)
-		sprintf(descp, "Emulex LightPulse %s Gigabit PCI Fibre "
-			"Channel Adapter", str);
+		sprintf(descp, "Emulex %s Fibre Channel Adapter", model_str);
 }
 
 /**************************************************/
@@ -858,8 +911,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		 int type)
 {
 	IOCB_t *icmd;
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	struct lpfc_iocbq *iocb = NULL;
+	struct lpfc_iocbq *iocb;
 	struct lpfc_dmabuf *mp1, *mp2;
 
 	cnt += pring->missbufcnt;
@@ -868,13 +920,12 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 	while (cnt > 0) {
 		/* Allocate buffer for  command iocb */
 		spin_lock_irq(phba->host->host_lock);
-		list_remove_head(lpfc_iocb_list, iocb, struct lpfc_iocbq, list);
+		iocb = lpfc_sli_get_iocbq(phba);
 		spin_unlock_irq(phba->host->host_lock);
 		if (iocb == NULL) {
 			pring->missbufcnt = cnt;
 			return cnt;
 		}
-		memset(iocb, 0, sizeof (struct lpfc_iocbq));
 		icmd = &iocb->iocb;
 
 		/* 2 buffers can be posted per command */
@@ -884,10 +935,9 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						&mp1->phys);
 		if (mp1 == 0 || mp1->virt == 0) {
-			if (mp1)
-				kfree(mp1);
+			kfree(mp1);
 			spin_lock_irq(phba->host->host_lock);
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			spin_unlock_irq(phba->host->host_lock);
 			pring->missbufcnt = cnt;
 			return cnt;
@@ -901,12 +951,11 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
 			if (mp2 == 0 || mp2->virt == 0) {
-				if (mp2)
-					kfree(mp2);
+				kfree(mp2);
 				lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 				kfree(mp1);
 				spin_lock_irq(phba->host->host_lock);
-				list_add_tail(&iocb->list, lpfc_iocb_list);
+				lpfc_sli_release_iocbq(phba, iocb);
 				spin_unlock_irq(phba->host->host_lock);
 				pring->missbufcnt = cnt;
 				return cnt;
@@ -943,7 +992,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				kfree(mp2);
 				cnt++;
 			}
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			pring->missbufcnt = cnt;
 			spin_unlock_irq(phba->host->host_lock);
 			return cnt;
@@ -1188,6 +1237,7 @@ lpfc_stop_timer(struct lpfc_hba * phba)
 		}
 	}
 
+	del_timer_sync(&phba->fcp_poll_timer);
 	del_timer_sync(&phba->fc_estabtmo);
 	del_timer_sync(&phba->fc_disctmo);
 	del_timer_sync(&phba->fc_fdmitmo);
@@ -1222,12 +1272,6 @@ lpfc_online(struct lpfc_hba * phba)
 	phba->fc_flag &= ~FC_OFFLINE_MODE;
 	spin_unlock_irq(phba->host->host_lock);
 
-	/*
-	 * Restart all traffic to this host.  Since the fc_transport block
-	 * functions (future) were not called in lpfc_offline, don't call them
-	 * here.
-	 */
-	scsi_unblock_requests(phba->host);
 	return 0;
 }
 
@@ -1245,13 +1289,6 @@ lpfc_offline(struct lpfc_hba * phba)
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return 0;
 
-	/*
-	 * Don't call the fc_transport block api (future).  The device is
-	 * going offline and causing a timer to fire in the midlayer is
-	 * unproductive.  Just block all new requests until the driver
-	 * comes back online.
-	 */
-	scsi_block_requests(phba->host);
 	psli = &phba->sli;
 	pring = &psli->ring[psli->fcp_ring];
 
@@ -1329,21 +1366,19 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	unsigned long bar0map_len, bar2map_len;
 	int error = -ENODEV, retval;
 	int i;
-	u64 wwname;
+	uint16_t iotag;
 
 	if (pci_enable_device(pdev))
 		goto out;
 	if (pci_request_regions(pdev, LPFC_DRIVER_NAME))
 		goto out_disable_device;
 
-	host = scsi_host_alloc(&lpfc_template,
-			sizeof (struct lpfc_hba) + sizeof (unsigned long));
+	host = scsi_host_alloc(&lpfc_template, sizeof (struct lpfc_hba));
 	if (!host)
 		goto out_release_regions;
 
 	phba = (struct lpfc_hba*)host->hostdata;
 	memset(phba, 0, sizeof (struct lpfc_hba));
-	phba->link_stats = (void *)&phba[1];
 	phba->host = host;
 
 	phba->fc_flag |= FC_LOADING;
@@ -1358,7 +1393,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_put_host;
 
 	host->unique_id = phba->brd_no;
-
+	init_MUTEX(&phba->hba_can_block);
 	INIT_LIST_HEAD(&phba->ctrspbuflist);
 	INIT_LIST_HEAD(&phba->rnidrspbuflist);
 	INIT_LIST_HEAD(&phba->freebufList);
@@ -1381,6 +1416,10 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	init_timer(&psli->mbox_tmo);
 	psli->mbox_tmo.function = lpfc_mbox_timeout;
 	psli->mbox_tmo.data = (unsigned long)phba;
+
+	init_timer(&phba->fcp_poll_timer);
+	phba->fcp_poll_timer.function = lpfc_poll_timeout;
+	phba->fcp_poll_timer.data = (unsigned long)phba;
 
 	/*
 	 * Get all the module params for configuring this host and then
@@ -1433,6 +1472,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (!phba->slim2p)
 		goto out_iounmap;
 
+	memset(phba->slim2p, 0, SLI2_SLIM_SIZE);
 
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);
@@ -1455,6 +1495,15 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		}
 
 		memset(iocbq_entry, 0, sizeof(struct lpfc_iocbq));
+		iotag = lpfc_sli_next_iotag(phba, iocbq_entry);
+		if (iotag == 0) {
+			kfree (iocbq_entry);
+			printk(KERN_ERR "%s: failed to allocate IOTAG. "
+			       "Unloading driver.\n",
+				__FUNCTION__);
+			error = -ENOMEM;
+			goto out_free_iocbq;
+		}
 		spin_lock_irq(phba->host->host_lock);
 		list_add(&iocbq_entry->list, &phba->lpfc_iocb_list);
 		phba->total_iocbq_bufs++;
@@ -1486,6 +1535,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	host->max_cmd_len = 16;
 
 	/* Initialize the list of scsi buffers used by driver for scsi IO. */
+	spin_lock_init(&phba->scsi_buf_list_lock);
 	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list);
 
 	host->transportt = lpfc_transport_template;
@@ -1517,15 +1567,19 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (error)
 		goto out_free_irq;
 
+	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_poll_start_timer(phba);
+		spin_unlock_irq(phba->host->host_lock);
+	}
+
 	/*
 	 * set fixed host attributes
 	 * Must done after lpfc_sli_hba_setup()
 	 */
 
-	memcpy(&wwname, &phba->fc_nodename, sizeof(u64));
-	fc_host_node_name(host) = be64_to_cpu(wwname);
-	memcpy(&wwname, &phba->fc_portname, sizeof(u64));
-	fc_host_port_name(host) = be64_to_cpu(wwname);
+	fc_host_node_name(host) = wwn_to_u64(phba->fc_nodename.u.wwn);
+	fc_host_port_name(host) = wwn_to_u64(phba->fc_portname.u.wwn);
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 
 	memset(fc_host_supported_fc4s(host), 0,
@@ -1662,6 +1716,8 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_FIREFLY,
+		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_THOR,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PEGASUS,
@@ -1676,13 +1732,27 @@ static struct pci_device_id lpfc_id_table[] = {
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PFLY,
 		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_NEPTUNE_DCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HELIOS_DCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BMID,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BSMB,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_SCSP,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_DCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZMID,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -1693,6 +1763,10 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP101,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP10000S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LP11000S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LPE11000S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };
@@ -1712,6 +1786,7 @@ lpfc_init(void)
 	int error = 0;
 
 	printk(LPFC_MODULE_DESC "\n");
+	printk(LPFC_COPYRIGHT "\n");
 
 	lpfc_transport_template =
 				fc_attach_transport(&lpfc_transport_functions);

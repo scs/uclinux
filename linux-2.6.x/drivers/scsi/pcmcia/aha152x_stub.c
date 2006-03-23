@@ -50,7 +50,6 @@
 #include <scsi/scsi_host.h>
 #include "aha152x.h"
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -96,27 +95,21 @@ typedef struct scsi_info_t {
 } scsi_info_t;
 
 static void aha152x_release_cs(dev_link_t *link);
-static int aha152x_event(event_t event, int priority,
-			 event_callback_args_t *args);
-
-static dev_link_t *aha152x_attach(void);
-static void aha152x_detach(dev_link_t *);
+static void aha152x_detach(struct pcmcia_device *p_dev);
+static void aha152x_config_cs(dev_link_t *link);
 
 static dev_link_t *dev_list;
-static dev_info_t dev_info = "aha152x_cs";
 
-static dev_link_t *aha152x_attach(void)
+static int aha152x_attach(struct pcmcia_device *p_dev)
 {
     scsi_info_t *info;
-    client_reg_t client_reg;
     dev_link_t *link;
-    int ret;
     
     DEBUG(0, "aha152x_attach()\n");
 
     /* Create new SCSI device */
     info = kmalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return NULL;
+    if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
 
@@ -130,31 +123,20 @@ static dev_link_t *aha152x_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.event_handler = &aha152x_event;
-    client_reg.EventMask =
-	CS_EVENT_RESET_REQUEST | CS_EVENT_CARD_RESET |
-	CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	aha152x_detach(link);
-	return NULL;
-    }
-    
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    aha152x_config_cs(link);
+
+    return 0;
 } /* aha152x_attach */
 
 /*====================================================================*/
 
-static void aha152x_detach(dev_link_t *link)
+static void aha152x_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     DEBUG(0, "aha152x_detach(0x%p)\n", link);
@@ -168,9 +150,6 @@ static void aha152x_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	aha152x_release_cs(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free bits */
     *linkp = link->next;
     kfree(link->priv);
@@ -278,53 +257,51 @@ static void aha152x_release_cs(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
-static int aha152x_event(event_t event, int priority,
-			 event_callback_args_t *args)
+static int aha152x_suspend(struct pcmcia_device *dev)
 {
-    dev_link_t *link = args->client_data;
-    scsi_info_t *info = link->priv;
-    
-    DEBUG(0, "aha152x_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    aha152x_release_cs(link);
-	break;
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	aha152x_config_cs(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
+	dev_link_t *link = dev_to_instance(dev);
+
 	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
 	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    Scsi_Cmnd tmp;
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    tmp.device->host = info->host;
-	    aha152x_host_reset(&tmp);
-	}
-	break;
-    }
-    return 0;
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
 }
+
+static int aha152x_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	scsi_info_t *info = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		aha152x_host_reset_host(info->host);
+	}
+
+	return 0;
+}
+
+static struct pcmcia_device_id aha152x_ids[] = {
+	PCMCIA_DEVICE_PROD_ID123("New Media", "SCSI", "Bus Toaster", 0xcdf7e4cc, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID123("NOTEWORTHY", "SCSI", "Bus Toaster", 0xad89c6e8, 0x35f26476, 0xa8851d6e),
+	PCMCIA_DEVICE_PROD_ID12("Adaptec, Inc.", "APA-1460 SCSI Host Adapter", 0x24ba9738, 0x3a3c3d20),
+	PCMCIA_DEVICE_PROD_ID12("New Media Corporation", "Multimedia Sound/SCSI", 0x085a850b, 0x80a6535c),
+	PCMCIA_DEVICE_PROD_ID12("NOTEWORTHY", "NWCOMB02 SCSI/AUDIO COMBO CARD", 0xad89c6e8, 0x5f9a615b),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, aha152x_ids);
 
 static struct pcmcia_driver aha152x_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "aha152x_cs",
 	},
-	.attach		= aha152x_attach,
-	.detach		= aha152x_detach,
+	.probe		= aha152x_attach,
+	.remove		= aha152x_detach,
+	.id_table       = aha152x_ids,
+	.suspend	= aha152x_suspend,
+	.resume		= aha152x_resume,
 };
 
 static int __init init_aha152x_cs(void)

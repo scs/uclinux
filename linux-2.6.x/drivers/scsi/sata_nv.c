@@ -4,21 +4,45 @@
  *  Copyright 2004 NVIDIA Corp.  All rights reserved.
  *  Copyright 2004 Andrew Chew
  *
- *  The contents of this file are subject to the Open
- *  Software License version 1.1 that can be found at
- *  http://www.opensource.org/licenses/osl-1.1.txt and is included herein
- *  by reference.
  *
- *  Alternatively, the contents of this file may be used under the terms
- *  of the GNU General Public License version 2 (the "GPL") as distributed
- *  in the kernel source COPYING file, in which case the provisions of
- *  the GPL are applicable instead of the above.  If you wish to allow
- *  the use of your version of this file only under the terms of the
- *  GPL and not to allow others to use your version of this file under
- *  the OSL, indicate your decision by deleting the provisions above and
- *  replace them with the notice and other provisions required by the GPL.
- *  If you do not delete the provisions above, a recipient may use your
- *  version of this file under either the OSL or the GPL.
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  No hardware documentation available outside of NVIDIA.
+ *  This driver programs the NVIDIA SATA controller in a similar
+ *  fashion as with other PCI IDE BMDMA controllers, with a few
+ *  NV-specific details such as register offsets, SATA phy location,
+ *  hotplug info, etc.
+ *
+ *  0.10
+ *     - Fixed spurious interrupts issue seen with the Maxtor 6H500F0 500GB
+ *       drive.  Also made the check_hotplug() callbacks return whether there
+ *       was a hotplug interrupt or not.  This was not the source of the
+ *       spurious interrupts, but is the right thing to do anyway.
+ *
+ *  0.09
+ *     - Fixed bug introduced by 0.08's MCP51 and MCP55 support.
+ *
+ *  0.08
+ *     - Added support for MCP51 and MCP55.
+ *
+ *  0.07
+ *     - Added support for RAID class code.
  *
  *  0.06
  *     - Added generic SATA support by using a pci_device_id that filters on
@@ -43,12 +67,12 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include "scsi.h"
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
 #define DRV_NAME			"sata_nv"
-#define DRV_VERSION			"0.6"
+#define DRV_VERSION			"0.8"
 
 #define NV_PORTS			2
 #define NV_PIO_MASK			0x1f
@@ -106,10 +130,10 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val);
 static void nv_host_stop (struct ata_host_set *host_set);
 static void nv_enable_hotplug(struct ata_probe_ent *probe_ent);
 static void nv_disable_hotplug(struct ata_host_set *host_set);
-static void nv_check_hotplug(struct ata_host_set *host_set);
+static int nv_check_hotplug(struct ata_host_set *host_set);
 static void nv_enable_hotplug_ck804(struct ata_probe_ent *probe_ent);
 static void nv_disable_hotplug_ck804(struct ata_host_set *host_set);
-static void nv_check_hotplug_ck804(struct ata_host_set *host_set);
+static int nv_check_hotplug_ck804(struct ata_host_set *host_set);
 
 enum nv_host_type
 {
@@ -119,7 +143,7 @@ enum nv_host_type
 	CK804
 };
 
-static struct pci_device_id nv_pci_tbl[] = {
+static const struct pci_device_id nv_pci_tbl[] = {
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE2S_SATA,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, NFORCE2 },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA,
@@ -134,9 +158,20 @@ static struct pci_device_id nv_pci_tbl[] = {
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, CK804 },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_SATA2,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, CK804 },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, GENERIC },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA2,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, GENERIC },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, GENERIC },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA2,
+		PCI_ANY_ID, PCI_ANY_ID, 0, 0, GENERIC },
 	{ PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
 		PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_IDE<<8, 0xffff00, GENERIC },
+	{ PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID,
+		PCI_ANY_ID, PCI_ANY_ID,
+		PCI_CLASS_STORAGE_RAID<<8, 0xffff00, GENERIC },
 	{ 0, } /* terminate list */
 };
 
@@ -147,7 +182,7 @@ struct nv_host_desc
 	enum nv_host_type	host_type;
 	void			(*enable_hotplug)(struct ata_probe_ent *probe_ent);
 	void			(*disable_hotplug)(struct ata_host_set *host_set);
-	void			(*check_hotplug)(struct ata_host_set *host_set);
+	int			(*check_hotplug)(struct ata_host_set *host_set);
 
 };
 static struct nv_host_desc nv_device_tbl[] = {
@@ -189,7 +224,7 @@ static struct pci_driver nv_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template nv_sht = {
+static struct scsi_host_template nv_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -206,10 +241,9 @@ static Scsi_Host_Template nv_sht = {
 	.dma_boundary		= ATA_DMA_BOUNDARY,
 	.slave_configure	= ata_scsi_slave_config,
 	.bios_param		= ata_std_bios_param,
-	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations nv_ops = {
+static const struct ata_port_operations nv_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -274,18 +308,23 @@ static irqreturn_t nv_interrupt (int irq, void *dev_instance,
 		struct ata_port *ap;
 
 		ap = host_set->ports[i];
-		if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+		if (ap &&
+		    !(ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))) {
 			struct ata_queued_cmd *qc;
 
 			qc = ata_qc_from_tag(ap, ap->active_tag);
 			if (qc && (!(qc->tf.ctl & ATA_NIEN)))
 				handled += ata_host_intr(ap, qc);
+			else
+				// No request pending?  Clear interrupt status
+				// anyway, in case there's one pending.
+				ap->ops->check_status(ap);
 		}
 
 	}
 
 	if (host->host_desc->check_hotplug)
-		host->host_desc->check_hotplug(host_set);
+		handled += host->host_desc->check_hotplug(host_set);
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
 
@@ -301,7 +340,7 @@ static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg)
 		return 0xffffffffU;
 
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		return readl((void*)ap->ioaddr.scr_addr + (sc_reg * 4));
+		return readl((void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 	else
 		return inl(ap->ioaddr.scr_addr + (sc_reg * 4));
 }
@@ -315,7 +354,7 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 		return;
 
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		writel(val, (void*)ap->ioaddr.scr_addr + (sc_reg * 4));
+		writel(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 	else
 		outl(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 }
@@ -323,6 +362,7 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 static void nv_host_stop (struct ata_host_set *host_set)
 {
 	struct nv_host *host = host_set->private_data;
+	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 
 	// Disable hotplug event interrupts.
 	if (host->host_desc->disable_hotplug)
@@ -330,7 +370,8 @@ static void nv_host_stop (struct ata_host_set *host_set)
 
 	kfree(host);
 
-	ata_host_stop(host_set);
+	if (host_set->mmio_base)
+		pci_iounmap(pdev, host_set->mmio_base);
 }
 
 static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -351,7 +392,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			return -ENODEV;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -373,7 +414,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = -ENOMEM;
 
 	ppi = &nv_port_info;
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi);
+	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		goto err_out_regions;
 
@@ -392,8 +433,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO) {
 		unsigned long base;
 
-		probe_ent->mmio_base = ioremap(pci_resource_start(pdev, 5),
-				pci_resource_len(pdev, 5));
+		probe_ent->mmio_base = pci_iomap(pdev, 5, 0);
 		if (probe_ent->mmio_base == NULL) {
 			rc = -EIO;
 			goto err_out_free_host;
@@ -429,7 +469,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_out_iounmap:
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		iounmap(probe_ent->mmio_base);
+		pci_iounmap(pdev, probe_ent->mmio_base);
 err_out_free_host:
 	kfree(host);
 err_out_free_ent:
@@ -467,7 +507,7 @@ static void nv_disable_hotplug(struct ata_host_set *host_set)
 	outb(intr_mask, host_set->ports[0]->ioaddr.scr_addr + NV_INT_ENABLE);
 }
 
-static void nv_check_hotplug(struct ata_host_set *host_set)
+static int nv_check_hotplug(struct ata_host_set *host_set)
 {
 	u8 intr_status;
 
@@ -492,7 +532,11 @@ static void nv_check_hotplug(struct ata_host_set *host_set)
 		if (intr_status & NV_INT_STATUS_SDEV_REMOVED)
 			printk(KERN_WARNING "nv_sata: "
 				"Secondary device removed\n");
+
+		return 1;
 	}
+
+	return 0;
 }
 
 static void nv_enable_hotplug_ck804(struct ata_probe_ent *probe_ent)
@@ -530,7 +574,7 @@ static void nv_disable_hotplug_ck804(struct ata_host_set *host_set)
 	pci_write_config_byte(pdev, NV_MCP_SATA_CFG_20, regval);
 }
 
-static void nv_check_hotplug_ck804(struct ata_host_set *host_set)
+static int nv_check_hotplug_ck804(struct ata_host_set *host_set)
 {
 	u8 intr_status;
 
@@ -555,7 +599,11 @@ static void nv_check_hotplug_ck804(struct ata_host_set *host_set)
 		if (intr_status & NV_INT_STATUS_SDEV_REMOVED)
 			printk(KERN_WARNING "nv_sata: "
 				"Secondary device removed\n");
+
+		return 1;
 	}
+
+	return 0;
 }
 
 static int __init nv_init(void)

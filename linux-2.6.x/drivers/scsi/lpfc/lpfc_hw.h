@@ -1,26 +1,22 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #define FDMI_DID        0xfffffaU
 #define NameServer_DID  0xfffffcU
@@ -266,12 +262,16 @@ struct lpfc_sli_ct_request {
 #define FF_FRAME_SIZE     2048
 
 struct lpfc_name {
+	union {
+		struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
-	uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
+			uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
+			uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit
+						   8:11 of IEEE ext */
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit 8:11 of IEEE ext */
-	uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
+			uint8_t IEEEextMsn:4;	/* FC Word 0, bit 24:27, bit
+						   8:11 of IEEE ext */
+			uint8_t nameType:4;	/* FC Word 0, bit 28:31 */
 #endif
 
 #define NAME_IEEE           0x1	/* IEEE name - nameType */
@@ -280,8 +280,12 @@ struct lpfc_name {
 #define NAME_IP_TYPE        0x4	/* IP address */
 #define NAME_CCITT_TYPE     0xC
 #define NAME_CCITT_GR_TYPE  0xE
-	uint8_t IEEEextLsb;	/* FC Word 0, bit 16:23, IEEE extended Lsb */
-	uint8_t IEEE[6];	/* FC IEEE address */
+			uint8_t IEEEextLsb;	/* FC Word 0, bit 16:23, IEEE
+						   extended Lsb */
+			uint8_t IEEE[6];	/* FC IEEE address */
+		} s;
+		uint8_t wwn[8];
+	} u;
 };
 
 struct csp {
@@ -1023,23 +1027,38 @@ typedef struct {
 /* Start FireFly Register definitions */
 #define PCI_VENDOR_ID_EMULEX        0x10df
 #define PCI_DEVICE_ID_FIREFLY       0x1ae5
-#define PCI_DEVICE_ID_SUPERFLY      0xf700
-#define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_RFLY          0xf095
 #define PCI_DEVICE_ID_PFLY          0xf098
+#define PCI_DEVICE_ID_LP101         0xf0a1
 #define PCI_DEVICE_ID_TFLY          0xf0a5
+#define PCI_DEVICE_ID_BSMB          0xf0d1
+#define PCI_DEVICE_ID_BMID          0xf0d5
+#define PCI_DEVICE_ID_ZSMB          0xf0e1
+#define PCI_DEVICE_ID_ZMID          0xf0e5
+#define PCI_DEVICE_ID_NEPTUNE       0xf0f5
+#define PCI_DEVICE_ID_NEPTUNE_SCSP  0xf0f6
+#define PCI_DEVICE_ID_NEPTUNE_DCSP  0xf0f7
+#define PCI_DEVICE_ID_SUPERFLY      0xf700
+#define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_CENTAUR       0xf900
 #define PCI_DEVICE_ID_PEGASUS       0xf980
 #define PCI_DEVICE_ID_THOR          0xfa00
 #define PCI_DEVICE_ID_VIPER         0xfb00
+#define PCI_DEVICE_ID_LP10000S      0xfc00
+#define PCI_DEVICE_ID_LP11000S      0xfc10
+#define PCI_DEVICE_ID_LPE11000S     0xfc20
 #define PCI_DEVICE_ID_HELIOS        0xfd00
-#define PCI_DEVICE_ID_BMID          0xf0d5
-#define PCI_DEVICE_ID_BSMB          0xf0d1
+#define PCI_DEVICE_ID_HELIOS_SCSP   0xfd11
+#define PCI_DEVICE_ID_HELIOS_DCSP   0xfd12
 #define PCI_DEVICE_ID_ZEPHYR        0xfe00
-#define PCI_DEVICE_ID_ZMID          0xf0e5
-#define PCI_DEVICE_ID_ZSMB          0xf0e1
-#define PCI_DEVICE_ID_LP101	    0xf0a1
-#define PCI_DEVICE_ID_LP10000S	    0xfc00
+#define PCI_DEVICE_ID_ZEPHYR_SCSP   0xfe11
+#define PCI_DEVICE_ID_ZEPHYR_DCSP   0xfe12
+
+#define PCI_SUBSYSTEM_ID_LP11000S      0xfc11
+#define PCI_SUBSYSTEM_ID_LP11002S      0xfc12
+#define PCI_SUBSYSTEM_ID_LPE11000S     0xfc21
+#define PCI_SUBSYSTEM_ID_LPE11002S     0xfc22
+#define PCI_SUBSYSTEM_ID_LPE11010S     0xfc2A
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
@@ -2214,20 +2233,20 @@ typedef union {
  * SLI-2 specific structures
  */
 
-typedef struct {
-	uint32_t cmdPutInx;
-	uint32_t rspGetInx;
-} HGP;
+struct lpfc_hgp {
+	__le32 cmdPutInx;
+	__le32 rspGetInx;
+};
 
-typedef struct {
-	uint32_t cmdGetInx;
-	uint32_t rspPutInx;
-} PGP;
+struct lpfc_pgp {
+	__le32 cmdGetInx;
+	__le32 rspPutInx;
+};
 
 typedef struct _SLI2_DESC {
-	HGP host[MAX_RINGS];
+	struct lpfc_hgp host[MAX_RINGS];
 	uint32_t unused1[16];
-	PGP port[MAX_RINGS];
+	struct lpfc_pgp port[MAX_RINGS];
 } SLI2_DESC;
 
 typedef union {

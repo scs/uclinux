@@ -10,13 +10,12 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mm.c
- * Version	: v2.20.2.5 (Jan 21 2005)
+ * Version	: v2.20.2.6 (Mar 7 2005)
  *
  * Common management module
  */
 
 #include "megaraid_mm.h"
-#include <linux/smp_lock.h>
 
 
 // Entry points for char node driver
@@ -61,7 +60,7 @@ EXPORT_SYMBOL(mraid_mm_unregister_adp);
 EXPORT_SYMBOL(mraid_mm_adapter_app_handle);
 
 static int majorno;
-static uint32_t drvr_ver	= 0x02200201;
+static uint32_t drvr_ver	= 0x02200206;
 
 static int adapters_count_g;
 static struct list_head adapters_list_g;
@@ -996,17 +995,13 @@ pthru_dma_pool_error:
 
 memalloc_error:
 
-	if (adapter->kioc_list)
-		kfree(adapter->kioc_list);
-
-	if (adapter->mbox_list)
-		kfree(adapter->mbox_list);
+	kfree(adapter->kioc_list);
+	kfree(adapter->mbox_list);
 
 	if (adapter->pthru_dma_pool)
 		pci_pool_destroy(adapter->pthru_dma_pool);
 
-	if (adapter)
-		kfree(adapter);
+	kfree(adapter);
 
 	return rval;
 }
@@ -1158,7 +1153,6 @@ mraid_mm_free_adp_resources(mraid_mmadp_t *adp)
 	}
 
 	kfree(adp->kioc_list);
-
 	kfree(adp->mbox_list);
 
 	pci_pool_destroy(adp->pthru_dma_pool);
@@ -1231,9 +1225,9 @@ mraid_mm_compat_ioctl(struct file *filep, unsigned int cmd,
 		      unsigned long arg)
 {
 	int err;
-	lock_kernel();
+
 	err = mraid_mm_ioctl(NULL, filep, cmd, arg);
-	unlock_kernel();
+
 	return err;
 }
 #endif

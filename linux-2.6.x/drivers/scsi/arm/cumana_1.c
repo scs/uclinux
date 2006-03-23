@@ -13,7 +13,6 @@
 
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 
 #include "../scsi.h"
@@ -238,15 +237,13 @@ static void cumanascsi_write(struct Scsi_Host *instance, int reg, int value)
 
 #include "../NCR5380.c"
 
-static Scsi_Host_Template cumanascsi_template = {
+static struct scsi_host_template cumanascsi_template = {
 	.module			= THIS_MODULE,
 	.name			= "Cumana 16-bit SCSI",
 	.info			= cumanascsi_info,
 	.queuecommand		= cumanascsi_queue_command,
 	.eh_abort_handler	= NCR5380_abort,
-	.eh_device_reset_handler= NCR5380_device_reset,
 	.eh_bus_reset_handler	= NCR5380_bus_reset,
-	.eh_host_reset_handler	= NCR5380_host_reset,
 	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,

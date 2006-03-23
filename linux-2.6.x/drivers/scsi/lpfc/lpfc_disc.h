@@ -1,26 +1,22 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
- * Enterprise Fibre Channel Host Bus Adapters.                     *
- * Refer to the README file included with this package for         *
- * driver version and adapter support.                             *
- * Copyright (C) 2004 Emulex Corporation.                          *
+ * Fibre Channel Host Bus Adapters.                                *
+ * Copyright (C) 2004-2005 Emulex.  All rights reserved.           *
+ * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
- * modify it under the terms of the GNU General Public License     *
- * as published by the Free Software Foundation; either version 2  *
- * of the License, or (at your option) any later version.          *
- *                                                                 *
- * This program is distributed in the hope that it will be useful, *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of  *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the   *
- * GNU General Public License for more details, a copy of which    *
- * can be found in the file COPYING included with this package.    *
+ * modify it under the terms of version 2 of the GNU General       *
+ * Public License as published by the Free Software Foundation.    *
+ * This program is distributed in the hope that it will be useful. *
+ * ALL EXPRESS OR IMPLIED CONDITIONS, REPRESENTATIONS AND          *
+ * WARRANTIES, INCLUDING ANY IMPLIED WARRANTY OF MERCHANTABILITY,  *
+ * FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT, ARE      *
+ * DISCLAIMED, EXCEPT TO THE EXTENT THAT SUCH DISCLAIMERS ARE HELD *
+ * TO BE LEGALLY INVALID.  See the GNU General Public License for  *
+ * more details, a copy of which can be found in the file COPYING  *
+ * included with this package.                                     *
  *******************************************************************/
-
-/*
- * $Id$
- */
 
 #define FC_MAX_HOLD_RSCN     32	      /* max number of deferred RSCNs */
 #define FC_MAX_NS_RSP        65536    /* max size NameServer rsp */
@@ -74,10 +70,11 @@ struct lpfc_nodelist {
 	struct timer_list   nlp_tmofunc;	/* Used for nodev tmo */
 	struct fc_rport *rport;			/* Corresponding FC transport
 						   port structure */
-	struct lpfc_nodelist *nlp_rpi_hash_next;
 	struct lpfc_hba      *nlp_phba;
 	struct lpfc_work_evt nodev_timeout_evt;
 	struct lpfc_work_evt els_retry_evt;
+	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
+	unsigned long last_q_full_time;		/* jiffy of last queue full */
 };
 
 /* Defines for nlp_flag (uint32) */

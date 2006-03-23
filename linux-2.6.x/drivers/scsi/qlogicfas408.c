@@ -243,7 +243,7 @@ static void ql_icmd(Scsi_Cmnd * cmd)
 	 /**/ outb(qlcfg5, qbase + 5);	/* select timer */
 	outb(qlcfg9 & 7, qbase + 9);	/* prescaler */
 /*	outb(0x99, qbase + 5);	*/
-	outb(cmd->device->id, qbase + 4);
+	outb(scmd_id(cmd), qbase + 4);
 
 	for (i = 0; i < cmd->cmd_len; i++)
 		outb(cmd->cmnd[i], qbase + 2);
@@ -450,7 +450,7 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id, struct pt_regs *regs)
 int qlogicfas408_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
-	if (cmd->device->id == priv->qinitid) {
+	if (scmd_id(cmd) == priv->qinitid) {
 		cmd->result = DID_BAD_TARGET << 16;
 		done(cmd);
 		return 0;
@@ -511,27 +511,15 @@ int qlogicfas408_abort(Scsi_Cmnd * cmd)
 int qlogicfas408_bus_reset(Scsi_Cmnd * cmd)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
+	unsigned long flags;
+
 	priv->qabort = 2;
+
+	spin_lock_irqsave(cmd->device->host->host_lock, flags);
 	ql_zap(priv);
+	spin_unlock_irqrestore(cmd->device->host->host_lock, flags);
+
 	return SUCCESS;
-}
-
-/* 
- *	Reset SCSI host controller
- */
-
-int qlogicfas408_host_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
-}
-
-/* 
- *	Reset SCSI device
- */
-
-int qlogicfas408_device_reset(Scsi_Cmnd * cmd)
-{
-	return FAILED;
 }
 
 /*
@@ -626,8 +614,6 @@ EXPORT_SYMBOL(qlogicfas408_info);
 EXPORT_SYMBOL(qlogicfas408_queuecommand);
 EXPORT_SYMBOL(qlogicfas408_abort);
 EXPORT_SYMBOL(qlogicfas408_bus_reset);
-EXPORT_SYMBOL(qlogicfas408_device_reset);
-EXPORT_SYMBOL(qlogicfas408_host_reset);
 EXPORT_SYMBOL(qlogicfas408_biosparam);
 EXPORT_SYMBOL(qlogicfas408_ihandl);
 EXPORT_SYMBOL(qlogicfas408_get_chip_type);

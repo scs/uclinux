@@ -28,11 +28,16 @@
  */
 
 #include <asm/vio.h>
+#include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/hvcall.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include "ibmvscsi.h"
+#include "srp.h"
+
+static char partition_name[97] = "UNKNOWN";
+static unsigned int partition_number = -1;
 
 /* ------------------------------------------------------------
  * Routines for managing the command/response queue
@@ -148,6 +153,48 @@ static void ibmvscsi_task(void *data)
 	}
 }
 
+static void gather_partition_info(void)
+{
+	struct device_node *rootdn;
+
+	char *ppartition_name;
+	unsigned int *p_number_ptr;
+
+	/* Retrieve information about this partition */
+	rootdn = find_path_device("/");
+	if (!rootdn) {
+		return;
+	}
+
+	ppartition_name =
+		get_property(rootdn, "ibm,partition-name", NULL);
+	if (ppartition_name)
+		strncpy(partition_name, ppartition_name,
+				sizeof(partition_name));
+	p_number_ptr =
+		(unsigned int *)get_property(rootdn, "ibm,partition-no",
+					     NULL);
+	if (p_number_ptr)
+		partition_number = *p_number_ptr;
+}
+
+static void set_adapter_info(struct ibmvscsi_host_data *hostdata)
+{
+	memset(&hostdata->madapter_info, 0x00,
+			sizeof(hostdata->madapter_info));
+
+	printk(KERN_INFO "rpa_vscsi: SPR_VERSION: %s\n", SRP_VERSION);
+	strcpy(hostdata->madapter_info.srp_version, SRP_VERSION);
+
+	strncpy(hostdata->madapter_info.partition_name, partition_name,
+			sizeof(hostdata->madapter_info.partition_name));
+
+	hostdata->madapter_info.partition_number = partition_number;
+
+	hostdata->madapter_info.mad_version = 1;
+	hostdata->madapter_info.os_type = 2;
+}
+
 /**
  * initialize_crq_queue: - Initializes and registers CRQ with hypervisor
  * @queue:	crq_queue to initialize and register
@@ -177,9 +224,17 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 	if (dma_mapping_error(queue->msg_token))
 		goto map_failed;
 
+	gather_partition_info();
+	set_adapter_info(hostdata);
+
 	rc = plpar_hcall_norets(H_REG_CRQ,
 				vdev->unit_address,
 				queue->msg_token, PAGE_SIZE);
+	if (rc == H_Resource) 
+		/* maybe kexecing and resource is busy. try a reset */
+		rc = ibmvscsi_reset_crq_queue(queue,
+					      hostdata);
+
 	if (rc == 2) {
 		/* Adapter is good, but other end is not ready */
 		printk(KERN_WARNING "ibmvscsi: Partner adapter not ready\n");
@@ -226,12 +281,34 @@ int ibmvscsi_init_crq_queue(struct crq_queue *queue,
 }
 
 /**
+ * reenable_crq_queue: - reenables a crq after
+ * @queue:	crq_queue to initialize and register
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ */
+int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
+				 struct ibmvscsi_host_data *hostdata)
+{
+	int rc;
+	struct vio_dev *vdev = to_vio_dev(hostdata->dev);
+
+	/* Re-enable the CRQ */
+	do {
+		rc = plpar_hcall_norets(H_ENABLE_CRQ, vdev->unit_address);
+	} while ((rc == H_InProgress) || (rc == H_Busy) || (H_isLongBusy(rc)));
+
+	if (rc)
+		printk(KERN_ERR "ibmvscsi: Error %d enabling adapter\n", rc);
+	return rc;
+}
+
+/**
  * reset_crq_queue: - resets a crq after a failure
  * @queue:	crq_queue to initialize and register
  * @hostdata:	ibmvscsi_host_data of host
  *
  */
-void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
+int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 			      struct ibmvscsi_host_data *hostdata)
 {
 	int rc;
@@ -246,6 +323,8 @@ void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 	memset(queue->msgs, 0x00, PAGE_SIZE);
 	queue->cur = 0;
 
+	set_adapter_info(hostdata);
+
 	/* And re-open it again */
 	rc = plpar_hcall_norets(H_REG_CRQ,
 				vdev->unit_address,
@@ -257,4 +336,5 @@ void ibmvscsi_reset_crq_queue(struct crq_queue *queue,
 		printk(KERN_WARNING
 		       "ibmvscsi: couldn't register crq--rc 0x%x\n", rc);
 	}
+	return rc;
 }
