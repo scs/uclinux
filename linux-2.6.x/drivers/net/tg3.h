@@ -136,6 +136,8 @@
 #define   ASIC_REV_5705			 0x03
 #define   ASIC_REV_5750			 0x04
 #define   ASIC_REV_5752			 0x06
+#define   ASIC_REV_5780			 0x08
+#define   ASIC_REV_5714			 0x09
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -530,6 +532,8 @@
 #define  MAC_SERDES_CFG_EDGE_SELECT	 0x00001000
 #define MAC_SERDES_STAT			0x00000594
 /* 0x598 --> 0x5b0 unused */
+#define SERDES_RX_CTRL			0x000005b0	/* 5780/5714 only */
+#define  SERDES_RX_SIG_DETECT		 0x00000400
 #define SG_DIG_CTRL			0x000005b0
 #define  SG_DIG_USING_HW_AUTONEG	 0x80000000
 #define  SG_DIG_SOFT_RESET		 0x40000000
@@ -879,31 +883,41 @@
 #define  LOW_RXCOL_TICKS_CLRTCKS	 0x00000014
 #define  DEFAULT_RXCOL_TICKS		 0x00000048
 #define  HIGH_RXCOL_TICKS		 0x00000096
+#define  MAX_RXCOL_TICKS		 0x000003ff
 #define HOSTCC_TXCOL_TICKS		0x00003c0c
 #define  LOW_TXCOL_TICKS		 0x00000096
 #define  LOW_TXCOL_TICKS_CLRTCKS	 0x00000048
 #define  DEFAULT_TXCOL_TICKS		 0x0000012c
 #define  HIGH_TXCOL_TICKS		 0x00000145
+#define  MAX_TXCOL_TICKS		 0x000003ff
 #define HOSTCC_RXMAX_FRAMES		0x00003c10
 #define  LOW_RXMAX_FRAMES		 0x00000005
 #define  DEFAULT_RXMAX_FRAMES		 0x00000008
 #define  HIGH_RXMAX_FRAMES		 0x00000012
+#define  MAX_RXMAX_FRAMES		 0x000000ff
 #define HOSTCC_TXMAX_FRAMES		0x00003c14
 #define  LOW_TXMAX_FRAMES		 0x00000035
 #define  DEFAULT_TXMAX_FRAMES		 0x0000004b
 #define  HIGH_TXMAX_FRAMES		 0x00000052
+#define  MAX_TXMAX_FRAMES		 0x000000ff
 #define HOSTCC_RXCOAL_TICK_INT		0x00003c18
 #define  DEFAULT_RXCOAL_TICK_INT	 0x00000019
 #define  DEFAULT_RXCOAL_TICK_INT_CLRTCKS 0x00000014
+#define  MAX_RXCOAL_TICK_INT		 0x000003ff
 #define HOSTCC_TXCOAL_TICK_INT		0x00003c1c
 #define  DEFAULT_TXCOAL_TICK_INT	 0x00000019
 #define  DEFAULT_TXCOAL_TICK_INT_CLRTCKS 0x00000014
+#define  MAX_TXCOAL_TICK_INT		 0x000003ff
 #define HOSTCC_RXCOAL_MAXF_INT		0x00003c20
 #define  DEFAULT_RXCOAL_MAXF_INT	 0x00000005
+#define  MAX_RXCOAL_MAXF_INT		 0x000000ff
 #define HOSTCC_TXCOAL_MAXF_INT		0x00003c24
 #define  DEFAULT_TXCOAL_MAXF_INT	 0x00000005
+#define  MAX_TXCOAL_MAXF_INT		 0x000000ff
 #define HOSTCC_STAT_COAL_TICKS		0x00003c28
 #define  DEFAULT_STAT_COAL_TICKS	 0x000f4240
+#define  MAX_STAT_COAL_TICKS		 0xd693d400
+#define  MIN_STAT_COAL_TICKS		 0x00000064
 /* 0x3c2c --> 0x3c30 unused */
 #define HOSTCC_STATS_BLK_HOST_ADDR	0x00003c30 /* 64-bit */
 #define HOSTCC_STATUS_BLK_HOST_ADDR	0x00003c38 /* 64-bit */
@@ -974,14 +988,17 @@
 #define  DEFAULT_MB_RDMA_LOW_WATER	 0x00000050
 #define  DEFAULT_MB_RDMA_LOW_WATER_5705	 0x00000000
 #define  DEFAULT_MB_RDMA_LOW_WATER_JUMBO 0x00000130
+#define  DEFAULT_MB_RDMA_LOW_WATER_JUMBO_5780 0x00000000
 #define BUFMGR_MB_MACRX_LOW_WATER	0x00004414
 #define  DEFAULT_MB_MACRX_LOW_WATER	  0x00000020
 #define  DEFAULT_MB_MACRX_LOW_WATER_5705  0x00000010
 #define  DEFAULT_MB_MACRX_LOW_WATER_JUMBO 0x00000098
+#define  DEFAULT_MB_MACRX_LOW_WATER_JUMBO_5780 0x0000004b
 #define BUFMGR_MB_HIGH_WATER		0x00004418
 #define  DEFAULT_MB_HIGH_WATER		 0x00000060
 #define  DEFAULT_MB_HIGH_WATER_5705	 0x00000060
 #define  DEFAULT_MB_HIGH_WATER_JUMBO	 0x0000017c
+#define  DEFAULT_MB_HIGH_WATER_JUMBO_5780 0x00000096
 #define BUFMGR_RX_MB_ALLOC_REQ		0x0000441c
 #define  BUFMGR_MB_ALLOC_BIT		 0x10000000
 #define BUFMGR_RX_MB_ALLOC_RESP		0x00004420
@@ -1107,7 +1124,14 @@
 /* 0x280 --> 0x400 unused */
 
 #define RX_CPU_BASE			0x00005000
+#define RX_CPU_MODE			0x00005000
+#define RX_CPU_STATE			0x00005004
+#define RX_CPU_PGMCTR			0x0000501c
+#define RX_CPU_HWBKPT			0x00005034
 #define TX_CPU_BASE			0x00005400
+#define TX_CPU_MODE			0x00005400
+#define TX_CPU_STATE			0x00005404
+#define TX_CPU_PGMCTR			0x0000541c
 
 /* Mailboxes */
 #define GRCMBOX_INTERRUPT_0		0x00005800 /* 64-bit */
@@ -1315,6 +1339,8 @@
 #define  GRC_LCLCTRL_CLEARINT		0x00000002
 #define  GRC_LCLCTRL_SETINT		0x00000004
 #define  GRC_LCLCTRL_INT_ON_ATTN	0x00000008
+#define  GRC_LCLCTRL_USE_SIG_DETECT	0x00000010	/* 5714/5780 only */
+#define  GRC_LCLCTRL_USE_EXT_SIG_DETECT	0x00000020	/* 5714/5780 only */
 #define  GRC_LCLCTRL_GPIO_INPUT3	0x00000020
 #define  GRC_LCLCTRL_GPIO_OE3		0x00000040
 #define  GRC_LCLCTRL_GPIO_OUTPUT3	0x00000080
@@ -1493,6 +1519,7 @@
 #define  FWCMD_NICDRV_IPV6ADDR_CHG	 0x00000004
 #define  FWCMD_NICDRV_FIX_DMAR		 0x00000005
 #define  FWCMD_NICDRV_FIX_DMAW		 0x00000006
+#define  FWCMD_NICDRV_ALIVE2		 0x0000000d
 #define NIC_SRAM_FW_CMD_LEN_MBOX	0x00000b7c
 #define NIC_SRAM_FW_CMD_DATA_MBOX	0x00000b80
 #define NIC_SRAM_FW_ASF_STATUS_MBOX	0x00000c00
@@ -1508,6 +1535,12 @@
 
 #define NIC_SRAM_MAC_ADDR_HIGH_MBOX	0x00000c14
 #define NIC_SRAM_MAC_ADDR_LOW_MBOX	0x00000c18
+
+#define NIC_SRAM_WOL_MBOX		0x00000d30
+#define  WOL_SIGNATURE			 0x474c0000
+#define  WOL_DRV_STATE_SHUTDOWN		 0x00000001
+#define  WOL_DRV_WOL			 0x00000002
+#define  WOL_SET_MAGIC_PKT		 0x00000004
 
 #define NIC_SRAM_DATA_CFG_2		0x00000d38
 
@@ -1545,6 +1578,7 @@
 #define MII_TG3_EXT_CTRL		0x10 /* Extended control register */
 #define  MII_TG3_EXT_CTRL_FIFO_ELASTIC	0x0001
 #define  MII_TG3_EXT_CTRL_LNK3_LED_MODE	0x0002
+#define  MII_TG3_EXT_CTRL_FORCE_LED_OFF	0x0008
 #define  MII_TG3_EXT_CTRL_TBI		0x8000
 
 #define MII_TG3_EXT_STAT		0x11 /* Extended status register */
@@ -2006,21 +2040,40 @@ struct tg3_ethtool_stats {
 struct tg3 {
 	/* begin "general, frequently-used members" cacheline section */
 
+	/* If the IRQ handler (which runs lockless) needs to be
+	 * quiesced, the following bitmask state is used.  The
+	 * SYNC flag is set by non-IRQ context code to initiate
+	 * the quiescence.
+	 *
+	 * When the IRQ handler notices that SYNC is set, it
+	 * disables interrupts and returns.
+	 *
+	 * When all outstanding IRQ handlers have returned after
+	 * the SYNC flag has been set, the setter can be assured
+	 * that interrupts will no longer get run.
+	 *
+	 * In this way all SMP driver locks are never acquired
+	 * in hw IRQ context, only sw IRQ context or lower.
+	 */
+	unsigned int			irq_sync;
+
 	/* SMP locking strategy:
 	 *
 	 * lock: Held during all operations except TX packet
 	 *       processing.
 	 *
-	 * tx_lock: Held during tg3_start_xmit{,_4gbug} and tg3_tx
+	 * tx_lock: Held during tg3_start_xmit and tg3_tx
 	 *
-	 * If you want to shut up all asynchronous processing you must
-	 * acquire both locks, 'lock' taken before 'tx_lock'.  IRQs must
-	 * be disabled to take 'lock' but only softirq disabling is
-	 * necessary for acquisition of 'tx_lock'.
+	 * Both of these locks are to be held with BH safety.
 	 */
 	spinlock_t			lock;
 	spinlock_t			indirect_lock;
 
+	u32				(*read32) (struct tg3 *, u32);
+	void				(*write32) (struct tg3 *, u32, u32);
+	u32				(*read32_mbox) (struct tg3 *, u32);
+	void				(*write32_mbox) (struct tg3 *, u32,
+							 u32);
 	void __iomem			*regs;
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
@@ -2032,6 +2085,8 @@ struct tg3 {
 	u32				msg_enable;
 
 	/* begin "tx thread" cacheline section */
+	void				(*write32_tx_mbox) (struct tg3 *, u32,
+							    u32);
 	u32				tx_prod;
 	u32				tx_cons;
 	u32				tx_pending;
@@ -2043,6 +2098,8 @@ struct tg3 {
 	dma_addr_t			tx_desc_mapping;
 
 	/* begin "rx thread" cacheline section */
+	void				(*write32_rx_mbox) (struct tg3 *, u32,
+							    u32);
 	u32				rx_rcb_ptr;
 	u32				rx_std_ptr;
 	u32				rx_jumbo_ptr;
@@ -2062,6 +2119,8 @@ struct tg3 {
 
 	struct tg3_rx_buffer_desc	*rx_rcb;
 	dma_addr_t			rx_rcb_mapping;
+
+	u32				rx_pkt_buf_sz;
 
 	/* begin "everything else" cacheline(s) section */
 	struct net_device_stats		net_stats;
@@ -2100,9 +2159,11 @@ struct tg3 {
 #define TG3_FLAG_NO_TX_PSEUDO_CSUM	0x00100000
 #define TG3_FLAG_NO_RX_PSEUDO_CSUM	0x00200000
 #define TG3_FLAG_SERDES_WOL_CAP		0x00400000
-#define TG3_FLAG_JUMBO_ENABLE		0x00800000
+#define TG3_FLAG_JUMBO_RING_ENABLE	0x00800000
 #define TG3_FLAG_10_100_ONLY		0x01000000
 #define TG3_FLAG_PAUSE_AUTONEG		0x02000000
+#define TG3_FLAG_IN_RESET_TASK		0x04000000
+#define TG3_FLAG_40BIT_DMA_BUG		0x08000000
 #define TG3_FLAG_BROKEN_CHECKSUMS	0x10000000
 #define TG3_FLAG_GOT_SERDES_FLOWCTL	0x20000000
 #define TG3_FLAG_SPLIT_MODE		0x40000000
@@ -2130,6 +2191,13 @@ struct tg3 {
 #define TG3_FLG2_5750_PLUS		0x00080000
 #define TG3_FLG2_PROTECTED_NVRAM	0x00100000
 #define TG3_FLG2_USING_MSI		0x00200000
+#define TG3_FLG2_JUMBO_CAPABLE		0x00400000
+#define TG3_FLG2_MII_SERDES		0x00800000
+#define TG3_FLG2_ANY_SERDES		(TG3_FLG2_PHY_SERDES |	\
+					TG3_FLG2_MII_SERDES)
+#define TG3_FLG2_PARALLEL_DETECT	0x01000000
+#define TG3_FLG2_ICH_WORKAROUND		0x02000000
+#define TG3_FLG2_5780_CLASS		0x04000000
 
 	u32				split_mode_max_reqs;
 #define SPLIT_MODE_5704_MAX_REQ		3
@@ -2163,6 +2231,7 @@ struct tg3 {
 	u8				pci_bist;
 
 	int				pm_cap;
+	int				msi_cap;
 
 	/* PHY info */
 	u32				phy_id;
@@ -2176,6 +2245,8 @@ struct tg3 {
 #define PHY_ID_BCM5705			0x600081a0
 #define PHY_ID_BCM5750			0x60008180
 #define PHY_ID_BCM5752			0x60008100
+#define PHY_ID_BCM5714			0x60008340
+#define PHY_ID_BCM5780			0x60008350
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
 #define PHY_ID_REV_MASK			0x0000000f
@@ -2199,12 +2270,14 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5411 || (X) == PHY_ID_BCM5701 || \
 	 (X) == PHY_ID_BCM5703 || (X) == PHY_ID_BCM5704 || \
 	 (X) == PHY_ID_BCM5705 || (X) == PHY_ID_BCM5750 || \
-	 (X) == PHY_ID_BCM8002)
+	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
+	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
 	struct work_struct		reset_task;
 
+	int				nvram_lock_cnt;
 	u32				nvram_size;
 	u32				nvram_pagesize;
 	u32				nvram_jedecnum;

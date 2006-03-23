@@ -69,14 +69,8 @@ typedef void irqreturn_t;
 
 #else /* 2.5 or later */
 
-/* recent 2.5/2.6 stores pci device names at varying places ;-) */
-#ifdef CONFIG_PCI_NAMES
-/* human readable name */
-#define PCIDEV_NAME(pdev)	((pdev)->pretty_name)
-#else
 /* whatever we get from the associated struct device - bus:slot:dev.fn id */
 #define PCIDEV_NAME(pdev)	(pci_name(pdev))
-#endif
 
 #endif
 
@@ -583,8 +577,8 @@ struct ring_descr_hw {
 		struct {
 			u8		addr_res[3];
 			volatile u8	status;		/* descriptor status */
-		} rd_s __attribute__((packed));
-	} rd_u __attribute((packed));
+		} __attribute__((packed)) rd_s;
+	} __attribute((packed)) rd_u;
 } __attribute__ ((packed));
 
 #define rd_addr		rd_u.addr

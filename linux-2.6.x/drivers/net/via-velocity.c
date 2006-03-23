@@ -61,7 +61,6 @@
 #include <linux/timer.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <linux/string.h>
 #include <linux/wait.h>
 #include <asm/io.h>
@@ -792,7 +791,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 #endif
 
 	if (vptr->flags & VELOCITY_FLAGS_TX_CSUM) {
-		dev->features |= NETIF_F_HW_CSUM;
+		dev->features |= NETIF_F_IP_CSUM;
 	}
 
 	ret = register_netdev(dev);
@@ -1107,6 +1106,9 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 
 	for (i = 0; i < vptr->options.numrx; i++) {
 		struct velocity_rd_info *rd_info = &(vptr->rd_info[i]);
+		struct rx_desc *rd = vptr->rd_ring + i;
+
+		memset(rd, 0, sizeof(*rd));
 
 		if (!rd_info->skb)
 			continue;
@@ -1212,10 +1214,8 @@ static void velocity_free_td_ring(struct velocity_info *vptr)
 			velocity_free_td_ring_entry(vptr, j, i);
 
 		}
-		if (vptr->td_infos[j]) {
-			kfree(vptr->td_infos[j]);
-			vptr->td_infos[j] = NULL;
-		}
+		kfree(vptr->td_infos[j]);
+		vptr->td_infos[j] = NULL;
 	}
 }
 
@@ -1335,7 +1335,7 @@ static inline int velocity_rx_copy(struct sk_buff **rx_skb, int pkt_size,
 			if (vptr->flags & VELOCITY_FLAGS_IP_ALIGN)
 				skb_reserve(new_skb, 2);
 
-			memcpy(new_skb->data, rx_skb[0]->tail, pkt_size);
+			memcpy(new_skb->data, rx_skb[0]->data, pkt_size);
 			*rx_skb = new_skb;
 			ret = 0;
 		}
@@ -1456,9 +1456,9 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	 *	Do the gymnastics to get the buffer head for data at
 	 *	64byte alignment.
 	 */
-	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->tail & 63);
+	skb_reserve(rd_info->skb, (unsigned long) rd_info->skb->data & 63);
 	rd_info->skb->dev = vptr->dev;
-	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->tail, vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
+	rd_info->skb_dma = pci_map_single(vptr->pdev, rd_info->skb->data, vptr->rx_buf_sz, PCI_DMA_FROMDEVICE);
 	
 	/*
 	 *	Fill in the descriptor to match

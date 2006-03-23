@@ -171,6 +171,7 @@
 #include <linux/ioport.h>
 #include <linux/eisa.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
@@ -535,6 +536,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 	u16		   device_id;
 	int		   reg, rc = -ENODEV;
 
+#ifdef CONFIG_PCI
 	if (pdev) {
 		rc = pci_enable_device(pdev);
 		if (rc)
@@ -546,6 +548,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 			goto err_out;
 		}
 	}
+#endif  /*  CONFIG_PCI  */
 
 	dev = alloc_etherdev(sizeof(TLanPrivateInfo));
 	if (dev == NULL) {
@@ -566,7 +569,7 @@ static int __devinit TLan_probe1(struct pci_dev *pdev,
 
 		priv->adapter = &board_info[ent->driver_data];
 
-		rc = pci_set_dma_mask(pdev, 0xFFFFFFFF);
+		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
 			printk(KERN_ERR "TLAN: No suitable PCI mapping available.\n");
 			goto err_out_free_dev;
@@ -2819,7 +2822,7 @@ void TLan_PhyMonitor( struct net_device *dev )
  	       if (priv->link) {
 		      priv->link = 0;
 	              printk(KERN_DEBUG "TLAN: %s has lost link\n", dev->name);
-	              dev->flags &= ~IFF_RUNNING;
+		      netif_carrier_off(dev);
 		      TLan_SetTimer( dev, (2*HZ), TLAN_TIMER_LINK_BEAT );
 		      return;
 		}
@@ -2829,7 +2832,7 @@ void TLan_PhyMonitor( struct net_device *dev )
         if ((phy_status & MII_GS_LINK) && !priv->link) {
  		priv->link = 1;
         	printk(KERN_DEBUG "TLAN: %s has reestablished link\n", dev->name);
-        	dev->flags |= IFF_RUNNING;
+		netif_carrier_on(dev);
         }
 
 	/* Setup a new monitor */
@@ -2864,11 +2867,11 @@ void TLan_PhyMonitor( struct net_device *dev )
 	 *				for this device.
 	 *		phy		The address of the PHY to be queried.
 	 *		reg		The register whose contents are to be
-	 *				retreived.
+	 *				retrieved.
 	 *		val		A pointer to a variable to store the
 	 *				retrieved value.
 	 *
-	 *	This function uses the TLAN's MII bus to retreive the contents
+	 *	This function uses the TLAN's MII bus to retrieve the contents
 	 *	of a given register on a PHY.  It sends the appropriate info
 	 *	and then reads the 16-bit register value from the MII bus via
 	 *	the TLAN SIO register.

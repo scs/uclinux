@@ -784,23 +784,8 @@ struct ixgb_hw_stats {
 extern boolean_t ixgb_adapter_stop(struct ixgb_hw *hw);
 extern boolean_t ixgb_init_hw(struct ixgb_hw *hw);
 extern boolean_t ixgb_adapter_start(struct ixgb_hw *hw);
-extern void ixgb_init_rx_addrs(struct ixgb_hw *hw);
 extern void ixgb_check_for_link(struct ixgb_hw *hw);
 extern boolean_t ixgb_check_for_bad_link(struct ixgb_hw *hw);
-extern boolean_t ixgb_setup_fc(struct ixgb_hw *hw);
-extern void ixgb_clear_hw_cntrs(struct ixgb_hw *hw);
-extern boolean_t mac_addr_valid(uint8_t *mac_addr);
-
-extern uint16_t ixgb_read_phy_reg(struct ixgb_hw *hw,
-				uint32_t reg_addr,
-				uint32_t phy_addr,
-				uint32_t device_type);
-
-extern void ixgb_write_phy_reg(struct ixgb_hw *hw,
-				uint32_t reg_addr,
-				uint32_t phy_addr,
-				uint32_t device_type,
-				uint16_t data);
 
 extern void ixgb_rar_set(struct ixgb_hw *hw,
 				uint8_t *addr,
@@ -818,21 +803,10 @@ extern void ixgb_write_vfta(struct ixgb_hw *hw,
 				 uint32_t offset,
 				 uint32_t value);
 
-extern void ixgb_clear_vfta(struct ixgb_hw *hw);
-
 /* Access functions to eeprom data */
 void ixgb_get_ee_mac_addr(struct ixgb_hw *hw, uint8_t *mac_addr);
-uint16_t ixgb_get_ee_compatibility(struct ixgb_hw *hw);
 uint32_t ixgb_get_ee_pba_number(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_init_ctrl_reg_1(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_init_ctrl_reg_2(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_subsystem_id(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_subvendor_id(struct ixgb_hw *hw);
 uint16_t ixgb_get_ee_device_id(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_vendor_id(struct ixgb_hw *hw);
-uint16_t ixgb_get_ee_swdpins_reg(struct ixgb_hw *hw);
-uint8_t ixgb_get_ee_d3_power(struct ixgb_hw *hw);
-uint8_t ixgb_get_ee_d0_power(struct ixgb_hw *hw);
 boolean_t ixgb_get_eeprom_data(struct ixgb_hw *hw);
 uint16_t ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index);
 

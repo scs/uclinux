@@ -84,8 +84,8 @@
 #include <linux/baycom.h>
 #include <linux/parport.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
-#include <asm/bug.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
@@ -165,7 +165,7 @@ static void __inline__ baycom_int_freq(struct baycom_state *bc)
 	 * measure the interrupt frequency
 	 */
 	bc->debug_vals.cur_intcnt++;
-	if ((cur_jiffies - bc->debug_vals.last_jiffies) >= HZ) {
+	if (time_after_eq(cur_jiffies, bc->debug_vals.last_jiffies + HZ)) {
 		bc->debug_vals.last_jiffies = cur_jiffies;
 		bc->debug_vals.last_intcnt = bc->debug_vals.cur_intcnt;
 		bc->debug_vals.cur_intcnt = 0;

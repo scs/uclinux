@@ -18,6 +18,9 @@
 /*
  *  Changes:
  *
+ *  Mike Kershaw <dragorn@kismetwireless.net> 2005/08/14
+ *    Add TUNSETLINK ioctl to set the link encapsulation
+ *
  *  Mark Smith <markzzzsmith@yahoo.com.au>
  *   Use random_ether_addr() for tap MAC address.
  *
@@ -215,7 +218,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	poll_wait(file, &tun->read_wait, wait);
  
-	if (skb_queue_len(&tun->readq))
+	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
@@ -246,8 +249,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 
 	if (align)
 		skb_reserve(skb, align);
-	if (memcpy_fromiovec(skb_put(skb, len), iv, len))
+	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
+		tun->stats.rx_dropped++;
+		kfree_skb(skb);
 		return -EFAULT;
+	}
 
 	skb->dev = tun->dev;
 	switch (tun->flags & TUN_TYPE_MASK) {
@@ -610,6 +616,18 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		tun->owner = (uid_t) arg;
 
 		DBG(KERN_INFO "%s: owner set to %d\n", tun->dev->name, tun->owner);
+		break;
+
+	case TUNSETLINK:
+		/* Only allow setting the type when the interface is down */
+		if (tun->dev->flags & IFF_UP) {
+			DBG(KERN_INFO "%s: Linktype set failed because interface is up\n",
+				tun->dev->name);
+			return -EBUSY;
+		} else {
+			tun->dev->type = (int) arg;
+			DBG(KERN_INFO "%s: linktype set to %d\n", tun->dev->name, tun->dev->type);
+		}
 		break;
 
 #ifdef TUN_DEBUG

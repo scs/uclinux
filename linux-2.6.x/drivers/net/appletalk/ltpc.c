@@ -62,8 +62,8 @@
 /***
  *
  * $Log$
- * Revision 1.4  2005/08/12 06:42:37  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/23 06:49:53  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 1.1.2.1  2000/03/01 05:35:07  jgarzik
  * at and tr cleanup
@@ -1112,8 +1112,7 @@ struct net_device * __init ltpc_probe(void)
 	inb_p(io+1);
 	inb_p(io+3);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(2*HZ/100);
+	msleep(20);
 
 	inb_p(io+0);
 	inb_p(io+2);
@@ -1123,8 +1122,7 @@ struct net_device * __init ltpc_probe(void)
 	inb_p(io+5); /* enable dma */
 	inb_p(io+6); /* tri-state interrupt line */
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ);
+	ssleep(1);
 	
 	/* now, figure out which dma channel we're using, unless it's
 	   already been specified */

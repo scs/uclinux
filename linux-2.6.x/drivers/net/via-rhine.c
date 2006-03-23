@@ -186,6 +186,7 @@ static const int multicast_filter_limit = 32;
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -489,6 +490,8 @@ struct rhine_private {
 	u8 tx_thresh, rx_thresh;
 
 	struct mii_if_info mii_if;
+	struct work_struct tx_timeout_task;
+	struct work_struct check_media_task;
 	void __iomem *base;
 };
 
@@ -496,6 +499,8 @@ static int  mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *dev, int phy_id, int location, int value);
 static int  rhine_open(struct net_device *dev);
 static void rhine_tx_timeout(struct net_device *dev);
+static void rhine_tx_timeout_task(struct net_device *dev);
+static void rhine_check_media_task(struct net_device *dev);
 static int  rhine_start_tx(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t rhine_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 static void rhine_tx(struct net_device *dev);
@@ -506,7 +511,7 @@ static struct net_device_stats *rhine_get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static void rhine_shutdown (struct device *gdev);
+static void rhine_shutdown (struct pci_dev *pdev);
 
 #define RHINE_WAIT_FOR(condition) do {					\
 	int i=1024;							\
@@ -740,7 +745,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		goto err_out;
 
 	/* this should always be supported */
-	rc = pci_set_dma_mask(pdev, 0xffffffff);
+	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
 		printk(KERN_ERR "32-bit PCI DMA addresses not supported by "
 		       "the card!?\n");
@@ -813,8 +818,9 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ioread8(ioaddr + StationAddr + i);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->perm_addr)) {
 		rc = -EIO;
 		printk(KERN_ERR "Invalid MAC address\n");
 		goto err_out_unmap;
@@ -848,6 +854,12 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 #endif
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
+
+	INIT_WORK(&rp->tx_timeout_task,
+		  (void (*)(void *))rhine_tx_timeout_task, dev);
+
+	INIT_WORK(&rp->check_media_task,
+		  (void (*)(void *))rhine_check_media_task, dev);
 
 	/* dev->name not defined before register_netdev()! */
 	rc = register_netdev(dev);
@@ -989,7 +1001,7 @@ static void alloc_rbufs(struct net_device *dev)
 		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
-			pci_map_single(rp->pdev, skb->tail, rp->rx_buf_sz,
+			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
 				       PCI_DMA_FROMDEVICE);
 
 		rp->rx_ring[i].addr = cpu_to_le32(rp->rx_skbuff_dma[i]);
@@ -1075,6 +1087,11 @@ static void rhine_check_media(struct net_device *dev, unsigned int init_media)
 		   ioaddr + ChipCmd1);
 }
 
+static void rhine_check_media_task(struct net_device *dev)
+{
+	rhine_check_media(dev, 0);
+}
+
 static void init_registers(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
@@ -1128,8 +1145,8 @@ static void rhine_disable_linkmon(void __iomem *ioaddr, u32 quirks)
 	if (quirks & rqRhineI) {
 		iowrite8(0x01, ioaddr + MIIRegAddr);	// MII_BMSR
 
-		/* Can be called from ISR. Evil. */
-		mdelay(1);
+		/* Do not call from ISR! */
+		msleep(1);
 
 		/* 0x80 must be set immediately before turning it off */
 		iowrite8(0x80, ioaddr + MIICmd);
@@ -1217,6 +1234,16 @@ static int rhine_open(struct net_device *dev)
 }
 
 static void rhine_tx_timeout(struct net_device *dev)
+{
+	struct rhine_private *rp = netdev_priv(dev);
+
+	/*
+	 * Move bulk of work outside of interrupt context
+	 */
+	schedule_work(&rp->tx_timeout_task);
+}
+
+static void rhine_tx_timeout_task(struct net_device *dev)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1397,7 +1424,7 @@ static void rhine_tx(struct net_device *dev)
 	while (rp->dirty_tx != rp->cur_tx) {
 		txstatus = le32_to_cpu(rp->tx_ring[entry].tx_status);
 		if (debug > 6)
-			printk(KERN_DEBUG " Tx scavenge %d status %8.8x.\n",
+			printk(KERN_DEBUG "Tx scavenge %d status %8.8x.\n",
 			       entry, txstatus);
 		if (txstatus & DescOwn)
 			break;
@@ -1468,7 +1495,7 @@ static void rhine_rx(struct net_device *dev)
 		int data_size = desc_status >> 16;
 
 		if (debug > 4)
-			printk(KERN_DEBUG " rhine_rx() status is %8.8x.\n",
+			printk(KERN_DEBUG "rhine_rx() status is %8.8x.\n",
 			       desc_status);
 		if (--boguscnt < 0)
 			break;
@@ -1486,7 +1513,7 @@ static void rhine_rx(struct net_device *dev)
 			} else if (desc_status & RxErr) {
 				/* There was a error. */
 				if (debug > 2)
-					printk(KERN_DEBUG " rhine_rx() Rx "
+					printk(KERN_DEBUG "rhine_rx() Rx "
 					       "error was %8.8x.\n",
 					       desc_status);
 				rp->stats.rx_errors++;
@@ -1517,7 +1544,7 @@ static void rhine_rx(struct net_device *dev)
 							    PCI_DMA_FROMDEVICE);
 
 				eth_copy_and_sum(skb,
-						 rp->rx_skbuff[entry]->tail,
+						 rp->rx_skbuff[entry]->data,
 						 pkt_len, 0);
 				skb_put(skb, pkt_len);
 				pci_dma_sync_single_for_device(rp->pdev,
@@ -1560,7 +1587,7 @@ static void rhine_rx(struct net_device *dev)
 				break;	/* Better luck next round. */
 			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
-				pci_map_single(rp->pdev, skb->tail,
+				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,
 					       PCI_DMA_FROMDEVICE);
 			rp->rx_ring[entry].addr = cpu_to_le32(rp->rx_skbuff_dma[entry]);
@@ -1624,7 +1651,7 @@ static void rhine_error(struct net_device *dev, int intr_status)
 	spin_lock(&rp->lock);
 
 	if (intr_status & IntrLinkChange)
-		rhine_check_media(dev, 0);
+		schedule_work(&rp->check_media_task);
 	if (intr_status & IntrStatsMax) {
 		rp->stats.rx_crc_errors += ioread16(ioaddr + RxCRCErrs);
 		rp->stats.rx_missed_errors += ioread16(ioaddr + RxMissed);
@@ -1828,6 +1855,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.set_wol		= rhine_set_wol,
 	.get_sg			= ethtool_op_get_sg,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1871,6 +1899,9 @@ static int rhine_close(struct net_device *dev)
 	spin_unlock_irq(&rp->lock);
 
 	free_irq(rp->pdev->irq, dev);
+
+	flush_scheduled_work();
+
 	free_rbufs(dev);
 	free_tbufs(dev);
 	free_ring(dev);
@@ -1894,9 +1925,8 @@ static void __devexit rhine_remove_one(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static void rhine_shutdown (struct device *gendev)
+static void rhine_shutdown (struct pci_dev *pdev)
 {
-	struct pci_dev *pdev = to_pci_dev(gendev);
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rhine_private *rp = netdev_priv(dev);
 	void __iomem *ioaddr = rp->base;
@@ -1955,7 +1985,7 @@ static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_save_state(pdev);
 
 	spin_lock_irqsave(&rp->lock, flags);
-	rhine_shutdown(&pdev->dev);
+	rhine_shutdown(pdev);
 	spin_unlock_irqrestore(&rp->lock, flags);
 
 	free_irq(dev->irq, dev);
@@ -2009,9 +2039,7 @@ static struct pci_driver rhine_driver = {
 	.suspend	= rhine_suspend,
 	.resume		= rhine_resume,
 #endif /* CONFIG_PM */
-	.driver = {
-		.shutdown = rhine_shutdown,
-	}
+	.shutdown =	rhine_shutdown,
 };
 
 

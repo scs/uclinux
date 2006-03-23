@@ -57,7 +57,6 @@
 #include <linux/trdevice.h>
 #include <linux/ibmtr.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -109,18 +108,7 @@ MODULE_LICENSE("GPL");
 static void ibmtr_config(dev_link_t *link);
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase);
 static void ibmtr_release(dev_link_t *link);
-static int ibmtr_event(event_t event, int priority,
-                       event_callback_args_t *args);
-
-static dev_info_t dev_info = "ibmtr_cs";
-
-static dev_link_t *ibmtr_attach(void);
-static void ibmtr_detach(dev_link_t *);
-
-static dev_link_t *dev_list;
-
-extern int ibmtr_probe_card(struct net_device *dev);
-extern irqreturn_t tok_interrupt (int irq, void *dev_id, struct pt_regs *regs);
+static void ibmtr_detach(struct pcmcia_device *p_dev);
 
 /*====================================================================*/
 
@@ -150,25 +138,23 @@ static struct ethtool_ops netdev_ethtool_ops = {
 
 ======================================================================*/
 
-static dev_link_t *ibmtr_attach(void)
+static int ibmtr_attach(struct pcmcia_device *p_dev)
 {
     ibmtr_dev_t *info;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
     
     DEBUG(0, "ibmtr_attach()\n");
 
     /* Create new token-ring device */
     info = kmalloc(sizeof(*info), GFP_KERNEL); 
-    if (!info) return NULL;
+    if (!info) return -ENOMEM;
     memset(info,0,sizeof(*info));
     dev = alloc_trdev(sizeof(struct tok_info));
-    if (!dev) { 
-	kfree(info); 
-	return NULL;
-    } 
+    if (!dev) {
+	kfree(info);
+	return -ENOMEM;
+    }
 
     link = &info->link;
     link->priv = info;
@@ -189,30 +175,13 @@ static dev_link_t *ibmtr_attach(void)
     
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-        CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-        CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-        CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &ibmtr_event;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-        cs_error(link->handle, RegisterClient, ret);
-	goto out_detach;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-out:
-    return link;
+    link->state |= DEV_PRESENT;
+    ibmtr_config(link);
 
-out_detach:
-    ibmtr_detach(link);
-    link = NULL;
-    goto out;
+    return 0;
 } /* ibmtr_attach */
 
 /*======================================================================
@@ -224,21 +193,13 @@ out_detach:
 
 ======================================================================*/
 
-static void ibmtr_detach(dev_link_t *link)
+static void ibmtr_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct ibmtr_dev_t *info = link->priv;
-    dev_link_t **linkp;
-    struct net_device *dev;
+    struct net_device *dev = info->dev;
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
-    dev = info->dev;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -250,13 +211,8 @@ static void ibmtr_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
         ibmtr_release(link);
 
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
-
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
-    kfree(info); 
+    kfree(info);
 } /* ibmtr_detach */
 
 /*======================================================================
@@ -410,63 +366,40 @@ static void ibmtr_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int ibmtr_event(event_t event, int priority,
-                       event_callback_args_t *args)
+static int ibmtr_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    ibmtr_dev_t *info = link->priv;
-    struct net_device *dev = info->dev;
+	dev_link_t *link = dev_to_instance(p_dev);
+	ibmtr_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
 
-    DEBUG(1, "ibmtr_event(0x%06x)\n", event);
+	link->state |= DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+        }
 
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
+	return 0;
+}
+
+static int ibmtr_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	ibmtr_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state &= ~DEV_SUSPEND;
         if (link->state & DEV_CONFIG) {
-	    /* set flag to bypass normal interrupt code */
-	    struct tok_info *priv = netdev_priv(dev);
-	    priv->sram_phys |= 1;
-	    netif_device_detach(dev);
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			ibmtr_probe(dev);	/* really? */
+			netif_device_attach(dev);
+		}
         }
-        break;
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT;
-	ibmtr_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        if (link->state & DEV_CONFIG) {
-            if (link->open)
-		netif_device_detach(dev);
-            pcmcia_release_configuration(link->handle);
-        }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-        if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-		ibmtr_probe(dev);	/* really? */
-		netif_device_attach(dev);
-            }
-        }
-        break;
-    }
-    return 0;
-} /* ibmtr_event */
+
+	return 0;
+}
+
 
 /*====================================================================*/
 
@@ -511,13 +444,23 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
     return;
 }
 
+static struct pcmcia_device_id ibmtr_ids[] = {
+	PCMCIA_DEVICE_PROD_ID12("3Com", "TokenLink Velocity PC Card", 0x41240e5b, 0x82c3734e),
+	PCMCIA_DEVICE_PROD_ID12("IBM", "TOKEN RING", 0xb569a6e5, 0xbf8eed47),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, ibmtr_ids);
+
 static struct pcmcia_driver ibmtr_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "ibmtr_cs",
 	},
-	.attach		= ibmtr_attach,
-	.detach		= ibmtr_detach,
+	.probe		= ibmtr_attach,
+	.remove		= ibmtr_detach,
+	.id_table       = ibmtr_ids,
+	.suspend	= ibmtr_suspend,
+	.resume		= ibmtr_resume,
 };
 
 static int __init init_ibmtr_cs(void)
@@ -528,7 +471,6 @@ static int __init init_ibmtr_cs(void)
 static void __exit exit_ibmtr_cs(void)
 {
 	pcmcia_unregister_driver(&ibmtr_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_ibmtr_cs);

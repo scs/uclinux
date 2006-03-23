@@ -678,10 +678,9 @@ static void turnaround_delay(const struct stir_cb *stir, long us)
 		return;
 
 	ticks = us / (1000000 / HZ);
-	if (ticks > 0) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1 + ticks);
-	} else
+	if (ticks > 0)
+		schedule_timeout_interruptible(1 + ticks);
+	else
 		udelay(us);
 }
 
@@ -763,7 +762,7 @@ static int stir_transmit_thread(void *arg)
 	{
 #ifdef CONFIG_PM
 		/* if suspending, then power off and wait */
-		if (unlikely(current->flags & PF_FREEZE)) {
+		if (unlikely(freezing(current))) {
 			if (stir->receiving)
 				receive_stop(stir);
 			else
@@ -771,7 +770,7 @@ static int stir_transmit_thread(void *arg)
 
 			write_reg(stir, REG_CTRL1, CTRL1_TXPWD|CTRL1_RXPWD);
 
-			refrigerator(PF_FREEZE);
+			refrigerator();
 
 			if (change_speed(stir, stir->speed))
 				break;
@@ -1153,7 +1152,6 @@ static int stir_resume(struct usb_interface *intf)
  * USB device callbacks
  */
 static struct usb_driver irda_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "stir4200",
 	.probe		= stir_probe,
 	.disconnect	= stir_disconnect,
