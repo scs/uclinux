@@ -20,7 +20,7 @@
 #include <mtd/inftl-user.h>
 
 #ifndef INFTL_MAJOR
-#define INFTL_MAJOR 94
+#define INFTL_MAJOR 96
 #endif
 #define INFTL_PARTN_BITS 4
 

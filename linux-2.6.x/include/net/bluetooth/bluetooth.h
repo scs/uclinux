@@ -57,14 +57,6 @@
 #define BT_DBG(fmt, arg...)  printk(KERN_INFO "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR  "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 
-#ifdef HCI_DATA_DUMP
-#define BT_DMP(buf, len) bt_dump(__FUNCTION__, buf, len)
-#else
-#define BT_DMP(D...)
-#endif
-
-extern struct proc_dir_entry *proc_bt;
-
 /* Connection and socket states */
 enum {
 	BT_CONNECTED = 1, /* Equal to TCP_ESTABLISHED to make net code happy */
@@ -137,11 +129,12 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
 struct bt_skb_cb {
-	int incoming;
+	__u8 pkt_type;
+	__u8 incoming;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)(skb->cb)) 
 
-static inline struct sk_buff *bt_skb_alloc(unsigned int len, int how)
+static inline struct sk_buff *bt_skb_alloc(unsigned int len, gfp_t how)
 {
 	struct sk_buff *skb;
 
@@ -174,8 +167,14 @@ static inline int skb_frags_no(struct sk_buff *skb)
 	return n;
 }
 
-void bt_dump(char *pref, __u8 *buf, int count);
-
 int bt_err(__u16 code);
+
+extern int hci_sock_init(void);
+extern int hci_sock_cleanup(void);
+
+extern int bt_sysfs_init(void);
+extern void bt_sysfs_cleanup(void);
+
+extern struct class bt_class;
 
 #endif /* __BLUETOOTH_H */

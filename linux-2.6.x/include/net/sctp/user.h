@@ -93,6 +93,8 @@ enum sctp_optname {
 #define SCTP_STATUS SCTP_STATUS
 	SCTP_GET_PEER_ADDR_INFO,
 #define SCTP_GET_PEER_ADDR_INFO SCTP_GET_PEER_ADDR_INFO
+	SCTP_DELAYED_ACK_TIME,
+#define SCTP_DELAYED_ACK_TIME SCTP_DELAYED_ACK_TIME
 
 	/* Internal Socket Options. Some of the sctp library functions are 
 	 * implemented using these socket options.
@@ -103,12 +105,18 @@ enum sctp_optname {
 #define SCTP_SOCKOPT_BINDX_REM	SCTP_SOCKOPT_BINDX_REM
 	SCTP_SOCKOPT_PEELOFF, 	/* peel off association. */
 #define SCTP_SOCKOPT_PEELOFF	SCTP_SOCKOPT_PEELOFF
-	SCTP_GET_PEER_ADDRS_NUM, 	/* Get number of peer addresss. */
-#define SCTP_GET_PEER_ADDRS_NUM	SCTP_GET_PEER_ADDRS_NUM
+	SCTP_GET_PEER_ADDRS_NUM_OLD, 	/* Get number of peer addresss. */
+#define SCTP_GET_PEER_ADDRS_NUM_OLD	SCTP_GET_PEER_ADDRS_NUM_OLD
+	SCTP_GET_PEER_ADDRS_OLD, 	/* Get all peer addresss. */
+#define SCTP_GET_PEER_ADDRS_OLD	SCTP_GET_PEER_ADDRS_OLD
+	SCTP_GET_LOCAL_ADDRS_NUM_OLD, 	/* Get number of local addresss. */
+#define SCTP_GET_LOCAL_ADDRS_NUM_OLD	SCTP_GET_LOCAL_ADDRS_NUM_OLD
+	SCTP_GET_LOCAL_ADDRS_OLD, 	/* Get all local addresss. */
+#define SCTP_GET_LOCAL_ADDRS_OLD	SCTP_GET_LOCAL_ADDRS_OLD
+	SCTP_SOCKOPT_CONNECTX, /* CONNECTX requests. */
+#define SCTP_SOCKOPT_CONNECTX	SCTP_SOCKOPT_CONNECTX
 	SCTP_GET_PEER_ADDRS, 	/* Get all peer addresss. */
 #define SCTP_GET_PEER_ADDRS	SCTP_GET_PEER_ADDRS
-	SCTP_GET_LOCAL_ADDRS_NUM, 	/* Get number of local addresss. */
-#define SCTP_GET_LOCAL_ADDRS_NUM	SCTP_GET_LOCAL_ADDRS_NUM
 	SCTP_GET_LOCAL_ADDRS, 	/* Get all local addresss. */
 #define SCTP_GET_LOCAL_ADDRS	SCTP_GET_LOCAL_ADDRS
 };
@@ -165,10 +173,10 @@ struct sctp_sndrcvinfo {
  */
 
 enum sctp_sinfo_flags {
-	MSG_UNORDERED = 1,  /* Send/receive message unordered. */
-	MSG_ADDR_OVER = 2,  /* Override the primary destination. */
-	MSG_ABORT=4,        /* Send an ABORT message to the peer. */
-	/* MSG_EOF is already defined per socket.h */
+	SCTP_UNORDERED = 1,  /* Send/receive message unordered. */
+	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
+	SCTP_ABORT=4,        /* Send an ABORT message to the peer. */
+	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */	
 };
 
 
@@ -237,7 +245,7 @@ struct sctp_paddr_change {
 	int spc_state;
 	int spc_error;
 	sctp_assoc_t spc_assoc_id;
-};
+} __attribute__((packed, aligned(4)));
 
 /*
  *    spc_state:  32 bits (signed integer)
@@ -462,7 +470,7 @@ struct sctp_assocparams {
 struct sctp_setpeerprim {
 	sctp_assoc_t            sspp_assoc_id;
 	struct sockaddr_storage sspp_addr;
-};
+} __attribute__((packed, aligned(4)));
 
 /*
  * 7.1.10 Set Primary Address (SCTP_PRIMARY_ADDR)
@@ -475,7 +483,7 @@ struct sctp_setpeerprim {
 struct sctp_prim {
 	sctp_assoc_t            ssp_assoc_id;
 	struct sockaddr_storage ssp_addr;
-};
+} __attribute__((packed, aligned(4)));
 
 /*
  * 7.1.11 Set Adaption Layer Indicator (SCTP_ADAPTION_LAYER)
@@ -497,11 +505,39 @@ struct sctp_setadaption {
  *   unreachable. The following structure is used to access and modify an
  *   address's parameters:
  */
+enum  sctp_spp_flags {
+	SPP_HB_ENABLE = 1,		/*Enable heartbeats*/
+	SPP_HB_DISABLE = 2,		/*Disable heartbeats*/
+	SPP_HB = SPP_HB_ENABLE | SPP_HB_DISABLE,
+	SPP_HB_DEMAND = 4,		/*Send heartbeat immediately*/
+	SPP_PMTUD_ENABLE = 8,		/*Enable PMTU discovery*/
+	SPP_PMTUD_DISABLE = 16,		/*Disable PMTU discovery*/
+	SPP_PMTUD = SPP_PMTUD_ENABLE | SPP_PMTUD_DISABLE,
+	SPP_SACKDELAY_ENABLE = 32,	/*Enable SACK*/
+	SPP_SACKDELAY_DISABLE = 64,	/*Disable SACK*/
+	SPP_SACKDELAY = SPP_SACKDELAY_ENABLE | SPP_SACKDELAY_DISABLE,
+};
+
 struct sctp_paddrparams {
 	sctp_assoc_t		spp_assoc_id;
 	struct sockaddr_storage	spp_address;
 	__u32			spp_hbinterval;
 	__u16			spp_pathmaxrxt;
+	__u32			spp_pathmtu;
+	__u32			spp_sackdelay;
+	__u32			spp_flags;
+} __attribute__((packed, aligned(4)));
+
+/* 7.1.24. Delayed Ack Timer (SCTP_DELAYED_ACK_TIME)
+ *
+ *   This options will get or set the delayed ack timer.  The time is set
+ *   in milliseconds.  If the assoc_id is 0, then this sets or gets the
+ *   endpoints default delayed ack timer value.  If the assoc_id field is
+ *   non-zero, then the set or get effects the specified association.
+ */
+struct sctp_assoc_value {
+    sctp_assoc_t            assoc_id;
+    uint32_t                assoc_value;
 };
 
 /*
@@ -521,12 +557,13 @@ struct sctp_paddrinfo {
 	__u32			spinfo_srtt;
 	__u32			spinfo_rto;
 	__u32			spinfo_mtu;
-};
+} __attribute__((packed, aligned(4)));
 
 /* Peer addresses's state. */
 enum sctp_spinfo_state {
 	SCTP_INACTIVE,
 	SCTP_ACTIVE,
+	SCTP_UNKNOWN = 0xffff  /* Value used for transport state unknown */
 };
 
 /*
@@ -556,10 +593,15 @@ struct sctp_status {
  * SCTP_GET_LOCAL_ADDRS socket options used internally to implement
  * sctp_getpaddrs() and sctp_getladdrs() API. 
  */
-struct sctp_getaddrs {
+struct sctp_getaddrs_old {
 	sctp_assoc_t            assoc_id;
 	int			addr_num;
 	struct sockaddr		__user *addrs;
+};
+struct sctp_getaddrs {
+	sctp_assoc_t		assoc_id; /*input*/
+	__u32			addr_num; /*output*/
+	__u8			addrs[0]; /*output, variable size*/
 };
 
 /* These are bit fields for msghdr->msg_flags.  See section 5.1.  */

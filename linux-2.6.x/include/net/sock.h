@@ -88,6 +88,7 @@ do {	spin_lock_init(&((__sk)->sk_lock.slock)); \
 } while(0)
 
 struct sock;
+struct proto;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
@@ -98,10 +99,12 @@ struct sock;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_refcnt: reference count
+ *	@skc_hash: hash value used with various protocol lookup tables
+ *	@skc_prot: protocol handlers inside a network family
  *
  *	This is the minimal network layer representation of sockets, the header
- *	for struct sock and struct tcp_tw_bucket.
-  */
+ *	for struct sock and struct inet_timewait_sock.
+ */
 struct sock_common {
 	unsigned short		skc_family;
 	volatile unsigned char	skc_state;
@@ -110,11 +113,13 @@ struct sock_common {
 	struct hlist_node	skc_node;
 	struct hlist_node	skc_bind_node;
 	atomic_t		skc_refcnt;
+	unsigned int		skc_hash;
+	struct proto		*skc_prot;
 };
 
 /**
   *	struct sock - network layer representation of sockets
-  *	@__sk_common: shared layout with tcp_tw_bucket
+  *	@__sk_common: shared layout with inet_timewait_sock
   *	@sk_shutdown: mask of %SEND_SHUTDOWN and/or %RCV_SHUTDOWN
   *	@sk_userlocks: %SO_SNDBUF and %SO_RCVBUF settings
   *	@sk_lock:	synchronizer
@@ -136,11 +141,9 @@ struct sock_common {
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
   *	@sk_lingertime: %SO_LINGER l_linger setting
-  *	@sk_hashent: hash entry in several tables (e.g. tcp_ehash)
   *	@sk_backlog: always used with the per-socket spinlock held
   *	@sk_callback_lock: used with the callbacks in the end of this struct
   *	@sk_error_queue: rarely used
-  *	@sk_prot: protocol handlers inside a network family
   *	@sk_prot_creator: sk_prot of original sock creator (see ipv6_setsockopt, IPV6_ADDRFORM for instance)
   *	@sk_err: last error
   *	@sk_err_soft: errors that don't cause failure but are the cause of a persistent failure not just 'timed out'
@@ -173,7 +176,7 @@ struct sock_common {
  */
 struct sock {
 	/*
-	 * Now struct tcp_tw_bucket also uses sock_common, so please just
+	 * Now struct inet_timewait_sock also uses sock_common, so please just
 	 * don't add nothing before this first member (__sk_common) --acme
 	 */
 	struct sock_common	__sk_common;
@@ -184,6 +187,8 @@ struct sock {
 #define sk_node			__sk_common.skc_node
 #define sk_bind_node		__sk_common.skc_bind_node
 #define sk_refcnt		__sk_common.skc_refcnt
+#define sk_hash			__sk_common.skc_hash
+#define sk_prot			__sk_common.skc_prot
 	unsigned char		sk_shutdown : 2,
 				sk_no_check : 2,
 				sk_userlocks : 4;
@@ -202,10 +207,9 @@ struct sock {
 	struct sk_buff_head	sk_write_queue;
 	int			sk_wmem_queued;
 	int			sk_forward_alloc;
-	unsigned int		sk_allocation;
+	gfp_t			sk_allocation;
 	int			sk_sndbuf;
 	int			sk_route_caps;
-	int			sk_hashent;
 	unsigned long 		sk_flags;
 	unsigned long	        sk_lingertime;
 	/*
@@ -218,7 +222,6 @@ struct sock {
 		struct sk_buff *tail;
 	} sk_backlog;
 	struct sk_buff_head	sk_error_queue;
-	struct proto		*sk_prot;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
@@ -253,28 +256,28 @@ struct sock {
 /*
  * Hashed lists helper routines
  */
-static inline struct sock *__sk_head(struct hlist_head *head)
+static inline struct sock *__sk_head(const struct hlist_head *head)
 {
 	return hlist_entry(head->first, struct sock, sk_node);
 }
 
-static inline struct sock *sk_head(struct hlist_head *head)
+static inline struct sock *sk_head(const struct hlist_head *head)
 {
 	return hlist_empty(head) ? NULL : __sk_head(head);
 }
 
-static inline struct sock *sk_next(struct sock *sk)
+static inline struct sock *sk_next(const struct sock *sk)
 {
 	return sk->sk_node.next ?
 		hlist_entry(sk->sk_node.next, struct sock, sk_node) : NULL;
 }
 
-static inline int sk_unhashed(struct sock *sk)
+static inline int sk_unhashed(const struct sock *sk)
 {
 	return hlist_unhashed(&sk->sk_node);
 }
 
-static inline int sk_hashed(struct sock *sk)
+static inline int sk_hashed(const struct sock *sk)
 {
 	return sk->sk_node.pprev != NULL;
 }
@@ -384,6 +387,11 @@ enum sock_flags {
 	SOCK_QUEUE_SHRUNK, /* write queue has been shrunk recently */
 };
 
+static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+{
+	nsk->sk_flags = osk->sk_flags;
+}
+
 static inline void sock_set_flag(struct sock *sk, enum sock_flags flag)
 {
 	__set_bit(flag, &sk->sk_flags);
@@ -453,16 +461,16 @@ static inline void sk_stream_free_skb(struct sock *sk, struct sk_buff *skb)
 }
 
 /* The per-socket spinlock must be held here. */
-#define sk_add_backlog(__sk, __skb)				\
-do {	if (!(__sk)->sk_backlog.tail) {				\
-		(__sk)->sk_backlog.head =			\
-		     (__sk)->sk_backlog.tail = (__skb);		\
-	} else {						\
-		((__sk)->sk_backlog.tail)->next = (__skb);	\
-		(__sk)->sk_backlog.tail = (__skb);		\
-	}							\
-	(__skb)->next = NULL;					\
-} while(0)
+static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
+{
+	if (!sk->sk_backlog.tail) {
+		sk->sk_backlog.head = sk->sk_backlog.tail = skb;
+	} else {
+		sk->sk_backlog.tail->next = skb;
+		sk->sk_backlog.tail = skb;
+	}
+	skb->next = NULL;
+}
 
 #define sk_wait_event(__sk, __timeo, __condition)		\
 ({	int rc;							\
@@ -470,9 +478,9 @@ do {	if (!(__sk)->sk_backlog.tail) {				\
 	rc = __condition;					\
 	if (!rc) {						\
 		*(__timeo) = schedule_timeout(*(__timeo));	\
-		rc = __condition;				\
 	}							\
 	lock_sock(__sk);					\
+	rc = __condition;					\
 	rc;							\
 })
 
@@ -483,6 +491,9 @@ extern int sk_stream_error(struct sock *sk, int flags, int err);
 extern void sk_stream_kill_queues(struct sock *sk);
 
 extern int sk_wait_data(struct sock *sk, long *timeo);
+
+struct request_sock_ops;
+struct timewait_sock_ops;
 
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
@@ -547,12 +558,19 @@ struct proto {
 	kmem_cache_t		*slab;
 	unsigned int		obj_size;
 
+	atomic_t		*orphan_count;
+
+	struct request_sock_ops	*rsk_prot;
+	struct timewait_sock_ops *twsk_prot;
+
 	struct module		*owner;
 
 	char			name[32];
 
 	struct list_head	node;
-
+#ifdef SOCK_REFCNT_DEBUG
+	atomic_t		socks;
+#endif
 	struct {
 		int inuse;
 		u8  __pad[SMP_CACHE_BYTES - sizeof(int)];
@@ -561,6 +579,31 @@ struct proto {
 
 extern int proto_register(struct proto *prot, int alloc_slab);
 extern void proto_unregister(struct proto *prot);
+
+#ifdef SOCK_REFCNT_DEBUG
+static inline void sk_refcnt_debug_inc(struct sock *sk)
+{
+	atomic_inc(&sk->sk_prot->socks);
+}
+
+static inline void sk_refcnt_debug_dec(struct sock *sk)
+{
+	atomic_dec(&sk->sk_prot->socks);
+	printk(KERN_DEBUG "%s socket %p released, %d are still alive\n",
+	       sk->sk_prot->name, sk, atomic_read(&sk->sk_prot->socks));
+}
+
+static inline void sk_refcnt_debug_release(const struct sock *sk)
+{
+	if (atomic_read(&sk->sk_refcnt) != 1)
+		printk(KERN_DEBUG "Destruction of the %s socket %p delayed, refcnt=%d\n",
+		       sk->sk_prot->name, sk, atomic_read(&sk->sk_refcnt));
+}
+#else /* SOCK_REFCNT_DEBUG */
+#define sk_refcnt_debug_inc(sk) do { } while (0)
+#define sk_refcnt_debug_dec(sk) do { } while (0)
+#define sk_refcnt_debug_release(sk) do { } while (0)
+#endif /* SOCK_REFCNT_DEBUG */
 
 /* Called with local bh disabled */
 static __inline__ void sock_prot_inc_use(struct proto *prot)
@@ -571,6 +614,15 @@ static __inline__ void sock_prot_inc_use(struct proto *prot)
 static __inline__ void sock_prot_dec_use(struct proto *prot)
 {
 	prot->stats[smp_processor_id()].inuse--;
+}
+
+/* With per-bucket locks this operation is not-atomic, so that
+ * this version is not worse.
+ */
+static inline void __sk_prot_rehash(struct sock *sk)
+{
+	sk->sk_prot->unhash(sk);
+	sk->sk_prot->hash(sk);
 }
 
 /* About 10 seconds */
@@ -658,6 +710,12 @@ static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
 		sk_stream_mem_schedule(sk, skb->truesize, 1);
 }
 
+static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
+{
+	return size <= sk->sk_forward_alloc ||
+	       sk_stream_mem_schedule(sk, size, 0);
+}
+
 /* Used by processes to "lock" a socket state, so that
  * interrupts and bottom half handlers won't change it
  * from under us. It essentially blocks any incoming
@@ -680,16 +738,19 @@ extern void FASTCALL(release_sock(struct sock *sk));
 #define bh_lock_sock(__sk)	spin_lock(&((__sk)->sk_lock.slock))
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-extern struct sock		*sk_alloc(int family, int priority,
+extern struct sock		*sk_alloc(int family,
+					  gfp_t priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
+extern struct sock		*sk_clone(const struct sock *sk,
+					  const gfp_t priority);
 
 extern struct sk_buff		*sock_wmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      int priority);
+					      gfp_t priority);
 extern struct sk_buff		*sock_rmalloc(struct sock *sk,
 					      unsigned long size, int force,
-					      int priority);
+					      gfp_t priority);
 extern void			sock_wfree(struct sk_buff *skb);
 extern void			sock_rfree(struct sk_buff *skb);
 
@@ -704,7 +765,8 @@ extern struct sk_buff 		*sock_alloc_send_skb(struct sock *sk,
 						     unsigned long size,
 						     int noblock,
 						     int *errcode);
-extern void *sock_kmalloc(struct sock *sk, int size, int priority);
+extern void *sock_kmalloc(struct sock *sk, int size,
+			  gfp_t priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
 extern void sk_send_sigurg(struct sock *sk);
 
@@ -794,8 +856,8 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb, int needlock)
 		
 		filter = sk->sk_filter;
 		if (filter) {
-			int pkt_len = sk_run_filter(skb, filter->insns,
-						    filter->len);
+			unsigned int pkt_len = sk_run_filter(skb, filter->insns,
+							     filter->len);
 			if (!pkt_len)
 				err = -EPERM;
 			else
@@ -862,6 +924,29 @@ static inline void sock_put(struct sock *sk)
 {
 	if (atomic_dec_and_test(&sk->sk_refcnt))
 		sk_free(sk);
+}
+
+static inline int sk_receive_skb(struct sock *sk, struct sk_buff *skb)
+{
+	int rc = NET_RX_SUCCESS;
+
+	if (sk_filter(sk, skb, 0))
+		goto discard_and_relse;
+
+	skb->dev = NULL;
+
+	bh_lock_sock(sk);
+	if (!sock_owned_by_user(sk))
+		rc = sk->sk_backlog_rcv(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
+out:
+	sock_put(sk);
+	return rc;
+discard_and_relse:
+	kfree_skb(skb);
+	goto out;
 }
 
 /* Detach socket from process context.
@@ -973,6 +1058,16 @@ sk_dst_check(struct sock *sk, u32 cookie)
 	}
 
 	return dst;
+}
+
+static inline void sk_setup_caps(struct sock *sk, struct dst_entry *dst)
+{
+	__sk_dst_set(sk, dst);
+	sk->sk_route_caps = dst->dev->features;
+	if (sk->sk_route_caps & NETIF_F_TSO) {
+		if (sock_flag(sk, SOCK_NO_LARGESEND) || dst->header_len)
+			sk->sk_route_caps &= ~NETIF_F_TSO;
+	}
 }
 
 static inline void sk_charge_skb(struct sock *sk, struct sk_buff *skb)
@@ -1094,7 +1189,10 @@ static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
  
 static inline int sock_error(struct sock *sk)
 {
-	int err = xchg(&sk->sk_err, 0);
+	int err;
+	if (likely(!sk->sk_err))
+		return 0;
+	err = xchg(&sk->sk_err, 0);
 	return -err;
 }
 
@@ -1128,15 +1226,18 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 }
 
 static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
-						   int size, int mem, int gfp)
+						   int size, int mem,
+						   gfp_t gfp)
 {
-	struct sk_buff *skb = alloc_skb(size + sk->sk_prot->max_header, gfp);
+	struct sk_buff *skb;
+	int hdr_len;
 
+	hdr_len = SKB_DATA_ALIGN(sk->sk_prot->max_header);
+	skb = alloc_skb_fclone(size + hdr_len, gfp);
 	if (skb) {
 		skb->truesize += mem;
-		if (sk->sk_forward_alloc >= (int)skb->truesize ||
-		    sk_stream_mem_schedule(sk, skb->truesize, 0)) {
-			skb_reserve(skb, sk->sk_prot->max_header);
+		if (sk_stream_wmem_schedule(sk, skb->truesize)) {
+			skb_reserve(skb, hdr_len);
 			return skb;
 		}
 		__kfree_skb(skb);
@@ -1148,7 +1249,8 @@ static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 }
 
 static inline struct sk_buff *sk_stream_alloc_skb(struct sock *sk,
-						  int size, int gfp)
+						  int size,
+						  gfp_t gfp)
 {
 	return sk_stream_alloc_pskb(sk, size, 0, gfp);
 }
@@ -1157,10 +1259,8 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 {
 	struct page *page = NULL;
 
-	if (sk->sk_forward_alloc >= (int)PAGE_SIZE ||
-	    sk_stream_mem_schedule(sk, PAGE_SIZE, 0))
-		page = alloc_pages(sk->sk_allocation, 0);
-	else {
+	page = alloc_pages(sk->sk_allocation, 0);
+	if (!page) {
 		sk->sk_prot->enter_memory_pressure();
 		sk_stream_moderate_sndbuf(sk);
 	}
@@ -1173,6 +1273,12 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
 		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
 		     skb = skb->next)
 
+/*from STCP for fast SACK Process*/
+#define sk_stream_for_retrans_queue_from(skb, sk)			\
+		for (; (skb != (sk)->sk_send_head) &&                   \
+		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
+		     skb = skb->next)
+
 /*
  *	Default write policy as shown to user space via poll/select/SIGIO
  */
@@ -1181,7 +1287,7 @@ static inline int sock_writeable(const struct sock *sk)
 	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf / 2);
 }
 
-static inline int gfp_any(void)
+static inline gfp_t gfp_any(void)
 {
 	return in_softirq() ? GFP_ATOMIC : GFP_KERNEL;
 }
@@ -1212,16 +1318,19 @@ static inline int sock_intr_errno(long timeo)
 static __inline__ void
 sock_recv_timestamp(struct msghdr *msg, struct sock *sk, struct sk_buff *skb)
 {
-	struct timeval *stamp = &skb->stamp;
+	struct timeval stamp;
+
+	skb_get_timestamp(skb, &stamp);
 	if (sock_flag(sk, SOCK_RCVTSTAMP)) {
 		/* Race occurred between timestamp enabling and packet
 		   receiving.  Fill in the current time for now. */
-		if (stamp->tv_sec == 0)
-			do_gettimeofday(stamp);
+		if (stamp.tv_sec == 0)
+			do_gettimeofday(&stamp);
+		skb_set_timestamp(skb, &stamp);
 		put_cmsg(msg, SOL_SOCKET, SO_TIMESTAMP, sizeof(struct timeval),
-			 stamp);
+			 &stamp);
 	} else
-		sk->sk_stamp = *stamp;
+		sk->sk_stamp = stamp;
 }
 
 /**
@@ -1245,12 +1354,12 @@ extern int sock_get_timestamp(struct sock *, struct timeval __user *);
  *	Enable debug/info messages 
  */
 
-#if 0
-#define NETDEBUG(x)	do { } while (0)
-#define LIMIT_NETDEBUG(x) do {} while(0)
+#ifdef CONFIG_NETDEBUG
+#define NETDEBUG(fmt, args...)	printk(fmt,##args)
+#define LIMIT_NETDEBUG(fmt, args...) do { if (net_ratelimit()) printk(fmt,##args); } while(0)
 #else
-#define NETDEBUG(x)	do { x; } while (0)
-#define LIMIT_NETDEBUG(x) do { if (net_ratelimit()) { x; } } while(0)
+#define NETDEBUG(fmt, args...)	do { } while (0)
+#define LIMIT_NETDEBUG(fmt, args...) do { } while(0)
 #endif
 
 /*
@@ -1296,5 +1405,16 @@ static inline int siocdevprivate_ioctl(unsigned int fd, unsigned int cmd, unsign
 	return -ENODEV;
 }
 #endif
+
+extern void sk_init(void);
+
+#ifdef CONFIG_SYSCTL
+extern struct ctl_table core_table[];
+#endif
+
+extern int sysctl_optmem_max;
+
+extern __u32 sysctl_wmem_default;
+extern __u32 sysctl_rmem_default;
 
 #endif	/* _SOCK_H */

@@ -105,10 +105,6 @@ struct rt_cache_stat
         unsigned int out_hlist_search;
 };
 
-extern struct rt_cache_stat *rt_cache_stat;
-#define RT_CACHE_STAT_INC(field)					  \
-		(per_cpu_ptr(rt_cache_stat, _smp_processor_id())->field++)
-
 extern struct ip_rt_acct *ip_rt_acct;
 
 struct in_device;
@@ -129,6 +125,9 @@ extern void		ip_rt_multicast_event(struct in_device *);
 extern int		ip_rt_ioctl(unsigned int cmd, void __user *arg);
 extern void		ip_rt_get_source(u8 *src, struct rtable *rt);
 extern int		ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb);
+
+struct in_ifaddr;
+extern void fib_add_ifaddr(struct in_ifaddr *);
 
 static inline void ip_rt_put(struct rtable * rt)
 {
@@ -171,8 +170,8 @@ static inline int ip_route_connect(struct rtable **rp, u32 dst,
 	return ip_route_output_flow(rp, &fl, sk, 0);
 }
 
-static inline int ip_route_newports(struct rtable **rp, u16 sport, u16 dport,
-				    struct sock *sk)
+static inline int ip_route_newports(struct rtable **rp, u8 protocol,
+				    u16 sport, u16 dport, struct sock *sk)
 {
 	if (sport != (*rp)->fl.fl_ip_sport ||
 	    dport != (*rp)->fl.fl_ip_dport) {
@@ -181,6 +180,7 @@ static inline int ip_route_newports(struct rtable **rp, u16 sport, u16 dport,
 		memcpy(&fl, &(*rp)->fl, sizeof(fl));
 		fl.fl_ip_sport = sport;
 		fl.fl_ip_dport = dport;
+		fl.proto = protocol;
 		ip_rt_put(*rp);
 		*rp = NULL;
 		return ip_route_output_flow(rp, &fl, sk, 0);
@@ -198,5 +198,7 @@ static inline struct inet_peer *rt_get_peer(struct rtable *rt)
 	rt_bind_peer(rt, 0);
 	return rt->peer;
 }
+
+extern ctl_table ipv4_route_table[];
 
 #endif	/* _ROUTE_H */

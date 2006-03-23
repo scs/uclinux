@@ -1,5 +1,5 @@
 
-/* Common Flash Interface structures 
+/* Common Flash Interface structures
  * See http://support.intel.com/design/flash/technote/index.htm
  * $Id$
  */
@@ -8,7 +8,6 @@
 #define __MTD_CFI_H__
 
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -82,8 +81,8 @@ static inline int cfi_interleave_supported(int i)
 }
 
 
-/* NB: these values must represents the number of bytes needed to meet the 
- *     device type (x8, x16, x32).  Eg. a 32 bit device is 4 x 8 bytes. 
+/* NB: these values must represents the number of bytes needed to meet the
+ *     device type (x8, x16, x32).  Eg. a 32 bit device is 4 x 8 bytes.
  *     These numbers are used in calculations.
  */
 #define CFI_DEVICETYPE_X8  (8 / 8)
@@ -148,6 +147,14 @@ struct cfi_pri_intelext {
 	uint8_t  extra[0];
 } __attribute__((packed));
 
+struct cfi_intelext_otpinfo {
+	uint32_t ProtRegAddr;
+	uint16_t FactGroups;
+	uint8_t  FactProtRegSize;
+	uint16_t UserGroups;
+	uint8_t  UserProtRegSize;
+} __attribute__((packed));
+
 struct cfi_intelext_blockinfo {
 	uint16_t NumIdentBlocks;
 	uint16_t BlockSize;
@@ -163,6 +170,15 @@ struct cfi_intelext_regioninfo {
 	uint8_t  NumOpAllowedSimEraMode;
 	uint8_t  NumBlockTypes;
 	struct cfi_intelext_blockinfo BlockTypes[1];
+} __attribute__((packed));
+
+struct cfi_intelext_programming_regioninfo {
+	uint8_t  ProgRegShift;
+	uint8_t  Reserved1;
+	uint8_t  ControlValid;
+	uint8_t  Reserved2;
+	uint8_t  ControlInvalid;
+	uint8_t  Reserved3;
 } __attribute__((packed));
 
 /* Vendor-Specific PRI for AMD/Fujitsu Extended Command Set (0x0002) */
@@ -242,16 +258,16 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs, int interleave, int 
 /*
  * Transforms the CFI command for the given geometry (bus width & interleave).
  * It looks too long to be inline, but in the common case it should almost all
- * get optimised away. 
+ * get optimised away.
  */
-static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cfi_private *cfi)
+static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi)
 {
 	map_word val = { {0} };
 	int wordwidth, words_per_bus, chip_mode, chips_per_word;
 	unsigned long onecmd;
 	int i;
 
-	/* We do it this way to give the compiler a fighting chance 
+	/* We do it this way to give the compiler a fighting chance
 	   of optimising away all the crap for 'bankwidth' larger than
 	   an unsigned long, in the common case where that support is
 	   disabled */
@@ -262,7 +278,7 @@ static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cf
 		wordwidth = map_bankwidth(map);
 		words_per_bus = 1;
 	}
-	
+
 	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
 	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
 
@@ -281,7 +297,7 @@ static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cf
 		break;
 	}
 
-	/* Now replicate it across the size of an unsigned long, or 
+	/* Now replicate it across the size of an unsigned long, or
 	   just to the bus width as appropriate */
 	switch (chips_per_word) {
 	default: BUG();
@@ -297,7 +313,7 @@ static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cf
 		;
 	}
 
-	/* And finally, for the multi-word case, replicate it 
+	/* And finally, for the multi-word case, replicate it
 	   in all words in the structure */
 	for (i=0; i < words_per_bus; i++) {
 		val.x[i] = onecmd;
@@ -306,6 +322,69 @@ static inline map_word cfi_build_cmd(u_char cmd, struct map_info *map, struct cf
 	return val;
 }
 #define CMD(x)  cfi_build_cmd((x), map, cfi)
+
+
+static inline unsigned long cfi_merge_status(map_word val, struct map_info *map,
+					   struct cfi_private *cfi)
+{
+	int wordwidth, words_per_bus, chip_mode, chips_per_word;
+	unsigned long onestat, res = 0;
+	int i;
+
+	/* We do it this way to give the compiler a fighting chance
+	   of optimising away all the crap for 'bankwidth' larger than
+	   an unsigned long, in the common case where that support is
+	   disabled */
+	if (map_bankwidth_is_large(map)) {
+		wordwidth = sizeof(unsigned long);
+		words_per_bus = (map_bankwidth(map)) / wordwidth; // i.e. normally 1
+	} else {
+		wordwidth = map_bankwidth(map);
+		words_per_bus = 1;
+	}
+
+	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
+	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
+
+	onestat = val.x[0];
+	/* Or all status words together */
+	for (i=1; i < words_per_bus; i++) {
+		onestat |= val.x[i];
+	}
+
+	res = onestat;
+	switch(chips_per_word) {
+	default: BUG();
+#if BITS_PER_LONG >= 64
+	case 8:
+		res |= (onestat >> (chip_mode * 32));
+#endif
+	case 4:
+		res |= (onestat >> (chip_mode * 16));
+	case 2:
+		res |= (onestat >> (chip_mode * 8));
+	case 1:
+		;
+	}
+
+	/* Last, determine what the bit-pattern should be for a single
+	   device, according to chip mode and endianness... */
+	switch (chip_mode) {
+	case 1:
+		break;
+	case 2:
+		res = cfi16_to_cpu(res);
+		break;
+	case 4:
+		res = cfi32_to_cpu(res);
+		break;
+	default: BUG();
+	}
+	return res;
+}
+
+#define MERGESTATUS(x) cfi_merge_status((x), map, cfi)
+
 
 /*
  * Sends a CFI command to a bank of flash for the given geometry.
@@ -347,6 +426,22 @@ static inline uint8_t cfi_read_query(struct map_info *map, uint32_t addr)
 	}
 }
 
+static inline uint16_t cfi_read_query16(struct map_info *map, uint32_t addr)
+{
+	map_word val = map_read(map, addr);
+
+	if (map_bankwidth_is_1(map)) {
+		return val.x[0] & 0xff;
+	} else if (map_bankwidth_is_2(map)) {
+		return cfi16_to_cpu(val.x[0]);
+	} else {
+		/* No point in a 64-bit byteswap since that would just be
+		   swapping the responses from different chips, and we are
+		   only interested in one chip (a representative sample) */
+		return cfi32_to_cpu(val.x[0]);
+	}
+}
+
 static inline void cfi_udelay(int us)
 {
 	if (us >= 1000) {
@@ -355,16 +450,6 @@ static inline void cfi_udelay(int us)
 		udelay(us);
 		cond_resched();
 	}
-}
-
-static inline void cfi_spin_lock(spinlock_t *mutex)
-{
-	spin_lock_bh(mutex);
-}
-
-static inline void cfi_spin_unlock(spinlock_t *mutex)
-{
-	spin_unlock_bh(mutex);
 }
 
 struct cfi_extquery *cfi_read_pri(struct map_info *map, uint16_t adr, uint16_t size,

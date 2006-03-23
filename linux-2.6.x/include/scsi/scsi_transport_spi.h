@@ -22,8 +22,12 @@
 
 #include <linux/config.h>
 #include <linux/transport_class.h>
+#include <linux/mutex.h>
 
 struct scsi_transport_template;
+struct scsi_target;
+struct scsi_device;
+struct Scsi_Host;
 
 struct spi_transport_attrs {
 	int period;		/* value in the PPR/SDTR command */
@@ -39,6 +43,7 @@ struct spi_transport_attrs {
 	unsigned int rd_strm:1;	/* Read streaming enabled */
 	unsigned int rti:1;	/* Retain Training Information */
 	unsigned int pcomp_en:1;/* Precompensation enabled */
+	unsigned int hold_mcs:1;/* Hold Margin Control Settings */
 	unsigned int initial_dv:1; /* DV done to this target yet  */
 	unsigned long flags;	/* flags field for drivers to use */
 	/* Device Properties fields */
@@ -50,7 +55,7 @@ struct spi_transport_attrs {
 	unsigned int support_qas; /* supports quick arbitration and selection */
 	/* Private Fields */
 	unsigned int dv_pending:1; /* Internal flag */
-	struct semaphore dv_sem; /* semaphore to serialise dv */
+	struct mutex dv_mutex; /* semaphore to serialise dv */
 };
 
 enum spi_signal_type {
@@ -78,6 +83,7 @@ struct spi_host_attrs {
 #define spi_rd_strm(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->rd_strm)
 #define spi_rti(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->rti)
 #define spi_pcomp_en(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->pcomp_en)
+#define spi_hold_mcs(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->hold_mcs)
 #define spi_initial_dv(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->initial_dv)
 
 #define spi_support_sync(x)	(((struct spi_transport_attrs *)&(x)->starget_data)->support_sync)
@@ -114,8 +120,11 @@ struct spi_function_template {
 	void	(*set_rti)(struct scsi_target *, int);
 	void	(*get_pcomp_en)(struct scsi_target *);
 	void	(*set_pcomp_en)(struct scsi_target *, int);
+	void	(*get_hold_mcs)(struct scsi_target *);
+	void	(*set_hold_mcs)(struct scsi_target *, int);
 	void	(*get_signalling)(struct Scsi_Host *);
 	void	(*set_signalling)(struct Scsi_Host *, enum spi_signal_type);
+	int	(*deny_binding)(struct scsi_target *);
 	/* The driver sets these to tell the transport class it
 	 * wants the attributes displayed in sysfs.  If the show_ flag
 	 * is not set, the attribute will be private to the transport
@@ -130,6 +139,7 @@ struct spi_function_template {
 	unsigned long	show_rd_strm:1;
 	unsigned long	show_rti:1;
 	unsigned long	show_pcomp_en:1;
+	unsigned long	show_hold_mcs:1;
 };
 
 struct scsi_transport_template *spi_attach_transport(struct spi_function_template *);
@@ -137,5 +147,6 @@ void spi_release_transport(struct scsi_transport_template *);
 void spi_schedule_dv_device(struct scsi_device *);
 void spi_dv_device(struct scsi_device *);
 void spi_display_xfer_agreement(struct scsi_target *);
+int spi_print_msg(const unsigned char *);
 
 #endif /* SCSI_TRANSPORT_SPI_H */

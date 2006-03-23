@@ -14,21 +14,20 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include <linux/hdpu_features.h>
 
 #define SKY_CPUSTATE_VERSION		"1.1"
 
-static int hdpu_cpustate_probe(struct device *ddev);
-static int hdpu_cpustate_remove(struct device *ddev);
+static int hdpu_cpustate_probe(struct platform_device *pdev);
+static int hdpu_cpustate_remove(struct platform_device *pdev);
 
 struct cpustate_t cpustate;
 
@@ -159,11 +158,12 @@ static int cpustate_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
-static struct device_driver hdpu_cpustate_driver = {
-	.name = HDPU_CPUSTATE_NAME,
-	.bus = &platform_bus_type,
+static struct platform_driver hdpu_cpustate_driver = {
 	.probe = hdpu_cpustate_probe,
 	.remove = hdpu_cpustate_remove,
+	.driver = {
+		.name = HDPU_CPUSTATE_NAME,
+	},
 };
 
 /*
@@ -188,26 +188,40 @@ static struct miscdevice cpustate_dev = {
 	&cpustate_fops
 };
 
-static int hdpu_cpustate_probe(struct device *ddev)
+static int hdpu_cpustate_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(ddev);
 	struct resource *res;
+	struct proc_dir_entry *proc_de;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	cpustate.set_addr = (unsigned long *)res->start;
 	cpustate.clr_addr = (unsigned long *)res->end - 1;
 
-	misc_register(&cpustate_dev);
-	create_proc_read_entry("sky_cpustate", 0, 0, cpustate_read_proc, NULL);
+	ret = misc_register(&cpustate_dev);
+	if (ret) {
+		printk(KERN_WARNING "sky_cpustate: Unable to register misc "
+					"device.\n");
+		cpustate.set_addr = NULL;
+		cpustate.clr_addr = NULL;
+		return ret;
+	}
+
+	proc_de = create_proc_read_entry("sky_cpustate", 0, 0,
+					cpustate_read_proc, NULL);
+	if (proc_de == NULL)
+		printk(KERN_WARNING "sky_cpustate: Unable to create proc "
+					"dir entry\n");
 
 	printk(KERN_INFO "Sky CPU State Driver v" SKY_CPUSTATE_VERSION "\n");
 	return 0;
 }
-static int hdpu_cpustate_remove(struct device *ddev)
+
+static int hdpu_cpustate_remove(struct platform_device *pdev)
 {
 
-	cpustate.set_addr = 0;
-	cpustate.clr_addr = 0;
+	cpustate.set_addr = NULL;
+	cpustate.clr_addr = NULL;
 
 	remove_proc_entry("sky_cpustate", NULL);
 	misc_deregister(&cpustate_dev);
@@ -218,13 +232,13 @@ static int hdpu_cpustate_remove(struct device *ddev)
 static int __init cpustate_init(void)
 {
 	int rc;
-	rc = driver_register(&hdpu_cpustate_driver);
+	rc = platform_driver_register(&hdpu_cpustate_driver);
 	return rc;
 }
 
 static void __exit cpustate_exit(void)
 {
-	driver_unregister(&hdpu_cpustate_driver);
+	platform_driver_unregister(&hdpu_cpustate_driver);
 }
 
 module_init(cpustate_init);

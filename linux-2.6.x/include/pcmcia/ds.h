@@ -16,8 +16,13 @@
 #ifndef _LINUX_DS_H
 #define _LINUX_DS_H
 
+#ifdef __KERNEL__
+#include <linux/mod_devicetable.h>
+#endif
+
 #include <pcmcia/bulkmem.h>
 #include <pcmcia/cs_types.h>
+#include <pcmcia/device_id.h>
 
 typedef struct tuple_parse_t {
     tuple_t		tuple;
@@ -47,7 +52,6 @@ typedef struct mtd_info_t {
 } mtd_info_t;
 
 typedef union ds_ioctl_arg_t {
-    servinfo_t		servinfo;
     adjust_t		adjust;
     config_info_t	config;
     tuple_t		tuple;
@@ -63,7 +67,6 @@ typedef union ds_ioctl_arg_t {
     cisdump_t		cisdump;
 } ds_ioctl_arg_t;
 
-#define DS_GET_CARD_SERVICES_INFO	_IOR ('d', 1, servinfo_t)
 #define DS_ADJUST_RESOURCE_INFO		_IOWR('d', 2, adjust_t)
 #define DS_GET_CONFIGURATION_INFO	_IOWR('d', 3, config_info_t)
 #define DS_GET_FIRST_TUPLE		_IOWR('d', 4, tuple_t)
@@ -129,12 +132,15 @@ typedef struct dev_link_t {
 
 struct pcmcia_socket;
 
-extern struct bus_type pcmcia_bus_type;
-
 struct pcmcia_driver {
-	dev_link_t		*(*attach)(void);
-	void			(*detach)(dev_link_t *);
+	int (*probe)		(struct pcmcia_device *dev);
+	void (*remove)		(struct pcmcia_device *dev);
+
+	int (*suspend)		(struct pcmcia_device *dev);
+	int (*resume)		(struct pcmcia_device *dev);
+
 	struct module		*owner;
+	struct pcmcia_device_id	*id_table;
 	struct device_driver	drv;
 };
 
@@ -147,6 +153,8 @@ struct pcmcia_device {
 	   uniquely define a pcmcia_device */
 	struct pcmcia_socket	*socket;
 
+	char			*devname;
+
 	u8			device_no;
 
 	/* the hardware "function" device; certain subdevices can
@@ -158,22 +166,15 @@ struct pcmcia_device {
 	/* deprecated, a cleaned up version will be moved into this
 	   struct soon */
 	dev_link_t		*instance;
-	struct client_t {
-		u_short			client_magic;
-		struct pcmcia_socket	*Socket;
-		u_char			Function;
-		u_int			state;
-		event_t			EventMask;
-		int (*event_handler)	(event_t event, int priority,
-					 event_callback_args_t *);
-		event_callback_args_t 	event_callback_args;
-	}			client;
+	u_int			state;
 
 	/* information about this device */
 	u8			has_manf_id:1;
 	u8			has_card_id:1;
 	u8			has_func_id:1;
-	u8			reserved:5;
+
+	u8			allow_func_id_match:1;
+	u8			reserved:4;
 
 	u8			func_id;
 	u16			manf_id;
@@ -190,8 +191,10 @@ struct pcmcia_device {
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
-#define handle_to_pdev(handle) container_of(handle, struct pcmcia_device, client);
-#define handle_to_dev(handle) ((container_of(handle, struct pcmcia_device, client))->dev)
+#define handle_to_pdev(handle) (handle)
+#define handle_to_dev(handle) (handle->dev)
+
+#define dev_to_instance(dev) (dev->instance)
 
 /* error reporting */
 void cs_error(client_handle_t handle, int func, int ret);

@@ -104,6 +104,7 @@ struct frag_hdr {
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <net/sock.h>
 
 /* sysctls */
@@ -145,7 +146,6 @@ DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
 #define UDP6_INC_STATS(field)		SNMP_INC_STATS(udp_stats_in6, field)
 #define UDP6_INC_STATS_BH(field)	SNMP_INC_STATS_BH(udp_stats_in6, field)
 #define UDP6_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(udp_stats_in6, field)
-extern atomic_t			inet6_sock_nr;
 
 int snmp6_register_dev(struct inet6_dev *idev);
 int snmp6_unregister_dev(struct inet6_dev *idev);
@@ -183,7 +183,6 @@ struct ipv6_txoptions
 	struct ipv6_opt_hdr	*hopopt;
 	struct ipv6_opt_hdr	*dst0opt;
 	struct ipv6_rt_hdr	*srcrt;	/* Routing Header */
-	struct ipv6_opt_hdr	*auth;
 	struct ipv6_opt_hdr	*dst1opt;
 
 	/* Option buffer, as read by IPV6_PKTOPTIONS, starts here. */
@@ -234,6 +233,14 @@ extern int 			ip6_ra_control(struct sock *sk, int sel,
 extern int			ipv6_parse_hopopts(struct sk_buff *skb, int);
 
 extern struct ipv6_txoptions *  ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt);
+extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
+						   int newtype,
+						   struct ipv6_opt_hdr __user *newopt,
+						   int newoptlen);
+struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					  struct ipv6_txoptions *opt);
+
+extern int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb);
 
 extern int ip6_frag_nqueues;
 extern atomic_t ip6_frag_mem;
@@ -249,12 +256,25 @@ typedef int		(*inet_getfrag_t) (const void *data,
 					   char *,
 					   unsigned int, unsigned int);
 
-
-extern int		ipv6_addr_type(const struct in6_addr *addr);
+extern int __ipv6_addr_type(const struct in6_addr *addr);
+static inline int ipv6_addr_type(const struct in6_addr *addr)
+{
+	return __ipv6_addr_type(addr) & 0xffff;
+}
 
 static inline int ipv6_addr_scope(const struct in6_addr *addr)
 {
-	return ipv6_addr_type(addr) & IPV6_ADDR_SCOPE_MASK;
+	return __ipv6_addr_type(addr) & IPV6_ADDR_SCOPE_MASK;
+}
+
+static inline int __ipv6_addr_src_scope(int type)
+{
+	return (type == IPV6_ADDR_ANY ? __IPV6_ADDR_SCOPE_INVALID : (type >> 16));
+}
+
+static inline int ipv6_addr_src_scope(const struct in6_addr *addr)
+{
+	return __ipv6_addr_src_scope(__ipv6_addr_type(addr));
 }
 
 static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
@@ -338,6 +358,54 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 }
 
 /*
+ * find the first different bit between two addresses
+ * length of address must be a multiple of 32bits
+ */
+static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+{
+	const __u32 *a1 = token1, *a2 = token2;
+	int i;
+
+	addrlen >>= 2;
+
+	for (i = 0; i < addrlen; i++) {
+		__u32 xb = a1[i] ^ a2[i];
+		if (xb) {
+			int j = 31;
+
+			xb = ntohl(xb);
+			while ((xb & (1 << j)) == 0)
+				j--;
+
+			return (i * 32 + 31 - j);
+		}
+	}
+
+	/*
+	 *	we should *never* get to this point since that 
+	 *	would mean the addrs are equal
+	 *
+	 *	However, we do get to it 8) And exacly, when
+	 *	addresses are equal 8)
+	 *
+	 *	ip route add 1111::/128 via ...
+	 *	ip route add 1111::/64 via ...
+	 *	and we are here.
+	 *
+	 *	Ideally, this function should stop comparison
+	 *	at prefix length. It does not, but it is still OK,
+	 *	if returned value is greater than prefix length.
+	 *					--ANK (980803)
+	 */
+	return (addrlen << 5);
+}
+
+static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
+}
+
+/*
  *	Prototypes exported by ipv6
  */
 
@@ -347,7 +415,10 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 
 extern int			ipv6_rcv(struct sk_buff *skb, 
 					 struct net_device *dev, 
-					 struct packet_type *pt);
+					 struct packet_type *pt,
+					 struct net_device *orig_dev);
+
+extern int			ip6_rcv_finish(struct sk_buff *skb);
 
 /*
  *	upper-layer output functions
@@ -373,6 +444,7 @@ extern int			ip6_append_data(struct sock *sk,
 						int length,
 						int transhdrlen,
 		      				int hlimit,
+		      				int tclass,
 						struct ipv6_txoptions *opt,
 						struct flowi *fl,
 						struct rt6_info *rt,
@@ -457,6 +529,9 @@ extern int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 extern int inet6_ioctl(struct socket *sock, unsigned int cmd, 
 		       unsigned long arg);
 
+extern int inet6_hash_connect(struct inet_timewait_death_row *death_row,
+			      struct sock *sk);
+
 /*
  * reassembly.c
  */
@@ -465,8 +540,41 @@ extern int sysctl_ip6frag_low_thresh;
 extern int sysctl_ip6frag_time;
 extern int sysctl_ip6frag_secret_interval;
 
+extern const struct proto_ops inet6_stream_ops;
+extern const struct proto_ops inet6_dgram_ops;
+
+struct group_source_req;
+struct group_filter;
+
+extern int ip6_mc_source(int add, int omode, struct sock *sk,
+			 struct group_source_req *pgsr);
+extern int ip6_mc_msfilter(struct sock *sk, struct group_filter *gsf);
+extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
+			 struct group_filter __user *optval,
+			 int __user *optlen);
+
+#ifdef CONFIG_PROC_FS
+extern int  ac6_proc_init(void);
+extern void ac6_proc_exit(void);
+extern int  raw6_proc_init(void);
+extern void raw6_proc_exit(void);
+extern int  tcp6_proc_init(void);
+extern void tcp6_proc_exit(void);
+extern int  udp6_proc_init(void);
+extern void udp6_proc_exit(void);
+extern int  ipv6_misc_proc_init(void);
+extern void ipv6_misc_proc_exit(void);
+
+extern struct rt6_statistics rt6_stats;
+#endif
+
+#ifdef CONFIG_SYSCTL
+extern ctl_table ipv6_route_table[];
+extern ctl_table ipv6_icmp_table[];
+
+extern void ipv6_sysctl_register(void);
+extern void ipv6_sysctl_unregister(void);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _NET_IPV6_H */
-
-
-

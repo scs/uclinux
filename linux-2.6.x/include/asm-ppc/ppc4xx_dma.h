@@ -33,9 +33,6 @@
 
 #define MAX_PPC4xx_DMA_CHANNELS		4
 
-/* in arch/ppc/kernel/setup.c -- Cort */
-extern unsigned long DMA_MODE_WRITE, DMA_MODE_READ;
-
 /*
  * Function return status codes
  * These values are used to indicate whether or not the function
@@ -285,7 +282,7 @@ typedef uint32_t sgl_handle_t;
 
 #define GET_DMA_POLARITY(chan) (DMAReq_ActiveLow(chan) | DMAAck_ActiveLow(chan) | EOT_ActiveLow(chan))
 
-#elif defined(CONFIG_STBXXX_DMA)		/* stb03xxx */
+#elif defined(CONFIG_STB03xxx)		/* stb03xxx */
 
 #define DMA_PPC4xx_SIZE	4096
 

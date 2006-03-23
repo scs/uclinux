@@ -1,8 +1,8 @@
 
-/* 
+/*
  * struct flchip definition
- * 
- * Contains information about the location and state of a given flash device 
+ *
+ * Contains information about the location and state of a given flash device
  *
  * (C) 2000 Red Hat. GPLd.
  *
@@ -15,11 +15,11 @@
 
 /* For spinlocks. sched.h includes spinlock.h from whichever directory it
  * happens to be in - so we don't have to care whether we're on 2.2, which
- * has asm/spinlock.h, or 2.4, which has linux/spinlock.h 
+ * has asm/spinlock.h, or 2.4, which has linux/spinlock.h
  */
 #include <linux/sched.h>
 
-typedef enum { 
+typedef enum {
 	FL_READY,
 	FL_STATUS,
 	FL_CFI_QUERY,
@@ -29,6 +29,7 @@ typedef enum {
 	FL_ERASE_SUSPENDED,
 	FL_WRITING,
 	FL_WRITING_TO_BUFFER,
+	FL_OTP_WRITE,
 	FL_WRITE_SUSPENDING,
 	FL_WRITE_SUSPENDED,
 	FL_PM_SUSPENDED,
@@ -44,7 +45,7 @@ typedef enum {
 
 
 
-/* NOTE: confusingly, this can be used to refer to more than one chip at a time, 
+/* NOTE: confusingly, this can be used to refer to more than one chip at a time,
    if they're interleaved.  This can even refer to individual partitions on
    the same physical chip when present. */
 
@@ -62,8 +63,8 @@ struct flchip {
 	flstate_t state;
 	flstate_t oldstate;
 
-	int write_suspended:1;
-	int erase_suspended:1;
+	unsigned int write_suspended:1;
+	unsigned int erase_suspended:1;
 	unsigned long in_progress_block_addr;
 
 	spinlock_t *mutex;

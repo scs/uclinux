@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DQUOT_H__
 #define __XFS_DQUOT_H__
@@ -113,27 +99,6 @@ typedef struct xfs_dquot {
 
 #define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
 
-/*
- * Quota Accounting flags
- */
-#define XFS_ALL_QUOTA_ACCT	(XFS_UQUOTA_ACCT | XFS_GQUOTA_ACCT)
-#define XFS_ALL_QUOTA_ENFD	(XFS_UQUOTA_ENFD | XFS_GQUOTA_ENFD)
-#define XFS_ALL_QUOTA_CHKD	(XFS_UQUOTA_CHKD | XFS_GQUOTA_CHKD)
-#define XFS_ALL_QUOTA_ACTV	(XFS_UQUOTA_ACTIVE | XFS_GQUOTA_ACTIVE)
-#define XFS_ALL_QUOTA_ACCT_ENFD (XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD|\
-				 XFS_GQUOTA_ACCT|XFS_GQUOTA_ENFD)
-
-#define XFS_IS_QUOTA_RUNNING(mp)  ((mp)->m_qflags & XFS_ALL_QUOTA_ACCT)
-#define XFS_IS_UQUOTA_RUNNING(mp) ((mp)->m_qflags & XFS_UQUOTA_ACCT)
-#define XFS_IS_GQUOTA_RUNNING(mp) ((mp)->m_qflags & XFS_GQUOTA_ACCT)
-
-/*
- * Quota Limit Enforcement flags
- */
-#define XFS_IS_QUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_ALL_QUOTA_ENFD)
-#define XFS_IS_UQUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_UQUOTA_ENFD)
-#define XFS_IS_GQUOTA_ENFORCED(mp)	((mp)->m_qflags & XFS_GQUOTA_ENFD)
-
 #ifdef DEBUG
 static inline int
 XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
@@ -167,6 +132,8 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 #define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
+#define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)
+#define XFS_QM_ISGDQ(dqp)	((dqp)->dq_flags & XFS_DQ_GROUP)
 #define XFS_DQ_TO_QINF(dqp)	((dqp)->q_mount->m_quotainfo)
 #define XFS_DQ_TO_QIP(dqp)	(XFS_QM_ISUDQ(dqp) ? \
 				 XFS_DQ_TO_QINF(dqp)->qi_uquotaip : \
@@ -174,7 +141,7 @@ XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
 
 #define XFS_IS_THIS_QUOTA_OFF(d) (! (XFS_QM_ISUDQ(d) ? \
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
-				     (XFS_IS_GQUOTA_ON((d)->q_mount))))
+				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
 
 #ifdef XFS_DQUOT_TRACE
 /*
@@ -211,7 +178,6 @@ extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);
 extern void		xfs_qm_adjust_dqlimits(xfs_mount_t *,
 					xfs_disk_dquot_t *);
-extern int		xfs_qm_dqwarn(xfs_disk_dquot_t *, uint);
 extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 					xfs_dqid_t, uint, uint, xfs_dquot_t **);
 extern void		xfs_qm_dqput(xfs_dquot_t *);

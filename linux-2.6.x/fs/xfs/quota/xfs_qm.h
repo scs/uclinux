@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_QM_H__
 #define __XFS_QM_H__
@@ -40,6 +26,7 @@
 struct xfs_qm;
 struct xfs_inode;
 
+extern uint		ndquot;
 extern mutex_t		xfs_Gqm_lock;
 extern struct xfs_qm	*xfs_Gqm;
 extern kmem_zone_t	*qm_dqzone;
@@ -65,9 +52,8 @@ extern kmem_zone_t	*qm_dqtrxzone;
 /*
  * Dquot hashtable constants/threshold values.
  */
-#define XFS_QM_NCSIZE_THRESHOLD		5000
-#define XFS_QM_HASHSIZE_LOW		32
-#define XFS_QM_HASHSIZE_HIGH		64
+#define XFS_QM_HASHSIZE_LOW		(NBPP / sizeof(xfs_dqhash_t))
+#define XFS_QM_HASHSIZE_HIGH		((NBPP * 4) / sizeof(xfs_dqhash_t))
 
 /*
  * We output a cmn_err when quotachecking a quota file with more than
@@ -133,8 +119,9 @@ typedef struct xfs_quotainfo {
 	time_t		 qi_btimelimit;	 /* limit for blks timer */
 	time_t		 qi_itimelimit;	 /* limit for inodes timer */
 	time_t		 qi_rtbtimelimit;/* limit for rt blks timer */
-	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for num warnings */
-	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for num warnings */
+	xfs_qwarncnt_t	 qi_bwarnlimit;	 /* limit for blks warnings */
+	xfs_qwarncnt_t	 qi_iwarnlimit;	 /* limit for inodes warnings */
+	xfs_qwarncnt_t	 qi_rtbwarnlimit;/* limit for rt blks warnings */
 	mutex_t		 qi_quotaofflock;/* to serialize quotaoff */
 	xfs_filblks_t	 qi_dqchunklen;	 /* # BBs in a chunk of dqs */
 	uint		 qi_dqperchunk;	 /* # ondisk dqs in above chunk */
@@ -176,15 +163,13 @@ typedef struct xfs_dquot_acct {
 
 #define XFS_QM_BWARNLIMIT	5
 #define XFS_QM_IWARNLIMIT	5
+#define XFS_QM_RTBWARNLIMIT	5
 
-#define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock, PINOD))
+#define XFS_QM_LOCK(xqm)	(mutex_lock(&xqm##_lock))
 #define XFS_QM_UNLOCK(xqm)	(mutex_unlock(&xqm##_lock))
 #define XFS_QM_HOLD(xqm)	((xqm)->qm_nrefs++)
 #define XFS_QM_RELE(xqm)	((xqm)->qm_nrefs--)
 
-extern void		xfs_mount_reset_sbqflags(xfs_mount_t *);
-
-extern int		xfs_qm_init_quotainfo(xfs_mount_t *);
 extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
 extern int		xfs_qm_mount_quotas(xfs_mount_t *, int);
 extern void		xfs_qm_mount_quotainit(xfs_mount_t *, uint);
@@ -203,7 +188,7 @@ extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 
 /* vop stuff */
 extern int		xfs_qm_vop_dqalloc(xfs_mount_t *, xfs_inode_t *,
-					uid_t, gid_t, uint,
+					uid_t, gid_t, prid_t, uint,
 					xfs_dquot_t **, xfs_dquot_t **);
 extern void		xfs_qm_vop_dqattach_and_dqmod_newinode(
 					xfs_trans_t *, xfs_inode_t *,
@@ -215,14 +200,9 @@ extern int		xfs_qm_vop_chown_reserve(xfs_trans_t *, xfs_inode_t *,
 					xfs_dquot_t *, xfs_dquot_t *, uint);
 
 /* list stuff */
-extern void		xfs_qm_freelist_init(xfs_frlist_t *);
-extern void		xfs_qm_freelist_destroy(xfs_frlist_t *);
-extern void		xfs_qm_freelist_insert(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_append(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
 extern int		xfs_qm_freelist_lock_nowait(xfs_qm_t *);
-extern int		xfs_qm_mplist_nowait(xfs_mount_t *);
-extern int		xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
 
 /* system call interface */
 extern int		xfs_qm_quotactl(bhv_desc_t *, int, int, xfs_caddr_t);

@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
- * Parts of INFTL headers shared with userspace 
+ * Parts of INFTL headers shared with userspace
  *
  */
 

@@ -1,33 +1,11 @@
 /*
  *  linux/drivers/message/fusion/mptlan.c
  *      IP Over Fibre Channel device driver.
- *      For use with PCI chip/adapter(s):
- *          LSIFC9xx/LSI409xx Fibre Channel
+ *      For use with LSI Logic Fibre Channel PCI chip/adapters
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *      This driver would not exist if not for Alan Cox's development
- *      of the linux i2o driver.
+ *  Copyright (c) 2000-2005 LSI Logic Corporation
  *
- *      Special thanks goes to the I2O LAN driver people at the
- *      University of Helsinki, who, unbeknownst to them, provided
- *      the inspiration and initial structure for this driver.
- *
- *      A huge debt of gratitude is owed to David S. Miller (DaveM)
- *      for fixing much of the stupid and broken stuff in the early
- *      driver while porting to sparc64 platform.  THANK YOU!
- *
- *      A really huge debt of gratitude is owed to Eddie C. Dost
- *      for gobs of hard work fixing and optimizing LAN code.
- *      THANK YOU!
- *
- *      (see also mptbase.c)
- *
- *  Copyright (c) 2000-2004 LSI Logic Corporation
- *  Originally By: Noah Romer
- *  (mailto:mpt_linux_developer@lsil.com)
- *
- *  $Id$
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -221,7 +199,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 		// NOTE!  (Optimization) First case here is now caught in
 		//  mptbase.c::mpt_interrupt() routine and callcack here
-		//  is now skipped for this case!  20001218 -sralston
+		//  is now skipped for this case!
 #if 0
 		case LAN_REPLY_FORM_MESSAGE_CONTEXT:
 //			dioprintk((KERN_INFO MYNAM "/lan_reply: "
@@ -234,7 +212,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 //			dioprintk((MYNAM "/lan_reply: "
 //				  "calling mpt_lan_send_reply (turbo)\n"));
 
-			// Potential BUG here?  -sralston
+			// Potential BUG here?
 			//	FreeReqFrame = mpt_lan_send_turbo(dev, tmsg);
 			//  If/when mpt_lan_send_turbo would return 1 here,
 			//  calling routine (mptbase.c|mpt_interrupt)
@@ -310,8 +288,7 @@ lan_reply (MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *reply)
 
 	case MPI_FUNCTION_EVENT_NOTIFICATION:
 	case MPI_FUNCTION_EVENT_ACK:
-		/* UPDATE!  20010120 -sralston
-		 *  _EVENT_NOTIFICATION should NOT come down this path any more.
+		/*  _EVENT_NOTIFICATION should NOT come down this path any more.
 		 *  Should be routed to mpt_lan_event_process(), but just in case...
 		 */
 		FreeReqFrame = 1;
@@ -335,7 +312,12 @@ static int
 mpt_lan_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
 	struct net_device *dev = ioc->netdev;
-	struct mpt_lan_priv *priv = netdev_priv(dev);
+	struct mpt_lan_priv *priv;
+
+	if (dev == NULL)
+		return(1);
+	else
+		priv = netdev_priv(dev);
 
 	dlprintk((KERN_INFO MYNAM ": IOC %s_reset routed to LAN driver!\n",
 			reset_phase==MPT_IOC_SETUP_RESET ? "setup" : (
@@ -429,14 +411,12 @@ mpt_lan_open(struct net_device *dev)
 		goto out;
 	priv->mpt_txfidx_tail = -1;
 
-	priv->SendCtl = kmalloc(priv->tx_max_out * sizeof(struct BufferControl),
+	priv->SendCtl = kcalloc(priv->tx_max_out, sizeof(struct BufferControl),
 				GFP_KERNEL);
 	if (priv->SendCtl == NULL)
 		goto out_mpt_txfidx;
-	for (i = 0; i < priv->tx_max_out; i++) {
-		memset(&priv->SendCtl[i], 0, sizeof(struct BufferControl));
+	for (i = 0; i < priv->tx_max_out; i++)
 		priv->mpt_txfidx[++priv->mpt_txfidx_tail] = i;
-	}
 
 	dlprintk((KERN_INFO MYNAM "@lo: Finished initializing SendCtl\n"));
 
@@ -446,15 +426,13 @@ mpt_lan_open(struct net_device *dev)
 		goto out_SendCtl;
 	priv->mpt_rxfidx_tail = -1;
 
-	priv->RcvCtl = kmalloc(priv->max_buckets_out *
-						sizeof(struct BufferControl),
+	priv->RcvCtl = kcalloc(priv->max_buckets_out,
+			       sizeof(struct BufferControl),
 			       GFP_KERNEL);
 	if (priv->RcvCtl == NULL)
 		goto out_mpt_rxfidx;
-	for (i = 0; i < priv->max_buckets_out; i++) {
-		memset(&priv->RcvCtl[i], 0, sizeof(struct BufferControl));
+	for (i = 0; i < priv->max_buckets_out; i++)
 		priv->mpt_rxfidx[++priv->mpt_rxfidx_tail] = i;
-	}
 
 /**/	dlprintk((KERN_INFO MYNAM "/lo: txfidx contains - "));
 /**/	for (i = 0; i < priv->tx_max_out; i++)
@@ -529,7 +507,7 @@ mpt_lan_close(struct net_device *dev)
 {
 	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
-	unsigned int timeout;
+	unsigned long timeout;
 	int i;
 
 	dlprintk((KERN_INFO MYNAM ": mpt_lan_close called\n"));
@@ -544,11 +522,9 @@ mpt_lan_close(struct net_device *dev)
 
 	mpt_lan_reset(dev);
 
-	timeout = 2 * HZ;
-	while (atomic_read(&priv->buckets_out) && --timeout) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	timeout = jiffies + 2 * HZ;
+	while (atomic_read(&priv->buckets_out) && time_before(jiffies, timeout))
+		schedule_timeout_interruptible(1);
 
 	for (i = 0; i < priv->max_buckets_out; i++) {
 		if (priv->RcvCtl[i].skb != NULL) {
@@ -561,8 +537,8 @@ mpt_lan_close(struct net_device *dev)
 		}
 	}
 
-	kfree (priv->RcvCtl);
-	kfree (priv->mpt_rxfidx);
+	kfree(priv->RcvCtl);
+	kfree(priv->mpt_rxfidx);
 
 	for (i = 0; i < priv->tx_max_out; i++) {
 		if (priv->SendCtl[i].skb != NULL) {
@@ -868,7 +844,7 @@ mpt_lan_sdu_send (struct sk_buff *skb, struct net_device *dev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline void
+static void
 mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 /*
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
@@ -890,7 +866,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static inline int
+static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
 	struct mpt_lan_priv *priv = dev->priv;

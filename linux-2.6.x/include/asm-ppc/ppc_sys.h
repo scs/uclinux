@@ -3,7 +3,7 @@
  *
  * PPC system definitions and library functions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor, Inc
  *
@@ -18,15 +18,21 @@
 #define __ASM_PPC_SYS_H
 
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 
-#if defined(CONFIG_83xx)
+#if defined(CONFIG_8260)
+#include <asm/mpc8260.h>
+#elif defined(CONFIG_83xx)
 #include <asm/mpc83xx.h>
 #elif defined(CONFIG_85xx)
 #include <asm/mpc85xx.h>
+#elif defined(CONFIG_8xx)
+#include <asm/mpc8xx.h>
 #elif defined(CONFIG_PPC_MPC52xx)
 #include <asm/mpc52xx.h>
+#elif defined(CONFIG_MPC10X_BRIDGE)
+#include <asm/mpc10x.h>
 #else
 #error "need definition of ppc_sys_devices"
 #endif
@@ -48,6 +54,7 @@ extern struct ppc_sys_spec *cur_ppc_sys_spec;
 /* determine which specific SOC we are */
 extern void identify_ppc_sys_by_id(u32 id) __init;
 extern void identify_ppc_sys_by_name(char *name) __init;
+extern void identify_ppc_sys_by_name_and_id(char *name, u32 id) __init;
 
 /* describes all devices that may exist in a given family of processors */
 extern struct platform_device ppc_sys_platform_devices[];

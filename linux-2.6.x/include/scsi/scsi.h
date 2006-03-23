@@ -28,8 +28,14 @@ extern const unsigned char scsi_command_size[8];
  *	SCSI device types
  */
 
-#define MAX_SCSI_DEVICE_CODE 14
+#define MAX_SCSI_DEVICE_CODE 15
 extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
+
+/*
+ * Special value for scanning to specify scanning or rescanning of all
+ * possible channels, (target) ids, or luns on a given shost.
+ */
+#define SCAN_WILD_CARD	~0
 
 /*
  *      SCSI opcodes
@@ -41,6 +47,7 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 #define FORMAT_UNIT           0x04
 #define READ_BLOCK_LIMITS     0x05
 #define REASSIGN_BLOCKS       0x07
+#define INITIALIZE_ELEMENT_STATUS 0x07
 #define READ_6                0x08
 #define WRITE_6               0x0a
 #define SEEK_6                0x0b
@@ -65,6 +72,7 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 #define READ_10               0x28
 #define WRITE_10              0x2a
 #define SEEK_10               0x2b
+#define POSITION_TO_ELEMENT   0x2b
 #define WRITE_VERIFY          0x2e
 #define VERIFY                0x2f
 #define SEARCH_HIGH           0x30
@@ -97,6 +105,7 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 #define PERSISTENT_RESERVE_OUT 0x5f
 #define REPORT_LUNS           0xa0
 #define MOVE_MEDIUM           0xa5
+#define EXCHANGE_MEDIUM       0xa6
 #define READ_12               0xa8
 #define WRITE_12              0xaa
 #define WRITE_VERIFY_12       0xae
@@ -113,6 +122,9 @@ extern const char *const scsi_device_types[MAX_SCSI_DEVICE_CODE];
 /* values for service action in */
 #define	SAI_READ_CAPACITY_16  0x10
 
+/* Values for T10/04-262r7 */
+#define	ATA_16		      0x85	/* 16-byte pass-thru */
+#define	ATA_12		      0xa1	/* 12-byte pass-thru */
 
 /*
  *  SCSI Architecture Model (SAM) Status codes. Taken from SAM-3 draft
@@ -208,8 +220,9 @@ static inline int scsi_status_is_good(int status)
 				     * - treated as TYPE_DISK */
 #define TYPE_MEDIUM_CHANGER 0x08
 #define TYPE_COMM           0x09    /* Communications device */
-#define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RAID           0x0c
+#define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
+#define TYPE_RBC	    0x0e
 #define TYPE_NO_LUN         0x7f
 
 /*
@@ -419,5 +432,7 @@ struct scsi_lun {
 
 /* Used to obtain the PCI location of a device */
 #define SCSI_IOCTL_GET_PCI		0x5387
+
+int scsi_execute_in_process_context(void (*fn)(void *data), void *data);
 
 #endif /* _SCSI_SCSI_H */

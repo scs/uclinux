@@ -1,7 +1,7 @@
 /*
  * $Id$
  *
- * Portions of MTD ABI definition which are shared by kernel and user space 
+ * Portions of MTD ABI definition which are shared by kernel and user space
  */
 
 #ifndef __MTD_ABI_H__
@@ -29,6 +29,7 @@ struct mtd_oob_buf {
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
 #define MTD_PEROM		5
+#define MTD_DATAFLASH		6
 #define MTD_OTHER		14
 #define MTD_UNKNOWN		15
 
@@ -41,6 +42,7 @@ struct mtd_oob_buf {
 #define MTD_OOB			64	// Out-of-band data (NAND flash)
 #define MTD_ECC			128	// Device capable of automatic ECC
 #define MTD_NO_VIRTBLOCKS	256	// Virtual blocks not allowed
+#define MTD_PROGRAM_REGIONS	512	// Configurable Programming Regions
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
@@ -60,6 +62,12 @@ struct mtd_oob_buf {
 #define MTD_NANDECC_PLACE	1	// Use the given placement in the structure (YAFFS1 legacy mode)
 #define MTD_NANDECC_AUTOPLACE	2	// Use the default placement scheme
 #define MTD_NANDECC_PLACEONLY	3	// Use the given placement in the structure (Do not store ecc result on read)
+#define MTD_NANDECC_AUTOPL_USR 	4	// Use the given autoplacement scheme rather than using the default
+
+/* OTP mode selection */
+#define MTD_OTP_OFF		0
+#define MTD_OTP_FACTORY		1
+#define MTD_OTP_USER		2
 
 struct mtd_info_user {
 	uint8_t type;
@@ -73,11 +81,17 @@ struct mtd_info_user {
 };
 
 struct region_info_user {
-	uint32_t offset;		/* At which this region starts, 
+	uint32_t offset;		/* At which this region starts,
 					 * from the beginning of the MTD */
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks in this region */
 	uint32_t regionindex;
+};
+
+struct otp_info {
+	uint32_t start;
+	uint32_t length;
+	uint32_t locked;
 };
 
 #define MEMGETINFO              _IOR('M', 1, struct mtd_info_user)
@@ -92,6 +106,10 @@ struct region_info_user {
 #define MEMGETOOBSEL		_IOR('M', 10, struct nand_oobinfo)
 #define MEMGETBADBLOCK		_IOW('M', 11, loff_t)
 #define MEMSETBADBLOCK		_IOW('M', 12, loff_t)
+#define OTPSELECT		_IOR('M', 13, int)
+#define OTPGETREGIONCOUNT	_IOW('M', 14, int)
+#define OTPGETREGIONINFO	_IOW('M', 15, struct otp_info)
+#define OTPLOCK		_IOR('M', 16, struct otp_info)
 
 struct nand_oobinfo {
 	uint32_t useecc;

@@ -1,40 +1,27 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
+#include "xfs_imap.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_sb.h"
@@ -43,24 +30,22 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_imap.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
 #include "xfs_buf_item.h"
+#include "xfs_inode_item.h"
+#include "xfs_btree.h"
+#include "xfs_alloc.h"
+#include "xfs_ialloc.h"
+#include "xfs_bmap.h"
 #include "xfs_rw.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
 #include "xfs_utils.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
@@ -146,51 +131,6 @@ xfs_inobp_check(
 #endif
 
 /*
- * called from bwrite on xfs inode buffers
- */
-void
-xfs_inobp_bwcheck(xfs_buf_t *bp)
-{
-	xfs_mount_t	*mp;
-	int		i;
-	int		j;
-	xfs_dinode_t	*dip;
-
-	ASSERT(XFS_BUF_FSPRIVATE3(bp, void *) != NULL);
-
-	mp = XFS_BUF_FSPRIVATE3(bp, xfs_mount_t *);
-
-
-	j = mp->m_inode_cluster_size >> mp->m_sb.sb_inodelog;
-
-	for (i = 0; i < j; i++)  {
-		dip = (xfs_dinode_t *) xfs_buf_offset(bp,
-						i * mp->m_sb.sb_inodesize);
-		if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC) {
-			cmn_err(CE_WARN,
-"Bad magic # 0x%x in XFS inode buffer 0x%Lx, starting blockno %Ld, offset 0x%x",
-				INT_GET(dip->di_core.di_magic, ARCH_CONVERT),
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-		if (!dip->di_next_unlinked)  {
-			cmn_err(CE_WARN,
-"Bad next_unlinked field (0) in XFS inode buffer 0x%p, starting blockno %Ld, offset 0x%x",
-				(__uint64_t)(__psunsigned_t) bp,
-				(__int64_t) XFS_BUF_ADDR(bp),
-				xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize));
-			xfs_fs_cmn_err(CE_WARN, mp,
-				"corrupt, unmount and run xfs_repair");
-		}
-	}
-
-	return;
-}
-
-/*
  * This routine is called to map an inode number within a file
  * system to the buffer containing the on-disk version of the
  * inode.  It returns a pointer to the buffer containing the
@@ -203,7 +143,7 @@ xfs_inobp_bwcheck(xfs_buf_t *bp)
  * Use xfs_imap() to determine the size and location of the
  * buffer to read from disk.
  */
-int
+STATIC int
 xfs_inotobp(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
@@ -239,9 +179,10 @@ xfs_inotobp(
 	if ((imap.im_blkno + imap.im_len) >
 	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
 		cmn_err(CE_WARN,
-	"xfs_inotobp: inode number (%d + %d) maps to a block outside the bounds "
+	"xfs_inotobp: inode number (%llu + %d) maps to a block outside the bounds "
 	"of the file system %s.  Returning EINVAL.",
-			imap.im_blkno, imap.im_len,mp->m_fsname);
+			(unsigned long long)imap.im_blkno,
+			imap.im_len, mp->m_fsname);
 		return XFS_ERROR(EINVAL);
 	}
 
@@ -463,9 +404,8 @@ xfs_iformat(
 	    INT_GET(dip->di_core.di_nextents, ARCH_CONVERT) +
 		INT_GET(dip->di_core.di_anextents, ARCH_CONVERT) >
 	    INT_GET(dip->di_core.di_nblocks, ARCH_CONVERT))) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-			"corrupt dinode %Lu, extent total = %d, nblocks = %Lu."
-			"  Unmount and run xfs_repair.",
+		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+			"corrupt dinode %Lu, extent total = %d, nblocks = %Lu.",
 			(unsigned long long)ip->i_ino,
 			(int)(INT_GET(dip->di_core.di_nextents, ARCH_CONVERT)
 			    + INT_GET(dip->di_core.di_anextents, ARCH_CONVERT)),
@@ -477,9 +417,8 @@ xfs_iformat(
 	}
 
 	if (unlikely(INT_GET(dip->di_core.di_forkoff, ARCH_CONVERT) > ip->i_mount->m_sb.sb_inodesize)) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-			"corrupt dinode %Lu, forkoff = 0x%x."
-			"  Unmount and run xfs_repair.",
+		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+			"corrupt dinode %Lu, forkoff = 0x%x.",
 			(unsigned long long)ip->i_ino,
 			(int)(INT_GET(dip->di_core.di_forkoff, ARCH_CONVERT)));
 		XFS_CORRUPTION_ERROR("xfs_iformat(2)", XFS_ERRLEVEL_LOW,
@@ -510,8 +449,9 @@ xfs_iformat(
 			 * no local regular files yet
 			 */
 			if (unlikely((INT_GET(dip->di_core.di_mode, ARCH_CONVERT) & S_IFMT) == S_IFREG)) {
-				xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-					"corrupt inode (local format for regular file) %Lu.  Unmount and run xfs_repair.",
+				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+					"corrupt inode %Lu "
+					"(local format for regular file).",
 					(unsigned long long) ip->i_ino);
 				XFS_CORRUPTION_ERROR("xfs_iformat(4)",
 						     XFS_ERRLEVEL_LOW,
@@ -521,8 +461,9 @@ xfs_iformat(
 
 			di_size = INT_GET(dip->di_core.di_size, ARCH_CONVERT);
 			if (unlikely(di_size > XFS_DFORK_DSIZE(dip, ip->i_mount))) {
-				xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-					"corrupt inode %Lu (bad size %Ld for local inode).  Unmount and run xfs_repair.",
+				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+					"corrupt inode %Lu "
+					"(bad size %Ld for local inode).",
 					(unsigned long long) ip->i_ino,
 					(long long) di_size);
 				XFS_CORRUPTION_ERROR("xfs_iformat(5)",
@@ -610,8 +551,9 @@ xfs_iformat_local(
 	 * kmem_alloc() or memcpy() below.
 	 */
 	if (unlikely(size > XFS_DFORK_SIZE(dip, ip->i_mount, whichfork))) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-			"corrupt inode %Lu (bad size %d for local fork, size = %d).  Unmount and run xfs_repair.",
+		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+			"corrupt inode %Lu "
+			"(bad size %d for local fork, size = %d).",
 			(unsigned long long) ip->i_ino, size,
 			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork));
 		XFS_CORRUPTION_ERROR("xfs_iformat_local", XFS_ERRLEVEL_LOW,
@@ -669,8 +611,8 @@ xfs_iformat_extents(
 	 * kmem_alloc() or memcpy() below.
 	 */
 	if (unlikely(size < 0 || size > XFS_DFORK_SIZE(dip, ip->i_mount, whichfork))) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-			"corrupt inode %Lu ((a)extents = %d).  Unmount and run xfs_repair.",
+		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+			"corrupt inode %Lu ((a)extents = %d).",
 			(unsigned long long) ip->i_ino, nex);
 		XFS_CORRUPTION_ERROR("xfs_iformat_extents(1)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
@@ -751,8 +693,8 @@ xfs_iformat_btree(
 	    || XFS_BMDR_SPACE_CALC(nrecs) >
 			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork)
 	    || XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
-		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
-			"corrupt inode %Lu (btree).  Unmount and run xfs_repair.",
+		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+			"corrupt inode %Lu (btree).",
 			(unsigned long long) ip->i_ino);
 		XFS_ERROR_REPORT("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
 				 ip->i_mount);
@@ -868,6 +810,10 @@ _xfs_dic2xflags(
 			flags |= XFS_XFLAG_PROJINHERIT;
 		if (di_flags & XFS_DIFLAG_NOSYMLINKS)
 			flags |= XFS_XFLAG_NOSYMLINKS;
+		if (di_flags & XFS_DIFLAG_EXTSIZE)
+			flags |= XFS_XFLAG_EXTSIZE;
+		if (di_flags & XFS_DIFLAG_EXTSZINHERIT)
+			flags |= XFS_XFLAG_EXTSZINHERIT;
 	}
 
 	return flags;
@@ -1173,7 +1119,6 @@ xfs_ialloc(
 	ASSERT(ip != NULL);
 
 	vp = XFS_ITOV(ip);
-	vp->v_type = IFTOVT(mode);
 	ip->i_d.di_mode = (__uint16_t)mode;
 	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
@@ -1247,26 +1192,40 @@ xfs_ialloc(
 	case S_IFREG:
 	case S_IFDIR:
 		if (unlikely(pip->i_d.di_flags & XFS_DIFLAG_ANY)) {
-			if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
-				if ((mode & S_IFMT) == S_IFDIR) {
-					ip->i_d.di_flags |= XFS_DIFLAG_RTINHERIT;
-				} else {
-					ip->i_d.di_flags |= XFS_DIFLAG_REALTIME;
+			uint	di_flags = 0;
+
+			if ((mode & S_IFMT) == S_IFDIR) {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT)
+					di_flags |= XFS_DIFLAG_RTINHERIT;
+				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
+					ip->i_d.di_extsize = pip->i_d.di_extsize;
+				}
+			} else if ((mode & S_IFMT) == S_IFREG) {
+				if (pip->i_d.di_flags & XFS_DIFLAG_RTINHERIT) {
+					di_flags |= XFS_DIFLAG_REALTIME;
 					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
+				}
+				if (pip->i_d.di_flags & XFS_DIFLAG_EXTSZINHERIT) {
+					di_flags |= XFS_DIFLAG_EXTSIZE;
+					ip->i_d.di_extsize = pip->i_d.di_extsize;
 				}
 			}
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOATIME) &&
 			    xfs_inherit_noatime)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOATIME;
+				di_flags |= XFS_DIFLAG_NOATIME;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NODUMP) &&
 			    xfs_inherit_nodump)
-				ip->i_d.di_flags |= XFS_DIFLAG_NODUMP;
+				di_flags |= XFS_DIFLAG_NODUMP;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_SYNC) &&
 			    xfs_inherit_sync)
-				ip->i_d.di_flags |= XFS_DIFLAG_SYNC;
+				di_flags |= XFS_DIFLAG_SYNC;
 			if ((pip->i_d.di_flags & XFS_DIFLAG_NOSYMLINKS) &&
 			    xfs_inherit_nosymlinks)
-				ip->i_d.di_flags |= XFS_DIFLAG_NOSYMLINKS;
+				di_flags |= XFS_DIFLAG_NOSYMLINKS;
+			if (pip->i_d.di_flags & XFS_DIFLAG_PROJINHERIT)
+				di_flags |= XFS_DIFLAG_PROJINHERIT;
+			ip->i_d.di_flags |= di_flags;
 		}
 		/* FALLTHROUGH */
 	case S_IFLNK:
@@ -1289,7 +1248,7 @@ xfs_ialloc(
 	 */
 	xfs_trans_log_inode(tp, ip, flags);
 
-	/* now that we have a v_type we can set Linux inode ops (& unlock) */
+	/* now that we have an i_mode  we can set Linux inode ops (& unlock) */
 	VFS_INIT_VNODE(XFS_MTOVFS(tp->t_mountp), vp, XFS_ITOBHV(ip), 1);
 
 	*ipp = ip;
@@ -1316,7 +1275,7 @@ xfs_isize_check(
 	if ((ip->i_d.di_mode & S_IFMT) != S_IFREG)
 		return;
 
-	if ( ip->i_d.di_flags & XFS_DIFLAG_REALTIME )
+	if (ip->i_d.di_flags & (XFS_DIFLAG_REALTIME | XFS_DIFLAG_EXTSIZE))
 		return;
 
 	nimaps = 2;
@@ -1819,22 +1778,19 @@ xfs_igrow_start(
 	xfs_fsize_t	new_size,
 	cred_t		*credp)
 {
-	xfs_fsize_t	isize;
 	int		error;
 
 	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
 	ASSERT(new_size > ip->i_d.di_size);
 
-	error = 0;
-	isize = ip->i_d.di_size;
 	/*
 	 * Zero any pages that may have been created by
 	 * xfs_write_file() beyond the end of the file
 	 * and any blocks between the old and new file sizes.
 	 */
-	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size, isize,
-				new_size);
+	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
+			     ip->i_d.di_size, new_size);
 	return error;
 }
 
@@ -1918,8 +1874,8 @@ xfs_iunlink(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK,
 			XFS_RANDOM_IUNLINK))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink", XFS_ERRLEVEL_LOW, mp, agi);
@@ -1934,9 +1890,9 @@ xfs_iunlink(
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
 	ASSERT(agi->agi_unlinked[bucket_index]);
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != agino);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != agino);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO) {
 		/*
 		 * There is already another inode in the bucket we need
 		 * to add ourselves to.  Add us at the front of the list.
@@ -1963,7 +1919,7 @@ xfs_iunlink(
 	 * Point the bucket head pointer at the inode being inserted.
 	 */
 	ASSERT(agino != 0);
-	INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, agino);
+	agi->agi_unlinked[bucket_index] = cpu_to_be32(agino);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		(sizeof(xfs_agino_t) * bucket_index);
 	xfs_trans_log_buf(tp, agibp, offset,
@@ -2021,8 +1977,8 @@ xfs_iunlink_remove(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK_REMOVE,
 			XFS_RANDOM_IUNLINK_REMOVE))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink_remove", XFS_ERRLEVEL_LOW,
@@ -2040,10 +1996,10 @@ xfs_iunlink_remove(
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO);
 	ASSERT(agi->agi_unlinked[bucket_index]);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) == agino) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
 		/*
 		 * We're at the head of the list.  Get the inode's
 		 * on-disk buffer to see if there is anyone after us
@@ -2077,7 +2033,7 @@ xfs_iunlink_remove(
 		 */
 		ASSERT(next_agino != 0);
 		ASSERT(next_agino != agino);
-		INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, next_agino);
+		agi->agi_unlinked[bucket_index] = cpu_to_be32(next_agino);
 		offset = offsetof(xfs_agi_t, agi_unlinked) +
 			(sizeof(xfs_agino_t) * bucket_index);
 		xfs_trans_log_buf(tp, agibp, offset,
@@ -2086,7 +2042,7 @@ xfs_iunlink_remove(
 		/*
 		 * We need to search the list for the inode being freed.
 		 */
-		next_agino = INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT);
+		next_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 		last_ibp = NULL;
 		while (next_agino != agino) {
 			/*
@@ -2156,7 +2112,7 @@ static __inline__ int xfs_inode_clean(xfs_inode_t *ip)
 		(ip->i_update_core == 0));
 }
 
-void
+STATIC void
 xfs_ifree_cluster(
 	xfs_inode_t	*free_ip,
 	xfs_trans_t	*tp,
@@ -2875,7 +2831,7 @@ xfs_iunpin(
  * be subsequently pinned once someone is waiting for it to be
  * unpinned.
  */
-void
+STATIC void
 xfs_iunpin_wait(
 	xfs_inode_t	*ip)
 {
@@ -3409,6 +3365,11 @@ xfs_iflush_int(
 	ip->i_update_core = 0;
 	SYNCHRONIZE();
 
+	/*
+	 * Make sure to get the latest atime from the Linux inode.
+	 */
+	xfs_synchronize_atime(ip);
+
 	if (XFS_TEST_ERROR(INT_GET(dip->di_core.di_magic,ARCH_CONVERT) != XFS_DINODE_MAGIC,
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
 		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
@@ -3601,106 +3562,42 @@ corrupt_out:
 
 
 /*
- * Flush all inactive inodes in mp.  Return true if no user references
- * were found, false otherwise.
+ * Flush all inactive inodes in mp.
  */
-int
+void
 xfs_iflush_all(
-	xfs_mount_t	*mp,
-	int		flag)
+	xfs_mount_t	*mp)
 {
-	int		busy;
-	int		done;
-	int		purged;
 	xfs_inode_t	*ip;
-	vmap_t		vmap;
 	vnode_t		*vp;
 
-	busy = done = 0;
-	while (!done) {
-		purged = 0;
-		XFS_MOUNT_ILOCK(mp);
-		ip = mp->m_inodes;
-		if (ip == NULL) {
-			break;
+ again:
+	XFS_MOUNT_ILOCK(mp);
+	ip = mp->m_inodes;
+	if (ip == NULL)
+		goto out;
+
+	do {
+		/* Make sure we skip markers inserted by sync */
+		if (ip->i_mount == NULL) {
+			ip = ip->i_mnext;
+			continue;
 		}
-		do {
-			/* Make sure we skip markers inserted by sync */
-			if (ip->i_mount == NULL) {
-				ip = ip->i_mnext;
-				continue;
-			}
 
-			/*
-			 * It's up to our caller to purge the root
-			 * and quota vnodes later.
-			 */
-			vp = XFS_ITOV_NULL(ip);
-
-			if (!vp) {
-				XFS_MOUNT_IUNLOCK(mp);
-				xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
-				purged = 1;
-				break;
-			}
-
-			if (vn_count(vp) != 0) {
-				if (vn_count(vp) == 1 &&
-				    (ip == mp->m_rootip ||
-				     (mp->m_quotainfo &&
-				      (ip->i_ino == mp->m_sb.sb_uquotino ||
-				       ip->i_ino == mp->m_sb.sb_gquotino)))) {
-
-					ip = ip->i_mnext;
-					continue;
-				}
-				if (!(flag & XFS_FLUSH_ALL)) {
-					busy = 1;
-					done = 1;
-					break;
-				}
-				/*
-				 * Ignore busy inodes but continue flushing
-				 * others.
-				 */
-				ip = ip->i_mnext;
-				continue;
-			}
-			/*
-			 * Sample vp mapping while holding mp locked on MP
-			 * systems, so we don't purge a reclaimed or
-			 * nonexistent vnode.  We break from the loop
-			 * since we know that we modify
-			 * it by pulling ourselves from it in xfs_reclaim()
-			 * called via vn_purge() below.  Set ip to the next
-			 * entry in the list anyway so we'll know below
-			 * whether we reached the end or not.
-			 */
-			VMAP(vp, vmap);
+		vp = XFS_ITOV_NULL(ip);
+		if (!vp) {
 			XFS_MOUNT_IUNLOCK(mp);
-
-			vn_purge(vp, &vmap);
-
-			purged = 1;
-			break;
-		} while (ip != mp->m_inodes);
-		/*
-		 * We need to distinguish between when we exit the loop
-		 * after a purge and when we simply hit the end of the
-		 * list.  We can't use the (ip == mp->m_inodes) test,
-		 * because when we purge an inode at the start of the list
-		 * the next inode on the list becomes mp->m_inodes.  That
-		 * would cause such a test to bail out early.  The purged
-		 * variable tells us how we got out of the loop.
-		 */
-		if (!purged) {
-			done = 1;
+			xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
+			goto again;
 		}
-	}
-	XFS_MOUNT_IUNLOCK(mp);
-	return !busy;
-}
 
+		ASSERT(vn_count(vp) == 0);
+
+		ip = ip->i_mnext;
+	} while (ip != mp->m_inodes);
+ out:
+	XFS_MOUNT_IUNLOCK(mp);
+}
 
 /*
  * xfs_iaccess: check accessibility of inode for mode.
@@ -3789,73 +3686,6 @@ xfs_iroundup(
 	}
 	ASSERT(0);
 	return( 0 );
-}
-
-/*
- * Change the requested timestamp in the given inode.
- * We don't lock across timestamp updates, and we don't log them but
- * we do record the fact that there is dirty information in core.
- *
- * NOTE -- callers MUST combine XFS_ICHGTIME_MOD or XFS_ICHGTIME_CHG
- *		with XFS_ICHGTIME_ACC to be sure that access time
- *		update will take.  Calling first with XFS_ICHGTIME_ACC
- *		and then XFS_ICHGTIME_MOD may fail to modify the access
- *		timestamp if the filesystem is mounted noacctm.
- */
-void
-xfs_ichgtime(xfs_inode_t *ip,
-	     int flags)
-{
-	timespec_t	tv;
-	vnode_t		*vp = XFS_ITOV(ip);
-	struct inode	*inode = LINVFS_GET_IP(vp);
-
-	/*
-	 * We're not supposed to change timestamps in readonly-mounted
-	 * filesystems.  Throw it away if anyone asks us.
-	 */
-	if (unlikely(vp->v_vfsp->vfs_flag & VFS_RDONLY))
-		return;
-
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime"
-	 * Throw it away if anyone asks us.
-	 */
-	if ((ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    ((flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG))
-			== XFS_ICHGTIME_ACC))
-		return;
-
-	nanotime(&tv);
-	if (flags & XFS_ICHGTIME_MOD) {
-		VN_MTIMESET(vp, &tv);
-		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_ACC) {
-		VN_ATIMESET(vp, &tv);
-		ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_CHG) {
-		VN_CTIMESET(vp, &tv);
-		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-
-	/*
-	 * We update the i_update_core field _after_ changing
-	 * the timestamps in order to coordinate properly with
-	 * xfs_iflush() so that we don't lose timestamp updates.
-	 * This keeps us from having to hold the inode lock
-	 * while doing this.  We use the SYNCHRONIZE macro to
-	 * ensure that the compiler does not reorder the update
-	 * of i_update_core above the timestamp updates above.
-	 */
-	SYNCHRONIZE();
-	ip->i_update_core = 1;
-	if (!(inode->i_state & I_LOCK))
-		mark_inode_dirty_sync(inode);
 }
 
 #ifdef XFS_ILOCK_TRACE

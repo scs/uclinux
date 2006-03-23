@@ -1,72 +1,58 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
-#include "xfs_bit.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_rtalloc.h"
-#include "xfs_error.h"
 #include "xfs_itable.h"
+#include "xfs_error.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
 #include "xfs_cap.h"
 #include "xfs_mac.h"
 #include "xfs_attr.h"
+#include "xfs_bmap.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
 
+#include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
@@ -141,12 +127,18 @@ xfs_find_handle(
 		return -XFS_ERROR(EINVAL);
 	}
 
-	/* we need the vnode */
-	vp = LINVFS_GET_VP(inode);
-	if (vp->v_type != VREG && vp->v_type != VDIR && vp->v_type != VLNK) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+	case S_IFDIR:
+	case S_IFLNK:
+		break;
+	default:
 		iput(inode);
 		return -XFS_ERROR(EBADF);
 	}
+
+	/* we need the vnode */
+	vp = LINVFS_GET_VP(inode);
 
 	/* now we can grab the fsid */
 	memcpy(&handle.ha_fsid, vp->v_vfsp->vfs_altfsid, sizeof(xfs_fsid_t));
@@ -154,13 +146,10 @@ xfs_find_handle(
 
 	if (cmd != XFS_IOC_PATH_TO_FSHANDLE) {
 		xfs_inode_t	*ip;
-		bhv_desc_t	*bhv;
 		int		lock_mode;
 
 		/* need to get access to the xfs_inode to read the generation */
-		bhv = vn_bhv_lookup_unlocked(VN_BHV_HEAD(vp), &xfs_vnodeops);
-		ASSERT(bhv);
-		ip = XFS_BHVTOI(bhv);
+		ip = xfs_vtoi(vp);
 		ASSERT(ip);
 		lock_mode = xfs_ilock_map_shared(ip);
 
@@ -386,7 +375,7 @@ xfs_readlink_by_handle(
 		return -error;
 
 	/* Restrict this handle operation to symlinks only. */
-	if (vp->v_type != VLNK) {
+	if (!S_ISLNK(inode->i_mode)) {
 		VN_RELE(vp);
 		return -XFS_ERROR(EINVAL);
 	}
@@ -539,6 +528,8 @@ xfs_attrmulti_attr_set(
 	char			*kbuf;
 	int			error = EFAULT;
 
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 	if (len > XATTR_SIZE_MAX)
@@ -566,6 +557,9 @@ xfs_attrmulti_attr_remove(
 {
 	int			error;
 
+
+	if (IS_RDONLY(&vp->v_inode))
+		return -EROFS;
 	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
 		return EPERM;
 
@@ -754,9 +748,8 @@ xfs_ioctl(
 			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
 			mp->m_rtdev_targp : mp->m_ddev_targp;
 
-		da.d_mem = da.d_miniosz = 1 << target->pbr_sshift;
-		/* The size dio will do in one go */
-		da.d_maxiosz = 64 * PAGE_CACHE_SIZE;
+		da.d_mem = da.d_miniosz = 1 << target->bt_sshift;
+		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))
 			return -XFS_ERROR(EFAULT);
@@ -982,10 +975,10 @@ xfs_ioc_space(
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
 		return -XFS_ERROR(EPERM);
 
-	if (!(filp->f_flags & FMODE_WRITE))
+	if (!(filp->f_mode & FMODE_WRITE))
 		return -XFS_ERROR(EBADF);
 
-	if (vp->v_type != VREG)
+	if (!VN_ISREG(vp))
 		return -XFS_ERROR(EINVAL);
 
 	if (copy_from_user(&bf, arg, sizeof(bf)))
@@ -1174,7 +1167,8 @@ xfs_ioc_xattr(
 
 	switch (cmd) {
 	case XFS_IOC_FSGETXATTR: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_NEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_NEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1182,6 +1176,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_nextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);
@@ -1196,9 +1191,10 @@ xfs_ioc_xattr(
 		if (filp->f_flags & (O_NDELAY|O_NONBLOCK))
 			attr_flags |= ATTR_NONBLOCK;
 
-		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | XFS_AT_PROJID;
 		va.va_xflags  = fa.fsx_xflags;
 		va.va_extsize = fa.fsx_extsize;
+		va.va_projid  = fa.fsx_projid;
 
 		VOP_SETATTR(vp, &va, attr_flags, NULL, error);
 		if (!error)
@@ -1207,7 +1203,8 @@ xfs_ioc_xattr(
 	}
 
 	case XFS_IOC_FSGETXATTRA: {
-		va.va_mask = XFS_AT_XFLAGS|XFS_AT_EXTSIZE|XFS_AT_ANEXTENTS;
+		va.va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
+			     XFS_AT_ANEXTENTS | XFS_AT_PROJID;
 		VOP_GETATTR(vp, &va, 0, NULL, error);
 		if (error)
 			return -error;
@@ -1215,6 +1212,7 @@ xfs_ioc_xattr(
 		fa.fsx_xflags	= va.va_xflags;
 		fa.fsx_extsize	= va.va_extsize;
 		fa.fsx_nextents = va.va_anextents;
+		fa.fsx_projid	= va.va_projid;
 
 		if (copy_to_user(arg, &fa, sizeof(fa)))
 			return -XFS_ERROR(EFAULT);

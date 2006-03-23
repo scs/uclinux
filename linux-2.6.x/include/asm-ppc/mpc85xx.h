@@ -3,7 +3,7 @@
  *
  * MPC85xx definitions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2004 Freescale Semiconductor, Inc
  *
@@ -25,7 +25,7 @@
 #ifdef CONFIG_MPC8540_ADS
 #include <platforms/85xx/mpc8540_ads.h>
 #endif
-#ifdef CONFIG_MPC8555_CDS
+#if defined(CONFIG_MPC8555_CDS) || defined(CONFIG_MPC8548_CDS)
 #include <platforms/85xx/mpc8555_cds.h>
 #endif
 #ifdef CONFIG_MPC8560_ADS
@@ -36,6 +36,10 @@
 #endif
 #ifdef CONFIG_STX_GP3
 #include <platforms/85xx/stx_gp3.h>
+#endif
+#if defined(CONFIG_TQM8540) || defined(CONFIG_TQM8541) || \
+	defined(CONFIG_TQM8555) || defined(CONFIG_TQM8560)
+#include <platforms/85xx/tqm85xx.h>
 #endif
 
 #define _IO_BASE        isa_io_base
@@ -67,6 +71,8 @@ extern unsigned char __res[];
 #define MPC85xx_DMA3_SIZE	(0x00080)
 #define MPC85xx_ENET1_OFFSET	(0x24000)
 #define MPC85xx_ENET1_SIZE	(0x01000)
+#define MPC85xx_MIIM_OFFSET	(0x24520)
+#define MPC85xx_MIIM_SIZE	(0x00018)
 #define MPC85xx_ENET2_OFFSET	(0x25000)
 #define MPC85xx_ENET2_SIZE	(0x01000)
 #define MPC85xx_ENET3_OFFSET	(0x26000)
@@ -74,7 +80,7 @@ extern unsigned char __res[];
 #define MPC85xx_GUTS_OFFSET	(0xe0000)
 #define MPC85xx_GUTS_SIZE	(0x01000)
 #define MPC85xx_IIC1_OFFSET	(0x03000)
-#define MPC85xx_IIC1_SIZE	(0x01000)
+#define MPC85xx_IIC1_SIZE	(0x00100)
 #define MPC85xx_OPENPIC_OFFSET	(0x40000)
 #define MPC85xx_OPENPIC_SIZE	(0x40000)
 #define MPC85xx_PCI1_OFFSET	(0x08000)
@@ -127,7 +133,64 @@ enum ppc_sys_devices {
 	MPC85xx_CPM_MCC2,
 	MPC85xx_CPM_SMC1,
 	MPC85xx_CPM_SMC2,
+	MPC85xx_eTSEC1,
+	MPC85xx_eTSEC2,
+	MPC85xx_eTSEC3,
+	MPC85xx_eTSEC4,
+	MPC85xx_IIC2,
+	MPC85xx_MDIO,
 };
+
+/* Internal interrupts are all Level Sensitive, and Positive Polarity */
+#define MPC85XX_INTERNAL_IRQ_SENSES \
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  0 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  1 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  2 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  3 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  4 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  5 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  6 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  7 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  8 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal  9 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 10 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 11 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 12 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 13 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 14 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 15 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 16 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 17 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 18 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 19 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 20 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 21 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 22 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 23 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 24 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 25 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 26 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 27 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 28 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 29 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 30 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 31 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 32 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 33 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 34 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 35 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 36 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 37 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 38 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 39 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 40 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 41 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 42 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 43 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 44 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 45 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE),	/* Internal 46 */	\
+	(IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE)	/* Internal 47 */
 
 #endif /* CONFIG_85xx */
 #endif /* __ASM_MPC85xx_H__ */

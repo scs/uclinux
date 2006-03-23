@@ -5,22 +5,9 @@
  *          LSIFC9xx/LSI409xx Fibre Channel
  *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
  *
- *  Credits:
- *      This driver would not exist if not for Alan Cox's development
- *      of the linux i2o driver.
- *
- *      A huge debt of gratitude is owed to David S. Miller (DaveM)
- *      for fixing much of the stupid and broken stuff in the early
- *      driver while porting to sparc64 platform.  THANK YOU!
- *
- *      (see also mptbase.c)
- *
- *  Copyright (c) 1999-2004 LSI Logic Corporation
- *  Originally By: Steven J. Ralston
- *  (mailto:sjralston1@netscape.net)
+ *  Copyright (c) 1999-2005 LSI Logic Corporation
  *  (mailto:mpt_linux_developer@lsil.com)
  *
- *  $Id$
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
@@ -62,7 +49,6 @@
 #define MPTCTL_H_INCLUDED
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-#include "linux/version.h"
 
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -183,8 +169,10 @@ struct mpt_ioctl_pci_info2 {
  *  Read only.
  *  Data starts at offset 0xC
  */
-#define MPT_IOCTL_INTERFACE_FC		(0x01)
 #define MPT_IOCTL_INTERFACE_SCSI	(0x00)
+#define MPT_IOCTL_INTERFACE_FC		(0x01)
+#define MPT_IOCTL_INTERFACE_FC_IP	(0x02)
+#define MPT_IOCTL_INTERFACE_SAS		(0x03)
 #define MPT_IOCTL_VERSION_LENGTH	(32)
 
 struct mpt_ioctl_iocinfo {

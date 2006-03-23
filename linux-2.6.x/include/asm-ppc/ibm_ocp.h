@@ -63,14 +63,16 @@ struct ocp_func_emac_data {
 	int	wol_irq;	/* WOL interrupt */
 	int	mdio_idx;	/* EMAC idx of MDIO master or -1 */
 	int	tah_idx;	/* TAH device index or -1 */
-	int	jumbo;		/* Jumbo frames capable flag */
 	int	phy_mode;	/* PHY type or configurable mode */
 	u8	mac_addr[6];	/* EMAC mac address */
 	u32	phy_map;	/* EMAC phy map */
+	u32	phy_feat_exc;	/* Excluded PHY features */
 };
 
 /* Sysfs support */
 #define OCP_SYSFS_EMAC_DATA()						\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, rgmii_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, rgmii_mux)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, zmii_idx)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, zmii_mux)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_idx)	\
@@ -78,9 +80,15 @@ OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_rx_chan)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mal_tx_chan)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, wol_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, mdio_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, tah_idx)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "%d\n", emac, phy_mode)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_map)	\
+OCP_SYSFS_ADDTL(struct ocp_func_emac_data, "0x%08x\n", emac, phy_feat_exc)\
 									\
 void ocp_show_emac_data(struct device *dev)				\
 {									\
+	device_create_file(dev, &dev_attr_emac_rgmii_idx);		\
+	device_create_file(dev, &dev_attr_emac_rgmii_mux);		\
 	device_create_file(dev, &dev_attr_emac_zmii_idx);		\
 	device_create_file(dev, &dev_attr_emac_zmii_mux);		\
 	device_create_file(dev, &dev_attr_emac_mal_idx);		\
@@ -88,7 +96,24 @@ void ocp_show_emac_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_emac_mal_tx_chan);		\
 	device_create_file(dev, &dev_attr_emac_wol_irq);		\
 	device_create_file(dev, &dev_attr_emac_mdio_idx);		\
+	device_create_file(dev, &dev_attr_emac_tah_idx);		\
+	device_create_file(dev, &dev_attr_emac_phy_mode);		\
+	device_create_file(dev, &dev_attr_emac_phy_map);		\
+	device_create_file(dev, &dev_attr_emac_phy_feat_exc);		\
 }
+
+/*
+ * PHY mode settings (EMAC <-> ZMII/RGMII bridge <-> PHY)
+ */
+#define PHY_MODE_NA	0
+#define PHY_MODE_MII	1
+#define PHY_MODE_RMII	2
+#define PHY_MODE_SMII	3
+#define PHY_MODE_RGMII	4
+#define PHY_MODE_TBI	5
+#define PHY_MODE_GMII	6
+#define PHY_MODE_RTBI	7
+#define PHY_MODE_SGMII	8
 
 #ifdef CONFIG_40x
 /*
@@ -105,9 +130,22 @@ static inline void ibm_ocp_set_emac(int start, int end)
 	/* Copy MAC addresses to EMAC additions */
 	for (i=start; i<=end; i++) {
 		def = ocp_get_one_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC, i);
-		memcpy(((struct ocp_func_emac_data *)def->additions)->mac_addr,
-				&__res.bi_enetaddr[i],
-				6);
+		if (i == 0)
+			memcpy(((struct ocp_func_emac_data *)def->additions)->mac_addr,
+			       __res.bi_enetaddr, 6);
+#if defined(CONFIG_405EP) || defined(CONFIG_44x)
+		else if (i == 1)
+			memcpy(((struct ocp_func_emac_data *)def->additions)->mac_addr,
+			       __res.bi_enet1addr, 6);
+#endif
+#if defined(CONFIG_440GX)
+		else if (i == 2)
+			memcpy(((struct ocp_func_emac_data *)def->additions)->mac_addr,
+			       __res.bi_enet2addr, 6);
+		else if (i == 3)
+			memcpy(((struct ocp_func_emac_data *)def->additions)->mac_addr,
+			       __res.bi_enet3addr, 6);
+#endif
 	}
 }
 #endif
@@ -123,6 +161,7 @@ struct ocp_func_mal_data {
 	int	txde_irq;	/* TX Descriptor Error IRQ */
 	int	rxde_irq;	/* RX Descriptor Error IRQ */
 	int	serr_irq;	/* MAL System Error IRQ    */
+	int	dcr_base;	/* MALx_CFG DCR number   */
 };
 
 #define OCP_SYSFS_MAL_DATA()						\
@@ -133,6 +172,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxeob_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, txde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, rxde_irq)	\
 OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, serr_irq)	\
+OCP_SYSFS_ADDTL(struct ocp_func_mal_data, "%d\n", mal, dcr_base)	\
 									\
 void ocp_show_mal_data(struct device *dev)				\
 {									\
@@ -143,6 +183,7 @@ void ocp_show_mal_data(struct device *dev)				\
 	device_create_file(dev, &dev_attr_mal_txde_irq);		\
 	device_create_file(dev, &dev_attr_mal_rxde_irq);		\
 	device_create_file(dev, &dev_attr_mal_serr_irq);		\
+	device_create_file(dev, &dev_attr_mal_dcr_base);		\
 }
 
 /*
@@ -157,7 +198,7 @@ OCP_SYSFS_ADDTL(struct ocp_func_iic_data, "%d\n", iic, fast_mode)	\
 									\
 void ocp_show_iic_data(struct device *dev)				\
 {									\
-	device_create_file(dev, &dev_attr_iic_fast_mode);			\
+	device_create_file(dev, &dev_attr_iic_fast_mode);		\
 }
 #endif /* __IBM_OCP_H__ */
 #endif /* __KERNEL__ */

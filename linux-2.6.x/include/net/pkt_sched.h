@@ -1,6 +1,7 @@
 #ifndef __NET_PKT_SCHED_H
 #define __NET_PKT_SCHED_H
 
+#include <linux/jiffies.h>
 #include <net/sch_generic.h>
 
 struct qdisc_walker
@@ -13,13 +14,12 @@ struct qdisc_walker
 
 extern rwlock_t qdisc_tree_lock;
 
-#define	QDISC_ALIGN		32
-#define	QDISC_ALIGN_CONST	(QDISC_ALIGN - 1)
+#define QDISC_ALIGNTO		32
+#define QDISC_ALIGN(len)	(((len) + QDISC_ALIGNTO-1) & ~(QDISC_ALIGNTO-1))
 
 static inline void *qdisc_priv(struct Qdisc *q)
 {
-	return (char *)q + ((sizeof(struct Qdisc) + QDISC_ALIGN_CONST)
-			      & ~QDISC_ALIGN_CONST);
+	return (char *) q + QDISC_ALIGN(sizeof(struct Qdisc));
 }
 
 /* 
@@ -60,8 +60,8 @@ typedef struct timeval	psched_time_t;
 typedef long		psched_tdiff_t;
 
 #define PSCHED_GET_TIME(stamp) do_gettimeofday(&(stamp))
-#define PSCHED_US2JIFFIE(usecs) (((usecs)+(1000000/HZ-1))/(1000000/HZ))
-#define PSCHED_JIFFIE2US(delay) ((delay)*(1000000/HZ))
+#define PSCHED_US2JIFFIE(usecs) usecs_to_jiffies(usecs)
+#define PSCHED_JIFFIE2US(delay) jiffies_to_usecs(delay)
 
 #else /* !CONFIG_NET_SCH_CLK_GETTIMEOFDAY */
 
@@ -124,9 +124,9 @@ do {									\
 		   default: \
 			   __delta = 0; \
 		   case 2: \
-			   __delta += 1000000; \
+			   __delta += USEC_PER_SEC; \
 		   case 1: \
-			   __delta += 1000000; \
+			   __delta += USEC_PER_SEC; \
 	           } \
 	   } \
 	   __delta; \
@@ -137,9 +137,9 @@ psched_tod_diff(int delta_sec, int bound)
 {
 	int delta;
 
-	if (bound <= 1000000 || delta_sec > (0x7FFFFFFF/1000000)-1)
+	if (bound <= USEC_PER_SEC || delta_sec > (0x7FFFFFFF/USEC_PER_SEC)-1)
 		return bound;
-	delta = delta_sec * 1000000;
+	delta = delta_sec * USEC_PER_SEC;
 	if (delta > bound || delta < 0)
 		delta = bound;
 	return delta;
@@ -153,9 +153,9 @@ psched_tod_diff(int delta_sec, int bound)
 	   default: \
 		   __delta = psched_tod_diff(__delta_sec, bound);  break; \
 	   case 2: \
-		   __delta += 1000000; \
+		   __delta += USEC_PER_SEC; \
 	   case 1: \
-		   __delta += 1000000; \
+		   __delta += USEC_PER_SEC; \
 	   case 0: \
  		   if (__delta > bound || __delta < 0) \
  			__delta = bound; \
@@ -171,15 +171,15 @@ psched_tod_diff(int delta_sec, int bound)
 ({ \
 	   int __delta = (tv).tv_usec + (delta); \
 	   (tv_res).tv_sec = (tv).tv_sec; \
-	   if (__delta > 1000000) { (tv_res).tv_sec++; __delta -= 1000000; } \
+	   if (__delta > USEC_PER_SEC) { (tv_res).tv_sec++; __delta -= USEC_PER_SEC; } \
 	   (tv_res).tv_usec = __delta; \
 })
 
 #define PSCHED_TADD(tv, delta) \
 ({ \
 	   (tv).tv_usec += (delta); \
-	   if ((tv).tv_usec > 1000000) { (tv).tv_sec++; \
-		 (tv).tv_usec -= 1000000; } \
+	   if ((tv).tv_usec > USEC_PER_SEC) { (tv).tv_sec++; \
+		 (tv).tv_usec -= USEC_PER_SEC; } \
 })
 
 /* Set/check that time is in the "past perfect";
@@ -207,8 +207,6 @@ psched_tod_diff(int delta_sec, int bound)
 
 #endif /* !CONFIG_NET_SCH_CLK_GETTIMEOFDAY */
 
-extern struct Qdisc noop_qdisc;
-extern struct Qdisc_ops noop_qdisc_ops;
 extern struct Qdisc_ops pfifo_qdisc_ops;
 extern struct Qdisc_ops bfifo_qdisc_ops;
 
@@ -216,14 +214,6 @@ extern int register_qdisc(struct Qdisc_ops *qops);
 extern int unregister_qdisc(struct Qdisc_ops *qops);
 extern struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle);
 extern struct Qdisc *qdisc_lookup_class(struct net_device *dev, u32 handle);
-extern void dev_init_scheduler(struct net_device *dev);
-extern void dev_shutdown(struct net_device *dev);
-extern void dev_activate(struct net_device *dev);
-extern void dev_deactivate(struct net_device *dev);
-extern void qdisc_reset(struct Qdisc *qdisc);
-extern void qdisc_destroy(struct Qdisc *qdisc);
-extern struct Qdisc * qdisc_create_dflt(struct net_device *dev,
-	struct Qdisc_ops *ops);
 extern struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r,
 		struct rtattr *tab);
 extern void qdisc_put_rtab(struct qdisc_rate_table *tab);

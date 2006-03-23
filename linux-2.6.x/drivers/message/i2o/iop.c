@@ -28,8 +28,11 @@
 #include <linux/module.h>
 #include <linux/i2o.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
+#include "core.h"
 
-#define OSM_VERSION	"$Rev$"
+#define OSM_NAME	"i2o"
+#define OSM_VERSION	"1.325"
 #define OSM_DESCRIPTION	"I2O subsystem"
 
 /* global I2O controller list */
@@ -42,41 +45,6 @@ LIST_HEAD(i2o_controllers);
 static struct i2o_dma i2o_systab;
 
 static int i2o_hrt_get(struct i2o_controller *c);
-
-/* Module internal functions from other sources */
-extern struct i2o_driver i2o_exec_driver;
-extern int i2o_exec_lct_get(struct i2o_controller *);
-extern void i2o_device_remove(struct i2o_device *);
-
-extern int __init i2o_driver_init(void);
-extern void __exit i2o_driver_exit(void);
-extern int __init i2o_exec_init(void);
-extern void __exit i2o_exec_exit(void);
-extern int __init i2o_pci_init(void);
-extern void __exit i2o_pci_exit(void);
-extern int i2o_device_init(void);
-extern void i2o_device_exit(void);
-
-/**
- *	i2o_msg_nop - Returns a message which is not used
- *	@c: I2O controller from which the message was created
- *	@m: message which should be returned
- *
- *	If you fetch a message via i2o_msg_get, and can't use it, you must
- *	return the message with this function. Otherwise the message frame
- *	is lost.
- */
-void i2o_msg_nop(struct i2o_controller *c, u32 m)
-{
-	struct i2o_message __iomem *msg = c->in_queue.virt + m;
-
-	writel(THREE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_UTIL_NOP << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
-	writel(0, &msg->u.head[2]);
-	writel(0, &msg->u.head[3]);
-	i2o_msg_post(c, m);
-};
 
 /**
  *	i2o_msg_get_wait - obtain an I2O message from the IOP
@@ -92,23 +60,21 @@ void i2o_msg_nop(struct i2o_controller *c, u32 m)
  *	address from the read port (see the i2o spec). If no message is
  *	available returns I2O_QUEUE_EMPTY and msg is leaved untouched.
  */
-u32 i2o_msg_get_wait(struct i2o_controller *c, struct i2o_message __iomem **msg,
-		     int wait)
+struct i2o_message *i2o_msg_get_wait(struct i2o_controller *c, int wait)
 {
 	unsigned long timeout = jiffies + wait * HZ;
-	u32 m;
+	struct i2o_message *msg;
 
-	while ((m = i2o_msg_get(c, msg)) == I2O_QUEUE_EMPTY) {
+	while (IS_ERR(msg = i2o_msg_get(c))) {
 		if (time_after(jiffies, timeout)) {
-			pr_debug("%s: Timeout waiting for message frame.\n",
-				 c->name);
-			return I2O_QUEUE_EMPTY;
+			osm_debug("%s: Timeout waiting for message frame.\n",
+				  c->name);
+			return ERR_PTR(-ETIMEDOUT);
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
-	return m;
+	return msg;
 };
 
 #if BITS_PER_LONG == 64
@@ -129,13 +95,13 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
 	unsigned long flags;
 
 	if (!ptr)
-		printk(KERN_ERR "%s: couldn't add NULL pointer to context list!"
-		       "\n", c->name);
+		osm_err("%s: couldn't add NULL pointer to context list!\n",
+			c->name);
 
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry) {
-		printk(KERN_ERR "%s: Could not allocate memory for context "
-		       "list element\n", c->name);
+		osm_err("%s: Could not allocate memory for context list element"
+			"\n", c->name);
 		return 0;
 	}
 
@@ -154,7 +120,7 @@ u32 i2o_cntxt_list_add(struct i2o_controller * c, void *ptr)
 
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
-	pr_debug("%s: Add context to list %p -> %d\n", c->name, ptr, context);
+	osm_debug("%s: Add context to list %p -> %d\n", c->name, ptr, context);
 
 	return entry->context;
 };
@@ -186,11 +152,11 @@ u32 i2o_cntxt_list_remove(struct i2o_controller * c, void *ptr)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!context)
-		printk(KERN_WARNING "%s: Could not remove nonexistent ptr "
-		       "%p\n", c->name, ptr);
+		osm_warn("%s: Could not remove nonexistent ptr %p\n", c->name,
+			 ptr);
 
-	pr_debug("%s: remove ptr from context list %d -> %p\n", c->name,
-		 context, ptr);
+	osm_debug("%s: remove ptr from context list %d -> %p\n", c->name,
+		  context, ptr);
 
 	return context;
 };
@@ -220,11 +186,10 @@ void *i2o_cntxt_list_get(struct i2o_controller *c, u32 context)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!ptr)
-		printk(KERN_WARNING "%s: context id %d not found\n", c->name,
-		       context);
+		osm_warn("%s: context id %d not found\n", c->name, context);
 
-	pr_debug("%s: get ptr from context list %d -> %p\n", c->name, context,
-		 ptr);
+	osm_debug("%s: get ptr from context list %d -> %p\n", c->name, context,
+		  ptr);
 
 	return ptr;
 };
@@ -252,11 +217,11 @@ u32 i2o_cntxt_list_get_ptr(struct i2o_controller * c, void *ptr)
 	spin_unlock_irqrestore(&c->context_list_lock, flags);
 
 	if (!context)
-		printk(KERN_WARNING "%s: Could not find nonexistent ptr "
-		       "%p\n", c->name, ptr);
+		osm_warn("%s: Could not find nonexistent ptr %p\n", c->name,
+			 ptr);
 
-	pr_debug("%s: get context id from context list %p -> %d\n", c->name,
-		 ptr, context);
+	osm_debug("%s: get context id from context list %p -> %d\n", c->name,
+		  ptr, context);
 
 	return context;
 };
@@ -314,8 +279,7 @@ struct i2o_device *i2o_iop_find_device(struct i2o_controller *c, u16 tid)
  */
 static int i2o_iop_quiesce(struct i2o_controller *c)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc;
 
@@ -326,20 +290,20 @@ static int i2o_iop_quiesce(struct i2o_controller *c)
 	    (sb->iop_state != ADAPTER_STATE_OPERATIONAL))
 		return 0;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_SYS_QUIESCE << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
+	msg->u.head[0] = cpu_to_le32(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_SYS_QUIESCE << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
 
 	/* Long timeout needed for quiesce if lots of devices */
-	if ((rc = i2o_msg_post_wait(c, m, 240)))
-		printk(KERN_INFO "%s: Unable to quiesce (status=%#x).\n",
-		       c->name, -rc);
+	if ((rc = i2o_msg_post_wait(c, msg, 240)))
+		osm_info("%s: Unable to quiesce (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Quiesced.\n", c->name);
+		osm_debug("%s: Quiesced.\n", c->name);
 
 	i2o_status_get(c);	// Entered READY state
 
@@ -356,8 +320,7 @@ static int i2o_iop_quiesce(struct i2o_controller *c)
  */
 static int i2o_iop_enable(struct i2o_controller *c)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc;
 
@@ -367,20 +330,20 @@ static int i2o_iop_enable(struct i2o_controller *c)
 	if (sb->iop_state != ADAPTER_STATE_READY)
 		return -EINVAL;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_SYS_ENABLE << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
+	msg->u.head[0] = cpu_to_le32(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_SYS_ENABLE << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
 
 	/* How long of a timeout do we need? */
-	if ((rc = i2o_msg_post_wait(c, m, 240)))
-		printk(KERN_ERR "%s: Could not enable (status=%#x).\n",
-		       c->name, -rc);
+	if ((rc = i2o_msg_post_wait(c, msg, 240)))
+		osm_err("%s: Could not enable (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Enabled.\n", c->name);
+		osm_debug("%s: Enabled.\n", c->name);
 
 	i2o_status_get(c);	// entered OPERATIONAL state
 
@@ -428,33 +391,91 @@ static inline void i2o_iop_enable_all(void)
  */
 static int i2o_iop_clear(struct i2o_controller *c)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	int rc;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
 	/* Quiesce all IOPs first */
 	i2o_iop_quiesce_all();
 
-	writel(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_ADAPTER_CLEAR << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
+	msg->u.head[0] = cpu_to_le32(FOUR_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_ADAPTER_CLEAR << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
 
-	if ((rc = i2o_msg_post_wait(c, m, 30)))
-		printk(KERN_INFO "%s: Unable to clear (status=%#x).\n",
-		       c->name, -rc);
+	if ((rc = i2o_msg_post_wait(c, msg, 30)))
+		osm_info("%s: Unable to clear (status=%#x).\n", c->name, -rc);
 	else
-		pr_debug("%s: Cleared.\n", c->name);
+		osm_debug("%s: Cleared.\n", c->name);
 
 	/* Enable all IOPs */
 	i2o_iop_enable_all();
 
-	i2o_status_get(c);
-
 	return rc;
+}
+
+/**
+ *	i2o_iop_init_outbound_queue - setup the outbound message queue
+ *	@c: I2O controller
+ *
+ *	Clear and (re)initialize IOP's outbound queue and post the message
+ *	frames to the IOP.
+ *
+ *	Returns 0 on success or negative error code on failure.
+ */
+static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
+{
+	u32 m;
+	volatile u8 *status = c->status.virt;
+	struct i2o_message *msg;
+	ulong timeout;
+	int i;
+
+	osm_debug("%s: Initializing Outbound Queue...\n", c->name);
+
+	memset(c->status.virt, 0, 4);
+
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
+
+	msg->u.head[0] = cpu_to_le32(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_6);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
+	msg->u.s.icntxt = cpu_to_le32(i2o_exec_driver.context);
+	msg->u.s.tcntxt = cpu_to_le32(0x00000000);
+	msg->body[0] = cpu_to_le32(PAGE_SIZE);
+	/* Outbound msg frame size in words and Initcode */
+	msg->body[1] = cpu_to_le32(I2O_OUTBOUND_MSG_FRAME_SIZE << 16 | 0x80);
+	msg->body[2] = cpu_to_le32(0xd0000004);
+	msg->body[3] = cpu_to_le32(i2o_dma_low(c->status.phys));
+	msg->body[4] = cpu_to_le32(i2o_dma_high(c->status.phys));
+
+	i2o_msg_post(c, msg);
+
+	timeout = jiffies + I2O_TIMEOUT_INIT_OUTBOUND_QUEUE * HZ;
+	while (*status <= I2O_CMD_IN_PROGRESS) {
+		if (time_after(jiffies, timeout)) {
+			osm_warn("%s: Timeout Initializing\n", c->name);
+			return -ETIMEDOUT;
+		}
+		schedule_timeout_uninterruptible(1);
+	}
+
+	m = c->out_queue.phys;
+
+	/* Post frames */
+	for (i = 0; i < I2O_MAX_OUTBOUND_MSG_FRAMES; i++) {
+		i2o_flush_reply(c, m);
+		udelay(1);	/* Promise */
+		m += I2O_OUTBOUND_MSG_FRAME_SIZE * sizeof(u32);
+	}
+
+	return 0;
 }
 
 /**
@@ -468,96 +489,92 @@ static int i2o_iop_clear(struct i2o_controller *c)
  */
 static int i2o_iop_reset(struct i2o_controller *c)
 {
-	u8 *status = c->status.virt;
-	struct i2o_message __iomem *msg;
-	u32 m;
+	volatile u8 *status = c->status.virt;
+	struct i2o_message *msg;
 	unsigned long timeout;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc = 0;
 
-	pr_debug("%s: Resetting controller\n", c->name);
+	osm_debug("%s: Resetting controller\n", c->name);
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	memset(status, 0, 8);
+	memset(c->status_block.virt, 0, 8);
 
 	/* Quiesce all IOPs first */
 	i2o_iop_quiesce_all();
 
-	writel(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_ADAPTER_RESET << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
-	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0, &msg->u.s.tcntxt);	//FIXME: use reasonable transaction context
-	writel(0, &msg->body[0]);
-	writel(0, &msg->body[1]);
-	writel(i2o_ptr_low((void *)c->status.phys), &msg->body[2]);
-	writel(i2o_ptr_high((void *)c->status.phys), &msg->body[3]);
+	msg->u.head[0] = cpu_to_le32(EIGHT_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_ADAPTER_RESET << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
+	msg->u.s.icntxt = cpu_to_le32(i2o_exec_driver.context);
+	msg->u.s.tcntxt = cpu_to_le32(0x00000000);
+	msg->body[0] = cpu_to_le32(0x00000000);
+	msg->body[1] = cpu_to_le32(0x00000000);
+	msg->body[2] = cpu_to_le32(i2o_dma_low(c->status.phys));
+	msg->body[3] = cpu_to_le32(i2o_dma_high(c->status.phys));
 
-	i2o_msg_post(c, m);
+	i2o_msg_post(c, msg);
 
 	/* Wait for a reply */
 	timeout = jiffies + I2O_TIMEOUT_RESET * HZ;
 	while (!*status) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: IOP reset timeout.\n", c->name);
-			rc = -ETIMEDOUT;
-			goto exit;
-		}
-
-		/* Promise bug */
-		if (status[1] || status[4]) {
-			*status = 0;
+		if (time_after(jiffies, timeout))
 			break;
-		}
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-
-		rmb();
+		schedule_timeout_uninterruptible(1);
 	}
 
-	if (*status == I2O_CMD_IN_PROGRESS) {
+	switch (*status) {
+	case I2O_CMD_REJECTED:
+		osm_warn("%s: IOP reset rejected\n", c->name);
+		rc = -EPERM;
+		break;
+
+	case I2O_CMD_IN_PROGRESS:
 		/*
 		 * Once the reset is sent, the IOP goes into the INIT state
-		 * which is indeterminate.  We need to wait until the IOP
-		 * has rebooted before we can let the system talk to
-		 * it. We read the inbound Free_List until a message is
-		 * available. If we can't read one in the given ammount of
-		 * time, we assume the IOP could not reboot properly.
+		 * which is indeterminate. We need to wait until the IOP has
+		 * rebooted before we can let the system talk to it. We read
+		 * the inbound Free_List until a message is available. If we
+		 * can't read one in the given ammount of time, we assume the
+		 * IOP could not reboot properly.
 		 */
-		pr_debug("%s: Reset in progress, waiting for reboot...\n",
-			 c->name);
+		osm_debug("%s: Reset in progress, waiting for reboot...\n",
+			  c->name);
 
-		m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_RESET);
-		while (m == I2O_QUEUE_EMPTY) {
+		while (IS_ERR(msg = i2o_msg_get_wait(c, I2O_TIMEOUT_RESET))) {
 			if (time_after(jiffies, timeout)) {
-				printk(KERN_ERR "%s: IOP reset timeout.\n",
-				       c->name);
-				rc = -ETIMEDOUT;
+				osm_err("%s: IOP reset timeout.\n", c->name);
+				rc = PTR_ERR(msg);
 				goto exit;
 			}
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
-
-			m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_RESET);
+			schedule_timeout_uninterruptible(1);
 		}
-		i2o_msg_nop(c, m);
+		i2o_msg_nop(c, msg);
+
+		/* from here all quiesce commands are safe */
+		c->no_quiesce = 0;
+
+		/* verify if controller is in state RESET */
+		i2o_status_get(c);
+
+		if (!c->promise && (sb->iop_state != ADAPTER_STATE_RESET))
+			osm_warn("%s: reset completed, but adapter not in RESET"
+				 " state.\n", c->name);
+		else
+			osm_debug("%s: reset completed.\n", c->name);
+
+		break;
+
+	default:
+		osm_err("%s: IOP reset timeout.\n", c->name);
+		rc = -ETIMEDOUT;
+		break;
 	}
-
-	/* from here all quiesce commands are safe */
-	c->no_quiesce = 0;
-
-	/* If IopReset was rejected or didn't perform reset, try IopClear */
-	i2o_status_get(c);
-	if (*status == I2O_CMD_REJECTED || sb->iop_state != ADAPTER_STATE_RESET) {
-		printk(KERN_WARNING "%s: Reset rejected, trying to clear\n",
-		       c->name);
-		i2o_iop_clear(c);
-	} else
-		pr_debug("%s: Reset completed.\n", c->name);
 
       exit:
 	/* Enable all IOPs */
@@ -565,88 +582,6 @@ static int i2o_iop_reset(struct i2o_controller *c)
 
 	return rc;
 };
-
-/**
- *	i2o_iop_init_outbound_queue - setup the outbound message queue
- *	@c: I2O controller
- *
- *	Clear and (re)initialize IOP's outbound queue and post the message
- *	frames to the IOP.
- *
- *	Returns 0 on success or a negative errno code on failure.
- */
-static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
-{
-	u8 *status = c->status.virt;
-	u32 m;
-	struct i2o_message __iomem *msg;
-	ulong timeout;
-	int i;
-
-	pr_debug("%s: Initializing Outbound Queue...\n", c->name);
-
-	memset(status, 0, 4);
-
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
-
-	writel(EIGHT_WORD_MSG_SIZE | TRL_OFFSET_6, &msg->u.head[0]);
-	writel(I2O_CMD_OUTBOUND_INIT << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
-	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0x0106, &msg->u.s.tcntxt);	/* FIXME: why 0x0106, maybe in
-						   Spec? */
-	writel(PAGE_SIZE, &msg->body[0]);
-	writel(MSG_FRAME_SIZE << 16 | 0x80, &msg->body[1]);	/* Outbound msg frame
-								   size in words and Initcode */
-	writel(0xd0000004, &msg->body[2]);
-	writel(i2o_ptr_low((void *)c->status.phys), &msg->body[3]);
-	writel(i2o_ptr_high((void *)c->status.phys), &msg->body[4]);
-
-	i2o_msg_post(c, m);
-
-	timeout = jiffies + I2O_TIMEOUT_INIT_OUTBOUND_QUEUE * HZ;
-	while (*status <= I2O_CMD_IN_PROGRESS) {
-		if (time_after(jiffies, timeout)) {
-			printk(KERN_WARNING "%s: Timeout Initializing\n",
-			       c->name);
-			return -ETIMEDOUT;
-		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-
-		rmb();
-	}
-
-	m = c->out_queue.phys;
-
-	/* Post frames */
-	for (i = 0; i < NMBR_MSG_FRAMES; i++) {
-		i2o_flush_reply(c, m);
-		udelay(1);	/* Promise */
-		m += MSG_FRAME_SIZE * 4;
-	}
-
-	return 0;
-}
-
-/**
- *	i2o_iop_send_nop - send a core NOP message
- *	@c: controller
- *
- *	Send a no-operation message with a reply set to cause no
- *	action either. Needed for bringing up promise controllers.
- */
-static int i2o_iop_send_nop(struct i2o_controller *c)
-{
-	struct i2o_message __iomem *msg;
-	u32 m = i2o_msg_get_wait(c, &msg, HZ);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
-	i2o_msg_nop(c, m);
-	return 0;
-}
 
 /**
  *	i2o_iop_activate - Bring controller up to HOLD
@@ -659,78 +594,62 @@ static int i2o_iop_send_nop(struct i2o_controller *c)
  */
 static int i2o_iop_activate(struct i2o_controller *c)
 {
-	struct pci_dev *i960 = NULL;
 	i2o_status_block *sb = c->status_block.virt;
 	int rc;
-
-	if (c->promise) {
-		/* Beat up the hardware first of all */
-		i960 =
-		    pci_find_slot(c->pdev->bus->number,
-				  PCI_DEVFN(PCI_SLOT(c->pdev->devfn), 0));
-		if (i960)
-			pci_write_config_word(i960, 0x42, 0);
-
-		/* Follow this sequence precisely or the controller
-		   ceases to perform useful functions until reboot */
-		if ((rc = i2o_iop_send_nop(c)))
-			return rc;
-
-		if ((rc = i2o_iop_reset(c)))
-			return rc;
-	}
+	int state;
 
 	/* In INIT state, Wait Inbound Q to initialize (in i2o_status_get) */
 	/* In READY state, Get status */
 
 	rc = i2o_status_get(c);
 	if (rc) {
-		printk(KERN_INFO "%s: Unable to obtain status, "
-		       "attempting a reset.\n", c->name);
-		if (i2o_iop_reset(c))
+		osm_info("%s: Unable to obtain status, attempting a reset.\n",
+			 c->name);
+		rc = i2o_iop_reset(c);
+		if (rc)
 			return rc;
 	}
 
 	if (sb->i2o_version > I2OVER15) {
-		printk(KERN_ERR "%s: Not running version 1.5 of the I2O "
-		       "Specification.\n", c->name);
+		osm_err("%s: Not running version 1.5 of the I2O Specification."
+			"\n", c->name);
 		return -ENODEV;
 	}
 
 	switch (sb->iop_state) {
 	case ADAPTER_STATE_FAULTED:
-		printk(KERN_CRIT "%s: hardware fault\n", c->name);
-		return -ENODEV;
+		osm_err("%s: hardware fault\n", c->name);
+		return -EFAULT;
 
 	case ADAPTER_STATE_READY:
 	case ADAPTER_STATE_OPERATIONAL:
 	case ADAPTER_STATE_HOLD:
 	case ADAPTER_STATE_FAILED:
-		pr_debug("%s: already running, trying to reset...\n", c->name);
-		if (i2o_iop_reset(c))
-			return -ENODEV;
+		osm_debug("%s: already running, trying to reset...\n", c->name);
+		rc = i2o_iop_reset(c);
+		if (rc)
+			return rc;
 	}
+
+	/* preserve state */
+	state = sb->iop_state;
 
 	rc = i2o_iop_init_outbound_queue(c);
 	if (rc)
 		return rc;
 
-	if (c->promise) {
-		if ((rc = i2o_iop_send_nop(c)))
-			return rc;
+	/* if adapter was not in RESET state clear now */
+	if (state != ADAPTER_STATE_RESET)
+		i2o_iop_clear(c);
 
-		if ((rc = i2o_status_get(c)))
-			return rc;
+	i2o_status_get(c);
 
-		if (i960)
-			pci_write_config_word(i960, 0x42, 0x3FF);
+	if (sb->iop_state != ADAPTER_STATE_HOLD) {
+		osm_err("%s: failed to bring IOP into HOLD state\n", c->name);
+		return -EIO;
 	}
 
-	/* In HOLD state */
-
-	rc = i2o_hrt_get(c);
-
-	return rc;
+	return i2o_hrt_get(c);
 };
 
 /**
@@ -743,8 +662,7 @@ static int i2o_iop_activate(struct i2o_controller *c)
  */
 static int i2o_iop_systab_set(struct i2o_controller *c)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 	i2o_status_block *sb = c->status_block.virt;
 	struct device *dev = &c->pdev->dev;
 	struct resource *root;
@@ -756,20 +674,18 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 		res->flags = IORESOURCE_MEM;
 		res->start = 0;
 		res->end = 0;
-		printk(KERN_INFO "%s: requires private memory resources.\n",
-		       c->name);
+		osm_info("%s: requires private memory resources.\n", c->name);
 		root = pci_find_parent_resource(c->pdev, res);
 		if (root == NULL)
-			printk(KERN_WARNING "%s: Can't find parent resource!\n",
-			       c->name);
+			osm_warn("%s: Can't find parent resource!\n", c->name);
 		if (root && allocate_resource(root, res, sb->desired_mem_size, sb->desired_mem_size, sb->desired_mem_size, 1 << 20,	/* Unspecified, so use 1Mb and play safe */
 					      NULL, NULL) >= 0) {
 			c->mem_alloc = 1;
 			sb->current_mem_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			printk(KERN_INFO "%s: allocated %ld bytes of PCI memory"
-			       " at 0x%08lX.\n", c->name,
-			       1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %ld bytes of PCI memory at "
+				 "0x%08lX.\n", c->name,
+				 1 + res->end - res->start, res->start);
 		}
 	}
 
@@ -779,69 +695,62 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
 		res->flags = IORESOURCE_IO;
 		res->start = 0;
 		res->end = 0;
-		printk(KERN_INFO "%s: requires private memory resources.\n",
-		       c->name);
+		osm_info("%s: requires private memory resources.\n", c->name);
 		root = pci_find_parent_resource(c->pdev, res);
 		if (root == NULL)
-			printk(KERN_WARNING "%s: Can't find parent resource!\n",
-			       c->name);
+			osm_warn("%s: Can't find parent resource!\n", c->name);
 		if (root && allocate_resource(root, res, sb->desired_io_size, sb->desired_io_size, sb->desired_io_size, 1 << 20,	/* Unspecified, so use 1Mb and play safe */
 					      NULL, NULL) >= 0) {
 			c->io_alloc = 1;
 			sb->current_io_size = 1 + res->end - res->start;
 			sb->current_mem_base = res->start;
-			printk(KERN_INFO "%s: allocated %ld bytes of PCI I/O at"
-			       " 0x%08lX.\n", c->name,
-			       1 + res->end - res->start, res->start);
+			osm_info("%s: allocated %ld bytes of PCI I/O at 0x%08lX"
+				 ".\n", c->name, 1 + res->end - res->start,
+				 res->start);
 		}
 	}
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
 	i2o_systab.phys = dma_map_single(dev, i2o_systab.virt, i2o_systab.len,
 					 PCI_DMA_TODEVICE);
 	if (!i2o_systab.phys) {
-		i2o_msg_nop(c, m);
+		i2o_msg_nop(c, msg);
 		return -ENOMEM;
 	}
 
-	writel(I2O_MESSAGE_SIZE(12) | SGL_OFFSET_6, &msg->u.head[0]);
-	writel(I2O_CMD_SYS_TAB_SET << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
+	msg->u.head[0] = cpu_to_le32(I2O_MESSAGE_SIZE(12) | SGL_OFFSET_6);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_SYS_TAB_SET << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
 
 	/*
 	 * Provide three SGL-elements:
 	 * System table (SysTab), Private memory space declaration and
 	 * Private i/o space declaration
-	 *
-	 * FIXME: is this still true?
-	 * Nasty one here. We can't use dma_alloc_coherent to send the
-	 * same table to everyone. We have to go remap it for them all
 	 */
 
-	writel(c->unit + 2, &msg->body[0]);
-	writel(0, &msg->body[1]);
-	writel(0x54000000 | i2o_systab.len, &msg->body[2]);
-	writel(i2o_systab.phys, &msg->body[3]);
-	writel(0x54000000 | sb->current_mem_size, &msg->body[4]);
-	writel(sb->current_mem_base, &msg->body[5]);
-	writel(0xd4000000 | sb->current_io_size, &msg->body[6]);
-	writel(sb->current_io_base, &msg->body[6]);
+	msg->body[0] = cpu_to_le32(c->unit + 2);
+	msg->body[1] = cpu_to_le32(0x00000000);
+	msg->body[2] = cpu_to_le32(0x54000000 | i2o_systab.len);
+	msg->body[3] = cpu_to_le32(i2o_systab.phys);
+	msg->body[4] = cpu_to_le32(0x54000000 | sb->current_mem_size);
+	msg->body[5] = cpu_to_le32(sb->current_mem_base);
+	msg->body[6] = cpu_to_le32(0xd4000000 | sb->current_io_size);
+	msg->body[6] = cpu_to_le32(sb->current_io_base);
 
-	rc = i2o_msg_post_wait(c, m, 120);
+	rc = i2o_msg_post_wait(c, msg, 120);
 
 	dma_unmap_single(dev, i2o_systab.phys, i2o_systab.len,
 			 PCI_DMA_TODEVICE);
 
 	if (rc < 0)
-		printk(KERN_ERR "%s: Unable to set SysTab (status=%#x).\n",
-		       c->name, -rc);
+		osm_err("%s: Unable to set SysTab (status=%#x).\n", c->name,
+			-rc);
 	else
-		pr_debug("%s: SysTab set.\n", c->name);
-
-	i2o_status_get(c);	// Entered READY state
+		osm_debug("%s: SysTab set.\n", c->name);
 
 	return rc;
 }
@@ -852,7 +761,7 @@ static int i2o_iop_systab_set(struct i2o_controller *c)
  *
  *	Send the system table and enable the I2O controller.
  *
- *	Returns 0 on success or negativer error code on failure.
+ *	Returns 0 on success or negative error code on failure.
  */
 static int i2o_iop_online(struct i2o_controller *c)
 {
@@ -863,7 +772,7 @@ static int i2o_iop_online(struct i2o_controller *c)
 		return rc;
 
 	/* In READY state */
-	pr_debug("%s: Attempting to enable...\n", c->name);
+	osm_debug("%s: Attempting to enable...\n", c->name);
 	rc = i2o_iop_enable(c);
 	if (rc)
 		return rc;
@@ -882,7 +791,7 @@ void i2o_iop_remove(struct i2o_controller *c)
 {
 	struct i2o_device *dev, *tmp;
 
-	pr_debug("%s: deleting controller\n", c->name);
+	osm_debug("%s: deleting controller\n", c->name);
 
 	i2o_driver_notify_controller_remove_all(c);
 
@@ -891,8 +800,12 @@ void i2o_iop_remove(struct i2o_controller *c)
 	list_for_each_entry_safe(dev, tmp, &c->devices, list)
 	    i2o_device_remove(dev);
 
+	device_del(&c->device);
+
 	/* Ask the IOP to switch to RESET state */
 	i2o_iop_reset(c);
+
+	put_device(&c->device);
 }
 
 /**
@@ -925,13 +838,11 @@ static int i2o_systab_build(void)
 	i2o_systab.len = sizeof(struct i2o_sys_tbl) + num_controllers *
 	    sizeof(struct i2o_sys_tbl_entry);
 
-	systab = i2o_systab.virt = kmalloc(i2o_systab.len, GFP_KERNEL);
+	systab = i2o_systab.virt = kzalloc(i2o_systab.len, GFP_KERNEL);
 	if (!systab) {
-		printk(KERN_ERR "i2o: unable to allocate memory for System "
-		       "Table\n");
+		osm_err("unable to allocate memory for System Table\n");
 		return -ENOMEM;
 	}
-	memset(systab, 0, i2o_systab.len);
 
 	systab->version = I2OVERSION;
 	systab->change_ind = change_ind + 1;
@@ -940,8 +851,8 @@ static int i2o_systab_build(void)
 		i2o_status_block *sb;
 
 		if (count >= num_controllers) {
-			printk(KERN_ERR "i2o: controller added while building "
-			       "system table\n");
+			osm_err("controller added while building system table"
+				"\n");
 			break;
 		}
 
@@ -955,9 +866,8 @@ static int i2o_systab_build(void)
 		 * it is techninically not part of the I2O subsystem...
 		 */
 		if (unlikely(i2o_status_get(c))) {
-			printk(KERN_ERR "%s: Deleting b/c could not get status"
-			       " while attempting to build system table\n",
-			       c->name);
+			osm_err("%s: Deleting b/c could not get status while "
+				"attempting to build system table\n", c->name);
 			i2o_iop_remove(c);
 			continue;	// try the next one
 		}
@@ -971,8 +881,10 @@ static int i2o_systab_build(void)
 		systab->iops[count].frame_size = sb->inbound_frame_size;
 		systab->iops[count].last_changed = change_ind;
 		systab->iops[count].iop_capabilities = sb->iop_capabilities;
-		systab->iops[count].inbound_low = i2o_ptr_low(c->post_port);
-		systab->iops[count].inbound_high = i2o_ptr_high(c->post_port);
+		systab->iops[count].inbound_low =
+		    i2o_dma_low(c->base.phys + I2O_IN_PORT);
+		systab->iops[count].inbound_high =
+		    i2o_dma_high(c->base.phys + I2O_IN_PORT);
 
 		count++;
 	}
@@ -1008,43 +920,40 @@ static int i2o_parse_hrt(struct i2o_controller *c)
  */
 int i2o_status_get(struct i2o_controller *c)
 {
-	struct i2o_message __iomem *msg;
-	u32 m;
-	u8 *status_block;
+	struct i2o_message *msg;
+	volatile u8 *status_block;
 	unsigned long timeout;
 
 	status_block = (u8 *) c->status_block.virt;
-	memset(status_block, 0, sizeof(i2o_status_block));
+	memset(c->status_block.virt, 0, sizeof(i2o_status_block));
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(NINE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_STATUS_GET << 24 | HOST_TID << 12 | ADAPTER_TID,
-	       &msg->u.head[1]);
-	writel(i2o_exec_driver.context, &msg->u.s.icntxt);
-	writel(0, &msg->u.s.tcntxt);	// FIXME: use resonable transaction context
-	writel(0, &msg->body[0]);
-	writel(0, &msg->body[1]);
-	writel(i2o_ptr_low((void *)c->status_block.phys), &msg->body[2]);
-	writel(i2o_ptr_high((void *)c->status_block.phys), &msg->body[3]);
-	writel(sizeof(i2o_status_block), &msg->body[4]);	/* always 88 bytes */
+	msg->u.head[0] = cpu_to_le32(NINE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_STATUS_GET << 24 | HOST_TID << 12 |
+			ADAPTER_TID);
+	msg->u.s.icntxt = cpu_to_le32(i2o_exec_driver.context);
+	msg->u.s.tcntxt = cpu_to_le32(0x00000000);
+	msg->body[0] = cpu_to_le32(0x00000000);
+	msg->body[1] = cpu_to_le32(0x00000000);
+	msg->body[2] = cpu_to_le32(i2o_dma_low(c->status_block.phys));
+	msg->body[3] = cpu_to_le32(i2o_dma_high(c->status_block.phys));
+	msg->body[4] = cpu_to_le32(sizeof(i2o_status_block));	/* always 88 bytes */
 
-	i2o_msg_post(c, m);
+	i2o_msg_post(c, msg);
 
 	/* Wait for a reply */
 	timeout = jiffies + I2O_TIMEOUT_STATUS_GET * HZ;
 	while (status_block[87] != 0xFF) {
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "%s: Get status timeout.\n", c->name);
+			osm_err("%s: Get status timeout.\n", c->name);
 			return -ETIMEDOUT;
 		}
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-
-		rmb();
+		schedule_timeout_uninterruptible(1);
 	}
 
 #ifdef DEBUG
@@ -1061,7 +970,7 @@ int i2o_status_get(struct i2o_controller *c)
  *	The HRT contains information about possible hidden devices but is
  *	mostly useless to us.
  *
- *	Returns 0 on success or negativer error code on failure.
+ *	Returns 0 on success or negative error code on failure.
  */
 static int i2o_hrt_get(struct i2o_controller *c)
 {
@@ -1072,24 +981,24 @@ static int i2o_hrt_get(struct i2o_controller *c)
 	struct device *dev = &c->pdev->dev;
 
 	for (i = 0; i < I2O_HRT_GET_TRIES; i++) {
-		struct i2o_message __iomem *msg;
-		u32 m;
+		struct i2o_message *msg;
 
-		m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-		if (m == I2O_QUEUE_EMPTY)
-			return -ETIMEDOUT;
+		msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+		if (IS_ERR(msg))
+			return PTR_ERR(msg);
 
-		writel(SIX_WORD_MSG_SIZE | SGL_OFFSET_4, &msg->u.head[0]);
-		writel(I2O_CMD_HRT_GET << 24 | HOST_TID << 12 | ADAPTER_TID,
-		       &msg->u.head[1]);
-		writel(0xd0000000 | c->hrt.len, &msg->body[0]);
-		writel(c->hrt.phys, &msg->body[1]);
+		msg->u.head[0] = cpu_to_le32(SIX_WORD_MSG_SIZE | SGL_OFFSET_4);
+		msg->u.head[1] =
+		    cpu_to_le32(I2O_CMD_HRT_GET << 24 | HOST_TID << 12 |
+				ADAPTER_TID);
+		msg->body[0] = cpu_to_le32(0xd0000000 | c->hrt.len);
+		msg->body[1] = cpu_to_le32(c->hrt.phys);
 
-		rc = i2o_msg_post_wait_mem(c, m, 20, &c->hrt);
+		rc = i2o_msg_post_wait_mem(c, msg, 20, &c->hrt);
 
 		if (rc < 0) {
-			printk(KERN_ERR "%s: Unable to get HRT (status=%#x)\n",
-			       c->name, -rc);
+			osm_err("%s: Unable to get HRT (status=%#x)\n", c->name,
+				-rc);
 			return rc;
 		}
 
@@ -1103,17 +1012,31 @@ static int i2o_hrt_get(struct i2o_controller *c)
 			return i2o_parse_hrt(c);
 	}
 
-	printk(KERN_ERR "%s: Unable to get HRT after %d tries, giving up\n",
-	       c->name, I2O_HRT_GET_TRIES);
+	osm_err("%s: Unable to get HRT after %d tries, giving up\n", c->name,
+		I2O_HRT_GET_TRIES);
 
 	return -EBUSY;
 }
 
 /**
+ *	i2o_iop_release - release the memory for a I2O controller
+ *	@dev: I2O controller which should be released
+ *
+ *	Release the allocated memory. This function is called if refcount of
+ *	device reaches 0 automatically.
+ */
+static void i2o_iop_release(struct device *dev)
+{
+	struct i2o_controller *c = to_i2o_controller(dev);
+
+	i2o_iop_free(c);
+};
+
+/**
  *	i2o_iop_alloc - Allocate and initialize a i2o_controller struct
  *
  *	Allocate the necessary memory for a i2o_controller struct and
- *	initialize the lists.
+ *	initialize the lists and message mempool.
  *
  *	Returns a pointer to the I2O controller or a negative error code on
  *	failure.
@@ -1122,20 +1045,35 @@ struct i2o_controller *i2o_iop_alloc(void)
 {
 	static int unit = 0;	/* 0 and 1 are NULL IOP and Local Host */
 	struct i2o_controller *c;
+	char poolname[32];
 
-	c = kmalloc(sizeof(*c), GFP_KERNEL);
+	c = kzalloc(sizeof(*c), GFP_KERNEL);
 	if (!c) {
-		printk(KERN_ERR "i2o: Insufficient memory to allocate a I2O "
-		       "controller.\n");
+		osm_err("i2o: Insufficient memory to allocate a I2O controller."
+			"\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(c, 0, sizeof(*c));
+
+	c->unit = unit++;
+	sprintf(c->name, "iop%d", c->unit);
+
+	snprintf(poolname, sizeof(poolname), "i2o_%s_msg_inpool", c->name);
+	if (i2o_pool_alloc
+	    (&c->in_msg, poolname, I2O_INBOUND_MSG_FRAME_SIZE * 4,
+	     I2O_MSG_INPOOL_MIN)) {
+		kfree(c);
+		return ERR_PTR(-ENOMEM);
+	};
 
 	INIT_LIST_HEAD(&c->devices);
 	spin_lock_init(&c->lock);
 	init_MUTEX(&c->lct_lock);
-	c->unit = unit++;
-	sprintf(c->name, "iop%d", c->unit);
+
+	device_initialize(&c->device);
+
+	c->device.release = &i2o_iop_release;
+
+	snprintf(c->device.bus_id, BUS_ID_SIZE, "iop%d", c->unit);
 
 #if BITS_PER_LONG == 64
 	spin_lock_init(&c->context_list_lock);
@@ -1144,15 +1082,6 @@ struct i2o_controller *i2o_iop_alloc(void)
 #endif
 
 	return c;
-};
-
-/**
- *	i2o_iop_free - Free the i2o_controller struct
- *	@c: I2O controller to free
- */
-void i2o_iop_free(struct i2o_controller *c)
-{
-	kfree(c);
 };
 
 /**
@@ -1168,45 +1097,50 @@ int i2o_iop_add(struct i2o_controller *c)
 {
 	int rc;
 
-	printk(KERN_INFO "%s: Activating I2O controller...\n", c->name);
-	printk(KERN_INFO "%s: This may take a few minutes if there are many "
-	       "devices\n", c->name);
+	if ((rc = device_add(&c->device))) {
+		osm_err("%s: could not add controller\n", c->name);
+		goto iop_reset;
+	}
+
+	osm_info("%s: Activating I2O controller...\n", c->name);
+	osm_info("%s: This may take a few minutes if there are many devices\n",
+		 c->name);
 
 	if ((rc = i2o_iop_activate(c))) {
-		printk(KERN_ERR "%s: could not activate controller\n",
-		       c->name);
-		i2o_iop_reset(c);
-		return rc;
+		osm_err("%s: could not activate controller\n", c->name);
+		goto device_del;
 	}
 
-	pr_debug("%s: building sys table...\n", c->name);
+	osm_debug("%s: building sys table...\n", c->name);
 
-	if ((rc = i2o_systab_build())) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_systab_build()))
+		goto device_del;
 
-	pr_debug("%s: online controller...\n", c->name);
+	osm_debug("%s: online controller...\n", c->name);
 
-	if ((rc = i2o_iop_online(c))) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_iop_online(c)))
+		goto device_del;
 
-	pr_debug("%s: getting LCT...\n", c->name);
+	osm_debug("%s: getting LCT...\n", c->name);
 
-	if ((rc = i2o_exec_lct_get(c))) {
-		i2o_iop_reset(c);
-		return rc;
-	}
+	if ((rc = i2o_exec_lct_get(c)))
+		goto device_del;
 
 	list_add(&c->list, &i2o_controllers);
 
 	i2o_driver_notify_controller_add_all(c);
 
-	printk(KERN_INFO "%s: Controller added\n", c->name);
+	osm_info("%s: Controller added\n", c->name);
 
 	return 0;
+
+      device_del:
+	device_del(&c->device);
+
+      iop_reset:
+	i2o_iop_reset(c);
+
+	return rc;
 };
 
 /**
@@ -1220,28 +1154,27 @@ int i2o_iop_add(struct i2o_controller *c)
  *	is waited for, or expected. If you do not want further notifications,
  *	call the i2o_event_register again with a evt_mask of 0.
  *
- *	Returns 0 on success or -ETIMEDOUT if no message could be fetched for
- *	sending the request.
+ *	Returns 0 on success or negative error code on failure.
  */
 int i2o_event_register(struct i2o_device *dev, struct i2o_driver *drv,
 		       int tcntxt, u32 evt_mask)
 {
 	struct i2o_controller *c = dev->iop;
-	struct i2o_message __iomem *msg;
-	u32 m;
+	struct i2o_message *msg;
 
-	m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_MESSAGE_GET);
-	if (m == I2O_QUEUE_EMPTY)
-		return -ETIMEDOUT;
+	msg = i2o_msg_get_wait(c, I2O_TIMEOUT_MESSAGE_GET);
+	if (IS_ERR(msg))
+		return PTR_ERR(msg);
 
-	writel(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0, &msg->u.head[0]);
-	writel(I2O_CMD_UTIL_EVT_REGISTER << 24 | HOST_TID << 12 | dev->lct_data.
-	       tid, &msg->u.head[1]);
-	writel(drv->context, &msg->u.s.icntxt);
-	writel(tcntxt, &msg->u.s.tcntxt);
-	writel(evt_mask, &msg->body[0]);
+	msg->u.head[0] = cpu_to_le32(FIVE_WORD_MSG_SIZE | SGL_OFFSET_0);
+	msg->u.head[1] =
+	    cpu_to_le32(I2O_CMD_UTIL_EVT_REGISTER << 24 | HOST_TID << 12 | dev->
+			lct_data.tid);
+	msg->u.s.icntxt = cpu_to_le32(drv->context);
+	msg->u.s.tcntxt = cpu_to_le32(tcntxt);
+	msg->body[0] = cpu_to_le32(evt_mask);
 
-	i2o_msg_post(c, m);
+	i2o_msg_post(c, msg);
 
 	return 0;
 };
@@ -1260,20 +1193,13 @@ static int __init i2o_iop_init(void)
 
 	printk(KERN_INFO OSM_DESCRIPTION " v" OSM_VERSION "\n");
 
-	rc = i2o_device_init();
-	if (rc)
+	if ((rc = i2o_driver_init()))
 		goto exit;
 
-	rc = i2o_driver_init();
-	if (rc)
-		goto device_exit;
-
-	rc = i2o_exec_init();
-	if (rc)
+	if ((rc = i2o_exec_init()))
 		goto driver_exit;
 
-	rc = i2o_pci_init();
-	if (rc < 0)
+	if ((rc = i2o_pci_init()))
 		goto exec_exit;
 
 	return 0;
@@ -1283,9 +1209,6 @@ static int __init i2o_iop_init(void)
 
       driver_exit:
 	i2o_driver_exit();
-
-      device_exit:
-	i2o_device_exit();
 
       exit:
 	return rc;
@@ -1301,7 +1224,6 @@ static void __exit i2o_iop_exit(void)
 	i2o_pci_exit();
 	i2o_exec_exit();
 	i2o_driver_exit();
-	i2o_device_exit();
 };
 
 module_init(i2o_iop_init);

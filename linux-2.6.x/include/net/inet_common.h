@@ -1,12 +1,17 @@
 #ifndef _INET_COMMON_H
 #define _INET_COMMON_H
 
-extern struct proto_ops		inet_stream_ops;
-extern struct proto_ops		inet_dgram_ops;
+extern const struct proto_ops		inet_stream_ops;
+extern const struct proto_ops		inet_dgram_ops;
 
 /*
  *	INET4 prototypes used by INET6
  */
+
+struct msghdr;
+struct sock;
+struct sockaddr;
+struct socket;
 
 extern void			inet_remove_sock(struct sock *sk1);
 extern void			inet_put_sock(unsigned short num, 
@@ -29,7 +34,6 @@ extern unsigned int		inet_poll(struct file * file, struct socket *sock, struct p
 extern int			inet_listen(struct socket *sock, int backlog);
 
 extern void			inet_sock_destruct(struct sock *sk);
-extern atomic_t			inet_sock_nr;
 
 extern int			inet_bind(struct socket *sock, 
 					  struct sockaddr *uaddr, int addr_len);

@@ -8,11 +8,13 @@
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/string.h>
+
 #include <linux/mtd/compatmac.h>
+
 #include <asm/unaligned.h>
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/bug.h>
 
 #ifdef CONFIG_MTD_MAP_BANK_WIDTH_1
 #define map_bankwidth(map) 1
@@ -167,14 +169,14 @@ typedef union {
    to a chip probe routine -- either JEDEC or CFI probe or both -- via
    do_map_probe(). If a chip is recognised, the probe code will invoke the
    appropriate chip driver (if present) and return a struct mtd_info.
-   At which point, you fill in the mtd->module with your own module 
+   At which point, you fill in the mtd->module with your own module
    address, and register it with the MTD core code. Or you could partition
    it and register the partitions instead, or keep it for your own private
    use; whatever.
-   
+
    The mtd->priv field will point to the struct map_info, and any further
-   private data required by the chip driver is linked from the 
-   mtd->priv->fldrv_priv field. This allows the map driver to get at 
+   private data required by the chip driver is linked from the
+   mtd->priv->fldrv_priv field. This allows the map driver to get at
    the destructor function map->fldrv_destroy() when it's tired
    of living.
 */
@@ -211,7 +213,7 @@ struct map_info {
 	   If there is no cache to care about this can be set to NULL. */
 	void (*inval_cache)(struct map_info *, unsigned long, ssize_t);
 
-	/* set_vpp() must handle being reentered -- enable, enable, disable 
+	/* set_vpp() must handle being reentered -- enable, enable, disable
 	   must leave it enabled. */
 	void (*set_vpp)(struct map_info *, int);
 
@@ -263,6 +265,17 @@ static inline map_word map_word_and(struct map_info *map, map_word val1, map_wor
 	return r;
 }
 
+static inline map_word map_word_clr(struct map_info *map, map_word val1, map_word val2)
+{
+	map_word r;
+	int i;
+
+	for (i=0; i<map_words(map); i++) {
+		r.x[i] = val1.x[i] & ~val2.x[i];
+	}
+	return r;
+}
+
 static inline map_word map_word_or(struct map_info *map, map_word val1, map_word val2)
 {
 	map_word r;
@@ -273,6 +286,7 @@ static inline map_word map_word_or(struct map_info *map, map_word val1, map_word
 	}
 	return r;
 }
+
 #define map_word_andequal(m, a, b, z) map_word_equal(m, z, map_word_and(m, a, b))
 
 static inline int map_word_bitsset(struct map_info *map, map_word val1, map_word val2)
@@ -328,16 +342,27 @@ static inline map_word map_word_load_partial(struct map_info *map, map_word orig
 	return orig;
 }
 
+#if BITS_PER_LONG < 64
+#define MAP_FF_LIMIT 4
+#else
+#define MAP_FF_LIMIT 8
+#endif
+
 static inline map_word map_word_ff(struct map_info *map)
 {
 	map_word r;
 	int i;
 
-	for (i=0; i<map_words(map); i++) {
-		r.x[i] = ~0UL;
+	if (map_bankwidth(map) < MAP_FF_LIMIT) {
+		int bw = 8 * map_bankwidth(map);
+		r.x[0] = (1 << bw) - 1;
+	} else {
+		for (i=0; i<map_words(map); i++)
+			r.x[i] = ~0UL;
 	}
 	return r;
 }
+
 static inline map_word inline_map_read(struct map_info *map, unsigned long ofs)
 {
 	map_word r;
@@ -405,7 +430,7 @@ extern void simple_map_init(struct map_info *);
 
 
 #define simple_map_init(map) BUG_ON(!map_bankwidth_supported((map)->bankwidth))
-#define map_is_linear(map) (1)
+#define map_is_linear(map) ({ (void)(map); 1; })
 
 #endif /* !CONFIG_MTD_COMPLEX_MAPPINGS */
 

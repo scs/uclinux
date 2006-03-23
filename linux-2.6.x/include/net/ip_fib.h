@@ -109,6 +109,20 @@ struct fib_result {
 #endif
 };
 
+struct fib_result_nl {
+	u32		fl_addr;   /* To be looked up*/ 
+	u32		fl_fwmark; 
+	unsigned char	fl_tos;
+	unsigned char   fl_scope;
+	unsigned char   tb_id_in;
+
+	unsigned char   tb_id;      /* Results */
+	unsigned char	prefixlen;
+	unsigned char	nh_sel;
+	unsigned char	type;
+	unsigned char	scope;
+	int             err;      
+};
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
@@ -224,6 +238,8 @@ extern int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
 			       struct net_device *dev, u32 *spec_dst, u32 *itag);
 extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
+struct rtentry;
+
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(u32 gw, struct net_device *dev);
 extern int fib_sync_down(u32 local, struct net_device *dev, int force);
@@ -280,5 +296,10 @@ static inline void fib_res_put(struct fib_result *res)
 		fib_rule_put(res->r);
 #endif
 }
+
+#ifdef CONFIG_PROC_FS
+extern int  fib_proc_init(void);
+extern void fib_proc_exit(void);
+#endif
 
 #endif  /* _NET_FIB_H */

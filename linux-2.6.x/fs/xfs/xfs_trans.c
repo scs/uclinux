@@ -1,40 +1,26 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -43,21 +29,21 @@
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
-#include "xfs_trans_priv.h"
-#include "xfs_alloc_btree.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
+#include "xfs_dir_sf.h"
+#include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
+#include "xfs_dinode.h"
+#include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir_sf.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_dinode.h"
-#include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_da_btree.h"
 #include "xfs_quota.h"
+#include "xfs_trans_priv.h"
 #include "xfs_trans_space.h"
 
 
@@ -190,12 +176,8 @@ xfs_trans_dup(
 	XFS_LBC_INIT(&(ntp->t_busy));
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	ASSERT(!xlog_debug || tp->t_ticket != NULL);
-#else
 	ASSERT(tp->t_ticket != NULL);
-#endif
+
 	ntp->t_flags = XFS_TRANS_PERM_LOG_RES | (tp->t_flags & XFS_TRANS_RESERVE);
 	ntp->t_ticket = tp->t_ticket;
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
@@ -276,7 +258,7 @@ xfs_trans_reserve(
 
 		error = xfs_log_reserve(tp->t_mountp, logspace, logcount,
 					&tp->t_ticket,
-					XFS_TRANSACTION, log_flags);
+					XFS_TRANSACTION, log_flags, tp->t_type);
 		if (error) {
 			goto undo_blocks;
 		}
@@ -328,25 +310,6 @@ undo_blocks:
         PFLAGS_RESTORE_FSTRANS(&tp->t_pflags);
 
 	return (error);
-}
-
-
-/*
- * This is called to set the a callback to be called when the given
- * transaction is committed to disk.  The transaction pointer and the
- * argument pointer will be passed to the callback routine.
- *
- * Only one callback can be associated with any single transaction.
- */
-void
-xfs_trans_callback(
-	xfs_trans_t		*tp,
-	xfs_trans_callback_t	callback,
-	void			*arg)
-{
-	ASSERT(tp->t_callback == NULL);
-	tp->t_callback = callback;
-	tp->t_callarg = arg;
 }
 
 
@@ -551,7 +514,7 @@ xfs_trans_apply_sb_deltas(
  *
  * This is done efficiently with a single call to xfs_mod_incore_sb_batch().
  */
-void
+STATIC void
 xfs_trans_unreserve_and_mod_sb(
 	xfs_trans_t	*tp)
 {
@@ -680,10 +643,11 @@ xfs_trans_unreserve_and_mod_sb(
  */
  /*ARGSUSED*/
 int
-xfs_trans_commit(
+_xfs_trans_commit(
 	xfs_trans_t	*tp,
 	uint		flags,
-	xfs_lsn_t	*commit_lsn_p)
+	xfs_lsn_t	*commit_lsn_p,
+	int		*log_flushed)
 {
 	xfs_log_iovec_t		*log_vector;
 	int			nvec;
@@ -695,9 +659,6 @@ xfs_trans_commit(
 	int			sync;
 #define	XFS_TRANS_LOGVEC_COUNT	16
 	xfs_log_iovec_t		log_vector_fast[XFS_TRANS_LOGVEC_COUNT];
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	static xfs_lsn_t	trans_lsn = 1;
-#endif
 	void			*commit_iclog;
 	int			shutdown;
 
@@ -748,11 +709,7 @@ shut_us_down:
 			*commit_lsn_p = commit_lsn;
 		return (shutdown);
 	}
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	ASSERT(!xlog_debug || tp->t_ticket != NULL);
-#else
 	ASSERT(tp->t_ticket != NULL);
-#endif
 
 	/*
 	 * If we need to update the superblock, then do it now.
@@ -769,14 +726,10 @@ shut_us_down:
 	 * by using a vector from the stack when it fits.
 	 */
 	nvec = xfs_trans_count_vecs(tp);
-
 	if (nvec == 0) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 		goto shut_us_down;
-	}
-
-
-	if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
+	} else if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
 		log_vector = log_vector_fast;
 	} else {
 		log_vector = (xfs_log_iovec_t *)kmem_alloc(nvec *
@@ -790,30 +743,14 @@ shut_us_down:
 	 */
 	xfs_trans_fill_vecs(tp, log_vector);
 
-	/*
-	 * Ignore errors here. xfs_log_done would do the right thing.
-	 * We need to put the ticket, etc. away.
-	 */
-	error = xfs_log_write(mp, log_vector, nvec, tp->t_ticket,
-			     &(tp->t_lsn));
+	error = xfs_log_write(mp, log_vector, nvec, tp->t_ticket, &(tp->t_lsn));
 
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	if (xlog_debug) {
-		commit_lsn = xfs_log_done(mp, tp->t_ticket,
-					  &commit_iclog, log_flags);
-	} else {
-		commit_lsn = 0;
-		tp->t_lsn = trans_lsn++;
-	}
-#else
 	/*
-	 * This is the regular case.  At this point (after the call finishes),
-	 * the transaction is committed incore and could go out to disk at
-	 * any time.  However, all the items associated with the transaction
-	 * are still locked and pinned in memory.
+	 * The transaction is committed incore here, and can go out to disk
+	 * at any time after this call.  However, all the items associated
+	 * with the transaction are still locked and pinned in memory.
 	 */
 	commit_lsn = xfs_log_done(mp, tp->t_ticket, &commit_iclog, log_flags);
-#endif
 
 	tp->t_commit_lsn = commit_lsn;
 	if (nvec > XFS_TRANS_LOGVEC_COUNT) {
@@ -912,9 +849,11 @@ shut_us_down:
 	 * log out now and wait for it.
 	 */
 	if (sync) {
-		if (!error)
-			error = xfs_log_force(mp, commit_lsn,
-				      XFS_LOG_FORCE | XFS_LOG_SYNC);
+		if (!error) {
+			error = _xfs_log_force(mp, commit_lsn,
+				      XFS_LOG_FORCE | XFS_LOG_SYNC,
+				      log_flushed);
+		}
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
 		XFS_STATS_INC(xs_trans_async);
@@ -1051,6 +990,7 @@ xfs_trans_fill_vecs(
 	tp->t_header.th_num_items = nitems;
 	log_vector->i_addr = (xfs_caddr_t)&tp->t_header;
 	log_vector->i_len = sizeof(xfs_trans_header_t);
+	XLOG_VEC_SET_TYPE(log_vector, XLOG_REG_TYPE_TRANSHDR);
 }
 
 
@@ -1074,6 +1014,7 @@ xfs_trans_cancel(
 	xfs_log_item_t		*lip;
 	int			i;
 #endif
+	xfs_mount_t		*mp = tp->t_mountp;
 
 	/*
 	 * See if the caller is being too lazy to figure out if
@@ -1086,9 +1027,10 @@ xfs_trans_cancel(
 	 * filesystem.  This happens in paths where we detect
 	 * corruption and decide to give up.
 	 */
-	if ((tp->t_flags & XFS_TRANS_DIRTY) &&
-	    !XFS_FORCED_SHUTDOWN(tp->t_mountp))
-		xfs_force_shutdown(tp->t_mountp, XFS_CORRUPT_INCORE);
+	if ((tp->t_flags & XFS_TRANS_DIRTY) && !XFS_FORCED_SHUTDOWN(mp)) {
+		XFS_ERROR_REPORT("xfs_trans_cancel", XFS_ERRLEVEL_LOW, mp);
+		xfs_force_shutdown(mp, XFS_CORRUPT_INCORE);
+	}
 #ifdef DEBUG
 	if (!(flags & XFS_TRANS_ABORT)) {
 		licp = &(tp->t_items);
@@ -1100,7 +1042,7 @@ xfs_trans_cancel(
 				}
 
 				lip = lidp->lid_item;
-				if (!XFS_FORCED_SHUTDOWN(tp->t_mountp))
+				if (!XFS_FORCED_SHUTDOWN(mp))
 					ASSERT(!(lip->li_type == XFS_LI_EFD));
 			}
 			licp = licp->lic_next;
@@ -1108,7 +1050,7 @@ xfs_trans_cancel(
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);
-	XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(tp->t_mountp, tp);
+	XFS_TRANS_UNRESERVE_AND_MOD_DQUOTS(mp, tp);
 
 	if (tp->t_ticket) {
 		if (flags & XFS_TRANS_RELEASE_LOG_RES) {
@@ -1117,7 +1059,7 @@ xfs_trans_cancel(
 		} else {
 			log_flags = 0;
 		}
-		xfs_log_done(tp->t_mountp, tp->t_ticket, NULL, log_flags);
+		xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
 	}
 
 	/* mark this thread as no longer being in a transaction */

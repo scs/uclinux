@@ -23,17 +23,17 @@
 #ifdef CONFIG_MTD_XIP
 
 /*
- * Function that are modifying the flash state away from array mode must
- * obviously not be running from flash.  The __xipram is therefore marking
- * those functions so they get relocated to ram.
- */
-#define __xipram __attribute__ ((__section__ (".data")))
-
-/*
  * We really don't want gcc to guess anything.
  * We absolutely _need_ proper inlining.
  */
 #include <linux/compiler.h>
+
+/*
+ * Function that are modifying the flash state away from array mode must
+ * obviously not be running from flash.  The __xipram is therefore marking
+ * those functions so they get relocated to ram.
+ */
+#define __xipram noinline __attribute__ ((__section__ (".data")))
 
 /*
  * Each architecture has to provide the following macros.  They must access
@@ -58,22 +58,16 @@
  * 		returned value is <= the real elapsed time.
  * 	note 2: this should be able to cope with a few seconds without
  * 		overflowing.
+ *
+ * xip_iprefetch()
+ *
+ *      Macro to fill instruction prefetch
+ *	e.g. a series of nops:  asm volatile (".rep 8; nop; .endr");
  */
 
-#if defined(CONFIG_ARCH_SA1100) || defined(CONFIG_ARCH_PXA)
+#include <asm/mtd-xip.h>
 
-#include <asm/hardware.h>
-#ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
-#endif
-
-#define xip_irqpending()	(ICIP & ICMR)
-
-/* we sample OSCR and convert desired delta to usec (1/4 ~= 1000000/3686400) */
-#define xip_currtime()		(OSCR)
-#define xip_elapsed_since(x)	(signed)((OSCR - (x)) / 4)
-
-#else
+#ifndef xip_irqpending
 
 #warning "missing IRQ and timer primitives for XIP MTD support"
 #warning "some of the XIP MTD support code will be disabled"
@@ -85,16 +79,17 @@
 
 #endif
 
+#ifndef xip_iprefetch
+#define xip_iprefetch()		do { } while (0)
+#endif
+
 /*
  * xip_cpu_idle() is used when waiting for a delay equal or larger than
  * the system timer tick period.  This should put the CPU into idle mode
  * to save power and to be woken up only when some interrupts are pending.
- * As above, this should not rely upon standard kernel code.
+ * This should not rely upon standard kernel code.
  */
-
-#if defined(CONFIG_CPU_XSCALE)
-#define xip_cpu_idle()  asm volatile ("mcr p14, 0, %0, c7, c0, 0" :: "r" (1))
-#else
+#ifndef xip_cpu_idle
 #define xip_cpu_idle()  do { } while (0)
 #endif
 

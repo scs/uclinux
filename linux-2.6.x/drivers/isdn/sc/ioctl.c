@@ -14,7 +14,6 @@
 
 extern int indicate_status(int, int, unsigned long, char *);
 extern int startproc(int);
-extern int loadproc(int, char *record);
 extern int reset(int);
 extern int send_and_receive(int, unsigned int, unsigned char,unsigned char,
 		unsigned char,unsigned char, 
@@ -23,7 +22,7 @@ extern int send_and_receive(int, unsigned int, unsigned char,unsigned char,
 extern board *sc_adapter[];
 
 
-int GetStatus(int card, boardInfo *);
+static int GetStatus(int card, boardInfo *);
 
 /*
  * Process private IOCTL messages (typically from scctrl)
@@ -72,14 +71,14 @@ int sc_ioctl(int card, scs_ioctl *data)
 		/*
 		 * Get the SRec from user space
 		 */
-		if (copy_from_user(srec, data->dataptr, sizeof(srec))) {
+		if (copy_from_user(srec, data->dataptr, SCIOC_SRECSIZE)) {
 			kfree(rcvmsg);
 			kfree(srec);
 			return -EFAULT;
 		}
 
 		status = send_and_receive(card, CMPID, cmReqType2, cmReqClass0, cmReqLoadProc,
-				0, sizeof(srec), srec, rcvmsg, SAR_TIMEOUT);
+				0, SCIOC_SRECSIZE, srec, rcvmsg, SAR_TIMEOUT);
 		kfree(rcvmsg);
 		kfree(srec);
 
@@ -428,7 +427,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 	return 0;
 }
 
-int GetStatus(int card, boardInfo *bi)
+static int GetStatus(int card, boardInfo *bi)
 {
 	RspMessage rcvmsg;
 	int i, status;

@@ -5,11 +5,14 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/mutex.h>
 
 struct block_device;
+struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_target;
 struct Scsi_Host;
 struct scsi_host_cmd_pool;
 struct scsi_transport_template;
@@ -228,6 +231,30 @@ struct scsi_host_template {
 	void (* slave_destroy)(struct scsi_device *);
 
 	/*
+	 * Before the mid layer attempts to scan for a new device attached
+	 * to a target where no target currently exists, it will call this
+	 * entry in your driver.  Should your driver need to allocate any
+	 * structs or perform any other init items in order to send commands
+	 * to a currently unused target, then this is where you can perform
+	 * those allocations.
+	 *
+	 * Return values: 0 on success, non-0 on failure
+	 *
+	 * Status: OPTIONAL
+	 */
+	int (* target_alloc)(struct scsi_target *);
+
+	/*
+	 * Immediately prior to deallocating the target structure, and
+	 * after all activity to attached scsi devices has ceased, the
+	 * midlayer calls this point so that the driver may deallocate
+	 * and terminate any references to the target.
+	 *
+	 * Status: OPTIONAL
+	 */
+	void (* target_destroy)(struct scsi_target *);
+
+	/*
 	 * fill in this function to allow the queue depth of this host
 	 * to be changeable (on a per device basis).  returns either
 	 * the current queue depth setting (may be different from what
@@ -268,6 +295,12 @@ struct scsi_host_template {
 	 * Status: OBSOLETE
 	 */
 	int (*proc_info)(struct Scsi_Host *, char *, char **, off_t, int, int);
+
+	/*
+	 * suspend support
+	 */
+	int (*resume)(struct scsi_device *);
+	int (*suspend)(struct scsi_device *);
 
 	/*
 	 * Name of proc directory
@@ -366,7 +399,6 @@ struct scsi_host_template {
 	/*
 	 * ordered write support
 	 */
-	unsigned ordered_flush:1;
 	unsigned ordered_tag:1;
 
 	/*
@@ -404,13 +436,18 @@ struct scsi_host_template {
 };
 
 /*
- * shost states
+ * shost state: If you alter this, you also need to alter scsi_sysfs.c
+ * (for the ascii descriptions) and the state model enforcer:
+ * scsi_host_set_state()
  */
-enum {
-	SHOST_ADD,
-	SHOST_DEL,
+enum scsi_host_state {
+	SHOST_CREATED = 1,
+	SHOST_RUNNING,
 	SHOST_CANCEL,
+	SHOST_DEL,
 	SHOST_RECOVERY,
+	SHOST_CANCEL_RECOVERY,
+	SHOST_DEL_RECOVERY,
 };
 
 struct Scsi_Host {
@@ -433,18 +470,12 @@ struct Scsi_Host {
 	spinlock_t		default_lock;
 	spinlock_t		*host_lock;
 
-	struct semaphore	scan_mutex;/* serialize scanning activity */
+	struct mutex		scan_mutex;/* serialize scanning activity */
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
-	struct semaphore      * eh_wait;   /* The error recovery thread waits
-					      on this. */
-	struct completion     * eh_notify; /* wait for eh to begin or end */
-	struct semaphore      * eh_action; /* Wait for specific actions on the
-                                          host. */
-	unsigned int            eh_active:1; /* Indicates the eh thread is awake and active if
-                                          this is true. */
-	unsigned int            eh_kill:1; /* set when killing the eh thread */
+	struct completion     * eh_action; /* Wait for specific actions on the
+					      host. */
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
@@ -523,7 +554,6 @@ struct Scsi_Host {
 	/*
 	 * ordered write support
 	 */
-	unsigned ordered_flush:1;
 	unsigned ordered_tag:1;
 
 	/*
@@ -550,7 +580,7 @@ struct Scsi_Host {
 	unsigned int  irq;
 	
 
-	unsigned long shost_state;
+	enum scsi_host_state shost_state;
 
 	/* ldm bits */
 	struct device		shost_gendev;
@@ -583,6 +613,10 @@ struct Scsi_Host {
 #define		class_to_shost(d)	\
 	container_of(d, struct Scsi_Host, shost_classdev)
 
+#define shost_printk(prefix, shost, fmt, a...)	\
+	dev_printk(prefix, &(shost)->shost_gendev, fmt, ##a)
+
+
 int scsi_is_host_device(const struct device *);
 
 static inline struct Scsi_Host *dev_to_shost(struct device *dev)
@@ -595,19 +629,25 @@ static inline struct Scsi_Host *dev_to_shost(struct device *dev)
 	return container_of(dev, struct Scsi_Host, shost_gendev);
 }
 
+static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
+{
+	return shost->shost_state == SHOST_RECOVERY ||
+		shost->shost_state == SHOST_CANCEL_RECOVERY ||
+		shost->shost_state == SHOST_DEL_RECOVERY;
+}
+
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);
 extern void scsi_flush_work(struct Scsi_Host *);
 
 extern struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *, int);
 extern int __must_check scsi_add_host(struct Scsi_Host *, struct device *);
 extern void scsi_scan_host(struct Scsi_Host *);
-extern void scsi_scan_single_target(struct Scsi_Host *, unsigned int,
-	unsigned int);
 extern void scsi_rescan_device(struct device *);
 extern void scsi_remove_host(struct Scsi_Host *);
 extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
+extern const char *scsi_host_state_name(enum scsi_host_state);
 
 extern u64 scsi_calculate_bounce_limit(struct Scsi_Host *);
 
@@ -616,15 +656,18 @@ static inline void scsi_assign_lock(struct Scsi_Host *shost, spinlock_t *lock)
 	shost->host_lock = lock;
 }
 
-static inline void scsi_set_device(struct Scsi_Host *shost,
-                                   struct device *dev)
-{
-        shost->shost_gendev.parent = dev;
-}
-
 static inline struct device *scsi_get_device(struct Scsi_Host *shost)
 {
         return shost->shost_gendev.parent;
+}
+
+/**
+ * scsi_host_scan_allowed - Is scanning of this host allowed
+ * @shost:	Pointer to Scsi_Host.
+ **/
+static inline int scsi_host_scan_allowed(struct Scsi_Host *shost)
+{
+	return shost->shost_state == SHOST_RUNNING;
 }
 
 extern void scsi_unblock_requests(struct Scsi_Host *);
@@ -644,5 +687,6 @@ extern struct scsi_device *scsi_get_host_dev(struct Scsi_Host *);
 /* legacy interfaces */
 extern struct Scsi_Host *scsi_register(struct scsi_host_template *, int);
 extern void scsi_unregister(struct Scsi_Host *);
+extern int scsi_host_set_state(struct Scsi_Host *, enum scsi_host_state);
 
 #endif /* _SCSI_SCSI_HOST_H */

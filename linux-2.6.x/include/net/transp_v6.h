@@ -37,14 +37,14 @@ extern int			datagram_recv_ctl(struct sock *sk,
 extern int			datagram_send_ctl(struct msghdr *msg,
 						  struct flowi *fl,
 						  struct ipv6_txoptions *opt,
-						  int *hlimit);
+						  int *hlimit, int *tclass);
 
 #define		LOOPBACK4_IPV6		__constant_htonl(0x7f000006)
 
 /*
  *	address family specific functions
  */
-extern struct tcp_func	ipv4_specific;
+extern struct inet_connection_sock_af_ops ipv4_specific;
 
 extern int inet6_destroy_sock(struct sock *sk);
 
