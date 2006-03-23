@@ -12,7 +12,7 @@ struct thread_info {
 	unsigned long flags;		/* thread_info flags (see TIF_*) */
 	mm_segment_t addr_limit;	/* user-level address space limit */
 	__u32 cpu;			/* current CPU */
-	__s32 preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
+	int preempt_count;		/* 0=premptable, <0=BUG; will also serve as bh-counter */
 	struct restart_block restart_block;
 };
 
@@ -43,9 +43,6 @@ struct thread_info {
 #define alloc_thread_info(tsk) ((struct thread_info *) \
 			__get_free_pages(GFP_KERNEL, THREAD_ORDER))
 #define free_thread_info(ti)    free_pages((unsigned long) (ti), THREAD_ORDER)
-#define get_thread_info(ti)     get_task_struct((ti)->task)
-#define put_thread_info(ti)     put_task_struct((ti)->task)
-
 
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *)mfctl(30))

@@ -7,7 +7,7 @@
  * Copyright (C) 2001, 2002 Paul Mundt
  * Copyright (C) 2002 MontaVista Software, Inc.
  * Copyright (C) 2002 TimeSys Corp.
- * Copyright (C) 2003-2004 Yoichi Yuasa <yuasa@hh.iij4u.or.jp>
+ * Copyright (C) 2003-2005 Yoichi Yuasa <yoichi_yuasa@tripeaks.co.jp>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -79,11 +79,11 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
 #define MIPS_CPU_IRQ(x)		(MIPS_CPU_IRQ_BASE + (x))
 #define MIPS_SOFTINT0_IRQ	MIPS_CPU_IRQ(0)
 #define MIPS_SOFTINT1_IRQ	MIPS_CPU_IRQ(1)
-#define INT0_CASCADE_IRQ	MIPS_CPU_IRQ(2)
-#define INT1_CASCADE_IRQ	MIPS_CPU_IRQ(3)
-#define INT2_CASCADE_IRQ	MIPS_CPU_IRQ(4)
-#define INT3_CASCADE_IRQ	MIPS_CPU_IRQ(5)
-#define INT4_CASCADE_IRQ	MIPS_CPU_IRQ(6)
+#define INT0_IRQ		MIPS_CPU_IRQ(2)
+#define INT1_IRQ		MIPS_CPU_IRQ(3)
+#define INT2_IRQ		MIPS_CPU_IRQ(4)
+#define INT3_IRQ		MIPS_CPU_IRQ(5)
+#define INT4_IRQ		MIPS_CPU_IRQ(6)
 #define TIMER_IRQ		MIPS_CPU_IRQ(7)
 
 /* SYINT1 Interrupt Numbers */
@@ -97,7 +97,7 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
 #define PIU_IRQ			SYSINT1_IRQ(5)
 #define AIU_IRQ			SYSINT1_IRQ(6)
 #define KIU_IRQ			SYSINT1_IRQ(7)
-#define GIUINT_CASCADE_IRQ	SYSINT1_IRQ(8)
+#define GIUINT_IRQ		SYSINT1_IRQ(8)
 #define SIU_IRQ			SYSINT1_IRQ(9)
 #define BUSERR_IRQ		SYSINT1_IRQ(10)
 #define SOFTINT_IRQ		SYSINT1_IRQ(11)
@@ -126,10 +126,9 @@ extern void vr41xx_mask_clock(vr41xx_clock_t clock);
 #define GIU_IRQ_BASE		40
 #define GIU_IRQ(x)		(GIU_IRQ_BASE + (x))	/* IRQ 40-71 */
 #define GIU_IRQ_LAST		GIU_IRQ(31)
-#define GIU_IRQ_TO_PIN(x)	((x) - GIU_IRQ_BASE)	/* Pin 0-31 */
 
 extern int vr41xx_set_intassign(unsigned int irq, unsigned char intassign);
-extern int vr41xx_cascade_irq(unsigned int irq, int (*get_irq_number)(int irq));
+extern int cascade_irq(unsigned int irq, int (*get_irq)(unsigned int, struct pt_regs *));
 
 #define PIUINT_COMMAND		0x0040
 #define PIUINT_DATA		0x0020
@@ -196,39 +195,5 @@ extern void vr41xx_disable_csiint(uint16_t mask);
 
 extern void vr41xx_enable_bcuint(void);
 extern void vr41xx_disable_bcuint(void);
-
-/*
- * General-Purpose I/O Unit
- */
-enum {
-	TRIGGER_LEVEL,
-	TRIGGER_EDGE,
-	TRIGGER_EDGE_FALLING,
-	TRIGGER_EDGE_RISING
-};
-
-enum {
-	SIGNAL_THROUGH,
-	SIGNAL_HOLD
-};
-
-extern void vr41xx_set_irq_trigger(int pin, int trigger, int hold);
-
-enum {
-	LEVEL_LOW,
-	LEVEL_HIGH
-};
-
-extern void vr41xx_set_irq_level(int pin, int level);
-
-enum {
-	PIO_INPUT,
-	PIO_OUTPUT
-};
-
-enum {
-	DATA_LOW,
-	DATA_HIGH
-};
 
 #endif /* __NEC_VR41XX_H */

@@ -18,6 +18,18 @@
 */
 #define PCI_MAX_BUSSES	256
 
+
+/* To be used as: mdelay(pci_post_reset_delay);
+ *
+ * post_reset is the time the kernel should stall to prevent anyone from
+ * accessing the PCI bus once #RESET is de-asserted. 
+ * PCI spec somewhere says 1 second but with multi-PCI bus systems,
+ * this makes the boot time much longer than necessary.
+ * 20ms seems to work for all the HP PCI implementations to date.
+ */
+#define pci_post_reset_delay 50
+
+
 /*
 ** pci_hba_data (aka H2P_OBJECT in HP/UX)
 **
@@ -69,7 +81,7 @@ struct pci_hba_data {
 #define PCI_PORT_HBA(a)		((a) >> HBA_PORT_SPACE_BITS)
 #define PCI_PORT_ADDR(a)	((a) & (HBA_PORT_SPACE_SIZE - 1))
 
-#if CONFIG_64BIT
+#ifdef CONFIG_64BIT
 #define PCI_F_EXTEND		0xffffffff00000000UL
 #define PCI_IS_LMMIO(hba,a)	pci_is_lmmio(hba,a)
 
@@ -83,12 +95,18 @@ static __inline__  int pci_is_lmmio(struct pci_hba_data *hba, unsigned long a)
 
 /*
 ** Convert between PCI (IO_VIEW) addresses and processor (PA_VIEW) addresses.
-** See pcibios.c for more conversions used by Generic PCI code.
+** See pci.c for more conversions used by Generic PCI code.
+**
+** Platform characteristics/firmware guarantee that
+**	(1) PA_VIEW - IO_VIEW = lmmio_offset for both LMMIO and ELMMIO
+**	(2) PA_VIEW == IO_VIEW for GMMIO
 */
 #define PCI_BUS_ADDR(hba,a)	(PCI_IS_LMMIO(hba,a)	\
 		?  ((a) - hba->lmmio_space_offset)	/* mangle LMMIO */ \
 		: (a))					/* GMMIO */
-#define PCI_HOST_ADDR(hba,a)	((a) + hba->lmmio_space_offset)
+#define PCI_HOST_ADDR(hba,a)	(((a) & PCI_F_EXTEND) == 0 \
+		? (a) + hba->lmmio_space_offset \
+		: (a))
 
 #else	/* !CONFIG_64BIT */
 
@@ -185,9 +203,6 @@ struct pci_bios_ops {
 */
 extern struct pci_port_ops *pci_port;
 extern struct pci_bios_ops *pci_bios;
-extern int pci_post_reset_delay;	/* delay after de-asserting #RESET */
-extern int pci_hba_count;
-extern struct pci_hba_data *parisc_pci_hba[];
 
 #ifdef CONFIG_PCI
 extern void pcibios_register_hba(struct pci_hba_data *);
@@ -230,9 +245,45 @@ extern inline void pcibios_register_hba(struct pci_hba_data *x)
 /* export the pci_ DMA API in terms of the dma_ one */
 #include <asm-generic/pci-dma-compat.h>
 
+#ifdef CONFIG_PCI
+static inline void pci_dma_burst_advice(struct pci_dev *pdev,
+					enum pci_dma_burst_strategy *strat,
+					unsigned long *strategy_parameter)
+{
+	unsigned long cacheline_size;
+	u8 byte;
+
+	pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, &byte);
+	if (byte == 0)
+		cacheline_size = 1024;
+	else
+		cacheline_size = (int) byte * 4;
+
+	*strat = PCI_DMA_BURST_MULTIPLE;
+	*strategy_parameter = cacheline_size;
+}
+#endif
+
 extern void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 			 struct resource *res);
+
+extern void
+pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			struct pci_bus_region *region);
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
 
 static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 {

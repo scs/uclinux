@@ -36,7 +36,7 @@ struct thread_info {
 	struct exec_domain *exec_domain;	/* execution domain */
 	unsigned long	   flags;		/* low level flags */
 	int		   cpu;			/* cpu we're on */
-	int		   preempt_count;	/* 0 => preemptable, <0 => BUG*/
+	int		   preempt_count;	/* 0 => preemptable, <0 => BUG */
 	struct restart_block restart_block;
 };
 
@@ -75,8 +75,6 @@ static inline struct thread_info *current_thread_info(void)
 #define alloc_thread_info(tsk) ((struct thread_info *) \
 				__get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER))
 #define free_thread_info(ti)	free_pages((unsigned long) (ti), THREAD_SIZE_ORDER)
-#define get_thread_info(ti)	get_task_struct((ti)->task)
-#define put_thread_info(ti)	put_task_struct((ti)->task)
 #endif /* __ASSEMBLY__ */
 
 #define	PREEMPT_ACTIVE	0x4000000

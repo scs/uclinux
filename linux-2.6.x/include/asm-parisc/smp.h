@@ -29,6 +29,7 @@ extern cpumask_t cpu_online_map;
 #define cpu_logical_map(cpu)	(cpu)
 
 extern void smp_send_reschedule(int cpu);
+extern void smp_send_all_nop(void);
 
 #endif /* !ASSEMBLY */
 
@@ -51,9 +52,13 @@ extern void smp_send_reschedule(int cpu);
 
 extern unsigned long cpu_present_mask;
 
-#define smp_processor_id()	(current_thread_info()->cpu)
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
 
-#endif /* CONFIG_SMP */
+#else /* CONFIG_SMP */
+
+static inline void smp_send_all_nop(void) { return; }
+
+#endif
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 #define ANY_PROC_ID		0xFF		/* Any processor magic marker */

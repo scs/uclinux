@@ -74,20 +74,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define __pgd(x)	((pgd_t) { (x) } )
 #define __pgprot(x)	((pgprot_t) { (x) } )
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 typedef struct __physmem_range {
 	unsigned long start_pfn;
 	unsigned long pages;       /* PAGE_SIZE pages */
@@ -149,6 +135,13 @@ extern int npmem_ranges;
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_DISCONTIGMEM */
 
+#ifdef CONFIG_HUGETLB_PAGE
+#define HPAGE_SHIFT		22	/* 4MB (is this fixed?) */
+#define HPAGE_SIZE      	((1UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#endif
+
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
@@ -158,5 +151,7 @@ extern int npmem_ranges;
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _PARISC_PAGE_H */

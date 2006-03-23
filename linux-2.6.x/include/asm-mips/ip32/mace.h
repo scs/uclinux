@@ -94,7 +94,7 @@ struct mace_video {
 	unsigned long xxx;	/* later... */
 };
 
-/* 
+/*
  * Ethernet interface
  */
 struct mace_ethernet {
@@ -129,7 +129,7 @@ struct mace_ethernet {
 	volatile unsigned long rx_fifo;
 };
 
-/* 
+/*
  * Peripherals
  */
 
@@ -145,6 +145,39 @@ struct mace_audio {
 		volatile unsigned long write_ptr;	/* channel write pointer */
 		volatile unsigned long depth;		/* channel depth */
 	} chan[3];
+};
+
+
+/* register definitions for parallel port DMA */
+struct mace_parport {
+	/* 0 - do nothing,
+	 * 1 - pulse terminal count to the device after buffer is drained */
+#define MACEPAR_CONTEXT_LASTFLAG	BIT(63)
+	/* Should not cross 4K page boundary */
+#define MACEPAR_CONTEXT_DATA_BOUND	0x0000000000001000UL
+#define MACEPAR_CONTEXT_DATALEN_MASK	0x00000fff00000000UL
+#define MACEPAR_CONTEXT_DATALEN_SHIFT	32
+	/* Can be arbitrarily aligned on any byte boundary on output,
+	 * 64 byte aligned on input */
+#define MACEPAR_CONTEXT_BASEADDR_MASK	0x00000000ffffffffUL
+	volatile u64 context_a;
+	volatile u64 context_b;
+	/* 0 - mem->device, 1 - device->mem */
+#define MACEPAR_CTLSTAT_DIRECTION	BIT(0)
+	/* 0 - channel frozen, 1 - channel enabled */
+#define MACEPAR_CTLSTAT_ENABLE		BIT(1)
+	/* 0 - channel active, 1 - complete channel reset */
+#define MACEPAR_CTLSTAT_RESET		BIT(2)
+#define MACEPAR_CTLSTAT_CTXB_VALID	BIT(3)
+#define MACEPAR_CTLSTAT_CTXA_VALID	BIT(4)
+	volatile u64 cntlstat;		/* Control/Status register */
+#define MACEPAR_DIAG_CTXINUSE		BIT(0)
+	/* 1 - Dma engine is enabled and processing something */
+#define MACEPAR_DIAG_DMACTIVE		BIT(1)
+	/* Counter of bytes left */
+#define MACEPAR_DIAG_CTRMASK		0x0000000000003ffcUL
+#define MACEPAR_DIAG_CTRSHIFT		2
+	volatile u64 diagnostic;	/* RO: diagnostic register */
 };
 
 /* ISA Control and DMA registers */
@@ -199,6 +232,7 @@ struct mace_isactrl {
 	volatile unsigned long _pad[0x2000/8 - 4];
 
 	volatile unsigned long dp_ram[0x400];
+	struct mace_parport parport;
 };
 
 /* Keyboard & Mouse registers
@@ -251,7 +285,7 @@ struct mace_timers {
 	timer_reg audio_out2;
 	timer_reg video_in1;
 	timer_reg video_in2;
-	timer_reg video_out;	
+	timer_reg video_out;
 };
 
 struct mace_perif {
@@ -272,12 +306,12 @@ struct mace_perif {
 };
 
 
-/* 
+/*
  * ISA peripherals
  */
 
 /* Parallel port */
-struct mace_parallel {	/* later... */
+struct mace_parallel {
 };
 
 struct mace_ecp1284 {	/* later... */
@@ -329,6 +363,6 @@ struct sgi_mace {
 	char _pad6[0x80000 - sizeof(struct mace_isa)];
 };
 
-extern struct sgi_mace *mace;
+extern struct sgi_mace __iomem *mace;
 
 #endif /* __ASM_MACE_H__ */
