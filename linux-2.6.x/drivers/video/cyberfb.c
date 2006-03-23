@@ -33,7 +33,7 @@
 *   - 05 Jan 96: Geert: integration into the current source tree
 *   - 01 Aug 98: Alan: Merge in code from cvision.c and cvision_core.c
 * $Log$
-* Revision 1.6  2006/03/23 03:12:15  magicyang
+* Revision 1.7  2006/03/23 07:55:19  magicyang
 * update kernel to 2.6.16
 *
 * Revision 1.6  1998/09/11 04:54:58  abair
