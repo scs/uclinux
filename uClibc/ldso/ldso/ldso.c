@@ -884,7 +884,6 @@ next_lib2:
 
 	/* Find the real malloc function and make ldso functions use that from now on */
 	 _dl_malloc_function = (void* (*)(size_t)) (intptr_t) _dl_find_hash(__C_SYMBOL_PREFIX__ "malloc", _dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT);
-	 _dl_dprintf (_dl_debug_file, "malloc is %x\n", _dl_malloc_function);
 }
 
 char *_dl_getenv(const char *symbol, char **envp)

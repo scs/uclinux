@@ -178,6 +178,5 @@ struct elf32_fdpic_loadmap;
   while (exec_mod->libtype != elf_executable)				\
     exec_mod = exec_mod->next;						\
   dl_main_funcdesc->got_value = exec_mod->loadaddr.got_value;		\
-  _dl_dprintf(2, "entry point is (%x,%x)\n", dl_main_funcdesc->entry_point, dl_main_funcdesc->got_value); \
   return;								\
 } while (0)
