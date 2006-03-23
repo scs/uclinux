@@ -1,5 +1,5 @@
 /* orinoco_wlan_blackfin.c
- * 
+ *
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
  * but are connected to the Asynchronous Memory Bus.
  * This driver is based on orinoco_plx.c
@@ -120,7 +120,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 	if (reg != COR_VALUE) {
 		printk(KERN_ERR "orinoco_wlan_blackfin: Error setting COR value (reg=%x)\n", reg);
 		goto fail;
-	}			
+	}
 
 	iounmap(attr_mem);
 	attr_mem = NULL; /* done with this now, it seems */
@@ -172,16 +172,16 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 	return 0;		/* succeeded */
 
- fail:	
+ fail:
 	printk(KERN_DEBUG "orinoco_wlan_blackfin: init_one(), FAIL!\n");
 
 	if (priv) {
 		if (netdev_registered)
 			unregister_netdev(dev);
-		
+
 		if (dev->irq)
 			free_irq(dev->irq, priv);
-		
+
 		kfree(priv);
 	}
 

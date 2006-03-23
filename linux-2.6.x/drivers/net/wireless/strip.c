@@ -209,7 +209,7 @@ enum {
 	NoStructure = 0,	/* Really old firmware */
 	StructuredMessages = 1,	/* Parsable AT response msgs */
 	ChecksummedMessages = 2	/* Parsable AT response msgs with checksums */
-} FirmwareLevel;
+};
 
 struct strip {
 	int magic;
@@ -860,12 +860,9 @@ static int allocate_buffers(struct strip *strip_info, int mtu)
 		strip_info->mtu = dev->mtu = mtu;
 		return (1);
 	}
-	if (r)
-		kfree(r);
-	if (s)
-		kfree(s);
-	if (t)
-		kfree(t);
+	kfree(r);
+	kfree(s);
+	kfree(t);
 	return (0);
 }
 
@@ -922,13 +919,9 @@ static int strip_change_mtu(struct net_device *dev, int new_mtu)
 	printk(KERN_NOTICE "%s: strip MTU changed fom %d to %d.\n",
 	       strip_info->dev->name, old_mtu, strip_info->mtu);
 
-	if (orbuff)
-		kfree(orbuff);
-	if (osbuff)
-		kfree(osbuff);
-	if (otbuff)
-		kfree(otbuff);
-
+	kfree(orbuff);
+	kfree(osbuff);
+	kfree(otbuff);
 	return 0;
 }
 
@@ -1352,7 +1345,7 @@ static unsigned char *strip_make_packet(unsigned char *buffer,
 		struct in_device *in_dev;
 
 		rcu_read_lock();
-		in_dev = __in_dev_get(strip_info->dev);
+		in_dev = __in_dev_get_rcu(strip_info->dev);
 		if (in_dev == NULL) {
 			rcu_read_unlock();
 			return NULL;
@@ -1508,7 +1501,7 @@ static void strip_send(struct strip *strip_info, struct sk_buff *skb)
 
 		brd = addr = 0;
 		rcu_read_lock();
-		in_dev = __in_dev_get(strip_info->dev);
+		in_dev = __in_dev_get_rcu(strip_info->dev);
 		if (in_dev) {
 			if (in_dev->ifa_list) {
 				brd = in_dev->ifa_list->ifa_broadcast;
@@ -1681,11 +1674,6 @@ static int strip_rebuild_header(struct sk_buff *skb)
 
 /************************************************************************/
 /* Receiving routines							*/
-
-static int strip_receive_room(struct tty_struct *tty)
-{
-	return 0x10000;		/* We can handle an infinite amount of data. :-) */
-}
 
 /*
  * This function parses the response to the ATS300? command,
@@ -2431,7 +2419,7 @@ static struct net_device_stats *strip_get_stats(struct net_device *dev)
 /*
  * Here's the order things happen:
  * When the user runs "slattach -p strip ..."
- *  1. The TTY module calls strip_open
+ *  1. The TTY module calls strip_open;;
  *  2. strip_open calls strip_alloc
  *  3.                  strip_alloc calls register_netdev
  *  4.                  register_netdev calls strip_dev_init
@@ -2498,18 +2486,13 @@ static int strip_close_low(struct net_device *dev)
 	/*
 	 * Free all STRIP frame buffers.
 	 */
-	if (strip_info->rx_buff) {
-		kfree(strip_info->rx_buff);
-		strip_info->rx_buff = NULL;
-	}
-	if (strip_info->sx_buff) {
-		kfree(strip_info->sx_buff);
-		strip_info->sx_buff = NULL;
-	}
-	if (strip_info->tx_buff) {
-		kfree(strip_info->tx_buff);
-		strip_info->tx_buff = NULL;
-	}
+	kfree(strip_info->rx_buff);
+	strip_info->rx_buff = NULL;
+	kfree(strip_info->sx_buff);
+	strip_info->sx_buff = NULL;
+	kfree(strip_info->tx_buff);
+	strip_info->tx_buff = NULL;
+
 	del_timer(&strip_info->idle_timer);
 	return 0;
 }
@@ -2664,6 +2647,8 @@ static int strip_open(struct tty_struct *tty)
 
 	strip_info->tty = tty;
 	tty->disc_data = strip_info;
+	tty->receive_room = 65536;
+
 	if (tty->driver->flush_buffer)
 		tty->driver->flush_buffer(tty);
 
@@ -2774,7 +2759,6 @@ static struct tty_ldisc strip_ldisc = {
 	.close = strip_close,
 	.ioctl = strip_ioctl,
 	.receive_buf = strip_receive_buf,
-	.receive_room = strip_receive_room,
 	.write_wakeup = strip_write_some_more,
 };
 
@@ -2828,7 +2812,7 @@ static void __exit strip_exit_driver(void)
 	/* Unregister with the /proc/net file here. */
 	proc_net_remove("strip");
 
-	if ((i = tty_register_ldisc(N_STRIP, NULL)))
+	if ((i = tty_unregister_ldisc(N_STRIP)))
 		printk(KERN_ERR "STRIP: can't unregister line discipline (err = %d)\n", i);
 
 	printk(signoff);

@@ -15,28 +15,11 @@
 #define PFX DRIVER_NAME ": "
 
 #include <linux/config.h>
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/ioport.h>
-#include <linux/netdevice.h>
-#include <linux/if_arp.h>
-#include <linux/etherdevice.h>
-#include <linux/wireless.h>
-
-#include <asm/io.h>
-#include <asm/system.h>
-#include <asm/current.h>
-#include <asm/prom.h>
-#include <asm/machdep.h>
+#include <linux/delay.h>
 #include <asm/pmac_feature.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
 
 #include "orinoco.h"
 
@@ -184,7 +167,7 @@ static int airport_hard_reset(struct orinoco_private *priv)
 }
 
 static int
-airport_attach(struct macio_dev *mdev, const struct of_match *match)
+airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
 	struct orinoco_private *priv;
 	struct net_device *dev;
@@ -266,15 +249,15 @@ MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Driver for the Apple Airport wireless card.");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static struct of_match airport_match[] = 
+static struct of_device_id airport_match[] = 
 {
 	{
 	.name 		= "radio",
-	.type		= OF_ANY_MATCH,
-	.compatible	= OF_ANY_MATCH
 	},
 	{},
 };
+
+MODULE_DEVICE_TABLE (of, airport_match);
 
 static struct macio_driver airport_driver = 
 {

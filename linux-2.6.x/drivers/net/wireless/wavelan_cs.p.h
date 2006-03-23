@@ -452,7 +452,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/version.h>
 
 /* Wavelan declarations */
 #include "i82593.h"	/* Definitions for the Intel chip */
@@ -473,11 +472,9 @@
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
 #undef SET_MAC_ADDRESS		/* Experimental */
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 /* Warning : these stuff will slow down the driver... */
 #define WIRELESS_SPY		/* Enable spying addresses */
 #undef HISTOGRAM		/* Enable histogram of sig level... */
-#endif
 
 /****************************** DEBUG ******************************/
 
@@ -625,12 +622,10 @@ struct net_local
   int   	rfp;		/* Last DMA machine receive pointer */
   int		overrunning;	/* Receiver overrun flag */
 
-#ifdef WIRELESS_EXT
   iw_stats	wstats;		/* Wireless specific stats */
 
   struct iw_spy_data	spy_data;
   struct iw_public_data	wireless_data;
-#endif
 
 #ifdef HISTOGRAM
   int		his_number;		/* Number of intervals */
@@ -647,23 +642,6 @@ struct net_local
 #endif	/* WAVELAN_ROAMING */
   void __iomem *mem;
 };
-
-/**************************** PROTOTYPES ****************************/
-
-#ifdef WAVELAN_ROAMING
-/* ---------------------- ROAMING SUBROUTINES -----------------------*/
-
-wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp);
-wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_local *lp);
-void wl_del_wavepoint(wavepoint_history *wavepoint, net_local *lp);
-void wl_cell_expiry(unsigned long data);
-wavepoint_history *wl_best_sigqual(int fast_search, net_local *lp);
-void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq);
-void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp);
-void wv_nwid_filter(unsigned char mode, net_local *lp);
-void wv_roam_init(struct net_device *dev);
-void wv_roam_cleanup(struct net_device *dev);
-#endif	/* WAVELAN_ROAMING */
 
 /* ----------------- MODEM MANAGEMENT SUBROUTINES ----------------- */
 static inline u_char		/* data */
@@ -776,19 +754,10 @@ static void
 static int
 	wavelan_open(struct net_device *),		/* Open the device */
 	wavelan_close(struct net_device *);	/* Close the device */
-static dev_link_t *
-	wavelan_attach(void);		/* Create a new device */
 static void
-	wavelan_detach(dev_link_t *);	/* Destroy a removed device */
-static int
-	wavelan_event(event_t,		/* Manage pcmcia events */
-		      int,
-		      event_callback_args_t *);
+	wavelan_detach(struct pcmcia_device *p_dev);	/* Destroy a removed device */
 
 /**************************** VARIABLES ****************************/
-
-static dev_info_t dev_info = "wavelan_cs";
-static dev_link_t *dev_list = NULL;	/* Linked list of devices */
 
 /*
  * Parameters that can be set with 'insmod'

@@ -42,8 +42,7 @@ void free_cpu_buffers(void)
 		vfree(cpu_buffer[i].buffer);
 	}
 }
- 
- 
+
 int alloc_cpu_buffers(void)
 {
 	int i;
@@ -53,7 +52,8 @@ int alloc_cpu_buffers(void)
 	for_each_online_cpu(i) {
 		struct oprofile_cpu_buffer * b = &cpu_buffer[i];
  
-		b->buffer = vmalloc(sizeof(struct op_sample) * buffer_size);
+		b->buffer = vmalloc_node(sizeof(struct op_sample) * buffer_size,
+			cpu_to_node(i));
 		if (!b->buffer)
 			goto fail;
  
@@ -74,7 +74,6 @@ fail:
 	free_cpu_buffers();
 	return -ENOMEM;
 }
- 
 
 void start_cpu_work(void)
 {
@@ -93,7 +92,6 @@ void start_cpu_work(void)
 	}
 }
 
-
 void end_cpu_work(void)
 {
 	int i;
@@ -109,7 +107,6 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-
 /* Resets the cpu buffer to a sane state. */
 void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
 {
@@ -120,7 +117,6 @@ void cpu_buffer_reset(struct oprofile_cpu_buffer * cpu_buf)
 	cpu_buf->last_is_kernel = -1;
 	cpu_buf->last_task = NULL;
 }
-
 
 /* compute number of available slots in cpu_buffer queue */
 static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
@@ -133,7 +129,6 @@ static unsigned long nr_available_slots(struct oprofile_cpu_buffer const * b)
 
 	return tail + (b->buffer_size - head) - 1;
 }
-
 
 static void increment_head(struct oprofile_cpu_buffer * b)
 {
@@ -149,10 +144,7 @@ static void increment_head(struct oprofile_cpu_buffer * b)
 		b->head_pos = 0;
 }
 
-
-
-
-inline static void
+static inline void
 add_sample(struct oprofile_cpu_buffer * cpu_buf,
            unsigned long pc, unsigned long event)
 {
@@ -162,13 +154,11 @@ add_sample(struct oprofile_cpu_buffer * cpu_buf,
 	increment_head(cpu_buf);
 }
 
-
-inline static void
+static inline void
 add_code(struct oprofile_cpu_buffer * buffer, unsigned long value)
 {
 	add_sample(buffer, ESCAPE_CODE, value);
 }
-
 
 /* This must be safe from any context. It's safe writing here
  * because of the head/tail separation of the writer and reader
@@ -223,12 +213,10 @@ static int oprofile_begin_trace(struct oprofile_cpu_buffer * cpu_buf)
 	return 1;
 }
 
-
 static void oprofile_end_trace(struct oprofile_cpu_buffer * cpu_buf)
 {
 	cpu_buf->tracing = 0;
 }
-
 
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 {
@@ -251,13 +239,11 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 	oprofile_end_trace(cpu_buf);
 }
 
-
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 {
 	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
 	log_sample(cpu_buf, pc, is_kernel, event);
 }
-
 
 void oprofile_add_trace(unsigned long pc)
 {
@@ -282,8 +268,6 @@ void oprofile_add_trace(unsigned long pc)
 
 	add_sample(cpu_buf, pc, 0);
 }
-
-
 
 /*
  * This serves to avoid cpu buffer overflow, and makes sure

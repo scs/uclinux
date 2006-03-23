@@ -46,7 +46,6 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 
-#include <pcmcia/version.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -54,6 +53,7 @@
 #include <pcmcia/ds.h>
 #include <pcmcia/mem_op.h>
 
+#include <net/ieee80211.h>
 #include <linux/wireless.h>
 
 #include <asm/io.h>
@@ -65,7 +65,6 @@
 #define WIRELESS_SPY		/* Enable spying addresses */
 /* Definitions we need for spy */
 typedef struct iw_statistics	iw_stats;
-typedef struct iw_quality	iw_qual;
 typedef u_char	mac_addr[ETH_ALEN];	/* Hardware address */
 
 #include "rayctl.h"
@@ -93,16 +92,13 @@ module_param(pc_debug, int, 0);
 /** Prototypes based on PCMCIA skeleton driver *******************************/
 static void ray_config(dev_link_t *link);
 static void ray_release(dev_link_t *link);
-static int ray_event(event_t event, int priority, event_callback_args_t *args);
-static dev_link_t *ray_attach(void);
-static void ray_detach(dev_link_t *);
+static void ray_detach(struct pcmcia_device *p_dev);
 
 /***** Prototypes indicated by device structure ******************************/
 static int ray_dev_close(struct net_device *dev);
 static int ray_dev_config(struct net_device *dev, struct ifmap *map);
 static struct net_device_stats *ray_get_stats(struct net_device *dev);
 static int ray_dev_init(struct net_device *dev);
-static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 
 static struct ethtool_ops netdev_ethtool_ops;
 
@@ -115,9 +111,8 @@ static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx,
 static void ray_build_header(ray_dev_t *local, struct tx_msg __iomem *ptx, UCHAR msg_type,
                 unsigned char *data);
 static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len);
-#if WIRELESS_EXT > 7	/* If wireless extension exist in the kernel */
 static iw_stats * ray_get_wireless_stats(struct net_device *	dev);
-#endif	/* WIRELESS_EXT > 7 */
+static const struct iw_handler_def	ray_handler_def;
 
 /***** Prototypes for raylink functions **************************************/
 static int asc_to_int(char a);
@@ -194,12 +189,6 @@ static int bc;
  */
 static char *phy_addr = NULL;
 
-
-/* The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-static dev_info_t dev_info = "ray_cs";
 
 /* A linked list of "instances" of the ray device.  Each actual
    PCMCIA card corresponds to one device instance, and is described
@@ -317,12 +306,10 @@ static char rcsid[] = "Raylink/WebGear wireless LAN - Corey <Thomas corey@world.
     configure the card at this point -- we wait until we receive a
     card insertion event.
 =============================================================================*/
-static dev_link_t *ray_attach(void)
+static int ray_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     ray_dev_t *local;
-    int ret;
     struct net_device *dev;
     
     DEBUG(1, "ray_attach()\n");
@@ -331,7 +318,7 @@ static dev_link_t *ray_attach(void)
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 
     if (!link)
-	    return NULL;
+	    return -ENOMEM;
 
     /* Allocate space for private device-specific data */
     dev = alloc_etherdev(sizeof(ray_dev_t));
@@ -374,11 +361,12 @@ static dev_link_t *ray_attach(void)
     dev->hard_start_xmit = &ray_dev_start_xmit;
     dev->set_config = &ray_dev_config;
     dev->get_stats  = &ray_get_stats;
-    dev->do_ioctl = &ray_dev_ioctl;
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-#if WIRELESS_EXT > 7	/* If wireless extension exist in the kernel */
-    dev->get_wireless_stats = ray_get_wireless_stats;
-#endif
+    dev->wireless_handlers = &ray_handler_def;
+#ifdef WIRELESS_SPY
+    local->wireless_data.spy_data = &local->spy_data;
+    dev->wireless_data = &local->wireless_data;
+#endif	/* WIRELESS_SPY */
 
     dev->set_multicast_list = &set_multicast_list;
 
@@ -389,35 +377,19 @@ static dev_link_t *ray_attach(void)
     dev->stop = &ray_dev_close;
     netif_stop_queue(dev);
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.EventMask =
-        CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-        CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-        CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-    client_reg.event_handler = &ray_event;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-
-    DEBUG(2,"ray_cs ray_attach calling pcmcia_register_client(...)\n");
-
     init_timer(&local->timer);
 
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-        printk("ray_cs ray_attach RegisterClient unhappy - detaching\n");
-        cs_error(link->handle, RegisterClient, ret);
-        ray_detach(link);
-        return NULL;
-    }
-    DEBUG(2,"ray_cs ray_attach ending\n");
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    ray_config(link);
+
+    return 0;
 
 fail_alloc_dev:
     kfree(link);
-    return NULL;
+    return -ENOMEM;
 } /* ray_attach */
 /*=============================================================================
     This deletes a driver "instance".  The device is de-registered
@@ -425,9 +397,12 @@ fail_alloc_dev:
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 =============================================================================*/
-static void ray_detach(dev_link_t *link)
+static void ray_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
+    struct net_device *dev;
+    ray_dev_t *local;
 
     DEBUG(1, "ray_detach(0x%p)\n", link);
     
@@ -437,22 +412,18 @@ static void ray_detach(dev_link_t *link)
     if (*linkp == NULL)
         return;
 
-    /* If the device is currently configured and active, we won't
-      actually delete it yet.  Instead, it is marked so that when
-      the release() function is called, that will trigger a proper
-      detach().
-    */
-    if (link->state & DEV_CONFIG)
-        ray_release(link);
+    dev = link->priv;
 
-    /* Break the link with Card Services */
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
-    
+    if (link->state & DEV_CONFIG) {
+	    ray_release(link);
+
+	    local = (ray_dev_t *)dev->priv;
+            del_timer(&local->timer);
+    }
+
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if (link->priv) {
-        struct net_device *dev = link->priv;
 	if (link->dev) unregister_netdev(dev);
         free_netdev(dev);
     }
@@ -898,65 +869,40 @@ static void ray_release(dev_link_t *link)
     DEBUG(2,"ray_release ending\n");
 }
 
-/*=============================================================================
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-=============================================================================*/
-static int ray_event(event_t event, int priority,
-                     event_callback_args_t *args)
+static int ray_suspend(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-    ray_dev_t *local = (ray_dev_t *)dev->priv;
-    DEBUG(1, "ray_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        netif_device_detach(dev);
-        if (link->state & DEV_CONFIG) {
-	    ray_release(link);
-            del_timer(&local->timer);
-        }
-        break;
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-        ray_config(link);
-        break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        if (link->state & DEV_CONFIG) {
-            if (link->open)
-            	netif_device_detach(dev);
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-            pcmcia_release_configuration(link->handle);
-        }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
+	link->state |= DEV_SUSPEND;
         if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-                ray_reset(dev);
-		netif_device_attach(dev);
-            }
+		if (link->open)
+			netif_device_detach(dev);
+
+		pcmcia_release_configuration(link->handle);
         }
-        break;
-    }
-    return 0;
-    DEBUG(2,"ray_event ending\n");
-} /* ray_event */
+
+
+	return 0;
+}
+
+static int ray_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			ray_reset(dev);
+			netif_device_attach(dev);
+		}
+        }
+
+	return 0;
+}
+
 /*===========================================================================*/
 int ray_dev_init(struct net_device *dev)
 {
@@ -1207,436 +1153,420 @@ static struct ethtool_ops netdev_ethtool_ops = {
 
 /*====================================================================*/
 
-static int ray_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get protocol name
+ */
+static int ray_get_name(struct net_device *dev,
+			struct iw_request_info *info,
+			char *cwrq,
+			char *extra)
 {
-    ray_dev_t *local = (ray_dev_t *)dev->priv;
-    dev_link_t *link = local->finder;
-    int err = 0;
-#if WIRELESS_EXT > 7
-    struct iwreq *wrq = (struct iwreq *) ifr;
-#endif	/* WIRELESS_EXT > 7 */
-#ifdef WIRELESS_SPY
-    struct sockaddr	address[IW_MAX_SPY];
-#endif	/* WIRELESS_SPY */
+	strcpy(cwrq, "IEEE 802.11-FH");
+	return 0;
+}
 
-    if (!(link->state & DEV_PRESENT)) {
-        DEBUG(2,"ray_dev_ioctl - device not present\n");
-        return -1;
-    }
-    DEBUG(2,"ray_cs IOCTL dev=%p, ifr=%p, cmd = 0x%x\n",dev,ifr,cmd);
-    /* Validate the command */
-    switch (cmd)
-    {
-#if WIRELESS_EXT > 7
-      /* --------------- WIRELESS EXTENSIONS --------------- */
-      /* Get name */
-    case SIOCGIWNAME:
-      strcpy(wrq->u.name, "IEEE 802.11-FH");
-      break;
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set frequency
+ */
+static int ray_set_freq(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_freq *fwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+	int err = -EINPROGRESS;		/* Call commit handler */
 
-      /* Get frequency/channel */
-    case SIOCGIWFREQ:
-      wrq->u.freq.m = local->sparm.b5.a_hop_pattern;
-      wrq->u.freq.e = 0;
-      break;
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
 
-      /* Set frequency/channel */
-    case SIOCSIWFREQ:
-      /* Reject if card is already initialised */
-      if(local->card_status != CARD_AWAITING_PARAM)
-	{
-	  err = -EBUSY;
-	  break;
-	}
-
-      /* Setting by channel number */
-      if ((wrq->u.freq.m > USA_HOP_MOD) || (wrq->u.freq.e > 0))
-	err = -EOPNOTSUPP;
-      else
-	  local->sparm.b5.a_hop_pattern = wrq->u.freq.m;
-      break;
-
-      /* Get current network name (ESSID) */
-    case SIOCGIWESSID:
-      if (wrq->u.data.pointer)
-	{
-	  char essid[IW_ESSID_MAX_SIZE + 1];
-	  /* Get the essid that was set */
-	  memcpy(essid, local->sparm.b5.a_current_ess_id,
-		 IW_ESSID_MAX_SIZE);
-	  essid[IW_ESSID_MAX_SIZE] = '\0';
-
-	  /* Push it out ! */
-	  wrq->u.data.length = strlen(essid) + 1;
-	  wrq->u.data.flags = 1; /* active */
-	  if (copy_to_user(wrq->u.data.pointer, essid, sizeof(essid)))
-		  err = -EFAULT;
-	}
-      break;
-
-      /* Set desired network name (ESSID) */
-    case SIOCSIWESSID:
-      /* Reject if card is already initialised */
-      if(local->card_status != CARD_AWAITING_PARAM)
-	{
-	  err = -EBUSY;
-	  break;
-	}
-
-	if (wrq->u.data.pointer)
-	{
-	    char	card_essid[IW_ESSID_MAX_SIZE + 1];
-	    
-	    /* Check if we asked for `any' */
-	    if(wrq->u.data.flags == 0)
-	    {
-		/* Corey : can you do that ? */
+	/* Setting by channel number */
+	if ((fwrq->m > USA_HOP_MOD) || (fwrq->e > 0))
 		err = -EOPNOTSUPP;
-	    }
-	    else
-	    {
+	else
+		local->sparm.b5.a_hop_pattern = fwrq->m;
+
+	return err;
+}
+ 
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get frequency
+ */
+static int ray_get_freq(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_freq *fwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	fwrq->m = local->sparm.b5.a_hop_pattern;
+	fwrq->e = 0;
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set ESSID
+ */
+static int ray_set_essid(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_point *dwrq,
+			 char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
+
+	/* Check if we asked for `any' */
+	if(dwrq->flags == 0) {
+		/* Corey : can you do that ? */
+		return -EOPNOTSUPP;
+	} else {
 		/* Check the size of the string */
-		if(wrq->u.data.length >
-		   IW_ESSID_MAX_SIZE + 1)
-		{
-		    err = -E2BIG;
-		    break;
+		if(dwrq->length > IW_ESSID_MAX_SIZE + 1) {
+			return -E2BIG;
 		}
-		if (copy_from_user(card_essid,
-				   wrq->u.data.pointer,
-				   wrq->u.data.length)) {
-			err = -EFAULT;
-			break;
-		}
-		card_essid[IW_ESSID_MAX_SIZE] = '\0';
 
 		/* Set the ESSID in the card */
-		memcpy(local->sparm.b5.a_current_ess_id, card_essid,
-		       IW_ESSID_MAX_SIZE);
-	    }
+		memset(local->sparm.b5.a_current_ess_id, 0, IW_ESSID_MAX_SIZE);
+		memcpy(local->sparm.b5.a_current_ess_id, extra, dwrq->length);
 	}
-	break;
 
-      /* Get current Access Point (BSSID in our case) */
-    case SIOCGIWAP:
-      memcpy(wrq->u.ap_addr.sa_data, local->bss_id, ETH_ALEN);
-      wrq->u.ap_addr.sa_family = ARPHRD_ETHER;
-      break;
+	return -EINPROGRESS;		/* Call commit handler */
+}
 
-      /* Get the current bit-rate */
-    case SIOCGIWRATE:
-      if(local->net_default_tx_rate == 3)
-	wrq->u.bitrate.value = 2000000;		/* Hum... */
-      else
-	wrq->u.bitrate.value = local->net_default_tx_rate * 500000;
-      wrq->u.bitrate.fixed = 0;		/* We are in auto mode */
-      break;
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get ESSID
+ */
+static int ray_get_essid(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_point *dwrq,
+			 char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
 
-      /* Set the desired bit-rate */
-    case SIOCSIWRATE:
-      /* Check if rate is in range */
-      if((wrq->u.bitrate.value != 1000000) &&
-	 (wrq->u.bitrate.value != 2000000))
-	{
-	  err = -EINVAL;
-	  break;
-	}
-      /* Hack for 1.5 Mb/s instead of 2 Mb/s */
-      if((local->fw_ver == 0x55) &&		/* Please check */
-	 (wrq->u.bitrate.value == 2000000))
-	local->net_default_tx_rate = 3;
-      else
-	local->net_default_tx_rate = wrq->u.bitrate.value/500000;
-      break;
+	/* Get the essid that was set */
+	memcpy(extra, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
+	extra[IW_ESSID_MAX_SIZE] = '\0';
 
-      /* Get the current RTS threshold */
-    case SIOCGIWRTS:
-      wrq->u.rts.value = (local->sparm.b5.a_rts_threshold[0] << 8)
-	+ local->sparm.b5.a_rts_threshold[1];
-#if WIRELESS_EXT > 8
-      wrq->u.rts.disabled = (wrq->u.rts.value == 32767);
-#endif /* WIRELESS_EXT > 8 */
-      wrq->u.rts.fixed = 1;
-      break;
+	/* Push it out ! */
+	dwrq->length = strlen(extra);
+	dwrq->flags = 1; /* active */
 
-      /* Set the desired RTS threshold */
-    case SIOCSIWRTS:
-    {
-	int rthr = wrq->u.rts.value;
+	return 0;
+}
 
-      /* Reject if card is already initialised */
-      if(local->card_status != CARD_AWAITING_PARAM)
-	{
-	  err = -EBUSY;
-	  break;
-	}
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get AP address
+ */
+static int ray_get_wap(struct net_device *dev,
+			struct iw_request_info *info,
+			struct sockaddr *awrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	memcpy(awrq->sa_data, local->bss_id, ETH_ALEN);
+	awrq->sa_family = ARPHRD_ETHER;
+
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set Bit-Rate
+ */
+static int ray_set_rate(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_param *vwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
+
+	/* Check if rate is in range */
+	if((vwrq->value != 1000000) && (vwrq->value != 2000000))
+		return -EINVAL;
+
+	/* Hack for 1.5 Mb/s instead of 2 Mb/s */
+	if((local->fw_ver == 0x55) &&		/* Please check */
+	   (vwrq->value == 2000000))
+		local->net_default_tx_rate = 3;
+	else
+		local->net_default_tx_rate = vwrq->value/500000;
+
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get Bit-Rate
+ */
+static int ray_get_rate(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_param *vwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	if(local->net_default_tx_rate == 3)
+		vwrq->value = 2000000;		/* Hum... */
+	else
+		vwrq->value = local->net_default_tx_rate * 500000;
+	vwrq->fixed = 0;		/* We are in auto mode */
+
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set RTS threshold
+ */
+static int ray_set_rts(struct net_device *dev,
+		       struct iw_request_info *info,
+		       struct iw_param *vwrq,
+		       char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+	int rthr = vwrq->value;
+
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
 
 	/* if(wrq->u.rts.fixed == 0) we should complain */
-#if WIRELESS_EXT > 8
-	if(wrq->u.rts.disabled)
-	    rthr = 32767;
-	else
-#endif /* WIRELESS_EXT > 8 */
-	    if((rthr < 0) || (rthr > 2347)) /* What's the max packet size ??? */
-	    {
-		err = -EINVAL;
-		break;
-	    }
+	if(vwrq->disabled)
+		rthr = 32767;
+	else {
+		if((rthr < 0) || (rthr > 2347)) /* What's the max packet size ??? */
+			return -EINVAL;
+	}
 	local->sparm.b5.a_rts_threshold[0] = (rthr >> 8) & 0xFF;
 	local->sparm.b5.a_rts_threshold[1] = rthr & 0xFF;
-    }
-    break;
 
-      /* Get the current fragmentation threshold */
-    case SIOCGIWFRAG:
-      wrq->u.frag.value = (local->sparm.b5.a_frag_threshold[0] << 8)
-	+ local->sparm.b5.a_frag_threshold[1];
-#if WIRELESS_EXT > 8
-      wrq->u.frag.disabled = (wrq->u.frag.value == 32767);
-#endif /* WIRELESS_EXT > 8 */
-      wrq->u.frag.fixed = 1;
-      break;
+	return -EINPROGRESS;		/* Call commit handler */
+}
 
-      /* Set the desired fragmentation threshold */
-    case SIOCSIWFRAG:
-    {
-	int fthr = wrq->u.frag.value;
 
-      /* Reject if card is already initialised */
-      if(local->card_status != CARD_AWAITING_PARAM)
-	{
-	  err = -EBUSY;
-	  break;
-	}
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get RTS threshold
+ */
+static int ray_get_rts(struct net_device *dev,
+		       struct iw_request_info *info,
+		       struct iw_param *vwrq,
+		       char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+
+	vwrq->value = (local->sparm.b5.a_rts_threshold[0] << 8)
+		+ local->sparm.b5.a_rts_threshold[1];
+	vwrq->disabled = (vwrq->value == 32767);
+	vwrq->fixed = 1;
+
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set Fragmentation threshold
+ */
+static int ray_set_frag(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_param *vwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+	int fthr = vwrq->value;
+
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
 
 	/* if(wrq->u.frag.fixed == 0) should complain */
-#if WIRELESS_EXT > 8
-	if(wrq->u.frag.disabled)
-	    fthr = 32767;
-	else
-#endif /* WIRELESS_EXT > 8 */
-	    if((fthr < 256) || (fthr > 2347)) /* To check out ! */
-	    {
-		err = -EINVAL;
-		break;
-	    }
+	if(vwrq->disabled)
+		fthr = 32767;
+	else {
+		if((fthr < 256) || (fthr > 2347)) /* To check out ! */
+			return -EINVAL;
+	}
 	local->sparm.b5.a_frag_threshold[0] = (fthr >> 8) & 0xFF;
 	local->sparm.b5.a_frag_threshold[1] = fthr & 0xFF;
-    }
-    break;
 
-#endif	/* WIRELESS_EXT > 7 */
-#if WIRELESS_EXT > 8
+	return -EINPROGRESS;		/* Call commit handler */
+}
 
-      /* Get the current mode of operation */
-    case SIOCGIWMODE:
-      if(local->sparm.b5.a_network_type)
-	wrq->u.mode = IW_MODE_INFRA;
-      else
-	wrq->u.mode = IW_MODE_ADHOC;
-      break;
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get Fragmentation threshold
+ */
+static int ray_get_frag(struct net_device *dev,
+			struct iw_request_info *info,
+			struct iw_param *vwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
 
-      /* Set the current mode of operation */
-    case SIOCSIWMODE:
-    {
+	vwrq->value = (local->sparm.b5.a_frag_threshold[0] << 8)
+		+ local->sparm.b5.a_frag_threshold[1];
+	vwrq->disabled = (vwrq->value == 32767);
+	vwrq->fixed = 1;
+
+	return 0;
+}
+
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : set Mode of Operation
+ */
+static int ray_set_mode(struct net_device *dev,
+			struct iw_request_info *info,
+			__u32 *uwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
+	int err = -EINPROGRESS;		/* Call commit handler */
 	char card_mode = 1;
-	
-      /* Reject if card is already initialised */
-      if(local->card_status != CARD_AWAITING_PARAM)
-	{
-	  err = -EBUSY;
-	  break;
-	}
 
-	switch (wrq->u.mode)
+	/* Reject if card is already initialised */
+	if(local->card_status != CARD_AWAITING_PARAM)
+		return -EBUSY;
+
+	switch (*uwrq)
 	{
 	case IW_MODE_ADHOC:
-	    card_mode = 0;
-	    // Fall through
+		card_mode = 0;
+		// Fall through
 	case IW_MODE_INFRA:
-	    local->sparm.b5.a_network_type = card_mode;
-	    break;
+		local->sparm.b5.a_network_type = card_mode;
+		break;
 	default:
-	    err = -EINVAL;
+		err = -EINVAL;
 	}
-    }
-    break;
 
-#endif /* WIRELESS_EXT > 8 */
-#if WIRELESS_EXT > 7
-      /* ------------------ IWSPY SUPPORT ------------------ */
-      /* Define the range (variations) of above parameters */
-    case SIOCGIWRANGE:
-      /* Basic checking... */
-      if(wrq->u.data.pointer != (caddr_t) 0)
-	{
-	  struct iw_range	range;
-	  memset((char *) &range, 0, sizeof(struct iw_range));
+	return err;
+}
 
-	  /* Set the length (very important for backward compatibility) */
-	  wrq->u.data.length = sizeof(struct iw_range);
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get Mode of Operation
+ */
+static int ray_get_mode(struct net_device *dev,
+			struct iw_request_info *info,
+			__u32 *uwrq,
+			char *extra)
+{
+	ray_dev_t *local = (ray_dev_t *)dev->priv;
 
-#if WIRELESS_EXT > 10
-	  /* Set the Wireless Extension versions */
-	  range.we_version_compiled = WIRELESS_EXT;
-	  range.we_version_source = 9;
-#endif /* WIRELESS_EXT > 10 */
+	if(local->sparm.b5.a_network_type)
+		*uwrq = IW_MODE_INFRA;
+	else
+		*uwrq = IW_MODE_ADHOC;
 
-	  /* Set information in the range struct */
-	  range.throughput = 1.1 * 1000 * 1000;	/* Put the right number here */
-	  range.num_channels = hop_pattern_length[(int)country]; 
-	  range.num_frequency = 0;
-	  range.max_qual.qual = 0;
-	  range.max_qual.level = 255;	/* What's the correct value ? */
-	  range.max_qual.noise = 255;	/* Idem */
-	  range.num_bitrates = 2;
-	  range.bitrate[0] = 1000000;	/* 1 Mb/s */
-	  range.bitrate[1] = 2000000;	/* 2 Mb/s */
+	return 0;
+}
 
-	  /* Copy structure to the user buffer */
-	  if(copy_to_user(wrq->u.data.pointer, &range,
-			  sizeof(struct iw_range)))
-	    err = -EFAULT;
-	}
-      break;
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Handler : get range info
+ */
+static int ray_get_range(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_point *dwrq,
+			 char *extra)
+{
+	struct iw_range *range = (struct iw_range *) extra;
 
-#ifdef WIRELESS_SPY
-      /* Set addresses to spy */
-    case SIOCSIWSPY:
-      /* Check the number of addresses */
-      if(wrq->u.data.length > IW_MAX_SPY)
-	{
-	  err = -E2BIG;
-	  break;
-	}
-      local->spy_number = wrq->u.data.length;
+	memset((char *) range, 0, sizeof(struct iw_range));
 
-      /* If there is some addresses to copy */
-      if(local->spy_number > 0)
-	{
-	  int			i;
+	/* Set the length (very important for backward compatibility) */
+	dwrq->length = sizeof(struct iw_range);
 
-	  /* Copy addresses to the driver */
-	  if(copy_from_user(address, wrq->u.data.pointer,
-			    sizeof(struct sockaddr) * local->spy_number))
-	    {
-	      err = -EFAULT;
-	      break;
-	    }
+	/* Set the Wireless Extension versions */
+	range->we_version_compiled = WIRELESS_EXT;
+	range->we_version_source = 9;
 
-	  /* Copy addresses to the lp structure */
-	  for(i = 0; i < local->spy_number; i++)
-	    memcpy(local->spy_address[i], address[i].sa_data, ETH_ALEN);
+	/* Set information in the range struct */
+	range->throughput = 1.1 * 1000 * 1000;	/* Put the right number here */
+	range->num_channels = hop_pattern_length[(int)country]; 
+	range->num_frequency = 0;
+	range->max_qual.qual = 0;
+	range->max_qual.level = 255;	/* What's the correct value ? */
+	range->max_qual.noise = 255;	/* Idem */
+	range->num_bitrates = 2;
+	range->bitrate[0] = 1000000;	/* 1 Mb/s */
+	range->bitrate[1] = 2000000;	/* 2 Mb/s */
+	return 0;
+}
 
-	  /* Reset structure... */
-	  memset(local->spy_stat, 0x00, sizeof(iw_qual) * IW_MAX_SPY);
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Private Handler : set framing mode
+ */
+static int ray_set_framing(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu,
+			   char *extra)
+{
+	translate = *(extra);	/* Set framing mode */
 
-#ifdef DEBUG_IOCTL_INFO
-	  printk(KERN_DEBUG "SetSpy - Set of new addresses is :\n");
-	  for(i = 0; i < local->spy_number; i++)
-	    printk(KERN_DEBUG "%02X:%02X:%02X:%02X:%02X:%02X\n",
-		   local->spy_address[i][0],
-		   local->spy_address[i][1],
-		   local->spy_address[i][2],
-		   local->spy_address[i][3],
-		   local->spy_address[i][4],
-		   local->spy_address[i][5]);
-#endif	/* DEBUG_IOCTL_INFO */
-	}
-      break;
+	return 0;
+}
 
-      /* Get the spy list and spy stats */
-    case SIOCGIWSPY:
-      /* Set the number of addresses */
-      wrq->u.data.length = local->spy_number;
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Private Handler : get framing mode
+ */
+static int ray_get_framing(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu,
+			   char *extra)
+{
+	*(extra) = translate;
 
-      /* If the user want to have the addresses back... */
-      if((local->spy_number > 0) && (wrq->u.data.pointer != (caddr_t) 0))
-	{
-	  int			i;
+	return 0;
+}
 
-	  /* Copy addresses from the lp structure */
-	  for(i = 0; i < local->spy_number; i++)
-	    {
-	      memcpy(address[i].sa_data, local->spy_address[i], ETH_ALEN);
-	      address[i].sa_family = ARPHRD_ETHER;
-	    }
+/*------------------------------------------------------------------*/
+/*
+ * Wireless Private Handler : get country
+ */
+static int ray_get_country(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu,
+			   char *extra)
+{
+	*(extra) = country;
 
-	  /* Copy addresses to the user buffer */
-	  if(copy_to_user(wrq->u.data.pointer, address,
-		       sizeof(struct sockaddr) * local->spy_number))
-	    {
-	      err = -EFAULT;
-	      break;
-	    }
+	return 0;
+}
 
-	  /* Copy stats to the user buffer (just after) */
-	  if(copy_to_user(wrq->u.data.pointer +
-		       (sizeof(struct sockaddr) * local->spy_number),
-		       local->spy_stat, sizeof(iw_qual) * local->spy_number))
-	    {
-	      err = -EFAULT;
-	      break;
-	    }
+/*------------------------------------------------------------------*/
+/*
+ * Commit handler : called after a bunch of SET operations
+ */
+static int ray_commit(struct net_device *dev,
+		      struct iw_request_info *info,	/* NULL */
+		      void *zwrq,			/* NULL */
+		      char *extra)			/* NULL */
+{
+	return 0;
+}
 
-	  /* Reset updated flags */
-	  for(i = 0; i < local->spy_number; i++)
-	    local->spy_stat[i].updated = 0x0;
-	}	/* if(pointer != NULL) */
-
-      break;
-#endif	/* WIRELESS_SPY */
-
-      /* ------------------ PRIVATE IOCTL ------------------ */
-#ifndef SIOCIWFIRSTPRIV
-#define SIOCIWFIRSTPRIV	SIOCDEVPRIVATE
-#endif /* SIOCIWFIRSTPRIV */
-#define SIOCSIPFRAMING	SIOCIWFIRSTPRIV		/* Set framing mode */
-#define SIOCGIPFRAMING	SIOCIWFIRSTPRIV + 1	/* Get framing mode */
-#define SIOCGIPCOUNTRY	SIOCIWFIRSTPRIV + 3	/* Get country code */
-    case SIOCSIPFRAMING:
-      if(!capable(CAP_NET_ADMIN))	/* For private IOCTLs, we need to check permissions */
-	{
-	  err = -EPERM;
-	  break;
-	}
-      translate = *(wrq->u.name);	/* Set framing mode */
-      break;
-    case SIOCGIPFRAMING:
-      *(wrq->u.name) = translate;
-      break;
-    case SIOCGIPCOUNTRY:
-      *(wrq->u.name) = country;
-      break;
-    case SIOCGIWPRIV:
-      /* Export our "private" intercace */
-      if(wrq->u.data.pointer != (caddr_t) 0)
-	{
-	  struct iw_priv_args	priv[] =
-	  {	/* cmd,		set_args,	get_args,	name */
-	    { SIOCSIPFRAMING, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, 0, "set_framing" },
-	    { SIOCGIPFRAMING, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "get_framing" },
-	    { SIOCGIPCOUNTRY, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "get_country" },
-	  };
-	  /* Set the number of ioctl available */
-	  wrq->u.data.length = 3;
-	  /* Copy structure to the user buffer */
-	  if(copy_to_user(wrq->u.data.pointer, (u_char *) priv,
-		       sizeof(priv)))
-	    err = -EFAULT;
-	}
-      break;
-#endif	/* WIRELESS_EXT > 7 */
-
-
-        default:
-            DEBUG(0,"ray_dev_ioctl cmd = 0x%x\n", cmd);
-            err = -EOPNOTSUPP;
-    }
-    return err;
-} /* end ray_dev_ioctl */
-/*===========================================================================*/
-#if WIRELESS_EXT > 7	/* If wireless extension exist in the kernel */
+/*------------------------------------------------------------------*/
+/*
+ * Stats handler : return Wireless Stats
+ */
 static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
 {
   ray_dev_t *	local = (ray_dev_t *) dev->priv;
@@ -1648,13 +1578,13 @@ static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
 
   local->wstats.status = local->card_status;
 #ifdef WIRELESS_SPY
-  if((local->spy_number > 0) && (local->sparm.b5.a_network_type == 0))
+  if((local->spy_data.spy_number > 0) && (local->sparm.b5.a_network_type == 0))
     {
       /* Get it from the first node in spy list */
-      local->wstats.qual.qual = local->spy_stat[0].qual;
-      local->wstats.qual.level = local->spy_stat[0].level;
-      local->wstats.qual.noise = local->spy_stat[0].noise;
-      local->wstats.qual.updated = local->spy_stat[0].updated;
+      local->wstats.qual.qual = local->spy_data.spy_stat[0].qual;
+      local->wstats.qual.level = local->spy_data.spy_stat[0].level;
+      local->wstats.qual.noise = local->spy_data.spy_stat[0].noise;
+      local->wstats.qual.updated = local->spy_data.spy_stat[0].updated;
     }
 #endif /* WIRELESS_SPY */
 
@@ -1665,7 +1595,65 @@ static iw_stats * ray_get_wireless_stats(struct net_device *	dev)
 
   return &local->wstats;
 } /* end ray_get_wireless_stats */
-#endif	/* WIRELESS_EXT > 7 */
+
+/*------------------------------------------------------------------*/
+/*
+ * Structures to export the Wireless Handlers
+ */
+
+static const iw_handler	ray_handler[] = {
+	[SIOCSIWCOMMIT-SIOCIWFIRST] = (iw_handler) ray_commit,
+	[SIOCGIWNAME  -SIOCIWFIRST] = (iw_handler) ray_get_name,
+	[SIOCSIWFREQ  -SIOCIWFIRST] = (iw_handler) ray_set_freq,
+	[SIOCGIWFREQ  -SIOCIWFIRST] = (iw_handler) ray_get_freq,
+	[SIOCSIWMODE  -SIOCIWFIRST] = (iw_handler) ray_set_mode,
+	[SIOCGIWMODE  -SIOCIWFIRST] = (iw_handler) ray_get_mode,
+	[SIOCGIWRANGE -SIOCIWFIRST] = (iw_handler) ray_get_range,
+#ifdef WIRELESS_SPY
+ 	[SIOCSIWSPY   -SIOCIWFIRST] = (iw_handler) iw_handler_set_spy,
+	[SIOCGIWSPY   -SIOCIWFIRST] = (iw_handler) iw_handler_get_spy,
+	[SIOCSIWTHRSPY-SIOCIWFIRST] = (iw_handler) iw_handler_set_thrspy,
+	[SIOCGIWTHRSPY-SIOCIWFIRST] = (iw_handler) iw_handler_get_thrspy,
+#endif	/* WIRELESS_SPY */
+	[SIOCGIWAP    -SIOCIWFIRST] = (iw_handler) ray_get_wap,
+	[SIOCSIWESSID -SIOCIWFIRST] = (iw_handler) ray_set_essid,
+	[SIOCGIWESSID -SIOCIWFIRST] = (iw_handler) ray_get_essid,
+	[SIOCSIWRATE  -SIOCIWFIRST] = (iw_handler) ray_set_rate,
+	[SIOCGIWRATE  -SIOCIWFIRST] = (iw_handler) ray_get_rate,
+	[SIOCSIWRTS   -SIOCIWFIRST] = (iw_handler) ray_set_rts,
+	[SIOCGIWRTS   -SIOCIWFIRST] = (iw_handler) ray_get_rts,
+	[SIOCSIWFRAG  -SIOCIWFIRST] = (iw_handler) ray_set_frag,
+	[SIOCGIWFRAG  -SIOCIWFIRST] = (iw_handler) ray_get_frag,
+};
+
+#define SIOCSIPFRAMING	SIOCIWFIRSTPRIV		/* Set framing mode */
+#define SIOCGIPFRAMING	SIOCIWFIRSTPRIV + 1	/* Get framing mode */
+#define SIOCGIPCOUNTRY	SIOCIWFIRSTPRIV + 3	/* Get country code */
+
+static const iw_handler	ray_private_handler[] = {
+	[0] = (iw_handler) ray_set_framing,
+	[1] = (iw_handler) ray_get_framing,
+	[3] = (iw_handler) ray_get_country,
+};
+
+static const struct iw_priv_args	ray_private_args[] = {
+/* cmd,		set_args,	get_args,	name */
+{ SIOCSIPFRAMING, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, 0, "set_framing" },
+{ SIOCGIPFRAMING, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "get_framing" },
+{ SIOCGIPCOUNTRY, 0, IW_PRIV_TYPE_BYTE | IW_PRIV_SIZE_FIXED | 1, "get_country" },
+};
+
+static const struct iw_handler_def	ray_handler_def =
+{
+	.num_standard	= sizeof(ray_handler)/sizeof(iw_handler),
+	.num_private	= sizeof(ray_private_handler)/sizeof(iw_handler),
+	.num_private_args = sizeof(ray_private_args)/sizeof(struct iw_priv_args),
+	.standard	= ray_handler,
+	.private	= ray_private_handler,
+	.private_args	= ray_private_args,
+	.get_wireless_stats = ray_get_wireless_stats,
+};
+
 /*===========================================================================*/
 static int ray_open(struct net_device *dev)
 {
@@ -2398,20 +2386,15 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs, unsigned i
 	/*local->wstats.qual.noise = none ? */
 	local->wstats.qual.updated = 0x2;
       }
-    /* Now, for the addresses in the spy list */
+    /* Now, update the spy stuff */
     {
-      int	i;
-      /* Look all addresses */
-      for(i = 0; i < local->spy_number; i++)
-	/* If match */
-	if(!memcmp(linksrcaddr, local->spy_address[i], ETH_ALEN))
-	  {
-	    /* Update statistics */
-	    /*local->spy_stat[i].qual = none ? */
-	    local->spy_stat[i].level = siglev;
-	    /*local->spy_stat[i].noise = none ? */
-	    local->spy_stat[i].updated = 0x2;
-	  }
+	struct iw_quality wstats;
+	wstats.level = siglev;
+	/* wstats.noise = none ? */
+	/* wstats.qual = none ? */
+	wstats.updated = 0x2;
+	/* Update spy records */
+	wireless_spy_update(dev, linksrcaddr, &wstats);
     }
 #endif	/* WIRELESS_SPY */
 } /* end rx_data */
@@ -2904,13 +2887,22 @@ static int write_int(struct file *file, const char __user *buffer, unsigned long
 }
 #endif
 
+static struct pcmcia_device_id ray_ids[] = {
+	PCMCIA_DEVICE_MANF_CARD(0x01a6, 0x0000),
+	PCMCIA_DEVICE_NULL,
+};
+MODULE_DEVICE_TABLE(pcmcia, ray_ids);
+
 static struct pcmcia_driver ray_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= "ray_cs",
 	},
-	.attach		= ray_attach,
-	.detach		= ray_detach,
+	.probe		= ray_attach,
+	.remove		= ray_detach,
+	.id_table       = ray_ids,
+	.suspend	= ray_suspend,
+	.resume		= ray_resume,
 };
 
 static int __init init_ray_cs(void)

@@ -18,7 +18,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -267,8 +266,6 @@ prism54_suspend(struct pci_dev *pdev, pm_message_t state)
 	islpci_private *priv = ndev ? netdev_priv(ndev) : NULL;
 	BUG_ON(!priv);
 
-	printk(KERN_NOTICE "%s: got suspend request (state %d)\n",
-	       ndev->name, state);
 
 	pci_save_state(pdev);
 

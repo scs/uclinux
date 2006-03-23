@@ -7,13 +7,11 @@
 #ifndef _ORINOCO_H
 #define _ORINOCO_H
 
-#define DRIVER_VERSION "0.14alpha2"
+#define DRIVER_VERSION "0.15rc3"
 
-#include <linux/types.h>
-#include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
-#include <linux/version.h>
+#include <net/iw_handler.h>
 
 #include "hermes.h"
 
@@ -22,12 +20,28 @@
 
 #define WIRELESS_SPY		// enable iwspy support
 
+#define MAX_SCAN_LEN		4096
+
 #define ORINOCO_MAX_KEY_SIZE	14
 #define ORINOCO_MAX_KEYS	4
 
 struct orinoco_key {
-	u16 len;	/* always stored as little-endian */
+	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
+} __attribute__ ((packed));
+
+struct header_struct {
+	/* 802.3 */
+	u8 dest[ETH_ALEN];
+	u8 src[ETH_ALEN];
+	__be16 len;
+	/* 802.2 */
+	u8 dsap;
+	u8 ssap;
+	u8 ctrl;
+	/* SNAP */
+	u8 oui[3];
+	unsigned short ethertype;
 } __attribute__ ((packed));
 
 typedef enum {
@@ -48,6 +62,8 @@ struct orinoco_private {
 	/* driver state */
 	int open;
 	u16 last_linkstatus;
+	struct work_struct join_work;
+	struct work_struct wevent_work;
 
 	/* Net device stuff */
 	struct net_device *ndev;
@@ -74,7 +90,9 @@ struct orinoco_private {
 	unsigned int has_pm:1;
 	unsigned int has_preamble:1;
 	unsigned int has_sensitivity:1;
+	unsigned int has_hostscan:1;
 	unsigned int broken_disableport:1;
+	unsigned int broken_monitor:1;
 
 	/* Configuration paramaters */
 	u32 iw_mode;
@@ -84,20 +102,27 @@ struct orinoco_private {
 	int bitratemode;
  	char nick[IW_ESSID_MAX_SIZE+1];
 	char desired_essid[IW_ESSID_MAX_SIZE+1];
+	char desired_bssid[ETH_ALEN];
+	int bssid_fixed;
 	u16 frag_thresh, mwo_robust;
 	u16 channel;
 	u16 ap_density, rts_thresh;
 	u16 pm_on, pm_mcast, pm_period, pm_timeout;
 	u16 preamble;
 #ifdef WIRELESS_SPY
-	int			spy_number;
-	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];
-	struct iw_quality	spy_stat[IW_MAX_SPY];
+ 	struct iw_spy_data spy_data; /* iwspy support */
+	struct iw_public_data	wireless_data;
 #endif
 
 	/* Configuration dependent variables */
 	int port_type, createibss;
 	int promiscuous, mc_count;
+
+	/* Scanning support */
+	int	scan_inprogress;	/* Scan pending... */
+	u32	scan_mode;		/* Type of scan done */
+	char *	scan_result;		/* Result of previous scan */
+	int	scan_len;		/* Lenght of result */
 };
 
 #ifdef ORINOCO_DEBUG
@@ -119,7 +144,6 @@ extern struct net_device *alloc_orinocodev(int sizeof_card,
 extern void free_orinocodev(struct net_device *dev);
 extern int __orinoco_up(struct net_device *dev);
 extern int __orinoco_down(struct net_device *dev);
-extern int orinoco_stop(struct net_device *dev);
 extern int orinoco_reinit_firmware(struct net_device *dev);
 extern irqreturn_t orinoco_interrupt(int irq, void * dev_id, struct pt_regs *regs);
 
