@@ -27,7 +27,7 @@
  *
  * Revision history:
  * $Log$
- * Revision 1.5  2006/03/22 09:23:14  magicyang
+ * Revision 1.6  2006/03/23 05:05:19  magicyang
  * update kernel to 2.6.16
  *
  * Revision 1.1  1999/07/11 10:13:54  wolff

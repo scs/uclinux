@@ -22,6 +22,7 @@
 
 #include <linux/highmem.h>
 #include <linux/mempool.h>
+#include <linux/ioprio.h>
 
 /* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
@@ -110,7 +111,6 @@ struct bio {
 	void			*bi_private;
 
 	bio_destructor_t	*bi_destructor;	/* destructor */
-	struct bio_set		*bi_set;	/* memory pools set */
 };
 
 /*
@@ -148,6 +148,19 @@ struct bio {
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
 #define BIO_RW_SYNC	4
+
+/*
+ * upper 16 bits of bi_rw define the io priority of this bio
+ */
+#define BIO_PRIO_SHIFT	(8 * sizeof(unsigned long) - IOPRIO_BITS)
+#define bio_prio(bio)	((bio)->bi_rw >> BIO_PRIO_SHIFT)
+#define bio_prio_valid(bio)	ioprio_valid(bio_prio(bio))
+
+#define bio_set_prio(bio, prio)		do {			\
+	WARN_ON(prio >= (1 << IOPRIO_BITS));			\
+	(bio)->bi_rw &= ((1UL << BIO_PRIO_SHIFT) - 1);		\
+	(bio)->bi_rw |= ((unsigned long) (prio) << BIO_PRIO_SHIFT);	\
+} while (0)
 
 /*
  * various member access, note that bio_data should of course not be used
@@ -263,9 +276,10 @@ extern void bio_pair_release(struct bio_pair *dbio);
 extern struct bio_set *bioset_create(int, int, int);
 extern void bioset_free(struct bio_set *);
 
-extern struct bio *bio_alloc(unsigned int __nocast, int);
-extern struct bio *bio_alloc_bioset(unsigned int __nocast, int, struct bio_set *);
+extern struct bio *bio_alloc(gfp_t, int);
+extern struct bio *bio_alloc_bioset(gfp_t, int, struct bio_set *);
 extern void bio_put(struct bio *);
+extern void bio_free(struct bio *, struct bio_set *);
 
 extern void bio_endio(struct bio *, unsigned int, int);
 struct request_queue;
@@ -273,15 +287,23 @@ extern int bio_phys_segments(struct request_queue *, struct bio *);
 extern int bio_hw_segments(struct request_queue *, struct bio *);
 
 extern void __bio_clone(struct bio *, struct bio *);
-extern struct bio *bio_clone(struct bio *, unsigned int __nocast);
+extern struct bio *bio_clone(struct bio *, gfp_t);
 
 extern void bio_init(struct bio *);
 
 extern int bio_add_page(struct bio *, struct page *, unsigned int,unsigned int);
+extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
+			   unsigned int, unsigned int);
 extern int bio_get_nr_vecs(struct block_device *);
 extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
 				unsigned long, unsigned int, int);
+struct sg_iovec;
+extern struct bio *bio_map_user_iov(struct request_queue *,
+				    struct block_device *,
+				    struct sg_iovec *, int, int);
 extern void bio_unmap_user(struct bio *);
+extern struct bio *bio_map_kern(struct request_queue *, void *, unsigned int,
+				gfp_t);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
 extern struct bio *bio_copy_user(struct request_queue *, unsigned long, unsigned int, int);
@@ -294,9 +316,8 @@ void zero_fill_bio(struct bio *bio);
  * bvec_kmap_irq and bvec_kunmap_irq!!
  *
  * This function MUST be inlined - it plays with the CPU interrupt flags.
- * Hence the `extern inline'.
  */
-extern inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
+static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 {
 	unsigned long addr;
 
@@ -312,7 +333,7 @@ extern inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	return (char *) addr + bvec->bv_offset;
 }
 
-extern inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
+static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 {
 	unsigned long ptr = (unsigned long) buffer & PAGE_MASK;
 
@@ -325,7 +346,7 @@ extern inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 #define bvec_kunmap_irq(buf, flags)	do { *(flags) = 0; } while (0)
 #endif
 
-extern inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
+static inline char *__bio_kmap_irq(struct bio *bio, unsigned short idx,
 				   unsigned long *flags)
 {
 	return bvec_kmap_irq(bio_iovec_idx(bio, idx), flags);

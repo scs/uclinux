@@ -7,8 +7,8 @@
  *
  * This file contains the general definitions for the cyclades.c driver
  *$Log$
- *Revision 1.4  2005/08/12 03:36:44  magicyang
- * Update kernel 2.6.8 to 2.6.12
+ *Revision 1.5  2006/03/23 05:05:20  magicyang
+ *update kernel to 2.6.16
  *
  *Revision 3.1  2002/01/29 11:36:16  henrique
  *added throttle field on struct cyclades_port to indicate whether the

@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 David S. Miller (davem@redhat.com)
+ * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
  * and Nettle, by Niels Möller.
@@ -45,6 +46,7 @@
 #define CRYPTO_TFM_MODE_CTR		0x00000008
 
 #define CRYPTO_TFM_REQ_WEAK_KEY		0x00000100
+#define CRYPTO_TFM_REQ_MAY_SLEEP	0x00000200
 #define CRYPTO_TFM_RES_WEAK_KEY		0x00100000
 #define CRYPTO_TFM_RES_BAD_KEY_LEN   	0x00200000
 #define CRYPTO_TFM_RES_BAD_KEY_SCHED 	0x00400000
@@ -61,6 +63,15 @@
 #define CRYPTO_DIR_DECRYPT		0
 
 struct scatterlist;
+struct crypto_tfm;
+
+struct cipher_desc {
+	struct crypto_tfm *tfm;
+	void (*crfn)(void *ctx, u8 *dst, const u8 *src);
+	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
+			     const u8 *src, unsigned int nbytes);
+	void *info;
+};
 
 /*
  * Algorithms: modular crypto algorithm implementations, managed
@@ -73,6 +84,19 @@ struct cipher_alg {
 	                  unsigned int keylen, u32 *flags);
 	void (*cia_encrypt)(void *ctx, u8 *dst, const u8 *src);
 	void (*cia_decrypt)(void *ctx, u8 *dst, const u8 *src);
+
+	unsigned int (*cia_encrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_ecb)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_encrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
+	unsigned int (*cia_decrypt_cbc)(const struct cipher_desc *desc,
+					u8 *dst, const u8 *src,
+					unsigned int nbytes);
 };
 
 struct digest_alg {
@@ -102,7 +126,12 @@ struct crypto_alg {
 	u32 cra_flags;
 	unsigned int cra_blocksize;
 	unsigned int cra_ctxsize;
+	unsigned int cra_alignmask;
+
+	int cra_priority;
+
 	const char cra_name[CRYPTO_MAX_ALG_NAME];
+	const char cra_driver_name[CRYPTO_MAX_ALG_NAME];
 
 	union {
 		struct cipher_alg cipher;
@@ -136,7 +165,6 @@ static inline int crypto_alg_available(const char *name, u32 flags)
  * and core processing logic.  Managed via crypto_alloc_tfm() and
  * crypto_free_tfm(), as well as the various helpers below.
  */
-struct crypto_tfm;
 
 struct cipher_tfm {
 	void *cit_iv;
@@ -264,6 +292,16 @@ static inline unsigned int crypto_tfm_alg_digestsize(struct crypto_tfm *tfm)
 {
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_DIGEST);
 	return tfm->__crt_alg->cra_digest.dia_digestsize;
+}
+
+static inline unsigned int crypto_tfm_alg_alignmask(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_alignmask;
+}
+
+static inline void *crypto_tfm_ctx(struct crypto_tfm *tfm)
+{
+	return (void *)&tfm[1];
 }
 
 /*

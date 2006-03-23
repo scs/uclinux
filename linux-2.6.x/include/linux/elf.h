@@ -2,6 +2,7 @@
 #define _LINUX_ELF_H
 
 #include <linux/types.h>
+#include <linux/auxvec.h>
 #include <asm/elf.h>
 
 #ifndef elf_read_implies_exec
@@ -93,7 +94,7 @@ typedef __s64	Elf64_Sxword;
 
 #define EM_H8_300       46      /* Renesas H8/300,300H,H8S */
 
-#define EM_BLACKFIN	106	/* ADI Blackfin Processor*/
+#define EM_BLACKFIN     106     /* ADI Blackfin Processor*/
 
 /*
  * This is an interim value that we will use until the committee comes
@@ -152,6 +153,8 @@ typedef __s64	Elf64_Sxword;
 #define STT_FUNC    2
 #define STT_SECTION 3
 #define STT_FILE    4
+#define STT_COMMON  5
+#define STT_TLS     6
 
 #define ELF_ST_BIND(x)		((x) >> 4)
 #define ELF_ST_TYPE(x)		(((unsigned int) x) & 0xf)
@@ -159,29 +162,6 @@ typedef __s64	Elf64_Sxword;
 #define ELF32_ST_TYPE(x)	ELF_ST_TYPE(x)
 #define ELF64_ST_BIND(x)	ELF_ST_BIND(x)
 #define ELF64_ST_TYPE(x)	ELF_ST_TYPE(x)
-
-/* Symbolic values for the entries in the auxiliary table
-   put on the initial stack */
-#define AT_NULL   0	/* end of vector */
-#define AT_IGNORE 1	/* entry should be ignored */
-#define AT_EXECFD 2	/* file descriptor of program */
-#define AT_PHDR   3	/* program headers for program */
-#define AT_PHENT  4	/* size of program header entry */
-#define AT_PHNUM  5	/* number of program headers */
-#define AT_PAGESZ 6	/* system page size */
-#define AT_BASE   7	/* base address of interpreter */
-#define AT_FLAGS  8	/* flags */
-#define AT_ENTRY  9	/* entry point of program */
-#define AT_NOTELF 10	/* program is not ELF */
-#define AT_UID    11	/* real uid */
-#define AT_EUID   12	/* effective uid */
-#define AT_GID    13	/* real gid */
-#define AT_EGID   14	/* effective gid */
-#define AT_PLATFORM 15  /* string identifying CPU for optimizations */
-#define AT_HWCAP  16    /* arch dependent hints at CPU capabilities */
-#define AT_CLKTCK 17	/* frequency at which times() increments */
-
-#define AT_SECURE 23   /* secure mode boolean */
 
 typedef struct dynamic{
   Elf32_Sword d_tag;
@@ -344,7 +324,7 @@ typedef struct elf64_phdr {
 #define SHN_ABS		0xfff1
 #define SHN_COMMON	0xfff2
 #define SHN_HIRESERVE	0xffff
- 
+
 typedef struct {
   Elf32_Word	sh_name;
   Elf32_Word	sh_type;

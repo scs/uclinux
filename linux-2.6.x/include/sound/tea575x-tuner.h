@@ -24,19 +24,17 @@
 
 #include <linux/videodev.h>
 
-typedef struct snd_tea575x tea575x_t;
+struct snd_tea575x;
 
 struct snd_tea575x_ops {
-	void (*write)(tea575x_t *tea, unsigned int val);
-	unsigned int (*read)(tea575x_t *tea);
+	void (*write)(struct snd_tea575x *tea, unsigned int val);
+	unsigned int (*read)(struct snd_tea575x *tea);
 };
 
 struct snd_tea575x {
-	snd_card_t *card;
+	struct snd_card *card;
 	struct video_device vd;		/* video device */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 0)
 	struct file_operations fops;
-#endif
 	int dev_nr;			/* requested device number + 1 */
 	int vd_registered;		/* video device is registered */
 	int tea5759;			/* 5759 chip is present */
@@ -47,7 +45,7 @@ struct snd_tea575x {
 	void *private_data;
 };
 
-void snd_tea575x_init(tea575x_t *tea);
-void snd_tea575x_exit(tea575x_t *tea);
+void snd_tea575x_init(struct snd_tea575x *tea);
+void snd_tea575x_exit(struct snd_tea575x *tea);
 
 #endif /* __SOUND_TEA575X_TUNER_H */

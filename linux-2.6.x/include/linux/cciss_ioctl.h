@@ -11,6 +11,7 @@ typedef struct _cciss_pci_info_struct
 {
 	unsigned char 	bus;
 	unsigned char 	dev_fn;
+	unsigned short	domain;
 	__u32 		board_id;
 } cciss_pci_info_struct; 
 
