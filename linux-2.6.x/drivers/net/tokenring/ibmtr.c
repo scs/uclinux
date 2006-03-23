@@ -151,7 +151,7 @@ static char version[] __initdata =
 
 /* this allows displaying full adapter information */
 
-char *channel_def[] __devinitdata = { "ISA", "MCA", "ISA P&P" };
+static char *channel_def[] __devinitdata = { "ISA", "MCA", "ISA P&P" };
 
 static char pcchannelid[] __devinitdata = {
 	0x05, 0x00, 0x04, 0x09,
@@ -171,7 +171,7 @@ static char mcchannelid[] __devinitdata =  {
 	0x03, 0x08, 0x02, 0x00
 };
 
-char __devinit *adapter_def(char type)
+static char __devinit *adapter_def(char type)
 {
 	switch (type) {
 	case 0xF: return "PC Adapter | PC Adapter II | Adapter/A";
@@ -184,7 +184,7 @@ char __devinit *adapter_def(char type)
 
 #define TRC_INIT 0x01		/*  Trace initialization & PROBEs */
 #define TRC_INITV 0x02		/*  verbose init trace points     */
-unsigned char ibmtr_debug_trace = 0;
+static unsigned char ibmtr_debug_trace = 0;
 
 static int 	ibmtr_probe(struct net_device *dev);
 static int	ibmtr_probe1(struct net_device *dev, int ioaddr);
@@ -192,20 +192,20 @@ static unsigned char get_sram_size(struct tok_info *adapt_info);
 static int 	trdev_init(struct net_device *dev);
 static int 	tok_open(struct net_device *dev);
 static int 	tok_init_card(struct net_device *dev);
-void 		tok_open_adapter(unsigned long dev_addr);
+static void	tok_open_adapter(unsigned long dev_addr);
 static void 	open_sap(unsigned char type, struct net_device *dev);
 static void 	tok_set_multicast_list(struct net_device *dev);
 static int 	tok_send_packet(struct sk_buff *skb, struct net_device *dev);
 static int 	tok_close(struct net_device *dev);
-irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs);
+static irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static void 	initial_tok_int(struct net_device *dev);
 static void 	tr_tx(struct net_device *dev);
 static void 	tr_rx(struct net_device *dev);
-void 		ibmtr_reset_timer(struct timer_list*tmr,struct net_device *dev);
+static void	ibmtr_reset_timer(struct timer_list*tmr,struct net_device *dev);
 static void	tok_rerun(unsigned long dev_addr);
-void 		ibmtr_readlog(struct net_device *dev);
+static void	ibmtr_readlog(struct net_device *dev);
 static struct 	net_device_stats *tok_get_stats(struct net_device *dev);
-int 		ibmtr_change_mtu(struct net_device *dev, int mtu);
+static int	ibmtr_change_mtu(struct net_device *dev, int mtu);
 static void	find_turbo_adapters(int *iolist);
 
 static int ibmtr_portlist[IBMTR_MAX_ADAPTERS+1] __devinitdata = {
@@ -318,7 +318,7 @@ static void ibmtr_cleanup_card(struct net_device *dev)
 	if (dev->base_addr) {
 		outb(0,dev->base_addr+ADAPTRESET);
 		
-		schedule_timeout(TR_RST_TIME); /* wait 50ms */
+		schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 		outb(0,dev->base_addr+ADAPTRESETREL);
 	}
@@ -531,7 +531,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			if (!time_after(jiffies, timeout)) continue;
 			DPRINTK( "Hardware timeout during initialization.\n");
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		}
 		ti->sram_phys =
@@ -645,7 +644,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			DPRINTK("Unknown shared ram paging info %01X\n",
 							ti->shared_ram_paging);
 			iounmap(t_mmio); 
-			kfree(ti);
 			return -ENODEV;
 			break;
 		} /*end switch shared_ram_paging */
@@ -675,7 +673,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 			"driver limit (%05x), adapter not started.\n",
 			chk_base, ibmtr_mem_base + IBMTR_SHARED_RAM_SIZE);
 			iounmap(t_mmio);
-			kfree(ti);
 			return -ENODEV;
 		} else { /* seems cool, record what we have figured out */
 			ti->sram_base = new_base >> 12;
@@ -690,7 +687,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab irq %d.  Halting Token Ring driver.\n",
 					irq);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -ENODEV;
 	}
 	/*?? Now, allocate some of the PIO PORTs for this driver.. */
@@ -699,7 +695,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		DPRINTK("Could not grab PIO range. Halting driver.\n");
 		free_irq(dev->irq, dev);
 		iounmap(t_mmio);
-		kfree(ti);
 		return -EBUSY;
 	}
 
@@ -859,8 +854,7 @@ static int tok_init_card(struct net_device *dev)
 	writeb(~INT_ENABLE, ti->mmio + ACA_OFFSET + ACA_RESET + ISRP_EVEN);
 	outb(0, PIOaddr + ADAPTRESET);
 
-	current->state=TASK_UNINTERRUPTIBLE;
-	schedule_timeout(TR_RST_TIME); /* wait 50ms */
+	schedule_timeout_uninterruptible(TR_RST_TIME); /* wait 50ms */
 
 	outb(0, PIOaddr + ADAPTRESETREL);
 #ifdef ENABLE_PAGING
@@ -888,11 +882,6 @@ static int tok_open(struct net_device *dev)
 	ti->sap_status   = CLOSED; /* CLOSED or OPEN      */
 	ti->open_failure =     NO; /* NO     or YES       */
 	ti->open_mode    = MANUAL; /* MANUAL or AUTOMATIC */
-	/* 12/2000 not typical Linux, but we can use RUNNING to let us know when
-	the network has crapped out or cables are disconnected. Useful because
-	the IFF_UP flag stays up the whole time, until ifconfig tr0 down.
-	*/
-	dev->flags &= ~IFF_RUNNING;
 
 	ti->sram_phys &= ~1; /* to reverse what we do in tok_close */
 	/* init the spinlock */
@@ -913,8 +902,8 @@ static int tok_open(struct net_device *dev)
 			DPRINTK("Adapter is up and running\n");
 			return 0;
 		}
-		current->state=TASK_INTERRUPTIBLE;
-		i=schedule_timeout(TR_RETRY_INTERVAL); /* wait 30 seconds */
+		i=schedule_timeout_interruptible(TR_RETRY_INTERVAL);
+							/* wait 30 seconds */
 		if(i!=0) break; /*prob. a signal, like the i>24*HZ case above */
 	}
 	outb(0, dev->base_addr + ADAPTRESET);/* kill pending interrupts*/
@@ -933,7 +922,7 @@ static int tok_open(struct net_device *dev)
 #define DLC_MAX_SAP_OFST        32
 #define DLC_MAX_STA_OFST        33
 
-void tok_open_adapter(unsigned long dev_addr)
+static void tok_open_adapter(unsigned long dev_addr)
 {
 	struct net_device *dev = (struct net_device *) dev_addr;
 	struct tok_info *ti;
@@ -1104,7 +1093,7 @@ static void __iomem *map_address(struct tok_info *ti, unsigned index, __u8 *page
 	return ti->sram_virt + index;
 }
 
-void dir_open_adapter (struct net_device *dev)
+static void dir_open_adapter (struct net_device *dev)
 {
         struct tok_info *ti = (struct tok_info *) dev->priv;
         unsigned char ret_code;
@@ -1177,7 +1166,7 @@ void dir_open_adapter (struct net_device *dev)
 
 /******************************************************************************/
 
-irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned char status;
 	/*  unsigned char status_even ; */
@@ -1242,7 +1231,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		ti->open_status = CLOSED;
 		ti->sap_status  = CLOSED;
 		ti->open_mode   = AUTOMATIC;
-		dev->flags &= ~IFF_RUNNING;
+		netif_carrier_off(dev);
 		netif_stop_queue(dev);
 		ti->open_action = RESTART;
 		outb(0, dev->base_addr + ADAPTRESET);
@@ -1323,7 +1312,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 				break;
 			}
 			netif_wake_queue(dev);
-			dev->flags |= IFF_RUNNING;/*BMS 12/2000*/
+			netif_carrier_on(dev);
 			break;
 		case DIR_INTERRUPT:
 		case DIR_MOD_OPEN_PARAMS:
@@ -1427,7 +1416,7 @@ irqreturn_t tok_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 								ring_status);
 			if(ring_status& (REMOVE_RECV|AUTO_REMOVAL|LOBE_FAULT)){
 				netif_stop_queue(dev);
-				dev->flags &= ~IFF_RUNNING;/*not typical Linux*/
+				netif_carrier_off(dev);
 				DPRINTK("Remove received, or Auto-removal error"
 					", or Lobe fault\n");
 				DPRINTK("We'll try to reopen the closed adapter"
@@ -1845,7 +1834,7 @@ static void tr_rx(struct net_device *dev)
 
 /*****************************************************************************/
 
-void ibmtr_reset_timer(struct timer_list *tmr, struct net_device *dev)
+static void ibmtr_reset_timer(struct timer_list *tmr, struct net_device *dev)
 {
 	tmr->expires = jiffies + TR_RETRY_INTERVAL;
 	tmr->data = (unsigned long) dev;
@@ -1877,7 +1866,7 @@ void tok_rerun(unsigned long dev_addr){
 
 /*****************************************************************************/
 
-void ibmtr_readlog(struct net_device *dev)
+static void ibmtr_readlog(struct net_device *dev)
 {
 	struct tok_info *ti;
 
@@ -1910,7 +1899,7 @@ static struct net_device_stats *tok_get_stats(struct net_device *dev)
 
 /*****************************************************************************/
 
-int ibmtr_change_mtu(struct net_device *dev, int mtu)
+static int ibmtr_change_mtu(struct net_device *dev, int mtu)
 {
 	struct tok_info *ti = (struct tok_info *) dev->priv;
 

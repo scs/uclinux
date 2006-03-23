@@ -11,8 +11,8 @@
  *  2 of the License, or (at your option) any later version.
  *   
  *  $Log$
- *  Revision 1.4  2005/08/12 06:42:43  magicyang
- *   Update kernel 2.6.8 to 2.6.12
+ *  Revision 1.5  2006/03/23 08:34:01  magicyang
+ *  update kernel to 2.6.16
  *
  *  Revision 3.7  2002/03/07 14:17:09  henrique
  *  License data fixed
@@ -115,10 +115,10 @@ typedef	struct _st_cpc_tty_area {
 static struct tty_driver serial_drv;
 
 /* local variables */
-st_cpc_tty_area	cpc_tty_area[CPC_TTY_NPORTS];
+static st_cpc_tty_area	cpc_tty_area[CPC_TTY_NPORTS];
 
-int cpc_tty_cnt=0;	/* number of intrfaces configured with MLPPP */
-int cpc_tty_unreg_flag = 0;
+static int cpc_tty_cnt = 0;	/* number of intrfaces configured with MLPPP */
+static int cpc_tty_unreg_flag = 0;
 
 /* TTY functions prototype */
 static int cpc_tty_open(struct tty_struct *tty, struct file *flip);
@@ -135,9 +135,9 @@ static void cpc_tty_trace(pc300dev_t *dev, char* buf, int len, char rxtx);
 static void cpc_tty_signal_off(pc300dev_t *pc300dev, unsigned char);
 static void cpc_tty_signal_on(pc300dev_t *pc300dev, unsigned char);
 
-int pc300_tiocmset(struct tty_struct *, struct file *,
-			unsigned int, unsigned int);
-int pc300_tiocmget(struct tty_struct *, struct file *);
+static int pc300_tiocmset(struct tty_struct *, struct file *,
+			  unsigned int, unsigned int);
+static int pc300_tiocmget(struct tty_struct *, struct file *);
 
 /* functions called by PC300 driver */
 void cpc_tty_init(pc300dev_t *dev);
@@ -541,8 +541,8 @@ static int cpc_tty_chars_in_buffer(struct tty_struct *tty)
 	return(0); 
 } 
 
-int pc300_tiocmset(struct tty_struct *tty, struct file *file,
-			unsigned int set, unsigned int clear)
+static int pc300_tiocmset(struct tty_struct *tty, struct file *file,
+			  unsigned int set, unsigned int clear)
 {
 	st_cpc_tty_area    *cpc_tty; 
 
@@ -568,7 +568,7 @@ int pc300_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-int pc300_tiocmget(struct tty_struct *tty, struct file *file)
+static int pc300_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	unsigned int result;
 	unsigned char status;
@@ -692,7 +692,7 @@ static void cpc_tty_rx_work(void * data)
 					}
 				}	
 				cpc_tty->buf_rx.first = cpc_tty->buf_rx.first->next;
-				kfree(buf);
+				kfree((void *)buf);
 				buf = cpc_tty->buf_rx.first;
 				flg_rx = 1;
 			}

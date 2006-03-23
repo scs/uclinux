@@ -1,7 +1,7 @@
 /*
  * Generic HDLC support routines for Linux
  *
- * Copyright (C) 1999 - 2003 Krzysztof Halasa <khc@pm.waw.pl>
+ * Copyright (C) 1999 - 2005 Krzysztof Halasa <khc@pm.waw.pl>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License
@@ -38,7 +38,7 @@
 #include <linux/hdlc.h>
 
 
-static const char* version = "HDLC support module revision 1.17";
+static const char* version = "HDLC support module revision 1.18";
 
 #undef DEBUG_LINK
 
@@ -61,7 +61,7 @@ static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 
 
 static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *p)
+		    struct packet_type *p, struct net_device *orig_dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.netif_rx)
@@ -79,11 +79,13 @@ static void __hdlc_set_carrier_on(struct net_device *dev)
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.start)
 		return hdlc->proto.start(dev);
+#if 0
 #ifdef DEBUG_LINK
 	if (netif_carrier_ok(dev))
 		printk(KERN_ERR "hdlc_set_carrier_on(): already on\n");
 #endif
 	netif_carrier_on(dev);
+#endif
 }
 
 
@@ -94,11 +96,13 @@ static void __hdlc_set_carrier_off(struct net_device *dev)
 	if (hdlc->proto.stop)
 		return hdlc->proto.stop(dev);
 
+#if 0
 #ifdef DEBUG_LINK
 	if (!netif_carrier_ok(dev))
 		printk(KERN_ERR "hdlc_set_carrier_off(): already off\n");
 #endif
 	netif_carrier_off(dev);
+#endif
 }
 
 
@@ -126,10 +130,13 @@ void hdlc_set_carrier(int on, struct net_device *dev)
 	if (!hdlc->open)
 		goto carrier_exit;
 
-	if (hdlc->carrier)
+	if (hdlc->carrier) {
+		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
 		__hdlc_set_carrier_on(dev);
-	else
+	} else {
+		printk(KERN_INFO "%s: Carrier lost\n", dev->name);
 		__hdlc_set_carrier_off(dev);
+	}
 
 carrier_exit:
 	spin_unlock_irqrestore(&hdlc->state_lock, flags);
@@ -157,8 +164,11 @@ int hdlc_open(struct net_device *dev)
 
 	spin_lock_irq(&hdlc->state_lock);
 
-	if (hdlc->carrier)
+	if (hdlc->carrier) {
+		printk(KERN_INFO "%s: Carrier detected\n", dev->name);
 		__hdlc_set_carrier_on(dev);
+	} else
+		printk(KERN_INFO "%s: No carrier\n", dev->name);
 
 	hdlc->open = 1;
 
@@ -288,8 +298,10 @@ int register_hdlc_device(struct net_device *dev)
 	if (result != 0)
 		return -EIO;
 
+#if 0
 	if (netif_carrier_ok(dev))
 		netif_carrier_off(dev); /* no carrier until DCD goes up */
+#endif
 
 	return 0;
 }

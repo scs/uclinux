@@ -72,7 +72,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	}
 	skb_reserve(skb, 4);
 	cisco_hard_header(skb, dev, CISCO_KEEPALIVE, NULL, NULL, 0);
-	data = (cisco_packet*)skb->tail;
+	data = (cisco_packet*)(skb->data + 4);
 
 	data->type = htonl(type);
 	data->par1 = htonl(par1);
@@ -91,8 +91,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 
 
 
-static unsigned short cisco_type_trans(struct sk_buff *skb,
-				       struct net_device *dev)
+static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	hdlc_header *data = (hdlc_header*)skb->data;
 
@@ -193,7 +192,9 @@ static int cisco_rx(struct sk_buff *skb)
 					       "uptime %ud%uh%um%us)\n",
 					       dev->name, days, hrs,
 					       min, sec);
+#if 0
 					netif_carrier_on(dev);
+#endif
 					hdlc->state.cisco.up = 1;
 				}
 			}
@@ -226,7 +227,9 @@ static void cisco_timer(unsigned long arg)
 		       hdlc->state.cisco.settings.timeout * HZ)) {
 		hdlc->state.cisco.up = 0;
 		printk(KERN_INFO "%s: Link down\n", dev->name);
+#if 0
 		netif_carrier_off(dev);
+#endif
 	}
 
 	cisco_keepalive_send(dev, CISCO_KEEPALIVE_REQ,
@@ -262,8 +265,10 @@ static void cisco_stop(struct net_device *dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	del_timer_sync(&hdlc->state.cisco.timer);
+#if 0
 	if (netif_carrier_ok(dev))
 		netif_carrier_off(dev);
+#endif
 	hdlc->state.cisco.up = 0;
 	hdlc->state.cisco.request_sent = 0;
 }

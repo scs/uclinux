@@ -235,7 +235,7 @@ static int dma[MAX_CARDS+1];
 static int irq[MAX_CARDS+1] = { -1, -1, -1, -1, -1, -1, 0, };
 
 /* for class stuff*/
-static struct class_simple *cosa_class;
+static struct class *cosa_class;
 
 #ifdef MODULE
 module_param_array(io, int, NULL, 0);
@@ -394,19 +394,19 @@ static int __init cosa_init(void)
 		goto out;
 	}
 	devfs_mk_dir("cosa");
-	cosa_class = class_simple_create(THIS_MODULE, "cosa");
+	cosa_class = class_create(THIS_MODULE, "cosa");
 	if (IS_ERR(cosa_class)) {
 		err = PTR_ERR(cosa_class);
 		goto out_chrdev;
 	}
 	for (i=0; i<nr_cards; i++) {
-		class_simple_device_add(cosa_class, MKDEV(cosa_major, i),
+		class_device_create(cosa_class, NULL, MKDEV(cosa_major, i),
 				NULL, "cosa%d", i);
 		err = devfs_mk_cdev(MKDEV(cosa_major, i),
 				S_IFCHR|S_IRUSR|S_IWUSR,
 				"cosa/%d", i);
 		if (err) {
-			class_simple_device_remove(MKDEV(cosa_major, i));
+			class_device_destroy(cosa_class, MKDEV(cosa_major, i));
 			goto out_chrdev;		
 		}
 	}
@@ -427,10 +427,10 @@ static void __exit cosa_exit(void)
 	printk(KERN_INFO "Unloading the cosa module\n");
 
 	for (i=0; i<nr_cards; i++) {
-		class_simple_device_remove(MKDEV(cosa_major, i));
+		class_device_destroy(cosa_class, MKDEV(cosa_major, i));
 		devfs_remove("cosa/%d", i);
 	}
-	class_simple_destroy(cosa_class);
+	class_destroy(cosa_class);
 	devfs_remove("cosa");
 	for (cosa=cosa_cards; nr_cards--; cosa++) {
 		/* Clean up the per-channel data */
@@ -1617,8 +1617,7 @@ static int get_wait_data(struct cosa_data *cosa)
 			return r;
 		}
 		/* sleep if not ready to read */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 	}
 	printk(KERN_INFO "cosa: timeout in get_wait_data (status 0x%x)\n",
 		cosa_getstatus(cosa));
@@ -1644,8 +1643,7 @@ static int put_wait_data(struct cosa_data *cosa, int data)
 		}
 #if 0
 		/* sleep if not ready to read */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 #endif
 	}
 	printk(KERN_INFO "cosa%d: timeout in put_wait_data (status 0x%x)\n",

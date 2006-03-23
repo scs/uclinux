@@ -11,8 +11,8 @@
  *	2 of the License, or (at your option) any later version.
  *
  * $Log$
- * Revision 1.4  2005/08/12 06:42:43  magicyang
- *  Update kernel 2.6.8 to 2.6.12
+ * Revision 1.5  2006/03/23 08:34:01  magicyang
+ * update kernel to 2.6.16
  *
  * Revision 3.12  2002/03/07 14:17:09  henrique
  * License data fixed
@@ -475,24 +475,8 @@ enum pc300_loopback_cmds {
 
 #ifdef __KERNEL__
 /* Function Prototypes */
-int dma_buf_write(pc300_t *, int, ucchar *, int);
-int dma_buf_read(pc300_t *, int, struct sk_buff *);
 void tx_dma_start(pc300_t *, int);
-void rx_dma_start(pc300_t *, int);
-void tx_dma_stop(pc300_t *, int);
-void rx_dma_stop(pc300_t *, int);
-int cpc_queue_xmit(struct sk_buff *, struct net_device *);
-void cpc_net_rx(struct net_device *);
-void cpc_sca_status(pc300_t *, int);
-int cpc_change_mtu(struct net_device *, int);
-int cpc_ioctl(struct net_device *, struct ifreq *, int);
-int ch_config(pc300dev_t *);
-int rx_config(pc300dev_t *);
-int tx_config(pc300dev_t *);
-void cpc_opench(pc300dev_t *);
-void cpc_closech(pc300dev_t *);
 int cpc_open(struct net_device *dev);
-int cpc_close(struct net_device *dev);
 int cpc_set_media(hdlc_device *, int);
 #endif /* __KERNEL__ */
 
