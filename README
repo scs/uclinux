@@ -9,6 +9,11 @@ Contents
 2) Changing the applications/kernel-options/libraries
 3) Documentation
 
+i) Preface - Blackfin specific info
+-----------------------------------
+  a. This distribution has only been tested on the Blackfin processor
+     from Analog Devices. For more information goto the Blackfin/uClinux
+     web site at : http://blackfin.uclinux.org
 
 1) Instructions for Compiling
 -----------------------------
