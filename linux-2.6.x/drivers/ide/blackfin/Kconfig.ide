@@ -52,18 +52,22 @@ endchoice
 config BFIN_IDE_BASE
 	hex "IDE register base address"
 	depends on IDE
-	default 0x20314020 if BFIN_IDE_ADDRESS_MAPPING_MODE0
-	default 0x2031C020 if BFIN_IDE_ADDRESS_MAPPING_MODE1
+	default "0x20314020" if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	default "0x2031C020" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 	help
 	  IDE registers base address
+	  default "0x20314020" if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	  default "0x2031C020" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 
 config BFIN_IDE_ALT
 	hex "IDE register alternate address"
 	depends on IDE
-	default 0x2031401C if BFIN_IDE_ADDRESS_MAPPING_MODE0
-	default 0x2031C01C if BFIN_IDE_ADDRESS_MAPPING_MODE1
+	default "0x2031401C" if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	default "0x2031C01C" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 	help
 	  IDE alternate registers address
+	  default "0x2031401C" if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	  default "0x2031C01C" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 
 config BFIN_IDE_IRQ
 	int "IDE IRQ no"
@@ -89,13 +93,13 @@ config BFIN_IDE_ADDRESS_AX
 	help
 
 config CF_ATASEL_ENA
-	int "Address for enabling CF TRUE IDE MODE (ATASEL)"
+	hex "Address for enabling CF TRUE IDE MODE (ATASEL)"
 	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default 0x20311802
 	help
 
 config CF_ATASEL_DIS
-	int "Address for disabling CF TRUE IDE MODE (ATASEL)"
+	hex "Address for disabling CF TRUE IDE MODE (ATASEL)"
 	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default 0x20311800
 	help
