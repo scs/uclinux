@@ -158,7 +158,6 @@ static inline int bad_user_access_length(void)
 static inline long copy_from_user(void *to,
 				  const void __user *from, unsigned long n)
 {
-	extern char *_stext;
         if((unsigned long)from < (unsigned long)_stext)
                 return n;
         else
@@ -173,7 +172,6 @@ static inline long strncpy_from_user(char *dst,
                                      const char *src, long count)
 {
 	char *tmp;
-	extern char *_stext;
 	if ((unsigned long)src > (unsigned long)memory_end || ((unsigned long)src < (unsigned long)_stext)) {
 		return -EFAULT;
 	}
