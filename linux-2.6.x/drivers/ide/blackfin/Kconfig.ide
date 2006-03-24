@@ -51,7 +51,7 @@ endchoice
 
 config BFIN_IDE_BASE
 	hex "IDE register base address"
-	depends on IDE
+	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
 	default "0x20314020" if BFIN_IDE_ADDRESS_MAPPING_MODE0
 	default "0x2031C020" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 	help
@@ -61,7 +61,7 @@ config BFIN_IDE_BASE
 
 config BFIN_IDE_ALT
 	hex "IDE register alternate address"
-	depends on IDE
+	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
 	default "0x2031401C" if BFIN_IDE_ADDRESS_MAPPING_MODE0
 	default "0x2031C01C" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 	help
@@ -80,9 +80,10 @@ config BFIN_IDE_IRQ
 
 config BFIN_IDE_IRQ_PFX
 	int "IDE IRQ PFx no"
-	depends on IDE
+	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
 	range 0 15 
-	default "5" if BFIN537_STAMP
+	default "5" if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	default "4" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 	help
 	  IDE IRQ use PFx Range [0..15]
 
