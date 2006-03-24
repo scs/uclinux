@@ -15,7 +15,7 @@
 #include <linux/ppp_defs.h>
 #include "netjet.h"
 
-const char *NETjet_S_revision = "$Revision$";
+static const char *NETjet_S_revision = "$Revision$";
 
 static u_char dummyrr(struct IsdnCardState *cs, int chan, u_char off)
 {

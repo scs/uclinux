@@ -41,7 +41,7 @@ static const PCI_ENTRY id_list[] =
 
 extern const char *CardType[];
 
-const char *w6692_revision = "$Revision$";
+static const char *w6692_revision = "$Revision$";
 
 #define DBUSY_TIMER_VALUE 80
 
@@ -819,14 +819,10 @@ close_w6692state(struct BCState *bcs)
 {
 	W6692Bmode(bcs, 0, bcs->channel);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.w6692.rcvbuf) {
-			kfree(bcs->hw.w6692.rcvbuf);
-			bcs->hw.w6692.rcvbuf = NULL;
-		}
-		if (bcs->blog) {
-			kfree(bcs->blog);
-			bcs->blog = NULL;
-		}
+		kfree(bcs->hw.w6692.rcvbuf);
+		bcs->hw.w6692.rcvbuf = NULL;
+		kfree(bcs->blog);
+		bcs->blog = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {
@@ -880,7 +876,7 @@ setstack_w6692(struct PStack *st, struct BCState *bcs)
 	return (0);
 }
 
-void resetW6692(struct IsdnCardState *cs)
+static void resetW6692(struct IsdnCardState *cs)
 {
 	cs->writeW6692(cs, W_D_CTL, W_D_CTL_SRST);
 	mdelay(10);
@@ -902,7 +898,7 @@ void resetW6692(struct IsdnCardState *cs)
 	}
 }
 
-void __init initW6692(struct IsdnCardState *cs, int part)
+static void __init initW6692(struct IsdnCardState *cs, int part)
 {
 	if (part & 1) {
 		cs->setstack_d = setstack_W6692;

@@ -25,8 +25,6 @@
 #include <asm/io.h>
 #include "netjet.h"
 
-const char *NETjet_revision = "$Revision$";
-
 /* Interface functions */
 
 u_char
@@ -66,7 +64,7 @@ NETjet_WriteICfifo(struct IsdnCardState *cs, u_char *data, int size)
 	outsb(cs->hw.njet.isac, data, size);
 }
 
-void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
+static void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
 {
 	u_int mask=0x000000ff, val = 0, *p=pos;
 	u_int i;
@@ -85,7 +83,7 @@ void fill_mem(struct BCState *bcs, u_int *pos, u_int cnt, int chan, u_char fill)
 	}
 }
 
-void
+static void
 mode_tiger(struct BCState *bcs, int mode, int bc)
 {
 	struct IsdnCardState *cs = bcs->cs;
@@ -852,19 +850,15 @@ tiger_l2l1(struct PStack *st, int pr, void *arg)
 }
 
 
-void
+static void
 close_tigerstate(struct BCState *bcs)
 {
 	mode_tiger(bcs, 0, bcs->channel);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.tiger.rcvbuf) {
-			kfree(bcs->hw.tiger.rcvbuf);
-			bcs->hw.tiger.rcvbuf = NULL;
-		}
-		if (bcs->hw.tiger.sendbuf) {
-			kfree(bcs->hw.tiger.sendbuf);
-			bcs->hw.tiger.sendbuf = NULL;
-		}
+		kfree(bcs->hw.tiger.rcvbuf);
+		bcs->hw.tiger.rcvbuf = NULL;
+		kfree(bcs->hw.tiger.sendbuf);
+		bcs->hw.tiger.sendbuf = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {
@@ -900,7 +894,7 @@ open_tigerstate(struct IsdnCardState *cs, struct BCState *bcs)
 	return (0);
 }
 
-int
+static int
 setstack_tiger(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;
@@ -966,23 +960,15 @@ inittiger(struct IsdnCardState *cs)
 	cs->bcs[1].BC_Close = close_tigerstate;
 }
 
-void
+static void
 releasetiger(struct IsdnCardState *cs)
 {
-	if (cs->bcs[0].hw.tiger.send) {
-		kfree(cs->bcs[0].hw.tiger.send);
-		cs->bcs[0].hw.tiger.send = NULL;
-	}
-	if (cs->bcs[1].hw.tiger.send) {
-		cs->bcs[1].hw.tiger.send = NULL;
-	}
-	if (cs->bcs[0].hw.tiger.rec) {
-		kfree(cs->bcs[0].hw.tiger.rec);
-		cs->bcs[0].hw.tiger.rec = NULL;
-	}
-	if (cs->bcs[1].hw.tiger.rec) {
-		cs->bcs[1].hw.tiger.rec = NULL;
-	}
+	kfree(cs->bcs[0].hw.tiger.send);
+	cs->bcs[0].hw.tiger.send = NULL;
+	cs->bcs[1].hw.tiger.send = NULL;
+	kfree(cs->bcs[0].hw.tiger.rec);
+	cs->bcs[0].hw.tiger.rec = NULL;
+	cs->bcs[1].hw.tiger.rec = NULL;
 }
 
 void

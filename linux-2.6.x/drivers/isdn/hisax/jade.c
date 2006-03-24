@@ -74,7 +74,7 @@ jade_write_indirect(struct IsdnCardState *cs, u_char reg, u_char value)
 
 
 
-void
+static void
 modejade(struct BCState *bcs, int mode, int bc)
 {
     struct IsdnCardState *cs = bcs->cs;
@@ -190,19 +190,15 @@ jade_l2l1(struct PStack *st, int pr, void *arg)
     }
 }
 
-void
+static void
 close_jadestate(struct BCState *bcs)
 {
     modejade(bcs, 0, bcs->channel);
     if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-	if (bcs->hw.hscx.rcvbuf) {
-		kfree(bcs->hw.hscx.rcvbuf);
-		bcs->hw.hscx.rcvbuf = NULL;
-	}
-	if (bcs->blog) {
-		kfree(bcs->blog);
-		bcs->blog = NULL;
-	}
+	kfree(bcs->hw.hscx.rcvbuf);
+	bcs->hw.hscx.rcvbuf = NULL;
+	kfree(bcs->blog);
+	bcs->blog = NULL;
 	skb_queue_purge(&bcs->rqueue);
 	skb_queue_purge(&bcs->squeue);
 	if (bcs->tx_skb) {
@@ -243,7 +239,7 @@ open_jadestate(struct IsdnCardState *cs, struct BCState *bcs)
 }
 
 
-int
+static int
 setstack_jade(struct PStack *st, struct BCState *bcs)
 {
 	bcs->channel = st->l1.bc;

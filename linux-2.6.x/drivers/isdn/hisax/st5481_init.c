@@ -25,7 +25,6 @@
  */
 
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
@@ -43,10 +42,10 @@ static int number_of_leds = 2;       /* 2 LEDs on the adpater default */
 module_param(number_of_leds, int, 0);
 
 #ifdef CONFIG_HISAX_DEBUG
-static int debug = 0x1;
+static int debug = 0;
 module_param(debug, int, 0);
-int st5481_debug;
 #endif
+int st5481_debug;
 
 static LIST_HEAD(adapter_list);
 
@@ -181,7 +180,6 @@ static struct usb_device_id st5481_ids[] = {
 MODULE_DEVICE_TABLE (usb, st5481_ids);
 
 static struct usb_driver st5481_usb_driver = {
-	.owner =	THIS_MODULE,
 	.name =		"st5481_usb",
 	.probe =	probe_st5481,
 	.disconnect =	disconnect_st5481,

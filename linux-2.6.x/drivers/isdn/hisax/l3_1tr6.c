@@ -19,7 +19,7 @@
 #include <linux/ctype.h>
 
 extern char *HiSax_getrev(const char *revision);
-const char *l3_1tr6_revision = "$Revision$";
+static const char *l3_1tr6_revision = "$Revision$";
 
 #define MsgHead(ptr, cref, mty, dis) \
 	*ptr++ = dis; \
