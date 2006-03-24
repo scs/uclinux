@@ -267,9 +267,4 @@
 #define SIZE_1M 0x00100000	/* 1M */
 #define SIZE_4M 0x00400000	/* 4M */
 
-#define BFIN_NAND_BASE	0x20202000
-#define BFIN_NAND_CLE           (1<<2)	/* A2 -> Command Enable */
-#define BFIN_NAND_ALE           (1<<1)	/* A1 -> Address Enable */
-#define BFIN_NAND_READY		PF3
-
 #endif				/* _BLKFin_H_  */

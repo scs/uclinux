@@ -38,6 +38,11 @@
 
 #include <asm/blackfin.h>
 
+#define BFIN_NAND_BASE		CONFIG_BFIN_NAND_BASE
+#define BFIN_NAND_CLE           (1<<CONFIG_BFIN_NAND_CLE)	/* Ax -> Command Enable */
+#define BFIN_NAND_ALE           (1<<CONFIG_BFIN_NAND_ALE)	/* Ax -> Address Enable */
+#define BFIN_NAND_READY		(1<<CONFIG_BFIN_NAND_READY)
+
 /*
  * MTD structure for NAND controller
  */

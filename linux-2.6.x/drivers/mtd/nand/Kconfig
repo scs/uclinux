@@ -23,12 +23,43 @@ config MTD_NAND_VERIFY_WRITE
 	  device thinks the write was successful, a bit could have been
 	  flipped accidentaly due to device wear or something else.
 
- config MTD_NAND_BFIN
+config MTD_NAND_BFIN
 	tristate "NAND Flash device for BF537 STAMP board"
-	depends on BFIN537_STAMP && MTD_NAND && MTD_PARTITIONS
+	depends on BFIN && MTD_NAND && MTD_PARTITIONS
 	help
 	  This enables the driver for the NAND flash ST-NAND123W3A 
-	  on BF537 stamp board
+	  for Blackfin Processors
+
+config BFIN_NAND_BASE
+	hex "NAND Flash Base Address"
+	depends on MTD_NAND_BFIN
+	default 0x20212000
+	help
+	  NAND Flash Base Address
+
+config BFIN_NAND_CLE
+	int "NAND Flash Command Latch Enable (CLE) Address strobe A[x]"
+	depends on MTD_NAND_BFIN
+	range 1 19 
+	default 2
+	help
+	  NAND Flash Command Latch Enable (CLE) Address strobe A[x]
+
+config BFIN_NAND_ALE
+	int "NAND Flash Address Latch Enable (ALE) Address strobe A[x]"
+	depends on MTD_NAND_BFIN
+	range 1 19
+	default 1
+	help
+	  NAND Flash Address Latch Enable (ALE) Address strobe A[x]
+
+config BFIN_NAND_READY
+	int "NAND Flash Ready Strobe PF[x]"
+	depends on MTD_NAND_BFIN
+	range 0 15
+	default 3
+	help
+	  NAND Flash Ready Strobe PF[x]
 
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
