@@ -16,7 +16,7 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/dpmc.h>
-#include "blackfin_dpmc.h"
+#include "bfin_dpmc.h"
 #include <asm/delay.h>
 
 unsigned long SDRAM_tRP1;
