@@ -5,8 +5,8 @@
  *
  * created: 10/2005
  * description: Blackfin generic IDE interface
- *
- * rev:
+ *	
+ * rev: 
  *
  * modified:
  *
@@ -38,9 +38,16 @@
 #include <asm/delay.h>
 #include <asm/blackfin.h>
 
-#define CF_ATASEL_ENA	0x20310002
-#define CF_ATASEL_DIS	0x20310000
+#define CF_ATASEL_ENA	CONFIG_CF_ATASEL_ENA
+#define CF_ATASEL_DIS	CONFIG_CF_ATASEL_DIS
 
+#define BFIN_IDE_IRQ_PFX   (IRQ_PF0 + CONFIG_BFIN_IDE_IRQ_PFX)
+
+#if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
+#define BFIN_IDE_IRQ	BFIN_IDE_IRQ_PFX		
+#else
+#define BFIN_IDE_IRQ	CONFIG_BFIN_IDE_IRQ
+#endif
 
 #if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0)
   #define BFIN_IDE_GAP (2)
@@ -94,7 +101,7 @@ static inline void hw_setup(hw_regs_t *hw)
 	}
 
 	hw->io_ports[IDE_CONTROL_OFFSET] = CONFIG_BFIN_IDE_ALT;
-	hw->irq = CONFIG_BFIN_IDE_IRQ;
+	hw->irq = BFIN_IDE_IRQ;
 	hw->dma = NO_DMA;
 	hw->chipset = ide_generic;
 }
@@ -135,7 +142,7 @@ void __init blackfin_ide_init(void)
 
 	hw_setup(&hw);
 
-	bfin_gpio_interrupt_setup(CONFIG_BFIN_IDE_IRQ, CONFIG_BFIN_IDE_IRQ_PFX, IRQT_HIGH);
+	bfin_gpio_interrupt_setup(BFIN_IDE_IRQ, BFIN_IDE_IRQ_PFX, IRQT_HIGH);
 
 	/* register if */
 	idx = ide_register_hw(&hw, &hwif);

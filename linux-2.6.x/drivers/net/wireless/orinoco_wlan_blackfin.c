@@ -55,6 +55,7 @@
 #include <linux/list.h>
 #include <linux/wireless.h>
 #include <linux/fcntl.h>
+#include <linux/delay.h>
 
 #include <pcmcia/cisreg.h>
 
@@ -63,12 +64,17 @@
 
 static char dev_info[] = "orinoco_wlan_blackfin";
 
-#define WLAN_BLACKFIN_ATTR_ADDR		0x20301000
-#define WLAN_BLACKFIN_IO_ADDR		0x20300000
+#define WLAN_BLACKFIN_ATTR_ADDR		CONFIG_BFIN_CF_ATTR_ADDR
+#define WLAN_BLACKFIN_IO_ADDR		CONFIG_BFIN_CF_IO_ADDR
 
-#define BFIN_WLAN_IRQ_PFX   		54
+#define BFIN_WLAN_IRQ_PFX   		(IRQ_PF0 + CONFIG_BFIN_CF_IRQ_PFX)
 
-#define WLAN_BLACKFIN_IRQ		34
+#if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
+#define WLAN_BLACKFIN_IRQ	BFIN_WLAN_IRQ_PFX		
+#else
+#define WLAN_BLACKFIN_IRQ	CONFIG_BFIN_CF_IRQ
+#endif
+
 #define WLAN_BLACKFIN_IRQ_VECTOR       (WLAN_BLACKFIN_IRQ)
 
 #define COR_OFFSET    (0x3e0)	/* COR attribute offset of Prism2 PC card */

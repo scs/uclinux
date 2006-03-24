@@ -3,35 +3,6 @@
 if (BFIN)
 menu "Blackfin IDE Extra configuration"
 
-config BFIN_IDE_BASE
-	hex "IDE register base address"
-	depends on IDE
-	default 0x20304020
-	help
-	  IDE registers base address
-
-config BFIN_IDE_ALT
-	hex "IDE register alternate address"
-	depends on IDE
-	default 0x2030401C
-	help
-	  IDE alternate registers address
-
-config BFIN_IDE_IRQ
-	int "IDE IRQ no"
-	depends on IDE
-	default "34" if BFIN537_STAMP
-	default "26" if BFIN533_STAMP
-	help
-	  IDE use IRQ no IRQ_PROG_INTA
-
-config BFIN_IDE_IRQ_PFX
-	int "IDE IRQ PFx no"
-	depends on IDE
-	default 55
-	help
-	  IDE IRQ use PFx
-
 choice
 	prompt	"IDE Interface Address Mapping (see help)"
 	depends on IDE
@@ -78,10 +49,55 @@ config BFIN_IDE_ADDRESS_MAPPING_MODE1
 	  GND	  <--	/ATA_SEL
 endchoice
 
+config BFIN_IDE_BASE
+	hex "IDE register base address"
+	depends on IDE
+	default 0x20314020 if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	default 0x2031C020 if BFIN_IDE_ADDRESS_MAPPING_MODE1
+	help
+	  IDE registers base address
+
+config BFIN_IDE_ALT
+	hex "IDE register alternate address"
+	depends on IDE
+	default 0x2031401C if BFIN_IDE_ADDRESS_MAPPING_MODE0
+	default 0x2031C01C if BFIN_IDE_ADDRESS_MAPPING_MODE1
+	help
+	  IDE alternate registers address
+
+config BFIN_IDE_IRQ
+	int "IDE IRQ no"
+	depends on IDE
+	default "34" if BFIN537_STAMP
+	default "26" if BFIN533_STAMP
+	help
+	  IDE use IRQ no IRQ_PROG_INTA
+	  This option is IGNORED if IRQCHIP_DEMUX_GPIO is selected
+
+config BFIN_IDE_IRQ_PFX
+	int "IDE IRQ PFx no"
+	depends on IDE
+	range 0 15 
+	default "5" if BFIN537_STAMP
+	help
+	  IDE IRQ use PFx Range [0..15]
+
 config BFIN_IDE_ADDRESS_AX
 	int "Blackfin A[x] used as CF A0"
 	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default 13
+	help
+
+config CF_ATASEL_ENA
+	int "Address for enabling CF TRUE IDE MODE (ATASEL)"
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
+	default 0x20311802
+	help
+
+config CF_ATASEL_DIS
+	int "Address for disabling CF TRUE IDE MODE (ATASEL)"
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
+	default 0x20311800
 	help
 
 endmenu
