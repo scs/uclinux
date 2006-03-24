@@ -3,6 +3,19 @@
 #
 
 menu "Character devices"
+config BFIN_SPI_CHANNEL
+    bool "Blackfin BF53x SPI port support"
+	depends on BFIN
+    default n
+    ---help---
+    
+config SPI_ADC_BF533    
+    bool "Blackfin BF53x ADSP SPI ADC support"
+	depends on BFIN
+	select BFIN_SPI_CHANNEL
+	default n
+	---help---
+	 
 config BF533_PFLAGS    
     bool "Blackfin BF53x Programmable Flags Driver"
 	depends on BFIN

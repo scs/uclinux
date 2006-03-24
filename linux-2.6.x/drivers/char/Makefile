@@ -52,7 +52,9 @@ obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 
 
 
-
+obj-$(CONFIG_BFIN_SPI_CHANNEL)  += bfin_spi_channel.o
+obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
+obj-$(CONFIG_SPI_ADC_BF533) += bfin_spi_adc.o
 obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
 obj-$(CONFIG_BF533_PFLAGS) += bfin_pflags.o
 obj-$(CONFIG_BF5xx_PPIFCD) += bfin-ppifcd.o
