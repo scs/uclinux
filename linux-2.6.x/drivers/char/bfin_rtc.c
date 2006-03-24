@@ -32,7 +32,7 @@
 
 #include <asm/irq.h>
 #include <asm/blackfin.h>
-#include "blackfin_rtc.h"
+#include "bfin_rtc.h"
 
 #define RTC_VERSION "1.10e"
 #define RTC_IO_EXTENT   0x10    /* Only really two ports, but...    */
