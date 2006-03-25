@@ -33,24 +33,24 @@ LIBTHREAD_DB_SHARED_FULLNAME=libthread_db-$(MAJOR_VERSION).$(MINOR_VERSION).$(SU
 DIRS=
 ifeq ($(strip $(UCLIBC_HAS_THREADS)),y)
 	DIRS+=linuxthreads
-	LDFLAGS_THREAD:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc -z defs
+	LDFLAGS_THREAD:= $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc -Wl,-z,defs
 ifeq ($(UCLIBC_BUILD_RELRO),y)
-	LDFLAGS_THREAD+=-z relro
+	LDFLAGS_THREAD+=-Wl,-z,relro
 endif
 ifeq ($(UCLIBC_BUILD_NOW),y)
-	LDFLAGS_THREAD+=-z now
+	LDFLAGS_THREAD+=-Wl,-z,now
 endif
 ifeq ($(strip $(PTHREADS_DEBUG_SUPPORT)),y)
 	DIRS+=linuxthreads_db
-	LDFLAGS_THREAD_DB:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
+	LDFLAGS_THREAD_DB:= $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc
 endif
 ifeq ($(DODEBUG),n)
-	LDFLAGS_THREAD_DB+=-s
+	LDFLAGS_THREAD_DB+=-Wl,-s
 ifeq ($(UCLIBC_BUILD_RELRO),y)
-       LDFLAGS_THREAD_DB+=-z relro
+       LDFLAGS_THREAD_DB+=-Wl,-z,relro
 endif
 ifeq ($(UCLIBC_BUILD_NOW),y)
-       LDFLAGS_THREAD_DB+=-z now
+       LDFLAGS_THREAD_DB+=-Wl,-z,now
 endif
 endif
 endif
@@ -90,11 +90,10 @@ $(OBJ): Makefile
 shared: all
 	if [ -f $(LIBPTHREAD) ] ; then \
 		set -e; \
-		$(LD) $(LDFLAGS_THREAD) -soname=$(LIBPTHREAD_SHARED).$(MAJOR_VERSION) \
-			-o $(LIBPTHREAD_SHARED_FULLNAME) $(SHARED_START_FILES) --whole-archive $(LIBPTHREAD) \
-			--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-			-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC) \
-			$(SHARED_END_FILES); \
+		$(CC) $(LDFLAGS_THREAD) -Wl,-soname=$(LIBPTHREAD_SHARED).$(MAJOR_VERSION) \
+			-o $(LIBPTHREAD_SHARED_FULLNAME) -Wl,--whole-archive $(LIBPTHREAD) \
+			-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
+			-L$(TOPDIR)lib $(LDADD_LIBFLOAT); \
 		$(INSTALL) -d $(TOPDIR)lib; \
 		$(RM) $(TOPDIR)lib/$(LIBPTHREAD_SHARED_FULLNAME) \
 			$(TOPDIR)lib/$(LIBPTHREAD_SHARED).$(MAJOR_VERSION); \
@@ -106,11 +105,10 @@ shared: all
 	fi;
 	if [ -f $(LIBTHREAD_DB) ] ; then \
 		set -e; \
-		$(LD) $(LDFLAGS_THREAD_DB) -soname=$(LIBTHREAD_DB_SHARED).1 \
-			-o $(LIBTHREAD_DB_SHARED_FULLNAME) --whole-archive $(LIBTHREAD_DB) \
-			--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-			-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC) \
-			; \
+		$(CC) $(LDFLAGS_THREAD_DB) -Wl,-soname=$(LIBTHREAD_DB_SHARED).1 \
+			-o $(LIBTHREAD_DB_SHARED_FULLNAME) -Wl,--whole-archive $(LIBTHREAD_DB) \
+			-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
+			-L$(TOPDIR)lib $(LDADD_LIBFLOAT); \
 		$(INSTALL) -d $(TOPDIR)lib; \
 		$(RM) $(TOPDIR)lib/$(LIBTHREAD_DB_SHARED_FULLNAME) \
 			$(TOPDIR)lib/$(LIBTHREAD_DB_SHARED).1; \

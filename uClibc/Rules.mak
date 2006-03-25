@@ -206,7 +206,7 @@ endif
 
 ifeq ($(strip $(TARGET_ARCH)),bfin)
 ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
-	CPU_LDFLAGS-y+=-melf32bfinfd
+	CPU_LDFLAGS-y+=-mfdpic
 	CPU_CFLAGS-y+=-mfdpic -D__BFIN_FDPIC__
 	PICFLAG=-fPIC -DPIC
 	# Using -pie causes the program to have an interpreter, which is
@@ -268,10 +268,10 @@ ifeq ($(DODEBUG),y)
     #CFLAGS += -g3
     CFLAGS = $(XWARNINGS) -O0 -g3 $(CPU_CFLAGS) $(SSP_CFLAGS) \
 	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I.
-    LDFLAGS:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
+    LDFLAGS:= $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc
     STRIPTOOL:= true -Since_we_are_debugging
 else
-    LDFLAGS := $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
+    LDFLAGS := $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc
 endif
 
 ifeq ($(UCLIBC_BUILD_RELRO),y)

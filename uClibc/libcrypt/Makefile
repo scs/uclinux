@@ -50,10 +50,10 @@ $(OBJS): %.o : %.c
 $(OBJ): Makefile
 
 shared: all
-	$(LD) $(LDFLAGS) -soname=$(LIBCRYPT_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBCRYPT_SHARED_FULLNAME) --whole-archive $(LIBCRYPT) \
-		--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib -lc $(LDADD_LIBFLOAT) $(LIBGCC);
+	$(CC) $(LDFLAGS) -Wl,-soname=$(LIBCRYPT_SHARED).$(MAJOR_VERSION) \
+		-o $(LIBCRYPT_SHARED_FULLNAME) -Wl,--whole-archive $(LIBCRYPT) \
+		-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
+		-L$(TOPDIR)lib $(LDADD_LIBFLOAT);
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBCRYPT_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBCRYPT_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBCRYPT_SHARED_FULLNAME) $(TOPDIR)lib;
