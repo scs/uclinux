@@ -131,7 +131,7 @@ static loff_t coreb_lseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t ret;
 
-	down(&file->f_dentry->d_inode->i_sem);
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 
 	switch (origin) {
 	case 0 /* SEEK_SET */ :
@@ -150,7 +150,7 @@ static loff_t coreb_lseek(struct file *file, loff_t offset, int origin)
 	default:
 		ret = -EINVAL;
 	}
-	up(&file->f_dentry->d_inode->i_sem);
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return ret;
 }
 
@@ -185,14 +185,16 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 	int retval = 0;
 	int coreb_index = 0;
 
-	spin_lock_irq(&coreb_lock);
+
 
 	switch (cmd) {
 	case CMD_COREB_INDEX:
 		if (copy_from_user(&coreb_index, (int *)arg, sizeof(int))) {
-			retval - -EFAULT;
+			retval = -EFAULT;
 			break;
 		}
+
+		spin_lock_irq(&coreb_lock);
 		switch (coreb_index) {
 		case 0:
 			coreb_base = 0xff600000;
@@ -214,11 +216,14 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 			retval = -EINVAL;
 			break;
 		}
-		down(&file->f_dentry->d_inode->i_sem);
+		spin_unlock_irq(&coreb_lock);
+
+		mutex_lock(&file->f_dentry->d_inode->i_mutex);
 		file->f_pos = 0;
-		up(&file->f_dentry->d_inode->i_sem);
+		mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 		break;
 	case CMD_COREB_START:
+		spin_lock_irq(&coreb_lock);
 		if (coreb_status & COREB_IS_RUNNING) {
 			retval = -EBUSY;
 			break;
@@ -227,13 +232,16 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 		coreb_status |= COREB_IS_RUNNING;
 		*pSICA_SYSCR &= ~0x0020;
 		__builtin_bfin_ssync();
+		spin_lock_irq(&coreb_lock);
 		break;
 #if defined(CONFIG_BF561_COREB_RESET)
 	case CMD_COREB_STOP:
+		spin_lock_irq(&coreb_lock);
 		printk(KERN_INFO "Stopping Core B\n");
 		*pSICA_SYSCR |= 0x0020;
 		*pSICB_SYSCR |= 0x0080;
 		coreb_status &= ~COREB_IS_RUNNING;
+		spin_lock_irq(&coreb_lock);
 		break;
 	case CMD_COREB_RESET:
 		printk(KERN_INFO "Resetting Core B\n");
@@ -241,8 +249,6 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 		break;
 #endif
 	}
-
-	spin_unlock_irq(&coreb_lock);
 
 	return retval;
 }
@@ -296,7 +302,6 @@ static struct proc_dir_entry *coreb_proc_entry = NULL;
 
 int __init bf561_coreb_init(void)
 {
-	struct proc_dir_entry *proc_entry;
 	init_waitqueue_head(&coreb_dma_wait);
 
 	spin_lock_init(&coreb_lock);
