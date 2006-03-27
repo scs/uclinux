@@ -307,7 +307,7 @@ static void bfin_hwcontrol(struct mtd_info *mtd, int cmd)
 
 int bfin_device_ready(struct mtd_info *mtd)
 {
-	int ret = (*pPORTFIO & BFIN_NAND_READY) ? 1 : 0 ;
+	int ret = (*pFIO_FLAG_D & BFIN_NAND_READY) ? 1 : 0 ;
 	__builtin_bfin_ssync();
 	return ret;
 }
@@ -340,9 +340,11 @@ int __init bfin_nand_init (void)
 	bfin_mtd->priv = this;
 	
 	/* Configure GPIO-BFIN_NAND_READY */
-	*pPORTF_FER   &= ~BFIN_NAND_READY;
-        *pPORTFIO_DIR &= ~BFIN_NAND_READY;
-        *pPORTFIO_INEN|=  BFIN_NAND_READY;
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+	*pPORT_FER   &= ~BFIN_NAND_READY;
+#endif
+        *pFIO_DIR &= ~BFIN_NAND_READY;
+        *pFIO_INEN|=  BFIN_NAND_READY;
 	__builtin_bfin_ssync();
 
 	p_nand = ioremap(BFIN_NAND_BASE, 0x1000);
