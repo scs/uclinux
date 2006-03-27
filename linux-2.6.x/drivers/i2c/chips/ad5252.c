@@ -35,15 +35,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 #include <linux/delay.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(ad5252);
+I2C_CLIENT_INSMOD_1(ad5252);
 
 /* Initial values */
 #define AD5252_INIT 128	/* Wiper in middle position */
@@ -62,43 +60,39 @@ static void ad5252_init_client(struct i2c_client *client);
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ad5252_driver = {
-	.owner		= THIS_MODULE,
+	.driver = {
 	.name		= "ad5252",
+	},
 	.id		= I2C_DRIVERID_AD5252,
-	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter	= ad5252_attach_adapter,
 	.detach_client	= ad5252_detach_client,
 };
 
 /* following are the sysfs callback functions */
-static ssize_t show_read_w1(struct device *dev, char *buf)
+static ssize_t show_read_w1(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct ad5252_data *data = i2c_get_clientdata(client);
-	data->read = i2c_smbus_read_byte_data(client,0x1);
-	return sprintf(buf, "%u\n", data->read);
+	return sprintf(buf, "%u\n", i2c_smbus_read_byte_data(client,0x1));
 }
 
 static DEVICE_ATTR(read_w1, S_IRUGO, show_read_w1, NULL);
 
-static ssize_t show_read_w3(struct device *dev, char *buf)
+static ssize_t show_read_w3(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct ad5252_data *data = i2c_get_clientdata(client);
-	data->read = i2c_smbus_read_byte_data(client,0x3);
-	return sprintf(buf, "%u\n", data->read);
+	return sprintf(buf, "%u\n", i2c_smbus_read_byte_data(client,0x3));
 }
 
 static DEVICE_ATTR(read_w3, S_IRUGO, show_read_w3, NULL);
 
-static ssize_t show_write(struct device *dev, char *buf)
+static ssize_t show_write(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ad5252_data *data = i2c_get_clientdata(to_i2c_client(dev));
 	return sprintf(buf, "%u\n", data->write);
 }
 
-static ssize_t set_write_w1(struct device *dev, const char *buf,
-			 size_t count)
+static ssize_t set_write_w1(struct device *dev, struct device_attribute *attr, char *buf,
+			size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad5252_data *data = i2c_get_clientdata(client);
@@ -139,7 +133,7 @@ static DEVICE_ATTR(write_w3, S_IWUSR | S_IRUGO, show_write, set_write_w3);
 
 static int ad5252_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, ad5252_detect);
+	return i2c_probe(adapter, &addr_data, ad5252_detect);
 }
 
 /* This function is called by i2c_detect */
@@ -155,11 +149,10 @@ int ad5252_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kmalloc(sizeof(struct ad5252_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct ad5252_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct ad5252_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
