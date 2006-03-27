@@ -47,3 +47,10 @@ config HAS_FPU
 	bool
 	default n
 
+config INSTALL_ELF_SHARED_LIBS
+	bool
+	default y
+	help
+	  If you wish to use some ELF binaries on a system with mostly
+	  flat binaries, enable this option to get the shared libraries
+	  from the toolchain distribution installed.

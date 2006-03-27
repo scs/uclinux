@@ -429,5 +429,20 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 			/lib/ld-linux.so.2; \
 	fi;
+else
+ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
+	t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
+	t=`dirname $$t`/../runtime; \
+	echo $$t; \
+	for i in $$t/lib/lib*-$(UCLIBC_VERSION).so \
+		$$t/lib/*.so.*; do \
+		$(ROMFSINST) -p 755 $$i /lib/$$i; \
+	done; \
+	if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
+		$(ROMFSINST) -p 755 $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so /lib/ld-uClibc-$(UCLIBC_VERSION).so; \
+		$(ROMFSINST) -s \
+			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
+			/lib/ld-linux.so.2; \
+	fi;
 endif
-
+endif
