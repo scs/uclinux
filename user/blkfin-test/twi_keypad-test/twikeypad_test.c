@@ -38,9 +38,9 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <strings.h>
-
-#include <linux/input.h>
 #include <sys/poll.h>
+
+#include "input.h"
 
 #define VERSION         "0.1"
 
