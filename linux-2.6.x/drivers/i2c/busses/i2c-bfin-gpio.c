@@ -3,7 +3,7 @@
  *                                                              *
  * Description:                                                 *
  *                                                              *
- * Maintainer:  ·¶ÃÀ»Ô(Meihui Fan)  <mhfan@ustc.edu>            *
+ * Maintainer:  ï¿½ï¿½Meihui Fan)  <mhfan@ustc.edu>            *
  *                                                              *
  * CopyRight (c)  2004  HHTech                                  *
  *   www.hhcn.com, www.hhcn.org                                 *
@@ -78,7 +78,7 @@ static struct i2c_algo_bit_data bit_hhbf_data = {
 #if 0 	/* comment by mhfan */
     .getscl  = hhbf_getscl,
 #endif	/* comment by mhfan */
-    .udelay  = 80,
+    .udelay  = 40,
     .mdelay  = 0,
     .timeout = HZ
 };
