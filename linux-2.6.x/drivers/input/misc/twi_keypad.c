@@ -111,7 +111,7 @@ struct TWIKeypad
 {
 
   unsigned char *btncode;
-  struct input_dev dev;
+  struct input_dev *dev;
   char name[64];
   char phys[32];
   unsigned char laststate;
@@ -131,29 +131,14 @@ static unsigned short normal_addr[] = { 0x27, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
   .normal_i2c = normal_addr,
-  .normal_i2c_range = ignore,
   .probe = ignore,
-  .probe_range = ignore,
   .ignore = ignore,
-  .ignore_range = ignore,
-  .force = ignore,
 };
 
 static irqreturn_t twi_keypad_irq_handler (int irq, void *dev_id,
 					   struct pt_regs *regs);
 static short read_state (struct TWIKeypad *TWIKeypad);
 static void check_and_notify (struct TWIKeypad *TWIKeypad);
-
-
-static struct TWIKeypad chip = {
-  .btncode = twi_keypad_btncode,
-  .laststate = 0,
-  .statechanged = 0,
-  .irq_handled = 0,
-  .events_sended = 0,
-  .events_processed = 0,
-};
-
 
 static int
 pcf8574_kp_probe (struct i2c_adapter *adap, int addr, int kind)
@@ -167,7 +152,6 @@ pcf8574_kp_probe (struct i2c_adapter *adap, int addr, int kind)
 
   memset (client, 0, sizeof (struct i2c_client));
   strncpy (client->name, PCF8574_KP_DRV_NAME, I2C_NAME_SIZE);
-  client->flags = I2C_DF_NOTIFY;
   client->addr = addr;
   client->adapter = adap;
   client->driver = &pcf8574_kp_driver;
@@ -206,10 +190,10 @@ pcf8574_kp_detach_client (struct i2c_client *client)
 
 
 static struct i2c_driver pcf8574_kp_driver = {
-  .owner = THIS_MODULE,
-  .name = PCF8574_KP_DRV_NAME,
+  .driver = {
+  .name		= PCF8574_KP_DRV_NAME,
+  },
   .id = 0x65,
-  .flags = I2C_DF_NOTIFY,
   .attach_adapter = pcf8574_kp_attach,
   .detach_client = pcf8574_kp_detach_client,
 };
@@ -252,7 +236,7 @@ check_and_notify (struct TWIKeypad *TWIKeypad)
   if (TWIKeypad->statechanged)
     {
 
-      input_report_key (&TWIKeypad->dev,
+      input_report_key (TWIKeypad->dev,
 			nextstate >
 			17 ? TWIKeypad->btncode[TWIKeypad->
 						laststate] : TWIKeypad->
@@ -262,7 +246,7 @@ check_and_notify (struct TWIKeypad *TWIKeypad)
     }
 
   TWIKeypad->laststate = nextstate;
-  input_sync (&TWIKeypad->dev);
+  input_sync (TWIKeypad->dev);
 
 }
 
@@ -272,6 +256,7 @@ static irqreturn_t
 twi_keypad_irq_handler (int irq, void *dev_id, struct pt_regs *regs)
 {
   struct TWIKeypad *TWIKeypad = (struct TWIKeypad *) dev_id;
+
 
   check_and_notify (TWIKeypad);
 
@@ -310,54 +295,66 @@ twi_keypad_dev_event (struct input_dev *dev, unsigned int type,
 static int __init
 twi_keypad_init (void)
 {
-  struct TWIKeypad *TWIKeypad = &chip;
+//  struct TWIKeypad *TWIKeypad = &chip;
   int i;
+
+  struct input_dev *input_dev;
+  struct TWIKeypad *TWIKeypad;
+
 
 /*FIXME: Someone has masked a Interrupt */
   *pFIO_MASKA_C = 0xFFFF;
 
-  if (request_irq
-      (IRQ_PROG_INTA, twi_keypad_irq_handler, SA_INTERRUPT, "TWIKeypad",
-       TWIKeypad))
-    {
-      printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", IRQ_PROG_INTA);
-      return -EIO;
-    }
-
-  bfin_gpio_interrupt_setup (CONFIG_BFIN_TWIKEYPAD_IRQ,
-			     IRQ_PF0 + CONFIG_BFIN_TWIKEYPAD_IRQ_PFX,
-			     IRQT_LOW);
 
   i2c_add_driver (&pcf8574_kp_driver);
 
-  init_input_dev (&TWIKeypad->dev);
+  TWIKeypad = kzalloc(sizeof(struct TWIKeypad), GFP_KERNEL);
 
-  TWIKeypad->dev.evbit[0] = 0;
+	input_dev = input_allocate_device();
+	if (!input_dev)
+		goto fail;
 
-  TWIKeypad->dev.evbit[0] |= BIT (EV_KEY);
-  TWIKeypad->dev.keycode = TWIKeypad->btncode;
-  TWIKeypad->dev.keycodesize = sizeof (TWIKeypad->btncode);
-  TWIKeypad->dev.keycodemax = ARRAY_SIZE (twi_keypad_btncode);
+	if (request_irq
+	(IRQ_PROG_INTA, twi_keypad_irq_handler, SA_INTERRUPT, "TWIKeypad",
+	TWIKeypad))
+	{
+	printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", IRQ_PROG_INTA);
+	return -EIO;
+	}
+	
+	bfin_gpio_interrupt_setup (CONFIG_BFIN_TWIKEYPAD_IRQ,
+				IRQ_PF0 + CONFIG_BFIN_TWIKEYPAD_IRQ_PFX,
+				IRQT_LOW);
+
+  TWIKeypad->dev = input_dev;
+  TWIKeypad->btncode = twi_keypad_btncode;
+
+  input_dev->evbit[0] = 0;
+
+  input_dev->evbit[0] |= BIT (EV_KEY);
+  input_dev->keycode = TWIKeypad->btncode;
+  input_dev->keycodesize = sizeof (twi_keypad_btncode);
+  input_dev->keycodemax = ARRAY_SIZE (twi_keypad_btncode);
 
   for (i = 0; i <= BUTTONS; i++)
     {
-      set_bit (TWIKeypad->btncode[i], TWIKeypad->dev.keybit);
+      set_bit (TWIKeypad->btncode[i], input_dev->keybit);
     }
 
   sprintf (TWIKeypad->name, "BF5xx TWIKeypad");
   sprintf (TWIKeypad->phys, "twikeypad/input0");
 
-  TWIKeypad->dev.name = TWIKeypad->name;
-  TWIKeypad->dev.phys = TWIKeypad->phys;
-  TWIKeypad->dev.id.bustype = BUS_I2C;
-  TWIKeypad->dev.id.vendor = 0x0001;
-  TWIKeypad->dev.id.product = 0x0001;
-  TWIKeypad->dev.id.version = 0x0100;
+  input_dev->name = TWIKeypad->name;
+  input_dev->phys = TWIKeypad->phys;
+  input_dev->id.bustype = BUS_I2C;
+  input_dev->id.vendor = 0x0001;
+  input_dev->id.product = 0x0001;
+  input_dev->id.version = 0x0100;
 
-  input_register_device (&TWIKeypad->dev);
+  input_register_device (TWIKeypad->dev);
 
   printk (KERN_INFO "input: %s at %s\n", TWIKeypad->name,
-	  TWIKeypad->dev.phys);
+	  TWIKeypad->phys);
 
   TWIKeypad->statechanged = 0x0;
 
@@ -365,6 +362,14 @@ twi_keypad_init (void)
   DPRINTK ("twikeypad: Keypad driver for bf5xx IRQ %d\n", IRQ_PROG_INTA);
 
   return 0;
+
+fail:
+  input_free_device(input_dev);
+  i2c_del_driver (&pcf8574_kp_driver);
+  kfree(TWIKeypad);
+
+  return 0;
+
 }
 
 void __exit
