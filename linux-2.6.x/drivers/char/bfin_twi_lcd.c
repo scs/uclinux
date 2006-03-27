@@ -52,7 +52,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 
-#include "twi_lcd.h"
+#include "bfin_twi_lcd.h"
 
 
 static int
@@ -67,7 +67,6 @@ pcf8574_lcd_probe (struct i2c_adapter *adap, int addr, int kind)
 
   memset (client, 0, sizeof (struct i2c_client));
   strncpy (client->name, PCF8574_LCD_DRV_NAME, I2C_NAME_SIZE);
-  client->flags = I2C_DF_NOTIFY;
   client->addr = addr;
   client->adapter = adap;
   client->driver = &pcf8574_lcd_driver;
@@ -107,10 +106,10 @@ pcf8574_lcd_detach_client (struct i2c_client *client)
 
 
 static struct i2c_driver pcf8574_lcd_driver = {
-  .owner = THIS_MODULE,
+  .driver = {
   .name = PCF8574_LCD_DRV_NAME,
+  },
   .id = 0x65,
-  .flags = I2C_DF_NOTIFY,
   .attach_adapter = pcf8574_lcd_attach,
   .detach_client = pcf8574_lcd_detach_client,
 };
