@@ -505,6 +505,14 @@ CONFIG_LIB_DEBUG
   debug symbols are still included, however the optimisation level is
   increased and this can lead to problematic debugging.
 
+CONFIG_BLACKFIN_USE_FDPIC
+  Build all libraries and applicaions with -mfdpic to produce ELF binaries
+  rather than the default flat binaries.  ELF binaries tend to be larger,
+  but have more capabilities, such as support for dlopen.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select either the 'bfin' target for flat binaries, or 'bfinfdpic'
+  for ELF.
+
 CONFIG_BLACKFIN_CHECK_STACKFLOW
   Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
 
