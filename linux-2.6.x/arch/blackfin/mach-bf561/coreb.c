@@ -20,6 +20,8 @@ static wait_queue_head_t coreb_dma_wait;
 #define CMD_COREB_STOP		3
 #define CMD_COREB_RESET		4
 
+#define COREB_MINOR		229
+
 static unsigned long coreb_status = 0;
 static unsigned long coreb_base = 0xff600000;
 static unsigned long coreb_size = 0x4000;
