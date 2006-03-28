@@ -436,7 +436,7 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 	echo $$t; \
 	for i in $$t/lib/lib*-$(UCLIBC_VERSION).so \
 		$$t/lib/*.so.*; do \
-		$(ROMFSINST) -p 755 $$i /lib/$$i; \
+		$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
 	done; \
 	if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
 		$(ROMFSINST) -p 755 $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so /lib/ld-uClibc-$(UCLIBC_VERSION).so; \
