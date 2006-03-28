@@ -642,7 +642,8 @@ config DEBUG_HWERR
 	  from.
 
 config DUAL_CORE_TEST_MODULE
-	bool "Dual Core Test Module"
+	tristate "Dual Core Test Module"
+	depends on (BF561)
 	default n
 	help
 	  Say Y here to build-in dual core test module for dual core test.
