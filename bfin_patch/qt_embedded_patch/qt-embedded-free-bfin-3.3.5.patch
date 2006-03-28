@@ -20,7 +20,7 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.conf qt-embedd
 +QMAKE_CFLAGS		= -pipe -D__linux__ -DQT_NO_LIBRARY -DQT_NOMMU -DQ_NO_SEMAPHORE -DQT_QWS_NO_SHM -DQT_NO_QWS_MULTIPROCESS
 +QMAKE_CFLAGS_WARN_ON	= -Wall -W
 +QMAKE_CFLAGS_WARN_OFF	=
-+QMAKE_CFLAGS_RELEASE	= -O
++QMAKE_CFLAGS_RELEASE	= -O2
 +QMAKE_CFLAGS_DEBUG	= -g
 +QMAKE_CFLAGS_SHLIB	=
 +QMAKE_CFLAGS_YACC	= -Wno-unused -Wno-parentheses
