@@ -50,7 +50,7 @@ static int bfin_ad7171_fb_pan_display(struct fb_var_screeninfo *var,
 static void bfin_ad7171_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 static void bfin_ad7171_fb_imageblit(struct fb_info *info, const struct fb_image *image);
 static int bfin_ad7171_fb_blank(int blank, struct fb_info *info);
-static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma);
+static int bfin_fb_mmap(struct fb_info *info, struct vm_area_struct * vma);
 
 static void bfin_config_ppi(void);
 static void bfin_config_dma(void *ycrcb_buffer);
@@ -199,7 +199,6 @@ static struct fb_ops bfin_ad7171_fb_ops = {
 	.fb_blank 	= bfin_ad7171_fb_blank,
 	.fb_fillrect	= bfin_ad7171_fb_fillrect,
 	.fb_imageblit	= bfin_ad7171_fb_imageblit,
-	.fb_cursor      = soft_cursor,
 	.fb_mmap	= bfin_fb_mmap,
 };
 
@@ -218,7 +217,7 @@ static void bfin_framebuffer_timerfn(unsigned long data)
 }
 	
 
-static int bfin_fb_mmap(struct fb_info *info, struct file *file, struct vm_area_struct * vma)
+static int bfin_fb_mmap(struct fb_info *info, struct vm_area_struct * vma)
 {
   /* we really dont need any map ... not sure how the smem_start will
      end up in the kernel
@@ -490,22 +489,14 @@ static unsigned short normal_i2c[] =
     { I2C_ADV7171 >> 1, (I2C_ADV7171 >> 1) + 1,
         I2C_CLIENT_END
 };
-static unsigned short normal_i2c_range[] = { I2C_CLIENT_END };
 
 static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short probe_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
 static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore_range[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short force[2] = { I2C_CLIENT_END , I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
         .normal_i2c             = normal_i2c,
-        .normal_i2c_range       = normal_i2c_range,
         .probe                  = probe,
-        .probe_range            = probe_range,
         .ignore                 = ignore,
-        .ignore_range           = ignore_range,
-        .force                  = force
 };
 
 static struct i2c_driver i2c_driver_adv7171;
@@ -535,7 +526,6 @@ adv7171_detect_client (struct i2c_adapter *adapter,
         client->addr = address;
         client->adapter = adapter;
         client->driver = &i2c_driver_adv7171;
-        client->flags = I2C_CLIENT_ALLOW_USE;
         if ((client->addr == I2C_ADV7171 >> 1) ||
             (client->addr == (I2C_ADV7171 >> 1) + 1)) {
                 dname = adv7171_name;
@@ -615,11 +605,11 @@ adv7171_detach_client (struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static struct i2c_driver i2c_driver_adv7171 = {
-        .owner = THIS_MODULE,
+	.driver = {
         .name = "adv7171",      /* name */
+	},
 
         .id = I2C_DRIVERID_ADV7170,
-        .flags = I2C_DF_NOTIFY,
 
         .attach_adapter = adv7171_attach_adapter,
         .detach_client = adv7171_detach_client,
