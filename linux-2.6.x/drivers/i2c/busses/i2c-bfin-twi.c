@@ -460,8 +460,6 @@ static u32 bfin_twi_functionality(struct i2c_adapter *adap)
 
 
 static struct i2c_algorithm bfin_twi_algorithm = {
-	.name		= "BFIN TWI I2C",
-	.id		= I2C_BFIN_TWI,
 	.master_xfer	= bfin_twi_master_xfer,
 	.smbus_xfer     = bfin_twi_smbus_xfer,
 	.functionality  = bfin_twi_functionality,
