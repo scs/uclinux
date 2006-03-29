@@ -1750,7 +1750,7 @@ sl811h_probe(struct platform_device *dev)
 
 #ifdef CONFIG_BFIN
 #include <asm/blackfin.h>
-	bfin_gpio_interrupt_setup(irq, platform_get_irq(pdev, 1), IRQT_HIGH);
+	bfin_gpio_interrupt_setup(irq, platform_get_irq(dev, 1), IRQT_HIGH);
 #endif /* CONFIG_BFIN */
 
 	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
