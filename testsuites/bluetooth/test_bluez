@@ -1,0 +1,240 @@
+#!/usr/bin/expect
+
+proc all_done { passed_case failed_case } {
+	puts "\rPassed case:	[$passed_case]\r"
+	puts "\rFailed case:	[$failed_case]\r"
+}
+
+proc case_done { test_result passed_case failed_case } {
+	if { $test_result == "pass" } {
+		incr passed_case
+		puts "\r passed_case = $passed_case\r"
+	}
+	if { $test_result == "fail" } {
+		incr failed_case
+		puts "\r failed_case = $failed_case\r"
+	}
+}
+
+# Main entrance
+puts "\nBluetooth test is starting..."
+# set parameter
+
+set SUCESS			"success"
+set SERIAL_PORT_BAUD_RATE	"57600"
+set TARGET_IP_ADDR		"192.168.1.2"
+set MST_BD_ADDR			"00:10:60:D0:8C:41"	
+set SLV_BD_ADDR			"11:11:11:11:11:11"
+
+set PROG_DIR		"/opt/bluez"
+set logfile		"/opt/bluez/testlog"
+set BLUEZ_TARGET_DIR	"/opt/bluez"
+set BLUEZ_SRC_DIR	"/opt/bluez/utils"
+
+#global passed_case
+#global failed_case
+set passed_case		0
+set failed_case		0
+set total_case		0
+
+set argc [llength $argv]
+if { $argc < 1 } {
+	puts "\nAppend /dev/ttyS0\n"
+}
+
+set ttydev	[lindex $argv 0]
+
+log_file $logfile
+send_log "hello $ttydev" 
+
+set timeout 5
+spawn kermit
+
+set kparams	[list "set line $ttydev\r"]
+lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set carrier-watch off\r"
+lappend kparams "set handshake none\r"
+lappend kparams "set flow-control none\r"
+lappend kparams "robust\r"
+lappend kparams "set file type bin\r"
+lappend kparams "set file name lit\r"
+lappend kparams "set rec pack 1000\r"
+lappend kparams "set send pack 1000\r"
+lappend kparams "set window 5\r"
+lappend kparams "set escape 255\r"
+set nkparams	[llength $kparams]
+
+while { 1 } {
+	expect {
+		"Type ?" { }
+		"ermit>" {
+			break
+		}
+		"not found" {
+			puts "ERROR: Failed to start Kermit"
+		}
+		timeout {
+			puts "ERROR: Time out starting up kermit"
+		}
+	}
+}
+
+for {set i 0} {$i < $nkparams} {incr i} {
+	send [lindex $kparams $i]
+
+	while 1 {
+		expect {
+			"ermit>" { break }
+			"\\?\[A-Z]" {
+				puts "ERROR: Failed to set up kermit parameters"
+			}
+			timeout {
+				puts "ERROR: Time out setting up kermit parameters"
+			}
+		}
+	}
+}
+
+send "connect\r"
+while 1 {
+	expect {
+		"ype the escape character*" {
+			break
+		}
+		timeout {
+			puts "\nERROR: Can't connect to serial port\n"
+			exit
+		}
+	}
+}
+
+sleep 2
+send "ifconfig eth0 $TARGET_IP_ADDR up\r"
+expect "root:~>"
+
+sleep 2
+send "mkdir -p $BLUEZ_TARGET_DIR\r"
+expect "root:~>"
+
+exec rcp -r $BLUEZ_SRC_DIR root@$TARGET_IP_ADDR:$BLUEZ_TARGET_DIR
+sleep 5
+send "ls -l $BLUEZ_TARGET_DIR/\r"
+expect "root:~>"
+
+sleep 2
+send "$BLUEZ_TARGET_DIR/utils/sbin/hciconfig hci0 up\r"
+expect "root:~>"
+
+puts "\r############### EXEC: hciconfig... ###############\r"
+incr total_case
+sleep 2
+send "$BLUEZ_TARGET_DIR/utils/sbin/hciconfig\r"
+set timeout 2
+sleep 2
+while 1 {
+	expect {
+		"DOWN" {
+			puts "\r-- FAILED: hciconfig\r"
+			incr failed_case
+			case_done "fail" $passed_case $failed_case
+			break
+		}
+		"BD Address: $MST_BD_ADDR*" {
+			puts "\r-- SUCCESS: hci0 is up\r"
+			incr passed_case
+			case_done "pass" $passed_case $failed_case
+			break
+		}
+		timeout {
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break
+		}
+	}
+}
+
+
+puts "\r############### EXEC: hcitool... ###############\r"
+incr total_case
+send "$BLUEZ_TARGET_DIR/utils/bin/hcitool scan\r"
+set timeout 20
+sleep 15
+while 1 {
+	expect {
+		"Inquiry failed: Success" {
+			puts "\rNo remote Bluetooth device found\r"
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break
+		}
+		"*$SLV_BD_ADDR*" {
+			puts "\rRemote Bluetooth found\r"
+			incr passed_case
+			case_done "pass" $passed_case $failed_case
+			break
+		}
+		timeout {
+			puts "\rScan remote device time out\r"
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break
+		}
+	}
+}
+
+puts "\r############### EXEC: hcitool inq... ###############\r"
+incr total_case
+send "$BLUEZ_TARGET_DIR/utils/bin/hcitool -i hci0 info $SLV_BD_ADDR\r"
+set timeout 30
+sleep 30 
+while 1 {
+	expect {
+		"$SLV_BD_ADDR" {
+			puts "\rInquire done\r"
+			incr passed_case
+			case_done "pass" $passed_case $failed_case
+			break
+		}
+		timeout {
+			puts "\rInquire failed\r"
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break
+		}	
+	}
+}
+
+puts "\r############### EXEC: l2ping... ###############\r"
+incr total_case
+send "$BLUEZ_TARGET_DIR/utils/bin/l2ping -i hci0 -f $SLV_BD_ADDR\r"
+set timeout 10
+sleep 1
+while 1 {
+	expect {
+		"bytes" {
+			send "\3\r"
+			puts "\rping pass\r"
+			incr passed_case
+			case_done "pass" $passed_case $failed_case
+			break
+		}
+		"Can't connect:" {
+			puts "\rping failed\r"
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break	
+		}
+		timeout {
+			puts "\rtimeout\r"
+			case_done "fail" $passed_case $failed_case
+			incr failed_case
+			break
+		}
+	}
+}
+
+#all_done $passed_case $failed_case
+puts "passed_case: $passed_case\r"
+puts "failed_case: $failed_case\r"
+puts "total_case:  $total_case\r"
+exit
