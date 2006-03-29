@@ -51,6 +51,7 @@ struct thread_struct {
  */
 #define start_thread(_regs, _pc, _usp)			\
 do {							\
+	set_fs(USER_DS);				\
 	(_regs)->pc = (_pc);				\
         if (current->mm)				\
                 (_regs)->p5 = current->mm->start_data;	\

@@ -31,6 +31,7 @@
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <asm/bfin-global.h>
+#include <asm/uaccess.h>
 
 #undef DEBUG
 
@@ -113,7 +114,7 @@ void paging_init(void)
 	/*
 	 * Set up SFC/DFC registers (user data space)
 	 */
-	set_fs(USER_DS);
+	set_fs(KERNEL_DS);
 
 #ifdef DEBUG
 	printk(KERN_DEBUG

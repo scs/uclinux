@@ -41,6 +41,8 @@
 
 #ifndef __ASSEMBLY__
 
+typedef unsigned long mm_segment_t;
+
 /*
  * low level task data.
  * If you change this, change the TI_* offsets below to match.
@@ -52,6 +54,7 @@ struct thread_info {
 	unsigned long flags;	/* low level flags */
 	int cpu;		/* cpu we're on */
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
+	mm_segment_t            addr_limit;     /* address limit */
 	struct restart_block restart_block;
 };
 

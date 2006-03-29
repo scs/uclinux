@@ -10,19 +10,32 @@
  * User space memory access functions
  */
 #include <linux/mm.h>
+#define get_ds()        (KERNEL_DS)
+#define get_fs()        (current_thread_info()->addr_limit)
+ 
+static inline void set_fs (mm_segment_t fs)
+{
+         current_thread_info()->addr_limit = fs;
+}
+ 
+#define segment_eq(a,b) ((a) == (b))
 
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
 #define access_ok(type,addr,size) _access_ok((unsigned long)(addr),(size))
+/*
+ * The fs value determines whether argument validity checking should be
+ * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * get_fs() == KERNEL_DS, checking is bypassed.
+ */
 
-extern int is_in_rom(unsigned long);
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
 	extern unsigned long memory_end;
-	return (((addr >= memory_start) && (addr + size <= memory_end)) ||
-		(is_in_rom(addr) && is_in_rom(addr + size)));
-
+	if(segment_eq(get_fs(),KERNEL_DS))
+ 		return 1;
+ 	return ((addr >= memory_start) && (addr + size <= memory_end)) ;
 }
 
 /*
@@ -142,6 +155,8 @@ static inline int bad_user_access_length(void)
 	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
 }
 
+//#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
+
 #define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
@@ -158,12 +173,13 @@ static inline int bad_user_access_length(void)
 static inline long copy_from_user(void *to,
 				  const void __user *from, unsigned long n)
 {
-        if((unsigned long)from < (unsigned long)_stext)
-                return n;
-        else
-                memcpy(to, from, n);
+	if(access_ok(VERIFY_READ, from, n))
+        	memcpy(to, from, n);
+	else
+		return n;
         return 0;
 }
+
 /*
  * Copy a null terminated string from userspace.
  */
@@ -172,9 +188,8 @@ static inline long strncpy_from_user(char *dst,
                                      const char *src, long count)
 {
 	char *tmp;
-	if ((unsigned long)src > (unsigned long)memory_end || ((unsigned long)src < (unsigned long)_stext)) {
+	if(!access_ok(VERIFY_READ, src, 1))
 		return -EFAULT;
-	}
 	strncpy(dst, src, count);
 	for (tmp = dst; *tmp && count > 0; tmp++, count--) ;
 	return (tmp - dst);
