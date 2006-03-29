@@ -475,15 +475,7 @@ void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 			if (status & BI) {	/* break received */
 				status_handle(info, status);
 				return;
-			} else if (ch == 0x10) {	/* ^P */
-				show_state();
-				show_free_areas();
-				return;
-			} else if (ch == 0x12) {	/* ^R */
-				machine_restart(NULL);
-				return;
 			}
-			/* It is a 'keyboard interrupt' ;-) */
 #ifdef CONFIG_CONSOLE
 			wake_up(&keypress_wait);
 #endif
