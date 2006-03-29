@@ -305,6 +305,30 @@ distclean: mrproper
 %_clean:
 	[ ! -d "$(@:_clean=)" ] || $(MAKEARCH) -C $(@:_clean=) clean
 
+%_config:
+	@if [ ! -f "vendors/$(@:_config=)/config.device" ]; then \
+		echo "vendors/$(@:_config=)/config.device must exist first"; \
+		exit 1; \
+	fi
+	-make clean > /dev/null 2>;&1
+	rm -f .config.old .oldconfig config.arch
+	cp vendors/$(@:_config=)/config.device .config
+	ln -s vendors/$(@:_config=)/config.arch .
+	yes "" | make oldconfig
+
+%_default:
+	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
+		echo "vendors/$(@:_default=)/config.device must exist first"; \
+		exit 1; \
+	fi
+	-make clean > /dev/null 2>;&1
+	rm -f .config.old .oldconfig config.arch
+	cp vendors/$(@:_default=)/config.device .config
+	ln -s vendors/$(@:_default=)/config.arch .
+	yes "" | make oldconfig
+	make dep
+	make
+
 config_error:
 	@echo "*************************************************"
 	@echo "You have not run make config."
