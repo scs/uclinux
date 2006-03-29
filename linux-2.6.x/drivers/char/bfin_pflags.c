@@ -62,7 +62,7 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <linux/proc_fs.h>
-#include "pflags.h"
+#include "bfin_pflags.h"
 
 #undef	DEBUG
 //#define DEBUG
