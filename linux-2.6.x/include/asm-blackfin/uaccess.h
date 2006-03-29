@@ -24,6 +24,9 @@ static inline void set_fs (mm_segment_t fs)
 #define VERIFY_WRITE	1
 
 #define access_ok(type,addr,size) _access_ok((unsigned long)(addr),(size))
+
+extern int is_in_rom(unsigned long);
+
 /*
  * The fs value determines whether argument validity checking should be
  * performed or not.  If get_fs() == USER_DS, checking is performed, with
