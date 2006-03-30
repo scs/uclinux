@@ -95,7 +95,7 @@ __start:
 
 /*	Skip to the end of argv and put a pointer to the environment in
 	[SP + 12] */
-	R3 = R0;
+	R3 = R1;
 	R3 <<= 2;
 	R3 += 4;
 	R3 = R2 + R3;
