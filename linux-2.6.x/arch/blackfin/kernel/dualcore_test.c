@@ -6,7 +6,7 @@ static int *testarg = (int*)0xfeb00000;
 static int test_init(void)
 {
 	*testarg = 1;
-	printk("Dual core test module inserted: set testarg = [%d]\n @ [%p]", *testarg, testarg);
+	printk("Dual core test module inserted: set testarg = [%d]\n @ [%p]\n", *testarg, testarg);
 	
 	return 0;
 }
