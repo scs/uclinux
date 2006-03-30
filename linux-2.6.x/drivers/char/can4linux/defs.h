@@ -12,49 +12,31 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
- *
- *
  *
  *--------------------------------------------------------------------------
  */
 
 
 /**
-* \file can_defs.h
+* \file defs.h
 * \author Name, port GmbH
 * $Revision$
 * $Date$
 *
-* Module Desription 
+* Module Description 
 * see Doxygen Doc for all possibilites
 *
 *
 *
 */
 
-#if 0   /* auf uClinux statisch ?? */
+
+/* needed for 2.4 */
 #ifndef NOMODULE
-#define __NO_VERSION__
-#define MODULE
-#endif
+# define __NO_VERSION__
+# ifndef MODULE
+#  define MODULE
+# endif
 #endif
 
 #ifdef __KERNEL__
@@ -81,9 +63,6 @@
 # include <linux/malloc.h>
 #endif
 
-/* ?? still needed ? */
-/* #include <linux/wrapper.h> */
-
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,1,0)
 #include <linux/poll.h>
 #endif
@@ -98,60 +77,84 @@
 #include <linux/signal.h>
 #include <linux/timer.h>
 
+#ifdef CONFIG_DEVFS_FS /* only if enabled, to avoid errors in 2.0 */
+#include <linux/devfs_fs_kernel.h>
+#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,1,0)
 #include <asm/uaccess.h>
 
 #define __lddk_copy_from_user(a,b,c) copy_from_user(a,b,c)
 #define __lddk_copy_to_user(a,b,c) copy_to_user(a,b,c)
 
+
+#include <linux/ioport.h>
+
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0) 
+# include <linux/interrupt.h> 
+
 #else
+ /* For 2.4.x compatibility, 2.4.x can use */
+typedef void irqreturn_t;
+#define IRQ_NONE
+#define IRQ_HANDLED
+#define IRQ_RETVAL(x)
 
-/* #define __lddk_copy_from_user(a,b,c) memcpy_fromio(a,b,c) */
-/* #define __lddk_copy_to_user(a,b,c) memcpy_toio(a,b,c) */
-#define __lddk_copy_from_user(a,b,c) memcpy_fromfs(a,b,c)
-#define __lddk_copy_to_user(a,b,c) memcpy_tofs(a,b,c)
-
-
-#include <linux/sched.h>
+/* not available in k2.4.x */
+static inline unsigned iminor(struct inode *inode)
+{
+	return MINOR(inode->i_rdev);
+}
 #endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,4)
-#include <linux/ioport.h>
-#endif
-#include <linux/ioport.h>
 
-#endif
+
+
 
 #if CAN4LINUX_PCI
 # define _BUS_TYPE "PCI-"
 /* the only one supported: EMS CPC-PCI */
-# define PCI_VENDOR 0x110a
-# define PCI_DEVICE 0x2104
+# define PCI_VENDOR_CAN_EMS	0x110a
+# define PCI_DEVICE_CAN 	0x2104
 
+/* and CANPCI manufactured by Contemporary Controls Inc. */
+# define PCI_VENDOR_CAN_CC	0x1571
+# define PCI_DEVICE_CC_MASK 	0xC001
+# define PCI_DEVICE_CC_CANopen 	0xC001
+# define PCI_DEVICE_CC_CANDnet 	0xC002
+
+/* and PCICAN manufactured by Kvaser */
+# define PCI_VENDOR_CAN_KVASER	0x10e8
+# define PCI_DEVICE_CAN_KVASER	0x8406
+
+
+#elif CAN4LINUX_PCCARD
+# define _BUS_TYPE "PC-Card-"
 #else
 # define _BUS_TYPE "ISA-"
 #endif
 
-#if defined(ATCANMINI_PELICAN) || defined(CCPC104) || defined(X)
+#if    defined(ATCANMINI_PELICAN) \
+    || defined(CCPC104)		\
+    || defined(CPC_PCI)		\
+    || defined(CC_CANPCI)	\
+    || defined(IXXAT_PCI03)	\
+    || defined(PCM3680)		\
+    || defined(CPC_CARD)	\
+    || defined(KVASER_PCICAN)
 /* ---------------------------------------------------------------------- */
-#ifdef CAN_PELICANMODE
 
 # ifdef  CAN_PORT_IO
 #  define __CAN_TYPE__ _BUS_TYPE "PeliCAN-port I/O "
 # else
+#  ifdef  CAN_INDEXED_PORT_IO
+#   define __CAN_TYPE__ _BUS_TYPE "PeliCAN-indexed port I/O "
+#  else
 #  define __CAN_TYPE__ _BUS_TYPE "PeliCAN-memory mapped "
+#  endif
 # endif
 
-#else
-
-# ifdef  CAN_PORT_IO
-#  define __CAN_TYPE__ _BUS_TYPE "Philips-Basic-CAN port I/O "
-# else
-#  define __CAN_TYPE__ _BUS_TYPE "Philips-Basic-CAN memory mapped "
-# endif
-
-#endif
 #elif defined(MCF5282)
 #   define __CAN_TYPE__ _BUS_TYPE "FlexCAN "
 /* ---------------------------------------------------------------------- */
@@ -161,35 +164,43 @@
 #elif defined(AD_BLACKFIN)
 #   define __CAN_TYPE__ _BUS_TYPE "BlackFin-CAN "
 /* ---------------------------------------------------------------------- */
-#else 
+#else
 /* ---------------------------------------------------------------------- */
 #endif
 
 /* Length of the "version" string entry in /proc/.../version */
-#define PROC_VER_LENGTH 30 
+#define PROC_VER_LENGTH 30
 /* Length of the "Chipset" string entry in /proc/.../version */
-#define PROC_CHIPSET_LENGTH 30 
+#define PROC_CHIPSET_LENGTH 30
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
-/* kernels higher 2.3.x have a f****** new kernel interface ******************/
+/* kernels higher 2.3.x have a new kernel interface.
+*  Since can4linux V3.x only kernel interfaces 2.4 an higher are supported.
+*  This simplfies alot of things
+* ******************/
 #define __LDDK_WRITE_TYPE	ssize_t
 #define __LDDK_CLOSE_TYPE	int
 #define __LDDK_READ_TYPE	ssize_t
 #define __LDDK_OPEN_TYPE	int
 #define __LDDK_IOCTL_TYPE	int
 #define __LDDK_SELECT_TYPE	unsigned int
+#define __LDDK_FASYNC_TYPE	int
 
 #define __LDDK_SEEK_PARAM 	struct file *file, loff_t off, size_t count
-#define __LDDK_READ_PARAM 	struct file *file, char *buffer, size_t count, loff_t *loff
-#define __LDDK_WRITE_PARAM 	struct file *file, const char *buffer, size_t count, loff_t *loff
+#define __LDDK_READ_PARAM 	struct file *file, char *buffer, size_t count, \
+					loff_t *loff
+#define __LDDK_WRITE_PARAM 	struct file *file, const char *buffer, \
+					size_t count, loff_t *loff
 #define __LDDK_READDIR_PARAM 	struct file *file, void *dirent, filldir_t count
-#define __LDDK_SELECT_PARAM 	struct file *file, struct poll_table_struct *wait
-#define __LDDK_IOCTL_PARAM 	struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg
+#define __LDDK_SELECT_PARAM 	struct file *file, \
+					struct poll_table_struct *wait
+#define __LDDK_IOCTL_PARAM 	struct inode *inode, struct file *file, \
+					unsigned int cmd, unsigned long arg
 #define __LDDK_MMAP_PARAM 	struct file *file, struct vm_area_struct * vma
 #define __LDDK_OPEN_PARAM 	struct inode *inode, struct file *file 
 #define __LDDK_FLUSH_PARAM	struct file *file 
 #define __LDDK_CLOSE_PARAM 	struct inode *inode, struct file *file 
-#define __LDDK_FSYNC_PARAM 	struct file *file, struct dentry *dentry, int datasync
+#define __LDDK_FSYNC_PARAM 	struct file *file, struct dentry *dentry, \
+					int datasync
 #define __LDDK_FASYNC_PARAM 	int fd, struct file *file, int count 
 #define __LDDK_CCHECK_PARAM 	kdev_t dev
 #define __LDDK_REVAL_PARAM 	kdev_t dev
@@ -203,65 +214,6 @@
 #endif
 
 
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,2,0)
-/* kernels higher 2.2.x have a f****** new kernel interface ******************/
-#define __LDDK_READ_TYPE	ssize_t
-#define __LDDK_WRITE_TYPE	ssize_t
-#define __LDDK_SELECT_TYPE	unsigned int
-#define __LDDK_IOCTL_TYPE	int
-#define __LDDK_OPEN_TYPE	int
-#define __LDDK_CLOSE_TYPE	int
-
-#define __LDDK_SEEK_PARAM 	struct file *file, loff_t off, int count
-#define __LDDK_READ_PARAM 	struct file *file, char *buffer, size_t count, loff_t *loff
-#define __LDDK_WRITE_PARAM 	struct file *file, const char *buffer, size_t count, loff_t *loff
-#define __LDDK_READDIR_PARAM 	struct file *file, struct dirent *dirent, int count
-#define __LDDK_SELECT_PARAM 	struct file *file, poll_table *wait
-#define __LDDK_IOCTL_PARAM 	struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg
-#define __LDDK_MMAP_PARAM 	struct file *file, struct vm_area_struct * vma
-#define __LDDK_OPEN_PARAM 	struct inode *inode, struct file *file 
-#define __LDDK_FLUSH_PARAM	struct file *file 
-#define __LDDK_CLOSE_PARAM 	struct inode *inode, struct file *file 
-#define __LDDK_FSYNC_PARAM 	struct file *file
-#define __LDDK_FASYNC_PARAM 	struct file *file, int count 
-#define __LDDK_CCHECK_PARAM 	kdev_t dev
-#define __LDDK_REVAL_PARAM 	kdev_t dev
-
-#define __LDDK_MINOR MINOR(file->f_dentry->d_inode->i_rdev)
-#define __LDDK_INO_MINOR MINOR(inode->i_rdev)
-
-#ifndef SLOW_DOWN_IO
-# define SLOW_DOWN_IO __SLOW_DOWN_IO
-#endif
-
-#else
-/* kernels < 2.3.x **********************************************************/
- /* 2.0.x */
-#define __LDDK_WRITE_TYPE	int
-#define __LDDK_CLOSE_TYPE	void
-#define __LDDK_READ_TYPE
-#define __LDDK_OPEN_TYPE
-#define __LDDK_IOCTL_TYPE
-#define __LDDK_SELECT_TYPE	int
-
-#define __LDDK_SEEK_PARAM 	struct inode *inode, struct file *file, off_t off, int count
-#define __LDDK_READ_PARAM 	struct inode *inode, struct file *file, char *buffer, int count
-#define __LDDK_WRITE_PARAM 	struct inode *inode, struct file *file, const char *buffer, int count
-#define __LDDK_READDIR_PARAM 	struct inode *inode, struct file *file, struct dirent *dirent, int count
-#define __LDDK_SELECT_PARAM 	struct inode *inode, struct file *filp, int sel_type, select_table * wait
-#define __LDDK_IOCTL_PARAM 	struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg
-#define __LDDK_MMAP_PARAM 	struct inode *inode, struct file *file, struct vm_area_struct * vma
-#define __LDDK_OPEN_PARAM 	struct inode *inode, struct file *file 
-#define __LDDK_CLOSE_PARAM 	struct inode *inode, struct file *file 
-#define __LDDK_FSYNC_PARAM 	struct inode *inode, struct file *file
-#define __LDDK_FASYNC_PARAM 	struct inode *inode, struct file *file, int count 
-#define __LDDK_CCHECK_PARAM 	kdev_t dev
-#define __LDDK_REVAL_PARAM 	kdev_t dev
-
-#define __LDDK_MINOR MINOR(inode->i_rdev)
-#define __LDDK_INO_MINOR MINOR(inode->i_rdev)
-
-#endif
 
 
 
@@ -269,21 +221,24 @@
 #include "debug.h"
 /************************************************************************/
 #ifdef __KERNEL__
-extern int can_read (__LDDK_READ_PARAM); 
-extern __LDDK_WRITE_TYPE can_write (__LDDK_WRITE_PARAM); 
-extern __LDDK_SELECT_TYPE can_select ( __LDDK_SELECT_PARAM ); 
-extern int can_ioctl ( __LDDK_IOCTL_PARAM ); 
-extern int can_open ( __LDDK_OPEN_PARAM ); 
-extern __LDDK_CLOSE_TYPE can_close (__LDDK_CLOSE_PARAM); 
-extern int can_fasync( __LDDK_FASYNC_PARAM );
+
+extern __LDDK_READ_TYPE   can_read   (__LDDK_READ_PARAM);
+extern __LDDK_WRITE_TYPE can_write (__LDDK_WRITE_PARAM);
+extern __LDDK_SELECT_TYPE can_select (__LDDK_SELECT_PARAM);
+extern __LDDK_IOCTL_TYPE  can_ioctl  (__LDDK_IOCTL_PARAM);
+extern __LDDK_OPEN_TYPE   can_open   (__LDDK_OPEN_PARAM);
+extern __LDDK_CLOSE_TYPE can_close (__LDDK_CLOSE_PARAM);
+extern __LDDK_FASYNC_TYPE can_fasync (__LDDK_FASYNC_PARAM);
+
 #endif 
 
 
 /*---------- Default Outc value for some known boards
  * this depends on the transceiver configuration
+ * some embedded CAN controllers even don't have this configuration option
  * 
- * the port board uses optocoupler configuration as denoted in the philips
- * application notes, so the OUTC value is 0xfa
+ * the AT-CAN-MINI board uses optocoupler configuration as denoted
+ * in the Philips application notes, so the OUTC value is 0xfa
  *
  */
 
@@ -292,41 +247,55 @@ extern int can_fasync( __LDDK_FASYNC_PARAM );
 # define IO_MODEL		'p'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
 #elif defined(IME_SLIMLINE)
 # define CAN_OUTC_VAL           0xda
 # define IO_MODEL		'm'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
 #elif defined(CPC_PCI)
 # define CAN_OUTC_VAL           0xda
 # define IO_MODEL		'm'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
+#elif defined(KVASER_PCICAN)
+# define CAN_OUTC_VAL           0xda
+# define IO_MODEL		'p'
+# define STD_MASK		0xFFFFFFFF 
+# include "sja1000.h"
+
 #elif defined(IXXAT_PCI03)
 # define CAN_OUTC_VAL           0x5e
 # define IO_MODEL		'm'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
 #elif defined(PCM3680)
 # define CAN_OUTC_VAL           0x5e
 # define IO_MODEL		'm'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
 #elif defined(CCPC104)
 # define CAN_OUTC_VAL           0xfa
 # define IO_MODEL		'm'
 # define STD_MASK		0xFFFFFFFF 
 # include "sja1000.h"
+
 #elif defined(MCF5282)
 # define CAN_OUTC_VAL           0x5e
 # define IO_MODEL		'm'
 # define STD_MASK		0
 # include "mcf5282.h"
+
 #elif defined(AD_BLACKFIN)
-# define CAN_OUTC_VAL           0x5e
+# define CAN_OUTC_VAL           0x00
 # define IO_MODEL		'm'
 # define STD_MASK		0
 # include "bf537.h"
+
 #else 
 # define CAN_OUTC_VAL           0x00
 # define IO_MODEL		'm'
@@ -340,8 +309,8 @@ extern int can_fasync( __LDDK_FASYNC_PARAM );
 /************************************************************************/
  /* extern volatile int irq2minormap[]; */
  /* extern volatile int irq2pidmap[]; */
- extern u32 Can_pitapci_control[];
-
+extern u32 Can_pitapci_control[];
+extern struct	pci_dev *Can_pcidev[];
 
 /* number of supported CAN channels */
 #ifndef MAX_CHANNELS
@@ -351,6 +320,11 @@ extern int can_fasync( __LDDK_FASYNC_PARAM );
 #define MAX_BUFSIZE 64
 /* #define MAX_BUFSIZE 1000 */
 /* #define MAX_BUFSIZE 4 */
+
+/* highest supported interrupt number */
+#define MAX_IRQNUMBER	25
+/* max number of bytes used for the device name in the inode 'can%d' */
+#define MAXDEVNAMELENGTH 10
 
 #define BUF_EMPTY    0
 #define BUF_OK       1
@@ -394,24 +368,24 @@ extern int can_fasync( __LDDK_FASYNC_PARAM );
  extern msg_fifo_t Rx_Buf[];
  extern canmsg_t last_Tx_object[];    /* used for selreception of messages */
 
-#if LINUX_VERSION_CODE >= 0x020500 
- typedef irqreturn_t (*irq_handler_t)(int irq, void *unused, struct pt_regs *ptregs);
-#else
- typedef void (*irq_handler_t)(int irq, void *unused, struct pt_regs *ptregs);
-#endif
+/* extern int Can_RequestIrq(int minor, int irq, irq_handler_t handler); */
+/* extern int Can_RequestIrq(int minor, int irq, irqservice_t handler); */
+extern int Can_RequestIrq(int minor, int irq, 
+	irqreturn_t (*handler)(int, void *, struct pt_regs *));
 
-extern int Can_RequestIrq(int minor, int irq, irq_handler_t handler);
 
- extern wait_queue_head_t CanWait[];
- extern wait_queue_head_t CanOutWait[];
+extern wait_queue_head_t CanWait[];
+extern wait_queue_head_t CanOutWait[];
 
- extern unsigned char *can_base[];
- extern unsigned int   can_range[];
-#endif
+extern unsigned char *can_base[];
+extern unsigned int   can_range[];
+#endif		/*  __KERNEL__ */
 
 extern int IRQ_requested[];
 extern int Can_minors[];			/* used as IRQ dev_id */
-extern int selfreception[];			/* flag */
+extern int selfreception[];			/* flag  1 = On */
+extern int timestamp[];				/* flag  1 = On */
+extern int wakeup[];				/* flag  1 = On */
 
 
 /************************************************************************/
@@ -429,7 +403,7 @@ extern ctl_table Can_sys_table[];
 extern char version[];
 #define SYSCTL_VERSION 1
  
- /* ------ Global Definitions for Chpset */
+ /* ------ Global Definitions for Chipset */
 
 extern char Chipset[];
 #define SYSCTL_CHIPSET 2
@@ -506,8 +480,8 @@ extern  int Cnt2[];
 
 
 
-#ifndef Can_MAJOR
-#define Can_MAJOR 91
+#ifndef CAN_MAJOR
+#define CAN_MAJOR 91
 #endif
 
 extern int Can_errno;
@@ -534,6 +508,7 @@ extern int CAN_GetMessage(int , canmsg_t *);
 extern int CAN_SetBTR(int, int, int);
 
 extern irqreturn_t CAN_Interrupt(int irq, void *unused, struct pt_regs *ptregs);
+
 extern int CAN_VendorInit(int);
 
 extern void register_systables(void);
@@ -560,18 +535,37 @@ extern int Can_WaitInit(int minor);
 extern void Can_StartTimer(unsigned long v);
 extern void Can_StopTimer(void);
 extern void Can_TimerInterrupt(unsigned long unused);
-extern void Can_dump(int minor);
-extern void Can_dump(int minor);
-extern void CAN_register_dump(void);
+extern void can_dump(int minor);
 extern void CAN_object_dump(int object);
 extern void print_tty(const char *fmt, ...);
 
 /* PCI support */
 extern int pcimod_scan(void);
 
+/* PC-Card support */
+
+#ifdef CAN_INDEXED_PORT_IO
+static inline unsigned Indexed_Inb(unsigned base,unsigned adr) {
+  unsigned val;
+  outb(adr,base);
+  val=inb(base+1);
+#ifdef IODEBUG
+  printk("CANin: base: %x adr: %x, got: %x\n",base,adr,val);
+#endif
+  return val;
+}
+#endif
+
 /************************************************************************/
 /* hardware access functions or macros */
 /************************************************************************/
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,6)
+/* # define __iomem */
+#endif
+#if !defined(__iomem)
+# define __iomem
+#endif
+
 #ifdef  CAN_PORT_IO
 /* #error Intel port I/O access */
 /* using port I/O with inb()/outb() for Intel architectures like 
@@ -596,7 +590,48 @@ extern int pcimod_scan(void);
 #define CANtest(bd,adr,m)	\
 	(inb((int) &((canregs_t *)Base[bd])->adr  ) & m )
 
-#else 	/* CAN_PORT_IO */
+#endif 	/* CAN_PORT_IO */
+
+#if !defined CAN_PORT_IO
+
+#ifdef CAN_INDEXED_PORT_IO
+/* #error Indexed Intel port I/O access */
+/* using port I/O with indexed inb()/outb() for Intel architectures like 
+   SSV TRM/816 DIL-NET-PC */
+
+#ifdef IODEBUG
+#define CANout(bd,adr,v) {\
+        printk("CANout bd:%x base:%x reg:%x val:%x\n", \
+                bd, (u32) Base[bd], \
+		(u32) &regbase->adr,v); \
+        outb((u32) &regbase->adr,(u32) Base[bd]);\
+        outb(v,((u32) Base[bd])+1);\
+  }
+#else
+#define CANout(bd,adr,v) {\
+        outb((u32) &regbase->adr,(u32) Base[bd]);\
+        outb(v,((u32) Base[bd])+1);\
+}
+#endif
+#define CANin(bd,adr) \
+        Indexed_Inb((u32) Base[bd],(u32) &regbase->adr)
+
+#define CANset(bd,adr,m) {\
+        unsigned val; \
+        val=Indexed_Inb((u32) Base[bd],(u32) &regbase->adr);\
+        outb((u32) &regbase->adr,(u32) Base[bd]);\
+        outb(val | m,((u32) Base[bd])+1);\
+}
+#define CANreset(bd,adr,m) {\
+        unsigned val; \
+        val=Indexed_Inb((u32) Base[bd],(u32) &regbase->adr);\
+        outb((u32) &regbase->adr,(u32) Base[bd]);\
+        outb(val & ~m,((u32) Base[bd])+1);\
+}
+#define CANtest(bd,adr,m) \
+        (Indexed_Inb((u32) Base[bd],(u32) &regbase->adr) & m)
+#else
+
 /* using memory acces with readb(), writeb() */
 /* #error  memory I/O access */
 /* #define can_base Base */
@@ -607,7 +642,7 @@ extern int pcimod_scan(void);
 
 #define CANset(bd,adr,m)     do	{\
 	unsigned char v;	\
-        v = (readb((u32) &((canregs_t *)can_base[bd])->adr)); \
+        v = (readb((void __iomem *) &((canregs_t *)can_base[bd])->adr)); \
 	printk("CANset %x |= %x\n", (v), (m)); \
 	writeb( v | (m) , (u32) &((canregs_t *)can_base[bd])->adr ); \
 	} while (0)
@@ -622,19 +657,18 @@ extern int pcimod_scan(void);
 #else
    /* Memory Byte access */
 #define CANout(bd,adr,v)	\
-		(writeb(v, (u32) &((canregs_t *)can_base[bd])->adr ))
+		(writeb(v, (void __iomem *) &((canregs_t *)can_base[bd])->adr ))
 #define CANset(bd,adr,m)	\
-	writeb((readb((u32) &((canregs_t *)can_base[bd])->adr)) \
-		| (m) , (u32) &((canregs_t *)can_base[bd])->adr )
+	writeb((readb((void __iomem *) &((canregs_t *)can_base[bd])->adr)) \
+		| (m) , (void __iomem *) &((canregs_t *)can_base[bd])->adr )
 #define CANreset(bd,adr,m)	\
-	writeb((readb((u32) &((canregs_t *)can_base[bd])->adr)) \
-		& ~(m), (u32) &((canregs_t *)can_base[bd])->adr )
+	writeb((readb((void __iomem *) &((canregs_t *)can_base[bd])->adr)) \
+		& ~(m), (void __iomem *) &((canregs_t *)can_base[bd])->adr )
 #endif
 #define CANin(bd,adr)		\
-		(readb ((u32) &((canregs_t *)can_base[bd])->adr  ))
+		(readb ((void __iomem *) &((canregs_t *)can_base[bd])->adr  ))
 #define CANtest(bd,adr,m)	\
-	(readb((u32) &((canregs_t *)can_base[bd])->adr  ) & (m) )
-
+	(readb((void __iomem *) &((canregs_t *)can_base[bd])->adr  ) & (m) )
 
    /* Memory word access */
 #define CANoutw(bd,adr,v)	\
@@ -676,8 +710,9 @@ extern int pcimod_scan(void);
 	(readl((u32) &((canregs_t *)can_base[bd])->adr  ) & (m) )
 
 
-#endif 		/* CAN_PORT_IO */
+#endif
 
+#endif 		/* ! CAN_PORT_IO */
 /*________________________E_O_F_____________________________________________*/
 
 
@@ -690,7 +725,7 @@ and substitutes  MEM_In/MEM_Out
 
 */
 
-u8 MEM_In (unsigned long  adr ) { 
+uint8 MEM_In (unsigned long  adr ) { 
 #if IODEBUG
         int ret = readb(adr);
         printk("MIn: 0x%x=0x%x\n", adr, ret);
@@ -701,7 +736,7 @@ u8 MEM_In (unsigned long  adr ) {
 #endif
 }
 
-u8 fastMEM_In (unsigned long  adr ) {
+uint8 fastMEM_In (unsigned long  adr ) {
         /* Fast access:
          * first read desired register,
          * after that read register 4
@@ -722,7 +757,7 @@ u8 fastMEM_In (unsigned long  adr ) {
         return ret;
 }
 
-void MEM_Out(u8 v, unsigned long adr ) {
+void MEM_Out(uint8 v, unsigned long adr ) {
 #if IODEBUG
         printk("MOut: 0x%x->0x%x\n", v, adr);
 #endif

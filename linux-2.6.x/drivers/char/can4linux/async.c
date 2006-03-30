@@ -22,8 +22,8 @@
  * modification history
  * --------------------
  * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
+ * Revision 1.2  2006/03/30 15:21:45  hennerich
+ * Apply Blackfin can4linux patch form port GmbH
  *
  * Revision 1.1  2004/05/14 10:06:53  oe
  * - started supporting async notification

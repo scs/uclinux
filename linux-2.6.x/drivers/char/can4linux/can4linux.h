@@ -12,24 +12,6 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
  *
  *
  *--------------------------------------------------------------------------
@@ -52,7 +34,8 @@
 #ifndef __CAN_H
 #define __CAN_H
 
-#define CAN4LINUXVERSION 0x0302 /*(Version 3.2)*/
+
+# define CAN4LINUXVERSION 0x0304 /*(Version 3.3)*/
 
 #ifndef __KERNEL__
 #include <sys/time.h>
@@ -105,24 +88,24 @@ typedef struct {
 #define CAN_IOCTL_STATUS         5      /**< IOCTL status request */
 
 /*---------- CAN ioctl parameter types */
-
 /**
  IOCTL Command request parameter structure */
 struct Command_par {
-    int cmd;                    /**< special driver command */
-    int target;                 /**< special configuration target */
-    unsigned long val1;         /**< 1. parameter for the target */
-    unsigned long val2;         /**< 2. parameter for the target */
-    int error;                  /**< return value */
-    unsigned long retval;       /**< return value */
+    int cmd;			/**< special driver command */
+    int target;			/**< special configuration target */
+    unsigned long val1;		/**< 1. parameter for the target */
+    unsigned long val2;		/**< 2. parameter for the target */
+    int error;	 		/**< return value */
+    unsigned long retval;	/**< return value */
 };
 
 
-typedef struct Command_par Command_par_t ;
 /**
- PSW made them all the same
- IOCTL Configuration request parameter structure */
-typedef struct Command_par  Config_par_t ;
+ IOCTL Command request parameter structure */
+typedef struct Command_par Command_par_t ; /**< Command parameter struct */
+/**
+ IOCTL CConfiguration request parameter structure */
+typedef struct Command_par  Config_par_t ; /**< Configuration parameter struct */
 
 
 /**
@@ -179,27 +162,32 @@ typedef struct ConfigureRTR_par {
 } ConfigureRTR_par_t ;
 
 /**
----------- IOCTL Command subcommands */
+---------- IOCTL Command subcommands and there targets */
 
-# define CMD_START	1
-# define CMD_STOP 	2
-# define CMD_RESET	3
+# define CMD_START		1
+# define CMD_STOP 		2
+# define CMD_RESET		3
+# define CMD_CLEARBUFFERS	4
+
+
 
 
 /**
 ---------- IOCTL Configure targets */
 
-# define CONF_ACC   		0	/* mask and code */
-# define CONF_ACCM   		1	/* mask only */
-# define CONF_ACCC   		2	/* code only */
-# define CONF_TIMING		3	/* bit timing */
-# define CONF_OMODE 		4	/* output control register */
-# define CONF_FILTER		5
-# define CONF_FENABLE		6
-# define CONF_FDISABLE		7
+# define CONF_ACC   	0	/* mask and code */
+# define CONF_ACCM   	1	/* mask only */
+# define CONF_ACCC   	2	/* code only */
+# define CONF_TIMING	3	/* bit timing */
+# define CONF_OMODE 	4	/* output control register */
+# define CONF_FILTER	5
+# define CONF_FENABLE	6
+# define CONF_FDISABLE	7
 # define CONF_LISTEN_ONLY_MODE	8	/* for SJA1000 PeliCAN */
 # define CONF_SELF_RECEPTION	9	/* */
 # define CONF_BTR   		10      /* set direct bit timing registers
 					   (SJA1000) */
+# define CONF_TIMESTAMP  	11      /* use TS in received messages */
+# define CONF_WAKEUP		12      /* wake up processes */
 
 #endif 	/* __CAN_H */

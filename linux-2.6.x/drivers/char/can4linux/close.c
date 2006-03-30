@@ -1,7 +1,6 @@
 /*
  * can_close - can4linux CAN driver module
  *
- * can4linux -- LINUX CAN device driver source
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -18,33 +17,13 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
- *
- *
  *
  *--------------------------------------------------------------------------
  */
 
 
 /**
-* \file can_close.c
+* \file close.c
 * \author Heinz-Jürgen Oertel, port GmbH
 * $Revision$
 * $Date$
@@ -54,6 +33,7 @@
 /*
 *
 */
+#include <linux/pci.h>
 #include "defs.h"
 
 extern int Can_isopen[];   		/* device minor already opened */
@@ -82,36 +62,53 @@ extern int Can_isopen[];   		/* device minor already opened */
 */
 __LDDK_CLOSE_TYPE can_close ( __LDDK_CLOSE_PARAM )
 {
+unsigned int minor = iminor(inode);
+
     DBGin("can_close");
-    {
-	unsigned int minor = __LDDK_MINOR;
 
-	CAN_StopChip(minor);
+    CAN_StopChip(minor);
 
-        /* since Vx.y (2.4?) macros defined in ioport.h,
-           called is  __release_region()  */
-#if defined(CAN_PORT_IO) 
-	release_region(Base[minor], can_range[minor] );
+
+    /* call this before freeing any memory or io area.
+     * this can contain registers needed by Can_FreeIrq()
+     */
+    Can_FreeIrq(minor, IRQ[minor]);
+
+
+    /* should the resources be released in a manufacturer specific file?
+     * is it always depending on the hardware?
+     */
+
+    /* since Vx.y (2.4?) macros defined in ioport.h,
+       called is  __release_region()  */
+#if defined(CAN_PORT_IO) && !defined(KVASER_PCICAN)
+    release_region(Base[minor], can_range[minor] );
 #else
-	release_mem_region(Base[minor], can_range[minor] );
+# if defined(CAN_INDEXED_PORT_IO)
+    release_region(Base[minor],2);
+# else
+#  ifndef CAN4LINUX_PCI
+    /* release I/O memory mapping -> release virtual memory */
+    iounmap((void*)Base[minor]);
+    /* Release the memory region */
+    release_mem_region(Base[minor], can_range[minor]);
+#  endif
+# endif
 #endif
 
 #ifdef CAN_USE_FILTER
-	Can_FilterCleanup(minor);
+    Can_FilterCleanup(minor);
 #endif
-	Can_FreeIrq(minor, IRQ[minor]);
 
-	if(Can_isopen[minor] > 0) {
-	    --Can_isopen[minor];		/* flag device as free */
-	    /* MOD_DEC_USE_COUNT; */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,2,0)
-	    return 0;
-#endif
-	}
-	
+    /* printk("CAN module %d has been closed\n",minor); */
+
+    if(Can_isopen[minor] > 0) {
+	--Can_isopen[minor];		/* flag device as free */
+	/* MOD_DEC_USE_COUNT; */
+	DBGout();
+	return 0;
     }
+
     DBGout();
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,2,0)
     return -EBADF;
-#endif
 }

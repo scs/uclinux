@@ -15,32 +15,14 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
  *
  */
 
 
-#include "defs.h"
 #include <linux/sched.h> 
 #include <linux/proc_fs.h>
 #include <linux/pci.h>
+#include "defs.h"
 
 /*
  * Refuse to compile under versions older than 1.99.4
@@ -55,284 +37,26 @@ wait_queue_head_t CanWait[MAX_CHANNELS];
 wait_queue_head_t CanOutWait[MAX_CHANNELS];
 
 /* for each CAN channel allocate a TX and RX FIFO */
-msg_fifo_t   Tx_Buf[MAX_CHANNELS];
-msg_fifo_t   Rx_Buf[MAX_CHANNELS];
+msg_fifo_t   Tx_Buf[MAX_CHANNELS] = {{0}};
+msg_fifo_t   Rx_Buf[MAX_CHANNELS] = {{0}};
 
 #ifdef CAN_USE_FILTER
-    msg_filter_t Rx_Filter[MAX_CHANNELS]; 
+    msg_filter_t Rx_Filter[MAX_CHANNELS] = {{0}}; 
 #endif
 /* used to store always the last frame sent on this channel */
 canmsg_t     last_Tx_object[MAX_CHANNELS];
 
-unsigned char *can_base[MAX_CHANNELS];	/* ioremapped adresses */
-unsigned int can_range[MAX_CHANNELS];	/* ioremapped adresses */
+unsigned char *can_base[MAX_CHANNELS] = {0};	/* ioremapped adresses */
+unsigned int can_range[MAX_CHANNELS] = {0};	/* ioremapped adresses */
 int selfreception[MAX_CHANNELS] = {0};	/* flag indicating that selfreception
-                                           of frames is allowed */
-
-#if defined(MCF5282)
-	/* Motorola ColdFire Board FlexCAN */
-#include <asm/coldfire.h>
-#include <asm/mcfsim.h>
-
-/* enabel the interrupts at the interrupt controller
- used:
-  - receivebuffer 1
-
-*/
-void mcf_irqsetup(void)
-{
-volatile unsigned char *icrp;	/* interrupt control register pointer */
-volatile unsigned long *imrp;	/* interrupt mask register pointer    */
-
-    /* Initialize FlexCAN interrupt handler
-      - Initialize the interrupt configurataion register (CANICR with
-        a specific request level and vector base address
-      - Initialize IARB[3:0] to a non zero value in CANMCR
-        ( This is done in CAN-ChipReset() )
-      - Set the required mask bits in the IMASK register (for all message
-        buffer interrupts) in CANCTRL0 for bus off and error interrupts,
-        and in CANMCR for WAKE interrupt.
-        (happens in CAN-ChipReset() too)
-
-	MCF5282 has two interrupt controllers, FlexCAN interrupts are
-	scheduled to INTC1 (the second one, with lower priority)
-	Int source nr  -- Source --                    vector
-	 8             -- message buffer 0             136
-	 9             -- message buffer 1             137
-	   ...
-	23             -- message buffer 15            151
-	24             -- Error Int                    152
-	25             -- Bus-Off Int                  153
-	26             -- Wake-Up Int                  154
+				       of frames is allowed */
+int timestamp[MAX_CHANNELS] = {1};	/* flag indicating that timestamp 
+				       value should assigned to rx messages */
+int wakeup[MAX_CHANNELS] = {1};		/* flag indicating that leeping
+				    processes are waken up in case of events */
 
 
-       Interrupt Vector number is vector_number = 128 + interrupt source number
-       (for INTC1)                    
-       vector_number = 137 (std receive object == MB 1) 
 
-     */
-    icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC1 + 
-	    MCFINTC_ICR0 + MCFINT_CAN_BUF00 );
-    *icrp = 0x33; /* CANx with level 6, priority 3 */
-    /* printk("icrp %p = 0x%08x\n", icrp, *icrp); */
-
-    icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC1 + 
-	    MCFINTC_ICR0 + MCFINT_CAN_BUF01 );
-    *icrp = 0x33; /* CANx with level 6, priority 3 */
-    /* printk("icrp %p = 0x%08x\n", icrp, *icrp); */
-
-    icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC1 + 
-	    MCFINTC_ICR0 + MCFINT_CAN_BUF02 );
-    *icrp = 0x33; /* CANx with level 6, priority 3 */
-    /* printk("icrp %p = 0x%08x\n", icrp, *icrp); */
-    
-    icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC1 + 
-	    MCFINTC_ICR0 + MCFINT_CAN_WARN );
-    *icrp = 0x33; /* CANx with level 6, priority 3 */
-    /* printk("icrp %p = 0x%08x\n", icrp, *icrp); */
-
-    icrp = (volatile unsigned char *) (MCF_MBAR + MCFICM_INTC1 + 
-	    MCFINTC_ICR0 + MCFINT_CAN_BUSOFF );
-    *icrp = 0x33; /* CANx with level 6, priority 3 */
-    /* printk("icrp %p = 0x%08x\n", icrp, *icrp); */
-
-    /* set Mask register too
-    The IMRHn and IMRLn registers are each 32 bits in size and provide a
-    bit map for each interrupt to allow the request to be disabled (1 =
-    disable the request, 0 = enable the request).  The IMRn is set to all
-    ones by reset, disabling all interrupt requests. The IMRn can be read
-    and written. A write that sets bit 0 of the IMR forces the other 63
-    bits to be set, disabling all interrupt sources, and providing a global
-    mask-all capability.
-    */
-    imrp = (volatile unsigned long *) (MCF_MBAR + MCFICM_INTC1 +
-		MCFINTC_IMRL);
-    *imrp &= ~(   (1 << (MCFINT_CAN_BUF00 ))
-    	        | (1 << (MCFINT_CAN_BUF01 ))
-    	        | (1 << (MCFINT_CAN_BUF02 ))
-    	        | (1 << (MCFINT_CAN_WARN ))
-    	        | 1);
-    /*            ^ unmask all */
-
-    /* printk("imrp %p = 0x%08x\n", imrp, *imrp); */
-}
-
-void mcf_irqreset(void)
-{
-volatile unsigned long *imrp;	/* interrupt mask register pointer    */
-
-    /* Mask register auch rücksetzen
-    The IMRHn and IMRLn registers are each 32 bits in size and provide a
-    bit map for each interrupt to allow the request to be disabled (1 =
-    disable the request, 0 = enable the request).  The IMRn is set to all
-    ones by reset, disabling all interrupt requests. The IMRn can be read
-    and written. A write that sets bit 0 of the IMR forces the other 63
-    bits to be set, disabling all interrupt sources, and providing a global
-    mask-all capability.
-    */
-    imrp = (volatile unsigned long *) (MCF_MBAR + MCFICM_INTC1 +
-		MCFINTC_IMRL);
-    *imrp |= ((1 << (MCFINT_CAN_BUF00 ))
-    	    | (1 << (MCFINT_CAN_BUF01 )) 
-    	    | (1 << (MCFINT_CAN_BUF02 )) 
-    	    | (1 << (MCFINT_CAN_WARN ))
-            | 1);
-
-}
-#endif
-
-#if defined(CCPC104)
-	/* Motorola ColdFire Board CTRLink */
-#include <asm/coldfire.h>
-#include <asm/mcfsim.h>
-
-void pc104_irqsetup(void)
-{
-volatile unsigned long	*icrp;
-
-    /* The PC104 device uses external IRQ3 */
-
-    /* reset all PI (pending Interrupts) to 0, mask IPL priority level 
-     * and add 0d to INT3
-     * each ext int 4 bits 
-     *    _  _  _  _
-     *    PI,..IPL..   0d -->  1 1 0 1 --> PI = 1
-     *                                     PL = 5
-     *        
-     */
-    icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-    *icrp = (*icrp & 0x77077777) | 0x00d00000;
-}
-
-void pc104_irqack(int irq)
-{
-	volatile unsigned long	*icrp;
-	/*
-	Writing a 1 to PI enables the value for the corresponding IPL field to be set.
-	Note: for external interrupts only,
-	writing a one to this bit clears the corresponding interrupt latch.
-	The external interrupt must be toggled before another interrupt is latched.
-	*/
-	/* The PC104 device uses external IRQ3 */
-	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-	*icrp = (*icrp & 0x77777777) | 0x00800000;
-}
-
-#endif
-
-
-#if 0
-/* code sould be in hardware specific c-file */
-
-
-int Can_RequestIrq(int minor, int irq, irq_handler_t handler)
-{
-int err=0;
-
-    DBGin("Can_RequestIrq");
-    /*
-
-    int request_irq(unsigned int irq,			// interrupt number  
-              void (*handler)(int, void *, struct pt_regs *), // pointer to ISR
-		              irq, dev_id, registers on stack
-              unsigned long irqflags, const char *devname,
-              void *dev_id);
-
-       dev_id - The device ID of this handler (see below).       
-       This parameter is usually set to NULL,
-       but should be non-null if you wish to do  IRQ  sharing.
-       This  doesn't  matter when hooking the
-       interrupt, but is required so  that,  when  free_irq()  is
-       called,  the  correct driver is unhooked.  Since this is a
-       void *, it can point to anything (such  as  a  device-spe­
-       cific  structure,  or even empty space), but make sure you
-       pass the same pointer to free_irq().
-
-    */
-
-#if defined(CONFIG_PPC)
-    /* LINUX_PPC */
-    err = request_8xxirq( irq, handler, 0, "Can", NULL );
-#elif defined(MCF5282)
-    {
-    int i;
-    	/* 19 Int vectors are used on Interrupt Controller 1 */
-	for( i = 136; i < 155; i++) {
-	    err = request_irq( i, handler, SA_SHIRQ, "Can", &Can_minors[minor]);
-	    if(err) {
-    		DBGout();return err;
-	    }
-	}
-    }
-#elif defined(AD_BLACKFIN)
-    {
-    err = request_irq(irq, handler, SA_INTERRUPT|SA_SHIRQ, \
-    					"Can-RX", &Can_minors[minor]);
-    err = request_irq(irq +1 , handler, SA_INTERRUPT|SA_SHIRQ, \
-    					"Can-TX", &Can_minors[minor]);
-    }
-#else 
-    err = request_irq(irq, handler, SA_SHIRQ, "Can", &Can_minors[minor]);
-#endif
-    if( !err ) {
-	/* printk("Requested IRQ[%d]: %d @ 0x%x", minor, irq, handler); */
-
-/* Now the kernel has assigned a service to the Interruptvector,
-   time to enable the hardware to generate an ISR.
-
-   here should be used a generic function e.g. can_irqsetup(minor)
-   and do whatever needed for the app. hardware
-   to reduce ifdef clutter
-   */
-#if defined(CCPC104)
-	pc104_irqsetup();
-#endif
-#if defined(MCF5282)
-	mcf_irqsetup();
-#endif
-
-	irq2minormap[irq] = minor;
-
-	irq2pidmap[irq] = current->pid;
-	DBGprint(DBG_BRANCH,("Requested IRQ: %d @ 0x%lx",
-				irq, (unsigned long)handler));
-	IRQ_requested[minor] = 1;
-    }
-    DBGout();
-    return err;
-}
-
-int Can_FreeIrq(int minor, int irq )
-{
-    DBGin("Can_FreeIrq");
-    IRQ_requested[minor] = 0;
-
-#if defined(MCF5282)
-    /* reset interrupt masks */
-    mcf_irqreset();
-#endif
-#if defined(MCF5282)
-    {
-    int i;
-    	/* 19 Int vectors are used on Interrupt Controller 1 */
-	for(i = 136; i < 155; i++) {
-	    free_irq(i, &Can_minors[minor]);
-	}
-    }
-#endif
-
-#if defined(AD_BLACKFIN)
-    free_irq(irq, &Can_minors[minor]);
-    free_irq(irq + 1, &Can_minors[minor]);
-#else 
-    /* release the vector from the kernel */
-    free_irq(irq, &Can_minors[minor]);
-#endif
-
-    DBGout();
-    return 0;
-}
-#endif
 
 int Can_WaitInit(int minor)
 {
@@ -473,24 +197,8 @@ canmsg_t *tmp;
 #endif
 #include <asm/io.h>
 
-#if 0
-/* simply dump a memory area bytewise for 2*16 addresses */
-void dump_CAN(unsigned long adress, int offset)
-{
-int i, j;
-unsigned long ptr = (unsigned long)ioremap(adress, 256);
-    printk("     CAN at Adress 0x%x\n", adress);
-    for(i = 0; i < 2; i++) {
-	printk("     ");
-	for(j = 0; j < 16; j++) {
-	    /* printk("%02x ", *ptr++); */
-	    printk("%02x ", readb(ptr));
-	    ptr += offset;
-	}
-	printk("\n");
-    }
-}
-
+#if 1
+/* simply dump a memory area bytewise for n*16 addresses */
 /*
  * adress - start address 
  * n      - number of 16 byte rows, 
@@ -499,12 +207,12 @@ unsigned long ptr = (unsigned long)ioremap(adress, 256);
 void dump_CAN(unsigned long adress, int n, int offset)
 {
 int i, j;
-    printk("     CAN at Adress 0x%x\n", adress);
+    printk("     CAN at Adress 0x%lx\n", adress);
     for(i = 0; i < n; i++) {
 	printk("     ");
 	for(j = 0; j < 16; j++) {
 	    /* printk("%02x ", *ptr++); */
-	    printk("%02x ", readb(adress));
+	    printk("%02x ", readb((void __iomem *)adress));
 	    adress += offset;
 	}
 	printk("\n");
@@ -512,7 +220,7 @@ int i, j;
 }
 #endif
 
-#if CAN4LINUX_PCI
+#ifdef CPC_PCI 
 # define REG_OFFSET 4
 #else
 # define REG_OFFSET 1
@@ -523,19 +231,21 @@ int i, j;
 *
 *   Base[minor] should contain the virtual adress
 */
-void Can_dump(int minor)
+void can_dump(int minor)
 {
 int i, j;
 int index = 0;
 
 	for(i = 0; i < 2; i++) {
+	    printk("0x%04x: ", Base[minor] + (i * 16));
 	    for(j = 0; j < 16; j++) {
 		printk("%02x ",
 #ifdef  CAN_PORT_IO
 		inb((int) (Base[minor] + index)) );
 #else
-		readb((u32) (can_base[minor] + index)) );
+		readb((void __iomem *) (can_base[minor] + index)) );
 #endif
+		/* slow_down_io(); */
 		index += REG_OFFSET;
 	    }
 	    printk("\n");
@@ -544,19 +254,36 @@ int index = 0;
 #endif
 
 #ifdef CAN4LINUX_PCI
+#if 0
 /* reset both can controllers on the EMS-Wünsche CPC-PCI Board */
 /* writing to the control range at BAR1 of the PCI board */
 void reset_CPC_PCI(unsigned long address)
 {
 unsigned long ptr = (unsigned long)ioremap(address, 32);
     DBGin("reset_CPC_PCI");
-    /* printk("reset_CPC_PCI\n"); */
-    writeb(0x01, ptr);
-    writeb(0x00, ptr);
+    writeb(0x01, (void __iomem *)ptr);
 }
 
 /* check memory region if there is a CAN controller
 *  assume the controller was resetted before testing 
+*
+*  The check for an avaliable controller is difficult !
+*  After an Hardware Reset (or power on) the Conroller 
+*  is in the so-called 'BasicCAN' mode.
+*     we can check for: 
+*         adress  name      value
+*	    0x00  mode       0x21
+*           0x02  status     0xc0
+*           0x03  interrupt  0xe0
+* Once loaded thr driver switches into 'PeliCAN' mode and things are getting
+* difficult, because we now have only a 'soft reset' with not so  unique
+* values. The have to be masked before comparing.
+*         adress  name       mask   value
+*	    0x00  mode               
+*           0x01  command    0xff    0x00
+*           0x02  status     0x37    0x34
+*           0x03  interrupt  0xfb    0x00
+*
 */
 int controller_available(unsigned long address, int offset)
 {
@@ -569,210 +296,32 @@ unsigned long ptr = (unsigned long)ioremap(address, 32 * offset);
     /* printk("0x%0x, ", readb(ptr + (2 * offset)) ); */
     /* printk("0x%0x\n", readb(ptr + (3 * offset)) ); */
 
-    if(   0x0c == readb(ptr + (2 * offset))
-       && 0xe0 == readb(ptr + (3 * offset)) ) {
+    if ( 0x21 == readb((void __iomem *)ptr))  {
+	/* compare rest values of status and interrupt register */
+	if(   0x0c == readb((void __iomem *)ptr + (2 * offset))
+	   && 0xe0 == readb((void __iomem *)ptr + (3 * offset)) ) {
+	    return 1;
+	} else {
+	    return 0;
+	}
+    } else {
+	/* may be called after a 'soft reset' in 'PeliCAN' mode */
+	/*   value     address                     mask    */
+	if(   0x00 ==  readb((void __iomem *)ptr + (1 * offset))
+	   && 0x34 == (readb((void __iomem *)ptr + (2 * offset))    & 0x37)
+	   && 0x00 == (readb((void __iomem *)ptr + (3 * offset))    & 0xfb)
+	  ) {
 	return 1;
     } else {
 	return 0;
     }
-}
-#endif
 
-
-
-#ifdef CAN4LINUX_PCI
-static u32 addresses[] = {
-    PCI_BASE_ADDRESS_0,
-    PCI_BASE_ADDRESS_1,
-    PCI_BASE_ADDRESS_2,
-    PCI_BASE_ADDRESS_3,
-    PCI_BASE_ADDRESS_4,
-    PCI_BASE_ADDRESS_5,
-    0
-};
-
-/* used for storing the global pci register address */
-u32 Can_pitapci_control[4];
-
-
-/*
-scan the pci bus
- look for vendor/device Id == Siemens PITA
- if found
-    look for  subvendor id
-    if found
-      write to pita register 1c in the first address range the value 0x04000000
-*/
-int pcimod_scan(void)
-{
-    int i, pos = 0;
-    int bus, fun;
-    unsigned char headertype = 0;
-    u32 id;
-    u32 vdid;				/* vendor/device id */
-    int candev = 0;				/* number of found devices */
-
-    if (!pcibios_present()) {
-        printk("CAN: No PCI bios present\n");
-        return ENODEV;
     }
-    /* printk("CAN: PCI bios present!\n"); */
-
-    /*
-     * This code is derived from "drivers/pci/pci.c". This means that
-     * the GPL applies to this source file and credit is due to the
-     * original authors (Drew Eckhardt, Frederic Potter, David
-     * Mosberger-Tang)
-     */
-    for (bus = 0; !bus; bus++) { /* only bus 0 :-) */
-        for (fun=0; fun < 0x100 && pos < PAGE_SIZE; fun++) {
-            if (!PCI_FUNC(fun)) /* first function */
-                pcibios_read_config_byte(bus,fun,PCI_HEADER_TYPE, &headertype);
-            else if (!(headertype & 0x80))
-                continue;
-            /* the following call gets vendor AND device ID */
-            pcibios_read_config_dword(bus, fun, PCI_VENDOR_ID, &id);
-            if (!id || id == ~0) {
-                headertype = 0; continue;
-            }
-            /* v-endor and d-evice id */
-            vdid = id;
-#if 0
-            printk(" -- found pci device, vendor id = %u/0x%x , device 0x%x\n",
-            	(id & 0xffff), (id & 0xffff), (id >> 16));
-#endif
-            pcibios_read_config_dword(bus, fun, PCI_CLASS_REVISION, &id);
-#if 0
-            printk("    class 0x%x, Revision %d\n",
-            	(id >> 8), (id & 0x0ff));
-#endif
-            if(vdid == (PCI_VENDOR + (PCI_DEVICE << 16))) {
-		unsigned char irq;
-		u16 cmd;
-		u32 svdid;			/* subsystem vendor/device id */
-		    /* found EMS CAN CPC-PCI */
-		    vdid = 0;	/* reset it */
-		    printk("    found Siemens PITA PCI-Chip\n");
-		    pcibios_read_config_byte(bus, fun, PCI_INTERRUPT_LINE, &irq);
-		    printk("        using IRQ %d\n", irq);
-		    pcibios_read_config_word(bus, fun, PCI_COMMAND, &cmd);
-		    /* printk("        cmd: 0x%x\n", cmd); */
-
-                    /* PCI_COMMAND should be at least PCI_COMMAND_MEMORY */
-		    pcibios_write_config_word(bus, fun,
-		    		/* PCI_COMMAND, PCI_COMMAND_MEMORY); */
-		    		PCI_COMMAND, PCI_COMMAND_MEMORY + PCI_COMMAND_MASTER	);
-		    pcibios_read_config_word(bus, fun, PCI_COMMAND, &cmd);
-		    /* printk("        cmd: 0x%x\n", cmd); */
-
-
-
-
-		    pcibios_read_config_dword(bus, fun, PCI_SUBSYSTEM_VENDOR_ID, &svdid);
-		    /* printk("        s_vendor 0x%x, s_device 0x%x\n", */
-					/* (svdid & 0xffff), (svdid >> 16)); */
-
-		/* How can we be sure that that is an EMS CAN card ?? */
-
-
-		for (i = 0; addresses[i]; i++) {
-		    u32 curr, mask;
-		    char *type;
-
-		    pcibios_read_config_dword(bus, fun, addresses[i], &curr);
-		    cli();
-		    pcibios_write_config_dword(bus, fun, addresses[i], ~0);
-		    pcibios_read_config_dword(bus, fun, addresses[i], &mask);
-		    pcibios_write_config_dword(bus, fun, addresses[i], curr);
-		    sti();
-
-		    /* printk("    region %i: mask 0x%08lx, now at 0x%08lx\n", i, */
-				   /* (unsigned long)mask, */
-				   /* (unsigned long)curr); */
-#if 0 /* we don't need this message, so we don't need this code */
-		    if (!mask) {
-			printk("    region %i not existent\n", i);
-			break;
-		    }
-#endif
-		    /* extract the type, and the programmable bits */
-		    if (mask & PCI_BASE_ADDRESS_SPACE) {
-		    type = "I/O"; mask &= PCI_BASE_ADDRESS_IO_MASK;
-		    } else {
-			type = "mem"; mask &= PCI_BASE_ADDRESS_MEM_MASK;
-		    }
-		/* printk("    region %i: type %s, size %i\n", i, */
-			      /* type, ~mask+1); */
-
-		    if(i == 0) {
-		    	/* BAR0 internal PITA registers */
-			unsigned long ptr = (unsigned long)ioremap(curr, 256);
-			/* enable memory access */
-		    	/* printk("write to pita\n"); */
-			writel(0x04000000, ptr + 0x1c);
-			Can_pitapci_control[candev] = ptr;
-
-		    }
-		    if(i == 1) {
-		    	/* BAR1 parallel I/O
-		    	 * at address 0 are some EMS control registers
-		    	 * at address 0x400 the first controller area 
-		    	 * at address 0x600 the second controller area 
-			 * registers are read as 32bit
-			 *
-			 * at adress 0 we can verify the card
-			 * 0x55 0xaa 0x01 0xcb
-			 */
-			/* dump_CAN(curr, 4); */
-
-			reset_CPC_PCI(curr);
-
-			/* enable interrupts Int_0 */
-			/* write to PITAs ICR register */
-    			writel(0x00020000, Can_pitapci_control[candev] + 0x0);
-
-			/* dump_CAN(curr + 0x400, 4); */
-			if(controller_available(curr + 0x400, 4)) {
-			    printk("CAN: at pos 1\n");
-			    if(candev > 4) {
-				printk("CAN: only 4 devices supported\n");
-				break; /* the devices scan loop */
-			    }
-			    Base[candev]
-			    = (unsigned long)ioremap(curr + 0x400, 32*4);
-			    IOModel[candev] = 'm';
-			    IRQ[candev] = irq;
-			    candev++;
-			} else {
-			    printk("CAN: NO at pos 1\n");
-			}
-			/* dump_CAN(curr + 0x600, 4); */
-
-			if(controller_available(curr + 0x600, 4)) {
-			    printk("CAN: at pos 2\n");
-			    if(candev > 4) {
-				printk("CAN: only 4 devices supported\n");
-				break; /* the devices scan loop */
-			    }
-			    /* share the board control register with prev ch */
-    			    Can_pitapci_control[candev] = 
-				Can_pitapci_control[candev - 1];
-			    Base[candev]
-			    = (unsigned long)ioremap(curr + 0x600, 32*4);
-			    IOModel[candev] = 'm';
-			    IRQ[candev] = irq;
-			    candev++;
-			} else {
-			    printk("CAN: NO at pos 2\n");
-			}
-		    }
-
-		}
-            } /* EMS CPC-PCI */
-        } /* for all devices */
-    } /* for all busses */
-    return 0;
 }
 #endif
+#endif
 
+/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
+/*----------------------------------------------------------------------------*/

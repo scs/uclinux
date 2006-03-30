@@ -15,8 +15,8 @@
  * modification history
  * --------------------
  * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
+ * Revision 1.2  2006/03/30 15:21:45  hennerich
+ * Apply Blackfin can4linux patch form port GmbH
  *
  * Revision 1.1  2005/11/08 11:32:16  oe
  * Initial revision
@@ -55,9 +55,9 @@ extern unsigned int Base[];
 /* We use only one transmit object for all messages to be transmitted */
 #define TRANSMIT_OBJ		24
 #define RECEIVE_STD_OBJ 	0
-#define RECEIVE_EXT_OBJ 	1
-#define RECEIVE_RTR_OBJ 	2
-#define RECEIVE_EXT_RTR_OBJ 	3
+#define RECEIVE_EXT_OBJ 	4
+#define RECEIVE_RTR_OBJ 	8
+#define RECEIVE_EXT_RTR_OBJ 	12
 
 
 /* Makros to manipulate BF CAN control registers */
@@ -464,12 +464,6 @@ struct can_obj {
 
 
 
-
-
-
-
-
-
 /*
  * CAN Bit Timing definitions
  */
@@ -501,22 +495,5 @@ typedef struct {
 #ifndef CAN_SYSCLK_is_ok
 #  error Please specify a valid CAN_SYSCLK value (i.e. 125) or define new parameters
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif 		/* __BLACKFIN_CAN_H */

@@ -17,23 +17,6 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
  *
  *
  *--------------------------------------------------------------------------
@@ -41,7 +24,7 @@
 
 
 /**
-* \file can_open.c
+* \file open.c
 * \author Heinz-Jürgen Oertel, port GmbH
 * $Revision$
 * $Date$
@@ -51,7 +34,6 @@
 
 
 /* header of standard C - libraries */
-/* #include <linux/module.h>			 */
 
 /* header of common types */
 
@@ -136,7 +118,7 @@ int retval = 0;
 
 	int lasterr;	
 
-	unsigned int minor = __LDDK_MINOR;
+	unsigned int minor = iminor(inode);
 
 	if( minor > MAX_CHANNELS )
 	{
@@ -144,22 +126,13 @@ int retval = 0;
 	    DBGout();
 	    return -EINVAL;
 	}
-	/* check if device is already open, should be used only by one process */
 
-#ifdef UNSAFE
-	/* if(Can_isopen[minor]) { */
-	    /* MOD_DEC_USE_COUNT; */
-	    /* DBGout(); */
-	    /* return -ENXIO; */
-	/* } */
-	++Can_isopen[minor];		/* flag device in use */
-#else
+    /* check if device is already open, should be used only by one process */
 	if(Can_isopen[minor] == 1) {
 	    DBGout();
 	    return -ENXIO;
 	}
-	Can_isopen[minor] = 1;		/* flag device in use */
-#endif
+
 	if( Base[minor] == 0x00) {
 	    /* No device available */
 	    printk(KERN_ERR "CAN[%d]: no device available\n", minor);
@@ -173,6 +146,7 @@ int retval = 0;
 	    DBGout();
 	    return lasterr;
 	}
+
 	/* Access macros based in can_base[] should work now */
 	/* CAN_ShowStat(minor); */
 
@@ -189,11 +163,11 @@ int retval = 0;
 	}
 	CAN_StartChip(minor);
 #if DEBUG
-    CAN_ShowStat(minor);
+	CAN_ShowStat(minor);
 #endif
+	++Can_isopen[minor]; /* flag device in use */
     }
 
-    /* MOD_INC_USE_COUNT; */
     DBGout();
     return retval;
 }

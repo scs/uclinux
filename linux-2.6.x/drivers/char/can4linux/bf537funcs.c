@@ -31,16 +31,19 @@
  *  TRAMSMIT_OBJ  - used to transmit messages, possible are:
  *  	standard, extended, standard RTR, extended RTR
  *  RECEIVE_STD_OBJ - used to receice all messages in base frame format
+ *     if more than one is used -- they build a FIFO
  *  RECEIVE_EXT_OBJ - used to receice all messages in extended frame format
+ *     if more than one is used -- they build a FIFO
  *  RECEIVE_RTR_OBJ - what be nice to have, but this doesn't work
- *        the driver is not able to receive any RTE frames.
+ *     RTR frames are received in the standard mail boxes
+ *        
  *
  *
  * modification history
  * --------------------
  * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
+ * Revision 1.2  2006/03/30 15:21:45  hennerich
+ * Apply Blackfin can4linux patch form port GmbH
  *
  *
  *
@@ -260,17 +263,25 @@ short temp_fix;		/* work-around to anomaly #22 to write PORT_MUX */
     /* Remote Frame Handling needs not to be set, it's reset value is 0 */
 
     /* ---- RECEIVE_STD_OBJ ------------- */
-    CAN_WRITE_OID(RECEIVE_STD_OBJ, 0);
-    CAN_OBJ[RECEIVE_STD_OBJ].id0 = 0;      /* is unused but anyway set to 0 */
-    CAN_WRITE_CTRL(RECEIVE_STD_OBJ, 0);
-    CAN_MASK[RECEIVE_STD_OBJ].amh = 0x1FFF;
-    CAN_MASK[RECEIVE_STD_OBJ].aml = 0xFFFF;
+    /* using more than 1 message object should provide a FIFO */
+    for(i = 0; i < 2; i++) {
+	CAN_WRITE_OID(RECEIVE_STD_OBJ + i, 0);
+	/* .id0 is unused with standard frames, but anyway set to 0 */
+	CAN_OBJ[RECEIVE_STD_OBJ + i].id0 = 0;
+	CAN_WRITE_CTRL(RECEIVE_STD_OBJ + i, 0);
+	CAN_MASK[RECEIVE_STD_OBJ + i].amh = 0x1FFF;
+	CAN_MASK[RECEIVE_STD_OBJ + i].aml = 0xFFFF;
+    }
+
 
     /* ---- RECEIVE_EXT_OBJ ------------- */
-    CAN_WRITE_XOID(RECEIVE_EXT_OBJ, 0);
-    CAN_WRITE_CTRL(RECEIVE_EXT_OBJ, 0);
-    CAN_MASK[RECEIVE_EXT_OBJ].amh = 0x1FFF;
-    CAN_MASK[RECEIVE_EXT_OBJ].aml = 0xFFFF;
+    /* using more than 1 message object should provide a FIFO */
+    for(i = 0; i < 2; i++) {
+	CAN_WRITE_XOID(RECEIVE_EXT_OBJ + i, 0);
+	CAN_WRITE_CTRL(RECEIVE_EXT_OBJ + i, 0);
+	CAN_MASK[RECEIVE_EXT_OBJ + i].amh = 0x1FFF;
+	CAN_MASK[RECEIVE_EXT_OBJ + i].aml = 0xFFFF;
+    }
 #if 0
     /* ---- RECEIVE_RTR_OBJ ------------- */
     CAN_WRITE_OID_RTR(RECEIVE_RTR_OBJ, 0);
@@ -283,8 +294,12 @@ short temp_fix;		/* work-around to anomaly #22 to write PORT_MUX */
     /* Enable Mailboxes */
     CANoutw(minor, canmc2, 1 << (TRANSMIT_OBJ - 16));	/* TX mailboxes */
     CANoutw(minor, canmc1, 
-	  (1 << RECEIVE_STD_OBJ)
-	+ (1 << RECEIVE_EXT_OBJ)
+	  (1 << (RECEIVE_STD_OBJ    ))
+	/* + (1 << (RECEIVE_STD_OBJ + 1)) */
+	/* + (1 << (RECEIVE_STD_OBJ + 2)) */
+	/* + (1 << (RECEIVE_STD_OBJ + 3)) */
+	+ (1 << (RECEIVE_EXT_OBJ    ))
+	/* + (1 << (RECEIVE_EXT_OBJ + 1)) */
 	/* + (1 << RECEIVE_RTR_OBJ) */ );		/* RX mailboxes */
 
 
@@ -488,8 +503,12 @@ int i;
      */
 
     CANoutw(minor, canmbim1,
-	  (1 << RECEIVE_STD_OBJ)
-	+ (1 << RECEIVE_EXT_OBJ)
+	  (1 << (RECEIVE_STD_OBJ    ))
+	/* + (1 << (RECEIVE_STD_OBJ + 1)) */
+	/* + (1 << (RECEIVE_STD_OBJ + 2)) */
+	/* + (1 << (RECEIVE_STD_OBJ + 3)) */
+	+ (1 << (RECEIVE_EXT_OBJ    ))
+	/* + (1 << (RECEIVE_EXT_OBJ + 1)) */
 	/* + (1 << RECEIVE_RTR_OBJ) */ );		/* RX mailboxes */
 
     CANoutw(minor, canmbim2, 1 << (TRANSMIT_OBJ - 16));
@@ -731,7 +750,8 @@ int CAN_VendorInit (int minor)
 }
 
 
-int Can_RequestIrq(int minor, int irq, irq_handler_t handler)
+int Can_RequestIrq(int minor, int irq,
+	irqreturn_t (*handler)(int, void *, struct pt_regs *))
 {
 int err=0;
 
@@ -874,7 +894,6 @@ unsigned int		stat;
 /* volatile unsigned int		ctrl; */
 unsigned int 		irqsrc;
 static int erroractive = 1;
-int		dummy;
 unsigned long	flags;
 int		minor;
 msg_fifo_t	*RxFifo;
@@ -967,9 +986,17 @@ set_led();
 	/* TODO:
 	   loop through all interrupts until done */
 
-	/* get cuurrent time stamp, this needs additional 7 µs of ISR time */
-	do_gettimeofday(&(rp->timestamp));
 
+	/* Getting a precises time takes a lot of time
+	 * (additional 7 µs of ISR time )
+	 * if a time stamp is not needed, it can be switched of
+	 * by ioctl() */
+	if(timestamp[minor]) {
+	    do_gettimeofday(&(RxFifo->data[RxFifo->head]).timestamp);
+	} else {
+	    (RxFifo->data[RxFifo->head]).timestamp.tv_sec  = 0;
+	    (RxFifo->data[RxFifo->head]).timestamp.tv_usec  = 0;
+	}
 	/* preset flags */
 	rp->flags = (RxFifo->status & BUF_OVERRUN ? MSG_BOVR : 0);
 

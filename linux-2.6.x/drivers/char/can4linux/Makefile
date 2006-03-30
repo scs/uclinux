@@ -2,12 +2,12 @@
 #
 # can4linux -- LINUX device driver Makefile
 #
-# Copyright (c) 2004 port GmbH Halle/Saale
+# Copyright (c) 2004-2006 port GmbH Halle/Saale
 #
 
 # Used release tag for this software version
 VERSION=3
-REL=3.5
+REL=4
 RELEASE=CAN4LINUX-$(VERSION)_$(REL)
 DVERSION=$(VERSION).$(REL)
 
@@ -23,6 +23,7 @@ LINUXTARGET=LINUXOS
 CTAGS =	ctags --c-types=dtvf
 CTAGS =	elvtags -tsevl
 ECHO  = /bin/echo
+DATE  =$(shell date)
 
 TITLE = LINUX driver module example 
 
@@ -48,7 +49,7 @@ CAN_MODULE = can.ko
 ##
 ## Supported TARGET= IME_SLIMLINE | ATCANMINI_PELICAN | CPC_PCI | CPC_CARD 
 ## | IXXAT_PCI03 | PCM3680 | PC104_200 | SBS_PC7 | TRM816 | GENERIC_I82527
-## | CC_CANPCI
+## | CC_CANPCI | AD_BLACKFI | KVASER_PCICAN
 ##
 ## compile DigiTec FC-CAN as ATCANMINI_PELICAN
 ##
@@ -72,6 +73,9 @@ endif
 
 ifdef CONFIG_CAN_CPC_PCI
 TARGET = CPC_PCI
+endif
+ifdef CONFIG_CAN_KVASER_PCI
+TARGET = KVASER_PCICAN
 endif
 
 ifdef CONFIG_CAN_MCF5282
@@ -99,6 +103,7 @@ ifdef THIS_IS_HERE_FOR_REFERENCE
 #TARGET=SBS_PC7
 #TARGET=CC_CANPCI
 #TARGET=AD_BLACKFIN
+#TARGET=KVASER_PCICAN
 endif
 
 ##########################################################################
@@ -116,8 +121,8 @@ OBJDIR = obj
 # else
 # NODEBUG
 # doesn't compile any debug code into the driver
-DEBUG=NODEBUG
 DEBUG=DEBUG=1
+DEBUG=NODEBUG
 
 # all definitions for compiling the sources
 # CAN_PORT_IO		- use port I/O instead of memory I/O
@@ -135,6 +140,18 @@ ifeq "$(TARGET)" "CPC_PCI"
 # CPC-PCI PeliCAN  PCI (only with SJA1000) ------------------------------------
 DEFS =  -D$(TARGET) -D$(DEBUG) -DDEFAULT_DEBUG -DCAN_MAJOR=$(CAN_MAJOR)\
 	-DCAN4LINUX_PCI \
+	-DCAN_SYSCLK=8
+
+	#-DIODEBUG
+
+TARGET_MATCHED = true
+endif
+
+ifeq "$(TARGET)" "KVASER_PCICAN"
+# PCIcan PeliCAN  PCI (up to four  SJA1000) -----------------------------------
+DEFS =  -D$(TARGET) -D$(DEBUG) -DDEFAULT_DEBUG -DCAN_MAJOR=$(CAN_MAJOR)\
+	-DCAN4LINUX_PCI \
+	-DCAN_PORT_IO   \
 	-DCAN_SYSCLK=8
 
 	#-DIODEBUG
@@ -270,45 +287,51 @@ can-objs	:= core.o	\
 	    # include Chip/board specific object files and definitions
 	    ##########################################################
 	    ifeq "$(TARGET)" "CPC_PCI"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
+		can-objs += ems_pci.o
 	    endif
 	    ifeq "$(TARGET)" "CPC_CARD"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "CC_CANPCI"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "ATCANMINI_PELICAN"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "IXXAT_PCI03"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "PCM3680"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "TRM816"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "PC104_200"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "IME_SLIMLINE"
-	    can-objs += sja1000funcs.o
+		can-objs += sja1000funcs.o
 	    endif
 	    ifeq "$(TARGET)" "SBS_PC7"
-	    can-objs += i82527funcs.o
+		can-objs += i82527funcs.o
 	    endif
 	    ifeq "$(TARGET)" "ColdFire_FlexCAN"
-	    can-objs += mcf5282funcs.o
+		can-objs += mcf5282funcs.o
 	    endif
 	    ifeq "$(TARGET)" "AD_BLACKFIN"
-	    can-objs += bf537funcs.o
+		can-objs += bf537funcs.o
+	    endif
+	    ifeq "$(TARGET)" "KVASER_PCICAN"
+		can-objs += sja1000funcs.o
+		can-objs += kvaser_pci.o
 	    endif
 
 
 else
-KDIR	:=/home/oertel/pakete/linux/
+#KDIR	:=/home/oertel/pakete/linux/
+#KDIR	:=/usr/src/linux-2.6.15.3/
 KDIR 	:= /lib/modules/$(shell uname -r)/build/
 PWD	:= $(shell pwd)
 
@@ -368,6 +391,11 @@ ctags:
 #### HTML Manual section. #################################
 man:    port_footer.html
 	doxygen
+
+.PHONY:port_footer.html
+port_footer.html:
+	sed 's/DATE/$(DATE)/; \
+	s/TITLE/CAN driver can4linux/' < ft.html > port_footer.html
 
 help:
 	grep "^## " Makefile

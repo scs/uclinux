@@ -2,7 +2,7 @@
  * can_ioctl - can4linux CAN driver module
  *
  * can4linux -- LINUX CAN device driver source
- *
+ * 
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -16,23 +16,6 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
  *
  *
  *--------------------------------------------------------------------------
@@ -40,7 +23,7 @@
 
 
 /**
-* \file can_ioctl.c
+* \file ioctl.c
 * \author Heinz-Jürgen Oertel, port GmbH
 * $Revision$
 * $Date$
@@ -50,7 +33,7 @@
 
 #include "defs.h"
 
-int can_Command(struct inode *inode, int cmd);
+int can_Command(struct inode *inode, Command_par_t * argp);
 int can_Send(struct inode *inode, canmsg_t *Tx);
 int can_Receive(struct inode *inode, canmsg_t *Rx);
 int can_GetStat(struct inode *inode, CanStatusPar_t *s);
@@ -83,7 +66,8 @@ The following \a requests are defined:
 \li \c CAN_IOCTL_COMMAND some commands for
 start, stop and reset the CAN controller chip
 \li \c CAN_IOCTL_CONFIG configure some of the device properties
-like acceptance filtering, bit timings, selfreception
+like acceptance filtering, bit timings, mode of the output control register
+or the optional software message filter configuration(not implemented yet).
 \li \c CAN_IOCTL_STATUS request the CAN controllers status
 \li \c CAN_IOCTL_SEND a single message over the \a ioctl interface 
 \li \c CAN_IOCTL_RECEIVE poll a receive message
@@ -94,12 +78,22 @@ These are
 \code
 struct Command_par
 struct Config_par
-struct CanStatus_par
+struct CanStatusPar
 struct ConfigureRTR_par
 struct Receive_par
 struct Send_par
 \endcode
 described in can4linux.h
+
+\par Bit Timing
+The bit timing can be set using the \a ioctl(CONFIG,.. )
+and the targets CONF_TIMING or CONF_BTR.
+CONFIG_TIMING should be used only for the predifined Bit Rates
+(given in kbit/s).
+With CONF_BTR it is possible to set the CAN controllers bit timing registers
+individually by providing the values in \b val1 (BTR0)
+and \b val2 (BTR1).
+
 
 \par Acceptance Filtering
 
@@ -120,6 +114,8 @@ also all 4 bytes can be used.
 In this case two bytes are used for acceptance code and mask
 for all 11 identifier bits plus additional the first two data bytes.
 The SJA1000 is working in the \b Single \b Filter \ Mode .
+
+Example for extended message format
 \code
        Bits
  mask  31 30 .....           4  3  2  1  0
@@ -128,8 +124,28 @@ The SJA1000 is working in the \b Single \b Filter \ Mode .
  ID    28 27 .....           1  0  R  +--+-> unused
                                    T
                                    R
+
+  acccode =  (id << 3) + (rtr << 2) 
 \endcode
 
+Example for base message format
+\code
+       Bits
+ mask  31 30 .....           23 22 21 20 ... 0
+ code
+ -------------------------------------------
+ ID    11 10 .....           1  0  R  +--+-> unused
+                                   T
+                                   R
+\endcode
+
+You have to shift the CAN-ID by 5 bits and two bytes to shift them
+into ACR0 and ACR1 (acceptance code register)
+\code
+  acccode =  (id << 21) + (rtr << 20) 
+\endcode
+In case of the base format match the content of bits 0...20
+is of no interest, it can be 0x00000 or 0xFFFFF.
 \returns
 On success, zero is returned.
 On error, -1 is returned, and errno is set appropriately.
@@ -155,7 +171,7 @@ volatile Command_par_t cmd;
 
 \endcode
 
-\par Setting the bit tiing register
+\par Setting the bit timng register
 
 can4linux provides direct access to the bit timing registers,
 besides an implicite setting using the \e ioctl \c CONF_TIMING
@@ -170,10 +186,37 @@ the CAN controller:
                            val1            val2
 SJA1000                    BTR0            BTR1
 BlackFin                   CAN_CLOCK       CAN_TIMING
+FlexCAN	(to implement) 
 \endcode
 
+\par
+Bit timings are coded in a table in the <hardware>funcs.c file.
+The values for the bit timing registers are calculated based on a
+fixed CAN controller clock.
+This can lead to wrong bit timings if the processor (or CAN)
+uses another clock as assumed at compile time.
+Please check carefully.
+Depending on the clock,
+it might be possible that not all bit rates can be generated.
+(e.g. th Blackfin only supports 100, 125, 250, 500 and 1000 Kbit/s 
+(currently!))
 
+
+\par Other CAN_IOCTL_CONFIG configuration targets
+
+(see can4linux.h)
+\code
+CONF_LISTEN_ONLY_MODE   if set switch to listen only mode
+                        (default false)
+CONF_SELF_RECEPTION     if set place sent messages back in the rx queue
+                        (default false)
+CONF_BTR		configure bit timing directly registers
+CONF_TIMESTAMP          if set fill time stamp value in message structure
+                        (default true)
+CONF_WAKEUP             if set wake up waiting processes (default true) 
+\endcode
 */
+
 int can_ioctl( __LDDK_IOCTL_PARAM )
 {
 void *argp;
@@ -186,111 +229,111 @@ int retval = -EIO;
   switch(cmd){
 
         case CAN_IOCTL_COMMAND:
-          if( !access_ok(VERIFY_READ, (void *)arg, sizeof(Command_par_t))) {
+	  if( !access_ok(VERIFY_READ, (void *)arg, sizeof(Command_par_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  if( !access_ok(VERIFY_WRITE, (void *)arg, sizeof(Command_par_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *) kmalloc( sizeof(Command_par_t) +1 , GFP_KERNEL );
-	  __lddk_copy_from_user( (void *) argp,(Command_par_t *) arg,
+	  __lddk_copy_from_user( (void *)argp, (Command_par_t *)arg,
 	  					sizeof(Command_par_t));
 	  ((Command_par_t *) argp)->retval =
-	  		can_Command(inode, ((Command_par_t *) argp)->cmd );
+	  		can_Command(inode, (Command_par_t *)argp);
 	  ((Command_par_t *) argp)->error = Can_errno;
 	  __lddk_copy_to_user( (Command_par_t *)arg, (void *)argp,
 	  					sizeof(Command_par_t));
 	  kfree(argp);
 	  break;
       case CAN_IOCTL_CONFIG:
-	  if( !access_ok(VERIFY_READ, (void *) arg, sizeof(Config_par_t))) {
+	  if( !access_ok(VERIFY_READ, (void *)arg, sizeof(Config_par_t))) {
 	     DBGout(); return(retval); 
 	  }
-	  if( !access_ok(VERIFY_WRITE, (void *) arg, sizeof(Config_par_t))) {
+	  if( !access_ok(VERIFY_WRITE, (void *)arg, sizeof(Config_par_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *) kmalloc( sizeof(Config_par_t) +1 ,GFP_KERNEL);
-	  __lddk_copy_from_user( (void *) argp,(Config_par_t *) arg,
+	  __lddk_copy_from_user( (void *)argp, (Config_par_t *)arg,
 	  					sizeof(Config_par_t));
 	  ((Config_par_t *) argp)->retval =
-	  		can_Config(inode, ((Config_par_t *) argp)->target, 
-			     ((Config_par_t *) argp)->val1,
-			     ((Config_par_t *) argp)->val2 );
+	  		can_Config(inode, ((Config_par_t *)argp)->target, 
+			     ((Config_par_t *)argp)->val1,
+			     ((Config_par_t *)argp)->val2 );
 	  ((Config_par_t *) argp)->error = Can_errno;
-	  __lddk_copy_to_user( (Config_par_t *) arg, (void *) argp,
+	  __lddk_copy_to_user( (Config_par_t *)arg, (void *)argp,
 	  					sizeof(Config_par_t));
 	  kfree(argp);
 	  break;
       case CAN_IOCTL_SEND:
-	  if( !access_ok(VERIFY_READ, (void *) arg, sizeof(Send_par_t))) {
+	  if( !access_ok(VERIFY_READ, (void *)arg, sizeof(Send_par_t))) {
 	     DBGout(); return(retval); 
 	  }
-	  if( !access_ok(VERIFY_WRITE, (void *) arg, sizeof(Send_par_t))) {
+	  if( !access_ok(VERIFY_WRITE, (void *)arg, sizeof(Send_par_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *)kmalloc( sizeof(Send_par_t) +1 ,GFP_KERNEL );
-	  __lddk_copy_from_user( (void *) argp, (Send_par_t *)arg,
+	  __lddk_copy_from_user( (void *)argp, (Send_par_t *)arg,
 	  				sizeof(Send_par_t));
 	  ((Send_par_t *) argp)->retval =
-	  		can_Send(inode, ((Send_par_t *) argp)->Tx );
+	  		can_Send(inode, ((Send_par_t *)argp)->Tx );
 	  ((Send_par_t *) argp)->error = Can_errno;
-	  __lddk_copy_to_user( (Send_par_t *) arg, (void *)argp,
+	  __lddk_copy_to_user( (Send_par_t *)arg, (void *)argp,
 	  				sizeof(Send_par_t));
 	  kfree(argp);
 	  break;
       case CAN_IOCTL_RECEIVE:
-	  if( !access_ok(VERIFY_READ, (void *) arg, sizeof(Receive_par_t))) {
+	  if( !access_ok(VERIFY_READ, (void *)arg, sizeof(Receive_par_t))) {
 	     DBGout(); return(retval); 
 	  }
-	  if( !access_ok(VERIFY_WRITE, (void *) arg, sizeof(Receive_par_t))) {
+	  if( !access_ok(VERIFY_WRITE, (void *)arg, sizeof(Receive_par_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *)kmalloc( sizeof(Receive_par_t) +1 ,GFP_KERNEL );
 	  __lddk_copy_from_user( (void *)argp, (Receive_par_t *)arg,
 	  				sizeof(Receive_par_t));
 	  ((Receive_par_t *) argp)->retval =
-	  		can_Receive(inode, ((Receive_par_t *) argp)->Rx);
+	  		can_Receive(inode, ((Receive_par_t *)argp)->Rx);
 	  ((Receive_par_t *) argp)->error = Can_errno;
-	  __lddk_copy_to_user( (Receive_par_t *)arg, (void *) argp,
+	  __lddk_copy_to_user( (Receive_par_t *)arg, (void *)argp,
 	  				sizeof(Receive_par_t));
 	  kfree(argp);
 	  break;
       case CAN_IOCTL_STATUS:
-	  if( !access_ok(VERIFY_READ, (void *) arg,
+	  if( !access_ok(VERIFY_READ, (void *)arg,
 	  				sizeof(CanStatusPar_t))) {
 	     DBGout(); return(retval); 
 	  }
-	  if( !access_ok(VERIFY_WRITE, (void *) arg,
+	  if( !access_ok(VERIFY_WRITE, (void *)arg,
 	  			sizeof(CanStatusPar_t))) {
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *)kmalloc( sizeof(CanStatusPar_t) +1 ,GFP_KERNEL );
 	  ((CanStatusPar_t *) argp)->retval =
 	  		can_GetStat(inode, ((CanStatusPar_t *)argp));
-	  __lddk_copy_to_user( (CanStatusPar_t *)arg, (void *) argp,
+	  __lddk_copy_to_user( (CanStatusPar_t *)arg, (void *)argp,
 	  				sizeof(CanStatusPar_t));
 	  kfree(argp);
 	  break;
 
 #ifdef CAN_RTR_CONFIG
       case CAN_IOCTL_CONFIGURERTR:
-	  if( !access_ok(VERIFY_READ, (void *) arg,
+	  if( !access_ok(VERIFY_READ, (void *)arg,
 	  			sizeof(ConfigureRTR_par_t))){
 	     DBGout(); return(retval); 
 	  }
-	  if( !access_ok(VERIFY_WRITE, (void *) arg,
+	  if( !access_ok(VERIFY_WRITE, (void *)arg,
 	  			sizeof(ConfigureRTR_par_t))){
 	     DBGout(); return(retval); 
 	  }
 	  argp = (void *)kmalloc( sizeof(ConfigureRTR_par_t) +1 ,GFP_KERNEL );
-	  __lddk_copy_from_user( (void *) argp,(ConfigureRTR_par_t *) arg,
+	  __lddk_copy_from_user( (void *)argp, (ConfigureRTR_par_t *) arg,
 	  			sizeof(ConfigureRTR_par_t));
 	  ((ConfigureRTR_par_t *) argp)->retval =
 	  	can_ConfigureRTR(inode,
-	  			((ConfigureRTR_par_t *) argp)->message, 
-				((ConfigureRTR_par_t *) argp)->Tx );
+	  			((ConfigureRTR_par_t *)argp)->message, 
+				((ConfigureRTR_par_t *)argp)->Tx );
 	  ((ConfigureRTR_par_t *) argp)->error = Can_errno;
-	  __lddk_copy_to_user( (ConfigureRTR_par_t *) arg, (void *) argp,
+	  __lddk_copy_to_user( (ConfigureRTR_par_t *)arg, (void *)argp,
 	  			sizeof(ConfigureRTR_par_t));
 	  kfree(argp);
 	  break;
@@ -315,9 +358,12 @@ int retval = -EIO;
 */
 
 
-int can_Command(struct inode *inode, int cmd)
+int can_Command(struct inode *inode, Command_par_t * argp)
 {
-unsigned int minor = MINOR(inode->i_rdev);
+unsigned int minor = iminor(inode);
+int cmd;
+
+    cmd =  argp->cmd;
 
     DBGprint(DBG_DATA,("cmd=%d", cmd));
     switch (cmd) {
@@ -330,6 +376,20 @@ unsigned int minor = MINOR(inode->i_rdev);
       case CMD_RESET:
 	    CAN_ChipReset(minor);
 	    break;
+      case CMD_CLEARBUFFERS:
+	{
+	    Can_FifoInit(minor);
+#if 0
+	    if( argp->target = CMD_CLEAR_RX) {
+	    } else
+	    if( argp->target = CMD_CLEAR_TX) {
+	    } else {
+		DBGout();
+		return(-EINVAL);
+	    }
+#endif
+	}
+	    break;
       default:
 	    DBGout();
 	    return(-EINVAL);
@@ -337,16 +397,16 @@ unsigned int minor = MINOR(inode->i_rdev);
     return 0;
 }
 
-/* is not very useful! use it if you are sure the tx queu is empty */
+/* is not very useful! use it if you are sure the tx queue is empty */
 int can_Send(struct inode *inode, canmsg_t *Tx)
 {
-unsigned int minor = MINOR(inode->i_rdev);	
+unsigned int minor = iminor(inode);	
 canmsg_t tx;
 
-    if( !access_ok(VERIFY_READ,Tx,sizeof(canmsg_t)) ) {
+    if( !access_ok(VERIFY_READ, Tx, sizeof(canmsg_t)) ) {
 	    return -EINVAL;
     }
-    __lddk_copy_from_user((canmsg_t *) &tx, (canmsg_t *) Tx,sizeof(canmsg_t));
+    __lddk_copy_from_user((canmsg_t *)&tx, (canmsg_t *)Tx, sizeof(canmsg_t));
     return CAN_SendMessage(minor, &tx);
 }
 
@@ -357,7 +417,7 @@ int can_Receive(
 	)
 {
 
-unsigned int minor = MINOR(inode->i_rdev);
+unsigned int minor = iminor(inode);
 canmsg_t rx;
 int len;
 
@@ -385,7 +445,7 @@ int can_Config(
 	unsigned long val2
 	)
 {
-unsigned int minor = MINOR(inode->i_rdev);	
+unsigned int minor = iminor(inode);	
 
     switch(target) {
       case CONF_ACC:
@@ -428,8 +488,14 @@ unsigned int minor = MINOR(inode->i_rdev);
       case CONF_SELF_RECEPTION:
       	   selfreception[minor] = (int)val1;
 	   break;
+      case CONF_TIMESTAMP:
+      	   timestamp[minor] = (int)val1;
+	   break;
+      case CONF_WAKEUP:
+      	   wakeup[minor] = (int)val1;
+	   break;
       case CONF_BTR:
-          CAN_SetBTR(minor,(int) val1,(int) val2);
+          CAN_SetBTR(minor, (int)val1, (int)val2);
           break;
 
       default:

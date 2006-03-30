@@ -16,32 +16,13 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
- *
  *
  *--------------------------------------------------------------------------
  */
 
 
 /**
-* \file can_read.c
+* \file read.c
 * \author Heinz-Jürgen Oertel, port GmbH
 * $Revision$
 * $Date$
@@ -132,12 +113,12 @@ canmsg_t rx[80];			// receive buffer for read()
 * \arg \c EINVAL \b buf points not to an large enough area,
 *
 * \returns
-* On success, the number of bytes read is returned
+* On success, the number of CAN messages read is returned
 * (zero indicates end of file).
 * It is not an  error if this number is
-* smaller than the number of bytes requested;
+* smaller than the number of messages requested;
 * this may happen for example
-* because fewer bytes are actually available right now,
+* because fewer messages are actually available right now,
 * or because read() was interrupted by a signal.
 * On error, -1 is returned, and errno is set  appropriately.
 *
@@ -171,8 +152,9 @@ size_t written = 0;
 		if(blocking) {
 		    /* printk("empty and blocking, %d = %d\n", */
 			/* RxFifo->tail , RxFifo->head ); */
-		wait_event_interruptible(CanWait[minor], \
-			RxFifo->tail != RxFifo->head );
+		    if(wait_event_interruptible(CanWait[minor], \
+			RxFifo->tail != RxFifo->head ))
+			return -ERESTARTSYS;
 		} else 
 		    break;
 	    }	

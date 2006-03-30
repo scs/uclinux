@@ -6,7 +6,6 @@ menu "CAN, the car bus and industrial fieldbus"
 
 config CAN4LINUX
 	bool "can4linux support, the car bus and industrial fieldbus"
-	default n
 	---help---
 	  can4linux is a special driver for the CAN chips of different
 	  manufacturers. It currently supports the stand-alone

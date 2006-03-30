@@ -17,23 +17,6 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
  *
  *
  *
@@ -43,7 +26,7 @@
 
 
 /**
-* \file can_write.c
+* \file write.c
 * \author Heinz-Jürgen Oertel, port GmbH
 * $Revision$
 * $Date$
@@ -101,11 +84,16 @@ canmsg_t *addr;
 canmsg_t tx;
 unsigned long flags;
 int written        = 0;
+int blocking;
 
     DBGin("can_write");
 #ifdef DEBUG_COUNTER
     Cnt1[minor] = Cnt1[minor] + 1;
 #endif /* DEBUG_COUNTER */
+
+
+    /* detect write mode */
+    blocking = !(file->f_flags & O_NONBLOCK);
 
 /* DEBUG_TTY(1, "write: %d", count); */
     DBGprint(DBG_DATA,(" -- write %d msg\n", count));
@@ -118,7 +106,7 @@ int written        = 0;
     while( written < count ) {
 	/* enter critical section */
 
-	local_irq_save(flags);
+	/* local_irq_save(flags); */
 
 	/* Do we really need to protect something here ????
 	 * e.g. in this case the TxFifo->free[TxFifo->head] value
@@ -126,14 +114,27 @@ int written        = 0;
 	 * If YES, we have to use spinlocks for synchronization
 	 */
 
-	/* there are data to write to the network */
-	if(TxFifo->free[TxFifo->head] == BUF_FULL) {
-	    /* there is already one message at this place */;
-	    local_irq_restore(flags);
-	    DBGout();
-	    /* return -ENOSPC; */
-	    return written;
+/* - new Blocking code -- */
+
+	if(blocking) {
+	    if(wait_event_interruptible(CanOutWait[minor], \
+		    TxFifo->free[TxFifo->head] != BUF_FULL))
+			/* TxFifo->tail != TxFifo->head )) */
+			return -ERESTARTSYS;
+
+	} else {
+	    /* there are data to write to the network */
+	    if(TxFifo->free[TxFifo->head] == BUF_FULL) {
+		/* there is already one message at this place */;
+		/* local_irq_restore(flags); */
+		DBGout();
+		/* return -ENOSPC; */
+		return written;
+	    }
 	}
+
+/* ---- */
+
 	if( TxFifo->active ) {
 	    /* more than one data and actual data in queue,
 	     * add this message to the Tx queue 
@@ -144,6 +145,7 @@ int written        = 0;
 		    sizeof(canmsg_t) );
 	    TxFifo->free[TxFifo->head] = BUF_FULL; /* now this entry is FULL */
 	    TxFifo->head = ++(TxFifo->head) % MAX_BUFSIZE;
+
 	} else {
 	    __lddk_copy_from_user(
 		    (canmsg_t *) &tx, 
@@ -157,7 +159,7 @@ int written        = 0;
 	  CAN_SendMessage( minor, &tx);  /* Send, no wait */
 	}
         written++;
-        local_irq_restore(flags);
+        /* local_irq_restore(flags); */
     }
     DBGout();
     return written;

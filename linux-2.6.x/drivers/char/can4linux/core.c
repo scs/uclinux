@@ -1,5 +1,6 @@
 /*
  * can_core - can4linux CAN driver module
+set tagprg="global -t $1"
  *
  * can4linux -- LINUX CAN device driver source
  *
@@ -16,25 +17,6 @@
  *--------------------------------------------------------------------------
  *
  *
- * modification history
- * --------------------
- * $Log$
- * Revision 1.1  2006/01/31 09:11:45  hennerich
- * Initial checkin can4linux driver Blackfin BF537/6/4 Task[T128]
- *
- * Revision 1.1  2003/07/18 00:11:46  gerg
- * I followed as much rules as possible (I hope) and generated a patch for the
- * uClinux distribution. It contains an additional driver, the CAN driver, first
- * for an SJA1000 CAN controller:
- *   uClinux-dist/linux-2.4.x/drivers/char/can4linux
- * In the "user" section two entries
- *   uClinux-dist/user/can4linux     some very simple test examples
- *   uClinux-dist/user/horch         more sophisticated CAN analyzer example
- *
- * Patch submitted by Heinz-Juergen Oertel <oe@port.de>.
- *
- *
- *
  *
  *
  *--------------------------------------------------------------------------
@@ -49,7 +31,7 @@ The LINUX CAN driver
 can be used to control the CAN bus (http://www.can_cia.org)
 connected to a PC running LINUX or embedded LINUX systems using uClinux.
 Different interface boards and target micro controlllers are supported
-(see TARGET= variable in Makefile).
+(see TARGET=VARIABLE in Makefile).
 The most popular interfaces are the
 AT-CAN-MINI http://www.port.de/engl/canprod/hw_at.html
 and
@@ -66,9 +48,10 @@ Up to four boards could be placed in one computer.
 With this feature it was possible to use /dev/can0 and
 /dev/can2 for two boards AT-CAN-MINI with SJA1000
 and /dev/can1 and /dev/can3 with two CPC-XT equipped with Intel 82527.
-\b Attention: This version isn't supported anymore \b !
 
-Instead the new version has to be compiled for the target hardware.
+\b Attention: This can4linux version isn't supported anymore \b !
+
+Instead the \b new version has to be compiled for the target hardware.
 It was unlikely in the past that a PC or embedded device
 was equipped with different CAN controllers.
 
@@ -114,8 +97,7 @@ is the Philips SJA 1000 in both the compatibility mode
 
 The version of can4linux currently available at the uClinux CVS tree
 is also supporting the Motorola FlexCAN module as ist is implemented
-on Motorolas ColdFire 5282 CPU.
-
+on Motorolas ColdFire 5282 CPU and the Analog Devices BlackFin DSP with CAN.
 
 
 The following sections are describing the \e sysctl entries.
@@ -179,7 +161,16 @@ counter for CAN controller tx error conditions
 
 \par dbgMask
 if compiled with debugging support, writing a value greater then 0 
-enables debugging to \b syslogd
+enables debugging to \b syslogd .
+The value is bit coded.
+\code
+Bit 0 print all debug messages
+Bit 1 print function entry message
+Bit 2 print function exit message
+Bit 3 print if a function branches intwo differnt branches
+Bit 4 print debug data statements
+\endcode
+
 
 \par version
 read only entry containing the drivers version number
@@ -216,6 +207,7 @@ erstellt
 
 #include <linux/init.h>
 #include <linux/fs.h>			/* register_chrdev() */
+#include <linux/pci.h>
 #include "defs.h"
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0) 
 #include <linux/device.h>
@@ -225,7 +217,7 @@ erstellt
 
 
 MODULE_AUTHOR("H.-J.Oertel <oe@port.de>");
-MODULE_DESCRIPTION("CAN fieldbus driver for BlackFin");
+MODULE_DESCRIPTION("CAN fieldbus driver");
 MODULE_LICENSE("GPL");
 
 #define CANREGDEVNAME "Can"
@@ -258,7 +250,6 @@ static struct file_operations can_fops = {
     .write	=	can_write,
     .poll	=	can_select,
     .ioctl	=	can_ioctl,
-    .open	=	can_open,
     .fasync	=	can_fasync,
 };
 
@@ -280,7 +271,7 @@ char devname[];
     /* do you want do see debug message already while loading the driver ?
      * Then enable this line and set the mask != 0
      */
-    dbgMask = 0;
+    /* dbgMask = 7; */
 
     DBGin("init_module");
 #ifdef CONFIG_DEVFS_FS
@@ -306,7 +297,6 @@ char devname[];
     printk(KERN_INFO __CAN_TYPE__ "CAN Driver " VERSION " (c) " __DATE__  "\n");
 #if defined(MCF5282)
     printk(KERN_INFO " FlexCAN port by H.J. Oertel (oe@port.de)\n");
-    printk(KERN_INFO " Extended 5282 handling Phil Wilshire (philwil@sysdcs.com)\n");
 #else
     printk(KERN_INFO " H.J. Oertel (oe@port.de)\n");
     /* printk(KERN_INFO " C.Schroeter (clausi@chemie.fu-berlin.de), H.D. Stich\n");  */
@@ -361,8 +351,6 @@ char devname[];
      */
     IOModel[i] = '\0';
 
-    /* CAN_register_dump(); */
-
 #if CAN4LINUX_PCI
     /* make some syctl entries read only
      * IRQ number
@@ -405,8 +393,9 @@ static void can_exit(void)
 static void cleanup_module(void)
 #endif
 {
-#ifdef CONFIG_DEVFS_FS
+#if defined(CONFIG_DEVFS_FS) || defined(KVASER_PCICAN)
 int i;
+void *ptr;
 #endif
     
     DBGin("cleanup_module");
@@ -416,7 +405,35 @@ int i;
     printk(KERN_WARNING "Can : device busy, remove delayed\n");
   }
 #endif
-	
+
+
+#ifdef KVASER_PCICAN
+
+    i = 0;
+    ptr = NULL;
+    /* The pointer to dev can be used up to four times,
+     * but we have to rellease the region only once */
+    while(Can_pcidev[i]) {
+	if( ptr !=  Can_pcidev[i]) {
+
+	    /* disbale PCI board interrupts */
+	    disable_pci_interrupt(pci_resource_start(Can_pcidev[i], 0));
+#if 0
+	    printk(KERN_DEBUG "release Kvaser CAN region 2\n");
+	    pci_release_region(Can_pcidev[i], 2);   /*release xilinx */
+#endif
+	    printk(KERN_DEBUG "release Kvaser CAN region (CAN)\n");
+	    pci_release_region(Can_pcidev[i], 1); /*release i/o */
+	    printk(KERN_DEBUG "release Kvaser CAN region (PCI)\n");
+	    pci_release_region(Can_pcidev[i], 0);   /*release pci */
+
+	}
+	ptr = Can_pcidev[i];
+	i++;
+    }
+
+#endif
+ /* printk(KERN_INFO " released all mem regions\n"); */
 
 #ifndef CONFIG_DEVFS_FS
     if( unregister_chrdev(Can_major, CANREGDEVNAME) != 0 ){
@@ -444,5 +461,7 @@ int i;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0) 
 module_init(can_init);
 module_exit(can_exit);
+EXPORT_NO_SYMBOLS;
+
 #endif
 
