@@ -301,11 +301,6 @@ twi_keypad_init (void)
   struct input_dev *input_dev;
   struct TWIKeypad *TWIKeypad;
 
-
-/*FIXME: Someone has masked a Interrupt */
-  *pFIO_MASKA_C = 0xFFFF;
-
-
   i2c_add_driver (&pcf8574_kp_driver);
 
   TWIKeypad = kzalloc(sizeof(struct TWIKeypad), GFP_KERNEL);

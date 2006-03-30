@@ -128,6 +128,18 @@ fill_temp_vector_table:
 
 #endif
 
+	p0.h = hi(FIO_MASKA_C);
+	p0.l = lo(FIO_MASKA_C);
+	r0 = 0xFFFF(Z);
+	w[p0] = r0.L;	/* Disable all interrupts */
+	ssync;
+
+	p0.h = hi(FIO_MASKB_C);
+	p0.l = lo(FIO_MASKB_C);
+	r0 = 0xFFFF(Z);
+	w[p0] = r0.L;	/* Disable all interrupts */
+	ssync;
+
 /* Turn off the icache */
 	p0.l = (IMEM_CONTROL & 0xFFFF);
 	p0.h = (IMEM_CONTROL >> 16);
