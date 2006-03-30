@@ -75,7 +75,7 @@ config USB_ISP1362_HCD
 	  module will be called isp1362-hcd.
 
 choice
-	prompt "GPIO for Interrupt"
+	prompt "PF pin for Interrupt"
 	depends on (BF533 && USB_ISP1362_HCD)
 	default USB_ISP1362_BFIN_PF4
 	help
