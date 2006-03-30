@@ -135,7 +135,7 @@ config BFIN537_STAMP
 
 config BFIN533_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF533 board support"
-	depends on BF533
+	depends on (BF533)
 	help
 	  CM-BF533 support for EVAL- and DEV-Board
 
@@ -175,8 +175,13 @@ config MEM_MT48LC16M8A2TG_75
 
 config BFIN_SHARED_FLASH_ENET
 	bool
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
+	depends on (BFIN533_STAMP)
 	default y
+
+config BFIN_SHARED_FLASH_ENET
+	bool
+	depends on (BFIN533_BLUETECHNIX_CM)
+	default n
 
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
@@ -191,7 +196,7 @@ config CLKIN_HZ
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if BFIN537_STAMP
-	default "27000000" if BFIN533_BLUETECHNIX_CM
+	default "25000000" if BFIN533_BLUETECHNIX_CM
 	default "30000000" if BFIN561_EZKIT
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
@@ -279,7 +284,7 @@ config BFIN_ALIVE_LED_PIN
 	default 0x08 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 2 ))
 	default 0x10 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 3 ))
 	default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 1 ))
-	default 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 2 ))
+	default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 config BFIN_IDLE_LED_PORT
         hex
@@ -298,7 +303,7 @@ config BFIN_IDLE_LED_PIN
         default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
         default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
         default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 1 ))
-        default 0xC0 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
+        default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 comment 'Console UART Setup'
 

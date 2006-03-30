@@ -50,7 +50,7 @@
 #endif
 
 #if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0)
-  #define BFIN_IDE_GAP (2)
+  #define BFIN_IDE_GAP CONFIG_BFIN_IDE_GAP
   #define AX_BITMASK 0
 #endif
 
