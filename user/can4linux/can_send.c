@@ -3,12 +3,11 @@
 *  send messages commissioned via command line
 * 
 * To do:
-* - weitere testsequencen
-* - steuerung der Bitrate beim Start
+* - more sequences for -t 
 * - -debug schaltet mit debug level auch Treiber in debug mode
 * - ..
-* - Konfiguration über config-datei
-* - nanosleep() siehe test3()
+* - do configuration of test with a special file format (can_send.rc)
+* - use nanosleep() see test3() ?
 */
 
 #include <sys/types.h>
@@ -32,12 +31,16 @@
 #include <errno.h>
 #include "can4linux.h"
 
+#define STDDEV "/dev/can1"
+
+
+
 #if defined(EMBED)
 #define STDDEV "/dev/can0"
 #else
 #define STDDEV "/dev/can1"
 #endif
-#define VERSION "1.6"
+#define VERSION "1.7"
 
 #ifndef TRUE
 # define TRUE  1
@@ -73,6 +76,7 @@ void test10(void);
 void test11(void);
 void test12(void);
 void test20(void);
+void test30(void);
 
 /***********************************************************************
 *
@@ -273,7 +277,7 @@ long int test_count = 0;
     if ( debug == TRUE ) {
 
 	printf("can_send V " VERSION ", " __DATE__ "\n");
-	printf("(c) 1996-2003 port GmbH\n");
+	printf("(c) 1996-2006 port GmbH\n");
 	printf(" using canmsg_t with %d bytes\n", sizeof(canmsg_t));
 	printf("  data at offset %d\n", offsetof(canmsg_t, data));
 	printf(" max process priority is \"-p %d\"\n", max_priority);
@@ -342,6 +346,7 @@ long int test_count = 0;
 	    case 10: test10(); exit(0); break;
 	    case 11: test11(); exit(0); break;
 	    case 12: test12(); exit(0); break;
+	    case 30: test30(); exit(0); break;
 	    default:
 	    fprintf(stderr, "test type %d is not defined\n", testtype);
 	    exit(0); break;
@@ -436,21 +441,22 @@ Options:\n\
 "\
 -t type \n\
    1 Stresstest für Knoten, Sendet Bursts von kurzen rtr messages\n\
-   2 sendet bursts von 5 Daten Messages, gleiche ID\n\
-   3 sendet bursts von 5 Daten Messages, unterschiedliche ID\n\
-     message 5 enthält counter \n\
+   2 transmit bursts of 5 data frames, same ID\n\
+   3 transmit bursts of 5 data frames, different ID\n\
+     frame 5 contains counter variable\n\
    4 as without this option, but incremnts CAN-ID with each message\n\
-   10 sendet bursts von 9 Daten Messages, für Comm. Verification\n\
-   11 send -T number of messages as fast as possible, write(fd, buf, 1)\n\
+   10 transmit bursts of 9 data frames, used for communication verification\n\
+   11 transmit -T number of frames as fast as possible, write(fd, buf, 1)\n\
       if transmit buffer is full, sleep for -s ms time. \n\
       if == 0: don't sleep, poll\n\
-      after every message the message-id will be incremented\n\
+      after every frame the message-id will be incremented\n\
    12 same as 11\n\
       but the message-id is constant and the databytes will be incremented\n\
-   20 send single messages write(fd, buf, 1) as fast as possible\n\
--R   setzt nur CAN Controller zurück, danach exit()\n\
--T   Anzahl der Bursts, Abstand -s n (für -t)\n\
--V   version\n\
+   30 transmit consecutive messages with the same id\n\
+      -T specifies the muber of messages in this burst\n\
+-R   reset CAN Controller only, exit() program after reset\n\
+-T   number of bursts, time distance -s n (for -t<n>)\n\
+-V   print program version\n\
 \n\
 ";
     fprintf(stderr, "usage: %s [options] [id [ byte ..]]\n", s);
@@ -628,6 +634,7 @@ unsigned int cnt = 0;
     if (extd) {
 	tm[4].flags |= MSG_EXT;
     }
+
     do {
 	ret = write(can_fd, &tm[0], 5);
 	if (ret == -1) {
@@ -644,9 +651,10 @@ unsigned int cnt = 0;
 	    }
 	}
 
+	/* *(unsigned int *)&tm[4].data[0] = cnt++; */
 	*(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
 	*(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
-    cnt++;
+	cnt++;
 	if (++test_count == test_count_soll) {
 	    break;
 	}
@@ -777,7 +785,6 @@ struct timespec req;
 	    }
 	}
 
-	/* *(unsigned int *)&tm[4].data[0] = cnt++; */
 	*(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
 	*(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
 	cnt++;
@@ -858,8 +865,11 @@ int i;
     for (i = 0; i < SEQN; i++) {
         char *p;
         p = &((m + i)->data[0]);
-
+#if defined(EMBED)
+	*(unsigned short *)p += 1;
+#else
 	*(unsigned long long *)p += 1;
+#endif
     }
 }
 
@@ -1112,5 +1122,128 @@ int ret;
 }
 
 void test30(void)
+{
+/* long int test_count = 0; */
+/* unsigned int cnt = 0; */
+
+#define MAXTESTMSG 5
+canmsg_t tm[MAXTESTMSG];
+int ret;
+
+ /* shold be malloced  here according to the variable 
+	    test_count_soll
+    and all messages initialized in a loop
+    */
+
+    tm[0].id = message.id;
+    tm[0].cob = 0;
+    tm[0].length = 8;
+    tm[0].flags = 0;
+    if (extd) {
+	tm[0].flags |= MSG_EXT;
+    }
+    tm[0].data[0] = 0x55;
+    tm[0].data[1] = 2;
+    tm[0].data[2] = 3;
+    tm[0].data[3] = 4;
+    tm[0].data[4] = 5;
+    tm[0].data[5] = 6;
+    tm[0].data[6] = 7;
+    tm[0].data[7] = 0xaa;
+
+    tm[1].id = message.id;
+    tm[1].cob = 0;
+    tm[1].length = 8;
+    tm[1].flags = 0;
+    if (extd) {
+	tm[1].flags |= MSG_EXT;
+    }
+    tm[1].data[0] = 0xaa;
+    tm[1].data[1] = 7;
+    tm[1].data[2] = 6;
+    tm[1].data[3] = 5;
+    tm[1].data[4] = 4;
+    tm[1].data[5] = 3;
+    tm[1].data[6] = 2;
+    tm[1].data[7] = 0x55;
+
+
+    tm[2].id = message.id;
+    tm[2].cob = 0;
+    tm[2].length = 8;
+    tm[2].flags = 0;
+    if (extd) {
+	tm[2].flags |= MSG_EXT;
+    }
+    tm[2].data[0] = 0xaa;
+    tm[2].data[1] = 7;
+    tm[2].data[2] = 6;
+    tm[2].data[3] = 5;
+    tm[2].data[4] = 4;
+    tm[2].data[5] = 3;
+    tm[2].data[6] = 2;
+    tm[2].data[7] = 0x55;
+
+
+    tm[3].id = message.id;
+    tm[3].cob = 0;
+    tm[3].length = 8;
+    tm[3].flags = 0;
+    if (extd) {
+	tm[3].flags |= MSG_EXT;
+    }
+    tm[3].data[0] = 0xaa;
+    tm[3].data[1] = 7;
+    tm[3].data[2] = 6;
+    tm[3].data[3] = 5;
+    tm[3].data[4] = 4;
+    tm[3].data[5] = 3;
+    tm[3].data[6] = 2;
+    tm[3].data[7] = 0x55;
+
+    tm[4].id = message.id;
+    tm[4].cob = 0;
+    tm[4].length = 8;
+    tm[4].flags = 0;
+    if (extd) {
+	tm[4].flags |= MSG_EXT;
+    }
+    tm[4].data[0] = 0xaa;
+    tm[4].data[1] = 7;
+    tm[4].data[2] = 6;
+    tm[4].data[3] = 5;
+    tm[4].data[4] = 4;
+    tm[4].data[5] = 3;
+    tm[4].data[6] = 2;
+    tm[4].data[7] = 0x55;
+
+    if(test_count_soll > MAXTESTMSG)
+	    test_count_soll = MAXTESTMSG;
+
+    do {
+	ret = write(can_fd, &tm[0], test_count_soll);
+	if (ret == -1) {
+	    perror("write error");
+	    usleep(sleeptime); 
+	    continue;
+	} else if (ret == 0) {
+	    printf("transmit timed out\n");
+	    usleep(sleeptime); 
+	    continue;
+	} else {
+	    if ( debug == TRUE ) {
+		printf("transmitted %d\n", ret);
+	    }
+	}
+
+	if ( sleeptime > 0 ) {
+	    usleep(sleeptime);
+	}
+    }
+    while(sleeptime > 0);
+    sleep(1);
+}
+
+void test31(void)
 {
 }

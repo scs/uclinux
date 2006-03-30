@@ -10,8 +10,8 @@
  * modification history
  * --------------------
  * $Log$
- * Revision 1.1  2006/01/31 09:18:32  hennerich
- * Initial checkin can4linux test application Task[T387]
+ * Revision 1.2  2006/03/30 15:36:08  hennerich
+ * Apply can4linux user application patch/update form port GmbH
  *
  *
  *
@@ -55,9 +55,6 @@ char *m;
             break;
         case  CAN_TYPE_TwinCAN:
             m = "TwinCAN";
-            break;
-        case  CAN_TYPE_BlackFinCAN:
-            m = "BlackFinCAN";
             break;
     case CAN_TYPE_UNSPEC:
     default:

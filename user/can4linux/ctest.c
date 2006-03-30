@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -23,6 +24,8 @@
 #define STDDEV "can0"
 
 unsigned long usleeptime = 1000;	/* 1000 ms */
+
+#include "getstat.c"
 
 int main(int argc,char **argv)
 {
@@ -37,9 +40,17 @@ char device[40];
     }
 
     if(argc > 1) {
-	sprintf(device, "/dev/%s", argv[1]);
-    }
-    else {
+	if (
+	    /* path ist starting with '.' or '/', use it as it is */
+		argv[1][0] == '.'
+		|| 
+		argv[1][0] == '/'
+		) {
+	    sprintf(device, "%s", argv[1]);
+	} else {
+	    sprintf(device, "/dev/%s", argv[1]);
+	}
+    } else {
 	sprintf(device, "/dev/%s", STDDEV);
     }
     printf("using CAN device %s\n", device);
@@ -48,14 +59,27 @@ char device[40];
 	fprintf(stderr,"Error opening CAN device %s\n", device);
         exit(1);
     }
+    showCANStat(fd);
     if(argc == 3) {
     int count = 100000;
     int i, n;
 
-        usleeptime = atoi(argv[2]);
+#if 0
+    int fd1;
+
+
+    if(( fd1 = open("/dev/can1", O_RDWR )) < 0 ) {
+	fprintf(stderr,"Error opening CAN device %s\n", "/dev/can1");
+        exit(1);
+    }
+	    showCANStat(fd);
+	    showCANStat(fd1);
+#endif
+	usleeptime = atoi(argv[2]);
 	/* loop for a long time */
-        while(count--) {
-            do {
+	while(count--) {
+	    showCANStat(fd);
+	    do {
 		n = read(fd, &rx, 1);
 		if(n < 0) {
 		    perror("CAN read error");
@@ -63,9 +87,10 @@ char device[40];
 		else if(n == 0) {
 		    fprintf(stderr, "read returned 0\n");
 		} else {
-		    fprintf(stderr, "read: %c 0x%08lx : %d bytes:",
-		    			   rx.flags & MSG_EXT ? 'X' : 'S',
-		    			   rx.id,   rx.length);
+		    fprintf(stderr, "read: %c%c 0x%08lx : %d bytes:",
+					   rx.flags & MSG_EXT ? 'x' : 's',
+					   rx.flags & MSG_RTR ? 'R' : 'D',
+					   rx.id,   rx.length);
 		    if(rx.length > 0) {
 			fprintf(stderr, "\t");
 			for(i = 0; i < rx.length; i++) {
@@ -75,12 +100,13 @@ char device[40];
 		    fprintf(stderr, "\n");
 		}
 	    } while( n == 1);
-            usleep(usleeptime * 1000);
-        }
+	    usleep(usleeptime * 1000);
+	}
     } else {
-        /* wait very long */
+	/* wait very long */
 	sleep(100000);
     }
     close(fd);
     return 0;
 }
+

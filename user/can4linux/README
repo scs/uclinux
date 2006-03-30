@@ -1,0 +1,48 @@
+This are some simple examples to test the communication between two
+CAN channels.
+
+1) receive: polling mode receiving end
+2) transmit polling mode transmitter
+
+3) baud
+    simple driver test: change the bit rate registers with ioctl()
+    the change itself stays after program is finished.
+    you can check it by read
+    cat /proc/sys/Can/Baud
+    before and after using this command
+
+4) acceptance
+    simple driver test: change the message filter with ioctl()
+    the change itself stays after program is finished.
+    you can check it by read
+    cat /proc/sys/Can/AccCode /proc/sys/Can/AccMask
+    before and after using this command
+
+5) noiser
+    a simple noise transmitter, generates messages with random
+    CAN IDs and telegram content
+    useful for filter testing 
+
+6) can_send
+    simple command line tool for sending single or
+    cyclic CAN messages
+    can_send -h   tells you all
+    some special test-sequences are build-in
+
+7) ctest
+    very simple and basic driver test
+    I use it to see what the driver issues in /var/log/messages
+    when open and close the device.
+    If full debug is enabled and all register access is logged
+
+8) receive-select
+    simple receiving using the select() call to wait for CAN messages 
+
+Support and examples for Scripting Languages
+==============================================
+
+canLtwo.c 
+	simple CAN Layer-2 interface, C-Source
+canLtwo.i  
+	simple CAN Layer-2 interface, SWIG-Interface file
+

@@ -1,0 +1,19 @@
+canLtwo_wrap.c
+
+
+
+can_open port 
+        [ returns int  ]
+
+can_close fd 
+        [ returns int  ]
+
+can_send fd len message 
+        [ returns int  ]
+
+can_read fd ?timeout? 
+        [ returns char * ]
+
+can_read2 fd ?timeout? 
+        [ returns char * ]
+
