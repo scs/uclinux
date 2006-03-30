@@ -190,7 +190,6 @@ while 1 {
    	}
 }
 
-
 puts "33333333 make"
 
 cd $uclinux_path
@@ -218,4 +217,3 @@ cd $uclinux_path
 exec cp images/linux  /tftpboot
 
 puts "Kernel building finishes!"
-

@@ -1,0 +1,143 @@
+#!/usr/bin/expect
+
+# Main entrance
+set logfile		"~/coreb_testlog"
+
+send_log "\nBluetooth test is starting...\r"
+
+set timeout 3600
+spawn ./kernel4coreb.exp
+while 1 {
+	expect {
+		"Kernel building finishes!" {
+			send_log "\rKernel build done\r"
+			break
+		}
+		timeout {
+			send_log "\rKernel build failed\r"
+			break
+		}
+	}
+}
+# set parameter
+
+set SUCESS			"success"
+set SERIAL_PORT_BAUD_RATE	"57600"
+set TARGET_IP_ADDR		"192.168.1.2"
+set MST_BD_ADDR			"00:10:60:D0:8C:41"	
+set SLV_BD_ADDR			"11:11:11:11:11:11"
+
+
+#global passed_case
+#global failed_case
+set passed_case		0
+set failed_case		0
+set total_case		0
+
+set argc [llength $argv]
+if { $argc < 1 } {
+	send_log "\nAppend /dev/ttyS0\n"
+}
+
+set ttydev	[lindex $argv 0]
+
+log_file $logfile
+send_log "hello $ttydev" 
+
+exec ./reset_board 2
+send_log "\rboard reset\r"
+sleep 60
+
+set timeout 5
+spawn kermit
+
+set kparams	[list "set line $ttydev\r"]
+lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set carrier-watch off\r"
+lappend kparams "set handshake none\r"
+lappend kparams "set flow-control none\r"
+lappend kparams "robust\r"
+lappend kparams "set file type bin\r"
+lappend kparams "set file name lit\r"
+lappend kparams "set rec pack 1000\r"
+lappend kparams "set send pack 1000\r"
+lappend kparams "set window 5\r"
+lappend kparams "set escape 255\r"
+set nkparams	[llength $kparams]
+
+while { 1 } {
+	expect {
+		"Type ?" { }
+		"ermit>" {
+			break
+		}
+		"not found" {
+			send_log "\rERROR: Failed to start Kermit\r"
+		}
+		timeout {
+			send_log "\rERROR: Time out starting up kermit\r"
+		}
+	}
+}
+
+for {set i 0} {$i < $nkparams} {incr i} {
+	send [lindex $kparams $i]
+
+	while 1 {
+		expect {
+			"ermit>" { break }
+			"\\?\[A-Z]" {
+				send_log "\rERROR: Failed to set up kermit parameters\r"
+			}
+			timeout {
+				send_log "\rERROR: Time out setting up kermit parameters\r"
+			}
+		}
+	}
+}
+
+send "connect\r"
+while 1 {
+	expect {
+		"ype the escape character*" {
+			break
+		}
+		timeout {
+			send_log "\nERROR: Can't connect to serial port\n"
+			exit
+		}
+	}
+}
+
+sleep 2
+send "modprobe dualcore_test\r"
+expect "Dual core test module inserted: set testarg = \[1\]*"
+send_log "\rInserted dual core test module\r"
+
+sleep 2
+send "lsmod\r"
+expect "*dualcore_test.*"
+send_log "\rModule inserted successfully\r"
+
+sleep 2
+send "corebld /bin/coreb_get_testarg\r"
+expect "root:~>"
+
+sleep 5
+send "rmmod dualcore_test"
+set timeout 2
+sleep 20
+while 1 {
+	expect {
+		"Dual core test module removed: testarg = \[2\]*" {
+			send_log "\rTEST PASSED\r"
+			break
+		}
+		timeout {
+			send_log "\r\r\rTEST FAILED\r"
+			break
+		}
+	}
+}
+
+exit
