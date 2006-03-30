@@ -1027,6 +1027,10 @@ config EFS_FS
 	  To compile the EFS file system support as a module, choose M here: the
 	  module will be called efs.
 
+
+# Patched by YAFFS
+source "fs/yaffs2/Kconfig"
+
 config JFFS_FS
 	tristate "Journalling Flash File System (JFFS) support"
 	depends on MTD
