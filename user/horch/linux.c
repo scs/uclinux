@@ -1,12 +1,66 @@
-/* linux - device specific part of Horch
-*/
-
-
-
-#include <horch.h>
+/*
+ * linux - device specific part of Horch
+ *
+ *
+ * Copyright (c) 1999-2005 port GmbH, Halle
+ *------------------------------------------------------------------
+ * $Header$
+ *
+ *--------------------------------------------------------------------------
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ *
+ *
+ * modification history
+ * --------------------
+ * $Log$
+ * Revision 1.2  2006/03/30 15:40:47  hennerich
+ * Apply horch user application patch/update form port GmbH
+ *
+ * Revision 1.23.2.3  2006/02/27 11:16:06  hae
+ * add GPL header
+ * delete old cvs log messages
+ * add O_NONBLOCK flag when opening CAN
+ * support for blackfin processor
+ * remove trailing '
+ * ' from version string of /proc/sys/CAN/version
+ *
+ *
+ *
+ * This Soucefile contains:
+ *
+ * - can4linux specific setup
+ * - Server mode Loop 
+ * - Console Loop
+ * - direct access to the can4linux device
+ *
+ */
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/fcntl.h>
+
+#include "horch_cfg.h"
+
+#include "socklib/socklib.h"
+
+#include <horch.h>
+#include "filter/filter.h"
+#ifdef CONFIG_COLDFIRE 
+# include "led.h"
+#endif
 
 #define MAXLINE		1024
 #define MSG_TIMEOUT	100
@@ -30,20 +84,12 @@ struct sockaddr_in fsin;		/* UDP socket */
 
 /**************************************************************************
 *
-* server_send
+* set_up - Linux / can4linux specific initialisation
 *
-* changes the \n line end to \r\n
+* - CAN Schnittstelle
+* - Konsole
+*
 */
-int server_send(char *line)
-{
-int len;
-    
-    len = strlen(line);
-    line[len -1] = '\r';
-    line[len ]   = '\n';
-    return(send(server_fd, (void *)line, len + 1, 0));
-}
-
 int set_up(void)
 {
 int ret;
@@ -53,14 +99,14 @@ char line[40];
 
 #ifndef SIM
     if(( can_fd = open(device,
-			/* O_RDONLY */
-			O_RDWR
+		    /* beginnend mit Version 3.3.6 is read() blockierend */
+			O_RDWR | O_NONBLOCK
     				)) < 0 ) {
 	fprintf(stderr,"Error opening CAN device %s\n", device);
 	exit(1);
     }
     if(o_bitrate != 0) {
-	sprintf(line, " %d\n", o_bitrate);
+	sprintf(line,  " %d\n", o_bitrate);
 	set_bitrate(line);
     }
 
@@ -74,288 +120,289 @@ char line[40];
 	ret = system("stty cbreak -echo");
 	if(ret != 0) {
 	    fprintf(stderr, "  system(stty) returns %d\n", ret);
+	    fflush(stderr);
 	}
     }
+
     /* pe-set time structures */
     gettimeofday(&tv_start, &tz);
     return 0;
 }
 
+/**************************************************************************
+*
+* clean_up
+*
+*/
 void clean_up(void)
 {
 #ifndef SIM
     close(can_fd);
 #endif
-    clean();
+    /* clean(); */ /* clean wird per atexit() eingebunden */
     exit(0);
 }
 
-int    udp_event_loop() {}
+/**************************************************************************
+*
+* udp_event_loop
+*
+*/
+int    udp_event_loop() {return 0;}
 
+/**************************************************************************
+*
+* server_event_loop
+*
+*/
 int server_event_loop(void)
 {
 /*----------------------------------------------------------------*/
-SOCKET listenfd;                /* incoming connection socket fd  */
-/* SOCKET asd; */
-extern SOCKET server_fd;
-
-int established = 0;
-
-struct sockaddr_in servaddr;    /* incoming connection address */
-struct sockaddr_in cliaddr;     /* incoming connection address */
-int clilen;			/* size of client socket struct */
-
-int maxfd;                      /* maximum fd (optimization for select) */
-int maxi;                       /* number of clients ??? */
-int i, j;                       /* looping index */
-int rcnt;			/* receive cnt, number of received bytes */
+int i;                       /* looping index */
 char in_line[MAXLINE];		/* command input line from socket to horch */
+int ret;
+int size;	/* buffer size and filled buffer count */
+int idx;	/* index at client list */
+unsigned char client; /* loop var */
+
+SOCKET_T * pSocket;
+
+
+/* extern int so_debug; */
+    /* so_debug = 1; */
 
     /*
      * Open a TCP socket (an Internet stream socket).
      * 
      */
-
-    BDEBUG("Open socket\n");
-
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    if(listenfd < 0) {
+    pSocket = so_open();
+    if( pSocket == NULL ) {
+	/* Fehlerbehandlung muß noch überarbeitet werden! */
 	fprintf(stderr, "Socket open failed: %d\n", errno);
-	goto TCP_SERVER_DONE;
-    }
-    BDEBUG("Got socket fd %d\n", listenfd);
-
-    /*
-    * Bind our local address so that the client can send to us.
-    */
-    memset((void *)&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family         = AF_INET;
-    /* servaddr.sin_addr.s_addr = htonl(INADDR_ANY); */
-    servaddr.sin_port           = htons(o_portnumber);
-
-    if (bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-	fprintf(stderr, "TCPserver: Socket bind failed: %d\n", errno);
-	goto TCP_SERVER_DONE;
+	return 0;
     }
 
-    BDEBUG("\r\nHorch TCPserver, listening on port %d\r\n", o_portnumber);
-    /*
-    * loop forever (daemons never die!)
-    */
-    for ( ; ; ) {
-	/*
-	* Set socket to passive mode
-	* and ask kernel to buffer upto LISTENQ (inet.h)
-	*/
-	/********************************************************************/
-	/* API-Call listen for connections */
-	/********************************************************************/
-	BDEBUG("TCPserver: Listening for connection\n");
+    /* prepare server */
+    ret = so_server( pSocket, o_portnumber, &client_fd[0], HORCH_MAX_CLIENTS); 
+    if( ret != 0 ) {
+	fprintf(stderr, "server failed: %d\n", ret);
+	/* so_server() schließt bereits den Socket */
+	/* so_close(pSocket); */
+	return 0;
+    }
 
-	if(listen(listenfd, 1) < 0) {
-	    printf("TCPserver: Socket listen failed: %d\n", errno);
-	}
-
-	printf("\nWaiting for connections on port %d\n", o_portnumber);
-	fflush(stdout);
-
-	/*
-	* Accept the client connection
-	*/
-        clilen = sizeof(cliaddr);
-	server_fd = accept(listenfd, (struct sockaddr *) &cliaddr, 
-		(socklen_t *)&clilen);
-	if (server_fd < 0) {
-	      printf("TCPserver: Socket accept failed: %d\n", errno);
-	      goto TCP_SERVER_DONE;
-	}
-        /* save the new socketdescriptor */
-        /* server_fd = outregs.x.ax; */
-        established = 1;
-
-	printf("New client: %s, port %u; Assigning fd#%d\n",
-		    inet_ntoa(cliaddr.sin_addr), cliaddr.sin_port, server_fd);
-	fflush(stdout);
-
-        /* server_fd = asd; */	/* load static server_fd */ 
-
+    
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 {
-canmsg_t rx[80];			/* receive buffer for read() */
-canmsg_t *prx;			/* pointer to receive buffer */
-fd_set rfds;
-int got;				/* got this number of messages */
-int i;
-struct timeval tval;		/* use time out in W32 server */
-static int select_flag = 0;	/* count erroneous select activity */ 
+canmsg_t rx[80];		/* receive buffer for read() */
+canmsg_t *prx;			/* pointer to current processed message */
+int got;			/* got this number of messages */
 
 
     while( read(can_fd, rx , 80 ) > 0); /* flush/remove old messages */
-    reset_send_line();
 
-    while(established)  {
+    FD_SET(can_fd, &(pSocket->allset));	/* watch on fd for CAN */
 
-	/* reinit everytime - see linux manual
-	 * tval could be changed after select() call */
-	tval.tv_sec = 0;		/* first try it with 1ms */
-	tval.tv_usec = 1400;
+    /* Initialisierung ready */
+    printf("Waiting for Connections on Port %d\n", o_portnumber);
 
-        FD_ZERO(&rfds);
-        FD_SET(can_fd, &rfds);		/* watch on fd for CAN */
-#if 0
-        FD_SET(0, &rfds);		/* watch on fd for stdin */
-#endif
-        FD_SET(server_fd, &rfds);	/* watch on fd for Client requests */
+    /*
+    * loop forever (daemons never die!)
+    *
+    * the loop is waiting for new client connections or disconnections
+    * or new CAN messages arriving 
+    */
+    for ( ; ; ) {
 
-#if defined(TARGET_LINUX_PPC)
-        /* select for:          read, write, except,  timeout */      
-        if( select(FD_SETSIZE, &rfds, NULL, NULL,     &tval ) > 0 )
+        size = MAXLINE;
+#ifdef __uClinux__
+	ret = so_server_doit(pSocket, &idx, &in_line[0], &size, 2);
 #else
-        /* select for:          read, write, except, no-timeout */      
-        if( select(FD_SETSIZE, &rfds, NULL, NULL,     NULL  ) > 0 )
+	ret = so_server_doit(pSocket, &idx, &in_line[0], &size, 0);
 #endif
-        {
-	    /* one of the read file descriptors has changed status */
-	    /* fprintf(stderr, "."); fflush(stderr);         */
 
-            if( FD_ISSET(can_fd, &rfds) ) {
-            	/* it was the CAN fd */
+#ifdef DEBUGCODE
+	switch (ret)  {
+	    case SRET_SELECT_ERROR:
+	    	/* z.B. Timer (für Buslastmessung) */
+		/* BDEBUG("select returns value < 0\n"); */
+		break;
+	    case SRET_CONN_FAIL:
+		printf("new client connection wasn't possible\n");
+		break;
+	    case SRET_UNKNOWN_REASON:
+		BDEBUG("unknown reason for select interrupt\n");
+		break;
+	    case SRET_CONN_CLOSED:
+		printf("client at idx: %d closed connection\n", idx);
+		break;
+	    case SRET_CONN_NEW:
+		printf("new client idx: %d\n", idx);
+		break;
+	    case SRET_CONN_DATA:
+		BDEBUG("message from fd: %d: idx %d (%d chars): %s\n",
+		    client_fd[idx], idx, size, &in_line[0]);
+		break;
+	    case SRET_SELECT_USER:
+		BDEBUG("handle from user\n");
+		break;
 
-/* got=read(can_fd, rx , 80 ); */
-/* Stringpuffer für die TCPIP Ausgabe umfasst nur ca. 2000 Zeichen
- * 20 Zeilen x 70 Zeichen == 1400 Zeichen.
- * Nun sollte der Puffer nicht mehr überlaufen 
- */
- 
-/* got=read(can_fd, rx , 20 ); */
-/* CAN-REport bekommt zerstückelte Zeilen und verkraftet dies nicht */
+	    default:
+		printf("unknown return value from so_server_doit\n", ret);
+	}
+#endif
 
-	    got=read(can_fd, rx , 20 );
-	    if( got > 0) {
-		/* Messages in read */
-		if (debug) {
-		    fprintf(stderr, "--------------\n");
-		    fprintf(stderr, "Received got=%d\n", got);
-		} 
-		prx = &rx[0];
-		/* for all received messages */
-		for(i = 0; i < got; i++) {
-		    if((rx[i].id < 0) || (filter(rx[i].id) == TRUE)) { 
-			/* for all received messages */
-			/* show_message(&rx[i]); */
-/* prx muß auch bei False erhöht werden */
-/* show_message() könnte zuviele Nachrichten nach 'send_line' schreiben */
-			show_message(prx);
-		    } 
-		    prx++; /* nächste Nachricht */
-		}
+	/*------------------------------------------------------*/
+	if( ret == SRET_CONN_NEW) {
+		/* new Client - initialize */
+	    filter_init(idx);		/* filter */
+	    reset_send_line(idx, -1);	/* transmit buffer */
 
-
-#if 0		
-		if(send_line_cnt > 1500) 
-#endif		
-		{
-		    /* formatted string reaches Buffer end !*/
-		    j = display_line(send_line);
-		    if (j == -1) {
-		        if (debug) {
-		            fprintf(stderr,"Error (display_line): %s\n",
-		            		strerror(errno));
-		        }    
-		    }	
-		    reset_send_line();
-		    if(j == -1) {
-			established = 0;
-			break;
-		    }
-		}
-
-	    } else {
-	        /* read returned with error */
-		fprintf(stderr, "- Received got = %d\n", got);
-		fflush(stderr);
+#ifdef CONFIG_COLDFIRE 
+	/* Connect LED On */
+	    if (led_open() == 0) {
+		led_set(LED_STATUS1, LED_ON);
+		led_close();
 	    }
-	    } /* it was the CAN fd */
+#endif
 
-            if( FD_ISSET(server_fd, &rfds) ) {
-            	/* it was the stdio terminal fd */
-            	/* Lines are coming here with \r\n */
-            	rcnt = read(server_fd , in_line, MAXLINE);
-		BDEBUG("%d new commands\n", rcnt);
-		if(rcnt == -1) {
-		    fprintf(stderr, "Error reading from socket %d\n", errno);
-		    established = 0;
-		} else {
-/************************************************************************/
-/* 
-* select() kehrt für server_fd zurück, 
-* obwohl der Client die Verbindung gelöst hat.
-* rcnt ist immer 0 und die Schleife läuft endlos mit 100% CPU last.
-*	select_flag soll diese Situation erkennen
-*	Ursache unbekannt
-*/
-		    if (rcnt == 0) {
-			select_flag++;  /* Test */
-			if (select_flag > 50) {
-			    established = 0;
-			    fprintf(stderr, "Problem with TCP/IP connection\n");
-			}
-		    } else {
-			select_flag = 0; /* Test */
-		    }
-/************************************************************************/
-
-		    for(i = 0; i < rcnt; i++) {
-			/* read input chars from recv buffer */
-			if(change_format(in_line[i]) == -1) {
-			    established = 0;
-			}
-		    }
+	}
+	/*------------------------------------------------------*/
+	if( ret == SRET_CONN_CLOSED) {
+	int f = 0;	/* Flag */
+		/* ist noch jemand connected, ansonsten Stop_CAN */
+	    for(client = 0; client < HORCH_MAX_CLIENTS; client++) {
+		if (client_fd[client] != NO_CLIENT) {
+		    f = 1;
+		    break;
 		}
-	    } /* Server-in/stdio fd */
+	    }
+	    if (f == 0) {
+	    	/* Stop_CAN(); */
+#ifdef CONFIG_COLDFIRE 
+		if (led_open() == 0) {
+		    led_set(LED_STATUS1, LED_OFF);
+		    led_close();
+		}
+#endif	    
+	    }
+	}
+	/*------------------------------------------------------*/
+	
+	/*------------------------------------------------------*/
+	if(ret == SRET_SELECT_USER) {
+	    if (FD_ISSET(can_fd, &pSocket->allset))
+	    {
+		    /* it was the CAN fd */
+		got=read(can_fd, rx , MAX_CANMESSAGES_PER_FRAME );
 
+		if( got > 0) {
+		    /* got Messages from the read() call */
+#ifdef DEBUGCODE 
+		    if (debug) {
+			/* fprintf(stderr, "--------------\n"); */
+			fprintf(stderr, "Received got=%d\n", got);
+		    } 
+#endif 	/* DEBUGCODE */
+		    
+		    prx = &rx[0];
+		    /* generate stringbuffer for all clients 
+		     * of all received messages */
+		    for(i = 0; i < got; i++) {
+    /* fprintf(stderr, "=> Buffer = %p\n", prx); */
+			show_message(prx);
+			prx++;		/* next message */
+		    }
+
+		    /* send buffer to the clients */
+		    for(client = 0; client < HORCH_MAX_CLIENTS; client++) {
+			if (client_fd[client] == -1) {
+			    continue;
+			}
+
+			/* formatted string reaches Buffer end !*/
+    /* fprintf(stderr, "=> send line\n"); */
+			display_line(client);
+		    } /* for all clients */
+		} else {
+		    /* read returned with error */
+		    /* fprintf(stderr, "- Received got = %d\n", got); */
+		    /* fflush(stderr); */
+		}
+
+	    } /* it was the CAN fd */
+	    else {
+	    }
 	}
-    }	/* while(established)  */
-}
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
-        fprintf(stderr, "Horch Server: close connection\n");
-	if(close(server_fd) < 0) {
-	    fprintf(stderr, "   socket close failed: %d\n", errno);
-	}
+	/*------------------------------------------------------*/
+
+	/*------------------------------------------------------*/
+        if( ret == SRET_CONN_DATA ) {
+	    /* in Idx steht nun der client */
+
+	    for(i = 0; i < size; i++) 
+	    {
+	    int retval;
+
+		/* read input chars from recv buffer */
+		retval = change_format(idx, in_line[i]);
+		if(retval == -1) {
+#ifdef DEBUGCODE		
+		    /* ERROR */		    
+		    fprintf(stderr,"change_format returns %d\n", retval);
+		    fflush(stderr);
+#endif
+		    break;
+		}
+	    }
+	} /* Server-in/stdio fd */
+	/*------------------------------------------------------*/
 
     } /* for(; ; ;) */
-
+} /* CAN definitions */
    /************************************/
    /* Shutdown server, should not happen */
    /************************************/
 
-TCP_SERVER_DONE:
+/* TCP_SERVER_DONE: */
 
-    BDEBUG("TCPserver: Closing listening socket\n");
-    /* if(socketClose(asd) < 0) { */
-    if(close(server_fd) < 0) {
-	 printf("TCPserver: Socket close failed %d\n", errno);
-    }
+    so_close(pSocket);
     return 0;
 
 }
 
+/**************************************************************************
+*
+* event_loop - Hauptschleife für die Arbeit innerhalb der Konsole
+*
+* Es wird (intern) immer mit client 0 gearbeitet.
+*
+*/
 void event_loop(void)
 {
 canmsg_t rx[80];			/* receive buffer for read() */
 fd_set rfds;
 int got;				/* got this number of messages */
-int i;
-struct timeval tval;		/* use time out in W32 server */
+int i = 0;
+struct timeval tval;			/* use time out in W32 server */
 
+/* ÄNDERN bzw. es wird immer mit client 0 gearbeitet */
+int client = 0;
+
+    /* Konsolen-Ausgabe benutzt Client 0 */	
+    client_fd[client] = 1;
+
+    filter_init(client);		/* filter */
+    reset_send_line(client, -1); 	/* transmit buffer */
+    /* Start_CAN();  */
 
     /* On LINUX we need no time out for the select call.
      * we either, wiat for:
      * a message arrives on can_fd
      * a key was hit on stdin - fd=0
      */
-    tval.tv_sec = 0;		/* first try it with 1ms */
+    tval.tv_sec  = 0;			/* first try it with 1ms */
     tval.tv_usec = 1400;
 
     while(1) {
@@ -380,12 +427,14 @@ struct timeval tval;		/* use time out in W32 server */
 		got=read(can_fd, rx , 20 );
 		if( got > 0) {
 		    /* Messages in read */
+#ifdef DEBUGCODE 
 		    if (debug) {
-			fprintf(stderr, "--------------\n");
+			/* fprintf(stderr, "--------------\n"); */
 			fprintf(stderr, "Received got=%d\n", got);
 		    } 
+#endif 	/* DEBUGCODE */
 		    for(i = 0; i < got; i++) {
-		        if((rx[i].id < 0) || (filter(rx[i].id) == TRUE)) { 
+		        if((rx[i].id < 0) || (filter(client, rx[i].id) == TRUE)) { 
 			    /* for all received messages */
 			    show_message(&rx[i]);
 			}
@@ -403,7 +452,7 @@ struct timeval tval;		/* use time out in W32 server */
             	/* it was the stdio terminal fd */
             	i = read(0 , device, 40);
             	while(i--) {
-		    change_format(device[i]);
+		    change_format(client, device[i]);
 		} /* while */
 	    } /* stdio fd */
 	} else {
@@ -411,15 +460,19 @@ struct timeval tval;		/* use time out in W32 server */
 	    char line[100];
 		getStat(line); /* fills line !! */
 		sprintf(line,"%s %.1f\n", line, f_busload);
-		send_line_cnt = strlen(line);
-		display_line(line);
-		send_line_cnt = 0;
+		strcat(send_line[client], line);
+		display_line(client);
 	    }
 	}
     }
 }
 
 
+/**************************************************************************
+*
+* clean
+*
+*/
 static void clean(void)
 {
     if(o_server) {
@@ -429,6 +482,11 @@ static void clean(void)
     }
 }
 
+/**************************************************************************
+*
+* show_system_time
+*
+*/
 int show_system_time(char *line)
 {
     gettimeofday(&tv, &tz);
@@ -468,11 +526,11 @@ int write_message(
 	char *line	/* write parameter line */
 	)
 {
-unsigned char data[8] = {8, 7, 6, 5, 4, 3 , 2, 1};
-unsigned char *lptr;
+/* unsigned char data[8] = {8, 7, 6, 5, 4, 3 , 2, 1}; */
+char *lptr;
 int len = 0;
 /* unsigned char **endptr; */
-unsigned char *endptr;
+char *endptr;
 canmsg_t tx;			/* build transmit message */
 
 
@@ -504,20 +562,20 @@ canmsg_t tx;			/* build transmit message */
 
     tx.length = len;
 
-BDEBUG("Transmit %d, RTR=%s, len=%d\n", tx.id,
-			((tx.flags == 0) ? "F" : "T"),
+BDEBUG("Transmit %d, RTR=%s, len=%d\n", tx.id,		\
+			((tx.flags == 0) ? "F" : "T"),	\
 			tx.length);
 			
     len = write(can_fd, &tx, 1);
 
     if (len < 0) {
     	/* Write Error */
-printf("Write Error: %d\n", len);
+	fprintf(stderr, "Write Error: %d\n", len);
     }
     
     if (len == 0) {
     	/* Transmit Timeout */
-printf("Write Error: Transmit fehlgeschlagen\n", len);
+	fprintf(stderr, "Write Error: Transmit fehlgeschlagen\n", len);
     }
 
     return 0;
@@ -548,12 +606,14 @@ int	set_acceptance(
 	char *line
 	)
 {
-unsigned char *lptr;
-unsigned char *endptr;			/* unsigned char **endptr; */
+#if CAN4LINUXVERSION > 0x0300
+char *lptr;
+char *endptr;			/* unsigned char **endptr; */
 unsigned int acm = 0xffffffff;
 unsigned int acc = 0xffffffff;
 Config_par_t  cfg;
 volatile Command_par_t cmd;
+
 
     lptr = &line[0];
 
@@ -563,18 +623,31 @@ volatile Command_par_t cmd;
     lptr = endptr;
     skip_space(lptr);
     acm  = strtoul(lptr, &endptr, 0);
+    
+    if(debug) {
+	printf(" Called set_acceptance() with mask=%x, code=%x\n", acm, acc);
+    }
 
     cmd.cmd = CMD_STOP;
-    ioctl(can_fd, COMMAND, &cmd);
+    ioctl(can_fd, CAN_IOCTL_COMMAND, &cmd);
     /* high acceptance, low mask for 11 bit ID */
     cfg.target = CONF_ACC; 
     cfg.val1    = acm;
     cfg.val2    = acc;
     /* fprintf(stderr,"ACM=%04x\n", acm); */
-    ioctl(can_fd, CONFIG, &cfg);
+    ioctl(can_fd, CAN_IOCTL_CONFIG, &cfg);
 
     cmd.cmd = CMD_START;
-    ioctl(can_fd, COMMAND, &cmd);
+    ioctl(can_fd, CAN_IOCTL_COMMAND, &cmd);
+
+    return 0;
+
+#else /* CAN4LINUXVERSION > 0x0300 */
+
+    ioctl(can_fd CO_LINE_PARA_ARRAY_INDEX, COMMAND, CMD_START);
+    
+    return -1;
+#endif /* CAN4LINUXVERSION > 0x0300 */
 }
 
 /***********************************************************************
@@ -602,9 +675,10 @@ int	set_bitrate(
 	char *line
 	)
 {
+#if CAN4LINUXVERSION > 0x0300
 extern int o_bitrate;
-unsigned char *lptr;
-unsigned char *endptr;			/* unsigned char **endptr; */
+char *lptr;
+char *endptr;			/* unsigned char **endptr; */
 Config_par_t  cfg;
 volatile Command_par_t cmd;
 
@@ -616,31 +690,210 @@ volatile Command_par_t cmd;
 
     o_bitrate  = strtoul(lptr, &endptr, 0);
 
+    if(debug) {
+	printf(" Changing Bitrate to %d Kbit/s\n", o_bitrate);
+    }
 
-    cmd.cmd = CMD_STOP;
-    ioctl(can_fd, COMMAND, &cmd);
-    /* high acceptance, low mask for 11 bit ID */
+    if(o_bitrate == 0) {
+    	/* no change */
+    	return -1;
+    }
+
+    cmd.cmd    = CMD_STOP;
+    ioctl(can_fd, CAN_IOCTL_COMMAND, &cmd);
+    
+#if CAN4LINUXVERSION > 0x0301
+    cfg.cmd    = CAN_IOCTL_CONFIG;
+#endif
     cfg.target = CONF_TIMING; 
-    cfg.val1    = o_bitrate;
-    /* fprintf(stderr,"ACM=%04x\n", acm); */
-    ioctl(can_fd, CONFIG, &cfg);
+    cfg.val1   = o_bitrate;
+    ioctl(can_fd, CAN_IOCTL_CONFIG, &cfg);
 
-    cmd.cmd = CMD_START;
-    ioctl(can_fd, COMMAND, &cmd);
+    cmd.cmd    = CMD_START;
+    ioctl(can_fd, CAN_IOCTL_COMMAND, &cmd);
+
+    return 0;
+
+#else /* CAN4LINUXVERSION > 0x0301 */
+
+    ioctl(can_fd CO_LINE_PARA_ARRAY_INDEX, COMMAND, CMD_START);
+    
+    return -1;
+#endif /* CAN4LINUXVERSION > 0x0301 */
 }
 
-/* fill line with status info */
-void getStat(char *line)
+
+
+/***********************************************************************
+* set_selfreception
+*
+* toggle the self reception ability of the CAN driver
+*
+* A message frame sent out by the controller is copied into
+* the receive queue after succesful transmission.
+*/
+void set_selfreception(int v)
 {
+Config_par_t  cfg;
+
+    if(debug) {
+	printf(" set selfreception to %d\n", v);
+    }
+    cfg.cmd    = CAN_IOCTL_CONFIG;
+    cfg.target = CONF_SELF_RECEPTION; 
+    cfg.val1   = v;
+    ioctl(can_fd, CAN_IOCTL_CONFIG, &cfg);
+
+}
+
+/***********************************************************************
+* set_timestamp
+*
+* toggle the time stamp ability of the CAN driver
+*
+* A received message is copied with a time information
+* into the rx queue.
+* This can take some µs. In order to shorten the CAN ISR.
+* This can be switched off.
+* In this case time stamp information is always zero.
+*/
+void set_timestamp(int v)
+{
+Config_par_t  cfg;
+
+    if(debug) {
+	printf(" set timestamp to %d\n", v);
+    }
+    cfg.cmd    = CAN_IOCTL_CONFIG;
+    cfg.target = CONF_TIMESTAMP; 
+    cfg.val1   = v;
+    ioctl(can_fd, CAN_IOCTL_CONFIG, &cfg);
+
+}
+
+/***********************************************************************
+* getStat
+*
+* fill line with status info 
+*
+* Todo:
+* We need to parameters. First the line for the standard information.
+* Second a line for additional information. At the moment wie use a
+* place holder for the standard information, that the horch add to the
+* string. The standard information must have a fix position.
+*
+* Other solution, getState() fills a structure with all information. 
+*
+* Problem:
+* At the moment the CAN-REport don't work with larger status information
+* correctly. Therefore we add this information in a later version.
+*/
+void getStat(
+	char *line
+	)
+{
+#if CAN4LINUXVERSION > 0x0300
+CanStatusPar_t status;
+#else
 CanSja1000Status_par_t status;
-    ioctl(can_fd, STATUS, &status);
-    sprintf(line, ":: sja1000 %d %d %d %d %d %d",
-    	status.baud,
-    	status.status,
-    	status.error_warning_limit,
-    	status.rx_errors,
-    	status.tx_errors,
-    	status.error_code
-    	);
+#endif
+char *m;
+
+    ioctl(can_fd, CAN_IOCTL_STATUS, &status);
+    switch(status.type) {
+        case  CAN_TYPE_SJA1000:
+            m = "sja1000";
+            break;
+        case  CAN_TYPE_FlexCAN:
+            m = "FlexCan";
+            break;
+        case  CAN_TYPE_TouCAN:
+            m = "TouCAN";
+            break;
+        case  CAN_TYPE_82527:
+            m = "I82527";
+            break;
+        case  CAN_TYPE_TwinCAN:
+            m = "TwinCAN";
+            break;
+        case  CAN_TYPE_BlackFinCAN:
+            m = "BlackFin";
+            break;
+    case CAN_TYPE_UNSPEC:
+    default:
+            m = "unknown";
+            break;
+    }
+	/* controller / Bitrate / Controller State / Warning Limit /
+	   RX Errors / TX Errors / Err Code / place marker for busload /
+	   TX Buffers full/max / RX Buffers full/max
+
+	   We need the place holder for the busload, because we
+	   want add more information to the string. The busload will
+	   added by the horch application.
+	 */
+# ifdef CONFIG_ADDITIONAL_STATUS_INFO
+    /* default - not active! */
+    sprintf(line, ":: %s %4d %2d %2d %2d %2d %2d %%s %d/%d %d/%d",
+        m,
+        status.baud,
+        status.status,
+        status.error_warning_limit,
+        status.rx_errors,
+        status.tx_errors,
+        status.error_code,
+        /* busload */
+        status.tx_buffer_used,
+        status.tx_buffer_size,
+        status.rx_buffer_used
+        status.rx_buffer_size,
+        );
+# else        /* CONFIG_ADDITIONAL_STATUS_INFO */
+    sprintf(line, ":: %s %d %d %d %d %d %d",
+        m,
+        status.baud,
+        status.status,
+        status.error_warning_limit,
+        status.rx_errors,
+        status.tx_errors,
+        status.error_code
+        /* busload */
+        );
+# endif /* CONFIG_ADDITIONAL_STATUS_INFO */
+}
+
+/***********************************************************************
+* getLayer2Version
+* returns driver related part of version Information
+*/
+#define MAX_LAYERVERION_STRING 200
+const char * getLayer2Version(void)
+{
+static char s[MAX_LAYERVERION_STRING];
+FILE * fd;
+char *ps;
+
+    s[0] = 0;
+    
+    strncat(s, " can4linux Version: ",MAX_LAYERVERION_STRING - strlen(s));
+
+    fd = fopen("/proc/sys/Can/version","r");
+    if (fd == NULL) {
+	strncat(s, "???", MAX_LAYERVERION_STRING - strlen(s));
+    } else {
+    	fgets(s + strlen(s), 30, fd);
+    	fclose(fd);
+    }
+
+    /* change control characters to spaces (e.g. linefeed) */
+    ps = &s[0];
+    while (*ps != 0) {
+    	if (*ps < ' ') {
+    	    *ps = ' ';
+    	}
+    	ps++;
+    }
+	    
+    return s;		
 }
 
