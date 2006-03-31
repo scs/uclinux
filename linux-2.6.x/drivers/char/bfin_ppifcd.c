@@ -48,7 +48,7 @@
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
 
-#include "adsp-ppifcd.h"
+#include "bfin_ppifcd.h"
 
 /************************************************************/
 
@@ -433,7 +433,7 @@ static ssize_t ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos
         return 0;
 
         pdev->done=0;
- 
+
     /* Invalidate allocated memory in Data Cache */
 
         blackfin_dcache_invalidate_range((u_long)buf, (u_long)(buf + count));
