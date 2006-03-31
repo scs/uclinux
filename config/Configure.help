@@ -568,6 +568,11 @@ CONFIG_LIB_UC_LIBC_TZ_FROM_FILE
   set up by init during system boot.  This means that changes to the
   time zone take effect immediately instead of requiring a reboot.
 
+CONFIG_LIB_LIBBFDSP
+  libbfdsp is Blackfin DSP Library. It implements DSP funtions 
+  and Math funtions, making use of GCC arch dependent built-in 
+  funtions specially designed for Blackfin DSP instructions.
+
 CONFIG_USER_BOA_WITH_SSL
   Do you want BOA to use SSL for all connections.
 
