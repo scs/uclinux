@@ -1,0 +1,289 @@
+/************************************************************************
+ *
+ * math_const.h 
+ *
+ * (c) Copyright 2002-2004 Analog Devices, Inc.
+ * This file is subject to the terms and conditions of the GNU Library General
+ * Public License. See the file "COPYING.LIB" in the main directory of this
+ * archive for more details.
+ *
+ * Non-LGPL License also available as part of VisualDSP++
+ * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
+ *
+ * $Revision$
+ ************************************************************************/
+
+#ifndef _MATH_CONST_H
+#define _MATH_CONST_H
+
+#include <float.h>
+
+/* definitions */
+#define TWO_PI       6.283185307179586476925286766559
+#define FOUR_PI      12.566370614359172953850573533118
+#define SIX_PI       18.849555921538759430775860299677
+#define PI           3.1415926535897932384626433832795
+#define PI_2         1.5707963267948966192313216916398
+#define PI_3         1.0471975511965977461542144610932
+#define PI_4         0.78539816339744830961566084581988
+#define PI_6         0.52359877559829887307710723054658
+
+#define INV_PI       0.31830988618379067153776752674503
+#define INV_PI_2     0.63661977236758134307553505349006
+
+/* 9 bit accurate PI  */
+#define PI_C1       ((FLOAT)3.140625)
+#define PI_C2       ((FLOAT)9.670257568359375e-4)
+#define PI_C3       ((FLOAT)6.27832957300962643383279502884e-7)
+
+/* 25 bit accurate PI */
+#define PI_DC1      ((DOUBLE)3.1416015625)
+#define PI_DC2      ((DOUBLE)-8.90891033122898079454898834228e-6)
+#define PI_DC3      ((DOUBLE)1.2446744343793226784516935341e-13)
+
+/* 9-bit accurate pi/2 */
+#define PI_2_C1     ((FLOAT)1.5703125)
+#define PI_2_C2     ((FLOAT)4.84466552734375e-4)
+#define PI_2_C3     ((FLOAT)-6.39757837755768678308360248557e-7)
+
+/* 25 bit accurate PI/2 */
+#define PI_2_DC1    ((DOUBLE)1.57080078125)
+#define PI_2_DC2    ((DOUBLE)-4.45445516561449039727449417114e-6)
+#define PI_2_DC3    ((DOUBLE)6.2233721718966133922584676705e-14)
+
+#define LN2         0.69314718055994530941723212145818
+#define INV_LN2     1.4426950408889634073599246810019
+
+#define LN2_C1      ((FLOAT)0.6875)
+#define LN2_C2      ((FLOAT)5.647180560e-3)
+
+#define LN2_DC1     ((DOUBLE)0.693359375)
+#define LN2_DC2     ((DOUBLE)-2.121944400e-4)
+#define LN2_DC3     ((DOUBLE)-5.46905827678e-14)
+
+#define LN_V        0.6931610107421875000
+#define V_2_MINUS1  1.3830277879601902638e-5
+
+#define LN3_2       0.54930614433405484569762261846126
+
+#define LN_E        0.43429448190325182765112891891661
+
+#define LOG2E_MINUS1    0.44269504088896340735992468100189
+
+#define LOGE_10         2.302585092994046e+0L
+
+#define TWO_MINUS_ROOT3     0.26794919243112270647255365849413
+#define SQRT3_MINUS_1       0.73205080756887729352744634150587
+#define SQRT3               1.7320508075688772935274463415059
+#define ROOT_HALF           0.70710678118654752440084436210485
+#define ROOTDOUBLE_HALF     0.70710678118654752440084436210485L
+
+#define EPS_FLOAT           +3.452669830012e-4
+#define EPS_DOUBLE          +1.490116119385e-8
+#define X_MAX               +9.099024257348e3
+#define X_MAX_EXP           +88.722839
+#define X_MIN_EXP           (-87.336544)
+#define XDOUBLE_MAX_EXP     +709.7827128934
+#define XDOUBLE_MIN_EXP     (-708.3964185323)
+#define TANH_BIGNUM         +8.317766166719
+#define TANHDOUBLE_BIGNUM   +18.36840028484
+#define POW_BIGNUM          +2046
+#define POW_SMALLNUM        (-2015)
+#define POWDOUBLE_BIGNUM    +16382
+#define POWDOUBLE_SMALLNUM  (-16350)
+
+#define SIN32_X_MAX        ((FLOAT)102940.0)       /* 2^15 * PI */
+#define SIN40_X_MAX        ((FLOAT)1647095.0)      /* 2^19 * PI */    
+#define SIN64_X_MAX        ((DOUBLE)843314852.0)   /* 2^28 * PI */
+#define COS32_X_MAX        SIN32_X_MAX
+#define COS40_X_MAX        SIN40_X_MAX
+#define COS64_X_MAX        SIN64_X_MAX
+#define TAN32_X_MAX        ((FLOAT)51471.0)        /* 2^15 * PI/2 */
+#define TAN40_X_MAX        ((FLOAT)6588397.0)      /* 2^22 * PI/2 */
+#define TAN64_X_MAX        ((DOUBLE)421657424.0)   /* 2^28 * PI/2 */
+#define COT32_X_MAX        TAN32_X_MAX
+#define COT40_X_MAX        TAN40_X_MAX
+#define COT64_X_MAX        TAN64_X_MAX
+
+
+/* coefficients used for sin/cos */
+
+#define SIN_COEF1   ((FLOAT)-1.666666660883e-1)
+#define SIN_COEF2   ((FLOAT)+8.333330720556e-3)
+#define SIN_COEF3   ((FLOAT)-1.984083282313e-4)
+#define SIN_COEF4   ((FLOAT)+2.752397106775e-6)
+#define SIN_COEF5   ((FLOAT)-2.386834640601e-8)
+
+#define SIND_COEF1   ((DOUBLE)-1.6666666666666665052e-1)
+#define SIND_COEF2   ((DOUBLE)+8.3333333333331650314e-3)
+#define SIND_COEF3   ((DOUBLE)-1.9841269841201840457e-4)
+#define SIND_COEF4   ((DOUBLE)+2.7557319210152756119e-6)
+#define SIND_COEF5   ((DOUBLE)-2.5052106798274584544e-8)
+#define SIND_COEF6   ((DOUBLE)+1.6058936490371589114e-10)
+#define SIND_COEF7   ((DOUBLE)-7.6429178068910467734e-13)
+#define SIND_COEF8   ((DOUBLE)+2.7204790957888846175e-15)
+
+/* coefficients used for tan/cot */
+
+#define TANP_COEF1  ((FLOAT)-1.113614403566e-1)
+#define TANP_COEF2  ((FLOAT)+1.075154738488e-3)
+#define TANQ_COEF0  ((FLOAT)+1.000000000000)
+#define TANQ_COEF1  ((FLOAT)-4.446947720281e-1)
+#define TANQ_COEF2  ((FLOAT)+1.597339213300e-2)
+
+
+#define TANDP_COEF1 ((DOUBLE)-1.3338350006421960681e-1)
+#define TANDP_COEF2 ((DOUBLE)+3.4248878235890589960e-3)
+#define TANDP_COEF3 ((DOUBLE)-1.7861707342254424711e-5)
+#define TANDQ_COEF0 ((DOUBLE)+1.0000000000000000000)
+#define TANDQ_COEF1 ((DOUBLE)-4.6671683339755294240e-1)
+#define TANDQ_COEF2 ((DOUBLE)+2.5663832289440112864e-2)
+#define TANDQ_COEF3 ((DOUBLE)-3.1181531907010027307e-4)
+#define TANDQ_COEF4 ((DOUBLE)+4.9819433993786512270e-7)
+
+/* Coefficients used for asin/acos */
+#define ASINP_COEF1 ((FLOAT)-2.7516555290596)
+#define ASINP_COEF2 ((FLOAT)+2.9058762374859)
+#define ASINP_COEF3 ((FLOAT)-5.9450144193246e-1)
+#define ASINQ_COEF0 ((FLOAT)-1.6509933202424e+1)
+#define ASINQ_COEF1 ((FLOAT)+2.4864728969164e+1)
+#define ASINQ_COEF2 ((FLOAT)-1.0333867072113e+1)
+
+#define ASINDP_COEF1 ((DOUBLE)-2.7368494524164255994e+1)
+#define ASINDP_COEF2 ((DOUBLE)+5.7208227877891731407e+1)
+#define ASINDP_COEF3 ((DOUBLE)-3.9688862997504877339e+1)
+#define ASINDP_COEF4 ((DOUBLE)+1.0152522233806463645e+1)
+#define ASINDP_COEF5 ((DOUBLE)-6.9674573447350646411e-1)
+#define ASINDQ_COEF0 ((DOUBLE)-1.6421096714498560795e+2)
+#define ASINDQ_COEF1 ((DOUBLE)+4.1714430248260412556e+2)
+#define ASINDQ_COEF2 ((DOUBLE)-3.8186303361750149284e+2)
+#define ASINDQ_COEF3 ((DOUBLE)+1.5095270841030604719e+2)
+#define ASINDQ_COEF4 ((DOUBLE)-2.3823859153670238830e+1)
+
+/* Coefficients used for atan/atan2 */
+#define ATANP_COEF0   ((FLOAT)-1.44008344874)
+#define ATANP_COEF1   ((FLOAT)-7.20026848898e-1)
+#define ATANQ_COEF0   ((FLOAT)+4.32025038919)
+#define ATANQ_COEF1   ((FLOAT)+4.75222584599)
+
+#define ATANDP_COEF0  ((DOUBLE)-1.3688768894191926929e1)
+#define ATANDP_COEF1  ((DOUBLE)-2.0505855195861651981e1)
+#define ATANDP_COEF2  ((DOUBLE)-8.4946240351320683534)
+#define ATANDP_COEF3  ((DOUBLE)-8.3758299368150059274e-1)
+#define ATANDQ_COEF0  ((DOUBLE)+4.1066306682575781263e1)
+#define ATANDQ_COEF1  ((DOUBLE)+8.6157349597130242515e1)
+#define ATANDQ_COEF2  ((DOUBLE)+5.9578436142597344465e1)
+#define ATANDQ_COEF3  ((DOUBLE)+1.5024001160028576121e1)
+
+/* Coefficients used for exp */
+#define EXPP_COEF0    ((FLOAT)+2.4999999999992e-1)
+#define EXPP_COEF1    ((FLOAT)+5.9504254977591e-3)
+#define EXPQ_COEF0    ((FLOAT)+5.0000000000000e-1)
+#define EXPQ_COEF1    ((FLOAT)+5.3567517645222e-2)
+#define EXPQ_COEF2    ((FLOAT)+2.9729363682238e-4)
+
+#define EXPDP_COEF0   ((DOUBLE)+2.5000000000000000000e-1)
+#define EXPDP_COEF1   ((DOUBLE)+7.5753180159422776666e-3)
+#define EXPDP_COEF2   ((DOUBLE)+3.1555192765684646356e-5)
+#define EXPDQ_COEF0   ((DOUBLE)+5.0000000000000000000e-1)
+#define EXPDQ_COEF1   ((DOUBLE)+5.6817302698551221787e-2)
+#define EXPDQ_COEF2   ((DOUBLE)+6.3121894374398503557e-4)
+#define EXPDQ_COEF3   ((DOUBLE)+7.5104028399870046114e-7)
+
+/* Coefficients used for sinh / cosh */
+#define SINHP_COEF0   ((FLOAT)+1.0622288837151e3)
+#define SINHP_COEF1   ((FLOAT)+3.1359756456058e1)
+#define SINHP_COEF2   ((FLOAT)+3.4364140358506e-1)
+#define SINHQ_COEF0   ((FLOAT)+6.3733733021822e3)
+#define SINHQ_COEF1   ((FLOAT)-1.3051012509199e2)
+
+#define SINHDP_COEF0  ((DOUBLE)-3.5181283430177117881e5)
+#define SINHDP_COEF1  ((DOUBLE)-1.1563521196851768270e4)
+#define SINHDP_COEF2  ((DOUBLE)-1.6375798202630751372e2)
+#define SINHDP_COEF3  ((DOUBLE)-7.8966127417357099479e-1)
+#define SINHDQ_COEF0  ((DOUBLE)-2.1108770058106271242e6)
+#define SINHDQ_COEF1  ((DOUBLE)+3.6162723109421836460e4)
+#define SINHDQ_COEF2  ((DOUBLE)-2.7773523119650701667e2)
+
+/* Coefficients used for sqrt */
+#define SQRTD_COEF1   ((FLOAT) 0.41731e0)
+#define SQRTD_COEF2   ((FLOAT) 0.59016e0)
+
+/* Coefficients used for tanh */
+#define TANHP_COEF0    ((FLOAT)-2.1063958000245e1)
+#define TANHP_COEF1    ((FLOAT)-9.3363475652401e-1)
+#define TANHQ_COEF0    ((FLOAT)+6.3191874015582e1)
+#define TANHQ_COEF1    ((FLOAT)+2.8077653470471e1)
+
+#define TANHDP_COEF0   ((DOUBLE)-1.6134119023996228053e3)
+#define TANHDP_COEF1   ((DOUBLE)-9.9225929672236083313e1)
+#define TANHDP_COEF2   ((DOUBLE)-9.6437492777225469787e-1)
+#define TANHDQ_COEF0   ((DOUBLE)+4.8402357071988688686e3)
+#define TANHDQ_COEF1   ((DOUBLE)+2.2337720718962312926e3)
+#define TANHDQ_COEF2   ((DOUBLE)+1.1274474380534949335e2)
+
+/* Coefficients used for log/log10 */
+#define LOGA_COEF0     ((FLOAT)-4.649062303464e-1)
+#define LOGA_COEF1     ((FLOAT)+1.360095468621e-2)
+#define LOGB_COEF0     ((FLOAT)-5.578873750242)
+
+#define LOGDA_COEF0    ((DOUBLE)-6.4124943423745581147e1)
+#define LOGDA_COEF1    ((DOUBLE)+1.6383943563021534222e1)
+#define LOGDA_COEF2    ((DOUBLE)-7.8956112887491257267e-1)
+#define LOGDB_COEF0    ((DOUBLE)-7.6949932108494879777e2)
+#define LOGDB_COEF1    ((DOUBLE)+3.1203222091924532844e2)
+#define LOGDB_COEF2    ((DOUBLE)-3.5667977739034646171e1)
+
+/* Coefficients used for pow */
+#define POWP_COEF1     ((FLOAT)+8.33333286245e-2)
+#define POWP_COEF2     ((FLOAT)+1.25064850052e-2)
+
+#define POWDP_COEF1    ((DOUBLE)+8.3333333333333211405e-2)
+#define POWDP_COEF2    ((DOUBLE)+1.2500000000503799174e-2)
+#define POWDP_COEF3    ((DOUBLE)+2.2321421285924258967e-3)
+#define POWDP_COEF4    ((DOUBLE)+4.3445775672163119635e-4)
+
+#define POWQ_COEF1     ((FLOAT)+6.93147180556341e-1)
+#define POWQ_COEF2     ((FLOAT)+2.40226506144710e-1)
+#define POWQ_COEF3     ((FLOAT)+5.55040488130765e-2)
+#define POWQ_COEF4     ((FLOAT)+9.61620659583789e-3)
+#define POWQ_COEF5     ((FLOAT)+1.30525515942810e-3)
+
+#define POWDQ_COEF1    ((DOUBLE)+6.9314718055994529629e-1)
+#define POWDQ_COEF2    ((DOUBLE)+2.4022650695909537056e-1)
+#define POWDQ_COEF3    ((DOUBLE)+5.5504108664085595326e-2)
+#define POWDQ_COEF4    ((DOUBLE)+9.6181290595172416964e-3)
+#define POWDQ_COEF5    ((DOUBLE)+1.3333541313585784703e-3)
+#define POWDQ_COEF6    ((DOUBLE)+1.5400290440989764601e-4)
+#define POWDQ_COEF7    ((DOUBLE)+1.4928852680595608186e-5)
+
+/* macros */
+#define REDUCE_FLOAT1(x, y, tmpflt, tmpint)     \
+    {                                           \
+        tmpflt = MPY(16.0, x);                  \
+        tmpint = TO_LONG(tmpflt);               \
+        tmpflt = TO_FLOAT(tmpint);              \
+        y = MPY(tmpflt, 0.0625);                \
+    }
+
+#define REDUCE_FLOAT2(x, y, tmpflt, tmpint)     \
+    {                                           \
+        tmpflt = MPY(16.0, x);                  \
+        modff(tmpflt, &y);                      \
+        y = MPY(y, 0.0625);                     \
+    }
+
+#define REDUCE_FLOAT(x, y)                      \
+    {                                           \
+        modff(MPY(16.0, x), &y);                \
+        y = MPY(y, 0.0625);                     \
+    }
+
+#define REDUCE_DOUBLE(x, y)                     \
+    {                                           \
+        modfd(MPYD(16.0, x), &y);               \
+        y = MPYD(y, 0.0625);                    \
+    }
+
+
+#endif

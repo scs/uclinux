@@ -1,0 +1,667 @@
+mkdir -p _532
+cd _532 ; \
+make -f ../Makefile \
+	PART=532 PART_OPT=-Os \
+	CSYNC= CSYNC_OPT= \
+	 default
+make[1]: Entering directory `/home/adam/workspace/libdsp_port/0320_libdsp/src/_532'
+Compiling ../norm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o norm.o ../norm.c
+Compiling ../cartesian.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cartesian.o ../cartesian.c
+Assembling ../cabfr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cabfr16.o ../cabfr16.asm
+Assembling ../cdiv_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cdiv_fr16.o ../cdiv_fr16.asm
+Assembling ../cmul_fr32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cmul_fr32.o ../cmul_fr32.asm
+Compiling ../twiddle_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o twiddle_fr16.o ../twiddle_fr16.c
+Compiling ../twidfft2d_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o twidfft2d_fr16.o ../twidfft2d_fr16.c
+Compiling ../twidfftrad2_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o twidfftrad2_fr16.o ../twidfftrad2_fr16.c
+Compiling ../twidfftrad4_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o twidfftrad4_fr16.o ../twidfftrad4_fr16.c
+Compiling ../twidfftf_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o twidfftf_fr16.o ../twidfftf_fr16.c
+Assembling ../a_compress16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o a_compress16.o ../a_compress16.asm
+Assembling ../a_expand16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o a_expand16.o ../a_expand16.asm
+Assembling ../cfftf_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cfftf_fr16.o ../cfftf_fr16.asm
+Assembling ../cfftrad4_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cfftrad4_fr16.o ../cfftrad4_fr16.asm
+Assembling ../cfir_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cfir_fr16.o ../cfir_fr16.asm
+Assembling ../cifftrad4_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cifftrad4_fr16.o ../cifftrad4_fr16.asm
+Assembling ../conv2d3x3_asm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o conv2d3x3_asm.o ../conv2d3x3_asm.asm
+Assembling ../conv2dasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o conv2dasm.o ../conv2dasm.asm
+Assembling ../convolve_asm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o convolve_asm.o ../convolve_asm.asm
+Assembling ../cr2fftnasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cr2fftnasm.o ../cr2fftnasm.asm
+Assembling ../cr2x2fftnasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cr2x2fftnasm.o ../cr2x2fftnasm.asm
+Assembling ../fir_decima16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fir_decima16.o ../fir_decima16.asm
+Assembling ../fir_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fir_fr16.o ../fir_fr16.asm
+Assembling ../fir_interp16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fir_interp16.o ../fir_interp16.asm
+../fir_interp16.asm:229:11: warning: "/*" within comment
+../fir_interp16.asm:348:11: warning: "/*" within comment
+Assembling ../i2fftnasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o i2fftnasm.o ../i2fftnasm.asm
+Assembling ../iir_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o iir_fr16.o ../iir_fr16.asm
+Assembling ../ir2x2fftasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o ir2x2fftasm.o ../ir2x2fftasm.asm
+Assembling ../mu_compress16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o mu_compress16.o ../mu_compress16.asm
+Assembling ../mu_expand16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o mu_expand16.o ../mu_expand16.asm
+Assembling ../r2fftnasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o r2fftnasm.o ../r2fftnasm.asm
+Assembling ../r2x2fftnasm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o r2x2fftnasm.o ../r2x2fftnasm.asm
+Assembling ../rfftrad4asm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o rfftrad4asm.o ../rfftrad4asm.asm
+Compiling ../cmatmmlt.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cmatmmlt.o ../cmatmmlt.c
+Compiling ../matmmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o matmmltf.o ../matmmltf.c
+Compiling ../transpm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o transpm.o ../transpm.c
+Assembling ../cmatmmlt_asm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cmatmmlt_asm.o ../cmatmmlt_asm.asm
+Assembling ../matmmlt_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o matmmlt_fr16.o ../matmmlt_fr16.asm
+Assembling ../transpm_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o transpm_fr16.o ../transpm_fr16.asm
+Compiling ../autocoh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o autocoh.o ../autocoh.c
+Compiling ../autocorr.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o autocorr.o ../autocorr.c
+../autocorr.c: In function `_autocorrf':
+../autocorr.c:21: warning: unused variable `temp1'
+../autocorr.c:21: warning: unused variable `temp2'
+Compiling ../crosscoh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o crosscoh.o ../crosscoh.c
+../crosscoh.c: In function `_crosscohf':
+../crosscoh.c:23: warning: unused variable `temp1'
+../crosscoh.c:23: warning: unused variable `temp2'
+Compiling ../crosscorr.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o crosscorr.o ../crosscorr.c
+../crosscorr.c: In function `_crosscorrf':
+../crosscorr.c:22: warning: unused variable `temp1'
+../crosscorr.c:22: warning: unused variable `temp2'
+Compiling ../histogram.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o histogram.o ../histogram.c
+Compiling ../mean.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o mean.o ../mean.c
+Compiling ../means.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o means.o ../means.c
+../means.c: In function `_meansf':
+../means.c:17: warning: unused variable `m'
+Compiling ../rms.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o rms.o ../rms.c
+Compiling ../var.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o var.o ../var.c
+Assembling ../autocoh_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o autocoh_fr16.o ../autocoh_fr16.asm
+Assembling ../autocorr_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o autocorr_fr16.o ../autocorr_fr16.asm
+Assembling ../crosscoh_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o crosscoh_fr16.o ../crosscoh_fr16.asm
+Assembling ../crosscorr_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o crosscorr_fr16.o ../crosscorr_fr16.asm
+Assembling ../histogram_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o histogram_fr16.o ../histogram_fr16.asm
+Assembling ../mean_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o mean_fr16.o ../mean_fr16.asm
+Assembling ../rms_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o rms_fr16.o ../rms_fr16.asm
+Assembling ../var_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o var_fr16.o ../var_fr16.asm
+Assembling ../zerocross.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o zerocross.o ../zerocross.asm
+Assembling ../zero_crossf.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o zero_crossf.o ../zero_crossf.asm
+Assembling ../acos_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o acos_fr16.o ../acos_fr16.asm
+Assembling ../asin_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o asin_fr16.o ../asin_fr16.asm
+Assembling ../atan_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o atan_fr16.o ../atan_fr16.asm
+Assembling ../atan2_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o atan2_fr16.o ../atan2_fr16.asm
+Assembling ../cos_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cos_fr16.o ../cos_fr16.asm
+Assembling ../sin_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sin_fr16.o ../sin_fr16.asm
+Assembling ../sqrt_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sqrt_fr16.o ../sqrt_fr16.asm
+Assembling ../tan_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o tan_fr16.o ../tan_fr16.asm
+Compiling ../cot.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cot.o ../cot.c
+Compiling ../asin.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o asin.o ../asin.c
+Compiling ../atan.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o atan.o ../atan.c
+Compiling ../atan2.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o atan2.o ../atan2.c
+Compiling ../ceil.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o ceil.o ../ceil.c
+Compiling ../cos.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cos.o ../cos.c
+Compiling ../cosh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cosh.o ../cosh.c
+Compiling ../exp.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o exp.o ../exp.c
+../exp.c: In function `_expf':
+../exp.c:46: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../floor.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o floor.o ../floor.c
+Compiling ../fmod.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fmod.o ../fmod.c
+../fmod.c: In function `_fmodf':
+../fmod.c:42: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../frexp.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o frexp.o ../frexp.c
+Compiling ../log.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o log.o ../log.c
+../log.c: In function `_logf':
+../log.c:45: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../log10.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o log10.o ../log10.c
+../log10.c: In function `_log10f':
+../log10.c:21: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../modf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o modf.o ../modf.c
+Compiling ../pow.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o pow.o ../pow.c
+../pow.c: In function `_powf':
+../pow.c:56: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../sin.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o sin.o ../sin.c
+Compiling ../sinh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o sinh.o ../sinh.c
+Compiling ../tan.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o tan.o ../tan.c
+Compiling ../tanh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o tanh.o ../tanh.c
+Assembling ../sqrt.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sqrt.o ../sqrt.asm
+Compiling ../cvecdotf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecdotf.o ../cvecdotf.c
+Compiling ../cvecsaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecsaddf.o ../cvecsaddf.c
+Compiling ../cvecsmlt.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecsmlt.o ../cvecsmlt.c
+Compiling ../cvecssubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecssubf.o ../cvecssubf.c
+Compiling ../cvecvaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecvaddf.o ../cvecvaddf.c
+Compiling ../cvecvmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecvmltf.o ../cvecvmltf.c
+Compiling ../cvecvsubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o cvecvsubf.o ../cvecvsubf.c
+Compiling ../vecdotf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecdotf.o ../vecdotf.c
+Compiling ../vecmaxf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecmaxf.o ../vecmaxf.c
+Compiling ../vecminf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecminf.o ../vecminf.c
+Compiling ../vecsaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecsaddf.o ../vecsaddf.c
+Compiling ../vecsmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecsmltf.o ../vecsmltf.c
+Compiling ../vecssubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecssubf.o ../vecssubf.c
+Compiling ../vecvaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecvaddf.o ../vecvaddf.c
+Compiling ../vecvmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecvmltf.o ../vecvmltf.c
+Compiling ../vecvsubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vecvsubf.o ../vecvsubf.c
+Compiling ../vmaxlocf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vmaxlocf.o ../vmaxlocf.c
+Compiling ../vminlocf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o vminlocf.o ../vminlocf.c
+Assembling ../csadd.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o csadd.o ../csadd.asm
+Assembling ../cssub.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cssub.o ../cssub.asm
+Assembling ../cvecdot_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cvecdot_fr16.o ../cvecdot_fr16.asm
+Assembling ../cvecsmult_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cvecsmult_fr16.o ../cvecsmult_fr16.asm
+Assembling ../cvecvmult_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cvecvmult_fr16.o ../cvecvmult_fr16.asm
+Assembling ../cvvadd.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cvvadd.o ../cvvadd.asm
+Assembling ../cvvsub.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cvvsub.o ../cvvsub.asm
+Assembling ../vecdot.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vecdot.o ../vecdot.asm
+Assembling ../vmax.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vmax.o ../vmax.asm
+Assembling ../vmaxloc.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vmaxloc.o ../vmaxloc.asm
+Assembling ../vmin.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vmin.o ../vmin.asm
+Assembling ../vminloc.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vminloc.o ../vminloc.asm
+Assembling ../vsadd.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vsadd.o ../vsadd.asm
+Assembling ../vsmlt.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vsmlt.o ../vsmlt.asm
+Assembling ../vssub.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vssub.o ../vssub.asm
+Assembling ../vvadd.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vvadd.o ../vvadd.asm
+Assembling ../vvmlt.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vvmlt.o ../vvmlt.asm
+Assembling ../vvsub.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o vvsub.o ../vvsub.asm
+Compiling ../Lib_cos16_2PIx.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o Lib_cos16_2PIx.o ../Lib_cos16_2PIx.c
+Compiling ../gen_bart.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_bart.o ../gen_bart.c
+Compiling ../gen_black.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_black.o ../gen_black.c
+../gen_black.c: In function `gen_blackman_fr16':
+../gen_black.c:92: warning: suggest parentheses around comparison in operand of &
+Compiling ../gen_gauss.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_gauss.o ../gen_gauss.c
+Compiling ../gen_hamm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_hamm.o ../gen_hamm.c
+../gen_hamm.c: In function `gen_hamming_fr16':
+../gen_hamm.c:89: warning: suggest parentheses around comparison in operand of &
+Compiling ../gen_hann.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_hann.o ../gen_hann.c
+../gen_hann.c: In function `gen_hanning_fr16':
+../gen_hann.c:79: warning: suggest parentheses around comparison in operand of &
+Compiling ../gen_harris.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_harris.o ../gen_harris.c
+../gen_harris.c: In function `gen_harris_fr16':
+../gen_harris.c:99: warning: suggest parentheses around comparison in operand of &
+Compiling ../gen_kaiser.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_kaiser.o ../gen_kaiser.c
+../gen_kaiser.c: In function `gen_kaiser_fr16':
+../gen_kaiser.c:135: warning: suggest parentheses around comparison in operand of &
+Compiling ../gen_rect.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_rect.o ../gen_rect.c
+Compiling ../gen_trian.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_trian.o ../gen_trian.c
+Compiling ../gen_vonh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o gen_vonh.o ../gen_vonh.c
+Compiling ../counti.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o counti.o ../counti.c
+Compiling ../countl.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o countl.o ../countl.c
+Compiling ../fclipf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fclipf.o ../fclipf.c
+Compiling ../fmaxf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fmaxf.o ../fmaxf.c
+Compiling ../fminf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fminf.o ../fminf.c
+Compiling ../max.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o max.o ../max.c
+Compiling ../max16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o max16.o ../max16.c
+Compiling ../min.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o min.o ../min.c
+Compiling ../min16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o min16.o ../min16.c
+Compiling ../signf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o signf.o ../signf.c
+../signf.c: In function `_copysignf':
+../signf.c:24: warning: dereferencing type-punned pointer will break strict-aliasing rules
+../signf.c:25: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling ../fl32max.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fl32max.o ../fl32max.c
+Compiling ../fl32min.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o fl32min.o ../fl32min.c
+Compiling ../trncr4u4.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -o trncr4u4.o ../trncr4u4.c
+Assembling ../clip_asm.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o clip_asm.o ../clip_asm.asm
+Assembling ../clip_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o clip_fr16.o ../clip_fr16.asm
+Assembling ../div16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o div16.o ../div16.asm
+Assembling ../divfract32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o divfract32.o ../divfract32.asm
+Assembling ../fltcmp.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fltcmp.o ../fltcmp.asm
+Assembling ../fltsif.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fltsif.o ../fltsif.asm
+Assembling ../fltuif.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fltuif.o ../fltuif.asm
+Assembling ../fpadd.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fpadd.o ../fpadd.asm
+Assembling ../fpdiv.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fpdiv.o ../fpdiv.asm
+Assembling ../fpmult.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fpmult.o ../fpmult.asm
+Assembling ../fpsub.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o fpsub.o ../fpsub.asm
+Assembling ../roundflti.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o roundflti.o ../roundflti.asm
+Assembling ../sdiv32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sdiv32.o ../sdiv32.asm
+Assembling ../sign_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sign_fr16.o ../sign_fr16.asm
+Assembling ../srem32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o srem32.o ../srem32.asm
+Assembling ../f32toi32z.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o f32toi32z.o ../f32toi32z.asm
+Assembling ../f32tou32z.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o f32tou32z.o ../f32tou32z.asm
+Assembling ../udiv32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o udiv32.o ../udiv32.asm
+Assembling ../urem32.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o urem32.o ../urem32.asm
+Assembling ../isinf.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o isinf.o ../isinf.asm
+Assembling ../isnan.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o isnan.o ../isnan.asm
+Assembling ../ashfti64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o ashfti64.o ../ashfti64.asm
+Assembling ../lshfti64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o lshfti64.o ../lshfti64.asm
+Assembling ../muli64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o muli64.o ../muli64.asm
+Assembling ../mulu64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o mulu64.o ../mulu64.asm
+Assembling ../sdiv64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o sdiv64.o ../sdiv64.asm
+Assembling ../udiv64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o udiv64.o ../udiv64.asm
+Assembling ../remi64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o remi64.o ../remi64.asm
+Assembling ../remu64.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o remu64.o ../remu64.asm
+Assembling ../trncr4i8.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o trncr4i8.o ../trncr4i8.asm
+Assembling ../trncr4u8.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o trncr4u8.o ../trncr4u8.asm
+Assembling ../floatdisf.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o floatdisf.o ../floatdisf.asm
+Assembling ../floatdiuf.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o floatdiuf.o ../floatdiuf.asm
+Assembling ../absfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o absfl16.o ../absfl16.S
+Assembling ../addfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o addfl16.o ../addfl16.S
+Assembling ../cmpfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o cmpfl16.o ../cmpfl16.S
+Assembling ../divfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o divfl16.o ../divfl16.S
+Assembling ../fitsfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fitsfl16.o ../fitsfl16.S
+Assembling ../fl162fl.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl162fl.o ../fl162fl.S
+Assembling ../fl162fr16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl162fr16.o ../fl162fr16.S
+Assembling ../fl2fl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl2fl16.o ../fl2fl16.S
+Assembling ../fr162fl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fr162fl16.o ../fr162fl16.S
+Assembling ../mulfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o mulfl16.o ../mulfl16.S
+Assembling ../negfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o negfl16.o ../negfl16.S
+Assembling ../normfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o normfl16.o ../normfl16.S
+Assembling ../subfl16.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o subfl16.o ../subfl16.S
+Assembling ../absfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o absfl32.o ../absfl32.S
+Assembling ../addfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o addfl32.o ../addfl32.S
+Assembling ../cmpfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o cmpfl32.o ../cmpfl32.S
+Assembling ../divfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o divfl32.o ../divfl32.S
+Assembling ../fl322fl.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl322fl.o ../fl322fl.S
+Assembling ../fl322fr32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl322fr32.o ../fl322fr32.S
+Assembling ../fl2fl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fl2fl32.o ../fl2fl32.S
+Assembling ../fr322fl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o fr322fl32.o ../fr322fl32.S
+Assembling ../mulfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o mulfl32.o ../mulfl32.S
+Assembling ../negfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o negfl32.o ../negfl32.S
+Assembling ../normfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o normfl32.o ../normfl32.S
+Assembling ../subfl32.S
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -o subfl32.o ../subfl32.S
+Linking libdsp532.a ...
+bfin-uclinux-ar r libdsp532.a norm.o cartesian.o       cabfr16.o cdiv_fr16.o cmul_fr32.o twiddle_fr16.o twidfft2d_fr16.o twidfftrad2_fr16.o twidfftrad4_fr16.o twidfftf_fr16.o       a_compress16.o a_expand16.o cfftf_fr16.o cfftrad4_fr16.o cfir_fr16.o cifftrad4_fr16.o conv2d3x3_asm.o conv2dasm.o convolve_asm.o cr2fftnasm.o cr2x2fftnasm.o fir_decima16.o fir_fr16.o fir_interp16.o i2fftnasm.o iir_fr16.o ir2x2fftasm.o mu_compress16.o mu_expand16.o r2fftnasm.o r2x2fftnasm.o rfftrad4asm.o cmatmmlt.o matmmltf.o transpm.o       cmatmmlt_asm.o matmmlt_fr16.o transpm_fr16.o autocoh.o autocorr.o crosscoh.o crosscorr.o histogram.o mean.o means.o rms.o var.o              autocoh_fr16.o autocorr_fr16.o crosscoh_fr16.o crosscorr_fr16.o histogram_fr16.o mean_fr16.o rms_fr16.o var_fr16.o zerocross.o zero_crossf.o        acos_fr16.o asin_fr16.o atan_fr16.o atan2_fr16.o cos_fr16.o sin_fr16.o sqrt_fr16.o tan_fr16.o cot.o        asin.o atan.o atan2.o ceil.o cos.o cosh.o exp.o floor.o fmod.o frexp.o log.o log10.o modf.o pow.o sin.o sinh.o tan.o tanh.o       sqrt.o  cvecdotf.o cvecsaddf.o cvecsmlt.o cvecssubf.o cvecvaddf.o cvecvmltf.o cvecvsubf.o vecdotf.o vecmaxf.o vecminf.o vecsaddf.o vecsmltf.o vecssubf.o vecvaddf.o vecvmltf.o vecvsubf.o vmaxlocf.o vminlocf.o       csadd.o cssub.o cvecdot_fr16.o cvecsmult_fr16.o cvecvmult_fr16.o cvvadd.o cvvsub.o vecdot.o vmax.o vmaxloc.o vmin.o vminloc.o vsadd.o vsmlt.o vssub.o vvadd.o vvmlt.o vvsub.o Lib_cos16_2PIx.o gen_bart.o gen_black.o gen_gauss.o gen_hamm.o gen_hann.o gen_harris.o gen_kaiser.o gen_rect.o gen_trian.o gen_vonh.o        counti.o countl.o fclipf.o fmaxf.o fminf.o max.o max16.o min.o min16.o signf.o fl32max.o fl32min.o trncr4u4.o        clip_asm.o clip_fr16.o div16.o divfract32.o fltcmp.o fltsif.o fltuif.o fpadd.o fpdiv.o fpmult.o fpsub.o roundflti.o sdiv32.o sign_fr16.o srem32.o f32toi32z.o f32tou32z.o udiv32.o urem32.o isinf.o isnan.o ashfti64.o lshfti64.o muli64.o mulu64.o sdiv64.o udiv64.o remi64.o remu64.o trncr4i8.o trncr4u8.o floatdisf.o floatdiuf.o  absfl16.o addfl16.o cmpfl16.o divfl16.o fitsfl16.o fl162fl.o fl162fr16.o fl2fl16.o fr162fl16.o mulfl16.o negfl16.o normfl16.o subfl16.o  absfl32.o addfl32.o cmpfl32.o divfl32.o fl322fl.o fl322fr32.o fl2fl32.o fr322fl32.o mulfl32.o negfl32.o normfl32.o subfl32.o          
+bfin-uclinux-ar: creating libdsp532.a
+Compiling M3 reserved ../norm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o norm_m3res.o ../norm.c
+Compiling M3 reserved ../cartesian.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cartesian_m3res.o ../cartesian.c
+Compiling M3 reserved ../twiddle_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o twiddle_fr16_m3res.o ../twiddle_fr16.c
+Compiling M3 reserved ../twidfft2d_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o twidfft2d_fr16_m3res.o ../twidfft2d_fr16.c
+Compiling M3 reserved ../twidfftrad2_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o twidfftrad2_fr16_m3res.o ../twidfftrad2_fr16.c
+Compiling M3 reserved ../twidfftrad4_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o twidfftrad4_fr16_m3res.o ../twidfftrad4_fr16.c
+Compiling M3 reserved ../twidfftf_fr16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o twidfftf_fr16_m3res.o ../twidfftf_fr16.c
+Assembling ../cfftrad4_m3res_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cfftrad4_m3res_fr16.o ../cfftrad4_m3res_fr16.asm
+Assembling ../cifftrad4_m3res_fr16.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cifftrad4_m3res_fr16.o ../cifftrad4_m3res_fr16.asm
+Assembling ../cr2fftnasm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cr2fftnasm_m3res.o ../cr2fftnasm_m3res.asm
+Assembling ../cr2x2fftnasm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o cr2x2fftnasm_m3res.o ../cr2x2fftnasm_m3res.asm
+Assembling ../i2fftnasm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o i2fftnasm_m3res.o ../i2fftnasm_m3res.asm
+Assembling ../ir2x2fftasm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o ir2x2fftasm_m3res.o ../ir2x2fftasm_m3res.asm
+Assembling ../r2x2fftnasm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o r2x2fftnasm_m3res.o ../r2x2fftnasm_m3res.asm
+Assembling ../rfftrad4asm_m3res.asm
+bfin-uclinux-gcc  -c  -Wall -D__ADSPBLACKFIN__ -x assembler-with-cpp -o rfftrad4asm_m3res.o ../rfftrad4asm_m3res.asm
+Compiling M3 reserved ../cmatmmlt.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cmatmmlt_m3res.o ../cmatmmlt.c
+Compiling M3 reserved ../matmmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o matmmltf_m3res.o ../matmmltf.c
+Compiling M3 reserved ../transpm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o transpm_m3res.o ../transpm.c
+Compiling M3 reserved ../autocoh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o autocoh_m3res.o ../autocoh.c
+Compiling M3 reserved ../autocorr.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o autocorr_m3res.o ../autocorr.c
+../autocorr.c: In function `_autocorrf':
+../autocorr.c:21: warning: unused variable `temp1'
+../autocorr.c:21: warning: unused variable `temp2'
+Compiling M3 reserved ../crosscoh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o crosscoh_m3res.o ../crosscoh.c
+../crosscoh.c: In function `_crosscohf':
+../crosscoh.c:23: warning: unused variable `temp1'
+../crosscoh.c:23: warning: unused variable `temp2'
+Compiling M3 reserved ../crosscorr.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o crosscorr_m3res.o ../crosscorr.c
+../crosscorr.c: In function `_crosscorrf':
+../crosscorr.c:22: warning: unused variable `temp1'
+../crosscorr.c:22: warning: unused variable `temp2'
+Compiling M3 reserved ../histogram.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o histogram_m3res.o ../histogram.c
+Compiling M3 reserved ../mean.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o mean_m3res.o ../mean.c
+Compiling M3 reserved ../means.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o means_m3res.o ../means.c
+../means.c: In function `_meansf':
+../means.c:17: warning: unused variable `m'
+Compiling M3 reserved ../rms.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o rms_m3res.o ../rms.c
+Compiling M3 reserved ../var.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o var_m3res.o ../var.c
+Compiling M3 reserved ../cot.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cot_m3res.o ../cot.c
+Compiling M3 reserved ../asin.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o asin_m3res.o ../asin.c
+Compiling M3 reserved ../atan.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o atan_m3res.o ../atan.c
+Compiling M3 reserved ../atan2.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o atan2_m3res.o ../atan2.c
+Compiling M3 reserved ../ceil.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o ceil_m3res.o ../ceil.c
+Compiling M3 reserved ../cos.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cos_m3res.o ../cos.c
+Compiling M3 reserved ../cosh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cosh_m3res.o ../cosh.c
+Compiling M3 reserved ../exp.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o exp_m3res.o ../exp.c
+../exp.c: In function `_expf':
+../exp.c:46: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../floor.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o floor_m3res.o ../floor.c
+Compiling M3 reserved ../fmod.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fmod_m3res.o ../fmod.c
+../fmod.c: In function `_fmodf':
+../fmod.c:42: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../frexp.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o frexp_m3res.o ../frexp.c
+Compiling M3 reserved ../log.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o log_m3res.o ../log.c
+../log.c: In function `_logf':
+../log.c:45: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../log10.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o log10_m3res.o ../log10.c
+../log10.c: In function `_log10f':
+../log10.c:21: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../modf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o modf_m3res.o ../modf.c
+Compiling M3 reserved ../pow.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o pow_m3res.o ../pow.c
+../pow.c: In function `_powf':
+../pow.c:56: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../sin.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o sin_m3res.o ../sin.c
+Compiling M3 reserved ../sinh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o sinh_m3res.o ../sinh.c
+Compiling M3 reserved ../tan.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o tan_m3res.o ../tan.c
+Compiling M3 reserved ../tanh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o tanh_m3res.o ../tanh.c
+Compiling M3 reserved ../cvecdotf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecdotf_m3res.o ../cvecdotf.c
+Compiling M3 reserved ../cvecsaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecsaddf_m3res.o ../cvecsaddf.c
+Compiling M3 reserved ../cvecsmlt.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecsmlt_m3res.o ../cvecsmlt.c
+Compiling M3 reserved ../cvecssubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecssubf_m3res.o ../cvecssubf.c
+Compiling M3 reserved ../cvecvaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecvaddf_m3res.o ../cvecvaddf.c
+Compiling M3 reserved ../cvecvmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecvmltf_m3res.o ../cvecvmltf.c
+Compiling M3 reserved ../cvecvsubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o cvecvsubf_m3res.o ../cvecvsubf.c
+Compiling M3 reserved ../vecdotf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecdotf_m3res.o ../vecdotf.c
+Compiling M3 reserved ../vecmaxf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecmaxf_m3res.o ../vecmaxf.c
+Compiling M3 reserved ../vecminf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecminf_m3res.o ../vecminf.c
+Compiling M3 reserved ../vecsaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecsaddf_m3res.o ../vecsaddf.c
+Compiling M3 reserved ../vecsmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecsmltf_m3res.o ../vecsmltf.c
+Compiling M3 reserved ../vecssubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecssubf_m3res.o ../vecssubf.c
+Compiling M3 reserved ../vecvaddf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecvaddf_m3res.o ../vecvaddf.c
+Compiling M3 reserved ../vecvmltf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecvmltf_m3res.o ../vecvmltf.c
+Compiling M3 reserved ../vecvsubf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vecvsubf_m3res.o ../vecvsubf.c
+Compiling M3 reserved ../vmaxlocf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vmaxlocf_m3res.o ../vmaxlocf.c
+Compiling M3 reserved ../vminlocf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o vminlocf_m3res.o ../vminlocf.c
+Compiling M3 reserved ../Lib_cos16_2PIx.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o Lib_cos16_2PIx_m3res.o ../Lib_cos16_2PIx.c
+Compiling M3 reserved ../gen_bart.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_bart_m3res.o ../gen_bart.c
+Compiling M3 reserved ../gen_black.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_black_m3res.o ../gen_black.c
+../gen_black.c: In function `gen_blackman_fr16':
+../gen_black.c:92: warning: suggest parentheses around comparison in operand of &
+Compiling M3 reserved ../gen_gauss.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_gauss_m3res.o ../gen_gauss.c
+Compiling M3 reserved ../gen_hamm.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_hamm_m3res.o ../gen_hamm.c
+../gen_hamm.c: In function `gen_hamming_fr16':
+../gen_hamm.c:89: warning: suggest parentheses around comparison in operand of &
+Compiling M3 reserved ../gen_hann.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_hann_m3res.o ../gen_hann.c
+../gen_hann.c: In function `gen_hanning_fr16':
+../gen_hann.c:79: warning: suggest parentheses around comparison in operand of &
+Compiling M3 reserved ../gen_harris.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_harris_m3res.o ../gen_harris.c
+../gen_harris.c: In function `gen_harris_fr16':
+../gen_harris.c:99: warning: suggest parentheses around comparison in operand of &
+Compiling M3 reserved ../gen_kaiser.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_kaiser_m3res.o ../gen_kaiser.c
+../gen_kaiser.c: In function `gen_kaiser_fr16':
+../gen_kaiser.c:135: warning: suggest parentheses around comparison in operand of &
+Compiling M3 reserved ../gen_rect.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_rect_m3res.o ../gen_rect.c
+Compiling M3 reserved ../gen_trian.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_trian_m3res.o ../gen_trian.c
+Compiling M3 reserved ../gen_vonh.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o gen_vonh_m3res.o ../gen_vonh.c
+Compiling M3 reserved ../counti.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o counti_m3res.o ../counti.c
+Compiling M3 reserved ../countl.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o countl_m3res.o ../countl.c
+Compiling M3 reserved ../fclipf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fclipf_m3res.o ../fclipf.c
+Compiling M3 reserved ../fmaxf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fmaxf_m3res.o ../fmaxf.c
+Compiling M3 reserved ../fminf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fminf_m3res.o ../fminf.c
+Compiling M3 reserved ../max.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o max_m3res.o ../max.c
+Compiling M3 reserved ../max16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o max16_m3res.o ../max16.c
+Compiling M3 reserved ../min.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o min_m3res.o ../min.c
+Compiling M3 reserved ../min16.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o min16_m3res.o ../min16.c
+Compiling M3 reserved ../signf.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o signf_m3res.o ../signf.c
+../signf.c: In function `_copysignf':
+../signf.c:24: warning: dereferencing type-punned pointer will break strict-aliasing rules
+../signf.c:25: warning: dereferencing type-punned pointer will break strict-aliasing rules
+Compiling M3 reserved ../fl32max.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fl32max_m3res.o ../fl32max.c
+Compiling M3 reserved ../fl32min.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o fl32min_m3res.o ../fl32min.c
+Compiling M3 reserved ../trncr4u4.c
+bfin-uclinux-gcc  -c -Os  -Wall -D__ADSPBLACKFIN__ -I ../../include  -ffixed-M3 -o trncr4u4_m3res.o ../trncr4u4.c
+Linking libdspm3res532.a ...
+bfin-uclinux-ar r libdspm3res532.a norm_m3res.o cartesian_m3res.o cabfr16.o cdiv_fr16.o cmul_fr32.o twiddle_fr16_m3res.o twidfft2d_fr16_m3res.o twidfftrad2_fr16_m3res.o twidfftrad4_fr16_m3res.o twidfftf_fr16_m3res.o a_compress16.o a_expand16.o cfftf_fr16.o cfftrad4_m3res_fr16.o cfir_fr16.o cifftrad4_m3res_fr16.o conv2d3x3_asm.o conv2dasm.o convolve_asm.o cr2fftnasm_m3res.o cr2x2fftnasm_m3res.o fir_decima16.o fir_fr16.o fir_interp16.o i2fftnasm_m3res.o iir_fr16.o ir2x2fftasm_m3res.o mu_compress16.o mu_expand16.o r2fftnasm.o r2x2fftnasm_m3res.o rfftrad4asm_m3res.o cmatmmlt_m3res.o matmmltf_m3res.o transpm_m3res.o cmatmmlt_asm.o matmmlt_fr16.o transpm_fr16.o autocoh_m3res.o autocorr_m3res.o crosscoh_m3res.o crosscorr_m3res.o histogram_m3res.o mean_m3res.o means_m3res.o rms_m3res.o var_m3res.o        autocoh_fr16.o autocorr_fr16.o crosscoh_fr16.o crosscorr_fr16.o histogram_fr16.o mean_fr16.o rms_fr16.o var_fr16.o zerocross.o zero_crossf.o  acos_fr16.o asin_fr16.o atan_fr16.o atan2_fr16.o cos_fr16.o sin_fr16.o sqrt_fr16.o tan_fr16.o cot_m3res.o  asin_m3res.o atan_m3res.o atan2_m3res.o ceil_m3res.o cos_m3res.o cosh_m3res.o exp_m3res.o floor_m3res.o fmod_m3res.o frexp_m3res.o log_m3res.o log10_m3res.o modf_m3res.o pow_m3res.o sin_m3res.o sinh_m3res.o tan_m3res.o tanh_m3res.o sqrt.o  cvecdotf_m3res.o cvecsaddf_m3res.o cvecsmlt_m3res.o cvecssubf_m3res.o cvecvaddf_m3res.o cvecvmltf_m3res.o cvecvsubf_m3res.o vecdotf_m3res.o vecmaxf_m3res.o vecminf_m3res.o vecsaddf_m3res.o vecsmltf_m3res.o vecssubf_m3res.o vecvaddf_m3res.o vecvmltf_m3res.o vecvsubf_m3res.o vmaxlocf_m3res.o vminlocf_m3res.o csadd.o cssub.o cvecdot_fr16.o cvecsmult_fr16.o cvecvmult_fr16.o cvvadd.o cvvsub.o vecdot.o vmax.o vmaxloc.o vmin.o vminloc.o vsadd.o vsmlt.o vssub.o vvadd.o vvmlt.o vvsub.o Lib_cos16_2PIx_m3res.o gen_bart_m3res.o gen_black_m3res.o gen_gauss_m3res.o gen_hamm_m3res.o gen_hann_m3res.o gen_harris_m3res.o gen_kaiser_m3res.o gen_rect_m3res.o gen_trian_m3res.o gen_vonh_m3res.o  counti_m3res.o countl_m3res.o fclipf_m3res.o fmaxf_m3res.o fminf_m3res.o max_m3res.o max16_m3res.o min_m3res.o min16_m3res.o signf_m3res.o fl32max_m3res.o fl32min_m3res.o trncr4u4_m3res.o  clip_asm.o clip_fr16.o div16.o divfract32.o fltcmp.o fltsif.o fltuif.o fpadd.o fpdiv.o fpmult.o fpsub.o roundflti.o sdiv32.o sign_fr16.o srem32.o f32toi32z.o f32tou32z.o udiv32.o urem32.o isinf.o isnan.o ashfti64.o lshfti64.o muli64.o mulu64.o sdiv64.o udiv64.o remi64.o remu64.o trncr4i8.o trncr4u8.o floatdisf.o floatdiuf.o  absfl16.o addfl16.o cmpfl16.o divfl16.o fitsfl16.o fl162fl.o fl162fr16.o fl2fl16.o fr162fl16.o mulfl16.o negfl16.o normfl16.o subfl16.o  absfl32.o addfl32.o cmpfl32.o divfl32.o fl322fl.o fl322fr32.o fl2fl32.o fr322fl32.o mulfl32.o negfl32.o normfl32.o subfl32.o          
+bfin-uclinux-ar: creating libdspm3res532.a
+cp libdsp532.a libdspm3res532.a ..
+make[1]: Leaving directory `/home/adam/workspace/libdsp_port/0320_libdsp/src/_532'
