@@ -170,6 +170,12 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
+#ifdef CONFIG_FB_BF537_LQ035
+static struct platform_device bfin_fb_device = {
+	.name = "bf537-fb",
+};
+#endif
+
 static struct platform_device *stamp_devices[] __initdata = {
 #ifdef CONFIG_USB_SL811_HCD
 	&sl811_hcd_device,
@@ -184,6 +190,9 @@ static struct platform_device *stamp_devices[] __initdata = {
 #ifdef CONFIG_USB_NET2272
 	&net2272_bfin_device,
 #endif
+#ifdef CONFIG_FB_BF537_LQ035
+	&bfin_fb_device,
+#endif	
 };
 
 

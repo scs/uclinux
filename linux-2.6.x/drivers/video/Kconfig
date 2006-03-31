@@ -429,6 +429,17 @@ config PAL
 endchoice
 
 
+config FB_BF537_LQ035
+	bool "SHARP LQ035 TFT LCD on uClinux (BF537 STAMP)"
+	depends on FB && BFIN && I2C
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_SOFT_CURSOR
+	help
+	 This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
+         attached to a BF537.
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC
