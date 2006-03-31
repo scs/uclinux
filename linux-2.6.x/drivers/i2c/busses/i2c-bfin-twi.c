@@ -224,7 +224,7 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 
 		iface->cur_mode |= TWI_I2C_MODE_STANDARD;
 		iface->transPtr = pmsg->buf;
-		iface->writeNum = pmsg->len;
+		iface->writeNum = iface->readNum = pmsg->len;
 		iface->result = 0;
 		iface->timeout_count = 10;
 		/* Set Transmit device address */
