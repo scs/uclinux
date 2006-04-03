@@ -231,6 +231,18 @@ config MTD_CFI_STAA
 	  sets which a CFI-compliant chip may claim to implement. This code
 	  provides support for one of those command sets.
 
+config MTD_PSD4256G
+	tristate "ST PSD4256G compatible flash chip support"
+	depends on EZKIT && MTD_GEN_PROBE
+
+config MTD_MW320D
+	tristate "ST MW320D compatible flash chip support"
+	depends on BFIN && MTD_GEN_PROBE 
+
+config MTD_M25P64
+	tristate "ST M25P64 compatible flash chip support"
+	depends on BFIN && MTD_GEN_PROBE
+
 config MTD_CFI_UTIL
 	tristate
 
