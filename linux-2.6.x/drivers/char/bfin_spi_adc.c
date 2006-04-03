@@ -480,11 +480,11 @@ static int spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
 		pdev->cont = (unsigned char)arg;
 		if(arg)
 		{
-			pdev->spi_dev.dma_config |=  (FLOW_AUTO << 12);	
+			pdev->spi_dev.dma_config |=  (DMA_FLOW_AUTO << 12);	
 		}
 		else
 		{
-			pdev->spi_dev.dma_config &=  ~(FLOW_AUTO << 12);	            
+			pdev->spi_dev.dma_config &=  ~(DMA_FLOW_AUTO << 12);	            
 		}
 		break;
 	} 
