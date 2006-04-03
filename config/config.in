@@ -1594,6 +1594,7 @@ bool    'TWI LCD test program'          CONFIG_USER_BLACKFIN_TWILCDTEST
 bool    'TWI KEYPAD test program'       CONFIG_USER_BLACKFIN_TWIKEYPADTEST
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
+bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
 bool    'Still to write'                CONFIG_YET
 
 endmenu
