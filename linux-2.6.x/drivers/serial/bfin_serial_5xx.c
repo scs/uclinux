@@ -1088,6 +1088,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	unsigned long flags = 0;
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	struct uart_registers *regs = &(info->regs);
 	unsigned int irqstat;
 #endif
 	FUNC_ENTER();
@@ -1098,6 +1099,11 @@ static void rs_flush_buffer(struct tty_struct *tty)
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
+		ACCESS_PORT_IER(regs)
+		    * (regs->rpUART_IER) &= ~ETBEI;
+		SSYNC;
+		disable_dma(info->tx_DMA_channel);
+		clear_dma_irqstat(info->tx_DMA_channel);
 		info->xmit_tail += info->tx_xcount;
 		info->xmit_tail %= SERIAL_XMIT_SIZE;
 		info->tx_xcount = 0;
