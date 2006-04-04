@@ -11,7 +11,9 @@
 #ifndef _LINUX_RTC_H_
 #define _LINUX_RTC_H_
 
+#ifdef __KERNEL__
 #include <linux/interrupt.h>
+#endif /* __KERNEL__ */
 
 /*
  * The struct used to pass data via the following ioctl. Similar to the
