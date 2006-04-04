@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <asm/bug.h>
 #include <asm/dma.h>
+#include <linux/dma-mapping.h>
 
 #include "bf53x_sport.h"
 
@@ -180,9 +181,11 @@ void bf53x_sport_done(struct bf53x_sport* sport){
   if(sport) {
     bf53x_sport_stop(sport);
     if( sport->dma_rx_desc ) 
-        kfree(sport->dma_rx_desc);
+//        kfree(sport->dma_rx_desc);
+	dma_free_coherent(NULL, sport->rx_desc_bytes, sport->dma_rx_desc, 0);
     if( sport->dma_tx_desc ) 
-        kfree(sport->dma_tx_desc);
+//        kfree(sport->dma_tx_desc);
+	dma_free_coherent(NULL, sport->tx_desc_bytes, sport->dma_tx_desc, 0);
 
     if( sport->dummy_rx_desc)
 #if L1_DATA_A_LENGTH != 0
@@ -475,6 +478,7 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
+  dma_addr_t addr;
 
   sport_printd(KERN_INFO, "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );
 
@@ -489,12 +493,19 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
       return -EINVAL;
 
   if (sport->dma_rx_desc) {
-  	kfree(sport->dma_rx_desc);
+//  	kfree(sport->dma_rx_desc);
+//	printk(KERN_ERR "free dma_rx_desc:0x%p\n", sport->dma_rx_desc);
+	dma_free_coherent(NULL, sport->rx_desc_bytes, sport->dma_rx_desc, 0);
   }
  
   /* Allocate a new descritor ring as current one. */
-  sport->dma_rx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
-  
+//  sport->dma_rx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
+  sport->dma_rx_desc = dma_alloc_coherent(NULL, fragcount * sizeof( dmasg_t ),
+  		&addr, 0);
+  sport->rx_desc_bytes = fragcount * sizeof( dmasg_t);
+
+//  printk(KERN_ERR "alloc dma_rx_desc:0x%p, sizes:0x%x\n", 
+//			sport->dma_rx_desc, sport->rx_desc_bytes);
   if( !sport->dma_rx_desc ) {
     return -ENOMEM;
   }
@@ -523,6 +534,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
+  dma_addr_t addr;
 
   sport_printd(KERN_INFO, "%s( %p, %d, %d )\n", __FUNCTION__, buf, fragcount,fragsize_bytes );
 
@@ -533,11 +545,15 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
       return -EINVAL;
 
   if( sport->dma_tx_desc) {
-  	kfree(sport->dma_tx_desc);
+//  	kfree(sport->dma_tx_desc);
+	dma_free_coherent(NULL, sport->tx_desc_bytes, sport->dma_tx_desc, 0);
   }
 
-  sport->dma_tx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
-  
+//  sport->dma_tx_desc = kcalloc(1, fragcount * sizeof( dmasg_t ), GFP_KERNEL );
+  sport->dma_tx_desc = dma_alloc_coherent(NULL, fragcount * sizeof( dmasg_t ),			&addr, 0);
+  sport->tx_desc_bytes = fragcount * sizeof( dmasg_t);
+//  printk(KERN_ERR "alloc dma_tx_desc:0x%p, size:0x%x\n", 
+//		sport->dma_tx_desc, sport->tx_desc_bytes);
   if( !sport->dma_tx_desc ) {
     return -ENOMEM;
   }

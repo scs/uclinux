@@ -84,6 +84,8 @@ struct bf53x_sport {
 
   dmasg_t* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
   dmasg_t* dma_tx_desc;
+  unsigned int rx_desc_bytes;
+  unsigned int tx_desc_bytes;
 
   dmasg_t* dummy_rx_desc;
   dmasg_t* dummy_tx_desc;
