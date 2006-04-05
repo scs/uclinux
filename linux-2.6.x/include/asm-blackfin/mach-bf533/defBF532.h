@@ -667,7 +667,14 @@
 #define SKIP_EN              0x00000200	/* PPI Skip Element Enable */
 #define SKIP_EO              0x00000400	/* PPI Skip Even/Odd Elements */
 #define DLENGTH              0x00003800	/* PPI Data Length  */
-#define DLEN_8		     0x0	/* PPI Data Length mask for DLEN=8 */
+#define DLEN_8			0x0000	/* Data Length = 8 Bits                         */
+#define DLEN_10			0x0800	/* Data Length = 10 Bits                        */
+#define DLEN_11			0x1000	/* Data Length = 11 Bits                        */
+#define DLEN_12			0x1800	/* Data Length = 12 Bits                        */
+#define DLEN_13			0x2000	/* Data Length = 13 Bits                        */
+#define DLEN_14			0x2800	/* Data Length = 14 Bits                        */
+#define DLEN_15			0x3000	/* Data Length = 15 Bits                        */
+#define DLEN_16			0x3800	/* Data Length = 16 Bits                        */
 #define DLEN(x)	(((x-9) & 0x07) << 11)	/* PPI Data Length (only works for x=10-->x=16) */
 #define POL                  0x0000C000	/* PPI Signal Polarities       */
 

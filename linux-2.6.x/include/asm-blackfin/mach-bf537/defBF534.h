@@ -1738,6 +1738,7 @@
 #define DMA32			0x0100	/* PPI 32-bit DMA Enable                        */
 #define SKIP_EN			0x0200	/* PPI Skip Element Enable                      */
 #define SKIP_EO			0x0400	/* PPI Skip Even/Odd Elements           */
+#define DLENGTH         0x3800	/* PPI Data Length  */
 #define DLEN_8			0x0000	/* Data Length = 8 Bits                         */
 #define DLEN_10			0x0800	/* Data Length = 10 Bits                        */
 #define DLEN_11			0x1000	/* Data Length = 11 Bits                        */
