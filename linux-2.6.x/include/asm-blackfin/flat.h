@@ -20,7 +20,7 @@
 #define	flat_reloc_valid(reloc, size)	((reloc) <= (size))
 
 #define	flat_get_addr_from_rp(rp, relval, flags, persistent)	\
-	bfin_get_addr_from_rp(rp, relval, persistent)
+	bfin_get_addr_from_rp(rp, relval, flags, persistent)
 #define	flat_put_addr_at_rp(rp, val, relval)	\
 	bfin_put_addr_at_rp(rp, val, relval)
 
@@ -32,7 +32,7 @@
 static inline unsigned long
 flat_get_relocate_addr (unsigned long relval)
 {
-	return relval & 0x00ffffff; /* Mask out top 8 bits */
+	return relval & 0x03ffffff; /* Mask out top 6 bits */
 }
 
 static inline int flat_set_persistent (unsigned long relval, unsigned long *persistent)
@@ -52,6 +52,7 @@ static inline int flat_addr_absolute (unsigned long relval)
 
 static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
 						   unsigned long relval,
+						   unsigned long flags,
 						   unsigned long *persistent)
 {
 	unsigned short *usptr = (unsigned short *)ptr;
@@ -71,7 +72,7 @@ static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
 
 	case FLAT_BFIN_RELOC_TYPE_32_BIT:
 #ifdef DEBUG_BFIN_RELOC
-		printk(" ptr =%x", get_unaligned ((unsigned short *)ptr));
+		printk(" *ptr = %x", get_unaligned (ptr));
 #endif
 		val = get_unaligned (ptr);
 		break;
@@ -88,7 +89,9 @@ static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
 	if (relval & (1 << 29))
 		return val + current->mm->context.end_brk;
 
-	return htonl (val);
+	if ((flags & FLAT_FLAG_GOTPIC) == 0)
+	    val = htonl (val);
+	return val;
 }
 
 /* Insert the address ADDR into the symbol reference at RP;
