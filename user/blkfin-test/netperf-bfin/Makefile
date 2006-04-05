@@ -430,6 +430,9 @@ all-am: Makefile config.h
 installdirs: installdirs-recursive
 installdirs-am:
 
+romfs:
+	$(ROMFSINST) ./src/netperf /bin/netperf_bfin
+
 install: install-recursive
 install-exec: install-exec-recursive
 install-data: install-data-recursive
