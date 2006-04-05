@@ -181,23 +181,21 @@ void bf53x_sport_done(struct bf53x_sport* sport){
   if(sport) {
     bf53x_sport_stop(sport);
     if( sport->dma_rx_desc ) 
-//        kfree(sport->dma_rx_desc);
 	dma_free_coherent(NULL, sport->rx_desc_bytes, sport->dma_rx_desc, 0);
     if( sport->dma_tx_desc ) 
-//        kfree(sport->dma_tx_desc);
 	dma_free_coherent(NULL, sport->tx_desc_bytes, sport->dma_tx_desc, 0);
 
     if( sport->dummy_rx_desc)
 #if L1_DATA_A_LENGTH != 0
 	l1_data_A_sram_free((unsigned long)sport->dummy_rx_desc);
 #else
-    	kfree(sport->dummy_rx_desc);
+	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_rx_desc, 0);
 #endif
     if( sport->dummy_tx_desc)
 #if L1_DATA_A_LENGTH != 0
 	l1_data_A_sram_free((unsigned long)sport->dummy_tx_desc);
 #else
-    	kfree(sport->dummy_tx_desc);
+    	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_tx_desc, 0);
 #endif
 
     sport->dma_rx_desc = NULL;
@@ -293,8 +291,10 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport, unsigned int tcr1, unsigne
 
 
 
-static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_bytes,
-		unsigned int cfg, unsigned int x_count, unsigned int ycount){
+static void setup_desc(dmasg_t* desc, void* buf, int fragcount,
+		size_t fragsize_bytes, unsigned int cfg, 
+		unsigned int x_count, unsigned int ycount, size_t size)
+{
 
   int i;
 
@@ -303,9 +303,9 @@ static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_
     desc[i].start_addr = (unsigned long)buf + i*fragsize_bytes;
     desc[i].cfg = cfg;
     desc[i].x_count = x_count;
-    desc[i].x_modify = sizeof(long);
+    desc[i].x_modify = size;
     desc[i].y_count = ycount;
-    desc[i].y_modify = sizeof(long);
+    desc[i].y_modify = size;
   }
 
   desc[fragcount-1].next_desc_addr = (unsigned long)desc; /* make circular */
@@ -315,8 +315,6 @@ static void setup_desc(dmasg_t* desc, void* buf, int fragcount, size_t fragsize_
 	&(desc[1]), desc[1].next_desc_addr,
 	desc[0].x_count, desc[0].y_count, desc[0].start_addr,desc[0].cfg);
  */
-
-  flush_dcache_range((unsigned int)desc, (unsigned int)desc + fragcount*sizeof(dmasg_t));
 }
 
 /* Stupid function for waiting, udelay make while does break, msleep crash system */
@@ -339,8 +337,6 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
   if (dummy) {
     	/* Copy the dummy buffer descriptor from backup */
 	*sport->dummy_rx_desc = *sport->dummy_rx_desc2;
-	flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
-			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
   }
 
   if( sport->regs->rcr1 & RSPEN ) {
@@ -348,10 +344,6 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
     if (dummy) {
     	SPORT_ASSERT(sport->dummy_rx_desc != NULL );
     	if (sport->curr_rx_desc != sport->dummy_rx_desc) {
-		/* Copy the dummy buffer descriptor from backup */
-		*sport->dummy_rx_desc = *sport->dummy_rx_desc2;
-		flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
-			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
 		local_irq_save(flags);
 		desc = (dmasg_t*)dma->next_desc_ptr;
 		/* Copy the descriptor which will be damaged to backup */
@@ -359,7 +351,6 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 		desc->x_count=0x10;
 		desc->y_count=0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_rx_desc);
-		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 		local_irq_restore(flags);
 		/* Waiting for dummy buffer descriptor is already hooked*/
 		while(dma->curr_desc_ptr - sizeof(dmasg_t) != (unsigned long)sport->dummy_rx_desc) {
@@ -371,15 +362,12 @@ void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy)
 		sport->curr_rx_desc = sport->dummy_rx_desc;
 		/* Restore the damaged descriptor */
 		*desc = temp_desc;
-		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 	}
     } else { /* Hook the normal buffer descriptor */
    	SPORT_ASSERT(sport->dma_rx_desc != NULL);
 	if(sport->curr_rx_desc != sport->dma_rx_desc) {
 		local_irq_save(flags);
 		sport->dummy_rx_desc->next_desc_addr = (unsigned int)(sport->dma_rx_desc);
-		flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
-			(unsigned int)sport->dummy_rx_desc + sizeof(dmasg_t));
 		local_irq_restore(flags);
 		sport->curr_rx_desc = sport->dma_rx_desc;
 	}
@@ -410,8 +398,6 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 
   if (dummy) {
   	*sport->dummy_tx_desc = *sport->dummy_tx_desc2;
-	flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
-			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
   }
 
   if( sport->regs->tcr1 & TSPEN) {
@@ -426,7 +412,6 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 		desc->x_count = 0x10;
 		desc->y_count = 0;
 		desc->next_desc_addr = (unsigned int)(sport->dummy_tx_desc);
-		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 		local_irq_restore(flags);
 		/* Waiting for dummy buffer descriptor is already hooked*/
 //		printk(KERN_ERR"desc:0x%p, sport->dummy_tx_desc:0x%p\n", desc, sport->dummy_tx_desc);
@@ -439,15 +424,12 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
 		sport->curr_tx_desc = sport->dummy_tx_desc;
 		/* Restore the damaged descriptor */
 		*desc = temp_desc;
-		flush_dcache_range((unsigned int)desc, (unsigned int)desc + sizeof(*desc));
 	}
     } else { /* Hook the normal buffer descriptor */
    	SPORT_ASSERT(sport->dma_tx_desc != NULL);
 	if(sport->curr_tx_desc != sport->dma_tx_desc) {
 		local_irq_save(flags);
 		sport->dummy_tx_desc->next_desc_addr = (unsigned int)(sport->dma_tx_desc);
-		flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
-			(unsigned int)sport->dummy_tx_desc + sizeof(dmasg_t));
 		local_irq_restore(flags);
 		sport->curr_tx_desc = sport->dma_tx_desc;
 	}
@@ -469,12 +451,22 @@ void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy)
   }
 }
 
+static int inline compute_wdsize(size_t size)
+{
+	switch(size){
+		case 1:
+			return WDSIZE_8;
+		case 2:
+			return WDSIZE_16;
+		case 4:
+		default:
+			return WDSIZE_32;
+	}
+}
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes)
+		       int fragcount, size_t fragsize_bytes, size_t size)
 {
-//  dma_register_t* dma = sport->dma_rx;
-
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
@@ -488,12 +480,11 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
      the line below is the cheapest test I could think of :-) 
   */
 
-  if( fragsize_bytes > 0x8000*sizeof(long) )
+  if( fragsize_bytes > (0x8000*size) )
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
   if (sport->dma_rx_desc) {
-//  	kfree(sport->dma_rx_desc);
 //	printk(KERN_ERR "free dma_rx_desc:0x%p\n", sport->dma_rx_desc);
 	dma_free_coherent(NULL, sport->rx_desc_bytes, sport->dma_rx_desc, 0);
   }
@@ -510,9 +501,10 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
     return -ENOMEM;
   }
 
-  x_count = fragsize_bytes/sizeof(long);
+  x_count = fragsize_bytes/size;
   y_count = 0;
-  cfg     = 0x7000 | DI_EN | WDSIZE_32 | WNR | (DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
+  cfg     = 0x7000 | DI_EN | compute_wdsize(size) | WNR | \
+  			(DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
 
   if( x_count > 0x8000 ){
     y_count = x_count >> 15;
@@ -520,17 +512,16 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
     cfg |= DMA2D;
   }
 
-  setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes , cfg|DMAEN, x_count, y_count);
+  setup_desc( sport->dma_rx_desc, buf, fragcount, fragsize_bytes,
+  					cfg|DMAEN, x_count, y_count, size);
 
   return 0;
 
 }
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes)
+			   int fragcount, size_t fragsize_bytes, size_t size)
 {
-//  dma_register_t* dma = sport->dma_tx;
-  
   unsigned int x_count;
   unsigned int y_count;
   unsigned int cfg;
@@ -545,7 +536,6 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
       return -EINVAL;
 
   if( sport->dma_tx_desc) {
-//  	kfree(sport->dma_tx_desc);
 	dma_free_coherent(NULL, sport->tx_desc_bytes, sport->dma_tx_desc, 0);
   }
 
@@ -560,7 +550,8 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 
   x_count = fragsize_bytes/sizeof(long);
   y_count = 0;
-  cfg     = 0x7000 | DI_EN | WDSIZE_32 | ( DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
+  cfg     = 0x7000 | DI_EN | compute_wdsize(size) | \
+  			( DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
 
   if( x_count > 0x8000 ){
     y_count = x_count >> 15;
@@ -568,15 +559,15 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     cfg |= DMA2D;
   }
 
-  setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes, cfg|DMAEN, x_count, y_count);
+  setup_desc( sport->dma_tx_desc, buf, fragcount, fragsize_bytes,
+  			cfg|DMAEN, x_count, y_count, size);
 
   return 0;
-
 }
 
 /* setup dummy dma descriptor ring, which don't generate interrupts,
  * the x_modify is set to 0 */
-int sport_config_rx_dummy(struct bf53x_sport *sport)
+int sport_config_rx_dummy(struct bf53x_sport *sport, size_t size)
 {
 	dma_register_t* dma;
 	dmasg_t *desc;
@@ -587,7 +578,10 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 #if L1_DATA_A_LENGTH != 0
 	desc = (dmasg_t*)l1_data_A_sram_alloc(2* sizeof(*desc));
 #else
-	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+	{
+		dma_addr_t addr;
+		desc = dma_alloc_coherent(NULL, 2*sizeof(*desc), &addr, 0);
+	}
 #endif
 	if (desc ==NULL)
 		return -ENOMEM;
@@ -597,20 +591,18 @@ int sport_config_rx_dummy(struct bf53x_sport *sport)
 
 	desc->next_desc_addr = (unsigned long)desc;
 	desc->start_addr = sport->dummy_buf;
-	config = DMAFLOW | NDSIZE | WDSIZE_32 | WNR ;
-	desc->cfg = config | DMAEN;
+	config = DMAFLOW | NDSIZE | compute_wdsize(size) | WNR | DMAEN;
+	desc->cfg = config;
 	desc->x_count = 0x80;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
 	*sport->dummy_rx_desc2 = *sport->dummy_rx_desc;
-	flush_dcache_range((unsigned int)sport->dummy_rx_desc, 
-		(unsigned int)sport->dummy_rx_desc + 2*sizeof(dmasg_t));
 
 	return 0;
 }
 
-int sport_config_tx_dummy(struct bf53x_sport *sport)
+int sport_config_tx_dummy(struct bf53x_sport *sport, size_t size)
 {
 	dma_register_t* dma;
 	dmasg_t *desc;
@@ -621,8 +613,11 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 
 #if L1_DATA_A_LENGTH != 0
 	desc = (dmasg_t*)l1_data_A_sram_alloc(2* sizeof(*desc));
-#else
-	desc = kcalloc(2, sizeof(*desc), GFP_KERNEL);
+#else	
+	{ 
+		dma_addr_t addr;
+		desc = dma_alloc_coherent(NULL, 2*sizeof(*desc), &addr, 0);
+	}
 #endif
 	if (!desc)
 		return -ENOMEM;
@@ -631,16 +626,14 @@ int sport_config_tx_dummy(struct bf53x_sport *sport)
 	sport->dummy_tx_desc2 = desc+1;
 
 	desc->next_desc_addr = (unsigned long)desc;
-	desc->start_addr = sport->dummy_buf;
-	config = DMAFLOW | NDSIZE |WDSIZE_32;
-	desc->cfg = config | DMAEN;
+	desc->start_addr = sport->dummy_buf + size;
+	config = DMAFLOW | NDSIZE |compute_wdsize(size) | DMAEN;
+	desc->cfg = config;
 	desc->x_count = 0x80;
 	desc->x_modify = 0;
 	desc->y_count = 0;
 	desc->y_modify = 0;
 	*sport->dummy_tx_desc2 = *sport->dummy_tx_desc;
-	flush_dcache_range((unsigned int)sport->dummy_tx_desc, 
-		(unsigned int)sport->dummy_tx_desc + 2*sizeof(dmasg_t));
 	
 	return 0;
 }

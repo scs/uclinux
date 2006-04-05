@@ -78,7 +78,7 @@ struct bf53x_sport {
   dma_register_t* dma_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
   dma_register_t* dma_tx;
 
-#define DUMMY_BUF_LEN 4
+#define DUMMY_BUF_LEN 8
   /* for dummy dma transfer */
   unsigned long dummy_buf;
 
@@ -140,13 +140,13 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport,
 /* this is not a very general api, it sets the dma to 2d autobuffer mode */
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes);
+			   int fragcount, size_t fragsize_bytes, size_t size);
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
-			       int fragcount, size_t fragsize_bytes);
+			   int fragcount, size_t fragsize_bytes, size_t size);
 			      
-int sport_config_rx_dummy(struct bf53x_sport* sport);
-int sport_config_tx_dummy(struct bf53x_sport* sport);
+int sport_config_rx_dummy(struct bf53x_sport* sport, size_t size);
+int sport_config_tx_dummy(struct bf53x_sport* sport, size_t size);
 
 void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy);
 void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy);

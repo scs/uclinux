@@ -543,13 +543,13 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
     bf53x_sport_set_multichannel(chip->sport, TALKTROUGH_CHANS /* channels */, 1 /* packed */ );
     
     if( bf53x_sport_config_rx_dma( chip->sport, chip->rx_buf,  TALKTROUGH_FRAGMENTS, 
-				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS) ){
+			AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, 4) ){
       snd_printk( KERN_ERR "talktrough mode: Unable to configure rx dma\n" );
       return -ENODEV;
     }
 
     if( bf53x_sport_config_tx_dma( chip->sport, chip->tx_buf,  TALKTROUGH_FRAGMENTS, 
-				   AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS ) ){
+			AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, 4 ) ){
       snd_printk( KERN_ERR "talktrough mode: Unable to configure tx dma\n" );
       return -ENODEV;
     }
@@ -1387,7 +1387,7 @@ static int snd_ad1836_playback_prepare( snd_pcm_substream_t* substream )
 #endif
 
   err = bf53x_sport_config_tx_dma( chip->sport, runtime->dma_area, 
-  		runtime->periods, fragsize_bytes);
+  		runtime->periods, fragsize_bytes, 4);
 #endif
 
   return err;
@@ -1414,7 +1414,8 @@ static int snd_ad1836_capture_prepare( snd_pcm_substream_t* substream )
   fragsize_bytes *= 8;				/* inflate the fragsize to match */
 #endif
 
-    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, fragsize_bytes);
+    err = bf53x_sport_config_rx_dma( chip->sport, buf_addr , fragcount, 
+    			fragsize_bytes, 4);
   return err;
 
 }
@@ -1957,14 +1958,15 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	err = err || bf53x_sport_config_rx(sport, RFSR, 0x1f /* 32 bit word len */, 0, 0 );
 	err = err || bf53x_sport_config_tx(sport, TFSR, 0x1f /* 32 bit word len */, 0, 0 );
 	err = err || bf53x_sport_set_multichannel(sport, 8 /* channels */, 1 /* packed */ );
-	err = err || sport_config_rx_dummy( sport);
-	err = err || sport_config_tx_dummy( sport );
+	err = err || sport_config_rx_dummy( sport, 4 );
+	err = err || sport_config_tx_dummy( sport, 4 );
 
 	if(err)
 		snd_printk( KERN_ERR "Unable to set sport configuration\n");
 
 #ifdef MULTI_SUBSTREAM
-	err = bf53x_sport_config_tx_dma(chip->sport, chip->tx_dma_buf, DMA_PERIODS, DMA_PERIOD_BYTES);
+	err = bf53x_sport_config_tx_dma(chip->sport, chip->tx_dma_buf, 
+			DMA_PERIODS, DMA_PERIOD_BYTES, 4);
 #endif
 
 	return err;
@@ -1997,8 +1999,8 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	bf53x_sport_stop(sport);
 	err = err || bf53x_sport_config_rx(sport, (RCKFE | RFSR), (RSFSE | 0x17) /* 24 bit word len */, 0, 0 );
 	err = err || bf53x_sport_config_tx(sport, (TCKFE | TFSR), (TSFSE | 0x17) /* 24 bit word len */, 0, 0 );	
-	err = err || sport_config_rx_dummy( sport);
-	err = err || sport_config_tx_dummy( sport );
+	err = err || sport_config_rx_dummy( sport, 4 );
+	err = err || sport_config_tx_dummy( sport, 4 );
 	if(err)
 		snd_printk( KERN_ERR "Unable to set sport configuration\n");
 
