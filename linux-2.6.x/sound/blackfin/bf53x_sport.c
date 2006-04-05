@@ -531,7 +531,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
 
   /* fragsize must be a power of two (line below is the cheapest test I could think of :-) */
 
-  if( fragsize_bytes > 0x8000*sizeof(long) )
+  if( fragsize_bytes > (0x8000*size) )
     if( (fragsize_bytes | (fragsize_bytes-1) ) != (2*fragsize_bytes - 1) )
       return -EINVAL;
 
@@ -548,7 +548,7 @@ int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf,
     return -ENOMEM;
   }
 
-  x_count = fragsize_bytes/sizeof(long);
+  x_count = fragsize_bytes/size;
   y_count = 0;
   cfg     = 0x7000 | DI_EN | compute_wdsize(size) | \
   			( DESC_ELEMENT_COUNT << 8); /* large descriptor mode */
