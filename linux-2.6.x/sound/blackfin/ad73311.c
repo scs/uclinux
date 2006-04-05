@@ -607,12 +607,9 @@ static int snd_ad73311_configure(void)
 
 	/* SPORT Tx Register is a 8 x 16 FIFO, all the data can be put to
 	 * FIFO before enable SPORT to transfer the data */
-	*(unsigned short*)SPORT_TX = ctrl_regs[0];
-	*(unsigned short*)SPORT_TX = ctrl_regs[1];
-	*(unsigned short*)SPORT_TX = ctrl_regs[2];
-	*(unsigned short*)SPORT_TX = ctrl_regs[3];
-	*(unsigned short*)SPORT_TX = ctrl_regs[4];
-	*(unsigned short*)SPORT_TX = ctrl_regs[5];
+	for( count = 0; count < 6; count++) {
+		*(unsigned short*)SPORT_TX = ctrl_regs[count];
+	}
 	__builtin_bfin_ssync();
 
 	*(unsigned short*)SPORT_TCR1 |= TSPEN;	
