@@ -2,7 +2,7 @@
 *
 * Copyright (C) 2005 Eastman Kodak Company
 *
-* FILE ppi.h
+* FILE bfin_ppi.h
 * PROGRAMMER(S): John DeHority (john.dehority@NOSPAM@kodak.com
 *
 *
@@ -46,6 +46,7 @@
 #define CMD_PPI_SET_WRITECONTINUOUS 14
 #define CMD_PPI_SET_DIMS	  15
 #define CMD_PPI_DELAY	  	  16
+#define	CMD_PPI_SETGPIO		  17
 
 #define CMD_PPI_GET_ALLCONFIG 32 /* For debug */
 

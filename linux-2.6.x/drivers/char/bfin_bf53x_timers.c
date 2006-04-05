@@ -18,15 +18,18 @@
 */
 
 /*
-** drivers/char/bf533_timers.c
+** drivers/char/bf53x_timers.c
 **  This file contains General Purpose Timer functions for BF533
 **
 **  Copyright (C) 2005 John DeHority
 **
 */
 
-#include <asm/bf533_timers.h>
+#include <linux/kernel.h>
+#include <asm/io.h>
+
 #include <asm/blackfin.h>
+#include <asm/bf53x_timers.h>
 
 static GPTIMER_registers *gptimers = (GPTIMER_registers *)TIMER0_CONFIG;
 
@@ -35,7 +38,7 @@ static GPTIMER_registers *gptimers = (GPTIMER_registers *)TIMER0_CONFIG;
 *******************************************************************************/
 
 void 	
-set_gptimer_pwidth		(int timer_id, int width)
+set_gptimer_pwidth		(int timer_id, int value)
 {
 	short	mask = 0;
 
@@ -43,7 +46,7 @@ set_gptimer_pwidth		(int timer_id, int width)
 
 	assert( timer_id < MAX_BLACKFIN_GPTIMERS );
 	
-	gptimers->a_timer[timer_id].width = width;
+	gptimers->a_timer[timer_id].width = value;
 	SSYNC();
 }
 
@@ -92,23 +95,18 @@ get_gptimer_count(int timer_id)
 }
 
 /*
-** get_gptimer_running()
+** get_gptimer_status()
 ** 
-** return:  0 - timer stopped
-**          1 - timer running
+** return:  status
 */
 
-short	
-get_gptimer_running(int	timer_id)
+int	
+get_gptimer_status(void)
 {
-	short mask = 0;
-	short cur_status;
+	int	value;
 
-	assert( timer_id < MAX_BLACKFIN_GPTIMERS );
-
-	mask = TIMER_STATUS_TRUN0 << timer_id;
-	cur_status = gptimers->status;
-	return ( cur_status & mask ) ? 1 : 0;
+	value = (int) gptimers->status;
+	return value;
 }
 
 	
@@ -158,7 +156,12 @@ get_gptimer_config(int timer_id)
 void	
 enable_gptimers(short mask)
 {
-	gptimers->enable = mask;
+	unsigned short	regdata;
+
+	//printk("enable timers write 0x%04hX at 0x%08X\n", mask, &gptimers->enable);
+	regdata = gptimers->enable;
+	regdata |= mask;
+	gptimers->enable = regdata;
 	SSYNC();
 }
 
@@ -166,7 +169,11 @@ enable_gptimers(short mask)
 void	
 disable_gptimers(short mask)
 {
-	gptimers->disable = mask;
+	unsigned short	regdata;
+
+	regdata = gptimers->enable;
+	regdata |= mask;
+	gptimers->disable = regdata;
 	SSYNC();
 }
 
@@ -195,7 +202,6 @@ clear_gptimer_pulse_hi  (int timer_id)
 	EXPORT_SYMBOL(set_gptimer_period);
 	EXPORT_SYMBOL(get_gptimer_period);
 	EXPORT_SYMBOL(get_gptimer_count);
-	EXPORT_SYMBOL(get_gptimer_running);
 	EXPORT_SYMBOL(get_gptimer_intr);
 	EXPORT_SYMBOL(set_gptimer_config);
 	EXPORT_SYMBOL(get_gptimer_config);
