@@ -193,7 +193,6 @@ int personality;
 		nioctlents = nioctlents0;
 		signalent = signalent0;
 		nsignals = nsignals0;
-		printf("nsyscalls0=%d\n",nsyscalls0);
 		break;
 
 #if SUPPORTED_PERSONALITIES >= 2

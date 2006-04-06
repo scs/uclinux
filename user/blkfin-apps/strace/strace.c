@@ -541,7 +541,6 @@ Process %u attached - interrupt to quit\n",
 				progname, filename);
 			exit(1);
 		}
-		printf("begin vfork\n");
 		#ifndef BFIN
 		switch (pid = fork()) {
 		#else
@@ -619,7 +618,6 @@ Process %u attached - interrupt to quit\n",
 			//printf("send SIGSTOP to %d",getpid());
 			//kill(getpid(), SIGSTOP);
 #endif /* !USE_PROCFS */
-			printf("begin execv in child\n");
 
 			execv(pathname, &argv[optind]);
 			perror("strace: exec");
