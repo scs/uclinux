@@ -58,4 +58,6 @@ expedite:pc,sp,fp
 32:extra1
 32:extra2
 32:extra3
+32:fdpic_exec
+32:fdpic_interp
 32:ipend
