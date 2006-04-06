@@ -13,6 +13,7 @@ obj-$(CONFIG_SPI_MASTER)		+= spi.o
 # SPI master controller drivers (bus)
 obj-$(CONFIG_SPI_BITBANG)		+= spi_bitbang.o
 obj-$(CONFIG_SPI_BUTTERFLY)		+= spi_butterfly.o
+obj-$(CONFIG_SPI_BFIN)			+= spi_bfin5xx.o
 # 	... add above this line ...
 
 # SPI protocol drivers (device/link on bus)

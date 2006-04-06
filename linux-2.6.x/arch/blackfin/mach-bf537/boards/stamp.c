@@ -33,6 +33,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb_isp1362.h>
 #include <asm/irq.h>
+#include <asm/bfin5xx_spi.h>
 
 /*
  *  Driver needs to know address, irq and flag pin.
@@ -170,6 +171,22 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
+#ifdef CONFIG_SPI_BFIN
+
+static struct bfin5xx_spi_master spi_bfin_master_info = {
+	.num_chipselect = 8,
+	.enable_dma = 1,
+};
+
+static struct platform_device spi_bfin_device = {
+	.name = "bfin-spi",
+	.id = 1,
+	.dev = {
+		.platform_data = &spi_bfin_master_info, /* Passed to driver */
+	},
+};
+#endif
+
 #ifdef CONFIG_FB_BF537_LQ035
 static struct platform_device bfin_fb_device = {
 	.name = "bf537-fb",
@@ -177,19 +194,29 @@ static struct platform_device bfin_fb_device = {
 #endif
 
 static struct platform_device *stamp_devices[] __initdata = {
+
 #ifdef CONFIG_USB_SL811_HCD
 	&sl811_hcd_device,
 #endif
+
 #ifdef CONFIG_USB_ISP1362_HCD
 	&isp1362_hcd_device,
 #endif
+
 #ifdef CONFIG_SMC91X
 	&smc91x_device,
 #endif
+
 	&bfin_mac_device,
+
 #ifdef CONFIG_USB_NET2272
 	&net2272_bfin_device,
 #endif
+
+#ifdef CONFIG_SPI_BFIN
+	&spi_bfin_device,
+#endif
+
 #ifdef CONFIG_FB_BF537_LQ035
 	&bfin_fb_device,
 #endif	
