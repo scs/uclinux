@@ -44,9 +44,7 @@ void opd_init_hash_map(void)
 {
 	extern fd_t hashmapdevfd;
 
-	/* workaround for uClinux mmap */
-	//hashmap = mmap(0, OP_HASH_MAP_SIZE, PROT_READ, MAP_SHARED, hashmapdevfd, 0);
-	hashmap = mmap(0, OP_HASH_MAP_SIZE, PROT_READ, MAP_PRIVATE, hashmapdevfd, 0);
+	hashmap = mmap(0, OP_HASH_MAP_SIZE, PROT_READ, MAP_SHARED, hashmapdevfd, 0);
 	if ((long)hashmap == -1) {
 		perror("oprofiled: couldn't mmap hash map");
 		exit(EXIT_FAILURE);
