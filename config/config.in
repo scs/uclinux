@@ -639,6 +639,7 @@ comment '  wlan-ng drivers'
 	bool '    Prism2 PCI'	CONFIG_USER_WLAN_NG_PCI
 	bool '    Prism2 USB'	CONFIG_USER_WLAN_NG_USB
 fi
+bool 'IrDA support' HAVE_HWIRDA y
 
 endmenu
 
@@ -1619,13 +1620,6 @@ bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
 bool	'oprofile'			CONFIG_USER_OPROFILE
-if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
-	define_bool  CONFIG_LIB_GMP y
-	define_bool CONFIG_LIB_POPT y
-	define_bool CONFIG_LIB_MPFR y
-	string 'binutils path'		CONFIG_USER_BINUTILS	''
-	string 'binutils build path'	CONFIG_USER_BINUTILS_BUILD '/tmp/oprofile_build'
-fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
