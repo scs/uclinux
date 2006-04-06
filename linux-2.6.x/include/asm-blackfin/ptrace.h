@@ -83,6 +83,12 @@ struct pt_regs {
 #define PTRACE_GETREGS            12
 #define PTRACE_SETREGS            13	/* ptrace signal  */
 
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+#define PTRACE_GETFDPIC           31
+#define PTRACE_GETFDPIC_EXEC      0
+#define PTRACE_GETFDPIC_INTERP    1
+#endif
+
 #define PS_S  (0x0002)
 
 #define user_mode(regs) (!((regs)->ipend & ((regs)->ipend -1)))

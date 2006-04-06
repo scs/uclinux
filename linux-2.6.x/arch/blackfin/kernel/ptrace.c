@@ -208,7 +208,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long tmp;
 			ret = -EIO;
 			tmp = 0;
-			if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 8))) {
+			if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
 				printk
 				    ("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %lx\n",
 				     (int)addr, sizeof(struct pt_regs));
@@ -230,6 +230,12 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				    child->mm->end_data - (child->mm->end_code -
 							   child->mm->
 							   start_code);
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+			} else if (addr == (sizeof(struct pt_regs) + 12)) {
+				tmp = child->mm->context.exec_fdpic_loadmap;
+			} else if (addr == (sizeof(struct pt_regs) + 16)) {
+				tmp = child->mm->context.interp_fdpic_loadmap;
+#endif
 			} else {
 				tmp = get_reg(child, addr);
 			}
@@ -258,12 +264,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
 		ret = -EIO;
-		if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 8))) {
+		if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
 			printk
 			    ("ptrace error : POKEUSR: temporarily returning 0\n");
 			break;
 		}
 
+		if (addr >= (sizeof(struct pt_regs))) {
+			ret = 0;
+			break;
+		}
 		if (addr == PT_SYSCFG) {
 			data &= SYSCFG_MASK;
 			data |= get_reg(child, PT_SYSCFG);
@@ -361,7 +371,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = 0;
 			break;
 		}
-
 	default:
 		printk("Ptrace :  *** Unhandled case **** %d\n", (int)request);
 		ret = -EIO;

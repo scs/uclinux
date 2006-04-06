@@ -126,6 +126,8 @@ int main(void)
 	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));	/* Needed by gdb */
 	DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs));	/* Needed by gdb */
 	DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs));	/* Needed by gdb */
+	DEFINE(PT_FDPIC_EXEC, 12 + sizeof(struct pt_regs));  /* Needed by gdb */
+	DEFINE(PT_FDPIC_INTERP, 16 + sizeof(struct pt_regs));/* Needed by gdb */
 
 	/* signal defines */
 	DEFINE(SIGSEGV, SIGSEGV);
