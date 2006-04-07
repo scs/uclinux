@@ -309,3 +309,7 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
+
+/* added by blackfin */
+#undef BUFSIZ
+#define BUFSIZ 4096
