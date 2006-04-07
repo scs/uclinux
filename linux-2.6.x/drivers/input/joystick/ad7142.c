@@ -44,6 +44,15 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 
+#undef  DEBUG
+//#define DEBUG
+
+#ifdef DEBUG
+#define DPRINTK(x...)   printk(x)
+#else
+#define DPRINTK(x...)   do { } while (0)
+#endif
+
 MODULE_AUTHOR("Aubrey Li <aubrey.li@analog.com>");
 MODULE_DESCRIPTION("Driver for AD7142 joysticks");
 MODULE_LICENSE("GPL");
@@ -270,32 +279,35 @@ static struct i2c_driver ad7142_driver = {
 
 unsigned short old_status_low=0,old_status_high=0;
 
-int intr_flag = 0;
+static void ad7142_decode(void)
+{
+	unsigned short irqno_low=0,irqno_high=0;
+        unsigned short temp;
+
+        ad7142_i2c_read(ad7142_client,INTSTAT_REG0,&irqno_low,1);
+        temp = irqno_low ^ old_status_low;
+        if(temp == 0x0001){
+        	input_report_key(ad7142_dev, BTN_BASE, irqno_low&0x0001);
+                old_status_low = irqno_low;
+        }
+        ad7142_i2c_read(ad7142_client,INTSTAT_REG1,&irqno_high,1);
+        temp = irqno_high ^ old_status_high;
+        if(temp == 0x0001){
+	        input_report_key(ad7142_dev, BTN_BASE2, irqno_high&0x0001);
+                old_status_high = irqno_high;
+        }
+        input_sync(ad7142_dev);
+}
+
+
+static int intr_flag = 0;
 static int ad7142_thread(void *nothing)
 {
-        unsigned short irqno_low=0,irqno_high=0;
-	unsigned short temp;
-	
         do {
-                if(intr_flag == 1){
-        		
-			ad7142_i2c_read(ad7142_client,INTSTAT_REG0,&irqno_low,1);
-			temp = irqno_low ^ old_status_low;
-		        if(temp == 0x0001){
-		                input_report_key(ad7142_dev, BTN_BASE, irqno_low&0x0001);
-		                old_status_low = irqno_low;
-		        }
-		        ad7142_i2c_read(ad7142_client,INTSTAT_REG1,&irqno_high,1);
-		        temp = irqno_high ^ old_status_high;
-		        if(temp == 0x0001){
-		                input_report_key(ad7142_dev, BTN_BASE2, irqno_high&0x0001);
-		                old_status_high = irqno_high;
-		        }
-		        input_sync(ad7142_dev);
-                        intr_flag = 0;
-                        *pPORTGIO_MASKA |= PF5;
-                }
-                schedule();
+		wait_event_interruptible(ad7142_wait,intr_flag!=0);
+		ad7142_decode();
+                intr_flag = 0;
+                *pPORTGIO_MASKA |= PF5;
         } while (!kthread_should_stop());
         printk(KERN_DEBUG "ad7142: kthread exiting\n");
         return 0;
@@ -305,6 +317,7 @@ static irqreturn_t ad7142_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
 	*pPORTGIO_MASKA &= ~PF5;
 	intr_flag = 1;
+	wake_up_interruptible(&ad7142_wait);
 	return IRQ_HANDLED;
 }
 
