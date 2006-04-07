@@ -120,7 +120,6 @@ bool 'Build libao-0.8.6'	CONFIG_LIB_LIBAO_FORCE
 bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
 bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
 bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
-bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
 
 endmenu
 
@@ -639,7 +638,6 @@ comment '  wlan-ng drivers'
 	bool '    Prism2 PCI'	CONFIG_USER_WLAN_NG_PCI
 	bool '    Prism2 USB'	CONFIG_USER_WLAN_NG_USB
 fi
-bool 'IrDA support' HAVE_HWIRDA y
 
 endmenu
 
@@ -1595,8 +1593,8 @@ bool    'TWI LCD test program'          CONFIG_USER_BLACKFIN_TWILCDTEST
 bool    'TWI KEYPAD test program'       CONFIG_USER_BLACKFIN_TWIKEYPADTEST
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
-bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
 bool    'Still to write'                CONFIG_YET
+bool	'Input event device test'	CONFIG_EVENT_TEST
 
 endmenu
 
@@ -1615,11 +1613,19 @@ bool	'lmbench'			CONFIG_USER_LMBENCH
 bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
 bool	'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
 bool	'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
+bool	'corebld'			CONFIG_USER_BF561_COREBLD
 comment 'Inetutils'
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
 bool	'rcp'				CONFIG_USER_INETUTILS_RCP
 bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
 bool	'oprofile'			CONFIG_USER_OPROFILE
+if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
+	define_bool  CONFIG_LIB_GMP y
+	define_bool CONFIG_LIB_POPT y
+	define_bool CONFIG_LIB_MPFR y
+	string 'binutils path'		CONFIG_USER_BINUTILS	''
+	string 'binutils build path'	CONFIG_USER_BINUTILS_BUILD '/tmp/oprofile_build'
+fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
