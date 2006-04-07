@@ -796,6 +796,7 @@ struct ff_effect {
 
 #define FF_MAX		0x7f
 
+#ifdef __KERNEL__
 struct input_device_id {
 
 	kernel_ulong_t flags;
@@ -814,6 +815,7 @@ struct input_device_id {
 
 	kernel_ulong_t driver_info;
 };
+#endif
 
 /*
  * Structure for hotplug & device<->driver matching.
