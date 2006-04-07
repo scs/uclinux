@@ -311,11 +311,15 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		iface->cur_mode = TWI_I2C_MODE_STANDARD;
 		break;
 	case I2C_SMBUS_BYTE:
-		if (read_write == I2C_SMBUS_READ)
-			iface->readNum = 1;
-		else
-			iface->writeNum = 1;
-		iface->transPtr = &data->byte;
+		if (data == NULL)
+			iface->transPtr = NULL;
+		else {
+			if (read_write == I2C_SMBUS_READ)
+				iface->readNum = 1;
+			else
+				iface->writeNum = 1;
+			iface->transPtr = &data->byte;
+		}
 		iface->cur_mode = TWI_I2C_MODE_STANDARD;
 		break;
 	case I2C_SMBUS_BYTE_DATA:
@@ -419,10 +423,15 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			}
 			iface->writeNum--;
 		}
-
-		if(iface->readNum>0 && iface->readNum<=255)
-			*pTWI_MASTER_CTL = ( iface->readNum << 6 );
 		else {
+			*pTWI_XMT_DATA8 = iface->command;
+			*pTWI_MASTER_CTL = ( 1 << 6 );
+		}
+
+		if(iface->readNum>0 && iface->readNum<=255) {
+			*pTWI_MASTER_CTL = ( iface->readNum << 6 );
+		}
+		else if(iface->readNum>255) {
 			*pTWI_MASTER_CTL = ( 0xff << 6 );
 			iface->manual_stop = 1;
 		}
@@ -482,12 +491,13 @@ static int __init i2c_bfin_twi_init(void)
 
 	p_adap = &twi_iface.adap;
 	p_adap->id = I2C_BFIN_TWI;
+	strcpy(p_adap->name, "bfin-twi-i2c");
 	p_adap->algo = &bfin_twi_algorithm;
 	p_adap->algo_data = &twi_iface;
 	p_adap->client_register = NULL;
 	p_adap->client_unregister = NULL;
 
-	rc = request_irq(twi_iface.irq, bfin_twi_interrupt_entry, SA_INTERRUPT, "bfin twi i2c", &twi_iface);
+	rc = request_irq(twi_iface.irq, bfin_twi_interrupt_entry, SA_INTERRUPT, "bfin-twi-i2c", &twi_iface);
 	if (rc) {
 		printk(KERN_ERR "i2c-bfin-twi: can't get IRQ %d !\n", twi_iface.irq);
 		return -ENODEV;
