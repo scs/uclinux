@@ -1,9 +1,20 @@
 #!/bin/sh
 #
-#select event type ,default is 0xb
+#select event type ,default is 0x9
+	event_name=TOTAL_BRANCH
 	event_type=0x9
 	counter_enable=0x1
-	counter_count=10000
+# select counter number
+	counter=0
+# select count of counter
+	counter_count=100000
+# unit_mask
+	unit_mask=1
+# kernel
+	kernel=1
+# user
+	user=1
+# location of kernel image
 	kernel_image=./vmlinux
 case "$1" in
 	--init)
@@ -19,15 +30,15 @@ case "$1" in
 		;;
 	--setup)
 		echo $counter_count > /dev/oprofile/0/count
-		echo $counter_count > /dev/oprofile/1/count
 		echo $counter_enable > /dev/oprofile/0/enabled
+		echo $event_type > /dev/oprofile/0/event
+		echo $counter_count > /dev/oprofile/1/count
 		echo $counter_enable > /dev/oprofile/1/enabled
 		echo $event_type > /dev/oprofile/1/event
-		echo $event_type > /dev/oprofile/0/event
 		;;	
 	--start-daemon)
 		cd /usr/bin/
-		./oprofiled --events=TOTAL_BRANCH:0x09:0:500:1:1:1, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
+		./oprofiled --events=${event_name}:${event_type}:${counter}:${counter_count}:${unit_mask}:${kernel}:${user}, --vmlinux=${kernel_image} --kernel-range=0x1000,0x10000 &
 		;;
 	--start)
 		echo 1 > /dev/oprofile/enable
