@@ -475,6 +475,13 @@ retry:
 	addr += chip->start;
 
 	chip->state = FL_READY;
+	
+	if(addr&1){
+		map_word test = map->read(map, addr -1);
+		*buf++ = ((test.x[0] & 0xFF00)>>8);
+		addr++;
+		len--;
+	}
 
 	map->copy_from(map, buf, addr, len);
 
