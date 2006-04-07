@@ -114,4 +114,5 @@ exitloop1: // here means we found a zero or a difference.
 	.type _strcmp, STT_FUNC;
 	.global _strcmp;
 
-.weak _strcoll;_strcoll=_strcmp
+	.weak _strcoll;
+	.set _strcoll, _strcmp;
