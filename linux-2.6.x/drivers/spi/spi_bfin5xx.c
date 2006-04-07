@@ -144,7 +144,7 @@ struct chip_data {
 static void pump_messages(void *data);
 
 
-void spi_enable(struct driver_data *drv_data)
+void bfin_spi_enable(struct driver_data *drv_data)
 {
 	u16 cr;
 
@@ -154,7 +154,7 @@ void spi_enable(struct driver_data *drv_data)
 
 }
 
-void spi_disable(struct driver_data *drv_data)
+void bfin_spi_disable(struct driver_data *drv_data)
 {
 	u16 cr;
 
@@ -183,7 +183,7 @@ static void restore_state(struct driver_data *drv_data)
 {
 	/* Clear status and disable clock */
 	write_STAT(BIT_STAT_CLR);
-	spi_disable(drv_data);
+	bfin_spi_disable(drv_data);
 
 	/* Load the registers */
 	write_CTRL(drv_data->cur_chip->cr);
@@ -449,7 +449,7 @@ static void pump_transfers(unsigned long data)
 
 			/* Move to next transfer of this msg*/
 			message->state = next_transfer(drv_data);
-			spi_disable(drv_data);
+			bfin_spi_disable(drv_data);
 		}
 
 		/* Schedule next transfer tasklet */
@@ -765,7 +765,7 @@ static int bfin5xx_spi_remove(struct platform_device *pdev)
 		return status;
 
 	/* Disable the SSP at the peripheral and SOC level */
-        spi_disable(drv_data);
+        bfin_spi_disable(drv_data);
 
 	/* Release DMA */
 	if (drv_data->master_info->enable_dma) {
@@ -820,7 +820,7 @@ static int bfin5xx_spi_suspend(struct platform_device *pdev, pm_message_t state)
 		return status;
 
 	/* stop hardware */
-	spi_disable(drv_data);
+	bfin_spi_disable(drv_data);
 
 	return 0;
 }
@@ -831,7 +831,7 @@ static int bfin5xx_spi_resume(struct platform_device *pdev)
 	int status = 0;
 
 	/* Enable the SPI interface */
-	spi_enable(drv_data);
+	bfin_spi_enable(drv_data);
 
 	/* Start the queue running */
 	status = start_queue(drv_data);
