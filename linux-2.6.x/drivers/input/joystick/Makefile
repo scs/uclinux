@@ -26,5 +26,6 @@ obj-$(CONFIG_JOYSTICK_TMDC)		+= tmdc.o
 obj-$(CONFIG_JOYSTICK_TURBOGRAFX)	+= turbografx.o
 obj-$(CONFIG_JOYSTICK_TWIDJOY)		+= twidjoy.o
 obj-$(CONFIG_JOYSTICK_WARRIOR)		+= warrior.o
+obj-$(CONFIG_JOYSTICK_AD7142)		+= ad7142.o
 
 obj-$(CONFIG_JOYSTICK_IFORCE)		+= iforce/
