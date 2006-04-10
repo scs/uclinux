@@ -212,10 +212,10 @@ read_state (struct TWIKeypad *TWIKeypad)
 
   if (pcf8574_kp_client)
   {
-      i2c_smbus_write_byte (pcf8574_kp_client, 15);
+      i2c_smbus_write_byte (pcf8574_kp_client, 240);
       x = 0xF & (~(i2c_smbus_read_byte (pcf8574_kp_client) >> 4));
 
-      i2c_smbus_write_byte (pcf8574_kp_client, 240);
+      i2c_smbus_write_byte (pcf8574_kp_client, 15);
       y = 0xF & (~i2c_smbus_read_byte (pcf8574_kp_client));
 
       for (a = 0; x > 0; a++)

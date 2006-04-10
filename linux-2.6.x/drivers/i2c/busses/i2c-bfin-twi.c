@@ -85,7 +85,7 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 	if ( RCVSERV & twi_int_stat ){
 		if(iface->readNum>0) {
 			/* Receive next data */
-			*iface->transPtr = *pTWI_RCV_DATA8;
+			*(iface->transPtr) = *pTWI_RCV_DATA8;
 			if(iface->cur_mode == TWI_I2C_MODE_COMBINED) {
 				/* Change combine mode into sub mode after read first data. */
 				iface->cur_mode = TWI_I2C_MODE_STANDARDSUB;
@@ -242,7 +242,9 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			}
 		}
 	
-		/* FIFO Initiation */
+		/* FIFO Initiation. Data in FIFO should be discarded before start a new operation.*/
+		*pTWI_FIFO_CTL = 0x3;
+		__builtin_bfin_ssync();
 		*pTWI_FIFO_CTL = 0;
 
 		/* clear int stat */
@@ -376,7 +378,9 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	iface->command = command;
 	iface->timeout_count = 10;
 
-	/* FIFO Initiation */
+	/* FIFO Initiation. Data in FIFO should be discarded before start a new operation.*/
+	*pTWI_FIFO_CTL = 0x3;
+	__builtin_bfin_ssync();
 	*pTWI_FIFO_CTL = 0;
 
 	/* clear int stat */
@@ -418,6 +422,7 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		*pTWI_MASTER_CTL = 0;
+		/* Don't access xmit data register when this is a read operation. */
 		if(iface->read_write != I2C_SMBUS_READ) {
 			if(iface->writeNum>0) {
 				*pTWI_XMT_DATA8 = *(iface->transPtr++);
