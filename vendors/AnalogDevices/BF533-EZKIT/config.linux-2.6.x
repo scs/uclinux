@@ -199,6 +199,10 @@ CONFIG_UNCACHED_1M=y
 #
 # Clock Settings
 #
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
 # CONFIG_BFIN_KERNEL_CLOCK is not set
 
 #
@@ -429,6 +433,7 @@ CONFIG_NET=y
 #
 # Networking options
 #
+# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
