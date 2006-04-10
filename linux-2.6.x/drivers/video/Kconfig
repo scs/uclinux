@@ -435,7 +435,6 @@ config FB_BF537_LQ035
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB_SOFT_CURSOR
 	help
 	 This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
          attached to a BF537.
