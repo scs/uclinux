@@ -45,6 +45,7 @@
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/workqueue.h>
 
 
 MODULE_AUTHOR ("Michael Hennerich <hennerich@blackfin.uclinux.org>");
@@ -138,7 +139,9 @@ static struct i2c_client_address_data addr_data = {
 static irqreturn_t twi_keypad_irq_handler (int irq, void *dev_id,
 					   struct pt_regs *regs);
 static short read_state (struct TWIKeypad *TWIKeypad);
-static void check_and_notify (struct TWIKeypad *TWIKeypad);
+
+static struct workqueue_struct *twi_keypad_workqueue;
+static struct work_struct twi_keypad_work;
 
 static int
 pcf8574_kp_probe (struct i2c_adapter *adap, int addr, int kind)
@@ -165,8 +168,11 @@ pcf8574_kp_probe (struct i2c_adapter *adap, int addr, int kind)
 
   pcf8574_kp_client = client;
 
-  i2c_smbus_write_byte (pcf8574_kp_client, 240);
-
+  if(i2c_smbus_write_byte (pcf8574_kp_client, 240)<0) {
+    printk("in keypad probe: write fail\n");
+    return -1;
+  }
+  
   return 0;
 }
 
@@ -205,11 +211,11 @@ read_state (struct TWIKeypad *TWIKeypad)
   unsigned char x, y, a, b;
 
   if (pcf8574_kp_client)
-    {
-      i2c_smbus_write_byte (pcf8574_kp_client, 240);
+  {
+      i2c_smbus_write_byte (pcf8574_kp_client, 15);
       x = 0xF & (~(i2c_smbus_read_byte (pcf8574_kp_client) >> 4));
 
-      i2c_smbus_write_byte (pcf8574_kp_client, 15);
+      i2c_smbus_write_byte (pcf8574_kp_client, 240);
       y = 0xF & (~i2c_smbus_read_byte (pcf8574_kp_client));
 
       for (a = 0; x > 0; a++)
@@ -227,15 +233,14 @@ read_state (struct TWIKeypad *TWIKeypad)
 
 
 static void
-check_and_notify (struct TWIKeypad *TWIKeypad)
+check_and_notify (void *arg)
 {
-
+  struct TWIKeypad *TWIKeypad = (struct TWIKeypad *) arg;
   unsigned char nextstate = read_state (TWIKeypad);
   TWIKeypad->statechanged = TWIKeypad->laststate ^ nextstate;
 
   if (TWIKeypad->statechanged)
     {
-
       input_report_key (TWIKeypad->dev,
 			nextstate >
 			17 ? TWIKeypad->btncode[TWIKeypad->
@@ -248,6 +253,14 @@ check_and_notify (struct TWIKeypad *TWIKeypad)
   TWIKeypad->laststate = nextstate;
   input_sync (TWIKeypad->dev);
 
+  if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTA) {
+    *pFIO_MASKA_D |= (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    __builtin_bfin_ssync();
+  }
+  else if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTB) {
+    *pFIO_MASKB_D |= (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    __builtin_bfin_ssync();
+  }
 }
 
 
@@ -255,10 +268,16 @@ check_and_notify (struct TWIKeypad *TWIKeypad)
 static irqreturn_t
 twi_keypad_irq_handler (int irq, void *dev_id, struct pt_regs *regs)
 {
-  struct TWIKeypad *TWIKeypad = (struct TWIKeypad *) dev_id;
+  if (irq == IRQ_PROG_INTA) {
+    *pFIO_MASKA_D &= ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    __builtin_bfin_ssync();
+  }
+  else if (irq == IRQ_PROG_INTB) {
+    *pFIO_MASKB_D &= ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    __builtin_bfin_ssync();
+  }
 
-
-  check_and_notify (TWIKeypad);
+  queue_work(twi_keypad_workqueue, &twi_keypad_work);
 
   DPRINTK ("twi_keypad_irq_handler \n");
   return IRQ_HANDLED;
@@ -356,6 +375,10 @@ twi_keypad_init (void)
   TWIKeypad->laststate = read_state (TWIKeypad);
   DPRINTK ("twikeypad: Keypad driver for bf5xx IRQ %d\n", IRQ_PROG_INTA);
 
+  /* Set up our workqueue. */
+  INIT_WORK(&twi_keypad_work, check_and_notify, TWIKeypad);
+  twi_keypad_workqueue = create_singlethread_workqueue("twi_keypad");
+  
   return 0;
 
 fail:

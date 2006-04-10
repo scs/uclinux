@@ -252,13 +252,18 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		*pTWI_INT_MASK = MCOMP | MERR | ((iface->read_write == I2C_SMBUS_READ)? RCVSERV : XMTSERV);
 		__builtin_bfin_ssync();
 
+		if(pmsg->len>0 && pmsg->len<=255)
+			*pTWI_MASTER_CTL = ( pmsg->len << 6 );
+		else if (pmsg->len>255) {
+			*pTWI_MASTER_CTL = ( 0xff << 6 );
+			iface->manual_stop = 1;
+		}
+		else
+			break;
+
 		iface->timeout_timer.expires = jiffies + POLL_TIMEOUT;
 		add_timer(&iface->timeout_timer);
 
-		if(pmsg->len<=256)
-			*pTWI_MASTER_CTL = ( pmsg->len << 6 );
-		else
-			*pTWI_MASTER_CTL = ( 0xff << 6 );
 		/* Master enable */
 		*pTWI_MASTER_CTL |= MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0)
 			 | ((CONFIG_TWICLK_KHZ>100) ? FAST : 0);
@@ -413,27 +418,33 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		*pTWI_MASTER_CTL = 0;
-		if(iface->writeNum>0) {
-			*pTWI_XMT_DATA8 = *(iface->transPtr++);
-			if(iface->writeNum<=255)
-				*pTWI_MASTER_CTL = ( iface->writeNum << 6 );
+		if(iface->read_write != I2C_SMBUS_READ) {
+			if(iface->writeNum>0) {
+				*pTWI_XMT_DATA8 = *(iface->transPtr++);
+				if(iface->writeNum<=255)
+					*pTWI_MASTER_CTL = ( iface->writeNum << 6 );
+				else {
+					*pTWI_MASTER_CTL = ( 0xff << 6 );
+					iface->manual_stop = 1;
+				}
+				iface->writeNum--;
+			}
 			else {
+				*pTWI_XMT_DATA8 = iface->command;
+				*pTWI_MASTER_CTL = ( 1 << 6 );
+			}
+		}
+		else {
+			if(iface->readNum>0 && iface->readNum<=255)
+				*pTWI_MASTER_CTL = ( iface->readNum << 6 );
+			else if(iface->readNum>255) {
 				*pTWI_MASTER_CTL = ( 0xff << 6 );
 				iface->manual_stop = 1;
 			}
-			iface->writeNum--;
-		}
-		else {
-			*pTWI_XMT_DATA8 = iface->command;
-			*pTWI_MASTER_CTL = ( 1 << 6 );
-		}
-
-		if(iface->readNum>0 && iface->readNum<=255) {
-			*pTWI_MASTER_CTL = ( iface->readNum << 6 );
-		}
-		else if(iface->readNum>255) {
-			*pTWI_MASTER_CTL = ( 0xff << 6 );
-			iface->manual_stop = 1;
+			else {
+				del_timer(&iface->timeout_timer);
+				break;
+			}
 		}
 
 		*pTWI_INT_MASK = MCOMP | MERR | ((iface->read_write == I2C_SMBUS_READ)? RCVSERV : XMTSERV);
