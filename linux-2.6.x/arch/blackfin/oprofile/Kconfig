@@ -18,4 +18,12 @@ help
 
   If unsure, say N.
 
+config HARDWARE_PM
+tristate " Hardware Performance Monitor Profiling"
+depends on PROFILING
+help
+  take use of hardware performance monitor to profiling the kernel and application.
+
+  If unsure, say N.
+
 endmenu
