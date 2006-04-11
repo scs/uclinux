@@ -160,7 +160,7 @@ ifdef UCLINUX_BUILD_USER
   else
 	LDFLAGS = -Wl,-elf2flt
   endif
-	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
+	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
 
 	LDLIBS   = $(LDPATH)
 
