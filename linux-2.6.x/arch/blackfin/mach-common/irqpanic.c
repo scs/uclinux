@@ -175,7 +175,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	}
 }
 
-#ifdef CONFIG_PROFILING
+#ifdef CONFIG_HARDWARE_PM
 /****
  *
  *   call the handler of Performance overflow

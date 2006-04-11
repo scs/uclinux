@@ -78,7 +78,7 @@ ENTRY(_evt_ivhw)
 	r0 = IRQ_HWERR;
 	r1 = sp;
 
-#ifdef CONFIG_PROFILING
+#ifdef CONFIG_HARDWARE_PM
 	r7 = SEQSTAT;
 	r7 = r7 >>> 0xe;
 	r6 = 0x1F;
@@ -92,7 +92,7 @@ ENTRY(_evt_ivhw)
 	call _irq_panic;
 	SP += 12;
 	rti;
-#ifdef CONFIG_PROFILING
+#ifdef CONFIG_HARDWARE_PM
 call_do_ovf:
 
 	SP += -12;
