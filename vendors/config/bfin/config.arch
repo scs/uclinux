@@ -145,7 +145,6 @@ ifdef UCLINUX_BUILD_USER
 	CFLAGS  := -O2
   endif
 	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
-	CFLAGS  += $(INCDIST) $(INCLIBC)
 	CFLAGS  += -fno-builtin
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
 	CFLAGS  += -fstack-limit-symbol=_stack_start
@@ -160,7 +159,8 @@ ifdef UCLINUX_BUILD_USER
   else
 	LDFLAGS = -Wl,-elf2flt
   endif
-	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
+	CXXFLAGS := $(CFLAGS) $(INCCXX) -fno-exceptions
+	CFLAGS  += $(INCDIST) $(INCLIBC)
 
 	LDLIBS   = $(LDPATH)
 
