@@ -112,7 +112,7 @@ config SND_BFIN_SPORT
 config SND_BFIN_AD73311_SE
 	int "PF pin for AD73311L Chip Select"
 	depends on SND_BFIN_AD73311
-	default 3333 
+	default 4 
 	help
 	  Enter the GPIO used to control AD73311's SE pin. Acceptable 
 	  values are 0 to 7
