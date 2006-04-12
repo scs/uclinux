@@ -566,3 +566,5 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 #endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
 
 }
+
+EXPORT_SYMBOL(bfin_gpio_interrupt_setup);
