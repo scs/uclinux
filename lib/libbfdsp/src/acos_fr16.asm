@@ -50,11 +50,11 @@
  .short 0x9672
  .short 0x4139
  .acoscoef1:
- .short = 0x2BB6
+ .short 0x2BB6
  .short 0xAD97
  .short 0x5DC0
  .acoscoef2:
- .short = 0x2DA3
+ .short 0x2DA3
  .short 0x9F04
  .short 0x4F95;
 
