@@ -110,7 +110,7 @@ config BFIN_TWIKEYPAD_IRQ_PFX
 	int "GPIO for Interrupt"
 	depends on (BFIN && TWI_KEYPAD)
 	range 0 15
-	default "5" if BFIN537_STAMP
+	default "6" if BFIN537_STAMP
 	default "6" if BFIN533_STAMP
 	help
 	  Choose an GPIO as Keypad interrupt.[0..15]

@@ -430,7 +430,7 @@ endchoice
 
 
 config FB_BF537_LQ035
-	bool "SHARP LQ035 TFT LCD on uClinux (BF537 STAMP)"
+	tristate "SHARP LQ035 TFT LCD on uClinux (BF537 STAMP)"
 	depends on FB && BFIN && I2C
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
