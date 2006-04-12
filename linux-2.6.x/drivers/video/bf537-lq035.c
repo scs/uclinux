@@ -202,7 +202,6 @@ static void start_timers (void) /* CHECK with HW */
 	local_irq_restore (flags);
 }
 
-
 static void config_timers (void) /* CHECKME */
 {
 	/* Stop timers */
@@ -310,40 +309,6 @@ static void init_ports(void)
 	__builtin_bfin_ssync();
 }
 
-static int start_framebuffer (void)
-{
-	*pPPI_CONTROL = 0;
-	
-	init_ports ();
-	{
-		static DECLARE_WAIT_QUEUE_HEAD(wait);
-		sleep_on_timeout (&wait, HZ/2);
-		
-		__builtin_bfin_ssync();
-	}
-	////set_backlight (60);	
-	
-	set_vcomm ();	
-	config_dma ();		
-	config_ppi ();
-	
-	/* start dma */
-	enable_dma(CH_PPI);
-	__builtin_bfin_ssync();
-	*pPPI_CONTROL |= PORT_EN;			
-	__builtin_bfin_ssync();
-    
-    config_timers ();    
-	start_timers ();
-	{
-		static DECLARE_WAIT_QUEUE_HEAD(wait);
-		sleep_on_timeout (&wait, HZ/2);		
-		*pPORTFIO_SET =  (1U<<10);
-		__builtin_bfin_ssync();
-	}
-}
-
-
 static struct fb_info bfin_lq035_fb; 
 
 static struct fb_var_screeninfo bfin_lq035_fb_defined = {
@@ -376,13 +341,50 @@ static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
 
 static int bfin_lq035_fb_open (struct fb_info* info, int user)
 {
-	//printk (" %s\n", __FUNCTION__);
+	*pPPI_CONTROL = 0;
+	__builtin_bfin_ssync();
+
+	init_ports ();
+	{
+		static DECLARE_WAIT_QUEUE_HEAD(wait);
+		sleep_on_timeout (&wait, HZ/2);
+		
+		__builtin_bfin_ssync();
+	}
+	////set_backlight (60);	
+	
+	set_vcomm ();	
+	config_dma ();		
+	config_ppi ();
+	
+	/* start dma */
+	enable_dma(CH_PPI);
+	__builtin_bfin_ssync();
+	*pPPI_CONTROL |= PORT_EN;			
+	__builtin_bfin_ssync();
+    
+	config_timers ();    
+	start_timers ();
+	{
+		static DECLARE_WAIT_QUEUE_HEAD(wait);
+		sleep_on_timeout (&wait, HZ/2);		
+		*pPORTFIO_SET =  (1U<<10);
+		__builtin_bfin_ssync();
+	}
+
 	return 0;
 }
 
 static int bfin_lq035_fb_release (struct fb_info* info, int user)
 {
-	//printk (" %s\n", __FUNCTION__);
+	*pTIMER_ENABLE = 0;	
+	__builtin_bfin_ssync();
+
+	*pPPI_CONTROL = 0;
+	__builtin_bfin_ssync();
+
+	free_dma(CH_PPI);
+
 	return 0;
 }
 
@@ -482,19 +484,19 @@ static struct lcd_properties lcd = {
 	.check_fb		= lcd_check_fb,
 };
 
-static int __init bfin_lq035fb_probe(struct device *dev)
+static int __init bfin_lq035_fb_init(void)
 {
 	printk ("SHARP LQ035 LCD FrameBuffer initializing...\n");
 
 	fb_buffer = dma_alloc_coherent (NULL, (320+U_LINES)*240*2, &dma_handle, GFP_KERNEL);
-	memset (fb_buffer, 0xff, (320+U_LINES)*240*2);
-	
 	
 	if (NULL == fb_buffer)
 	{
 		printk(KERN_ERR "BF537 FB: couldn't allocate dma buffer.\n");
 		return -ENOMEM;		
 	}	
+	
+	memset (fb_buffer, 0xff, (320+U_LINES)*240*2);
 	
 	bfin_lq035_fb.screen_base	= (void*)fb_buffer;
 	bfin_lq035_fb_fix.smem_start    = (int)fb_buffer;
@@ -514,46 +516,22 @@ static int __init bfin_lq035fb_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	dev_set_drvdata (dev, &bfin_lq035_fb);	
+	i2c_add_driver (&ad5280_driver);
+	
 	backlight_device_register ("bf537-bl", NULL, &bfin_lq035fb_bl);
 	lcd_device_register ("bf537-lcd", NULL, &lcd);
+
 	return 0;
 }
 
-static int bfin_lq035fb_suspend(struct device *dev, pm_message_t state)
+static void __exit
+bfin_lq035_fb_exit (void)
 {
-	//printk ("%s\n", __FUNCTION__);
-  	return 0;
-}
-
-static int bfin_lq035fb_resume(struct device *dev)
-{
-	//printk ("%s\n", __FUNCTION__);
-  	return 0;
-}
-
-static struct device_driver bfin_lq035fb_driver = {
-	.name 		= "bf537-fb",
-	.bus		= &platform_bus_type,
-	.probe		= bfin_lq035fb_probe,	
-	.suspend	= bfin_lq035fb_suspend,
-	.resume		= bfin_lq035fb_resume,
-};
-
-static int __init bfin_lq035_fb_init(void)
-{
-	int nr;
-		
-	if (0 != (nr = i2c_add_driver (&ad5280_driver)))
-		return nr;
-	
-	if (0 != (nr = driver_register(&bfin_lq035fb_driver)))
-	{
-		i2c_del_driver (&ad5280_driver);
-		return nr;
-	}		
-	start_framebuffer ();	
-	return nr;	
+	if (fb_buffer != NULL)
+		dma_free_coherent(NULL, (320+U_LINES)*240*2, fb_buffer, dma_handle);
+	unregister_framebuffer(&bfin_lq035_fb);
+	i2c_del_driver (&ad5280_driver);
+	printk ("Unregister LCD driver.\n");
 }
 
 
@@ -562,4 +540,5 @@ MODULE_LICENSE("GPL");
 #endif
 
 module_init(bfin_lq035_fb_init);
+module_exit(bfin_lq035_fb_exit);
 
