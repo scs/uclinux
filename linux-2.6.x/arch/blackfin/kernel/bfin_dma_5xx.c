@@ -306,6 +306,7 @@ int request_dma(unsigned int channel, char *device_id)
 	up(&(dma_ch[channel].dmalock));
 
 	dma_ch[channel].device_id = device_id;
+	dma_ch[channel].callback = NULL;
 
 	/* This is to be enabled by putting a restriction -
 	   you have to request DMA , before doing any operations on
@@ -351,8 +352,11 @@ void free_dma(unsigned int channel)
 	/* Halt the DMA */
 	disable_dma(channel);
 	clear_dma_buffer(channel);
-	ret_irq = channel2irq(channel);
-	free_irq(ret_irq, dma_ch[channel].data);
+
+	if (dma_ch[channel].callback != NULL) {
+		ret_irq = channel2irq(channel);
+		free_irq(ret_irq, dma_ch[channel].data);
+	}
 
 	/* Clear the DMA Variable in the Channel */
 	down(&(dma_ch[channel].dmalock));
