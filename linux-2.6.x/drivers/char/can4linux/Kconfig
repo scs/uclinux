@@ -77,7 +77,7 @@ config CAN_UNCTWINCAN
 
 config CAN_BLACKFIN
 	tristate "Analog Devices BlackFin CAN Controller"
-	depends on CAN4LINUX && EMBEDDED
+	depends on CAN4LINUX && EMBEDDED && (BF534 || BF536 || BF537)
 	---help---
 	  This is can4linux support for the integrated CAN controller
 	  found on Analog Devices BlackFin processors.

@@ -50,7 +50,7 @@ config BFIN_TIMER_LATENCY
 
 config TWI_LCD
     tristate "TWI/I2C LCD support for HD44780 based LCD modules"
-	depends on I2C && EXPERIMENTAL 
+	depends on I2C && EXPERIMENTAL && BFIN
 	default n
 	---help---
 
