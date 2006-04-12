@@ -41,6 +41,7 @@
 #include <stdarg.h>
 
 #include <linux/config.h>
+#include <linux/version.h>
 #include <config/autoconf.h>
 #include <linux/major.h>
 #ifdef CONFIG_USER_NETFLASH_CRYPTO
@@ -48,7 +49,13 @@
 #include "crypto.h"
 #endif
 #if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#include <mtd/mtd-user.h>
+#define MTD_CHAR_MAJOR 90
+#define MTD_BLOCK_MAJOR 31
+#else
 #include <linux/mtd/mtd.h>
+#endif
 #else
 #include <linux/blkmem.h>
 #endif

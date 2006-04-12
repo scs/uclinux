@@ -48,12 +48,17 @@ CFLAGS += -Dnetflashmain=main
 # CFLAGS += -DDEBUG_CGI
 
 
+CFLAGS +=  -I.
+
 all: $(EXEC)
+
+mtd:
+	ln -sf $(ROOTDIR)/$(LINUXDIR)/include/mtd mtd
 
 netflash: $(OBJS) $(COBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(COBJS) $(ADD_LIBZ) $(LDLIBS$(LDLIBS_$@))
 
-netflash.o: netflash.c $(ROOTDIR)/config.arch
+netflash.o: netflash.c $(ROOTDIR)/config.arch mtd
 	echo $(COBJS)
 	$(CC) -c -o $@ netflash.c $(CFLAGS)
 
@@ -70,5 +75,5 @@ romfs:
 	$(ROMFSINST) /bin/netflash
 
 clean:
-	-rm -f netflash hmacmd5 *.elf *.gdb *.o
+	-rm -f netflash hmacmd5 *.elf *.gdb *.o mtd
 
