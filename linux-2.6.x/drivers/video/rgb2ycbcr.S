@@ -37,8 +37,9 @@
  * If not, write to the Free Software Foundation,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
+#ifdef MODULE
 .section .text.l1, "ax", @progbits;
+#endif
 .global         _rgb2yuv;
 .align          8;
 

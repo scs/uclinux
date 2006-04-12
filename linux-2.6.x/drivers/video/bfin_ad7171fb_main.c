@@ -54,13 +54,21 @@ static int bfin_fb_mmap(struct fb_info *info, struct vm_area_struct * vma);
 
 static void bfin_config_ppi(void);
 static void bfin_config_dma(void *ycrcb_buffer);
+static void bfin_disable_dma(void);
 static void bfin_enable_ppi(void);
+static void bfin_disable_ppi(void);
 static void bfin_framebuffer_init(void *ycrcb_buffer);
+#ifdef MODULE
+static void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer);
+extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n);
+static void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count);
+#else
 extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)__attribute((section(".text.l1")));
-static void bfin_framebuffer_timer_setup(void);
-static void bfin_framebuffer_timerfn(unsigned long data);
 extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n)__attribute((section(".text.l1")));
 extern void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)__attribute((section(".text.l1")));
+#endif
+static void bfin_framebuffer_timer_setup(void);
+static void bfin_framebuffer_timerfn(unsigned long data);
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern int l1_data_A_sram_free(unsigned long addr);
 /*
@@ -359,6 +367,11 @@ static void bfin_config_dma(void *ycrcb_buffer)
         *pDMA0_CONFIG           = 0x1015;
 }
 
+static void bfin_disable_dma(void)
+{
+	*pDMA0_CONFIG		&= ~DMAEN;
+}
+
 void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)
 {
 
@@ -381,6 +394,11 @@ static void bfin_config_ppi(void)
 static void bfin_enable_ppi(void)
 {
 	*pPPI_CONTROL		|= PORT_EN;
+}
+
+static void bfin_disable_ppi(void)
+{
+	*pPPI_CONTROL		&= ~PORT_EN;
 }
 
 static inline int
@@ -691,7 +709,8 @@ static int bfin_ad7171_fb_release(struct fb_info *info, int user)
 	if(yuv_l1)
 		l1_data_A_sram_free((unsigned long)yuv_l1);
 	del_timer(&bfin_framebuffer_timer);
-	i2c_del_driver(&i2c_driver_adv7171);
+	bfin_disable_dma();
+	bfin_disable_ppi();
 	return 0;
 }
 
@@ -719,23 +738,28 @@ static int bfin_ad7171_fb_pan_display(struct fb_var_screeninfo *var,
 /* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
 static int bfin_ad7171_fb_blank(int blank, struct fb_info *info)
 {
-printk("bfin_ad7171_fb_blank called ... not implemented\n");
+	printk("bfin_ad7171_fb_blank called ... not implemented\n");
 	return -EINVAL;
 }
 
 static void bfin_ad7171_fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-printk("bfin_ad7171_fb_fillrect called ... not implemented\n");
+	printk("bfin_ad7171_fb_fillrect called ... not implemented\n");
 }
 
 static void bfin_ad7171_fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-printk("bfin_ad7171_fb_imageblit called ... not implemented\n");
+	printk("bfin_ad7171_fb_imageblit called ... not implemented\n");
 }
 
 static void __exit bfin_ad7171_fb_exit(void)
 {
-    unregister_framebuffer(&bfin_ad7171_fb);
+	if(ycrcb_buffer)
+                kfree(ycrcb_buffer);
+        if(rgb_buffer)
+                kfree(rgb_buffer);
+	unregister_framebuffer(&bfin_ad7171_fb);
+	i2c_del_driver(&i2c_driver_adv7171);
 }
 
 MODULE_LICENSE("GPL");
