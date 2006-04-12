@@ -1,3 +1,8 @@
+2006-04-12  Jie Zhang  <jie.zhang@analog.com>
+
+	* linux-bfin-low.c (bfin_regmap[]): Add PT_FDPIC_EXEC and
+	PT_FDPIC_INTERP.
+
 2005-11-24  Jie Zhang  <jie.zhang@analog.com>
 
 	* Makefile: Remove rule for config.h, too.

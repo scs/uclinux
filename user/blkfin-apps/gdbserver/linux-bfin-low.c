@@ -41,6 +41,7 @@ static int bfin_regmap[] =
   -1 /* PT_CYCLES */, -1 /* PT_CYCLES2 */,
   -1 /* PT_USP */, PT_SEQSTAT, PT_SYSCFG, PT_PC, PT_RETX, PT_RETN, PT_RETE,
   PT_PC, -1 /* PT_CC */, PT_EXTRA1, PT_EXTRA2, PT_EXTRA3,
+  PT_FDPIC_EXEC, PT_FDPIC_INTERP,
   PT_IPEND
 };
 
