@@ -21,8 +21,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <linux/config.h>
+#include <linux/version.h>
 #ifdef CONFIG_MTD
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#include <mtd/mtd-user.h>
+#else
 #include <linux/mtd/mtd.h>
+#endif
 #else
 #include <linux/blkmem.h>
 #endif
