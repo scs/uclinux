@@ -106,6 +106,7 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 }
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
+#ifdef CONFIG_HARDWARE_PM
 	unsigned int dspid;
 
 	init_MUTEX(&pfmon_sem);
@@ -138,6 +139,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	       ops->cpu_type);
 
 	return 0;
+#else
+	return -1;
+#endif
 }
 
 void oprofile_arch_exit(void)
