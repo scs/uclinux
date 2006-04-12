@@ -81,17 +81,8 @@ static struct resource sl811_hcd_resources[] = {
 	       .flags = IORESOURCE_MEM,
 	       },
 	[2] = {
-	       .start = IRQ_PROG_INTA,
-	       .end = IRQ_PROG_INTA,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
-	[3] = {
-		/*
-	        *  denotes the flag pin and is used directly if
-	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-	        */
-	       .start = IRQ_PF5,
-	       .end = IRQ_PF5,
+	       .start = IRQ_PF0 + CONFIG_USB_SL811_BFIN_GPIO,
+	       .end = IRQ_PF0 + CONFIG_USB_SL811_BFIN_GPIO,
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 };

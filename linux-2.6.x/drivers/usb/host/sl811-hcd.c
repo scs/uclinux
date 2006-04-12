@@ -1748,15 +1748,12 @@ sl811h_probe(struct platform_device *dev)
 	 * triggering arrangement should work.
 	 */
 
-#ifdef CONFIG_BFIN
-#include <asm/blackfin.h>
-	bfin_gpio_interrupt_setup(irq, platform_get_irq(dev, 1), IRQT_HIGH);
-#endif /* CONFIG_BFIN */
-
 	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
 	if (retval != 0)
 		goto err6;
-
+#ifdef CONFIG_BFIN
+	set_irq_type(irq, IRQT_HIGH);
+#endif
 	create_debug_file(sl811);
 	return retval;
 
