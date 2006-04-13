@@ -48,6 +48,7 @@ config HAS_FPU
 	default n
 
 config INSTALL_ELF_SHARED_LIBS
+	prompt "Do install ELF shared libs"
 	bool
 	default y
 	help
