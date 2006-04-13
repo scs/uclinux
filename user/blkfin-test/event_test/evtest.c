@@ -27,7 +27,7 @@
  * Vojtech Pavlik, Ucitelska 1576, Prague 8, 182 00 Czech Republic
  */
 
-#include <linux/input.h>
+#include "input.h"
 #include <linux/version.h>
 #include <string.h>
 #include <fcntl.h>
