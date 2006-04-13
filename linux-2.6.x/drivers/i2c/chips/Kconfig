@@ -28,7 +28,6 @@ config SENSORS_DS1374
 config SENSORS_AD5252
 	tristate "Analog Devices AD5252 and AD5251 Digital Potentiometers"
 	depends on I2C && EXPERIMENTAL
-	select I2C_SENSOR
 	help
 	  If you say yes here you get support for Analog Devices and AD5252
 	  AD5251 chips.
