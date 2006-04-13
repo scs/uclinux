@@ -1221,7 +1221,7 @@ static irqreturn_t isp1362_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 		if (intstat & OHCI_INTR_RD) {
 			INFO("%s: RESUME DETECTED\n", __FUNCTION__);
 			isp1362_show_reg(isp1362_hcd, HCCONTROL);
-			schedule_work(&isp1362_hcd->rh_resume);
+			usb_hcd_resume_root_hub(hcd);
 		}
 		isp1362_write_reg32(isp1362_hcd, HCINTSTAT, intstat);
 		irqstat &= ~HCuPINT_OPR;
@@ -1737,9 +1737,6 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_SUSPEND:
 			_DBG(0, "USB_PORT_FEAT_SUSPEND\n");
 			tmp = RH_PS_POCI;
-			if ((isp1362_hcd->hc_control & OHCI_CTRL_HCFS) != OHCI_USB_OPER) {
-				schedule_work(&isp1362_hcd->rh_resume);
-			}
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			_DBG(0, "USB_PORT_FEAT_C_SUSPEND\n");
@@ -2038,21 +2035,7 @@ static int isp1362_bus_resume(struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 	return 0;
 }
-
-static void isp1362_rh_resume(void *_hcd)
-{
-	struct usb_hcd	*hcd = _hcd;
-
-	INFO("%s: \n", __FUNCTION__);
-
-	usb_resume_device(hcd->self.root_hub);
-}
 #else
-static void isp1362_rh_resume(void *_hcd)
-{
-	INFO("rh_resume ??\n");
-}
-
 #define	isp1362_bus_suspend	NULL
 #define	isp1362_bus_resume	NULL
 #endif
@@ -2940,7 +2923,6 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&isp1362_hcd->periodic);
 	INIT_LIST_HEAD(&isp1362_hcd->isoc);
 	INIT_LIST_HEAD(&isp1362_hcd->remove_list);
-	INIT_WORK(&isp1362_hcd->rh_resume, isp1362_rh_resume, hcd);
 	isp1362_hcd->board = pdev->dev.platform_data;
 #if USE_PLATFORM_DELAY
 	if (!isp1362_hcd->board->delay) {

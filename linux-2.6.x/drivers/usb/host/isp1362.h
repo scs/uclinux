@@ -490,7 +490,6 @@ struct isp1362_hcd {
 	u32			rhdescb;
 	u32			rhstatus;
 	u32			rhport[MAX_ROOT_PORTS];
-	struct work_struct	rh_resume;
 	unsigned long		next_statechange;
 
 	// HC control reg shadow copy
