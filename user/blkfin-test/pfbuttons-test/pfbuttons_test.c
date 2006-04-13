@@ -6,7 +6,8 @@
 #include <errno.h>
 #include <unistd.h> 
 #include <string.h>
-#include <linux/input.h>
+
+#include "input.h"
 
 int main(int argc, char *argv[])
 {
