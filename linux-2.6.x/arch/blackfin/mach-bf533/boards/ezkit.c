@@ -32,6 +32,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/irq.h>
 
 /*
