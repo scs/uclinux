@@ -101,7 +101,7 @@ ALLOWRELEASE =
 
 # libtool compile/link/install
 LTCOMPILE = $(LIBTOOL) --mode=compile $(TCC)
-LTLINK = $(LIBTOOL) --mode=link $(TCC) -Wl,-elf2flt
+LTLINK = $(LIBTOOL) --mode=link $(TCC)
 LTINSTALL = $(LIBTOOL) --mode=install $(INSTALL)
 
 # You should not have to change anything below this line
