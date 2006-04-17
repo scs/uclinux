@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16
-# Wed Apr 12 18:28:14 2006
+# Linux kernel version: 2.6.16ADI-2006R1
+# Mon Apr 17 18:13:37 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set

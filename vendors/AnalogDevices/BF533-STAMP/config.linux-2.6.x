@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16
-# Wed Apr 12 17:56:56 2006
+# Linux kernel version: 2.6.16ADI-2006R1
+# Mon Apr 17 18:06:34 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -435,6 +435,8 @@ CONFIG_MTD_UCLINUX=y
 #
 # Self-contained MTD device drivers
 #
+# CONFIG_MTD_DATAFLASH is not set
+# CONFIG_MTD_M25P80 is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_PHRAM is not set
 # CONFIG_MTD_MTDRAM is not set
@@ -697,8 +699,18 @@ CONFIG_BFIN_SCL=3
 #
 # SPI support
 #
-# CONFIG_SPI is not set
-# CONFIG_SPI_MASTER is not set
+CONFIG_SPI=y
+CONFIG_SPI_MASTER=y
+
+#
+# SPI Master Controller Drivers
+#
+# CONFIG_SPI_BITBANG is not set
+CONFIG_SPI_BFIN=m
+
+#
+# SPI Protocol Masters
+#
 
 #
 # Dallas's 1-wire bus
@@ -776,7 +788,6 @@ CONFIG_FB_CFB_IMAGEBLIT=m
 CONFIG_FB_BFIN_7171=m
 CONFIG_NTSC=y
 # CONFIG_PAL is not set
-# CONFIG_FB_BF537_LQ035 is not set
 # CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
 
@@ -824,7 +835,9 @@ CONFIG_SND_BLACKFIN_ADI1836_MULSUB=y
 # CONFIG_SND_BLACKFIN_ADI1836_5P1 is not set
 CONFIG_SND_BLACKFIN_SPORT=0
 CONFIG_SND_BLACKFIN_SPI_PFBIT=4
-# CONFIG_SND_BFIN_AD73311 is not set
+CONFIG_SND_BFIN_AD73311=m
+CONFIG_SND_BFIN_SPORT=0
+CONFIG_SND_BFIN_AD73311_SE=4
 
 #
 # Open Sound System

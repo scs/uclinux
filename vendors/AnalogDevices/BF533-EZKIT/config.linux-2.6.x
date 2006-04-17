@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16
-# Wed Apr 12 18:24:08 2006
+# Linux kernel version: 2.6.16ADI-2006R1
+# Mon Apr 17 18:11:42 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -690,10 +690,6 @@ CONFIG_HWMON=y
 # Sound
 #
 # CONFIG_SOUND is not set
-# CONFIG_SND_BLACKFIN_ADI1836_TDM is not set
-# CONFIG_SND_BLACKFIN_ADI1836_I2S is not set
-# CONFIG_SND_BLACKFIN_ADI1836_MULSUB is not set
-# CONFIG_SND_BLACKFIN_ADI1836_5P1 is not set
 
 #
 # USB support
