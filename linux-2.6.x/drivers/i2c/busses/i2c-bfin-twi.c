@@ -243,8 +243,8 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		}
 	
 		/* FIFO Initiation. Data in FIFO should be discarded before start a new operation.*/
-		*pTWI_FIFO_CTL = 0x3;
-		__builtin_bfin_ssync();
+/*		*pTWI_FIFO_CTL = 0x3;
+		__builtin_bfin_ssync();*/
 		*pTWI_FIFO_CTL = 0;
 
 		/* clear int stat */
@@ -422,36 +422,37 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 		break;
 	default:
 		*pTWI_MASTER_CTL = 0;
-		/* Don't access xmit data register when this is a read operation. */
-		if(iface->read_write != I2C_SMBUS_READ) {
-			if(iface->writeNum>0) {
-				*pTWI_XMT_DATA8 = *(iface->transPtr++);
-				if(iface->writeNum<=255)
-					*pTWI_MASTER_CTL = ( iface->writeNum << 6 );
+		if(size != I2C_SMBUS_QUICK){
+			/* Don't access xmit data register when this is a read operation. */
+			if(iface->read_write != I2C_SMBUS_READ) {
+				if(iface->writeNum>0) {
+					*pTWI_XMT_DATA8 = *(iface->transPtr++);
+					if(iface->writeNum<=255)
+						*pTWI_MASTER_CTL = ( iface->writeNum << 6 );
+					else {
+						*pTWI_MASTER_CTL = ( 0xff << 6 );
+						iface->manual_stop = 1;
+					}
+					iface->writeNum--;
+				}
 				else {
+					*pTWI_XMT_DATA8 = iface->command;
+					*pTWI_MASTER_CTL = ( 1 << 6 );
+				}
+			}
+			else {
+				if(iface->readNum>0 && iface->readNum<=255)
+					*pTWI_MASTER_CTL = ( iface->readNum << 6 );
+				else if(iface->readNum>255) {
 					*pTWI_MASTER_CTL = ( 0xff << 6 );
 					iface->manual_stop = 1;
 				}
-				iface->writeNum--;
-			}
-			else {
-				*pTWI_XMT_DATA8 = iface->command;
-				*pTWI_MASTER_CTL = ( 1 << 6 );
-			}
-		}
-		else {
-			if(iface->readNum>0 && iface->readNum<=255)
-				*pTWI_MASTER_CTL = ( iface->readNum << 6 );
-			else if(iface->readNum>255) {
-				*pTWI_MASTER_CTL = ( 0xff << 6 );
-				iface->manual_stop = 1;
-			}
-			else {
-				del_timer(&iface->timeout_timer);
-				break;
+				else {
+					del_timer(&iface->timeout_timer);
+					break;
+				}
 			}
 		}
-
 		*pTWI_INT_MASK = MCOMP | MERR | ((iface->read_write == I2C_SMBUS_READ)? RCVSERV : XMTSERV);
 		__builtin_bfin_ssync();
 
