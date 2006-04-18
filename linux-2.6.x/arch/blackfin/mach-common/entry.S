@@ -662,6 +662,11 @@ ENTRY(return_from_int)
 	rts;
 
 ENTRY(_lower_to_irq14)
+	/* FIXME : This is a temp workaround for a pipeline/architecture issue */
+	r0 = 0x1000;
+	reti = r0;
+	/* End workaround */
+
 	r0 = 0x401f;
 	sti r0;
 	raise 14;
