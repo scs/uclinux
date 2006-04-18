@@ -707,7 +707,7 @@ static int __init bf537mac_probe(struct net_device *dev)
   }
 
   /* If still not valid, get a random one */
-  if (is_valid_ether_addr(dev->dev_addr)) {
+  if (!is_valid_ether_addr(dev->dev_addr)) {
 	  random_ether_addr(dev->dev_addr);
   }
 
