@@ -118,7 +118,11 @@ romfs:
 	for i in $(dir_y) ; do \
 		[ ! -d $$i ] || make -C $$i romfs || exit $$? ; \
 	done
-	-$(STRIP) $(ROMFSDIR)/lib/*
+	-for i in $(ROMFSDIR)/lib/* ; do \
+		if [ -f $$i -a ! -h $$i ] ; then \
+			$(STRIP) $$i; \
+		fi; \
+	done
 
 ##############################################################################
 

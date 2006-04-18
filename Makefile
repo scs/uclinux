@@ -222,7 +222,8 @@ oldconfig_uClibc:
 
 .PHONY: romfs
 romfs:
-	for dir in $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
+	[ -e $(ROMFSDIR) ] || mkdir $(ROMFSDIR)
+	for dir in $(VENDDIR) $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
 
 .PHONY: image
@@ -279,7 +280,7 @@ relink:
 	find $(VENDDIR) -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
 
 clean: modules_clean
-	for dir in $(LINUXDIR) $(DIRS); do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
+	for dir in $(LINUXDIR) $(DIRS) $(VENDDIR) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
 	rm -rf $(IMAGEDIR)/*
 	rm -f config.tk

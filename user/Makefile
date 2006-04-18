@@ -24,7 +24,7 @@ VEND=$(ROOTDIR)/vendors
 #
 # must run the vendor build first
 #
-dir_v = $(VEND)/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/.
+
 dir_p = $(ROOTDIR)/prop
 
 dir_y =
@@ -383,17 +383,18 @@ dir_$(CONFIG_USER_NET_AUDIO)		    +=musicpd
 dir_y += games
 
 all: config
-	for i in $(sort $(dir_y)) $(dir_v) $(dir_p); do \
+	for i in $(sort $(dir_y)) $(dir_p); do \
 		[ ! -d $$i ] || make -C $$i || exit $$? ; \
 	done
 
 romfs:
+	[ -e $(ROMFSDIR)/bin ] || mkdir $(ROMFSDIR)/bin
 	for i in $(sort $(dir_y)) $(dir_p) ; do \
 		[ ! -d $$i ] || make -C $$i romfs || exit $$? ; \
 	done
 
 clean:
-	-for i in $(dir_v) $(sort $(dir_y) $(dir_n) $(dir_)) $(dir_p) ; do \
+	-for i in $(sort $(dir_y) $(dir_n) $(dir_)) $(dir_p) ; do \
 		[ ! -d $$i ] || make -C $$i clean; \
 	done
 

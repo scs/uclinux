@@ -420,11 +420,20 @@ romfs:
 		$(ROMFSINST) $(SHARED_THREADED_TARGET) /lib/lib$(THREADED_LIBID).so; \
 	fi
 ifeq ($(strip $(HAVE_SHARED)),y)
-	@set -e; for i in lib/lib*-$(UCLIBC_VERSION).so lib/*.so.*; do \
-		$(ROMFSINST) -p 755 $$i /lib; \
-	done
+	@set -e; for i in lib/*so*; do \
+		if [ -f $$i -a ! -h $$i ] ; then \
+			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+		fi; \
+	done;
+	@set -e; for i in lib/*so*; do \
+		if [ -h $$i -a -e $$i ] ; then \
+			j=`readlink $$i`; \
+			$(ROMFSINST) -s \
+				/lib/`basename $$j` \
+				/lib/`basename $$i`; \
+		fi; \
+	done;
 	@set -e; if [ -x lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
-	    $(ROMFSINST) -p 755 lib/ld-uClibc-$(UCLIBC_VERSION).so /lib; \
 		$(ROMFSINST) -s \
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 			/lib/ld-linux.so.2; \
@@ -434,12 +443,20 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 	t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
 	t=`dirname $$t`/../runtime; \
 	echo $$t; \
-	for i in $$t/lib/lib*-$(UCLIBC_VERSION).so \
-		$$t/lib/*.so.*; do \
-		$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
-	done; \
+	for i in $$t/lib/*so*; do \
+		if [ -f $$i -a ! -h $$i ] ; then \
+			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+		fi; \
+	done;
+	for i in $$t/lib/*so*; do \
+		if [ -h $$i -a -e $$i ] ; then \
+			j=`readlink $$i`; \
+			$(ROMFSINST) -s \
+				/lib/`basename $$j` \
+				/lib/`basename $$i`; \
+		fi; \
+	done;
 	if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
-		$(ROMFSINST) -p 755 $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so /lib/ld-uClibc-$(UCLIBC_VERSION).so; \
 		$(ROMFSINST) -s \
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 			/lib/ld-linux.so.2; \
