@@ -162,8 +162,9 @@ struct bfin5xx_spi_master {
  * copied to spi_device.platform_data ... mostly for dma tuning
  */
 struct bfin5xx_spi_chip {
+	u16 ctl_reg;
 	u8 enable_dma;
-	void (*cs_control)(u32 command);
+	u8 bits_per_word;
 };
 
 
