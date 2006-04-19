@@ -1633,4 +1633,6 @@ comment 'BF561 Core B support tools'
 bool	'corebld'			CONFIG_USER_BF561_COREBLD
 comment 'Pound SSL Wrapper'
 bool    'pound'                         CONFIG_USER_POUND
+comment 'A simple JPEG picture viewer'
+bool    'jpegview'                      CONFIG_USER_JPEGVIEW
 endmenu
