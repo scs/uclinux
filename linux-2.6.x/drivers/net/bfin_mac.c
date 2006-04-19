@@ -467,6 +467,7 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
   dev->last_rx = jiffies;
   skb->dev = dev;
   skb->protocol = eth_type_trans(skb, dev);
+  skb->ip_summed = CHECKSUM_UNNECESSARY;
   netif_rx(skb);
   lp->stats.rx_packets++;
   lp->stats.rx_bytes += len;
