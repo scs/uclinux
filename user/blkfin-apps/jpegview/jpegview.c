@@ -366,7 +366,6 @@ int main(int argc, char **argv)
 
 	for(i=1;i<argc;i++)
        	{
-		printf("I am here\n");
 		for(j=0; j<vi.xres*vi.yres; j++)
 			((unsigned short*)framebase)[j] = 0x8000;
 
