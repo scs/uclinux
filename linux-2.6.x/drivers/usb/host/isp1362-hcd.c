@@ -2937,13 +2937,14 @@ static int __init isp1362_probe(struct platform_device *pdev)
 		set_irq_type(irq, isp1362_hcd->board->int_act_high ? IRQT_RISING : IRQT_FALLING);
 	}
 #endif
-	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT);
+#ifdef CONFIG_BFIN
+#include <asm/blackfin.h>
+	bfin_gpio_interrupt_setup(irq, platform_get_irq(pdev, 1), IRQT_LOW);
+#endif
+	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
 	if (retval != 0) {
 		goto err6;
 	}
-#ifdef	CONFIG_BFIN
-	set_irq_type(irq, IRQT_LOW);	
-#endif
 	INFO("%s, irq %d\n", hcd->product_desc, irq);
 
 	create_debug_file(isp1362_hcd);
