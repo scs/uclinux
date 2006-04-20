@@ -296,8 +296,11 @@ static int __init stamp_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
-	return spi_register_board_info(bfin_spi_board_info,
-				       ARRAY_SIZE(bfin_spi_board_info));
+#ifdef CONFIG_SPI_BFIN
+	spi_register_board_info(bfin_spi_board_info,
+			       ARRAY_SIZE(bfin_spi_board_info));
+#endif
+	return 0;
 }
 
 void get_bf537_ether_addr(char *addr)
