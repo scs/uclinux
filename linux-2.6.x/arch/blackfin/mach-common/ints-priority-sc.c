@@ -513,7 +513,10 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
     printk("Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
     set_irq_type(irq_pfx, type);
 #else
-    unsigned short flag,portx_fer;
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+    unsigned short portx_fer;
+#endif
+    unsigned short flag;
     unsigned short FIO_PATTERN;
 
     if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
