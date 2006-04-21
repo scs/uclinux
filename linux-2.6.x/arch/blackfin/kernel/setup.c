@@ -63,7 +63,7 @@ void init_leds(void);
 void bf53x_cache_init(void);
 static u_int get_dsp_rev_id(void);
 static void generate_cpl_tables(void);
-static unsigned short fill_cpl_tables(unsigned long *, unsigned,
+static unsigned short fill_cpl_tables(unsigned long *, unsigned short,
 				      unsigned long, unsigned long,
 				      unsigned long, unsigned long);
 
@@ -301,7 +301,7 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 static unsigned short __init
-fill_cpl_tables(unsigned long *table, unsigned pos,
+fill_cpl_tables(unsigned long *table, unsigned short pos,
 		unsigned long start, unsigned long end,
 		unsigned long block_size, unsigned long CPLB_data)
 {
@@ -336,7 +336,7 @@ fill_cpl_tables(unsigned long *table, unsigned pos,
 static void __init generate_cpl_tables(void)
 {
 
-	unsigned pos;
+	unsigned short pos;
 
 #ifdef CONFIG_BLKFIN_DCACHE
 
