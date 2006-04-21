@@ -148,7 +148,7 @@
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 
-#include "bf53x_spi.h"
+#include "ad1836_spi.h"
 #include "bf53x_sport.h"
 
 #include "adi1836.h"
@@ -279,7 +279,7 @@ typedef struct snd_ad1836 ad1836_t;
 struct snd_ad1836 {
 
   snd_card_t*         card;
-  struct bf53x_spi*   spi;
+  struct ad1836_spi*   spi;
   struct bf53x_sport* sport;
   spinlock_t    ad1836_lock;
 
@@ -371,51 +371,15 @@ static inline int find_substream(ad1836_t *chip, snd_pcm_substream_t *substream,
 }
 #endif
 
-int ad1836_spi_handler(struct bf53x_spi* spi, void* private)
-{
-  ad1836_t *chip = (ad1836_t*) private;
-  unsigned int data = spi->rx_data;
-  /*snd_printk( KERN_INFO "in ad1836 spi handler. polled: %x data = 0x%04x\n", chip->poll_reg, data ); */
-  ++(chip->spi_irq_count);
-
-  /* If we're running, we're issuing VU queries not configuring */
-  if (bf53x_sport_is_running(chip->sport)) {
-    chip->chip_registers[chip->poll_reg] = 
-      (chip->poll_reg << 12) | ADC_READ | (data & ADC_PEAK_MASK);
-  }
-
-  chip->spi_data_ready = 1;
-  wake_up(&chip->spi_waitq);
-
-  /* TODO: move received data to the register cache, make separate handler for set_register
-   * in the sport irq: send a register read cmd for the vu meters...
-   */
-
-  return 0;
-}
-
-
 static int snd_ad1836_set_register(ad1836_t *chip, unsigned int reg, unsigned int mask, unsigned int value){
 
-  int stat;
-  unsigned int data = (chip->chip_registers[reg] & ~mask) | (value & mask);
+  unsigned short data = (chip->chip_registers[reg] & ~mask) | (value & mask);
 
-  /* snd_printk( KERN_INFO "spi set reg %d = 0x%04x\n", reg, data);  */
+/*  snd_printk( KERN_INFO "spi set reg %d = 0x%04x\n", reg, data); */
+  ad1836_spi_write(chip->spi, data);
 
-  /* the following will be much nicer if the wait stuff is moved into bf53x_spi.c */
-  do {
-    stat = bf53x_spi_transceive(chip->spi, data);
-  } while(stat != 0);
-
-  /* snd_printk( KERN_INFO "waiting for spi set reg %d\n", reg);  */
-
-  if( wait_event_interruptible(chip->spi_waitq, chip->spi_data_ready) ){
-      snd_printk( KERN_INFO "timeout setting register %d\n", reg);  
-      return -ENODEV;
-  }
-  chip->spi_data_ready = 0;
   chip->chip_registers[reg] = data;
-  snd_printd( KERN_INFO "set register %d to 0x%04x\n", reg, data);  
+  ad1836_spi_read(chip->spi, (1<<reg) | ADC_READ, &data);
 
   return 0;
 
@@ -577,20 +541,11 @@ static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
 
 static void snd_ad1836_read_registers(ad1836_t *chip)
 {
-	int i, result;
+	int i;
 	
 	for (i = ADC_PEAK_1L; i <= ADC_PEAK_2R; i++) { 
 		chip->poll_reg = i;
-		result = bf53x_spi_transceive(chip->spi, (chip->poll_reg<<12) |ADC_READ);
-		if (result < 0) {
-			snd_printk(KERN_ERR"Faile to transceive result:%d\n", result);
-			return;
-		}
-		if (wait_event_interruptible(chip->spi_waitq, chip->spi_data_ready)) {
-			snd_printk( KERN_INFO "timeout get register %d\n", i);  
-			return ;
-		}
-		chip->spi_data_ready = 0;
+		ad1836_spi_read(chip->spi, (chip->poll_reg<<12) |ADC_READ, &chip->chip_registers[i]);
 	}
 }
 
@@ -2006,7 +1961,6 @@ static int snd_ad1836_startup(ad1836_t *chip)
 
 	return err;
 }
-
 #endif
 
 /* create the card struct, 
@@ -2017,7 +1971,7 @@ static int snd_ad1836_startup(ad1836_t *chip)
  */
 
 static int __devinit snd_ad1836_create(snd_card_t *card,
-				       struct bf53x_spi* spi, 
+				       struct ad1836_spi* spi, 
 				       struct bf53x_sport* sport, 
 				       ad1836_t **rchip)
 {
@@ -2211,7 +2165,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 
 /* probe for an ad1836 connected to spi and sport, and initialize *the_card */
 
-static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi, 
+static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi* spi, 
 					     struct bf53x_sport* sport, 
 					     snd_card_t** the_card)
 {
@@ -2239,7 +2193,7 @@ static int __devinit snd_bf53x_adi1836_probe(struct bf53x_spi* spi,
     return err;
   }
 
-  if( !(spi = bf53x_spi_init(ad1836_spi_handler, chip))) {
+  if( !(spi = ad1836_spi_setup())) {
     snd_card_free(card);
     return err;
   }
@@ -2530,9 +2484,7 @@ static void /* __exit */ snd_bf53x_adi1836_exit(void){
   }
 
   if( spi ){
-    struct bf53x_spi* tmp_spi=spi;
     spi=NULL;
-    bf53x_spi_done( tmp_spi );
   }
 
   return;

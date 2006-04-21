@@ -218,6 +218,14 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 	.bits_per_word = 16,
 };
 
+#ifdef CONFIG_SND_BLACKFIN_ADI1836
+static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
+	.ctl_reg = 0x1000,
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
 /* Notice: for blackfin, the speed_hz is the value of register
    SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
@@ -239,6 +247,15 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .platform_data = NULL, /* No spi_driver specific config */
                .controller_data = &spi_adc_chip_info,
        },
+#ifdef CONFIG_SND_BLACKFIN_ADI1836
+	{
+		.modalias = "ad1836-spi",
+		.max_speed_hz = 16,
+		.bus_num = 1,
+		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.controller_data = &ad1836_spi_chip_info,
+	},
+#endif
 };
 
 /* SPI controller data */
