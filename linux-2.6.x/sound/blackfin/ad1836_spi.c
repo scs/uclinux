@@ -18,11 +18,6 @@
 
 static struct ad1836_spi *ad1836_spi = NULL;
 
-struct ad1836_spi *ad1836_spi_setup(void)
-{
-	return ad1836_spi;
-}
-
 int ad1836_spi_read(struct ad1836_spi *spi, unsigned short data, 
 					unsigned short *buf)
 {
@@ -91,17 +86,13 @@ static struct spi_driver ad1836_spi_driver = {
 	.remove		= __devexit_p(ad1836_spi_remove),
 };
 
-static int __init ad1836_spi_init(void)
+struct ad1836_spi *ad1836_spi_init(void)
 {
-	return spi_register_driver(&ad1836_spi_driver);
+	spi_register_driver(&ad1836_spi_driver);
+	return ad1836_spi;
 }
-module_init(ad1836_spi_init);
 
-static void __exit ad1836_spi_exit(void)
+void ad1836_spi_done(struct ad1836_spi* spi)
 {
 	spi_unregister_driver(&ad1836_spi_driver);
 }
-module_exit(ad1836_spi_exit);
-
-MODULE_DESCRIPTION("AD1836 SPI driver");
-MODULE_LICENSE("GPL");

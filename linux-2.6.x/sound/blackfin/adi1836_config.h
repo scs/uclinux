@@ -11,19 +11,6 @@
  *     peripheral interrupt mapping mechanism
  */
 
-
-#ifndef CONFIG_SND_BLACKFIN_SPI_PFBIT
-#define CONFIG_SND_BLACKFIN_SPI_PFBIT 4    /* pf bit tied to ad1836 chip select */
-#endif
-
-#ifndef CONFIG_SND_BLACKFIN_SPI_IRQ_DATA 
-#define CONFIG_SND_BLACKFIN_SPI_IRQ_DATA IRQ_SPI  /* periph irq 3 -> IVG 10 */
-#endif
-
-#ifndef CONFIG_SND_BLACKFIN_SPI_IRQ_ERR 
-#define CONFIG_SND_BLACKFIN_SPI_IRQ_ERR IRQ_SPI_ERROR    /* periph irq 0 -> IVG 7 */
-#endif
-
 #ifndef CONFIG_SND_BLACKFIN_SPORT
 #define CONFIG_SND_BLACKFIN_SPORT 0  /* bf53x default Sport channel for ad1836 */
 #endif

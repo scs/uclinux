@@ -2193,7 +2193,7 @@ static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi* spi,
     return err;
   }
 
-  if( !(spi = ad1836_spi_setup())) {
+  if( !(spi = ad1836_spi_init())) {
     snd_card_free(card);
     return err;
   }
@@ -2210,10 +2210,8 @@ static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi* spi,
   }
   strcpy(card->driver, "adi1836");
   strcpy(card->shortname, CHIP_NAME);
-  sprintf(card->longname, "%s at SPI irq %d/%d, SPORT%d rx/tx dma %d/%d err irq /%d ", 
+  sprintf(card->longname, "%s at SPORT%d rx/tx dma %d/%d err irq /%d ", 
 	  card->shortname,
-	  CONFIG_SND_BLACKFIN_SPI_IRQ_DATA,   /* we could get these from the spi and */
-	  CONFIG_SND_BLACKFIN_SPI_IRQ_ERR,    /* sport structs, but then we'd have to publish them */
 	  CONFIG_SND_BLACKFIN_SPORT,          /* and we set them ourselves below anyway */
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_RX,
 	  CONFIG_SND_BLACKFIN_SPORT_DMA_TX,
@@ -2421,7 +2419,7 @@ MODULE_DESCRIPTION("BF53x/ADI 1836");
 MODULE_LICENSE("GPL");
 
 
-static struct bf53x_spi*   spi=NULL;
+static struct ad1836_spi*   spi=NULL;
 static struct bf53x_sport* sport=NULL;
 static snd_card_t*         card=NULL;
 
@@ -2484,7 +2482,9 @@ static void /* __exit */ snd_bf53x_adi1836_exit(void){
   }
 
   if( spi ){
+    struct ad1836_spi* tmp_spi = spi;
     spi=NULL;
+    ad1836_spi_done(tmp_spi);
   }
 
   return;

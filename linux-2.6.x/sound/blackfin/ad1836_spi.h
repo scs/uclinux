@@ -30,7 +30,9 @@ struct ad1836_spi {
 	struct spi_device *spi;
 };
 
-struct ad1836_spi *ad1836_spi_setup(void);
+struct ad1836_spi *ad1836_spi_init(void);
+
+void ad1836_spi_done(struct ad1836_spi *spi);
 
 int ad1836_spi_read(struct ad1836_spi *spi, unsigned short data, unsigned short *buf);
 
