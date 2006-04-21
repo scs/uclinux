@@ -160,7 +160,7 @@ static inline int bad_user_access_length(void)
 
 //#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
 
-#define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
+//#define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
@@ -180,6 +180,16 @@ static inline long copy_from_user(void *to,
         	memcpy(to, from, n);
 	else
 		return n;
+        return 0;
+}
+
+static inline long copy_to_user(void *to,
+				  const void __user *from, unsigned long n)
+{
+	if(access_ok(VERIFY_WRITE, to, n))
+        	memcpy(to, from, n);
+	else
+		return n; 
         return 0;
 }
 
