@@ -56,6 +56,8 @@ MODULE_AUTHOR("Luke Yang");
 MODULE_DESCRIPTION("Blackfin5xx SPI Contoller");
 MODULE_LICENSE("GPL");
 
+/*#define BFIN_SPI_DEBUG  1*/
+
 #ifdef BFIN_SPI_DEBUG
 #define PRINTK(args...) printk(args)
 #else
@@ -97,9 +99,6 @@ struct driver_data {
 	/* BFIN hookup */
 	struct bfin5xx_spi_master *master_info;
 
-	/* DMA setup stuff */
-	u32 *null_dma_buf;  //
-
 	/* Driver message queue */
 	struct workqueue_struct	*workqueue;
 	struct work_struct pump_messages;
@@ -126,7 +125,6 @@ struct driver_data {
 	size_t rx_map_len;
 	size_t tx_map_len;
 	u8 n_bytes;
-	u32 dma_width;
 	void (*write)(struct driver_data *drv_data);
 	void (*read)(struct driver_data *drv_data);
 };
@@ -137,10 +135,9 @@ struct chip_data {
 	u16 flag;
 
 	u8  n_bytes;
-	u32 width;
-	u32 dma_width;
-	u8 enable_dma;
-	u8 bits_per_word;
+	u32 width;            //0 or 1
+	u8  enable_dma;
+	u8  bits_per_word;    //8 or 16
 	void (*write)(struct driver_data *drv_data);
 	void (*read)(struct driver_data *drv_data);
 };
@@ -311,6 +308,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	struct driver_data *drv_data = (struct driver_data *)dev_id;
 	struct spi_message *msg = drv_data->cur_msg;
 
+	PRINTK("SPI: in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
 
 	msg->actual_length += drv_data->len;
@@ -323,7 +321,8 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	tasklet_schedule(&drv_data->pump_transfers);
 
 	/* free the irq handler before next transfer */
-	free_dma(CH_SPI);
+	PRINTK("SPI: disable dma channel irq%d \n",CH_SPI);
+	dma_disable_irq(CH_SPI);
 
 	return IRQ_HANDLED;
 }
@@ -375,7 +374,6 @@ static void pump_transfers(unsigned long data)
 		return;
 	}
 
-	drv_data->dma_width = chip->dma_width;
 	if (transfer->tx_buf != NULL) {
 		drv_data->tx = (void *)transfer->tx_buf;
 		drv_data->tx_end = drv_data->tx + transfer->len;
@@ -411,16 +409,9 @@ static void pump_transfers(unsigned long data)
 	if (drv_data->cur_chip->enable_dma) {
 
 		write_STAT(BIT_STAT_CLR);
+		clear_dma_irqstat(CH_SPI);
 
-		/* register dma irq handler */
-		if(request_dma(CH_SPI, "BF53x_SPI_DMA") < 0)
-		{
-			PRINTK("Unable to request BlackFin SPI DMA channel\n");
-			message->status = -EIO;
-			giveback(message, drv_data);
-			return;
-		}
-		set_dma_callback(CH_SPI, (void*)dma_irq_handler, drv_data);
+		dma_enable_irq(CH_SPI);
 
 		PRINTK("SPI: doing dma transfer\n");
 		/* config dma channel */
@@ -615,6 +606,18 @@ static int setup(struct spi_device *spi)
 		chip->bits_per_word = chip_info->bits_per_word;
 	}
 
+	/* if any one SPI chip is registered and wants DMA, request the 
+	   DMA channel for it */
+	if (chip->enable_dma) {
+		/* register dma irq handler */
+		if(request_dma(CH_SPI, "BF53x_SPI_DMA") < 0)
+		{
+			PRINTK("Unable to request BlackFin SPI DMA channel\n");
+			return -ENODEV;
+		}
+		set_dma_callback(CH_SPI, (void*)dma_irq_handler, drv_data);
+	}
+
 	/* Notice: for blackfin, the speed_hz is the value of register
 	   SPI_BAUD, not the real baudrate */
 	chip->baud = spi->max_speed_hz;
@@ -790,13 +793,11 @@ static int bfin5xx_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "problem registering spi master\n");
 		goto out_error_queue_alloc;
 	}
-
+	PRINTK("SPI controller probe successfully\n");
 	return status;
 
 out_error_queue_alloc:
 	destroy_queue(drv_data);
-
-out_error_master_alloc:
 	spi_master_put(master);
 	return status;
 }

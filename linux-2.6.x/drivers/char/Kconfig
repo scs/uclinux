@@ -3,31 +3,25 @@
 #
 
 menu "Character devices"
-config BFIN_SPI_CHANNEL
-    bool "Blackfin BF53x SPI port support"
-	depends on BFIN
-    default n
-    ---help---
-    
-config SPI_ADC_BF533    
+config SPI_ADC_BF533
     bool "Blackfin BF53x ADSP SPI ADC support"
 	depends on BFIN
-	select BFIN_SPI_CHANNEL
+	select SPI_BFIN
 	default n
 	---help---
-	 
-config BF533_PFLAGS    
+
+config BF533_PFLAGS
     bool "Blackfin BF53x Programmable Flags Driver"
 	depends on BFIN
 	default n
 	---help---
 
-config BF5xx_PPIFCD    
+config BF5xx_PPIFCD
     bool "Blackfin BF5xx PPI Camera frame capture driver"
 	depends on BFIN
 	default n
 	---help---
-	  If you say Y here, you will get support for various CMOS Camera Modules 
+	  If you say Y here, you will get support for various CMOS Camera Modules
 	  connected to Balckfins PPI port. (Tested with Micron Modules)
 
 config BF5xx_PPI

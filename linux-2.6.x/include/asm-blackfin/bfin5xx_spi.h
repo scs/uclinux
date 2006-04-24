@@ -1,22 +1,21 @@
 /************************************************************
 *
-* Copyright (C) 2003, Motorola. All Rights Reserved
+* Copyright (C) 2004, Analog Devices. All Rights Reserved
 *
-* FILE spi.h
-* PROGRAMMER(S): J.X.Chang (jxchang@motorola.com)
+* FILE bfin5xx_spi.h
+* PROGRAMMER(S): Luke Yang (Analog Devices Inc.)
 *
 *
-* DATE OF CREATION: March 8, 2003
+* DATE OF CREATION: March. 10th 2006
 *
 * SYNOPSIS:
 *
-* DESCRIPTION: It's driver of SPI in ADSP25535(ADI's DSP). It can
-*              only be used in unix or linux.
-* CAUTION:     User should use 'ioctl' to change it's
-               configuration just after openning device.
+* DESCRIPTION: header file for SPI controller driver for Blackfin5xx.
 **************************************************************
+
 * MODIFICATION HISTORY:
-* March 8, 2003   File spi.h Created.
+* March 10, 2006  bfin5xx_spi.h Created. (Luke Yang)
+
 ************************************************************/
 
 #ifndef _SPI_CHANNEL_H_

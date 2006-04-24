@@ -8,7 +8,6 @@
 FONTMAPFILE = cp437.uni
 
 obj-y	 += mem.o random.o tty_io.o n_tty.o tty_ioctl.o
-
 obj-$(CONFIG_LEGACY_PTYS)	+= pty.o
 obj-$(CONFIG_UNIX98_PTYS)	+= pty.o
 obj-y				+= misc.o
@@ -50,9 +49,6 @@ obj-$(CONFIG_VIOTAPE)		+= viotape.o
 obj-$(CONFIG_HVCS)		+= hvcs.o
 obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 
-
-
-obj-$(CONFIG_BFIN_SPI_CHANNEL)  += bfin_spi_channel.o
 obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
 obj-$(CONFIG_SPI_ADC_BF533) += bfin_spi_adc.o
 obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
