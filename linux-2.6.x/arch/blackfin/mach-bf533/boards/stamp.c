@@ -91,17 +91,107 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
+#ifdef CONFIG_SPI_BFIN
+/* all SPI perpherals info goes here */
+
+static struct mtd_partition bfin_spi_flash_partitions[] = {
+	{
+		name: "bootloader",
+		size: 0x00040000,
+		offset: 0,
+		mask_flags: MTD_CAP_ROM
+	},{
+		name: "kernel",
+		size: 0xc0000,
+		offset: 0x40000
+	},{
+		name: "file system",
+		size: 0x300000,
+		offset: 0x00100000,
+	}
+};
+
+static struct flash_platform_data bfin_spi_flash_data = {
+	.name	        = "m25p80",
+	.parts		= bfin_spi_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(bfin_spi_flash_partitions),
+	.type           = "m25p64",
+};
+
+/* SPI flash chip (m25p64) */
+static struct bfin5xx_spi_chip spi_flash_chip_info = {
+	.ctl_reg = 0x1C00,       /* with enable bit unset */
+	.enable_dma = 0,    /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+
+/* SPI ADC chip */
+static struct bfin5xx_spi_chip spi_adc_chip_info = {
+	.ctl_reg = 0x1C00,
+	.enable_dma = 1,    /* use dma transfer with this chip*/
+	.bits_per_word = 16,
+};
+
+/* Notice: for blackfin, the speed_hz is the value of register
+   SPI_BAUD, not the real baudrate */
+static struct spi_board_info bfin_spi_board_info[] __initdata = {
+       {
+	       /* the modalias must be the same as spi device driver name */
+               .modalias = "m25p80", /* Name of spi_driver for this device */
+	       /* this value is the baudrate divisor */
+               .max_speed_hz = 2,     /* actual baudrate is SCLK/(2xspeed_hz) */
+               .bus_num = 1, /* Framework bus number */
+               .chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+               .platform_data = &bfin_spi_flash_data,
+               .controller_data = &spi_flash_chip_info,
+       },
+       {
+               .modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
+               .max_speed_hz = 4,     /* actual baudrate is SCLK/(2xspeed_hz) */
+               .bus_num = 1, /* Framework bus number */
+               .chip_select = 2, /* Framework chip select. */
+               .platform_data = NULL, /* No spi_driver specific config */
+               .controller_data = &spi_adc_chip_info,
+       },
+};
+
+/* SPI controller data */
+static struct bfin5xx_spi_master spi_bfin_master_info = {
+	.num_chipselect = 8,
+	.enable_dma = 1,  /* master has the ability to do dma transfer */
+};
+
+static struct platform_device spi_bfin_master_device = {
+	.name = "bfin-spi-master",
+	.id = 1, /* Bus number */
+	.dev = {
+		.platform_data = &spi_bfin_master_info, /* Passed to driver */
+	},
+};
+#endif  /* spi master and devices */
+
+#ifdef CONFIG_FB_BF537_LQ035
+static struct platform_device bfin_fb_device = {
+	.name = "bf537-fb",
+};
+#endif
+
 static struct platform_device *stamp_devices[] __initdata = {
 	&smc91x_device,
 #ifdef CONFIG_USB_NET2272
 	&net2272_bfin_device,
+#endif
+#ifdef CONFIG_SPI_BFIN
+	&spi_bfin_master_device,
 #endif
 };
 
 static int __init stamp_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
-	return platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
+	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
+	return spi_register_board_info(bfin_spi_board_info,
+				       ARRAY_SIZE(bfin_spi_board_info));
 }
 
 arch_initcall(stamp_init);
