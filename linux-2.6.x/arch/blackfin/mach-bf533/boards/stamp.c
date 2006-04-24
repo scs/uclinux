@@ -31,7 +31,14 @@
 
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
+#include <linux/usb_isp1362.h>
 #include <asm/irq.h>
+#include <asm/bfin5xx_spi.h>
+
 
 /*
  * Name the Board for the /proc/cpuinfo
