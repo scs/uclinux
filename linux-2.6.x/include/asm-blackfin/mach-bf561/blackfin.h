@@ -44,4 +44,7 @@
 #include "cdefBF561.h"
 #endif
 
+#define pFIO_FLAG_D	pFIO0_FLAG_D
+#define pFIO_DIR	pFIO0_DIR
+#define pFIO_INEN	pFIO0_INEN
 #endif				/* _MACH_BLACKFIN_H_ */
