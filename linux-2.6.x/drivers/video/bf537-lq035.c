@@ -148,7 +148,7 @@ static int ad5280_attach(struct i2c_adapter *adap)
 	if (adap->algo->functionality)
 		return i2c_probe(adap, &addr_data, ad5280_probe);
 	else
-		return ad5280_probe(adap, 0x58, 0);
+		return ad5280_probe(adap, 0x58>>1, 0);
 }
 
 static int ad5280_detach_client(struct i2c_client *client)
