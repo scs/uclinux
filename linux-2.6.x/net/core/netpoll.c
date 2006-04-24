@@ -480,6 +480,8 @@ int __netpoll_rx(struct sk_buff *skb)
 		goto out;
 	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
 		goto out;
+	
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len || len < iph->ihl*4)
