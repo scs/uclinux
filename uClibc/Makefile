@@ -438,6 +438,24 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 			/lib/ld-linux.so.2; \
 	fi;
+	t=`$(CC) -mfdpic -print-file-name=libc.a`; \
+	t=`dirname $$t`; \
+	echo $$t; \
+	for i in $$t/libstdc++.so*; do \
+		if [ -f $$i -a ! -h $$i ] ; then \
+			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+		fi; \
+	done; \
+	for i in $$t/libstdc++.so*; do \
+		echo $$i; \
+		if [ -h $$i -a -e $$i ] ; then \
+			j=`readlink $$i`; \
+			echo $$j; \
+			$(ROMFSINST) -s \
+				/lib/`basename $$j` \
+				/lib/`basename $$i`; \
+		fi; \
+	done;
 else
 ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 	t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
@@ -461,5 +479,21 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 			/lib/ld-linux.so.2; \
 	fi;
+	t=`$(CC) -mfdpic -print-file-name=libc.a`; \
+	t=`dirname $$t`; \
+	echo $$t; \
+	for i in $$t/libstdc*so*; do \
+		if [ -f $$i -a ! -h $$i ] ; then \
+			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+		fi; \
+	done; \
+	for i in $$t/libstdc*so*; do \
+		if [ -h $$i -a -e $$i ] ; then \
+			j=`readlink $$i`; \
+			$(ROMFSINST) -s \
+				/lib/`basename $$j` \
+				/lib/`basename $$i`; \
+		fi; \
+	done;
 endif
 endif
