@@ -50,7 +50,7 @@ char *bfin_board_name = "ADDS-BF533-EZKIT";
  *  USB-LAN EzExtender board
  *  Driver needs to know address, irq and flag pin.
  */
-#ifdef CONFIG_SMC91X
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	[0] = {
 	       .start = 0x20310300,
@@ -80,7 +80,7 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
-#ifdef CONFIG_SPI_BFIN
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI perpherals info goes here */
 
 static struct mtd_partition bfin_spi_flash_partitions[] = {
@@ -121,7 +121,8 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 	.bits_per_word = 16,
 };
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.ctl_reg = 0x1000,
 	.enable_dma = 0,
@@ -150,7 +151,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .platform_data = NULL, /* No spi_driver specific config */
                .controller_data = &spi_adc_chip_info,
        },
-#ifdef CONFIG_SND_BLACKFIN_ADI1836
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
 	{
 		.modalias = "ad1836-spi",
 		.max_speed_hz = 16,
@@ -177,10 +179,10 @@ static struct platform_device spi_bfin_master_device = {
 #endif  /* spi master and devices */
 
 static struct platform_device *ezkit_devices[] __initdata = {
-#ifdef CONFIG_SMC91X
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
 #endif
-#ifdef CONFIG_SPI_BFIN
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&spi_bfin_master_device,
 #endif
 };
@@ -189,7 +191,7 @@ static int __init ezkit_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
-#ifdef CONFIG_SPI_BFIN
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info,
 			       ARRAY_SIZE(bfin_spi_board_info));
 #endif

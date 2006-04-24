@@ -76,7 +76,7 @@ static struct platform_device smc91x_device = {
 	.resource = smc91x_resources,
 };
 
-#ifdef CONFIG_USB_NET2272
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 static struct resource net2272_bfin_resources[] = {
 	[0] = 	{
 		.start = 0x20300000,
@@ -98,7 +98,7 @@ static struct platform_device net2272_bfin_device = {
 };
 #endif
 
-#ifdef CONFIG_SPI_BFIN
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI perpherals info goes here */
 
 static struct mtd_partition bfin_spi_flash_partitions[] = {
@@ -134,10 +134,19 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
-	.ctl_reg = 0x1C00,
+	.ctl_reg = 0x1500,
 	.enable_dma = 1,    /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
+
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
+static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
+	.ctl_reg = 0x1000,
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
 
 /* Notice: for blackfin, the speed_hz is the value of register
    SPI_BAUD, not the real baudrate */
@@ -160,6 +169,16 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .platform_data = NULL, /* No spi_driver specific config */
                .controller_data = &spi_adc_chip_info,
        },
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
+	{
+		.modalias = "ad1836-spi",
+		.max_speed_hz = 16,
+		.bus_num = 1,
+		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.controller_data = &ad1836_spi_chip_info,
+	},
+#endif
 };
 
 /* SPI controller data */
@@ -177,7 +196,7 @@ static struct platform_device spi_bfin_master_device = {
 };
 #endif  /* spi master and devices */
 
-#ifdef CONFIG_FB_BF537_LQ035
+#if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 static struct platform_device bfin_fb_device = {
 	.name = "bf537-fb",
 };
@@ -185,10 +204,11 @@ static struct platform_device bfin_fb_device = {
 
 static struct platform_device *stamp_devices[] __initdata = {
 	&smc91x_device,
-#ifdef CONFIG_USB_NET2272
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 	&net2272_bfin_device,
 #endif
-#ifdef CONFIG_SPI_BFIN
+
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&spi_bfin_master_device,
 #endif
 };
@@ -197,7 +217,7 @@ static int __init stamp_init(void)
 {
 	printk("%s(): registering device resources\n", __FUNCTION__);
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
-#ifdef CONFIG_SPI_BFIN
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info,
 			       ARRAY_SIZE(bfin_spi_board_info));
 #endif
