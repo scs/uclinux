@@ -321,7 +321,7 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 	int ret_irq = 0;
 
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       || channel < MAX_BLACKFIN_DMA_CHANNEL);
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	if (callback != NULL) {
 		int ret_val;
@@ -343,12 +343,12 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 
 void free_dma(unsigned int channel)
 {
-	int ret_irq = 0;
+	int ret_irq;
 
 	DMA_DBG("freedma() : BEGIN \n");
-
+	printk("free channel %d, chan_free is %d, status is %d, MAX is %d\n",DMA_CHANNEL_FREE, channel,dma_ch[channel].chan_status,MAX_BLACKFIN_DMA_CHANNEL);
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
-	       || channel < MAX_BLACKFIN_DMA_CHANNEL);
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	/* Halt the DMA */
 	disable_dma(channel);
@@ -366,6 +366,31 @@ void free_dma(unsigned int channel)
 
 	DMA_DBG("freedma() : END \n");
 }
+
+void dma_enable_irq(unsigned int channel)
+{
+	int ret_irq;
+
+	DMA_DBG("dma_enable_irq() : BEGIN \n");
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
+
+	ret_irq = channel2irq(channel);
+	enable_irq(ret_irq);
+}
+
+void dma_disable_irq(unsigned int channel)
+{
+	int ret_irq;
+
+	DMA_DBG("dma_disable_irq() : BEGIN \n");
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
+
+	ret_irq = channel2irq(channel);
+	disable_irq(ret_irq);
+}
+
 
 int dma_channel_active(unsigned int channel)
 {
@@ -561,3 +586,5 @@ EXPORT_SYMBOL(set_dma_x_modify);
 EXPORT_SYMBOL(set_dma_y_count);
 EXPORT_SYMBOL(set_dma_y_modify);
 EXPORT_SYMBOL(set_dma_sg);
+EXPORT_SYMBOL(dma_disable_irq);
+EXPORT_SYMBOL(dma_enable_irq);
