@@ -171,13 +171,13 @@
 #error "VCO Multiplier is more than 64. Please select a different value"
 #endif
 
-#if(CONFIG_CLKIN_HALF == 0)
+#ifndef CONFIG_CLKIN_HALF
 #define CONFIG_VCO_HZ	(CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)
 #else
 #define CONFIG_VCO_HZ	((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT)/2)
 #endif
 
-#if(CONFIG_PLL_BYPASS == 0)
+#ifndef CONFIG_PLL_BYPASS
 #define CONFIG_CCLK_HZ	(CONFIG_VCO_HZ/CONFIG_CCLK_DIV)
 #define CONFIG_SCLK_HZ	(CONFIG_VCO_HZ/CONFIG_SCLK_DIV)
 #else
