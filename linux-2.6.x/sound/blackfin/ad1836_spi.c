@@ -54,7 +54,6 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 {
 	struct ad1836_spi	*chip;
 
-	printk(KERN_INFO "%s is called\n", __FUNCTION__);
 	chip = kmalloc(sizeof(struct ad1836_spi), GFP_KERNEL);
 	if(!chip) {
 		return -ENOMEM;	
@@ -89,6 +88,9 @@ static struct spi_driver ad1836_spi_driver = {
 struct ad1836_spi *ad1836_spi_init(void)
 {
 	spi_register_driver(&ad1836_spi_driver);
+	if (ad1836_spi == NULL)
+		printk(KERN_ERR"%s: ad1836 spi driver malfunction\n",__FUNCTION__);
+
 	return ad1836_spi;
 }
 
