@@ -449,16 +449,10 @@ sample (int form_method, char **getvars, char **postvars)
   unsigned short i;
   unsigned short def[]={6144,6144};
 
-
   fd0 = open ("/dev/spi", O_RDWR);
 
   if (fd0 < 0)
       error (ERR_SPI, form_method, getvars, postvars);
-
-
-  for (i = 0; hw_device_table[AD5443][i].cmd; i++)
-    ioctl (fd0, hw_device_table[AD5443][i].cmd,
-	   hw_device_table[AD5443][i].arg);
 
   ioctl (fd0, CMD_SPI_SET_BAUDRATE, cgiinfo.baud);
   ioctl (fd0, CMD_SPI_SET_WRITECONTINUOUS, 1);
@@ -479,7 +473,6 @@ sample (int form_method, char **getvars, char **postvars)
     errval = write (fd0, cgiinfo.samples, cgiinfo.samples_cnt);
 
   	sleep(cgiinfo.time2run);
-
 	write (fd0,def, 2);
   close (fd0);
   free(cgiinfo.samples);

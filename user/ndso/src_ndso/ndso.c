@@ -159,14 +159,9 @@ Sample (int form_method, char **getvars, char **postvars, s_info * info)
 
   /* Calculate required Baud Rate */
   baud = (unsigned short) (sclk / (34 * info->stime_s.sps));
-  ioctl (info->fd0, CMD_SPI_SET_BAUDRATE, baud);	// Set baud rate SCK = HCLK/(2*SPIBAUD)                
+  ioctl (info->fd0, CMD_SPI_SET_BAUDRATE, baud);	// Set baud rate SCK = HCLK/(2*SPIBAUD)
   /* Calculate real Baud Rate */
   info->stime_s.sps = sclk / ((2 * 16 + 2) * baud);
-
-  for (i = 0; hw_device_table[info->sinput.type][i].cmd; i++)
-    ioctl (info->fd0, hw_device_table[info->sinput.type][i].cmd,
-	   hw_device_table[info->sinput.type][i].arg);
-
 
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_MODE, info->strigger.mode);
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_SENSE, info->strigger.sense);
