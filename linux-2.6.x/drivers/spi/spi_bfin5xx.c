@@ -56,7 +56,7 @@ MODULE_AUTHOR("Luke Yang");
 MODULE_DESCRIPTION("Blackfin5xx SPI Contoller");
 MODULE_LICENSE("GPL");
 
-/*#define BFIN_SPI_DEBUG  1*/
+/* #define BFIN_SPI_DEBUG  1 */
 
 #ifdef BFIN_SPI_DEBUG
 #define PRINTK(args...) printk(args)
@@ -411,8 +411,6 @@ static void pump_transfers(unsigned long data)
 		write_STAT(BIT_STAT_CLR);
 		clear_dma_irqstat(CH_SPI);
 
-		dma_enable_irq(CH_SPI);
-
 		PRINTK("SPI: doing dma transfer\n");
 		/* config dma channel */
 		if(width == CFG_SPI_WORDSIZE16){
@@ -428,27 +426,47 @@ static void pump_transfers(unsigned long data)
 		/* set transfer width,direction. And enable spi */
 		cr = read_CTRL();
 
+		/* dirty hack for autobuffer DMA mode */
+		if (drv_data->tx_dma == 0xFFFF) {
+			PRINTK("SPI:doing autobuffer DMA out.\n");
+			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
+
+			/* no irq in autobuffer mode */
+			dma_config |= ( DMAFLOW_AUTO | RESTART | DI_EN );
+			set_dma_config(CH_SPI, dma_config);
+			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx_dma);
+			enable_dma(CH_SPI);
+			/* just return here, there can only be one transfer in this mode*/
+			message->status = 0;
+			giveback(message, drv_data);
+			return;
+		}
+
 		/* In dma mode, rx or tx must be NULL in one transfer*/
 		if ( drv_data->rx != NULL) {
+			PRINTK("SPI:doing DMA in.\n");
 			/* set transfer mode, and enable SPI */
 			write_CTRL(cr | CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 			/* start dma*/
+			dma_enable_irq(CH_SPI);
 			dma_config |= ( WNR | RESTART | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
 
 		} else if (drv_data->tx != NULL) {
+			PRINTK("SPI:doing DMA out.\n");
 
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
-			__builtin_bfin_ssync();
 
 			/* start dma */
+			dma_enable_irq(CH_SPI);
 			dma_config |= ( RESTART | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
+
 		}
 	} else {/* IO mode write then read */
 		/* Go baby, go */
@@ -509,7 +527,7 @@ static void pump_messages(void *data)
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&drv_data->lock, flags);
 	if (list_empty(&drv_data->queue) || drv_data->run == QUEUE_STOPPED) {
-		/* pumper kicked off but work to do */
+		/* pumper kicked off but no work to do */
 		drv_data->busy = 0;
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 		return;
@@ -616,6 +634,7 @@ static int setup(struct spi_device *spi)
 			return -ENODEV;
 		}
 		set_dma_callback(CH_SPI, (void*)dma_irq_handler, drv_data);
+		dma_disable_irq(CH_SPI);
 	}
 
 	/* Notice: for blackfin, the speed_hz is the value of register

@@ -1083,6 +1083,11 @@
 #define DI_EN	        0x00000080	/* Data Interrupt Enable */
 #define NDSIZE	        0x00000900	/* Next Descriptor Size */
 #define DMAFLOW	        0x00007000	/* Flow Control */
+#define DMAFLOW_STOP		0x0000	/* Stop Mode */
+#define DMAFLOW_AUTO		0x1000	/* Autobuffer Mode */
+#define DMAFLOW_ARRAY		0x4000	/* Descriptor Array Mode */
+#define DMAFLOW_SMALL		0x6000	/* Small Model Descriptor List Mode */
+#define DMAFLOW_LARGE		0x7000	/* Large Model Descriptor List Mode */
 
 #define DMAEN_P	            	0	/* Channel Enable */
 #define WNR_P	            	1	/* Channel Direction (W/R*) */

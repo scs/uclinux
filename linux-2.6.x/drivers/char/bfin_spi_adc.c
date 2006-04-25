@@ -38,6 +38,8 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/dma.h>
 
+/* #define DEBUG */
+
 #ifdef DEBUG
 #define DPRINTK(x...)	printk(x)
 #else
@@ -141,6 +143,12 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 		bfin_spi_adc->baud = (unsigned short)arg;
 		break;
         }
+	case CMD_SPI_SET_WRITECONTINUOUS:
+	{
+		DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS \n");
+		bfin_spi_adc->cont = (unsigned char)arg;
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -169,7 +177,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 	blackfin_dcache_invalidate_range((unsigned long)bfin_spi_adc->buffer,((unsigned long) bfin_spi_adc->buffer)+(count+SKFS*2)*2);
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof &t));
+	memset(&t, 0, (sizeof t));
 	t.rx_buf = bfin_spi_adc->buffer;
 	t.len = count + SKFS;
 
@@ -265,9 +273,13 @@ static ssize_t adc_spi_write (struct file *filp, const char *buf, size_t count, 
 	blackfin_dcache_flush_range((unsigned long)buf,((unsigned long)buf+(count)));
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof &t));
+	memset(&t, 0, (sizeof t));
+	if (bfin_spi_adc->cont)  /* dirty hack for continuous DMA output mode */
+		t.tx_dma = 0xFFFF;
+
 	t.tx_buf = buf;
 	t.len = count;
+	DPRINTK("in spi_adc driver, t.tx_buf is 0x%x,t.tx_dma is 0x%x, t.rx_buf is 0x%x,len is %d\n",t.tx_buf,t.tx_dma,t.rx_buf,t.len);
 
 	spi_message_add_tail(&t, &m);
 	spi_sync(bfin_spi_adc->spidev, &m);
@@ -280,6 +292,8 @@ static int adc_spi_open (struct inode *inode, struct file *filp)
 {
     struct spi_device *spi;
     int minor = MINOR (inode->i_rdev);
+
+    DPRINTK("spi_open: start \n");
 
     /* SPI ? */
     if(minor != SPI0_ADC_MINOR) return -ENXIO;
@@ -326,7 +340,7 @@ static int __devinit bfin_spi_adc_probe(struct spi_device *spi)
 	spi_adc.spidev = spi;
 
 	result = register_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME, &bfin_spi_adc_fops);
-	printk("spi_adc; major number is %d ***************\n",result);
+
 	if (result < 0)
 	{
 		printk(KERN_WARNING "SPI: can't get minor %d\n", SPI_ADC_MAJOR);
