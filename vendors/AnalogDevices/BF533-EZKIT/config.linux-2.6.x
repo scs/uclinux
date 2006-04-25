@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16ADI-2006R1
-# Mon Apr 17 18:11:42 2006
+# Tue Apr 25 15:57:07 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -399,7 +399,6 @@ CONFIG_MTD_CFI_I2=y
 # CONFIG_MTD_CFI_AMDSTD is not set
 # CONFIG_MTD_CFI_STAA is not set
 CONFIG_MTD_MW320D=m
-# CONFIG_MTD_M25P64 is not set
 CONFIG_MTD_RAM=y
 CONFIG_MTD_ROM=m
 # CONFIG_MTD_ABSENT is not set
@@ -409,7 +408,6 @@ CONFIG_MTD_ROM=m
 # Mapping drivers for chip access
 #
 CONFIG_MTD_COMPLEX_MAPPINGS=y
-# CONFIG_MTD_BF5xx_SPI is not set
 CONFIG_MTD_BF5xx=m
 CONFIG_BFIN_FLASH_SIZE=0x400000
 CONFIG_EBIU_FLASH_BASE=0x20000000
@@ -443,16 +441,7 @@ CONFIG_MTD_UCLINUX=y
 #
 # NAND Flash Device Drivers
 #
-CONFIG_MTD_NAND=m
-# CONFIG_MTD_NAND_VERIFY_WRITE is not set
-CONFIG_MTD_NAND_BFIN=m
-CONFIG_BFIN_NAND_BASE=0x20212000
-CONFIG_BFIN_NAND_CLE=2
-CONFIG_BFIN_NAND_ALE=1
-CONFIG_BFIN_NAND_READY=3
-CONFIG_MTD_NAND_IDS=m
-# CONFIG_MTD_NAND_DISKONCHIP is not set
-# CONFIG_MTD_NAND_NANDSIM is not set
+# CONFIG_MTD_NAND is not set
 
 #
 # OneNAND Flash Device Drivers
@@ -583,7 +572,6 @@ CONFIG_SMC91X=y
 #
 # Character devices
 #
-CONFIG_BFIN_SPI_CHANNEL=y
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set

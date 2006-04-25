@@ -325,7 +325,6 @@ CONFIG_USER_NET_TOOLS_ROUTE=y
 # CONFIG_USER_WIRELESS_TOOLS is not set
 # CONFIG_USER_HOSTAP_HOSTAP is not set
 # CONFIG_USER_WLAN_NG is not set
-# HAVE_HWIRDA is not set
 
 #
 # Miscellaneous Applications
@@ -948,3 +947,8 @@ CONFIG_USER_YAFFS_UTILS=y
 # Pound SSL Wrapper
 #
 # CONFIG_USER_POUND is not set
+
+#
+# A simple JPEG picture viewer
+#
+# CONFIG_USER_JPEGVIEW is not set

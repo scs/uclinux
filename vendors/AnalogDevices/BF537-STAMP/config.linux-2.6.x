@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16ADI-2006R1
-# Mon Apr 17 18:09:49 2006
+# Tue Apr 25 15:43:28 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -413,7 +413,6 @@ CONFIG_MTD_CFI_I2=y
 # CONFIG_MTD_CFI_AMDSTD is not set
 # CONFIG_MTD_CFI_STAA is not set
 CONFIG_MTD_MW320D=m
-CONFIG_MTD_M25P64=m
 CONFIG_MTD_RAM=y
 CONFIG_MTD_ROM=m
 # CONFIG_MTD_ABSENT is not set
@@ -423,7 +422,6 @@ CONFIG_MTD_ROM=m
 # Mapping drivers for chip access
 #
 CONFIG_MTD_COMPLEX_MAPPINGS=y
-CONFIG_MTD_BF5xx_SPI=m
 CONFIG_MTD_BF5xx=m
 CONFIG_BFIN_FLASH_SIZE=0x400000
 CONFIG_EBIU_FLASH_BASE=0x20000000
@@ -600,7 +598,6 @@ CONFIG_BFIN_MAC=y
 #
 # Character devices
 #
-CONFIG_BFIN_SPI_CHANNEL=y
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
@@ -720,7 +717,7 @@ CONFIG_SPI_MASTER=y
 # SPI Master Controller Drivers
 #
 # CONFIG_SPI_BITBANG is not set
-CONFIG_SPI_BFIN=m
+CONFIG_SPI_BFIN=y
 
 #
 # SPI Protocol Masters
