@@ -639,7 +639,6 @@ comment '  wlan-ng drivers'
 	bool '    Prism2 PCI'	CONFIG_USER_WLAN_NG_PCI
 	bool '    Prism2 USB'	CONFIG_USER_WLAN_NG_USB
 fi
-bool 'IrDA support' HAVE_HWIRDA y
 
 endmenu
 
