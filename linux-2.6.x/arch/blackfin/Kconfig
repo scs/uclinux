@@ -699,6 +699,14 @@ config CPLB_INFO
 	bool "Display the CPLB information"
 	help
 	  Display the CPLB information.
+
+config NO_ACCESS_CHECK
+	bool "Don't check the user pointer address"
+	help
+	  Usually the pointer transfer from user space is checked to see if its
+	  address is in the kernel space. This option disable that check to
+	  improve the performance.
+  
 endmenu
 
 source "security/Kconfig"

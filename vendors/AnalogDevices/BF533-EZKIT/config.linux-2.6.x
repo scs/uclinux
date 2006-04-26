@@ -883,6 +883,7 @@ CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_BOOTPARAM is not set
 # CONFIG_NO_KERNEL_MSG is not set
 CONFIG_CPLB_INFO=y
+# CONFIG_NO_ACCESS_CHECK is not set
 
 #
 # Security options

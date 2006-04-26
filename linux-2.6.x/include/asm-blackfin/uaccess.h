@@ -35,10 +35,14 @@ extern int is_in_rom(unsigned long);
 
 static inline int _access_ok(unsigned long addr, unsigned long size)
 {
+#ifdef CONFIG_NO_ACCESS_CHECK
+	return 1;
+#else
 	extern unsigned long memory_end;
 	if(segment_eq(get_fs(),KERNEL_DS))
  		return 1;
  	return ((addr >= memory_start) && (addr + size <= memory_end)) ;
+#endif
 }
 
 /*
