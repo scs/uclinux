@@ -181,7 +181,11 @@ sub build_ref_tables
 	}
 
     # this takes makes sure modules with no dependencies get listed
-    push @{$dep->{$name}}, '_printk' unless $name eq 'vmlinux';
+    if($name eq 'vmlinux') {
+	$exp->{depmod_pl_dummy_symbol} = $name;
+    } else {
+        push @{$dep->{$name}}, 'depmod_pl_dummy_symbol';
+    }
 
     # gather the unresolved symbols
     foreach ( @$sym_ar ) {
