@@ -1090,6 +1090,7 @@ void unmap_mapping_range(struct address_space *mapping,
 			 int even_cows)
 {
 }
+EXPORT_SYMBOL(unmap_mapping_range);
 
 /*
  * Check that a process has enough memory to allocate a new virtual
