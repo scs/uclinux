@@ -204,6 +204,8 @@ void enable_dma(unsigned int channel);	//enable
 int request_dma(unsigned int channel, char *device_id);
 int set_dma_callback(unsigned int channel, dma_interrupt_t callback,
 		     void *data);
+void dma_disable_irq(unsigned int channel);
+void dma_enable_irq(unsigned int channel);
 void clear_dma_irqstat(unsigned int channel);
 
 #endif
