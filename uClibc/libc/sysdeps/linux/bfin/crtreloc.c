@@ -56,7 +56,7 @@ reloc_range_indirect (void ***p, void ***e,
 	  void *pt;
 	  if ((long)ptr & 3)
 	    {
-	      char *c = ptr;
+	      unsigned char *c = ptr;
 	      int i;
 	      unsigned long v = 0;
 	      for (i = 0; i < 4; i++)
@@ -68,7 +68,7 @@ reloc_range_indirect (void ***p, void ***e,
 	  pt = __reloc_pointer (pt, map);
 	  if ((long)ptr & 3)
 	    {
-	      char *c = ptr;
+	      unsigned char *c = ptr;
 	      int i;
 	      unsigned long v = (unsigned long)pt;
 	      for (i = 0; i < 4; i++, v >>= 8)
