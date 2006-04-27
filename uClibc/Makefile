@@ -465,7 +465,7 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 		if [ -f $$i -a ! -h $$i ] ; then \
 			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
 		fi; \
-	done;
+	done; \
 	for i in $$t/lib/*so*; do \
 		if [ -h $$i -a -e $$i ] ; then \
 			j=`readlink $$i`; \
@@ -473,7 +473,7 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 				/lib/`basename $$j` \
 				/lib/`basename $$i`; \
 		fi; \
-	done;
+	done; \
 	if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
 		$(ROMFSINST) -s \
 			/lib/ld-uClibc-$(UCLIBC_VERSION).so \
