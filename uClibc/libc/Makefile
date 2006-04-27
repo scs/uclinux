@@ -80,9 +80,9 @@ shared: $(TOPDIR)lib/$(LIBNAME)
 	$(CC) $(LDFLAGS) -Wl,-soname=libc.so.0 \
 		$(VERSION_SCRIPT) -e ___libc_main \
 		-o $(SHARED_FULLNAME) \
-		-Wl,--whole-archive $(LIBNAME) \
+		-Wl,--whole-archive $(LIBNAME) $(LIBGCC) \
 		$(TOPDIR)libc/misc/internals/interp.o -Wl,--no-whole-archive \
-		$(LDADD_LIBFLOAT) -nodefaultlibs $(LIBGCC)
+		$(LDADD_LIBFLOAT) -nodefaultlibs
 	@true #$(RM) -r tmp
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(SHARED_FULLNAME)
