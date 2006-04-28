@@ -118,7 +118,7 @@ target_alias = bfin-uclinux
 target_cpu = bfin
 target_os = uclinux
 target_vendor = unknown
-SUBDIRS = src doc
+SUBDIRS = src
 EXTRA_DIST = m4/ README.* Release_Notes
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -429,9 +429,6 @@ check: check-recursive
 all-am: Makefile config.h
 installdirs: installdirs-recursive
 installdirs-am:
-
-romfs:
-	$(ROMFSINST) ./src/netperf /bin/netperf_bfin
 
 install: install-recursive
 install-exec: install-exec-recursive
