@@ -33,11 +33,13 @@
 #include <linux/module.h>
 #include <linux/profile.h>
 #include <linux/interrupt.h>
+#include <linux/time.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <asm/bf5xx_rtc.h>
 
+/* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
 
 static void time_sched_init(irqreturn_t (*timer_routine)
@@ -45,9 +47,6 @@ static void time_sched_init(irqreturn_t (*timer_routine)
 static unsigned long gettimeoffset(void);
 extern int setup_irq(unsigned int, struct irqaction *);
 inline static void do_leds(void);
-
-#define TIME_SCALE 100
-#define CLOCKS_PER_JIFFY (get_cclk() / HZ / TIME_SCALE)
 
 #if (defined(CONFIG_BFIN_ALIVE_LED) || defined(CONFIG_BFIN_IDLE_LED))
 void __init init_leds(void)
@@ -125,6 +124,21 @@ static struct irqaction bfin_timer_irq = {
 	.flags = SA_INTERRUPT
 };
 
+/*
+ * The way that the Blackfin core timer works is:
+ *  - CCLK is divided by a programmable 8-bit pre-scaler (TSCALE)
+ *  - Every time TSCALE ticks, a 32bit is counted down (TCOUNT)
+ * 
+ * If you take the fastest clock (1ns, or 1GHz to make the math work easier)
+ *    10ms is 10,000,000 clock ticks, which fits easy into a 32-bit counter
+ *    (32 bit counter is 4,294,967,296ns or 4.2 seconds) so, we don't need 
+ *    to use TSCALE, and program it to zero (which is pass CCLK through).
+ *    If you feel like using it, try to keep HZ * TIMESCALE to some
+ *    value that divides easy (like power of 2).
+ */
+
+#define TIME_SCALE 1
+
 static void
 time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 {
@@ -137,7 +151,7 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 	 */
 	*pTSCALE = (TIME_SCALE - 1);
 
-	*pTCOUNT = *pTPERIOD = (CLOCKS_PER_JIFFY - 1);
+	*pTCOUNT = *pTPERIOD = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
 
 	/* now enable the timer */
 	__builtin_bfin_csync();
@@ -149,17 +163,21 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 }
 
+/*
+ * Should return useconds since last timer tick
+ */
 static unsigned long gettimeoffset(void)
 {
 	unsigned long offset;
-	unsigned long clocks_per_jiffy = CLOCKS_PER_JIFFY;	/* call get_cclk() only once */
+	unsigned long clocks_per_jiffy ;
 
-	offset =
-	    tick_usec * (clocks_per_jiffy - (*pTCOUNT + 1)) / clocks_per_jiffy;
+	clocks_per_jiffy =  *pTPERIOD ;
+	offset =  (clocks_per_jiffy - *pTCOUNT)  / (( (clocks_per_jiffy + 1) *  HZ * TIME_SCALE) /  USEC_PER_SEC ) ;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((*pILAT & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
-		offset += (1000000 / HZ);
+		offset += ( USEC_PER_SEC / HZ);
+
 
 	return offset;
 }
@@ -196,8 +214,8 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs *regs)
 
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
+	    (xtime.tv_nsec /  NSEC_PER_USEC ) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
+	    (xtime.tv_nsec /  NSEC_PER_USEC ) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
 		if (set_rtc_mmss(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
@@ -239,15 +257,15 @@ void do_gettimeofday(struct timeval *tv)
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
 		usec = gettimeoffset();
 		lost = jiffies - wall_jiffies;
-		if (lost)
-			usec += lost * (1000000 / HZ);
+		if (unlikely(lost))
+			usec += lost * ( USEC_PER_SEC / HZ); 
 		sec = xtime.tv_sec;
-		usec += (xtime.tv_nsec / 1000);
+		usec += (xtime.tv_nsec /  NSEC_PER_USEC );
 	}
 	while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	while (usec >= 1000000) {
-		usec -= 1000000;
+	while (usec >=  USEC_PER_SEC) {
+		usec -=  USEC_PER_SEC;
 		sec++;
 	}
 
@@ -273,7 +291,7 @@ int do_settimeofday(struct timespec *tv)
 	 * Discover what correction gettimeofday
 	 * would have done, and then undo it!
 	 */
-	nsec -= (gettimeoffset() * 1000);
+	nsec -= (gettimeoffset() *  NSEC_PER_USEC );
 
 	wtm_sec = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
@@ -305,7 +323,7 @@ int do_settimeofday(struct timespec *tv)
  */
 unsigned long long sched_clock(void)
 {
-	return (unsigned long long)jiffies *(1000000000 / HZ);
+	return (unsigned long long)jiffies *(NSEC_PER_SEC / HZ);
 }
 
 EXPORT_SYMBOL(do_settimeofday);
