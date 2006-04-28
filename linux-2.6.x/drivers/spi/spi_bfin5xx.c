@@ -134,6 +134,7 @@ struct chip_data {
 	u16 baud;
 	u16 flag;
 
+	u8  chip_select_num;
 	u8  n_bytes;
 	u32 width;            //0 or 1
 	u8  enable_dma;
@@ -178,9 +179,49 @@ static int flush(struct driver_data *drv_data)
 /* stop controller and re-config current chip*/
 static void restore_state(struct driver_data *drv_data)
 {
+	struct chip_data *chip = drv_data->cur_chip;
+
 	/* Clear status and disable clock */
 	write_STAT(BIT_STAT_CLR);
 	bfin_spi_disable(drv_data);
+
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+	if (chip->chip_select_num == 1) {
+		*pPORTF_FER |= 0x7c00;
+		__builtin_bfin_ssync();
+
+	} else if (chip->chip_select_num == 2 \
+		   || chip->chip_select_num == 3) {
+		*pPORT_MUX |= PJSE_SPI;
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0x7c00;
+		__builtin_bfin_ssync();
+
+	} else if (chip->chip_select_num == 4) {
+		*pPORT_MUX |= PFS4E_SPI;
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0x7c40;
+		__builtin_bfin_ssync();
+
+	} else if (chip->chip_select_num == 5) {
+		*pPORT_MUX |= PFS5E_SPI;
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0x7c20;
+		__builtin_bfin_ssync();
+
+	} else if (chip->chip_select_num == 6) {
+		*pPORT_MUX |= PFS6E_SPI;
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0x7c10;
+		__builtin_bfin_ssync();
+
+	} else if (chip->chip_select_num == 7) {
+		*pPORT_MUX |= PJCE_SPI;
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0x7c00;
+		__builtin_bfin_ssync();
+	}
+#endif
 
 	/* Load the registers */
 	write_CTRL(drv_data->cur_chip->ctl_reg);
@@ -642,6 +683,7 @@ static int setup(struct spi_device *spi)
 	chip->baud = spi->max_speed_hz;
 	spi_flg = ~(1 << (spi->chip_select));
 	chip->flag =  ((u16)spi_flg << 8 ) | (1 << (spi->chip_select));
+	chip->chip_select_num = spi->chip_select;
 
 	if (chip->bits_per_word <= 8) {
 		chip->n_bytes = 1;
@@ -785,13 +827,6 @@ static int bfin5xx_spi_probe(struct platform_device *pdev)
 	master->cleanup = cleanup;
 	master->setup = setup;
 	master->transfer = transfer;
-
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-	*pPORT_MUX |= PFS4E;
-	__builtin_bfin_ssync();
-	*pPORTF_FER |= 0x7c40;
-	__builtin_bfin_ssync();
-#endif
 
 	/* Initial and start queue */
 	status = init_queue(drv_data);
