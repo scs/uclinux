@@ -113,7 +113,6 @@ ENTRY(_evt_timer)
 	   macro accesses it to determine where to account time.  */
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);
-	csync;
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
 
