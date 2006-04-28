@@ -59,29 +59,6 @@
   #define AX_BITMASK (1<<CONFIG_BFIN_IDE_ADDRESS_AX)
 #endif
 
-static void ide_outw(u16 d, unsigned long a)
-{
-
-	writew(d,a);
-
-}
-
-static u16 ide_inw(unsigned long a)
-{
-
-	return readw(a);
-}
-
-static void ide_outsw(unsigned long addr, void *buf, u32 len)
-{
-	outsw(addr,buf,len);
-}
-
-static void ide_insw(unsigned long addr, void *buf, u32 len)
-{
-	insw(addr,buf,len);
-}
-
 
 static inline void hw_setup(hw_regs_t *hw)
 {
@@ -111,10 +88,6 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	default_hwif_iops(hwif);
 
 	hwif->mmio  = 2;
-	hwif->OUTW  = ide_outw;
-	hwif->OUTSW = ide_outsw;
-	hwif->INW   = ide_inw;
-	hwif->INSW  = ide_insw;
 	hwif->OUTL  = NULL;
 	hwif->INL   = NULL;
 	hwif->OUTSL = NULL;
@@ -129,7 +102,7 @@ void __init blackfin_ide_init(void)
 	int idx;
 
 #if defined(CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1)
-	  ide_outw(0, CF_ATASEL_ENA);
+	  outw(0, CF_ATASEL_ENA);
 	  udelay(5000);
 #endif
 
