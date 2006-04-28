@@ -140,6 +140,9 @@ DIST_SUBDIRS = $(SUBDIRS)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
+romfs:
+	$(ROMFSINST) src/netperf /bin/netperf
+
 .SUFFIXES:
 
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
