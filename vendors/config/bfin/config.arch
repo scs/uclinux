@@ -67,6 +67,7 @@ ifdef UCLINUX_BUILD_LIB
   endif
   ifdef BUILD_FDPIC
 	CFLAGS += -mfdpic
+	LDFLAGS += -mfdpic
   endif
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
@@ -116,8 +117,6 @@ ifdef UCLINUX_BUILD_USER
 	LIBSTDCPP   = -lstdc++
 
 	LDPATH = \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/. \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
 			-L$(ROOTDIR)/lib/$(LIBCDIR)/libm \
 			-L$(ROOTDIR)/lib/libnet \
 			-L$(ROOTDIR)/lib/libdes \
@@ -125,7 +124,6 @@ ifdef UCLINUX_BUILD_USER
 			-L$(ROOTDIR)/lib/libpcap \
 			-L$(ROOTDIR)/lib/zlib \
 			-L$(ROOTDIR)/lib/libssl \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/libc \
 			-L$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
 
 	INCLIBC = -I$(ROOTDIR)/lib/$(LIBCDIR)/include
