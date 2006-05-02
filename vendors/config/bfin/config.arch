@@ -65,7 +65,9 @@ ifdef UCLINUX_BUILD_LIB
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library 
   endif
-
+  ifdef BUILD_FDPIC
+	CFLAGS += -mfdpic
+  endif
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
 	CFLAGS  += -I$(ROOTDIR)/lib/$(LIBCDIR)/include
