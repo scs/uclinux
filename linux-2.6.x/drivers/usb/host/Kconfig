@@ -198,14 +198,31 @@ config USB_SL811_HCD
 	  module will be called sl811-hcd.
 	  
 config USB_SL811_BFIN_GPIO
-        int "PF pin for Interrupt"
-        depends on (BF537 && USB_SL811_HCD)
-        range 3 7
-        default 4
-        help
-          Choose an PF pin as isp1362's interrupt. This must corresponds to 
+	int "PF pin for Interrupt"
+	depends on (BF537 && USB_SL811_HCD)
+	range 3 7
+	default 4
+	help
+      Choose an PF pin as isp1362's interrupt. This must corresponds to 
 	  the JP3 on usb daughter card. The available value is from 3 to 7.
-							    
+
+
+config USB_SL811_BFIN_USE_VBUS
+	tristate "SL811HS use BUS POWER Enable Switching"
+	depends on (BF537 && USB_SL811_HCD)
+	default N
+	help
+	  Say Y if you want to use BUS POWER Enable Switching
+	 
+config USB_SL811_BFIN_GPIO_VBUS
+	int "PF pin for BUS POWER Enable"
+	depends on USB_SL811_BFIN_USE_VBUS
+	range 3 7
+	default 3
+	help
+	  Choose an PF pin as SL811 BUS POWER Enable. This must corresponds to 
+	  the JP7 on usb daughter card. The available value is from 3 to 7.
+
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"
 	depends on USB_SL811_HCD && PCMCIA

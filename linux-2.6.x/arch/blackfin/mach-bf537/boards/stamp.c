@@ -38,7 +38,7 @@
 #include <linux/usb_isp1362.h>
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
-
+#include <linux/usb_sl811.h>
 
 /*
  *  Driver needs to know address, irq and flag pin.
@@ -97,12 +97,41 @@ static struct resource sl811_hcd_resources[] = {
 	       },
 };
 
+#if defined(CONFIG_USB_SL811_BFIN_USE_VBUS)
+void sl811_port_power(struct device *dev, int is_on)
+{
+  unsigned short mask = (1<<CONFIG_USB_SL811_BFIN_GPIO_VBUS);
+
+*pPORT_FER &= ~mask;
+*pFIO_DIR |= mask;
+
+if(is_on)
+  *pFIO_FLAG_S |= mask;
+	else
+  *pFIO_FLAG_C |= mask;
+
+/*printk("sl811_port_power is_on = %d \n", is_on);*/
+}
+#endif
+
+static struct sl811_platform_data sl811_priv = {
+	.potpg		= 10,
+	.power		= 250,		/* == 500mA */
+#if defined(CONFIG_USB_SL811_BFIN_USE_VBUS)
+	.port_power = &sl811_port_power,
+#endif
+};
+
 static struct platform_device sl811_hcd_device = {
 	.name = "sl811-hcd",
 	.id = 0,
+	.dev = {
+		.platform_data = &sl811_priv,
+	},
 	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
 	.resource = sl811_hcd_resources,
 };
+
 #endif
 
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
