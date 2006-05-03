@@ -1606,7 +1606,10 @@ mainmenu_option next_comment
 comment 'Blackfin app programs'
 
 bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
-bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO 
+bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO
+if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
+	define_bool CONFIG_LIB_LIBPNG y
+fi
 bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
 bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
@@ -1624,6 +1627,16 @@ if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
 	define_bool CONFIG_LIB_POPT y
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
+
+if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
+	define_bool CONFIG_LIB_LIBMAD y
+	define_bool CONFIG_LIB_FAAD2 y
+	define_bool CONFIG_LIB_FLAC y
+	define_bool CONFIG_LIB_LIBID3TAG y
+	define_bool CONFIG_LIB_TREMOR y
+	define_bool CONFIG_LIB_LIBAUDIO y
+fi
+
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
 comment 'YAFFS tools'
