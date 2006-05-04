@@ -328,7 +328,7 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 	int len = 0;
 	int curpos;
 
-	spin_lock_bh(info->recv_lock);
+	spin_lock_bh(&(info->recv_lock));
 
 	/*
 	 * Current DMA receiving buffer is one PAGE, which is devied into 8 buffer lines.
@@ -382,7 +382,7 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 
 	tty_flip_buffer_push(tty);
       unlock_and_exit:
-	spin_unlock_bh(info->recv_lock);
+	spin_unlock_bh(&(info->recv_lock));
 }
 
 static void dma_transmit_chars(struct bfin_serial *info)
@@ -392,7 +392,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		return;
 	}
 
-	spin_lock_bh(info->xmit_lock);
+	spin_lock_bh(&(info->xmit_lock));
 
 	/*
 	 * tx_xcount is checked here to make sure the dma won't be started if it is working.
@@ -449,7 +449,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	}
 
       clear_and_return:
-	spin_unlock_bh(info->xmit_lock);
+	spin_unlock_bh(&(info->xmit_lock));
 }
 #endif
 
