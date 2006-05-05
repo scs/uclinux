@@ -8,6 +8,8 @@ config SND_BLACKFIN_ADI1836
 	tristate "1836 Audio support for BF53x"
 	depends on BFIN
 	select SND_PCM
+	select SPI
+	select SPI_BFIN
 	help
 	  Select this if you have an 1836 connected to the SPI and SPORTx ports
 
