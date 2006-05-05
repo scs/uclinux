@@ -15,6 +15,10 @@ hostprogs-$(CONFIG_IKCONFIG)     += bin2c
 
 always		:= $(hostprogs-y)
 
+# Our version of genksyms needs the elfconfig.h header in the mod subdir
+# See the kernel bug #1249
+$(obj)/genksyms: $(obj)/mod
+
 subdir-$(CONFIG_MODVERSIONS) += genksyms
 subdir-$(CONFIG_MODULES)     += mod
 
