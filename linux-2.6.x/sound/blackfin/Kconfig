@@ -10,6 +10,7 @@ config SND_BLACKFIN_ADI1836
 	select SND_PCM
 	select SPI
 	select SPI_BFIN
+	select BFIN_SPORT
 	help
 	  Select this if you have an 1836 connected to the SPI and SPORTx ports
 
