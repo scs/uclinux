@@ -240,7 +240,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		break;
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
+		sig = SIGSEGV;
+#else
 		sig = SIGILL;
+#endif
 		DPRINTK3(EXC_0x27);
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
 		break;
