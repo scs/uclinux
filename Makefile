@@ -275,9 +275,9 @@ dep:
 # This one removes all executables from the tree and forces their relinking
 .PHONY: relink
 relink:
-	find user -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
-	find prop -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
-	find $(VENDDIR) -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
+	find user -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
+	find prop -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
+	find $(VENDDIR) -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
 
 clean: modules_clean
 	for dir in $(LINUXDIR) $(DIRS) $(VENDDIR) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
