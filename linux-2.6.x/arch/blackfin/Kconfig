@@ -178,10 +178,6 @@ config BFIN_SHARED_FLASH_ENET
 	depends on (BFIN533_STAMP)
 	default y
 
-config BFIN_SHARED_FLASH_ENET
-	bool
-	depends on (BFIN533_BLUETECHNIX_CM)
-	default n
 
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
