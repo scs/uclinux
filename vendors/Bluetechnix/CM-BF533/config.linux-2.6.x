@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16
-# Thu Mar 30 16:35:57 2006
+# Linux kernel version: 2.6.16.11.ADI-2006R1
+# Sun May  7 18:32:03 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -103,7 +103,6 @@ CONFIG_BFIN533_BLUETECHNIX_CM=y
 # CONFIG_BFIN561_EZKIT is not set
 # CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC16M16A2TG_75=y
-# CONFIG_BFIN_SHARED_FLASH_ENET is not set
 
 #
 # BF533/2/1 Specific Configuration
@@ -186,7 +185,7 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_LARGE_ALLOCS=y
-CONFIG_IRQCHIP_DEMUX_GPIO=y
+# CONFIG_IRQCHIP_DEMUX_GPIO is not set
 
 #
 # DMA Support
@@ -207,6 +206,10 @@ CONFIG_UNCACHED_1M=y
 #
 # Clock Settings
 #
+CONFIG_HZ_100=y
+# CONFIG_HZ_250 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=100
 # CONFIG_BFIN_KERNEL_CLOCK is not set
 
 #
@@ -401,7 +404,6 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-# CONFIG_MTD_BF5xx_SPI is not set
 # CONFIG_MTD_BF5xx is not set
 
 #
@@ -413,6 +415,8 @@ CONFIG_MTD_UCLINUX=y
 #
 # Self-contained MTD device drivers
 #
+# CONFIG_MTD_DATAFLASH is not set
+# CONFIG_MTD_M25P80 is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_PHRAM is not set
 # CONFIG_MTD_MTDRAM is not set
@@ -451,6 +455,7 @@ CONFIG_MTD_UCLINUX=y
 # CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
+# CONFIG_BLK_DEV_UB is not set
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
@@ -462,6 +467,8 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # ATA/ATAPI/MFM/RLL support
 #
 # CONFIG_IDE is not set
+# CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0 is not set
+# CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1 is not set
 
 #
 # SCSI device support
@@ -560,7 +567,6 @@ CONFIG_SMC91X=y
 #
 # Character devices
 #
-# CONFIG_BFIN_SPI_CHANNEL is not set
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
@@ -624,8 +630,18 @@ CONFIG_BLACKFIN_DPMC=y
 #
 # SPI support
 #
-# CONFIG_SPI is not set
-# CONFIG_SPI_MASTER is not set
+CONFIG_SPI=y
+CONFIG_SPI_MASTER=y
+
+#
+# SPI Master Controller Drivers
+#
+# CONFIG_SPI_BITBANG is not set
+CONFIG_SPI_BFIN=m
+
+#
+# SPI Protocol Masters
+#
 
 #
 # Dallas's 1-wire bus
@@ -673,15 +689,106 @@ CONFIG_HWMON=y
 #
 CONFIG_USB_ARCH_HAS_HCD=y
 # CONFIG_USB_ARCH_HAS_OHCI is not set
-# CONFIG_USB is not set
-# CONFIG_USB_ISP1362_BFIN_PF4 is not set
+CONFIG_USB=m
+# CONFIG_USB_DEBUG is not set
+
+#
+# Miscellaneous USB options
+#
+# CONFIG_USB_DEVICEFS is not set
+# CONFIG_USB_BANDWIDTH is not set
+# CONFIG_USB_DYNAMIC_MINORS is not set
+# CONFIG_USB_OTG is not set
+
+#
+# USB Host Controller Drivers
+#
+# CONFIG_USB_ISP116X_HCD is not set
+CONFIG_USB_ISP1362_HCD=m
+CONFIG_USB_ISP1362_BFIN_PF4=y
 # CONFIG_USB_ISP1362_BFIN_PF8 is not set
 # CONFIG_USB_ISP1362_BFIN_PF9 is not set
 # CONFIG_USB_ISP1362_BFIN_PF14 is not set
 # CONFIG_USB_ISP1362_BFIN_PF15 is not set
+CONFIG_USB_ISP1362_BFIN_GPIO=4
+# CONFIG_USB_SL811_HCD is not set
+
+#
+# USB Device Class drivers
+#
+# CONFIG_USB_ACM is not set
+# CONFIG_USB_PRINTER is not set
 
 #
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
+#
+
+#
+# may also be needed; see USB_STORAGE Help for more information
+#
+# CONFIG_USB_STORAGE is not set
+# CONFIG_USB_LIBUSUAL is not set
+
+#
+# USB Input Devices
+#
+# CONFIG_USB_HID is not set
+
+#
+# USB HID Boot Protocol drivers
+#
+
+#
+# USB Imaging devices
+#
+# CONFIG_USB_MDC800 is not set
+
+#
+# USB Multimedia devices
+#
+# CONFIG_USB_DABUSB is not set
+
+#
+# Video4Linux support is needed for USB Multimedia device support
+#
+
+#
+# USB Network Adapters
+#
+# CONFIG_USB_CATC is not set
+# CONFIG_USB_KAWETH is not set
+# CONFIG_USB_PEGASUS is not set
+# CONFIG_USB_RTL8150 is not set
+# CONFIG_USB_USBNET is not set
+CONFIG_USB_MON=y
+
+#
+# USB port drivers
+#
+
+#
+# USB Serial Converter support
+#
+# CONFIG_USB_SERIAL is not set
+
+#
+# USB Miscellaneous drivers
+#
+# CONFIG_USB_EMI62 is not set
+# CONFIG_USB_EMI26 is not set
+# CONFIG_USB_AUERSWALD is not set
+# CONFIG_USB_RIO500 is not set
+# CONFIG_USB_LEGOTOWER is not set
+# CONFIG_USB_LCD is not set
+# CONFIG_USB_LED is not set
+# CONFIG_USB_CYTHERM is not set
+# CONFIG_USB_PHIDGETKIT is not set
+# CONFIG_USB_PHIDGETSERVO is not set
+# CONFIG_USB_IDMOUSE is not set
+# CONFIG_USB_LD is not set
+
+#
+# USB DSL modem support
 #
 
 #
@@ -760,6 +867,7 @@ CONFIG_RAMFS=y
 # CONFIG_BEFS_FS is not set
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
+# CONFIG_YAFFS_FS is not set
 # CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
 # CONFIG_CRAMFS is not set
@@ -804,6 +912,7 @@ CONFIG_MSDOS_PARTITION=y
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=14
+# CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_SERIAL_EARLY_INIT is not set
 # CONFIG_DEBUG_HWERR is not set
@@ -811,6 +920,7 @@ CONFIG_BOOTPARAM=y
 CONFIG_BOOTPARAM_STRING="root=/dev/mtdblock0 rw"
 # CONFIG_NO_KERNEL_MSG is not set
 CONFIG_CPLB_INFO=y
+# CONFIG_NO_ACCESS_CHECK is not set
 
 #
 # Security options
@@ -819,6 +929,7 @@ CONFIG_CPLB_INFO=y
 CONFIG_SECURITY=y
 # CONFIG_SECURITY_NETWORK is not set
 CONFIG_SECURITY_CAPABILITIES=y
+# CONFIG_SECURITY_ROOTPLUG is not set
 # CONFIG_SECURITY_SECLVL is not set
 
 #

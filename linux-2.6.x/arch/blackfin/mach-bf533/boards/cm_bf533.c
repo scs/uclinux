@@ -28,16 +28,118 @@
   * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
   */
 
+
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/flash.h>
 #include <linux/usb_isp1362.h>
 #include <asm/irq.h>
+#include <asm/bfin5xx_spi.h>
 
-/*
- *  USB-LAN EzExtender board
- *  Driver needs to know address, irq and flag pin.
- */
-#ifdef CONFIG_SMC91X
+
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
+/* all SPI perpherals info goes here */
+
+static struct mtd_partition bfin_spi_flash_partitions[] = {
+	{
+		name: "bootloader",
+		size: 0x00040000,
+		offset: 0,
+		mask_flags: MTD_CAP_ROM
+	},{
+		name: "kernel",
+		size: 0xc0000,
+		offset: 0x40000
+	},{
+		name: "file system",
+		size: 0x300000,
+		offset: 0x00100000,
+	}
+};
+
+static struct flash_platform_data bfin_spi_flash_data = {
+	.name	        = "m25p80",
+	.parts		= bfin_spi_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(bfin_spi_flash_partitions),
+	.type           = "m25p64",
+};
+
+/* SPI flash chip (m25p64) */
+static struct bfin5xx_spi_chip spi_flash_chip_info = {
+	.ctl_reg = 0x1C00,       /* with enable bit unset */
+	.enable_dma = 0,    /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+
+/* SPI ADC chip */
+static struct bfin5xx_spi_chip spi_adc_chip_info = {
+	.ctl_reg = 0x1500,
+	.enable_dma = 1,    /* use dma transfer with this chip*/
+	.bits_per_word = 16,
+};
+
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
+static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
+	.ctl_reg = 0x1000,
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+/* Notice: for blackfin, the speed_hz is the value of register
+   SPI_BAUD, not the real baudrate */
+static struct spi_board_info bfin_spi_board_info[] __initdata = {
+       {
+	       /* the modalias must be the same as spi device driver name */
+               .modalias = "m25p80", /* Name of spi_driver for this device */
+	       /* this value is the baudrate divisor */
+               .max_speed_hz = 2,     /* actual baudrate is SCLK/(2xspeed_hz) */
+               .bus_num = 1, /* Framework bus number */
+               .chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+               .platform_data = &bfin_spi_flash_data,
+               .controller_data = &spi_flash_chip_info,
+       },
+       {
+               .modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
+               .max_speed_hz = 4,     /* actual baudrate is SCLK/(2xspeed_hz) */
+               .bus_num = 1, /* Framework bus number */
+               .chip_select = 2, /* Framework chip select. */
+               .platform_data = NULL, /* No spi_driver specific config */
+               .controller_data = &spi_adc_chip_info,
+       },
+#if defined(CONFIG_SND_BLACKFIN_ADI1836) \
+	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
+	{
+		.modalias = "ad1836-spi",
+		.max_speed_hz = 16,
+		.bus_num = 1,
+		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		.controller_data = &ad1836_spi_chip_info,
+	},
+#endif
+};
+
+/* SPI controller data */
+static struct bfin5xx_spi_master spi_bfin_master_info = {
+	.num_chipselect = 8,
+	.enable_dma = 1,  /* master has the ability to do dma transfer */
+};
+
+static struct platform_device spi_bfin_master_device = {
+	.name = "bfin-spi-master",
+	.id = 1, /* Bus number */
+	.dev = {
+		.platform_data = &spi_bfin_master_info, /* Passed to driver */
+	},
+};
+#endif  /* spi master and devices */
+
+
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	[0] = {
 	       .start = 0x20200300,
@@ -67,7 +169,7 @@ static struct platform_device smc91x_device = {
 };
 #endif
 
-#ifdef CONFIG_USB_ISP1362_HCD
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 static struct resource isp1362_hcd_resources[] = {
 	[0] = {
 	       .start = 0x20308000,
@@ -80,10 +182,16 @@ static struct resource isp1362_hcd_resources[] = {
 	       .flags = IORESOURCE_MEM,
 	       },
 	[2] = {
+		.start = IRQ_PROG_INTA,
+		.end = IRQ_PROG_INTA,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		},
+	[3] = {
 	       .start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 	       .end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 	       .flags = IORESOURCE_IRQ,
 	       },
+
 };
 
 static struct isp1362_platform_data isp1362_priv = {
@@ -109,12 +217,17 @@ static struct platform_device isp1362_hcd_device = {
 #endif
 
 static struct platform_device *cm_bf533_devices[] __initdata = {
-#ifdef CONFIG_USB_ISP1362_HCD
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 	&isp1362_hcd_device,
 #endif
-#ifdef CONFIG_SMC91X
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
 #endif
+
+#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
+	&spi_bfin_master_device,
+#endif
+
 };
 
 static int __init cm_bf533_init(void)
