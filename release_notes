@@ -82,7 +82,7 @@ o	Change uClibc to do proper self-relocation for ELF binary.
 o	Enable Microwin 0.91 for blackfin.
 o	Enable QT embedded library free 3.3.5 for blackin.
 o	Enable graphic web browser Konqueror3 embedded 0.2 for blackfin.
-8.	Port Java virtual machine Kaffe to Blackfin. Both interpret and JIT mode a implemented.
+8.	Port Java virtual machine Kaffe to Blackfin. Only interpret mode works.
 9.	Add YAFFS utility.
 10.	Add bluetooth utilities.
 11.	Add input event test suite from Vojtech.
