@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL");
 static void desc_list_free(void);
 
 /* transmit net_dma_desc numbers */
-#define  INIT_DESC_NUM 12
+#define  INIT_DESC_NUM 10
 #define  MAX_DESC_NUM 64
 #define  MAX_RX_DESC_NUM 8
 
@@ -79,8 +79,8 @@ static int desc_list_init(void)
   /* init tx_list */
   if (current_desc_num == 0) {
     for (i=0;i < INIT_DESC_NUM;i++) {
-      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
-      //tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
+//      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+      tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
       if (tmp_desc == NULL)
 	  goto error;
       else
