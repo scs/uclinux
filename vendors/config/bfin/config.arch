@@ -117,6 +117,7 @@ ifdef UCLINUX_BUILD_USER
 	LIBSTDCPP   = -lstdc++
 
 	LDPATH = \
+			-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
 			-L$(ROOTDIR)/lib/$(LIBCDIR)/libm \
 			-L$(ROOTDIR)/lib/libnet \
 			-L$(ROOTDIR)/lib/libdes \
