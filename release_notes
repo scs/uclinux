@@ -108,7 +108,6 @@ No 	Issue Title
 1239	audio module does not uninstall / install properly. 
 1240	Linphone doesn't work properly now 
 1244	spi driver for ndso doesn't show right wave picture 
-1245	AD1836 driver stops to output sound after a few seconds on BF533 
 
 There are also some issues in the LTP test cases. They are recorded as bug 352, 744, 745, 1010, 1050, 1096, 1211, 1212, 1218 and 1219. 
 Build Procedure
