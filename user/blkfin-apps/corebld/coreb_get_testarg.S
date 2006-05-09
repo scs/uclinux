@@ -65,7 +65,7 @@ start:
 
 	p0.l = (IMASK & 0xFFFF);
 	p0.h = (IMASK >> 16);
-	r0.1 = 0x8000;
+	r0.l = 0x8000;
 	r0.h = 0xffff;
 	[p0] = r0;
 	raise 15;
