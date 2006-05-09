@@ -193,47 +193,49 @@
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)
 #define AMBCTL1VAL	((CONFIG_BANK_3 << 16) | CONFIG_BANK_2)
 
-#if (CONFIG_C_AMBEN_ALL)
+#if defined(CONFIG_C_AMBEN_ALL)
 #define V_AMBEN AMBEN_ALL
-#endif
-#if (CONFIG_C_AMBEN)
+#elif defined(CONFIG_C_AMBEN)
 #define V_AMBEN 0x0
-#endif
-#if (CONFIG_C_AMBEN_B0)
+#elif defined(CONFIG_C_AMBEN_B0)
 #define V_AMBEN AMBEN_B0
-#endif
-#if (CONFIG_C_AMBEN_B0_B1)
+#elif defined(CONFIG_C_AMBEN_B0_B1)
 #define V_AMBEN AMBEN_B0_B1
-#endif
-#if (CONFIG_C_AMBEN_B0_B1_B2)
+#elif defined(CONFIG_C_AMBEN_B0_B1_B2)
 #define V_AMBEN AMBEN_B0_B1_B2
 #endif
+
 #if (CONFIG_C_AMCKEN)
 #define V_AMCKEN AMCKEN
 #else
 #define V_AMCKEN 0x0
 #endif
-#if (CONFIG_C_B0PEN)
+
+#ifdef CONFIG_C_B0PEN
 #define V_B0PEN 0x10
 #else
 #define V_B0PEN 0x00
 #endif
-#if (CONFIG_C_B1PEN)
+
+#ifdef CONFIG_C_B1PEN
 #define V_B1PEN 0x20
 #else
 #define V_B1PEN 0x00
 #endif
-#if (CONFIG_C_B2PEN)
+
+#ifdef CONFIG_C_B2PEN
 #define V_B2PEN 0x40
 #else
 #define V_B2PEN 0x00
 #endif
-#if (CONFIG_C_B3PEN)
+
+#ifdef CONFIG_C_B3PEN
 #define V_B3PEN 0x80
 #else
 #define V_B3PEN 0x00
 #endif
-#if (CONFIG_C_CDPRIO)
+
+#ifdef CONFIG_C_CDPRIO
 #define V_CDPRIO 0x100
 #else
 #define V_CDPRIO 0x0
@@ -242,7 +244,7 @@
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO | V_B0PEN | V_B1PEN | V_B2PEN | V_B3PEN | 0x0002)
 
 /******************************* PLL Settings ********************************/
-#if CONFIG_BFIN_KERNEL_CLOCK
+#ifdef CONFIG_BFIN_KERNEL_CLOCK
 #if (CONFIG_VCO_MULT < 0)
 #error "VCO Multiplier is less than 0. Please select a different value"
 #endif
