@@ -829,7 +829,7 @@ int
 httpd_get_nfiles( void )
     {
 #ifdef EMBED
-    return(8);
+    return(16);
 #else
     static int inited = 0;
     static int n;
