@@ -56,7 +56,7 @@ MODULE_AUTHOR("Luke Yang");
 MODULE_DESCRIPTION("Blackfin5xx SPI Contoller");
 MODULE_LICENSE("GPL");
 
-/* #define BFIN_SPI_DEBUG  1 */
+//#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
 #define PRINTK(args...) printk(args)
@@ -184,14 +184,17 @@ static void restore_state(struct driver_data *drv_data)
 	/* Clear status and disable clock */
 	write_STAT(BIT_STAT_CLR);
 	bfin_spi_disable(drv_data);
+	PRINTK("restoring spi ctl state\n");
 
 #if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
 	if (chip->chip_select_num == 1) {
+		PRINTK("set for chip select 1\n");
 		*pPORTF_FER |= 0x7c00;
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 2 \
 		   || chip->chip_select_num == 3) {
+		PRINTK("set for chip select 2\n");
 		*pPORT_MUX |= PJSE_SPI;
 		__builtin_bfin_ssync();
 		*pPORTF_FER |= 0x7c00;
@@ -224,9 +227,9 @@ static void restore_state(struct driver_data *drv_data)
 #endif
 
 	/* Load the registers */
-	write_CTRL(drv_data->cur_chip->ctl_reg);
-	write_BAUD(drv_data->cur_chip->baud);
-	write_FLAG(drv_data->cur_chip->flag);
+	write_CTRL(chip->ctl_reg);
+	write_BAUD(chip->baud);
+	write_FLAG(chip->flag);
 }
 
 /* used to kick off transfer in rx mode */
@@ -375,7 +378,7 @@ static void pump_transfers(unsigned long data)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip = NULL;
-	u16 cr,width,dma_config;
+	u16 cr,width,dma_width,dma_config;
 	u32 tranf_success = 1;
 
 	/* Get current state information */
@@ -457,10 +460,12 @@ static void pump_transfers(unsigned long data)
 		if(width == CFG_SPI_WORDSIZE16){
 			set_dma_x_count(CH_SPI, ((drv_data->len)>>1));
 			set_dma_x_modify(CH_SPI, 2);
+			dma_width = WDSIZE_16;
 		}
 		else {
 			set_dma_x_count(CH_SPI, drv_data->len);
 			set_dma_x_modify(CH_SPI, 1);
+			dma_width = WDSIZE_8;
 		}
 
 		/* Go baby, go */
@@ -473,7 +478,7 @@ static void pump_transfers(unsigned long data)
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 			/* no irq in autobuffer mode */
-			dma_config |= ( DMAFLOW_AUTO | RESTART | DI_EN );
+			dma_config |= ( DMAFLOW_AUTO | RESTART | dma_width | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx_dma);
 			enable_dma(CH_SPI);
@@ -491,7 +496,7 @@ static void pump_transfers(unsigned long data)
 
 			/* start dma*/
 			dma_enable_irq(CH_SPI);
-			dma_config |= ( WNR | RESTART | DI_EN );
+			dma_config |= ( WNR | RESTART | dma_width | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
@@ -503,7 +508,7 @@ static void pump_transfers(unsigned long data)
 
 			/* start dma */
 			dma_enable_irq(CH_SPI);
-			dma_config |= ( RESTART | DI_EN );
+			dma_config |= ( RESTART | dma_width | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
