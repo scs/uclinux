@@ -205,7 +205,7 @@
 #define V_AMBEN AMBEN_B0_B1_B2
 #endif
 
-#if (CONFIG_C_AMCKEN)
+#ifdef CONFIG_C_AMCKEN
 #define V_AMCKEN AMCKEN
 #else
 #define V_AMCKEN 0x0
