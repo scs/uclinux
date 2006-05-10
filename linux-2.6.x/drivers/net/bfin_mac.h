@@ -95,5 +95,6 @@ struct bf537mac_local {
   int CLKIN;             // clock in value in MHZ
   unsigned short IntMask;  // interrupt mask
   unsigned char  Mac[6];     // MAC address of the board
+  spinlock_t lock;
 };
 
