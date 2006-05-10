@@ -618,13 +618,6 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
-config DEBUG_INFO
-	bool "Compile the kernel with debug info"
-	help
-	  If you say Y here the resulting kernel image will include
-	  debugging info resulting in a larger kernel image.
-	  Say Y here only if you plan to debug the kernel.
-
 config DEBUG_SERIAL_EARLY_INIT
 	bool 'Initialize serial driver early'
 	default n
