@@ -101,6 +101,8 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI perpherals info goes here */
 
+#if defined(CONFIG_MTD_M25P80) \
+	|| defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		name: "bootloader",
@@ -131,13 +133,17 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 	.enable_dma = 0,    /* use dma transfer with this chip*/
 	.bits_per_word = 8,
 };
+#endif
 
+#if defined(CONFIG_SPI_ADC_BF533) \
+	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
 	.ctl_reg = 0x1500,
 	.enable_dma = 1,    /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
+#endif
 
 #if defined(CONFIG_SND_BLACKFIN_ADI1836) \
 	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
@@ -157,7 +163,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	       /* this value is the baudrate divisor */
                .max_speed_hz = 2,     /* actual baudrate is SCLK/(2xspeed_hz) */
                .bus_num = 1, /* Framework bus number */
-               .chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+               .chip_select = 2, /* Framework chip select. On STAMP537 it is SPISSEL1*/
                .platform_data = &bfin_spi_flash_data,
                .controller_data = &spi_flash_chip_info,
        },
@@ -165,7 +171,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
                .max_speed_hz = 4,     /* actual baudrate is SCLK/(2xspeed_hz) */
                .bus_num = 1, /* Framework bus number */
-               .chip_select = 2, /* Framework chip select. */
+               .chip_select = 1, /* Framework chip select. */
                .platform_data = NULL, /* No spi_driver specific config */
                .controller_data = &spi_adc_chip_info,
        },
