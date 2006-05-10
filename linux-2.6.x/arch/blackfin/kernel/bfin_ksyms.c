@@ -116,3 +116,5 @@ EXPORT_SYMBOL(blackfin_dcache_flush_range);
 EXPORT_SYMBOL(blackfin_dflush_page);
 
 EXPORT_SYMBOL(csum_partial);
+EXPORT_SYMBOL(__init_begin);
+EXPORT_SYMBOL(__init_end);
