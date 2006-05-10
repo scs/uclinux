@@ -847,6 +847,30 @@ config BFIN_MAC
 	  ( = code which can be inserted in and removed from the running kernel 
 	  whenever you want).
 
+config BFIN_MAC_USE_L1
+	bool "BFIN537 use L1 mem for rx/tx packets"
+	depends on BFIN_MAC
+	default y
+	help
+	  To get max network performace, use L1 memory as rx/tx buffers. Say N if you want to reserve L1 mem for other usage.
+
+config BFIN_TX_DESC_NUM
+	int "BFIN transmit buffer packets number"
+	depends on BFIN_MAC
+	range 6 10 if BFIN_MAC_USE_L1
+	range 10 100
+	default "10"
+	help
+	  Set the number of buffer packets used in driver.
+
+config BFIN_RX_DESC_NUM
+	int "BFIN receive buffer packets number"
+	depends on BFIN_MAC
+	range 6 10 if BFIN_MAC_USE_L1
+	range 6 100
+	default "6"
+	help
+	  Set the number of buffer packets used in driver.
 
 config SMC9194
 	tristate "SMC 9194 support"

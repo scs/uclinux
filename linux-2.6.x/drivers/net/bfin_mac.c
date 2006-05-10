@@ -50,11 +50,6 @@ MODULE_LICENSE("GPL");
 
 static void desc_list_free(void);
 
-/* transmit net_dma_desc numbers */
-#define  INIT_DESC_NUM 10
-#define  MAX_DESC_NUM 64
-#define  MAX_RX_DESC_NUM 8
-
 /* pointers to maintain transmit list */
 struct net_dma_desc *tx_list_head;
 struct net_dma_desc *tx_list_tail;
@@ -62,9 +57,6 @@ struct net_dma_desc *rx_list_head;
 struct net_dma_desc *rx_list_tail;
 struct net_dma_desc *current_rx_ptr;
 struct net_dma_desc *current_tx_ptr;
-
-int current_desc_num;
-
 
 extern unsigned long l1_data_A_sram_alloc(unsigned long size);
 extern unsigned long l1_data_A_sram_free(unsigned long size);
@@ -77,15 +69,18 @@ static int desc_list_init(void)
   dma_addr_t dma_handle;
 
   /* init tx_list */
-  if (current_desc_num == 0) {
-    for (i=0;i < INIT_DESC_NUM;i++) {
-//      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+    for (i=0;i < CONFIG_BFIN_TX_DESC_NUM;i++) {
+#if defined(CONFIG_BFIN_MAC_USE_L1)
       tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
+#else
+      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+#endif
+
       if (tmp_desc == NULL)
 	  goto error;
       else
 	  memset(tmp_desc,0,sizeof(tmp_desc));
-      
+
       if (i == 0) {
 	tx_list_head = tmp_desc;
 	tx_list_tail = tmp_desc;
@@ -102,27 +97,29 @@ static int desc_list_init(void)
 
       tmp_desc->desc_b.start_addr = (unsigned long)(&(tmp_desc->status));
       tmp_desc->desc_b.x_count = 0;
-      tmp_desc->desc_b.config.b_DMA_EN = 1;        //disabled
+      tmp_desc->desc_b.config.b_DMA_EN = 1;        //enabled
       tmp_desc->desc_b.config.b_WNR    = 1;        //write to memory
       tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
       tmp_desc->desc_b.config.b_DI_EN  = 0;        //disable interrupt
-      tmp_desc->desc_b.config.b_NDSIZE = 6;        
+      tmp_desc->desc_b.config.b_NDSIZE = 6;
       tmp_desc->desc_b.config.b_FLOW   = 7;        //stop mode
-      tx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);      
+      tx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
       tx_list_tail->next = tmp_desc;
 
       tx_list_tail = tmp_desc;
     }
     tx_list_tail->next = tx_list_head;  /* tx_list is a circle */
     tx_list_tail->desc_b.next_dma_desc = &(tx_list_head->desc_a);
-    current_desc_num = INIT_DESC_NUM;
     current_tx_ptr = tx_list_head;
-  }
 
   /* init rx_list */
-  for (i = 0; i < MAX_RX_DESC_NUM; i++) {
-    //tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
-    tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
+  for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+      tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
+#else
+      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
+#endif
+
     if (tmp_desc == NULL)
       goto error;
     else
@@ -149,7 +146,7 @@ static int desc_list_init(void)
     tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
     tmp_desc->desc_b.config.b_NDSIZE = 6;        
     tmp_desc->desc_b.config.b_DI_EN  = 1;        //enable interrupt
-    tmp_desc->desc_b.config.b_FLOW   = 7;        //stop
+    tmp_desc->desc_b.config.b_FLOW   = 7;        //large mode
     rx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
   
     rx_list_tail->next = tmp_desc;
@@ -169,23 +166,33 @@ static int desc_list_init(void)
 
 static void desc_list_free(void)
 {
-  struct net_dma_desc *tmp_desc;
-  int i;
-  dma_addr_t dma_handle = 0;
+	struct net_dma_desc *tmp_desc;
+	int i;
+	dma_addr_t dma_handle = 0;
 
-  tmp_desc = tx_list_head;
-  for (i = 0; i < INIT_DESC_NUM; i++) {
-    if (tmp_desc != NULL) 
-      dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
-    tmp_desc = tmp_desc->next;
-  }
+	tmp_desc = tx_list_head;
+	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
+		if (tmp_desc != NULL) {
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+			l1_data_A_sram_free((unsigned long)tmp_desc);
+#else
+			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+#endif
+		}
+		tmp_desc = tmp_desc->next;
+	}
 
-  tmp_desc = rx_list_head;
-  for (i = 0; i < MAX_RX_DESC_NUM; i++) {
-    if (tmp_desc != NULL)
-      l1_data_A_sram_free((unsigned long)tmp_desc);
-    tmp_desc = tmp_desc->next;
-  }
+	tmp_desc = rx_list_head;
+	for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
+		if (tmp_desc != NULL) {
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+			l1_data_A_sram_free((unsigned long)tmp_desc);
+#else
+			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+#endif
+		}
+		tmp_desc = tmp_desc->next;
+	}
 }
 
 
@@ -371,71 +378,79 @@ void SetupMacAddr(u8 *mac_addr)
 
 static void adjust_tx_list(void)
 {
-  int i = 0;
+  if (tx_list_head->status.status_word != 0) {
+	  do {
+		  tx_list_head->desc_a.config.b_DMA_EN = 0;
+		  tx_list_head->status.status_word = 0;
+		  tx_list_head = tx_list_head->next;
+	  } while (tx_list_head->status.status_word != 0);
+	  return;  // released something, just return;
+  }
 
+  /* if nothing released, check wait condition */
   /* current's next can not be the head, otherwise the dma will not stop as we want */
   if (current_tx_ptr->next->next == tx_list_head) {
-    while (tx_list_head->status.status_word == 0) {
-      udelay(100);
-      i++;
-      if (i == 10) {
-	//printk("tx list error!\n");
-	i = 0;
-	tx_list_head->desc_a.config.b_DMA_EN = 0;
-	tx_list_head = tx_list_head->next;
-	break;
-      }	
-    }      
+    while (tx_list_head->status.status_word == 0 ) {
+	    udelay(10);
+	    if (tx_list_head->status.status_word != 0 || !(*pDMA2_IRQ_STATUS & 0x08)) {
+		    do {
+			    tx_list_head->desc_a.config.b_DMA_EN = 0;
+			    tx_list_head->status.status_word = 0;
+			    tx_list_head = tx_list_head->next;
+		    } while (tx_list_head->status.status_word != 0);
+		    break;
+	    }
+    }
   }
-  
-  if ((tx_list_head->status.status_word != 0)) {
-    tx_list_head->status.status_word = 0;
-    tx_list_head->desc_a.config.b_DMA_EN = 0;
-    tx_list_head = tx_list_head->next;
-   }
 }
 
 static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
   struct bf537mac_local *lp = netdev_priv(dev);
   unsigned int data;
+  unsigned long flags;
   /* warning: printk in this function may cause error */
-  
+
+  spin_lock_irqsave(&lp->lock, flags);
+
   // Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)? 
-  if ( (((unsigned int)(skb->data))%4) == 2 ) {
+  if ( (((unsigned int)(skb->data)) & 0x02) == 2 ) {
     //move skb->data to current_tx_ptr payload
-    data = (unsigned int)(skb->data);
-    data -= 2;
+    data = (unsigned int)(skb->data) - 2;
     *((unsigned short *)data) = (unsigned short)(skb->len);
     current_tx_ptr->desc_a.start_addr = (unsigned long)data;
+    if (current_tx_ptr->status.status_word != 0)
+	    current_tx_ptr->status.status_word = 0;
     blackfin_dcache_invalidate_range(data, (data+(skb->len)) + 2);  //this is important!
+
   } else {
     *((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
     memcpy((char *)(current_tx_ptr->packet + 2),skb->data,(skb->len));
     current_tx_ptr->desc_a.start_addr = (unsigned long)current_tx_ptr->packet;
-    /*why we need to invalidate uncached memory? */
+    if (current_tx_ptr->status.status_word != 0)
+	    current_tx_ptr->status.status_word = 0;
     blackfin_dcache_invalidate_range((unsigned int)current_tx_ptr->packet, (unsigned int)(current_tx_ptr->packet + skb->len) + 2);
   }
-  
+
   current_tx_ptr->desc_a.config.b_DMA_EN = 1;   //enable this packet's dma
+
   if (*pDMA2_IRQ_STATUS & 0x08) { //tx dma is running, just return
     goto out;
-  } else {        //tx dma is not running 
+  } else {        //tx dma is not running
     *pDMA2_NEXT_DESC_PTR = (&(current_tx_ptr->desc_a));
-    *pDMA2_CONFIG  = *((unsigned short *)(&(current_tx_ptr->desc_a.config)));; // dma enabled, read from memory, size is 6
-    // Turn on the EMAC tx 
+    *pDMA2_CONFIG  = *((unsigned short *)(&(current_tx_ptr->desc_a.config))); // dma enabled, read from memory, size is 6
+    // Turn on the EMAC tx
     *pEMAC_OPMODE |= TE;
   }
-  
- out:   
+
+ out:
   adjust_tx_list();
   current_tx_ptr = current_tx_ptr->next;
-
   dev->trans_start = jiffies;
   lp->stats.tx_packets++;
   lp->stats.tx_bytes += (skb->len);
+  spin_unlock_irqrestore(&lp->lock, flags);
   dev_kfree_skb(skb);
-  //printk("sending one...\n");
   return 0;
 }
 
@@ -734,7 +749,7 @@ static int __init bf537mac_probe(struct net_device *dev)
   lp->FullDuplex = 0;
   lp->Negotiate = 1;
   lp->FlowControl = 0;
-  
+  spin_lock_init(&lp->lock);
 
   // set the GPIO pins to Ethernet mode
   SetupPinMux();
