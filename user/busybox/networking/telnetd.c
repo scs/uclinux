@@ -214,6 +214,9 @@ getpty(char *line)
 		}
 		for (j = 0; j < 16; j++) {
 			line[9] = j < 10 ? j + '0' : j - 10 + 'a';
+#ifdef DEBUG
+			fprintf(stderr, "Trying to open device: %s\n", line);
+#endif
 			if ((p = open(line, O_RDWR | O_NOCTTY)) >= 0) {
 				line[5] = 't';
 				return p;
