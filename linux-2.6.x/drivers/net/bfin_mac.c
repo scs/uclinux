@@ -64,22 +64,34 @@ extern void get_bf537_ether_addr(char *addr);
 
 static int desc_list_init(void) 
 {
-  struct net_dma_desc *tmp_desc;
-  int i;
-  dma_addr_t dma_handle;
+	struct net_dma_desc *tx_desc, *rx_desc, *tmp_desc;
+	int i;
+	dma_addr_t dma_handle;
+
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+      tx_desc = (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM);
+#else
+      tx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM , &dma_handle , GFP_DMA);
+#endif
+      if (tx_desc == NULL)
+	      goto error;
+      else
+	      memset(tx_desc,0,sizeof(tx_desc));
+
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+      rx_desc = (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM);
+#else
+      rx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM , &dma_handle , GFP_DMA);
+#endif
+      if (rx_desc == NULL)
+	      goto error;
+      else
+	      memset(rx_desc,0,sizeof(rx_desc));
 
   /* init tx_list */
     for (i=0;i < CONFIG_BFIN_TX_DESC_NUM;i++) {
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-      tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
-#else
-      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
-#endif
 
-      if (tmp_desc == NULL)
-	  goto error;
-      else
-	  memset(tmp_desc,0,sizeof(tmp_desc));
+      tmp_desc = tx_desc + i;
 
       if (i == 0) {
 	tx_list_head = tmp_desc;
@@ -114,16 +126,8 @@ static int desc_list_init(void)
 
   /* init rx_list */
   for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-      tmp_desc  =  (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc));
-#else
-      tmp_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc), &dma_handle , GFP_DMA);
-#endif
 
-    if (tmp_desc == NULL)
-      goto error;
-    else
-	memset(tmp_desc,0,sizeof(tmp_desc));
+    tmp_desc = rx_desc + i;
 
     if (i == 0) {
       rx_list_head = tmp_desc;
@@ -334,8 +338,9 @@ static int bf537mac_setphy(struct net_device *dev)
 void SetupSystemRegs(struct net_device *dev)
 {
   int PHYADDR;  
-  unsigned short sysctl, phydat;
+  unsigned short sysctl, phydat, opmode;
   struct bf537mac_local *lp = netdev_priv(dev);
+  int count = 0;
 
   PHYADDR = lp->PhyAddr;
 
@@ -352,6 +357,29 @@ void SetupSystemRegs(struct net_device *dev)
   /* 100 Mbps             */
   phydat = PHY_ANEG_EN | PHY_DUPLEX | PHY_SPD_SET;
   WrPHYReg(PHYADDR, PHYREG_MODECTL, phydat);
+
+  /* test if full duplex supported */
+  do{
+	  msleep(100);
+	  phydat = RdPHYReg(PHYADDR,PHYREG_MODESTAT);
+	  if(count>30){
+		  printk("Link is down, please check your network connection\n");
+		  break;
+	  }
+	  count++;
+  }while(!(phydat & 0x0004));
+
+  phydat = RdPHYReg(PHYADDR, PHYREG_ANLPAR);
+
+  if((phydat & 0x0100) || (phydat & 0x0040)) {
+	  opmode = FDMODE;
+  }
+  else {
+	  opmode = 0;
+	  printk("net errror!!!!!!! not full!!!!!!!!!!!!!!!\n");
+  }
+  *pEMAC_OPMODE = opmode;
+
 
   //*pEMAC_MMC_CTL = RSTC | CROLL | MMCE;
   *pEMAC_MMC_CTL = RSTC | CROLL;
@@ -556,7 +584,8 @@ static int bf537mac_enable(struct net_device *dev)
    FDMODE : Full Duplex Mode
    LB     : Internal Loopback for test
    RE     : Receiver Enable */
-  opmode = FDMODE|PSF;
+  opmode = *pEMAC_OPMODE;
+  opmode |= PSF;
   opmode |= RE;
   /* Turn on the EMAC rx */
   *pEMAC_OPMODE = opmode;
