@@ -3,6 +3,13 @@
 #
 
 menu "Character devices"
+config AD9960
+    bool "AD9960 chip driver"
+	depends on BFIN
+	select SPI_BFIN
+	default n
+	---help---
+
 config SPI_ADC_BF533
     bool "Blackfin BF53x ADSP SPI ADC support"
 	depends on BFIN

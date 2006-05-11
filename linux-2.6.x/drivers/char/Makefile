@@ -50,6 +50,7 @@ obj-$(CONFIG_HVCS)		+= hvcs.o
 obj-$(CONFIG_SGI_MBCS)		+= mbcs.o
 
 obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
+obj-$(CONFIG_AD9960)		+= ad9960.o
 obj-$(CONFIG_SPI_ADC_BF533) += bfin_spi_adc.o
 obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
 obj-$(CONFIG_BF533_PFLAGS) += bfin_pflags.o
