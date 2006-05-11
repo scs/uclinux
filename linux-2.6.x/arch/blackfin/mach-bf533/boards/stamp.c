@@ -157,6 +157,8 @@ static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 /* Notice: for blackfin, the speed_hz is the value of register
    SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
+#if defined(CONFIG_MTD_M25P80) \
+	|| defined(CONFIG_MTD_M25P80_MODULE)
        {
 	       /* the modalias must be the same as spi device driver name */
                .modalias = "m25p80", /* Name of spi_driver for this device */
@@ -167,6 +169,10 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .platform_data = &bfin_spi_flash_data,
                .controller_data = &spi_flash_chip_info,
        },
+#endif
+
+#if defined(CONFIG_SPI_ADC_BF533) \
+	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
        {
                .modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
                .max_speed_hz = 4,     /* actual baudrate is SCLK/(2xspeed_hz) */
@@ -175,6 +181,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
                .platform_data = NULL, /* No spi_driver specific config */
                .controller_data = &spi_adc_chip_info,
        },
+#endif
+
 #if defined(CONFIG_SND_BLACKFIN_ADI1836) \
 	|| defined(CONFIG_SND_BLACKFIN_ADI1836_MODULE)
 	{
