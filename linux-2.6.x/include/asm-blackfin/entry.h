@@ -21,12 +21,38 @@
 /* This one is used for exceptions, emulation, and NMI.  It doesn't push
    RETI and doesn't do cli.  */
 #define SAVE_ALL_SYS		save_context_no_interrupts
-/* This is used for all normal interrupts.  First we do CLI, then push
-   RETI, to keep interrupts disabled, but to allow this state to be changed
-   by local_bh_enable.  */
-#define SAVE_CONTEXT		save_context_with_interrupts
+/* This is used for all normal interrupts.  It saves a minimum of registers
+   to the stack, loads the IRQ number, and jumps to common code.  */
+#define INTERRUPT_ENTRY(N)						\
+    [--sp] = SYSCFG;							\
+									\
+    [--sp] = P0;	/*orig_p0*/					\
+    [--sp] = R0;	/*orig_r0*/					\
+    [--sp] = R0;	/*r0*/						\
+    [--sp] = R1;	/*r1*/						\
+    R0 = (N);								\
+    jump __common_int_entry;
+
+/* For timer interrupts, we need to save IPEND, since the user_mode
+	   macro accesses it to determine where to account time.  */
+#define TIMER_INTERRUPT_ENTRY(N)					\
+    [--sp] = SYSCFG;							\
+									\
+    [--sp] = P0;	/*orig_p0*/					\
+    [--sp] = R0;	/*orig_r0*/					\
+    [--sp] = R0;	/*r0*/						\
+    [--sp] = R1;	/*r1*/						\
+    p0.l = lo(IPEND);							\
+    p0.h = hi(IPEND);							\
+    r1 = [p0];								\
+    p0 = [sp + 12];							\
+    R0 = (N);								\
+    jump __common_int_entry;
+
+
 /* This one pushes RETI without using CLI.  Interrupts are enabled.  */
 #define SAVE_CONTEXT_SYSCALL	save_context_syscall
+#define SAVE_CONTEXT		save_context_with_interrupts
 
 #define RESTORE_ALL_SYS		restore_context_no_interrupts
 #define RESTORE_CONTEXT		restore_context_with_interrupts
@@ -41,6 +67,7 @@
 
 	[--sp] = P0;	/*orig_p0*/
 	[--sp] = R0;	/*orig_r0*/
+        
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;

@@ -65,6 +65,85 @@ ENTRY(_evt_emulation)
 	rte;
 #endif
 
+/* Common interrupt entry code.	 First we do CLI, then push
+   RETI, to keep interrupts disabled, but to allow this state to be changed
+   by local_bh_enable.  
+   R0 contains the interrupt number, while R1 may contain the value of IPEND,
+   or garbage if IPEND won't be needed by the ISR.  */
+__common_int_entry:
+	[--sp] = ( R7:2, P5:0 );
+	[--sp] = fp;
+	[--sp] = usp;
+
+	[--sp] = i0;
+	[--sp] = i1;
+	[--sp] = i2;
+	[--sp] = i3;
+
+	[--sp] = m0;
+	[--sp] = m1;
+	[--sp] = m2;
+	[--sp] = m3;
+
+	[--sp] = l0;
+	[--sp] = l1;
+	[--sp] = l2;
+	[--sp] = l3;
+
+	[--sp] = b0;
+	[--sp] = b1;
+	[--sp] = b2;
+	[--sp] = b3;
+	[--sp] = a0.x;
+	[--sp] = a0.w;
+	[--sp] = a1.x;
+	[--sp] = a1.w;
+
+	[--sp] = LC0;
+	[--sp] = LC1;
+	[--sp] = LT0;
+	[--sp] = LT1;
+	[--sp] = LB0;
+	[--sp] = LB1;
+
+	[--sp] = ASTAT;
+
+	[--sp] = r0;	/* Skip reserved */
+	[--sp] = RETS;
+	r2 = RETI;
+	[--sp] = r2;
+	[--sp] = RETX;
+	[--sp] = RETN;
+	[--sp] = RETE;
+	[--sp] = SEQSTAT;
+	[--sp] = r1;	/* IPEND - R1 may or may not be set up before jumping here. */
+
+	/* Switch to other method of keeping interrupts disabled.  */
+#ifdef CONFIG_DEBUG_HWERR
+	r1 = 0x3f;
+	sti r1;
+#else
+	cli r1;
+#endif
+	[--sp] = RETI;  /*orig_pc*/
+	/* Clear all L registers.  */
+	r1 = 0 (x);
+	l0 = r1;
+	l1 = r1;
+	l2 = r1;
+	l3 = r1;
+#ifdef CONFIG_FRAME_POINTER
+	fp = 0;
+#endif
+	r1 =  sp;
+	SP += -12;
+	call _do_irq;
+	SP += 12;
+	call return_from_int;
+common_restore_context:
+	RESTORE_CONTEXT
+	rti;
+
 /* interrupt routine for ivhw - 5 */
 ENTRY(_evt_ivhw)
 	SAVE_CONTEXT
@@ -99,31 +178,8 @@ call_do_ovf:
 	call _pm_overflow;
 	SP += 12;
 
-        RESTORE_CONTEXT
-
-	rti;
+	jump common_restore_context; 
 #endif
-/* interrupt routine for core timer - 6 */
-ENTRY(_evt_timer)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	/* SAVE_CONTEXT ignores IPEND; we need to save it since the user_mode
-	   macro accesses it to determine where to account time.  */
-	p2.l = lo(IPEND);
-	p2.h = hi(IPEND);
-	r0 = [p2];
-	[sp + PT_IPEND] = r0;
-
- 	r0 = EVT_IVTMR_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
 
 /* interrupt routine for evt2 - 2.  This is NMI.  */
 ENTRY(_evt_evt2)
@@ -139,110 +195,26 @@ ENTRY(_evt_evt2)
 	RESTORE_CONTEXT
 	rtn;
 
+/* interrupt routine for core timer - 6 */
+ENTRY(_evt_timer)
+	TIMER_INTERRUPT_ENTRY(EVT_IVTMR_P)
+
 /* interrupt routine for evt7 - 7 */
 ENTRY(_evt_evt7)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
- 	r0 = EVT_IVG7_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
-/* interrupt routine for evt8 - 8 */
+	INTERRUPT_ENTRY(EVT_IVG7_P)
 ENTRY(_evt_evt8)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG8_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
-/* interrupt routine for evt9 - 9 */
+	INTERRUPT_ENTRY(EVT_IVG8_P)
 ENTRY(_evt_evt9)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG9_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
-/* interrupt routine for evt10	- 10 */
+	INTERRUPT_ENTRY(EVT_IVG9_P)
 ENTRY(_evt_evt10)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG10_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
-/* interrupt routine for evt11	- 11 */
+	INTERRUPT_ENTRY(EVT_IVG10_P)
 ENTRY(_evt_evt11)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG11_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
-/* interrupt routine for evt12	- 12 */
+	INTERRUPT_ENTRY(EVT_IVG11_P)
 ENTRY(_evt_evt12)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG12_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
-
- /* interrupt routine for evt13	- 13 */
+	INTERRUPT_ENTRY(EVT_IVG12_P)
 ENTRY(_evt_evt13)
-	SAVE_CONTEXT
-#ifdef CONFIG_FRAME_POINTER
-	fp = 0;
-#endif
-	r0 = EVT_IVG13_P;
-	r1 =  sp;
-	SP += -12;
-	call _do_irq;
-	SP += 12;
-	call return_from_int;
-	RESTORE_CONTEXT
-	rti;
+	INTERRUPT_ENTRY(EVT_IVG13_P)
+
 
  /* interrupt routine for system_call - 15 */
 ENTRY(_evt_system_call)
@@ -251,5 +223,4 @@ ENTRY(_evt_system_call)
 	fp = 0;
 #endif
 	call system_call;
-	RESTORE_CONTEXT
-	rti;
+	jump common_restore_context; 
