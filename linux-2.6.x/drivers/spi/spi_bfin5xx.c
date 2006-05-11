@@ -880,7 +880,8 @@ static int bfin5xx_spi_remove(struct platform_device *pdev)
 
 	/* Release DMA */
 	if (drv_data->master_info->enable_dma) {
-		free_dma(CH_SPI);
+		if (dma_channel_active(CH_SPI))
+			free_dma(CH_SPI);
 	}
 
 	/* Disconnect from the SPI framework */
