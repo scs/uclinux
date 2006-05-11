@@ -47,6 +47,7 @@ dir_$(CONFIG_USER_BLACKFIN_PPI)		    += blkfin-test/ppi-test
 dir_$(CONFIG_USER_BLACKFIN_PTHREADTEST)    += blkfin-test/pthread_test
 dir_$(CONFIG_USER_NETPERF_TEST)            += blkfin-test/netperf-bfin
 dir_$(CONFIG_EVENT_TEST)		   += blkfin-test/event_test
+dir_$(CONFIG_AD9960_TEST)		    += blkfin-test/ad9960_test
 dir_y             			    += blkfin-apps
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils

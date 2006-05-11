@@ -1597,6 +1597,7 @@ bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
 bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
 bool    'Still to write'                CONFIG_YET
 bool	'Input event device test'	CONFIG_EVENT_TEST
+bool	'AD9960 device test'		CONFIG_AD9960_TEST
 
 endmenu
 
