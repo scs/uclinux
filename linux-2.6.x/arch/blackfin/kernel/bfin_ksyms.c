@@ -105,8 +105,12 @@ EXPORT_SYMBOL(__muldi3);
 EXPORT_SYMBOL(__udivsi3);
 EXPORT_SYMBOL(__umodsi3);
 
+EXPORT_SYMBOL(outsb);
+EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(outsw);
 EXPORT_SYMBOL(insw);
+EXPORT_SYMBOL(outsl);
+EXPORT_SYMBOL(insl);
 EXPORT_SYMBOL(irq_flags);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(blackfin_dcache_invalidate_range);
