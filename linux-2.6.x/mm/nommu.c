@@ -109,7 +109,12 @@ unsigned int kobjsize(const void *objp)
 {
 	struct page *page;
 
-	if (!objp || !((page = virt_to_page(objp))))
+	/*if (!objp || !((page = virt_to_page(objp)))) 
+	Temporary fix for BUG[#1233]  memory allocated using dma_alloc_coherent, 
+	triggers BUG, when mmap’ed in user space. 
+	A permanent fix for this problem is tracked in TASK[T436] -MH*/
+	
+	if (!objp || !((page = virt_to_page(objp))) || (unsigned long)objp >= memory_end)
 		return 0;
 
 	if (PageSlab(page))
