@@ -85,7 +85,7 @@
 /* ADC CTRL 1 */
 
 #define ADC_HIGHPASS        0x0100
-#define ADC_PRWDWN          0x0080
+#define ADC_PWRDWN          0x0080
 #define ADC_SAMPLE_96KHZ    0x0040
 #define ADC_GAIN_LEFT_MASK  0x0038
 #define ADC_GAIN_LEFT_SHIFT 3

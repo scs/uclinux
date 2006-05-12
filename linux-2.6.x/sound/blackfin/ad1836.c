@@ -1792,7 +1792,7 @@ static int snd_ad1836_free(ad1836_t *chip)
     snd_ad1836_set_register(chip, DAC_CTRL_2, DAC_MUTE_MASK, DAC_MUTE_MASK);  /* mute DAC's */
     snd_ad1836_set_register(chip, ADC_CTRL_2, ADC_MUTE_MASK, ADC_MUTE_MASK);  /* mute ADC's */
     snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, DAC_PWRDWN);  /* power-down DAC's */
-    snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, ADC_PRWDWN);  /* power-down ADC's */
+    snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, ADC_PWRDWN);  /* power-down ADC's */
   }
   
   if( chip->talktrough_mode != TALKTROUGH_OFF) 
@@ -1894,7 +1894,7 @@ static int snd_ad1836_startup(ad1836_t *chip)
 #endif
 	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
 
-	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
 
 	/* set volume to full scale, (you might assume these won't fail anymore) */
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
@@ -1941,7 +1941,7 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	err = err || snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK|ADC_MUTE_MASK|ADC_DATA_MASK),
 			(ADC_AUX_MASTER | ADC_SOUT_I2S | ADC_MUTE_ADC2 | ADC_DATA_24));  
 	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
-	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PRWDWN, 0);  /* power-up ADC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
 
 	/* set volume to full scale */
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
@@ -2165,7 +2165,7 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
 
 /* probe for an ad1836 connected to spi and sport, and initialize *the_card */
 
-static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi* spi, 
+static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi** spi, 
 					     struct bf53x_sport* sport, 
 					     snd_card_t** the_card)
 {
@@ -2187,18 +2187,15 @@ static int __devinit snd_bf53x_adi1836_probe(struct ad1836_spi* spi,
   if( card == NULL ) 
     return -ENOMEM;
 
+ if( !(*spi = ad1836_spi_init())) {
+    snd_card_free(card);
+    return -EFAULT;
+  }
 
-  if( (err = snd_ad1836_create(card, spi, sport, &chip)) < 0 ) {
+  if( (err = snd_ad1836_create(card, *spi, sport, &chip)) < 0 ) {
     snd_card_free(card);
     return err;
   }
-
-  if( !(spi = ad1836_spi_init())) {
-    snd_card_free(card);
-    return err;
-  }
-
-  chip->spi = spi;
 
   card->private_data = (void*) chip;
 
@@ -2467,8 +2464,9 @@ static irqreturn_t sport_error_handler(int irq, void *dev_id, struct pt_regs *re
 /* idempotent cleanup, used in __init as well, so no __exit */
 /* TODO: should release dma and irq's */
 
-static void /* __exit */ snd_bf53x_adi1836_exit(void){
-  
+static void __exit  snd_bf53x_adi1836_exit(void)
+{
+
   if( card ){
     snd_card_t*  tmp_card = card;
     card = NULL;
@@ -2497,7 +2495,7 @@ static int __init snd_bf53x_adi1836_init(void){
   
   int err;
   static int id3 ;
-
+  
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
 				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler_rx,
 				CONFIG_SND_BLACKFIN_SPORT_DMA_TX, sport_handler_tx ) ) == NULL ){ 
@@ -2518,8 +2516,7 @@ static int __init snd_bf53x_adi1836_init(void){
    * without actually solving any problem for us.  
    */
 
-
-  err = snd_bf53x_adi1836_probe(NULL, sport, &card);
+  err = snd_bf53x_adi1836_probe(&spi, sport, &card);
 
   if(err)
     snd_bf53x_adi1836_exit();

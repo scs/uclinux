@@ -70,7 +70,9 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 static int __devexit ad1836_spi_remove(struct spi_device *spi)
 {
 	struct ad1836_spi *chip = dev_get_drvdata(&spi->dev);
+
 	kfree(chip);
+	ad1836_spi = NULL;
 
 	return 0;
 }

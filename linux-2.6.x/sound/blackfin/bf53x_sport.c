@@ -103,7 +103,7 @@ bf53x_sport_init(int sport_chan,
 		int dma_tx, dma_interrupt_t tx_handler){
 
   struct bf53x_sport* sport = (struct bf53x_sport*) kmalloc( sizeof(struct bf53x_sport), GFP_KERNEL );
- 
+
   if( !sport ) return NULL;
 
   SPORT_ASSERT( sizeof(struct sport_register) == 0x60 );
@@ -178,6 +178,7 @@ bf53x_sport_init(int sport_chan,
 } 
 
 void bf53x_sport_done(struct bf53x_sport* sport){
+
   if(sport) {
     bf53x_sport_stop(sport);
     if( sport->dma_rx_desc ) 
@@ -197,6 +198,9 @@ void bf53x_sport_done(struct bf53x_sport* sport){
 #else
     	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_tx_desc, 0);
 #endif
+	
+	free_dma(sport->dma_rx_chan);
+	free_dma(sport->dma_tx_chan);
 
     sport->dma_rx_desc = NULL;
     sport->dma_tx_desc = NULL;

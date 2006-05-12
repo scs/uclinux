@@ -346,7 +346,7 @@ void free_dma(unsigned int channel)
 	int ret_irq;
 
 	DMA_DBG("freedma() : BEGIN \n");
-	printk("free channel %d, chan_free is %d, status is %d, MAX is %d\n",DMA_CHANNEL_FREE, channel,dma_ch[channel].chan_status,MAX_BLACKFIN_DMA_CHANNEL);
+//	printk("free channel %d, chan_free is %d, status is %d, MAX is %d\n",DMA_CHANNEL_FREE, channel,dma_ch[channel].chan_status,MAX_BLACKFIN_DMA_CHANNEL);
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
