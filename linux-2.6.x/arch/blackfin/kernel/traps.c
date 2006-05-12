@@ -340,6 +340,8 @@ void dump(struct pt_regs *fp, void *retaddr)
 	}
 	printk("return address: %08lx; contents of [PC-16...PC+8[:\n",
 	       (long)retaddr);
+
+#ifndef CONFIG_I_ENTRY_L1 /* Very Unlikly */
 	for (i = -16; i < 8; i++) {
 		unsigned short x;
 		get_user(x, (unsigned short *)retaddr + i);
@@ -349,6 +351,7 @@ void dump(struct pt_regs *fp, void *retaddr)
 			printk("X\n");
 		printk("%04x ", x);
 	}
+#endif
 	printk("\n\n");
 
 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",

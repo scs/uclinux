@@ -39,7 +39,12 @@
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
 
+#ifdef CONFIG_I_ENTRY_L1
+.section .text.l1 
+#else
 .text
+#endif
+
 .align 4 	/* just in case */
 
 /*
