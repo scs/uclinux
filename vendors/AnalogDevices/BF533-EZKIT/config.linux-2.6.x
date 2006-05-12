@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16ADI-2006R1
-# Tue Apr 25 15:57:07 2006
+# Linux kernel version: 2.6.16.11.ADI-2006R1
+# Fri May 12 17:37:07 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -877,7 +877,6 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
-# CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_SERIAL_EARLY_INIT is not set
 # CONFIG_DEBUG_HWERR is not set
 # CONFIG_BOOTPARAM is not set

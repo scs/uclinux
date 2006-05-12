@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16ADI-2006R1
-# Tue Apr 25 16:00:43 2006
+# Linux kernel version: 2.6.16.11.ADI-2006R1
+# Fri May 12 17:39:51 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -642,7 +642,7 @@ CONFIG_BLACKFIN_RTC=y
 #
 # I2C support
 #
-CONFIG_I2C=y
+CONFIG_I2C=m
 CONFIG_I2C_CHARDEV=m
 
 #
@@ -1030,7 +1030,6 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
-# CONFIG_DEBUG_INFO is not set
 # CONFIG_DEBUG_SERIAL_EARLY_INIT is not set
 # CONFIG_DEBUG_HWERR is not set
 # CONFIG_BOOTPARAM is not set
@@ -1063,5 +1062,5 @@ CONFIG_SECURITY_CAPABILITIES=y
 # CONFIG_CRC16 is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
-CONFIG_ZLIB_INFLATE=y
+CONFIG_ZLIB_INFLATE=m
 CONFIG_ZLIB_DEFLATE=m
