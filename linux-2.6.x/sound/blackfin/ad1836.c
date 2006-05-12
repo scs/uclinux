@@ -1877,25 +1877,24 @@ static int snd_bf53x_adi1836_reset(ad1836_t *chip)
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 static int snd_ad1836_startup(ad1836_t *chip)
 {
-	int err;
+	int err = 0;
 	struct bf53x_sport *sport= chip->sport;
 
 	snd_bf53x_adi1836_reset(chip);
 
 	/* see if we are connected by writing (preferably something useful)
 	 * to the chip, and see if we get an IRQ */
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
 
 	/* sport in aux/slave mode cf daughtercard schematics */
-	err = snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK),  
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK | ADC_MUTE_MASK),  
 			( /*ADC_AUX_MASTER|*/ ADC_SOUT_PMAUX));  
 #ifdef ADC2_IS_MIC
 	err = err || snd_ad1836_set_register(chip, ADC_CTRL_3, ADC_MODE_MASK, \
 			ADC_LEFT_SE | ADC_RIGHT_SE | ADC_LEFT_MUX | ADC_RIGHT_MUX);
 #endif
-	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
-
-	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
-
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_2, DAC_MUTE_MASK, 0);  /* power-up ADC's */
 	/* set volume to full scale, (you might assume these won't fail anymore) */
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1R, DAC_VOL_MASK, DAC_VOL_MASK);
@@ -1903,7 +1902,6 @@ static int snd_ad1836_startup(ad1836_t *chip)
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_2R, DAC_VOL_MASK, DAC_VOL_MASK);
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_3L, DAC_VOL_MASK, DAC_VOL_MASK);
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_3R, DAC_VOL_MASK, DAC_VOL_MASK);
-
 	if(err){
 		snd_printk( KERN_ERR "Unable to set chip registers.\n");    
 		snd_ad1836_free(chip);
@@ -1935,14 +1933,14 @@ static int snd_ad1836_startup(ad1836_t *chip)
 
 	snd_bf53x_adi1836_reset(chip);
 
+	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
+	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
+
 	/* sport in aux/slave mode cf daughtercard schematics */
 	err = snd_ad1836_set_register(chip, DAC_CTRL_1, (DAC_DATA_MASK), (DAC_DATA_24));
 	err = err || snd_ad1836_set_register(chip, DAC_CTRL_2, (DAC_MUTE_MASK), (DAC_MUTE_DAC2|DAC_MUTE_DAC3));
 	err = err || snd_ad1836_set_register(chip, ADC_CTRL_2, (ADC_AUX_MASTER|ADC_SOUT_MASK|ADC_MUTE_MASK|ADC_DATA_MASK),
 			(ADC_AUX_MASTER | ADC_SOUT_I2S | ADC_MUTE_ADC2 | ADC_DATA_24));  
-	err = err || snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, 0);  /* power-up DAC's */
-	err = err || snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, 0);  /* power-up ADC's */
-
 	/* set volume to full scale */
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1L, DAC_VOL_MASK, DAC_VOL_MASK);
 	err = err || snd_ad1836_set_register(chip, DAC_VOL_1R, DAC_VOL_MASK, DAC_VOL_MASK);
@@ -2467,6 +2465,8 @@ static irqreturn_t sport_error_handler(int irq, void *dev_id, struct pt_regs *re
 static void __exit  snd_bf53x_adi1836_exit(void)
 {
 
+  free_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR, &card);
+
   if( card ){
     snd_card_t*  tmp_card = card;
     card = NULL;
@@ -2494,7 +2494,6 @@ static void __exit  snd_bf53x_adi1836_exit(void)
 static int __init snd_bf53x_adi1836_init(void){
   
   int err;
-  static int id3 ;
   
   if( (sport = bf53x_sport_init(CONFIG_SND_BLACKFIN_SPORT,  
 				CONFIG_SND_BLACKFIN_SPORT_DMA_RX, sport_handler_rx,
@@ -2504,7 +2503,7 @@ static int __init snd_bf53x_adi1836_init(void){
   }
 
   /* further configuration of the sport is in the device constuctor */
-  if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR, &sport_error_handler, SA_SHIRQ, "SPORT Error", &id3 ) ){
+  if( request_irq(CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR, &sport_error_handler, SA_SHIRQ, "SPORT Error", &card ) ){
     snd_printk( KERN_ERR "Unable to allocate sport error IRQ %d\n", CONFIG_SND_BLACKFIN_SPORT_IRQ_ERR);
     snd_bf53x_adi1836_exit();
     return -ENODEV;
