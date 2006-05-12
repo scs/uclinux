@@ -376,7 +376,7 @@ void SetupSystemRegs(struct net_device *dev)
   }
   else {
 	  opmode = 0;
-	  printk("net errror!!!!!!! not full!!!!!!!!!!!!!!!\n");
+	  printk("Network is set to half duplex.\n");
   }
   *pEMAC_OPMODE = opmode;
 
@@ -585,7 +585,10 @@ static int bf537mac_enable(struct net_device *dev)
    LB     : Internal Loopback for test
    RE     : Receiver Enable */
   opmode = *pEMAC_OPMODE;
-  opmode |= PSF;
+  if (opmode & FDMODE)
+	  opmode |= PSF;
+  else
+	  opmode |= DRO | DC | PSF;
   opmode |= RE;
   /* Turn on the EMAC rx */
   *pEMAC_OPMODE = opmode;

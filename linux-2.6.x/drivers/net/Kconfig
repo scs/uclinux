@@ -868,7 +868,7 @@ config BFIN_RX_DESC_NUM
 	int "BFIN receive buffer packets number"
 	depends on BFIN_MAC
 	range 6 10 if BFIN_MAC_USE_L1
-	range 6 100
+	range 6 256
 	default "6"
 	help
 	  Set the number of buffer packets used in driver.
