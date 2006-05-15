@@ -1,13 +1,16 @@
 Release Notes for uClinux for Blackfin Version 2006R1
 Version: 2006R1 
 Date: May. 8, 2006 
+
 Development Environments
 Tool Chain: Toolchain Release 2006R1 
 u-boot: uboot_1.1.3 Release 2006R1 
 Host platform: Suse Linux 9.2 or above 
 Target board: STAMP & EZKIT Board 
 Note: However, other similar host platforms are also supported, but they are not well tested by now. 
+
 Deliverables
+
 Source files 
 uClinux_dist_2006R1.tar.bz2
 Linux ELF file 
@@ -15,6 +18,7 @@ linux-bf533-stamp
 linux-bf533-ezkit
 linux-bf537
 linux-bf561
+
 Compressed Linux image 
 uImage-bf533-stamp
 uImage-bf533-ezkit
@@ -29,6 +33,7 @@ test_results_bf537_2006R1.tar.gz
 test_results_bf561_2006R1.tar.gz
 Summary of test results 
 test_results_summary_2006R1
+
 Fixes in release 2006R1
 See tracker at: 
 http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141 
@@ -93,6 +98,7 @@ o	Enable graphic web browser Konqueror3 embedded 0.2 for blackfin.
 16.	Update NDSO and AWG to work with new SPI ADC/DAC driver.
 17.	Add a simple jpeg viewer application.
 18.	Enable SDL library on blackfin.
+
 Known Issues
 A full list of known issues can be found at: 
 http://blackfin.uclinux.org/tracker/index.php?group_id=17&atid=141 
@@ -104,12 +110,12 @@ No 	Issue Title
 1165	CVS 2.6.16 kernel networking fails after 2 hours of downloading on 533 
 1186	Sometimes CTRL+C kills shell 
 1188	CONFIG_PACKET_MMAP failed to build 
-1233	Kernel Crash running applications that utilize /dev/fb while executing ps or top 
-1239	audio module does not uninstall / install properly. 
-1240	Linphone doesn't work properly now 
-1244	spi driver for ndso doesn't show right wave picture 
+1260	rcp failed on bf533-ezkit
+1279	kgdb test failed on bf561-ezkit
+1282	BF533 Ethernet driver and AD73311 do not like eachother...
 
-There are also some issues in the LTP test cases. They are recorded as bug 352, 744, 745, 1010, 1050, 1096, 1211, 1212, 1218 and 1219. 
+There are also some issues in the LTP test cases. They are recorded as bug 352, 744, 745, 1010, 1050, 1096, 1211, 1212, 1218, 1219 and 1263. 
+
 Build Procedure
 1. Install Toolchain Release 2006R1 
 Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information 
@@ -128,6 +134,7 @@ make
 5. Find the compiled blackfin executable linux in the following location 
 $(WORK_DIR)/uClinux-dist/images 
 6. Above file shall be used to download to the target board. 
+
 Load Kernel to Target Board
 1. Use below serial cables to connect board to host computer. 
 Male-Female 1-1 serial cable
@@ -147,6 +154,7 @@ STAMP> tftp 0x1000000 linux
 STAMP> bootelf 0x1000000
 Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board. 
 6. The kernel should then boot 
+
 Adding / upgrading kernel in flash
 Building Linux image (compressed and uncompressed)
 (This Image Will be Used in bootm command) Linux ELF image has to be changed as per u-boot standards to load Linux using bootm command. Following subsections explain how to build compressed and uncompressed Linux images. 
@@ -160,11 +168,12 @@ $ gzip -9 linux.bin
 (WORK_DIR)/u-boot_1.1.3/tools/mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 
 -e 0x1000 -n "Bfin uClinux Kernel" -d linux.bin.gz uImage
 Use the utility mkimage present in the u-boot_1.1.3/tools directory to merge the header information like Image Name, Image Type, Data Size, Load Address, Entry Point into the linux.bin.gz. 
+
 Building uncompressed Linux image
 Use following commands to build uncompressed Linux image 
 (WORK_DIR)/u-boot_1.1.3tools/mkimage -A blackfin -O linux -T kernel -C none -a 0x1000 -e 0x1000 
 -n "Bfin uClinux kernel" -d linux.bin uImage
-0¡Á1000 is used because we have compiled the kernel with that location as the entry point. If anyone wants to chose a different address for entry point (for eg, 0¡Á20000), then please give that address instead of 0¡Á1000. Ensure to change the entry point of the kernel. 
+0ï¿½000 is used because we have compiled the kernel with that location as the entry point. If anyone wants to chose a different address for entry point (for eg, 0ï¿½0000), then please give that address instead of 0ï¿½000. Ensure to change the entry point of the kernel. 
 Programming Flash
 STAMP> tftp 0x1000000 uImage
 STAMP> protect off all 
@@ -173,31 +182,36 @@ STAMP> cp.b 0x1000000 0x20100000 $(filesize)
 STAMP> setenv bootcmd bootm 0x20100000 
 STAMP> save
 STAMP> reset
+
 Build Customized uClinux
 Customize Kernel
 1. make menuconfig in uClinux for Blackfin project 
-2. select option "Kernel/Library/Defaults Selection" ¡ú "Customize Kernel Settings" and exit 
+2. select option "Kernel/Library/Defaults Selection"  "Customize Kernel Settings" and exit 
 3. In kernel configuration, processor and board specific options can be changed in "Processor type and features", such as cache status, CPU, DMA, etc. 
 4. Driver specific options are in respective menus. Such as Ethernet driver in "Networking supporting", sound card driver in "Sound", video driver in "Graphic Support", etc. 
 5. Save and exit. Then make the image again as mentioned before. The changes of the kernel take effects after you load and run the new image. 
+
 Customize Application and Lib
 1. make menuconfig in uClinux for Blackfin project 
-2. select blackfin architecture in menu "Vendor/Product Selection"¡ú"AnalogDevice Product" 
-3. select option "Kernel/Library/Defaults Selection" ¡ú "Customize Vender/User Settings" and exit 
+2. select blackfin architecture in menu "Vendor/Product Selection""AnalogDevice Product" 
+3. select option "Kernel/Library/Defaults Selection"  "Customize Vender/User Settings" and exit 
 4. In user configuration, applications can be selected to build and debugging information can be enabled. 
 5. In order to configure uClibc, you should go into the folder "uClibc" and do menuconfig. 
 6. After the menuconfig is done, make the image again as mentioned before. The new selected application can be found in the romfs after you load and run the new image. 
+
 Customize FLAT/ELF Binary Format
 1. make menuconfig in uClinux for Blackfin project 
-2. select blackfin architecture in menu "Vendor/Product Selection"¡ú"AnalogDevice Product" 
-3. select "Kernel/Library/Defaults Selection" ¡ú "Customize Vender/User Settings" and exit 
-4. select "Blakcfin Build Options" ¡ú "Build FD-PIC ELF binaries" to build application into ELF binary. Unselect to build FLAT binary. 
+2. select blackfin architecture in menu "Vendor/Product Selection""AnalogDevice Product" 
+3. select "Kernel/Library/Defaults Selection"  "Customize Vender/User Settings" and exit 
+4. select "Blakcfin Build Options"  "Build FD-PIC ELF binaries" to build application into ELF binary. Unselect to build FLAT binary. 
 5. Change into folder uClibc and do menuconfig. 
-6. select "Target Architecture" ¡ú "bfin" to build uClibc into ELF binary. Select "Target Architecture" ¡ú "bfinfdpic" to build FLAT binary. 
+6. select "Target Architecture"  "bfin" to build uClibc into ELF binary. Select "Target Architecture"  "bfinfdpic" to build FLAT binary. 
 7. Change into folder uClinux-dist and make the image. 
+
 Customize for debugging
 1. To debug an application, please refer to the document "gdb_guide_bfin.txt" in patch folder bfin_patch/kgdb_patch. 
 2. To do source level kernel debugging by kgdb, please refer to the README file in patch folder bfin_patch/kgdb_patch. After apply the kgdb patch file to the kernel, a simple guide "kgdb_bfin.txt" can be found in subfolder "linux-2.6.x/Documentation/blackfin/" 
+
 Reporting Bugs
 1. Go to the following blackfin uclinux bug tracker page, 
 http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse 
