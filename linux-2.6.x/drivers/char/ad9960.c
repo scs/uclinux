@@ -301,9 +301,6 @@ static int ad9960_open (struct inode *inode, struct file *filp)
     if(ad9960_info.opened)
         return -EMFILE;
 
-    /* Clear configuration information */
-    memset(&ad9960_info, 0, sizeof(struct ad9960_device_t));
-
     if(filp->f_flags & O_NONBLOCK)
         ad9960_info.nonblock = 1;
 
@@ -457,6 +454,9 @@ static int __init ad9960_init(void)
 
 	*pTIMER0_CONFIG |= OUT_DIS;
 	__builtin_bfin_ssync();
+
+	/* Clear configuration information */
+        memset(&ad9960_info, 0, sizeof(struct ad9960_device_t));
 	
     	spi_register_driver(&ad9960_spi_driver);
 	result = register_chrdev(AD9960_MAJOR, AD9960_DEVNAME, &ad9960_fops);
