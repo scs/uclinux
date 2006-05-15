@@ -17,7 +17,7 @@ config PACKET
 
 config PACKET_MMAP
 	bool "Packet socket: mmapped IO"
-	depends on PACKET
+	depends on PACKET && MMU
 	help
 	  If you say Y here, the Packet protocol driver will use an IO
 	  mechanism that results in faster communication.
