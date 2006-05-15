@@ -677,6 +677,50 @@ diff -urN linux-2.6.x.old/arch/blackfin/kernel/kgdb_test.c linux-2.6.x/arch/blac
 +module_init(cplbtest_init);
 +module_exit(cplbtest_exit);
 +MODULE_LICENSE("GPL");
+diff -urN linux-2.6.x.old/arch/blackfin/kernel/setup.c linux-2.6.x/arch/blackfin/kernel/setup.c
+--- linux-2.6.x.old/arch/blackfin/kernel/setup.c	2006-05-15 15:54:46.626359248 +0800
++++ linux-2.6.x/arch/blackfin/kernel/setup.c	2006-05-15 16:02:52.598480256 +0800
+@@ -401,10 +401,21 @@
+ 			    SIZE_1M, SDRAM_DNON_CHBL);
+ #if defined (CONFIG_BF561)
+ # if defined (CONFIG_BFIN561_EZKIT)
++#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
++	pos =
++	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
++			    ASYNC_BANK0_BASE + 0x400000,
++			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
++	pos =
++	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE + 0x400000,
++			    ASYNC_BANK0_BASE + 0x800000,
++			    SIZE_4M, SDRAM_EBIU);
++#else
+ 	pos =
+ 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
+ 			    ASYNC_BANK0_BASE + 0x800000,
+ 			    SIZE_4M, SDRAM_EBIU);
++#endif
+ 	pos =
+ 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
+ 			    ASYNC_BANK3_BASE + 0x400000,
+@@ -413,11 +424,18 @@
+ #  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
+ # endif
+ #else
++#if defined(CONFIG_KGDB_ETH)&&defined(CONFIG_SMC91X)
++	pos =
++	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
++			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
++			    SIZE_4M, SDRAM_EBIU|CPLB_LOCK);
++#else
+ 	pos =
+ 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
+ 			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
+ 			    SIZE_4M, SDRAM_EBIU);
+ #endif
++#endif
+ 	pos =
+ 	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
+ 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
 diff -urN linux-2.6.x.old/arch/blackfin/kernel/traps.c linux-2.6.x/arch/blackfin/kernel/traps.c
 --- linux-2.6.x.old/arch/blackfin/kernel/traps.c	2006-04-18 15:52:03.114216872 +0800
 +++ linux-2.6.x/arch/blackfin/kernel/traps.c	2006-04-18 16:02:52.538489376 +0800
