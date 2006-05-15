@@ -459,7 +459,7 @@ static int snd_ad73311_startup( void )
 	*(unsigned short*)FIO_DIR |= (1 << GPIO_SE);
 	__builtin_bfin_ssync();
 
-	*(unsigned short*)FIO_FLAG_S |= (1 << GPIO_SE);
+	*(unsigned short*)FIO_FLAG_S = (1 << GPIO_SE);
 	__builtin_bfin_ssync();
 	
 	return 0;
@@ -473,7 +473,7 @@ static void snd_ad73311_stop( void )
 	__builtin_bfin_ssync();
 
 	/* Pull down SE pin on AD73311L */
-	*(unsigned short*)FIO_FLAG_C |= (1 << GPIO_SE);
+	*(unsigned short*)FIO_FLAG_C = (1 << GPIO_SE);
 	__builtin_bfin_ssync();
 }
 
