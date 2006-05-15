@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
@@ -233,7 +234,7 @@ static int old_lockfile = 1;
 /* Ensure that the lock is released if we are interrupted.  */
 static void
 handler (int sig) {
-     die (EX_USER, "%s", sys_siglist[sig]);
+     die (EX_USER, "%s", strsignal(sig));
 }
 
 static void
