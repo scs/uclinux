@@ -77,6 +77,7 @@ asm("" \
     "	CALL	__dl_boot2;\n"		\
     "	P4 = [SP + 24];\n"		\
     "	P3 = [SP + 28];\n"		\
+    "	P0 = R5;\n"		\
     "   SP += 32;\n"			\
     "   JUMP (P4);\n"			\
     "	.size	_dl_boot,.-_dl_boot\n"

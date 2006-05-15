@@ -57,11 +57,10 @@ Cambridge, MA 02139, USA.  */
 __start:
 
 #ifdef __BFIN_FDPIC__
-	/* R5 contains a pointer to the program's load map.  */
+	/* P0 contains a pointer to the program's load map.  */
 	call	.Lcall;
 .Lcall:
 	R4 = RETS;
-	[--SP] = P3; 
 	SP += -12;
 	R0.L = .Lcall;
 	R0.H = .Lcall;
@@ -73,10 +72,10 @@ __start:
 	R1 = R1 + R4;
 	R2 = R2 - R0;
 	R2 = R2 + R4;
-	R0 = R5; 
+	R0 = P0;
 	CALL	___self_reloc;
 	SP += 12;
-	P3 = [SP++];
+	P3 = R0;
 #endif
 
 /*	clear the frame pointer and the L registers.  */
