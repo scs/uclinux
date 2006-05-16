@@ -292,7 +292,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		printk(KERN_EMERG " %08lx", *stack++);
 	}
 
-	printk(KERN_EMERG "\nCall Trace:");
+	printk(KERN_EMERG "\nCall Trace:\n");
 	i = 0;
 	while (stack + 1 <= endstack) {
 		addr = *stack++;
@@ -306,9 +306,9 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		 */
 		if (addr >= (unsigned long)&_start
 		    && addr <= (unsigned long)_etext) {
-			if (i % 4 == 0)
-				printk(KERN_EMERG "\n       ");
-			printk(KERN_EMERG " [<%08lx>]", addr);
+			printk(KERN_EMERG "       ");
+			printk_address(addr);
+			printk(KERN_EMERG "\n");
 			i++;
 		}
 	}
