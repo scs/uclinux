@@ -1767,11 +1767,9 @@ static int packet_mmap(struct file *file, struct socket *sock, struct vm_area_st
 		int pg_num;
 
 		for (pg_num = 0; pg_num < po->pg_vec_pages; pg_num++, page++) {
-#ifdef CONFIG_MMU
 			err = vm_insert_page(vma, start, page);
 			if (unlikely(err))
 				goto out;
-#endif
 			start += PAGE_SIZE;
 		}
 	}
