@@ -4,6 +4,7 @@ include id.mk
 EXEC = version
 OBJS = version.o
 
+CFLAGS ?= -Wall -pipe -O2
 
 all: $(EXEC) stamp.o
 
@@ -16,14 +17,14 @@ romfs:
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
 
-newversion:
+.version:
 	@if [ ! -f .version ]; then \
 		echo 1 > .version; \
 	else \
 		expr 0`cat .version` + 1 > .version; \
 	fi
 
-compile.h: $(CONFIGURATION) version.h newversion
+compile.h: $(CONFIGURATION) version.h .version
 	@if [ -f .name ]; then \
 	  echo \#define TOOLCHAIN_VERSION \"\#`cat .version`-`cat .name` `date`\"; \
 	 else \
