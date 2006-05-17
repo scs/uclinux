@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include "compile.h"
 #include "version.h"
@@ -106,5 +108,7 @@ int main(int argc, char *argv[]) {
 		}
 		
 	}
+
+	return 0;
 }
 
