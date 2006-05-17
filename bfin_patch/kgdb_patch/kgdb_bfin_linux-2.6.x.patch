@@ -958,7 +958,7 @@ diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_et
 +#include <asm/irq.h>
 +
 +#define IN_BUF_SIZE 512		/* power of 2, please */
-+#define OUT_BUF_SIZE 30		/* We don't want to send too big of a packet. */
++#define OUT_BUF_SIZE 128		/* We don't want to send too big of a packet. */
 +
 +static char in_buf[IN_BUF_SIZE], out_buf[OUT_BUF_SIZE];
 +static int in_head, in_tail, out_count;
