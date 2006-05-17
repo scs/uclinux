@@ -54,8 +54,8 @@
 
 /* definitions */
 
-//#undef  DEBUG
-#define DEBUG
+#undef  DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define DPRINTK(x...)   printk(x)
@@ -68,6 +68,8 @@
 
 #define AD9960_DEVNAME       "AD9960"
 #define AD9960_INTNAME       "AD9960-INT"  /* Should be less than 19 chars. */
+
+#define CMD_RX_LOOPBACK_PRBS	0x1
 
 /************************************************************/
 struct ad9960_spi{
@@ -287,6 +289,22 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
     return count;
 }
 
+static int ad9960_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
+{
+    switch (cmd)
+    {
+        case CMD_RX_LOOPBACK_PRBS:
+        {
+            DPRINTK("ad9960_ioctl: CMD_RX_LOOPBACK_PRBS \n");
+	    ad9960_spi_write(ad9960_info.spi_dev, 0x6003);    
+            break;
+        }
+ 	default:
+            return -EINVAL;
+    }
+    return 0;
+}
+
 static int ad9960_open (struct inode *inode, struct file *filp)
 {
     char intname[20];
@@ -296,7 +314,6 @@ static int ad9960_open (struct inode *inode, struct file *filp)
 
     /* PPI ? */
     if(minor != AD9960_MINOR) return -ENXIO;
-
 
     if(ad9960_info.opened)
         return -EMFILE;
@@ -350,6 +367,7 @@ static struct file_operations ad9960_fops = {
     owner:      THIS_MODULE,
     read:       ad9960_read,
     write:	ad9960_write,
+    ioctl:	ad9960_ioctl,
     open:       ad9960_open,
     release:    ad9960_release,
     fasync:     ad9960_fasync,
