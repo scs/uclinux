@@ -338,7 +338,8 @@ static int bf537mac_setphy(struct net_device *dev)
 void SetupSystemRegs(struct net_device *dev)
 {
   int PHYADDR;  
-  unsigned short sysctl, phydat, opmode;
+  unsigned short sysctl, phydat;
+  u32 opmode;
   struct bf537mac_local *lp = netdev_priv(dev);
   int count = 0;
 
