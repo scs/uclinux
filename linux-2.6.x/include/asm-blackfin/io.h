@@ -95,13 +95,15 @@
 
 #ifndef __ASSEMBLY__
 
-extern void outsb(unsigned long port, const void *addr, unsigned long count);
-extern void outsw(unsigned long port, const void *addr, unsigned long count);
-extern void outsl(unsigned long port, const void *addr, unsigned long count);
 
-extern void insb(unsigned long port, void *addr, unsigned long count);
-extern void insw(unsigned long port, void *addr, unsigned long count);
-extern void insl(unsigned long port, void *addr, unsigned long count);
+extern void outsb(void __iomem *port, const void *addr, unsigned long count);
+extern void outsw(void __iomem *port, const void *addr, unsigned long count);
+extern void outsl(void __iomem *port, const void *addr, unsigned long count);
+
+extern void insb(const void __iomem *port, void *addr, unsigned long count);
+extern void insw(const void __iomem *port, void *addr, unsigned long count);
+extern void insl(const void __iomem *port, void *addr, unsigned long count);
+
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size,
 		       int cacheflag);

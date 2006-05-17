@@ -157,7 +157,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 	       "Detected Orinoco/Prism2 WLAN BLACKFIN device at irq:%d, io addr:0x%lx\n",
 	       dev->irq, pccard_ioaddr);
 
-	hermes_struct_init(&(priv->hw), dev->base_addr, HERMES_16BIT_REGSPACING);
+	hermes_struct_init(&(priv->hw), (void __iomem *)dev->base_addr, HERMES_16BIT_REGSPACING);
 
 
 	bfin_gpio_interrupt_setup(dev->irq, BFIN_WLAN_IRQ_PFX, IRQT_LOW);
