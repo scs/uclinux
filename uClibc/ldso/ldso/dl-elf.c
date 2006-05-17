@@ -622,16 +622,29 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 				      (lib_loadaddr, piclib2map
 				       + (ppnt->p_vaddr & ADDR_ALIGN), ppnt);
 				  }
-				status = (char *) _dl_mmap
-				  (tryaddr = piclib == 2 ? piclib2map
-				   : ((char*) (piclib ? libaddr
-					       : 0) +
-				      (ppnt->p_vaddr & PAGE_ALIGN)),
-				   size = (ppnt->p_vaddr & ADDR_ALIGN) 
-				   + ppnt->p_filesz, LXFLAGS(ppnt->p_flags),
-				   flags | (piclib2map ? MAP_FIXED : 0),
-				   infile, ppnt->p_offset & OFFS_ALIGN);
 
+				tryaddr = piclib == 2 ? piclib2map
+				  : ((char*) (piclib ? libaddr : 0) +
+				     (ppnt->p_vaddr & PAGE_ALIGN));
+
+				size = (ppnt->p_vaddr & ADDR_ALIGN)
+				  + ppnt->p_filesz;
+
+				/* For !MMU, mmap to fixed address will fail.
+				   So instead of desperately call mmap and fail,
+				   we set status to MAP_FAILED to save a call
+				   to mmap ().  */
+#ifndef __ARCH_HAS_MMU__
+				if (piclib2map == 0)
+#endif
+				  status = (char *) _dl_mmap
+				    (tryaddr, size, LXFLAGS(ppnt->p_flags),
+				     flags | (piclib2map ? MAP_FIXED : 0),
+				     infile, ppnt->p_offset & OFFS_ALIGN);
+#ifndef __ARCH_HAS_MMU__
+				else
+				  status = MAP_FAILED;
+#endif
 #ifdef _DL_PREAD
 				if (_dl_mmap_check_error(status) && piclib2map
 				    && (_DL_PREAD (infile, tryaddr, size,
