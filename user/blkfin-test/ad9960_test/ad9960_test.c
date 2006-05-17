@@ -27,7 +27,7 @@ int main(int argc,char *argv[])
 	int	i,num;
 
 	if(argc < 3){
-		printf("Usage: %s [read | write] number(16~1000)\n", argv[0]);
+		printf("Usage: %s [read | write] number(16~1024)\n", argv[0]);
 		return 0;
 	}
 	
