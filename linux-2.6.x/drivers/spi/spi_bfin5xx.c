@@ -490,13 +490,13 @@ static void pump_transfers(unsigned long data)
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
 			PRINTK("SPI:doing autobuffer DMA out.\n");
-			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 			/* no irq in autobuffer mode */
 			dma_config |= ( DMAFLOW_AUTO | RESTART | dma_width | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx_dma);
 			enable_dma(CH_SPI);
+			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 			/* just return here, there can only be one transfer in this mode*/
 			message->status = 0;
 			giveback(message, drv_data);
