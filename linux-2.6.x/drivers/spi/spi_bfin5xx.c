@@ -115,7 +115,6 @@ struct driver_data {
 	struct spi_transfer* cur_transfer;
 	struct chip_data *cur_chip;
 	size_t len;
-	u32  width_last;
 	void *tx;
 	void *tx_end;
 	void *rx;
@@ -362,7 +361,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* get the last word/byte for DMA reading */
 	if (drv_data->rx != NULL) {
-		if (drv_data->width_last == CFG_SPI_WORDSIZE16){
+		if (drv_data->cur_chip->width == CFG_SPI_WORDSIZE16){
 			dma_buf_end = drv_data->rx + drv_data->len - 2;
 			*(u16 *)(dma_buf_end) = read_SHAW();
 		} else {
