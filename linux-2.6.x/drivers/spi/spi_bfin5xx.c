@@ -115,6 +115,7 @@ struct driver_data {
 	struct spi_transfer* cur_transfer;
 	struct chip_data *cur_chip;
 	size_t len;
+	u32  width_last;
 	void *tx;
 	void *tx_end;
 	void *rx;
@@ -351,13 +352,27 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct driver_data *drv_data = (struct driver_data *)dev_id;
 	struct spi_message *msg = drv_data->cur_msg;
+	void *dma_buf_end;
 
 	PRINTK("SPI: in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
+	bfin_spi_disable(drv_data);
 
 	msg->actual_length += drv_data->len;
 
-	bfin_spi_disable(drv_data);
+	/* get the last word/byte for DMA reading */
+	if (drv_data->rx != NULL) {
+		if (drv_data->width_last == CFG_SPI_WORDSIZE16){
+			dma_buf_end = drv_data->rx + drv_data->len - 2;
+			*(u16 *)(dma_buf_end) = read_SHAW();
+		} else {
+			dma_buf_end = drv_data->rx + drv_data->len - 1;
+			*(u8 *)(dma_buf_end) = read_SHAW();
+		}
+	}
+
+	msg->actual_length += drv_data->len;
+
 	/* Move to next transfer */
 	msg->state = next_transfer(drv_data);
 
@@ -450,9 +465,10 @@ static void pump_transfers(unsigned long data)
 	PRINTK("SPI: now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
 	/* Try to map dma buffer and do a dma transfer if successful */
 	/* use different way to r/w according to drv_data->cur_chip->enable_dma */
-	if (drv_data->cur_chip->enable_dma) {
+	if (drv_data->cur_chip->enable_dma && drv_data->len > 2) {
 
 		write_STAT(BIT_STAT_CLR);
+		disable_dma(CH_SPI);
 		clear_dma_irqstat(CH_SPI);
 
 		PRINTK("SPI: doing dma transfer\n");
@@ -461,8 +477,7 @@ static void pump_transfers(unsigned long data)
 			set_dma_x_count(CH_SPI, ((drv_data->len)>>1));
 			set_dma_x_modify(CH_SPI, 2);
 			dma_width = WDSIZE_16;
-		}
-		else {
+		} else {
 			set_dma_x_count(CH_SPI, drv_data->len);
 			set_dma_x_modify(CH_SPI, 1);
 			dma_width = WDSIZE_8;
@@ -492,7 +507,11 @@ static void pump_transfers(unsigned long data)
 		if ( drv_data->rx != NULL) {
 			PRINTK("SPI:doing DMA in.\n");
 			/* set transfer mode, and enable SPI */
-			write_CTRL(cr | CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14));
+			if(width == CFG_SPI_WORDSIZE16){
+				set_dma_x_count(CH_SPI, ((drv_data->len)>>1) - 1);
+			} else {
+				set_dma_x_count(CH_SPI, drv_data->len - 1);
+			}
 
 			/* start dma*/
 			dma_enable_irq(CH_SPI);
@@ -501,10 +520,11 @@ static void pump_transfers(unsigned long data)
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
 
+			/* set transfer mode, and enable SPI */
+			write_CTRL(cr | CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14));
+
 		} else if (drv_data->tx != NULL) {
 			PRINTK("SPI:doing DMA out.\n");
-
-			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 			/* start dma */
 			dma_enable_irq(CH_SPI);
@@ -512,6 +532,8 @@ static void pump_transfers(unsigned long data)
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
+
+			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 		}
 	} else {/* IO mode write then read */
