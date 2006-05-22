@@ -1,5 +1,5 @@
 /*
- * File:         arch/blackfin/kernel/simple_dma.c
+ * File:         arch/blackfin/kernel/bfin_dma_5xx.c
  * Based on:
  * Author:
  *
@@ -454,6 +454,18 @@ void set_dma_start_addr(unsigned int channel, unsigned long addr)
 	DMA_DBG("set_dma_start_addr() : END\n");
 }
 
+void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
+{
+	DMA_DBG("set_dma_next_desc_addr() : BEGIN \n");
+
+	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
+
+	dma_ch[channel].regs->next_desc_ptr = addr;
+	SSYNC;
+	DMA_DBG("set_dma_start_addr() : END\n");
+}
+
 void set_dma_x_count(unsigned int channel, unsigned short x_count)
 {
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
@@ -472,7 +484,7 @@ void set_dma_y_count(unsigned int channel, unsigned short y_count)
 	SSYNC;
 }
 
-void set_dma_x_modify(unsigned int channel, unsigned short x_modify)
+void set_dma_x_modify(unsigned int channel, short x_modify)
 {
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
@@ -481,7 +493,7 @@ void set_dma_x_modify(unsigned int channel, unsigned short x_modify)
 	SSYNC;
 }
 
-void set_dma_y_modify(unsigned int channel, unsigned short y_modify)
+void set_dma_y_modify(unsigned int channel, short y_modify)
 {
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
@@ -580,6 +592,7 @@ EXPORT_SYMBOL(get_dma_curr_ycount);
 EXPORT_SYMBOL(set_dma_start_addr);
 
 EXPORT_SYMBOL(set_dma_config);
+EXPORT_SYMBOL(set_dma_next_desc_addr);
 EXPORT_SYMBOL(set_bfin_dma_config);
 EXPORT_SYMBOL(set_dma_x_count);
 EXPORT_SYMBOL(set_dma_x_modify);

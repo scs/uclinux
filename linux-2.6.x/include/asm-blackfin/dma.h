@@ -105,9 +105,9 @@ typedef struct _dmasglarge_t {
 	unsigned long start_addr;
 	unsigned short cfg;
 	unsigned short x_count;
-	unsigned short x_modify;
+	short x_modify;
 	unsigned short y_count;
-	unsigned short y_modify;
+	short y_modify;
 } dmasg_t;
 #pragma pack()
 
@@ -123,13 +123,13 @@ typedef struct {
 	unsigned short x_count;	/* DMA x_count register */
 	unsigned short dummy2;
 
-	unsigned short x_modify;	/* DMA x_modify register */
+	short x_modify;	/* DMA x_modify register */
 	unsigned short dummy3;
 
 	unsigned short y_count;	/* DMA y_count register */
 	unsigned short dummy4;
 
-	unsigned short y_modify;	/* DMA y_modify register */
+	short y_modify;	/* DMA y_modify register */
 	unsigned short dummy5;
 
 	unsigned long curr_desc_ptr;	/* DMA Current Descriptor Pointer
@@ -177,10 +177,11 @@ typedef struct {
 *******************************************************************************/
 //functions to set register mode
 void set_dma_start_addr(unsigned int channel, unsigned long addr);
+void set_dma_next_desc_addr(unsigned int channel, unsigned long addr);
 void set_dma_x_count(unsigned int channel, unsigned short x_count);
-void set_dma_x_modify(unsigned int channel, unsigned short x_modify);
+void set_dma_x_modify(unsigned int channel, short x_modify);
 void set_dma_y_count(unsigned int channel, unsigned short y_count);
-void set_dma_y_modify(unsigned int channel, unsigned short y_modify);
+void set_dma_y_modify(unsigned int channel, short y_modify);
 void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
 				   char intr_mode, char dma_mode, char width);
