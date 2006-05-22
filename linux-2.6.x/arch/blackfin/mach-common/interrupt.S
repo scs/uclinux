@@ -76,7 +76,6 @@ ENTRY(_evt_emulation)
    R0 contains the interrupt number, while R1 may contain the value of IPEND,
    or garbage if IPEND won't be needed by the ISR.  */
 __common_int_entry:
-	[--sp] = ( R7:2, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;
 

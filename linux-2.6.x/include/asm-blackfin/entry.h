@@ -28,8 +28,7 @@
 									\
     [--sp] = P0;	/*orig_p0*/					\
     [--sp] = R0;	/*orig_r0*/					\
-    [--sp] = R0;	/*r0*/						\
-    [--sp] = R1;	/*r1*/						\
+    [--sp] = (R7:0,P5:0);						\
     R0 = (N);								\
     jump __common_int_entry;
 
@@ -40,12 +39,11 @@
 									\
     [--sp] = P0;	/*orig_p0*/					\
     [--sp] = R0;	/*orig_r0*/					\
-    [--sp] = R0;	/*r0*/						\
-    [--sp] = R1;	/*r1*/						\
+    [--sp] = (R7:0,P5:0);						\
     p0.l = lo(IPEND);							\
     p0.h = hi(IPEND);							\
     r1 = [p0];								\
-    p0 = [sp + 12];							\
+    bitclr (r1,4);	/* user_mode expects master disable cleared. */ \
     R0 = (N);								\
     jump __common_int_entry;
 
