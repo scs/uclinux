@@ -249,6 +249,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
     printk("ppifcd_error_irq: \n");
     printk("PPI Status = 0x%X \n", *pPPI_STATUS);
 
+
         /* Acknowledge DMA Interrupt*/
         clear_dma_irqstat(CH_PPI);
 
@@ -257,6 +258,9 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
     *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
 
     pdev->done = 1;
+	
+	/* Clear Sticky Bits */
+	*pPPI_STATUS =  0xFFFF;
 
     /* Give a signal to user program. */
     if(pdev->fasyc)
@@ -268,6 +272,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
         wake_up_interruptible(pdev->rx_avail);
 
     DPRINTK("ppifcd_error_irq: return \n");
+
 
     return IRQ_HANDLED;
 
@@ -580,7 +585,11 @@ static int ppi_open (struct inode *inode, struct file *filp)
 
     request_irq(IRQ_PPI_ERROR,(void *) ppifcd_irq_error,SA_INTERRUPT,"PPI ERROR" ,filp->private_data);
 
-
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
+        *pPORTG_FER   = 0xFFFF; /* PPI[15:0]    */
+        *pPORTF_FER  |= 0x8300; /* PF.15 PPI_CLK FS1 FS2*/
+        *pPORT_MUX   &= ~0x0E00;
+#endif
 
 
     DPRINTK("ppi_open: return \n");
