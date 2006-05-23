@@ -48,10 +48,8 @@
  *     * the card allocates the /low-level device/, the /proc/, the /snd/ and /mixer/ stuff
  *     * the /snd/ and /mixer/ stuff use the methods of the low level device
  *       to control the registers over the spi, and the methods of the sport
- * - there are useful proc entries for spi, sport and ad1836 register and irq status
- *       also, you could do echo 2 > talktrough and echo 0x1234 > registers
- *       to do what you'd expect.  since sash doesn't have redirection, you
- *       can use echo2 in the test/ directory. 
+ * - there are useful proc entries for spi, sport and ad1836 register and irq status.
+ *       since sash doesn't have redirection, you can use echo2 in the test/ directory. 
  *  - this can also be used to control the volume directly through setting
  *       the registers directly, eg.  echo2 /proc/asound/card0/registers 0x3000
  *       silences DAC_1_left
@@ -91,11 +89,8 @@
  *  all knowledge from the bfin hwref guide has been encapsulated in
  *  separate files bf53x_sp{ort,i}.[hc]
  *
- *  if no pcm streams are open, the driver can be put in stupid or
- *  smart talktrough mode. stupid sets the rx and tx dmabuffer to the
- *  same address, smart copies fragments between the rx and tx buffer
- *  in the interrupt handler.
- * 
+ *  Talkthrough mode support is removed.
+ *
  * TODO: rething _prepare() and _trigger() to keep rx and tx out of eachothers way
  */
 
@@ -232,11 +227,6 @@ static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 #define CHANNELS_MAX	2
 #endif
 
-#define TALKTROUGH_FRAGMENTS 4
-#define TALKTROUGH_CHANS 8
-
-#undef INIT_TALKTROUGH
-
 #define ad1836_t_magic  0xa15a4501
 
 #ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
@@ -329,15 +319,6 @@ struct snd_ad1836 {
 #define RUN_TX2 0x8
 #define RUN_TX_ALL (RUN_TX0 | RUN_TX1 | RUN_TX2)
 #endif
-
-  int talktrough_mode;
-#define TALKTROUGH_OFF 0
-#define TALKTROUGH_STUPID 1
-#define TALKTROUGH_SMART 2
-
-  void* rx_buf; /* in talktrough mode, these are owned */
-  void* tx_buf; 
-
 };
 static int snd_ad1836_startup(ad1836_t *chip);
 //static void print_32x4(void*);
@@ -455,90 +436,6 @@ static int ad1836_set_chan_masks(ad1836_t* chip, char* permutation, int out){
 }
 #endif // CONFIG_SND_BLACKFIN_ADI1836_TDM
 
-/* start/stop talktrough */
-static int snd_ad1836_talktrough_mode(ad1836_t* chip, int mode){
-
-  switch(mode){
-
-  case TALKTROUGH_OFF: {
-
-    bf53x_sport_stop(chip->sport);
-    
-    if( chip->rx_buf ) 
-      kfree( chip->rx_buf );
-
-    if( chip->tx_buf && (chip->tx_buf != chip->rx_buf) ) 
-      kfree( chip->tx_buf );
-
-    chip->rx_buf = NULL;
-    chip->tx_buf = NULL;
-
-    snd_printk( KERN_INFO "talktrough mode: switched off\n" );
-
-    break;
-
-  }
-
-  case TALKTROUGH_STUPID: 
-  case TALKTROUGH_SMART: {
-
-    if( chip->talktrough_mode !=  TALKTROUGH_OFF ) 
-      return -EBUSY;
-      
-#ifndef MULTI_SUBSTREAM
-    if( chip->tx_substream || chip->rx_substream )
-      return -EBUSY;
-#endif
-    
-    chip->rx_buf = kmalloc(AD1836_BUFFER_SIZE, GFP_KERNEL);
-
-    if( mode == TALKTROUGH_SMART )
-      chip->tx_buf = kmalloc(AD1836_BUFFER_SIZE, GFP_KERNEL);
-    else
-      chip->tx_buf = chip->rx_buf;
-
-    if( !chip->tx_buf ){
-      if( chip->rx_buf) kfree(chip->rx_buf); 
-      chip->rx_buf = NULL;
-      snd_printk( KERN_ERR "talktrough mode: not enough memory to start\n" );
-      return -ENOMEM;
-    }
-    
-    bf53x_sport_set_multichannel(chip->sport, TALKTROUGH_CHANS /* channels */, 1 /* packed */ );
-    
-    if( bf53x_sport_config_rx_dma( chip->sport, chip->rx_buf,  TALKTROUGH_FRAGMENTS, 
-			AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, 4) ){
-      snd_printk( KERN_ERR "talktrough mode: Unable to configure rx dma\n" );
-      return -ENODEV;
-    }
-
-    if( bf53x_sport_config_tx_dma( chip->sport, chip->tx_buf,  TALKTROUGH_FRAGMENTS, 
-			AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS, 4 ) ){
-      snd_printk( KERN_ERR "talktrough mode: Unable to configure tx dma\n" );
-      return -ENODEV;
-    }
-
-
-    snd_ad1836_reset_sport_stats(chip);
-    bf53x_sport_start(chip->sport);
-
-    snd_printk( KERN_INFO "talktrough mode: switched on (%s) with channels %d\n", 
-		(mode == TALKTROUGH_STUPID) ? "stupid" : "smart", TALKTROUGH_CHANS );
-
-    break;
-
-  }
-
-  default: 
-    return -EINVAL;
-
-  } /* switch mode */
-
-  chip->talktrough_mode = mode;
-
-  return 0;
-}
-
 static void snd_ad1836_read_registers(ad1836_t *chip)
 {
 	int i;
@@ -619,31 +516,6 @@ static void snd_ad1836_proc_sport_read( snd_info_entry_t * entry, snd_info_buffe
   return;
 }
 
-static void snd_ad1836_proc_talktrough_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
-  ad1836_t *chip = (ad1836_t*) entry->private_data;
-  static const char* modenames[] = { "off", "stupid", "smart" };
-  snd_iprintf(buffer, "%d %s\n", chip->talktrough_mode, modenames[chip->talktrough_mode] );
-  return;
-}
-
-static void snd_ad1836_proc_talktrough_write( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
-  ad1836_t *chip = (ad1836_t*) entry->private_data;
-  char line[4];
-  int mode;
-  if( snd_info_get_line(buffer, line, sizeof(line)) ) return;
-  line[3] = 0;
-
-  /* request to panic :-) */
-  if( line[0] == 'p' ) 
-    panic( "how does it sound with the rest of the kernel frozen?\n" );
-
-  mode =  line[0] - '0' ;
-  if( (mode < 0) || (mode > 2) ) return;
-  snd_ad1836_talktrough_mode(chip, mode);
-
-  return;
-}
-
 //#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
 #if 0
 static void snd_ad1836_proc_outchanmask_read( snd_info_entry_t * entry, snd_info_buffer_t * buffer){
@@ -680,39 +552,6 @@ static void snd_ad1836_proc_inchanmask_write( snd_info_entry_t * entry, snd_info
  *************************************************************/
 
 #ifndef NOCONTROLS
-
-static int snd_ad1836_loopback_control_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
-{
-  static const char* modenames[] = { "Off", "Stupid", "Smart" };
-  uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-  uinfo->count = 1;
-  if (uinfo->value.enumerated.item > 2)
-    uinfo->value.enumerated.item = 2;
-  strcpy(uinfo->value.enumerated.name, modenames[uinfo->value.enumerated.item]);
-  return 0;
-}
-
-
-static int snd_ad1836_loopback_control_get(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
-{
-  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  ucontrol->value.enumerated.item[0] = chip->talktrough_mode;
-  return 0;
-}
-
-
-static int snd_ad1836_loopback_control_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *ucontrol)
-{
-  ad1836_t *chip = snd_kcontrol_chip(kcontrol);
-  if (chip->talktrough_mode != ucontrol->value.enumerated.item[0]) {
-    snd_ad1836_talktrough_mode(chip, ucontrol->value.enumerated.item[0]);
-    return 1;
-  }
-  return 0;
-}
-
-
-
 
 static int snd_ad1836_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
@@ -1095,7 +934,6 @@ static int snd_ad1836_vu_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_value_t *uco
 /* NOTE: I have no idea if I chose the .name fields properly.. */
 
 static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = { 
-  KTRLRW( CARD,  "Digital Loopback Switch",  snd_ad1836_loopback_control ),
   KTRLRW( MIXER, "Master Playback Volume",   snd_ad1836_volume ),
 #ifdef ADC2_IS_MIC
   KTRLRW( MIXER, "Mic Capture Volume",    snd_ad1836_adc_gain ),
@@ -1165,10 +1003,6 @@ static int snd_ad1836_playback_open(snd_pcm_substream_t* substream){
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
-
-  if( chip->talktrough_mode != TALKTROUGH_OFF ) 
-    return -EBUSY;
-
 #ifdef MULTI_SUBSTREAM
   {
   	substream_info_t *sub_info = NULL;
@@ -1192,9 +1026,6 @@ static int snd_ad1836_capture_open(snd_pcm_substream_t* substream){
   ad1836_t* chip = snd_pcm_substream_chip(substream);
 
   snd_printk_marker();
-
-  if( chip->talktrough_mode != TALKTROUGH_OFF ) 
-    return -EBUSY;
  
   substream->runtime->hw = snd_ad1836_capture_hw;
   chip->rx_substream = substream;
@@ -1795,9 +1626,6 @@ static int snd_ad1836_free(ad1836_t *chip)
     snd_ad1836_set_register(chip, ADC_CTRL_1, ADC_PWRDWN, ADC_PWRDWN);  /* power-down ADC's */
   }
   
-  if( chip->talktrough_mode != TALKTROUGH_OFF) 
-    snd_ad1836_talktrough_mode(chip, TALKTROUGH_OFF);
-
   kfree(chip);
   return 0;
 }
@@ -2093,18 +1921,6 @@ static int __devinit snd_ad1836_create(snd_card_t *card,
   }
 #endif
 
-  if(!err){
-    snd_info_entry_t* proc_entry;
-    err = snd_card_proc_new(card, "talktrough", &proc_entry); 
-    if(!err){
-      snd_info_set_text_ops( proc_entry, chip, 1024, snd_ad1836_proc_talktrough_read);
-      proc_entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
-      proc_entry->c.text.write_size = 4;
-      proc_entry->c.text.write = snd_ad1836_proc_talktrough_write;
-    }
-  }
-
-
 #ifndef NOCONTROLS
   if(!err)
     for( i=0; (i<AD1836_CONTROLS) && !err; ++i )
@@ -2319,29 +2135,6 @@ static irqreturn_t snd_adi1836_sport_handler_rx(ad1836_t* chip, int irq){
     snd_pcm_period_elapsed(chip->rx_substream);
   }
 
-  if( chip->talktrough_mode == TALKTROUGH_SMART  ){
-    /* copy last rx frag to next tx frag*/
-    void* src;
-    void* dst;
-    int   cnt = (AD1836_BUFFER_SIZE/TALKTROUGH_FRAGMENTS);
-    static int   src_frag = -1;
-    static int   dst_frag = -1;
-    if( src_frag == -1 ) src_frag = bf53x_sport_curr_frag_rx(chip->sport)-1; else ++src_frag;
-    if( dst_frag == -1 ) dst_frag = bf53x_sport_curr_frag_tx(chip->sport)+1; else ++dst_frag;
-    if( src_frag < 0 ) src_frag += TALKTROUGH_FRAGMENTS;
-    if( src_frag >= TALKTROUGH_FRAGMENTS ) src_frag -= TALKTROUGH_FRAGMENTS;
-    if( dst_frag >= TALKTROUGH_FRAGMENTS ) dst_frag -= TALKTROUGH_FRAGMENTS;
-    src = frag2addr( chip->rx_buf, src_frag, cnt );
-    dst = frag2addr( chip->tx_buf, dst_frag, cnt );
-    invalidate_dcache_range((unsigned int)src, (unsigned int)(src+cnt));
-    
-    memmove(dst,src,cnt);
-    
-    /*print_16x8(chip->rx_buf);*/
-    flush_dcache_range((unsigned int)src, (unsigned int)(src+cnt));
-    
-  }
-  
   return IRQ_HANDLED;
 
 } /* sport handler rx */
@@ -2519,10 +2312,6 @@ static int __init snd_bf53x_adi1836_init(void){
 
   if(err)
     snd_bf53x_adi1836_exit();
-
-#ifdef INIT_TALKTROUGH
-  snd_ad1836_talktrough_mode( (ad1836_t*) (card->private_data) , TALKTROUGH_SMART );
-#endif
 
   return err;
 
