@@ -54,7 +54,9 @@ struct status_area {
 };
 */
 struct status_area {
-  unsigned long  status_word;           // the frame status word
+	unsigned short ip_hdr_csum;         // ip header checksum
+	unsigned short ip_payload_csum;     // ip payload(udp or tcp or others) checksum
+	unsigned long  status_word;         // the frame status word
 };
 
 

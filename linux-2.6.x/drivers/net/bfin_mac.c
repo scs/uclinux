@@ -351,7 +351,7 @@ void SetupSystemRegs(struct net_device *dev)
   sysctl = SET_MDCDIV(24);
   /* Odd word alignment for Receive Frame DMA word */
   /* Configure checksum support and rcve frame word alignment */
-  sysctl |= RXDWA;
+  sysctl |= RXDWA | RXCKS;
   *pEMAC_SYSCTL  = sysctl;
   /* auto negotiation on  */
   /* full duplex          */
@@ -511,6 +511,10 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
   dev->last_rx = jiffies;
   skb->dev = dev;
   skb->protocol = eth_type_trans(skb, dev);
+
+  skb->csum = current_rx_ptr->status.ip_payload_csum;
+  skb->ip_summed = CHECKSUM_HW;
+
   netif_rx(skb);
   lp->stats.rx_packets++;
   lp->stats.rx_bytes += len;
