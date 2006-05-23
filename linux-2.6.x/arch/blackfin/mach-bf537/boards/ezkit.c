@@ -120,7 +120,7 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
-	.ctl_reg = 0x1500,
+	.ctl_reg = 0x1000,
 	.enable_dma = 1,    /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
