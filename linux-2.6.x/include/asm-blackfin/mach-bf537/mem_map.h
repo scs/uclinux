@@ -56,6 +56,11 @@
 #define ASYNC_BANK0_BASE	0x20000000	// Async Bank 0
 #define ASYNC_BANK0_SIZE	0x00100000	/* 1M */
 
+
+/* Boot ROM Memory */
+
+#define BOOT_ROM_START		0xEF000000
+
 /* Level 1 Memory */
 
 /* Memory Map for ADSP-BF537 processors */
