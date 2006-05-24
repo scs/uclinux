@@ -493,7 +493,7 @@ static void pump_transfers(unsigned long data)
 			/* no irq in autobuffer mode */
 			dma_config |= ( DMAFLOW_AUTO | RESTART | dma_width | DI_EN );
 			set_dma_config(CH_SPI, dma_config);
-			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx_dma);
+			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 			/* just return here, there can only be one transfer in this mode*/
@@ -514,7 +514,7 @@ static void pump_transfers(unsigned long data)
 
 			/* start dma*/
 			dma_enable_irq(CH_SPI);
-			dma_config |= ( WNR | RESTART | dma_width | DI_EN );
+			dma_config |= ( WNR | RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
