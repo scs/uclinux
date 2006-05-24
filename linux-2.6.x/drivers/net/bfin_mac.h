@@ -25,6 +25,7 @@
 #define PHY_DUPLEX              0x0100
 #define PHY_SPD_SET             0x2000
 
+/* #define BFIN_MAC_CSUM_OFFLOAD */
 
 typedef struct _DMA_CONFIG
 {
@@ -54,8 +55,10 @@ struct status_area {
 };
 */
 struct status_area {
+#if defined(BFIN_MAC_CSUM_OFFLOAD)
 	unsigned short ip_hdr_csum;         // ip header checksum
 	unsigned short ip_payload_csum;     // ip payload(udp or tcp or others) checksum
+#endif
 	unsigned long  status_word;         // the frame status word
 };
 
