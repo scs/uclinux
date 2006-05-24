@@ -146,8 +146,10 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size, id;
 	unsigned long l1_length;
 
+#ifdef DEBUG_SERIAL_EARLY_INIT
 	bfin_console_init();	/* early console registration */
 	/* this give a chance to get printk() working before crash. */
+#endif
 
 #if defined(CONFIG_CHR_DEV_FLASH) || defined(CONFIG_BLK_DEV_FLASH)
 	/* we need to initialize the Flashrom device here since we might
