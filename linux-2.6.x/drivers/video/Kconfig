@@ -416,9 +416,21 @@ config FB_BFIN_7171
 	  This is the framebuffer device for a AD7171 video encoder
 	  attached to a Blackfin on the PPI port.
 	  If your Blackfin board has a 7171 select Y.
+
+config FB_BFIN_7393
+	tristate "Blackfin ADV7393 Video encoder on uClinux"
+	depends on FB && BFIN
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for a ADV7393 video encoder
+	  attached to a Blackfin on the PPI port.
+	  If your Blackfin board has a ADV7393 select Y.
+
 choice
         prompt  "Video mode support"
-	depends on FB_BFIN_7171
+	depends on (FB_BFIN_7171 || FB_BFIN_7393)
 	default NTSC
 
 config NTSC

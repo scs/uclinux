@@ -89,6 +89,7 @@ obj-$(CONFIG_FB_AU1100)		  += au1100fb.o
 
 obj-$(CONFIG_FB_BFIN_7171)	  += bfin_ad7171fb.o
 bfin_ad7171fb-objs		  := bfin_ad7171fb_main.o rgb2ycbcr.o
+obj-$(CONFIG_FB_BFIN_7393)	  += bfin_adv7393fb.o
 obj-$(CONFIG_FB_PMAG_AA)	  += pmag-aa-fb.o
 obj-$(CONFIG_FB_PMAG_BA)	  += pmag-ba-fb.o
 obj-$(CONFIG_FB_PMAGB_B)	  += pmagb-b-fb.o
