@@ -106,9 +106,9 @@ void sl811_port_power(struct device *dev, int is_on)
 *pFIO_DIR |= mask;
 
 if(is_on)
-  *pFIO_FLAG_S |= mask;
+  *pFIO_FLAG_S = mask;
 	else
-  *pFIO_FLAG_C |= mask;
+  *pFIO_FLAG_C = mask;
 
 /*printk("sl811_port_power is_on = %d \n", is_on);*/
 }
