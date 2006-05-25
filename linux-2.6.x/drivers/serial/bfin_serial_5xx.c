@@ -1269,10 +1269,27 @@ static int set_modem_info(struct bfin_serial *info, unsigned int cmd,
 	}
 	return 0;
 }
+/*
+ * This routine sends a break character out the serial port.
+ */
+static void send_break(struct bfin_serial *info, unsigned int duration)
+{
+	unsigned long flags;
+	struct uart_registers *regs = &(info->regs);
+
+	local_irq_save(flags);
+	*(regs->rpUART_LCR) |= SB;
+	SSYNC;
+	msleep_interruptible(duration);
+	*(regs->rpUART_LCR) &= ~SB;
+	SSYNC;
+	local_irq_restore(flags);
+}
 
 static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		    unsigned int cmd, unsigned long arg)
 {
+	int retval;
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -1280,12 +1297,28 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGWILD) &&
-	    (cmd != TIOCSERSWILD) && (cmd != TIOCSERGSTRUCT)) {
+	    (cmd != TIOCSERSWILD) && (cmd != TIOCSERGSTRUCT) &&
+	    (cmd != TCSBRK) && (cmd != TCSBRKP)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 			return -EIO;
 	}
 
 	switch (cmd) {
+	case TCSBRK:    /* SVID version: non-zero arg --> no break */
+		retval = tty_check_change(tty);
+		if (retval)
+			return retval;
+		tty_wait_until_sent(tty, 0);
+		if (!arg)
+			send_break(info, 250);  /* 1/4 second */
+		return 0;
+	case TCSBRKP:   /* support for POSIX tcsendbreak() */
+		retval = tty_check_change(tty);
+		if (retval)
+			return retval;
+		tty_wait_until_sent(tty, 0);
+		send_break(info, arg ? arg*(100) : 250);
+		return 0;
 	case TIOCGSERIAL:
 		return get_serial_info(info, (struct serial_struct *)arg);
 	case TIOCSSERIAL:
