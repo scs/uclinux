@@ -597,11 +597,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy * HZ));
 	seq_printf(m, "BOARD Name  :\t%s\n", name);
 	seq_printf(m, "BOARD Memory:\t%d MB\n", CONFIG_MEM_SIZE);
-	if ((*(volatile unsigned long *)IMEM_CONTROL) & (ENICPLB | IMC))
+	if ((*pIMEM_CONTROL) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
 		seq_printf(m, "I-CACHE:\tOFF\n");
-	if ((*(volatile unsigned long *)DMEM_CONTROL) & (ENDCPLB | DMC_ENABLE))
+	if ((*pDMEM_CONTROL) & (ENDCPLB | DMC_ENABLE))
 		seq_printf(m, "D-CACHE:\tON"
 #if defined CONFIG_BLKFIN_WB
 			   " (write-back)"

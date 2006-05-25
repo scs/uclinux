@@ -306,7 +306,7 @@ inline void static leds_switch(int flag)
 {
 	unsigned short tmp = 0;
 
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT;
+	tmp = *pCONFIG_BFIN_IDLE_LED_PORT;
 	__builtin_bfin_ssync();
 
 	if (flag == LED_ON)
@@ -314,7 +314,7 @@ inline void static leds_switch(int flag)
 	else
 		tmp |= CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
 
-	*(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT = tmp;
+	*pCONFIG_BFIN_IDLE_LED_PORT = tmp;
 	__builtin_bfin_ssync();
 
 }

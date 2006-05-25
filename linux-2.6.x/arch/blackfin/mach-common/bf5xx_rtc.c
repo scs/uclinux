@@ -51,7 +51,7 @@ static void wait_for_complete(void);
 /* Initialize the RTC. Enable pre-scaler to scale RTC clock to 1Hz. */
 int rtc_init()
 {
-	*(volatile unsigned short *)RTC_PREN = 0x1;
+	*pRTC_PREN = 0x1;
 	wait_for_complete();
 	return 0;
 }
@@ -78,7 +78,7 @@ int rtc_set(time_t time_in_secs)
 	n_secs = n_secs_rem % (NUM_SECS_IN_MIN);
 
 	/* Store the new time in the RTC_STAT register */
-	*(volatile unsigned long *)RTC_STAT =
+	*pRTC_STAT =
 	    ((n_days_1970 << DAY_BITS_OFF) | (n_hrs << HOUR_BITS_OFF) |
 	     (n_mins << MIN_BITS_OFF) | (n_secs << SEC_BITS_OFF));
 
@@ -99,7 +99,7 @@ int rtc_get(time_t * time_in_seconds)
 	}
 
 	/* Read the RTC_STAT register */
-	cur_rtc_stat = *(volatile unsigned long *)RTC_STAT;
+	cur_rtc_stat = *pRTC_STAT;
 
 	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days
 	 * since Jan 1970
@@ -122,7 +122,7 @@ int rtc_get(time_t * time_in_seconds)
 	 *   3. Many many years passed after user sets it!
 	 */
 	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
-		*(volatile unsigned long *)RTC_STAT = 0;
+		*pRTC_STAT = 0;
 		*(time_in_seconds) = 0;
 		wait_for_complete();
 	}
@@ -133,8 +133,8 @@ int rtc_get(time_t * time_in_seconds)
 /* Wait for the previous write to a RTC register to complete */
 static void wait_for_complete(void)
 {
-	while (!(*(volatile unsigned short *)RTC_ISTAT & 0x8000)) {
+	while (!(*pRTC_ISTAT & 0x8000)) {
 		/*printk(""); */
 	}
-	*(volatile unsigned short *)RTC_ISTAT = 0x8000;
+	*pRTC_ISTAT = 0x8000;
 }

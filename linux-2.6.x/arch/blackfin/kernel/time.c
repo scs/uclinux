@@ -55,31 +55,30 @@ void __init init_leds(void)
 
 #if defined(CONFIG_BFIN_ALIVE_LED)
 	/* config pins as output. */
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_DPORT;
+	tmp = *pCONFIG_BFIN_ALIVE_LED_DPORT;
 	__builtin_bfin_ssync();
-	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_DPORT =
-	    tmp | CONFIG_BFIN_ALIVE_LED_PIN;
+	*pCONFIG_BFIN_ALIVE_LED_DPORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;
 	__builtin_bfin_ssync();
 
 	/*      First set led be off */
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT;
+	tmp = *pCONFIG_BFIN_ALIVE_LED_PORT;
 	__builtin_bfin_ssync();
-	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
+	*pCONFIG_BFIN_ALIVE_LED_PORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
 	__builtin_bfin_ssync();
 #endif
 
 #if defined(CONFIG_BFIN_IDLE_LED)
 	/* config pins as output. */
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_DPORT;
+	tmp = *pCONFIG_BFIN_IDLE_LED_DPORT;
 	__builtin_bfin_ssync();
-	*(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_DPORT =
+	*pCONFIG_BFIN_IDLE_LED_DPORT =
 	    tmp | CONFIG_BFIN_IDLE_LED_PIN;
 	__builtin_bfin_ssync();
 
 	/*      First set led be off */
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT;
+	tmp = *pCONFIG_BFIN_IDLE_LED_PORT;
 	__builtin_bfin_ssync();
-	*(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT = tmp | CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
+	*pCONFIG_BFIN_IDLE_LED_PORT = tmp | CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
 	__builtin_bfin_ssync();
 #endif
 
@@ -101,7 +100,7 @@ inline static void do_leds(void)
 		count = 50;
 		flag = ~flag;
 	}
-	tmp = *(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT;
+	tmp = *pCONFIG_BFIN_ALIVE_LED_PORT;
 	__builtin_bfin_ssync();
 
 	if (flag)
@@ -109,7 +108,7 @@ inline static void do_leds(void)
 	else
 		tmp |= CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
 
-	*(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT = tmp;
+	*pCONFIG_BFIN_ALIVE_LED_PORT = tmp;
 	__builtin_bfin_ssync();
 
 }

@@ -199,4 +199,19 @@
 #define IPRIO                  0xFFE02110
 */
 
+#if defined(CONFIG_BFIN_ALIVE_LED)
+#define pCONFIG_BFIN_ALIVE_LED_DPORT \
+	(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_DPORT
+#define pCONFIG_BFIN_ALIVE_LED_PORT \
+	(volatile unsigned short *)CONFIG_BFIN_ALIVE_LED_PORT
+#endif
+
+#if defined(CONFIG_BFIN_IDLE_LED)
+#define pCONFIG_BFIN_IDLE_LED_DPORT \
+	(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_DPORT
+#define pCONFIG_BFIN_IDLE_LED_PORT \
+	(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT
+#endif
+
+
 #endif				/* _CDEF_LPBLACKFIN_H */
