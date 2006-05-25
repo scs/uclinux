@@ -182,9 +182,9 @@ static inline int serial_paranoia_check(struct bfin_serial *info, char *name,
 					const char *routine)
 {
 	static const char *badmagic =
-	    "Warning: bad magic number for serial struct (%d,%d) in %s\n";
+	    KERN_DEBUG "Warning: bad magic number for serial struct (%d,%d) in %s\n";
 	static const char *badinfo =
-	    "Warning: null bfin_serial for (%d, %d) in %s\n";
+	    KERN_DEBUG "Warning: null bfin_serial for (%d, %d) in %s\n";
 
 	if (!info) {
 		printk(badinfo, name, routine);
@@ -672,7 +672,7 @@ static void dma_start_recv(struct bfin_serial *info)
 
 		enable_dma(info->rx_DMA_channel);
 	} else {
-		printk("bfin_serial: DMA started while already running!\n");
+		printk(KERN_DEBUG "bfin_serial: DMA started while already running!\n");
 	}
 }
 
@@ -937,7 +937,7 @@ static void bfin_change_speed(struct bfin_serial *info)
                 SSYNC;
                 *(regs->rpUART_GCTL) |= RPOLC;
                 SSYNC;
-                printk("KSDBG:irda enabled,rpolc changed\n");
+                printk(KERN_DEBUG "KSDBG:irda enabled,rpolc changed\n");
         }
 #endif
 	/* Enable the UART */
@@ -945,7 +945,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	SSYNC;
 
 	local_irq_restore(flags);
-	printk("bfin_change_speed: baud = %d, cval = 0x%x\n", baud_table[i],
+	printk(KERN_DEBUG "bfin_change_speed: baud = %d, cval = 0x%x\n", baud_table[i],
 	       cval);
 	return;
 }
@@ -961,7 +961,7 @@ static void rs_set_ldisc(struct tty_struct *tty)
 
 	info->is_cons = (tty->termios->c_line == N_TTY);
 
-	printk("ttyS%d console mode %s\n", info->line,
+	printk(KERN_DEBUG "ttyS%d console mode %s\n", info->line,
 	       info->is_cons ? "on" : "off");
 }
 
@@ -1305,7 +1305,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCSERGWILD:
 	case TIOCSERSWILD:
 		/* "setserial -W" is called in Debian boot */
-		printk("TIOCSER?WILD ioctl obsolete, ignored.\n");
+		printk(KERN_DEBUG "TIOCSER?WILD ioctl obsolete, ignored.\n");
 		return 0;
 	default:
 		return -ENOIOCTLCMD;
@@ -1363,12 +1363,12 @@ static void rs_close(struct tty_struct *tty, struct file *filp)
 		 * one, we've got real problems, since it means the
 		 * serial port won't be shutdown.
 		 */
-		printk("rs_close: bad serial port count; tty->count is 1, "
+		printk(KERN_DEBUG "rs_close: bad serial port count; tty->count is 1, "
 		       "info->count is %d\n", info->count);
 		info->count = 1;
 	}
 	if (--info->count < 0) {
-		printk("rs_close: bad serial port count for ttyS%d: %d\n",
+		printk(KERN_DEBUG "rs_close: bad serial port count for ttyS%d: %d\n",
 		       info->line, info->count);
 		info->count = 0;
 	}
@@ -1599,13 +1599,13 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if (request_dma(info->rx_DMA_channel, "BFIN_UART_RX") < 0) {
-		printk("Unable to attach BlackFin UART RX DMA channel\n");
+		printk(KERN_DEBUG "Unable to attach BlackFin UART RX DMA channel\n");
 		return -EBUSY;
 	} else
 		set_dma_callback(info->rx_DMA_channel, uart_rxdma_done, info);
 
 	if (request_dma(info->tx_DMA_channel, "BFIN_UART_TX") < 0) {
-		printk("Unable to attach BlackFin UART TX DMA channel\n");
+		printk(KERN_DEBUG "Unable to attach BlackFin UART TX DMA channel\n");
 		return -EBUSY;
 	} else
 		set_dma_callback(info->tx_DMA_channel, uart_txdma_done, info);
@@ -1614,14 +1614,14 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 	if (request_irq
 	    (info->rx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
 	     "BFIN_UART_RX", info)) {
-		printk("Unable to attach BlackFin UART RX interrupt\n");
+		printk(KERN_DEBUG "Unable to attach BlackFin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
 	    (info->tx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
 	     "BFIN_UART_TX", info)) {
-		printk("Unable to attach BlackFin UART TX interrupt\n");
+		printk(KERN_DEBUG "Unable to attach BlackFin UART TX interrupt\n");
 		return -EBUSY;
 	}
 #endif
@@ -1766,8 +1766,8 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	else
 		return -ENODEV;
 
-	printk("%s at irq = %d", tty->name, info->rx_irq);
-	printk(" is a builtin BlackFin UART\n");
+	printk(KERN_DEBUG "%s at irq = %d", tty->name, info->rx_irq);
+	printk(KERN_DEBUG " is a builtin BlackFin UART\n");
 
 	if (bfin_config_uart_IRQ(info) != 0)
 		return -ENODEV;
@@ -1849,7 +1849,7 @@ static int __init rs_bfin_init(void)
 	tty_set_operations(bfin_serial_driver, &rs_ops);
 
 	if (tty_register_driver(bfin_serial_driver)) {
-		printk("Blackfin: Couldn't register serial driver\n");
+		printk(KERN_DEBUG "Blackfin: Couldn't register serial driver\n");
 		put_tty_driver(bfin_serial_driver);
 		return (-EBUSY);
 	}
