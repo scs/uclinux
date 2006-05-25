@@ -32,8 +32,8 @@
 #include <linux/workqueue.h>
 #include <asm/dma.h>
 
-#define BF53X_ANOMALY_29  /* don't use the DMA_RUN bit, keep track of running status ourselves */
-
+/* don't use the DMA_RUN bit, keep track of running status ourselves */
+#define BF53X_ANOMALY_29
 
 /*
  * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
@@ -41,82 +41,80 @@
  */
 
 struct sport_register {
-  unsigned short tcr1;    unsigned short reserved0;
-  unsigned short tcr2;    unsigned short reserved1;
-  unsigned short tclkdiv; unsigned short reserved2;
-  unsigned short tfsdiv;  unsigned short reserved3;
-  unsigned long tx;
-  unsigned long reserved_l0;
-  unsigned long rx;
-  unsigned long reserved_l1;
-  unsigned short rcr1;    unsigned short reserved4;
-  unsigned short rcr2;    unsigned short reserved5;
-  unsigned short rclkdiv; unsigned short reserved6;
-  unsigned short rfsdiv;  unsigned short reserved7;
-  unsigned short stat;    unsigned short reserved8;
-  unsigned short chnl;    unsigned short reserved9;
-  unsigned short mcmc1;   unsigned short reserved10;
-  unsigned short mcmc2;   unsigned short reserved11;
-  unsigned long mtcs0;
-  unsigned long mtcs1;
-  unsigned long mtcs2;
-  unsigned long mtcs3;
-  unsigned long mrcs0;
-  unsigned long mrcs1;
-  unsigned long mrcs2;
-  unsigned long mrcs3;
+	unsigned short tcr1;    unsigned short reserved0;
+	unsigned short tcr2;    unsigned short reserved1;
+	unsigned short tclkdiv; unsigned short reserved2;
+	unsigned short tfsdiv;  unsigned short reserved3;
+	unsigned long tx;
+	unsigned long reserved_l0;
+	unsigned long rx;
+	unsigned long reserved_l1;
+	unsigned short rcr1;    unsigned short reserved4;
+	unsigned short rcr2;    unsigned short reserved5;
+	unsigned short rclkdiv; unsigned short reserved6;
+	unsigned short rfsdiv;  unsigned short reserved7;
+	unsigned short stat;    unsigned short reserved8;
+	unsigned short chnl;    unsigned short reserved9;
+	unsigned short mcmc1;   unsigned short reserved10;
+	unsigned short mcmc2;   unsigned short reserved11;
+	unsigned long mtcs0;
+	unsigned long mtcs1;
+	unsigned long mtcs2;
+	unsigned long mtcs3;
+	unsigned long mrcs0;
+	unsigned long mrcs1;
+	unsigned long mrcs2;
+	unsigned long mrcs3;
 };
 
 #define DESC_ELEMENT_COUNT 9
 
 struct bf53x_sport {
-  int sport_chan;
-  int dma_rx_chan;
-  int dma_tx_chan;
-  struct sport_register* regs;
+	int sport_chan;
+	int dma_rx_chan;
+	int dma_tx_chan;
+	struct sport_register* regs;
 
-  dma_register_t* dma_rx;   /* a struct gratefully borrowed from asm/simple_bf533_dma.h */
-  dma_register_t* dma_tx;
+	/* a struct gratefully borrowed from asm/simple_bf533_dma.h */
+	dma_register_t* dma_rx;
+	dma_register_t* dma_tx;
 
 #define DUMMY_BUF_LEN 8
-  /* for dummy dma transfer */
-  unsigned long dummy_buf;
+	/* for dummy dma transfer */
+	unsigned long dummy_buf;
 
-  dmasg_t* dma_rx_desc;	/* DMA descriptor ring head of current audio stream*/
-  dmasg_t* dma_tx_desc;
-  unsigned int rx_desc_bytes;
-  unsigned int tx_desc_bytes;
+	/* DMA descriptor ring head of current audio stream*/
+	dmasg_t* dma_rx_desc;
+	dmasg_t* dma_tx_desc;
+	unsigned int rx_desc_bytes;
+	unsigned int tx_desc_bytes;
 
-  dmasg_t* dummy_rx_desc;
-  dmasg_t* dummy_tx_desc;
-  dmasg_t* dummy_rx_desc2; /* Backup of dummy_rx_desc */
-  dmasg_t* dummy_tx_desc2; /* Backup of dummy_tx_desc */
+	dmasg_t* dummy_rx_desc;
+	dmasg_t* dummy_tx_desc;
+	dmasg_t* dummy_rx_desc2; /* Backup of dummy_rx_desc */
+	dmasg_t* dummy_tx_desc2; /* Backup of dummy_tx_desc */
 
-  dmasg_t* curr_rx_desc;
-  dmasg_t* curr_tx_desc;
-  /* DMA descriptor state in change procedure.
-   * 0: DMA is walking through current DMA descriptor ring.
-   * 1: New DMA descritor ring is setup, but not hook into current DMA descriptor ring. 
-   * 2: The new DMA descriptor ring is hooked into current DMA descriptor ring, but it hasn't been loaded into DMA.
-   */
+	dmasg_t* curr_rx_desc;
+	dmasg_t* curr_tx_desc;
 
-  unsigned int rcr1;
-  unsigned int rcr2;
-  int rx_tdm_count;
+	unsigned int rcr1;
+	unsigned int rcr2;
+	int rx_tdm_count;
 
-  unsigned int tcr1;
-  unsigned int tcr2;
-  int tx_tdm_count;
+	unsigned int tcr1;
+	unsigned int tcr2;
+	int tx_tdm_count;
 
 #ifdef BF53X_ANOMALY_29
-  int is_running;   /* little kludge to work around anomaly 29: DMA_RUN bit unreliable */
+	/* little kludge to work around anomaly 29: DMA_RUN bit unreliable */
+   	int is_running;
 #endif
 
 };
 
 struct bf53x_sport* bf53x_sport_init(int sport_chan,  
-                int dma_rx, dma_interrupt_t rx_handler,
-                int dma_tx, dma_interrupt_t tx_handler);
+		int dma_rx, dma_interrupt_t rx_handler,
+		int dma_tx, dma_interrupt_t tx_handler);
 void bf53x_sport_done(struct bf53x_sport* sport);
 
 /* first use these ...*/
@@ -126,12 +124,12 @@ void bf53x_sport_done(struct bf53x_sport* sport);
 int bf53x_sport_set_multichannel( struct bf53x_sport* sport, int tdm_count, int packed);
 
 int bf53x_sport_config_rx( struct bf53x_sport* sport, 
-			   unsigned int rcr1, unsigned int rcr2, 
-			   unsigned int clkdiv, unsigned int fsdiv );
+		unsigned int rcr1, unsigned int rcr2, 
+		unsigned int clkdiv, unsigned int fsdiv );
 
 int bf53x_sport_config_tx( struct bf53x_sport* sport, 
-			   unsigned int tcr1, unsigned int tcr2, 
-			   unsigned int clkdiv, unsigned int fsdiv );
+		unsigned int tcr1, unsigned int tcr2, 
+		unsigned int clkdiv, unsigned int fsdiv );
 
 /* ... then these: */
 
@@ -140,11 +138,11 @@ int bf53x_sport_config_tx( struct bf53x_sport* sport,
 /* this is not a very general api, it sets the dma to 2d autobuffer mode */
 
 int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf, 
-			   int fragcount, size_t fragsize_bytes, size_t size);
+		int fragcount, size_t fragsize_bytes, size_t size);
 
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
-			   int fragcount, size_t fragsize_bytes, size_t size);
-			      
+		int fragcount, size_t fragsize_bytes, size_t size);
+
 int sport_config_rx_dummy(struct bf53x_sport* sport, size_t size);
 int sport_config_tx_dummy(struct bf53x_sport* sport, size_t size);
 
@@ -173,9 +171,9 @@ int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport );
 
 /* check and clear sport and dma irq status, call from irq handler */
 /* when [TR][OU]VF are set, they will be cleared, and [TR]SPEN will be zeroed */
-int bf53x_sport_check_status(struct bf53x_sport* sport, unsigned int* sport_stat, 
-			     unsigned int* rx_stat, unsigned int* tx_stat);
-
+int bf53x_sport_check_status(struct bf53x_sport* sport, 
+		unsigned int* sport_stat, unsigned int* rx_stat,
+		unsigned int* tx_stat);
 
 /* for use in diagnostics */
 int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len);
