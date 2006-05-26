@@ -372,15 +372,15 @@ static void __init generate_cpl_tables(void)
 			    SIZE_4M, SDRAM_EBIU);
 #endif
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_1M, RAM_END,
+	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_1M, _ramend,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, RAM_END - SIZE_4M,
-			    RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
+			    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
 			    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-				RAM_END - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
+				_ramend - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
 	while (pos < 32)
 		dcplb_table[pos++] = 0;
 
@@ -392,14 +392,14 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dpdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, SIZE_4M, RAM_END - SIZE_4M,
+	    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - SIZE_4M,
 			    SIZE_4M, SDRAM_DGENERIC);
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_4M,
-			    RAM_END - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+	    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_4M,
+			    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 /*TODO: Make mtd none cachable in L1 */
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, RAM_END - SIZE_1M, RAM_END,
+	    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_1M, _ramend,
 			    SIZE_1M, SDRAM_DNON_CHBL);
 #if defined (CONFIG_BF561)
 # if defined (CONFIG_BFIN561_EZKIT)
@@ -450,7 +450,7 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, RAM_END),
+			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, _ramend),
 			    SIZE_4M, SDRAM_IGENERIC);
 	while (pos < 32)
 		icplb_table[pos++] = 0;
@@ -464,7 +464,7 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(ipdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_IKERNEL);
 	pos =
-	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, RAM_END,
+	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, _ramend,
 			    SIZE_4M, SDRAM_IGENERIC);
 #if defined (CONFIG_BF561)
 # if defined (CONFIG_BFIN561_EZKIT)
