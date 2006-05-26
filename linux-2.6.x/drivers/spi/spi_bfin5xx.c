@@ -89,6 +89,9 @@ DEFINE_SPI_REG(SHAW, 0x18)
 #define QUEUE_RUNNING 0
 #define QUEUE_STOPPED 1
 
+int dma_requested;
+char chip_select_flag;
+
 struct driver_data {
 	/* Driver model hookup */
 	struct platform_device *pdev;
@@ -666,6 +669,12 @@ static int setup(struct spi_device *spi)
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
 	u8 spi_flg;
 
+	if (chip_select_flag & (1 << (spi->chip_select))) {
+		printk(KERN_ERR "SPI error: %s is using the same chip selection as another device.\n\n", spi->modalias);
+	    return -ENODEV;
+	}
+	chip_select_flag |= (1 << (spi->chip_select));
+
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 16;
 
@@ -693,7 +702,7 @@ static int setup(struct spi_device *spi)
 
 	/* if any one SPI chip is registered and wants DMA, request the 
 	   DMA channel for it */
-	if (chip->enable_dma) {
+	if (chip->enable_dma && !dma_requested) {
 		/* register dma irq handler */
 		if(request_dma(CH_SPI, "BF53x_SPI_DMA") < 0)
 		{
@@ -702,6 +711,7 @@ static int setup(struct spi_device *spi)
 		}
 		set_dma_callback(CH_SPI, (void*)dma_irq_handler, drv_data);
 		dma_disable_irq(CH_SPI);
+		dma_requested = 1;
 	}
 
 	/* Notice: for blackfin, the speed_hz is the value of register
