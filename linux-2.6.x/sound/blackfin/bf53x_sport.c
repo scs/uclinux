@@ -278,9 +278,11 @@ static inline int sport_rx_dma_start(struct bf53x_sport *sport, int dummy)
 {
 	dma_register_t* dma = sport->dma_rx;
 
-	if(dummy)
+	if(dummy) {
+		sport->dummy_rx_desc->next_desc_addr = \
+				(unsigned long) sport->dummy_rx_desc;
 		sport->curr_rx_desc = sport->dummy_rx_desc;
-	else
+	} else
 		sport->curr_rx_desc = sport->dma_rx_desc;
 
 	dma->next_desc_ptr = (unsigned int)(sport->curr_rx_desc);
@@ -299,9 +301,11 @@ static inline int sport_tx_dma_start(struct bf53x_sport *sport, int dummy)
 {
 	dma_register_t* dma = sport->dma_tx;
 
-	if(dummy)
+	if(dummy) {
+		sport->dummy_tx_desc->next_desc_addr = \
+				(unsigned long) sport->dummy_tx_desc;
 		sport->curr_tx_desc = sport->dummy_tx_desc;
-	else
+	} else
 		sport->curr_tx_desc = sport->dma_tx_desc;
 
 	dma->next_desc_ptr = (unsigned int)(sport->curr_tx_desc);
