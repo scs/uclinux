@@ -1341,7 +1341,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		printk(KERN_DEBUG "TIOCSER?WILD ioctl obsolete, ignored.\n");
 		return 0;
 	default:
-		printk(KERN_DEBUG "bfin_serial_5xx.c: unimplemented ioctl command %i.\n", cmd);
+		printk(KERN_DEBUG "bfin_serial_5xx.c: unimplemented ioctl command %X.\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 	return 0;
