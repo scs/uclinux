@@ -181,7 +181,7 @@ _cache_lock:
 	CLI R3;
 
 	R7 = [P1];
-	R2 = 0xFF87 (X);
+	R2 = 0xFFFFFF87 (X);
 	R7 = R7 & R2;
 	R0 = R0 << 3;
 	R7 = R0 | R7;
