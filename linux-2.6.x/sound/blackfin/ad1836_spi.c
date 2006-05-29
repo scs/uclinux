@@ -16,8 +16,6 @@
 
 #include "ad1836_spi.h"
 
-static struct ad1836_spi *ad1836_spi = NULL;
-
 int ad1836_spi_read(struct ad1836_spi *spi, unsigned short data, 
 					unsigned short *buf)
 {
@@ -50,6 +48,8 @@ int ad1836_spi_write(struct ad1836_spi *spi, unsigned short data)
 	return spi_sync(spi->spi, &m);
 }
 
+void snd_ad1836_spi_probed(struct ad1836_spi *spi);
+
 static int __devinit ad1836_spi_probe(struct spi_device *spi)
 {
 	struct ad1836_spi	*chip;
@@ -62,7 +62,8 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 	spi->dev.power.power_state = PMSG_ON;
 
 	chip->spi = spi;
-	ad1836_spi = chip;	
+
+	snd_ad1836_spi_probed(chip);
 
 	return 0;
 }
@@ -72,7 +73,6 @@ static int __devexit ad1836_spi_remove(struct spi_device *spi)
 	struct ad1836_spi *chip = dev_get_drvdata(&spi->dev);
 
 	kfree(chip);
-	ad1836_spi = NULL;
 
 	return 0;
 }
@@ -87,13 +87,9 @@ static struct spi_driver ad1836_spi_driver = {
 	.remove		= __devexit_p(ad1836_spi_remove),
 };
 
-struct ad1836_spi *ad1836_spi_init(void)
+int ad1836_spi_init(void)
 {
-	spi_register_driver(&ad1836_spi_driver);
-	if (ad1836_spi == NULL)
-		printk(KERN_ERR"%s: ad1836 spi driver malfunction\n",__FUNCTION__);
-
-	return ad1836_spi;
+	return spi_register_driver(&ad1836_spi_driver);
 }
 
 void ad1836_spi_done(struct ad1836_spi* spi)

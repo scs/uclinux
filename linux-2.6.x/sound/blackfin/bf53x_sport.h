@@ -7,7 +7,7 @@
  * Author:       Luuk van Dijk
  * mail:         blackfin@mdnmttr.nl
  * 
- * Copyright (C) 2004 Luuk van Dijk, Mind over Matter B.V.
+ * Copyright (C) 2006 Analog Device Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,9 +31,6 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <asm/dma.h>
-
-/* don't use the DMA_RUN bit, keep track of running status ourselves */
-#define BF53X_ANOMALY_29
 
 /*
  * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
@@ -70,32 +67,35 @@ struct sport_register {
 #define DESC_ELEMENT_COUNT 9
 
 struct bf53x_sport {
-	int sport_chan;
+	int sport_num;
 	int dma_rx_chan;
 	int dma_tx_chan;
+	int err_irq;
 	struct sport_register* regs;
 
-	/* a struct gratefully borrowed from asm/simple_bf533_dma.h */
-	dma_register_t* dma_rx;
-	dma_register_t* dma_tx;
+	dma_register_t *dma_rx;
+	dma_register_t *dma_tx;
+	unsigned char *rx_buf;
+	unsigned char *tx_buf;
 
 #define DUMMY_BUF_LEN 8
 	/* for dummy dma transfer */
 	unsigned long dummy_buf;
 
 	/* DMA descriptor ring head of current audio stream*/
-	dmasg_t* dma_rx_desc;
-	dmasg_t* dma_tx_desc;
+	dmasg_t *dma_rx_desc;
+	dmasg_t *dma_tx_desc;
 	unsigned int rx_desc_bytes;
 	unsigned int tx_desc_bytes;
 
-	dmasg_t* dummy_rx_desc;
-	dmasg_t* dummy_tx_desc;
-	dmasg_t* dummy_rx_desc2; /* Backup of dummy_rx_desc */
-	dmasg_t* dummy_tx_desc2; /* Backup of dummy_tx_desc */
+	unsigned int rx_run:1; /* rx is running */
+	unsigned int tx_run:1; /* tx is running */
 
-	dmasg_t* curr_rx_desc;
-	dmasg_t* curr_tx_desc;
+	dmasg_t *dummy_rx_desc;
+	dmasg_t *dummy_tx_desc;
+
+	dmasg_t *curr_rx_desc;
+	dmasg_t *curr_tx_desc;
 
 	unsigned int rcr1;
 	unsigned int rcr2;
@@ -105,16 +105,18 @@ struct bf53x_sport {
 	unsigned int tcr2;
 	int tx_tdm_count;
 
-#ifdef BF53X_ANOMALY_29
-	/* little kludge to work around anomaly 29: DMA_RUN bit unreliable */
-   	int is_running;
-#endif
-
+	void (*rx_callback)(void *data);
+	void (*tx_callback)(void *data);
+	void (*err_callback)(void *data);
+	void *data;
 };
 
-struct bf53x_sport* bf53x_sport_init(int sport_chan,  
-		int dma_rx, dma_interrupt_t rx_handler,
-		int dma_tx, dma_interrupt_t tx_handler);
+struct bf53x_sport* bf53x_sport_init(int sport_num,  
+		int dma_rx, void (*rx_callback)(void *),
+		int dma_tx, void (*tx_callback)(void *),
+		int err_irq, void (*err_callback)(void *),
+		void *data);
+
 void bf53x_sport_done(struct bf53x_sport* sport);
 
 /* first use these ...*/
@@ -143,39 +145,13 @@ int bf53x_sport_config_rx_dma( struct bf53x_sport* sport, void* buf,
 int bf53x_sport_config_tx_dma( struct bf53x_sport* sport, void* buf, 
 		int fragcount, size_t fragsize_bytes, size_t size);
 
-int sport_config_rx_dummy(struct bf53x_sport* sport, size_t size);
-int sport_config_tx_dummy(struct bf53x_sport* sport, size_t size);
-
-void bf53x_sport_hook_tx_desc( struct bf53x_sport* sport, int dummy);
-void bf53x_sport_hook_rx_desc( struct bf53x_sport* sport, int dummy);
-
-/* rx and tx can only run simultanously, use a dummy buffer to have one
-   of them disabled, and disable their irq's with the following */
-
-void sport_disable_dma_rx(struct bf53x_sport* sport);
-void sport_disable_dma_tx(struct bf53x_sport* sport);
-
-int bf53x_sport_start(struct bf53x_sport* sport);
-int bf53x_sport_stop(struct bf53x_sport* sport); /* idempotent */
-
-int bf53x_sport_is_running(struct bf53x_sport* sport);
-
+int bf53x_sport_tx_start( struct bf53x_sport* sport);
+int bf53x_sport_tx_stop( struct bf53x_sport* sport);
+int bf53x_sport_rx_start( struct bf53x_sport* sport);
+int bf53x_sport_rx_stop( struct bf53x_sport* sport);
 
 /* for use in interrupt handler */
-void* bf53x_sport_curr_addr_rx( struct bf53x_sport* sport );
-void* bf53x_sport_curr_addr_tx( struct bf53x_sport* sport );
-
-int bf53x_sport_curr_frag_rx( struct bf53x_sport* sport );
-int bf53x_sport_curr_frag_tx( struct bf53x_sport* sport );
-
-
-/* check and clear sport and dma irq status, call from irq handler */
-/* when [TR][OU]VF are set, they will be cleared, and [TR]SPEN will be zeroed */
-int bf53x_sport_check_status(struct bf53x_sport* sport, 
-		unsigned int* sport_stat, unsigned int* rx_stat,
-		unsigned int* tx_stat);
-
-/* for use in diagnostics */
-int  bf53x_sport_dump_stat(struct bf53x_sport* sport, char* buf, size_t len);
+unsigned long bf53x_sport_curr_offset_rx( struct bf53x_sport* sport );
+unsigned long bf53x_sport_curr_offset_tx( struct bf53x_sport* sport );
 
 #endif /* BF53X_SPORT_H */

@@ -30,7 +30,7 @@ struct ad1836_spi {
 	struct spi_device *spi;
 };
 
-struct ad1836_spi *ad1836_spi_init(void);
+int ad1836_spi_init(void);
 
 void ad1836_spi_done(struct ad1836_spi *spi);
 

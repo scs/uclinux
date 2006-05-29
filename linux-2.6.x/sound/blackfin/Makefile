@@ -2,7 +2,7 @@
 # Makefile for the blackfin 53x sport/spi connected ad1836 and ad1981b
 #
 
-snd-adi1836-objs  := ad1836_spi.o adi1836.o  bf53x_sport.o 
+snd-adi1836-objs  := ad1836_spi.o bf53x_sport.o adi1836.o
 snd-ad73311-objs := ad73311.o bf53x_sport.o
 snd-adi1981b-objs := adi1981b.o bf53x_sport.o 
 

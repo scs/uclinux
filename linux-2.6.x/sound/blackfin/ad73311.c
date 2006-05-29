@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <asm/blackfin.h>
 #include <asm/cacheflush.h>
@@ -60,6 +61,16 @@
 #define snd_printk_marker() 
 #endif
 
+#if CONFIG_SND_BFIN_SPORT == 0
+#define SPORT_DMA_RX CH_SPORT0_RX
+#define SPORT_DMA_TX CH_SPORT0_TX
+#define SPORT_IRQ_ERR IRQ_SPORT0_ERROR
+#else
+#define SPORT_DMA_RX CH_SPORT1_RX
+#define SPORT_DMA_TX CH_SPORT1_TX
+#define SPORT_IRQ_ERR IRQ_SPORT1_ERROR
+#endif
+
 #define GPIO_SE CONFIG_SND_BFIN_AD73311_SE
 
 #undef CONFIG_SND_DEBUG_CURRPTR  /* causes output every frame! */
@@ -71,14 +82,11 @@
 #define FRAGMENTS_MAX	16
 #define WORD_LENGTH	2
 
+#define DRIVER_NAME "snd-ad73311"
 #define CHIP_NAME "Analog Devices AD73311L"
+#define PCM_NAME "AD73311 PCM"
 
-/* ALSA boilerplate */
-static int   index[SNDRV_CARDS]  = SNDRV_DEFAULT_IDX;
-static char* id[SNDRV_CARDS]     = SNDRV_DEFAULT_STR;
-static int   enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
-
-#define ad73311_t_magic  0xa5a73311
+static struct platform_device *device = NULL;
 
 typedef struct snd_ad73311 {
 	snd_card_t*         card;
@@ -95,17 +103,8 @@ typedef struct snd_ad73311 {
 #define RUN_TX 0x2
 } ad73311_t;
 
-#if L1_DATA_A_LENGTH != 0
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern int l1_data_A_sram_free(unsigned long addr);
-#else
-#error "This driver need L1 data cache"
-#endif
-
-static int snd_ad73311_configure(void);
 static int snd_ad73311_startup(void);
 static void snd_ad73311_stop(void);
-
 
 /*************************************************************
  *                pcm methods 
@@ -187,8 +186,8 @@ static int snd_ad73311_cap_close(snd_pcm_substream_t* substream)
 	return 0;
 }
 
-
-static int snd_ad73311_hw_params( snd_pcm_substream_t* substream, snd_pcm_hw_params_t* hwparams)
+static int snd_ad73311_hw_params( snd_pcm_substream_t* substream,
+		snd_pcm_hw_params_t* hwparams)
 {
 	snd_printk_marker();
 	if( snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hwparams)) < 0 )
@@ -248,23 +247,18 @@ static int snd_ad73311_play_trigger( snd_pcm_substream_t* substream,
 	spin_lock(&chip->ad73311_lock);
 	switch(cmd){
 		case SNDRV_PCM_TRIGGER_START: 
-			bf53x_sport_hook_tx_desc(chip->sport, 0);
+			bf53x_sport_tx_start(chip->sport);
 			if(!( chip->runmode & RUN_RX )) {
 				snd_ad73311_startup();
-				bf53x_sport_hook_rx_desc(chip->sport, 1);
-				bf53x_sport_start(chip->sport);
 			}
 			chip->runmode |= RUN_TX;
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 			chip->runmode &= ~RUN_TX;
-			if (chip->runmode & RUN_RX ) {
-				bf53x_sport_hook_tx_desc(chip->sport, 1);
-			} else {
-				bf53x_sport_stop(chip->sport);
+			bf53x_sport_tx_stop(chip->sport);
+			if (!chip->runmode & RUN_RX ) {
 				snd_ad73311_stop();
 			}
-			/*      printk("stop tx\n");*/
 			break;
 		default:
 			spin_unlock(&chip->ad73311_lock);
@@ -286,24 +280,18 @@ static int snd_ad73311_cap_trigger( snd_pcm_substream_t* substream, int cmd)
 	snd_assert(substream == chip->rx_substream, return -EINVAL);
 	switch(cmd){
 		case SNDRV_PCM_TRIGGER_START: 
-			bf53x_sport_hook_rx_desc(chip->sport, 0);
-			if (!(chip->runmode & RUN_TX)) { /* Sport isn't running  */
+			bf53x_sport_rx_start(chip->sport);
+			if (!(chip->runmode & RUN_TX)) {
 				snd_ad73311_startup();
-				bf53x_sport_hook_tx_desc(chip->sport, 1);
-				bf53x_sport_start(chip->sport);
 			}
 			chip->runmode |= RUN_RX;
-//			printk("start rx\n");
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 			chip->runmode &= ~RUN_RX;
-			if (chip->runmode & RUN_TX) {
-				bf53x_sport_hook_rx_desc(chip->sport, 1);
-			} else {
-				bf53x_sport_stop(chip->sport);
+			bf53x_sport_rx_stop(chip->sport);
+			if (!(chip->runmode & RUN_TX)) {
 				snd_ad73311_stop();
 			}
-//			printk("stop rx\n");
 			break;
 		default:
 			spin_unlock(&chip->ad73311_lock);
@@ -318,15 +306,11 @@ static int snd_ad73311_cap_trigger( snd_pcm_substream_t* substream, int cmd)
 static snd_pcm_uframes_t snd_ad73311_play_ptr( snd_pcm_substream_t* substream )
 {
 	ad73311_t* chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t* runtime = substream->runtime;
 
-	char* buf  = (char*) runtime->dma_area;
-	char* curr = (char*) bf53x_sport_curr_addr_tx(chip->sport);
-	unsigned long diff = curr - buf;
-	unsigned long bytes_per_frame = runtime->frame_bits/8;
-	size_t frames = diff / bytes_per_frame;
+	unsigned long diff = bf53x_sport_curr_offset_tx(chip->sport);
+	size_t frames = bytes_to_frames(substream->runtime, diff);
 
-	if( frames >= runtime->buffer_size ) 
+	if( frames >= substream->runtime->buffer_size ) 
 		frames = 0;
 
 	return frames;
@@ -335,13 +319,9 @@ static snd_pcm_uframes_t snd_ad73311_play_ptr( snd_pcm_substream_t* substream )
 static snd_pcm_uframes_t snd_ad73311_cap_ptr( snd_pcm_substream_t* substream )
 {
 	ad73311_t* chip = snd_pcm_substream_chip(substream);
-	snd_pcm_runtime_t* runtime = substream->runtime;
 
-	char* buf  = (char*) runtime->dma_area;
-	char* curr = (char*) bf53x_sport_curr_addr_rx(chip->sport);
-	unsigned long diff = curr - buf;
-	unsigned long bytes_per_frame = runtime->frame_bits/8;
-	size_t frames = diff / bytes_per_frame;
+	unsigned long diff = bf53x_sport_curr_offset_rx(chip->sport);
+	size_t frames = bytes_to_frames(substream->runtime, diff);
 
 #ifdef CONFIG_SND_DEBUG_CURRPTR
 	snd_printk( KERN_INFO " cap pos: 0x%04lx / %lx\n", frames, runtime->buffer_size);
@@ -350,7 +330,7 @@ static snd_pcm_uframes_t snd_ad73311_cap_ptr( snd_pcm_substream_t* substream )
 	/* the loose syncing used here is accurate enough for alsa, but 
 	   due to latency in the dma, the following may happen occasionally, 
 	   and pcm_lib shouldn't complain */
-	if( frames >= runtime->buffer_size ) 
+	if( frames >= substream->runtime->buffer_size ) 
 		frames = 0;
 
 	return frames;
@@ -380,10 +360,8 @@ static int snd_ad73311_play_copy(snd_pcm_substream_t *substream, int channel,
 {
 	unsigned char *dst = substream->runtime->dma_area;
 
-//	printk(KERN_INFO "p: src %p, pos %x, count %x\n", src, (uint)pos, (uint)count);
 	memcpy(dst + frames_to_bytes(substream->runtime, pos), src, 
 				frames_to_bytes(substream->runtime, count));
-//	print_32x4(src);
 
 	return 0;
 }
@@ -393,10 +371,8 @@ static int snd_ad73311_cap_copy(snd_pcm_substream_t *substream, int channel,
 {
 	unsigned char *src = substream->runtime->dma_area;
 
-//	printk(KERN_INFO "c: dst %p, pos %x, count %x\n", dst, (uint)pos, (uint)count);
 	memcpy(dst, src + frames_to_bytes(substream->runtime, pos), 
 				frames_to_bytes(substream->runtime, count));
-//	print_32x4(dst);
 
 	return 0;
 }
@@ -428,30 +404,31 @@ static snd_pcm_ops_t snd_ad73311_cap_ops = {
 	.copy	   = snd_ad73311_cap_copy,
 };
 
+static void snd_ad73311_dma_rx(void *data)
+{
+	struct snd_ad73311 *chip = data;
+
+	if( (chip->rx_substream) && (chip->runmode & RUN_RX ))
+		snd_pcm_period_elapsed(chip->rx_substream);
+}
+
+static void snd_ad73311_dma_tx(void *data)
+{
+	struct snd_ad73311 *chip = data;
+
+	if( (chip->tx_substream) && (chip->runmode & RUN_TX)) {
+		snd_pcm_period_elapsed(chip->tx_substream);
+	}
+}
+
+static void snd_ad73311_sport_err(void *data)
+{
+	printk(KERN_ERR "%s: error happened on sport\n", __FUNCTION__);
+}
 
 /************************************************************* 
  *      card and device 
  *************************************************************/
-static int snd_ad73311_free(ad73311_t *chip)
-{
-	/* TODO reset AD73311L by assert reset pin */
-	kfree(chip);
-	return 0;
-}
-
-/* component-destructor, wraps snd_ad73311_free for use in snd_device_ops_t
- */
-static int snd_ad73311_dev_free(snd_device_t *device)
-{
-	ad73311_t *chip = (ad73311_t *)device->device_data;
-
-	return snd_ad73311_free(chip);
-}
-
-static snd_device_ops_t snd_ad73311_ops = {
-	.dev_free = snd_ad73311_dev_free,
-};
-
 static int snd_ad73311_startup( void )
 {
 	snd_printd(KERN_INFO "%s is called\n", __FUNCTION__);
@@ -475,86 +452,6 @@ static void snd_ad73311_stop( void )
 	/* Pull down SE pin on AD73311L */
 	*(unsigned short*)FIO_FLAG_C = (1 << GPIO_SE);
 	__builtin_bfin_ssync();
-}
-
-/* create the card struct, 
- *   add - low-level device, 
- *       - sport and registers, 
- *       - and a pcm device 
- */
-
-static int __devinit snd_ad73311_create(snd_card_t *card,
-		struct bf53x_sport* sport, 
-		ad73311_t **rchip)
-{
-
-	ad73311_t *chip;
-	int err;
-
-	*rchip = NULL;
-
-	chip = (ad73311_t*)kcalloc(1, sizeof(ad73311_t), GFP_KERNEL);
-	if (chip == NULL)
-		return -ENOMEM;
-
-	chip->card  = card;
-	chip->sport = sport;
-	spin_lock_init(&chip->ad73311_lock);
-
-	if ((sport->dummy_buf=l1_data_A_sram_alloc(DUMMY_BUF_LEN)) == 0) {
-		printk(KERN_ERR "Unable to allocate dummy buffer in sram\n");
-		err = -ENODEV;
-		goto create_err1;
-	}
-	memset((void*)sport->dummy_buf, 0, DUMMY_BUF_LEN);
-
-	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &snd_ad73311_ops);
-	if(err) {
-		printk(KERN_ERR "Failed to create sound card device\n");
-		goto create_err2;
-	}
-	
-	/* 1 playback and 1 capture substream */
-	if ((err = snd_pcm_new(card, CHIP_NAME, 0, 1, 1, &chip->pcm))) {
-		printk(KERN_ERR "Failed to create PCM device \n");
-		goto create_err2;
-	}
-
-	chip->pcm->private_data = chip;
-	strcpy(chip->pcm->name, CHIP_NAME);
-	snd_pcm_set_ops(chip->pcm, SNDRV_PCM_STREAM_PLAYBACK,
-						&snd_ad73311_play_ops);
-	snd_pcm_set_ops(chip->pcm, SNDRV_PCM_STREAM_CAPTURE,
-						&snd_ad73311_cap_ops);
-
-	/* uncached DMA buffers */
-	err = snd_pcm_lib_preallocate_pages_for_all(chip->pcm, 
-				SNDRV_DMA_TYPE_DEV,NULL, PCM_BUFFER_MAX,
-				PCM_BUFFER_MAX);
-	if (err) {
-		printk(KERN_ERR "Failed to allocate memory\n");
-		goto create_err2;
-	}
-
-	err = bf53x_sport_config_rx(sport, RFSR, 0xF, 0, 0);
-	err = err || bf53x_sport_config_tx(sport, TFSR, 0xF, 0, 0);
-	err = err || sport_config_rx_dummy( sport, WORD_LENGTH );
-	err = err || sport_config_tx_dummy( sport, WORD_LENGTH );
-	if (err) {
-		printk(KERN_ERR "Failed to configure dummy buffer\n");
-		goto create_err2;
-	}
-
-	*rchip = chip;
-
-	return 0;
-	
-create_err2:
-	l1_data_A_sram_free((unsigned long)sport->dummy_buf);
-create_err1:
-	kfree(chip);
-
-	return err;
 }
 
 /************************************************************* 
@@ -633,179 +530,171 @@ static int snd_ad73311_configure(void)
 	return 0;
 }
 
-static int __devinit snd_ad73311_probe(struct bf53x_sport* sport, 
-						snd_card_t** the_card)
+static int __devinit snd_ad73311_pcm(struct snd_ad73311 *ad73311)
 {
-	static int dev=0;
-	snd_card_t *card;
-	ad73311_t *chip;    
-	int err;
-
-	if (dev >= SNDRV_CARDS)  return -ENODEV;
-
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new( index[dev], id[dev], THIS_MODULE, 0 );
-	if( card == NULL ) {
-		err = -ENOMEM;
-		goto probe_err1;
-	}
+	int err = 0;
+	struct snd_pcm *pcm;
 	
-	if( (err = snd_ad73311_create(card, sport, &chip)) < 0 ) {
-		printk(KERN_ERR "Failed to call create\n");
-		goto probe_err2;
+	/* 1 playback and 1 capture substream */
+	if ((err = snd_pcm_new(ad73311->card, PCM_NAME, 0, 1, 1, &pcm))) {
+		return err;
 	}
 
-	card->private_data = chip;
-	strcpy(card->driver, "ad73311");
-	strcpy(card->shortname, CHIP_NAME);
-	sprintf(card->longname, "%s at SPORT%d rx/tx dma %d/%d err irq /%d ", 
-			card->shortname, CONFIG_SND_BFIN_SPORT,
-			SPORT_DMA_RX, SPORT_DMA_TX, SPORT_ERR_IRQ);
+	ad73311->pcm = pcm;
+	strcpy(pcm->name, PCM_NAME);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, 
+			&snd_ad73311_play_ops);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
+			&snd_ad73311_cap_ops);
 
-	if ((err = snd_card_register(card)) < 0) {
-		printk(KERN_ERR "Failed to register card\n");
-		goto probe_err2;
+	pcm->private_data = ad73311;
+	pcm->info_flags = 0;
+	/* uncached DMA buffers */
+	err = snd_pcm_lib_preallocate_pages_for_all(pcm, 
+				SNDRV_DMA_TYPE_DEV,NULL, PCM_BUFFER_MAX,
+				PCM_BUFFER_MAX);
+	if (err) {
+		return -ENOMEM;
 	}
-
-	++dev;
-	*the_card = card;
 
 	return 0;
-probe_err2:
+}
+
+static int __devinit snd_ad73311_probe(struct platform_device *pdev)
+{
+	int err;
+	struct snd_card *card;
+	struct snd_ad73311 *ad73311;
+	struct bf53x_sport *sport;
+
+	if (device != NULL)
+		return -ENOENT;
+
+	if ((err = snd_ad73311_configure()) < 0)
+		return -EFAULT;
+
+	card = snd_card_new( -1, NULL, THIS_MODULE, sizeof(struct snd_ad73311));
+	if( card == NULL )
+		return -ENOMEM;
+	
+	ad73311 = card->private_data;
+	ad73311->card = card;
+
+	if ((sport = bf53x_sport_init(CONFIG_SND_BFIN_SPORT,
+			SPORT_DMA_TX, snd_ad73311_dma_rx,
+			SPORT_DMA_RX, snd_ad73311_dma_tx,
+			SPORT_IRQ_ERR, snd_ad73311_sport_err, ad73311))
+			== NULL) {
+		err = -ENODEV;
+		goto __nodev;
+	}
+
+	ad73311->sport = sport;
+
+	if ((err = snd_ad73311_pcm(ad73311)) < 0)
+		goto __nodev;
+
+	err = bf53x_sport_config_rx(sport, RFSR, 0xF, 0, 0);
+	err = err || bf53x_sport_config_tx(sport, TFSR, 0xF, 0, 0);
+	if (err)
+		goto __nodev;
+
+	strcpy(card->driver, "ad73311");
+	strcpy(card->shortname, CHIP_NAME);
+	sprintf(card->longname, "Blackfin Stampboard Daughter Card, "
+			"AD73311L soundcard");
+
+	snd_card_set_dev(card, (&pdev->dev));
+	if ((err = snd_card_register(card)) < 0) {
+		goto __nodev;
+	}
+
+	platform_set_drvdata(pdev, card);
+
+	return 0;
+
+__nodev:
 	snd_card_free(card);
-probe_err1:
 	return err;
 }
 
-MODULE_AUTHOR("Roy Huang <roy.huang@analog.com>");
-MODULE_DESCRIPTION("Blackfin/ADI AD73311L");
-MODULE_LICENSE("GPL");
-
-static snd_card_t*         card=NULL;
-static struct bf53x_sport* sport=NULL;
-
-static __devexit void snd_ad73311_remove(snd_card_t* card)
+static int __devexit snd_ad73311_remove(struct platform_device *pdev)
 {
-	l1_data_A_sram_free((unsigned long)sport->dummy_buf);
+	struct snd_card *card;
+	struct snd_ad73311 *ad73311;
+
+	card = platform_get_drvdata(pdev);
+	ad73311 = card->private_data;
+	
+	snd_ad73311_stop();
+	bf53x_sport_done(ad73311->sport);
 	snd_card_free(card);
 
-	return;
+	platform_set_drvdata(pdev, NULL);
+
+	return 0;
 }
 
-static irqreturn_t sport_rx_hdlr(int irq, void *dev_id, struct pt_regs *regs)
+#ifdef CONFIG_PM
+static int snd_ad73311_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	unsigned int rx_stat;
-	ad73311_t *chip = card->private_data;
+       		
+	struct snd_card *card = platform_get_drvdata(pdev);
+        struct snd_ad73311 *ad73311 = card->private_data;
 	
-	bf53x_sport_check_status( chip->sport, NULL, &rx_stat, NULL );  
-	if( !(rx_stat & DMA_DONE) ) {
-		snd_printk(KERN_ERR"Error - RX DMA is already stopped\n");
-		return IRQ_HANDLED;
-	}
-
-	if( (chip->rx_substream) && (chip->runmode & RUN_RX ))
-		snd_pcm_period_elapsed(chip->rx_substream);
-
-	return IRQ_HANDLED;
+        snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+        snd_pcm_suspend_all(ad73311->pcm);
+	
+	return 0;
 }
-
-static irqreturn_t sport_tx_hdlr(int irq, void *dev_id, struct pt_regs *regs)
+static int snd_ad73311_resume(struct platform_device *pdev)
 {
-	unsigned int tx_stat;
-	ad73311_t *chip = card->private_data;
+	struct snd_card *card = platform_get_drvdata(pdev);
 
-	bf53x_sport_check_status( chip->sport, NULL, NULL, &tx_stat );  
-	if( !(tx_stat & DMA_DONE)) {
-		snd_printk(KERN_ERR"Error - TX DMA is already stopped\n");
-		return IRQ_HANDLED;
-	}
-	if( (chip->tx_substream) && (chip->runmode & RUN_TX)) {
-		snd_pcm_period_elapsed(chip->tx_substream);
-	}
+	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
-	return IRQ_HANDLED;
+	return 0;
 }
+#endif
 
-static irqreturn_t sport_err_hdlr(int irq, void *dev_id, struct pt_regs *regs)
-{
-	unsigned int status;
-
-	if(!sport) return IRQ_NONE;
-	if( bf53x_sport_check_status(sport, &status, NULL, NULL) ){
-		snd_printk( KERN_ERR "error checking status ??" );
-		return IRQ_NONE;
-	}
-
-	if( status & (TOVF|TUVF|ROVF|RUVF) ){
-		snd_printk( KERN_WARNING  "sport status error:%s%s%s%s\n", 
-				status & TOVF ? " TOVF" : "", 
-				status & TUVF ? " TUVF" : "", 
-				status & ROVF ? " ROVF" : "", 
-				status & RUVF ? " RUVF" : "" );
-		bf53x_sport_stop(sport);
-	}
-
-	return IRQ_HANDLED;
-}
+static struct platform_driver snd_ad73311_driver = {
+	.probe		= snd_ad73311_probe,
+	.remove		= snd_ad73311_remove,
+#ifdef CONFIG_PM
+	.suspend	= snd_ad73311_suspend,
+	.resume		= snd_ad73311_resume,
+#endif
+	.driver		= {
+			.name = DRIVER_NAME,
+	},
+};
 
 static int __init snd_ad73311_init(void)
 {
 	int err;
 
-	if((err = snd_ad73311_configure()) < 0) {
-		printk(KERN_ERR "Failed to configure ad73311\n");
-		goto init_err1;
+	if ((err = platform_driver_register(&snd_ad73311_driver))<0)
+		return err;
+
+	device = platform_device_register_simple(DRIVER_NAME, 0, NULL, 0);
+	if (IS_ERR(device)) {
+		err = PTR_ERR(device);
+		platform_driver_unregister(&snd_ad73311_driver);
+		return err;
 	}
-
-	if( (sport = bf53x_sport_init(CONFIG_SND_BFIN_SPORT,  
-			SPORT_DMA_RX, sport_rx_hdlr,
-			SPORT_DMA_TX, sport_tx_hdlr) ) == NULL ){ 
-		printk(KERN_ERR"Initialize sport failed\n");
-		err = -EFAULT;
-		goto init_err1;
-	}
-
-	if( request_irq(SPORT_ERR_IRQ, sport_err_hdlr, SA_SHIRQ, 
-						"SPORT Error", sport )){
-		printk(KERN_ERR"Request sport error IRQ failed:%d\n", 
-							SPORT_ERR_IRQ);
-		err = -ENODEV;
-		goto init_err2;
-	}
-
-	if((err = snd_ad73311_probe(sport, &card)))
-		goto init_err3;
-
-	return 0;
-
-init_err3:
-	free_irq(SPORT_ERR_IRQ, sport);
-init_err2:
-	bf53x_sport_done(sport);
-init_err1:
-
+	
 	return err;
 }
 
 static void __exit snd_ad73311_exit(void)
 {
-	if( card ){
-		snd_ad73311_remove(card);
-		card = NULL;
-	}
-
-	if( sport ){
-		free_irq(SPORT_ERR_IRQ, sport);
-		bf53x_sport_done(sport);
-		sport = NULL;
-	}
-
-	return;
+	platform_device_unregister(device);
+	platform_driver_unregister(&snd_ad73311_driver);
 }
+
+MODULE_AUTHOR("Roy Huang <roy.huang@analog.com>");
+MODULE_DESCRIPTION("Blackfin/ADI AD73311L");
+MODULE_LICENSE("GPL");
 
 module_init(snd_ad73311_init);
 module_exit(snd_ad73311_exit);
