@@ -69,7 +69,7 @@
 #define AD9960_DEVNAME       "AD9960"
 #define AD9960_INTNAME       "AD9960-INT"  /* Should be less than 19 chars. */
 
-#define CMD_RX_LOOPBACK_PRBS	0x1
+#define CMD_SPI_WRITE		0x1
 
 /************************************************************/
 struct ad9960_spi{
@@ -166,7 +166,7 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
     __builtin_bfin_ssync();
     /* setup PPI */
     *pPPI_CONTROL = 0x783C;
-    *pPPI_DELAY = 0;
+    *pPPI_DELAY = 1;
     /* configure ppi port for DMA write */
     set_dma_config(CH_PPI, 0x0086);
     set_dma_start_addr(CH_PPI, (u_long)buf);
@@ -291,15 +291,16 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
 static int ad9960_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 {
+    unsigned short value = (unsigned short)arg;
     switch (cmd)
     {
-        case CMD_RX_LOOPBACK_PRBS:
-        {
-            DPRINTK("ad9960_ioctl: CMD_RX_LOOPBACK_PRBS \n");
-	    ad9960_spi_write(ad9960_info.spi_dev, 0x6003);    
-            break;
-        }
- 	default:
+	case CMD_SPI_WRITE:
+	{
+		DPRINTK("ad9960_ioctl: CMD_SPI_WRITE addr: %x, data: %x\n", (value&0xff00)>>8, (value&0x00ff));
+		ad9960_spi_write(ad9960_info.spi_dev, value);    
+		break;
+	}
+	default:
             return -EINVAL;
     }
     return 0;
