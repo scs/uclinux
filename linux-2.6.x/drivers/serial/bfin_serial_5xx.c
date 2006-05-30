@@ -54,13 +54,13 @@
 #define ACCESS_PORT_IER(regs)	{ *(regs->rpUART_LCR) &= (~DLAB); SSYNC;}
 
 #if defined (SERIAL_DEBUG_CALLTRACE)
-#define FUNC_ENTER()  printk("<0> %s: entered\n", __FUNCTION__)
+#define FUNC_ENTER()  printk(KERN_DEBUG "%s: entered\n", __FUNCTION__)
 #else
 #define FUNC_ENTER()  do {} while (0)
 #endif
 
 #if defined (SERIAL_DEBUG_TERMIOS)
-#define DUMP_TERMIOS(termios) printk("<0> %s: termios %p c_iflag %08x " \
+#define DUMP_TERMIOS(termios) printk(KERN_DEBUG "%s: termios %p c_iflag %08x " \
                       "c_oflag %08x c_cflag %08x c_lflag %08x c_line %02x " \
                       "VINTR %02x VQUIT %02x VERASE %02x VKILL %02x " \
                       "VEOF %02x VTIME %02x VMIN %02x VSWTC %02x "    \
@@ -202,7 +202,7 @@ static inline void bfin_rtsdtr(struct bfin_serial *info, int set)
 {
 	unsigned long flags = 0;
 #ifdef SERIAL_DEBUG_OPEN
-	printk("%s(%d): bfin_rtsdtr(info=%x,set=%d)\n",
+	printk(KERN_DEBUG "%s(%d): bfin_rtsdtr(info=%x,set=%d)\n",
 	       __FILE__, __LINE__, info, set);
 #endif
 #if !defined(CONFIG_BF561)
@@ -1341,7 +1341,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		printk(KERN_DEBUG "TIOCSER?WILD ioctl obsolete, ignored.\n");
 		return 0;
 	default:
-		printk(KERN_DEBUG "bfin_serial_5xx.c: unimplemented ioctl command %X.\n", cmd);
+		printk(KERN_DEBUG "%s: unimplemented ioctl command %X.\n", __FILE__, cmd);
 		return -ENOIOCTLCMD;
 	}
 	return 0;
@@ -1809,7 +1809,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;
 #ifdef SERIAL_DEBUG_OPEN
-	printk("bfin_open %s%d, count = %d\n", tty->driver.name, info->line,
+	printk(KERN_DEBUG "bfin_open %s%d, count = %d\n", tty->driver.name, info->line,
 	       info->count);
 #endif
 
@@ -1832,7 +1832,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 
 static void show_serial_version(void)
 {
-	printk("BlackFin BF533 serial driver version 2.00 With DMA Support \n");
+	printk(KERN_INFO "BlackFin BF533 serial driver version 2.00 With DMA Support\n");
 }
 
 static struct tty_operations rs_ops = {
