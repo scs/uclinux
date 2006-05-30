@@ -578,6 +578,9 @@ static unsigned long determine_vm_flags(struct file *file,
 	if ((flags & MAP_PRIVATE) && (current->ptrace & PT_PTRACED))
 		vm_flags &= ~VM_MAYSHARE;
 
+	if (flags & MAP_UNINITIALIZE)
+		vm_flags |= VM_UNINITIALIZE;
+
 	return vm_flags;
 }
 
@@ -664,7 +667,8 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 
 	} else {
 		/* if it's an anonymous mapping, then just clear it */
-		memset(base, 0, len);
+		if (!(vma->vm_flags & VM_UNINITIALIZE))
+			memset(base, 0, len);
 	}
 
 	return 0;
