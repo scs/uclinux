@@ -12,6 +12,8 @@
  * Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
  * Copyright (C) 1998, 1999 D. Jeff Dionne     <jeff@uclinux.org>
  * Copyright (C) 1999       Vladimir Gurevich  <vgurevic@cisco.com>
+ *
+ * $Id$
  */
 
 #ifndef _Bf533_SERIAL_H
