@@ -152,8 +152,7 @@ static int baud_table[] =
 };
 
 static int unix_baud_table[] =
-    { B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400,
-B4800,
+    { B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800,
 	B9600, B19200, B38400, B57600, B115200, B230400
 };
 
@@ -931,14 +930,14 @@ static void bfin_change_speed(struct bfin_serial *info)
 	SSYNC;
 
 #ifdef CONFIG_IRTTY_SIR
-	/* enable irda function*/
-        if(cflag & TIOCM_RI){
-                *(regs->rpUART_GCTL) |= IREN;
-                SSYNC;
-                *(regs->rpUART_GCTL) |= RPOLC;
-                SSYNC;
-                printk(KERN_DEBUG "KSDBG:irda enabled,rpolc changed\n");
-        }
+	/* enable irda function */
+	if(cflag & TIOCM_RI) {
+		*(regs->rpUART_GCTL) |= IREN;
+		SSYNC;
+		*(regs->rpUART_GCTL) |= RPOLC;
+		SSYNC;
+		printk(KERN_DEBUG "KSDBG:irda enabled,rpolc changed\n");
+	}
 #endif
 	/* Enable the UART */
 	*(regs->rpUART_GCTL) |= UCEN;
