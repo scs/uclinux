@@ -1340,7 +1340,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file *file,
 		printk(KERN_DEBUG "TIOCSER?WILD ioctl obsolete, ignored.\n");
 		return 0;
 	default:
-		printk(KERN_DEBUG "%s: unimplemented ioctl command %X.\n", __FILE__, cmd);
+		printk(KERN_DEBUG "bfin_serial: unimplemented ioctl command %X.\n", cmd);
 		return -ENOIOCTLCMD;
 	}
 	return 0;
@@ -1827,11 +1827,36 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	return 0;
 }
 
+
+char *rs_drivername = "BlackFin BF533 serial driver version 2.00 With DMA Support\n";
+
+
+/*
+ * Serial stats reporting...
+ */
+int rs_readproc(char *page, char **start, off_t off, int count,
+		         int *eof, void *data)
+{
+	struct bfin_serial *info;
+	int len, i;
+
+	len = sprintf(page, rs_drivername);
+	for (i = 0; (i < NR_PORTS); i++) {
+		info = &bfin_uart[i];
+		len += sprintf((page + len),
+			"%d: rx_DMA_chan: %i rx_irq: %i tx_DMA_chan: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i\n",
+			i, info->rx_DMA_channel, info->rx_irq, info->tx_DMA_channel, info->tx_irq,
+			info->count, info->blocked_open, info->baud);
+	}
+
+	return(len);
+}
+
 /* Finally, routines used to initialize the serial driver. */
 
 static void show_serial_version(void)
 {
-	printk(KERN_INFO "BlackFin BF533 serial driver version 2.00 With DMA Support\n");
+	printk(KERN_INFO "%s", rs_drivername);
 }
 
 static struct tty_operations rs_ops = {
@@ -1849,6 +1874,7 @@ static struct tty_operations rs_ops = {
 	.stop = rs_stop,
 	.start = rs_start,
 	.hangup = rs_hangup,
+	.read_proc = rs_readproc,
 	.set_ldisc = rs_set_ldisc,
 };
 
