@@ -1801,8 +1801,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	else
 		return -ENODEV;
 
-	printk(KERN_DEBUG "%s at irq = %d", tty->name, info->rx_irq);
-	printk(KERN_DEBUG " is a builtin BlackFin UART\n");
+	printk(KERN_DEBUG "%s at irq = %d is a builtin BlackFin UART\n", tty->name, info->rx_irq);
 
 	if (bfin_config_uart_IRQ(info) != 0)
 		return -ENODEV;
