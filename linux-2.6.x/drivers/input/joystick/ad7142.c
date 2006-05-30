@@ -286,15 +286,35 @@ static void ad7142_decode(void)
 
         ad7142_i2c_read(ad7142_client,INTSTAT_REG0,&irqno_low,1);
         temp = irqno_low ^ old_status_low;
-        if(temp == 0x0001){
-        	input_report_key(ad7142_dev, BTN_BASE, irqno_low&0x0001);
-                old_status_low = irqno_low;
+	switch(temp){
+	case 0x0001: 	input_report_key(ad7142_dev, BTN_BASE, irqno_low&0x0001);
+			old_status_low = irqno_low;
+			break;
+	case 0x0002:    input_report_key(ad7142_dev, BTN_BASE4, (irqno_low&0x0002)>>1);
+                        old_status_low = irqno_low;
+                        break;
+	case 0x0004:    input_report_key(ad7142_dev, KEY_UP, (irqno_low&0x0004)>>2);
+                        old_status_low = irqno_low;
+                        break;
+	case 0x0008:    input_report_key(ad7142_dev, KEY_RIGHT, (irqno_low&0x0008)>>3);
+                        old_status_low = irqno_low;
+                        break;
         }
         ad7142_i2c_read(ad7142_client,INTSTAT_REG1,&irqno_high,1);
         temp = irqno_high ^ old_status_high;
-        if(temp == 0x0001){
-	        input_report_key(ad7142_dev, BTN_BASE2, irqno_high&0x0001);
-                old_status_high = irqno_high;
+	switch(temp){
+	case 0x0001:	input_report_key(ad7142_dev, BTN_BASE2, irqno_high&0x0001);
+			old_status_high = irqno_high;
+			break;
+	case 0x0002:    input_report_key(ad7142_dev, BTN_BASE3, (irqno_high&0x0002)>>1);
+                        old_status_high = irqno_high;
+                        break;
+	case 0x0004:    input_report_key(ad7142_dev, KEY_DOWN, (irqno_high&0x0004)>>2);
+                        old_status_high = irqno_high;
+                        break;
+	case 0x0008:    input_report_key(ad7142_dev, KEY_LEFT, (irqno_high&0x0008)>>3);
+                        old_status_high = irqno_high;
+                        break;
         }
         input_sync(ad7142_dev);
 }
@@ -401,9 +421,9 @@ static int __init ad7142_init(void)
 		return -ENOMEM;
 	ad7142_dev->open = ad7142_open;
 	ad7142_dev->close = ad7142_close;
-	ad7142_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	ad7142_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_TILT_X) | BIT(ABS_TILT_Y);
+	ad7142_dev->evbit[0] = BIT(EV_KEY);
 	ad7142_dev->keybit[LONG(BTN_BASE)] = BIT(BTN_BASE) | BIT(BTN_BASE2) | BIT(BTN_BASE3) | BIT(BTN_BASE4);
+	ad7142_dev->keybit[LONG(KEY_UP)] |= BIT(KEY_UP) | BIT(KEY_DOWN) | BIT(KEY_LEFT) | BIT(KEY_RIGHT);
 
 	ad7142_dev->name = ad7142_name;
 	ad7142_dev->phys = ad7142_phys;
