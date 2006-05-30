@@ -39,7 +39,7 @@ void *malloc(size_t size)
     return(result + sizeof(size_t));
 #else
     result = mmap((void *) 0, size, PROT_READ | PROT_WRITE,
-	    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+	    MAP_SHARED | MAP_ANONYMOUS | MAP_UNINITIALIZE, -1, 0);
     if (result == MAP_FAILED)
 	return 0;
     return(result);
