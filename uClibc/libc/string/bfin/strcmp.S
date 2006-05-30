@@ -1,5 +1,5 @@
 /* strcmp.S
- * Copyright (C) 2000, 2005 Analog Devices Inc., All Rights Reserved.
+ * Copyright (C) 2003, 2005, 2006 Analog Devices Inc., All Rights Reserved.
  *
  * This file is subject to the terms and conditions of the GNU Library General
  * Public License. See the file "COPYING.LIB" in the main directory of this
@@ -9,8 +9,7 @@
  * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
  */
 
-/*
- * Fast strcmp() for Blackfin.
+/* Fast strcmp() for Blackfin.
  * When both strings are aligned, this processes four characters at
  * a time. Uses a hw loop with "very big" count to loop "forever",
  * until difference or a terminating zero is found.
@@ -18,10 +17,12 @@
  * loop to check more carefully (same as the unaligned case).
  */
 
-.text;
+.text
 
-.align 2;
+.align 2
 
+.global _strcmp
+.type _strcmp, STT_FUNC
 _strcmp:
 	[--sp] = (R7:4);
 	p1 = r0;
@@ -29,7 +30,7 @@ _strcmp:
 
 	p0 = -1;	// (need for loop counter init)
 
-	 // check if byte aligned
+	  // check if byte aligned
 	r0 = r0 | r1;	// check both pointers at same time
 	r0 <<= 30;	// dump all but last 2 bits
 	cc = az;	// are they zero?
@@ -54,7 +55,7 @@ beginloop:
 	  // starting with   44332211
 	  // see if char 3 or char 1 is 0
 	r3 = r1 & r7;		// form 00330011
-	// add to zero, and (r2 is free, reload)
+	  // add to zero, and (r2 is free, reload)
 	r6 = r3 +|+ r0 || r2 = [p2++] || nop;
 	cc = az;	// true if either is zero
 	r3 = r1 ^ r3;	        // form 44002200 (4321^0301 => 4020)
@@ -71,13 +72,13 @@ notequal4:		// compare failure on 4-char compare
 			// address pointers are one word ahead;
 			// faster to use zero4 exit code
 	p1 += 4;
-	p2 += 4;		
+	p2 += 4;
 
 zero4:			// one of the bytes in word 1 is zero
 			// but we've already fetched the next word; so
 			// backup two to look at failing word again
 	p1 += -8;
-	p2 += -8;		
+	p2 += -8;
 
 
 
@@ -110,9 +111,7 @@ exitloop1: // here means we found a zero or a difference.
 	r0 = r1 - r2;
 	(r7:4) = [sp++];
 	rts;
-	.size _strcmp, .-_strcmp
-	.type _strcmp, STT_FUNC;
-	.global _strcmp;
+.size _strcmp,.-_strcmp
 
-	.weak _strcoll;
-	.set _strcoll, _strcmp;
+.weak _strcoll
+.set _strcoll, _strcmp
