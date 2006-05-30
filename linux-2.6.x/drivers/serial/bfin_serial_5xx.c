@@ -203,7 +203,7 @@ static inline void bfin_rtsdtr(struct bfin_serial *info, int set)
 {
 	unsigned long flags = 0;
 #ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "%s(%d): bfin_rtsdtr(info=%x,set=%d)\n",
+	printk(KERN_DEBUG "%s(%d): bfin_rtsdtr(info=%p,set=%d)\n",
 	       __FILE__, __LINE__, info, set);
 #endif
 #if !defined(CONFIG_BF561)
@@ -1810,7 +1810,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;
 #ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "bfin_open %s%d, count = %d\n", tty->driver.name, info->line,
+	printk(KERN_DEBUG "bfin_open %s%d, count = %d\n", tty->name, info->line,
 	       info->count);
 #endif
 
