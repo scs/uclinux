@@ -4,7 +4,7 @@
 menu "ALSA Blackfin devices"
 	depends on SND!=n && BFIN
 
-config SND_BLACKFIN_ADI1836
+config SND_BLACKFIN_AD1836
 	tristate "1836 Audio support for BF53x"
 	depends on BFIN
 	select SND_PCM
@@ -17,23 +17,23 @@ config SND_BLACKFIN_ADI1836
 	  If unsure, say N.
 
 choice
-	prompt "Interface between Blackfin and ADI1836"
-	depends on SND_BLACKFIN_ADI1836
-	default SND_BLACKFIN_ADI1836_TDM
+	prompt "Interface between Blackfin and AD1836"
+	depends on SND_BLACKFIN_AD1836
+	default SND_BLACKFIN_AD1836_TDM
 	help
 	  There are two types of interface can be supportted on Blackfin 
 	  Stamp: TDM and I2S. TDM support 8 channels (DAC0,1,2 SPDIF)*(L+R)
 	  output and 8 channels input (ADC0,1, SPDIF, unused)*(L+R). I2S 
 	  only support stereo output on DAC0 and stereo input on ADC0.
 
-config SND_BLACKFIN_ADI1836_TDM
+config SND_BLACKFIN_AD1836_TDM
 	boolean "TDM interface"
 	help
 	  TDM support all 4 stereo outputs and 3 stereo inputs.
 	  
 	  If unsure, say Y.
 	
-config SND_BLACKFIN_ADI1836_I2S
+config SND_BLACKFIN_AD1836_I2S
 	boolean "I2S interface"
 	help
 	  I2S support 1 stereo output and 1 stereo input.
@@ -43,8 +43,8 @@ config SND_BLACKFIN_ADI1836_I2S
 endchoice
 choice
 	prompt "5.1 Channels or 3 seperate Stereos"
-	depends on SND_BLACKFIN_ADI1836_TDM
-	default SND_BLACKFIN_ADI1836_MULSUB
+	depends on SND_BLACKFIN_AD1836_TDM
+	default SND_BLACKFIN_AD1836_MULSUB
 	help
 	  There are 6 output channels (expcept S/PDIF), they can work in
 	  5.1 channels mode or 3 seperate stereos.
@@ -53,14 +53,14 @@ choice
 	  The /dev/dsp device can be opened 3 times, every susbstream used 
 	  different channels pairs.
 	  
-config SND_BLACKFIN_ADI1836_MULSUB
+config SND_BLACKFIN_AD1836_MULSUB
 	boolean "3 Stereos"
 	help
 	  Support 3 seperate stereos
 	  
 	  If unsure, say Y.
 	
-config SND_BLACKFIN_ADI1836_5P1
+config SND_BLACKFIN_AD1836_5P1
 	boolean "5.1 Channels"
 	help
 	  Support 5.1 Channels.
@@ -80,7 +80,7 @@ endchoice
 
 config SND_BLACKFIN_SPORT
 	int "Blackfin Audio SPORT port"
-	depends on SND_BLACKFIN_ADI1836
+	depends on SND_BLACKFIN_AD1836
 	default 0
 	help
 	  Enter the Blackfin SPORT port to which your sound chip is connected
@@ -88,7 +88,7 @@ config SND_BLACKFIN_SPORT
 
 config SND_BLACKFIN_SPI_PFBIT
 	int "Blackfin Audio SPI channel selection bit"
-	depends on SND_BLACKFIN_ADI1836
+	depends on SND_BLACKFIN_AD1836
 	default 4
 	help
 	  Enter the Blackfin SPI channel to which your sound chip is connected

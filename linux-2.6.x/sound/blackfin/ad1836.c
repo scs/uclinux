@@ -1,6 +1,6 @@
 /*
- * File:         adi1836.c 
- * Description:  driver for ADI 1836 sound chip connected to bf53x sport/spi
+ * File:         ad1836.c 
+ * Description:  driver for AD1836 sound chip connected to bf53x sport/spi
  * Rev:          $Id$
  * Created:      Tue Sep 21 10:52:42 CEST 2004
  * Author:       Luuk van Dijk <blackfin@mdnmttr.nl>
@@ -148,7 +148,7 @@
 #include "ad1836_spi.h"
 #include "bf53x_sport.h"
 
-#include "adi1836.h"
+#include "ad1836.h"
 
 #if 0 == CONFIG_SND_BLACKFIN_SPORT
 #define SPORT_DMA_RX CH_SPORT0_RX
@@ -177,7 +177,7 @@
  */
 #define ADC2_IS_MIC
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_I2S
+#ifdef CONFIG_SND_BLACKFIN_AD1836_I2S
 #undef ADC2_IS_MIC
 #endif
 
@@ -186,7 +186,7 @@
 
 #undef NOCONTROLS  /* define this to omit all the ALSA controls */
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_MULSUB
+#ifdef CONFIG_SND_BLACKFIN_AD1836_MULSUB
 #define MULTI_SUBSTREAM
 #endif
 
@@ -198,7 +198,7 @@
 static struct platform_device *device = NULL;
 static struct ad1836_spi *ad1836_spi = NULL;
 /* Chip level */
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 
 #define AD1836_BUF_SZ 0x40000 /* 256kb */
 /*In 2 channels mode, the buffer is quadrupled */
@@ -210,7 +210,7 @@ static struct ad1836_spi *ad1836_spi = NULL;
 #define FRAGMENTS_MIN	2	
 #define FRAGMENTS_MAX	32
 
-#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+#elif defined(CONFIG_SND_BLACKFIN_AD1836_I2S)
 
 #define AD1836_BUF_SZ 0x10000 /* 64kb */
 #define PCM_BUFFER_MAX	AD1836_BUF_SZ
@@ -236,8 +236,8 @@ static struct ad1836_spi *ad1836_spi = NULL;
 #define CHANNELS_MAX	2
 #endif
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_5P1
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_5P1
 static unsigned int out_chan_masks[] = {
 	SP_FL, /* Mono */
 	SP_STEREO, /* Stereo */
@@ -282,7 +282,7 @@ struct snd_ad1836 {
 
 	struct snd_pcm* pcm;
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	/* define correspondence of alsa channels to ad1836 channels */
 	unsigned int out_chan_mask;
 	unsigned int in_chan_mask;
@@ -663,7 +663,7 @@ static int snd_ad1836_diffip_put(snd_kcontrol_t *kcontrol,
 	return change;
 }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 
 #define CAPTURE_SOURCE_NUMBER 2
 
@@ -809,7 +809,7 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
 	KTRLRW( MIXER, "Tone Contol ADC High-pass Filter Switch", snd_ad1836_filter ),
 	/* note: off = differential, on = single ended */
 	KTRLRW( MIXER, "PCM Capture Differential Switch", snd_ad1836_diffip ),
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	KTRLRW( MIXER, "Capture Source",   snd_ad1836_mux ),
 	KTRLRW( MIXER, "PCM Playback Route",   snd_ad1836_playback_sel ),
 #endif
@@ -943,7 +943,7 @@ static int snd_ad1836_hw_params( snd_pcm_substream_t* substream,
 	 *  We're relying on the driver not supporting full duplex mode
 	 *  to allow us to grab all the memory.
 	 */
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM   
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM   
 
 #ifdef MULTI_SUBSTREAM
 	substream_info_t *sub_info = NULL;
@@ -1032,7 +1032,7 @@ static int snd_ad1836_playback_prepare( snd_pcm_substream_t* substream )
 			frames_to_bytes(runtime, runtime->period_size),
 			runtime->periods);
 #ifndef MULTI_SUBSTREAM
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	fragsize_bytes /= runtime->channels;
 	fragsize_bytes *= 8;/* inflate the fragsize to match */
 #endif
@@ -1060,7 +1060,7 @@ static int snd_ad1836_capture_prepare( snd_pcm_substream_t* substream )
 
 	snd_printd(KERN_INFO "%s channels:%d, fragsize_bytes:%d, frag_count:%d\n",
 			__FUNCTION__, runtime->channels, fragsize_bytes, fragcount);
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	fragsize_bytes /= runtime->channels;
 	fragsize_bytes *= 8; /* inflate the fragsize to match */
 #endif
@@ -1153,7 +1153,7 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer( snd_pcm_substream_t* subst
 	snd_pcm_runtime_t* runtime = substream->runtime;
 #endif
 	unsigned long diff = bf53x_sport_curr_offset_tx(chip->sport);
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	unsigned long bytes_per_frame = 8*4;	/* always 8 channels in the DMA frame */
 #else
 	unsigned long bytes_per_frame = runtime->frame_bits/8;
@@ -1192,7 +1192,7 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer(
 	snd_pcm_runtime_t* runtime = substream->runtime;
 
 	unsigned long diff = bf53x_sport_curr_offset_rx(chip->sport);
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM 
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM 
 	/* always 8 channels in the DMA frame */
 	unsigned long bytes_per_frame = 8*4;
 #else
@@ -1215,7 +1215,7 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer(
 
 }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
 		snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count)
 {
@@ -1336,7 +1336,7 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel,
 	return 0;
 }
 
-#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+#elif defined(CONFIG_SND_BLACKFIN_AD1836_I2S)
 
 static int snd_ad1836_playback_copy(snd_pcm_substream_t *substream, int channel,
 		snd_pcm_uframes_t pos, void *src, snd_pcm_uframes_t count)
@@ -1391,7 +1391,7 @@ static int snd_ad1836_capture_copy(snd_pcm_substream_t *substream, int channel,
 static int snd_ad1836_playback_silence(snd_pcm_substream_t *substream, 
 		int channel, snd_pcm_uframes_t pos, snd_pcm_uframes_t count)
 {
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 #ifndef MULTI_SUBSTREAM
 	unsigned char *buf = substream->runtime->dma_area;
 	buf += pos * 8 * 4;
@@ -1418,7 +1418,7 @@ static int snd_ad1836_capture_silence(snd_pcm_substream_t *substream,
 	snd_printk(KERN_INFO "silence: pos %x, count %x\n",
 				(uint)pos, (uint)count);
 #endif
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 	buf += pos * 8 * 4;
 	memset(buf, '\0', count * 8 * 4);
 #else
@@ -1495,7 +1495,7 @@ static int snd_bf53x_ad1836_reset(ad1836_t *chip)
 	 *  4500 cycles of MCLK @ 12.288MHz to recover, ie 367us.
 	 *  Thanks to Joep Duck, Aidan Williams.
 	 *
-	 *  ADI 1836A data sheet:
+	 *  AD1836A data sheet:
 	 * 	Reset will power down the chip and set the control registers
 	 * 	to their default settings. After reset is de-asserted, an
 	 * 	initialization routine will run inside the AD1836A to clear all
@@ -1530,7 +1530,7 @@ static int snd_bf53x_ad1836_reset(ad1836_t *chip)
 	return 0;
 }
 
-#ifdef CONFIG_SND_BLACKFIN_ADI1836_TDM
+#ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 static int snd_ad1836_configure(ad1836_t *chip)
 {
 	int err = 0;
@@ -1589,7 +1589,7 @@ static int snd_ad1836_configure(ad1836_t *chip)
 	return err;
 }
 
-#elif defined(CONFIG_SND_BLACKFIN_ADI1836_I2S)
+#elif defined(CONFIG_SND_BLACKFIN_AD1836_I2S)
 
 static int snd_ad1836_configure(ad1836_t *chip)
 {

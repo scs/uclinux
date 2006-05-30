@@ -1,5 +1,5 @@
 /*
- * File:         adi1836.h 
+ * File:         ad1836.h 
  * Description:  definitions for AD1836A registers
  * Rev:          $Id$
  * Created:      Tue Sep 21 10:52:42 CEST 2004
