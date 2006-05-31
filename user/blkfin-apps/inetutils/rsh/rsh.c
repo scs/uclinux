@@ -1,648 +1,497 @@
-/*-
- * Copyright (c) 1983, 1990, 1993, 1994, 2002
- *	The Regents of the University of California.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+/*
+    rsh.c - remote shell client
+    Copyright (C) 2003  Guus Sliepen <guus@sliepen.eu.org>
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License version 2 as published
+	by the Free Software Foundation.
 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
+
+#include <stdio.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_SYS_FILIO_H
-# include <sys/filio.h>
-#endif
-#include <sys/file.h>
-#ifdef TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#else
-# ifdef HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
-#endif
-
-#include <netinet/in.h>
+#include <sys/poll.h>
 #include <netdb.h>
-
-#include <err.h>
-#include <errno.h>
-#include <pwd.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
-# include <stdarg.h>
-#else
-# include <varargs.h>
-#endif
-#include <getopt.h>
-#ifdef HAVE_SYS_SELECT_H
-# include <sys/select.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
+
+#define BUFLEN 0x10000
+
+#ifndef BINDIR
+#define BINDIR "/usr/bin"
 #endif
 
-#ifdef KERBEROS
-# include <kerberosIV/des.h>
-# include <kerberosIV/krb.h>
+static char *argv0;
 
-CREDENTIALS cred;
-Key_schedule schedule;
-int use_kerberos = 1, doencrypt;
-char dst_realm_buf[REALM_SZ], *dest_realm;
-extern char *krb_realmofhost();
-#endif
-
-/*
- * rsh - remote shell
- */
-int	rfd2;
-
-char *copyargs __P ((char **));
-void sendsig   __P ((int));
-void talk      __P ((int, sigset_t *, pid_t, int));
-void usage     __P ((void));
-void warning   __P ((const char *, ...));
-
-/* basename (argv[0]).  NetBSD, linux, & gnu libc all define it.  */
-extern  char *__progname;
-
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-#define	OPTIONS	"8Kdek:l:nxVh"
-#else
-#define	OPTIONS	"8Kdek:l:nVh"
-#endif
-#else
-#define	OPTIONS	"8KLdel:nVh"
-#endif
-static const char *short_options = OPTIONS;
-static struct option long_options[] =
-{
-  { "debug", no_argument, 0, 'd' },
-  { "user", required_argument, 0, 'l' },
-  { "escape", required_argument, 0, 'e' },
-  { "8-bit", no_argument, 0, '8' },
-  { "kerberos", no_argument, 0, 'K' },
-  { "no-input", no_argument, 0, 'n' },
-#ifdef KERBEROS
-  { "realm", required_argument, 0, 'k' },
-  { "encrypt", no_argument, 0, 'x' },
-#endif
-  { "help", no_argument, 0, 'h' },
-  { "version", no_argument, 0, 'V' },
-  { 0, 0, 0, 0 }
-};
-
-static void
-pusage (FILE *stream)
-{
-  fprintf (stream,
-	  "Usage: %s [-nd%s]%s[-l USER] [USER@]HOST [COMMAND [ARG...]]\n",
-	   __progname,
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-	    "x", " [-k REALM] "
-#else
-	    "", " [-k REALM] "
-#endif
-#else
-	    "", " "
-#endif
-	   );
+static void usage(void) {
+	fprintf(stderr, "Usage: %s [-46vn] [-l user] [-p port] [user@]host command...\n", argv0);
 }
 
-/* Print a help message describing all options to STDOUT and exit with a
-   status of 0.  */
-static void
-help (void)
-{
-  pusage (stdout);
-  puts ("Execute COMMAND on remote system HOST");
-  puts ("When use as rlogin:");
-  puts ("\
-  -8, --8-bit       allows an eight-bit input data path at all times");
-  puts ("\
-  -E, --no-escape   stops any character from being recognized as an escape\n\
-                    character");
-  puts ("\
-  -d, --debug       turns on socket debugging (see setsockopt(2))");
-  puts ("\
-  -e, --escape=CHAR allows user specification of the escape character,\n\
-                    which is ``~'' by default");
-  puts ("\
-  -l, --user USER   run as USER on the remote system");
-#ifdef KERBEROS
-  puts ("\
-  -K, --kerberos    turns off all Kerberos authentication");
-  puts ("\
-  -k, --realm REALM Obtain tickets for the remote host in REALM\n\
-                    instead of the remote host's realm");
-# ifdef ENCRYPTION
-  puts ("\
-  -x, --encrypt     encrypt all data using DES");
-# endif
-#endif
-  puts ("\
-  -n, --no-input    use /dev/null as input");
-  puts ("\
-      --help        give this help list");
-  puts ("\
-  -V, --version     print program version");
-  fprintf (stdout, "\nSubmit bug reports to %s.\n", PACKAGE_BUGREPORT);
-  exit (0);
+/* Make sure everything gets written */
+
+static ssize_t safewrite(int fd, const void *buf, size_t count) {
+	int written = 0, result;
+	
+	while(count) {
+		result = write(fd, buf, count);
+		if(result == -1) {
+			if(errno == EINTR)
+				continue;
+			else
+				return result;
+		}
+		written += result;
+		buf += result;
+		count -= result;
+	}
+	
+	return written;
 }
 
-/* Print a message saying to use --help to STDERR, and exit with a status of
-   1.  */
-static void
-try_help (void)
-{
-  fprintf (stderr, "Try `%s --help' for more information.\n", __progname);
-  exit (1);
+/* Safe and fast string building */
+
+static void safecpy(char **dest, int *len, const char *source, bool terminate) {
+	while(*source && *len) {
+		*(*dest)++ = *source++;
+		(*len)--;
+	}
+
+	if(terminate && *len) {
+		*(*dest)++ = 0;
+		(*len)--;
+	}
 }
 
-void
-usage()
-{
-  pusage (stderr);
-  try_help ();
+static void closestdin(void) {
+	int fd;
+
+	close(0);
+
+	if((fd = open("/dev/null", O_RDONLY)) < 0) {
+		fprintf(stderr, "%s: Error opening /dev/null: %s\n", argv0, strerror(errno));
+		exit(1);
+	}
+
+	if(fd != 0) {
+		dup2(fd, 0);
+		close(fd);
+	}
 }
 
-
-int
-main (int argc, char **argv)
-{
-  struct passwd *pw;
-  struct servent *sp;
-  sigset_t sigs, osigs;
-  int asrsh, ch, dflag, nflag, rem;
-  pid_t pid = 0;
-  uid_t uid;
-  char *args, *host, *user;
+int main(int argc, char **argv) {
+	char *user = NULL;
+	char *luser = NULL;
+	char *host = NULL;
+	char *port = "shell";
+	char *p;
+	char lport[5];
+	
+	struct passwd *pw;
+	
+	int af = AF_UNSPEC;
+	struct addrinfo hint, *ai, *aip, *lai;
+	int err, sock = -1, lsock = -1, esock = -1, i;
+	
+	int opt;
 
-#ifndef HAVE___PROGNAME
-  extern char *__progname;
-  __progname = argv[0];
-#endif
+	bool verbose = false;
 
-  asrsh = dflag = nflag = 0;
-  host = user = NULL;
+	char hostaddr[NI_MAXHOST];
+	char portnr[NI_MAXSERV];
 
-  /* If called as something other than "rsh", use it as the host name */
-  {
-    char *p = strrchr(argv[0], '/');
-    if (p)
-      ++p;
-    else
-      p = argv[0];
-    if (strcmp (p, "rsh"))
-      host = p;
-    else
-      asrsh = 1;
-  }
-
-  while ((ch = getopt_long (argc, argv, short_options, long_options, 0))
-	 != EOF)
-    {
-      switch (ch)
-	{
-	case 'L':	/* -8Lew are ignored to allow rlogin aliases */
-	case 'e':
-	case 'w':
-	case '8':
-	  break;
-
-	case 'd':
-	  dflag = 1;
-	  break;
-
-	case 'l':
-	  user = optarg;
-	  break;
-
-	case 'K':
-#ifdef KERBEROS
-	  use_kerberos = 0;
-#endif
-	  break;
-
-#ifdef KERBEROS
-	case 'k':
-	  strncpy (dest_realm_buf, optarg, sizeof dest_realm_buf);
-	  dest_realm_buf [REALM_SZ - 1] = '\0';
-	  dest_realm = dst_realm_buf;
-	  break;
-
-# ifdef ENCRYPTION
-	case 'x':
-	  doencrypt = 1;
-	  des_set_key (cred.session, schedule);
-	  break;
-# endif
-#endif
-
-	case 'n':
-	  nflag = 1;
-	  break;
-
-	case 'h':
-	  help ();
-
-	case 'V':
-	  printf ("rsh (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-	  exit (0);
-
-	case '?':
-	  try_help ();
-
-	default:
-	  usage();
+	char buf[3][BUFLEN], *bufp[3];
+	int len[3], wlen;
+	
+	fd_set infd, outfd, infdset, outfdset, errfd;
+	int maxfd;
+	
+	int flags;
+	
+	argv0 = argv[0];
+	
+	/* Lookup local username */
+	
+	if (!(pw = getpwuid(getuid()))) {
+		fprintf(stderr, "%s: Could not lookup username: %s\n", argv0, strerror(errno));
+		return 1;
 	}
-    }
+	user = luser = pw->pw_name;
+	
+	/* if we were called with something else from rsh use the name as host */
+	host = basename(argv0);
 
-  if (optind < argc)
-    host = argv[optind++];
+	if(!strcmp(host, "rsh") || !strcmp(host, "rsh-redone-rsh"))
+		host = NULL;
 
-  /* To few args.  */
-  if (!host)
-    usage ();
-
-  /* If no further arguments, must have been called as rlogin. */
-  if (!argv[optind])
-    {
-      if (asrsh)
-	*argv = (char *)"rlogin";
-      seteuid (getuid ());
-      setuid (getuid ());
-      execv (PATH_RLOGIN, argv);
-      errx (1, "can't exec %s", PATH_RLOGIN);
-    }
-
-  argc -= optind;
-  argv += optind;
-
-  /* We must be setuid root.  */
-  if (geteuid ())
-    errx (1, "must be setuid root.\n");
-
-  if (!(pw = getpwuid (uid = getuid ())))
-    errx(1, "unknown user id");
-
-  /* Accept user1@host format, though "-l user2" overrides user1 */
-  {
-    char *p = strchr (host, '@');
-    if (p)
-      {
-	*p = '\0';
-	if (!user && p > host)
-	  user = host;
-	host = p + 1;
-	if (*host == '\0')
-	  usage ();
-      }
-    if (!user)
-      user = pw->pw_name;
-  }
-
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-  /* -x turns off -n */
-  if (doencrypt)
-    nflag = 0;
-#endif
-#endif
-
-  args = copyargs (argv);
-
-  sp = NULL;
-#ifdef KERBEROS
-  if (use_kerberos)
-    {
-      sp = getservbyname ((doencrypt ? "ekshell" : "kshell"), "tcp");
-      if (sp == NULL)
-	{
-	  use_kerberos = 0;
-	  warning ("can't get entry for %s/tcp service",
-		   doencrypt ? "ekshell" : "kshell");
+	/* Process options */
+			
+	while((opt = getopt(argc, argv, "-l:p:46vn")) != -1) {
+		switch(opt) {
+			case 1:
+				if(!host) {
+					host = optarg;
+					break;
+				} else {
+					optind--;
+					goto done;
+				}
+			case 'l':
+				user = optarg;
+				break;
+			case 'p':
+				port = optarg;
+				break;
+			case '4':
+				af = AF_INET;
+				break;
+			case '6':
+				af = AF_INET6;
+				break;
+			case 'v':
+				verbose = true;
+				break;
+			case 'n':
+				closestdin();
+				break;
+			default:
+				fprintf(stderr, "%s: Unknown option!\n", argv0);
+				usage();
+				return 1;
+		}
 	}
-    }
-#endif
-  if (sp == NULL)
-    sp = getservbyname("shell", "tcp");
-  if (sp == NULL)
-    errx (1, "shell/tcp: unknown service");
 
-#ifdef KERBEROS
- try_connect:
-  if (use_kerberos)
-    {
-      struct hostent *hp;
-
-      /* fully qualify hostname (needed for krb_realmofhost) */
-      hp = gethostbyname(host);
-      if (hp != NULL && !(host = strdup (hp->h_name)))
-	err (1, NULL);
-
-      rem = KSUCCESS;
-      errno = 0;
-      if (dest_realm == NULL)
-	dest_realm = krb_realmofhost (host);
-
-#ifdef ENCRYPTION
-      if (doencrypt)
-	rem = krcmd_mutual (&host, sp->s_port, user, args,
-			    &rfd2, dest_realm, &cred, schedule);
-      else
-#endif
-	rem = krcmd (&host, sp->s_port, user, args, &rfd2,
-		     dest_realm);
-      if (rem < 0)
-	{
-	  use_kerberos = 0;
-	  sp = getservbyname ("shell", "tcp");
-	  if (sp == NULL)
-	    errx (1, "shell/tcp: unknown service");
-	  if (errno == ECONNREFUSED)
-	    warning ("remote host doesn't support Kerberos");
-	  if (errno == ENOENT)
-	    warning ("can't provide Kerberos auth data");
-	  goto try_connect;
+done:
+	if(!host) {
+		fprintf(stderr, "%s: No host specified!\n", argv0);
+		usage();
+		return 1;
 	}
-    }
-  else
-    {
-      if (doencrypt)
-	errx (1, "the -x flag requires Kerberos authentication");
-      rem = rcmd (&host, sp->s_port, pw->pw_name, user, args, &rfd2);
-    }
-#else
-  rem = rcmd (&host, sp->s_port, pw->pw_name, user, args, &rfd2);
-#endif
-
-  if (rem < 0)
-    exit (1);
-
-  if (rfd2 < 0)
-    errx (1, "can't establish stderr");
-
-  if (dflag)
-    {
-      int one = 1;
-      if (setsockopt (rem, SOL_SOCKET, SO_DEBUG, (char *) &one,
-		      sizeof one) < 0)
-	warn ("setsockopt");
-      if (setsockopt (rfd2, SOL_SOCKET, SO_DEBUG, (char *) &one,
-		      sizeof one) < 0)
-	warn ("setsockopt");
-    }
-
-  seteuid (uid);
-  setuid (uid);
-#ifdef HAVE_SIGACTION
-  sigemptyset (&sigs);
-  sigaddset (&sigs, SIGINT);
-  sigaddset (&sigs, SIGQUIT);
-  sigaddset (&sigs, SIGTERM);
-  sigprocmask (SIG_BLOCK, &sigs, &osigs);
-#else
-  sigs = sigmask (SIGINT) | sigmask (SIGQUIT) | sigmask (SIGTERM);
-  osigs = sigblock (sigs);
-#endif
-  if (signal (SIGINT, SIG_IGN) != SIG_IGN)
-    signal (SIGINT, sendsig);
-  if (signal (SIGQUIT, SIG_IGN) != SIG_IGN)
-    signal (SIGQUIT, sendsig);
-  if (signal (SIGTERM, SIG_IGN) != SIG_IGN)
-    signal (SIGTERM, sendsig);
-
-  if (!nflag)
-    {
-      pid = fork ();
-      if (pid < 0)
-	err (1, "fork");
-    }
-
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-  if (!doencrypt)
-#endif
-#endif
-    {
-      int one = 1;
-      ioctl (rfd2, FIONBIO, &one);
-      ioctl (rem, FIONBIO, &one);
-    }
-
-  talk (nflag, &osigs, pid, rem);
-
-  if (!nflag)
-    kill (pid, SIGKILL);
-  return 0;
-}
-
-void
-talk (int nflag, sigset_t *osigs, pid_t pid, int rem)
-{
-  int cc, wc;
-  fd_set readfrom, ready, rembits;
-  char *bp, buf[BUFSIZ];
-
-  if (!nflag && pid == 0)
-    {
-      close (rfd2);
-
-    reread:
-      errno = 0;
-      if ((cc = read (STDIN_FILENO, buf, sizeof buf)) <= 0)
-	goto done;
-      bp = buf;
-
-    rewrite:
-      FD_ZERO (&rembits);
-      FD_SET (rem, &rembits);
-      if (select (rem + 1, 0, &rembits, 0, 0) < 0)
-	{
-	  if (errno != EINTR)
-	    err (1, "select");
-	  goto rewrite;
+	
+	if(optind == argc) {
+		execv(BINDIR "/rlogin", argv);
+		fprintf(stderr, "%s: Could not execute " BINDIR "/rlogin: %s\n", argv0, strerror(errno));
+		return 1;
 	}
-      if (!FD_ISSET (rem, &rembits))
-	goto rewrite;
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-      if (doencrypt)
-	wc = des_write (rem, bp, cc);
-      else
-#endif
-#endif
-	wc = write (rem, bp, cc);
-      if (wc < 0)
-	{
-	  if (errno == EWOULDBLOCK)
-	    goto rewrite;
-	  goto done;
+
+	if((p = strchr(host, '@'))) {
+		user = host;
+		*p = '\0';
+		host = p + 1;
 	}
-      bp += wc;
-      cc -= wc;
-      if (cc == 0)
-	goto reread;
-      goto rewrite;
-    done:
-      shutdown (rem, 1);
-      exit (0);
-    }
-
-#ifdef HAVE_SIGACTION
-  sigprocmask (SIG_SETMASK, osigs, NULL);
-#else
-  sigsetmask (*osigs);
-#endif
-  FD_ZERO (&readfrom);
-  FD_SET (rfd2, &readfrom);
-  FD_SET (rem, &readfrom);
-  do
-    {
-      int maxfd = rem;
-      if (rfd2 > maxfd)
-	maxfd = rfd2;
-      ready = readfrom;
-      if (select (maxfd + 1, &ready, 0, 0, 0) < 0)
-	{
-	  if (errno != EINTR)
-	    err (1, "select");
-	  continue;
+	
+	/* Resolve hostname and try to make a connection */
+	
+	memset(&hint, '\0', sizeof hint);
+	hint.ai_family = af;
+	hint.ai_socktype = SOCK_STREAM;
+	
+	err = getaddrinfo(host, port, &hint, &ai);
+	
+	if(err) {
+		fprintf(stderr, "%s: Error looking up host: %s\n", argv0, gai_strerror(err));
+		return 1;
 	}
-      if (FD_ISSET (rfd2, &ready))
-	{
-	  errno = 0;
-#ifdef KERBEROS
-#ifdef CRYPT
-	  if (doenencryption)
-	    cc = des_read (rfd2, buf, sizeof buf);
-	  else
-#endif
-#endif
-	    cc = read (rfd2, buf, sizeof buf);
-	  if (cc <= 0)
-	    {
-	      if (errno != EWOULDBLOCK)
-		FD_CLR (rfd2, &readfrom);
-	    }
-	  else
-	    write (2, buf, cc);
+	
+	hint.ai_flags = AI_PASSIVE;
+	
+	for(aip = ai; aip; aip = aip->ai_next) {
+		if(getnameinfo(aip->ai_addr, aip->ai_addrlen, hostaddr, sizeof hostaddr, portnr, sizeof portnr, NI_NUMERICHOST | NI_NUMERICSERV)) {
+			fprintf(stderr, "%s: Error resolving address: %s\n", argv0, strerror(errno));
+			return 1;
+		}
+		if(verbose) fprintf(stderr, "Trying %s port %s...", hostaddr, portnr);
+		
+		if((sock = socket(aip->ai_family, aip->ai_socktype, aip->ai_protocol)) == -1) {
+			if(verbose) fprintf(stderr, " Could not open socket: %s\n", strerror(errno));
+			continue;
+		}
+
+		hint.ai_family = aip->ai_family;
+
+		/* Bind to a privileged port */
+				
+		for(i = 1023; i >= 512; i--) {
+			snprintf(lport, sizeof lport, "%d", i);
+			err = getaddrinfo(NULL, lport, &hint, &lai);
+			if(err) {
+				fprintf(stderr, " Error looking up localhost: %s\n", gai_strerror(err));
+				return 1;
+			}
+			
+			err = bind(sock, lai->ai_addr, lai->ai_addrlen);
+			
+			freeaddrinfo(lai);
+			
+			if(err)
+				continue;
+			else
+				break;
+		}
+		
+		if(err) {
+			if(verbose) fprintf(stderr, " Could not bind to privileged port: %s\n", strerror(errno));
+			continue;
+		}
+		
+		if(connect(sock, aip->ai_addr, aip->ai_addrlen) == -1) {
+			if(verbose) fprintf(stderr, " Connection failed: %s\n", strerror(errno));
+			continue;
+		}
+		if(verbose) fprintf(stderr, " Connected.\n");
+		break;
 	}
-      if (FD_ISSET (rem, &ready))
-	{
-	  errno = 0;
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-	  if (doencrypt)
-	    cc = des_read (rem, buf, sizeof buf);
-	  else
-#endif
-#endif
-	    cc = read (rem, buf, sizeof buf);
-	  if (cc <= 0)
-	    {
-	      if (errno != EWOULDBLOCK)
-		FD_CLR (rem, &readfrom);
-	    }
-	  else
-	    write (1, buf, cc);
+	
+	if(!aip) {
+		fprintf(stderr, "%s: Could not make a connection.\n", argv0);
+		return 1;
 	}
-    } while (FD_ISSET (rfd2, &readfrom) || FD_ISSET (rem, &readfrom));
-}
+	
+	/* Create a socket for the incoming connection for stderr output */
+	
+	if((lsock = socket(aip->ai_family, aip->ai_socktype, aip->ai_protocol)) == -1) {
+		fprintf(stderr, "%s: Could not open socket: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	hint.ai_family = aip->ai_family;
+	
+	freeaddrinfo(ai);
+	
+	for(i--; i >= 512; i--) {
+		snprintf(lport, sizeof lport, "%d", i);
+		err = getaddrinfo(NULL, lport, &hint, &lai);
+		if(err) {
+			fprintf(stderr, "%s: Error looking up localhost: %s\n", argv0, gai_strerror(err));
+			return 1;
+		}
 
-void
-sendsig (int sig)
-{
-  char signo;
+		err = bind(lsock, lai->ai_addr, lai->ai_addrlen);
 
-  signo = sig;
-#ifdef KERBEROS
-#ifdef ENCRYPTION
-  if (doencrypt)
-    des_write (rfd2, &signo, 1);
-  else
-#endif
-#endif
-    write (rfd2, &signo, 1);
-}
+		freeaddrinfo(lai);
 
-#ifdef KERBEROS
-/* VARARGS */
-void
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
-warning (const char * fmt, ...)
-#else
-warning (va_alist)
-va_dcl
-#endif
-{
-  va_list ap;
-#if !(defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__)
-  const char *fmt;
-#endif
+		if(err)
+			continue;
+		else
+			break;
+	}
+	
+	if(err) {
+		fprintf(stderr, "%s: Could not bind to privileged port: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	if(listen(lsock, 10)) {
+		fprintf(stderr, "%s: Could not listen: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	/* Drop privileges */
+	
+	if(setuid(getuid())) {
+		fprintf(stderr, "%s: Unable to drop privileges: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	/* Send required information to the server */
+	
+	bufp[0] = buf[0];
+	len[0] = sizeof buf[0];
+	safecpy(&bufp[0], &len[0], lport, 1);
+	safecpy(&bufp[0], &len[0], luser, 1);
+	safecpy(&bufp[0], &len[0], user, 1);
 
-  fprintf (stderr, "%s: warning, using standard rsh: ", __progname);
-#if defined(HAVE_STDARG_H) && defined(__STDC__) && __STDC__
-  va_start (ap, fmt);
-#else
-  va_start (ap);
-#endif
-  fmt = va_arg (ap, char *);
-  vfprintf (stderr, fmt, ap);
-  va_end (ap);
-  fprintf (stderr, ".\n");
-}
-#endif
+	for(; optind < argc; optind++) {
+		safecpy(&bufp[0], &len[0], argv[optind], 0);
+		if(optind < argc - 1)
+			safecpy(&bufp[0], &len[0], " ", 0);
+	}
+	safecpy(&bufp[0], &len[0], "", 1);
+	
+	if(!len[0]) {
+		fprintf(stderr, "%s: Arguments too long!\n", argv0);
+		return 1;
+	}
+	
+	if(safewrite(sock, buf[0], bufp[0] - buf[0]) == -1) {
+		fprintf(stderr, "%s: Unable to send required information: %s\n", argv0, strerror(errno));
+		return 1;
+	}
 
-char *
-copyargs (char **argv)
-{
-  int cc;
-  char **ap, *args, *p;
+	/* Wait for acknowledgement from server */
+	
+	errno = 0;
+	
+	if(read(sock, buf[0], 1) != 1 || *buf[0]) {
+		fprintf(stderr, "%s: Didn't receive NULL byte from server: %s\n", argv0, strerror(errno));
+		return 1;
+	}
 
-  cc = 0;
-  for (ap = argv; *ap; ++ap)
-    cc += strlen (*ap) + 1;
-  if (!(args = malloc ((u_int)cc)))
-    err (1, NULL);
-  for (p = args, ap = argv; *ap; ++ap)
-    {
-      strcpy (p, *ap);
-      for (p = strcpy (p, *ap); *p; ++p);
-      if (ap[1])
-	*p++ = ' ';
-    }
-  return args;
+	/* Wait for incoming connection from server */
+	
+	if((esock = accept(lsock, NULL, 0)) == -1) {
+		fprintf(stderr, "%s: Could not accept stderr connection: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	close(lsock);
+	
+	/* Process input/output */
+
+	flags = fcntl(sock, F_GETFL);
+	fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(esock, F_GETFL);
+	fcntl(esock, F_SETFL, flags | O_NONBLOCK);
+	
+	bufp[0] = buf[0];
+	bufp[1] = buf[1];
+	bufp[2] = buf[2];
+	
+	FD_ZERO(&infdset);
+	FD_ZERO(&outfdset);
+	FD_SET(0, &infdset);
+	FD_SET(sock, &infdset);
+	FD_SET(esock, &infdset);
+	
+	maxfd = (sock>esock?sock:esock) + 1;
+	
+	for(;;) {
+		errno = 0;
+		infd = infdset;
+		outfd = outfdset;
+		errfd = infdset;
+	
+		if(select(maxfd, &infd, &outfd, &errfd, NULL) <= 0) {
+			if(errno == EINTR)
+				continue;
+			else
+				break;
+		}
+
+
+		if(FD_ISSET(esock, &infd)) {
+			len[2] = read(esock, buf[2], BUFLEN);
+			if(len[2] <= 0) {
+				if(errno != EINTR) {
+					if(FD_ISSET(sock, &infdset) || FD_ISSET(1, &outfdset))
+						FD_CLR(esock, &infdset);
+					else
+						break;
+				}
+			} else {
+				FD_SET(2, &outfdset);
+				FD_CLR(esock, &infdset);
+			}
+		}
+
+		if(FD_ISSET(2, &outfd)) {
+			wlen = write(2, bufp[2], len[2]);
+			if(wlen <= 0) {
+				if(errno != EINTR) {
+					if(FD_ISSET(sock, &infdset) || FD_ISSET(1, &outfdset))
+						FD_CLR(esock, &infdset);
+					else
+						break;
+				}
+			} else {
+				len[2] -= wlen;
+				bufp[2] += wlen;
+				if(!len[2]) {
+					FD_CLR(2, &outfdset);
+					FD_SET(esock, &infdset);
+					bufp[2] = buf[2];
+				}
+			}
+		}
+
+		if(FD_ISSET(sock, &infd)) {
+			len[1] = read(sock, buf[1], BUFLEN);
+			if(len[1] <= 0) {
+				if(errno != EINTR) {
+					if(FD_ISSET(esock, &infdset) || FD_ISSET(2, &outfdset))
+						FD_CLR(sock, &infdset);
+					else
+						break;
+				}
+			} else {
+				FD_SET(1, &outfdset);
+				FD_CLR(sock, &infdset);
+			}
+		}
+
+		if(FD_ISSET(1, &outfd)) {
+			wlen = write(1, bufp[1], len[1]);
+			if(wlen <= 0) {
+				if(errno != EINTR) {
+					if(FD_ISSET(esock, &infdset) || FD_ISSET(2, &outfdset))
+						FD_CLR(sock, &infdset);
+					else
+						break;
+				}
+			} else {
+				len[1] -= wlen;
+				bufp[1] += wlen;
+				if(!len[1]) {
+					FD_CLR(1, &outfdset);
+					FD_SET(sock, &infdset);
+					bufp[1] = buf[1];
+				}
+			}
+		}
+
+		if(FD_ISSET(0, &infd)) {
+			len[0] = read(0, buf[0], BUFLEN);
+			if(len[0] <= 0) {
+				if(errno != EINTR) {
+					FD_CLR(0, &infdset);
+					shutdown(sock, SHUT_WR);
+				}
+			} else {
+				FD_SET(sock, &outfdset);
+				FD_CLR(0, &infdset);
+			}
+		}
+
+		if(FD_ISSET(sock, &outfd)) {
+			wlen = write(sock, bufp[0], len[0]);
+			if(wlen <= 0) {
+				if(errno != EINTR)
+					break;
+			} else {
+				len[0] -= wlen;
+				bufp[0] += wlen;
+				if(!len[0]) {
+					FD_CLR(sock, &outfdset);
+					FD_SET(0, &infdset);
+					bufp[0] = buf[0];
+				}
+			}
+		}
+
+		
+	}
+		
+	if(errno) {
+		fprintf(stderr, "%s: %s\n", argv0, strerror(errno));
+		return 1;
+	}
+	
+	close(sock);
+	close(esock);
+	
+	return 0;
 }

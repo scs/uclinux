@@ -1,0 +1,6 @@
+2006-05-31  Jie Zhang  <jie.zhang@analog.com>
+
+This rsh client is not the original one in inetutils.
+I take it from rsh-redone-80 debian source package, which does
+not use fork () and can used on uClinux without any changes.
+
