@@ -1,12 +1,12 @@
-/* bf5xx_serial.c: Serial driver for BlackFin DSP internal UART.
- * Copyright (c) 2003	Bas Vermeulen <bas@buyways.nl>,
+/* bfin_serial_5xx.c: Serial driver for BlackFin DSP internal UART.
+ * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>,
  * 			BuyWays B.V. (www.buyways.nl)
  *
- * Copyright(c) 2005	Sonic Zhang	<sonic.zhang@analog.com>
- * Copyright(c) 2004	LG Soft India
- * Copyright(c) 2003	Metrowerks	<mwaddel@metrowerks.com>
- * Copyright(c)	2001	Tony Z. Kou	<tonyko@arcturusnetworks.com>
- * Copyright(c)	2001-2002 Arcturus Networks Inc. <www.arcturusnetworks.com>
+ * Copyright (C) 2005  Sonic Zhang	<sonic.zhang@analog.com>
+ * Copyright (C) 2004   LG Soft India
+ * Copyright (C) 2003   Metrowerks	<mwaddel@metrowerks.com>
+ * Copyright (C) 2001   Tony Z. Kou	<tonyko@arcturusnetworks.com>
+ * Copyright (C) 2001-2002 Arcturus Networks Inc. <www.arcturusnetworks.com>
  *
  * Based on code from 68328 version serial driver imlpementation which was:
  * Copyright (C) 1995       David S. Miller    <davem@caip.rutgers.edu>

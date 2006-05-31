@@ -1,10 +1,10 @@
-/* bf533_serial.h: Definitions for the BlackFin DSP serial driver.
+/* bfin_serial_5xx.h: Definitions for the BlackFin DSP serial driver.
  * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>
  * 			BuyWays B.V. (www.buyways.nl)
  *
- * Copyright(c) 2005	Sonic Zhang	<sonic.zhang@analog.com>
- * Copyright(c) 2004	LG Soft India
- * Copyright (C) 2001	Tony Z. Kou	tonyko@arcturusnetworks.com
+ * Copyright (C) 2005   Sonic Zhang	<sonic.zhang@analog.com>
+ * Copyright (C) 2004   LG Soft India
+ * Copyright (C) 2001   Tony Z. Kou	tonyko@arcturusnetworks.com
  * Copyright (C) 2001   Arcturus Networks Inc. <www.arcturusnetworks.com>
  *
  * Based on code from 68328serial.c which was:
@@ -16,8 +16,8 @@
  * $Id$
  */
 
-#ifndef _Bf533_SERIAL_H
-#define _Bf533_SERIAL_H
+#ifndef _BFIN_SERIAL_5xx_H
+#define _BFIN_SERIAL_5xx_H
 
 struct dma_descriptor_block;
 
@@ -141,4 +141,4 @@ struct bfin_serial {
 #define	RS_EVENT_WRITE		2
 
 #endif				/* __KERNEL__ */
-#endif				/* (_Bf533_SERIAL_H) */
+#endif				/* (_BFIN_SERIAL_5xx_H) */
