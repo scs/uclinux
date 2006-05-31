@@ -122,7 +122,7 @@
  */
 /*
  * There is a choice between 5.1 Channels mode or multiple substream mode. 
- * In multiple substream mode, 3 seperate stereos are supported. 
+ * In multiple substream mode, 3 separate stereos are supported. 
  * /dev/dsp can be opened 3 times. Every time a new substream is opened.
  */
 

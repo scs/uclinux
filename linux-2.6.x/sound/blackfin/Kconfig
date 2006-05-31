@@ -5,14 +5,14 @@ menu "ALSA Blackfin devices"
 	depends on SND!=n && BFIN
 
 config SND_BLACKFIN_AD1836
-	tristate "1836 Audio support for BF53x"
+	tristate "AD1836 Audio support for BF53x"
 	depends on BFIN
 	select SND_PCM
 	select SPI
 	select SPI_BFIN
-	select BFIN_SPORT
 	help
-	  Select this if you have an 1836 connected to the SPI and SPORTx ports
+	  Select this if you have an AD1836 daughter card connected to 
+	  Blackfin Stamp Board by the SPI and SPORTx ports.
 
 	  If unsure, say N.
 
@@ -42,7 +42,7 @@ config SND_BLACKFIN_AD1836_I2S
 		
 endchoice
 choice
-	prompt "5.1 Channels or 3 seperate Stereos"
+	prompt "5.1 Channels or 3 Separate Stereos"
 	depends on SND_BLACKFIN_AD1836_TDM
 	default SND_BLACKFIN_AD1836_MULSUB
 	help
@@ -56,7 +56,7 @@ choice
 config SND_BLACKFIN_AD1836_MULSUB
 	boolean "3 Stereos"
 	help
-	  Support 3 seperate stereos
+	  Support 3 separate stereos
 	  
 	  If unsure, say Y.
 	
