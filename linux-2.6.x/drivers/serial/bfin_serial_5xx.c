@@ -1081,7 +1081,7 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 
 	if (serial_paranoia_check(info, tty->name, "rs_chars_in_buffer"))
 		return 0;
-	return 0;
+	return (info->xmit_cnt>0);
 }
 
 static void rs_flush_buffer(struct tty_struct *tty)
