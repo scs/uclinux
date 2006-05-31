@@ -98,10 +98,10 @@ static int printk_address(unsigned long address)
 		if (current->mm) {
 			if ((address > current->mm->start_code) &&
 			    (address < current->mm->end_code)) {
-				return printk("<%08lx>{%s+0x%x}",
+				return printk("<%08lx>[%s+0x%lx]",
 					      address,
 					      current->comm,
-					      (int)(address -
+					      (long)(address -
 						    current->mm->start_code));
 			}
 		}
@@ -109,8 +109,8 @@ static int printk_address(unsigned long address)
 	}
 	if (!modname)
 		modname = delim = "";
-	return printk("<%08lx>{%s%s%s%s%+ld}",
-		      address, delim, modname, delim, symname, offset);
+	return printk("<%08lx>{%s%s%s%s+0x%lx}",
+		      address, delim, modname, delim, symname, (long)offset);
 }
 #else
 static int printk_address(unsigned long address)
@@ -288,11 +288,11 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		if (stack + 1 > endstack)
 			break;
 		if (i % 8 == 0)
-			printk(KERN_EMERG "\n       ");
-		printk(KERN_EMERG " %08lx", *stack++);
+			printk("\n" KERN_EMERG "       ");
+		printk(" %08lx", *stack++);
 	}
 
-	printk(KERN_EMERG "\nCall Trace:\n");
+	printk("\n" KERN_EMERG "Call Trace:\n");
 	i = 0;
 	while (stack + 1 <= endstack) {
 		addr = *stack++;
@@ -308,7 +308,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		    && addr <= (unsigned long)_etext) {
 			printk(KERN_EMERG "       ");
 			printk_address(addr);
-			printk(KERN_EMERG "\n");
+			printk("\n");
 			i++;
 		}
 	}
@@ -389,9 +389,9 @@ void dump(struct pt_regs *fp, void *retaddr)
 		for (i = 0; (*pTBUFSTAT) & 0x1f; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
 			printk_address((unsigned long)*pTBUF);
-			printk(KERN_EMERG "\n   Source : ");
+			printk("\n" KERN_EMERG "   Source : ");
 			printk_address((unsigned long)*pTBUF);
-			printk(KERN_EMERG "\n");
+			printk("\n");
 		}
 	}
 }
