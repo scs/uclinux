@@ -1,4 +1,4 @@
-/* bf533_serial.c: Serial driver for BlackFin DSP internal UART.
+/* bf5xx_serial.c: Serial driver for BlackFin DSP internal UART.
  * Copyright (c) 2003	Bas Vermeulen <bas@buyways.nl>,
  * 			BuyWays B.V. (www.buyways.nl)
  *
@@ -1828,7 +1828,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 }
 
 
-char *rs_drivername = "BlackFin BF533 serial driver version 2.00 With DMA Support\n";
+char *rs_drivername = "BlackFin BF5xx serial driver version 2.00 With DMA Support\n";
 
 
 /*
@@ -2027,7 +2027,7 @@ static struct console bfin_driver = {
 int bfin_console_init(void)
 {
 	static int initialized = 0;
-	if (initialized)	/* this allow us to call bf533_console_init() more than once */
+	if (initialized)	/* this allow us to call bfin_console_init() more than once */
 		return 0;
 	else
 		initialized = 1;
