@@ -240,7 +240,7 @@ static void rs_stop(struct tty_struct *tty)
 		return;
 
 	local_irq_save(flags);
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
+	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 	*(regs->rpUART_IER) &= ~ETBEI;
 	SSYNC;
 	local_irq_restore(flags);
@@ -260,8 +260,8 @@ static void local_put_char(struct bfin_serial *info, char ch)
 		SSYNC;
 	} while (!(status & THRE));
 
-	ACCESS_PORT_IER(regs)
-	    * (regs->rpUART_THR) = ch;
+	ACCESS_PORT_IER(regs);
+	*(regs->rpUART_THR) = ch;
 	SSYNC;
 
 	local_irq_restore(flags);
@@ -282,7 +282,7 @@ static void rs_start(struct tty_struct *tty)
 		return;
 
 	local_irq_save(flags);
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
+	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	    irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
@@ -290,7 +290,7 @@ static void rs_start(struct tty_struct *tty)
 		SSYNC;
 	}
 #else
-	    if (info->xmit_cnt && info->xmit_buf
+	if (info->xmit_cnt && info->xmit_buf
 		&& !(*(regs->rpUART_IER) & ETBEI)) {
 		*(regs->rpUART_IER) |= ETBEI;
 		SSYNC;
@@ -430,8 +430,8 @@ static void dma_transmit_chars(struct bfin_serial *info)
 				   (unsigned long)(info->xmit_buf +
 						   info->xmit_tail));
 		set_dma_x_count(info->tx_DMA_channel, info->tx_xcount);
-		ACCESS_PORT_IER(regs)
-		    SSYNC;
+		ACCESS_PORT_IER(regs);
+		SSYNC;
 		enable_dma(info->tx_DMA_channel);
 		*(regs->rpUART_IER) |= ETBEI;
 		SSYNC;
@@ -514,8 +514,8 @@ static void transmit_chars(struct bfin_serial *info)
 	}
 
 	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
-		ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-		    *(regs->rpUART_IER) &= ~ETBEI;
+		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
+		*(regs->rpUART_IER) &= ~ETBEI;
 		SSYNC;
 		goto clear_and_return;
 	}
@@ -530,8 +530,8 @@ static void transmit_chars(struct bfin_serial *info)
 		schedule_work(&info->tqueue);
 	}
 	if (info->xmit_cnt <= 0) {	/* All done for now... TX ints off */
-		ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-		    *(regs->rpUART_IER) &= ~ETBEI;
+		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
+		*(regs->rpUART_IER) &= ~ETBEI;
 		SSYNC;
 		goto clear_and_return;
 	}
@@ -576,8 +576,8 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
-				ACCESS_PORT_IER(uart_regs)
-				    CSYNC;
+				ACCESS_PORT_IER(uart_regs);
+				CSYNC;
 				if (*(uart_regs->rpUART_LSR) & DR) {
 					CSYNC;
 					rx = *(uart_regs->rpUART_RBR);
@@ -586,8 +586,8 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				break;
 			case STATUS_P1:	/*UART_IIR_THR: */
 				/* Change access to IER & data port */
-				ACCESS_PORT_IER(uart_regs)
-				    CSYNC;
+				ACCESS_PORT_IER(uart_regs);
+				CSYNC;
 				if (*(uart_regs->rpUART_LSR) & THRE) {
 					transmit_chars(info);
 				}
@@ -743,9 +743,9 @@ static int startup(struct bfin_serial *info)
 	 */
 
 	info->xmit_fifo_size = 1;
-	ACCESS_PORT_IER(regs)
-	    /* Change access to IER & data port */
-	    bfin_rtsdtr(info, 1);
+	ACCESS_PORT_IER(regs);
+	/* Change access to IER & data port */
+	bfin_rtsdtr(info, 1);
 
 	if (info->tty)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -804,7 +804,7 @@ static void shutdown(struct bfin_serial *info)
 	while(!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
 		msleep(50);
 
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
+	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 	*(regs->rpUART_IER) = 0;
 	SSYNC;
 	*(regs->rpUART_GCTL) &= ~UCEN;
@@ -909,11 +909,11 @@ static void bfin_change_speed(struct bfin_serial *info)
 
 	local_irq_save(flags);
 	/* Disable interrupts */
-	ACCESS_PORT_IER(regs)
-	* (regs->rpUART_IER) &= ~(ETBEI | ERBFI);
+	ACCESS_PORT_IER(regs);
+	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
 
-	ACCESS_LATCH(regs)	/*Set to access divisor latch */
+	ACCESS_LATCH(regs);	/* Set to access divisor latch */
 	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
 	*(regs->rpUART_DLH) = uart_dl >> 8;
@@ -923,7 +923,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	SSYNC;
 
 	/* Enable interrupts */
-	ACCESS_PORT_IER(regs)
+	ACCESS_PORT_IER(regs);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	*(regs->rpUART_IER) = ERBFI | ELSI;
 #else
@@ -988,8 +988,8 @@ static void rs_flush_chars(struct tty_struct *tty)
 #else
 	local_irq_save(flags);
 
-	ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-	    *(regs->rpUART_IER) |= ETBEI;
+	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
+	*(regs->rpUART_IER) |= ETBEI;
 	SSYNC;
 	if (*(regs->rpUART_LSR) & TEMT) {
 		/* Send char */
@@ -1042,8 +1042,8 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 #else
 		/* Enable transmitter */
 		local_irq_save(flags);
-		ACCESS_PORT_IER(regs)	/* Change access to IER & data port */
-		    *(regs->rpUART_IER) |= ETBEI;
+		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
+		*(regs->rpUART_IER) |= ETBEI;
 		SSYNC;
 		while (!(*(regs->rpUART_LSR) & TEMT))
 			SSYNC;
@@ -1100,8 +1100,8 @@ static void rs_flush_buffer(struct tty_struct *tty)
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
-		ACCESS_PORT_IER(regs)
-		    * (regs->rpUART_IER) &= ~ETBEI;
+		ACCESS_PORT_IER(regs);
+		*(regs->rpUART_IER) &= ~ETBEI;
 		SSYNC;
 		disable_dma(info->tx_DMA_channel);
 		clear_dma_irqstat(info->tx_DMA_channel);
@@ -1604,8 +1604,8 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 
 	if (irqstat & 1 && !(irqstat & 8) && info->tx_xcount > 0) {
-		ACCESS_PORT_IER(regs)
-		    * (regs->rpUART_IER) &= ~ETBEI;
+		ACCESS_PORT_IER(regs);
+		*(regs->rpUART_IER) &= ~ETBEI;
 		SSYNC;
 		clear_dma_irqstat(info->tx_DMA_channel);
 
@@ -1931,14 +1931,14 @@ static void bfin_set_baud(struct bfin_serial *info)
 	FUNC_ENTER();
 
 	/* Change access to IER & data port */
-	ACCESS_PORT_IER(regs)
+	ACCESS_PORT_IER(regs);
 	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
 
 	uart_dl = calc_divisor(bfin_console_baud);
 
-	ACCESS_LATCH(regs)	/*Set to access divisor latch */
-	    *(regs->rpUART_DLL) = uart_dl;
+	ACCESS_LATCH(regs);	/* Set to access divisor latch */
+	*(regs->rpUART_DLL) = uart_dl;
 	SSYNC;
 	*(regs->rpUART_DLH) = uart_dl >> 8;
 	SSYNC;
@@ -1949,7 +1949,7 @@ static void bfin_set_baud(struct bfin_serial *info)
 	SSYNC;
 
 	/* Change access to IER & data port */
-	ACCESS_PORT_IER(regs)
+	ACCESS_PORT_IER(regs);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	*(regs->rpUART_IER) |= ELSI;
 #else
