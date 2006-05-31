@@ -1828,7 +1828,12 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 }
 
 
-char *rs_drivername = "BlackFin BF5xx serial driver version 2.00 With DMA Support\n";
+char *rs_drivername = "BlackFin BF5xx serial driver version 2.00 "
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	"(DMA mode)\n";
+#else
+	"(PIO mode)\n";
+#endif
 
 
 /*
@@ -1844,9 +1849,15 @@ int rs_readproc(char *page, char **start, off_t off, int count,
 	for (i = 0; (i < NR_PORTS); i++) {
 		info = &bfin_uart[i];
 		len += sprintf((page + len),
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 			"%d: rx_DMA_chan: %i rx_irq: %i tx_DMA_chan: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i\n",
 			i, info->rx_DMA_channel, info->rx_irq, info->tx_DMA_channel, info->tx_irq,
 			info->count, info->blocked_open, info->baud);
+#else
+			"%d: rx_irq: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i\n",
+			i, info->rx_irq, info->tx_irq,
+			info->count, info->blocked_open, info->baud);
+#endif
 	}
 
 	return(len);
