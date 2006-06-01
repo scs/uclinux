@@ -106,6 +106,9 @@ int ad9960_spi_read(struct ad9960_spi *spi, unsigned short data,
                                         unsigned short *buf);
 int ad9960_spi_write(struct ad9960_spi *spi, unsigned short data);
 
+extern unsigned long l1_data_A_sram_alloc(unsigned long size);
+extern int l1_data_A_sram_free(unsigned long addr);
+
 static irqreturn_t ad9960_ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 
@@ -146,6 +149,9 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 {
     int ierr;
     struct ad9960_device_t *pdev = filp->private_data;
+    char *dma_buf;
+	
+    dma_buf = (char *)l1_data_A_sram_alloc((u_long)(count*2));
 
     DPRINTK("ad9960_read: count = %d\n", count);
 
@@ -153,11 +159,6 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
         return 0;
 
     pdev->done=0;
-
-    /* Invalidate allocated memory in Data Cache */
-    blackfin_dcache_invalidate_range((u_long)buf, (u_long)(buf + count));
-
-    DPRINTK("ad9960_read: blackfin_dcache_invalidate_range : DONE \n");
 
     /* Disable PPI */
     *pPPI_CONTROL &= ~ PORT_EN;
@@ -170,7 +171,7 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
     *pPPI_DELAY = 1;
     /* configure ppi port for DMA write */
     set_dma_config(CH_PPI, 0x0086);
-    set_dma_start_addr(CH_PPI, (u_long)buf);
+    set_dma_start_addr(CH_PPI, (u_long)dma_buf);
     set_dma_x_count(CH_PPI, count);
     set_dma_x_modify(CH_PPI, 2);
 
@@ -204,8 +205,10 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
         }
     }
 
+    memcpy(buf,dma_buf,count*2);
     DPRINTK("PPI wait_event_interruptible done\n");
 
+    l1_data_A_sram_free((u_long)dma_buf);
     disable_dma(CH_PPI);
     *pPORTFIO_SET |= 0x0100;
     __builtin_bfin_ssync();
@@ -219,6 +222,10 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 {
     int ierr;
     struct ad9960_device_t *pdev = filp->private_data;
+    char *dma_buf;
+
+    dma_buf = (char *)l1_data_A_sram_alloc(count*2);
+    memcpy(dma_buf,buf,count*2);
 
     DPRINTK("ad9960_write: \n");
 
@@ -226,11 +233,6 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
         return 0;
 
     pdev->done=0;
-
-    /* Invalidate allocated memory in Data Cache */
-    blackfin_dcache_invalidate_range((u_long)buf, (u_long)(buf + count));
-
-    DPRINTK("ad9960_write: blackfin_dcache_invalidate_range : DONE \n");
 
     /* Disable PPI */
     *pPPI_CONTROL &= ~PORT_EN;
@@ -245,7 +247,7 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
     *pPPI_DELAY = 0;
     /* configure ppi port for DMA read*/
     set_dma_config(CH_PPI, 0x0084);
-    set_dma_start_addr(CH_PPI, (u_long)buf);
+    set_dma_start_addr(CH_PPI, (u_long)dma_buf);
     set_dma_x_count(CH_PPI, count);
     set_dma_x_modify(CH_PPI, 2);
 
@@ -281,6 +283,7 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
     DPRINTK("PPI wait_event_interruptible done\n");
 
+    l1_data_A_sram_free((u_long)dma_buf);
     disable_dma(CH_PPI);
     *pPORTFIO_CLEAR |= 0x0100;
     __builtin_bfin_ssync();
