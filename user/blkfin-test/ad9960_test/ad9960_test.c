@@ -8,6 +8,7 @@
 
 #define CMD_READ	0
 #define CMD_WRITE	1
+#define CMD_DUMP	2
 
 #define CMD_SPI_WRITE   0x1
 #define CMD_GET_SCLK	0x2
@@ -29,7 +30,7 @@ int main(int argc,char *argv[])
 	unsigned long sclk;
 
 	if(argc < 3){
-		printf("Usage: %s [read | write] number(16~1024)\n", argv[0]);
+		printf("Usage: %s [read | write |dump] number(16~1024)\n", argv[0]);
 		return 0;
 	}
 	
@@ -60,6 +61,9 @@ int main(int argc,char *argv[])
 	if(!strcmp(argv[1], "write"))
 		command = CMD_WRITE;
 
+	if (!strcmp(argv[1], "dump"))
+		command = CMD_DUMP;
+
 	switch(command){
 		case CMD_READ:	/* read READ_NUM datas from PPI to buf */
 				{
@@ -75,6 +79,24 @@ int main(int argc,char *argv[])
 					buf_hardware[i] = i;
 				if(write(fd,buf_hardware,WRITE_NUM)<0)
 					perror("write error\n");
+				break;
+				};
+		case CMD_DUMP: /* dump captured hex values to stdio */
+				{
+				  ioctl(fd, CMD_SPI_WRITE, 0x6000); //disable loop-back mode
+				//config the AD9960 to do 4x decimate in CIC
+				//  ioctl(fd, CMD_SPI_WRITE, 0x05FF); //detailed mode
+				//  ioctl(fd, CMD_SPI_WRITE, 0x081B); //rxcic 4x
+				// ioctl(fd, CMD_SPI_WRITE, 0x098B); //rxfir bypass
+				// ioctl(fd, CMD_SPI_WRITE, 0x0AFD); //ppi clk
+
+				if(read(fd,buf_hardware,READ_NUM)<0)
+					perror("read error\n");
+				for(i=1;i<num;i+=2){
+					//dump chan1, chan2 in columns.  The current driver captures an extra
+					//sample at the start, so start i=1
+					printf("%4x\t%4x\n", buf_hardware[i], buf_hardware[i+1]);
+				}
 				break;
 				};
 		default:
@@ -116,77 +138,100 @@ unsigned short qnext(unsigned short q)
 	return qnext;
 }
 
+unsigned int lfsr_state;
+
+unsigned int lfsr_load(unsigned short value)
+{
+  // load the lfsr state with the 14 bits 15:2
+  lfsr_state = (value>>2)&0x3fff;
+}
+  
+unsigned int lfsr_train(unsigned short value){
+  //use the current state to calculate the feedback value
+  lfsr_state = (~((lfsr_state & 0x0001) ^ ((lfsr_state & 0x0008)>>3))<<20) | lfsr_state;
+  //shift and zero out the bit that we are going to get from the input
+  lfsr_state = (lfsr_state>>1) & 0xfdfff;
+  
+  //now use the input to generate the unknown bit 13
+  lfsr_state = lfsr_state | ((value>>2)&0x2000);
+
+}
+unsigned short lfsr_next() {
+  //use the current state to calculate the feedback value
+  lfsr_state = (~((lfsr_state & 0x0001) ^ ((lfsr_state & 0x0008)>>3))<<20) | lfsr_state;
+  //shift
+  lfsr_state = (lfsr_state>>1) & 0xfffff;
+  return ((lfsr_state & 0x3fff) << 2);
+}
+
+
 unsigned short validate_rx_datapath(unsigned short buf_hardware[],int num)
 {
 	unsigned short *buf_simulation;
-	int i, qstart;
+	int i, istart;
+	int step = 1;
+	int search = 0;
 	int qflag=0;
 	int iflag=0;
-	/* Find the first correct PN data: 'q' */
-	for(i=0;i<READ_NUM-2;i++){
-		if(buf_hardware[i+1] == qtoi(buf_hardware[i])){
-			qstart = i;
-			printf("qstart = %d\n", qstart);
-			break;
-		}
+	unsigned short sample;
+	unsigned short i_samp=0, q_samp=0;
+	unsigned short i_samp_prev=0, q_samp_prev=0;
+
+	for(i=3;i<READ_NUM-2;i+=step){
+	  /* construct this loop to work on a sample at a time to aid porting to
+	     a non-buffered system */
+	  
+	  //find the I/Q sample alignment
+	  if (step == 1) {
+	    q_samp_prev = i_samp_prev;
+	    i_samp_prev = q_samp;
+	    q_samp = i_samp;
+	    i_samp = buf_hardware[i];
+	  } else {
+	    q_samp_prev = q_samp;
+	    i_samp_prev = i_samp;
+	    q_samp = buf_hardware[i-1];
+	    i_samp = buf_hardware[i];
+	  }
+
+	  if (search == 0) {
+	    if ((i_samp == qtoi(q_samp)) &&
+		((q_samp&0x7ffc) == ((q_samp_prev>>1)&0x7ffc))){
+	      step = 2; //change the step size once we have found the I/Q sync
+	      printf("Found Q\n");
+	      search ++;
+	      lfsr_load(q_samp);
+	    }
+	  } else if (search < 8) { //use 8 I/Q samples to train the LFSR
+	    lfsr_train(q_samp);
+	    search ++;
+	  } else { 
+	    //now run and compare the received data with the expacted from the LFSR
+	    unsigned short tmp = lfsr_next();
+	    //printf("-- %x, %x, %x, %x\n", i_samp, q_samp, qtoi(tmp), tmp);
+	    printf("%6d: I_hw:\t%4x\tI_sw:\t%4x", i, i_samp, qtoi(tmp));
+	    if (i_samp != qtoi(tmp)) printf(" <== Error");
+	    printf("\n");
+	    printf("%6d: Q_hw:\t%4x\tQ_sw:\t%4x", i+1, q_samp, tmp);
+	    if (q_samp != tmp) printf(" <== Error");
+	    printf("\n");
+	  }
+/* 	        printf("%x, %x, %x\n", buf_hardware[i]&0x7ffc,buf_hardware[i-2], (buf_hardware[i-2]>>1)&0x7ffc);  */
+/* 		if((buf_hardware[i] == qtoi(buf_hardware[i-1])) && */
+/* 		   ((buf_hardware[i-1]&0x7ffc) == ((buf_hardware[i-3]>>1)&0x7ffc))){ */
+/* 			if (search == 0) { */
+/* 				lfsr_load(buf_hardware[i-1]); */
+/* 				istart = i; */
+/* 				printf("istart = %d\n", istart); */
+/* 				search++; */
+/* 			} else if (serach < 6) { */
+/* 				lfsr_train(buf_hardware[i-1]); */
+/* 				search++; */
+/* 			} else { */
+				
+/* 			} */
+//		}
 	}
 	
-	/* Assuming data error if no correct data match in the whole buffer */
-	if(i==READ_NUM){
-		perror("Received data error\n");
-		return 0;
-	}
-
-	buf_simulation = (unsigned short *)malloc(num*sizeof(unsigned short));
-
-	/* Take the first correct data 'q' as the input of the software simulation */
-	buf_simulation[0] = buf_hardware[qstart];
-	
-	/* reconstruct the pseudo-random number */
-	for(i=1;i<num;i++){
-		if(i%2){	/* PN 'i' data */
-			buf_simulation[i] = qtoi(buf_simulation[i-1]);
-		}else{			/* PN 'q' data */
-			buf_simulation[i] = qnext(buf_simulation[i-2]);
-			/* 
-			 * We don't know the No.5 shift register is '1' or '0',
-			 *  So we get the bit from the hardware buffer 
-			 */
-			if(buf_hardware[i+qstart]&0x8000){
-				buf_simulation[i] |= 0x8000;
-			}else
-				buf_simulation[i] &= ~0x8000;
-		}
-	}
-
-	/* Print the result list */
-	printf("===============================\n");
-	printf("Data-from-hardware	Data-by-simulation\n");
-	
-	for(i=qstart;i<qstart+num;i++) {
-			if((i-qstart)%2){	/* print 'i' data */
-				/* try to find the first unmatched data */
-				if(buf_hardware[i]!=buf_simulation[i-qstart] && iflag == 0){
-                                        printf("I[%d]:0x%x			0x%x====>Err: bit 0x%x\n",
-                                                (i-qstart)/2+1,buf_hardware[i], buf_simulation[i-qstart],
-                                                buf_hardware[i]^buf_simulation[i-qstart]);
-                                        iflag = 1;
-				}else{
-					printf("I[%d]:0x%x			0x%x\n", 
-						(i-qstart)/2+1,buf_hardware[i], buf_simulation[i-qstart]);
-				}
-			}else{			/* print 'q' data */
-				/* try to find the first unmatched data */
-				if(buf_hardware[i]!=buf_simulation[i-qstart] && qflag == 0){
-					printf("Q[%d]:0x%x			0x%x====>Err: bit 0x%x\n", 
-						(i-qstart)/2+1,buf_hardware[i], buf_simulation[i-qstart],
-						buf_hardware[i]^buf_simulation[i-qstart]);
-					qflag = 1;
-				}else
-					printf("Q[%d]:0x%x			0x%x\n",
-                                                (i-qstart)/2+1,buf_hardware[i], buf_simulation[i-qstart]);
-			}
-	}
-	free(buf_simulation);
 	return 0;
 }
