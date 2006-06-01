@@ -70,6 +70,7 @@
 #define AD9960_INTNAME       "AD9960-INT"  /* Should be less than 19 chars. */
 
 #define CMD_SPI_WRITE		0x1
+#define CMD_GET_SCLK		0x2
 
 /************************************************************/
 struct ad9960_spi{
@@ -292,12 +293,20 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 static int ad9960_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 {
     unsigned short value = (unsigned short)arg;
+    unsigned long  sclk;
     switch (cmd)
     {
 	case CMD_SPI_WRITE:
 	{
 		DPRINTK("ad9960_ioctl: CMD_SPI_WRITE addr: %x, data: %x\n", (value&0xff00)>>8, (value&0x00ff));
 		ad9960_spi_write(ad9960_info.spi_dev, value);    
+		break;
+	}
+	case CMD_GET_SCLK:
+	{
+		DPRINTK("ad9960_ioctl: CMD_GET_SCLK\n");
+		sclk = get_sclk();
+		copy_to_user((unsigned long *)arg, &sclk, sizeof(unsigned long));
 		break;
 	}
 	default:
