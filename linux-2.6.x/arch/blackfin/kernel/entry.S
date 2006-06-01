@@ -88,26 +88,6 @@ ENTRY(_sys_clone)
 	rets = [sp++];
 	rts;
 
-ENTRY(_sys_sigsuspend)
-	r0 = sp;
-	r0 += 20;
-	[--sp] = rets;
-	SP += -12;
-	call _do_sigsuspend;
-	SP += 12;
-	rets = [sp++];
-	rts;
-
-ENTRY(_sys_rt_sigsuspend)
-	r0 = sp;
-	r0 += 20;
-	[--sp] = rets;
-	SP += -12;
-	call _do_rt_sigsuspend;
-	SP += 12;
-	rets = [sp++];
-	rts;
-
 ENTRY(_sys_sigreturn)
 	r0 = sp;
 	r0 += 20;

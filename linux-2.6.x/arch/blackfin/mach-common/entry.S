@@ -450,15 +450,16 @@ syscall_resched:
 	jump resume_userspace_1;
 
 syscall_sigpending:
+	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
+	if cc jump syscall_do_signals; 
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump syscall_really_exit;
-
+syscall_do_signals:
 	/* Reenable interrupts.  */
 	[--sp] = reti;
 	r0 = [sp++];
 
-	r0 = 0;
-	r1 = sp;
+	r0 = sp;
 	SP += -12;
 	call _do_signal;
 	SP += 12;
