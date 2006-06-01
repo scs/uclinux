@@ -19,8 +19,7 @@
 #ifndef _BFIN_SERIAL_5xx_H
 #define _BFIN_SERIAL_5xx_H
 
-struct dma_descriptor_block;
-
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 struct dma_descriptor_block {
 	struct dma_descriptor_block *next;
 	void *start_addr;
@@ -30,6 +29,7 @@ struct dma_descriptor_block {
 	unsigned short y_count;
 	unsigned short y_modify;
 } __attribute__ ((packed));
+#endif
 
 /*
  * For the close wait times, 0 means wait forever for serial port to
@@ -86,11 +86,13 @@ struct bfin_serial {
 	 * loaded.
 	 */
 	int magic;
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	int rx_DMA_channel;
 	int tx_DMA_channel;
+	unsigned int tx_xcount;	/* tx_xcount>0 means TX DMA is working. */
+#endif
 	int rx_irq;
 	int tx_irq;
-	unsigned int tx_xcount;	/* tx_xcount>0 means TX DMA is working. */
 	int flags;		/* defined in tty.h */
 
 	char break_abort;	/* Is serial console in, so process brk/abrt */
