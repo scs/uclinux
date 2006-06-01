@@ -9,7 +9,8 @@
 #define CMD_READ	0
 #define CMD_WRITE	1
 
-#define CMD_RX_LOOPBACK_PRBS    0x1
+#define CMD_SPI_WRITE   0x1
+#define CMD_GET_SCLK	0x2
 
 #define READ_NUM	1024
 #define WRITE_NUM	1024
@@ -25,6 +26,7 @@ int main(int argc,char *argv[])
 	int	command;
 	unsigned short buf_hardware[READ_NUM];
 	int	i,num;
+	unsigned long sclk;
 
 	if(argc < 3){
 		printf("Usage: %s [read | write] number(16~1024)\n", argv[0]);
@@ -41,11 +43,17 @@ int main(int argc,char *argv[])
 	
 	fd = open("/dev/ad9960", O_RDWR);
 
-	if (fd < 0)
-	{
+	if (fd < 0) {
 		perror("Error opening /dev/ad9960");
 		return(-1);
 	}
+	
+	ioctl(fd, CMD_GET_SCLK, &sclk);
+	if(sclk <= 128000000){
+		printf("The system bus clock setting error, it should be larger than 128MHz\n");
+		return (-1);
+	}
+	
 	if(!strcmp(argv[1], "read"))
 		command = CMD_READ;
 
@@ -55,7 +63,7 @@ int main(int argc,char *argv[])
 	switch(command){
 		case CMD_READ:	/* read READ_NUM datas from PPI to buf */
 				{
-				ioctl(fd,CMD_RX_LOOPBACK_PRBS,0); 
+				ioctl(fd,CMD_SPI_WRITE,0x6003); 
 				if(read(fd,buf_hardware,READ_NUM)<0)
 					perror("read error\n");
 				validate_rx_datapath(buf_hardware, num);
