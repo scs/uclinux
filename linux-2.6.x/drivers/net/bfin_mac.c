@@ -271,7 +271,7 @@ static void WrPHYReg(u16 PHYAddr, u16 RegAddr, u32 Data)
 //
 //set up the phy
 //
-static int bf537mac_setphy(struct net_device *dev)
+static void bf537mac_setphy(struct net_device *dev)
 {
   u16 phydat;
   u32 sysctl;
