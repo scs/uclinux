@@ -1,11 +1,11 @@
 
 
 static const char version[] =
-"bf53mac.c: v1.0, Aug 27 2005 by Luke Yang <luke.yang@analog.com>\n";
+"bfin_mac.c: v1.0, Aug 27 2005 by Luke Yang <luke.yang@analog.com>\n";
 
 /* Debugging level */
-#ifndef BF537MAC_DEBUG
-#define BF537MAC_DEBUG               0
+#ifndef BFINMAC_DEBUG
+#define BFINMAC_DEBUG               0
 #endif
 
 #include <linux/config.h>
@@ -164,7 +164,7 @@ static int desc_list_init(void)
 
  error:
   desc_list_free();
-  printk("bf537mac: kmalloc failed. \n");
+  printk(KERN_ERR CARDNAME ": kmalloc failed\n");
   return -ENOMEM;
 }
 
@@ -277,7 +277,7 @@ static int bf537mac_setphy(struct net_device *dev)
   u32 sysctl;
   struct bf537mac_local *lp = netdev_priv(dev);
   
-  //printk("bf537_mac: start settting up phy\n");
+  //printk(KERN_DEBUG CARDNAME ": start settting up phy\n");
 
   //Program PHY registers
   phydat = 0;
@@ -368,7 +368,7 @@ void SetupSystemRegs(struct net_device *dev)
 	  msleep(100);
 	  phydat = RdPHYReg(PHYADDR,PHYREG_MODESTAT);
 	  if(count>30){
-		  printk("Link is down, please check your network connection\n");
+		  printk(KERN_NOTICE CARDNAME ": Link is down, please check your network connection\n");
 		  break;
 	  }
 	  count++;
@@ -381,7 +381,7 @@ void SetupSystemRegs(struct net_device *dev)
   }
   else {
 	  opmode = 0;
-	  printk("Network is set to half duplex.\n");
+	  printk(KERN_INFO CARDNAME ": Network is set to half duplex\n");
   }
   *pEMAC_OPMODE = opmode;
 
@@ -494,7 +494,7 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 
   skb = dev_alloc_skb(len + 2);
   if (!skb) {
-    printk(KERN_NOTICE "bf537mac rx: low on mem - packet dropped\n");
+    printk(KERN_NOTICE CARDNAME ": rx: low on mem - packet dropped\n");
     lp->stats.rx_dropped++;
     goto out;
   }
@@ -502,7 +502,7 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
   
   /*
   if (len >= 300) {
-    printk("going to copy the big packet\n");
+    printk(CARDNAME ": going to copy the big packet\n");
     for (i=0;i<len;i++){
       printk("%.2x-",((unsigned char *)pkt)[i]);
       if (((i%8)==0) && (i!=0)) printk("\n");
@@ -697,7 +697,7 @@ static int bf537mac_open(struct net_device *dev)
    * address using ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx
    */
   if (!is_valid_ether_addr(dev->dev_addr)) {
-    printk((KERN_DEBUG "bf537mac_open: no valid ethernet hw addr\n"));
+    printk(KERN_WARNING CARDNAME ": no valid ethernet hw addr\n");
     return -EINVAL;
   }
 
@@ -709,8 +709,8 @@ static int bf537mac_open(struct net_device *dev)
   SetupSystemRegs(dev); 
   bf537mac_reset(); 
   bf537mac_enable(dev); 
-  
-  printk("bf537_mac: hardware init finished\n");
+
+  //printk(KERN_DEBUG CARDNAME ": hardware init finished\n");
   netif_start_queue(dev); 
   netif_carrier_on(dev);
   
@@ -752,7 +752,7 @@ static int __init bf537mac_probe(struct net_device *dev)
    /*todo: how to proble? which is revision_register */
   *pEMAC_ADDRLO = 0x12345678;
   if (*pEMAC_ADDRLO != 0x12345678) {
-	  //printk("bf537_mac: can't detect bf537 mac!\n");
+	  //printk(CARDNAME ": can't detect bf537 mac!\n");
 	  retval = -ENODEV;
 	  goto err_out;
   }
@@ -800,14 +800,14 @@ static int __init bf537mac_probe(struct net_device *dev)
   /* now, enable interrupts */
   /* register irq handler */
   if (request_irq(IRQ_MAC_RX, bf537mac_interrupt, SA_INTERRUPT|SA_SHIRQ, "BFIN537_MAC_RX",dev)) {
-    printk("Unable to attach BlackFin MAC RX interrupt\n");
+    printk(KERN_WARNING CARDNAME ": Unable to attach BlackFin MAC RX interrupt\n");
     return -EBUSY;
   }
 
   retval = register_netdev(dev);
   if (retval == 0) {
     /* now, print out the card info, in a short format.. */
-    printk(KERN_INFO "Blackfin 537 mac net device registered.\n");
+    printk(KERN_INFO "Blackfin mac net device registered\n");
   }
   
  err_out:
@@ -822,7 +822,7 @@ static int bf537mac_drv_probe(struct device *dev)
   ndev = alloc_etherdev(sizeof(struct bf537mac_local));
 
   if (!ndev) {
-    printk("%s: could not allocate device.\n", CARDNAME);
+    printk(KERN_WARNING CARDNAME ": could not allocate device\n");
     ret = -ENOMEM;
     return ret;
   }
@@ -831,7 +831,7 @@ static int bf537mac_drv_probe(struct device *dev)
   if (ret != 0) {
     dev_set_drvdata(dev, NULL);
     free_netdev(ndev);
-    printk("%s: not found (%d).\n", CARDNAME, ret);
+    printk(KERN_WARNING CARDNAME ": not found (%d)\n", ret);
   }
   
   SET_MODULE_OWNER(ndev);
@@ -839,7 +839,7 @@ static int bf537mac_drv_probe(struct device *dev)
 
   dev_set_drvdata(dev, ndev);
 
-  //printk("bf537_mac: probe finished\n");
+  //printk(KERN_DEBUG CARDNAME ": probe finished\n");
   return ret;
 }
 
