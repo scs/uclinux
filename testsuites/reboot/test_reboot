@@ -155,7 +155,7 @@ while 1 {
 }
 
 set timeout 5
-send -s "bootelf\r"
+send -s "bootelf ; bootm\r"
 while 1 {
    expect {
       "Linux version" {
