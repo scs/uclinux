@@ -116,7 +116,8 @@ ifdef UCLINUX_BUILD_USER
 	LIBIOSTREAM = -liostream
 	LIBSTDCPP   = -lstdc++
 
-	LDPATH = \
+	LDPATH =	-L$(ROOTDIR)/lib/$(LIBCDIR)/lib
+	LDPATH += \
 			-L$(ROOTDIR)/lib/$(LIBCDIR)/libm \
 			-L$(ROOTDIR)/lib/libnet \
 			-L$(ROOTDIR)/lib/libdes \
@@ -125,9 +126,6 @@ ifdef UCLINUX_BUILD_USER
 			-L$(ROOTDIR)/lib/zlib \
 			-L$(ROOTDIR)/lib/libssl \
 			-L$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
-  ifdef BUILD_SHARED
-	LDPATH +=	-L$(ROOTDIR)/lib/$(LIBCDIR)/lib
-  endif
 
 	INCLIBC = -I$(ROOTDIR)/lib/$(LIBCDIR)/include
 	INCLIBM = -I$(ROOTDIR)/lib/libm
