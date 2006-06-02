@@ -1,4 +1,4 @@
-/* bfin_serial_5xx.h: Definitions for the BlackFin DSP serial driver.
+/* bfin_serial_5xx.h: Definitions for the Blackfin DSP serial driver.
  * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>
  * 			BuyWays B.V. (www.buyways.nl)
  *

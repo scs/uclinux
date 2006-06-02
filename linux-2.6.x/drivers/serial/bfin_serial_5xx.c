@@ -1,4 +1,4 @@
-/* bfin_serial_5xx.c: Serial driver for BlackFin DSP internal UART.
+/* bfin_serial_5xx.c: Serial driver for Blackfin DSP internal UART.
  * Copyright (C) 2003	Bas Vermeulen <bas@buyways.nl>,
  * 			BuyWays B.V. (www.buyways.nl)
  *
@@ -1633,13 +1633,13 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if (request_dma(info->rx_DMA_channel, "BFIN_UART_RX") < 0) {
-		printk(KERN_DEBUG "Unable to attach BlackFin UART RX DMA channel\n");
+		printk(KERN_DEBUG "Unable to attach Blackfin UART RX DMA channel\n");
 		return -EBUSY;
 	} else
 		set_dma_callback(info->rx_DMA_channel, uart_rxdma_done, info);
 
 	if (request_dma(info->tx_DMA_channel, "BFIN_UART_TX") < 0) {
-		printk(KERN_DEBUG "Unable to attach BlackFin UART TX DMA channel\n");
+		printk(KERN_DEBUG "Unable to attach Blackfin UART TX DMA channel\n");
 		return -EBUSY;
 	} else
 		set_dma_callback(info->tx_DMA_channel, uart_txdma_done, info);
@@ -1648,14 +1648,14 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 	if (request_irq
 	    (info->rx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
 	     "BFIN_UART_RX", info)) {
-		printk(KERN_DEBUG "Unable to attach BlackFin UART RX interrupt\n");
+		printk(KERN_DEBUG "Unable to attach Blackfin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
 	    (info->tx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
 	     "BFIN_UART_TX", info)) {
-		printk(KERN_DEBUG "Unable to attach BlackFin UART TX interrupt\n");
+		printk(KERN_DEBUG "Unable to attach Blackfin UART TX interrupt\n");
 		return -EBUSY;
 	}
 #endif
@@ -1800,7 +1800,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 	else
 		return -ENODEV;
 
-	printk(KERN_DEBUG "%s at irq = %d is a builtin BlackFin UART\n", tty->name, info->rx_irq);
+	printk(KERN_DEBUG "%s at irq = %d is a builtin Blackfin UART\n", tty->name, info->rx_irq);
 
 	if (bfin_config_uart_IRQ(info) != 0)
 		return -ENODEV;
@@ -1828,7 +1828,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 }
 
 
-char *rs_drivername = "BlackFin BF5xx serial driver version 2.00 "
+char *rs_drivername = "Blackfin BF5xx serial driver version 2.00 "
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	"(DMA mode)\n";
 #else
