@@ -171,7 +171,10 @@ void __init setup_arch(char **cmdline_p)
 	early_parsemem(&command_line[0]);
 
 	memory_end = _ramend;	/* by now the stack is part of the init task */
-#if defined (CONFIG_UNCACHED_1M)
+
+#if defined (CONFIG_UNCACHED_2M)
+	memory_end -= (2 * 1024 * 1024);
+#elif defined (CONFIG_UNCACHED_1M)
 	memory_end -= (1024 * 1024);
 #elif defined (CONFIG_UNCACHED_512K)
 	memory_end -= (512 * 1024);
