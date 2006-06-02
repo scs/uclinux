@@ -100,9 +100,13 @@ LIBTOOL = ./libtool
 ALLOWRELEASE = 
 
 # libtool compile/link/install
-LTCOMPILE = $(LIBTOOL) --mode=compile $(TCC)
+LTCOMPILE = $(LIBTOOL) --mode=compile $(TCC) $(CFLAGS)
 LTLINK = $(LIBTOOL) --mode=link $(TCC) $(LDFLAGS)
 LTINSTALL = $(LIBTOOL) --mode=install $(INSTALL)
+
+ifdef CONFIG_BLACKFIN_USE_FDPIC
+LTCOMPILE += -fpic
+endif
 
 # You should not have to change anything below this line
 ###############################################################################
