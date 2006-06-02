@@ -4,7 +4,7 @@
 #
 #Steps:
 #1.  Set up the tftp server on host. Set the root folder, such as "/tftpboot".
-#2.  Set up the uboot environment variables. such as serverip, ipaddress, filename, bootaddr, etc.
+#2.  Set up the uboot environment variables. such as serverip, ipaddr, bootfile, bootaddr, etc.
 #3.  Build the uclinux with default configuration.
 #3.1 "make menuconfig"
 #3.2 "make"
