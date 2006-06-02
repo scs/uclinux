@@ -113,8 +113,12 @@ for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
 
 
 set timeout 5
+set response "\r"
 expect {
 	"Hit any key" {
+	}
+	"SPACE to stop" {
+		set response " "
 	}
 	timeout {
 	}
@@ -124,7 +128,7 @@ sleep 1
 
 set timeout 2
 while 1 {
-   send -s "\r"
+   send -s $response
    expect {
       ">" {
          break
