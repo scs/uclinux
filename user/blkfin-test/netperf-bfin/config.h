@@ -305,7 +305,7 @@
 /* #undef size_t */
 
 /* type to use in place of socklen_t if not defined */
-#define socklen_t unsigned
+/* #undef socklen_t */
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
