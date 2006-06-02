@@ -13,7 +13,7 @@ OBJS=$(patsubst %.c,%.o, $(CSRC))
 
 CFLAGS += -Wall #-O0
 
-FLTFLAGS += -s 32000
+FLTFLAGS += -s 24576
 
 all: $(EXEC)
 
