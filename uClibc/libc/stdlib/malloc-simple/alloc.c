@@ -60,10 +60,8 @@ void * calloc(size_t nmemb, size_t lsize)
 		return NULL;
 	}
 	result=malloc(size);
-#if 0
-	/* Standard unix mmap using /dev/zero clears memory so calloc
-	 * doesn't need to actually zero anything....
-	 */
+#if 1
+	/* malloced memory may not be cleared */
 	if (result != NULL) {
 		memset(result, 0, size);
 	}
