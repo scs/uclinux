@@ -12,11 +12,11 @@
 * SYNOPSIS:
 *
 * DESCRIPTION: Frame buffer driver for ADV7393/2 video encoder
-*              
+*
 * CAUTION:
 **************************************************************
 * MODIFICATION HISTORY:
-* Based on vga16fb.cCopyright 1999 Ben Pfaff <pfaffben@debian.org> 
+* Based on vga16fb.cCopyright 1999 Ben Pfaff <pfaffben@debian.org>
 * and Petr Vandrovec <VANDROVE@vc.cvut.cz>
 * Copyright 2004 Ashutosh Kumar Singh (ashutosh.singh@rrap-software.com)
 ************************************************************
@@ -56,6 +56,15 @@
 #include <linux/dma-mapping.h>
 
 #include "bfin_adv7393fb.h"
+
+//#define FBCONDEBUG 
+#undef FBCONDEBUG 
+
+#ifdef FBCONDEBUG
+#  define DPRINTK(fmt, args...) printk(KERN_INFO "%s: " fmt, __FUNCTION__ , ## args)
+#else
+#  define DPRINTK(fmt, args...)
+#endif 
 
 static int bfin_adv7393_fb_open (struct fb_info *info, int user);
 static int bfin_adv7393_fb_release (struct fb_info *info, int user);
@@ -183,8 +192,8 @@ static struct fb_var_screeninfo bfin_adv7393_fb_defined = {
   .lower_margin = 0,
   .vmode = FB_VMODE_INTERLACED,
   .red = {11, 5, 0},
-  .green = {6, 5, 0},
-  .blue = {5, 0, 0},
+  .green = {5, 6, 0},
+  .blue = {0, 5, 0},
   .transp = {0, 0, 0},
 };
 
@@ -192,7 +201,7 @@ static struct fb_fix_screeninfo bfin_adv7393_fb_fix __initdata = {
   .id = "BFIN ADV7393",
   .smem_len = RGB_PHYS_SIZE,
   .type = FB_TYPE_PACKED_PIXELS,
-  .visual = FB_VISUAL_DIRECTCOLOR,
+  .visual = FB_VISUAL_TRUECOLOR,
   .xpanstep = 0,
   .ypanstep = 0,
   .line_length = RGB_WIDTH * 2,
@@ -637,7 +646,7 @@ bfin_adv7393_fb_init (void)
   bfin_adv7393_fb_fix.smem_start = (int) rgb_buffer;
   if (!bfin_adv7393_fb.screen_base)
     {
-      printk ("bfin_adv7393_fb: unable to map device\n");
+      printk (KERN_ERR "bfin_adv7393_fb: unable to map device\n");
       ret = -ENOMEM;
     }
   bfin_adv7393_fb_defined.red.length = 5;
@@ -687,11 +696,9 @@ bfin_adv7393_fb_open (struct fb_info *info, int user)
   bfin_adv7393_fb_fix.smem_start = (int) rgb_buffer;
   if (!bfin_adv7393_fb.screen_base)
     {
-      printk ("bfin_adv7393_fb: unable to map device\n");
+      printk (KERN_ERR "bfin_adv7393_fb: unable to map device\n");
       return -ENOMEM;
     }
-
-
 
   dma_desc_list (BUILD);
   enable_irq (IRQ_PPI_ERROR);
@@ -709,8 +716,6 @@ bfin_adv7393_fb_release (struct fb_info *info, int user)
   bfin_disable_dma ();		/* TODO: Check Sequence */
   bfin_disable_ppi ();
 
-
-
   dma_desc_list (DESTRUCT);
 
   return 0;
@@ -720,14 +725,35 @@ static int
 bfin_adv7393_fb_check_var (struct fb_var_screeninfo *var,
 			   struct fb_info *info)
 {
-  printk ("bfin_adv7393_fb Variables checked\n");
-  return -EINVAL;
+
+	if (var->bits_per_pixel != 16) {
+		DPRINTK(KERN_INFO ": depth not supported: %u BPP\n", var->bits_per_pixel);
+		return -EINVAL;
+	}
+
+    if (info->var.xres != var->xres || info->var.yres != var->yres ||
+        info->var.xres_virtual != var->xres_virtual ||
+        info->var.yres_virtual != var->yres_virtual) {
+		DPRINTK(KERN_INFO ": Resolution not supported: X%u x Y%u \n",var->xres,var->yres );
+		return -EINVAL;
+	}
+
+	/*
+	 *  Memory limit
+	 */
+
+    if ((info->fix.line_length * var->yres_virtual) > info->fix.smem_len) {
+		DPRINTK(KERN_INFO ": Memory Limit requested yres_virtual = %u\n", var->yres_virtual);
+        return -ENOMEM; 
+    }
+
+  return 0;
 }
 
 static int
 bfin_adv7393_fb_set_par (struct fb_info *info)
 {
-  printk ("bfin_adv7393_fb_set_par called not implemented\n");
+  printk (KERN_INFO "bfin_adv7393_fb_set_par called not implemented\n");
   return -EINVAL;
 }
 
@@ -736,7 +762,7 @@ static int
 bfin_adv7393_fb_pan_display (struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
-  printk ("bfin_adv7393_fb_pan_display called ... not implemented\n");
+  printk (KERN_INFO "bfin_adv7393_fb_pan_display called ... not implemented\n");
   return -EINVAL;
 }
 
@@ -744,7 +770,7 @@ bfin_adv7393_fb_pan_display (struct fb_var_screeninfo *var,
 static int
 bfin_adv7393_fb_blank (int blank, struct fb_info *info)
 {
-  printk ("bfin_adv7393_fb_blank called ... not implemented\n");
+  printk (KERN_INFO "bfin_adv7393_fb_blank called ... not implemented\n");
   return -EINVAL;
 }
 
@@ -752,13 +778,13 @@ static void
 bfin_adv7393_fb_fillrect (struct fb_info *info,
 			  const struct fb_fillrect *rect)
 {
-  printk ("bfin_adv7393_fb_fillrect called ... not implemented\n");
+  printk (KERN_INFO "bfin_adv7393_fb_fillrect called ... not implemented\n");
 }
 
 static void
 bfin_adv7393_fb_imageblit (struct fb_info *info, const struct fb_image *image)
 {
-  printk ("bfin_adv7393_fb_imageblit called ... not implemented\n");
+  printk (KERN_INFO "bfin_adv7393_fb_imageblit called ... not implemented\n");
 }
 
 static void __exit
@@ -770,7 +796,7 @@ bfin_adv7393_fb_exit (void)
   free_irq (IRQ_PPI_ERROR, NULL);
   free_dma (CH_PPI);
 
-  *pDMA_TCPER = 0x0000;
+//  *pDMA_TCPER = 0x0000;
 
   unregister_framebuffer (&bfin_adv7393_fb);
   i2c_del_driver (&i2c_driver_adv7393);
