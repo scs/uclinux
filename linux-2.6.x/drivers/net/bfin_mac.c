@@ -66,7 +66,9 @@ static int desc_list_init(void)
 {
 	struct net_dma_desc *tx_desc, *rx_desc, *tmp_desc;
 	int i;
+#if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle;
+#endif
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
       tx_desc = (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM);
@@ -172,7 +174,9 @@ static void desc_list_free(void)
 {
 	struct net_dma_desc *tmp_desc;
 	int i;
+#if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle = 0;
+#endif
 
 	tmp_desc = tx_list_head;
 	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
