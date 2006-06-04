@@ -838,17 +838,17 @@ config SMC91X
 	  as <file:Documentation/networking/net-modules.txt>.
 
 config BFIN_MAC
-        tristate "Blackfin 536/537 on-chip mac support"
+	tristate "Blackfin 536/537 on-chip mac support"
 	depends on NET_ETHERNET && (BF537 || BF536)
 	select CRC32
 	help
 	  This is the driver for blackfin on-chip mac device. Say Y if you want it
-          compiled into the kernel. This driver is also available as a module 
+	  compiled into the kernel. This driver is also available as a module 
 	  ( = code which can be inserted in and removed from the running kernel 
-	  whenever you want).
+	  whenever you want). The module will be called bfin_mac.
 
 config BFIN_MAC_USE_L1
-	bool "BFIN537 use L1 mem for rx/tx packets"
+	bool "Use L1 memory for rx/tx packets"
 	depends on BFIN_MAC
 	default y
 	help
@@ -856,7 +856,7 @@ config BFIN_MAC_USE_L1
 	  Say N here if you want to reserve L1 memory for other uses.
 
 config BFIN_TX_DESC_NUM
-	int "BFIN transmit buffer packets number"
+	int "Number of transmit buffer packets"
 	depends on BFIN_MAC
 	range 6 10 if BFIN_MAC_USE_L1
 	range 10 100
@@ -865,7 +865,7 @@ config BFIN_TX_DESC_NUM
 	  Set the number of buffer packets used in driver.
 
 config BFIN_RX_DESC_NUM
-	int "BFIN receive buffer packets number"
+	int "Number of receive buffer packets"
 	depends on BFIN_MAC
 	range 6 10 if BFIN_MAC_USE_L1
 	range 6 256
