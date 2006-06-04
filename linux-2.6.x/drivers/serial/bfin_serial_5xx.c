@@ -284,7 +284,7 @@ static void rs_start(struct tty_struct *tty)
 	local_irq_save(flags);
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	    irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
+	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
 		*(regs->rpUART_IER) |= ETBEI;
 		SSYNC;
@@ -801,7 +801,7 @@ static void shutdown(struct bfin_serial *info)
 	del_timer(&info->dma_timer);
 #endif
 
-	while(!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
+	while (!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
 		msleep(50);
 
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
@@ -933,7 +933,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 
 #ifdef CONFIG_IRTTY_SIR
 	/* enable irda function */
-	if(cflag & TIOCM_RI) {
+	if (cflag & TIOCM_RI) {
 		*(regs->rpUART_GCTL) |= IREN;
 		SSYNC;
 		*(regs->rpUART_GCTL) |= RPOLC;
@@ -1270,6 +1270,7 @@ static int set_modem_info(struct bfin_serial *info, unsigned int cmd,
 	}
 	return 0;
 }
+
 /*
  * This routine sends a break character out the serial port.
  */
@@ -1860,7 +1861,7 @@ int rs_readproc(char *page, char **start, off_t off, int count,
 #endif
 	}
 
-	return(len);
+	return len;
 }
 
 /* Finally, routines used to initialize the serial driver. */
@@ -2032,7 +2033,7 @@ static struct console bfin_driver = {
 	.device = bfin_console_device,
 	.setup = bfin_console_setup,
 	.flags = CON_PRINTBUFFER,
-	.index = - 1,
+	.index = -1,
 };
 
 int bfin_console_init(void)
