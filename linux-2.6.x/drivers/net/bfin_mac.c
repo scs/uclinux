@@ -433,7 +433,7 @@ static void adjust_tx_list(void)
 		      dev_kfree_skb(tx_list_head->skb);
 		      tx_list_head->skb = NULL;
 		  } else {
-		      printk("Error: no sk_buff in a transmitted frame!\n");
+		      printk(KERN_ERR CARDNAME ": no sk_buff in a transmitted frame!\n");
 		  }
 		  tx_list_head = tx_list_head->next;
 	  } while (tx_list_head->status.status_word != 0);
@@ -453,7 +453,7 @@ static void adjust_tx_list(void)
 				    dev_kfree_skb(tx_list_head->skb);
 				    tx_list_head->skb = NULL;
 			    } else {
-				    printk("Error: no sk_buff in a transmitted frame!\n");
+				    printk(KERN_ERR CARDNAME ": no sk_buff in a transmitted frame!\n");
 			    }
 			    tx_list_head = tx_list_head->next;
 		    } while (tx_list_head->status.status_word != 0);
