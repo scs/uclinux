@@ -142,8 +142,6 @@ static struct bfin_serial bfin_uart[NR_PORTS];
 
 #endif
 
-static int rs_write(struct tty_struct *tty, const unsigned char *buf,
-		    int count);
 /*
  * This is used to figure out the divisor speeds and the timeouts
  */
@@ -163,6 +161,9 @@ static int unix_baud_table[] =
 /* Forward declarations.... */
 static void bfin_change_speed(struct bfin_serial *info);
 static void bfin_set_baud(struct bfin_serial *info);
+static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
+static int rs_write(struct tty_struct *tty, const unsigned char *buf,
+		    int count);
 
 static unsigned short calc_divisor(int baud)
 {
@@ -801,8 +802,7 @@ static void shutdown(struct bfin_serial *info)
 	del_timer(&info->dma_timer);
 #endif
 
-	while (!(*(regs->rpUART_LSR)&TEMT) || info->xmit_cnt>0)
-		msleep(50);
+	rs_wait_until_sent(info->tty, 0);
 
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 	*(regs->rpUART_IER) = 0;
