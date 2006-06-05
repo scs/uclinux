@@ -1876,6 +1876,12 @@ rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 	struct uart_registers *regs = &(info->regs);
 
+	/* FIXME:
+	 * We should calculate some bit times to sleep and utilize the
+	 * timeout variable passed in rather than just hardcoding 50 here.
+	 * See the mcfrs_wait_until_sent() function in mcfserial.c.
+	 */
+
 	while (!(*(regs->rpUART_LSR) & TEMT))
 		msleep_interruptible(50);
 }
