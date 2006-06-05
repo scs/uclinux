@@ -455,7 +455,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 }
 #endif
 
-void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
+static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 {
 	struct uart_registers *uart_regs = &(info->regs);
 	struct tty_struct *tty = info->tty;
