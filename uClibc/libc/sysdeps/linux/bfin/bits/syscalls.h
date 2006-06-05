@@ -55,7 +55,7 @@ type name(void) {							\
   "%0=r0;\n\t"								\
   : "=da" (__res) 							\
   : "i" (__NR_##name)							\
-  : "CC", "P0");							\
+  : "memory", "CC", "P0");						\
 __syscall_return(type,__res);						\
 }
 
@@ -70,7 +70,7 @@ type name(type1 arg1) {							\
         : "=da" (__res)							\
         : "i" (__NR_##name),						\
 	  "a" ((long)(arg1))						\
-	: "CC", "R0", "P0");						\
+	: "memory", "CC", "R0", "P0");					\
 __syscall_return(type,__res);						\
 }
 
@@ -87,7 +87,7 @@ type name(type1 arg1,type2 arg2) {					\
         : "i" (__NR_##name),						\
 	  "a" ((long)(arg1)),						\
 	  "a" ((long)(arg2))						\
-	: "CC", "R0","R1", "P0");					\
+	: "memory", "CC", "R0","R1", "P0");				\
 __syscall_return(type,__res);						\
 }
 
@@ -106,7 +106,7 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
 	  "a"   ((long)(arg1)),						\
 	  "a"   ((long)(arg2)),						\
 	  "a"   ((long)(arg3))						\
-        : "CC", "R0","R1","R2", "P0");					\
+        : "memory", "CC", "R0","R1","R2", "P0");			\
 __syscall_return(type,__res);						\
 }
 
@@ -129,7 +129,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 	  "a"  ((long)(arg2)),						\
 	  "a"  ((long)(arg3)),						\
 	  "a"  ((long)(arg4))						\
-  	: "CC", "R0","R1","R2","R3", "P0");				\
+  	: "memory", "CC", "R0","R1","R2","R3", "P0");			\
 __syscall_return(type,__res);						\
 }
 
@@ -156,7 +156,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 	  "rm"  ((long)(arg3)),						\
 	  "rm"  ((long)(arg4)),						\
 	  "rm"  ((long)(arg5))						\
-	: "CC","R0","R1","R2","R3","R4","P0");				\
+	: "memory", "CC","R0","R1","R2","R3","R4","P0");		\
 __syscall_return(type,__res);						\
 }
 

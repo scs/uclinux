@@ -14,30 +14,17 @@
 #ifdef __NR_mmap
 #define __NR__mmap __NR_mmap
 _syscall1(__ptr_t, _mmap, unsigned long *, buffer);
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
 __ptr_t mmap(__ptr_t addr, size_t len, int prot,
 			 int flags, int fd, __off_t offset)
 {
-	struct mmap_arg_struct a;
+	unsigned long buffer[6];
 
-	a.addr = (unsigned long) addr;
-	a.len = (unsigned long) len;
-	a.prot = (unsigned long) prot;
-	a.flags = (unsigned long) flags;
-	a.fd = (unsigned long) fd;
-	a.offset = (unsigned long) offset;
-
-	/* Make sure assign to a not be optimized away.  */
-	asm ("":: "m"(a));
-	return (__ptr_t) _mmap(&a);
+	buffer[0] = (unsigned long) addr;
+	buffer[1] = (unsigned long) len;
+	buffer[2] = (unsigned long) prot;
+	buffer[3] = (unsigned long) flags;
+	buffer[4] = (unsigned long) fd;
+	buffer[5] = (unsigned long) offset;
+	return (__ptr_t) _mmap(buffer);
 }
 #endif
