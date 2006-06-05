@@ -1,8 +1,0 @@
-driver_bfin533_stamp_net.patch
-uclinux-local.patch
-driver_bfin_serial.patch
-blackfin-arch.patch
-root-Makefile.patch
-modules-crc-warning.patch
-bfinfmt-local.patch
-kernel-bugfixing-local.patch
