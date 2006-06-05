@@ -1,37 +1,35 @@
-/************************************************************
-*
-* Copyright (C) 2004, Analog Devices. All Rights Reserved
-*
-* FILE bfin5xx_spi.c
-* PROGRAMMER(S): Luke Yang (Analog Devices Inc.)
-*
-*
-* DATE OF CREATION: March. 10th 2006
-*
-* SYNOPSIS:
-*
-* DESCRIPTION: SPI controller driver for Blackfin5xx.
-**************************************************************
+/*
+ * File:         drivers/spi/bfin5xx_spi.c
+ * Based on:     N/A
+ * Author:       Luke Yang (Analog Devices Inc.)
+ *
+ * Created:      March. 10th 2006
+ * Description:  SPI controller driver for Blackfin 5xx
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *	March 10, 2006  bfin5xx_spi.c Created. (Luke Yang)
+ *
+ * Copyright 2004-2006 Analog Devices Inc.
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
-* MODIFICATION HISTORY:
-* March 10, 2006  bfin5xx_spi.c Created. (Luke Yang)
-
-************************************************************
-*
-* This program is free software; you can distribute it and/or modify it
-* under the terms of the GNU General Public License (Version 2) as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-* for more details.
-*
-* You should have received a copy of the GNU General Public License along
-* with this program; if not, write to the Free Software Foundation, Inc.,
-* 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
-*
-************************************************************/
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -53,13 +51,13 @@
 #include <asm/bfin5xx_spi.h>
 
 MODULE_AUTHOR("Luke Yang");
-MODULE_DESCRIPTION("Blackfin5xx SPI Contoller");
+MODULE_DESCRIPTION("Blackfin 5xx SPI Contoller");
 MODULE_LICENSE("GPL");
 
 //#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
-#define PRINTK(args...) printk(args)
+#define PRINTK(args...) printk(KERN_DEBUG "spi_bfin: " args)
 #else
 #define PRINTK(args...)
 #endif
@@ -103,7 +101,7 @@ struct driver_data {
 	struct bfin5xx_spi_master *master_info;
 
 	/* Driver message queue */
-	struct workqueue_struct	*workqueue;
+	struct workqueue_struct *workqueue;
 	struct work_struct pump_messages;
 	spinlock_t lock;
 	struct list_head queue;
@@ -114,8 +112,8 @@ struct driver_data {
 	struct tasklet_struct pump_transfers;
 
 	/* Current message transfer state info */
-	struct spi_message* cur_msg;
-	struct spi_transfer* cur_transfer;
+	struct spi_message *cur_msg;
+	struct spi_transfer *cur_transfer;
 	struct chip_data *cur_chip;
 	size_t len_in_bytes;
 	size_t len;
@@ -129,8 +127,8 @@ struct driver_data {
 	size_t rx_map_len;
 	size_t tx_map_len;
 	u8 n_bytes;
-	void (*write)(struct driver_data *drv_data);
-	void (*read)(struct driver_data *drv_data);
+	void (*write) (struct driver_data *);
+	void (*read) (struct driver_data *);
 };
 
 struct chip_data {
@@ -138,17 +136,14 @@ struct chip_data {
 	u16 baud;
 	u16 flag;
 
-	u8  chip_select_num;
-	u8  n_bytes;
-	u32 width;            //0 or 1
-	u8  enable_dma;
-	u8  bits_per_word;    //8 or 16
-	void (*write)(struct driver_data *drv_data);
-	void (*read)(struct driver_data *drv_data);
+	u8 chip_select_num;
+	u8 n_bytes;
+	u32 width;		/* 0 or 1 */
+	u8 enable_dma;
+	u8 bits_per_word;	/* 8 or 16 */
+	void (*write) (struct driver_data *);
+	void (*read) (struct driver_data *);
 };
-
-static void pump_messages(void *data);
-
 
 void bfin_spi_enable(struct driver_data *drv_data)
 {
@@ -157,7 +152,6 @@ void bfin_spi_enable(struct driver_data *drv_data)
 	cr = read_CTRL();
 	write_CTRL(cr | (CFG_SPI_ENABLE << 14));
 	__builtin_bfin_ssync();
-
 }
 
 void bfin_spi_disable(struct driver_data *drv_data)
@@ -180,7 +174,7 @@ static int flush(struct driver_data *drv_data)
 	return limit;
 }
 
-/* stop controller and re-config current chip*/
+/* stop controller and re-config current chip */
 static void restore_state(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
@@ -196,8 +190,7 @@ static void restore_state(struct driver_data *drv_data)
 		*pPORTF_FER |= 0x7c00;
 		__builtin_bfin_ssync();
 
-	} else if (chip->chip_select_num == 2 \
-		   || chip->chip_select_num == 3) {
+	} else if (chip->chip_select_num == 2 || chip->chip_select_num == 3) {
 		PRINTK("set for chip select 2\n");
 		*pPORT_MUX |= PJSE_SPI;
 		__builtin_bfin_ssync();
@@ -240,7 +233,6 @@ static void restore_state(struct driver_data *drv_data)
 static unsigned short dummy_read(void)
 {
 	unsigned short tmp;
-
 	tmp = read_RDBR();
 	return tmp;
 }
@@ -270,8 +262,7 @@ static void null_reader(struct driver_data *drv_data)
 
 static void u8_writer(struct driver_data *drv_data)
 {
-
-	PRINTK("cr8-s is 0x%x\n",read_STAT());
+	PRINTK("cr8-s is 0x%x\n", read_STAT());
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(*(u8 *)(drv_data->tx));
 		do {} while (read_STAT() & BIT_STAT_TXS);
@@ -281,7 +272,7 @@ static void u8_writer(struct driver_data *drv_data)
 
 static void u8_reader(struct driver_data *drv_data)
 {
-	PRINTK("cr-8 is 0x%x\n",read_STAT());
+	PRINTK("cr-8 is 0x%x\n", read_STAT());
 	dummy_read();
 
 	while (drv_data->rx < drv_data->rx_end) {
@@ -293,7 +284,7 @@ static void u8_reader(struct driver_data *drv_data)
 
 static void u16_writer(struct driver_data *drv_data)
 {
-	PRINTK("cr16 is 0x%x\n",read_STAT());
+	PRINTK("cr16 is 0x%x\n", read_STAT());
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(*(u16 *)(drv_data->tx));
 		do {} while ((read_STAT() & BIT_STAT_TXS));
@@ -303,7 +294,7 @@ static void u16_writer(struct driver_data *drv_data)
 
 static void u16_reader(struct driver_data *drv_data)
 {
-	PRINTK("cr-16 is 0x%x\n",read_STAT());
+	PRINTK("cr-16 is 0x%x\n", read_STAT());
 	dummy_read();
 
 	while (drv_data->rx < drv_data->rx_end) {
@@ -330,12 +321,12 @@ static void *next_transfer(struct driver_data *drv_data)
 		return DONE_STATE;
 }
 
-
-/* caller already set message->status; dma and pio irqs are blocked */
-/* give finished message back */
+/* caller already set message->status; dma and pio irqs are blocked
+ * give finished message back
+ */
 static void giveback(struct spi_message *message, struct driver_data *drv_data)
 {
-	struct spi_transfer* last_transfer;
+	struct spi_transfer *last_transfer;
 
 	last_transfer = list_entry(message->transfers.prev,
 					struct spi_transfer,
@@ -357,13 +348,13 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	struct spi_message *msg = drv_data->cur_msg;
 	void *dma_buf_end;
 
-	PRINTK("SPI: in dma_irq_handler\n");
+	PRINTK("in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
 	bfin_spi_disable(drv_data);
 
 	/* get the last word/byte for DMA reading */
 	if (drv_data->rx != NULL) {
-		if (drv_data->cur_chip->width == CFG_SPI_WORDSIZE16){
+		if (drv_data->cur_chip->width == CFG_SPI_WORDSIZE16) {
 			dma_buf_end = drv_data->rx + drv_data->len - 2;
 			*(u16 *)(dma_buf_end) = read_SHAW();
 		} else {
@@ -381,7 +372,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	tasklet_schedule(&drv_data->pump_transfers);
 
 	/* free the irq handler before next transfer */
-	PRINTK("SPI: disable dma channel irq%d \n",CH_SPI);
+	PRINTK("disable dma channel irq%d\n", CH_SPI);
 	dma_disable_irq(CH_SPI);
 
 	return IRQ_HANDLED;
@@ -394,7 +385,7 @@ static void pump_transfers(unsigned long data)
 	struct spi_transfer *transfer = NULL;
 	struct spi_transfer *previous = NULL;
 	struct chip_data *chip = NULL;
-	u16 cr,width,dma_width,dma_config;
+	u16 cr, width, dma_width, dma_config;
 	u32 tranf_success = 1;
 
 	/* Get current state information */
@@ -437,7 +428,7 @@ static void pump_transfers(unsigned long data)
 	if (transfer->tx_buf != NULL) {
 		drv_data->tx = (void *)transfer->tx_buf;
 		drv_data->tx_end = drv_data->tx + transfer->len;
-		PRINTK("tx_buf is 0x%x, tx_end is 0x%x\n",transfer->tx_buf, drv_data->tx_end);
+		PRINTK("tx_buf is 0x%x, tx_end is 0x%x\n", transfer->tx_buf, drv_data->tx_end);
 	} else {
 		drv_data->tx = NULL;
 	}
@@ -445,7 +436,7 @@ static void pump_transfers(unsigned long data)
 	if (transfer->rx_buf != NULL) {
 		drv_data->rx = transfer->rx_buf;
 		drv_data->rx_end = drv_data->rx + transfer->len;
-		PRINTK("rx_buf is 0x%x, rx_end is 0x%x\n",transfer->rx_buf, drv_data->rx_end);
+		PRINTK("rx_buf is 0x%x, rx_end is 0x%x\n", transfer->rx_buf, drv_data->rx_end);
 	} else {
 		drv_data->rx = NULL;
 	}
@@ -468,7 +459,7 @@ static void pump_transfers(unsigned long data)
 	width = chip->width;
 	dma_config = 0;
 
-	PRINTK("SPI: now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
+	PRINTK("now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
 	/* Try to map dma buffer and do a dma transfer if successful */
 	/* use different way to r/w according to drv_data->cur_chip->enable_dma */
 	if (drv_data->cur_chip->enable_dma && drv_data->len > 4) {
@@ -477,9 +468,9 @@ static void pump_transfers(unsigned long data)
 		disable_dma(CH_SPI);
 		clear_dma_irqstat(CH_SPI);
 
-		PRINTK("SPI: doing dma transfer\n");
+		PRINTK("doing dma transfer\n");
 		/* config dma channel */
-		if(width == CFG_SPI_WORDSIZE16){
+		if (width == CFG_SPI_WORDSIZE16) {
 			set_dma_x_count(CH_SPI, drv_data->len);
 			set_dma_x_modify(CH_SPI, 2);
 			dma_width = WDSIZE_16;
@@ -495,31 +486,31 @@ static void pump_transfers(unsigned long data)
 
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
-			PRINTK("SPI:doing autobuffer DMA out.\n");
+			PRINTK("doing autobuffer DMA out.\n");
 
 			/* no irq in autobuffer mode */
-			dma_config |= ( DMAFLOW_AUTO | RESTART | dma_width | DI_EN );
+			dma_config |= (DMAFLOW_AUTO | RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
-			/* just return here, there can only be one transfer in this mode*/
+			/* just return here, there can only be one transfer in this mode */
 			message->status = 0;
 			giveback(message, drv_data);
 			return;
 		}
 
-		/* In dma mode, rx or tx must be NULL in one transfer*/
-		if ( drv_data->rx != NULL) {
-			PRINTK("SPI:doing DMA in.\n");
+		/* In dma mode, rx or tx must be NULL in one transfer */
+		if (drv_data->rx != NULL) {
 			/* set transfer mode, and enable SPI */
+			PRINTK("doing DMA in.\n");
 
 			/* For dma reading, only get len-1 by dma. */
 			set_dma_x_count(CH_SPI, drv_data->len - 1);
 
-			/* start dma*/
+			/* start dma */
 			dma_enable_irq(CH_SPI);
-			dma_config |= ( WNR | RESTART | dma_width | DI_EN);
+			dma_config |= (WNR | RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
@@ -528,11 +519,11 @@ static void pump_transfers(unsigned long data)
 			write_CTRL(cr | CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 		} else if (drv_data->tx != NULL) {
-			PRINTK("SPI:doing DMA out.\n");
+			PRINTK("doing DMA out.\n");
 
 			/* start dma */
 			dma_enable_irq(CH_SPI);
-			dma_config |= ( RESTART | dma_width | DI_EN );
+			dma_config |= (RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
@@ -540,17 +531,17 @@ static void pump_transfers(unsigned long data)
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 
 		}
-	} else {/* IO mode write then read */
+	} else {		/* IO mode write then read */
 		/* Go baby, go */
-		PRINTK("SPI: doing IO transfer\n");
+		PRINTK("doing IO transfer\n");
 
 		write_STAT(BIT_STAT_CLR);
 
 		/* write then read. TBD: is there any need of full duplex(read while writing)? */
 		if (drv_data->tx != NULL) {
-			cr = (read_CTRL() & 0xFFC0); /* clear the TIMOD bits */
+			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("SPI IO write: cr is 0x%x\n",cr);
+			PRINTK("SPI IO write: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
 
@@ -560,9 +551,9 @@ static void pump_transfers(unsigned long data)
 				tranf_success = 0;
 		}
 		if (drv_data->rx != NULL) {
-			cr = (read_CTRL() & 0xFFC0); /* cleare the TIMOD bits */
+			cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
 			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("SPI IO read: cr is 0x%x\n",cr);
+			PRINTK("SPI IO read: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
 
@@ -573,12 +564,11 @@ static void pump_transfers(unsigned long data)
 
 		if (!tranf_success) {
 			message->state = ERROR_STATE;
-		}
-		else {
+		} else {
 			/* Update total byte transfered */
 			message->actual_length += drv_data->len;
 
-			/* Move to next transfer of this msg*/
+			/* Move to next transfer of this msg */
 			message->state = next_transfer(drv_data);
 		}
 
@@ -618,7 +608,7 @@ static void pump_messages(void *data)
 	drv_data->busy = 1;
 	spin_unlock_irqrestore(&drv_data->lock, flags);
 
-	/* Initial message state*/
+	/* Initial message state */
 	drv_data->cur_msg->state = START_STATE;
 	drv_data->cur_transfer = list_entry(drv_data->cur_msg->transfers.next,
 						struct spi_transfer,
@@ -627,9 +617,9 @@ static void pump_messages(void *data)
 	/* Setup the SSP using the per chip configuration */
 	drv_data->cur_chip = spi_get_ctldata(drv_data->cur_msg->spi);
 	restore_state(drv_data);
-	PRINTK("SPI: got an message to pump, state is set to: baud %d, flag 0x%x, ctl 0x%x \n",\
+	PRINTK("got a message to pump, state is set to: baud %d, flag 0x%x, ctl 0x%x\n",
 	       drv_data->cur_chip->baud, drv_data->cur_chip->flag, drv_data->cur_chip->ctl_reg);
-	PRINTK("SPI: the first transfer len is %d\n", drv_data->cur_transfer->len);
+	PRINTK("the first transfer len is %d\n", drv_data->cur_transfer->len);
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
@@ -652,7 +642,7 @@ static int transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->status = -EINPROGRESS;
 	msg->state = START_STATE;
 
-	PRINTK("SPI: adding an msg in transfer() \n");
+	PRINTK("adding an msg in transfer() \n");
 	list_add_tail(&msg->queue, &drv_data->queue);
 
 	if (drv_data->run == QUEUE_RUNNING && !drv_data->busy)
@@ -672,8 +662,8 @@ static int setup(struct spi_device *spi)
 	u8 spi_flg;
 
 	if (chip_select_flag & (1 << (spi->chip_select))) {
-		printk(KERN_ERR "SPI error: %s is using the same chip selection as another device.\n\n", spi->modalias);
-	    return -ENODEV;
+		printk(KERN_ERR "spi_bfin: error: %s is using the same chip selection as another device.\n", spi->modalias);
+		return -ENODEV;
 	}
 	chip_select_flag |= (1 << (spi->chip_select));
 
@@ -706,12 +696,11 @@ static int setup(struct spi_device *spi)
 	   DMA channel for it */
 	if (chip->enable_dma && !dma_requested) {
 		/* register dma irq handler */
-		if(request_dma(CH_SPI, "BF53x_SPI_DMA") < 0)
-		{
+		if (request_dma(CH_SPI, "BF53x_SPI_DMA") < 0) {
 			PRINTK("Unable to request BlackFin SPI DMA channel\n");
 			return -ENODEV;
 		}
-		set_dma_callback(CH_SPI, (void*)dma_irq_handler, drv_data);
+		set_dma_callback(CH_SPI, (void *)dma_irq_handler, drv_data);
 		dma_disable_irq(CH_SPI);
 		dma_requested = 1;
 	}
@@ -720,7 +709,7 @@ static int setup(struct spi_device *spi)
 	   SPI_BAUD, not the real baudrate */
 	chip->baud = spi->max_speed_hz;
 	spi_flg = ~(1 << (spi->chip_select));
-	chip->flag =  ((u16)spi_flg << 8 ) | (1 << (spi->chip_select));
+	chip->flag = ((u16)spi_flg << 8 ) | (1 << (spi->chip_select));
 	chip->chip_select_num = spi->chip_select;
 
 	if (chip->bits_per_word <= 8) {
@@ -728,19 +717,19 @@ static int setup(struct spi_device *spi)
 		chip->width = CFG_SPI_WORDSIZE8;
 		chip->read = u8_reader;
 		chip->write = u8_writer;
-		PRINTK("SPI 8bit: chip->write is 0x%x, u8_writer is 0x%x\n",chip->write,u8_writer);
+		PRINTK("SPI 8bit: chip->write is 0x%x, u8_writer is 0x%x\n", chip->write, u8_writer);
 	} else if (spi->bits_per_word <= 16) {
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
 		chip->read = u16_reader;
 		chip->write = u16_writer;
-		PRINTK("SPI 16bit: chip->write is 0x%x, u16_writer is 0x%x\n",chip->write,u16_writer);
+		PRINTK("SPI 16bit: chip->write is 0x%x, u16_writer is 0x%x\n", chip->write, u16_writer);
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
 		kfree(chip);
 		return -ENODEV;
 	}
-	PRINTK("SPI: setup spi chip %s, width is %d, dma is %d, ctl_reg is 0x%x\n", \
+	PRINTK("setup spi chip %s, width is %d, dma is %d, ctl_reg is 0x%x\n",
 	       spi->modalias, chip->width, chip->enable_dma, chip->ctl_reg);
 	spi_set_ctldata(spi, chip);
 
@@ -909,7 +898,7 @@ static int bfin5xx_spi_remove(struct platform_device *pdev)
 		return status;
 
 	/* Disable the SSP at the peripheral and SOC level */
-        bfin_spi_disable(drv_data);
+	bfin_spi_disable(drv_data);
 
 	/* Release DMA */
 	if (drv_data->master_info->enable_dma) {
@@ -925,7 +914,6 @@ static int bfin5xx_spi_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
 
 static void bfin5xx_spi_shutdown(struct platform_device *pdev)
 {
