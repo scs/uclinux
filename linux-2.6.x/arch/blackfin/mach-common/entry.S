@@ -307,7 +307,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 badsys:
 	r7 = -ENOSYS; 		/* signextending enough */
 	[sp + PT_R0] = r7;	/* return value from system call */
-	rti;
+	jump syscall_really_exit;
 
 ENTRY(_execve)
 	link SIZEOF_PTREGS;
