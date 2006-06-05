@@ -35,7 +35,7 @@ STRIP     = $(STRIPTOOL)
 
 UCLINUX_BUILD_SET = 0		# have we set a special config below
 
-  ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
+  ifeq ($(CONFIG_BLACKFIN_USE_SHARED_FLAT),y)
 	BUILD_SHARED = 1
   endif
   ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)

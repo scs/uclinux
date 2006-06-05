@@ -1,3 +1,4 @@
+
 #
 # Format of this file: description<nl>variable<nl>  helptext<nl>...<nl><nl>.
 # If the question being documented is of type "choice", we list
@@ -504,6 +505,17 @@ CONFIG_LIB_DEBUG
   See also debug build option in core applications.  Without this option
   debug symbols are still included, however the optimisation level is
   increased and this can lead to problematic debugging.
+
+CONFIG_BLACKFIN_USE_FLAT
+  Build all libraries and applicaions to produce flat binaries.
+  FLAT binaries tend to be smaller. Their load time tend to be shorter.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select the 'bfin' target.
+
+CONFIG_BLACKFIN_USE_SHARED_FLAT
+  Build all libraries and applicaions with -mid-shared-library.
+  This option must match the choice made for the C library; when configuring
+  uClibc, select the 'bfin' target.
 
 CONFIG_BLACKFIN_USE_FDPIC
   Build all libraries and applicaions with -mfdpic to produce ELF binaries

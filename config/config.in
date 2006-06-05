@@ -1553,10 +1553,14 @@ endmenu
 #############################################################################
 
 mainmenu_option next_comment
-comment 'Blackfin Build Options'
+comment "Blackfin Build Options"
+choice 'Binary format' "FLAT		CONFIG_BLACKFIN_USE_FLAT \
+			Shared-FLAT	CONFIG_BLACKFIN_USE_SHARED_FLAT \
+			FDPIC		CONFIG_BLACKFIN_USE_FDPIC \
+		       " FLAT
 
-bool 'Build FD-PIC ELF binaries (requires matching uClibc)' CONFIG_BLACKFIN_USE_FDPIC
 endmenu
+
 #############################################################################
 
 mainmenu_option next_comment
