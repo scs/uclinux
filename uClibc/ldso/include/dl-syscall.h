@@ -113,18 +113,30 @@ static inline _syscall6(void *, _dl_mmap, void *, start, size_t, length,
 #define __NR__dl_mmap_real __NR_mmap
 static inline _syscall1(void *, _dl_mmap_real, unsigned long *, buffer);
 
+struct mmap_arg_struct {
+	unsigned long addr;
+	unsigned long len;
+	unsigned long prot;
+	unsigned long flags;
+	unsigned long fd;
+	unsigned long offset;
+};
+
 static inline void * _dl_mmap(void * addr, unsigned long size, int prot,
 		int flags, int fd, unsigned long offset)
 {
-	unsigned long buffer[6];
+	struct mmap_arg_struct a;
 
-	buffer[0] = (unsigned long) addr;
-	buffer[1] = (unsigned long) size;
-	buffer[2] = (unsigned long) prot;
-	buffer[3] = (unsigned long) flags;
-	buffer[4] = (unsigned long) fd;
-	buffer[5] = (unsigned long) offset;
-	return (void *) _dl_mmap_real(buffer);
+	a.addr = (unsigned long) addr;
+	a.len = (unsigned long) size;
+	a.prot = (unsigned long) prot;
+	a.flags = (unsigned long) flags;
+	a.fd = (unsigned long) fd;
+	a.offset = (unsigned long) offset;
+
+	/* Make sure assign to a not be optimized away.  */
+	asm ("":: "m"(a));
+	return (void *) _dl_mmap_real(&a);
 }
 #endif
 #elif defined __NR_mmap2
