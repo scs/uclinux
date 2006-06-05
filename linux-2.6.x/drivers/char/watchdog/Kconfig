@@ -427,6 +427,12 @@ config 83xx_WDT
 	tristate "MPC83xx Watchdog Timer"
 	depends on WATCHDOG && PPC_83xx
 
+# Blackfin Architecture
+
+config BLACKFIN_WD
+	tristate "Blackfin Watchdog Timer"
+	depends on WATCHDOG && BLACKFIN
+
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
 	depends on WATCHDOG && MV64X60

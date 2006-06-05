@@ -1598,6 +1598,7 @@ bool    'TWI LCD test program'          CONFIG_USER_BLACKFIN_TWILCDTEST
 bool    'TWI KEYPAD test program'       CONFIG_USER_BLACKFIN_TWIKEYPADTEST
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
+bool	'Generate a Kernel Panic (test Watchdog)'	CONFIG_USER_BLACKFIN_CRASHTEST
 bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
 bool    'Still to write'                CONFIG_YET
 bool	'Input event device test'	CONFIG_EVENT_TEST
@@ -1642,6 +1643,7 @@ if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
 	define_bool CONFIG_LIB_LIBAUDIO y
 fi
 
+bool	'Blackfin watchdog simple deamon'		CONFIG_USER_BLACKFIN_WATCHDOGD
 comment 'FLAT binary format tools'
 bool    'flthdr'                        CONFIG_USER_FLTHDR
 comment 'YAFFS tools'
