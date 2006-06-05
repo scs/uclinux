@@ -66,6 +66,7 @@ struct status_area {
 /* use two descriptors for a packet */
 struct net_dma_desc {
   struct net_dma_desc *next;
+  struct sk_buff *skb;
   struct dma_descriptor desc_a;
   struct dma_descriptor desc_b;
   volatile unsigned char   packet[1560];

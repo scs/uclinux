@@ -117,6 +117,7 @@ static int desc_list_init(void)
       tmp_desc->desc_b.config.b_DI_EN  = 0;        //disable interrupt
       tmp_desc->desc_b.config.b_NDSIZE = 6;
       tmp_desc->desc_b.config.b_FLOW   = 7;        //stop mode
+      tmp_desc->skb = NULL;
       tx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
       tx_list_tail->next = tmp_desc;
 
@@ -153,6 +154,7 @@ static int desc_list_init(void)
     tmp_desc->desc_b.config.b_NDSIZE = 6;        
     tmp_desc->desc_b.config.b_DI_EN  = 1;        //enable interrupt
     tmp_desc->desc_b.config.b_FLOW   = 7;        //large mode
+    tmp_desc->skb = NULL;
     rx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
   
     rx_list_tail->next = tmp_desc;
@@ -181,6 +183,10 @@ static void desc_list_free(void)
 	tmp_desc = tx_list_head;
 	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
 		if (tmp_desc != NULL) {
+			if(tmp_desc->skb) {
+				dev_kfree_skb(tmp_desc->skb);
+				tmp_desc->skb = NULL;
+			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
 			l1_data_A_sram_free((unsigned long)tmp_desc);
 #else
@@ -193,6 +199,10 @@ static void desc_list_free(void)
 	tmp_desc = rx_list_head;
 	for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
 		if (tmp_desc != NULL) {
+			if(tmp_desc->skb) {
+				dev_kfree_skb(tmp_desc->skb);
+				tmp_desc->skb = NULL;
+			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
 			l1_data_A_sram_free((unsigned long)tmp_desc);
 #else
@@ -419,6 +429,12 @@ static void adjust_tx_list(void)
 	  do {
 		  tx_list_head->desc_a.config.b_DMA_EN = 0;
 		  tx_list_head->status.status_word = 0;
+		  if(tx_list_head->skb) {
+		      dev_kfree_skb(tx_list_head->skb);
+		      tx_list_head->skb = NULL;
+		  } else {
+		      printk("Error: no sk_buff in a transmitted frame!\n");
+		  }
 		  tx_list_head = tx_list_head->next;
 	  } while (tx_list_head->status.status_word != 0);
 	  return;  // released something, just return;
@@ -433,6 +449,12 @@ static void adjust_tx_list(void)
 		    do {
 			    tx_list_head->desc_a.config.b_DMA_EN = 0;
 			    tx_list_head->status.status_word = 0;
+			    if(tx_list_head->skb) {
+				    dev_kfree_skb(tx_list_head->skb);
+				    tx_list_head->skb = NULL;
+			    } else {
+				    printk("Error: no sk_buff in a transmitted frame!\n");
+			    }
 			    tx_list_head = tx_list_head->next;
 		    } while (tx_list_head->status.status_word != 0);
 		    break;
@@ -450,6 +472,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
   spin_lock_irqsave(&lp->lock, flags);
 
+  current_tx_ptr->skb = skb;
   // Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)? 
   if ( (((unsigned int)(skb->data)) & 0x02) == 2 ) {
     //move skb->data to current_tx_ptr payload
@@ -458,7 +481,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     current_tx_ptr->desc_a.start_addr = (unsigned long)data;
     if (current_tx_ptr->status.status_word != 0)
 	    current_tx_ptr->status.status_word = 0;
-    blackfin_dcache_invalidate_range(data, (data+(skb->len)) + 2);  //this is important!
+    blackfin_dcache_flush_range(data, (data+(skb->len)) + 2);  //this is important!
 
   } else {
     *((unsigned short *)(current_tx_ptr->packet)) = (unsigned short)(skb->len);
@@ -466,7 +489,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     current_tx_ptr->desc_a.start_addr = (unsigned long)current_tx_ptr->packet;
     if (current_tx_ptr->status.status_word != 0)
 	    current_tx_ptr->status.status_word = 0;
-    blackfin_dcache_invalidate_range((unsigned int)current_tx_ptr->packet, (unsigned int)(current_tx_ptr->packet + skb->len) + 2);
+    blackfin_dcache_flush_range((unsigned int)current_tx_ptr->packet, (unsigned int)(current_tx_ptr->packet + skb->len) + 2);
   }
 
   current_tx_ptr->desc_a.config.b_DMA_EN = 1;   //enable this packet's dma
@@ -487,7 +510,6 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
   lp->stats.tx_packets++;
   lp->stats.tx_bytes += (skb->len);
   spin_unlock_irqrestore(&lp->lock, flags);
-  dev_kfree_skb(skb);
   return 0;
 }
 
@@ -863,12 +885,12 @@ static int bf537mac_drv_remove(struct device *dev)
   return 0;
 }
 
-static int bf537mac_drv_suspend(struct device *dev, u32 state, u32 level)
+static int bf537mac_drv_suspend(struct device *dev, pm_message_t state)
 {
   return 0;
 }
 
-static int bf537mac_drv_resume(struct device *dev, u32 level)
+static int bf537mac_drv_resume(struct device *dev)
 {
   return 0;
 }
