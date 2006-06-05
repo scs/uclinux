@@ -224,7 +224,7 @@ netserver$(EXEEXT): $(netserver_OBJECTS) $(netserver_DEPENDENCIES)
 	$(LINK) $(netserver_LDFLAGS) $(netserver_OBJECTS) $(netserver_LDADD) $(LIBS)
 
 mostlyclean-compile:
-	-rm -f *.$(OBJEXT) core *.core
+	-rm -f *.$(OBJEXT) *.gdb core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
