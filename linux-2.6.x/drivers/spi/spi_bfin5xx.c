@@ -428,7 +428,7 @@ static void pump_transfers(unsigned long data)
 	if (transfer->tx_buf != NULL) {
 		drv_data->tx = (void *)transfer->tx_buf;
 		drv_data->tx_end = drv_data->tx + transfer->len;
-		PRINTK("tx_buf is 0x%x, tx_end is 0x%x\n", transfer->tx_buf, drv_data->tx_end);
+		PRINTK("tx_buf is %p, tx_end is %p\n", transfer->tx_buf, drv_data->tx_end);
 	} else {
 		drv_data->tx = NULL;
 	}
@@ -436,7 +436,7 @@ static void pump_transfers(unsigned long data)
 	if (transfer->rx_buf != NULL) {
 		drv_data->rx = transfer->rx_buf;
 		drv_data->rx_end = drv_data->rx + transfer->len;
-		PRINTK("rx_buf is 0x%x, rx_end is 0x%x\n", transfer->rx_buf, drv_data->rx_end);
+		PRINTK("rx_buf is %p, rx_end is %p\n", transfer->rx_buf, drv_data->rx_end);
 	} else {
 		drv_data->rx = NULL;
 	}
@@ -444,14 +444,15 @@ static void pump_transfers(unsigned long data)
 	drv_data->rx_dma = transfer->rx_dma;
 	drv_data->tx_dma = transfer->tx_dma;
 	drv_data->len_in_bytes = transfer->len;
-	if(width == CFG_SPI_WORDSIZE16){
+	if (width == CFG_SPI_WORDSIZE16) {
 		drv_data->len = (transfer->len) >> 1;
 	} else {
 		drv_data->len = transfer->len;
 	}
 	drv_data->write = drv_data->tx ? chip->write : null_writer;
 	drv_data->read = drv_data->rx ? chip->read : null_reader;
-	PRINTK("SPI transfer: drv_data->write is 0x%x, chip->write is 0x%x, null_wr is 0x%x\n", drv_data->write, chip->write, null_writer);
+	PRINTK("transfer: drv_data->write is %p, chip->write is %p, null_wr is %p\n",
+	       drv_data->write, chip->write, null_writer);
 
 	/* speed and width has been set on per message */
 
@@ -541,7 +542,7 @@ static void pump_transfers(unsigned long data)
 		if (drv_data->tx != NULL) {
 			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("SPI IO write: cr is 0x%x\n", cr);
+			PRINTK("IO write: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
 
@@ -553,7 +554,7 @@ static void pump_transfers(unsigned long data)
 		if (drv_data->rx != NULL) {
 			cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
 			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("SPI IO read: cr is 0x%x\n", cr);
+			PRINTK("IO read: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
 
@@ -717,13 +718,13 @@ static int setup(struct spi_device *spi)
 		chip->width = CFG_SPI_WORDSIZE8;
 		chip->read = u8_reader;
 		chip->write = u8_writer;
-		PRINTK("SPI 8bit: chip->write is 0x%x, u8_writer is 0x%x\n", chip->write, u8_writer);
+		PRINTK("8bit: chip->write is %p, u8_writer is %p\n", chip->write, u8_writer);
 	} else if (spi->bits_per_word <= 16) {
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
 		chip->read = u16_reader;
 		chip->write = u16_writer;
-		PRINTK("SPI 16bit: chip->write is 0x%x, u16_writer is 0x%x\n", chip->write, u16_writer);
+		PRINTK("16bit: chip->write is %p, u16_writer is %p\n", chip->write, u16_writer);
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
 		kfree(chip);
@@ -874,7 +875,7 @@ static int bfin5xx_spi_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "problem registering spi master\n");
 		goto out_error_queue_alloc;
 	}
-	PRINTK("SPI controller probe successfully\n");
+	PRINTK("controller probe successfully\n");
 	return status;
 
 out_error_queue_alloc:
