@@ -1871,6 +1871,19 @@ static void show_serial_version(void)
 	printk(KERN_INFO "%s", rs_drivername);
 }
 
+/*
+ * rs_wait_until_sent() --- wait until the transmitter is empty
+ */
+static void
+rs_wait_until_sent(struct tty_struct *tty, int timeout)
+{
+	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
+	struct uart_registers *regs = &(info->regs);
+
+	while (!(*(regs->rpUART_LSR) & TEMT))
+		msleep_interruptible(50);
+}
+
 static struct tty_operations rs_ops = {
 	.open = rs_open,
 	.close = rs_close,
@@ -1888,6 +1901,7 @@ static struct tty_operations rs_ops = {
 	.hangup = rs_hangup,
 	.read_proc = rs_readproc,
 	.set_ldisc = rs_set_ldisc,
+	.wait_until_sent = rs_wait_until_sent,
 };
 
 /* rs_bfin_init inits the driver */
