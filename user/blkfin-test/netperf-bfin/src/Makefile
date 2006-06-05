@@ -48,7 +48,7 @@ AUTOMAKE = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run automake-1.
 AWK = gawk
 CC = bfin-uclinux-gcc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+# CFLAGS = -g -O2
 CPP = bfin-uclinux-gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -63,7 +63,7 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
-LDFLAGS = -Wl,-elf2flt
+# LDFLAGS = -Wl,-elf2flt
 LIBOBJS = 
 LIBOJBS = 
 LIBS = -lm 
