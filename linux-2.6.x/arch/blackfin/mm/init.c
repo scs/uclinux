@@ -147,7 +147,7 @@ void mem_init(void)
 
 	start_mem = PAGE_ALIGN(start_mem);
 	max_mapnr = num_physpages = MAP_NR(high_memory);
-	printk("Physical pages: %lx\n", num_physpages);
+	printk(KERN_INFO "Physical pages: %lx\n", num_physpages);
 
 	/* this will put all memory onto the freelists */
 	totalram_pages = free_all_bootmem();

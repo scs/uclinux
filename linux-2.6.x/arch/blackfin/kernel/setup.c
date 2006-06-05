@@ -229,20 +229,20 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
-	printk("Blackfin uClinux support by blackfin.uclinux.org \n");
-	printk("Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
+	printk(KERN_INFO "Blackfin uClinux support by blackfin.uclinux.org\n");
+	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       get_cclk() / 1000000, get_sclk() / 1000000);
-	printk("Board Memory: %dMB\n", CONFIG_MEM_SIZE);
+	printk(KERN_INFO "Board Memory: %dMB\n", CONFIG_MEM_SIZE);
 
-	printk
-	    ("Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
+	printk(KERN_INFO
+	     "Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
 	     (int)_stext, (int)_etext, (int)_sdata, (int)_edata,
 	     (int)__bss_start, (int)__bss_stop, (int)memory_mtd_start,
 	     (int)memory_mtd_start + (int)mtd_size, (int)&init_thread_union,
 	     (int)(&init_thread_union) + 0x2000);
 
 	if (strlen(*cmdline_p))
-		printk("Command line: '%s'\n", *cmdline_p);
+		printk(KERN_INFO "Command line: '%s'\n", *cmdline_p);
 
 #ifdef CONFIG_CONSOLE
 #ifdef CONFIG_FRAMEBUFFER
@@ -282,7 +282,7 @@ void __init setup_arch(char **cmdline_p)
 
 	bf53x_cache_init();
 
-	printk("Hardware Trace Enabled\n");
+	printk(KERN_INFO "Hardware Trace Enabled\n");
 	*pTBUFCTL = 0x03;
 
 }
@@ -701,8 +701,8 @@ struct seq_operations cpuinfo_op = {
 
 void panic_bfin(int cplb_panic)
 {
-	printk("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
-	printk("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
 	dump_stack();
 	switch (cplb_panic) {
 

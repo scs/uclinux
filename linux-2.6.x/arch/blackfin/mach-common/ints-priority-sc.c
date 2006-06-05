@@ -510,7 +510,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 {
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-    printk("Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
+    printk(KERN_INFO "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
     set_irq_type(irq_pfx, type);
 #else
 #if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
@@ -533,7 +533,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
   __builtin_bfin_ssync();
 #endif
 
-    printk("Blackfin GPIO interrupt setup: flag PF%d, irq %d\n", flag, irq);
+    printk(KERN_INFO "Blackfin GPIO interrupt setup: flag PF%d, irq %d\n", flag, irq);
 
   if (irq == IRQ_PROG_INTA ||
       irq == IRQ_PROG_INTB)

@@ -115,7 +115,7 @@ static inline long get_reg(struct task_struct *task, int regno)
 	}
 	/* slight mystery ... never seems to come here but kernel misbehaves without this code! */
 
-	printk("Request to get for unknown register %d\n", regno);
+	printk(KERN_WARNING "Request to get for unknown register %d\n", regno);
 	return 0;
 }
 
@@ -245,7 +245,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKEDATA:
-		printk("PTRACE_PEEKDATA\n");
+		printk(KERN_NOTICE "ptrace: PTRACE_PEEKDATA\n");
 		/* fall through */
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
 		{
@@ -365,14 +365,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SETREGS:
 		{
-
-			printk("SETREGS : **** NOT IMPLEMENTED ***\n");
+			printk(KERN_NOTICE "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
 			/* Set all gp regs in the child. */
 			ret = 0;
 			break;
 		}
 	default:
-		printk("Ptrace :  *** Unhandled case **** %d\n", (int)request);
+		printk(KERN_NOTICE "ptrace: *** Unhandled case **** %d\n", (int)request);
 		ret = -EIO;
 		break;
 	}

@@ -71,7 +71,7 @@ struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
 /* L1 Scratchpad SRAM initialization function */
 void l1sram_init(void)
 {
-	printk("Blackfin Scratchpad data SRAM: %d KB\n",
+	printk(KERN_INFO "Blackfin Scratchpad data SRAM: %d KB\n",
 	       L1_SCRATCH_LENGTH >> 10);
 
 	memset((void *)&l1_ssram, 0, sizeof(l1_ssram));
@@ -87,14 +87,14 @@ void l1_data_A_sram_init(void)
 {
 	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
 #if 0 != L1_DATA_A_LENGTH
-	printk("Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
+	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
 
 	l1_data_A_sram[0].paddr = L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
 #if 0 != L1_DATA_B_LENGTH
-	printk("Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
+	printk(KERN_INFO "Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
 
 	memset((void *)&l1_data_B_sram, 0, sizeof(l1_data_B_sram));
 	l1_data_B_sram[0].paddr = L1_DATA_B_START;
