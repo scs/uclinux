@@ -800,6 +800,9 @@ static void shutdown(struct bfin_serial *info)
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	del_timer(&info->dma_timer);
+
+	disable_dma(info->rx_DMA_channel);
+	disable_dma(info->tx_DMA_channel);
 #endif
 
 	rs_wait_until_sent(info->tty, 0);
@@ -811,11 +814,6 @@ static void shutdown(struct bfin_serial *info)
 	SSYNC;
 	*(regs->rpUART_LCR) = 0;
 	SSYNC;
-
-#ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	disable_dma(info->rx_DMA_channel);
-	disable_dma(info->tx_DMA_channel);
-#endif
 
 	if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
 		bfin_rtsdtr(info, 0);
