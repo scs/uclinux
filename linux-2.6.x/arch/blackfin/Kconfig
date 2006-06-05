@@ -438,27 +438,19 @@ endchoice
 
 choice
 	prompt "Uncached SDRAM region"
+	default UNCACHED_1M
 config UNCACHED_2M
 	bool 'Enable 2M DMA Zone'
-	default n
-
 config UNCACHED_1M
 	bool 'Enable 1M DMA Zone'
-	default y
-
 config UNCACHED_512K
 	bool 'Enable 512K DMA Zone'
-	default n
-
 config UNCACHED_256K
 	bool 'Enable 256k DMA Zone'
-	default n
-
 config UNCACHED_NONE
 	bool 'Disable DMA Zone'
-	default n
 	---help---
-	  Size of the uncached SDRAM region
+	  Size of the uncached SDRAM region used for DMA memory.
 endchoice
 
 menu	"Clock Settings"
