@@ -809,9 +809,7 @@ static void shutdown(struct bfin_serial *info)
 
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 	*(regs->rpUART_IER) = 0;
-	SSYNC;
 	*(regs->rpUART_GCTL) &= ~UCEN;
-	SSYNC;
 	*(regs->rpUART_LCR) = 0;
 	SSYNC;
 
