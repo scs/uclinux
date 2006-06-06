@@ -387,13 +387,13 @@ ENTRY(system_call)
 	/* Check the System Call */
 	r7 = __NR_syscall;
 	/*System call number is passed in P0 */
-	r5 = p0;
-	cc = r5 < r7;
+	r6 = p0;
+	cc = r6 < r7;
 	if ! cc jump badsys;
 
 	/* Execute the appropriate system call */
 
-	p4 = r5;
+	p4 = p0;
 	p5.l = sys_call_table;
 	p5.h = sys_call_table;
 	p5 = p5 + (p4 << 2);
@@ -412,11 +412,12 @@ ENTRY(system_call)
         CC = BITTST(r7,TIF_SYSCALL_TRACE);
         if CC JUMP sys_trace;
 
+	[--sp] = r5;
 	[--sp] = r4;
 	[--sp] = r3;
 	SP += -12;
 	call (p5);
-	SP += 20;
+	SP += 24;
 	[sp + PT_R0] = r0;
 
 resume_userspace:
@@ -470,53 +471,53 @@ syscall_really_exit:
 	rts;
 
 sys_trace:
-        [--sp] = r3;
-        [--sp] = r2;
-        [--sp] = r1;
-        [--sp] = r0;
-        [--sp] = p5;
-        [--sp] = p2;
-        [--sp] = p1;
-        [--sp] = p0;
-        r1 = 0;
-        call _syscall_trace;
-        p0 = [sp++];
-        p1 = [sp++];
-        p2 = [sp++];
-        p5 = [sp++];
-        r0 = [sp++];
-        r1 = [sp++];
-        r2 = [sp++];
-        r3 = [sp++];
+	[--sp] = r3;
+	[--sp] = r2;
+	[--sp] = r1;
+	[--sp] = r0;
+	[--sp] = p5;
+	[--sp] = p2;
+	[--sp] = p1;
+	[--sp] = p0;
+	r1 = 0;
+	call _syscall_trace;
+	p0 = [sp++];
+	p1 = [sp++];
+	p2 = [sp++];
+	p5 = [sp++];
+	r0 = [sp++];
+	r1 = [sp++];
+	r2 = [sp++];
+	r3 = [sp++];
 
 
-        [--sp] = r4;
-        [--sp] = r3;
-         SP += -12;
-        call (p5);
-        SP += 20;
-        [sp + PT_R0] = r0;
+	[--sp] = r4;
+	[--sp] = r3;
+	SP += -12;
+	call (p5);
+	SP += 20;
+	[sp + PT_R0] = r0;
 
-        [--sp] = r3;
-        [--sp] = r2;
-        [--sp] = r1;
-        [--sp] = r0;
-        [--sp] = p5;
-        [--sp] = p2;
-        [--sp] = p1;
-        [--sp] = p0;
-        r1 = 1;
-        call _syscall_trace;
-        p0 = [sp++];
-        p1 = [sp++];
-        p2 = [sp++];
-        p5 = [sp++];
-        r0 = [sp++];
-        r1 = [sp++];
-        r2 = [sp++];
-        r3 = [sp++];
+	[--sp] = r3;
+	[--sp] = r2;
+	[--sp] = r1;
+	[--sp] = r0;
+	[--sp] = p5;
+	[--sp] = p2;
+	[--sp] = p1;
+	[--sp] = p0;
+	r1 = 1;
+	call _syscall_trace;
+	p0 = [sp++];
+	p1 = [sp++];
+	p2 = [sp++];
+	p5 = [sp++];
+	r0 = [sp++];
+	r1 = [sp++];
+	r2 = [sp++];
+	r3 = [sp++];
 
-        jump resume_userspace;
+	jump resume_userspace;
 
 ENTRY(resume)
 	/*
@@ -568,8 +569,8 @@ new_old_task:
 	rts;
 
 ENTRY(ret_from_exception)
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
 
 	csync;
 	r0 = [p2];
@@ -580,8 +581,8 @@ ENTRY(ret_from_exception)
 	r2 = ~r1;
 	r2.h = 0;
 	r0 = r2 & r0;
-        cc = r0 == 0;
-        if !cc jump 4f;	/* if not return to user mode, get out */
+	cc = r0 == 0;
+	if !cc jump 4f;	/* if not return to user mode, get out */
 
 	/* Make sure any pending system call or deferred exception
 	 * return in ILAT for this process to get executed, otherwise
@@ -590,13 +591,13 @@ ENTRY(ret_from_exception)
 	 * forward to the switched process
 	 */
 
-        p2.l = lo(ILAT);
-        p2.h = hi(ILAT);
-        r0 = [p2];
+	p2.l = lo(ILAT);
+	p2.h = hi(ILAT);
+	r0 = [p2];
 	r1 = (EVT_IVG14 | EVT_IVG15) (z);
-        r0 = r0 & r1;
-        cc = r0 == 0;
-        if !cc jump 5f;
+	r0 = r0 & r1;
+	cc = r0 == 0;
+	if !cc jump 5f;
 
 	/* Set the stack for the current process */
 	r7 = sp;
@@ -619,34 +620,34 @@ ENTRY(ret_from_exception)
 	csync;
 	raise 15;		/* raise evt14 to do signal or reschedule */
 4:
-        r0 = syscfg;
-        bitclr(r0, 0);
-        syscfg = r0;
+	r0 = syscfg;
+	bitclr(r0, 0);
+	syscfg = r0;
 5:
 	rts;
 
 ENTRY(return_from_int)
 	/* If someone else already raised IRQ 15, do nothing.  */
 	csync;
-        p2.l = lo(ILAT);
-        p2.h = hi(ILAT);
-        r0 = [p2];
+	p2.l = lo(ILAT);
+	p2.h = hi(ILAT);
+	r0 = [p2];
 	cc = bittst (r0, EVT_IVG15_P);
-        if cc jump 2f;
+	if cc jump 2f;
 
 	/* if not return to user mode, get out */
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
-        r0 = [p2];
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
+	r0 = [p2];
 	r1 = 0x17(Z);
 	r2 = ~r1;
 	r2.h = 0;
 	r0 = r2 & r0;
-        r1 = 1;
-        r1 = r0 - r1;
-        r2 = r0 & r1;
-        cc = r2 == 0;
-        if !cc jump 2f;
+	r1 = 1;
+	r1 = r0 - r1;
+	r2 = r0 & r1;
+	cc = r2 == 0;
+	if !cc jump 2f;
 
 	/* Lower the interrupt level to 15.  */
 	p0.l = lo(EVT15);
@@ -980,6 +981,62 @@ ENTRY(sys_call_table)
 	.long _sys_exit_group
 	.long _sys_lookup_dcookie
 	.long _sys_bfin_spinlock
+	.long _sys_epoll_create	/* 255 */
+	.long _sys_epoll_ctl
+	.long _sys_epoll_wait
+	.long _sys_ni_syscall /* remap_file_pages */
+	.long _sys_set_tid_address
+	.long _sys_timer_create	/* 260 */
+	.long _sys_timer_settime
+	.long _sys_timer_gettime
+	.long _sys_timer_getoverrun
+	.long _sys_timer_delete
+	.long _sys_clock_settime /* 265 */
+	.long _sys_clock_gettime
+	.long _sys_clock_getres
+	.long _sys_clock_nanosleep
+	.long _sys_statfs64
+	.long _sys_fstatfs64	/* 270 */
+	.long _sys_tgkill
+	.long _sys_utimes
+	.long _sys_fadvise64_64
+	.long _sys_ni_syscall /* vserver */
+	.long _sys_ni_syscall /* 275, mbind */
+	.long _sys_ni_syscall /* get_mempolicy */
+	.long _sys_ni_syscall /* set_mempolicy */
+	.long _sys_mq_open
+	.long _sys_mq_unlink
+	.long _sys_mq_timedsend	/* 280 */
+	.long _sys_mq_timedreceive
+	.long _sys_mq_notify
+	.long _sys_mq_getsetattr
+	.long _sys_ni_syscall /* kexec_load */
+	.long _sys_waitid	/* 285 */
+	.long _sys_add_key
+	.long _sys_request_key
+	.long _sys_keyctl
+	.long _sys_ioprio_set
+	.long _sys_ioprio_get	/* 290 */
+	.long _sys_inotify_init
+	.long _sys_inotify_add_watch
+	.long _sys_inotify_rm_watch
+	.long _sys_ni_syscall /* migrate_pages */
+	.long _sys_openat	/* 295 */
+	.long _sys_mkdirat
+	.long _sys_mknodat
+	.long _sys_fchownat
+	.long _sys_futimesat
+	.long _sys_fstatat64	/* 300 */
+	.long _sys_unlinkat
+	.long _sys_renameat
+	.long _sys_linkat
+	.long _sys_symlinkat
+	.long _sys_readlinkat	/* 305 */
+	.long _sys_fchmodat
+	.long _sys_faccessat
+	.long _sys_pselect6
+	.long _sys_ppoll
+	.long _sys_unshare	/* 310 */
 	.rept 2
 	.long _sys_ni_syscall
 	.endr

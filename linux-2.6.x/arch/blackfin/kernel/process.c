@@ -261,7 +261,7 @@ asmlinkage int sys_execve(char *name, char **argv, char **envp)
 {
 	int error;
 	char *filename;
-	struct pt_regs *regs = (struct pt_regs *)((&name) + 5);
+	struct pt_regs *regs = (struct pt_regs *)((&name) + 6);
 
 	lock_kernel();
 	filename = getname(name);
