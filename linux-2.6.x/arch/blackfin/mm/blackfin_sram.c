@@ -3,7 +3,7 @@
  * Based on:
  * Author:
  * Created:
- * Description:  SRAM driver for Blackfin ADSP-BF533
+ * Description:  SRAM driver for Blackfin ADSP-BF5xx
  *
  * Rev:          $Id$
  *
@@ -64,7 +64,7 @@ struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
 
 struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
 
-#if 0 != L1_DATA_B_LENGTH
+#if L1_DATA_B_LENGTH != 0
 struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
 #endif
 
@@ -88,14 +88,14 @@ void l1sram_init(void)
 void l1_data_A_sram_init(void)
 {
 	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
-#if 0 != L1_DATA_A_LENGTH
+#if L1_DATA_A_LENGTH != 0
 	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
 
 	l1_data_A_sram[0].paddr = L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
-#if 0 != L1_DATA_B_LENGTH
+#if L1_DATA_B_LENGTH != 0
 	printk(KERN_INFO "Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
 
 	memset((void *)&l1_data_B_sram, 0, sizeof(l1_data_B_sram));
@@ -111,7 +111,7 @@ void l1_data_A_sram_init(void)
 void l1_inst_sram_init(void)
 {
 	memset((void *)&l1_inst_sram, 0, sizeof(l1_inst_sram));
-#if 0 != L1_CODE_LENGTH
+#if L1_CODE_LENGTH != 0
 	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n", L1_CODE_LENGTH >> 10);
 
 	l1_inst_sram[0].paddr = L1_CODE_START + (_etext_l1 - _stext_l1);
@@ -222,7 +222,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 
 	addr = l1_sram_alloc(size, l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 
-#if 0 != L1_DATA_B_LENGTH
+#if L1_DATA_B_LENGTH != 0
 	if (!addr)
 		addr = l1_sram_alloc(size,
 				     l1_data_B_sram,
@@ -243,7 +243,7 @@ int l1_data_A_sram_free(unsigned long addr)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
 
-#if 0 != L1_DATA_B_LENGTH
+#if L1_DATA_B_LENGTH != 0
 	if (L1_DATA_B_START == (addr & ~0xffff))
 		ret = l1_sram_free(addr,
 				   l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
@@ -258,7 +258,7 @@ int l1_data_A_sram_free(unsigned long addr)
 	return ret;
 }
 
-#if 0 != L1_DATA_B_LENGTH
+#if L1_DATA_B_LENGTH != 0
 unsigned long l1_data_B_sram_alloc(unsigned long size)
 {
 	unsigned flags;
