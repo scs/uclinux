@@ -114,9 +114,9 @@ void l1_inst_sram_init(void)
 #if 0 != L1_CODE_LENGTH
 	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n", L1_CODE_LENGTH >> 10);
 
-	l1_data_A_sram[0].paddr = L1_CODE_START + (_etext_l1 - _stext_l1);
-	l1_data_A_sram[0].size = L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
-	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
+	l1_inst_sram[0].paddr = L1_CODE_START + (_etext_l1 - _stext_l1);
+	l1_inst_sram[0].size = L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
+	l1_inst_sram[0].flag = SRAM_SLT_FREE;
 #endif
 
 	/* mutex initialize */
