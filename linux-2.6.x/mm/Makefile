@@ -1,14 +1,15 @@
 #
 # Makefile for the linux memory manager.
 #
-
+np2-y			:= page_alloc.o
+np2-$(CONFIG_NP2_ALLOC):= page_alloc_np2.o
 mmu-y			:= nommu.o
 mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
 			   vmalloc.o
 
 obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
-			   page_alloc.o page-writeback.o pdflush.o \
+			   $(np2-y) page-writeback.o pdflush.o \
 			   readahead.o swap.o truncate.o vmscan.o \
 			   prio_tree.o util.o $(mmu-y)
 

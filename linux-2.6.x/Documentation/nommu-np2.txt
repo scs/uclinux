@@ -1,0 +1,116 @@
+Documentation for mm/page_alloc_np2.c
+
+ initial work on the linux-2.6.x non-power of 2 allocator.
+ Tries to use a combination of slob allocator and lists.
+
+General Notes
+
+ We keep the bootmem bitmap and try to manage it but do not use it yet.
+ a super slob idea is to be used instead of the bitmap. see below.
+
+ The size is either the order ( if less than 32 ) or the actual 
+ page size plus 32 ( in pages ). This will allow us to 
+ recover either the order or the actual page size.
+ look at np2_get_size for the code.
+
+
+ The basic idea is much like that used in the new slob allocator;
+ page groups are created from free memory.
+ Initially all ( or most ) memory is collected in a large page group.
+ There is a start page number (pfn) of the largest block in a zone.
+
+ The system will default its start page search to the pfn 
+ of the start of the largest block of memory after each merge.
+ If the new found page group size is larger than the requested size t
+ the system will divide up the block by allocating the requested size 
+ off the tail of the block.
+ This keeps the start page group pfn intact while shrinking the largest 
+ block as memory is allocated.
+
+ a "np2_size" member has been added to the page structure to keep track of
+ a page group size.
+ -ve size means that the page ( of that size ) has been allocated
+ +ve size means that this space is free
+ 0 size meands that this page is NOT on an page groupallocation boundary.
+ When pages are merged the np2_size is manipulated.
+ A new list element (np2) has been added to the page struct to allow us to 
+ keep a list of free page groups for that zone.
+ A new list has been aded to the zone (np2_list) to keep track of freed page
+ groups.
+
+free_pages
+==========
+
+ Each time a block of memory is freed we simply mark the first 
+ page size element with a positive group size number. 
+ This number should be the inverted size of the page group size 
+ created when the page was freed. 
+ This size can deviate (upwards) from the actual page allocation request.
+ A list of freed page groups is kept by zone.
+
+ The page size is set up in bootmem.c when the page is freed initially.
+
+page_alloc
+==========
+
+ When we want to allocate a block of memory we should first look at the 
+ np2 free list to pick a good match.
+ If this is OK then we have a page group and we can continue.
+ If no good page group is found in the list then we start scanning the 
+ actual pages for a large enough block.
+ Since the start page is the largest block we should be there right away.
+ An allocation is then marked and the group size negated and placed in the 
+ np2_size element of the page structure. The page is then free to go.
+
+np2_merge
+=========
+
+ An NP2 merge program combines adjacent page groups into bigger groups.
+ This is curently scheduled manually from the proc interface but will be 
+ done automatically in the final release.
+ The merge collapses the list of free pages and builds up a new one.
+
+np2 proc interface
+==================
+ /proc/np2/all    -  shows entitre memory map
+ /proc/np2/hole   - show allocated groups
+ /proc/np2/space  - show free groups
+ /proc/np2/list   - show the free list
+ /proc/np2/merge  - merge adjacent free groups
+ /proc/np2/help   - describes the other functions
+
+ The proc interface allows the user, during testing, to examine the 
+ free and allocated page groups.
+ It also allows the user to inspect the free page list.
+ The np2 merge is also manually triggered from the proc interface.
+ I did not want to work with multi page proc output so the data is output
+ using printk.
+
+Old system
+==========
+
+ Apart from the addition of the new elements and a new allocator the old 
+ buddy allocator is untouched. 
+ Vmscan is modified so that it does not do anything.
+ There is a global (use_np2) flag to switch between the old and new 
+ allocators.
+
+
+Current problems.
+
+ The system seems to working.
+ It looks like being much simpler than the buddy allocator 
+  and should be more efficient for MMULESS embedded systems.
+ There are some issues with the file locking that I have not dealt with.
+
+ 1/ Most allocations are currently on an even 2 page boundary.
+    single page alloctions are available on the list.
+    If no single page allocation is found, a two page allocation is made and
+    split into two single pages.
+
+ 2/ The page_count check is not used in this system.
+
+ 3/ Unused page_alloc.c code is still in place.
+
+ 4/ np2 merge is manually trigerred through the proc interface, but
+    it would be trivial to auto trigger this.

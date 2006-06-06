@@ -149,6 +149,49 @@ static void slob_free(void *block, int size)
 	spin_unlock_irqrestore(&slob_lock, flags);
 }
 
+#ifdef CONFIG_NP2_ALLOC
+
+static int FASTCALL(find_order_orig(int size));
+static int fastcall find_order_orig(int size)
+{
+	int order = 0;
+	for ( ; size > 4096 ; size >>=1)
+		order++;
+	return order;
+}
+
+/* convert to number of pages */
+static int FASTCALL(find_order(int size));
+static int fastcall find_order(int size)
+{
+
+	int order;
+	order = find_order_orig(size);
+	//return order;
+	if ( order > 4 ) {
+		order = size >> PAGE_SHIFT; //size / page_size
+		if ((order << PAGE_SHIFT ) != size) {
+			order++;
+		}
+		/* add max_order ( 32 ) */
+		order += 32;
+	}
+	return order;
+}
+
+static int FASTCALL(find_size(int order));
+static int fastcall find_size(int order)
+{
+	int size;
+	if (order > 32)
+		size = (order - 32) << PAGE_SHIFT;
+	else
+		size = PAGE_SIZE << order;
+	return size;
+}
+
+#else
+
 static int FASTCALL(find_order(int size));
 static int fastcall find_order(int size)
 {
@@ -157,6 +200,10 @@ static int fastcall find_order(int size)
 		order++;
 	return order;
 }
+
+#define find_size(order) (PAGE_SIZE << order)
+
+#endif
 
 void *kmalloc(size_t size, gfp_t gfp)
 {
@@ -232,7 +279,7 @@ unsigned int ksize(const void *block)
 		for (bb = bigblocks; bb; bb = bb->next)
 			if (bb->pages == block) {
 				spin_unlock_irqrestore(&slob_lock, flags);
-				return PAGE_SIZE << bb->order;
+				return find_size(bb->order);
 			}
 		spin_unlock_irqrestore(&block_lock, flags);
 	}

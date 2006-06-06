@@ -1746,8 +1746,9 @@ static int kswapd(void *p)
 			order = pgdat->kswapd_max_order;
 		}
 		finish_wait(&pgdat->kswapd_wait, &wait);
-
+#ifndef CONFIF_NP2_ALLOC		
 		balance_pgdat(pgdat, 0, order);
+#endif		
 	}
 	return 0;
 }

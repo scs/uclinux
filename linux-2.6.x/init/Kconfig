@@ -400,6 +400,13 @@ config SLAB
 	  SLOB is more space efficient but does not scale well and is
 	  more susceptible to fragmentation.
 
+config NP2_ALLOC
+	default n
+	bool "Use non-power of 2 allocator" if EMBEDDED
+	depends SLOB && EXPERIMENTAL
+	help
+	  Uses the experimental non power of 2 allocator.  Use with care.
+
 endmenu		# General setup
 
 config TINY_SHMEM

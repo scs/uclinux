@@ -107,8 +107,10 @@ FASTCALL(__alloc_pages(gfp_t, unsigned int, struct zonelist *));
 static inline struct page *alloc_pages_node(int nid, gfp_t gfp_mask,
 						unsigned int order)
 {
+#ifndef CONFIG_NP2_ALLOC
 	if (unlikely(order >= MAX_ORDER))
 		return NULL;
+#endif
 
 	/* Unknown node is current node */
 	if (nid < 0)
@@ -124,8 +126,10 @@ extern struct page *alloc_pages_current(gfp_t gfp_mask, unsigned order);
 static inline struct page *
 alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
+#ifndef CONFIG_NP2_ALLOC
 	if (unlikely(order >= MAX_ORDER))
 		return NULL;
+#endif
 
 	return alloc_pages_current(gfp_mask, order);
 }

@@ -264,6 +264,12 @@ struct page {
 	void *virtual;			/* Kernel virtual address (NULL if
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
+
+#ifdef CONFIG_NP2_ALLOC
+	int np2_size;			/* holds alloction size in pages */
+	struct list_head np2_list;
+#endif
+
 };
 
 #define page_private(page)		((page)->private)
