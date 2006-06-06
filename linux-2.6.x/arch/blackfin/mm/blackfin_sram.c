@@ -42,7 +42,7 @@
 #include <linux/rtc.h>
 #include <asm/blackfin.h>
 
-spinlock_t l1sram_lock, l1_data_A_sram_lock;
+spinlock_t l1sram_lock, l1_data_A_sram_lock, l1_inst_sram_lock;
 
 #define L1_MAX_PIECE        16
 
@@ -67,6 +67,8 @@ struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
 #if 0 != L1_DATA_B_LENGTH
 struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
 #endif
+
+struct l1_sram_piece l1_inst_sram[L1_MAX_PIECE];
 
 /* L1 Scratchpad SRAM initialization function */
 void l1sram_init(void)
@@ -104,6 +106,21 @@ void l1_data_A_sram_init(void)
 
 	/* mutex initialize */
 	spin_lock_init(&l1_data_A_sram_lock);
+}
+
+void l1_inst_sram_init(void)
+{
+	memset((void *)&l1_inst_sram, 0, sizeof(l1_inst_sram));
+#if 0 != L1_CODE_LENGTH
+	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n", L1_CODE_LENGTH >> 10);
+
+	l1_data_A_sram[0].paddr = L1_CODE_START + (_etext_l1 - _stext_l1);
+	l1_data_A_sram[0].size = L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
+	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
+#endif
+
+	/* mutex initialize */
+	spin_lock_init(&l1_inst_sram_lock);
 }
 
 /* L1 memory allocate function */
@@ -276,6 +293,39 @@ int l1_data_B_sram_free(unsigned long addr)
 }
 #endif
 
+unsigned long l1_inst_sram_alloc(unsigned long size)
+{
+	unsigned flags;
+	unsigned long addr;
+
+	/* add mutex operation */
+	spin_lock_irqsave(&l1_inst_sram_lock, flags);
+
+	addr = l1_sram_alloc(size, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
+
+	/* add mutex operation */
+	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
+
+	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	return addr;
+}
+
+int l1_inst_sram_free(unsigned long addr)
+{
+	unsigned flags;
+	int ret;
+
+	/* add mutex operation */
+	spin_lock_irqsave(&l1_inst_sram_lock, flags);
+
+	ret = l1_sram_free(addr, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
+
+	/* add mutex operation */
+	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
+
+	return ret;
+}
+
 /* L1 Scratchpad memory allocate function */
 unsigned long l1sram_alloc(unsigned long size)
 {
@@ -314,3 +364,7 @@ EXPORT_SYMBOL(l1sram_alloc);
 EXPORT_SYMBOL(l1sram_free);
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 EXPORT_SYMBOL(l1_data_A_sram_free);
+EXPORT_SYMBOL(l1_data_B_sram_alloc);
+EXPORT_SYMBOL(l1_data_B_sram_free);
+EXPORT_SYMBOL(l1_inst_sram_alloc);
+EXPORT_SYMBOL(l1_inst_sram_free);

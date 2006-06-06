@@ -164,6 +164,7 @@ void mem_init(void)
 	/*Initialize the blackfin L1 Memory */
 	l1sram_init();
 	l1_data_A_sram_init();
+	l1_inst_sram_init();
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
