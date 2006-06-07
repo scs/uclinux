@@ -87,12 +87,27 @@ do_mmap2(unsigned long addr, unsigned long len,
 	return error;
 }
 
-asmlinkage long
-sys_mmap2(unsigned long addr, unsigned long len,
-	  unsigned long prot, unsigned long flags,
-	  unsigned long fd, unsigned long pgoff)
+asmlinkage long sys_mmap2 (unsigned long addr, unsigned long len,
+			   unsigned long prot, unsigned long flags,
+			   unsigned long fd, unsigned long pgoff)
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
+}
+
+asmlinkage int sys_mmap (unsigned long addr, unsigned long len,
+			 unsigned long prot, unsigned long flags,
+			 unsigned long fd, unsigned long pgoff)
+{
+	int error = -EINVAL;
+
+	if (pgoff & ~PAGE_MASK)
+		goto out;
+
+	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
+
+	error = do_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
+out:
+	return error;
 }
 
 /*
@@ -101,36 +116,6 @@ sys_mmap2(unsigned long addr, unsigned long len,
  * handle more than 4 system call parameters, so these system calls
  * used a memory block for parameter passing..
  */
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-asmlinkage int old_mmap(struct mmap_arg_struct *arg)
-{
-	struct mmap_arg_struct a;
-	int error = -EFAULT;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	error = -EINVAL;
-	if (a.offset & ~PAGE_MASK)
-		goto out;
-
-	a.flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	error =
-	    do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd,
-		     a.offset >> PAGE_SHIFT);
-      out:
-	return error;
-}
 
 struct sel_arg_struct {
 	unsigned long n;
