@@ -1730,7 +1730,7 @@ force_result(tcp, error, rval)
 #else
 #ifdef BFIN
 	  regs.r0 = error ? -error : rval;
-       if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(4*0), regs.r0) < 0)
+       if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)PT_R0, regs.r0) < 0)
                 return -1;
 
 #else/*!BFIN*/
@@ -2119,6 +2119,23 @@ struct tcb *tcp;
 			if (upeek(pid, argreg[current_personality][i]*8, &tcp->u_arg[i]) < 0)
 				return -1;
 		}
+	}
+#elif defined (BFIN)
+	{
+		int i;
+		int argreg[MAX_ARGS] = {PT_R0, PT_R1, PT_R2, PT_R3, PT_R4, PT_R5};
+
+		if (tcp->scno >= 0 && tcp->scno < nsyscalls && sysent[tcp->scno].nargs != -1)
+			tcp->u_nargs = sysent[tcp->scno].nargs;
+		else
+			tcp->u_nargs = MAX_ARGS;
+
+		if(tcp->u_nargs > 6)
+			return -1;
+
+		for(i = 0; i < tcp->u_nargs; i++)
+			if (upeek(pid, argreg[i], &tcp->u_arg[i]) < 0)
+				return -1;
 	}
 #else /* Other architecture (like i386) (32bits specific) */
 	{
