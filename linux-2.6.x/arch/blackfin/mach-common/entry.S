@@ -391,16 +391,6 @@ ENTRY(system_call)
 	cc = r6 < r7;
 	if ! cc jump badsys;
 
-	/* Execute the appropriate system call */
-
-	p4 = p0;
-	p5.l = sys_call_table;
-	p5.h = sys_call_table;
-	p5 = p5 + (p4 << 2);
-	r0 = [sp + PT_R0];
-	r1 = [sp + PT_R1];
-	r2 = [sp + PT_R2];
-	p5 = [p5];
 
    /* are we tracing syscalls?*/
         r7 = sp;
@@ -411,6 +401,17 @@ ENTRY(system_call)
         r7 = [p2+TI_FLAGS];
         CC = BITTST(r7,TIF_SYSCALL_TRACE);
         if CC JUMP sys_trace;
+
+	/* Execute the appropriate system call */
+
+	p4 = p0;
+	p5.l = sys_call_table;
+	p5.h = sys_call_table;
+	p5 = p5 + (p4 << 2);
+	r0 = [sp + PT_R0];
+	r1 = [sp + PT_R1];
+	r2 = [sp + PT_R2];
+	p5 = [p5];
 
 	[--sp] = r5;
 	[--sp] = r4;
@@ -471,52 +472,31 @@ syscall_really_exit:
 	rts;
 
 sys_trace:
-	[--sp] = r3;
-	[--sp] = r2;
-	[--sp] = r1;
-	[--sp] = r0;
-	[--sp] = p5;
-	[--sp] = p2;
-	[--sp] = p1;
-	[--sp] = p0;
-	r1 = 0;
 	call _syscall_trace;
-	p0 = [sp++];
-	p1 = [sp++];
-	p2 = [sp++];
-	p5 = [sp++];
-	r0 = [sp++];
-	r1 = [sp++];
-	r2 = [sp++];
-	r3 = [sp++];
 
+	/* Execute the appropriate system call */
 
+	p4 = [SP + PT_P0];
+	p5.l = sys_call_table;
+	p5.h = sys_call_table;
+	p5 = p5 + (p4 << 2);
+	r0 = [sp + PT_R0];
+	r1 = [sp + PT_R1];
+	r2 = [sp + PT_R2];
+	r3 = [sp + PT_R3];
+	r4 = [sp + PT_R4];
+	r5 = [sp + PT_R5];
+	p5 = [p5];
+
+	[--sp] = r5;
 	[--sp] = r4;
 	[--sp] = r3;
 	SP += -12;
 	call (p5);
-	SP += 20;
+	SP += 24;
 	[sp + PT_R0] = r0;
 
-	[--sp] = r3;
-	[--sp] = r2;
-	[--sp] = r1;
-	[--sp] = r0;
-	[--sp] = p5;
-	[--sp] = p2;
-	[--sp] = p1;
-	[--sp] = p0;
-	r1 = 1;
 	call _syscall_trace;
-	p0 = [sp++];
-	p1 = [sp++];
-	p2 = [sp++];
-	p5 = [sp++];
-	r0 = [sp++];
-	r1 = [sp++];
-	r2 = [sp++];
-	r3 = [sp++];
-
 	jump resume_userspace;
 
 ENTRY(resume)
