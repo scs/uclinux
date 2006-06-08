@@ -2,9 +2,11 @@ README for libbfdsp - A port of Analog Devices' Visual DSP++ DSP library to uCli
 
 $ What is libbfdsp
 
-The source code is taken from VDSP4.0. This library implements DSP functions.
-After built, libbfdsp.a put to romfs/lib/, and headers are installed to 
-/include/bfdsp/.
+The source code is taken from VisualDSP4.0++(2005-12 upate).  This library implements 
+DSP functions.
+
+After built, the static library libbfdsp.a is put to uClinux-dist/romfs/lib/, and headers
+are installed to uClinux-dist/romfs/include/bfdsp/.
 
 $ Directory
 
@@ -14,7 +16,8 @@ test/		Test cases. Currently the test cases covers only a few functions.
 
 $ Document
 
-Please refer to Visual DSP++ help document for detailed definition of the funtions.	  
+Please refer to Visual DSP++ help document - Blackfin C/C++ Compiler and Library Mannual
+for detailed definition of the funtions.	  
 
 $ Samples
 
