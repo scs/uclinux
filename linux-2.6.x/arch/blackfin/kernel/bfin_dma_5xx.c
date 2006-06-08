@@ -578,6 +578,42 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 	return dma_ch[channel].regs->curr_y_count;
 }
 
+void *dma_memcpy(void * dest,const void *src,size_t count)
+{
+
+                *pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
+
+                /* Copy sram functions from sdram to sram */
+                /* Setup destination start address */
+                *pMDMA_D0_START_ADDR = (volatile void **)dest;
+                /* Setup destination xcount */
+                *pMDMA_D0_X_COUNT = count ;
+                /* Setup destination xmodify */
+                *pMDMA_D0_X_MODIFY = 1;
+
+                /* Setup Source start address */
+                *pMDMA_S0_START_ADDR = (volatile void **)src;
+                /* Setup Source xcount */
+                *pMDMA_S0_X_COUNT = count;
+                /* Setup Source xmodify */
+                *pMDMA_S0_X_MODIFY = 1;
+
+                /* Enable source DMA */
+                *pMDMA_S0_CONFIG = (DMAEN);
+                asm("ssync;");
+
+                *pMDMA_D0_CONFIG = ( WNR | DMAEN);
+
+                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN){
+                        *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+                }
+                *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+
+                dest += count;
+                src  += count;
+                return dest;
+}
+
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(set_dma_callback);
 EXPORT_SYMBOL(enable_dma);
@@ -601,3 +637,4 @@ EXPORT_SYMBOL(set_dma_y_modify);
 EXPORT_SYMBOL(set_dma_sg);
 EXPORT_SYMBOL(dma_disable_irq);
 EXPORT_SYMBOL(dma_enable_irq);
+EXPORT_SYMBOL(dma_memcpy);

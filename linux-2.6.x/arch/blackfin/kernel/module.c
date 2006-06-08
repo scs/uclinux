@@ -36,6 +36,10 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
+extern unsigned long l1_inst_sram_alloc(unsigned long size);
+extern int l1_inst_sram_free(unsigned long addr);
+extern void *dma_memcpy(void * dest,const void *src,size_t count);
+
 #define DEBUGP(fmt...)
 
 /* handle arithmetic relocations.
@@ -198,6 +202,23 @@ int
 module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			  char *secstrings, struct module *mod)
 {
+        Elf_Shdr *s, *sechdrs_end = sechdrs + hdr->e_shnum;
+	void *dest = NULL;
+
+        for (s = sechdrs; s < sechdrs_end; ++s){
+                if (strcmp(".text.l1", secstrings + s->sh_name) == 0){
+                        mod->arch.text_l1 = s;
+			dest = (void *)l1_inst_sram_alloc(s->sh_size);
+			if(dest==NULL){
+				printk(KERN_ERR "L1 instruction memory allocation failed\n");
+				return -1;
+			}
+			dma_memcpy(dest, (void *)s->sh_addr,
+                               s->sh_size);
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
+	}
 	return 0;
 }
 
@@ -283,14 +304,30 @@ apply_relocate_add(Elf32_Shdr * sechdrs, const char *strtab,
 			*location16 = (value & 0x3ff);
 			break;
 		case R_luimm16:
+			{
+			unsigned short temp;
 			DEBUGP("before %x after %x\n", *location16,
 			       (value & 0xffff));
-			*location16 = (value & 0xffff);
+			if(location16<_etext_l1)
+				*location16 = (value & 0xffff);
+			else{
+				temp=(value&0xffff);
+				dma_memcpy(location16,&temp,2);
+				}
+			}
 			break;
 		case R_huimm16:
+			{
+			unsigned short temp;
 			DEBUGP("before %x after %x\n", *location16,
 			       ((value >> 16) & 0xffff));
-			*location16 = ((value >> 16) & 0xffff);
+			if(location16 <_etext_l1)
+				*location16 = ((value >> 16) & 0xffff);
+			else{
+				temp = (value>>16)&0xffff;
+				dma_memcpy(location16, &temp, 2);
+				}
+			}
 			break;
 		case R_rimm16:
 			*location16 = (value & 0xffff);
@@ -334,9 +371,38 @@ int
 module_finalize(const Elf_Ehdr * hdr,
 		const Elf_Shdr * sechdrs, struct module *me)
 {
+	unsigned int i,strindex=0,symindex=0;
+	char * secstrings;
+
+	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;	 
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+                /* Internal symbols and strings. */
+                if (sechdrs[i].sh_type == SHT_SYMTAB) {
+                        symindex = i;
+                        strindex = sechdrs[i].sh_link;
+                }
+        }
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+                const char *strtab = (char *)sechdrs[strindex].sh_addr;
+                unsigned int info = sechdrs[i].sh_info;
+
+                /* Not a valid relocation section? */
+                if (info >= hdr->e_shnum)
+                        continue;
+
+                if (sechdrs[i].sh_type == SHT_RELA && 
+			(strcmp(".rela.text.l1", secstrings+sechdrs[i].sh_name)==0)){
+                        apply_relocate_add(sechdrs, strtab, symindex, i,
+                                                 me);
+                }
+        }
 	return 0;
 }
 
 void module_arch_cleanup(struct module *mod)
 {
+	if(mod->arch.text_l1->sh_addr)
+		l1_inst_sram_free(mod->arch.text_l1->sh_addr);
 }
