@@ -444,7 +444,9 @@ static void pump_transfers(unsigned long data)
 	drv_data->rx_dma = transfer->rx_dma;
 	drv_data->tx_dma = transfer->tx_dma;
 	drv_data->len_in_bytes = transfer->len;
-	if (width == CFG_SPI_WORDSIZE16) {
+
+	width = chip->width;
+	if(width == CFG_SPI_WORDSIZE16){
 		drv_data->len = (transfer->len) >> 1;
 	} else {
 		drv_data->len = transfer->len;
@@ -457,7 +459,6 @@ static void pump_transfers(unsigned long data)
 	/* speed and width has been set on per message */
 
 	message->state = RUNNING_STATE;
-	width = chip->width;
 	dma_config = 0;
 
 	PRINTK("now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
