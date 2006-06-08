@@ -58,8 +58,8 @@ struct net_dma_desc *rx_list_tail;
 struct net_dma_desc *current_rx_ptr;
 struct net_dma_desc *current_tx_ptr;
 
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern unsigned long l1_data_A_sram_free(unsigned long size);
+extern unsigned long l1_data_sram_zalloc(unsigned long size);
+extern unsigned long l1_data_sram_free(unsigned long size);
 extern void get_bf537_ether_addr(char *addr);
 
 static int desc_list_init(void) 
@@ -71,7 +71,7 @@ static int desc_list_init(void)
 #endif
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-      tx_desc = (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM);
+      tx_desc = (struct net_dma_desc *)l1_data_sram_zalloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM);
 #else
       tx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM , &dma_handle , GFP_DMA);
 #endif
@@ -81,7 +81,7 @@ static int desc_list_init(void)
 	      memset(tx_desc,0,sizeof(tx_desc));
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-      rx_desc = (struct net_dma_desc *)l1_data_A_sram_alloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM);
+      rx_desc = (struct net_dma_desc *)l1_data_sram_zalloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM);
 #else
       rx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM , &dma_handle , GFP_DMA);
 #endif
@@ -188,7 +188,7 @@ static void desc_list_free(void)
 				tmp_desc->skb = NULL;
 			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_A_sram_free((unsigned long)tmp_desc);
+			l1_data_sram_free((unsigned long)tmp_desc);
 #else
 			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
 #endif
@@ -204,7 +204,7 @@ static void desc_list_free(void)
 				tmp_desc->skb = NULL;
 			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_A_sram_free((unsigned long)tmp_desc);
+			l1_data_sram_free((unsigned long)tmp_desc);
 #else
 			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
 #endif

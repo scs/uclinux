@@ -161,6 +161,7 @@ static unsigned long l1_sram_alloc(unsigned long size,
 			}
 		}
 	}
+
 	return addr;
 }
 
@@ -254,6 +255,21 @@ int l1_data_A_sram_free(unsigned long addr)
 	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
 
 	return ret;
+}
+
+unsigned long l1_data_sram_zalloc(unsigned long size)
+{
+	unsigned long addr;
+
+	addr = l1_data_A_sram_alloc(size);
+
+	memset((void *)addr,0,size);
+	return addr;
+}
+
+int l1_data_sram_free(unsigned long addr)
+{
+	return l1_data_A_sram_free(addr);
 }
 
 #if L1_DATA_B_LENGTH != 0
@@ -366,3 +382,5 @@ EXPORT_SYMBOL(l1_data_B_sram_alloc);
 EXPORT_SYMBOL(l1_data_B_sram_free);
 EXPORT_SYMBOL(l1_inst_sram_alloc);
 EXPORT_SYMBOL(l1_inst_sram_free);
+EXPORT_SYMBOL(l1_data_sram_zalloc);
+EXPORT_SYMBOL(l1_data_sram_free);
