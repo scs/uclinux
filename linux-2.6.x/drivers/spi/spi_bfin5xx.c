@@ -446,7 +446,7 @@ static void pump_transfers(unsigned long data)
 	drv_data->len_in_bytes = transfer->len;
 
 	width = chip->width;
-	if(width == CFG_SPI_WORDSIZE16){
+	if (width == CFG_SPI_WORDSIZE16) {
 		drv_data->len = (transfer->len) >> 1;
 	} else {
 		drv_data->len = transfer->len;
