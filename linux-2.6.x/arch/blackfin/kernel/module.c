@@ -197,7 +197,7 @@ void module_free(struct module *mod, void *module_region)
 	vfree(module_region);
 }
 
-/* We don't need anything special. */
+/* Transfer the section to the L1 instruction memory */
 int
 module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			  char *secstrings, struct module *mod)
