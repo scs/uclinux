@@ -106,8 +106,6 @@
 #endif
 
 static int bfin_console_initted = 0;
-static int bfin_console_baud = CONSOLE_BAUD_RATE;
-static int bfin_console_cbaud = DEFAULT_CBAUD;
 
 #ifdef CONFIG_CONSOLE
 extern wait_queue_head_t keypress_wait;
@@ -805,8 +803,6 @@ static void shutdown(struct bfin_serial *info)
 	disable_dma(info->tx_DMA_channel);
 #endif
 
-	rs_wait_until_sent(info->tty, 0);
-
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 	*(regs->rpUART_IER) = 0;
 	*(regs->rpUART_GCTL) &= ~UCEN;
@@ -1109,6 +1105,10 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	info->xmit_head = info->xmit_tail;
 	info->xmit_cnt = 0;
 	local_irq_restore(flags);
+
+	if (info->closing_wait != S_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, info->closing_wait);
+
 	wake_up_interruptible(&tty->write_wait);
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 	    tty->ldisc.write_wakeup)
@@ -1680,6 +1680,7 @@ static void bfin_config_uart0(struct bfin_serial *info)
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);
 
+	info->baud = CONSOLE_BAUD_RATE;
 	info->line = 0;
 	info->is_cons = 0;	/* Means shortcuts work */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
@@ -1727,6 +1728,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	init_waitqueue_head(&info->open_wait);
 	init_waitqueue_head(&info->close_wait);
 
+	info->baud = CONSOLE_BAUD_RATE;
 	info->line = 0;
 	info->is_cons = 0;	/* Means shortcuts work */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
@@ -1875,15 +1877,70 @@ rs_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 	struct uart_registers *regs = &(info->regs);
+	unsigned long orig_jiffies, fifo_time, char_time;
+	int bitnum;
 
-	/* FIXME:
-	 * We should calculate some bit times to sleep and utilize the
-	 * timeout variable passed in rather than just hardcoding 50 here.
-	 * See the mcfrs_wait_until_sent() function in mcfserial.c.
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+#define	BFIN_UART_FIFO_SIZE	5		/* UART DMA fifo size + shift reg */
+#else
+#define	BFIN_UART_FIFO_SIZE	1		/* shift reg */
+#endif
+
+	if (serial_paranoia_check(info, tty->name, "rs_wait_until_sent"))
+		return;
+
+	orig_jiffies = jiffies;
+
+	switch (info->tty->termios->c_cflag & CSIZE) {
+	case CS5:
+		bitnum = 5;
+		break;
+	case CS6:
+		bitnum = 6;
+		break;
+	case CS7:
+		bitnum = 7;
+		break;
+	case CS8:		/* 8-bit should be default */
+	default:
+		bitnum = 8;
+		break;
+	}
+
+	/* add one parity bit and one stop bit*/
+	bitnum+=2;
+	if (info->tty->termios->c_cflag & CSTOPB)
+		bitnum++;
+
+	/*
+	 * Set the check interval to be 1/2 the approximate time
+	 * to send 1 byte buffer, and make it at least 1.  The check
+	 * interval should also be less than the timeout.
 	 */
+	fifo_time = (BFIN_UART_FIFO_SIZE * HZ * bitnum) / info->baud;
+	char_time = fifo_time / 2;
+	if (char_time == 0)
+		char_time = 1;
+	if (timeout && timeout < char_time)
+		char_time = timeout;
 
-	while (!(*(regs->rpUART_LSR) & TEMT))
-		msleep_interruptible(50);
+	/*
+	 * Clamp the timeout period at 2 * the time to empty the
+	 * fifo.  Just to be safe, set the minimum at .5 seconds.
+	 */
+	fifo_time *= 2;
+	if (fifo_time < (HZ/2))
+		fifo_time = HZ/2;
+	if (!timeout || timeout > fifo_time)
+		timeout = fifo_time;
+
+	while (!(*(regs->rpUART_LSR) & TEMT)) {
+		msleep_interruptible(jiffies_to_msecs(char_time));
+		if (signal_pending(current))
+			break;
+		if (timeout && time_after(jiffies, orig_jiffies + timeout))
+			break;
+	}
 }
 
 static struct tty_operations rs_ops = {
@@ -1929,7 +1986,7 @@ static int __init rs_bfin_init(void)
 	bfin_serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	bfin_serial_driver->init_termios = tty_std_termios;
 	bfin_serial_driver->init_termios.c_cflag =
-	    bfin_console_cbaud | CS8 | CREAD | CLOCAL;
+	    DEFAULT_CBAUD | CS8 | CREAD | CLOCAL;
 	bfin_serial_driver->init_termios.c_lflag = ISIG | ICANON | IEXTEN;
 
 	bfin_serial_driver->flags = TTY_DRIVER_REAL_RAW;
@@ -1963,7 +2020,7 @@ static void bfin_set_baud(struct bfin_serial *info)
 	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
 	SSYNC;
 
-	uart_dl = calc_divisor(bfin_console_baud);
+	uart_dl = calc_divisor(info->baud);
 
 	ACCESS_LATCH(regs);	/* Set to access divisor latch */
 	*(regs->rpUART_DLL) = uart_dl;
@@ -2010,8 +2067,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 		if (baud_table[i] == n)
 			break;
 	if (i < BAUD_TABLE_SIZE) {
-		bfin_console_baud = n;
-		bfin_console_cbaud = unix_baud_table[i];
+		info->baud = n;
 	}
 
 	info->is_cons = 1;
