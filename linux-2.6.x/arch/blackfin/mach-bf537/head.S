@@ -153,6 +153,18 @@ ENTRY(__stext)
 	[P0] = R0;
 	SSYNC;
 
+#ifdef CONFIG_BF537_PORT_H
+	p0.h = hi(PORTH_FER);
+	p0.l = lo(PORTH_FER);
+	R0.L = W[P0]; //Read
+	SSYNC;
+	R0 = 0x0000;
+	W[P0] = R0.L; //Write
+	SSYNC;
+	W[P0] = R0.L; /* Disable peripheral function of PORTH */
+	SSYNC;
+#endif
+
 /*Initialise UART*/
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);

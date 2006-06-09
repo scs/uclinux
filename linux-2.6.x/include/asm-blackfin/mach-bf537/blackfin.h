@@ -177,6 +177,47 @@
 
 #endif
 
+/* FIO USE PORT H*/
+#ifdef CONFIG_BF537_PORT_H
+#define pPORT_FER		pPORTH_FER
+#define pFIO_FLAG_D		pPORTHIO
+#define pFIO_FLAG_C		pPORTHIO_CLEAR
+#define pFIO_FLAG_S		pPORTHIO_SET
+#define pFIO_FLAG_T		pPORTHIO_TOGGLE
+#define pFIO_MASKA_D	pPORTHIO_MASKA
+#define pFIO_MASKA_C	pPORTHIO_MASKA_CLEAR
+#define pFIO_MASKA_S	pPORTHIO_MASKA_SET
+#define pFIO_MASKA_T	pPORTHIO_MASKA_TOGGLE
+#define pFIO_MASKB_D	pPORTHIO_MASKB
+#define pFIO_MASKB_C	pPORTHIO_MASKB_CLEAR
+#define pFIO_MASKB_S	pPORTHIO_MASKB_SET
+#define pFIO_MASKB_T	pPORTHIO_MASKB_TOGGLE
+#define pFIO_DIR		pPORTHIO_DIR
+#define pFIO_POLAR		pPORTHIO_POLAR
+#define pFIO_EDGE		pPORTHIO_EDGE
+#define pFIO_BOTH		pPORTHIO_BOTH
+#define pFIO_INEN		pPORTHIO_INEN
+
+#define FIO_FLAG_D		PORTHIO
+#define FIO_FLAG_C		PORTHIO_CLEAR
+#define FIO_FLAG_S		PORTHIO_SET
+#define FIO_FLAG_T		PORTHIO_TOGGLE
+#define FIO_MASKA_D	    PORTHIO_MASKA
+#define FIO_MASKA_C	    PORTHIO_MASKA_CLEAR
+#define FIO_MASKA_S	    PORTHIO_MASKA_SET
+#define FIO_MASKA_T	    PORTHIO_MASKA_TOGGLE
+#define FIO_MASKB_D	    PORTHIO_MASKB
+#define FIO_MASKB_C	    PORTHIO_MASKB_CLEAR
+#define FIO_MASKB_S	    PORTHIO_MASKB_SET
+#define FIO_MASKB_T	    PORTHIO_MASKB_TOGGLE
+#define FIO_DIR		    PORTHIO_DIR
+#define FIO_POLAR		PORTHIO_POLAR
+#define FIO_EDGE		PORTHIO_EDGE
+#define FIO_BOTH		PORTHIO_BOTH
+#define FIO_INEN		PORTHIO_INEN
+
+#endif
+
 /* RTC_ICTL and RTC_ISTAT Masks															    */
 #define	SWEF  STOPWATCH		/* Stopwatch Interrupt Enable                                                                 */
 #define	AEF	  ALARM		/* Alarm Interrupt Enable                                                                             */
