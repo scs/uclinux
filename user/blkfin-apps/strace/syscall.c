@@ -910,13 +910,9 @@ struct tcb *tcp;
 		}
 	}
 #elif defined (BFIN)
-	//printf("not implemented get syscall no!\n");
-//	ptrace(PTRACE_PEEKUSR,pid,PT_P0,&scno);
-//	printf();
-	struct pt_regs regs;
-	 if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
+	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
                 return -1;
-         scno = regs.p0;
+	scno = regs.p0;
 #elif defined (I386)
 	if (upeek(pid, 4*ORIG_EAX, &scno) < 0)
 		return -1;
@@ -1420,11 +1416,8 @@ struct tcb *tcp;
 	 */
 
 #elif defined (BFIN)
-	/*
-         * Nothing required
-         */
-
-        //printf("not implemented fix syscall no!\n");
+	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
+                return -1;
 #elif defined (HPPA)
 	if (upeek(pid, PT_GR28, &r28) < 0)
 		return -1;
@@ -1729,9 +1722,9 @@ force_result(tcp, error, rval)
 		return -1;
 #else
 #ifdef BFIN
-	  regs.r0 = error ? -error : rval;
-       if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)PT_R0, regs.r0) < 0)
-                return -1;
+	regs.r0 = error ? -error : rval;
+	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)PT_R0, regs.r0) < 0)
+		return -1;
 
 #else/*!BFIN*/
 #ifdef IA64
