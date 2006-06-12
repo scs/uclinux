@@ -55,7 +55,7 @@
 #include "ndso.h"
 #include "dac.h"
 
-static s_info *sinfo;
+static s_info sinfo;
 
 int
 main ()
