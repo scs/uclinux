@@ -324,3 +324,9 @@ if {$flag==0} {
    }
 
    puts "$TITLE ............\[FAIL\]\r"
+
+
+log_file
+
+send_user "Ending stress_test.exp\n"
+
