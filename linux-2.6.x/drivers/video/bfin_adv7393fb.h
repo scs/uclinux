@@ -109,3 +109,10 @@ enum
   BUILD,
 };
 
+enum
+{
+  POWER_ON,
+  POWER_DOWN,
+  BLANK_ON,
+  BLANK_OFF,  
+};

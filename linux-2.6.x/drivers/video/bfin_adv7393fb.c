@@ -612,6 +612,34 @@ static struct i2c_driver i2c_driver_adv7393 = {
   .command = adv7393_command,
 };
 
+
+static int
+adv7393_mode (unsigned short mode)
+{
+
+  switch (mode) {
+
+	case POWER_ON:
+		adv7393_write (client_local, 0x00, 0x1E); /* ADV7393 Sleep mode OFF */
+		break;
+	case POWER_DOWN:
+		adv7393_write (client_local, 0x00, 0x1F); /* ADV7393 Sleep mode ON */
+		break;		
+	case BLANK_OFF:
+		adv7393_write (client_local, 0x82, 0xCB); /*Pixel Data Valid*/
+		break;
+	case BLANK_ON:
+			/* Turn off panel */
+  		adv7393_write (client_local, 0x82, 0x8B); /*Pixel Data Invalid*/
+		break;
+	default:
+		return -EINVAL;
+		break;
+  }
+  return 0;
+}
+
+
 static irqreturn_t
 ppi_irq_error (int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -763,12 +791,13 @@ bfin_adv7393_fb_open (struct fb_info *info, int user)
       return -ENOMEM;
     }
 
-adv7393_write (client_local, 0x82, 0xCB);
   dma_desc_list (BUILD);
   enable_irq (IRQ_PPI_ERROR);
   bfin_config_ppi ();
   bfin_config_dma (rgb_buffer);
   bfin_enable_ppi ();
+  adv7393_mode(BLANK_OFF);
+
   return 0;
 }
 
@@ -776,13 +805,12 @@ static int
 bfin_adv7393_fb_release (struct fb_info *info, int user)
 {
 
-
+  adv7393_mode(BLANK_ON);
   disable_irq (IRQ_PPI_ERROR);
-  bfin_disable_dma ();		/* TODO: Check Sequence */
+  bfin_disable_dma ();
   bfin_disable_ppi ();
-
   dma_desc_list (DESTRUCT);
-  adv7393_write (client_local, 0x82, 0x8B);
+
   return 0;
 }
 
@@ -835,8 +863,26 @@ bfin_adv7393_fb_pan_display (struct fb_var_screeninfo *var,
 static int
 bfin_adv7393_fb_blank (int blank, struct fb_info *info)
 {
-  printk (KERN_INFO "bfin_adv7393_fb_blank called ... not implemented\n");
-  return -EINVAL;
+ 
+  switch (blank) {
+
+	case VESA_NO_BLANKING:
+			/* Turn on panel */
+ 		adv7393_mode(BLANK_OFF);
+		break;
+
+	case VESA_VSYNC_SUSPEND:
+	case VESA_HSYNC_SUSPEND:
+	case VESA_POWERDOWN:
+			/* Turn off panel */
+ 		adv7393_mode(BLANK_ON);
+		break;
+	
+	default:
+		return -EINVAL;
+		break;
+  }
+	return 0;  
 }
 
 static void
@@ -856,7 +902,7 @@ static void __exit
 bfin_adv7393_fb_exit (void)
 {
 
-  adv7393_write (client_local, 0x00, 0x1F); /* ADV7393 Sleep mode ON */.
+  adv7393_mode(POWER_DOWN);
 
   if (rgb_buffer)
     dma_free_coherent (NULL, RGB_PHYS_SIZE, rgb_buffer, dma_handle);
