@@ -54,6 +54,7 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
+#include <linux/proc_fs.h>
 
 #include "bfin_adv7393fb.h"
 
@@ -94,6 +95,7 @@ extern int l1_data_A_sram_free (unsigned long addr);
 struct _dmasglarge_t *descriptor_list_head;
 static dma_addr_t dma_handle;
 static u16 *rgb_buffer;		/* RGB Buffer */
+struct i2c_client *client_local;
 int id1;
 
 
@@ -122,7 +124,7 @@ static char *norms[] = { "PAL", "NTSC" };
 //#define TR0RST      0x80
 
 static const unsigned char init_NTSC_TESTPATTERN[] = {
-  0x00, 0x1C,			/*Power up all DACs and PLL */
+  0x00, 0x1E,			/*Power up all DACs and PLL */
   0x01, 0x00,			/*SD-Only Mode */
   0x80, 0x10,			/*SSAF Luma Filter Enabled, NTSC Mode */
   0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
@@ -131,26 +133,27 @@ static const unsigned char init_NTSC_TESTPATTERN[] = {
 
 static const unsigned char init_NTSC[] = {
 
-  0x00, 0x1C,			/*Power up all DACs and PLL */
+  0x00, 0x1E,			/*Power up all DACs and PLL */
   0x01, 0x00,			/*SD-Only Mode */
-  0x80, 0x10,			/*SSAF Luma Filter Enabled, NTSC Mode */
-  0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
-  0x87, 0x80,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
+  0x80, 0x30,			/*SSAF Luma Filter Enabled, NTSC Mode */
+  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
+  0x87, 0x90,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
   0x86, 0x82,
+  0xA2, 0x0C,
   0x8B, 0x11,
   0x88, 0x20,
   0x8A, 0x0d,
 };
 
 static const unsigned char init_PAL[] = {
-  0x00, 0x1C,			/*Power up all DACs and PLL */
+  0x00, 0x1E,			/*Power up all DACs and PLL */
   0x8C, 0xCB,			/* PAL Subcarrier Frequency */
   0x8D, 0x8A,			/* PAL Subcarrier Frequency */
   0x8E, 0x09,			/* PAL Subcarrier Frequency */
   0x8F, 0x2A,			/* PAL Subcarrier Frequency */
   0x01, 0x00,			/*SD-Only Mode */
   0x80, 0x11,			/*SSAF Luma Filter Enabled, PAL Mode */
-  0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
+  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
   0x87, 0x80,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
   0x86, 0x82,
   0x8B, 0x11,
@@ -546,6 +549,8 @@ adv7393_detect_client (struct i2c_adapter *adapter, int address, int kind)
     }
 #ifdef CONFIG_NTSC
   i = adv7393_write_block (client, init_NTSC, sizeof (init_NTSC));
+ // i = adv7393_write_block (client, init_NTSC_TESTPATTERN, sizeof (init_NTSC_TESTPATTERN));
+
 #else /* CONFIG_PAL */
   i = adv7393_write_block (client, init_PAL, sizeof (init_PAL));
 #endif
@@ -561,6 +566,9 @@ adv7393_detect_client (struct i2c_adapter *adapter, int address, int kind)
     {
       printk (KERN_ERR "%s_attach: init error 0x%x\n", I2C_NAME (client), i);
     }
+
+client_local=client;
+
   return 0;
 }
 
@@ -624,11 +632,56 @@ ppi_irq_error (int irq, void *dev_id, struct pt_regs *regs)
 
 }
 
+
+static int proc_output(char *buf)
+{
+	char *p;
+
+	p = buf;
+
+	p += sprintf(p,
+		     "Usage:\necho 0x[REG][Value] > adv7393\nexample: echo 0x1234 > adv7393\nwrites 0x34 into Register 0x12\n");
+
+	return p - buf;
+}
+
+static int adv7393_read_proc(char *page, char **start, off_t off,
+			      int count, int *eof, void *data)
+{
+	int len;
+
+	len = proc_output(page);
+	if (len <= off + count)
+		*eof = 1;
+	*start = page + off;
+	len -= off;
+	if (len > count)
+		len = count;
+	if (len < 0)
+		len = 0;
+	return len;
+
+}
+
+static int adv7393_write_proc (struct file *file, const char __user *buffer, 
+		      unsigned long count, void *data) 
+{
+	char line[8];
+	unsigned int val;
+ 
+	copy_from_user(line, buffer, count);
+	val = simple_strtoul( line, NULL, 0 );
+	adv7393_write(client_local, val>>8, val&0xff);
+
+ return count;
+}
+
 int __init
 bfin_adv7393_fb_init (void)
 {
   int ret = 0;
-
+  struct proc_dir_entry *entry;
+  
   printk (KERN_NOTICE "bfin_adv7393_fb: initializing:\n");
 
   rgb_buffer =
@@ -683,6 +736,16 @@ bfin_adv7393_fb_init (void)
 	       "PPI ERROR", NULL);
   disable_irq (IRQ_PPI_ERROR);
 
+
+	if ((entry = create_proc_entry("driver/adv7393", 0, NULL)) == NULL) {
+		return -ENOMEM;
+	}
+
+	entry->read_proc = adv7393_read_proc;
+	entry->write_proc = adv7393_write_proc;
+	entry->data = NULL;
+
+
   return ret;
 }
 
@@ -700,6 +763,7 @@ bfin_adv7393_fb_open (struct fb_info *info, int user)
       return -ENOMEM;
     }
 
+adv7393_write (client_local, 0x82, 0xCB);
   dma_desc_list (BUILD);
   enable_irq (IRQ_PPI_ERROR);
   bfin_config_ppi ();
@@ -712,12 +776,13 @@ static int
 bfin_adv7393_fb_release (struct fb_info *info, int user)
 {
 
+
   disable_irq (IRQ_PPI_ERROR);
   bfin_disable_dma ();		/* TODO: Check Sequence */
   bfin_disable_ppi ();
 
   dma_desc_list (DESTRUCT);
-
+  adv7393_write (client_local, 0x82, 0x8B);
   return 0;
 }
 
@@ -791,6 +856,8 @@ static void __exit
 bfin_adv7393_fb_exit (void)
 {
 
+  adv7393_write (client_local, 0x00, 0x1F); /* ADV7393 Sleep mode ON */.
+
   if (rgb_buffer)
     dma_free_coherent (NULL, RGB_PHYS_SIZE, rgb_buffer, dma_handle);
   free_irq (IRQ_PPI_ERROR, NULL);
@@ -799,7 +866,10 @@ bfin_adv7393_fb_exit (void)
 //  *pDMA_TCPER = 0x0000;
 
   unregister_framebuffer (&bfin_adv7393_fb);
+
   i2c_del_driver (&i2c_driver_adv7393);
+  remove_proc_entry("driver/adv7393", NULL);
+
 }
 
 MODULE_LICENSE ("GPL");
