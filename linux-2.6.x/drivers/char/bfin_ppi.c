@@ -312,7 +312,7 @@ ppi_reg_reset(ppi_device_t *pdev)
 {
 
 	*pPPI_CONTROL = 0x0000; 
-    *pPPI_STATUS =  0x0000; 
+    *pPPI_STATUS =  0xFFFF; 
     *pPPI_COUNT =  0x0000; 
     *pPPI_FRAME =  0x0000;
     *pPPI_DELAY =  0x0000;
@@ -384,6 +384,50 @@ ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
     return IRQ_HANDLED;
 }
 
+/***********************************************************
+*
+* FUNCTION NAME :ppi_irq_error
+*
+* INPUTS/OUTPUTS:
+* in_irq - Interrupt vector number.
+* in_dev_id  - point to device information structure base address.
+* in_regs - unuse here.
+*
+* VALUE RETURNED:
+* void
+* 
+* FUNCTION(S) CALLED:
+*
+* GLOBAL VARIABLES REFERENCED: ppiinfo
+*
+* GLOBAL VARIABLES MODIFIED: NIL
+*
+* DESCRIPTION: Error ISR of PPI
+*
+* CAUTION:
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+
+static irqreturn_t
+ppi_irq_error (int irq, void *dev_id, struct pt_regs *regs)
+{
+
+  printk(KERN_ERR "PPI Error: PPI Status = 0x%X \n", *pPPI_STATUS);
+
+  if (*pPPI_STATUS)
+    {
+	
+	/* Add some more Error Handling Code */ 
+    /* Here */ 
+    
+     *pPPI_STATUS = 0xFFFF;
+
+    }
+
+  return IRQ_HANDLED;
+
+}
 
 /***********************************************************
 *
@@ -802,8 +846,8 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 	__builtin_bfin_ssync();
 	enable_dma(CH_PPI);
 
-	/* read ppi status to clear it before enabling*/
-	regdata = *pPPI_STATUS;
+	/* write ppi status to clear it before enabling*/
+	*pPPI_STATUS = 0xFFFF;
 
 	// enable ppi
 	regdata = *pPPI_CONTROL; 
@@ -1142,7 +1186,13 @@ ppi_open (struct inode *inode, struct file *filp)
 		}	
 	else
 	     set_dma_callback(CH_PPI, (void*)ppi_irq, filp->private_data);
-	
+
+  	if(request_irq (IRQ_PPI_ERROR, (void *) ppi_irq_error, SA_INTERRUPT,
+	       	"PPI ERROR", NULL) < 0)
+  		{
+		panic("Unable to attach BlackFin PPI Error Interrupt\n");
+		return -EFAULT;
+		}	
 
     DPRINTK("ppi_open: return \n");
     
