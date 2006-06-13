@@ -51,29 +51,30 @@ MODULE_LICENSE("GPL");
 static void desc_list_free(void);
 
 /* pointers to maintain transmit list */
-struct net_dma_desc *tx_list_head;
-struct net_dma_desc *tx_list_tail;
-struct net_dma_desc *rx_list_head;
-struct net_dma_desc *rx_list_tail;
-struct net_dma_desc *current_rx_ptr;
-struct net_dma_desc *current_tx_ptr;
+struct net_dma_desc_tx *tx_list_head;
+struct net_dma_desc_tx *tx_list_tail;
+struct net_dma_desc_rx *rx_list_head;
+struct net_dma_desc_rx *rx_list_tail;
+struct net_dma_desc_rx *current_rx_ptr;
+struct net_dma_desc_tx *current_tx_ptr;
 
 extern unsigned long l1_data_sram_zalloc(unsigned long size);
 extern unsigned long l1_data_sram_free(unsigned long size);
 extern void get_bf537_ether_addr(char *addr);
 
-static int desc_list_init(void) 
+static int desc_list_init(void)
 {
-	struct net_dma_desc *tx_desc, *rx_desc, *tmp_desc;
+	struct net_dma_desc_tx *tx_desc, *tmp_desc_tx;
+	struct net_dma_desc_rx *rx_desc, *tmp_desc_rx;
 	int i;
 #if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle;
 #endif
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-      tx_desc = (struct net_dma_desc *)l1_data_sram_zalloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM);
+      tx_desc = (struct net_dma_desc_tx *)l1_data_sram_zalloc(sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM);
 #else
-      tx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_TX_DESC_NUM , &dma_handle , GFP_DMA);
+      tx_desc = (struct net_dma_desc_tx *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM , &dma_handle , GFP_DMA);
 #endif
       if (tx_desc == NULL)
 	      goto error;
@@ -81,9 +82,9 @@ static int desc_list_init(void)
 	      memset(tx_desc,0,sizeof(tx_desc));
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-      rx_desc = (struct net_dma_desc *)l1_data_sram_zalloc(sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM);
+      rx_desc = (struct net_dma_desc_rx *)l1_data_sram_zalloc(sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM);
 #else
-      rx_desc = (struct net_dma_desc *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc) * CONFIG_BFIN_RX_DESC_NUM , &dma_handle , GFP_DMA);
+      rx_desc = (struct net_dma_desc_rx *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM , &dma_handle , GFP_DMA);
 #endif
       if (rx_desc == NULL)
 	      goto error;
@@ -93,35 +94,35 @@ static int desc_list_init(void)
   /* init tx_list */
     for (i=0;i < CONFIG_BFIN_TX_DESC_NUM;i++) {
 
-      tmp_desc = tx_desc + i;
+      tmp_desc_tx = tx_desc + i;
 
       if (i == 0) {
-	tx_list_head = tmp_desc;
-	tx_list_tail = tmp_desc;
+	tx_list_head = tmp_desc_tx;
+	tx_list_tail = tmp_desc_tx;
       }
 
-      tmp_desc->desc_a.start_addr = (unsigned long)tmp_desc->packet;
-      tmp_desc->desc_a.x_count = 0;
-      tmp_desc->desc_a.config.b_DMA_EN = 0;        //disabled
-      tmp_desc->desc_a.config.b_WNR    = 0;        //read from memory
-      tmp_desc->desc_a.config.b_WDSIZE = 2;        //wordsize is 32 bits
-      tmp_desc->desc_a.config.b_NDSIZE = 6;        //6 half words is desc size.
-      tmp_desc->desc_a.config.b_FLOW   = 7;        //large desc flow
-      tmp_desc->desc_a.next_dma_desc = &(tmp_desc->desc_b);
+      tmp_desc_tx->desc_a.start_addr = (unsigned long)tmp_desc_tx->packet;
+      tmp_desc_tx->desc_a.x_count = 0;
+      tmp_desc_tx->desc_a.config.b_DMA_EN = 0;        //disabled
+      tmp_desc_tx->desc_a.config.b_WNR    = 0;        //read from memory
+      tmp_desc_tx->desc_a.config.b_WDSIZE = 2;        //wordsize is 32 bits
+      tmp_desc_tx->desc_a.config.b_NDSIZE = 6;        //6 half words is desc size.
+      tmp_desc_tx->desc_a.config.b_FLOW   = 7;        //large desc flow
+      tmp_desc_tx->desc_a.next_dma_desc = &(tmp_desc_tx->desc_b);
 
-      tmp_desc->desc_b.start_addr = (unsigned long)(&(tmp_desc->status));
-      tmp_desc->desc_b.x_count = 0;
-      tmp_desc->desc_b.config.b_DMA_EN = 1;        //enabled
-      tmp_desc->desc_b.config.b_WNR    = 1;        //write to memory
-      tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
-      tmp_desc->desc_b.config.b_DI_EN  = 0;        //disable interrupt
-      tmp_desc->desc_b.config.b_NDSIZE = 6;
-      tmp_desc->desc_b.config.b_FLOW   = 7;        //stop mode
-      tmp_desc->skb = NULL;
-      tx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
-      tx_list_tail->next = tmp_desc;
+      tmp_desc_tx->desc_b.start_addr = (unsigned long)(&(tmp_desc_tx->status));
+      tmp_desc_tx->desc_b.x_count = 0;
+      tmp_desc_tx->desc_b.config.b_DMA_EN = 1;        //enabled
+      tmp_desc_tx->desc_b.config.b_WNR    = 1;        //write to memory
+      tmp_desc_tx->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
+      tmp_desc_tx->desc_b.config.b_DI_EN  = 0;        //disable interrupt
+      tmp_desc_tx->desc_b.config.b_NDSIZE = 6;
+      tmp_desc_tx->desc_b.config.b_FLOW   = 7;        //stop mode
+      tmp_desc_tx->skb = NULL;
+      tx_list_tail->desc_b.next_dma_desc = &(tmp_desc_tx->desc_a);
+      tx_list_tail->next = tmp_desc_tx;
 
-      tx_list_tail = tmp_desc;
+      tx_list_tail = tmp_desc_tx;
     }
     tx_list_tail->next = tx_list_head;  /* tx_list is a circle */
     tx_list_tail->desc_b.next_dma_desc = &(tx_list_head->desc_a);
@@ -130,35 +131,35 @@ static int desc_list_init(void)
   /* init rx_list */
   for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
 
-    tmp_desc = rx_desc + i;
+    tmp_desc_rx = rx_desc + i;
 
     if (i == 0) {
-      rx_list_head = tmp_desc;
-      rx_list_tail = tmp_desc;
+      rx_list_head = tmp_desc_rx;
+      rx_list_tail = tmp_desc_rx;
     }
 
-    tmp_desc->desc_a.start_addr = (unsigned long)tmp_desc->packet;
-    tmp_desc->desc_a.x_count = 0;
-    tmp_desc->desc_a.config.b_DMA_EN = 1;        //enabled
-    tmp_desc->desc_a.config.b_WNR    = 1;        //Write to memory
-    tmp_desc->desc_a.config.b_WDSIZE = 2;        //wordsize is 32 bits
-    tmp_desc->desc_a.config.b_NDSIZE = 6;        //6 half words is desc size.
-    tmp_desc->desc_a.config.b_FLOW   = 7;        //large desc flow
-    tmp_desc->desc_a.next_dma_desc = &(tmp_desc->desc_b);
+    tmp_desc_rx->desc_a.start_addr = (unsigned long)tmp_desc_rx->packet;
+    tmp_desc_rx->desc_a.x_count = 0;
+    tmp_desc_rx->desc_a.config.b_DMA_EN = 1;        //enabled
+    tmp_desc_rx->desc_a.config.b_WNR    = 1;        //Write to memory
+    tmp_desc_rx->desc_a.config.b_WDSIZE = 2;        //wordsize is 32 bits
+    tmp_desc_rx->desc_a.config.b_NDSIZE = 6;        //6 half words is desc size.
+    tmp_desc_rx->desc_a.config.b_FLOW   = 7;        //large desc flow
+    tmp_desc_rx->desc_a.next_dma_desc = &(tmp_desc_rx->desc_b);
 
-    tmp_desc->desc_b.start_addr = (unsigned long)(&(tmp_desc->status));    
-    tmp_desc->desc_b.x_count = 0;
-    tmp_desc->desc_b.config.b_DMA_EN = 1;        //enabled
-    tmp_desc->desc_b.config.b_WNR    = 1;        //Write to memory
-    tmp_desc->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
-    tmp_desc->desc_b.config.b_NDSIZE = 6;        
-    tmp_desc->desc_b.config.b_DI_EN  = 1;        //enable interrupt
-    tmp_desc->desc_b.config.b_FLOW   = 7;        //large mode
-    tmp_desc->skb = NULL;
-    rx_list_tail->desc_b.next_dma_desc = &(tmp_desc->desc_a);
+    tmp_desc_rx->desc_b.start_addr = (unsigned long)(&(tmp_desc_rx->status));    
+    tmp_desc_rx->desc_b.x_count = 0;
+    tmp_desc_rx->desc_b.config.b_DMA_EN = 1;        //enabled
+    tmp_desc_rx->desc_b.config.b_WNR    = 1;        //Write to memory
+    tmp_desc_rx->desc_b.config.b_WDSIZE = 2;        //wordsize is 32 bits
+    tmp_desc_rx->desc_b.config.b_NDSIZE = 6;        
+    tmp_desc_rx->desc_b.config.b_DI_EN  = 1;        //enable interrupt
+    tmp_desc_rx->desc_b.config.b_FLOW   = 7;        //large mode
+    tmp_desc_rx->skb = NULL;
+    rx_list_tail->desc_b.next_dma_desc = &(tmp_desc_rx->desc_a);
   
-    rx_list_tail->next = tmp_desc;
-    rx_list_tail = tmp_desc;
+    rx_list_tail->next = tmp_desc_rx;
+    rx_list_tail = tmp_desc_rx;
   }
   rx_list_tail->next = rx_list_head;  /* rx_list is a circle */
   rx_list_tail->desc_b.next_dma_desc = &(rx_list_head->desc_a);
@@ -174,42 +175,43 @@ static int desc_list_init(void)
 
 static void desc_list_free(void)
 {
-	struct net_dma_desc *tmp_desc;
+	struct net_dma_desc_rx *tmp_desc_rx;
+	struct net_dma_desc_tx *tmp_desc_tx;
 	int i;
 #if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle = 0;
 #endif
 
-	tmp_desc = tx_list_head;
+	tmp_desc_tx = tx_list_head;
 	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
-		if (tmp_desc != NULL) {
-			if(tmp_desc->skb) {
-				dev_kfree_skb(tmp_desc->skb);
-				tmp_desc->skb = NULL;
+		if (tmp_desc_tx != NULL) {
+			if(tmp_desc_tx->skb) {
+				dev_kfree_skb(tmp_desc_tx->skb);
+				tmp_desc_tx->skb = NULL;
 			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_sram_free((unsigned long)tmp_desc);
+			l1_data_sram_free((unsigned long)tmp_desc_tx);
 #else
-			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+			dma_free_coherent(NULL, sizeof(struct net_dma_desc_tx), tmp_desc_tx, dma_handle);
 #endif
 		}
-		tmp_desc = tmp_desc->next;
+		tmp_desc_tx = tmp_desc_tx->next;
 	}
 
-	tmp_desc = rx_list_head;
+	tmp_desc_rx = rx_list_head;
 	for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
-		if (tmp_desc != NULL) {
-			if(tmp_desc->skb) {
-				dev_kfree_skb(tmp_desc->skb);
-				tmp_desc->skb = NULL;
+		if (tmp_desc_rx != NULL) {
+			if(tmp_desc_rx->skb) {
+				dev_kfree_skb(tmp_desc_rx->skb);
+				tmp_desc_rx->skb = NULL;
 			}
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_sram_free((unsigned long)tmp_desc);
+			l1_data_sram_free((unsigned long)tmp_desc_rx);
 #else
-			dma_free_coherent(NULL, sizeof(struct net_dma_desc), tmp_desc, dma_handle);
+			dma_free_coherent(NULL, sizeof(struct net_dma_desc_rx), tmp_desc_rx, dma_handle);
 #endif
 		}
-		tmp_desc = tmp_desc->next;
+		tmp_desc_rx = tmp_desc_rx->next;
 	}
 }
 

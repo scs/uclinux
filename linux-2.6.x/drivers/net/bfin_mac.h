@@ -25,7 +25,7 @@
 #define PHY_DUPLEX              0x0100
 #define PHY_SPD_SET             0x2000
 
-/* #define BFIN_MAC_CSUM_OFFLOAD */
+#define BFIN_MAC_CSUM_OFFLOAD
 
 typedef struct _DMA_CONFIG
 {
@@ -54,7 +54,7 @@ struct status_area {
   unsigned long  status_word;           // the frame status word
 };
 */
-struct status_area {
+struct status_area_rx {
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	unsigned short ip_hdr_csum;         // ip header checksum
 	unsigned short ip_payload_csum;     // ip payload(udp or tcp or others) checksum
@@ -62,15 +62,29 @@ struct status_area {
 	unsigned long  status_word;         // the frame status word
 };
 
+struct status_area_tx {
+	unsigned long  status_word;         // the frame status word
+};
+
 
 /* use two descriptors for a packet */
-struct net_dma_desc {
-  struct net_dma_desc *next;
+struct net_dma_desc_rx {
+  struct net_dma_desc_rx *next;
   struct sk_buff *skb;
   struct dma_descriptor desc_a;
   struct dma_descriptor desc_b;
   volatile unsigned char   packet[1560];
-  volatile struct status_area status;
+  volatile struct status_area_rx status;
+};
+
+/* use two descriptors for a packet */
+struct net_dma_desc_tx {
+  struct net_dma_desc_tx *next;
+  struct sk_buff *skb;
+  struct dma_descriptor desc_a;
+  struct dma_descriptor desc_b;
+  volatile unsigned char   packet[1560];
+  volatile struct status_area_tx status;
 };
 
 struct bf537mac_local {
