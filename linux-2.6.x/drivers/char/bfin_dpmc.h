@@ -36,20 +36,18 @@ void disable_wdog_timer(void);
 #define MAX_VOLT	1300
 
 /* ON some boards voltage regulated bit does not get set, ideally it should be 0xA0 but for now, retain 0x20 */
-#define PLL_LOCKED	0x20
 #define VOLTAGE_REGULATED 0x0080
 
 #define MHZ		1000000
-#define WDOG_DISABLE	0xAD6
 
-#ifdef CONFIG_BAUD_9600
+#if defined(CONFIG_BAUD_9600)
 #define CONSOLE_BAUD_RATE 	9600
-#elif CONFIG_BAUD_19200		
+#elif defined(CONFIG_BAUD_19200)
 #define CONSOLE_BAUD_RATE 	19200
-#elif CONFIG_BAUD_38400		
+#elif defined(CONFIG_BAUD_38400)
 #define CONSOLE_BAUD_RATE 	38400
-#elif CONFIG_BAUD_57600
+#elif defined(CONFIG_BAUD_57600)
 #define CONSOLE_BAUD_RATE 	57600
-#elif CONFIG_BAUD_115200	
+#elif defined(CONFIG_BAUD_115200)
 #define CONSOLE_BAUD_RATE 	115200	
 #endif
