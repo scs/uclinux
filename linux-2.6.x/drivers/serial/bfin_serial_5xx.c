@@ -233,7 +233,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 	}
 #endif
 #endif
-	__builtin_bfin_ssync();
+	SSYNC();
 	local_irq_restore(flags);
 #endif
 }
@@ -1887,7 +1887,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 		*pPORTGIO_MASKB_SET &= ~(1 << CONFIG_BFIN_UART_CTS);
 		*pPORTGIO_DIR |= (1 << CONFIG_BFIN_UART_RTS);
 		*pPORTG_FER &= ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3);
-		__builtin_bfin_ssync();
+		SSYNC();
 #endif
 
 	}
@@ -1903,9 +1903,9 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 			}
 		}
 		*pPORT_MUX &= ~(PFTE);
-		__builtin_bfin_ssync();
+		SSYNC();
 		*pPORTF_FER |= 0xc;
-		__builtin_bfin_ssync();
+		SSYNC();
 	}
 #endif
 	else
@@ -2242,10 +2242,10 @@ int bfin_console_init(void)
 	bfin_config_uart1(&bfin_uart[1]);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	*pPORT_MUX &= ~(PFDE);
-	__builtin_bfin_ssync();
+	SSYNC();
 #endif
 	*pPORTF_FER |= 0x3;
-	__builtin_bfin_ssync();
+	SSYNC();
 #endif
 	register_console(&bfin_driver);
 	return 0;
