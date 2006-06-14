@@ -1,5 +1,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
@@ -25,54 +27,6 @@ struct timer_latency_data_t {
 
 struct proc_dir_entry *timer_latency_file;
 struct timer_latency_data_t timer_latency_data;
-
-
-static inline u_long get_vco(void)
-{
-	u_long msel;
-	u_long vco;
-
-	msel = (*pPLL_CTL >> 9) & 0x3F;
-	if (0 == msel)
-		msel = 64;
-
-	vco = CONFIG_CLKIN_HZ;
-	vco >>= (1 & *pPLL_CTL);	/* DF bit */
-	vco = msel * vco;
-	return vco;
-}
-
-/*Get the Core clock*/
-static u_long get_cclk(void)
-{
-	u_long csel, ssel;
-	if (*pPLL_STAT & 0x1)
-		return CONFIG_CLKIN_HZ;
-
-	ssel = *pPLL_DIV;
-	csel = ((ssel >> 4) & 0x03);
-	ssel &= 0xf;
-	if (ssel && ssel < (1 << csel))	/* SCLK > CCLK */
-		return get_vco() / ssel;
-	return get_vco() >> csel;
-}
-
-/* Get the System clock */
-static u_long get_sclk(void)
-{
-	u_long ssel;
-
-	if (*pPLL_STAT & 0x1)
-		return CONFIG_CLKIN_HZ;
-
-	ssel = (*pPLL_DIV & 0xf);
-	if (0 == ssel) {
-		printk(KERN_WARNING "Invalid System Clock\n");
-		ssel = 1;
-	}
-
-	return get_vco() / ssel;
-}
 
 static int read_timer_latency(char *page, char **start,
 			      off_t offset, int count, int *eof,
