@@ -91,7 +91,7 @@ static ssize_t show_write(struct device *dev, struct device_attribute *attr, cha
 	return sprintf(buf, "%u\n", data->write);
 }
 
-static ssize_t set_write_w1(struct device *dev, struct device_attribute *attr, char *buf,
+static ssize_t set_write_w1(struct device *dev, struct device_attribute *attr, const char *buf,
 			size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -109,7 +109,7 @@ static ssize_t set_write_w1(struct device *dev, struct device_attribute *attr, c
 
 static DEVICE_ATTR(write_w1, S_IWUSR | S_IRUGO, show_write, set_write_w1);
 
-static ssize_t set_write_w3(struct device *dev, const char *buf,
+static ssize_t set_write_w3(struct device *dev, struct device_attribute *attr, const char *buf,
 			 size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
