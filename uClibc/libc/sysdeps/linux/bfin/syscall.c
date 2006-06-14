@@ -1,7 +1,7 @@
 /* vi: set sw=4 ts=4: */
 /* syscall for blackfin/uClibc
  *
- * Copyright (C) 2004 by Analog Devices Inc.
+ * Copyright (C) 2004-2006 by Analog Devices Inc.
  * Copyright (C) 2002 by Erik Andersen <andersen@uclibc.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,26 +24,34 @@
 #include <sys/types.h>
 #include <sys/syscall.h>
 
-long syscall(long sysnum, long a, long b, long c, long d, long e)
+long syscall(long sysnum, long a, long b, long c, long d, long e, long f)
 {
 	int _r0 = 0;
-    __asm__ volatile(
-	    "p0 = %1;"		/*SysCall Number*/
-	    "r0 = %2;"		
-	    "r1 = %3;"
-	    "r2 = %4;"
-		"r3 = %6;"
-		"r4 = %5;"
-		"excpt 0;"		/*Call the System Call*/
-		"%0 = r0;"		/*Store the result of syscall*/
-	    : "=r"(_r0)
-	    : "r"(sysnum), "r"(a), "r"(b),
-	      "r"(c), "r"(d), "r"(e)
-	    : "memory");
 
-    if(_r0 >=(unsigned long) -4095) {
-	(*__errno_location())=(-_r0);
-	_r0=(unsigned long) -1;
-    }
-    return (long) _r0;
+	__asm__ __volatile__ (
+		"R5 = %7;"
+		"R4 = %6;"
+		"R3 = %5;"
+		"R2 = %4;"
+		"R1 = %3;"
+		"R0 = %2;"
+		"P0 = %1;"
+		"excpt 0;"
+		"%0 = R0;"
+		: "=r" (_r0)
+		: "rm" (sysnum),
+		  "rm" (a),
+		  "rm" (b),
+		  "rm" (c),
+		  "rm" (d),
+		  "rm" (e),
+		  "rm" (f)
+		: "memory","CC","R0","R1","R2","R3","R4","R5","P0");
+
+	if (_r0 >= (unsigned long) -4095) {
+		(*__errno_location()) = (-_r0);
+		_r0 = (unsigned long) -1;
+	}
+
+	return (long)_r0;
 }
