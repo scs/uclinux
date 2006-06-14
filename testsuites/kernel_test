@@ -1,0 +1,632 @@
+#!/bin/sh
+########################################################################################################################
+######### To run this script, please first set following uboot varibles properly on your target board  #################
+######### set  bootargs  bootfile linux                                                                #################
+######### set  bootargs  loadaddr 2000000                                                     	       #################
+######### set  bootcmd   run tftpboot                                                                  #################
+######### set  tftpboot  'tftp 0x2000000 linux;bootelf'                                                #################
+######### set  ipaddr    10.100.4.50  (set your board ip here)                                         #################
+######### set  serverip  10.100.4.174 (set your server ip here)                                        #################
+########################################################################################################################
+
+############### Set up the testing environment. Edit the following variables to suit your situation. ###################
+
+USER=/home/test
+CHECKOUT=$USER/checkouts
+KERNEL_SCRIPTS=$CHECKOUT/kernel/uClinux-dist/testsuites
+CVS_SERVER=10.99.22.20
+CVS_ROOT=/cvsroot
+BASELINE=standard
+BOARD_CONFIG=$1
+LOG_DIR=$USER/test_scripts/kernel/logs/all_$2
+
+########################################### Please don't edit anything below this line.###################################
+
+if [ $2 = write_through ] ; then
+  echo "POLICY is $2"
+  POLICY=2
+elif [ $2 = write_back ] ; then
+  echo "POLICY is $2"
+  POLICY=1
+else
+  echo "The POLICY could be write_through or write_back."
+  exit
+fi
+
+if [ $# -lt 2 ] ; then
+  echo "Please input BOARD_CONFIG POLICY [VCO_MULT CCLK_DIV SCLK_DIV] values: "
+  echo "The BOARD_CONFIG should be BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
+  echo "The POLICY could be write_through or write_back."
+  exit
+fi
+
+if [ $# -gt 2 ] ; then
+  VCO_MULT=$3
+  CCLK_DIV=$4
+  SCLK_DIV=$5
+fi
+
+
+###### See if kernel has been checked out.##################################################
+ 
+if [ ! -d $CHECKOUT ] ; then
+  echo  "No kernel source in $CHECKOUT."
+  exit
+fi
+if [ ! -d $CHECKOUT/kernel_bak ] ; then
+  echo  "No kernel source in $CHECKOUT/kernel_bak."
+  exit
+fi
+if [ ! -d $CHECKOUT/kernel ] ; then
+  mkdir -p $CHECKOUT/kernel
+  echo  "Testing is doing against the kernel source in $CHECKOUT/kernel."
+fi
+
+# KERNEL_SCRIPTS/change_clk.exp $BOARD_TYPE $VCO_MULT $CCLK_DIV $SCLK_DIV
+
+#######  BOARD CONFIG DEFINITION      ###################################################### 
+
+if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
+ 
+   echo  "Testing is doing with the config $BOARD_CONFIG."
+   
+   BOARD_TYPE=BF537-STAMP
+   
+	ethernet_test=1
+	  stress_test=1
+	  serial_test=1
+	  reboot_test=0
+	     rtc_test=0
+	     nfs_test=0
+	    kgdb_test=0
+	  module_test=0
+	     mtd_test=0
+	   jffs2_test=0 
+	jffs2_fs_test=0
+	   adspi_test=0
+	   audio_test=0
+	  pflags_test=0
+	    dpmc_test=0
+	     twi_test=0
+       spi_flash_test=0
+	 cf_card_test=0
+	     ide_test=0
+wireless_network_test=0
+	   yaffs_test=0
+fi
+ 
+####### Build and run the tests      #######################################################
+
+TIMESTAMP=`date +%Y_%b_%d_%H_%M`
+THIS_LOG=$LOG_DIR/$TIMESTAMP
+mkdir -p $THIS_LOG
+
+export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
+ 
+  
+  #############################################################################################
+  ########################## TEST ETHERNET ####################################################
+
+  if [ $ethernet_test -eq 1  ] ; then
+  echo  "Testing ethernet..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./ethernet/build_ethernet_kernel.exp $BOARD_TYPE $POLICY
+  ./ethernet/ethernet_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.ethernet
+  cp $KERNEL_SCRIPTS/ethernet/build_ethernet_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/ethernet/ethernet_test_log  $THIS_LOG
+  cp $CHECKOUT/kernel/uClinux-dist/testsuites/ethernet/netperf_tcp_rr $THIS_LOG/
+  cp $CHECKOUT/kernel/uClinux-dist/testsuites/ethernet/netperf_tcp_stream $THIS_LOG/
+
+  sleep 30
+
+  fi
+  
+  
+  
+  #############################################################################################
+  ########################## TEST STRESS ######################################################
+  
+  if [ $stress_test -eq 1  ] ; then
+  echo  "Testing stress ..."
+ 
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  ./stress/build_stress_kernel.exp $BOARD_TYPE $POLICY  
+  ./stress/stress_test.exp /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.stress
+  cp $KERNEL_SCRIPTS/stress/build_stress_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/stress/stress_test_log $THIS_LOG 
+ 
+   
+  sleep 30
+  fi
+  
+  #############################################################################################
+  ########################## TEST SERIAL ####################################################
+  
+  if [ $serial_test -eq 1  ] ; then
+  echo  "Testing serial..."
+       
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd  $KERNEL_SCRIPTS
+  ./serial/build_serial_kernel.exp $BOARD_TYPE $POLICY 
+  ./serial/serial_test.exp /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.serial
+  cp $KERNEL_SCRIPTS/stress/build_serial_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/
+  
+  sleep 30
+    
+  fi
+  #############################################################################################
+  ########################## TEST REBOOT ON RAMDISK ###########################################
+  
+  if [ $reboot_test -eq 1  ] ; then
+  
+  echo  "Testing reboot on RAMDISK..."
+   
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd  $KERNEL_SCRIPTS
+  ./reboot/build_reboot_kernel.exp $BOARD_TYPE $POLICY
+  ./reboot/reboot_test.exp /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.reboot
+  cp $KERNEL_SCRIPTS/reboot/build_reboot_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/reboot/reboot_test_log $THIS_LOG  
+  
+  sleep 30
+  
+  fi
+  #############################################################################################
+  ########################## TEST KGDB #########################################################
+  
+   if [ $kgdb_test -eq 1  ] ; then
+  
+  echo  "Testing kgdb..."
+ 
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  
+  cd $KERNEL_SCRIPTS
+  ./kgdb/build_kgdb_kernel.exp $BOARD_TYPE $POLICY
+  ./kgdb/kgdb_test.exp /dev/ttyS0 $CHECKOUT/kernel/uClinux-dist 10.100.4.50  
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.kgdb
+  cp $KERNEL_SCRIPTS/kgdb/build_kgdb_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/kgdb/kgdb_test_log $THIS_LOG
+  
+  sleep 30
+  
+  fi
+  
+  #############################################################################################
+  ########################## TEST MODULE #######################################################
+   
+   if [ $module_test -eq 1  ] ; then
+   
+  echo  "Testing module..."
+   
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./module/build_module_kernel.exp $BOARD_TYPE $POLICY
+  ./module/module_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.module
+  cp $KERNEL_SCRIPTS/module/build_module_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/module_test_log $THIS_LOG  
+  
+  sleep 30
+  fi
+  ########################## TEST RTC #########################################################
+  
+ if [ $rtc_test -eq 1  ] ; then
+  echo  "Testing rtc..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS
+  ./rtc/build_rtc_kernel.exp $BOARD_TYPE $POLICY
+  ./rtc/rtc_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.rtc
+  cp $KERNEL_SCRIPTS/rtc/build_rtc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/rtc/rtc_test_log $THIS_LOG
+
+  sleep 30
+ fi
+  #############################################################################################
+  ########################## TEST NFS MOUNT ###################################################
+  
+  if [ $nfs_test -eq 1  ] ; then  
+  
+  echo  "Testing NFS mount ..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+   
+ 
+  cd $KERNEL_SCRIPTS
+  ./nfs/build_nfs_kernel.exp $BOARD_TYPE $POLICY
+  ./nfs/nfs_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.nfs
+  cp $KERNEL_SCRIPTS/nfs/build_rtc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/nfs/nfs_test_log $THIS_LOG 
+ 
+  sleep 30
+ fi
+  
+  #############################################################################################
+  ########################## TEST MTD #########################################################
+  
+if [ $mtd_test -eq 1  ] ; then
+  echo  "Testing mtd..."
+  echo  "Switch SW6 to all on and unplug the nand flash board."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  ./mtd/build_mtd_kernel.exp $BOARD_TYPE $POLICY
+  ./mtd/mtd_test.exp /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.mtd
+  cp $KERNEL_SCRIPTS/mtd/build_mtd_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/mtd/test_mtd_log $THIS_LOG
+  
+  sleep 30
+
+  fi
+  
+  #############################################################################################
+  ########################## TEST REBOOT ON JFFS2 FILE SYSTEM ##################################
+
+  if [ $jffs2_test -eq 1  ] ; then
+  
+  echo  "Testing reboot on jffs2 file system ..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS
+  ./jffs2/build_jffs2_kernel.exp $BOARD_TYPE $POLICY
+  ./jffs2/flash_images.exp
+  ./jffs2/jffs2_reboot_test.exp /dev/ttyS0
+  
+  cp $KERNEL_SCRIPTS/jffs2/build_jffs2_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/jffs2/flash_images_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/jffs2/jffs2_reboot_test_log $THIS_LOG
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.reboot_jffs2
+  cp $CHECKOUT/kernel/uClinux-dist/images/vmImage $THIS_LOG/vmImage.reboot_jffs2
+  cp $CHECKOUT/kernel/uClinux-dist/images/jffs2.img $THIS_LOG/jffs2.image.reboot_jffs2
+  
+  sleep 500
+
+  
+  #############################################################################################
+  ########################## TEST BOOT KERNEL-ONLY UIMAGE ######################################
+
+  echo  "Testing boot kernel-only uImage ..."
+  
+  cd $KERNEL_SCRIPTS
+  ./jffs2/boot_kernel_only_uimage.exp
+  cp $KERNEL_SCRIPTS/jffs2/boot_kernel_only_uimage_log $THIS_LOG
+
+  sleep 30
+ 
+ fi
+ 
+  
+  #############################################################################################
+  ########################## TEST JFFS2 FS #####################################################
+ 
+ if [ $jffs2_fs_test -eq 1  ] ; then 
+  echo  "Testing jffs2 fs..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./jffs2_fs/build_jffs2_fs_kernel.exp $BOARD_TYPE $POLICY
+  ./jffs2_fs/jffs2_fs_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.jffs2_fs
+  cp $KERNEL_SCRIPTS/jffs2_fs/build_jffs2_fs_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/jffs2_fs/jffs2_fs_test_log $THIS_LOG
+    
+  sleep 30
+  fi
+  ##############################################################################################
+  ####                    MANUAL TEST                                                 ############
+  ################################################################################################
+  
+  #############################################################################################
+  ########################## TEST ADSPI #########################################################
+  
+  if [ $adspi_test -eq 1  ] ; then
+  echo  "Testing ADSPI..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./adspi/build_adspi_kernel.exp $BOARD_TYPE $POLICY
+  ./adspi/adspi_test.exp
+    
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.adspi 
+  cp $KERNEL_SCRIPTS/adspi/build_adspi_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/adspi/adspi_test_log $THIS_LOG
+  
+   sleep 30
+   
+   fi
+  
+  #############################################################################################
+  ########################## TEST PFLAGS #########################################################
+ 
+ if [ $pflags_test -eq 1  ] ; then
+ 
+  echo  "Testing pflags..."
+  echo  "Switch SW5.1 to on."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+    
+  cd $KERNEL_SCRIPTS
+  ./pflags/build_pflags_kernel.exp $BOARD_TYPE $POLICY
+  ./pflags/pflags_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.pflags
+  cp $KERNEL_SCRIPTS/pflags/build_pflags_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pflags/pflags_test_log $THIS_LOG 
+  
+  sleep 30
+    
+  fi
+ 
+  #############################################################################################
+  ########################## TEST AUDIO #########################################################
+  
+  if [ $audio_test -eq 1  ] ; then
+  
+  echo  "Testing audio..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./audio/build_audio_kernel.exp $BOARD_TYPE $POLICY
+  ./audio/test_audio /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.audio
+  cp $KERNEL_SCRIPTS/audio/build_audio_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/audio/test_audio_log $THIS_LOG 
+  
+  sleep 30
+
+  fi
+  #############################################################################################
+  ########################## TEST DPMC #####################################################
+  if [ $dpmc_test -eq 1  ] ; then
+  echo  "Testing dpmc..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS
+  ./dpmc/build_dpmc_kernel.exp $BOARD_TYPE $POLICY
+  ./dpmc/dpmc_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.dpmc
+  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
+  
+  
+  sleep 30
+  fi
+  #############################################################################################
+  ########################## TEST TWI #########################################################
+  
+  if [ $twi_test -eq 1  ] ; then
+  echo  "Testing TWI..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  
+  cd $KERNEL_SCRIPTS
+  ./twi/build_twi_keyboard_kernel.exp $BOARD_TYPE $POLICY  
+  ./twi/build_twi_lcd_kernel.exp $BOARD_TYPE $POLICY
+  ./twi/twi_lcd_test.exp > test_twi_lcd_log
+
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.twi_keyboard
+  cp $KERNEL_SCRIPTS/twi/build_twi_keyboard_kernel_log $THIS_LOG
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.twi_lcd
+  cp $KERNEL_SCRIPTS/twi/build_twi_lcd_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/twi/test_twi_lcd_log $THIS_LOG
+
+  
+  sleep 30
+  fi
+  #############################################################################################
+  ################# TEST BOOT KERNEL AND MOUNT JFFS2 FS FROM SPI FLASH ########################
+
+  if [ $spi_flash_test -eq 1  ] ; then
+  echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
+  echo  "Please switch the SW16 mode to 3."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS
+  ./spi_flash/build_spi_flash_kernel.exp $BOARD_TYPE $POLICY
+  ./spi_flash/spi_flash_images.exp
+  
+  cp $KERNEL_SCRIPTS/spi_flash/build_spi_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/spi_flash/spi_flash_images_log $THIS_LOG
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/vmImage $THIS_LOG/vmImage.spi_flash
+  cp $CHECKOUT/kernel/uClinux-dist/images/jffs2.img $THIS_LOG/jffs2.img.spi_flash
+  
+  sleep 30
+fi
+
+  #############################################################################################
+  ########     Following tests are only for BF537 BOARD.         ##############################
+  #############################################################################################
+  
+  ################# TEST CF CARD ##############################################################
+  
+if [ $cf_card_test -eq 1  ] ; then
+  echo  "Testing CF card ..."
+  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  ./cf_card/build_cf_card_kernel.exp $BOARD_TYPE $POLICY
+  ./cf_card/cf_card_test.exp  
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.cf_card
+  cp $KERNEL_SCRIPTS/cf_card/build_cf_card_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/cf_card/cf_card_test_log $THIS_LOG
+  
+  sleep 30
+  fi
+  ################# TEST IDE DEVICES ##############################################################
+  
+if [ $ide_test -eq 1  ] ; then
+  echo  "Testing ide harddisk and cdrom ..."
+  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $POLICY
+  ./ide/ide_harddisk_test.exp 
+  ./ide/ide_cdrom_test.exp
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
+  cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
+
+  sleep 30
+ fi
+  #############################################################################################
+  ################# TEST WIRELESS CARD ##############################################################
+  
+if [ $wireless_network_test -eq 1  ] ; then
+
+  echo  "Testing wireless card ..."
+  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  ./wireless_network/build_wireless_network_kernel.exp $BOARD_TYPE $POLICY
+  ./wireless_network/wireless_network_test.exp  
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.wireless
+  cp $KERNEL_SCRIPTS/wireless_network/build_wireless_network_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/wireless_network/wireless_network_test_log $THIS_LOG
+  
+  sleep 300
+   
+ fi
+ 
+ #############################################################################################
+ ########################## TEST YAFFS #########################################################
+  
+if [ $yaffs_test -eq 1  ] ; then
+
+  echo  "Testing YAFFS..."
+  echo  "Switch SW6 to on on off on and plug the nand flash board.(128)"
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS
+  ./yaffs/build_yaffs_kernel.exp $BOARD_TYPE $POLICY
+  ./yaffs/test_yaffs /dev/ttyS0 
+  
+  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.yaffs
+  cp $KERNEL_SCRIPTS/yaffs/build_yaffs_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/yaffs/test_yaffs_log $THIS_LOG
+
+  sleep 30
+ 
+ 
+ fi
+   
+ 
+ 
+ 
