@@ -36,7 +36,7 @@ static int read_timer_latency(char *page, char **start,
 
 	buffer = page;
 
-	sprintf(buffer++, "%ud", timer_latency_data.latency); 
+	sprintf(buffer++, "%lu", timer_latency_data.latency); 
 
 	return 4;
 }
@@ -80,10 +80,10 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 {
 	struct timer_latency_data_t *data = dev_id;
 	
-	u_long cycles_past, cclk; 
-	u_long latency;
+	unsigned long cycles_past, cclk; 
+	unsigned long latency;
 	
-	u_long first_latency, second_latency, third_latency;
+	unsigned long first_latency, second_latency, third_latency;
 
 
 	/* get current cycle counter */
@@ -105,10 +105,10 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 	       
 	cclk = get_cclk();
 	
-	DPRINTK("first_latency is %ul, second is %ul, third is %ul, latency is %ul\n", first_latency, second_latency, third_latency, cycles_past);
+	DPRINTK("first_latency is %lu, second is %lu, third is %lu, latency is %lu\n", first_latency, second_latency, third_latency, cycles_past);
 
 	latency = cycles_past - (cclk * 5);    /* latency in us */
-	DPRINTK("latecy is %ud\n",latency);
+	DPRINTK("latecy is %lu\n",latency);
 
 	if (*pWDOG_STAT != 0) {
 		DPRINTK("timer_latency error!\n");
