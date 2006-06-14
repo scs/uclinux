@@ -308,3 +308,5 @@
 
 /* Define as `fork' if `vfork' does not work. */
 #undef vfork
+#undef BUFSIZ
+#define BUFSIZ 4096

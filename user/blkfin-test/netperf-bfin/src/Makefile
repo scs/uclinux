@@ -69,7 +69,7 @@ LIBOJBS =
 LIBS = -lm 
 LTLIBOBJS = 
 MAKEINFO = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run makeinfo
-NETCPU_SOURCE = none
+NETCPU_SOURCE = procstat
 OBJEXT = o
 PACKAGE = netperf
 PACKAGE_BUGREPORT = 
@@ -125,7 +125,7 @@ bin_PROGRAMS = netperf netserver
 
 AM_CFLAGS = $(NETPERF_CFLAGS)
 
-USE_CPU_SOURCE = netcpu_none.c
+USE_CPU_SOURCE = netcpu_procstat.c
 
 EXTRA_DIST = netcpu_none.c netcpu_looper.c netcpu_pstat.c netcpu_pstatnew.c netcpu_perfstat.c netcpu_procstat.c netcpu_kstat.c netcpu_kstat10.c netcpu_sysctl.c netcpu_ntperf.c nettest_ipv6.c nettest_ipv6.h missing/*
 
@@ -149,7 +149,7 @@ am__objects_1 = netlib.$(OBJEXT) netsh.$(OBJEXT) nettest_bsd.$(OBJEXT) \
 	nettest_dlpi.$(OBJEXT) nettest_dns.$(OBJEXT) \
 	nettest_unix.$(OBJEXT) nettest_xti.$(OBJEXT) \
 	nettest_sctp.$(OBJEXT)
-am__objects_2 = netcpu_none.$(OBJEXT)
+am__objects_2 = netcpu_procstat.$(OBJEXT)
 am_netperf_OBJECTS = netperf.$(OBJEXT) $(am__objects_1) $(am__objects_2)
 netperf_OBJECTS = $(am_netperf_OBJECTS)
 netperf_DEPENDENCIES = 
@@ -165,7 +165,7 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
 DEP_FILES = $(DEPDIR)/missing/getaddrinfo.Po \
 	$(DEPDIR)/missing/inet_ntop.Po \
-	./$(DEPDIR)/netcpu_none.Po \
+	./$(DEPDIR)/netcpu_procstat.Po \
 	./$(DEPDIR)/netlib.Po ./$(DEPDIR)/netperf.Po \
 	./$(DEPDIR)/netserver.Po ./$(DEPDIR)/netsh.Po \
 	./$(DEPDIR)/nettest_bsd.Po \
@@ -231,7 +231,7 @@ distclean-compile:
 
 include $(DEPDIR)/missing/getaddrinfo.Po
 include $(DEPDIR)/missing/inet_ntop.Po
-include ./$(DEPDIR)/netcpu_none.Po
+include ./$(DEPDIR)/netcpu_procstat.Po
 include ./$(DEPDIR)/netlib.Po
 include ./$(DEPDIR)/netperf.Po
 include ./$(DEPDIR)/netserver.Po

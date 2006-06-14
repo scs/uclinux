@@ -2645,8 +2645,7 @@ cpu_stop(int measure_cpu, float *elapsed)
 
 {
 
-  int     sec,
-    usec;
+  int     sec,  usec;
 
   if (measure_cpu) {
     cpu_stop_internal();

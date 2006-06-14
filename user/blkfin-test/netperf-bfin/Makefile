@@ -36,17 +36,17 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 host_triplet = bfin-unknown-uclinux
-ACLOCAL = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run aclocal-1.7
+ACLOCAL = ${SHELL} ./missing --run aclocal-1.7
 AMDEP_FALSE = #
 AMDEP_TRUE = 
-AMTAR = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run tar
-AUTOCONF = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run automake-1.7
+AMTAR = ${SHELL} ./missing --run tar
+AUTOCONF = ${SHELL} ./missing --run autoconf
+AUTOHEADER = ${SHELL} ./missing --run autoheader
+AUTOMAKE = ${SHELL} ./missing --run automake-1.7
 AWK = gawk
 CC = bfin-uclinux-gcc
 CCDEPMODE = depmode=gcc3
-# CFLAGS = -g -O2
+CFLAGS = -g -O2
 CPP = bfin-uclinux-gcc -E
 CPPFLAGS = 
 CYGPATH_W = echo
@@ -61,13 +61,13 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_PROGRAM = ${INSTALL}
 INSTALL_SCRIPT = ${INSTALL}
 INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
-# LDFLAGS = 
+LDFLAGS = -Wl,-elf2flt
 LIBOBJS = 
 LIBOJBS = 
 LIBS = -lm 
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/blackfin/tests/netperf-2.4.0/missing --run makeinfo
-NETCPU_SOURCE = none
+MAKEINFO = ${SHELL} ./missing --run makeinfo
+NETCPU_SOURCE = procstat
 OBJEXT = o
 PACKAGE = netperf
 PACKAGE_BUGREPORT = 
@@ -102,7 +102,7 @@ host_os = uclinux
 host_vendor = unknown
 includedir = ${prefix}/include
 infodir = ${prefix}/info
-install_sh = /home/blackfin/tests/netperf-2.4.0/install-sh
+install_sh = ./install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localstatedir = ${prefix}/var
@@ -139,9 +139,6 @@ DIST_COMMON = README $(srcdir)/Makefile.in $(srcdir)/configure AUTHORS \
 DIST_SUBDIRS = $(SUBDIRS)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
-
-romfs:
-	$(ROMFSINST) src/netperf /bin/netperf
 
 .SUFFIXES:
 
@@ -505,6 +502,10 @@ ps-am:
 uninstall-am: uninstall-info-am
 
 uninstall-info: uninstall-info-recursive
+
+romfs:
+	$(ROMFSINST) ./src/netperf /bin/netperf
+	$(ROMFSINST) ./src/netserver /bin/netserver
 
 .PHONY: $(RECURSIVE_TARGETS) CTAGS GTAGS all all-am check check-am clean \
 	clean-generic clean-recursive ctags ctags-recursive dist \
