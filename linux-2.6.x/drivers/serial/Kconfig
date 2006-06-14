@@ -926,7 +926,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_BLACKFIN
-	bool 'Blackfin Serial Driver'
+	bool "Blackfin Serial Driver"
 	depends on BFIN
 
 choice
@@ -937,15 +937,35 @@ choice
 	  This driver supports the built-in serial ports of the Blackfin family of CPUs
 
 config SERIAL_BLACKFIN_DMA
-	bool 'DMA on RX and TX'
+	bool "DMA on RX and TX"
 	depends on UNCACHED_1M
 	help
 	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
 
 config SERIAL_BLACKFIN_PIO
-	bool 'PIO on RX and TX'
+	bool "PIO on RX and TX"
 	help
 	  This driver works under PIO mode.
 endchoice
+
+config BFIN_UART_CTSRTS
+	bool "hardware flow control"
+	depends on SERIAL_BLACKFIN
+	default n
+	help
+	  This option enable hardware flow control for blackfin UART.
+
+config BFIN_UART_CTS
+	int "UART CTS control bit in GPIO port"
+	depends on BFIN_UART_CTSRTS
+	default 7
+	help
+	  This is the UART CTS bit number in the select GPIO port.
+
+config BFIN_UART_RTS
+	int "UART RTS control bit in GPIO port"
+	depends on BFIN_UART_CTSRTS
+	default 6
+	help
 
 endmenu
