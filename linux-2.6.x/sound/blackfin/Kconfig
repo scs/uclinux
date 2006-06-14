@@ -69,6 +69,8 @@ config SND_BLACKFIN_AD1836_5P1
 
 endchoice
 
+# NOTE: Only tested on BF535 and never forward ported/validated since, thus disabled.
+#
 #config SND_BLACKFIN_ADI1981B
 #	bool "1981b Audio support for BF53x"
 #	depends on BFIN
