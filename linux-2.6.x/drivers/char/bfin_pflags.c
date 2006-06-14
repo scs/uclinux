@@ -150,6 +150,11 @@ pflags_open (struct inode *inode, struct file *filp)
 {
   if (check_minor (inode) < 0)
     return -ENODEV;
+
+#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+	*pPORT_FER &= ~(1 << MINOR (inode->i_rdev));
+#endif
+
   return 0;
 }
 
@@ -193,9 +198,6 @@ pflags_read (struct file *filp, char *buf, size_t size, loff_t * offp)
 {
   const char *bit;
   int minor = check_minor (filp->f_dentry->d_inode);
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  unsigned short portx_fer;
-#endif
 
   DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
 
@@ -205,18 +207,8 @@ pflags_read (struct file *filp, char *buf, size_t size, loff_t * offp)
   if (size < 2)
     return -EMSGSIZE;
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = 0;
-  __builtin_bfin_ssync();
-#endif
-
   bit = (*pFIO_FLAG_D & (1 << minor)) ? "1" : "0";
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  *pPORT_FER = portx_fer;
-  __builtin_bfin_ssync();
-#endif
   return (copy_to_user (buf, bit, 2)) ? -EFAULT : 2;
 
 }
@@ -256,9 +248,6 @@ pflags_write (struct file *filp, const char *buf, size_t size, loff_t * offp)
 {
 
   int minor = check_minor (filp->f_dentry->d_inode);
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  unsigned short portx_fer;
-#endif
 
   volatile unsigned short *set_or_clear;
 
@@ -277,18 +266,9 @@ pflags_write (struct file *filp, const char *buf, size_t size, loff_t * offp)
     (buf[0] ==
      '0') ? ((volatile unsigned short *) FIO_FLAG_C) : ((volatile unsigned
 							 short *) FIO_FLAG_S);
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = 0;
-  __builtin_bfin_ssync();
-#endif
 
   *set_or_clear = (1 << minor);
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  *pPORT_FER = portx_fer;
-  __builtin_bfin_ssync();
-#endif
   return size;
 
 }
@@ -336,19 +316,10 @@ static unsigned int pflags_poll(struct file *filp, struct poll_table_struct *wai
 static irqreturn_t pflags_irq_handler ( int irq, void *dev_id, struct pt_regs *regs ){
   
   short pflags_nextstate;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  unsigned short portx_fer;
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = 0;
-  __builtin_bfin_ssync();
-#endif
+
   pflags_nextstate = *pFIO_FLAG_D;
   /* FIXME: Clear only status of flag pin that caused the interrupt */
   *pFIO_FLAG_C = 0xFFFF; /* clear irq status on interrupt lines */
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  *pPORT_FER = portx_fer;
-  __builtin_bfin_ssync();
-#endif
 
   printk("pflags_irq_handler \n");
   
@@ -425,18 +396,9 @@ static int
 pflags_proc_output (char *buf)
 {
   char *p;
-  unsigned short i, data,dir,maska,maskb,polar,edge,inen,both;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  unsigned short portx_fer;
-#endif
-  
+  unsigned short i, data,dir,maska,maskb,polar,edge,inen,both;  
   p = buf;
   
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  portx_fer = *pPORT_FER;
-  *pPORT_FER = 0;
-  __builtin_bfin_ssync();
-#endif
   data = *pFIO_FLAG_D;
   dir = *pFIO_DIR;     
   maska = *pFIO_MASKA_D;
@@ -445,12 +407,7 @@ pflags_proc_output (char *buf)
   both = *pFIO_BOTH;
   edge = *pFIO_EDGE;   
   inen = *pFIO_INEN;   
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
-  *pPORT_FER = portx_fer;
-  __builtin_bfin_ssync();
-#endif
-         
-  
+           
   p += sprintf (p, "FIO_DIR \t: = 0x%X\n", dir);
   p += sprintf (p, "FIO_MASKA\t: = 0x%X\n", maska);
   p += sprintf (p, "FIO_MASKB\t: = 0x%X\n", maskb);
