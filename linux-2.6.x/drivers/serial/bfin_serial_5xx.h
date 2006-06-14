@@ -100,6 +100,7 @@ struct bfin_serial {
 
 	int baud;
 	int baud_base;
+	int sig;
 	int type;		/* UART type */
 	struct tty_struct *tty;
 	int xmit_fifo_size;

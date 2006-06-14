@@ -197,30 +197,74 @@ static inline int serial_paranoia_check(struct bfin_serial *info, char *name,
 	return 0;
 }
 
-/* Sets or clears DTR/RTS on the requested line */
-static inline void bfin_rtsdtr(struct bfin_serial *info, int set)
+/* Sets or clears RTS on the requested line */
+static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 {
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned long flags = 0;
+	unsigned short rts_mask;
 #ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "%s(%d): bfin_rtsdtr(info=%p,set=%d)\n",
+	printk(KERN_DEBUG "%s(%d): bfin_setsignal(info=%p,rts=%d)\n",
 	       __FILE__, __LINE__, info, set);
 #endif
-#if !defined(CONFIG_BF561)
+	rts_mask = (1 << CONFIG_BFIN_UART_RTS);
+
 	local_irq_save(flags);
-	if (set) {
+#if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	if (rts) {
 		/* set the RTS/CTS line */
-		*pFIO_FLAG_C = (1 << 13);
-		SSYNC;
+		*pFIO_FLAG_C = rts_mask;
+		info->sig |= TIOCM_RTS;
 	} else {
 		/* clear it */
-		*pFIO_FLAG_S = (1 << 13);
-		SSYNC;
+		*pFIO_FLAG_S = rts_mask;
+		info->sig &= ~TIOCM_RTS;
 	}
+#else
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
+	if (rts) {
+		/* set the RTS/CTS line */
+		*pPORTGIO_CLEAR |= rts_mask;
+		info->sig |= TIOCM_RTS;
+	} else {
+		/* clear it */
+		*pPORTGIO_SET |= rts_mask;
+		info->sig &= ~TIOCM_RTS;
+	}
+#endif
+#endif
+	__builtin_bfin_ssync();
 	local_irq_restore(flags);
 #endif
-	return;
 }
 
+/* Sets or clears RTS on the requested line */
+static inline int bfin_getsignal(struct bfin_serial *info)
+{
+	int sig = info->sig;
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	unsigned long flags = 0;
+	unsigned short cts_mask;
+#ifdef SERIAL_DEBUG_OPEN
+	printk(KERN_DEBUG "%s(%d): bfin_getsignal(info=%p)\n",
+	       __FILE__, __LINE__, info);
+#endif
+	cts_mask = (1 << CONFIG_BFIN_UART_CTS);
+
+	local_irq_save(flags);
+#if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	if(!(*pFIO_FLAG_D & cts_mask))
+		sig |= TIOCM_CTS;
+#else
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
+	if(!(*pPORTGIO & cts_mask))
+		sig |= TIOCM_CTS;
+#endif
+#endif
+	local_irq_restore(flags);
+#endif
+	return sig;
+}
 /*
  * ------------------------------------------------------------
  * rs_stop() and rs_start()
@@ -338,11 +382,8 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 	if ((curpos = get_dma_curr_xcount(info->rx_DMA_channel)) == 0
 	    && in_timer)
 		goto unlock_and_exit;
-	curpos =
-	    TTY_FLIPBUF_SIZE - curpos + (RX_YCOUNT -
-					 get_dma_curr_ycount(info->
-							     rx_DMA_channel)) *
-	    TTY_FLIPBUF_SIZE;
+	curpos = TTY_FLIPBUF_SIZE - curpos + (RX_YCOUNT -
+		 get_dma_curr_ycount(info->rx_DMA_channel))*TTY_FLIPBUF_SIZE;
 
 	if (curpos == info->recv_tail)
 		goto unlock_and_exit;
@@ -366,22 +407,25 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 		goto unlock_and_exit;
 	}
 
-	len = info->recv_head - info->recv_tail;
+	while(info->recv_head - info->recv_tail>0) {
+		len = info->recv_head - info->recv_tail;
 
-	len = tty_buffer_request_room(tty, len);
-	if (len > 0) {
-		tty_insert_flip_string(tty,
-		       info->recv_buf + info->recv_tail, len);
-		info->recv_tail += len;
+		len = tty_buffer_request_room(tty, len);
+		if (len > 0) {
+			tty_insert_flip_string(tty,
+			       info->recv_buf + info->recv_tail, len);
+			info->recv_tail += len;
+		}
+		tty_flip_buffer_push(tty);
 	}
-
 	if (info->recv_head >= PAGE_SIZE)
 		info->recv_head = 0;
 	if (info->recv_tail >= PAGE_SIZE)
 		info->recv_tail = 0;
 
-	tty_flip_buffer_push(tty);
       unlock_and_exit:
+	if(!(info->sig&TIOCM_RTS))
+		bfin_setsignal(info, 1);
 	spin_unlock_bh(&(info->recv_lock));
 }
 
@@ -407,6 +451,12 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	}
 
 	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
+		goto clear_and_return;
+	}
+
+	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
 		goto clear_and_return;
 	}
 
@@ -474,7 +524,7 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 			status = *(uart_regs->rpUART_LSR);
 			if (status & BI) {	/* break received */
 				status_handle(info, status);
-				return;
+				goto clear_and_exit;
 			}
 #ifdef CONFIG_CONSOLE
 			wake_up(&keypress_wait);
@@ -499,6 +549,8 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 	tty_flip_buffer_push(tty);
 
       clear_and_exit:
+	if(!(info->sig&TIOCM_RTS))
+		bfin_setsignal(info, 1);
 	return;
 }
 
@@ -516,6 +568,12 @@ static void transmit_chars(struct bfin_serial *info)
 		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 		*(regs->rpUART_IER) &= ~ETBEI;
 		SSYNC;
+		goto clear_and_return;
+	}
+
+	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
 		goto clear_and_return;
 	}
 
@@ -572,6 +630,8 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				ACCESS_PORT_IER(uart_regs);
 				CSYNC;
 				lsr = *(uart_regs->rpUART_LSR);
+				if(lsr&0x2 && lsr&0x1)
+					bfin_setsignal(info, 0);
 				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
@@ -622,6 +682,10 @@ static void do_softint(void *private_)
 	}
 	if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
 		dma_transmit_chars(info);
+	}
+#else
+	if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
+		transmit_chars(info);
 	}
 #endif
 }
@@ -742,9 +806,9 @@ static int startup(struct bfin_serial *info)
 	 */
 
 	info->xmit_fifo_size = 1;
-	ACCESS_PORT_IER(regs);
 	/* Change access to IER & data port */
-	bfin_rtsdtr(info, 1);
+	ACCESS_PORT_IER(regs);
+	bfin_setsignal(info, 1);
 
 	if (info->tty)
 		clear_bit(TTY_IO_ERROR, &info->tty->flags);
@@ -810,7 +874,7 @@ static void shutdown(struct bfin_serial *info)
 	SSYNC;
 
 	if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
-		bfin_rtsdtr(info, 0);
+		bfin_setsignal(info, 0);
 
 	if (info->xmit_buf) {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
@@ -1252,14 +1316,14 @@ static int set_modem_info(struct bfin_serial *info, unsigned int cmd,
 	switch (cmd) {
 	case TIOCMBIS:
 		if (arg & TIOCM_DTR)
-			bfin_rtsdtr(info, 1);
+			bfin_setsignal(info, 1);
 		break;
 	case TIOCMBIC:
 		if (arg & TIOCM_DTR)
-			bfin_rtsdtr(info, 0);
+			bfin_setsignal(info, 0);
 		break;
 	case TIOCMSET:
-		bfin_rtsdtr(info, arg & TIOCM_DTR ? 1 : 0);
+		bfin_setsignal(info, arg & TIOCM_DTR ? 1 : 0);
 		break;
 	default:
 		return -EINVAL;
@@ -1282,6 +1346,39 @@ static void send_break(struct bfin_serial *info, unsigned int duration)
 	*(regs->rpUART_LCR) &= ~SB;
 	SSYNC;
 	local_irq_restore(flags);
+}
+
+static int rs_tiocmget(struct tty_struct *tty, struct file *file)
+{
+	struct bfin_serial * info = (struct bfin_serial *)tty->driver_data;
+
+	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
+		return -ENODEV;
+	if (tty->flags & (1 << TTY_IO_ERROR))
+		return -EIO;
+
+	return bfin_getsignal(info);
+}
+
+static int rs_tiocmset(struct tty_struct *tty, struct file *file,
+			  unsigned int set, unsigned int clear)
+{
+	struct bfin_serial * info = (struct bfin_serial *)tty->driver_data;
+	int rts = -1;
+
+	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
+		return -ENODEV;
+	if (tty->flags & (1 << TTY_IO_ERROR))
+		return -EIO;
+
+	if (set & TIOCM_RTS)
+		rts = 1;
+	if (clear & TIOCM_RTS)
+		rts = 0;
+
+	bfin_setsignal(info, rts);
+
+	return 0;
 }
 
 static int rs_ioctl(struct tty_struct *tty, struct file *file,
@@ -1546,7 +1643,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	while (1) {
 		local_irq_save(flags);
 		if (!(info->flags & S_CALLOUT_ACTIVE))
-			bfin_rtsdtr(info, 1);
+			bfin_setsignal(info, 1);
 		local_irq_restore(flags);
 		current->state = TASK_INTERRUPTIBLE;
 		if (tty_hung_up_p(filp) || !(info->flags & S_INITIALIZED)) {
@@ -1585,10 +1682,17 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 {
 	struct bfin_serial *info = (struct bfin_serial *)dev_id;
+	int count;
 
 	clear_dma_irqstat(info->rx_DMA_channel);
 	info->event |= 1 << RS_EVENT_READ;
 	schedule_work(&info->tqueue);
+	
+	count = RX_YCOUNT - get_dma_curr_ycount(info->rx_DMA_channel)
+		- (info->recv_tail/TTY_FLIPBUF_SIZE + 1);
+	if(count<=0 || count>=RX_YCOUNT-1)
+		bfin_setsignal(info, 0);
+
 	return IRQ_HANDLED;
 }
 
@@ -1662,11 +1766,9 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 /* configure uart0 */
 static void bfin_config_uart0(struct bfin_serial *info)
 {
-	int flags = 0;
-	local_irq_save(flags);
-
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
+	info->sig = 0;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1702,19 +1804,16 @@ static void bfin_config_uart0(struct bfin_serial *info)
 	info->regs.rpUART_SCR = pUART_SCR;
 	info->regs.rpUART_GCTL = pUART_GCTL;
 
-	local_irq_restore(flags);
-
+	bfin_setsignal(info, 0);
 }
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 /* configure uart1 */
 static void bfin_config_uart1(struct bfin_serial *info)
 {
-	int flags = 0;
-	local_irq_save(flags);
-
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
+	info->sig = 0;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1750,8 +1849,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->regs.rpUART_SCR = pUART1_SCR;
 	info->regs.rpUART_GCTL = pUART1_GCTL;
 
-	local_irq_restore(flags);
-
+	bfin_setsignal(info, 0);
 }
 #endif
 
@@ -1782,6 +1880,16 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 				return 0;
 			}
 		}
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+		*pPORTGIO_DIR &= ~(1 << CONFIG_BFIN_UART_CTS);
+		*pPORTGIO_INEN |= (1 << CONFIG_BFIN_UART_CTS);
+		*pPORTGIO_MASKA_SET &= ~(1 << CONFIG_BFIN_UART_CTS);
+		*pPORTGIO_MASKB_SET &= ~(1 << CONFIG_BFIN_UART_CTS);
+		*pPORTGIO_DIR |= (1 << CONFIG_BFIN_UART_RTS);
+		*pPORTG_FER &= ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3);
+		__builtin_bfin_ssync();
+#endif
+
 	}
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	else if (strncmp(tty->name, "ttyS1", 6) == 0) {
@@ -1794,6 +1902,10 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 				return 0;
 			}
 		}
+		*pPORT_MUX &= ~(PFTE);
+		__builtin_bfin_ssync();
+		*pPORTF_FER |= 0xc;
+		__builtin_bfin_ssync();
 	}
 #endif
 	else
@@ -1849,14 +1961,21 @@ int rs_readproc(char *page, char **start, off_t off, int count,
 		info = &bfin_uart[i];
 		len += sprintf((page + len),
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-			"%d: rx_DMA_chan: %i rx_irq: %i tx_DMA_chan: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i\n",
+			"%d: rx_DMA_chan: %i rx_irq: %i tx_DMA_chan: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i ",
 			i, info->rx_DMA_channel, info->rx_irq, info->tx_DMA_channel, info->tx_irq,
 			info->count, info->blocked_open, info->baud);
 #else
-			"%d: rx_irq: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i\n",
+			"%d: rx_irq: %i tx_irq: %i open_count: %i blocked_open_count: %i baud: %i ",
 			i, info->rx_irq, info->tx_irq,
 			info->count, info->blocked_open, info->baud);
 #endif
+		if ((info->sig = bfin_getsignal(info))) {
+			if (info->sig & TIOCM_RTS)
+				len += sprintf((page + len), "|RTS");
+			if (info->sig & TIOCM_CTS)
+				len += sprintf((page + len), "|CTS");
+		}
+		len += sprintf((page + len), "\n");
 	}
 
 	return len;
@@ -1961,6 +2080,8 @@ static struct tty_operations rs_ops = {
 	.read_proc = rs_readproc,
 	.set_ldisc = rs_set_ldisc,
 	.wait_until_sent = rs_wait_until_sent,
+	.tiocmget = rs_tiocmget,
+	.tiocmset = rs_tiocmset,
 };
 
 /* rs_bfin_init inits the driver */
@@ -2119,9 +2240,11 @@ int bfin_console_init(void)
 	bfin_config_uart0(&bfin_uart[0]);
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_config_uart1(&bfin_uart[1]);
-	*pPORT_MUX &= ~(PFDE|PFTE);
+#ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	*pPORT_MUX &= ~(PFDE);
 	__builtin_bfin_ssync();
-	*pPORTF_FER |= 0xF;
+#endif
+	*pPORTF_FER |= 0x3;
 	__builtin_bfin_ssync();
 #endif
 	register_console(&bfin_driver);
