@@ -158,7 +158,7 @@ enable_gptimers(short mask)
 {
 	unsigned short	regdata;
 
-	//printk("enable timers write 0x%04hX at 0x%08X\n", mask, &gptimers->enable);
+	//printk(KERN_DEBUG "enable timers write 0x%04hX at 0x%08X\n", mask, &gptimers->enable);
 	regdata = gptimers->enable;
 	regdata |= mask;
 	gptimers->enable = regdata;

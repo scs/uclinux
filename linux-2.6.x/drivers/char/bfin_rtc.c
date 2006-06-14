@@ -37,7 +37,13 @@
 #define RTC_VERSION "1.10e"
 #define RTC_IO_EXTENT   0x10    /* Only really two ports, but...    */
 
-#undef RTC_DEBUG
+#undef DEBUG
+
+#ifdef DEBUG
+#define DPRINTK(x...)	printk(KERN_DEBUG x)
+#else
+#define DPRINTK(x...)	do { } while (0)
+#endif
 
 #ifndef RTC_IRQ
 #define RTC_IRQ		IRQ_RTC
@@ -148,10 +154,8 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
     unsigned long cur_stat;
     int leap_yr1;
     int mon2; 
-    
-#ifdef RTC_DEBUG
-printk("rtc_interrupt\n");
-#endif
+
+    DPRINTK("rtc_interrupt\n");
     
     spin_lock (&rtc_lock);
     rtc_irq_data += 0x1000;
@@ -610,9 +614,7 @@ static struct miscdevice rtc_dev=
 
 int __init blackfin_rtc_init(void)
 {
-#ifdef RTC_DEBUG
-    printk("blackfin_rtc_init\n");
-#endif
+    DPRINTK("blackfin_rtc_init\n");
     *pRTC_PREN = PRESCALE_EN;
      __builtin_bfin_ssync();
     *pRTC_ISTAT = 0x807F;

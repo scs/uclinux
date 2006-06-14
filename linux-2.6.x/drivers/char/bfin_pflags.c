@@ -71,7 +71,7 @@
 //#define ENABLE_POLL
 
 #ifdef DEBUG
-#define DPRINTK(x...)	printk(x)
+#define DPRINTK(x...)	printk(KERN_DEBUG x)
 #else
 #define DPRINTK(x...)	do { } while (0)
 #endif
@@ -199,7 +199,7 @@ pflags_read (struct file *filp, char *buf, size_t size, loff_t * offp)
   const char *bit;
   int minor = check_minor (filp->f_dentry->d_inode);
 
-  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
+  DPRINTK("pfbits driver for bf53x minor = %d\n", minor);
 
   if (minor < 0)
     return -ENODEV;
@@ -251,7 +251,7 @@ pflags_write (struct file *filp, const char *buf, size_t size, loff_t * offp)
 
   volatile unsigned short *set_or_clear;
 
-  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
+  DPRINTK("pfbits driver for bf53x minor = %d\n", minor);
 
   if (minor < 0)
     return -ENODEV;
@@ -321,7 +321,7 @@ static irqreturn_t pflags_irq_handler ( int irq, void *dev_id, struct pt_regs *r
   /* FIXME: Clear only status of flag pin that caused the interrupt */
   *pFIO_FLAG_C = 0xFFFF; /* clear irq status on interrupt lines */
 
-  printk("pflags_irq_handler \n");
+  DPRINTK("pflags_irq_handler\n");
   
   pflags_statechanged   = pflags_laststate ^ pflags_nextstate;
   pflags_laststate      = pflags_nextstate;
@@ -360,15 +360,15 @@ blackfin_pflags_init (void)
 
 #ifdef ENABLE_POLL
   if( request_irq (IRQ_PROG_INTA, pflags_irq_handler, SA_INTERRUPT, "pflags", NULL) ){
-    printk (KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
+    printk(KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
     return -EIO;
   }
   init_waitqueue_head (&pflags_in_waitq);
   pflags_laststate = *pFIO_FLAG_D;
   pflags_statechanged = 0xffff;
-  printk ("pfx: pfbits driver for bf53x IRQ %d\n", IRQ_PROG_INTA);
+  printk(KERN_INFO "pfx: pfbits driver for bf53x IRQ %d\n", IRQ_PROG_INTA);
 #else
-  printk ("pfx: pfbits driver for bf53x\n");
+  printk(KERN_INFO "pfx: pfbits driver for bf53x\n");
 #endif
 //  enable_irq(IRQ_PROG_INTA);
 
@@ -477,13 +477,13 @@ pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
   if (minor < 0)
     return -ENODEV;
 
-  DPRINTK ("pfbits driver for bf53x minor = %d\n", minor);
+  DPRINTK("pfbits driver for bf53x minor = %d\n", minor);
 
   switch (cmd)
     {
     case SET_FIO_DIR:
       {
-	DPRINTK ("pflags_ioctl: SET_FIO_DIR \n");
+	DPRINTK("pflags_ioctl: SET_FIO_DIR\n");
 
 	if (arg)		// OUTPUT
 	  {
@@ -497,7 +497,7 @@ pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
       }
     case SET_FIO_POLAR:
       {
-	DPRINTK ("pflags_ioctl: SET_FIO_POLAR \n", arg);
+	DPRINTK("pflags_ioctl: SET_FIO_POLAR \n", arg);
 
 	if (arg)		// ACTIVELOW_FALLINGEDGE
 	  {
@@ -511,7 +511,7 @@ pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
       }
     case SET_FIO_EDGE:
       {
-	DPRINTK ("pflags_ioctl: SET_FIO_EDGE \n");
+	DPRINTK("pflags_ioctl: SET_FIO_EDGE\n");
 
 	if (arg)		// EDGE
 	  {
@@ -525,7 +525,7 @@ pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
       }
     case SET_FIO_BOTH:
       {
-	DPRINTK ("pflags_ioctl: SET_FIO_BOTH \n");
+	DPRINTK("pflags_ioctl: SET_FIO_BOTH\n");
 
 	if (arg)		// BOTHEDGES
 	  {
@@ -539,7 +539,7 @@ pflags_ioctl (struct inode *inode, struct file *filp, uint cmd,
       }
     case SET_FIO_INEN:
       {
-	DPRINTK ("pflags_ioctl: SET_FIO_INEN \n");
+	DPRINTK("pflags_ioctl: SET_FIO_INEN\n");
 
 	if (arg)		// OUTPUT_ENABLE
 	  {

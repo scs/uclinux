@@ -38,10 +38,10 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/dma.h>
 
-/* #define DEBUG */
+#undef DEBUG
 
 #ifdef DEBUG
-#define DPRINTK(x...)	printk(x)
+#define DPRINTK(x...)	printk(KERN_DEBUG x)
 #else
 #define DPRINTK(x...)	do { } while (0)
 #endif
@@ -92,7 +92,7 @@ static u_long spi_get_sclk(void)
 	if((*pPLL_DIV & 0xf) != 0)
 		sclk = vco/(*pPLL_DIV & 0xf);
 	else
-		printk("Invalid System Clock\n");
+		printk(KERN_NOTICE "bfin_spi_adc: Invalid System Clock\n");
 
 	return (sclk);
 }
@@ -105,25 +105,25 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 	switch (cmd) {
 	case CMD_SPI_SET_TRIGGER_MODE:
 	{
-		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_MODE \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_MODE\n");
 		bfin_spi_adc->mode = (unsigned char)arg;
 		break;
 	}
 	case CMD_SPI_SET_TRIGGER_SENSE:
 	{
-		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_SENSE \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_SENSE\n");
 		bfin_spi_adc->sense = (unsigned char)arg;
 		break;
 	}
 	case CMD_SPI_SET_TRIGGER_EDGE:
 	{
-		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_EDGE \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_EDGE\n");
 		bfin_spi_adc->edge = (unsigned char)arg;
 		break;
 	}
 	case CMD_SPI_SET_TRIGGER_LEVEL:
 	{
-		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_LEVEL \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_TRIGGER_LEVEL\n");
 		bfin_spi_adc->level = (unsigned short)arg;
 		break;
 	}
@@ -135,7 +135,7 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 	}
 	case CMD_SPI_SET_BAUDRATE:
         {
-		DPRINTK("spi_ioctl: CMD_SPI_SET_BAUDRATE \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_BAUDRATE\n");
 		/* BaudRate 0,1 unavail */
 		if((unsigned short)arg <= 1)
 			return -EINVAL;
@@ -145,7 +145,7 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
         }
 	case CMD_SPI_SET_WRITECONTINUOUS:
 	{
-		DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS \n");
+		DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS\n");
 		bfin_spi_adc->cont = (unsigned char)arg;
 		break;
 	}
@@ -262,7 +262,7 @@ static ssize_t adc_spi_write (struct file *filp, const char *buf, size_t count, 
 	struct spi_message m;
 	struct bfin_spi_adc *bfin_spi_adc = filp->private_data;
 
-	DPRINTK("spi_write: \n");
+	DPRINTK("spi_write:\n");
 
 	if(count <= 0)
 		return 0;
@@ -284,7 +284,7 @@ static ssize_t adc_spi_write (struct file *filp, const char *buf, size_t count, 
 	spi_message_add_tail(&t, &m);
 	spi_sync(bfin_spi_adc->spidev, &m);
 
-	DPRINTK("spi_write: return \n");
+	DPRINTK("spi_write: return\n");
 	return count;
 }
 
@@ -293,7 +293,7 @@ static int adc_spi_open (struct inode *inode, struct file *filp)
     struct spi_device *spi;
     int minor = MINOR (inode->i_rdev);
 
-    DPRINTK("spi_open: start \n");
+    DPRINTK("spi_open: start\n");
 
     /* SPI ? */
     if(minor != SPI0_ADC_MINOR) return -ENXIO;
@@ -312,7 +312,7 @@ static int adc_spi_open (struct inode *inode, struct file *filp)
     filp->private_data = &spi_adc;
 
 
-    DPRINTK("spi_open: return \n");
+    DPRINTK("spi_open: return\n");
     return 0;
 }
 
@@ -320,7 +320,7 @@ static int adc_spi_release (struct inode *inode, struct file *filp)
 {
     spi_adc.opened = 0;
 
-    DPRINTK("spi_release: close() return \n");
+    DPRINTK("spi_release: close() return\n");
     return 0;
 }
 
@@ -352,7 +352,7 @@ static int __devinit bfin_spi_adc_probe(struct spi_device *spi)
 static int __devexit bfin_spi_adc_remove(struct spi_device *spi)
 {
 	unregister_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME);
-	printk("<1>Goodbye SPI \n");
+	printk(KERN_ALERT "Goodbye SPI\n");
 	return 0;
 }
 

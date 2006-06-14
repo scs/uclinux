@@ -74,7 +74,7 @@ pcf8574_lcd_probe (struct i2c_adapter *adap, int addr, int kind)
   if ((rc = i2c_attach_client (client)) != 0)
     {
       kfree (client);
-      printk ("i2c_attach_client fail: %d\n", rc);
+      printk(KERN_NOTICE "bfin_twi_lcd: i2c_attach_client fail: %d\n", rc);
       lcd_present = 0;
       return rc;
     }
@@ -290,7 +290,7 @@ lcd_init (void)
   result = register_chrdev (LCD_MAJOR, LCD_DEVNAME, &lcd_fops);
   if (result < 0)
     {
-      printk (KERN_WARNING "lcd: can't get minor %d\n", LCD_MAJOR);
+      printk(KERN_WARNING "bfin_twi_lcd: can't get minor %d\n", LCD_MAJOR);
       return result;
     }
 
@@ -406,7 +406,7 @@ lcd_exit (void)
 {
   i2c_del_driver (&pcf8574_lcd_driver);
   unregister_chrdev (LCD_MAJOR, LCD_DEVNAME);
-  printk ("<1>Goodbye LCD \n");
+  printk(KERN_ALERT "Goodbye LCD\n");
 }
 
 module_init (lcd_init);

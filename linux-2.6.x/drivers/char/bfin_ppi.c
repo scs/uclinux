@@ -58,10 +58,9 @@
 //#define MODULE
 
 #undef	DEBUG
-//#define DEBUG
 
 #ifdef DEBUG
-#define DPRINTK(x...)	printk(x)
+#define DPRINTK(x...)	printk(KERN_DEBUG x)
 #else
 #define DPRINTK(x...)	do { } while (0)
 #endif 
@@ -349,7 +348,7 @@ ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
     unsigned short regdata;
     ppi_device_t *pdev = (ppi_device_t*)dev_id;
     
-    DPRINTK("ppi_irq: \n");
+    DPRINTK("ppi_irq:\n");
 	get_ppi_reg(DMA0_IRQ_STATUS, &regdata);
 
 
@@ -379,7 +378,7 @@ ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
     /* wake up read/write block. */
     wake_up_interruptible(pdev->rx_avail);
         
-    DPRINTK("ppi_irq: return \n");
+    DPRINTK("ppi_irq: return\n");
 
     return IRQ_HANDLED;
 }
@@ -465,7 +464,7 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
     {
         case CMD_PPI_PORT_ENABLE:
         {
-            DPRINTK("ppi_ioctl: CMD_PPI_PORT_ENABLE \n");
+            DPRINTK("ppi_ioctl: CMD_PPI_PORT_ENABLE\n");
 			regdata = *pPPI_CONTROL;
 			pdev->portenable = (unsigned short)arg;
             if(arg)
@@ -630,28 +629,28 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
         case CMD_PPI_GET_ALLCONFIG:
         {
             unsigned short usreg;
-            DPRINTK("ppi_ioctl: CMD_PPI_GET_ALLCONFIG \n");
+            DPRINTK("ppi_ioctl: CMD_PPI_GET_ALLCONFIG\n");
             
-            printk("opened: %d.\n",ppiinfo.opened);
-            printk("portenable: %d.\n",ppiinfo.portenable);
-			printk("nonblock: %d.\n", ppiinfo.nonblock);
-            printk("irqnum: %d.\n",ppiinfo.irqnum);
-            printk("pixel size: %d.\n",ppiinfo.datalen);
-			printk("line length: %hd.\n", ppiinfo.linelen);
-			printk("num lines: %hd.\n", ppiinfo.numlines);
+            printk(KERN_INFO "opened: %d.\n",ppiinfo.opened);
+            printk(KERN_INFO "portenable: %d.\n",ppiinfo.portenable);
+			printk(KERN_INFO "nonblock: %d.\n", ppiinfo.nonblock);
+            printk(KERN_INFO "irqnum: %d.\n",ppiinfo.irqnum);
+            printk(KERN_INFO "pixel size: %d.\n",ppiinfo.datalen);
+			printk(KERN_INFO "line length: %hd.\n", ppiinfo.linelen);
+			printk(KERN_INFO "num lines: %hd.\n", ppiinfo.numlines);
             
             get_ppi_reg( PPI_CONTROL, &usreg);
-            printk("Ctrl reg:     0x%04hx.\n", usreg);
+            printk(KERN_INFO "Ctrl reg:     0x%04hx.\n", usreg);
 			get_ppi_reg( PPI_STATUS, &usreg);
-			printk("Status reg:   0x%04hx.\n", usreg);
+			printk(KERN_INFO "Status reg:   0x%04hx.\n", usreg);
 			get_ppi_reg( PPI_COUNT, &usreg);
-			printk("Status count: 0x%04hx.\n", usreg);
+			printk(KERN_INFO "Status count: 0x%04hx.\n", usreg);
 			get_ppi_reg( PPI_FRAME, &usreg);
-			printk("Status frame: 0x%04hx.\n", usreg);
+			printk(KERN_INFO "Status frame: 0x%04hx.\n", usreg);
 			get_ppi_reg( PPI_DELAY, &usreg);
-			printk("Status delay: 0x%04hx.\n", usreg);
+			printk(KERN_INFO "Status delay: 0x%04hx.\n", usreg);
 			get_ppi_reg( 0xFFC00640, &usreg);  //TIMER_ENABLE
-			printk("Timer Enable: 0x%04hx.\n", usreg);
+			printk(KERN_INFO "Timer Enable: 0x%04hx.\n", usreg);
             break;
         }
 #endif
@@ -866,7 +865,7 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 			if(ierr)
 			{
 				/* waiting is broken by a signal */
-				printk("PPI wait_event_interruptible ierr\n");
+				DPRINTK("PPI wait_event_interruptible ierr\n");
 				return ierr;
 			}
 		}
@@ -883,7 +882,7 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 
 	disable_dma(CH_PPI);
 
-    DPRINTK("ppi_read: return \n");
+    DPRINTK("ppi_read: return\n");
 
 	return count;
 }
@@ -931,7 +930,7 @@ ppi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 	unsigned short	stepSize;
     ppi_device_t *pdev = filp->private_data;
 
-	DPRINTK("ppi_write: \n");
+	DPRINTK("ppi_write:\n");
 
     if(count <= 0)
         return 0;
@@ -1095,7 +1094,7 @@ ppi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 			ierr = wait_event_interruptible(*(pdev->rx_avail), pdev->done);
 			if (ierr) {
 				/* waiting is broken by a signal */
-				printk("PPI wait_event_interruptible ierr = %d\n", ierr );
+				DPRINTK("PPI wait_event_interruptible ierr = %d\n", ierr );
 				return ierr;
 			}
 		}
@@ -1104,7 +1103,7 @@ ppi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 	get_ppi_reg(PPI_STATUS, &regdata);
 	DPRINTK("PPI Status reg: %x\n", regdata );
 
-    DPRINTK("ppi_write: return \n");
+    DPRINTK("ppi_write: return\n");
 
 	/*
 	** disable ppi and dma  -- order matters! see 9-16
@@ -1150,7 +1149,7 @@ ppi_open (struct inode *inode, struct file *filp)
     char intname[20];
     int minor = MINOR (inode->i_rdev);
 
-    DPRINTK("ppi_open: \n");
+    DPRINTK("ppi_open:\n");
     
     /* PPI ? */
     if(minor != PPI0_MINOR) return -ENXIO;
@@ -1194,7 +1193,7 @@ ppi_open (struct inode *inode, struct file *filp)
 		return -EFAULT;
 		}	
 
-    DPRINTK("ppi_open: return \n");
+    DPRINTK("ppi_open: return\n");
     
     return 0;
 }
@@ -1228,7 +1227,7 @@ ppi_release (struct inode *inode, struct file *filp)
 {
     ppi_device_t *pdev = filp->private_data;
 
-    DPRINTK("ppi_release: close() \n");
+    DPRINTK("ppi_release: close()\n");
     
 
     /* After finish DMA, release it. */
@@ -1239,7 +1238,7 @@ ppi_release (struct inode *inode, struct file *filp)
     
     ppi_fasync(-1, filp, 0);
 
-    DPRINTK("ppi_release: close() return \n");
+    DPRINTK("ppi_release: close() return\n");
     return 0;
 }
 
@@ -1294,7 +1293,7 @@ ppi_init(void)
         printk(KERN_WARNING "PPI: can't get major %d\n", PPI_MAJOR);
         return result;
     }
-    printk("PPI: PPI-EKC Driver INIT IRQ:%d \n",PPI_IRQ_NUM);
+    printk(KERN_INFO "PPI: PPI-EKC Driver INIT IRQ:%d \n",PPI_IRQ_NUM);
     return 0;
 }   
 //#ifndef MODULE
@@ -1331,7 +1330,7 @@ ppi_uninit(void)
 //#endif /* MODULE */
 {
     unregister_chrdev(PPI_MAJOR, PPI_DEVNAME);
-    printk("<1>Goodbye PPI \n");
+    printk(KERN_ALERT "Goodbye PPI\n");
 
 }
 

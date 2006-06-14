@@ -6,7 +6,13 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 
+#define DEBUG
 
+#ifdef DEBUG
+#define DPRINTK(x...)	printk(KERN_DEBUG x)
+#else
+#define DPRINTK(x...)	do { } while (0)
+#endif
 
 #define MODULE_NAME "timer_latency proc module"
 
@@ -91,7 +97,7 @@ static int write_timer_latency(struct file *file, const char *buffer,
 	copy_from_user(&(user_value), buffer, 1);
 	
 	if ((user_value == '1') && (timer_latency_data.value == 0)) {
-		printk("start timer_latency\n");
+		DPRINTK("start timer_latency\n");
 		timer_latency_data.value = 1;
 		sclk = get_sclk();
 		*pWDOG_CNT = 5 * sclk; /* set count time to 5 seconds */		
@@ -145,13 +151,13 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 	       
 	cclk = get_cclk();
 	
-	printk("first_latency is %ul, second is %ul, third is %ul, latency is %ul\n", first_latency, second_latency, third_latency, cycles_past);
+	DPRINTK("first_latency is %ul, second is %ul, third is %ul, latency is %ul\n", first_latency, second_latency, third_latency, cycles_past);
 
 	latency = cycles_past - (cclk * 5);    /* latency in us */
-	printk("latecy is %ud\n",latency);
+	DPRINTK("latecy is %ud\n",latency);
 
 	if (*pWDOG_STAT != 0) {
-		printk("timer_latency error!\n");
+		DPRINTK("timer_latency error!\n");
 		return IRQ_HANDLED;
 	}
 
@@ -165,7 +171,7 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 static int __init timer_latency_init(void)
 {
 	
-	printk("timer_latency start!\n");
+	DPRINTK("timer_latency start!\n");
 		
 	timer_latency_file = create_proc_entry("timer_latency", 0666, NULL);
 	if(timer_latency_file == NULL) {
