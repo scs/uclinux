@@ -162,10 +162,10 @@ static void bf5xx_copy_to(struct map_info *map, unsigned long to, const void *fr
 
 static struct map_info bf5xx_map = {
 	name:    	"BF5xx flash",
-	0x400000,
-	0x20000000,
-	0x20000000,
-	NULL,
+	CONFIG_BFIN_FLASH_SIZE,
+	CONFIG_EBIU_FLASH_BASE,
+	(void __iomem *)CONFIG_EBIU_FLASH_BASE,
+	(void *)NULL,
 	read:		bf5xx_read,
 	copy_from:	bf5xx_copy_from,
 	write:		bf5xx_write,
