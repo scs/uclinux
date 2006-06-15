@@ -1880,6 +1880,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 				return 0;
 			}
 		}
+#ifdef CONFIG_BFIN_UART_CTSRTS
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 		*pPORTGIO_DIR &= ~(1 << CONFIG_BFIN_UART_CTS);
 		*pPORTGIO_INEN |= (1 << CONFIG_BFIN_UART_CTS);
@@ -1888,6 +1889,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 		*pPORTGIO_DIR |= (1 << CONFIG_BFIN_UART_RTS);
 		*pPORTG_FER &= ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3);
 		SSYNC();
+#endif
 #endif
 
 	}
@@ -2241,10 +2243,10 @@ int bfin_console_init(void)
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_config_uart1(&bfin_uart[1]);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	*pPORT_MUX &= ~(PFDE);
+	*pPORT_MUX &= ~(PFDE|PFTE);
 	SSYNC();
 #endif
-	*pPORTF_FER |= 0x3;
+	*pPORTF_FER |= 0xF;
 	SSYNC();
 #endif
 	register_console(&bfin_driver);
