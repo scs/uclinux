@@ -120,7 +120,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 
 	if (ret) {
 		memset(ret, 0, size);
-		dma_handle = (dma_addr_t *) virt_to_phys(ret);
+		*dma_handle = virt_to_phys(ret);
 	}
 
 	return ret;
