@@ -122,13 +122,22 @@ static int printk_address(unsigned long address)
 /* Used by the assembly entry point to work around an anomaly.  */
 void *last_cplb_fault_retx;
 
+#define trace_buffer_save(x) \
+	do { \
+		(x) = *pTBUFCTL; \
+		*pTBUFCTL = (x) & ~(TBUFEN); \
+	} while (0)
+#define trace_buffer_restore(x) \
+	do { \
+		*pTBUFCTL = (x); \
+	} while (0)
+
 asmlinkage void trap_c(struct pt_regs *fp)
 {
 	int j, sig = 0;
 	siginfo_t info;
 
-	j = *pTBUFCTL;
-	*pTBUFCTL = j & 0x1D;
+	trace_buffer_save(j);
 
 	/* trap_c() will be called for exceptions. During exceptions
 	   processing, the pc value should be set with retx value.
@@ -258,12 +267,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	info.si_addr = (void *)fp->pc;
 	force_sig_info(sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
+		unsigned long stack;
 		dump(fp, (void *)fp->retx);
-		dump_stack();
-
+		show_stack(current, &stack);
 	}
       nsig:
-	*pTBUFCTL = j;
+	trace_buffer_restore(j);
 	return;
 }
 
@@ -272,6 +281,17 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 {
 	unsigned long *endstack, addr;
 	int i;
+
+	if (likely(*pTBUFSTAT & TBUFCNT)) {
+		printk(KERN_EMERG "Hardware Trace:\n");
+		for (i = 0; *pTBUFSTAT & TBUFCNT; i++) {
+			printk(KERN_EMERG "%2i Target : ", i);
+			printk_address((unsigned long)*pTBUF);
+			printk("\n" KERN_EMERG "   Source : ");
+			printk_address((unsigned long)*pTBUF);
+			printk("\n");
+		}
+	}
 
 	if (!stack) {
 		if (task)
@@ -318,7 +338,10 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 void dump_stack(void)
 {
 	unsigned long stack;
+	int j;
+	trace_buffer_save(j);
 	show_stack(current, &stack);
+	trace_buffer_restore(j);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -384,16 +407,6 @@ void dump(struct pt_regs *fp, void *retaddr)
 	printk("\nUSP: %08lx   ASTAT: %08lx\n", rdusp(), fp->astat);
 
 	printk("\n\n");
-	if (*pTBUFSTAT) {
-		printk(KERN_EMERG "Hardware Trace:\n");
-		for (i = 0; (*pTBUFSTAT) & 0x1f; i++) {
-			printk(KERN_EMERG "%2i Target : ", i);
-			printk_address((unsigned long)*pTBUF);
-			printk("\n" KERN_EMERG "   Source : ");
-			printk_address((unsigned long)*pTBUF);
-			printk("\n");
-		}
-	}
 }
 
 asmlinkage int sys_bfin_spinlock(int *spinlock)
