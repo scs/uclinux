@@ -615,7 +615,16 @@
 					*/
 #define CPLB_WT            0x00004000  /* 0=write-back, 1=write-through */
 
+/* TBUFCTL Masks */
+#define TBUFPWR            0x0001
+#define TBUFEN             0x0002
+#define TBUFOVF            0x0004
+#define TBUFCMPLP_SINGLE   0x0008
+#define TBUFCMPLP_DOUBLE   0x0010
+#define TBUFCMPLP          (TBUFCMPLP_SINGLE | TBUFCMPLP_DOUBLE)
 
+/* TBUFSTAT Masks */
+#define TBUFCNT            0x001F
 
 /* ITEST_COMMAND and DTEST_COMMAND Registers */
 /* Masks */
