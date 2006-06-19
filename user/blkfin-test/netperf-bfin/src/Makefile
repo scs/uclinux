@@ -229,20 +229,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include $(DEPDIR)/missing/getaddrinfo.Po
-include $(DEPDIR)/missing/inet_ntop.Po
-include ./$(DEPDIR)/netcpu_procstat.Po
-include ./$(DEPDIR)/netlib.Po
-include ./$(DEPDIR)/netperf.Po
-include ./$(DEPDIR)/netserver.Po
-include ./$(DEPDIR)/netsh.Po
-include ./$(DEPDIR)/nettest_bsd.Po
-include ./$(DEPDIR)/nettest_dlpi.Po
-include ./$(DEPDIR)/nettest_dns.Po
-include ./$(DEPDIR)/nettest_sctp.Po
-include ./$(DEPDIR)/nettest_unix.Po
-include ./$(DEPDIR)/nettest_xti.Po
-
 .c.o:
 	if $(COMPILE) -MT $@ -MD -MP -MF "$(DEPDIR)/$*.Tpo" \
 	  -c -o $@ `test -f '$<' || echo '$(srcdir)/'`$<; \
