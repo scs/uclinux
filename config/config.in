@@ -1600,6 +1600,7 @@ bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
 bool	'Generate a Kernel Panic (test Watchdog)'	CONFIG_USER_BLACKFIN_CRASHTEST
 bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
+bool    'SYSVIPC testcase'              CONFIG_USER_SYSVIPC_TEST
 bool    'Still to write'                CONFIG_YET
 bool	'Input event device test'	CONFIG_EVENT_TEST
 bool	'AD9960 device test'		CONFIG_AD9960_TEST
