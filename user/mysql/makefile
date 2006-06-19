@@ -9,7 +9,7 @@ CONFIGURE_SETTINGS := -C --prefix= --build=i386-redhat-linux		\
 		--without-readline --disable-shared			\
 		--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
 		--with-mysql=$(ROOTDIR)/lib/libmysqlclient		\
-		--with-named-z-libs==$(ROOTDIR)/lib/zlib --with-pic
+		--with-named-z-libs==$(ROOTDIR)/lib/zlib
 
 #
 # we always have glibc2 style,  so force it so that uClibc works as well
