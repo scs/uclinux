@@ -1768,7 +1768,7 @@ static void bfin_config_uart0(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
-	info->sig = 0;
+	info->sig = TIOCM_CTS;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1813,7 +1813,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
-	info->sig = 0;
+	info->sig = TIOCM_CTS;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
