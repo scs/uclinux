@@ -311,7 +311,7 @@ distclean: mrproper
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	-make clean > /dev/null 2>;&1
+	-make clean > /dev/null 2>&1
 	rm -f .config.old .oldconfig config.arch
 	cp vendors/$(@:_config=)/config.device .config
 	ln -s vendors/$(@:_config=)/config.arch .
@@ -322,7 +322,7 @@ distclean: mrproper
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	-make clean > /dev/null 2>;&1
+	-make clean > /dev/null 2>&1
 	rm -f .config.old .oldconfig config.arch
 	cp vendors/$(@:_default=)/config.device .config
 	ln -s vendors/$(@:_default=)/config.arch .
