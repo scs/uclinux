@@ -391,6 +391,7 @@ void *dlopen(const char *libname, int flag)
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		    }
 		}
+#if 0
 		if (tpnt->dynamic_info[DT_FINI]) {
 			void (*dl_elf_func) (void);
 			dl_elf_func = DL_ADDR_TO_FUNC_PTR ((intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr), tpnt->loadaddr);
@@ -402,6 +403,7 @@ void *dlopen(const char *libname, int flag)
 				atexit(dl_elf_func);
 			}
 		}
+#endif
 	}
 #endif
 	_dl_unmap_cache();
