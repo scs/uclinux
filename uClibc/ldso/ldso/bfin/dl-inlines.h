@@ -458,9 +458,14 @@ __dl_loadaddr_unmap (struct elf32_fdpic_loadaddr loadaddr,
   int i;
 
   for (i = 0; i < loadaddr.map->nsegs; i++)
-    _dl_munmap ((void*)loadaddr.map->segs[i].addr,
-		loadaddr.map->segs[i].p_memsz);
-
+    {
+      struct elf32_fdpic_loadseg *segdata;
+      ssize_t offs;
+      segdata = loadaddr.map->segs + i;
+      offs = (segdata->p_vaddr & ADDR_ALIGN);
+      _dl_munmap ((void*)segdata->addr - offs,
+		  segdata->p_memsz + offs);
+    }
   /* _dl_unmap is only called for dlopen()ed libraries, for which
      calling free() is safe, or before we've completed the initial
      relocation, in which case calling free() is probably pointless,
