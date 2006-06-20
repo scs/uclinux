@@ -424,8 +424,10 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 		info->recv_tail = 0;
 
       unlock_and_exit:
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	if(!(info->sig&TIOCM_RTS))
 		bfin_setsignal(info, 1);
+#endif
 	spin_unlock_bh(&(info->recv_lock));
 }
 
@@ -454,11 +456,13 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		goto clear_and_return;
 	}
 
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
 		info->event |= 1 << RS_EVENT_WRITE;
 		schedule_work(&info->tqueue);
 		goto clear_and_return;
 	}
+#endif
 
 	/* Send char */
 	info->tx_xcount = info->xmit_cnt;
@@ -549,8 +553,10 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 	tty_flip_buffer_push(tty);
 
       clear_and_exit:
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	if(!(info->sig&TIOCM_RTS))
 		bfin_setsignal(info, 1);
+#endif
 	return;
 }
 
@@ -571,11 +577,13 @@ static void transmit_chars(struct bfin_serial *info)
 		goto clear_and_return;
 	}
 
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
 		info->event |= 1 << RS_EVENT_WRITE;
 		schedule_work(&info->tqueue);
 		goto clear_and_return;
 	}
+#endif
 
 	/* Send char */
 	local_put_char(info, info->xmit_buf[info->xmit_tail++]);
@@ -630,8 +638,10 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				ACCESS_PORT_IER(uart_regs);
 				CSYNC;
 				lsr = *(uart_regs->rpUART_LSR);
+#ifdef CONFIG_BFIN_UART_CTSRTS
 				if(lsr&0x2 && lsr&0x1)
 					bfin_setsignal(info, 0);
+#endif
 				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
@@ -1690,8 +1700,10 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 	
 	count = RX_YCOUNT - get_dma_curr_ycount(info->rx_DMA_channel)
 		- (info->recv_tail/TTY_FLIPBUF_SIZE + 1);
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	if(count<=0 || count>=RX_YCOUNT-1)
 		bfin_setsignal(info, 0);
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -1768,7 +1780,7 @@ static void bfin_config_uart0(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
-	info->sig = TIOCM_CTS;
+	info->sig = 0;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1813,7 +1825,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
-	info->sig = TIOCM_CTS;
+	info->sig = 0;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
