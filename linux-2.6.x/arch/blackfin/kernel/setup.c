@@ -92,7 +92,7 @@ void __init bf53x_cache_init(void)
 }
 
 static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
-static int DmaMemCpy16(char *dest_addr, char *source_addr, int size);
+static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction);
 
 
 
@@ -196,7 +196,7 @@ void __init setup_arch(char **cmdline_p)
 	memory_end -= mtd_size;
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	DmaMemCpy16((char *)memory_end, __bss_stop, mtd_size);
+	DmaMemCpy16((char *)memory_end, __bss_stop, mtd_size, -1);
 
 	_ramstart = mtd_phys;
 
@@ -233,6 +233,7 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       get_cclk() / 1000000, get_sclk() / 1000000);
 	printk(KERN_INFO "Board Memory: %dMB\n", CONFIG_MEM_SIZE);
+	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
 	printk(KERN_INFO
 	     "Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
@@ -764,32 +765,53 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 	return 0;
 }
 
-static int DmaMemCpy16(char *dest_addr, char *source_addr, int size)
+/*
+ * direction = 1, address increase(default);
+ * direction = -1, address decrease;
+ */
+static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction)
 {
 
 	if (!size)
                 return 0;
-	/* Setup destination start address */
-	*pMDMA_D0_START_ADDR = dest_addr;
+	if(direction==-1) {
+		/* Setup destination start address */
+		*pMDMA_D0_START_ADDR = dest_addr + size - 2;
+		
+		/* Setup destination xmodify */
+		*pMDMA_D0_X_MODIFY = -2;
+		*pMDMA_D0_Y_MODIFY = -2;
+
+		/* Setup Source start address */
+		*pMDMA_S0_START_ADDR = source_addr + size - 2;
+
+		/* Setup Source xmodify */
+		*pMDMA_S0_X_MODIFY = -2;
+		*pMDMA_S0_Y_MODIFY = -2;
+	}
+	else {
+		/* Setup destination start address */
+		*pMDMA_D0_START_ADDR = dest_addr;
+	
+		/* Setup destination xmodify */
+		*pMDMA_D0_X_MODIFY = 2;
+		*pMDMA_D0_Y_MODIFY = 2;
+
+		/* Setup Source start address */
+		*pMDMA_S0_START_ADDR = source_addr;
+
+		/* Setup Source xmodify */
+		*pMDMA_S0_X_MODIFY = 2;
+		*pMDMA_S0_Y_MODIFY = 2;
+	}
 
 	/* Setup destination xcount */
 	*pMDMA_D0_X_COUNT = 1024 / 2;
 	*pMDMA_D0_Y_COUNT = size >> 10;	/* Divide by 1024 */
 
-	/* Setup destination xmodify */
-	*pMDMA_D0_X_MODIFY = 2;
-	*pMDMA_D0_Y_MODIFY = 2;
-
-	/* Setup Source start address */
-	*pMDMA_S0_START_ADDR = source_addr;
-
 	/* Setup Source xcount */
 	*pMDMA_S0_X_COUNT = 1024 / 2;
 	*pMDMA_S0_Y_COUNT = size >> 10;
-
-	/* Setup Source xmodify */
-	*pMDMA_S0_X_MODIFY = 2;
-	*pMDMA_S0_Y_MODIFY = 2;
 
 #if defined (CONFIG_BF561)
 	*pSICA_IWR1 = (1 << 21);
