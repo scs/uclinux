@@ -183,6 +183,13 @@ config HAVE_SHARED
 	  answer Y here.  If you only want to build uClibc as a static library,
 	  then answer N.
 
+config BUILD_UCLIBC_SHARED_FLAT
+	bool "Build uClibc as a flat shared library"
+	depends !HAVE_SHARED
+	default n
+	help
+	  Enable this if you wish to build uClibc as a flat shared library.
+
 config ARCH_HAS_NO_LDSO
 	bool
 	default n

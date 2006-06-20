@@ -43,6 +43,7 @@ LD= $(CROSS)ld
 NM= $(CROSS)nm
 RANLIB= $(CROSS)ranlib
 STRIPTOOL= $(CROSS)strip
+OBJCOPY= $(CROSS)objcopy
 
 INSTALL= install
 LN= ln
@@ -322,7 +323,7 @@ LIBGCC_DIR:=$(dir $(LIBGCC))
 # uClinux shared lib support
 #
 
-ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
+ifeq ($(BUILD_UCLIBC_SHARED_FLAT),y)
   ifndef DISABLE_SHARED_LIBS
     # For the shared version of this, we specify no stack and its library ID
     FLTFLAGS += -s 0
@@ -331,6 +332,7 @@ ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
     export LIBID THREADED_LIBID FLTFLAGS
     SHARED_TARGET = lib/libc
     SHARED_THREADED_TARGET = lib/libc_threaded
+    CFLAGS += -mid-shared-library
   endif
 endif
 

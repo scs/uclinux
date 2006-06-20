@@ -150,6 +150,10 @@ install_dev:
 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)
 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)include
 	-$(INSTALL) -m 644 lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
+ifneq ($(SHARED_TARGET),)
+	-$(INSTALL) -m 644 lib/$(SHARED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
+	-$(INSTALL) -m 644 lib/$(SHARED_THREADED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
+endif
 	tar -chf - include | tar -xf - -C $(PREFIX)$(DEVEL_PREFIX);
 ifneq ($(strip $(UCLIBC_HAS_FLOATS)),y)
 	# Remove floating point related headers since float support is disabled.
@@ -241,6 +245,13 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 	    $(INSTALL) -m 755 lib/ld-uClibc-$(MAJOR_VERSION).$(MINOR_VERSION).$(SUBLEVEL).so \
 	    		$(PREFIX)$(RUNTIME_PREFIX)lib; \
 	fi;
+endif
+ifneq ($(SHARED_TARGET),)
+	$(INSTALL) -d $(PREFIX)$(RUNTIME_PREFIX)lib
+	$(INSTALL) $(SHARED_TARGET)					 \
+		$(PREFIX)$(RUNTIME_PREFIX)lib/lib$(LIBID).so
+	$(INSTALL) $(SHARED_THREADED_TARGET)				 \
+		$(PREFIX)$(RUNTIME_PREFIX)lib/lib$(THREADED_LIBID).so
 endif
 
 .PHONY: utils
@@ -364,15 +375,17 @@ endif # ifeq ($(strip $(HAVE_DOT_CONFIG)),y)
 .PHONY: dummy subdirs release distclean clean config oldconfig menuconfig
 
 ifneq ($(SHARED_TARGET),)
-lib/main.o: $(ROOTDIR)/lib/libc/main.c
-	$(CC) $(CFLAGS) $(ARCH_CFLAGS) -c -o $@ $(ROOTDIR)/lib/libc/main.c
+lib/main.o: shared_main.c
+	$(CC) $(CFLAGS) $(ARCH_CFLAGS) -c -o $@ $<
 
 bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
+ifneq ($(ROOTDIR),)
 	make -C $(ROOTDIR) relink
-	$(CC) -o $(SHARED_TARGET) $(ARCH_CFLAGS)          \
-			-mid-shared-library -mshared-library-id=0               \
-			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${LIBID}      \
-			lib/main.o                                              \
+endif
+	$(CC) -o $(SHARED_TARGET) $(ARCH_CFLAGS)				\
+			-mid-shared-library -mshared-library-id=0 -shared	\
+			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${LIBID}	\
+			lib/main.o						\
 			-Wl,--whole-archive,lib/libc.a,-lgcc,--no-whole-archive
 	$(OBJCOPY) -L _GLOBAL_OFFSET_TABLE_ -L main -L __main -L _start 	\
 			-L _main -L ___main -L __start				\
@@ -388,8 +401,8 @@ bogus $(SHARED_TARGET): lib/libc.a lib/main.o Makefile
 			-L _current_shared_library_p5_offset_                   \
 			$(SHARED_TARGET).gdb
 	$(LN) -sf $(SHARED_TARGET).gdb .
-	$(CC) -o $(SHARED_THREADED_TARGET) $(ARCH_CFLAGS)          \
-			-mid-shared-library -mshared-library-id=0               \
+	$(CC) -o $(SHARED_THREADED_TARGET) $(ARCH_CFLAGS)			\
+			-mid-shared-library -mshared-library-id=0 -shared	\
 			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${THREADED_LIBID}      \
 			lib/main.o                                              \
 			-Wl,--whole-archive,lib/libc.a,-lgcc,lib/libpthread.a,--no-whole-archive

@@ -106,6 +106,9 @@ __start:
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __init@FUNCDESC_GOT17M4];
+#elif defined __ID_SHARED_LIB__
+	P5 = [P5 + _current_shared_library_p5_offset_]; 
+	R3 = [P5 + __init@GOT];
 #else
 	R3.H = __init;
 	R3.L = __init;
@@ -113,7 +116,9 @@ __start:
 	[SP+16] = R3;
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __fini@FUNCDESC_GOT17M4];
-#else
+#elif defined __ID_SHARED_LIB__
+	R3 = [P5 + __fini@GOT];
+#else	
 	R3.H = __fini;
 	R3.L = __fini;
 #endif
@@ -126,6 +131,8 @@ __start:
 
 #ifdef __BFIN_FDPIC__
 	R0 = [P3 + _main@FUNCDESC_GOT17M4];
+#elif defined __ID_SHARED_LIB__
+	R0 = [P5 + _main@GOT];
 #else
 	R0.H = _main;
 	R0.L = _main;
