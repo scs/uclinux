@@ -51,20 +51,20 @@ choice
 	prompt	"CPU"
 	default BF533
 
-config BF533
-	bool "BF533"
+config BF531
+	bool "BF531"
 	help
-	 BF533 Processor Support.
+	 BF531 Processor Support.
 
 config BF532
 	bool "BF532"
 	help
 	 BF532 Processor Support.
 
-config BF531
-	bool "BF531"
+config BF533
+	bool "BF533"
 	help
-	 BF531 Processor Support.
+	 BF533 Processor Support.
 
 config BF534
 	bool "BF534"
@@ -72,7 +72,7 @@ config BF534
 	 BF534 Processor Support.
 
 config BF535
-	bool "BF535"
+	bool "BF535 (not supported)"
 	help
 	 Not Supported - BF535 Processor Support.
 
