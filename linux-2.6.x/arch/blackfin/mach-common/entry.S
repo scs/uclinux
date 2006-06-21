@@ -142,7 +142,7 @@ ENTRY(ex_dcplb)
 	r6 = retx;
 	[p5] = r6;
 	cc = r6 == r7;
-	if !cc jump exception_do_nothing;
+	if !cc jump .Lexception_do_nothing;
 	/* fall through */
 
 ENTRY(ex_icplb)
@@ -200,7 +200,7 @@ ENTRY(ex_single_step)
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
-	if cc jump exception_do_nothing;
+	if cc jump .Lexception_do_nothing;
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
@@ -217,7 +217,7 @@ ENTRY(ex_single_step)
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump ex_trap_c;
-exception_do_nothing:
+.Lexception_do_nothing:
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = retn;
@@ -304,10 +304,10 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	p4 = [p5];
 	jump (p4);
 
-badsys:
+.Lbadsys:
 	r7 = -ENOSYS; 		/* signextending enough */
 	[sp + PT_R0] = r7;	/* return value from system call */
-	jump syscall_really_exit;
+	jump .Lsyscall_really_exit;
 
 ENTRY(_execve)
 	link SIZEOF_PTREGS;
@@ -389,7 +389,7 @@ ENTRY(system_call)
 	/*System call number is passed in P0 */
 	r6 = p0;
 	cc = r6 < r7;
-	if ! cc jump badsys;
+	if ! cc jump .Lbadsys;
 
 
    /* are we tracing syscalls?*/
@@ -421,13 +421,13 @@ ENTRY(system_call)
 	SP += 24;
 	[sp + PT_R0] = r0;
 
-resume_userspace:
+.Lresume_userspace:
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
 	r7 = r7 & r4;		/*thread_info->flags*/
 	p5 = r7;
-resume_userspace_1:
+.Lresume_userspace_1:
 	/* Disable interrupts.  */
 	[--sp] = reti;
 	reti = [sp++];
@@ -437,9 +437,9 @@ resume_userspace_1:
 	r4.h = hi(_TIF_WORK_MASK);
 	r7 =  r7 & r4;
 
-syscall_resched:
+.Lsyscall_resched:
 	cc = BITTST(r7, TIF_NEED_RESCHED);
-	if !cc jump syscall_sigpending;
+	if !cc jump .Lsyscall_sigpending;
 
 	/* Reenable interrupts.  */
 	[--sp] = reti;
@@ -449,14 +449,14 @@ syscall_resched:
 	call _schedule;
 	SP += 12;
 
-	jump resume_userspace_1;
+	jump .Lresume_userspace_1;
 
-syscall_sigpending:
+.Lsyscall_sigpending:
 	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
-	if cc jump syscall_do_signals; 
+	if cc jump .Lsyscall_do_signals; 
 	cc = BITTST(r7, TIF_SIGPENDING);
-	if !cc jump syscall_really_exit;
-syscall_do_signals:
+	if !cc jump .Lsyscall_really_exit;
+.Lsyscall_do_signals:
 	/* Reenable interrupts.  */
 	[--sp] = reti;
 	r0 = [sp++];
@@ -466,7 +466,7 @@ syscall_do_signals:
 	call _do_signal;
 	SP += 12;
 
-syscall_really_exit:
+.Lsyscall_really_exit:
 	r5 = [sp + PT_RESERVED];
 	rets = r5;
 	rts;
@@ -497,7 +497,7 @@ sys_trace:
 	[sp + PT_R0] = r0;
 
 	call _syscall_trace;
-	jump resume_userspace;
+	jump .Lresume_userspace;
 
 ENTRY(resume)
 	/*
@@ -682,7 +682,7 @@ schedule_and_signal_from_int:
 	r0 = [p0];
 	sti r0;
 
-	jump.s resume_userspace;
+	jump.s .Lresume_userspace;
 
 _schedule_and_signal:
 	SAVE_CONTEXT_SYSCALL
@@ -698,7 +698,7 @@ _schedule_and_signal:
 	p0.l = 1f;
 	p0.h = 1f;
 	[sp + PT_RESERVED] = P0;
-	call resume_userspace;
+	call .Lresume_userspace;
 1:
 	RESTORE_CONTEXT
 	rti;

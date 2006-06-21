@@ -246,13 +246,13 @@ ENTRY(__stext)
 	csync;
 
 	raise 15;
-	p0.l = WAIT_HERE;
-	p0.h = WAIT_HERE;
+	p0.l = .LWAIT_HERE;
+	p0.h = .LWAIT_HERE;
 	reti = p0;
 	rti;
 
-WAIT_HERE:
-	jump WAIT_HERE;
+.LWAIT_HERE:
+	jump .LWAIT_HERE;
 
 ENTRY(_real_start)
 	[ -- sp ] = reti;
@@ -272,8 +272,8 @@ ENTRY(_real_start)
 	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
-	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
-_clear_bss:
+	lsetup (.L_clear_bss, .L_clear_bss ) lc0 = p2;
+.L_clear_bss:
 	B[p1++] = r0;
 
 	/* In case there is a NULL pointer reference
@@ -287,8 +287,8 @@ _clear_bss:
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
-	lsetup (_clear_zero, _clear_zero ) lc0 = p2;
-_clear_zero:
+	lsetup (.L_clear_zero, .L_clear_zero ) lc0 = p2;
+.L_clear_zero:
 	W[p1++] = r0;
 
 /* pass the uboot arguments to the global value command line */
@@ -328,8 +328,8 @@ _clear_zero:
 	usp = sp;
 	fp = sp;
 	call _start_kernel;
-_exit:
-	jump.s	_exit;
+.L_exit:
+	jump.s	.L_exit;
 
 .section .text.l1
 ENTRY(start_dma_code)
@@ -391,12 +391,12 @@ ENTRY(start_dma_code)
         idle;                           /* Wait for the PLL to stablize    */
         sti r2;                         /* Enable interrupts               */
 
-check_again:
+.Lcheck_again:
 	p0.h = hi(PLL_STAT);
 	p0.l = lo(PLL_STAT);
 	R0 = W[P0](Z);
 	CC = BITTST(R0,5);
-	if ! CC jump check_again;
+	if ! CC jump .Lcheck_again;
 
 	/* Configure SCLK & CCLK Dividers */
        	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
@@ -425,10 +425,10 @@ check_again:
 	p0.l = lo(EBIU_SDSTAT);
 	r2.l = w[p0];
 	cc = bittst(r2,3);
-	if !cc jump skip;
+	if !cc jump .Lskip;
     NOP;
 	BITSET (R0, 23);
-skip:
+.Lskip:
 	[P2] = R0;
         SSYNC;
 
@@ -493,12 +493,12 @@ ENTRY(_bfin_reset)
 	P0.l = lo(WDOG_CTL);
 	R0 = W[P0](Z);
 	CC = BITTST(R0,1);
-	if !CC JUMP WRITESTAT;
+	if !CC JUMP .LWRITESTAT;
 	CC = BITTST(R0,2);
-	if !CC JUMP WRITESTAT;
-	JUMP SKIP_WRITE;
+	if !CC JUMP .LWRITESTAT;
+	JUMP .LSKIP_WRITE;
 
-WRITESTAT:
+.LWRITESTAT:
 	/* When watch dog timer is enabled, a write to STAT will load the contents of CNT to STAT */
 	R0 = 0x0000(z);
 	P0.h = hi(WDOG_STAT);
@@ -506,7 +506,7 @@ WRITESTAT:
 	[P0] = R0;
 	SSYNC;
 
-SKIP_WRITE:
+.LSKIP_WRITE:
 	/* Enable the reset event */
 	P0.h = hi(WDOG_CTL);
         P0.l = lo(WDOG_CTL);

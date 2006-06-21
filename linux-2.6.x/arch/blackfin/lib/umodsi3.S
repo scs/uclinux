@@ -34,15 +34,15 @@
 ___umodsi3:
 
 	CC=R0==0;
-	IF CC JUMP RETURN_R0;		/* Return 0, if NR == 0 */
+	IF CC JUMP .LRETURN_R0;		/* Return 0, if NR == 0 */
 	CC= R1==0;
-	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if DR == 0 */
+	IF CC JUMP .LRETURN_ZERO_VAL;	/* Return 0, if DR == 0 */
 	CC=R0==R1;
-	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if NR == DR */
+	IF CC JUMP .LRETURN_ZERO_VAL;	/* Return 0, if NR == DR */
 	CC = R1 == 1;
-	IF CC JUMP RETURN_ZERO_VAL;	/* Return 0, if  DR == 1 */
+	IF CC JUMP .LRETURN_ZERO_VAL;	/* Return 0, if  DR == 1 */
 	CC = R0<R1 (IU);
-	IF CC JUMP RETURN_R0;		/* Return dividend (R0),IF NR<DR */
+	IF CC JUMP .LRETURN_R0;		/* Return dividend (R0),IF NR<DR */
 
 	[--SP] = (R7:6);		/* Push registers and */
 	[--SP] = RETS;			/* Return address */
@@ -56,7 +56,7 @@ ___umodsi3:
 	RETS = [SP++];			/* Pop return address */
 	( R7:6) = [SP++];		/* And registers */
 	RTS;				/* Return remainder */
-RETURN_ZERO_VAL:
+.LRETURN_ZERO_VAL:
 	R0 = 0;
-RETURN_R0:
+.LRETURN_R0:
 	RTS;

@@ -58,7 +58,7 @@ ___divsi3 :
 	R3 = R0 | R1;                   /* If either dividend or */
 	R2 = R3 & R2;                   /* divisor have bits in */
 	CC = R2;                        /* top half or low half's sign */
-	IF CC JUMP IDENTS;             /* bit, skip builtins. */
+	IF CC JUMP .LIDENTS;             /* bit, skip builtins. */
 	DIVS(R0, R1);
 	DIVQ(R0, R1);
 	DIVQ(R0, R1);
@@ -83,26 +83,26 @@ ___divsi3 :
 	 * If the identity is true, return the value in R2.
 	 */
 
-IDENTS:
+.LIDENTS:
 	CC = R0 == 0;                   /* NR==0 => 0 */
-	IF CC JUMP ZERO_RETURN;
+	IF CC JUMP .LZERO_RETURN;
 
 	R2.L = -1;                      /* DR==0 => 0x7FFFFFFF */
 	R2.H = 0x7FFF;
 	CC = R1 == 0;
-	IF CC JUMP IDENT_RETURN;
+	IF CC JUMP .LIDENT_RETURN;
 
 	R2 = 1 (Z);                     /* NR==DR => 1 */
 	CC = R0 == R1;
-	IF CC JUMP IDENT_RETURN;
+	IF CC JUMP .LIDENT_RETURN;
 
 	R2 = R0;                        /* DR==1 => NR */
 	CC = R1 == 1;
-	IF CC JUMP IDENT_RETURN;
+	IF CC JUMP .LIDENT_RETURN;
 
 	R2 = -R0;                       /* DR==-1 => -NR */
 	CC = R1 == -1;
-	IF CC JUMP IDENT_RETURN;
+	IF CC JUMP .LIDENT_RETURN;
 
 	/* Identities haven't helped either.
 	 * Perform the full division process.
@@ -125,8 +125,8 @@ IDENTS:
 	P2 = 31;                        /* Set loop counter   */
 	R4 = R3^R1;                     /* Get new quotient bit */
 
-	LSETUP ( LST,LEND )  LC0 = P2;     /* Setup loop */
-LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
+	LSETUP ( .LST,.LEND )  LC0 = P2;     /* Setup loop */
+.LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
 	R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
 	R3 = R3 << 1;
 	R3 = R3|R5;                     /* and add carry */
@@ -138,7 +138,7 @@ LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
 	R5 = R4 >> 31;
 	BITCLR(R2,0);                   /* Assume AQ==1, shift in zero */
 	BITTGL(R5,0);                   /* tweak AQ to be what we want to shift in */
-LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to tweaked AQ. */
+.LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to tweaked AQ. */
 
 	R2 = R2 + R7;
 	R0 = P0;
@@ -150,7 +150,7 @@ LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to twea
 	IF !CC R0 = R2;                 /* If positive, return R2 */
 	RTS;
 
-IDENT_RETURN:
+.LIDENT_RETURN:
 	R0 = R2;                        /* Return an identity value */
-ZERO_RETURN:
+.LZERO_RETURN:
 	RTS;                            /* ...including zero */

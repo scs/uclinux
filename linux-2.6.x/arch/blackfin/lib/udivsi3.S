@@ -41,7 +41,7 @@ ___udivsi3:
 	R3 = R0 | R1;                   /* If either dividend or */
 	R2 = R3 & R2;                   /* divisor have bits in */
 	CC = R2;                        /* top half or low half's sign */
-	IF CC JUMP IDENTS;              /* bit, skip builtins. */
+	IF CC JUMP .LIDENTS;              /* bit, skip builtins. */
 
 	/* Can use the builtins. */
 
@@ -66,23 +66,23 @@ ___udivsi3:
 	R0 = R0.L (Z);
 	RTS;
 
-IDENTS:
+.LIDENTS:
        /* Test for common identities. Value to be returned is
 	  placed in R2. */
 	CC = R0 == 0;                   /* NR==0 => 0 */
-	IF CC JUMP RETURN_R0;
+	IF CC JUMP .LRETURN_R0;
 	R2 = -1 (X);                    /* DR==0 => 0xFFFFFFFF */
 	CC = R1 == 0;
-	IF CC JUMP RETURN_IDENT;
+	IF CC JUMP .LRETURN_IDENT;
 	R2 = -R2;                       /* R2 now 1 */
 	CC = R0 == R1;                  /* NR==DR => 1 */
-	IF CC JUMP RETURN_IDENT;
+	IF CC JUMP .LRETURN_IDENT;
 	R2 = R0;
 	CC = R1 == 1;                   /* DR==1 => NR */
-	IF CC JUMP RETURN_IDENT;
+	IF CC JUMP .LRETURN_IDENT;
 	R2 = 0 (Z);
 	CC = R0 < R1 (IU);
-	IF CC JUMP RETURN_IDENT;        /* NR < DR => 0 */
+	IF CC JUMP .LRETURN_IDENT;        /* NR < DR => 0 */
 
        /* Idents don't match. Go for the full operation. */
 
@@ -112,8 +112,8 @@ IDENTS:
 	P3 = 32;                        /* Set loop counter */
 	R4 = 0;                         /* Initialise quotient bit */
 
-	LSETUP( ULST, ULEND ) LC0 = P3;   /* Set loop counter */
-ULST:
+	LSETUP( .LULST, .LULEND ) LC0 = P3;   /* Set loop counter */
+.LULST:
 	R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
 	R2 <<= 1;                   	/* Shift 64 bit dividend up by 1 bit */
 	R3 <<= 1;
@@ -126,11 +126,11 @@ ULST:
 	BITCLR(R2,0);                   /* Assume AQ==1, so "shift in" 0 */
 	R5 = R4 >> 31;                  /* Get AQ */
 	BITTGL(R5, 0);                  /* Invert it, to get what we'll shift */
-ULEND:
+.LULEND:
 	R2 = R2 + R5;                   /* and "shift" it in. */
 
 	CC = P0 == 0;                   /* Check how many inputs we shifted */
-	IF CC JUMP NO_MULT;             /* if none... */
+	IF CC JUMP .LNO_MULT;             /* if none... */
 	R2 <<= 0x1;
 	R6 = R2;
 	CC = P0 == 1;
@@ -144,13 +144,13 @@ ULEND:
 	CC = R1<= R5 (IU);              /* Check if divisor <= Z? */
 	R6 = CC;                        /* if yes, R6 = 1 */
 	R2 = R2 + R6;                   /* if yes, add one to quotient(Q) */
-NO_MULT:
+.LNO_MULT:
 	P3 = [SP++];                    /* Pop register P3 */
 	( R7:4) = [SP++];               /* Pop registers R4-R7 */
 	R0 = R2;                        /* Store quotient */
 	RTS;
 
-RETURN_IDENT:
+.LRETURN_IDENT:
 	R0 = R2;
-RETURN_R0:
+.LRETURN_R0:
 	RTS;

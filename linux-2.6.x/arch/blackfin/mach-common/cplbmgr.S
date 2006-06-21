@@ -63,10 +63,10 @@ ENTRY(_cplb_mgr)
 	[--SP]=( R7:4,P5:3 );
 
 	CC = R0 == 2;
-	IF CC JUMP dcplb_write;
+	IF CC JUMP .Ldcplb_write;
 
 	CC = R0 == 0;
-	IF !CC JUMP dcplb_miss_compare;
+	IF !CC JUMP .Ldcplb_miss_compare;
 
 	/* ICPLB Miss Exception. We need to choose one of the
 	* currently-installed CPLBs, and replace it with one
@@ -88,15 +88,15 @@ ENTRY(_cplb_mgr)
 	R3 = ((16 << 8) | 2);	/* Extract mask, bits 16 and 17.*/
 
 	R5 = 0;
-isearch:
+.Lisearch:
 
 	R1 = [P0-0x100];	/* Address for this CPLB */
 
 	R0 = [P0++];		/* Info for this CPLB*/
 	CC = BITTST(R0,0);	/* Is the CPLB valid?*/
-	IF !CC JUMP nomatch;	/* Skip it, if not.*/
+	IF !CC JUMP .Lnomatch;	/* Skip it, if not.*/
 	CC = R4 < R1(IU);	/* If fault address less than page start*/
-	IF CC JUMP nomatch;	/* then skip this one.*/
+	IF CC JUMP .Lnomatch;	/* then skip this one.*/
 	R2 = EXTRACT(R0,R3.L) (Z);	/* Get page size*/
 	P1 = R2;
 	P1 = P5 + (P1<<2);	/* index into page-size table*/
@@ -104,14 +104,14 @@ isearch:
 	R1 = R1 + R2;		/* and add to page start, to get page end*/
 	CC = R4 < R1(IU);	/* and see whether fault addr is in page.*/
 	IF !CC R4 = R6;		/* If so, advance the address and finish loop.*/
-	IF !CC JUMP isearch_done;
-nomatch:
+	IF !CC JUMP .Lisearch_done;
+.Lnomatch:
 	/* Go around again*/
 	R5 += 1;
 	CC = BITTST(R5, 4);	/* i.e CC = R5 >= 16*/
-	IF !CC JUMP isearch;
+	IF !CC JUMP .Lisearch;
 
-isearch_done:
+.Lisearch_done:
 	I0 = R4;		/* Fault address we'll search for*/
 
 	/* set up pointers */
@@ -138,17 +138,17 @@ isearch_done:
 
 	/* Search through CPLBs for first non-locked entry */
 	/* Overwrite it by moving everyone else up by 1 */
-icheck_lock:
+.Licheck_lock:
 	R0 = [P0++];
 	R3 = R3 + R1;
 	CC = R3 == R1;
-	IF CC JUMP all_locked;
+	IF CC JUMP .Lall_locked;
 	CC = BITTST(R0, 0);		/* an invalid entry is good */
-	IF !CC JUMP ifound_victim;
+	IF !CC JUMP .Lifound_victim;
 	CC = BITTST(R0,1);		/* but a locked entry isn't */
-	IF CC JUMP icheck_lock;
+	IF CC JUMP .Licheck_lock;
 
-ifound_victim:
+.Lifound_victim:
 #ifdef CONFIG_CPLB_INFO
 	R7 = [P0 - 0x104];
 	P2.L = _ipdt_table;
@@ -156,28 +156,28 @@ ifound_victim:
 	P3.L = _ipdt_swapcount_table;
 	P3.H = _ipdt_swapcount_table;
 	P3 += -4;
-icount:
+.Licount:
 	R2 = [P2];	/* address from config table */
 	P2 += 8;
 	P3 += 8;
 	CC = R2==-1;
-	IF CC JUMP icount_done;
+	IF CC JUMP .Licount_done;
 	CC = R7==R2;
-	IF !CC JUMP icount;
+	IF !CC JUMP .Licount;
 	R7 = [P3];
 	R7 += 1;
 	[P3] = R7;
 	CSYNC;
-icount_done:
+.Licount_done:
 #endif
 	LC0=R3;
-	LSETUP(is_move,ie_move) LC0;
-is_move:
+	LSETUP(.Lis_move,.Lie_move) LC0;
+.Lis_move:
 	R0 = [P0];
 	[P0 - 4] = R0;
 	R0 = [P0 - 0x100];
 	[P0-0x104] = R0;
-ie_move:P0+=4;
+.Lie_move:P0+=4;
 
 	/* We've made space in the ICPLB table, so that ICPLB15
 	 * is now free to be overwritten. Next, we have to determine
@@ -209,18 +209,18 @@ ie_move:P0+=4;
 	 */
 
 	R1 = ((16<<8)|2);
-inext:	R4 = [P2++];	/* address from config table */
+.Linext:	R4 = [P2++];	/* address from config table */
 	R2 = [P2++];	/* data from config table */
 #ifdef	CONFIG_CPLB_INFO
 	P3 += 8;
 #endif
 
 	CC = R4 == -1;	/* End of config table*/
-	IF CC JUMP no_page_in_table;
+	IF CC JUMP .Lno_page_in_table;
 
 	/* See if failed address > start address */
 	CC = R4 <= R0(IU);
- 	IF !CC JUMP inext;
+ 	IF !CC JUMP .Linext;
 
 	/* extract page size (17:16)*/
 	R3 = EXTRACT(R2, R1.L) (Z);
@@ -234,7 +234,7 @@ inext:	R4 = [P2++];	/* address from config table */
 
 	/* See if failed address < (start address + page size) */
 	CC = R0 < R3(IU);
-	IF !CC JUMP inext;
+	IF !CC JUMP .Linext;
 
 	/* We've found a CPLB in the config table that covers
 	 * the faulting address, so install this CPLB into the
@@ -268,20 +268,20 @@ inext:	R4 = [P2++];	/* address from config table */
 	RTS;
 
 /* FAILED CASES*/
-no_page_in_table:
+.Lno_page_in_table:
         ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_NO_ADDR_MATCH;
         RTS;
-all_locked:
+.Lall_locked:
         ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_NO_UNLOCKED;
         RTS;
-prot_violation:
+.Lprot_violation:
         ( R7:4,P5:3 ) = [SP++];
         R0 = CPLB_PROT_VIOL;
         RTS;
 
-dcplb_write:
+.Ldcplb_write:
 
 	/* if a DCPLB is marked as write-back (CPLB_WT==0), and
 	 * it is clean (CPLB_DIRTY==0), then a write to the
@@ -304,7 +304,7 @@ dcplb_write:
 	 */
 
 	CC = BITTST(R5, 16);	/* ensure it was a write*/
-	IF !CC JUMP prot_violation;
+	IF !CC JUMP .Lprot_violation;
 
 	/* to check the rest, we have to retrieve the DCPLB.*/
 
@@ -322,9 +322,9 @@ dcplb_write:
 	/* Now we can check whether it's a clean WB page*/
 
 	CC = BITTST(R3, 14);	/* 0==WB, 1==WT*/
-	IF CC JUMP prot_violation;
+	IF CC JUMP .Lprot_violation;
 	CC = BITTST(R3, 7);	/* 0 == clean, 1 == dirty*/
-	IF CC JUMP prot_violation;
+	IF CC JUMP .Lprot_violation;
 
 	/* Check whether the write is allowed in the mode that was active.*/
 
@@ -334,7 +334,7 @@ dcplb_write:
 	R2 <<= R5;		/* if was super, check write in super mode*/
 	R2 = R3 & R2;
 	CC = R2 == 0;
-	IF CC JUMP prot_violation;
+	IF CC JUMP .Lprot_violation;
 
 	/* It's a genuine write-to-clean-page.*/
 
@@ -346,7 +346,7 @@ dcplb_write:
 	R0 = CPLB_RELOADED;
 	RTS;
 
-dcplb_miss_compare:
+.Ldcplb_miss_compare:
 
 	/* Data CPLB Miss event. We need to choose a CPLB to
 	 * evict, and then locate a new CPLB to install from the
@@ -388,16 +388,16 @@ dcplb_miss_compare:
 	P2 = 16;
 	I2.L = _dcplb_preference;
 	I2.H = _dcplb_preference;
-	LSETUP(sdsearch1, edsearch1) LC0 = P1;
-sdsearch1:
+	LSETUP(.Lsdsearch1, .Ledsearch1) LC0 = P1;
+.Lsdsearch1:
 	R0 = [I2++];		/* Get the bits we're interested in*/
 	P0 = I1;		/* Go back to start of table*/
-	LSETUP (sdsearch2, edsearch2) LC1 = P2;
-sdsearch2:
+	LSETUP (.Lsdsearch2, .Ledsearch2) LC1 = P2;
+.Lsdsearch2:
 	R1 = [P0++];		/* Fetch each installed CPLB in turn*/
 	R2 = R1 & R0;		/* and test for interesting bits.*/
 	CC = R2 == 0;		/* If none are set, it'll do.*/
-	IF !CC JUMP skip_stack_check;
+	IF !CC JUMP .Lskip_stack_check;
 
 	R2 = [P0 - 0x104]; 	/* R2 - PageStart */
 	P3.L = _page_size_table; /* retrive end address */
@@ -414,25 +414,25 @@ sdsearch2:
 	R4 = SP; 		/* Test SP is in range */
 
 	CC = R7 < R4;		/* if PageEnd < SP */
-	IF CC JUMP dfound_victim;
+	IF CC JUMP .Ldfound_victim;
 	R3 = 0x284;		/* stack length from start of trap till
 				 * the point.
 				 * 20 stack locations for future modifications
 				 */
 	R4 = R4 + R3;
 	CC = R4 < R2;		/* if SP + stacklen < PageStart */
-	IF CC JUMP dfound_victim;
-skip_stack_check:
+	IF CC JUMP .Ldfound_victim;
+.Lskip_stack_check:
 
-edsearch2: NOP;
-edsearch1: NOP;
+.Ledsearch2: NOP;
+.Ledsearch1: NOP;
 
 	/* If we got here, we didn't find a DCPLB we considered
 	 * replacable, which means all of them were locked.
 	 */
 
-	JUMP all_locked;
-dfound_victim:
+	JUMP .Lall_locked;
+.Ldfound_victim:
 
 #ifdef CONFIG_CPLB_INFO
 	R7 = [P0 - 0x104];
@@ -441,18 +441,18 @@ dfound_victim:
 	P3.L = _dpdt_swapcount_table;
 	P3.H = _dpdt_swapcount_table;
 	P3 += -4;
-dicount:
+.Ldicount:
 	R2 = [P2];
 	P2 += 8;
 	P3 += 8;
 	CC = R2==-1;
-	IF CC JUMP dicount_done;
+	IF CC JUMP .Ldicount_done;
 	CC = R7==R2;
-	IF !CC JUMP dicount;
+	IF !CC JUMP .Ldicount;
 	R7 = [P3];
 	R7 += 1;
 	[P3] = R7;
-dicount_done:
+.Ldicount_done:
 #endif
 
 	/* Clean down the hardware loops*/
@@ -466,11 +466,11 @@ dicount_done:
 	 */
 
 	CC = BITTST(R1, 0);	/* Is it valid?*/
-	IF !CC JUMP Ddoverwrite;/* nope.*/
+	IF !CC JUMP .LDdoverwrite;/* nope.*/
 	CC = BITTST(R1, 7);	/* Is it dirty?*/
-	IF !CC JUMP Ddoverwrite (BP);	/* Nope.*/
+	IF !CC JUMP .LDdoverwrite (BP);	/* Nope.*/
 	CC = BITTST(R1, 14);	/* Is it Write-Through?*/
-	IF CC JUMP Ddoverwrite;	/* Yep*/
+	IF CC JUMP .LDdoverwrite;	/* Yep*/
 
 	/* This is a dirty page, so we need to flush all writes
 	 * that are pending on the page.
@@ -483,7 +483,7 @@ dicount_done:
 	CALL _dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
 	p0 = [sp++];
 	rets = [sp++];
-Ddoverwrite:
+.LDdoverwrite:
 
 	/* [P0-4] is a suitable victim CPLB, so we want to
 	 * overwrite it by moving all the following CPLBs
@@ -499,23 +499,23 @@ Ddoverwrite:
 	 */
 
 	CC = R1 == R0;
-	IF CC JUMP de_moved;
+	IF CC JUMP .Lde_moved;
 	R1 = R1 - R0;
 	R1 >>= 2;
 	P1 = R1;
-	LSETUP(ds_move, de_move) LC0=P1;
-ds_move:
+	LSETUP(.Lds_move, .Lde_move) LC0=P1;
+.Lds_move:
 	 R0 = [P0++];	/* move data */
 	[P0 - 8] = R0;
 	R0 = [P0-0x104]	/* move address */
-de_move: [P0-0x108] = R0;
+.Lde_move: [P0-0x108] = R0;
 
 	/* We've now made space in DCPLB15 for the new CPLB to be
 	 * installed. The next stage is to locate a CPLB in the
 	 * config table that covers the faulting address.
 	 */
 
-de_moved:NOP;
+.Lde_moved:NOP;
 	R0 = I0;		/* Our faulting address */
 
 	P2.L = _dpdt_table;
@@ -532,18 +532,18 @@ de_moved:NOP;
 	/* An extraction pattern, to retrieve bits 17:16.*/
 
 	R1 = (16<<8)|2;
-dnext:	R4 = [P2++];	/* address */
+.Ldnext:	R4 = [P2++];	/* address */
 	R2 = [P2++];	/* data */
 #ifdef	CONFIG_CPLB_INFO
 	P3 += 8;
 #endif
 
 	CC = R4 == -1;
-	IF CC JUMP no_page_in_table;
+	IF CC JUMP .Lno_page_in_table;
 
 	/* See if failed address > start address */
 	CC = R4 <= R0(IU);
- 	IF !CC JUMP dnext;
+ 	IF !CC JUMP .Ldnext;
 
 	/* extract page size (17:16)*/
 	R3 = EXTRACT(R2, R1.L) (Z);
@@ -557,7 +557,7 @@ dnext:	R4 = [P2++];	/* address */
 
 	/* See if failed address < (start address + page size) */
 	CC = R0 < R3(IU);
-	IF !CC JUMP dnext;
+	IF !CC JUMP .Ldnext;
 
 	/* We've found the CPLB that should be installed, so
 	 * write it into CPLB15, masking off any caching bits

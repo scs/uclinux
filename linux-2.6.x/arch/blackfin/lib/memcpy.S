@@ -42,48 +42,48 @@ ENTRY(_memcpy)
 	P0 = R0 ;	/* dst*/
 	P1 = R1 ;	/* src*/
 	P2 = R2 ;	/* length */
-	IF CC JUMP  ._P1L2147483647;	/* Nothing to do */
+	IF CC JUMP  .L_P1L2147483647;	/* Nothing to do */
 
 	/* check for overlapping data */
 	CC = R1 < R0;	/* src < dst */
-	IF !CC JUMP .no_overlap;
+	IF !CC JUMP .Lno_overlap;
 	R3 = R1 + R2;
 	CC = R0 < R3;	/* and dst < src+len */
-	IF CC JUMP .has_overlap;
+	IF CC JUMP .Lhas_overlap;
 
-.no_overlap:
+.Lno_overlap:
 	/* Check for aligned data.*/
 
 	R3 = R1 | R0;
 	R0 = 0x3;
 	R3 = R3 & R0;
 	CC = R3;	/* low bits set on either address? */
-	IF CC JUMP .not_aligned;
+	IF CC JUMP .Lnot_aligned;
 
 	/* Both addresses are word-aligned, so we can copy
 	at least part of the data using word copies.*/
 	P2 = P2 >> 2;
 	CC = P2 <= 2;
-	IF !CC JUMP .more_than_seven;
+	IF !CC JUMP .Lmore_than_seven;
 	/* less than eight bytes... */
 	P2 = R2;
-	LSETUP(.three_start, .three_end) LC0=P2;
+	LSETUP(.Lthree_start, .Lthree_end) LC0=P2;
 	R0 = R1;	/* setup src address for return */
-.three_start:
+.Lthree_start:
 	R3 = B[P1++] (X);
-.three_end:
+.Lthree_end:
 	B[P0++] = R3;
 
 	RTS;
 
-.more_than_seven:
+.Lmore_than_seven:
 	/* There's at least eight bytes to copy. */
 	P2 += -1;	/* because we unroll one iteration */
-	LSETUP(.word_loop, .word_loop) LC0=P2;
+	LSETUP(.Lword_loop, .Lword_loop) LC0=P2;
 	R0 = R1;
 	I1 = P1;
 	R3 = [I1++];
-.word_loop:
+.Lword_loop:
 	MNOP || [P0++] = R3 || R3 = [I1++];
 
 	[P0++] = R3;
@@ -92,22 +92,22 @@ ENTRY(_memcpy)
 	R3 = R2 & R3;
 	CC = R3 == 0;
 	P1 = I1;	/* in case there's something left, */
-	IF !CC JUMP .bytes_left;
+	IF !CC JUMP .Lbytes_left;
 	RTS;
-.bytes_left:	P2 = R3;
-.not_aligned:
+.Lbytes_left:	P2 = R3;
+.Lnot_aligned:
 	/* From here, we're copying byte-by-byte. */
-	LSETUP (.byte_start , .byte_end) LC0=P2;
+	LSETUP (.Lbyte_start , .Lbyte_end) LC0=P2;
 	R0 = R1;	/* Save src address for return */
-.byte_start:
+.Lbyte_start:
 	R1 = B[P1++] (X);
-.byte_end:
+.Lbyte_end:
 	B[P0++] = R1;
 
-._P1L2147483647:
+.L_P1L2147483647:
 	RTS;
 
-.has_overlap:
+.Lhas_overlap:
 /* Need to reverse the copying, because the
  * dst would clobber the src.
  * Don't bother to work out alignment for
@@ -118,10 +118,10 @@ ENTRY(_memcpy)
 	P0 += -1;
 	P1 = P1 + P2;
 	P1 += -1;
-	LSETUP(.over_start, .over_end) LC0=P2;
-.over_start:
+	LSETUP(.Lover_start, .Lover_end) LC0=P2;
+.Lover_start:
 	R1 = B[P1--] (X);
-.over_end:
+.Lover_end:
 	B[P0--] = R1;
 
 	RTS;

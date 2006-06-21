@@ -45,49 +45,49 @@ _memcmp:
 	P3 = R1;			/* P3 = s2 Address  */
 	P2 = R2 ;			/* P2 = count */
 	CC = R2 <= 7(IU);
-	IF CC JUMP  too_small;
+	IF CC JUMP  .Ltoo_small;
 	I0 = R1;			/* s2 */
 	R1 = R1 | R0;		/* OR addresses together */
 	R1 <<= 30;		/* check bottom two bits */
 	CC =  AZ;			/* AZ set if zero. */
-	IF !CC JUMP  bytes ;	/* Jump if addrs not aligned. */
+	IF !CC JUMP  .Lbytes ;	/* Jump if addrs not aligned. */
 
 	P1 = P2 >> 2;		/* count = n/4 */
 	R3 =  3;
 	R2 = R2 & R3;		/* remainder */
 	P2 = R2;			/* set remainder */
 
-	LSETUP (quad_loop_s , quad_loop_e) LC0=P1;
-quad_loop_s:
+	LSETUP (.Lquad_loop_s , .Lquad_loop_e) LC0=P1;
+.Lquad_loop_s:
 	NOP;
 	R0 = [P0++];
 	R1 = [I0++];
 	CC = R0 == R1;
-	IF !CC JUMP quad_different;
-quad_loop_e:
+	IF !CC JUMP .Lquad_different;
+.Lquad_loop_e:
 	NOP;
 
 	P3 = I0;			/* s2 */
-too_small:
+.Ltoo_small:
 	CC = P2 == 0;		/* Check zero count*/
-	IF CC JUMP finished;	/* very unlikely*/
+	IF CC JUMP .Lfinished;	/* very unlikely*/
 
-bytes:
-	LSETUP (byte_loop_s , byte_loop_e) LC0=P2;
-byte_loop_s:
+.Lbytes:
+	LSETUP (.Lbyte_loop_s , .Lbyte_loop_e) LC0=P2;
+.Lbyte_loop_s:
 	R1 = B[P3++](Z);	/* *s2 */
 	R0 = B[P0++](Z);	/* *s1 */
 	CC = R0 == R1;
-	IF !CC JUMP different;
-byte_loop_e:
+	IF !CC JUMP .Ldifferent;
+.Lbyte_loop_e:
 	NOP;
 
-different:
+.Ldifferent:
 	R0 = R0 - R1;
 	P3 = I1;
 	RTS;
 
-quad_different:
+.Lquad_different:
 /* We've read two quads which don't match.
  * Can't just compare them, because we're
  * a little-endian machine, so the MSBs of
@@ -100,11 +100,9 @@ quad_different:
 	P3 = I0;		/* quads, and increase the*/
 	P2 += 4;		/* remainder count*/
 	P3 += -4;
-	JUMP bytes;
+	JUMP .Lbytes;
 
-finished:
+.Lfinished:
 	R0 = 0;
 	P3 = I1;
 	RTS;
-
-._memcmp.end:

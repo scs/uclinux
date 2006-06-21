@@ -74,7 +74,7 @@ ENTRY(_cache_grab_lock)
 
 	CLI R3;
 
-LOCK_WAY:
+.LLOCK_WAY:
 
 	/* Way0 - 0xFFA133E0
 	 * Way1 - 0xFFA137E0
@@ -89,15 +89,15 @@ LOCK_WAY:
 
 	R5 = R7;
 	CC = BITTST(R7,0);
-	IF CC JUMP CLEAR1;
+	IF CC JUMP .LCLEAR1;
 	R7 = 0;
 	BITSET(R7,0);
-	JUMP DONE1;
+	JUMP .LDONE1;
 
-CLEAR1:
+.LCLEAR1:
 	R7 = 0;
 	BITCLR(R7,0);
-DONE1:	R4 = R7 << 3;
+.LDONE1:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
@@ -107,15 +107,15 @@ DONE1:	R4 = R7 << 3;
 
 	R7 = R5;
 	CC = BITTST(R7,1);
-	IF CC JUMP CLEAR2;
+	IF CC JUMP .LCLEAR2;
 	R7 = 0;
 	BITSET(R7,1);
-	JUMP DONE2;
+	JUMP .LDONE2;
 
-CLEAR2:
+.LCLEAR2:
 	R7 = 0;
 	BITCLR(R7,1);
-DONE2:	R4 = R7 << 3;
+.LDONE2:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
@@ -125,14 +125,14 @@ DONE2:	R4 = R7 << 3;
 
 	R7 = R5;
 	CC = BITTST(R7,2);
-	IF CC JUMP CLEAR3;
+	IF CC JUMP .LCLEAR3;
 	R7 = 0;
 	BITSET(R7,2);
-	JUMP DONE3;
-CLEAR3:
+	JUMP .LDONE3;
+.LCLEAR3:
 	R7 = 0;
 	BITCLR(R7,2);
-DONE3:	R4 = R7 << 3;
+.LDONE3:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */
@@ -143,14 +143,14 @@ DONE3:	R4 = R7 << 3;
 
 	R7 = R5;
 	CC = BITTST(R7,3);
-	IF CC JUMP CLEAR4;
+	IF CC JUMP .LCLEAR4;
 	R7 = 0;
 	BITSET(R7,3);
-	JUMP DONE4;
-CLEAR4:
+	JUMP .LDONE4;
+.LCLEAR4:
 	R7 = 0;
 	BITCLR(R7,3);
-DONE4:	R4 = R7 << 3;
+.LDONE4:	R4 = R7 << 3;
 	R7 = [P1];
 	R7 = R7 | R4;
 	SSYNC;		/* SSYNC required writing to IMEM_CONTROL. */

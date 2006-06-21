@@ -60,20 +60,20 @@ ENTRY(_bfin_icache_init)
 
 /* read entries from table */
 
-read_iaddr:
+.Lread_iaddr:
 	R0 = [I2++];
 	CC = R0 == R1;
-	IF CC JUMP idone;
+	IF CC JUMP .Lidone;
 	[I0++] = R0;
 
-read_idata:
+.Lread_idata:
 	R2 = [I2++];
 	[I1++] = R2;
 	R3 = R3 + R1;
 	CC = R3 == R1;
-	IF !CC JUMP read_iaddr;
+	IF !CC JUMP .Lread_iaddr;
 
-idone:
+.Lidone:
 	/* Enable Instruction Cache */
 	P0.l = (IMEM_CONTROL & 0xFFFF);
 	P0.h = (IMEM_CONTROL >> 16);
@@ -109,19 +109,19 @@ ENTRY(_bfin_dcache_init)
 	R3 = 15;	/* max counter */
 
 	/* read entries from table */
-read_daddr:
+.Lread_daddr:
 	R0 = [I2++];
 	cc = R0 == R1;
-	IF CC JUMP ddone;
+	IF CC JUMP .Lddone;
 	[I0++] = R0;
 
-read_ddata:
+.Lread_ddata:
 	R2 = [I2++];
 	[I1++] = R2;
 	R3 = R3 + R1;
 	CC = R3 == R1;
-	IF !CC JUMP read_daddr;
-ddone:
+	IF !CC JUMP .Lread_daddr;
+.Lddone:
 	P0.L = (DMEM_CONTROL & 0xFFFF);
 	P0.H = (DMEM_CONTROL >> 16);
 	R1 = [P0];

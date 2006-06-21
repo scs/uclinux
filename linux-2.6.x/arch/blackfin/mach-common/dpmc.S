@@ -58,7 +58,7 @@ _unmask_wdog_wakeup_evt:
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-WRITE_TO_STAT:
+.LWRITE_TO_STAT:
 	/* When watch dog timer is enabled, a write to STAT will load the
 	 * contents of CNT to STAT
 	 */
@@ -72,7 +72,7 @@ WRITE_TO_STAT:
 #endif
 	[P0] = R7;
 	SSYNC;
-	JUMP SKIP_WRITE_TO_STAT;
+	JUMP .LSKIP_WRITE_TO_STAT;
 
 .global _program_wdog_timer
 _program_wdog_timer:
@@ -96,11 +96,11 @@ _program_wdog_timer:
 #endif
 	R7 = W[P0](Z);
 	CC = BITTST(R7,1);
-	if !CC JUMP WRITE_TO_STAT;
+	if !CC JUMP .LWRITE_TO_STAT;
 	CC = BITTST(R7,2);
-	if !CC JUMP WRITE_TO_STAT;
+	if !CC JUMP .LWRITE_TO_STAT;
 
-SKIP_WRITE_TO_STAT:
+.LSKIP_WRITE_TO_STAT:
 #if defined(CONFIG_BF561)
 	P0.h = (WDOGA_CTL >> 16);
         P0.l = (WDOGA_CTL & 0xFFFF);
@@ -197,12 +197,12 @@ _sleep_mode:
         IDLE;
         STI R2;
 
-CHECK_AGAIN1:
+.LCHECK_AGAIN1:
 	P1.H = hi(PLL_STAT);
 	P1.L = lo(PLL_STAT);
 	R5 = W[P1] (Z);
 	CC = BITTST(R5,5);
-	IF !CC JUMP CHECK_AGAIN1;
+	IF !CC JUMP .LCHECK_AGAIN1;
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
@@ -266,12 +266,12 @@ _deep_sleep:
         ssync;
 
 
-CHECK_AGAIN2:
+.LCHECK_AGAIN2:
 	P1.H = hi(PLL_STAT);
 	P1.L = lo(PLL_STAT);
 	R5 = W[P1] (Z);
 	CC = BITTST(R5,5);
-	IF !CC JUMP CHECK_AGAIN2;
+	IF !CC JUMP .LCHECK_AGAIN2;
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);

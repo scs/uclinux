@@ -32,9 +32,9 @@ ENTRY(_outsl)
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 
-	LSETUP( long_loop_s, long_loop_e) LC0 = P2;
-long_loop_s: R0 = [P1++];
-long_loop_e: [P0] = R0;
+	LSETUP( .Llong_loop_s, .Llong_loop_e) LC0 = P2;
+.Llong_loop_s: R0 = [P1++];
+.Llong_loop_e: [P0] = R0;
 	RTS;
 
 ENTRY(_outsw)
@@ -42,9 +42,9 @@ ENTRY(_outsw)
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 
-	LSETUP( word_loop_s, word_loop_e) LC0 = P2;
-word_loop_s: R0 = W[P1++];
-word_loop_e: W[P0] = R0;
+	LSETUP( .Lword_loop_s, .Lword_loop_e) LC0 = P2;
+.Lword_loop_s: R0 = W[P1++];
+.Lword_loop_e: W[P0] = R0;
 	RTS;
 
 ENTRY(_outsb)
@@ -52,7 +52,7 @@ ENTRY(_outsb)
 	P1 = R1;	/* P1 = address */
 	P2 = R2;	/* P2 = count */
 
-	LSETUP( byte_loop_s, byte_loop_e) LC0 = P2;
-byte_loop_s: R0 = B[P1++];
-byte_loop_e: B[P0] = R0;
+	LSETUP( .Lbyte_loop_s, .Lbyte_loop_e) LC0 = P2;
+.Lbyte_loop_s: R0 = B[P1++];
+.Lbyte_loop_e: B[P0] = R0;
 	RTS;

@@ -118,10 +118,10 @@ ENTRY(__stext)
 	RTN = P2;
 	RTE = P2;
 
-fill_temp_vector_table:
+.Lfill_temp_vector_table:
 	[P0++] = P2;	/* Core Event Vector Table */
 	CC = P0 == P1;
-	if !CC JUMP fill_temp_vector_table
+	if !CC JUMP .Lfill_temp_vector_table
 	P0 = r0;
 	P1 = r0;
 	P2 = r0;
@@ -249,13 +249,13 @@ fill_temp_vector_table:
 	csync;
 
 	raise 15;
-	p0.l = WAIT_HERE;
-	p0.h = WAIT_HERE;
+	p0.l = .LWAIT_HERE;
+	p0.h = .LWAIT_HERE;
 	reti = p0;
 	rti;
 
-WAIT_HERE:
-	jump WAIT_HERE;
+.LWAIT_HERE:
+	jump .LWAIT_HERE;
 
 ENTRY(_real_start)
 	[ -- sp ] = reti;
@@ -275,8 +275,8 @@ ENTRY(_real_start)
 	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
-	lsetup (_clear_bss, _clear_bss ) lc0 = p2;
-_clear_bss:
+	lsetup (.L_clear_bss, .L_clear_bss ) lc0 = p2;
+.L_clear_bss:
 	B[p1++] = r0;
 
 	/* In case there is a NULL pointer reference
@@ -290,8 +290,8 @@ _clear_bss:
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
-	lsetup (_clear_zero, _clear_zero ) lc0 = p2;
-_clear_zero:
+	lsetup (.L_clear_zero, .L_clear_zero ) lc0 = p2;
+.L_clear_zero:
 	W[p1++] = r0;
 
 /* pass the uboot arguments to the global value command line */
@@ -331,8 +331,8 @@ _clear_zero:
 	usp = sp;
 	fp = sp;
 	call _start_kernel;
-_exit:
-	jump.s	_exit;
+.L_exit:
+	jump.s	.L_exit;
 
 .section .text.l1
 ENTRY(start_dma_code)
@@ -385,12 +385,12 @@ ENTRY(start_dma_code)
         idle;                           /* Wait for the PLL to stablize    */
         sti r2;                         /* Enable interrupts               */
 
-check_again:
+.Lcheck_again:
 	p0.h = hi(PLL_STAT);
 	p0.l = lo(PLL_STAT);
 	R0 = W[P0](Z);
 	CC = BITTST(R0,5);
-	if ! CC jump check_again;
+	if ! CC jump .Lcheck_again;
 
 	/* Configure SCLK & CCLK Dividers */
        	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
@@ -419,10 +419,10 @@ check_again:
 	p0.l = lo(EBIU_SDSTAT);
 	r2.l = w[p0];
 	cc = bittst(r2,3);
-	if !cc jump skip;
+	if !cc jump .Lskip;
     NOP;
 	BITSET (R0, 23);
-skip:
+.Lskip:
 	[P2] = R0;
         SSYNC;
 
@@ -504,12 +504,12 @@ ENTRY(_bfin_reset)
 	P0.l = lo(WDOG_CTL);
 	R0 = W[P0](Z);
 	CC = BITTST(R0,1);
-	if !CC JUMP WRITESTAT;
+	if !CC JUMP .LWRITESTAT;
 	CC = BITTST(R0,2);
-	if !CC JUMP WRITESTAT;
-	JUMP SKIP_WRITE;
+	if !CC JUMP .LWRITESTAT;
+	JUMP .LSKIP_WRITE;
 
-WRITESTAT:
+.LWRITESTAT:
 	/* When watch dog timer is enabled, a write to STAT will load the contents of CNT to STAT */
 	R0 = 0x0000(z);
 	P0.h = hi(WDOG_STAT);
@@ -517,7 +517,7 @@ WRITESTAT:
 	[P0] = R0;
 	SSYNC;
 
-SKIP_WRITE:
+.LSKIP_WRITE:
 	/* Enable the reset event */
 	P0.h = hi(WDOG_CTL);
         P0.l = lo(WDOG_CTL);
@@ -562,12 +562,12 @@ debug_kernel_start_trap:
         idle;                           /* Wait for the PLL to stablize    */
         sti r2;                         /* Enable interrupts               */
 
-check_again1:
+.Lcheck_again1:
         p0.h = hi(PLL_STAT);
         p0.l = lo(PLL_STAT);
         R0 = W[P0](Z);
         CC = BITTST(R0,5);
-        if ! CC jump check_again1;
+        if ! CC jump .Lcheck_again1;
 
         /* Configure SCLK & CCLK Dividers */
         r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
@@ -645,104 +645,104 @@ check_again1:
         P1.l = lo(UART_LSR);
 
 	R0.L = 'K';
-	call wait_char;
+	call .Lwait_char;
         R0.L='e';
-        call wait_char;
+        call .Lwait_char;
         R0.L='r';
-        call wait_char;
+        call .Lwait_char;
         R0.L='n'
-        call wait_char;
+        call .Lwait_char;
         R0.L='e'
-        call wait_char;
+        call .Lwait_char;
         R0.L='l';
-        call wait_char;
+        call .Lwait_char;
         R0.L=' ';
-        call wait_char;
+        call .Lwait_char;
         R0.L='c';
-        call wait_char;
+        call .Lwait_char;
         R0.L='r';
-        call wait_char;
+        call .Lwait_char;
         R0.L='a';
-        call wait_char;
+        call .Lwait_char;
         R0.L='s';
-        call wait_char;
+        call .Lwait_char;
         R0.L='h';
-        call wait_char;
+        call .Lwait_char;
         R0.L='\r';
-        call wait_char;
+        call .Lwait_char;
         R0.L='\n';
-        call wait_char;
+        call .Lwait_char;
 
         R0.L='S';
-        call wait_char;
+        call .Lwait_char;
         R0.L='E';
-        call wait_char;
+        call .Lwait_char;
         R0.L='Q'
-        call wait_char;
+        call .Lwait_char;
         R0.L='S'
-        call wait_char;
+        call .Lwait_char;
         R0.L='T';
-        call wait_char;
+        call .Lwait_char;
         R0.L='A';
-        call wait_char;
+        call .Lwait_char;
         R0.L='T';
-        call wait_char;
+        call .Lwait_char;
         R0.L='=';
-        call wait_char;
+        call .Lwait_char;
 	R2 = SEQSTAT;
-	call dump_reg;
+	call .Ldump_reg;
 
         R0.L=' ';
-        call wait_char;
+        call .Lwait_char;
         R0.L='R';
-        call wait_char;
+        call .Lwait_char;
         R0.L='E'
-        call wait_char;
+        call .Lwait_char;
         R0.L='T'
-        call wait_char;
+        call .Lwait_char;
         R0.L='X';
-        call wait_char;
+        call .Lwait_char;
         R0.L='=';
-        call wait_char;
+        call .Lwait_char;
         R2 = RETX;
-        call dump_reg;
+        call .Ldump_reg;
 
         R0.L='\r';
-        call wait_char;
+        call .Lwait_char;
         R0.L='\n';
-        call wait_char;
+        call .Lwait_char;
 
-debug_kernel_start_trap_done:
-        JUMP    debug_kernel_start_trap_done;
-dump_reg:
+.Ldebug_kernel_start_trap_done:
+        JUMP    .Ldebug_kernel_start_trap_done;
+.Ldump_reg:
         R3 = 32;
         R4 = 0x0F;
 	R5 = ':';  /* one past 9 */
 
-dump_reg2:
+.Ldump_reg2:
         R0 = R2;
         R3 += -4;
         R0 >>>= R3;
         R0 = R0 & R4;
         R0 += 0x30;
 	CC = R0 <= R5;
-	if CC JUMP dump_reg1;
+	if CC JUMP .Ldump_reg1;
 	R0 += 7;
 
-dump_reg1:
+.Ldump_reg1:
         R1.l = W[P1];
         CC = BITTST(R1, 5);
-        if !CC JUMP dump_reg1;
+        if !CC JUMP .Ldump_reg1;
         W[P0] = r0;
 
         CC = R3 == 0;
-        if !CC JUMP dump_reg2
+        if !CC JUMP .Ldump_reg2
 	RTS;
 
-wait_char:
+.Lwait_char:
         R1.l = W[P1];
         CC = BITTST(R1, 5);
-        if !CC JUMP wait_char;
+        if !CC JUMP .Lwait_char;
         W[P0] = r0;
 	RTS;
 

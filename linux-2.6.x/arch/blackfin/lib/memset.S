@@ -45,58 +45,58 @@ _memset:
 	P2 = R2 ;              /* P2 = count   */
 	R3 = R0 + R2;          /* end          */
 	CC = R2 <= 7(IU);
-	IF CC JUMP  too_small;
+	IF CC JUMP  .Ltoo_small;
 	R1 = R1.B (Z);         /* R1 = fill char */
 	R2 =  3;
 	R2 = R0 & R2;          /* addr bottom two bits */
 	CC =  R2 == 0;             /* AZ set if zero.	*/
-	IF !CC JUMP  force_align ;  /* Jump if addr not aligned. */
+	IF !CC JUMP  .Lforce_align ;  /* Jump if addr not aligned. */
 
-aligned:
+.Laligned:
 	P1 = P2 >> 2;          /* count = n/4        */
 	R2 = R1 <<  8;         /* create quad filler */
 	R2.L = R2.L + R1.L(NS);
 	R2.H = R2.L + R1.H(NS);
 	P2 = R3;
 
-	LSETUP (quad_loop , quad_loop) LC0=P1;
-quad_loop:
+	LSETUP (.Lquad_loop , .Lquad_loop) LC0=P1;
+.Lquad_loop:
 	[P0++] = R2;
 
 	CC = P0 == P2;
-	IF !CC JUMP bytes_left;
+	IF !CC JUMP .Lbytes_left;
 	RTS;
 
-bytes_left:
+.Lbytes_left:
 	R2 = R3;                /* end point */
 	R3 = P0;                /* current position */
 	R2 = R2 - R3;           /* bytes left */
 	P2 = R2;
 
-too_small:
+.Ltoo_small:
 	CC = P2 == 0;           /* Check zero count */
-	IF CC JUMP finished;    /* Unusual */
+	IF CC JUMP .Lfinished;    /* Unusual */
 
-bytes:
-	LSETUP (byte_loop , byte_loop) LC0=P2;
-byte_loop:
+.Lbytes:
+	LSETUP (.Lbyte_loop , .Lbyte_loop) LC0=P2;
+.Lbyte_loop:
 	B[P0++] = R1;
 
-finished:
+.Lfinished:
 	RTS;
 
-force_align:
+.Lforce_align:
 	CC = BITTST (R0, 0);  /* odd byte */
 	R0 = 4;
 	R0 = R0 - R2;
 	P1 = R0;
 	R0 = P0;		    /* Recover return address */
-	IF !CC JUMP skip1;
+	IF !CC JUMP .Lskip1;
 	B[P0++] = R1;
-skip1:
+.Lskip1:
 	CC = R2 <= 2;          /* 2 bytes */
 	P2 -= P1;              /* reduce count */
-	IF !CC JUMP aligned;
+	IF !CC JUMP .Laligned;
 	B[P0++] = R1;
 	B[P0++] = R1;
-	JUMP aligned;
+	JUMP .Laligned;

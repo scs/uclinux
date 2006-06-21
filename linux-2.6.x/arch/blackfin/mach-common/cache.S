@@ -50,26 +50,26 @@ ENTRY(_cache_invalidate)
 
 	R7 = R0;
 	CC = BITTST(R7,CPLB_ENABLE_ICACHE_P);
-	IF !CC JUMP no_icache;
+	IF !CC JUMP .Lno_icache;
 	[--SP] = RETS;
 	CALL _icache_invalidate;
 	RETS = [SP++];
-no_icache:
+.Lno_icache:
 	CC = BITTST(R7,CPLB_ENABLE_DCACHE_P);
-	IF !CC JUMP no_dcache_a;
+	IF !CC JUMP .Lno_dcache_a;
 	R0 = 0;         /* specifies bank A */
 	[--SP] = RETS;
 	CALL _dcache_invalidate;
 	RETS = [SP++];
-no_dcache_a:
+.Lno_dcache_a:
 	CC = BITTST(R7,CPLB_ENABLE_DCACHE2_P);
-	IF !CC JUMP no_dcache_b;
+	IF !CC JUMP .Lno_dcache_b;
 	R0 = 0;
 	BITSET(R0, 23);		/* specifies bank B */
 	[--SP] = RETS;
 	CALL  _dcache_invalidate;
 	RETS = [SP++];
-no_dcache_b:
+.Lno_dcache_b:
 	R7 = [SP++];
 	RTS;
 
@@ -249,7 +249,7 @@ ENTRY(_blackfin_dflush_page)
 	P0 = R0;
 	CSYNC;
 	FLUSH[P0];
-	LSETUP (fl1, fl1) LC0 = P1;
-fl1:	FLUSH [P0++];
+	LSETUP (.Lfl1, .Lfl1) LC0 = P1;
+.Lfl1:	FLUSH [P0++];
 	SSYNC;
 	RTS;

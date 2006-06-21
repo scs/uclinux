@@ -144,7 +144,7 @@ __common_int_entry:
 	call _do_irq;
 	SP += 12;
 	call return_from_int;
-common_restore_context:
+.Lcommon_restore_context:
 	RESTORE_CONTEXT
 	rti;
 
@@ -168,7 +168,7 @@ ENTRY(_evt_ivhw)
 	r7 = r7 & r6;
 	r5 = 0x12;
 	cc = r7 == r5;
-	if cc jump call_do_ovf; /*deal with performance counter overflow*/
+	if cc jump .Lcall_do_ovf; /*deal with performance counter overflow*/
 #endif
 
 	SP += -12;
@@ -176,13 +176,13 @@ ENTRY(_evt_ivhw)
 	SP += 12;
 	rti;
 #ifdef CONFIG_HARDWARE_PM
-call_do_ovf:
+.Lcall_do_ovf:
 
 	SP += -12;
 	call _pm_overflow;
 	SP += 12;
 
-	jump common_restore_context; 
+	jump .Lcommon_restore_context; 
 #endif
 
 /* interrupt routine for evt2 - 2.  This is NMI.  */
@@ -227,4 +227,4 @@ ENTRY(_evt_system_call)
 	fp = 0;
 #endif
 	call system_call;
-	jump common_restore_context; 
+	jump .Lcommon_restore_context; 

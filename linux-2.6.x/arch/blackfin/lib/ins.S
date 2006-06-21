@@ -35,9 +35,9 @@ ENTRY(_insl)
 	NOP;
 	NOP;
 
-	LSETUP( long_loop_s, long_loop_e) LC0 = P2;
-long_loop_s: R0 = [P0];
-long_loop_e: [P1++] = R0;
+	LSETUP( .Llong_loop_s, .Llong_loop_e) LC0 = P2;
+.Llong_loop_s: R0 = [P0];
+.Llong_loop_e: [P1++] = R0;
 
     sti R2;
 	RTS;
@@ -50,9 +50,9 @@ ENTRY(_insw)
 	NOP;
 	NOP;
 
-	LSETUP( word_loop_s, word_loop_e) LC0 = P2;
-word_loop_s: R0 = W[P0];
-word_loop_e: W[P1++] = R0;
+	LSETUP( .Lword_loop_s, .Lword_loop_e) LC0 = P2;
+.Lword_loop_s: R0 = W[P0];
+.Lword_loop_e: W[P1++] = R0;
 
 	sti R2;
 	RTS;
@@ -65,8 +65,8 @@ ENTRY(_insb)
 	NOP;
 	NOP;
 
-	LSETUP( byte_loop_s, byte_loop_e) LC0 = P2;
-byte_loop_s: R0 = B[P0];
-byte_loop_e: B[P1++] = R0;
+	LSETUP( .Lbyte_loop_s, .Lbyte_loop_e) LC0 = P2;
+.Lbyte_loop_s: R0 = B[P0];
+.Lbyte_loop_e: B[P1++] = R0;
 	sti R2;
 	RTS;

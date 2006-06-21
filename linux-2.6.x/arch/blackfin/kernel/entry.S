@@ -52,10 +52,10 @@ ENTRY(_ret_from_fork)
 	SP += 12;
 	r0 = [sp + PT_IPEND];
 	cc = bittst(r0,1);
-	if cc jump in_kernel;
+	if cc jump .Lin_kernel;
 	RESTORE_CONTEXT
 	rti;
-in_kernel:
+.Lin_kernel:
 	bitclr(r0,1);
 	[sp + PT_IPEND] = r0;
 	/* do a 'fake' RTI by jumping to [RETI] */

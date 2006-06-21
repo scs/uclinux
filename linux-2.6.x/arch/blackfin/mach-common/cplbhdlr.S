@@ -68,23 +68,23 @@ ENTRY(__cplb_hdr)
 
 	R1 = 0x23; /* Data access CPLB protection violation */
 	CC = R2 == R1;
-	IF !CC JUMP not_data_write;
+	IF !CC JUMP .Lnot_data_write;
 	R0 = 2;		/* is a write to data space*/
-	JUMP is_icplb_miss;
+	JUMP .Lis_icplb_miss;
 
-not_data_write:
+.Lnot_data_write:
 	R1 = 0x2C; /* CPLB miss on an instruction fetch */
 	CC = R2 == R1;
 	R0 = 0;		/* is_data_miss == False*/
-	IF CC JUMP is_icplb_miss;
+	IF CC JUMP .Lis_icplb_miss;
 
 	R1 = 0x26;
 	CC = R2 == R1;
-	IF !CC JUMP unknown;
+	IF !CC JUMP .Lunknown;
 
 	R0 = 1;		/* is_data_miss == True*/
 
-is_icplb_miss:
+.Lis_icplb_miss:
 
 #if ( defined (CONFIG_BLKFIN_CACHE) || defined (CONFIG_BLKFIN_DCACHE))
 #if ( defined (CONFIG_BLKFIN_CACHE) && !defined (CONFIG_BLKFIN_DCACHE))
@@ -104,7 +104,7 @@ is_icplb_miss:
 	CALL _cplb_mgr;
 	RETS = [SP++];
 	CC = R0 == 0;
-	IF !CC JUMP not_replaced;
+	IF !CC JUMP .Lnot_replaced;
 	I3 = [SP++];
 	I2 = [SP++];
 	I1 = [SP++];
@@ -113,35 +113,35 @@ is_icplb_miss:
 	ASTAT = [SP++];
 	RTS;
 
-unknown:
+.Lunknown:
 	[--SP] = RETS;
 	CALL __unknown_exception_occurred;
 	RETS = [SP++];
-	JUMP unknown;
-not_replaced:
+	JUMP .Lunknown;
+.Lnot_replaced:
 	CC = R0 == CPLB_NO_UNLOCKED;
-	IF !CC JUMP next_check;
+	IF !CC JUMP .Lnext_check;
 	[--SP] = RETS;
 	CALL __cplb_miss_all_locked;
 	RETS = [SP++];
-next_check:
+.Lnext_check:
 	CC = R0 == CPLB_NO_ADDR_MATCH;
-	IF !CC JUMP next_check2;
+	IF !CC JUMP .Lnext_check2;
 	[--SP] = RETS;
 	CALL __cplb_miss_without_replacement;
 	RETS = [SP++];
-	JUMP not_replaced;
-next_check2:
+	JUMP .Lnot_replaced;
+.Lnext_check2:
 	CC = R0 == CPLB_PROT_VIOL;
-	IF !CC JUMP strange_return_from_cplb_mgr;
+	IF !CC JUMP .Lstrange_return_from_cplb_mgr;
 	[--SP] = RETS;
 	CALL __cplb_protection_violation;
 	RETS = [SP++];
-	JUMP not_replaced;
-strange_return_from_cplb_mgr:
+	JUMP .Lnot_replaced;
+.Lstrange_return_from_cplb_mgr:
 	IDLE;
 	CSYNC;
-	JUMP strange_return_from_cplb_mgr;
+	JUMP .Lstrange_return_from_cplb_mgr;
 
 /************************************
  * Diagnostic exception handlers
@@ -185,12 +185,11 @@ __unknown_exception_occurred:
 	 */
 
 	IDLE;
-do_not_know_what_to_do:
+.Ldo_not_know_what_to_do:
 	NOP;
 	CSYNC;
 	JUMP __unknown_exception_occurred;
 
 	RTS;
-.__unknown_exception_occurred.end:
 .global __unknown_exception_occurred;
 .type __unknown_exception_occurred, STT_FUNC;

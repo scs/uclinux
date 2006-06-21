@@ -42,15 +42,15 @@
 ___modsi3:
 
 	CC=R0==0;
-	IF CC JUMP RETURN_R0;		/* Return 0, if numerator  == 0 */
+	IF CC JUMP .LRETURN_R0;		/* Return 0, if numerator  == 0 */
 	CC=R1==0;
-	IF CC JUMP RETURN_ZERO;		/* Return 0, if denominator == 0 */
+	IF CC JUMP .LRETURN_ZERO;		/* Return 0, if denominator == 0 */
 	CC=R0==R1;
-	IF CC JUMP RETURN_ZERO;		/* Return 0, if numerator == denominator */
+	IF CC JUMP .LRETURN_ZERO;		/* Return 0, if numerator == denominator */
 	CC = R1 == 1;
-	IF CC JUMP RETURN_ZERO;		/* Return 0, if denominator ==  1 */
+	IF CC JUMP .LRETURN_ZERO;		/* Return 0, if denominator ==  1 */
 	CC = R1 == -1;
-	IF CC JUMP RETURN_ZERO;		/* Return 0, if denominator == -1 */
+	IF CC JUMP .LRETURN_ZERO;		/* Return 0, if denominator == -1 */
 
 	/* Valid input. Use __divsi3() to compute the quotient, and then
 	   derive the remainder from that. */
@@ -68,7 +68,7 @@ ___modsi3:
 	(R7:6) = [SP++];		/* Pop registers R7 and R4 */
 	RTS;				/* Store remainder    */
 
-RETURN_ZERO:
+.LRETURN_ZERO:
 	R0 = 0;
-RETURN_R0:
+.LRETURN_R0:
 	RTS;
