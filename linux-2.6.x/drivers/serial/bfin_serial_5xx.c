@@ -1692,7 +1692,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 {
 	struct bfin_serial *info = (struct bfin_serial *)dev_id;
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	int count;
+#endif
 
 	clear_dma_irqstat(info->rx_DMA_channel);
 	info->event |= 1 << RS_EVENT_READ;
