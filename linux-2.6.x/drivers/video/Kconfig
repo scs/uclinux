@@ -429,17 +429,35 @@ config FB_BFIN_7393
 	  If your Blackfin board has a ADV7393 select Y.
 
 choice
-        prompt  "Video mode support"
+	prompt  "Video mode support"
 	depends on (FB_BFIN_7171 || FB_BFIN_7393)
 	default NTSC
 
 config NTSC
-        bool 'NTSC'
+	bool 'NTSC 720x480'
 
 config PAL
-        bool 'PAL'
+	bool 'PAL 720x576'
+
+config NTSC_640x480
+	bool 'NTSC 640x480 (Experimental)'
+
+config PAL_640x480
+	bool 'PAL 640x480 (Experimental)'
+
 endchoice
 
+choice
+	prompt  "Size of ADV7393 frame buffer memory Single/Double Size"
+	depends on (FB_BFIN_7393)
+	default ADV7393_1XMEM
+
+config ADV7393_1XMEM
+	bool 'Single'
+
+config ADV7393_2XMEM
+	bool 'Double'
+endchoice
 
 config FB_BF537_LQ035
 	tristate "SHARP LQ035 TFT LCD on uClinux (BF537 STAMP)"

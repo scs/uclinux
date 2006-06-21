@@ -18,7 +18,6 @@
 * MODIFICATION HISTORY:
 * Based on vga16fb.cCopyright 1999 Ben Pfaff <pfaffben@debian.org>
 * and Petr Vandrovec <VANDROVE@vc.cvut.cz>
-* Copyright 2004 Ashutosh Kumar Singh (ashutosh.singh@rrap-software.com)
 ************************************************************
 *
 * This program is free software; you can distribute it and/or modify it
@@ -35,6 +34,11 @@
 * 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
 *
 ************************************************************/
+
+/*
+TODO: Remove Globals
+TODO: Code Cleanup
+*/
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -53,119 +57,29 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
+#include <asm/uaccess.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+
 #include "bfin_adv7393fb.h"
 
-//#define FBCONDEBUG 
-#undef FBCONDEBUG 
-
-#ifdef FBCONDEBUG
-#  define DPRINTK(fmt, args...) printk(KERN_INFO "%s: " fmt, __FUNCTION__ , ## args)
-#else
-#  define DPRINTK(fmt, args...)
-#endif 
-
-static int bfin_adv7393_fb_open (struct fb_info *info, int user);
-static int bfin_adv7393_fb_release (struct fb_info *info, int user);
-static int bfin_adv7393_fb_check_var (struct fb_var_screeninfo *var,
-				      struct fb_info *info);
-static int bfin_adv7393_fb_set_par (struct fb_info *info);
-static int bfin_adv7393_fb_pan_display (struct fb_var_screeninfo *var,
-					struct fb_info *info);
-static void bfin_adv7393_fb_fillrect (struct fb_info *info,
-				      const struct fb_fillrect *rect);
-static void bfin_adv7393_fb_imageblit (struct fb_info *info,
-				       const struct fb_image *image);
-static int bfin_adv7393_fb_blank (int blank, struct fb_info *info);
-static int bfin_fb_mmap (struct fb_info *info, struct vm_area_struct *vma);
-
-static void bfin_config_ppi (void);
-static int bfin_config_dma (void *fb_buffer);
-static void bfin_disable_dma (void);
-static void bfin_enable_ppi (void);
-static void bfin_disable_ppi (void);
-
-
-extern unsigned long l1_data_A_sram_alloc (unsigned long size);
-extern int l1_data_A_sram_free (unsigned long addr);
-
-
-struct _dmasglarge_t *descriptor_list_head;
-static dma_addr_t dma_handle;
-static u16 *rgb_buffer;		/* RGB Buffer */
-struct i2c_client *client_local;
-int id1;
-
+static struct adv7393fb_device *drv;
+static int mode = VMODE;
+static int mem = VMEM;
 
 /*
  * I2C driver
  */
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
-#define I2C_NAME(x) (x)->name
-
-#include <linux/video_encoder.h>
-#include <linux/videodev.h>
-
-static inline int adv7393_write (struct i2c_client *client, u8 reg, u8 value);
-static inline int adv7393_read (struct i2c_client *client, u8 reg);
-static int adv7393_write_block (struct i2c_client *client, const u8 * data,
-				unsigned int len);
-static int adv7393_command (struct i2c_client *client, unsigned int cmd,
-			    void *arg);
 static char adv7393_name[] = "adv7393";
-
-static char *norms[] = { "PAL", "NTSC" };
-
-//#define TR0MODE     0x00
-//#define TR0RST      0x80
-
-static const unsigned char init_NTSC_TESTPATTERN[] = {
-  0x00, 0x1E,			/*Power up all DACs and PLL */
-  0x01, 0x00,			/*SD-Only Mode */
-  0x80, 0x10,			/*SSAF Luma Filter Enabled, NTSC Mode */
-  0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
-  0x84, 0x40,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
-};
-
-static const unsigned char init_NTSC[] = {
-
-  0x00, 0x1E,			/*Power up all DACs and PLL */
-  0x01, 0x00,			/*SD-Only Mode */
-  0x80, 0x30,			/*SSAF Luma Filter Enabled, NTSC Mode */
-  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
-  0x87, 0x90,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
-  0x86, 0x82,
-  0xA2, 0x0C,
-  0x8B, 0x11,
-  0x88, 0x20,
-  0x8A, 0x0d,
-};
-
-static const unsigned char init_PAL[] = {
-  0x00, 0x1E,			/*Power up all DACs and PLL */
-  0x8C, 0xCB,			/* PAL Subcarrier Frequency */
-  0x8D, 0x8A,			/* PAL Subcarrier Frequency */
-  0x8E, 0x09,			/* PAL Subcarrier Frequency */
-  0x8F, 0x2A,			/* PAL Subcarrier Frequency */
-  0x01, 0x00,			/*SD-Only Mode */
-  0x80, 0x11,			/*SSAF Luma Filter Enabled, PAL Mode */
-  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
-  0x87, 0x80,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
-  0x86, 0x82,
-  0x8B, 0x11,
-  0x88, 0x20,
-  0x8A, 0x0d,
-};
 
 /*
  * card parameters
  */
-
-static struct fb_info bfin_adv7393_fb;
 
 static struct bfin_adv7393_fb_par
 {
@@ -173,7 +87,7 @@ static struct bfin_adv7393_fb_par
      screen is blanked */
   struct
   {
-    unsigned char Mode;		/* ntsc/pal/? */
+    u8 Mode;			/* ntsc/pal/? */
   } vga_state;
   atomic_t ref_count;
 } bfin_par;
@@ -181,10 +95,10 @@ static struct bfin_adv7393_fb_par
 /* --------------------------------------------------------------------- */
 
 static struct fb_var_screeninfo bfin_adv7393_fb_defined = {
-  .xres = RGB_WIDTH,
-  .yres = RGB_HEIGHT,
-  .xres_virtual = RGB_WIDTH,
-  .yres_virtual = RGB_HEIGHT,
+  .xres = 720,
+  .yres = 480,
+  .xres_virtual = 720,
+  .yres_virtual = 480,
   .bits_per_pixel = 16,
   .activate = FB_ACTIVATE_TEST,
   .height = -1,
@@ -202,12 +116,12 @@ static struct fb_var_screeninfo bfin_adv7393_fb_defined = {
 
 static struct fb_fix_screeninfo bfin_adv7393_fb_fix __initdata = {
   .id = "BFIN ADV7393",
-  .smem_len = RGB_PHYS_SIZE,
+  .smem_len = 720 * 480 * 2,
   .type = FB_TYPE_PACKED_PIXELS,
   .visual = FB_VISUAL_TRUECOLOR,
   .xpanstep = 0,
   .ypanstep = 0,
-  .line_length = RGB_WIDTH * 2,
+  .line_length = 720 * 2,
   .accel = FB_ACCEL_NONE
 };
 
@@ -225,132 +139,163 @@ static struct fb_ops bfin_adv7393_fb_ops = {
 };
 
 static int
-dma_desc_list (u16 arg)
+dma_desc_list(struct adv7393fb_device *fbdev, u16 arg)
 {
-  struct _dmasglarge_t *vb1 = NULL, *av1 = NULL, *vb2 = NULL, *av2 = NULL;
 
-  if (arg)			/* Build */
+  if(arg == BUILD)		/* Build */
     {
-      vb1 =
+      fbdev->vb1 =
 	(struct _dmasglarge_t *)
-	l1_data_A_sram_alloc (sizeof (struct _dmasglarge_t));
-      if (vb1 == NULL)
+	l1_data_A_sram_alloc(sizeof(struct _dmasglarge_t));
+      if(fbdev->vb1 == NULL)
 	goto error;
       else
-	memset (vb1, 0, sizeof (struct _dmasglarge_t));
+	memset(fbdev->vb1, 0, sizeof(struct _dmasglarge_t));
 
-      av1 =
+      fbdev->av1 =
 	(struct _dmasglarge_t *)
-	l1_data_A_sram_alloc (sizeof (struct _dmasglarge_t));
-      if (av1 == NULL)
+	l1_data_A_sram_alloc(sizeof(struct _dmasglarge_t));
+      if(fbdev->av1 == NULL)
 	goto error;
       else
-	memset (av1, 0, sizeof (struct _dmasglarge_t));
+	memset(fbdev->av1, 0, sizeof(struct _dmasglarge_t));
 
-      vb2 =
+      fbdev->vb2 =
 	(struct _dmasglarge_t *)
-	l1_data_A_sram_alloc (sizeof (struct _dmasglarge_t));
-      if (vb2 == NULL)
+	l1_data_A_sram_alloc(sizeof(struct _dmasglarge_t));
+      if(fbdev->vb2 == NULL)
 	goto error;
       else
-	memset (vb2, 0, sizeof (struct _dmasglarge_t));
+	memset(fbdev->vb2, 0, sizeof(struct _dmasglarge_t));
 
-      av2 =
+      fbdev->av2 =
 	(struct _dmasglarge_t *)
-	l1_data_A_sram_alloc (sizeof (struct _dmasglarge_t));
-      if (av2 == NULL)
+	l1_data_A_sram_alloc(sizeof(struct _dmasglarge_t));
+      if(fbdev->av2 == NULL)
 	goto error;
       else
-	memset (av2, 0, sizeof (struct _dmasglarge_t));
+	memset(fbdev->av2, 0, sizeof(struct _dmasglarge_t));
 
       /* Build linked DMA descriptor list */
 
 
-      vb1->next_desc_addr = (unsigned long) av1;
-      av1->next_desc_addr = (unsigned long) vb2;
-      vb2->next_desc_addr = (unsigned long) av2;
-      av2->next_desc_addr = (unsigned long) vb1;
+      fbdev->vb1->next_desc_addr = (unsigned long) fbdev->av1;
+      fbdev->av1->next_desc_addr = (unsigned long) fbdev->vb2;
+      fbdev->vb2->next_desc_addr = (unsigned long) fbdev->av2;
+      fbdev->av2->next_desc_addr = (unsigned long) fbdev->vb1;
 
       /* Save list head */
-      descriptor_list_head = av2;
+      fbdev->descriptor_list_head = fbdev->av2;
 
-      vb1->start_addr = VB_DUMMY_MEMORY_SOURCE;
-      vb1->cfg = DMA_CFG_VAL;
-      vb1->x_count = DMA_X_CNT;
-      vb1->x_modify = 0;
-      vb1->y_count = VB1_LINES;
-      vb1->y_modify = 0;
+ /* Vertical Blanking Field 1 */
 
-      av1->start_addr = (unsigned long)rgb_buffer;
-      av1->cfg = DMA_CFG_VAL;
-      av1->x_count = DMA_X_CNT;
-      av1->x_modify = sizeof(RGB565);
-      av1->y_count = ACTIVE_LINES;
-      av1->y_modify = DMA_Y_MODIFY + sizeof(RGB565);
+      fbdev->vb1->start_addr = VB_DUMMY_MEMORY_SOURCE;
+      fbdev->vb1->cfg = DMA_CFG_VAL;
+      
+      fbdev->vb1->x_count =
+	    fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank;
+      
+      fbdev->vb1->x_modify = 0;
+      fbdev->vb1->y_count = fbdev->modes[mode].vb1_lines;
+      fbdev->vb1->y_modify = 0;
 
-      vb2->start_addr = VB_DUMMY_MEMORY_SOURCE;
-      vb2->cfg = DMA_CFG_VAL;
-      vb2->x_count = DMA_X_CNT;
-      vb2->x_modify = 0;
-      vb2->y_count = VB2_LINES;
-      vb2->y_modify = 0;
+ /* Active Video Field 1 */
+      
+      fbdev->av1->start_addr = (unsigned long) fbdev->fb_mem;
+      fbdev->av1->cfg = DMA_CFG_VAL;
+      fbdev->av1->x_count =
+	    fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank;
+      fbdev->av1->x_modify = fbdev->modes[mode].bpp / 8;
+      fbdev->av1->y_count = fbdev->modes[mode].a_lines;
+      fbdev->av1->y_modify =
+     	(fbdev->modes[mode].xres - fbdev->modes[mode].boeft_blank +
+	      1) * (fbdev->modes[mode].bpp / 8);
 
-      av2->start_addr = (unsigned long)rgb_buffer + (RGB_WIDTH * sizeof(RGB565));
-      av2->cfg = DMA_CFG_VAL;
-      av2->x_count = DMA_X_CNT;
-      av2->x_modify = sizeof(RGB565);
-      av2->y_count = ACTIVE_LINES;
-      av2->y_modify = DMA_Y_MODIFY + sizeof(RGB565);
+  /* Vertical Blanking Field 2 */
+ 
+      fbdev->vb2->start_addr = VB_DUMMY_MEMORY_SOURCE;
+      fbdev->vb2->cfg = DMA_CFG_VAL;
+      fbdev->vb2->x_count =
+	    fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank;
+      
+      fbdev->vb2->x_modify = 0;
+      fbdev->vb2->y_count = fbdev->modes[mode].vb2_lines;
+      fbdev->vb2->y_modify = 0;
+
+ /* Active Video Field 2 */
+
+      fbdev->av2->start_addr =
+	    (unsigned long) fbdev->fb_mem + fbdev->line_len;
+      
+      fbdev->av2->cfg = DMA_CFG_VAL;
+      
+      fbdev->av2->x_count =
+	    fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank;
+      
+      fbdev->av2->x_modify = (fbdev->modes[mode].bpp / 8);
+      fbdev->av2->y_count = fbdev->modes[mode].a_lines;
+      
+      fbdev->av2->y_modify =
+	    (fbdev->modes[mode].xres - fbdev->modes[mode].boeft_blank +
+	     1) * (fbdev->modes[mode].bpp / 8);
 
       return 1;
 
-    }				/* Destruct */
+    }
+
+/* Destruct */
 error:
-  l1_data_A_sram_free ((unsigned long) vb1);
-  l1_data_A_sram_free ((unsigned long) av1);
-  l1_data_A_sram_free ((unsigned long) vb2);
-  l1_data_A_sram_free ((unsigned long) av2);
+  l1_data_A_sram_free((unsigned long) fbdev->vb1);
+  l1_data_A_sram_free((unsigned long) fbdev->av1);
+  l1_data_A_sram_free((unsigned long) fbdev->vb2);
+  l1_data_A_sram_free((unsigned long) fbdev->av2);
 
   return 0;
 
 }
 
 static int
-bfin_fb_mmap (struct fb_info *info, struct vm_area_struct *vma)
+bfin_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
   /* we really dont need any map ... not sure how the smem_start will
      end up in the kernel
    */
-  vma->vm_start = (int) rgb_buffer;
-  return (int) rgb_buffer;
+
+  struct adv7393fb_device *fbdev = to_adv7393fb_device(info);
+
+  vma->vm_start = (int) fbdev->fb_mem;
+  return (int) fbdev->fb_mem;
 }
 
 
 static int
-bfin_config_dma (void *rgb_buffer)
+bfin_config_dma(struct adv7393fb_device *fbdev)
 {
-  assert (rgb_buffer);
 
-  set_dma_x_count (CH_PPI, descriptor_list_head->x_count);
-  set_dma_x_modify (CH_PPI, descriptor_list_head->x_modify);
-  set_dma_y_count (CH_PPI, descriptor_list_head->y_count);
-  set_dma_y_modify (CH_PPI, descriptor_list_head->y_modify);
-  set_dma_start_addr (CH_PPI, descriptor_list_head->start_addr);
-  set_dma_next_desc_addr (CH_PPI, descriptor_list_head->next_desc_addr);
-  set_dma_config (CH_PPI, descriptor_list_head->cfg);
+  assert(fbdev->fb_mem);
 
- return 1;
+  set_dma_x_count(CH_PPI, fbdev->descriptor_list_head->x_count);
+  set_dma_x_modify(CH_PPI, fbdev->descriptor_list_head->x_modify);
+  set_dma_y_count(CH_PPI, fbdev->descriptor_list_head->y_count);
+  set_dma_y_modify(CH_PPI, fbdev->descriptor_list_head->y_modify);
+  set_dma_start_addr(CH_PPI, fbdev->descriptor_list_head->start_addr);
+  set_dma_next_desc_addr(CH_PPI,
+			  fbdev->descriptor_list_head->next_desc_addr);
+  set_dma_config(CH_PPI, fbdev->descriptor_list_head->cfg);
+
+  return 1;
 }
 
+
 static void
-bfin_disable_dma (void)
+bfin_disable_dma(void)
 {
   *pDMA0_CONFIG &= ~DMAEN;
 }
 
 
 static void
-bfin_config_ppi (void)
+bfin_config_ppi(struct adv7393fb_device *fbdev)
 {
 #ifdef CONFIG_BF537
   *pPORTG_FER = 0xFFFF;		/* PPI[15:0]    */
@@ -359,126 +304,63 @@ bfin_config_ppi (void)
 #endif
 
   *pPPI_CONTROL = 0x381E;
-  *pPPI_FRAME = LINES_PER_FRAME;
-  *pPPI_COUNT = DMA_X_CNT - 1;
-  *pPPI_DELAY = PPI_DELAY_CNT - 1;
+  *pPPI_FRAME = fbdev->modes[mode].tot_lines;
+  *pPPI_COUNT = fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank - 1;
+  *pPPI_DELAY = fbdev->modes[mode].aoeft_blank - 1;
 }
 
 static void
-bfin_enable_ppi (void)
+bfin_enable_ppi(void)
 {
   *pPPI_CONTROL |= PORT_EN;
 }
 
 static void
-bfin_disable_ppi (void)
+bfin_disable_ppi(void)
 {
   *pPPI_CONTROL &= ~PORT_EN;
 }
 
 static inline int
-adv7393_write (struct i2c_client *client, u8 reg, u8 value)
+adv7393_write(struct i2c_client *client, u8 reg, u8 value)
 {
-  struct adv7393 *encoder = i2c_get_clientdata (client);
-
-  encoder->reg[reg] = value;
-  return i2c_smbus_write_byte_data (client, reg, value);
+  return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 static inline int
-adv7393_read (struct i2c_client *client, u8 reg)
+adv7393_read(struct i2c_client *client, u8 reg)
 {
-  return i2c_smbus_read_byte_data (client, reg);
+  return i2c_smbus_read_byte_data(client, reg);
 }
 
 static int
-adv7393_write_block (struct i2c_client *client,
+adv7393_write_block(struct i2c_client *client,
 		     const u8 * data, unsigned int len)
 {
   int ret = -1;
   u8 reg;
 
-  while (len >= 2)
+  while(len >= 2)
     {
       reg = *data++;
-      if ((ret = adv7393_write (client, reg, *data++)) < 0)
+      if((ret = adv7393_write(client, reg, *data++)) < 0)
 	break;
       len -= 2;
     }
   return ret;
 }
 
-static int
-adv7393_command (struct i2c_client *client, unsigned int cmd, void *arg)
-{
-  struct adv7393 *encoder = i2c_get_clientdata (client);
-
-  switch (cmd)
-    {
-
-    case ENCODER_GET_CAPABILITIES:
-      {
-	struct video_encoder_capability *cap = arg;
-
-	cap->flags = VIDEO_ENCODER_PAL | VIDEO_ENCODER_NTSC;
-	cap->inputs = 2;
-	cap->outputs = 1;
-      }
-      break;
-
-    case ENCODER_SET_NORM:
-      {
-	int iarg = *(int *) arg;
-
-	printk (KERN_DEBUG "%s_command: set norm %d",
-		I2C_NAME (client), iarg);
-
-	switch (iarg)
-	  {
-
-	  case VIDEO_MODE_NTSC:
-	    adv7393_write_block (client, init_NTSC, sizeof (init_NTSC));
-//	    if (encoder->input == 0)
-//	      adv7393_write (client, 0x02, 0x0e);
-//	    adv7393_write (client, 0x07, TR0MODE | TR0RST);
-//	    adv7393_write (client, 0x07, TR0MODE);
-	    break;
-	  case VIDEO_MODE_PAL:
-	    adv7393_write_block (client, init_PAL, sizeof (init_PAL));
-//	    if (encoder->input == 0)
-//	      adv7393_write (client, 0x02, 0x0e);
-//	    adv7393_write (client, 0x07, TR0MODE | TR0RST);
-//	    adv7393_write (client, 0x07, TR0MODE);
-	    break;
-
-	  default:
-	    printk (KERN_ERR "%s: illegal norm: %d\n",
-		    I2C_NAME (client), iarg);
-	    return -EINVAL;
-
-	  }
-	printk (KERN_DEBUG "%s: switched to %s\n", I2C_NAME (client),
-		norms[iarg]);
-	encoder->norm = iarg;
-      }
-      break;
-    default:
-      return -EINVAL;
-    }
-  return 0;
-}
 
 /*
  * Generic i2c probe
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
-static unsigned short normal_i2c[] =
-  { I2C_ADV7393 >> 1, (I2C_ADV7393 >> 1) + 1,
+static u16 normal_i2c[] = { I2C_ADV7393 >> 1, (I2C_ADV7393 >> 1) + 1,
   I2C_CLIENT_END
 };
 
-static unsigned short probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
-static unsigned short ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static u16 probe[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
+static u16 ignore[2] = { I2C_CLIENT_END, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
   .normal_i2c = normal_i2c,
@@ -489,111 +371,84 @@ static struct i2c_client_address_data addr_data = {
 static struct i2c_driver i2c_driver_adv7393;
 
 static int
-adv7393_detect_client (struct i2c_adapter *adapter, int address, int kind)
+adv7393_detect_client(struct i2c_adapter *adapter, int address, int kind)
 {
   int i;
   struct i2c_client *client;
-  struct adv7393 *encoder;
   char *dname;
 
-  printk (KERN_INFO
+  printk(KERN_INFO
 	  "adv7393.c: detecting adv7393 client on address 0x%x\n",
 	  address << 1);
 
   /* Check if the adapter supports the needed features */
-  if (!i2c_check_functionality (adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+  if(!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
     return 0;
 
-  client = kmalloc (sizeof (struct i2c_client), GFP_KERNEL);
-  if (client == 0)
+  client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+  if(client == 0)
     return -ENOMEM;
-  memset (client, 0, sizeof (struct i2c_client));
+
   client->addr = address;
   client->adapter = adapter;
   client->driver = &i2c_driver_adv7393;
-  if ((client->addr == I2C_ADV7393 >> 1) ||
-      (client->addr == (I2C_ADV7393 >> 1) + 1))
+  if((client->addr == I2C_ADV7393 >> 1) ||
+     (client->addr ==(I2C_ADV7393 >> 1) + 1))
     {
       dname = adv7393_name;
     }
   else
     {
       /* We should never get here!!! */
-      kfree (client);
+      kfree(client);
       return 0;
     }
-  strlcpy (I2C_NAME (client), dname, sizeof (I2C_NAME (client)));
+  strlcpy(I2C_NAME(client), dname, sizeof(I2C_NAME(client)));
 
-  encoder = kmalloc (sizeof (struct adv7393), GFP_KERNEL);
-  if (encoder == NULL)
-    {
-      kfree (client);
-      return -ENOMEM;
-    }
-  memset (encoder, 0, sizeof (struct adv7393));
-#ifdef CONFIG_NTSC
-  encoder->norm = VIDEO_MODE_NTSC;
-#else /* CONFIG_PAL */
-  encoder->norm = VIDEO_MODE_PAL;
-#endif
-  encoder->input = 0;
-  encoder->enable = 1;
-  i2c_set_clientdata (client, encoder);
 
-  i = i2c_attach_client (client);
-  if (i)
+  i = i2c_attach_client(client);
+  if(i)
     {
-      kfree (client);
-      kfree (encoder);
+      kfree(client);
       return i;
     }
-#ifdef CONFIG_NTSC
-  i = adv7393_write_block (client, init_NTSC, sizeof (init_NTSC));
- // i = adv7393_write_block (client, init_NTSC_TESTPATTERN, sizeof (init_NTSC_TESTPATTERN));
 
-#else /* CONFIG_PAL */
-  i = adv7393_write_block (client, init_PAL, sizeof (init_PAL));
-#endif
-//        if (i >= 0) {
-//                i = adv7393_write(client, 0x07, TR0MODE | TR0RST);
-//                i = adv7393_write(client, 0x07, TR0MODE);
-//                i = adv7393_read(client, 0x12);
-//                printk(KERN_INFO "%s_attach: rev. %d at 0x%02x\n",
-//                        I2C_NAME(client), i & 1, client->addr << 1);
-//
-//        }
-  if (i < 0)
+  drv->i2c_adv7393_client = client;
+
+  if(adv7393_write_block
+      (drv->i2c_adv7393_client, drv->modes[mode].adv7393_i2c_initd,
+       drv->modes[mode].adv7393_i2c_initd_len) < 0)
     {
-      printk (KERN_ERR "%s_attach: init error 0x%x\n", I2C_NAME (client), i);
+      printk(KERN_ERR "%s_attach: init error\n",
+	      I2C_NAME(drv->i2c_adv7393_client));
     }
 
-client_local=client;
 
   return 0;
 }
 
 static int
-adv7393_attach_adapter (struct i2c_adapter *adapter)
+adv7393_attach_adapter(struct i2c_adapter *adapter)
 {
-  printk (KERN_INFO
-	  "adv7393.c: starting probe for adapter %s (0x%x)\n",
-	  I2C_NAME (adapter), adapter->id);
-  return i2c_probe (adapter, &addr_data, &adv7393_detect_client);
+  printk(KERN_INFO
+	  "adv7393.c: starting probe for adapter %s(0x%x)\n",
+	  I2C_NAME(adapter), adapter->id);
+  return i2c_probe(adapter, &addr_data, &adv7393_detect_client);
 }
 
 static int
-adv7393_detach_client (struct i2c_client *client)
+adv7393_detach_client(struct i2c_client *client)
 {
-  struct adv7393 *encoder = i2c_get_clientdata (client);
+
   int err;
 
-  err = i2c_detach_client (client);
-  if (err)
+  err = i2c_detach_client(client);
+  if(err)
     {
       return err;
     }
-  kfree (encoder);
-  kfree (client);
+
+  kfree(client);
 
   return 0;
 }
@@ -609,51 +464,51 @@ static struct i2c_driver i2c_driver_adv7393 = {
 
   .attach_adapter = adv7393_attach_adapter,
   .detach_client = adv7393_detach_client,
-  .command = adv7393_command,
 };
 
 
 static int
-adv7393_mode (unsigned short mode)
+adv7393_mode(u16 mode)
 {
-
-  switch (mode) {
-
-	case POWER_ON:
-		adv7393_write (client_local, 0x00, 0x1E); /* ADV7393 Sleep mode OFF */
-		break;
-	case POWER_DOWN:
-		adv7393_write (client_local, 0x00, 0x1F); /* ADV7393 Sleep mode ON */
-		break;		
-	case BLANK_OFF:
-		adv7393_write (client_local, 0x82, 0xCB); /*Pixel Data Valid*/
-		break;
-	case BLANK_ON:
-			/* Turn off panel */
-  		adv7393_write (client_local, 0x82, 0x8B); /*Pixel Data Invalid*/
-		break;
-	default:
-		return -EINVAL;
-		break;
-  }
+  switch(mode)
+   {
+   case POWER_ON:
+      adv7393_write(drv->i2c_adv7393_client, 0x00, 0x1E);	/* ADV7393 Sleep mode OFF */
+      break;
+    case POWER_DOWN:
+      adv7393_write(drv->i2c_adv7393_client, 0x00, 0x1F);	/* ADV7393 Sleep mode ON */
+      break;
+    case BLANK_OFF:
+      adv7393_write(drv->i2c_adv7393_client, 0x82, 0xCB);	/*Pixel Data Valid */
+      break;
+    case BLANK_ON:
+      adv7393_write(drv->i2c_adv7393_client, 0x82, 0x8B);	/*Pixel Data Invalid */
+      break;
+    default:
+      return -EINVAL;
+      break;
+   }
   return 0;
 }
 
 
 static irqreturn_t
-ppi_irq_error (int irq, void *dev_id, struct pt_regs *regs)
+ppi_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 {
 
-//   printk(KERN_ERR "PPI Status = 0x%X \n", *pPPI_STATUS);
+  struct adv7393fb_device *fbdev =(struct adv7393fb_device *) dev_id;
+  
+  u16 status = *pPPI_STATUS;
 
-  if (*pPPI_STATUS)
+  DPRINTK(KERN_ERR "PPI Status = 0x%X \n", status);
+
+  if(status)
     {
-
-      bfin_disable_dma ();	/* TODO: Check Sequence */
-      bfin_disable_ppi ();
-      *pPPI_STATUS = 0xFFFF;
-      bfin_config_dma (rgb_buffer);
-      bfin_enable_ppi ();
+      bfin_disable_dma();	/* TODO: Check Sequence */
+      bfin_disable_ppi();
+      CLEAR_PPI_STATUS();
+      bfin_config_dma(fbdev);
+      bfin_enable_ppi();
     }
 
   return IRQ_HANDLED;
@@ -661,263 +516,384 @@ ppi_irq_error (int irq, void *dev_id, struct pt_regs *regs)
 }
 
 
-static int proc_output(char *buf)
+static int
+proc_output(char *buf)
 {
-	char *p;
+  char *p;
 
-	p = buf;
+  p = buf;
+  p += sprintf(p,
+		"Usage:\necho 0x[REG][Value] > adv7393\nexample: echo 0x1234 >\
+		 adv7393\nwrites 0x34 into Register 0x12\n");
 
-	p += sprintf(p,
-		     "Usage:\necho 0x[REG][Value] > adv7393\nexample: echo 0x1234 > adv7393\nwrites 0x34 into Register 0x12\n");
-
-	return p - buf;
+  return p - buf;
 }
 
-static int adv7393_read_proc(char *page, char **start, off_t off,
-			      int count, int *eof, void *data)
+static int
+adv7393_read_proc(char *page, char **start, off_t off,
+		   int count, int *eof, void *data)
 {
-	int len;
+  int len;
 
-	len = proc_output(page);
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-	return len;
+  len = proc_output(page);
+  if(len <= off + count)
+    *eof = 1;
+  *start = page + off;
+  len -= off;
+  if(len > count)
+    len = count;
+  if(len < 0)
+    len = 0;
+  return len;
 
 }
 
-static int adv7393_write_proc (struct file *file, const char __user *buffer, 
-		      unsigned long count, void *data) 
+static int
+adv7393_write_proc(struct file *file, const char __user * buffer,
+		    unsigned long count, void *data)
 {
-	char line[8];
-	unsigned int val;
- 
-	copy_from_user(line, buffer, count);
-	val = simple_strtoul( line, NULL, 0 );
-	adv7393_write(client_local, val>>8, val&0xff);
+  char line[8];
+  unsigned int val;
 
- return count;
+  copy_from_user(line, buffer, count);
+  val = simple_strtoul(line, NULL, 0);
+  adv7393_write(drv->i2c_adv7393_client, val >> 8, val & 0xff);
+
+  return count;
 }
 
 int __init
-bfin_adv7393_fb_init (void)
+bfin_adv7393_fb_init(void)
 {
   int ret = 0;
   struct proc_dir_entry *entry;
-  
-  printk (KERN_NOTICE "bfin_adv7393_fb: initializing:\n");
+  int num_modes = ARRAY_SIZE(known_modes);
 
-  rgb_buffer =
-    dma_alloc_coherent (NULL, RGB_PHYS_SIZE, &dma_handle, GFP_KERNEL);
+  struct adv7393fb_device *fbdev = NULL;
 
-  if (NULL == rgb_buffer)
+  if(mem > 2)
     {
-      printk (KERN_ERR "FB: couldn't allocate dma buffer.\n");
+      printk(KERN_ERR
+	      "\n bfin_adv7393_fb: mem out of allowed range [1;2]\n");
+      return -EINVAL;
+    }
+
+  if(mode > num_modes)
+    {
+      printk(KERN_ERR "Mode %d: not supported", mode);
+      return -EFAULT;
+    }
+
+
+  if(!(fbdev = kzalloc(sizeof(struct adv7393fb_device), GFP_KERNEL)))
+    {
+      printk(KERN_ERR "fail to allocate device private record");
       return -ENOMEM;
     }
 
-  memset (rgb_buffer, 0, RGB_PHYS_SIZE);
+  drv = fbdev;
 
-  bfin_adv7393_fb.screen_base = (void *) rgb_buffer;
-  bfin_adv7393_fb_fix.smem_start = (int) rgb_buffer;
-  if (!bfin_adv7393_fb.screen_base)
+  fbdev->modes = known_modes;
+
+  printk(KERN_NOTICE "\nbfin_adv7393_fb: initializing: %s \n",
+	  fbdev->modes[mode].name);
+
+  fbdev->fb_len =
+    mem * fbdev->modes[mode].xres * fbdev->modes[mode].xres *
+    (fbdev->modes[mode].bpp / 8);
+
+  fbdev->line_len = fbdev->modes[mode].xres * (fbdev->modes[mode].bpp / 8);
+
+  fbdev->fb_mem =
+    dma_alloc_coherent(NULL, fbdev->fb_len, &fbdev->dma_handle, GFP_KERNEL);
+
+  if(NULL == fbdev->fb_mem)
     {
-      printk (KERN_ERR "bfin_adv7393_fb: unable to map device\n");
+      printk (KERN_ERR "FB: couldn't allocate dma buffer (%d bytes) \n",
+	      fbdev->fb_len);
       ret = -ENOMEM;
+      goto out_5;
     }
+
+  memset(fbdev->fb_mem, 0, fbdev->fb_len);
+
+  fbdev->info.screen_base = (void *) fbdev->fb_mem;
+  bfin_adv7393_fb_fix.smem_start = (int) fbdev->fb_mem;
+
+  bfin_adv7393_fb_fix.smem_len = fbdev->fb_len;
+  bfin_adv7393_fb_fix.line_length = fbdev->line_len;
+
+  if(mem > 1)
+    bfin_adv7393_fb_fix.ypanstep = 1;
+
   bfin_adv7393_fb_defined.red.length = 5;
   bfin_adv7393_fb_defined.green.length = 6;
   bfin_adv7393_fb_defined.blue.length = 5;
 
-  bfin_adv7393_fb.fbops = &bfin_adv7393_fb_ops;
-  bfin_adv7393_fb.var = bfin_adv7393_fb_defined;
-  /* our physical memory is dynamically allocated */
-  bfin_adv7393_fb_fix.smem_start = (int) rgb_buffer;
-  bfin_adv7393_fb.fix = bfin_adv7393_fb_fix;
-  bfin_adv7393_fb.par = &bfin_par;
-  bfin_adv7393_fb.flags = FBINFO_DEFAULT;
+  bfin_adv7393_fb_defined.xres = fbdev->modes[mode].xres;
+  bfin_adv7393_fb_defined.yres = fbdev->modes[mode].yres;
+  bfin_adv7393_fb_defined.xres_virtual = fbdev->modes[mode].xres;
+  bfin_adv7393_fb_defined.yres_virtual = mem * fbdev->modes[mode].yres;
+  bfin_adv7393_fb_defined.bits_per_pixel = fbdev->modes[mode].bpp;
 
-  if (register_framebuffer (&bfin_adv7393_fb) < 0)
-    {
-      printk (KERN_ERR "bfin_adv7393_fb: unable to register framebuffer\n");
-      ret = -EINVAL;
-    }
-  printk (KERN_INFO "fb%d: %s frame buffer device\n",
-	  bfin_adv7393_fb.node, bfin_adv7393_fb.fix.id);
-  printk (KERN_INFO "fb memory address : 0x%p\n", rgb_buffer);
-  i2c_add_driver (&i2c_driver_adv7393);
+  fbdev->info.fbops = &bfin_adv7393_fb_ops;
+  fbdev->info.var = bfin_adv7393_fb_defined;
+  fbdev->info.fix = bfin_adv7393_fb_fix;
+  fbdev->info.par = &bfin_par;
+  fbdev->info.flags = FBINFO_DEFAULT;
 
-  if (request_dma (CH_PPI, "BF5xx_PPI_DMA") < 0)
+  if(request_dma(CH_PPI, "BF5xx_PPI_DMA") < 0)
     {
-      printk (KERN_ERR "bfin_adv7393_fb: unable to request PPI DMA\n");
-      return -EFAULT;
+      printk(KERN_ERR "\n bfin_adv7393_fb: unable to request PPI DMA\n");
+      ret = -EFAULT;
+      goto out_4;
     }
 
-//  *pDMA_TCPER = 0x0050;
+  if(request_irq(IRQ_PPI_ERROR,(void *) ppi_irq_error, SA_INTERRUPT,
+		   "PPI ERROR", fbdev) < 0)
+    {
+      printk(KERN_ERR
+	      "\n bfin_adv7393_fb: unable to request PPI ERROR IRQ\n");
+      ret = -EFAULT;
+      goto out_3;
+    }
 
-  request_irq (IRQ_PPI_ERROR, (void *) ppi_irq_error, SA_INTERRUPT,
-	       "PPI ERROR", NULL);
-  disable_irq (IRQ_PPI_ERROR);
+  disable_irq(IRQ_PPI_ERROR);
 
-
-	if ((entry = create_proc_entry("driver/adv7393", 0, NULL)) == NULL) {
-		return -ENOMEM;
+  if(i2c_add_driver(&i2c_driver_adv7393))
+  	{
+  	printk(KERN_ERR "I2C Driver Initialisation failed\n");
+    ret = -EFAULT;
+    goto out_2;	
 	}
 
-	entry->read_proc = adv7393_read_proc;
-	entry->write_proc = adv7393_write_proc;
-	entry->data = NULL;
+  if(register_framebuffer(&fbdev->info) < 0)
+    {
+      printk(KERN_ERR "bfin_adv7393_fb: unable to register framebuffer\n");
+      ret = -EFAULT;
+      goto out_1;
+    }
 
+  printk(KERN_INFO "fb%d: %s frame buffer device\n",
+	  fbdev->info.node, fbdev->info.fix.id);
+  printk(KERN_INFO "fb memory address : 0x%p\n", fbdev->fb_mem);
+
+  if((entry = create_proc_entry("driver/adv7393", 0, NULL)) == NULL)
+    {
+      printk(KERN_ERR "bfin_adv7393_fb: unable to create /proc entry\n");
+      ret = -EFAULT;
+      goto out_0;
+    }
+
+  entry->read_proc = adv7393_read_proc;
+  entry->write_proc = adv7393_write_proc;
+  entry->data = NULL;
+
+  return 0;
+
+out_0:
+  	unregister_framebuffer(&fbdev->info);
+out_1:
+	i2c_del_driver(&i2c_driver_adv7393);
+out_2:
+	free_irq(IRQ_PPI_ERROR, fbdev);
+out_3:
+	free_dma(CH_PPI);
+out_4:
+	dma_free_coherent(NULL, fbdev->fb_len, fbdev->fb_mem, fbdev->dma_handle);
+out_5:
+	kfree(fbdev);
 
   return ret;
 }
 
 
-
 static int
-bfin_adv7393_fb_open (struct fb_info *info, int user)
+bfin_adv7393_fb_open(struct fb_info *info, int user)
 {
+  struct adv7393fb_device *fbdev = to_adv7393fb_device(info);
 
-  bfin_adv7393_fb.screen_base = (void *) rgb_buffer;
-  bfin_adv7393_fb_fix.smem_start = (int) rgb_buffer;
-  if (!bfin_adv7393_fb.screen_base)
+  fbdev->info.screen_base = (void *) fbdev->fb_mem;
+  bfin_adv7393_fb_fix.smem_start = (int) fbdev->fb_mem;
+  if (!fbdev->info.screen_base)
     {
-      printk (KERN_ERR "bfin_adv7393_fb: unable to map device\n");
+      printk(KERN_ERR "bfin_adv7393_fb: unable to map device\n");
       return -ENOMEM;
     }
 
-  dma_desc_list (BUILD);
-  enable_irq (IRQ_PPI_ERROR);
-  bfin_config_ppi ();
-  bfin_config_dma (rgb_buffer);
-  bfin_enable_ppi ();
+  dma_desc_list(fbdev, BUILD);
+  enable_irq(IRQ_PPI_ERROR);
+  bfin_config_ppi(fbdev);
+  bfin_config_dma(fbdev);
+  bfin_enable_ppi();
   adv7393_mode(BLANK_OFF);
 
   return 0;
 }
 
 static int
-bfin_adv7393_fb_release (struct fb_info *info, int user)
+bfin_adv7393_fb_release(struct fb_info *info, int user)
 {
 
+  struct adv7393fb_device *fbdev = to_adv7393fb_device(info);
+
   adv7393_mode(BLANK_ON);
-  disable_irq (IRQ_PPI_ERROR);
-  bfin_disable_dma ();
-  bfin_disable_ppi ();
-  dma_desc_list (DESTRUCT);
+  disable_irq(IRQ_PPI_ERROR);
+  bfin_disable_dma();
+  bfin_disable_ppi();
+  dma_desc_list(fbdev, DESTRUCT);
 
   return 0;
 }
 
 static int
-bfin_adv7393_fb_check_var (struct fb_var_screeninfo *var,
+bfin_adv7393_fb_check_var(struct fb_var_screeninfo *var,
 			   struct fb_info *info)
 {
 
-	if (var->bits_per_pixel != 16) {
-		DPRINTK(KERN_INFO ": depth not supported: %u BPP\n", var->bits_per_pixel);
-		return -EINVAL;
-	}
+  if(var->bits_per_pixel != 16)
+    {
+      DPRINTK(KERN_INFO ": depth not supported: %u BPP\n",
+	       var->bits_per_pixel);
+      return -EINVAL;
+    }
 
-    if (info->var.xres != var->xres || info->var.yres != var->yres ||
-        info->var.xres_virtual != var->xres_virtual ||
-        info->var.yres_virtual != var->yres_virtual) {
-		DPRINTK(KERN_INFO ": Resolution not supported: X%u x Y%u \n",var->xres,var->yres );
-		return -EINVAL;
-	}
+  if(info->var.xres != var->xres || info->var.yres != var->yres ||
+      info->var.xres_virtual != var->xres_virtual ||
+      info->var.yres_virtual != var->yres_virtual)
+    {
+      DPRINTK(KERN_INFO ": Resolution not supported: X%u x Y%u \n",
+	       var->xres, var->yres);
+      return -EINVAL;
+    }
 
-	/*
-	 *  Memory limit
-	 */
+  /*
+   *  Memory limit
+   */
 
-    if ((info->fix.line_length * var->yres_virtual) > info->fix.smem_len) {
-		DPRINTK(KERN_INFO ": Memory Limit requested yres_virtual = %u\n", var->yres_virtual);
-        return -ENOMEM; 
+  if((info->fix.line_length * var->yres_virtual) > info->fix.smem_len)
+    {
+      DPRINTK(KERN_INFO ": Memory Limit requested yres_virtual = %u\n",
+	       var->yres_virtual);
+      return -ENOMEM;
     }
 
   return 0;
 }
 
 static int
-bfin_adv7393_fb_set_par (struct fb_info *info)
+bfin_adv7393_fb_set_par(struct fb_info *info)
 {
-  printk (KERN_INFO "bfin_adv7393_fb_set_par called not implemented\n");
+  printk(KERN_INFO "bfin_adv7393_fb_set_par called not implemented\n");
   return -EINVAL;
 }
 
 
 static int
-bfin_adv7393_fb_pan_display (struct fb_var_screeninfo *var,
+bfin_adv7393_fb_pan_display(struct fb_var_screeninfo *var,
 			     struct fb_info *info)
 {
-  printk (KERN_INFO "bfin_adv7393_fb_pan_display called ... not implemented\n");
-  return -EINVAL;
+  int dy;
+  u32 dmaaddr;
+  struct adv7393fb_device *fbdev = to_adv7393fb_device(info);
+
+
+  if(!var || !info)
+    {
+      return -EINVAL;
+    }
+
+  if(var->xoffset - info->var.xoffset)
+    {
+      /* No support for X panning for now! */
+      return -EINVAL;
+    }
+  dy = var->yoffset - info->var.yoffset;
+
+  if(dy)
+    {
+
+      DPRINTK("Panning screen of %d lines\n", dy);
+
+      dmaaddr = fbdev->av1->start_addr;
+      dmaaddr += (info->fix.line_length * dy);
+      /* TODO: Wait for current frame to finished */
+
+      fbdev->av1->start_addr = (unsigned long) dmaaddr;
+      fbdev->av2->start_addr = (unsigned long) dmaaddr + fbdev->line_len;
+
+    }
+
+  return 0;
+
 }
 
 /* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
 static int
-bfin_adv7393_fb_blank (int blank, struct fb_info *info)
+bfin_adv7393_fb_blank(int blank, struct fb_info *info)
 {
- 
-  switch (blank) {
 
-	case VESA_NO_BLANKING:
-			/* Turn on panel */
- 		adv7393_mode(BLANK_OFF);
-		break;
+  switch(blank)
+    {
 
-	case VESA_VSYNC_SUSPEND:
-	case VESA_HSYNC_SUSPEND:
-	case VESA_POWERDOWN:
-			/* Turn off panel */
- 		adv7393_mode(BLANK_ON);
-		break;
-	
-	default:
-		return -EINVAL;
-		break;
-  }
-	return 0;  
+    case VESA_NO_BLANKING:
+      /* Turn on panel */
+      adv7393_mode(BLANK_OFF);
+      break;
+
+    case VESA_VSYNC_SUSPEND:
+    case VESA_HSYNC_SUSPEND:
+    case VESA_POWERDOWN:
+      /* Turn off panel */
+      adv7393_mode(BLANK_ON);
+      break;
+
+    default:
+      return -EINVAL;
+      break;
+    }
+  return 0;
 }
 
 static void
-bfin_adv7393_fb_fillrect (struct fb_info *info,
+bfin_adv7393_fb_fillrect(struct fb_info *info,
 			  const struct fb_fillrect *rect)
 {
-  printk (KERN_INFO "bfin_adv7393_fb_fillrect called ... not implemented\n");
+  printk(KERN_INFO "bfin_adv7393_fb_fillrect called ... not implemented\n");
 }
 
 static void
-bfin_adv7393_fb_imageblit (struct fb_info *info, const struct fb_image *image)
+bfin_adv7393_fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-  printk (KERN_INFO "bfin_adv7393_fb_imageblit called ... not implemented\n");
+  printk(KERN_INFO "bfin_adv7393_fb_imageblit called ... not implemented\n");
 }
 
 static void __exit
-bfin_adv7393_fb_exit (void)
+bfin_adv7393_fb_exit(void)
 {
-
   adv7393_mode(POWER_DOWN);
 
-  if (rgb_buffer)
-    dma_free_coherent (NULL, RGB_PHYS_SIZE, rgb_buffer, dma_handle);
-  free_irq (IRQ_PPI_ERROR, NULL);
-  free_dma (CH_PPI);
-
-//  *pDMA_TCPER = 0x0000;
-
-  unregister_framebuffer (&bfin_adv7393_fb);
-
-  i2c_del_driver (&i2c_driver_adv7393);
+  if(drv->fb_mem)
+    dma_free_coherent(NULL, drv->fb_len, drv->fb_mem, drv->dma_handle);
+  free_dma(CH_PPI);
+  free_irq(IRQ_PPI_ERROR, drv);
+  unregister_framebuffer(&drv->info);
+  i2c_del_driver(&i2c_driver_adv7393);
   remove_proc_entry("driver/adv7393", NULL);
-
+  kfree(drv);
 }
 
-MODULE_LICENSE ("GPL");
-module_init (bfin_adv7393_fb_init);
-module_exit (bfin_adv7393_fb_exit);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_DESCRIPTION("Frame buffer driver for ADV7393/2 Video Encoder");
+
+module_param(mode, int, 0);
+MODULE_PARM_DESC(mode, "Video Mode (0=NTSC,1=PAL,2=NTSC 640x480,3=PAL 640x480)");
+
+module_param(mem, int, 0);
+MODULE_PARM_DESC(mem,
+		  "Size of frame buffer memory 1=Single 2=Double Size" 
+		  "(allows y-panning / frame stacking)");
+		  
+module_init(bfin_adv7393_fb_init);
+module_exit(bfin_adv7393_fb_exit);
