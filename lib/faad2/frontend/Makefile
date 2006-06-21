@@ -11,7 +11,7 @@ FAAD_SOURCES = \
 	audio.c \
 	main.c \
 	../common/faad/getopt.c
-	
+
 CSRC = $(FAAD_SOURCES)
 DEFS = -DHAVE_CONFIG_H
 
@@ -38,5 +38,4 @@ romfs:
 	$(ROMFSINST) /bin/$(EXEC)
 
 clean:
-	-rm -f $(EXEC) *.gdb *.elf *.elf2flt *.o
-
+	-rm -f $(EXEC) *.gdb *.elf *.elf2flt *.o ../common/faad/getopt.o
