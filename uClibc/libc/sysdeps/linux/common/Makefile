@@ -47,7 +47,7 @@ CSRC=	__rt_sigtimedwait.c __socketcall.c __syscall_fcntl.c \
 	sethostname.c setitimer.c setpgid.c setpgrp.c setpriority.c \
 	setregid.c setresgid.c setresuid.c setreuid.c setrlimit.c \
 	setrlimit64.c setsid.c settimeofday.c setuid.c sigaltstack.c \
-	sigpending.c sigprocmask.c sigsuspend.c stat.c stat64.c statfs.c \
+	sigpending.c sigprocmask.c sigqueue.c sigsuspend.c stat.c stat64.c statfs.c \
 	stime.c swapoff.c swapon.c symlink.c sync.c sysctl.c sysfs.c \
 	sysinfo.c time.c times.c truncate.c truncate64.c ulimit.c \
 	umask.c umount.c umount2.c uname.c unlink.c uselib.c ustat.c \
