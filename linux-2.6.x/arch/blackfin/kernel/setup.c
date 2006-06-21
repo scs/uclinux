@@ -53,9 +53,13 @@ unsigned long memory_mtd_end;
 unsigned long memory_mtd_start;
 unsigned long _ebss;
 unsigned long mtd_phys, mtd_size;
+unsigned long physical_mem_end;
+unsigned long reserved_mem_dcache_on;
+unsigned long reserved_mem_icache_on;
 
 EXPORT_SYMBOL(memory_start);
 EXPORT_SYMBOL(memory_end);
+EXPORT_SYMBOL(physical_mem_end);
 
 char command_line[COMMAND_LINE_SIZE];
 
@@ -130,9 +134,33 @@ static __init void early_parsemem(char *cmdline_p)
 	char **to_p = NULL;
 	unsigned int memsize;
 	for (;;) {
-		if (*to == 'm' && *(to + 1) == 'e' && *(to + 2) == 'm') {
+		if (*to == 'm' && *(to + 1) == 'e' && *(to + 2) == 'm' &&
+		    *(to - 1) != 'x') {
 			memsize = simple_strtoul(to + 4, to_p, 10);
 			_ramend = memsize * 1024 * 1024;
+		}
+		if (to >= &cmdline_p[COMMAND_LINE_SIZE - 1]) {
+			break;
+		}
+		to++;
+	}
+
+	to = cmdline_p;
+	to_p = NULL;
+	for (;;) {
+		if (*to == 'm' && *(to + 1) == 'a' && *(to + 2) == 'x' &&\
+		    *(to + 3) == 'm' && *(to + 4) == 'e' && *(to + 5) == 'm') {
+			memsize = simple_strtoul(to + 7, to_p, 10);
+			physical_mem_end = memsize * 1024 * 1024;
+
+			if (*(to + 9) == '$' || *(to + 10) == '$' || *(to + 11) == '$') {
+                        /* the reserved memory is cache on "maxmem=xxxM$"*/
+				reserved_mem_dcache_on = 1;
+			}
+			if (*(to + 9) == '#' || *(to + 10) == '#' || *(to + 11) == '#') {
+                        /* the reserved memory is cache on "maxmem=xxxM$"*/
+				reserved_mem_icache_on = 1;
+			}
 		}
 		if (to >= &cmdline_p[COMMAND_LINE_SIZE - 1]) {
 			break;
@@ -167,6 +195,8 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = &command_line[0];
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE - 1] = 0;
+
+	physical_mem_end = _ramend;   /* save the mem size of kernel config */
 
 	early_parsemem(&command_line[0]);
 
@@ -343,6 +373,7 @@ static void __init generate_cpl_tables(void)
 {
 
 	unsigned short pos;
+	int unalign_ram_tmp, physical_mem_aligned_end;
 
 #ifdef CONFIG_BLKFIN_DCACHE
 
@@ -378,13 +409,45 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_1M, _ramend,
 			    SIZE_1M, SDRAM_DNON_CHBL);
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
-			    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-			    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-				_ramend - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
+
+	unalign_ram_tmp = ((_ramend / 1024 / 1024) % 4) * 1024 * 1024;
+	if (unalign_ram_tmp == 0)
+		physical_mem_aligned_end = _ramend;
+	else
+		physical_mem_aligned_end = (SIZE_4M - unalign_ram_tmp) + _ramend;
+
+	if (unalign_ram_tmp == 0) {
+		pos =
+			fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
+					_ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+		pos =
+			fill_cpl_tables(dcplb_table, pos, SIZE_4M,
+					min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
+					    _ramend - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
+	} else {
+		pos =
+			fill_cpl_tables(dcplb_table, pos, _ramend - unalign_ram_tmp,
+					_ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+		pos =
+			fill_cpl_tables(dcplb_table, pos, SIZE_4M,
+					min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
+					    _ramend - unalign_ram_tmp), SIZE_4M, SDRAM_DGENERIC);
+	}
+
+	if (physical_mem_end > _ramend) {
+		if (reserved_mem_dcache_on) {
+			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_DGENERIC);
+			pos = fill_cpl_tables(dcplb_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_DGENERIC);
+		} else {
+			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_DNON_CHBL);
+			pos = fill_cpl_tables(dcplb_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_DNON_CHBL);
+		}
+	}
+
 	while (pos < 32)
 		dcplb_table[pos++] = 0;
 
@@ -395,16 +458,42 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - SIZE_4M,
-			    SIZE_4M, SDRAM_DGENERIC);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_4M,
-			    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+
+	if (unalign_ram_tmp == 0) {
+		pos =
+		    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - SIZE_4M,
+				    SIZE_4M, SDRAM_DGENERIC);
+		pos =
+		    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_4M,
+				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+	} else {
+		pos =
+		    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - unalign_ram_tmp,
+				    SIZE_4M, SDRAM_DGENERIC);
+		pos =
+		    fill_cpl_tables(dpdt_table, pos, _ramend - unalign_ram_tmp,
+				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+	}
 /*TODO: Make mtd none cachable in L1 */
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_1M, _ramend,
 			    SIZE_1M, SDRAM_DNON_CHBL);
+
+	if (physical_mem_end > _ramend) {
+		if (reserved_mem_dcache_on) {
+			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_DGENERIC);
+			pos = fill_cpl_tables(dpdt_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_DGENERIC);
+		} else {
+			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_DNON_CHBL);
+			pos = fill_cpl_tables(dpdt_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_DNON_CHBL);
+		}
+	}
+
+
 #if defined (CONFIG_BF561)
 # if defined (CONFIG_BFIN561_EZKIT)
 	pos =
@@ -454,8 +543,26 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, _ramend),
+			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, _ramend - unalign_ram_tmp),
 			    SIZE_4M, SDRAM_IGENERIC);
+	pos =
+	    fill_cpl_tables(icplb_table, pos, _ramend - unalign_ram_tmp, _ramend,
+			    SIZE_1M, SDRAM_IGENERIC);
+
+	if (physical_mem_end > _ramend) {
+		if (reserved_mem_icache_on) {
+			pos = fill_cpl_tables(icplb_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_IGENERIC);
+			pos = fill_cpl_tables(icplb_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_IGENERIC);
+		} else {
+			pos = fill_cpl_tables(icplb_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_INON_CHBL);
+			pos = fill_cpl_tables(icplb_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_INON_CHBL);
+		}
+	}
+
 	while (pos < 32)
 		icplb_table[pos++] = 0;
 
@@ -468,8 +575,26 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(ipdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_IKERNEL);
 	pos =
-	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, _ramend,
+	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, _ramend - unalign_ram_tmp,
 			    SIZE_4M, SDRAM_IGENERIC);
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, _ramend - unalign_ram_tmp, _ramend,
+			    SIZE_1M, SDRAM_IGENERIC);
+
+	if (physical_mem_end > _ramend) {
+		if (reserved_mem_icache_on) {
+			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_IGENERIC);
+			pos = fill_cpl_tables(ipdt_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_IGENERIC);
+		} else {
+			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
+					      physical_mem_aligned_end, SIZE_1M, SDRAM_INON_CHBL);
+			pos = fill_cpl_tables(ipdt_table, pos, physical_mem_aligned_end,
+					      physical_mem_end, SIZE_4M, SDRAM_INON_CHBL);
+		}
+	}
+
 #if defined (CONFIG_BF561)
 # if defined (CONFIG_BFIN561_EZKIT)
 	pos =

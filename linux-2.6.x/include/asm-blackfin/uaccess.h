@@ -38,10 +38,12 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 #ifdef CONFIG_NO_ACCESS_CHECK
 	return 1;
 #else
-	extern unsigned long memory_end;
+	extern unsigned long memory_end, physical_mem_end;
 	if (segment_eq(get_fs(),KERNEL_DS))
 		return 1;
-	if (addr >= memory_start && addr + size <= memory_end)
+	if (addr >= memory_start && (addr + size) <= memory_end)
+		return 1;
+	if (addr >= memory_mtd_end && (addr + size) <= physical_mem_end)
 		return 1;
 	if (addr >= (unsigned long)__init_begin &&
 	    addr + size <= (unsigned long)__init_end)
