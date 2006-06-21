@@ -1698,9 +1698,9 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 	info->event |= 1 << RS_EVENT_READ;
 	schedule_work(&info->tqueue);
 	
+#ifdef CONFIG_BFIN_UART_CTSRTS
 	count = RX_YCOUNT - get_dma_curr_ycount(info->rx_DMA_channel)
 		- (info->recv_tail/TTY_FLIPBUF_SIZE + 1);
-#ifdef CONFIG_BFIN_UART_CTSRTS
 	if(count<=0 || count>=RX_YCOUNT-1)
 		bfin_setsignal(info, 0);
 #endif
