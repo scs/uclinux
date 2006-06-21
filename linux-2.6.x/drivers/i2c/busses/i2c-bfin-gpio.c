@@ -42,11 +42,11 @@ static void hhbf_setsda(void *data, int state)
 #else
     if (state) {
 	*pFIO_DIR    &= ~HHBF_I2C_SDATA;
-	*pFIO_INEN   |=  HHBF_I2C_SDATA;   //
+	*pFIO_INEN   |=  HHBF_I2C_SDATA;
     } else {
-	*pFIO_INEN   &= ~HHBF_I2C_SDATA;   //
+	*pFIO_INEN   &= ~HHBF_I2C_SDATA;
 	*pFIO_DIR    |=  HHBF_I2C_SDATA;
-	*pFIO_FLAG_D &= ~HHBF_I2C_SDATA;
+	*pFIO_FLAG_C  =  HHBF_I2C_SDATA;
     }
 #endif	/* comment by mhfan */
 }
@@ -54,9 +54,9 @@ static void hhbf_setsda(void *data, int state)
 static void hhbf_setscl(void *data, int state)
 {
     if (state)
-	*pFIO_FLAG_D |=  HHBF_I2C_SCLK;
+	*pFIO_FLAG_S =  HHBF_I2C_SCLK;
     else
-	*pFIO_FLAG_D &= ~HHBF_I2C_SCLK;
+	*pFIO_FLAG_C =  HHBF_I2C_SCLK;
 }
 
 static int hhbf_getsda(void *data)
@@ -78,8 +78,8 @@ static struct i2c_algo_bit_data bit_hhbf_data = {
 #if 0 	/* comment by mhfan */
     .getscl  = hhbf_getscl,
 #endif	/* comment by mhfan */
-    .udelay  = 40,
-    .mdelay  = 0,
+    .udelay  = CONFIG_I2C_BFIN_GPIO_CYCLE_DELAY,
+    .mdelay  = CONFIG_I2C_BFIN_GPIO_CYCLE_DELAY,
     .timeout = HZ
 };
 
@@ -101,7 +101,7 @@ static int __init i2c_hhbf_init(void)
     *pFIO_DIR      |=  HHBF_I2C_SDATA;
     *pFIO_FLAG_D   |=  HHBF_I2C_SDATA;
 #endif	/* comment by mhfan */
-    *pFIO_FLAG_D   |=  HHBF_I2C_SCLK;		// Set SCLK high
+    *pFIO_FLAG_S   =   HHBF_I2C_SCLK;		// Set SCLK high
 
     return i2c_bit_add_bus(&hhbf_ops);
 }
