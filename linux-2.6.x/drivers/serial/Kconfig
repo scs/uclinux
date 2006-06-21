@@ -949,7 +949,7 @@ config SERIAL_BLACKFIN_PIO
 endchoice
 
 config BFIN_UART_CTSRTS
-	bool "hardware flow control"
+	bool "Emulate hardware flow control"
 	depends on SERIAL_BLACKFIN
 	default n
 	help
