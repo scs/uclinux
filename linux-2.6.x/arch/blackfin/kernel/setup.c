@@ -196,8 +196,6 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE - 1] = 0;
 
-	physical_mem_end = _ramend;   /* save the mem size of kernel config */
-
 	early_parsemem(&command_line[0]);
 
 	memory_end = _ramend;	/* by now the stack is part of the init task */
