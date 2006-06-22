@@ -106,16 +106,16 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 	printk(KERN_DEBUG "orinoco_wlan_blackfin: CIS: ");
 	for (i = 0; i < 16; i+=2) {
-		printk(KERN_DEBUG "%02X:", (attr_mem[i]));
+		printk("%02X:", (attr_mem[i]));
 		/* Verify whether PC card is present */
 
 		if (attr_mem[i] != cis_magic[i>>1]) {
-			printk(KERN_ERR "\norinoco_wlan_blackfin: The CIS value of Prism2 PC card is invalid.\n");
+			printk("\n" KERN_ERR "orinoco_wlan_blackfin: The CIS value of Prism2 PC card is invalid.\n");
 			err = -EIO;
 			goto fail;
 		}
 	}
-	printk(KERN_DEBUG "\n");
+	printk("\n");
 
 	/* PCMCIA COR is the first byte following CIS: this write should
 	 * enable I/O mode and select level-triggered interrupts */
