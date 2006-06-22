@@ -85,10 +85,9 @@ static const u8 cis_magic[] = {
 	0x01, 0x03, 0x00, 0x00, 0xff, 0x17, 0x04, 0x67
 };
 
+static struct net_device *sdev;
 
 static int orinoco_wlan_blackfin_init_one(void)
-/* 	struct pci_dev *pdev, */
-/* 	const struct pci_device_id *ent) */
 {
 	int err = 0;
  	u8 *attr_mem = NULL;
@@ -107,7 +106,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 	printk(KERN_DEBUG "orinoco_wlan_blackfin: CIS: ");
 	for (i = 0; i < 16; i+=2) {
-		printk("%02X:", (attr_mem[i]));
+		printk(KERN_DEBUG "%02X:", (attr_mem[i]));
 		/* Verify whether PC card is present */
 
 		if (attr_mem[i] != cis_magic[i>>1]) {
@@ -116,7 +115,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 			goto fail;
 		}
 	}
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 
 	/* PCMCIA COR is the first byte following CIS: this write should
 	 * enable I/O mode and select level-triggered interrupts */
@@ -159,11 +158,9 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 	hermes_struct_init(&(priv->hw), (void __iomem *)dev->base_addr, HERMES_16BIT_REGSPACING);
 
-
 	bfin_gpio_interrupt_setup(dev->irq, BFIN_WLAN_IRQ_PFX, IRQT_LOW);
 
  	err = request_irq(dev->irq, orinoco_interrupt, SA_SHIRQ, dev_info, dev);
-//	err = request_irq(dev->irq, orinoco_interrupt, 0, dev_info, dev); /* not SA_SHIRQ */
 
 	if (err) {
 		printk(KERN_ERR "orinoco_wlan_blackfin: Error allocating IRQ %d.\n", dev->irq);
@@ -175,6 +172,8 @@ static int orinoco_wlan_blackfin_init_one(void)
 	if (err)
 		goto fail;
 	netdev_registered = 1;
+
+	sdev = dev;
 
 	return 0;		/* succeeded */
 
@@ -197,24 +196,8 @@ static int orinoco_wlan_blackfin_init_one(void)
 	if (attr_mem)
 		iounmap(attr_mem);
 
-/* 	pci_disable_device(pdev); */
-
 	return err;
 }
-
-/* static void __devexit orinoco_wlan_blackfin_remove_one(struct pci_dev *pdev) */
-/* { */
-/* 	struct net_device *dev = pci_get_drvdata(pdev); */
-/* 	struct orinoco_private *priv = dev->priv; */
-
-/* 	if (! dev) */
-/* 		BUG(); */
-/* 	unregister_netdev(dev); */
-/* 	if (dev->irq) */
-/* 		free_irq(dev->irq, priv); */
-/* 	kfree(dev); */
-/* 	release_region(pci_resource_start(pdev, 3), pci_resource_len(pdev, 3)); */
-/* } */
 
 static char version[] __initdata = "orinoco_wlan_blackfin.c (Michael Hennerich <hennerich@blackfin.uclinux.org>)";
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
@@ -229,14 +212,24 @@ static int __init orinoco_wlan_blackfin_init(void)
 	return orinoco_wlan_blackfin_init_one();
 }
 
-/* extern void __exit orinoco_wlan_blackfin_exit(void) */
-/* { */
-/* 	current->state = TASK_UNINTERRUPTIBLE; */
-/* 	schedule_timeout(HZ); */
-/* } */
+void __exit orinoco_wlan_blackfin_exit(void)
+{
+	struct net_device *dev = sdev;
+
+	BUG_ON(!dev);
+
+	unregister_netdev(dev);
+
+	if (dev->irq)
+			free_irq(dev->irq, dev);
+
+	kfree(dev->priv);
+
+	release_region(WLAN_BLACKFIN_IO_ADDR, 64);
+}
 
 module_init(orinoco_wlan_blackfin_init);
-/* module_exit(orinoco_wlan_blackfin_exit); */
+module_exit(orinoco_wlan_blackfin_exit);
 
 /*
  * Local variables:
