@@ -196,7 +196,12 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE - 1] = 0;
 
+	physical_mem_end = 0;
+
 	early_parsemem(&command_line[0]);
+
+	if (physical_mem_end == 0)
+		physical_mem_end = _ramend;
 
 	memory_end = _ramend;	/* by now the stack is part of the init task */
 
