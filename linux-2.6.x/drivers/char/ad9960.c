@@ -243,22 +243,22 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
     /* setup PPI */
     *pPPI_CONTROL = 0x780E;
-    *pPPI_COUNT = count -1;
+    *pPPI_COUNT = 2*count -1;
     *pPPI_DELAY = 0;
     /* configure ppi port for DMA read*/
     set_dma_config(CH_PPI, 0x0084);
     set_dma_start_addr(CH_PPI, (u_long)dma_buf);
-    set_dma_x_count(CH_PPI, count);
+    set_dma_x_count(CH_PPI, 2*count);
     set_dma_x_modify(CH_PPI, 2);
 
     DPRINTK("ad9960_write: SETUP DMA : DONE \n");
+
+    enable_dma(CH_PPI);
 
     /* Enable PPI */
     *pPPI_CONTROL |= PORT_EN;
     __builtin_bfin_ssync();
     
-    enable_dma(CH_PPI);
-
     *pPORTFIO_SET |= 0x0100;
     __builtin_bfin_ssync();
 
