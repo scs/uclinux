@@ -440,6 +440,14 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		goto clear_and_return;
 	}
 
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
+		goto clear_and_return;
+	}
+#endif
+
 	if (info->x_char) {	/* Send next char */
 		local_put_char(info, info->x_char);
 		info->x_char = 0;
@@ -448,14 +456,6 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
 		goto clear_and_return;
 	}
-
-#ifdef CONFIG_BFIN_UART_CTSRTS
-	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
-		goto clear_and_return;
-	}
-#endif
 
 	/* Send char */
 	info->tx_xcount = info->xmit_cnt;
@@ -557,7 +557,14 @@ static void transmit_chars(struct bfin_serial *info)
 	struct uart_registers *regs = &(info->regs);
 
 #ifdef CONFIG_BFIN_UART_CTSRTS
+	unsigned long flags = 0;
 	local_irq_save(flags);
+
+	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
+		goto clear_and_return;
+	}
 #endif
 	if (info->x_char) {	/* Send next char */
 		local_put_char(info, info->x_char);
@@ -571,14 +578,6 @@ static void transmit_chars(struct bfin_serial *info)
 		SSYNC;
 		goto clear_and_return;
 	}
-
-#ifdef CONFIG_BFIN_UART_CTSRTS
-	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
-		goto clear_and_return;
-	}
-#endif
 
 	/* Send char */
 	local_put_char(info, info->xmit_buf[info->xmit_tail++]);
@@ -625,14 +624,13 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 			switch (iir & 0x06) {
 			case 0x06:
 				lsr = *(uart_regs->rpUART_LSR);
-#ifdef CONFIG_BFIN_UART_CTSRTS
-				if(lsr&0x2 && lsr&0x1)
-					bfin_setsignal(info, 0);
-#endif
 				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
 				if (*(uart_regs->rpUART_LSR) & DR) {
+#ifdef CONFIG_BFIN_UART_CTSRTS
+					bfin_setsignal(info, 0);
+#endif
 					receive_chars(info, regs);
 				}
 				break;
@@ -1676,7 +1674,7 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	count = RX_YCOUNT - get_dma_curr_ycount(info->rx_DMA_channel)
 		- (info->recv_tail/TTY_FLIPBUF_SIZE + 1);
-	if(count<=0 || count>=RX_YCOUNT-1)
+	if(count==-1 || count>=RX_YCOUNT-1)
 		bfin_setsignal(info, 0);
 #endif
 
