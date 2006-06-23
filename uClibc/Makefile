@@ -514,8 +514,9 @@ ifeq ($(strip $(INSTALL_ELF_SHARED_LIBS)),y)
 	t=`dirname $$t`/../runtime; \
 	echo $$t; \
 	for i in $$t/lib/*so*; do \
-		if [ -f $$i -a ! -h $$i ] ; then \
-			$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+		bn=`basename $$i`; \
+		if [ -f $$i -a ! -h $$i -a $$bn != "lib1.so" -a $$bn != "lib2.so" ] ; then \
+			$(ROMFSINST) -p 755 $$i /lib/$$bn; \
 		fi; \
 	done; \
 	for i in $$t/lib/*so*; do \
