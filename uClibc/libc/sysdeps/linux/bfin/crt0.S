@@ -137,4 +137,9 @@ __start:
 	R0.H = _main;
 	R0.L = _main;
 #endif
+#ifdef __ID_SHARED_LIB__
+	P0 = [P5 + ___uClibc_start_main@GOT];
+	jump (P0)
+#else
 	jump.l	___uClibc_start_main;
+#endif
