@@ -51,6 +51,7 @@ HAVE_DOT_CONFIG=y
 # General Library Settings
 #
 # BUILD_UCLIBC_SHARED_FLAT is not set
+# BUILD_UCLIBC_SEP_DATA is not set
 UCLIBC_CTOR_DTOR=y
 # HAS_NO_THREADS is not set
 UCLIBC_HAS_THREADS=y

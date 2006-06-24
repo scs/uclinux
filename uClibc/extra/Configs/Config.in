@@ -190,6 +190,16 @@ config BUILD_UCLIBC_SHARED_FLAT
 	help
 	  Enable this if you wish to build uClibc as a flat shared library.
 
+config BUILD_UCLIBC_SEP_DATA
+	bool "Build uClibc with -msep-data for XIP"
+	depends TARGET_bfin
+	default n
+	help
+	  Enable this if you wish to build uClibc with -msep-data, which
+	  uses a GOT to access the data section and thus avoids relocations
+	  against the text section.  This can be used for execute-in-place
+	  executables.
+
 config ARCH_HAS_NO_LDSO
 	bool
 	default n

@@ -218,6 +218,10 @@ ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
 	LDPIEFLAG=-shared -Bsymbolic
 	UCLIBC_LDSO=ld.so.1
 	PICFLAG:=-fpic
+else
+ifeq ($(BUILD_UCLIBC_SEP_DATA),y)
+	CPU_CFLAGS-y += -msep-data
+endif
 endif
 endif
 
@@ -332,7 +336,10 @@ ifeq ($(BUILD_UCLIBC_SHARED_FLAT),y)
     export LIBID THREADED_LIBID FLTFLAGS
     SHARED_TARGET = lib/libc
     SHARED_THREADED_TARGET = lib/libc_threaded
-    CFLAGS += -mid-shared-library
+    CFLAGS += -mid-shared-library -mleaf-id-shared-library
+    LIBNAME := libc_shared.a
+    LIBC := $(TOPDIR)libc/$(LIBNAME)
+    DUMMY_LIBNAME := libc.a
   endif
 endif
 

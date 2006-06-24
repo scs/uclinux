@@ -29,12 +29,16 @@ COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(COBJS)
 
-OBJ_LIST=../../obj.misc.internals
+DUMMY_OBJS=dummy.o
 
-all: $(OBJ_LIST) interp.o
+OBJ_LIST=../../obj.misc.internals
+DUMMY_OBJ_LIST=../../dobj.misc.internals
+
+all: $(OBJ_LIST) $(DUMMY_OBJS) interp.o
 
 $(OBJ_LIST): $(OBJS)
 	echo $(patsubst %, misc/internals/%, $(OBJS)) > $(OBJ_LIST)
+	echo $(patsubst %, misc/internals/%, $(DUMMY_OBJS)) > $(DUMMY_OBJ_LIST)
 
 interp.c: Makefile
 	echo "/* Force shared libraries to know about the correct library loader */" > interp.c
@@ -48,7 +52,7 @@ interp.o: interp.c
 	$(CC) $(CFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
-$(COBJS): %.o : %.c
+$(COBJS) $(DUMMY_OBJS): %.o : %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 

@@ -38,6 +38,7 @@ VERSION_SCRIPT:=${shell if [ -f sysdeps/linux/$(TARGET_ARCH)/libc.map ] ; then \
         echo "--version-script sysdeps/linux/$(TARGET_ARCH)/libc.map"; fi}
 
 LIBNAME_TARGET:=$(TOPDIR)lib/$(LIBNAME)
+DUMMY_TARGET:=$(TOPDIR)lib/$(DUMMY_LIBNAME)
 
 all: halfclean $(LIBNAME_TARGET) $(DO_SHARED)
 
@@ -72,6 +73,22 @@ $(LIBNAME_TARGET): $(LIBNAME)
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBNAME)
 	$(INSTALL) -m 644 $(LIBNAME) $(TOPDIR)lib
+
+ifneq ($(DUMMY_LIBNAME),)
+$(DUMMY_LIBNAME): subdirs
+	dobjs=`cat dobj.*` ; \
+	$(AR) $(ARFLAGS) $(DUMMY_LIBNAME) $$dobjs && \
+	$(AR) dN 2 $(DUMMY_LIBNAME) $$dobjs && \
+	$(AR) dN 2 $(DUMMY_LIBNAME) $$dobjs
+	$(RANLIB) $(DUMMY_LIBNAME)
+
+$(DUMMY_TARGET): $(DUMMY_LIBNAME)
+	$(INSTALL) -d $(TOPDIR)lib
+	$(RM) $(TOPDIR)lib/$(DUMMY_LIBNAME)
+	$(INSTALL) -m 644 $(DUMMY_LIBNAME) $(TOPDIR)lib
+
+all: $(DUMMY_TARGET)
+endif
 
 $(LIBNAME): subdirs ar-target
 
