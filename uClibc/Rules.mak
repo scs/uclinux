@@ -337,9 +337,9 @@ ifeq ($(BUILD_UCLIBC_SHARED_FLAT),y)
     SHARED_TARGET = lib/libc
     SHARED_THREADED_TARGET = lib/libc_threaded
     CFLAGS += -mid-shared-library -mleaf-id-shared-library
-    LIBNAME := libc_shared.a
-    LIBC := $(TOPDIR)libc/$(LIBNAME)
-    DUMMY_LIBNAME := libc.a
+#    LIBNAME := libc_shared.a
+#    LIBC := $(TOPDIR)libc/$(LIBNAME)
+#    DUMMY_LIBNAME := libc.a
   endif
 endif
 
