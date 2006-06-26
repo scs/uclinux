@@ -37,7 +37,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
-
+#include <string.h>
 #include <strings.h>
 
 
@@ -73,13 +73,20 @@ int WriteIMG (char *, unsigned long);
 #define HEIGHT          1024
 #endif
 
-#define MICRON_STANDBY  "/dev/pf8"
-#define MICRON_TRIGGER  "/dev/pf6"
-#define MICRON_LED      "/dev/pf11"
+#define BF537_MICRON_STANDBY  "/dev/pf11"
+#define BF537_MICRON_TRIGGER  "/dev/pf13"
+#define BF537_MICRON_LED      "/dev/pf8"
+#define BF537_MICRON_TRIGGER_STROBE 13
+
+
+#define BF533_MICRON_STANDBY  "/dev/pf8"
+#define BF533_MICRON_TRIGGER  "/dev/pf6"
+#define BF533_MICRON_LED      "/dev/pf11"
+#define BF533_MICRON_TRIGGER_STROBE 6
+
 #define FS3             "/dev/pf3"
 
 #define MASTERCLOCK     48 //MHz
-
 
 
 /****************************************************************************/
@@ -279,6 +286,7 @@ void usage(FILE *fp, int rc)
     fprintf(fp, "        -c count       repeat count times\n");
     fprintf(fp, "        -r REG         I2C register\n");
     fprintf(fp, "        -a VAL         I2C value\n");
+    fprintf(fp, "        -b             STAMP board < 533 | 537 >\n");
     exit(rc);
 }
 
@@ -286,18 +294,19 @@ void usage(FILE *fp, int rc)
 int main( int argc, char *argv[] )
 {
 
-    int fd,i,c,cnt,delay;
+    int fd,i,c,cnt,delay,board,trigger_strobe;
     char * buffer, *filename;
     u_char addr;
     u_short value,usetrigger,sendi2c;
     struct timeval o, t;
     long delta, usec, offset;
-
+	char trigger[10], led[10], standby[10];
     /* Check the passed arg */
 
     cnt=1;
+    board=0;
 
-while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
+while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
         switch (c) {
         case 'v':
             printf("%s: version %s\n", argv[0], VERSION);
@@ -316,6 +325,9 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
         case 'c':
             cnt = atoi(optarg);
             break;
+        case 'b':
+            board = atoi(optarg);
+            break;
         case 'h':
         case '?':
             usage(stdout, 0);
@@ -327,14 +339,32 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
         }
     }
 
+	
+	if(board==537) {
+		strcpy(trigger, BF537_MICRON_TRIGGER);
+		strcpy(standby, BF537_MICRON_STANDBY);
+		strcpy(led, BF537_MICRON_LED);
+		trigger_strobe = BF537_MICRON_TRIGGER_STROBE;
+	}
+	else if(board==533){
+		strcpy(trigger, BF533_MICRON_TRIGGER);
+		strcpy(standby, BF533_MICRON_STANDBY);
+		strcpy(led, BF533_MICRON_LED);
+		trigger_strobe = BF533_MICRON_TRIGGER_STROBE;
+	} else {
+       usage(stderr, 1);	
+       exit(1);
+	}	
+
+
     /* Get latency between to gettimeofday calls */
 
         offset = getoffset();
-
-        (void)set_gpio(MICRON_STANDBY, "0");
-        (void)set_gpio(FS3, "0");
-        (void)set_gpio(MICRON_LED, "1");
-        (void)set_gpio(MICRON_TRIGGER, "0");
+        (void)set_gpio(standby, "0");
+        if(board==533)
+			(void)set_gpio(FS3, "0");
+        (void)set_gpio(led, "1");
+        (void)set_gpio(trigger, "0");
 
     /* Global Gain: 0x35*/
     i2c_write_register(I2C_DEVICE,DEVID,0x35,0x50);
@@ -356,11 +386,6 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
     /* Allocate meory for the raw image and BMP Header */
     buffer = (char*) malloc (IMAGESIZE + sizeof(bmphead));
 
-
-
-
-
-
     /* Open /dev/ppi */
     fd = open("/dev/ppi0", O_RDONLY,0);
     if (fd == -1) {
@@ -375,10 +400,8 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
 
   if(usetrigger)
     {
-      ioctl(fd, CMD_SET_TRIGGER_GPIO,   TRIGGER_PF6);
+      ioctl(fd, CMD_SET_TRIGGER_GPIO, trigger_strobe);
     }
-
-
 
     /* Read the raw image data from the PPI */
 
@@ -443,7 +466,7 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:")) > 0) {
 	    printf("*******************************************************************************\n");
   }
 
-   (void)set_gpio(MICRON_LED, "0");
+   (void)set_gpio(led, "0");
     free(buffer);
     exit( 0 );
 }
