@@ -92,6 +92,7 @@
 /dev/pf		c	664	0	0	253	0	0	1	16
 /dev/input/event c	664	0	0	13	64	0	1	1
 /dev/usb/mouse c	664	0	0	180	16	0	1	1
+/dev/ppi	c	664	0	0	241	0	0	1	1
 #/dev/sport	c	664	0	0	251	0	0	1	-
 /dev/time	c	664	0	0	10	101	0	0	-
 /dev/lcd	c	664	0	0	60	0	0	0	-
