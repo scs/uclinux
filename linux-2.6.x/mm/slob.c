@@ -210,8 +210,6 @@ void *kmalloc(size_t size, gfp_t gfp)
 	slob_t *m;
 	bigblock_t *bb;
 	unsigned long flags;
-	int i;
-	struct page *page;
 
 	if (size < PAGE_SIZE - SLOB_UNIT) {
 		m = slob_alloc(size + SLOB_UNIT, gfp, 0);
@@ -223,17 +221,12 @@ void *kmalloc(size_t size, gfp_t gfp)
 		return 0;
 
 	bb->order = find_order(size);
-	page = alloc_pages(gfp, bb->order);
-	bb->pages = (void *)page_address(page);
+	bb->pages = (void *)__get_free_pages(gfp, bb->order);
 
 	if (bb->pages) {
 		spin_lock_irqsave(&block_lock, flags);
 		bb->next = bigblocks;
 		bigblocks = bb;
-		for (i = 0; i < (1 << bb->order); i++) {
-			SetPageSlab(page);
-			page++;
-		}
 		spin_unlock_irqrestore(&block_lock, flags);
 		return bb->pages;
 	}
@@ -257,16 +250,8 @@ void kfree(const void *block)
 		spin_lock_irqsave(&block_lock, flags);
 		for (bb = bigblocks; bb; last = &bb->next, bb = bb->next) {
 			if (bb->pages == block) {
-				struct page *page = virt_to_page(bb->pages);
-				int i;
-
 				*last = bb->next;
 				spin_unlock_irqrestore(&block_lock, flags);
-				for (i = 0; i < (1 << bb->order); i++) {
-					if (!TestClearPageSlab(page))
-						BUG();
-					page++;
-				}
 				free_pages((unsigned long)block, bb->order);
 				slob_free(bb, sizeof(bigblock_t));
 				return;
