@@ -73,6 +73,9 @@
 #define PPI_DEVNAME       "PPIFCP"
 #define PPI_INTNAME       "PPI-FCP-INT"  /* Should be less than 19 chars. */
 
+
+
+
 /************************************************************/
 
 typedef struct PPI_Device_t
@@ -171,6 +174,13 @@ void ppifcd_reg_reset(ppi_device_t *pdev)
 {
 /* Do some initializaion stuff here based on the defined Camera Module
    so we don't have to use ioctls                     */
+	
+/*BF537/6/4 PPI_STATUS is Write to Clear*/
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
+  *pPPI_STATUS=0xFFFF;
+#else
+  u16 status=*pPPI_STATUS;
+#endif
 
     *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
     *pPPI_DELAY   = pdev->ppi_delay;
@@ -245,9 +255,16 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 {
 
     ppi_device_t *pdev = (ppi_device_t*)dev_id;
-
+   	
+   	u16 status = *pPPI_STATUS;
+	
+/*BF537/6/4 PPI_STATUS is Write to Clear*/
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
+   *pPPI_STATUS=0xFFFF;
+#endif
+	
     DPRINTK("ppifcd_error_irq:\n");
-    DPRINTK("PPI Status = 0x%X \n", *pPPI_STATUS);
+    DPRINTK("PPI Status = 0x%X \n", status);
 
 
         /* Acknowledge DMA Interrupt*/
@@ -258,9 +275,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
     *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
 
     pdev->done = 1;
-	
-	/* Clear Sticky Bits */
-	*pPPI_STATUS =  0xFFFF;
+
 
     /* Give a signal to user program. */
     if(pdev->fasyc)
@@ -584,7 +599,7 @@ static int ppi_open (struct inode *inode, struct file *filp)
     request_irq(IRQ_PPI_ERROR,(void *) ppifcd_irq_error,SA_INTERRUPT,"PPI ERROR" ,filp->private_data);
 
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
-        *pPORTG_FER   = 0xFFFF; /* PPI[15:0]    */
+        *pPORTG_FER   = 0x00FF; /* PPI[7:0]    */
         *pPORTF_FER  |= 0x8300; /* PF.15 PPI_CLK FS1 FS2*/
         *pPORT_MUX   &= ~0x0E00;
 #endif
