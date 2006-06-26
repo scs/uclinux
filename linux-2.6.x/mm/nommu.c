@@ -18,7 +18,9 @@
 #include <linux/file.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
+#ifdef CONFIG_SLAB
+# include <linux/slab.h>
+#endif
 #include <linux/vmalloc.h>
 #include <linux/ptrace.h>
 #include <linux/blkdev.h>
@@ -117,7 +119,9 @@ unsigned int kobjsize(const void *objp)
 	if (!objp || !((page = virt_to_page(objp))) || (unsigned long)objp >= memory_end)
 		return 0;
 
+#ifdef CONFIG_SLAB
 	if (PageSlab(page))
+#endif
 		return ksize(objp);
 
 	BUG_ON(page->index < 0);
