@@ -784,6 +784,7 @@ size_t newopt(unsigned char *ut, size_t usize, int shift, table_data *tbl)
 		ti[i] = ut + j;
 		j += blocksize;
 	}
+	memset(uniqblock, 0, sizeof(uniqblock));
 
 	/* sort */
 	nu_val = blocksize;
