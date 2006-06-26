@@ -581,6 +581,8 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 void *dma_memcpy(void * dest,const void *src,size_t count)
 {
 
+				BUG_ON(count > 0xFFFF);
+
                 *pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
 
                 /* Copy sram functions from sdram to sram */
@@ -600,7 +602,7 @@ void *dma_memcpy(void * dest,const void *src,size_t count)
 
                 /* Enable source DMA */
                 *pMDMA_S0_CONFIG = (DMAEN);
-                asm("ssync;");
+                SSYNC;
 
                 *pMDMA_D0_CONFIG = ( WNR | DMAEN);
 
