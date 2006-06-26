@@ -525,7 +525,7 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	 __builtin_bfin_ssync();
 	
 	vl = *pPLL_CTL;
-	asm("ssync");
+	__builtin_bfin_ssync();
 	vl &= 0x81FF;
 	msel |= vl;
 
