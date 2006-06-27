@@ -53,8 +53,8 @@ ENTRY(_memchr)
 	     R3 = B[P0++](Z);
 	     CC = R3 == R1;
 	     IF CC JUMP .Lfound;
-	     NOP;
 .Lbyte_loop_e:
+	     NOP;
 
 .Lfailed:      R0=0;
 	     RTS;
