@@ -14,7 +14,7 @@
 #define HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the `fork' function. */
-/* #define HAVE_FORK 1 */
+/* #undef HAVE_FORK */
 
 /* Define to 1 if you have the `getaddrinfo' function. */
 #define HAVE_GETADDRINFO 1
@@ -86,7 +86,7 @@
 #define HAVE_MEMSET 1
 
 /* Define to 1 if you have a working `mmap' system call. */
-/* #undef HAVE_MMAP */
+#define HAVE_MMAP 1
 
 /* Define to 1 if you have the `mpctl' function. */
 /* #undef HAVE_MPCTL */
@@ -191,7 +191,7 @@
 /* #undef HAVE_VFORK_H */
 
 /* Define to 1 if `fork' works. */
-/*#define HAVE_WORKING_FORK 1 */
+/* #undef HAVE_WORKING_FORK */
 
 /* Define to 1 if `vfork' works. */
 #define HAVE_WORKING_VFORK 1
@@ -245,13 +245,13 @@
 /* #undef USE_KSTAT */
 
 /* Use looper/soaker processes to measure CPU util. */
-/*#undef USE_LOOPER 1 */
+/* #undef USE_LOOPER */
 
 /* Use AIX's perfstat interface to measure CPU util. */
 /* #undef USE_PERFSTAT */
 
 /* Use Linux's procstat interface to measure CPU util. */
-#define USE_PROC_STAT 1
+#define USE_PROC_STAT 
 
 /* Use HP-UX's pstat interface to measure CPU util. */
 /* #undef USE_PSTAT */

@@ -879,7 +879,6 @@ ${ac_dA}HAVE_SYS_PARAM_H${ac_dB}HAVE_SYS_PARAM_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_SYS_SOCKET_H${ac_dB}HAVE_SYS_SOCKET_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_SYS_TIME_H${ac_dB}HAVE_SYS_TIME_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_UNISTD_H${ac_dB}HAVE_UNISTD_H${ac_dC}1${ac_dD}
-${ac_dA}socklen_t${ac_dB}socklen_t${ac_dC}unsigned${ac_dD}
 ${ac_dA}H_ERRNO_DECLARED${ac_dB}H_ERRNO_DECLARED${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_STRUCT_SOCKADDR_STORAGE${ac_dB}HAVE_STRUCT_SOCKADDR_STORAGE${ac_dC}1${ac_dD}
 ${ac_dA}TIME_WITH_SYS_TIME${ac_dB}TIME_WITH_SYS_TIME${ac_dC}1${ac_dD}
@@ -895,18 +894,18 @@ t clr
 : clr
 ${ac_dA}HAVE_STDBOOL_H${ac_dB}HAVE_STDBOOL_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_UNISTD_H${ac_dB}HAVE_UNISTD_H${ac_dC}1${ac_dD}
-${ac_dA}HAVE_FORK${ac_dB}HAVE_FORK${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_VFORK${ac_dB}HAVE_VFORK${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_WORKING_VFORK${ac_dB}HAVE_WORKING_VFORK${ac_dC}1${ac_dD}
-${ac_dA}HAVE_WORKING_FORK${ac_dB}HAVE_WORKING_FORK${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_STDLIB_H${ac_dB}HAVE_STDLIB_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_UNISTD_H${ac_dB}HAVE_UNISTD_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_GETPAGESIZE${ac_dB}HAVE_GETPAGESIZE${ac_dC}1${ac_dD}
+${ac_dA}HAVE_MMAP${ac_dB}HAVE_MMAP${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_SYS_SELECT_H${ac_dB}HAVE_SYS_SELECT_H${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_SYS_SOCKET_H${ac_dB}HAVE_SYS_SOCKET_H${ac_dC}1${ac_dD}
 ${ac_dA}SELECT_TYPE_ARG1${ac_dB}SELECT_TYPE_ARG1${ac_dC}int${ac_dD}
 ${ac_dA}SELECT_TYPE_ARG234${ac_dB}SELECT_TYPE_ARG234${ac_dC}(fd_set *)${ac_dD}
 ${ac_dA}SELECT_TYPE_ARG5${ac_dB}SELECT_TYPE_ARG5${ac_dC}(struct timeval *)${ac_dD}
+${ac_dA}SETPGRP_VOID${ac_dB}SETPGRP_VOID${ac_dC}1${ac_dD}
 ${ac_dA}RETSIGTYPE${ac_dB}RETSIGTYPE${ac_dC}void${ac_dD}
 ${ac_dA}HAVE_ALARM${ac_dB}HAVE_ALARM${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_BZERO${ac_dB}HAVE_BZERO${ac_dC}1${ac_dD}
@@ -928,7 +927,6 @@ ${ac_dA}HAVE_GETNAMEINFO${ac_dB}HAVE_GETNAMEINFO${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_GETADDRINFO${ac_dB}HAVE_GETADDRINFO${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_INET_NTOP${ac_dB}HAVE_INET_NTOP${ac_dC}1${ac_dD}
 ${ac_dA}HAVE_SENDFILE${ac_dB}HAVE_SENDFILE${ac_dC}1${ac_dD}
-${ac_dA}HAVE_SCHED_SETAFFINITY${ac_dB}HAVE_SCHED_SETAFFINITY${ac_dC}1${ac_dD}
 CEOF
   sed -f $tmp/defines.sed $tmp/in >$tmp/out
   rm -f $tmp/in
@@ -984,7 +982,6 @@ ${ac_uA}HAVE_SYS_PARAM_H${ac_uB}HAVE_SYS_PARAM_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_SYS_SOCKET_H${ac_uB}HAVE_SYS_SOCKET_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_SYS_TIME_H${ac_uB}HAVE_SYS_TIME_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_UNISTD_H${ac_uB}HAVE_UNISTD_H${ac_uC}1${ac_uD}
-${ac_uA}socklen_t${ac_uB}socklen_t${ac_uC}unsigned${ac_uD}
 ${ac_uA}H_ERRNO_DECLARED${ac_uB}H_ERRNO_DECLARED${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_STRUCT_SOCKADDR_STORAGE${ac_uB}HAVE_STRUCT_SOCKADDR_STORAGE${ac_uC}1${ac_uD}
 ${ac_uA}TIME_WITH_SYS_TIME${ac_uB}TIME_WITH_SYS_TIME${ac_uC}1${ac_uD}
@@ -1000,18 +997,18 @@ t clr
 : clr
 ${ac_uA}HAVE_STDBOOL_H${ac_uB}HAVE_STDBOOL_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_UNISTD_H${ac_uB}HAVE_UNISTD_H${ac_uC}1${ac_uD}
-${ac_uA}HAVE_FORK${ac_uB}HAVE_FORK${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_VFORK${ac_uB}HAVE_VFORK${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_WORKING_VFORK${ac_uB}HAVE_WORKING_VFORK${ac_uC}1${ac_uD}
-${ac_uA}HAVE_WORKING_FORK${ac_uB}HAVE_WORKING_FORK${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_STDLIB_H${ac_uB}HAVE_STDLIB_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_UNISTD_H${ac_uB}HAVE_UNISTD_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_GETPAGESIZE${ac_uB}HAVE_GETPAGESIZE${ac_uC}1${ac_uD}
+${ac_uA}HAVE_MMAP${ac_uB}HAVE_MMAP${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_SYS_SELECT_H${ac_uB}HAVE_SYS_SELECT_H${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_SYS_SOCKET_H${ac_uB}HAVE_SYS_SOCKET_H${ac_uC}1${ac_uD}
 ${ac_uA}SELECT_TYPE_ARG1${ac_uB}SELECT_TYPE_ARG1${ac_uC}int${ac_uD}
 ${ac_uA}SELECT_TYPE_ARG234${ac_uB}SELECT_TYPE_ARG234${ac_uC}(fd_set *)${ac_uD}
 ${ac_uA}SELECT_TYPE_ARG5${ac_uB}SELECT_TYPE_ARG5${ac_uC}(struct timeval *)${ac_uD}
+${ac_uA}SETPGRP_VOID${ac_uB}SETPGRP_VOID${ac_uC}1${ac_uD}
 ${ac_uA}RETSIGTYPE${ac_uB}RETSIGTYPE${ac_uC}void${ac_uD}
 ${ac_uA}HAVE_ALARM${ac_uB}HAVE_ALARM${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_BZERO${ac_uB}HAVE_BZERO${ac_uC}1${ac_uD}
@@ -1033,7 +1030,6 @@ ${ac_uA}HAVE_GETNAMEINFO${ac_uB}HAVE_GETNAMEINFO${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_GETADDRINFO${ac_uB}HAVE_GETADDRINFO${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_INET_NTOP${ac_uB}HAVE_INET_NTOP${ac_uC}1${ac_uD}
 ${ac_uA}HAVE_SENDFILE${ac_uB}HAVE_SENDFILE${ac_uC}1${ac_uD}
-${ac_uA}HAVE_SCHED_SETAFFINITY${ac_uB}HAVE_SCHED_SETAFFINITY${ac_uC}1${ac_uD}
 CEOF
   sed -f $tmp/undefs.sed $tmp/in >$tmp/out
   rm -f $tmp/in
