@@ -13,56 +13,84 @@
 
 USER=/home/test
 CHECKOUT=$USER/checkouts
-KERNEL_SCRIPTS=$CHECKOUT/kernel/uClinux-dist/testsuites
-CVS_SERVER=10.99.22.20
-CVS_ROOT=/cvsroot
+KERNEL_PATH=$CHECKOUT/kernel
+KERNEL_PATH_BAK=$CHECKOUT/kernel_bak
+KERNEL_SOURCE=$KERNEL_PATH/uClinux-dist
+KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uClinux-dist
+KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites
 BASELINE=standard
+LOG_DIR=$USER/test_scripts/kernel/logs/all
 BOARD_CONFIG=$1
-LOG_DIR=$USER/test_scripts/kernel/logs/all_$2
 
 ########################################### Please don't edit anything below this line.###################################
 
-if [ $2 = write_through ] ; then
-  echo "POLICY is $2"
-  POLICY=2
-elif [ $2 = write_back ] ; then
-  echo "POLICY is $2"
-  POLICY=1
-else
-  echo "The POLICY could be write_through or write_back."
-  exit
-fi
-
-if [ $# -lt 2 ] ; then
-  echo "Please input BOARD_CONFIG POLICY [VCO_MULT CCLK_DIV SCLK_DIV] values: "
+if [ $# -lt 1 ] ; then
+  echo "Please input BOARD_CONFIG [KERNEL_SOURCE BINARY_FORMAT POLICY VCO_MULT CCLK_DIV SCLK_DIV] values: "
   echo "The BOARD_CONFIG should be BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
-  echo "The POLICY could be write_through or write_back."
+  echo "For example:kernel_test BF537-STAMP-STD /home/test/checkouts/kernel/uClinux-dist flat write_through."
   exit
 fi
 
+if [ $# -gt 1 ] ; then
+  KERNEL_SOURCE=$2
+  echo "##### KERNEL_SOURCE is $2"
+ fi
+ 
 if [ $# -gt 2 ] ; then
-  VCO_MULT=$3
-  CCLK_DIV=$4
-  SCLK_DIV=$5
+  BINARY_FORMAT=$3
+  LOG_DIR=($LOG_DIR)_$3
+  echo "##### BINARY_FORMAT is $3"
+ fi
+ 
+ if [ $# -gt 3 ] ; then
+  POLICY=$4
+  LOG_DIR=($LOG_DIR)_$4
+  echo "##### POLICY is $4"
+ fi
+
+if [ $# -gt 4 ] ; then
+  VCO_MULT=$5
+  CCLK_DIV=$6
+  SCLK_DIV=$7
 fi
 
 
 ###### See if kernel has been checked out.##################################################
  
-if [ ! -d $CHECKOUT ] ; then
-  echo  "No kernel source in $CHECKOUT."
+if [ ! -d $KERNEL_PATH_BAK ] ; then
+  echo  "No kernel source in $KERNEL_PATH_BAK."
   exit
 fi
-if [ ! -d $CHECKOUT/kernel_bak ] ; then
-  echo  "No kernel source in $CHECKOUT/kernel_bak."
-  exit
-fi
-if [ ! -d $CHECKOUT/kernel ] ; then
-  mkdir -p $CHECKOUT/kernel
-  echo  "Testing is doing against the kernel source in $CHECKOUT/kernel."
+if [ ! -d $KERNEL_PATH ] ; then
+  mkdir -p $KERNEL_PATH
+  echo  "Testing is doing against the kernel source in $KERNEL_PATH."
 fi
 
 # KERNEL_SCRIPTS/change_clk.exp $BOARD_TYPE $VCO_MULT $CCLK_DIV $SCLK_DIV
+
+######## Set the default value for the test cases
+
+	ethernet_test=0
+	  stress_test=0
+	  serial_test=0
+	  reboot_test=0
+	     rtc_test=0
+	     nfs_test=0
+	    kgdb_test=0
+	  module_test=0
+	     mtd_test=0
+	   jffs2_test=0 
+	jffs2_fs_test=0
+	   adspi_test=0
+	   audio_test=0
+	  pflags_test=0
+	    dpmc_test=0
+	     twi_test=0
+       spi_flash_test=0
+	 cf_card_test=0
+	     ide_test=0
+wireless_network_test=0
+	   yaffs_test=0
 
 #######  BOARD CONFIG DEFINITION      ###################################################### 
 
@@ -94,6 +122,32 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 wireless_network_test=0
 	   yaffs_test=0
 fi
+
+if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
+ 
+   echo  "Testing is doing with the config $BOARD_CONFIG."
+   
+   BOARD_TYPE=BF533-STAMP
+   
+	ethernet_test=1
+	  stress_test=1
+	  serial_test=1
+	  reboot_test=0
+	     rtc_test=0
+	     nfs_test=0
+	    kgdb_test=0
+	  module_test=0
+	     mtd_test=0
+	   jffs2_test=0 
+	jffs2_fs_test=0
+	   adspi_test=0
+	   audio_test=0
+	  pflags_test=0
+	    dpmc_test=0
+	     twi_test=0
+       spi_flash_test=0
+	
+fi
  
 ####### Build and run the tests      #######################################################
 
@@ -102,7 +156,24 @@ THIS_LOG=$LOG_DIR/$TIMESTAMP
 mkdir -p $THIS_LOG
 
 export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
- 
+
+  #############################################################################################
+  ########################## BUILD POLICY KERNEL ##############################################
+  
+  rm -rf $KERNEL_PATH
+  echo  "mv kernel source "
+  mv $KERNEL_PATH_BAK $KERNEL_PATH
+     
+  echo  "start building policy kernel..."
+  cd $KERNEL_SCRIPTS/policy
+  ./build_policy_kernel.exp  $BOARD_TYPE $KERNEL_SOURCE $BINARY_FORMAT $POLICY
+    
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
+  cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
+  
+  echo  "mv kernel source back."
+  mv $KERNEL_PATH $KERNEL_PATH_BAK 
+  mkdir -p $KERNEL_PATH
   
   #############################################################################################
   ########################## TEST ETHERNET ####################################################
@@ -115,15 +186,15 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./ethernet/build_ethernet_kernel.exp $BOARD_TYPE $POLICY
-  ./ethernet/ethernet_test.exp
+  cd $KERNEL_SCRIPTS/ethernet
+  ./build_ethernet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./ethernet_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.ethernet
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ethernet
   cp $KERNEL_SCRIPTS/ethernet/build_ethernet_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/ethernet/ethernet_test_log  $THIS_LOG
-  cp $CHECKOUT/kernel/uClinux-dist/testsuites/ethernet/netperf_tcp_rr $THIS_LOG/
-  cp $CHECKOUT/kernel/uClinux-dist/testsuites/ethernet/netperf_tcp_stream $THIS_LOG/
+  cp $KERNEL_SCRIPTS/ethernet/netperf_tcp_rr $THIS_LOG/
+  cp $KERNEL_SCRIPTS/ethernet/netperf_tcp_stream $THIS_LOG/
 
   sleep 30
 
@@ -142,11 +213,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
-  ./stress/build_stress_kernel.exp $BOARD_TYPE $POLICY  
-  ./stress/stress_test.exp /dev/ttyS0 
+  cd $KERNEL_SCRIPTS/stress
+  ./build_stress_kernel.exp $BOARD_TYPE $POLICY  
+  ./stress_test.exp /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.stress
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.stress
   cp $KERNEL_SCRIPTS/stress/build_stress_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/stress/stress_test_log $THIS_LOG 
  
@@ -165,11 +236,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd  $KERNEL_SCRIPTS
-  ./serial/build_serial_kernel.exp $BOARD_TYPE $POLICY 
-  ./serial/serial_test.exp /dev/ttyS0 
+  cd  $KERNEL_SCRIPTS/serial
+  ./build_serial_kernel.exp $BOARD_TYPE $POLICY 
+  ./serial_test.exp /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.serial
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial
   cp $KERNEL_SCRIPTS/stress/build_serial_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/
   
@@ -188,11 +259,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd  $KERNEL_SCRIPTS
-  ./reboot/build_reboot_kernel.exp $BOARD_TYPE $POLICY
-  ./reboot/reboot_test.exp /dev/ttyS0 
+  cd  $KERNEL_SCRIPTS/reboot
+  ./build_reboot_kernel.exp $BOARD_TYPE $POLICY
+  ./reboot_test.exp /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.reboot
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot
   cp $KERNEL_SCRIPTS/reboot/build_reboot_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/reboot/reboot_test_log $THIS_LOG  
   
@@ -212,11 +283,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   
-  cd $KERNEL_SCRIPTS
-  ./kgdb/build_kgdb_kernel.exp $BOARD_TYPE $POLICY
-  ./kgdb/kgdb_test.exp /dev/ttyS0 $CHECKOUT/kernel/uClinux-dist 10.100.4.50  
+  cd $KERNEL_SCRIPTS/kgdb
+  ./build_kgdb_kernel.exp $BOARD_TYPE $POLICY
+  ./kgdb_test.exp /dev/ttyS0 $KERNEL_SOURCE 10.100.4.50  
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.kgdb
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.kgdb
   cp $KERNEL_SCRIPTS/kgdb/build_kgdb_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/kgdb/kgdb_test_log $THIS_LOG
   
@@ -236,11 +307,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./module/build_module_kernel.exp $BOARD_TYPE $POLICY
-  ./module/module_test.exp
+  cd $KERNEL_SCRIPTS/module
+  ./build_module_kernel.exp $BOARD_TYPE $POLICY
+  ./module_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.module
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.module
   cp $KERNEL_SCRIPTS/module/build_module_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/module_test_log $THIS_LOG  
   
@@ -257,11 +328,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   cp -a  $CHECKOUT/kernel_bak/*  .
 
 
-  cd $KERNEL_SCRIPTS
-  ./rtc/build_rtc_kernel.exp $BOARD_TYPE $POLICY
-  ./rtc/rtc_test.exp
+  cd $KERNEL_SCRIPTS/rtc
+  ./build_rtc_kernel.exp $BOARD_TYPE $POLICY
+  ./rtc_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.rtc
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.rtc
   cp $KERNEL_SCRIPTS/rtc/build_rtc_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/rtc/rtc_test_log $THIS_LOG
 
@@ -280,11 +351,11 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   cp -a  $CHECKOUT/kernel_bak/*  .
    
  
-  cd $KERNEL_SCRIPTS
-  ./nfs/build_nfs_kernel.exp $BOARD_TYPE $POLICY
-  ./nfs/nfs_test.exp
+  cd $KERNEL_SCRIPTS/nfs
+  ./build_nfs_kernel.exp $BOARD_TYPE $POLICY
+  ./nfs_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.nfs
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.nfs
   cp $KERNEL_SCRIPTS/nfs/build_rtc_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/nfs/nfs_test_log $THIS_LOG 
  
@@ -303,11 +374,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
-  ./mtd/build_mtd_kernel.exp $BOARD_TYPE $POLICY
-  ./mtd/mtd_test.exp /dev/ttyS0 
+  cd $KERNEL_SCRIPTS/mtd
+  ./build_mtd_kernel.exp $BOARD_TYPE $POLICY
+  ./mtd_test.exp /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.mtd
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.mtd
   cp $KERNEL_SCRIPTS/mtd/build_mtd_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/mtd/test_mtd_log $THIS_LOG
   
@@ -328,18 +399,18 @@ if [ $mtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
 
-  cd $KERNEL_SCRIPTS
-  ./jffs2/build_jffs2_kernel.exp $BOARD_TYPE $POLICY
-  ./jffs2/flash_images.exp
-  ./jffs2/jffs2_reboot_test.exp /dev/ttyS0
+  cd $KERNEL_SCRIPTS/jffs2
+  ./build_jffs2_kernel.exp $BOARD_TYPE $POLICY
+  ./flash_images.exp
+  ./jffs2_reboot_test.exp /dev/ttyS0
   
   cp $KERNEL_SCRIPTS/jffs2/build_jffs2_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/jffs2/flash_images_log $THIS_LOG
   cp $KERNEL_SCRIPTS/jffs2/jffs2_reboot_test_log $THIS_LOG
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.reboot_jffs2
-  cp $CHECKOUT/kernel/uClinux-dist/images/vmImage $THIS_LOG/vmImage.reboot_jffs2
-  cp $CHECKOUT/kernel/uClinux-dist/images/jffs2.img $THIS_LOG/jffs2.image.reboot_jffs2
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot_jffs2
+  cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.reboot_jffs2
+  cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.image.reboot_jffs2
   
   sleep 500
 
@@ -349,8 +420,8 @@ if [ $mtd_test -eq 1  ] ; then
 
   echo  "Testing boot kernel-only uImage ..."
   
-  cd $KERNEL_SCRIPTS
-  ./jffs2/boot_kernel_only_uimage.exp
+  cd $KERNEL_SCRIPTS/jffs2
+  ./boot_kernel_only_uimage.exp
   cp $KERNEL_SCRIPTS/jffs2/boot_kernel_only_uimage_log $THIS_LOG
 
   sleep 30
@@ -369,11 +440,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./jffs2_fs/build_jffs2_fs_kernel.exp $BOARD_TYPE $POLICY
-  ./jffs2_fs/jffs2_fs_test.exp
+  cd $KERNEL_SCRIPTS/jffs2_fs
+  ./build_jffs2_fs_kernel.exp $BOARD_TYPE $POLICY
+  ./jffs2_fs_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.jffs2_fs
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.jffs2_fs
   cp $KERNEL_SCRIPTS/jffs2_fs/build_jffs2_fs_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/jffs2_fs/jffs2_fs_test_log $THIS_LOG
     
@@ -394,11 +465,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./adspi/build_adspi_kernel.exp $BOARD_TYPE $POLICY
-  ./adspi/adspi_test.exp
+  cd $KERNEL_SCRIPTS/adspi
+  ./build_adspi_kernel.exp $BOARD_TYPE $POLICY
+  ./adspi_test.exp
     
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.adspi 
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.adspi 
   cp $KERNEL_SCRIPTS/adspi/build_adspi_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/adspi/adspi_test_log $THIS_LOG
   
@@ -419,11 +490,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
     
-  cd $KERNEL_SCRIPTS
-  ./pflags/build_pflags_kernel.exp $BOARD_TYPE $POLICY
-  ./pflags/pflags_test.exp
+  cd $KERNEL_SCRIPTS/pflags
+  ./build_pflags_kernel.exp $BOARD_TYPE $POLICY
+  ./pflags_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.pflags
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pflags
   cp $KERNEL_SCRIPTS/pflags/build_pflags_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/pflags/pflags_test_log $THIS_LOG 
   
@@ -443,11 +514,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./audio/build_audio_kernel.exp $BOARD_TYPE $POLICY
-  ./audio/test_audio /dev/ttyS0 
+  cd $KERNEL_SCRIPTS/audio
+  ./build_audio_kernel.exp $BOARD_TYPE $POLICY
+  ./test_audio /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.audio
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.audio
   cp $KERNEL_SCRIPTS/audio/build_audio_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/audio/test_audio_log $THIS_LOG 
   
@@ -464,11 +535,11 @@ if [ $mtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS
-  ./dpmc/build_dpmc_kernel.exp $BOARD_TYPE $POLICY
-  ./dpmc/dpmc_test.exp
+  cd $KERNEL_SCRIPTS/dpmc
+  ./build_dpmc_kernel.exp $BOARD_TYPE $POLICY
+  ./dpmc_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.dpmc
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
   cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
   
@@ -487,15 +558,15 @@ if [ $mtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   
-  cd $KERNEL_SCRIPTS
-  ./twi/build_twi_keyboard_kernel.exp $BOARD_TYPE $POLICY  
-  ./twi/build_twi_lcd_kernel.exp $BOARD_TYPE $POLICY
-  ./twi/twi_lcd_test.exp > test_twi_lcd_log
+  cd $KERNEL_SCRIPTS/twi
+  ./build_twi_keyboard_kernel.exp $BOARD_TYPE $POLICY  
+  ./build_twi_lcd_kernel.exp $BOARD_TYPE $POLICY
+  ./twi_lcd_test.exp > test_twi_lcd_log
 
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.twi_keyboard
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.twi_keyboard
   cp $KERNEL_SCRIPTS/twi/build_twi_keyboard_kernel_log $THIS_LOG
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.twi_lcd
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.twi_lcd
   cp $KERNEL_SCRIPTS/twi/build_twi_lcd_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/twi/test_twi_lcd_log $THIS_LOG
 
@@ -515,15 +586,15 @@ if [ $mtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
 
-  cd $KERNEL_SCRIPTS
-  ./spi_flash/build_spi_flash_kernel.exp $BOARD_TYPE $POLICY
-  ./spi_flash/spi_flash_images.exp
+  cd $KERNEL_SCRIPTS/spi_flash
+  ./build_spi_flash_kernel.exp $BOARD_TYPE $POLICY
+  ./spi_flash_images.exp
   
   cp $KERNEL_SCRIPTS/spi_flash/build_spi_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/spi_flash/spi_flash_images_log $THIS_LOG
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/vmImage $THIS_LOG/vmImage.spi_flash
-  cp $CHECKOUT/kernel/uClinux-dist/images/jffs2.img $THIS_LOG/jffs2.img.spi_flash
+  cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.spi_flash
+  cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.img.spi_flash
   
   sleep 30
 fi
@@ -543,11 +614,11 @@ if [ $cf_card_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
-  ./cf_card/build_cf_card_kernel.exp $BOARD_TYPE $POLICY
-  ./cf_card/cf_card_test.exp  
+  cd $KERNEL_SCRIPTS/cf_card
+  ./build_cf_card_kernel.exp $BOARD_TYPE $POLICY
+  ./cf_card_test.exp  
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.cf_card
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.cf_card
   cp $KERNEL_SCRIPTS/cf_card/build_cf_card_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/cf_card/cf_card_test_log $THIS_LOG
   
@@ -564,12 +635,12 @@ if [ $ide_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
+  cd $KERNEL_SCRIPTS/ide
   $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $POLICY
-  ./ide/ide_harddisk_test.exp 
-  ./ide/ide_cdrom_test.exp
+  ./ide_harddisk_test.exp 
+  ./ide_cdrom_test.exp
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
   cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
@@ -589,11 +660,11 @@ if [ $wireless_network_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
-  ./wireless_network/build_wireless_network_kernel.exp $BOARD_TYPE $POLICY
-  ./wireless_network/wireless_network_test.exp  
+  cd $KERNEL_SCRIPTS/wireless_network
+  ./build_wireless_network_kernel.exp $BOARD_TYPE $POLICY
+  ./wireless_network_test.exp  
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.wireless
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.wireless
   cp $KERNEL_SCRIPTS/wireless_network/build_wireless_network_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/wireless_network/wireless_network_test_log $THIS_LOG
   
@@ -614,11 +685,11 @@ if [ $yaffs_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS
-  ./yaffs/build_yaffs_kernel.exp $BOARD_TYPE $POLICY
-  ./yaffs/test_yaffs /dev/ttyS0 
+  cd $KERNEL_SCRIPTS/yaffs
+  ./build_yaffs_kernel.exp $BOARD_TYPE $POLICY
+  ./test_yaffs /dev/ttyS0 
   
-  cp $CHECKOUT/kernel/uClinux-dist/images/linux $THIS_LOG/linux.yaffs
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.yaffs
   cp $KERNEL_SCRIPTS/yaffs/build_yaffs_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/yaffs/test_yaffs_log $THIS_LOG
 

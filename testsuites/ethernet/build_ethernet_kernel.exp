@@ -8,12 +8,16 @@ set dxe_filename linux
 set ttydev /dev/ttyS0
 
 set board_type [lindex $argv 0]
-set policy [lindex $argv 1]
+send_log "\n#### board_type is $board_type\n"
 
-if { $argc < 2} {
-puts "Please input: board_type, policy."
-puts "Policy: write back 1, write through 2."
+if { $argc < 1} {
+puts "Please input: board_type."
 exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
 }
 
 proc step { message } {
@@ -87,11 +91,7 @@ while 1 {
              send "y\r"
       }
        
-	   -re "Write back.*BLKFIN_WB.*Write through.*BLKFIN_WT.*choice.*\\\[.*]" {
-             
-             send "$policy\r"
-      }
-
+	
           -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              
              send "y\r"
