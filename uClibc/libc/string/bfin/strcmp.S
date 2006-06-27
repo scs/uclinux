@@ -17,6 +17,8 @@
  * loop to check more carefully (same as the unaligned case).
  */
 
+#include <features.h>
+
 .text
 
 .align 2
@@ -113,5 +115,7 @@ exitloop1: // here means we found a zero or a difference.
 	rts;
 .size _strcmp,.-_strcmp
 
+#ifndef __UCLIBC_HAS_LOCALE__
 .weak _strcoll
 .set _strcoll, _strcmp
+#endif
