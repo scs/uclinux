@@ -243,7 +243,7 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
     /* setup PPI */
     bfin_write_PPI_CONTROL(0x780E);
-    *pPPI_COUNT = 2*count -1;
+    bfin_write_PPI_COUNT(2*count -1);
     bfin_write_PPI_DELAY(0);
     /* configure ppi port for DMA read*/
     set_dma_config(CH_PPI, 0x0084);

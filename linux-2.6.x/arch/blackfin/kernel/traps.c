@@ -129,7 +129,7 @@ void *last_cplb_fault_retx;
 	} while (0)
 #define trace_buffer_restore(x) \
 	do { \
-		*pTBUFCTL = (x); \
+		bfin_write_TBUFCTL((x));	\
 	} while (0)
 
 asmlinkage void trap_c(struct pt_regs *fp)

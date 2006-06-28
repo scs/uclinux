@@ -548,7 +548,7 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	 __builtin_bfin_ssync();
 
 #if 0
-	*pEBIU_SDGCTL =	(SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1);
+	 bfin_write_EBIU_SDGCTL((SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1));
 	 __builtin_bfin_ssync();
 #endif
 
@@ -556,7 +556,7 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	/* May not be required */
 	if(bfin_read_EBIU_SDSTAT() & SDRS) {
 
-		*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
+		bfin_write_EBIU_SDRRC(get_sdrrcval((get_sclk()*MHZ)));
 		 __builtin_bfin_ssync();
 
 		bfin_write_EBIU_SDBCTL(0x13);

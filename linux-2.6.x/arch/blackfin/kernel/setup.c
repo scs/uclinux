@@ -935,11 +935,11 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 	}
 
 	/* Setup destination xcount */
-	*pMDMA_D0_X_COUNT = 1024 / 2;
+	bfin_write_MDMA_D0_X_COUNT(1024 / 2);
 	bfin_write_MDMA_D0_Y_COUNT(size >> 10);	/* Divide by 1024 */
 
 	/* Setup Source xcount */
-	*pMDMA_S0_X_COUNT = 1024 / 2;
+	bfin_write_MDMA_S0_X_COUNT(1024 / 2);
 	bfin_write_MDMA_S0_Y_COUNT(size >> 10);
 
 #if defined (CONFIG_BF561)

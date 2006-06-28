@@ -365,7 +365,8 @@ ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 	// disable ppi
 	regdata = bfin_read_PPI_CONTROL();
-	*pPPI_CONTROL =  pdev->ppi_control = regdata & ~PORT_EN;
+	pdev->ppi_control = regdata & ~PORT_EN;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 	__builtin_bfin_ssync();
 
 	// disable DMA
@@ -471,7 +472,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= PORT_EN;
             else 
                 regdata &= ~PORT_EN;
-			*pPPI_CONTROL = pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
             break;
         }
         case CMD_PPI_PORT_DIRECTION:
@@ -482,7 +484,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= PORT_DIR;
             else 
                 regdata &= ~PORT_DIR;
-			*pPPI_CONTROL = pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
             break;
         }
 		case CMD_PPI_XFR_TYPE:
@@ -493,7 +496,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 			regdata = bfin_read_PPI_CONTROL();
 			regdata &= ~XFR_TYPE;
 			regdata |= ((unsigned short)arg << 2);
-			*pPPI_CONTROL = pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_PORT_CFG:
@@ -504,7 +508,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 			regdata = bfin_read_PPI_CONTROL();
 			regdata &= ~PORT_CFG;
 			regdata |= ((unsigned short)arg << 4);
-			*pPPI_CONTROL = pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_FIELD_SELECT:
@@ -515,7 +520,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= FLD_SEL;
             else 
                 regdata &= ~FLD_SEL;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_PACKING:
@@ -526,7 +532,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= PACK_EN;
             else 
                 regdata &= ~PACK_EN;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_SKIPPING:
@@ -537,7 +544,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= SKIP_EN;
             else 
                 regdata &= ~SKIP_EN;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_SKIP_ODDEVEN:
@@ -548,7 +556,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= SKIP_EO;
             else 
                 regdata &= ~SKIP_EO;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_DATALEN:
@@ -560,7 +569,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 			regdata = bfin_read_PPI_CONTROL();
 			regdata &= ~DLENGTH;
 			regdata |= (arg << 11);
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_CLK_EDGE:
@@ -571,7 +581,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= POLC;
             else 
                 regdata &= ~POLC;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_TRIG_EDGE:
@@ -583,7 +594,8 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
                 regdata |= POLFS;
             else 
                 regdata &= ~POLFS;
-			*pPPI_CONTROL =  pdev->ppi_control = regdata;
+			pdev->ppi_control = regdata;
+			bfin_write_PPI_CONTROL(pdev->ppi_control);
 			break;
 		}
 		case CMD_PPI_LINELEN:
@@ -760,7 +772,8 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 		2 : 1;
 
 	regdata = bfin_read_PPI_CONTROL();
-	*pPPI_CONTROL =  pdev->ppi_control = regdata & ~PORT_DIR;
+	pdev->ppi_control = regdata & ~PORT_DIR;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 
 	regdata = bfin_read_PPI_STATUS(); // read status register to clear it
 
@@ -850,7 +863,8 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 
 	// enable ppi
 	regdata = bfin_read_PPI_CONTROL(); 
-	*pPPI_CONTROL = pdev->ppi_control = regdata | PORT_EN;
+	pdev->ppi_control = regdata | PORT_EN;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 	__builtin_bfin_ssync();
 
 	/* Wait for data available */
@@ -877,7 +891,8 @@ ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos)
 	** disable ppi and dma  -- order matters! see 9-16
 	*/
 	regdata = bfin_read_PPI_CONTROL();
-	*pPPI_CONTROL =  pdev->ppi_control = regdata & ~PORT_EN;
+	pdev->ppi_control = regdata & ~PORT_EN;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 	__builtin_bfin_ssync();
 
 	disable_dma(CH_PPI);
@@ -1061,7 +1076,8 @@ ppi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 	// enable ppi
 	regdata = bfin_read_PPI_CONTROL();
 	regdata |= PORT_EN;
-	*pPPI_CONTROL =  pdev->ppi_control = regdata;
+	pdev->ppi_control = regdata;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 	__builtin_bfin_ssync();
 
 	DPRINTK("PPI_CONTROL(enabled) = %04hX\n", regdata);
@@ -1109,7 +1125,8 @@ ppi_write (struct file *filp, const char *buf, size_t count, loff_t *f_pos)
 	** disable ppi and dma  -- order matters! see 9-16
 	*/
 	regdata  = bfin_read_PPI_CONTROL();
-	*pPPI_CONTROL =  pdev->ppi_control = regdata & ~PORT_EN;
+	pdev->ppi_control = regdata & ~PORT_EN;
+	bfin_write_PPI_CONTROL(pdev->ppi_control);
 	__builtin_bfin_ssync();
 
 	disable_dma(CH_PPI);

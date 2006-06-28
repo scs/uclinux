@@ -214,8 +214,8 @@ static void config_timers(void) /* CHECKME */
 
 	/* SPS, timer 1 */
 	bfin_write_TIMER1_CONFIG(TIMER_CONFIG|PULSE_HI);
-	*pTIMER1_WIDTH  = DCLKS_PER_LINE*2;
-	*pTIMER1_PERIOD = (DCLKS_PER_LINE * (320+U_LINES));
+	bfin_write_TIMER1_WIDTH(DCLKS_PER_LINE*2);
+	bfin_write_TIMER1_PERIOD((DCLKS_PER_LINE * (320+U_LINES)));
 	__builtin_bfin_ssync();
 
 	/* SP, timer 0 */
@@ -235,8 +235,8 @@ static void config_timers(void) /* CHECKME */
 	/* REV, timer 5 */
 	bfin_write_TIMER5_CONFIG(TIMER_CONFIG|PULSE_HI);
 
-	bfin_write_TIMER5_WIDTH (DCLKS_PER_LINE);
-	*pTIMER5_PERIOD = DCLKS_PER_LINE*2;
+	bfin_write_TIMER5_WIDTH(DCLKS_PER_LINE);
+	bfin_write_TIMER5_PERIOD(DCLKS_PER_LINE*2);
 
 	__builtin_bfin_ssync();
 #endif

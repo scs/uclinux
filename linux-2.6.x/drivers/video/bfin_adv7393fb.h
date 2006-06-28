@@ -75,7 +75,7 @@
 
 /*BF537/6/4 PPI_STATUS is Write to Clear*/
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-#define CLEAR_PPI_STATUS() (*pPPI_STATUS = 0xFFFF)
+#define CLEAR_PPI_STATUS() (bfin_write_PPI_STATUS(0xFFFF))
 #else
 #define CLEAR_PPI_STATUS() ()
 #endif

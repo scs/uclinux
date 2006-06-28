@@ -292,11 +292,11 @@ static int coreb_read_status(char *page, char **start, off_t off, int count,
 		       "IMASK1:\t\t%08lx\t\t%08lx\n",
 		       coreb_base,
 		       coreb_status & COREB_IS_RUNNING ? "running" : "stalled",
-		       bfin_read_SICA_SYSCR(), *pSICB_SYSCR,
-		       bfin_read_SICA_ISR0(), *pSICB_ISR0,
-		       bfin_read_SICA_ISR1(), *pSICB_ISR0,
-		       bfin_read_SICA_IMASK0(), *pSICB_IMASK0,
-		       bfin_read_SICA_IMASK1(), *pSICB_IMASK1);
+		       bfin_read_SICA_SYSCR(), bfin_read_SICB_SYSCR(),
+		       bfin_read_SICA_ISR0(), bfin_read_SICB_ISR0(),
+		       bfin_read_SICA_ISR1(), bfin_read_SICB_ISR0(),
+		       bfin_read_SICA_IMASK0(), bfin_read_SICB_IMASK0(),
+		       bfin_read_SICA_IMASK1(), bfin_read_SICB_IMASK1());
 	return len;
 }
 

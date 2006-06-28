@@ -587,14 +587,14 @@ void *dma_memcpy(void * dest,const void *src,size_t count)
 
                 /* Copy sram functions from sdram to sram */
                 /* Setup destination start address */
-                *pMDMA_D0_START_ADDR = (volatile void **)dest;
+                bfin_write_MDMA_D0_START_ADDR(dest);
                 /* Setup destination xcount */
                 bfin_write_MDMA_D0_X_COUNT(count );
                 /* Setup destination xmodify */
                 bfin_write_MDMA_D0_X_MODIFY(1);
 
                 /* Setup Source start address */
-                *pMDMA_S0_START_ADDR = (volatile void **)src;
+                bfin_write_MDMA_S0_START_ADDR(src);
                 /* Setup Source xcount */
                 bfin_write_MDMA_S0_X_COUNT(count);
                 /* Setup Source xmodify */

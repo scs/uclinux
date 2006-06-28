@@ -272,8 +272,8 @@ static void RawWrPHYReg(u16 PHYAddr, u16 RegAddr, u32 Data)
   
   bfin_write_EMAC_STADAT(Data);
 
-  *pEMAC_STAADD = SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) |
-    STAOP | STABUSY;     //write mode
+  bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) |
+			 STAOP | STABUSY);     //write mode
 
   PollMdcDone();
 }
@@ -362,7 +362,7 @@ void SetupSystemRegs(struct net_device *dev)
   PHYADDR = lp->PhyAddr;
 
   /* Enable PHY output */
-  *pVR_CTL |= PHYCLKOE;
+  bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
   /* MDC  = 2.5 MHz */
   sysctl = SET_MDCDIV(24);
   /* Odd word alignment for Receive Frame DMA word */
@@ -421,8 +421,8 @@ void SetupSystemRegs(struct net_device *dev)
 void SetupMacAddr(u8 *mac_addr)
 {
   // this depends on a little-endian machine
-  *pEMAC_ADDRLO = *(u32 *)&mac_addr[0];
-  *pEMAC_ADDRHI = *(u16 *)&mac_addr[4];
+	bfin_write_EMAC_ADDRLO(*(u32 *)&mac_addr[0]);
+	bfin_write_EMAC_ADDRHI(*(u16 *)&mac_addr[4]);
 }
 
 static void adjust_tx_list(void)
@@ -500,7 +500,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
     goto out;
   } else {        //tx dma is not running
     bfin_write_DMA2_NEXT_DESC_PTR(&(current_tx_ptr->desc_a));
-    *pDMA2_CONFIG  = *((unsigned short *)(&(current_tx_ptr->desc_a.config))); // dma enabled, read from memory, size is 6
+    bfin_write_DMA2_CONFIG(*((unsigned short *)(&(current_tx_ptr->desc_a.config)))); // dma enabled, read from memory, size is 6
     // Turn on the EMAC tx
     bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() | TE);
   }
@@ -611,7 +611,7 @@ static int bf537mac_enable(struct net_device *dev)
 
   /* Set RX DMA */
   bfin_write_DMA1_NEXT_DESC_PTR(&(rx_list_head->desc_a));
-  *pDMA1_CONFIG = *((unsigned short *)(&(rx_list_head->desc_a.config)));
+  bfin_write_DMA1_CONFIG(*((unsigned short *)(&(rx_list_head->desc_a.config))));
 
   /* Wait MII done */
   PollMdcDone();

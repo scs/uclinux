@@ -84,7 +84,7 @@ static u_long spi_get_sclk(void)
 	u_long vco;
 	u_long sclk = 0;
 
-	vco = (CONFIG_CLKIN_HZ) * ((*pPLL_CTL >> 9)& 0x3F);
+	vco = (CONFIG_CLKIN_HZ) * ((bfin_read_PLL_CTL() >> 9)& 0x3F);
 
 	if (1 & bfin_read_PLL_CTL()) /* DR bit */
 		vco >>= 1;

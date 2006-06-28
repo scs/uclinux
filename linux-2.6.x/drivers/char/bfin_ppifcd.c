@@ -135,13 +135,13 @@ static u_long ppi_get_sclk(void)
 {
     u_long sclk=0,vco;
 
-    vco = (CONFIG_CLKIN_HZ) * ((*pPLL_CTL >> 9)& 0x3F);
+    vco = (CONFIG_CLKIN_HZ) * ((bfin_read_PLL_CTL() >> 9)& 0x3F);
 
     if (1 & bfin_read_PLL_CTL()) /* DR bit */
         vco >>= 1;
 
     if((bfin_read_PLL_DIV() & 0xf) != 0)
-        sclk = vco/(*pPLL_DIV & 0xf);
+	    sclk = vco/(bfin_read_PLL_DIV() & 0xf);
     else
         printk(KERN_NOTICE "bfin_ppifcd: Invalid System Clock\n");
 
@@ -177,7 +177,7 @@ void ppifcd_reg_reset(ppi_device_t *pdev)
 	
 /*BF537/6/4 PPI_STATUS is Write to Clear*/
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-  *pPPI_STATUS=0xFFFF;
+	bfin_write_PPI_STATUS(0xFFFF);
 #else
   u16 status=bfin_read_PPI_STATUS();
 #endif
@@ -260,7 +260,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 	
 /*BF537/6/4 PPI_STATUS is Write to Clear*/
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-   *pPPI_STATUS=0xFFFF;
+	bfin_write_PPI_STATUS(0xFFFF);
 #endif
 	
     DPRINTK("ppifcd_error_irq:\n");
@@ -339,21 +339,24 @@ static int ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
         {
             DPRINTK("ppi_ioctl: CMD_PPI_SET_LINES_PER_FRAME\n");
 
-           *pPPI_FRAME = pdev->lines_per_frame = (unsigned short) arg;
-           break;
+           pdev->lines_per_frame = (unsigned short) arg;
+           bfin_write_PPI_FRAME(pdev->lines_per_frame);
+	   break;
         }
         case CMD_PPI_SET_PPICONTROL_REG:
         {
             DPRINTK("ppi_ioctl: CMD_PPI_SET_PPICONTROL_REG\n");
 
-            *pPPI_CONTROL = pdev->ppi_control = ((unsigned short)arg) & ~PORT_EN;
-           break;
+            pdev->ppi_control = ((unsigned short)arg) & ~PORT_EN;
+	    bfin_write_PPI_CONTROL(pdev->ppi_control);
+	    break;
         }
         case CMD_PPI_SET_PPIDEALY_REG:
         {
             DPRINTK("ppi_ioctl: CMD_PPI_SET_PPIDEALY_REG\n");
 
-           *pPPI_DELAY  = pdev->ppi_delay = (unsigned short) arg;
+           pdev->ppi_delay = (unsigned short) arg;
+	   bfin_write_PPI_DELAY(pdev->ppi_delay);
            break;
         }
         case CMD_SET_TRIGGER_GPIO:

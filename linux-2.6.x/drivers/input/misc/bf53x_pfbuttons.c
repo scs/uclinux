@@ -296,9 +296,9 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 			for (i=0;i<LEDS;++i){
 				if (bf53xPFbuttons->ledcode[i]==code){
 					if (value){
-						*pFIO_FLAG_S	= bf53xPFbuttons->led_pfmask[i];
+						bfin_write_FIO_FLAG_S(bf53xPFbuttons->led_pfmask[i]);
 					}else{
-						*pFIO_FLAG_C	= bf53xPFbuttons->led_pfmask[i];
+						bfin_write_FIO_FLAG_C(bf53xPFbuttons->led_pfmask[i]);
 					}
 					__builtin_bfin_ssync();
 					bf53xPFbuttons->events_processed++;
@@ -312,9 +312,9 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 			for (i=0;i<BELLS;++i){
 				if (bf53xPFbuttons->sndcode[i]==code){
 					if (value){
-						*pFIO_FLAG_S	= bf53xPFbuttons->snd_pfmask[i];
+						bfin_write_FIO_FLAG_S(bf53xPFbuttons->snd_pfmask[i]);
 					}else{
-						*pFIO_FLAG_C	= bf53xPFbuttons->snd_pfmask[i];
+						bfin_write_FIO_FLAG_C(bf53xPFbuttons->snd_pfmask[i]);
 					}
 					__builtin_bfin_ssync();
 					bf53xPFbuttons->events_processed++;

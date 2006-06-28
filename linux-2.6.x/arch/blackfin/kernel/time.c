@@ -71,8 +71,7 @@ void __init init_leds(void)
 	/* config pins as output. */
 	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_DPORT();
 	__builtin_bfin_ssync();
-	*pCONFIG_BFIN_IDLE_LED_DPORT =
-	    tmp | CONFIG_BFIN_IDLE_LED_PIN;
+	bfin_write_CONFIG_BFIN_IDLE_LED_DPORT(tmp | CONFIG_BFIN_IDLE_LED_PIN);
 	__builtin_bfin_ssync();
 
 	/*      First set led be off */

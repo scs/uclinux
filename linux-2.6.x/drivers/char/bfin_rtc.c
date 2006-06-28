@@ -165,7 +165,7 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
       Does there need to clear the day alram flag ???
       rtc_irq_data |= (ADSP_RTC_READ(RTC_ISTAT) & 0x001f);
       Clear the H24 event flag ???*/
-	rtc_irq_data |= (*pRTC_ISTAT & 0x000f);
+    rtc_irq_data |= (bfin_read_RTC_ISTAT() & 0x000f);
 	
     
 	bfin_write_RTC_ISTAT(bfin_read_RTC_ISTAT());
@@ -360,8 +360,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         
         spin_lock_irq(&rtc_lock);
 
-        *pRTC_ALARM = ((g_alarm_day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
-                       | (sec<<SEC_BITS_OFF));
+        bfin_write_RTC_ALARM(((g_alarm_day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF) | (sec<<SEC_BITS_OFF)));
         wait_for_complete();
 
         spin_unlock_irq(&rtc_lock);
@@ -420,8 +419,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
         g_last_day = 0;
         
         spin_lock_irq(&rtc_lock);
-        *pRTC_STAT = ((day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF)
-                       | (sec<<SEC_BITS_OFF));
+        bfin_write_RTC_STAT(((day<<DAY_BITS_OFF) | (hrs<<HOUR_BITS_OFF) | (min<<MIN_BITS_OFF) | (sec<<SEC_BITS_OFF)));
         wait_for_complete();
                    
         spin_unlock_irq(&rtc_lock);
@@ -683,7 +681,7 @@ static void rtc_dropped_irq(unsigned long data)
 
     rtc_irq_data += ((rtc_freq/HZ)<<8);
     rtc_irq_data &= ~0xffff;
-    rtc_irq_data |= (*pRTC_STAT & 0xffff);    /* restart */
+    rtc_irq_data |= (bfin_read_RTC_STAT() & 0xffff);    /* restart */
 	
 
     freq = rtc_freq;
@@ -772,7 +770,7 @@ static inline unsigned char rtc_is_updating(void)
     unsigned char uip;
 
     spin_lock_irq(&rtc_lock);
-	uip = (*pRTC_STAT & SEC_EVT_FG);
+    uip = (bfin_read_RTC_STAT() & SEC_EVT_FG);
     spin_unlock_irq(&rtc_lock);
     return uip;
 }

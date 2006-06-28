@@ -304,9 +304,9 @@ bfin_config_ppi(struct adv7393fb_device *fbdev)
 #endif
 
   bfin_write_PPI_CONTROL(0x381E);
-  *pPPI_FRAME = fbdev->modes[mode].tot_lines;
-  *pPPI_COUNT = fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank - 1;
-  *pPPI_DELAY = fbdev->modes[mode].aoeft_blank - 1;
+  bfin_write_PPI_FRAME(fbdev->modes[mode].tot_lines);
+  bfin_write_PPI_COUNT(fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank - 1);
+  bfin_write_PPI_DELAY(fbdev->modes[mode].aoeft_blank - 1);
 }
 
 static void

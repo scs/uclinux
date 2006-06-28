@@ -69,8 +69,8 @@ static inline void count_read(unsigned int *count)
 
 static inline void count_write(unsigned int *count)
 {
-	*pPFCNTR0 = count[0];
-	*pPFCNTR1 = count[1];
+	bfin_write_PFCNTR0(count[0]);
+	bfin_write_PFCNTR1(count[1]);
 	__builtin_bfin_csync();
 }
 

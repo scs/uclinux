@@ -376,7 +376,7 @@ static void bfin_SMC_interrupt_setup(int irq)
 
 		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() & ~LAN_FIO_PATTERN); /* input */
 		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));	     /* fix a floating input */
-		*pFIO0_FLAG_C	=   LAN_FIO_PATTERN; /* clear output */
+		bfin_write_FIO0_FLAG_C(LAN_FIO_PATTERN); /* clear output */
 		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() |  LAN_FIO_PATTERN); /* enable pin */
 
 		__builtin_bfin_ssync();

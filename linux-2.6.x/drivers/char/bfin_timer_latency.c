@@ -54,7 +54,7 @@ static int write_timer_latency(struct file *file, const char *buffer,
 		DPRINTK("start timer_latency\n");
 		timer_latency_data.value = 1;
 		sclk = get_sclk();
-		*pWDOG_CNT = 5 * sclk; /* set count time to 5 seconds */		
+		bfin_write_WDOG_CNT(5 * sclk); /* set count time to 5 seconds */		
 		/* set CYCLES counter to 0 and start it*/
 		__asm__(
 		"R2 = 0;\n\t"

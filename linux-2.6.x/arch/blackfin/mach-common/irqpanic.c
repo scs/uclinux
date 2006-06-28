@@ -73,7 +73,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 			0 );                        /* Access Tag, Read access             */
 
 		__builtin_bfin_ssync();
-		*pITEST_COMMAND=cmd;
+		bfin_write_ITEST_COMMAND(cmd);
 		__builtin_bfin_ssync();
 		tag = bfin_read_ITEST_DATA0();
 		__builtin_bfin_ssync();
@@ -88,7 +88,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 					4 );                            /* Access Data, Read access             */
 
                                 __builtin_bfin_ssync();
-                                 *pITEST_COMMAND=cmd;
+                                bfin_write_ITEST_COMMAND(cmd);
                                 __builtin_bfin_ssync();
 
 				cache_hi = bfin_read_ITEST_DATA1();

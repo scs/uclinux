@@ -62,7 +62,7 @@ void bf533_pm_suspend(void)
 	 bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() |SRFS);
         __builtin_bfin_ssync();
 	/*any interrupt can cause CPU exit idle state*/
-        *pSIC_IWR = 0x00ffffff;
+        bfin_write_SIC_IWR(0x00ffffff);
         __builtin_bfin_ssync();
         __asm__ (
         "CLI R2;\n\t"
