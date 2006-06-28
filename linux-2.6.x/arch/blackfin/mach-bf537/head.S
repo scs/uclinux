@@ -446,6 +446,40 @@ ENTRY(_bfin_reset)
 	/* No more interrupts to be handled*/
 	CLI R6;
 	SSYNC;
+	
+/*
+ * The following code fix the SPI flash reboot issue,
+ * /CS signal of the chip which is using PF10 return to GPIO mode
+ */
+        p0.h = hi(PORTF_FER);
+        p0.l = lo(PORTF_FER);
+        r0.l = 0x0000;
+        w[p0] = r0.l;
+        SSYNC;
+
+/* /CS return to high */
+        p0.h = hi(PORTFIO);
+        p0.l = lo(PORTFIO);
+        r0.l = 0xFFFF;
+        w[p0] = r0.l;
+        SSYNC;
+
+/* Delay some time, This is necessary */
+        r1.h = 0;
+        r1.l = 0x400;
+        p1   = r1;
+        lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
+_delay_lab1:
+        r0.h = 0;
+        r0.l = 0x8000;
+        p0   = r0;
+        lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
+_delay_lab0:
+        nop;
+_delay_lab0_end:
+        nop;
+_delay_lab1_end:
+        nop;
 
 	/* Clear the bits 13-15 in SWRST if they werent cleared */
 	p0.h = hi(SWRST);
