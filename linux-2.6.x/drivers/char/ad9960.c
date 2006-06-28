@@ -120,7 +120,7 @@ static irqreturn_t ad9960_ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
     clear_dma_irqstat(CH_PPI);
 
     /* disable ppi */
-    *pPPI_CONTROL &=  ~PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() &  ~PORT_EN);
 
     pdev->done = 1;
 
@@ -161,14 +161,14 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
     pdev->done=0;
 
     /* Disable PPI */
-    *pPPI_CONTROL &= ~ PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~ PORT_EN);
     /* Disable dma */
     disable_dma(CH_PPI);
-    *pPORTFIO_SET |= 0x0100;
+    bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
     __builtin_bfin_ssync();
     /* setup PPI */
-    *pPPI_CONTROL = 0x783C;
-    *pPPI_DELAY = 1;
+    bfin_write_PPI_CONTROL(0x783C);
+    bfin_write_PPI_DELAY(1);
     /* configure ppi port for DMA write */
     set_dma_config(CH_PPI, 0x0086);
     set_dma_start_addr(CH_PPI, (u_long)dma_buf);
@@ -179,10 +179,10 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 
     enable_dma(CH_PPI);
     /* Enable PPI */
-    *pPPI_CONTROL |= PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
     __builtin_bfin_ssync();
 
-    *pPORTFIO_CLEAR |= 0x0100;
+    bfin_write_PORTFIO_CLEAR(bfin_read_PORTFIO_CLEAR() | 0x0100);
     __builtin_bfin_ssync();
 
     DPRINTK("ad9960_read: PPI ENABLED : DONE \n");
@@ -210,7 +210,7 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 
     l1_data_A_sram_free((u_long)dma_buf);
     disable_dma(CH_PPI);
-    *pPORTFIO_SET |= 0x0100;
+    bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
     __builtin_bfin_ssync();
 
     DPRINTK("ppi_read: return \n");
@@ -235,16 +235,16 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
     pdev->done=0;
 
     /* Disable PPI */
-    *pPPI_CONTROL &= ~PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~PORT_EN);
     /* Disable dma */
     disable_dma(CH_PPI);
-    *pPORTFIO_CLEAR |= 0x0100;
+    bfin_write_PORTFIO_CLEAR(bfin_read_PORTFIO_CLEAR() | 0x0100);
     __builtin_bfin_ssync();
 
     /* setup PPI */
-    *pPPI_CONTROL = 0x780E;
+    bfin_write_PPI_CONTROL(0x780E);
     *pPPI_COUNT = 2*count -1;
-    *pPPI_DELAY = 0;
+    bfin_write_PPI_DELAY(0);
     /* configure ppi port for DMA read*/
     set_dma_config(CH_PPI, 0x0084);
     set_dma_start_addr(CH_PPI, (u_long)dma_buf);
@@ -256,10 +256,10 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
     enable_dma(CH_PPI);
 
     /* Enable PPI */
-    *pPPI_CONTROL |= PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
     __builtin_bfin_ssync();
     
-    *pPORTFIO_SET |= 0x0100;
+    bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
     __builtin_bfin_ssync();
 
     DPRINTK("ad9960_write: PPI ENABLED : DONE \n");
@@ -285,7 +285,7 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
     l1_data_A_sram_free((u_long)dma_buf);
     disable_dma(CH_PPI);
-    *pPORTFIO_CLEAR |= 0x0100;
+    bfin_write_PORTFIO_CLEAR(bfin_read_PORTFIO_CLEAR() | 0x0100);
     __builtin_bfin_ssync();
 
     DPRINTK("ppi_write: return \n");
@@ -478,12 +478,12 @@ static int __init ad9960_init(void)
 {
     	int result;
 
-	*pPORTF_FER |= 0x8200;    /* Enable PPI_CLK(PF15) and PPI_FS1(PF9) */
-	*pPORTFIO_DIR |= 0x0100;  /* PF8 select AD9960 TX/RX */
-	*pPORTFIO_SET |= 0x0100;
-	*pPORTG_FER = 0xFFFF;
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8200);    /* Enable PPI_CLK(PF15) and PPI_FS1(PF9) */
+	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0100);  /* PF8 select AD9960 TX/RX */
+	bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
+	bfin_write_PORTG_FER(0xFFFF);
 
-	*pTIMER0_CONFIG |= OUT_DIS;
+	bfin_write_TIMER0_CONFIG(bfin_read_TIMER0_CONFIG() | OUT_DIS);
 	__builtin_bfin_ssync();
 
 	/* Clear configuration information */

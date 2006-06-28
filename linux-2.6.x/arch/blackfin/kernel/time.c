@@ -55,30 +55,30 @@ void __init init_leds(void)
 
 #if defined(CONFIG_BFIN_ALIVE_LED)
 	/* config pins as output. */
-	tmp = *pCONFIG_BFIN_ALIVE_LED_DPORT;
+	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_DPORT();
 	__builtin_bfin_ssync();
-	*pCONFIG_BFIN_ALIVE_LED_DPORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;
+	bfin_write_CONFIG_BFIN_ALIVE_LED_DPORT(tmp | CONFIG_BFIN_ALIVE_LED_PIN);
 	__builtin_bfin_ssync();
 
 	/*      First set led be off */
-	tmp = *pCONFIG_BFIN_ALIVE_LED_PORT;
+	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_PORT();
 	__builtin_bfin_ssync();
-	*pCONFIG_BFIN_ALIVE_LED_PORT = tmp | CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
+	bfin_write_CONFIG_BFIN_ALIVE_LED_PORT(tmp | CONFIG_BFIN_ALIVE_LED_PIN);	/* light off */
 	__builtin_bfin_ssync();
 #endif
 
 #if defined(CONFIG_BFIN_IDLE_LED)
 	/* config pins as output. */
-	tmp = *pCONFIG_BFIN_IDLE_LED_DPORT;
+	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_DPORT();
 	__builtin_bfin_ssync();
 	*pCONFIG_BFIN_IDLE_LED_DPORT =
 	    tmp | CONFIG_BFIN_IDLE_LED_PIN;
 	__builtin_bfin_ssync();
 
 	/*      First set led be off */
-	tmp = *pCONFIG_BFIN_IDLE_LED_PORT;
+	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
 	__builtin_bfin_ssync();
-	*pCONFIG_BFIN_IDLE_LED_PORT = tmp | CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
+	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp | CONFIG_BFIN_IDLE_LED_PIN);	/* light off */
 	__builtin_bfin_ssync();
 #endif
 
@@ -100,7 +100,7 @@ inline static void do_leds(void)
 		count = 50;
 		flag = ~flag;
 	}
-	tmp = *pCONFIG_BFIN_ALIVE_LED_PORT;
+	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_PORT();
 	__builtin_bfin_ssync();
 
 	if (flag)
@@ -108,7 +108,7 @@ inline static void do_leds(void)
 	else
 		tmp |= CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
 
-	*pCONFIG_BFIN_ALIVE_LED_PORT = tmp;
+	bfin_write_CONFIG_BFIN_ALIVE_LED_PORT(tmp);
 	__builtin_bfin_ssync();
 
 }
@@ -141,21 +141,25 @@ static struct irqaction bfin_timer_irq = {
 static void
 time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 {
+	u32 tcount;
+
 	/* power up the timer, but don't enable it just yet */
-	*pTCNTL = 1;
+	bfin_write_TCNTL(1);
 	__builtin_bfin_csync();
 
 	/*
 	 * the TSCALE prescaler counter.
 	 */
-	*pTSCALE = (TIME_SCALE - 1);
+	bfin_write_TSCALE((TIME_SCALE - 1));
 
-	*pTCOUNT = *pTPERIOD = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
+	tcount = ((get_cclk() / (HZ * TIME_SCALE)) - 1);
+	bfin_write_TPERIOD(tcount);
+	bfin_write_TCOUNT(tcount);
 
 	/* now enable the timer */
 	__builtin_bfin_csync();
 
-	*pTCNTL = 7;
+	bfin_write_TCNTL(7);
 
 	bfin_timer_irq.handler = timer_routine;
 	/* call setup_irq instead of request_irq because request_irq calls kmalloc which has not been initialized yet */
@@ -170,11 +174,11 @@ static unsigned long gettimeoffset(void)
 	unsigned long offset;
 	unsigned long clocks_per_jiffy ;
 
-	clocks_per_jiffy =  *pTPERIOD ;
-	offset =  (clocks_per_jiffy - *pTCOUNT)  / (( (clocks_per_jiffy + 1) *  HZ * TIME_SCALE) /  USEC_PER_SEC ) ;
+	clocks_per_jiffy =  bfin_read_TPERIOD() ;
+	offset =  (clocks_per_jiffy - bfin_read_TCOUNT())  / (( (clocks_per_jiffy + 1) *  HZ * TIME_SCALE) /  USEC_PER_SEC ) ;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
-	if ((*pILAT & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
+	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
 		offset += ( USEC_PER_SEC / HZ);
 
 

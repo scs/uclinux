@@ -126,7 +126,7 @@ static inline void wait_for_complete(void)
 	unsigned long st;
 
 check:
-	st = *pRTC_ISTAT;
+	st = bfin_read_RTC_ISTAT();
     	if((st & 0x8000) == 0)
 		goto check;
     *(volatile unsigned short *)RTC_ISTAT |= 0x8000;
@@ -168,7 +168,7 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	rtc_irq_data |= (*pRTC_ISTAT & 0x000f);
 	
     
-	*pRTC_ISTAT = *pRTC_ISTAT;
+	bfin_write_RTC_ISTAT(bfin_read_RTC_ISTAT());
 	 __builtin_bfin_ssync();
 
     if (rtc_status & RTC_TIMER_ON)
@@ -176,7 +176,7 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
     /* update the global year, month, and RTC-day */
     if(rtc_irq_data & H24_EVT_FG)   {
-	cur_stat = *pRTC_STAT;
+	cur_stat = bfin_read_RTC_STAT();
         day = (cur_stat>>24) & 0xff;
 
         mon2 = 0;
@@ -196,7 +196,7 @@ irqreturn_t rtc_interrupt(int irq, void *dev_id, struct pt_regs *regs)
             }
             if(day == 0)    {
                 cur_stat = (cur_stat&0x00ffffff);
-		*pRTC_STAT = cur_stat;
+		bfin_write_RTC_STAT(cur_stat);
                 wait_for_complete();
             }
         }
@@ -283,7 +283,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
     case RTC_SWCNT_ON:
     {
 	spin_lock_irq(&rtc_lock);
-	*pRTC_ICTL |= STPW_INT_EN;
+	bfin_write_RTC_ICTL(bfin_read_RTC_ICTL() | STPW_INT_EN);
 	 __builtin_bfin_ssync();
 	wait_for_complete();
 	spin_unlock_irq(&rtc_lock);
@@ -487,7 +487,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	copy_from_user(&swcnttm, (unsigned long *)&arg, sizeof(unsigned long));
 
     	spin_lock_irq(&rtc_lock);
-	*pRTC_SWCNT = swcnttm;
+	bfin_write_RTC_SWCNT(swcnttm);
 	 __builtin_bfin_ssync();
 	wait_for_complete();
 	spin_unlock_irq(&rtc_lock);
@@ -495,7 +495,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
     }
     case RTC_SWCNT_RD:  /* Set periodic IRQ rate.   */
     {
-	swcnt = *pRTC_SWCNT;
+	swcnt = bfin_read_RTC_SWCNT();
         return put_user (swcnt, (unsigned long *)arg);
     }
     
@@ -546,14 +546,14 @@ static int rtc_release(struct inode *inode, struct file *file)
     unsigned char tmp;
 
     spin_lock_irq(&rtc_lock);
-    tmp = *pRTC_ICTL;
+    tmp = bfin_read_RTC_ICTL();
     tmp &=  ~STPW_INT_EN;
     tmp &=  ~ALM_INT_EN;
     tmp &=  ~SEC_INT_EN;
     tmp &=  ~MIN_INT_EN;
     tmp &=  ~DAY_INT_EN;
     tmp &=  ~WC_INT_EN;
-    *pRTC_ICTL = tmp;
+    bfin_write_RTC_ICTL(tmp);
     wait_for_complete();
 
     if (rtc_status & RTC_TIMER_ON) {
@@ -615,13 +615,13 @@ static struct miscdevice rtc_dev=
 int __init blackfin_rtc_init(void)
 {
     DPRINTK("blackfin_rtc_init\n");
-    *pRTC_PREN = PRESCALE_EN;
+    bfin_write_RTC_PREN(PRESCALE_EN);
      __builtin_bfin_ssync();
-    *pRTC_ISTAT = 0x807F;
+    bfin_write_RTC_ISTAT(0x807F);
      __builtin_bfin_ssync();
-    *pRTC_ICTL = 0x0;
+    bfin_write_RTC_ICTL(0x0);
      __builtin_bfin_ssync();
-    *pRTC_ALARM = 0;
+    bfin_write_RTC_ALARM(0);
      __builtin_bfin_ssync();
     
     if(request_irq(RTC_IRQ, rtc_interrupt, SA_INTERRUPT, "rtc", NULL))
@@ -640,7 +640,7 @@ int __init blackfin_rtc_init(void)
     spin_unlock_irq(&rtc_lock);
     rtc_freq = 1024;
     
-    *pRTC_ICTL = H24_INT_EN;
+    bfin_write_RTC_ICTL(H24_INT_EN);
     wait_for_complete();
 
     printk(KERN_INFO "Real Time Clock Driver v" RTC_VERSION "\n");
@@ -787,7 +787,7 @@ static void get_rtc_time(struct rtc_time *rtc_tm)
      * by the RTC when initially set to a non-zero value.
      */
     spin_lock_irq(&rtc_lock);
-    cur_rtc_stat = *pRTC_STAT;
+    cur_rtc_stat = bfin_read_RTC_STAT();
 
     rtc_tm->tm_sec = (cur_rtc_stat>>SEC_BITS_OFF) & 0x3f;
     rtc_tm->tm_min = (cur_rtc_stat>>MIN_BITS_OFF) & 0x3f;
@@ -816,7 +816,7 @@ static void get_rtc_alm_time(struct rtc_time *alm_tm)
      * means only tm_hour, tm_min, and tm_sec.
      */
     spin_lock_irq(&rtc_lock);
-    cur_rtc_alarm = *pRTC_ALARM;	
+    cur_rtc_alarm = bfin_read_RTC_ALARM();	
     alm_tm->tm_sec = (cur_rtc_alarm>>SEC_BITS_OFF) & 0x3f;
     alm_tm->tm_min = (cur_rtc_alarm>>MIN_BITS_OFF) & 0x3f;
     alm_tm->tm_hour = (cur_rtc_alarm>>HOUR_BITS_OFF) & 0x1f;
@@ -840,10 +840,10 @@ static void mask_rtc_irq_bit(unsigned char bit)
     unsigned char val;
     
     spin_lock_irq(&rtc_lock);
-    val = *pRTC_ICTL;
+    val = bfin_read_RTC_ICTL();
 
     val &=  ~bit;
-    *pRTC_ICTL = val;
+    bfin_write_RTC_ICTL(val);
     wait_for_complete();
 
     rtc_irq_data = 0;
@@ -855,9 +855,9 @@ static void set_rtc_irq_bit(unsigned char bit)
     unsigned char val;
 
     spin_lock_irq(&rtc_lock);
-    val = *pRTC_ICTL;
+    val = bfin_read_RTC_ICTL();
     val |= bit;
-    *pRTC_ICTL = val;
+    bfin_write_RTC_ICTL(val);
     wait_for_complete();
 
     rtc_irq_data = 0;

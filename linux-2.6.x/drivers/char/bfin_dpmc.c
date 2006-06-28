@@ -201,7 +201,7 @@ unsigned long change_sclk(unsigned long clock)
 		ssel = MAX_SSEL;
 	}
 	__builtin_bfin_ssync();
-	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SRFS);
+	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() | SRFS);
 	__builtin_bfin_ssync();
 
 	ret = set_pll_div(ssel,FLAG_SSEL);
@@ -211,16 +211,16 @@ unsigned long change_sclk(unsigned long clock)
 		DPRINTK("Wrong system clock selection\n");
 #endif
 
-	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
+	bfin_write_EBIU_SDRRC(get_sdrrcval(get_sclk()));
 	__builtin_bfin_ssync();
 
 	/* Get SDRAM out of self refresh mode */
-	*pEBIU_SDGCTL = (*pEBIU_SDGCTL & ~SRFS);
+	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() & ~SRFS);
 	__builtin_bfin_ssync();
 
 	/* May not be required */
 #if 0
-	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SCTLE | CL_2  | SDRAM_tRAS1  | SDRAM_tRP1  | SDRAM_tRCD1  | SDRAM_tWR1);
+	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() | SCTLE | CL_2  | SDRAM_tRAS1  | SDRAM_tRP1  | SDRAM_tRCD1  | SDRAM_tWR1);
 	__builtin_bfin_ssync();
 #endif
 	return(get_sclk());
@@ -246,7 +246,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			change_baud(CONSOLE_BAUD_RATE);
 #endif
 			change_baud(CONSOLE_BAUD_RATE);
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 
 		break;
@@ -254,13 +254,13 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		case IOCTL_ACTIVE_MODE:
 			active_mode();
 			change_baud(CONSOLE_BAUD_RATE);
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 
 		break;
 		case IOCTL_SLEEP_MODE:
 			sleep_mode();
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;				
 
@@ -268,13 +268,13 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			deep_sleep();
 			/* Needed since it comes back to active mode */
 			change_baud(CONSOLE_BAUD_RATE);
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;
 		
 		case IOCTL_HIBERNATE_MODE:
 			hibernate_mode();
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;
 
@@ -327,7 +327,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
 				change_baud(CONSOLE_BAUD_RATE);
 			}
-			*pSIC_IWR = IWR_ENABLE_ALL;
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 	    		copy_to_user((unsigned long *)arg, &vco_mhz, sizeof(unsigned long));
 		break;
@@ -389,7 +389,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		
 		case IOCTL_DISABLE_WDOG_TIMER:
 			disable_wdog_timer();
-			if(*pWDOG_CTL == WDOG_DISABLE)	return 0;
+			if(bfin_read_WDOG_CTL() == WDOG_DISABLE)	return 0;
 			else 				return -1;
 		break;
 		
@@ -400,13 +400,13 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 		case IOCTL_PROGRAM_WDOG_TIMER:
 			copy_from_user(&wdog_tm,(unsigned long *)arg,sizeof(unsigned long));
 			program_wdog_timer(wdog_tm);
-			if(*pWDOG_CNT == wdog_tm)	return 0;
+			if(bfin_read_WDOG_CNT() == wdog_tm)	return 0;
 			else 				return -1;
 		break;
 
 		case IOCTL_CLEAR_WDOG_WAKEUP_EVENT:
 			clear_wdog_wakeup_evt();
-			if(*pWDOG_CTL & 0x8000)	return -1;
+			if(bfin_read_WDOG_CTL() & 0x8000)	return -1;
 			else 			return 0;
 		break;				
 	}
@@ -424,13 +424,13 @@ void change_baud(int baud)      {
 	else				sclk = get_sclk();
 	
         uartdll = sclk/(16*baud);
-        *pUART_LCR = DLAB;
+        bfin_write_UART_LCR(DLAB);
 	__builtin_bfin_ssync();
-        *pUART_DLL = (uartdll & 0xFF);
+        bfin_write_UART_DLL(uartdll & 0xFF);
 	__builtin_bfin_ssync();
-        *pUART_DLH = (uartdll >> 8);
+        bfin_write_UART_DLH((uartdll >> 8));
 	__builtin_bfin_ssync();
-        *pUART_LCR = WLS(8);
+        bfin_write_UART_LCR(WLS(8));
 	__builtin_bfin_ssync();
 
 	asm("sti r6;"
@@ -441,7 +441,7 @@ void change_baud(int baud)      {
 
 /* Read the PLL_STAT register */
 unsigned long get_pll_status(void)	{
-	return(*pPLL_STAT);
+	return(bfin_read_PLL_STAT());
 }
 
 /* Change the core clock - PLL_DIV register */
@@ -480,7 +480,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 {
 	if(flag == FLAG_CSEL)	{
 		if(sel <= 3)	{
-			*pPLL_DIV = ((*pPLL_DIV & 0xCF) | (sel << 4));
+			bfin_read_PLL_DIV() = ((bfin_read_PLL_DIV() & 0xCF) | (sel << 4));
 			__builtin_bfin_ssync();
 			return 0;
 		}
@@ -491,7 +491,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 	}
 	else if(flag == FLAG_SSEL)	{
 		if(sel < 16)	{
-			*pPLL_DIV = (*pPLL_DIV & 0xF0) | sel;
+			bfin_read_PLL_DIV() = (bfin_read_PLL_DIV() & 0xF0) | sel;
 			__builtin_bfin_ssync();
 			return 0;
 		}
@@ -514,22 +514,22 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	msel = (msel << 9);
 
 /* Enable the PLL Wakeup bit in SIC IWR */
-	*pSIC_IWR = IWR_ENABLE(0);
+	bfin_write_SIC_IWR(IWR_ENABLE(0));
 	 __builtin_bfin_ssync();
 
-	*pPLL_LOCKCNT = 0x300;
+	bfin_write_PLL_LOCKCNT(0x300);
 	 __builtin_bfin_ssync();
 	
 	 __builtin_bfin_ssync();
-	*pEBIU_SDGCTL = (*pEBIU_SDGCTL | SRFS);
+	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() | SRFS);
 	 __builtin_bfin_ssync();
 	
-	vl = *pPLL_CTL;
+	vl = bfin_read_PLL_CTL();
 	__builtin_bfin_ssync();
 	vl &= 0x81FF;
 	msel |= vl;
 
-	*pPLL_CTL = msel;
+	bfin_write_PLL_CTL(msel);
 	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
@@ -539,12 +539,12 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	"STI R6;"
 	"R6 = [SP++];");
 
-	while(!(*pPLL_STAT & PLL_LOCKED));
+	while(!(bfin_read_PLL_STAT() & PLL_LOCKED));
 
-	*pEBIU_SDRRC = get_sdrrcval((get_sclk()));
+	bfin_write_EBIU_SDRRC(get_sdrrcval((get_sclk())));
 	 __builtin_bfin_ssync();
 
-	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
+	bfin_read_EBIU_SDGCTL() = bfin_read_EBIU_SDGCTL() & ~SRFS;
 	 __builtin_bfin_ssync();
 
 #if 0
@@ -554,16 +554,16 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 
 #if 0
 	/* May not be required */
-	if(*pEBIU_SDSTAT & SDRS) {
+	if(bfin_read_EBIU_SDSTAT() & SDRS) {
 
 		*pEBIU_SDRRC = get_sdrrcval((get_sclk()*MHZ));
 		 __builtin_bfin_ssync();
 
-		*pEBIU_SDBCTL = 0x13;
+		bfin_write_EBIU_SDBCTL(0x13);
 		 __builtin_bfin_ssync();
 
 		modeval = (SCTLE | CL_2 | SDRAM_tRAS1 | SDRAM_tRP1 | SDRAM_tRCD1 | SDRAM_tWR1 | PSS);
-		*pEBIU_SDGCTL = modeval;
+		bfin_write_EBIU_SDGCTL(modeval);
 		 __builtin_bfin_ssync();
 	}
 #endif
@@ -580,21 +580,21 @@ int calc_msel(int vco_hz)	{
 
 void fullon_mode(void)	{
 
-	*pSIC_IWR = IWR_ENABLE(0);
+	bfin_write_SIC_IWR(IWR_ENABLE(0));
 	 __builtin_bfin_ssync();
 
-	*pPLL_LOCKCNT = 0x300;
+	bfin_write_PLL_LOCKCNT(0x300);
 	 __builtin_bfin_ssync();
 	
 	 __builtin_bfin_ssync();
-	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() | SRFS);
 	 __builtin_bfin_ssync();
 
 /* Together if done, some issues with code generation,so split this way*/
-	*pPLL_CTL &= (unsigned short)~(BYPASS);
-	*pPLL_CTL &= (unsigned short)~(PDWN);
-	*pPLL_CTL &= (unsigned short)~(STOPCK_OFF);
-	*pPLL_CTL &= (unsigned short)~(PLL_OFF);
+	bfin_write_PLL_CTL(bfin_read_PLL_CTL() & (unsigned short)~(BYPASS));
+	bfin_write_PLL_CTL(bfin_read_PLL_CTL() & (unsigned short)~(PDWN));
+	bfin_write_PLL_CTL(bfin_read_PLL_CTL() & (unsigned short)~(STOPCK_OFF));
+	bfin_write_PLL_CTL(bfin_read_PLL_CTL() & (unsigned short)~(PLL_OFF));
 	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
@@ -604,28 +604,28 @@ void fullon_mode(void)	{
 	"STI R6;"
 	"R6 = [SP++];");
 
-	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
+	while((bfin_read_PLL_STAT() & PLL_LOCKED) != PLL_LOCKED);
 
-	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
+	bfin_write_EBIU_SDRRC(get_sdrrcval(get_sclk()));
 	 __builtin_bfin_ssync();
 
-	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() & ~SRFS);
 	 __builtin_bfin_ssync();
 }
 
 void active_mode(void)	{
 
-	*pSIC_IWR = IWR_ENABLE(0);
+	bfin_write_SIC_IWR(IWR_ENABLE(0));
 	 __builtin_bfin_ssync();
 
-	*pPLL_LOCKCNT = 0x300;
+	bfin_write_PLL_LOCKCNT(0x300);
 	 __builtin_bfin_ssync();
 	
 	 __builtin_bfin_ssync();
-	*pEBIU_SDGCTL = *pEBIU_SDGCTL | SRFS;
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() | SRFS);
 	 __builtin_bfin_ssync();
 	
-	*pPLL_CTL = *pPLL_CTL | BYPASS;
+	bfin_write_PLL_CTL(bfin_read_PLL_CTL() | BYPASS);
 	 __builtin_bfin_ssync();
 
 	asm("[--SP] = R6;"
@@ -635,12 +635,12 @@ void active_mode(void)	{
 	"STI R6;"
 	"R6 = [SP++];");
 
-	while((*pPLL_STAT & PLL_LOCKED) != PLL_LOCKED);
+	while((bfin_read_PLL_STAT() & PLL_LOCKED) != PLL_LOCKED);
 
-	*pEBIU_SDRRC = get_sdrrcval(get_sclk());
+	bfin_write_EBIU_SDRRC(get_sdrrcval(get_sclk()));
 	 __builtin_bfin_ssync();
 
-	*pEBIU_SDGCTL = *pEBIU_SDGCTL & ~SRFS;
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() & ~SRFS);
 	 __builtin_bfin_ssync();
 }
 
@@ -663,7 +663,7 @@ void active_mode(void)	{
 /* Calculates the VLEV value for VR_CTL programming*/
 unsigned long calc_volt()	{
 	int base = 850;
-	int val = ((*pVR_CTL >> 4) & 0xF);
+	int val = ((bfin_read_VR_CTL() >> 4) & 0xF);
 
 	if(val == 6)	return base;
 
@@ -676,9 +676,9 @@ unsigned long change_voltage(unsigned long volt)	{
 
 	unsigned long vlt,val;
 	vlt = calc_vlev(volt);
-	val = (*pVR_CTL & 0xFF0F);
+	val = (bfin_read_VR_CTL() & 0xFF0F);
 	val = (val | (vlt << 4));
-	*pVR_CTL = val;
+	bfin_write_VR_CTL(val);
 	 __builtin_bfin_ssync();
 	asm("[--SP] = R6;"
 	    "CLI R6;");

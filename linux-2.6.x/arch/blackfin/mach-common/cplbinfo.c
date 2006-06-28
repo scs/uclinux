@@ -148,12 +148,12 @@ static int cplbinfo_proc_output(char *buf)
 	p += sprintf(p,
 		     "------------------ CPLB Information ------------------\n\n");
 
-	if (*pIMEM_CONTROL & ENICPLB)
+	if (bfin_read_IMEM_CONTROL() & ENICPLB)
 		p = cplb_print_entry(p, CPLB_I);
 	else
 		p += sprintf(p, "Instruction CPLB is disabled.\n\n");
 
-	if (*pDMEM_CONTROL & ENDCPLB)
+	if (bfin_read_DMEM_CONTROL() & ENDCPLB)
 		p = cplb_print_entry(p, CPLB_D);
 	else
 		p += sprintf(p, "Data CPLB is disabled.\n");

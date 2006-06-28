@@ -58,10 +58,10 @@ void bf537_pm_idle(void)
 void bf537_pm_suspend(void)
 {
 	/*sdram enter self-refresh mode*/
-	 *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+	 bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() |SRFS);
         __builtin_bfin_ssync();
 	/*any interrupt can cause CPU exit idle state*/
-        *pSIC_IWR = 0x00ffffff;
+        bfin_write_SIC_IWR(0x00ffffff);
         __builtin_bfin_ssync();
         __asm__ (
         "CLI R2;\n\t"
@@ -70,7 +70,7 @@ void bf537_pm_suspend(void)
         "STI R2;\n\t"
         );
         /*sdram exit self-refresh mode*/
-        *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+        bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() |SRFS);
         __builtin_bfin_ssync();
 
 }

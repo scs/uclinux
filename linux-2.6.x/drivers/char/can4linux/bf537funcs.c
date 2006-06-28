@@ -42,6 +42,9 @@
  * modification history
  * --------------------
  * $Log$
+ * Revision 1.3  2006/06/28 01:51:33  magicyang
+ * Task[#473] change part of reg read/write to bfin_xxx() functions using scripts
+ *
  * Revision 1.2  2006/03/30 15:21:45  hennerich
  * Apply Blackfin can4linux patch form port GmbH
  *
@@ -183,17 +186,17 @@ short temp_fix;		/* work-around to anomaly #22 to write PORT_MUX */
 #define pPORT_MUX((volatile unsigned short *)PORT_MUX)
 #endif
 
-    temp_fix = *pPORT_MUX;   /* #22 work-around, read PORT_MUX before writing */
+    temp_fix = bfin_read_PORT_MUX();   /* #22 work-around, read PORT_MUX before writing */
     __builtin_bfin_ssync();
 
-    *pPORT_MUX = PJCE_CAN;   /* Enable CAN Pins On Port J */
+    bfin_write_PORT_MUX(PJCE_CAN);   /* Enable CAN Pins On Port J */
     __builtin_bfin_ssync();
-    *pPORT_MUX = PJCE_CAN;   /* #22 work-around: write it a few times */
+    bfin_write_PORT_MUX(PJCE_CAN);   /* #22 work-around: write it a few times */
     __builtin_bfin_ssync();
-    *pPORT_MUX = PJCE_CAN;   /* #22 work-around: write it a few times */
+    bfin_write_PORT_MUX(PJCE_CAN);   /* #22 work-around: write it a few times */
     __builtin_bfin_ssync();
 
-    temp_fix = *pPORT_MUX;   /* #22 work-around: read PORT_MUX after writing */
+    temp_fix = bfin_read_PORT_MUX();   /* #22 work-around: read PORT_MUX after writing */
     __builtin_bfin_ssync();
 
     /* printk(KERN_INFO "Set CAN TX/RX pins at %p to %04x\n", pPORT_MUX, temp_fix); */
@@ -361,8 +364,8 @@ short temp_fix;		/* work-around to anomaly #22 to write PORT_MUX */
     /* do we have some LEDS on the EVA board, use LED1*/
     /* initialize Port pins for time measurement */
     {
-	*pFIO_DIR |= (1 << 6);
-	*pFIO_INEN &= ~(1 << 6);
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1 << 6));
+	bfin_write_FIO_INEN(bfin_read_FIO_INEN() & ~(1 << 6));
     }
 #endif
 
@@ -832,12 +835,12 @@ unsigned short portx_fer;
 volatile unsigned short *set_or_clear;
 
     set_or_clear = ((volatile unsigned short *) FIO_FLAG_S);
-    portx_fer = *pPORT_FER;
-    *pPORT_FER = 0;
+    portx_fer = bfin_read_PORT_FER();
+    bfin_write_PORT_FER(0);
     __builtin_bfin_ssync();
     *set_or_clear = (1 << 6);    /* minor = 6 für LED1 */
 
-     *pPORT_FER = portx_fer;
+     bfin_write_PORT_FER(portx_fer);
      __builtin_bfin_ssync();
 }
 
@@ -848,12 +851,12 @@ unsigned short portx_fer;
 volatile unsigned short *set_or_clear;
 
     set_or_clear = ((volatile unsigned short *) FIO_FLAG_C);
-    portx_fer = *pPORT_FER;
-    *pPORT_FER = 0;
+    portx_fer = bfin_read_PORT_FER();
+    bfin_write_PORT_FER(0);
     __builtin_bfin_ssync();
     *set_or_clear = (1 << 6);    /* minor = 6 für LED1 */
 
-     *pPORT_FER = portx_fer;
+     bfin_write_PORT_FER(portx_fer);
      __builtin_bfin_ssync();
 }
 #endif

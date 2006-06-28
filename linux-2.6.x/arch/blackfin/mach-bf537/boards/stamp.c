@@ -102,13 +102,13 @@ void sl811_port_power(struct device *dev, int is_on)
 {
   unsigned short mask = (1<<CONFIG_USB_SL811_BFIN_GPIO_VBUS);
 
-*pPORT_FER &= ~mask;
-*pFIO_DIR |= mask;
+bfin_write_PORT_FER(bfin_read_PORT_FER() & ~mask);
+bfin_write_FIO_DIR(bfin_read_FIO_DIR() | mask);
 
 if(is_on)
-  *pFIO_FLAG_S = mask;
+  bfin_write_FIO_FLAG_S(mask);
 	else
-  *pFIO_FLAG_C = mask;
+  bfin_write_FIO_FLAG_C(mask);
 
 /*printk("sl811_port_power is_on = %d \n", is_on);*/
 }

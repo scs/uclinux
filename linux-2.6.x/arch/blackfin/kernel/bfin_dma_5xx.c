@@ -583,33 +583,33 @@ void *dma_memcpy(void * dest,const void *src,size_t count)
 
 				BUG_ON(count > 0xFFFF);
 
-                *pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
+                bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 
                 /* Copy sram functions from sdram to sram */
                 /* Setup destination start address */
                 *pMDMA_D0_START_ADDR = (volatile void **)dest;
                 /* Setup destination xcount */
-                *pMDMA_D0_X_COUNT = count ;
+                bfin_write_MDMA_D0_X_COUNT(count );
                 /* Setup destination xmodify */
-                *pMDMA_D0_X_MODIFY = 1;
+                bfin_write_MDMA_D0_X_MODIFY(1);
 
                 /* Setup Source start address */
                 *pMDMA_S0_START_ADDR = (volatile void **)src;
                 /* Setup Source xcount */
-                *pMDMA_S0_X_COUNT = count;
+                bfin_write_MDMA_S0_X_COUNT(count);
                 /* Setup Source xmodify */
-                *pMDMA_S0_X_MODIFY = 1;
+                bfin_write_MDMA_S0_X_MODIFY(1);
 
                 /* Enable source DMA */
-                *pMDMA_S0_CONFIG = (DMAEN);
+                bfin_write_MDMA_S0_CONFIG((DMAEN));
                 SSYNC;
 
-                *pMDMA_D0_CONFIG = ( WNR | DMAEN);
+                bfin_write_MDMA_D0_CONFIG(( WNR | DMAEN));
 
-                while(*pMDMA_D0_IRQ_STATUS & DMA_RUN){
-                        *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+                while(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN){
+                        bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
                 }
-                *pMDMA_D0_IRQ_STATUS |= (DMA_DONE | DMA_ERR);
+                bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
 
                 dest += count;
                 src  += count;

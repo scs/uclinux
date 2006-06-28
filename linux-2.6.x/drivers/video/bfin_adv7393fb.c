@@ -290,7 +290,7 @@ bfin_config_dma(struct adv7393fb_device *fbdev)
 static void
 bfin_disable_dma(void)
 {
-  *pDMA0_CONFIG &= ~DMAEN;
+  bfin_write_DMA0_CONFIG(bfin_read_DMA0_CONFIG() & ~DMAEN);
 }
 
 
@@ -298,12 +298,12 @@ static void
 bfin_config_ppi(struct adv7393fb_device *fbdev)
 {
 #ifdef CONFIG_BF537
-  *pPORTG_FER = 0xFFFF;		/* PPI[15:0]    */
-  *pPORTF_FER |= 0x8300;	/* PF.15 PPI_CLK FS1 FS2 */
-  *pPORT_MUX &= ~0x0E00;
+  bfin_write_PORTG_FER(0xFFFF);		/* PPI[15:0]    */
+  bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8300);	/* PF.15 PPI_CLK FS1 FS2 */
+  bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~0x0E00);
 #endif
 
-  *pPPI_CONTROL = 0x381E;
+  bfin_write_PPI_CONTROL(0x381E);
   *pPPI_FRAME = fbdev->modes[mode].tot_lines;
   *pPPI_COUNT = fbdev->modes[mode].xres + fbdev->modes[mode].boeft_blank - 1;
   *pPPI_DELAY = fbdev->modes[mode].aoeft_blank - 1;
@@ -312,13 +312,13 @@ bfin_config_ppi(struct adv7393fb_device *fbdev)
 static void
 bfin_enable_ppi(void)
 {
-  *pPPI_CONTROL |= PORT_EN;
+  bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
 }
 
 static void
 bfin_disable_ppi(void)
 {
-  *pPPI_CONTROL &= ~PORT_EN;
+  bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~PORT_EN);
 }
 
 static inline int
@@ -498,7 +498,7 @@ ppi_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 
   struct adv7393fb_device *fbdev =(struct adv7393fb_device *) dev_id;
   
-  u16 status = *pPPI_STATUS;
+  u16 status = bfin_read_PPI_STATUS();
 
   DPRINTK(KERN_ERR "PPI Status = 0x%X \n", status);
 

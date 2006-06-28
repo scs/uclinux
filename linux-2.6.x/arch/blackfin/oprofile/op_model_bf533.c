@@ -94,7 +94,7 @@ static int get_kernel(void)
 {
 	int ipend, is_kernel;
 
-	ipend = *pIPEND;
+	ipend = bfin_read_IPEND();
 
 	/* test bit 15 */
 	is_kernel = ((ipend & 0x8000) != 0);

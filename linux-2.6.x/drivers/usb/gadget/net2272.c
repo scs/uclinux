@@ -2496,10 +2496,10 @@ static int net2272_probe (struct device *_dev)
 #ifdef CONFIG_BF533
 		/* Set PF0 to 0, PF1 to 1 make ASM3 work properly */
 		__builtin_bfin_ssync();
-		*pFIO_DIR |= 3;
+		bfin_write_FIO_DIR(bfin_read_FIO_DIR() | 3);
 		__builtin_bfin_ssync();
-		*pFIO_FLAG_C |= 1;
-		*pFIO_FLAG_S |= 2;
+		bfin_write_FIO_FLAG_C(bfin_read_FIO_FLAG_C() | 1);
+		bfin_write_FIO_FLAG_S(bfin_read_FIO_FLAG_S() | 2);
 		__builtin_bfin_ssync();
 #endif
 	}

@@ -330,9 +330,9 @@ static void bfin_cpld_setup(void)
 {
 
 	__builtin_bfin_ssync();
-	*pFIO_DIR |= CONFIG_ENET_FLASH_PIN;
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | CONFIG_ENET_FLASH_PIN);
 	__builtin_bfin_ssync();
-	*pFIO_FLAG_S = CONFIG_ENET_FLASH_PIN;
+	bfin_write_FIO_FLAG_S(CONFIG_ENET_FLASH_PIN);
 	__builtin_bfin_ssync();
 
 }
@@ -344,7 +344,7 @@ static void bfin_SMC_interrupt_setup(int irq)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	/* fix a floating input on the USB-LAN EZ-Extender */
 # if defined (CONFIG_BF561)
-	*pFIO0_DIR |= (1 << 12);
+	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
 # endif /* defined (CONFIG_BF561) */
 	printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
 	set_irq_type(irq, IRQT_HIGH);
@@ -370,14 +370,14 @@ static void bfin_SMC_interrupt_setup(int irq)
 		pFIO0_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
 		__builtin_bfin_ssync();
 
-		*pFIO0_POLAR	&= ~LAN_FIO_PATTERN; /* active high (input) */
-		*pFIO0_EDGE	&= ~LAN_FIO_PATTERN; /* by level (input) */
-		*pFIO0_BOTH	&= ~LAN_FIO_PATTERN;
+		bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
+		bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() & ~LAN_FIO_PATTERN); /* by level (input) */
+		bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() & ~LAN_FIO_PATTERN);
 
-		*pFIO0_DIR	&= ~LAN_FIO_PATTERN; /* input */
-		*pFIO0_DIR	|= (1 << 12);	     /* fix a floating input */
+		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() & ~LAN_FIO_PATTERN); /* input */
+		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));	     /* fix a floating input */
 		*pFIO0_FLAG_C	=   LAN_FIO_PATTERN; /* clear output */
-		*pFIO0_INEN	|=  LAN_FIO_PATTERN; /* enable pin */
+		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() |  LAN_FIO_PATTERN); /* enable pin */
 
 		__builtin_bfin_ssync();
 		pFIO0_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
@@ -406,13 +406,13 @@ static void bfin_SMC_interrupt_setup(int irq)
       pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
       __builtin_bfin_ssync();
 
-      *pFIO_POLAR &= ~LAN_FIO_PATTERN; /* active high (input) */
-      *pFIO_EDGE  &= ~LAN_FIO_PATTERN; /* by level (input) */
-      *pFIO_BOTH  &= ~LAN_FIO_PATTERN;
+      bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
+      bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~LAN_FIO_PATTERN); /* by level (input) */
+      bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() & ~LAN_FIO_PATTERN);
 
-      *pFIO_DIR  &= ~LAN_FIO_PATTERN;   /* input */
-      *pFIO_FLAG_C = LAN_FIO_PATTERN;   /* clear output */
-      *pFIO_INEN |=  LAN_FIO_PATTERN;   /* enable pin */
+      bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~LAN_FIO_PATTERN);   /* input */
+      bfin_write_FIO_FLAG_C(LAN_FIO_PATTERN);   /* clear output */
+      bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  LAN_FIO_PATTERN);   /* enable pin */
 
       __builtin_bfin_ssync();
       pFIO_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */

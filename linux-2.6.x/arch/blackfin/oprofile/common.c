@@ -111,7 +111,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	init_MUTEX(&pfmon_sem);
 
-	dspid = *pDSPID;
+	dspid = bfin_read_DSPID();
 
 	printk("Oprofile got the cpu id is 0x%x. \n", dspid);
 

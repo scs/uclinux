@@ -74,7 +74,7 @@ asmlinkage void trap(void);
 void __init trap_init(void)
 {
 	__builtin_bfin_csync();
-	*pEVT3 = trap;
+	bfin_write_EVT3(trap);
 	__builtin_bfin_csync();
 }
 
@@ -124,8 +124,8 @@ void *last_cplb_fault_retx;
 
 #define trace_buffer_save(x) \
 	do { \
-		(x) = *pTBUFCTL; \
-		*pTBUFCTL = (x) & ~(TBUFEN); \
+		(x) = bfin_read_TBUFCTL(); \
+		bfin_write_TBUFCTL((x) & ~TBUFEN); \
 	} while (0)
 #define trace_buffer_restore(x) \
 	do { \
@@ -194,13 +194,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x24);
-		DPRINTK("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x2A);
-		DPRINTK("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
@@ -222,22 +222,22 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		break;
 	case VEC_CPLB_I_VL:
 		DPRINTK2(EXC_0x2B);
-		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", bfin_read_ICPLB_FAULT_ADDR());
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		DPRINTK3(EXC_0x23);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
 		break;
 	case VEC_CPLB_I_M:
 		DPRINTK3(EXC_0x2C);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
 	case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
 		/*Call the handler to replace the CPLB */
 		_cplb_hdr();
 		goto nsig;
@@ -245,7 +245,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
 		DPRINTK3(EXC_0x2D);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
@@ -255,7 +255,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
 #endif
 		DPRINTK3(EXC_0x27);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	default:
 		info.si_code = TRAP_ILLTRAP;
@@ -282,13 +282,13 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	unsigned long *endstack, addr;
 	int i;
 
-	if (likely(*pTBUFSTAT & TBUFCNT)) {
+	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
 		printk(KERN_EMERG "Hardware Trace:\n");
-		for (i = 0; *pTBUFSTAT & TBUFCNT; i++) {
+		for (i = 0; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
-			printk_address((unsigned long)*pTBUF);
+			printk_address((unsigned long)bfin_read_TBUF());
 			printk("\n" KERN_EMERG "   Source : ");
-			printk_address((unsigned long)*pTBUF);
+			printk_address((unsigned long)bfin_read_TBUF());
 			printk("\n");
 		}
 	}

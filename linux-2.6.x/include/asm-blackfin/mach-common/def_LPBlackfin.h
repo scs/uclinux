@@ -41,6 +41,11 @@
 
 #define MK_BMSK_( x ) (1<<x)    // Make a bit mask from a bit position
 
+#define bfin_read16(reg) *((volatile unsigned short *)reg)
+#define bfin_write16(reg,val)  *((volatile unsigned short *)reg) = (unsigned short)(val)
+#define bfin_read32(reg) *((volatile unsigned long *)reg)
+#define bfin_write32(reg,val)  *((volatile unsigned long *)reg) = (unsigned long)(val)
+
 /**************************************************
  * System Register Bits
  **************************************************/

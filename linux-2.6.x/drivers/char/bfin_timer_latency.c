@@ -94,8 +94,8 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 	asm("%0 = CYCLES;"
 	    : "=d" (cycles_past));
 
-	*pWDOG_CTL = 0x8AD6;  /* close counter */
-	*pWDOG_CTL = 0x8AD6;  /* have to write it twice to disable the timer */
+	bfin_write_WDOG_CTL(0x8AD6);  /* close counter */
+	bfin_write_WDOG_CTL(0x8AD6);  /* have to write it twice to disable the timer */
 
 	__asm__(                      /* stop CYCLES counter */
 		"R2 = SYSCFG;\n\t"
@@ -110,7 +110,7 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 	latency = cycles_past - (cclk * 5);    /* latency in us */
 	DPRINTK("latecy is %lu\n",latency);
 
-	if (*pWDOG_STAT != 0) {
+	if (bfin_read_WDOG_STAT() != 0) {
 		DPRINTK("timer_latency error!\n");
 		return IRQ_HANDLED;
 	}

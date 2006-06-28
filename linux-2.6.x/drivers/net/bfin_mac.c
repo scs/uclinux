@@ -228,14 +228,14 @@ static void SetupPinMux(void)
   
   // FER reg bug work-around
   // read it once
-  fer_val = *pPORTH_FER;
+  fer_val = bfin_read_PORTH_FER();
   
   fer_val = 0xffff;
   
   // write it twice to the same value
   
-  *pPORTH_FER = fer_val;
-  *pPORTH_FER = fer_val;
+  bfin_write_PORTH_FER(fer_val);
+  bfin_write_PORTH_FER(fer_val);
 }
 
 
@@ -246,7 +246,7 @@ static void SetupPinMux(void)
 static void PollMdcDone(void)
 {
   // poll the STABUSY bit
-  while((*pEMAC_STAADD) & STABUSY) {};
+  while((bfin_read_EMAC_STAADD()) & STABUSY) {};
 }
 
 
@@ -257,10 +257,10 @@ static void PollMdcDone(void)
 static u16 RdPHYReg(u16 PHYAddr, u16 RegAddr)
 {
   PollMdcDone();
-  *pEMAC_STAADD = SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) | STABUSY;     // read mode 
+  bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) | STABUSY);     // read mode 
   PollMdcDone();
   
-  return (u16)*pEMAC_STADAT;
+  return (u16)bfin_read_EMAC_STADAT();
 }
 
 //
@@ -270,7 +270,7 @@ static u16 RdPHYReg(u16 PHYAddr, u16 RegAddr)
 static void RawWrPHYReg(u16 PHYAddr, u16 RegAddr, u32 Data)
 {
   
-  *pEMAC_STADAT = Data;
+  bfin_write_EMAC_STADAT(Data);
 
   *pEMAC_STAADD = SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) |
     STAOP | STABUSY;     //write mode
@@ -343,9 +343,9 @@ static void bf537mac_setphy(struct net_device *dev)
     // we have SMSC PHY so reqest interrupt on link down condition
     WrPHYReg(lp->PhyAddr, 30, 0x0ff); // enable interrupts
     // enable PHY_INT
-    sysctl = *pEMAC_SYSCTL;
+    sysctl = bfin_read_EMAC_SYSCTL();
     sysctl |= 0x1;
-    //*pEMAC_SYSCTL = sysctl;
+    //bfin_write_EMAC_SYSCTL(sysctl);
   }
 }
 
@@ -372,7 +372,7 @@ void SetupSystemRegs(struct net_device *dev)
 #else
   sysctl |= RXDWA;
 #endif
-  *pEMAC_SYSCTL  = sysctl;
+  bfin_write_EMAC_SYSCTL (sysctl);
   /* auto negotiation on  */
   /* full duplex          */
   /* 100 Mbps             */
@@ -399,23 +399,23 @@ void SetupSystemRegs(struct net_device *dev)
 	  opmode = 0;
 	  printk(KERN_INFO CARDNAME ": Network is set to half duplex\n");
   }
-  *pEMAC_OPMODE = opmode;
+  bfin_write_EMAC_OPMODE(opmode);
 
 
-  //*pEMAC_MMC_CTL = RSTC | CROLL | MMCE;
-  *pEMAC_MMC_CTL = RSTC | CROLL;
+  //bfin_write_EMAC_MMC_CTL(RSTC | CROLL | MMCE);
+  bfin_write_EMAC_MMC_CTL(RSTC | CROLL);
 
   /* Initialize the TX DMA channel registers */
-  *pDMA2_X_COUNT  = 0;
-  *pDMA2_X_MODIFY = 4;
-  *pDMA2_Y_COUNT  = 0;
-  *pDMA2_Y_MODIFY = 0;
+  bfin_write_DMA2_X_COUNT (0);
+  bfin_write_DMA2_X_MODIFY(4);
+  bfin_write_DMA2_Y_COUNT (0);
+  bfin_write_DMA2_Y_MODIFY(0);
 
   /* Initialize the RX DMA channel registers */
-  *pDMA1_X_COUNT  = 0;
-  *pDMA1_X_MODIFY = 4;
-  *pDMA1_Y_COUNT  = 0;
-  *pDMA1_Y_MODIFY = 0;
+  bfin_write_DMA1_X_COUNT (0);
+  bfin_write_DMA1_X_MODIFY(4);
+  bfin_write_DMA1_Y_COUNT (0);
+  bfin_write_DMA1_Y_MODIFY(0);
 }
 
 void SetupMacAddr(u8 *mac_addr)
@@ -447,7 +447,7 @@ static void adjust_tx_list(void)
   if (current_tx_ptr->next->next == tx_list_head) {
     while (tx_list_head->status.status_word == 0 ) {
 	    udelay(10);
-	    if (tx_list_head->status.status_word != 0 || !(*pDMA2_IRQ_STATUS & 0x08)) {
+	    if (tx_list_head->status.status_word != 0 || !(bfin_read_DMA2_IRQ_STATUS() & 0x08)) {
 		    do {
 			    tx_list_head->desc_a.config.b_DMA_EN = 0;
 			    tx_list_head->status.status_word = 0;
@@ -496,13 +496,13 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
   current_tx_ptr->desc_a.config.b_DMA_EN = 1;   //enable this packet's dma
 
-  if (*pDMA2_IRQ_STATUS & 0x08) { //tx dma is running, just return
+  if (bfin_read_DMA2_IRQ_STATUS() & 0x08) { //tx dma is running, just return
     goto out;
   } else {        //tx dma is not running
-    *pDMA2_NEXT_DESC_PTR = (&(current_tx_ptr->desc_a));
+    bfin_write_DMA2_NEXT_DESC_PTR(&(current_tx_ptr->desc_a));
     *pDMA2_CONFIG  = *((unsigned short *)(&(current_tx_ptr->desc_a.config))); // dma enabled, read from memory, size is 6
     // Turn on the EMAC tx
-    *pEMAC_OPMODE |= TE;
+    bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() | TE);
   }
 
  out:
@@ -565,7 +565,7 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id, struct pt_regs *reg
   //  printk("in mac_int\n");
  get_one_packet:
   if (current_rx_ptr->status.status_word == 0) { // no more new packet received
-    *pDMA1_IRQ_STATUS |= DMA_DONE|DMA_ERR;
+    bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() | DMA_DONE|DMA_ERR);
     //printk("now return..\n");
     return IRQ_HANDLED;
   }
@@ -592,11 +592,11 @@ static void bf537mac_reset(void)
 {
   unsigned int opmode;
   
-  opmode = *pEMAC_OPMODE;
+  opmode = bfin_read_EMAC_OPMODE();
   opmode &= (~RE);
   opmode &= (~TE);
   /* Turn off the EMAC */
-  *pEMAC_OPMODE &= opmode;
+  bfin_write_EMAC_OPMODE(bfin_read_EMAC_OPMODE() & opmode);
 }
 
 /*
@@ -610,7 +610,7 @@ static int bf537mac_enable(struct net_device *dev)
   //printk("%s: %s\n", dev->name, __FUNCTION__);
 
   /* Set RX DMA */
-  *pDMA1_NEXT_DESC_PTR = &(rx_list_head->desc_a);
+  bfin_write_DMA1_NEXT_DESC_PTR(&(rx_list_head->desc_a));
   *pDMA1_CONFIG = *((unsigned short *)(&(rx_list_head->desc_a.config)));
 
   /* Wait MII done */
@@ -623,14 +623,14 @@ static int bf537mac_enable(struct net_device *dev)
    FDMODE : Full Duplex Mode
    LB     : Internal Loopback for test
    RE     : Receiver Enable */
-  opmode = *pEMAC_OPMODE;
+  opmode = bfin_read_EMAC_OPMODE();
   if (opmode & FDMODE)
 	  opmode |= PSF;
   else
 	  opmode |= DRO | DC | PSF;
   opmode |= RE;
   /* Turn on the EMAC rx */
-  *pEMAC_OPMODE = opmode;
+  bfin_write_EMAC_OPMODE(opmode);
 
   return 0;
 }
@@ -677,21 +677,21 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		printk(KERN_INFO "%s: set to promisc mode\n", dev->name);
-		sysctl = *pEMAC_OPMODE;
+		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= RAF;
-		*pEMAC_OPMODE  = sysctl;
+		bfin_write_EMAC_OPMODE (sysctl);
 	} else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
 		/* accept all multicast */
-		sysctl = *pEMAC_OPMODE;
+		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= PAM;
-		*pEMAC_OPMODE  = sysctl;
+		bfin_write_EMAC_OPMODE (sysctl);
 	} else if (dev->mc_count) {
 		/* set multicast */
 	} else {
 		/* clear promisc or multicast mode */
-		sysctl = *pEMAC_OPMODE;
+		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl &= ~(RAF | PAM);		
-		*pEMAC_OPMODE  = sysctl;
+		bfin_write_EMAC_OPMODE (sysctl);
 	}	
 }
 
@@ -703,10 +703,10 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
 static void bf537mac_shutdown(struct net_device *dev)
 {
   /* Turn off the EMAC */
-  *pEMAC_OPMODE = 0x00000000;
+  bfin_write_EMAC_OPMODE(0x00000000);
   /* Turn off the EMAC RX DMA */
-  *pDMA1_CONFIG = 0x0000;
-  *pDMA2_CONFIG = 0x0000;
+  bfin_write_DMA1_CONFIG(0x0000);
+  bfin_write_DMA2_CONFIG(0x0000);
 }
 
 
@@ -773,13 +773,13 @@ static int __init bf537mac_probe(struct net_device *dev)
   int retval;
 
   /* Grab the MAC address in the MAC */
-  *(u32 *)(&(dev->dev_addr[0])) = *pEMAC_ADDRLO;
-  *(u16 *)(&(dev->dev_addr[4])) = (u16)*pEMAC_ADDRHI;
+  *(u32 *)(&(dev->dev_addr[0])) = bfin_read_EMAC_ADDRLO();
+  *(u16 *)(&(dev->dev_addr[4])) = (u16)bfin_read_EMAC_ADDRHI();
 
 /* probe mac */
    /*todo: how to proble? which is revision_register */
-  *pEMAC_ADDRLO = 0x12345678;
-  if (*pEMAC_ADDRLO != 0x12345678) {
+  bfin_write_EMAC_ADDRLO(0x12345678);
+  if (bfin_read_EMAC_ADDRLO() != 0x12345678) {
 	  //printk(CARDNAME ": can't detect bf537 mac!\n");
 	  retval = -ENODEV;
 	  goto err_out;

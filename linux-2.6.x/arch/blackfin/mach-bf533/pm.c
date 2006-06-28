@@ -59,7 +59,7 @@ void bf533_pm_idle(void)
 void bf533_pm_suspend(void)
 {
 	/*sdram enter self-refresh mode*/
-	 *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+	 bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() |SRFS);
         __builtin_bfin_ssync();
 	/*any interrupt can cause CPU exit idle state*/
         *pSIC_IWR = 0x00ffffff;
@@ -71,7 +71,7 @@ void bf533_pm_suspend(void)
         "STI R2;\n\t"
         );
         /*sdram exit self-refresh mode*/
-        *pEBIU_SDGCTL = (*pEBIU_SDGCTL |SRFS);
+        bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() |SRFS);
         __builtin_bfin_ssync();
 
 }

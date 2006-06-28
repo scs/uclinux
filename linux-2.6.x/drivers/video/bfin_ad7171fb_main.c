@@ -353,17 +353,17 @@ static void bfin_rgb_buffer_init(struct rgb_t *rgb_buffer, int width, int height
 	
 static void bfin_config_dma(void *ycrcb_buffer)
 {	
-        *pDMA0_START_ADDR       = ycrcb_buffer;
-        *pDMA0_X_COUNT          = YCBCR_WIDTH/2;
-        *pDMA0_X_MODIFY         = 0x0002;
-        *pDMA0_Y_COUNT          = YCBCR_HEIGHT;
-        *pDMA0_Y_MODIFY         = 0x0002;
-        *pDMA0_CONFIG           = 0x1015;
+        bfin_write_DMA0_START_ADDR(ycrcb_buffer);
+        bfin_write_DMA0_X_COUNT(YCBCR_WIDTH/2);
+        bfin_write_DMA0_X_MODIFY(0x0002);
+        bfin_write_DMA0_Y_COUNT(YCBCR_HEIGHT);
+        bfin_write_DMA0_Y_MODIFY(0x0002);
+        bfin_write_DMA0_CONFIG(0x1015);
 }
 
 static void bfin_disable_dma(void)
 {
-	*pDMA0_CONFIG		&= ~DMAEN;
+	bfin_write_DMA0_CONFIG(bfin_read_DMA0_CONFIG() & ~DMAEN);
 }
 
 void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)
@@ -376,23 +376,23 @@ void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)
 static void bfin_config_ppi(void)
 {
 #ifdef CONFIG_BF537
-        *pPORTG_FER   = 0xFFFF; /* PPI[15:0]    */
-        *pPORTF_FER  |= 0x8380; /* PF.15 - PPI_CLK */
-        *pPORT_MUX   &= ~0x0E00;
-        *pPORT_MUX   |= 0x0100;
+        bfin_write_PORTG_FER  (0xFFFF); /* PPI[15:0]    */
+        bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8380); /* PF.15 - PPI_CLK */
+        bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~0x0E00);
+        bfin_write_PORT_MUX(bfin_read_PORT_MUX() | 0x0100);
 #endif
-        *pPPI_CONTROL = 0x0082;
-        *pPPI_FRAME   = YCBCR_HEIGHT;
+        bfin_write_PPI_CONTROL(0x0082);
+        bfin_write_PPI_FRAME  (YCBCR_HEIGHT);
 }
 
 static void bfin_enable_ppi(void)
 {
-	*pPPI_CONTROL		|= PORT_EN;
+	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
 }
 
 static void bfin_disable_ppi(void)
 {
-	*pPPI_CONTROL		&= ~PORT_EN;
+	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~PORT_EN);
 }
 
 static inline int

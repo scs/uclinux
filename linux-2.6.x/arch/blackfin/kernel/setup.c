@@ -60,6 +60,7 @@ unsigned long reserved_mem_icache_on;
 EXPORT_SYMBOL(memory_start);
 EXPORT_SYMBOL(memory_end);
 EXPORT_SYMBOL(physical_mem_end);
+EXPORT_SYMBOL(memory_mtd_end);
 
 char command_line[COMMAND_LINE_SIZE];
 
@@ -317,7 +318,7 @@ void __init setup_arch(char **cmdline_p)
 	bf53x_cache_init();
 
 	printk(KERN_INFO "Hardware Trace Enabled\n");
-	*pTBUFCTL = 0x03;
+	bfin_write_TBUFCTL(0x03);
 
 }
 
@@ -635,12 +636,12 @@ static inline u_long get_vco(void)
 	u_long msel;
 	u_long vco;
 
-	msel = (*pPLL_CTL >> 9) & 0x3F;
+	msel = (bfin_read_PLL_CTL() >> 9) & 0x3F;
 	if (0 == msel)
 		msel = 64;
 
 	vco = CONFIG_CLKIN_HZ;
-	vco >>= (1 & *pPLL_CTL);	/* DF bit */
+	vco >>= (1 & bfin_read_PLL_CTL());	/* DF bit */
 	vco = msel * vco;
 	return vco;
 }
@@ -649,10 +650,10 @@ static inline u_long get_vco(void)
 u_long get_cclk()
 {
 	u_long csel, ssel;
-	if (*pPLL_STAT & 0x1)
+	if (bfin_read_PLL_STAT() & 0x1)
 		return CONFIG_CLKIN_HZ;
 
-	ssel = *pPLL_DIV;
+	ssel = bfin_read_PLL_DIV();
 	csel = ((ssel >> 4) & 0x03);
 	ssel &= 0xf;
 	if (ssel && ssel < (1 << csel))	/* SCLK > CCLK */
@@ -667,10 +668,10 @@ u_long get_sclk()
 {
 	u_long ssel;
 
-	if (*pPLL_STAT & 0x1)
+	if (bfin_read_PLL_STAT() & 0x1)
 		return CONFIG_CLKIN_HZ;
 
-	ssel = (*pPLL_DIV & 0xf);
+	ssel = (bfin_read_PLL_DIV() & 0xf);
 	if (0 == ssel) {
 		printk(KERN_WARNING "Invalid System Clock\n");
 		ssel = 1;
@@ -684,7 +685,7 @@ EXPORT_SYMBOL(get_sclk);
 static u_int get_dsp_rev_id()
 {
 	u_int id;
-	id = *pDSPID & 0xffff;
+	id = bfin_read_DSPID() & 0xffff;
 	return id;
 }
 
@@ -729,11 +730,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy * HZ));
 	seq_printf(m, "BOARD Name  :\t%s\n", name);
 	seq_printf(m, "BOARD Memory:\t%d MB\n", CONFIG_MEM_SIZE);
-	if ((*pIMEM_CONTROL) & (ENICPLB | IMC))
+	if ((bfin_read_IMEM_CONTROL()) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
 		seq_printf(m, "I-CACHE:\tOFF\n");
-	if ((*pDMEM_CONTROL) & (ENDCPLB | DMC_ENABLE))
+	if ((bfin_read_DMEM_CONTROL()) & (ENDCPLB | DMC_ENABLE))
 		seq_printf(m, "D-CACHE:\tON"
 #if defined CONFIG_BLKFIN_WB
 			   " (write-back)"
@@ -830,8 +831,8 @@ struct seq_operations cpuinfo_op = {
 
 void panic_bfin(int cplb_panic)
 {
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", *pDCPLB_FAULT_ADDR);
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", *pICPLB_FAULT_ADDR);
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
 	dump_stack();
 	switch (cplb_panic) {
 
@@ -854,41 +855,41 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 		return 0;
 
 	/* Setup destination start address */
-	*pMDMA_D0_START_ADDR = dest_addr;
+	bfin_write_MDMA_D0_START_ADDR(dest_addr);
 
 	/* Setup destination xcount */
-	*pMDMA_D0_X_COUNT = size;
+	bfin_write_MDMA_D0_X_COUNT(size);
 
 	/* Setup destination xmodify */
-	*pMDMA_D0_X_MODIFY = 1;
+	bfin_write_MDMA_D0_X_MODIFY(1);
 
 	/* Setup Source start address */
-	*pMDMA_S0_START_ADDR = source_addr;
+	bfin_write_MDMA_S0_START_ADDR(source_addr);
 
 	/* Setup Source xcount */
-	*pMDMA_S0_X_COUNT = size;
+	bfin_write_MDMA_S0_X_COUNT(size);
 
 	/* Setup Source xmodify */
-	*pMDMA_S0_X_MODIFY = 1;
+	bfin_write_MDMA_S0_X_MODIFY(1);
 #if defined (CONFIG_BF561)
-	*pSICA_IWR1 = (1 << 21);
+	bfin_write_SICA_IWR1((1 << 21));
 #else
-	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
+	bfin_write_SIC_IWR((1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1))));
 #endif
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
 	   Enable source DMA */
 
-	*pMDMA_S0_CONFIG = (DMAEN);
+	bfin_write_MDMA_S0_CONFIG((DMAEN));
 	__builtin_bfin_ssync();
 
-	*pMDMA_D0_CONFIG = (WNR | DMAEN | DI_EN);
+	bfin_write_MDMA_D0_CONFIG((WNR | DMAEN | DI_EN));
 	asm("IDLE;\n");		/* go into idle and wait for wakeup */
 
-	*pMDMA_D0_IRQ_STATUS = DMA_DONE;
+	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
 
-	*pMDMA_S0_CONFIG = 0;
-	*pMDMA_D0_CONFIG = 0;
+	bfin_write_MDMA_S0_CONFIG(0);
+	bfin_write_MDMA_D0_CONFIG(0);
 
 	return 0;
 }
@@ -904,62 +905,62 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
                 return 0;
 	if(direction==-1) {
 		/* Setup destination start address */
-		*pMDMA_D0_START_ADDR = dest_addr + size - 2;
+		bfin_write_MDMA_D0_START_ADDR(dest_addr + size - 2);
 		
 		/* Setup destination xmodify */
-		*pMDMA_D0_X_MODIFY = -2;
-		*pMDMA_D0_Y_MODIFY = -2;
+		bfin_write_MDMA_D0_X_MODIFY(-2);
+		bfin_write_MDMA_D0_Y_MODIFY(-2);
 
 		/* Setup Source start address */
-		*pMDMA_S0_START_ADDR = source_addr + size - 2;
+		bfin_write_MDMA_S0_START_ADDR(source_addr + size - 2);
 
 		/* Setup Source xmodify */
-		*pMDMA_S0_X_MODIFY = -2;
-		*pMDMA_S0_Y_MODIFY = -2;
+		bfin_write_MDMA_S0_X_MODIFY(-2);
+		bfin_write_MDMA_S0_Y_MODIFY(-2);
 	}
 	else {
 		/* Setup destination start address */
-		*pMDMA_D0_START_ADDR = dest_addr;
+		bfin_write_MDMA_D0_START_ADDR(dest_addr);
 	
 		/* Setup destination xmodify */
-		*pMDMA_D0_X_MODIFY = 2;
-		*pMDMA_D0_Y_MODIFY = 2;
+		bfin_write_MDMA_D0_X_MODIFY(2);
+		bfin_write_MDMA_D0_Y_MODIFY(2);
 
 		/* Setup Source start address */
-		*pMDMA_S0_START_ADDR = source_addr;
+		bfin_write_MDMA_S0_START_ADDR(source_addr);
 
 		/* Setup Source xmodify */
-		*pMDMA_S0_X_MODIFY = 2;
-		*pMDMA_S0_Y_MODIFY = 2;
+		bfin_write_MDMA_S0_X_MODIFY(2);
+		bfin_write_MDMA_S0_Y_MODIFY(2);
 	}
 
 	/* Setup destination xcount */
 	*pMDMA_D0_X_COUNT = 1024 / 2;
-	*pMDMA_D0_Y_COUNT = size >> 10;	/* Divide by 1024 */
+	bfin_write_MDMA_D0_Y_COUNT(size >> 10);	/* Divide by 1024 */
 
 	/* Setup Source xcount */
 	*pMDMA_S0_X_COUNT = 1024 / 2;
-	*pMDMA_S0_Y_COUNT = size >> 10;
+	bfin_write_MDMA_S0_Y_COUNT(size >> 10);
 
 #if defined (CONFIG_BF561)
-	*pSICA_IWR1 = (1 << 21);
+	bfin_write_SICA_IWR1((1 << 21));
 #else
-	*pSIC_IWR = (1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1)));
+	bfin_write_SIC_IWR((1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1))));
 #endif
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
 	   Enable source DMA */
 
-	*pMDMA_S0_CONFIG = (DMAEN | DMA2D | WDSIZE_16);
+	bfin_write_MDMA_S0_CONFIG((DMAEN | DMA2D | WDSIZE_16));
 	__builtin_bfin_ssync();
-	*pMDMA_D0_CONFIG = (WNR | DMAEN | DMA2D | WDSIZE_16 | DI_EN);
+	bfin_write_MDMA_D0_CONFIG((WNR | DMAEN | DMA2D | WDSIZE_16 | DI_EN));
 
 	asm("IDLE;\n");		/* go into idle and wait for wakeup */
 
-	*pMDMA_D0_IRQ_STATUS = DMA_DONE;
+	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
 
-	*pMDMA_S0_CONFIG = 0;
-	*pMDMA_D0_CONFIG = 0;
+	bfin_write_MDMA_S0_CONFIG(0);
+	bfin_write_MDMA_D0_CONFIG(0);
 
 	return 0;
 }

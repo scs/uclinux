@@ -99,7 +99,7 @@ ppi_handler(int irq,
 	}
 
 	wake_up(&bfin_v4l2_write_wait) ;
-	*pDMA0_IRQ_STATUS |= 1;
+	bfin_write_DMA0_IRQ_STATUS(bfin_read_DMA0_IRQ_STATUS() | 1);
 	return IRQ_HANDLED;
 }
 
@@ -109,7 +109,7 @@ bfin_v4l2_memdma0_interrupt_handler(int irq,
             struct pt_regs *regs)
 {
 	mem_dma0_status = 0 ;
-	*pMDMA_D0_IRQ_STATUS = 0x1;
+	bfin_write_MDMA_D0_IRQ_STATUS(0x1);
 	return IRQ_HANDLED;
 }
 
@@ -118,7 +118,7 @@ bfin_v4l2_memdma1_interrupt_handler(int irq,
             void *dev_id,
             struct pt_regs *regs)
 {
-	*pMDMA_D1_IRQ_STATUS = 0x1;
+	bfin_write_MDMA_D1_IRQ_STATUS(0x1);
 	mem_dma1_status = 0 ;
 	if(ycrcb_buffer_1_status == BUFFER_BEING_WRITTEN) {
 		ycrcb_buffer_1_status = BUFFER_WRITTEN ;
@@ -189,16 +189,16 @@ init_device_bfin_v4l2(void)
 	_config_dma(ycrcb_buffer_out_1) ;
 	enable_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ);
         // enable the dma
-        *pDMA0_CONFIG |= 1;
-        *pPPI_CONTROL |= 1;
+        bfin_write_DMA0_CONFIG(bfin_read_DMA0_CONFIG() | 1);
+        bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | 1);
 }
 
 void
 device_bfin_close()
 {
 	//disable DMA
-	*pPPI_CONTROL &= 0;
-	*pDMA0_CONFIG &= 0;
+	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & 0);
+	bfin_write_DMA0_CONFIG(bfin_read_DMA0_CONFIG() & 0);
 	//Release the interrupt.
 	free_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &id2);
 	free_irq(IRQ_MEM_DMA0, &id2);
@@ -211,58 +211,58 @@ bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 {
 
 	ycrcb_buffer_update += 0x079BC ;//initial offset 
-//	*pMDMA_D0_IRQ_STATUS = DMA_DONE | DMA_ERR;
+//	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 	/* Copy sram functions from sdram to sram */
 	/* Setup destination start address */
-	*pMDMA_D0_START_ADDR = ycrcb_buffer_update;
+	bfin_write_MDMA_D0_START_ADDR(ycrcb_buffer_update);
 	/* Setup destination xcount */
-	*pMDMA_D0_X_COUNT = 360 ;
+	bfin_write_MDMA_D0_X_COUNT(360 );
 	/* Setup destination xmodify */
-	*pMDMA_D0_X_MODIFY = 4;
+	bfin_write_MDMA_D0_X_MODIFY(4);
 	/* Setup destination ycount */
-	*pMDMA_D0_Y_COUNT = 262 ;
+	bfin_write_MDMA_D0_Y_COUNT(262 );
 	/* Setup destination ymodify */
-	*pMDMA_D0_Y_MODIFY = 280;
+	bfin_write_MDMA_D0_Y_MODIFY(280);
 
 	/* Setup Source start address */
-	*pMDMA_S0_START_ADDR = ycrcb_buffer_raw;
+	bfin_write_MDMA_S0_START_ADDR(ycrcb_buffer_raw);
 	/* Setup Source xcount */
-	*pMDMA_S0_X_COUNT = 360 ;
+	bfin_write_MDMA_S0_X_COUNT(360 );
 	/* Setup Source xmodify */
-	*pMDMA_S0_X_MODIFY = 4;
+	bfin_write_MDMA_S0_X_MODIFY(4);
 	/* Setup Source ycount */
-	*pMDMA_S0_Y_COUNT = 262 ;
+	bfin_write_MDMA_S0_Y_COUNT(262 );
 	/* Setup Source ymodify */
-	*pMDMA_S0_Y_MODIFY = 1444 ;
+	bfin_write_MDMA_S0_Y_MODIFY(1444 );
 
 
 
 
 	ycrcb_buffer_update += 0x06DC38 ;//Even Odd Field Offset
 	ycrcb_buffer_raw += 1440;
-//	*pMDMA_D1_IRQ_STATUS = DMA_DONE | DMA_ERR;
+//	bfin_write_MDMA_D1_IRQ_STATUS(DMA_DONE | DMA_ERR);
 	/* Copy sram functions from sdram to sram */
 	/* Setup destination start address */
-	*pMDMA_D1_START_ADDR = ycrcb_buffer_update;
+	bfin_write_MDMA_D1_START_ADDR(ycrcb_buffer_update);
 	/* Setup destination xcount */
-	*pMDMA_D1_X_COUNT = 360 ;
+	bfin_write_MDMA_D1_X_COUNT(360 );
 	/* Setup destination xmodify */
-	*pMDMA_D1_X_MODIFY = 4;
+	bfin_write_MDMA_D1_X_MODIFY(4);
 	/* Setup destination ycount */
-	*pMDMA_D1_Y_COUNT = 262 ;
+	bfin_write_MDMA_D1_Y_COUNT(262 );
 	/* Setup destination ymodify */
-	*pMDMA_D1_Y_MODIFY = 280;
+	bfin_write_MDMA_D1_Y_MODIFY(280);
 
 	/* Setup Source start address */
-	*pMDMA_S1_START_ADDR = ycrcb_buffer_raw;
+	bfin_write_MDMA_S1_START_ADDR(ycrcb_buffer_raw);
 	/* Setup Source xcount */
-	*pMDMA_S1_X_COUNT = 360 ;
+	bfin_write_MDMA_S1_X_COUNT(360 );
 	/* Setup Source xmodify */
-	*pMDMA_S1_X_MODIFY = 4;
+	bfin_write_MDMA_S1_X_MODIFY(4);
 	/* Setup Source ycount */
-	*pMDMA_S1_Y_COUNT = 262 ;
+	bfin_write_MDMA_S1_Y_COUNT(262 );
 	/* Setup Source ymodify */
-	*pMDMA_S1_Y_MODIFY = 1444 ;
+	bfin_write_MDMA_S1_Y_MODIFY(1444 );
 
 
 
@@ -271,9 +271,9 @@ bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 
 	/* Set word size to 32, set to read, enable interrupt for wakeup */
 	/* Enable source DMA */
-	*pMDMA_S0_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
-	*pMDMA_S1_CONFIG = (DMA2D | WDSIZE_32 | DMAEN) ;
+	bfin_write_MDMA_S0_CONFIG((DMA2D | WDSIZE_32 | DMAEN) );
+	bfin_write_MDMA_S1_CONFIG((DMA2D | WDSIZE_32 | DMAEN) );
 	__builtin_bfin_ssync();
-	*pMDMA_D0_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
-	*pMDMA_D1_CONFIG = ( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ; 
+	bfin_write_MDMA_D0_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ); 
+	bfin_write_MDMA_D1_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ); 
 }

@@ -154,10 +154,10 @@ static void bf561_internal_mask_irq(unsigned int irq)
 	unsigned long irq_mask;
 	if ((irq - (IRQ_CORETMR + 1)) < 32) {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
-		*pSICA_IMASK0 &= ~irq_mask;
+		bfin_write_SICA_IMASK0(bfin_read_SICA_IMASK0() & ~irq_mask);
 	} else {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1) - 32));
-		*pSICA_IMASK1 &= ~irq_mask;
+		bfin_write_SICA_IMASK1(bfin_read_SICA_IMASK1() & ~irq_mask);
 	}
 }
 
@@ -167,10 +167,10 @@ static void bf561_internal_unmask_irq(unsigned int irq)
 
 	if ((irq - (IRQ_CORETMR + 1)) < 32) {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1)));
-		*pSICA_IMASK0 |= irq_mask;
+		bfin_write_SICA_IMASK0(bfin_read_SICA_IMASK0() | irq_mask);
 	} else {
 		irq_mask = (1 << (irq - (IRQ_CORETMR + 1) - 32));
-		*pSICA_IMASK1 |= irq_mask;
+		bfin_write_SICA_IMASK1(bfin_read_SICA_IMASK1() | irq_mask);
 	}
 	__builtin_bfin_ssync();
 }
@@ -197,13 +197,13 @@ static void bf561_gpio_ack_irq(unsigned int irq)
 	int mask;
 	if (gpionr < 16) {
 		mask = (1L << gpionr);
-		*pFIO0_FLAG_C = mask;
+		bfin_write_FIO0_FLAG_C(mask);
 	} else if (gpionr < 32) {
 		mask = (1L << (gpionr - 16));
-		*pFIO1_FLAG_C = mask;
+		bfin_write_FIO1_FLAG_C(mask);
 	} else {
 		mask = (1L << (gpionr - 32));
-		*pFIO2_FLAG_C = mask;
+		bfin_write_FIO2_FLAG_C(mask);
 	}
 /*	if (gpio_edge_triggered & mask) {
 		* ack *
@@ -220,21 +220,21 @@ static void bf561_gpio_mask_irq(unsigned int irq)
 	int mask;
 	if (gpionr < 16) {
 		mask = (1L << gpionr);
-		*pFIO0_FLAG_C = mask;
+		bfin_write_FIO0_FLAG_C(mask);
 		__builtin_bfin_ssync();
-		*pFIO0_MASKB_C = mask;
+		bfin_write_FIO0_MASKB_C(mask);
 		__builtin_bfin_ssync();
 	} else if (gpionr < 32) {
 		mask = (1L << (gpionr - 16));
-		*pFIO1_FLAG_C = mask;
+		bfin_write_FIO1_FLAG_C(mask);
 		__builtin_bfin_ssync();
-		*pFIO1_MASKB_C = mask;
+		bfin_write_FIO1_MASKB_C(mask);
 		__builtin_bfin_ssync();
 	} else {
 		mask = (1L << (gpionr - 32));
-		*pFIO2_FLAG_C = mask;
+		bfin_write_FIO2_FLAG_C(mask);
 		__builtin_bfin_ssync();
-		*pFIO2_MASKB_C = mask;
+		bfin_write_FIO2_MASKB_C(mask);
 		__builtin_bfin_ssync();
 	}
 }
@@ -245,13 +245,13 @@ static void bf561_gpio_unmask_irq(unsigned int irq)
 	int mask;
 	if (gpionr < 16) {
 		mask = (1L << gpionr);
-		*pFIO0_MASKB_S = mask;
+		bfin_write_FIO0_MASKB_S(mask);
 	} else if (gpionr < 32) {
 		mask = (1L << (gpionr - 16));
-		*pFIO1_MASKB_S = mask;
+		bfin_write_FIO1_MASKB_S(mask);
 	} else {
 		mask = (1L << (gpionr - 32));
-		*pFIO2_MASKB_S = mask;
+		bfin_write_FIO2_MASKB_S(mask);
 	}
 }
 
@@ -263,23 +263,23 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	if (gpionr < 16) {
 		mask = (1L << gpionr);
-		*pFIO0_DIR &= ~mask;
+		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() & ~mask);
 		__builtin_bfin_ssync();
-		*pFIO0_INEN |= mask;
+		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() | mask);
 		__builtin_bfin_ssync();
 		gpioidx = 0;
 	} else if (gpionr < 32) {
 		mask = (1L << (gpionr - 16));
-		*pFIO1_DIR &= ~mask;
+		bfin_write_FIO1_DIR(bfin_read_FIO1_DIR() & ~mask);
 		__builtin_bfin_ssync();
-		*pFIO1_INEN |= mask;
+		bfin_write_FIO1_INEN(bfin_read_FIO1_INEN() | mask);
 		__builtin_bfin_ssync();
 		gpioidx = 1;
 	} else {
 		mask = (1L << (gpionr - 32));
-		*pFIO2_DIR &= ~mask;
+		bfin_write_FIO2_DIR(bfin_read_FIO2_DIR() & ~mask);
 		__builtin_bfin_ssync();
-		*pFIO2_INEN |= mask;
+		bfin_write_FIO2_INEN(bfin_read_FIO2_INEN() | mask);
 		__builtin_bfin_ssync();
 		gpioidx = 2;
 	}
@@ -299,18 +299,18 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (__IRQT_RISEDGE | __IRQT_FALEDGE)) {
 		gpio_edge_triggered[gpioidx] |= mask;
 		if (gpionr < 16)
-			*pFIO0_EDGE |= mask;
+			bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() | mask);
 		else if (gpionr < 32)
-			*pFIO1_EDGE |= mask;
+			bfin_write_FIO1_EDGE(bfin_read_FIO1_EDGE() | mask);
 		else
-			*pFIO2_EDGE |= mask;
+			bfin_write_FIO2_EDGE(bfin_read_FIO2_EDGE() | mask);
 	} else {
 		if (gpionr < 16)
-			*pFIO0_EDGE &= ~mask;
+			bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() & ~mask);
 		else if (gpionr < 32)
-			*pFIO1_EDGE &= ~mask;
+			bfin_write_FIO1_EDGE(bfin_read_FIO1_EDGE() & ~mask);
 		else
-			*pFIO2_EDGE &= ~mask;
+			bfin_write_FIO2_EDGE(bfin_read_FIO2_EDGE() & ~mask);
 		gpio_edge_triggered[gpioidx] &= ~mask;
 	}
 	__builtin_bfin_ssync();
@@ -318,18 +318,18 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 	if ((type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
 	    == (__IRQT_RISEDGE | __IRQT_FALEDGE)) {
 		if (gpionr < 16)
-			*pFIO0_BOTH |= mask;
+			bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() | mask);
 		else if (gpionr < 32)
-			*pFIO1_BOTH |= mask;
+			bfin_write_FIO1_BOTH(bfin_read_FIO1_BOTH() | mask);
 		else
-			*pFIO2_BOTH |= mask;
+			bfin_write_FIO2_BOTH(bfin_read_FIO2_BOTH() | mask);
 	} else {
 		if (gpionr < 16)
-			*pFIO0_BOTH &= ~mask;
+			bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() & ~mask);
 		else if (gpionr < 32)
-			*pFIO1_BOTH &= ~mask;
+			bfin_write_FIO1_BOTH(bfin_read_FIO1_BOTH() & ~mask);
 		else
-			*pFIO2_BOTH &= ~mask;
+			bfin_write_FIO2_BOTH(bfin_read_FIO2_BOTH() & ~mask);
 	}
 	__builtin_bfin_ssync();
 
@@ -338,19 +338,19 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 		!= (__IRQT_RISEDGE | __IRQT_FALEDGE))) {
 		/* low or falling edge denoted by one */
 		if (gpionr < 16)
-			*pFIO0_POLAR |= mask;
+			bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() | mask);
 		else if (gpionr < 32)
-			*pFIO1_POLAR |= mask;
+			bfin_write_FIO1_POLAR(bfin_read_FIO1_POLAR() | mask);
 		else
-			*pFIO2_POLAR |= mask;
+			bfin_write_FIO2_POLAR(bfin_read_FIO2_POLAR() | mask);
 	} else {
 		/* high or rising edge denoted by zero */
 		if (gpionr < 16)
-			*pFIO0_POLAR &= ~mask;
+			bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() & ~mask);
 		else if (gpionr < 32)
-			*pFIO1_POLAR &= ~mask;
+			bfin_write_FIO1_POLAR(bfin_read_FIO1_POLAR() & ~mask);
 		else
-			*pFIO2_POLAR &= ~mask;
+			bfin_write_FIO2_POLAR(bfin_read_FIO2_POLAR() & ~mask);
 	}
 	__builtin_bfin_ssync();
 
@@ -377,8 +377,8 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 	if (intb_irq == IRQ_PROG0_INTB) {
 		do {
 			int irq = IRQ_PF0;
-			int flag_d = *pFIO0_FLAG_D;
-			int mask = flag_d & (gpio_enabled[0] & *pFIO0_MASKB_D);
+			int flag_d = bfin_read_FIO0_FLAG_D();
+			int mask = flag_d & (gpio_enabled[0] & bfin_read_FIO0_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
@@ -392,8 +392,8 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 	} else if (intb_irq == IRQ_PROG1_INTB) {
 		do {
 			int irq = IRQ_PF16;
-			int flag_d = *pFIO1_FLAG_D;
-			int mask = flag_d & (gpio_enabled[1] & *pFIO1_MASKB_D);
+			int flag_d = bfin_read_FIO1_FLAG_D();
+			int mask = flag_d & (gpio_enabled[1] & bfin_read_FIO1_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
@@ -407,8 +407,8 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 	} else {
 		do {
 			int irq = IRQ_PF32;
-			int flag_d = *pFIO2_FLAG_D;
-			int mask = flag_d & (gpio_enabled[2] & *pFIO2_MASKB_D);
+			int flag_d = bfin_read_FIO2_FLAG_D();
+			int mask = flag_d & (gpio_enabled[2] & bfin_read_FIO2_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
@@ -432,28 +432,28 @@ int __init init_arch_irq(void)
 	int irq;
 	unsigned long ilat = 0;
 	/*  Disable all the peripheral intrs  - page 4-29 HW Ref manual */
-	*pSICA_IMASK0 = SIC_UNMASK_ALL;
-	*pSICA_IMASK1 = SIC_UNMASK_ALL;
+	bfin_write_SICA_IMASK0(SIC_UNMASK_ALL);
+	bfin_write_SICA_IMASK1(SIC_UNMASK_ALL);
 	__builtin_bfin_ssync();
 
 	local_irq_disable();
 
 #ifndef CONFIG_KGDB
-	*pEVT0 = evt_emulation;
+	bfin_write_EVT0(evt_emulation);
 #endif
-	*pEVT2 = evt_evt2;
-	*pEVT3 = trap;
-	*pEVT5 = evt_ivhw;
-	*pEVT6 = evt_timer;
-	*pEVT7 = evt_evt7;
-	*pEVT8 = evt_evt8;
-	*pEVT9 = evt_evt9;
-	*pEVT10 = evt_evt10;
-	*pEVT11 = evt_evt11;
-	*pEVT12 = evt_evt12;
-	*pEVT13 = evt_evt13;
-	*pEVT14 = evt14_softirq;
-	*pEVT15 = evt_system_call;
+	bfin_write_EVT2(evt_evt2);
+	bfin_write_EVT3(trap);
+	bfin_write_EVT5(evt_ivhw);
+	bfin_write_EVT6(evt_timer);
+	bfin_write_EVT7(evt_evt7);
+	bfin_write_EVT8(evt_evt8);
+	bfin_write_EVT9(evt_evt9);
+	bfin_write_EVT10(evt_evt10);
+	bfin_write_EVT11(evt_evt11);
+	bfin_write_EVT12(evt_evt12);
+	bfin_write_EVT13(evt_evt13);
+	bfin_write_EVT14(evt14_softirq);
+	bfin_write_EVT15(evt_system_call);
 	__builtin_bfin_csync();
 
 	for (irq = 0; irq < SYS_IRQS; irq++) {
@@ -483,11 +483,11 @@ int __init init_arch_irq(void)
 		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 #endif
-	*pIMASK = 0;
+	bfin_write_IMASK(0);
 	__builtin_bfin_csync();
-	ilat = *pILAT;
+	ilat = bfin_read_ILAT();
 	__builtin_bfin_csync();
-	*pILAT = ilat;
+	bfin_write_ILAT(ilat);
 	__builtin_bfin_csync();
 
 	printk(KERN_INFO "Configuring Blackfin Priority Driven Interrupts\n");
@@ -518,8 +518,8 @@ void do_irq(int vec, struct pt_regs *fp)
 		unsigned long sic_status0, sic_status1;
 
 		__builtin_bfin_ssync();
-		sic_status0 = *pSICA_IMASK0 & *pSICA_ISR0;
-		sic_status1 = *pSICA_IMASK1 & *pSICA_ISR1;
+		sic_status0 = bfin_read_SICA_IMASK0() & bfin_read_SICA_ISR0();
+		sic_status1 = bfin_read_SICA_IMASK1() & bfin_read_SICA_ISR1();
 
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {

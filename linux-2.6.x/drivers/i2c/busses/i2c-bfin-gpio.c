@@ -36,17 +36,17 @@ static void hhbf_setsda(void *data, int state)
 {
 #if 0 	/* comment by mhfan */
     if (state)
-	*pFIO_FLAG_D |=  HHBF_I2C_SDATA;
+	bfin_write_FIO_FLAG_D(bfin_read_FIO_FLAG_D() |  HHBF_I2C_SDATA);
     else
-	*pFIO_FLAG_D &= ~HHBF_I2C_SDATA;
+	bfin_write_FIO_FLAG_D(bfin_read_FIO_FLAG_D() & ~HHBF_I2C_SDATA);
 #else
     if (state) {
-	*pFIO_DIR    &= ~HHBF_I2C_SDATA;
-	*pFIO_INEN   |=  HHBF_I2C_SDATA;
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~HHBF_I2C_SDATA);
+	bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  HHBF_I2C_SDATA);
     } else {
-	*pFIO_INEN   &= ~HHBF_I2C_SDATA;
-	*pFIO_DIR    |=  HHBF_I2C_SDATA;
-	*pFIO_FLAG_C  =  HHBF_I2C_SDATA;
+	bfin_write_FIO_INEN(bfin_read_FIO_INEN() & ~HHBF_I2C_SDATA);
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() |  HHBF_I2C_SDATA);
+	bfin_write_FIO_FLAG_C(HHBF_I2C_SDATA);
     }
 #endif	/* comment by mhfan */
 }
@@ -54,20 +54,20 @@ static void hhbf_setsda(void *data, int state)
 static void hhbf_setscl(void *data, int state)
 {
     if (state)
-	*pFIO_FLAG_S =  HHBF_I2C_SCLK;
+	bfin_write_FIO_FLAG_S(HHBF_I2C_SCLK);
     else
-	*pFIO_FLAG_C =  HHBF_I2C_SCLK;
+	bfin_write_FIO_FLAG_C(HHBF_I2C_SCLK);
 }
 
 static int hhbf_getsda(void *data)
 {
-    return ((*pFIO_FLAG_D & HHBF_I2C_SDATA) != 0);
+    return ((bfin_read_FIO_FLAG_D() & HHBF_I2C_SDATA) != 0);
 }
 
 #if 0 	/* comment by mhfan */
 static int hhbf_getscl(void *data)
 {
-    return ((*pFIO_FLAG_D & HHBF_I2C_SCLK) != 0);
+    return ((bfin_read_FIO_FLAG_D() & HHBF_I2C_SCLK) != 0);
 }
 #endif	/* comment by mhfan */
 
@@ -92,16 +92,16 @@ static struct i2c_adapter hhbf_ops = {
 
 static int __init i2c_hhbf_init(void)
 {
-    *pFIO_DIR      |=  HHBF_I2C_SCLK;		// Set SCLK as output
-    *pFIO_POLAR    &= ~HHBF_I2C_SDATA;		// Enable Active Hight
-    *pFIO_EDGE     &= ~HHBF_I2C_SDATA;		// Enable Level Sensitivity
-    *pFIO_INEN     |=  HHBF_I2C_SDATA;		// Enable SDATA Input Buffer
-    *pFIO_DIR      &= ~HHBF_I2C_SDATA; 	// Set SDATA as input/high
+    bfin_write_FIO_DIR(bfin_read_FIO_DIR() |  HHBF_I2C_SCLK);		// Set SCLK as output
+    bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~HHBF_I2C_SDATA);		// Enable Active Hight
+    bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~HHBF_I2C_SDATA);		// Enable Level Sensitivity
+    bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  HHBF_I2C_SDATA);		// Enable SDATA Input Buffer
+    bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~HHBF_I2C_SDATA); 	// Set SDATA as input/high
 #if 0 	/* comment by mhfan */
-    *pFIO_DIR      |=  HHBF_I2C_SDATA;
-    *pFIO_FLAG_D   |=  HHBF_I2C_SDATA;
+    bfin_write_FIO_DIR(bfin_read_FIO_DIR() |  HHBF_I2C_SDATA);
+    bfin_write_FIO_FLAG_D(bfin_read_FIO_FLAG_D() |  HHBF_I2C_SDATA);
 #endif	/* comment by mhfan */
-    *pFIO_FLAG_S   =   HHBF_I2C_SCLK;		// Set SCLK high
+    bfin_write_FIO_FLAG_S  (  HHBF_I2C_SCLK);		// Set SCLK high
 
     return i2c_bit_add_bus(&hhbf_ops);
 }

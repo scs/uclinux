@@ -75,7 +75,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		__builtin_bfin_ssync();
 		*pITEST_COMMAND=cmd;
 		__builtin_bfin_ssync();
-		tag = *pITEST_DATA0;
+		tag = bfin_read_ITEST_DATA0();
 		__builtin_bfin_ssync();
 
 		/* if tag is marked as valid, check it */
@@ -91,8 +91,8 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
                                  *pITEST_COMMAND=cmd;
                                 __builtin_bfin_ssync();
 
-				cache_hi = *pITEST_DATA1;
-				cache_lo = *pITEST_DATA0;
+				cache_hi = bfin_read_ITEST_DATA1();
+				cache_lo = bfin_read_ITEST_DATA0();
 
 				pa = ((unsigned int *)((tag & 0xffffcc00)  | ((ca+j) & ~(0xffffcc00))));
 
@@ -164,7 +164,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		}
 	}
 
-	regs->ipend = *pIPEND;
+	regs->ipend = bfin_read_IPEND();
 	dump(regs, (void *)regs->pc);
 	if (0 == (info.si_signo = sig) || 0 == user_mode(regs))	/* in kernelspace */
 		panic("Unhandled IRQ or exceptions!\n");

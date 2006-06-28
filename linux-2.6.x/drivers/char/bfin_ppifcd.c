@@ -137,10 +137,10 @@ static u_long ppi_get_sclk(void)
 
     vco = (CONFIG_CLKIN_HZ) * ((*pPLL_CTL >> 9)& 0x3F);
 
-    if (1 & *pPLL_CTL) /* DR bit */
+    if (1 & bfin_read_PLL_CTL()) /* DR bit */
         vco >>= 1;
 
-    if((*pPLL_DIV & 0xf) != 0)
+    if((bfin_read_PLL_DIV() & 0xf) != 0)
         sclk = vco/(*pPLL_DIV & 0xf);
     else
         printk(KERN_NOTICE "bfin_ppifcd: Invalid System Clock\n");
@@ -179,13 +179,13 @@ void ppifcd_reg_reset(ppi_device_t *pdev)
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
   *pPPI_STATUS=0xFFFF;
 #else
-  u16 status=*pPPI_STATUS;
+  u16 status=bfin_read_PPI_STATUS();
 #endif
 
-    *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
-    *pPPI_DELAY   = pdev->ppi_delay;
-    *pPPI_COUNT   = pdev->pixel_per_line - 1;
-    *pPPI_FRAME   = pdev->lines_per_frame;
+    bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
+    bfin_write_PPI_DELAY(pdev->ppi_delay);
+    bfin_write_PPI_COUNT(pdev->pixel_per_line - 1);
+    bfin_write_PPI_FRAME(pdev->lines_per_frame);
 
   return;
 
@@ -231,7 +231,7 @@ static irqreturn_t ppifcd_irq(int irq, void *dev_id, struct pt_regs *regs)
 
     /* disable ppi */
 
-    *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
+    bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
 
     pdev->done = 1;
 
@@ -256,7 +256,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 
     ppi_device_t *pdev = (ppi_device_t*)dev_id;
    	
-   	u16 status = *pPPI_STATUS;
+   	u16 status = bfin_read_PPI_STATUS();
 	
 /*BF537/6/4 PPI_STATUS is Write to Clear*/
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
@@ -272,7 +272,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 
     /* disable ppi */
 
-    *pPPI_CONTROL = pdev->ppi_control & ~PORT_EN;
+    bfin_write_PPI_CONTROL(pdev->ppi_control& ~PORT_EN);
 
     pdev->done = 1;
 
@@ -332,7 +332,7 @@ static int ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned 
             DPRINTK("ppi_ioctl: CMD_PPI_SET_PIXELS_PER_LINE\n");
 
            pdev->pixel_per_line = (unsigned short) arg;
-           *pPPI_COUNT = pdev->pixel_per_line - 1;
+           bfin_write_PPI_COUNT(pdev->pixel_per_line - 1);
            break;
         }
         case CMD_PPI_SET_LINES_PER_FRAME:
@@ -477,14 +477,14 @@ static ssize_t ppi_read (struct file *filp, char *buf, size_t count, loff_t *pos
 
     /* Enable PPI */
 
-    *pPPI_CONTROL |= PORT_EN;
+    bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
     __builtin_bfin_ssync();
 
     if(pdev->ppi_trigger_gpio < NO_TRIGGER)
     {
-         *pFIO_FLAG_S = 1 << pdev->ppi_trigger_gpio;
+         bfin_write_FIO_FLAG_S(1 << pdev->ppi_trigger_gpio);
          __builtin_bfin_ssync();
-         *pFIO_FLAG_C = 1 << pdev->ppi_trigger_gpio;
+         bfin_write_FIO_FLAG_C(1 << pdev->ppi_trigger_gpio);
          __builtin_bfin_ssync();
      }
 
@@ -599,9 +599,9 @@ static int ppi_open (struct inode *inode, struct file *filp)
     request_irq(IRQ_PPI_ERROR,(void *) ppifcd_irq_error,SA_INTERRUPT,"PPI ERROR" ,filp->private_data);
 
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
-        *pPORTG_FER   = 0x00FF; /* PPI[7:0]    */
-        *pPORTF_FER  |= 0x8300; /* PF.15 PPI_CLK FS1 FS2*/
-        *pPORT_MUX   &= ~0x0E00;
+        bfin_write_PORTG_FER  (0x00FF); /* PPI[7:0]    */
+        bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8300); /* PF.15 PPI_CLK FS1 FS2*/
+        bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~0x0E00);
 #endif
 
 

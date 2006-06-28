@@ -91,7 +91,7 @@ void cpu_idle(void)
 void machine_restart(char *__unused)
 {
 #if defined(CONFIG_BLKFIN_CACHE)
-	*pIMEM_CONTROL = 0x01;
+	bfin_write_IMEM_CONTROL(0x01);
 	__builtin_bfin_ssync();
 #endif
 	bfin_reset();
@@ -306,7 +306,7 @@ inline void static leds_switch(int flag)
 {
 	unsigned short tmp = 0;
 
-	tmp = *pCONFIG_BFIN_IDLE_LED_PORT;
+	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
 	__builtin_bfin_ssync();
 
 	if (flag == LED_ON)
@@ -314,7 +314,7 @@ inline void static leds_switch(int flag)
 	else
 		tmp |= CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
 
-	*pCONFIG_BFIN_IDLE_LED_PORT = tmp;
+	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp);
 	__builtin_bfin_ssync();
 
 }

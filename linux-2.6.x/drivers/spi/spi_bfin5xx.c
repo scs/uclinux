@@ -187,38 +187,38 @@ static void restore_state(struct driver_data *drv_data)
 #if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
 	if (chip->chip_select_num == 1) {
 		PRINTK("set for chip select 1\n");
-		*pPORTF_FER |= 0x7c00;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 2 || chip->chip_select_num == 3) {
 		PRINTK("set for chip select 2\n");
-		*pPORT_MUX |= PJSE_SPI;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJSE_SPI);
 		__builtin_bfin_ssync();
-		*pPORTF_FER |= 0x7c00;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 4) {
-		*pPORT_MUX |= PFS4E_SPI;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS4E_SPI);
 		__builtin_bfin_ssync();
-		*pPORTF_FER |= 0x7c40;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c40);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 5) {
-		*pPORT_MUX |= PFS5E_SPI;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS5E_SPI);
 		__builtin_bfin_ssync();
-		*pPORTF_FER |= 0x7c20;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c20);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 6) {
-		*pPORT_MUX |= PFS6E_SPI;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS6E_SPI);
 		__builtin_bfin_ssync();
-		*pPORTF_FER |= 0x7c10;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c10);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 7) {
-		*pPORT_MUX |= PJCE_SPI;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJCE_SPI);
 		__builtin_bfin_ssync();
-		*pPORTF_FER |= 0x7c00;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
 		__builtin_bfin_ssync();
 	}
 #endif

@@ -491,7 +491,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	   that level.  If there's another, lower-level interrupt, irq_exit
 	   will defer softirqs to that.  */
 	__builtin_bfin_csync();
-	pending = *pIPEND & ~0x8000;
+	pending = bfin_read_IPEND() & ~0x8000;
 	other_ints = pending & (pending - 1);
 	if (other_ints == 0)
 		lower_to_irq14();

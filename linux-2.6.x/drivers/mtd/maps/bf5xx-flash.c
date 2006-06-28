@@ -45,10 +45,10 @@ static inline void switch_to_flash(struct flash_save *save)
 	__builtin_bfin_ssync();
 
 
-	save->ambctl0	= *pEBIU_AMBCTL0;
-	save->ambctl1	= *pEBIU_AMBCTL1;
-	*pEBIU_AMBCTL0 = BFIN_FLASH_AMBCTL0VAL;
-	*pEBIU_AMBCTL1 = BFIN_FLASH_AMBCTL1VAL;
+	save->ambctl0	= bfin_read_EBIU_AMBCTL0();
+	save->ambctl1	= bfin_read_EBIU_AMBCTL1();
+	bfin_write_EBIU_AMBCTL0(BFIN_FLASH_AMBCTL0VAL);
+	bfin_write_EBIU_AMBCTL1(BFIN_FLASH_AMBCTL1VAL);
 	__builtin_bfin_ssync();
 }
 #else
@@ -74,8 +74,8 @@ static inline void switch_back(struct flash_save *save) {}
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static inline void setup_pfpins(void)
 {
-	*pFIO_INEN		&= ~CONFIG_ENET_FLASH_PIN;
-	*pFIO_DIR 		|=  CONFIG_ENET_FLASH_PIN;
+	bfin_write_FIO_INEN(bfin_read_FIO_INEN() & ~CONFIG_ENET_FLASH_PIN);
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() |  CONFIG_ENET_FLASH_PIN);
 }
 #else
 static inline void setup_pfpins(void) {}

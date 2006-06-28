@@ -78,14 +78,14 @@ static void set_backlight(unsigned long val)
 	current_brightness = val;
 	timer_freq = val * 500/100;
 
-	*pTIMER_DISABLE = TIMDIS1;
+	bfin_write_TIMER_DISABLE(TIMDIS1);
 	__builtin_bfin_ssync();
 
 	timer_val = get_sclk() / timer_freq;
-	*pTIMER1_PERIOD = timer_val;
-	*pTIMER1_WIDTH  = timer_val >> 1;
-	*pTIMER1_CONFIG = PWM_OUT|PULSE_HI|PERIOD_CNT;
-	*pTIMER_ENABLE = TIMEN1;
+	bfin_write_TIMER1_PERIOD(timer_val);
+	bfin_write_TIMER1_WIDTH (timer_val >> 1);
+	bfin_write_TIMER1_CONFIG(PWM_OUT|PULSE_HI|PERIOD_CNT);
+	bfin_write_TIMER_ENABLE(TIMEN1);
 	__builtin_bfin_ssync();
 #endif
 }
@@ -183,17 +183,17 @@ static void start_timers(void) /* CHECK with HW */
 
 	local_irq_save(flags);
 
-	*pTIMER_ENABLE = TIMEN5;
+	bfin_write_TIMER_ENABLE(TIMEN5);
 	__builtin_bfin_ssync();
 
-	while (*pTIMER5_COUNTER <= 11)
+	while (bfin_read_TIMER5_COUNTER() <= 11)
 		;
-	*pTIMER_ENABLE = TIMEN6;
+	bfin_write_TIMER_ENABLE(TIMEN6);
 	__builtin_bfin_ssync();
 
-	while (*pTIMER6_COUNTER < 3)
+	while (bfin_read_TIMER6_COUNTER() < 3)
 		;
-	*pTIMER_ENABLE = TIMEN0|TIMEN1 | TIMEN7;
+	bfin_write_TIMER_ENABLE(TIMEN0|TIMEN1 | TIMEN7);
 	__builtin_bfin_ssync();
 
 	local_irq_restore(flags);
@@ -202,40 +202,40 @@ static void start_timers(void) /* CHECK with HW */
 static void config_timers(void) /* CHECKME */
 {
 	/* Stop timers */
-	*pTIMER_DISABLE = TIMDIS0|TIMDIS1|TIMDIS5|TIMDIS6|TIMDIS7;
+	bfin_write_TIMER_DISABLE(TIMDIS0|TIMDIS1|TIMDIS5|TIMDIS6|TIMDIS7);
 	__builtin_bfin_ssync();
 
 	/* LP, timer 6 */
-	*pTIMER6_CONFIG = TIMER_CONFIG|PULSE_HI;
-	*pTIMER6_WIDTH  = 1;
+	bfin_write_TIMER6_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER6_WIDTH (1);
 
-	*pTIMER6_PERIOD = DCLKS_PER_LINE;
+	bfin_write_TIMER6_PERIOD(DCLKS_PER_LINE);
 	__builtin_bfin_ssync();
 
 	/* SPS, timer 1 */
-	*pTIMER1_CONFIG = TIMER_CONFIG|PULSE_HI;
+	bfin_write_TIMER1_CONFIG(TIMER_CONFIG|PULSE_HI);
 	*pTIMER1_WIDTH  = DCLKS_PER_LINE*2;
 	*pTIMER1_PERIOD = (DCLKS_PER_LINE * (320+U_LINES));
 	__builtin_bfin_ssync();
 
 	/* SP, timer 0 */
-	*pTIMER0_CONFIG = TIMER_CONFIG|PULSE_HI;
-	*pTIMER0_WIDTH  = 1;
-	*pTIMER0_PERIOD = DCLKS_PER_LINE;
+	bfin_write_TIMER0_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER0_WIDTH (1);
+	bfin_write_TIMER0_PERIOD(DCLKS_PER_LINE);
 	__builtin_bfin_ssync();
 
 	/* PS & CLS, timer 7 */
-	*pTIMER7_CONFIG = TIMER_CONFIG;
-	*pTIMER7_WIDTH  = 248;
-	*pTIMER7_PERIOD = DCLKS_PER_LINE;
+	bfin_write_TIMER7_CONFIG(TIMER_CONFIG);
+	bfin_write_TIMER7_WIDTH (248);
+	bfin_write_TIMER7_PERIOD(DCLKS_PER_LINE);
 
 	__builtin_bfin_ssync();
 
 #ifdef NO_BL
 	/* REV, timer 5 */
-	*pTIMER5_CONFIG = TIMER_CONFIG|PULSE_HI;
+	bfin_write_TIMER5_CONFIG(TIMER_CONFIG|PULSE_HI);
 
-	*pTIMER5_WIDTH  = DCLKS_PER_LINE;
+	bfin_write_TIMER5_WIDTH (DCLKS_PER_LINE);
 	*pTIMER5_PERIOD = DCLKS_PER_LINE*2;
 
 	__builtin_bfin_ssync();
@@ -244,9 +244,9 @@ static void config_timers(void) /* CHECKME */
 
 static void config_ppi(void)
 {
-	*pPPI_DELAY = PPI_DELAY_VALUE;
-	*pPPI_COUNT = 240-1;
-	*pPPI_CONTROL = (PPI_CONFIG_VALUE|0x10)& (~POLS);
+	bfin_write_PPI_DELAY(PPI_DELAY_VALUE);
+	bfin_write_PPI_COUNT(240-1);
+	bfin_write_PPI_CONTROL((PPI_CONFIG_VALUE|0x10) & (~POLS));
 }
 
 static int config_dma(void)
@@ -280,24 +280,24 @@ static void init_ports(void)
 		PPI_CLK: PF15
 	*/
 
-	*pPORTFIO_DIR |= (1U<<11)|(1U<<13)|(1U<<10)|(1U<<14) |(1U<<6);
-	*pPORTFIO_DIR &= ~(1U<<15);
+	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | (1U<<11)|(1U<<13)|(1U<<10)|(1U<<14) |(1U<<6));
+	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() & ~(1U<<15));
 
-	*pPORTF_FER |= (1U<<15)|(1U<<8)|(1U<<9)|(1U<<7)|(1U<<4)|(1U<<2)|(1U<<3)|(1U<<6);
-	*pPORTF_FER &= ~((1U<<14)|(1U<<10)|(1U<<13)|(1U<<11));
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | (1U<<15)|(1U<<8)|(1U<<9)|(1U<<7)|(1U<<4)|(1U<<2)|(1U<<3)|(1U<<6));
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() & ~((1U<<14)|(1U<<10)|(1U<<13)|(1U<<11)));
 
-	// *pPORTFIO_CLEAR = (1U<<11);
-	*pPORTFIO_SET = (1U<<14)|(1U<<11);
-	*pPORTFIO_CLEAR = (1U<<10)| (1U<<13);
+	// bfin_write_PORTFIO_CLEAR((1U<<11));
+	bfin_write_PORTFIO_SET((1U<<14)|(1U<<11));
+	bfin_write_PORTFIO_CLEAR((1U<<10)| (1U<<13));
 
-	*pPORTFIO_INEN |= (1U<<15);
+	bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | (1U<<15));
 
 	/* Enable PPI Data, TMR2, TMR5 */
-	*pPORT_MUX   &= ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI  |PFS4E_SPI);
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI  |PFS4E_SPI));
 	/* Enable TMR6 TMR7 */
-	*pPORT_MUX   |= PFTE_TIMER;
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFTE_TIMER);
 
-	*pPORTG_FER  |= 0xFFFF;
+	bfin_write_PORTG_FER(bfin_read_PORTG_FER() | 0xFFFF);
 	__builtin_bfin_ssync();
 }
 
@@ -333,7 +333,7 @@ static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
 
 static int bfin_lq035_fb_open(struct fb_info* info, int user)
 {
-	*pPPI_CONTROL = 0;
+	bfin_write_PPI_CONTROL(0);
 	__builtin_bfin_ssync();
 
 	init_ports();
@@ -352,7 +352,7 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 	/* start dma */
 	enable_dma(CH_PPI);
 	__builtin_bfin_ssync();
-	*pPPI_CONTROL |= PORT_EN;
+	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
 	__builtin_bfin_ssync();
 
 	config_timers();
@@ -360,7 +360,7 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 	{
 		static DECLARE_WAIT_QUEUE_HEAD(wait);
 		sleep_on_timeout(&wait, HZ/2);
-		*pPORTFIO_SET = (1U<<10);
+		bfin_write_PORTFIO_SET((1U<<10));
 		__builtin_bfin_ssync();
 	}
 
@@ -369,10 +369,10 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 
 static int bfin_lq035_fb_release(struct fb_info* info, int user)
 {
-	*pTIMER_ENABLE = 0;
+	bfin_write_TIMER_ENABLE(0);
 	__builtin_bfin_ssync();
 
-	*pPPI_CONTROL = 0;
+	bfin_write_PPI_CONTROL(0);
 	__builtin_bfin_ssync();
 
 	free_dma(CH_PPI);

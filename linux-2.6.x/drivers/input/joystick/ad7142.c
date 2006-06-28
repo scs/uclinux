@@ -327,7 +327,7 @@ static int ad7142_thread(void *nothing)
 		wait_event_interruptible(ad7142_wait,intr_flag!=0);
 		ad7142_decode();
                 intr_flag = 0;
-                *pPORTGIO_MASKA |= PF5;
+                bfin_write_PORTGIO_MASKA(bfin_read_PORTGIO_MASKA() | PF5);
         } while (!kthread_should_stop());
         printk(KERN_DEBUG "ad7142: kthread exiting\n");
         return 0;
@@ -335,7 +335,7 @@ static int ad7142_thread(void *nothing)
 
 static irqreturn_t ad7142_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
-	*pPORTGIO_MASKA &= ~PF5;
+	bfin_write_PORTGIO_MASKA(bfin_read_PORTGIO_MASKA() & ~PF5);
 	intr_flag = 1;
 	wake_up_interruptible(&ad7142_wait);
 	return IRQ_HANDLED;

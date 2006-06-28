@@ -86,11 +86,11 @@ static u_long spi_get_sclk(void)
 
 	vco = (CONFIG_CLKIN_HZ) * ((*pPLL_CTL >> 9)& 0x3F);
 
-	if (1 & *pPLL_CTL) /* DR bit */
+	if (1 & bfin_read_PLL_CTL()) /* DR bit */
 		vco >>= 1;
 
-	if((*pPLL_DIV & 0xf) != 0)
-		sclk = vco/(*pPLL_DIV & 0xf);
+	if((bfin_read_PLL_DIV() & 0xf) != 0)
+		sclk = vco/(bfin_read_PLL_DIV() & 0xf);
 	else
 		printk(KERN_NOTICE "bfin_spi_adc: Invalid System Clock\n");
 

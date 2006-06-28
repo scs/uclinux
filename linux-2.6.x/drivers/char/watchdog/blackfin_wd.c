@@ -126,7 +126,7 @@ static int wd_keepalive(void)
 {
 	DPRINTK(KERN_INFO," call\n");
 	/*Reset watchdog counter*/
-	*pWDOG_STAT = 0;
+	bfin_write_WDOG_STAT(0);
 	__builtin_bfin_ssync();
 	return 0;
 }
@@ -151,7 +151,7 @@ static int wd_running(void){
 	DPRINTK(KERN_INFO," WDOG_CTL = 0X%04X, (pWDOG_CTL & WD_TMR_EN_MASK) = 0X%04X, WD_TMR_EN_DISABLE = 0X%04X\n",
 		(unsigned short)*pWDOG_CTL,(unsigned short) (*pWDOG_CTL & WD_TMR_EN_MASK),
 		(unsigned short) WD_TMR_EN_DISABLE);
-	return ((*pWDOG_CTL & WD_TMR_EN_MASK) != WD_TMR_EN_DISABLE);
+	return ((bfin_read_WDOG_CTL() & WD_TMR_EN_MASK) != WD_TMR_EN_DISABLE);
 }
 
 static spinlock_t conf_spinlock = SPIN_LOCK_UNLOCKED;
@@ -172,7 +172,7 @@ static int wd_set_heartbeat(int t)
 	{
 		int run = wd_running();
 		wd_stop();
-		*pWDOG_CNT = cnt;
+		bfin_write_WDOG_CNT(cnt);
 		if (run) wd_start();
 	}
 	spin_unlock_irqrestore(&conf_spinlock,flags);

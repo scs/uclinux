@@ -211,22 +211,22 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 #if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
 	if (rts) {
 		/* set the RTS/CTS line */
-		*pFIO_FLAG_C = rts_mask;
+		bfin_write_FIO_FLAG_C(rts_mask);
 		info->sig |= TIOCM_RTS;
 	} else {
 		/* clear it */
-		*pFIO_FLAG_S = rts_mask;
+		bfin_write_FIO_FLAG_S(rts_mask);
 		info->sig &= ~TIOCM_RTS;
 	}
 #else
 #if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	if (rts) {
 		/* set the RTS/CTS line */
-		*pPORTGIO_CLEAR |= rts_mask;
+		bfin_write_PORTGIO_CLEAR(bfin_read_PORTGIO_CLEAR() | rts_mask);
 		info->sig |= TIOCM_RTS;
 	} else {
 		/* clear it */
-		*pPORTGIO_SET |= rts_mask;
+		bfin_write_PORTGIO_SET(bfin_read_PORTGIO_SET() | rts_mask);
 		info->sig &= ~TIOCM_RTS;
 	}
 #endif
@@ -248,11 +248,11 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 	cts_mask = (1 << CONFIG_BFIN_UART_CTS);
 
 #if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
-	if(!(*pFIO_FLAG_D & cts_mask))
+	if(!(bfin_read_FIO_FLAG_D() & cts_mask))
 		sig |= TIOCM_CTS;
 #else
 #if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if(!(*pPORTGIO & cts_mask))
+	if(!(bfin_read_PORTGIO() & cts_mask))
 		sig |= TIOCM_CTS;
 #endif
 #endif
@@ -613,9 +613,9 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	unsigned int sic_status = 0;
 
 #if defined(CONFIG_BF561)
-	sic_status = *pSICA_ISR1;
+	sic_status = bfin_read_SICA_ISR1();
 #else
-	sic_status = *pSIC_ISR;
+	sic_status = bfin_read_SIC_ISR();
 #endif
 	if (sic_status & SIC_UART_MASK) {
 		iir = *(uart_regs->rpUART_IIR);
@@ -1867,12 +1867,12 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 		}
 #ifdef CONFIG_BFIN_UART_CTSRTS
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-		*pPORTGIO_DIR &= ~(1 << CONFIG_BFIN_UART_CTS);
-		*pPORTGIO_INEN |= (1 << CONFIG_BFIN_UART_CTS);
-		*pPORTGIO_MASKA_SET &= ~(1 << CONFIG_BFIN_UART_CTS);
-		*pPORTGIO_MASKB_SET &= ~(1 << CONFIG_BFIN_UART_CTS);
-		*pPORTGIO_DIR |= (1 << CONFIG_BFIN_UART_RTS);
-		*pPORTG_FER &= ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3);
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
+		bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
 		SSYNC;
 #endif
 #endif
@@ -1889,9 +1889,9 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 				return 0;
 			}
 		}
-		*pPORT_MUX &= ~(PFTE);
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PFTE));
 		SSYNC;
-		*pPORTF_FER |= 0xc;
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 		SSYNC;
 	}
 #endif
@@ -2173,13 +2173,13 @@ int bfin_console_setup(struct console *cp, char *arg)
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	if(cp->index==0) {
-	*pPORT_MUX &= ~PFDE;
-	*pPORTF_FER |= 0x3;
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
 	SSYNC;
 	}
 	else {
-	*pPORT_MUX &= ~PFTE;
-	*pPORTF_FER |= 0xc;
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFTE);
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 	SSYNC;
 	}
 #endif

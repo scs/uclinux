@@ -254,11 +254,11 @@ check_and_notify (void *arg)
   input_sync (TWIKeypad->dev);
 
   if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTA) {
-    *pFIO_MASKA_D |= (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    bfin_write_FIO_MASKA_D(bfin_read_FIO_MASKA_D() | (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
     __builtin_bfin_ssync();
   }
   else if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTB) {
-    *pFIO_MASKB_D |= (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    bfin_write_FIO_MASKB_D(bfin_read_FIO_MASKB_D() | (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
     __builtin_bfin_ssync();
   }
 }
@@ -269,11 +269,11 @@ static irqreturn_t
 twi_keypad_irq_handler (int irq, void *dev_id, struct pt_regs *regs)
 {
   if (irq == IRQ_PROG_INTA) {
-    *pFIO_MASKA_D &= ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    bfin_write_FIO_MASKA_D(bfin_read_FIO_MASKA_D() & ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
     __builtin_bfin_ssync();
   }
   else if (irq == IRQ_PROG_INTB) {
-    *pFIO_MASKB_D &= ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+    bfin_write_FIO_MASKB_D(bfin_read_FIO_MASKB_D() & ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
     __builtin_bfin_ssync();
   }
 

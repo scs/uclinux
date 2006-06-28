@@ -51,7 +51,7 @@ static void wait_for_complete(void);
 /* Initialize the RTC. Enable pre-scaler to scale RTC clock to 1Hz. */
 int rtc_init()
 {
-	*pRTC_PREN = 0x1;
+	bfin_write_RTC_PREN(0x1);
 	wait_for_complete();
 	return 0;
 }
@@ -99,7 +99,7 @@ int rtc_get(time_t * time_in_seconds)
 	}
 
 	/* Read the RTC_STAT register */
-	cur_rtc_stat = *pRTC_STAT;
+	cur_rtc_stat = bfin_read_RTC_STAT();
 
 	/* Get the secs (0-59), mins (0-59), hrs (0-23) and the days
 	 * since Jan 1970
@@ -122,7 +122,7 @@ int rtc_get(time_t * time_in_seconds)
 	 *   3. Many many years passed after user sets it!
 	 */
 	if ((unsigned long)(*(time_in_seconds)) >= 0x7FFFFFFF) {
-		*pRTC_STAT = 0;
+		bfin_write_RTC_STAT(0);
 		*(time_in_seconds) = 0;
 		wait_for_complete();
 	}
@@ -133,8 +133,8 @@ int rtc_get(time_t * time_in_seconds)
 /* Wait for the previous write to a RTC register to complete */
 static void wait_for_complete(void)
 {
-	while (!(*pRTC_ISTAT & 0x8000)) {
+	while (!(bfin_read_RTC_ISTAT() & 0x8000)) {
 		/*printk(""); */
 	}
-	*pRTC_ISTAT = 0x8000;
+	bfin_write_RTC_ISTAT(0x8000);
 }
