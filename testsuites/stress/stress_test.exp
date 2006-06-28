@@ -247,13 +247,21 @@ if {$flag==0} {
 
    
    step "Start the stress testing."
-
-   set timeout [expr $PING_COUNT * 1.5]
+ 
+   log_file
+  
+   set timeout 40
+   spawn ./ftp_test $targetip
+   set ftp_test_id $spawn_id
+   expect "Ftp is tested"
+ 
+   spawn ./telnet_test $targetip
+   set telnet_test_id $spawn_id
+   expect "Telnet is tested"
    
-   spawn ./test_ftp $targetip
-   set test_ftp_id $spawn_id
-   spawn ./test_telnet $targetip
-   set test_telnet_id $spawn_id
+   set timeout [expr $PING_COUNT * 1.5]
+    
+   log_file stress_test_log
    
    set spawn_id $kermit_spawn_id
    send -s "ping $serverip\r"
@@ -289,20 +297,20 @@ if {$flag==0} {
    spawn ps -A
    while 1 {
       expect {
-	"test_telnet" {
+	"telnet_test" {
 		incr found
 	}
 
-	"test_ftp" {
+	"ftp_test" {
 		incr found
 	}
 	
-	"test_telnet <defunct>" {
+	"telnet_test <defunct>" {
 		set found 0
 		break
 	}
 
-	"test_ftp <defunct>" {
+	"ftp_test <defunct>" {
 		set found 0
 		break
 	}
@@ -314,16 +322,15 @@ if {$flag==0} {
    }
    
    if {$found == 2} {
-		set spawn_id $test_telnet_id
+		set spawn_id $telnet_test_id
 		send -s "\3"
-		set spawn_id $test_ftp_id
+		set spawn_id $ftp_test_id
 		send -s "\3"
-		puts "                                                                        \r"
-		puts "$TITLE ............\[PASS\]\r"
+		send_log "$TITLE ............\[PASS\]\r"
 		exit
    }
 
-   puts "$TITLE ............\[FAIL\]\r"
+   send_log "$TITLE ............\[FAIL\]\r"
 
 
 log_file

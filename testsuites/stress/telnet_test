@@ -1,5 +1,7 @@
 #!/usr/bin/expect
 
+log_file telnet_test_log
+
 set send_slow {1 .01}
 
 set targetip 10.100.4.2
@@ -44,4 +46,4 @@ while 1 {
 	send -s "exit\r"
         expect "$"
 }
-
+log_file
