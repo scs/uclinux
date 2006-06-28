@@ -380,7 +380,7 @@ static void bfin_SMC_interrupt_setup(int irq)
 		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() |  LAN_FIO_PATTERN); /* enable pin */
 
 		__builtin_bfin_ssync();
-		pFIO0_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
+		bfin_write16(unsigned short *)FIO_MASKA_S + ixab, LAN_FIO_PATTERN); /* enable int */
 	}
 # else
     unsigned short flag;
@@ -400,10 +400,10 @@ static void bfin_SMC_interrupt_setup(int irq)
   if (irq == IRQ_PROG_INTA/*26*/ ||
       irq == IRQ_PROG_INTB/*27*/)
     {
-      int ixab = (irq - IRQ_PROG_INTA) * (pFIO_MASKB_D - pFIO_MASKA_D);
+      int ixab = (irq - IRQ_PROG_INTA) * (FIO_MASKB_D - FIO_MASKA_D);
 
       __builtin_bfin_csync();
-      pFIO_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
+      bfin_write16((unsigned short *)FIO_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
       __builtin_bfin_ssync();
 
       bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
@@ -415,7 +415,7 @@ static void bfin_SMC_interrupt_setup(int irq)
       bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  LAN_FIO_PATTERN);   /* enable pin */
 
       __builtin_bfin_ssync();
-      pFIO_MASKA_S[ixab] = LAN_FIO_PATTERN; /* enable int */
+      bfin_write16((unsigned short *)FIO_MASKA_S + ixab, LAN_FIO_PATTERN);  /* enable int */
     }
 # endif /* defined(CONFIG_BF561) */
 #endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/

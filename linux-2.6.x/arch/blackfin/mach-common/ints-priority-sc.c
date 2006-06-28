@@ -519,8 +519,6 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 #endif
     unsigned short flag;
     unsigned short FIO_PATTERN;
-    unsigned short *fio_maska_c = (volatile unsigned short *)FIO_MASKA_C;
-    unsigned short *fio_maska_s = (volatile unsigned short *)FIO_MASKA_S;
 
     if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
 	printk(KERN_ERR "irq_pfx out of range: %d\n", irq_pfx);
@@ -544,8 +542,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
       int ixab = (irq - IRQ_PROG_INTA) * (FIO_MASKB_D - FIO_MASKA_D);
 
       __builtin_bfin_ssync();
-      fio_maska_c += ixab;
-      bfin_write16(fio_maska_c, FIO_PATTERN); /* disable int */
+      bfin_write16((unsigned short *)FIO_MASKA_C + ixab, FIO_PATTERN); /* disable int */
       __builtin_bfin_ssync();
 
   if (type==IRQT_HIGH || type == IRQT_RISING)
@@ -568,8 +565,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
       bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  FIO_PATTERN);   /* enable pin */
 
       __builtin_bfin_ssync();
-      fio_maska_s += ixab;
-      bfin_write16(fio_maska_s, FIO_PATTERN); /* enable int */
+      bfin_write16((unsigned short *)FIO_MASKA_S + ixab, FIO_PATTERN); /* enable int */
     }
 #endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
 
