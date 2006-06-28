@@ -103,7 +103,7 @@ static void __init search_IAR(void)
 
 		for (irqn = 0; irqn < NR_PERI_INTS; irqn++) {
 			int iar_shift = (irqn & 7) * 4;
-			if (ivg == (0xf & pSICA_IAR0[irqn >> 3] >> iar_shift)) {
+			if (ivg == (0xf & bfin_read32((unsigned long *)SICA_IAR0 + (irqn >> 3)) >> iar_shift)) {
 				ivg_table[irq_pos].irqno = IVG7 + irqn;
 				ivg_table[irq_pos].isrflag0 =
 				    (irqn < 32 ? (1 << irqn) : 0);

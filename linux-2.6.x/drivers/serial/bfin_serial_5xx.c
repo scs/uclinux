@@ -1777,17 +1777,17 @@ static void bfin_config_uart0(struct bfin_serial *info)
 	info->rx_irq = IRQ_UART_RX;
 	info->tx_irq = IRQ_UART_TX;
 
-	info->regs.rpUART_THR = pUART_THR;
-	info->regs.rpUART_RBR = pUART_RBR;
-	info->regs.rpUART_DLL = pUART_DLL;
-	info->regs.rpUART_IER = pUART_IER;
-	info->regs.rpUART_DLH = pUART_DLH;
-	info->regs.rpUART_IIR = pUART_IIR;
-	info->regs.rpUART_LCR = pUART_LCR;
-	info->regs.rpUART_MCR = pUART_MCR;
-	info->regs.rpUART_LSR = pUART_LSR;
-	info->regs.rpUART_SCR = pUART_SCR;
-	info->regs.rpUART_GCTL = pUART_GCTL;
+	info->regs.rpUART_THR = (volatile unsigned short *)UART_THR;
+	info->regs.rpUART_RBR = (volatile unsigned short *)UART_RBR;
+	info->regs.rpUART_DLL = (volatile unsigned short *)UART_DLL;
+	info->regs.rpUART_IER = (volatile unsigned short *)UART_IER;
+	info->regs.rpUART_DLH = (volatile unsigned short *)UART_DLH;
+	info->regs.rpUART_IIR = (volatile unsigned short *)UART_IIR;
+	info->regs.rpUART_LCR = (volatile unsigned short *)UART_LCR;
+	info->regs.rpUART_MCR = (volatile unsigned short *)UART_MCR;
+	info->regs.rpUART_LSR = (volatile unsigned short *)UART_LSR;
+	info->regs.rpUART_SCR = (volatile unsigned short *)UART_SCR;
+	info->regs.rpUART_GCTL = (volatile unsigned short *)UART_GCTL;
 
 	bfin_setsignal(info, 0);
 }
@@ -1822,17 +1822,17 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->rx_irq = IRQ_UART1_RX;
 	info->tx_irq = IRQ_UART1_TX;
 
-	info->regs.rpUART_THR = pUART1_THR;
-	info->regs.rpUART_RBR = pUART1_RBR;
-	info->regs.rpUART_DLL = pUART1_DLL;
-	info->regs.rpUART_IER = pUART1_IER;
-	info->regs.rpUART_DLH = pUART1_DLH;
-	info->regs.rpUART_IIR = pUART1_IIR;
-	info->regs.rpUART_LCR = pUART1_LCR;
-	info->regs.rpUART_MCR = pUART1_MCR;
-	info->regs.rpUART_LSR = pUART1_LSR;
-	info->regs.rpUART_SCR = pUART1_SCR;
-	info->regs.rpUART_GCTL = pUART1_GCTL;
+	info->regs.rpUART_THR = (volatile unsigned short *)UART1_THR;
+	info->regs.rpUART_RBR = (volatile unsigned short *)UART1_RBR;
+	info->regs.rpUART_DLL = (volatile unsigned short *)UART1_DLL;
+	info->regs.rpUART_IER = (volatile unsigned short *)UART1_IER;
+	info->regs.rpUART_DLH = (volatile unsigned short *)UART1_DLH;
+	info->regs.rpUART_IIR = (volatile unsigned short *)UART1_IIR;
+	info->regs.rpUART_LCR = (volatile unsigned short *)UART1_LCR;
+	info->regs.rpUART_MCR = (volatile unsigned short *)UART1_MCR;
+	info->regs.rpUART_LSR = (volatile unsigned short *)UART1_LSR;
+	info->regs.rpUART_SCR = (volatile unsigned short *)UART1_SCR;
+	info->regs.rpUART_GCTL = (volatile unsigned short *)UART1_GCTL;
 
 	bfin_setsignal(info, 0);
 }
