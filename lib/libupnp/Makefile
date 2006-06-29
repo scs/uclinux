@@ -6,7 +6,7 @@ all: static_upnp
 shared_upnp:
 	cd $(LIB_VER); \
 	CC=bfin-uclinux-gcc CFLAGS="-mfdpic -fpic" LDFLAGS="-mfdpic" \
-	./configure --host=bfin-linux --enable-samples; \
+	./configure --host=bfin-uclinux --enable-samples; \
 	make
 	cp $(LIB_VER)/upnp/.libs/libupnp.so .
 
@@ -22,4 +22,4 @@ romfs:
 
 clean:
 	make -C $(LIB_VER) distclean
-	rm libupnp.a
+	rm -f libupnp.a

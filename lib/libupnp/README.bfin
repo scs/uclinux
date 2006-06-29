@@ -54,6 +54,10 @@ Advertisements Sent
 It should receive the advertisements from upnp_tv_device.
 You can type "Help" to see other commands.
 
+NOTE: "upnp_tv_ctrlrpt" should be build for your host system format, 
+in order to run on host.
+
+
 host# ./upnp_tv_ctrlrpt
 ======================================================================
 
