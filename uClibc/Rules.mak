@@ -35,7 +35,7 @@
 # will build uClibc for 'arm'.
 
 ifndef CROSS
-CROSS=
+CROSS=bfin-uclinux-
 endif
 CC= $(CROSS)gcc
 AR= $(CROSS)ar
