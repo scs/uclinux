@@ -39,6 +39,7 @@
 
 #include <ldso.h>
 #include <stdio.h>
+#include <string.h>
 
 
 #if defined (__LIBDL_SHARED__)
