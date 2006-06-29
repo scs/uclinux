@@ -27,6 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#ifdef CONFIG_FEATURE_SHADOWPASSWDS
 
 #include <time.h>
 #include <sys/types.h>
@@ -72,3 +73,4 @@ struct spwd *pwd_to_spwd(const struct passwd *pw)
 	return &sp;
 }
 
+#endif
