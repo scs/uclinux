@@ -226,7 +226,7 @@ romfs:
 	for dir in $(VENDDIR) $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
+		t=`$(CC) -print-file-name=libc.a`; \
 		t=`dirname $$t`/../runtime; \
 		for i in $$t/lib/*so*; do \
 			bn=`basename $$i`; \
@@ -297,7 +297,7 @@ romfs:
 		fi; \
 	fi
 	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
+		t=`$(CC) -print-file-name=libc.a`; \
 		t=`dirname $$t`/../runtime; \
 		for i in $$t/lib/lib?.so; do \
 			bn=`basename $$i`; \
