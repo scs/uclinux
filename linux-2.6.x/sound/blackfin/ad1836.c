@@ -1513,16 +1513,16 @@ static int snd_bf53x_ad1836_reset(ad1836_t *chip)
 	 * 	DBCLK should be withheld until after the internal initialization
 	 * 	completes (see above).
 	 */
-#define pFlashA_PortA_Dir	(volatile unsigned char *)0x20270006
-#define pFlashA_PortA_Data	(volatile unsigned char *)0x20270004
+#define FlashA_PortA_Dir	0x20270006
+#define FlashA_PortA_Data	0x20270004
 
-	*pFlashA_PortA_Dir = 0x1;	/* configure flag as an output pin */
+	bfin_write(FlashA_PortA_Dir,0x1);	/* configure flag as an output pin */
 
 	snd_printk( KERN_INFO "resetting ezkit 1836 using flash flag pin\n" );
-	*pFlashA_PortA_Data = 0x0;	/* reset is active low */
+	bfin_write(FlashA_PortA_Data,0x0);	/* reset is active low */
 	udelay(1);			/* hold low */
 
-	*pFlashA_PortA_Data = 0x1;	/* re-enable */
+	bfin_write(FlashA_PortA_Data,0x1);	/* re-enable */
 	udelay(400);			/* 4500 MCLK recovery time */
 
 #endif /* CONFIG_BFIN533_EZKIT */

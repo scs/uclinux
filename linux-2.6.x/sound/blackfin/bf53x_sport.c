@@ -856,16 +856,16 @@ struct bf53x_sport* bf53x_sport_init(int sport_num,
 
 #if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
 	if(sport->sport_num) {
-		*pPORT_MUX |= PGTE|PGRE|PGSE;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PGTE|PGRE|PGSE);
 		SSYNC;
-		/*    printk("sport: mux=0x%x\n", *pPORT_MUX);*/
-		*pPORTG_FER |= 0xFF00;
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
+		bfin_write_PORTG_FER(bfin_read_PORTG_FER() | 0xFF00);
 		SSYNC;
-		/*    printk("sport: gfer=0x%x\n", *pPORTG_FER);*/
+		/*    printk("sport: gfer=0x%x\n", bfin_read_PORTG_FER());*/
 	} else {
-		*pPORT_MUX &= ~(PJSE|PJCE(3));
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE|PJCE(3)));
 		SSYNC;
-		/*    printk("sport: mux=0x%x\n", *pPORT_MUX);*/
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
 	}
 #endif
 
