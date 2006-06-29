@@ -222,7 +222,8 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			break;
 		}
 
-		iface->cur_mode |= TWI_I2C_MODE_STANDARD;
+		iface->cur_mode = TWI_I2C_MODE_STANDARD;
+		iface->manual_stop = 0;
 		iface->transPtr = pmsg->buf;
 		iface->writeNum = iface->readNum = pmsg->len;
 		iface->result = 0;
