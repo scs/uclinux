@@ -1841,7 +1841,7 @@ static void __init probe_for_hwifs (void)
 #ifdef CONFIG_H8300
 	h8300_ide_init();
 #endif
-#ifdef CONFIG_BFIN
+#ifdef CONFIG_IDE_BFIN
 	blackfin_ide_init();
 #endif
 }

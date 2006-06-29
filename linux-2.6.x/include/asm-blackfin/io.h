@@ -123,6 +123,9 @@ extern void blkfin_inv_cache_all(void);
 
 #endif
 
+#define	ioport_map(port, nr)		((void __iomem*)(port))
+#define	ioport_unmap(addr) 
+
 #define dma_cache_inv(_start,_size) do { blkfin_inv_cache_all();} while (0)
 #define dma_cache_wback(_start,_size) do { } while (0)
 #define dma_cache_wback_inv(_start,_size) do { blkfin_inv_cache_all();} while (0)

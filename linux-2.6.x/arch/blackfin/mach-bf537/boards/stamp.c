@@ -43,6 +43,45 @@
 /*
  *  Driver needs to know address, irq and flag pin.
  */
+
+#if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
+static struct resource bfin_pcmcia_cf_resources[] = {
+	[0] = {
+	       .start = 0x20310000, /* IO PORT */
+	       .end = 0x20312000,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[1] = {
+	       .start = 0x20311000, /* Attribute Memeory */
+	       .end = 0x20311FFF,
+	       .flags = IORESOURCE_MEM,
+	       },
+	[2] = {
+		   .start	= IRQ_PROG_INTA,
+		   .end	= IRQ_PROG_INTA,
+		   .flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+		},
+	[3] = {
+	       .start = IRQ_PF4,
+	       .end = IRQ_PF4,
+	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	    },
+	[4] = {
+	       .start = 6,	/* Card Detect PF6 */
+	       .end = 6,
+	       .flags = IORESOURCE_IRQ,
+	    },
+
+};
+
+static struct platform_device bfin_pcmcia_cf_device = {
+	.name		= "bfin_cf_pcmcia",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(bfin_pcmcia_cf_resources),
+	.resource	= bfin_pcmcia_cf_resources,
+};
+#endif
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -342,6 +381,10 @@ static struct platform_device bfin_fb_device = {
 #endif
 
 static struct platform_device *stamp_devices[] __initdata = {
+
+#if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
+	&bfin_pcmcia_cf_device,
+#endif
 
 #if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
 	&sl811_hcd_device,
