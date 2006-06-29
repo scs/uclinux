@@ -151,8 +151,8 @@ install_dev:
 	$(INSTALL) -d $(PREFIX)$(DEVEL_PREFIX)include
 	-$(INSTALL) -m 644 lib/*.[ao] $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
 ifneq ($(SHARED_TARGET),)
-	-$(INSTALL) -m 644 lib/$(SHARED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
-	-$(INSTALL) -m 644 lib/$(SHARED_THREADED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
+	-$(INSTALL) -m 644 $(SHARED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
+	-$(INSTALL) -m 644 $(SHARED_THREADED_TARGET).gdb $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/
 endif
 	tar -chf - include | tar -xf - -C $(PREFIX)$(DEVEL_PREFIX);
 ifneq ($(strip $(UCLIBC_HAS_FLOATS)),y)
