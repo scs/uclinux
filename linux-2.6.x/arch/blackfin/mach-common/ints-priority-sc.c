@@ -539,7 +539,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
   if (irq == IRQ_PROG_INTA ||
       irq == IRQ_PROG_INTB)
     {
-      int ixab = (irq - IRQ_PROG_INTA) * (FIO_MASKB_D - FIO_MASKA_D);
+	    int ixab = (irq - IRQ_PROG_INTA) * ((unsigned short *)FIO_MASKB_D - (unsigned short *)FIO_MASKA_D);
 
       __builtin_bfin_ssync();
       bfin_write16((unsigned short *)FIO_MASKA_C + ixab, FIO_PATTERN); /* disable int */

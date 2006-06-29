@@ -364,7 +364,7 @@ static void bfin_SMC_interrupt_setup(int irq)
 	printk("Blackfin BF561 SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
 	if (irq == IRQ_PROG0_INTA || irq == IRQ_PROG0_INTB)
 	{
-		int ixab = (irq - IRQ_PROG0_INTA) * (FIO0_MASKB_D - FIO0_MASKA_D);
+		int ixab = (irq - IRQ_PROG0_INTA) * ((unsigned short *)FIO0_MASKB_D - (unsigned short *)FIO0_MASKA_D);
 
 		__builtin_bfin_csync();
 		bfin_write16((unsigned short *)FIO0_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
@@ -399,7 +399,7 @@ static void bfin_SMC_interrupt_setup(int irq)
   if (irq == IRQ_PROG_INTA/*26*/ ||
       irq == IRQ_PROG_INTB/*27*/)
     {
-      int ixab = (irq - IRQ_PROG_INTA) * (FIO_MASKB_D - FIO_MASKA_D);
+	    int ixab = (irq - IRQ_PROG_INTA) * ((unsigned short *)FIO_MASKB_D - (unsigned short *)FIO_MASKA_D);
 
       __builtin_bfin_csync();
       bfin_write16((unsigned short *)FIO_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
