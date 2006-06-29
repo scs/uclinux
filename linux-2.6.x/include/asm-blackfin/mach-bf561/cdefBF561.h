@@ -2204,18 +2204,46 @@
 #define bfin_write_IMDMA_S1_IRQ_STATUS(val)  bfin_write16(IMDMA_S1_IRQ_STATUS,val)
 
 //#define pMDMA_S0_CONFIG		pMDMA1_S0_CONFIG
-#define PMDMA_S0_IRQ_STATUS	pMDMA1_S0_IRQ_STATUS
+#define bfin_read_MDMA_S0_CONFIG()  bfin_read_MDMA1_S0_CONFIG()
+#define bfin_write_MDMA_S0_CONFIG(val) bfin_write_MDMA1_S0_CONFIG(val)
+//#define pMDMA_S0_IRQ_STATUS	pMDMA1_S0_IRQ_STATUS
+#define bfin_read_MDMA_S0_IRQ_STATUS()  bfin_read_MDMA1_S0_IRQ_STATUS()
+#define bfin_write_MDMA_S0_IRQ_STATUS(val) bfin_write_MDMA1_S0_IRQ_STATUS(val)
 //#define pMDMA_S0_X_MODIFY	pMDMA1_S0_X_MODIFY
+#define bfin_read_MDMA_S0_X_MODIFY()  bfin_read_MDMA1_S0_X_MODIFY()
+#define bfin_write_MDMA_S0_X_MODIFY(val) bfin_write_MDMA1_S0_X_MODIFY(val)
 //#define pMDMA_S0_Y_MODIFY	pMDMA1_S0_Y_MODIFY
+#define bfin_read_MDMA_S0_Y_MODIFY()  bfin_read_MDMA1_S0_Y_MODIFY()
+#define bfin_write_MDMA_S0_Y_MODIFY(val) bfin_write_MDMA1_S0_Y_MODIFY(val)
 //#define pMDMA_S0_X_COUNT	pMDMA1_S0_X_COUNT
+#define bfin_read_MDMA_S0_X_COUNT()  bfin_read_MDMA1_S0_X_COUNT()
+#define bfin_write_MDMA_S0_X_COUNT(val) bfin_write_MDMA1_S0_X_COUNT(val)
 //#define pMDMA_S0_Y_COUNT	pMDMA1_S0_Y_COUNT
+#define bfin_read_MDMA_S0_Y_COUNT()  bfin_read_MDMA1_S0_Y_COUNT()
+#define bfin_write_MDMA_S0_Y_COUNT(val) bfin_write_MDMA1_S0_Y_COUNT(val)
 //#define pMDMA_S0_START_ADDR	pMDMA1_S0_START_ADDR
+#define bfin_read_MDMA_S0_START_ADDR()  bfin_read_MDMA1_S0_START_ADDR()
+#define bfin_write_MDMA_S0_START_ADDR(val) bfin_write_MDMA1_S0_START_ADDR(val)
 //#define pMDMA_D0_CONFIG		pMDMA1_D0_CONFIG
+#define bfin_read_MDMA_D0_CONFIG()  bfin_read_MDMA1_D0_CONFIG()
+#define bfin_write_MDMA_D0_CONFIG(val) bfin_write_MDMA1_D0_CONFIG(val)
 //#define pMDMA_D0_IRQ_STATUS	pMDMA1_D0_IRQ_STATUS
+#define bfin_read_MDMA_D0_IRQ_STATUS()  bfin_read_MDMA1_D0_IRQ_STATUS()
+#define bfin_write_MDMA_D0_IRQ_STATUS(val) bfin_write_MDMA1_D0_IRQ_STATUS(val)
 //#define pMDMA_D0_X_MODIFY	pMDMA1_D0_X_MODIFY
+#define bfin_read_MDMA_D0_X_MODIFY()  bfin_read_MDMA1_D0_X_MODIFY()
+#define bfin_write_MDMA_D0_X_MODIFY(val) bfin_write_MDMA1_D0_X_MODIFY(val)
 //#define pMDMA_D0_Y_MODIFY	pMDMA1_D0_Y_MODIFY
+#define bfin_read_MDMA_D0_Y_MODIFY()  bfin_read_MDMA1_D0_Y_MODIFY()
+#define bfin_write_MDMA_D0_Y_MODIFY(val) bfin_write_MDMA1_D0_Y_MODIFY(val)
 //#define pMDMA_D0_X_COUNT	pMDMA1_D0_X_COUNT
+#define bfin_read_MDMA_D0_X_COUNT()  bfin_read_MDMA1_D0_X_COUNT()
+#define bfin_write_MDMA_D0_X_COUNT(val) bfin_write_MDMA1_D0_X_COUNT(val)
 //#define pMDMA_D0_Y_COUNT	pMDMA1_D0_Y_COUNT
+#define bfin_read_MDMA_D0_Y_COUNT()  bfin_read_MDMA1_D0_Y_COUNT()
+#define bfin_write_MDMA_D0_Y_COUNT(val) bfin_write_MDMA1_D0_Y_COUNT(val)
 //#define pMDMA_D0_START_ADDR	pMDMA1_D0_START_ADDR
+#define bfin_read_MDMA_D0_START_ADDR()  bfin_read_MDMA1_D0_START_ADDR()
+#define bfin_write_MDMA_D0_START_ADDR(val) bfin_write_MDMA1_D0_START_ADDR(val)
 
 #endif				/* _CDEF_BF561_H */

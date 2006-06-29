@@ -364,11 +364,10 @@ static void bfin_SMC_interrupt_setup(int irq)
 	printk("Blackfin BF561 SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
 	if (irq == IRQ_PROG0_INTA || irq == IRQ_PROG0_INTB)
 	{
-		int ixab = (irq - IRQ_PROG0_INTA) * (pFIO0_MASKB_D - pFIO0_MASKA_D);
+		int ixab = (irq - IRQ_PROG0_INTA) * (FIO0_MASKB_D - FIO0_MASKA_D);
 
 		__builtin_bfin_csync();
-		pFIO0_MASKA_C[ixab] = LAN_FIO_PATTERN; /* disable int */
-		__builtin_bfin_ssync();
+		bfin_write16((unsigned short *)FIO0_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
 
 		bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
 		bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() & ~LAN_FIO_PATTERN); /* by level (input) */
@@ -380,7 +379,7 @@ static void bfin_SMC_interrupt_setup(int irq)
 		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() |  LAN_FIO_PATTERN); /* enable pin */
 
 		__builtin_bfin_ssync();
-		bfin_write16(unsigned short *)FIO_MASKA_S + ixab, LAN_FIO_PATTERN); /* enable int */
+		bfin_write16((unsigned short *)FIO0_MASKA_S + ixab, LAN_FIO_PATTERN); /* enable int */
 	}
 # else
     unsigned short flag;
