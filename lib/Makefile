@@ -23,7 +23,7 @@ include $(ARCH_CONFIG)
 #
 # always build these dir_
 #
-dir_y  = ../include $(LIBCDIR) ../include libnet
+dir_y  = ../include ../include libnet
 dir_n  =
 dir_   =
 
@@ -137,23 +137,6 @@ clean: clean_links
 #
 #
 LINKLIBS=\
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/lib/crt*.o \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/lib/*.gdb \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/lib/*.so* \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/lib/*.a \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/crt*.o \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/*.gdb \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/*.so* \
-	$(ROOTDIR)/lib/$(LIBCDIR)/build/*.a \
-	$(ROOTDIR)/lib/$(LIBCDIR)/lib/crt*.o \
-	$(ROOTDIR)/lib/$(LIBCDIR)/lib/*.gdb \
-	$(ROOTDIR)/lib/$(LIBCDIR)/lib/*.so* \
-	$(ROOTDIR)/lib/$(LIBCDIR)/lib/*.a \
-	$(ROOTDIR)/lib/$(LIBCDIR)/crt*.o \
-	$(ROOTDIR)/lib/$(LIBCDIR)/*.gdb \
-	$(ROOTDIR)/lib/$(LIBCDIR)/*.so* \
-	$(ROOTDIR)/lib/$(LIBCDIR)/*.a \
-	$(ROOTDIR)/lib/libm/*.a \
 	$(ROOTDIR)/lib/libnet/*.a \
 	$(ROOTDIR)/lib/libdes/*.a \
 	$(ROOTDIR)/lib/libaes/*.a \

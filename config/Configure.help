@@ -525,6 +525,17 @@ CONFIG_BLACKFIN_USE_FDPIC
   uClibc, select either the 'bfin' target for flat binaries, or 'bfinfdpic'
   for ELF.
 
+CONFIG_INSTALL_ELF_SHARED_LIBS
+  If you wish to use some ELF binaries on a system with mostly flat binaries,
+  enable this option to get the shared libraries from the toolchain
+  distribution installed in the romfs.
+
+CONFIG_INSTALL_FLAT_SHARED_LIBS
+  If the majority of binaries in your system uses either static flat or ELF
+  binaries, but there are some applications built against shared flat
+  libraries, enable this option to get the shared flat libraries from the
+  toolchain distribution installed in the romfs.
+
 CONFIG_BLACKFIN_CHECK_STACKFLOW
   Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
 

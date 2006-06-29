@@ -165,7 +165,7 @@ oldconfig:
 	@$(MAKE) oldconfig_linux
 	@$(MAKE) oldconfig_modules
 	@$(MAKE) oldconfig_config
-	@$(MAKE) oldconfig_uClibc
+#	@$(MAKE) oldconfig_uClibc
 	@config/setconfig final
 
 .PHONY: modules
@@ -225,6 +225,87 @@ romfs:
 	[ -e $(ROMFSDIR) ] || mkdir $(ROMFSDIR)
 	for dir in $(VENDDIR) $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
+	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
+		t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
+		t=`dirname $$t`/../runtime; \
+		for i in $$t/lib/*so*; do \
+			bn=`basename $$i`; \
+			if [ -f $$i -a ! -h $$i -a $$bn != "lib1.so" -a $$bn != "lib2.so" ] ; then \
+				$(ROMFSINST) -p 755 $$i /lib/$$bn; \
+			fi; \
+		done; \
+		for i in $$t/lib/*so*; do \
+			if [ -h $$i -a -e $$i ] ; then \
+				j=`readlink $$i`; \
+				$(ROMFSINST) -s \
+					/lib/`basename $$j` \
+					/lib/`basename $$i`; \
+			fi; \
+		done; \
+		if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
+			$(ROMFSINST) -s \
+				/lib/ld-uClibc-$(UCLIBC_VERSION).so \
+				/lib/ld-linux.so.2; \
+		fi; \
+		t=`$(CC) -mfdpic -print-file-name=libstc++.so`; \
+		t=`dirname $$t`; \
+		for i in $$t/libstdc++.so*; do \
+			if [ -f $$i -a ! -h $$i ] ; then \
+				$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+			fi; \
+		done; \
+		for i in $$t/libstdc++.so*; do \
+			if [ -h $$i -a -e $$i ] ; then \
+				j=`readlink $$i`; \
+				$(ROMFSINST) -s \
+					/lib/`basename $$j` \
+					/lib/`basename $$i`; \
+			fi; \
+		done; \
+		t=`$(CC) -mfdpic -print-file-name=libgcc_s_mfdpic.so`; \
+		t=`dirname $$t`; \
+		if [ $$t = "." ] ; then \
+			t=`$(CC) -mfdpic -print-file-name=libgcc_s.so`; \
+			t=`dirname $$t`; \
+			for i in $$t/libgcc_s.so*; do \
+				if [ -f $$i -a ! -h $$i ] ; then \
+					$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+				fi; \
+			done; \
+			for i in $$t/libgcc_s.so*; do \
+				if [ -h $$i -a -e $$i ] ; then \
+					j=`readlink $$i`; \
+					$(ROMFSINST) -s \
+						/lib/`basename $$j` \
+						/lib/`basename $$i`; \
+				fi; \
+			done; \
+		else \
+			for i in $$t/libgcc_s_mfdpic.so*; do \
+				if [ -f $$i -a ! -h $$i ] ; then \
+					$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
+				fi; \
+			done; \
+			for i in $$t/libgcc_s_mfdpic.so*; do \
+				if [ -h $$i -a -e $$i ] ; then \
+					j=`readlink $$i`; \
+					$(ROMFSINST) -s \
+						/lib/`basename $$j` \
+						/lib/`basename $$i`; \
+				fi; \
+			done; \
+		fi; \
+	fi
+	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
+		t=`$(CC)  $(CFLAGS) -print-file-name=libc.a`; \
+		t=`dirname $$t`/../runtime; \
+		for i in $$t/lib/lib?.so; do \
+			bn=`basename $$i`; \
+			if [ -f $$i -a ! -h $$i ] ; then \
+				$(ROMFSINST) -p 755 $$i /lib/$$bn; \
+			fi; \
+		done; \
+	fi
 
 .PHONY: image
 image:
@@ -311,7 +392,7 @@ distclean: mrproper
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	-make clean > /dev/null 2>&1
+#	-make clean > /dev/null 2>&1
 	rm -f .config.old .oldconfig config.arch
 	cp vendors/$(@:_config=)/config.device .config
 	ln -s vendors/$(@:_config=)/config.arch .
@@ -322,7 +403,7 @@ distclean: mrproper
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	-make clean > /dev/null 2>&1
+#	-make clean > /dev/null 2>&1
 	rm -f .config.old .oldconfig config.arch
 	cp vendors/$(@:_default=)/config.device .config
 	ln -s vendors/$(@:_default=)/config.arch .

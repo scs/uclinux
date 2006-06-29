@@ -46,12 +46,3 @@ config ARCH_HAS_C_SYMBOL_PREFIX
 config HAS_FPU
 	bool
 	default n
-
-config INSTALL_ELF_SHARED_LIBS
-	prompt "Do install ELF shared libs"
-	bool
-	default y
-	help
-	  If you wish to use some ELF binaries on a system with mostly
-	  flat binaries, enable this option to get the shared libraries
-	  from the toolchain distribution installed.

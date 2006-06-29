@@ -1559,6 +1559,16 @@ choice 'Binary format' "FLAT		CONFIG_BLACKFIN_USE_FLAT \
 			FDPIC		CONFIG_BLACKFIN_USE_FDPIC \
 		       " FLAT
 
+if [ "$CONFIG_BLACKFIN_USE_FDPIC" = "y" ]; then
+  define_bool CONFIG_INSTALL_ELF_SHARED_LIBS y
+else
+  bool 'Install ELF shared libraries' CONFIG_INSTALL_ELF_SHARED_LIBS
+fi
+if [ "$CONFIG_BLACKFIN_USE_SHARED_FLAT" = "y" ]; then
+  define_bool CONFIG_INSTALL_FLAT_SHARED_LIBS y
+else
+  bool 'Install FLAT shared libraries' CONFIG_INSTALL_FLAT_SHARED_LIBS
+fi
 endmenu
 
 #############################################################################
