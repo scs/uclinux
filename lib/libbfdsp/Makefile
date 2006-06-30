@@ -20,14 +20,10 @@
 
 all: 
 	make -C src 
+	cp src/libbfdsp532.a libbfdsp.a
 
 romfs:
-	echo $(ROMFSINST)
-	$(ROMFSINST) -e CONFIG_LIB_LIBBFDSP \
-	src/libbfdsp532.a /lib/libbfdsp.a \
-
-	$(ROMFSINST) -e CONFIG_LIB_LIBBFDSP \
-	include /include/bfdsp/ \
 
 clean:
-	make -C src clean 
+	make -C src clean
+	rm -f libbfdsp.a 

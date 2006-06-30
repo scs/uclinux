@@ -2,11 +2,9 @@ README for libbfdsp - A port of Analog Devices' Visual DSP++ DSP library to uCli
 
 $ What is libbfdsp
 
-The source code is taken from VisualDSP4.0++(2005-12 upate).  This library implements 
-DSP functions.
-
-After built, the static library libbfdsp.a is put to uClinux-dist/romfs/lib/, and headers
-are installed to uClinux-dist/romfs/include/bfdsp/.
+The source code is taken from VDSP4.0. This library implements DSP functions.
+After built, libbfdsp.a put to romfs/lib/, and headers are installed to 
+/include/bfdsp/.
 
 $ Directory
 
@@ -14,16 +12,35 @@ src/		Cource code of library, including .c, .asm, .S files
 include/	Headers
 test/		Test cases. Currently the test cases covers only a few functions.
 
+$ Build
+After setting up PATH to bfin-uclinux toolchain, run "make" at the top directory.
+After building successfully, the library is copied as libbfdsp.a.
+
+To build the tests, go the test/ directory and run "make" there.
+
 $ Document
 
-Please refer to Visual DSP++ help document - Blackfin C/C++ Compiler and Library Mannual
-for detailed definition of the funtions.	  
+Please refer to Visual DSP++ help document for detailed definition of the funtions.	  
 
 $ Samples
 
 Please refer to the test/ directory. Also please add "__ADSPBLACKFIN__" macro as 
-compile option.
+compile option. It demos cfft, fir, vectors, cycle_count, etc.
 
 $ Dependency
 
 Please use Blackfin GCC toolchain 2006R1 verion or newer to build user applications.
+
+$ Notes
+
+1) Math library
+
+The mathematics functions included in math.h (please refer to VDSP document), overlaps
+with stardand C math library. And most of the functions are implemented in C, except sqrt().
+It is sometimes confusing to use. Before it is made clear there is optimization for Blackfin,
+standard math library in uClibc is suggested to use.
+
+So only the math functions which is not in starndard C library are exported, including
+alogf(), alog10f(), rsqrt(), cot(), they are defined in math_bf.h. 
+
+However, the libbfdsp itself is using the math functions defined by itself.
