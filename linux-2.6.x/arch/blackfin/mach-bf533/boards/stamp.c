@@ -50,6 +50,7 @@ char *bfin_board_name = "ADDS-BF533-STAMP";
  */
 static struct resource smc91x_resources[] = {
 	[0] = {
+	       .name	= "smc91x-regs",
 	       .start = 0x20300300,
 	       .end = 0x20300300 + 16,
 	       .flags = IORESOURCE_MEM,

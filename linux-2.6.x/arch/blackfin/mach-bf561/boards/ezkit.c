@@ -44,6 +44,7 @@ char *bfin_board_name = "ADDS-BF561-EZKIT";
  */
 static struct resource smc91x_resources[] = {
 	[0] = {
+	       .name	= "smc91x-regs",
 	       .start = 0x2C010300,
 	       .end = 0x2C010300 + 16,
 	       .flags = IORESOURCE_MEM,
