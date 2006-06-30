@@ -960,7 +960,7 @@ proc run_LTP_test { filename command mode} {
 }
 
 proc get_testsuite {} {
-   catch {exec cvs -d :pserver:anonymous@$ipaddr:/cvsroot/uclinux533 co -A -P uClinux-dist/ltp/prog}
+   catch {exec cvs -d :pserver:anonymous@$ipaddr:/cvsroot/uclinux533 co -A -P $LTP_SUB_DIR}
 }
 
 #
@@ -977,7 +977,9 @@ set cwd [pwd]
 
 set LTP_LOG_DIR                 "$cwd/test/logs"
 set LTP_SCRIPT_DIR              "$cwd"
-set LTP_TESTCASES_DIR           "$cwd/prog/testcases/bin"
+set LTP_SUB_DIR			"ltp/ltp-full-20060411"
+set LTP_SOURCE_DIR		"$cwd/$LTP_SUB_DIR"
+set LTP_TESTCASES_DIR           "$cwd/$LTP_SUB_DIR/testcases/bin"
 
 
 source $LTP_SCRIPT_DIR/config/config.exp
@@ -1723,12 +1725,11 @@ set LONG_TERM_STABILITY_TEST_MINUTES  20
 set LONG_TERM_STABILITY_PAUSE_MINUTES 5
 set LONG_TERM_STABILITY_RESUME_MINUTES 10
 
-puts "\nGet LTP testsuites from CVS repository\n"
 exec mkdir -p $LTP_LOG_DIR
-spawn cvs -d :pserver:anonymous@$cvs_server_addr:/cvsroot/uclinux533 co -A -P ltp/prog
-expect " #"
+#puts "\nGet LTP testsuites from CVS repository ... ...\n"
+#exec cvs -d :pserver:anonymous@$cvs_server_addr:/cvsroot/uclinux533 co -A -P $LTP_SUB_DIR
 #while 1 {
-#   set timeout 300
+#   set timeout 150
 #   expect {
 #      " #" {
 #         puts "\nGet LTP testsuites done\n"
@@ -1740,9 +1741,11 @@ expect " #"
 #      }
 #   }
 #}
-sleep 120
 
-
+exec $LTP_SCRIPT_DIR/build_ltp.sh > /dev/null 2>&1
+cd $LTP_SOURCE_DIR
+exec make uclinux
+exec make uclinux_install
 
 set PARAM_ON        "run the test"
 set PARAM_OFF       "turned off"
