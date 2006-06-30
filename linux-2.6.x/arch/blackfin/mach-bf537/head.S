@@ -457,6 +457,7 @@ ENTRY(_bfin_reset)
         w[p0] = r0.l;
         SSYNC;
 
+#if defined(CONFIG_MTD_M25P80)
 /* /CS return to high */
         p0.h = hi(PORTFIO);
         p0.l = lo(PORTFIO);
@@ -480,6 +481,7 @@ _delay_lab0_end:
         nop;
 _delay_lab1_end:
         nop;
+#endif
 
 	/* Clear the bits 13-15 in SWRST if they werent cleared */
 	p0.h = hi(SWRST);
