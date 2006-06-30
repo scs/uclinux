@@ -1,0 +1,263 @@
+#!/usr/bin/expect
+log_file build_twi_keyboard_kernel_log
+send_user "Starting build_twi_keyboard_kernel.exp\n"
+
+set user /home/test
+set uclinux_path $user/checkouts/kernel/uClinux-dist
+set dxe_filename linux
+set ttydev /dev/ttyS0
+set send_slow {1 0.1}
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+
+step "Make config."
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+   
+   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+	     send "$board_type\r"
+      } 
+   
+   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
+    
+           -re "Select BF537/6/4 default GPIO PFx PORTG.*BF537_PORT_G.*choice\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                       send "2\r"
+	    } else {
+	               send "\r"
+	    }
+      }
+
+      	   -re "I2C support.*I2C\[^_].*\\\[.*]" {             
+             send "Y\r"
+      }
+
+      	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
+             send "Y\r"
+      }
+      
+     	   -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_GPIO.*\\\[.*]" {
+	     if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {             
+             		send "Y\r"
+	     } else {
+	     		send "N\r"
+	     }	     
+      }
+      
+      	   -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {   
+	     if { $board_type == "BF537-STAMP" } {             
+             		send "Y\r"
+	     } else {
+	     		send "\r"
+	     }	             
+      }
+      
+      	   -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {   
+	     if { $board_type == "BF537-STAMP" } {             
+             		send "50\r"
+	     } else {
+	     		send "\r"
+	     }	             
+      }
+      
+      
+      	   -re "Generic input layer.*\\\[.*]" {            
+             send "Y\r"
+      }
+  
+      	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
+             send "Y\r"
+      }
+      
+      	   -re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {            
+             send "Y\r"
+      }
+      
+      	   -re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {            
+             send "Y\r"
+      }
+       
+      
+       "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+
+           -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+           -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+      
+      # To put this item selected here, for in the first round, the prerequired items haven't been selected,which are in the behind by the sequence. 
+      
+           -re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {            
+             send "Y\r"
+      }
+      
+           -re "IRQ.*BFIN_TWIKEYPAD_IRQ.*\\\[.*]" {            
+             send "26\r"
+      }
+      
+           -re "GPIO for Interrupt.*BFIN_TWIKEYPAD_IRQ_PFX.*\\\[.*]" {            
+             send "6\r"
+      }
+      
+           -re "TWI KEYPAD test program.*CONFIG_USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
+             send "y\r"
+      }
+
+       "\\\(*) \\\[*]" {
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+	     "Entering directory" { }
+	     "Leaving directory" { set bfin_make_status success }
+	     "Error" {set bfin_make_status failure }
+	     "/bin/sh" { }
+	     eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}
+
+
+step "Copy linux"
+ 
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+# Check the size, time, and date just to be sure.
+cd /tftpboot
+set dxe_confirmation [exec ls -l $dxe_filename]
+
+log_file
+ 
+send_user "Ending build_twi_keyboard_kernel.exp\n"
+
+
