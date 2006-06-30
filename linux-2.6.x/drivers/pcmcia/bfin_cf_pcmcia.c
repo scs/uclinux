@@ -45,6 +45,9 @@
 
 #define	POLL_INTERVAL	(2 * HZ)
 
+#define CF_ATASEL_ENA 	0x20311802 /* Inverts RESET */
+#define CF_ATASEL_DIS 	0x20311800
+
 #define bfin_cf_present(pfx) (bfin_read_FIO_FLAG_D() & (1<<pfx))
 
 /*--------------------------------------------------------------------------*/
@@ -66,6 +69,15 @@ struct bfin_cf_socket {
 };
 
 /*--------------------------------------------------------------------------*/
+static int bfin_cf_reset(void)
+{
+	  outw(0, CF_ATASEL_ENA);
+	  mdelay(200);
+	  outw(0, CF_ATASEL_DIS);
+
+	  return 0;
+
+}
 
 static int bfin_cf_ss_init(struct pcmcia_socket *s)
 {
@@ -108,10 +120,6 @@ static int bfin_cf_get_status(struct pcmcia_socket *s, u_int *sp)
 
 	cf = container_of(s, struct bfin_cf_socket, socket);
 
-	/* FIXME power management should probably be board-specific:
-	 *  - 3VCARD vs XVCARD (OSK only handles 3VCARD)
-	 *  - POWERON (switched on/off by set_socket)
-	 */
 	if (bfin_cf_present(cf->cd_pfx)) {
 		*sp = SS_READY | SS_DETECT | SS_POWERON | SS_3VCARD;
 		s->irq.AssignedIRQ = 0;
@@ -126,20 +134,25 @@ static int
 bfin_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 {
 
-	/* FIXME some non-OSK boards will support power switching */
+	struct bfin_cf_socket	*cf;
+	cf = container_of(sock, struct bfin_cf_socket, socket);
+
 	switch (s->Vcc) {
 	case 0:
 	case 33:
+		break;
+	case 50:
 		break;
 	default:
 		return -EINVAL;
 	}
 
-/* TODO: Implement Card Reset */ 
-//	control = CF_CONTROL_REG;
-//	if (s->flags & SS_RESET)
-//		RESET;
-
+	if (s->flags & SS_RESET){
+		disable_irq(cf->irq);
+		bfin_cf_reset();
+		enable_irq(cf->irq);
+	}
+	
 	pr_debug("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
 		driver_name, s->Vcc, s->io_irq, s->flags, s->csc_mask);
 
