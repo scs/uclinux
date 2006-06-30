@@ -1,3 +1,14 @@
+/*
+ * linux/drivers/video/bfin_ad7171.h -- Analog Devices Blackfin + AD7171 video out chip
+ *
+ * Based on vga16fb.c: Copyright 1999 Ben Pfaff <pfaffben@debian.org> and Petr Vandrovec <VANDROVE@vc.cvut.cz>
+ * Copyright 2004 Ashutosh Kumar Singh (ashutosh.singh@rrap-software.com)
+ *
+ * This file is subject to the terms and conditions of the GNU General
+ * Public License.  See the file COPYING in the main directory of this
+ * archive for more details.
+ */
+
 #define BLACK   (0x01800180)            /* black pixel pattern	*/
 #define BLUE    (0x296E29F0)		/* blue pixel pattern	*/
 #define RED     (0x51F0515A)		/* red pixel pattern	*/
@@ -9,21 +20,19 @@
 
 #define true 	1
 #define false	0
-                                                                                                                                                             
-                                                                                                                                                             
-struct system_code_type
-{
-        unsigned int sav;	/* Start of Active Video */
-        unsigned int eav;	/* End of Active Video */
+
+struct system_code_type {
+	unsigned int sav;	/* Start of Active Video */
+	unsigned int eav;	/* End of Active Video */
 };
 
 #ifdef CONFIG_NTSC
 const struct system_code_type system_code_map[4] =
 {
-        { 0xFF0000EC, 0xFF0000F1 },
-        { 0xFF0000AB, 0xFF0000B6 },
-        { 0xFF000080, 0xFF00009D },
-        { 0xFF0000C7, 0xFF0000DA }
+	{ 0xFF0000EC, 0xFF0000F1 },
+	{ 0xFF0000AB, 0xFF0000B6 },
+	{ 0xFF000080, 0xFF00009D },
+	{ 0xFF0000C7, 0xFF0000DA }
 };
 #define FIELD1_VB_START		1
 #define FIELD1_VB_END  		23
@@ -66,24 +75,24 @@ const struct system_code_type system_code_map[4] =
 #define YCBCR_HEIGHT    	625
 #endif /* CONFIG_NTSL */
 
-struct rgb_t{
-        unsigned char r,g,b;
-} ;
+struct rgb_t {
+	unsigned char r,g,b;
+};
 
-struct ycrcb_t{
-        unsigned char   Cb,y1,Cr,y2;
+struct ycrcb_t {
+	unsigned char   Cb,y1,Cr,y2;
 };
 
 struct adv7171 {
-        unsigned char reg[128];
+	unsigned char reg[128];
 
-        int norm;
-        int input;
-        int enable;
-        int bright;
-        int contrast;
-        int hue;
-        int sat;
+	int norm;
+	int input;
+	int enable;
+	int bright;
+	int contrast;
+	int hue;
+	int sat;
 };
 
 #define   I2C_ADV7171        0x54
