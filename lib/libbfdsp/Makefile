@@ -19,11 +19,11 @@
 
 
 all: 
-	make -C src 
+	$(MAKE) -C src 
 	cp src/libbfdsp532.a libbfdsp.a
 
 romfs:
 
 clean:
-	make -C src clean
+	$(MAKE) -C src clean
 	rm -f libbfdsp.a 
