@@ -446,7 +446,8 @@ ENTRY(_bfin_reset)
 	/* No more interrupts to be handled*/
 	CLI R6;
 	SSYNC;
-	
+
+#if defined(CONFIG_MTD_M25P80)
 /*
  * The following code fix the SPI flash reboot issue,
  * /CS signal of the chip which is using PF10 return to GPIO mode
@@ -457,7 +458,6 @@ ENTRY(_bfin_reset)
         w[p0] = r0.l;
         SSYNC;
 
-#if defined(CONFIG_MTD_M25P80)
 /* /CS return to high */
         p0.h = hi(PORTFIO);
         p0.l = lo(PORTFIO);
