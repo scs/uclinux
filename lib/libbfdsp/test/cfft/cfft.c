@@ -13,6 +13,7 @@
 #include <complex.h>
 #include <filter.h>
 #include <stdio.h>
+#include <cycle_count.h>
 
 #define VEC_SIZE 8192	// length of the input vector
 
@@ -46,9 +47,16 @@ int main(void) {
 		perror("fopen() error");
 		exit(-1);
 	}
+
+	cycle_t start_count; 
+	cycle_t final_count; 
+	START_CYCLE_COUNT(start_count)
 	
 	// call to the DSP library
 	cfft_fr16(in, t, out, w, 2*TWIDDLE_SIZE/VEC_SIZE, VEC_SIZE, 1, 2);
+
+	STOP_CYCLE_COUNT(final_count,start_count) 
+	PRINT_CYCLES("Number of cycles: ",final_count)
 	
 	for (i = 0; i < VEC_SIZE; i++)
 		fprintf(outf, "0x%hx\n0x%hx\n", out[i].re, out[i].im );

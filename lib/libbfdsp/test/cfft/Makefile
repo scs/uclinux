@@ -1,8 +1,10 @@
 TARGET = __ADSPBLACKFIN__
-#PROCESSOR = __ADSPBF533__
 
-#UCLINUX_OPTS = -D$(TARGET) -D__EDG_VERSION__=$(EDG_VERSION) -D$(PROCESSOR)
-UCLINUX_OPTS = -D$(TARGET)
+# You may also try on other blackfin
+PROCESSOR = __ADSPBF533__
+
+# Enable Cycle count 
+UCLINUX_OPTS = -D$(TARGET) -D$(PROCESSOR) -DDO_CYCLE_COUNTS
 
 CC = bfin-uclinux-gcc
 

@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include "stats.h"
+#include <math.h>
 
 int main()
 {

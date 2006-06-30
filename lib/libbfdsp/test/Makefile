@@ -2,11 +2,11 @@ TARGET = __ADSPBLACKFIN__
 
 UCLINUX_OPTS = -Wall -D$(TARGET)
 
-CC = bfin-uclinux-g++
+CC = bfin-uclinux-gcc
 
 CFLAGS += -g -I ../include  $(UCLINUX_OPTS) 
-LDFLAGS += -Wl,-elf2flt
-LIBS += ../src/libbfdsp532.a
+LDFLAGS += -Wl,-elf2flt  
+LIBS += ../src/libbfdsp532.a 
 
 PROGS = math stats vector filter 
 
