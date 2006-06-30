@@ -1,29 +1,24 @@
 /*
- * ########################################################################
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * ########################################################################
-*/
-
-
-/*
  * drivers/video/bfin-lq035.c
  * Analog Devices Blackfin(BF537 STAMP) + SHARP TFT LCD.
  *
-*/
-
+ * For more information, please read the data sheet:
+ * http://blackfin.uclinux.org/frs/download.php/829/LQ035q7db03.pdf
+ *
+ * This program is free software; you can distribute it and/or modify it
+ * under the terms of the GNU General Public License (Version 2) as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
+ *
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -165,7 +160,7 @@ static struct i2c_driver ad5280_driver = {
 };
 
 
-#define START_LINES          8
+#define START_LINES          8              /* lines for field flyback or field blanking signal */
 #define U_LINES              (9)            /* number of undisplayed lines */
 
 #define FRAMES_PER_SEC       (60)
