@@ -19,7 +19,7 @@
 
 ****************************************************************************/
 
-#include <math.h>
+#include "math.h"
 
 float                       /*{ ret - clipped value }*/
 _fclipf(

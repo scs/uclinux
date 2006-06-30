@@ -36,7 +36,7 @@
   _____________________________________________________________________
 */
 #include <float.h>
-#include <math.h>
+#include "math.h"
 #include "util.h"
 #include <math_const.h>
 #include <complex.h>

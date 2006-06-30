@@ -21,7 +21,7 @@
 
 ****************************************************************************/
 
-#include <math.h>
+#include "math.h"
 #include <complex.h>
 
 complex_float _polarf(float mag, float phase )

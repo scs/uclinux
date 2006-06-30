@@ -17,7 +17,7 @@
  * Description :  Reciprocal Square Root
  */
 
-#include <math.h>
+#include "math.h"
 #include <float.h>
 
 /*____________________________________________________________________________

@@ -14,7 +14,7 @@
 
 *********************************************************************/
 
-#include <math.h>
+#include "math.h"
 #include <complex.h>
 
 float _argf( complex_float a )

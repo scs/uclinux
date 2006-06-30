@@ -29,7 +29,7 @@
                 ~ 23 - min
   _____________________________________________________________________
 */
-#include <math.h>
+#include "math.h"
 #include "util.h"
 #include <math_const.h>
 

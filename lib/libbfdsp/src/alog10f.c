@@ -17,7 +17,7 @@
  * Description    : This file contains the implementation of alog10f()
  */
 
-#include <math.h>
+#include "math.h"
 
 #if defined(__ADSPBLACKFIN__) || defined(__ADSP219X__)
 #define LOGE_10 2.302585092994046

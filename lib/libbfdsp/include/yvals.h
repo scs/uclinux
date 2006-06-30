@@ -21,11 +21,6 @@
  * $Revision$
  ************************************************************************/
 
-#pragma once
-#ifndef __NO_BUILTIN
-#pragma GCC system_header /* yvals.h */
-#endif
-
 /*
 ** yvals.h for ADIDSP's version 3.1.0 library
 */

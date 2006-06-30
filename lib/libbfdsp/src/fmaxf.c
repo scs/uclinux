@@ -19,7 +19,7 @@
   ******************************************************************************/
 
 #ifdef __NO_BUILTIN
-#include <math.h>
+#include "math.h"
 
 float                      /*{ ret - max of (x, y) }*/
 fmaxf(

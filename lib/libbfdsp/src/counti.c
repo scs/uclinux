@@ -13,7 +13,7 @@
    Counting number of one bits in an integer 
 ********************************************************************/              
 
-#include <math.h>
+#include "math.h"
 
 int _countones(int a) 
 {

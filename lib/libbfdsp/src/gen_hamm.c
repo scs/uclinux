@@ -16,7 +16,7 @@
 
 #define  ETSI_SOURCE
 #include <window.h> 
-#include <math.h>
+#include "math.h"
 #include <fract.h>
 #include <fract_math.h>
 #include "Lib_cos16_2PIx.h"

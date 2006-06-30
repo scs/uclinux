@@ -15,7 +15,7 @@
 ********************************************************************/
 
 #include <fract.h>
-#include <math.h>
+#include "math.h"
 
 fract16 _fmin_fr16(fract16 param1,fract16 param2)
 {

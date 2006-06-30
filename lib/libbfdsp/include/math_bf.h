@@ -39,6 +39,21 @@
 _C_STD_BEGIN
 _C_LIB_DECL
 
+
+/* * * *        cot      * * * *
+ *    Cotangent
+ */
+        float cotf (float _x) asm("__cotf");
+
+        long double cotd (long double _x) asm("__cotd");
+
+#ifdef __DOUBLES_ARE_FLOATS__
+        double cot (double _x) asm("__cotf");
+#else
+        double cot (double _x) asm("__cotd");
+#endif
+
+
 /* * * *        acos     * * * *
  *    Arc cosine
  */

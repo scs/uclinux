@@ -456,10 +456,10 @@ LIBDSP_LIST       = $(COMPLEX_OBJS)      \
                     $(STATS_OBJS)        \
                     $(TRIG_16_OBJS)      \
                     $(TRIG_NSTDFLT_OBJS) \
-                    $(TRIG_FLT_OBJS)     \
                     $(VECTOR_OBJS)       \
                     $(WINDOW_OBJS)       \
-                    $(MISC_OBJS)         
+                    $(MISC_OBJS)        \
+                    $(TRIG_FLT_OBJS)     
 
 LIBDSP_M3RES_LIST = $(COMPLEX_M3RES_OBJS)      \
                     $(FILTER_M3RES_OBJS)       \
@@ -467,10 +467,10 @@ LIBDSP_M3RES_LIST = $(COMPLEX_M3RES_OBJS)      \
                     $(STATS_M3RES_OBJS)        \
                     $(TRIG_16_M3RES_OBJS)      \
                     $(TRIG_NSTDFLT_M3RES_OBJS) \
-                    $(TRIG_FLT_M3RES_OBJS)     \
                     $(VECTOR_M3RES_OBJS)       \
                     $(WINDOW_M3RES_OBJS)       \
-                    $(MISC_M3RES_OBJS)         
+                    $(MISC_M3RES_OBJS)        \
+                    $(TRIG_FLT_M3RES_OBJS)     
 
 # Suffix Rules
 

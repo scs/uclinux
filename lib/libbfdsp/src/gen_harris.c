@@ -16,7 +16,7 @@
 #endif  
 
 #include <window.h>
-#include <math.h>
+#include "math.h"
 #include <fract.h>
 #include "Lib_cos16_2PIx.h"
 
