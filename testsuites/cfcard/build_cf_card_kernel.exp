@@ -1,0 +1,269 @@
+#!/usr/bin/expect
+log_file build_cf_card_kernel_log
+send_user "Starting build_cf_card_kernel.exp\n"
+
+set user /home/test
+set uclinux_path $user/checkouts/kernel/uClinux-dist
+set dxe_filename linux
+set ttydev /dev/ttyS0
+set send_slow {1 0.1}
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+
+step "Make config."
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+   
+   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+	     send "$board_type\r"
+      } 
+   
+   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
+             send "Y\r"
+      }
+
+         -re "Enhanced IDE.MFM.RLL disk.cdrom.tape.floppy support.*BLK_DEV_IDE.*\\\[.*]" {
+             send "Y\r"
+      }
+
+         -re "Include IDE.ATA-2 DISK support.*BLK_DEV_IDEDISK.*\\\[.*]" {
+             send "Y\r"
+      }
+
+         -re "IDE Interface Address Mapping .*16-bit mapping for multimode CF Interface.*BFIN_IDE_ADDRESS_MAPPING_MODE1.*choice.*\\\[.*]" {
+             send "2\r"
+      }
+
+          -re "IDE register base address.*BFIN_IDE_BASE.*\\\[.*]" {
+             send "0x2031C020\r"
+      }
+          -re "IDE register alternate address.*BFIN_IDE_ALT.*\\\[.*]" {
+             send "0x2031C01C\r"
+      }
+         -re "IDE IRQ no.*BFIN_IDE_IRQ.*\\\[.*]" {
+             send "34\r"
+      }
+
+         -re "IDE IRQ PFx no.*BFIN_IDE_IRQ_PFX.*\\\[.*]" {
+             send "4\r"
+      }
+
+        -re "Blackfin A.* used as CF A0.*BFIN_IDE_ADDRESS_AX.*\\\[.*]" {
+             send "13\r"
+      }
+
+
+       -re "Address for enabling CF TRUE IDE MODE.*ATASEL.*CF_ATASEL_ENA.*\\\[.*]" {
+             send "0x20311802\r"
+      }
+
+        -re "Address for disabling CF TRUE IDE MODE.*ATASEL.*CF_ATASEL_DIS.*\\\[.*]" {
+             send "0x20311800\r"
+      }
+
+
+          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+             send "Y\r"
+      }
+
+          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+             send "20\r"
+      }
+
+          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+             send "1\r"
+      }
+
+          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+             send "8\r"
+      }
+
+   
+          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+             send "0xFFC3\r"
+      }
+
+      -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "Default NLS Option.*NLS_DEFAULT.*\\\[.*]" {
+             send "\r"
+      }
+
+        -re "Codepage 437.*United States.*Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
+             send "Y\r"
+      }
+
+        -re "Codepage 850.*Europe.*NLS_CODEPAGE_850.*\\\[.*]" {
+             send "Y\r"
+      }
+  
+        -re "NLS ISO 8859-1.*Latin 1.*Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
+             send "Y\r"
+      }
+        -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "mke2fs.*CONFIG_USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+             send "Y\r"
+      }
+
+     -re "hdparm.*CONFIG_USER_BUSYBOX_HDPARM.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "hdparm. get identity.*CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "hdparm. scan hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+       -re "hdparm. unregister hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "hdparm. drive reset.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "hdparm. tristate hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "hdparm. get.set dma.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      
+       "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+	     "Entering directory" { }
+	     "Leaving directory" { set bfin_make_status success }
+	     "Error" {set bfin_make_status failure }
+	     "/bin/sh" { }
+	     eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}
+
+
+step "Copy linux"
+ 
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+# Check the size, time, and date just to be sure.
+cd /tftpboot
+set dxe_confirmation [exec ls -l $dxe_filename]
+
+log_file
+ 
+send_user "Ending build_cf_card_kernel.exp\n"
+
+

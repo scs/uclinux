@@ -1,0 +1,259 @@
+#!/usr/bin/expect
+log_file build_wireless_network_kernel_log
+send_user "Starting build_wireless_network_kernel.exp\n"
+
+set user /home/test
+set uclinux_path $user/checkouts/kernel/uClinux-dist
+set dxe_filename linux
+set ttydev /dev/ttyS0
+set send_slow {1 0.1}
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+
+step "Make config."
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+   
+   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+	     send "$board_type\r"
+      } 
+   
+   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
+          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[././.]" {
+             send "Y\r"
+      }
+
+          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+             send "20\r"
+      }
+
+          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+             send "1\r"
+      }
+
+          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+             send "8\r"
+      }
+
+        
+          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+             send "0xFFC3\r"
+      }
+
+       -re "Wireless LAN drivers.*non-hamradio.*Wireless Extensions.*NET_RADIO.*\\\[.*]" {
+             send "Y\r"
+      }
+  
+      -re "Hermes chipset 802.11b support.*Orinoco.Prism2.Symbol.*HERMES.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "Blackfin WLAN card support.*WLAN_BLACKFIN.*\\\[.*]" {
+             send "Y\r"
+      }
+      
+        -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
+             send "y\r"
+      }
+
+        -re "wireless_tools support.*CONFIG_USER_WIRELESS_TOOLS.*\\\[.*]" {
+             send "Y\r"
+      }
+        -re "iwconfig.*CONFIG_USER_WIRELESS_TOOLS_IWCONFIG.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "iwgetid.*CONFIG_USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "iwlist.*CONFIG_USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
+             send "Y\r"
+      }
+
+      -re "iwpriv.*CONFIG_USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
+             send "Y\r"
+      }
+ 
+       -re "iwspy.*CONFIG_USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+	     "Entering directory" { }
+	     "Leaving directory" { set bfin_make_status success }
+	     "Error" {set bfin_make_status failure }
+	     "/bin/sh" { }
+	     eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}
+
+step "Config netserver ."
+
+cd  $uclinux_path/testsuites/ethernet/
+exec tar zxvf netperf.tgz
+
+exec cp $user/test_scripts/kernel/netserver_x86 netserver_x86
+exec cp $user/checkouts/kernel/uClinux-dist/user/blkfin-test/netperf-bfin/src/netperf netperf_bfin
+
+
+cd $uclinux_path/testsuites/ethernet/
+ set timeout 2
+      spawn ex netperf_script
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+         }
+      }
+      send "/HOSTIP\r"
+      expect "HOSTIP=*"
+      send "d\r"
+      expect ":"
+      send "i\r"
+      send "HOSTIP=192.168.1.174\r"
+      send ".\r"
+      expect :
+      send "wq\r"
+      expect eof
+
+exec chmod 777 netperf_script
+cd $uclinux_path
+exec cp testsuites/ethernet/netperf_script romfs
+exec cp  testsuites/ethernet/netperf_bfin  romfs/bin
+
+step "Make again"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+             "Entering directory" { }
+             "Leaving directory" { set bfin_make_status success }
+             "Error" {set bfin_make_status failure }
+             "/bin/sh" { }
+             eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+      exit
+}
+
+step "Copy linux"
+ 
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+# Check the size, time, and date just to be sure.
+cd /tftpboot
+set dxe_confirmation [exec ls -l $dxe_filename]
+
+log_file
+ 
+send_user "Ending build_wireless_network_kernel.exp\n"
+
+
