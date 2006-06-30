@@ -2,14 +2,7 @@
  *
  * cycle_count_bf.h
  *
- * (c) Copyright 2004 Analog Devices, Inc.
- * This file is subject to the terms and conditions of the GNU Library General
- * Public License. See the file "COPYING.LIB" in the main directory of this
- * archive for more details.
- *
- * Non-LGPL License also available as part of VisualDSP++
- * http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
- *
+ * (c) Copyright 2004 Analog Devices, Inc.  All rights reserved.
  * $Revision$
  ************************************************************************/
 
@@ -19,7 +12,7 @@
 
 #pragma once
 #ifndef __NO_BUILTIN
-#pragma GCC system_header /* cycle_count_bf.h */
+#pragma system_header /* cycle_count_bf.h */
 #endif
 
 #ifndef __CYCLE_COUNT_BF_DEFINED
@@ -99,13 +92,13 @@
    half of the cycle count register at the time CYCLES has been read
    until CYCLES is read again.
  */
-#define _GET_CYCLE_COUNT( _CURR_COUNT )      asm volatile         \
-                                             ("r2 = CYCLES;  \n"  \
-                                              "r1 = CYCLES2; \n"  \
-                                              "[%0]   = r2;  \n"  \
-                                              "[%0+4] = r1;  \n"  \
+#define _GET_CYCLE_COUNT( _CURR_COUNT )      __asm__ volatile         \
+                                             ("R2 = CYCLES;  \n"  \
+                                              "R1 = CYCLES2; \n"  \
+                                              "[%0]   = R2;  \n"  \
+                                              "[%0+4] = R1;  \n"  \
                                               : : "p" (&(_CURR_COUNT)) \
-                                              : "r1", "r2" );
+                                              : "R1", "R2" );
 
 #if defined( DO_CYCLE_COUNTS )
 
@@ -117,13 +110,13 @@
    the overhead increases to 6.
  */
 #define _STOP_CYCLE_COUNT( _CURR_COUNT, _START_COUNT ) \
-                                           asm volatile           \
-                                             ("r2 = CYCLES;  \n"  \
-                                              "r1 = CYCLES2; \n"  \
-                                              "[%0]   = r2;  \n"  \
-                                              "[%0+4] = r1;  \n"  \
+                                           __asm__ volatile           \
+                                             ("R2 = CYCLES;  \n"  \
+                                              "R1 = CYCLES2; \n"  \
+                                              "[%0]   = R2;  \n"  \
+                                              "[%0+4] = R1;  \n"  \
                                               : : "p" (&(_CURR_COUNT))  \
-                                              : "r1", "r2" );           \
+                                              : "R1", "R2" );           \
                         (_CURR_COUNT) = (_CURR_COUNT) - (_START_COUNT); \
                         (_CURR_COUNT) -= (_cycle_t) 4;  
 
