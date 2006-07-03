@@ -266,7 +266,7 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd  $KERNEL_SCRIPTS/reboot
-  ./build_reboot_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./reboot_test.exp /dev/ttyS0 
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot

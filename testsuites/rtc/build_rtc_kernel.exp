@@ -20,6 +20,7 @@ if { $argc >= 2} {
    send_log "\n#### uclinux_path is $uclinux_path\n"
 }
 
+
 proc step { message } {
 
   global step_sequence_number
