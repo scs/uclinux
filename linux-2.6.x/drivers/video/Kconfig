@@ -469,6 +469,17 @@ config FB_BF537_LQ035
 	 This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
          attached to a BF537.
 
+config LQ035_SLAVE_ADDR
+	hex "The slave address of the I2C device (0x58, 0x5A, 0x5C and 0x5E)"
+	depends on FB_BF537_LQ035
+	default 0x58
+	help
+	  This is the slave address of the I2C device on the LQ035 LCD 
+	  daughter board. It value could be 0x58, 0x5A, 0x5C and 0x5E.
+	  Please setting the switch S1 properly accroding to the address.
+	  The default is 0x58.
+
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC

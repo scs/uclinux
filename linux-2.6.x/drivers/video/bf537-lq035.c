@@ -93,7 +93,7 @@ static struct i2c_driver ad5280_driver;
 static struct i2c_client* ad5280_client;
 
 static unsigned short ignore[] 		= { I2C_CLIENT_END };
-static unsigned short normal_addr[] = { 0x58, I2C_CLIENT_END };
+static unsigned short normal_addr[] = { CONFIG_LQ035_SLAVE_ADDR>>1, I2C_CLIENT_END };
 
 static struct i2c_client_address_data addr_data = {
 	.normal_i2c			= normal_addr,
@@ -141,7 +141,7 @@ static int ad5280_attach(struct i2c_adapter *adap)
 	if (adap->algo->functionality)
 		return i2c_probe(adap, &addr_data, ad5280_probe);
 	else
-		return ad5280_probe(adap, 0x58>>1, 0);
+		return ad5280_probe(adap, CONFIG_LQ035_SLAVE_ADDR>>1, 0);
 }
 
 static int ad5280_detach_client(struct i2c_client *client)
