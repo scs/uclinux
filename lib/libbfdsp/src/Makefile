@@ -265,7 +265,7 @@ TRIG_FLT_C_SRC = \
 
 
 TRIG_FLT_ASM_SRC = \
-   sqrt.asm      \
+   sqrt.asm      
 
 TRIG_FLT_C_OBJS   = $(TRIG_FLT_C_SRC:.c=.o)
 TRIG_FLT_ASM_OBJS = $(TRIG_FLT_ASM_SRC:.asm=.o)
@@ -359,11 +359,7 @@ MISC_C_SRC = \
    counti.c  \
    countl.c  \
    fclipf.c  \
-   fmaxf.c   \
-   fminf.c   \
-   max.c     \
    max16.c   \
-   min.c     \
    min16.c   \
    signf.c   \
    fl32max.c \
@@ -458,8 +454,8 @@ LIBDSP_LIST       = $(COMPLEX_OBJS)      \
                     $(TRIG_NSTDFLT_OBJS) \
                     $(VECTOR_OBJS)       \
                     $(WINDOW_OBJS)       \
-                    $(MISC_OBJS)        \
-                    $(TRIG_FLT_OBJS)     
+                    $(MISC_OBJS)        
+                    #$(TRIG_FLT_OBJS)     
 
 LIBDSP_M3RES_LIST = $(COMPLEX_M3RES_OBJS)      \
                     $(FILTER_M3RES_OBJS)       \
@@ -469,8 +465,8 @@ LIBDSP_M3RES_LIST = $(COMPLEX_M3RES_OBJS)      \
                     $(TRIG_NSTDFLT_M3RES_OBJS) \
                     $(VECTOR_M3RES_OBJS)       \
                     $(WINDOW_M3RES_OBJS)       \
-                    $(MISC_M3RES_OBJS)        \
-                    $(TRIG_FLT_M3RES_OBJS)     
+                    $(MISC_M3RES_OBJS)        
+                    #$(TRIG_FLT_M3RES_OBJS)     
 
 # Suffix Rules
 

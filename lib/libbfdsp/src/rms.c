@@ -15,7 +15,7 @@
 ***************************************************************************/
 
 #include <stats.h>
-#include "math.h"
+#include <math.h>
 #include "means.h"
 
 

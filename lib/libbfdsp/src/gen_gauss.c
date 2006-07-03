@@ -16,7 +16,7 @@
 #endif
 
 #define  ETSI_SOURCE
-#include "math.h"
+#include <math.h>
 #include <window.h>
 #include <fract.h>
 #include <fract_math.h>

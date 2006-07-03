@@ -30,7 +30,7 @@
 *******************************************************************************/
 
 #include <filter.h>
-#include "math.h"
+#include <math.h>
 
 #define __USE_FAST_LOOKUP 1
 

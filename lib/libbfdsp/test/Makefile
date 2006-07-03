@@ -6,7 +6,7 @@ CC = bfin-uclinux-gcc
 
 CFLAGS += -g -I ../include  $(UCLINUX_OPTS) 
 LDFLAGS += -Wl,-elf2flt  
-LIBS += ../src/libbfdsp532.a 
+LIBS += ../src/libbfdsp532.a -lm 
 
 PROGS = math stats vector filter 
 

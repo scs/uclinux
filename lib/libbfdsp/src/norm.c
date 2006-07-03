@@ -14,7 +14,7 @@
 
 ****************************************************************************/
 
-#include "math.h"
+#include <math.h>
 #include <complex.h>
 
 complex_float _normf(complex_float a )

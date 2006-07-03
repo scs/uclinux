@@ -15,7 +15,7 @@
                 The length is specified by parameter `N`.
 #endif
 
-#include "math.h"
+#include <math.h>
 #include <window.h>
 #include <fract.h>
 

@@ -15,7 +15,7 @@
 ****************************************************************************/
 
 #include <complex.h>
-#include "math.h"
+#include <math.h>
 
 complex_float _cdivf( complex_float a, complex_float b )
 {

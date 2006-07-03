@@ -14,7 +14,7 @@
 
 ***************************************************************************/
 
-#include "math.h"
+#include <math.h>
 #include <complex.h>
 
 float _cabsf(complex_float a)
