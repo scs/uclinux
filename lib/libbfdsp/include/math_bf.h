@@ -142,18 +142,7 @@ _C_LIB_DECL
         static __inline float fmax(double _x, double _y) 
                 { if (_x > _y) return _x; else return _y; }
 #endif 
-#else 
-        float fmaxf(float _x, float _y) asm("__fmaxf");
-#ifdef __DOUBLES_ARE_FLOATS__
-        double fmax(double _x, double _y) asm("__fmaxf");
 #endif
-#endif
-
-        long double fmaxd(long double _x, long double _y) asm("__fmaxd");
-#if !defined( __DOUBLES_ARE_FLOATS__)
-        double fmax(double _x, double _y) asm("__fmaxd");
-#endif
-
 
 #if !defined(__NO_BUILTIN) 
         int __builtin_bfin_max(int, int);
@@ -168,7 +157,6 @@ _C_LIB_DECL
         long lmax (long _x, long _y) asm("__max");
 #endif /* NO_BUILTIN */
 
-        long long  llmax (long long  _x, long long  _y) asm("__llmax");
 
 /* * * *        min      * * * *
  *    Minimum value
@@ -182,16 +170,6 @@ _C_LIB_DECL
         static __inline float fmin(double _x, double _y) 
                 { if (_x < _y) return _x; else return _y; }
 #endif
-#else
-        float fminf(float _x, float _y) asm("__fminf");
-#ifdef __DOUBLES_ARE_FLOATS__
-        double fmin(double _x, double _y) asm("__fminf");
-#endif
-#endif
-
-        long double fmind(long double _x, long double _y) asm("__fmind");
-#if !defined(__DOUBLES_ARE_FLOATS__)
-        double fmin(double _x, double _y) asm("__fmind");
 #endif
 
 
@@ -203,12 +181,8 @@ _C_LIB_DECL
         long __builtin_bfin_lmin(long, long);
         static __inline long lmin(long _x, long _y)
                 { return __builtin_bfin_lmin(_x,_y); }
-#else
-        int min (int _x, int _y) asm("__min");
-        long lmin (long _x, long _y) asm("__min");
 #endif
 
-        long long  llmin (long long  _x, long long  _y) asm("__llmin");
 
 /* * * *        clip     * * * *
  *    Clip value to limit
