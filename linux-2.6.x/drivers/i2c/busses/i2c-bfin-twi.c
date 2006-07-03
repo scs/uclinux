@@ -231,6 +231,12 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		/* Set Transmit device address */
 		bfin_write_TWI_MASTER_ADDR(pmsg->addr);
 
+		/* FIFO Initiation. Data in FIFO should be discarded before start a new operation.*/
+		bfin_write_TWI_FIFO_CTL(0x3);
+		__builtin_bfin_ssync();
+		bfin_write_TWI_FIFO_CTL(0);
+		__builtin_bfin_ssync();
+
 		if (pmsg->flags & I2C_M_RD)
 			iface->read_write = I2C_SMBUS_READ;
 		else {
@@ -242,11 +248,6 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 				__builtin_bfin_ssync();
 			}
 		}
-	
-		/* FIFO Initiation. Data in FIFO should be discarded before start a new operation.*/
-/*		bfin_write_TWI_FIFO_CTL(0x3);
-		__builtin_bfin_ssync();*/
-		bfin_write_TWI_FIFO_CTL(0);
 
 		/* clear int stat */
 		bfin_write_TWI_INT_STAT(MERR|MCOMP|XMTSERV|RCVSERV);
