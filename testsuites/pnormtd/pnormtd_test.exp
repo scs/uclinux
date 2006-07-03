@@ -1,5 +1,6 @@
 #!/usr/bin/expect
 #
+# Copyright (C) 2004 Bruce Giese
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
 # Free Software Foundation; either version 2, or (at your option) any
@@ -20,13 +21,16 @@
 #  This program performs substantial u-boot functional testing.
 #
 
-
+log_file pnormtd_test_log
+send_user "Starting pnormtd_test.exp\n"
 
 set TEST_PASS               "pass"
 set TEST_FAIL               "fail"
 # The term "INFO" here means the test was not run or could not be run.
 # Note that the TEST_INFO value must match the tables below. Sorry.
 set TEST_INFO               "notrun"
+
+set send_slow               {1 .1}
 
 #
 #  This matrix contains all the tests which are run.  Note that
@@ -146,48 +150,88 @@ while 1 {
 
 ##############################################################################################
 ##############################################################################################
-send "\r"
-expect "stamp>"
-send "reset\r"
 
+
+send_user "Try to figure out if we are in u-boot or the kernel"
+set where_are_we 0
+send "version\r"
 set timeout 20
-    while 1 {
-        expect {
-            "Hit any key" {
-             send "\3"
-             break
-            }
+expect {
 
-            timeout {
-                send_user "Kernel reboot failed\n"                
-                break
-            }
-        }
+    "U-Boot" {
+	send_user "We are in u-boot\n"
+	set where_are_we "uboot"
     }
-set send_slow {1 .1}  
-expect "stamp>"
-send -s "set bootargs root=/dev/mtdblock3 rw \r"
-expect "stamp>" 
-send -s "save\r"
 
-expect "stamp>"   
-set send_slow {1 .1}
+    "Linux" {
+	send_user "We are in the kernel\n"
+	set where_are_we "kernel"
+    }
+
+    timeout {
+	send_user "Can't tell if we are in u-boot or the kernel\n"
+    }
+}
+
+if { $where_are_we == "uboot" } {
+    set timeout 50
+    expect ">"
+    send_user "sending reset\n"
+    send "reset\r"
+} else {
+    if { $where_are_we == "kernel" } {
+	set timeout 60
+	expect "root:~>"
+	send_user "sending reboot\n"
+	send "reboot\r"
+    } else {
+	# If we don't know where we are, hit control-C and enter
+	set timeout 10
+	expect "*"
+	expect "*"
+	send_user "sending control-C\n"
+	send "\3"
+	sleep 1
+	send "\r"
+    }
+}
+
+ while 1 {
+       expect {
+         "Hit any key " {
+	     send "\r"
+             break
+         }
+
+
+         timeout {
+	     send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
+	
+
+expect ">"
+send -s "set bootargs root=/dev/mtdblock3 rw \r"
+expect ">" 
+send -s "save\r"
+expect ">"
 
 send -s "tftpboot 0x1000000 linux\r" 
 while 1 {
    expect {
       "#" {         
-         puts "tftp now.\n"
          break
       }
 
       timeout {
-            puts "Fail tftp. "          
+            send_log "Fail tftp. "          
             break
          }
      }
 } 
-expect "stamp>"
+expect ">"
 send -s "boote\r" 
 
  set timeout 180
@@ -201,13 +245,13 @@ send -s "boote\r"
          }
 
          -re "Sash command shell.*/> " {
-            puts "successful boot attempt"
+            send_log "successful boot attempt"
           #  incr successful_boots
             break
          }
 	 
 	  "root:~> " {
-            puts "successful boot attempt"
+            send_log "successful boot attempt"
           #  incr successful_boots
             break
          }
@@ -261,7 +305,7 @@ send -s "boote\r"
          }
 
          timeout {
-            puts "failed boot attempt"
+            send_log "failed boot attempt"
 	  #  recover
             break
          }
@@ -271,8 +315,8 @@ send -s "boote\r"
 sleep 5
 send "\r"
 expect "root:~>"
-puts "\n**************************************************"
-puts "MTD test\n\n"
+send_log "\n******"
+send_log "MTD test\n\n"
 set send_slow {1 .01}
 set timeout 5
 set mtd_temp_result $TEST_FAIL
@@ -284,8 +328,13 @@ while 1 {
 
 	"mtd2" {
 		set mtd_temp_result $TEST_PASS
-		break;
+		
 	}
+
+	 "root:~>" {
+                break
+        }
+
 
 	timeout {
 	    send_user "Error: no mtd partition to test\n"
@@ -299,11 +348,10 @@ if { $mtd_temp_result!=$TEST_PASS } {
 }
 sleep 1
 
-puts "\n**************************************************"
-puts "Erase MTD ......\n\n"
+send_log "\n******"
+send_log "Erase MTD ......\n\n"
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-expect "root:~>"
 send -s "flash_eraseall /dev/mtd2\r"
 while 1 {
     expect {
@@ -324,23 +372,23 @@ if  { $mtd_temp_result!=$TEST_PASS } {
 	exit
 }
 
-puts "\n**************************************************"
-puts "Make jffs2 image ......\n"
-puts " 1)umount mounted file system\n"
+send_log "\n******"
+send_log "Make jffs2 image ......\n"
+send_log " \n1)umount mounted file system\n"
 send -s "umount /mnt\r"
-sleep 1
-puts " 2)create file system directory\n"
+expect ">"
+send_log " \n2)create file system directory\n"
 send -s "mkdir -p rootfs\r"
-sleep 1
-puts " 3)create test file\n"
+expect ">"
+send_log " \n3)create test file\n"
 send -s "echo This is test for mtd driver > rootfs/test\r"
-sleep 1
-puts " 4)create JFFS2 image\n"
+expect "root:~>"
+send_log " \n4)create JFFS2 image\n"
 send -s "mkfs.jffs2 -r rootfs -o mtd.img\r"
-sleep 1
+expect ">"
 
-puts "\n**************************************************"
-puts "Writing MTD......\n"
+send_log "\n******"
+send_log "Writing MTD......\n"
 set mtd_temp_result $TEST_FAIL
 set timeout 60
 send -s "cp mtd.img /dev/mtd2\r"
@@ -363,7 +411,8 @@ if  { $mtd_temp_result!=$TEST_PASS } {
         exit
 }
 
-puts "Reading MTD ......\n"	
+send_log "\n******"
+send_log "Reading MTD ......\n"	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
 send -s "mount -t jffs2 /dev/mtdblock2 /mnt\n"
@@ -386,9 +435,9 @@ if  { $mtd_temp_result!=$TEST_PASS } {
         exit
 }
 
-puts "Verify ......\n"
+send_log "Verify ......\n"
 set timeout 2
-send -s "cmp /rootfs/test /mnt/test"
+send -s "cmp /rootfs/test /mnt/test\r"
 while 1 {
     expect {
 	
@@ -405,3 +454,6 @@ while 1 {
 }
 
 exit
+log_file
+ 
+send_user "\nEnding pnormtd_test.exp\n"

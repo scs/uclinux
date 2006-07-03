@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_jffs2_kernel_log
-send_user "Starting build_jffs2_kernel.exp\n"
+log_file build_jffs2_fs_kernel_log
+send_user "Starting build_jffs2_fs_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -295,16 +295,43 @@ if { $bfin_make_status == "failure" } {
 
 }
 
+exec mkdir romfs/home/ltp
+exec mkdir romfs/home/ltp/testcases
+exec cp -rf $user/fs-test/bin   romfs/home/ltp/testcases/
+exec cp $user/fs-test/fs_test.sh romfs/fs_test.sh
+
+step "Make again"
+
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+             "Entering directory" { }
+             "Leaving directory" { set bfin_make_status success }
+             "Error" {set bfin_make_status failure }
+             "/bin/sh" { }
+             eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}
+
 step "Copy linux"
-  
+
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
-exec cp images/vmImage  /tftpboot
 exec cp images/jffs2.img  /tftpboot
+
 
 log_file
 
-send_user "Ending build_jffs2_kernel.exp\n"
+send_user "Ending build_jffs2_fs_kernel.exp\n"
 
 

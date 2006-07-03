@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_jffs2_kernel_log
-send_user "Starting build_jffs2_kernel.exp\n"
+log_file build_pnormtd_kernel_log
+send_user "Starting build_pnormtd_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -93,7 +93,7 @@ while 1 {
       }
 
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-             send "n\r"
+             send "y\r"
       }
 
           
@@ -102,6 +102,8 @@ while 1 {
              send "N\r"
       }
   
+      
+      
         -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
              
              send "Y\r"
@@ -121,6 +123,7 @@ while 1 {
              
              send "Y\r"
       }
+      
       
       
         -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
@@ -149,6 +152,7 @@ while 1 {
       }
       
       
+      
         -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
              
              send "Y\r"
@@ -164,21 +168,11 @@ while 1 {
              send "Y\r"
       }
       
-          -re "Journalling Flash File System.*\\\[.*]" {
+       -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
 
              send "Y\r"
       }
-
-        -re "JFFS debugging verbosity.*JFFS_FS_VERBOSE.*\\\[.*]" {
-             send "\r"
-
-      }
-
-        -re "JFFS2 debugging verbosity.*JFFS2_FS_DEBUG.*\\\[.*]" {
-             send "\r"
-
-      }
- 
+     
          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
              send "N\r"
       }
@@ -187,50 +181,10 @@ while 1 {
              send "N\r"
       }
       
+    ####################################################################
+    ####################################################################
+    
       
-       "\\\(*) \\\[*]" {
-	     send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
-}
-
-
-cd $uclinux_path
-set timeout 300
-set baud_rate_done_flag 0
-spawn make config
-
-#puts "Begin the interactive process of configuration"
-while 1 {
-   expect {
-   
-   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-	        
-	     send "$board_type\r"
-      } 
-   
-   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-             send "n\r"
-      }
-
-           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-             send "y\r"
-      }
- 
            -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
              
              send "Y\r"
@@ -319,6 +273,7 @@ while 1 {
    }
 }
 
+
 step "Make"
 
 cd $uclinux_path
@@ -350,6 +305,6 @@ exec cp images/jffs2.img  /tftpboot
 
 log_file
 
-send_user "Ending build_jffs2_kernel.exp\n"
+send_user "Ending build_pnormtd_kernel.exp\n"
 
 

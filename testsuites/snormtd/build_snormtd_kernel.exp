@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_spi_flash_kernel_log
-send_user "Starting build_spi_flash_kernel.exp\n"
+log_file build_snormtd_kernel_log
+send_user "Starting build_snormtd_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -89,7 +89,7 @@ while 1 {
 
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              
-             send "n\r"
+             send "y\r"
       }
 
  
@@ -120,17 +120,18 @@ while 1 {
       }
 
       
+
         -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
              
              send "Y\r"
       }
 
-       -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
+        -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
              
              send "Y\r"
       }
 
-      -re "Specific CFI Flash geometry selection.*MTD_CFI_GEOMETRY.*\\\[.*]" {
+        -re "Specific CFI Flash geometry selection.*MTD_CFI_GEOMETRY.*\\\[.*]" {
              
              send "Y\r"
       }
@@ -151,7 +152,6 @@ while 1 {
              send "Y\r"
       }
 
-
        	-re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
              
              send "Y\r"
@@ -162,6 +162,7 @@ while 1 {
              send "Y\r"
       }
      
+
       	 -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
              
              send "Y\r"
@@ -171,27 +172,18 @@ while 1 {
              
              send "N\r"
       }
+
       
        -re "Support for M25 SPI Flash.*MTD_M25P80.*\\\[.*]" {
              
              send "Y\r"
       }
 
-     -re "Journalling Flash File System.*\\\[.*]" {
+       -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
 
              send "Y\r"
       }
 
-        -re "JFFS debugging verbosity.*JFFS_FS_VERBOSE.*\\\[.*]" {
-             send "\r"
-
-      }
-
-        -re "JFFS2 debugging verbosity.*JFFS2_FS_DEBUG.*\\\[.*]" {
-             send "\r"
-
-      }
-      
        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
              send "N\r"
       }
@@ -199,50 +191,10 @@ while 1 {
        	   -re "Sound card support.*SOUND.*\\\[.*]" {
              send "N\r"
       }
+     ###################################################################################
+     ###################################################################################
      
-      
-       "\\\(*) \\\[*]" {
-	     send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
-}
-
-
-cd $uclinux_path
-set timeout 300
-set baud_rate_done_flag 0
-spawn make config
-
-#puts "Begin the interactive process of configuration"
-while 1 {
-   expect {
-   
-   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-	        
-	     send "$board_type\r"
-      } 
-   
-   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-             send "n\r"
-      }
-
-           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-             send "y\r"
-      }
- 
-           -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
+          -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
              
              send "Y\r"
       }
@@ -310,6 +262,7 @@ while 1 {
              send "N\r"
       }
            
+      
        "\\\(*) \\\[*]" {
 	     send "\r"
       }
@@ -318,18 +271,15 @@ while 1 {
              send "\r"
       }
 
-
       eof {
 	     puts "End of configuration"
 	     break
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
       }
    }
 }
-
 
 step "Make"
 
@@ -367,6 +317,6 @@ set dxe_confirmation [exec ls -l $dxe_filename]
 
 log_file
  
-send_user "Ending build_spi_flash_kernel.exp\n"
+send_user "Ending build_snormtd_kernel.exp\n"
 
 
