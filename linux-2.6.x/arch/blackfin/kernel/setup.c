@@ -126,47 +126,43 @@ void bf53x_relocate_l1_mem(void)
 }
 
 /*
- * Initial parsing of the command line.The format of memsize defination is
- * mem=xxx,the unit of size is M.
+ * Initial parsing of the command line.  Currently, we support:
+ *  - Controlling the linux memory size: mem=xxx[KMG]
+ *  - Controlling the physical memory size: max_mem=xxx[KMG][$][#]
+ *       $ -> reserved memory is dcacheable
+ *       # -> reserved memory is icacheable
  */
-static __init void early_parsemem(char *cmdline_p)
+static __init void parse_cmdline_early(char *cmdline_p)
 {
-	char *to = cmdline_p;
-	char **to_p = NULL;
+	char c = ' ', *to = cmdline_p;
 	unsigned int memsize;
 	for (;;) {
-		if (*to == 'm' && *(to + 1) == 'e' && *(to + 2) == 'm' &&
-		    *(to - 1) != 'x') {
-			memsize = simple_strtoul(to + 4, to_p, 10);
-			_ramend = memsize * 1024 * 1024;
-		}
-		if (to >= &cmdline_p[COMMAND_LINE_SIZE - 1]) {
-			break;
-		}
-		to++;
-	}
+		if (c == ' ') {
 
-	to = cmdline_p;
-	to_p = NULL;
-	for (;;) {
-		if (*to == 'm' && *(to + 1) == 'a' && *(to + 2) == 'x' &&\
-		    *(to + 3) == 'm' && *(to + 4) == 'e' && *(to + 5) == 'm') {
-			memsize = simple_strtoul(to + 7, to_p, 10);
-			physical_mem_end = memsize * 1024 * 1024;
+			if (!memcmp(to, "mem=", 4)) {
+				to += 4;
+				memsize = memparse(to, &to);
+				if (memsize)
+					_ramend = memsize;
 
-			if (*(to + 9) == '$' || *(to + 10) == '$' || *(to + 11) == '$') {
-                        /* the reserved memory is cache on "maxmem=xxxM$"*/
-				reserved_mem_dcache_on = 1;
+			} else if (!memcmp(to, "max_mem=", 8)) {
+				to += 8;
+				memsize = memparse(to, &to);
+				if (memsize) {
+					physical_mem_end = memsize;
+					if (*to != ' ') {
+						if (*to == '$' || *(to+1) == '$')
+							reserved_mem_dcache_on = 1;
+						if (*to == '#' || *(to+1) == '#')
+							reserved_mem_icache_on = 1;
+					}
+				}
 			}
-			if (*(to + 9) == '#' || *(to + 10) == '#' || *(to + 11) == '#') {
-                        /* the reserved memory is cache on "maxmem=xxxM$"*/
-				reserved_mem_icache_on = 1;
-			}
+
 		}
-		if (to >= &cmdline_p[COMMAND_LINE_SIZE - 1]) {
+		c = *(to++);
+		if (!c)
 			break;
-		}
-		to++;
 	}
 }
 
@@ -199,7 +195,7 @@ void __init setup_arch(char **cmdline_p)
 
 	physical_mem_end = 0;
 
-	early_parsemem(&command_line[0]);
+	parse_cmdline_early(&command_line[0]);
 
 	if (physical_mem_end == 0)
 		physical_mem_end = _ramend;
@@ -831,8 +827,8 @@ struct seq_operations cpuinfo_op = {
 
 void panic_bfin(int cplb_panic)
 {
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%lux\n", bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%lux\n", bfin_read_ICPLB_FAULT_ADDR());
 	dump_stack();
 	switch (cplb_panic) {
 
