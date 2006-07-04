@@ -45,3 +45,6 @@ suggested to use.
 So only the math functions which is not in starndard C library are exported, 
 including alogf(), alog10f(), rsqrt(), cot(), they are defined in math_bf.h. 
 
+Since the library itself uses math function in uClibc math library, please add "-lm" to your
+LDFLAGS when linking the library with your application. Please refer to the test sample.
+
