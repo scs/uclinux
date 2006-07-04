@@ -45,4 +45,3 @@ suggested to use.
 So only the math functions which is not in starndard C library are exported, 
 including alogf(), alog10f(), rsqrt(), cot(), they are defined in math_bf.h. 
 
-However, the libbfdsp itself is using the math functions defined by itself.
