@@ -36,7 +36,6 @@
 #include <fract_math.h>
 #include <ccblkfn.h>
 
-_C_STD_BEGIN
 _C_LIB_DECL
 
 
@@ -290,9 +289,6 @@ _C_LIB_DECL
         int isnan(double _x) asm("_isnand");
 #endif
 
-
-
 _END_C_LIB_DECL
-_C_STD_END
 
 #endif   /* _MATH_BF_H */
