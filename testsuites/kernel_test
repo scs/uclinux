@@ -102,16 +102,16 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    BOARD_TYPE=BF537-STAMP
    
          build_policy=1
-	ethernet_test=0
-	  stress_test=1
+	ethernet_test=1
+	  stress_test=0
 	  serial_test=1
 	  reboot_test=1
-	     rtc_test=1
+	     rtc_test=0
 	     nfs_test=1
-	    kgdb_test=0
-	  module_test=1
+	    kgdb_test=1
+	  module_test=0
 	 pnormtd_test=1
-    jffs2_reboot_test=0 
+    jffs2_reboot_test=1 
 	jffs2_fs_test=0
 	   adspi_test=0
 	   audio_test=0
@@ -366,7 +366,7 @@ chmod +x */*.exp
   ./nfs_test.exp
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.nfs
-  cp $KERNEL_SCRIPTS/nfs/build_rtc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/nfs/build_nfs_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/nfs/nfs_test_log $THIS_LOG 
  
   sleep 30
@@ -390,7 +390,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pnormtd
   cp $KERNEL_SCRIPTS/pnormtd/build_pnormtd_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/pnormtd/test_pnormtd_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pnormtd/pnormtd_test_log $THIS_LOG
   
   sleep 30
 

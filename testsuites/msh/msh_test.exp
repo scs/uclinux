@@ -1,32 +1,15 @@
 #!/usr/bin/expect
 #
-#Test program to test the KGDB patch.
+#Test program to test the msh patch.
 #
-#Steps:
-#1.  Set up the tftp server on host. Set the root folder, such as "/tftpboot".
-#2.  Set up the uboot environment variables. such as serverip, ipaddress, filename, bootaddr, etc.
-#3.  Apply the msh patch in folder msh_patch.
-#3.1 "cd linux-2.6.x"
-#3.2 "patch -p1 < ../kgdb_patch/kgdb_bfin_linux-2.6.x.patch"
-#4.  Build the uclinux with KGDB enabled over ethernet.
-#3.1 "make menuconfig"
-#3.2 Select option "Customize Kernel Settings"
-#3.3 In menu "Kernel hacking", select options "Kernel debugging", "KGDB: kernel debugging with remote gdb"
-#    "KGDB: On ethernet", "KGDB: test".
-#3.4 In menu "Kernel hacking -> Kernel Boot Parameter", add "kgdboe=@targetip/,@serverip/"
-#3.5 "make"
-#3.6 "cp linux-2.6.x/linux /tftpboot/uImage
-#4.  Hit the reset button on target board and start the test script.
-#4.1 "cd testsuites/kgdb/"
-#4.2 "./test_kgdb /dev/ttyS0 source_code_dir"
-#
-
-set send_slow {1 .01}
+log_file msh_test_log
+send_user "Starting msh_test.exp\n"
 
 set SERIAL_PORT_BAUD_RATE   "57600"
-set TITLE "msh function enhancement Test"
+set TITLE "MSH Test"
 set targetip 10.100.4.2
 set serverip 10.100.4.174
+set send_slow {1 .01}
 
 set argc [llength $argv]
 if { $argc < 2} {
@@ -45,6 +28,20 @@ if { $argc >= 3} {
 if { $argc >= 4} {
    set serverip           [lindex $argv 3]
 }
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+step "Start kermit"
 
 # Now set up the kermit parameters.
 #  I want these all contained in this file to make it easier for users.
@@ -116,21 +113,56 @@ while 1 {
 #
 #  Ok, Kermit is running and connected to the board.
 #
+step "Restart the board."
 
-set timeout 1
-set flag 0
-for {set i 0} {$i<4} {incr i} {
-   send -s "\r"
-   expect {
-      ">" {
-         set flag 1
-      }
-   }
+send_user "Try to figure out if we are in u-boot or the kernel"
+set where_are_we 0
+send "version\r"
+set timeout 20
+expect {
+
+    "U-Boot" {
+        send_user "We are in u-boot\n"
+        set where_are_we "uboot"
+    }
+
+    "Linux" {
+        send_user "We are in the kernel\n"
+        set where_are_we "kernel"
+    }
+
+    timeout {
+        send_user "Can't tell if we are in u-boot or the kernel\n"
+    }
 }
-if {$flag==0} {
-   puts "fail to communicate with uboot.\n"
-   exit
+
+if { $where_are_we == "uboot" } {
+    set timeout 50
+    expect ">"
+    send_user "sending reset\n"
+    send "reset\r"
+} else {
+    if { $where_are_we == "kernel" } {
+        set timeout 60
+        expect ">"
+        send_user "sending reboot\n"
+        send "reboot\r"
+    } else {
+        # If we don't know where we are, hit control-C and enter
+        set timeout 10
+        expect "*"
+        expect "*"
+        send_user "sending control-C\n"
+        send "\3"
+        sleep 1
+        send "\r"
+    }
 }
+
+send -s "set bootargs root=/dev/mtdblock0 rw\r"
+expect ">"
+send -s "save\r"
+expect ">"
 
 set timeout 2
 set flag 0
@@ -182,9 +214,8 @@ expect {
         }
 }
 
-puts "*********************************\r"
-puts "Start $TITLE\r"
-puts "*********************************\r"
+
+step "Start $TITLE\r"
 
 set timeout 10
 set case_num 0
@@ -194,17 +225,20 @@ send -s "chmod +x /msh_testcase"
 incr case_num
 send -s "sh /msh_testcase\r"
 expect {
-	"executed" {
-		puts "\rCase $case_num ...PASS\r"
+        "executed" {
+                send_log "\rCase $case_num ...PASS\r"
 
-	}
-	timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
-		exit
-	}
+        }
+        timeout {
+                send_log "\rCase $case_num ...FAIL\r"
+                send_log "$TITLE ............\[FAIL\]\r"
+                exit
+        }
 }
-   
 
-puts "                                                                        \r"
-puts "\r$TITLE ............\[PASS\]\r"
+
+send_log "\r$TITLE ............\[PASS\]\r"
+
+log_file
+
+send_user "Ending msh_test.exp\n"
