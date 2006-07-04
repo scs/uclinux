@@ -79,7 +79,7 @@ fi
 	     nfs_test=0
 	    kgdb_test=0
 	  module_test=0
-	     mtd_test=0
+	 pnormtd_test=0
     jffs2_reboot_test=0 
 	jffs2_fs_test=0
 	   adspi_test=0
@@ -110,7 +110,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	     nfs_test=1
 	    kgdb_test=0
 	  module_test=1
-	     mtd_test=1
+	 pnormtd_test=1
     jffs2_reboot_test=0 
 	jffs2_fs_test=0
 	   adspi_test=0
@@ -140,7 +140,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 	     nfs_test=0
 	    kgdb_test=0
 	  module_test=0
-	     mtd_test=0
+	 pnormtd_test=0
     jffs2_reboot_test=0  
 	jffs2_fs_test=0
 	   adspi_test=0
@@ -159,6 +159,9 @@ THIS_LOG=$LOG_DIR/$TIMESTAMP
 mkdir -p $THIS_LOG
 
 export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
+
+cd  $KERNEL_SOURCE_BAK/testsuites
+chmod +x */*.exp
 
   #############################################################################################
   ########################## BUILD POLICY KERNEL ##############################################
@@ -226,7 +229,8 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.stress
   cp $KERNEL_SCRIPTS/stress/build_stress_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/stress/stress_test_log $THIS_LOG 
- 
+  cp $KERNEL_SCRIPTS/stress/ftp_test_log $THIS_LOG
+   cp $KERNEL_SCRIPTS/stress/telnet_test_log $THIS_LOG
    
   sleep 30
   fi
@@ -247,7 +251,7 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   ./serial_test.exp /dev/ttyS0 
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial
-  cp $KERNEL_SCRIPTS/stress/build_serial_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/serial/build_serial_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/
   
   sleep 30
@@ -265,13 +269,13 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd  $KERNEL_SCRIPTS/reboot
+  cd  $KERNEL_SCRIPTS/ramfs
   ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./reboot_test.exp /dev/ttyS0 
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot
-  cp $KERNEL_SCRIPTS/reboot/build_reboot_kernel_log  $THIS_LOG
-  cp $KERNEL_SCRIPTS/reboot/reboot_test_log $THIS_LOG  
+  cp $KERNEL_SCRIPTS/ramfs/build_ramfs_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/ramfs/reboot_test_log $THIS_LOG  
   
   sleep 30
   
@@ -319,7 +323,7 @@ export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.module
   cp $KERNEL_SCRIPTS/module/build_module_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/module_test_log $THIS_LOG  
+  cp $KERNEL_SCRIPTS/module/module_test_log $THIS_LOG  
   
   sleep 30
   fi

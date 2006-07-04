@@ -226,12 +226,12 @@ set gdb_id $spawn_id
 while 1 {
       expect {
 	"(gdb)" {
-		puts "\rCase $case_num ...PASS\r"
+		send_log "\rCase $case_num ...PASS\r"
 	 	break;
          }
          timeout {
-		puts "\rCase $case_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
+		send_log "\rCase $case_num ...FAIL\r"
+		send_log "$TITLE ............\[FAIL\]\r"
 		exit
          }
       }
@@ -242,15 +242,15 @@ while 1 {
 	send "target remote udp:$targetip:6443\r"
 	expect {
 		"breakpoint () at kernel" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 			expect { 
 				"(gdb) " {
 				}
 			}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -258,15 +258,15 @@ while 1 {
 	send "break kgdb_test\r"
 	expect {
 		"Breakpoint 1" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 			expect { 
 				"(gdb) " {
 				}
 			}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -274,11 +274,11 @@ while 1 {
 	send "c\r"
 	expect {
 		"Continuing." {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -289,8 +289,8 @@ while 1 {
 		"> " {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -298,15 +298,15 @@ while 1 {
 	set spawn_id $gdb_id
 	expect {
 		"Breakpoint 1" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect { 
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -314,11 +314,11 @@ while 1 {
 	send "list\r"
 	expect {
 		"(gdb) " {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -328,23 +328,23 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
 	set spawn_id $kermit_spawn_id
 	expect {
 		"hello world!" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"> " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -358,8 +358,8 @@ while 1 {
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -368,14 +368,14 @@ while 1 {
 	expect {
 		"Breakpoint 2" {
 		expect {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -383,15 +383,15 @@ while 1 {
 	send "bt\r"
 	expect {
 		"kgdb_test" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -399,15 +399,15 @@ while 1 {
 	send "c\r"
 	expect {
 		"Breakpoint 2" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -416,20 +416,20 @@ while 1 {
 	send "info break\r"
 	expect {
 		"1   breakpoint" {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 		"2   breakpoint" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -437,15 +437,15 @@ while 1 {
 	send "step\r"
 	expect {
 		"test_read_proc" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -453,15 +453,15 @@ while 1 {
 	send "print len\r"
 	expect {
 		"1 = 16" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -470,8 +470,8 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -484,8 +484,8 @@ while 1 {
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -499,8 +499,8 @@ while 1 {
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -510,8 +510,8 @@ while 1 {
 		"Delete all breakpoints? (y or n)" {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -520,23 +520,23 @@ while 1 {
 		"(gdb) " {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
 	send "info break\r"
 	expect {
 		"No breakpoints or watchpoints." {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -546,19 +546,19 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
 	set spawn_id $kermit_spawn_id
 	expect {
 		"hello world!" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -571,15 +571,15 @@ while 1 {
 	send "\3"
 	expect {
 		"breakpoint" {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -587,15 +587,15 @@ while 1 {
 	send "detach\r"
 	expect {
 		"Ending remote debugging." {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
 			}
 		}
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
-			puts "$TITLE ............\[FAIL\]\r"
+			send_log "\rCase $case_num ...FAIL\r"
+			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}
 	}
@@ -605,11 +605,11 @@ while 1 {
 	send "\r"
 	expect {
 		"> " {
-			puts "\rCase $case_num ...PASS\r"
+			send_log "\rCase $case_num ...PASS\r"
 			break
 		}
 		timeout {
-			puts "\rCase $case_num ...FAIL\r"
+			send_log "\rCase $case_num ...FAIL\r"
 			send_log "$TITLE ............\[FAIL\]\r"
 			exit
 		}

@@ -2,6 +2,8 @@
 #
 #Test program to test reboot.
 #
+log_file reboot_test_log
+send_user "Starting reboot_test.exp\n"
 
 set send_slow {1 .01}
 
@@ -174,8 +176,37 @@ send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"
 send -s "save\r"
 expect ">"
+send -s "reset\r"
 
 step "Start $TITLE\r"
+
+for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
+
+
+set timeout 5
+expect {
+        "Hit any key" {
+        }
+        timeout {
+        }
+}
+
+sleep 1
+
+set timeout 2
+while 1 {
+   send -s "\r"
+   expect {
+      ">" {
+         break
+      }
+        timeout {
+                send_log "\rReboot $reboot_num ...FAIL\r"
+                send_log "$TITLE ............\[FAIL\]\r"
+                exit
+        }
+   }
+}
 
 set timeout 30
 send -s "tftpboot\r"
@@ -187,8 +218,8 @@ while 1 {
          break
       }
 	timeout {
-		puts "\rReboot $reboot_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
+		send_log "\rReboot $reboot_num ...FAIL\r"
+		send_log "$TITLE ............\[FAIL\]\r"
 		exit
 	}
    }
@@ -212,14 +243,14 @@ while 1 {
 	}
 
          timeout {
-		puts "\rReboot $reboot_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
+		send_log "\rReboot $reboot_num ...FAIL\r"
+		send_log "$TITLE ............\[FAIL\]\r"
 		exit
          }
    }
 }
 
-puts "Wait for 1 minutes before reboot.\r"
+send_log "Wait for 1 minutes before reboot.\r"
 sleep 60
 
 set timeout 5
@@ -227,13 +258,13 @@ send -s "\r\r"
 while 1 {
    expect {
 	">" {
-		puts "\rReboot $reboot_num ...PASS\r"
+		send_log "\rReboot $reboot_num ...PASS\r"
 		break
 	}
 
          timeout {
-		puts "\rReboot $reboot_num ...FAIL\r"
-		puts "$TITLE ............\[FAIL\]\r"
+		send_log "\rReboot $reboot_num ...FAIL\r"
+		send_log "$TITLE ............\[FAIL\]\r"
 		exit
          }
    }
@@ -243,6 +274,10 @@ send -s "reboot\r"
 
 }
 
-puts "                                                                        \r"
-puts "\r$TITLE ............\[PASS\]\r"
+send_log "               \r"
+send_log "\r$TITLE ............\[PASS\]\r"
 
+log_file
+
+
+send_user "Ending reboot_test.exp\n"

@@ -105,7 +105,49 @@ while 1 {
 #
 #  Ok, Kermit is running and connected to the board.
 #
+send_user "Try to figure out if we are in u-boot or the kernel"
+set where_are_we 0
+send "version\r"
+set timeout 20
+expect {
 
+    "U-Boot" {
+	send_user "We are in u-boot\n"
+	set where_are_we "uboot"
+    }
+
+    "Linux" {
+	send_user "We are in the kernel\n"
+	set where_are_we "kernel"
+    }
+
+    timeout {
+	send_user "Can't tell if we are in u-boot or the kernel\n"
+    }
+}
+
+if { $where_are_we == "uboot" } {
+    set timeout 50
+    expect ">"
+    send_user "sending reset\n"
+    send "reset\r"
+} else {
+    if { $where_are_we == "kernel" } {
+	set timeout 60
+	expect ">"
+	send_user "sending reboot\n"
+	send "reboot\r"
+    } else {
+	# If we don't know where we are, hit control-C and enter
+	set timeout 10
+	expect "*"
+	expect "*"
+	send_user "sending control-C\n"
+	send "\3"
+	sleep 1
+	send "\r"
+    }
+}
 
 send_log "*********************************\r"
 send_log "Start $TITLE\r"
