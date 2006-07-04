@@ -369,9 +369,25 @@ while 1 {
          }
      }
 }
-log_file
- 
 
+set timeout 3
+send -s "ls /mnt\r"
+while 1 {
+   expect {
+       "home" {
+         puts "******* nfs umount fails.\n"
+         break
+      }
+
+      timeout {
+            puts "**** nfs umount success. "
+
+            break
+         }
+     }
+}
+
+log_file
 
 send_user "Ending nfs_test.exp\n"
 

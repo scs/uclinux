@@ -274,6 +274,22 @@ send -s "reboot\r"
 
 }
 
+while 1 {
+       expect {
+         "Hit any key " {
+             send "\r"
+         }
+
+         ">" {
+             break
+         }
+
+         timeout {
+             break
+         }
+      }
+   }
+
 send_log "               \r"
 send_log "\r$TITLE ............\[PASS\]\r"
 
