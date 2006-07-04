@@ -4,210 +4,261 @@
 # Build Kernel for CoreB test
 #
 
-set uclinux_path	/home/test/checkout/kernel/uClinux-dist
+log_file build_coreb_kernel_log
+send_user "Starting build_coreb_kernel.exp\n"
 
-puts " 00000 reset the files under /vender directory"
+set user /home/test
+set uclinux_path $user/checkout/kernel/uClinux-dist
 
-cd $uclinux_path
-sleep 3
-set timeout 2
-spawn ex vendors/AnalogDevices/BF561-EZKIT/Makefile
-expect {
-	"Entering Ex mode*Normal mode." { }
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
 
-	"already exists!" {
-		send "e\r"
-		sleep 1
-	}
+if { $argc < 1 } {
+   puts "Please input: board_type."
+   exit
+} 
+
+if { $argc >= 2 } {
+   set uclinux_path [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
 }
-sleep 1
-send "/BLOCKS\r"
-expect "BLOCKS*="
-send "d\r"
-expect ":"
-send "i\r"
-sleep 2
-send "BLOCKS = 16384\r"
-sleep 2
-send "INODES = 4096\r"
-send ".\r"
-expect ":"
-send "+1\r"
-expect "INODES"
-send "d\r"
-#      send "/ROMFS_DIRS\r"
-#      expect "ROMFS_DIRS"
-#      send "s/$/ bin\\\/testcases\r"
-expect :
-send "wq\r"
-expect eof
 
-sleep 3
-set timeout 2
-spawn ex vendors/AnalogDevices/BF561-EZKIT/passwd
-expect {
-	"Entering Ex mode*Normal mode." { }
-
-	"already exists!" {
-		send "e\r"
-		sleep 1
-	}
+proc step { message } {
+   global step_sequence_number
+   puts "\n******************************************************************"
+   puts "STEP $step_sequence_number: $message\n\n"
+   send_log "\n************** STEP :$step_sequence_number: $message\n\n"
+   incr step_sequence_number
 }
-sleep 1
-send "d\r"
-send "i\r"
-sleep 2
-send "root::0:0:root:/:/bin/sh\r"
-sleep 2
-send ".\r"
-expect ":"
-send "wq\r"
-expect eof
 
-sleep 3
-set timeout 2
-spawn ex vendors/AnalogDevices/BF561-EZKIT/rc
-expect {
-	"Entering Ex mode*Normal mode." { }
+set step_sequence_number 1
 
-	"already exists!" {
-		send "e\r"
-		sleep 1
-	}
-}
-sleep 1
-send "/dhcpcd\r"
-expect "dhcpcd*"
-send "d\r"
-expect ":"
-send "i\r"
-sleep 2
-send "#dhcpcd &\r"
-sleep 2
-send "ifconfig eth0 10.100.4.50 up\r"
-send ".\r"
-expect ":"
-send "wq\r"
-expect eof
-      
-puts " 1111 make config"
+step "Make config"
 
 cd $uclinux_path
 set timeout 300
 spawn make config
 
-#tee "Begin the interactive process of configuration"
-#tee "ON THE FIRST PASS, DON'T EVEN TRY TO SET ANYTHING: BUG WORKAROUND"
 while 1 {
-	expect {
+   expect {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+             send "$board_type\r"
+      }
 
-		-re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-STAMP.*\\\[.*]" {
-			sleep 2
-			send "BF561-EZKIT\r"
-		}
-      
-		"\\\(*) \\\[*]" {
-			send "\r"
-		}
+      "\\\(*) \\\[*]" {
+             send "\r"
+      }
 
-		-re "\[cC]hoice\\\[.*]:" {
-			send "\r"
-		}
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
 
-		eof {
-			puts "End of configuration"
-			break
-		}
-		timeout {
-			puts "\n\nFATAL ERROR: config prompt timeout in make config"
-#			lappend result "FATAL ERROR: config prompt timeout in make config"
-		}
-   	}
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+
+      }
+   }
 }
 
 cd $uclinux_path
 set timeout 300
-set baud_rate_done_flag 0
 spawn make config
+
+
+#set timeout 2
+#spawn ex vendors/AnalogDevices/BF561-EZKIT/Makefile
+#expect {
+#	"Entering Ex mode*Normal mode." { }
+#
+#	"already exists!" {
+#		send "e\r"
+#		sleep 1
+#	}
+#}
+#sleep 1
+#send "/BLOCKS\r"
+#expect "BLOCKS*="
+#send "d\r"
+#expect ":"
+#send "i\r"
+#sleep 2
+#send "BLOCKS = 16384\r"
+#sleep 2
+#send "INODES = 4096\r"
+#send ".\r"
+#expect ":"
+#send "+1\r"
+#expect "INODES"
+#send "d\r"
+#expect :
+#send "wq\r"
+#expect eof
+
+#sleep 3
+#set timeout 2
+#spawn ex vendors/AnalogDevices/BF561-EZKIT/passwd
+#expect {
+#	"Entering Ex mode*Normal mode." { }
+#
+#	"already exists!" {
+#		send "e\r"
+#		sleep 1
+#	}
+#}
+#sleep 1
+#send "d\r"
+#send "i\r"
+#sleep 2
+#send "root::0:0:root:/:/bin/sh\r"
+#sleep 2
+#send ".\r"
+#expect ":"
+#send "wq\r"
+#expect eof
+
+#sleep 3
+#set timeout 2
+#spawn ex vendors/AnalogDevices/BF561-EZKIT/rc
+#expect {
+#	"Entering Ex mode*Normal mode." { }
+
+#	"already exists!" {
+#		send "e\r"
+#		sleep 1
+#	}
+#}
+#sleep 1
+#send "/dhcpcd\r"
+#expect "dhcpcd*"
+#send "d\r"
+#expect ":"
+#send "i\r"
+#sleep 2
+#send "#dhcpcd &\r"
+#sleep 2
+#send "ifconfig eth0 10.100.4.50 up\r"
+#send ".\r"
+#expect ":"
+#send "wq\r"
+#expect eof
+      
+#puts " 1111 make config"
+
+#cd $uclinux_path
+#set timeout 300
+#spawn make config
+
+#while 1 {
+#	expect {
+#
+#		-re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-STAMP.*\\\[.*]" {
+#			sleep 2
+#			send "BF561-EZKIT\r"
+#		}
+#
+#		"\\\(*) \\\[*]" {
+#			send "\r"
+#		}
+#
+#		-re "\[cC]hoice\\\[.*]:" {
+#			send "\r"
+#		}
+#
+#		eof {
+#			puts "End of configuration"
+#			break
+#		}
+#		timeout {
+#			puts "\n\nFATAL ERROR: config prompt timeout in make config"
+#		}
+#   	}
+#}
+
+#cd $uclinux_path
+#set timeout 300
+#set baud_rate_done_flag 0
+#spawn make config
 
 #tee "Begin the interactive process of configuration"
 while 1 {
-	expect {
-		-re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-#		tee "Y"
-		sleep 2
-		send "y\r"
-	}
+   expect {
 
-		-re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-#			tee "Y"
-			sleep 2
-			send "y\r"
-		}
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
 
-		-re "Enable Core B support.*BF561_COREB.*\\\[.*]" {
-			sleep 2
-			send "y\r"
-		}
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
 
-		-re "Enable Core B reset support.*CONFIG_BF561_COREB_RESET.*\\\[.*]" {
-			sleep 2
-			send "y\r"
-		}
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
 
-		-re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
-			sleep 2
-			send "m\r"
-		}
+      -re "Enable Core B support.*BF561_COREB.*\\\[.*]" {
+         send "y\r"
+      }
 
-		-re "corebld.*\\\[.*]" {
-			sleep 2
-			send "y\r"
-		}
+      -re "Enable Core B reset support.*CONFIG_BF561_COREB_RESET.*\\\[.*]" {
+         send "y\r"
+      }
 
-		"\\\(*) \\\[*]" {
-			send "\r"
-		}
+      -re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
+         send "m\r"
+      }
 
-		-re "\[cC]hoice\\\[.*]:" {
-			send "\r"
-		}
+      -re "corebld.*\\\[.*]" {
+         send "y\r"
+      }
 
-		eof {
-			puts "End of configuration"
-			break
-		}
-		timeout {
-			puts "\n\nFATAL ERROR: config prompt timeout in make config"
-#			lappend result "FATAL ERROR: config prompt timeout in make config"
-		}
-   	}
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
 }
 
-puts "33333333 make"
+step "Make"
 
 cd $uclinux_path
 spawn make
 set timeout 1200
 set bfin_make_status failure
 while 1 {
-	expect {
-		"Entering directory" { }
-		"Leaving directory" { set bfin_make_status success }
-		"Error" {set bfin_make_status failure }
-		"/bin/sh" { }
-		eof { break }
-	}
+   expect {
+      "Entering directory" { }
+      "Leaving directory" { set bfin_make_status success }
+      "Error" {set bfin_make_status failure }
+      "/bin/sh" { }
+      eof { break }
+   }
 }
 
 if { $bfin_make_status == "failure" } {
-	puts "ERROR: Error somewhere during make"
+   puts "ERROR: Error somewhere during make"
 }    
      
-puts "5555 copy linux"
+step "Copy linux"
   
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
 
-puts "Kernel building finishes!"
+log_file
+
+send_user "\nKernel building for Core B test finishes!\n"
