@@ -953,37 +953,29 @@ static void bfin_change_speed(struct bfin_serial *info)
 	local_irq_save(flags);
 	/* Disable interrupts */
 	ACCESS_PORT_IER(regs);
-	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
+	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI | ELSI);
 	SSYNC;
 
-	ACCESS_LATCH(regs);	/* Set to access divisor latch */
-	*(regs->rpUART_DLL) = uart_dl;
-	SSYNC;
-	*(regs->rpUART_DLH) = uart_dl >> 8;
-	SSYNC;
+	if(info->baud > 0) {
+		ACCESS_LATCH(regs);	/* Set to access divisor latch */
+		*(regs->rpUART_DLL) = uart_dl;
+		SSYNC;
+		*(regs->rpUART_DLH) = uart_dl >> 8;
+		SSYNC;
 
-	*(regs->rpUART_LCR) = cval;
-	SSYNC;
+		*(regs->rpUART_LCR) = cval;
+		SSYNC;
 
-	/* Enable interrupts */
-	ACCESS_PORT_IER(regs);
+		/* Enable interrupts */
+		ACCESS_PORT_IER(regs);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	*(regs->rpUART_IER) = ERBFI | ELSI;
+		*(regs->rpUART_IER) = ERBFI | ELSI;
 #else
-	*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
+		*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
 #endif
-	SSYNC;
-
-#ifdef CONFIG_IRTTY_SIR
-	/* enable irda function */
-	if (cflag & TIOCM_RI) {
-		*(regs->rpUART_GCTL) |= IREN;
 		SSYNC;
-		*(regs->rpUART_GCTL) |= RPOLC;
-		SSYNC;
-		printk(KERN_DEBUG "KSDBG:irda enabled,rpolc changed\n");
 	}
-#endif
+
 	/* Enable the UART */
 	*(regs->rpUART_GCTL) |= UCEN;
 	SSYNC;
@@ -1003,10 +995,20 @@ static void rs_set_ldisc(struct tty_struct *tty)
 	if (serial_paranoia_check(info, tty->name, "rs_set_ldisc"))
 		return;
 
-	info->is_cons = (tty->termios->c_line == N_TTY);
-
-	printk(KERN_DEBUG "ttyS%d console mode %s\n", info->line,
-	       info->is_cons ? "on" : "off");
+#ifdef CONFIG_IRTTY_SIR
+	if(tty->termios->c_line == N_IRDA){
+		/* enable irda function */
+		*(regs->rpUART_GCTL) |= IREN | RPOLC;
+		SSYNC;
+		printk(KERN_DEBUG "irda is enabled on serial, rpolc low.\n");
+	}
+	else {
+		/* disable irda function */
+		*(regs->rpUART_GCTL) &= ~(IREN | RPOLC);
+		SSYNC;
+		printk(KERN_DEBUG "irda is disabled on serial, rpolc high.\n");
+	}
+#endif
 }
 
 static void rs_flush_chars(struct tty_struct *tty)
@@ -1813,7 +1815,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	init_waitqueue_head(&info->close_wait);
 
 	info->baud = CONSOLE_BAUD_RATE;
-	info->line = 0;
+	info->line = 1;
 	info->is_cons = 0;	/* Means shortcuts work */
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	info->rx_DMA_channel = CH_UART1_RX;
