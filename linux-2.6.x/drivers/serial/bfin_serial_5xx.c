@@ -996,6 +996,9 @@ static void rs_set_ldisc(struct tty_struct *tty)
 		return;
 
 #ifdef CONFIG_IRTTY_SIR
+	ACCESS_PORT_IER(regs);
+	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI | ELSI);
+	SSYNC;
 	if(tty->termios->c_line == N_IRDA){
 		/* enable irda function */
 		*(regs->rpUART_GCTL) |= IREN | RPOLC;
