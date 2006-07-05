@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_ppifcd_kernel_log
-send_user "Starting build_ppifcd_kernel.exp\n"
+log_file build_ad73311_kernel_log
+send_user "Starting build_ad73311_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -32,22 +32,24 @@ proc step { message } {
 
 set step_sequence_number    1
 
+
 step "Make config."
 
 cd $uclinux_path
 set timeout 300
 spawn make config
 
-#puts "Begin the interactive process of configuration"
-#puts "ON THE FIRST PASS, DON'T EVEN TRY TO SET ANYTHING: BUG WORKAROUND"
+
 while 1 {
    expect {
-     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-              send "$board_type\r"
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+            
+             send "$board_type\r"
       }
 
       "\\\(*) \\\[*]" {
-	     send "\r"
+             send "\r"
       }
 
       -re "\[cC]hoice\\\[.*]:" {
@@ -55,15 +57,17 @@ while 1 {
       }
 
       eof {
-	     puts "End of configuration"
-	     break
+             puts "End of configuration"
+             break
       }
       timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+
+
       }
    }
 }
+
 
 cd $uclinux_path
 set timeout 300
@@ -75,54 +79,79 @@ while 1 {
    expect {
    
    	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-	      send "$board_type\r"
+	        
+	     send "$board_type\r"
       } 
    
    	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-          
+             
              send "y\r"
       }
 
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             
              send "y\r"
       }
 
-     	 
-	 -re "Blackfin BF53x Programmable Flags Driver.*BF533_PFLAGS.*\\\[.*]" {
+           -re "Sound card support.*SOUND.*\\\[.*]" {
              send "Y\r"
+             
+      }
+   
+          -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+             
+             send "Y\r"
+             
       }
       
-         -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
+          -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+             
              send "Y\r"
+             
       }
       
-        -re "I2C support.*I2C.*\\\[.*]" {
+          -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+             
+             send "Y\r"
+             
+      }
+
+          -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS.*\\\[.*]" {
+             
+             send "Y\r"
+             
+      }
+      
+          -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+             
+             send "N\r"
+             
+      }
+
+          -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+
              send "Y\r"
       }
 
-        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
+          -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+             
              send "Y\r"
+             
+      }
+           -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+             
+             send "Y\r"
+             
       }
       
-        -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_HHBF.*\\\[.*]" {
+          -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+             
              send "Y\r"
+             
       }
-
-        -re "SDA is PF.*BFIN_SDA.*\\\[.*]" {
-             send "2\r"
-      }
-      
-        -re "SCL is PF.*BFIN_SCL.*\\\[.*]" {
-             send "1\r"
-      }
-          
-	 
-	 -re "PPIFCD test program.*CONFIG_USER_BLACKFIN_PPIFCDTEST.*\\\[.*]" {
-             send "Y\r"
-      }
-      
 
        "\\\(*) \\\[*]" {
+	   
 	     send "\r"
       }
 
@@ -130,14 +159,14 @@ while 1 {
              send "\r"
       }
 
-
       eof {
 	     puts "End of configuration"
 	     break
       }
+
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
+          
       }
    }
 }
@@ -161,18 +190,21 @@ while 1 {
 if { $bfin_make_status == "failure" } {
       puts "ERROR: Error somewhere during make"
 
-}    
+}
 
 
 step "Copy linux"
-  
+ 
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
 
+# Check the size, time, and date just to be sure.
+cd /tftpboot
+set dxe_confirmation [exec ls -l $dxe_filename]
 
 log_file
  
-send_user "Ending build_ppifcd_kernel.exp\n"
+send_user "Ending build_ad73311_kernel.exp\n"
 
 

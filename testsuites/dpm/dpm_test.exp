@@ -1,39 +1,47 @@
 #!/usr/bin/expect
 #
-#Test program to test reboot.
+#Test program to test the msh patch.
 #
-#Steps:
-#1.  Set up the tftp server on host. Set the root folder, such as "/tftpboot".
-#2.  Set up the uboot environment variables. such as serverip, ipaddress, filename, bootaddr, etc.
-#3.  Build the uclinux with default configuration.
-#3.1 "make menuconfig"
-#3.2 "make"
-#3.3 "cp linux-2.6.x/linux /tftpboot/uImage
-#4.  Hit the reset button on target board and start the test script.
-#4.1 "cd testsuites/reboot/"
-#4.2 "./test_reboot /dev/ttyS0"
-#
-log_file jffs2_reboot_test_log
-send_user "Starting jffs2_reboot_test.exp\n"
-
-set send_slow {1 .01}
+log_file dpm_test_log
+send_user "Starting dpm_test.exp\n"
 
 set SERIAL_PORT_BAUD_RATE   "57600"
-set TITLE "Reboot Test"
-set count 30
+set TITLE "dpm Test"
+set targetip 10.100.4.2
+set serverip 10.100.4.174
+set send_slow {1 .01}
 
 set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device \[reboot_count\]"
+if { $argc < 2} {
+   puts "Usage:  $argv0 tty-device srcdir \[targetip serverip\]"
    puts "   where tty-device is something like /dev/ttyS0"
    puts ""
    exit
 }
 # grab the user specified parameters.
 set ttydev             [lindex $argv 0]
-if { $argc >=2 } {
-	set count             [lindex $argv 1]
+set srcdir             [lindex $argv 1]
+
+if { $argc >= 3} {
+   set targetip           [lindex $argv 2]
 }
+if { $argc >= 4} {
+   set serverip           [lindex $argv 3]
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+step "Start kermit"
 
 # Now set up the kermit parameters.
 #  I want these all contained in this file to make it easier for users.
@@ -105,6 +113,8 @@ while 1 {
 #
 #  Ok, Kermit is running and connected to the board.
 #
+step "Restart the board."
+
 send_user "Try to figure out if we are in u-boot or the kernel"
 set where_are_we 0
 send "version\r"
@@ -112,17 +122,17 @@ set timeout 20
 expect {
 
     "U-Boot" {
-	send_user "We are in u-boot\n"
-	set where_are_we "uboot"
+        send_user "We are in u-boot\n"
+        set where_are_we "uboot"
     }
 
     "Linux" {
-	send_user "We are in the kernel\n"
-	set where_are_we "kernel"
+        send_user "We are in the kernel\n"
+        set where_are_we "kernel"
     }
 
     timeout {
-	send_user "Can't tell if we are in u-boot or the kernel\n"
+        send_user "Can't tell if we are in u-boot or the kernel\n"
     }
 }
 
@@ -133,119 +143,102 @@ if { $where_are_we == "uboot" } {
     send "reset\r"
 } else {
     if { $where_are_we == "kernel" } {
-	set timeout 60
-	expect ">"
-	send_user "sending reboot\n"
-	send "reboot\r"
+        set timeout 60
+        expect ">"
+        send_user "sending reboot\n"
+        send "reboot\r"
     } else {
-	# If we don't know where we are, hit control-C and enter
-	set timeout 10
-	expect "*"
-	expect "*"
-	send_user "sending control-C\n"
-	send "\3"
-	sleep 1
-	send "\r"
+        # If we don't know where we are, hit control-C and enter
+        set timeout 10
+        expect "*"
+        expect "*"
+        send_user "sending control-C\n"
+        send "\3"
+        sleep 1
+        send "\r"
     }
 }
 
-send_log "*********************************\r"
-send_log "Start $TITLE\r"
-send_log "*********************************\r"
-
-for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
-
-
-set timeout 5
-expect {
-	"Hit any key" {
-	}
-	timeout {
-	}
-}
-
-sleep 1
+send -s "set bootargs root=/dev/mtdblock0 rw\r"
+expect ">"
+send -s "save\r"
+expect ">"
 
 set timeout 2
+set flag 0
+send -s "tftpboot\r"
 while 1 {
-   send -s "\r"
    expect {
+      "TFTP" {
+         set flag 1
+         set timeout 30
+      }
       ">" {
          break
       }
-	timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
-		exit
-	}
    }
 }
+if {$flag==0} {
+   puts "fail to communicate with uboot.\n"
+   exit
+}
 
-
-set timeout 5
-send -s "bootm 0x20040000\r"
+set timeout 1
+set flag 0
+send -s "bootelf\r"
 while 1 {
    expect {
-      "Linux version" {
+      "Loading .text" {
+         set flag 1
+         set timeout 30
+      }
+      "> " {
          break
       }
    }
 }
+if {$flag==0} {
+   puts "fail to communicate with uboot.\n"
+   exit
+}
 
-set timeout 30
-while 1 {
-   expect {
+set timeout 3
+send -s "ifconfig eth0 $targetip\r"
+expect {
 	"> " {
-		break
 	}
 
-         timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+        timeout {
+		puts "Fail to config eth0\r"
 		exit
-         }
-   }
+        }
 }
 
-send_log "Wait for 1 minutes before reboot.\r"
-sleep 60
 
-set timeout 5
-send -s "\r\r"
-while 1 {
-   expect {
-	">" {
-		send_log "\rReboot $reboot_num ...PASS\r"
-		break
-	}
+step "Start $TITLE\r"
 
-         timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
-		exit
-         }
-   }
+set timeout 10
+set case_num 0
+
+spawn rcp ./dpm_testcase root@$targetip:/
+send -s "chmod +x /dpm_testcase"
+incr case_num
+send -s "sh /dpm_testcase\r"
+expect {
+        "executed" {
+                send_log "\rCase $case_num ...PASS\r"
+
+        }
+        timeout {
+                send_log "\rCase $case_num ...FAIL\r"
+                send_log "$TITLE ............\[FAIL\]\r"
+                exit
+        }
 }
 
-send -s "reboot\r"
 
-}
-
-send_log "\n$TITLE ............\[PASS\]\n"
+send_log "\r$TITLE ............\[PASS\]\r"
 
 log_file
- 
-while 1 {
-       expect {
-         "Hit any key " {
-             send "\r"
-             break
-         }
 
-         timeout {
-             break
-         }
-      }
-   }
-
-send_user "\nEnding jffs2_reboot_test.exp\n"
+send_user "Ending dpm_test.exp\n"
