@@ -50,9 +50,6 @@ spinlock_t l1sram_lock, l1_data_A_sram_lock, l1_inst_sram_lock;
 #define SRAM_SLT_FREE      1
 #define SRAM_SLT_ALLOCATED 2
 
-void l1sram_init(void);
-void l1_data_A_sram_init(void);
-
 /* the data structure for L1 scratchpad and DATA SRAM */
 struct l1_sram_piece {
 	unsigned long paddr;
@@ -60,15 +57,15 @@ struct l1_sram_piece {
 	int flag;
 };
 
-struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
 
-struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
 
 #if L1_DATA_B_LENGTH != 0
-struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
 #endif
 
-struct l1_sram_piece l1_inst_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_inst_sram[L1_MAX_PIECE];
 
 /* L1 Scratchpad SRAM initialization function */
 void l1sram_init(void)
@@ -230,7 +227,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
 
-	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	//printk ("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
 
@@ -286,7 +283,7 @@ unsigned long l1_data_B_sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
 
-	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	//printk ("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
 
@@ -320,7 +317,7 @@ unsigned long l1_inst_sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
 
-	//printk ("Allocated address in l1sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	//printk ("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
 
