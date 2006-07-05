@@ -30,6 +30,7 @@
 
 #include <asm/page.h>
 #include <asm/entry.h>
+#include <asm/l1layout.h>
 #include <linux/compiler.h>
 
 #ifdef __KERNEL__
@@ -56,6 +57,7 @@ struct thread_info {
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
 	mm_segment_t            addr_limit;     /* address limit */
 	struct restart_block restart_block;
+	struct l1_scratch_task_info l1_task_info;
 };
 
 /*

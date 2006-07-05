@@ -27,6 +27,10 @@ MACRO definitions
 
 asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next) asm ("resume");
 #define switch_to(prev,next,last) do {	\
+	memcpy (&prev->thread_info->l1_task_info, L1_SCRATCH_TASK_INFO, \
+		sizeof *L1_SCRATCH_TASK_INFO); \
+	memcpy (L1_SCRATCH_TASK_INFO, &next->thread_info->l1_task_info, \
+		sizeof *L1_SCRATCH_TASK_INFO); \
 	(last) = resume (prev, next);	\
 } while (0)
 

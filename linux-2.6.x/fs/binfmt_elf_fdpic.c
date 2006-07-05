@@ -151,7 +151,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm, struct pt_regs *regs
 {
 	struct elf_fdpic_params exec_params, interp_params;
 	struct elf_phdr *phdr;
-	unsigned long stack_size;
+	unsigned long stack_size, requested_stack_size;
 	struct file *interpreter = NULL; /* to shut gcc up */
 	char *interpreter_name = NULL;
 	int executable_stack;
@@ -332,6 +332,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm, struct pt_regs *regs
 	 * - the stack starts at the top and works down
 	 */
 	stack_size = (stack_size + PAGE_SIZE - 1) & PAGE_MASK;
+	requested_stack_size = stack_size;
 	if (stack_size < PAGE_SIZE * 2)
 		stack_size = PAGE_SIZE * 2;
 
@@ -362,6 +363,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm, struct pt_regs *regs
 	current->mm->brk = current->mm->start_brk;
 	current->mm->context.end_brk = current->mm->start_brk;
 	current->mm->context.end_brk += (stack_size > PAGE_SIZE) ? (stack_size - PAGE_SIZE) : 0;
+	current->mm->context.stack_start = current->mm->start_brk + stack_size - requested_stack_size;
 	current->mm->start_stack = current->mm->start_brk + stack_size;
 #endif
 

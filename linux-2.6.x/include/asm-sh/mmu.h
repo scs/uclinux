@@ -17,6 +17,7 @@ struct mm_tblock_struct {
 typedef struct {
 	struct mm_tblock_struct tblock;
 	unsigned long		end_brk;
+	unsigned long		stack_start;
 } mm_context_t;
 
 #else

@@ -6,6 +6,7 @@
 typedef struct {
 	struct vm_list_struct *vmlist;
 	unsigned long end_brk;
+	unsigned long stack_start;
 
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 	unsigned long	exec_fdpic_loadmap;

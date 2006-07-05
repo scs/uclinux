@@ -32,6 +32,7 @@
 #include <linux/bootmem.h>
 #include <asm/bfin-global.h>
 #include <asm/uaccess.h>
+#include <asm/l1layout.h>
 
 #undef DEBUG
 
@@ -149,7 +150,7 @@ void mem_init(void)
 	max_mapnr = num_physpages = MAP_NR(high_memory);
 	printk(KERN_INFO "Physical pages: %lx\n", num_physpages);
 
-	/* this will put all memory onto the freelists */
+	/* This will put all memory onto the freelists. */
 	totalram_pages = free_all_bootmem();
 
 	codek = (_etext - _stext) >> 10;
@@ -161,10 +162,21 @@ void mem_init(void)
 	    ("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
 	     tmp >> 10, len >> 10, initk, codek, datak,
 	     (_ramend - memory_end) >> 10);
-	/*Initialize the blackfin L1 Memory */
+
+	/* Initialize the blackfin L1 Memory. */
 	l1sram_init();
 	l1_data_A_sram_init();
 	l1_inst_sram_init();
+
+	/* Allocate this once; never free it.  We assume this gives us a
+	   pointer to the start of L1 scratchpad memory; panic if it
+	   doesn't.  */
+	tmp = l1sram_alloc (sizeof (struct l1_scratch_task_info));
+	if (tmp != (unsigned long)L1_SCRATCH_TASK_INFO) {
+		printk (KERN_EMERG "Didn't get the right address from l1sram_alloc: %08lx %08lx.\n",
+			tmp, (unsigned long)L1_SCRATCH_TASK_INFO);
+		panic ("Giving up now.\n");
+	}
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD

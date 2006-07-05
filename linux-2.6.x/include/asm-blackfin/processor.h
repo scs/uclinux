@@ -49,13 +49,18 @@ struct thread_struct {
  * pass the data segment into user programs if it exists,
  * it can't hurt anything as far as I can tell
  */
-#define start_thread(_regs, _pc, _usp)			\
-do {							\
-	set_fs(USER_DS);				\
-	(_regs)->pc = (_pc);				\
-        if (current->mm)				\
-                (_regs)->p5 = current->mm->start_data;	\
-	wrusp(_usp);					\
+#define start_thread(_regs, _pc, _usp)					\
+do {									\
+	set_fs(USER_DS);						\
+	(_regs)->pc = (_pc);						\
+	if (current->mm)						\
+		(_regs)->p5 = current->mm->start_data;			\
+	current->thread_info->l1_task_info.stack_start			\
+		= (void *)current->mm->context.stack_start;		\
+	current->thread_info->l1_task_info.lowest_sp = _usp;	       	\
+	memcpy (L1_SCRATCH_TASK_INFO, &current->thread_info->l1_task_info,	\
+		sizeof *L1_SCRATCH_TASK_INFO);				\
+	wrusp(_usp);							\
 } while(0)
 
 /* Forward declaration, a strange C thing */
