@@ -37,6 +37,15 @@ extern void l1sram_init(void);
 extern void l1_data_A_sram_init(void);
 extern void l1_inst_sram_init(void);
 
+extern unsigned long l1sram_alloc(unsigned long);
+extern unsigned long l1_data_A_sram_alloc(unsigned long);
+extern unsigned long l1_data_B_sram_alloc(unsigned long);
+extern unsigned long l1_inst_sram_alloc(unsigned long);
+extern int l1sram_free(unsigned long);
+extern int l1_data_A_sram_free(unsigned long);
+extern int l1_data_B_sram_free(unsigned long);
+extern int l1_inst_sram_free(unsigned long);
+
 extern char *bfin_board_name __attribute__ ((weak));
 extern unsigned long wall_jiffies;
 extern unsigned long memory_end;
