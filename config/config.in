@@ -1665,4 +1665,6 @@ comment 'Pound SSL Wrapper'
 bool    'pound'                         CONFIG_USER_POUND
 comment 'A simple JPEG picture viewer'
 bool    'jpegview'                      CONFIG_USER_JPEGVIEW
+comment 'IRDA Tools'
+bool    'irattach'                      CONFIG_USER_IRATTACH
 endmenu
