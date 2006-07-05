@@ -117,7 +117,7 @@ step "Restart the board."
 
 send_user "Try to figure out if we are in u-boot or the kernel"
 set where_are_we 0
-send "version\r"
+send "\rversion\r"
 set timeout 20
 expect {
 
@@ -158,6 +158,24 @@ if { $where_are_we == "uboot" } {
         send "\r"
     }
 }
+
+while 1 {
+       expect {
+         "Hit any key " {
+	     send "\r"
+         }
+
+	 ">" {
+	     send_user "successful reset attempt\n"
+	     break
+	 }
+
+         timeout {
+	     send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
 
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"

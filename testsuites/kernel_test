@@ -74,11 +74,11 @@ fi
 	ethernet_test=0
 	  stress_test=0
 	  serial_test=0
-	  reboot_test=0
-	     rtc_test=0
-	     nfs_test=0
+	  reboot_test=0	     
 	    kgdb_test=0
 	  module_test=0
+	     rtc_test=0
+	     nfs_test=0
 	 pnormtd_test=0
     jffs2_reboot_test=0 
 	jffs2_fs_test=0
@@ -103,13 +103,13 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
          build_policy=1
 	ethernet_test=1
-	  stress_test=0
+	  stress_test=1
 	  serial_test=1
-	  reboot_test=1
+	  reboot_test=1	     
+	    kgdb_test=1
+	  module_test=1
 	     rtc_test=0
 	     nfs_test=1
-	    kgdb_test=1
-	  module_test=0
 	 pnormtd_test=1
     jffs2_reboot_test=1 
 	jffs2_fs_test=0
@@ -135,11 +135,11 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 	ethernet_test=1
 	  stress_test=1
 	  serial_test=1
-	  reboot_test=0
-	     rtc_test=0
-	     nfs_test=0
+	  reboot_test=0	    
 	    kgdb_test=0
 	  module_test=0
+	     rtc_test=0
+	     nfs_test=0
 	 pnormtd_test=0
     jffs2_reboot_test=0  
 	jffs2_fs_test=0
@@ -410,8 +410,9 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/jffs2
-  ./build_jffs2_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_jffs2_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
   ./flash_images.exp
+  sleep 20
   ./jffs2_reboot_test.exp /dev/ttyS0
   
   cp $KERNEL_SCRIPTS/jffs2/build_jffs2_kernel_log $THIS_LOG

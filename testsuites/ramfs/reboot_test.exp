@@ -274,13 +274,14 @@ send -s "reboot\r"
 
 }
 
+send_log "\n$TITLE ............\[PASS\]\n"
+
+log_file
+
 while 1 {
        expect {
          "Hit any key " {
              send "\r"
-         }
-
-         ">" {
              break
          }
 
@@ -289,11 +290,6 @@ while 1 {
          }
       }
    }
-
-send_log "               \r"
-send_log "\r$TITLE ............\[PASS\]\r"
-
-log_file
 
 
 send_user "Ending reboot_test.exp\n"
