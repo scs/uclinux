@@ -255,7 +255,7 @@ step "Start DLL testing"
 set timeout 2
 
 step "Clean src directory\n"
-{exec make clean -C src} result
+spawn make clean -C src
 while 1 {
    expect {
 
@@ -278,7 +278,7 @@ while 1 {
 }
 
 step "Build test program\n"
-catch {exec make -C src} result
+spawn make -C src
 while 1 {
    expect {
 
@@ -300,11 +300,13 @@ while 1 {
    }
 }
 
+set spawn_id $kermit_spawn_id
+
 send "ifconfig eth0 $ipaddr up\r"
 sleep 2
 
 step "Copy testcase to target board\n"
-catch {exec rcp src/libhelloworld.so $ipaddr:/lib/.} result
+spawn rcp src/libhelloworld.so $ipaddr:/lib/.
 while 1 {
    expect {
 
@@ -326,5 +328,66 @@ while 1 {
    }
 }
 
+spawn rcp src/test_dll $ipaddr:/.
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy test_dll to target board failed\n"
+         send_user "\nCopy test_dll to target board failed\n"
+         exit
+      }
+
+      eof {
+         send_log "\nCopy test_dll to target board done\n"
+         send_user "\nCopy test_dll to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+set spawn_id $kermit_spawn_id
+set timeout 2
+set testres    0
+send "./test_dll\r"
+while 1 {
+   expect {
+
+      "hello" {
+         send_log "\nTest get hello\n"
+         send_user "\nTest get hello\n"
+         incr testres
+         if { $testres == 2 } {
+            send_log "\nDLL test pass\n"
+            send_user "\nDLL test pass\n"
+            break
+         }
+      }
+
+      "get 2" {
+         send_log "\nTest get correct return value\n"
+         send_user "\nTest get correct return value\n"
+         incr testres
+         if { $testres == 2 } {
+            send_log "\nDLL TEST PASS\n"
+            send_user "\nDLL TEST PASS\n"
+            break
+         }
+      }
+      timeout {
+         send_user "\ntest timeout\n"
+         break
+      }
+   }
+}
+
+if { $testres != 2 } {
+   send_log "\nDLL TEST FAIL\n"
+   send_user "\nDLL TEST FAIL\n"
+}
 
 exit
