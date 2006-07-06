@@ -364,7 +364,7 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 	int len = 0;
 	int curpos;
 
-	spin_lock_bh(&(info->recv_lock));
+	spin_lock(&(info->recv_lock));
 
 	/*
 	 * Current DMA receiving buffer is one PAGE, which is devied into 8 buffer lines.
@@ -420,18 +420,14 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 	if(!(info->sig&TIOCM_RTS))
 		bfin_setsignal(info, 1);
 #endif
-	spin_unlock_bh(&(info->recv_lock));
+	spin_unlock(&(info->recv_lock));
 }
 
 static void dma_transmit_chars(struct bfin_serial *info)
 {
 	struct uart_registers *regs = &(info->regs);
 
-	if (info->tx_xcount) {
-		return;
-	}
-
-	spin_lock_bh(&(info->xmit_lock));
+	spin_lock(&(info->xmit_lock));
 
 	/*
 	 * tx_xcount is checked here to make sure the dma won't be started if it is working.
@@ -496,7 +492,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	}
 
       clear_and_return:
-	spin_unlock_bh(&(info->xmit_lock));
+	spin_unlock(&(info->xmit_lock));
 }
 #endif
 
@@ -1017,9 +1013,9 @@ static void rs_set_ldisc(struct tty_struct *tty)
 static void rs_flush_chars(struct tty_struct *tty)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
+	unsigned long flags = 0;
 #ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	struct uart_registers *regs = &(info->regs);
-	unsigned long flags = 0;
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
@@ -1029,10 +1025,10 @@ static void rs_flush_chars(struct tty_struct *tty)
 	    !info->xmit_buf)
 		return;
 
+	local_irq_save(flags);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	dma_transmit_chars(info);
 #else
-	local_irq_save(flags);
 	/* Send char */
 	if (*(regs->rpUART_LSR) & TEMT) {
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
@@ -1043,8 +1039,8 @@ static void rs_flush_chars(struct tty_struct *tty)
 	info->xmit_cnt--;
 
 	}
-	local_irq_restore(flags);
 #endif
+	local_irq_restore(flags);
 }
 
 static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -1087,14 +1083,12 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		count -= c;
 		total += c;
 	}
-	local_irq_restore(flags);
 
 	if (info->xmit_cnt>0 && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 		dma_transmit_chars(info);
 #else
 		/* Enable transmitter */
-		local_irq_save(flags);
 		if(wait_complete)
 			while (!(*(regs->rpUART_LSR) & TEMT))
 				SSYNC;
@@ -1110,9 +1104,9 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 			info->xmit_cnt--;
 
 		}
-		local_irq_restore(flags);
 #endif
 	}
+	local_irq_restore(flags);
 
 	return total;
 }
