@@ -18,7 +18,7 @@ struct l1_scratch_task_info
 	/* Not updated by the kernel; a user process can modify this to
 	   keep track of the lowest address of the stack pointer during its
 	   runtime.  */
-	void *sp_lowest;
+	void *lowest_sp;
 };
 
 /* A pointer to the structure in memory.  */
