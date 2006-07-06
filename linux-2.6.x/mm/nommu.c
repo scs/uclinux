@@ -1083,6 +1083,7 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	vma->vm_start = vma->vm_pgoff << PAGE_SHIFT;
 	return 0;
 }
+EXPORT_SYMBOL(remap_pfn_range);
 
 void swap_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
