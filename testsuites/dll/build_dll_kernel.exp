@@ -79,15 +79,29 @@ while 1 {
          send "$board_type\r"
       }
 
-      "\\\(*) \\\[*]" {
-             send "\r"
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
       }
 
-      -re "Default all settings.*\\\[././.]" {
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[././.]" {
+         sleep 10
+         send "y\r"
+      }
+
+      -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[././.]" {
+         sleep 10
          send "y\r"
       }
 
       -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      "\\\(*) \\\[*]" {
              send "\r"
       }
 
