@@ -162,6 +162,24 @@ if { $where_are_we == "uboot" } {
     }
 }
 
+while 1 {
+       expect {
+         "Hit any key " {
+             send "\r"
+         }
+
+         ">" {
+             send_user "successful reset attempt\n"
+             break
+         }
+
+         timeout {
+             send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
+
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"
 send -s "save\r"
@@ -195,7 +213,7 @@ while 1 {
          set flag 1
          set timeout 30
       }
-      "> " {
+      -re "Welcome to.*#" {
          break
       }
    }
@@ -205,10 +223,11 @@ if {$flag==0} {
    exit
 }
 
-set timeout 3
+set timeout 30
 send -s "ifconfig eth0 $targetip\r"
 expect {
-	"> " {
+	"#" {
+         puts "ifconfig finished."
 	}
 
         timeout {
@@ -224,12 +243,19 @@ set timeout 10
 set case_num 0
 
 spawn rcp ./msh_testcase root@$targetip:/
-send -s "chmod +x /msh_testcase"
+
+set spawn_id $kermit_spawn_id
+
+send -s "chmod +x /msh_testcase\r"
+expect "#"
 incr case_num
-send -s "sh /msh_testcase\r"
+send -s "./msh_testcase\r"
+while 1 {
 expect {
         "executed" {
+                expect "finish exec"
                 send_log "\rCase $case_num ...PASS\r"
+                break
 
         }
         timeout {
@@ -237,11 +263,27 @@ expect {
                 send_log "$TITLE ............\[FAIL\]\r"
                 exit
         }
+ }
 }
 
-
-send_log "\r$TITLE ............\[PASS\]\r"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 
-send_user "Ending msh_test.exp\n"
+send -s "reboot\r"
+
+while 1 {
+       expect {
+         "Hit any key " {
+             send "\r"
+             expect ">"
+             break
+         }
+
+         timeout {
+             break
+         }
+      }
+   }
+
+send_user "\nEnding msh_test.exp\n"

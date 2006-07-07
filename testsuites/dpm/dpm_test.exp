@@ -162,6 +162,24 @@ if { $where_are_we == "uboot" } {
     }
 }
 
+while 1 {
+       expect {
+         "Hit any key " {
+             send "\r"
+         }
+
+         ">" {
+             send_user "successful reset attempt\n"
+             break
+         }
+
+         timeout {
+             send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
+
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"
 send -s "save\r"
@@ -224,24 +242,28 @@ set timeout 10
 set case_num 0
 
 spawn rcp ./dpm_testcase root@$targetip:/
-send -s "chmod +x /dpm_testcase"
+set spawn_id $kermit_spawn_id
+
+send -s "chmod +x /dpm_testcase\r"
 incr case_num
 send -s "sh /dpm_testcase\r"
+while 1 {
 expect {
-        "executed" {
+        "DPM is now enabled" {
+                expect "DPM policy is installed!"
                 send_log "\rCase $case_num ...PASS\r"
-
+                break
         }
         timeout {
                 send_log "\rCase $case_num ...FAIL\r"
                 send_log "$TITLE ............\[FAIL\]\r"
                 exit
         }
+ }
 }
 
-
-send_log "\r$TITLE ............\[PASS\]\r"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 
-send_user "Ending dpm_test.exp\n"
+send_user "\nEnding dpm_test.exp\n"

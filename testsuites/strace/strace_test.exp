@@ -161,6 +161,23 @@ if { $where_are_we == "uboot" } {
         send "\r"
     }
 }
+ while 1 {
+       expect {
+         "Hit any key " {
+             send "\r"
+         }
+
+         ">" {
+             send_user "successful reset attempt\n"
+             break
+         }
+
+         timeout {
+             send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
 
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"
@@ -223,13 +240,14 @@ step "Start $TITLE\r"
 set timeout 10
 set case_num 0
 
-spawn rcp ./demo root@$targetip:/
-send -s "chmod +x /demo"
 incr case_num
-send -s "strace /demo\r"
+send -s "strace date\r"
+while 1 {
 expect {
-        "old_mmap" {
+        -re "in trace.*mmap" {
+                expect "exit"
                 send_log "\rCase $case_num ...PASS\r"
+                break
 
         }
         timeout {
@@ -237,11 +255,45 @@ expect {
                 send_log "$TITLE ............\[FAIL\]\r"
                 exit
         }
+ }
 }
 
+incr case_num
+send -s "strace pwd\r"
+while 1 {
+expect {
+        -re "in trace.*mmap" {
+                expect "exit"
+                send_log "\rCase $case_num ...PASS\r"
+                break
 
-send_log "\r$TITLE ............\[PASS\]\r"
+        }
+        timeout {
+                send_log "\rCase $case_num ...FAIL\r"
+                send_log "$TITLE ............\[FAIL\]\r"
+                exit
+        }
+  }
+}
+
+incr case_num
+send -s "strace ls /home\r"
+while 1 {
+expect {
+        -re "in trace.*mmap.*exit" {
+                send_log "\rCase $case_num ...PASS\r"
+                break
+        }
+        timeout {
+                send_log "\rCase $case_num ...FAIL\r"
+                send_log "$TITLE ............\[FAIL\]\r"
+                exit
+        }
+  }
+}
+
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 
-send_user "Ending strace_test.exp\n"
+send_user "\nEnding strace_test.exp\n"
