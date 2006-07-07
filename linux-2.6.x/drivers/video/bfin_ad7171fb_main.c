@@ -224,7 +224,12 @@ static int bfin_fb_mmap(struct fb_info *info, struct vm_area_struct * vma)
 	   end up in the kernel
 	*/
 	vma->vm_start  = (int)rgb_buffer;
-	return (int)rgb_buffer;
+	/*   VM_MAYSHARE limits for mprotect(), and must be set on nommu.
+	 *   Other flags can be set, and are documented in
+	 *   include/linux/mm.h
+	 */
+	vma->vm_flags |=  VM_MAYSHARE;
+	return 0;
 }
 
 static void bfin_framebuffer_init(void *ycrcb_buffer)

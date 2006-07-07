@@ -384,7 +384,12 @@ static int direct_mmap(struct fb_info *info, struct vm_area_struct * vma)
 {
 	vma->vm_start = (unsigned long) (fb_buffer + 240*2*START_LINES);
 	vma->vm_end = vma->vm_start + 320*240*2;
-	return((int)fb_buffer) ;
+	/*   VM_MAYSHARE limits for mprotect(), and must be set on nommu.
+	 *   Other flags can be set, and are documented in
+	 *   include/linux/mm.h
+	 */
+	vma->vm_flags |=  VM_MAYSHARE;
+	return 0 ;
 }
 
 static struct fb_ops bfin_lq035_fb_ops = {
