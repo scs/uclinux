@@ -82,17 +82,26 @@ fi
 	 pnormtd_test=0
     jffs2_reboot_test=0 
 	jffs2_fs_test=0
-	   adspi_test=0
+	  strace_test=0
+	     msh_test=0
+	 pthread_test=0
+	     dpm_test=0
+	   timer_test=0
+	   pound_test=0
+	  spiadc_test=0
 	   audio_test=0
-	  pflags_test=0
+	   pflag_test=0
 	    dpmc_test=0
-	     twi_test=0
-       spi_flash_test=0
+	  i2ctwi_test=0
+        joystick_test=0
+         snormtd_test=0
 	 cf_card_test=0
 	     ide_test=0
 wireless_network_test=0
 	   yaffs_test=0
+	  ppifcd_test=0
 
+     
 #######  BOARD CONFIG DEFINITION      ###################################################### 
 
 if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
@@ -102,27 +111,35 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    BOARD_TYPE=BF537-STAMP
    
          build_policy=1
-	ethernet_test=1
-	  stress_test=1
-	  serial_test=1
+	ethernet_test=0
+	  stress_test=0
+	  serial_test=0
 	  reboot_test=1	     
 	    kgdb_test=1
-	  module_test=1
+	  module_test=0
 	     rtc_test=0
-	     nfs_test=1
-	 pnormtd_test=1
-    jffs2_reboot_test=1 
+	     nfs_test=0
+	 pnormtd_test=0
+    jffs2_reboot_test=0 
 	jffs2_fs_test=0
-	   adspi_test=0
-	   audio_test=0
-	  pflags_test=0
-	    dpmc_test=0
-	     twi_test=0
-       spi_flash_test=0
-	 cf_card_test=0
-	     ide_test=0
-wireless_network_test=0
+	  strace_test=1
+	     msh_test=1
+	 pthread_test=1
+	     dpm_test=1
+	   timer_test=1
+	   pound_test=1
+	  spiadc_test=1
+	   audio_test=1
+	   pflag_test=1
+	    dpmc_test=1
+	  i2ctwi_test=1
+        joystick_test=1
+         snormtd_test=1
+	 cf_card_test=1
+	     ide_test=1
+wireless_network_test=1
 	   yaffs_test=0
+	  ppifcd_test=0
 fi
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
@@ -131,25 +148,37 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
    
    BOARD_TYPE=BF533-STAMP
    
-         build_policy=0
-	ethernet_test=1
-	  stress_test=1
-	  serial_test=1
-	  reboot_test=0	    
-	    kgdb_test=0
+         build_policy=1
+	ethernet_test=0
+	  stress_test=0
+	  serial_test=0
+	  reboot_test=1	     
+	    kgdb_test=1
 	  module_test=0
 	     rtc_test=0
 	     nfs_test=0
 	 pnormtd_test=0
-    jffs2_reboot_test=0  
+    jffs2_reboot_test=0 
 	jffs2_fs_test=0
-	   adspi_test=0
-	   audio_test=0
-	  pflags_test=0
-	    dpmc_test=0
-	     twi_test=0
-       spi_flash_test=0
-	
+	  strace_test=1
+	     msh_test=1
+	 pthread_test=1
+	     dpm_test=1
+	   timer_test=1
+	   pound_test=1
+	  spiadc_test=1
+	   audio_test=1
+	   pflag_test=1
+	    dpmc_test=1
+	  i2ctwi_test=1
+        joystick_test=0
+         snormtd_test=1
+	 cf_card_test=0
+	     ide_test=0
+wireless_network_test=0
+	   yaffs_test=0
+	  ppifcd_test=1
+         	
 fi
  
 ####### Build and run the tests      #######################################################
@@ -167,6 +196,7 @@ chmod +x */*.exp
   ########################## BUILD POLICY KERNEL ##############################################
   
   if [ $build_policy -eq 1  ] ; then
+  echo  "Running build policy kernel... "
   
   rm -rf $KERNEL_PATH
   echo  "mv kernel source "
@@ -277,7 +307,7 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/ramfs/build_ramfs_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/ramfs/reboot_test_log $THIS_LOG  
   
-  sleep 30
+  sleep 300
   
   fi
   #############################################################################################
@@ -327,6 +357,7 @@ chmod +x */*.exp
   
   sleep 30
   fi
+  
   ########################## TEST RTC #########################################################
   
  if [ $rtc_test -eq 1  ] ; then
@@ -423,7 +454,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.reboot_jffs2
   cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.image.reboot_jffs2
   
-  sleep 500
+  sleep 50
 
   
   #############################################################################################
@@ -435,7 +466,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   ./boot_kernel_only_uimage.exp
   cp $KERNEL_SCRIPTS/jffs2/boot_kernel_only_uimage_log $THIS_LOG
 
-  sleep 30
+  sleep 300
  
  fi
  
@@ -461,6 +492,150 @@ if [ $pnormtd_test -eq 1  ] ; then
     
   sleep 30
   fi
+    ########################## TEST STRACE #########################################################
+  
+ if [ $strace_test -eq 1  ] ; then
+  echo  "Testing strace..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/strace
+  ./build_strace_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./strace_test.exp  /dev/ttyS0
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.strace
+  cp $KERNEL_SCRIPTS/strace/build_strace_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/strace/strace_test_log $THIS_LOG
+
+  sleep 30
+ fi
+   ########################## TEST MSH #########################################################
+  
+ if [ $msh_test -eq 1  ] ; then
+  echo  "Testing msh..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/msh
+  ./build_msh_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./msh_test.exp /dev/ttyS0
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.msh
+  cp $KERNEL_SCRIPTS/msh/build_msh_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/msh/msh_test_log $THIS_LOG
+
+  sleep 30
+ fi
+   ########################## TEST PTHREAD #########################################################
+  
+ if [ $pthread_test -eq 1  ] ; then
+  echo  "Testing pthread..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/pthread
+  ./build_pthread_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./pthread_test.exp 
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pthread
+  cp $KERNEL_SCRIPTS/pthread/build_pthread_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pthread/pthread_test_log $THIS_LOG
+
+  sleep 30
+ fi
+ 
+  ########################## TEST DPM #########################################################
+  
+ if [ $dpm_test -eq 1  ] ; then
+  echo  "Testing dpm..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/dpm
+  ./build_dpm_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./dpm_test.exp /dev/ttyS0
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpm
+  cp $KERNEL_SCRIPTS/dpm/build_dpm_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/dpm/dpm_test_log $THIS_LOG
+
+  sleep 30
+ fi
+   ########################## TEST TIMER #########################################################
+  
+ if [ $timer_test -eq 1  ] ; then
+  echo  "Testing timer..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/timer
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 100
+  ./timer_tick_test.exp 100
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer100
+  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_100_log
+  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_100_log
+
+  
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 250
+  ./timer_tick_test.exp 250
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer250
+  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_250_log
+  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_250_log
+  
+  
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 1000
+  ./timer_tick_test.exp 1000
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer1000
+  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_1000_log
+  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_1000_log
+  
+  sleep 30
+ fi
+ 
+  ########################## TEST POUND #########################################################
+  
+ if [ $pound_test -eq 1  ] ; then
+  echo  "Testing pound..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+
+  cd $KERNEL_SCRIPTS/pound
+  ./build_pound_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./pound_test.exp
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pound
+  cp $KERNEL_SCRIPTS/pound/build_pound_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pound/pound_test_log $THIS_LOG
+
+  sleep 30
+ fi
   ##############################################################################################
   ####                    MANUAL TEST                                                 ############
   ################################################################################################
@@ -468,21 +643,24 @@ if [ $pnormtd_test -eq 1  ] ; then
   #############################################################################################
   ########################## TEST ADSPI #########################################################
   
-  if [ $adspi_test -eq 1  ] ; then
-  echo  "Testing ADSPI..."
+  if [ $spiadc_test -eq 1  ] ; then
+  echo  "Testing SPIADC..."
   
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
   
-  cd $KERNEL_SCRIPTS/adspi
-  ./build_adspi_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
-  ./adspi_test.exp
-    
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.adspi 
-  cp $KERNEL_SCRIPTS/adspi/build_adspi_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/adspi/adspi_test_log $THIS_LOG
+  cd $KERNEL_SCRIPTS/spiadc
+  ./build_ndso_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./ndso_test.exp  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ndso 
+  cp $KERNEL_SCRIPTS/spiadc/build_ndso_kernel_log $THIS_LOG
+  
+  ./build_awg_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.awg  
+  cp $KERNEL_SCRIPTS/spiadc/build_awg_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/spiadc/ndso_test_log $THIS_LOG
   
    sleep 30
    
@@ -491,7 +669,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   #############################################################################################
   ########################## TEST PFLAGS #########################################################
  
- if [ $pflags_test -eq 1  ] ; then
+ if [ $pflag_test -eq 1  ] ; then
  
   echo  "Testing pflags..."
   echo  "Switch SW5.1 to on."
@@ -501,13 +679,13 @@ if [ $pnormtd_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
     
-  cd $KERNEL_SCRIPTS/pflags
+  cd $KERNEL_SCRIPTS/pflag
   ./build_pflags_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./pflags_test.exp $BOARD_TYPE
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pflags
-  cp $KERNEL_SCRIPTS/pflags/build_pflags_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/pflags/pflags_test_log $THIS_LOG 
+  cp $KERNEL_SCRIPTS/pflag/build_pflags_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pflag/pflags_test_log $THIS_LOG 
   
   sleep 30
     
@@ -526,11 +704,11 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/audio
-  ./build_audio_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./test_audio /dev/ttyS0 
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.audio
-  cp $KERNEL_SCRIPTS/audio/build_audio_kernel_log $THIS_LOG
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1836
+  cp $KERNEL_SCRIPTS/audio/build_ad1836_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/audio/test_audio_log $THIS_LOG 
   
   sleep 30
@@ -557,11 +735,34 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 30
   fi
+  
+   #############################################################################################
+  ########################## TEST JOYSTICK #####################################################
+  if [ $joystick_test -eq 1  ] ; then
+  echo  "Testing joystick..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS/joystick
+  ./build_joystick_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./joystick_test.exp
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.joystick
+  cp $KERNEL_SCRIPTS/joystick/build_joystick_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/joystick/joystick_test_log $THIS_LOG
+  
+  
+  sleep 30
+  fi
+  
   #############################################################################################
   ########################## TEST TWI #########################################################
   
-  if [ $twi_test -eq 1  ] ; then
-  echo  "Testing TWI..."
+  if [ $i2ctwi_test -eq 1  ] ; then
+  echo  "Testing I2CTWI..."
   
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel
@@ -569,17 +770,17 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   
-  cd $KERNEL_SCRIPTS/twi
-  ./build_twi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
-  ./build_twi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
-  ./twi_lcd_test.exp > test_twi_lcd_log
+  cd $KERNEL_SCRIPTS/i2ctwi
+  ./build_i2ctwi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
+  ./build_i2ctwi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./i2ctwi_lcd_test.exp > test_i2ctwi_lcd_log
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.twi_keyboard
-  cp $KERNEL_SCRIPTS/twi/build_twi_keyboard_kernel_log $THIS_LOG
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_keyboard
+  cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_keyboard_kernel_log $THIS_LOG
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.twi_lcd
-  cp $KERNEL_SCRIPTS/twi/build_twi_lcd_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/twi/test_twi_lcd_log $THIS_LOG
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_lcd
+  cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_lcd_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/i2ctwi/test_i2ctwi_lcd_log $THIS_LOG
 
   
   sleep 30
@@ -587,7 +788,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   #############################################################################################
   ################# TEST BOOT KERNEL AND MOUNT JFFS2 FS FROM SPI FLASH ########################
 
-  if [ $spi_flash_test -eq 1  ] ; then
+  if [ $snormtd_test -eq 1  ] ; then
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
   echo  "Please switch the SW16 mode to 3."
 
@@ -598,10 +799,11 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/snormtd
-  ./build_spi_flash_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_snormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./spi_flash_images.exp
+  ./snormtd_test.exp
   
-  cp $KERNEL_SCRIPTS/snormtd/build_spi_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/snormtd/build_snormtd_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
   
   cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.snormtd
@@ -710,5 +912,25 @@ if [ $yaffs_test -eq 1  ] ; then
  fi
    
 
- 
+   #############################################################################################
+  ########################## TEST PPIFCD #####################################################
+  if [ $ppifcd_test -eq 1  ] ; then
+  echo  "Testing ppifcd..."
+  
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  echo  "cp kernel source "
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd $KERNEL_SCRIPTS/ppifcd
+  ./build_ppifcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./ppifcd_test.exp
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ppifcd
+  cp $KERNEL_SCRIPTS/ppifcd/build_ppifcd_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ppifcd/ppifcd_test_log $THIS_LOG
+  
+  
+  sleep 30
+  fi
  
