@@ -264,7 +264,16 @@ bfin_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
   struct adv7393fb_device *fbdev = to_adv7393fb_device(info);
 
   vma->vm_start = (int) fbdev->fb_mem;
-  return (int) fbdev->fb_mem;
+
+	/*   VM_MAYSHARE limits for mprotect(), and must be set on nommu.
+	 *   Other flags can be set, and are documented in
+	 *   include/linux/mm.h
+	 */
+ 
+  vma->vm_flags |=  VM_MAYSHARE;
+ 
+  return 0 ;
+
 }
 
 
