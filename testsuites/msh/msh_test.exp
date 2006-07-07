@@ -12,15 +12,18 @@ set serverip 10.100.4.174
 set send_slow {1 .01}
 
 set argc [llength $argv]
-if { $argc < 2} {
-   puts "Usage:  $argv0 tty-device srcdir \[targetip serverip\]"
+if { $argc < 1} {
+   puts "Usage:  $argv0 tty-device \[srcdir targetip serverip\]"
    puts "   where tty-device is something like /dev/ttyS0"
    puts ""
    exit
 }
 # grab the user specified parameters.
 set ttydev             [lindex $argv 0]
-set srcdir             [lindex $argv 1]
+
+if { $argc >= 2} {
+   set srcdir             [lindex $argv 1]
+}
 
 if { $argc >= 3} {
    set targetip           [lindex $argv 2]
