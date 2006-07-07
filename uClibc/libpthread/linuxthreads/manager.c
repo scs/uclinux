@@ -40,6 +40,9 @@
 #include "semaphore.h"
 #include "debug.h" /* PDEBUG, added by StS */
 
+#ifdef bfin
+#include <asm/l1layout.h>
+#endif
 
 /* poll() is not supported in kernel <= 2.0, therefore is __NR_poll is
  * not available, we assume an old Linux kernel is in use and we will
@@ -113,7 +116,7 @@ static void pthread_kill_all_threads(int sig, int main_thread_also);
 
 /* The server thread managing requests for thread creation and termination */
 
-int __pthread_manager(void *arg)
+int __attribute__((no_stack_limit)) __pthread_manager(void *arg)
 {
   int reqfd = (int) (long int) arg;
 #ifdef USE_SELECT
@@ -129,6 +132,10 @@ int __pthread_manager(void *arg)
   /* If we have special thread_self processing, initialize it.  */
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(&__pthread_manager_thread, 1);
+#endif
+#ifdef bfin
+  L1_SCRATCH_TASK_INFO->stack_start = __pthread_manager_thread_bos;
+  L1_SCRATCH_TASK_INFO->lowest_sp = __pthread_manager_thread_tos;
 #endif
   /* Set the error variable.  */
   __pthread_manager_thread.p_errnop = &__pthread_manager_thread.p_errno;
@@ -253,11 +260,15 @@ PDEBUG("about to call raise(__pthread_sig_debug)\n");
   }
 }
 
-int __pthread_manager_event(void *arg)
+int __attribute__((no_stack_limit)) __pthread_manager_event(void *arg)
 {
   /* If we have special thread_self processing, initialize it.  */
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(&__pthread_manager_thread, 1);
+#endif
+#ifdef bfin
+  L1_SCRATCH_TASK_INFO->stack_start = __pthread_manager_thread_bos;
+  L1_SCRATCH_TASK_INFO->lowest_sp = __pthread_manager_thread_tos;
 #endif
 
   /* Get the lock the manager will free once all is correctly set up.  */
@@ -270,7 +281,7 @@ int __pthread_manager_event(void *arg)
 
 /* Process creation */
 static int
-__attribute__ ((noreturn))
+__attribute__ ((noreturn)) __attribute__((no_stack_limit))
 pthread_start_thread(void *arg)
 {
   pthread_descr self = (pthread_descr) arg;
@@ -279,6 +290,10 @@ pthread_start_thread(void *arg)
   /* Initialize special thread_self processing, if any.  */
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(self, self->p_nr);
+#endif
+#ifdef bfin
+  L1_SCRATCH_TASK_INFO->stack_start = __pthread_handles[self->p_nr].h_bottom;
+  L1_SCRATCH_TASK_INFO->lowest_sp = arg;
 #endif
 PDEBUG("\n");
   /* Make sure our pid field is initialized, just in case we get there
@@ -318,13 +333,17 @@ PDEBUG("\n");
 }
 
 static int
-__attribute__ ((noreturn))
+__attribute__ ((noreturn)) __attribute__((no_stack_limit))
 pthread_start_thread_event(void *arg)
 {
   pthread_descr self = (pthread_descr) arg;
 
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(self, self->p_nr);
+#endif
+#ifdef bfin
+  L1_SCRATCH_TASK_INFO->stack_start = __pthread_handles[self->p_nr].h_bottom;
+  L1_SCRATCH_TASK_INFO->lowest_sp = arg;
 #endif
   /* Make sure our pid field is initialized, just in case we get there
      before our father has initialized it. */
