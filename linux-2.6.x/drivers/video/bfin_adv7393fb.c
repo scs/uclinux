@@ -619,7 +619,7 @@ bfin_adv7393_fb_init(void)
   if(NULL == fbdev->fb_mem)
     {
       printk (KERN_ERR "FB: couldn't allocate dma buffer (%d bytes) \n",
-	      fbdev->fb_len);
+	     (u32) fbdev->fb_len);
       ret = -ENOMEM;
       goto out_5;
     }
