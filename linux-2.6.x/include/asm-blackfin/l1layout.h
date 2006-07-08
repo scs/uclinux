@@ -6,6 +6,8 @@
 #ifndef _L1LAYOUT_H_
 #define _L1LAYOUT_H_
 
+#include <asm/blackfin.h>
+
 #ifndef __ASSEMBLY__
 
 /* Data that is "mapped" into the process VM at the start of the L1 scratch
