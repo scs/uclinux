@@ -266,8 +266,8 @@ SSP_CFLAGS=$(SSP_DISABLE_FLAGS)
 endif
 
 # Some nice CFLAGS to work with
-CFLAGS=$(XWARNINGS) $(OPTIMIZATION) $(XARCH_CFLAGS) $(CPU_CFLAGS) $(SSP_CFLAGS)\
-	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I. -I$(ROOTDIR)
+CFLAGS=$(XWARNINGS) $(OPTIMIZATION) $(XARCH_CFLAGS) $(EXTRA_CFLAGS) $(CPU_CFLAGS) \
+	$(SSP_CFLAGS) -fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I. -I$(ROOTDIR)
 
 ifeq ($(DODEBUG),y)
     #CFLAGS += -g3
