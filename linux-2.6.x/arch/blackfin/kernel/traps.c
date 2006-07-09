@@ -268,7 +268,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	force_sig_info(sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
 		unsigned long stack;
-		dump(fp, (void *)fp->retx);
+		dump_regs(fp, (void *)fp->retx);
 		show_stack(current, &stack);
 	}
       nsig:
@@ -346,7 +346,7 @@ void dump_stack(void)
 
 EXPORT_SYMBOL(dump_stack);
 
-void dump(struct pt_regs *fp, void *retaddr)
+void dump_regs(struct pt_regs *fp, void *retaddr)
 {
 	int i;
 
