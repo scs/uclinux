@@ -1,3 +1,4 @@
+FLTFLAGS += -s 16384
 
 SUBDIRS = lib src 
 
