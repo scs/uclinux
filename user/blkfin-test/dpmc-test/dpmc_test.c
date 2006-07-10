@@ -49,7 +49,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("VCO is set to %u MHz \n",vco);
+	printf("VCO is set to %u Hz \n",vco);
 	printf("IOCTL to Change the VCO DONE!!!!! \n");
 
 
@@ -60,10 +60,10 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("vco set is %u MHz\n",ret1);
+	printf("vco set is %u Hz\n",ret1);
 
 /******************************Change the SCLK*******************************************/
-	printf("Please enter the value of sclk \n");
+	printf("Please enter the value of sclk (Hz)\n");
 	scanf("%s",sclk);
 	sclk1 = atoi(sclk);
 	ret = ioctl(fd, IOCTL_SET_SCLK, &sclk1);
@@ -71,11 +71,11 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("sclk was set to %u MHz \n",sclk1);
+	printf("sclk was set to %u Hz \n",sclk1);
 
 /******************************Change the CCLK*******************************************/
 	printf("IOCTL to SET the CCLK \n");
-	printf("Please select any of these choices for cclk \n");
+	printf("Please select any of these choices for cclk (Hz)\n");
 	printf("1. %u \t 2. %u \t 3. %u \t 4. %u \n",ret1,ret1/2,ret1/4,ret1/8);
 	scanf("%d",&choice);
 	if(choice == 1)	ret2 = ret1;
@@ -87,7 +87,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("cclk was set to %u MHz \n",ret2);
+	printf("cclk was set to %u Hz \n",ret2);
 
 /********************Get the sclk ************************************************/
 	printf("IOCTL to get the sclk \n");
@@ -96,7 +96,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("sclk got is %u MHz\n",sclk1);
+	printf("sclk got is %u Hz\n",sclk1);
 
 /********************Get the cclk ************************************************/
 	printf("IOCTL to get the cclk \n");
@@ -105,7 +105,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("cclk got is %u MHz\n",cclk1);
+	printf("cclk got is %u Hz\n",cclk1);
 
 /********************************Fullon to Active Mode ********************************/	
 	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO ACTIVE \n");
@@ -200,7 +200,7 @@ int main()
 		printf("dpmc ioctl error\r\n");
 		return -1;
 	}
-	printf("Voltage is set to %u MHz \n",volt);
+	printf("Voltage is set to %u Hz \n",volt);
 	printf("IOCTL to Change the VOLTAGE DONE!!!!! \n");
 
 /********************Fullon Mode to Hibernate Mode *******************************/
