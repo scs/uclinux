@@ -412,6 +412,7 @@ static void ad7142_close(struct input_dev *dev)
 
 	if (!--(*used))
 		free_irq(CONFIG_BFIN_JOYSTICK_IRQ, ad7142_interrupt);
+	kthread_stop(ad7142_task);
 }
 
 static int __init ad7142_init(void)
@@ -442,9 +443,8 @@ static int __init ad7142_init(void)
 
 static void __exit ad7142_exit(void)
 {
-	input_unregister_device(ad7142_dev);
 	i2c_del_driver (&ad7142_driver);
-	kthread_stop(ad7142_task);
+	input_unregister_device(ad7142_dev);
 }
 
 module_init(ad7142_init);
