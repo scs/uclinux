@@ -8,6 +8,7 @@
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #include <asm/segment.h>
+#include <linux/compiler.h>
 
 static inline unsigned long rdusp(void)
 {
@@ -98,5 +99,6 @@ unsigned long get_wchan(struct task_struct *p);
 	eip; })
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
-#define cpu_relax()    do { } while (0)
+#define cpu_relax()    	barrier()
+
 #endif
