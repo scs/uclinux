@@ -125,6 +125,8 @@ void __init blackfin_ide_init(void)
 	}
 
 	hwif_setup(hwif);
+        create_proc_ide_interfaces();
+
 	printk(KERN_INFO "ide%d: Blackfin generic IDE interface\n", idx);
 	return;
 
