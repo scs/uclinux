@@ -98,8 +98,9 @@ void __init bf53x_cache_init(void)
 }
 
 static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
+#if defined(CONFIG_MTD_UCLINUX)
 static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction);
-
+#endif
 
 
 void bf53x_relocate_l1_mem(void)
@@ -891,6 +892,7 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 	return 0;
 }
 
+#if defined(CONFIG_MTD_UCLINUX)
 /*
  * direction = 1, address increase(default);
  * direction = -1, address decrease;
@@ -961,6 +963,7 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 
 	return 0;
 }
+#endif
 
 void cmdline_init(unsigned long r0)
 {
