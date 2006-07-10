@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_twi_keyboard_kernel_log
-send_user "Starting build_twi_keyboard_kernel.exp\n"
+log_file build_i2ctwi_keyboard_kernel_log
+send_user "Starting build_i2ctwi_keyboard_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -258,6 +258,6 @@ set dxe_confirmation [exec ls -l $dxe_filename]
 
 log_file
  
-send_user "Ending build_twi_keyboard_kernel.exp\n"
+send_user "Ending build_i2ctwi_keyboard_kernel.exp\n"
 
 

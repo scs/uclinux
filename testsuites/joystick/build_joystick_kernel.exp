@@ -88,7 +88,12 @@ while 1 {
              send "y\r"
       }
 
-    
+         # Select BF537/6/4 default GPIO PFx PORTG (BF537_PORT_G)
+          -re "Select BF537/6/4 default GPIO PFx PORTx.*choice\\\[.*]" {
+                       send "2\r"
+            
+      }
+ 
            -re "I2C support.*I2C\[^_].*\\\[.*]" {             
              send "Y\r"
       }
@@ -142,7 +147,7 @@ while 1 {
              send "Y\r"
       }
       	   -re "Analog Devices AD7142 Joystick support.*JOYSTICK_AD7142.*\\\[.*]" {            
-             send "Y\r"
+             send "m\r"
       }
       
       	   -re "Input event device test.*CONFIG_EVENT_TEST.*\\\[.*]" {            

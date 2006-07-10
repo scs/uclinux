@@ -84,6 +84,16 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
+  
+          -re "Timer frequency.*choice\\\[.*]" {
+            if { $timer_frequency == "100" } {
+                       send "1\r"
+            } elseif { $timer_frequency == "250" } {
+                       send "2\r"
+            } elseif { $timer_frequency == "1000" } {
+                       send "3\r"
+            }
+      }
 
        "\\\(*) \\\[*]" {
 	     send "\r"

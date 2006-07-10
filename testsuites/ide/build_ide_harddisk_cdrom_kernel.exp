@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_ide_kernel_log
-send_user "Starting build_ide_kernel.exp\n"
+log_file build_ide_harddisk_cdrom_kernel_log
+send_user "Starting build_ide_harddisk_cdrom_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -244,6 +244,6 @@ set dxe_confirmation [exec ls -l $dxe_filename]
 
 log_file
  
-send_user "Ending build_ide_kernel.exp\n"
+send_user "Ending build_ide_harddisk_cdrom_kernel.exp\n"
 
 
