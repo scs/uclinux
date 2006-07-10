@@ -829,8 +829,8 @@ struct seq_operations cpuinfo_op = {
 
 void panic_bfin(int cplb_panic)
 {
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%lux\n", bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%lux\n", bfin_read_ICPLB_FAULT_ADDR());
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 	dump_stack();
 	switch (cplb_panic) {
 
