@@ -76,7 +76,6 @@ static unsigned short fill_cpl_tables(unsigned long *, unsigned short,
 
 void __init bf53x_cache_init(void)
 {
-
 #if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
 	generate_cpl_tables();
 #endif
@@ -85,15 +84,16 @@ void __init bf53x_cache_init(void)
 	bfin_icache_init();
 	printk(KERN_INFO "Instruction Cache Enabled\n");
 #endif
+
 #ifdef CONFIG_BLKFIN_DCACHE
 	bfin_dcache_init();
-#if defined CONFIG_BLKFIN_WB
+# if defined CONFIG_BLKFIN_WB
 	printk(KERN_INFO "Data Cache Enabled (write-back)\n");
-#elif defined CONFIG_BLKFIN_WT
+# elif defined CONFIG_BLKFIN_WT
 	printk(KERN_INFO "Data Cache Enabled (write-through)\n");
-#else
+# else
 	printk(KERN_INFO "Data Cache Enabled\n");
-#endif
+# endif
 #endif
 }
 
@@ -111,7 +111,7 @@ void bf53x_relocate_l1_mem(void)
 	if (l1_length > L1_CODE_LENGTH)
 		l1_length = L1_CODE_LENGTH;
 	/* cannot complain as printk is not available as yet.
-	   But we can continue booting and complain later!
+	 * But we can continue booting and complain later!
 	 */
 
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
@@ -124,7 +124,6 @@ void bf53x_relocate_l1_mem(void)
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
 	DmaMemCpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),
 		  l1_length);
-
 }
 
 /*
@@ -317,7 +316,6 @@ void __init setup_arch(char **cmdline_p)
 
 	printk(KERN_INFO "Hardware Trace Enabled\n");
 	bfin_write_TBUFCTL(0x03);
-
 }
 
 #if defined (CONFIG_BF561)
@@ -373,7 +371,6 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 
 static void __init generate_cpl_tables(void)
 {
-
 	unsigned short pos;
 	int unalign_ram_tmp, physical_mem_aligned_end;
 
@@ -658,7 +655,6 @@ u_long get_cclk()
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
-
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
@@ -833,22 +829,20 @@ void panic_bfin(int cplb_panic)
 	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 	dump_stack();
 	switch (cplb_panic) {
-
 	case CPLB_NO_UNLOCKED:
 		panic("All CPLBs are locked\n");
 		break;
 	case CPLB_PROT_VIOL:
-		panic("Data Access CPLB Protection Voilation \n");
+		panic("Data Access CPLB Protection Voilation\n");
 		break;
 	case CPLB_NO_ADDR_MATCH:
-		panic("No CPLB Address Match \n");
+		panic("No CPLB Address Match\n");
 	}
 }
 
 /*copy from SRAM to L1RAM, DMAHandler routine*/
 static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 {
-
 	if (!size)
 		return 0;
 
@@ -899,13 +893,12 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
  */
 static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction)
 {
-
 	if (!size)
-                return 0;
-	if(direction==-1) {
+		return 0;
+	if (direction == -1) {
 		/* Setup destination start address */
 		bfin_write_MDMA_D0_START_ADDR(dest_addr + size - 2);
-		
+
 		/* Setup destination xmodify */
 		bfin_write_MDMA_D0_X_MODIFY(-2);
 		bfin_write_MDMA_D0_Y_MODIFY(-2);
@@ -916,11 +909,10 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 		/* Setup Source xmodify */
 		bfin_write_MDMA_S0_X_MODIFY(-2);
 		bfin_write_MDMA_S0_Y_MODIFY(-2);
-	}
-	else {
+	} else {
 		/* Setup destination start address */
 		bfin_write_MDMA_D0_START_ADDR(dest_addr);
-	
+
 		/* Setup destination xmodify */
 		bfin_write_MDMA_D0_X_MODIFY(2);
 		bfin_write_MDMA_D0_Y_MODIFY(2);
@@ -948,7 +940,7 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 #endif
 
 	/* Set word size to 8, set to read, enable interrupt for wakeup
-	   Enable source DMA */
+	 * Enable source DMA */
 
 	bfin_write_MDMA_S0_CONFIG((DMAEN | DMA2D | WDSIZE_16));
 	__builtin_bfin_ssync();
