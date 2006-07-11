@@ -41,7 +41,7 @@ ENTRY(__start)
 _jiffies = _jiffies_64;
 MEMORY
 	{
-	ram		: ORIGIN = RAM_START,       LENGTH = RAM_LENGTH
+	ram		: ORIGIN = CONFIG_BOOT_LOAD,       LENGTH = RAM_LENGTH
 	l1_data_a	: ORIGIN = L1_DATA_A_START, LENGTH = L1_DATA_A_LENGTH
 	l1_data_b	: ORIGIN = L1_DATA_B_START, LENGTH = L1_DATA_B_LENGTH
 	l1_code		: ORIGIN = L1_CODE_START,   LENGTH = L1_CODE_LENGTH
@@ -50,7 +50,7 @@ MEMORY
 
 SECTIONS
 {
-	. = RAM_START ;
+	. = CONFIG_BOOT_LOAD ;
 
 	.text  : {
 		 __stext = .;

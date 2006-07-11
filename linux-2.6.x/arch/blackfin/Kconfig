@@ -248,6 +248,17 @@ config ENET_FLASH_PIN
 	  pins to be used on other platforms without having to touch common code.
 	  For example: PF0 --> 1,PF1 --> 2,PF2 --> 4, etc.
 
+config BOOT_LOAD
+	hex "Kernel load address for booting"
+	default "0x1000"
+	help
+	  This option allows you to set the load address of the kernel.  This can
+	  be useful if you are on a board which has a small amount of memory or
+	  you wish to reserve some memory at the beginning of the address space.
+
+	  Note that you generally want to keep this value at or above 4k (0x1000)
+	  as this will allow the kernel to capture NULL pointer references.
+
 comment	'LED Status Indicators'
 
 config BFIN_ALIVE_LED

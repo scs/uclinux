@@ -69,7 +69,7 @@ image:
 		$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE) $(IMAGE).bin; \
 		gzip -f9 $(IMAGE).bin; \
 		$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-			-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel and Filesystem" \
+			-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and Filesystem" \
 			-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage; \
 		rm $(IMAGE).bin.gz; \
 		if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
@@ -77,7 +77,7 @@ image:
 				$(IMAGEDIR)/vmlinux.bin; \
 			gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
 			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-				-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel Only Image" \
+				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel Only Image" \
 				-d $(IMAGEDIR)/vmlinux.bin.gz  $(IMAGEDIR)/vmImage; \
 			rm  $(IMAGEDIR)/vmlinux.bin.gz; \
 		fi ; \

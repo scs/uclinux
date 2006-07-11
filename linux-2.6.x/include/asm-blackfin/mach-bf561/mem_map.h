@@ -12,7 +12,6 @@
 #define SYSMMR_BASE            0xFFC00000	// System MMRs
 
 /* Level 3 SDRAM Memory */
-#define RAM_START		0x1000
 #define RAM_LENGTH		(CONFIG_MEM_SIZE * 1024 * 1024)
 #define RAM_END 		(CONFIG_MEM_SIZE * 1024 * 1024)
 
