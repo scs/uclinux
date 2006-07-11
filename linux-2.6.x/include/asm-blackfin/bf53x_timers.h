@@ -3,7 +3,7 @@
  *
  * This file contains the major Data structures and constants
  * used for General Purpose Timer Implementation in BF533
- *   			 	
+ *
  * Copyright (C) 2005 John DeHority
  *
 */
@@ -12,9 +12,9 @@
 #define _BLACKFIN_TIMERS_H_
 
 
-#define SSYNC() asm("ssync;")
+#define SSYNC() __builtin_bfin_ssync()
 
-#ifdef BFIN_TIMER_DEBUG
+#ifndef BFIN_TIMER_DEBUG
 #define assert(expr) do {} while(0)
 #else
 #define assert(expr)                        \
@@ -26,7 +26,7 @@
 
 
 /*-------------------------
- * config reg bits value 
+ * config reg bits value
  *-------------------------*/
 
 /* used in masks for timer_enable() and timer_disable() */
@@ -96,7 +96,7 @@
 #define TIMER_STATUS_OFLOW	0x0070	/* any timer overflow */
 
 /*
-** Timer Slave Enable Status : write 1 to clear 
+** Timer Slave Enable Status : write 1 to clear
 */
 #define TIMER_STATUS_TRUN0	0x1000
 #define TIMER_STATUS_TRUN1	0x2000
@@ -105,7 +105,7 @@
 
 
 
-typedef struct {		
+typedef struct {
 	short	config;
 	short	empty1;
 	int	counter;
@@ -114,14 +114,14 @@ typedef struct {
 }GPTIMER_timer_regs;
 
 
-/* 
-** starting address  0xFFC0 0600 
-** BF533 enable at address  0xFFC0 0640 
-** BF537 enable at address  0xFFC0 0680 
+/*
+** starting address  0xFFC0 0600
+** BF533 enable at address  0xFFC0 0640
+** BF537 enable at address  0xFFC0 0680
 */
-typedef struct {		  
+typedef struct {
 	GPTIMER_timer_regs	a_timer[MAX_BLACKFIN_GPTIMERS];
-	short		enable;	
+	short		enable;
 	short		empty2;
 	short		disable;
 	short		empty3;
@@ -134,7 +134,7 @@ typedef struct {
 }GPTIMER_registers;
 
 /*******************************************************************************
-*	GP_TIMER API's 
+*	GP_TIMER API's
 *******************************************************************************/
 
 void 	set_gptimer_pwidth		(int timer_id, int width);
