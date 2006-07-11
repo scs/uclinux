@@ -714,12 +714,15 @@ config DEBUG_KERNEL_START
 	  from dieing at startup with no visible error messages
 
 config DEBUG_HUNT_FOR_ZERO
-	bool "Halt on reads/writes to null Pointer"
+	bool "Catch NULL pointer reads/writes"
 	depends on DEBUG_KERNEL
 	help
-	  Say Y here to crash the kernel on reads/writes to anywhere in the
-	  memory range from 0x0000 - 0x0FFF (the first 4k) of memory. This
-	  can make null pointers easier to find.
+	  Say Y here to catch reads/writes to anywhere in the memory range
+	  from 0x0000 - 0x0FFF (the first 4k) of memory.  This is useful in
+	  catching common programming errors such as NULL pointer dereferences.
+
+	  Misbehaving applications will be killed (generate a SEGV) while the
+	  kernel will trigger a panic.
 
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'
