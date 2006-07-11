@@ -75,8 +75,8 @@ fi
 	  stress_test=0
 	  serial_test=0
 	  reboot_test=0	     
-	    kgdb_test=0
 	  module_test=0
+	    kgdb_test=0
 	     rtc_test=0
 	     nfs_test=0
 	 pnormtd_test=0
@@ -111,16 +111,16 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    BOARD_TYPE=BF537-STAMP
    
          build_policy=1
-	ethernet_test=0
-	  stress_test=0
-	  serial_test=0
+	ethernet_test=1
+	  stress_test=1
+	  serial_test=1
 	  reboot_test=1	     
+	  module_test=1
 	    kgdb_test=1
-	  module_test=0
-	     rtc_test=0
-	     nfs_test=0
-	 pnormtd_test=0
-    jffs2_reboot_test=0 
+	     rtc_test=1
+	     nfs_test=1
+	 pnormtd_test=1
+    jffs2_reboot_test=1 
 	jffs2_fs_test=0
 	  strace_test=1
 	     msh_test=1
@@ -130,14 +130,14 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	   pound_test=1
 	  spiadc_test=1
 	   audio_test=1
-	   pflag_test=1
+	   pflag_test=0
 	    dpmc_test=1
 	  i2ctwi_test=1
         joystick_test=1
-         snormtd_test=1
+         snormtd_test=0
 	 cf_card_test=1
-	     ide_test=1
-wireless_network_test=1
+	     ide_test=0
+wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
 fi
@@ -153,8 +153,8 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 	  stress_test=0
 	  serial_test=0
 	  reboot_test=1	     
-	    kgdb_test=1
 	  module_test=0
+	    kgdb_test=1
 	     rtc_test=0
 	     nfs_test=0
 	 pnormtd_test=0
@@ -331,7 +331,7 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/kgdb/build_kgdb_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/kgdb/kgdb_test_log $THIS_LOG
   
-  sleep 30
+  sleep 3000
   
   fi
   
@@ -511,7 +511,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/strace/build_strace_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/strace/strace_test_log $THIS_LOG
 
-  sleep 30
+  sleep 3000
  fi
    ########################## TEST MSH #########################################################
   
@@ -575,7 +575,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/dpm/build_dpm_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/dpm/dpm_test_log $THIS_LOG
 
-  sleep 30
+  sleep 3000
  fi
    ########################## TEST TIMER #########################################################
   
@@ -653,15 +653,13 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cd $KERNEL_SCRIPTS/spiadc
   ./build_ndso_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
-  ./ndso_test.exp  
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ndso 
   cp $KERNEL_SCRIPTS/spiadc/build_ndso_kernel_log $THIS_LOG
   
   ./build_awg_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.awg  
   cp $KERNEL_SCRIPTS/spiadc/build_awg_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/spiadc/ndso_test_log $THIS_LOG
-  
+    
    sleep 30
    
    fi
@@ -726,12 +724,17 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cd $KERNEL_SCRIPTS/dpmc
   ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
-  ./dpmc_test.exp
-  
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
   cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
   
+  ./dpmc_test.exp 200000000 80000000 850  
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_200_log
+  
+  ./dpmc_test.exp 300000000 100000000 1000
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_300_log
+  
+  ./dpmc_test.exp 500000000 100000000 1200 
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_500_log
   
   sleep 30
   fi
@@ -771,18 +774,19 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   
   cd $KERNEL_SCRIPTS/i2ctwi
-  ./build_i2ctwi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
-  ./build_i2ctwi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
-  ./i2ctwi_lcd_test.exp > test_i2ctwi_lcd_log
-
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_keyboard
-  cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_keyboard_kernel_log $THIS_LOG
   
+  ./build_i2ctwi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./i2ctwi_lcd_test.exp
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_lcd
   cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_lcd_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/i2ctwi/test_i2ctwi_lcd_log $THIS_LOG
-
+  cp $KERNEL_SCRIPTS/i2ctwi/i2ctwi_lcd_test_log $THIS_LOG
   
+  ./build_i2ctwi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
+  ./i2ctwi_keyboard_test.exp
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_keyboard
+  cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_keyboard_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/i2ctwi/i2ctwi_keyboard_test_log $THIS_LOG
+     
   sleep 30
   fi
   #############################################################################################
@@ -827,13 +831,13 @@ if [ $cf_card_test -eq 1  ] ; then
   echo  "cp kernel source "
   cp -a  $CHECKOUT/kernel_bak/*  .
 
-  cd $KERNEL_SCRIPTS/cf_card
+  cd $KERNEL_SCRIPTS/cfcard
   ./build_cf_card_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
   ./cf_card_test.exp  
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.cf_card
-  cp $KERNEL_SCRIPTS/cf_card/build_cf_card_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/cf_card/cf_card_test_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/cfcard/build_cf_card_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/cfcard/cf_card_test_log $THIS_LOG
   
   sleep 30
   fi
