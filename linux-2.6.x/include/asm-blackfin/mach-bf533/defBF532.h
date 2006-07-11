@@ -423,6 +423,12 @@
 #define CCLK_DIV4              0x00000020	/* CCLK = VCO / 4 */
 #define CCLK_DIV8              0x00000030	/* CCLK = VCO / 8 */
 
+/* PLL_STAT Masks																	*/
+#define ACTIVE_PLLENABLED	0x0001	/* Processor In Active Mode With PLL Enabled    */
+#define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
+#define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
+#define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
+
 /* SWRST Mask */
 #define SYSTEM_RESET           0x00000007	/* Initiates a system software reset */
 

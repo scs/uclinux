@@ -1109,8 +1109,8 @@
 #define WDOG_GPI		0x0004	/* Generate General Purpose (GP) Interrupt              */
 #define WDOG_NONE		0x0006	/* Disable Watchdog Timer Interrupts                    */
 #define TMR_EN			0x0FF0	/* Watchdog Counter Enable                                              */
-#define	WDOG_DISABLE	0x0AD0	/* Watchdog Counter Disable                                             */
-#define TRO				0x8000	/* Watchdog Expired                                                             */
+#define	TMR_DIS			0x0AD0	/* Watchdog Counter Disable                                             */
+#define TRO			0x8000	/* Watchdog Expired                                                     */
 
 /* ***************  REAL TIME CLOCK MASKS  **************************/
 /* RTC_STAT and RTC_ALARM Masks										*/
