@@ -93,23 +93,6 @@ config BF561
 
 endchoice
 
-menu 'Blackfin Kernel Optimizations'
-
-comment 'Timer Tick'
-
-source kernel/Kconfig.hz
-
-comment 'Memory Optimizations'
-
-config I_ENTRY_L1
-	bool "Locate interrupt entry code in L1 Memory"
-	default n
-	help
-	  If enabled interrupt entry code (STORE/RESTORE CONTEXT) is linked
-	  into L1 instruction memory.(less latency)
-
-endmenu
-
 config BLACKFIN
 	bool
 	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
@@ -126,7 +109,7 @@ config BFIN_DUAL_CORE
 	default y
 
 choice
-	prompt "Kernel is configured for"
+	prompt "System type"
 	default BFIN533_STAMP
 	help
 	  Do NOT change the board here, please use the top level configuration to ensure all
@@ -206,7 +189,7 @@ source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
 
-menu 'Board specific issues'
+menu 'Board customizations'
 
 comment 'Board Setup'
 
@@ -260,6 +243,7 @@ config BOOT_LOAD
 	  as this will allow the kernel to capture NULL pointer references.
 
 comment 'LED Status Indicators'
+	depends on ( BFIN533_STAMP || BFIN533_BLUETECHNIX_CM )
 
 config BFIN_ALIVE_LED
 	bool "Enable Board Alive"
@@ -372,6 +356,24 @@ config  BAUD_1_STOPBIT
 config  BAUD_2_STOPBIT
 	bool "2"
 endchoice
+
+endmenu
+
+
+menu 'Blackfin Kernel Optimizations'
+
+comment 'Timer Tick'
+
+source kernel/Kconfig.hz
+
+comment 'Memory Optimizations'
+
+config I_ENTRY_L1
+	bool "Locate interrupt entry code in L1 Memory"
+	default n
+	help
+	  If enabled interrupt entry code (STORE/RESTORE CONTEXT) is linked
+	  into L1 instruction memory.(less latency)
 
 endmenu
 
