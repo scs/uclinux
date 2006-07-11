@@ -985,6 +985,9 @@ static void bfin_change_speed(struct bfin_serial *info)
 static void rs_set_ldisc(struct tty_struct *tty)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
+#ifdef CONFIG_IRTTY_SIR
+	struct uart_registers *regs = &(info->regs);
+#endif
 
 	FUNC_ENTER();
 
