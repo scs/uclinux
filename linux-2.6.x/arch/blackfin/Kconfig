@@ -715,7 +715,7 @@ config DEBUG_KERNEL_START
 
 config DEBUG_HUNT_FOR_ZERO
 	bool "Catch NULL pointer reads/writes"
-	depends on DEBUG_KERNEL
+	default y
 	help
 	  Say Y here to catch reads/writes to anywhere in the memory range
 	  from 0x0000 - 0x0FFF (the first 4k) of memory.  This is useful in
@@ -723,6 +723,9 @@ config DEBUG_HUNT_FOR_ZERO
 
 	  Misbehaving applications will be killed (generate a SEGV) while the
 	  kernel will trigger a panic.
+
+	  Enabling this option will take up an extra entry in CPLB table.
+	  Otherwise, there is no extra overhead.
 
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'
