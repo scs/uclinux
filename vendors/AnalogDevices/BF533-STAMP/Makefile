@@ -1,6 +1,7 @@
 #
-#	Makefile -- Build instructions for the BF533-STAMP from Analog Devices
+#	Makefile -- Build instructions for ADI/Blackfin
 #
+
 include $(LINUX_CONFIG)
 
 ROMFSIMG = $(IMAGEDIR)/rootfs.img

@@ -42,6 +42,7 @@ romfs:
 	$(ROMFSINST) /etc/index.html
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
+	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 image:
@@ -73,7 +74,7 @@ image:
 		rm $(IMAGE).bin.gz; \
 		if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
 			$(CROSS_COMPILE)objcopy -O binary -S $(ROOTDIR)/$(LINUXDIR)/vmlinux \
-			$(IMAGEDIR)/vmlinux.bin; \
+				$(IMAGEDIR)/vmlinux.bin; \
 			gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
 			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
 				-C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel Only Image" \
