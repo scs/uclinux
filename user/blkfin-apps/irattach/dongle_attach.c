@@ -42,7 +42,7 @@
 
 #include <net/if.h>
 #include <linux/types.h>
-#include <irda.h>
+#include "irda.h"
 
 #ifndef AF_IRDA
 #define AF_IRDA 23
