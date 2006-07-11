@@ -9,9 +9,9 @@
  * Rev:          $Id$
  *
  * Modified:
- *               Copyright 2004-2005 Analog Devices Inc.
+ *               Copyright 2004-2006 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software ;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -194,13 +194,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x24);
-		DPRINTK("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
+		DPRINTK("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		DPRINTK(EXC_0x2A);
-		DPRINTK("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
+		DPRINTK("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
@@ -222,22 +222,22 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		break;
 	case VEC_CPLB_I_VL:
 		DPRINTK2(EXC_0x2B);
-		DPRINTK2("ICPLB_FAULT_ADDR: %p\n", bfin_read_ICPLB_FAULT_ADDR());
+		DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		DPRINTK3(EXC_0x23);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		_cplb_hdr();
 		goto nsig;
 		sig = SIGILL;
 		break;
 	case VEC_CPLB_I_M:
 		DPRINTK3(EXC_0x2C);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 	case VEC_CPLB_M:
 		info.si_code = IlL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		/*Call the handler to replace the CPLB */
 		_cplb_hdr();
 		goto nsig;
@@ -245,7 +245,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
 		DPRINTK3(EXC_0x2D);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", bfin_read_ICPLB_FAULT_ADDR());
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
@@ -255,7 +255,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
 #endif
 		DPRINTK3(EXC_0x27);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", bfin_read_DCPLB_FAULT_ADDR());
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	default:
 		info.si_code = TRAP_ILLTRAP;
