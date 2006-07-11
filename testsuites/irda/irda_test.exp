@@ -3,13 +3,14 @@
 #Test program to test the irda driver.
 #
 
-log_file serial_test_log
+log_file irda_test_log
 send_user "Starting irda_test.exp\n"
 
 set send_slow {1 .01}
 
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Irda Test"
+set ircomm	"/dev/ircomm0"
 
 set argc [llength $argv]
 if { $argc < 2} {
@@ -20,6 +21,7 @@ if { $argc < 2} {
 }
 # grab the user specified parameters.
 set host_ttydev             [lindex $argv 0]
+set target_ttydev	    [lindex $argv 1]
 
 proc step { message } {
 
@@ -220,13 +222,13 @@ set case_num 0
 
 set timeout 30
 
-spawn shell
+spawn sh
 # We need to save the id because resetting the board will overwrite it.
 set shell_spawn_id $spawn_id
-send -s "irattach $argv0 -s\r"
+send -s "irattach $host_ttydev -s\r"
 while 1 {
    expect {
-	"> " {
+	"# " {
 		break
 	}
 
@@ -240,7 +242,7 @@ while 1 {
 
 set spawn_id $kermit_spawn_id
 incr case_num
-send -s "irattach $argv1 -s -b&\r"
+send -s "irattach $target_ttydev -s -b&\r"
 while 1 {
    expect {
 	"> " {
@@ -260,9 +262,9 @@ while 1 {
 }
 
 incr case_num
-send -s "cat $argv1\r"
+send -s "cat $ircomm\r"
 set spawn_id $shell_spawn_id
-send -s "cat /proc/slabinfo > $argv0\r"
+send -s "cat /proc/slabinfo > $ircomm\r"
 set spawn_id $kermit_spawn_id
 while 1 {
    expect {
@@ -281,9 +283,9 @@ while 1 {
 
 incr case_num
 set spawn_id $shell_spawn_id
-send -s "cat $argv0\r"
+send -s "cat $ircomm\r"
 set spawn_id $kermit_spawn_id
-send -s "cat /proc/slabinfo > $argv1\r"
+send -s "cat /proc/slabinfo > $ircomm\r"
 while 1 {
    expect {
 	"kmem_cache" {
@@ -320,7 +322,7 @@ send -s "kill -15 $pid\r"
 while 1 {
    expect {
 	"> " {
-		send -s "stty -F $argv1\r"
+		send -s "stty -F $target_ttydev\r"
 	}
 	"speed" {
 		send_log "\rCase $case_num ...PASS\r"
