@@ -48,7 +48,7 @@ menu "Blackfin Processor Options"
 comment "Processor and Board Settings"
 
 choice
-	prompt	"CPU"
+	prompt "CPU"
 	default BF533
 
 config BF531
@@ -93,7 +93,7 @@ config BF561
 
 endchoice
 
-menu 	'Blackfin Kernel Optimizations'
+menu 'Blackfin Kernel Optimizations'
 
 comment 'Timer Tick'
 
@@ -105,7 +105,7 @@ config I_ENTRY_L1
 	bool "Locate interrupt entry code in L1 Memory"
 	default n
 	help
-	  If enabled interrupt entry code (STORE/RESTORE CONTEXT) is linked 
+	  If enabled interrupt entry code (STORE/RESTORE CONTEXT) is linked
 	  into L1 instruction memory.(less latency)
 
 endmenu
@@ -126,7 +126,7 @@ config BFIN_DUAL_CORE
 	default y
 
 choice
-	prompt	"Kernel is configured for"
+	prompt "Kernel is configured for"
 	default BFIN533_STAMP
 	help
 	  Do NOT change the board here, please use the top level configuration to ensure all
@@ -206,7 +206,7 @@ source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
 
-menu 	'Board specific issues'
+menu 'Board specific issues'
 
 comment 'Board Setup'
 
@@ -259,7 +259,7 @@ config BOOT_LOAD
 	  Note that you generally want to keep this value at or above 4k (0x1000)
 	  as this will allow the kernel to capture NULL pointer references.
 
-comment	'LED Status Indicators'
+comment 'LED Status Indicators'
 
 config BFIN_ALIVE_LED
 	bool "Enable Board Alive"
@@ -307,8 +307,8 @@ config BFIN_ALIVE_LED_PORT
 
 # Peripheral Flag Direction Register
 config BFIN_ALIVE_LED_DPORT
-        hex
-        default 0xFFC00730 if (BFIN533_STAMP)
+	hex
+	default 0xFFC00730 if (BFIN533_STAMP)
 	default 0xFFC00730 if (BFIN533_BLUETECHNIX_CM)
 
 config BFIN_ALIVE_LED_PIN
@@ -320,39 +320,39 @@ config BFIN_ALIVE_LED_PIN
 	default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 config BFIN_IDLE_LED_PORT
-        hex
-        default 0xFFC00700 if (BFIN533_STAMP)
+	hex
+	default 0xFFC00700 if (BFIN533_STAMP)
 	default 0xFFC00700 if (BFIN533_BLUETECHNIX_CM)
 
 # Peripheral Flag Direction Register
 config BFIN_IDLE_LED_DPORT
-        hex
-        default 0xFFC00730 if (BFIN533_STAMP)
+	hex
+	default 0xFFC00730 if (BFIN533_STAMP)
 	default 0xFFC00730 if (BFIN533_BLUETECHNIX_CM)
 
 config BFIN_IDLE_LED_PIN
-        hex
-        default 0x04 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 1 ))
-        default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
-        default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
-        default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 1 ))
-        default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
+	hex
+	default 0x04 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 1 ))
+	default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
+	default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
+	default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 1 ))
+	default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 comment 'Console UART Setup'
 
 choice
-        prompt "Baud Rate"
-        default BAUD_57600
+	prompt "Baud Rate"
+	default BAUD_57600
 config BAUD_9600
-        bool "9600"
+	bool "9600"
 config BAUD_19200
-        bool "19200"
+	bool "19200"
 config BAUD_38400
-        bool "38400"
+	bool "38400"
 config BAUD_57600
-        bool "57600"
+	bool "57600"
 config BAUD_115200
-        bool "115200"
+	bool "115200"
 endchoice
 
 choice
@@ -370,23 +370,23 @@ choice
 config  BAUD_1_STOPBIT
 	bool "1"
 config  BAUD_2_STOPBIT
-        bool "2"
+	bool "2"
 endchoice
 
 endmenu
 
 
 choice
-	prompt	"Kernel executes from"
+	prompt "Kernel executes from"
 	---help---
 	  Choose the memory type that the kernel will be running in.
 
-config	RAMKERNEL
+config RAMKERNEL
 	bool "RAM"
 	help
 	  The kernel will be resident in RAM when running.
 
-config	ROMKERNEL
+config ROMKERNEL
 	bool "ROM"
 	help
 	  The kernel will be resident in FLASH/ROM when running.
@@ -413,7 +413,7 @@ config IRQCHIP_DEMUX_GPIO
 
 comment 'DMA Support'
 choice
-	prompt	"Select DMA driver"
+	prompt "Select DMA driver"
 	---help---
 	  Choose DMA driver implemntation
 
@@ -430,20 +430,20 @@ config BFIN_DMA_5XX
 endchoice
 
 comment 'Cache Support'
-config	BLKFIN_CACHE
+config BLKFIN_CACHE
 	bool "Enable ICACHE"
-config	BLKFIN_DCACHE
+config BLKFIN_DCACHE
 	bool "Enable DCACHE"
-config 	BLKFIN_CACHE_LOCK
+config BLKFIN_CACHE_LOCK
 	bool "Enable Cache Locking"
 
 choice
 	prompt "Policy"
 	depends on BLKFIN_DCACHE
 	default BLKFIN_WB
-config 	BLKFIN_WB
+config BLKFIN_WB
 	bool "Write back"
-config	BLKFIN_WT
+config BLKFIN_WT
 	bool "Write through"
 endchoice
 
@@ -464,7 +464,7 @@ config UNCACHED_NONE
 	  Size of the uncached SDRAM region used for DMA memory.
 endchoice
 
-menu	"Clock Settings"
+menu "Clock Settings"
 
 
 config BFIN_KERNEL_CLOCK
@@ -751,7 +751,7 @@ config NO_ACCESS_CHECK
 	  Usually the pointer transfer from user space is checked to see if its
 	  address is in the kernel space. This option disable that check to
 	  improve the performance.
-  
+
 endmenu
 
 source "security/Kconfig"
@@ -759,7 +759,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-
-
-
