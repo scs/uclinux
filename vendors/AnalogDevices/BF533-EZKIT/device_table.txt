@@ -71,6 +71,7 @@
 /dev/dpmc	c	640	0	0	10	254	0	0	-
 /dev/ppp	c	660	0	0	108	0	0	0	-
 /dev/pppox	c	660	0	0	144	0	0	1	4
+/dev/ircomm	c	666	0	0	161	0	0	1	2
 
 # Adjust permissions on some normal files
 #/etc/shadow	f	600	0	0	-	-	-	-	-
