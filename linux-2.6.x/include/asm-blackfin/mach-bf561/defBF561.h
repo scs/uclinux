@@ -1087,6 +1087,16 @@
 #define RESTART         0x00000020	/* Restart */
 #define DI_SEL	        0x00000040	/* Data Interrupt Select */
 #define DI_EN	        0x00000080	/* Data Interrupt Enable */
+#define NDSIZE_0		0x0000	/* Next Descriptor Size = 0 (Stop/Autobuffer)   */
+#define NDSIZE_1		0x0100	/* Next Descriptor Size = 1                                             */
+#define NDSIZE_2		0x0200	/* Next Descriptor Size = 2                                             */
+#define NDSIZE_3		0x0300	/* Next Descriptor Size = 3                                             */
+#define NDSIZE_4		0x0400	/* Next Descriptor Size = 4                                             */
+#define NDSIZE_5		0x0500	/* Next Descriptor Size = 5                                             */
+#define NDSIZE_6		0x0600	/* Next Descriptor Size = 6                                             */
+#define NDSIZE_7		0x0700	/* Next Descriptor Size = 7                                             */
+#define NDSIZE_8		0x0800	/* Next Descriptor Size = 8                                             */
+#define NDSIZE_9		0x0900	/* Next Descriptor Size = 9                                             */
 #define NDSIZE	        0x00000900	/* Next Descriptor Size */
 #define DMAFLOW	        0x00007000	/* Flow Control */
 #define DMAFLOW_STOP		0x0000	/* Stop Mode */
