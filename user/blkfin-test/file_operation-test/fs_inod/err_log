@@ -1,0 +1,15 @@
+#!/bin/sh
+
+FS_PATH="/home/ltp/testcases/bin"
+
+cd $FS_PATH
+
+fs_error=$1
+
+if [ ! -f fs_error_log ] ; then
+  touch fs_error_log
+fi
+    echo "Here is an Error!"
+    echo $fs_error >> fs_error_log    
+    exit 0
+   

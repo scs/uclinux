@@ -1,0 +1,35 @@
+#!/bin/sh
+
+FS_PATH="/home/ltp/testcases/bin"
+
+if [ $# -ne 4 ]
+    then
+       echo $USAGE
+       exit 2
+    fi
+
+    testvol=$1
+    numsubdirs=$2
+    numfiles=$3
+    numloops=$4
+    
+
+
+
+  
+    echo "$0: rm files [0-$numsubdirs]/file$numsubdirs[0-$numfiles]"
+    j=0;
+
+    while [ "$j" -lt "$numsubdirs" ]; do
+	cd dir$j
+	k=0;
+
+	while [ "$k" -lt "$numfiles" ]; do  
+	    rm -f file$j$k || $FS_PATH/err_log "rm -f file$j$k FAILED"
+	     k=`expr $k + 1`
+	done
+
+	 j=`expr $j + 1`
+	cd ..
+    done
+
