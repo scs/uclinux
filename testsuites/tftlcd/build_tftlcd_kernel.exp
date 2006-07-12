@@ -64,6 +64,7 @@ while 1 {
    }
 }
 
+
 cd $uclinux_path
 set timeout 300
 spawn make config
@@ -127,7 +128,7 @@ while 1 {
          send "y\r"
       }
 
-      -re "Screeen PixType (Packed-8bit-Palette, Packed-32bit-8/8/8, Packed-24bit-8/8/8, Packed-16bit-5/6/5.*" {
+      -re "Screeen PixType .Packed-8bit-Palette, Packed-32bit-8/8/8, Packed-24bit-8/8/8, Packed-16bit-5/6/5.*" {
          send "Packed-16bit-5/6/5\r"
       }
 
@@ -155,6 +156,7 @@ while 1 {
          puts "End of configuration"
          break
       }
+
       timeout {
          puts "\n\nFATAL ERROR: config prompt timeout in make config"
       }
