@@ -585,24 +585,18 @@ config EBIU_FLASH_BASE
 	hex "Base Address in HEX"
 	default 0x20000000
 	
-menu'FLASH_EBIU_AMBCTL Control' 
-config BFIN_FLASH_BANK_0
+menu "FLASH_EBIU_AMBCTL Control"
 	depends on MTD_BF5xx
+config BFIN_FLASH_BANK_0
 	hex "Bank 0"
 	default 0x7BB0 
-
 config BFIN_FLASH_BANK_1
-	depends on MTD_BF5xx
 	hex "Bank 1"
 	default 0x7BB0
-
 config BFIN_FLASH_BANK_2
-	depends on MTD_BF5xx
 	hex "Bank 2"
 	default 0x7BB0
-
 config BFIN_FLASH_BANK_3
-	depends on MTD_BF5xx
 	hex "Bank 3"
 	default 0x7BB0
 endmenu
