@@ -357,10 +357,28 @@ set timeout 600
 
 step "Starting test."
 
+send "cd /bin\r"
+while 1 {
+   expect {
+      "bin" {
+         set flag 1
+         break
+      }
+
+      timeout {
+
+            break
+         }
+     }
+}
+
+set timeout 500
+expect "root:/bin>"
+
 send -s  "./fs_test.sh\r" 
 while 1 {
    expect {
-      "root:~>" {
+      "root:/bin>" {
          set flag 1
          puts "jffs2 fs test success.\n"
          break

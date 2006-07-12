@@ -32,6 +32,13 @@ all: $(TARGETS)
 
 romfs:
 	@set -e; for i in $(TARGETS); do $(ROMFSINST) /bin/$$i ; done
+	$(ROMFSINST) ./fs_test.sh /bin/fs_test.sh
+	$(ROMFSINST) ./fs_inod/err_log /bin/err_log
+	$(ROMFSINST) ./fs_inod/fs_error_log /bin/fs_error_log
+	$(ROMFSINST) ./fs_inod/fs_inod_bf /bin/fs_inod_bf
+	$(ROMFSINST) ./fs_inod/make_subdirs /bin/make_subdirs
+	$(ROMFSINST) ./fs_inod/rm_files /bin/rm_files
+	$(ROMFSINST) ./fs_inod/touch_files /bin/touch_files
 
 clean:
 	rm -f $(TARGETS)

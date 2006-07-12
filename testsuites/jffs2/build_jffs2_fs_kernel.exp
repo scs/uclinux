@@ -199,7 +199,9 @@ while 1 {
              
              send "Y\r"
       }
-      
+           -re "file operation test.*CONFIG_FILE_OPERATION_TEST.*\\\[.*]" {
+             send "Y\r"
+      }
  	      
            -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
              send "N\r"
@@ -287,33 +289,6 @@ while 1 {
 	     "Error" {set bfin_make_status failure }
 	     "/bin/sh" { }
 	     eof { break }
-      }
-}
-
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-
-}
-
-exec mkdir romfs/home/ltp
-exec mkdir romfs/home/ltp/testcases
-exec cp -rf $user/fs-test/bin   romfs/home/ltp/testcases/
-exec cp $user/fs-test/fs_test.sh romfs/fs_test.sh
-
-step "Make again"
-
-
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-             "Entering directory" { }
-             "Leaving directory" { set bfin_make_status success }
-             "Error" {set bfin_make_status failure }
-             "/bin/sh" { }
-             eof { break }
       }
 }
 

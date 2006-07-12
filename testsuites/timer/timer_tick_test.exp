@@ -262,7 +262,7 @@ set timeout 180
 sleep 5
 send_log "*********************************\r"
 send_log "Start $TITLE\r"
-send_log "*********************************\r"
+send_log "*********************************\n"
 set timeout 120
 set case_num 0
 
@@ -288,7 +288,7 @@ while 1 {
    
       timeout {
                 send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                send_log "\n$TITLE ............\[FAIL\]\n"
                 exit      
          }
      }
@@ -305,7 +305,7 @@ expect {
       }
       timeout {
                 send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                send_log "\n$TITLE ............\[FAIL\]\n"
                 exit      
          }
      }
@@ -333,7 +333,7 @@ while 1 {
        
       timeout {
                 send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                send_log "\n$TITLE ............\[FAIL\]\n"
                 exit      
          }
      }
@@ -344,11 +344,11 @@ set TIMER_TICK_AVERAGE [ expr [ expr $TIMER_TICK_END - $TIMER_TICK_START ] / [ e
 send_log "TIMER_TICK_AVERAGE  $TIMER_TICK_AVERAGE\r"
 
 if {$TIMER_TICK_AVERAGE < [expr $timer_frequency + 25]   && $TIMER_TICK_AVERAGE > [expr $timer_frequency - 25] } {
-   send_log "\r"
-   send_log "\r$TITLE ............\[PASS\]\r"
+   send_log "\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
 } else {
-   send_log "\r"
-   send_log "\r$TITLE ............\[FAIL\]\r"
+   send_log "\n"
+   send_log "\n$TITLE ............\[FAIL\]\n"
 }
     
 log_file
