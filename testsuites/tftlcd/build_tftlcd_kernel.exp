@@ -84,47 +84,47 @@ while 1 {
          send "y\r"
       }
 
-      -re ".*Enable 1M DMA Zone (UNCACHED_1M)" {
+      -re ".*Enable 1M DMA Zone.*UNCACHED_1M.*" {
          send "2\r"
       }
 
-      -re "I2C support (I2C).*\\\[./././.]" {
+      -re "I2C support \\\(I2C\\\).*\\\[./././.]" {
          send "y\r"
       }
 
-      -re "Blackfin TWI I2C support (I2C_BFIN_TWI).*\\\[././.]" {
-         send "M\r"
+      -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[./././.]" {
+         send "m\r"
       }
 
-      -re "Support for frame buffer devices (FB).*\\\[./././.]" {
+      -re "Support for frame buffer devices.*FB.*\[./././.]" {
          send "y\r"
       }
 
-      -re "SHARP LQ035 TFT LCD on uClinux (BF537 STAMP) (FB_BF537_LQ035).*\\\[././.]" {
-         send "M\r"
+      -re "SHARP LQ035 TFT LCD on uClinux.*BF537.STAMP.*.*FB_BF537_LQ035.*\\\[././.]" {
+         send "m\r"
       }
 
-      -re "Backlight & LCD device support (BACKLIGHT_LCD_SUPPORT).*\\\[././.]" {
+      -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[././.]" {
          send "y\r"
       }
 
-      -re "Lowlevel Backlight controls (BACKLIGHT_CLASS_DEVICE).*\\\[./././.]" {
+      -re "Lowlevel Backlight controls.*BACKLIGHT_CLASS_DEVICE.*\\\[./././.]" {
          send "y\r"
       }
 
-      -re "Lowlevel LCD controls (LCD_CLASS_DEVICE).*\\\[./././.]" {
+      -re "Lowlevel LCD controls.*LCD_CLASS_DEVICE.*\\\[./././.]" {
          send "y\r"
       }
 
-      -re "MicroWindows (CONFIG_USER_MICROWIN).*\\\[././.]" {
+      -re "MicroWindows.*CONFIG_USER_MICROWIN.*\\\[././.]" {
          send "y\r"
       }
 
-      -re "Microwin (CONFIG_USER_MICROWIN_MICROWIN).*\\\[././.].*" {
+      -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.].*" {
          send "y\r"
       }
 
-      -re "MicrowinDemo (CONFIG_USER_MICROWIN_MICROWINDEMO).*\\\[././.]" {
+      -re "MicrowinDemo.*CONFIG_USER_MICROWIN_MICROWINDEMO.*\\\[././.]" {
          send "y\r"
       }
 
@@ -132,15 +132,15 @@ while 1 {
          send "Packed-16bit-5/6/5\r"
       }
 
-      -re "Serial Mouse (CONFIG_USER_MICROWIN_SERMOUSE).*\\\[././.]" {
+      -re "Serial Mouse.*CONFIG_USER_MICROWIN_SERMOUSE.*\\\[././.]" {
          send "y\r"
       }
 
-      -re "No Keyboard (CONFIG_USER_MICROWIN_NOKBD).*\\\[././.]" {
+      -re "No Keyboard.*CONFIG_USER_MICROWIN_NOKBD.*\\\[././.]" {
          send "y\r"
       }
 
-      -re "VIDEO test program (CONFIG_USER_BLACKFIN_VIDEOTEST).*\\\[././.]" {
+      -re "VIDEO test program.*CONFIG_USER_BLACKFIN_VIDEOTEST.*\\\[././.]" {
          send "y\r"
       }
 
