@@ -1734,14 +1734,14 @@ static int bfin_config_uart_IRQ(struct bfin_serial *info)
 
 #else
 	if (request_irq
-	    (info->rx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	    (info->rx_irq, rs_interrupt, SA_SHIRQ,
 	     "BFIN_UART_RX", info)) {
 		printk(KERN_DEBUG "Unable to attach Blackfin UART RX interrupt\n");
 		return -EBUSY;
 	}
 
 	if (request_irq
-	    (info->tx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	    (info->tx_irq, rs_interrupt, SA_SHIRQ,
 	     "BFIN_UART_TX", info)) {
 		printk(KERN_DEBUG "Unable to attach Blackfin UART TX interrupt\n");
 		return -EBUSY;
