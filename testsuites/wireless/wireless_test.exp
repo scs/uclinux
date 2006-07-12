@@ -259,24 +259,24 @@ sleep 5
 
 step "Start Wireless Network testing"
 
-#step "Set key"
-#set timeout 2
-#send "iwconfig eth1 essid dlink key s:12345\r"
-#while 1 {
-#   expect {
-#      "root:~>" {
-#         send_log "\nSet key done\n"
-#         send_user "\nSet key done\n"
-#         break
-#      }
-#      timeout {
-#         send_log "\nSet key timeout\n"
-#         send_user "\nSet key timeout\n"
-#         incr test_flag
-#         break
-#      }
-#   }
-#}
+step "Set key"
+set timeout 2
+send "iwconfig eth1 essid dlink key s:12345\r"
+while 1 {
+   expect {
+      "root:~>" {
+         send_log "\nSet key done\n"
+         send_user "\nSet key done\n"
+         break
+      }
+      timeout {
+         send_log "\nSet key timeout\n"
+         send_user "\nSet key timeout\n"
+         incr test_flag
+         break
+      }
+   }
+}
 
 step "dhcpcd eth1"
 set timeout 30
