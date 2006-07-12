@@ -51,6 +51,7 @@ dir_$(CONFIG_USER_NETPERF_TEST)            += blkfin-test/netperf-bfin
 dir_$(CONFIG_USER_SYSVIPC_TEST)            += blkfin-test/sysv_ipc_test
 dir_$(CONFIG_EVENT_TEST)		   += blkfin-test/event_test
 dir_$(CONFIG_AD9960_TEST)		    += blkfin-test/ad9960_test
+dir_$(CONFIG_FILE_OPERATION_TEST)           += blkfin-test/file_operation-test
 dir_y             			    += blkfin-apps
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils
