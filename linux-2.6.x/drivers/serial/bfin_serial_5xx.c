@@ -52,8 +52,8 @@
 #define CSYNC __builtin_bfin_csync()
 #define SSYNC __builtin_bfin_ssync()
 
-#define ACCESS_LATCH(regs)	{ *(regs->rpUART_LCR) |= DLAB; SSYNC;}
-#define ACCESS_PORT_IER(regs)	{ *(regs->rpUART_LCR) &= (~DLAB); SSYNC;}
+#define ACCESS_LATCH(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)|DLAB); SSYNC;}
+#define ACCESS_PORT_IER(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)&(~DLAB)); SSYNC;}
 
 #if defined (SERIAL_DEBUG_CALLTRACE)
 #define FUNC_ENTER()  printk(KERN_DEBUG "%s: entered\n", __FUNCTION__)
@@ -278,7 +278,7 @@ static void rs_stop(struct tty_struct *tty)
 
 	local_irq_save(flags);
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-	*(regs->rpUART_IER) &= ~ETBEI;
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~ETBEI));
 	SSYNC;
 	local_irq_restore(flags);
 }
@@ -292,11 +292,11 @@ static void local_put_char(struct bfin_serial *info, char ch)
 	local_irq_save(flags);
 
 	do {
-		status = *(regs->rpUART_LSR);
+		status = bfin_read16(regs->rpUART_LSR);
 	} while (!(status & THRE));
 
 	ACCESS_PORT_IER(regs);
-	*(regs->rpUART_THR) = ch;
+	bfin_write16(regs->rpUART_THR, ch);
 	SSYNC;
 
 	local_irq_restore(flags);
@@ -321,13 +321,13 @@ static void rs_start(struct tty_struct *tty)
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
-		*(regs->rpUART_IER) |= ETBEI;
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 		SSYNC;
 	}
 #else
 	if (info->xmit_cnt && info->xmit_buf
-		&& !(*(regs->rpUART_IER) & ETBEI)) {
-		*(regs->rpUART_IER) |= ETBEI;
+		&& !(bfin_read16(regs->rpUART_IER) & ETBEI)) {
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 		SSYNC;
 	}
 #endif
@@ -475,7 +475,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		ACCESS_PORT_IER(regs);
 		SSYNC;
 		enable_dma(info->tx_DMA_channel);
-		*(regs->rpUART_IER) |= ETBEI;
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 		SSYNC;
 	} else {
 		while (info->tx_xcount > 0) {
@@ -509,11 +509,11 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 	 */
 	do {
 		ACCESS_PORT_IER(uart_regs);
-		ch = (unsigned char)*(uart_regs->rpUART_RBR);
+		ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
 
 		if (info->is_cons) {
 			CSYNC;
-			status = *(uart_regs->rpUART_LSR);
+			status = bfin_read16(uart_regs->rpUART_LSR);
 			if (status & BI) {	/* break received */
 				status_handle(info, status);
 				goto clear_and_exit;
@@ -570,7 +570,7 @@ static void transmit_chars(struct bfin_serial *info)
 
 	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
 		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-		*(regs->rpUART_IER) &= ~ETBEI;
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~ETBEI));
 		SSYNC;
 		goto clear_and_return;
 	}
@@ -614,16 +614,16 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	sic_status = bfin_read_SIC_ISR();
 #endif
 	if (sic_status & SIC_UART_MASK) {
-		iir = *(uart_regs->rpUART_IIR);
+		iir = bfin_read16(uart_regs->rpUART_IIR);
 
 		if (!(iir & NINT)) {
 			switch (iir & 0x06) {
 			case 0x06:
-				lsr = *(uart_regs->rpUART_LSR);
+				lsr = bfin_read16(uart_regs->rpUART_LSR);
 				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
-				if (*(uart_regs->rpUART_LSR) & DR) {
+				if (bfin_read16(uart_regs->rpUART_LSR) & DR) {
 #ifdef CONFIG_BFIN_UART_CTSRTS
 					bfin_setsignal(info, 0);
 #endif
@@ -631,7 +631,7 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				}
 				break;
 			case STATUS_P1:	/*UART_IIR_THR: */
-				if (*(uart_regs->rpUART_LSR) & THRE) {
+				if (bfin_read16(uart_regs->rpUART_LSR) & THRE) {
 					transmit_chars(info);
 				}
 				break;
@@ -742,7 +742,7 @@ static int startup(struct bfin_serial *info)
 	FUNC_ENTER();
 	init_timer(&info->dma_timer);
 
-	*(regs->rpUART_GCTL) |= UCEN;
+	bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)|UCEN);
 	SSYNC;
 
 	if (info->flags & S_INITIALIZED)
@@ -850,9 +850,9 @@ static void shutdown(struct bfin_serial *info)
 	local_irq_save(flags);
 
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-	*(regs->rpUART_IER) = 0;
-	*(regs->rpUART_GCTL) &= ~UCEN;
-	*(regs->rpUART_LCR) = 0;
+	bfin_write16(regs->rpUART_IER, 0);
+	bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)&(~UCEN));
+	bfin_write16(regs->rpUART_LCR, 0);
 	SSYNC;
 
 	if (!info->tty || (info->tty->termios->c_cflag & HUPCL))
@@ -949,31 +949,31 @@ static void bfin_change_speed(struct bfin_serial *info)
 	local_irq_save(flags);
 	/* Disable interrupts */
 	ACCESS_PORT_IER(regs);
-	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI | ELSI);
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~(ETBEI | ERBFI | ELSI)));
 	SSYNC;
 
 	if(info->baud > 0) {
 		ACCESS_LATCH(regs);	/* Set to access divisor latch */
-		*(regs->rpUART_DLL) = uart_dl;
+		bfin_write16(regs->rpUART_DLL, uart_dl);
 		SSYNC;
-		*(regs->rpUART_DLH) = uart_dl >> 8;
+		bfin_write16(regs->rpUART_DLH, uart_dl >> 8);
 		SSYNC;
 
-		*(regs->rpUART_LCR) = cval;
+		bfin_write16(regs->rpUART_LCR, cval);
 		SSYNC;
 
 		/* Enable interrupts */
 		ACCESS_PORT_IER(regs);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-		*(regs->rpUART_IER) = ERBFI | ELSI;
+		bfin_write16(regs->rpUART_IER, ERBFI | ELSI);
 #else
-		*(regs->rpUART_IER) = ERBFI | ETBEI | ELSI;
+		bfin_write16(regs->rpUART_IER, ERBFI | ETBEI | ELSI);
 #endif
 		SSYNC;
 	}
 
 	/* Enable the UART */
-	*(regs->rpUART_GCTL) |= UCEN;
+	bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)|UCEN);
 	SSYNC;
 
 	local_irq_restore(flags);
@@ -996,17 +996,17 @@ static void rs_set_ldisc(struct tty_struct *tty)
 
 #ifdef CONFIG_IRTTY_SIR
 	ACCESS_PORT_IER(regs);
-	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI | ELSI);
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~(ETBEI | ERBFI | ELSI)));
 	SSYNC;
 	if(tty->termios->c_line == N_IRDA){
 		/* enable irda function */
-		*(regs->rpUART_GCTL) |= IREN | RPOLC;
+		bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)| IREN | RPOLC);
 		SSYNC;
 		printk(KERN_DEBUG "irda is enabled on serial, rpolc low.\n");
 	}
 	else {
 		/* disable irda function */
-		*(regs->rpUART_GCTL) &= ~(IREN | RPOLC);
+		bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)&(~(IREN | RPOLC)));
 		SSYNC;
 		printk(KERN_DEBUG "irda is disabled on serial, rpolc high.\n");
 	}
@@ -1033,9 +1033,9 @@ static void rs_flush_chars(struct tty_struct *tty)
 	dma_transmit_chars(info);
 #else
 	/* Send char */
-	if (*(regs->rpUART_LSR) & TEMT) {
+	if (bfin_read16(regs->rpUART_LSR) & TEMT) {
 	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-	*(regs->rpUART_IER) |= ETBEI;
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 	SSYNC;
 	local_put_char(info, info->xmit_buf[info->xmit_tail++]);
 	info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
@@ -1093,12 +1093,12 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 #else
 		/* Enable transmitter */
 		if(wait_complete)
-			while (!(*(regs->rpUART_LSR) & TEMT))
+			while (!(bfin_read16(regs->rpUART_LSR) & TEMT))
 				SSYNC;
-		if (*(regs->rpUART_LSR) & TEMT) {
+		if (bfin_read16(regs->rpUART_LSR) & TEMT) {
 
 			ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-			*(regs->rpUART_IER) |= ETBEI;
+			bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 			SSYNC;
 
 			local_put_char(info, info->xmit_buf[info->xmit_tail++]);
@@ -1153,7 +1153,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	irqstat = get_dma_curr_irqstat(info->tx_DMA_channel);
 	if (irqstat & 8 && info->tx_xcount > 0 && info->xmit_buf) {
 		ACCESS_PORT_IER(regs);
-		*(regs->rpUART_IER) &= ~ETBEI;
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~ETBEI));
 		SSYNC;
 		disable_dma(info->tx_DMA_channel);
 		clear_dma_irqstat(info->tx_DMA_channel);
@@ -1334,10 +1334,10 @@ static void send_break(struct bfin_serial *info, unsigned int duration)
 {
 	struct uart_registers *regs = &(info->regs);
 
-	*(regs->rpUART_LCR) |= SB;
+	bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)|SB);
 	SSYNC;
 	msleep_interruptible(duration);
-	*(regs->rpUART_LCR) &= ~SB;
+	bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)&(~SB));
 	SSYNC;
 }
 
@@ -1693,7 +1693,7 @@ irqreturn_t uart_txdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 
 	if (irqstat & 1 && !(irqstat & 8) && info->tx_xcount > 0) {
 		ACCESS_PORT_IER(regs);
-		*(regs->rpUART_IER) &= ~ETBEI;
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~ETBEI));
 		SSYNC;
 		clear_dma_irqstat(info->tx_DMA_channel);
 
@@ -2042,7 +2042,7 @@ rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (!timeout || timeout > fifo_time)
 		timeout = fifo_time;
 
-	while (!(*(regs->rpUART_LSR) & TEMT)) {
+	while (!(bfin_read16(regs->rpUART_LSR) & TEMT)) {
 		msleep_interruptible(jiffies_to_msecs(char_time));
 		if (signal_pending(current))
 			break;
@@ -2129,32 +2129,32 @@ static void bfin_set_baud(struct bfin_serial *info)
 	local_irq_save(flags);
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER(regs);
-	*(regs->rpUART_IER) &= ~(ETBEI | ERBFI);
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~(ETBEI | ERBFI)));
 	SSYNC;
 
 	uart_dl = calc_divisor(info->baud);
 
 	ACCESS_LATCH(regs);	/* Set to access divisor latch */
-	*(regs->rpUART_DLL) = uart_dl;
+	bfin_write16(regs->rpUART_DLL, uart_dl);
 	SSYNC;
-	*(regs->rpUART_DLH) = uart_dl >> 8;
+	bfin_write16(regs->rpUART_DLH, uart_dl >> 8);
 	SSYNC;
 
-	*(regs->rpUART_LCR) |= WLS(8);
+	bfin_write16(regs->rpUART_LCR, WLS(8));
 	SSYNC;
-	*(regs->rpUART_LCR) &= ~PEN;
+	bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)&(~PEN));
 	SSYNC;
 
 	/* Change access to IER & data port */
 	ACCESS_PORT_IER(regs);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	*(regs->rpUART_IER) |= ELSI;
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ELSI);
 #else
-	*(regs->rpUART_IER) |= (ETBEI | ELSI);
+	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI|ELSI);
 #endif
 	SSYNC;
 	/* Enable the UART */
-	*(regs->rpUART_GCTL) |= UCEN;
+	bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)|UCEN);
 	SSYNC;
 	local_irq_restore(flags);
 
