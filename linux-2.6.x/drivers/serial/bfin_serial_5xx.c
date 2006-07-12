@@ -1345,7 +1345,7 @@ static int rs_tiocmget(struct tty_struct *tty, struct file *file)
 {
 	struct bfin_serial * info = (struct bfin_serial *)tty->driver_data;
 
-	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
+	if (serial_paranoia_check(info, tty->name, "rs_tiocmget"))
 		return -ENODEV;
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
@@ -1359,7 +1359,7 @@ static int rs_tiocmset(struct tty_struct *tty, struct file *file,
 	struct bfin_serial * info = (struct bfin_serial *)tty->driver_data;
 	int rts = -1;
 
-	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
+	if (serial_paranoia_check(info, tty->name, "rs_tiocmset"))
 		return -ENODEV;
 	if (tty->flags & (1 << TTY_IO_ERROR))
 		return -EIO;
