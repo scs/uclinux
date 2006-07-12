@@ -55,6 +55,12 @@
 #define ACCESS_LATCH(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)|DLAB); SSYNC;}
 #define ACCESS_PORT_IER(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)&(~DLAB)); SSYNC;}
 
+#if defined (SERIAL_DEBUG_OPEN)
+# define DEBUG_OPEN(fmt, args...) printk(KERN_DEBUG "%s(%d): %s" fmt, __FILE__, __LINE__, __FUNCTION__, ## args)
+#else
+# define DEBUG_OPEN(fmt, args...) do {} while (0)
+#endif
+
 #if defined (SERIAL_DEBUG_CALLTRACE)
 #define FUNC_ENTER()  printk(KERN_DEBUG "%s: entered\n", __FUNCTION__)
 #else
@@ -202,11 +208,9 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 {
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned short rts_mask;
-#ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "%s(%d): bfin_setsignal(info=%p,rts=%d)\n",
-	       __FILE__, __LINE__, info, set);
-#endif
 	rts_mask = (1 << CONFIG_BFIN_UART_RTS);
+
+	DEBUG_OPEN("(info=%p,rts=%d)\n", info, rts);
 
 #if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
 	if (rts) {
@@ -241,11 +245,9 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 	int sig = info->sig;
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned short cts_mask;
-#ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "%s(%d): bfin_getsignal(info=%p)\n",
-	       __FILE__, __LINE__, info);
-#endif
 	cts_mask = (1 << CONFIG_BFIN_UART_CTS);
+
+	DEBUG_OPEN("(info=%p)\n", info);
 
 #if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
 	if(!(bfin_read_FIO_FLAG_D() & cts_mask))
@@ -1907,10 +1909,8 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;
-#ifdef SERIAL_DEBUG_OPEN
-	printk(KERN_DEBUG "bfin_open %s%d, count = %d\n", tty->name, info->line,
-	       info->count);
-#endif
+
+	DEBUG_OPEN("(): %s%d, count = %d\n", tty->name, info->line, info->count);
 
 	info->count++;
 	tty->driver_data = info;
