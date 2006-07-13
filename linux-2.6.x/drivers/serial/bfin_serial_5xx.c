@@ -481,10 +481,6 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		SSYNC;
 	} else {
 		while (info->tx_xcount > 0) {
-			local_put_char(info, info->xmit_buf[info->xmit_tail++]);
-			info->xmit_tail %= SERIAL_XMIT_SIZE;
-			info->xmit_cnt--;
-			info->tx_xcount--;
 #ifdef CONFIG_BFIN_UART_CTSRTS
 			if (!(bfin_getsignal(info)&TIOCM_CTS)) {
 				info->event |= 1 << RS_EVENT_WRITE;
@@ -492,6 +488,10 @@ static void dma_transmit_chars(struct bfin_serial *info)
 				goto clear_and_return;
 			}
 #endif
+			local_put_char(info, info->xmit_buf[info->xmit_tail++]);
+			info->xmit_tail %= SERIAL_XMIT_SIZE;
+			info->xmit_cnt--;
+			info->tx_xcount--;
 		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS) {
