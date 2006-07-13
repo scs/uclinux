@@ -99,9 +99,7 @@ int cycles()
 	int ret;
 
 	__asm__ __volatile__("%0 = CYCLES;\n\t"
-		:"=&d"(ret)
-		:
-		:"R1");
+		:"=d"(ret));
 
 	return ret;
 }
