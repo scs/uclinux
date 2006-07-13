@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 //#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
-#define PRINTK(args...) printk(KERN_DEBUG "spi_bfin: " args)
+#define PRINTK(args...) printk("spi_bfin: " args)
 #else
 #define PRINTK(args...)
 #endif
@@ -275,11 +275,13 @@ static void u8_reader(struct driver_data *drv_data)
 	PRINTK("cr-8 is 0x%x\n", read_STAT());
 	dummy_read();
 
-	while (drv_data->rx < drv_data->rx_end) {
+	while (drv_data->rx < drv_data->rx_end - 1) {
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
 		*(u8 *)(drv_data->rx) = read_RDBR();
 		++drv_data->rx;
 	}
+	*(u8 *)(drv_data->rx) = read_SHAW();
+	++drv_data->rx;
 }
 
 static void u16_writer(struct driver_data *drv_data)
@@ -297,11 +299,13 @@ static void u16_reader(struct driver_data *drv_data)
 	PRINTK("cr-16 is 0x%x\n", read_STAT());
 	dummy_read();
 
-	while (drv_data->rx < drv_data->rx_end) {
+	while (drv_data->rx < (drv_data->rx_end - 2)) {
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
 		*(u16 *)(drv_data->rx) = read_RDBR();
 		drv_data->rx += 2;
 	}
+	*(u16 *)(drv_data->rx) = read_SHAW();
+	drv_data->rx += 2;
 }
 
 /* test if ther is more transfer to be done */
@@ -350,7 +354,6 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 
 	PRINTK("in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
-	bfin_spi_disable(drv_data);
 
 	/* get the last word/byte for DMA reading */
 	if (drv_data->rx != NULL) {
@@ -362,6 +365,8 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 			*(u8 *)(dma_buf_end) = read_SHAW();
 		}
 	}
+
+	bfin_spi_disable(drv_data);
 
 	msg->actual_length += drv_data->len_in_bytes;
 
@@ -388,10 +393,13 @@ static void pump_transfers(unsigned long data)
 	u16 cr, width, dma_width, dma_config;
 	u32 tranf_success = 1;
 
+
 	/* Get current state information */
 	message = drv_data->cur_msg;
 	transfer = drv_data->cur_transfer;
 	chip = drv_data->cur_chip;
+
+
 
 	/* if msg is error or done, report it back using complete() callback */
 	/* Handle for abort */
@@ -460,6 +468,9 @@ static void pump_transfers(unsigned long data)
 
 	message->state = RUNNING_STATE;
 	dma_config = 0;
+
+	write_FLAG(chip->flag);
+//yyprintk("got a transfer to pump, state : baud %d, flag 0x%x, ctl 0x%x\n",read_BAUD(), read_FLAG(), read_CTRL());
 
 	PRINTK("now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
 	/* Try to map dma buffer and do a dma transfer if successful */
@@ -574,10 +585,17 @@ static void pump_transfers(unsigned long data)
 			message->state = next_transfer(drv_data);
 		}
 
+//		write_FLAG(0xFF00);
+//		udelay(20);
+		write_FLAG(chip->flag);
 		bfin_spi_disable(drv_data);
 
+
+		//yyprintk("after a transfer");
+		//yyprintk("  state is set to: baud %d, flag 0x%x, ctl 0x%x\n", read_BAUD(), read_FLAG(), read_CTRL());
 		/* Schedule next transfer tasklet */
 		tasklet_schedule(&drv_data->pump_transfers);
+
 
 	}
 }
@@ -619,8 +637,7 @@ static void pump_messages(void *data)
 	/* Setup the SSP using the per chip configuration */
 	drv_data->cur_chip = spi_get_ctldata(drv_data->cur_msg->spi);
 	restore_state(drv_data);
-	PRINTK("got a message to pump, state is set to: baud %d, flag 0x%x, ctl 0x%x\n",
-	       drv_data->cur_chip->baud, drv_data->cur_chip->flag, drv_data->cur_chip->ctl_reg);
+	//yyprintk("got a message to pump, state: baud %d, flag 0x%x, ctl 0x%x\n",drv_data->cur_chip->baud, drv_data->cur_chip->flag, drv_data->cur_chip->ctl_reg);
 	PRINTK("the first transfer len is %d\n", drv_data->cur_transfer->len);
 
 	/* Mark as busy and launch transfers */
@@ -690,7 +707,8 @@ static int setup(struct spi_device *spi)
 	if (chip_info) {
 		chip->enable_dma = chip_info->enable_dma != 0
 					&& drv_data->master_info->enable_dma;
-		chip->ctl_reg = chip_info->ctl_reg;
+		/* enable CPHA bit. Software control of CS signal*/
+		chip->ctl_reg = chip_info->ctl_reg | 0x0400;
 		chip->bits_per_word = chip_info->bits_per_word;
 	}
 
@@ -731,8 +749,8 @@ static int setup(struct spi_device *spi)
 		kfree(chip);
 		return -ENODEV;
 	}
-	PRINTK("setup spi chip %s, width is %d, dma is %d, ctl_reg is 0x%x\n",
-	       spi->modalias, chip->width, chip->enable_dma, chip->ctl_reg);
+	PRINTK("setup spi chip %s, width is %d, dma is %d, ctl_reg is 0x%x, flag_reg is 0x%x\n",
+	       spi->modalias, chip->width, chip->enable_dma, chip->ctl_reg, chip->flag);
 	spi_set_ctldata(spi, chip);
 
 	return 0;
