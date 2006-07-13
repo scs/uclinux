@@ -46,11 +46,8 @@
 
 #define bfin_read_FIO_FLAG_D() bfin_read_FIO0_FLAG_D()
 #define bfin_write_FIO_FLAG_D(val) bfin_write_FIO0_FLAG_D(val)
-//#define pFIO_FLAG_D	pFIO0_FLAG_D
 #define bfin_read_FIO_DIR() bfin_read_FIO0_DIR()
 #define bfin_write_FIO_DIR(val) bfin_write_FIO0_DIR(val)
-//#define pFIO_DIR	pFIO0_DIR
 #define bfin_read_FIO_INEN() bfin_read_FIO0_INEN()
 #define bfin_write_FIO_INEN(val) bfin_write_FIO0_INEN(val)
-//#define pFIO_INEN	pFIO0_INEN
 #endif				/* _MACH_BLACKFIN_H_ */

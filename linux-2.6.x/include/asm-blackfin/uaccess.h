@@ -169,9 +169,7 @@ static inline int bad_user_access_length(void)
 	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
 }
 
-//#define copy_from_user(to, from, n)		(memcpy(to, from, n), 0)
 
-//#define copy_to_user(to, from, n)		(memcpy(to, from, n), 0)
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
