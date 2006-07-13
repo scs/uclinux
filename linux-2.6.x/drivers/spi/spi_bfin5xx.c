@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 //#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
-#define PRINTK(args...) printk("spi_bfin: " args)
+#define PRINTK(args...) printk(KERN_DEBUG "spi_bfin: " args)
 #else
 #define PRINTK(args...)
 #endif
