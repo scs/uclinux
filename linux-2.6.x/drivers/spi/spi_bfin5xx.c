@@ -280,6 +280,7 @@ static void u8_reader(struct driver_data *drv_data)
 		*(u8 *)(drv_data->rx) = read_RDBR();
 		++drv_data->rx;
 	}
+	do {} while (!(read_STAT() & BIT_STAT_RXS));
 	*(u8 *)(drv_data->rx) = read_SHAW();
 	++drv_data->rx;
 }
@@ -304,6 +305,7 @@ static void u16_reader(struct driver_data *drv_data)
 		*(u16 *)(drv_data->rx) = read_RDBR();
 		drv_data->rx += 2;
 	}
+	do {} while (!(read_STAT() & BIT_STAT_RXS));
 	*(u16 *)(drv_data->rx) = read_SHAW();
 	drv_data->rx += 2;
 }
