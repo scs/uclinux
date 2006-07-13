@@ -1,6 +1,6 @@
 /*************************************************************************
  * dot.c
- * 
+ *
  * based on : David Rowe <http://www.rowetel.com/blog/?p=5>
  *            11/5/06
  *
@@ -106,10 +106,10 @@ int cycles()
 
 int test0(void)
 {
-	int i, k;
+	int k;
 	unsigned int before, after;
 	unsigned int time[M];
-	
+
 	for (k = 0; k < M; k++) {
 		before = cycles();
 		after = cycles();
@@ -246,17 +246,16 @@ asm("foo4:\n");
 	test4();
 asm("foo5:\n");
 asm("fooa:\n");
-        test0();
+	test0();
 asm("foob:\n");
-        test1();
+	test1();
 asm("fooc:\n");
-        test2();
+	test2();
 asm("food:\n");
-        test3();
+	test3();
 asm("fooe:\n");
-        test4();
+	test4();
 asm("foof:\n");
 
 	return 0;
 }
-
