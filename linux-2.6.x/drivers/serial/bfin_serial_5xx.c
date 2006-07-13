@@ -44,9 +44,9 @@
 #undef SERIAL_DEBUG_TERMIOS
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)))
+# define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART1_RX - IVG7)) | (1<<(IRQ_UART1_TX - IVG7)))
 #else				/* BF531/2/3, BF561 */
-#define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
+# define SIC_UART_MASK ((1<<(IRQ_UART_RX - IVG7)) | (1<<(IRQ_UART_TX - IVG7)) | (1<<(IRQ_UART_ERROR - IVG7)))
 #endif
 
 #define CSYNC __builtin_bfin_csync()
@@ -62,9 +62,9 @@
 #endif
 
 #if defined (SERIAL_DEBUG_CALLTRACE)
-#define FUNC_ENTER()  printk(KERN_DEBUG "%s: entered\n", __FUNCTION__)
+# define FUNC_ENTER()  printk(KERN_DEBUG "%s: entered\n", __FUNCTION__)
 #else
-#define FUNC_ENTER()  do {} while (0)
+# define FUNC_ENTER()  do {} while (0)
 #endif
 
 #if defined (SERIAL_DEBUG_TERMIOS)
@@ -212,7 +212,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 
 	DEBUG_OPEN("(info=%p,rts=%d)\n", info, rts);
 
-#if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
 	if (rts) {
 		/* set the RTS/CTS line */
 		bfin_write_FIO_FLAG_C(rts_mask);
@@ -222,9 +222,8 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 		bfin_write_FIO_FLAG_S(rts_mask);
 		info->sig &= ~TIOCM_RTS;
 	}
-#else
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if(info->line==0) {
+# elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
+	if (info->line == 0) {
 		if (rts) {
 			/* set the RTS/CTS line */
 			bfin_write_PORTGIO_CLEAR(bfin_read_PORTGIO_CLEAR() | rts_mask);
@@ -235,8 +234,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 			info->sig &= ~TIOCM_RTS;
 		}
 	}
-#endif
-#endif
+# endif
 	SSYNC;
 #endif
 }
@@ -251,20 +249,19 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 
 	DEBUG_OPEN("(info=%p)\n", info);
 
-#if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
-	if(!(bfin_read_FIO_FLAG_D() & cts_mask))
+# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	if (!(bfin_read_FIO_FLAG_D() & cts_mask))
 		sig |= TIOCM_CTS;
-#else
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if(info->line==0) {
-		if(!(bfin_read_PORTGIO() & cts_mask))
+# elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
+	if (info->line == 0) {
+		if (!(bfin_read_PORTGIO() & cts_mask))
 			sig |= TIOCM_CTS;
 	}
-#endif
-#endif
+# endif
 #endif
 	return sig;
 }
+
 /*
  * ------------------------------------------------------------
  * rs_stop() and rs_start()
@@ -313,7 +310,7 @@ static int local_put_char(struct bfin_serial *info, char ch)
 	SSYNC;
 
 	local_irq_restore(flags);
-	
+
 	return 1;
 }
 
@@ -414,7 +411,7 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 		goto unlock_and_exit;
 	}
 
-	while(info->recv_head - info->recv_tail>0) {
+	while ((info->recv_head - info->recv_tail) > 0) {
 		len = info->recv_head - info->recv_tail;
 
 		len = tty_buffer_request_room(tty, len);
@@ -451,7 +448,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 	}
 
 	if (info->x_char) {	/* Send next char */
-		if(!local_put_char(info, info->x_char))
+		if (!local_put_char(info, info->x_char))
 			goto clear_and_return;
 		info->x_char = 0;
 	}
@@ -494,7 +491,7 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		SSYNC;
 	} else {
 		while (info->tx_xcount > 0) {
-			if(!local_put_char(info, info->xmit_buf[info->xmit_tail]))
+			if (!local_put_char(info, info->xmit_buf[info->xmit_tail]))
 				goto clear_and_return;
 			info->xmit_tail++;
 			info->xmit_tail %= SERIAL_XMIT_SIZE;
@@ -573,7 +570,7 @@ static void transmit_chars(struct bfin_serial *info)
 	local_irq_save(flags);
 #endif
 	if (info->x_char) {	/* Send next char */
-		if(!local_put_char(info, info->x_char))
+		if (!local_put_char(info, info->x_char))
 			goto clear_and_return;
 		info->x_char = 0;
 		goto clear_and_return;
@@ -587,7 +584,7 @@ static void transmit_chars(struct bfin_serial *info)
 	}
 
 	/* Send char */
-	if(!local_put_char(info, info->xmit_buf[info->xmit_tail]))
+	if (!local_put_char(info, info->xmit_buf[info->xmit_tail]))
 		goto clear_and_return;
 	info->xmit_tail++;
 	info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
@@ -965,7 +962,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~(ETBEI | ERBFI | ELSI)));
 	SSYNC;
 
-	if(info->baud > 0) {
+	if (info->baud > 0) {
 		ACCESS_LATCH(regs);	/* Set to access divisor latch */
 		bfin_write16(regs->rpUART_DLL, uart_dl);
 		SSYNC;
@@ -1011,7 +1008,7 @@ static void rs_set_ldisc(struct tty_struct *tty)
 	ACCESS_PORT_IER(regs);
 	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)&(~(ETBEI | ERBFI | ELSI)));
 	SSYNC;
-	if(tty->termios->c_line == N_IRDA){
+	if (tty->termios->c_line == N_IRDA){
 		/* enable irda function */
 		bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)| IREN | RPOLC);
 		SSYNC;
@@ -1050,7 +1047,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 		SSYNC;
-		if(local_put_char(info, info->xmit_buf[info->xmit_tail])) {
+		if (local_put_char(info, info->xmit_buf[info->xmit_tail])) {
 			info->xmit_tail++;
 			info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 			info->xmit_cnt--;
@@ -1083,7 +1080,7 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		local_irq_save(flags);
 	}
 
-	if(info->xmit_cnt==0)
+	if (info->xmit_cnt == 0)
 		wait_complete = 1;
 
 	while (1) {
@@ -1106,7 +1103,7 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		dma_transmit_chars(info);
 #else
 		/* Enable transmitter */
-		if(wait_complete)
+		if (wait_complete)
 			while (!(bfin_read16(regs->rpUART_LSR) & TEMT))
 				SSYNC;
 		if (bfin_read16(regs->rpUART_LSR) & TEMT) {
@@ -1115,7 +1112,7 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 			bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 			SSYNC;
 
-			if(local_put_char(info, info->xmit_buf[info->xmit_tail])){
+			if (local_put_char(info, info->xmit_buf[info->xmit_tail])){
 				info->xmit_tail++;
 				info->xmit_tail =
 				    info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
@@ -1687,11 +1684,11 @@ irqreturn_t uart_rxdma_done(int irq, void *dev_id, struct pt_regs * pt_regs)
 	clear_dma_irqstat(info->rx_DMA_channel);
 	info->event |= 1 << RS_EVENT_READ;
 	schedule_work(&info->tqueue);
-	
+
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	count = RX_YCOUNT - get_dma_curr_ycount(info->rx_DMA_channel)
 		- (info->recv_tail/TTY_FLIPBUF_SIZE + 1);
-	if(count==-1 || count>=RX_YCOUNT-1)
+	if (count == -1 || count >= RX_YCOUNT-1)
 		bfin_setsignal(info, 0);
 #endif
 
@@ -2185,7 +2182,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 	info = &bfin_uart[cp->index];
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-	if(cp->index==0) {
+	if (cp->index == 0) {
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
 	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
 	SSYNC;
@@ -2237,7 +2234,7 @@ static void block_put_char(struct bfin_serial *info, char ch)
 	unsigned short status;
 
 #ifdef CONFIG_BFIN_UART_CTSRTS
-	while(!(bfin_getsignal(info)&TIOCM_CTS)) {
+	while (!(bfin_getsignal(info) & TIOCM_CTS)) {
 		;
 	}
 #endif
