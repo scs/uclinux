@@ -5,17 +5,22 @@
 # extract dir from /path/to/dir
 RELCWD = $(shell pwd | sed -e "s/.*\///")
 
-dot: dot.c 
-	bfin-uclinux-gcc -Wl,-elf2flt -O0 dot.c -o dot_O0
-	bfin-uclinux-gcc -Wl,-elf2flt -O1 dot.c -o dot_O1
-	bfin-uclinux-gcc -Wl,-elf2flt -O2 dot.c -o dot_O2
-	bfin-uclinux-gcc -Wl,-elf2flt -O3 dot.c -o dot_O3
-	bfin-uclinux-gcc -Wl,-elf2flt -O3 -fomit-frame-pointer dot.c -o dot_O0
+CC      = bfin-uclinux-gcc
+CFLAGS  = -Wall
+LDFLAGS = -Wl,-elf2flt
+
+dot: dot.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -O0 dot.c -o dot_O0
+	$(CC) $(CFLAGS) $(LDFLAGS) -O1 dot.c -o dot_O1
+	$(CC) $(CFLAGS) $(LDFLAGS) -O2 dot.c -o dot_O2
+	$(CC) $(CFLAGS) $(LDFLAGS) -O3 dot.c -o dot_O3
+	$(CC) $(CFLAGS) $(LDFLAGS) -O3 -fomit-frame-pointer dot.c -o dot_O0
+
 dist:
 	@if [ ! -d ../$(PROJ)-$(VERSION) ]; then \
-	  echo "Please change directory name to $(PROJ)-$(VERSION)"; \
-	  exit 1; \
-        fi 
+		echo "Please change directory name to $(PROJ)-$(VERSION)"; \
+		exit 1; \
+	fi 
 
 	# remove unneeded files
 	rm -f *~ cycles
@@ -25,5 +30,6 @@ dist:
 	@echo
 	@echo "Tar ball created in ../"
 	ls -lh ../$(PROJ)-$(VERSION).tar.gz
+
 clean:
 	rm -f *.gdb dot_*
