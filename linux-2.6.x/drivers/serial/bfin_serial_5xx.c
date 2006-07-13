@@ -285,12 +285,19 @@ static void rs_stop(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static void local_put_char(struct bfin_serial *info, char ch)
+static int local_put_char(struct bfin_serial *info, char ch)
 {
 	struct uart_registers *regs = &(info->regs);
 	int flags = 0;
 	unsigned short status;
 
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
+		return 0;
+	}
+#endif
 	local_irq_save(flags);
 
 	do {
@@ -302,6 +309,8 @@ static void local_put_char(struct bfin_serial *info, char ch)
 	SSYNC;
 
 	local_irq_restore(flags);
+	
+	return 1;
 }
 
 static void rs_start(struct tty_struct *tty)
@@ -417,11 +426,10 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 	if (info->recv_tail >= PAGE_SIZE)
 		info->recv_tail = 0;
 
-      unlock_and_exit:
 #ifdef CONFIG_BFIN_UART_CTSRTS
-	if(!(info->sig&TIOCM_RTS))
-		bfin_setsignal(info, 1);
+	bfin_setsignal(info, 1);
 #endif
+      unlock_and_exit:
 	spin_unlock(&(info->recv_lock));
 }
 
@@ -438,6 +446,16 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		goto clear_and_return;
 	}
 
+	if (info->x_char) {	/* Send next char */
+		if(!local_put_char(info, info->x_char))
+			goto clear_and_return;
+		info->x_char = 0;
+	}
+
+	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
+		goto clear_and_return;
+	}
+
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
 		info->event |= 1 << RS_EVENT_WRITE;
@@ -445,15 +463,6 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		goto clear_and_return;
 	}
 #endif
-
-	if (info->x_char) {	/* Send next char */
-		local_put_char(info, info->x_char);
-		info->x_char = 0;
-	}
-
-	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
-		goto clear_and_return;
-	}
 
 	/* Send char */
 	info->tx_xcount = info->xmit_cnt;
@@ -481,14 +490,9 @@ static void dma_transmit_chars(struct bfin_serial *info)
 		SSYNC;
 	} else {
 		while (info->tx_xcount > 0) {
-#ifdef CONFIG_BFIN_UART_CTSRTS
-			if (!(bfin_getsignal(info)&TIOCM_CTS)) {
-				info->event |= 1 << RS_EVENT_WRITE;
-				schedule_work(&info->tqueue);
+			if(!local_put_char(info, info->xmit_buf[info->xmit_tail]))
 				goto clear_and_return;
-			}
-#endif
-			local_put_char(info, info->xmit_buf[info->xmit_tail++]);
+			info->xmit_tail++;
 			info->xmit_tail %= SERIAL_XMIT_SIZE;
 			info->xmit_cnt--;
 			info->tx_xcount--;
@@ -551,8 +555,7 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 
       clear_and_exit:
 #ifdef CONFIG_BFIN_UART_CTSRTS
-	if(!(info->sig&TIOCM_RTS))
-		bfin_setsignal(info, 1);
+	bfin_setsignal(info, 1);
 #endif
 	return;
 }
@@ -564,15 +567,10 @@ static void transmit_chars(struct bfin_serial *info)
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned long flags = 0;
 	local_irq_save(flags);
-
-	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
-		goto clear_and_return;
-	}
 #endif
 	if (info->x_char) {	/* Send next char */
-		local_put_char(info, info->x_char);
+		if(!local_put_char(info, info->x_char))
+			goto clear_and_return;
 		info->x_char = 0;
 		goto clear_and_return;
 	}
@@ -585,7 +583,9 @@ static void transmit_chars(struct bfin_serial *info)
 	}
 
 	/* Send char */
-	local_put_char(info, info->xmit_buf[info->xmit_tail++]);
+	if(!local_put_char(info, info->xmit_buf[info->xmit_tail]))
+		goto clear_and_return;
+	info->xmit_tail++;
 	info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 	info->xmit_cnt--;
 
@@ -1043,13 +1043,14 @@ static void rs_flush_chars(struct tty_struct *tty)
 #else
 	/* Send char */
 	if (bfin_read16(regs->rpUART_LSR) & TEMT) {
-	ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
-	bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
-	SSYNC;
-	local_put_char(info, info->xmit_buf[info->xmit_tail++]);
-	info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
-	info->xmit_cnt--;
-
+		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
+		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
+		SSYNC;
+		if(local_put_char(info, info->xmit_buf[info->xmit_tail])) {
+			info->xmit_tail++;
+			info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
+			info->xmit_cnt--;
+		}
 	}
 #endif
 	local_irq_restore(flags);
@@ -1110,11 +1111,12 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 			bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 			SSYNC;
 
-			local_put_char(info, info->xmit_buf[info->xmit_tail++]);
-			info->xmit_tail =
-			    info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
-			info->xmit_cnt--;
-
+			if(local_put_char(info, info->xmit_buf[info->xmit_tail])){
+				info->xmit_tail++;
+				info->xmit_tail =
+				    info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
+				info->xmit_cnt--;
+			}
 		}
 #endif
 	}
@@ -2185,6 +2187,15 @@ int bfin_console_setup(struct console *cp, char *arg)
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
 	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
 	SSYNC;
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
+	bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
+	bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+	bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+	bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
+	bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
+	SSYNC;
+#endif
 	}
 	else {
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFTE);
@@ -2218,18 +2229,43 @@ static struct tty_driver *bfin_console_device(struct console *c, int *index)
 	return bfin_serial_driver;
 }
 
+static void block_put_char(struct bfin_serial *info, char ch)
+{
+	struct uart_registers *regs = &(info->regs);
+	unsigned short status;
+
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	while(!(bfin_getsignal(info)&TIOCM_CTS)) {
+		;
+	}
+#endif
+	do {
+		status = bfin_read16(regs->rpUART_LSR);
+	} while (!(status & THRE));
+
+	ACCESS_PORT_IER(regs);
+	bfin_write16(regs->rpUART_THR, ch);
+	SSYNC;
+}
+
 void bfin_console_write(struct console *co, const char *str, unsigned int count)
 {
 	struct bfin_serial *info = &bfin_uart[co->index];
+	unsigned long flags;
 
 	if (!bfin_console_initted)
 		bfin_set_baud(info);
 
+	local_irq_save(flags);
+
 	while (count--) {
 		if (*str == '\n')	/* if a LF, also do CR... */
-			local_put_char(info, '\r');
-		local_put_char(info, *str++);
+			block_put_char(info, '\r');
+		block_put_char(info, *str++);
+		SSYNC;
 	}
+
+	local_irq_restore(flags);
 }
 
 static struct console bfin_driver = {

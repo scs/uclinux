@@ -47,13 +47,13 @@ int main(int argc, char* argv[])
 	case 's':
 		ioctl(f, TIOCMGET, &rtscts);
 		if(rtscts&TIOCM_RTS)
-			printf("RTS on %s is enabled.\n");
+			printf("RTS on %s is enabled.\n", devname);
 		else
-			printf("RTS on %s is disabled.\n");
+			printf("RTS on %s is disabled.\n", devname);
 		if(rtscts&TIOCM_CTS)
-			printf("CTS on %s is enabled.\n");
+			printf("CTS on %s is enabled.\n", devname);
 		else
-			printf("CTS on %s is disabled.\n");
+			printf("CTS on %s is disabled.\n", devname);
 		break;
 	}
 
