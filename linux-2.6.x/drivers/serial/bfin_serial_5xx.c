@@ -224,14 +224,16 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 	}
 #else
 #if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if (rts) {
-		/* set the RTS/CTS line */
-		bfin_write_PORTGIO_CLEAR(bfin_read_PORTGIO_CLEAR() | rts_mask);
-		info->sig |= TIOCM_RTS;
-	} else {
-		/* clear it */
-		bfin_write_PORTGIO_SET(bfin_read_PORTGIO_SET() | rts_mask);
-		info->sig &= ~TIOCM_RTS;
+	if(info->line==0) {
+		if (rts) {
+			/* set the RTS/CTS line */
+			bfin_write_PORTGIO_CLEAR(bfin_read_PORTGIO_CLEAR() | rts_mask);
+			info->sig |= TIOCM_RTS;
+		} else {
+			/* clear it */
+			bfin_write_PORTGIO_SET(bfin_read_PORTGIO_SET() | rts_mask);
+			info->sig &= ~TIOCM_RTS;
+		}
 	}
 #endif
 #endif
@@ -254,8 +256,10 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 		sig |= TIOCM_CTS;
 #else
 #if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if(!(bfin_read_PORTGIO() & cts_mask))
-		sig |= TIOCM_CTS;
+	if(info->line==0) {
+		if(!(bfin_read_PORTGIO() & cts_mask))
+			sig |= TIOCM_CTS;
+	}
 #endif
 #endif
 #endif
@@ -1811,7 +1815,7 @@ static void bfin_config_uart1(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
-	info->sig = 0;
+	info->sig = TIOCM_RTS|TIOCM_CTS;
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1846,8 +1850,6 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->regs.rpUART_LSR = (volatile unsigned short *)UART1_LSR;
 	info->regs.rpUART_SCR = (volatile unsigned short *)UART1_SCR;
 	info->regs.rpUART_GCTL = (volatile unsigned short *)UART1_GCTL;
-
-	bfin_setsignal(info, 0);
 }
 #endif
 
@@ -2262,7 +2264,6 @@ void bfin_console_write(struct console *co, const char *str, unsigned int count)
 		if (*str == '\n')	/* if a LF, also do CR... */
 			block_put_char(info, '\r');
 		block_put_char(info, *str++);
-		SSYNC;
 	}
 
 	local_irq_restore(flags);
