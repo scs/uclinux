@@ -86,6 +86,39 @@ static struct vm_operations_struct simple_remap_vm_ops = {
 
 static int simple_remap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+
+	/* In this sample we are using _ramend <-> physical_mem_end as 
+         * the buffer to be mmaped. 
+         */
+	extern unsigned long physical_mem_end;
+	extern int _ramend;
+
+	/* the kernel passes in the vm_pgoff - the offset, in *pages*
+	 * from the start of the buffer that the user space app wants
+	 * to mmap. This is the last arg in the user space mmap call.
+	 * We check it to make sure it is not out of bounds.
+	 */
+	if (vma->vm_pgoff > ((physical_mem_end - _ramend) >> PAGE_SHIFT)) {
+		return -EINVAL;
+	}
+
+	vma->vm_start = (unsigned long)_ramend;
+	vma->vm_end = (unsigned long)physical_mem_end;
+
+	/* before remap is called, pgoff must be set to the kernel page
+	 * offset from zero. Do to this, we figure out the address,
+	 * ( << PAGE_SHIFT ), add it to the start of the buffer, and
+	 * turn that back to pages (>> PAGE_SHIFT)
+	 */
+	vma->vm_pgoff = ((vma->vm_pgoff << PAGE_SHIFT) +
+			 (unsigned long)_ramend) >> PAGE_SHIFT;
+
+	/*   VM_MAYSHARE limits for mprotect(), and must be set on nommu.
+	 *   Other flags can be set, and are documented in
+	 *   include/linux/mm.h
+	 */
+	vma->vm_flags |= VM_MAYSHARE;
+
 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 			    vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
@@ -128,6 +161,11 @@ static struct vm_operations_struct simple_nopage_vm_ops = {
 	.nopage = simple_vma_nopage,
 };
 
+ssize_t simple_read(struct file * filp, char __user * buf, size_t count, loff_t * f_pos)
+{
+	return count;
+}
+
 static int simple_nopage_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
@@ -165,6 +203,7 @@ static void simple_setup_cdev(struct cdev *dev, int minor,
 static struct file_operations simple_remap_ops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
+	.read = simple_read,
 	.release = simple_release,
 	.mmap = simple_remap_mmap,
 };
