@@ -485,6 +485,13 @@ static void dma_transmit_chars(struct bfin_serial *info)
 			info->xmit_tail %= SERIAL_XMIT_SIZE;
 			info->xmit_cnt--;
 			info->tx_xcount--;
+#ifdef CONFIG_BFIN_UART_CTSRTS
+			if (!(bfin_getsignal(info)&TIOCM_CTS)) {
+				info->event |= 1 << RS_EVENT_WRITE;
+				schedule_work(&info->tqueue);
+				goto clear_and_return;
+			}
+#endif
 		}
 
 		if (info->xmit_cnt < WAKEUP_CHARS) {
