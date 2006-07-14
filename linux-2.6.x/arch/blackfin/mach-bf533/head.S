@@ -444,17 +444,17 @@ ENTRY(_bfin_reset)
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 	p0.h = hi(FIO_INEN);
 	p0.l = lo(FIO_INEN);
-	r0.l = ~(PF1 | PF0);
+	r0.l = ~(CONFIG_ENET_FLASH_PIN);
 	w[p0] = r0.l;
 
 	p0.h = hi(FIO_DIR);
 	p0.l = lo(FIO_DIR);
-	r0.l = (PF1 | PF0);
+	r0.l = (CONFIG_ENET_FLASH_PIN);
 	w[p0] = r0.l;
 
 	p0.h = hi(FIO_FLAG_C);
 	p0.l = lo(FIO_FLAG_C);
-	r0.l = (PF1 | PF0);
+	r0.l = (CONFIG_ENET_FLASH_PIN);
 	w[p0] = r0.l;
 #endif
 
