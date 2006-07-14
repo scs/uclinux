@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 //#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
-#define PRINTK(args...) printk(KERN_DEBUG "spi_bfin: " args)
+#define PRINTK(args...) printk("spi_bfin: " args)
 #else
 #define PRINTK(args...)
 #endif
@@ -194,31 +194,31 @@ static void restore_state(struct driver_data *drv_data)
 		PRINTK("set for chip select 2\n");
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJSE_SPI);
 		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7800);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 4) {
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS4E_SPI);
 		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c40);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7840);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 5) {
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS5E_SPI);
 		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c20);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7820);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 6) {
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS6E_SPI);
 		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c10);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7810);
 		__builtin_bfin_ssync();
 
 	} else if (chip->chip_select_num == 7) {
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJCE_SPI);
 		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7800);
 		__builtin_bfin_ssync();
 	}
 #endif
@@ -330,22 +330,30 @@ static void *next_transfer(struct driver_data *drv_data)
 /* caller already set message->status; dma and pio irqs are blocked
  * give finished message back
  */
-static void giveback(struct spi_message *message, struct driver_data *drv_data)
+static void giveback(struct driver_data *drv_data)
 {
 	struct spi_transfer *last_transfer;
+	unsigned long flags;
+	struct spi_message *msg;
 
-	last_transfer = list_entry(message->transfers.prev,
-					struct spi_transfer,
-					transfer_list);
-
-	message->state = NULL;
-	if (message->complete)
-		message->complete(message->context);
-
+	spin_lock_irqsave(&drv_data->lock, flags);
+	msg = drv_data->cur_msg;
 	drv_data->cur_msg = NULL;
 	drv_data->cur_transfer = NULL;
 	drv_data->cur_chip = NULL;
 	queue_work(drv_data->workqueue, &drv_data->pump_messages);
+	spin_unlock_irqrestore(&drv_data->lock, flags);
+
+	last_transfer = list_entry(msg->transfers.prev,
+					struct spi_transfer,
+					transfer_list);
+
+	msg->state = NULL;
+	/* disable chip select signal */
+	write_FLAG(0xFF00);
+
+	if (msg->complete)
+		msg->complete(msg->context);
 }
 
 static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
@@ -395,26 +403,23 @@ static void pump_transfers(unsigned long data)
 	u16 cr, width, dma_width, dma_config;
 	u32 tranf_success = 1;
 
-
 	/* Get current state information */
 	message = drv_data->cur_msg;
 	transfer = drv_data->cur_transfer;
 	chip = drv_data->cur_chip;
 
-
-
 	/* if msg is error or done, report it back using complete() callback */
 	/* Handle for abort */
 	if (message->state == ERROR_STATE) {
 		message->status = -EIO;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 
 	/* Handle end of message */
 	if (message->state == DONE_STATE) {
 		message->status = 0;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 
@@ -431,7 +436,7 @@ static void pump_transfers(unsigned long data)
 	if (flush(drv_data) == 0) {
 		dev_err(&drv_data->pdev->dev, "pump_transfers: flush failed\n");
 		message->status = -EIO;
-		giveback(message, drv_data);
+		giveback(drv_data);
 		return;
 	}
 
@@ -471,8 +476,11 @@ static void pump_transfers(unsigned long data)
 	message->state = RUNNING_STATE;
 	dma_config = 0;
 
+	/* restore spi status for each spi transfer */
+	if (transfer->speed_hz) {
+		write_BAUD(transfer->speed_hz);
+	}
 	write_FLAG(chip->flag);
-//yyprintk("got a transfer to pump, state : baud %d, flag 0x%x, ctl 0x%x\n",read_BAUD(), read_FLAG(), read_CTRL());
 
 	PRINTK("now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
 	/* Try to map dma buffer and do a dma transfer if successful */
@@ -511,7 +519,7 @@ static void pump_transfers(unsigned long data)
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
 			/* just return here, there can only be one transfer in this mode */
 			message->status = 0;
-			giveback(message, drv_data);
+			giveback(drv_data);
 			return;
 		}
 
@@ -587,17 +595,10 @@ static void pump_transfers(unsigned long data)
 			message->state = next_transfer(drv_data);
 		}
 
-//		write_FLAG(0xFF00);
-//		udelay(20);
-		write_FLAG(chip->flag);
 		bfin_spi_disable(drv_data);
 
-
-		//yyprintk("after a transfer");
-		//yyprintk("  state is set to: baud %d, flag 0x%x, ctl 0x%x\n", read_BAUD(), read_FLAG(), read_CTRL());
 		/* Schedule next transfer tasklet */
 		tasklet_schedule(&drv_data->pump_transfers);
-
 
 	}
 }
@@ -627,8 +628,6 @@ static void pump_messages(void *data)
 	drv_data->cur_msg = list_entry(drv_data->queue.next,
 					struct spi_message, queue);
 	list_del_init(&drv_data->cur_msg->queue);
-	drv_data->busy = 1;
-	spin_unlock_irqrestore(&drv_data->lock, flags);
 
 	/* Initial message state */
 	drv_data->cur_msg->state = START_STATE;
@@ -639,11 +638,15 @@ static void pump_messages(void *data)
 	/* Setup the SSP using the per chip configuration */
 	drv_data->cur_chip = spi_get_ctldata(drv_data->cur_msg->spi);
 	restore_state(drv_data);
-	//yyprintk("got a message to pump, state: baud %d, flag 0x%x, ctl 0x%x\n",drv_data->cur_chip->baud, drv_data->cur_chip->flag, drv_data->cur_chip->ctl_reg);
+	PRINTK("got a message to pump, state is set to: baud %d, flag 0x%x, ctl 0x%x\n",
+	       drv_data->cur_chip->baud, drv_data->cur_chip->flag, drv_data->cur_chip->ctl_reg);
 	PRINTK("the first transfer len is %d\n", drv_data->cur_transfer->len);
 
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&drv_data->pump_transfers);
+
+	drv_data->busy = 1;
+	spin_unlock_irqrestore(&drv_data->lock, flags);
 }
 
 /* got a msg to transfer, queue it in drv_data->queue. And kick off message pumper */
