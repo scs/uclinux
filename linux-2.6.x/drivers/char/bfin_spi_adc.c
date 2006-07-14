@@ -335,23 +335,13 @@ static struct file_operations bfin_spi_adc_fops = {
 
 static int __devinit bfin_spi_adc_probe(struct spi_device *spi)
 {
-	int result;
-
 	spi_adc.spidev = spi;
 
-	result = register_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME, &bfin_spi_adc_fops);
-
-	if (result < 0)
-	{
-		printk(KERN_WARNING "SPI: can't get minor %d\n", SPI_ADC_MAJOR);
-		return result;
-	}
 	return 0;
 }
 
 static int __devexit bfin_spi_adc_remove(struct spi_device *spi)
 {
-	unregister_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME);
 	printk(KERN_ALERT "Goodbye SPI\n");
 	return 0;
 }
@@ -368,12 +358,20 @@ static struct spi_driver bfin_spi_adc_driver = {
 
 static int bfin_spi_adc_init(void)
 {
+	int result;
+	result = register_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME, &bfin_spi_adc_fops);
+	if (result < 0) {
+		printk(KERN_WARNING "SPI: can't get minor %d\n", SPI_ADC_MAJOR);
+		return result;
+	}
+
 	return spi_register_driver(&bfin_spi_adc_driver);
 }
 
 
 static void bfin_spi_adc_exit(void)
 {
+	unregister_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME);
 	spi_unregister_driver(&bfin_spi_adc_driver);
 }
 
