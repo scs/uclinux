@@ -2183,23 +2183,22 @@ int bfin_console_setup(struct console *cp, char *arg)
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	if (cp->index == 0) {
-	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
-	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
-	SSYNC;
-#ifdef CONFIG_BFIN_UART_CTSRTS
-	bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
-	bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
-	bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-	bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-	bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
-	bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
-	SSYNC;
-#endif
-	}
-	else {
-	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFTE);
-	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
-	SSYNC;
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
+		SSYNC;
+# ifdef CONFIG_BFIN_UART_CTSRTS
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
+		bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
+		SSYNC;
+# endif
+	} else {
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFTE);
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
+		SSYNC;
 	}
 #endif
 
