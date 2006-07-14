@@ -403,6 +403,6 @@ module_finalize(const Elf_Ehdr * hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	if(mod->arch.text_l1->sh_addr)
+	if((mod->arch.text_l1)&&(mod->arch.text_l1->sh_addr))
 		l1_inst_sram_free(mod->arch.text_l1->sh_addr);
 }
