@@ -308,7 +308,7 @@ apply_relocate_add(Elf32_Shdr * sechdrs, const char *strtab,
 			unsigned short temp;
 			DEBUGP("before %x after %x\n", *location16,
 			       (value & 0xffff));
-			if(location16<_etext_l1)
+			if(location16<(void*)_etext_l1)
 				*location16 = (value & 0xffff);
 			else{
 				temp=(value&0xffff);

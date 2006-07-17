@@ -194,7 +194,9 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(saved_command_line, command_line, COMMAND_LINE_SIZE);
 	saved_command_line[COMMAND_LINE_SIZE - 1] = 0;
 
+	/* setup memory defaults from the user config */
 	physical_mem_end = 0;
+	_ramend = CONFIG_MEM_SIZE * 1024 * 1024;
 
 	parse_cmdline_early(&command_line[0]);
 

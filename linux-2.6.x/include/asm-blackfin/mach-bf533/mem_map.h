@@ -36,10 +36,6 @@
 #define COREMMR_BASE           0xFFE00000	// Core MMRs
 #define SYSMMR_BASE            0xFFC00000	// System MMRs
 
-/* Level 3 SDRAM Memory */
-#define RAM_LENGTH		(CONFIG_MEM_SIZE * 1024 * 1024)
-#define RAM_END 		(CONFIG_MEM_SIZE * 1024 * 1024)
-
 /* Async Memory Banks */
 #define ASYNC_BANK3_BASE	0x20300000	// Async Bank 3
 #define ASYNC_BANK3_SIZE	0x00100000	/* 1M */

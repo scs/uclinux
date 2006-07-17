@@ -184,11 +184,6 @@
 /* Miscellaneous Values */
 #define ZERO			0x0
 
-#ifdef	CONFIG_HHBF
-#define RAM_LENGTH		(CONFIG_MEM_SIZE * 1024 * 1024)
-#define RAM_END			0x02000000	/* 0x04000000 */
-#endif				/* comment by mhfan */
-
 /****************************** EBIU Settings ********************************/
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)
 #define AMBCTL1VAL	((CONFIG_BANK_3 << 16) | CONFIG_BANK_2)
