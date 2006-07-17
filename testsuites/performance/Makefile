@@ -8,13 +8,22 @@ RELCWD = $(shell pwd | sed -e "s/.*\///")
 CC      = bfin-uclinux-gcc
 CFLAGS  = -Wall
 LDFLAGS = -Wl,-elf2flt
+TARGET  = 10.64.204.102
 
 dot: dot.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -O0 dot.c -o dot_O0
 	$(CC) $(CFLAGS) $(LDFLAGS) -O1 dot.c -o dot_O1
 	$(CC) $(CFLAGS) $(LDFLAGS) -O2 dot.c -o dot_O2
 	$(CC) $(CFLAGS) $(LDFLAGS) -O3 dot.c -o dot_O3
-	$(CC) $(CFLAGS) $(LDFLAGS) -O3 -fomit-frame-pointer dot.c -o dot_O0
+	$(CC) $(CFLAGS) $(LDFLAGS) -O3 -fomit-frame-pointer dot.c -o dot_O3-frame
+
+test:
+	rcp dot_O* root@$(TARGET):/home/
+	rsh -l root $(TARGET) /home/dot_O0 > out_O0
+	rsh -l root $(TARGET) /home/dot_O1 > out_O1
+	rsh -l root $(TARGET) /home/dot_O2 > out_O2
+	rsh -l root $(TARGET) /home/dot_O3 > out_O3
+	rsh -l root $(TARGET) /home/dot_O3-frame > out_O3-frame
 
 dist:
 	@if [ ! -d ../$(PROJ)-$(VERSION) ]; then \
@@ -31,5 +40,8 @@ dist:
 	@echo "Tar ball created in ../"
 	ls -lh ../$(PROJ)-$(VERSION).tar.gz
 
+check_in:
+	rm -f */gdb dot_*
+
 clean:
-	rm -f *.gdb dot_*
+	rm -f *.gdb dot_* out_O*

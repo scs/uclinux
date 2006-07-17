@@ -1,0 +1,15 @@
+Theoretical best case is N/2 = 50 cycles
+Test 0: Cycles only
+26 40 40 40 40 40 40 40 40 40 
+Test 1: Vanilla C
+  ret = 100: run time:
+  3954 3422 3484 3373 3373 3373 3373 3373 3373 3377 
+Test 2: data in external memory, outboard cycles function
+  ret = 100: run time:
+  450 241 240 343 219 219 219 219 219 219 
+Test 3: data in external memory, inboard cycles
+  ret = 100: run time:
+ 203 103 103 103 103 103 103 103 103 103 
+Test 4: data in internal memory, inboard cycles
+  ret = 100: run time:
+  154 53 53 53 53 53 53 53 53 53 

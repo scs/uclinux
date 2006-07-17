@@ -234,28 +234,11 @@ int test4()
 int main(void)
 {
 	printf("Theoretical best case is N/2 = %d cycles\n", N / 2);
-asm("foo0:\n");
 	test0();
-asm("foo1:\n");
 	test1();
-asm("foo2:\n");
 	test2();
-asm("foo3:\n");
 	test3();
-asm("foo4:\n");
 	test4();
-asm("foo5:\n");
-asm("fooa:\n");
-	test0();
-asm("foob:\n");
-	test1();
-asm("fooc:\n");
-	test2();
-asm("food:\n");
-	test3();
-asm("fooe:\n");
-	test4();
-asm("foof:\n");
 
 	return 0;
 }
