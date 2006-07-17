@@ -308,7 +308,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			unsigned short temp;
 			DEBUGP("before %x after %x\n", *location16,
 			       (value & 0xffff));
-			if(location16<(void*)_etext_l1)
+			if((void*)location16<(void*)_etext_l1)
 				*location16 = (value & 0xffff);
 			else{
 				temp=(value&0xffff);
@@ -321,7 +321,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			unsigned short temp;
 			DEBUGP("before %x after %x\n", *location16,
 			       ((value >> 16) & 0xffff));
-			if(location16 <_etext_l1)
+			if((void*)location16 <(void*)_etext_l1)
 				*location16 = ((value >> 16) & 0xffff);
 			else{
 				temp = (value>>16)&0xffff;
@@ -394,7 +394,7 @@ module_finalize(const Elf_Ehdr * hdr,
 
                 if (sechdrs[i].sh_type == SHT_RELA && 
 			(strcmp(".rela.text.l1", secstrings+sechdrs[i].sh_name)==0)){
-                        apply_relocate_add(sechdrs, strtab, symindex, i,
+                        apply_relocate_add((Elf_Shdr*)sechdrs, strtab, symindex, i,
                                                  me);
                 }
         }
