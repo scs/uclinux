@@ -3,8 +3,12 @@
 
 //volatile unsigned long *p_tr = (unsigned long *)0x6000000;
 //volatile unsigned long *p1 = (unsigned long *)0x6000004;
-static volatile unsigned long *p_tr;
-static volatile unsigned long *p1;
+
+static  unsigned long v1;
+static  unsigned long v2;
+
+static volatile unsigned long *p_tr=&v1;
+static volatile unsigned long *p1=&v2;
 
 FILE *fp;
 FILE *fp1;
