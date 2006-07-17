@@ -329,10 +329,10 @@ twi_keypad_init (void)
 		goto fail;
 
 	if (request_irq
-	(IRQ_PROG_INTA, twi_keypad_irq_handler, SA_INTERRUPT, "TWIKeypad",
-	TWIKeypad))
+	(CONFIG_BFIN_TWIKEYPAD_IRQ, twi_keypad_irq_handler, SA_INTERRUPT|SA_SHIRQ, "TWIKeypad",
+	twi_keypad_irq_handler))
 	{
-	printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", IRQ_PROG_INTA);
+	printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", CONFIG_BFIN_TWIKEYPAD_IRQ);
 	return -EIO;
 	}
 	
