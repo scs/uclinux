@@ -61,7 +61,7 @@ static uint32_t reloc_stack_pop(void)
 	return reloc_stack[--reloc_stack_tos];
 }
 
-static uint32_t reloc_stack_operate(unsigned int oper)
+static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
 {
 	uint32_t value;
 	switch (oper) {
@@ -173,7 +173,7 @@ static uint32_t reloc_stack_operate(unsigned int oper)
 		}
 	default:
 		{
-			printk(KERN_WARNING "unhandled reloction\n");
+			printk(KERN_WARNING "module %s: unhandled reloction\n", mod->name);
 			return 0;
 		}
 	}
@@ -210,7 +210,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
                         mod->arch.text_l1 = s;
 			dest = (void *)l1_inst_sram_alloc(s->sh_size);
 			if(dest==NULL){
-				printk(KERN_ERR "L1 instruction memory allocation failed\n");
+				printk(KERN_ERR "module %s: L1 instruction memory allocation failed\n", mod->name);
 				return -1;
 			}
 			dma_memcpy(dest, (void *)s->sh_addr,
@@ -243,7 +243,7 @@ apply_relocate(Elf_Shdr * sechdrs, const char *strtab,
 int
 apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		   unsigned int symindex, unsigned int relsec,
-		   struct module *me)
+		   struct module *mod)
 {
 	unsigned int i;
 	Elf32_Rela *rel = (void *)sechdrs[relsec].sh_addr;
@@ -356,11 +356,11 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		case R_lor:
 		case R_neg:
 		case R_comp:
-			reloc_stack_operate(ELF32_R_TYPE(rel[i].r_info));
+			reloc_stack_operate(ELF32_R_TYPE(rel[i].r_info), mod);
 			break;
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",
-			       me->name, ELF32_R_TYPE(rel[i].r_info));
+			       mod->name, ELF32_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}
 	}
@@ -369,7 +369,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 
 int
 module_finalize(const Elf_Ehdr * hdr,
-		const Elf_Shdr * sechdrs, struct module *me)
+		const Elf_Shdr * sechdrs, struct module *mod)
 {
 	unsigned int i,strindex=0,symindex=0;
 	char * secstrings;
@@ -395,7 +395,7 @@ module_finalize(const Elf_Ehdr * hdr,
                 if (sechdrs[i].sh_type == SHT_RELA && 
 			(strcmp(".rela.text.l1", secstrings+sechdrs[i].sh_name)==0)){
                         apply_relocate_add((Elf_Shdr*)sechdrs, strtab, symindex, i,
-                                                 me);
+                                                 mod);
                 }
         }
 	return 0;
