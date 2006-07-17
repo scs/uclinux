@@ -96,11 +96,12 @@ while 1 {
 
           -re "Blackfin Power Management support.*BLACKFIN_DPMC.*\\\[.*]" {
              send "y\r"
-             sleep 2
+             
       }
 
           -re "Dynamic Power Management.*DPM.*\\\[.*]" {
              send "y\r"
+             sleep .5
       }
        
           -re "Enable DPM Statistics Gathering.*DPM_STATS.*\\\[.*]" {
