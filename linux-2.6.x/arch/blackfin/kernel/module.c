@@ -223,7 +223,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 }
 
 int
-apply_relocate(Elf32_Shdr * sechdrs, const char *strtab,
+apply_relocate(Elf_Shdr * sechdrs, const char *strtab,
 	       unsigned int symindex, unsigned int relsec, struct module *me)
 {
 	printk(KERN_ERR "module %s: .rel unsupported\n", me->name);
@@ -241,7 +241,7 @@ apply_relocate(Elf32_Shdr * sechdrs, const char *strtab,
 /*            does not generate it.                                      */
 /*************************************************************************/
 int
-apply_relocate_add(Elf32_Shdr * sechdrs, const char *strtab,
+apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		   unsigned int symindex, unsigned int relsec,
 		   struct module *me)
 {
