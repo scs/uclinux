@@ -724,8 +724,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy * HZ) / 500000,
 		   ((loops_per_jiffy * HZ) / 5000) % 100,
 		   (loops_per_jiffy * HZ));
-	seq_printf(m, "BOARD Name  :\t%s\n", name);
-	seq_printf(m, "BOARD Memory:\t%d MB\n", CONFIG_MEM_SIZE);
+	seq_printf(m, "Board Name:\t%s\n", name);
+	seq_printf(m, "Board Memory:\t%d MB\n", CONFIG_MEM_SIZE);
 	if ((bfin_read_IMEM_CONTROL()) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
