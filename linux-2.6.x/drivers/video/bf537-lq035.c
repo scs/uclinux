@@ -49,7 +49,7 @@
 #include <asm/dma-mapping.h>
 #include <asm/dma.h>
 
-#define DBG(args...) printk(args)
+#define DRIVER_NAME "bf537-lq035"
 
 #define NO_BL 1
 
@@ -127,7 +127,7 @@ static int ad5280_probe(struct i2c_adapter *adap, int addr, int kind)
 
 	if ((rc = i2c_attach_client(client)) != 0) {
 		kfree(client);
-		printk(KERN_ERR "BF537 FB: i2c_attach_client fail: %d\n", rc);
+		printk(KERN_ERR DRIVER_NAME ": i2c_attach_client fail: %d\n", rc);
 		return rc;
 	}
 
@@ -188,7 +188,7 @@ static void start_timers(void) /* CHECK with HW */
 
 	while (bfin_read_TIMER6_COUNTER() < 3)
 		;
-	bfin_write_TIMER_ENABLE(TIMEN0|TIMEN1 | TIMEN7);
+	bfin_write_TIMER_ENABLE(TIMEN0|TIMEN1|TIMEN7);
 	__builtin_bfin_ssync();
 
 	local_irq_restore(flags);
@@ -241,6 +241,7 @@ static void config_ppi(void)
 {
 	bfin_write_PPI_DELAY(PPI_DELAY_VALUE);
 	bfin_write_PPI_COUNT(240-1);
+	/* 0x10 -> PORT_CFG -> 2 or 3 frame syncs */
 	bfin_write_PPI_CONTROL((PPI_CONFIG_VALUE|0x10) & (~POLS));
 }
 
@@ -266,12 +267,11 @@ static int config_dma(void)
 static void init_ports(void)
 {
 	/*
-		LCDPWR: PF11
+		LCDPWR:  PF11
 		?REV:    PF12
-		UD:     PF13
-		MOD:    PF10
-		LBR:    PF14
-
+		UD:      PF13
+		MOD:     PF10
+		LBR:     PF14
 		PPI_CLK: PF15
 	*/
 
@@ -288,7 +288,7 @@ static void init_ports(void)
 	bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | (1U<<15));
 
 	/* Enable PPI Data, TMR2, TMR5 */
-	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI  |PFS4E_SPI));
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI|PFS4E_SPI));
 	/* Enable TMR6 TMR7 */
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFTE_TIMER);
 
@@ -315,13 +315,12 @@ static struct fb_var_screeninfo bfin_lq035_fb_defined = {
 };
 
 static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
-	.id 		= "BF537 lq035",
+	.id 		= DRIVER_NAME,
 	.smem_len 	= 320*240*2,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.xpanstep	= 0,
 	.ypanstep	= 0,
-
 	.line_length	= 240*2,
 	.accel		= FB_ACCEL_NONE,
 };
@@ -468,12 +467,12 @@ static struct lcd_properties lcd = {
 
 static int __init bfin_lq035_fb_init(void)
 {
-	printk(KERN_INFO "SHARP LQ035 LCD FrameBuffer initializing...\n");
+	printk(KERN_INFO DRIVER_NAME ": FrameBuffer initializing...\n");
 
 	fb_buffer = dma_alloc_coherent(NULL, (320+U_LINES)*240*2, &dma_handle, GFP_KERNEL);
 
 	if (NULL == fb_buffer) {
-		printk(KERN_ERR "BF537 FB: couldn't allocate dma buffer.\n");
+		printk(KERN_ERR DRIVER_NAME ": couldn't allocate dma buffer.\n");
 		return -ENOMEM;
 	}
 
@@ -489,7 +488,7 @@ static int __init bfin_lq035_fb_init(void)
 	bfin_lq035_fb.flags = FBINFO_DEFAULT;
 
 	if (register_framebuffer(&bfin_lq035_fb) < 0) {
-		printk(KERN_ERR "BF537 FB: unable to register framebuffer.\n");
+		printk(KERN_ERR DRIVER_NAME ": unable to register framebuffer.\n");
 
 		dma_free_coherent(NULL, (320+U_LINES)*240*2, fb_buffer, dma_handle);
 		fb_buffer = NULL;
@@ -499,7 +498,7 @@ static int __init bfin_lq035_fb_init(void)
 	i2c_add_driver(&ad5280_driver);
 
 	backlight_device_register("bf537-bl", NULL, &bfin_lq035fb_bl);
-	lcd_device_register("bf537-lcd", NULL, &lcd);
+	lcd_device_register(DRIVER_NAME, NULL, &lcd);
 
 	return 0;
 }
@@ -510,7 +509,7 @@ static void __exit bfin_lq035_fb_exit(void)
 		dma_free_coherent(NULL, (320+U_LINES)*240*2, fb_buffer, dma_handle);
 	unregister_framebuffer(&bfin_lq035_fb);
 	i2c_del_driver(&ad5280_driver);
-	printk(KERN_INFO "BF537 FB: Unregister LCD driver.\n");
+	printk(KERN_INFO DRIVER_NAME ": Unregister LCD driver.\n");
 }
 
 MODULE_DESCRIPTION("SHARP LQ035Q7DB03 TFT LCD Driver");
