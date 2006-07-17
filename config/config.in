@@ -735,6 +735,7 @@ bool 'mp3play'			CONFIG_USER_MP3PLAY_MP3PLAY
 if [ "$CONFIG_USER_MP3PLAY_MP3PLAY" = "y" ]; then
 bool '  swap -d and -w options'	CONFIG_USER_MP3PLAY_SWAP_WD
 fi
+bool 'dagrab'			CONFIG_USER_DAGRAB_DAGRAB
 bool 'ogg123'			CONFIG_USER_OGGPLAY_OGG123
 bool 'ivorbisfile_example'	CONFIG_USER_OGGPLAY_EXAMPLE
 bool 'musicbox'			CONFIG_USER_MUSICBOX_MUSICBOX

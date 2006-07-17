@@ -1,0 +1,14 @@
+BUGS file for dagrab
+~~~~~~~~~~~~~~~~~~~~
+
+There are some bugs: 
+
+* The left and right channel can be changed. It depends on a drive how it reads
+  the first block -- it can be 2 bytes shifted. I have no idea how to fix it.
+  (probably it is cd-rom's bug)
+
+* Can't deal with title/author on more than one line when using cddb. Because
+  I'm lazy.
+
+* Can not receive cddb data using the proxy or www, ... Source file cddb.c is
+  probably obsolete and should be completely rewritten.

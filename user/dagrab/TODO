@@ -1,0 +1,8 @@
+TODO file for dagrab
+~~~~~~~~~~~~~~~~~~~~
+
+* instead of computing the broken bytes (jitter_in()) as an average, use
+  something more sofisticated
+* reading from scsi
+* maybe porting to FreeBSD 
+* how to find maximum rotating speed of the drive? (now MAX_SPEED in const.h)

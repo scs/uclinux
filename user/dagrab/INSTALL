@@ -1,0 +1,17 @@
+INSTALL file for dagrab
+~~~~~~~~~~~~~~~~~~~~~~~
+
+1. Edit head of const.h (not neccessary -- default settings for dagrab).
+
+2. Edit head of the Makefile 
+   - comment out PTHREAD support if you for example do not like linking
+     pthread library
+
+3. Recompile yourself as usually. For example
+   make; make install
+
+4. Ordinary users need read permission to CD-ROM device.
+   If it is for example /dev/hdc:	root# chmod +r /dev/hdc
+
+   Note: some distributions (RH) can reset permissions to their defaults after
+   reboot.

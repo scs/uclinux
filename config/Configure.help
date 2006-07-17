@@ -912,7 +912,10 @@ CONFIG_USER_MAIL_MAIL_IP
 
 CONFIG_USER_MP3PLAY_MP3PLAY
   Play MP3 files
-  
+
+CONFIG_USER_DAGRAB_DAGRAB
+  Fixed point cd ripper
+
 CONFIG_USER_MUSICBOX_MUSICBOX
   Front-end for mp3play and mixer
 

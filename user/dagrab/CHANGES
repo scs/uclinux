@@ -1,0 +1,295 @@
+CHANGES file for dagrab
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Changes (only important ones):
+
+- Added speed and rest time diagnostics for single track
+  (04/02/98 Sascha Schumann <sas@schell.de>)
+
+- Added -m -e -s -p functions, extended track info
+  (04/05/98 Sascha Schumann <sas@schell.de>)
+
+- If ioctl fails it tryes again and again...
+- some implicit options changed
+- Removed -j function, removed jitter correction.
+  Added new jitter correction -- now it tests only the edges of block readed
+  by ioctl and _now_ it works almost without cracks or i can't hear any 
+  (with my shitting mitsumi).
+- If ioctl repeatly (as -r is set) fails, it moves back with reading, and 
+  later sets buffersize to halfsize to increase chance of reading it.
+- some ">>2" changed to "/sizeof(int)"
+- Added -w -W options
+- Verbose output changed in the whole and was enhanced, now it is 
+  pseudo-graphics. :-))
+- Tested with glibc on Debian 2.0 HAMM. Tested with kernel 2.0.34, 2.1.123.
+  (with mitsumi fx320 ide 32x) All worked.
+- Optimized jitter.c.
+- A little optimized function cd_read_track().
+  Now it works with char arrays instead of ints. Some code removed, because
+  i thought it can't get in. :-)
+- dagrab.c splited into more files, Makefile changed.
+- Very little optimized resttime().
+- Added -H option
+- Added function bad_par() -- makes size optimalization of inputing params()
+
+
+  Ver. S0.37:
+- Added pseudo jitter correction inside the block (filter)
+- Overlap control now allows one mistake (but not in the first byte)
+
+- Some .h files splitted
+- the default of jitter delta (-j) changed to 24
+- if it grabs successful, it writes more useful informations to stderr, now
+  it writes number of jitter corrections too
+
+
+  Ver. S0.378
+- Added handling with rotate speed
+
+  (12/1998 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.379
+- -f - option now outputs wav to stdout
+  (added outputing data to stdout stream and mostly fprintf(stdout, ...)
+  changed to fprintf(stderr, ...)
+- print.h fixed for glibc 
+- fixed some bugs in allocation
+- fixed bug in verbose output when grabbing more tracks
+- speeding up jitter()
+- now it alocates less memory to look for jitter overlap
+- removed some ballast
+- rewrited speeding up/down drive and number of sectors per request
+  on the fly when it can't/can read
+- it ends with grabing on the end of the track when it reaches array 
+  of zeros
+
+
+  Ver. S0.381
+- some bugs removed
+- some new bugs added :)
+- some allocation (when not using mono output) removed
+- when output is going to stdout, the size of the wav in its header
+  is declared as "very long", so you can grab all tracks into
+  one file
+
+  (12/2000 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.39
+- added cddb handling from Marcelo's dagrab 0.3.5
+
+  (1/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.41
+- partly removed cddb bug -- when author/title is on more then 1 line
+- updated dagrab.1 (added examples too)
+- removed some small bugs (when forcing verbose mode off)
+- grab script and verbose output improved
+
+  (2/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.44
+- track list from command line now supports ranges (ie. 3-7)
+- added -E for invoke examples of using dagrab
+- when cddb fails, remove also cddb naming (-f @name-@format) on the fly
+- manpages truncated; examples removed
+- change " and ` to ' in filenames when using cddb
+- -W -M features are documented in manpages only
+
+  (9/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.45
+- now works --longhelp, --help, --examples, so -h -E removed
+- -C and -N now do the same
+- -H now accepts also port number, so -P removed
+- fixed "cddb" bug in documentations: -S renamed to -A
+
+
+  Ver. S0.451
+- header files rewritten at all
+
+  Ver. S0.452
+- fixed bug in measuring the speed
+- removed -W -w -H
+
+  (9/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.46
+- removed -k
+
+  Ver. S0.47beta
+- removed -o option. Now it is at least 1 and dagrab tries to change number of
+  blocks for overlap checking itself on the fly.
+- variables (@TRK, ...) are also interpreted when using the -e option
+
+  Ver. S0.47
+- fixes of above
+- removed -r, -a
+- new function need_1B_shift() in jitter.c
+
+  Ver. S0.481
+- -S removed
+- -S is now the same as -A (for backward compatibility with dagrab 0.3.5)
+- -a strikes back (for backward compatibility)
+- when cddb error, CDDB variables are terminated to blanks
+- some small optimizations
+
+  (10/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.489
+- main loop in dagrab.c a bit rewrited to use need_1B_shift() and to work better
+- err.c
+
+  (11/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.491
+- bug in dagrab.c fixed (data allocation)
+- bug in grab script fixed (when using 'all')
+
+  Ver. S0.493
+- (hope) also can deal with multisession CD (when data track included)
+- grab script enhanced to use both cddb and pipe
+- examples a bit corrected to afford better functionality
+
+  (12/2001 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.494
+- bug in need_1B_shift() fixed
+- number of mistakes allowed in 'key' was reduced in str_str()
+
+
+  Ver. S0.495
+- another bug around need_1B_shift() fixed
+- header files a bit reorganized
+- bug with ending the track fixed
+
+  Ver. S0.496
+- memcpy() of the ripped datablock in main loop removed, free() and malloc()
+  is used instead
+- -j 128 (and higher) forces no overlap checking (dumb ripping)
+- keylen increased to 16 samples
+
+  Ver. S0.497
+- instead of write(), fwrite() is used and joined with fwrite(..., stdout)
+- grab script adjusted to work also with ash
+- pthread support added (should speed up reading on slower PC's, cos it can
+  save data and do jitter correction while waiting for ioctl()). But!! Makes
+  ripping slower, when another process wonna run at 100 % of CPU.
+
+  Ver. S0.498
+- pthread support completed, seems to work well at all cases
+
+  Ver. S0.499
+- bug in cddb.c fixed (didn't work correct when only author was filled)
+- @GNR (genre) now supported for cddb handling
+- changes in -S parameter behaviour
+  - do not look over the network if file exist and works within local database
+  - do not overwrite file in local database if it exists and works
+- grab script a bit improved
+
+  Ver. S0.5
+- also @YER (year) now supported for cddb handling
+
+  Ver. S0.501
+- bladeenc/id3ed support in grab script
+- wavs dumped to stdout have defined real size in outputs' header
+
+  Ver. S0.502
+- gogo/id3ed support in grab script
+
+  Ver. S0.503
+- hope solved the "not unique key problem" (in very very especial case, when
+  the KEY used for overlap checking on block readed is not unique -- if it is
+  array of zeros).
+
+  (8/2002 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.504
+- almost fixed not unique key problem
+- cddb: spaces and some other strange chars typed from right are ignored
+
+Q: Why am i using threads instead of fork()?
+A: 1. fork() uses copy-on-write pages, so it could decrease perfomance when
+      it makes jitter correction on data before writing them
+   2. fork() probably works with its own memory, so it is even not easy reach
+      the data intended for writing (made by parent) from child process
+
+  (9/2002 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.505
+- -p option removed, cos it could fail on special cases on bad devices.
+  Saving the mono output can be done thorough the convertor or encoder's switch.
+
+  (10/2002 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.506
+- INSTALL and README files updated
+- freezing on 2.4.x kernels fixed (probably pipes handling for threads was not
+  perfectly written)
+
+  (11/2002 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.507
+- '/' in cddb names are replaced by '|'
+- default $DAGRAB variable in grab script changed to DAGRAB="dagrab -JS -f -"
+  from DAGRAB="dagrab -JN -f -" and grab script a bit adjusted to throw off -S
+  parameter when not needed
+
+  (12/2003 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.508pre1
+- '/' in cddb names are replaced by '|': temporary back to previous estate
+  because of buggy behaviour
+
+  Ver. S0.508 (not released)
+- /:*<>?\| characters in file names (-f) are replaced
+- ' always changes to ` when using -e option
+- lowcase CDDB variables changed a bit behaviour: '`" and space are replaced
+  by _, "nonprintable" characters are throwed off
+- different using quotas in builtin examples
+- oggenc support for dagrab builtin examples
+- grab script impovements (/:*<>?\| characters in file names are replaced)
+- grab script: oggenc support, better ash compatibility, hints, ...
+
+  Ver. S0.509
+- minor fittings
+
+  (02/2004 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.510
+- occasionally ripping problems on the ends of the tracks fixed
+- extended --debug output
+- speed and est. time computing improvements
+- manpages updated
+
+  (03/2004 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+
+
+  Ver. S0.511
+- cddb: EXTD/YEAR support
+- cddb: looking for local directory changes its behaviour, improved
+- another threads freezing on some linuxes fixed
+
+  Ver. S0.512
+  (04/2004 Neil Hancock, 05/2004 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)
+- grab script improvements (cddb)
+
+
+  Ver. S0.513
+- cddb related bug fixed (lowercases for @)
+
+  (08/2004 Miroslav Stibor, stibor@vertigo.fme.vutbr.cz)

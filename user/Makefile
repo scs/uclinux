@@ -91,6 +91,7 @@ dir_$(CONFIG_USER_CRYPTO_TOOLS_CRYPTOTEST)  += crypto-tools
 dir_$(CONFIG_USER_CRYPTO_TOOLS_CRYPTOKEYTEST)  += crypto-tools
 dir_$(CONFIG_USER_CXXTEST_CXXTEST)          += cxxtest
 dir_$(CONFIG_USER_DDNS3_CLIENT_DDNS3)        += ddns3-client
+dir_$(CONFIG_USER_DAGRAB_DAGRAB)            += dagrab
 dir_$(CONFIG_USER_DE2TSCAL_DE2TSCAL)        += de2ts-cal
 dir_$(CONFIG_USER_DEMO_BUTTON)              += demo
 dir_$(CONFIG_USER_DEMO_MORSE)               += demo
