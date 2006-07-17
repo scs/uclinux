@@ -445,8 +445,38 @@ choice
 	default BLKFIN_WB
 config BLKFIN_WB
 	bool "Write back"
+	help
+	  Write Back Policy:
+	    Cached data will be written back to SDRAM only when needed.
+	    This can give a nice increase in performance, but beware of
+	    broken drivers that do not properly invalidate/flush their
+	    cache.
+
+	  Write Through Policy:
+	    Cached data will always be written back to SDRAM when the
+	    cache is updated.  This is a completely safe setting, but
+	    performance is worse than Write Back.
+
+	  If you are unsure of the options and you want to be safe,
+	  then go with Write Through.
+
 config BLKFIN_WT
 	bool "Write through"
+	help
+	  Write Back Policy:
+	    Cached data will be written back to SDRAM only when needed.
+	    This can give a nice increase in performance, but beware of
+	    broken drivers that do not properly invalidate/flush their
+	    cache.
+
+	  Write Through Policy:
+	    Cached data will always be written back to SDRAM when the
+	    cache is updated.  This is a completely safe setting, but
+	    performance is worse than Write Back.
+
+	  If you are unsure of the options and you want to be safe,
+	  then go with Write Through.
+
 endchoice
 
 choice
