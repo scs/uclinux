@@ -265,7 +265,7 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Blackfin uClinux support by blackfin.uclinux.org\n");
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       get_cclk() / 1000000, get_sclk() / 1000000);
-	printk(KERN_INFO "Board Memory: %dMB\n", CONFIG_MEM_SIZE);
+	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end>>20);
 	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
 	printk(KERN_INFO
@@ -725,7 +725,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   ((loops_per_jiffy * HZ) / 5000) % 100,
 		   (loops_per_jiffy * HZ));
 	seq_printf(m, "Board Name:\t%s\n", name);
-	seq_printf(m, "Board Memory:\t%d MB\n", CONFIG_MEM_SIZE);
+	seq_printf(m, "Board Memory:\t%ld MB\n", physical_mem_end>>20);
+	seq_printf(m, "Kernel Memory:\t%ld MB\n", _ramend>>20);
 	if ((bfin_read_IMEM_CONTROL()) & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
