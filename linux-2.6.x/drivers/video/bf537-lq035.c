@@ -332,13 +332,7 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 	__builtin_bfin_ssync();
 
 	init_ports();
-	{
-		static DECLARE_WAIT_QUEUE_HEAD(wait);
-		sleep_on_timeout(&wait, HZ/2);
-
-		__builtin_bfin_ssync();
-	}
-	////set_backlight(60);
+	//set_backlight(60);
 
 	set_vcomm();
 	config_dma();
@@ -352,12 +346,8 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 
 	config_timers();
 	start_timers();
-	{
-		static DECLARE_WAIT_QUEUE_HEAD(wait);
-		sleep_on_timeout(&wait, HZ/2);
-		bfin_write_PORTFIO_SET((1U<<10));
-		__builtin_bfin_ssync();
-	}
+	bfin_write_PORTFIO_SET((1U<<10));
+	__builtin_bfin_ssync();
 
 	return 0;
 }
