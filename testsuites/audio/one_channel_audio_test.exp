@@ -178,7 +178,7 @@ expect ">"
 
 set timeout 2
 set flag 0
-send -s "tftpboot\r"
+send -s "tftpboot 0x2000000 linux\r"
 while 1 {
    expect {
       "TFTP" {
