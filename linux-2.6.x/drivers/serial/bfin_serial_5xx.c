@@ -226,11 +226,11 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 	if (info->line == 0) {
 		if (rts) {
 			/* set the RTS/CTS line */
-			bfin_write_PORTGIO_CLEAR(bfin_read_PORTGIO_CLEAR() | rts_mask);
+			bfin_write_PORTGIO_CLEAR(rts_mask);
 			info->sig |= TIOCM_RTS;
 		} else {
 			/* clear it */
-			bfin_write_PORTGIO_SET(bfin_read_PORTGIO_SET() | rts_mask);
+			bfin_write_PORTGIO_SET(rts_mask);
 			info->sig &= ~TIOCM_RTS;
 		}
 	}
