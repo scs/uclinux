@@ -43,7 +43,7 @@
         double cabs (complex_double _a) asm("__cabsd");
 #endif
 
-        fract16 cabs_fr16 (complex_fract16 _a);
+        fract16 cabs_fr16 (complex_fract16 _a) asm("__cabs_fr16");
         complex_fract16 conj_fr16 (complex_fract16 _a);
 
 #if defined(__ADSPBLACKFIN__) && !defined(__NO_BUILTIN)
