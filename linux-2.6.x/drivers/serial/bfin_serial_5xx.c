@@ -619,7 +619,7 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	unsigned int sic_status = 0;
 
 #if defined(CONFIG_BF561)
-	sic_status = bfin_read_SICA_ISR1();
+	sic_status = bfin_read_SICA_ISR0();
 #else
 	sic_status = bfin_read_SIC_ISR();
 #endif
