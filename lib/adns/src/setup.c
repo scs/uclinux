@@ -37,7 +37,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <config/autoconf.h>
 
 #include "internal.h"
 
