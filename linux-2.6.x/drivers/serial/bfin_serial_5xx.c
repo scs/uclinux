@@ -239,7 +239,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 #endif
 }
 
-/* Sets or clears RTS on the requested line */
+/* Gets CTS on the requested line */
 static inline int bfin_getsignal(struct bfin_serial *info)
 {
 	int sig = info->sig;
@@ -252,10 +252,14 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 # if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
 	if (!(bfin_read_FIO_FLAG_D() & cts_mask))
 		sig |= TIOCM_CTS;
+	else
+		sig &= ~TIOCM_CTS;
 # elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	if (info->line == 0) {
 		if (!(bfin_read_PORTGIO() & cts_mask))
 			sig |= TIOCM_CTS;
+		else
+			sig &= ~TIOCM_CTS;
 	}
 # endif
 #endif
