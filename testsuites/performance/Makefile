@@ -10,6 +10,12 @@ CFLAGS  = -Wall
 LDFLAGS = -Wl,-elf2flt
 TARGET  = 10.64.204.102
 
+TESTS   = dot_O0 dot_O1 dot_O2 dot_O3 dot_O3-frame
+
+all: $(TESTS)
+
+# XXX: should make $(TESTS) have a real binding to dot.c ...
+$(TESTS): dot
 dot: dot.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -O0 dot.c -o dot_O0
 	$(CC) $(CFLAGS) $(LDFLAGS) -O1 dot.c -o dot_O1
@@ -17,7 +23,7 @@ dot: dot.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -O3 dot.c -o dot_O3
 	$(CC) $(CFLAGS) $(LDFLAGS) -O3 -fomit-frame-pointer dot.c -o dot_O3-frame
 
-test:
+check test:
 	rcp dot_O* root@$(TARGET):/home/
 	rsh -l root $(TARGET) /home/dot_O0 > out_O0
 	rsh -l root $(TARGET) /home/dot_O1 > out_O1
@@ -45,3 +51,5 @@ check_in:
 
 clean:
 	rm -f *.gdb dot_* out_O*
+
+.PHONY: all dot check test dist check_in clean
