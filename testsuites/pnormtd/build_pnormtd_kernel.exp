@@ -220,7 +220,11 @@ while 1 {
       	  -re "Build libbfdsp.*CONFIG_LIB_LIBBFDSP.*\\\[.*]" {
              send "N\r"
       }
-      	  
+  
+         -re "boa-new.*CONFIG_USER_BOA_SRC_BOA_NEW.*\\\[.*]" {
+             send "N\r"
+      }
+	  
 	  -re "dhrystone.*CONFIG_USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
              send "N\r"
       }

@@ -18,7 +18,7 @@ int main (int argc, char *argv[])
      char *p;
      p = ary;
      
-     if (fp3=fopen("w.log","w")==NULL)
+     if ((fp3=fopen("w.log","w"))==NULL)
         printf("FAIL: The test file w.log is not getting opened");
 
      // The user will see this text when doing cat w.log
