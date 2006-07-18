@@ -314,7 +314,7 @@ if { $board_type == "BF537-STAMP" } {
 } elseif { $board_type == "BF533-STAMP" } {
                        	expect "root:~>"
 						
-			send -s "insmod /lib/modules/2.6.16.11-ADI-2006R1blacksin/kernel/drivers/net/smc91x.ko\r"
+			send -s "insmod /lib/modules/2.6.16.11-ADI-2006R1blackfin/kernel/drivers/net/smc91x.ko\r"
 			while 1 {
 			expect {
 			"eth0: Ethernet addr" {
