@@ -309,6 +309,12 @@ ENTRY(_real_start)
 	r1 = p3;
 	[p1] = r1;
 
+	r0.l = lo(RAM_END);
+	r0.h = hi(RAM_END);
+	p1.l = __ramend;
+	p1.h = __ramend;
+	[p1] = r0;
+
 	/*
 	 *  load the current thread pointer and stack
 	 */
@@ -340,6 +346,7 @@ ENTRY(start_dma_code)
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
 	r0.l = 0x1;
+	r0.h = 0x0;
 	[p0] = r0;
 	SSYNC;
 
@@ -432,6 +439,13 @@ ENTRY(start_dma_code)
 	R1 = R1 | R0;
 	[P2] = R1;
         SSYNC;
+
+	p0.h = hi(SIC_IWR);
+	p0.l = lo(SIC_IWR);
+	r0.l = lo(IWR_ENABLE_ALL);
+	r0.h = hi(IWR_ENABLE_ALL);
+	[p0] = r0;
+	SSYNC;
 
 	RTS;
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */

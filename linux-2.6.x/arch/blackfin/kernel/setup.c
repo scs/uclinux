@@ -883,6 +883,8 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
 
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
 
@@ -952,6 +954,8 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 	asm("IDLE;\n");		/* go into idle and wait for wakeup */
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
+
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
