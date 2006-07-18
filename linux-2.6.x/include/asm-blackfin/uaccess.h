@@ -48,6 +48,9 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 	if (addr >= (unsigned long)__init_begin &&
 	    addr + size <= (unsigned long)__init_end)
 		return 1;
+	if (addr >= L1_SCRATCH_START
+	    && addr + size <= L1_SCRATCH_START + L1_SCRATCH_LENGTH)
+		return 1;
 	return 0;
 #endif
 }

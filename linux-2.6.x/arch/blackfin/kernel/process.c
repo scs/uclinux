@@ -45,6 +45,19 @@
 inline void static leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
 
+/* Points to the SDRAM backup memory for the stack that is currently in
+   L1 scratchpad memory.  */
+void *current_l1_stack_save;
+
+/* The number of tasks currently using a L1 stack area.  The SRAM is
+   allocated/deallocated whenever this changes from/to zero.  */
+int nr_l1stack_tasks;
+
+/* Start and length of the area in L1 scratchpad memory which we've allocated
+   for process stacks.  */
+void *l1_stack_base;
+unsigned long l1_stack_len;
+
 /*
  * Powermanagement idle function, if any..
  */

@@ -8,6 +8,10 @@ typedef struct {
 	unsigned long end_brk;
 	unsigned long stack_start;
 
+	/* Points to the location in SDRAM where the L1 stack is normally
+	   saved, or NULL if the stack is always in SDRAM.  */
+	void *l1_stack_save;
+
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 	unsigned long	exec_fdpic_loadmap;
 	unsigned long	interp_fdpic_loadmap;

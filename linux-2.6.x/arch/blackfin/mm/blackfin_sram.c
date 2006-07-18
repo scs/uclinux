@@ -162,6 +162,29 @@ static unsigned long l1_sram_alloc(unsigned long size,
 	return addr;
 }
 
+/* Allocate the largest available block.  */
+static unsigned long l1_sram_alloc_max (struct l1_sram_piece *pfree, int count, unsigned long *psize)
+{
+	unsigned long best = 0;
+	int i, index = -1;
+	unsigned long addr = 0;
+
+	/* search an available memeory slot */
+	for (i = 0; i < count; i++) {
+		if (pfree[i].flag == SRAM_SLT_FREE && pfree[i].size > best) {
+			addr = pfree[i].paddr;
+			index = i;
+			best = pfree[i].size;
+		}
+	}
+	if (index < 0)
+		return 0;
+	*psize = best;
+
+	pfree[index].flag = SRAM_SLT_ALLOCATED;
+	return addr;
+}
+
 /* L1 memory free function */
 static int l1_sram_free(unsigned long addr,
 			struct l1_sram_piece *pfree, int count)
@@ -347,6 +370,23 @@ unsigned long l1sram_alloc(unsigned long size)
 	spin_lock_irqsave(&l1sram_lock, flags);
 
 	addr = l1_sram_alloc(size, l1_ssram, ARRAY_SIZE(l1_ssram));
+
+	/* add mutex operation */
+	spin_unlock_irqrestore(&l1sram_lock, flags);
+
+	return addr;
+}
+
+/* L1 Scratchpad memory allocate function */
+unsigned long l1sram_alloc_max(unsigned long *psize)
+{
+	unsigned flags;
+	unsigned long addr;
+
+	/* add mutex operation */
+	spin_lock_irqsave(&l1sram_lock, flags);
+
+	addr = l1_sram_alloc_max(l1_ssram, ARRAY_SIZE(l1_ssram), psize);
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1sram_lock, flags);
