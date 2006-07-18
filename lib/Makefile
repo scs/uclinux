@@ -59,6 +59,8 @@ dir_$(CONFIG_LIB_LIBID3TAG_FORCE)	+=libid3tag
 #
 # and build these if someone needs them
 #
+dir_$(CONFIG_LIB_DMALLOC)      += dmalloc
+dir_$(CONFIG_LIB_DMALLOC_FORCE)+= dmalloc
 dir_$(CONFIG_LIB_FLEX)         += flex
 dir_$(CONFIG_LIB_FLEX_FORCE)   += flex
 dir_$(CONFIG_LIB_LIBAES)       += libaes

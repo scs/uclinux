@@ -539,6 +539,11 @@ CONFIG_INSTALL_FLAT_SHARED_LIBS
 CONFIG_BLACKFIN_CHECK_STACKFLOW
   Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
 
+CONFIG_LIB_DMALLOC_FORCE
+  Debug Malloc Library.
+  To use dmalloc, build your applications with:
+  -IuClinux-dist/lib/dmalloc -LuClinux-dist/lib/dmalloc -ldmalloc
+
 CONFIG_LIB_LIBDES_FORCE
   DESLite library.
   Only enable this if you want to force the library to be built.  The

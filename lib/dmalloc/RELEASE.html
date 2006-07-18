@@ -1,0 +1,180 @@
+<html>
+<head>
+<!-- $id: RELEASE.html,v 1.16 2000/11/14 20:10:56 gray Exp $ -->
+<title> Dmalloc Release Notes - 5.4.2 </title>
+</head>
+<body>
+
+<h1> Debug Malloc (Dmalloc) Library Release Notes </h1>
+<h4>
+Version: Release 5.4.2 <br />
+<!-- fix the TITLE ^^^above^^^ too -->
+Last-Version: <a href="dmalloc-5.4.1.html">5.4.1</a> <br />
+Date: October 19, 2004
+</h4>
+
+<p>
+<a href="#overview">Overview</a> &nbsp;&nbsp;
+<a href="#func">New Functionality</a> &nbsp;&nbsp;
+<a href="#dmalloc">Dmalloc Utility</a> &nbsp;&nbsp;
+<a href="#tokens">Debug Tokens</a> &nbsp;&nbsp;
+<a href="#settings.dist">settings.dist</a> &nbsp;&nbsp;
+<a href="#install">Installation</a> &nbsp;&nbsp;
+<a href="#programming">Programming</a> &nbsp;&nbsp;
+<a href="#env">Environmental Variables</a> &nbsp;&nbsp;
+<a href="#bugs">Bugs Fixed</a>
+</p>
+
+<!--========================================================================-->
+
+<h3><a name="overview"> Overview </a></h3>
+
+<p> Bug fix release to repair a number of problems and issues
+regarding the free-blank and alloc-blank tokens.  See the bugs section
+for more information. </p>
+
+<!--========================================================================-->
+
+<h3><a name="func"> New Functionality </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="dmalloc"> Dmalloc Utility Changes </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="tokens"> Changes in the Debug Tokens </a></h3>
+
+<ul>
+
+<li> Just to make clear, when a pointer is allocated (or reallocated)
+with the 'alloc-blank' or 'check-blank' tokens enabled, the library
+clears various parts of the allocation block with the allocation-blank
+character (ALLOC_BLANK_CHAR in settings.h).  When a pointer is freed,
+the library clears all of the space with the free-blank character
+(FREE_BLANK_CHAR in settings.h). </li>
+
+</ul>
+
+<!--========================================================================-->
+
+<h3><a name="settings.dist"> Changes to the settings.dist File </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="install"> Installation Changes </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="programming"> Programming Notes </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="env"> Environmental Variable Changes </a></h3>
+
+<blockquote>
+None.
+</blockquote>
+
+<!--========================================================================-->
+
+<h3><a name="bugs"> Bugs Fixed </a></h3>
+
+<ul>
+
+<li> The library was was clearing the user spaces of an allocated
+chunk with the alloc-blank character and the non-user spaces with the
+free-blank character.  This seemed confusing and wrong so now all
+sections of an allocated chunk are cleared with the alloc-blank
+character. </li>
+
+<li> Fixed a couple of longer standing stupid bugs.  Basically the
+library was doing some pointer arithmetic assuming that the fence-post
+settings were enabled.  I'm surprised this worked on any
+architectures.  Thanks to Philippe for the feedback. </li>
+
+</ul>
+
+<p>
+<font size="-1">
+<a href="http://dmalloc.com/">Dmalloc Home Page</a>.
+Copyright 2004 <a href="http://256.com/gray/">Gray Watson</a>.
+</font>
+</p>
+
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+<br />
+
+</body>
+</html>
