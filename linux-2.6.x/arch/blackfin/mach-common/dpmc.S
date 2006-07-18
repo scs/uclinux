@@ -215,6 +215,57 @@ _sleep_mode:
         ( R7:0, P5:0 ) = [SP++];
         RTS;
 
+
+.global _hibernate_mode
+_hibernate_mode:
+	[--SP] = ( R7:0, P5:0 );
+ 	P0.H = hi(SIC_IWR);
+        P0.L = lo(SIC_IWR);
+	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
+        [P0] = R0;
+        SSYNC;
+
+        P0.H = hi(RTC_ISTAT);
+        P0.L = lo(RTC_ISTAT);
+	/* Clear all the interrupts,bits sticky */
+        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
+        w[P0] = R0;
+        SSYNC;
+
+	P0.H = hi(VR_CTL);
+        P0.L = lo(VR_CTL);
+        R1 = W[P0](z);
+        BITSET (R1, 8);
+	BITCLR (R1, 0);
+	BITCLR (R1, 1);
+	W[P0] = R1.L;
+	SSYNC;
+
+        CLI R2;
+        IDLE;
+
+	/* Actually, adding anything may not be necessary...SDRAM contents
+	 * are lost
+	 */
+
+	STI R2;
+
+	P0.H = hi(VR_CTL);
+        P0.L = lo(VR_CTL);
+        R1 = W[P0](z);
+        BITCLR (R1, 8);
+        BITSET (R1, 0);
+        BITSET (R1, 1);
+        W[P0] = R1.L;
+        SSYNC;
+
+	IDLE;
+
+        ( R7:0, P5:0 ) = [SP++];
+        RTS;
+
+.section .text.l1
+
 .global _deep_sleep
 _deep_sleep:
 	[--SP] = ( R7:0, P5:0 );
@@ -284,51 +335,4 @@ _deep_sleep:
         ( R7:0, P5:0 ) = [SP++];
         RTS;
 
-.global _hibernate_mode
-_hibernate_mode:
-	[--SP] = ( R7:0, P5:0 );
- 	P0.H = hi(SIC_IWR);
-        P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
-        [P0] = R0;
-        SSYNC;
-
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-	/* Clear all the interrupts,bits sticky */
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
-        w[P0] = R0;
-        SSYNC;
-
-	P0.H = hi(VR_CTL);
-        P0.L = lo(VR_CTL);
-        R1 = W[P0](z);
-        BITSET (R1, 8);
-	BITCLR (R1, 0);
-	BITCLR (R1, 1);
-	W[P0] = R1.L;
-	SSYNC;
-
-        CLI R2;
-        IDLE;
-
-	/* Actually, adding anything may not be necessary...SDRAM contents
-	 * are lost
-	 */
-
-	STI R2;
-
-	P0.H = hi(VR_CTL);
-        P0.L = lo(VR_CTL);
-        R1 = W[P0](z);
-        BITCLR (R1, 8);
-        BITSET (R1, 0);
-        BITSET (R1, 1);
-        W[P0] = R1.L;
-        SSYNC;
-
-	IDLE;
-
-        ( R7:0, P5:0 ) = [SP++];
-        RTS;
 #endif

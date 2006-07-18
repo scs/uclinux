@@ -416,8 +416,9 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 void change_baud(int baud)      {
         int uartdll,sclk;
 
-	asm("[--sp] = r6;"
-	"cli r6;");	
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	/* If in active mode sclk and cclk run at CCLKIN*/
 	if(get_pll_status() & 0x1)	sclk = CONFIG_CLKIN_HZ;
@@ -433,8 +434,7 @@ void change_baud(int baud)      {
         bfin_write_UART_LCR(WLS(8));
 	__builtin_bfin_ssync();
 
-	asm("sti r6;"
-	"r6 = [sp++];");	
+	local_irq_restore(flags);	
 }
 
 /*********************************************************************************/
@@ -504,11 +504,14 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 }
 
 unsigned long change_frequency(unsigned long vco_mhz)	{
+
+#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
 #if 0
 	unsigned long sdrrcval,modeval;
 #endif
 	unsigned long vco_hz = vco_mhz * MHZ,vl;
 	int msel;
+	unsigned long flags;
 
 	msel = calc_msel(vco_hz);
 	msel = (msel << 9);
@@ -532,12 +535,10 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 	bfin_write_PLL_CTL(msel);
 	 __builtin_bfin_ssync();
 
-	asm("[--SP] = R6;"
-	    "CLI R6;");
+	local_irq_save(flags);
 	__builtin_bfin_ssync();
-	asm("IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
+	asm("IDLE;");
+	local_irq_restore(flags);
 
 	while(!(bfin_read_PLL_STAT() & PLL_LOCKED));
 
@@ -567,7 +568,11 @@ unsigned long change_frequency(unsigned long vco_mhz)	{
 		 __builtin_bfin_ssync();
 	}
 #endif
+
+#endif
+
 	return(get_vco());
+
 }
 
 int calc_msel(int vco_hz)	{
@@ -579,6 +584,9 @@ int calc_msel(int vco_hz)	{
 }
 
 void fullon_mode(void)	{
+
+#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
+	unsigned long flags;
 
 	bfin_write_SIC_IWR(IWR_ENABLE(0));
 	 __builtin_bfin_ssync();
@@ -597,12 +605,10 @@ void fullon_mode(void)	{
 	bfin_write_PLL_CTL(bfin_read_PLL_CTL() & (unsigned short)~(PLL_OFF));
 	 __builtin_bfin_ssync();
 
-	asm("[--SP] = R6;"
-	    "CLI R6;");
+	local_irq_save(flags);
 	__builtin_bfin_ssync();
-	asm("IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
+	asm("IDLE;");
+	local_irq_restore(flags);
 
 	while((bfin_read_PLL_STAT() & PLL_LOCKED) != PLL_LOCKED);
 
@@ -611,9 +617,15 @@ void fullon_mode(void)	{
 
 	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() & ~SRFS);
 	 __builtin_bfin_ssync();
+
+#endif
 }
 
 void active_mode(void)	{
+
+
+#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
+	unsigned long flags;
 
 	bfin_write_SIC_IWR(IWR_ENABLE(0));
 	 __builtin_bfin_ssync();
@@ -628,12 +640,10 @@ void active_mode(void)	{
 	bfin_write_PLL_CTL(bfin_read_PLL_CTL() | BYPASS);
 	 __builtin_bfin_ssync();
 
-	asm("[--SP] = R6;"
-	    "CLI R6;");
+	local_irq_save(flags);
 	__builtin_bfin_ssync();
-	asm("IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
+	asm("IDLE;");
+	local_irq_restore(flags);
 
 	while((bfin_read_PLL_STAT() & PLL_LOCKED) != PLL_LOCKED);
 
@@ -642,14 +652,15 @@ void active_mode(void)	{
 
 	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() & ~SRFS);
 	 __builtin_bfin_ssync();
+
+#endif
 }
 
 /********************************CHANGE OF VOLTAGE*******************************************/
-#if 1
 
-/* 0011 .70 volts
-0100 .75 volts
-0101 .80 volts
+/*
+VLEV Voltage
+0000–0101 Reserved
 0110 .85 volts
 0111 .90 volts
 1000 .95 volts
@@ -658,6 +669,8 @@ void active_mode(void)	{
 1011 1.10 volts
 1100 1.15 volts
 1101 1.20 volts
+1110 1.25 volts
+1111 1.30 volts
 */
 
 /* Calculates the VLEV value for VR_CTL programming*/
@@ -674,18 +687,24 @@ unsigned long calc_volt()	{
 /* Change the voltage of the processor */
 unsigned long change_voltage(unsigned long volt)	{
 
-	unsigned long vlt,val;
+	unsigned long vlt,val,flags;
+	
 	vlt = calc_vlev(volt);
 	val = (bfin_read_VR_CTL() & 0xFF0F);
 	val = (val | (vlt << 4));
 	bfin_write_VR_CTL(val);
 	 __builtin_bfin_ssync();
-	asm("[--SP] = R6;"
-	    "CLI R6;");
+
+	/* Enable the PLL Wakeup bit in SIC IWR */
+	bfin_write_SIC_IWR(IWR_ENABLE(0));
+
+	local_irq_save(flags);
 	__builtin_bfin_ssync();
-	asm("IDLE;"
-	"STI R6;"
-	"R6 = [SP++];");
+	asm("IDLE;");
+	local_irq_restore(flags);
+
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+
 	while(!(get_pll_status() & VOLTAGE_REGULATED));
 	return(calc_volt());
 }
@@ -699,7 +718,6 @@ int calc_vlev(int vlt)	{
 	return(((vlt - 850)/50) + base);
 }
 
-#endif
 
 /*
  *  We enforce only one user at a time here with the open/close.
