@@ -126,8 +126,8 @@ ENTRY(__stext)
 
 /* Initialise General-Purpose I/O Modules on BF537 */
 /* Rev 0.0 Anomaly 05000212 - PORTx_FER, PORT_MUX Registers Do Not accept "writes" correctly: */
-	p0.h = hi(PORT_MUX);
-	p0.l = lo(PORT_MUX);
+	p0.h = hi(BFIN_PORT_MUX);
+	p0.l = lo(BFIN_PORT_MUX);
 	R0.L = W[P0]; //Read
 	SSYNC;
 	R0 = (PGDE_UART | PFTE_UART)(Z);

@@ -946,7 +946,7 @@
 #define PORTF_FER			0xFFC03200	/* Port F Function Enable Register (Alternate/Flag*)    */
 #define PORTG_FER			0xFFC03204	/* Port G Function Enable Register (Alternate/Flag*)    */
 #define PORTH_FER			0xFFC03208	/* Port H Function Enable Register (Alternate/Flag*)    */
-#define PORT_MUX			0xFFC0320C	/* Port Multiplexer Control Register                                    */
+#define BFIN_PORT_MUX			0xFFC0320C	/* Port Multiplexer Control Register                                    */
 
 /* Handshake MDMA Registers	(0xFFC03300 - 0xFFC033FF)										*/
 #define HMDMA0_CONTROL		0xFFC03300	/* Handshake MDMA0 Control Register                                     */
@@ -1165,7 +1165,9 @@
 
 /* UARTx_IIR Masks														*/
 #define NINT		0x01	/* Pending Interrupt                                    */
-/*#define STATUS		0x06		 Highest Priority Pending Interrupt	 Conflicting name  mh */
+#define IIR_TX_READY    0x02    /* UART_THR empty                               */
+#define IIR_RX_READY    0x04    /* Receive data ready                           */
+#define IIR_LINE_CHANGE 0x06    /* Receive line status                          */
 
 /* UARTx_GCTL Masks													*/
 #define UCEN		0x01	/* Enable UARTx Clocks                          */

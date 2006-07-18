@@ -1767,8 +1767,8 @@
 #define bfin_write_PORTG_FER(val)            bfin_write16(PORTG_FER,val)
 #define bfin_read_PORTH_FER()                bfin_read16(PORTH_FER)
 #define bfin_write_PORTH_FER(val)            bfin_write16(PORTH_FER,val)
-#define bfin_read_PORT_MUX()                 bfin_read16(PORT_MUX)
-#define bfin_write_PORT_MUX(val)             bfin_write16(PORT_MUX,val)
+#define bfin_read_PORT_MUX()                 bfin_read16(BFIN_PORT_MUX)
+#define bfin_write_PORT_MUX(val)             bfin_write16(BFIN_PORT_MUX,val)
 
 /* Handshake MDMA Registers	(0xFFC03300 - 0xFFC033FF)								*/
 #define bfin_read_HMDMA0_CONTROL()           bfin_read16(HMDMA0_CONTROL)
