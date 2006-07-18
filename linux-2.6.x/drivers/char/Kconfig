@@ -1,4 +1,4 @@
-#
+﻿#
 # Character device configuration
 #
 
@@ -827,14 +827,16 @@ config GEN_RTC_X
 	  and may improve precision of the generic RTC support in some cases.
 
 config BLACKFIN_RTC
-        tristate "Blackfin Real Time Clock Support"
-        default n
-        ---help---
+	tristate "Blackfin Real Time Clock Support"
+	depends on BFIN_HAVE_RTC 
+	default n
+	help  
+	  ---help---
 
 config BLACKFIN_DPMC
-        tristate "Blackfin Power Management support"
-        default n
-        help
+	tristate "Blackfin Power Management support"
+	default n
+	help
 	  This feature is not completly tested. This module is under construction.
 	  Use at your own risk !	
 
