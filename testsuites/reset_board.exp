@@ -71,8 +71,6 @@ step "Start kermit"
 
 #step "Start up kermit on port $ttydev"
 # Now set up the kermit parameters.
-#  I want these all contained in this file to make it easier for users.
-#  This just builds up a list of commands which are sent to kermit.
 #
 set kparams     [list "set line $ttydev\r"]
 lappend kparams "set speed 57600\r"
@@ -88,7 +86,7 @@ lappend kparams "set window 5\r"
 lappend kparams "set escape 255\r"
 set nkparams [llength $kparams]
 
-set timeout 5
+set timeout 50
 spawn kermit
 # We need to save the id because resetting the board will overwrite it.
 set kermit_spawn_id $spawn_id
@@ -98,12 +96,10 @@ while 1 {
 	        "Type ?" { }
 		"ermit>" { break }
 		"not found" {
-                   report "ERROR: Failed to start up kermit"
-                   all_done
+                   puts "ERROR: Failed to start up kermit"
 		}
 		timeout {
-                   report "ERROR: Time out starting up kermit"
-                   all_done
+                   puts "ERROR: Time out starting up kermit"
 		}
 	}
 }
@@ -147,8 +143,15 @@ set timeout 50
         expect {
             "Hit any key" {
              send "\r"
-             break
             }
+
+            "2" {
+             send "\r"
+            }
+
+            ">" {
+             break
+	    }
 
             timeout {
              send_user "u-boot miss the hit any key prompt\n"
@@ -157,9 +160,12 @@ set timeout 50
         }
     }
 
-expect   ">" 
-send "\r"
-expect   ">"
+
+send -s "set bootargs root=/dev/mtdblock0 rw\r"
+expect ">"
+send -s "save\r"
+expect ">"
+
 send -s "run tftp_boot\r"
 
  set timeout 180
@@ -167,7 +173,7 @@ send -s "run tftp_boot\r"
       expect {
 
          -re "Kernel panic" {
-            report "kernel panic detected... trying to recover from it"
+            puts "kernel panic detected... trying to recover from it"
             break
          }
 
@@ -183,50 +189,6 @@ send -s "run tftp_boot\r"
 
          -re "Linux version (.*) " {
             set linux_version $expect_out(1,string)
-         }
-
-         # Look for gcc version N.N[.N[.N]]
-         -re "gcc version (\[0-9](\.\[0-9]+)+)" {
-            set gcc_version [lindex $expect_out(0,string) 2]
-         }
-
-         # Look for text followed by 1 or more spaces or tabs
-         # followed by = followed by 1 or more spaces or tabs
-         # followed by (0xNNNNNN-0xNNNNNN)
-         -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_text $expect_out(1,string)
-         }
-
-         -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_data $expect_out(1,string)
-         }
-
-         -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_bss $expect_out(1,string)
-         }
-         -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_rootfs $expect_out(1,string)
-         }
-
-         # Note that here we're looking for zero or 1 space. Doh!
-         -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-            set map_stack $expect_out(1,string)
-         }
-
-         -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
-           # set instruction_cache_boot_flag $CACHE_ENABLED
-         }
-
-         -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
-           # set instruction_cache_boot_flag $CACHE_DISABLED
-         }
-
-         -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
-           # set data_cache_boot_flag $CACHE_ENABLED
-         }
-
-         -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
-            #set data_cache_boot_flag $CACHE_DISABLED
          }
 
          timeout {
