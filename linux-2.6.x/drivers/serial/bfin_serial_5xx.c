@@ -203,65 +203,180 @@ static inline int serial_paranoia_check(struct bfin_serial *info, char *name,
 	return 0;
 }
 
+#if defined(CONFIG_BFIN_UART_CTSRTS)
+static inline unsigned short bfin_uart_read_PORTIO(char port)
+{
+# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	return bfin_read_FIO_FLAG_D(rts_mask);
+# endif
+# if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	switch(port) {
+	case 'F':
+		return bfin_read_PORTFIO();
+	case 'G':
+		return bfin_read_PORTGIO();
+	case 'H':
+		return bfin_read_PORTHIO();
+	default:
+		return 0;
+	}
+# endif
+}
+
+static inline void bfin_uart_write_PORTIO_SET(char port, unsigned short rts_mask)
+{
+# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	bfin_write_FIO_FLAG_S(rts_mask);
+	SSYNC;
+# endif
+# if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	switch(port) {
+	case 'F':
+		bfin_write_PORTFIO_SET(rts_mask);
+		break;
+	case 'G':
+		bfin_write_PORTGIO_SET(rts_mask);
+		break;
+	case 'H':
+		bfin_write_PORTHIO_SET(rts_mask);
+		break;
+	default:
+		break;
+	}
+	SSYNC;
+# endif
+}
+
+static inline void bfin_uart_write_PORTIO_CLEAR(char port, unsigned short rts_mask)
+{
+# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	bfin_write_FIO_FLAG_C(rts_mask);
+	SSYNC;
+# endif
+# if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	switch(port) {
+	case 'F':
+		bfin_write_PORTFIO_CLEAR(rts_mask);
+		break;
+	case 'G':
+		bfin_write_PORTGIO_CLEAR(rts_mask);
+		break;
+	case 'H':
+		bfin_write_PORTHIO_CLEAR(rts_mask);
+		break;
+	default:
+		break;
+	}
+	SSYNC;
+# endif
+}
+
+static inline void bfin_uart_portio_ctsrts_init(char *port, unsigned short cts, unsigned short rts)
+{
+# if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	switch(port[0]) {
+	case 'F':
+		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() & ~(1 << cts));
+		bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | (1 << cts));
+		bfin_write_PORTFIO_MASKA_SET(bfin_read_PORTFIO_MASKA_SET() & ~(1 << cts));
+		bfin_write_PORTFIO_MASKB_SET(bfin_read_PORTFIO_MASKB_SET() & ~(1 << cts));
+		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | (1 << rts));
+		bfin_write_PORTF_FER(bfin_read_PORTF_FER() & ~((1 << rts)|(1 << cts)|0x3));
+		break;
+	case 'G':
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << cts));
+		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << cts));
+		bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << cts));
+		bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << cts));
+		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << rts));
+		bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << rts)|(1 << cts)|0x3));
+		break;
+	case 'H':
+		bfin_write_PORTHIO_DIR(bfin_read_PORTHIO_DIR() & ~(1 << cts));
+		bfin_write_PORTHIO_INEN(bfin_read_PORTHIO_INEN() | (1 << cts));
+		bfin_write_PORTHIO_MASKA_SET(bfin_read_PORTHIO_MASKA_SET() & ~(1 << cts));
+		bfin_write_PORTHIO_MASKB_SET(bfin_read_PORTHIO_MASKB_SET() & ~(1 << cts));
+		bfin_write_PORTHIO_DIR(bfin_read_PORTHIO_DIR() | (1 << rts));
+		bfin_write_PORTH_FER(bfin_read_PORTH_FER() & ~((1 << rts)|(1 << cts)|0x3));
+		break;
+	default:
+		break;
+	}
+	SSYNC;
+# endif
+}
+#endif
+
+
 /* Sets or clears RTS on the requested line */
 static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 {
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned short rts_mask;
-	rts_mask = (1 << CONFIG_BFIN_UART_RTS);
+	char *port;
 
 	DEBUG_OPEN("(info=%p,rts=%d)\n", info, rts);
 
-# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
+	switch(info->line) {
+# ifdef CONFIG_BFIN_UART0_CTSRTS
+	case 0:
+		port = CONFIG_BFIN_UART0_CTSRTS_PORT;
+		rts_mask = (1 << CONFIG_BFIN_UART0_RTS);
+		break;
+# endif
+# ifdef CONFIG_BFIN_UART1_CTSRTS
+	case 1:
+		port = CONFIG_BFIN_UART1_CTSRTS_PORT;
+		rts_mask = (1 << CONFIG_BFIN_UART1_RTS);
+		break;
+# endif
+	default:
+		return;
+	}
+	
 	if (rts) {
 		/* set the RTS/CTS line */
-		bfin_write_FIO_FLAG_C(rts_mask);
+		bfin_uart_write_PORTIO_CLEAR(port[0], rts_mask);
 		info->sig |= TIOCM_RTS;
 	} else {
 		/* clear it */
-		bfin_write_FIO_FLAG_S(rts_mask);
+		bfin_uart_write_PORTIO_SET(port[0], rts_mask);
 		info->sig &= ~TIOCM_RTS;
 	}
-# elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if (info->line == 0) {
-		if (rts) {
-			/* set the RTS/CTS line */
-			bfin_write_PORTGIO_CLEAR(rts_mask);
-			info->sig |= TIOCM_RTS;
-		} else {
-			/* clear it */
-			bfin_write_PORTGIO_SET(rts_mask);
-			info->sig &= ~TIOCM_RTS;
-		}
-	}
-# endif
-	SSYNC;
 #endif
 }
 
-/* Gets CTS on the requested line */
+/* Sets or clears RTS on the requested line */
 static inline int bfin_getsignal(struct bfin_serial *info)
 {
 	int sig = info->sig;
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned short cts_mask;
-	cts_mask = (1 << CONFIG_BFIN_UART_CTS);
-
+	char *port;
+	
 	DEBUG_OPEN("(info=%p)\n", info);
 
-# if defined(CONFIG_BF531)||defined(CONFIG_BF532)||defined(CONFIG_BF533)
-	if (!(bfin_read_FIO_FLAG_D() & cts_mask))
+	switch(info->line) {
+# ifdef CONFIG_BFIN_UART0_CTSRTS
+	case 0:
+		port = CONFIG_BFIN_UART0_CTSRTS_PORT;
+		cts_mask = (1 << CONFIG_BFIN_UART0_CTS);
+		break;
+# endif
+# ifdef CONFIG_BFIN_UART1_CTSRTS
+	case 1:
+		port = CONFIG_BFIN_UART1_CTSRTS_PORT;
+		cts_mask = (1 << CONFIG_BFIN_UART1_CTS);
+		break;
+# endif
+	default:
+		return sig;
+	}
+
+	if (!(bfin_uart_read_PORTIO(port[0]) & cts_mask))
 		sig |= TIOCM_CTS;
 	else
 		sig &= ~TIOCM_CTS;
-# elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	if (info->line == 0) {
-		if (!(bfin_read_PORTGIO() & cts_mask))
-			sig |= TIOCM_CTS;
-		else
-			sig &= ~TIOCM_CTS;
-	}
-# endif
 #endif
 	return sig;
 }
@@ -1771,7 +1886,11 @@ static void bfin_config_uart0(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
+#if defined(CONFIG_UART0_CTSRTS)
 	info->sig = 0;
+#else
+	info->sig = TIOCM_RTS|TIOCM_CTS;
+#endif
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1807,7 +1926,9 @@ static void bfin_config_uart0(struct bfin_serial *info)
 	info->regs.rpUART_SCR = (volatile unsigned short *)UART_SCR;
 	info->regs.rpUART_GCTL = (volatile unsigned short *)UART_GCTL;
 
+#if defined(CONFIG_UART0_CTSRTS)
 	bfin_setsignal(info, 0);
+#endif
 }
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
@@ -1816,7 +1937,11 @@ static void bfin_config_uart1(struct bfin_serial *info)
 {
 	info->magic = SERIAL_MAGIC;
 	info->flags = 0;
+#if defined(CONFIG_UART1_CTSRTS)
+	info->sig = 0;
+#else
 	info->sig = TIOCM_RTS|TIOCM_CTS;
+#endif
 	info->tty = 0;
 	info->custom_divisor = 16;
 	info->close_delay = 50;
@@ -1851,6 +1976,10 @@ static void bfin_config_uart1(struct bfin_serial *info)
 	info->regs.rpUART_LSR = (volatile unsigned short *)UART1_LSR;
 	info->regs.rpUART_SCR = (volatile unsigned short *)UART1_SCR;
 	info->regs.rpUART_GCTL = (volatile unsigned short *)UART1_GCTL;
+
+#if defined(CONFIG_UART1_CTSRTS)
+	bfin_setsignal(info, 0);
+#endif
 }
 #endif
 
@@ -1881,18 +2010,10 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 				return 0;
 			}
 		}
-#ifdef CONFIG_BFIN_UART_CTSRTS
-#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
-		bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
-		SSYNC;
+#if defined(CONFIG_BFIN_UART0_CTSRTS)
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT, 
+			CONFIG_BFIN_UART0_CTS, CONFIG_BFIN_UART0_RTS);
 #endif
-#endif
-
 	}
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	else if (strncmp(tty->name, "ttyS1", 6) == 0) {
@@ -1909,6 +2030,10 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 		SSYNC;
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 		SSYNC;
+# if defined(CONFIG_BFIN_UART1_CTSRTS)
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT, 
+			CONFIG_BFIN_UART1_CTS, CONFIG_BFIN_UART1_RTS);
+# endif
 	}
 #endif
 	else
@@ -2185,26 +2310,30 @@ int bfin_console_setup(struct console *cp, char *arg)
 		cp->index = 0;
 	info = &bfin_uart[cp->index];
 
-#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	if (cp->index == 0) {
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFDE);
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3);
+#endif
 		SSYNC;
-# ifdef CONFIG_BFIN_UART_CTSRTS
-		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << CONFIG_BFIN_UART_CTS));
-		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << CONFIG_BFIN_UART_RTS));
-		bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 << CONFIG_BFIN_UART_RTS)|(1 << CONFIG_BFIN_UART_CTS)|0x3));
-		SSYNC;
-# endif
-	} else {
+#ifdef CONFIG_BFIN_UART0_CTSRTS
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT, 
+			CONFIG_BFIN_UART0_CTS, CONFIG_BFIN_UART0_RTS);
+#endif
+	}
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	else if(cp->index == 1){
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~PFTE);
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 		SSYNC;
+# ifdef CONFIG_BFIN_UART1_CTSRTS
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT, 
+			CONFIG_BFIN_UART1_CTS, CONFIG_BFIN_UART1_RTS);
+# endif
 	}
 #endif
+	else
+		return -1;
 
 	if (arg)
 		n = simple_strtoul(arg, NULL, 0);
