@@ -53,7 +53,7 @@ char *bfin_board_name = "ADDS-BF533-EZKIT";
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	[0] = {
-	       .name	= "smc91x-regs
+	       .name	= "smc91x-regs",
 	       .start = 0x20310300,
 	       .end = 0x20310300 + 16,
 	       .flags = IORESOURCE_MEM,
