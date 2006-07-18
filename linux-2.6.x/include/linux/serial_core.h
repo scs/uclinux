@@ -127,6 +127,9 @@
 /* Hilscher netx */
 #define PORT_NETX	71
 
+/* Blackfin bf5xx */
+#define PORT_BFIN	72
+
 #ifdef __KERNEL__
 
 #include <linux/config.h>
