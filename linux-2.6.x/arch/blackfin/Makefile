@@ -38,7 +38,7 @@ MACHINE  := $(machine-y)
 
 export	MACHINE PROCESSOR GZFLAGS CFLAGS_BOOT
 
-CLEAN_FILES := include/asm-$(ARCH)/asm-offsets.h \
+CLEAN_FILES += include/asm-$(ARCH)/asm-offsets.h \
 	       arch/$(ARCH)/kernel/asm-offsets.s include/asm-$(ARCH)/mach include/asm-blackfin/.mach
 
 # The machine has its own head.S
@@ -66,10 +66,10 @@ endif
 libs-y		+= arch/$(ARCH)/lib/
 
 #	Update machine arch symlinks if something which affects
-#	them changed.  We use .arch to indicate when they were updated
+#	them changed.  We use .mach to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
-include/asm-blackfin/.mach:
+include/asm-blackfin/.mach: $(wildcard include/config/arch/*.h) include/config/MARKER
 	@echo '  SYMLINK include/asm-$(ARCH)/arch -> include/asm-$(ARCH)/$(INCDIR)'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p include/asm-$(ARCH)
