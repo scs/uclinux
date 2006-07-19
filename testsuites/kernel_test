@@ -116,13 +116,13 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	  stress_test=1
 	  serial_test=1
 	  reboot_test=1	     
-	  module_test=0
-	    kgdb_test=0
+	  module_test=1
+	    kgdb_test=1
 	     rtc_test=1
 	     nfs_test=1
 	 pnormtd_test=1
     jffs2_reboot_test=1 
-	jffs2_fs_test=0
+	jffs2_fs_test=1
 	  strace_test=1
 	     msh_test=1
 	 pthread_test=1
@@ -130,7 +130,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	   timer_test=1
 	   pound_test=0
 	  spiadc_test=1
-	   audio_test=1
+	   audio_test=0
 	   pflag_test=0
 	    dpmc_test=1
 	  i2ctwi_test=1
@@ -205,7 +205,7 @@ chmod +x */*.exp
      
   echo  "start building policy kernel..."
   cd $KERNEL_SCRIPTS/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $KERNEL_SOURCE $BINARY_FORMAT $POLICY
+  ./build_policy_kernel.exp  $BOARD_TYPE $KERNEL_SOURCE $BINARY_FORMAT $POLICY  1>/dev/null 2>/dev/null
     
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
   cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
@@ -228,7 +228,7 @@ chmod +x */*.exp
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/ethernet
-  ./build_ethernet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ethernet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./ethernet_test.exp
   
@@ -239,15 +239,15 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/ethernet/netperf_tcp_stream $THIS_LOG/
 
   sleep 30
-
-  fi
   
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
-
+ 
+  fi
+ 
   
   #############################################################################################
   ########################## TEST STRESS ######################################################
@@ -261,7 +261,7 @@ chmod +x */*.exp
   cp -a  $CHECKOUT/kernel_bak/*  .
 
   cd $KERNEL_SCRIPTS/stress
-  ./build_stress_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
+  ./build_stress_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./stress_test.exp /dev/ttyS0 
   
@@ -272,14 +272,14 @@ chmod +x */*.exp
    cp $KERNEL_SCRIPTS/stress/telnet_test_log $THIS_LOG
    
   sleep 30
-  fi
-  
+    
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   
   #############################################################################################
   ########################## TEST SERIAL ####################################################
@@ -293,7 +293,7 @@ chmod +x */*.exp
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd  $KERNEL_SCRIPTS/serial
-  ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 
+  ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./serial_test.exp /dev/ttyS0 
   
@@ -302,15 +302,15 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/
   
   sleep 30
-    
-  fi
+  
   
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
-
+    
+  fi
   
   #############################################################################################
   ########################## TEST REBOOT ON RAMDISK ###########################################
@@ -325,7 +325,7 @@ chmod +x */*.exp
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd  $KERNEL_SCRIPTS/ramfs
-  ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./reboot_test.exp /dev/ttyS0 
   
@@ -334,15 +334,15 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/ramfs/reboot_test_log $THIS_LOG  
   
   sleep 300
-  
-  fi
-  
+   
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
-
+  
+  fi
+  
   #############################################################################################
   ########################## TEST KGDB #########################################################
   
@@ -357,7 +357,7 @@ chmod +x */*.exp
   
   
   cd $KERNEL_SCRIPTS/kgdb
-  ./build_kgdb_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_kgdb_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./kgdb_test.exp /dev/ttyS0 $KERNEL_SOURCE 10.100.4.50  
   
@@ -366,16 +366,14 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/kgdb/kgdb_test_log $THIS_LOG
   
   sleep 30
-  
-  fi
-  
-  
+    
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   #############################################################################################
   ########################## TEST MODULE #######################################################
    
@@ -389,7 +387,7 @@ chmod +x */*.exp
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/module
-  ./build_module_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_module_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./module_test.exp $BOARD_TYPE
   
@@ -398,14 +396,14 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/module/module_test_log $THIS_LOG  
   
   sleep 30
-  fi
-  
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   
   
   ########################## TEST RTC #########################################################
@@ -420,7 +418,7 @@ chmod +x */*.exp
 
 
   cd $KERNEL_SCRIPTS/rtc
-  ./build_rtc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_rtc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30  
   ./rtc_test.exp
   
@@ -429,14 +427,14 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/rtc/rtc_test_log $THIS_LOG
 
   sleep 30
- fi
- 
+
  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
  
   #############################################################################################
   ########################## TEST NFS MOUNT ###################################################
@@ -452,7 +450,7 @@ chmod +x */*.exp
    
  
   cd $KERNEL_SCRIPTS/nfs
-  ./build_nfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_nfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./nfs_test.exp
   
@@ -461,15 +459,16 @@ chmod +x */*.exp
   cp $KERNEL_SCRIPTS/nfs/nfs_test_log $THIS_LOG 
  
   sleep 30
- fi
-  
+
  
  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
-  fi
-
+ fi
+ 
+ fi
+  
   #############################################################################################
   ########################## TEST MTD #########################################################
   
@@ -484,7 +483,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/pnormtd
-  ./build_pnormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_pnormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./pnormtd_test.exp /dev/ttyS0 
   
@@ -494,14 +493,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 30
 
-  fi
-  
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   
   #############################################################################################
   ########################## TEST REBOOT ON JFFS2 FILE SYSTEM ##################################
@@ -517,7 +516,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/jffs2
-  ./build_jffs2_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
+  ./build_jffs2_kernel.exp $BOARD_TYPE $KERNEL_SOURCE    1>/dev/null 2>/dev/null
   sleep 30
   ./flash_images.exp
   sleep 30
@@ -544,8 +543,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/jffs2/boot_kernel_only_uimage_log $THIS_LOG
 
   sleep 300
- 
- fi
+
  
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
@@ -553,6 +551,8 @@ if [ $pnormtd_test -eq 1  ] ; then
    sleep 10
   fi
 
+  fi
+  
   #############################################################################################
   ########################## TEST JFFS2 FS #####################################################
  
@@ -566,7 +566,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/jffs2
-  ./build_jffs2_fs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_jffs2_fs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./jffs2_fs_test.exp
   
@@ -575,12 +575,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/jffs2/jffs2_fs_test_log $THIS_LOG
     
   sleep 30
-  fi
-  
+
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
     ########################## TEST STRACE #########################################################
@@ -595,7 +597,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/strace
-  ./build_strace_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_strace_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./strace_test.exp  /dev/ttyS0
   
@@ -604,12 +606,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/strace/strace_test_log $THIS_LOG
 
   sleep 30
- fi
+
  
- if [ $reset_board -eq 1  ] ; then
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
    ########################## TEST MSH #########################################################
@@ -624,7 +628,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/msh
-  ./build_msh_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_msh_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./msh_test.exp /dev/ttyS0
   
@@ -633,12 +637,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/msh/msh_test_log $THIS_LOG
 
   sleep 30
- fi
+
  
- if [ $reset_board -eq 1  ] ; then
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
  
@@ -654,7 +660,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/pthread
-  ./build_pthread_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_pthread_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./pthread_test.exp 
   
@@ -663,12 +669,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/pthread/pthread_test_log $THIS_LOG
 
   sleep 30
- fi
+
  
- if [ $reset_board -eq 1  ] ; then
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   ########################## TEST DPM #########################################################
@@ -683,7 +691,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/dpm
-  ./build_dpm_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_dpm_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./dpm_test.exp /dev/ttyS0
   
@@ -692,12 +700,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/dpm/dpm_test_log $THIS_LOG
 
   sleep 30
- fi
  
- if [ $reset_board -eq 1  ] ; then
+ 
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
    ########################## TEST TIMER #########################################################
@@ -712,7 +722,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/timer
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 100
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 100   1>/dev/null 2>/dev/null
   sleep 30
   ./timer_tick_test.exp 100
   
@@ -721,7 +731,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_100_log
 
   
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 250
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 250   1>/dev/null 2>/dev/null
   sleep 30
   ./timer_tick_test.exp 250
   
@@ -730,7 +740,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_250_log
   
   
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 1000
+  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 1000   1>/dev/null 2>/dev/null
   sleep 30
   ./timer_tick_test.exp 1000
   
@@ -739,12 +749,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_1000_log
   
   sleep 30
- fi
+
  
- if [ $reset_board -eq 1  ] ; then
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
  
@@ -760,7 +772,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 
   cd $KERNEL_SCRIPTS/pound
-  ./build_pound_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_pound_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./pound_test.exp
   
@@ -769,12 +781,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/pound/pound_test_log $THIS_LOG
 
   sleep 30
- fi
+
  
- if [ $reset_board -eq 1  ] ; then
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
  
@@ -794,22 +808,24 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/spiadc
-  ./build_ndso_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ndso_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ndso 
   cp $KERNEL_SCRIPTS/spiadc/build_ndso_kernel_log $THIS_LOG
   
-  ./build_awg_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_awg_kernel.exp $BOARD_TYPE $KERNEL_SOURCE    1>/dev/null 2>/dev/null
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.awg  
   cp $KERNEL_SCRIPTS/spiadc/build_awg_kernel_log $THIS_LOG
     
    sleep 30
    
-   fi
   
-   if [ $reset_board -eq 1  ] ; then
+ 
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   #############################################################################################
@@ -826,7 +842,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
     
   cd $KERNEL_SCRIPTS/pflag
-  ./build_pflags_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_pflags_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./pflags_test.exp $BOARD_TYPE
   
@@ -836,12 +852,13 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 30
     
-  fi
  
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   #############################################################################################
@@ -857,18 +874,18 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/audio
-  ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 
   sleep 30
   ./two_channel_audio_test.exp /dev/ttyS0
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1836
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1836   
   cp $KERNEL_SCRIPTS/audio/build_ad1836_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG 
   cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG
   
-  ./build_ad73311_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ad73311_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 
   sleep 30
@@ -881,12 +898,13 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 300
 
-  fi
-  
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   #############################################################################################
@@ -900,7 +918,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/dpmc
-  ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
   cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
   
@@ -917,12 +935,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_500_log
   
   sleep 30
-  fi
-  
+ 
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
    #############################################################################################
@@ -936,7 +956,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/joystick
-  ./build_joystick_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_joystick_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./joystick_test.exp
   
@@ -946,12 +966,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   
   sleep 30
-  fi
-  
+ 
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   #############################################################################################
@@ -968,14 +990,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cd $KERNEL_SCRIPTS/i2ctwi
   
-  ./build_i2ctwi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_i2ctwi_lcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./i2ctwi_lcd_test.exp
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_lcd
   cp $KERNEL_SCRIPTS/i2ctwi/build_i2ctwi_lcd_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/i2ctwi/i2ctwi_lcd_test_log $THIS_LOG
   
-  ./build_i2ctwi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  
+  ./build_i2ctwi_keyboard_kernel.exp $BOARD_TYPE $KERNEL_SOURCE    1>/dev/null 2>/dev/null
   sleep 30
   ./i2ctwi_keyboard_test.exp
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.i2ctwi_keyboard
@@ -983,12 +1005,14 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/i2ctwi/i2ctwi_keyboard_test_log $THIS_LOG
      
   sleep 30
-  fi
-  
+ 
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
   #############################################################################################
@@ -1005,7 +1029,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/snormtd
-  ./build_snormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_snormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./spi_flash_images.exp
   sleep 30
@@ -1018,14 +1042,15 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.img.snormtd
   
   sleep 30
-fi
 
-if [ $reset_board -eq 1  ] ; then
+ 
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
 
   #############################################################################################
   ########     Following tests are only for BF537 BOARD.         ##############################
@@ -1043,7 +1068,7 @@ if [ $cf_card_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
   cd $KERNEL_SCRIPTS/cfcard
-  ./build_cf_card_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_cf_card_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./cf_card_test.exp  
   
@@ -1052,14 +1077,15 @@ if [ $cf_card_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/cfcard/cf_card_test_log $THIS_LOG
   
   sleep 30
-  fi
-  
+
+ 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   ################# TEST IDE DEVICES ##############################################################
   
 if [ $ide_test -eq 1  ] ; then
@@ -1072,7 +1098,7 @@ if [ $ide_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
   cd $KERNEL_SCRIPTS/ide
-  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
   sleep 30
   ./ide_harddisk_test.exp 
   sleep 30
@@ -1084,14 +1110,15 @@ if [ $ide_test -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
 
   sleep 30
- fi
  
- if [ $reset_board -eq 1  ] ; then
+ 
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
   #############################################################################################
   ################# TEST WIRELESS CARD ##############################################################
   
@@ -1106,7 +1133,7 @@ if [ $wireless_network_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
   cd $KERNEL_SCRIPTS/wireless
-  ./build_wireless_network_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_wireless_network_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./wireless_network_test.exp  
   
@@ -1116,12 +1143,13 @@ if [ $wireless_network_test -eq 1  ] ; then
   
   sleep 300
    
- fi
- 
- if [ $reset_board -eq 1  ] ; then
+
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi
 
  
@@ -1139,7 +1167,7 @@ if [ $yaffs_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
 
   cd $KERNEL_SCRIPTS/yaffs
-  ./build_yaffs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_yaffs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./test_yaffs /dev/ttyS0 
   
@@ -1149,14 +1177,14 @@ if [ $yaffs_test -eq 1  ] ; then
 
   sleep 30
    
- fi
-   
-if [ $reset_board -eq 1  ] ; then
+ 
+  if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
   fi
 
+  fi
  
    #############################################################################################
   ########################## TEST PPIFCD #####################################################
@@ -1169,7 +1197,7 @@ if [ $reset_board -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/ppifcd
-  ./build_ppifcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE
+  ./build_ppifcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
   ./ppifcd_test.exp
   
@@ -1178,10 +1206,12 @@ if [ $reset_board -eq 1  ] ; then
   cp $KERNEL_SCRIPTS/ppifcd/ppifcd_test_log $THIS_LOG
     
   sleep 30
-  fi
+  
  
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp
    sleep 10
+  fi
+
   fi

@@ -38,7 +38,7 @@ step "Apply dpm patch."
 cd $uclinux_path/linux-2.6.x
 exec patch -p1 < ../bfin_patch/dpm_patch/dpm_blackfin_patch
 
-sleep 10
+sleep 3
 
 step "Make config."
 
@@ -101,11 +101,14 @@ while 1 {
 
           -re "Dynamic Power Management.*DPM.*\\\[.*]" {
              send "y\r"
-             sleep .5
       }
        
           -re "Enable DPM Statistics Gathering.*DPM_STATS.*\\\[.*]" {
              send "y\r"
+      }
+
+          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+             send "N\r"
       }
 
        "\\\(*) \\\[*]" {

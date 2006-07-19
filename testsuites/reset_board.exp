@@ -161,46 +161,8 @@ set timeout 50
     }
 
 
-send -s "set bootargs root=/dev/mtdblock0 rw\r"
+send -s "\r"
 expect ">"
-send -s "save\r"
-expect ">"
-
-send -s "run tftp_boot\r"
-
- set timeout 180
-   while 1 {
-      expect {
-
-         -re "Kernel panic" {
-            puts "kernel panic detected... trying to recover from it"
-            break
-         }
-
-         -re "Sash command shell.*/> " {
-            puts "successful boot attempt"
-            break
-         }
-	 
-	  "root:~> " {
-            puts "successful boot attempt"
-            break
-         }
-
-         -re "Linux version (.*) " {
-            set linux_version $expect_out(1,string)
-         }
-
-         timeout {
-            puts "failed boot attempt"
-            break
-         }
-      }
-   }
-
-sleep 5
-send "\r"
-expect "root:~>"
 
 log_file
  
