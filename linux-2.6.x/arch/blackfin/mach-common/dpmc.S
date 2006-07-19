@@ -38,301 +38,401 @@
 
 .global _unmask_wdog_wakeup_evt
 _unmask_wdog_wakeup_evt:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
 #if defined (CONFIG_BF561)
-	P0.H = hi(SICA_IWR1);
-	P0.L = lo(SICA_IWR1);
+    P0.H = hi(SICA_IWR1);
+    P0.L = lo(SICA_IWR1);
 #else
-	P0.h = (SIC_IWR >> 16);
-	P0.l = (SIC_IWR & 0xFFFF);
+    P0.h = (SIC_IWR >> 16);
+    P0.l = (SIC_IWR & 0xFFFF);
 #endif
-	R7 = [P0];
+    R7 = [P0];
 #if defined (CONFIG_BF561)
-	BITSET(R7, 27);
+    BITSET(R7, 27);
 #else
-	BITSET(R7,(IRQ_WATCH - IVG7));
+    BITSET(R7,(IRQ_WATCH - IVG7));
 #endif
-	[P0] = R7;
-	SSYNC;
+    [P0] = R7;
+    SSYNC;
 
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 .LWRITE_TO_STAT:
-	/* When watch dog timer is enabled, a write to STAT will load the
-	 * contents of CNT to STAT
-	 */
-	R7 = 0x0000(z);
+    /* When watch dog timer is enabled, a write to STAT will load the
+     * contents of CNT to STAT
+     */
+    R7 = 0x0000(z);
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_STAT >> 16);
-	P0.l = (WDOGA_STAT & 0xFFFF);
+    P0.h = (WDOGA_STAT >> 16);
+    P0.l = (WDOGA_STAT & 0xFFFF);
 #else
-	P0.h = (WDOG_STAT >> 16);
-	P0.l = (WDOG_STAT & 0xFFFF);
+    P0.h = (WDOG_STAT >> 16);
+    P0.l = (WDOG_STAT & 0xFFFF);
 #endif
-	[P0] = R7;
-	SSYNC;
-	JUMP .LSKIP_WRITE_TO_STAT;
+    [P0] = R7;
+    SSYNC;
+    JUMP .LSKIP_WRITE_TO_STAT;
 
 .global _program_wdog_timer
 _program_wdog_timer:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CNT >> 16);
-	P0.l = (WDOGA_CNT & 0xFFFF);
+    P0.h = (WDOGA_CNT >> 16);
+    P0.l = (WDOGA_CNT & 0xFFFF);
 #else
-	P0.h = (WDOG_CNT >> 16);
-	P0.l = (WDOG_CNT & 0xFFFF);
+    P0.h = (WDOG_CNT >> 16);
+    P0.l = (WDOG_CNT & 0xFFFF);
 #endif
-	[P0] = R0;
-	SSYNC;
+    [P0] = R0;
+    SSYNC;
 
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+    P0.h = (WDOGA_CTL >> 16);
+    P0.l = (WDOGA_CTL & 0xFFFF);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+    P0.h = (WDOG_CTL >> 16);
+    P0.l = (WDOG_CTL & 0xFFFF);
 #endif
-	R7 = W[P0](Z);
-	CC = BITTST(R7,1);
-	if !CC JUMP .LWRITE_TO_STAT;
-	CC = BITTST(R7,2);
-	if !CC JUMP .LWRITE_TO_STAT;
+    R7 = W[P0](Z);
+    CC = BITTST(R7,1);
+    if !CC JUMP .LWRITE_TO_STAT;
+    CC = BITTST(R7,2);
+    if !CC JUMP .LWRITE_TO_STAT;
 
 .LSKIP_WRITE_TO_STAT:
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
+    P0.h = (WDOGA_CTL >> 16);
         P0.l = (WDOGA_CTL & 0xFFFF);
 #else
-	P0.h = (WDOG_CTL >> 16);
+    P0.h = (WDOG_CTL >> 16);
         P0.l = (WDOG_CTL & 0xFFFF);
 #endif
-        R7 = W[P0](Z);
-        BITCLR(R7,1);	/* Enable GP event */
-        BITSET(R7,2);
-        W[P0] = R7.L;
-        SSYNC;
-        NOP;
+    R7 = W[P0](Z);
+    BITCLR(R7,1);   /* Enable GP event */
+    BITSET(R7,2);
+    W[P0] = R7.L;
+    SSYNC;
+    NOP;
 
-        R7 = W[P0](Z);
-        BITCLR(R7,4);	/* Enable the wdog counter */
-        W[P0] = R7.L;
-        SSYNC;
+    R7 = W[P0](Z);
+    BITCLR(R7,4);   /* Enable the wdog counter */
+    W[P0] = R7.L;
+    SSYNC;
 
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 .global _clear_wdog_wakeup_evt
 _clear_wdog_wakeup_evt:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
 
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+    P0.h = (WDOGA_CTL >> 16);
+    P0.l = (WDOGA_CTL & 0xFFFF);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+    P0.h = (WDOG_CTL >> 16);
+    P0.l = (WDOG_CTL & 0xFFFF);
 #endif
-	R7 = 0x0AD6(Z);
-	W[P0] = R7.L;
-	SSYNC;
+    R7 = 0x0AD6(Z);
+    W[P0] = R7.L;
+    SSYNC;
 
-	R7 = W[P0](Z);
-	BITSET(R7,15);
-	W[P0] = R7.L;
-	SSYNC;
+    R7 = W[P0](Z);
+    BITSET(R7,15);
+    W[P0] = R7.L;
+    SSYNC;
 
-	R7 = W[P0](Z);
-	BITSET(R7,1);
-	BITSET(R7,2);
-	W[P0] = R7.L;
-	SSYNC;
+    R7 = W[P0](Z);
+    BITSET(R7,1);
+    BITSET(R7,2);
+    W[P0] = R7.L;
+    SSYNC;
 
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 .global _disable_wdog_timer
 _disable_wdog_timer:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
 #if defined(CONFIG_BF561)
-	P0.h = (WDOGA_CTL >> 16);
-	P0.l = (WDOGA_CTL & 0xFFFF);
+    P0.h = (WDOGA_CTL >> 16);
+    P0.l = (WDOGA_CTL & 0xFFFF);
 #else
-	P0.h = (WDOG_CTL >> 16);
-	P0.l = (WDOG_CTL & 0xFFFF);
+    P0.h = (WDOG_CTL >> 16);
+    P0.l = (WDOG_CTL & 0xFFFF);
 #endif
-	R7 = 0xAD6(Z);
-	W[P0] = R7.L;
-	SSYNC;
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
+    R7 = 0xAD6(Z);
+    W[P0] = R7.L;
+    SSYNC;
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 #if !defined(CONFIG_BF561)
+
+.section .text.l1
+
 .global _sleep_mode
 _sleep_mode:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
+    [--SP] =  RETS;
 
-        P0.H = hi(SIC_IWR);
-        P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
-        [P0] = R0;
-        SSYNC;
+    call _set_sic_iwr;
 
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-	/* Clear all the interrupts,bits sticky */
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
-        w[P0] = R0.L;
-        SSYNC;
+    R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
+    call _set_rtc_istat
 
-	P0.H = hi(PLL_CTL);
-        P0.L = lo(PLL_CTL);
-        R1 = W[P0](z);
-        BITSET (R1, 3);
-	W[P0] = R1.L;
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R1 = W[P0](z);
+    BITSET (R1, 3);
+    W[P0] = R1.L;
 
-        CLI R2;
-        SSYNC;
-        IDLE;
-        STI R2;
+    CLI R2;
+    SSYNC;
+    IDLE;
+    STI R2;
 
-.LCHECK_AGAIN1:
-	P1.H = hi(PLL_STAT);
-	P1.L = lo(PLL_STAT);
-	R5 = W[P1] (Z);
-	CC = BITTST(R5,5);
-	IF !CC JUMP .LCHECK_AGAIN1;
+    call _test_pll_locked;
 
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
-	R7 = w[p0](z);
-	BITCLR (R7, 3);
-	BITCLR (R7, 5);
-	w[p0] = R7.L;
-	IDLE;
+    R0 = IWR_ENABLE(0);
+    call _set_sic_iwr;
 
-        ( R7:0, P5:0 ) = [SP++];
-        RTS;
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R7 = w[p0](z);
+    BITCLR (R7, 3);
+    BITCLR (R7, 5);
+    w[p0] = R7.L;
+    IDLE;
+    call _test_pll_locked;
+
+    RETS = [SP++];
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 
 .global _hibernate_mode
 _hibernate_mode:
-	[--SP] = ( R7:0, P5:0 );
- 	P0.H = hi(SIC_IWR);
-        P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
-        [P0] = R0;
-        SSYNC;
+    [--SP] = ( R7:0, P5:0 );
+    [--SP] =  RETS;
 
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-	/* Clear all the interrupts,bits sticky */
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
-        w[P0] = R0;
-        SSYNC;
+    call _set_sic_iwr;
 
-	P0.H = hi(VR_CTL);
-        P0.L = lo(VR_CTL);
-        R1 = W[P0](z);
-        BITSET (R1, 8);
-	BITCLR (R1, 0);
-	BITCLR (R1, 1);
-	W[P0] = R1.L;
-	SSYNC;
+    R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
+    call _set_rtc_istat
 
-        CLI R2;
-        IDLE;
+    P0.H = hi(VR_CTL);
+    P0.L = lo(VR_CTL);
+    R1 = W[P0](z);
+    BITSET (R1, 8);
+    BITCLR (R1, 0);
+    BITCLR (R1, 1);
+    W[P0] = R1.L;
+    SSYNC;
 
-	/* Actually, adding anything may not be necessary...SDRAM contents
-	 * are lost
-	 */
+    CLI R2;
+    IDLE;
 
-	STI R2;
+    /* Actually, adding anything may not be necessary...SDRAM contents
+     * are lost
+     */
 
-	P0.H = hi(VR_CTL);
-        P0.L = lo(VR_CTL);
-        R1 = W[P0](z);
-        BITCLR (R1, 8);
-        BITSET (R1, 0);
-        BITSET (R1, 1);
-        W[P0] = R1.L;
-        SSYNC;
-
-	IDLE;
-
-        ( R7:0, P5:0 ) = [SP++];
-        RTS;
-
-.section .text.l1
 
 .global _deep_sleep
 _deep_sleep:
-	[--SP] = ( R7:0, P5:0 );
+    [--SP] = ( R7:0, P5:0 );
+    [--SP] =  RETS;
 
-	/*  set the sdram to self refresh mode */
-        P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R2 = [P2];
-        R3.H = hi(SRFS);
-        R3.L = lo(SRFS);
-        R2 = R2|R3;
-        [P2] = R2;
-        ssync;
+    CLI R4;
+
+    call _set_sic_iwr;
+
+    call _set_sdram_srfs;
+
+    /* Clear all the interrupts,bits sticky */
+    R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
+    call _set_rtc_istat
+
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R0 = W[P0](z);
+    BITSET (R0, 5);
+    W[P0] = R0.L;
+
+    call _test_pll_locked;
+
+    SSYNC;
+    IDLE;
+
+    call _unset_sdram_srfs;
+
+    call _test_pll_locked;
+
+    R0 = IWR_ENABLE(0);
+    call _set_sic_iwr;
+
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R0 = w[p0](z);
+    BITCLR (R0, 3);
+    BITCLR (R0, 5);
+    BITCLR (R0, 8);
+    w[p0] = R0;
+    IDLE;
+    call _test_pll_locked;
+
+    STI R4;
+
+    RETS = [SP++];
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 
-        P0.H = hi(SIC_IWR);
-        P0.L = lo(SIC_IWR);
-	R0 = IWR_ENABLE(IRQ_RTC - IVG7)(Z);
-        [P0] = R0;
-        SSYNC;
+.global _sleep_deeper
+_sleep_deeper:
+    [--SP] = ( R7:0, P5:0 );
+    [--SP] =  RETS;
 
-        P0.H = hi(RTC_ISTAT);
-        P0.L = lo(RTC_ISTAT);
-	/* Clear all the interrupts,bits sticky */
-        R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
-        w[P0] = R0;
-        SSYNC;
+    CLI R4;
 
-        P0.H = hi(PLL_CTL);
-        P0.L = lo(PLL_CTL);
-        R1 = W[P0](z);
-        BITSET (R1, 5);
-       	W[P0] = R1.L;
+    P3 = R0;
+    R0 = IWR_ENABLE(0);
+    call _set_sic_iwr;
+    call _set_sdram_srfs;
 
-        CLI R2;
-        SSYNC;
-        IDLE;
-        STI R2;
+    /* Clear all the interrupts,bits sticky */
+    R0 = (SWEF|AEF|SEF|MEF|HEF|DEF|DAEF|WCOM)(Z);
+    call _set_rtc_istat
 
-	/*  set the sdram out of self refresh mode */
-        P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R2 = [P2];
-        R3.H = hi(SRFS);
-        R3.L = lo(SRFS);
-        R3 = ~R3;
-        R2 = R2&R3;
-        [P2] = R2;
-        ssync;
+    P0.H = hi(PLL_DIV);
+    P0.L = lo(PLL_DIV);
+    R6 = W[P0](z);
+    R0.L = 0x1;
+    W[P0] = R0.l;
+
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R5 = W[P0](z);
+    R0.L = 0x200;
+    W[P0] = R0.l;
+
+    SSYNC;
+    IDLE;
+
+    call _test_pll_locked;
+
+    P0.H = hi(VR_CTL);
+    P0.L = lo(VR_CTL);
+    R7 = W[P0](z);
+    R1 = 0x6;
+    R1 <<= 16;
+    R2 = 0x0404(Z);
+    R1 = R1|R2;
+
+    R2 = DEPOSIT(R7, R1);
+    W[P0] = R2;
+
+    SSYNC;
+    IDLE;
+
+    call _test_pll_locked;
+
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    R0 = W[P0](z);
+    BITSET (R0, 3);
+    W[P0] = R0.L;
+
+    R0 = P3;
+    call _set_sic_iwr;
+
+    SSYNC;
+    IDLE;
+
+    call _test_pll_locked;
+
+    R0 = IWR_ENABLE(0);
+    call _set_sic_iwr;
+
+    P0.H = hi(VR_CTL);
+    P0.L = lo(VR_CTL);
+    W[P0]= R7;
+
+    SSYNC;
+    IDLE;
+
+    call _test_pll_locked;
+
+    P0.H = hi(PLL_DIV);
+    P0.L = lo(PLL_DIV);
+    W[P0]= R6;
+
+    P0.H = hi(PLL_CTL);
+    P0.L = lo(PLL_CTL);
+    w[p0] = R5;
+    IDLE;
+    call _test_pll_locked;
+
+    call _unset_sdram_srfs;
+
+    STI R4;
+
+    RETS = [SP++];
+    ( R7:0, P5:0 ) = [SP++];
+    RTS;
 
 
-.LCHECK_AGAIN2:
-	P1.H = hi(PLL_STAT);
-	P1.L = lo(PLL_STAT);
-	R5 = W[P1] (Z);
-	CC = BITTST(R5,5);
-	IF !CC JUMP .LCHECK_AGAIN2;
+.global _set_sdram_srfs
+_set_sdram_srfs:
+    /*  set the sdram to self refresh mode */
+    P0.H = hi(EBIU_SDGCTL);
+    P0.L = lo(EBIU_SDGCTL);
+    R2 = [P0];
+    R3.H = hi(SRFS);
+    R3.L = lo(SRFS);
+    R2 = R2|R3;
+    [P0] = R2;
+    ssync;
+    RTS;
 
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
-	R7 = w[p0](z);
-	BITCLR (R7, 3);
-	BITCLR (R7, 5);
-	w[p0] = R7;
-	IDLE;
+.global _unset_sdram_srfs
+_unset_sdram_srfs:
+    /*  set the sdram out of self refresh mode */
+    P0.H = hi(EBIU_SDGCTL);
+    P0.L = lo(EBIU_SDGCTL);
+    R2 = [P0];
+    R3.H = hi(SRFS);
+    R3.L = lo(SRFS);
+    R3 = ~R3;
+    R2 = R2&R3;
+    [P0] = R2;
+    ssync;
+    RTS;
 
-        ( R7:0, P5:0 ) = [SP++];
-        RTS;
+.global _set_sic_iwr
+_set_sic_iwr:
+    P0.H = hi(SIC_IWR);
+    P0.L = lo(SIC_IWR);
+    [P0] = R0;
+    SSYNC;
+    RTS;
 
+.global _set_rtc_istat
+_set_rtc_istat:
+    P0.H = hi(RTC_ISTAT);
+    P0.L = lo(RTC_ISTAT);
+    w[P0] = R0.L;
+    SSYNC;
+    RTS;
+
+.global _test_pll_locked
+_test_pll_locked:
+    P0.H = hi(PLL_STAT);
+    P0.L = lo(PLL_STAT);
+1:
+    R0 = W[P0] (Z);
+    CC = BITTST(R0,5);
+    IF !CC JUMP 1b;
+    RTS;
 #endif

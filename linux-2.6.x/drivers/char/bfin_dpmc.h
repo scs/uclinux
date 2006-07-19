@@ -4,12 +4,14 @@ static loff_t dpmc_llseek(struct file *file, loff_t offset, int origin);
 static ssize_t dpmc_read(struct file *file, char *buf, size_t count, loff_t *ppos);
 static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
 static int dpmc_read_proc(char *page, char **start, off_t off, int count, int *eof, void *data);
+static int dpmc_write_proc(struct file *file, const char __user * buffer, unsigned long count, void *data);
+
 
 void fullon_mode(void);
 void active_mode(void);
-void sleep_mode(void);
-void deep_sleep(void);
-void hibernate_mode(void);
+void sleep_mode(u32 sic_iwr);
+void deep_sleep(u32 sic_iwr);
+void hibernate_mode(u32 sic_iwr);
 void program_wdog_timer(unsigned long);
 void unmask_wdog_wakeup_evt(void);
 void clear_wdog_wakeup_evt(void);

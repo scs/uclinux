@@ -259,21 +259,32 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 
 		break;
 		case IOCTL_SLEEP_MODE:
-			sleep_mode();
+			sleep_mode(IWR_ENABLE(IRQ_RTC - IVG7));
 			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;				
 
 		case IOCTL_DEEP_SLEEP_MODE:
-			deep_sleep();
+			deep_sleep(IWR_ENABLE(IRQ_RTC - IVG7));
+
+/* Active Mode SCLK = CCLK is hazardous condition Anomlay 05000273 */
+/* Changed deep_sleep to return to Full On Mode */
+#if 0
 			/* Needed since it comes back to active mode */
 			change_baud(CONSOLE_BAUD_RATE);
+#endif
 			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;
 		
+		case IOCTL_SLEEP_DEEPER_MODE:
+			sleep_deeper(IWR_ENABLE(IRQ_RTC - IVG7));
+			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+			__builtin_bfin_ssync();
+		break;
+
 		case IOCTL_HIBERNATE_MODE:
-			hibernate_mode();
+			hibernate_mode(IWR_ENABLE(IRQ_RTC - IVG7));
 			bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 			__builtin_bfin_ssync();
 		break;
@@ -625,6 +636,7 @@ void active_mode(void)	{
 
 
 #if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
+	  /* In addition in BYPASS mode SCLK = CCLK which is hazardous condition Anomlay 05000273 */
 	unsigned long flags;
 
 	bfin_write_SIC_IWR(IWR_ENABLE(0));
@@ -760,10 +772,22 @@ static struct miscdevice dpmc_dev=
 /* Init function called first time */
 int __init dpmc_init(void)
 {
+
+  	struct proc_dir_entry *entry;
+
     DPRINTK("blackfin_dpmc_init\n");
 
     misc_register(&dpmc_dev);
-    create_proc_read_entry ("driver/dpmc", 0, 0, dpmc_read_proc, NULL);
+
+  if((entry = create_proc_entry("driver/dpmc_suspend", 0, NULL)) == NULL)
+    {
+      printk(KERN_ERR "%s: unable to create /proc entry\n",__FUNCTION__);
+    }else
+    {
+  	  entry->read_proc = dpmc_read_proc;
+  	  entry->write_proc = dpmc_write_proc;
+  	  entry->data = NULL;
+	}
 
     printk(KERN_INFO "Dynamic Power Management Controller Driver v" DPMC_VERSION ": major=%d, minor = %d\n", MISC_MAJOR, DPMC_MINOR);
     return 0;
@@ -771,16 +795,33 @@ int __init dpmc_init(void)
 
 void __exit dpmc_exit (void)
 {
-    remove_proc_entry ("driver/dpmc", NULL);
+    remove_proc_entry ("driver/dpmc_suspend", NULL);
     misc_deregister(&dpmc_dev);
 }
 
 module_init(dpmc_init);
 module_exit(dpmc_exit);
 
-/*
- *  Info exported via "/proc/driver/dpmc".
- */
+static int
+dpmc_write_proc(struct file *file, const char __user * buffer,
+		    unsigned long count, void *data)
+{
+  s8 line[16];
+  u32 val=0;
+ 
+ if (count<=16){ 
+   copy_from_user(line, buffer, count);
+   val = simple_strtoul(line, NULL, 0);
+ }
+ 
+ if(val){
+   sleep_deeper(val);
+   bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+ }
+
+  return count;
+}
+
 
 static int dpmc_read_proc(char *page, char **start, off_t off,
                          int count, int *eof, void *data)

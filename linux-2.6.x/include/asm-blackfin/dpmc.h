@@ -31,6 +31,7 @@
 #define IOCTL_UNMASK_WDOG_WAKEUP_EVENT _IO('s',0xAE)
 #define IOCTL_PROGRAM_WDOG_TIMER _IOW('s',0xAF,unsigned long)
 #define IOCTL_CLEAR_WDOG_WAKEUP_EVENT _IO('s',0xB0)
+#define IOCTL_SLEEP_DEEPER_MODE _IO('s',0xB1)
 
 #define DPMC_MINOR		254
 
@@ -50,9 +51,10 @@ unsigned long get_pll_status(void);
 void change_baud(int baud);
 void fullon_mode(void);
 void active_mode(void);
-void sleep_mode(void);
-void deep_sleep(void);
-void hibernate_mode(void);
+void sleep_mode(u32 sic_iwr);
+void deep_sleep(u32 sic_iwr);
+void hibernate_mode(u32 sic_iwr);
+void sleep_deeper(u32 sic_iwr);
 void program_wdog_timer(unsigned long);
 void unmask_wdog_wakeup_evt(void);
 void clear_wdog_wakeup_evt(void);
