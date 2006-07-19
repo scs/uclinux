@@ -1,15 +1,15 @@
 /*
- * File:        arch/blackfin/mach-bf537/stamp.c
- * Based on:    archi/blacfkin/mach-bf533/ezkit.c
- * Author:      Aidan Williams <aidan@nicta.com.au>
- *                Copyright 2005 National ICT Australia (NICTA)
+ * File:         arch/blackfin/mach-bf537/boards/stamp.c
+ * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
+ * Author:       Aidan Williams <aidan@nicta.com.au>
+ *                 Copyright 2005 National ICT Australia (NICTA)
+ *
  * Created:
  * Description:
  *
  * Rev:          $Id$
  *
  * Modified:
- *
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
