@@ -52,26 +52,20 @@ void bf537_pm_idle(void)
 }
 
 /*
- * when we call pm_suspend, that code  enters into idle state and sdram enter self-refresh mode
- *  to save more energy.When there is any interrupt,the core will resume
+ * When we call pm_suspend, that code  enters into idle state.
+ * When there is any interrupt,the core will resume
  */
 void bf537_pm_suspend(void)
 {
-	/*sdram enter self-refresh mode*/
-	 bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() |SRFS);
-        __builtin_bfin_ssync();
-	/*any interrupt can cause CPU exit idle state*/
-        bfin_write_SIC_IWR(0x00ffffff);
-        __builtin_bfin_ssync();
-        __asm__ (
-        "CLI R2;\n\t"
-        "SSYNC;\n\t"
-        "IDLE;\n\t"
-        "STI R2;\n\t"
-        );
-        /*sdram exit self-refresh mode*/
-        bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() |SRFS);
-        __builtin_bfin_ssync();
+  unsigned long flags;
+
+ /*FIXME: Add a useful Power Saving Mode Here ...*/
+   
+	local_irq_save(flags);
+    bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	__builtin_bfin_ssync();
+	asm("IDLE;");
+	local_irq_restore(flags);
 
 }
 
