@@ -584,6 +584,9 @@
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 #define NINT_P		0x00
+#define IIR_TX_READY    0x02    /* UART_THR empty                               */
+#define IIR_RX_READY    0x04    /* Receive data ready                           */
+#define IIR_LINE_CHANGE 0x06    /* Receive line status                          */
 
 /* UART_GCTL Register */
 #define FFE	0x20
