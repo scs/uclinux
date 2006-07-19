@@ -2,7 +2,7 @@
 # -*- sh -*-
 
 # $Id$
-MY_CFLAGS = -I/usr/include -I.
+MY_CFLAGS = -Iinclude -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
 CFLAGS += -D__USE_BSD -I$(ROOTDIR)/lib/zlib -I.
@@ -71,12 +71,12 @@ mkfs.jffs2: $(JFFS2_OBJS)
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LDPATH) -lz $(LDLIBS)
 
 build/mkfs.jffs2: $(BUILD_JFFS2_OBJS)
-	$(BUILD_CC) -o $@ $^ -lz
+	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^ -lz
 
 flash_eraseall: $(ERASEALL_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 build/flash_eraseall: $(BUILD_ERASEALL_OBJS)
-	$(BUILD_CC) -o $@ $^ 
+	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^ 
 
 jffs2reader: jffs2reader.o
 	$(CC) $(LDFLAGS) -o $@ $^ -lz 
@@ -84,7 +84,7 @@ jffs2reader: jffs2reader.o
 jffs2dump: $(DUMP_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^
 build/jffs2dump: $(BUILD_DUMP_OBJS)
-	$(BUILD_CC) -o $@ $^
+	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^
 
 build/%.o: %.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -c -o $@ $<
