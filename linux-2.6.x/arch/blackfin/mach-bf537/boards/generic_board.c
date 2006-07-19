@@ -69,7 +69,7 @@ static struct platform_device *generic_board_devices[] __initdata = {
 
 static int __init generic_board_init(void)
 {
-	printk("%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	return platform_add_devices(generic_board_devices,
 				    ARRAY_SIZE(generic_board_devices));
 }

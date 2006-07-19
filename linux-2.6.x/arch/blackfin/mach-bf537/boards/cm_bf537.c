@@ -254,7 +254,7 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 
 static int __init cm_bf537_init(void)
 {
-	printk("%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	return platform_add_devices(cm_bf537_devices,
 				    ARRAY_SIZE(cm_bf537_devices));
 }
