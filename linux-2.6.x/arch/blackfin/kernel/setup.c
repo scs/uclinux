@@ -883,7 +883,11 @@ static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
 
+#if defined (CONFIG_BF561)
+	bfin_write_SICA_IWR1(IWR_ENABLE_ALL);
+#else
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif
 
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
@@ -955,7 +959,11 @@ static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int directi
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
 
+#if defined (CONFIG_BF561)
+	bfin_write_SICA_IWR1(IWR_ENABLE_ALL);
+#else
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif
 
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
