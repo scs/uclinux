@@ -37,7 +37,7 @@
 #include "mem_map.h"
 #include "defBF534.h"
 
-#ifdef CONFIG_BF537
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536)
 #include "defBF537.h"
 #endif
 
@@ -68,7 +68,7 @@
 #define bfin_read_UART_GCTL() bfin_read_UART0_GCTL()
 #define bfin_write_UART_GCTL(val) bfin_write_UART0_GCTL(val)
 
-#ifdef CONFIG_BF537
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536)
 #include "cdefBF537.h"
 #endif
 #endif
