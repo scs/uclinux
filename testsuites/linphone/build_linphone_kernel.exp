@@ -1,0 +1,163 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for Linphone test
+#
+
+log_file build_linphone_kernel_log
+send_user "Starting build_linphone_kernel.exp\n"
+
+set user /home/test
+set uclinux_path $user/checkout/kernel/uClinux-dist
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1 } {
+   puts "Please input: board_type."
+   exit
+} 
+
+if { $argc >= 2 } {
+   set uclinux_path [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+   global step_sequence_number
+   puts "\n******************************************************************"
+   puts "STEP $step_sequence_number: $message\n\n"
+   send_log "\n************** STEP :$step_sequence_number: $message\n\n"
+   incr step_sequence_number
+}
+
+set step_sequence_number 1
+
+step "Make config"
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Default all settings \\\(lose changes\\\) \\\(CONFIG_DEFAULTS_OVERRIDE.*\\\[././.]" {
+         send "y\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Sound card support.*SOUND.*\\\[./././.]" {
+         send "m\r"
+      }
+
+      -re "OSS Mixer API \\\(SND_MIXER_OSS\\\).*\\\[././.]" {
+         send "m\r"
+      }
+
+      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[././.]" {
+         send "m\r"
+      }
+
+      -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[././.]" {
+         send "m\r"
+      }
+
+      -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
+         send "0\r"
+      }
+
+      -re "Blackfin Audio SPI channel selection bit.*SND_BLACKFIN_SPI_PFBIT.*\\\[.]" {
+         send "4\r"
+      }
+
+      -re "Linphone, a SIP compatible VoIP phone.*CONFIG_USER_BLACKFIN_LINPHONE.*\\\[././.]" {
+         send "y\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+   expect {
+      "Entering directory" { }
+      "Leaving directory" { set bfin_make_status success }
+      "Error" {set bfin_make_status failure }
+      "/bin/sh" { }
+      eof { break }
+   }
+}
+
+if { $bfin_make_status == "failure" } {
+   puts "ERROR: Error somewhere during make"
+}    
+     
+step "Copy linux"
+  
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+log_file
+
+send_user "\nKernel building for Linphone test finishes!\n"
