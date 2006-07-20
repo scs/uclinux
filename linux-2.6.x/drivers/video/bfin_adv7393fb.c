@@ -306,7 +306,7 @@ bfin_disable_dma(void)
 static void
 bfin_config_ppi(struct adv7393fb_device *fbdev)
 {
-#ifdef CONFIG_BF537
+#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
   bfin_write_PORTG_FER(0xFFFF);		/* PPI[15:0]    */
   bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8300);	/* PF.15 PPI_CLK FS1 FS2 */
   bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~0x0E00);
