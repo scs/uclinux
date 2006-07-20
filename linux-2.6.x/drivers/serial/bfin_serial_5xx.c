@@ -39,6 +39,7 @@
 
 #include "bfin_serial_5xx.h"
 
+#undef SERIAL_DEBUG
 #undef SERIAL_DEBUG_OPEN
 #undef SERIAL_DEBUG_CALLTRACE
 #undef SERIAL_DEBUG_TERMIOS
@@ -55,10 +56,18 @@
 #define ACCESS_LATCH(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)|DLAB); SSYNC;}
 #define ACCESS_PORT_IER(regs)	{ bfin_write16(regs->rpUART_LCR, bfin_read16(regs->rpUART_LCR)&(~DLAB)); SSYNC;}
 
-#if defined (SERIAL_DEBUG_OPEN)
-# define DEBUG_OPEN(fmt, args...) printk(KERN_DEBUG "%s(%d): %s" fmt, __FILE__, __LINE__, __FUNCTION__, ## args)
+#define _DPRINTK(fmt, args...) printk(KERN_DEBUG "%s(%d): %s " fmt, __FILE__, __LINE__, __FUNCTION__, ## args)
+
+#if defined (SERIAL_DEBUG)
+# define DPRINTK(x...) _DPRINTK(x)
 #else
-# define DEBUG_OPEN(fmt, args...) do {} while (0)
+# define DPRINTK(x...) do {} while (0)
+#endif
+
+#if defined (SERIAL_DEBUG_OPEN)
+# define DEBUG_OPEN(x...) _DPRINTK(x)
+#else
+# define DEBUG_OPEN(x...) do {} while (0)
 #endif
 
 #if defined (SERIAL_DEBUG_CALLTRACE)
@@ -1057,8 +1066,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	if (!(cflag & PARODD))
 		cval |= EPS;
 	if (cflag & CRTSCTS)
-		printk(KERN_DEBUG "%s: CRTSCTS not supported. Ignoring.\n",
-		       __FUNCTION__);
+		DPRINTK("CRTSCTS not supported. Ignoring.\n");
 
 	for (i = 0; i < BAUD_TABLE_SIZE; i++) {
 		if (unix_baud_table[i] == (cflag & CBAUD))
@@ -1106,8 +1114,9 @@ static void bfin_change_speed(struct bfin_serial *info)
 	SSYNC;
 
 	local_irq_restore(flags);
-	printk(KERN_DEBUG "bfin_change_speed: baud = %d, cval = 0x%x\n", baud_table[i],
-	       cval);
+
+	DPRINTK("baud = %d, cval = 0x%x\n", baud_table[i], cval);
+
 	return;
 }
 
@@ -1131,13 +1140,12 @@ static void rs_set_ldisc(struct tty_struct *tty)
 		/* enable irda function */
 		bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)| IREN | RPOLC);
 		SSYNC;
-		printk(KERN_DEBUG "irda is enabled on serial, rpolc low.\n");
-	}
-	else {
+		DPRINTK("irda is enabled on serial, rpolc low.\n");
+	} else {
 		/* disable irda function */
 		bfin_write16(regs->rpUART_GCTL, bfin_read16(regs->rpUART_GCTL)&(~(IREN | RPOLC)));
 		SSYNC;
-		printk(KERN_DEBUG "irda is disabled on serial, rpolc high.\n");
+		DPRINTK("irda is disabled on serial, rpolc high.\n");
 	}
 #endif
 }
