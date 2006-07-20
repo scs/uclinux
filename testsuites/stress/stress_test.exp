@@ -326,11 +326,11 @@ if {$flag==0} {
 		send -s "\3"
 		set spawn_id $ftp_test_id
 		send -s "\3"
-		send_log "$TITLE ............\[PASS\]\r"
+		send_log "\n$TITLE ............\[PASS\]\n"
 		exit
    }
 
-   send_log "$TITLE ............\[FAIL\]\r"
+   send_log "\n$TITLE ............\[FAIL\]\n"
 
 
 log_file

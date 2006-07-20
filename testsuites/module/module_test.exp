@@ -2,6 +2,7 @@
 log_file module_test_log
 send_user "Starting module_test.exp\n"
 
+set TITLE "Module Test"
 set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
@@ -271,6 +272,11 @@ sleep 5
 send "\r"
 
 step "Starting test."
+
+set case_num 0
+
+incr case_num
+
 set timeout 8
 set flag 0
 
@@ -282,30 +288,35 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			-re ".* registered" {
-			
+				send_log "\nCase $case_num ...PASS\n"
 				puts "\nmodule insert success.\n"
 				break
 			}
 			
 			timeout {
-				puts "\nmodule insert failed.\n"
-				break
+				send_log "\nCase $case_num ...FAIL\n"
+				send_log "$TITLE ............\[FAIL\]\n"
+				exit
 				}
 			}
 			}
+			
+			incr case_num
+			
 			expect "root:~>"
 			send -s "lsmod\r"
 			while 1 {
 			expect {
 			"bfin_mac" {
-			
+				send_log "\nCase $case_num ...PASS\n"
 				puts "\nmodule ls success.\n"
 				break
 			}
 			
 			timeout {
-				puts "\nmodule ls failed.\n"
-				break
+				send_log "\nCase $case_num ...FAIL\n"
+				send_log "$TITLE ............\[FAIL\]\n"
+				exit
 				}
 			}
 			}
@@ -318,34 +329,41 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			"eth0: Ethernet addr" {
-			
+				send_log "\nCase $case_num ...PASS\n"
 				puts "\nmodule insert success.\n"
 				break
 			}
 			
 			timeout {
-				puts "\nmodule insert failed.\n"
-				break
+				send_log "\nCase $case_num ...FAIL\n"
+				send_log "$TITLE ............\[FAIL\]\n"
+				exit
 				}
 			}
 			}
+			
+			incr case_num
+			
 			expect "root:~>"
 			send -s "lsmod\r"
 			while 1 {
 			expect {
 			"smc91x" {
-			
+				send_log "\nCase $case_num ...PASS\n"
 				puts "\nmodule ls success.\n"
 				break
 			}
 			
 			timeout {
-				puts "\nmodule ls failed.\n"
-				break
+				send_log "\nCase $case_num ...FAIL\n"
+				send_log "$TITLE ............\[FAIL\]\n"
+				exit
 				}
 			}
 			}
 }
+
+incr case_num
 
 expect "root:~>"
 send -s "ifconfig eth0 10.100.4.50\r" 
@@ -353,11 +371,14 @@ while 1 {
    sleep 3
    expect {
       "~>" { 
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {                           
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
@@ -367,7 +388,7 @@ send -s "ifconfig\r"
 while 1 {
    expect {
       "10.100.4.50" { 
-            break
+         break
       }
 
       timeout {                           
@@ -375,6 +396,8 @@ while 1 {
          }
      }
 }
+
+incr case_num
 
 expect "root:~>"
 send -s "ping 10.100.4.174\r" 
@@ -383,14 +406,19 @@ while 1 {
       "icmp_seq" { 
        sleep 10
        send "\003"
+       send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {                           
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 expect "root:~>"
 set timeout 50
@@ -401,12 +429,14 @@ if { $board_type == "BF537-STAMP" } {
 	while 1 {
 	expect {
 	"root:~>" {
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 	
 	timeout {
-		puts "module rm fail. "
-		break
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 		}
 	}
 	}
@@ -416,31 +446,40 @@ if { $board_type == "BF537-STAMP" } {
 	send -s  "rmmod smc91x\r" 
 	while 1 {
 	expect {
-	"root:~>" {              
+	"root:~>" {    
+		send_log "\nCase $case_num ...PASS\n"   
 		break
 	}
 	
 	timeout {
-		puts "module rm fail. "
-		break
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 		}
 	}
 	}
 }
 
+incr case_num
+
 send -s "lsmod\r" 
 while 1 {
    expect {
       "root:~>" {
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout { 
-         puts "\nmodule ls failed.\n"                  
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
  

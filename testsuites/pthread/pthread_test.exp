@@ -2,6 +2,8 @@
 log_file pthread_test_log
 send_user "Starting pthread_test_log\n"
 
+set TITLE "Pthread Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
@@ -266,6 +268,10 @@ send "\r"
 
 step "Starting test."
 
+set case_num 0
+
+incr case_num
+
 set timeout 8
 set flag 0
 
@@ -290,108 +296,136 @@ expect "root:/bin>"
 send -s  "./ex1\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+      "join b succeeded 0" {         
          send_log "Run ex1 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex1 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s  "./ex2\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+      "> 9999" {         
          send_log "Run ex2 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex2 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s  "./ex3\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+    -re  "It took .*tries to find the number" {         
          send_log "Run ex3 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex3 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s  "./ex4\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+     -re "Thread .* freeing buffer at .*" {         
          send_log "Run ex4 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex4 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s  "./ex5\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+      "> 9999" {         
          send_log "Run ex5 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex5 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
-     
+  
+incr case_num
+   
 send -s  "./ex6\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+      "count = 1999" {         
          send_log "Run ex6 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex6 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
      
+incr case_num
+
 send -s  "./ex7\r" 
 while 1 {
    expect {
-      "root:/bin>" {         
+     -re "waiting .*count = 19" {         
          send_log "Run ex7 finished.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "Run ex7 fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
 
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
  

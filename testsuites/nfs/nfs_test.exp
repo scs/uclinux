@@ -2,6 +2,8 @@
 log_file nfs_test_log
 send_user "Starting nfs_test.exp\n"
 
+set TITLE "NFS Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
@@ -263,6 +265,8 @@ sleep 5
 
 step "Start tetsting."
 
+set case_num 0
+
 set timeout 8
 set flag 0
 send "ifconfig eth0 10.100.4.50\r" 
@@ -271,9 +275,7 @@ while 1 {
    sleep 3
    expect {
       ">" {
-         set flag 1
-         puts "ifconfig set.\n"
-         break
+          break
       }
 
       timeout {
@@ -288,20 +290,19 @@ send "ifconfig\r"
 while 1 {
 
    expect {
-      "10.100.4.50" {
-         set flag 1
-         puts "ifconfig set success.\n"
+      "10.100.4.50" {        
          break
       }
 
       timeout {
-            puts "Fail ifconfig. "
-          #  recover
+            puts "Fail ifconfig. "         
             break
          }
      }
 }
 expect "root:~>"
+incr case_num
+
 sleep 2
 send "portmap &\r" 
 while 1 {
@@ -309,50 +310,58 @@ while 1 {
       -re "\[0-9]+" {
          set flag 1
          puts "\nportmap run success.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "portmap fail. "
-          
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
 expect "root:~>"
 set send_slow {1 .1}
 
+incr case_num
+
 send -s "mount -o nolock,rsize=1024,wsize=1024 -t nfs 10.100.4.174:$uclinux_path/romfs /mnt\r" 
 while 1 {
    expect {
        "root:~>" {
-         
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "mount fail. "
-          
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s "ls /mnt\r" 
 while 1 {
    expect {
        "home" {         
          puts "******* nfs mount  success.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "**** nfs mount  fail. "
-          
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 expect ">"
 send -s "umount /mnt\r" 
@@ -360,32 +369,39 @@ while 1 {
    expect {
        ">" {         
          puts "nfs umount.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "nfs umount fail. "          
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 set timeout 3
 send -s "ls /mnt\r"
 while 1 {
    expect {
        "home" {
-         puts "******* nfs umount fails.\n"
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
       }
 
       timeout {
-            puts "**** nfs umount success. "
-
-            break
+        send_log "\nCase $case_num ...PASS\n"
+        break
          }
      }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 

@@ -6,11 +6,12 @@
 log_file serial_test_log
 send_user "Starting serial_test.exp\n"
 
-set send_slow {1 .01}
+set TITLE "Serial Test"
 
+set send_slow {1 .01}
 set SERIAL_PORT_BAUD_RATE   "57600"
 set STRDATA "abcdefghijklmnopqrstuvwxyz0123456789"
-set TITLE "Serial Test"
+
 
 set argc [llength $argv]
 if { $argc < 1} {
@@ -202,7 +203,7 @@ while 1 {
          set flag 1
          set timeout 3
       }
-      "Linux version" {
+      "> " {
          break
       }
    }
@@ -212,9 +213,9 @@ if {$flag==0} {
    exit
 }
 
-send_log "*********************************\r"
-send_log "Start $TITLE\r"
-send_log "*********************************\r"
+
+step "Start $TITLE"
+
 
 set case_num 0
 
@@ -224,13 +225,13 @@ send -s "$STRDATA\r"
 while 1 {
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -242,13 +243,13 @@ while 1 {
    send -s "\3"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -257,16 +258,16 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send -s "ls\r"
+   send -s "ls\n"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -275,18 +276,18 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send -s "dmesg\r"
-   send -s "dmesg\r"
-   send -s "dmesg\r"
-   send -s "cat proc/slabinfo\r"
+   send -s "dmesg\n"
+   send -s "dmesg\n"
+   send -s "dmesg\n"
+   send -s "cat proc/slabinfo\n"
    expect {
 	"slabinfo - version" {
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -295,12 +296,12 @@ while 1 {
 while 1 {
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -309,15 +310,15 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send -s "cat proc/kallsyms\r"
+   send -s "cat proc/kallsyms\n"
    expect {
 	"start" {
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -328,12 +329,12 @@ while 1 {
    send -s "\3"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -343,20 +344,20 @@ while 1 {
 incr case_num
 set timeout 30
 for {set i 0} {$i<100} {incr i} {
-   send "$STRDATA\r"
+   send "$STRDATA\n"
 }
-send -s "====================================\r"
+send -s "====================================\n"
 
 while 1 {
    expect {
 	"=========: not found" {
-		send_log "\rCase $case_num ...PASS\r"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -365,15 +366,15 @@ while 1 {
 incr case_num
 while 1 {
    set timeout 5
-   send -s "vi\r"
+   send -s "vi\n"
    expect {
 	"line 1 of 1" {
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }
@@ -382,38 +383,38 @@ while 1 {
 while 1 {
    set timeout 30
    send -s "i"
-   send -s "adskf\r"
-   send -s "werigji\r"
-   send -s "werigji\r"
-   send -s "werigji\r"
-   send -s "werigji\r"
-   send -s "werigji\r"
-   send -s "werigji\r"
+   send -s "adskf\n"
+   send -s "werigji\n"
+   send -s "werigji\n"
+   send -s "werigji\n"
+   send -s "werigji\n"
+   send -s "werigji\n"
+   send -s "werigji\n"
    for {set i 0} {$i<100} {incr i} {
       send -s "x"
       expect {
 	"x" {
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
       }
    }
-   send -s "a\r"
-   send -s "b\r"
-   send -s "c\r"
-   send -s "d\r"
-   send -s "e\r"
-   send -s "f\r"
-   send -s "\r"
+   send -s "a\n"
+   send -s "b\n"
+   send -s "c\n"
+   send -s "d\n"
+   send -s "e\n"
+   send -s "f\n"
+   send -s "\n"
    send -s "$STRDATA"
    send -s "$STRDATA"
    send -s "$STRDATA"
-   send -s "$STRDATA\r"
+   send -s "$STRDATA\n"
    for {set i 0} {$i<100} {incr i} {
-      send "$STRDATA\r"
+      send "$STRDATA\n"
    }
    send -s "===================================#"
    expect {
@@ -421,16 +422,16 @@ while 1 {
 		sleep 2
 		send -s "\033"
 		sleep 2
-		send -s ":q!\r"
+		send -s ":q!\n"
 		sleep 2
-		send -s "\r"
-		send_log "\rCase $case_num ...PASS\r"
+		send -s "\n"
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
 		exit
          }
    }

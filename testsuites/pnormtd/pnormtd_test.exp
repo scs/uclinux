@@ -24,6 +24,7 @@
 log_file pnormtd_test_log
 send_user "Starting pnormtd_test.exp\n"
 
+set TITLE "Pnormtd Test"
 set TEST_PASS               "pass"
 set TEST_FAIL               "fail"
 # The term "INFO" here means the test was not run or could not be run.
@@ -31,6 +32,18 @@ set TEST_FAIL               "fail"
 set TEST_INFO               "notrun"
 
 set send_slow               {1 .1}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
 
 #
 #  This matrix contains all the tests which are run.  Note that
@@ -45,7 +58,8 @@ set result_matrix { {mtd                                notrun}}
 
 set argc [llength $argv]
 if { $argc < 1} {
-    usage
+    puts "Please input ttydev port."
+    exit
 }
 
 
@@ -58,26 +72,26 @@ for {set i 1} {$i<$argc} {incr i} {
 	
 	"--lo*" {
 	    incr i
-	    if {$i>=$argc} { usage }
+	    if {$i>=$argc} { exit }
 	    set logfile [lindex $argv $i]
 	}
 	
 	"--su*" {
 	    incr i
-	    if {$i>=$argc} { usage }
+	    if {$i>=$argc} { exit }
 	    set summary_logfile [lindex $argv $i]
 	}
 
 	"--comp*" {
 	    incr i
-	    if {$i>=$argc} { usage }
+	    if {$i>=$argc} { exit }
 	    set compare_file [lindex $argv $i]
 	}
 
     }
 }
 
-send_user "Start up kermit on port $ttydev"
+step "Start kermit"
 
 # Now set up the kermit parameters.
 #  I want these all contained in this file to make it easier for users.
@@ -315,8 +329,12 @@ send -s "boote\r"
 sleep 5
 send "\r"
 expect "root:~>"
-send_log "\n******"
-send_log "MTD test\n\n"
+
+set case_num 0
+
+incr case_num
+
+step "MTD test"
 set send_slow {1 .01}
 set timeout 5
 set mtd_temp_result $TEST_FAIL
@@ -328,7 +346,7 @@ while 1 {
 
 	"mtd2" {
 		set mtd_temp_result $TEST_PASS
-		
+		send_log "\nCase $case_num ...PASS\n"
 	}
 
 	 "root:~>" {
@@ -337,8 +355,9 @@ while 1 {
 
 
 	timeout {
-	    send_user "Error: no mtd partition to test\n"
-	    break
+	    	send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 	}
     }
 }
@@ -348,8 +367,9 @@ if { $mtd_temp_result!=$TEST_PASS } {
 }
 sleep 1
 
-send_log "\n******"
-send_log "Erase MTD ......\n\n"
+incr case_num
+
+step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
 send -s "flash_eraseall /dev/mtd2\r"
@@ -358,12 +378,14 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 
 	timeout {
-	    send_user "Error: erase mtd partition error\n"
-	    break
+	   	send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 	}
     }
 }
@@ -372,23 +394,22 @@ if  { $mtd_temp_result!=$TEST_PASS } {
 	exit
 }
 
-send_log "\n******"
-send_log "Make jffs2 image ......\n"
-send_log " \n1)umount mounted file system\n"
-send -s "umount /mnt\r"
-expect ">"
-send_log " \n2)create file system directory\n"
+
+step "Make jffs2 image"
+
+send_log " \n1)create file system directory\n"
 send -s "mkdir -p rootfs\r"
 expect ">"
-send_log " \n3)create test file\n"
+send_log " \n2)create test file\n"
 send -s "echo This is test for mtd driver > rootfs/test\r"
 expect "root:~>"
-send_log " \n4)create JFFS2 image\n"
+send_log " \n3)create JFFS2 image\n"
 send -s "mkfs.jffs2 -r rootfs -o mtd.img\r"
 expect ">"
 
-send_log "\n******"
-send_log "Writing MTD......\n"
+incr case_num
+
+step "Writing MTD"
 set mtd_temp_result $TEST_FAIL
 set timeout 60
 send -s "cp mtd.img /dev/mtd2\r"
@@ -397,12 +418,14 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
 	
 	timeout {
-		send_user "Error: write mtd partition error\n"
-		break
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 	}
     }
 }
@@ -411,8 +434,9 @@ if  { $mtd_temp_result!=$TEST_PASS } {
         exit
 }
 
-send_log "\n******"
-send_log "Reading MTD ......\n"	
+incr case_num
+
+step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
 send -s "mount -t jffs2 /dev/mtdblock2 /mnt\n"
@@ -421,12 +445,14 @@ while 1 {
                                                                                                                                                              
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
 		break
         }
                                                                                                                                                              
         timeout {
-                send_user "Error: read mtd partition error\n"
-                break
+                send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
         }
     }
 }
@@ -435,23 +461,29 @@ if  { $mtd_temp_result!=$TEST_PASS } {
         exit
 }
 
-send_log "Verify ......\n"
+incr case_num
+
+step "Verify "
 set timeout 2
 send -s "cmp /rootfs/test /mnt/test\r"
 while 1 {
     expect {
 	
 	"differ" {
-		send_user "Error: verify failed\n"
-		break
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
 	}
 	timeout {
-		send_user "\nMTD test successful!\n"
 		set mtd_results $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
 		break
 	}
     }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 exit
 log_file

@@ -2,6 +2,8 @@
 log_file rtc_test_log
 send_user "Starting rtc_test.exp\n"
 
+set TITLE "RTC Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
@@ -261,6 +263,10 @@ send "\r"
 
 step "Start testing."
 
+set case_num 0
+
+incr case_num
+
 set timeout 8
 set flag 0
 
@@ -287,15 +293,20 @@ while 1 {
       "RTC Tests done" {
          set flag 1
          puts "rtc test success.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "rtc test fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
  
