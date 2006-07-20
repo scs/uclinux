@@ -146,12 +146,14 @@ ENTRY(__stext)
 	W[P0] = R0.L; /* Enable peripheral function of PORTF for UART0 and UART1 */
 	SSYNC;
 
+#if !defined(CONFIG_BF534)
 	p0.h = hi(EMAC_SYSTAT);
 	p0.l = lo(EMAC_SYSTAT);
 	R0.h = 0xFFFF; /* Clear EMAC Interrupt Status bits */
 	R0.l = 0xFFFF;
 	[P0] = R0;
 	SSYNC;
+#endif
 
 #ifdef CONFIG_BF537_PORT_H
 	p0.h = hi(PORTH_FER);
