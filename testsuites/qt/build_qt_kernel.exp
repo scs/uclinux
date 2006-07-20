@@ -78,17 +78,12 @@ while 1 {
          send "$board_type\r"
       }
 
-#      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-#         send "y\r"
-#      }
-
-      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
          send "y\r"
       }
 
       -re "Support for frame buffer devices \\\(FB\\\) \\\[./././.]" {
          send "y\r"
-exit
       }
 
       -re "Blackfin ADI7171 video encoder on uClinux \\\(FB_BFIN_7171\\\) \\\[././.]" {
