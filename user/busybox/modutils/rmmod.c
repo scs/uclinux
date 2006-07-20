@@ -108,7 +108,8 @@ extern int rmmod_main(int argc, char **argv)
 	{
 		for (n = optind; n < argc; n++) {
 #ifdef CONFIG_FEATURE_2_6_MODULES
-			char module_name[strlen(argv[n]) + 1];
+			char *module_name;
+			module_name = alloca(strlen(argv[n]) + 1);
 			filename2modname(module_name, argv[n]);
 #else
 #define module_name		argv[n]
