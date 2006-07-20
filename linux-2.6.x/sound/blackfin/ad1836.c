@@ -1850,8 +1850,11 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	}
 	strcpy(card->driver, DRIVER_NAME);
 	strcpy(card->shortname, CHIP_NAME);
-	strcpy(card->longname, "Blackfin Stampboard Daughter Card, "
-				"AD1836 soundcard");
+	sprintf(card->longname, "%s at PF%d SPORT%d rx/tx dma %d/%d err irq %d", 
+		  card->shortname,
+		  CONFIG_SND_BLACKFIN_SPI_PFBIT,
+		  CONFIG_SND_BLACKFIN_SPORT,
+		  SPORT_DMA_RX, SPORT_DMA_TX, SPORT_IRQ_ERR);
 
 	snd_card_set_dev(card, (&pdev->dev));
 	snd_ad1836_proc_create(ad1836);
