@@ -977,6 +977,7 @@
 #define IIR_TX_READY    0x02    /* UART_THR empty                               */
 #define IIR_RX_READY    0x04    /* Receive data ready                           */
 #define IIR_LINE_CHANGE 0x06    /* Receive line status                          */
+#define IIR_STATUS	0x06
 
 /* UART_GCTL Register */
 #define FFE	0x20
