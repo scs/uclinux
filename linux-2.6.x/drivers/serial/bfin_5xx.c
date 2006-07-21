@@ -1,7 +1,7 @@
 /*
- *  linux/drivers/char/sa1100.c
+ *  linux/drivers/serial/bfin_5xx.c
  *
- *  Driver for SA11x0 serial ports
+ *  Driver for blackfin 5xx serial ports
  *
  *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
  *
