@@ -381,6 +381,29 @@ static struct platform_device bfin_fb_device = {
 };
 #endif
 
+#ifdef CONFIG_SERIAL_BFIN
+
+static struct resource bfin_uart_resources[] = {
+        [0] = {
+                .start  = 0xFFC00400,
+                .end    = 0xFFC004FF,
+                .flags  = IORESOURCE_MEM,
+        },
+	[1] = {
+		.start  = 0xFFC02000,
+		.end	= 0xFFC020FF,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device bfin_uart_device = {
+        .name           = "bfin-uart",
+        .id             = 1,
+        .num_resources  = ARRAY_SIZE(bfin_uart_resources),
+        .resource       = bfin_uart_resources,
+};
+#endif
+
 static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
@@ -412,8 +435,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_FB_BF537_LQ035) || defined(CONFIG_FB_BF537_LQ035_MODULE)
 	&bfin_fb_device,
 #endif
-};
 
+#ifdef CONFIG_SERIAL_BFIN
+	&bfin_uart_device,
+#endif
+};
 
 static int __init stamp_init(void)
 {
