@@ -235,7 +235,7 @@ expect {
         }
 }
 
-
+sleep 3
 step "Start $TITLE\r"
 
 set timeout 10
@@ -245,6 +245,7 @@ spawn rcp ./dpm_testcase root@$targetip:/
 set spawn_id $kermit_spawn_id
 
 send -s "chmod +x /dpm_testcase\r"
+expect ">"
 incr case_num
 send -s "sh /dpm_testcase\r"
 while 1 {

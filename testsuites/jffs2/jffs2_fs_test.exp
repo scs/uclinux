@@ -2,6 +2,8 @@
 log_file jffs2_fs_test_log
 send_user "Starting jffs2_fs_test.exp\n"
 
+set TITLE "JFFS2_FS Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
@@ -357,6 +359,29 @@ set timeout 600
 
 step "Starting test."
 
+set case_num 0
+
+incr case_num
+
+set timeout 8
+set flag 0
+send "ifconfig eth0 10.100.4.50\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         set flag 1
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
 send "cd /bin\r"
 while 1 {
    expect {
@@ -378,19 +403,100 @@ expect "root:/bin>"
 send -s  "./fs_test.sh\r" 
 while 1 {
    expect {
-      "root:/bin>" {
-         set flag 1
-         puts "jffs2 fs test success.\n"
+      "Execution completed" {
+         send_log "\nCase $case_num ...PASS\n"        
          break
       }
 
       timeout {
-            puts "jffs2 fs test fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
+        }
+     }
+}
+
+incr case_num
+
+send  "ls -l TestFailed.log\r"
+set timeout 10
+while 1 {
+   expect {
+      -re "rw.* .* .* .* (\[0-9]+) .*TestFailed\.log" {
+         set FileSize $expect_out(1,string)
+         expect ">"
+         puts " FileSize $expect_out(1,string)"	 
+         break
+      }
+
+      timeout {
+        break       
          }
      }
 }
 
+ if { $FileSize == 0 } {
+
+                send_log "\nCase $case_num ...PASS\n"
+
+ } else {
+                send_log "\nCase $case_num ...FAIL\n"
+                send_log "$TITLE ............\[FAIL\]\n"
+                exit
+ }
+
+spawn ftp 10.100.4.50
+while 1 {
+    expect {
+                "Name" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+        send -s "root\r"
+        expect {
+                "Password:" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+        send -s "uClinux\r"
+        expect {
+                "ftp>" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+
+	send -s "cd bin\r"
+        expect {
+                "ftp>" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+	
+        send -s "get TestOverall.log\r"
+        expect {
+                "ftp>" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+
+        send -s "get TestResults.log\r"
+        expect {
+                "ftp>" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+
+         send -s "bye\r"
+         expect {
+                "Goodbye" { break }
+                timeout { send_user "Failed first return\n"
+                        break }
+         }
+
+   }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 

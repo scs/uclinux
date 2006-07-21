@@ -2,6 +2,8 @@
 log_file boot_kernel_only_uimage_log
 send_user "Starting boot_kernel_only_uimage.exp \n"
 
+set TITLE "Boot_kernel_only_uimage Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
@@ -54,11 +56,11 @@ while 1 {
 		"ermit>" { break }
 		"not found" {
                    send_error "ERROR: Failed to start up kermit\n"
-                   all_done
+                   
 		}
 		timeout {
                    send_error "ERROR: Time out starting up kermit\n"
-                   all_done
+                   
 		}
 	}
 }
@@ -72,12 +74,12 @@ for {set i 0} {$i < $nkparams} {incr i} {
 
 		 "\\?\[A-Z]" {
                    send_error "ERROR: Failed to set up kermit parameters\n"
-                    all_done
+                   
 		 }
 
 		 timeout {
                     send_error "ERROR: Time out setting up kermit parameters\n"
-                    all_done
+                   
 		 }
 	  }
     }
@@ -161,7 +163,7 @@ if { $where_are_we == "uboot" } {
    }
 	
 
-    set timeout 1200
+    set timeout 500
    
     send -s "tftp 0x1000000 vmImage\r"
     while 1 {
@@ -180,23 +182,31 @@ if { $where_are_we == "uboot" } {
 	}
     }
     
-  
+set case_num 0
+
+incr case_num
+ 
        set timeout 80
        send -s "bootm 0x1000000\r"
      
 	while 1 {
   	expect {
             "root:~>" {
-	    send_user "\nEnding boot_kernel_only_uimage.exp \n"    
+	    send_user "\nEnding boot_kernel_only_uimage.exp \n"  
+	    send_log "\nCase $case_num ...PASS\n"
 	    break
 	    }	      
 	     
              timeout {
 	     send_user "failed tftp_boot attempt\n"
-	     break
+	     send_log "\nCase $case_num ...FAIL\n"
+	     send_log "$TITLE ............\[FAIL\]\n"
+	     exit
 	     }
 	   }   
     } 
   
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
  
 log_file

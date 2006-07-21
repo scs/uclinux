@@ -2,12 +2,23 @@
 log_file ethernet_test_log
 send_user "Starting ethernet_test.exp\n"
 
+set TITLE "Ethernet Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 set password "blackfin"
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
 
 proc step { message } {
 
@@ -263,6 +274,10 @@ sleep 5
 
 step "Start testing."
 
+set case_num 0
+
+incr case_num
+
 set timeout 8
 set flag 0
 send "ifconfig eth0 10.100.4.50\r" 
@@ -325,7 +340,6 @@ set timeout 4000
 while 1 {
    expect {
       "root:~>" {
-         send_user "Ending ethernet_test.exp\n"
          break
       }
 
@@ -336,12 +350,14 @@ while 1 {
      }
 }
 
-
 send  "cat netperf_tcp_rr\r"
 set timeout 10
 while 1 {
    expect {
-      "root:~>" {         
+      -re "600.* +(\[0-9]+\.\[0-9]+)" {   
+         set TransRate $expect_out(1,string)
+	 expect ">"
+	 puts " TransRate $expect_out(1,string)"
          break
       }
 
@@ -355,7 +371,10 @@ send  "cat netperf_tcp_stream\r"
 set timeout 10
 while 1 {
    expect {
-      "root:~>" {         
+     -re "600.* +(\[0-9]+\.\[0-9]+)" {   
+         set Throughput $expect_out(1,string)
+	 expect ">"
+	 puts "Throughput $expect_out(1,string)"
          break
       }
 
@@ -363,6 +382,33 @@ while 1 {
            break
          }
      }
+}
+
+if { $board_type == "BF537-STAMP" } {
+
+	if { $TransRate > 4000 && $Throughput > 85 } {
+	
+		send_log "\nCase $case_num ...PASS\n"
+	
+	} else {
+		send_log "\nCase $case_num ...FAIL\n"		
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+	}
+	
+} elseif { $board_type == "BF533-STAMP" } {
+
+	if { $TransRate > 4000 && $Throughput > 55 } {
+	
+		send_log "\nCase $case_num ...PASS\n"
+	
+	} else {
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+		
+	}
+
 }
 
 spawn ftp 10.100.4.50
@@ -406,9 +452,10 @@ while 1 {
                         break }
          }
 	 
-	
    }
-
+   
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 
