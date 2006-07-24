@@ -1,0 +1,2 @@
+#./configure --prefix=/usr/local/kaffe --without-esd --without-classpath-gtk-awt --without-alsa --disable-nls --enable-static --with-staticlib --enable-gmp
+CC=bfin-uclinux-gcc ./configure --host=bfin-uclinux --disable-native-awt --enable-pure-java-math --with-gc=kaffe-gc --with-threads=unix-pthreads            --enable-static --with-staticlib --with-staticbin --with-staticvm --disable-binreloc --with-engine=intrp --without-esd
