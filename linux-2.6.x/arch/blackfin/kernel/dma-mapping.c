@@ -59,7 +59,7 @@ void dma_alloc_init(unsigned long start, unsigned long end)
 	memset((void *)dma_base, 0, 1024 * 1024);
 	dma_initialized = 1;
 
-	printk("%s: dma_page @ 0x%p - %d pages at 0x%08lx\n", __FUNCTION__,
+	printk(KERN_INFO "%s: dma_page @ 0x%p - %d pages at 0x%08lx\n", __FUNCTION__,
 	       dma_page, dma_pages, dma_base);
 }
 
