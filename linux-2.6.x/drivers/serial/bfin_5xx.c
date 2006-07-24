@@ -3,9 +3,9 @@
  *
  *  Driver for blackfin 5xx serial ports
  *
- *  Based on drivers/char/serial.c, by Linus Torvalds, Theodore Ts'o.
+ *  Based on drivers/serial/sa1100.c
  *
- *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *  Copyright (C) 2006 Analog Devices, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,22 @@
 #define DPRINTK(x...)   printk(x)
 #else
 #define DPRINTK(x...)   do { } while (0)
+#endif
+
+/*
+ *      Setup for console. Argument comes from the menuconfig
+ */
+
+#if defined(CONFIG_BAUD_9600)
+#define CONSOLE_BAUD_RATE       9600
+#elif defined(CONFIG_BAUD_19200)
+#define CONSOLE_BAUD_RATE       19200
+#elif defined(CONFIG_BAUD_38400)
+#define CONSOLE_BAUD_RATE       38400
+#elif defined(CONFIG_BAUD_57600)
+#define CONSOLE_BAUD_RATE       57600
+#elif defined(CONFIG_BAUD_115200)
+#define CONSOLE_BAUD_RATE       115200
 #endif
 
 /*
@@ -344,7 +360,7 @@ static void __init bfin_serial_init_ports(void)
 	bfin_serial_hw_init();
 
 	for (i = 0; i < NR_PORTS; i++) {
-		bfin_serial_ports[i].port.uartclk   = 57600;
+		bfin_serial_ports[i].port.uartclk   = CONSOLE_BAUD_RATE;
 		bfin_serial_ports[i].port.ops       = &bfin_serial_pops;
 		bfin_serial_ports[i].port.line      = i;
 		bfin_serial_ports[i].port.iotype    = UPIO_MEM;
@@ -426,7 +442,8 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 	status = UART_GET_IER(uart) & (ERBFI | ETBEI);
 	if (status == (ERBFI | ETBEI)) {
 		/* ok, the port was enabled */
-		unsigned int lcr;
+		unsigned short lcr,val;
+		unsigned short dlh,dll;
 
 		lcr = UART_GET_LCR(uart);
 
@@ -437,17 +454,35 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 			else
 				*parity = 'o';
 		}
+		switch(lcr & 0x03){
+			case	0:	*bits = 5; break;
+			case	1:	*bits = 6; break;
+			case	2:	*bits = 7; break;
+			case	3:	*bits = 8; break;
+		}
+		/* Set DLAB in LCR to Access DLL and DLH */
+                val = UART_GET_LCR(uart);
+                val |= DLAB;
+                UART_PUT_LCR(uart, val);
 
-		*bits = 8;
-		*baud = 57600;
+                dll = UART_GET_DLL(uart);
+                dlh = UART_GET_DLH(uart);
+
+                /* Clear DLAB in LCR to Access THR RBR IER */
+                val = UART_GET_LCR(uart);
+                val &= ~DLAB;
+                UART_PUT_LCR(uart, val);
+
+		*baud = get_sclk()/(16*(dll|dlh<<8));
 	}
+	DPRINTK("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
 }
 
 static int __init
 bfin_serial_console_setup(struct console *co, char *options)
 {
 	struct bfin_serial_port *uart;
-	int baud = 57600;
+	int baud = CONSOLE_BAUD_RATE;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';

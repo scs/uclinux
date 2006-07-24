@@ -16,7 +16,9 @@
 #define OFFSET_GCTL             0x24    /* Global Control Register              */
 
 #define UART_GET_CHAR(uart)     bfin_read16(((uart)->port.membase + OFFSET_RBR))
+#define UART_GET_DLL(uart)	bfin_read16(((uart)->port.membase + OFFSET_DLL))
 #define UART_GET_IER(uart)      bfin_read16(((uart)->port.membase + OFFSET_IER))
+#define UART_GET_DLH(uart)	bfin_read16(((uart)->port.membase + OFFSET_DLH))
 #define UART_GET_IIR(uart)      bfin_read16(((uart)->port.membase + OFFSET_IIR))
 #define UART_GET_LCR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LCR))
 #define UART_GET_LSR(uart)      bfin_read16(((uart)->port.membase + OFFSET_LSR))
