@@ -205,13 +205,13 @@ void __init setup_arch(char **cmdline_p)
 
 	memory_end = _ramend;	/* by now the stack is part of the init task */
 
-#if defined (CONFIG_UNCACHED_2M)
+#if defined (CONFIG_DMA_UNCACHED_2M)
 	memory_end -= (2 * 1024 * 1024);
-#elif defined (CONFIG_UNCACHED_1M)
+#elif defined (CONFIG_DMA_UNCACHED_1M)
 	memory_end -= (1024 * 1024);
-#elif defined (CONFIG_UNCACHED_512K)
+#elif defined (CONFIG_DMA_UNCACHED_512K)
 	memory_end -= (512 * 1024);
-#elif defined (CONFIG_UNCACHED_256K)
+#elif defined (CONFIG_DMA_UNCACHED_256K)
 	memory_end -= (256 * 1024);
 #endif
 

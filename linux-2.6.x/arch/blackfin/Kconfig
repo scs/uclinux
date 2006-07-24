@@ -433,17 +433,17 @@ endchoice
 
 choice
 	prompt "Uncached SDRAM region"
-	default UNCACHED_1M
+	default DMA_UNCACHED_1M
 	depends !NO_DMA
-config UNCACHED_2M
+config DMA_UNCACHED_2M
 	bool 'Enable 2M DMA Zone'
-config UNCACHED_1M
+config DMA_UNCACHED_1M
 	bool 'Enable 1M DMA Zone'
-config UNCACHED_512K
+config DMA_UNCACHED_512K
 	bool 'Enable 512K DMA Zone'
-config UNCACHED_256K
+config DMA_UNCACHED_256K
 	bool 'Enable 256k DMA Zone'
-config UNCACHED_NONE
+config DMA_UNCACHED_NONE
 	bool 'Disable DMA Zone'
 endchoice
 
