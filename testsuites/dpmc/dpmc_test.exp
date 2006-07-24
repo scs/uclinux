@@ -22,6 +22,7 @@ puts "Please input: vco sclk voltage."
 exit
 }
 
+set TITLE "DPMC (VCO:$vco SCLK:$sclk VOLTAGE:$voltage) Test"
 
 proc step { message } {
 
@@ -142,7 +143,7 @@ if { $where_are_we == "uboot" } {
 } else {
     if { $where_are_we == "kernel" } {
 	set timeout 60
-	expect "root:~>"
+	expect "root:*>"
 	send_user "sending reboot\n"
 	send "reboot\r"
     } else {
@@ -280,6 +281,10 @@ send "\r"
 
 step "Starting test."
 
+set case_num 0
+
+incr case_num
+
 set timeout 8
 set flag 0
 
@@ -307,20 +312,23 @@ while 1 {
       "open success" {
          
          send_log "dpmc device opens.\n"
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "dpmc open fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
 
+incr case_num
+
 while 1 {
    expect {
-      "Please select the VCO" {
-              
+      "Please select the VCO" {              
          break
       }
 
@@ -334,16 +342,20 @@ while 1 {
 send -s  "$vco\r" 
 while 1 {
    expect {
-      "is set to" {              
+      "is set to" {   
+         send_log "\nCase $case_num ...PASS\n"           
          break
       }
 
       timeout {
-            send_log "dpmc VCO fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 while 1 {
    expect {
@@ -362,38 +374,45 @@ send -s  "$sclk\r"
 while 1 {
    expect {
       "set to" {              
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "dpmc sclk fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 while 1 {
    expect {
       "select any of these choices for cclk" { 
          sleep 1   
-	 send -s  "1\r"           
+	 send -s  "1\r"       
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            send_log "dpmc cclk fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
 
 ###############################################################################################################
 
+incr case_num
+
 set timeout 300
 while 1 {
    expect {
-      "select the voltage" { 
-                  
+      "select the voltage" {                   
          break
       }
 
@@ -407,19 +426,21 @@ while 1 {
 send -s  "$voltage\r" 
 while 1 {
    expect {
-      "set to" {              
+      "set to" {             
+         send_log "\nCase $case_num ...PASS\n" 
          break
       }
 
       timeout {
-            send_log "dpmc volt fail. "
-            break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
 
-
-send_log "dpmc tests done. "
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
  

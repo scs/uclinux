@@ -103,20 +103,55 @@ while 1 {
         -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
              send "Y\r"
       }
-      
-        -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_HHBF.*\\\[.*]" {
-             send "Y\r"
+              
+	-re "Select BF537/6/4 default GPIO PFx PORTG.*BF537_PORT_G.*choice\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                       send "2\r"
+            } else {
+                       send "\r"
+            }
       }
 
+       -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_GPIO.*\\\[.*]" {
+             if { $board_type == "BF533-STAMP" } {
+                        send "Y\r"
+             } else {
+                        send "N\r"
+             }
+      }
+      
         -re "SDA is PF.*BFIN_SDA.*\\\[.*]" {
-             send "2\r"
+              if { $board_type == "BF533-STAMP" } {
+                        send "2\r"
+             } else {
+                        send "\r"
+             }
       }
       
         -re "SCL is PF.*BFIN_SCL.*\\\[.*]" {
-             send "1\r"
+              if { $board_type == "BF533-STAMP" } {
+                        send "1\r"
+             } else {
+                        send "\r"
+             }
       }
-          
-	 
+      
+           -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {
+             if { $board_type == "BF537-STAMP" } {
+                        send "Y\r"
+             } else {
+                        send "\r"
+             }
+      }
+
+           -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {
+             if { $board_type == "BF537-STAMP" } {
+                        send "50\r"
+             } else {
+                        send "\r"
+             }
+      }
+ 
 	 -re "PPIFCD test program.*CONFIG_USER_BLACKFIN_PPIFCDTEST.*\\\[.*]" {
              send "Y\r"
       }

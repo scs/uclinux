@@ -241,7 +241,7 @@ chmod +x */*.exp
   cd $KERNEL_SCRIPTS/ethernet
   ./build_ethernet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
-  ./ethernet_test.exp  1>/dev/null 2>/dev/null
+  ./ethernet_test.exp  $BOARD_TYPE  1>/dev/null 2>/dev/null
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ethernet
   cp $KERNEL_SCRIPTS/ethernet/build_ethernet_kernel_log  $THIS_LOG
@@ -722,27 +722,21 @@ if [ $pnormtd_test -eq 1  ] ; then
   sleep 30
   ./timer_tick_test.exp 100  1>/dev/null 2>/dev/null
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer100
-  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_100_log
-  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_100_log
-
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer100 
   
   ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 250   1>/dev/null 2>/dev/null
   sleep 30
   ./timer_tick_test.exp 250  1>/dev/null 2>/dev/null
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer250
-  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_250_log
-  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_250_log
-  
-  
+    
   ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 1000   1>/dev/null 2>/dev/null
   sleep 30
   ./timer_tick_test.exp 1000  1>/dev/null 2>/dev/null
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer1000
-  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG/build_timer_kernel_1000_log
-  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG/timer_tick_test_1000_log
+  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG
   
   sleep 30
 
@@ -909,14 +903,11 @@ if [ $pnormtd_test -eq 1  ] ; then
   cp -a  $CHECKOUT/kernel_bak/*  .
   
   cd $KERNEL_SCRIPTS/dpmc
-  ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
-  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
+  ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null  
   
   sleep 30
   ./dpmc_test.exp 200000000 80000000 850  1>/dev/null 2>/dev/null
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_200_log
-  
+   
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp   1>/dev/null 2>/dev/null 
@@ -925,8 +916,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 30
   ./dpmc_test.exp 300000000 100000000 1000  1>/dev/null 2>/dev/null
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_300_log
-  
+    
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp   1>/dev/null 2>/dev/null 
@@ -935,7 +925,10 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   sleep 30
   ./dpmc_test.exp 500000000 100000000 1200  1>/dev/null 2>/dev/null
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG/dpmc_test_500_log
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
+  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
   
   sleep 30 
  
@@ -1193,7 +1186,7 @@ if [ $yaffs_test -eq 1  ] ; then
   cd $KERNEL_SCRIPTS/ppifcd
   ./build_ppifcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
   sleep 30
-  ./ppifcd_test.exp  1>/dev/null 2>/dev/null
+  ./ppifcd_test.exp $BOARD_TYPE  1>/dev/null 2>/dev/null
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ppifcd
   cp $KERNEL_SCRIPTS/ppifcd/build_ppifcd_kernel_log $THIS_LOG

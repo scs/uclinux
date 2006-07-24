@@ -3,7 +3,6 @@ log_file timer_tick_test_log
 send_user "Starting timer_tick_test.exp!\n"
 
 set uclinux_path ~/checkouts/kernel/uClinux-dist
-set TITLE "Timer tick Test"
 set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
@@ -19,6 +18,8 @@ puts "Please input: timer_frequency."
 puts "100, 250 or 1000(Mhz)."
 exit
 }
+
+set TITLE "Timer tick ($timer_frequency Mhz) Test"
 
 proc step { message } {
 

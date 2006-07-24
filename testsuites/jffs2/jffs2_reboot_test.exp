@@ -19,7 +19,7 @@ send_user "Starting jffs2_reboot_test.exp\n"
 set send_slow {1 .01}
 
 set SERIAL_PORT_BAUD_RATE   "57600"
-set TITLE "Reboot Test"
+set TITLE "JFFS2 Reboot Test"
 set count 30
 
 set argc [llength $argv]

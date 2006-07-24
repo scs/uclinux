@@ -8,7 +8,7 @@ send_user "Starting stress_test.exp\n"
 
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Stress Test"
-set PING_COUNT   1999
+set PING_COUNT  1999
 set targetip 10.100.4.2
 set serverip 10.100.4.174
 set send_slow {1 .01}
@@ -294,7 +294,7 @@ if {$flag==0} {
    }
 
    set found 0
-   spawn ps -A
+   spawn ps a
    while 1 {
       expect {
 	"telnet_test" {
