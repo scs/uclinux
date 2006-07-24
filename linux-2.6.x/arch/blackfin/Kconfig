@@ -431,6 +431,23 @@ config BFIN_DMA_5XX
 	  DMA driver for BF5xx
 endchoice
 
+choice
+	prompt "Uncached SDRAM region"
+	default UNCACHED_1M
+	depends !NO_DMA
+config UNCACHED_2M
+	bool 'Enable 2M DMA Zone'
+config UNCACHED_1M
+	bool 'Enable 1M DMA Zone'
+config UNCACHED_512K
+	bool 'Enable 512K DMA Zone'
+config UNCACHED_256K
+	bool 'Enable 256k DMA Zone'
+config UNCACHED_NONE
+	bool 'Disable DMA Zone'
+endchoice
+
+
 comment 'Cache Support'
 config BLKFIN_CACHE
 	bool "Enable ICACHE"
@@ -477,23 +494,6 @@ config BLKFIN_WT
 	  If you are unsure of the options and you want to be safe,
 	  then go with Write Through.
 
-endchoice
-
-choice
-	prompt "Uncached SDRAM region"
-	default UNCACHED_1M
-config UNCACHED_2M
-	bool 'Enable 2M DMA Zone'
-config UNCACHED_1M
-	bool 'Enable 1M DMA Zone'
-config UNCACHED_512K
-	bool 'Enable 512K DMA Zone'
-config UNCACHED_256K
-	bool 'Enable 256k DMA Zone'
-config UNCACHED_NONE
-	bool 'Disable DMA Zone'
-	---help---
-	  Size of the uncached SDRAM region used for DMA memory.
 endchoice
 
 menu "Clock Settings"
