@@ -141,8 +141,7 @@ dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
 	       enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(direction == DMA_NONE);
 
 	blackfin_dcache_invalidate_range((unsigned long)ptr,
 					 (unsigned long)ptr + size);
@@ -156,13 +155,12 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 {
 	int i;
 
+	BUG_ON(direction == DMA_NONE);
+
 	for (i = 0; i < nents; i++)
 		invalidate_dcache_range(sg_dma_address(&sg[i]),
 					sg_dma_address(&sg[i]) +
 					sg_dma_len(&sg[i]));
-
-	if (direction == DMA_NONE)
-		BUG();
 
 	return nents;
 }
