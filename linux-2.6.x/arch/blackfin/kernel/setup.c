@@ -172,7 +172,7 @@ static __init void parse_cmdline_early(char *cmdline_p)
 void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
-	unsigned long l1_length;
+	unsigned long l1_length,sclk,cclk;
 
 #ifdef DEBUG_SERIAL_EARLY_INIT
 	bfin_console_init();	/* early console registration */
@@ -260,15 +260,25 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Blackfin support (C) 2004 Analog Devices, Inc.\n");
 	printk(KERN_INFO "ADSP-%s Rev. 0.%d\n", CPU, id);
 	if (id < SUPPORTED_DSPID)
-		printk(KERN_INFO
+		printk(KERN_ERR
 		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",
 		       CPU, id);
 
 	printk(KERN_INFO "uClinux/" CPU "\n");
 
 	printk(KERN_INFO "Blackfin uClinux support by blackfin.uclinux.org\n");
+
+	cclk = get_cclk();
+	sclk = get_sclk();
+
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
-	       get_cclk() / 1000000, get_sclk() / 1000000);
+	       cclk / 1000000,  sclk / 1000000);
+
+#if defined(ANOMALY_05000273)
+	if((cclk >> 1) <= sclk)
+		printk(KERN_ERR "\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
+#endif
+
 	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end>>20);
 	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
