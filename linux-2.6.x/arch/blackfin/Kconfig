@@ -93,6 +93,29 @@ config BF561
 
 endchoice
 
+choice
+	prompt "Silicon Rev"
+	default BF_REV_0_2 if BF537
+	default BF_REV_0_3 if BF533
+
+config BF_REV_0_2
+	bool "0.2"
+	depends on (BF537 || BF536 || BF534)
+
+config BF_REV_0_3
+	bool "0.3"
+	depends on (BF561 || BF537 || BF536 || BF534 || BF533 || BF532 || BF531)
+
+config BF_REV_0_4
+	bool "0.4"
+	depends on (BF561 || BF537 || BF536 || BF534 || BF533 || BF532 || BF531)
+
+config BF_REV_0_5
+	bool "0.5"
+	depends on (BF561 || BF537 || BF536 || BF534 || BF533 || BF532 || BF531)
+
+endchoice
+
 config BLACKFIN
 	bool
 	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)

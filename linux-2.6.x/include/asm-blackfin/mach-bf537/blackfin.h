@@ -36,6 +36,7 @@
 #include "bf537.h"
 #include "mem_map.h"
 #include "defBF534.h"
+#include "anomaly.h"
 
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536)
 #include "defBF537.h"

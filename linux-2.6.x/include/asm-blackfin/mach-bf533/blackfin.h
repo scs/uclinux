@@ -39,6 +39,7 @@
 #include "bf533.h"
 #include "mem_map.h"
 #include "defBF532.h"
+#include "anomaly.h"
 
 #if !(defined(__ASSEMBLY__) || defined(ASSEMBLY))
 #include "cdefBF532.h"
