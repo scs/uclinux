@@ -40,7 +40,7 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_I_ENTRY_L1
-.section .text.l1 
+.section .text.l1
 #else
 .text
 #endif
@@ -72,7 +72,7 @@ ENTRY(_evt_emulation)
 
 /* Common interrupt entry code.	 First we do CLI, then push
    RETI, to keep interrupts disabled, but to allow this state to be changed
-   by local_bh_enable.  
+   by local_bh_enable.
    R0 contains the interrupt number, while R1 may contain the value of IPEND,
    or garbage if IPEND won't be needed by the ISR.  */
 __common_int_entry:
@@ -139,6 +139,15 @@ __common_int_entry:
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
+
+#ifdef	ANOMALY_05000283
+	cc = r7 == r7;
+	p5.h = 0xffc0;
+	p5.l = 0x0014;
+	if cc jump 1f;
+	r7.l = W[p5];
+1:
+#endif
 	r1 =  sp;
 	SP += -12;
 	call _do_irq;
@@ -153,6 +162,14 @@ ENTRY(_evt_ivhw)
 	SAVE_CONTEXT
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
+#endif
+#ifdef	ANOMALY_05000283
+	cc = r7 == r7;
+	p5.h = 0xffc0;
+	p5.l = 0x0014;
+	if cc jump 1f;
+	r7.l = W[p5];
+1:
 #endif
 	p0.l = lo(TBUFCTL);
 	p0.h = hi(TBUFCTL);
@@ -182,7 +199,7 @@ ENTRY(_evt_ivhw)
 	call _pm_overflow;
 	SP += 12;
 
-	jump .Lcommon_restore_context; 
+	jump .Lcommon_restore_context;
 #endif
 
 /* interrupt routine for evt2 - 2.  This is NMI.  */
@@ -190,6 +207,14 @@ ENTRY(_evt_evt2)
 	SAVE_CONTEXT
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
+#endif
+#ifdef	ANOMALY_05000283
+	cc = r7 == r7;
+	p5.h = 0xffc0;
+	p5.l = 0x0014;
+	if cc jump 1f;
+	r7.l = W[p5];
+1:
 #endif
 	r0 = IRQ_NMI;
 	r1 =  sp;
@@ -227,4 +252,4 @@ ENTRY(_evt_system_call)
 	fp = 0;
 #endif
 	call system_call;
-	jump .Lcommon_restore_context; 
+	jump .Lcommon_restore_context;
