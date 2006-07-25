@@ -161,7 +161,7 @@ void mem_init(void)
 	printk
 	    ("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
 	     tmp >> 10, len >> 10, initk, codek, datak,
-	     (_ramend - memory_end) >> 10);
+	     (_ramend - (memory_mtd_start + mtd_size)) >> 10);
 
 	/* Initialize the blackfin L1 Memory. */
 	l1sram_init();

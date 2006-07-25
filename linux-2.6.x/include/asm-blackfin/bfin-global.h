@@ -49,6 +49,8 @@ extern char *bfin_board_name __attribute__ ((weak));
 extern unsigned long wall_jiffies;
 extern unsigned long memory_end;
 extern unsigned long memory_mtd_end;
+extern unsigned long memory_mtd_start;
+extern unsigned long mtd_size;
 extern unsigned long ipdt_table[];
 extern unsigned long dpdt_table[];
 extern unsigned long icplb_table[];

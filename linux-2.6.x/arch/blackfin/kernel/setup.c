@@ -62,6 +62,8 @@ EXPORT_SYMBOL(memory_end);
 EXPORT_SYMBOL(physical_mem_end);
 EXPORT_SYMBOL(memory_mtd_end);
 EXPORT_SYMBOL(_ramend);
+EXPORT_SYMBOL(memory_mtd_start);
+EXPORT_SYMBOL(mtd_size);
 
 char command_line[COMMAND_LINE_SIZE];
 
