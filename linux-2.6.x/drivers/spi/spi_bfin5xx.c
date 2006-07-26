@@ -184,7 +184,7 @@ static void restore_state(struct driver_data *drv_data)
 	bfin_spi_disable(drv_data);
 	PRINTK("restoring spi ctl state\n");
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	if (chip->chip_select_num == 1) {
 		PRINTK("set for chip select 1\n");
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x7c00);
