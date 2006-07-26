@@ -36,6 +36,12 @@
 
 #undef DEBUG
 
+#ifdef DEBUG
+# define DPRINTK(x...) printk(KERN_DEBUG x)
+#else
+# define DPRINTK(x...) do {} while (0)
+#endif
+
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
@@ -61,7 +67,7 @@ void show_mem(void)
 	int free = 0, total = 0, reserved = 0, shared = 0;
 
 	int cached = 0;
-	printk(KERN_INFO "\nMem-info:\n");
+	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
 	i = max_mapnr;
 	while (i-- > 0) {
@@ -94,14 +100,9 @@ void paging_init(void)
 	 * make sure start_mem is page aligned,  otherwise bootmem and
 	 * page_alloc get different views og the world
 	 */
-#ifdef DEBUG
-	unsigned long start_mem = PAGE_ALIGN(memory_start);
-#endif
 	unsigned long end_mem = memory_end & PAGE_MASK;
 
-#ifdef DEBUG
-	printk("start_mem is %#lx\nvirtual_end is %#lx\n", start_mem, end_mem);
-#endif
+	DPRINTK("start_mem is %#lx   virtual_end is %#lx\n", PAGE_ALIGN(memory_start), end_mem);
 
 	/*
 	 * initialize the bad page table and bad page to point
@@ -117,11 +118,8 @@ void paging_init(void)
 	 */
 	set_fs(KERNEL_DS);
 
-#ifdef DEBUG
-	printk(KERN_DEBUG
-	       "free_area_init -> start_mem is %#lx  virtual_end is %#lx\n",
-	       start_mem, end_mem);
-#endif
+	DPRINTK("free_area_init -> start_mem is %#lx   virtual_end is %#lx\n",
+	        PAGE_ALIGN(memory_start), end_mem);
 
 	{
 		unsigned long zones_size[MAX_NR_ZONES] = { 0, 0, 0 };
@@ -158,8 +156,8 @@ void mem_init(void)
 	initk = (__init_end - __init_begin) >> 10;
 
 	tmp = nr_free_pages() << PAGE_SHIFT;
-	printk
-	    ("Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
+	printk(KERN_INFO
+	     "Memory available: %luk/%uk RAM, (%uk init code, %uk kernel code, %uk data, %luk dma)\n",
 	     tmp >> 10, len >> 10, initk, codek, datak,
 	     (_ramend - (memory_mtd_start + mtd_size)) >> 10);
 
