@@ -20,14 +20,17 @@ proc step { message } {
   incr step_sequence_number
 }
 
+if { $argc < 2 } {
+   send_user "\nAppend /dev/ttyS0 ipaddr\n"
+   exit
+}
+
 set step_sequence_number    1
 
 step "Start kermit"
-#set argc [llength $argv]
-#if { $argc < 1 } {
-#	send_user "\nAppend /dev/ttyS0\n"
-#}
-#set ttydev	[lindex $argv 0]
+set argc [llength $argv]
+set ttydev	[lindex $argv 0]
+set ipaddr 	[lindex $argv 1]
 
 set kparams	[list "set line $ttydev\r"]
 lappend kparams "set speed 57600\r"
@@ -259,5 +262,33 @@ step "Do configuration..."
 
 catch {exec ./jvm_config.sh /uclinux/kernel/remote/717/uClinux-dist/testsuites/jvm > jvm_config_log}
 
+catch {exec rcp kaffe.flt $ipaddr:/bin/.}
+catch {exec rcp libraries/clib/native/.libs/libnative.a $ipaddr:/var/lib/.}
+catch {exec rcp libraries/clib/native/.libs/libnative.la $ipaddr:/var/lib/.}
+catch {exec rcp libraries/clib/nio/.libs/libnio.a $ipaddr:/var/lib/.}
+catch {exec rcp libraries/clib/nio/.libs/libnio.la $ipaddr:/var/lib/.}
+catch {exec rcp libraries/clib/io/.libs/libio.a $ipaddr:/var/lib/.}
+catch {exec rcp libraries/clib/io/.libs/libio.la $ipaddr:/var/lib/.}
+catch {exec rcp libraries/javalib/rt.jar $ipaddr:/var/lib/.}
+catch {exec rcp libraries/javalib/tools.jar $ipaddr:/var/lib/.}
+
+send "export KAFFELIBRARYPATH=/var/lib\r"
+
+send "kaffe.flt -Xbootclasspath:/var/lib/rt.jar HelloWorldApp\r"
+set timeout 300
+while 1 {
+   expect {
+      -re "Hello World!" {
+         send_log "\nJVM TEST ......... \[PASS\]\n"
+         send_user "\nJVM TEST ......... \[PASS\]\n"
+         break
+      }
+      timeout {
+         send_log "\nJVM TEST ......... \[FAIL\]\n"
+         send_user "\nJVM TEST ......... \[FAIL\]\n"
+         break
+      }
+   }
+}
 
 exit
