@@ -71,16 +71,11 @@ void init_leds(void);
 void bf53x_cache_init(void);
 static u_int get_dsp_rev_id(void);
 static void generate_cpl_tables(void);
-static unsigned short fill_cpl_tables(unsigned long *, unsigned short,
-				      unsigned long, unsigned long,
-				      unsigned long, unsigned long);
 
 
 void __init bf53x_cache_init(void)
 {
-#if defined(CONFIG_BLKFIN_CACHE) || defined(CONFIG_BLKFIN_DCACHE)
 	generate_cpl_tables();
-#endif
 
 #ifdef CONFIG_BLKFIN_CACHE
 	bfin_icache_init();
@@ -352,6 +347,7 @@ static int __init topology_init(void)
 
 subsys_initcall(topology_init);
 
+#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 static unsigned short __init
 fill_cpl_tables(unsigned long *table, unsigned short pos,
 		unsigned long start, unsigned long end,
@@ -384,11 +380,20 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 	}
 	return pos;
 }
+#endif
 
 static void __init generate_cpl_tables(void)
 {
+#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 	unsigned short pos;
 	int unalign_ram_tmp, physical_mem_aligned_end;
+
+	unalign_ram_tmp = ((_ramend / 1024 / 1024) % 4) * 1024 * 1024;
+	if (unalign_ram_tmp == 0)
+		physical_mem_aligned_end = _ramend;
+	else
+		physical_mem_aligned_end = (SIZE_4M - unalign_ram_tmp) + _ramend;
+#endif
 
 #ifdef CONFIG_BLKFIN_DCACHE
 
@@ -424,12 +429,6 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_1M, _ramend,
 			    SIZE_1M, SDRAM_DNON_CHBL);
-
-	unalign_ram_tmp = ((_ramend / 1024 / 1024) % 4) * 1024 * 1024;
-	if (unalign_ram_tmp == 0)
-		physical_mem_aligned_end = _ramend;
-	else
-		physical_mem_aligned_end = (SIZE_4M - unalign_ram_tmp) + _ramend;
 
 	if (unalign_ram_tmp == 0) {
 		pos =
