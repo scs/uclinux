@@ -18,9 +18,9 @@ MODULE_LICENSE("GPL");
 
 
 #ifdef DEBUG
-#define DPRINTK(x...)	printk(x)
+# define DPRINTK(x...)	printk(KERN_DEBUG "bf53xPFbuttons: " x)
 #else
-#define DPRINTK(x...)	do { } while (0)
+# define DPRINTK(x...)	do { } while (0)
 #endif
 
 
@@ -226,15 +226,15 @@ static inline void bf53xPFbuttons_unmask_IRQ (struct bf53xPFbuttons *bf53xPFbutt
 
 static inline short read_state (struct bf53xPFbuttons *bf53xPFbuttons){
 	short val;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	unsigned short portx_fer;
 	portx_fer = bfin_read_PORT_FER();
 	bfin_write_PORT_FER(0);
 	__builtin_bfin_ssync();
 #endif
-	DPRINTK ("bf53xPFbuttons: read_state\n");
+	DPRINTK("read_state\n");
 	val = (bfin_read_FIO_FLAG_D() & PF_BUTTONS_MASK);
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	bfin_write_PORT_FER(portx_fer);
 	__builtin_bfin_ssync();
 #endif
@@ -243,13 +243,13 @@ static inline short read_state (struct bf53xPFbuttons *bf53xPFbuttons){
 
 static irqreturn_t bf53xPFbuttons_irq_handler ( int irq, void *dev_id, struct pt_regs *regs ){
 	struct bf53xPFbuttons *bf53xPFbuttons = (struct bf53xPFbuttons *) dev_id;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	unsigned short portx_fer;
 	portx_fer = bfin_read_PORT_FER();
 	bfin_write_PORT_FER(0);
 	__builtin_bfin_ssync();
 #endif
-	DPRINTK ("bf53xPFbuttons: bf53xPFbuttons_irq_handler PF%d\n", (irq - IRQ_PF0));
+	DPRINTK("bf53xPFbuttons_irq_handler PF%d\n", (irq - IRQ_PF0));
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	bf53xPFbuttons->statechanged   = 0x1 << (irq - IRQ_PF0);
 
@@ -270,7 +270,7 @@ static irqreturn_t bf53xPFbuttons_irq_handler ( int irq, void *dev_id, struct pt
 		}
 		input_sync(&bf53xPFbuttons->dev);
 	}
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	bfin_write_PORT_FER(portx_fer);
 	__builtin_bfin_ssync();
 #endif
@@ -282,7 +282,7 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 {
 	struct bf53xPFbuttons *bf53xPFbuttons = (struct bf53xPFbuttons *) dev->private;
 	int i;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	unsigned short portx_fer;
 	portx_fer = bfin_read_PORT_FER();
 	bfin_write_PORT_FER(0);
@@ -324,7 +324,7 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 #endif
 			break;
 	}
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	bfin_write_PORT_FER(portx_fer);
 	__builtin_bfin_ssync();
 #endif
@@ -350,14 +350,14 @@ static int inline bf53xPFbuttons_init_IRQ(struct bf53xPFbuttons *bf53xPFbuttons,
 	while (mask){
 		if (mask & 0x1){
 			set_irq_type(IRQ_PF0 + i, IRQT_BOTHEDGE);
-			DPRINTK ("bf53xPFbuttons: bf53xPFbuttons_init_IRQ PF%d configured\n", i);
+			DPRINTK("bf53xPFbuttons_init_IRQ PF%d configured\n", i);
 			if( request_irq (IRQ_PF0 + i, bf53xPFbuttons_irq_handler, SA_INTERRUPT, "bf53xPFbuttons", bf53xPFbuttons) ){
 			    /* Rollback */
 			    printk (KERN_WARNING "bf53xPFbuttons: IRQ %d is not free. Roolback to the previos configuration\n", IRQ_PF0 + i);
 			    bf53xPFbuttons_remove_IRQ(bf53xPFbuttons,i_mask & ~mask);
 				return -EIO;
 			}
-			DPRINTK ("bf53xPFbuttons: bf53xPFbuttons_init_IRQ PF%d IRQ enabled\n", i);
+			DPRINTK("bf53xPFbuttons_init_IRQ PF%d IRQ enabled\n", i);
 		}
 		++i;
 		mask >>= 1;
@@ -367,7 +367,7 @@ static int inline bf53xPFbuttons_init_IRQ(struct bf53xPFbuttons *bf53xPFbuttons,
 #endif
 
 static void inline bf53xPFbuttons_init_state(struct bf53xPFbuttons *bf53xPFbuttons){
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	unsigned short portx_fer;
 	portx_fer = bfin_read_PORT_FER();
 	bfin_write_PORT_FER(0);
@@ -383,7 +383,7 @@ static void inline bf53xPFbuttons_init_state(struct bf53xPFbuttons *bf53xPFbutto
 	bf53xPFbuttons->laststate = read_state(bf53xPFbuttons);
 #endif
 	bf53xPFbuttons->statechanged = 0x0;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	bfin_write_PORT_FER(portx_fer);
 	__builtin_bfin_ssync();
 #endif
@@ -455,7 +455,7 @@ static int __init bf53xPFbuttons_init (void){
 #if BUTTONS
 	local_irq_save(flags);
 	bf53xPFbuttons_init_state(bf53xPFbuttons);
-	DPRINTK ("bf53xPFbuttons: bf53xPFbuttons_init start state = 0x%4X\n", bf53xPFbuttons->laststate);
+	DPRINTK("bf53xPFbuttons_init start state = 0x%4X\n", bf53xPFbuttons->laststate);
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	ret = bf53xPFbuttons_init_IRQ(bf53xPFbuttons,PF_BUTTONS_MASK);
@@ -477,7 +477,7 @@ static int __init bf53xPFbuttons_init (void){
 #endif
 #endif /*BUTTONS*/
 	local_irq_restore(flags);
-	DPRINTK ("bf53xPFbuttons: bf53xPFbuttons_init IRQ restored\n");
+	DPRINTK("bf53xPFbuttons_init IRQ restored\n");
 	return ret;
 }
 
@@ -503,13 +503,13 @@ module_exit (bf53xPFbuttons_exit);
 static int bf53xPFbuttons_proc_output (struct bf53xPFbuttons *bf53xPFbuttons,char *buf){
 	char *p;
 	unsigned short i, data,dir,maska,maskb,polar,edge,inen,both;
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	unsigned short portx_fer;
 #endif
 
 	p = buf;
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	portx_fer = bfin_read_PORT_FER();
 	bfin_write_PORT_FER(0);
 	__builtin_bfin_ssync();
@@ -522,7 +522,7 @@ static int bf53xPFbuttons_proc_output (struct bf53xPFbuttons *bf53xPFbuttons,cha
 	both = bfin_read_FIO_BOTH();
 	edge = bfin_read_FIO_EDGE();
 	inen = bfin_read_FIO_INEN();
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 	bfin_write_PORT_FER(portx_fer);
 	__builtin_bfin_ssync();
 #endif
