@@ -150,21 +150,21 @@ ENTRY(__cplb_hdr)
 __cplb_miss_all_locked:
 	sp += -12;
 	R0 = CPLB_NO_UNLOCKED;
-	call _panic_bfin;
+	call _panic_cplb_error;
 	SP += 12;
 	RTS;
 
 __cplb_miss_without_replacement:
 	sp += -12;
 	R0 = CPLB_NO_ADDR_MATCH;
-	call _panic_bfin;
+	call _panic_cplb_error;
 	SP += 12;
 	RTS;
 
 __cplb_protection_violation:
 	sp += -12;
 	R0 = CPLB_PROT_VIOL;
-	call _panic_bfin;
+	call _panic_cplb_error;
 	SP += 12;
 	RTS;
 

@@ -840,7 +840,7 @@ struct seq_operations cpuinfo_op = {
 	.show = show_cpuinfo,
 };
 
-void panic_bfin(int cplb_panic)
+void panic_cplb_error(int cplb_panic)
 {
 	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
