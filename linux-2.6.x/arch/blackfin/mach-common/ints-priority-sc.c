@@ -513,9 +513,10 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
     printk(KERN_INFO "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
     set_irq_type(irq_pfx, type);
-#elif defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
+#else
+# if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
     unsigned short portx_fer;
-#endif
+# endif
     unsigned short flag;
     unsigned short FIO_PATTERN;
 
