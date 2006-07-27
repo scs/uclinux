@@ -842,11 +842,11 @@ struct bf53x_sport* bf53x_sport_init(int sport_num,
 	sport->data = data;
 
 #if L1_DATA_A_LENGTH != 0
-	if ((sport->dummy_buf=l1_data_A_sram_alloc(DUMMY_BUF_LEN)) == 0) {
+	sport->dummy_buf = l1_data_A_sram_alloc(DUMMY_BUF_LEN);
 #else
-	if ((sport->dummy_buf=(unsigned long)kmalloc(DUMMY_BUF_LEN, \
-			GFP_KERNEL)) == NULL) {
+	sport->dummy_buf = (unsigned long)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL);
 #endif
+	if (sport->dummy_buf == 0) {
 		printk( KERN_ERR "Failed to allocate dummy buffer\n");
 		goto __init_err;
  	}
@@ -899,7 +899,7 @@ void bf53x_sport_done(struct bf53x_sport* sport)
 #else
 	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_rx_desc, 0);
 	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_tx_desc, 0);
-	kfree(dummy_buf);
+	kfree((void*)sport->dummy_buf);
 #endif
 	free_dma(sport->dma_rx_chan);
 	free_dma(sport->dma_tx_chan);
