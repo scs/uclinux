@@ -51,7 +51,7 @@
 
 #undef DEBUG_IRQ
 #ifdef DEBUG_IRQ
-#define DPRINTK(fmt, args...) printk("%s: " fmt, __FUNCTION__ , ## args)
+#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -283,7 +283,7 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 				break;
 			}
 
-			DPRINTK(KERN_ERR "IRQ %d:"
+			DPRINTK("IRQ %d:"
 			       " MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
 			       irq);
 		}
