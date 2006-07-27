@@ -155,7 +155,7 @@ ENTRY(__stext)
 	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
 	call _bf53x_relocate_l1_mem;
 #if CONFIG_BFIN_KERNEL_CLOCK
-	call start_dma_code;
+	call _start_dma_code;
 #endif
 
 	/* Code for initializing Async memory banks */
@@ -282,8 +282,8 @@ ENTRY(_real_start)
 	jump.s	.L_exit;
 
 .section .text.l1
-ENTRY(start_dma_code)
 #if CONFIG_BFIN_KERNEL_CLOCK
+ENTRY(_start_dma_code)
 	p0.h = hi(SICA_IWR0);
 	p0.l = lo(SICA_IWR0);
 	r0.l = 0x1;
