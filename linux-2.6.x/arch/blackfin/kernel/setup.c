@@ -9,7 +9,7 @@
  * Rev:          $Id$
  *
  * Modified:
- *               Copyright 2004-2005 Analog Devices Inc.
+ *               Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
  *
@@ -84,13 +84,13 @@ void __init bf53x_cache_init(void)
 
 #ifdef CONFIG_BLKFIN_DCACHE
 	bfin_dcache_init();
+	printk(KERN_INFO "Data Cache Enabled"
 # if defined CONFIG_BLKFIN_WB
-	printk(KERN_INFO "Data Cache Enabled (write-back)\n");
+		" (write-back)"
 # elif defined CONFIG_BLKFIN_WT
-	printk(KERN_INFO "Data Cache Enabled (write-through)\n");
-# else
-	printk(KERN_INFO "Data Cache Enabled\n");
+		" (write-through)"
 # endif
+		"\n");
 #endif
 }
 
@@ -252,16 +252,13 @@ void __init setup_arch(char **cmdline_p)
 	init_leds();
 	id = get_dsp_rev_id();
 
-	printk(KERN_INFO "Blackfin support (C) 2004 Analog Devices, Inc.\n");
-	printk(KERN_INFO "ADSP-%s Rev. 0.%d\n", CPU, id);
+	printk(KERN_INFO "Blackfin support (C) 2004-2006 Analog Devices, Inc.\n");
+	printk(KERN_INFO "Compiled for ADSP-%s Rev. 0.%d\n", CPU, id);
 	if (id < SUPPORTED_DSPID)
 		printk(KERN_ERR
-		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected \n",
+		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected\n",
 		       CPU, id);
-
-	printk(KERN_INFO "uClinux/" CPU "\n");
-
-	printk(KERN_INFO "Blackfin uClinux support by blackfin.uclinux.org\n");
+	printk(KERN_INFO "Blackfin uClinux support by http://blackfin.uclinux.org/\n");
 
 	cclk = get_cclk();
 	sclk = get_sclk();
@@ -270,19 +267,23 @@ void __init setup_arch(char **cmdline_p)
 	       cclk / 1000000,  sclk / 1000000);
 
 #if defined(ANOMALY_05000273)
-	if((cclk >> 1) <= sclk)
+	if ((cclk >> 1) <= sclk)
 		printk(KERN_ERR "\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
 #endif
 
 	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end>>20);
 	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
-	printk(KERN_INFO
-	     "Memory map:\n  text = 0x%06x-0x%06x\n  data = 0x%06x-0x%06x\n  bss  = 0x%06x-0x%06x\n  rootfs = 0x%06x-0x%06x\n  stack = 0x%06x-0x%06x\n",
-	     (int)_stext, (int)_etext, (int)_sdata, (int)_edata,
-	     (int)__bss_start, (int)__bss_stop, (int)memory_mtd_start,
-	     (int)memory_mtd_start + (int)mtd_size, (int)&init_thread_union,
-	     (int)(&init_thread_union) + 0x2000);
+	printk(KERN_INFO "Memory map:\n"
+	       KERN_INFO "  text   = 0x%p-0x%p\n"
+	       KERN_INFO "  data   = 0x%p-0x%p\n"
+	       KERN_INFO "  bss    = 0x%p-0x%p\n"
+	       KERN_INFO "  rootfs = 0x%p-0x%p\n"
+	       KERN_INFO "  stack  = 0x%p-0x%p\n",
+	       _stext, _etext, _sdata, _edata,
+	       __bss_start, __bss_stop, (void*)memory_mtd_start,
+	       (void*)(memory_mtd_start + mtd_size), &init_thread_union,
+	       (&init_thread_union) + 0x2000);
 
 	if (strlen(*cmdline_p))
 		printk(KERN_INFO "Command line: '%s'\n", *cmdline_p);
@@ -739,8 +740,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   (loops_per_jiffy * HZ));
 	seq_printf(m, "Board Name:\t%s\n", name);
 	seq_printf(m, "Board Memory:\t%ld MB\n", physical_mem_end>>20);
-	seq_printf(m, "Kernel Memory:\t%ld MB\n", _ramend>>20);
-	if ((bfin_read_IMEM_CONTROL()) & (ENICPLB | IMC))
+	seq_printf(m, "Kernel Memory:\t%ld MB\n", (unsigned long)_ramend>>20);
+	if (bfin_read_IMEM_CONTROL() & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
 		seq_printf(m, "I-CACHE:\tOFF\n");
