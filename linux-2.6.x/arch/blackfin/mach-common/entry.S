@@ -405,8 +405,8 @@ ENTRY(system_call)
 	/* Execute the appropriate system call */
 
 	p4 = p0;
-	p5.l = sys_call_table;
-	p5.h = sys_call_table;
+	p5.l = _sys_call_table;
+	p5.h = _sys_call_table;
 	p5 = p5 + (p4 << 2);
 	r0 = [sp + PT_R0];
 	r1 = [sp + PT_R1];
@@ -477,8 +477,8 @@ sys_trace:
 	/* Execute the appropriate system call */
 
 	p4 = [SP + PT_P0];
-	p5.l = sys_call_table;
-	p5.h = sys_call_table;
+	p5.l = _sys_call_table;
+	p5.h = _sys_call_table;
 	p5 = p5 + (p4 << 2);
 	r0 = [sp + PT_R0];
 	r1 = [sp + PT_R1];
@@ -705,7 +705,7 @@ _schedule_and_signal:
 
 .data
 ALIGN
-ENTRY(sys_call_table)
+ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* 0  -  old "setup()" system call*/
 	.long _sys_exit
 	.long _sys_fork
