@@ -36,16 +36,6 @@
 
 .text
 
-ENTRY(reschedule)
-	r7 = sp;
-	r4.l = 0xe000;
-	r4.h = 0xffff;
-	r7 = r7 & r4;  /*thread_info*/
-	p2 = r7;
-	p2 = [p2];
-	[p2 + (TASK_THREAD + THREAD_KSP)] = sp;
-	call _schedule;
-
 ENTRY(_ret_from_fork)
 	SP += -12;
 	call _schedule_tail;
