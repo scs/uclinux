@@ -211,9 +211,15 @@ chmod +x */*.exp
   echo  "start building policy kernel..."
   cd $KERNEL_SCRIPTS/policy
   ./build_policy_kernel.exp  $BOARD_TYPE $KERNEL_SOURCE $BINARY_FORMAT $POLICY  1>/dev/null 2>/dev/null
+
+  cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
+
+  if [ ! -f $KERNEL_SOURCE/images/linux ] ; then
+  echo  "Linux image fails to be generated.Error!"
+  exit
+  fi
     
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
-  cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
   
   echo  "mv kernel source back."
   mv $KERNEL_PATH $KERNEL_PATH_BAK 
