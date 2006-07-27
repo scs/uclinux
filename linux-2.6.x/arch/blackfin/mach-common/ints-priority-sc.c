@@ -49,6 +49,13 @@
 #undef BF537_GENERIC_ERROR_INT_DEMUX
 #endif
 
+#undef DEBUG_IRQ
+#ifdef DEBUG_IRQ
+#define DPRINTK(fmt, args...) printk("%s: " fmt, __FUNCTION__ , ## args)
+#else
+#define DPRINTK(fmt, args...)
+#endif
+
 /*
  * NOTES:
  * - we have separated the physical Hardware interrupt from the
@@ -188,7 +195,7 @@ static void bf537_generic_error_mask_irq(unsigned int irq)
 
 	if (!error_int_mask) {
 		local_irq_disable();
-		bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() | 1 << (IRQ_GENERIC_ERROR - (IRQ_CORETMR + 1)));
+		bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() & ~(1 << (IRQ_GENERIC_ERROR - (IRQ_CORETMR + 1))));
 		__builtin_bfin_ssync();
 		local_irq_enable();
 	}
@@ -244,14 +251,47 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 		if (error_int_mask & (1L << (irq - IRQ_PPI_ERROR))) {
 			struct irqdesc *desc = irq_desc + irq;
 			desc->handle(irq, desc, regs);
-		} else
-			printk(KERN_ERR "%s : %s : LINE %d  : \nIRQ %d:"
+		} else {
+
+			switch(irq)
+			{
+				case IRQ_PPI_ERROR:
+				bfin_write_PPI_STATUS(PPI_ERR_MASK);
+				break;
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
+				case IRQ_MAC_ERROR:
+				bfin_write_EMAC_SYSTAT(EMAC_ERR_MASK);
+				break;
+#endif
+				case IRQ_SPORT0_ERROR:
+				bfin_write_SPORT0_STAT(SPORT_ERR_MASK);
+				break;
+
+				case IRQ_SPORT1_ERROR:
+				bfin_write_SPORT1_STAT(SPORT_ERR_MASK);
+				break;
+
+				case IRQ_CAN_ERROR:
+				bfin_write_CAN_GIS(CAN_ERR_MASK);
+				break;
+
+				case IRQ_SPI_ERROR:
+				bfin_write_SPI_STAT(SPI_ERR_MASK);
+				break;
+
+				default:
+				break;
+			}
+
+			DPRINTK(KERN_ERR "IRQ %d:"
 			       " MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
-			       __FUNCTION__, __FILE__, __LINE__, irq);
+			       irq);
+		}
 	} else
 		printk(KERN_ERR "%s : %s : LINE %d :\nIRQ ?: PERIPHERAL ERROR"
 		       " INTERRUPT ASSERTED BUT NO SOURCE FOUND\n",
 		       __FUNCTION__, __FILE__, __LINE__);
+
 
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
