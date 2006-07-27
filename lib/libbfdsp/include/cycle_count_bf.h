@@ -97,7 +97,7 @@
                                               "R1 = CYCLES2; \n"  \
                                               "[%0]   = R2;  \n"  \
                                               "[%0+4] = R1;  \n"  \
-                                              : : "p" (&(_CURR_COUNT)) \
+                                              : : "a" (&(_CURR_COUNT)) \
                                               : "R1", "R2" );
 
 #if defined( DO_CYCLE_COUNTS )
@@ -115,7 +115,7 @@
                                               "R1 = CYCLES2; \n"  \
                                               "[%0]   = R2;  \n"  \
                                               "[%0+4] = R1;  \n"  \
-                                              : : "p" (&(_CURR_COUNT))  \
+                                              : : "a" (&(_CURR_COUNT))  \
                                               : "R1", "R2" );           \
                         (_CURR_COUNT) = (_CURR_COUNT) - (_START_COUNT); \
                         (_CURR_COUNT) -= (_cycle_t) 4;  
