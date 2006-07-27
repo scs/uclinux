@@ -309,6 +309,7 @@ unsigned long l1_data_B_sram_alloc(unsigned long size)
 	//printk ("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 }
+EXPORT_SYMBOL(l1_data_B_sram_alloc);
 
 int l1_data_B_sram_free(unsigned long addr)
 {
@@ -325,6 +326,7 @@ int l1_data_B_sram_free(unsigned long addr)
 
 	return ret;
 }
+EXPORT_SYMBOL(l1_data_B_sram_free);
 #endif
 
 unsigned long l1_inst_sram_alloc(unsigned long size)
@@ -415,8 +417,6 @@ EXPORT_SYMBOL(l1sram_alloc);
 EXPORT_SYMBOL(l1sram_free);
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 EXPORT_SYMBOL(l1_data_A_sram_free);
-EXPORT_SYMBOL(l1_data_B_sram_alloc);
-EXPORT_SYMBOL(l1_data_B_sram_free);
 EXPORT_SYMBOL(l1_inst_sram_alloc);
 EXPORT_SYMBOL(l1_inst_sram_free);
 EXPORT_SYMBOL(l1_data_sram_zalloc);
