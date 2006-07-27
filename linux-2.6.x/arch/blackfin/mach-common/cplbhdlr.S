@@ -33,25 +33,15 @@
 #include <asm/cplb.h>
 #include <asm/entry.h>
 
-
 .text
 
-.globl __cplb_hdr;
-.type __cplb_hdr, STT_FUNC;
-.extern _cplb_mgr;
 .type _cplb_mgr, STT_FUNC;
-.extern __unknown_exception_occurred;
-.type __unknown_exception_occurred, STT_FUNC;
-.extern __cplb_miss_all_locked;
-.type __cplb_miss_all_locked, STT_FUNC;
-.extern __cplb_miss_without_replacement;
-.type __cplb_miss_without_replacement, STT_FUNC;
-.extern __cplb_protection_violation;
-.type __cplb_protection_violation, STT_FUNC;
-.extern _panic_pv;
+.type _panic_cplb_error, STT_FUNC;
 
 .align 2;
 
+.global __cplb_hdr;
+.type __cplb_hdr, STT_FUNC;
 ENTRY(__cplb_hdr)
 	SSYNC;
 	[--SP] = ASTAT;
@@ -147,6 +137,8 @@ ENTRY(__cplb_hdr)
  * Diagnostic exception handlers
  */
 
+.type __cplb_miss_all_locked, STT_FUNC;
+.hidden __cplb_miss_all_locked
 __cplb_miss_all_locked:
 	sp += -12;
 	R0 = CPLB_NO_UNLOCKED;
@@ -154,6 +146,8 @@ __cplb_miss_all_locked:
 	SP += 12;
 	RTS;
 
+.type __cplb_miss_without_replacement, STT_FUNC;
+.hidden __cplb_miss_without_replacement
 __cplb_miss_without_replacement:
 	sp += -12;
 	R0 = CPLB_NO_ADDR_MATCH;
@@ -161,6 +155,8 @@ __cplb_miss_without_replacement:
 	SP += 12;
 	RTS;
 
+.type __cplb_protection_violation, STT_FUNC;
+.hidden __cplb_protection_violation
 __cplb_protection_violation:
 	sp += -12;
 	R0 = CPLB_PROT_VIOL;
@@ -168,6 +164,8 @@ __cplb_protection_violation:
 	SP += 12;
 	RTS;
 
+.type __unknown_exception_occurred, STT_FUNC;
+.hidden __unknown_exception_occurred
 __unknown_exception_occurred:
 
 	/* This function is invoked by the default exception
@@ -191,5 +189,3 @@ __unknown_exception_occurred:
 	JUMP __unknown_exception_occurred;
 
 	RTS;
-.global __unknown_exception_occurred;
-.type __unknown_exception_occurred, STT_FUNC;

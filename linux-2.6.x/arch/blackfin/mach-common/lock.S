@@ -37,15 +37,12 @@
 
 #ifdef CONFIG_BLKFIN_CACHE_LOCK
 
-.global _cache_grab_lock
-.type	_cache_grab_lock, STT_FUNC;
-
-.global _cache_lock
-.type	_cache_lock, STT_FUNC;
-
 /* When you come here, it is assumed that
  * R0 - Which way to be locked
  */
+
+.global _cache_grab_lock
+.type	_cache_grab_lock, STT_FUNC;
 
 ENTRY(_cache_grab_lock)
 
@@ -169,6 +166,9 @@ ENTRY(_cache_grab_lock)
  *
  * R0 - Which way to be locked
  */
+
+.global _cache_lock
+.type	_cache_lock, STT_FUNC;
 
 _cache_lock:
 
