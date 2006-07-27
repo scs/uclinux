@@ -70,7 +70,7 @@ libs-y		+= arch/$(ARCH)/lib/
 #	last, otherwise make uses the target directory mtime.
 
 include/asm-blackfin/.mach: $(wildcard include/config/arch/*.h) include/config/MARKER
-	@echo '  SYMLINK include/asm-$(ARCH)/arch -> include/asm-$(ARCH)/$(INCDIR)'
+	@echo '  SYMLINK include/asm-$(ARCH)/mach-$(MACHINE) -> include/asm-$(ARCH)/mach'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p include/asm-$(ARCH)
 	$(Q)ln -fsn $(srctree)/include/asm-$(ARCH)/mach-$(MACHINE) include/asm-$(ARCH)/mach
