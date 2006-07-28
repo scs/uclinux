@@ -96,7 +96,7 @@ while 1 {
              send "Y\r"
       }
       
-        -re "I2C support.*I2C.*\\\[.*]" {
+         -re "I2C support.*I2C\[^_].*\\\[.*]" {
              send "Y\r"
       }
 

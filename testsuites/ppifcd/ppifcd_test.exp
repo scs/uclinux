@@ -286,7 +286,7 @@ incr case_num
 
 set timeout 30
 
-send "ifconfig eth0 10.100.4.50\r"
+send -s "ifconfig eth0 10.100.4.50\r"
 while 1 {
    sleep 3
    expect {
@@ -335,7 +335,7 @@ while 1 {
 incr case_num
 
 expect "root:/bin>"
-send "./ppifcd_test -b $board_num -c3 -t \r" 
+send "./ppifcd_test -b $board_num -c3 -t\r" 
 while 1 {
    expect {
      -re "Total Frame Capture Time.*Total Frame Capture Time.*Total Frame Capture Time" {

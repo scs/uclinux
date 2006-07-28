@@ -2,6 +2,8 @@
 log_file joystick_test_log
 send_user "Starting joystick_test.exp\n"
 
+set TITLE "Joystick Test"
+
 set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
@@ -265,8 +267,10 @@ send "\r"
 
 step "Starting test."
 set timeout 8
-set flag 0
 
+set case_num 0
+
+incr case_num
                        
 expect "root:~>"
 send -s "modprobe ad7142\r"
@@ -275,15 +279,20 @@ expect {
 -re "ad7142_js_attach" {
 
 	puts "\nmodule insert success.\n"
+	send_log "\nCase $case_num ...PASS\n"
 	break
 }
 
 timeout {
-	puts "\nmodule insert failed.\n"
-	break
+	send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
 	}
 }
 }
+
+incr case_num
+
 expect "root:~>"
 send -s "lsmod\r"
 while 1 {
@@ -291,16 +300,19 @@ expect {
 "ad7142" {
 
 	puts "\nmodule ls success.\n"
+	send_log "\nCase $case_num ...PASS\n"
 	break
 }
 
 timeout {
-	puts "\nmodule ls failed.\n"
-	break
+	send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
 	}
 }
 }
 
+incr case_num
 
 send -s "cd /bin\r" 
 while 1 {
@@ -320,15 +332,27 @@ send -s "event_test /dev/input/event0\r"
 while 1 {
    expect {
      -re "Input device name.*Testing" { 
-         puts "\nPlease touch the Joystick board...\n"
-	 expect -re "Event: time .* type .* code .* value "
+         puts "\nPlease touch the Joystick board...\n"	 
+	 expect {
+		-re "Event: time .* type .* code .* value " { 
+		 	send_log "\nCase $case_num ...PASS\n"
+			}
+		
+		timeout {                           
+			send_log "\nCase $case_num ...FAIL\n"
+			send_log "$TITLE ............\[FAIL\]\n"
+			exit
+			}
+		}
 	 sleep 5
 	 send "\003"
          break
       }
 
       timeout {                           
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
@@ -336,34 +360,44 @@ while 1 {
 expect "root:/bin>"
 set timeout 50
 
+incr case_num
 
 send -s "rmmod ad7142\r" 
 while 1 {
    expect {
       "root:/bin>" {
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout { 
-         puts "\n rm module  failed.\n"                  
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+incr case_num
 
 send -s "lsmod\r" 
 while 1 {
    expect {
       "root:/bin>" {
+         send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout { 
-                      
-         break
+        send_log "\nCase $case_num ...FAIL\n"
+	send_log "$TITLE ............\[FAIL\]\n"
+	exit
          }
      }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
  

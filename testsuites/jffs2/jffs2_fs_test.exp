@@ -418,7 +418,7 @@ while 1 {
 
 incr case_num
 
-send  "ls -l TestFailed.log\r"
+send -s "ls -l TestFailed.log\r"
 set timeout 10
 while 1 {
    expect {

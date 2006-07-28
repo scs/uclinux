@@ -221,10 +221,6 @@ chmod +x */*.exp
     
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
   
-  echo  "mv kernel source back."
-  mv $KERNEL_PATH $KERNEL_PATH_BAK 
-  mkdir -p $KERNEL_PATH
-  
   sleep 30
   
   if [ $reset_board -eq 1  ] ; then
@@ -233,6 +229,12 @@ chmod +x */*.exp
    sleep 10
   fi
   
+  echo  "mv kernel source back."
+  mv $KERNEL_PATH $KERNEL_PATH_BAK 
+  mkdir -p $KERNEL_PATH
+  
+  sleep 10
+
   fi
   #############################################################################################
   ########################## TEST ETHERNET ####################################################
@@ -910,7 +912,6 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cd $KERNEL_SCRIPTS/dpmc
   ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null  
-  
   sleep 30
   ./dpmc_test.exp 200000000 80000000 850  1>/dev/null 2>/dev/null
    
@@ -920,6 +921,7 @@ if [ $pnormtd_test -eq 1  ] ; then
    sleep 10
   fi
   
+  cd $KERNEL_SCRIPTS/dpmc
   sleep 30
   ./dpmc_test.exp 300000000 100000000 1000  1>/dev/null 2>/dev/null
     
@@ -929,6 +931,7 @@ if [ $pnormtd_test -eq 1  ] ; then
    sleep 10
   fi
   
+  cd $KERNEL_SCRIPTS/dpmc
   sleep 30
   ./dpmc_test.exp 500000000 100000000 1200  1>/dev/null 2>/dev/null
   
@@ -1019,7 +1022,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
   if [ $snormtd_test -eq 1  ] ; then
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
-  echo  "Please switch the SW16 mode to 3."
+ # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
 
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel
@@ -1031,13 +1034,26 @@ if [ $pnormtd_test -eq 1  ] ; then
   sleep 30
   ./spi_flash_images.exp  1>/dev/null 2>/dev/null
   sleep 30
-  ./snormtd_test.exp  1>/dev/null 2>/dev/null
-  
+  ./snormtd_reboot_test.exp  1>/dev/null 2>/dev/null
+  sleep 30
+
   cp $KERNEL_SCRIPTS/snormtd/build_snormtd_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
-  
   cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.snormtd
   cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.img.snormtd
+
+  cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/snormtd/snormtd_reboot_test_log $THIS_LOG
+
+
+  cd $KERNEL_SCRIPTS/snormtd
+  ./build_snormtd_mount_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   1>/dev/null 2>/dev/null
+  sleep 30
+  ./snormtd_test.exp  1>/dev/null 2>/dev/null
+
+  cp $KERNEL_SCRIPTS/snormtd/build_snormtd_mount_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/snormtd/snormtd_test_log $THIS_LOG
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.snormtd
   
   sleep 30
 
@@ -1058,7 +1074,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   
 if [ $cf_card_test -eq 1  ] ; then
   echo  "Testing CF card ..."
-  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+# Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel
@@ -1087,7 +1103,7 @@ if [ $cf_card_test -eq 1  ] ; then
   
 if [ $ide_test -eq 1  ] ; then
   echo  "Testing ide harddisk and cdrom ..."
-  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+ # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel  
@@ -1121,7 +1137,7 @@ if [ $ide_test -eq 1  ] ; then
 if [ $wireless_network_test -eq 1  ] ; then
 
   echo  "Testing wireless card ..."
-  echo  "Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board ."
+ # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel   
@@ -1154,7 +1170,7 @@ if [ $wireless_network_test -eq 1  ] ; then
 if [ $yaffs_test -eq 1  ] ; then
 
   echo  "Testing YAFFS..."
-  echo  "Switch SW6 to on on off on and plug the nand flash board.(128)"
+  #Switch SW6 to on on off on, SW5 all on and plug the nand flash board.
 
   rm -rf $CHECKOUT/kernel/*
   cd $CHECKOUT/kernel
@@ -1197,7 +1213,8 @@ if [ $yaffs_test -eq 1  ] ; then
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ppifcd
   cp $KERNEL_SCRIPTS/ppifcd/build_ppifcd_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ppifcd/ppifcd_test_log $THIS_LOG
-    
+  cp $KERNEL_SCRIPTS/ppifcd/img.bmp $THIS_LOG
+  
   sleep 30
   
  

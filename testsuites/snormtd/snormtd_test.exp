@@ -21,10 +21,10 @@
 #  This program performs substantial u-boot functional testing.
 #
 
-log_file pnormtd_test_log
-send_user "Starting pnormtd_test.exp\n"
+log_file snormtd_test_log
+send_user "Starting snormtd_test.exp\n"
 
-set TITLE "Pnormtd Test"
+set TITLE "Snormtd Test"
 set TEST_PASS               "pass"
 set TEST_FAIL               "fail"
 # The term "INFO" here means the test was not run or could not be run.
@@ -227,7 +227,7 @@ if { $where_are_we == "uboot" } {
 	
 
 expect ">"
-send -s "set bootargs root=/dev/mtdblock3 rw \r"
+send -s "set bootargs root=/dev/mtdblock0 rw \r"
 expect ">" 
 send -s "save\r"
 expect ">"
@@ -253,20 +253,17 @@ send -s "boote\r"
       expect {
 
          -re "Kernel panic" {
-            report "kernel panic detected... trying to recover from it"
-         #   recover
+            report "kernel panic detected... trying to recover from it"       
             break
          }
 
          -re "Sash command shell.*/> " {
             send_log "successful boot attempt"
-          #  incr successful_boots
             break
          }
 	 
 	  "root:~> " {
             send_log "successful boot attempt"
-          #  incr successful_boots
             break
          }
 
@@ -279,9 +276,6 @@ send -s "boote\r"
             set gcc_version [lindex $expect_out(0,string) 2]
          }
 
-         # Look for text followed by 1 or more spaces or tabs
-         # followed by = followed by 1 or more spaces or tabs
-         # followed by (0xNNNNNN-0xNNNNNN)
          -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
             set map_text $expect_out(1,string)
          }
@@ -320,7 +314,6 @@ send -s "boote\r"
 
          timeout {
             send_log "failed boot attempt"
-	  #  recover
             break
          }
       }
@@ -344,15 +337,12 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd2" {
+	"mtd3" {
 		set mtd_temp_result $TEST_PASS
+		expect "root:~>"
 		send_log "\nCase $case_num ...PASS\n"
+		break
 	}
-
-	 "root:~>" {
-                break
-        }
-
 
 	timeout {
 	    	send_log "\nCase $case_num ...FAIL\n"
@@ -362,6 +352,73 @@ while 1 {
     }
 }
 
+incr case_num
+
+step "Mount MTD "	
+set mtd_temp_result $TEST_FAIL
+set timeout 60
+send -s "mount -t jffs2 /dev/mtdblock3 /mnt\n"
+while 1 {
+    expect {    
+        "root:~>" {
+                set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
+		break
+        }
+                                                                                                                                                             
+        timeout {
+                send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+        }
+    }
+}
+                                                                                                                                                             incr case_num
+
+step "Reading MTD "	
+set mtd_temp_result $TEST_FAIL
+set timeout 60
+send -s "ls /mnt\n"
+while 1 {
+    expect {    
+        "home" {
+                set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
+		break
+        }
+                                                                                                                                                             
+        timeout {
+                send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+        }
+    }
+}
+
+expect ">"
+     
+incr case_num
+
+step "Reading MTD "	
+set mtd_temp_result $TEST_FAIL
+set timeout 60
+send -s "umount /mnt\n"
+while 1 {
+    expect {    
+        ">" {
+                set mtd_temp_result $TEST_PASS
+		send_log "\nCase $case_num ...PASS\n"
+		break
+        }
+                                                                                                                                                             
+        timeout {
+                send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+        }
+    }
+} 
+                                                                                                                                                      
 if { $mtd_temp_result!=$TEST_PASS } {
 	exit
 }
@@ -372,7 +429,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "flash_eraseall /dev/mtd2\r"
+send -s "flash_eraseall /dev/mtd3\r"
 while 1 {
     expect {
 	
@@ -394,7 +451,6 @@ if  { $mtd_temp_result!=$TEST_PASS } {
 	exit
 }
 
-
 step "Make jffs2 image"
 
 send_log " \n1)create file system directory\n"
@@ -412,7 +468,7 @@ incr case_num
 step "Writing MTD"
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "cp mtd.img /dev/mtd2\r"
+send -s "cp mtd.img /dev/mtd3\r"
 while 1 {
     expect {
 	
@@ -439,10 +495,9 @@ incr case_num
 step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "mount -t jffs2 /dev/mtdblock2 /mnt\n"
+send -s "mount -t jffs2 /dev/mtdblock3 /mnt\n"
 while 1 {
-    expect {
-                                                                                                                                                             
+    expect {    
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
 		send_log "\nCase $case_num ...PASS\n"
@@ -468,7 +523,6 @@ set timeout 2
 send -s "cmp /rootfs/test /mnt/test\r"
 while 1 {
     expect {
-	
 	"differ" {
 		send_log "\nCase $case_num ...FAIL\n"
 		send_log "$TITLE ............\[FAIL\]\n"
@@ -488,4 +542,4 @@ send_log "\n$TITLE ............\[PASS\]\n"
 exit
 log_file
  
-send_user "\nEnding pnormtd_test.exp\n"
+send_user "\nEnding snormtd_test.exp\n"

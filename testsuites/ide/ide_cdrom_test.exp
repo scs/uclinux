@@ -3,7 +3,7 @@ log_file ide_cdrom_test_log
 send_user "Starting ide_cdrom_test.exp!\n"
 
 set uclinux_path ~/checkouts/kernel/uClinux-dist
-set TITLE "IDE Test"
+set TITLE "IDE cdrom Test"
 set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}

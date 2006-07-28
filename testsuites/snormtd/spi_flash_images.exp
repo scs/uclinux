@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file flash_images_log
-send_user "Starting flash_images.exp \n"
+log_file spi_flash_images_log
+send_user "Starting spi_flash_images.exp \n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
@@ -8,6 +8,8 @@ set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 set password "blackfin"
+set TEST_PASS pass
+set TEST_FAIL fail
 
 proc step { message } {
 
@@ -142,7 +144,7 @@ if { $where_are_we == "uboot" } {
        expect {
 
          "Hit any key " {
-	     send "\r"     
+	     send "\3"	     
          }
 
 	 ">" {
@@ -157,207 +159,202 @@ if { $where_are_we == "uboot" } {
       }
    }
 	
+###########################################################################################################
 
-send -s "set bootargs root=/dev/mtdblock2 rw rootfstype=jffs2\r"
-expect   ">" 
-send "save\r"
-expect   ">" 
-
-step "Flash images."
-
-set timeout 1200   
-send -s "tftp 0x1000000 vmImage\r"
-    while 1 {
-	expect {
-	    
-	    "done" {
-		set tftp_flag SUCCESS
-		break
-	    }
-	    
-	    timeout {
-		send_user "ERROR: Uboot locked up during tftp\n"
-		
-		break
-	    }
-	}
-    }
-    
   
-       set timeout 80
-       send -s "protect off 0x20040000 0x200fffff\r"
-       while 1 {
-    		expect {
-    
-    	    	    "Un-Protected" {
-				
-				send_user "  unprotect success\n"
-			}
+send -s "mw.b 0x1000000 0xff 0x300000\r"
+
+while 1 {
+set timeout 500
+expect {
+
+	">" {
 	
-		    ">" {
-				break
-			}
+	break
+	}
+
+	timeout {
+	send_user "ERROR: read eeprom error\n"
+	set temp_status_flag $TEST_FAIL	
+	break
+	}
+}
+}
+
+
+send -s "eeprom write 0x1000000 0x100000 0x2effff\r"
+
+while 1 {
+set timeout 500
+expect {
+
+	"EEPROM*write*done" {
+	set write_eeprom_flag $TEST_PASS
+	break
+	}
+
+	timeout {
+	send_user "ERROR: write eeprom error\n"
+	set temp_status_flag $TEST_FAIL
+	break
+	}
+}
+}
+
+
+##########################################################################################################
+   	    
+set timeout 120
+
+send -s "tftp 0x1000000 vmImage\r"
+while 1 {
+expect {
 	
-		    timeout {
-	    			send_user "ERROR:  unprotect failed\n"
-	    			
-	    			break
-			}
-    		}
+	"done" {
+	set tftp_flag SUCCESS
+	break
 	}
 	
-              
-       set timeout 240	    
- 	
-	send -s "erase 0x20040000 0x200fffff\r"
-	while 1 {
-	    expect {
-	    
-	    	"Erased" {
-	    		send_user " erase success\n"
-			break
-		}
-				
-		timeout {
-		    send_user "ERROR:  erase failed\n"
-		    
-		    break
-		}
-	    }
-	}
-	
-        set timeout 500
- 	
-	send -s "cp.b 0x1000000 0x20040000 0xc0000\r"
-	while 1 {
-	    expect {
-	    
-	    	"done" {
-	    		send_user " cp success\n"
-			break
-		}
 		
-				
-		timeout {
-		    send_user "ERROR:  cp failed\n"
-		    
-		    break
-		}
-	    }
+	timeout {
+	send_user "ERROR: Uboot locked up during tftp\n"
+	
+	break
 	}
-	
-############################################################################################################	
-	expect ">"
-	send -s "tftp 0x1000000 jffs2.img\r"
-        while 1 {
+}
+}
+
+expect ">"   
+send -s "eeprom write 0x1000000 0x40000 0xc0000\r"
+
+while 1 {
+	set timeout 500
 	expect {
-	    
-	    "done" {
-		set tftp_flag SUCCESS
-#		break
+
+	    "EEPROM*write*done" {
+		set write_eeprom_flag $TEST_PASS
+		break
 	    }
-	
-            -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
- 
-                set image_size $expect_out(1,string)
-                send_user "Image size is $image_size\n"
-                break
-            }
     
 	    timeout {
-		send_user "ERROR: Uboot locked up during tftp\n"
+		send_user "ERROR: write eeprom error\n"
+		set temp_status_flag $TEST_FAIL
+		break
+	    }
+	}
+    }
+  
+expect ">"   
+send -s "eeprom read 0x2000000 0x40000 0xc0000\r"
+
+while 1 {
+	set timeout 500
+	expect {
+
+	    "EEPROM*read*done" {
+		set read_eeprom_flag $TEST_PASS
+		break
+	    }
+    
+	    timeout {
+		send_user "ERROR: read eeprom error\n"
+		set temp_status_flag $TEST_FAIL
+		break
+	    }
+	}
+    }
+
+expect ">"
+send -s "cmp.b 0x1000000 0x2000000 0xc0000\r"
+
+while 1 {
+	set timeout 15
+	expect {
+
+	  -re  "Total of [expr 0xc0000] bytes were the same" {
+		set temp_status_flag $TEST_PASS
+		break
+	    }
+    
+	    timeout {
+		send_user "ERROR: compare eeprom error\n"
+		set temp_status_flag $TEST_FAIL
+		break
+	    }
+	}
+    }
+
+################################################################################################################
+     
+set timeout 120
+
+send -s "tftp 0x1000000 jffs2.img\r"
+while 1 {
+expect {
+	
+	"done" {
+	set tftp_flag SUCCESS
+	break
+	}
+	
 		
+	timeout {
+	send_user "ERROR: Uboot locked up during tftp\n"
+	
+	break
+	}
+}
+}
+
+expect ">"   
+send -s "eeprom write 0x1000000 0x100000 0x3effff\r"
+
+while 1 {
+	set timeout 500
+	expect {
+
+	    "EEPROM*write*done" {
+		set write_eeprom_flag $TEST_PASS
+		break
+	    }
+    
+	    timeout {
+		send_user "ERROR: write eeprom error\n"
+		set temp_status_flag $TEST_FAIL
+		break
+	    }
+	}
+    }
+  
+
+    
+expect ">"
+send -s "set bootargs root=/dev/mtdblock2 rw rootfstype=jffs2 \r"
+expect ">"
+send -s "save\r"
+expect ">"
+send -s "bootm 0x2000000\r"
+
+while 1 {
+	set timeout 35
+	expect {
+
+	    "root:~>" {
+		send_user "Boot from spi flash success\n"
+		break
+	    }
+    
+	    timeout {
+		send_user "ERROR: boot from spi flash error\n"
+		set temp_status_flag $TEST_FAIL
+	
 		break
 	    }
 	}
     }
     
-       set timeout 80
-       send -s "protect off 0x20100000 0x203effff\r"
-       while 1 {
-    		expect {
     
-    	    	    "Un-Protected" {
-				
-				send_user "  unprotect success\n"
-			}
-	
-		    ">" {
-				break
-			}
-	
-		    timeout {
-	    			send_user "ERROR:  unprotect failed\n"
-	    			
-	    			break
-			}
-    		}
-	}
-	
-      
-       set timeout 240	
-        	
-       send -s "erase 0x20100000 0x203effff\r"
-	while 1 {
-	    expect {
-	    
-	    	"Erased" {
-	    		send_user " erase success\n"
-			break
-		}
-				
-		timeout {
-		    send_user "ERROR:  erase failed\n"
-		    
-		    break
-		}
-	    }
-	}
-	
-        set timeout 500
- 	
-	send -s "cp.b 0x1000000 0x20100000 0x$image_size\r"
-	while 1 {
-	    expect {
-	    
-	    	"done" {
-	    		send_user " cp success\n"
-			break
-		}
-		
-
-		
-		timeout {
-		    send_user "ERROR:  cp failed\n"
-		    
-		    break
-		}
-	    }
-	}
-
-      expect ">"
-      send -s "reset\r"
-	while 1 {
-        expect {
-
-         "Hit any key " {
-	     send "\3"
-	     
-         }
-
-	 ">" {
-	     send_user "successful reset attempt\n"
-	     
-	     break
-	 }
-
-         timeout {
-	     send_user "failed reset attempt\n"
-            
-            break
-         }
-      }
-   }
-    
+     
 log_file
-	
+	  
+send_user "Ending spi_flash_images_test.exp\n"

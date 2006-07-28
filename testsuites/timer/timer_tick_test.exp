@@ -268,7 +268,7 @@ set timeout 120
 set case_num 0
 
 incr case_num
-send "cat /proc/uptime ; cat /proc/interrupts\r" 
+send -s "cat /proc/uptime ; cat /proc/interrupts\r" 
 while 1 {
    expect {
        -re "\[0-9]+ (\[0-9]+.\[0-9]+)" {
@@ -313,7 +313,7 @@ expect {
 }
 
 incr case_num
-send "cat /proc/uptime ; cat /proc/interrupts\r" 
+send -s "cat /proc/uptime ; cat /proc/interrupts\r" 
 while 1 {
    expect {
     
