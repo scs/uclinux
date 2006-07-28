@@ -212,8 +212,8 @@ ENTRY(ex_single_step)
 	if !cc jump ex_trap_c;
 	p4.l = lo(EVT5);
 	p4.h = hi(EVT5);
-	r6.h = exception_to_level5;
-	r6.l = exception_to_level5;
+	r6.h = _exception_to_level5;
+	r6.l = _exception_to_level5;
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump ex_trap_c;
@@ -228,8 +228,8 @@ ENTRY(ex_trap_c)
 	 * likely involves sending a signal to the current process.
 	 * To avoid double faults, lower our priority to IRQ5 first.
 	 */
-	P5.h = exception_to_level5;
-	P5.l = exception_to_level5;
+	P5.h = _exception_to_level5;
+	P5.l = _exception_to_level5;
 	p4.l = lo(EVT5);
 	p4.h = hi(EVT5);
 	[p4] = p5;
@@ -250,7 +250,7 @@ ENTRY(ex_trap_c)
 	raise 5;
 	rtx;
 
-ENTRY(exception_to_level5)
+ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
 
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
