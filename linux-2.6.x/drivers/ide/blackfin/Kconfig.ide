@@ -1,57 +1,55 @@
 # uClinux Blackfin Target Board Selection Menu (IDE)
 
-if (BFIN)
-menu "Blackfin IDE Extra configuration"
-
 choice
-	prompt	"IDE Interface Address Mapping (see help)"
-	depends on IDE
+	prompt "IDE Interface Address Mapping (see help)"
+	depends on IDE_BFIN
 	default BFIN_IDE_ADDRESS_MAPPING_MODE0
 
 config BFIN_IDE_ADDRESS_MAPPING_MODE0
 	bool "Linear 16-bit mapping with reg spacing"
 	help
-	  Blackfin 	HDD
-	  A1 	  -->	A0
-	  A2	  -->	A1
-	  A3	  -->	A2
-	  A4 +AMSx  -->	/CS0
-	  A5 +AMSx  -->	/CS1
-	  /ARE	  -->	/IOR
-	  /AWE	  -->	/IOW
-	  PFx	  <--	/INTRQ
-	  /RESET	  -->	/RESET
-	  D[0..15]  <->	D[0..15]
+	  Blackfin        HDD
+	  A1        -->   A0
+	  A2        -->   A1
+	  A3        -->   A2
+	  A4 +AMSx  -->   /CS0
+	  A5 +AMSx  -->   /CS1
+	  /ARE      -->   /IOR
+	  /AWE      -->   /IOW
+	  PFx       <--   /INTRQ
+	  /RESET    -->   /RESET
+	  D[0..15]  <->   D[0..15]
 
 	  For CF Cards in TRUE IDE MODE only
-	  VCC	  <--	/REG
-	  VCC	  <--	/WE
-	  GND	  <--	/ATA_SEL
+	  VCC       <--   /REG
+	  VCC       <--   /WE
+	  GND       <--   /ATA_SEL
 
 config BFIN_IDE_ADDRESS_MAPPING_MODE1
 	bool "16-bit mapping for multimode CF Interface"
 	help
-	  Blackfin 	HDD
-	  Ax 	  -->	A0
-	  A1	  -->	A1
-	  A2	  -->	A2
-	  A4 +AMSx  -->	/CS0
-	  A5 +AMSx  -->	/CS1
-	  /ARE	  -->	/IOR
-	  /AWE	  -->	/IOW
-	  PFx	  <--	/INTRQ
-	  /RESET	  -->	/RESET
-	  D[0..15]  <->	D[0..15]
+	  Blackfin        HDD
+	  Ax        -->   A0
+	  A1        -->   A1
+	  A2        -->   A2
+	  A4 +AMSx  -->   /CS0
+	  A5 +AMSx  -->   /CS1
+	  /ARE      -->   /IOR
+	  /AWE      -->   /IOW
+	  PFx       <--   /INTRQ
+	  /RESET    -->   /RESET
+	  D[0..15]  <->   D[0..15]
 
 	  For CF Cards in TRUE IDE MODE only
-	  VCC	  <--	/REG
-	  VCC	  <--	/WE
-	  GND	  <--	/ATA_SEL
+	  VCC       <--   /REG
+	  VCC       <--   /WE
+	  GND       <--   /ATA_SEL
+
 endchoice
 
 config BFIN_IDE_BASE
 	hex "IDE register base address"
-	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default "0x20314020" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default "0x2031C020" if (BFIN_IDE_ADDRESS_MAPPING_MODE1 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default "0x2030C000" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && BFIN533_BLUETECHNIX_CM)
@@ -62,7 +60,7 @@ config BFIN_IDE_BASE
 
 config BFIN_IDE_ALT
 	hex "IDE register alternate address"
-	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default "0x2031401C" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default "0x2031C016" if (BFIN_IDE_ADDRESS_MAPPING_MODE1 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default "0x2030D018" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && BFIN533_BLUETECHNIX_CM)
@@ -73,7 +71,7 @@ config BFIN_IDE_ALT
 
 config BFIN_IDE_IRQ
 	int "IDE IRQ no"
-	depends on IDE
+	depends on IDE_BFIN
 	default "34" if BFIN537_STAMP
 	default "26" if BFIN533_STAMP
 	default "26" if BFIN533_BLUETECHNIX_CM
@@ -83,7 +81,7 @@ config BFIN_IDE_IRQ
 
 config BFIN_IDE_IRQ_PFX
 	int "IDE IRQ PFx no"
-	depends on (IDE && BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1)
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1
 	range 0 15 
 	default "5" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default "4" if (BFIN_IDE_ADDRESS_MAPPING_MODE1 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
@@ -93,7 +91,7 @@ config BFIN_IDE_IRQ_PFX
 
 config BFIN_IDE_GAP
 	int "Address Stride / IDE GAP"
-	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0 
+	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0
 	default 2 if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
 	default 4 if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && BFIN533_BLUETECHNIX_CM)
 	help
@@ -115,6 +113,3 @@ config CF_ATASEL_DIS
 	depends on BFIN_IDE_ADDRESS_MAPPING_MODE1
 	default 0x20311800
 	help
-
-endmenu
-endif
