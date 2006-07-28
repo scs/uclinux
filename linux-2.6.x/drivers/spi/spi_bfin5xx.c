@@ -150,7 +150,7 @@ void bfin_spi_enable(struct driver_data *drv_data)
 	u16 cr;
 
 	cr = read_CTRL();
-	write_CTRL(cr | (CFG_SPI_ENABLE << 14));
+	write_CTRL(cr | BIT_CTL_ENABLE);
 	__builtin_bfin_ssync();
 }
 
@@ -159,7 +159,7 @@ void bfin_spi_disable(struct driver_data *drv_data)
 	u16 cr;
 
 	cr = read_CTRL();
-	write_CTRL(cr | (CFG_SPI_DISABLE << 14));
+	write_CTRL(cr & (~BIT_CTL_ENABLE));
 	__builtin_bfin_ssync();
 }
 
@@ -174,7 +174,7 @@ static int flush(struct driver_data *drv_data)
 	return limit;
 }
 
-/* stop controller and re-config current chip */
+/* stop controller and re-config current chip*/
 static void restore_state(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
@@ -351,6 +351,7 @@ static void giveback(struct driver_data *drv_data)
 	msg->state = NULL;
 	/* disable chip select signal */
 	write_FLAG(0xFF00);
+	bfin_spi_disable(drv_data);
 
 	if (msg->complete)
 		msg->complete(msg->context);
@@ -490,6 +491,7 @@ static void pump_transfers(unsigned long data)
 		write_STAT(BIT_STAT_CLR);
 		disable_dma(CH_SPI);
 		clear_dma_irqstat(CH_SPI);
+		bfin_spi_disable(drv_data);
 
 		PRINTK("doing dma transfer\n");
 		/* config dma channel */
@@ -505,48 +507,46 @@ static void pump_transfers(unsigned long data)
 
 		/* Go baby, go */
 		/* set transfer width,direction. And enable spi */
-		cr = read_CTRL();
+		cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
 			PRINTK("doing autobuffer DMA out.\n");
 
 			/* no irq in autobuffer mode */
-			dma_config |= (DMAFLOW_AUTO | RESTART | dma_width | DI_EN);
+			dma_config = (DMAFLOW_AUTO | RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
 			write_CTRL(cr | CFG_SPI_DMAWRITE | (width << 8) | (CFG_SPI_ENABLE << 14));
-			/* just return here, there can only be one transfer in this mode */
+			/* just return here, there can only be one transfer in this mode*/
 			message->status = 0;
 			giveback(drv_data);
 			return;
 		}
 
-		/* In dma mode, rx or tx must be NULL in one transfer */
+		/* In dma mode, rx or tx must be NULL in one transfer*/
 		if (drv_data->rx != NULL) {
 			/* set transfer mode, and enable SPI */
 			PRINTK("doing DMA in.\n");
-
 			/* For dma reading, only get len-1 by dma. */
 			set_dma_x_count(CH_SPI, drv_data->len - 1);
 
-			/* start dma */
+			/* start dma*/
 			dma_enable_irq(CH_SPI);
-			dma_config |= (WNR | RESTART | dma_width | DI_EN);
+			dma_config = (WNR | RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
 
+			cr |= CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14);
 			/* set transfer mode, and enable SPI */
-			write_CTRL(cr | CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14));
-
+			write_CTRL(cr);
 		} else if (drv_data->tx != NULL) {
 			PRINTK("doing DMA out.\n");
-
 			/* start dma */
 			dma_enable_irq(CH_SPI);
-			dma_config |= (RESTART | dma_width | DI_EN);
+			dma_config = (RESTART | dma_width | DI_EN);
 			set_dma_config(CH_SPI, dma_config);
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->tx);
 			enable_dma(CH_SPI);
@@ -567,6 +567,7 @@ static void pump_transfers(unsigned long data)
 			PRINTK("IO write: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
+			__builtin_bfin_ssync();
 
 			drv_data->write(drv_data);
 
@@ -579,6 +580,7 @@ static void pump_transfers(unsigned long data)
 			PRINTK("IO read: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
+			__builtin_bfin_ssync();
 
 			drv_data->read(drv_data);
 			if (drv_data->rx != drv_data->rx_end)
@@ -586,16 +588,15 @@ static void pump_transfers(unsigned long data)
 		}
 
 		if (!tranf_success) {
+			PRINTK("IO write error!\n");
 			message->state = ERROR_STATE;
 		} else {
 			/* Update total byte transfered */
 			message->actual_length += drv_data->len;
 
-			/* Move to next transfer of this msg */
+			/* Move to next transfer of this msg*/
 			message->state = next_transfer(drv_data);
 		}
-
-		bfin_spi_disable(drv_data);
 
 		/* Schedule next transfer tasklet */
 		tasklet_schedule(&drv_data->pump_transfers);
@@ -629,7 +630,7 @@ static void pump_messages(void *data)
 					struct spi_message, queue);
 	list_del_init(&drv_data->cur_msg->queue);
 
-	/* Initial message state */
+	/* Initial message state*/
 	drv_data->cur_msg->state = START_STATE;
 	drv_data->cur_transfer = list_entry(drv_data->cur_msg->transfers.next,
 						struct spi_transfer,
@@ -712,8 +713,7 @@ static int setup(struct spi_device *spi)
 	if (chip_info) {
 		chip->enable_dma = chip_info->enable_dma != 0
 					&& drv_data->master_info->enable_dma;
-		/* enable CPHA bit. Software control of CS signal*/
-		chip->ctl_reg = chip_info->ctl_reg | 0x0400;
+		chip->ctl_reg = chip_info->ctl_reg;
 		chip->bits_per_word = chip_info->bits_per_word;
 	}
 
