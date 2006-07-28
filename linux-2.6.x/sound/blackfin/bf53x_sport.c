@@ -854,7 +854,7 @@ struct bf53x_sport* bf53x_sport_init(int sport_num,
  	sport_config_rx_dummy(sport, DUMMY_BUF_LEN/2);
 	sport_config_tx_dummy(sport, DUMMY_BUF_LEN/2);
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	if(sport->sport_num) {
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PGTE|PGRE|PGSE);
 		SSYNC;
