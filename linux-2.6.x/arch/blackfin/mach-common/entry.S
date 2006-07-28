@@ -1,4 +1,4 @@
- /*
+/*
  * File:        arch/blackfin/mach-common/entry.S
  * Based on:
  * Author:      Linus Torvalds
@@ -59,78 +59,78 @@
 
 .data
 ALIGN
-extable:
-	.long ex_syscall;	/* 0 */
-	.long ex_soft_bp
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_spinlock
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c		/* 8 */
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_single_step	/* 16 - STEP */
-	.long ex_trap_c		/* 17 - OVFLOW */
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c		/* 24 */
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c		/* 32 */
-	.long ex_trap_c		/* 33 - UNDEF_I */
-	.long ex_trap_c		/* 34 - ILGAL_I */
-	.long ex_dcplb		/* 35 - CPLB_VL */
-	.long ex_trap_c		/* 36 - MISALI_D */
-	.long ex_trap_c		/* 37 - UNCOV */
-	.long ex_dcplb		/* 38 - CPLB_M */
-	.long ex_trap_c		/* 39 - CPLB_MHIT */
-	.long ex_trap_c		/* 40 - WATCH */
-	.long ex_trap_c		/* 41 - ISTRU_VL */
-	.long ex_trap_c		/* 42 - MISALI_I */
-	.long ex_icplb		/* 43 - CPLB_I_VL */
-	.long ex_icplb		/* 44 - CPLB_I_M */
-	.long ex_trap_c		/* 45 - CPLB_I_MHIT */
-	.long ex_trap_c		/* 46 - ILL_RES */
-	.long ex_trap_c
-	.long ex_trap_c		/* 48 */
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c		/* 56 */
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
-	.long ex_trap_c
+_extable:
+	.long _ex_syscall;	/* 0 */
+	.long _ex_soft_bp
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_spinlock
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c		/* 8 */
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_single_step	/* 16 - STEP */
+	.long _ex_trap_c		/* 17 - OVFLOW */
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c		/* 24 */
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c		/* 32 */
+	.long _ex_trap_c		/* 33 - UNDEF_I */
+	.long _ex_trap_c		/* 34 - ILGAL_I */
+	.long _ex_dcplb		/* 35 - CPLB_VL */
+	.long _ex_trap_c		/* 36 - MISALI_D */
+	.long _ex_trap_c		/* 37 - UNCOV */
+	.long _ex_dcplb		/* 38 - CPLB_M */
+	.long _ex_trap_c		/* 39 - CPLB_MHIT */
+	.long _ex_trap_c		/* 40 - WATCH */
+	.long _ex_trap_c		/* 41 - ISTRU_VL */
+	.long _ex_trap_c		/* 42 - MISALI_I */
+	.long _ex_icplb		/* 43 - CPLB_I_VL */
+	.long _ex_icplb		/* 44 - CPLB_I_M */
+	.long _ex_trap_c		/* 45 - CPLB_I_MHIT */
+	.long _ex_trap_c		/* 46 - ILL_RES */
+	.long _ex_trap_c
+	.long _ex_trap_c		/* 48 */
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c		/* 56 */
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
+	.long _ex_trap_c
 .text
 
 /* Slightly simplified and streamlined entry point for CPLB misses.
  * This one does not lower the level to IRQ5, and thus can be used to
  * patch up CPLB misses on the kernel stack.
  */
-ENTRY(ex_dcplb)
+ENTRY(_ex_dcplb)
 	/*
 	 * Work around an anomaly: if we see a new DCPLB fault, return
 	 * without doing anything.  Then, if we get the same fault again,
@@ -145,7 +145,7 @@ ENTRY(ex_dcplb)
 	if !cc jump .Lexception_do_nothing;
 	/* fall through */
 
-ENTRY(ex_icplb)
+ENTRY(_ex_icplb)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
@@ -154,24 +154,24 @@ ENTRY(ex_icplb)
 	SP = RETN;
 	rtx;
 
-ENTRY(ex_spinlock)
+ENTRY(_ex_spinlock)
 	/* Transform this into a syscall - twiddle the syscall vector.  */
 	p5.l = lo(EVT15);
 	p5.h = hi(EVT15);
-	r7.l = spinlock_bh;
-	r7.h = spinlock_bh;
+	r7.l = _spinlock_bh;
+	r7.h = _spinlock_bh;
 	[p5] = r7;
 	csync;
 	/* Fall through.  */
 
-ENTRY(ex_syscall)
+ENTRY(_ex_syscall)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
 	sp = retn;
 	rtx
 
-ENTRY(spinlock_bh)
+ENTRY(_spinlock_bh)
 	SAVE_ALL_SYS
 	/* To end up here, vector 15 was changed - so we have to change it
 	 * back.
@@ -190,13 +190,13 @@ ENTRY(spinlock_bh)
 	RESTORE_ALL_SYS
 	rti;
 
-ENTRY(ex_soft_bp)
+ENTRY(_ex_soft_bp)
 	r7 = retx;
 	r7 += -2;
 	retx = r7;
-	jump.s ex_trap_c;
+	jump.s _ex_trap_c;
 
-ENTRY(ex_single_step)
+ENTRY(_ex_single_step)
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
@@ -209,21 +209,21 @@ ENTRY(ex_single_step)
 	p5.h = hi(IPEND);
 	r6 = [p5];
 	cc = bittst(r6, 5);
-	if !cc jump ex_trap_c;
+	if !cc jump _ex_trap_c;
 	p4.l = lo(EVT5);
 	p4.h = hi(EVT5);
 	r6.h = _exception_to_level5;
 	r6.l = _exception_to_level5;
 	r7 = [p4];
 	cc = r6 == r7;
-	if !cc jump ex_trap_c;
+	if !cc jump _ex_trap_c;
 .Lexception_do_nothing:
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = retn;
 	rtx;
 
-ENTRY(ex_trap_c)
+ENTRY(_ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
 	 * likely involves sending a signal to the current process.
 	 * To avoid double faults, lower our priority to IRQ5 first.
@@ -238,8 +238,8 @@ ENTRY(ex_trap_c)
 	/* Disable all interrupts, but make sure level 5 is enabled so
 	   we can switch to that level.  Save the old mask.  */
 	cli r6;
-	p4.l = excpt_saved_imask;
-	p4.h = excpt_saved_imask;
+	p4.l = _excpt_saved_imask;
+	p4.h = _excpt_saved_imask;
 	[p4] = r6;
 	r6 = 0x3f;
 	sti r6;
@@ -255,8 +255,8 @@ ENTRY(_exception_to_level5)
 
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
 	   doesn't enable interrupts until we return from this handler.  */
-	p4.l = excpt_saved_imask;
-	p4.h = excpt_saved_imask;
+	p4.l = _excpt_saved_imask;
+	p4.h = _excpt_saved_imask;
 	r6 = [p4];
 	sti r6;
 
@@ -278,7 +278,7 @@ ENTRY(_exception_to_level5)
 	SP += -12;
 	call _trap_c;
 	SP += 12;
-	call ret_from_exception;
+	call _ret_from_exception;
 	RESTORE_ALL_SYS
 	rti;
 
@@ -288,8 +288,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 * scratch register (for want of a better option).
 	 */
 	retn = sp;
-	sp.l = exception_stack_top;
-	sp.h = exception_stack_top;
+	sp.l = _exception_stack_top;
+	sp.h = _exception_stack_top;
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
@@ -297,8 +297,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
 	r7 = r7 & r6;
-	p5.h = extable;
-	p5.l = extable;
+	p5.h = _extable;
+	p5.l = _extable;
 	p4 = r7;
 	p5 = p5 + (p4 << 2);
 	p4 = [p5];
@@ -363,7 +363,7 @@ ENTRY(_execve)
 	unlink;
 	rts;
 
-ENTRY(system_call)
+ENTRY(_system_call)
 	/* Store IPEND */
         p2.l = lo(IPEND);
         p2.h = hi(IPEND);
@@ -400,7 +400,7 @@ ENTRY(system_call)
         p2 = r7;
         r7 = [p2+TI_FLAGS];
         CC = BITTST(r7,TIF_SYSCALL_TRACE);
-        if CC JUMP sys_trace;
+        if CC JUMP _sys_trace;
 
 	/* Execute the appropriate system call */
 
@@ -471,7 +471,7 @@ ENTRY(system_call)
 	rets = r5;
 	rts;
 
-sys_trace:
+_sys_trace:
 	call _syscall_trace;
 
 	/* Execute the appropriate system call */
@@ -499,7 +499,7 @@ sys_trace:
 	call _syscall_trace;
 	jump .Lresume_userspace;
 
-ENTRY(resume)
+ENTRY(_resume)
 	/*
 	 * Beware - when entering resume, prev (the current task) is
 	 * in r0, next (the new task) is in r1.
@@ -518,8 +518,8 @@ ENTRY(resume)
 	[p0+(TASK_THREAD+THREAD_KSP)] = sp;
 
 	/* save program counter */
-	r1.l = new_old_task;
-	r1.h = new_old_task;
+	r1.l = _new_old_task;
+	r1.h = _new_old_task;
 	[p0+(TASK_THREAD+THREAD_PC)] = r1;
 
 	/* restore the kernel stack pointer */
@@ -537,7 +537,7 @@ ENTRY(resume)
 	 * Following code actually lands up in a new (old) task.
 	 */
 
-new_old_task:
+_new_old_task:
 	(r7:4, p5:3) = [sp++];
 	fp = [sp++];
 	rets = [sp++];
@@ -548,7 +548,7 @@ new_old_task:
 	 */
 	rts;
 
-ENTRY(ret_from_exception)
+ENTRY(_ret_from_exception)
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);
 
@@ -606,7 +606,7 @@ ENTRY(ret_from_exception)
 5:
 	rts;
 
-ENTRY(return_from_int)
+ENTRY(_return_from_int)
 	/* If someone else already raised IRQ 15, do nothing.  */
 	csync;
 	p2.l = lo(ILAT);
@@ -632,8 +632,8 @@ ENTRY(return_from_int)
 	/* Lower the interrupt level to 15.  */
 	p0.l = lo(EVT15);
 	p0.h = hi(EVT15);
-	p1.l = schedule_and_signal_from_int;
-	p1.h = schedule_and_signal_from_int;
+	p1.l = _schedule_and_signal_from_int;
+	p1.h = _schedule_and_signal_from_int;
 	[p0] = p1;
 	csync;
 	r0 = 0x801f (z);
@@ -664,7 +664,7 @@ ENTRY(_evt14_softirq)
 	SP += 4;
 	rts;
 
-schedule_and_signal_from_int:
+_schedule_and_signal_from_int:
 	/* To end up here, vector 15 was changed - so we have to change it
 	 * back.
 	 */
@@ -1020,13 +1020,13 @@ ENTRY(_sys_call_table)
 	.rept 2
 	.long _sys_ni_syscall
 	.endr
-excpt_saved_imask:
+_excpt_saved_imask:
 	.long 0;
 /* Put this in the kernel data section - that should always be covered by
  * a CPLB.
  */
-exception_stack:
+_exception_stack:
 	.rept 1024
 	.long 0;
 	.endr
-exception_stack_top:
+_exception_stack_top:

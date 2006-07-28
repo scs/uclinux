@@ -152,7 +152,7 @@ __common_int_entry:
 	SP += -12;
 	call _do_irq;
 	SP += 12;
-	call return_from_int;
+	call _return_from_int;
 .Lcommon_restore_context:
 	RESTORE_CONTEXT
 	rti;
@@ -251,5 +251,5 @@ ENTRY(_evt_system_call)
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
-	call system_call;
+	call _system_call;
 	jump .Lcommon_restore_context;
