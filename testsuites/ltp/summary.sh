@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cd /home/main-cvs/ltp/test/logs
+cd test/logs
  
 if [ ! -f summary.new ] ; then
   touch summary.new

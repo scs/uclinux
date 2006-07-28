@@ -262,19 +262,19 @@ proc recover {} {
 #	sleep 5
          send -s "chmod 777 /tmp\r"
 	# Add network configuration.
-	sleep 2
+	#sleep 2
 	send -s "ifconfig eth0 $ipaddr up\r"
 	expect "/bin>"
-	sleep 5
+	#sleep 5
          catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
 	 catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
-	 sleep 5
+	 #sleep 5
 	 catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
 	 catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
 	 catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/.}
 	 catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
 	 catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
-	sleep 5
+	#sleep 5
          set timeout 4
          set flag 0
          while 1 {
@@ -286,7 +286,7 @@ proc recover {} {
 
                "bin> " {
                   if { $flag==0} {
-                     sleep 3
+                     #sleep 3
                      report "!!!! executed chmod 777 /tmp"
                      report "!!!! recovered ok"
 		     send -s "ls -l /\r"
@@ -295,7 +295,7 @@ proc recover {} {
 				expect {
 				"tmp" {
 			#	puts "2222222"
-                                sleep 2
+                                #sleep 2
 				break
 				}
 								
@@ -429,6 +429,8 @@ proc all_done { } {
    global ttydev
    global output_pin
    global test_started
+   global LTP_SCRIPT_DIR
+   global start_time
 
 # Capture the information into a special logfile for an email
    log_file
@@ -563,6 +565,9 @@ proc all_done { } {
     exec $LTP_SCRIPT_DIR/summary.sh $summary_logfile
 
    # We never return back to the main program.
+   set end_time [exec date]
+   step "Test Start Time:	$start_time"
+   step "Test End Time:		$end_time"
    step "All test done!"
    exit
 }
@@ -682,7 +687,6 @@ proc run_LTP_test { filename command mode} {
        
 
          "/bin> " {
-#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww77"
             report "---done"
             sleep .5
             break
@@ -690,14 +694,12 @@ proc run_LTP_test { filename command mode} {
 
          # Some testcases leave the current directory in root
          "root:~> " {
-#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww88"
             report "---done"
             sleep .5
             break
          }
 
          $LTP_PASS {
-#	 report "qqqqqqqqqqqqqqqqwwwwwwwwww99"
             if {$result_flag == $LTP_NOT_RUN} {
                report "---pass"
                set result_flag $LTP_PASS
@@ -959,10 +961,6 @@ proc run_LTP_test { filename command mode} {
    return $result_flag
 }
 
-proc get_testsuite {} {
-   catch {exec cvs -d :pserver:anonymous@$ipaddr:/cvsroot/uclinux533 co -A -P $LTP_SUB_DIR}
-}
-
 #
 #
 #   Main Program
@@ -973,14 +971,11 @@ proc get_testsuite {} {
 
 #set BOARD                   "ADSP-BF533 STAMP"
 
+set start_time [exec date]
 set cwd [pwd]
 
 set LTP_LOG_DIR                 "$cwd/test/logs"
 set LTP_SCRIPT_DIR              "$cwd"
-set LTP_SUB_DIR			"ltp/ltp-full-20060411"
-set LTP_SOURCE_DIR		"$cwd/$LTP_SUB_DIR"
-set LTP_TESTCASES_DIR           "$cwd/$LTP_SUB_DIR/testcases/bin"
-
 
 source $LTP_SCRIPT_DIR/config/config.exp
 
@@ -1020,11 +1015,14 @@ set ULIMIT                ulimit
 #
 set i 0
 set cpu_info_loc                        $i
+set result_matrix {
+       { accept01     	     {accept01}                     	 notrun } 
+}
 
 
 #                user friendly name          command             status
 #                ==================          =======             ======
-set result_matrix {   
+set result_matrix1 {   
        { abort01     	     {ulimit -c 1024;abort01}                     	 notrun } 
        { accept01     	     {accept01}                     	 notrun } 
        { access01     	     {access01}                     	 notrun } 
@@ -1745,7 +1743,12 @@ exec mkdir -p $LTP_LOG_DIR
 #exec $LTP_SCRIPT_DIR/build_ltp.sh > /dev/null 2>&1
 puts "\nStart to build ltp...\n"
 #exec $LTP_SCRIPT_DIR/build_ltp.sh 10.99.22.20
-exec ./build_ltp.sh 10.99.22.20 > /dev/null 2>&1
+exec ./build_ltp.sh $cvs_server_addr
+
+set LTP_SUB_DIR			[exec cat ltp/current]
+set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
+set LTP_TESTCASES_DIR           "$cwd/ltp/$LTP_SUB_DIR/testcases/bin"
+
 cd $LTP_SOURCE_DIR
 #exec make uclinux
 #exec make uclinux_install
@@ -2053,14 +2056,14 @@ test_cleanup
 sleep 2
 send -s "ifconfig eth0 $ipaddr up\r"
 expect "/bin>"
-sleep 5
+#sleep 5
  
 step "additional setup for tests"
 catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
 step "copy /etc/passwd"
 catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
 step "copy /etc/group"
-sleep 5
+#sleep 5
 catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
 catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
 catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/bin}
@@ -2105,7 +2108,7 @@ while 1 {
       }
    }
 }
-sleep 2
+#sleep 2
 send -s "ls -l /\r"
 set timeout 4
 set flag 0
