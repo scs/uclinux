@@ -151,7 +151,7 @@ pflags_open (struct inode *inode, struct file *filp)
   if (check_minor (inode) < 0)
     return -ENODEV;
 
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~(1 << MINOR (inode->i_rdev)));
 #endif
 

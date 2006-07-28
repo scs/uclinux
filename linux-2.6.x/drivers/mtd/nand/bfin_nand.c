@@ -339,7 +339,7 @@ int __init bfin_nand_init (void)
 	bfin_mtd->priv = this;
 	
 	/* Configure GPIO-BFIN_NAND_READY */
-#if defined(CONFIG_BF534)|defined(CONFIG_BF536)|defined(CONFIG_BF537)
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~BFIN_NAND_READY);
 #endif
         bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~BFIN_NAND_READY);
