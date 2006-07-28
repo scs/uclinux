@@ -348,8 +348,6 @@ EXPORT_SYMBOL(dump_stack);
 
 void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 {
-	int i;
-
 	printk("\nCURRENT PROCESS:\n\n");
 	printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {
@@ -364,15 +362,18 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	printk("return address: %08lx; contents of [PC-16...PC+8[:\n",
 	       (long)retaddr);
 
-#ifndef CONFIG_I_ENTRY_L1 /* Very Unlikly */
-	for (i = -16; i < 8; i++) {
-		unsigned short x;
-		get_user(x, (unsigned short *)retaddr + i);
-		if (i == -8)
-			printk("\n");
-		if (i == 0)
-			printk("X\n");
-		printk("%04x ", x);
+#ifndef CONFIG_I_ENTRY_L1 /* Very Unlikely */
+	{
+		int i;
+		for (i = -16; i < 8; i++) {
+			unsigned short x;
+			get_user(x, (unsigned short *)retaddr + i);
+			if (i == -8)
+				printk("\n");
+			if (i == 0)
+				printk("X\n");
+			printk("%04x ", x);
+		}
 	}
 #endif
 	printk("\n\n");
