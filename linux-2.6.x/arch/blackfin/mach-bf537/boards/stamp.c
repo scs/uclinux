@@ -220,9 +220,11 @@ static struct platform_device isp1362_hcd_device = {
 };
 #endif
 
+#if defined(CONFIG_BFIN_MAC)
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
 };
+#endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 static struct resource net2272_bfin_resources[] = {
@@ -422,7 +424,9 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&smc91x_device,
 #endif
 
+#if defined(CONFIG_BFIN_MAC)
 	&bfin_mac_device,
+#endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 	&net2272_bfin_device,
