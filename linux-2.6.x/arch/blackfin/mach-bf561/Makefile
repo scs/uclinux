@@ -1,7 +1,9 @@
 #
-# Makefile for mach-bf561.
+# arch/blackfin/mach-bf561/Makefile
 #
-extra-y += head.o
-# Object file lists.
-obj-y:= ints-priority.o
+
+extra-y := head.o
+
+obj-y := ints-priority.o
+
 obj-$(CONFIG_BF561_COREB) += coreb.o

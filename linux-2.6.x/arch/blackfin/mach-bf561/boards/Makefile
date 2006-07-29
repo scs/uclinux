@@ -1,8 +1,6 @@
 #
-# Makefile for mach-bf533/boards.
+# arch/blackfin/mach-bf561/boards/Makefile
 #
 
-# Object file lists.
-
-obj-$(CONFIG_BFIN561_EZKIT) += ezkit.o
-obj-$(CONFIG_GENERIC_BOARD) += generic_board.o
+obj-$(CONFIG_GENERIC_BOARD)            += generic_board.o
+obj-$(CONFIG_BFIN561_EZKIT)            += ezkit.o

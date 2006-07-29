@@ -1,8 +1,10 @@
 #
-# Makefile for mach-bf533.
+# arch/blackfin/mach-bf533/Makefile
 #
-extra-y += head.o
-# Object file lists.
-obj-y:= ints-priority.o
+
+extra-y := head.o
+
+obj-y := ints-priority.o
+
 obj-$(CONFIG_CPU_FREQ_BF533) += cpu.o
-obj-$(CONFIG_PM) +=pm.o
+obj-$(CONFIG_PM)             += pm.o
