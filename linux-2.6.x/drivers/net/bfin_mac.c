@@ -59,15 +59,28 @@
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
 
-#include "bfin_mac.h"
-
 #include <asm/irq.h>
 #include <asm/blackfin.h>
 #include <asm/delay.h>
 
-MODULE_LICENSE("GPL");
+
+#include "bfin_mac.h"
 
 #define CARDNAME "bfin_mac"
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Luke Yang");
+MODULE_DESCRIPTION("Blackfin MAC Driver");
+
+
+#undef BFIN_MAC_DEBUG
+
+#ifdef BFIN_MAC_DEBUG
+# define DPRINTK(fmt, args...) printk(KERN_DEBUG CARDNAME ":%s:%i: " fmt, __FUNCTION__, __LINE__, ## args);
+#else
+# define DPRINTK(x...) do { } while (0)
+#endif
+
 
 static void desc_list_free(void);
 
