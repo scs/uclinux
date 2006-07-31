@@ -22,6 +22,7 @@ fi
 PASS="$1"
 VENDOR=""
 PRODUCT=""
+LANGUAGE=""
 LINUXDIR=""
 LIBCDIR=""
 LIBCBASEDIR=""
@@ -175,8 +176,8 @@ do
 		LIBCNAME="`echo ${i} | sed 's/-[0-9].*$//g'`"
 		LIBCBASEDIR=${i}
 		case "$i" in
+		None)    LIBCDIR=""; LIBCBASEDIR="$LIBCDIR" ;;
 		uC-libc) LIBCDIR="libc"; LIBCBASEDIR="$LIBCDIR" ;;
-		glibc*)  LIBCDIR="$LIBCBASEDIR/build" ;;
 		*)       LIBCDIR="$LIBCBASEDIR" ;;
 		esac
 		break
@@ -200,15 +201,22 @@ if [ "$PASS" != "final" ]; then
 			cp .config .config.save
 			cp .oldconfig .config
 			echo; echo; echo; echo
-			echo "**** Cleaning tree for old settings ****"
-			echo "rm -rf romfs; make clean > /dev/null 2>&1"
-			echo; echo; echo; echo
-			rm -rf romfs
-			make clean > /dev/null 2>&1
+			if [ $NO_CLEAN ]
+			then
+				echo "**** Not cleaning tree ****"
+				echo; echo; echo; echo
+				sleep 3;
+			else
+				echo "**** Cleaning tree for old settings ****"
+				echo "rm -rf romfs; make clean > /dev/null 2>&1"
+				echo; echo; echo; echo
+				rm -rf romfs
+				make clean > /dev/null 2>&1
+			fi
 			cp .config.save .config
 			rm -f .config.save
 		fi
-		rm -f $LIBCDIR/.config
+		[ "$LIBCDIR" ] && rm -f $LIBCDIR/.config
 		rm -f $LINUXDIR/.config
 		rm -f config/.config
 		rm -f config.arch
@@ -225,11 +233,11 @@ if [ "$PASS" != "final" ]; then
 		if [ ! -f "vendors/$VENDOR/$PRODUCT/config.$LINUXDIR" ]; then
 			echo; echo; echo; echo
 			echo "*********************** NOTICE ****************************"
-			echo "There is no preset config for $LINUXDIR on this platform." 
+			echo "There is no preset config for $LINUXDIR on platform $VENDOR/$PRODUCT." 
 			echo "If you choose to continue you will have to setup a linux"
 			echo "config from scratch which is a very complex task."
-			echo "You will find it easier if you can copy the config from"
-			echo "another platform that is similar."
+			echo "You will find it easier if you can copy a config.$LINUXDIR"
+			echo "from another platform that is similar."
 			echo
 			echo "If you know what you are doing press <ENTER> otherwise"
 			echo "Type ^C to abort."
@@ -271,11 +279,11 @@ if [ "$PASS" != "final" ]; then
 		else
 			echo; echo; echo; echo
 			echo "*********************** NOTICE ****************************"
-			echo "There is no preset config for applications on this platform." 
+			echo "There is no preset config for applications on platform $VENDOR/$PRODUCT." 
 			echo "If you choose to continue you will have to setup your"
 			echo "application config from scratch.  You will find it easier"
-			echo "if you can copy the config from another platform that is"
-			echo "similar."
+			echo "if you can copy a config.vendor file from another platform"
+			echo "that is similar."
 			echo
 			echo "If you press <ENTER> you will be forced into the application"
 			echo "config screen as part of the config process."
@@ -301,7 +309,14 @@ if [ "$PASS" != "final" ]; then
 	case "$LIBCBASEDIR" in
 	uClibc*)
 		if [ ! -f lib/$LIBCDIR/.config ] || var_isset CONFIG_DEFAULTS_OVERRIDE; then
-			if [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR" ]; then
+			TMP=`expr $LINUXDIR : "[^-][^-]*\(-.*\)"`
+			if [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR$TMP" ]; then
+				cp "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR$TMP" \
+						lib/$LIBCDIR/.config
+			elif [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME$TMP" ]; then
+				cp "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME$TMP" \
+						lib/$LIBCDIR/.config
+			elif [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR" ]; then
 				cp "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR" \
 						lib/$LIBCDIR/.config
 			elif [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME" ]; then
@@ -310,8 +325,8 @@ if [ "$PASS" != "final" ]; then
 			else
 				echo; echo; echo; echo
 				echo "********************** NOTICE ***************************"
-				echo "There is no preset config for $LIBCBASEDIR on this" 
-				echo "platform.  $LIBCBASEDIR cannot build without this."
+				echo "There is no preset config for $LIBCBASEDIR on platform" 
+				echo "$VENDOR/$PRODUCT.  $LIBCBASEDIR cannot build without this."
 				echo "You should copy a config.$LIBCBASEDIR from another"
 				echo "target that is similar to yours to your chosen"
 				echo "vendor/../.. directory and check that it is correct."
@@ -371,9 +386,17 @@ if [ "$PASS" = "final" ]; then
 		fi
 		if [ -f "$LIBCDIR/.config" ]; then
 			if [ "$LIBCBASEDIR" = "$LIBCNAME" ]; then
-			  cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME"
+				if [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME$TMP" ]; then
+					cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME$TMP"
+				else
+					cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCNAME"
+				fi
 			else
-			  cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR"
+				if [ -f "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR$TMP" ]; then
+					cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR$TMP"
+				else
+					cp $LIBCDIR/.config "vendors/$VENDOR/$PRODUCT/config.$LIBCBASEDIR"
+				fi
 			fi
 		fi
 
@@ -381,6 +404,11 @@ if [ "$PASS" = "final" ]; then
 				> .config.tmp
 		cp .config.tmp .config
 		rm -f .config.tmp
+
+		if [ -f "vendors/$VENDOR/$PRODUCT/config.device" ]
+		then
+			cp .config "vendors/$VENDOR/$PRODUCT/config.device"
+		fi
 	fi
 
 	grep -v CONFIG_DEFAULTS_VENDOR= < .config | \

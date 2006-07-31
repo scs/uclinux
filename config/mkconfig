@@ -65,6 +65,7 @@ do
 	then
 		for i in `cat "vendors/$v/$p/config.languages"`
 		do
+			[ "$def" = "${p}" ] && def="${p}\\($i\\)"
 			echo "${p}($i) CONFIG_DEFAULTS_`fix_name ${v}`_`fix_name ${p}`_`fix_name ${i}` \\"
 		done
 	else
@@ -112,7 +113,7 @@ fi
 # expect an explosion of libc's just yet ;-)
 #
 
-LIBCS="`ls -d lib/libc uClibc uClibc-* glibc glibc-* 2>/dev/null`"
+LIBCS="None `ls -d lib/libc uClibc uClibc-* glibc glibc-* 2>/dev/null`"
 NLIBCS="`echo ${LIBCS} | wc -w`"
 if [ ${NLIBCS} -gt 1 ]; then
 	echo -n "choice 'Libc Version' \""
