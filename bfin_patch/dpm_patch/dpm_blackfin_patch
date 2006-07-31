@@ -276,10 +276,10 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf533/Makefile linux-2.6.x/arch/bl
 --- linux-2.6.x-orig/arch/blackfin/mach-bf533/Makefile	2005-11-03 12:25:36.000000000 +0800
 +++ linux-2.6.x/arch/blackfin/mach-bf533/Makefile	2005-12-14 17:26:49.000000000 +0800
 @@ -6,3 +6,4 @@
- obj-y:= ints-priority.o
+ 
  obj-$(CONFIG_CPU_FREQ_BF533) += cpu.o
- obj-$(CONFIG_PM) +=pm.o
-+obj-$(CONFIG_DPM) +=dpm.o
+ obj-$(CONFIG_PM)             += pm.o
++obj-$(CONFIG_DPM)            += dpm.o
 diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf537/dpm.c linux-2.6.x/arch/blackfin/mach-bf537/dpm.c
 --- linux-2.6.x-orig/arch/blackfin/mach-bf537/dpm.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-2.6.x/arch/blackfin/mach-bf537/dpm.c	2005-12-14 17:26:25.000000000 +0800
@@ -547,10 +547,10 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf537/Makefile linux-2.6.x/arch/bl
 --- linux-2.6.x-orig/arch/blackfin/mach-bf537/Makefile	2005-12-07 15:35:36.000000000 +0800
 +++ linux-2.6.x/arch/blackfin/mach-bf537/Makefile	2005-12-14 17:26:30.000000000 +0800
 @@ -6,3 +6,4 @@
- obj-y:= ints-priority.o
- obj-$(CONFIG_CPU_FREQ) += cpu.o
- obj-$(CONFIG_PM) +=pm.o
-+obj-$(CONFIG_DPM) +=dpm.o
+ 
+ obj-$(CONFIG_CPU_FREQ)   += cpu.o
+ obj-$(CONFIG_PM)         += pm.o
++obj-$(CONFIG_DPM)        += dpm.o
 diff -Nur linux-2.6.x-orig/drivers/dpm/dpm.c linux-2.6.x/drivers/dpm/dpm.c
 --- linux-2.6.x-orig/drivers/dpm/dpm.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-2.6.x/drivers/dpm/dpm.c	2005-12-14 16:21:27.000000000 +0800
