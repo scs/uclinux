@@ -11,6 +11,8 @@ set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 
+set TITLE "CoreB Test"
+
 proc step { message } {
   global step_sequence_number
 
@@ -312,16 +314,20 @@ while 1 {
    expect {
 
       -re "testarg = \[2\]*" {
-         send_log "\nCoreB TEST PASSED\n"
-         send_user "\nCoreb test pass\n"
+         send_log "\n$TITLE ............\[PASS\]\n"
+         send_user "\n$TITLE ............\[PASS\]\n"
          break
       }
       timeout {
-         send_log "\nTEST FAILED\n"
-         send_user "\nCoreb test fail\n"
+         send_log "\n$TITLE ............\[FAIL\]\n"
+         send_user "\n$TITLE ............\[FAIL\]\n"
          break
       }
    }
 }
+
+log_file
+
+send_user "\n$TITLE is finished.\n"
 
 exit
