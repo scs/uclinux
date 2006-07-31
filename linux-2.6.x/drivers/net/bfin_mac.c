@@ -908,13 +908,12 @@ static int bfin_mac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-       if (bf537mac_probe(ndev) != 0) {
-               platform_set_drvdata(pdev, NULL);
-               free_netdev(ndev);
-               printk(KERN_WARNING CARDNAME ": not found\n");
-               return -ENODEV;
-        }
-
+	if (bf537mac_probe(ndev) != 0) {
+		platform_set_drvdata(pdev, NULL);
+		free_netdev(ndev);
+		printk(KERN_WARNING CARDNAME ": not found\n");
+		return -ENODEV;
+	}
 
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -929,6 +928,7 @@ static int bfin_mac_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
+
 	unregister_netdev(ndev);
 
 	free_irq(IRQ_MAC_RX, ndev);
@@ -940,22 +940,22 @@ static int bfin_mac_remove(struct platform_device *pdev)
 
 static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	 return 0;
+	return 0;
 }
 
 static int bfin_mac_resume(struct platform_device *pdev)
 {
-        return 0;
+	return 0;
 }
 
 static struct platform_driver bfin_mac_driver = {
-       .probe   = bfin_mac_probe,
-       .remove  = bfin_mac_remove,
-       .resume  = bfin_mac_resume,
-       .suspend = bfin_mac_suspend,
-       .driver  = {
-               .name = CARDNAME,
-       },
+	.probe   = bfin_mac_probe,
+	.remove  = bfin_mac_remove,
+	.resume  = bfin_mac_resume,
+	.suspend = bfin_mac_suspend,
+	.driver  = {
+		.name = CARDNAME,
+	},
 };
 
 static int __init bfin_mac_init(void)
@@ -968,5 +968,4 @@ static void __exit bfin_mac_cleanup(void)
 {
 	platform_driver_unregister(&bfin_mac_driver);
 }
-
 module_exit(bfin_mac_cleanup);
