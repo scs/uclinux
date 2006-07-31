@@ -89,8 +89,6 @@ struct net_dma_desc_rx *rx_list_tail;
 struct net_dma_desc_rx *current_rx_ptr;
 struct net_dma_desc_tx *current_tx_ptr;
 
-extern unsigned long l1_data_sram_zalloc(unsigned long size);
-extern unsigned long l1_data_sram_free(unsigned long size);
 extern void get_bf537_ether_addr(char *addr);
 
 static int desc_list_init(void)
