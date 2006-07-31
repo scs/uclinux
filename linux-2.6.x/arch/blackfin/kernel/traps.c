@@ -351,16 +351,17 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	printk("\nCURRENT PROCESS:\n\n");
 	printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	if (current->mm) {
-		printk("TEXT=%08x-%08x DATA=%08x-%08x BSS=%08x-%08x\n",
-		       (int)current->mm->start_code,
-		       (int)current->mm->end_code,
-		       (int)current->mm->start_data,
-		       (int)current->mm->end_data,
-		       (int)current->mm->end_data, (int)current->mm->brk);
-		printk("USER-STACK=%08x\n\n", (int)current->mm->start_stack);
+		printk("TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
+		       "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n\n",
+		       (void*)current->mm->start_code,
+		       (void*)current->mm->end_code,
+		       (void*)current->mm->start_data,
+		       (void*)current->mm->end_data,
+		       (void*)current->mm->end_data,
+		       (void*)current->mm->brk,
+		       (void*)current->mm->start_stack);
 	}
-	printk("return address: %08lx; contents of [PC-16...PC+8[:\n",
-	       (long)retaddr);
+	printk("return address: 0x%p; contents of [PC-16...PC+8]:\n", retaddr);
 
 #ifndef CONFIG_I_ENTRY_L1 /* Very Unlikely */
 	{
