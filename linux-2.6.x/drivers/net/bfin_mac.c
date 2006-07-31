@@ -897,41 +897,38 @@ static int __init bf537mac_probe(struct net_device *dev)
 	return retval;
 }
 
-static int bf537mac_drv_probe(struct device *dev)
+static int bfin_mac_probe(struct platform_device *pdev)
 {
 	struct net_device *ndev;
-	int ret = 0;
 
 	ndev = alloc_etherdev(sizeof(struct bf537mac_local));
 
 	if (!ndev) {
 		printk(KERN_WARNING CARDNAME ": could not allocate device\n");
-		ret = -ENOMEM;
-		return ret;
+		return -ENOMEM;
 	}
 
-	ret = bf537mac_probe(ndev);
-	if (ret != 0) {
-		dev_set_drvdata(dev, NULL);
-		free_netdev(ndev);
-		printk(KERN_WARNING CARDNAME ": not found (%d)\n", ret);
-	}
+       if (bf537mac_probe(ndev) != 0) {
+               platform_set_drvdata(pdev, NULL);
+               free_netdev(ndev);
+               printk(KERN_WARNING CARDNAME ": not found\n");
+               return -ENODEV;
+        }
+
 
 	SET_MODULE_OWNER(ndev);
-	SET_NETDEV_DEV(ndev, dev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	dev_set_drvdata(dev, ndev);
+	platform_set_drvdata(pdev, ndev);
 
-	//printk(KERN_DEBUG CARDNAME ": probe finished\n");
-	return ret;
+	return 0;
 }
 
-static int bf537mac_drv_remove(struct device *dev)
+static int bfin_mac_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(dev, NULL);
-
+	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(ndev);
 
 	free_irq(IRQ_MAC_RX, ndev);
@@ -941,34 +938,35 @@ static int bf537mac_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int bf537mac_drv_suspend(struct device *dev, pm_message_t state)
+static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	return 0;
+	 return 0;
 }
 
-static int bf537mac_drv_resume(struct device *dev)
+static int bfin_mac_resume(struct platform_device *pdev)
 {
-	return 0;
+        return 0;
 }
 
-static struct device_driver bf537mac_driver = {
-	.name = CARDNAME,
-	.bus = &platform_bus_type,
-	.probe = bf537mac_drv_probe,
-	.remove = bf537mac_drv_remove,
-	.suspend = bf537mac_drv_suspend,
-	.resume = bf537mac_drv_resume,
+static struct platform_driver bfin_mac_driver = {
+       .probe   = bfin_mac_probe,
+       .remove  = bfin_mac_remove,
+       .resume  = bfin_mac_resume,
+       .suspend = bfin_mac_suspend,
+       .driver  = {
+               .name = CARDNAME,
+       },
 };
 
-static int __init bf537mac_init(void)
+static int __init bfin_mac_init(void)
 {
-	return driver_register(&bf537mac_driver);
+	return platform_driver_register(&bfin_mac_driver);
+}
+module_init(bfin_mac_init);
+
+static void __exit bfin_mac_cleanup(void)
+{
+	platform_driver_unregister(&bfin_mac_driver);
 }
 
-static void __exit bf537mac_cleanup(void)
-{
-	driver_unregister(&bf537mac_driver);
-}
-
-module_init(bf537mac_init);
-module_exit(bf537mac_cleanup);
+module_exit(bfin_mac_cleanup);
