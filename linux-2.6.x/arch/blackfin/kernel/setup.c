@@ -165,6 +165,18 @@ static __init void parse_cmdline_early(char *cmdline_p)
 	}
 }
 
+#if defined(CONFIG_DMA_UNCACHED_2M)
+# define DMA_UNCACHED_REGION (2 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_1M)
+# define DMA_UNCACHED_REGION (1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_512K)
+# define DMA_UNCACHED_REGION (512 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_256K)
+# define DMA_UNCACHED_REGION (256 * 1024)
+#else
+# define DMA_UNCACHED_REGION (0)
+#endif
+
 void __init setup_arch(char **cmdline_p)
 {
 	int bootmap_size, id;
@@ -201,17 +213,8 @@ void __init setup_arch(char **cmdline_p)
 	if (physical_mem_end == 0)
 		physical_mem_end = _ramend;
 
-	memory_end = _ramend;	/* by now the stack is part of the init task */
-
-#if defined (CONFIG_DMA_UNCACHED_2M)
-	memory_end -= (2 * 1024 * 1024);
-#elif defined (CONFIG_DMA_UNCACHED_1M)
-	memory_end -= (1024 * 1024);
-#elif defined (CONFIG_DMA_UNCACHED_512K)
-	memory_end -= (512 * 1024);
-#elif defined (CONFIG_DMA_UNCACHED_256K)
-	memory_end -= (256 * 1024);
-#endif
+	/* by now the stack is part of the init task */
+	memory_end = _ramend - DMA_UNCACHED_REGION;
 
 	memory_mtd_end = memory_end;
 
@@ -287,15 +290,15 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
 	printk(KERN_INFO "Memory map:\n"
-	       KERN_INFO "  text     = 0x%p-0x%p\n"
-	       KERN_INFO "  init     = 0x%p-0x%p\n"
-	       KERN_INFO "  data     = 0x%p-0x%p\n"
-	       KERN_INFO "  bss      = 0x%p-0x%p\n"
-	       KERN_INFO "  avalible = 0x%p-0x%p\n"
-	       KERN_INFO "  rootfs   = 0x%p-0x%p\n"
-	       KERN_INFO "  stack    = 0x%p-0x%p\n"
-#if defined (CONFIG_DMA_UNCACHED_2M) || defined (CONFIG_DMA_UNCACHED_1M) || defined (CONFIG_DMA_UNCACHED_512K) || defined (CONFIG_DMA_UNCACHED_256K)
-	       KERN_INFO "  DMA Zone = 0x%p-0x%p\n"
+	       KERN_INFO "  text      = 0x%p-0x%p\n"
+	       KERN_INFO "  init      = 0x%p-0x%p\n"
+	       KERN_INFO "  data      = 0x%p-0x%p\n"
+	       KERN_INFO "  bss       = 0x%p-0x%p\n"
+	       KERN_INFO "  available = 0x%p-0x%p\n"
+	       KERN_INFO "  rootfs    = 0x%p-0x%p\n"
+	       KERN_INFO "  stack     = 0x%p-0x%p\n"
+#if DMA_UNCACHED_REGION > 0
+	       KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 	       , _stext, _etext,
 	       __init_begin, __init_end,
@@ -303,15 +306,9 @@ void __init setup_arch(char **cmdline_p)
 	       __bss_start, __bss_stop,
 	       (void*)_ramstart, (void*)memory_end,
 	       (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size), 
-               &init_thread_union, (&init_thread_union) + 0x2000
-#if defined (CONFIG_DMA_UNCACHED_2M)
-	       , (void*)(_ramend - 2*1024*1024), (void*)(_ramend)
-#elif defined (CONFIG_DMA_UNCACHED_1M)
-	       , (void*)(_ramend - 1024*1024), (void*)(_ramend)
-#elif defined (CONFIG_DMA_UNCACHED_512K)
-	       , (void*)(_ramend -  512*1024), (void*)(_ramend)
-#elif defined (CONFIG_DMA_UNCACHED_256K)
-	       , (void*)(_ramend -  256*1024), (void*)(_ramend)
+	       &init_thread_union, (&init_thread_union) + 0x2000
+#if DMA_UNCACHED_REGION > 0
+	       , (void*)(_ramend - DMA_UNCACHED_REGION), (void*)(_ramend)
 #endif
 	       );
 
