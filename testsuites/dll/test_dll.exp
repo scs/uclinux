@@ -5,6 +5,8 @@ log_file dll_test_log
 send_log "\nDLL test is starting...\r"
 send_user "Starting dll_test.exp\n"
 
+set TITLE "DLL Test"
+
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
@@ -373,8 +375,8 @@ while 1 {
          send_user "\nTest get correct return value\n"
          incr testres
          if { $testres == 2 } {
-            send_log "\nDLL TEST PASS\n"
-            send_user "\nDLL TEST PASS\n"
+            send_log "\n$TITLE ............\[PASS\]\n"
+            send_user "\n$TITLE ............\[PASS\]\n"
             break
          }
       }
@@ -386,8 +388,11 @@ while 1 {
 }
 
 if { $testres != 2 } {
-   send_log "\nDLL TEST FAIL\n"
-   send_user "\nDLL TEST FAIL\n"
+   send_log "\n$TITLE ............\[FAIL\]\n"
+   send_user "\n$TITLE ............\[FAIL\]\n"
 }
+
+log_file
+send_user "\n$TITLE is finished.\n"
 
 exit
