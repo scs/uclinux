@@ -55,7 +55,7 @@ image:
 #
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
 	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
-	if [ -x $(MKFS_JFFS2) -a -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
+	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(ROMFSIMG).jffs2; \
 	fi
 	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
