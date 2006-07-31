@@ -110,6 +110,7 @@ fi
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
+	     dll_test=1
 
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
@@ -150,6 +151,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
+	     dll_test=1
 fi
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
@@ -188,6 +190,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=1
+	     dll_test=1
          	
 fi
  
@@ -1225,3 +1228,35 @@ if [ $yaffs_test -eq 1  ] ; then
   fi
 
   fi
+
+
+#############################################################################################
+########################## TEST DLL #########################################################
+if [ $dll_test -eq 1 ] ; then
+  echo "Testing dll..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/dll
+  ./build_dll_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./dll_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dll
+  cp $KERNEL_SCRIPTS/dll/build_dll_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/dll/dll_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
