@@ -35,18 +35,7 @@ struct mtd_info *uclinux_ram_mtdinfo;
 
 struct mtd_partition uclinux_romfs[] = {
 	{
-#if defined CONFIG_EXT2_FS
-	.name = "EXT2fs",
-#elif defined  CONFIG_EXT3_FS
-	.name = "EXT3fs",
-#elif defined  CONFIG_ROMFS_FS
-	.name = "ROMfs" ,
-#elif defined  CONFIG_CRAMFS
-	.name = "CRAMfs",
-#elif defined CONFIG_JFFS2_FS
-	.name = "JFFS2fs",
-#endif
-
+	.name = "ROMfs",
 	}
 };
 
@@ -71,6 +60,7 @@ int __init uclinux_mtd_init(void)
 {
 	struct mtd_info *mtd;
 	struct map_info *mapp;
+	char name[20];
 #ifdef CONFIG_BFIN
 	unsigned long addr = (unsigned long) memory_mtd_start;
 #else
@@ -83,8 +73,19 @@ int __init uclinux_mtd_init(void)
 	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	mapp->size = *((unsigned long *)(addr + 0x404)) * 1024;
+	if (*((unsigned short *)(addr + 0x438)) == 0xEF53 ) {
+		sprintf(name, "EXT2 ");
+		mapp->size = *((unsigned long *)(addr + 0x404)) * 1024;
+	}
 #endif
+
+#if defined(CONFIG_CRAMFS)
+	if (*((unsigned long *)(addr)) ==  0x28cd3d45 ) {
+		sprintf(name, "cramfs ");
+		mapp->size = *((unsigned long *)(addr + 0x4)) ;
+	}
+#endif
+
 
 	mapp->bankwidth = 4;
 
@@ -119,8 +120,8 @@ int __init uclinux_mtd_init(void)
 	add_mtd_device(mtd);
 #endif
 
-	printk("uclinux[mtd]: set %s to be root filesystem\n",
-	     	uclinux_romfs[0].name);
+	printk("uclinux[mtd]: set %s:%s to be root filesystem\n",
+	     	uclinux_romfs[0].name, name);
 	ROOT_DEV = MKDEV(MTD_BLOCK_MAJOR, 0);
 
 	return(0);

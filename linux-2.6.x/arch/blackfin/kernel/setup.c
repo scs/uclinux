@@ -70,6 +70,7 @@ char command_line[COMMAND_LINE_SIZE];
 void init_leds(void);
 void bf53x_cache_init(void);
 static u_int get_dsp_rev_id(void);
+static inline u_int get_compiled_rev_id(void);
 static void generate_cpl_tables(void);
 
 
@@ -220,8 +221,15 @@ void __init setup_arch(char **cmdline_p)
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
 #if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
+	if (*((unsigned short *)(mtd_phys + 0x438)) == 0xEF53 )
+		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
 #endif
+
+#if defined(CONFIG_CRAMFS)
+	if (*((unsigned long *)(mtd_phys)) ==  0x28cd3d45 )
+		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)) );
+#endif
+
 
 	memory_end -= mtd_size;
 
@@ -230,7 +238,7 @@ void __init setup_arch(char **cmdline_p)
 
 	_ramstart = mtd_phys;
 
-#endif				/*defined(CONFIG_MTD_UCLINUX) && defined(CONFIG_ROOTFS_TIED_TO_KERNEL) */
+#endif  /* CONFIG_MTD_UCLINUX */
 
 	memory_mtd_start = memory_end;
 	_ebss = memory_mtd_start;       /* define _ebss for compatible */
@@ -253,7 +261,11 @@ void __init setup_arch(char **cmdline_p)
 	id = get_dsp_rev_id();
 
 	printk(KERN_INFO "Blackfin support (C) 2004-2006 Analog Devices, Inc.\n");
-	printk(KERN_INFO "Compiled for ADSP-%s Rev. 0.%d\n", CPU, id);
+	printk(KERN_INFO "Compiled for ADSP-%s Rev. 0.%d\n", CPU, get_compiled_rev_id());
+	if (id != get_compiled_rev_id())
+		printk(KERN_ERR
+		       "Warning: Compiled for Rev %d, but running on Rev %d\n",
+			get_compiled_rev_id(), id );
 	if (id < SUPPORTED_DSPID)
 		printk(KERN_ERR
 		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected\n",
@@ -275,18 +287,33 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
 
 	printk(KERN_INFO "Memory map:\n"
-	       KERN_INFO "  text   = 0x%p-0x%p\n"
-	       KERN_INFO "  data   = 0x%p-0x%p\n"
-	       KERN_INFO "  bss    = 0x%p-0x%p\n"
-	       KERN_INFO "  rootfs = 0x%p-0x%p\n"
-	       KERN_INFO "  stack  = 0x%p-0x%p\n",
-	       _stext, _etext, _sdata, _edata,
-	       __bss_start, __bss_stop, (void*)memory_mtd_start,
-	       (void*)(memory_mtd_start + mtd_size), &init_thread_union,
-	       (&init_thread_union) + 0x2000);
-
-	if (strlen(*cmdline_p))
-		printk(KERN_INFO "Command line: '%s'\n", *cmdline_p);
+	       KERN_INFO "  text     = 0x%p-0x%p\n"
+	       KERN_INFO "  init     = 0x%p-0x%p\n"
+	       KERN_INFO "  data     = 0x%p-0x%p\n"
+	       KERN_INFO "  bss      = 0x%p-0x%p\n"
+	       KERN_INFO "  avalible = 0x%p-0x%p\n"
+	       KERN_INFO "  rootfs   = 0x%p-0x%p\n"
+	       KERN_INFO "  stack    = 0x%p-0x%p\n"
+#if defined (CONFIG_DMA_UNCACHED_2M) || defined (CONFIG_DMA_UNCACHED_1M) || defined (CONFIG_DMA_UNCACHED_512K) || defined (CONFIG_DMA_UNCACHED_256K)
+	       KERN_INFO "  DMA Zone = 0x%p-0x%p\n"
+#endif
+	       , _stext, _etext,
+	       __init_begin, __init_end,
+	       _sdata, _edata,
+	       __bss_start, __bss_stop,
+	       (void*)_ramstart, (void*)memory_end,
+	       (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size), 
+               &init_thread_union, (&init_thread_union) + 0x2000
+#if defined (CONFIG_DMA_UNCACHED_2M)
+	       , (void*)(_ramend - 2*1024*1024), (void*)(_ramend)
+#elif defined (CONFIG_DMA_UNCACHED_1M)
+	       , (void*)(_ramend - 1024*1024), (void*)(_ramend)
+#elif defined (CONFIG_DMA_UNCACHED_512K)
+	       , (void*)(_ramend -  512*1024), (void*)(_ramend)
+#elif defined (CONFIG_DMA_UNCACHED_256K)
+	       , (void*)(_ramend -  256*1024), (void*)(_ramend)
+#endif
+	       );
 
 #ifdef CONFIG_CONSOLE
 #ifdef CONFIG_FRAMEBUFFER
@@ -697,6 +724,23 @@ static u_int get_dsp_rev_id()
 	u_int id;
 	id = bfin_read_DSPID() & 0xffff;
 	return id;
+}
+
+static inline u_int get_compiled_rev_id()
+{
+#if defined (CONFIG_BF_REV_0_0)
+	return 0;
+#elif defined (CONFIG_BF_REV_0_1)
+	return 1;
+#elif defined (CONFIG_BF_REV_0_2)
+	return 2;
+#elif defined (CONFIG_BF_REV_0_3)
+	return 3;
+#elif defined (CONFIG_BF_REV_0_4)
+	return 4;
+#elif defined (CONFIG_BF_REV_0_5)
+	return 5;
+#endif
 }
 
 /*
