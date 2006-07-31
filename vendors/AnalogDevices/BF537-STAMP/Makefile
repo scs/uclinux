@@ -7,7 +7,9 @@ include $(LINUX_CONFIG)
 ROMFSIMG = $(IMAGEDIR)/rootfs
 IMAGE    = $(IMAGEDIR)/linux
 
-MKFS_JFFS2 = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
+MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
+MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
+MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
 # Blocks must be a multiple of 256
 BLOCKS   = 8192
@@ -51,11 +53,19 @@ image:
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
+	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
+	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
 	if [ -x $(MKFS_JFFS2) -a -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(ROMFSIMG).jffs2; \
 	fi
-	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
-	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
+	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
+		if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
+			$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs; \
+		fi ; \
+		if [ -x "$(MKFS_YAFFS2)" -a -n "$(CONFIG_YAFFS_YAFFS2)" ]; then \
+			$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2; \
+		fi ; \
+	fi
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
 		bfin-uclinux-mkcramfs -z -r -D device_table.txt $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
 		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
