@@ -110,7 +110,7 @@ fi
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
-	     dll_test=1
+	   coreb_test=0
 
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
@@ -151,7 +151,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
-	     dll_test=1
+	   coreb_test=0
 fi
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
@@ -190,10 +190,52 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=1
-	     dll_test=1
+	   coreb_test=0
          	
 fi
  
+if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
+ 
+   echo  "##### Testing is doing with the config $BOARD_CONFIG."
+   
+   BOARD_TYPE=BF561-EZKIT
+   
+         build_policy=0
+	ethernet_test=0
+	  stress_test=0
+	  serial_test=0
+	  reboot_test=0	     
+	  module_test=0
+	    kgdb_test=0
+	     rtc_test=0
+	     nfs_test=0
+	 pnormtd_test=0
+    jffs2_reboot_test=0 
+	jffs2_fs_test=0
+	  strace_test=0
+	     msh_test=0
+	 pthread_test=0
+	     dpm_test=0
+	   timer_test=0
+	   pound_test=0
+	  spiadc_test=0
+	   audio_test=0
+	   pflag_test=0
+	    dpmc_test=0
+	  i2ctwi_test=0
+        joystick_test=0
+         snormtd_test=0
+	 cf_card_test=0
+	     ide_test=0
+wireless_network_test=0
+	   yaffs_test=0
+	  ppifcd_test=0
+	   coreb_test=1
+         	
+fi
+ 
+
+
 ####### Build and run the tests      #######################################################
 
 export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
@@ -1247,6 +1289,36 @@ if [ $dll_test -eq 1 ] ; then
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dll
   cp $KERNEL_SCRIPTS/dll/build_dll_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/dll/dll_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST CoreB #######################################################
+if [ $coreb_test -eq 1 ] ; then
+  echo "Testing coreb..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/coreb
+  ./build_coreb_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./coreb_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb
+  cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
     
   sleep 30
   
