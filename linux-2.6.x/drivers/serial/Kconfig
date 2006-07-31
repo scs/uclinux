@@ -948,7 +948,7 @@ choice
 
 config SERIAL_BLACKFIN_DMA
 	bool "DMA on RX and TX"
-	depends on UNCACHED_1M
+	depends on DMA_UNCACHED_1M
 	help
 	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
 
