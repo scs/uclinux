@@ -84,6 +84,7 @@ fi
 	ethernet_test=0
 	  stress_test=0
 	  serial_test=0
+    serial_uart1_test=0
 	  reboot_test=0	     
 	  module_test=0
 	    kgdb_test=0
@@ -125,6 +126,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	ethernet_test=1
 	  stress_test=1
 	  serial_test=1
+    serial_uart1_test=1
 	  reboot_test=1	     
 	  module_test=1
 	    kgdb_test=1
@@ -373,6 +375,37 @@ chmod +x */*.exp
   fi
     
   fi
+
+  #############################################################################################
+  ########################## TEST SERIAL UART1 ################################################
+  
+  if [ $serial_test -eq 1  ] ; then
+  echo  "Testing serial..."
+       
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+  
+  cd  $KERNEL_SCRIPTS/serial
+  ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  1>/dev/null 2>/dev/null
+  sleep 30
+  ./serial_uart1_test.exp /dev/ttyS1  1>/dev/null 2>/dev/null
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial_uart1
+  cp $KERNEL_SCRIPTS/serial/build_serial_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/serial/serial_uart1_test_log $THIS_LOG/
+  
+  sleep 30
+  
+  
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null 
+   sleep 10
+  fi
+    
+  fi
+ 
   
   #############################################################################################
   ########################## TEST REBOOT ON RAMDISK ###########################################
