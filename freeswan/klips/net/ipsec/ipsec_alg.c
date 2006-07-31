@@ -78,7 +78,7 @@ static rwlock_t ipsec_alg_lock = RW_LOCK_UNLOCKED;
 static struct list_head ipsec_alg_hash_table[IPSEC_ALG_HASHSZ];
 
 /*	Old gcc's will fail here 	*/
-#define barf_out(fmt, args...)  do { printk(KERN_ERR __FUNCTION__ ": (%s) " fmt, ixt->ixt_name , ## args)\
+#define barf_out(fmt, args...)  do { printk(KERN_ERR "%s: (%s) " fmt, __FUNCTION__, ixt->ixt_name , ## args)\
 	; goto out; } while(0)
 
 /* 
@@ -152,9 +152,9 @@ static int ipsec_alg_insert(struct ipsec_alg *ixt) {
 	/* 	new element must be virgin ... */
 	if (ixt->ixt_list.next != &ixt->ixt_list || 
 		ixt->ixt_list.prev != &ixt->ixt_list) {
-		printk(KERN_ERR __FUNCTION__ ": ixt object \"%s\" "
+		printk(KERN_ERR "%s: ixt object \"%s\" "
 				"list head not initialized\n",
-				ixt->ixt_name);
+				__FUNCTION__, ixt->ixt_name);
 		return ret;
 	}
 	write_lock_bh(&ipsec_alg_lock);
@@ -305,6 +305,16 @@ ixt_out:
 	return ret;
 }
 
+#ifdef USE_IXP4XX_CRYPTO
+/* 	cipher block size extraction function */
+void ipsec_alg_enc_blksize_create(struct ipsec_sa *sa_p)  {
+	struct ipsec_alg_enc *ixt_e=sa_p->ips_alg_enc;
+
+	/* Set cipher block size */
+    sa_p->ips_enc_blksize = ixt_e->ixt_blocksize;
+}
+#endif /* USE_IXP4XX_CRYPTO */
+
 /***************************************************************
  *
  * 	INTERFACE for AUTH services: key creation, hash functions
@@ -319,8 +329,10 @@ int ipsec_alg_auth_key_create(struct ipsec_sa *sa_p) {
 	int ret=-EINVAL;
 	struct ipsec_alg_auth *ixt_a=sa_p->ips_alg_auth;
 	int keyminbits, keymaxbits;
+#ifndef USE_IXP4XX_CRYPTO
 	unsigned char *akp;
 	unsigned int aks;
+#endif /* USE_IXP4XX_CRYPTO */
 	KLIPS_PRINT(debug_pfkey,
 		    "klips_debug:ipsec_alg_auth_key_create: "
 		    "entering with authalg=%d ixt_a=%p\n",
@@ -343,6 +355,7 @@ int ipsec_alg_auth_key_create(struct ipsec_sa *sa_p) {
 	}
 	/* save auth key pointer */
 	sa_p->ips_auth_bits = ixt_a->ixt_a_keylen * 8; /* XXX XXX */
+#ifndef USE_IXP4XX_CRYPTO
 	akp = sa_p->ips_key_a;
 	aks = sa_p->ips_key_a_size;
 
@@ -358,6 +371,7 @@ int ipsec_alg_auth_key_create(struct ipsec_sa *sa_p) {
 	memset(akp, 0, aks);
 	kfree(akp);
 			
+#endif /* USE_IXP4XX_CRYPTO */
 ixt_out:
 	return ret;
 }
@@ -540,9 +554,9 @@ static int ipsec_alg_test_encrypt(int enc_alg, int test) {
 	ixt_e=(struct ipsec_alg_enc *)ipsec_alg_get(IPSEC_ALG_TYPE_ENCRYPT, enc_alg);
 	if (ixt_e==NULL) {
 		KLIPS_PRINT(1, 
-			    "klips_debug:" __FUNCTION__ ": "
+			    "klips_debug: %s: "
 			    "encalg=%d object not found\n",
-			    enc_alg);
+			    __FUNCTION__, enc_alg);
 		ret=-EINVAL;
 		goto out;
 	}
@@ -550,9 +564,9 @@ static int ipsec_alg_test_encrypt(int enc_alg, int test) {
 	key_e_size=ixt_e->ixt_e_ctx_size;
 	keysize=ixt_e->ixt_e_keylen;
 	KLIPS_PRINT(1, 
-		    "klips_debug:" __FUNCTION__ ": "
+		    "klips_debug: %s: "
 		    "enc_alg=%d blocksize=%d key_e_size=%d keysize=%d\n",
-		    enc_alg, iv_size, key_e_size, keysize);
+		    __FUNCTION__, enc_alg, iv_size, key_e_size, keysize);
 	if ((buf=kmalloc (test_size, GFP_KERNEL)) == NULL) {
 		ret= -ENOMEM;
 		goto out;
@@ -564,23 +578,24 @@ static int ipsec_alg_test_encrypt(int enc_alg, int test) {
 	memcpy(test_tmp, test_enc, BUFSZ);
 	ret=ixt_e->ixt_e_cbc_encrypt(test_key_e, test_enc, test_enc, BUFSZ, test_iv, 1);
 	printk(KERN_INFO
-		    "klips_info:" __FUNCTION__ ": "
+		    "klips_info: %s: "
 		    "cbc_encrypt=1 ret=%d\n", 
-		    	ret);
+		    	__FUNCTION__, ret);
 	ret=memcmp(test_enc, test_tmp, BUFSZ);
 	printk(KERN_INFO
-		    "klips_info:" __FUNCTION__ ": "
+		    "klips_info: %s: "
 		    "memcmp(enc, tmp) ret=%d: %s\n", ret,
+			__FUNCTION__,
 			ret!=0? "OK. (encr->DIFFers)" : "FAIL! (encr->SAME)" );
 	memcpy(test_dec, test_enc, BUFSZ);
 	ret=ixt_e->ixt_e_cbc_encrypt(test_key_e, test_dec, test_dec, BUFSZ, test_iv, 0);
 	printk(KERN_INFO
-		    "klips_info:" __FUNCTION__ ": "
-		    "cbc_encrypt=0 ret=%d\n", ret);
+		    "klips_info: %s : "
+		    "cbc_encrypt=0 ret=%d\n", __FUNCTION__, ret);
 	ret=memcmp(test_dec, test_tmp, BUFSZ);
 	printk(KERN_INFO
-		    "klips_info:" __FUNCTION__ ": "
-		    "memcmp(dec,tmp) ret=%d: %s\n", ret,
+		    "klips_info: %s : "
+		    "memcmp(dec,tmp) ret=%d: %s\n", __FUNCTION__, ret,
 			ret==0? "OK. (encr->decr->SAME)" : "FAIL! (encr->decr->DIFFers)" );
 	{
 		/*	Shamelessly taken from drivers/md sources  O:)  */
@@ -603,9 +618,9 @@ static int ipsec_alg_test_encrypt(int enc_alg, int test) {
 			}
 			speed = max * (HZ * BUFSZ / 1024);
 			printk(KERN_INFO
-				    "klips_info:" __FUNCTION__ ": "
+				    "klips_info: %s: "
 				    "%s %s speed=%d KB/s\n", 
-				    ixt_e->ixt_name,
+				    __FUNCTION__, ixt_e->ixt_name,
 				    encrypt? "encrypt": "decrypt", speed);
 		}
 	}
@@ -640,9 +655,9 @@ static int ipsec_alg_test_auth(int auth_alg, int test) {
 	ixt_a=(struct ipsec_alg_auth *)ipsec_alg_get(IPSEC_ALG_TYPE_AUTH, auth_alg);
 	if (ixt_a==NULL) {
 		KLIPS_PRINT(1, 
-			    "klips_debug:" __FUNCTION__ ": "
+			    "klips_debug: %s: "
 			    "encalg=%d object not found\n",
-			    auth_alg);
+			    __FUNCTION__, auth_alg);
 		ret=-EINVAL;
 		goto out;
 	}
@@ -650,9 +665,9 @@ static int ipsec_alg_test_auth(int auth_alg, int test) {
 	key_a_size=ixt_a->ixt_a_ctx_size;
 	keysize=ixt_a->ixt_a_keylen;
 	KLIPS_PRINT(1, 
-		    "klips_debug:" __FUNCTION__ ": "
+		    "klips_debug: %s : "
 		    "auth_alg=%d blocksize=%d key_a_size=%d keysize=%d\n",
-		    auth_alg, blocksize, key_a_size, keysize);
+		    __FUNCTION__, auth_alg, blocksize, key_a_size, keysize);
 	if ((buf=kmalloc (test_size, GFP_KERNEL)) == NULL) {
 		ret= -ENOMEM;
 		goto out;
@@ -662,8 +677,8 @@ static int ipsec_alg_test_auth(int auth_alg, int test) {
 	get_random_bytes(test_auth, BUFSZ);
 	ret=ixt_a->ixt_a_hmac_hash(test_key_a, test_auth, BUFSZ, test_hash, AHHMAC_HASHLEN);
 	printk(KERN_INFO
-		    "klips_info:" __FUNCTION__ ": "
-		    "ret=%d\n", ret);
+		    "klips_info: %s: "
+		    "ret=%d\n", __FUNCTION__, ret);
 	{
 		/*	Shamelessly taken from drivers/md sources  O:)  */
 		unsigned long now;
@@ -684,9 +699,9 @@ static int ipsec_alg_test_auth(int auth_alg, int test) {
 		}
 		speed = max * (HZ * BUFSZ / 1024);
 		printk(KERN_INFO
-				"klips_info:" __FUNCTION__ ": "
+				"klips_info: %s: "
 				"%s hash speed=%d KB/s\n", 
-				ixt_a->ixt_name,
+				__FUNCTION__, ixt_a->ixt_name,
 				speed);
 	}
 	kfree(buf);
@@ -745,23 +760,23 @@ int ipsec_alg_sa_init(struct ipsec_sa *sa_p) {
 	/*	Only ESP for now ... */
 	if (sa_p->ips_said.proto != IPPROTO_ESP)
 		return -EPROTONOSUPPORT;
-	KLIPS_PRINT(debug_pfkey, "klips_debug: " __FUNCTION__ "() :"
+	KLIPS_PRINT(debug_pfkey, "klips_debug:  %s() :"
 			"entering for encalg=%d, authalg=%d\n",
-			    sa_p->ips_encalg, sa_p->ips_authalg);
+			    __FUNCTION__, sa_p->ips_encalg, sa_p->ips_authalg);
 	if ((ixt_e=(struct ipsec_alg_enc *)
 		ipsec_alg_get(IPSEC_ALG_TYPE_ENCRYPT, sa_p->ips_encalg))) {
 		KLIPS_PRINT(debug_pfkey,
-		    "klips_debug: " __FUNCTION__ "() :"
+		    "klips_debug:  %s() :"
 		    "found ipsec_alg (ixt_e=%p) for encalg=%d\n",
-		    ixt_e, sa_p->ips_encalg);
+		    __FUNCTION__, ixt_e, sa_p->ips_encalg);
 		sa_p->ips_alg_enc=ixt_e;
 	}
 	if ((ixt_a=(struct ipsec_alg_auth *)
 		ipsec_alg_get(IPSEC_ALG_TYPE_AUTH, sa_p->ips_authalg))) {
 		KLIPS_PRINT(debug_pfkey,
-		    "klips_debug: " __FUNCTION__ "() :"
+		    "klips_debug:  %s() :"
 		    "found ipsec_alg (ixt_a=%p) for auth=%d\n",
-		    ixt_a, sa_p->ips_authalg);
+		    __FUNCTION__, ixt_a, sa_p->ips_authalg);
 		sa_p->ips_alg_auth=ixt_a;
 	}
 	return 0;
@@ -773,15 +788,15 @@ int ipsec_alg_sa_init(struct ipsec_sa *sa_p) {
 int ipsec_alg_sa_wipe(struct ipsec_sa *sa_p) {
 	struct ipsec_alg *ixt;
 	if ((ixt=(struct ipsec_alg *)sa_p->ips_alg_enc)) {
-		KLIPS_PRINT(debug_pfkey, "klips_debug: " __FUNCTION__ "() :"
+		KLIPS_PRINT(debug_pfkey, "klips_debug:  %s() :"
 				"unlinking for encalg=%d\n",
-				ixt->ixt_alg_id);
+				__FUNCTION__, ixt->ixt_alg_id);
 		ipsec_alg_put(ixt);
 	}
 	if ((ixt=(struct ipsec_alg *)sa_p->ips_alg_auth)) {
-		KLIPS_PRINT(debug_pfkey, "klips_debug: " __FUNCTION__ "() :"
+		KLIPS_PRINT(debug_pfkey, "klips_debug: %s() :"
 				"unlinking for authalg=%d\n",
-				ixt->ixt_alg_id);
+				__FUNCTION__, ixt->ixt_alg_id);
 		ipsec_alg_put(ixt);
 	}
 	return 0;

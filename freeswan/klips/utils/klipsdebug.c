@@ -243,6 +243,7 @@ main(int argc, char **argv)
 			/* no return on error */
 			break;
 		default:
+			break;
 		}
 		previous = c;
 	}
@@ -415,11 +416,8 @@ main(int argc, char **argv)
 }
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:52  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:46  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:04  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.45  2002/03/08 21:44:04  rgb
  * Update for all GNU-compliant --version strings.

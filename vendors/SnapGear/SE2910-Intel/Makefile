@@ -75,7 +75,12 @@ DEVICES = \
 	mtd3,c,90,6	mtdr3,c,90,7	mtdblock3,b,31,3 \
 	mtd4,c,90,8	mtdr4,c,90,9	mtdblock4,b,31,4 \
 	mtd5,c,90,10	mtdr5,c,90,11	mtdblock5,b,31,5 \
-	mtd6,c,90,12	mtdr6,c,90,13	mtdblock6,b,31,6
+	mtd6,c,90,12	mtdr6,c,90,13	mtdblock6,b,31,6 \
+	\
+	sda,b,8,0	sda1,b,8,1	sda2,b,8,2 \
+	sda3,b,8,3	sda4,b,8,4	sda5,b,8,5 \
+	sdb,b,8,16	sdb1,b,8,17	sdb2,b,8,18 \
+	sdb3,b,8,19	sdb4,b,8,20	sdb5,b,8,21
 
 FLASH_DEVICES = \
 	kernel,c,90,0 \
@@ -103,18 +108,23 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
 	dirs=$(DIRS) ; for i in $$dirs; do  make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) ../../SecureEdge/romfs_x86 /
 
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-up /etc/default/ip-up
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-down /etc/default/ip-down
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/dhcpcd-eth0.exe \
-	/etc/default/dhcpcd-eth0.exe
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/dhcpcd-eth1.exe \
-	/etc/default/dhcpcd-eth1.exe
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-up \
+			/etc/default/ip-up
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-down \
+			/etc/default/ip-down
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/dhcpcd-eth0.exe \
+			/etc/default/dhcpcd-eth0.exe
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/dhcpcd-eth1.exe \
+			/etc/default/dhcpcd-eth1.exe
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/fstab
 	echo "cardmgr &" >> $(ROMFSDIR)/etc/default/start
@@ -128,23 +138,14 @@ endif
 
 .PHONY: $(JFFS2IMG)
 $(JFFS2IMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2 -o $(JFFS2IMG) -q -e 131072 -d $(ROMFSDIR)
 
 .PHONY: $(JFFSIMG)
 $(JFFSIMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs -o $(JFFSIMG) -d $(ROMFSDIR)
 
 .PHONY: $(ROMFSIMG)
 $(ROMFSIMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
 	$(TOOLS)/cksum -b -o 2 $(ROMFSIMG) >> $(ROMFSIMG)
 

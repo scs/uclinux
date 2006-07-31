@@ -1226,6 +1226,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 			SENDERR(EINVAL);
 		}
 	default:
+		break;
 	}
 	
 	/* errno must not be set in downward messages */
@@ -1473,6 +1474,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 			}
 			break;
 		default:
+			break;
 		}
 		if(ntohl(((struct sadb_sa*)(extensions[SADB_EXT_SA]))->sadb_sa_spi) <= 255) {
 			DEBUGGING(PF_KEY_DEBUG_PARSE_PROBLEM,
@@ -1482,6 +1484,7 @@ pfkey_msg_parse(struct sadb_msg *pfkey_msg,
 			SENDERR(EINVAL);
 		}
 	default:	
+		break;
 	}
 errlab:
 
@@ -1490,11 +1493,8 @@ errlab:
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:22:27  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:13  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.42  2002/01/29 22:25:36  rgb
  * Re-add ipsec_kversion.h to keep MALLOC happy.

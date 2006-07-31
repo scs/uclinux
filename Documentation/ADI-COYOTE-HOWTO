@@ -21,26 +21,67 @@ ADI Engineering Coyote
         glibc-2.2.5
 
 
-2. Building the Source
+2. Intel Access Library Integration
+
+   uClinux-dist does not contain the Intel Access Library or Drivers patch.
+   So by default you cannot use the ethernet nets. To build with the Intel
+   Access Library, to get the ethernet support, you need to obtain the Intel
+   Access Library and the uClinux IXP400 Driver Support patch.  The Intel
+   Access Library can be obtained from:
+
+       http://www.intel.com/design/network/products/npfamily/ixp425swr1.htm
+
+   This link contains the necessary information for obtaining the Intel
+   Access Library (the ixp400AccessLibrary-XXX.zip package).
+
+   The uClinux IXP400 Driver Support patch is available from Rob Ranslam's
+   SourceForge project site:
+
+       http://ixp4xx-osdg.sourceforge.net
+
+   Once on this site, follow the 'uClinux-ixp400-support' link and download
+   the appropriate patch (either the snapgear-XXX-ixp400-XXXX-support.tar.gz
+   or the uClinux-ixp400-XXXX-support.tar.gz package).
+
+   There is also general information on using the IXDP425 and uClinux. This 
+   information generally applies to the Coyote.
+
+   
+3. Building the Source
 
    Follow these simple steps to compile binary images ready to run on the
    Coyote board:
 
    1.  tar xvzf uClinux-dist-XXXXXXXX.tar.gz
    2.  cd uClinux-dist
-   3.  make xconfig
+
+       . Skip to step 6 if not integrating the Intel Access Library
+
+   3.  tar xvzf snapgear-XXX-ixp400-XXXX-support.tar.gz
+
+       . The uClinux IXP400 Driver Support patch will extract to
+         vendors/Intel/IXDP425/ixp400-XXX-uclinux.  This is because the
+	 patch was created for the IXDP425 and not the Coyote.  This
+	 peculiarity is not of concern as the Intel Access Library will
+	 properly compile for the Coyote from this location.  Additionally,
+	 the IXDP425 specific patches are probably not desirable for the
+	 Coyote.
+
+   4.  cp ixp400AccessLibrary-XXX.zip vendors/Intel/IXDP425/ixp400-XXX-uclinux/.
+   5.  vendors/Intel/IXDP425/ixp400-XXX-uclinux/install
+   6.  make xconfig
 
        . Choose the "Target Platform Selection" menu item
        . Select the "Vendor/Product" tab and choose "ADI/Coyote"
        . Select the "Libc version" tab and choose "Glibc"
        . "Save and Exit" this configuration
 
-   4.  make dep
-   5.  make
+   7.  make dep
+   8.  make
 
    That is it!  The final make step will run through and compile the Linux
    kernel, glibc library and a sample application set. It will also package
-   the result into two files ready to load onto the IXDP425 board, zImage
+   the result into two files ready to load onto the Coyote board, zImage
    and ramdisk.gz.
 
    Only the linux-2.4.x kernel and glibc libraries can currently be used
@@ -48,7 +89,7 @@ ADI Engineering Coyote
    uClibc support for this board.
 
 
-3. Loading and Running -- from serial port
+4. Loading and Running -- from serial port
 
    You will need an Intel Coyote board fitted with the RedBoot loader in
    flash. You need to load the files, images/zImage and images/ramdisk.gz,
@@ -79,7 +120,7 @@ ADI Engineering Coyote
    address.
 
 
-4. Loading and Running -- from ethernet
+5. Loading and Running -- from ethernet
 
    You will need an Intel Coyote board fitted with the RedBoot loader in
    flash. You need to load the files, images/zImage and images/ramdisk.gz,
@@ -103,7 +144,30 @@ ADI Engineering Coyote
    address.
 
 
-5. Saving to Flash with RedBoot
+6. Testing the Intel Access Library
+
+   If the Intel Acees Library was correctly installed and built you
+   should be able to load and use the internal Ethernet ports.
+
+   To load the Intel Access Library modules issue the following Linux
+   commands:
+
+   	insmod ixp400
+	insmod ixp425_eth
+
+   If the above commands were successful, you should be able to
+   "ifconfig ixp0" and "ifconfig ixp1" and use the internal Ethernet
+   ports.  For example:
+
+   	ifconfig ixp0 192.168.1.1
+	ifconfig ixp1 192.168.2.1
+	ifconfig eth0 192.168.0.1
+
+   Note: "ifconfig eth0 ..." will configure the external PCI Ethernet
+   adapter (if present).
+
+
+7. Saving to Flash with RedBoot
 
    You can setup the flash memory from within RedBoot to directly load
    and run linux.
@@ -130,7 +194,7 @@ ADI Engineering Coyote
          passed to kernel loaded as the NPE's can be in use by RedBoot.
  
 
-6. Customizing the Build
+8. Customizing the Build
 
    Using "make xconfig" in uClinux-dist you can customize the kernel and
    application configurations. There is a large selection of packages in
@@ -138,19 +202,4 @@ ADI Engineering Coyote
 
    Consult the README file at the top level of uClinux-dist for some more
    information about configuration and building.
-
-   Note also that uClinux-dist does not contain the Intel Access Library or
-   Drivers patch. So by default you cannot use the ethernet nets. To build
-   with the Intel AccessLibrary to get the ethernet support goto Rob
-   Ranslam's sourceforge project site:
-
-       http://ixp4xx-osdg.sourceforge.net
-
-   The "uClinux on the IXDP425 and IXP400 Access Library v1.2.2 Integration
-   HOWTO" provides instructions and a script to integrate the Access Library
-   with uClinux. This "HOWTO" does no directly address Coyote, but can be
-   addapted with a simple script path change.
-
-   There is also general information on using the IXDP425 and uClinux. This 
-   information generally applies to other IXP4XX based boards - like Coyote.
 

@@ -2,14 +2,12 @@
 ############################################################################
 
 ENDIAN := big
-CPUCFLAGS := -mbig-endian
+CPUFLAGS := -mbig-endian
 CPULDFLAGS := -EB
 VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
 
 BUILD_NETtel = 1
 LINUXTARGET = zImage
-VERSIONPKG = 1.0.1
-VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################
 

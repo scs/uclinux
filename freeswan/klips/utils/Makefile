@@ -96,11 +96,8 @@ checkprograms:
 
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:23:50  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:46  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:44:03  vapier
+# sync with upstream uClinux
 #
 # Revision 1.28  2002/01/30 00:17:05  mcr
 # 	replace -O2 with $(USERCOMPILE) in CFLAGS to match other Makefiles.

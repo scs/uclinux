@@ -24,10 +24,6 @@ DEVICES = \
 	ptyp8,c,2,8    ptyp9,c,2,9        ptypa,c,2,10     ptypb,c,2,11 \
 	ptypc,c,2,12   ptypd,c,2,13       ptype,c,2,14     ptypf,c,2,15 \
 	\
-	rom0,b,31,0    rom1,b,31,1        rom2,b,31,2      rom3,b,31,3 \
-	rom4,b,31,4    rom5,b,31,5        rom6,b,31,6      rom7,b,31,7 \
-	rom8,b,31,8    rom9,b,31,9        rom10,b,31,10 \
-	\
 	tty0,c,4,0     tty1,c,4,1         tty2,c,4,2       tty3,c,4,3 \
 	ttyS0,c,4,64   ttyS1,c,4,65 \
 	\
@@ -43,15 +39,51 @@ DEVICES = \
 	modem,c,24,64 \
 	cuam,c,25,64 \
 	ppp,c,108,0 \
+	cleotest,c,120,0 \
 	ipsec,c,36,10
 
-FLASH_DEVICES = \
-	config,b,31,5 \
-	image,b,31,4 \
-	bootarg,b,31,2 \
-	ethmac,b,31,3 \
-	boot,b,31,1 \
-	all,b,31,6
+ifdef CONFIG_BLK_DEV_BLKMEM
+
+	DEVICES += \
+		rom0,b,31,0    rom1,b,31,1        rom2,b,31,2      rom3,b,31,3 \
+		rom4,b,31,4    rom5,b,31,5        rom6,b,31,6      rom7,b,31,7 \
+		rom8,b,31,8    rom9,b,31,9        rom10,b,31,10
+
+	FLASH_DEVICES = \
+		boot,b,31,1 \
+		bootarg,b,31,2 \
+		ethmac,b,31,3 \
+		image,b,31,4 \
+		config,b,31,5 \
+		all,b,31,6
+
+else
+	DEVICES += \
+		mtd0,c,90,0	mtdr0,c,90,1	mtdblock0,b,31,0 \
+		mtd1,c,90,2	mtdr1,c,90,3	mtdblock1,b,31,1 \
+		mtd2,c,90,4	mtdr2,c,90,5	mtdblock2,b,31,2 \
+		mtd3,c,90,6	mtdr3,c,90,7	mtdblock3,b,31,3 \
+		mtd4,c,90,8	mtdr4,c,90,9	mtdblock4,b,31,4 \
+		mtd5,c,90,10	mtdr5,c,90,11	mtdblock5,b,31,5 \
+		mtd6,c,90,12	mtdr6,c,90,13	mtdblock6,b,31,6 \
+		mtd7,c,90,14	mtdr7,c,90,15	mtdblock7,b,31,7 \
+		mtd8,c,90,16	mtdr8,c,90,17	mtdblock8,b,31,8 \
+		mtd9,c,90,18	mtdr9,c,90,19	mtdblock9,b,31,9 \
+
+	FLASH_DEVICES = \
+		boot,c,90,0 \
+		bootarg,c,90,2 \
+		ethmac,c,90,4 \
+		image,c,90,6 \
+		config,c,90,8 \
+		all,c,90,10 \
+		spare,c,90,12 \
+		userconfig,c,90,14 \
+		userblock1,c,90,16 \
+		userblock2,c,90,18
+endif
+
+
 
 all:
 	for i in $(DIRS) ; do  make -C $$i || exit $? ; done
@@ -67,6 +99,9 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done

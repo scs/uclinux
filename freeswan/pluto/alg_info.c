@@ -135,8 +135,8 @@ enum_search_ppfix (enum_names *ed, const char *prefix, const char *postfix, cons
 	strcpy(buf, prefix);
 	strcat(buf, str);
 	strcat(buf, postfix);
-	DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"calling enum_search(%p, \"%s\")", ed, buf));
+	DBG(DBG_CRYPT, DBG_log("%s() calling enum_search(%p, \"%s\")",
+				__FUNCTION__, ed, buf));
 	ret=enum_search(ed, buf);
 	return ret;
 }
@@ -260,8 +260,7 @@ __alg_info_esp_add (struct alg_info_esp *alg_info, int ealg_id, unsigned ek_bits
 	esp_info[cnt].encryptalg=ealg_id;
 	esp_info[cnt].authalg=alg_info_esp_aa2sadb(aalg_id);
 	alg_info->alg_info_cnt++;
-	DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"ealg=%d aalg=%d cnt=%d",
+	DBG(DBG_CRYPT, DBG_log("%s() ealg=%d aalg=%d cnt=%d", __FUNCTION__,
 				ealg_id, aalg_id, alg_info->alg_info_cnt));
 }
 
@@ -369,8 +368,8 @@ __alg_info_ike_add (struct alg_info_ike *alg_info, int ealg_id, unsigned ek_bits
 	ike_info[cnt].ike_hklen=ak_bits;
 	ike_info[cnt].ike_modp=modp_id;
 	alg_info->alg_info_cnt++;
-	DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"ealg=%d aalg=%d modp_id=%d, cnt=%d",
+	DBG(DBG_CRYPT, DBG_log("%s() ealg=%d aalg=%d modp_id=%d, cnt=%d",
+				__FUNCTION__,
 				ealg_id, aalg_id, modp_id,
 				alg_info->alg_info_cnt));
 }
@@ -650,6 +649,7 @@ re_eval:
 		case ST_EOF:
 		case ST_ERR:
 		/* XXX */
+			break;
 	}
 out:
 	return p_ctx->state;
@@ -702,8 +702,8 @@ parser_alg_info_add(struct parser_context *p_ctx, struct alg_info *alg_info)
 			p_ctx->err="enc_alg not found";
 			goto out;
 		}
-		DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"ealg_getbyname(\"%s\")=%d",
+		DBG(DBG_CRYPT, DBG_log("%s() ealg_getbyname(\"%s\")=%d",
+				__FUNCTION__,
 				p_ctx->ealg_buf,
 				ealg_id));
 	}
@@ -713,8 +713,8 @@ parser_alg_info_add(struct parser_context *p_ctx, struct alg_info *alg_info)
 			p_ctx->err="hash_alg not found";
 			goto out;
 		}
-		DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"aalg_getbyname(\"%s\")=%d",
+		DBG(DBG_CRYPT, DBG_log("%s() aalg_getbyname(\"%s\")=%d",
+				__FUNCTION__,
 				p_ctx->aalg_buf,
 				aalg_id));
 	}
@@ -724,8 +724,8 @@ parser_alg_info_add(struct parser_context *p_ctx, struct alg_info *alg_info)
 			p_ctx->err="modp group not found";
 			goto out;
 		}
-		DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"modp_getbyname(\"%s\")=%d",
+		DBG(DBG_CRYPT, DBG_log("%s() modp_getbyname(\"%s\")=%d",
+				__FUNCTION__,
 				p_ctx->modp_buf,
 				modp_id));
 	}
@@ -790,9 +790,10 @@ alg_info_parse_str (struct alg_info *alg_info, const char *alg_str, const char *
 				break;
 			case ST_END:
 			case ST_EOF:
-				DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
+				DBG(DBG_CRYPT, DBG_log("%s() "
 				"ealg_buf=%s aalg_buf=%s"
 				"eklen=%d  aklen=%d",
+				__FUNCTION__,
 				ctx.ealg_buf, ctx.aalg_buf,
 				ctx.eklen, ctx.aklen));
 				if (parser_alg_info_add(&ctx, alg_info)<0) {
@@ -855,8 +856,9 @@ alg_info_esp_create_from_str (const char *alg_str, const char **err_p)
 			ret=modp_getbyname_esp(pfs_name, strlen(pfs_name));
 			if (ret<0) {
 				/* Bomb if pfsgroup not found */
-				DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "(): "
+				DBG(DBG_CRYPT, DBG_log("%s(): "
 					"pfsgroup \"%s\" not found",
+					__FUNCTION__,
 					pfs_name));
 				if (*err_p) {
 					snprintf(err_buf, sizeof(err_buf),
@@ -913,8 +915,8 @@ alg_info_addref(struct alg_info *alg_info)
 {
 	if (alg_info != NULL) {
 		alg_info->ref_cnt++;
-		DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"alg_info->ref_cnt=%d", alg_info->ref_cnt));
+		DBG(DBG_CRYPT, DBG_log("%s() alg_info->ref_cnt=%d",
+				__FUNCTION__,  alg_info->ref_cnt));
 	}
 }
 void
@@ -924,11 +926,11 @@ alg_info_delref(struct alg_info **alg_info_p)
 	if (alg_info != NULL) {
 		passert(alg_info->ref_cnt != 0);
 		alg_info->ref_cnt--;
-		DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"alg_info->ref_cnt=%d", alg_info->ref_cnt));
+		DBG(DBG_CRYPT, DBG_log("%s() alg_info->ref_cnt=%d",
+				__FUNCTION__, alg_info->ref_cnt));
 		if (alg_info->ref_cnt==0) {
-			DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() "
-				"freeing alg_info"));
+			DBG(DBG_CRYPT, DBG_log("%s() freeing alg_info",
+					__FUNCTION__));
 			alg_info_free(alg_info);
 		}
 		*alg_info_p=NULL;

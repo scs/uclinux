@@ -55,8 +55,10 @@ char pfkey_v2_parser_c_version[] = "$Id$";
 # include <linux/in6.h>
 # define ip_chk_addr inet_addr_type
 # define IS_MYADDR RTN_LOCAL
+#ifndef USE_IXP4XX_CRYPTO
 # undef dev_kfree_skb
 # define dev_kfree_skb(a,b) kfree_skb(a)
+#endif /* USE_IXP4XX_CRYPTO */
 #endif
 #include <asm/checksum.h>
 #include <net/ip.h>
@@ -88,6 +90,9 @@ char pfkey_v2_parser_c_version[] = "$Id$";
 
 #include "ipsec_alg.h"
 
+#ifdef USE_IXP4XX_CRYPTO
+#include "ipsec_glue.h"
+#endif
 #define SENDERR(_x) do { error = -(_x); goto errlab; } while (0)
 
 struct sklist_t {
@@ -493,6 +498,7 @@ pfkey_address_process(struct sadb_ext *pfkey_ext, struct pfkey_extracted_data* e
 				    s->sa_family);
 		}
 	default:
+		break;
 	}
 	
 	/* XXX check if port!=0 */
@@ -899,6 +905,9 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 		SENDERR(EINVAL);
 	}
 
+#ifdef USE_IXP4XX_CRYPTO
+	tdbp->ips_crypto_state = IPSEC_GLUE_INIT_CTXID;
+#endif
 	sa_len = satoa(tdbp->tdb_said, 0, sa, SATOA_BUF);
 
         KLIPS_PRINT(debug_pfkey,
@@ -934,11 +943,13 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 		switch(tdbp->tdb_authalg) {
 # ifdef CONFIG_IPSEC_AUTH_HMAC_MD5
 		case AH_MD5: {
+#ifndef USE_IXP4XX_CRYPTO
 			unsigned char *akp;
 			unsigned int aks;
 			MD5_CTX *ictx;
 			MD5_CTX *octx;
 			
+#endif /*USE_IXP4XX_CRYPTO */
 			if(tdbp->tdb_key_bits_a != (AHMD596_KLEN * 8)) {
 				KLIPS_PRINT(debug_pfkey,
 					    "klips_debug:pfkey_ipsec_sa_init: "
@@ -959,6 +970,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			
 			tdbp->tdb_auth_bits = AHMD596_ALEN * 8;
 			
+#ifndef USE_IXP4XX_CRYPTO
 			/* save the pointer to the key material */
 			akp = tdbp->tdb_key_a;
 			aks = tdbp->tdb_key_a_size;
@@ -1006,15 +1018,18 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			/* zero key buffer -- paranoid */
 			memset(akp, 0, aks);
 			kfree(akp);
+#endif /* USE_IXP4XX_CRYPTO */
 		}
 		break;
 # endif /* CONFIG_IPSEC_AUTH_HMAC_MD5 */
 # ifdef CONFIG_IPSEC_AUTH_HMAC_SHA1
 		case AH_SHA: {
+#ifndef USE_IXP4XX_CRYPTO
 			unsigned char *akp;
 			unsigned int aks;
 			SHA1_CTX *ictx;
 			SHA1_CTX *octx;
+#endif /* USE_IXP4XX_CRYPTO */
 			
 			if(tdbp->tdb_key_bits_a != (AHSHA196_KLEN * 8)) {
 				KLIPS_PRINT(debug_pfkey,
@@ -1036,6 +1051,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			
 			tdbp->tdb_auth_bits = AHSHA196_ALEN * 8;
 			
+#ifndef USE_IXP4XX_CRYPTO
 			/* save the pointer to the key material */
 			akp = tdbp->tdb_key_a;
 			aks = tdbp->tdb_key_a_size;
@@ -1082,6 +1098,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			/* zero key buffer -- paranoid */
 			memset(akp, 0, aks);
 			kfree(akp);
+#endif /* USE_IXP4XX_CRYPTO */
 		}
 		break;
 # endif /* CONFIG_IPSEC_AUTH_HMAC_SHA1 */
@@ -1096,8 +1113,10 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 #endif /* CONFIG_IPSEC_AH */
 #ifdef CONFIG_IPSEC_ESP
 	case IPPROTO_ESP: {
+#ifndef USE_IXP4XX_CRYPTO
 		unsigned char *akp, *ekp;
 		unsigned int aks, eks;
+#endif /* USE_IXP4XX_CRYPTO */
 
 		tdbp->tdb_iv_size = 0;
 #ifdef CONFIG_IPSEC_ALG
@@ -1114,6 +1133,9 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 # endif /* CONFIG_IPSEC_ENC_3DES */
 # if defined(CONFIG_IPSEC_ENC_DES) || defined(CONFIG_IPSEC_ENC_3DES)
 			tdbp->tdb_iv_size = EMT_ESPDES_IV_SZ;
+#ifdef USE_IXP4XX_CRYPTO
+            		tdbp->ips_enc_blksize = ESP_DESCBC_BLKLEN;
+#endif /* USE_IXP4XX_CRYPTO */
 # endif /* defined(CONFIG_IPSEC_ENC_DES) || defined(CONFIG_IPSEC_ENC_3DES) */
 		case ESP_NONE:
 			break;
@@ -1137,6 +1159,9 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 		
 #ifdef CONFIG_IPSEC_ALG
 		if (ixt_e) {
+#ifdef USE_IXP4XX_CRYPTO
+            		ipsec_alg_enc_blksize_create(tdbp);
+#endif /* USE_IXP4XX_CRYPTO */
 			if ((error=ipsec_alg_enc_key_create(tdbp)) < 0)
 				SENDERR(-error);
 		} else
@@ -1152,6 +1177,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 				SENDERR(EINVAL);
 			}
 
+#ifndef USE_IXP4XX_CRYPTO
 			/* save encryption key pointer */
 			ekp = tdbp->tdb_key_e;
 
@@ -1180,6 +1206,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 
 			/* paranoid */
 			memset(ekp, 0, DIVUP(tdbp->tdb_key_bits_e, BITS_PER_OCTET));
+#endif /*  USE_IXP4XX_CRYPTO	*/
 
 			break;
 # endif /* CONFIG_IPSEC_ENC_DES */
@@ -1193,6 +1220,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 				SENDERR(EINVAL);
 			}
 			
+#ifndef USE_IXP4XX_CRYPTO
 			/* save encryption key pointer */
 			ekp = tdbp->tdb_key_e;
 			eks = tdbp->tdb_key_e_size;
@@ -1236,6 +1264,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			/* paranoid */
 			memset(ekp, 0, eks);
 			kfree(ekp);
+#endif /*  USE_IXP4XX_CRYPTO	*/
 			break;
 # endif /* CONFIG_IPSEC_ENC_3DES */
                 case ESP_NONE:
@@ -1258,8 +1287,10 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 		switch(tdbp->tdb_authalg) {
 # ifdef CONFIG_IPSEC_AUTH_HMAC_MD5
 		case AH_MD5: {
+#ifndef USE_IXP4XX_CRYPTO
 			MD5_CTX *ictx;
 			MD5_CTX *octx;
+#endif /* USE_IXP4XX_CRYPTO */	
 
 			if(tdbp->tdb_key_bits_a != (AHMD596_KLEN * 8)) {
 				KLIPS_PRINT(debug_pfkey,
@@ -1281,6 +1312,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 #  endif
 			tdbp->tdb_auth_bits = AHMD596_ALEN * 8;
 			
+#ifndef USE_IXP4XX_CRYPTO
 			/* save the pointer to the key material */
 			akp = tdbp->tdb_key_a;
 			aks = tdbp->tdb_key_a_size;
@@ -1327,13 +1359,16 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 			/* paranoid */
 			memset(akp, 0, aks);
 			kfree(akp);
+#endif /* USE_IXP4XX_CRYPTO*/
 			break;
 		}
 # endif /* CONFIG_IPSEC_AUTH_HMAC_MD5 */
 # ifdef CONFIG_IPSEC_AUTH_HMAC_SHA1
 		case AH_SHA: {
+#ifndef USE_IXP4XX_CRYPTO
 			SHA1_CTX *ictx;
 			SHA1_CTX *octx;
+#endif /* USE_IXP4XX_CRYPTO */
 
 			if(tdbp->tdb_key_bits_a != (AHSHA196_KLEN * 8)) {
 				KLIPS_PRINT(debug_pfkey,
@@ -1355,6 +1390,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 #  endif
 			tdbp->tdb_auth_bits = AHSHA196_ALEN * 8;
 			
+#ifndef USE_IXP4XX_CRYPTO
 			/* save the pointer to the key material */
 			akp = tdbp->tdb_key_a;
 			aks = tdbp->tdb_key_a_size;
@@ -1400,6 +1436,7 @@ pfkey_ipsec_sa_init(struct ipsec_sa *tdbp, struct sadb_ext **extensions)
 #  endif
 			memset(akp, 0, aks);
 			kfree(akp);
+#endif /* USE_IXP4XX_CRYPTO */
 			break;
 		}
 # endif /* CONFIG_IPSEC_AUTH_HMAC_SHA1 */
@@ -2501,6 +2538,9 @@ pfkey_register_parse(struct sock *sk, struct sadb_ext **extensions, struct pfkey
  errlab:
 	return error;
 }
+#ifdef USE_IXP4XX_CRYPTO
+DEBUG_NO_STATIC 
+#endif /* USE_IXP4XX_CRYPTO */
 int
 pfkey_register_reply(int satype, struct sadb_msg *sadb_msg)
 {
@@ -3098,10 +3138,18 @@ pfkey_x_addflow_parse(struct sock *sk, struct sadb_ext **extensions, struct pfke
 					    first,
 					    last);
 				if(first != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+					kfree_skb(first);
+#else
 					dev_kfree_skb(first, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 				}
 				if(last != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+					kfree_skb(last);
+#else
 					dev_kfree_skb(last, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 				}
 				SENDERR(-error);
 			}
@@ -3323,18 +3371,34 @@ pfkey_x_delflow_parse(struct sock *sk, struct sadb_ext **extensions, struct pfke
 				    first,
 				    last);
 			if(first != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+				kfree_skb(first);
+#else
 				dev_kfree_skb(first, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 			}
 			if(last != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+				kfree_skb(last);
+#else
 				dev_kfree_skb(last, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 			}
 			SENDERR(-error);
 		}
 		if(first != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+			kfree_skb(first);
+#else
 			dev_kfree_skb(first, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 		}
 		if(last != NULL) {
+#ifdef USE_IXP4XX_CRYPTO
+			kfree_skb(last);
+#else
 			dev_kfree_skb(last, FREE_WRITE);
+#endif /* USE_IXP4XX_CRYPTO */
 		}
 	}
 	
@@ -4030,6 +4094,7 @@ pfkey_msg_interp(struct sock *sk, struct sadb_msg *pfkey_msg,
 		}
 		break;
 	default:
+		break;
 	}
 	
 	/* The NULL below causes the default extension parsers to be used */
@@ -4098,11 +4163,8 @@ pfkey_msg_interp(struct sock *sk, struct sadb_msg *pfkey_msg,
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:43  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.102  2002/03/08 01:15:17  mcr
  * 	put some internal structure only debug messages behind

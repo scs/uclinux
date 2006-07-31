@@ -16,7 +16,13 @@
 
 /* path definition for my private keys */
 
+#include <config/autoconf.h>
+
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
 #define PRIVATE_KEY_PATH  "/etc/config"
+#else
+#define PRIVATE_KEY_PATH  "/etc"
+#endif
 
 /* access structure for a PKCS#1 private key */
 

@@ -262,18 +262,17 @@ handle_timer_event(void)
 			, (unsigned long)delay);
 
 /* DONT KNOW IF WE SHOULD INCLUDE THIS ONE */
+		    if (((st->st_state == STATE_MAIN_I1 && st->st_connection->dnshostname != NULL)
+		     || (st->st_state == STATE_AGGR_I1 && st->st_connection->dnshostname != NULL)) && st->st_retransmit > st->st_connection->retransmit_trigger) {
+			struct connection *c = st->st_connection;
 
-//		    if (st->st_state == STATE_MAIN_I1 && st->st_connection->kind == CK_PERMANENT) {
-//		    	ipsecdoi_replace(st, 1);
-//			delete_state(st);
-//		    } else if (st->st_state == STATE_AGGR_I1 && st->st_connection->kind == CK_PERMANENT) {
-//		    	log("ipsecdoi_replace st->st_connection %s", st->st_connection->name);
-//		    	ipsecdoi_replace(st, 1);
-//			delete_state(st);
-//		    } else {
+			event_schedule(EVENT_SA_EXPIRE, st->st_margin, st);
+			terminate_connections_by_peer(c);
+			initiate_connections_by_peer(c);
+		    } else {
 		    	send_packet(st, "EVENT_RETRANSMIT");
 		    	event_schedule(EVENT_RETRANSMIT, delay, st);
-//		    }
+		    }
 		}
 		else
 		{

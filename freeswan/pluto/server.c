@@ -230,8 +230,9 @@ static struct raw_iface *
 find_raw_ifaces4(void)
 {
     int j;	/* index into buf */
+    int num;	/* number of interfaces */
     struct ifconf ifconf;
-    struct ifreq buf[300];	/* for list of interfaces -- arbitrary limit */
+    struct ifreq *buf;	/* for list of interfaces */
     struct raw_iface *rifaces = NULL;
     int master_sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);    /* Get a UDP socket */
 
@@ -254,16 +255,28 @@ find_raw_ifaces4(void)
 	    exit_log_errno((e, "bind() failed in find_raw_ifaces4()"));
     }
 
-    /* Get local interfaces.  See netdevice(7). */
-    ifconf.ifc_len = sizeof(buf);
-    ifconf.ifc_buf = (void *) buf;
-    zero(buf);
+    num = 100;
+    buf = NULL;
+    for (;;) {
+	/* Get local interfaces.  See netdevice(7). */
+	ifconf.ifc_len = num * sizeof(struct ifreq);
+	buf = (void *) realloc(buf, ifconf.ifc_len);
+	memset(buf, 0, num*sizeof(struct ifreq));
+	ifconf.ifc_buf = (void *) buf;
 
-    if (ioctl(master_sock, SIOCGIFCONF, &ifconf) == -1)
-	exit_log_errno((e, "ioctl(SIOCGIFCONF) in find_raw_ifaces4()"));
+	if (ioctl(master_sock, SIOCGIFCONF, &ifconf) == -1)
+	    exit_log_errno((e, "ioctl(SIOCGIFCONF) in find_raw_ifaces4()"));
+
+	/* if we got back less than we asked for, we have them all */
+	if (ifconf.ifc_len < num * sizeof(struct ifreq))
+	    break;
+
+	/* try again and ask for more this time */
+	num += 100;
+    }
 
     /* Add an entry to rifaces for each interesting interface. */
-    for (j = 0; (j+1) * sizeof(*buf) <= (size_t)ifconf.ifc_len; j++)
+	for (j = 0; (j+1) * sizeof(struct ifreq) <= ifconf.ifc_len; j++)
     {
 	struct raw_iface ri;
 	const struct sockaddr_in *rs = (struct sockaddr_in *) &buf[j].ifr_addr;
@@ -327,6 +340,9 @@ find_raw_ifaces4(void)
     }
 
     close(master_sock);
+
+    if (buf)
+	free(buf);
 
     return rifaces;
 }

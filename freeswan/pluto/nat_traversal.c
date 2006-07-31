@@ -684,15 +684,6 @@ void nat_traversal_change_port_lookup(struct msg_digest *md, struct state *st)
 
 	if (md) {
 		/**
-		 * If source port has changed, update (including other states and
-		 * established kernel SA)
-		 */
-		if (c->that.host_port != md->sender_port) {
-			nat_traversal_new_mapping(&c->that.host_addr, c->that.host_port,
-				&c->that.host_addr, md->sender_port);
-		}
-
-		/**
 		 * If interface type has changed, update local port (500/4500)
 		 */
 		if (((c->this.host_port == NAT_T_IKE_FLOAT_PORT) &&
@@ -704,6 +695,17 @@ void nat_traversal_change_port_lookup(struct msg_digest *md, struct state *st)
 			DBG(DBG_NATT,
 				DBG_log("NAT-T: updating local port to %d", c->this.host_port);
 			);
+		}
+
+		/**
+		 * If source port has changed, update (including other states and
+		 * established kernel SA)
+		 */
+		if (c->that.host_port != md->sender_port) {
+			if (md->iface->ike_float == TRUE)
+				nat_traversal_new_mapping(&c->that.host_addr, c->that.host_port,
+					&c->that.host_addr, md->sender_port);
+			c->that.host_port = md->sender_port;
 		}
 	}
 

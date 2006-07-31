@@ -308,8 +308,9 @@ enum {
     CD_HASH_P1,
     CD_IKE,
     CD_PFSGROUP,
-    CD_ESP
-#   define CD_LAST CD_ESP		/* last connection description */
+    CD_ESP,
+    CD_RETRANSMIT
+#   define CD_LAST CD_RETRANSMIT		/* last connection description */
 
 #ifdef DEBUG	/* must be last so others are less than 32 to fit in lset_t */
 #   define DBGOPT_FIRST DBGOPT_NONE
@@ -425,6 +426,7 @@ static const struct option long_opts[] = {
     { "ike", required_argument, NULL, CD_IKE + OO },
     { "pfsgroup", required_argument, NULL, CD_PFSGROUP + OO },
     { "esp", required_argument, NULL, CD_ESP + OO },
+    { "retransmit_trigger", required_argument, NULL, CD_RETRANSMIT + OO + NUMERIC_ARG},
 #ifdef DEBUG
     { "debug-none", no_argument, NULL, DBGOPT_NONE + OO },
     { "debug-all]", no_argument, NULL, DBGOPT_ALL + OO },
@@ -588,6 +590,7 @@ main(int argc, char **argv)
     msg.esp = NULL;
     msg.pfsgroup = NULL;
     msg.ike = NULL;
+    msg.retransmit_trigger = 2;
 
     msg.sa_ike_life_seconds = OAKLEY_ISAKMP_SA_LIFETIME_DEFAULT;
     msg.sa_ipsec_life_seconds = PLUTO_SA_LIFE_DURATION_DEFAULT;
@@ -1009,6 +1012,10 @@ main(int argc, char **argv)
 
 	case CD_ESP:	/* --esp <esp_alg1,esp_alg2,...> */
 	    msg.esp = optarg;
+	    continue;
+
+	case CD_RETRANSMIT:
+	    msg.retransmit_trigger = opt_whole;
 	    continue;
 
 	case CD_CONNIPV4:

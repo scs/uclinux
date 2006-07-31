@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <linux/autoconf.h>
 #include <freeswan.h>
 
 #include "constants.h"
@@ -23,7 +24,11 @@ do_aes(u_int8_t *buf, size_t buf_len, u_int8_t *key, size_t key_size, u_int8_t *
     char iv_bak[AES_CBC_BLOCK_SIZE];
     char *new_iv = NULL;	/* logic will avoid copy to NULL */
 
+#ifdef CONFIG_IXP4XX_CRYPTO
+    ike_aes_set_key(&aes_ctx, key, key_size, 0);
+#else
     aes_set_key(&aes_ctx, key, key_size, 0);
+#endif /* CONFIG_IXP4XX_CRYPTO */
 
     /*	
      *	my AES cbc does not touch passed IV (optimization for

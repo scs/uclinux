@@ -402,11 +402,8 @@ ipsec_callback(struct sk_buff *skb)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:25  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:41  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.56  2002/01/29 17:17:55  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h

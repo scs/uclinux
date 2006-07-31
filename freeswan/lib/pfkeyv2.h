@@ -321,11 +321,8 @@ struct sadb_x_nat_t_port {
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:22:31  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:13  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.18  2001/11/06 19:47:47  rgb
  * Added packet parameter to lifetime and comb structures.

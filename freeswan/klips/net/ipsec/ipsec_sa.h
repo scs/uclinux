@@ -34,10 +34,16 @@
  */
 
 #ifndef _IPSEC_SA_H_
+#ifdef USE_IXP4XX_CRYPTO
+#define _IPSEC_SA_H_
+#endif /* USE_IXP4XX_CRYPTO */
 
 #include "ipsec_stats.h"
 #include "ipsec_life.h"
 #include "ipsec_eroute.h"
+
+struct _IpsecXmitDesc;
+struct _IpsecRcvDesc;
 
 /* 'struct ipsec_sa' should be 64bit aligned when allocated. */
 struct ipsec_sa 	                        
@@ -60,6 +66,9 @@ struct ipsec_sa
 
 	__u8		ips_replaywin;		/* replay window size */
 	__u8		ips_state;		/* state of SA */
+#ifdef USE_IXP4XX_CRYPTO
+	__u8		ips_teardown_initiated;/* to initiate teardown */
+#endif /* USE_IXP4XX_CRYPTO */
 	__u32		ips_replaywin_lastseq;	/* last pkt sequence num */
 	__u64		ips_replaywin_bitmap;	/* bitmap of received pkts */
 	__u32		ips_replaywin_maxdiff;	/* max pkt sequence difference */
@@ -89,6 +98,11 @@ struct ipsec_sa
 	__u16		ips_key_a_size;
 	__u16		ips_key_e_size;
 
+#ifdef USE_IXP4XX_CRYPTO
+#ifdef CONFIG_IPSEC_ALG
+	__u16       ips_enc_blksize;    /* cipher block size in bytes */
+#endif /* CONFIG_IPSEC_ALG */
+#endif /* USE_IXP4XX_CRYPTO */
 	caddr_t		ips_key_a;		/* authentication key */
 	caddr_t		ips_key_e;		/* encryption key */
 	caddr_t	        ips_iv;			/* Initialisation Vector */
@@ -123,6 +137,18 @@ struct ipsec_sa
 	__u8		ips_sens_integ_len;
 	__u64*		ips_sens_integ_bitmap;
 #endif
+#ifdef USE_IXP4XX_CRYPTO
+	__u32		ips_crypto_state;
+	__u32		ips_crypto_context_id;	 /*  IXP4XX Cryto Context ID  */
+	
+	/* The two lists below - XmitDesc_head and RcvDesc_head
+	   are used for check and balance of the packets. When we tear down 
+	   a tunnel we reset the sa's to NULL in the descriptor lists for that sa. */
+	struct _IpsecXmitDesc *XmitDesc_head; /* used to keep track of which xmit descriptors belong to the sa */
+	struct _IpsecRcvDesc *RcvDesc_head; /* used to keep track of which rcv descriptors belong to the sa */
+	struct _IpsecXmitDesc *XmitDesc_tail; /* used to keep track of which xmit descriptors belong to the sa */
+	struct _IpsecRcvDesc *RcvDesc_tail; /* used to keep track of which rcv descriptors belong to the sa */	
+#endif /* USE_IXP4XX_CRYPTO */
 	struct ipsec_alg_enc *ips_alg_enc;
 	struct ipsec_alg_auth *ips_alg_auth;
 };
@@ -185,16 +211,15 @@ enum ipsec_direction {
 
 #endif /* IPSEC_KLIPS1_COMPAT */
 
+#ifndef USE_IXP4XX_CRYPTO
 #define _IPSEC_SA_H
+#endif /* USE_IXP4XX_CRYPTO */
 #endif /* _IPSEC_SA_H_ */
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.2  2001/11/26 09:16:15  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.

@@ -1769,11 +1769,8 @@ pfkey_proto_init(struct net_proto *pro)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:40  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.68  2002/03/08 01:15:17  mcr
  * 	put some internal structure only debug messages behind

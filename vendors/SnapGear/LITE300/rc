@@ -14,3 +14,4 @@ flatfsd -r
 ifconfig lo 127.0.0.1
 cat /etc/motd
 sh /etc/config/start
+echo "/etc/rc complete."

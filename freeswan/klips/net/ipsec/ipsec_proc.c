@@ -146,6 +146,7 @@ ipsec_spi_get_info(char *buffer,
 	char sa[SATOA_BUF];
 	char buf_s[SUBNETTOA_BUF];
 	char buf_d[SUBNETTOA_BUF];
+	char buf_l[LIFETIMETOA_BUF];
 	size_t sa_len;
 
 	KLIPS_PRINT(debug_tunnel & DB_TN_PROCFS,
@@ -273,35 +274,45 @@ ipsec_spi_get_info(char *buffer,
 			
 			len += sprintf(buffer + len, " life(c,s,h)=");
 
-			len += ipsec_lifetime_format(buffer + len,
-						     length - len,
+			if (ipsec_lifetime_format(buf_l, 
+						     sizeof(buf_l),
 						     "alloc", 
 						     ipsec_life_countbased,
-						     &sa_p->ips_life.ipl_allocations);
+						     &sa_p->ips_life.ipl_allocations)) {
+				len += snprintf(buffer + len, sizeof(buf_l), "%s", buf_l);
+			}
 
-			len += ipsec_lifetime_format(buffer + len,
-						     length - len,
+			if (ipsec_lifetime_format(buf_l,
+						     sizeof(buf_l),
 						     "bytes",
 						     ipsec_life_countbased,
-						     &sa_p->ips_life.ipl_bytes);
+						     &sa_p->ips_life.ipl_bytes)) {
+				len += snprintf(buffer + len, sizeof(buf_l), "%s", buf_l);
+			}
 
-			len += ipsec_lifetime_format(buffer + len,
-						     length - len,
+			if (ipsec_lifetime_format(buf_l, 
+						     sizeof(buf_l),
 						     "addtime",
 						     ipsec_life_timebased,
-						     &sa_p->ips_life.ipl_addtime);
+						     &sa_p->ips_life.ipl_addtime)) {
+				len += snprintf(buffer + len, sizeof(buf_l), "%s", buf_l);
+			}
 
-			len += ipsec_lifetime_format(buffer + len,
-						     length - len,
+			if (ipsec_lifetime_format(buf_l, 
+						     sizeof(buf_l),
 						     "usetime",
 						     ipsec_life_timebased,
-						     &sa_p->ips_life.ipl_usetime);
+						     &sa_p->ips_life.ipl_usetime)) {
+				len += snprintf(buffer + len, sizeof(buf_l), "%s", buf_l);
+			}
 			
-			len += ipsec_lifetime_format(buffer + len,
-						     length - len,
+			if (ipsec_lifetime_format(buf_l, 
+						     sizeof(buf_l),
 						     "packets",
 						     ipsec_life_countbased,
-						     &sa_p->ips_life.ipl_packets);
+						     &sa_p->ips_life.ipl_packets)) {
+				len += snprintf(buffer + len, sizeof(buf_l), "%s", buf_l);
+			}
 			
 			if(sa_p->ips_life.ipl_usetime.ipl_last) { /* XXX-MCR should be last? */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,3,0)
@@ -722,11 +733,8 @@ ipsec_proc_cleanup()
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:25  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:41  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.8  2002/01/29 17:17:55  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h

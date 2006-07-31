@@ -381,11 +381,8 @@ esac
 
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:23:48  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:46  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:44:02  vapier
+# sync with upstream uClinux
 #
 # Revision 1.7  1999/04/06 04:54:36  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes

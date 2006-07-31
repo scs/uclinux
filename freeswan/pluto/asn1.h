@@ -113,7 +113,7 @@ extern const oid_t oid_names[];
 
 /* internal context of ASN.1 parser */
 
-#define ASN1_MAX_LEVEL  5
+#define ASN1_MAX_LEVEL  20
 
 typedef struct {
     bool  implicit;

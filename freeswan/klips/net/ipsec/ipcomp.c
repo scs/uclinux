@@ -76,7 +76,6 @@ int sysctl_ipsec_debug_ipcomp = 0;
 /*
  *	Allow for both hardware and software driven lzs compressors.
  */
-extern int		(*hw_des_assist_ptr)(void);
 extern unsigned int	(*hw_lzs_compress)(unsigned char *in, int ilen,
 				unsigned char *out, int olen);
 extern unsigned int	(*hw_lzs_decompress)(unsigned char *in, int ilen,
@@ -87,9 +86,9 @@ extern unsigned int	lzs_decompress(unsigned char *in, int ilen,
 				unsigned char *out, int olen);
 
 #define	_lzs_compress(a,b,c,d) \
-	(hw_des_assist_ptr() ? (*hw_lzs_compress)(a,b,c,d) : lzs_compress(a,b,c,d))
+	(hw_lzs_compress ? (*hw_lzs_compress)(a,b,c,d) : lzs_compress(a,b,c,d))
 #define	_lzs_decompress(a,b,c,d) \
-	(hw_des_assist_ptr() ? (*hw_lzs_decompress)(a,b,c,d) : lzs_decompress(a,b,c,d))
+	(hw_lzs_decompress ? (*hw_lzs_decompress)(a,b,c,d) : lzs_decompress(a,b,c,d))
 #endif
 
 static

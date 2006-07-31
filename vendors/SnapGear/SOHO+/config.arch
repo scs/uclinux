@@ -7,11 +7,7 @@
 CONSOLE_BAUD_RATE = 9600
 BUILD_NETtel = 1
 
-VERSIONPKG  := 1.9.0p0
-
-ifeq ($(CONFIG_LANGUAGE),japanese)
-VERSIONPKG := $(VERSIONPKG)J
-endif
+include $(ROOTDIR)/vendors/config/config.languages
 
 ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
   VENDOR_TOPDIRS = boot

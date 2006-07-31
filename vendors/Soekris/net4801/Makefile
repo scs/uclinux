@@ -108,6 +108,9 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
@@ -156,9 +159,6 @@ lilo:
 image: mkcramfs
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
 	$(ROMFSINST) $(LINUXIMG) /boot/vmlinuz
-	-$(STRIP) $(ROMFSDIR)/bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
 	rm -rf $(ROMFSDIR)/man[1-9]
 	genromfs -v -V "ROMdisk" -f romfs.img -d $(ROMFSDIR)
 	@echo '********************************************************' > /dev/tty

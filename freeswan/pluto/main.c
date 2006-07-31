@@ -60,6 +60,8 @@
 #include "nat_traversal.h"
 #endif
 
+char *phys_interfaces[NUM_INTERFACES];
+
 /*
  *  Version of X.509 patch
  */

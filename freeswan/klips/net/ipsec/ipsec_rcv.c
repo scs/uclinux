@@ -1333,6 +1333,7 @@ ipsec_rcv(struct sk_buff *skb, struct device *dev, struct options *opt,
 				break;
 #endif /* CONFIG_IPSEC_ENC_3DES */
 			default:
+				break;
 			}
 			next_header = idat[ilen - 1];
 			padlen = idat[ilen - 2];
@@ -1933,6 +1934,10 @@ ipsec_rcv(struct sk_buff *skb, struct device *dev, struct options *opt,
 #ifdef CONFIG_NETFILTER_DEBUG
 	skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+        nf_bridge_put(skb->nf_bridge);
+        skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
 	KLIPS_PRINT(debug_rcv & DB_RX_PKTRX,
 		    "klips_debug:ipsec_rcv: "
@@ -1997,11 +2002,8 @@ struct inet_protocol comp_protocol =
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.9.2.1  2003/06/30 05:04:07  matthewn
  * We need to set the physindev when we receive a packet via IPSec.

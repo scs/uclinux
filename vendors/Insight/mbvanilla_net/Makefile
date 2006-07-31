@@ -82,6 +82,9 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	if [ "$(CONFIG_XILINX_SYSACE)" = "y" ]; then \
 		for i in $(SYSACE_DEVICES); do \
 			touch $(ROMFSDIR)/dev/@$$i; \

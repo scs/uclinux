@@ -149,6 +149,10 @@ static inline int unregister_ipsec_alg_auth(struct ipsec_alg_auth *ixt) {
 
 /* 	encryption key context creation function */
 int ipsec_alg_enc_key_create(struct ipsec_sa *sa_p);
+#ifdef USE_IXP4XX_CRYPTO
+/* 	cipher block size extraction function */
+void ipsec_alg_enc_blksize_create(struct ipsec_sa *sa_p);
+#endif /* USE_IXP4XX_CRYPTO */
 /* 
  * 	ipsec_alg_esp_encrypt(): encrypt ilen bytes in idat returns
  * 	0 or ERR<0

@@ -103,22 +103,25 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
 	dirs=$(DIRS) ; for i in $$dirs; do  make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) ../../SecureEdge/romfs_x86 /
 
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-up /etc/default/ip-up
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-down /etc/default/ip-down
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/dhcpcd-eth0.exe \
-	/etc/default/dhcpcd-eth0.exe
-	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/dhcpcd-eth1.exe \
-	/etc/default/dhcpcd-eth1.exe
-
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-up \
+			/etc/default/ip-up
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/ip-down \
+			/etc/default/ip-down
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/dhcpcd-eth0.exe \
+			/etc/default/dhcpcd-eth0.exe
+	$(ROMFSINST) -p 755 ../../SecureEdge/romfs_x86/etc/default/dhcpcd-eth1.exe \
+			/etc/default/dhcpcd-eth1.exe
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/fstab
-
 ifdef CONFIG_ROMFS_FS
 	$(ROMFSINST) -s /var/tmp /tmp
 endif
@@ -128,21 +131,12 @@ endif
 	date '+%Y.%m.%d-%T' > $(ROMFSDIR)/etc/build-date
 
 $(JFFS2IMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2 -o $(JFFS2IMG) -q -e 131072 -d $(ROMFSDIR)
 
 $(JFFSIMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs -o $(JFFSIMG) -d $(ROMFSDIR)
 
 $(ROMFSIMG):
-	-$(STRIP) $(ROMFSDIR)/home/httpd/cgi-bin/*
-	-$(STRIP) $(ROMFSDIR)/sbin/*
-	-$(STRIP) $(ROMFSDIR)/bin/*
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
 	$(TOOLS)/cksum -b -o 2 $(ROMFSIMG) >> $(ROMFSIMG)
 

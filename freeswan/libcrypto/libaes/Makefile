@@ -11,9 +11,8 @@ endif
 
 ifdef CONFIG_HW_ASSIST
 EXTRA_CFLAGS += -DHW_ASSIST=1
-endif
-
 AES_CORE_OBJ += hw_assist.o
+endif
 
 LIBOBJ := aes_xcbc_mac.o aes_cbc.o $(AES_CORE_OBJ)
 LDLIBS := -laes

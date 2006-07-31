@@ -46,6 +46,7 @@ CONFIG_ARCH_IXP425=y
 # CONFIG_ARCH_OMAHA is not set
 # CONFIG_ARCH_L7200 is not set
 # CONFIG_ARCH_MX1ADS is not set
+# CONFIG_ARCH_EP93XX is not set
 # CONFIG_ARCH_RPC is not set
 # CONFIG_ARCH_RISCSTATION is not set
 # CONFIG_ARCH_SA1100 is not set
@@ -119,18 +120,30 @@ CONFIG_ARCH_IXP425=y
 # CONFIG_SA1100_SSP is not set
 
 #
-# IXP425 Implementation Options
+# IXP4xx Implementation Options
 #
 CONFIG_ARCH_IXDP425=y
+# CONFIG_MACH_IXDP465 is not set
+# CONFIG_MACH_MONTEJADE is not set
 # CONFIG_ARCH_IXCDP1100 is not set
 # CONFIG_ARCH_PRPMC1100 is not set
 # CONFIG_ARCH_ADI_COYOTE is not set
 # CONFIG_ARCH_SE4000 is not set
+# CONFIG_MACH_SG560 is not set
+# CONFIG_MACH_SG565 is not set
+# CONFIG_MACH_SHIVA1100 is not set
+# CONFIG_MACH_SG580 is not set
+# CONFIG_MACH_SG640 is not set
+# CONFIG_MACH_ESS710 is not set
+# CONFIG_MACH_SG720 is not set
+# CONFIG_MACH_IVPN is not set
+# CONFIG_MACH_SE5100 is not set
 
 #
 # AT91RM9200 Implementations
 #
 # CONFIG_ARCH_AT91RM9200DK is not set
+# CONFIG_MACH_CSB337 is not set
 
 #
 # CLPS711X/EP721X Implementations
@@ -139,15 +152,27 @@ CONFIG_ARCH_IXDP425=y
 # CONFIG_ARCH_CDB89712 is not set
 # CONFIG_ARCH_CLEP7312 is not set
 # CONFIG_ARCH_EDB7211 is not set
+# CONFIG_ARCH_EDB7312 is not set
 # CONFIG_ARCH_FORTUNET is not set
 # CONFIG_ARCH_GUIDEA07 is not set
 # CONFIG_ARCH_P720T is not set
 # CONFIG_ARCH_EP7211 is not set
 # CONFIG_ARCH_EP7212 is not set
+# CONFIG_ARCH_EP7312 is not set
+# CONFIG_ARCH_EP9301 is not set
+# CONFIG_ARCH_EP9302 is not set
+# CONFIG_ARCH_EP9312 is not set
+# CONFIG_ARCH_EP9315 is not set
+# CONFIG_ARCH_EDB9301 is not set
+# CONFIG_ARCH_EDB9302 is not set
+# CONFIG_ARCH_EDB9312 is not set
+# CONFIG_ARCH_EDB9315 is not set
 # CONFIG_ARCH_ACORN is not set
 # CONFIG_FOOTBRIDGE is not set
 # CONFIG_FOOTBRIDGE_HOST is not set
 # CONFIG_FOOTBRIDGE_ADDIN is not set
+# CONFIG_EP93XX_GRAPHICS is not set
+# CONFIG_EP93XX_CRUNCH is not set
 
 #
 # Processor Type
@@ -177,6 +202,7 @@ CONFIG_ARM_THUMB=y
 # CONFIG_XSCALE_PMU_TIMER is not set
 # CONFIG_XSCALE_CACHE_ERRATA is not set
 # CONFIG_XSCALE_BDI2000 is not set
+# CONFIG_ARM_FASS is not set
 # CONFIG_DISCONTIGMEM is not set
 CONFIG_CPU_BIG_ENDIAN=y
 
@@ -189,8 +215,8 @@ CONFIG_PCI_AUTOCONFIG=y
 # CONFIG_ISA_DMA is not set
 CONFIG_KERNEL_START=0xc0000000
 # CONFIG_ZBOOT_ROM is not set
-CONFIG_ZBOOT_ROM_TEXT=0
-CONFIG_ZBOOT_ROM_BSS=0
+CONFIG_ZBOOT_ROM_TEXT=0x0
+CONFIG_ZBOOT_ROM_BSS=0x0
 CONFIG_PCI_NAMES=y
 # CONFIG_HOTPLUG is not set
 # CONFIG_PCMCIA is not set
@@ -210,8 +236,11 @@ CONFIG_KCORE_ELF=y
 CONFIG_BINFMT_AOUT=y
 CONFIG_BINFMT_ELF=y
 # CONFIG_BINFMT_MISC is not set
+# CONFIG_OOM_KILLER is not set
 # CONFIG_PM is not set
 # CONFIG_ARTHUR is not set
+CONFIG_CMDLINE_BOOL=y
+# CONFIG_CMDLINE_FORCE is not set
 CONFIG_CMDLINE="console=ttyS0,115200 root=/dev/ram0 initrd=0x00800000,8M mem=64M@0x00000000"
 CONFIG_ALIGNMENT_TRAP=y
 
@@ -228,6 +257,9 @@ CONFIG_MTD=y
 CONFIG_MTD_PARTITIONS=y
 CONFIG_MTD_CONCAT=m
 CONFIG_MTD_REDBOOT_PARTS=y
+# CONFIG_MTD_REDBOOT_PARTS_UNALLOCATED is not set
+# CONFIG_MTD_REDBOOT_PARTS_READONLY is not set
+# CONFIG_MTD_UCBOOTSTRAP_PARTS is not set
 # CONFIG_MTD_CMDLINE_PARTS is not set
 # CONFIG_MTD_AFS_PARTS is not set
 
@@ -263,12 +295,17 @@ CONFIG_MTD_CFI_INTELEXT=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_PHYSMAP is not set
+# CONFIG_MTD_UCBOOTSTRAP is not set
 # CONFIG_MTD_DRAGONIX is not set
 # CONFIG_MTD_NETtel is not set
 # CONFIG_MTD_SNAPGEODE is not set
 # CONFIG_MTD_NETteluC is not set
 # CONFIG_MTD_MBVANILLA is not set
+# CONFIG_MTD_MB_AUTO is not set
+# CONFIG_MTD_ML401 is not set
+# CONFIG_MTD_SUZAKU is not set
 # CONFIG_MTD_KeyTechnology is not set
+# CONFIG_MTD_SED_SIOSIII is not set
 # CONFIG_MTD_NORA is not set
 # CONFIG_MTD_ARM_INTEGRATOR is not set
 # CONFIG_MTD_CDB89712 is not set
@@ -276,14 +313,24 @@ CONFIG_MTD_CFI_INTELEXT=y
 # CONFIG_MTD_DC21285 is not set
 # CONFIG_MTD_IQ80310 is not set
 # CONFIG_MTD_EPXA10DB is not set
+# CONFIG_MTD_SMART is not set
 # CONFIG_MTD_FORTUNET is not set
 # CONFIG_MTD_AUTCPU12 is not set
 # CONFIG_MTD_IXP425 is not set
 # CONFIG_MTD_SE4000 is not set
 # CONFIG_MTD_SNAPARM is not set
+# CONFIG_MTD_DM270 is not set
+# CONFIG_MTD_CLPS7500 is not set
 # CONFIG_MTD_EDB7312 is not set
+# CONFIG_MTD_EDB9301 is not set
+# CONFIG_MTD_EDB9302 is not set
+# CONFIG_MTD_EDB9312 is not set
+# CONFIG_MTD_EDB9315 is not set
 # CONFIG_MTD_IMPA7 is not set
 # CONFIG_MTD_CEIVA is not set
+# CONFIG_MTD_VC547X is not set
+# CONFIG_MTD_TIBURON is not set
+# CONFIG_MTD_EB67DIP is not set
 # CONFIG_MTD_PCI is not set
 # CONFIG_MTD_PCMCIA is not set
 
@@ -293,6 +340,7 @@ CONFIG_MTD_CFI_INTELEXT=y
 # CONFIG_MTD_PMC551 is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_MTDRAM is not set
+# CONFIG_MTD_MTDCNXT is not set
 # CONFIG_MTD_BLKMTD is not set
 
 #
@@ -327,6 +375,7 @@ CONFIG_MTD_CFI_INTELEXT=y
 # CONFIG_CISS_MONITOR_THREAD is not set
 # CONFIG_BLK_DEV_DAC960 is not set
 # CONFIG_BLK_DEV_UMEM is not set
+# CONFIG_BLK_DEV_SX8 is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 CONFIG_BLK_DEV_RAM=y
@@ -356,6 +405,8 @@ CONFIG_PACKET=y
 # CONFIG_NETLINK_DEV is not set
 # CONFIG_NETFILTER is not set
 # CONFIG_FILTER is not set
+# CONFIG_NET_NEIGH_DEBUG is not set
+# CONFIG_NET_RESTRICTED_REUSE is not set
 CONFIG_UNIX=y
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -373,7 +424,6 @@ CONFIG_INET=y
 #
 #    SCTP Configuration (EXPERIMENTAL)
 #
-CONFIG_IPV6_SCTP__=y
 # CONFIG_IP_SCTP is not set
 # CONFIG_ATM is not set
 # CONFIG_VLAN_8021Q is not set
@@ -383,11 +433,6 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_IPX is not set
 # CONFIG_ATALK is not set
-
-#
-# Appletalk devices
-#
-# CONFIG_DEV_APPLETALK is not set
 # CONFIG_DECNET is not set
 # CONFIG_BRIDGE is not set
 # CONFIG_X25 is not set
@@ -404,11 +449,13 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_NET_SCHED is not set
 # CONFIG_IPSEC is not set
+# CONFIG_KLIPS is not set
 
 #
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
+# CONFIG_IPSEC_NAT_TRAVERSAL is not set
 
 #
 # Network device support
@@ -422,6 +469,10 @@ CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
+
+#
+# IMQ needs CONFIG_NETFILTER enabled
+#
 # CONFIG_TUN is not set
 # CONFIG_ETHERTAP is not set
 
@@ -444,6 +495,7 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_NET_ISA is not set
 CONFIG_NET_PCI=y
 # CONFIG_PCNET32 is not set
+# CONFIG_PCNET32_VMWARE is not set
 # CONFIG_AMD8111_ETH is not set
 # CONFIG_ADAPTEC_STARFIRE is not set
 # CONFIG_APRICOT is not set
@@ -460,16 +512,16 @@ CONFIG_EEPRO100=m
 # CONFIG_FEALNX is not set
 # CONFIG_NATSEMI is not set
 # CONFIG_NE2K_PCI is not set
+# CONFIG_FORCEDETH is not set
 # CONFIG_NE3210 is not set
 # CONFIG_ES3210 is not set
 # CONFIG_8139CP is not set
-# CONFIG_8139CP_EXTERNAL_PHY is not set
-CONFIG_8139CP_PHY_NUM=32
 # CONFIG_8139TOO is not set
 # CONFIG_8139TOO_PIO is not set
 # CONFIG_8139TOO_TUNE_TWISTER is not set
 # CONFIG_8139TOO_8129 is not set
 # CONFIG_8139_OLD_RX_RESET is not set
+# CONFIG_8139TOO_EXTERNAL_PHY is not set
 # CONFIG_RTL8139 is not set
 # CONFIG_SIS900 is not set
 # CONFIG_EPIC100 is not set
@@ -481,9 +533,12 @@ CONFIG_8139CP_PHY_NUM=32
 # CONFIG_VIA_RHINE_MMIO is not set
 # CONFIG_WINBOND_840 is not set
 # CONFIG_NET_POCKET is not set
+# CONFIG_CNXT_EMAC is not set
 # CONFIG_FEC is not set
 # CONFIG_CS89x0 is not set
 # CONFIG_UCCS8900 is not set
+# CONFIG_AX88796 is not set
+# CONFIG_DM9000 is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -536,82 +591,8 @@ CONFIG_E1000=m
 #
 # ATA/ATAPI/MFM/RLL support
 #
-CONFIG_IDE=y
-
-#
-# IDE, ATA and ATAPI Block devices
-#
-CONFIG_BLK_DEV_IDE=y
-
-#
-# Please see Documentation/ide.txt for help/info on IDE drives
-#
-# CONFIG_BLK_DEV_HD_IDE is not set
+# CONFIG_IDE is not set
 # CONFIG_BLK_DEV_HD is not set
-CONFIG_BLK_DEV_IDEDISK=y
-# CONFIG_IDEDISK_MULTI_MODE is not set
-# CONFIG_IDEDISK_STROKE is not set
-# CONFIG_BLK_DEV_IDECS is not set
-CONFIG_BLK_DEV_IDECD=y
-# CONFIG_BLK_DEV_IDETAPE is not set
-# CONFIG_BLK_DEV_IDEFLOPPY is not set
-# CONFIG_BLK_DEV_IDESCSI is not set
-# CONFIG_IDE_TASK_IOCTL is not set
-
-#
-# IDE chipset support/bugfixes
-#
-# CONFIG_BLK_DEV_CMD640 is not set
-# CONFIG_BLK_DEV_CMD640_ENHANCED is not set
-# CONFIG_BLK_DEV_ISAPNP is not set
-CONFIG_BLK_DEV_IDEPCI=y
-CONFIG_BLK_DEV_GENERIC=y
-CONFIG_IDEPCI_SHARE_IRQ=y
-CONFIG_BLK_DEV_IDEDMA_PCI=y
-# CONFIG_BLK_DEV_OFFBOARD is not set
-# CONFIG_BLK_DEV_IDEDMA_FORCED is not set
-# CONFIG_IDEDMA_PCI_AUTO is not set
-# CONFIG_IDEDMA_ONLYDISK is not set
-CONFIG_BLK_DEV_IDEDMA=y
-# CONFIG_IDEDMA_PCI_WIP is not set
-# CONFIG_BLK_DEV_ADMA100 is not set
-# CONFIG_BLK_DEV_AEC62XX is not set
-# CONFIG_BLK_DEV_ALI15X3 is not set
-# CONFIG_WDC_ALI15X3 is not set
-# CONFIG_BLK_DEV_AMD74XX is not set
-# CONFIG_AMD74XX_OVERRIDE is not set
-CONFIG_BLK_DEV_CMD64X=y
-# CONFIG_BLK_DEV_TRIFLEX is not set
-# CONFIG_BLK_DEV_CY82C693 is not set
-# CONFIG_BLK_DEV_CS5530 is not set
-# CONFIG_BLK_DEV_HPT34X is not set
-# CONFIG_HPT34X_AUTODMA is not set
-# CONFIG_BLK_DEV_HPT366 is not set
-# CONFIG_BLK_DEV_PIIX is not set
-# CONFIG_BLK_DEV_NS87415 is not set
-# CONFIG_BLK_DEV_OPTI621 is not set
-# CONFIG_BLK_DEV_PDC202XX_OLD is not set
-# CONFIG_PDC202XX_BURST is not set
-# CONFIG_BLK_DEV_PDC202XX_NEW is not set
-# CONFIG_BLK_DEV_RZ1000 is not set
-# CONFIG_BLK_DEV_SC1200 is not set
-# CONFIG_BLK_DEV_SVWKS is not set
-# CONFIG_BLK_DEV_SIIMAGE is not set
-# CONFIG_BLK_DEV_SIS5513 is not set
-# CONFIG_BLK_DEV_SLC90E66 is not set
-# CONFIG_BLK_DEV_TRM290 is not set
-# CONFIG_BLK_DEV_VIA82CXXX is not set
-# CONFIG_BLK_DEV_SL82C105 is not set
-# CONFIG_BLK_DEV_UCLINUX_IDE is not set
-# CONFIG_IDE_CHIPSETS is not set
-# CONFIG_IDEDMA_AUTO is not set
-# CONFIG_IDEDMA_IVB is not set
-# CONFIG_DMA_NONPCI is not set
-CONFIG_BLK_DEV_IDE_MODES=y
-# CONFIG_BLK_DEV_ATARAID is not set
-# CONFIG_BLK_DEV_ATARAID_PDC is not set
-# CONFIG_BLK_DEV_ATARAID_HPT is not set
-# CONFIG_BLK_DEV_ATARAID_SII is not set
 
 #
 # SCSI support
@@ -646,19 +627,57 @@ CONFIG_BLK_DEV_IDE_MODES=y
 # CONFIG_INPUT_MOUSEDEV is not set
 # CONFIG_INPUT_JOYDEV is not set
 # CONFIG_INPUT_EVDEV is not set
+# CONFIG_INPUT_UINPUT is not set
 
 #
 # Character devices
 #
 # CONFIG_LEDMAN is not set
+# CONFIG_SNAPDOG is not set
+# CONFIG_FAST_TIMER is not set
 # CONFIG_DS1302 is not set
+# CONFIG_M41T11M6 is not set
 # CONFIG_VT is not set
 CONFIG_SERIAL=y
 CONFIG_SERIAL_CONSOLE=y
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+
+#
+# Serial drivers
+#
+# CONFIG_SERIAL_ANAKIN is not set
+# CONFIG_SERIAL_ANAKIN_CONSOLE is not set
+# CONFIG_SERIAL_AMBA is not set
+# CONFIG_SERIAL_AMBA_CONSOLE is not set
+# CONFIG_SERIAL_CLPS711X is not set
+# CONFIG_SERIAL_CLPS711X_CONSOLE is not set
+# CONFIG_SERIAL_21285 is not set
+# CONFIG_SERIAL_21285_OLD is not set
+# CONFIG_SERIAL_21285_CONSOLE is not set
+# CONFIG_SERIAL_UART00 is not set
+# CONFIG_SERIAL_UART00_CONSOLE is not set
+# CONFIG_SERIAL_SA1100 is not set
+# CONFIG_SERIAL_SA1100_CONSOLE is not set
+# CONFIG_SERIAL_OMAHA is not set
+# CONFIG_SERIAL_OMAHA_CONSOLE is not set
+# CONFIG_SERIAL_AT91 is not set
+# CONFIG_SERIAL_AT91_CONSOLE is not set
+# CONFIG_SERIAL_8250 is not set
+# CONFIG_SERIAL_8250_CONSOLE is not set
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_MANY_PORTS is not set
+# CONFIG_SERIAL_8250_SHARE_IRQ is not set
+# CONFIG_SERIAL_8250_DETECT_IRQ is not set
+# CONFIG_SERIAL_8250_MULTIPORT is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 CONFIG_UNIX98_PTYS=y
 CONFIG_UNIX98_PTY_COUNT=256
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
 
 #
 # I2C support
@@ -703,6 +722,7 @@ CONFIG_PSMOUSE=y
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
+# CONFIG_SCx200 is not set
 # CONFIG_SCx200_GPIO is not set
 # CONFIG_AMD_PM768 is not set
 # CONFIG_NVRAM is not set
@@ -756,7 +776,9 @@ CONFIG_PSMOUSE=y
 # CONFIG_JFFS_FS is not set
 CONFIG_JFFS2_FS=y
 CONFIG_JFFS2_FS_DEBUG=0
+# CONFIG_YAFFS_FS is not set
 # CONFIG_CRAMFS is not set
+# CONFIG_SQUASHFS is not set
 # CONFIG_TMPFS is not set
 CONFIG_RAMFS=y
 # CONFIG_ISO9660_FS is not set
@@ -771,6 +793,7 @@ CONFIG_RAMFS=y
 # CONFIG_NTFS_RW is not set
 # CONFIG_HPFS_FS is not set
 CONFIG_PROC_FS=y
+CONFIG_PROC_NDYNAMIC=4096
 # CONFIG_DEVFS_FS is not set
 # CONFIG_DEVFS_MOUNT is not set
 # CONFIG_DEVFS_DEBUG is not set
@@ -784,6 +807,11 @@ CONFIG_EXT2_FS=y
 # CONFIG_UDF_RW is not set
 # CONFIG_UFS_FS is not set
 # CONFIG_UFS_FS_WRITE is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_XFS_QUOTA is not set
+# CONFIG_XFS_RT is not set
+# CONFIG_XFS_TRACE is not set
+# CONFIG_XFS_DEBUG is not set
 
 #
 # Network File Systems
@@ -875,6 +903,11 @@ CONFIG_DEBUG_KERNEL=y
 CONFIG_DEBUG_LL=y
 # CONFIG_DEBUG_DC21285_PORT is not set
 # CONFIG_DEBUG_CLPS711X_UART2 is not set
+# CONFIG_KGDB is not set
+# CONFIG_KGDB_SERIAL is not set
+# CONFIG_KGDB_CONSOLE is not set
+# CONFIG_KGDB_SYSRQ is not set
+# CONFIG_KGDB_MORE is not set
 CONFIG_LOG_BUF_SHIFT=0
 
 #

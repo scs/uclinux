@@ -1,0 +1,26 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
+VENDOR_TOPDIRS = boot
+endif
+
+VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
+
+BUILD_NETtel = 1
+LINUXTARGET = zImage
+
+HW_VENDOR = CyberGuard
+HW_PRODUCT = SG710
+VERSIONPKG = 1.0.0
+VERSIONNAME = 999011-00
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONNAME)
+RELFILES = images/image.bin,.sgu $(LINUXDIR)/linux
+
+############################################################################
+
+include $(ROOTDIR)/vendors/config/arm/xscale.arch
+
+RELFILES += images/configs.tar.gz
+
+############################################################################

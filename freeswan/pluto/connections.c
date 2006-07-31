@@ -419,6 +419,7 @@ delete_connection(struct connection *c)
     cur_debugging = old_cur_debugging;
 #endif
     pfreeany(c->name);
+    pfreeany(c->dnshostname);
     free_id_content(&c->this.id);
     pfreeany(c->this.updown);
     release_x509cert(c->this.cert);
@@ -948,6 +949,7 @@ add_connection(const struct whack_message *wm)
 	c->sa_rekey_margin = wm->sa_rekey_margin;
 	c->sa_rekey_fuzz = wm->sa_rekey_fuzz;
 	c->sa_keying_tries = wm->sa_keying_tries;
+	c->retransmit_trigger = wm->retransmit_trigger;
 	c->dpd_delay = wm->dpd_delay;
 	c->dpd_timeout = wm->dpd_timeout;
 	c->algorithm_p1.cipher = wm->cipher_p1;
@@ -1398,6 +1400,24 @@ initiate_connection(const char *name, int whackfd)
     close_any(whackfd);
 }
 
+void initiate_connections_by_peer(struct connection *c)
+{
+    struct connection *d;
+    ip_address match;
+
+    update_host_pairs();
+    memcpy(&match, &c->that.host_addr, sizeof(ip_address));
+
+    if (c->host_pair == NULL)
+    	return;
+    d = c->host_pair->connections;
+    for (; d != NULL; d = d->hp_next) {
+	   if (sameaddr(&d->that.host_addr, &match)) {
+	       initiate_connection(d->name, NULL_FD);
+	   }
+    }
+}
+
 /* opportunistic initiation is broken in two:
  * - everything up to Async DNS lookup (initiate_opportunistic)
  * - everyting after (until first IKE message sent) (continue_oppo)
@@ -1453,6 +1473,8 @@ initiate_opportunistic(const ip_address *our_client
     /* What connection shall we use?
      * First try for one that explicitly handles the clients.
      */
+    DBG(DBG_CONTROL, DBG_log("not attempting to initiate opportunistic connection"));
+    return;
     DBG(DBG_CONTROL,
 	{
 	    char ours[ADDRTOT_BUF];
@@ -1631,6 +1653,19 @@ terminate_connection(const char *nm)
     }
 }
 
+void terminate_connections_by_peer(struct connection *c)
+{
+    struct connection *d;
+
+    d = c->host_pair->connections;
+
+    for (; d != NULL; d = d->hp_next) {
+	   if (sameaddr(&d->that.host_addr, &c->that.host_addr)) {
+	       terminate_connection(d->name);
+	   }
+    }
+}
+
 /* check nexthop safety
  * Our nexthop must not be within a routed client subnet, and vice versa.
  * Note: we don't think this is true.  We think that KLIPS will
@@ -1698,6 +1733,17 @@ ISAKMP_SA_established(struct connection *c, so_serial_t serial)
 	{
 	    struct connection *next = d->ac_next;	/* might move underneath us */
 
+	    if (d->kind == CK_INSTANCE
+	    && same_id(&c->that.id, &d->that.id)
+	    && (c->newest_isakmp_sa > d->newest_isakmp_sa)) {
+	    	struct state *st;
+
+		st = state_with_serialno(d->newest_isakmp_sa);
+		if (st) {
+			log("deleting state #%lu", st->st_serialno);
+			delete_state(st);
+		}
+	    } else 
 #ifdef NAT_TRAVERSAL
 	    if (d->kind != CK_TEMPLATE
 	    && same_id(&c->that.id, &d->that.id)

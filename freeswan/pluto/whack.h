@@ -96,6 +96,8 @@ struct whack_message {
     char *pfsgroup;	/* pfsgroup will be "encapsulated" in esp string for pluto */
     char *esp;		/* esp algo string (separated by commas) */
 
+    int retransmit_trigger;
+
     /* for WHACK_KEY: */
     bool whack_key;
     bool whack_addkey;

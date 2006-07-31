@@ -35,6 +35,12 @@ romfs:
 
 image:
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
+	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_0 \
+	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat \
+	    /etc/IxNpeMicrocode.dat
+	-$(ROMFSINST) -e CONFIG_IXP400_LIB_2_1 \
+	    -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat \
+	    /etc/IxNpeMicrocode.dat
 	genext2fs -b 8192 -f dev.txt -d $(ROMFSDIR) $(RAMDISK)
 	gzip -9 -f $(RAMDISK)
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(KERNELZ)

@@ -74,7 +74,7 @@ int hw_aes_cbc_encrypt(ctx, input, output, length, ivec, enc)
 	req.length = length;
 	memcpy(req.key, ctx->aes_e_key, 32);
 	req.aes_key_len = ctx->aes_Nkey;
-	memcpy(req.ivec, ivec, 8);
+	memcpy(req.ivec, ivec, 16);
 	req.input = (unsigned char*)input;
 	req.output = (unsigned char*)output;
 	ioctl(aes_fd, HIFN_ENCRYPT, &req);

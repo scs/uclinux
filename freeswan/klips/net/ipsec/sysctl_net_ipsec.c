@@ -146,11 +146,8 @@ void ipsec_sysctl_unregister(void)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:44  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:43  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.13  2002/01/12 02:58:32  mcr
  * 	first regression test causes acquire messages to be lost

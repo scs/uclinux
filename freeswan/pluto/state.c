@@ -509,27 +509,6 @@ delete_states_by_connection(struct connection *c)
     }
 }
 
-/* Immediately schedule a replace event for all states for a peer.
- */
-void replace_states_by_peer(const ip_address *peer)
-{
-    struct state *st = NULL;
-    int i;
-    struct event *ev;
-
-    for (i = 0; st == NULL && i < STATE_TABLE_SIZE; i++)
-	for (st = statetable[i]; st != NULL; st = st->st_hashchain_next)
-	    /* Only replace if it already has a replace event. */
-	    if (sameaddr(&st->st_connection->that.host_addr, peer)
-		    && (IS_ISAKMP_SA_ESTABLISHED(st->st_state) || IS_IPSEC_SA_ESTABLISHED(st->st_state))
-		    && st->st_event->ev_type == EVENT_SA_REPLACE)
-	    {
-		delete_event(st);
-		delete_dpd_event(st);
-		event_schedule(EVENT_SA_REPLACE, 0, st);
-	    }
-}
-
 /* Duplicate a Phase 1 state object, to create a Phase 2 object.
  * Caller must schedule an event for this object so that it doesn't leak.
  * Caller must insert_state().
@@ -654,6 +633,26 @@ find_phase1_state(const struct connection *c, bool established)
     return best;
 }
 
+time_t get_born_time(struct state *st) {
+
+	switch (st->st_state) {
+		case STATE_QUICK_I2:
+		case STATE_QUICK_R2:
+			if (st->st_ah.present)
+				return (st->st_ah.attrs.born);
+			if (st->st_esp.present)
+				return (st->st_esp.attrs.born);
+			if (st->st_ipcomp.present)
+				return (st->st_ipcomp.attrs.born);
+			return 0;
+		case STATE_MAIN_I4:
+		case STATE_MAIN_R3:
+			return (st->st_oakley.born);
+		default:
+			return 0;
+    }
+}
+
 void
 show_states_status(void)
 {
@@ -684,11 +683,12 @@ show_states_status(void)
 	    fmt_conn_instance(c, inst);
 
 	    whack_log(RC_COMMENT
-		, "#%lu: \"%s\"%s %s (%s); %s in %lds%s%s%s"
+		, "#%lu: \"%s\"%s %s (%s); born:%lds; %s in %lds%s%s%s"
 		, st->st_serialno
 		, c->name, inst
 		, enum_name(&state_names, st->st_state)
 		, state_story[st->st_state - STATE_MAIN_R0]
+		, get_born_time(st)
 		, enum_name(&timer_event_names, st->st_event->ev_type)
 		, delta
 		, np1, np2, eo);

@@ -421,11 +421,8 @@ Destination     Gateway         Genmask         Flags Metric Ref Use    Iface
 
 *
 * $Log$
-* Revision 1.1  2004/07/19 09:23:08  lgsoft
-* Initial revision
-*
-* Revision 1.1.1.1  2004/07/18 13:23:43  nidhi
-* Importing
+* Revision 1.2  2006/07/31 02:43:33  vapier
+* sync with upstream uClinux
 *
 * Revision 1.6  1999/04/06 04:54:24  rgb
 * Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes

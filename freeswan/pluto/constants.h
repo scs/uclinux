@@ -1009,4 +1009,4 @@ enum dns_auth_level {
 
 /* interfaces */
 #define NUM_INTERFACES 4
-char *phys_interfaces[NUM_INTERFACES];
+extern char *phys_interfaces[NUM_INTERFACES];

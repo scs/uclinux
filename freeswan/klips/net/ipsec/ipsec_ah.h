@@ -101,11 +101,8 @@ extern int debug_ah;
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:15  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:40  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.16  2002/02/20 01:27:06  rgb
  * Ditched a pile of structs only used by the old Netlink interface.

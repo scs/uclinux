@@ -518,11 +518,8 @@ ipsec_rj_walker_delete(struct radij_node *rn, void *w0)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:28  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.60  2002/02/19 23:59:45  rgb
  * Removed redundant compiler directives.

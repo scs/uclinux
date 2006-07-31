@@ -8,7 +8,10 @@ include config
   replace c_pswd (.*)
 include snmpd.conf
   replace r[ow]community (.*)
-include ddns.conf
+include options.*
+  replace radius-secret (.*)
+  replace tacacs-secret (.*)
+include ddns*.conf
   replace user=.*:(.*)
 include bpalogin.conf
   replace password (.*)
@@ -17,3 +20,10 @@ include start
 exclude ssh_host_*
 exclude id_*
 exclude identity identity.pub
+include wireless*
+  replace wep_key_len .*
+  replace wep_key_.* (.*)
+  replace auth_server_shared_secret (.*)
+include hostapd*.conf
+  replace auth_server_shared_secret=(.*)
+  replace acct_server_shared_secret=(.*)

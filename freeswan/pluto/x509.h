@@ -22,11 +22,19 @@
 /*
  * path definitions for my X.509 or PGP cert, peer certs, cacerts and crls
  */
-#define X509_CERT_PATH	  "/etc/config"
-#define PGP_CERT_PATH	  "/etc/pgpcert.pgp"
-#define HOST_CERT_PATH    "/etc/config"
-#define CA_CERT_PATH	  "/etc/config"
-#define CRL_PATH	  "/etc/config"
+#include <config/autoconf.h>
+
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+#define __IPSEC__PREFIX__ "/etc/config"
+#else
+#define __IPSEC__PREFIX__ "/etc"
+#endif
+
+#define X509_CERT_PATH	__IPSEC__PREFIX__ "/"
+#define PGP_CERT_PATH	__IPSEC__PREFIX__ "/pgpcert.pgp"
+#define CA_CERT_PATH	__IPSEC__PREFIX__
+#define CRL_PATH	__IPSEC__PREFIX__
+#define HOST_CERT_PATH    __IPSEC__PREFIX__
 
 /* advance warning of imminent expiry of
  * cacerts, public keys, and crls
@@ -148,6 +156,7 @@ extern const x509crl_t  empty_x509crl;
 extern const x509cert_t empty_x509cert;
 
 extern bool same_dn(chunk_t a, chunk_t b);
+#define MAX_CA_PATH_LEN		7
 extern void hex_str(chunk_t bin, chunk_t *str);
 extern int dntoa(char *dst, size_t dstlen, chunk_t dn);
 extern err_t atodn(char *src, chunk_t *dn);

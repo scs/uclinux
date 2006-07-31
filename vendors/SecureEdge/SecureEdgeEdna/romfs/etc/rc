@@ -10,3 +10,4 @@ mkdir /var/run
 mkdir /var/lock
 mkdir /var/empty
 /bin/flatfsd -r
+echo "/etc/rc complete."

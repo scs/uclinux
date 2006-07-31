@@ -41,10 +41,18 @@
 
 /* path definitions for cacerts and crls */
 
-#define X509_CERT_PATH	"/etc/config/"
-#define PGP_CERT_PATH	"/etc/config/pgpcert.pgp"
-#define CA_CERT_PATH	"/etc/config"
-#define CRL_PATH	"/etc/config"
+#include <config/autoconf.h>
+
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+#define __IPSEC__PREFIX__ "/etc/config"
+#else
+#define __IPSEC__PREFIX__ "/etc"
+#endif
+
+#define X509_CERT_PATH	__IPSEC__PREFIX__ "/"
+#define PGP_CERT_PATH	__IPSEC__PREFIX__ "/pgpcert.pgp"
+#define CA_CERT_PATH	__IPSEC__PREFIX__
+#define CRL_PATH	__IPSEC__PREFIX__
 
 /* chained lists of host/user and ca certificates and crls */
 
@@ -359,6 +367,7 @@ static const x501rdn_t x501rdns[] = {
   {"I"     , {oid_I,      3}, ASN1_PRINTABLESTRING},
   {"E"     , {oid_E,      9}, ASN1_IA5STRING},
   {"Email" , {oid_E,      9}, ASN1_IA5STRING},
+  {"emailAddress" , {oid_E,      9}, ASN1_IA5STRING},
   {"TCGID" , {oid_TCGID, 12}, ASN1_PRINTABLESTRING}
 };
 
@@ -687,6 +696,7 @@ atodn(char *src, chunk_t *dn)
 	    }
 	    break;
 	case UNKNOWN_OID:
+	    break;
 	}
     } while (*src++ != '\0');
 
@@ -1331,6 +1341,7 @@ gntoid(struct id *id, const generalName_t *gn)
     default:
 	id->kind = ID_NONE;
 	id->name = empty_chunk;
+	break;
     }
 }
 
@@ -1384,6 +1395,7 @@ parse_generalNames(chunk_t blob, int level0, bool implicit)
 	case GN_OBJ_REGISTERED_ID:
 	    break;
 	default:
+	    break;
 	}
 
 	if (valid_gn)
@@ -1546,8 +1558,8 @@ parse_x509cert(chunk_t blob, u_int level0, x509cert_t *cert)
 	case X509_OBJ_SIGNATURE:
 	    cert->signature = object;
 	    break;
-
 	default:
+	    break;
 	}
 	objectID++;
     }
@@ -1565,7 +1577,6 @@ parse_x509crl(chunk_t blob, u_int level0, x509crl_t *crl)
     u_char buf[BUF_LEN];
     asn1_ctx_t ctx;
     bool critical;
-    chunk_t extnID;
     chunk_t userCertificate;
     chunk_t object;
     int objectID = 0;
@@ -1634,6 +1645,7 @@ parse_x509crl(chunk_t blob, u_int level0, x509crl_t *crl)
 	    crl->signature = object;
 	    break;
 	default:
+	    break;
 	}
 	objectID++;
     }
@@ -1655,7 +1667,6 @@ check_validity(const x509cert_t *cert)
 	{
 	// FIXME - This is probabaly not the best place to put this
 	// however it makes debugging certificate problems much easier
-	void *ptr;
 	struct id id = empty_id;
 	char buf[IDTOA_BUF];
 
@@ -1881,13 +1892,20 @@ check_crl(const x509crl_t *crl, chunk_t serial)
 bool
 verify_x509cert(const x509cert_t *cert){
 
-    u_char buf[BUF_LEN];
-    x509cert_t *issuer_cert;
-    x509crl_t  *crl;
-    bool rootCA;
+    int pathlen;
 
-    do
+    if (same_dn(cert->issuer, cert->subject))
     {
+	log("end certificate with identical subject and issuer not accepted");
+	return FALSE;
+    }
+
+    for (pathlen = 0; pathlen < MAX_CA_PATH_LEN; pathlen++)
+    {
+	u_char buf[BUF_LEN];
+	x509cert_t *issuer_cert;
+	x509crl_t  *crl;
+
 	DBG(DBG_PARSING,
 	    dntoa(buf, BUF_LEN, cert->subject);
 	    DBG_log("Subject: '%s'",buf);
@@ -1960,13 +1978,20 @@ verify_x509cert(const x509cert_t *cert){
 		log("CRL signature is invalid");
 	    }
 	}
-	/* check if cert is self-signed */
-	rootCA = same_dn(cert->issuer, cert->subject);
+	/* check if cert is a self-signed root ca */
+	if (pathlen > 0 && same_dn(cert->issuer, cert->subject))
+	{
+	    DBG(DBG_CONTROL,
+		DBG_log("reached self-signed root ca")
+	    )
+	    return TRUE;
+	}
         /* otherwise go up one step in the trust chain */
 	cert = issuer_cert;
     }
-    while (!rootCA);
-    return TRUE;
+    
+    log("maximum ca path length of %d levels exceeded", MAX_CA_PATH_LEN);
+    return FALSE;
 }
 
 /*

@@ -49,7 +49,13 @@ DEVICES = \
 	mtd3,c,90,6	mtdr3,c,90,7	mtdblock3,b,31,3	\
 	mtd4,c,90,8	mtdr4,c,90,9	mtdblock4,b,31,4	\
 	mtd5,c,90,10	mtdr5,c,90,11	mtdblock5,b,31,5	\
-	mtd6,c,90,12	mtdr6,c,90,13	mtdblock6,b,31,6
+	mtd6,c,90,12	mtdr6,c,90,13	mtdblock6,b,31,6 	\
+	mtd7,c,90,14	mtdr7,c,90,15	mtdblock7,b,31,7	\
+	mtd8,c,90,16	mtdr8,c,90,17	mtdblock8,b,31,8	\
+	mtd9,c,90,18	mtdr9,c,90,19	mtdblock9,b,31,9	\
+	mtd10,c,90,20	mtdr10,c,90,21	mtdblock10,b,31,10 \
+	\
+	mmc,b,121,0 mmc1,b,121,1 mmc2,b,121,2 mmc3,b,121,3
 
 all:
 	dirs=$(DIRS) ; \
@@ -67,8 +73,12 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) ../romfs /
+	$(ROMFSINST) motd /etc/motd
 	$(ROMFSINST) ../../Generic/httpd /home/httpd
 	$(ROMFSINST) ../../Generic/big/inittab /etc/inittab
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version

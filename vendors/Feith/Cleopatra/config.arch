@@ -4,7 +4,8 @@
 # Vendor specific settings
 #
 
-CONSOLE_BAUD_RATE = 9600
+#CONSOLE_BAUD_RATE = 9600
+CONSOLE_BAUD_RATE = 38400
 
 ############################################################################
 

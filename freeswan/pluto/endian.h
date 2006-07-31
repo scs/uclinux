@@ -1,3 +1,5 @@
+#ifndef __ENDIAN__H__
+#define __ENDIAN__H__
 /* byte-order stuff
  * Copyright (C) 1998, 1999  D. Hugh Redelmeier.
  *
@@ -23,7 +25,7 @@
 #  define __i386__ 1
 #  define MYHACKFORTHIS 1
 # endif
-# include <endian.h>
+# include_next <endian.h>
 # ifdef USE_ASM_BYTEORDER   /* kernel's <asm/byteorder.h> clashes with glibc's <netinet/in.h> */
    /* The problem (in RedHat 5.0) is the typing of the "longs" (32-bit values)
     * in the [nh]to[hn]l functions:
@@ -59,3 +61,5 @@
 #ifndef BYTE_ORDER
  #error BYTE_ORDER must be defined
 #endif
+
+#endif /*__ENDIAN__H__ */

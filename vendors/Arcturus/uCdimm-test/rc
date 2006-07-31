@@ -1,0 +1,65 @@
+#!/bin/sh
+
+# system startup.
+mount -t ramfs none /var
+# Building the read write directories
+mkdir /var/tmp
+mkdir /var/usr
+mkdir /var/run
+mkdir /var/conf
+
+touch /var/tmp/profile
+# Import uCbootloader environment variables we need
+printbenv -q -e HOSTNAME > /etc/profile
+printbenv -q -e IPADDR0 >> /etc/profile
+printbenv -q -e GATEWAY >> /etc/profile
+printbenv -q -e NFSMOUNT >> /etc/profile
+printbenv -q -e RCLOCAL >> /etc/profile
+. /etc/profile
+
+echo Mounting proc file system ...
+mount -t proc proc /proc
+
+# set up the hostname
+if [ "$HOSTNAME" != "(null)" ]; then
+    hostname $HOSTNAME
+else
+    hostname uCdimm
+fi
+
+echo Configuring local network loopback
+ifconfig lo inet 127.0.0.1 netmask 255.0.0.0
+
+if [ "$IPADDR0" != "(null)" ]; then
+    if [ "$IPADDR0" = "dhcp" ]; then
+        echo Configuring IP address for eth0 using DHCP
+        dhcpcd eth0
+    else
+        echo Configuring stored IP address $IPADDR0 on eth0
+        ifconfig eth0 inet $IPADDR0
+    fi
+else
+    echo Configuring default IP address 192.168.1.200 on eth0
+    ifconfig eth0 inet 192.168.1.200 netmask 255.255.255.0
+fi
+
+# setup default routing through gateway
+if [ "$GATEWAY" != "(null)" ]; then
+    echo Adding default route via $GATEWAY
+    route add -net default gw $GATEWAY
+fi
+
+if [ "$NFSMOUNT" != "(null)" ]; then
+    echo NFS mounting $NFSMOUNT
+    portmap &
+    mount $NFSMOUNT
+fi
+
+if [ "$RCLOCAL" != "(null)" ]; then
+    if [ -x $RCLOCAL ]; then
+        echo Running $RCLOCAL
+        $RCLOCAL
+    fi
+fi
+
+exit 0

@@ -69,11 +69,8 @@ struct sockaddr_encap
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:19  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:41  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.16  2001/11/26 09:23:47  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.

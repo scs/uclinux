@@ -5,11 +5,8 @@ tcpdump -i eth1 -N -s 800 ether host 00:60:08:3E:C5:1A and 08:00:20:0E:13:9F -a 
 
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:23:45  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:43:52  vapier
+# sync with upstream uClinux
 #
 # Revision 1.2  1999/04/06 04:54:32  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes

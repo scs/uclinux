@@ -8,12 +8,28 @@ include config
   replace c_pswd (.*)
 include snmpd.conf
   replace r[ow]community (.*)
-include ddns.conf
+include options.*
+  replace radius-secret (.*)
+  replace tacacs-secret (.*)
+include ddns*.conf
   replace user=.*:(.*)
 include bpalogin.conf
   replace password (.*)
 include start
   replace dhcpcd.*-h ([^-][^ ]*).*-I ([^ ]*).*
+include gconfig
+  replace password=(.*)
+  replace .*community=(.*)
 exclude ssh_host_*
 exclude id_*
 exclude identity identity.pub
+exclude *.pem
+include wireless*
+  replace wep_key_.* (.*)
+  replace wpa_psk (.*)
+  replace auth_server_shared_secret (.*)
+include hostapd*.conf
+  replace auth_server_shared_secret=(.*)
+  replace acct_server_shared_secret=(.*)
+include smbpasswd
+  replace [^:]*:[^:]*:([^:]*):([^:]*).*

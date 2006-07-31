@@ -180,6 +180,8 @@ out:
 	return ret;
 }
 
+#define INCR_POINTER(PT, OFF)  PT = (void *)((char *)PT + OFF)
+
 /*	Expand storage for transforms by number delta_trans */
 static int
 db_trans_expand(struct db_context *ctx, int delta_trans)
@@ -200,7 +202,7 @@ db_trans_expand(struct db_context *ctx, int delta_trans)
 	ctx->trans0 = ctx->prop.trans = new_trans;
 	/* update trans_cur (by offset) */
 	offset = (char *)(new_trans) - (char *)(old_trans);
-	(char *)(ctx->trans_cur) += offset;
+	INCR_POINTER(ctx->trans_cur, offset);
 	/* update elem count */
 	ctx->max_trans = max_trans;
 	pfree(old_trans);
@@ -208,6 +210,7 @@ db_trans_expand(struct db_context *ctx, int delta_trans)
 out:
 	return ret;
 }
+
 /*	
  *	Expand storage for attributes by delta_attrs number AND
  *	rewrite trans->attr pointers
@@ -232,11 +235,11 @@ db_attrs_expand(struct db_context *ctx, int delta_attrs)
 	
 	/* update attrs0 and attrs_cur (obviously) */
 	offset = (char *)(new_attrs) - (char *)(old_attrs);
-	(char *)ctx->attrs0 += offset;
-	(char *)ctx->attrs_cur += offset;
+	INCR_POINTER(ctx->attrs0, offset);
+	INCR_POINTER(ctx->attrs_cur, offset);
 	/* for each transform, rewrite attrs pointer by offsetting it */
 	for (t=ctx->prop.trans, ti=0; ti < ctx->prop.trans_cnt; t++, ti++) {
-		(char *)(t->attrs) += offset;
+		INCR_POINTER(t->attrs, offset);
 	}
 	/* update elem count */
 	ctx->max_attrs = max_attrs;

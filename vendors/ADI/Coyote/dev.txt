@@ -62,3 +62,5 @@ crw-	90,6	/dev/flash/config
 crw-	36,10	/dev/ipsec
 crw-	126,0	/dev/ledman
 crw-	108,0	/dev/ppp
+crw-    253,0   /dev/ixDspCodeletModule
+crw-	241,0	/dev/ixNpe

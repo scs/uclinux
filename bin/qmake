@@ -288,8 +288,20 @@ LINE: while (defined($_ = get_line($fh))) {
 	}
 
 	#libssl noise
-	if (/^making all in /
+	if (/^[mM]aking all in /
 			|| /^You may get an error following this line./) {
+		hide_line();
+		next LINE;
+	}
+
+	#uClinux-dist noise
+	if (/ --> /) {
+		hide_line();
+		next LINE;
+	}
+
+	#busybox noise
+	if (/ -> .*busybox/) {
 		hide_line();
 		next LINE;
 	}
@@ -334,6 +346,9 @@ LINE: while (defined($_ = get_line($fh))) {
 				}
 				elsif ($i eq '-c' || $i eq '-S') {
 					$action = 'Compiling';
+				}
+				elsif ($i eq '-M') {
+					$action = 'Generating dependencies for';
 				}
 			}
 			if ($action eq 'Linking') {

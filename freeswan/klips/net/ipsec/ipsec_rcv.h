@@ -63,11 +63,8 @@ extern int sysctl_ipsec_inbound_policy_check;
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.14  2001/09/07 22:15:48  rgb
  * Fix for removal of transport layer protocol handler arg in 2.4.4.

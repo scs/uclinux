@@ -1533,6 +1533,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		default:
+			break;
 		}
 		
 		switch(alg) {
@@ -1560,6 +1561,7 @@ main(int argc, char *argv[])
 			}
 			break;
 		default:
+			break;
 		}
 		
 #ifdef PFKEY_IDENT /* GG: looks wierd, not touched */
@@ -1745,11 +1747,8 @@ main(int argc, char *argv[])
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:56  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:04  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.84  2002/03/08 21:44:04  rgb
  * Update for all GNU-compliant --version strings.

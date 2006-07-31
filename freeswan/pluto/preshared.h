@@ -20,7 +20,7 @@
 # define SHARED_SECRETS_FILE  "/etc/ipsec.secrets"
 #endif
 
-const char *shared_secrets_file;
+extern const char *shared_secrets_file;
 
 extern void load_preshared_secrets(void);
 extern void free_preshared_secrets(void);

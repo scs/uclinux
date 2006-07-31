@@ -41,22 +41,21 @@ Intel IXDP425
    the result into two files ready to load onto the IXDP425 board, zImage
    and ramdisk.gz.
 
-   Only the linux-2.4.x kernel and glibc libraries can currently be used
-   on the IXDP425 board. There is no linux-2.0.x kernel support, uC-libc or
-   uClibc support for this board.
+   Most often linux-2.4.x and glibc are used on this target, but uClibc
+   and linux-2.6.x are also supported on this board.
 
 
-3.  Loading and Running
+3. Loading and Running
 
-    You will need an Intel IXDP425 board fitted with the RedBoot loader in
-    flash. You should firstly setup RedBoot configuration with a client
-    and server IP address (alternatively you can use the builtin DHCP
-    support).
+   You will need an Intel IXDP425 board fitted with the RedBoot loader in
+   flash. You should firstly setup RedBoot configuration with a client
+   and server IP address (alternatively you can use the builtin DHCP
+   support).
 
-    Copy the binary files from uClinux-dist, images/zImage and
-    images/ramdisk.gz to the TFTP area of the download server.
+   Copy the binary files from uClinux-dist, images/zImage and
+   images/ramdisk.gz to the TFTP area of the download server.
 
-    To load and run Linux with RedBoot v1.92, issue the following commands:
+   To load and run Linux with RedBoot v1.92, issue the following commands:
 
         load -r -v -b 0x01600000 zImage
         load -r -v -b 0x00800000 ramdisk.gz
@@ -69,11 +68,11 @@ Intel IXDP425
         go 0x11600000
 
 
-    You should see the Linux boot banner, and then be presented with a
-    bash shell prompt. A reasonable utility set is in place, mostly using
-    the busybox tool set. By default the rc script will run a dhcp client,
-    and so with a local dhcp server in place Linux will acquire an IP
-    address.
+   You should see the Linux boot banner, and then be presented with a
+   bash shell prompt. A reasonable utility set is in place, mostly using
+   the busybox tool set. By default the rc script will run a dhcp client,
+   and so with a local dhcp server in place Linux will acquire an IP
+   address.
 
 
 4. Saving to Flash with RedBoot

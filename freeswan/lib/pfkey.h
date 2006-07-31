@@ -268,11 +268,8 @@ pfkey_register_reply(int satype, struct sadb_msg *sadb_msg);
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:22:25  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:13  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.36  2002/01/20 20:34:49  mcr
  * 	added pfkey_v2_sadb_type_string to decode sadb_type to string.

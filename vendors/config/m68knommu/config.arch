@@ -59,12 +59,15 @@ ARCH          = m68knommu
 ENDIAN        = big
 CROSS_COMPILE = m68k-elf-
 CROSS         = $(CROSS_COMPILE)
+CONFIGURE_HOST = m68k-elf
 
-CC        = $(CROSS_COMPILE)gcc $(CPUFLAGS)
+CONFIG_UCLINUX=y
+
+CC        = ucfront-gcc $(CROSS_COMPILE)gcc $(CPUFLAGS)
 AS        = $(CROSS_COMPILE)as $(CPUFLAGS)
-CXX       = $(CROSS_COMPILE)g++ $(CPUFLAGS)
+CXX       = ucfront-g++ $(CROSS_COMPILE)g++ $(CPUFLAGS)
 AR        = $(CROSS_COMPILE)ar
-LD        = $(CROSS_COMPILE)ld
+LD        = ucfront-ld $(CROSS_COMPILE)ld
 OBJCOPY   = $(CROSS_COMPILE)objcopy
 RANLIB    = $(CROSS_COMPILE)ranlib
 ELF2FLT   = elf2flt
@@ -72,6 +75,9 @@ STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
 
 UCLINUX_BUILD_SET = 0					# have we set a special config below
+
+# Pull in common definitions
+include $(ROOTDIR)/vendors/config/common/config.arch
 
 ifndef DISABLE_SHARED_LIBS
   ifeq ($(CONFIG_BINFMT_SHARED_FLAT),y)
@@ -86,16 +92,15 @@ endif
 #
 
 ifdef UCLINUX_BUILD_LIB
-
   ifdef CONFIG_LIB_DEBUG
 	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O1) -g
   else
 	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O2) -g -fomit-frame-pointer
   endif
-	CFLAGS  += $(CPUFLAGS)
-	CFLAGS  += $(VENDOR_CFLAGS)
-	CFLAGS  += -fno-builtin
-	CFLAGS  += -DEMBED
+	CFLAGS  += -pipe
+	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
+	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
+
   ifdef BUILD_SHARED
 	CFLAGS  += -mid-shared-library
   else
@@ -105,19 +110,21 @@ ifdef UCLINUX_BUILD_LIB
   endif
 
 	# don't want all the CFLAGS for uClibc/Config
-	ARCH_CFLAGS = $(CFLAGS)
-	CFLAGS  += -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include -I$(ROOTDIR)
-	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
+	ARCH_CFLAGS := $(CPUFLAGS) $(CFLAGS)
 
-	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
-
-	# the following is needed for uClinux-2.4
-	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
-
-	LDFLAGS  = $(CFLAGS) -Wl,-elf2flt
-
+	CFLAGS  += -Dlinux -D__linux__ -Dunix
+	CFLAGS  += -D__uClinux__
+	LDFLAGS += -Wl,-elf2flt
   ifndef DISABLE_MOVE_RODATA
   	LDFLAGS += -Wl,-move-rodata
+  endif
+
+  ifdef BUILD_SHARED
+	LDFLAGS += -mid-shared-library -mshared-library-id=0 -Wl,-shared-lib-id,0
+  else
+	ifndef DISABLE_XIP
+	  LDFLAGS  += -msep-data
+	endif
   endif
 
 	UCLINUX_BUILD_SET=1
@@ -130,89 +137,18 @@ endif
 
 ifdef UCLINUX_BUILD_USER
 
-	GCC_DIR = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
-	GCC_LIB = /usr/local/m68k-elf/lib
-
-	SLIBC        = -lc
-	SLIBM        = -lm
-	SLIBNET      = -lnet
-	SLIBDES      = -ldes
-	SLIBAES      = -laes
-	SLIBPCAP     = -lpcap
-	SLIBSSL      = -lssl
-	SLIBCRYPTO   = -lcrypto
-	SLIBCRYPT    = -lcrypt_old
-	SLIBPTHREAD  = -lpthread
-	SLIBSNAPGEARPP = -lsnapgear++
-	SLIBSNAPGEAR   = -lsnapgear -llocale
-	SLIBCONFIGDD   = -lconfigdd
-
   ifdef BUILD_SHARED
-	LIBC          = -Wl,-R,$(ROOTDIR)/lib/$(LIBCDIR)/libc.gdb $(SLIBC)
-	LIBSNAPGEAR   = -Wl,-R,$(ROOTDIR)/prop/libsnapgear/libsnapgear.gdb \
-					$(SLIBSNAPGEAR)
-  else
-	LIBC          = $(SLIBC)
-	LIBSNAPGEAR   = $(SLIBSNAPGEAR)
+	# We use a special shared libc
+	LIBC          = -Wl,-R,$(ROOTDIR)/lib/libc.gdb $(SLIBC)
   endif
-	LIBM        = $(SLIBM)
-	LIBNET      = $(SLIBNET)
-	LIBDES      = $(SLIBDES)
-	LIBAES      = $(SLIBAES)
-	LIBPCAP     = $(SLIBPCAP)
-	LIBSSL      = $(SLIBSSL)
-	LIBCRYPTO   = $(SLIBCRYPTO)
-	LIBCRYPT    = $(SLIBCRYPT)
-	LIBPTHREAD  = $(SLIBPTHREAD)
-	LIBSNAPGEARPP = $(SLIBSNAPGEARPP)
-	LIBCONFIGDD = $(SLIBCONFIGDD)
-
-	LIBGCC      = -lgcc
-	LIBIBERTY   = -liberty
-	LIBIO       = -lio
-	LIBIOSTREAM = -liostream
-	LIBSTDCPP   = -lstdc++
-
-	LDPATH = \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/. \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/lib \
-			-L$(ROOTDIR)/lib/libm \
-			-L$(ROOTDIR)/lib/libnet \
-			-L$(ROOTDIR)/lib/libdes \
-			-L$(ROOTDIR)/lib/libaes \
-			-L$(ROOTDIR)/lib/libpcap \
-			-L$(ROOTDIR)/lib/libssl \
-			-L$(ROOTDIR)/lib/libcrypt_old \
-			-L$(ROOTDIR)/prop/libsnapgear++ \
-			-L$(ROOTDIR)/prop/libsnapgear \
-			-L$(ROOTDIR)/lib/zlib
-
-	INCLIBC = -I$(ROOTDIR)/lib/$(CONFIG_LIBCDIR)/include
-	INCLIBM = -I$(ROOTDIR)/lib/libm
-	INCNET  = -I$(ROOTDIR)/lib/libnet
-	INCDES  = -I$(ROOTDIR)/freeswan/libdes
-	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
-	INCGMP  = -I$(ROOTDIR)/lib/libgmp
-	INCPCAP = -I$(ROOTDIR)/lib/libpcap
-	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
-	INCZ    = -I$(ROOTDIR)/lib/zlib
-	INCVEND = -I$(ROOTDIR)/vendors/include
-	INCSG	= -I$(ROOTDIR)/prop/libsnapgear/include
-	INCSGPP	= -I$(ROOTDIR)/prop/libsnapgear++/include
-	INCCRYPTOLD	= -I$(ROOTDIR)/lib/libcrypt_old
-
   ifdef CONFIG_USER_DEBUG
 	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O1) -g
   else
 	CFLAGS  :=  $(if $(UOPT),$(UOPT),-Os) -g -fomit-frame-pointer
   endif
-
-	CFLAGS  += $(CPUFLAGS)
-	CFLAGS  += $(VENDOR_CFLAGS)
-	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
-	CFLAGS  += $(INCLIBC) $(INCLIBM) $(INCCRYPTOLD)
-	CFLAGS  += -I$(ROOTDIR)
-	CFLAGS  += -fno-builtin
+	CFLAGS  += -pipe
+	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
+	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
 
   ifdef BUILD_SHARED
 	CFLAGS  += -mid-shared-library -mshared-library-id=0
@@ -222,31 +158,28 @@ ifdef UCLINUX_BUILD_USER
 	endif
   endif
 
-	#
-	# the following is needed for 2.4
-	#
-	CFLAGS  += -I$(ROOTDIR)/$(LINUXDIR)/include
+	# don't want all the CFLAGS for uClibc/Config
+	ARCH_CFLAGS := $(CFLAGS)
 
-	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
+	CFLAGS  += -Dlinux -D__linux__ -Dunix
+	CFLAGS  += -D__uClinux__
 
-	LDFLAGS  = $(CFLAGS) -Wl,-elf2flt
+	CXXFLAGS = $(CFLAGS) -nostdinc++ -fno-exceptions
+	CXXSUP := 
+
+	LDFLAGS += -Wl,-elf2flt
   ifndef DISABLE_MOVE_RODATA
   	LDFLAGS += -Wl,-move-rodata
   endif
 
   ifdef BUILD_SHARED
-	LDFLAGS += -Wl,-shared-lib-id,0
+	LDFLAGS += -mid-shared-library -mshared-library-id=0 -Wl,-shared-lib-id,0
+  else
+	ifndef DISABLE_XIP
+	  LDFLAGS  += -msep-data
+	endif
   endif
 
-  ifneq ($(LIBCDIR),libc)
-	LDFLAGS += -nostartfiles $(ROOTDIR)/lib/$(LIBCDIR)/lib/crt0.o
-  endif
-  	LDFLAGS += $(LDPATH)
-
-	LDLIBS         = $(LIBC)
-	LDLIBS_static  = $(SLIBC)
-	CXXLIBS        = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
-	
   ifndef FLTFLAGS
 	FLTFLAGS :=
   endif
@@ -264,6 +197,11 @@ endif
 #
 
 ifeq ($(UCLINUX_BUILD_SET),1)
+	EXTRA_CFLAGS := $(CPUFLAGS)
+
+	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
+  	 
+	LDLIBS = $(LIBBIND)
 endif
 
 ############################################################################

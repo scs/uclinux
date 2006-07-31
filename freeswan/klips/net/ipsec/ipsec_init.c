@@ -84,6 +84,12 @@ char ipsec_init_c_version[] = "RCSID $Id$";
 #include "ipsec_proto.h"
 #include "ipsec_alg.h"
 
+#ifdef USE_IXP4XX_CRYPTO
+#include "ipsec_glue_mbuf.h"
+#include "ipsec_glue.h"
+#include "ipsec_glue_desc.h"
+#endif /* USE_IXP4XX_CRYPTO */
+
 #include <pfkeyv2.h>
 #include <pfkey.h>
 
@@ -171,6 +177,14 @@ ipsec_init(void)
 #ifdef CONFIG_SYSCTL
         error |= ipsec_sysctl_register();
 #endif                                                                          
+
+#ifdef USE_IXP4XX_CRYPTO
+	ipsec_glue_crypto_ctx_init();
+	ipsec_glue_mbuf_header_init();
+	ipsec_glue_mbuf_init();
+	ipsec_glue_rcv_desc_init();
+	ipsec_glue_xmit_desc_init();
+#endif /* USE_IXP4XX_CRYPTO */
 
 #ifdef CONFIG_IPSEC_ALG
  	ipsec_alg_init();
@@ -270,11 +284,8 @@ cleanup_module(void)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:23  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:41  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.80  2002/03/24 07:34:08  rgb
  * Sanity check for at least one of AH or ESP configured.

@@ -425,6 +425,7 @@ extract_object(asn1Object_t const *objects,
 	    return TRUE;
 
 	default:
+	    break;
 	}
 	DBG(ctx->cond,
 	    DBG_dump_chunk("", *object);

@@ -67,3 +67,4 @@ brw-	3,1	/dev/hda1
 brw-	3,2	/dev/hda2
 brw-	3,3	/dev/hda3
 brw-	3,4	/dev/hda4
+crw-	241,0	/dev/ixNpe

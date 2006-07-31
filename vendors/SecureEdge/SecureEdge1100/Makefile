@@ -59,10 +59,10 @@ DEVICES = \
 	ttyq8,c,3,24   ttyq9,c,3,25       ttyqa,c,3,26     ttyqb,c,3,27 \
 	ttyqc,c,3,28   ttyqd,c,3,29       ttyqe,c,3,30     ttyqf,c,3,31 \
 	\
-	ttyr0,c,3,32   ttyr1,c,3,33       ttyr2,c,2,34     ttyr3,c,2,35 \
-	ttyr4,c,3,36   ttyr5,c,3,37       ttyr6,c,2,38     ttyr7,c,2,39 \
-	ttyr8,c,3,40   ttyr9,c,3,41       ttyra,c,2,42     ttyrb,c,2,43 \
-	ttyrc,c,3,44   ttyrd,c,3,45       ttyre,c,2,46     ttyrf,c,2,47 \
+	ttyr0,c,3,32   ttyr1,c,3,33       ttyr2,c,3,34     ttyr3,c,3,35 \
+	ttyr4,c,3,36   ttyr5,c,3,37       ttyr6,c,3,38     ttyr7,c,3,39 \
+	ttyr8,c,3,40   ttyr9,c,3,41       ttyra,c,3,42     ttyrb,c,3,43 \
+	ttyrc,c,3,44   ttyrd,c,3,45       ttyre,c,3,46     ttyrf,c,3,47 \
 	\
 	ttys0,c,3,48   ttys1,c,3,49       ttys2,c,3,50     ttys3,c,3,51 \
 	ttys4,c,3,52   ttys5,c,3,53       ttys6,c,3,54     ttys7,c,3,55 \
@@ -98,21 +98,25 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
 	for i in $(DIRS); do make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) -s /var/tmp /tmp
+	$(ROMFSINST) -s /var/tmp/log /dev/log
 	$(ROMFSINST) ../romfs /
 	$(ROMFSINST) -p 755 ../romfs/etc/default/ip-up /etc/default/ip-up
 	$(ROMFSINST) -p 755 ../romfs/etc/default/ip-down /etc/default/ip-down
-	$(ROMFSINST) -p 755 ../romfs/etc/default/dhcpcd-change /etc/default/dhcpcd-change
+	rm $(ROMFSDIR)/etc/default/config
+	rm $(ROMFSDIR)/etc/default/dhcpcd-change
+	rm $(ROMFSDIR)/etc/default/ip-down
+	rm $(ROMFSDIR)/etc/default/ip-up
 	$(ROMFSINST) /etc/rc
+	$(ROMFSINST) start /etc/default/start
 	$(ROMFSINST) /etc/inittab
-	for f in $(ROMFSDIR)/etc/default{,-static}/inittab; do	\
-		grep -v ^dns: $$f >$(ROMFSDIR)/temp-file; 	\
-		mv -f $(ROMFSDIR)/temp-file $$f;			\
-	done
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 image:

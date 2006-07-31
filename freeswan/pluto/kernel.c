@@ -1048,6 +1048,7 @@ could_route(struct connection *c)
     struct connection *ero	/* who, if anyone, owns our eroute? */
 	, *ro = route_owner(c, &ero);	/* who owns our route? */
 
+#if 0
     /* if this is a Road Warrior template, we cannot route.
      * Opportunistic template is OK.
      */
@@ -1056,6 +1057,7 @@ could_route(struct connection *c)
 	loglog(RC_ROUTE, "cannot route Road Warrior template");
 	return FALSE;
     }
+#endif
 
     /* if we don't know nexthop, we cannot route */
     if (isanyaddr(&c->this.host_nexthop))
@@ -1242,8 +1244,11 @@ finish_pfkey_msg(struct sadb_ext *extensions[SADB_EXT_MAX + 1]
 	    {
 		if (r < 0)
 		{
-		    log("This connection is probably expecting a road warrior or the IP address"
-		        " of the remote host's DNS hostname has changed");
+		    if (!strcmp("SADB_DELETE", sparse_val_show(pfkey_type_names
+			    , pfkey_msg->sadb_msg_type))) {
+			    log("This connection is probably expecting a road warrior or the IP address"
+		        	" of the remote host's DNS hostname has changed");
+		    }
 		    log_errno((e
 			, "pfkey write() of %s message %u"
 			  " for %s %s failed"
@@ -1686,7 +1691,7 @@ scan_proc_shunts(void)
 	struct eroute_info *p = orphaned_holds;
 
 	orphaned_holds = p->next;
-	pfree(orphaned_holds);
+	pfree(p);
     }
 
     /* decode the /proc file.  Don't do anything strenuous to it

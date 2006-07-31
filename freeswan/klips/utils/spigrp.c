@@ -486,11 +486,8 @@ main(int argc, char **argv)
 }
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:58  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:05  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.41  2002/03/08 21:44:05  rgb
  * Update for all GNU-compliant --version strings.

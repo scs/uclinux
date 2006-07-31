@@ -37,6 +37,7 @@ obj-y := ipsec_init.o ipsec_sa.o ipsec_radij.o radij.o
 obj-y += ipsec_life.o ipsec_proc.o
 obj-y += ipsec_tunnel.o ipsec_rcv.o sysctl_net_ipsec.o 
 obj-y +=  pfkey_v2.o pfkey_v2_parser.o 
+obj-$(CONFIG_IXP4XX_CRYPTO) += ipsec_glue_mbuf.o ipsec_glue.o ipsec_glue_desc.o
 
 export-objs := radij.o
 
@@ -51,6 +52,12 @@ EXTRA_CFLAGS += -DREDHAT_BOGOSITY
 endif
 ifeq ($(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION),2.4.3-12)
 EXTRA_CFLAGS += -DREDHAT_BOGOSITY
+endif
+
+ifdef CONFIG_IXP4XX_CRYPTO
+EXTRA_CFLAGS += 	-I$(ROOTDIR)/modules/ixp425/ixp400-1.4/ixp400_xscale_sw/src/include \
+			-I../../include/linux \
+			-DUSE_IXP4XX_CRYPTO
 endif
 
 #ifeq ($(CONFIG_IPSEC_DEBUG),y)
@@ -158,11 +165,8 @@ tar:
 
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:23:13  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:43:39  vapier
+# sync with upstream uClinux
 #
 # Revision 1.39  2002/01/17 04:39:40  rgb
 # Take compile options from top level Makefile.inc

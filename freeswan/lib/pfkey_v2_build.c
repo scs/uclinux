@@ -188,14 +188,15 @@ pfkey_msg_hdr_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_msg = (struct sadb_msg*)
-	     MALLOC(sizeof(struct sadb_msg)))) {
+	pfkey_msg = (struct sadb_msg*)
+	     MALLOC(sizeof(struct sadb_msg));
+	if(!pfkey_msg) {
 		DEBUGGING(
 			"pfkey_msg_hdr_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_msg;
 	memset(pfkey_msg, 0, sizeof(struct sadb_msg));
 
 	pfkey_msg->sadb_msg_len = sizeof(struct sadb_msg) / IPSEC_PFKEYv2_ALIGN;
@@ -301,14 +302,15 @@ pfkey_sa_build(struct sadb_ext **	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 	
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_sa = (struct sadb_sa*)
-	     MALLOC(sizeof(struct sadb_sa)))) {
+	pfkey_sa = (struct sadb_sa*)
+	     MALLOC(sizeof(struct sadb_sa));
+	if(!pfkey_sa) {
 		DEBUGGING(
 			"pfkey_sa_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_sa;
 	memset(pfkey_sa, 0, sizeof(struct sadb_sa));
 	
 	pfkey_sa->sadb_sa_len = sizeof(*pfkey_sa) / IPSEC_PFKEYv2_ALIGN;
@@ -356,14 +358,15 @@ pfkey_lifetime_build(struct sadb_ext **	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_lifetime = (struct sadb_lifetime*)
-	     MALLOC(sizeof(struct sadb_lifetime)))) {
+	pfkey_lifetime = (struct sadb_lifetime*)
+	     MALLOC(sizeof(struct sadb_lifetime));
+	if(!pfkey_lifetime) {
 		DEBUGGING(
 			"pfkey_lifetime_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_lifetime;
 	memset(pfkey_lifetime, 0, sizeof(struct sadb_lifetime));
 
 	pfkey_lifetime->sadb_lifetime_len = sizeof(struct sadb_lifetime) / IPSEC_PFKEYv2_ALIGN;
@@ -479,14 +482,15 @@ pfkey_address_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EAFNOSUPPORT); /* not supported yet */
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_address = (struct sadb_address*)
-	     MALLOC(ALIGN_N(sizeof(struct sadb_address) + saddr_len, IPSEC_PFKEYv2_ALIGN) ))) {
+	 pfkey_address = (struct sadb_address*)
+	     MALLOC(ALIGN_N(sizeof(struct sadb_address) + saddr_len, IPSEC_PFKEYv2_ALIGN) );
+	if(!pfkey_address) {
 		DEBUGGING(
 			"pfkey_lifetime_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_address;
 	memset(pfkey_address,
 	       0,
 	       ALIGN_N(sizeof(struct sadb_address) + saddr_len,
@@ -551,15 +555,16 @@ pfkey_key_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_key = (struct sadb_key*)
+	 pfkey_key = (struct sadb_key*)
 	     MALLOC(sizeof(struct sadb_key) +
-				    DIVUP(key_bits, 64) * IPSEC_PFKEYv2_ALIGN))) {
+				    DIVUP(key_bits, 64) * IPSEC_PFKEYv2_ALIGN);
+	if(!pfkey_key) {
 		DEBUGGING(
 			"pfkey_key_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*) pfkey_key;
 	memset(pfkey_key,
 	       0,
 	       sizeof(struct sadb_key) +
@@ -638,14 +643,15 @@ pfkey_ident_build(struct sadb_ext**	pfkey_ext,
 	}
 #endif
 	    
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_ident = (struct sadb_ident*)
-	     MALLOC(ident_len * IPSEC_PFKEYv2_ALIGN))) {
+	pfkey_ident = (struct sadb_ident*)
+	     MALLOC(ident_len * IPSEC_PFKEYv2_ALIGN);
+	if(!pfkey_ident) {
 		DEBUGGING(
 			"pfkey_ident_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_ident;
 	memset(pfkey_ident, 0, ident_len * IPSEC_PFKEYv2_ALIGN);
 	
 	pfkey_ident->sadb_ident_len = ident_len;
@@ -692,15 +698,16 @@ pfkey_sens_build(struct sadb_ext**	pfkey_ext,
 		(*pfkey_ext)->sadb_ext_type);
 	SENDERR(EINVAL); /* don't process these yet */
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_sens = (struct sadb_sens*)
+	 pfkey_sens = (struct sadb_sens*)
 	     MALLOC(sizeof(struct sadb_sens) +
-		    (sens_len + integ_len) * sizeof(uint64_t)))) {
+		    (sens_len + integ_len) * sizeof(uint64_t));
+	if(!pfkey_sens) {
 		DEBUGGING(
 			"pfkey_sens_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_sens;
 	memset(pfkey_sens,
 	       0,
 	       sizeof(struct sadb_sens) +
@@ -751,15 +758,16 @@ pfkey_prop_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_prop = (struct sadb_prop*)
-	     MALLOC(sizeof(struct sadb_prop) +
-		    comb_num * sizeof(struct sadb_comb)))) {
+	pfkey_prop = (struct sadb_prop*)
+	MALLOC(sizeof(struct sadb_prop) +
+		comb_num * sizeof(struct sadb_comb));
+	if(!pfkey_prop) {
 		DEBUGGING(
 			"pfkey_prop_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_prop;
 	memset(pfkey_prop,
 	       0,
 	       sizeof(struct sadb_prop) +
@@ -832,16 +840,17 @@ pfkey_supported_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_supported = (struct sadb_supported*)
-	     MALLOC(sizeof(struct sadb_supported) +
-					       alg_num *
-					       sizeof(struct sadb_alg)))) {
+	 pfkey_supported = (struct sadb_supported*)
+	 MALLOC(sizeof(struct sadb_supported) +
+					   alg_num *
+					   sizeof(struct sadb_alg));
+	if(!pfkey_supported) {
 		DEBUGGING(
 			"pfkey_supported_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_supported;
 	memset(pfkey_supported,
 	       0,
 	       sizeof(struct sadb_supported) +
@@ -913,14 +922,14 @@ pfkey_spirange_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EEXIST);
 	}
 	
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_spirange = (struct sadb_spirange*)
-	     MALLOC(sizeof(struct sadb_spirange)))) {
+	pfkey_spirange = (struct sadb_spirange*)MALLOC(sizeof(struct sadb_spirange));
+	if(!pfkey_spirange) {
 		DEBUGGING(
 			"pfkey_spirange_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_spirange;
 	memset(pfkey_spirange,
 	       0,
 	       sizeof(struct sadb_spirange));
@@ -957,14 +966,15 @@ pfkey_x_kmprivate_build(struct sadb_ext**	pfkey_ext)
 		(*pfkey_ext)->sadb_ext_type);
 	SENDERR(EINVAL); /* don't process these yet */
 
-	if(!(*pfkey_ext = (struct sadb_ext*)
-	     pfkey_x_kmprivate = (struct sadb_x_kmprivate*)
-	     MALLOC(sizeof(struct sadb_x_kmprivate)))) {
+	pfkey_x_kmprivate = (struct sadb_x_kmprivate*)
+	 MALLOC(sizeof(struct sadb_x_kmprivate));
+	if(!pfkey_x_kmprivate) {
 		DEBUGGING(
 			"pfkey_x_kmprivate_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_x_kmprivate;
 	memset(pfkey_x_kmprivate,
 	       0,
 	       sizeof(struct sadb_x_kmprivate));
@@ -1011,13 +1021,14 @@ pfkey_x_satype_build(struct sadb_ext**	pfkey_ext,
 		SENDERR(EINVAL);
 	}
 
-	if(!(*pfkey_ext = (struct sadb_ext*)pfkey_x_satype = (struct sadb_x_satype*)
-	     MALLOC(sizeof(struct sadb_x_satype)))) {
+	pfkey_x_satype = (struct sadb_x_satype*)MALLOC(sizeof(struct sadb_x_satype));
+	if(!pfkey_x_satype) {
 		DEBUGGING(
 			"pfkey_x_satype_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_x_satype;
 	memset(pfkey_x_satype,
 	       0,
 	       sizeof(struct sadb_x_satype));
@@ -1068,13 +1079,14 @@ pfkey_x_debug_build(struct sadb_ext**	pfkey_ext,
 		"tunnel=%x netlink=%x xform=%x eroute=%x spi=%x radij=%x esp=%x ah=%x rcv=%x pfkey=%x ipcomp=%x verbose=%x?\n",
 		tunnel, netlink, xform, eroute, spi, radij, esp, ah, rcv, pfkey, ipcomp, verbose);
 
-	if(!(*pfkey_ext = (struct sadb_ext*)pfkey_x_debug = (struct sadb_x_debug*)
-	     MALLOC(sizeof(struct sadb_x_debug)))) {
+	pfkey_x_debug = (struct sadb_x_debug*)MALLOC(sizeof(struct sadb_x_debug));
+	if(!pfkey_x_debug) {
 		DEBUGGING(
 			"pfkey_x_debug_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_x_debug;
 #if 0
 	memset(pfkey_x_debug,
 	       0,
@@ -1128,13 +1140,14 @@ pfkey_x_nat_t_type_build(struct sadb_ext**	pfkey_ext,
 		"pfkey_x_nat_t_type_build: "
 		"type=%d\n", type);
 
-	if(!(*pfkey_ext = (struct sadb_ext*)pfkey_x_nat_t_type = (struct sadb_x_nat_t_type*)
-	     MALLOC(sizeof(struct sadb_x_nat_t_type)))) {
+	pfkey_x_nat_t_type = (struct sadb_x_nat_t_type*)MALLOC(sizeof(struct sadb_x_nat_t_type));
+	if(!pfkey_x_nat_t_type) {
 		DEBUGGING(
 			"pfkey_x_nat_t_type_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_x_nat_t_type;
 	
 	pfkey_x_nat_t_type->sadb_x_nat_t_type_len = sizeof(struct sadb_x_nat_t_type) / IPSEC_PFKEYv2_ALIGN;
 	pfkey_x_nat_t_type->sadb_x_nat_t_type_exttype = SADB_X_EXT_NAT_T_TYPE;
@@ -1180,13 +1193,14 @@ pfkey_x_nat_t_port_build(struct sadb_ext**	pfkey_ext,
 		"pfkey_x_nat_t_port_build: "
 		"ext=%d, port=%d\n", exttype, port);
 
-	if(!(*pfkey_ext = (struct sadb_ext*)pfkey_x_nat_t_port = (struct sadb_x_nat_t_port*)
-	     MALLOC(sizeof(struct sadb_x_nat_t_port)))) {
+	pfkey_x_nat_t_port = (struct sadb_x_nat_t_port*)MALLOC(sizeof(struct sadb_x_nat_t_port));
+	if(!pfkey_x_nat_t_port) {
 		DEBUGGING(
 			"pfkey_x_nat_t_port_build: "
 			"memory allocation failed\n");
 		SENDERR(ENOMEM);
 	}
+	*pfkey_ext = (struct sadb_ext*)pfkey_x_nat_t_port;
 	
 	pfkey_x_nat_t_port->sadb_x_nat_t_port_len = sizeof(struct sadb_x_nat_t_port) / IPSEC_PFKEYv2_ALIGN;
 	pfkey_x_nat_t_port->sadb_x_nat_t_port_exttype = exttype;
@@ -1301,7 +1315,7 @@ pfkey_msg_build(struct sadb_msg **pfkey_msg, struct sadb_ext *extensions[], int 
 			memcpy(pfkey_ext,
 			       extensions[ext],
 			       (extensions[ext])->sadb_ext_len * IPSEC_PFKEYv2_ALIGN);
-			((char*)pfkey_ext) += (extensions[ext])->sadb_ext_len * IPSEC_PFKEYv2_ALIGN;
+			pfkey_ext = (char *)pfkey_ext + (extensions[ext])->sadb_ext_len * IPSEC_PFKEYv2_ALIGN;
 			/* Mark that we have seen this extension and remember the header location */
 			extensions_seen |= ( 1 << ext );
 		}
@@ -1342,11 +1356,8 @@ errlab:
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:22:26  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:47  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:44:13  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.31  2002/01/29 22:25:35  rgb
  * Re-add ipsec_kversion.h to keep MALLOC happy.

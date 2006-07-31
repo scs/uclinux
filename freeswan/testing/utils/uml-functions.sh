@@ -86,11 +86,8 @@ setup_host() {
 
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:24:31  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:50  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:44:48  vapier
+# sync with upstream uClinux
 #
 # Revision 1.5  2002/04/04 00:19:02  mcr
 # 	when setting up root file systems, see if we built an ipsec.o

@@ -40,6 +40,7 @@
 #else 
 #  include <sys/types.h>
 #endif
+#include <linux/config.h>
 
 // CONFIGURATION OPTIONS (see also aes.c)
 //
@@ -85,6 +86,9 @@ typedef struct
 #if !defined(AES_BLOCK_SIZE)
 extern void aes_set_blk(aes_context *, const int);
 #endif
+#ifdef CONFIG_IXP4XX_CRYPTO
+extern void ike_aes_set_key(aes_context *, const unsigned char [], const int, const int);
+#endif /* CONFIG_IXP4XX_CRYPTO */
 extern void aes_set_key(aes_context *, const unsigned char [], const int, const int);
 extern void aes_encrypt(const aes_context *, const unsigned char [], unsigned char []);
 extern void aes_decrypt(const aes_context *, const unsigned char [], unsigned char []);

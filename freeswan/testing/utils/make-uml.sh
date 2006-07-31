@@ -158,11 +158,8 @@ done
     
 #
 # $Log$
-# Revision 1.1  2004/07/19 09:24:31  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:50  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:44:48  vapier
+# sync with upstream uClinux
 #
 # Revision 1.14.2.1  2002/04/07 17:33:30  mcr
 #    fixes for make-uml desires for building static UML kernels

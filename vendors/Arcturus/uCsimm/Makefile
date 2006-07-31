@@ -36,7 +36,8 @@ DEVICES = \
 	zero,c,1,5     random,c,1,8       urandom,c,1,9 \
 	\
 	ipsec,c,36,10 \
-	ledman,c,126,0
+	ledman,c,126,0 \
+	ppp,c,108,0
 
 
 all:
@@ -55,6 +56,9 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	dirs=$(DIRS) ; for i in $$dirs; do  make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) -s /bin /sbin
@@ -66,6 +70,9 @@ romfs:
 		$(ROMFSINST) passwd.$(LIBCDIR) /etc/passwd; \
 	else \
 		$(ROMFSINST) /etc/passwd; \
+	fi
+	if [ -f group.$(LIBCDIR) ]; then \
+		$(ROMFSINST) group.$(LIBCDIR) /etc/group; \
 	fi
 	$(ROMFSINST) ../../Generic/httpd /home/httpd
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version

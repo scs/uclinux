@@ -156,6 +156,8 @@ struct connection {
     struct alg_info_esp *alg_info_esp;
     struct alg_info_ike *alg_info_ike;
 
+    int retransmit_trigger;
+
     struct host_pair *host_pair;
     struct connection *hp_next;	/* host pair list link */
 
@@ -178,9 +180,11 @@ extern size_t format_end(char *buf, size_t buf_len
 struct whack_message;	/* forward declaration of tag whack_msg */
 extern void add_connection(const struct whack_message *wm);
 extern void initiate_connection(const char *name, int whackfd);
+extern void initiate_connections_by_peer(struct connection *c);
 extern void initiate_opportunistic(const ip_address *our_client
     , const ip_address *peer_client, bool held, int whackfd);
 extern void terminate_connection(const char *nm);
+extern void terminate_connections_by_peer(struct connection *c);
 extern void release_connection(struct connection *c);
 extern void delete_connection(struct connection *c);
 extern void delete_every_connection(void);

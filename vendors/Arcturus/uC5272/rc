@@ -1,35 +1,47 @@
 #!/bin/sh
-#
+
+echo ------------------------
+echo - Example uC5272 image -
+echo ------------------------
+
 # system startup.
-
-# set up the hostname
-hostname uC5272
-
-# mount & setup the ramdisk
-mount -n -t ramfs ramfs /var
+mount -t ramfs none /var
+# Building the read write directories
 mkdir /var/tmp
-mkdir /var/log
+mkdir /var/usr
 mkdir /var/run
-mkdir /var/lock
-mkdir /var/empty
+mkdir /var/conf
+mkdir /var/dhcpc
 
-# Mount the proc filesystem
+# Import uCbootloader environment variables we need
+printbenv -q -e HOSTNAME        >  /etc/profile
+printbenv -q -e IPADDR0         >> /etc/profile
+printbenv -q -e IPADDR1         >> /etc/profile
+printbenv -q -e GATEWAY         >> /etc/profile
+printbenv -q -e NFSMOUNT        >> /etc/profile
+printbenv -q -e RCLOCAL         >> /etc/profile
+
+. /etc/profile
+
+# echo Mounting proc file system ...
 mount -t proc proc /proc
 
-# Configure local loopback:
-ifconfig lo 127.0.0.1 netmask 255.0.0.0
+# set up the hostname
+if [ "$HOSTNAME" != "(null)" ]; then
+    hostname $HOSTNAME
+else
+    hostname uC5272
+fi
 
-# Configure internal 10/100 ethernet controller:
-ifconfig eth0 inet 192.168.1.200 netmask 255.255.255.0
+# Run network setup
+. /etc/rc.d/rc.net
 
-# Configure CrystalLan 10base-T controller:
-# ifconfig eth1 inet 192.168.2.200 netmask 255.255.255.0
-# or:
-# /bin/dhcpcd eth1 &
 
-# Uncomment this line to add a default gateway
-# route add -net 0.0.0.0 netmask 0.0.0.0 gw 192.168.1.100
+if [ "$RCLOCAL" != "(null)" ]; then
+    if [ -x $RCLOCAL ]; then
+        echo Running $RCLOCAL
+        $RCLOCAL
+    fi
+fi
 
-# Uncomment these lines to automatically mount an nfs filesystem:
-# /bin/portmap &
-# /bin/mount 192.168.1.100:/tftpboot /mnt
+exit 0

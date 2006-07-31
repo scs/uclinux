@@ -17,4 +17,4 @@ insmod hostap_crypt_wep
 insmod hostap
 insmod hostap_pci
 /bin/sh /etc/config/start
-exit 0
+echo "/etc/rc complete."

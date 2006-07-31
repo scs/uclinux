@@ -24,24 +24,31 @@ CONFIG_MICROBLAZE=y
 #
 # Processor type and features
 #
+
+#
+# Platform
+#
+# CONFIG_UCLINUX_AUTO is not set
+# CONFIG_ML401 is not set
+CONFIG_MBVANILLA=y
+# CONFIG_EGRET01 is not set
+# CONFIG_SUZAKU is not set
+CONFIG_MODEL_RAM=y
+# CONFIG_MODEL_ROM is not set
+CONFIG_CPU_CLOCK_FREQ=66000000
+# CONFIG_MICROBLAZE_MSRSETCLR is not set
 CONFIG_MICROBLAZE_HARD_MULT=y
 CONFIG_MICROBLAZE_HARD_DIV=y
 CONFIG_MICROBLAZE_HARD_BARREL=y
 # CONFIG_MICROBLAZE_ICACHE is not set
 # CONFIG_MICROBLAZE_DCACHE is not set
+CONFIG_MICROBLAZE_DEBUG_UART=y
+# CONFIG_UARTLITE_SERIAL_CONSOLE is not set
 CONFIG_XILINX_GPIO=y
 # CONFIG_XILINX_ENET is not set
 # CONFIG_XILINX_SYSACE is not set
 # CONFIG_MBVANILLA_CMDLINE is not set
-CONFIG_CPU_CLOCK_FREQ=66000000
 CONFIG_ZERO_BSS=y
-
-#
-# Platform
-#
-CONFIG_MBVANILLA=y
-# CONFIG_EGRET01 is not set
-# CONFIG_SUZAKU is not set
 
 #
 # Debug Logging
@@ -51,6 +58,7 @@ CONFIG_MICROBLAZE_DEBUGGING=y
 #
 # General setup
 #
+# CONFIG_PCI is not set
 # CONFIG_NET is not set
 # CONFIG_DISK is not set
 # CONFIG_HOTPLUG is not set
@@ -74,6 +82,7 @@ CONFIG_MTD=y
 CONFIG_MTD_PARTITIONS=y
 # CONFIG_MTD_CONCAT is not set
 # CONFIG_MTD_REDBOOT_PARTS is not set
+# CONFIG_MTD_UCBOOTSTRAP_PARTS is not set
 # CONFIG_MTD_CMDLINE_PARTS is not set
 
 #
@@ -108,19 +117,25 @@ CONFIG_MTD_RAM=y
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_PHYSMAP is not set
+# CONFIG_MTD_UCBOOTSTRAP is not set
 # CONFIG_MTD_DRAGONIX is not set
 # CONFIG_MTD_NETtel is not set
 # CONFIG_MTD_SNAPGEODE is not set
 # CONFIG_MTD_NETteluC is not set
 CONFIG_MTD_MBVANILLA=y
 # CONFIG_FLASHAUTO is not set
+# CONFIG_FLASHNONE is not set
 # CONFIG_FLASH128KB is not set
 # CONFIG_FLASH1MB is not set
 # CONFIG_FLASH2MB is not set
 # CONFIG_FLASH4MB is not set
 # CONFIG_FLASH6MB is not set
 CONFIG_FLASH8MB=y
+# CONFIG_MTD_MB_AUTO is not set
+# CONFIG_MTD_ML401 is not set
+# CONFIG_MTD_SUZAKU is not set
 # CONFIG_MTD_KeyTechnology is not set
+# CONFIG_MTD_SED_SIOSIII is not set
 # CONFIG_MTD_UCLINUX is not set
 # CONFIG_MTD_PCI is not set
 # CONFIG_MTD_PCMCIA is not set
@@ -131,6 +146,7 @@ CONFIG_FLASH8MB=y
 # CONFIG_MTD_PMC551 is not set
 # CONFIG_MTD_SLRAM is not set
 # CONFIG_MTD_MTDRAM is not set
+# CONFIG_MTD_MTDCNXT is not set
 # CONFIG_MTD_BLKMTD is not set
 
 #
@@ -148,11 +164,6 @@ CONFIG_FLASH8MB=y
 # CONFIG_MTD_NAND is not set
 
 #
-# Parallel port support
-#
-# CONFIG_PARPORT is not set
-
-#
 # Block devices
 #
 # CONFIG_BLK_DEV_FD is not set
@@ -164,6 +175,7 @@ CONFIG_FLASH8MB=y
 # CONFIG_CISS_MONITOR_THREAD is not set
 # CONFIG_BLK_DEV_DAC960 is not set
 # CONFIG_BLK_DEV_UMEM is not set
+# CONFIG_BLK_DEV_SX8 is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 CONFIG_BLK_DEV_RAM=y
@@ -174,15 +186,48 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # CONFIG_BLK_STATS is not set
 
 #
+# Input core support
+#
+# CONFIG_INPUT is not set
+# CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_INPUT_JOYDEV is not set
+# CONFIG_INPUT_EVDEV is not set
+# CONFIG_INPUT_UINPUT is not set
+
+#
 # Character devices
 #
 # CONFIG_LEDMAN is not set
+# CONFIG_SNAPDOG is not set
+# CONFIG_FAST_TIMER is not set
 # CONFIG_DS1302 is not set
+# CONFIG_M41T11M6 is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL is not set
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+
+#
+# Serial drivers
+#
+# CONFIG_SERIAL_8250 is not set
+# CONFIG_SERIAL_8250_CONSOLE is not set
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_MANY_PORTS is not set
+# CONFIG_SERIAL_8250_SHARE_IRQ is not set
+# CONFIG_SERIAL_8250_DETECT_IRQ is not set
+# CONFIG_SERIAL_8250_MULTIPORT is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 # CONFIG_UNIX98_PTYS is not set
+# CONFIG_PRINTER is not set
+# CONFIG_PPDEV is not set
+# CONFIG_TIPAR is not set
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
 
 #
 # I2C support
@@ -194,41 +239,20 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 #
 # CONFIG_BUSMOUSE is not set
 # CONFIG_MOUSE is not set
+# CONFIG_EDB7312_TS is not set
 
 #
 # Joysticks
 #
 # CONFIG_INPUT_GAMEPORT is not set
-# CONFIG_INPUT_NS558 is not set
-# CONFIG_INPUT_LIGHTNING is not set
-# CONFIG_INPUT_PCIGAME is not set
-# CONFIG_INPUT_CS461X is not set
-# CONFIG_INPUT_EMU10K1 is not set
-# CONFIG_INPUT_SERIO is not set
-# CONFIG_INPUT_SERPORT is not set
 
 #
-# Joysticks
+# Input core support is needed for gameports
 #
-# CONFIG_INPUT_ANALOG is not set
-# CONFIG_INPUT_A3D is not set
-# CONFIG_INPUT_ADI is not set
-# CONFIG_INPUT_COBRA is not set
-# CONFIG_INPUT_GF2K is not set
-# CONFIG_INPUT_GRIP is not set
-# CONFIG_INPUT_INTERACT is not set
-# CONFIG_INPUT_TMDC is not set
-# CONFIG_INPUT_SIDEWINDER is not set
-# CONFIG_INPUT_IFORCE_USB is not set
-# CONFIG_INPUT_IFORCE_232 is not set
-# CONFIG_INPUT_WARRIOR is not set
-# CONFIG_INPUT_MAGELLAN is not set
-# CONFIG_INPUT_SPACEORB is not set
-# CONFIG_INPUT_SPACEBALL is not set
-# CONFIG_INPUT_STINGER is not set
-# CONFIG_INPUT_DB9 is not set
-# CONFIG_INPUT_GAMECON is not set
-# CONFIG_INPUT_TURBOGRAFX is not set
+
+#
+# Input core support is needed for joysticks
+#
 # CONFIG_QIC02_TAPE is not set
 # CONFIG_IPMI_HANDLER is not set
 # CONFIG_IPMI_PANIC_EVENT is not set
@@ -245,6 +269,7 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
+# CONFIG_SCx200 is not set
 # CONFIG_SCx200_GPIO is not set
 # CONFIG_AMD_PM768 is not set
 # CONFIG_NVRAM is not set
@@ -263,6 +288,11 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # Direct Rendering Manager (XFree86 DRI support)
 #
 # CONFIG_DRM is not set
+
+#
+# Misc devices
+#
+# CONFIG_MICROBLAZE_FSLFIFO is not set
 
 #
 # File systems
@@ -292,7 +322,9 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # CONFIG_EFS_FS is not set
 # CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
+# CONFIG_YAFFS_FS is not set
 # CONFIG_CRAMFS is not set
+# CONFIG_SQUASHFS is not set
 # CONFIG_TMPFS is not set
 CONFIG_RAMFS=y
 # CONFIG_ISO9660_FS is not set
@@ -307,6 +339,7 @@ CONFIG_RAMFS=y
 # CONFIG_NTFS_RW is not set
 # CONFIG_HPFS_FS is not set
 CONFIG_PROC_FS=y
+CONFIG_PROC_NDYNAMIC=4096
 # CONFIG_DEVFS_FS is not set
 # CONFIG_DEVFS_MOUNT is not set
 # CONFIG_DEVFS_DEBUG is not set
@@ -320,9 +353,15 @@ CONFIG_EXT2_FS=y
 # CONFIG_UDF_RW is not set
 # CONFIG_UFS_FS is not set
 # CONFIG_UFS_FS_WRITE is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_XFS_QUOTA is not set
+# CONFIG_XFS_RT is not set
+# CONFIG_XFS_TRACE is not set
+# CONFIG_XFS_DEBUG is not set
 # CONFIG_NCPFS_NLS is not set
 # CONFIG_SMB_FS is not set
 # CONFIG_ZISOFS_FS is not set
+# CONFIG_COREDUMP_PRINTK is not set
 
 #
 # Partition Types
@@ -330,6 +369,11 @@ CONFIG_EXT2_FS=y
 # CONFIG_PARTITION_ADVANCED is not set
 # CONFIG_SMB_NLS is not set
 # CONFIG_NLS is not set
+
+#
+# Multimedia devices
+#
+# CONFIG_VIDEO_DEV is not set
 
 #
 # Sound

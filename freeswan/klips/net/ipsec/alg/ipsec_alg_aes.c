@@ -149,7 +149,8 @@ IPSEC_ALG_MODULE_INIT( ipsec_aes_init )
 			ipsec_alg_AES.ixt_e_keylen=keymaxbits*8;
 	}
 	ret=register_ipsec_alg_enc(&ipsec_alg_AES);
-	printk(__FUNCTION__ "(alg_type=%d alg_id=%d name=%s): ret=%d\n", 
+	printk("%s(alg_type=%d alg_id=%d name=%s): ret=%d\n", 
+			__FUNCTION__,
 			ipsec_alg_AES.ixt_alg_type, 
 			ipsec_alg_AES.ixt_alg_id, 
 			ipsec_alg_AES.ixt_name, 
@@ -159,7 +160,8 @@ IPSEC_ALG_MODULE_INIT( ipsec_aes_init )
 				ipsec_alg_AES.ixt_alg_type,
 				ipsec_alg_AES.ixt_alg_id, 
 				test);
-		printk(__FUNCTION__ "(alg_type=%d alg_id=%d): test_ret=%d\n", 
+		printk("%s(alg_type=%d alg_id=%d): test_ret=%d\n", 
+				__FUNCTION__,
 				ipsec_alg_AES.ixt_alg_type, 
 				ipsec_alg_AES.ixt_alg_id, 
 				test_ret);
@@ -169,7 +171,8 @@ IPSEC_ALG_MODULE_INIT( ipsec_aes_init )
 		int ret;
 		ipsec_alg_AES_MAC.ixt_alg_id=auth_id;
 		ret=register_ipsec_alg_auth(&ipsec_alg_AES_MAC);
-		printk(__FUNCTION__ "(alg_type=%d alg_id=%d name=%s): ret=%d\n", 
+		printk("%s(alg_type=%d alg_id=%d name=%s): ret=%d\n", 
+				__FUNCTION__,
 				ipsec_alg_AES_MAC.ixt_alg_type, 
 				ipsec_alg_AES_MAC.ixt_alg_id, 
 				ipsec_alg_AES_MAC.ixt_name, 
@@ -179,7 +182,8 @@ IPSEC_ALG_MODULE_INIT( ipsec_aes_init )
 					ipsec_alg_AES_MAC.ixt_alg_type,
 					ipsec_alg_AES_MAC.ixt_alg_id, 
 					test);
-			printk(__FUNCTION__ "(alg_type=%d alg_id=%d): test_ret=%d\n", 
+			printk("%s(alg_type=%d alg_id=%d): test_ret=%d\n", 
+					__FUNCTION__,
 					ipsec_alg_AES_MAC.ixt_alg_type, 
 					ipsec_alg_AES_MAC.ixt_alg_id, 
 					test_ret);

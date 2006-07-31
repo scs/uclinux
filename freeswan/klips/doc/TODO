@@ -160,11 +160,8 @@ DHR?	Port to DNSSEC
 
 *
 * $Log$
-* Revision 1.1  2004/07/19 09:22:56  lgsoft
-* Initial revision
-*
-* Revision 1.1.1.1  2004/07/18 13:23:43  nidhi
-* Importing
+* Revision 1.2  2006/07/31 02:43:33  vapier
+* sync with upstream uClinux
 *
 * Revision 1.75  2002/03/08 21:30:12  rgb
 * Add note about pfkey update being able to simply change lifetimes of

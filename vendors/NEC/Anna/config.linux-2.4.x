@@ -90,6 +90,7 @@ CONFIG_NO_MMU_LARGE_ALLOCS=y
 # CONFIG_CISS_MONITOR_THREAD is not set
 # CONFIG_BLK_DEV_DAC960 is not set
 # CONFIG_BLK_DEV_UMEM is not set
+# CONFIG_BLK_DEV_SX8 is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 # CONFIG_BLK_DEV_RAM is not set
@@ -108,6 +109,8 @@ CONFIG_NOFLASH=y
 # CONFIG_NETLINK_DEV is not set
 # CONFIG_NETFILTER is not set
 # CONFIG_FILTER is not set
+# CONFIG_NET_NEIGH_DEBUG is not set
+# CONFIG_NET_RESTRICTED_REUSE is not set
 CONFIG_UNIX=y
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -125,11 +128,6 @@ CONFIG_INET=y
 #
 # CONFIG_IPX is not set
 # CONFIG_ATALK is not set
-
-#
-# Appletalk devices
-#
-# CONFIG_DEV_APPLETALK is not set
 # CONFIG_DECNET is not set
 # CONFIG_BRIDGE is not set
 
@@ -138,11 +136,13 @@ CONFIG_INET=y
 #
 # CONFIG_NET_SCHED is not set
 # CONFIG_IPSEC is not set
+# CONFIG_KLIPS is not set
 
 #
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
+# CONFIG_IPSEC_NAT_TRAVERSAL is not set
 
 #
 # Network device support
@@ -156,6 +156,10 @@ CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
+
+#
+# IMQ needs CONFIG_NETFILTER enabled
+#
 # CONFIG_TUN is not set
 
 #
@@ -222,15 +226,35 @@ CONFIG_PPP_ASYNC=y
 # Character devices
 #
 # CONFIG_LEDMAN is not set
+# CONFIG_SNAPDOG is not set
+# CONFIG_FAST_TIMER is not set
 # CONFIG_DS1302 is not set
+# CONFIG_M41T11M6 is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL is not set
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+
+#
+# Serial drivers
+#
+# CONFIG_SERIAL_8250 is not set
+# CONFIG_SERIAL_8250_CONSOLE is not set
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_MANY_PORTS is not set
+# CONFIG_SERIAL_8250_SHARE_IRQ is not set
+# CONFIG_SERIAL_8250_DETECT_IRQ is not set
+# CONFIG_SERIAL_8250_MULTIPORT is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 # CONFIG_UNIX98_PTYS is not set
 # CONFIG_PRINTER is not set
 # CONFIG_PPDEV is not set
 # CONFIG_TIPAR is not set
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
 
 #
 # I2C support
@@ -242,6 +266,7 @@ CONFIG_PPP_ASYNC=y
 #
 # CONFIG_BUSMOUSE is not set
 # CONFIG_MOUSE is not set
+# CONFIG_EDB7312_TS is not set
 
 #
 # Joysticks
@@ -293,6 +318,7 @@ CONFIG_PPP_ASYNC=y
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
+# CONFIG_SCx200 is not set
 # CONFIG_SCx200_GPIO is not set
 # CONFIG_AMD_PM768 is not set
 # CONFIG_NVRAM is not set
@@ -340,7 +366,9 @@ CONFIG_PPP_ASYNC=y
 # CONFIG_EFS_FS is not set
 # CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
+# CONFIG_YAFFS_FS is not set
 # CONFIG_CRAMFS is not set
+# CONFIG_SQUASHFS is not set
 # CONFIG_TMPFS is not set
 CONFIG_RAMFS=y
 # CONFIG_ISO9660_FS is not set
@@ -355,6 +383,7 @@ CONFIG_RAMFS=y
 # CONFIG_NTFS_RW is not set
 # CONFIG_HPFS_FS is not set
 CONFIG_PROC_FS=y
+CONFIG_PROC_NDYNAMIC=4096
 # CONFIG_DEVFS_FS is not set
 # CONFIG_DEVFS_MOUNT is not set
 # CONFIG_DEVFS_DEBUG is not set
@@ -368,6 +397,11 @@ CONFIG_ROMFS_FS=y
 # CONFIG_UDF_RW is not set
 # CONFIG_UFS_FS is not set
 # CONFIG_UFS_FS_WRITE is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_XFS_QUOTA is not set
+# CONFIG_XFS_RT is not set
+# CONFIG_XFS_TRACE is not set
+# CONFIG_XFS_DEBUG is not set
 
 #
 # Network File Systems
@@ -395,6 +429,7 @@ CONFIG_LOCKD_V4=y
 # CONFIG_NCPFS_NLS is not set
 # CONFIG_NCPFS_EXTRAS is not set
 # CONFIG_ZISOFS_FS is not set
+# CONFIG_COREDUMP_PRINTK is not set
 
 #
 # Partition Types

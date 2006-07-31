@@ -10,3 +10,6 @@ mkdir /var/run
 mkdir /var/lock
 mkdir /var/empty
 /bin/flatfsd -r
+insmod sgio
+ifconfig lo 127.0.0.1
+echo "/etc/rc complete."

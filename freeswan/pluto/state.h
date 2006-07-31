@@ -63,6 +63,7 @@ struct oakley_trans_attrs {
 #if 0 /* not yet */
     u_int16_t prf;		/* Pseudo Random Function */
 #endif
+	time_t born;
 };
 
 /* IPsec (Phase 2 / Quick Mode) transform and attributes
@@ -83,6 +84,7 @@ struct ipsec_trans_attrs {
     u_int16_t cmprs_dict_sz;
     u_int32_t cmprs_alg;
 #endif
+	time_t born;
 };
 
 /* IPsec per protocol state information */
@@ -235,7 +237,6 @@ extern void release_whack(struct state *st);
 extern void delete_state(struct state *st);
 struct connection;	/* forward declaration of tag */
 extern void delete_states_by_connection(struct connection *c);
-extern void replace_states_by_peer(const ip_address *peer);
 
 extern struct state
     *duplicate_state(const struct state *st),

@@ -1,4 +1,4 @@
-hostname SE2910-Intel
+hostname SE2910
 date `cat /etc/build-date`
 mount -t proc proc /proc
 mount -n -o remount,rw /
@@ -9,11 +9,7 @@ rm -f /var/log/*.pid
 rm -f /var/lock/*
 rm -f /var/empty/*
 /bin/flatfsd -r
-insmod ipsec
 insmod usbcore
 insmod usb-ohci
-insmod safenet
-insmod safenet_sg
-/bin/firewall -i
 /bin/sh /etc/config/start
-/bin/firewall &
+echo "/etc/rc complete."

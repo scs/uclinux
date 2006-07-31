@@ -56,6 +56,17 @@
 // 10. If fast decryption key scheduling is needed define ONE_IM_TABLE
 //     or FOUR_IM_TABLES for higher speed (2 or 8 kbytes extra).
 
+#if defined(CONFIG_ARCH_IXP425) || defined(CONFIG_ARCH_IXP4XX)
+#define PARTIAL_UNROLL
+#define ARRAYS
+#define FOUR_TABLES
+#else
+#ifdef CONFIG_KS8695
+#define PARTIAL_UNROLL
+#define ARRAYS
+#define ONE_TABLE
+#define ONE_IM_TABLE
+#else
 #ifdef __SH4__
 /* How to distinguish the 166MHz part from the 240MHz part?
  * They've different caches and probably different "best" here.
@@ -95,6 +106,7 @@
 #endif
 #else
 /* Defaults... no idea what they are optimal for :-) */
+#error tune your aes please
 
 #define UNROLL
 //#define PARTIAL_UNROLL
@@ -113,6 +125,8 @@
 //#define ONE_IM_TABLE
 #define FOUR_IM_TABLES
 
+#endif
+#endif
 #endif
 #endif
 #endif
@@ -986,7 +1000,11 @@ switch(nc) \
 
 #endif
 
+#ifdef CONFIG_IXP4XX_CRYPTO
+void ike_aes_set_key(aes_context *cx, const unsigned char in_key[], int n_bytes, const int f)
+#else
 void aes_set_key(aes_context *cx, const unsigned char in_key[], int n_bytes, const int f)
+#endif /* CONFIG_IXP4XX_CRYPTO */
 {   u_int32_t    *kf, *kt, rci;
 
 #if !defined(FIXED_TABLES)
@@ -1090,6 +1108,34 @@ void aes_set_key(aes_context *cx, const unsigned char in_key[], int n_bytes, con
     }
 }
 
+#ifdef CONFIG_IXP4XX_CRYPTO
+void aes_set_key(aes_context *cx, const unsigned char in_key[], int n_bytes, const int f)
+{   u_int32_t	 *kf, *kt, rci;
+
+#if !defined(FIXED_TABLES)
+    if(!tab_gen) { gen_tabs(); tab_gen = 1; }
+#endif
+
+    switch(n_bytes) {
+    case 32:			/* bytes */
+    case 256:			/* bits */
+	cx->aes_Nkey = 8;
+	break;
+    case 24:			/* bytes */
+    case 192:			/* bits */
+	cx->aes_Nkey = 6;
+	break;
+    case 16:			/* bytes */
+    case 128:			/* bits */
+    default:
+	cx->aes_Nkey = 4;
+	break;
+    }
+    cx->aes_Nrnd = (cx->aes_Nkey > nc ? cx->aes_Nkey : nc) + 6;
+    memcpy (cx->aes_e_key, in_key, n_bytes);
+
+}
+#endif /* CONFIG_IXP4XX_CRYPTO */
 // y = output word, x = input word, r = row, c = column
 // for r = 0, 1, 2 and 3 = column accessed for row r
 

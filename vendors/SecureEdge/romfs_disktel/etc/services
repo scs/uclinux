@@ -4,8 +4,8 @@ tcpmux	1/udp
 nbp	2/ddp
 compressnet	2/tcp
 compressnet	2/udp
-compressnet	3/tcp
-compressnet	3/udp
+compressnet-3	3/tcp
+compressnet-3	3/udp
 echo	4/ddp
 rje	5/tcp
 rje	5/udp
@@ -140,8 +140,8 @@ mit-ml-dev	83/tcp
 mit-ml-dev	83/udp
 ctf	84/tcp
 ctf	84/udp
-mit-ml-dev	85/tcp
-mit-ml-dev	85/udp
+mit-ml-dev-85	85/tcp
+mit-ml-dev-85	85/udp
 mfcobol	86/tcp
 mfcobol	86/udp
 priv-term-l	87/tcp
@@ -256,8 +256,8 @@ bl-idm	142/tcp
 bl-idm	142/udp
 imap	143/tcp	imap2
 imap	143/udp	imap2
-uma	144/tcp
-uma	144/udp
+NeWS	144/tcp
+NeWS	144/udp
 uaac	145/tcp
 uaac	145/udp
 iso-tp0	146/tcp
@@ -432,8 +432,8 @@ subntbcst_tftp	247/tcp
 subntbcst_tftp	247/udp
 bhfhs	248/tcp
 bhfhs	248/udp
-rap	256/tcp
-rap	256/udp
+rap-256	256/tcp
+rap-256	256/udp
 set	257/tcp
 set	257/udp
 yak-chat	258/tcp
@@ -958,8 +958,8 @@ ms-rome	569/tcp
 ms-rome	569/udp
 meter	570/tcp
 meter	570/udp
-meter	571/tcp
-meter	571/udp
+umeter	571/tcp meter-571
+umeter	571/udp meter-571
 sonar	572/tcp
 sonar	572/udp
 banyan-vip	573/tcp
@@ -972,8 +972,6 @@ ipcd	576/tcp
 ipcd	576/udp
 vnas	577/tcp
 vnas	577/udp
-submission	587/tcp	msa
-submission	587/udp	msa
 decbsrv	579/tcp
 decbsrv	579/udp
 sntp-heartbeat	580/tcp
@@ -990,16 +988,16 @@ imap4-ssl	585/tcp
 imap4-ssl	585/udp
 password-chg	586/tcp
 password-chg	586/udp
-submission	587/tcp
-submission	587/udp
+submission	587/tcp msa
+submission	587/udp msa
 cal	588/tcp
 cal	588/udp
 eyelink	589/tcp
 eyelink	589/udp
 tns-cml	590/tcp
 tns-cml	590/udp
-http-alt	591/tcp
-http-alt	591/udp
+http-alt-591	591/tcp
+http-alt-591	591/udp
 eudora-set	592/tcp
 eudora-set	592/udp
 http-rpc-epmap	593/tcp
@@ -1229,8 +1227,8 @@ netviewdm2	730/udp
 netviewdm3	731/tcp
 netviewdm3	731/udp
 sometimes-rpc2	737/udp
-netcp	740/tcp
-netcp	740/udp
+netcp-740	740/tcp
+netcp-740	740/udp
 netgw	741/tcp
 netgw	741/udp
 netrcs	742/tcp
@@ -1291,12 +1289,12 @@ multiling-http	777/tcp
 multiling-http	777/udp
 wpgs	780/tcp
 wpgs	780/udp
-hp-collector	781/tcp
-hp-collector	781/udp
-hp-managed-node	782/tcp
-hp-managed-node	782/udp
-hp-alarm-mgr	783/tcp
-hp-alarm-mgr	783/udp
+hp-collector-781	781/tcp
+hp-collector-781	781/udp
+hp-managed-node-782	782/tcp
+hp-managed-node-782	782/udp
+hp-alarm-mgr-783	783/tcp
+hp-alarm-mgr-783	783/udp
 concert	786/tcp
 concert	786/udp
 controlit	799/tcp
@@ -1799,8 +1797,8 @@ panja-icsp	1319/tcp
 panja-icsp	1319/udp
 panja-axbnet	1320/tcp
 panja-axbnet	1320/udp
-pip	1321/tcp
-pip	1321/udp
+pip-1321	1321/tcp
+pip-1321	1321/udp
 novation	1322/tcp
 novation	1322/udp
 brcd	1323/tcp
@@ -1921,8 +1919,8 @@ telesis-licman	1380/tcp
 telesis-licman	1380/udp
 apple-licman	1381/tcp
 apple-licman	1381/udp
-udt_os	1382/tcp
-udt_os	1382/udp
+udt_os-1382	1382/tcp
+udt_os-1382	1382/udp
 gwha	1383/tcp
 gwha	1383/udp
 os-licman	1384/tcp
@@ -2099,10 +2097,10 @@ aal-lm	1469/tcp
 aal-lm	1469/udp
 uaiact	1470/tcp
 uaiact	1470/udp
-csdmbase	1471/tcp
-csdmbase	1471/udp
-csdm	1472/tcp
-csdm	1472/udp
+csdmbase-1471	1471/tcp
+csdmbase-1471	1471/udp
+csdm-1472	1472/tcp
+csdm-1472	1472/udp
 openmath	1473/tcp
 openmath	1473/udp
 telefinder	1474/tcp
@@ -2201,8 +2199,8 @@ atm-zip-office	1520/tcp
 atm-zip-office	1520/udp
 ncube-lm	1521/tcp
 ncube-lm	1521/udp
-ricardo-lm	1522/tcp
-ricardo-lm	1522/udp
+rna-lm	1522/tcp
+rna-lm	1522/udp
 cichild-lm	1523/tcp
 cichild-lm	1523/udp
 ingreslock	1524/tcp
@@ -2215,7 +2213,6 @@ tlisrv	1527/tcp
 tlisrv	1527/udp
 mciautoreg	1528/tcp
 mciautoreg	1528/udp
-support	1529/tcp	coauthor
 support	1529/tcp	prmsd gnatsd coauthor
 rap-service	1530/tcp
 rap-service	1530/udp
@@ -2732,8 +2729,8 @@ psmond	1788/tcp
 psmond	1788/udp
 hello	1789/tcp
 hello	1789/udp
-nmsp	1790/tcp
-nmsp	1790/udp
+nmsp-1790	1790/tcp
+nmsp-1790	1790/udp
 ea1	1791/tcp
 ea1	1791/udp
 ibm-dt-2	1792/tcp
@@ -3235,8 +3232,8 @@ cdfunc	2045/tcp
 cdfunc	2045/udp
 sdfunc	2046/tcp
 sdfunc	2046/udp
-dls	2047/tcp
-dls	2047/udp
+dls-2047	2047/tcp
+dls-2047	2047/udp
 dls-monitor	2048/tcp
 dls-monitor	2048/udp
 nfs	2049/tcp	nfsd
@@ -3361,7 +3358,7 @@ hsl-storm	2113/tcp
 hsl-storm	2113/udp
 newheights	2114/tcp
 newheights	2114/udp
-kdm	2115/tcp
+kdm-2115	2115/tcp
 kdm	2115/udp
 ccowcmr	2116/tcp
 ccowcmr	2116/udp
@@ -3743,8 +3740,8 @@ cvspserver	2401/tcp
 cvspserver	2401/udp
 taskmaster2000	2402/tcp
 taskmaster2000	2402/udp
-taskmaster2000	2403/tcp
-taskmaster2000	2403/udp
+taskmaster2000-2403	2403/tcp
+taskmaster2000-2403	2403/udp
 iec870-5-104	2404/tcp
 iec870-5-104	2404/udp
 trc-netpoll	2405/tcp
@@ -3811,8 +3808,8 @@ topx	2436/tcp
 topx	2436/udp
 unicontrol	2437/tcp
 unicontrol	2437/udp
-msp	2438/tcp
-msp	2438/udp
+msp-2483	2438/tcp
+msp-2483	2438/udp
 sybasedbsynch	2439/tcp
 sybasedbsynch	2439/udp
 spearway	2440/tcp
@@ -3933,8 +3930,8 @@ quaddb	2497/tcp
 quaddb	2497/udp
 odn-castraq	2498/tcp
 odn-castraq	2498/udp
-unicontrol	2499/tcp
-unicontrol	2499/udp
+unicontrol-2499	2499/tcp
+unicontrol-2499	2499/udp
 rtsserv	2500/tcp
 rtsserv	2500/udp
 rtsclient	2501/tcp
@@ -4606,8 +4603,8 @@ repliweb	2837/tcp
 repliweb	2837/udp
 starbot	2838/tcp
 starbot	2838/udp
-nmsigport	2839/tcp
-nmsigport	2839/udp
+nmsigport-2839	2839/tcp
+nmsigport-2839	2839/udp
 l3-exprt	2840/tcp
 l3-exprt	2840/udp
 l3-ranger	2841/tcp
@@ -5018,8 +5015,8 @@ responsenet	3045/tcp
 responsenet	3045/udp
 di-ase	3046/tcp
 di-ase	3046/udp
-hlserver	3047/tcp
-hlserver	3047/udp
+hlserver-3047	3047/tcp
+hlserver-3047	3047/udp
 pctrader	3048/tcp
 pctrader	3048/udp
 nsws	3049/tcp
@@ -5638,12 +5635,12 @@ dj-ilm	3362/tcp
 dj-ilm	3362/udp
 nati-vi-server	3363/tcp
 nati-vi-server	3363/udp
-creativeserver	3364/tcp
-creativeserver	3364/udp
-contentserver	3365/tcp
-contentserver	3365/udp
-creativepartnr	3366/tcp
-creativepartnr	3366/udp
+creativeserver-3364	3364/tcp
+creativeserver-3364	3364/udp
+contentserver-3365	3365/tcp
+contentserver-3365	3365/udp
+creativepartnr-3366	3366/tcp
+creativepartnr-3366	3366/udp
 tip2	3372/tcp
 tip2	3372/udp
 lavenir-lm	3373/tcp
@@ -6187,8 +6184,8 @@ mapper-ws_ethd	3986/udp
 centerline	3987/tcp
 centerline	3987/udp
 remoteanything	3996/udp
-remoteanything	3997/udp
-remoteanything	3998/udp
+remoteanything-3997	3997/udp
+remoteanything-3998	3998/udp
 remoteanything	3999/tcp
 terabase	4000/tcp
 terabase	4000/udp
@@ -6589,8 +6586,8 @@ excerpt	5400/tcp
 excerpt	5400/udp
 excerpts	5401/tcp
 excerpts	5401/udp
-mftp	5402/tcp
-mftp	5402/udp
+mftp-5402	5402/tcp
+mftp-5402	5402/udp
 hpoms-ci-lstn	5403/tcp
 hpoms-ci-lstn	5403/udp
 hpoms-dps-lstn	5404/tcp
@@ -6924,10 +6921,10 @@ parsec-peer	6581/udp
 parsec-game	6582/tcp
 parsec-game	6582/udp
 analogx	6588/tcp
-irc-serv	6666/tcp
+irc-serv-6666	6666/tcp
 ircd	6667/tcp
 ircd	6667/udp
-irc	6668/tcp
+irc-6668	6668/tcp
 vocaltec-gold	6670/tcp
 vocaltec-gold	6670/udp
 vision_server	6672/tcp
@@ -7195,8 +7192,8 @@ sabarsd	8401/tcp
 sabarsd	8401/udp
 abarsd	8402/tcp
 abarsd	8402/udp
-admind	8403/tcp
-admind	8403/udp
+admind-8403	8403/tcp
+admind-8403	8403/udp
 pcsync-https	8443/tcp
 pcsync-https	8443/udp
 pcsync-http	8444/tcp
@@ -7488,20 +7485,20 @@ powwow-client	13223/udp
 powwow-server	13224/tcp
 powwow-server	13224/udp
 VeritasNetbackup	13701/tcp
-VeritasNetbackup	13702/tcp
-VeritasNetbackup	13705/tcp
-VeritasNetbackup	13706/tcp
-VeritasNetbackup	13708/tcp
-VeritasNetbackup	13709/tcp
-VeritasNetbackup	13710/tcp
-VeritasNetbackup	13711/tcp
-VeritasNetbackup	13712/tcp
-VeritasNetbackup	13713/tcp
-VeritasNetbackup	13714/tcp
-VeritasNetbackup	13715/tcp
-VeritasNetbackup	13716/tcp
-VeritasNetbackup	13717/tcp
-VeritasNetbackup	13718/tcp
+VeritasNetbackup-13702	13702/tcp
+VeritasNetbackup-13705	13705/tcp
+VeritasNetbackup-13706	13706/tcp
+VeritasNetbackup-13708	13708/tcp
+VeritasNetbackup-13709	13709/tcp
+VeritasNetbackup-13710	13710/tcp
+VeritasNetbackup-13711	13711/tcp
+VeritasNetbackup-13712	13712/tcp
+VeritasNetbackup-13713	13713/tcp
+VeritasNetbackup-13714	13714/tcp
+VeritasNetbackup-13715	13715/tcp
+VeritasNetbackup-13716	13716/tcp
+VeritasNetbackup-13717	13717/tcp
+VeritasNetbackup-13718	13718/tcp
 bprd	13720/tcp
 bprd	13720/udp
 bpdbm	13721/tcp
@@ -7717,7 +7714,7 @@ hexen2	26900/udp
 halflife	27015/udp
 imagepump	27345/tcp
 imagepump	27345/udp
-subseven	27374/tcp	asp
+asp	27374/tcp	subseven-27374
 asp	27374/udp
 Trinoo_Bcast	27444/udp
 quakeworld	27500/udp
@@ -7800,7 +7797,7 @@ ip-provision	43190/udp
 pmcd	44321/tcp
 pmcd	44321/udp
 coldfusion-auth	44442/tcp
-coldfusion-auth	44443/tcp
+coldfusion-auth-44443	44443/tcp
 rockwell-encap	44818/tcp
 rockwell-encap	44818/udp
 ciscopop	45000/udp

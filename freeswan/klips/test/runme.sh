@@ -22,11 +22,8 @@ testtype=klipstest
 
  
 # $Log$
-# Revision 1.1  2004/07/19 09:23:45  lgsoft
-# Initial revision
-#
-# Revision 1.1.1.1  2004/07/18 13:23:45  nidhi
-# Importing
+# Revision 1.2  2006/07/31 02:43:52  vapier
+# sync with upstream uClinux
 #
 # Revision 1.3  2002/04/02 02:48:21  mcr
 # *** empty log message ***

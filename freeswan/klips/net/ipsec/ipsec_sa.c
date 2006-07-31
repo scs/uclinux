@@ -55,6 +55,10 @@
 #include <asm/checksum.h>
 #include <net/ip.h>
 
+#ifdef USE_IXP4XX_CRYPTO
+#include "ipsec_glue.h"		/* glue code */
+#include "ipsec_glue_desc.h"		/* glue code */
+#endif /* USE_IXP4XX_CRYPTO */
 #include "radij.h"
 
 #include "ipsec_stats.h"
@@ -168,13 +172,34 @@ ipsec_sa_put(struct ipsec_sa *ips)
 	}
 	hashval = ((ips->ips_said.spi + ips->ips_said.dst.s_addr + ips->ips_said.proto) % SADB_HASHMOD);
 
+#ifndef USE_IXP4XX_CRYPTO
 	spin_lock_bh(&tdb_lock);
 	
 	ips->ips_hnext = ipsec_sadb_hash[hashval];
 	ipsec_sadb_hash[hashval] = ips;
 	
 	spin_unlock_bh(&tdb_lock);
+#endif
 
+#ifdef USE_IXP4XX_CRYPTO
+	/* Add correspond crypto context for hardware accelarator */
+	if (IPSEC_GLUE_STATUS_FAIL == ipsec_glue_crypto_context_put (ips))
+	{
+		KLIPS_PRINT(debug_xform,
+			    "klips_error:puttdb: "
+			    "Cannot add crypto context!\n");
+		error = 1;
+	} else {
+		/* adding the crypt context succeded -  only now can we add the ips
+		 * to the hash table */
+		spin_lock_bh(&tdb_lock);
+		
+		ips->ips_hnext = ipsec_sadb_hash[hashval];
+		ipsec_sadb_hash[hashval] = ips;
+		
+		spin_unlock_bh(&tdb_lock);
+	}
+#endif /*USE_IXP4XX_CRYPTO */
 	return error;
 }
 
@@ -188,6 +213,8 @@ ipsec_sa_del(struct ipsec_sa *ips)
 	struct ipsec_sa *tdbtp;
         char sa[SATOA_BUF];
 	size_t sa_len;
+	struct _IpsecRcvDesc *p = NULL;
+	struct _IpsecXmitDesc *q = NULL;
 
 	if(!ips) {
 		KLIPS_PRINT(debug_xform,
@@ -195,7 +222,7 @@ ipsec_sa_del(struct ipsec_sa *ips)
 			    "null pointer passed in!\n");
 		return -ENODATA;
 	}
-	
+
 	sa_len = satoa(ips->ips_said, 0, sa, SATOA_BUF);
 	if(ips->ips_inext || ips->ips_onext) {
 		KLIPS_PRINT(debug_xform,
@@ -204,7 +231,17 @@ ipsec_sa_del(struct ipsec_sa *ips)
 			    sa_len ? sa : " (error)");
 		return -EMLINK;
 	}
-	
+
+#ifdef USE_IXP4XX_CRYPTO
+	for (p = ips->RcvDesc_head; p != NULL; p = p->RcvDesc_next) {
+		p->tdbp = NULL;
+	}
+
+	for (q = ips->XmitDesc_head; q != NULL; q = q->XmitDesc_next) {
+		q->tdbp = NULL;
+	}
+#endif
+
 	hashval = ((ips->ips_said.spi + ips->ips_said.dst.s_addr + ips->ips_said.proto) % SADB_HASHMOD);
 	
 	KLIPS_PRINT(debug_xform,
@@ -223,21 +260,80 @@ ipsec_sa_del(struct ipsec_sa *ips)
 	
 	if (ips == ipsec_sadb_hash[hashval]) {
 		ipsec_sadb_hash[hashval] = ipsec_sadb_hash[hashval]->ips_hnext;
+#ifndef USE_IXP4XX_CRYPTO
 		ips->ips_hnext = NULL;
+#endif /* USE_IXP4XX_CRYPTO */		
 		KLIPS_PRINT(debug_xform,
 			    "klips_debug:deltdb: "
 			    "successfully deleted first tdb in chain.\n");
+#ifdef USE_IXP4XX_CRYPTO
+        	/* Delete cryto context associate with this SA */
+		/*
+        	 * Delete on SA and skip deleting the non crypto context becuase no
+        	 * associate crypto context for unsupported SA (e.g. IPCOMP)
+        	 */
+        	if (ips->ips_crypto_state >= IPSEC_GLUE_UNSUPPORTED_CTXID)
+        	{
+        		KLIPS_PRINT(debug_xform,
+                	"klips_debug:deltdb: "
+                	"Delete on SA and no crypto context associated!\n");
+        	}
+        	else
+        	{
+			if (IPSEC_GLUE_STATUS_FAIL ==
+			ipsec_glue_crypto_context_del(ips->ips_crypto_context_id))
+			{
+			KLIPS_PRINT(debug_xform,
+				"klips_error:deltdb: "
+				"Cannot delete crypto context!\n");
+				return (IPSEC_GLUE_STATUS_FAIL);
+			}
+		}
+		/* Set crypto context ID to default value */
+		ips->ips_crypto_state = IPSEC_GLUE_INIT_CTXID;
+		ips->ips_hnext = NULL;
+#endif /* USE_IXP4XX_CRYPTO */
 		return 0;
 	} else {
 		for (tdbtp = ipsec_sadb_hash[hashval];
 		     tdbtp;
 		     tdbtp = tdbtp->ips_hnext) {
 			if (tdbtp->ips_hnext == ips) {
+#ifndef USE_IXP4XX_CRYPTO
 				tdbtp->ips_hnext = ips->ips_hnext;
 				ips->ips_hnext = NULL;
+#endif
 				KLIPS_PRINT(debug_xform,
 					    "klips_debug:deltdb: "
 					    "successfully deleted link in tdb chain.\n");
+#ifdef USE_IXP4XX_CRYPTO
+        			/*
+         			 * Delete on SA and skip deleting the non crypto context becuase no
+         			 * associate crypto context for unsupported SA (e.g. IPCOMP)
+         			 */
+        			if (ips->ips_crypto_state >= IPSEC_GLUE_UNSUPPORTED_CTXID)
+        			{
+        				KLIPS_PRINT(debug_xform,
+                			"klips_debug:deltdb: "
+                			"Delete on SA and no crypto context associated!\n");
+        			}
+        			else
+        			{
+					/* Delete cryto context associate with this SA -in the chain */
+					if (IPSEC_GLUE_STATUS_FAIL ==
+					ipsec_glue_crypto_context_del(ips->ips_crypto_context_id))
+					{
+					KLIPS_PRINT(debug_xform,
+						"klips_error:deltdb: "
+						"Cannot delete crypto context!\n");
+						return (IPSEC_GLUE_STATUS_FAIL);
+					}
+                		}
+				/* Set crypto context ID to default value */
+				ips->ips_crypto_state = IPSEC_GLUE_INIT_CTXID;
+				tdbtp->ips_hnext = ips->ips_hnext;
+				ips->ips_hnext = NULL;
+#endif /* USE_IXP4XX_CRYPTO */
 				return 0;
 			}
 		}
@@ -258,6 +354,9 @@ int
 ipsec_sa_delchain(struct ipsec_sa *ips)
 {
 	struct ipsec_sa *tdbdel;
+#ifdef USE_IXP4XX_CRYPTO
+	int temp_count, temp_done_count;
+#endif /* USE_IXP4XX_CRYPTO */
 	int error = 0;
         char sa[SATOA_BUF];
 	size_t sa_len;
@@ -275,9 +374,15 @@ ipsec_sa_delchain(struct ipsec_sa *ips)
 		    "passed SA:%s\n",
 		    sa_len ? sa : " (error)");
 	while(ips->ips_onext) {
+#ifdef USE_IXP4XX_CRYPTO
+		ipsec_glue_update_state(ips, IX_FAIL);
+#endif /* USE_IXP4XX_CRYPTO */
 		ips = ips->ips_onext;
 	}
 
+#ifdef USE_IXP4XX_CRYPTO
+	ipsec_glue_update_state(ips, IX_FAIL);
+#endif /* USE_IXP4XX_CRYPTO */
 	while(ips) {
 		/* XXX send a pfkey message up to advise of deleted TDB */
 		sa_len = satoa(ips->ips_said, 0, sa, SATOA_BUF);
@@ -372,7 +477,6 @@ ipsec_sadb_cleanup(__u8 proto)
 				}
 				ipsprev = &(ipsec_sadb_hash[i]);
 				ips = ipsec_sadb_hash[i];
-
 				KLIPS_PRINT(debug_xform,
 					    "klips_debug:ipsec_tdbcleanup: "
 					    "deleted SA chain:%s",
@@ -477,11 +581,13 @@ ipsec_sa_wipe(struct ipsec_sa *ips)
         }
 	ips->ips_ident_d.data = NULL;
 
+#ifdef USE_IXP4XX_CRYPTO
 #ifdef CONFIG_IPSEC_ALG
 	if (IPSEC_ALG_SA_ESP_ENC(ips)||IPSEC_ALG_SA_ESP_AUTH(ips)) {
 		ipsec_alg_sa_wipe(ips);
 	}
 #endif
+#endif /* USE_IXP4XX_CRYPTO */	
 	
 	memset((caddr_t)ips, 0, sizeof(*ips));
 	kfree(ips);
@@ -492,11 +598,8 @@ ipsec_sa_wipe(struct ipsec_sa *ips)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:32  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.5  2002/01/29 17:17:56  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h

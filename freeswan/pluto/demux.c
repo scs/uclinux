@@ -2082,6 +2082,21 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
 		    /* log our success */
 		    log("%s", story);
 		    w = RC_SUCCESS;
+
+			switch (st->st_state) {
+				case STATE_QUICK_I2:
+				case STATE_QUICK_R2:
+					if (st->st_ah.present)
+						st->st_ah.attrs.born = time(NULL);
+					if (st->st_esp.present)
+						st->st_esp.attrs.born = time(NULL);
+					if (st->st_ipcomp.present)
+						st->st_ipcomp.attrs.born = time(NULL);
+					break;
+				case STATE_MAIN_I4:
+				case STATE_MAIN_R3:
+					st->st_oakley.born = time(NULL);
+			}
 		}
 
 		/* tell whack our progress */

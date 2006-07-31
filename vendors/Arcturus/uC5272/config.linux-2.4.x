@@ -14,7 +14,9 @@ CONFIG_EXPERIMENTAL=y
 #
 # Loadable module support
 #
-# CONFIG_MODULES is not set
+CONFIG_MODULES=y
+# CONFIG_MODVERSIONS is not set
+# CONFIG_KMOD is not set
 
 #
 # Processor type and features
@@ -29,12 +31,17 @@ CONFIG_EXPERIMENTAL=y
 # CONFIG_M5204 is not set
 # CONFIG_M5206 is not set
 # CONFIG_M5206e is not set
+# CONFIG_M5208 is not set
+# CONFIG_M5235 is not set
 # CONFIG_M5249 is not set
+# CONFIG_M5271 is not set
 CONFIG_M5272=y
+# CONFIG_M5275 is not set
 # CONFIG_M5280 is not set
 # CONFIG_M5282 is not set
 # CONFIG_M5307 is not set
 # CONFIG_M5407 is not set
+# CONFIG_M547x is not set
 CONFIG_COLDFIRE=y
 # CONFIG_CLOCK_AUTO is not set
 # CONFIG_CLOCK_11MHz is not set
@@ -46,28 +53,35 @@ CONFIG_COLDFIRE=y
 # CONFIG_CLOCK_33MHz is not set
 # CONFIG_CLOCK_40MHz is not set
 # CONFIG_CLOCK_45MHz is not set
-CONFIG_CLOCK_48MHz=y
+# CONFIG_CLOCK_48MHz is not set
 # CONFIG_CLOCK_50MHz is not set
 # CONFIG_CLOCK_54MHz is not set
+# CONFIG_CLOCK_59MHz is not set
 # CONFIG_CLOCK_60MHz is not set
+# CONFIG_CLOCK_62_5MHz is not set
 # CONFIG_CLOCK_64MHz is not set
-# CONFIG_CLOCK_66MHz is not set
+CONFIG_CLOCK_66MHz=y
 # CONFIG_CLOCK_70MHz is not set
+# CONFIG_CLOCK_100MHz is not set
 # CONFIG_CLOCK_140MHz is not set
+# CONFIG_CLOCK_150MHz is not set
+# CONFIG_CLOCK_166MHz is not set
 
 #
 # Platform
 #
 # CONFIG_M5272C3 is not set
 # CONFIG_SE1100 is not set
+# CONFIG_CPU16B is not set
 # CONFIG_GILBARCONAP is not set
+# CONFIG_BOARD_MOD5272 is not set
 CONFIG_BOARD_UC5272=y
 CONFIG_UCBOOTSTRAP=y
-# CONFIG_UC5272_CRAMFS is not set
-# CONFIG_ROMFS_FROM_ROM is not set
+# CONFIG_ROMFS_IMAGE is not set
 # CONFIG_COBRA5272 is not set
 # CONFIG_CANCam is not set
 # CONFIG_SCALES is not set
+# CONFIG_SIGNAL_MCP751 is not set
 # CONFIG_NETtel is not set
 # CONFIG_SNAPGEAR is not set
 # CONFIG_ROMFS_FROM_ROM is not set
@@ -89,9 +103,7 @@ CONFIG_RAMKERNEL=y
 # General setup
 #
 CONFIG_NET=y
-# CONFIG_VISWS is not set
 # CONFIG_PCI is not set
-# CONFIG_MCA is not set
 # CONFIG_HOTPLUG is not set
 # CONFIG_PCMCIA is not set
 # CONFIG_SYSVIPC is not set
@@ -100,7 +112,7 @@ CONFIG_NET=y
 CONFIG_KCORE_ELF=y
 # CONFIG_KCORE_AOUT is not set
 CONFIG_BINFMT_FLAT=y
-CONFIG_BINFMT_ZFLAT=y
+# CONFIG_BINFMT_ZFLAT is not set
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_AOUT is not set
 # CONFIG_BINFMT_ELF is not set
@@ -137,30 +149,17 @@ CONFIG_BINFMT_ZFLAT=y
 # CONFIG_CISS_MONITOR_THREAD is not set
 # CONFIG_BLK_DEV_DAC960 is not set
 # CONFIG_BLK_DEV_UMEM is not set
+# CONFIG_BLK_DEV_SX8 is not set
 CONFIG_BLK_DEV_LOOP=y
 # CONFIG_BLK_DEV_NBD is not set
-CONFIG_BLK_DEV_RAM=y
-CONFIG_BLK_DEV_RAM_SIZE=4096
+# CONFIG_BLK_DEV_RAM is not set
 # CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_BLK_DEV_RAMDISK_DATA is not set
 CONFIG_BLK_DEV_BLKMEM=y
-# CONFIG_NOFLASH is not set
-CONFIG_AMDFLASH=y
+CONFIG_NOFLASH=y
+# CONFIG_AMDFLASH is not set
 # CONFIG_INTELFLASH is not set
-# CONFIG_FLASHAUTO is not set
-# CONFIG_FLASH128KB is not set
-# CONFIG_FLASH1MB is not set
-CONFIG_FLASH2MB=y
-# CONFIG_FLASH4MB is not set
-# CONFIG_FLASH6MB is not set
-# CONFIG_FLASH8MB is not set
-# CONFIG_FLASH16MB is not set
-# CONFIG_FLASHAUTOBIT is not set
-# CONFIG_FLASH8BIT is not set
-CONFIG_FLASH16BIT=y
-# CONFIG_FLASH32bit is not set
-# CONFIG_EXTRA_FLASH is not set
-# CONFIG_BLK_STATS is not set
+CONFIG_BLK_STATS=y
 
 #
 # Networking options
@@ -170,6 +169,8 @@ CONFIG_PACKET=y
 # CONFIG_NETLINK_DEV is not set
 # CONFIG_NETFILTER is not set
 # CONFIG_FILTER is not set
+# CONFIG_NET_NEIGH_DEBUG is not set
+# CONFIG_NET_RESTRICTED_REUSE is not set
 CONFIG_UNIX=y
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -187,7 +188,6 @@ CONFIG_INET=y
 #
 #    SCTP Configuration (EXPERIMENTAL)
 #
-CONFIG_IPV6_SCTP__=y
 # CONFIG_IP_SCTP is not set
 # CONFIG_ATM is not set
 # CONFIG_VLAN_8021Q is not set
@@ -197,11 +197,6 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_IPX is not set
 # CONFIG_ATALK is not set
-
-#
-# Appletalk devices
-#
-# CONFIG_DEV_APPLETALK is not set
 # CONFIG_DECNET is not set
 # CONFIG_BRIDGE is not set
 # CONFIG_X25 is not set
@@ -218,11 +213,13 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_NET_SCHED is not set
 # CONFIG_IPSEC is not set
+# CONFIG_KLIPS is not set
 
 #
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
+# CONFIG_IPSEC_NAT_TRAVERSAL is not set
 
 #
 # Telephony Support
@@ -235,13 +232,17 @@ CONFIG_IPV6_SCTP__=y
 # ATA/IDE/MFM/RLL support
 #
 # CONFIG_IDE is not set
-# CONFIG_BLK_DEV_IDE_MODES is not set
 # CONFIG_BLK_DEV_HD is not set
 
 #
 # SCSI support
 #
 # CONFIG_SCSI is not set
+
+#
+# IEEE 1394 (FireWire) support (EXPERIMENTAL)
+#
+# CONFIG_IEEE1394 is not set
 
 #
 # I2O device support
@@ -264,6 +265,10 @@ CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
+
+#
+# IMQ needs CONFIG_NETFILTER enabled
+#
 # CONFIG_TUN is not set
 # CONFIG_ETHERTAP is not set
 
@@ -282,12 +287,17 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_NET_ISA is not set
 # CONFIG_NET_PCI is not set
 # CONFIG_NET_POCKET is not set
+# CONFIG_CNXT_EMAC is not set
 CONFIG_FEC=y
-# CONFIG_FEC_IOCTL is not set
-# CONFIG_UC5272_PHY_INT is not set
+# CONFIG_FEC2 is not set
+CONFIG_FEC_IOCTL=y
+CONFIG_UC5272_PHY_INT=y
 # CONFIG_FEC_KS8995M is not set
 # CONFIG_CS89x0 is not set
-# CONFIG_UCCS8900 is not set
+CONFIG_UCCS8900=y
+# CONFIG_UCCS89x0_HW_SWAP is not set
+# CONFIG_AX88796 is not set
+# CONFIG_DM9000 is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -305,14 +315,7 @@ CONFIG_FEC=y
 # CONFIG_FDDI is not set
 # CONFIG_HIPPI is not set
 # CONFIG_PLIP is not set
-CONFIG_PPP=y
-# CONFIG_PPP_MULTILINK is not set
-# CONFIG_PPP_FILTER is not set
-CONFIG_PPP_ASYNC=y
-# CONFIG_PPP_SYNC_TTY is not set
-CONFIG_PPP_DEFLATE=y
-CONFIG_PPP_BSDCOMP=y
-# CONFIG_PPPOE is not set
+# CONFIG_PPP is not set
 # CONFIG_SLIP is not set
 
 #
@@ -359,7 +362,7 @@ CONFIG_PPP_BSDCOMP=y
 # CONFIG_COLDFIRE_USB is not set
 CONFIG_COLDFIRE_SERIAL=y
 # CONFIG_MCF_MBUS is not set
-# CONFIG_MCF_QSPI is not set
+CONFIG_MCF_QSPI=m
 # CONFIG_LCDTXT is not set
 # CONFIG_LCDDMA is not set
 # CONFIG_DAC0800 is not set
@@ -371,12 +374,32 @@ CONFIG_COLDFIRE_SERIAL=y
 # CONFIG_RESETSWITCH is not set
 # CONFIG_MCFWATCHDOG is not set
 # CONFIG_LEDMAN is not set
+# CONFIG_SNAPDOG is not set
+# CONFIG_FAST_TIMER is not set
 # CONFIG_DS1302 is not set
+# CONFIG_M41T11M6 is not set
 # CONFIG_VT is not set
 # CONFIG_SERIAL is not set
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+
+#
+# Serial drivers
+#
+# CONFIG_SERIAL_8250 is not set
+# CONFIG_SERIAL_8250_CONSOLE is not set
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_MANY_PORTS is not set
+# CONFIG_SERIAL_8250_SHARE_IRQ is not set
+# CONFIG_SERIAL_8250_DETECT_IRQ is not set
+# CONFIG_SERIAL_8250_MULTIPORT is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 # CONFIG_UNIX98_PTYS is not set
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
 
 #
 # I2C support
@@ -388,6 +411,7 @@ CONFIG_COLDFIRE_SERIAL=y
 #
 # CONFIG_BUSMOUSE is not set
 # CONFIG_MOUSE is not set
+# CONFIG_EDB7312_TS is not set
 
 #
 # Joysticks
@@ -438,7 +462,30 @@ CONFIG_COLDFIRE_SERIAL=y
 #
 # Watchdog Cards
 #
-# CONFIG_WATCHDOG is not set
+CONFIG_WATCHDOG=y
+# CONFIG_WATCHDOG_NOWAYOUT is not set
+# CONFIG_ACQUIRE_WDT is not set
+# CONFIG_ADVANTECH_WDT is not set
+# CONFIG_ALIM1535_WDT is not set
+# CONFIG_ALIM7101_WDT is not set
+# CONFIG_SC520_WDT is not set
+# CONFIG_PCWATCHDOG is not set
+CONFIG_COLDFIRE_WATCHDOG=m
+# CONFIG_EUROTECH_WDT is not set
+# CONFIG_IB700_WDT is not set
+# CONFIG_WAFER_WDT is not set
+# CONFIG_I810_TCO is not set
+# CONFIG_MIXCOMWD is not set
+# CONFIG_60XX_WDT is not set
+# CONFIG_SC1200_WDT is not set
+# CONFIG_SCx200_WDT is not set
+# CONFIG_SOFT_WATCHDOG is not set
+# CONFIG_W83877F_WDT is not set
+# CONFIG_WDT is not set
+# CONFIG_WDTPCI is not set
+# CONFIG_MACHZ_WDT is not set
+# CONFIG_TA7_WDT is not set
+# CONFIG_SCx200 is not set
 # CONFIG_SCx200_GPIO is not set
 # CONFIG_AMD_PM768 is not set
 # CONFIG_NVRAM is not set
@@ -486,7 +533,9 @@ CONFIG_COLDFIRE_SERIAL=y
 # CONFIG_EFS_FS is not set
 # CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
-# CONFIG_CRAMFS is not set
+# CONFIG_YAFFS_FS is not set
+CONFIG_CRAMFS=y
+# CONFIG_SQUASHFS is not set
 # CONFIG_TMPFS is not set
 CONFIG_RAMFS=y
 # CONFIG_ISO9660_FS is not set
@@ -501,6 +550,7 @@ CONFIG_RAMFS=y
 # CONFIG_NTFS_RW is not set
 # CONFIG_HPFS_FS is not set
 CONFIG_PROC_FS=y
+CONFIG_PROC_NDYNAMIC=4096
 # CONFIG_DEVFS_FS is not set
 # CONFIG_DEVFS_MOUNT is not set
 # CONFIG_DEVFS_DEBUG is not set
@@ -514,6 +564,11 @@ CONFIG_EXT2_FS=y
 # CONFIG_UDF_RW is not set
 # CONFIG_UFS_FS is not set
 # CONFIG_UFS_FS_WRITE is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_XFS_QUOTA is not set
+# CONFIG_XFS_RT is not set
+# CONFIG_XFS_TRACE is not set
+# CONFIG_XFS_DEBUG is not set
 
 #
 # Network File Systems
@@ -521,7 +576,7 @@ CONFIG_EXT2_FS=y
 # CONFIG_CODA_FS is not set
 # CONFIG_INTERMEZZO_FS is not set
 CONFIG_NFS_FS=y
-# CONFIG_NFS_V3 is not set
+CONFIG_NFS_V3=y
 # CONFIG_NFS_DIRECTIO is not set
 # CONFIG_ROOT_NFS is not set
 # CONFIG_NFSD is not set
@@ -529,6 +584,7 @@ CONFIG_NFS_FS=y
 # CONFIG_NFSD_TCP is not set
 CONFIG_SUNRPC=y
 CONFIG_LOCKD=y
+CONFIG_LOCKD_V4=y
 # CONFIG_SMB_FS is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_NCPFS_PACKET_SIGNING is not set
@@ -540,11 +596,23 @@ CONFIG_LOCKD=y
 # CONFIG_NCPFS_NLS is not set
 # CONFIG_NCPFS_EXTRAS is not set
 # CONFIG_ZISOFS_FS is not set
+# CONFIG_COREDUMP_PRINTK is not set
 
 #
 # Partition Types
 #
-# CONFIG_PARTITION_ADVANCED is not set
+CONFIG_PARTITION_ADVANCED=y
+# CONFIG_ACORN_PARTITION is not set
+# CONFIG_OSF_PARTITION is not set
+# CONFIG_AMIGA_PARTITION is not set
+# CONFIG_ATARI_PARTITION is not set
+# CONFIG_MAC_PARTITION is not set
+# CONFIG_MSDOS_PARTITION is not set
+# CONFIG_LDM_PARTITION is not set
+# CONFIG_SGI_PARTITION is not set
+# CONFIG_ULTRIX_PARTITION is not set
+# CONFIG_SUN_PARTITION is not set
+# CONFIG_EFI_PARTITION is not set
 # CONFIG_SMB_NLS is not set
 # CONFIG_NLS is not set
 
@@ -566,15 +634,14 @@ CONFIG_LOCKD=y
 #
 # Kernel hacking
 #
-# CONFIG_FULLDEBUG is not set
+CONFIG_FULLDEBUG=y
 # CONFIG_MAGIC_SYSRQ is not set
-# CONFIG_CONTIGUOUS_PAGE_ALLOC is not set
-# CONFIG_MEM_MAP is not set
+CONFIG_CONTIGUOUS_PAGE_ALLOC=y
+CONFIG_MEM_MAP=y
 # CONFIG_PROFILE is not set
 # CONFIG_DUMPTOFLASH is not set
 # CONFIG_NO_KERNEL_MSG is not set
 # CONFIG_SMALL_TASKS is not set
-# CONFIG_BDM_DISABLE is not set
 # CONFIG_BOOTPARAM is not set
 
 #
@@ -587,4 +654,4 @@ CONFIG_LOCKD=y
 #
 # CONFIG_CRC32 is not set
 CONFIG_ZLIB_INFLATE=y
-CONFIG_ZLIB_DEFLATE=y
+CONFIG_ZLIB_DEFLATE=m

@@ -71,16 +71,14 @@ ike_alg_db_new(struct alg_info_ike *ai , lset_t policy)
 		eklen= ike_info->ike_eklen;
 
 		if (!ike_alg_enc_present(ealg)) {
-			DBG_log(__FUNCTION__ "() "
-					"ike enc ealg=%d not present",
-					ealg);
+			DBG_log("%s() ike enc ealg=%d not present",
+					__FUNCTION__, ealg);
 			continue;
 		}
 
 		if (!ike_alg_hash_present(halg)) {
-			DBG_log(__FUNCTION__ "() "
-					"ike hash halg=%d not present",
-					halg);
+			DBG_log("%s() ike hash halg=%d not present",
+					__FUNCTION__, halg);
 			continue;
 		}
 
@@ -94,13 +92,14 @@ ike_alg_db_new(struct alg_info_ike *ai , lset_t policy)
 			&& (eklen < enc_desc->keyminlen
 				|| eklen >  enc_desc->keymaxlen))
 		{
-			DBG_log(__FUNCTION__ "() "
+			DBG_log("%s() "
 					"ealg=%d (specified) keylen:%d, "
 					"not valid "
 					/*
 					 "keylen != %d"
 					 */
 					"min=%d, max=%d"
+					, __FUNCTION__
 					, ealg
 					, eklen
 					/*
@@ -265,7 +264,7 @@ bool ike_alg_enc_ok(int ealg, unsigned key_len, struct alg_info_ike *alg_info_ik
 				enc_desc->keyminlen,
 				enc_desc->keymaxlen
 		       );
-		log (__FUNCTION__ "(): %s", errbuf);
+		log ("%s(): %s", __FUNCTION__, errbuf);
 		return_on(ret, FALSE);
 	} 
 	/* 
@@ -291,16 +290,17 @@ bool ike_alg_enc_ok(int ealg, unsigned key_len, struct alg_info_ike *alg_info_ik
 				enc_desc->keyminlen,
 				enc_desc->keymaxlen
 		   );
-		log(__FUNCTION__ "(): %s", errbuf);
+		log("%s(): %s", __FUNCTION__, errbuf);
 		return_on(ret, FALSE);
 	}
 return_out:
 	DBG(DBG_KLIPS, 
 		if (ret) 
-			DBG_log(__FUNCTION__ "(ealg=%d,key_len=%d): "
+			DBG_log("%s(ealg=%d,key_len=%d): "
 				"blocksize=%d, keyminlen=%d, "
 				"keydeflen=%d, keymaxlen=%d, "
 				"ret=%d",
+				__FUNCTION__,
 				ealg, key_len,
 				enc_desc->enc_blocksize,
 				enc_desc->keyminlen,
@@ -308,8 +308,8 @@ return_out:
 				enc_desc->keymaxlen,
 				ret);
 		else 
-			DBG_log(__FUNCTION__ "(ealg=%d,key_len=%d): NO",
-				ealg, key_len);
+			DBG_log("%s(ealg=%d,key_len=%d): NO",
+				__FUNCTION__, ealg, key_len);
 	);
 	if (!ret && *errp)
 		*errp=errbuf;
@@ -355,7 +355,7 @@ ike_alg_add(struct ike_alg* a)
 	}
 return_out:
 	if (ret) 
-		log(__FUNCTION__ "(): ERROR: %s", ugh);
+		log("%s(): ERROR: %s", __FUNCTION__, ugh);
 	return ret;
 }
 
@@ -368,36 +368,38 @@ ike_alg_register_hash(struct hash_desc *hash_desc)
 	const char *alg_name;
 	int ret=0;
 	if (hash_desc->algo_id > OAKLEY_HASH_MAX) {
-		log (__FUNCTION__ "(): hash alg=%d < max=%d",
-				hash_desc->algo_id, OAKLEY_HASH_MAX);
+		log ("%s(): hash alg=%d < max=%d",
+				__FUNCTION__, hash_desc->algo_id, OAKLEY_HASH_MAX);
 		return_on(ret,-EINVAL);
 	}
 	if (hash_desc->hash_ctx_size > sizeof (union hash_ctx)) {
-		log (__FUNCTION__ "(): hash alg=%d has "
+		log ("%s(): hash alg=%d has "
 				"ctx_size=%d > hash_ctx=%d",
+				__FUNCTION__,
 				hash_desc->algo_id, 
 				hash_desc->hash_ctx_size,
 				sizeof (union hash_ctx));
 		return_on(ret,-EOVERFLOW);
 	}
 	if (!(hash_desc->hash_init&&hash_desc->hash_update&&hash_desc->hash_final)) {
-		log (__FUNCTION__ "(): hash alg=%d needs  "
+		log ("%s(): hash alg=%d needs  "
 				"hash_init(), hash_update() and hash_final()",
-				hash_desc->algo_id);
+				__FUNCTION__, hash_desc->algo_id);
 		return_on(ret,-EINVAL);
 	}
 	alg_name=enum_name(&oakley_hash_names, hash_desc->algo_id);
 	if (!alg_name) {
-		log (__FUNCTION__ "(): WARNING: hash alg=%d not found in "
+		log ("%s(): WARNING: hash alg=%d not found in "
 				"constants.c:oakley_hash_names  ",
-				hash_desc->algo_id);
+				__FUNCTION__, hash_desc->algo_id);
 		alg_name="<NULL>";
 	}
 
 return_out:
 	if (ret==0)
 		ret=ike_alg_add((struct ike_alg *)hash_desc);
-	log(__FUNCTION__ ": Activating %s: %s (ret=%d)", 
+	log("%s: Activating %s: %s (ret=%d)", 
+			__FUNCTION__,
 			alg_name, ret==0? "Ok" : "FAILED", ret);
 	return ret;
 }
@@ -411,21 +413,23 @@ ike_alg_register_enc(struct encrypt_desc *enc_desc)
 	const char *alg_name;
 	int ret=0;
 	if (enc_desc->algo_id > OAKLEY_ENCRYPT_MAX) {
-		log (__FUNCTION__ "(): enc alg=%d < max=%d\n",
+		log ("%s(): enc alg=%d < max=%d\n",
+				__FUNCTION__,
 				enc_desc->algo_id, OAKLEY_ENCRYPT_MAX);
 		return_on(ret, -EINVAL);
 	}
 	alg_name=enum_name(&oakley_enc_names, enc_desc->algo_id);
 	if (!alg_name) {
-		log (__FUNCTION__ "(): WARNING: enc alg=%d not found in "
+		log ("%s(): WARNING: enc alg=%d not found in "
 				"constants.c:oakley_enc_names  ",
-				enc_desc->algo_id);
+				__FUNCTION__, enc_desc->algo_id);
 		alg_name="<NULL>";
 	}
 return_out:
 	if (ret==0)
 		ret=ike_alg_add((struct ike_alg *)enc_desc);
-	log(__FUNCTION__ ": Activating %s: %s (ret=%d)", 
+	log("%s: Activating %s: %s (ret=%d)", 
+			__FUNCTION__,
 			alg_name, ret==0? "Ok" : "FAILED", ret);
 	return 0;
 }

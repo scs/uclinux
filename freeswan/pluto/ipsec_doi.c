@@ -124,7 +124,8 @@ compute_dh_shared(struct state *st, const chunk_t g
     gettimeofday(&tv1, NULL);
     tv_diff=(tv1.tv_sec  - tv0.tv_sec) * 1000000 + (tv1.tv_usec - tv0.tv_usec);
     DBG(DBG_CRYPT, 
-    	DBG_log(__FUNCTION__ "(): time elapsed (%s): %ld usec"
+    	DBG_log("%s(): time elapsed (%s): %ld usec"
+		, __FUNCTION__
 		, enum_show(&oakley_group_names, st->st_oakley.group->group)
 		, tv_diff);
        );
@@ -188,11 +189,24 @@ build_and_ship_KE(struct state *st, chunk_t *g
 	 */
 	if (g == &st->st_gr)
 	{
+	    int valid = FALSE;
+
 	    compute_dh_shared(st, st->st_gi
 		, IS_PHASE1(st->st_state)
 		    ? st->st_oakley.group : st->st_pfs_group);
-	    if (st->st_shared.ptr[0] == 0)
 	    {
+		    int i = 0;
+		    for (i = 0; i < st->st_shared.len; i++) {
+	    		if (st->st_shared.ptr[i] != 0) {
+				valid = TRUE;
+				break;
+			}
+		    }
+	    }
+
+	    if (!valid) {
+	    	return 0;
+	    } else if (st->st_shared.ptr[0] == 0) {
 		/* generate a new secret to avoid this situation */
 		loglog(RC_LOG_SERIOUS, "regenerating DH private secret to avoid Pluto 1.0 bug"
 		    " handling shared secret with leading zero");
@@ -392,14 +406,14 @@ send_ipsec_delete(struct state *p2st)
     {
 	ns->spi = p2st->st_ah.attrs.spi;
 	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = SA_AH;
+	ns->proto = PROTO_IPSEC_AH;
 	ns++;
     }
     if (p2st->st_esp.present)
     {
 	ns->spi = p2st->st_esp.attrs.spi;
 	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = SA_ESP;
+	ns->proto = PROTO_IPSEC_ESP;
 	ns++;
     }
     /* I doubt that it makes sense to delete an IPCOMP with a well-known CPI.
@@ -410,7 +424,7 @@ send_ipsec_delete(struct state *p2st)
     {
 	ns->spi = p2st->st_ipcomp.attrs.spi;
 	ns->dst = p2st->st_connection->this.host_addr;
-	ns->proto = SA_COMP;
+	ns->proto = PROTO_IPCOMP;
 	ns++;
     }
 #endif
@@ -2398,8 +2412,7 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
 	{
 	    /* apparently, r is an improvement on c -- replace */
 
-	    DBG(DBG_CONTROL
-		, DBG_log("switched from \"%s\" to \"%s\"", c->name, r->name));
+	    log("switched from \"%s\" to \"%s\"", c->name, r->name);
 	    if (r->kind == CK_TEMPLATE)
 	    {
 		/* instantiate it, filling in peer's ID */
@@ -2423,6 +2436,8 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
 
 /* Decode the variable part of an ID packet (during Quick Mode).
  * This is designed for packets that identify clients, not peers.
+ * Rejects 0.0.0.0/32 or IPv6 equivalent because
+ * (1) it is wrong and (2) we use this value for inband signalling.
  */
 static bool
 decode_net_id(struct isakmp_ipsec_id *id
@@ -2440,6 +2455,18 @@ decode_net_id(struct isakmp_ipsec_id *id
 
     switch (id->isaiid_idtype)
     {
+	case ID_FQDN:
+	{
+           /* 818043 NAT-T/L2TP/IPsec for Windows 2000 and XP
+            * sends an ID_FQDN in the quick mode exchange (name
+            * of host computer)
+            *
+            * This leaves net uninitialised and quick mode will
+            * fail with "no connection is known"
+            */
+            memset(net, 0, sizeof(ip_subnet));
+            break;
+        }
 	case ID_IPV4_ADDR:
 	case ID_IPV4_ADDR_SUBNET:
 	case ID_IPV4_ADDR_RANGE:
@@ -4024,7 +4051,7 @@ aggr_inR1_outI2_tail(struct msg_digest *md)
 	loglog(RC_LOG_SERIOUS,
 	     "Initial Aggressive Mode packet claiming to be from %s"
 	     " on %s but no connection has been authorized",
-	    buf, md->sender);
+	    buf, inet_ntoa(md->sender.u.v4.sin_addr));
 	/* XXX notification is in order! */
 	return STF_FAIL + INVALID_ID_INFORMATION;
     }
@@ -4851,7 +4878,7 @@ quick_inR1_outI2(struct msg_digest *md)
     if (c->gw_info != NULL)
 	c->gw_info->last_worked_time = now();
 
-    if (st->st_connection->dpd_delay)
+    if (st->st_connection->kind == CK_PERMANENT && st->st_connection->dpd_delay)
 	dpd_init(st);
 
     return STF_OK;
@@ -4892,7 +4919,7 @@ quick_inI2(struct msg_digest *md)
 	    gw->last_worked_time = now();
     }
 
-    if (st->st_connection->dpd_delay)
+    if (st->st_connection->kind == CK_PERMANENT && st->st_connection->dpd_delay)
 	dpd_init(st);
 
     return STF_OK;
@@ -5187,6 +5214,9 @@ dpd_inR(struct state *st, struct isakmp_notification *const n, pb_stream *n_pbs)
 void
 dpd_timeout(struct state *st)
 {
+    struct connection *c = st->st_connection;
+
     loglog(RC_LOG_SERIOUS, "timeout waiting for DPD ack, replacing SA");
-    replace_states_by_peer(&st->st_connection->that.host_addr);
+    terminate_connections_by_peer(c);
+    initiate_connections_by_peer(c);
 }

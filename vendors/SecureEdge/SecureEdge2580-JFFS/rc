@@ -14,3 +14,4 @@ insmod hifn7951
 /bin/firewall -i
 /bin/sh /etc/config/start
 /bin/firewall &
+echo "/etc/rc complete."

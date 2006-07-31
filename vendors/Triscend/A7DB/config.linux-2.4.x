@@ -23,14 +23,22 @@ CONFIG_EXPERIMENTAL=y
 # System Type
 #
 # CONFIG_ARCH_DSC21 is not set
-# CONFIG_ARCH_C5471 is not set
+# CONFIG_ARCH_VC547X is not set
+# CONFIG_ARCH_DM270 is not set
 # CONFIG_ARCH_CNXT is not set
 # CONFIG_ARCH_NETARM is not set
 CONFIG_ARCH_TA7S=y
 # CONFIG_ARCH_TA7V is not set
 # CONFIG_ARCH_SWARM is not set
+# CONFIG_ARCH_INL is not set
 # CONFIG_ARCH_SAMSUNG is not set
+# CONFIG_ARCH_LPC is not set
+# CONFIG_MACH_EB67XDIP is not set
 # CONFIG_ARCH_ATMEL is not set
+# CONFIG_MACH_UC5471DSP is not set
+# CONFIG_MACH_SJ5471ENG is not set
+# CONFIG_ARCH_IPOD is not set
+# CONFIG_ARCH_WINBOND is not set
 CONFIG_BOARD_A7DB=y
 # CONFIG_BOARD_DevA7 is not set
 # CONFIG_USE_A7HAL is not set
@@ -66,6 +74,7 @@ CONFIG_KERNEL_ELF=y
 # CONFIG_ARTHUR is not set
 CONFIG_CMDLINE_BOOL=y
 CONFIG_CMDLINE="root=/dev/blkmem/0"
+# CONFIG_PCI is not set
 # CONFIG_RAM_ATTACHED_ROMFS is not set
 
 #
@@ -75,6 +84,8 @@ CONFIG_CMDLINE="root=/dev/blkmem/0"
 # CONFIG_NETLINK_DEV is not set
 # CONFIG_NETFILTER is not set
 # CONFIG_FILTER is not set
+# CONFIG_NET_NEIGH_DEBUG is not set
+# CONFIG_NET_RESTRICTED_REUSE is not set
 CONFIG_UNIX=y
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -92,7 +103,6 @@ CONFIG_INET=y
 #
 #    SCTP Configuration (EXPERIMENTAL)
 #
-CONFIG_IPV6_SCTP__=y
 # CONFIG_IP_SCTP is not set
 # CONFIG_ATM is not set
 # CONFIG_VLAN_8021Q is not set
@@ -102,11 +112,6 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_IPX is not set
 # CONFIG_ATALK is not set
-
-#
-# Appletalk devices
-#
-# CONFIG_DEV_APPLETALK is not set
 # CONFIG_DECNET is not set
 # CONFIG_BRIDGE is not set
 # CONFIG_X25 is not set
@@ -123,11 +128,13 @@ CONFIG_IPV6_SCTP__=y
 #
 # CONFIG_NET_SCHED is not set
 # CONFIG_IPSEC is not set
+# CONFIG_KLIPS is not set
 
 #
 # Network testing
 #
 # CONFIG_NET_PKTGEN is not set
+# CONFIG_IPSEC_NAT_TRAVERSAL is not set
 
 #
 # Network device support
@@ -141,6 +148,10 @@ CONFIG_NETDEVICES=y
 # CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
+
+#
+# IMQ needs CONFIG_NETFILTER enabled
+#
 # CONFIG_TUN is not set
 # CONFIG_ETHERTAP is not set
 
@@ -161,9 +172,12 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_NET_ISA is not set
 # CONFIG_NET_PCI is not set
 # CONFIG_NET_POCKET is not set
+# CONFIG_CNXT_EMAC is not set
 # CONFIG_FEC is not set
 # CONFIG_CS89x0 is not set
 # CONFIG_UCCS8900 is not set
+# CONFIG_AX88796 is not set
+# CONFIG_DM9000 is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -216,7 +230,6 @@ CONFIG_NET_ETHERNET=y
 # ATA/IDE/MFM/RLL support
 #
 # CONFIG_IDE is not set
-# CONFIG_BLK_DEV_IDE_MODES is not set
 # CONFIG_BLK_DEV_HD is not set
 
 #
@@ -261,6 +274,7 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_CISS_MONITOR_THREAD is not set
 # CONFIG_BLK_DEV_DAC960 is not set
 # CONFIG_BLK_DEV_UMEM is not set
+# CONFIG_BLK_DEV_SX8 is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 CONFIG_BLK_DEV_RAM=y
@@ -301,7 +315,9 @@ CONFIG_NOFLASH=y
 # CONFIG_EFS_FS is not set
 # CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
+# CONFIG_YAFFS_FS is not set
 # CONFIG_CRAMFS is not set
+# CONFIG_SQUASHFS is not set
 # CONFIG_TMPFS is not set
 CONFIG_RAMFS=y
 # CONFIG_ISO9660_FS is not set
@@ -316,6 +332,7 @@ CONFIG_MINIX_FS=y
 # CONFIG_NTFS_RW is not set
 # CONFIG_HPFS_FS is not set
 CONFIG_PROC_FS=y
+CONFIG_PROC_NDYNAMIC=4096
 CONFIG_DEVFS_FS=y
 CONFIG_DEVFS_MOUNT=y
 # CONFIG_DEVFS_DEBUG is not set
@@ -329,6 +346,11 @@ CONFIG_EXT2_FS=y
 # CONFIG_UDF_RW is not set
 # CONFIG_UFS_FS is not set
 # CONFIG_UFS_FS_WRITE is not set
+# CONFIG_XFS_FS is not set
+# CONFIG_XFS_QUOTA is not set
+# CONFIG_XFS_RT is not set
+# CONFIG_XFS_TRACE is not set
+# CONFIG_XFS_DEBUG is not set
 
 #
 # Network File Systems
@@ -347,6 +369,7 @@ CONFIG_LOCKD=y
 CONFIG_LOCKD_V4=y
 CONFIG_SMB_FS=y
 # CONFIG_SMB_NLS_DEFAULT is not set
+# CONFIG_SMB_UNIX is not set
 # CONFIG_NCP_FS is not set
 # CONFIG_NCPFS_PACKET_SIGNING is not set
 # CONFIG_NCPFS_IOCTL_LOCKING is not set
@@ -357,6 +380,7 @@ CONFIG_SMB_FS=y
 # CONFIG_NCPFS_NLS is not set
 # CONFIG_NCPFS_EXTRAS is not set
 # CONFIG_ZISOFS_FS is not set
+# CONFIG_COREDUMP_PRINTK is not set
 
 #
 # Partition Types
@@ -408,18 +432,65 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 # CONFIG_NLS_UTF8 is not set
 
 #
+# Input core support
+#
+# CONFIG_INPUT is not set
+# CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_INPUT_JOYDEV is not set
+# CONFIG_INPUT_EVDEV is not set
+# CONFIG_INPUT_UINPUT is not set
+
+#
 # Character devices
 #
 # CONFIG_LEDMAN is not set
+# CONFIG_SNAPDOG is not set
+# CONFIG_FAST_TIMER is not set
 # CONFIG_DS1302 is not set
+# CONFIG_M41T11M6 is not set
 # CONFIG_VT is not set
 CONFIG_SERIAL=y
 CONFIG_SERIAL_CONSOLE=y
 CONFIG_SERIAL_TA7=y
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+
+#
+# Serial drivers
+#
+# CONFIG_SERIAL_ANAKIN is not set
+# CONFIG_SERIAL_ANAKIN_CONSOLE is not set
+# CONFIG_SERIAL_AMBA is not set
+# CONFIG_SERIAL_AMBA_CONSOLE is not set
+# CONFIG_SERIAL_CLPS711X is not set
+# CONFIG_SERIAL_CLPS711X_CONSOLE is not set
+# CONFIG_SERIAL_21285 is not set
+# CONFIG_SERIAL_21285_OLD is not set
+# CONFIG_SERIAL_21285_CONSOLE is not set
+# CONFIG_SERIAL_UART00 is not set
+# CONFIG_SERIAL_UART00_CONSOLE is not set
+# CONFIG_SERIAL_SA1100 is not set
+# CONFIG_SERIAL_SA1100_CONSOLE is not set
+# CONFIG_SERIAL_OMAHA is not set
+# CONFIG_SERIAL_OMAHA_CONSOLE is not set
+# CONFIG_SERIAL_AT91 is not set
+# CONFIG_SERIAL_AT91_CONSOLE is not set
+# CONFIG_SERIAL_8250 is not set
+# CONFIG_SERIAL_8250_CONSOLE is not set
+# CONFIG_SERIAL_8250_EXTENDED is not set
+# CONFIG_SERIAL_8250_MANY_PORTS is not set
+# CONFIG_SERIAL_8250_SHARE_IRQ is not set
+# CONFIG_SERIAL_8250_DETECT_IRQ is not set
+# CONFIG_SERIAL_8250_MULTIPORT is not set
+# CONFIG_SERIAL_8250_HUB6 is not set
 CONFIG_UNIX98_PTYS=y
 CONFIG_UNIX98_PTY_COUNT=256
+
+#
+# SPI support
+#
+# CONFIG_SPI is not set
 
 #
 # I2C support
@@ -431,41 +502,20 @@ CONFIG_UNIX98_PTY_COUNT=256
 #
 # CONFIG_BUSMOUSE is not set
 # CONFIG_MOUSE is not set
+# CONFIG_EDB7312_TS is not set
 
 #
 # Joysticks
 #
 # CONFIG_INPUT_GAMEPORT is not set
-# CONFIG_INPUT_NS558 is not set
-# CONFIG_INPUT_LIGHTNING is not set
-# CONFIG_INPUT_PCIGAME is not set
-# CONFIG_INPUT_CS461X is not set
-# CONFIG_INPUT_EMU10K1 is not set
-# CONFIG_INPUT_SERIO is not set
-# CONFIG_INPUT_SERPORT is not set
 
 #
-# Joysticks
+# Input core support is needed for gameports
 #
-# CONFIG_INPUT_ANALOG is not set
-# CONFIG_INPUT_A3D is not set
-# CONFIG_INPUT_ADI is not set
-# CONFIG_INPUT_COBRA is not set
-# CONFIG_INPUT_GF2K is not set
-# CONFIG_INPUT_GRIP is not set
-# CONFIG_INPUT_INTERACT is not set
-# CONFIG_INPUT_TMDC is not set
-# CONFIG_INPUT_SIDEWINDER is not set
-# CONFIG_INPUT_IFORCE_USB is not set
-# CONFIG_INPUT_IFORCE_232 is not set
-# CONFIG_INPUT_WARRIOR is not set
-# CONFIG_INPUT_MAGELLAN is not set
-# CONFIG_INPUT_SPACEORB is not set
-# CONFIG_INPUT_SPACEBALL is not set
-# CONFIG_INPUT_STINGER is not set
-# CONFIG_INPUT_DB9 is not set
-# CONFIG_INPUT_GAMECON is not set
-# CONFIG_INPUT_TURBOGRAFX is not set
+
+#
+# Input core support is needed for joysticks
+#
 # CONFIG_QIC02_TAPE is not set
 # CONFIG_IPMI_HANDLER is not set
 # CONFIG_IPMI_PANIC_EVENT is not set
@@ -482,6 +532,7 @@ CONFIG_UNIX98_PTY_COUNT=256
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
+# CONFIG_SCx200 is not set
 # CONFIG_SCx200_GPIO is not set
 # CONFIG_AMD_PM768 is not set
 # CONFIG_NVRAM is not set
@@ -510,6 +561,11 @@ CONFIG_UNIX98_PTY_COUNT=256
 # Support for USB gadgets
 #
 # CONFIG_USB_GADGET is not set
+
+#
+# IEEE 1394 (FireWire) support (EXPERIMENTAL)
+#
+# CONFIG_IEEE1394 is not set
 
 #
 # I2O device support

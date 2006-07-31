@@ -11,3 +11,4 @@ mkdir /var/lock
 mkdir /var/empty
 /bin/flatfsd -r
 cp /etc/config/resolv.user /etc/config/resolv.conf
+echo "/etc/rc complete."

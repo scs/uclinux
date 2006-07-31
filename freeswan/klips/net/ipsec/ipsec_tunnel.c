@@ -855,174 +855,10 @@ ipsec_tunnel_start_xmit(struct sk_buff *skb, struct device *dev)
 #endif		
 			case SPI_TRAP:
 			case SPI_TRAPSUBNET:
-			{
-				struct sockaddr_in src, dst;
-#ifdef CONFIG_IPSEC_DEBUG
-				char bufsrc[ADDRTOA_BUF], bufdst[ADDRTOA_BUF];
-#endif /* CONFIG_IPSEC_DEBUG */
-				struct eroute hold_eroute;
-				struct sa_id hold_said;
-				struct sk_buff *first = NULL, *last = NULL;
-				
-				/* Signal all listening KMds with a PF_KEY ACQUIRE */
-				tdb.tdb_said.proto = iph->protocol;
-				src.sin_family = AF_INET;
-				dst.sin_family = AF_INET;
-				src.sin_addr.s_addr = iph->saddr;
-				dst.sin_addr.s_addr = iph->daddr;
-				src.sin_port = 
-					(iph->protocol == IPPROTO_UDP
-					 ? ((struct udphdr*) (((caddr_t)iph) + (iph->ihl << 2)))->source
-					 : (iph->protocol == IPPROTO_TCP
-					    ? ((struct tcphdr*)((caddr_t)iph + (iph->ihl << 2)))->source
-					    : 0));
-				dst.sin_port = 
-					(iph->protocol == IPPROTO_UDP
-					 ? ((struct udphdr*) (((caddr_t)iph) + (iph->ihl << 2)))->dest
-					 : (iph->protocol == IPPROTO_TCP
-					    ? ((struct tcphdr*)((caddr_t)iph + (iph->ihl << 2)))->dest
-					    : 0));
-				for(i = 0;
-				    i < sizeof(struct sockaddr_in)
-					    - offsetof(struct sockaddr_in, sin_zero);
-				    i++) {
-					src.sin_zero[i] = 0;
-					dst.sin_zero[i] = 0;
-				}
-				
-				tdb.tdb_addr_s = (struct sockaddr*)(&src);
-				tdb.tdb_addr_d = (struct sockaddr*)(&dst);
-				KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
-					    "klips_debug:ipsec_tunnel_start_xmit: "
-					    "SADB_ACQUIRE sent with src=%s:%d, dst=%s:%d, proto=%d.\n",
-					    addrtoa(((struct sockaddr_in*)(tdb.tdb_addr_s))->sin_addr, 0, bufsrc, sizeof(bufsrc)) <= ADDRTOA_BUF ? bufsrc : "BAD_ADDR",
-					    ntohs(((struct sockaddr_in*)(tdb.tdb_addr_s))->sin_port),
-					    addrtoa(((struct sockaddr_in*)(tdb.tdb_addr_d))->sin_addr, 0, bufdst, sizeof(bufdst)) <= ADDRTOA_BUF ? bufdst : "BAD_ADDR",
-					    ntohs(((struct sockaddr_in*)(tdb.tdb_addr_d))->sin_port),
-					    tdb.tdb_said.proto);
-				
-				if (pfkey_acquire(&tdb) == 0) {
-					
-					if (outgoing_said.spi==htonl(SPI_TRAPSUBNET)) {
-						/*
-						 * The spinlock is to prevent any other
-						 * process from accessing or deleting
-						 * the eroute while we are using and
-						 * updating it.
-						 */
-						spin_lock(&eroute_lock);
-						er = ipsec_findroute(&matcher);
-						if(er) {
-							er->er_said.spi = htonl(SPI_HOLD);
-							er->er_first = skb;
-							skb = NULL;
-						}
-						spin_unlock(&eroute_lock);
-					} else {
-						/* install HOLD eroute */
-						memset((caddr_t)&hold_eroute, 0, sizeof(hold_eroute));
-						memset((caddr_t)&hold_said, 0, sizeof(hold_said));
-						
-						hold_said.proto = IPPROTO_INT;
-						hold_said.spi = htonl(SPI_HOLD);
-						hold_said.dst.s_addr = INADDR_ANY;
-						
-						hold_eroute.er_eaddr.sen_len = sizeof(struct sockaddr_encap);
-						hold_eroute.er_emask.sen_len = sizeof(struct sockaddr_encap);
-						hold_eroute.er_eaddr.sen_family = AF_ENCAP;
-						hold_eroute.er_emask.sen_family = AF_ENCAP;
-						hold_eroute.er_eaddr.sen_type = SENT_IP4;
-						hold_eroute.er_emask.sen_type = 255;
-						
-						hold_eroute.er_eaddr.sen_ip_src.s_addr = iph->saddr;
-						hold_eroute.er_eaddr.sen_ip_dst.s_addr = iph->daddr;
-						hold_eroute.er_emask.sen_ip_src.s_addr = INADDR_BROADCAST;
-						hold_eroute.er_emask.sen_ip_dst.s_addr = INADDR_BROADCAST;
-						
-						hold_eroute.er_pid = eroute_pid;
-						hold_eroute.er_count = 0;
-						hold_eroute.er_lasttime = jiffies/HZ;
-						
-#ifdef IPSEC_CONFIG_FULL_SELECTOR_LIST
-						/* These are ficticious.  Don't uncomment these until
-						   proto, sport and dport exist in the SPDB */
-						hold_eroute.er_proto = iph->protocol;
-						hold_eroute.er_src_port = 
-							(iph->protocol == IPPROTO_UDP
-							 ? ((struct udphdr*) (((caddr_t)iph) + (iph->ihl << 2)))->source
-							 : (iph->protocol == IPPROTO_TCP
-							    ? ((struct tcphdr*)((caddr_t)iph + (iph->ihl << 2)))->source
-							    : 0));
-						hold_eroute.er_dst_port = 
-							(iph->protocol == IPPROTO_UDP
-							 ? ((struct udphdr*) (((caddr_t)iph) + (iph->ihl << 2)))->dest
-							 : (iph->protocol == IPPROTO_TCP
-							    ? ((struct tcphdr*)((caddr_t)iph + (iph->ihl << 2)))->dest
-							    : 0));
-#endif /* IPSEC_CONFIG_FULL_SELECTOR_LIST */
-						
-#ifdef CONFIG_IPSEC_DEBUG
-						if (debug_pfkey) {
-							char buf1[64], buf2[64];
-							subnettoa(hold_eroute.er_eaddr.sen_ip_src,
-								  hold_eroute.er_emask.sen_ip_src, 0, buf1, sizeof(buf1));
-							subnettoa(hold_eroute.er_eaddr.sen_ip_dst,
-								  hold_eroute.er_emask.sen_ip_dst, 0, buf2, sizeof(buf2));
-							KLIPS_PRINT(debug_pfkey,
-								    "klips_debug:ipsec_tunnel_start_xmit: "
-								    "calling breakeroute and makeroute for %s->%s HOLD eroute.\n",
-								    buf1, buf2);
-						}
-#endif /* CONFIG_IPSEC_DEBUG */
-						if (ipsec_breakroute(&(hold_eroute.er_eaddr),
-								     &(hold_eroute.er_emask),
-								     &first, &last) != EINVAL) {
-							KLIPS_PRINT(debug_pfkey,
-								    "klips_debug:ipsec_tunnel_start_xmit: "
-								    "breakeroute should have failed.  first=%p, last=%p\n",
-								    first, last);
-							if(first != NULL) {
-								dev_kfree_skb(first, FREE_WRITE);
-							}
-							if(last != NULL) {
-								dev_kfree_skb(last, FREE_WRITE);
-							}
-							/* SENDERR(-error); */
-						} else {
-							KLIPS_PRINT(debug_pfkey,
-								    "klips_debug:ipsec_tunnel_start_xmit: "
-								    "HOLD breakeroute found nothing as expected.\n");
-							if(first != NULL) {
-								dev_kfree_skb(first, FREE_WRITE);
-							}
-							if(last != NULL) {
-								dev_kfree_skb(last, FREE_WRITE);
-							}
-						}
-						
-						if ((error = ipsec_makeroute(&(hold_eroute.er_eaddr),
-									     &(hold_eroute.er_emask),
-									     hold_said,
-									     eroute_pid,
-									     skb,
-									     NULL,
-									     NULL))) {
-							KLIPS_PRINT(debug_pfkey,
-								    "klips_debug:ipsec_tunnel_start_xmit: "
-								    "HOLD makeroute returned %d, failed.\n", error);
-							/* SENDERR(-error); */
-						} else {
-							KLIPS_PRINT(debug_pfkey,
-								    "klips_debug:ipsec_tunnel_start_xmit: "
-								    "HOLD makeroute call successful.\n");
-							skb = NULL;
-						}
-					}
-				}
 				stats->tx_dropped++;
-			}
 			default:
 				/* XXX what do we do with an unknown shunt spi? */
+				break;
 			} /* switch (ntohl(outgoing_said.spi)) */
 			goto cleanup;
 		} /* if (outgoing_said.proto == IPPROTO_INT) */
@@ -1942,6 +1778,7 @@ ipsec_tunnel_start_xmit(struct sk_buff *skb, struct device *dev)
 					iph->tos = 0;
 					break;
 				default:
+					break;
 				}
 #ifdef NET_21
 #ifdef NETDEV_23
@@ -2190,6 +2027,10 @@ ipsec_tunnel_start_xmit(struct sk_buff *skb, struct device *dev)
 #ifdef CONFIG_NETFILTER_DEBUG
 	skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+	nf_bridge_put(skb->nf_bridge);
+	skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
 	KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
 		    "klips_debug:ipsec_tunnel_start_xmit: "
@@ -3305,11 +3146,8 @@ ipsec_tunnel_cleanup_devices(void)
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:39  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:42  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.187  2002/03/23 19:55:17  rgb
  * Fix for 2.2 local IKE fragmentation blackhole.  Still won't work if

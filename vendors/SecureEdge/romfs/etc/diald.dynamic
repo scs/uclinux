@@ -7,28 +7,28 @@ ignore tcp tcp.source=tcp.53
 
 # (Ack! SCO telnet starts by sending empty SYNs and only opens the
 # connection if it gets a response. Sheesh..)
-accept tcp 900 ip.tot_len=40,tcp.syn
+accept tcp ${idle} ip.tot_len=40,tcp.syn
 
 # keep empty packets from holding the link up (other than empty SYN packets)
 ignore tcp ip.tot_len=40,tcp.live
 
 # make sure http transfers hold the link for 15 minutes, even after they end.
-accept tcp 900 tcp.dest=tcp.80
-accept tcp 900 tcp.source=tcp.80
+accept tcp ${idle} tcp.dest=tcp.80
+accept tcp ${idle} tcp.source=tcp.80
 
 # Once the link is no longer live, we try to shut down the connection
 # quickly. Note that if the link is already down, a state change
 # will not bring it back up.
-keepup tcp 900 !tcp.live
+keepup tcp ${idle} !tcp.live
 ignore tcp !tcp.live
 
 # an ftp-data or ftp connection can be expected to show reasonably frequent
 # traffic.
-accept tcp 900 tcp.dest=tcp.21
-accept tcp 900 tcp.source=tcp.21
+accept tcp ${idle} tcp.dest=tcp.21
+accept tcp ${idle} tcp.source=tcp.21
 
 # If we don't catch it above, give the link 15 minutes up time.
-accept tcp 900 any
+accept tcp ${idle} any
 
 #------------------------------------------------------------------------------
 # Rules for UDP packets
@@ -36,6 +36,8 @@ accept tcp 900 any
 # Don't bring the link up for IPSec.
 ignore udp udp.dest=udp.500
 ignore udp udp.source=udp.500
+ignore udp udp.dest=udp.4500
+ignore udp udp.source=udp.4500
 # Don't bring the link up for rwho.
 ignore udp udp.dest=udp.513
 ignore udp udp.source=udp.513
@@ -51,17 +53,17 @@ ignore udp udp.source=udp.525
 ignore udp udp.dest=udp.53,udp.source=udp.53
 # Bring up the network whenever we make a domain request from someplace
 # other than named.
-accept udp 900 udp.dest=udp.53
-accept udp 900 udp.source=udp.53
+accept udp ${idle} udp.dest=udp.53
+accept udp ${idle} udp.source=udp.53
 # Do the same for netbios-ns broadcasts
 ignore udp udp.source=udp.137,udp.dest=udp.137
-accept udp 900 udp.dest=udp.137
-accept udp 900 udp.source=udp.137
+accept udp ${idle} udp.dest=udp.137
+accept udp ${idle} udp.source=udp.137
 # keep routed and gated transfers from holding the link up
 ignore udp tcp.dest=udp.520
 ignore udp tcp.source=udp.520
 # Anything else gest 15 minutes.
-accept udp 900 any
+accept udp ${idle} any
 
-# Catch all, 900 seconds timeout.
-accept any 900 any
+# Catch all, ${idle} seconds timeout.
+accept any ${idle} any

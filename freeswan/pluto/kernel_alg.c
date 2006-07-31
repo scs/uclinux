@@ -169,8 +169,9 @@ kernel_alg_esp_enc_ok(int alg_id, unsigned int key_len, struct alg_info_esp *alg
 	 */
 	if ((key_len) && ((key_len < alg_p->sadb_alg_minbits) ||
 			 (key_len > alg_p->sadb_alg_maxbits))) {
-		log (__FUNCTION__ "() key_len not in range: alg_id=%d, "
+		log ("%s() key_len not in range: alg_id=%d, "
 				"key_len=%d, alg_minbits=%d, alg_maxbits=%d",
+				__FUNCTION__,
 				alg_id, key_len,
 				alg_p->sadb_alg_minbits,
 				alg_p->sadb_alg_maxbits
@@ -192,9 +193,10 @@ kernel_alg_esp_enc_ok(int alg_id, unsigned int key_len, struct alg_info_esp *alg
 				goto out;
 			}
 		}
-		log(__FUNCTION__ "() strict flag and algo not in alg_info: "
+		log("%s() strict flag and algo not in alg_info: "
 				"alg_id=%d, "
 				"key_len=%d, alg_minbits=%d, alg_maxbits=%d",
+				__FUNCTION__,
 				alg_id, key_len,
 				alg_p->sadb_alg_minbits,
 				alg_p->sadb_alg_maxbits
@@ -259,9 +261,10 @@ kernel_alg_proc_read(void) {
 						sadb_alg.sadb_alg_minbits=minbits;
 						sadb_alg.sadb_alg_maxbits=maxbits;
 						ret=kernel_alg_add(satype, supp_exttype, &sadb_alg);
-						DBG(DBG_CRYPT, DBG_log(__FUNCTION__ "() alg_id=%d, "
+						DBG(DBG_CRYPT, DBG_log("%s() alg_id=%d, "
 							"alg_ivlen=%d, alg_minbits=%d, alg_maxbits=%d, "
 							"ret=%d",
+							__FUNCTION__,
 							sadb_alg.sadb_alg_id,
 							sadb_alg.sadb_alg_ivlen,
 							sadb_alg.sadb_alg_minbits,
@@ -460,8 +463,8 @@ kernel_alg_esp_auth_ok(int auth, struct alg_info_esp *alg_info)
 		ret = FALSE;
 	}
 	DBG(DBG_CONTROL | DBG_CRYPT | DBG_PARSING
-		    , DBG_log(__FUNCTION__ "(auth=%d): ret=%d",
-			    auth, ret));
+		    , DBG_log("%s(auth=%d): ret=%d",
+			    __FUNCTION__, auth, ret));
 out:
 	return ret;
 }
@@ -475,8 +478,8 @@ kernel_alg_esp_auth_keylen(int auth)
 		a_keylen=esp_aalg[sadb_aalg].sadb_alg_maxbits/BITS_PER_BYTE;
 
 	DBG(DBG_CONTROL | DBG_CRYPT | DBG_PARSING
-		    , DBG_log(__FUNCTION__ "(auth=%d, sadb_aalg=%d): "
-		    "a_keylen=%d", auth, sadb_aalg, a_keylen));
+		    , DBG_log("%s(auth=%d, sadb_aalg=%d): "
+		    "a_keylen=%d", __FUNCTION__, auth, sadb_aalg, a_keylen));
 	return a_keylen;
 }
 
@@ -549,17 +552,17 @@ kernel_alg_db_add(struct db_context *db_ctx, struct esp_info *esp_info, lset_t p
 	int ealg_i, aalg_i;
 	ealg_i=esp_info->esp_ealg_id;
 	if (!ESP_EALG_PRESENT(ealg_i)) {
-		DBG_log(__FUNCTION__ "() "
+		DBG_log("%s() "
 				"kernel enc ealg_id=%d not present",
-				ealg_i);
+				__FUNCTION__, ealg_i);
 		return FALSE;
 	}
 	if (!(policy & POLICY_AUTHENTICATE)) {	/* skip ESP auth attrs for AH */
 		aalg_i=alg_info_esp_aa2sadb(esp_info->esp_aalg_id);
 		if (!ESP_AALG_PRESENT(aalg_i)) {
-			DBG_log(__FUNCTION__ "() kernel auth "
+			DBG_log("%s() kernel auth "
 					"aalg_id=%d not present",
-					aalg_i);
+					__FUNCTION__, aalg_i);
 			return FALSE;
 		}
 	}

@@ -33,6 +33,15 @@
 #define EMT_ESPDES_IV_SZ	8	/* IV size */
 #define ESP_DESCBC_BLKLEN       8       /* DES-CBC block size */
 
+#ifdef USE_IXP4XX_CRYPTO
+#define EMT_ESPAES_KMAX		    32	/* 256 bit AES secret key  */
+#define EMT_ESPAES128_KEY_SZ	16	/* 128 bit AES secret key */
+#define EMT_ESPAES192_KEY_SZ	24	/* 192 bit AES secret key */
+#define EMT_ESPAES256_KEY_SZ	32	/* 256 bit AES secret key */
+#define EMT_ESPAES_CBC_IV_SZ	16	/* IV size */
+#define ESP_AESCBC_BLKLEN       16  /* AES-CBC block size */
+#endif /* USE_IXP4XX_CRYPTO */
+
 #define ESP_IV_MAXSZ		16	/* This is _critical_ */
 #define ESP_IV_MAXSZ_INT	(ESP_IV_MAXSZ/sizeof(int))
 
@@ -71,7 +80,16 @@ struct esp
 {
 	__u32	esp_spi;		/* Security Parameters Index */
         __u32   esp_rpl;                /* Replay counter */
+#ifndef USE_IXP4XX_CRYPTO
 	__u8	esp_iv[8];		/* iv */
+#else
+	/*__u8	esp_iv[8];*/		/* iv is not part of ESP header, it
+					should be the first block of data to
+					ESP packet. IV size is different for
+					3DES and AES, therefore we can't have
+					a fix 8-byte of IV in the header. IV
+					has been moved out and become payload*/
+#endif /* USE_IXP4XX_CRYPTO */
 };
 
 #ifdef CONFIG_IPSEC_DEBUG
@@ -81,11 +99,8 @@ extern int debug_esp;
 
 /*
  * $Log$
- * Revision 1.1  2004/07/19 09:23:21  lgsoft
- * Initial revision
- *
- * Revision 1.1.1.1  2004/07/18 13:23:44  nidhi
- * Importing
+ * Revision 1.2  2006/07/31 02:43:41  vapier
+ * sync with upstream uClinux
  *
  * Revision 1.17  2002/02/20 01:27:07  rgb
  * Ditched a pile of structs only used by the old Netlink interface.

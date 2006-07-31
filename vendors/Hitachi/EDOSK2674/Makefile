@@ -8,6 +8,7 @@ IMAGEZ   = $(IMAGEDIR)/edosk2674-imagez.bin
 IMAGEB   = $(IMAGEDIR)/edosk2674-boot.mot
 IMAGES   = $(IMAGEDIR)/edosk2674-boot+image.mot
 BOOTBIN  = $(IMAGEDIR)/edosk2674-boot.bin
+BOOT     = $(IMAGEDIR)/boot.elf
 
 ROMFS_DIRS = bin dev/flash etc etc/config etc/default home lib mnt proc \
 			 usr var home/httpd home/httpd/cgi-bin etc/default
@@ -65,8 +66,8 @@ clean:
 
 .PHONY: $(BOOTBIN)
 $(BOOTBIN):
-	$(CC) -nostartfiles -nostdlib $(CFLAGS) -Wl,-T -Wl,boot.ld -o boot.elf boot.S
-	$(CROSS)objcopy -O binary -j .text boot.elf $(BOOTBIN)
+	$(CC) -nostartfiles -nostdlib $(CFLAGS) -Wl,-T -Wl,boot.ld -o $(BOOT) boot.S
+	$(CROSS)objcopy -O binary -j .text $(BOOT) $(BOOTBIN)
 
 romfs:
 	[ -d $(ROMFSDIR) ] || mkdir -p $(ROMFSDIR)
@@ -76,6 +77,9 @@ romfs:
 	for i in $(DEVICES); do \
 		touch $(ROMFSDIR)/dev/@$$i; \
 	done
+	# these permissions are needed for openpty and family to work
+	# on non-ptmx ptys
+	chmod 620 $(ROMFSDIR)/dev/@[pt]ty[pqrsPQRS][0-9a-f],*
 	for i in $(FLASH_DEVICES); do \
 		touch $(ROMFSDIR)/dev/flash/@$$i; \
 	done
@@ -98,37 +102,31 @@ romfs:
 
 image: $(BOOTBIN)
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
+ifeq ($(CONFIG_BINFMT_ZFLAT),y)
 	-flthdr -z $(ROMFSDIR)/bin/*
 	-flthdr -z $(ROMFSDIR)/sbin/*
 	-flthdr -z $(ROMFSDIR)/home/httpd/cgi-bin/*
+endif
 	genromfs -v -V "ROMdisk" -f romfs.img -d $(ROMFSDIR)
 	$(CROSS)objcopy -O binary \
 			-j .bootvec \
 			-j .text \
 			-j .data \
-			-j .bss \
 			$(ROOTDIR)/$(LINUXDIR)/linux linux.bin
-	$(CROSS)objcopy -O binary \
-			--set-section-flags=.ram_vec=contents,alloc,load,data \
-			-j .ram_vec \
-			$(ROOTDIR)/$(LINUXDIR)/linux vectors.bin
-	cat linux.bin vectors.bin romfs.img > $(IMAGE)
+	cat linux.bin romfs.img > $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
-	h8300-elf-objcopy \
-			--add-section .boot=$(BOOTBIN) \
-			--set-section-flags=.boot=alloc,load,data \
-			--adjust-section-vma=.boot=0 \
+	$(CROSS)objcopy \
 			--add-section .image=$(IMAGE) \
+			--change-section-vma=.image=0x40000 \
 			--set-section-flags=.image=alloc,load,data \
-			--adjust-section-vma=.image=0x40000 \
 			-O srec \
-			-j .boot \
+			-j .text \
 			-j .image \
-			-I binary \
-			/dev/null $(IMAGES)
-	h8300-elf-objcopy -I binary -O srec $(BOOTBIN) $(IMAGEB)
+			$(BOOT) $(IMAGES)
+	$(CROSS)objcopy -O srec -j .text $(BOOT) $(IMAGEB)
 	gzip -c -9 $(IMAGE) > $(IMAGEZ)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGEZ) >> $(IMAGEZ)
+	rm $(BOOT)
 	@if [ -w "$(TFTPBOOT)/." ]; then \
 		echo "Copying images to $(TFTPBOOT) ..."; \
 		cp $(IMAGES)  $(TFTPBOOT)/. ; \

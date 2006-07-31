@@ -8,11 +8,7 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-VERSIONPKG  := 1.9.0p0
-
-ifeq ($(CONFIG_LANGUAGE),japanese)
-  VERSIONPKG := $(VERSIONPKG)J
-endif
+include $(ROOTDIR)/vendors/config/config.languages
 
 ############################################################################
 
