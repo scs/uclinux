@@ -10,6 +10,8 @@ set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 
+set TITLE "USB Network Test"
+
 set argc [llength $argv]
 if { $argc < 1} {
    puts "Usage:  $argv0 ping_ipaddr"
@@ -294,6 +296,7 @@ while 1 {
          send_log "\nFailed to get ipaddr\n"
          send_user "\nFailed to get ipaddr\n"
          incr test_flag
+         break
       }
    }
 }
@@ -318,11 +321,13 @@ while 1 {
 }
 
 if { $test_flag == 0 } {
-   send_log "\nUSB network test PASS\n"
-   send_user "\nUSB network test PASS\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
+   send_user "\n$TITLE ............\[PASS\]\n"
 } else {
-   send_log "\nUSB network test FAIL\n"
-   send_user "\nUSB network test FAIL\n"
+   send_log "\n$TITLE ............\[FAIL\]\n"
+   send_user "\n$TITLE ............\[FAIL\]\n"
 }
+
+send_user "\n$TITLE is finished.\n"
 
 exit
