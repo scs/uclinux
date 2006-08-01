@@ -127,7 +127,6 @@ static int desc_list_init(void)
 	if (rx_desc == NULL)
 		goto init_error;
 
-
 	/* init tx_list */
 	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
 
@@ -227,7 +226,7 @@ static void desc_list_free(void)
 		tmp_desc_tx = tx_list_head;
 		for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
 			if (tmp_desc_tx != NULL) {
-				if(tmp_desc_tx->skb) {
+				if (tmp_desc_tx->skb) {
 					dev_kfree_skb(tmp_desc_tx->skb);
 					tmp_desc_tx->skb = NULL;
 				}
@@ -246,7 +245,7 @@ static void desc_list_free(void)
 		tmp_desc_rx = rx_list_head;
 		for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
 			if (tmp_desc_rx != NULL) {
-				if(tmp_desc_rx->skb) {
+				if (tmp_desc_rx->skb) {
 					dev_kfree_skb(tmp_desc_rx->skb);
 					tmp_desc_rx->skb = NULL;
 				}
