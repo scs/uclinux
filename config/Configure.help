@@ -4010,7 +4010,7 @@ CONFIG_USER_INETUTILS_RSHD
   RSH server. Part of the InetUtils packge.
   Approx. binary size: 53k
 
-CONFIG_USER_FLTHDR
+CONFIG_USER_FLTHDR_FLTHDR
   FLAT binary format header manipulation program.
 
 CONFIG_USER_CAN_EXAMPLES

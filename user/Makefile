@@ -151,6 +151,7 @@ dir_$(CONFIG_USER_FILEUTILS_TOUCH)          += fileutils
 dir_$(CONFIG_USER_FNORD_HTTPD)              += fnord
 dir_$(CONFIG_USER_FLASHW_FLASHW)            += flashw
 dir_$(CONFIG_USER_FLATFSD_FLATFSD)          += flatfsd
+dir_$(CONFIG_USER_FLTHDR_FLTHDR)            += flthdr
 dir_$(CONFIG_USER_FREESWAN)                 += freeswan
 dir_$(CONFIG_USER_FROB_LED_FROB_LED)        += frob-led
 dir_$(CONFIG_USER_FSWCERT_FSWCERT)          += fswcert

@@ -671,6 +671,7 @@ bool 'expat-examples'		CONFIG_USER_EXPAT_EXAMPLES
 if [ "$CONFIG_USER_EXPAT_EXAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_EXPAT y
 fi
+bool 'flthdr'			CONFIG_USER_FLTHDR_FLTHDR
 bool 'frob-led'			CONFIG_USER_FROB_LED_FROB_LED
 bool 'gdbreplay'		CONFIG_USER_GDBSERVER_GDBREPLAY
 bool 'gdbserver'		CONFIG_USER_GDBSERVER_GDBSERVER

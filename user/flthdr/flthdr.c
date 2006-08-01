@@ -4,18 +4,36 @@
  *
  *	Copyright (C) 2001-2003 SnapGear Inc, davidm@snapgear.com
  *	Copyright (C) 2001 Lineo, davidm@lineo.com
+ *
+ * This is Free Software, under the GNU Public Licence v2 or greater.
+ *
  */
 /****************************************************************************/
 
 #include <stdio.h>    /* Userland pieces of the ANSI C standard I/O package  */
 #include <unistd.h>   /* Userland prototypes of the Unix std system calls    */
 #include <time.h>
+#include <stdlib.h>   /* exit() */
+#include <string.h>   /* strcat(), strcpy() */
 
 /* macros for conversion between host and (internet) network byte order */
+#ifndef WIN32
 #include <netinet/in.h> /* Consts and structs defined by the internet system */
+#define	BINARY_FILE_OPTS
+#else
+#include <winsock2.h>
+#define	BINARY_FILE_OPTS "b"
+#endif
 
 /* from uClinux-x.x.x/include/linux */
-#include "flat.h"     /* Binary flat header description                      */
+#include <linux/flat.h>     /* Binary flat header description                      */
+
+#if defined(__MINGW32__)
+#include <getopt.h>
+
+#define mkstemp(p) mktemp(p)
+
+#endif
 
 /****************************************************************************/
 
@@ -60,13 +78,14 @@ process_file(char *ifile, char *ofile)
 {
 	int old_flags, old_stack, new_flags, new_stack;
 	FILE *ifp, *ofp;
+	int ofp_is_pipe = 0;
 	struct flat_hdr old_hdr, new_hdr;
 	char tfile[256];
 	char tfile2[256];
 
 	*tfile = *tfile2 = '\0';
 
-	if ((ifp = fopen(ifile, "r")) == NULL) {
+	if ((ifp = fopen(ifile, "r" BINARY_FILE_OPTS)) == NULL) {
 		fprintf(stderr, "Cannot open %s\n", ifile);
 		return;
 	}
@@ -84,7 +103,7 @@ process_file(char *ifile, char *ofile)
 	new_flags = old_flags = ntohl(old_hdr.flags);
 	new_stack = old_stack = ntohl(old_hdr.stack_size);
 	new_hdr = old_hdr;
-#ifndef TARGET_bfin
+
 	if (compress == 1) {
 		new_flags |= FLAT_FLAG_GZIP;
 		new_flags &= ~FLAT_FLAG_GZDATA;
@@ -93,7 +112,6 @@ process_file(char *ifile, char *ofile)
 		new_flags &= ~FLAT_FLAG_GZIP;
 	} else if (compress < 0)
 		new_flags &= ~(FLAT_FLAG_GZIP|FLAT_FLAG_GZDATA);
-#endif //TARGET_bfin
 	
 	if (ramload > 0)
 		new_flags |= FLAT_FLAG_RAM;
@@ -114,11 +132,7 @@ process_file(char *ifile, char *ofile)
 		printf("%s\n", ifile);
 		printf("    Magic:        %4.4s\n", old_hdr.magic);
 		printf("    Rev:          %d\n",    ntohl(old_hdr.rev));
-
-#ifndef TARGET_bfin
 		t = (time_t) htonl(old_hdr.build_date);
-#endif //TARGET_bfin
-
 		printf("    Build Date:   %s",      t?ctime(&t):"not specified\n");
 		printf("    Entry:        0x%x\n",  ntohl(old_hdr.entry));
 		printf("    Data Start:   0x%x\n",  ntohl(old_hdr.data_start));
@@ -135,12 +149,8 @@ process_file(char *ifile, char *ofile)
 				printf("Has-PIC-GOT ");
 			if (old_flags & FLAT_FLAG_GZIP)
 				printf("Gzip-Compressed ");
-#ifndef TARGET_bfin
-
 			if (old_flags & FLAT_FLAG_GZDATA)
 				printf("Gzip-Data-Compressed ");
-#endif //TARGET_bfin
-
 			if (old_flags & FLAT_FLAG_KTRACE)
 				printf("Kernel-Traced-Load ");
 			printf(")\n");
@@ -158,12 +168,8 @@ process_file(char *ifile, char *ofile)
 		strcat(tfile, (old_flags & FLAT_FLAG_KTRACE) ? "k" : "");
 		strcat(tfile, (old_flags & FLAT_FLAG_RAM) ? "r" : "");
 		strcat(tfile, (old_flags & FLAT_FLAG_GOTPIC) ? "p" : "");
-
-#ifndef TARGET_bfin	
 		strcat(tfile, (old_flags & FLAT_FLAG_GZIP) ? "z" :
 					((old_flags & FLAT_FLAG_GZDATA) ? "d" : ""));
-#endif //TARGET_bfin
-
 		printf("-%-3.3s ", tfile);
 		printf("%3d ", ntohl(old_hdr.rev));
 		printf("%6d ", text=ntohl(old_hdr.data_start)-sizeof(struct flat_hdr));
@@ -202,7 +208,7 @@ process_file(char *ifile, char *ofile)
 
 	strcpy(tfile, "/tmp/flatXXXXXX");
 	mkstemp(tfile);
-	if ((ofp = fopen(tfile, "w")) == NULL) {
+	if ((ofp = fopen(tfile, "w" BINARY_FILE_OPTS)) == NULL) {
 		fprintf(stderr, "Failed to open %s for writing\n", tfile);
 		unlink(tfile);
 		unlink(tfile2);
@@ -220,8 +226,6 @@ process_file(char *ifile, char *ofile)
 	 * get ourselves a fully uncompressed copy of the text/data/relocs
 	 * so that we can manipulate it more easily
 	 */
-
-#ifndef TARGET_bfin
 	if (old_flags & (FLAT_FLAG_GZIP|FLAT_FLAG_GZDATA)) {
 		FILE *tfp;
 
@@ -229,7 +233,7 @@ process_file(char *ifile, char *ofile)
 		mkstemp(tfile2);
 		
 		if (old_flags & FLAT_FLAG_GZDATA) {
-			tfp = fopen(tfile2, "w");
+			tfp = fopen(tfile2, "w" BINARY_FILE_OPTS);
 			if (!tfp) {
 				fprintf(stderr, "Failed to open %s for writing\n", tfile2);
 				exit(1);
@@ -240,12 +244,16 @@ process_file(char *ifile, char *ofile)
 		}
 
 		sprintf(cmd, "gunzip >> %s", tfile2);
-		tfp = popen(cmd, "w");
+		tfp = popen(cmd, "w" BINARY_FILE_OPTS);
+		if(!tfp) {
+			perror("popen");
+			exit(1);
+		}
 		transferr(ifp, tfp, -1);
-		fclose(tfp);
+		pclose(tfp);
 
 		fclose(ifp);
-		ifp = fopen(tfile2, "r");
+		ifp = fopen(tfile2, "r" BINARY_FILE_OPTS);
 		if (!ifp) {
 			fprintf(stderr, "Failed to open %s for reading\n", tfile2);
 			unlink(tfile);
@@ -258,16 +266,17 @@ process_file(char *ifile, char *ofile)
 		printf("zflat %s --> %s\n", ifile, ofile);
 		fclose(ofp);
 		sprintf(cmd, "gzip -9 -f >> %s", tfile);
-		ofp = popen(cmd, "w");
+		ofp = popen(cmd, "w" BINARY_FILE_OPTS);
+		ofp_is_pipe = 1;
 	} else if (new_flags & FLAT_FLAG_GZDATA) {
 		printf("zflat-data %s --> %s\n", ifile, ofile);
 		transferr(ifp, ofp, ntohl(new_hdr.data_start) -
 				sizeof(struct flat_hdr));
 		fclose(ofp);
 		sprintf(cmd, "gzip -9 -f >> %s", tfile);
-		ofp = popen(cmd, "w");
+		ofp = popen(cmd, "w" BINARY_FILE_OPTS);
+		ofp_is_pipe = 1;
 	}
-#endif //TARGET_bfin
 
 	if (!ofp) { /* can only happen if using gzip/gunzip */
 		fprintf(stderr, "Can't run cmd %s\n", cmd);
@@ -287,7 +296,10 @@ process_file(char *ifile, char *ofile)
 	}
 
 	fclose(ifp);
-	fclose(ofp);
+	if (ofp_is_pipe)
+		pclose(ofp);
+	else
+		fclose(ofp);
 
 	/* cheat a little here to preserve file permissions */
 	sprintf(cmd, "cp %s %s", tfile, ofile);
