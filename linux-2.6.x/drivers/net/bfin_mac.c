@@ -79,6 +79,14 @@ MODULE_DESCRIPTION("Blackfin MAC Driver");
 # define DPRINTK(x...) do { } while (0)
 #endif
 
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+# define bfin_mac_alloc(dma_handle, size)  (void*)l1_data_sram_zalloc(size)
+# define bfin_mac_free(dma_handle, ptr)    l1_data_sram_free((unsigned long)ptr)
+#else
+# define bfin_mac_alloc(dma_handle, size)  (void*)dma_alloc_coherent(NULL, size, dma_handle, GFP_DMA)
+# define bfin_mac_free(dma_handle, ptr)    dma_free_coherent(NULL, sizeof(*ptr), ptr, dma_handle)
+#endif
+
 static void desc_list_free(void);
 
 /* pointers to maintain transmit list */
@@ -102,28 +110,11 @@ static int desc_list_init(void)
 	dma_addr_t dma_handle;
 #endif
 
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-	tx_desc = (struct net_dma_desc_tx *)l1_data_sram_zalloc(sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM);
-#else
-	tx_desc = (struct net_dma_desc_tx *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM, &dma_handle, GFP_DMA);
-#endif
+	tx_desc = bfin_mac_alloc(&dma_handle, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM);
 	if (tx_desc == NULL)
 		goto init_error;
 
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-	rx_desc =
-	    (struct net_dma_desc_rx *)
-	    l1_data_sram_zalloc(sizeof(struct net_dma_desc_rx) *
-				CONFIG_BFIN_RX_DESC_NUM);
-#else
-	rx_desc =
-	    (struct net_dma_desc_rx *)dma_alloc_coherent(NULL,
-							 sizeof(struct
-								net_dma_desc_rx)
-							 *
-							 CONFIG_BFIN_RX_DESC_NUM,
-							 &dma_handle, GFP_DMA);
-#endif
+	rx_desc = bfin_mac_alloc(&dma_handle, sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM);
 	if (rx_desc == NULL)
 		goto init_error;
 
@@ -234,11 +225,7 @@ static void desc_list_free(void)
 			}
 			tmp_desc_tx = tmp_desc_tx->next;
 		}
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-		l1_data_sram_free((unsigned long)tx_desc);
-#else
-		dma_free_coherent(NULL, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM, tx_desc, dma_handle);
-#endif
+		bfin_mac_free(dma_handle, tx_desc);
 	}
 
 	if (rx_desc != NULL) {
@@ -252,11 +239,7 @@ static void desc_list_free(void)
 			}
 			tmp_desc_rx = tmp_desc_rx->next;
 		}
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-		l1_data_sram_free((unsigned long)rx_desc);
-#else
-		dma_free_coherent(NULL, sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM, rx_desc, dma_handle);
-#endif
+		bfin_mac_free(dma_handle, rx_desc);
 	}
 }
 
