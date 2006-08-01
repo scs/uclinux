@@ -279,7 +279,7 @@ while 1 {
 	    timeout {
 		send_user "ERROR: compare eeprom error\n"
 		set temp_status_flag $TEST_FAIL
-		break
+		exit
 	    }
 	}
     }

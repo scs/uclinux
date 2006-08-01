@@ -70,7 +70,7 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-              
+             break 
       }
    }
 }
@@ -142,7 +142,7 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-        
+             break
       }
    }
 }
