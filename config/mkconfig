@@ -39,7 +39,7 @@ do
 	echo "${v} CONFIG_DEFAULTS_`fix_name ${v}` \\"
 	oldv=$v
 done
-echo "\" SnapGear"
+echo "\" AnalogDevices"
 #echo "endmenu"
 
 # echo "mainmenu_option next_comment"
