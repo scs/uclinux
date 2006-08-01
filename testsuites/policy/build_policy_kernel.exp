@@ -51,6 +51,11 @@ spawn make config
 while 1 {
    expect {
 
+       -re "Vendor.*AnalogDevices.*\\\[.*]" {
+
+             send "AnalogDevices\r"
+      }
+
        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
              
              send "$board_type\r"
