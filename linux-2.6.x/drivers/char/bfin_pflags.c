@@ -58,9 +58,9 @@
 #include <linux/fs.h>
 #include <linux/major.h>
 #include <linux/poll.h>
+#include <linux/interrupt.h>
 #include <asm/uaccess.h>
 #include <asm/blackfin.h>
-#include <asm/irq.h>
 #include <linux/proc_fs.h>
 #include "bfin_pflags.h"
 
@@ -87,12 +87,7 @@
 static wait_queue_head_t pflags_in_waitq;
 static short pflags_laststate = 0;
 static short pflags_statechanged = 0;
-static unsigned int pflags_poll(struct file *filp,
-				struct poll_table_struct *wait);
-static irqreturn_t pflags_irq_handler(int irq, void *dev_id,
-				      struct pt_regs *regs);
 #endif
-
 
 /* return the minor number or -ENODEV */
 
@@ -104,7 +99,6 @@ static int check_minor(struct inode *inode)
 		return -ENODEV;
 
 	return minor;
-
 }
 
 /***********************************************************
@@ -178,8 +172,7 @@ static int pflags_release(struct inode *inode, struct file *filp)
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-static ssize_t
-pflags_read(struct file *filp, char *buf, size_t size, loff_t * offp)
+static ssize_t pflags_read(struct file *filp, char *buf, size_t size, loff_t * offp)
 {
 	const char *bit;
 	int minor = check_minor(filp->f_dentry->d_inode);
@@ -195,7 +188,6 @@ pflags_read(struct file *filp, char *buf, size_t size, loff_t * offp)
 	bit = (bfin_read_FIO_FLAG_D() & (1 << minor)) ? "1" : "0";
 
 	return (copy_to_user(buf, bit, 2)) ? -EFAULT : 2;
-
 }
 
 /***********************************************************
@@ -228,10 +220,8 @@ pflags_read(struct file *filp, char *buf, size_t size, loff_t * offp)
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-static ssize_t
-pflags_write(struct file *filp, const char *buf, size_t size, loff_t * offp)
+static ssize_t pflags_write(struct file *filp, const char *buf, size_t size, loff_t * offp)
 {
-
 	int minor = check_minor(filp->f_dentry->d_inode);
 
 	volatile unsigned short *set_or_clear;
@@ -261,7 +251,6 @@ pflags_write(struct file *filp, const char *buf, size_t size, loff_t * offp)
 static unsigned int pflags_poll(struct file *filp,
 				struct poll_table_struct *wait)
 {
-
 	int minor = check_minor(filp->f_dentry->d_inode);
 
 	int changed = 0;
@@ -300,7 +289,6 @@ static unsigned int pflags_poll(struct file *filp,
 static irqreturn_t pflags_irq_handler(int irq, void *dev_id,
 				      struct pt_regs *regs)
 {
-
 	short pflags_nextstate;
 
 	pflags_nextstate = bfin_read_FIO_FLAG_D();
@@ -315,7 +303,6 @@ static irqreturn_t pflags_irq_handler(int irq, void *dev_id,
 	wake_up(&pflags_in_waitq);
 
 	return IRQ_HANDLED;
-
 }
 #endif
 
@@ -360,8 +347,7 @@ static int pflags_proc_output(char *buf)
 	return p - buf;
 }
 
-static int
-pflags_read_proc(char *page, char **start, off_t off,
+static int pflags_read_proc(char *page, char **start, off_t off,
 		 int count, int *eof, void *data)
 {
 	int len = pflags_proc_output(page);
@@ -402,11 +388,9 @@ pflags_read_proc(char *page, char **start, off_t off,
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-static int
-pflags_ioctl(struct inode *inode, struct file *filp, uint cmd,
+static int pflags_ioctl(struct inode *inode, struct file *filp, uint cmd,
 	     unsigned long arg)
 {
-
 	int minor = check_minor(filp->f_dentry->d_inode);
 
 	if (minor < 0)
