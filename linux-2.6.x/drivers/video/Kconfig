@@ -456,9 +456,11 @@ endchoice
 choice
 	prompt  "Size of ADV7393 frame buffer memory Single/Double Size"
 	depends on (FB_BFIN_7393)
+	default ADV7393_1XMEM
 
 config ADV7393_1XMEM
 	bool 'Single'
+
 config ADV7393_2XMEM
 	bool 'Double'
 endchoice
