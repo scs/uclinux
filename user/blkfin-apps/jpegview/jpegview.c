@@ -1,3 +1,28 @@
+/*
+ * File:         jpegview.c
+ *
+ * Description:  View jpegs on a frame buffer
+ *
+ * Modified:     Copyright 2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -71,7 +96,7 @@ void put_scanline_someplace_noscale(unsigned char *buffer, int row_width, unsign
 			r = *pS++;
 			g = *pS++;
 			b = *pS++;
-			//*pD++ = ((r<<7)&0x7c00) | ((g<<2)&0x03e0) | ((b>>3)&0x001f) | 0x8000;
+			// *pD++ = ((r<<7)&0x7c00) | ((g<<2)&0x03e0) | ((b>>3)&0x001f) | 0x8000;
 			*pD++   = RGB(r,g,b);
 		}
 	}
@@ -115,7 +140,7 @@ void put_scanline_someplace_scale(unsigned char *buffer, int row_width, unsigned
 			r = *pS++;
 			g = *pS++;
 			b = *pS;
-			//*pD++ = ((r<<7)&0x7c00) | ((g<<2)&0x03e0) | ((b>>3)&0x001f) | 0x8000;
+			// *pD++ = ((r<<7)&0x7c00) | ((g<<2)&0x03e0) | ((b>>3)&0x001f) | 0x8000;
 			*pD++   = RGB(r,g,b);
 		}
 
