@@ -10,6 +10,8 @@ set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 
+set TITLE "USB Host Test"
+
 proc step { message } {
   global step_sequence_number
 
@@ -91,6 +93,7 @@ while 1 {
       }
       timeout {
          send_log "\nERROR: Can't connect to serial port\n"
+         send_log "\n$TITLE ............\[FAIL\]\n"
          exit
       }
    }
@@ -295,6 +298,7 @@ while 1 {
          break
       }
       timeout {
+         send_log "\n$TITLE ............\[FAIL\]\n"
          tquit "Test failed, not found mount point"
       }
    }
@@ -322,6 +326,7 @@ send "ls /mnt\r"
 while 1 {
    expect {
       -re "usbhost_testfile" {
+         send_log "\n$TITLE ............\[FAIL\]\n"
          tquit "test fail, delete file failed"
       }
       timeout {
@@ -349,12 +354,15 @@ send "mount\r"
 while 1 {
    expect {
       -re "/dev/sda1 on /mnt type vfat.*" {
+         send_log "\n$TITLE ............\[FAIL\]\n"
          tquit "Test failed, umount failed"
       }
       -re "root:~>" {
+         send_log "\n$TITLE ............\[PASS\]\n"
          tquit "Test Pass"
       }
       timeout {
+         send_log "\n$TITLE ............\[FAIL\]\n"
          tquit "Test failed, umount timeout"
       }
    }
