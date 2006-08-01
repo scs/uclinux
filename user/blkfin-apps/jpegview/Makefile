@@ -7,7 +7,7 @@ LDLIBS += -L $(ROOTDIR)/lib/libjpeg -ljpeg
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
