@@ -93,18 +93,6 @@ static irqreturn_t pflags_irq_handler(int irq, void *dev_id,
 				      struct pt_regs *regs);
 #endif
 
-static int pflags_ioctl(struct inode *inode, struct file *filp, uint cmd,
-			unsigned long arg);
-static int pflags_proc_output(char *buf);
-static int pflags_read_proc(char *page, char **start, off_t off, int count,
-			    int *eof, void *data);
-static int check_minor(struct inode *inode);
-static int pflags_open(struct inode *inode, struct file *filp);
-static ssize_t pflags_read(struct file *filp, char *buf, size_t size,
-			   loff_t * offp);
-static int pflags_release(struct inode *inode, struct file *filp);
-static ssize_t pflags_write(struct file *filp, const char *buf, size_t size,
-			    loff_t * offp);
 
 /* return the minor number or -ENODEV */
 
@@ -331,52 +319,6 @@ static irqreturn_t pflags_irq_handler(int irq, void *dev_id,
 }
 #endif
 
-static struct file_operations pflags_fops = {
-      .read    = pflags_read,
-      .write   = pflags_write,
-      .ioctl   = pflags_ioctl,
-      .open    = pflags_open,
-      .release = pflags_release,
-#ifdef ENABLE_POLL
-      .poll    = pflags_poll
-#endif
-};
-
-static int __init blackfin_pflags_init(void)
-{
-	register_chrdev(PFLAG_MAJOR, "pflag", &pflags_fops);
-
-	create_proc_read_entry("driver/pflags", 0, 0, pflags_read_proc, NULL);
-
-	/* FIXME: Remove following two lines as soon the default config has changed in u-boot */
-	bfin_write_FIO_MASKA_C((PF8 | PF6 | PF5));
-	bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~(PF8 | PF6 | PF5));
-
-#ifdef ENABLE_POLL
-	if (request_irq(IRQ_PROG_INTA, pflags_irq_handler, SA_INTERRUPT, "pflags", NULL)) {
-		printk(KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
-		return -EIO;
-	}
-	init_waitqueue_head(&pflags_in_waitq);
-	pflags_laststate = bfin_read_FIO_FLAG_D();
-	pflags_statechanged = 0xffff;
-	printk(KERN_INFO "pfx: pfbits driver for bf53x IRQ %d\n", IRQ_PROG_INTA);
-#else
-	printk(KERN_INFO "pfx: pfbits driver for bf53x\n");
-#endif
-//	enable_irq(IRQ_PROG_INTA);
-
-	return 0;
-}
-
-void __exit blackfin_plags_exit(void)
-{
-	remove_proc_entry("driver/pflags", NULL);
-}
-
-module_init(blackfin_pflags_init);
-module_exit(blackfin_plags_exit);
-
 /*
  *  Info exported via "/proc/driver/pflags".
  */
@@ -534,3 +476,50 @@ pflags_ioctl(struct inode *inode, struct file *filp, uint cmd,
 
 	return 0;
 }
+
+
+static struct file_operations pflags_fops = {
+      .read    = pflags_read,
+      .write   = pflags_write,
+      .ioctl   = pflags_ioctl,
+      .open    = pflags_open,
+      .release = pflags_release,
+#ifdef ENABLE_POLL
+      .poll    = pflags_poll
+#endif
+};
+
+static int __init blackfin_pflags_init(void)
+{
+	register_chrdev(PFLAG_MAJOR, "pflag", &pflags_fops);
+
+	create_proc_read_entry("driver/pflags", 0, 0, pflags_read_proc, NULL);
+
+	/* FIXME: Remove following two lines as soon the default config has changed in u-boot */
+	bfin_write_FIO_MASKA_C((PF8 | PF6 | PF5));
+	bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~(PF8 | PF6 | PF5));
+
+#ifdef ENABLE_POLL
+	if (request_irq(IRQ_PROG_INTA, pflags_irq_handler, SA_INTERRUPT, "pflags", NULL)) {
+		printk(KERN_WARNING "pflags: IRQ %d is not free.\n", IRQ_PROG_INTA);
+		return -EIO;
+	}
+	init_waitqueue_head(&pflags_in_waitq);
+	pflags_laststate = bfin_read_FIO_FLAG_D();
+	pflags_statechanged = 0xffff;
+	printk(KERN_INFO "pfx: pfbits driver for bf53x IRQ %d\n", IRQ_PROG_INTA);
+#else
+	printk(KERN_INFO "pfx: pfbits driver for bf53x\n");
+#endif
+//	enable_irq(IRQ_PROG_INTA);
+
+	return 0;
+}
+
+void __exit blackfin_plags_exit(void)
+{
+	remove_proc_entry("driver/pflags", NULL);
+}
+
+module_init(blackfin_pflags_init);
+module_exit(blackfin_plags_exit);
