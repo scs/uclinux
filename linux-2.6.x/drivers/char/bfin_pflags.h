@@ -1,34 +1,36 @@
 /*
+ * File:         drivers/char/bfin_pflags.h
+ * Based on:
+ * Author:       Michael Hennerich <hennerich@blackfin.org>
  *
- *    File:         pflags.h
- *    Rev:          0.1
- *    Created:      Fri Jan 14 12:40:55 CEST 2005
- *    Author:       Michael Hennerich
- *    mail:         hennerich@blackfin.org
- *    Description:  pfbits driver for bf53x
- *                  
- *   Copyright (C) 2005 Michael Hennerich/Analog Devices Inc.
+ * Created:      Fri Jan 14 12:40:55 CEST 2005
+ * Description:  pfbits driver for bf53x
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
+ * Rev:          $Id$
  *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ * Modified:
+ *               Copyright 2005-2006 Analog Devices Inc.
  *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
+ * This program is free software ;  you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation ;  either version 2, or (at your option)
+ * any later version.
  *
- ****************************************************************************
- * MODIFICATION HISTORY:
- * Jan 10, 2005   pflags.c Changed Michael Hennerich, Analog Devices Inc. 
- **************************************************************************** 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program ;  see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+
+#ifndef __BFIN_PFLAGS_H__
+#define __BFIN_PFLAGS_H__
 
 #define SET_FIO_DIR                		1  // Peripheral Flag Direction Register
 #define SET_FIO_POLAR              		2  // Flag Source Polarity Register
@@ -52,7 +54,4 @@
 #define INPUT_DISABLE					0 // SET_FIO_INEN
 #define INPUT_ENABLE					1
 
-
-
-
-
+#endif
