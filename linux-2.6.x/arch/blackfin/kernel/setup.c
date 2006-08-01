@@ -293,20 +293,20 @@ void __init setup_arch(char **cmdline_p)
 	       KERN_INFO "  text      = 0x%p-0x%p\n"
 	       KERN_INFO "  init      = 0x%p-0x%p\n"
 	       KERN_INFO "  data      = 0x%p-0x%p\n"
+	       KERN_INFO "  stack     = 0x%p-0x%p\n"
 	       KERN_INFO "  bss       = 0x%p-0x%p\n"
 	       KERN_INFO "  available = 0x%p-0x%p\n"
 	       KERN_INFO "  rootfs    = 0x%p-0x%p\n"
-	       KERN_INFO "  stack     = 0x%p-0x%p\n"
 #if DMA_UNCACHED_REGION > 0
 	       KERN_INFO "  DMA Zone  = 0x%p-0x%p\n"
 #endif
 	       , _stext, _etext,
 	       __init_begin, __init_end,
 	       _sdata, _edata,
+	       (void*)&init_thread_union, (void*)((int)(&init_thread_union) + 0x2000),
 	       __bss_start, __bss_stop,
 	       (void*)_ramstart, (void*)memory_end,
-	       (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size), 
-	       &init_thread_union, (&init_thread_union) + 0x2000
+	       (void*)memory_mtd_start, (void*)(memory_mtd_start + mtd_size)
 #if DMA_UNCACHED_REGION > 0
 	       , (void*)(_ramend - DMA_UNCACHED_REGION), (void*)(_ramend)
 #endif
