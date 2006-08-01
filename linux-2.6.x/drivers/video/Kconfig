@@ -445,16 +445,20 @@ config NTSC_640x480
 config PAL_640x480
 	bool 'PAL 640x480 (Experimental)'
 
+config NTSC_YCBCR
+	bool 'NTSC 720x480 YCbCR input'
+
+config PAL_YCBCR
+	bool 'PAL 720x576 YCbCR input'
+
 endchoice
 
 choice
 	prompt  "Size of ADV7393 frame buffer memory Single/Double Size"
 	depends on (FB_BFIN_7393)
-	default ADV7393_1XMEM
 
 config ADV7393_1XMEM
 	bool 'Single'
-
 config ADV7393_2XMEM
 	bool 'Double'
 endchoice

@@ -897,7 +897,7 @@ MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Frame buffer driver for ADV7393/2 Video Encoder");
 
 module_param(mode, int, 0);
-MODULE_PARM_DESC(mode, "Video Mode (0=NTSC,1=PAL,2=NTSC 640x480,3=PAL 640x480)");
+MODULE_PARM_DESC(mode, "Video Mode (0=NTSC,1=PAL,2=NTSC 640x480,3=PAL 640x480,4=NTSC YCbCr input,5=PAL YCbCr input,)");
 
 module_param(mem, int, 0);
 MODULE_PARM_DESC(mem,

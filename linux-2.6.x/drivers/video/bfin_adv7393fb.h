@@ -56,6 +56,12 @@
 #ifdef CONFIG_PAL_640x480
 #define VMODE 3
 #endif
+#ifdef CONFIG_NTSC_YCBCR
+#define VMODE 4
+#endif
+#ifdef CONFIG_PAL_YCBCR
+#define VMODE 5
+#endif
 
 #ifdef CONFIG_ADV7393_2XMEM
 #define VMEM 2
@@ -114,6 +120,15 @@ struct adv7393fb_modes
   u16 adv7393_i2c_initd_len;
 };
 
+
+static const u8 init_NTSC_TESTPATTERN[] = {
+  0x00, 0x1E,			/*Power up all DACs and PLL */
+  0x01, 0x00,			/*SD-Only Mode */
+  0x80, 0x10,			/*SSAF Luma Filter Enabled, NTSC Mode */
+  0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
+  0x84, 0x40,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
+};
+
 static const u8 init_NTSC[] = {
   0x00, 0x1E,			/*Power up all DACs and PLL */
   0xC3, 0x26,			/* Program RGB->YCrCb Color Space convertion matrix */
@@ -136,14 +151,6 @@ static const u8 init_NTSC[] = {
   0x8A, 0x0d,
 };
 
-static const u8 init_NTSC_TESTPATTERN[] = {
-  0x00, 0x1E,			/*Power up all DACs and PLL */
-  0x01, 0x00,			/*SD-Only Mode */
-  0x80, 0x10,			/*SSAF Luma Filter Enabled, NTSC Mode */
-  0x82, 0xCB,			/*Step control on, pixel data valid, pedestal on, PrPb SSAF on, CVBS/YC output. */
-  0x84, 0x40,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
-};
-
 static const u8 init_PAL[] = {
   0x00, 0x1E,			/*Power up all DACs and PLL */
   0xC3, 0x26,			/* Program RGB->YCrCb Color Space convertion matrix */
@@ -160,6 +167,38 @@ static const u8 init_PAL[] = {
   0x80, 0x11,			/*SSAF Luma Filter Enabled, PAL Mode */
   0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
   0x87, 0x80,			/*SD Color Bar Test Pattern Enabled, DAC 2 = Luma, DAC 3 = Chroma */
+  0x86, 0x82,
+  0x8B, 0x11,
+  0x88, 0x20,
+  0x8A, 0x0d,
+};
+
+static const u8 init_NTSC_YCbCr[] = {
+  0x00, 0x1E,			/*Power up all DACs and PLL */
+  0x8C, 0x1F,			/* NTSC Subcarrier Frequency */
+  0x8D, 0x7C,			/* NTSC Subcarrier Frequency */
+  0x8E, 0xF0,			/* NTSC Subcarrier Frequency */
+  0x8F, 0x21,			/* NTSC Subcarrier Frequency */
+  0x01, 0x00,			/*SD-Only Mode */
+  0x80, 0x30,			/*SSAF Luma Filter Enabled, NTSC Mode */
+  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
+  0x87, 0x00,			/*DAC 2 = Luma, DAC 3 = Chroma */
+  0x86, 0x82,
+  0x8B, 0x11,
+  0x88, 0x20,
+  0x8A, 0x0d,
+};
+
+static const u8 init_PAL_YCbCr[] = {
+  0x00, 0x1E,			/*Power up all DACs and PLL */
+  0x8C, 0xCB,			/* PAL Subcarrier Frequency */
+  0x8D, 0x8A,			/* PAL Subcarrier Frequency */
+  0x8E, 0x09,			/* PAL Subcarrier Frequency */
+  0x8F, 0x2A,			/* PAL Subcarrier Frequency */
+  0x01, 0x00,			/*SD-Only Mode */
+  0x80, 0x11,			/*SSAF Luma Filter Enabled, PAL Mode */
+  0x82, 0x8B,			/*Step control on, pixel data invalid, pedestal on, PrPb SSAF on, CVBS/YC output. */
+  0x87, 0x00,			/*DAC 2 = Luma, DAC 3 = Chroma */
   0x86, 0x82,
   0x8B, 0x11,
   0x88, 0x20,
@@ -227,6 +266,36 @@ static struct adv7393fb_modes known_modes[] = {
      .aoeft_blank = 132+40,	/* After Odd/Even Field Transition No. of Blank Pixels */
      .adv7393_i2c_initd = init_PAL,
      .adv7393_i2c_initd_len = sizeof (init_PAL)}
+  ,
+  [4] = {
+	 .name = "NTSC 720x480 YCbCR",
+	 .xres = 720,		/* Active Horizonzal Pixels  */
+	 .yres = 480,		/* Active Vertical Pixels  */
+	 .bpp = 16,
+	 .vmode = FB_VMODE_INTERLACED,
+	 .a_lines = 240,	/* Active Liens per Field */
+	 .vb1_lines = 22,	/* Vertical Blanking Field 1 Lines */
+	 .vb2_lines = 23,	/* Vertical Blanking Field 2 Lines */
+	 .tot_lines = 525,	/* Total Lines per Frame */
+	 .boeft_blank = 16,	/* Before Odd/Even Field Transition No. of Blank Pixels */
+	 .aoeft_blank = 122,	/* After Odd/Even Field Transition No. of Blank Pixels */
+	 .adv7393_i2c_initd = init_NTSC_YCbCr,
+	 .adv7393_i2c_initd_len = sizeof (init_NTSC_YCbCr)}
+  ,
+  /* PAL 720x480 CRT */ [5] = {
+     .name = "PAL 720x576 YCbCR",
+     .xres = 720,	/* Active Horizonzal Pixels  */
+     .yres = 576,	/* Active Vertical Pixels  */
+     .bpp = 16,
+     .vmode = FB_VMODE_INTERLACED,
+     .a_lines = 288,	/* Active Liens per Field */
+     .vb1_lines = 24,	/* Vertical Blanking Field 1 Lines */
+     .vb2_lines = 25,	/* Vertical Blanking Field 2 Lines */
+     .tot_lines = 625,	/* Total Lines per Frame */
+     .boeft_blank = 12,	/* Before Odd/Even Field Transition No. of Blank Pixels */
+     .aoeft_blank = 132,	/* After Odd/Even Field Transition No. of Blank Pixels */
+     .adv7393_i2c_initd = init_PAL_YCbCr,
+     .adv7393_i2c_initd_len = sizeof (init_PAL_YCbCr)}
   ,
 };
 
