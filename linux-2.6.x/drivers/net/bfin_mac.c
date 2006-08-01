@@ -88,13 +88,15 @@ struct net_dma_desc_rx *rx_list_head;
 struct net_dma_desc_rx *rx_list_tail;
 struct net_dma_desc_rx *current_rx_ptr;
 struct net_dma_desc_tx *current_tx_ptr;
+struct net_dma_desc_tx *tx_desc;
+struct net_dma_desc_rx *rx_desc;
 
 extern void get_bf537_ether_addr(char *addr);
 
 static int desc_list_init(void)
 {
-	struct net_dma_desc_tx *tx_desc, *tmp_desc_tx;
-	struct net_dma_desc_rx *rx_desc, *tmp_desc_rx;
+	struct net_dma_desc_tx *tmp_desc_tx;
+	struct net_dma_desc_rx *tmp_desc_rx;
 	int i;
 #if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle;
@@ -106,9 +108,7 @@ static int desc_list_init(void)
 	tx_desc = (struct net_dma_desc_tx *)dma_alloc_coherent(NULL, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM, &dma_handle, GFP_DMA);
 #endif
 	if (tx_desc == NULL)
-		goto error;
-	else
-		memset(tx_desc, 0, sizeof(tx_desc));
+		goto init_error;
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
 	rx_desc =
@@ -125,9 +125,8 @@ static int desc_list_init(void)
 							 &dma_handle, GFP_DMA);
 #endif
 	if (rx_desc == NULL)
-		goto error;
-	else
-		memset(rx_desc, 0, sizeof(rx_desc));
+		goto init_error;
+
 
 	/* init tx_list */
 	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
@@ -209,7 +208,7 @@ static int desc_list_init(void)
 
 	return 0;
 
-      error:
+      init_error:
 	desc_list_free();
 	printk(KERN_ERR CARDNAME ": kmalloc failed\n");
 	return -ENOMEM;
@@ -224,40 +223,44 @@ static void desc_list_free(void)
 	dma_addr_t dma_handle = 0;
 #endif
 
-	tmp_desc_tx = tx_list_head;
-	for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
-		if (tmp_desc_tx != NULL) {
-			if (tmp_desc_tx->skb) {
-				dev_kfree_skb(tmp_desc_tx->skb);
-				tmp_desc_tx->skb = NULL;
+	if (tx_desc != NULL) {
+		tmp_desc_tx = tx_list_head;
+		for (i = 0; i < CONFIG_BFIN_TX_DESC_NUM; i++) {
+			if (tmp_desc_tx != NULL) {
+				if(tmp_desc_tx->skb) {
+					dev_kfree_skb(tmp_desc_tx->skb);
+					tmp_desc_tx->skb = NULL;
+				}
+
 			}
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_sram_free((unsigned long)tmp_desc_tx);
-#else
-			dma_free_coherent(NULL, sizeof(struct net_dma_desc_tx),
-					  tmp_desc_tx, dma_handle);
-#endif
+			tmp_desc_tx = tmp_desc_tx->next;
 		}
-		tmp_desc_tx = tmp_desc_tx->next;
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+		l1_data_sram_free((unsigned long)tx_desc);
+#else
+		dma_free_coherent(NULL, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM, tx_desc, dma_handle);
+#endif
 	}
 
-	tmp_desc_rx = rx_list_head;
-	for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
-		if (tmp_desc_rx != NULL) {
-			if (tmp_desc_rx->skb) {
-				dev_kfree_skb(tmp_desc_rx->skb);
-				tmp_desc_rx->skb = NULL;
+	if (rx_desc != NULL) {
+		tmp_desc_rx = rx_list_head;
+		for (i = 0; i < CONFIG_BFIN_RX_DESC_NUM; i++) {
+			if (tmp_desc_rx != NULL) {
+				if(tmp_desc_rx->skb) {
+					dev_kfree_skb(tmp_desc_rx->skb);
+					tmp_desc_rx->skb = NULL;
+				}
 			}
-#if defined(CONFIG_BFIN_MAC_USE_L1)
-			l1_data_sram_free((unsigned long)tmp_desc_rx);
-#else
-			dma_free_coherent(NULL, sizeof(struct net_dma_desc_rx),
-					  tmp_desc_rx, dma_handle);
-#endif
+			tmp_desc_rx = tmp_desc_rx->next;
 		}
-		tmp_desc_rx = tmp_desc_rx->next;
+#if defined(CONFIG_BFIN_MAC_USE_L1)
+		l1_data_sram_free((unsigned long)rx_desc);
+#else
+		dma_free_coherent(NULL, sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM, rx_desc, dma_handle);
+#endif
 	}
 }
+
 
 /*---PHY CONTROL AND CONFIGURATION-----------------------------------------*/
 
