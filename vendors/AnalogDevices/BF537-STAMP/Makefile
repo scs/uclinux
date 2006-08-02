@@ -85,7 +85,7 @@ image:
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/linux $(IMAGE).ext2 ;\
 	fi
 #
-# make a compressed image
+# make a compressed image, link the first one to uImage
 #
 	for FS in ext2 cramfs ; \
 	do \
@@ -96,8 +96,12 @@ image:
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
+			if [ ! -f $(IMAGEDIR)/uImage ] ; then \
+				ln -s $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
+			fi ; \
 		fi; \
 	done
+
 #
 # if we are not attaching a rootfs, make a standalone image
 #
