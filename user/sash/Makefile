@@ -1,7 +1,7 @@
 
 ifdef CONFIG_USER_SASH_SH
 SH = sh
-SHOBJS = sash.o cmds.o cmd_uclinux.o ls.o ps.o hexdump.o df.o free.o \
+SHOBJS = sash.o cmds.o cmd_uclinux.o ls.o hexdump.o df.o free.o \
 	hostname.o date.o
 endif
 
@@ -13,6 +13,11 @@ endif
 ifdef CONFIG_USER_SASH_REBOOT
 REBOOT = reboot
 REBOOTOBJS = reboot.o
+endif
+
+ifdef CONFIG_USER_SASH_PS
+SHOBJS += ps.o
+CFLAGS += -DCONFIG_USER_SASH_PS
 endif
 
 LIBSASH = libsash/libsash.a
@@ -35,7 +40,6 @@ $(REBOOT): $(REBOOTOBJS) $(LIBSASH)
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_SASH_SH       /bin/sh
 	$(ROMFSINST) -e CONFIG_USER_SASH_REBOOT /bin/reboot
-	$(ROMFSINST) -e CONFIG_USER_SASH_REBOOT_SNAPGEAR reboot-snapgear.sh /bin/reboot
 	$(ROMFSINST) -e CONFIG_USER_SASH_SHUTDOWN /bin/shutdown
 
 dummy_target:

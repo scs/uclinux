@@ -91,9 +91,20 @@ void
 do_mkdir(argc, argv)
 	char	**argv;
 {
+	int state = 0, mode = -1;
+
 	while (argc-- > 1) {
-		if (mkdir(argv[1], 0777) < 0)
-			perror(argv[1]);
+		if (state == 0) {
+			if (strcmp(argv[1], "-m") == 0)
+				state = 1;
+			else if (mkdir(argv[1], 0777) < 0)
+				perror(argv[1]);
+			else if (mode != -1 && chmod(argv[1], mode) < 0)
+				perror(argv[1]);
+		} else if (state == 1) {
+			mode = strtol(argv[1], NULL, 8);
+			state = 0;
+		}
 		argv++;
 	}
 }
@@ -168,23 +179,7 @@ do_sync(argc, argv)
 	char	**argv;
 {
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
-	#define FLATFSD_PID_FILE "/var/run/flatfsd.pid"
-
-	pid_t pid;
-	FILE *in;
-	char value[16];
-
-	/* get the pid of flatfsd */
-	if ((in = fopen(FLATFSD_PID_FILE, "r")) != NULL) {
-		if (fread(value, 1, sizeof(value), in) > 0) {
-			pid = atoi(value);
-			/* we read something.. hopefully the pid */
-			/* send that pid signal 10 */
-			if (pid)
-				kill(pid, 10);
-		}
-		fclose(in);
-	} 
+	system("exec flatfsd -s");
 #endif
 	sync();
 }

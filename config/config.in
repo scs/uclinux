@@ -30,7 +30,8 @@ choice 'Shell Program'	"Sash		CONFIG_USER_SASH_SH \
 			 Other		CONFIG_USER_OTHER_SH \
 			" Sash
 if [ "$CONFIG_USER_SASH_SH" = "y" ]; then
-	bool 'simple history (sash)'		CONFIG_USER_SASH_HISTORY
+	bool '  simple history (sash)'		CONFIG_USER_SASH_HISTORY
+	bool '  sash ps'						CONFIG_USER_SASH_PS
 fi
 bool 'reboot (sash)'		CONFIG_USER_SASH_REBOOT
 if [ "$CONFIG_USER_BUSYBOX_BUSYBOX" = "y" -a \

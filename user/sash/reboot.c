@@ -13,8 +13,10 @@
  */
 
 #include <linux/autoconf.h>
+#include <config/autoconf.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -25,6 +27,7 @@
 #include <grp.h>
 #include <time.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include <getopt.h>
 
@@ -36,16 +39,20 @@ int main(int argc, char *argv[])
 {
 	int delay = 0; /* delay in seconds before rebooting */
 	int rc;
+	int force = 0;
   
-	while ((rc = getopt(argc, argv, "h?d:")) > 0) {
+	while ((rc = getopt(argc, argv, "h?d:f")) > 0) {
 		switch (rc) {
 		case 'd':
 			delay = atoi(optarg);
 			break;
+		case 'f':
+			force = 1;
+			break;
 		case 'h':
 		case '?':
 		default:
-			printf("usage: reboot [-h] [-d <delay>]\n");
+			printf("usage: reboot [-h] [-d <delay>] [-f]\n");
 			exit(0);
 			break;
 		}
@@ -57,6 +64,14 @@ int main(int argc, char *argv[])
 	printf("unmounting /home\n");
 	if(umount("/home") != 0){
 		printf("unmounting failed!!!\n");
+	}
+#endif
+
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+	if (!force) {
+		/* Ask flatfsd to reboot us safely */
+		execlp("flatfsd", "flatfsd", "-b", NULL);
+		/* if this returns,  then force a reboot */
 	}
 #endif
 

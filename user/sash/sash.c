@@ -178,8 +178,10 @@ CMDTAB	cmdtab[] = {
 	"unalias",	"name",			do_unalias,
 	2,		2,
 */
+#ifdef CONFIG_USER_SASH_PS
 	"ps",		"",			do_ps,
 	1,		MAXARGS,
+#endif
 
 /*	"reboot",	"",			do_reboot,
 	1,		MAXARGS,
@@ -846,14 +848,6 @@ runcmd(cmd, bg, argc, argv)
 			exit_code = WEXITSTATUS(status);
 		} else
 			exit_code = 1;
-#if 0
-		fprintf(stderr, "pid %d: %s (signal %d)\n", pid,
-			(status & 0x80) ? "core dumped" : "killed",
-			status & 0x7f);
-#else
-		fprintf(stderr, "pid %d: failed %d\n", pid, status);
-#endif
-		fflush(stderr);
 
 		return;
 	}

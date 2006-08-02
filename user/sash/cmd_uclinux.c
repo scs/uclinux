@@ -11,6 +11,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <unistd.h>
 
 #if 0
 char psbuf[256];
@@ -103,28 +104,26 @@ void
 do_cat(argc, argv)
 	char	**argv;
 {
-	FILE	*fp;
+	int	fd;
 	char	*name;
 	size_t	l;
 	char	buf[256];
 
 	while (argc-- > 1) {
 		if (intflag) {
-			fclose(fp);
 			return;
 		}
 		name = *(++argv);
 
-		fp = fopen(name, "r");
-		if (fp == NULL) {
+		fd = open(name, O_RDONLY);
+		if (fd < 0) {
 			perror(name);
 			return;
 		}
 
-		while (fp && (l = fread(buf, 1, sizeof(buf), fp))) {
+		while ((l = read(fd, buf, sizeof(buf))) > 0) {
 			fwrite(buf, 1, l, stdout);
 		}
-		if (fp)
-			fclose(fp);
+		close(fd);
 	}
 }
