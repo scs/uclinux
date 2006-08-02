@@ -112,6 +112,9 @@ wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
 	   coreb_test=0
+	 usbhost_test=0
+	  usbnet_test=0
+	  sqlite_test=0
 
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
@@ -154,6 +157,9 @@ wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
 	   coreb_test=0
+	 usbhost_test=0
+	  usbnet_test=0
+	  sqlite_test=0
 fi
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
@@ -193,6 +199,9 @@ wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=1
 	   coreb_test=0
+	 usbhost_test=0
+	  usbnet_test=0
+	  sqlite_test=0
          	
 fi
  
@@ -233,6 +242,9 @@ wireless_network_test=0
 	   yaffs_test=0
 	  ppifcd_test=0
 	   coreb_test=1
+	 usbhost_test=0
+	  usbnet_test=0
+	  sqlite_test=0
          	
 fi
  
@@ -1352,6 +1364,126 @@ if [ $coreb_test -eq 1 ] ; then
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb
   cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST Wireless Network ############################################
+if [ $wireless_test -eq 1 ] ; then
+  echo "Testing wireless..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/wireless
+  ./build_wireless_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./wireless_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.wireless
+  cp $KERNEL_SCRIPTS/wireless/build_wireless_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/wireless/wireless_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST USB Host ####################################################
+if [ $usbhost_test -eq 1 ] ; then
+  echo "Testing usbhost..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/usbhost
+  ./build_usbhost_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./usbhost_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.usbhost
+  cp $KERNEL_SCRIPTS/usbhost/build_usbhost_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/usbhost/usbhost_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST USB Network #################################################
+if [ $usbnet_test -eq 1 ] ; then
+  echo "Testing usbnet..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/usbnet
+  ./build_usbnet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./usbnet_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.usbnet
+  cp $KERNEL_SCRIPTS/usbnet/build_usbnet_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/usbnet/usbnet_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST Sqlite ######################################################
+if [ $sqlite_test -eq 1 ] ; then
+  echo "Testing sqlite..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/sqlite
+  ./build_sqlite_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./sqlite_test > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.sqlite
+  cp $KERNEL_SCRIPTS/sqlite/build_sqlite_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/sqlite/sqlite_test_log $THIS_LOG
     
   sleep 30
   
