@@ -63,6 +63,7 @@
 #define CMD_SPI_GET_SYSTEMCLOCK   25
 
 #define CMD_SPI_SET_WRITECONTINUOUS     26
+#define CMD_SPI_SET_SKFS    			27
 
 #define CMD_SPI_GET_ALLCONFIG 32 /* For debug */
 

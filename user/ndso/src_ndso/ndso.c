@@ -166,6 +166,7 @@ Sample (int form_method, char **getvars, char **postvars, s_info * info)
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_MODE, info->strigger.mode);
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_SENSE, info->strigger.sense);
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_EDGE, info->strigger.edge);
+  ioctl (info->fd0, CMD_SPI_SET_SKFS, 2);
 
   ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
 	 (unsigned short) VoltageToSample (info->strigger.level, info));

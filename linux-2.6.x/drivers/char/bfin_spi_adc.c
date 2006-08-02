@@ -50,21 +50,15 @@
 #include <asm/dma.h>
 
 #undef DEBUG
-
 #ifdef DEBUG
 #define DPRINTK(x...)	printk(KERN_DEBUG x)
 #else
 #define DPRINTK(x...)	do { } while (0)
 #endif
 
-#define SKFS		       4  /* number of first samples to skip */
-
 #define TOL 		       5
 
 #define TIMEOUT		       50
-
-
-#define TIMEOUT		   50
 
 #define SPI_ADC_MAJOR          252   /* experiential */
 #define SPI0_ADC_MINOR         0
@@ -83,6 +77,7 @@ struct bfin_spi_adc {
 	unsigned short 	level;
 	unsigned char 	mode;
 	unsigned char 	cont;
+	unsigned short 	skfs;
 	int     baud;
 
 	struct spi_device	*spidev;
@@ -160,6 +155,12 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 		bfin_spi_adc->cont = (unsigned char)arg;
 		break;
 	}
+	case CMD_SPI_SET_SKFS:
+	{
+		DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS\n");
+		bfin_spi_adc->skfs = (unsigned short)arg;
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -178,19 +179,27 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 	if(count <= 0)
 		return 0;
 
-	bfin_spi_adc->actcount = count;
 	bfin_spi_adc->timeout = TIMEOUT;
 
+	if(bfin_spi_adc->mode)
+	  {
+		bfin_spi_adc->actcount = 2 * count;
+	  }
+	   else
+	  {	
+		bfin_spi_adc->actcount = count;
+	  }
+	  			
 	/* Allocate some memory */
-	bfin_spi_adc->buffer = kmalloc((count+SKFS*2)*2,GFP_KERNEL);
+	bfin_spi_adc->buffer = kmalloc(bfin_spi_adc->actcount + 2*bfin_spi_adc->skfs, GFP_KERNEL);
 
 	/* Invalidate allocated memory in Data Cache */
-	blackfin_dcache_invalidate_range((unsigned long)bfin_spi_adc->buffer,((unsigned long) bfin_spi_adc->buffer)+(count+SKFS*2)*2);
+	blackfin_dcache_invalidate_range((unsigned long)bfin_spi_adc->buffer,((unsigned long) bfin_spi_adc->buffer)+ bfin_spi_adc->actcount + 2*bfin_spi_adc->skfs);
 
 	spi_message_init(&m);
 	memset(&t, 0, (sizeof t));
 	t.rx_buf = bfin_spi_adc->buffer;
-	t.len = count + SKFS;
+	t.len = bfin_spi_adc->actcount + (2*bfin_spi_adc->skfs);
 
 	do {
 		spi_message_add_tail(&t, &m);
@@ -205,7 +214,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 				if(bfin_spi_adc->edge){
 					/* Falling edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+SKFS;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] > bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] < bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
@@ -216,7 +225,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 				} else {
 					/* Rising edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+SKFS;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 
 						if ((bfin_spi_adc->buffer[i-1] < bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] > bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
@@ -230,7 +239,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 				if(bfin_spi_adc->edge){
 					/* Falling edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+SKFS;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] > bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] < bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
@@ -240,7 +249,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 				} else {
 					/* Rising edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+SKFS;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] < bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] > bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
@@ -253,8 +262,13 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 		}
 	} while (repeat_reading);
 
+
+	DPRINTK(" triggerpos = %d \n",bfin_spi_adc->triggerpos);
+	DPRINTK(" skfs = %d \n",bfin_spi_adc->skfs);
+	DPRINTK(" count = %d \n",count);
+
 	if(!(bfin_spi_adc->timeout < 0) && (!bfin_spi_adc->triggerpos))
-		copy_to_user(buf, bfin_spi_adc->buffer + SKFS, count);
+		copy_to_user(buf, bfin_spi_adc->buffer + bfin_spi_adc->skfs, count);
 	else
 		copy_to_user(buf, bfin_spi_adc->buffer + bfin_spi_adc->triggerpos, count);
 
@@ -318,6 +332,7 @@ static int adc_spi_open (struct inode *inode, struct file *filp)
 
     spi_adc.opened = 1;
     spi_adc.cont = 0;
+    spi_adc.skfs = 0;
     spi_adc.spidev = spi;
 
     filp->private_data = &spi_adc;

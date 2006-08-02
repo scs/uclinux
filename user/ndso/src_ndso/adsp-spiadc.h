@@ -50,6 +50,7 @@
 #define CMD_SPI_SET_TIME_SPS 	  23
 #define CMD_SPI_SET_TIME_SAMPLES  24
 #define CMD_SPI_GET_SYSTEMCLOCK   25
+#define CMD_SPI_SET_SKFS   27
 
 
 
