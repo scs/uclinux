@@ -36,8 +36,6 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
-extern unsigned long l1_inst_sram_alloc(unsigned long size);
-extern int l1_inst_sram_free(unsigned long addr);
 extern void *dma_memcpy(void *dest, const void *src, size_t count);
 
 #define DEBUGP(fmt...)
