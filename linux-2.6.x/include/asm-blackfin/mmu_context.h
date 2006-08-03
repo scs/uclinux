@@ -10,6 +10,9 @@ extern void *current_l1_stack_save;
 extern int nr_l1stack_tasks;
 extern unsigned long l1_stack_base, l1_stack_len;
 
+extern unsigned long l1sram_alloc_max(unsigned long *);
+extern int l1sram_free(unsigned long);
+
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
