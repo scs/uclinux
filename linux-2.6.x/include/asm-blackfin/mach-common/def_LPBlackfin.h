@@ -41,10 +41,53 @@
 
 #define MK_BMSK_( x ) (1<<x)    // Make a bit mask from a bit position
 
-#define bfin_read16(reg) *((volatile unsigned short *)reg)
-#define bfin_write16(reg,val)  *((volatile unsigned short *)reg) = (unsigned short)(val)
-#define bfin_read32(reg) *((volatile unsigned long *)reg)
-#define bfin_write32(reg,val)  *((volatile unsigned long *)reg) = (unsigned long)(val)
+#if defined(ANOMALY_05000198)
+
+#define bfin_read16(addr) ({ unsigned __v; \
+                       __asm__ __volatile__ ("NOP;\n\t"\
+	         			     			"%0 = w [%1] (z);\n\t"\
+  : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
+
+#define bfin_read32(addr) ({ unsigned __v; \
+                      __asm__ __volatile__ ("NOP;\n\t"\
+                                            "%0 = [%1];\n\t"\
+  : "=d"(__v) : "a"(addr)); __v; })
+
+
+#define bfin_write16(addr,val) ({\
+                      __asm__ __volatile__ ("NOP;\n\t"\
+                                            "w[%0] = %1;\n\t"\
+  : : "a"(addr) , "d"(val) : "memory");})
+
+#define bfin_write32(addr,val) ({\
+                      __asm__ __volatile__ ("NOP;\n\t"\
+                                            "[%0] = %1;\n\t"\
+  : : "a"(addr) , "d"(val) : "memory");})
+
+#else
+
+#define bfin_read16(addr) ({ unsigned __v; \
+                       __asm__ __volatile__ (\
+	         			     			"%0 = w [%1] (z);\n\t"\
+  : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
+
+#define bfin_read32(addr) ({ unsigned __v; \
+                      __asm__ __volatile__ (\
+                                            "%0 = [%1];\n\t"\
+  : "=d"(__v) : "a"(addr)); __v; })
+
+
+#define bfin_write16(addr,val) ({\
+                      __asm__ __volatile__ (\
+                                            "w[%0] = %1;\n\t"\
+  : : "a"(addr) , "d"(val) : "memory");})
+
+#define bfin_write32(addr,val) ({\
+                      __asm__ __volatile__ (\
+                                            "[%0] = %1;\n\t"\
+  : : "a"(addr) , "d"(val) : "memory");})
+
+#endif
 
 /**************************************************
  * System Register Bits
