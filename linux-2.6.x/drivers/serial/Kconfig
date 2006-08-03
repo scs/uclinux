@@ -466,8 +466,8 @@ config SERIAL_SA1100_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_BFIN
-	bool "Blackfin serial port support"
-	depends on BFIN
+	bool "Blackfin serial port support (EXPERIMENTAL)"
+	depends on BFIN && EXPERIMENTAL
 	select SERIAL_CORE
 
 config SERIAL_BFIN_CONSOLE
