@@ -133,6 +133,8 @@ void paging_init(void)
 	}
 }
 
+extern void l1sram_init(void);
+
 void mem_init(void)
 {
 	unsigned int codek = 0, datak = 0, initk = 0;
