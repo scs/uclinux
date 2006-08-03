@@ -644,10 +644,10 @@ ENTRY(_return_from_int)
 	rts;
 
 ENTRY(_lower_to_irq14)
-	/* FIXME : This is a temp workaround for a pipeline/architecture issue */
+#if defined(ANOMALY_05000281)
 	r0 = 0x1000;
 	reti = r0;
-	/* End workaround */
+#endif
 
 	r0 = 0x401f;
 	sti r0;

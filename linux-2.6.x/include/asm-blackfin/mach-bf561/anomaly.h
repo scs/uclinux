@@ -33,6 +33,7 @@
 #ifndef _MACH_ANOMALY_H_
 #define _MACH_ANOMALY_H_
 
+#define ANOMALY_05000281 /*False Hardware Error Exception when ISR context is not restored*/
 #define ANOMALY_05000272 /*Certain data cache write through modes fail for VDDint <=0.9V*/
 #define ANOMALY_05000273 /*Writes to Synchronous SDRAM memory may be lost*/
 #define ANOMALY_05000277 /*Writes to a flag data register one SCLK cycle after an
