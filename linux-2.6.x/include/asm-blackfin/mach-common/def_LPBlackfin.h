@@ -34,6 +34,8 @@
 #ifndef _DEF_LPBLACKFIN_H
 #define _DEF_LPBLACKFIN_H
 
+#include <asm/mach/anomaly.h> 
+
 /*#if !defined(__ADSPLPBLACKFIN__)
 #warning def_LPBlackfin.h should only be included for 532 compatible chips.
 #endif
@@ -45,7 +47,7 @@
 
 #define bfin_read16(addr) ({ unsigned __v; \
                        __asm__ __volatile__ ("NOP;\n\t"\
-	         			     			"%0 = w [%1] (z);\n\t"\
+	         			     			"%0 = w[%1] (z);\n\t"\
   : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
 
 #define bfin_read32(addr) ({ unsigned __v; \
@@ -68,7 +70,7 @@
 
 #define bfin_read16(addr) ({ unsigned __v; \
                        __asm__ __volatile__ (\
-	         			     			"%0 = w [%1] (z);\n\t"\
+	         			     			"%0 = w[%1] (z);\n\t"\
   : "=d"(__v) : "a"(addr)); (unsigned short)__v; })
 
 #define bfin_read32(addr) ({ unsigned __v; \
