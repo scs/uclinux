@@ -42,7 +42,7 @@
 #include <linux/rtc.h>
 #include <asm/blackfin.h>
 
-spinlock_t l1sram_lock, l1_data_A_sram_lock, l1_inst_sram_lock;
+spinlock_t l1sram_lock, l1_data_sram_lock, l1_inst_sram_lock;
 
 #define L1_MAX_PIECE        16
 
@@ -106,7 +106,7 @@ void l1_data_sram_init(void)
 #endif
 
 	/* mutex initialize */
-	spin_lock_init(&l1_data_A_sram_lock);
+	spin_lock_init(&l1_data_sram_lock);
 }
 
 void l1_inst_sram_init(void)
@@ -241,7 +241,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	unsigned long addr = 0;
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 #if L1_DATA_A_LENGTH != 0
 	addr = l1_sram_alloc(size, l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
@@ -255,7 +255,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 #endif
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
 	//printk ("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
@@ -267,7 +267,7 @@ int l1_data_A_sram_free(unsigned long addr)
 	int ret;
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 #if L1_DATA_B_LENGTH != 0
 	if (L1_DATA_B_START == (addr & ~0xffff))
@@ -283,7 +283,7 @@ int l1_data_A_sram_free(unsigned long addr)
 #endif
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
 	return ret;
 }
@@ -310,12 +310,12 @@ unsigned long l1_data_B_sram_alloc(unsigned long size)
 	unsigned long addr;
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 	addr = l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
 	//printk ("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
@@ -328,12 +328,12 @@ int l1_data_B_sram_free(unsigned long addr)
 	int ret;
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_A_sram_lock, flags);
+	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 	ret = l1_sram_free(addr, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_A_sram_lock, flags);
+	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
 	return ret;
 }
