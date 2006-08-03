@@ -192,7 +192,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void free_initmem()
+void free_initmem(void)
 {
 #ifdef CONFIG_RAMKERNEL
 	unsigned long addr;
