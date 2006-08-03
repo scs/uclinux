@@ -33,7 +33,6 @@ extern void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type);
 extern void l1_data_A_sram_init(void);
 extern void l1_inst_sram_init(void);
 
-extern unsigned long l1sram_alloc(unsigned long);
 extern unsigned long l1sram_alloc_max(unsigned long *);
 extern unsigned long l1_data_A_sram_alloc(unsigned long);
 extern unsigned long l1_data_B_sram_alloc(unsigned long);

@@ -413,7 +413,6 @@ int l1sram_free(unsigned long addr)
 	return ret;
 }
 
-EXPORT_SYMBOL(l1sram_alloc);
 EXPORT_SYMBOL(l1sram_free);
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 EXPORT_SYMBOL(l1_data_A_sram_free);

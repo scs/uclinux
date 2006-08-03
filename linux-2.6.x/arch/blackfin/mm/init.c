@@ -134,6 +134,7 @@ void paging_init(void)
 }
 
 extern void l1sram_init(void);
+extern unsigned long l1sram_alloc(unsigned long);
 
 void mem_init(void)
 {
@@ -171,11 +172,11 @@ void mem_init(void)
 	/* Allocate this once; never free it.  We assume this gives us a
 	   pointer to the start of L1 scratchpad memory; panic if it
 	   doesn't.  */
-	tmp = l1sram_alloc (sizeof (struct l1_scratch_task_info));
+	tmp = l1sram_alloc(sizeof (struct l1_scratch_task_info));
 	if (tmp != (unsigned long)L1_SCRATCH_TASK_INFO) {
-		printk (KERN_EMERG "Didn't get the right address from l1sram_alloc: %08lx %08lx.\n",
+		printk(KERN_EMERG "mem_init(): Did not get the right address from l1sram_alloc: %08lx != %08lx\n",
 			tmp, (unsigned long)L1_SCRATCH_TASK_INFO);
-		panic ("Giving up now.\n");
+		panic("No L1, time to give up\n");
 	}
 }
 
