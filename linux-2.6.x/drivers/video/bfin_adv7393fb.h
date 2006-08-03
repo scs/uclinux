@@ -355,10 +355,6 @@ static void bfin_disable_dma (void);
 static void bfin_enable_ppi (void);
 static void bfin_disable_ppi (void);
 
-
-extern unsigned long l1_data_A_sram_alloc (unsigned long size);
-extern int l1_data_A_sram_free (unsigned long addr);
-
 static inline int adv7393_write (struct i2c_client *client, u8 reg, u8 value);
 static inline int adv7393_read (struct i2c_client *client, u8 reg);
 static int adv7393_write_block (struct i2c_client *client, const u8 * data,

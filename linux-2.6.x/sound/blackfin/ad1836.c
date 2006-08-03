@@ -315,11 +315,6 @@ struct snd_ad1836 {
 
 };
 
-#if L1_DATA_A_LENGTH != 0
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern int l1_data_A_sram_free(unsigned long addr);
-#endif
-
 #ifdef MULTI_SUBSTREAM
 static inline int find_substream(ad1836_t *chip,
 		snd_pcm_substream_t *substream,	substream_info_t **info)

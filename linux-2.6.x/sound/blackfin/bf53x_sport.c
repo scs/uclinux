@@ -67,11 +67,6 @@
 
 #define SSYNC __builtin_bfin_ssync()
 
-#if L1_DATA_A_LENGTH != 0
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern int l1_data_A_sram_free(unsigned long addr);
-#endif
-
 static unsigned int sport_iobase[] = {SPORT0_TCR1, SPORT1_TCR1 };
 
 static unsigned int dma_iobase[]   =
