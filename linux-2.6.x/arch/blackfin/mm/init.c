@@ -134,6 +134,8 @@ void paging_init(void)
 }
 
 extern void l1sram_init(void);
+extern void l1_inst_sram_init(void);
+extern void l1_data_sram_init(void);
 extern unsigned long l1sram_alloc(unsigned long);
 
 void mem_init(void)
@@ -166,7 +168,7 @@ void mem_init(void)
 
 	/* Initialize the blackfin L1 Memory. */
 	l1sram_init();
-	l1_data_A_sram_init();
+	l1_data_sram_init();
 	l1_inst_sram_init();
 
 	/* Allocate this once; never free it.  We assume this gives us a

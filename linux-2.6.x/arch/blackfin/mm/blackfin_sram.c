@@ -82,7 +82,7 @@ void l1sram_init(void)
 	spin_lock_init(&l1sram_lock);
 }
 
-void l1_data_A_sram_init(void)
+void l1_data_sram_init(void)
 {
 	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
 #if L1_DATA_A_LENGTH != 0
