@@ -8,20 +8,9 @@ send_user "Starting serial_test.exp\n"
 
 set TITLE "Serial Test"
 
-set send_slow {1 .01}
-set SERIAL_PORT_BAUD_RATE   "57600"
+source ../kernel_config.exp
+
 set STRDATA "abcdefghijklmnopqrstuvwxyz0123456789"
-
-
-set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device"
-   puts "   where tty-device is something like /dev/ttyS0"
-   puts ""
-   exit
-}
-# grab the user specified parameters.
-set ttydev             [lindex $argv 0]
 
 proc step { message } {
 
@@ -42,7 +31,7 @@ step "Start kermit"
 #  This just builds up a list of commands which are sent to kermit.
 #
 set kparams     [list "set line $ttydev\r"]
-lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set speed $baud_rate\r"
 lappend kparams "set carrier-watch off\r"
 lappend kparams "set handshake none\r"
 lappend kparams "set flow-control none\r"

@@ -1,0 +1,36 @@
+#!/usr/bin/expect
+
+
+# directory and file locations
+
+set user /home/test
+set uclinux_path $user/checkouts/kernel/uClinux-dist
+
+# environment settings
+
+set ttydev /dev/ttyS0
+set baud_rate   "57600"
+
+set targetip 10.100.4.50
+set serverip 10.100.4.174
+
+set password "blackfin"
+set send_slow {1 .01}
+
+
+#set file names
+
+set kernel_only_image   vmlinux
+set compressed_kernel_only_image  vmlinux
+
+set kernel_and_ext2_image   linux.ext2
+set kernel_and_cramfs_image linux.cramfs
+
+set compressed_kernel_and_ext2_image   uImage.ext2
+set compressed_kernel_and_cramfs_image uImage.cramfs  
+
+set ext2_rootfs_image    rootfs.ext2
+set jffs2_rootfs_image   rootfs.jffs2
+set yaffs_rootfs_image   rootfs.yaffs
+set yaffs2_rootfs_image  rootfs.yaffs2
+
