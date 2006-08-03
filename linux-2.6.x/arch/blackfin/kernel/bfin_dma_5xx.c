@@ -213,7 +213,8 @@ static int bf533_channel2irq(unsigned int channel)
 	}
 	return ret_irq;
 }
-# define channel2irq(channel) bf561_channel2irq(channel)
+
+# define channel2irq(channel) bf533_channel2irq(channel)
 
 #else
 
@@ -278,7 +279,7 @@ static int bf561_channel2irq(unsigned int channel)
 	}
 	return ret_irq;
 }
-# define channel2irq(channel) bf533_channel2irq(channel)
+# define channel2irq(channel) bf561_channel2irq(channel)
 
 #endif
 
