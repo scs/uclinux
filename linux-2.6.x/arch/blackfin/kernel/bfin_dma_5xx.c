@@ -9,9 +9,9 @@
  * Rev:          $Id$
  *
  * Modified:
- *               Copyright 2004-2005 Analog Devices Inc.
+ *               Copyright 2004-2006 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http:    //blackfin.uclinux.org/
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software ;  you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -127,11 +127,9 @@ static void clear_dma_buffer(unsigned int channel)
 int __init blackfin_dma_init(void)
 {
 	int i;
-#if defined (CONFIG_BF561)
-	printk("Blackfin DMA Controller for BF561\n");
-#else
-	printk("Blackfin DMA Controller for BF533\n");
-#endif
+
+	printk(KERN_INFO "Blackfin DMA Controller\n");
+
 	for (i = 0; i < MAX_BLACKFIN_DMA_CHANNEL; i++) {
 		dma_ch[i].chan_status = DMA_CHANNEL_FREE;
 		dma_ch[i].regs = base_addr[i];
@@ -146,6 +144,8 @@ arch_initcall(blackfin_dma_init);
 /*
  *	Form the channel find the irq number for that channel.
  */
+#if !defined (CONFIG_BF561)
+
 static int bf533_channel2irq(unsigned int channel)
 {
 	int ret_irq = -1;
@@ -156,7 +156,6 @@ static int bf533_channel2irq(unsigned int channel)
 		break;
 
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
-
 	case CH_EMAC_RX:
 		ret_irq = IRQ_MAC_RX;
 		break;
@@ -214,8 +213,10 @@ static int bf533_channel2irq(unsigned int channel)
 	}
 	return ret_irq;
 }
+# define channel2irq(channel) bf561_channel2irq(channel)
 
-#if defined (CONFIG_BF561)
+#else
+
 static int bf561_channel2irq(unsigned int channel)
 {
 	int ret_irq = -1;
@@ -277,13 +278,10 @@ static int bf561_channel2irq(unsigned int channel)
 	}
 	return ret_irq;
 }
+# define channel2irq(channel) bf533_channel2irq(channel)
+
 #endif
 
-#if defined (CONFIG_BF561)
-#define channel2irq(channel) bf561_channel2irq(channel)
-#else
-#define channel2irq(channel) bf533_channel2irq(channel)
-#endif
 /*------------------------------------------------------------------------------
  *	Request the specific DMA channel from the system.
  *-----------------------------------------------------------------------------*/
@@ -333,7 +331,7 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 		    request_irq(ret_irq, (void *)callback, SA_INTERRUPT,
 				dma_ch[channel].device_id, data);
 		if (ret_val) {
-			printk("Request irq in DMA engine failed.\n");
+			printk(KERN_NOTICE "Request irq in DMA engine failed.\n");
 			return -EPERM;
 		}
 		dma_ch[channel].irq_callback = callback;
@@ -580,40 +578,39 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 
 void *dma_memcpy(void * dest,const void *src,size_t count)
 {
+	BUG_ON(count > 0xFFFF);
 
-				BUG_ON(count > 0xFFFF);
+	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 
-                bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
+	/* Copy sram functions from sdram to sram */
+	/* Setup destination start address */
+	bfin_write_MDMA_D0_START_ADDR(dest);
+	/* Setup destination xcount */
+	bfin_write_MDMA_D0_X_COUNT(count );
+	/* Setup destination xmodify */
+	bfin_write_MDMA_D0_X_MODIFY(1);
 
-                /* Copy sram functions from sdram to sram */
-                /* Setup destination start address */
-                bfin_write_MDMA_D0_START_ADDR(dest);
-                /* Setup destination xcount */
-                bfin_write_MDMA_D0_X_COUNT(count );
-                /* Setup destination xmodify */
-                bfin_write_MDMA_D0_X_MODIFY(1);
+	/* Setup Source start address */
+	bfin_write_MDMA_S0_START_ADDR(src);
+	/* Setup Source xcount */
+	bfin_write_MDMA_S0_X_COUNT(count);
+	/* Setup Source xmodify */
+	bfin_write_MDMA_S0_X_MODIFY(1);
 
-                /* Setup Source start address */
-                bfin_write_MDMA_S0_START_ADDR(src);
-                /* Setup Source xcount */
-                bfin_write_MDMA_S0_X_COUNT(count);
-                /* Setup Source xmodify */
-                bfin_write_MDMA_S0_X_MODIFY(1);
+	/* Enable source DMA */
+	bfin_write_MDMA_S0_CONFIG((DMAEN));
+	SSYNC;
 
-                /* Enable source DMA */
-                bfin_write_MDMA_S0_CONFIG((DMAEN));
-                SSYNC;
+	bfin_write_MDMA_D0_CONFIG(( WNR | DMAEN));
 
-                bfin_write_MDMA_D0_CONFIG(( WNR | DMAEN));
+	while (bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN)
+		bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
 
-                while(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN){
-                        bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
-                }
-                bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
+	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
 
-                dest += count;
-                src  += count;
-                return dest;
+	dest += count;
+	src  += count;
+	return dest;
 }
 
 EXPORT_SYMBOL(request_dma);
