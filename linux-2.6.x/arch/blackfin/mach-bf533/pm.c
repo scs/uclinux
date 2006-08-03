@@ -1,28 +1,28 @@
 /*
- * File:        arch/blackfin/mach-bf533/pm.c
- * Based on:    arm/mach-omap/pm.c
- * Author:      Cliff Brake <cbrake@accelent.com>
- *              Copyright (c) 2001
- * Created:     2001
- * Description: Power management for the bf533
+ * File:         arch/blackfin/mach-bf533/pm.c
+ * Based on:     arm/mach-omap/pm.c
+ * Author:       Cliff Brake <cbrake@accelent.com> Copyright (c) 2001
  *
- * Rev:         $Id$
+ * Created:      2001
+ * Description:  Power management for the bf533
  *
- * Modified:    Nicolas Pitre - PXA250 support
+ * Rev:          $Id$
+ *
+ * Modified:     Nicolas Pitre - PXA250 support
  *                Copyright (c) 2002 Monta Vista Software, Inc.
- *              David Singleton - OMAP1510
+ *               David Singleton - OMAP1510
  *                Copyright (c) 2002 Monta Vista Software, Inc.
- *              Dirk Behme <dirk.behme@de.bosch.com> - OMAP1510/1610
+ *               Dirk Behme <dirk.behme@de.bosch.com> - OMAP1510/1610
  *                Copyright 2004
- *              Michael.Kang@analog.com - Blackfin support
- * Maintained:  Michael.Kang@analog.com
+ * Modified:
+ *               Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,9 +30,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/pm.h>
