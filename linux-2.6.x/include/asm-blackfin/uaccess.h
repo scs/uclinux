@@ -51,6 +51,21 @@ static inline int _access_ok(unsigned long addr, unsigned long size)
 	if (addr >= L1_SCRATCH_START
 	    && addr + size <= L1_SCRATCH_START + L1_SCRATCH_LENGTH)
 		return 1;
+#if L1_CODE_LENGTH != 0
+	if (addr >= L1_CODE_START + (_etext_l1 - _stext_l1)
+	    && addr + size <= L1_CODE_START + L1_CODE_LENGTH)
+		return 1;
+#endif
+#if L1_DATA_A_LENGTH != 0
+	if (addr >= L1_DATA_A_START + (_ebss_l1 - _sdata_l1)
+	    && addr + size <= L1_DATA_A_START + L1_DATA_A_LENGTH)
+		return 1;
+#endif
+#if L1_DATA_B_LENGTH != 0
+	if (addr >= L1_DATA_B_START
+	    && addr + size <= L1_DATA_B_START + L1_DATA_B_LENGTH)
+		return 1;
+#endif
 	return 0;
 #endif
 }
