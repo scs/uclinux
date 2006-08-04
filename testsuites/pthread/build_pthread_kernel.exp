@@ -121,7 +121,7 @@ while 1 {
       }
  
            -re "Pthread lib test.*CONFIG_USER_BLACKFIN_PTHREADTEST.*\\\[.*]" {
-             send "Y\r"
+             send -s "Y\r"
       }
 
         
