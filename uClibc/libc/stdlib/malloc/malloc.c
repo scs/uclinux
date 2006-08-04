@@ -108,7 +108,7 @@ malloc_from_heap (size_t size, struct heap *heap)
 		    MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 #else
       block = mmap ((void *)0, block_size, PROT_READ | PROT_WRITE,
-		    MAP_SHARED | MAP_ANONYMOUS, 0, 0);
+		    MAP_SHARED | MAP_ANONYMOUS | MAP_UNINITIALIZE, 0, 0);
 #endif
 
 #endif /* MALLOC_USE_SBRK */
