@@ -1,0 +1,23 @@
+Source: libnfnetlink
+Section: libs
+Priority: optional
+Maintainer: Max Kellermann <max@duempel.org>
+Build-Depends: cdbs (>= 0.4), debhelper (>= 4.2), gcc (>= 3.4)
+Standards-Version: 3.6.2
+
+Package: libnfnetlink0
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Netfilter netlink library
+ libnfnetlink is a lowlevel C library which helps accessing the
+ netfilter netlink layer in the kernel.
+
+Package: libnfnetlink-dev
+Architecture: any
+Section: libdevel
+Depends: libnfnetlink0 (= ${Source-Version})
+Description: Netfilter netlink library
+ libnfnetlink is a lowlevel C library which helps accessing the
+ netfilter netlink layer in the kernel.
+ .
+ This package provides the development files.
