@@ -49,14 +49,10 @@ OBJSDLL = $(OBJS:.o=.pic.o)
 .SUFFIXES:      .c .o .pic.o
 
 .c.pic.o:
-	$(CC) -c $(CFLAGS) -fPIC -o $@ $*.c
+	$(CC) -c $(CFLAGS) -o $@ $*.c
 
 #all: libpng.a libpng.so pngtest
-#all: libpng.a libpng.so
-
-# Fixme - temporarily remove libpng.so from build - mh
-all: libpng.a 
-
+all: libpng.a libpng.so
 
 libpng.a: $(OBJS)
 	ar rc $@ $(OBJS)
@@ -69,7 +65,7 @@ libpng.so.$(PNGMAJ): libpng.so.$(PNGVER)
 	ln -sf libpng.so.$(PNGVER) libpng.so.$(PNGMAJ)
 
 libpng.so.$(PNGVER): $(OBJSDLL)
-	$(CC) -shared -Wl,-soname,libpng.so.$(PNGMAJ) -o libpng.so.$(PNGVER) \
+	$(CC) $(CFLAGS) -shared -Wl,-soname,libpng.so.$(PNGMAJ) -o libpng.so.$(PNGVER) \
 	 $(OBJSDLL) -L$(ZLIBLIB) -lz -lm -lc
 
 pngtest: pngtest.o libpng.so
