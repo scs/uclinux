@@ -6,20 +6,20 @@ OBJS = openraw.o closeraw.o setifflags.o resetifflags.o setifaddr.o \
 	setifdstaddr.o setifbrdaddr.o setifnetmask.o setifmtu.o \
 	addroute.o maskaddress.o setifhwaddr.o
 
-LIBNET = libnet.a
+LIBNETOLD = libnetold.a
 
 
-all: $(LIBNET)
+all: $(LIBNETOLD)
 
-$(LIBNET): $(LIBNET)($(OBJS))
-	$(RANLIB) $(LIBNET)
+$(LIBNETOLD): $(LIBNETOLD)($(OBJS))
+	$(RANLIB) $(LIBNETOLD)
 
-$(LIBNET)($(OBJS)): $(SRC)
+$(LIBNETOLD)($(OBJS)): $(SRC)
 	$(CC) $(CFLAGS) -DL_$(basename $*) -o $(basename $*).o -c $^
-	$(AR) rv $(LIBNET) $(basename $*).o
+	$(AR) rv $(LIBNETOLD) $(basename $*).o
 
 romfs:
 
 clean:
-	-rm -f $(LIBNET) *.o
+	-rm -f $(LIBNETOLD) *.o
 
