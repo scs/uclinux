@@ -23,13 +23,13 @@
 #include <fcntl.h>
 #include <grp.h>
 #include "config.h"
-#include <linux/autoconf.h>
+#include <config/autoconf.h>
 
-#ifdef CONFIG_UCLINUX
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
 #define GROUP_FILE "/etc/config/group"
 #else
 #define GROUP_FILE "/etc/group"
-#endif /*CONFIG_UCLINUX*/
+#endif /*CONFIG_USER_FLATFSD_FLATFSD*/
 
 int
 initgroups(__const char * user, gid_t gid)

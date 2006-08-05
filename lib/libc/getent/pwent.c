@@ -23,13 +23,13 @@
 #include <errno.h>
 #include <pwd.h>
 #include <fcntl.h>
-#include <linux/autoconf.h>
+#include <config/autoconf.h>
 
-#ifdef CONFIG_UCLINUX
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
 #define PASSWD_FILE "/etc/config/passwd"
 #else
 #define PASSWD_FILE "/etc/passwd"
-#endif /*CONFIG_UCLINUX*/
+#endif /*CONFIG_USER_FLATFSD_FLATFSD*/
 
 /*
  * setpwent(), endpwent(), and getpwent() are included in the same object

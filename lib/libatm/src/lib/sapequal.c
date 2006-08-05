@@ -65,6 +65,7 @@ static int match_blli(const struct atm_blli a,const struct atm_blli b,
 	    CHECK(l2.itu.window,a.l2.itu.window > b.l2.itu.window);
 	    break;
 	default:
+	    break;
     }
     switch (a.l3_proto) {
 	case ATM_L3_X25:
@@ -83,6 +84,7 @@ static int match_blli(const struct atm_blli a,const struct atm_blli b,
 	    if (a.l3.user != b.l3.user) return 0;
 	    break;
 	default:
+	    break;
     }
     return 1;
 }

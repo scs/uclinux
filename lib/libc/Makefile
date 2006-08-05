@@ -9,10 +9,12 @@ SUBDIRS=error gtermcap misc stdio2 time getent regexp string termios \
 		# shm - doesn't work for 2.4 yet
 
 ifdef CONFIG_BINFMT_SHARED_FLAT
+ ifndef DISABLE_SHARED_LIBS
   # For the shared version of this, we specify no stack and its library ID
   FLTFLAGS += -s 0
   LIBID=1
   SHARED_TARGET = libc
+ endif
 endif
 
 ifdef CONFIG_LIB_UC_LIBC_TIMEZONE
@@ -25,7 +27,7 @@ endif
 CFLAGS += -I$(ROOTDIR)/lib/libc/include
 
 
-all: headers subdirs .ranlib libcrypt.a libg.a $(SHARED_TARGET)
+all: headers subdirs .ranlib libg.a $(SHARED_TARGET)
 
 .PHONY: subdirs
 subdirs:
@@ -42,9 +44,6 @@ bogus $(SHARED_TARGET): libc.a main.o
 		-L __CTOR_LIST__ -L __DTOR_LIST__			\
 		-L _current_shared_library_a5_offset_			\
 		$(SHARED_TARGET).gdb
-
-libcrypt.a: libc.a
-	ln -f libc.a libcrypt.a
 
 libg.a: libc.a
 	ln -f libc.a libg.a
@@ -73,7 +72,7 @@ headers:
 
 .PHONY: romfs
 romfs:
-	@if [ "$(CONFIG_BINFMT_SHARED_FLAT)" = "y" ]; then \
+	@if [ "$(CONFIG_BINFMT_SHARED_FLAT)" ]; then \
 		[ -e $(ROMFSDIR)/lib ] || mkdir -p $(ROMFSDIR)/lib; \
 		$(ROMFSINST) $(SHARED_TARGET) /lib/lib$(LIBID).so; \
 	fi

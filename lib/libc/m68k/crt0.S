@@ -34,6 +34,7 @@ __exit:
 	moveq #1,%d0 /* SYS_exit */
 	trap #0
 
+#if 0
 	.section .ctors,"aw"
 	.align 4
 	.global __CTOR_LIST__
@@ -46,3 +47,4 @@ __CTOR_LIST__:
 __DTOR_LIST__:
 	.long -1
 
+#endif

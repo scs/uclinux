@@ -422,7 +422,7 @@ int dns_lookup(const char * name, int type, int nscount, const char ** nsip,
 	static int ns = 0;
 	struct sockaddr_in sa;
 	int oldalarm;
-	__sighandler_t oldhandler;
+	struct sigaction alarm_act, old_alarm_act;
 	struct resolv_header h;
 	struct resolv_question q;
 	int retries = 0;
@@ -441,6 +441,11 @@ int dns_lookup(const char * name, int type, int nscount, const char ** nsip,
 	
 	fd = -1;
 	
+	memset(&alarm_act, 0, sizeof(alarm_act));
+	alarm_act.sa_handler = dns_catch_signal;
+	alarm_act.sa_flags = (SA_ONESHOT | SA_NOMASK | SA_INTERRUPT) &
+								~SA_RESTART;
+
 	while (retries++ < MAX_RETRIES) {
 	
 		if (fd != -1)
@@ -498,12 +503,12 @@ int dns_lookup(const char * name, int type, int nscount, const char ** nsip,
 
 		dns_caught_signal = 0;
 		oldalarm = alarm(REPLY_TIMEOUT);
-		oldhandler = signal(SIGALRM, dns_catch_signal);
+		sigaction(SIGALRM, &alarm_act, &old_alarm_act);
 	
 		i = recv(fd, packet, 512, 0);
 		
 		alarm(0);
-		signal(SIGALRM, oldhandler);
+		sigaction(SIGALRM, &old_alarm_act, NULL);
 		alarm(oldalarm);
 		
 		DPRINTF("Timeout=%d, len=%d\n",

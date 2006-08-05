@@ -23,14 +23,14 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
-#include <linux/autoconf.h>
+#include <config/autoconf.h>
 
 
-#ifdef CONFIG_UCLINUX 
+#ifdef CONFIG_USER_FLATFSD_FLATFSD 
 #define GROUP_FILE "/etc/config/group"
 #else
 #define GROUP_FILE "/etc/group"
-#endif /*CONFIG_UCLINUX*/
+#endif /*CONFIG_USER_FLATFSD_FLATFSD*/
 
 struct group *
 getgrnam(const char * name)
