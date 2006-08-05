@@ -4,12 +4,12 @@
  * $Id$
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-
 /* #define DEBUG */
 
 #include "pam_private.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 int pam_chauthtok(pam_handle_t *pamh, int flags)
 {
@@ -51,6 +51,10 @@ int pam_chauthtok(pam_handle_t *pamh, int flags)
     } else {
 	D(("will resume when ready", retval));
     }
+
+#if HAVE_LIBAUDIT
+    retval = _pam_auditlog(pamh, PAM_CHAUTHTOK, retval, flags);
+#endif
 
     return retval;
 }

@@ -34,8 +34,8 @@ static int __pamc_select_agent(pamc_handle_t pch, char *agent_id)
 
 int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
 {
-    __u32 size, offset=0;
-    __u8 control, raw[PAM_BP_MIN_SIZE];
+    u_int32_t size, offset=0;
+    u_int8_t control, raw[PAM_BP_MIN_SIZE];
 
     D(("called"));
 
@@ -66,11 +66,12 @@ int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
 	D(("*prompt_p is not legal for the client to use"));
 	goto pamc_unknown_prompt;
     }
-    
+
     /* do we need to select the agent? */
     if ((*prompt_p)->control == PAM_BPC_SELECT) {
 	char *rawh;
-	int i, retval;
+	size_t i;
+	int retval;
 
 	D(("selecting a specified agent"));
 
@@ -109,14 +110,14 @@ int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
     /* pump all of the prompt into the agent */
     do {
 	int rval = write(pch->current->writer,
-			 offset + (const __u8 *) (*prompt_p),
+			 offset + (const u_int8_t *) (*prompt_p),
 			 size - offset);
 	if (rval == -1) {
 	    switch (errno) {
 	    case EINTR:
 		break;
 	    default:
-		D(("problem writing to agent: %s", strerror(errno)));
+		D(("problem writing to agent: %m"));
 		goto pamc_unknown_prompt;
 	    }
 	} else {
@@ -141,7 +142,7 @@ int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
 	    case EINTR:
 		break;
 	    default:
-		D(("problem reading from agent: %s", strerror(errno)));
+		D(("problem reading from agent: %m"));
 		goto pamc_unknown_prompt;
 	    }
 	} else if (rval) {
@@ -171,7 +172,7 @@ int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
        value from the previous loop */
 
     while (offset < size) {
-	int rval = read(pch->current->reader, offset + (__u8 *) *prompt_p,
+	int rval = read(pch->current->reader, offset + (u_int8_t *) *prompt_p,
 			size-offset);
 
 	if (rval == -1) {
@@ -179,7 +180,7 @@ int pamc_converse(pamc_handle_t pch, pamc_bp_t *prompt_p)
 	    case EINTR:
 		break;
 	    default:
-		D(("problem reading from agent: %s", strerror(errno)));
+		D(("problem reading from agent: %m"));
 		goto pamc_unknown_prompt;
 	    }
 	} else if (rval) {
@@ -208,4 +209,3 @@ pamc_unknown_prompt:
     PAM_BP_RENEW(prompt_p, PAM_BPC_FAIL, 0);
     return PAM_BPC_TRUE;
 }
-

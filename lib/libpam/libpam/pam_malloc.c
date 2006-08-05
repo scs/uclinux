@@ -5,7 +5,7 @@
 /*
  * This pair of files helps to locate memory leaks. It is a wrapper for
  * the malloc family of calls. (Actutally, it currently only deals
- * with calloc, malloc, realloc, free and exit)
+ * with calloc, malloc, realloc, free, strdup and exit)
  *
  * To use these functions the header "pam_malloc.h" must be included
  * in all parts of the code (that use the malloc functions) and this
@@ -16,14 +16,13 @@
  *
  * It is a debugging tool and should be turned off in released code.
  *
- * This suite was written by Andrew Morgan <morgan@parc.power.net> for
+ * This suite was written by Andrew Morgan <morgan@kernel.org> for
  * Linux-PAM.
  */
 
 #ifndef DEBUG
 #define DEBUG
 #endif
-
 #include "pam_private.h"
 
 #include <security/pam_malloc.h>
@@ -35,6 +34,7 @@
 #undef free
 #undef realloc
 #undef exit
+#undef strdup
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -128,7 +128,7 @@ struct reference {
 
 static void _dump(const char *say, const struct reference *ref)
 {
-    _pam_output_debug(" <%s: %p (#%d of %d) req. by %s(); %s line %d>\n"
+    _pam_output_debug(" <%s: %p (#%d of %d) req. by %s(); %s line %d>"
 		      , say
 		      , ref->ptr,ref->nelements,ref->size
 		      , ref->function,ref->file,ref->line);
@@ -311,7 +311,8 @@ void  pam_free(void *ptr
 {
      _fn("free");
 
-     if (on(PAM_MALLOC_FUNC)) err(("request to free %p", ptr));
+     if (on(PAM_MALLOC_FUNC))
+	 err(("request (%s:%s():%d) to free %p", file, fn, line, ptr));
 
      if (ptr == NULL) {
 	  if (on(PAM_MALLOC_NULL)) err(("passed NULL pointer"));
@@ -320,14 +321,6 @@ void  pam_free(void *ptr
 	  del_old_ref(ptr);
 	  free(ptr);
      }
-}
-
-void *pam_memalign(size_t ali, size_t size
-		  , const char *file, const char *fn, const int line)
-{
-     _fn("memalign");
-     if (on(0)) err(("not implemented currently (Sorry)"));
-     exit(1);
 }
 
 void *pam_realloc(void *ptr, size_t size
@@ -362,27 +355,11 @@ void *pam_realloc(void *ptr, size_t size
      return new;
 }
 
-void *pam_valloc(size_t size
-		, const char *file, const char *fn, const int line)
-{
-     _fn("valloc");
-     if (on(0)) err(("not implemented currently (Sorry)"));
-     exit(1);
-}
-
-#include <alloca.h>
-
-void *pam_alloca(size_t size
-		, const char *file, const char *fn, const int line)
-{
-     _fn("alloca");
-     if (on(0)) err(("not implemented currently (Sorry)"));
-     exit(1);
-}
-
 void pam_exit(int i
 	      , const char *file, const char *fn, const int line)
 {
+     D(("time to exit"));
+
      _fn("exit");
 
      if (on(0)) err(("passed (%d)", i));
@@ -390,6 +367,26 @@ void pam_exit(int i
 	  dump_memory_list("leaked");
      }
      exit(i);
+}
+
+char *pam_strdup(const char *orig,
+		 const char *file, const char *fn, const int line)
+{
+    char *new;
+
+    _fn("strdup");
+
+    if (on(PAM_MALLOC_FUNC)) err(("request for dup of [%s]", orig));
+
+    new = strdup(orig);
+    if (new == NULL) {
+	if (on(PAM_MALLOC_FAIL)) err(("returned NULL"));
+    } else {
+	if (on(PAM_MALLOC_REQUEST)) err(("request dup of [%s]", orig));
+	add_new_ref(new, 1, strlen(new)+1);
+    }
+
+    return new;
 }
 
 /* end of file */

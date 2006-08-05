@@ -1,7 +1,7 @@
 <!--
    $Id$
    
-   This file was written by Andrew G. Morgan <morgan@parc.power.net>
+   This file was written by Andrew G. Morgan <morgan@kernel.org>
 -->
 
 <sect1>Time control
@@ -15,7 +15,7 @@
 <tt/pam_time/
 
 <tag><bf>Author:</bf></tag>
-Andrew G. Morgan <tt>&lt;morgan@parc.power.net&gt;</tt>
+Andrew G. Morgan <tt>&lt;morgan@kernel.org&gt;</tt>
 
 <tag><bf>Maintainer:</bf></tag>
 Author
@@ -58,7 +58,7 @@ and their terminal from which they are making their request.
 <tag><bf>Description:</bf></tag>
 
 This module bases its actions on the rules listed in its configuration
-file: <tt>/etc/security/pam.conf</tt>.  Each rule has the following
+file: <tt>/etc/security/time.conf</tt>.  Each rule has the following
 form,
 <tscreen>
 <em/services/<tt/;/<em/ttys/<tt/;/<em/users/<tt/;/<em/times/

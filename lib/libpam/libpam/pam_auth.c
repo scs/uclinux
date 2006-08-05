@@ -5,10 +5,11 @@
  *
  */
 
+#include "pam_private.h"
+#include "pam_prelude.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "pam_private.h"
 
 int pam_authenticate(pam_handle_t *pamh, int flags)
 {
@@ -40,6 +41,14 @@ int pam_authenticate(pam_handle_t *pamh, int flags)
 	D(("will resume when ready"));
     }
 
+#ifdef PRELUDE
+    prelude_send_alert(pamh, retval);
+#endif
+
+#if HAVE_LIBAUDIT
+    retval = _pam_auditlog(pamh, PAM_AUTHENTICATE, retval, flags);
+#endif
+
     return retval;
 }
 
@@ -61,6 +70,10 @@ int pam_setcred(pam_handle_t *pamh, int flags)
     }
 
     retval = _pam_dispatch(pamh, flags, PAM_SETCRED);
+
+#if HAVE_LIBAUDIT
+    retval = _pam_auditlog(pamh, PAM_SETCRED, retval, flags);
+#endif
 
     D(("pam_setcred exit"));
 

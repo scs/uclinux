@@ -1,15 +1,15 @@
 /* pam_dispatch.c - handles module function dispatch */
 
 /*
- * Copyright (c) 1998 Andrew G. Morgan <morgan@kernel.org>
+ * Copyright (c) 1998, 2005 Andrew G. Morgan <morgan@kernel.org>
  *
  * $Id$
  */
 
+#include "pam_private.h"
+
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "pam_private.h"
 
 /*
  * this is the return code we return when a function pointer is NULL
@@ -21,6 +21,11 @@
 #define _PAM_UNDEF     0
 #define _PAM_POSITIVE +1
 #define _PAM_NEGATIVE -1
+
+/* frozen chain required codes */
+#define _PAM_PLEASE_FREEZE  0
+#define _PAM_MAY_BE_FROZEN  1
+#define _PAM_MUST_BE_FROZEN 2
 
 /*
  * walk a stack of modules.  Interpret the administrator's instructions
@@ -35,11 +40,11 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
     IF_NO_PAMH("_pam_dispatch_aux", pamh, PAM_SYSTEM_ERR);
 
     if (h == NULL) {
-	const char *service=NULL;
+        const void *service=NULL;
 
-	(void) pam_get_item(pamh, PAM_SERVICE, (const void **)&service);
-	_pam_system_log(LOG_ERR, "no modules loaded for `%s' service",
-			service ? service:"<unknown>" );
+	(void) pam_get_item(pamh, PAM_SERVICE, &service);
+	pam_syslog(pamh, LOG_ERR, "no modules loaded for `%s' service",
+		   service ? (const char *)service:"<unknown>" );
 	service = NULL;
 	return PAM_MUST_FAIL_CODE;
     }
@@ -75,7 +80,9 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	    retval = PAM_MODULE_UNKNOWN;
 	} else {
 	    D(("passing control to module..."));
+	    pamh->mod_name=h->mod_name;
 	    retval = h->func(pamh, flags, h->argc, h->argv);
+	    pamh->mod_name=NULL;
 	    D(("module returned: %s", pam_strerror(pamh, retval)));
 	    if (h->must_fail) {
 		D(("module poorly listed in PAM config; forcing failure"));
@@ -99,9 +106,45 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	    return retval;
 	}
 
-	if (use_cached_chain) {
-	    /* a former stack execution has frozen the chain */
+	/*
+	 * use_cached_chain is how we ensure that the setcred/close_session
+	 * and chauthtok(2) modules are called in the same order as they did
+	 * when they were invoked as auth/open_session/chauthtok(1). This
+	 * feature was added in 0.75 to make the behavior of pam_setcred
+	 * sane. It was debugged by release 0.76.
+	 */
+	if (use_cached_chain != _PAM_PLEASE_FREEZE) {
+
+	    /* a former stack execution should have frozen the chain */
+
 	    cached_retval = *(h->cached_retval_p);
+	    if (cached_retval == _PAM_INVALID_RETVAL) {
+
+		/* This may be a problem condition. It implies that
+		   the application is running setcred, close_session,
+		   chauthtok(2nd) without having first run
+		   authenticate, open_session, chauthtok(1st)
+		   [respectively]. */
+
+		D(("use_cached_chain is set to [%d],"
+		   " but cached_retval == _PAM_INVALID_RETVAL",
+		   use_cached_chain));
+
+		/* In the case of close_session and setcred there is a
+		   backward compatibility reason for allowing this, in
+		   the chauthtok case we have encountered a bug in
+		   libpam! */
+
+		if (use_cached_chain == _PAM_MAY_BE_FROZEN) {
+		    /* (not ideal) force non-frozen stack control. */
+		    cached_retval = retval;
+		} else {
+		    D(("BUG in libpam -"
+		       " chain is required to be frozen but isn't"));
+
+		    /* cached_retval is already _PAM_INVALID_RETVAL */
+		}
+	    }
 	} else {
 	    /* this stack execution is defining the frozen chain */
 	    cached_retval = h->cached_retval = retval;
@@ -110,6 +153,7 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	/* verify that the return value is a valid one */
 	if ((cached_retval < PAM_SUCCESS)
 	    || (cached_retval >= _PAM_RETURN_VALUES)) {
+
 	    retval = PAM_MUST_FAIL_CODE;
 	    action = _PAM_ACTION_BAD;
 	} else {
@@ -126,18 +170,12 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	    action = h->actions[cached_retval];
 	}
 
-	D((stderr,
-	   "use_cached_chain=%d action=%d cached_retval=%d retval=%d\n",
+	D(("use_cached_chain=%d action=%d cached_retval=%d retval=%d",
 	   use_cached_chain, action, cached_retval, retval));
 
 	/* decide what to do */
 	switch (action) {
 	case _PAM_ACTION_RESET:
-
-	    /* if (use_cached_chain) {
-	           XXX - we need to consider the use_cached_chain case
-      	                 do we want to trash accumulated info here..?
-	       } */
 
 	    impression = _PAM_UNDEF;
 	    status = PAM_MUST_FAIL_CODE;
@@ -146,14 +184,14 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	case _PAM_ACTION_OK:
 	case _PAM_ACTION_DONE:
 
-	    /* XXX - should we maintain cached_status and status in
-               the case of use_cached_chain? The same with BAD&DIE
-               below */
-
 	    if ( impression == _PAM_UNDEF
 		 || (impression == _PAM_POSITIVE && status == PAM_SUCCESS) ) {
-		impression = _PAM_POSITIVE;
-		status = retval;
+                /* in case of using cached chain
+                   we could get here with PAM_IGNORE - don't return it */
+                if ( retval != PAM_IGNORE || cached_retval == retval ) {
+		    impression = _PAM_POSITIVE;
+                    status = retval;
+                }
 	    }
 	    if ( impression == _PAM_POSITIVE && action == _PAM_ACTION_DONE ) {
 		goto decision_made;
@@ -179,11 +217,6 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 	    break;
 
 	case _PAM_ACTION_IGNORE:
-	    /* if (use_cached_chain) {
-	            XXX - when evaluating a cached
-	            chain, do we still want to ignore the module's
-	            return value?
-	       } */
 	    break;
 
         /* if we get here, we expect action is a positive number --
@@ -200,11 +233,13 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 		    if (impression == _PAM_UNDEF
 			|| (impression == _PAM_POSITIVE
 			    && status == PAM_SUCCESS) ) {
-			impression = _PAM_POSITIVE;
-			status = retval;
+                	if ( retval != PAM_IGNORE || cached_retval == retval ) {
+			    impression = _PAM_POSITIVE;
+                    	    status = retval;
+                	}
 		    }
 		}
-		
+
 		/* this means that we need to skip #action stacked modules */
 		do {
  		    h = h->next;
@@ -258,11 +293,11 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
     /* Load all modules, resolve all symbols */
 
     if ((retval = _pam_init_handlers(pamh)) != PAM_SUCCESS) {
-	_pam_system_log(LOG_ERR, "unable to dispatch function");
+	pam_syslog(pamh, LOG_ERR, "unable to dispatch function");
 	return retval;
     }
 
-    use_cached_chain = 0;   /* default to setting h->cached_retval */
+    use_cached_chain = _PAM_PLEASE_FREEZE;
 
     switch (choice) {
     case PAM_AUTHENTICATE:
@@ -270,7 +305,7 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
 	break;
     case PAM_SETCRED:
 	h = pamh->handlers.conf.setcred;
-	use_cached_chain = 1;
+	use_cached_chain = _PAM_MAY_BE_FROZEN;
 	break;
     case PAM_ACCOUNT:
 	h = pamh->handlers.conf.acct_mgmt;
@@ -280,16 +315,16 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
 	break;
     case PAM_CLOSE_SESSION:
 	h = pamh->handlers.conf.close_session;
-	use_cached_chain = 1;
+	use_cached_chain = _PAM_MAY_BE_FROZEN;
 	break;
     case PAM_CHAUTHTOK:
 	h = pamh->handlers.conf.chauthtok;
 	if (flags & PAM_UPDATE_AUTHTOK) {
-	    use_cached_chain = 1;
+	    use_cached_chain = _PAM_MUST_BE_FROZEN;
 	}
 	break;
     default:
-	_pam_system_log(LOG_ERR, "undefined fn choice; %d", choice);
+	pam_syslog(pamh, LOG_ERR, "undefined fn choice; %d", choice);
 	return PAM_ABORT;
     }
 
@@ -320,7 +355,7 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
     /* Did a module return an "incomplete state" last time? */
     if (pamh->former.choice != PAM_NOT_STACKED) {
 	if (pamh->former.choice != choice) {
-	    _pam_system_log(LOG_ERR,
+	    pam_syslog(pamh, LOG_ERR,
 			    "application failed to re-exec stack [%d:%d]",
 			    pamh->former.choice, choice);
 	    return PAM_ABORT;
@@ -333,6 +368,7 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
     __PAM_TO_MODULE(pamh);
 
     /* call the list of module functions */
+    pamh->choice = choice;
     retval = _pam_dispatch_aux(pamh, flags, h, resumed, use_cached_chain);
     resumed = PAM_FALSE;
 
@@ -348,4 +384,3 @@ int _pam_dispatch(pam_handle_t *pamh, int flags, int choice)
 
     return retval;
 }
-

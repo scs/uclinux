@@ -1,6 +1,4 @@
-/* 
- * $Id$
- *
+/*
  * Copyright information at end of file.
  */
 
@@ -79,8 +77,9 @@ typedef struct {
 #define UNIX_UNIX                19     /* wish to use /etc/passwd for pwd */
 #define UNIX_BIGCRYPT            20     /* use DEC-C2 crypt()^x function */
 #define UNIX_LIKE_AUTH           21     /* need to auth for setcred to work */
+#define UNIX_NOREAP              22     /* don't reap child process */
 /* -------------- */
-#define UNIX_CTRLS_              22     /* number of ctrl arguments defined */
+#define UNIX_CTRLS_              23     /* number of ctrl arguments defined */
 
 
 static const UNIX_Ctrls unix_args[UNIX_CTRLS_] = {
@@ -109,6 +108,7 @@ static const UNIX_Ctrls unix_args[UNIX_CTRLS_] = {
 /* UNIX_UNIX */		  { "unix",           _ALL_ON_^(050000),  01000000 },
 /* UNIX_BIGCRYPT */	  { "bigcrypt",       _ALL_ON_^(020000),  02000000 },
 /* UNIX_LIKE_AUTH */	  { "likeauth",       _ALL_ON_,           04000000 },
+/* UNIX_NOREAP */         {"noreap",          _ALL_ON_,          010000000 },
 };
 
 #define UNIX_DEFAULTS  (unix_args[UNIX__NONULL].flag)
@@ -137,7 +137,7 @@ static int converse(pam_handle_t *pamh, int ctrl, int nargs
 
     D(("begin to converse"));
 
-    retval = pam_get_item( pamh, PAM_CONV, (const void **) &conv ) ; 
+    retval = pam_get_item( pamh, PAM_CONV, (const void **) &conv ) ;
     if ( retval == PAM_SUCCESS ) {
 
 	retval = conv->conv(nargs, ( const struct pam_message ** ) message
@@ -342,19 +342,33 @@ static void _cleanup_failures(pam_handle_t *pamh, void *fl, int err)
  * verify the password of a user
  */
 
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd,
-				  const char *user)
+				  unsigned int ctrl, const char *user)
 {
     int retval, child, fds[2];
+    void (*sighandler)(int) = NULL;
 
     D(("called."));
     /* create a pipe for the password */
     if (pipe(fds) != 0) {
 	D(("could not make pipe"));
 	return PAM_AUTH_ERR;
+    }
+
+    if (off(UNIX_NOREAP, ctrl)) {
+	/*
+	 * This code arranges that the demise of the child does not cause
+	 * the application to receive a signal it is not expecting - which
+	 * may kill the application or worse.
+	 *
+	 * The "noreap" module argument is provided so that the admin can
+	 * override this behavior.
+	 */
+	sighandler = signal(SIGCHLD, SIG_DFL);
     }
 
     /* fork */
@@ -395,6 +409,10 @@ static int pwdb_run_helper_binary(pam_handle_t *pamh, const char *passwd,
     } else {
 	D(("fork failed"));
 	retval = PAM_AUTH_ERR;
+    }
+
+    if (sighandler != NULL) {
+        (void) signal(SIGCHLD, sighandler);   /* restore old signal handler */
     }
 
     D(("returning %d", retval));
@@ -468,7 +486,7 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name,
 	if (geteuid()) {
 	    /* we are not root perhaps this is the reason? Run helper */
 	    D(("running helper binary"));
-	    retval = pwdb_run_helper_binary(pamh, p, name);
+	    retval = pwdb_run_helper_binary(pamh, p, ctrl, name);
 	} else {
 	    retval = PAM_AUTHINFO_UNAVAIL;
 	    _log_err(LOG_ALERT, "get passwd; %s", pwdb_strerror(retval));
@@ -513,6 +531,7 @@ static int _unix_verify_password(pam_handle_t *pamh, const char *name,
 
     } else {
 
+	/* there is no way that p can be NULL (one can be "") */
         pp = _pam_md(p, salt);
 
         /* the moment of truth -- do we agree with the password? */
@@ -746,10 +765,10 @@ static int _unix_read_password( pam_handle_t *pamh
 	    item = NULL;
 	    return PAM_SUCCESS;
 	} else if (on(UNIX_USE_FIRST_PASS,ctrl)) {
-	    return PAM_AUTHTOK_RECOVER_ERR;       /* didn't work */
+	    return PAM_AUTHTOK_RECOVERY_ERR;       /* didn't work */
 	} else if (on(UNIX_USE_AUTHTOK, ctrl)
 		   && off(UNIX__OLD_PASSWD, ctrl)) {
-	    return PAM_AUTHTOK_RECOVER_ERR;
+	    return PAM_AUTHTOK_RECOVERY_ERR;
 	}
     }
 
@@ -804,7 +823,7 @@ static int _unix_read_password( pam_handle_t *pamh
 			if (!resp[i-1].resp
 			    || strcmp(token,resp[i-1].resp)) {
 			    token = _pam_delete(token); /* mistyped */
-			    retval = PAM_AUTHTOK_RECOVER_ERR;
+			    retval = PAM_AUTHTOK_RECOVERY_ERR;
 			    make_remark(pamh, ctrl
 					, PAM_ERROR_MSG, MISTYPED_PASS);
 			}
@@ -826,7 +845,7 @@ static int _unix_read_password( pam_handle_t *pamh
 
 	} else {
 	    retval = (retval == PAM_SUCCESS)
-		? PAM_AUTHTOK_RECOVER_ERR:retval ;
+		? PAM_AUTHTOK_RECOVERY_ERR:retval ;
 	}
     }
 
@@ -920,13 +939,13 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -939,4 +958,3 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-

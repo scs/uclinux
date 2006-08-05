@@ -1,3 +1,5 @@
+#ifndef OMIT_NIS
+
 /* 
  * yppasswdd
  * Copyright 1994, 1995, 1996 Olaf Kirch, <okir@monad.swb.de>
@@ -10,12 +12,13 @@
  * editied manually.
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include "yppasswd.h"
+
 
 bool_t
 xdr_xpasswd(XDR * xdrs, xpasswd * objp)
@@ -36,3 +39,5 @@ xdr_yppasswd(XDR * xdrs, yppasswd * objp)
 	return xdr_string(xdrs, &objp->oldpass, ~0)
 	    && xdr_xpasswd(xdrs, &objp->newpw);
 }
+
+#endif

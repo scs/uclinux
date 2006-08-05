@@ -13,8 +13,9 @@
  * attempt to overcome authentication-time attacks in a simple manner.
  */
 
-#include <unistd.h>
 #include "pam_private.h"
+#include <unistd.h>
+#include <time.h>
 
 /* **********************************************************************
  * initialize the time as unset, this is set on the return from the
@@ -133,7 +134,7 @@ void _pam_await_timer(pam_handle_t *pamh, int status)
 
 int pam_fail_delay(pam_handle_t *pamh, unsigned int usec)
 {
-     int largest;
+     unsigned int largest;
 
      IF_NO_PAMH("pam_fail_delay", pamh, PAM_SYSTEM_ERR);
 

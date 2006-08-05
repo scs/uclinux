@@ -4,7 +4,7 @@
 
  $Id$
 
-    Copyright (c) Andrew G. Morgan 1996-2001.  All rights reserved.
+    Copyright (c) Andrew G. Morgan 1996-2002.  All rights reserved.
 
 Redistribution and use in source (sgml) and binary (derived) forms,
 with or without modification, are permitted provided that the
@@ -46,7 +46,7 @@ DAMAGE.
 
 <title>The Linux-PAM System Administrators' Guide
 <author>Andrew G. Morgan, <tt>morgan@kernel.org</tt>
-<date>DRAFT v0.75 2001/03/18
+<date>DRAFT v0.77 2002/07/10
 <abstract>
 This manual documents what a system-administrator needs to know about
 the <bf>Linux-PAM</bf> library. It covers the correct syntax of the
@@ -103,7 +103,7 @@ locally with a system file, <tt>/etc/pam.conf</tt> (or a series of
 configuration files located in <tt>/etc/pam.d/</tt>) to authenticate a
 user request via the locally available authentication modules. The
 modules themselves will usually be located in the directory
-<tt>/usr/lib/security</tt> and take the form of dynamically loadable
+<tt>/lib/security</tt> and take the form of dynamically loadable
 object files (see <tt/dlopen(3)/).
 
 <sect>Some comments on the text<label id="text-conventions">
@@ -115,18 +115,18 @@ directories.  Where they have been specified, the conventions we adopt
 here for locating these files are those of the relevant RFC (RFC-86.0,
 see <ref id="see-also-sec" name="bibliography">).  If you are using a
 distribution of Linux (or some other operating system) that supports
-PAM but chooses to distribute these files in a diferent way (Red Hat
-is one such distribution), you should be careful when copying examples
-directly from the text.
+PAM but chooses to distribute these files in a diferent way you should
+be careful when copying examples directly from the text.
 
 <p>
 As an example of the above, where it is explicit, the text assumes
 that PAM loadable object files (the <em/modules/) are to be located in
-the following directory: <tt>/usr/lib/security/</tt>. However, Red Hat
-Linux, in agreement with the Linux File System Standard (the FSSTND),
-places these files in <tt>/lib/security</tt>. Please be careful to
-perform the necessary transcription when using the examples from the
-text.
+the following directory: <tt>/lib/security/</tt>. This is generally
+the location that seems to be compatible with the Linux File System
+Standard (the FSSTND). On Solaris, which has its own licensed version
+of PAM, and some other implementations of UN*X, these files can be
+found in <tt>/usr/lib/security</tt>. Please be careful to perform the
+necessary transcription when using the examples from the text.
 
 <sect>Overview<label id="overview-section">
 
@@ -268,7 +268,7 @@ that this enables.
       be used, including RADIUS, NIS, NCP (which means that Novell
       password databases can be used).
 
-   o  pppd has a PAMified version (available from RedHat)  Now it is
+   o  pppd has a PAMified version (available from Red Hat)  Now it is
       possible to use a series of databases to authenticate ppp users.
       In addition to the normal Linux-based password databases (such
       as /etc/passwd and /etc/shadow), you can use PAM modules to 
@@ -365,7 +365,7 @@ A general configuration line of the <tt>/etc/pam.conf</tt> file has
 the following form:
 <tscreen>
 <verb>
-service-name   module-type   control-flag   module-path   arguments
+service-name   module-type   control-flag   module-path   args
 </verb>
 </tscreen>
 Below, we explain the meaning of each of these tokens. The second (and
@@ -437,8 +437,8 @@ with one of two syntaxes.
 The simpler (and historical) syntax for the control-flag is a single
 keyword defined to indicate the severity of concern associated with
 the success or failure of a specific module.  There are four such
-keywords: <tt/required/, <tt/requisite/, <tt/sufficient/ and
-<tt/optional/.
+keywords: <tt/required/, <tt/requisite/, <tt/sufficient/,
+<tt/optional/ and <tt/include/.
 
 <p>
 The Linux-PAM library interprets these keywords in the following
@@ -481,6 +481,12 @@ determine the nature of the response to the application.  One example
 of this latter case, is when the other modules return something like
 <tt/PAM_IGNORE/.
 
+<item> <tt/include/; this tells PAM to include all lines of given type
+from the configuration file specified as an argument to this control.
+The whole idea is to create few "systemwide" pam configs and include
+parts of them in application pam configs.
+
+
 </itemize>
 
 <p>
@@ -513,10 +519,10 @@ The <tt/actionI/ can be a positive integer or one of the following
 tokens: <tt/ignore/; <tt/ok/; <tt/done/; <tt/bad/; <tt/die/; and
 <tt/reset/.  A positive integer, <tt/J/, when specified as the action,
 can be used to indicate that the next <em/J/ modules of the current
-type will be skipped.  In this way, the administrator can develop a
-moderately sophisticated stack of modules with a number of different
-paths of execution.  Which path is taken can be determined by the
-reactions of individual modules.
+module-type will be skipped.  In this way, the administrator can
+develop a moderately sophisticated stack of modules with a number of
+different paths of execution.  Which path is taken can be determined
+by the reactions of individual modules.
 
 <p>
 <itemize>
@@ -545,6 +551,21 @@ reactions of individual modules.
 </itemize>
 
 <p>
+Each of the four keywords: <tt/required/; <tt/requisite/;
+<tt/sufficient/; and <tt/optional/, have an equivalent expression in
+terms of the <tt/[...]/ syntax. They are as follows:
+<itemize>
+<item><tt/required/ is equivalent to
+<tt/[success=ok new_authtok_reqd=ok ignore=ignore default=bad]/
+<item><tt/requisite/ is equivalent to
+<tt/[success=ok new_authtok_reqd=ok ignore=ignore default=die]/
+<item><tt/sufficient/ is equivalent to
+<tt/[success=done new_authtok_reqd=done default=ignore]/
+<item><tt/optional/ is equivalent to 
+<tt/[success=ok new_authtok_reqd=ok default=ignore]/
+</itemize>
+
+<p>
 Just to get a feel for the power of this new syntax, here is a taste
 of what you can do with it.  With <bf/Linux-PAM-0.63/, the notion of
 client plug-in agents was introduced.  This is something that makes it
@@ -553,7 +574,7 @@ transport protocol inherent to the client/server application.  With
 the ``<tt/[ ... value=action ... ]/'' control syntax, it is possible
 for an application to be configured to support binary prompts with
 compliant clients, but to gracefully fall over into an alternative
-authentication mode for older, legacy, applications.  Flexible eh?
+authentication mode for older, legacy, applications.
 
 <tag> <tt/module-path/</tag>
 
@@ -561,8 +582,8 @@ The path-name of the dynamically loadable object file; <em/the
 pluggable module/ itself. If the first character of the module path is
 `<tt>/</tt>', it is assumed to be a complete path. If this is not the
 case, the given module path is appended to the default module path:
-<tt>/usr/lib/security</tt> (but see the notes <ref
-id="text-conventions" name="above">).
+<tt>/lib/security</tt> (but see the notes <ref id="text-conventions"
+name="above">).
 
 <tag> <tt/args/</tag>
 
@@ -573,6 +594,26 @@ module. Invalid arguments are ignored by a module, however, when
 encountering an invalid argument, the module is required to write an
 error to <tt/syslog(3)/. For a list of <em/generic/ options see the
 next section.
+
+Note, if you wish to include spaces in an argument, you should
+surround that argument with square brackets. For example:
+<tscreen>
+<verb>
+squid auth required pam_mysql.so user=passwd_query passwd=mada \
+        db=eminence [query=select user_name from internet_service where \
+                     user_name='%u' and password=PASSWORD('%p') and \
+                     service='web_proxy']
+</verb>
+</tscreen>
+Note, when using this convention, you can include `<tt/[/' characters
+inside the string, and if you wish to include a `<tt/]/' character
+inside the string that will survive the argument parsing, you should
+use `<tt/\[/'. In other words:
+<tscreen>
+<verb>
+[..[..\]..]    -->   ..[..]..
+</verb>
+</tscreen>
 
 </descrip>
 
@@ -598,9 +639,9 @@ mode uses either <tt>/etc/pam.d/</tt> or <tt>/etc/pam.conf</tt>
 configuration but not both.  That is to say, if there is a
 <tt>/etc/pam.d/</tt> directory then libpam only uses the files
 contained in this directory.  However, in the absence of the
-<tt>/etc/pam.d/</tt> directory the <tt>/etc/pam.conf</tt> file is
-used.  The other mode (and the one currently supported by Red Hat 4.2
-and higher) is to use both <tt>/etc/pam.d/</tt> and
+<tt>/etc/pam.d/</tt> directory the <tt>/etc/pam.conf</tt> file is used
+(this is likely to be the mode your preferred distribution uses).  The
+other mode is to use both <tt>/etc/pam.d/</tt> and
 <tt>/etc/pam.conf</tt> in sequence.  In this mode, entries in
 <tt>/etc/pam.d/</tt> override those of <tt>/etc/pam.conf</tt>.
 
@@ -740,10 +781,10 @@ setting (which is not a bad place to start!):
 #
 # default; deny access
 #
-OTHER	auth	 required	/usr/lib/security/pam_deny.so
-OTHER	account	 required	/usr/lib/security/pam_deny.so
-OTHER	password required	/usr/lib/security/pam_deny.so
-OTHER	session	 required	/usr/lib/security/pam_deny.so
+OTHER	auth	 required	pam_deny.so
+OTHER	account	 required	pam_deny.so
+OTHER	password required	pam_deny.so
+OTHER	session	 required	pam_deny.so
 </verb>
 </tscreen>
 Whilst fundamentally a secure default, this is not very sympathetic to
@@ -765,8 +806,8 @@ would provide a suitable warning to the administrator.
 #
 # default; wake up! This application is not configured
 #
-OTHER	auth	 required	/usr/lib/security/pam_warn.so
-OTHER	password required	/usr/lib/security/pam_warn.so
+OTHER	auth	 required	pam_warn.so
+OTHER	password required	pam_warn.so
 </verb>
 </tscreen>
 Having two ``<tt/OTHER auth/'' lines is an example of stacking.
@@ -779,12 +820,12 @@ corresponding default setup would be achieved with the following file:
 #
 # default configuration: /etc/pam.d/other
 #
-auth	 required	/usr/lib/security/pam_warn.so
-auth	 required	/usr/lib/security/pam_deny.so
-account	 required	/usr/lib/security/pam_deny.so
-password required	/usr/lib/security/pam_warn.so
-password required	/usr/lib/security/pam_deny.so
-session	 required	/usr/lib/security/pam_deny.so
+auth	 required	pam_warn.so
+auth	 required	pam_deny.so
+account	 required	pam_deny.so
+password required	pam_warn.so
+password required	pam_deny.so
+session	 required	pam_deny.so
 </verb>
 </tscreen>
 This is the only explicit example we give for an <tt>/etc/pam.d/</tt>
@@ -799,12 +840,12 @@ mimic the historically familiar Linux setup.
 <tscreen>
 <verb>
 #
-# default; standard UNIX access
+# default; standard UN*X access
 #
-OTHER	auth	 required	/usr/lib/security/pam_unix_auth.so
-OTHER	account	 required	/usr/lib/security/pam_unix_acct.so
-OTHER	password required	/usr/lib/security/pam_unix_passwd.so
-OTHER	session	 required	/usr/lib/security/pam_unix_session.so
+OTHER	auth	 required	pam_unix.so
+OTHER	account	 required	pam_unix.so
+OTHER	password required	pam_unix.so
+OTHER	session	 required	pam_unix.so
 </verb>
 </tscreen>
 In general this will provide a starting place for most applications.
@@ -821,13 +862,13 @@ may be subject to change or the application will be fixed.)
 <verb>
 #
 # ftpd; add ftp-specifics. These lines enable anonymous ftp over
-#       standard UNIX access (the listfile entry blocks access to
+#       standard UN*X access (the listfile entry blocks access to
 #	users listed in /etc/ftpusers)
 #
-ftpd	auth	sufficient  /usr/lib/security/pam_ftp.so
-ftpd	auth	required    /usr/lib/security/pam_unix_auth.so use_first_pass
-ftpd	auth	required    /usr/lib/security/pam_listfile.so \
-			onerr=succeed item=user sense=deny file=/etc/ftpusers
+ftpd	auth	sufficient  pam_ftp.so
+ftpd	auth	required    pam_unix_auth.so use_first_pass
+ftpd	auth	required    pam_listfile.so \
+	onerr=succeed item=user sense=deny file=/etc/ftpusers
 </verb>
 </tscreen>
 Note, the second line is necessary since the default entries are
@@ -837,15 +878,15 @@ Again, this is an example of authentication module stacking.  Note the
 use of the <tt/sufficient/ control-flag. It says that ``if this module
 authenticates the user, ignore the subsequent <tt/auth/
 modules''. Also note the use of the ``<tt/use_first_pass/''
-module-argument, this instructs the UNIX authentication module that it
-is not to prompt for a password but rely one already having been
-obtained by the ftp module.
+module-argument, this instructs the UN*X authentication module that it
+is not to prompt for a password but rely on one already having been
+obtained by the <tt/pam_ftp/ module.
 
 <sect>Security issues of Linux-PAM
 
 <p>
-This section will discuss good practices for using Linux-PAM in a
-secure manner.  <em>It is currently sadly lacking...suggestions are
+This section will discuss good practices for using PAM in a secure
+manner.  <em>It is currently sadly lacking...suggestions are
 welcome!</em>
 
 <sect1>If something goes wrong
@@ -906,10 +947,10 @@ Here's how you make your configs nice again:
 and then use vi to create a file called "other" in this
 directory.  It should contain the following four lines:
 
-    auth     required       pam_unix_auth.so
-    account  required       pam_unix_acct.so
-    password required       pam_unix_passwd.so
-    session  required       pam_unix_session.so
+    auth     required       pam_unix.so
+    account  required       pam_unix.so
+    password required       pam_unix.so
+    session  required       pam_unix.so
 
 Now you have the simplest possible PAM configuration that
 will work the way you're used to.  Everything should
@@ -990,7 +1031,7 @@ the examples listed below.
 
 <p><descrip>
 
-<tag><tt>/usr/lib/libpam.so.*</tt></tag>
+<tag><tt>/lib/libpam.so.*</tt></tag>
 
 the shared library providing applications with access to
 <bf/Linux-PAM/.
@@ -999,7 +1040,7 @@ the shared library providing applications with access to
 
 the <bf/Linux-PAM/ configuration file.
 
-<tag><tt>/usr/lib/security/pam_*.so</tt></tag>
+<tag><tt>/lib/security/pam_*.so</tt></tag>
 
 the primary location for <bf/Linux-PAM/ dynamically loadable object
 files; the modules.
@@ -1070,9 +1111,9 @@ for all the good work they have done.
 <sect>Copyright information for this document
 
 <p>
-Copyright (c) Andrew G. Morgan 1996-9.  All rights reserved.
+Copyright (c) Andrew G. Morgan 1996-2002.  All rights reserved.
 <newline>
-Email: <tt>&lt;morgan@linux.kernel.org&gt;</tt>
+Email: <tt>&lt;morgan@kernel.org&gt;</tt>
 
 <p>
 Redistribution and use in source and binary forms, with or without

@@ -14,7 +14,7 @@
 /* the following is a password that "can't be correct" */
 #define BLOCK_PASSWORD "\177BAD PASSWPRD\177"
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,51 +34,7 @@
 
 #include <security/pam_modules.h>
 #include <security/_pam_macros.h>
-
-/* some syslogging */
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-ftp", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
-
-static int converse(pam_handle_t *pamh, int nargs
-		    , struct pam_message **message
-		    , struct pam_response **response)
-{
-    int retval;
-    struct pam_conv *conv;
-
-    D(("begin to converse\n"));
-
-    retval = pam_get_item( pamh, PAM_CONV, (const void **) &conv ) ; 
-    if ( retval == PAM_SUCCESS ) {
-
-	retval = conv->conv(nargs, ( const struct pam_message ** ) message
-			    , response, conv->appdata_ptr);
-
-	D(("returned from application's conversation function\n"));
-
-	if ((retval != PAM_SUCCESS) && (retval != PAM_CONV_AGAIN)) {
-	    _pam_log(LOG_DEBUG, "conversation failure [%s]"
-		     , pam_strerror(pamh, retval));
-	}
-
-    } else {
-	_pam_log(LOG_ERR, "couldn't obtain coversation function [%s]"
-		 , pam_strerror(pamh, retval));
-    }
-
-    D(("ready to return from module conversation\n"));
-
-    return retval;                  /* propagate error status */
-}
+#include <security/pam_ext.h>
 
 /* argument parsing */
 
@@ -86,7 +42,8 @@ static int converse(pam_handle_t *pamh, int nargs
 #define PAM_IGNORE_EMAIL    02
 #define PAM_NO_ANON         04
 
-static int _pam_parse(int argc, const char **argv, char **users)
+static int
+_pam_parse(pam_handle_t *pamh, int argc, const char **argv, const char **users)
 {
     int ctrl=0;
 
@@ -98,15 +55,11 @@ static int _pam_parse(int argc, const char **argv, char **users)
 	if (!strcmp(*argv,"debug"))
 	    ctrl |= PAM_DEBUG_ARG;
 	else if (!strncmp(*argv,"users=",6)) {
-	    *users = x_strdup(6+*argv);
-	    if (*users == NULL) {
-		ctrl |= PAM_NO_ANON;
-		_pam_log(LOG_CRIT, "failed to duplicate user list - anon off");
-	    }
+	    *users = 6 + *argv;
 	} else if (!strcmp(*argv,"ignore")) {
 	    ctrl |= PAM_IGNORE_EMAIL;
 	} else {
-	    _pam_log(LOG_ERR,"pam_parse: unknown option; %s",*argv);
+	    pam_syslog(pamh, LOG_ERR, "unknown option: %s", *argv);
 	}
     }
 
@@ -118,23 +71,26 @@ static int _pam_parse(int argc, const char **argv, char **users)
  * return 1 if listed 0 if not.
  */
 
-static int lookup(const char *name, char *list, const char **_user)
+static int lookup(const char *name, const char *list, const char **_user)
 {
     int anon = 0;
 
     *_user = name;                 /* this is the default */
-    if (list) {
+    if (list && *list) {
 	const char *l;
-	char *x;
+	char *list_copy, *x;
 
-	x = list;
-	while ((l = strtok(x, ","))) {
+	list_copy = x_strdup(list);
+	x = list_copy;
+	while (list_copy && (l = strtok(x, ","))) {
 	    x = NULL;
 	    if (!strcmp(name, l)) {
 		*_user = list;
 		anon = 1;
 	    }
 	}
+	_pam_overwrite(list_copy);
+	_pam_drop(list_copy);
     } else {
 #define MAX_L 2
 	static const char *l[MAX_L] = { "ftp", "anonymous" };
@@ -154,13 +110,13 @@ static int lookup(const char *name, char *list, const char **_user)
 
 /* --- authentication management functions (only) --- */
 
-PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
-			,const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate (pam_handle_t *pamh, int flags UNUSED,
+		     int argc, const char **argv)
 {
     int retval, anon=0, ctrl;
     const char *user;
-    char *users=NULL;
+    const char *users = NULL;
 
     /*
      * this module checks if the user name is ftp or annonymous. If
@@ -168,11 +124,11 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
      * address and SUCCEEDS, otherwise it FAILS.
      */
 
-    ctrl = _pam_parse(argc, argv, &users);
+    ctrl = _pam_parse(pamh, argc, argv, &users);
 
     retval = pam_get_user(pamh, &user, NULL);
     if (retval != PAM_SUCCESS || user == NULL) {
-	_pam_log(LOG_ERR, "no user specified");
+	pam_syslog(pamh, LOG_ERR, "no user specified");
 	return PAM_USER_UNKNOWN;
     }
 
@@ -183,7 +139,7 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
     if (anon) {
 	retval = pam_set_item(pamh, PAM_USER, (const void *)user);
 	if (retval != PAM_SUCCESS || user == NULL) {
-	    _pam_log(LOG_ERR, "user resetting failed");
+	    pam_syslog(pamh, LOG_ERR, "user resetting failed");
 	    return PAM_USER_UNKNOWN;
 	}
     }
@@ -194,46 +150,27 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
      */
 
     {
-	struct pam_message msg[1], *mesg[1];
-	struct pam_response *resp=NULL;
+	char *resp = NULL;
 	const char *token;
-	char *prompt=NULL;
-	int i=0;
 
-	if (!anon) {
-	    prompt = malloc(strlen(PLEASE_ENTER_PASSWORD) + strlen(user));
-	    if (prompt == NULL) {
-		D(("out of memory!?"));
-		return PAM_BUF_ERR;
-	    } else {
-		sprintf(prompt, PLEASE_ENTER_PASSWORD, user);
-		msg[i].msg = prompt;
-	    }
-	} else {
-	    msg[i].msg = GUEST_LOGIN_PROMPT;
-	}
-
-	msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-	mesg[i] = &msg[i];
-
-	retval = converse(pamh, ++i, mesg, &resp);
-	if (prompt) {
-	    _pam_overwrite(prompt);
-	    _pam_drop(prompt);
-	}
+	if (!anon)
+	  retval = pam_prompt (pamh, PAM_PROMPT_ECHO_OFF, &resp,
+			       PLEASE_ENTER_PASSWORD, user);
+	else
+	  retval = pam_prompt (pamh, PAM_PROMPT_ECHO_OFF, &resp,
+			       GUEST_LOGIN_PROMPT);
 
 	if (retval != PAM_SUCCESS) {
-	    if (resp != NULL)
-		_pam_drop_reply(resp,i);
+	    _pam_drop (resp);
 	    return ((retval == PAM_CONV_AGAIN)
 		    ? PAM_INCOMPLETE:PAM_AUTHINFO_UNAVAIL);
 	}
 
 	if (anon) {
-	    /* XXX: Some effort should be made to verify this email address! */
+	  /* XXX: Some effort should be made to verify this email address! */
 
 	    if (!(ctrl & PAM_IGNORE_EMAIL)) {
-		token = strtok(resp->resp, "@");
+		token = strtok(resp, "@");
 		retval = pam_set_item(pamh, PAM_RUSER, token);
 
 		if ((token) && (retval == PAM_SUCCESS)) {
@@ -250,7 +187,7 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
 	     * we have a password so set AUTHTOK
 	     */
 
-	    (void) pam_set_item(pamh, PAM_AUTHTOK, resp->resp);
+	    pam_set_item(pamh, PAM_AUTHTOK, resp);
 
 	    /*
 	     * this module failed, but the next one might succeed with
@@ -260,9 +197,8 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
 	    retval = PAM_AUTH_ERR;
 	}
 
-	if (resp) {                                      /* clean up */
-	    _pam_drop_reply(resp, i);
-	}
+	/* clean up */
+	_pam_drop(resp);
 
 	/* success or failure */
 
@@ -270,9 +206,9 @@ int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
     }
 }
 
-PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh,int flags,int argc
-		   ,const char **argv)
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
 {
      return PAM_IGNORE;
 }

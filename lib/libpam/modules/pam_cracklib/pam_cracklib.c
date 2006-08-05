@@ -1,6 +1,11 @@
-/* pam_cracklib module */
+/*
+ * pam_cracklib module
+ */
 
 /*
+ * 0.9. switch to using a distance algorithm in similar()
+ * 0.86.  added support for setting minimum numbers of digits, uppers,
+ *        lowers, and others
  * 0.85.  added six new options to use this with long passwords.
  * 0.8. tidied output and improved D(()) usage for debugging.
  * 0.7. added support for more obscure checks for new passwd.
@@ -29,7 +34,7 @@
  * S.A.G. in the section on the cracklib module.
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdio.h>
 #ifdef HAVE_CRYPT_H
@@ -43,16 +48,24 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <limits.h>
 
+#ifdef HAVE_CRACK_H
+#include <crack.h>
+#else
 extern char *FascistCheck(char *pw, const char *dictpath);
-
-#ifndef CRACKLIB_DICTPATH
-#define CRACKLIB_DICTPATH "/usr/share/dict/cracklib_dict"
 #endif
 
-#define PROMPT1 "New %s password: "
-#define PROMPT2 "Retype new %s password: "
-#define MISTYPED_PASS "Sorry, passwords do not match"
+/* For Translators: "%s%s" could be replaced with "<service> " or "". */
+#define PROMPT1 _("New %s%spassword: ")
+/* For Translators: "%s%s" could be replaced with "<service> " or "". */
+#define PROMPT2 _("Retype new %s%spassword: ")
+#define MISTYPED_PASS _("Sorry, passwords do not match.")
+
+#ifdef MIN
+#undef MIN
+#endif
+#define MIN(_a, _b) (((_a) < (_b)) ? (_a) : (_b))
 
 /*
  * here, we make a definition for the externally accessible function
@@ -65,23 +78,7 @@ extern char *FascistCheck(char *pw, const char *dictpath);
 
 #include <security/pam_modules.h>
 #include <security/_pam_macros.h>
-
-#ifndef LINUX_PAM 
-#include <security/pam_appl.h>
-#endif  /* LINUX_PAM */
-
-/* some syslogging */
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-Cracklib", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
+#include <security/pam_ext.h>
 
 /* argument parsing */
 #define PAM_DEBUG_ARG       0x0001
@@ -97,10 +94,11 @@ struct cracklib_options {
 	int oth_credit;
 	int use_authtok;
 	char prompt_type[BUFSIZ];
+        char cracklib_dictpath[PATH_MAX];
 };
 
 #define CO_RETRY_TIMES  1
-#define CO_DIFF_OK      10
+#define CO_DIFF_OK      5
 #define CO_DIFF_IGNORE  23
 #define CO_MIN_LENGTH   9
 # define CO_MIN_LENGTH_BASE 5
@@ -110,7 +108,9 @@ struct cracklib_options {
 #define CO_OTH_CREDIT   1
 #define CO_USE_AUTHTOK  0
 
-static int _pam_parse(struct cracklib_options *opt, int argc, const char **argv)
+static int
+_pam_parse (pam_handle_t *pamh, struct cracklib_options *opt,
+            int argc, const char **argv)
 {
      int ctrl=0;
 
@@ -123,7 +123,7 @@ static int _pam_parse(struct cracklib_options *opt, int argc, const char **argv)
 	 if (!strcmp(*argv,"debug"))
 	     ctrl |= PAM_DEBUG_ARG;
 	 else if (!strncmp(*argv,"type=",5))
-	     strcpy(opt->prompt_type, *argv+5);
+	     strncpy(opt->prompt_type, *argv+5, sizeof(opt->prompt_type) - 1);
 	 else if (!strncmp(*argv,"retry=",6)) {
 	     opt->retry_times = strtol(*argv+6,&ep,10);
 	     if (!ep || (opt->retry_times < 1))
@@ -142,75 +142,36 @@ static int _pam_parse(struct cracklib_options *opt, int argc, const char **argv)
 		 opt->min_length = CO_MIN_LENGTH_BASE;
 	 } else if (!strncmp(*argv,"dcredit=",8)) {
 	     opt->dig_credit = strtol(*argv+8,&ep,10);
-	     if (!ep || (opt->dig_credit < 0))
+	     if (!ep)
 		 opt->dig_credit = 0;
 	 } else if (!strncmp(*argv,"ucredit=",8)) {
 	     opt->up_credit = strtol(*argv+8,&ep,10);
-	     if (!ep || (opt->up_credit < 0))
+	     if (!ep)
 		 opt->up_credit = 0;
 	 } else if (!strncmp(*argv,"lcredit=",8)) {
 	     opt->low_credit = strtol(*argv+8,&ep,10);
-	     if (!ep || (opt->low_credit < 0))
+	     if (!ep)
 		 opt->low_credit = 0;
 	 } else if (!strncmp(*argv,"ocredit=",8)) {
 	     opt->oth_credit = strtol(*argv+8,&ep,10);
-	     if (!ep || (opt->oth_credit < 0))
+	     if (!ep)
 		 opt->oth_credit = 0;
 	 } else if (!strncmp(*argv,"use_authtok",11)) {
 		 opt->use_authtok = 1;
+	 } else if (!strncmp(*argv,"dictpath=",9)) {
+	     strncpy(opt->cracklib_dictpath, *argv+9,
+		     sizeof(opt->cracklib_dictpath) - 1);
 	 } else {
-	     _pam_log(LOG_ERR,"pam_parse: unknown option; %s",*argv);
+	     pam_syslog(pamh,LOG_ERR,"pam_parse: unknown option; %s",*argv);
 	 }
      }
+     opt->prompt_type[sizeof(opt->prompt_type) - 1] = '\0';
+     opt->cracklib_dictpath[sizeof(opt->cracklib_dictpath) - 1] = '\0';
 
      return ctrl;
 }
 
 /* Helper functions */
-
-/* this is a front-end for module-application conversations */
-static int converse(pam_handle_t *pamh, int ctrl, int nargs,
-                    struct pam_message **message,
-                    struct pam_response **response)
-{
-    int retval;
-    struct pam_conv *conv;
-
-    retval = pam_get_item(pamh, PAM_CONV, (const void **) &conv); 
-
-    if ( retval == PAM_SUCCESS ) {
-        retval = conv->conv(nargs, (const struct pam_message **)message,
-			                response, conv->appdata_ptr);
-        if (retval != PAM_SUCCESS && (ctrl && PAM_DEBUG_ARG)) {
-            _pam_log(LOG_DEBUG, "conversation failure [%s]",
-                                 pam_strerror(pamh, retval));
-        }
-    } else {
-        _pam_log(LOG_ERR, "couldn't obtain coversation function [%s]",
-                pam_strerror(pamh, retval));
-    }
-
-    return retval;                  /* propagate error status */
-}
-
-static int make_remark(pam_handle_t *pamh, unsigned int ctrl,
-                       int type, const char *text)
-{
-    struct pam_message *pmsg[1], msg[1];
-    struct pam_response *resp;
-    int retval;
-
-    pmsg[0] = &msg[0];
-    msg[0].msg = text;
-    msg[0].msg_style = type;
-    resp = NULL;
-
-    retval = converse(pamh, ctrl, 1, pmsg, &resp);
-    if (retval == PAM_SUCCESS)
-	_pam_drop_reply(resp, 1);
-
-    return retval;
-}
 
 /* use this to free strings. ESPECIALLY password strings */
 static char *_pam_delete(register char *xx)
@@ -223,7 +184,7 @@ static char *_pam_delete(register char *xx)
 /*
  * can't be a palindrome - like `R A D A R' or `M A D A M'
  */
-static int palindrome(const char *old, const char *new)
+static int palindrome(const char *new)
 {
     int	i, j;
 
@@ -237,25 +198,90 @@ static int palindrome(const char *old, const char *new)
 }
 
 /*
- * This is a reasonably severe check for a different selection of characters
- * in the old and new passwords.
+ * Calculate how different two strings are in terms of the number of
+ * character removals, additions, and changes needed to go from one to
+ * the other
  */
 
-static int similar(struct cracklib_options *opt,
-		    const char *old, const char *new)
+static int distdifferent(const char *old, const char *new,
+			 size_t i, size_t j)
 {
-    int i, j;
+    char c, d;
 
-    for (i = j = 0; old[i]; i++) {
-	if (strchr (new, old[i])) {
-	    j++;
-	}
+    if ((i == 0) || (strlen(old) < i)) {
+	c = 0;
+    } else {
+	c = old[i - 1];
+    }
+    if ((j == 0) || (strlen(new) < j)) {
+	d = 0;
+    } else {
+	d = new[j - 1];
+    }
+    return (c != d);
+}
+
+static int distcalculate(int **distances, const char *old, const char *new,
+			 size_t i, size_t j)
+{
+    int tmp = 0;
+
+    if (distances[i][j] != -1) {
+	return distances[i][j];
     }
 
-    if (((i-j) >= opt->diff_ok)
-	|| (strlen(new) >= (j * 2))
-	|| (strlen(new) >= opt->diff_ignore)) {
-	/* passwords are not very similar */
+    tmp =          distcalculate(distances, old, new, i - 1, j - 1);
+    tmp = MIN(tmp, distcalculate(distances, old, new,     i, j - 1));
+    tmp = MIN(tmp, distcalculate(distances, old, new, i - 1,     j));
+    tmp += distdifferent(old, new, i, j);
+
+    distances[i][j] = tmp;
+
+    return tmp;
+}
+
+static int distance(const char *old, const char *new)
+{
+    int **distances = NULL;
+    size_t m, n, i, j, r;
+
+    m = strlen(old);
+    n = strlen(new);
+    distances = malloc(sizeof(int*) * (m + 1));
+
+    for (i = 0; i <= m; i++) {
+	distances[i] = malloc(sizeof(int) * (n + 1));
+	for(j = 0; j <= n; j++) {
+	    distances[i][j] = -1;
+	}
+    }
+    for (i = 0; i <= m; i++) {
+	distances[i][0] = i;
+    }
+    for (j = 0; j <= n; j++) {
+	distances[0][j] = j;
+    }
+    distances[0][0] = 0;
+
+    r = distcalculate(distances, old, new, m, n);
+
+    for (i = 0; i <= m; i++) {
+	memset(distances[i], 0, sizeof(int) * (n + 1));
+	free(distances[i]);
+    }
+    free(distances);
+
+    return r;
+}
+
+static int similar(struct cracklib_options *opt,
+		   const char *old, const char *new)
+{
+    if (distance(old, new) >= opt->diff_ok) {
+	return 0;
+    }
+
+    if (strlen(new) >= (strlen(old) * 2)) {
 	return 0;
     }
 
@@ -266,56 +292,72 @@ static int similar(struct cracklib_options *opt,
 /*
  * a nice mix of characters.
  */
-static int simple(struct cracklib_options *opt, const char *old, const char *new)
+static int simple(struct cracklib_options *opt, const char *new)
 {
-	int	digits = 0;
-	int	uppers = 0;
-	int	lowers = 0;
-	int	others = 0;
-	int	size;
-	int	i;
+    int	digits = 0;
+    int	uppers = 0;
+    int	lowers = 0;
+    int	others = 0;
+    int	size;
+    int	i;
 
-	for (i = 0;new[i];i++) {
-		if (isdigit (new[i]))
-			digits++;
-		else if (isupper (new[i]))
-			uppers++;
-		else if (islower (new[i]))
-			lowers++;
-		else
-			others++;
-	}
+    for (i = 0;new[i];i++) {
+	if (isdigit (new[i]))
+	    digits++;
+	else if (isupper (new[i]))
+	    uppers++;
+	else if (islower (new[i]))
+	    lowers++;
+	else
+	    others++;
+    }
 
-	/*
-	 * The scam was this - a password of only one character type
-	 * must be 8 letters long.  Two types, 7, and so on.
-	 * This is now changed, the base size and the credits or defaults
-	 * see the docs on the module for info on these parameters, the
-	 * defaults cause the effect to be the same as before the change
-	 */
+    /*
+     * The scam was this - a password of only one character type
+     * must be 8 letters long.  Two types, 7, and so on.
+     * This is now changed, the base size and the credits or defaults
+     * see the docs on the module for info on these parameters, the
+     * defaults cause the effect to be the same as before the change
+     */
 
- 	if (digits > opt->dig_credit)
-	    digits = opt->dig_credit;
+    if ((opt->dig_credit >= 0) && (digits > opt->dig_credit))
+	digits = opt->dig_credit;
 
- 	if (uppers > opt->up_credit)
-	    uppers = opt->up_credit;
+    if ((opt->up_credit >= 0) && (uppers > opt->up_credit))
+	uppers = opt->up_credit;
 
- 	if (lowers > opt->low_credit)
-	    lowers = opt->low_credit;
+    if ((opt->low_credit >= 0) && (lowers > opt->low_credit))
+	lowers = opt->low_credit;
 
- 	if (others > opt->oth_credit)
-	    others = opt->oth_credit;
+    if ((opt->oth_credit >= 0) && (others > opt->oth_credit))
+	others = opt->oth_credit;
 
- 	size = opt->min_length;
- 	size -= digits;
- 	size -= uppers;
- 	size -= lowers;
- 	size -= others;
+    size = opt->min_length;
 
-	if (size <= i)
-		return 0;
-
+    if (opt->dig_credit >= 0)
+	size -= digits;
+    else if (digits < opt->dig_credit * -1)
 	return 1;
+
+    if (opt->up_credit >= 0)
+	size -= uppers;
+    else if (uppers < opt->up_credit * -1)
+	return 1;
+
+    if (opt->low_credit >= 0)
+	size -= lowers;
+    else if (lowers < opt->low_credit * -1)
+	return 1;
+
+    if (opt->oth_credit >= 0)
+	size -= others;
+    else if (others < opt->oth_credit * -1)
+	return 1;
+
+    if (size <= i)
+	return 0;
+
+    return 1;
 }
 
 static char * str_lower(char *string)
@@ -333,7 +375,7 @@ static const char * password_check(struct cracklib_options *opt, const char *old
 	char *oldmono, *newmono, *wrapped;
 
 	if (strcmp(new, old) == 0) {
-        msg = "is the same as the old one";
+        msg = _("is the same as the old one");
         return msg;
     }
 
@@ -343,20 +385,20 @@ static const char * password_check(struct cracklib_options *opt, const char *old
 	strcpy (wrapped, oldmono);
 	strcat (wrapped, oldmono);
 
-	if (palindrome(oldmono, newmono))
-		msg = "is a palindrome";
+	if (palindrome(newmono))
+		msg = _("is a palindrome");
 
 	if (!msg && strcmp(oldmono, newmono) == 0)
-		msg = "case changes only";
+		msg = _("case changes only");
 
 	if (!msg && similar(opt, oldmono, newmono))
-		msg = "is too similar to the old one";
+		msg = _("is too similar to the old one");
 
-	if (!msg && simple(opt, old, new))
-		msg = "is too simple";
+	if (!msg && simple(opt, new))
+		msg = _("is too simple");
 
 	if (!msg && strstr(wrapped, newmono))
-		msg = "is rotated";
+		msg = _("is rotated");
 
 	memset(newmono, 0, strlen(newmono));
 	memset(oldmono, 0, strlen(oldmono));
@@ -391,7 +433,7 @@ static const char * check_old_password(const char *forwho, const char *newpass)
 			s_pas   = strtok(NULL, ":,");
 			while (s_pas != NULL) {
 				if (!strcmp(crypt(newpass, s_pas), s_pas)) {
-					msg = "has been already used";
+					msg = _("has been already used");
 					break;
 				}
 				s_pas = strtok(NULL, ":,");
@@ -412,15 +454,14 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh,
                                   const char *pass_new)
 {
     const char *msg = NULL;
-    const char *user;
+    const void *user;
     int retval;
-    
+
     if (pass_new == NULL || (pass_old && !strcmp(pass_old,pass_new))) {
         if (ctrl && PAM_DEBUG_ARG)
-            _pam_log(LOG_DEBUG, "bad authentication token");
-        make_remark(pamh, ctrl, PAM_ERROR_MSG,
-                    pass_new == NULL ?
-                    "No password supplied":"Password unchanged" );
+            pam_syslog(pamh, LOG_DEBUG, "bad authentication token");
+        pam_error(pamh, "%s", pass_new == NULL ?
+		   _("No password supplied"):_("Password unchanged"));
         return PAM_AUTHTOK_ERR;
     }
 
@@ -430,10 +471,10 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh,
      */
     msg = password_check(opt, pass_old,pass_new);
     if (!msg) {
-	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
-	if (retval != PAM_SUCCESS) {
+	retval = pam_get_item(pamh, PAM_USER, &user);
+	if (retval != PAM_SUCCESS || user == NULL) {
 	    if (ctrl & PAM_DEBUG_ARG) {
-		_pam_log(LOG_ERR,"Can not get username");
+		pam_syslog(pamh,LOG_ERR,"Can not get username");
         	return PAM_AUTHTOK_ERR;
 	    }
 	}
@@ -441,21 +482,17 @@ static int _pam_unix_approve_pass(pam_handle_t *pamh,
     }
 
     if (msg) {
-        char remark[BUFSIZ];
-        
-        memset(remark,0,sizeof(remark));
-        sprintf(remark,"BAD PASSWORD: %s",msg);
         if (ctrl && PAM_DEBUG_ARG)
-            _pam_log(LOG_NOTICE, "new passwd fails strength check: %s",
-                                  msg);
-        make_remark(pamh, ctrl, PAM_ERROR_MSG, remark);
+            pam_syslog(pamh, LOG_NOTICE,
+		       "new passwd fails strength check: %s", msg);
+        pam_error(pamh, _("BAD PASSWORD: %s"), msg);
         return PAM_AUTHTOK_ERR;
-    };   
+    };
     return PAM_SUCCESS;
-    
+
 }
 
-/* The Main Thing (by Cristian Gafton, CEO at this module :-) 
+/* The Main Thing (by Cristian Gafton, CEO at this module :-)
  * (stolen from http://home.netscape.com)
  */
 PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
@@ -464,6 +501,9 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     unsigned int ctrl;
     struct cracklib_options options;
 
+    D(("called."));
+
+    memset(&options, 0, sizeof(options));
     options.retry_times = CO_RETRY_TIMES;
     options.diff_ok = CO_DIFF_OK;
     options.diff_ignore = CO_DIFF_IGNORE;
@@ -474,59 +514,37 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
     options.oth_credit = CO_OTH_CREDIT;
     options.use_authtok = CO_USE_AUTHTOK;
     memset(options.prompt_type, 0, BUFSIZ);
-    
-    ctrl = _pam_parse(&options, argc, argv);
+    strcpy(options.prompt_type,"UNIX");
+    memset(options.cracklib_dictpath, 0,
+	   sizeof (options.cracklib_dictpath));
 
-    D(("called."));
-    if (!options.prompt_type[0])
-        strcpy(options.prompt_type,"UNIX");
+    ctrl = _pam_parse(pamh, &options, argc, argv);
 
     if (flags & PAM_PRELIM_CHECK) {
-        /* Check for passwd dictionary */       
-        struct stat st;
-        char buf[sizeof(CRACKLIB_DICTPATH)+10];
-
-	D(("prelim check"));
-
-        memset(buf,0,sizeof(buf)); /* zero the buffer */
-        sprintf(buf,"%s.pwd",CRACKLIB_DICTPATH);
-
-        if (!stat(buf,&st) && st.st_size)
-            return PAM_SUCCESS;
-        else {
-            if (ctrl & PAM_DEBUG_ARG)
-                _pam_log(LOG_NOTICE,"dict path '%s'[.pwd] is invalid",
-                                     CRACKLIB_DICTPATH);
-            return PAM_ABORT;
-        }
-        
-        /* Not reached */
-        return PAM_SERVICE_ERR;
-
+        /* Check for passwd dictionary */
+        /* We cannot do that, since the original path is compiled
+	   into the cracklib library and we don't know it.  */
+        return PAM_SUCCESS;
     } else if (flags & PAM_UPDATE_AUTHTOK) {
         int retval;
-        char *token1, *token2, *oldtoken;
-        struct pam_message msg[1],*pmsg[1];
-        struct pam_response *resp;
-        const char *cracklib_dictpath = CRACKLIB_DICTPATH;
-        char prompt[BUFSIZ];
+        char *token1, *token2, *resp;
+	const void *oldtoken;
 
 	D(("do update"));
-        retval = pam_get_item(pamh, PAM_OLDAUTHTOK,
-                              (const void **)&oldtoken);
+        retval = pam_get_item(pamh, PAM_OLDAUTHTOK, &oldtoken);
         if (retval != PAM_SUCCESS) {
             if (ctrl & PAM_DEBUG_ARG)
-                _pam_log(LOG_ERR,"Can not get old passwd");
+                pam_syslog(pamh,LOG_ERR,"Can not get old passwd");
             oldtoken=NULL;
             retval = PAM_SUCCESS;
         }
 
-        do {        
+        do {
         /*
          * make sure nothing inappropriate gets returned
          */
         token1 = token2 = NULL;
-        
+
         if (!options.retry_times) {
 	    D(("returning %s because maxtries reached",
 	       pam_strerror(pamh, retval)));
@@ -536,76 +554,66 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
         /* Planned modus operandi:
          * Get a passwd.
          * Verify it against cracklib.
-         * If okay get it a second time. 
+         * If okay get it a second time.
          * Check to be the same with the first one.
          * set PAM_AUTHTOK and return
          */
 
 	if (options.use_authtok == 1) {
-	    const char *item = NULL;
+	    const void *item = NULL;
 
-	    retval = pam_get_item(pamh, PAM_AUTHTOK, (const void **) &item);
+	    retval = pam_get_item(pamh, PAM_AUTHTOK, &item);
 	    if (retval != PAM_SUCCESS) {
 		/* very strange. */
-		_pam_log(LOG_ALERT
-			,"pam_get_item returned error to pam_cracklib"
-			);
+		pam_syslog(pamh, LOG_ALERT,
+			   "pam_get_item returned error to pam_cracklib");
 	    } else if (item != NULL) {      /* we have a password! */
 		token1 = x_strdup(item);
 		item = NULL;
 	    } else {
-		retval = PAM_AUTHTOK_RECOVER_ERR;         /* didn't work */
+		retval = PAM_AUTHTOK_RECOVERY_ERR;         /* didn't work */
 	    }
 
 	} else {
             /* Prepare to ask the user for the first time */
-            memset(prompt,0,sizeof(prompt));
-            sprintf(prompt,PROMPT1,options.prompt_type);
-            pmsg[0] = &msg[0];
-            msg[0].msg_style = PAM_PROMPT_ECHO_OFF;
-            msg[0].msg = prompt;
-
             resp = NULL;
-            retval = converse(pamh, ctrl, 1, pmsg, &resp);
-            if (resp != NULL) {
-                /* interpret the response */
-                if (retval == PAM_SUCCESS) {     /* a good conversation */
-                    token1 = x_strdup(resp[0].resp);
-                    if (token1 == NULL) {
-                        _pam_log(LOG_NOTICE,
-                                 "could not recover authentication token 1");
-                        retval = PAM_AUTHTOK_RECOVER_ERR;
-                    }
-                }
+	    retval = pam_prompt (pamh, PAM_PROMPT_ECHO_OFF, &resp,
+                                 PROMPT1, options.prompt_type,
+				 options.prompt_type[0]?" ":"");
+
+	    if (retval == PAM_SUCCESS) {     /* a good conversation */
+	        token1 = x_strdup(resp);
+                if (token1 == NULL) {
+		    pam_syslog(pamh, LOG_NOTICE,
+                               "could not recover authentication token 1");
+		    retval = PAM_AUTHTOK_RECOVERY_ERR;
+		}
                 /*
                  * tidy up the conversation (resp_retcode) is ignored
                  */
-                _pam_drop_reply(resp, 1);
+                _pam_drop(resp);
             } else {
                 retval = (retval == PAM_SUCCESS) ?
-                         PAM_AUTHTOK_RECOVER_ERR:retval ;
+                         PAM_AUTHTOK_RECOVERY_ERR:retval ;
             }
 	}
 
         if (retval != PAM_SUCCESS) {
             if (ctrl && PAM_DEBUG_ARG)
-                _pam_log(LOG_DEBUG,"unable to obtain a password");
+                pam_syslog(pamh,LOG_DEBUG,"unable to obtain a password");
             continue;
         }
 
 	D(("testing password, retval = %s", pam_strerror(pamh, retval)));
         /* now test this passwd against cracklib */
         {
-            char *crack_msg;
-            char remark[BUFSIZ];
-            
-            bzero(remark,sizeof(remark));
+            const char *crack_msg;
+
 	    D(("against cracklib"));
-            if ((crack_msg = FascistCheck(token1, cracklib_dictpath))) {
+            if ((crack_msg = FascistCheck(token1,options.cracklib_dictpath[0] == '\0'?NULL:options.cracklib_dictpath))) {
                 if (ctrl && PAM_DEBUG_ARG)
-                    _pam_log(LOG_DEBUG,"bad password: %s",crack_msg);
-                sprintf(remark,"BAD PASSWORD: %s", crack_msg);
-                make_remark(pamh, ctrl, PAM_ERROR_MSG, remark);
+                    pam_syslog(pamh,LOG_DEBUG,"bad password: %s",crack_msg);
+                pam_error(pamh, _("BAD PASSWORD: %s"), crack_msg);
                 if (getuid() || (flags & PAM_CHANGE_EXPIRED_AUTHTOK))
                     retval = PAM_AUTHTOK_ERR;
                 else
@@ -639,59 +647,52 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
         /* Now we have a good passwd. Ask for it once again */
 
         if (options.use_authtok == 0) {
-            bzero(prompt,sizeof(prompt));
-            sprintf(prompt,PROMPT2,options.prompt_type);
-            pmsg[0] = &msg[0];
-            msg[0].msg_style = PAM_PROMPT_ECHO_OFF;
-            msg[0].msg = prompt;
-
             resp = NULL;
-            retval = converse(pamh, ctrl, 1, pmsg, &resp);
-            if (resp != NULL) {
-                /* interpret the response */
-                if (retval == PAM_SUCCESS) {     /* a good conversation */
-                    token2 = x_strdup(resp[0].resp);
-                    if (token2 == NULL) {
-                        _pam_log(LOG_NOTICE,
-                                 "could not recover authentication token 2");
-                        retval = PAM_AUTHTOK_RECOVER_ERR;
-                    }
-                }
+	    retval = pam_prompt (pamh, PAM_PROMPT_ECHO_OFF, &resp,
+				 PROMPT2, options.prompt_type,
+				 options.prompt_type[0]?" ":"");
+	    if (retval == PAM_SUCCESS) {     /* a good conversation */
+	        token2 = x_strdup(resp);
+	        if (token2 == NULL) {
+		    pam_syslog(pamh,LOG_NOTICE,
+			       "could not recover authentication token 2");
+		    retval = PAM_AUTHTOK_RECOVERY_ERR;
+		}
                 /*
                  * tidy up the conversation (resp_retcode) is ignored
                  */
-	        _pam_drop_reply(resp, 1);
+	        _pam_drop(resp);
             } else {
                 retval = (retval == PAM_SUCCESS) ?
-                         PAM_AUTHTOK_RECOVER_ERR:retval ;
+                         PAM_AUTHTOK_RECOVERY_ERR:retval ;
             }
 
             if (retval != PAM_SUCCESS) {
                 if (ctrl && PAM_DEBUG_ARG)
-                    _pam_log(LOG_DEBUG
-			     ,"unable to obtain the password a second time");
+                    pam_syslog(pamh, LOG_DEBUG,
+			       "unable to obtain the password a second time");
                 continue;
             }
 
             /* Hopefully now token1 and token2 the same password ... */
             if (strcmp(token1,token2) != 0) {
                 /* tell the user */
-                make_remark(pamh, ctrl, PAM_ERROR_MSG, MISTYPED_PASS);
+	        pam_error(pamh, "%s", MISTYPED_PASS);
                 token1 = _pam_delete(token1);
                 token2 = _pam_delete(token2);
                 pam_set_item(pamh, PAM_AUTHTOK, NULL);
                 if (ctrl & PAM_DEBUG_ARG)
-                    _pam_log(LOG_NOTICE,"Password mistyped");
-                retval = PAM_AUTHTOK_RECOVER_ERR;
+                    pam_syslog(pamh,LOG_NOTICE,"Password mistyped");
+                retval = PAM_AUTHTOK_RECOVERY_ERR;
                 continue;
             }
-        
+
             /* Yes, the password was typed correct twice
              * we store this password as an item
              */
 
 	    {
-		const char *item = NULL;
+		const void *item = NULL;
 
 		retval = pam_set_item(pamh, PAM_AUTHTOK, token1);
 
@@ -700,27 +701,26 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		token2 = _pam_delete(token2);
 
 		if ( (retval != PAM_SUCCESS) ||
-		     ((retval = pam_get_item(pamh, PAM_AUTHTOK,
-					     (const void **)&item)
+		     ((retval = pam_get_item(pamh, PAM_AUTHTOK, &item)
 			 ) != PAM_SUCCESS) ) {
-                    _pam_log(LOG_CRIT, "error manipulating password");
+                    pam_syslog(pamh, LOG_CRIT, "error manipulating password");
                     continue;
 		}
 		item = NULL;                 /* break link to password */
 		return PAM_SUCCESS;
 	    }
         }
-        
+
         } while (options.retry_times--);
 
     } else {
         if (ctrl & PAM_DEBUG_ARG)
-            _pam_log(LOG_NOTICE, "UNKNOWN flags setting %02X",flags);
+            pam_syslog(pamh, LOG_NOTICE, "UNKNOWN flags setting %02X",flags);
         return PAM_SERVICE_ERR;
     }
 
     /* Not reached */
-    return PAM_SERVICE_ERR;                            
+    return PAM_SERVICE_ERR;
 }
 
 

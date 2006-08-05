@@ -4,10 +4,10 @@
  * $Id$
  */
 
+#include "pam_private.h"
+
 #include <stdlib.h>
 #include <string.h>
-
-#include "pam_private.h"
 
 static struct pam_data *_pam_locate_data(const pam_handle_t *pamh,
 					 const char *name)
@@ -58,7 +58,8 @@ int pam_set_data(
 	char *tname;
 
 	if ((tname = _pam_strdup(module_data_name)) == NULL) {
-	    _pam_system_log(LOG_CRIT, "pam_set_data: no memory for data name");
+	    pam_syslog(pamh, LOG_CRIT,
+		       "pam_set_data: no memory for data name");
 	    _pam_drop(data_entry);
 	    return PAM_BUF_ERR;
 	}
@@ -66,7 +67,8 @@ int pam_set_data(
 	pamh->data = data_entry;
 	data_entry->name = tname;
     } else {
-	_pam_system_log(LOG_CRIT, "pam_set_data: cannot allocate data entry");
+	pam_syslog(pamh, LOG_CRIT,
+		   "pam_set_data: cannot allocate data entry");
 	return PAM_BUF_ERR;
     }
 

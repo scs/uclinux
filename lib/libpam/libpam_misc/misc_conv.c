@@ -1,12 +1,10 @@
 /*
- * $Id$
- *
  * A generic conversation function for text based applications
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org>
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <signal.h>
 #include <stdio.h>
@@ -32,8 +30,8 @@
 time_t pam_misc_conv_warn_time = 0;                  /* time when we warn */
 time_t pam_misc_conv_die_time  = 0;               /* time when we timeout */
 
-const char *pam_misc_conv_warn_line = "..\a.Time is running out...\n";
-const char *pam_misc_conv_die_line  = "..\a.Sorry, your time is up!\n";
+const char *pam_misc_conv_warn_line = N_("...Time is running out...\n");
+const char *pam_misc_conv_die_line  = N_("...Sorry, your time is up!\n");
 
 int pam_misc_conv_died=0;       /* application can probe this for timeout */
 
@@ -45,7 +43,7 @@ int pam_misc_conv_died=0;       /* application can probe this for timeout */
  * being used.
  */
 
-static void pam_misc_conv_delete_binary(void *appdata,
+static void pam_misc_conv_delete_binary(void *appdata UNUSED,
 					pamc_bp_t *delete_me)
 {
     PAM_BP_RENEW(delete_me, 0, 0);
@@ -57,7 +55,7 @@ void (*pam_binary_handler_free)(void *appdata, pamc_bp_t *prompt_p)
 
 /* the following code is used to get text input */
 
-volatile static int expired=0;
+static volatile int expired=0;
 
 /* return to the previous signal handling */
 static void reset_alarm(struct sigaction *o_ptr)
@@ -67,7 +65,7 @@ static void reset_alarm(struct sigaction *o_ptr)
 }
 
 /* this is where we intercept the alarm signal */
-static void time_is_up(int ignore)
+static void time_is_up(int ignore UNUSED)
 {
     expired = 1;
 }
@@ -127,12 +125,13 @@ static int get_delay(void)
 }
 
 /* read a line of input string, giving prompt when appropriate */
-static char *read_string(int echo, const char *prompt)
+static int read_string(int echo, const char *prompt, char **retstr)
 {
     struct termios term_before, term_tmp;
     char line[INPUTSIZE];
     struct sigaction old_sig;
-    int delay, nc, have_term=0;
+    int delay, nc = -1, have_term = 0;
+    sigset_t oset, nset;
 
     D(("called with echo='%s', prompt='%s'.", echo ? "ON":"OFF" , prompt));
 
@@ -141,13 +140,24 @@ static char *read_string(int echo, const char *prompt)
 	/* is a terminal so record settings and flush it */
 	if ( tcgetattr(STDIN_FILENO, &term_before) != 0 ) {
 	    D(("<error: failed to get terminal settings>"));
-	    return NULL;
+	    *retstr = NULL;
+	    return -1;
 	}
 	memcpy(&term_tmp, &term_before, sizeof(term_tmp));
 	if (!echo) {
 	    term_tmp.c_lflag &= ~(ECHO);
 	}
 	have_term = 1;
+
+	/*
+	 * We make a simple attempt to block TTY signals from terminating
+	 * the conversation without giving PAM a chance to clean up.
+	 */
+
+	sigemptyset(&nset);
+	sigaddset(&nset, SIGINT);
+	sigaddset(&nset, SIGTSTP);
+	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
     } else if (!echo) {
 	D(("<warning: cannot turn echo off>"));
@@ -158,17 +168,28 @@ static char *read_string(int echo, const char *prompt)
 
     /* reading the line */
     while (delay >= 0) {
-
-	fprintf(stderr, "%s", prompt);
 	/* this may, or may not set echo off -- drop pending input */
 	if (have_term)
 	    (void) tcsetattr(STDIN_FILENO, TCSAFLUSH, &term_tmp);
+
+	fprintf(stderr, "%s", prompt);
 
 	if ( delay > 0 && set_alarm(delay, &old_sig) ) {
 	    D(("<failed to set alarm>"));
 	    break;
 	} else {
-	    nc = read(STDIN_FILENO, line, INPUTSIZE-1);
+	    if (have_term)
+		nc = read(STDIN_FILENO, line, INPUTSIZE-1);
+	    else                             /* we must read one line only */
+    		for (nc = 0; nc < INPUTSIZE-1 && (nc?line[nc-1]:0) != '\n';
+		     nc++) {
+		    int rv;
+		    if ((rv=read(STDIN_FILENO, line+nc, 1)) != 1) {
+			if (rv < 0)
+			    nc = rv;
+			break;
+		    }
+		}
 	    if (have_term) {
 		(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
 		if (!echo || expired)             /* do we need a newline? */
@@ -180,34 +201,72 @@ static char *read_string(int echo, const char *prompt)
 	    if (expired) {
 		delay = get_delay();
 	    } else if (nc > 0) {                 /* we got some user input */
-		char *input;
+		D(("we got some user input"));
 
 		if (nc > 0 && line[nc-1] == '\n') {     /* <NUL> terminate */
 		    line[--nc] = '\0';
 		} else {
+		    if (echo) {
+			fprintf(stderr, "\n");
+		    }
 		    line[nc] = '\0';
 		}
-		input = x_strdup(line);
+		*retstr = x_strdup(line);
 		_pam_overwrite(line);
 
-		return input;                  /* return malloc()ed string */
+		goto cleanexit;                /* return malloc()ed string */
+
 	    } else if (nc == 0) {                                /* Ctrl-D */
 		D(("user did not want to type anything"));
-		fprintf(stderr, "\n");
-		break;
+
+		*retstr = NULL;
+		if (echo) {
+		    fprintf(stderr, "\n");
+		}
+		goto cleanexit;                /* return malloc()ed "" */
+	    } else if (nc == -1) {
+		/* Don't loop forever if read() returns -1. */
+		D(("error reading input from the user: %m"));
+		if (echo) {
+		    fprintf(stderr, "\n");
+		}
+		*retstr = NULL;
+		goto cleanexit;                /* return NULL */
 	    }
 	}
     }
 
     /* getting here implies that the timer expired */
-    if (have_term)
-	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
 
-    memset(line, 0, INPUTSIZE);                      /* clean up */
-    return NULL;
+    D(("the timer appears to have expired"));
+
+    *retstr = NULL;
+    _pam_overwrite(line);
+
+ cleanexit:
+
+    if (have_term) {
+	(void) sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
+    }
+
+    return nc;
 }
 
 /* end of read_string functions */
+
+/*
+ * This conversation function is supposed to be a generic PAM one.
+ * Unfortunately, it is _not_ completely compatible with the Solaris PAM
+ * codebase.
+ *
+ * Namely, for msgm's that contain multiple prompts, this function
+ * interprets "const struct pam_message **msgm" as equivalent to
+ * "const struct pam_message *msgm[]". The Solaris module
+ * implementation interprets the **msgm object as a pointer to a
+ * pointer to an array of "struct pam_message" objects (that is, a
+ * confusing amount of pointer indirection).
+ */
 
 int misc_conv(int num_msg, const struct pam_message **msgm,
 	      struct pam_response **response, void *appdata_ptr)
@@ -231,17 +290,18 @@ int misc_conv(int num_msg, const struct pam_message **msgm,
 
     for (count=0; count < num_msg; ++count) {
 	char *string=NULL;
+	int nc;
 
 	switch (msgm[count]->msg_style) {
 	case PAM_PROMPT_ECHO_OFF:
-	    string = read_string(CONV_ECHO_OFF,msgm[count]->msg);
-	    if (string == NULL) {
+	    nc = read_string(CONV_ECHO_OFF,msgm[count]->msg, &string);
+	    if (nc < 0) {
 		goto failed_conversation;
 	    }
 	    break;
 	case PAM_PROMPT_ECHO_ON:
-	    string = read_string(CONV_ECHO_ON,msgm[count]->msg);
-	    if (string == NULL) {
+	    nc = read_string(CONV_ECHO_ON,msgm[count]->msg, &string);
+	    if (nc < 0) {
 		goto failed_conversation;
 	    }
 	    break;
@@ -280,8 +340,8 @@ int misc_conv(int num_msg, const struct pam_message **msgm,
 	    break;
 	}
 	default:
-	    fprintf(stderr, "erroneous conversation (%d)\n"
-		    ,msgm[count]->msg_style);
+	    fprintf(stderr, _("erroneous conversation (%d)\n"),
+		   msgm[count]->msg_style);
 	    goto failed_conversation;
 	}
 
@@ -294,14 +354,14 @@ int misc_conv(int num_msg, const struct pam_message **msgm,
 	}
     }
 
-    /* New (0.59+) behavior is to always have a reply - this is
-       compatable with the X/Open (March 1997) spec. */
     *response = reply;
     reply = NULL;
 
     return PAM_SUCCESS;
 
 failed_conversation:
+
+    D(("the conversation failed"));
 
     if (reply) {
 	for (count=0; count<num_msg; ++count) {
@@ -315,14 +375,16 @@ failed_conversation:
 		free(reply[count].resp);
 		break;
 	    case PAM_BINARY_PROMPT:
-		pam_binary_handler_free(appdata_ptr,
-					(pamc_bp_t *) &reply[count].resp);
+	      {
+		void *bt_ptr = reply[count].resp;
+		pam_binary_handler_free(appdata_ptr, bt_ptr);
 		break;
+	      }
 	    case PAM_ERROR_MSG:
 	    case PAM_TEXT_INFO:
 		/* should not actually be able to get here... */
 		free(reply[count].resp);
-	    }                                            
+	    }
 	    reply[count].resp = NULL;
 	}
 	/* forget reply too */
@@ -332,4 +394,3 @@ failed_conversation:
 
     return PAM_CONV_ERR;
 }
-

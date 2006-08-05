@@ -13,6 +13,8 @@
 #ifndef _YPPASSWD_H_
 #define _YPPASSWD_H_
 
+#ifndef OMIT_NIS
+
 #define YPPASSWDPROG ((u_long)100009)
 #define YPPASSWDVERS ((u_long)1)
 #define YPPASSWDPROC_UPDATE ((u_long)1)
@@ -47,5 +49,7 @@ typedef struct yppasswd {
 /* XDR encoding/decoding routines */
 bool_t xdr_xpasswd(XDR * xdrs, xpasswd * objp);
 bool_t xdr_yppasswd(XDR * xdrs, yppasswd * objp);
+
+#endif
 
 #endif	/* _YPPASSWD_H_ */

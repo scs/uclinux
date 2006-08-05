@@ -8,25 +8,25 @@
 #ifndef _SECURITY_PAM_MODULES_H
 #define _SECURITY_PAM_MODULES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <security/_pam_types.h>      /* Linux-PAM common defined types */
-
-/* these defines are used by pam_set_item() and pam_get_item() and are
- * in addition to those found in <security/_pam_types.h> */
-
-#define PAM_AUTHTOK     6	/* The authentication token (password) */
-#define PAM_OLDAUTHTOK  7	/* The old authentication token */
 
 /* -------------- The Linux-PAM Module PI ------------- */
 
-extern int pam_set_data(pam_handle_t *pamh, const char *module_data_name,
-			void *data,
-			void (*cleanup)(pam_handle_t *pamh, void *data,
-				       int error_status));
-extern int pam_get_data(const pam_handle_t *pamh,
-			const char *module_data_name, const void **data);
+extern int PAM_NONNULL((1,2))
+pam_set_data(pam_handle_t *pamh, const char *module_data_name, void *data,
+	     void (*cleanup)(pam_handle_t *pamh, void *data,
+			     int error_status));
 
-extern int pam_get_user(pam_handle_t *pamh, const char **user
-			, const char *prompt);
+extern int PAM_NONNULL((1,2,3))
+pam_get_data(const pam_handle_t *pamh, const char *module_data_name,
+	     const void **data);
+
+extern int PAM_NONNULL((1,2))
+pam_get_user(pam_handle_t *pamh, const char **user, const char *prompt);
 
 #ifdef PAM_STATIC
 
@@ -129,6 +129,10 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 /* take care of any compatibility issues */
 #include <security/_pam_compat.h>
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Copyright (C) Theodore Ts'o, 1996.
  * Copyright (C) Andrew Morgan, 1996-8.

@@ -5,11 +5,17 @@
 /* Andrew Morgan (morgan@kernel.org) -- an example application
  * that invokes a shell, based on blank.c */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
+
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 /* ------ some local (static) functions ------- */
 
@@ -33,7 +39,7 @@ static struct pam_conv conv = {
 int main(int argc, char **argv)
 {
      pam_handle_t *pamh=NULL;
-     const char *username=NULL;
+     const void *username=NULL;
      const char *service="xsh";
      int retcode;
 
@@ -43,7 +49,7 @@ int main(int argc, char **argv)
      if (argc > 3) {
 	  fprintf(stderr,"usage: %s [username [service-name]]\n",argv[0]);
      }
-     if (argc >= 2) {
+     if ((argc >= 2) && (argv[1][0] != '-')) {
 	  username = argv[1];
      }
      if (argc == 3) {
@@ -53,6 +59,34 @@ int main(int argc, char **argv)
      /* initialize the Linux-PAM library */
      retcode = pam_start(service, username, &conv, &pamh);
      bail_out(pamh,1,retcode,"pam_start");
+
+     /* fill in the RUSER and RHOST etc. fields */
+     {
+	 char buffer[100];
+	 struct passwd *pw;
+	 const char *tty;
+
+	 pw = getpwuid(getuid());
+	 if (pw != NULL) {
+	     retcode = pam_set_item(pamh, PAM_RUSER, pw->pw_name);
+	     bail_out(pamh,1,retcode,"pam_set_item(PAM_RUSER)");
+	 }
+
+	 retcode = gethostname(buffer, sizeof(buffer)-1);
+	 if (retcode) {
+	     perror("failed to look up hostname");
+	     retcode = pam_end(pamh, PAM_ABORT);
+	     bail_out(pamh,1,retcode,"pam_end");
+	 }
+	 retcode = pam_set_item(pamh, PAM_RHOST, buffer);
+	 bail_out(pamh,1,retcode,"pam_set_item(PAM_RHOST)");
+
+	 tty = ttyname(fileno(stdin));
+	 if (tty) {
+	     retcode = pam_set_item(pamh, PAM_TTY, tty);
+	     bail_out(pamh,1,retcode,"pam_set_item(PAM_RHOST)");
+	 }
+     }
 
      /* to avoid using goto we abuse a loop here */
      for (;;) {
@@ -103,10 +137,10 @@ int main(int argc, char **argv)
 	       break;
 	  }
 
-	  pam_get_item(pamh, PAM_USER, (const void **) &username);
+	  pam_get_item(pamh, PAM_USER, &username);
 	  fprintf(stderr,
 		  "The user [%s] has been authenticated and `logged in'\n",
-		  username);
+		  (const char *)username);
 
 	  /* this is always a really bad thing for security! */
 	  system("/bin/sh");
@@ -121,7 +155,7 @@ int main(int argc, char **argv)
 	       fprintf(stderr,"%s: problem closing a session\n",argv[0]);
 	       break;
 	  }
-	  
+
 	  /* `0' could be as above */
 	  retcode = pam_setcred(pamh, PAM_DELETE_CRED);
 	  bail_out(pamh,0,retcode,"pam_setcred");
@@ -139,5 +173,5 @@ int main(int argc, char **argv)
      pamh = NULL;
      bail_out(pamh,1,retcode,"pam_end");
 
-     exit(0);
+     return (0);
 }

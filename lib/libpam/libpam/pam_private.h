@@ -16,17 +16,21 @@
 #ifndef _PAM_PRIVATE_H
 #define _PAM_PRIVATE_H
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
-/* this is not used at the moment --- AGM */
-#define LIBPAM_VERSION (LIBPAM_VERSION_MAJOR*0x100 + LIBPAM_VERSION_MINOR)
+#include <syslog.h>
 
 #include <security/pam_appl.h>
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 /* the Linux-PAM configuration file */
 
+#ifdef EMBED
+#define PAM_CONFIG    "/etc/config/pam.conf"
+#else
 #define PAM_CONFIG    "/etc/pam.conf"
+#endif
 #define PAM_CONFIG_D  "/etc/pam.d"
 #define PAM_CONFIG_DF "/etc/pam.d/%s"
 
@@ -43,6 +47,8 @@
 
 /* components of the pam_handle structure */
 
+#define _PAM_INVALID_RETVAL  -1    /* default value for cached_retval */
+
 struct handler {
     int must_fail;
     int (*func)(pam_handle_t *pamh, int flags, int argc, char **argv);
@@ -53,6 +59,7 @@ struct handler {
     int argc;
     char **argv;
     struct handler *next;
+    char *mod_name;
 };
 
 struct loaded_module {
@@ -120,6 +127,7 @@ struct _pam_former_state {
     int status;            /* the status before returning incomplete */
 
 /* state info used by pam_get_user() function */
+    int fail_user;
     int want_user;
     char *prompt;          /* saved prompt information */
 
@@ -144,6 +152,12 @@ struct pam_handle {
     struct service handlers;
     struct _pam_former_state former;  /* library state - support for
 					 event driven applications */
+    const char *mod_name;	/* Name of the module currently executed */
+    int choice;			/* Which function we call from the module */
+
+#if HAVE_LIBAUDIT
+    int audit_state;             /* keep track of reported audit messages */
+#endif
 };
 
 /* Values for select arg to _pam_dispatch() */
@@ -248,8 +262,7 @@ void _pam_set_default_control(int *control_array, int default_action);
 
 void _pam_parse_control(int *control_array, char *tok);
 
-void _pam_system_log(int priority, const char *format,  ... );
-#define _PAM_SYSTEM_LOG_PREFIX "PAM "
+#define _PAM_SYSTEM_LOG_PREFIX "PAM"
 
 /*
  * XXX - Take care with this. It could confuse the logic of a trailing
@@ -258,13 +271,9 @@ void _pam_system_log(int priority, const char *format,  ... );
 
 #define IF_NO_PAMH(X,pamh,ERR)                    \
 if ((pamh) == NULL) {                             \
-    _pam_system_log(LOG_ERR, X ": NULL pam handle passed"); \
+    syslog(LOG_ERR, _PAM_SYSTEM_LOG_PREFIX " " X ": NULL pam handle passed"); \
     return ERR;                                   \
 }
-
-/* Definition for the default username prompt used by pam_get_user() */
-
-#define PAM_DEFAULT_PROMPT "Please enter username: "
 
 /*
  * include some helpful macros
@@ -285,6 +294,11 @@ if ((pamh) == NULL) {                             \
 #define __PAM_TO_APP(pamh)    \
         do { (pamh)->caller_is = _PAM_CALLED_FROM_APP; } while (0)
 
+#if HAVE_LIBAUDIT
+extern int _pam_auditlog(pam_handle_t *pamh, int action, int retval, int flags);
+extern int _pam_audit_end(pam_handle_t *pamh, int pam_status);
+#endif
+                                                                               
 /*
  * Copyright (C) 1995 by Red Hat Software, Marc Ewing
  * Copyright (c) 1996-8,2001 by Andrew G. Morgan <morgan@kernel.org>

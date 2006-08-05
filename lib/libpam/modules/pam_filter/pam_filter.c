@@ -5,7 +5,7 @@
  * Richard Stevens' UNIX Network Programming book.
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdlib.h>
 #include <syslog.h>
@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <termio.h>
+#include <termios.h>
 
 #include <signal.h>
 
@@ -31,7 +31,8 @@
 #define PAM_SM_PASSWORD
 
 #include <security/pam_modules.h>
-#include <security/pam_filter.h>
+#include <security/pam_ext.h>
+#include "pam_filter.h"
 
 /* ------ some tokens used for convenience throughout this file ------- */
 
@@ -47,20 +48,10 @@
 
 #include <stdarg.h>
 
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("pam_filter", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
-
 #define TERMINAL_LEN 12
 
-static int master(char *terminal)
+static int
+master (const pam_handle_t *pamh, char *terminal)
 /*
  * try to open all of the terminals in sequence return first free one,
  * or -1
@@ -77,7 +68,8 @@ static int master(char *terminal)
 	  terminal[8] = *pty++;
 	  terminal[9] = '0';
 	  if (stat(terminal,&tstat) < 0) {
-	       _pam_log(LOG_WARNING, "unknown pseudo terminal; %s", terminal);
+	       pam_syslog(pamh, LOG_WARNING,
+			  "unknown pseudo terminal: %s", terminal);
 	       break;
 	  }
 	  for (hex = hexs; *hex; ) {  /* step through 16 of these */
@@ -109,17 +101,17 @@ static int process_args(pam_handle_t *pamh
 	} else if (strcmp("run1",*argv) == 0) {
 	    ctrl |= FILTER_RUN1;
 	    if (argc <= 0) {
-		_pam_log(LOG_ALERT,"no run filter supplied");
+		pam_syslog(pamh, LOG_ALERT, "no run filter supplied");
 	    } else
 		break;
 	} else if (strcmp("run2",*argv) == 0) {
 	    ctrl |= FILTER_RUN2;
 	    if (argc <= 0) {
-		_pam_log(LOG_ALERT,"no run filter supplied");
+		pam_syslog(pamh, LOG_ALERT, "no run filter supplied");
 	    } else
 		break;
 	} else {
-	    _pam_log(LOG_ERR, "unrecognized option: %s (ignored)", *argv);
+	    pam_syslog(pamh, LOG_ERR, "unrecognized option: %s", *argv);
 	}
 	++argv;                   /* step along list */
     }
@@ -130,17 +122,18 @@ static int process_args(pam_handle_t *pamh
 	*evp = NULL;
     } else {
 	char **levp;
-	const char *tmp;
-	int i,size;
+	const char *user = NULL;
+	const void *tmp;
+	int i,size, retval;
 
 	*filtername = *++argv;
 	if (ctrl & FILTER_DEBUG) {
-	    _pam_log(LOG_DEBUG,"will run filter %s\n", *filtername);
+	    pam_syslog(pamh, LOG_DEBUG, "will run filter %s", *filtername);
 	}
 
 	levp = (char **) malloc(5*sizeof(char *));
 	if (levp == NULL) {
-	    _pam_log(LOG_CRIT,"no memory for environment of filter");
+	    pam_syslog(pamh, LOG_CRIT, "no memory for environment of filter");
 	    return -1;
 	}
 
@@ -150,14 +143,14 @@ static int process_args(pam_handle_t *pamh
 
 	/* the "ARGS" variable */
 
-#define ARGS_OFFSET    5                          /*  sizeof("ARGS=");  */
+#define ARGS_OFFSET    5                          /*  strlen('ARGS=');  */
 #define ARGS_NAME      "ARGS="
 
 	size += ARGS_OFFSET;
 
 	levp[0] = (char *) malloc(size);
 	if (levp[0] == NULL) {
-	    _pam_log(LOG_CRIT,"no memory for filter arguments");
+	    pam_syslog(pamh, LOG_CRIT, "no memory for filter arguments");
 	    if (levp) {
 		free(levp);
 	    }
@@ -174,15 +167,23 @@ static int process_args(pam_handle_t *pamh
 
 	/* the "SERVICE" variable */
 
-#define SERVICE_OFFSET    8                    /*  sizeof("SERVICE=");  */
+#define SERVICE_OFFSET    8                    /*  strlen('SERVICE=');  */
 #define SERVICE_NAME      "SERVICE="
 
-	pam_get_item(pamh, PAM_SERVICE, (const void **)&tmp);
+	retval = pam_get_item(pamh, PAM_SERVICE, &tmp);
+	if (retval != PAM_SUCCESS || tmp == NULL) {
+	    pam_syslog(pamh, LOG_CRIT, "service name not found");
+	    if (levp) {
+		free(levp[0]);
+		free(levp);
+	    }
+	    return -1;
+	}
 	size = SERVICE_OFFSET+strlen(tmp);
 
 	levp[1] = (char *) malloc(size+1);
 	if (levp[1] == NULL) {
-	    _pam_log(LOG_CRIT,"no memory for service name");
+	    pam_syslog(pamh, LOG_CRIT, "no memory for service name");
 	    if (levp) {
 		free(levp[0]);
 		free(levp);
@@ -196,18 +197,18 @@ static int process_args(pam_handle_t *pamh
 
 	/* the "USER" variable */
 
-#define USER_OFFSET    5                          /*  sizeof("USER=");  */
+#define USER_OFFSET    5                          /*  strlen('USER=');  */
 #define USER_NAME      "USER="
 
-	pam_get_user(pamh, &tmp, NULL);
-	if (tmp == NULL) {
-	    tmp = "<unknown>";
+	pam_get_user(pamh, &user, NULL);
+	if (user == NULL) {
+	    user = "<unknown>";
 	}
-	size = USER_OFFSET+strlen(tmp);
+	size = USER_OFFSET+strlen(user);
 
 	levp[2] = (char *) malloc(size+1);
 	if (levp[2] == NULL) {
-	    _pam_log(LOG_CRIT,"no memory for user's name");
+	    pam_syslog(pamh, LOG_CRIT, "no memory for user's name");
 	    if (levp) {
 		free(levp[1]);
 		free(levp[0]);
@@ -217,19 +218,19 @@ static int process_args(pam_handle_t *pamh
 	}
 
 	strncpy(levp[2],USER_NAME,USER_OFFSET);
-	strcpy(levp[2]+USER_OFFSET, tmp);
+	strcpy(levp[2]+USER_OFFSET, user);
 	levp[2][size] = '\0';                      /* <NUL> terminate */
 
 	/* the "USER" variable */
 
-#define TYPE_OFFSET    5                          /*  sizeof("TYPE=");  */
+#define TYPE_OFFSET    5                          /*  strlen('TYPE=');  */
 #define TYPE_NAME      "TYPE="
 
 	size = TYPE_OFFSET+strlen(type);
 
 	levp[3] = (char *) malloc(size+1);
 	if (levp[3] == NULL) {
-	    _pam_log(LOG_CRIT,"no memory for type");
+	    pam_syslog(pamh, LOG_CRIT, "no memory for type");
 	    if (levp) {
 		free(levp[2]);
 		free(levp[1]);
@@ -251,10 +252,10 @@ static int process_args(pam_handle_t *pamh
     if ((ctrl & FILTER_DEBUG) && *filtername) {
 	char **e;
 
-	_pam_log(LOG_DEBUG,"filter[%s]: %s",type,*filtername);
-	_pam_log(LOG_DEBUG,"environment:");
+	pam_syslog(pamh, LOG_DEBUG, "filter[%s]: %s", type, *filtername);
+	pam_syslog(pamh, LOG_DEBUG, "environment:");
 	for (e=*evp; e && *e; ++e) {
-	    _pam_log(LOG_DEBUG,"  %s",*e);
+	    pam_syslog(pamh, LOG_DEBUG, "  %s", *e);
 	}
     }
 
@@ -273,16 +274,18 @@ static void free_evp(char *evp[])
     free(evp);
 }
 
-static int set_filter(pam_handle_t *pamh, int flags, int ctrl
-		      , const char **evp, const char *filtername)
+static int
+set_filter (pam_handle_t *pamh, int flags UNUSED, int ctrl,
+	    const char **evp, const char *filtername)
 {
     int status=-1;
     char terminal[TERMINAL_LEN];
-    struct termio stored_mode;           /* initial terminal mode settings */
+    struct termios stored_mode;           /* initial terminal mode settings */
     int fd[2], child=0, child2=0, aterminal;
 
     if (filtername == NULL || *filtername != '/') {
-	_pam_log(LOG_ALERT, "filtername not permitted; require full path");
+	pam_syslog(pamh, LOG_ALERT,
+		   "filtername not permitted; full pathname required");
 	return PAM_ABORT;
     }
 
@@ -296,39 +299,43 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
 	/* open the master pseudo terminal */
 
-	fd[0] = master(terminal);
+	fd[0] = master(pamh,terminal);
 	if (fd[0] < 0) {
-	    _pam_log(LOG_CRIT,"no master terminal");
+	    pam_syslog(pamh, LOG_CRIT, "no master terminal");
 	    return PAM_AUTH_ERR;
 	}
 
 	/* set terminal into raw mode.. remember old mode so that we can
 	   revert to it after the child has quit. */
 
-	/* this is termio terminal handling... */
+	/* this is termios terminal handling... */
 
-	if (ioctl(STDIN_FILENO, TCGETA, (char *) &stored_mode ) < 0) {
+	if ( tcgetattr(STDIN_FILENO, &stored_mode) < 0 ) {
+	    pam_syslog(pamh, LOG_CRIT, "couldn't copy terminal mode: %m");
 	    /* in trouble, so close down */
 	    close(fd[0]);
-	    _pam_log(LOG_CRIT, "couldn't copy terminal mode");
 	    return PAM_ABORT;
 	} else {
-	    struct termio t_mode = stored_mode;
+	    struct termios t_mode = stored_mode;
 
 	    t_mode.c_iflag = 0;            /* no input control */
 	    t_mode.c_oflag &= ~OPOST;      /* no ouput post processing */
 
 	    /* no signals, canonical input, echoing, upper/lower output */
-	    t_mode.c_lflag &= ~(ISIG|ICANON|ECHO|XCASE);
+#ifdef XCASE
+	    t_mode.c_lflag &= ~(XCASE);
+#endif
+	    t_mode.c_lflag &= ~(ISIG|ICANON|ECHO);
 	    t_mode.c_cflag &= ~(CSIZE|PARENB);  /* no parity */
 	    t_mode.c_cflag |= CS8;              /* 8 bit chars */
 
 	    t_mode.c_cc[VMIN] = 1; /* number of chars to satisfy a read */
 	    t_mode.c_cc[VTIME] = 0;          /* 0/10th second for chars */
 
-	    if (ioctl(STDIN_FILENO, TCSETA, (char *) &t_mode) < 0) {
+	    if ( tcsetattr(STDIN_FILENO, TCSAFLUSH, &t_mode) < 0 ) {
+		pam_syslog(pamh, LOG_WARNING,
+			   "couldn't put terminal in RAW mode: %m");
 		close(fd[0]);
-		_pam_log(LOG_WARNING, "couldn't put terminal in RAW mode");
 		return PAM_ABORT;
 	    }
 
@@ -345,7 +352,7 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	 */
 
 	if ( socketpair(AF_UNIX, SOCK_STREAM, 0, fd) < 0 ) {
-	    _pam_log(LOG_CRIT,"couldn't open a stream pipe");
+	    pam_syslog(pamh, LOG_CRIT, "couldn't open a stream pipe: %m");
 	    return PAM_ABORT;
 	}
     }
@@ -354,9 +361,9 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
     if ( (child = fork()) < 0 ) {
 
-	_pam_log(LOG_WARNING,"first fork failed");
+	pam_syslog(pamh, LOG_WARNING, "first fork failed: %m");
 	if (aterminal) {
-	    (void) ioctl(STDIN_FILENO, TCSETA, (char *) &stored_mode);
+		(void) tcsetattr(STDIN_FILENO, TCSAFLUSH, &stored_mode);
 	}
 
 	return PAM_AUTH_ERR;
@@ -380,7 +387,8 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
 	    /* make this process it's own process leader */
 	    if (setsid() == -1) {
-		_pam_log(LOG_WARNING,"child cannot become new session");
+		pam_syslog(pamh, LOG_WARNING,
+			   "child cannot become new session: %m");
 		return PAM_ABORT;
 	    }
 
@@ -390,17 +398,17 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	    close(fd[0]);      /* process is the child -- uses line fd[1] */
 
 	    if (fd[1] < 0) {
-		_pam_log(LOG_WARNING,"cannot open slave terminal; %s"
-			 ,terminal);
+		pam_syslog(pamh, LOG_WARNING,
+			   "cannot open slave terminal: %s: %m", terminal);
 		return PAM_ABORT;
 	    }
 
 	    /* initialize the child's terminal to be the way the
 	       parent's was before we set it into RAW mode */
 
-	    if (ioctl(fd[1], TCSETA, (char *) &stored_mode) < 0) {
-		_pam_log(LOG_WARNING,"cannot set slave terminal mode; %s"
-			 ,terminal);
+	    if ( tcsetattr(fd[1], TCSANOW, &stored_mode) < 0 ) {
+		pam_syslog(pamh, LOG_WARNING,
+			   "cannot set slave terminal mode: %s: %m", terminal);
 		close(fd[1]);
 		return PAM_ABORT;
 	    }
@@ -416,8 +424,8 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	if ( dup2(fd[1],STDIN_FILENO) != STDIN_FILENO ||
 	     dup2(fd[1],STDOUT_FILENO) != STDOUT_FILENO ||
 	     dup2(fd[1],STDERR_FILENO) != STDERR_FILENO )  {
-	    _pam_log(LOG_WARNING
-		     ,"unable to re-assign STDIN/OUT/ERR...'s");
+	    pam_syslog(pamh, LOG_WARNING,
+		       "unable to re-assign STDIN/OUT/ERR: %m");
 	    close(fd[1]);
 	    return PAM_ABORT;
 	}
@@ -427,8 +435,8 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	if ( fcntl(STDIN_FILENO, F_SETFD, 0) ||
 	     fcntl(STDOUT_FILENO,F_SETFD, 0) ||
 	     fcntl(STDERR_FILENO,F_SETFD, 0) ) {
-	    _pam_log(LOG_WARNING
-		     ,"unable to re-assign STDIN/OUT/ERR...'s");
+	    pam_syslog(pamh, LOG_WARNING,
+		       "unable to re-assign STDIN/OUT/ERR: %m");
 	    return PAM_ABORT;
 	}
 
@@ -461,7 +469,7 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
     if ( (child2 = fork()) < 0 ) {
 
-	_pam_log(LOG_WARNING,"filter fork failed");
+	pam_syslog(pamh, LOG_WARNING, "filter fork failed: %m");
 	child2 = 0;
 
     } else if ( child2 == 0 ) {              /* exec the child filter */
@@ -469,8 +477,8 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	if ( dup2(fd[0],APPIN_FILENO) != APPIN_FILENO ||
 	     dup2(fd[0],APPOUT_FILENO) != APPOUT_FILENO ||
 	     dup2(fd[0],APPERR_FILENO) != APPERR_FILENO )  {
-	    _pam_log(LOG_WARNING
-		     ,"unable to re-assign APPIN/OUT/ERR...'s");
+	    pam_syslog(pamh, LOG_WARNING,
+		       "unable to re-assign APPIN/OUT/ERR: %m");
 	    close(fd[0]);
 	    exit(1);
 	}
@@ -480,8 +488,8 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 	if ( fcntl(APPIN_FILENO, F_SETFD, 0) == -1 ||
 	     fcntl(APPOUT_FILENO,F_SETFD, 0) == -1 ||
 	     fcntl(APPERR_FILENO,F_SETFD, 0) == -1 ) {
-	    _pam_log(LOG_WARNING
-		     ,"unable to retain APPIN/OUT/ERR...'s");
+	    pam_syslog(pamh, LOG_WARNING,
+		       "unable to retain APPIN/OUT/ERR: %m");
 	    close(APPIN_FILENO);
 	    close(APPOUT_FILENO);
 	    close(APPERR_FILENO);
@@ -494,7 +502,7 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
 	/* getting to here is an error */
 
-	_pam_log(LOG_ALERT, "filter: %s, not executable", filtername);
+	pam_syslog(pamh, LOG_ALERT, "filter: %s: %m", filtername);
 
     } else {           /* wait for either of the two children to exit */
 
@@ -522,10 +530,10 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 		    child2 = 0;
 	    } else {
 
-		_pam_log(LOG_ALERT
-			 ,"programming error <chid=%d,lstatus=%x>: "
-			 __FILE__ " line %d"
-			 , lstatus, __LINE__ );
+		pam_syslog(pamh, LOG_ALERT,
+			   "programming error <chid=%d,lstatus=%x> "
+			   "in file %s at line %d",
+			   chid, lstatus, __FILE__, __LINE__);
 		child = child2 = 0;
 		status = -1;
 
@@ -560,10 +568,10 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
 	} else {
 
-	    _pam_log(LOG_ALERT
-		     ,"programming error <chid=%d,lstatus=%x>: "
-		     __FILE__ " line %d"
-		     , lstatus, __LINE__ );
+	    pam_syslog(pamh, LOG_ALERT,
+		       "programming error <chid=%d,lstatus=%x> "
+		       "in file %s at line %d",
+		       chid, lstatus, __FILE__, __LINE__);
 	    child = child2 = 0;
 	    status = -1;
 
@@ -572,31 +580,32 @@ static int set_filter(pam_handle_t *pamh, int flags, int ctrl
 
     if (aterminal) {
 	/* reset to initial terminal mode */
-	(void) ioctl(STDIN_FILENO, TCSETA, (char *) &stored_mode);
+	    (void) tcsetattr(STDIN_FILENO, TCSANOW, &stored_mode);
     }
 
     if (ctrl & FILTER_DEBUG) {
-	_pam_log(LOG_DEBUG,"parent process exited");      /* clock off */
+	pam_syslog(pamh, LOG_DEBUG, "parent process exited");      /* clock off */
     }
 
     /* quit the parent process, returning the child's exit status */
 
     exit(status);
+    return status; /* never reached, to make gcc happy */
 }
 
 static int set_the_terminal(pam_handle_t *pamh)
 {
-    const char *tty;
+    const void *tty;
 
-    if (pam_get_item(pamh, PAM_TTY, (const void **)&tty) != PAM_SUCCESS
+    if (pam_get_item(pamh, PAM_TTY, &tty) != PAM_SUCCESS
 	|| tty == NULL) {
 	tty = ttyname(STDIN_FILENO);
 	if (tty == NULL) {
-	    _pam_log(LOG_ERR, "couldn't get the tty name");
+	    pam_syslog(pamh, LOG_ERR, "couldn't get the tty name");
 	    return PAM_ABORT;
 	}
 	if (pam_set_item(pamh, PAM_TTY, tty) != PAM_SUCCESS) {
-	    _pam_log(LOG_ERR, "couldn't set tty name");
+	    pam_syslog(pamh, LOG_ERR, "couldn't set tty name");
 	    return PAM_ABORT;
 	}
     }
@@ -622,7 +631,7 @@ static int need_a_filter(pam_handle_t *pamh
     if (!(ctrl & NON_TERM) && !(ctrl & NEW_TERM)) {
 	retval = set_the_terminal(pamh);
 	if (retval != PAM_SUCCESS) {
-	    _pam_log(LOG_ERR, "tried and failed to set PAM_TTY");
+	    pam_syslog(pamh, LOG_ERR, "tried and failed to set PAM_TTY");
 	}
     } else {
 	retval = PAM_SUCCESS;  /* nothing to do which is always a success */
@@ -633,20 +642,20 @@ static int need_a_filter(pam_handle_t *pamh
 			    , (const char **)evp, filterfile);
     }
 
-    if (retval == PAM_SUCCESS 
+    if (retval == PAM_SUCCESS
 	&& !(ctrl & NON_TERM) && (ctrl & NEW_TERM)) {
 	retval = set_the_terminal(pamh);
 	if (retval != PAM_SUCCESS) {
-	    _pam_log(LOG_ERR
-		     , "tried and failed to set new terminal as PAM_TTY");
+	    pam_syslog(pamh, LOG_ERR,
+		       "tried and failed to set new terminal as PAM_TTY");
 	}
     }
 
     free_evp(evp);
 
     if (ctrl & FILTER_DEBUG) {
-	_pam_log(LOG_DEBUG, "filter/%s, returning %d", name, retval);
-	_pam_log(LOG_DEBUG, "[%s]", pam_strerror(pamh, retval));
+	pam_syslog(pamh, LOG_DEBUG, "filter/%s, returning %d", name, retval);
+	pam_syslog(pamh, LOG_DEBUG, "[%s]", pam_strerror(pamh, retval));
     }
 
     return retval;
@@ -711,7 +720,7 @@ PAM_EXTERN int pam_sm_chauthtok(pam_handle_t *pamh, int flags
     else if (flags & PAM_UPDATE_AUTHTOK)
 	runN = FILTER_RUN2;
     else {
-	_pam_log(LOG_ERR, "unknown flags for chauthtok (0x%X)", flags);
+	pam_syslog(pamh, LOG_ERR, "unknown flags for chauthtok (0x%X)", flags);
 	return PAM_TRY_AGAIN;
     }
 

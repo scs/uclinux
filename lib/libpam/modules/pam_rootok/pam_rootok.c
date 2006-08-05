@@ -6,12 +6,13 @@
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  */
 
-#define _GNU_SOURCE
+#include "config.h"
 
 #include <stdio.h>
 #include <unistd.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <string.h>
 
 /*
  * here, we make a definition for the externally accessible function
@@ -23,26 +24,19 @@
 #define PAM_SM_AUTH
 
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
-/* some syslogging */
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-rootok", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
-
+#ifdef WITH_SELINUX
+#include <selinux/selinux.h>
+#include <selinux/av_permissions.h>
+#endif
 
 /* argument parsing */
 
 #define PAM_DEBUG_ARG       01
 
-static int _pam_parse(int argc, const char **argv)
+static int
+_pam_parse (const pam_handle_t *pamh, int argc, const char **argv)
 {
     int ctrl=0;
 
@@ -54,7 +48,7 @@ static int _pam_parse(int argc, const char **argv)
 	if (!strcmp(*argv,"debug"))
 	    ctrl |= PAM_DEBUG_ARG;
 	else {
-	    _pam_log(LOG_ERR,"pam_parse: unknown option; %s",*argv);
+	    pam_syslog(pamh, LOG_ERR, "unknown option: %s", *argv);
 	}
     }
 
@@ -63,28 +57,31 @@ static int _pam_parse(int argc, const char **argv)
 
 /* --- authentication management functions (only) --- */
 
-PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
-			,const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate (pam_handle_t *pamh, int flags UNUSED,
+		     int argc, const char **argv)
 {
     int ctrl;
     int retval = PAM_AUTH_ERR;
 
-    ctrl = _pam_parse(argc, argv);
+    ctrl = _pam_parse(pamh, argc, argv);
     if (getuid() == 0)
+#ifdef WITH_SELINUX
+      if (is_selinux_enabled()<1 || checkPasswdAccess(PASSWD__ROOTOK)==0)
+#endif
 	retval = PAM_SUCCESS;
 
     if (ctrl & PAM_DEBUG_ARG) {
-	_pam_log(LOG_DEBUG, "authetication %s"
-		 , retval==PAM_SUCCESS ? "succeeded":"failed" );
+	pam_syslog(pamh, LOG_DEBUG, "authentication %s",
+		   (retval==PAM_SUCCESS) ? "succeeded" : "failed");
     }
 
     return retval;
 }
 
-PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh,int flags,int argc
-		   ,const char **argv)
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
 {
     return PAM_SUCCESS;
 }

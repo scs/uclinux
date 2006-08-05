@@ -1,8 +1,8 @@
 /* pam_account.c - PAM Account Management */
 
-#include <stdio.h>
-
 #include "pam_private.h"
+
+#include <stdio.h>
 
 int pam_acct_mgmt(pam_handle_t *pamh, int flags)
 {
@@ -18,6 +18,10 @@ int pam_acct_mgmt(pam_handle_t *pamh, int flags)
     }
 
     retval = _pam_dispatch(pamh, flags, PAM_ACCOUNT);
+
+#if HAVE_LIBAUDIT
+    retval = _pam_auditlog(pamh, PAM_ACCOUNT, retval, flags);
+#endif
 
     return retval;
 }

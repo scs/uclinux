@@ -10,6 +10,10 @@
 #define PAM_DEBUG_ARG		0x0001
 #define PAM_ICASE_ARG		0x0002
 #define PAM_DUMP_ARG		0x0004
+#define PAM_UNKNOWN_OK_ARG	0x0010
+#define PAM_KEY_ONLY_ARG	0x0020
+#define PAM_USE_FPASS_ARG	0x0040
+#define PAM_TRY_FPASS_ARG	0x0080
 
 /* Useful macros */
 #define  x_strdup(s)  ( (s) ? strdup(s):NULL )
@@ -18,9 +22,6 @@
 #ifndef MODULE_NAME
 #define MODULE_NAME	"pam_userdb"
 #endif /* MODULE_NAME */
-
-/* function prototypes */
-int conversation(pam_handle_t *);
 
 #endif /* _PAM_USERSDB_H */
 

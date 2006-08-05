@@ -1,136 +1,55 @@
-/* 
- * $Id$
- *
+/*
  * Copyright information at end of file.
  */
 
-#define _BSD_SOURCE
+#include "config.h"
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <malloc.h>
 #include <pwd.h>
 #include <shadow.h>
 #include <limits.h>
 #include <utmp.h>
+#include <errno.h>
+#include <signal.h>
+#include <ctype.h>
+#include <syslog.h>
+#include <sys/resource.h>
+
+#ifndef OMIT_NIS
+#include <rpcsvc/ypclnt.h>
+#endif
 
 #include <security/_pam_macros.h>
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
+#include <security/pam_modutil.h>
 
 #include "md5.h"
 #include "support.h"
-
+#ifdef WITH_SELINUX
+#include <selinux/selinux.h>
+#define SELINUX_ENABLED is_selinux_enabled()>0
+#else
+#define SELINUX_ENABLED 0
+#endif
 extern char *crypt(const char *key, const char *salt);
 extern char *bigcrypt(const char *key, const char *salt);
 
-/* syslogging function for errors and other information */
-
-void _log_err(int err, pam_handle_t *pamh, const char *format,...)
-{
-	char *service = NULL;
-	char logname[256];
-	va_list args;
-
-	pam_get_item(pamh, PAM_SERVICE, (const void **) &service);
-	if (service) {
-		strncpy(logname, service, sizeof(logname));
-		logname[sizeof(logname) - 1 - strlen("(pam_unix)")] = '\0';
-		strncat(logname, "(pam_unix)", strlen("(pam_unix)"));
-	} else {
-		strncpy(logname, "pam_unix", sizeof(logname) - 1);
-	}
-
-	va_start(args, format);
-	openlog(logname, LOG_CONS | LOG_PID, LOG_AUTH);
-	vsyslog(err, format, args);
-	va_end(args);
-	closelog();
-}
-
 /* this is a front-end for module-application conversations */
 
-static int converse(pam_handle_t * pamh, int ctrl, int nargs
-		    ,struct pam_message **message
-		    ,struct pam_response **response)
-{
-	int retval;
-	struct pam_conv *conv;
-
-	D(("begin to converse"));
-
-	retval = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
-	if (retval == PAM_SUCCESS) {
-
-		retval = conv->conv(nargs, (const struct pam_message **) message
-				    ,response, conv->appdata_ptr);
-
-		D(("returned from application's conversation function"));
-
-		if (retval != PAM_SUCCESS && on(UNIX_DEBUG, ctrl)) {
-			_log_err(LOG_DEBUG, pamh, "conversation failure [%s]"
-				 ,pam_strerror(pamh, retval));
-		}
-	} else if (retval != PAM_CONV_AGAIN) {
-		_log_err(LOG_ERR, pamh
-		         ,"couldn't obtain coversation function [%s]"
-			 ,pam_strerror(pamh, retval));
-	}
-	D(("ready to return from module conversation"));
-
-	return retval;		/* propagate error status */
-}
-
-int _make_remark(pam_handle_t * pamh, unsigned int ctrl
-		       ,int type, const char *text)
+int _make_remark(pam_handle_t * pamh, unsigned int ctrl,
+		    int type, const char *text)
 {
 	int retval = PAM_SUCCESS;
 
 	if (off(UNIX__QUIET, ctrl)) {
-		struct pam_message *pmsg[1], msg[1];
-		struct pam_response *resp;
-
-		pmsg[0] = &msg[0];
-		msg[0].msg = text;
-		msg[0].msg_style = type;
-
-		resp = NULL;
-		retval = converse(pamh, ctrl, 1, pmsg, &resp);
-
-		if (resp) {
-			_pam_drop_reply(resp, 1);
-		}
+		retval = pam_prompt(pamh, type, NULL, "%s", text);
 	}
-	return retval;
-}
-
-  /*
-   * Beacause getlogin() is braindead and sometimes it just
-   * doesn't work, we reimplement it here.
-   */
-char *PAM_getlogin(void)
-{
-	struct utmp *ut, line;
-	char *curr_tty, *retval;
-	static char curr_user[sizeof(ut->ut_user) + 4];
-
-	retval = NULL;
-
-	curr_tty = ttyname(0);
-	if (curr_tty != NULL) {
-		D(("PAM_getlogin ttyname: %s", curr_tty));
-		curr_tty += 5;
-		setutent();
-		strncpy(line.ut_line, curr_tty, sizeof line.ut_line);
-		if ((ut = getutline(&line)) != NULL) {
-			strncpy(curr_user, ut->ut_user, sizeof(ut->ut_user));
-			retval = curr_user;
-		}
-		endutent();
-	}
-	D(("PAM_getlogin retval: %s", retval));
-
 	return retval;
 }
 
@@ -161,10 +80,6 @@ int _set_ctrl(pam_handle_t *pamh, int flags, int *remember, int argc,
 		D(("PRELIM_CHECK"));
 		set(UNIX__PRELIM, ctrl);
 	}
-	if (flags & PAM_DISALLOW_NULL_AUTHTOK) {
-		D(("DISALLOW_NULL_AUTHTOK"));
-		set(UNIX__NONULL, ctrl);
-	}
 	if (flags & PAM_SILENT) {
 		D(("SILENT"));
 		set(UNIX__QUIET, ctrl);
@@ -184,7 +99,7 @@ int _set_ctrl(pam_handle_t *pamh, int flags, int *remember, int argc,
 		}
 
 		if (j >= UNIX_CTRLS_) {
-			_log_err(LOG_ERR, pamh,
+			pam_syslog(pamh, LOG_ERR,
 			         "unrecognized option [%s]", *argv);
 		} else {
 			ctrl &= unix_args[j].mask;	/* for turning things off */
@@ -193,7 +108,7 @@ int _set_ctrl(pam_handle_t *pamh, int flags, int *remember, int argc,
 			if (remember != NULL) {
 				if (j == UNIX_REMEMBER_PASSWD) {
 					*remember = strtol(*argv + 9, NULL, 10);
-					if ((*remember == LONG_MIN) || (*remember == LONG_MAX))
+					if ((*remember == INT_MIN) || (*remember == INT_MAX))
 						*remember = -1;
 					if (*remember > 400)
 						*remember = 400;
@@ -202,6 +117,11 @@ int _set_ctrl(pam_handle_t *pamh, int flags, int *remember, int argc,
 		}
 
 		++argv;		/* step to next argument */
+	}
+
+	if (flags & PAM_DISALLOW_NULL_AUTHTOK) {
+		D(("DISALLOW_NULL_AUTHTOK"));
+		set(UNIX__NONULL, ctrl);
 	}
 
 	/* auditing is a more sensitive version of debug */
@@ -215,7 +135,7 @@ int _set_ctrl(pam_handle_t *pamh, int flags, int *remember, int argc,
 	return ctrl;
 }
 
-static void _cleanup(pam_handle_t * pamh, void *x, int error_status)
+static void _cleanup(pam_handle_t * pamh UNUSED, void *x, int error_status UNUSED)
 {
 	_pam_delete(x);
 }
@@ -247,10 +167,10 @@ struct _pam_failed_auth {
 static void _cleanup_failures(pam_handle_t * pamh, void *fl, int err)
 {
 	int quiet;
-	const char *service = NULL;
-	const char *ruser = NULL;
-	const char *rhost = NULL;
-	const char *tty = NULL;
+	const void *service = NULL;
+	const void *ruser = NULL;
+	const void *rhost = NULL;
+	const void *tty = NULL;
 	struct _pam_failed_auth *failure;
 
 	D(("called"));
@@ -266,32 +186,32 @@ static void _cleanup_failures(pam_handle_t * pamh, void *fl, int err)
 			/* log the number of authentication failures */
 			if (failure->count > 1) {
 				(void) pam_get_item(pamh, PAM_SERVICE,
-						    (const void **)&service);
+						    &service);
 				(void) pam_get_item(pamh, PAM_RUSER,
-						    (const void **)&ruser);
+						    &ruser);
 				(void) pam_get_item(pamh, PAM_RHOST,
-						    (const void **)&rhost);
+						    &rhost);
 				(void) pam_get_item(pamh, PAM_TTY,
-						    (const void **)&tty);
-				_log_err(LOG_NOTICE, pamh,
+						    &tty);
+				pam_syslog(pamh, LOG_NOTICE,
 				         "%d more authentication failure%s; "
 				         "logname=%s uid=%d euid=%d "
 				         "tty=%s ruser=%s rhost=%s "
 				         "%s%s",
 				         failure->count - 1, failure->count == 2 ? "" : "s",
 				         failure->name, failure->uid, failure->euid,
-				         tty ? tty : "", ruser ? ruser : "",
-				         rhost ? rhost : "",
+				         tty ? (const char *)tty : "", ruser ? (const char *)ruser : "",
+				         rhost ? (const char *)rhost : "",
 				         (failure->user && failure->user[0] != '\0')
 				          ? " user=" : "", failure->user
 				);
 
 				if (failure->count > UNIX_MAX_RETRIES) {
-					_log_err(LOG_ALERT, pamh
-						 ,"service(%s) ignoring max retries; %d > %d"
-						 ,service == NULL ? "**unknown**" : service
-						 ,failure->count
-						 ,UNIX_MAX_RETRIES);
+					pam_syslog(pamh, LOG_ALERT,
+						 "service(%s) ignoring max retries; %d > %d",
+						 service == NULL ? "**unknown**" : (const char *)service,
+						 failure->count,
+						 UNIX_MAX_RETRIES);
 				}
 			}
 		}
@@ -302,13 +222,177 @@ static void _cleanup_failures(pam_handle_t * pamh, void *fl, int err)
 }
 
 /*
+ * _unix_getpwnam() searches only /etc/passwd and NIS to find user information
+ */
+static void _unix_cleanup(pam_handle_t *pamh UNUSED, void *data, int error_status UNUSED)
+{
+	free(data);
+}
+
+int _unix_getpwnam(pam_handle_t *pamh, const char *name,
+		   int files, int nis, struct passwd **ret)
+{
+	FILE *passwd;
+	char buf[16384];
+	int matched = 0, buflen;
+	char *slogin, *spasswd, *suid, *sgid, *sgecos, *shome, *sshell, *p;
+
+	memset(buf, 0, sizeof(buf));
+
+	if (!matched && files) {
+		int userlen = strlen(name);
+		passwd = fopen("/etc/passwd", "r");
+		if (passwd != NULL) {
+			while (fgets(buf, sizeof(buf), passwd) != NULL) {
+				if ((buf[userlen] == ':') &&
+				    (strncmp(name, buf, userlen) == 0)) {
+					p = buf + strlen(buf) - 1;
+					while (isspace(*p) && (p >= buf)) {
+						*p-- = '\0';
+					}
+					matched = 1;
+					break;
+				}
+			}
+			fclose(passwd);
+		}
+	}
+
+#ifndef OMIT_NIS
+
+	if (!matched && nis) {
+		char *userinfo = NULL, *domain = NULL;
+		int len = 0, i;
+		len = yp_get_default_domain(&domain);
+		if (len == YPERR_SUCCESS) {
+			len = yp_bind(domain);
+		}
+		if (len == YPERR_SUCCESS) {
+			i = yp_match(domain, "passwd.byname", name,
+				     strlen(name), &userinfo, &len);
+			yp_unbind(domain);
+			if ((i == YPERR_SUCCESS) && ((size_t)len < sizeof(buf))) {
+				strncpy(buf, userinfo, sizeof(buf) - 1);
+				buf[sizeof(buf) - 1] = '\0';
+				matched = 1;
+			}
+		}
+	}
+
+#endif
+
+	if (matched && (ret != NULL)) {
+		*ret = NULL;
+
+		slogin = buf;
+
+		spasswd = strchr(slogin, ':');
+		if (spasswd == NULL) {
+			return matched;
+		}
+		*spasswd++ = '\0';
+
+		suid = strchr(spasswd, ':');
+		if (suid == NULL) {
+			return matched;
+		}
+		*suid++ = '\0';
+
+		sgid = strchr(suid, ':');
+		if (sgid == NULL) {
+			return matched;
+		}
+		*sgid++ = '\0';
+
+		sgecos = strchr(sgid, ':');
+		if (sgecos == NULL) {
+			return matched;
+		}
+		*sgecos++ = '\0';
+
+		shome = strchr(sgecos, ':');
+		if (shome == NULL) {
+			return matched;
+		}
+		*shome++ = '\0';
+
+		sshell = strchr(shome, ':');
+		if (sshell == NULL) {
+			return matched;
+		}
+		*sshell++ = '\0';
+
+		buflen = sizeof(struct passwd) +
+			 strlen(slogin) + 1 +
+			 strlen(spasswd) + 1 +
+			 strlen(suid) + 1 +
+			 strlen(sgid) + 1 +
+			 strlen(sgecos) + 1 +
+			 strlen(shome) + 1 +
+			 strlen(sshell) + 1;
+		*ret = malloc(buflen);
+		if (*ret == NULL) {
+			return matched;
+		}
+		memset(*ret, '\0', buflen);
+
+		(*ret)->pw_uid = strtol(suid, &p, 10);
+		if ((strlen(suid) == 0) || (*p != '\0')) {
+			free(*ret);
+			*ret = NULL;
+			return matched;
+		}
+
+		(*ret)->pw_gid = strtol(sgid, &p, 10);
+		if ((strlen(sgid) == 0) || (*p != '\0')) {
+			free(*ret);
+			*ret = NULL;
+			return matched;
+		}
+
+		p = ((char*)(*ret)) + sizeof(struct passwd);
+		(*ret)->pw_name = strcpy(p, slogin);
+		p += strlen(p) + 1;
+		(*ret)->pw_passwd = strcpy(p, spasswd);
+		p += strlen(p) + 1;
+		(*ret)->pw_gecos = strcpy(p, sgecos);
+		p += strlen(p) + 1;
+		(*ret)->pw_dir = strcpy(p, shome);
+		p += strlen(p) + 1;
+		(*ret)->pw_shell = strcpy(p, sshell);
+
+		snprintf(buf, sizeof(buf), "_pam_unix_getpwnam_%s", name);
+
+		if (pam_set_data(pamh, buf,
+				 *ret, _unix_cleanup) != PAM_SUCCESS) {
+			free(*ret);
+			*ret = NULL;
+		}
+	}
+
+	return matched;
+}
+
+/*
+ * _unix_comsefromsource() is a quick check to see if information about a given
+ * user comes from a particular source (just files and nis for now)
+ *
+ */
+int _unix_comesfromsource(pam_handle_t *pamh,
+			  const char *name, int files, int nis)
+{
+	return _unix_getpwnam(pamh, name, files, nis, NULL);
+}
+
+/*
  * _unix_blankpasswd() is a quick check for a blank password
  *
  * returns TRUE if user does not have a password
  * - to avoid prompting for one in such cases (CG)
  */
 
-int _unix_blankpasswd(unsigned int ctrl, const char *name)
+int
+_unix_blankpasswd (pam_handle_t *pamh, unsigned int ctrl, const char *name)
 {
 	struct passwd *pwd = NULL;
 	struct spwd *spwdent = NULL;
@@ -327,13 +411,15 @@ int _unix_blankpasswd(unsigned int ctrl, const char *name)
 		return 0;	/* will fail but don't let on yet */
 
 	/* UNIX passwords area */
-	pwd = getpwnam(name);	/* Get password file entry... */
+
+	/* Get password file entry... */
+	pwd = pam_modutil_getpwnam (pamh, name);
 
 	if (pwd != NULL) {
 		if (strcmp( pwd->pw_passwd, "*NP*" ) == 0)
-		{ /* NIS+ */                 
+		{ /* NIS+ */
 			uid_t save_euid, save_uid;
-	
+
 			save_euid = geteuid();
 			save_uid = getuid();
 			if (save_uid == pwd->pw_uid)
@@ -348,21 +434,21 @@ int _unix_blankpasswd(unsigned int ctrl, const char *name)
 						return 0;
 				}
 			}
-	
-			spwdent = getspnam( name );
+
+			spwdent = pam_modutil_getspnam (pamh, name);
 			if (save_uid == pwd->pw_uid)
 				setreuid( save_uid, save_euid );
 			else {
 				if (setreuid( -1, 0 ) == -1)
-				setreuid( save_uid, -1 );
+					setreuid( save_uid, -1 );
 				setreuid( -1, save_euid );
 			}
-		} else if (strcmp(pwd->pw_passwd, "x") == 0) {
+		} else if (_unix_shadowed(pwd)) {
 			/*
 			 * ...and shadow password file entry for this user,
 			 * if shadowing is enabled
 			 */
-			spwdent = getspnam(name);
+			spwdent = pam_modutil_getspnam(pamh, name);
 		}
 		if (spwdent)
 			salt = x_strdup(spwdent->sp_pwdp);
@@ -398,6 +484,7 @@ static int _unix_run_helper_binary(pam_handle_t *pamh, const char *passwd,
 				   unsigned int ctrl, const char *user)
 {
     int retval, child, fds[2];
+    void (*sighandler)(int) = NULL;
 
     D(("called."));
     /* create a pipe for the password */
@@ -406,21 +493,54 @@ static int _unix_run_helper_binary(pam_handle_t *pamh, const char *passwd,
 	return PAM_AUTH_ERR;
     }
 
+    if (off(UNIX_NOREAP, ctrl)) {
+	/*
+	 * This code arranges that the demise of the child does not cause
+	 * the application to receive a signal it is not expecting - which
+	 * may kill the application or worse.
+	 *
+	 * The "noreap" module argument is provided so that the admin can
+	 * override this behavior.
+	 */
+	sighandler = signal(SIGCHLD, SIG_DFL);
+    }
+
     /* fork */
     child = fork();
     if (child == 0) {
+        int i=0;
+        struct rlimit rlim;
 	static char *envp[] = { NULL };
-	char *args[] = { NULL, NULL, NULL };
+	char *args[] = { NULL, NULL, NULL, NULL };
 
 	/* XXX - should really tidy up PAM here too */
 
+	close(0); close(1);
 	/* reopen stdin as pipe */
 	close(fds[1]);
 	dup2(fds[0], STDIN_FILENO);
 
+	if (getrlimit(RLIMIT_NOFILE,&rlim)==0) {
+	  for (i=2; i < (int)rlim.rlim_max; i++) {
+		if (fds[0] != i)
+	  	   close(i);
+	  }
+	}
+
+	if (SELINUX_ENABLED && geteuid() == 0) {
+          /* must set the real uid to 0 so the helper will not error
+	     out if pam is called from setuid binary (su, sudo...) */
+	  setuid(0);
+	}
+
 	/* exec binary helper */
 	args[0] = x_strdup(CHKPWD_HELPER);
 	args[1] = x_strdup(user);
+	if (off(UNIX__NONULL, ctrl)) {	/* this means we've succeeded */
+	  args[2]=x_strdup("nullok");
+	} else {
+	  args[2]=x_strdup("nonull");
+	}
 
 	execve(CHKPWD_HELPER, args, envp);
 
@@ -430,11 +550,7 @@ static int _unix_run_helper_binary(pam_handle_t *pamh, const char *passwd,
     } else if (child > 0) {
 	/* wait for child */
 	/* if the stored password is NULL */
-	if (off(UNIX__NONULL, ctrl)) {	/* this means we've succeeded */
-	    write(fds[1], "nullok\0\0", 8);
-	} else {
-	    write(fds[1], "nonull\0\0", 8);
-	}
+        int rc=0;
 	if (passwd != NULL) {            /* send the password to the child */
 	    write(fds[1], passwd, strlen(passwd)+1);
 	    passwd = NULL;
@@ -443,11 +559,22 @@ static int _unix_run_helper_binary(pam_handle_t *pamh, const char *passwd,
 	}
 	close(fds[0]);       /* close here to avoid possible SIGPIPE above */
 	close(fds[1]);
-	(void) waitpid(child, &retval, 0);  /* wait for helper to complete */
-	retval = (retval == 0) ? PAM_SUCCESS:PAM_AUTH_ERR;
+	rc=waitpid(child, &retval, 0);  /* wait for helper to complete */
+	if (rc<0) {
+	  pam_syslog(pamh, LOG_ERR, "unix_chkpwd waitpid returned %d: %m", rc);
+	  retval = PAM_AUTH_ERR;
+	} else {
+	  retval = WEXITSTATUS(retval);
+	}
     } else {
 	D(("fork failed"));
+	close(fds[0]);
+ 	close(fds[1]);
 	retval = PAM_AUTH_ERR;
+    }
+
+    if (sighandler != NULL) {
+        (void) signal(SIGCHLD, sighandler);   /* restore old signal handler */
     }
 
     D(("returning %d", retval));
@@ -464,6 +591,7 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 	char *data_name;
 	int retval;
 
+
 	D(("called"));
 
 #ifdef HAVE_PAM_FAIL_DELAY
@@ -478,13 +606,13 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 	D(("locating user's record"));
 
 	/* UNIX passwords area */
-	pwd = getpwnam(name);	/* Get password file entry... */
+	pwd = pam_modutil_getpwnam (pamh, name);	/* Get password file entry... */
 
 	if (pwd != NULL) {
 		if (strcmp( pwd->pw_passwd, "*NP*" ) == 0)
-		{ /* NIS+ */                 
+		{ /* NIS+ */
 			uid_t save_euid, save_uid;
-	
+
 			save_euid = geteuid();
 			save_uid = getuid();
 			if (save_uid == pwd->pw_uid)
@@ -498,8 +626,8 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 						return PAM_CRED_INSUFFICIENT;
 				}
 			}
-	
-			spwdent = getspnam( name );
+
+			spwdent = pam_modutil_getspnam (pamh, name);
 			if (save_uid == pwd->pw_uid)
 				setreuid( save_uid, save_euid );
 			else {
@@ -507,12 +635,12 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 				setreuid( save_uid, -1 );
 				setreuid( -1, save_euid );
 			}
-		} else if (strcmp(pwd->pw_passwd, "x") == 0) {
+		} else if (_unix_shadowed(pwd)) {
 			/*
 			 * ...and shadow password file entry for this user,
 			 * if shadowing is enabled
 			 */
-			spwdent = getspnam(name);
+			spwdent = pam_modutil_getspnam (pamh, name);
 		}
 		if (spwdent)
 			salt = x_strdup(spwdent->sp_pwdp);
@@ -522,70 +650,85 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 
 	data_name = (char *) malloc(sizeof(FAIL_PREFIX) + strlen(name));
 	if (data_name == NULL) {
-		_log_err(LOG_CRIT, pamh, "no memory for data-name");
+		pam_syslog(pamh, LOG_CRIT, "no memory for data-name");
 	} else {
 		strcpy(data_name, FAIL_PREFIX);
 		strcpy(data_name + sizeof(FAIL_PREFIX) - 1, name);
 	}
 
 	retval = PAM_SUCCESS;
-	if (pwd == NULL || salt == NULL || !strcmp(salt, "x")) {
-		if (geteuid()) {
+	if (pwd == NULL || salt == NULL || !strcmp(salt, "x") || ((salt[0] == '#') && (salt[1] == '#') && !strcmp(salt + 2, name))) {
+
+		if (pwd != NULL && (geteuid() || SELINUX_ENABLED)) {
 			/* we are not root perhaps this is the reason? Run helper */
 			D(("running helper binary"));
 			retval = _unix_run_helper_binary(pamh, p, ctrl, name);
-			if (pwd == NULL && !on(UNIX_AUDIT,ctrl)
-			    && retval != PAM_SUCCESS)
-			{
-				name = NULL;
-			}
 		} else {
 			D(("user's record unavailable"));
+			p = NULL;
+			if (pwd == NULL)
+				retval = PAM_USER_UNKNOWN;
+			else
+				retval = PAM_AUTHINFO_UNAVAIL;
 			if (on(UNIX_AUDIT, ctrl)) {
 				/* this might be a typo and the user has given a password
 				   instead of a username. Careful with this. */
-				_log_err(LOG_ALERT, pamh,
+				pam_syslog(pamh, LOG_ALERT,
 				         "check pass; user (%s) unknown", name);
 			} else {
 				name = NULL;
-				_log_err(LOG_ALERT, pamh,
-				         "check pass; user unknown");
+				if (on(UNIX_DEBUG, ctrl) || pwd == NULL) {
+				    pam_syslog(pamh, LOG_ALERT,
+				            "check pass; user unknown");
+				} else {
+				    /* don't log failure as another pam module can succeed */
+				    goto cleanup;
+				}
 			}
-			p = NULL;
-			retval = PAM_AUTHINFO_UNAVAIL;
 		}
 	} else {
-		if (!strlen(salt)) {
-			/* the stored password is NULL */
-			if (off(UNIX__NONULL, ctrl)) {	/* this means we've succeeded */
-				D(("user has empty password - access granted"));
-				retval = PAM_SUCCESS;
-			} else {
-				D(("user has empty password - access denied"));
-				retval = PAM_AUTH_ERR;
-			}
-		} else if (!p) {
-				retval = PAM_AUTH_ERR;
+	    int salt_len = strlen(salt);
+	    if (!salt_len) {
+		/* the stored password is NULL */
+		if (off(UNIX__NONULL, ctrl)) {/* this means we've succeeded */
+		    D(("user has empty password - access granted"));
+		    retval = PAM_SUCCESS;
 		} else {
-			if (!strncmp(salt, "$1$", 3)) {
-				pp = Goodcrypt_md5(p, salt);
-				if (strcmp(pp, salt) != 0) {
-					pp = Brokencrypt_md5(p, salt);
-				}
-			} else {
-				pp = bigcrypt(p, salt);
-			}
-			p = NULL;		/* no longer needed here */
-
-			/* the moment of truth -- do we agree with the password? */
-			D(("comparing state of pp[%s] and salt[%s]", pp, salt));
-
-			if (strcmp(pp, salt) == 0) {
-				retval = PAM_SUCCESS;
-			} else {
-				retval = PAM_AUTH_ERR;
-			}
+		    D(("user has empty password - access denied"));
+		    retval = PAM_AUTH_ERR;
 		}
+	    } else if (!p || (*salt == '*') || (salt_len < 13)) {
+		retval = PAM_AUTH_ERR;
+	    } else {
+		if (!strncmp(salt, "$1$", 3)) {
+		    pp = Goodcrypt_md5(p, salt);
+		    if (strcmp(pp, salt) != 0) {
+			_pam_delete(pp);
+			pp = Brokencrypt_md5(p, salt);
+		    }
+		} else {
+		    pp = bigcrypt(p, salt);
+		}
+		p = NULL;		/* no longer needed here */
+
+		/* the moment of truth -- do we agree with the password? */
+		D(("comparing state of pp[%s] and salt[%s]", pp, salt));
+
+		/*
+		 * Note, we are comparing the bigcrypt of the password with
+		 * the contents of the password field. If the latter was
+		 * encrypted with regular crypt (and not bigcrypt) it will
+		 * have been truncated for storage relative to the output
+		 * of bigcrypt here. As such we need to compare only the
+		 * stored string with the subset of bigcrypt's result.
+		 * Bug 521314: The strncmp comparison is for legacy support.
+		 */
+		if (strncmp(pp, salt, salt_len) == 0) {
+		    retval = PAM_SUCCESS;
+		} else {
+		    retval = PAM_AUTH_ERR;
+		}
+	    }
 	}
 
 	if (retval == PAM_SUCCESS) {
@@ -603,13 +746,26 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 
 			if (new != NULL) {
 
-				new->user = x_strdup(name ? name : "");
+			    const char *login_name;
+			    const void *void_old;
+
+
+			    login_name = pam_modutil_getlogin(pamh);
+			    if (login_name == NULL) {
+				login_name = "";
+			    }
+
+			        new->user = x_strdup(name ? name : "");
 				new->uid = getuid();
 				new->euid = geteuid();
-				new->name = x_strdup(PAM_getlogin()? PAM_getlogin() : "");
+				new->name = x_strdup(login_name);
 
 				/* any previous failures for this user ? */
-				pam_get_data(pamh, data_name, (const void **) &old);
+				if (pam_get_data(pamh, data_name, &void_old)
+				    == PAM_SUCCESS)
+				        old = void_old;
+				else
+				        old = NULL;
 
 				if (old != NULL) {
 					new->count = old->count + 1;
@@ -617,29 +773,29 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 						retval = PAM_MAXTRIES;
 					}
 				} else {
-					const char *service=NULL;
-					const char *ruser=NULL;
-					const char *rhost=NULL;
-					const char *tty=NULL;
+					const void *service=NULL;
+					const void *ruser=NULL;
+					const void *rhost=NULL;
+					const void *tty=NULL;
 
 					(void) pam_get_item(pamh, PAM_SERVICE,
-							    (const void **)&service);
+							    &service);
 					(void) pam_get_item(pamh, PAM_RUSER,
-							    (const void **)&ruser);
+							    &ruser);
 					(void) pam_get_item(pamh, PAM_RHOST,
-							    (const void **)&rhost);
+							    &rhost);
 					(void) pam_get_item(pamh, PAM_TTY,
-							    (const void **)&tty);
+							    &tty);
 
-					_log_err(LOG_NOTICE, pamh,
+					pam_syslog(pamh, LOG_NOTICE,
 					         "authentication failure; "
 					         "logname=%s uid=%d euid=%d "
 					         "tty=%s ruser=%s rhost=%s "
 					         "%s%s",
 					         new->name, new->uid, new->euid,
-					         tty ? tty : "",
-					         ruser ? ruser : "",
-					         rhost ? rhost : "",
+					         tty ? (const char *)tty : "",
+					         ruser ? (const char *)ruser : "",
+					         rhost ? (const char *)rhost : "",
 					         (new->user && new->user[0] != '\0')
 					          ? " user=" : "",
 					         new->user
@@ -650,18 +806,19 @@ int _unix_verify_password(pam_handle_t * pamh, const char *name
 				pam_set_data(pamh, data_name, new, _cleanup_failures);
 
 			} else {
-				_log_err(LOG_CRIT, pamh,
+				pam_syslog(pamh, LOG_CRIT,
 				         "no memory for failure recorder");
 			}
 		}
 	}
 
+cleanup:
 	if (data_name)
 		_pam_delete(data_name);
 	if (salt)
 		_pam_delete(salt);
 	if (pp)
-		_pam_overwrite(pp);
+		_pam_delete(pp);
 
 	D(("done [%d].", retval));
 
@@ -678,11 +835,10 @@ int _unix_read_password(pam_handle_t * pamh
 			,const char *prompt1
 			,const char *prompt2
 			,const char *data_name
-			,const char **pass)
+			,const void **pass)
 {
 	int authtok_flag;
-	int retval;
-	const char *item;
+	int retval = PAM_SUCCESS;
 	char *token;
 
 	D(("called"));
@@ -704,22 +860,20 @@ int _unix_read_password(pam_handle_t * pamh
 	 */
 
 	if (on(UNIX_TRY_FIRST_PASS, ctrl) || on(UNIX_USE_FIRST_PASS, ctrl)) {
-		retval = pam_get_item(pamh, authtok_flag, (const void **) &item);
+		retval = pam_get_item(pamh, authtok_flag, pass);
 		if (retval != PAM_SUCCESS) {
 			/* very strange. */
-			_log_err(LOG_ALERT, pamh
-				 ,"pam_get_item returned error to unix-read-password"
+			pam_syslog(pamh, LOG_ALERT,
+				 "pam_get_item returned error to unix-read-password"
 			    );
 			return retval;
-		} else if (item != NULL) {	/* we have a password! */
-			*pass = item;
-			item = NULL;
+		} else if (*pass != NULL) {	/* we have a password! */
 			return PAM_SUCCESS;
 		} else if (on(UNIX_USE_FIRST_PASS, ctrl)) {
-			return PAM_AUTHTOK_RECOVER_ERR;		/* didn't work */
+			return PAM_AUTHTOK_RECOVERY_ERR;	  /* didn't work */
 		} else if (on(UNIX_USE_AUTHTOK, ctrl)
 			   && off(UNIX__OLD_PASSWD, ctrl)) {
-			return PAM_AUTHTOK_RECOVER_ERR;
+			return PAM_AUTHTOK_ERR;
 		}
 	}
 	/*
@@ -728,77 +882,62 @@ int _unix_read_password(pam_handle_t * pamh
 	 */
 
 	{
-		struct pam_message msg[3], *pmsg[3];
-		struct pam_response *resp;
-		int i, replies;
-
-		/* prepare to converse */
+		int replies=1;
+		char *resp[2] = { NULL, NULL };
 
 		if (comment != NULL && off(UNIX__QUIET, ctrl)) {
-			pmsg[0] = &msg[0];
-			msg[0].msg_style = PAM_TEXT_INFO;
-			msg[0].msg = comment;
-			i = 1;
-		} else {
-			i = 0;
+			retval = pam_info(pamh, "%s", comment);
 		}
 
-		pmsg[i] = &msg[i];
-		msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-		msg[i++].msg = prompt1;
-		replies = 1;
+		if (retval == PAM_SUCCESS) {
+			retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
+			    &resp[0], "%s", prompt1);
 
-		if (prompt2 != NULL) {
-			pmsg[i] = &msg[i];
-			msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-			msg[i++].msg = prompt2;
-			++replies;
+			if (retval == PAM_SUCCESS && prompt2 != NULL) {
+				retval = pam_prompt(pamh, PAM_PROMPT_ECHO_OFF,
+				    &resp[1], "%s", prompt2);
+				++replies;
+			}
 		}
-		/* so call the conversation expecting i responses */
-		resp = NULL;
-		retval = converse(pamh, ctrl, i, pmsg, &resp);
 
-		if (resp != NULL) {
-
+		if (resp[0] != NULL && resp[replies-1] != NULL) {
 			/* interpret the response */
 
 			if (retval == PAM_SUCCESS) {	/* a good conversation */
 
-				token = x_strdup(resp[i - replies].resp);
+				token = resp[0];
 				if (token != NULL) {
 					if (replies == 2) {
-
 						/* verify that password entered correctly */
-						if (!resp[i - 1].resp
-						    || strcmp(token, resp[i - 1].resp)) {
-							_pam_delete(token);	/* mistyped */
-							retval = PAM_AUTHTOK_RECOVER_ERR;
-							_make_remark(pamh, ctrl
-								    ,PAM_ERROR_MSG, MISTYPED_PASS);
+						if (strcmp(token, resp[replies - 1])) {
+							/* mistyped */
+							retval = PAM_AUTHTOK_RECOVERY_ERR;
+							_make_remark(pamh, ctrl,
+							    PAM_ERROR_MSG, MISTYPED_PASS);
 						}
 					}
 				} else {
-					_log_err(LOG_NOTICE, pamh
-						 ,"could not recover authentication token");
+					pam_syslog(pamh, LOG_NOTICE,
+						    "could not recover authentication token");
 				}
 
 			}
-			/*
-			 * tidy up the conversation (resp_retcode) is ignored
-			 * -- what is it for anyway? AGM
-			 */
-
-			_pam_drop_reply(resp, i);
 
 		} else {
 			retval = (retval == PAM_SUCCESS)
-			    ? PAM_AUTHTOK_RECOVER_ERR : retval;
+			    ? PAM_AUTHTOK_RECOVERY_ERR : retval;
 		}
+
+		resp[0] = NULL;
+		if (replies > 1)
+			_pam_delete(resp[1]);
 	}
 
 	if (retval != PAM_SUCCESS) {
+		_pam_delete(token);
+
 		if (on(UNIX_DEBUG, ctrl))
-			_log_err(LOG_DEBUG, pamh,
+			pam_syslog(pamh, LOG_DEBUG,
 			         "unable to obtain a password");
 		return retval;
 	}
@@ -811,11 +950,11 @@ int _unix_read_password(pam_handle_t * pamh
 		retval = pam_set_item(pamh, authtok_flag, token);
 		_pam_delete(token);	/* clean it up */
 		if (retval != PAM_SUCCESS
-		    || (retval = pam_get_item(pamh, authtok_flag
-					      ,(const void **) &item))
+		    || (retval = pam_get_item(pamh, authtok_flag, pass))
 		    != PAM_SUCCESS) {
 
-			_log_err(LOG_CRIT, pamh, "error manipulating password");
+			*pass = NULL;
+			pam_syslog(pamh, LOG_CRIT, "error manipulating password");
 			return retval;
 
 		}
@@ -827,20 +966,32 @@ int _unix_read_password(pam_handle_t * pamh
 
 		retval = pam_set_data(pamh, data_name, (void *) token, _cleanup);
 		if (retval != PAM_SUCCESS) {
-			_log_err(LOG_CRIT, pamh
-			         ,"error manipulating password data [%s]"
-				 ,pam_strerror(pamh, retval));
+			pam_syslog(pamh, LOG_CRIT,
+			         "error manipulating password data [%s]",
+				 pam_strerror(pamh, retval));
 			_pam_delete(token);
 			return retval;
 		}
-		item = token;
+		*pass = token;
 		token = NULL;	/* break link to password */
 	}
 
-	*pass = item;
-	item = NULL;		/* break link to password */
-
 	return PAM_SUCCESS;
+}
+
+int _unix_shadowed(const struct passwd *pwd)
+{
+	if (pwd != NULL) {
+		if (strcmp(pwd->pw_passwd, "x") == 0) {
+			return 1;
+		}
+		if ((pwd->pw_passwd[0] == '#') &&
+		    (pwd->pw_passwd[1] == '#') &&
+		    (strcmp(pwd->pw_name, pwd->pw_passwd + 2) == 0)) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /* ****************************************************************** *
@@ -861,13 +1012,13 @@ int _unix_read_password(pam_handle_t * pamh
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE

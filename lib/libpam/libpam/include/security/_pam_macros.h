@@ -9,8 +9,8 @@
 
 /* a 'safe' version of strdup */
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define  x_strdup(s)  ( (s) ? strdup(s):NULL )
 
@@ -73,11 +73,11 @@ do {                                              \
  * You have been warned :-) - CG
  *
  * to get automated debugging to the log file, it must be created manually.
- * _PAM_LOGFILE must exist, mode 666
+ * _PAM_LOGFILE must exist and be writable to the programs you debug.
  */
 
 #ifndef _PAM_LOGFILE
-#define _PAM_LOGFILE "/tmp/pam-debug.log"
+#define _PAM_LOGFILE "/var/run/pam-debug.log"
 #endif
 
 static void _pam_output_debug_info(const char *file, const char *fn

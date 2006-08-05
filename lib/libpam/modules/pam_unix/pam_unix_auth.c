@@ -15,13 +15,13 @@
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,7 +37,7 @@
 
 /* #define DEBUG */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +48,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <syslog.h>
 
 /* indicate the following groups are defined */
 
@@ -56,10 +57,7 @@
 #define _PAM_EXTERN_FUNCTIONS
 #include <security/_pam_macros.h>
 #include <security/pam_modules.h>
-
-#ifndef LINUX_PAM
-#include <security/pam_appl.h>
-#endif				/* LINUX_PAM */
+#include <security/pam_ext.h>
 
 #include "support.h"
 
@@ -81,23 +79,35 @@
 #define _UNIX_AUTHTOK  "-UN*X-PASS"
 
 #define AUTH_RETURN						\
-{								\
+do {								\
 	if (on(UNIX_LIKE_AUTH, ctrl) && ret_data) {		\
 		D(("recording return code for next time [%d]",	\
 					retval));		\
+		*ret_data = retval;				\
 		pam_set_data(pamh, "unix_setcred_return",	\
-				(void *) retval, NULL);	        \
-	}							\
+		             (void *) ret_data, setcred_free);	\
+	} else if (ret_data)					\
+	  free (ret_data);                                      \
 	D(("done. [%s]", pam_strerror(pamh, retval)));		\
 	return retval;						\
+} while (0)
+
+
+static void
+setcred_free (pam_handle_t *pamh UNUSED, void *ptr, int err UNUSED)
+{
+	if (ptr)
+		free (ptr);
 }
+
 
 PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 				   ,int argc, const char **argv)
 {
 	unsigned int ctrl;
 	int retval, *ret_data = NULL;
-	const char *name, *p;
+	const char *name;
+	const void *p;
 
 	D(("called."));
 
@@ -105,11 +115,12 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 
 	/* Get a few bytes so we can pass our return value to
 	   pam_sm_setcred(). */
-	ret_data = malloc(sizeof(int));
+	if (on(UNIX_LIKE_AUTH, ctrl))
+		ret_data = malloc(sizeof(int));
 
 	/* get the user'name' */
 
-	retval = pam_get_user(pamh, &name, "login: ");
+	retval = pam_get_user(pamh, &name, NULL);
 	if (retval == PAM_SUCCESS) {
 		/*
 		 * Various libraries at various times have had bugs related to
@@ -118,9 +129,9 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 		 * alphanumeric character.
 		 */
 		if (name == NULL || !isalnum(*name)) {
-			_log_err(LOG_ERR, pamh, "bad username [%s]", name);
+			pam_syslog(pamh, LOG_ERR, "bad username [%s]", name);
 			retval = PAM_USER_UNKNOWN;
-			AUTH_RETURN
+			AUTH_RETURN;
 		}
 		if (retval == PAM_SUCCESS && on(UNIX_DEBUG, ctrl))
 			D(("username [%s] obtained", name));
@@ -133,25 +144,25 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 			 */
 			retval = PAM_INCOMPLETE;
 		}
-		AUTH_RETURN
+		AUTH_RETURN;
 	}
 
 	/* if this user does not have a password... */
 
-	if (_unix_blankpasswd(ctrl, name)) {
+	if (_unix_blankpasswd(pamh, ctrl, name)) {
 		D(("user '%s' has blank passwd", name));
 		name = NULL;
 		retval = PAM_SUCCESS;
-		AUTH_RETURN
+		AUTH_RETURN;
 	}
 	/* get this user's authentication token */
 
-	retval = _unix_read_password(pamh, ctrl, NULL, "Password: ", NULL
+	retval = _unix_read_password(pamh, ctrl, NULL, _("Password: "), NULL
 				     ,_UNIX_AUTHTOK, &p);
 	if (retval != PAM_SUCCESS) {
 		if (retval != PAM_CONV_AGAIN) {
-			_log_err(LOG_CRIT, pamh, "auth could not identify password for [%s]"
-				 ,name);
+			pam_syslog(pamh, LOG_CRIT,
+			    "auth could not identify password for [%s]", name);
 		} else {
 			D(("conversation function is not ready yet"));
 			/*
@@ -161,7 +172,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 			retval = PAM_INCOMPLETE;
 		}
 		name = NULL;
-		AUTH_RETURN
+		AUTH_RETURN;
 	}
 	D(("user=%s, password=[%s]", name, p));
 
@@ -169,11 +180,11 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
 	retval = _unix_verify_password(pamh, name, p, ctrl);
 	name = p = NULL;
 
-	AUTH_RETURN
+	AUTH_RETURN;
 }
 
 
-/* 
+/*
  * The only thing _pam_set_credentials_unix() does is initialization of
  * UNIX group IDs.
  *
@@ -182,32 +193,27 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t * pamh, int flags
  * warned you. -- AOY
  */
 
-PAM_EXTERN int pam_sm_setcred(pam_handle_t * pamh, int flags
-			      ,int argc, const char **argv)
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
 {
-	unsigned int ctrl;
 	int retval;
+	const void *pretval = NULL;
 
 	D(("called."));
 
-	/* FIXME: it shouldn't be necessary to parse the arguments again. The
-	   only argument we need is UNIX_LIKE_AUTH: if it was set,
-	   pam_get_data will succeed. If it wasn't, it will fail, and we
-	   return PAM_SUCCESS.  -SRL */
-	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
 	retval = PAM_SUCCESS;
 
-	if (on(UNIX_LIKE_AUTH, ctrl)) {
-		int *pretval = NULL;
-
-		D(("recovering return code from auth call"));
-		pam_get_data(pamh, "unix_setcred_return", (const void **) pretval);
-		if(pretval) {
-			retval = *pretval;
-			free(pretval);
-			D(("recovered data indicates that old retval was %d", retval));
-		}
+	D(("recovering return code from auth call"));
+	/* We will only find something here if UNIX_LIKE_AUTH is set --
+	   don't worry about an explicit check of argv. */
+	if (pam_get_data(pamh, "unix_setcred_return", &pretval) == PAM_SUCCESS
+	    && pretval) {
+ 	        retval = *(const int *)pretval;
+		pam_set_data(pamh, "unix_setcred_return", NULL, NULL);
+		D(("recovered data indicates that old retval was %d", retval));
 	}
+
 	return retval;
 }
 

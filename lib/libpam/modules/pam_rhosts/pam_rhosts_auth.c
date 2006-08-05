@@ -38,68 +38,55 @@
  * SUCH DAMAGE.
  */
 
-#define _BSD_SOURCE
+#include "config.h"
 
-#define USER_RHOSTS_FILE "/.rhosts"     /* prefixed by user's home dir */
-
-#ifdef linux
-#include <endian.h>
-#endif
-
-#ifdef NEED_FSUID_H
-#include <sys/fsuid.h>
-#endif /* NEED_FSUID_H */
-
-#include <sys/types.h>
-#include <sys/uio.h>
+#include <pwd.h>
+#include <grp.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <syslog.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>       /* This is supposed(?) to contain the following */
-int innetgr(const char *, const char *, const char *,const char *);
-
-#include <stdio.h>
-#include <errno.h>
+#include <endian.h>
+#include <sys/file.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/signal.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_FSUID_H
+#include <sys/fsuid.h>
+#endif /* HAVE_SYS_FSUID_H */
+#ifdef HAVE_NET_IF_H
+#include <sys/if.h>
+#endif
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <net/if.h>
+#include <netinet/in.h>
 
 #ifndef MAXDNAME
 #define MAXDNAME  256
 #endif
 
-#include <stdarg.h>
-#include <ctype.h>
-
-#include <net/if.h>
-#ifdef linux
-# include <linux/sockios.h>
-# ifndef __USE_MISC
-#  define __USE_MISC
-#  include <sys/fsuid.h>
-# endif /* __USE_MISC */
-#endif
-
-#include <pwd.h>
-#include <grp.h>
-#include <sys/file.h>
-#include <sys/signal.h>
-#include <sys/stat.h>
-#include <syslog.h>
 #ifndef _PATH_HEQUIV
 #define _PATH_HEQUIV "/etc/hosts.equiv"
 #endif /* _PATH_HEQUIV */
+
+#define USER_RHOSTS_FILE "/.rhosts"     /* prefixed by user's home dir */
 
 #define PAM_SM_AUTH  /* only defines this management group */
 
 #include <security/pam_modules.h>
 #include <security/_pam_macros.h>
-
-/* to the best of my knowledge, all modern UNIX boxes have 32 bit integers */
-#define U32 unsigned int
-
+#include <security/pam_modutil.h>
+#include <security/pam_ext.h>
 
 /*
  * Options for this module
@@ -121,19 +108,8 @@ struct _options {
     const char *last_error;
 };
 
-/* logging */
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("pam_rhosts_auth", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
-
-static void set_option (struct _options *opts, const char *arg)
+static void
+set_option (const pam_handle_t *pamh, struct _options *opts, const char *arg)
 {
     if (strcmp(arg, "no_hosts_equiv") == 0) {
 	opts->opt_no_hosts_equiv = 1;
@@ -182,25 +158,26 @@ static void set_option (struct _options *opts, const char *arg)
 	return;
     }
 
-    if (strcmp(arg, "superuser=") == 0) {
+    if (strncmp(arg, "superuser=", sizeof("superuser=")-1) == 0) {
 	opts->superuser = arg+sizeof("superuser=")-1;
 	return;
     }
     /*
      * All other options are ignored at the present time.
      */
-    _pam_log(LOG_WARNING, "unrecognized option '%s'", arg);
+    pam_syslog(pamh, LOG_WARNING, "unrecognized option '%s'", arg);
 }
 
-static void set_parameters (struct _options *opts, int flags,
-			    int argc, const char **argv)
+static void
+set_parameters (const pam_handle_t *pamh, struct _options *opts,
+		int flags, int argc, const char **argv)
 {
     opts->opt_silent                = flags & PAM_SILENT;
     opts->opt_disallow_null_authtok = flags & PAM_DISALLOW_NULL_AUTHTOK;
 
     while (argc-- > 0) {
-	set_option (opts, *argv);
-	++argv;
+      set_option (pamh, opts, *argv);
+      ++argv;
     }
 }
 
@@ -209,13 +186,13 @@ static void set_parameters (struct _options *opts, int flags,
  * requesting the contents of the PAM_RHOST item.
  */
 
-static int pam_get_rhost(pam_handle_t *pamh, const char **rhost
-			 , const char *prompt)
+static int
+pam_get_rhost (pam_handle_t *pamh, const char **rhost)
 {
     int retval;
-    const char   *current;
+    const void *current;
 
-    retval = pam_get_item (pamh, PAM_RHOST, (const void **)&current);
+    retval = pam_get_item (pamh, PAM_RHOST, &current);
     if (retval != PAM_SUCCESS)
         return retval;
 
@@ -232,15 +209,16 @@ static int pam_get_rhost(pam_handle_t *pamh, const char **rhost
  * requesting the contents of the PAM_RUSER item.
  */
 
-static int pam_get_ruser(pam_handle_t *pamh, const char **ruser
-			 , const char *prompt)
+static int
+pam_get_ruser(pam_handle_t *pamh, const char **ruser)
 {
     int retval;
-    const char   *current;
+    const void *current;
 
-    retval = pam_get_item (pamh, PAM_RUSER, (const void **)&current);
-    if (retval != PAM_SUCCESS)
+    retval = pam_get_item (pamh, PAM_RUSER, &current);
+    if (retval != PAM_SUCCESS) {
         return retval;
+    }
 
     if (current == NULL) {
 	return PAM_AUTH_ERR;
@@ -255,13 +233,14 @@ static int pam_get_ruser(pam_handle_t *pamh, const char **ruser
  */
 
 static int
-__icheckhost (pam_handle_t *pamh, struct _options *opts, U32 raddr
+__icheckhost (pam_handle_t *pamh, struct _options *opts, u_int32_t raddr
 	      , register char *lhost, const char *rhost)
 {
     struct hostent *hp;
-    U32 laddr;
+    u_int32_t laddr;
     int negate=1;    /* Multiply return with this to get -1 instead of 1 */
-    char **pp, *user;
+    char **pp;
+    const void *user;
 
     /* Check nis netgroup.  We assume that pam has done all needed
        paranoia checking before we are handed the rhost */
@@ -276,13 +255,17 @@ __icheckhost (pam_handle_t *pamh, struct _options *opts, U32 raddr
 	negate=-1;
 	lhost++;
     } else if (strcmp("+",lhost) == 0) {
-        (void) pam_get_item(pamh, PAM_USER, (const void **)&user);
+        (void) pam_get_item(pamh, PAM_USER, &user);
         D(("user %s has a `+' host entry", user));
 	if (opts->opt_promiscuous)
 	    return (1);                     /* asking for trouble, but ok.. */
 	/* If not promiscuous: handle as negative */
 	return (-1);
+    } else if (strncmp("+",lhost,1) == 0) {
+	/* '+hostname' is supposed to be equivalent to 'hostname' */
+	lhost++;
     }
+
 
     /* Try for raw ip address first. */
     if (isdigit(*lhost) && (long)(laddr = inet_addr(lhost)) != -1)
@@ -292,10 +275,10 @@ __icheckhost (pam_handle_t *pamh, struct _options *opts, U32 raddr
     hp = gethostbyname(lhost);
     if (hp == NULL)
 	return (0);
-    
+
     /* Spin through ip addresses. */
     for (pp = hp->h_addr_list; *pp; ++pp)
-	if (!memcmp (&raddr, *pp, sizeof (U32)))
+	if (!memcmp (&raddr, *pp, sizeof (u_int32_t)))
 	    return (negate);
 
     /* No match. */
@@ -304,16 +287,16 @@ __icheckhost (pam_handle_t *pamh, struct _options *opts, U32 raddr
 
 /* Returns 1 on positive match, 0 on no match, -1 on negative match */
 
-static int __icheckuser(pam_handle_t *pamh, struct _options *opts
-			, const char *luser, const char *ruser
-			, const char *rhost)
+static int
+__icheckuser (pam_handle_t *pamh, struct _options *opts,
+	      const char *luser, const char *ruser)
 {
     /*
       luser is user entry from .rhosts/hosts.equiv file
       ruser is user id on remote host
       rhost is the remote host name
       */
-    char *user;
+    const void *user;
 
     /* [-+]@netgroup */
     if (strncmp("+@",luser,2) == 0)
@@ -328,8 +311,9 @@ static int __icheckuser(pam_handle_t *pamh, struct _options *opts
 
     /* + */
     if (strcmp("+",luser) == 0) {
-	(void) pam_get_item(pamh, PAM_USER, (const void **)&user);
-	_pam_log(LOG_WARNING, "user %s has a `+' user entry", user);
+	(void) pam_get_item(pamh, PAM_USER, &user);
+	pam_syslog(pamh, LOG_WARNING, "user %s has a `+' user entry",
+		   (const char *) user);
 	if (opts->opt_promiscuous)
 	    return(1);
 	/* If not promiscuous we handle it as a negative match */
@@ -359,7 +343,7 @@ static int __isempty(char *p)
 
 static int
 __ivaliduser (pam_handle_t *pamh, struct _options *opts,
-	      FILE *hostf, U32 raddr,
+	      FILE *hostf, u_int32_t raddr,
 	      const char *luser, const char *ruser, const char *rhost)
 {
     register const char *user;
@@ -407,7 +391,7 @@ __ivaliduser (pam_handle_t *pamh, struct _options *opts,
 	    user = p;                   /* this is the user's name */
 	    while (*p && !isspace(*p))
 		++p;                    /* find end of user's name */
-	} else 
+	} else
 	    user = p;
 
 	*p = '\0';              /* <nul> terminate username (+host?) */
@@ -425,7 +409,7 @@ __ivaliduser (pam_handle_t *pamh, struct _options *opts,
 	    if (! (*user))
 		user = luser;
 
-	    ucheck=__icheckuser(pamh, opts, user, ruser, rhost);
+	    ucheck=__icheckuser(pamh, opts, user, ruser);
 
 	    /* Positive 'host user' match? */
 	    if (ucheck>0)
@@ -454,7 +438,7 @@ __ivaliduser (pam_handle_t *pamh, struct _options *opts,
 
 static int
 pam_iruserok(pam_handle_t *pamh,
-	 struct _options *opts, U32 raddr, int superuser,
+	 struct _options *opts, u_int32_t raddr, int superuser,
 	 const char *ruser, const char *luser, const char *rhost)
 {
     const char *cp;
@@ -463,7 +447,7 @@ pam_iruserok(pam_handle_t *pamh,
     FILE *hostf;
     uid_t uid;
     int answer;
-    char pbuf[MAXPATHLEN];               /* potential buffer overrun */
+    char *fpath;
 
     if ((!superuser||opts->opt_hosts_equiv_rootok) && !opts->opt_no_hosts_equiv ) {
 
@@ -479,7 +463,7 @@ pam_iruserok(pam_handle_t *pamh,
 	    No hosts.equiv file on system.
 	} */
     }
-    
+
     if ( opts->opt_no_rhosts )
 	return 1;
 
@@ -487,25 +471,20 @@ pam_iruserok(pam_handle_t *pamh,
      * Identify user's local .rhosts file
      */
 
-    pwd = getpwnam(luser);
+    pwd = pam_modutil_getpwnam(pamh, luser);
     if (pwd == NULL) {
-	/* 
+	/*
 	 * luser is assumed to be valid because of an earlier check for uid = 0
 	 * we don't log this error twice. However, this shouldn't happen !
-	 * --cristiang 
+	 * --cristiang
 	 */
 	return(1);
     }
 
-    /* check for buffer overrun */
-    if (strlen(pwd->pw_dir) + sizeof(USER_RHOSTS_FILE) + 2 >= MAXPATHLEN) {
-	if (opts->opt_debug)
-	    _pam_log(LOG_DEBUG,"home directory for `%s' is too long", luser);
-	return 1;                               /* to dangerous to try */
+    if (asprintf (&fpath, "%s%s", pwd->pw_dir, USER_RHOSTS_FILE) < 0) {
+       pam_syslog (pamh, LOG_ALERT, "Running out of memory");
+       return 1;
     }
-
-    (void) strcpy(pbuf, pwd->pw_dir);
-    (void) strcat(pbuf, USER_RHOSTS_FILE);
 
     /*
      * Change effective uid while _reading_ .rhosts. (not just
@@ -514,19 +493,19 @@ pam_iruserok(pam_handle_t *pamh,
      */
 
     /* We are root, this will not fail */
-#ifdef linux
+#ifdef __linux__
     /* If we are on linux the better way is setfsuid */
     uid = setfsuid(pwd->pw_uid);
-    hostf = fopen(pbuf, "r");
+    hostf = fopen(fpath, "r");
 #else
     uid = geteuid();
     (void) seteuid(pwd->pw_uid);
-    hostf = fopen(pbuf, "r");
+    hostf = fopen(fpath, "r");
 #endif
 
     if (hostf == NULL) {
         if (opts->opt_debug)
-	    _pam_log(LOG_DEBUG,"Could not open %s file",pbuf);
+	    pam_syslog(pamh, LOG_DEBUG, "Could not open %s: %m", fpath);
 	answer = 1;
 	goto exit_function;
     }
@@ -537,7 +516,7 @@ pam_iruserok(pam_handle_t *pamh,
      */
 
     cp = NULL;
-    if (lstat(pbuf, &sbuf) < 0 || !S_ISREG(sbuf.st_mode))
+    if (lstat(fpath, &sbuf) < 0 || !S_ISREG(sbuf.st_mode))
 	cp = ".rhosts not regular file";
     else if (fstat(fileno(hostf), &sbuf) < 0)
 	cp = ".rhosts fstat failed";
@@ -549,7 +528,7 @@ pam_iruserok(pam_handle_t *pamh,
 
 	/* private group caveat */
 	if (opts->opt_private_group) {
-	    struct group *grp = getgrgid(sbuf.st_gid);
+	    struct group *grp = pam_modutil_getgrgid(pamh, sbuf.st_gid);
 
 	    if (NULL == grp || NULL == grp->gr_name
 		|| strcmp(luser,grp->gr_name)) {
@@ -590,11 +569,13 @@ exit_function:
      * they are reset before we exit.
      */
 
-#ifdef linux
+#ifdef __linux__
     setfsuid(uid);
 #else
     (void)seteuid(uid);
 #endif
+
+    free (fpath);
 
     if (hostf != NULL)
         (void) fclose(hostf);
@@ -609,7 +590,7 @@ pam_ruserok (pam_handle_t *pamh,
 {
     struct hostent *hp;
     int answer = 1;                             /* default to failure */
-    U32 *addrs;
+    u_int32_t *addrs;
     int n, i;
 
     opts->last_error = (char *) 0;
@@ -618,8 +599,8 @@ pam_ruserok (pam_handle_t *pamh,
     if (hp != NULL) {
 	/* First of all check the address length */
         if (hp->h_length != 4) {
-            _pam_log(LOG_ALERT, "pam_rhosts module can't work with not IPv4 "
-		     "addresses");
+            pam_syslog(pamh, LOG_ALERT,
+		       "pam_rhosts module can't work with non-IPv4 addresses");
             return 1;                                    /* not allowed */
         }
 
@@ -651,50 +632,56 @@ pam_ruserok (pam_handle_t *pamh,
  */
 
 static int _pam_auth_rhosts (pam_handle_t *pamh,
-			     int flags, 
+			     int flags,
 			     int argc,
-			     const char **argv) 
+			     const char **argv)
 {
     int retval;
-    const char *luser;
-    const char *ruser,*rhost;
+    const char *luser = NULL;
+    const char *ruser = NULL, *rhost = NULL;
     struct _options opts;
     int as_root = 0;
+
     /*
      * Look at the options and set the flags accordingly.
      */
     memset (&opts, 0, sizeof (opts));
-    set_parameters (&opts, flags, argc, argv);
+    set_parameters (pamh, &opts, flags, argc, argv);
     /*
      * Obtain the parameters for the various items
      */
     for (;;) {                         /* abuse loop to avoid goto */
 
 	/* get the remotehost */
-	retval = pam_get_rhost(pamh, &rhost, NULL);
+	D(("getting rhost"));
+	retval = pam_get_rhost(pamh, &rhost);
 	(void) pam_set_item(pamh, PAM_RHOST, rhost);
 	if (retval != PAM_SUCCESS) {
 	    if (opts.opt_debug) {
-		_pam_log(LOG_DEBUG, "could not get the remote host name");
+		pam_syslog(pamh, LOG_DEBUG,
+			   "could not get the remote host name");
 	    }
 	    break;
 	}
 
 	/* get the remote user */
-	retval = pam_get_ruser(pamh, &ruser, NULL);
+	D(("getting ruser"));
+	retval = pam_get_ruser(pamh, &ruser);
 	(void) pam_set_item(pamh, PAM_RUSER, ruser);
 	if (retval != PAM_SUCCESS) {
 	    if (opts.opt_debug)
-		_pam_log(LOG_DEBUG, "could not get the remote username");
+		pam_syslog(pamh, LOG_DEBUG,
+			   "could not get the remote username");
 	    break;
 	}
 
 	/* get the local user */
+	D(("getting user"));
 	retval = pam_get_user(pamh, &luser, NULL);
-
 	if (retval != PAM_SUCCESS) {
 	    if (opts.opt_debug)
-		_pam_log(LOG_DEBUG, "could not determine name of local user");
+		pam_syslog(pamh, LOG_DEBUG,
+			   "could not determine name of local user");
 	    break;
 	}
 
@@ -706,11 +693,11 @@ static int _pam_auth_rhosts (pam_handle_t *pamh,
 	if (! opts.opt_no_uid_check) {
 	    struct passwd *luser_pwd;
 
-	    luser_pwd = getpwnam(luser);
+	    luser_pwd = pam_modutil_getpwnam(pamh, luser);
 	    if (luser_pwd == NULL) {
 		if (opts.opt_debug)
-		    _pam_log(LOG_DEBUG, "user '%s' unknown to this system",
-			     luser);
+		    pam_syslog(pamh, LOG_DEBUG,
+			       "user '%s' unknown to this system", luser);
 		retval = PAM_AUTH_ERR;
 		break;
 	    }
@@ -723,13 +710,13 @@ static int _pam_auth_rhosts (pam_handle_t *pamh,
  */
 	if (pam_ruserok (pamh, &opts, rhost, as_root, ruser, luser) != 0) {
 	    if ( !opts.opt_suppress ) {
-		_pam_log(LOG_WARNING, "denied to %s@%s as %s: %s",
+		pam_syslog(pamh, LOG_WARNING, "denied to %s@%s as %s: %s",
 			 ruser, rhost, luser, (opts.last_error==NULL) ?
 			 "access not allowed":opts.last_error);
 	    }
 	    retval = PAM_AUTH_ERR;
 	} else {
-	    _pam_log(LOG_NOTICE, "allowed to %s@%s as %s",
+	    pam_syslog(pamh, LOG_NOTICE, "allowed to %s@%s as %s",
                      ruser, rhost, luser);
 	}
 	break;
@@ -741,16 +728,16 @@ static int _pam_auth_rhosts (pam_handle_t *pamh,
 /* --- authentication management functions --- */
 
 PAM_EXTERN
-int pam_sm_authenticate (pam_handle_t *pamh, 
+int pam_sm_authenticate (pam_handle_t *pamh,
 			 int flags,
-			 int argc, 
+			 int argc,
 			 const char **argv)
 {
     int retval;
 
-    if (sizeof(U32) != 4) {
-        _pam_log (LOG_ALERT, "pam_rhosts module can\'t work on this hardware "
-		  "(yet)");
+    if (sizeof(u_int32_t) != 4) {
+        pam_syslog (pamh, LOG_ALERT,
+		    "pam_rhosts module can\'t work on this hardware (yet)");
         return PAM_AUTH_ERR;
     }
     sethostent(1);
@@ -759,9 +746,9 @@ int pam_sm_authenticate (pam_handle_t *pamh,
     return retval;
 }
 
-PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh,int flags,int argc,
-		   const char **argv)
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
 {
     return PAM_SUCCESS;
 }

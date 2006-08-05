@@ -5,12 +5,11 @@
  * created by Andrew Morgan <morgan@linux.kernel.org> 1996/3/12
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-#define __USE_BSD
 #include <syslog.h>
 
 #include <stdarg.h>
@@ -31,27 +30,7 @@
 
 #include <security/pam_modules.h>
 #include <security/_pam_macros.h>
-
-static char *_strdup(const char *x)
-{
-     char *new;
-     new = malloc(strlen(x)+1);
-     strcpy(new,x);
-     return new;
-}
-
-/* log errors */
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-stress", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
+#include <security/pam_ext.h>
 
 /* ---------- */
 
@@ -76,22 +55,24 @@ static void _pam_log(int err, const char *format, ...)
 
 /* some syslogging */
 
-static void _pam_report(int ctrl, const char *name, int flags,
-		 int argc, const char **argv)
+static void
+_pam_report (const pam_handle_t *pamh, int ctrl, const char *name,
+	     int flags, int argc, const char **argv)
 {
      if (ctrl & PAM_ST_DEBUG) {
-	  _pam_log(LOG_DEBUG, "CALLED: %s", name);
-	  _pam_log(LOG_DEBUG, "FLAGS : 0%o%s", flags,
-		   (flags & PAM_SILENT) ? " (silent)":"");
- 	  _pam_log(LOG_DEBUG, "CTRL  = 0%o",ctrl);
-	  _pam_log(LOG_DEBUG, "ARGV  :");
+	  pam_syslog(pamh, LOG_DEBUG, "CALLED: %s", name);
+	  pam_syslog(pamh, LOG_DEBUG, "FLAGS : 0%o%s",
+		     flags, (flags & PAM_SILENT) ? " (silent)":"");
+ 	  pam_syslog(pamh, LOG_DEBUG, "CTRL  = 0%o", ctrl);
+	  pam_syslog(pamh, LOG_DEBUG, "ARGV  :");
 	  while (argc--) {
-	       _pam_log(LOG_DEBUG, " \"%s\"", *argv++);
+	       pam_syslog(pamh, LOG_DEBUG, " \"%s\"", *argv++);
 	  }
      }
 }
 
-static int _pam_parse(int argc, const char **argv)
+static int
+_pam_parse (const pam_handle_t *pamh, int argc, const char **argv)
 {
      int ctrl=0;
 
@@ -128,7 +109,7 @@ static int _pam_parse(int argc, const char **argv)
 	       ctrl |= PAM_ST_REQUIRE_PWD;
 
 	  else {
-	       _pam_log(LOG_ERR,"pam_parse: unknown option; %s",*argv);
+	       pam_syslog(pamh, LOG_ERR, "unknown option: %s", *argv);
 	  }
      }
 
@@ -140,18 +121,22 @@ static int converse(pam_handle_t *pamh, int nargs
 		    , struct pam_response **response)
 {
      int retval;
-     struct pam_conv *conv;
+     const void *void_conv;
+     const struct pam_conv *conv;
 
-     if ((retval = pam_get_item(pamh,PAM_CONV,(const void **)&conv))
-	 == PAM_SUCCESS) {
+     retval = pam_get_item(pamh,PAM_CONV,&void_conv);
+     conv = void_conv;
+     if (retval == PAM_SUCCESS && conv) {
 	  retval = conv->conv(nargs, (const struct pam_message **) message
 			      , response, conv->appdata_ptr);
 	  if (retval != PAM_SUCCESS) {
-	       _pam_log(LOG_ERR,"(pam_stress) converse returned %d",retval);
-	       _pam_log(LOG_ERR,"that is: %s",pam_strerror(pamh, retval));
+	       pam_syslog(pamh, LOG_ERR, "converse returned %d: %s",
+			retval, pam_strerror(pamh, retval));
 	  }
      } else {
-	  _pam_log(LOG_ERR,"(pam_stress) converse failed to get pam_conv");
+	  pam_syslog(pamh, LOG_ERR, "converse failed to get pam_conv");
+         if (retval == PAM_SUCCESS)
+             retval = PAM_BAD_ITEM; /* conv was null */
      }
 
      return retval;
@@ -162,15 +147,17 @@ static int converse(pam_handle_t *pamh, int nargs
 static int stress_get_password(pam_handle_t *pamh, int flags
 			       , int ctrl, char **password)
 {
+     const void *pam_pass;
      char *pass;
 
      if ( (ctrl & (PAM_ST_TRY_PASS1|PAM_ST_USE_PASS1))
-	 && (pam_get_item(pamh,PAM_AUTHTOK,(const void **)&pass)
+	 && (pam_get_item(pamh,PAM_AUTHTOK,&pam_pass)
 	     == PAM_SUCCESS)
-	 && (pass != NULL) ) {
-	  pass = _strdup(pass);
+	 && (pam_pass != NULL) ) {
+	  if ((pass = strdup(pam_pass)) == NULL)
+	       return PAM_BUF_ERR;
      } else if ((ctrl & PAM_ST_USE_PASS1)) {
-	  _pam_log(LOG_WARNING, "pam_stress: no forwarded password");
+	  pam_syslog(pamh, LOG_WARNING, "no forwarded password");
 	  return PAM_PERM_DENIED;
      } else {                                /* we will have to get one */
 	  struct pam_message msg[1],*pmsg[1];
@@ -190,8 +177,8 @@ static int stress_get_password(pam_handle_t *pamh, int flags
 
 	  if (resp) {
 	       if ((resp[0].resp == NULL) && (ctrl & PAM_ST_DEBUG)) {
-		    _pam_log(LOG_DEBUG,
-			     "pam_sm_authenticate: NULL authtok given");
+		    pam_syslog(pamh, LOG_DEBUG,
+			       "pam_sm_authenticate: NULL authtok given");
 	       }
 	       if ((flags & PAM_DISALLOW_NULL_AUTHTOK)
 		   && resp[0].resp == NULL) {
@@ -202,12 +189,17 @@ static int stress_get_password(pam_handle_t *pamh, int flags
 	       pass = resp[0].resp;          /* remember this! */
 
 	       resp[0].resp = NULL;
-	  } else if (ctrl & PAM_ST_DEBUG) {
-	       _pam_log(LOG_DEBUG,"pam_sm_authenticate: no error reported");
-	       _pam_log(LOG_DEBUG,"getting password, but NULL returned!?");
+	  } else {
+               if (ctrl & PAM_ST_DEBUG) {
+	          pam_syslog(pamh, LOG_DEBUG,
+			     "pam_sm_authenticate: no error reported");
+	          pam_syslog(pamh, LOG_DEBUG,
+			     "getting password, but NULL returned!?");
+               }
 	       return PAM_CONV_ERR;
 	  }
-	  free(resp);
+	  if (resp)
+	       free(resp);
      }
 
      *password = pass;             /* this *MUST* be free()'d by this module */
@@ -217,7 +209,8 @@ static int stress_get_password(pam_handle_t *pamh, int flags
 
 /* function to clean up data items */
 
-static void wipe_up(pam_handle_t *pamh, void *data, int error)
+static void
+wipe_up (pam_handle_t *pamh UNUSED, void *data, int error UNUSED)
 {
      free(data);
 }
@@ -233,52 +226,53 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags,
 
      D(("called."));
 
-     ctrl = _pam_parse(argc,argv);
-     _pam_report(ctrl, "pam_sm_authenticate", flags, argc, argv);
+     ctrl = _pam_parse(pamh, argc, argv);
+     _pam_report(pamh, ctrl, "pam_sm_authenticate", flags, argc, argv);
 
      /* try to get the username */
 
      retval = pam_get_user(pamh, &username, "username: ");
-     if ((ctrl & PAM_ST_DEBUG) && (retval == PAM_SUCCESS)) {
-	  _pam_log(LOG_DEBUG, "pam_sm_authenticate: username = %s", username);
-     } else if (retval != PAM_SUCCESS) {
-	  _pam_log(LOG_WARNING, "pam_sm_authenticate: failed to get username");
+     if (retval != PAM_SUCCESS || !username) {
+	  pam_syslog(pamh, LOG_WARNING,
+		     "pam_sm_authenticate: failed to get username");
+	  if (retval == PAM_SUCCESS)
+	      retval = PAM_USER_UNKNOWN; /* username was null */
 	  return retval;
+     }
+     else if ((ctrl & PAM_ST_DEBUG) && (retval == PAM_SUCCESS)) {
+	  pam_syslog(pamh, LOG_DEBUG,
+		     "pam_sm_authenticate: username = %s", username);
      }
 
      /* now get the password */
 
      retval = stress_get_password(pamh,flags,ctrl,&pass);
      if (retval != PAM_SUCCESS) {
-	  _pam_log(LOG_WARNING, "pam_sm_authenticate: "
-		   "failed to get a password");
+	  pam_syslog(pamh, LOG_WARNING,
+		     "pam_sm_authenticate: failed to get a password");
 	  return retval;
      }
 
      /* try to set password item */
 
      retval = pam_set_item(pamh,PAM_AUTHTOK,pass);
-     if (retval != PAM_SUCCESS) {
-	  _pam_log(LOG_WARNING, "pam_sm_authenticate: "
-		   "failed to store new password");
-	  _pam_overwrite(pass);
-	  free(pass);
-	  return retval;
-     }
-
-     /* clean up local copy of password */
-
-     _pam_overwrite(pass);
+     _pam_overwrite(pass); /* clean up local copy of password */
      free(pass);
      pass = NULL;
+     if (retval != PAM_SUCCESS) {
+	  pam_syslog(pamh, LOG_WARNING,
+		     "pam_sm_authenticate: failed to store new password");
+	  return retval;
+     }
 
      /* if we are debugging then we print the password */
 
      if (ctrl & PAM_ST_DEBUG) {
-	  (void) pam_get_item(pamh,PAM_AUTHTOK,(const void **)&pass);
-	  _pam_log(LOG_DEBUG,
-		   "pam_st_authenticate: password entered is: [%s]\n",pass);
-	  pass = NULL;
+          const void *pam_pass;
+	  (void) pam_get_item(pamh,PAM_AUTHTOK,&pam_pass);
+	  pam_syslog(pamh, LOG_DEBUG,
+		     "pam_st_authenticate: password entered is: [%s]",
+		     (const char *)pam_pass);
      }
 
      /* if we signal a fail for this function then fail */
@@ -293,11 +287,11 @@ PAM_EXTERN
 int pam_sm_setcred(pam_handle_t *pamh, int flags,
 		   int argc, const char **argv)
 {
-     int ctrl = _pam_parse(argc,argv);
+     int ctrl = _pam_parse(pamh, argc, argv);
 
      D(("called. [post parsing]"));
 
-     _pam_report(ctrl, "pam_sm_setcred", flags, argc, argv);
+     _pam_report(pamh, ctrl, "pam_sm_setcred", flags, argc, argv);
 
      if (ctrl & PAM_ST_FAIL_2)
 	  return PAM_CRED_ERR;
@@ -311,20 +305,30 @@ PAM_EXTERN
 int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 		     int argc, const char **argv)
 {
-     int ctrl = _pam_parse(argc,argv);
+     int ctrl = _pam_parse(pamh, argc, argv);
 
      D(("called. [post parsing]"));
 
-     _pam_report(ctrl,"pam_sm_acct_mgmt", flags, argc, argv);
+     _pam_report(pamh, ctrl,"pam_sm_acct_mgmt", flags, argc, argv);
 
      if (ctrl & PAM_ST_FAIL_1)
 	  return PAM_PERM_DENIED;
      else if (ctrl & PAM_ST_EXPIRED) {
-	  void *text = malloc(sizeof("yes")+1);
-	  strcpy(text,"yes");
-	  pam_set_data(pamh,"stress_new_pwd",text,wipe_up);
+	  int retval;
+	  void *text = strdup("yes");
+	  if (!text)
+	        return PAM_BUF_ERR;
+	  retval = pam_set_data(pamh,"stress_new_pwd",text,wipe_up);
+	  if (retval != PAM_SUCCESS) {
+	        pam_syslog(pamh, LOG_DEBUG,
+			   "pam_sm_acct_mgmt: failed setting stress_new_pwd");
+	        free(text);
+	        return retval;
+	  }
+
 	  if (ctrl & PAM_ST_DEBUG) {
-	       _pam_log(LOG_DEBUG,"pam_sm_acct_mgmt: need a new password");
+	       pam_syslog(pamh, LOG_DEBUG,
+			  "pam_sm_acct_mgmt: need a new password");
 	  }
 	  return PAM_NEW_AUTHTOK_REQD;
      }
@@ -336,23 +340,23 @@ PAM_EXTERN
 int pam_sm_open_session(pam_handle_t *pamh, int flags,
 			int argc, const char **argv)
 {
-     char *username,*service;
-     int ctrl = _pam_parse(argc,argv);
+     const void *username, *service;
+     int ctrl = _pam_parse(pamh, argc, argv);
 
      D(("called. [post parsing]"));
 
-     _pam_report(ctrl,"pam_sm_open_session", flags, argc, argv);
+     _pam_report(pamh, ctrl,"pam_sm_open_session", flags, argc, argv);
 
-     if ((pam_get_item(pamh, PAM_USER, (const void **) &username)
-	  != PAM_SUCCESS)
-	 || (pam_get_item(pamh, PAM_SERVICE, (const void **) &service)
-	     != PAM_SUCCESS)) {
-	  _pam_log(LOG_WARNING,"pam_sm_open_session: for whom?");
+     if ((pam_get_item(pamh, PAM_USER, &username)
+	  != PAM_SUCCESS || !username)
+	 || (pam_get_item(pamh, PAM_SERVICE, &service)
+	     != PAM_SUCCESS || !service)) {
+	  pam_syslog(pamh, LOG_WARNING, "pam_sm_open_session: for whom?");
 	  return PAM_SESSION_ERR;
      }
 
-     _pam_log(LOG_NOTICE,"pam_stress: opened [%s] session for user [%s]"
-	      , service, username);
+     pam_syslog(pamh, LOG_NOTICE, "opened [%s] session for user [%s]",
+	        (const char *)service, (const char *)username);
 
      if (ctrl & PAM_ST_FAIL_1)
 	  return PAM_SESSION_ERR;
@@ -364,23 +368,23 @@ PAM_EXTERN
 int pam_sm_close_session(pam_handle_t *pamh, int flags,
 			 int argc, const char **argv)
 {
-     const char *username,*service;
-     int ctrl = _pam_parse(argc,argv);
+     const void *username, *service;
+     int ctrl = _pam_parse(pamh, argc, argv);
 
      D(("called. [post parsing]"));
 
-     _pam_report(ctrl,"pam_sm_close_session", flags, argc, argv);
+     _pam_report(pamh, ctrl,"pam_sm_close_session", flags, argc, argv);
 
-     if ((pam_get_item(pamh, PAM_USER, (const void **)&username)
-	  != PAM_SUCCESS)
-	 || (pam_get_item(pamh, PAM_SERVICE, (const void **)&service)
-	     != PAM_SUCCESS)) {
-	  _pam_log(LOG_WARNING,"pam_sm_close_session: for whom?");
+     if ((pam_get_item(pamh, PAM_USER, &username)
+	  != PAM_SUCCESS || !username)
+	 || (pam_get_item(pamh, PAM_SERVICE, &service)
+	     != PAM_SUCCESS || !service)) {
+	  pam_syslog(pamh, LOG_WARNING, "pam_sm_close_session: for whom?");
 	  return PAM_SESSION_ERR;
      }
 
-     _pam_log(LOG_NOTICE,"pam_stress: closed [%s] session for user [%s]"
-	      , service, username);
+     pam_syslog(pamh, LOG_NOTICE, "closed [%s] session for user [%s]",
+	      (const char *)service, (const char *)username);
 
      if (ctrl & PAM_ST_FAIL_2)
 	  return PAM_SESSION_ERR;
@@ -393,17 +397,17 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		     int argc, const char **argv)
 {
      int retval;
-     int ctrl = _pam_parse(argc,argv);
+     int ctrl = _pam_parse(pamh, argc, argv);
 
      D(("called. [post parsing]"));
 
-     _pam_report(ctrl,"pam_sm_chauthtok", flags, argc, argv);
+     _pam_report(pamh, ctrl,"pam_sm_chauthtok", flags, argc, argv);
 
      /* this function should be called twice by the Linux-PAM library */
 
      if (flags & PAM_PRELIM_CHECK) {           /* first call */
 	  if (ctrl & PAM_ST_DEBUG) {
-	       _pam_log(LOG_DEBUG,"pam_sm_chauthtok: prelim check");
+	       pam_syslog(pamh, LOG_DEBUG, "pam_sm_chauthtok: prelim check");
 	  }
 	  if (ctrl & PAM_ST_PRELIM)
 	       return PAM_TRY_AGAIN;
@@ -412,12 +416,12 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
      } else if (flags & PAM_UPDATE_AUTHTOK) {  /* second call */
 	  struct pam_message msg[3],*pmsg[3];
 	  struct pam_response *resp;
-	  const char *text;
+	  const void *text;
 	  char *txt=NULL;
 	  int i;
 
 	  if (ctrl & PAM_ST_DEBUG) {
-	       _pam_log(LOG_DEBUG,"pam_sm_chauthtok: alter password");
+	       pam_syslog(pamh, LOG_DEBUG, "pam_sm_chauthtok: alter password");
 	  }
 
 	  if (ctrl & PAM_ST_FAIL_1)
@@ -425,7 +429,7 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 	  if ( !(ctrl && PAM_ST_EXPIRED)
 	       && (flags & PAM_CHANGE_EXPIRED_AUTHTOK)
-	       && (pam_get_data(pamh,"stress_new_pwd",(const void **)&text)
+	       && (pam_get_data(pamh,"stress_new_pwd", &text)
 		      != PAM_SUCCESS || strcmp(text,"yes"))) {
 	       return PAM_SUCCESS;          /* the token has not expired */
 	  }
@@ -438,41 +442,40 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	       char *pass;
 
 	       if (ctrl & PAM_ST_DEBUG) {
-		    _pam_log(LOG_DEBUG
-			     ,"pam_sm_chauthtok: getting old password");
+		    pam_syslog(pamh, LOG_DEBUG,
+			       "pam_sm_chauthtok: getting old password");
 	       }
 	       retval = stress_get_password(pamh,flags,ctrl,&pass);
 	       if (retval != PAM_SUCCESS) {
-		    _pam_log(LOG_DEBUG
-			     ,"pam_sm_chauthtok: no password obtained");
+		    pam_syslog(pamh, LOG_DEBUG,
+			       "pam_sm_chauthtok: no password obtained");
 		    return retval;
 	       }
 	       retval = pam_set_item(pamh, PAM_OLDAUTHTOK, pass);
-	       if (retval != PAM_SUCCESS) {
-		    _pam_log(LOG_DEBUG
-			     ,"pam_sm_chauthtok: could not set OLDAUTHTOK");
-		    _pam_overwrite(pass);
-		    free(pass);
-		    return retval;
-	       }
 	       _pam_overwrite(pass);
 	       free(pass);
+	       pass = NULL;
+	       if (retval != PAM_SUCCESS) {
+		    pam_syslog(pamh, LOG_DEBUG,
+			       "pam_sm_chauthtok: could not set OLDAUTHTOK");
+		    return retval;
+	       }
 	  }
 
 	  /* set up for conversation */
 
 	  if (!(flags & PAM_SILENT)) {
-	       char *username;
+	       const void *username;
 
-	       if ( pam_get_item(pamh, PAM_USER, (const void **)&username)
+	       if ( pam_get_item(pamh, PAM_USER, &username)
 		    || username == NULL ) {
-		    _pam_log(LOG_ERR,"no username set");
+		    pam_syslog(pamh, LOG_ERR, "no username set");
 		    return PAM_USER_UNKNOWN;
 	       }
 	       pmsg[0] = &msg[0];
 	       msg[0].msg_style = PAM_TEXT_INFO;
-#define _LOCAL_STRESS_COMMENT "Changing STRESS password for "
-	       txt = (char *) malloc(sizeof(_LOCAL_STRESS_COMMENT)
+#define _LOCAL_STRESS_COMMENT _("Changing STRESS password for ")
+	       txt = (char *) malloc(strlen(_LOCAL_STRESS_COMMENT)
 				     +strlen(username)+1);
 	       strcpy(txt, _LOCAL_STRESS_COMMENT);
 #undef _LOCAL_STRESS_COMMENT
@@ -485,10 +488,10 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 
 	  pmsg[i] = &msg[i];
 	  msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-	  msg[i++].msg = "Enter new STRESS password: ";
+	  msg[i++].msg = _("Enter new STRESS password: ");
 	  pmsg[i] = &msg[i];
 	  msg[i].msg_style = PAM_PROMPT_ECHO_OFF;
-	  msg[i++].msg = "Retype new STRESS password: ";
+	  msg[i++].msg = _("Retype new STRESS password: ");
 	  resp = NULL;
 
 	  retval = converse(pamh,i,pmsg,&resp);
@@ -501,7 +504,8 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	  }
 
 	  if (resp == NULL) {
-	       _pam_log(LOG_ERR, "pam_sm_chauthtok: no response from conv");
+	       pam_syslog(pamh, LOG_ERR,
+			  "pam_sm_chauthtok: no response from conv");
 	       return PAM_CONV_ERR;
 	  }
 
@@ -516,8 +520,8 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		    if (!(flags & PAM_SILENT) && !(ctrl & PAM_ST_NO_WARN)) {
 			 pmsg[0] = &msg[0];
 			 msg[0].msg_style = PAM_ERROR_MSG;
-			 msg[0].msg = "Verification mis-typed; "
-			      "password unchaged";
+			 msg[0].msg = _("Verification mis-typed; "
+					"password unchanged");
 			 resp = NULL;
 			 (void) converse(pamh,1,pmsg,&resp);
 			 if (resp) {
@@ -527,20 +531,22 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		    return PAM_AUTHTOK_ERR;
 	       }
 
-	       if (pam_get_item(pamh,PAM_AUTHTOK,(const void **)&text)
+	       if (pam_get_item(pamh,PAM_AUTHTOK,&text)
 		   == PAM_SUCCESS) {
 		    (void) pam_set_item(pamh,PAM_OLDAUTHTOK,text);
 		    text = NULL;
 	       }
 	       (void) pam_set_item(pamh,PAM_AUTHTOK,resp[0].resp);
 	  } else {
-	       _pam_log(LOG_DEBUG,"pam_sm_chauthtok: problem with resp");
+	       pam_syslog(pamh, LOG_DEBUG,
+			  "pam_sm_chauthtok: problem with resp");
 	       retval = PAM_SYSTEM_ERR;
 	  }
 
 	  _pam_drop_reply(resp, i);      /* clean up the passwords */
      } else {
-	  _pam_log(LOG_ERR,"pam_sm_chauthtok: this must be a Linux-PAM error");
+	  pam_syslog(pamh, LOG_ERR,
+		     "pam_sm_chauthtok: this must be a Linux-PAM error");
 	  return PAM_SYSTEM_ERR;
      }
 

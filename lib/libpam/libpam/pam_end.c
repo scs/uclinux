@@ -4,9 +4,9 @@
  * $Id$
  */
 
-#include <stdlib.h>
-
 #include "pam_private.h"
+
+#include <stdlib.h>
 
 int pam_end(pam_handle_t *pamh, int pam_status)
 {
@@ -20,6 +20,10 @@ int pam_end(pam_handle_t *pamh, int pam_status)
 	D(("called from module!?"));
 	return PAM_SYSTEM_ERR;
     }
+
+#ifdef HAVE_LIBAUDIT
+    _pam_audit_end(pamh, pam_status);
+#endif
 
     /* first liberate the modules (it is not inconcevible that the
        modules may need to use the service_name etc. to clean up) */

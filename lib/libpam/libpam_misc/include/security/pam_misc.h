@@ -6,6 +6,10 @@
 #include <security/pam_appl.h>
 #include <security/pam_client.h>
 
+#ifdef __cplusplus 
+extern "C" { 
+#endif /* __cplusplus */
+
 /* include some useful macros */
 
 #include <security/_pam_macros.h>
@@ -32,16 +36,6 @@ extern void (*pam_binary_handler_free)(void *appdata, pamc_bp_t *prompt_p);
 extern int pam_misc_paste_env(pam_handle_t *pamh
 			      , const char * const * user_env);
 
-/* char **pam_misc_copy_env(pam_handle_t *pamh);
-
-   This is no longer defined as a prototype because the X/Open XSSO
-   spec makes it clear that PAM's pam_getenvlist() does exactly
-   what this was needed for.
-
-   A wrapper is still provided in the pam_misc library - so that
-   legacy applications will still work.  But _BE_WARNED_ it will
-   disappear by the release of libpam 1.0 . */
-
 /* delete environment as obtained from (pam_getenvlist) */
 extern char **pam_misc_drop_env(char **env);
 
@@ -51,7 +45,8 @@ extern char **pam_misc_drop_env(char **env);
 extern int pam_misc_setenv(pam_handle_t *pamh, const char *name
 			   , const char *value, int readonly);
 
-#endif
+#ifdef __cplusplus
+}
+#endif /* def __cplusplus */
 
- 
-	
+#endif /* ndef __PAMMISC_H */

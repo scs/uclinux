@@ -6,8 +6,8 @@ THEORY OF OPERATION:
 
 First, make a root-only-readable file (/etc/security/limits.conf by
 default or INSTALLED_CONFILE defined Makefile) that describes the
-resource limits you wish to impose. No limits are imposed on UID 0
-accounts.
+resource limits you wish to impose. No priority changes and login 
+limit checks are done on UID 0 accounts.
 
 Each line describes a limit for a user in the form:
 
@@ -37,6 +37,14 @@ Where:
 	- as - address space limit
 	- maxlogins - max number of logins for this user
 	- maxsyslogins - max number of logins on the system
+	- priority - lower the priority by given value (value can be -ve)
+	- locks - max locked files (Linux 2.4 and higher)
+	- sigpending - max number of pending signals (Linux 2.6 and higher)
+	- msgqueue - max memory used by POSIX message queues (bytes) 
+	  (Linux 2.6 and higher)
+	- nice - max nice priority allowed to raise to (Linux 2.6.12 and higher)
+	- rtprio - max realtime priority allowed for non-priviledged
+          processes (Linux 2.6.12 and higher)
 
 Note, if you specify a type of '-' but neglect to supply the item and
 value fields then the module will never enforce any limits on the
@@ -79,6 +87,13 @@ ARGUMENTS RECOGNIZED:
 			no processes.  Be warned that something else
 			may break when you do this.
 
+    utmp_early		some broken applications actually allocate a
+			utmp entry for the user before the user is
+			admitted to the system. If the service you are
+			configuring PAM for does this, you can use
+			this module argument to compensate for this
+			brokenness.
+
 MODULE SERVICES PROVIDED:
 	session            _open_session and _close_session (blank)
 
@@ -95,4 +110,4 @@ USAGE:
 AUTHOR:
         Cristian Gafton <gafton@redhat.com>
 	Thanks to Elliot Lee <sopwith@redhat.com> for his comments on
-	improving this module.
+	improving this module, and Jens Sorensen for Linux 2.4 updates.

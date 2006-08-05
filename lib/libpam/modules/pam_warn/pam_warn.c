@@ -6,7 +6,7 @@
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  */
 
-#define _BSD_SOURCE
+#include "config.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -24,93 +24,84 @@
 #define PAM_SM_PASSWORD
 
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 /* some syslogging */
 
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
+#define OBTAIN(item, value, default_value)  do {                \
+     (void) pam_get_item(pamh, item, &value);                   \
+     value = value ? value : default_value ;                    \
+} while (0)
 
-    va_start(args, format);
-    openlog("PAM-warn", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
+static void log_items(pam_handle_t *pamh, const char *function)
+{
+     const void *service=NULL, *user=NULL, *terminal=NULL,
+	 *rhost=NULL, *ruser=NULL;
+
+     OBTAIN(PAM_SERVICE, service, "<unknown>");
+     OBTAIN(PAM_TTY, terminal, "<unknown>");
+     OBTAIN(PAM_USER, user, "<unknown>");
+     OBTAIN(PAM_RUSER, ruser, "<unknown>");
+     OBTAIN(PAM_RHOST, rhost, "<unknown>");
+
+     pam_syslog(pamh, LOG_NOTICE,
+		"function=[%s] service=[%s] terminal=[%s] user=[%s]"
+		" ruser=[%s] rhost=[%s]\n", function,
+		(const char *) service, (const char *) terminal,
+		(const char *) user, (const char *) ruser,
+		(const char *) rhost);
 }
 
 /* --- authentication management functions (only) --- */
 
 PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc
-			, const char **argv)
+int pam_sm_authenticate(pam_handle_t *pamh, int flags UNUSED,
+			int argc UNUSED, const char **argv UNUSED)
 {
-     const char *service=NULL, *user=NULL, *terminal=NULL
-	 , *rhost=NULL, *ruser=NULL;
-
-     (void) pam_get_item(pamh, PAM_SERVICE, (const void **)&service);
-     (void) pam_get_item(pamh, PAM_TTY, (const void **)&terminal);
-     _pam_log(LOG_NOTICE, "service: %s [on terminal: %s]"
-	      , service ? service : "<unknown>"
-	      , terminal ? terminal : "<unknown>"
-	 );
-     (void) pam_get_user(pamh, &user, "Who are you? ");
-     (void) pam_get_item(pamh, PAM_RUSER, (const void **)&ruser);
-     (void) pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
-     _pam_log(LOG_NOTICE, "user: (uid=%d) -> %s [remote: %s@%s]"
-	      , getuid()
-	      , user ? user : "<unknown>"
-	      , ruser ? ruser : "?nobody"
-	      , rhost ? rhost : "?nowhere"
-	      );
-
-     /* we are just a fly on the wall */
-
-     return PAM_IGNORE;
+    log_items(pamh, __FUNCTION__);
+    return PAM_IGNORE;
 }
 
 PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh,int flags,int argc
-		   , const char **argv)
+int pam_sm_setcred(pam_handle_t *pamh, int flags UNUSED,
+		   int argc UNUSED, const char **argv UNUSED)
 {
+    log_items(pamh, __FUNCTION__);
     return PAM_IGNORE;
 }
 
 /* password updating functions */
 
 PAM_EXTERN
-int pam_sm_chauthtok(pam_handle_t *pamh,int flags,int argc
-		   , const char **argv)
+int pam_sm_chauthtok(pam_handle_t *pamh, int flags UNUSED,
+		     int argc UNUSED, const char **argv UNUSED)
 {
-    /* map to the authentication function... */
-
-    return pam_sm_authenticate(pamh, flags, argc, argv);
+    log_items(pamh, __FUNCTION__);
+    return PAM_IGNORE;
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt (pam_handle_t *pamh, int flags,
-                  int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags UNUSED,
+		 int argc UNUSED, const char **argv UNUSED)
 {
-    /* map to the authentication function... */
-
-    return pam_sm_authenticate(pamh, flags, argc, argv);
+    log_items(pamh, __FUNCTION__);
+    return PAM_IGNORE;
 }
 
 PAM_EXTERN int
-pam_sm_open_session (pam_handle_t *pamh, int flags, int argc,
-                     const char **argv)
+pam_sm_open_session(pam_handle_t *pamh, int flags UNUSED,
+		    int argc UNUSED, const char **argv UNUSED)
 {
-    /* map to the authentication function... */
-
-    return pam_sm_authenticate(pamh, flags, argc, argv);
+    log_items(pamh, __FUNCTION__);
+    return PAM_IGNORE;
 }
 
 PAM_EXTERN int
-pam_sm_close_session (pam_handle_t *pamh, int flags, int argc,
-		      const char **argv)
+pam_sm_close_session(pam_handle_t *pamh, int flags UNUSED,
+		     int argc UNUSED, const char **argv UNUSED)
 {
-    /* map to the authentication function... */
-
-    return pam_sm_authenticate(pamh, flags, argc, argv);
+    log_items(pamh, __FUNCTION__);
+    return PAM_IGNORE;
 }
 
 #ifdef PAM_STATIC

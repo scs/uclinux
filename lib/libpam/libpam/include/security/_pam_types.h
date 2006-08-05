@@ -1,29 +1,14 @@
 /*
  * <security/_pam_types.h>
  *
- * $Id$
- *
  * This file defines all of the types common to the Linux-PAM library
  * applications and modules.
  *
  * Note, the copyright+license information is at end of file.
- *
- * Created: 1996/3/5 by AGM
  */
 
 #ifndef _SECURITY__PAM_TYPES_H
 #define _SECURITY__PAM_TYPES_H
-
-#ifndef __LIBPAM_VERSION
-# define __LIBPAM_VERSION __libpam_version
-#endif
-extern unsigned int __libpam_version;
-
-/*
- * include local definition for POSIX - NULL
- */
-
-#include <locale.h>
 
 /* This is a blind structure; users aren't allowed to see inside a
  * pam_handle_t, so we don't define struct pam_handle here.  This is
@@ -31,6 +16,13 @@ extern unsigned int __libpam_version;
  * to PAM service modules, too!)  */
 
 typedef struct pam_handle pam_handle_t;
+
+/* ---------------- The Linux-PAM Version defines ----------------- */
+
+/* Major and minor version number of the Linux-PAM package.  Use
+   these macros to test for features in specific releases.  */
+#define __LINUX_PAM__ 1
+#define __LINUX_PAM_MINOR__ 0
 
 /* ----------------- The Linux-PAM return values ------------------ */
 
@@ -46,7 +38,7 @@ typedef struct pam_handle pam_handle_t;
 #define PAM_CRED_INSUFFICIENT 8	/* Can not access authentication data */
 				/* due to insufficient credentials */
 #define PAM_AUTHINFO_UNAVAIL 9	/* Underlying authentication service */
-				/* can not retrieve authenticaiton */
+				/* can not retrieve authentication */
 				/* information  */
 #define PAM_USER_UNKNOWN 10	/* User not known to the underlying */
 				/* authenticaiton module */
@@ -71,12 +63,12 @@ typedef struct pam_handle pam_handle_t;
 #define PAM_NO_MODULE_DATA 18	/* No module specific data is present */
 #define PAM_CONV_ERR 19		/* Conversation error */
 #define PAM_AUTHTOK_ERR 20	/* Authentication token manipulation error */
-#define PAM_AUTHTOK_RECOVER_ERR 21 /* Authentication information */
-				   /* cannot be recovered */
+#define PAM_AUTHTOK_RECOVERY_ERR 21 /* Authentication information */
+				    /* cannot be recovered */
 #define PAM_AUTHTOK_LOCK_BUSY 22   /* Authentication token lock busy */
 #define PAM_AUTHTOK_DISABLE_AGING 23 /* Authentication token aging disabled */
 #define PAM_TRY_AGAIN 24	/* Preliminary check by password service */
-#define PAM_IGNORE 25		/* Ingore underlying account module */
+#define PAM_IGNORE 25		/* Ignore underlying account module */
 				/* regardless of whether the control */
 				/* flag is required, optional, or sufficient */
 #define PAM_ABORT 26            /* Critical error (?module fail now request) */
@@ -133,31 +125,62 @@ typedef struct pam_handle pam_handle_t;
 
 /* ------------------ The Linux-PAM item types ------------------- */
 
-/* these defines are used by pam_set_item() and pam_get_item() */
+/* These defines are used by pam_set_item() and pam_get_item().
+   Please check the spec which are allowed for use by applications
+   and which are only allowed for use by modules. */
 
 #define PAM_SERVICE	   1	/* The service name */
 #define PAM_USER           2	/* The user name */
 #define PAM_TTY            3	/* The tty name */
 #define PAM_RHOST          4	/* The remote host name */
 #define PAM_CONV           5	/* The pam_conv structure */
-
-/* missing entries found in <security/pam_modules.h> for modules only! */
-
+#define PAM_AUTHTOK        6	/* The authentication token (password) */
+#define PAM_OLDAUTHTOK     7	/* The old authentication token */
 #define PAM_RUSER          8	/* The remote user name */
 #define PAM_USER_PROMPT    9    /* the prompt for getting a username */
 #define PAM_FAIL_DELAY     10   /* app supplied function to override failure
 				   delays */
 
+/* -------------- Special defines used by Linux-PAM -------------- */
+
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+# define PAM_GNUC_PREREQ(maj, min) \
+        ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+#else
+# define PAM_GNUC_PREREQ(maj, min) 0
+#endif
+
+#if PAM_GNUC_PREREQ(2,5)
+# define PAM_FORMAT(params) __attribute__((__format__ params))
+#else
+# define PAM_FORMAT(params)
+#endif
+
+#if PAM_GNUC_PREREQ(3,3) && !defined(LIBPAM_COMPILE)
+# define PAM_NONNULL(params) __attribute__((__nonnull__ params))
+#else
+# define PAM_NONNULL(params)
+#endif
+
 /* ---------- Common Linux-PAM application/module PI ----------- */
 
-extern int pam_set_item(pam_handle_t *pamh, int item_type, const void *item);
-extern int pam_get_item(const pam_handle_t *pamh, int item_type,
-			const void **item);
-extern const char *pam_strerror(pam_handle_t *pamh, int errnum);
+extern int PAM_NONNULL((1))
+pam_set_item(pam_handle_t *pamh, int item_type, const void *item);
 
-extern int pam_putenv(pam_handle_t *pamh, const char *name_value);
-extern const char *pam_getenv(pam_handle_t *pamh, const char *name);
-extern char **pam_getenvlist(pam_handle_t *pamh);
+extern int PAM_NONNULL((1))
+pam_get_item(const pam_handle_t *pamh, int item_type, const void **item);
+
+extern const char *
+pam_strerror(pam_handle_t *pamh, int errnum);
+
+extern int PAM_NONNULL((1,2))
+pam_putenv(pam_handle_t *pamh, const char *name_value);
+
+extern const char * PAM_NONNULL((1,2))
+pam_getenv(pam_handle_t *pamh, const char *name);
+
+extern char ** PAM_NONNULL((1))
+pam_getenvlist(pam_handle_t *pamh);
 
 /* ---------- Common Linux-PAM application/module PI ----------- */
 
@@ -188,13 +211,6 @@ extern char **pam_getenvlist(pam_handle_t *pamh);
 
 #define HAVE_PAM_FAIL_DELAY
 extern int pam_fail_delay(pam_handle_t *pamh, unsigned int musec_delay);
-
-#include <syslog.h>
-#ifndef LOG_AUTHPRIV
-# ifdef LOG_PRIV
-#  define LOG_AUTHPRIV LOG_PRIV
-# endif /* LOG_PRIV */
-#endif /* !LOG_AUTHPRIV */
 
 #ifdef MEMORY_DEBUG
 /*
@@ -272,18 +288,6 @@ struct pam_conv {
     void *appdata_ptr;
 };
 
-#ifndef LINUX_PAM
-/*
- * the following few lines represent a hack.  They are there to make
- * the Linux-PAM headers more compatible with the Sun ones, which have a
- * less strictly separated notion of module specific and application
- * specific definitions.
- */
-#include <security/pam_appl.h>
-#include <security/pam_modules.h>
-#endif
-
-
 /* ... adapted from the pam_appl.h file created by Theodore Ts'o and
  *
  * Copyright Theodore Ts'o, 1996.  All rights reserved.
@@ -301,13 +305,13 @@ struct pam_conv {
  * 3. The name of the author may not be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
- * 
+ *
  * ALTERNATIVELY, this product may be distributed under the terms of
  * the GNU Public License, in which case the provisions of the GPL are
  * required INSTEAD OF the above restrictions.  (This clause is
  * necessary due to a potential bad interaction between the GPL and
  * the restrictions contained in a BSD-style copyright.)
- * 
+ *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -321,4 +325,3 @@ struct pam_conv {
  * OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
 #endif /* _SECURITY__PAM_TYPES_H */
-

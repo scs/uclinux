@@ -5,6 +5,7 @@
 #ifndef _PAM_UNIX_SUPPORT_H
 #define _PAM_UNIX_SUPPORT_H
 
+#include <pwd.h>
 
 /*
  * here is the string to inform the user that the new passwords they
@@ -80,8 +81,11 @@ typedef struct {
 #define UNIX_BIGCRYPT            18	/* use DEC-C2 crypt()^x function */
 #define UNIX_LIKE_AUTH           19	/* need to auth for setcred to work */
 #define UNIX_REMEMBER_PASSWD     20	/* Remember N previous passwords */
+#define UNIX_NOREAP              21     /* don't reap child process */
+#define UNIX_BROKEN_SHADOW       22     /* ignore errors reading password aging
+					 * information during acct management */
 /* -------------- */
-#define UNIX_CTRLS_              21	/* number of ctrl arguments defined */
+#define UNIX_CTRLS_              23	/* number of ctrl arguments defined */
 
 
 static const UNIX_Ctrls unix_args[UNIX_CTRLS_] =
@@ -106,10 +110,12 @@ static const UNIX_Ctrls unix_args[UNIX_CTRLS_] =
 /* UNIX__NULLOK */         {"nullok",          _ALL_ON_^(01000),           0},
 /* UNIX_DEBUG */           {"debug",           _ALL_ON_,              040000},
 /* UNIX_NODELAY */         {"nodelay",         _ALL_ON_,             0100000},
-/* UNIX_NIS */             {"nis",             _ALL_ON_^(010000),    0200000},
+/* UNIX_NIS */             {"nis",             _ALL_ON_,             0200000},
 /* UNIX_BIGCRYPT */        {"bigcrypt",        _ALL_ON_^(020000),    0400000},
 /* UNIX_LIKE_AUTH */       {"likeauth",        _ALL_ON_,            01000000},
 /* UNIX_REMEMBER_PASSWD */ {"remember=",       _ALL_ON_,            02000000},
+/* UNIX_NOREAP */          {"noreap",          _ALL_ON_,            04000000},
+/* UNIX_BROKEN_SHADOW */   {"broken_shadow",   _ALL_ON_,           010000000},
 };
 
 #define UNIX_DEFAULTS  (unix_args[UNIX__NONULL].flag)
@@ -123,13 +129,17 @@ static const UNIX_Ctrls unix_args[UNIX_CTRLS_] =
 	_pam_drop(xx);		\
 }
 
-extern char *PAM_getlogin(void);
-extern void _log_err(int err, pam_handle_t *pamh, const char *format,...);
 extern int _make_remark(pam_handle_t * pamh, unsigned int ctrl
 		       ,int type, const char *text);
 extern int _set_ctrl(pam_handle_t * pamh, int flags, int *remember, int argc,
 		     const char **argv);
-extern int _unix_blankpasswd(unsigned int ctrl, const char *name);
+extern int _unix_getpwnam (pam_handle_t *pamh,
+			   const char *name, int files, int nis,
+			   struct passwd **ret);
+extern int _unix_comesfromsource (pam_handle_t *pamh,
+				  const char *name, int files, int nis);
+extern int _unix_blankpasswd(pam_handle_t *pamh,unsigned int ctrl,
+			     const char *name);
 extern int _unix_verify_password(pam_handle_t * pamh, const char *name
 			  ,const char *p, unsigned int ctrl);
 extern int _unix_read_password(pam_handle_t * pamh
@@ -138,7 +148,8 @@ extern int _unix_read_password(pam_handle_t * pamh
 			,const char *prompt1
 			,const char *prompt2
 			,const char *data_name
-			,const char **pass);
+			,const void **pass);
+extern int _unix_shadowed(const struct passwd *pwd);
 
+extern struct spwd *_unix_run_verify_binary(pam_handle_t *pamh, unsigned int ctrl, const char *user);
 #endif /* _PAM_UNIX_SUPPORT_H */
-

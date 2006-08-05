@@ -14,62 +14,58 @@
  * Released under the GNU LGPL version 2 or later
  */
 
-#define _GNU_SOURCE
-#define _BSD_SOURCE
+#include "config.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <time.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/utsname.h>
 #include <utmp.h>
-#include <malloc.h>
-
-#include <security/_pam_macros.h>
+#include <time.h>
+#include <syslog.h>
 
 #define PAM_SM_AUTH
 
+#include <security/_pam_macros.h>
 #include <security/pam_modules.h>
+#include <security/pam_ext.h>
 
 static int _user_prompt_set = 0;
 
-char *do_prompt (FILE *);
+static int read_issue_raw(pam_handle_t *pamh, FILE *fp, char **prompt);
+static int read_issue_quoted(pam_handle_t *pamh, FILE *fp, char **prompt);
 
 /* --- authentication management functions (only) --- */
 
-PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-                        const char **argv)
+PAM_EXTERN int
+pam_sm_authenticate (pam_handle_t *pamh, int flags UNUSED,
+		     int argc, const char **argv)
 {
-    int retval = PAM_SUCCESS;
-    FILE *fd;
+    int retval = PAM_SERVICE_ERR;
+    FILE *fp;
+    const char *issue_file = NULL;
     int parse_esc = 1;
-    char *prompt_tmp = NULL, *cur_prompt = NULL;
-    struct stat st;
-    char *issue_file = NULL;
+    const void *item = NULL;
+    const char *cur_prompt;
+    char *issue_prompt = NULL;
 
    /* If we've already set the prompt, don't set it again */
     if(_user_prompt_set)
 	return PAM_IGNORE;
-    else
-       /* we set this here so if we fail below, we wont get further
-	  than this next time around (only one real failure) */
-	_user_prompt_set = 1;
+
+    /* We set this here so if we fail below, we wont get further
+       than this next time around (only one real failure) */
+    _user_prompt_set = 1;
 
     for ( ; argc-- > 0 ; ++argv ) {
 	if (!strncmp(*argv,"issue=",6)) {
-	    issue_file = (char *) strdup(6+*argv);
-	    if (issue_file != NULL) {
-		D(("set issue_file to: %s", issue_file));
-	    } else {
-		D(("failed to strdup issue_file - ignored"));
-		return PAM_IGNORE;
-	    }
+	    issue_file = 6 + *argv;
+	    D(("set issue_file to: %s", issue_file));
 	} else if (!strcmp(*argv,"noesc")) {
 	    parse_esc = 0;
 	    D(("turning off escape parsing by request"));
@@ -78,105 +74,139 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
     }
 
     if (issue_file == NULL)
-	issue_file = strdup("/etc/issue");
+	issue_file = "/etc/issue";
 
-    if ((fd = fopen(issue_file, "r")) != NULL) {
-	int tot_size = 0;
-
-	if (stat(issue_file, &st) < 0)
-	    return PAM_IGNORE;
-
-	retval = pam_get_item(pamh, PAM_USER_PROMPT, (const void **) &cur_prompt);
-	if (retval != PAM_SUCCESS)
-	    return PAM_IGNORE;
-
-       /* first read in the issue file */
-
-	if (parse_esc)
-	    prompt_tmp = do_prompt(fd);
-	else {
-	    int count = 0;
-	    prompt_tmp = malloc(st.st_size + 1);
-	    if (prompt_tmp == NULL) return PAM_IGNORE;
-	    memset (prompt_tmp, '\0', st.st_size + 1);
-	    count = fread(prompt_tmp, sizeof(char *), st.st_size, fd);
-	    prompt_tmp[st.st_size] = '\0';
-	}
-
-	fclose(fd);
-
-	tot_size = strlen(prompt_tmp) + strlen(cur_prompt) + 1;
-
-       /*
-	* alloc some extra space for the original prompt
-	* and postpend it to the buffer
-	*/
-	prompt_tmp = realloc(prompt_tmp, tot_size);
-	strcpy(prompt_tmp+strlen(prompt_tmp), cur_prompt);
-
-	prompt_tmp[tot_size] = '\0';
-
-	retval = pam_set_item(pamh, PAM_USER_PROMPT, (const char *) prompt_tmp);
-
-	free(issue_file);
-	free(prompt_tmp);
-    } else {
-	D(("could not open issue_file: %s", issue_file));
-	return PAM_IGNORE;
+    if ((fp = fopen(issue_file, "r")) == NULL) {
+	pam_syslog(pamh, LOG_ERR, "error opening %s: %m", issue_file);
+	return PAM_SERVICE_ERR;
     }
 
-    return retval;
+    if ((retval = pam_get_item(pamh, PAM_USER_PROMPT, &item)) != PAM_SUCCESS) {
+	fclose(fp);
+	return retval;
+    }
+
+    cur_prompt = item;
+    if (cur_prompt == NULL)
+	cur_prompt = "";
+
+    if (parse_esc)
+	retval = read_issue_quoted(pamh, fp, &issue_prompt);
+    else
+	retval = read_issue_raw(pamh, fp, &issue_prompt);
+
+    fclose(fp);
+
+    if (retval != PAM_SUCCESS)
+	goto out;
+
+    {
+	size_t size = strlen(issue_prompt) + strlen(cur_prompt) + 1;
+	char *new_prompt = realloc(issue_prompt, size);
+
+	if (new_prompt == NULL) {
+	    pam_syslog(pamh, LOG_ERR, "out of memory");
+	    retval = PAM_BUF_ERR;
+	    goto out;
+	}
+	issue_prompt = new_prompt;
+    }
+
+    strcat(issue_prompt, cur_prompt);
+    retval = pam_set_item(pamh, PAM_USER_PROMPT,
+			      (const void *) issue_prompt);
+  out:
+    _pam_drop(issue_prompt);
+    return (retval == PAM_SUCCESS) ? PAM_IGNORE : retval;
 }
 
-PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc,
-                   const char **argv)
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
 {
      return PAM_IGNORE;
 }
 
-char *do_prompt(FILE *fd)
+static int
+read_issue_raw(pam_handle_t *pamh, FILE *fp, char **prompt)
 {
-    int c, size = 1024;
-    char *issue = (char *)malloc(size);
-    char buf[1024];
+    char *issue;
+    struct stat st;
+
+    *prompt = NULL;
+
+    if (fstat(fileno(fp), &st) < 0) {
+	pam_syslog(pamh, LOG_ERR, "stat error: %m");
+	return PAM_SERVICE_ERR;
+    }
+
+    if ((issue = malloc(st.st_size + 1)) == NULL) {
+	pam_syslog(pamh, LOG_ERR, "out of memory");
+	return PAM_BUF_ERR;
+    }
+
+    if (fread(issue, 1, st.st_size, fp) != st.st_size) {
+	pam_syslog(pamh, LOG_ERR, "read error: %m");
+	_pam_drop(issue);
+	return PAM_SERVICE_ERR;
+    }
+
+    issue[st.st_size] = '\0';
+    *prompt = issue;
+    return PAM_SUCCESS;
+}
+
+static int
+read_issue_quoted(pam_handle_t *pamh, FILE *fp, char **prompt)
+{
+    int c;
+    size_t size = 1024;
+    char *issue;
     struct utsname uts;
 
-    if (issue == NULL || fd == NULL)
-	return NULL;
+    *prompt = NULL;
 
-    issue[0] = '\0'; /* zero this, for strcat to work on first buf */
+    if ((issue = malloc(size)) == NULL) {
+	pam_syslog(pamh, LOG_ERR, "out of memory");
+	return PAM_BUF_ERR;
+    }
+
+    issue[0] = '\0';
     (void) uname(&uts);
 
-    while ((c = getc(fd)) != EOF) {
+    while ((c = getc(fp)) != EOF) {
+	char buf[1024];
+
+	buf[0] = '\0';
 	if (c == '\\') {
-	    c = getc(fd);
+	    if ((c = getc(fp)) == EOF)
+		break;
 	    switch (c) {
 	      case 's':
-		snprintf (buf, 1024, "%s", uts.sysname);
+		strncat(buf, uts.sysname, sizeof(buf) - 1);
 		break;
 	      case 'n':
-		snprintf (buf, 1024, "%s", uts.nodename);
+		strncat(buf, uts.nodename, sizeof(buf) - 1);
 		break;
 	      case 'r':
-		snprintf (buf, 1024, "%s", uts.release);
+		strncat(buf, uts.release, sizeof(buf) - 1);
 		break;
 	      case 'v':
-		snprintf (buf, 1024, "%s", uts.version);
+		strncat(buf, uts.version, sizeof(buf) - 1);
 		break;
 	      case 'm':
-		snprintf (buf, 1024, "%s", uts.machine);
+		strncat(buf, uts.machine, sizeof(buf) - 1);
 		break;
 	      case 'o':
 		{
 		    char domainname[256];
 
-		    getdomainname(domainname, sizeof(domainname));
-		    domainname[sizeof(domainname)-1] = '\0';
-		    snprintf (buf, 1024, "%s", domainname);
+		    if (getdomainname(domainname, sizeof(domainname)) >= 0) {
+			domainname[sizeof(domainname)-1] = '\0';
+			strncat(buf, domainname, sizeof(buf) - 1);
+		    }
 		}
 		break;
-
 	      case 'd':
 	      case 't':
 		{
@@ -194,57 +224,71 @@ char *do_prompt(FILE *fd)
 		    tm = localtime(&now);
 
 		    if (c == 'd')
-			snprintf (buf, 1024, "%s %s %d  %d",
+			snprintf (buf, sizeof buf, "%s %s %d  %d",
 				weekday[tm->tm_wday], month[tm->tm_mon],
-				tm->tm_mday, 
-				tm->tm_year + 1900);
+				tm->tm_mday, tm->tm_year + 1900);
 		    else
-			snprintf (buf, 1024, "%02d:%02d:%02d",
+			snprintf (buf, sizeof buf, "%02d:%02d:%02d",
 				tm->tm_hour, tm->tm_min, tm->tm_sec);
 		}
 		break;
 	      case 'l':
 		{
 		    char *ttyn = ttyname(1);
-		    if (!strncmp(ttyn, "/dev/", 5))
-			ttyn += 5;
-		    snprintf (buf, 1024, "%s", ttyn);
+		    if (ttyn) {
+			if (!strncmp(ttyn, "/dev/", 5))
+			    ttyn += 5;
+			strncat(buf, ttyn, sizeof(buf) - 1);
+		    }
 		}
 		break;
 	      case 'u':
 	      case 'U':
 		{
-		    int users = 0;
+		    unsigned int users = 0;
 		    struct utmp *ut;
 		    setutent();
-		    while ((ut = getutent()))
+		    while ((ut = getutent())) {
 			if (ut->ut_type == USER_PROCESS)
-			users++;
+			    ++users;
+		    }
 		    endutent();
-		    printf ("%d ", users);
 		    if (c == 'U')
-			snprintf (buf, 1024, "%s", (users == 1) ?
-				" user" : " users");
+			snprintf (buf, sizeof buf, "%u %s", users,
+			          (users == 1) ? "user" : "users");
+		    else
+			snprintf (buf, sizeof buf, "%u", users);
 		    break;
 		}
 	      default:
 		buf[0] = c; buf[1] = '\0';
 	    }
-	    if ((strlen(issue) + strlen(buf)) < size + 1) {
-		size += strlen(buf) + 1;
-		issue = (char *) realloc (issue, size);
-	    }
-	    strcat(issue, buf);
 	} else {
 	    buf[0] = c; buf[1] = '\0';
-	    if ((strlen(issue) + strlen(buf)) < size + 1) {
-		size += strlen(buf) + 1;
-		issue = (char *) realloc (issue, size);
+	}
+
+	if ((strlen(issue) + strlen(buf)) + 1 > size) {
+	    char *new_issue;
+
+	    size += strlen(buf) + 1;
+	    new_issue = (char *) realloc (issue, size);
+	    if (new_issue == NULL) {
+		_pam_drop(issue);
+		return PAM_BUF_ERR;
 	    }
+	    issue = new_issue;
 	    strcat(issue, buf);
 	}
     }
-    return issue;
+
+    if (ferror(fp)) {
+	pam_syslog(pamh, LOG_ERR, "read error: %m");
+	_pam_drop(issue);
+	return PAM_SERVICE_ERR;
+    }
+
+    *prompt = issue;
+    return PAM_SUCCESS;
 }
 
 #ifdef PAM_STATIC

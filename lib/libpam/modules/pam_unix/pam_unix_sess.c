@@ -36,7 +36,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <security/_pam_aconf.h>
+#include "config.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,10 +53,8 @@
 
 #include <security/_pam_macros.h>
 #include <security/pam_modules.h>
-
-#ifndef LINUX_PAM
-#include <security/pam_appl.h>
-#endif				/* LINUX_PAM */
+#include <security/pam_ext.h>
+#include <security/pam_modutil.h>
 
 #include "support.h"
 
@@ -71,27 +69,31 @@ PAM_EXTERN int pam_sm_open_session(pam_handle_t * pamh, int flags,
 	char *user_name, *service;
 	unsigned int ctrl;
 	int retval;
+    const char *login_name;
 
 	D(("called."));
 
 	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
 
 	retval = pam_get_item(pamh, PAM_USER, (void *) &user_name);
-	if (user_name == NULL || retval != PAM_SUCCESS) {
-		_log_err(LOG_CRIT, pamh,
+	if (user_name == NULL || *user_name == '\0' || retval != PAM_SUCCESS) {
+		pam_syslog(pamh, LOG_CRIT,
 		         "open_session - error recovering username");
 		return PAM_SESSION_ERR;		/* How did we get authenticated with
 						   no username?! */
 	}
 	retval = pam_get_item(pamh, PAM_SERVICE, (void *) &service);
-	if (service == NULL || retval != PAM_SUCCESS) {
-		_log_err(LOG_CRIT, pamh,
+	if (service == NULL || *service == '\0' || retval != PAM_SUCCESS) {
+		pam_syslog(pamh, LOG_CRIT,
 		         "open_session - error recovering service");
 		return PAM_SESSION_ERR;
 	}
-	_log_err(LOG_INFO, pamh, "session opened for user %s by %s(uid=%d)"
-		 ,user_name
-		 ,PAM_getlogin() == NULL ? "" : PAM_getlogin(), getuid());
+	login_name = pam_modutil_getlogin(pamh);
+	if (login_name == NULL) {
+	    login_name = "";
+	}
+	pam_syslog(pamh, LOG_INFO, "session opened for user %s by %s(uid=%d)",
+		 user_name, login_name, getuid());
 
 	return PAM_SUCCESS;
 }
@@ -108,20 +110,20 @@ PAM_EXTERN int pam_sm_close_session(pam_handle_t * pamh, int flags,
 	ctrl = _set_ctrl(pamh, flags, NULL, argc, argv);
 
 	retval = pam_get_item(pamh, PAM_USER, (void *) &user_name);
-	if (user_name == NULL || retval != PAM_SUCCESS) {
-		_log_err(LOG_CRIT, pamh,
+	if (user_name == NULL || *user_name == '\0' || retval != PAM_SUCCESS) {
+		pam_syslog(pamh, LOG_CRIT,
 		         "close_session - error recovering username");
 		return PAM_SESSION_ERR;		/* How did we get authenticated with
 						   no username?! */
 	}
 	retval = pam_get_item(pamh, PAM_SERVICE, (void *) &service);
-	if (service == NULL || retval != PAM_SUCCESS) {
-		_log_err(LOG_CRIT, pamh,
+	if (service == NULL || *service == '\0' || retval != PAM_SUCCESS) {
+		pam_syslog(pamh, LOG_CRIT,
 		         "close_session - error recovering service");
 		return PAM_SESSION_ERR;
 	}
-	_log_err(LOG_INFO, pamh, "session closed for user %s"
-		 ,user_name);
+	pam_syslog(pamh, LOG_INFO, "session closed for user %s",
+		user_name);
 
 	return PAM_SUCCESS;
 }

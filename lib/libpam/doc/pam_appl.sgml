@@ -46,7 +46,7 @@ DAMAGE.
 
 <title>The Linux-PAM Application Developers' Guide
 <author>Andrew G. Morgan, <tt>morgan@kernel.org</tt>
-<date>DRAFT v0.75 2001/03/18
+<date>DRAFT v0.76 2001/12/08
 <abstract>
 This manual documents what an application developer needs to know
 about the <bf>Linux-PAM</bf> library. It describes how an application
@@ -223,7 +223,7 @@ is, is not well defined.  However, some examples are given in the
 glossary below.
 
 <sect>The public interface to <bf>Linux-PAM</bf>
- 
+
 <p>
 Firstly, the relevant include file for the <bf>Linux-PAM</bf> library
 is <tt>&lt;security/pam_appl.h&gt;</tt>. It contains the definitions
@@ -315,30 +315,62 @@ extern int pam_set_item(pam_handle_t *pamh, int item_type,
 
 <p><descrip>
 <tag><tt/PAM_SERVICE/</tag>
-     	The service name
+
+     	The service name (which identifies that PAM stack that
+     	<tt/libpam/ will use to authenticate the program).
 
 <tag><tt/PAM_USER/</tag>
-	The user name
+
+	The username of the entity under whose identity service will
+	be given. That is, following authentication, <tt/PAM_USER/
+	identifies the local entity that gets to use the
+	service. Note, this value can be mapped from something (eg.,
+	"<tt/anonymous/") to something else (eg. "<tt/guest119/") by
+	any module in the PAM stack. As such an application should
+	consult the value of <tt/PAM_USER/ after each call to a
+	<tt/pam_*()/ function.
 
 <tag><tt/PAM_USER_PROMPT/</tag>
+
 	The string used when prompting for a user's name. The default
-value for this string is ``Please enter username: ''.
+        value for this string is ``Please enter username: ''.
 
 <tag><tt/PAM_TTY/</tag>
+
 	The terminal name: prefixed by <tt>/dev/</tt> if it is a
-device file; for graphical, X-based, applications the value for this
-item should be the <tt/&dollar;DISPLAY/ variable.
+        device file; for graphical, X-based, applications the value
+        for this item should be the <tt/&dollar;DISPLAY/ variable.
 
 <tag><tt/PAM_RUSER/</tag>
-	The requesting user's username
+
+        The requesting entity: user's username for a locally
+	requesting user or a remote requesting user - generally an
+	application or module will attempt to supply the value that is
+	most strongly authenticated (a local account before a remote
+	one. The level of trust in this value is embodied in the
+	actual authentication stack associated with the application,
+	so it is ultimately at the discretion of the system
+	administrator. It should generally match the current
+	<tt/PAM_RHOST/ value. That is, "<tt/PAM_RUSER@PAM_RHOST/"
+	should always identify the requesting user. In some cases,
+	<tt/PAM_RUSER/ may be NULL. In such situations, it is unclear
+	who the requesting entity is.
 
 <tag><tt/PAM_RHOST/</tag>
-	The requesting hostname (the hostname of the machine from which
-	the <tt/PAM_RUSER/ is requesting service)
+
+	The requesting hostname (the hostname of the machine from
+	which the <tt/PAM_RUSER/ entity is requesting service). That
+	is "<tt/PAM_RUSER@PAM_RHOST/" does identify the requesting
+	user.  "<tt/luser@localhost/" or "<tt/evil@evilcom.com/" are
+	valid "<tt/PAM_RUSER@PAM_RHOST/" examples. In some
+	applications, <tt/PAM_RHOST/ may be NULL. In such situations,
+	it is unclear where the authentication request is originating
+	from.
 
 <tag><tt/PAM_CONV/</tag>
+
 	The conversation structure (see section <ref
-id="the-conversation-function" name="below">)
+        id="the-conversation-function" name="below">).
 
 <tag><tt/PAM_FAIL_DELAY/</tag> A function pointer to redirect
         centrally managed failure delays (see section <ref
@@ -358,7 +390,7 @@ section <ref id="the-failure-delay-function" name="below">).
 
 <p>
 A successful call to this function returns <tt/PAM_SUCCESS/.  However,
-the application should expect one of the following errors:
+the application should expect at least one the following errors:
 
 <p>
 <descrip>
@@ -410,12 +442,7 @@ However, the application should expect one of the following errors:
 </descrip>
 
 <p>
-Note, in the case of an error, the contents of <tt/item/ is not
-modified - that is, it retains its pre-call value. One should take
-care to initialize this value prior to calling
-<tt/pam_get_item()/. Since, if its value - despite the
-<tt/pam_get_item()/ function failing - is to be used the consequences
-are undefined.
+In the case of an error, the contents of <tt/item/ is set to <tt/NULL/.
 
 <sect2>Understanding errors
 <label id="pam-strerror-section">
@@ -696,14 +723,14 @@ error-returns are:
 <descrip>
 <tag><tt/PAM_AUTHTOK_ERR/</tag>
 	A module was unable to obtain the new authentication token.
-	
+
 <tag><tt/PAM_AUTHTOK_RECOVERY_ERR/</tag>
 	A module was unable to obtain the old authentication token.
 
 <tag><tt/PAM_AUTHTOK_LOCK_BUSY/</tag>
 	One or more of the modules was unable to change the
 authentication token since it is currently locked.
-	
+
 <tag><tt/PAM_AUTHTOK_DISABLE_AGING/</tag>
 	Authentication token aging has been disabled for at least one
 of the modules.
@@ -779,6 +806,26 @@ session for the user, this function will return <tt/PAM_SESSION_ERR/.
 <label id="pam-putenv-section">
 
 <p>
+The <tt/libpam/ library associates with each PAM-handle (<tt/pamh/), a
+set of <it/PAM environment variables/. These variables are intended to
+hold the session environment variables that the user will inherit when
+the session is granted and the authenticated user obtains access to
+the requested service. For example, when <tt/login/ has finally given
+the user a shell, the environment (as viewed with the command
+<tt/env/) will be what <tt/libpam/ was maintaining as the PAM
+environment for that service application. Note, these variables are not
+the environment variables of the <tt/login/ application. This is
+principally for two reasons: <tt/login/ may want to have an
+environment that cannot be seen or manipulated by a user; and
+<tt/login/ (or whatever the serving application is) may be maintaining
+a number of parallel sessions, via different <tt/pamh/ values, at the
+same time and a single environment may not be appropriately shared
+between each of these. The PAM environment may contain variables
+seeded by the applicant user's client program, for example, and as
+such it is not appropriate for one applicant to interfere with the
+environment of another applicant.
+
+<p>
 <tscreen>
 <verb>
 extern int pam_putenv(pam_handle_t *pamh, const char *name_value);
@@ -840,14 +887,6 @@ extern const char *pam_getenv(pam_handle_t *pamh, const char *name);
 </tscreen>
 
 <p>
-<em>
-Warning, the environment support in <bf/Linux-PAM/ is based solely
-on a six-line email from the developers at Sun. Its interface is
-likely to be generally correct, however, the details are likely to be
-changed as more information becomes available.
-</em>
-
-<p>
 Obtain the value of the indicated <bf/Linux-PAM/ environment
 variable. On error, internal failure or the unavailability of the
 given variable (unspecified), this function simply returns <tt/NULL/.
@@ -863,22 +902,31 @@ extern const char * const *pam_getenvlist(pam_handle_t *pamh);
 </tscreen>
 
 <p>
-<em>
-Warning, the environment support in <bf/Linux-PAM/ is based solely
-on a six line email from the developers at Sun. Its interface is
-likely to be generally correct, however, the details are likely to be
-changed as more information becomes available.
-</em>
+The PAM environment variables (see section <ref
+id="pam-putenv-section" name="above">) are a complete set of enviroment
+variables that are associated with a PAM-handle (<tt/pamh/). They
+represent the contents of the <it/regular/ environment variables of
+the authenticated user when service is granted.
 
 <p>
-This function returns a pointer to the complete <tt/Linux-PAM/
-environment.  It is a pointer to a <em/read-only/ list of
-<em/read-only/ environment variables.  It should be noted that this
-memory will become invalid after a call to <tt/pam_end()/ (see the
-section <ref id="pam-end-section" name="above">).  If application
-wishes to make use of this list after such a call, it should first
-make a copy of all the set variables. (A function that performs such a
-transcription is to be found in <tt/libpam_misc/.)
+Th function, <tt>pam_getenvlist()</tt> returns a pointer to a complete,
+<tt/malloc()/'d, copy of the PAM environment.  It is a pointer to a
+duplicated list of environment variables.  It should be noted that
+this memory will never be <tt/free()'d/ by <tt/libpam/.  Once obtained
+by a call to <tt/pam_getenvlist()/, <bf>it is the responsibility of
+the calling application</bf> to <tt/free()/ this memory.
+
+<p>
+The format of the memory is a <tt/malloc()/'d array of <tt/char */
+pointers, the last element of which is set to <tt/NULL/. Each of the
+non-<tt/NULL/ entries in this array point to a <tt/NUL/ terminated and
+<tt/malloc()/'d <tt/char/ string of the form:
+<tt/"/<it/name/<tt/=/<it/value/<tt/"/.
+
+<p>
+It is by design, and not a coincidence, that the format and contents
+of the returned array matches that required for the third argument of
+the <tt/execle(3)/ function call.
 
 <sect1>What is expected of an application
 
@@ -962,6 +1010,40 @@ things come at once: a windows based application can then present a
 single form with many messages/prompts on at once.
 
 <p>
+In passing, it is worth noting that there is a descrepency between the
+way Linux-PAM handles the <tt/const struct pam_message **msg/
+conversation function argument from the way that Solaris' PAM (and
+derivitives, known to include HP/UX, <em/are there others?/)
+does. Linux-PAM interprets the <tt/msg/ argument as entirely
+equivalent to the following prototype <tt/const struct pam_message
+*msg[]/ (which, in spirit, is consistent with the commonly used
+prototypes for <tt/argv/ argument to the familiar <tt/main()/
+function: <tt/char **argv/; and <tt/char *argv[]/). Said another way
+Linux-PAM interprets the <tt/msg/ argument as a pointer to an array of
+<tt/num_meg/ read only 'struct pam_message' <em/pointers/.  Solaris'
+PAM implementation interprets this argument as a pointer to a pointer
+to an array of <tt/num_meg/ <tt/pam_message/ structures.  Fortunately,
+perhaps, for most module/application developers when <tt/num_msg/ has
+a value of one these two definitions are entirely
+equivalent. Unfortunately, casually raising this number to two has led
+to unanticipated compatibility problems.
+
+<p>
+For what its worth the two known module writer work-arounds for trying
+to maintain source level compatibility with both PAM implementations
+are:
+<itemize>
+<item> never call the conversation function with <tt/num_msg/ greater
+than one.
+<item> set up <tt/msg/ as doubly referenced so both types of
+conversation function can find the messages. That is, make
+<p><tscreen>
+<verb>
+msg[n] = & (( *msg )[n])
+</verb>
+</tscreen>
+</itemize>
+<p>
 The response (from the application to the module) passing structure is
 defined by including <tt>&lt;security/pam_appl.h&gt;</tt> as:
 
@@ -986,13 +1068,12 @@ called.  This meant that it was not always necessary for the module to
 to display some text.
 
 <p>
-Post Linux-PAM-0.59 (and in the interests of compatibility with
-Sunsoft).  The number of responses is always equal to the <tt/num_msg/
-conversation function argument.  This is slightly easier to program
-but does require that the response array is <tt/free(3)/'d after every
-call to the conversation function.  The index of the responses
-corresponds directly to the prompt index in the <tt/pam_message/
-array.
+Post Linux-PAM-0.59.  The number of responses is always equal to the
+<tt/num_msg/ conversation function argument.  This is slightly easier
+to program but does require that the response array is <tt/free(3)/'d
+after every call to the conversation function.  The index of the
+responses corresponds directly to the prompt index in the
+<tt/pam_message/ array.
 
 <p>
 The maximum length of the <tt/pam_msg.msg/ and <tt/pam_response.resp/
@@ -1075,6 +1156,16 @@ application on a system under a different name and this should not be
 permitted to cause a security breach.
 
 <p>
+In general, this is always the right advice if the program is setuid,
+or otherwise more privileged than the user that invokes it. In some
+cases, avoiding this advice is convenient, but as an author of such an
+application, you should consider well the ways in which your program
+will be installed and used. (Its often the case that programs are not
+intended to be setuid, but end up being installed that way for
+convenience. If your program falls into this category, don't fall into
+the trap of making this mistake.)
+
+<p>
 To invoke some <tt/target/ application by another name, the user may
 symbolically link the target application with the desired name.  To be
 precise all the user need do is,
@@ -1124,7 +1215,11 @@ current <tt/uid/ (userid) of the running process; the identity of the
 privilege granting user is the <tt/euid/ (effective userid) of the
 running process; the identity of the user, under whose name the
 service will be executed, is given by the contents of the
-<tt/PAM_USER/ <tt/pam_get_item(3)/.
+<tt/PAM_USER/ <tt/pam_get_item(3)/. Note, modules can change the
+values of <tt/PAM_USER/ and <tt/PAM_RUSER/ during any of the
+<tt/pam_*()/ library calls. For this reason, the application should
+take care to use the <tt/pam_get_item()/ every time it wishes to
+establish who the authenticated user is (or will currently be).
 
 <p>
 For network-serving databases and other applications that provide
@@ -1189,19 +1284,26 @@ should be noted that this library is specific to <bf/Linux-PAM/ and is
 not referred to in the defining DCE-RFC (see <ref id="bibliography"
 name="the bibliography">) below.
 
-<sect1>Functions supplied
+<sect1>Macros supplied
 
-<sect2>Safe string duplication
+<sect2>Safe duplication of strings
 
 <p>
 <tscreen>
 <verb>
-extern char *xstrdup(const char *s)
+x_strdup(const char *s)
 </verb>
 </tscreen>
-Return a duplicate copy of the <tt/NUL/ terminated string,
-<tt/s/. <tt/NULL/ is returned if there is insufficient memory
-available for the duplicate or if <tt/s=NULL/.
+
+<p>
+This macro is a replacement for the <tt/xstrdup()/ function that was
+present in earlier versions of the library and which clashed horribly
+with a number of applications. It returns a duplicate copy of the
+<tt/NUL/ terminated string, <tt/s/. <tt/NULL/ is returned if there is
+insufficient memory available for the duplicate or if <tt/s/ is
+<tt/NULL/ to begin with.
+
+<sect1>Functions supplied
 
 <sect2>A text based conversation function
 
@@ -1267,14 +1369,28 @@ Following a return from the <bf/Linux-PAM/ libraray, the value of this
 variable indicates whether the conversation has timed out. A value of
 <tt/1/ indicates the time-out occurred.
 
-<tag><tt>extern int (*pam_binary_handler_fn)(const union pam_u_packet_p send,
-                     union pam_u_packet_p *receive);</tt></tag>
+</descrip>
+
+<p>
+The following two function pointers are available for supporting binary
+prompts in the conversation function. They are optimized for the
+current incarnation of the <tt/libpamc/ library and are subject to
+change.
+<descrip>
+<tag><tt>extern int (*pam_binary_handler_fn)(void *appdata, pamc_bp_t
+*prompt_p);</tt></tag>
 
 This function pointer is initialized to <tt/NULL/ but can be filled
 with a function that provides machine-machine (hidden) message
 exchange.  It is intended for use with hidden authentication protocols
 such as RSA or Diffie-Hellman key exchanges.  (This is still under
 development.)
+
+<tag><tt>extern int (*pam_binary_handler_free)(void *appdata,
+pamc_bp_t *delete_me);</tt></tag>
+
+This function pointer is initialized to <tt/PAM_BP_RENEW(delete_me, 0,
+0)/, but can be redefined as desired by the application.
 
 </descrip>
 
@@ -1291,20 +1407,6 @@ This function takes the supplied list of environment pointers and
 <em/uploads/ its contents to the <bf/Linux-PAM/ environment. Success
 is indicated by <tt/PAM_SUCCESS/.
 
-<sect2>Saving the Linux-PAM environment for later use
-<p>
-<tscreen>
-<verb>
-extern char **pam_misc_copy_env(pam_handle_t *pamh);
-</verb>
-</tscreen>
-
-This function returns a pointer to a list of environment variables
-that are a direct copy of the <bf/Linux-PAM/ environment.  The memory
-associated with these variables are the responsibility of the
-application and should be liberated with a call to
-<tt/pam_misc_drop_env()/.
-
 <sect2>Liberating a locally saved environment
 <p>
 <tscreen>
@@ -1313,7 +1415,7 @@ extern char **pam_misc_drop_env(char **env);
 </verb>
 </tscreen>
 
-This function is defined to complement the <tt/pam_misc_copy_env()/
+This function is defined to complement the <tt/pam_getenvlist()/
 function.  It liberates the memory associated with <tt/env/,
 <em/overwriting/ with <tt/0/ all memory before <tt/free()/ing it.
 
@@ -1457,7 +1559,7 @@ int main(int argc, char *argv[])
     }
 
     retval = pam_start("check_user", user, &ero;conv, &ero;pamh);
-	
+
     if (retval == PAM_SUCCESS)
         retval = pam_authenticate(pamh, 0);    /* is user really user? */
 
@@ -1553,7 +1655,7 @@ purpose at the moment. Ideas/suggestions welcome!
 
 <p>
 This document was written by Andrew G. Morgan
-(morgan@transmeta.com) with many contributions from
+(morgan@kernel.org) with many contributions from
 <!-- insert credits here -->
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
@@ -1620,9 +1722,9 @@ credited for all the good work they have done.
 <sect>Copyright information for this document
 
 <p>
-Copyright (c) Andrew G. Morgan 1996-9.  All rights reserved.
+Copyright (c) Andrew G. Morgan 1996-9,2000-1.  All rights reserved.
 <newline>
-Email: <tt>&lt;morgan@transmeta.com&gt;</tt>
+Email: <tt>&lt;morgan@kernel.org&gt;</tt>
 
 <p>
 Redistribution and use in source and binary forms, with or without

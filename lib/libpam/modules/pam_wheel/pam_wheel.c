@@ -21,7 +21,7 @@
  *    a wheel member.
  */
 
-#define _BSD_SOURCE
+#include "config.h"
 
 #include <stdio.h>
 #include <unistd.h>
@@ -40,27 +40,16 @@
  */
 
 #define PAM_SM_AUTH
+#define PAM_SM_ACCOUNT
 
 #include <security/pam_modules.h>
-
-/* some syslogging */
-
-static void _pam_log(int err, const char *format, ...)
-{
-    va_list args;
-
-    va_start(args, format);
-    openlog("PAM-Wheel", LOG_CONS|LOG_PID, LOG_AUTH);
-    vsyslog(err, format, args);
-    va_end(args);
-    closelog();
-}
+#include <security/pam_modutil.h>
+#include <security/pam_ext.h>
 
 /* checks if a user is on a list of members of the GID 0 group */
-
 static int is_on_list(char * const *list, const char *member)
 {
-    while (*list) {
+    while (list && *list) {
         if (strcmp(*list, member) == 0)
             return 1;
         list++;
@@ -73,11 +62,16 @@ static int is_on_list(char * const *list, const char *member)
 #define PAM_DEBUG_ARG       0x0001
 #define PAM_USE_UID_ARG     0x0002
 #define PAM_TRUST_ARG       0x0004
-#define PAM_DENY_ARG        0x0010  
+#define PAM_DENY_ARG        0x0010
+#define PAM_ROOT_ONLY_ARG   0x0020
 
-static int _pam_parse(int argc, const char **argv, char *use_group)
+static int
+_pam_parse (const pam_handle_t *pamh, int argc, const char **argv,
+	    char *use_group, size_t group_length)
 {
      int ctrl=0;
+
+     memset(use_group, '\0', group_length);
 
      /* step through arguments */
      for (ctrl=0; argc-- > 0; ++argv) {
@@ -92,149 +86,199 @@ static int _pam_parse(int argc, const char **argv, char *use_group)
                ctrl |= PAM_TRUST_ARG;
           else if (!strcmp(*argv,"deny"))
                ctrl |= PAM_DENY_ARG;
+          else if (!strcmp(*argv,"root_only"))
+               ctrl |= PAM_ROOT_ONLY_ARG;
           else if (!strncmp(*argv,"group=",6))
-                strcpy(use_group,*argv+6);
+	       strncpy(use_group,*argv+6,group_length-1);
           else {
-               _pam_log(LOG_ERR,"pam_parse: unknown option; %s",*argv);
+               pam_syslog(pamh, LOG_ERR, "unknown option: %s", *argv);
           }
      }
 
      return ctrl;
 }
 
-
-/* --- authentication management functions (only) --- */
-
-PAM_EXTERN
-int pam_sm_authenticate(pam_handle_t *pamh,int flags,int argc
-			,const char **argv)
+static int
+perform_check (pam_handle_t *pamh, int ctrl, const char *use_group)
 {
-     int ctrl;
-     const char *username;
-     char *fromsu;
-     struct passwd *pwd, *tpwd;
-     struct group *grp;
-     int retval = PAM_AUTH_ERR;
-     char use_group[BUFSIZ];
-    
-     /* Init the optional group */
-     bzero(use_group,BUFSIZ);
-     
-     ctrl = _pam_parse(argc, argv, use_group);
-     retval = pam_get_user(pamh,&username,NULL);
-     if ((retval != PAM_SUCCESS) || (!username)) {
-        if (ctrl & PAM_DEBUG_ARG)
-            _pam_log(LOG_DEBUG,"can not get the username");
-        return PAM_SERVICE_ERR;
-     }
+    const char *username = NULL;
+    const char *fromsu;
+    struct passwd *pwd, *tpwd = NULL;
+    struct group *grp;
+    int retval = PAM_AUTH_ERR;
 
-     /* su to a uid 0 account ? */
-     pwd = getpwnam(username);
-     if (!pwd) {
-        if (ctrl & PAM_DEBUG_ARG)
-            _pam_log(LOG_NOTICE,"unknown user %s",username);
-        return PAM_USER_UNKNOWN;
-     }
-     
-     /* Now we know that the username exists, pass on to other modules...
-      * the call to pam_get_user made this obsolete, so is commented out
-      *
-      * pam_set_item(pamh,PAM_USER,(const void *)username);
-      */
-
-     /* is this user an UID 0 account ? */
-     if(pwd->pw_uid) {
-        /* no need to check for wheel */
-        return PAM_IGNORE;
-     }
-     
-     if (ctrl & PAM_USE_UID_ARG) {
-         tpwd = getpwuid(getuid());
-         if (!tpwd) {
-            if (ctrl & PAM_DEBUG_ARG)
-                _pam_log(LOG_NOTICE,"who is running me ?!");
-            return PAM_SERVICE_ERR;
-         }
-         fromsu = tpwd->pw_name;
-     } else {
-         fromsu = getlogin();
-         if (!fromsu) {
-             if (ctrl & PAM_DEBUG_ARG)
-                _pam_log(LOG_NOTICE,"who is running me ?!");
-             return PAM_SERVICE_ERR;
-         }
-     }
-     
-     if (!use_group[0]) {
-	 if ((grp = getgrnam("wheel")) == NULL) {
-	     grp = getgrgid(0);
-	 }
-     } else
-	 grp = getgrnam(use_group);
-        
-     if (!grp || !grp->gr_mem) {
+    retval = pam_get_user(pamh, &username, NULL);
+    if ((retval != PAM_SUCCESS) || (!username)) {
         if (ctrl & PAM_DEBUG_ARG) {
-            if (!use_group[0])
-                _pam_log(LOG_NOTICE,"no members in a GID 0 group");
-            else
-                _pam_log(LOG_NOTICE,"no members in '%s' group",use_group);
+            pam_syslog(pamh, LOG_DEBUG, "can not get the username");
+	}
+        return PAM_SERVICE_ERR;
+    }
+
+    pwd = pam_modutil_getpwnam (pamh, username);
+    if (!pwd) {
+        if (ctrl & PAM_DEBUG_ARG) {
+            pam_syslog(pamh, LOG_NOTICE, "unknown user %s", username);
         }
-        if (ctrl & PAM_DENY_ARG)
-            /* if this was meant to deny access to the members
-             * of this group and the group does not exist, allow
-             * access
-             */
+        return PAM_USER_UNKNOWN;
+    }
+    if (ctrl & PAM_ROOT_ONLY_ARG) {
+	/* su to a non uid 0 account ? */
+        if (pwd->pw_uid != 0) {
             return PAM_IGNORE;
-        else
-            return PAM_AUTH_ERR;
-     }
-        
-     if (is_on_list(grp->gr_mem, fromsu)) {
-        if (ctrl & PAM_DEBUG_ARG)
-            _pam_log(LOG_NOTICE,"Access %s to '%s' for '%s'",
-                     (ctrl & PAM_DENY_ARG)?"denied":"granted",
-                     fromsu,username);
-        if (ctrl & PAM_DENY_ARG)
-            return PAM_PERM_DENIED;
-        else
-            if (ctrl & PAM_TRUST_ARG)
-                return PAM_SUCCESS;
-            else
-                return PAM_IGNORE;
-     }
+        }
+    }
 
-     if (ctrl & PAM_DEBUG_ARG)
-        _pam_log(LOG_NOTICE,"Access %s for '%s' to '%s'",
-        (ctrl & PAM_DENY_ARG)?"granted":"denied",fromsu,username);
-     if (ctrl & PAM_DENY_ARG)
-        return PAM_SUCCESS;
-     else
-        return PAM_PERM_DENIED;
+    if (ctrl & PAM_USE_UID_ARG) {
+	tpwd = pam_modutil_getpwuid (pamh, getuid());
+	if (!tpwd) {
+	    if (ctrl & PAM_DEBUG_ARG) {
+                pam_syslog(pamh, LOG_NOTICE, "who is running me ?!");
+	    }
+	    return PAM_SERVICE_ERR;
+	}
+	fromsu = tpwd->pw_name;
+    } else {
+	fromsu = pam_modutil_getlogin(pamh);
+	if (fromsu) {
+	    tpwd = pam_modutil_getpwnam (pamh, fromsu);
+	}
+	if (!fromsu || !tpwd) {
+	    if (ctrl & PAM_DEBUG_ARG) {
+		pam_syslog(pamh, LOG_NOTICE, "who is running me ?!");
+	    }
+	    return PAM_SERVICE_ERR;
+	}
+    }
+
+    /*
+     * At this point fromsu = username-of-invoker; tpwd = pwd ptr for fromsu
+     */
+
+    if (!use_group[0]) {
+	if ((grp = pam_modutil_getgrnam (pamh, "wheel")) == NULL) {
+	    grp = pam_modutil_getgrgid (pamh, 0);
+	}
+    } else {
+	grp = pam_modutil_getgrnam (pamh, use_group);
+    }
+
+    if (!grp || (!grp->gr_mem && (tpwd->pw_gid != grp->gr_gid))) {
+	if (ctrl & PAM_DEBUG_ARG) {
+	    if (!use_group[0]) {
+		pam_syslog(pamh, LOG_NOTICE, "no members in a GID 0 group");
+	    } else {
+                pam_syslog(pamh, LOG_NOTICE,
+			   "no members in '%s' group", use_group);
+	    }
+	}
+	if (ctrl & PAM_DENY_ARG) {
+	    /* if this was meant to deny access to the members
+	     * of this group and the group does not exist, allow
+	     * access
+	     */
+	    return PAM_IGNORE;
+	} else {
+	    return PAM_AUTH_ERR;
+	}
+    }
+
+    /*
+     * test if the user is a member of the group, or if the
+     * user has the "wheel" (sic) group as its primary group.
+     */
+
+    if (is_on_list(grp->gr_mem, fromsu) || (tpwd->pw_gid == grp->gr_gid)) {
+
+	if (ctrl & PAM_DENY_ARG) {
+	    retval = PAM_PERM_DENIED;
+
+	} else if (ctrl & PAM_TRUST_ARG) {
+	    retval = PAM_SUCCESS;        /* this can be a sufficient check */
+
+	} else {
+	    retval = PAM_IGNORE;
+	}
+
+    } else {
+
+	if (ctrl & PAM_DENY_ARG) {
+
+	    if (ctrl & PAM_TRUST_ARG) {
+		retval = PAM_SUCCESS;    /* this can be a sufficient check */
+	    } else {
+		retval = PAM_IGNORE;
+	    }
+
+	} else {
+	    retval = PAM_PERM_DENIED;
+	}
+    }
+
+    if (ctrl & PAM_DEBUG_ARG) {
+	if (retval == PAM_IGNORE) {
+	    pam_syslog(pamh, LOG_NOTICE,
+		       "Ignoring access request '%s' for '%s'",
+		       fromsu, username);
+	} else {
+	    pam_syslog(pamh, LOG_NOTICE, "Access %s to '%s' for '%s'",
+		       (retval != PAM_SUCCESS) ? "denied":"granted",
+		       fromsu, username);
+	}
+    }
+
+    return retval;
 }
 
-PAM_EXTERN
-int pam_sm_setcred(pam_handle_t *pamh,int flags,int argc
-		   ,const char **argv)
+/* --- authentication management functions --- */
+
+PAM_EXTERN int
+pam_sm_authenticate (pam_handle_t *pamh, int flags UNUSED,
+		     int argc, const char **argv)
 {
-     return PAM_SUCCESS;
+    char use_group[BUFSIZ];
+    int ctrl;
+
+    ctrl = _pam_parse(pamh, argc, argv, use_group, sizeof(use_group));
+
+    return perform_check(pamh, ctrl, use_group);
 }
 
+PAM_EXTERN int
+pam_sm_setcred (pam_handle_t *pamh UNUSED, int flags UNUSED,
+		int argc UNUSED, const char **argv UNUSED)
+{
+    return PAM_SUCCESS;
+}
+
+PAM_EXTERN int
+pam_sm_acct_mgmt (pam_handle_t *pamh, int flags UNUSED,
+		  int argc, const char **argv)
+{
+    char use_group[BUFSIZ];
+    int ctrl;
+
+    ctrl = _pam_parse(pamh, argc, argv, use_group, sizeof(use_group));
+
+    return perform_check(pamh, ctrl, use_group);
+}
 
 #ifdef PAM_STATIC
 
 /* static module data */
 
 struct pam_module _pam_wheel_modstruct = {
-     "pam_wheel",
-     pam_sm_authenticate,
-     pam_sm_setcred,
-     NULL,
-     NULL,
-     NULL,
-     NULL,
+    "pam_wheel",
+    pam_sm_authenticate,
+    pam_sm_setcred,
+    pam_sm_acct_mgmt,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
 };
 
-#endif
+#endif /* PAM_STATIC */
 
 /*
  * Copyright (c) Cristian Gafton <gafton@redhat.com>, 1996, 1997

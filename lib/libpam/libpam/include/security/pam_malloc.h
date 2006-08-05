@@ -13,30 +13,34 @@
 #ifndef PAM_MALLOC_H
 #define PAM_MALLOC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* these are the macro definitions for the stdlib.h memory functions */
 
 #define malloc(s)      pam_malloc(s,__FILE__,__FUNCTION__,__LINE__)
 #define calloc(n,s)    pam_calloc(n,s,__FILE__,__FUNCTION__,__LINE__)
 #define free(x)        pam_free(x,__FILE__,__FUNCTION__,__LINE__)
-/* #define memalign(a,s)  pam_memalign(a,s,__FILE__,__FUNCTION__,__LINE__) */
 #define realloc(x,s)   pam_realloc(x,s,__FILE__,__FUNCTION__,__LINE__)
-/* #define valloc(s)      pam_valloc(s,__FILE__,__FUNCTION__,__LINE__) */
-/* #define alloca(s)      pam_alloca(s,__FILE__,__FUNCTION__,__LINE__) */
 #define exit(i)        pam_exit(i,__FILE__,__FUNCTION__,__LINE__)
+#undef strdup
+#define strdup(s)      pam_strdup(s,__FILE__,__FUNCTION__,__LINE__)
 
 /* these are the prototypes for the wrapper functions */
 
 #include <sys/types.h>
 
-extern void *pam_malloc(size_t s,const char *,const char *,const int);
-extern void *pam_calloc(size_t n,size_t s,const char *,const char *,const int);
-extern void  pam_free(void *x,const char *,const char *,const int);
+extern void *pam_malloc(size_t s,const char *,const char *, int);
+extern void *pam_calloc(size_t n,size_t s,const char *,const char *, int);
+extern void  pam_free(void *x,const char *,const char *, int);
 extern void *pam_memalign(size_t a,size_t s
-			 ,const char *,const char *,const int);
-extern void *pam_realloc(void *x,size_t s,const char *,const char *,const int);
-extern void *pam_valloc(size_t s,const char *,const char *,const int);
-extern void *pam_alloca(size_t s,const char *,const char *,const int);
-extern void  pam_exit(int i,const char *,const char *,const int);
+			 ,const char *,const char *, int);
+extern void *pam_realloc(void *x,size_t s,const char *,const char *, int);
+extern void *pam_valloc(size_t s,const char *,const char *, int);
+extern void *pam_alloca(size_t s,const char *,const char *, int);
+extern void  pam_exit(int i,const char *,const char *, int);
+extern char *pam_strdup(const char *,const char *,const char *, int);
 
 /* these are the flags used to turn on and off diagnostics */
 
@@ -65,5 +69,9 @@ extern FILE *pam_malloc_outfile;      /* defaults to stdout */
 
 extern int pam_malloc_flags;
 extern int pam_malloc_delay_length;      /* how long to pause on errors */
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PAM_MALLOC_H */
