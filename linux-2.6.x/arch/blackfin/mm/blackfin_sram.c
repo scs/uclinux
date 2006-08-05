@@ -127,7 +127,7 @@ void l1_inst_sram_init(void)
 }
 
 /* L1 memory allocate function */
-static unsigned long l1_sram_alloc(unsigned long size,
+static unsigned long _l1_sram_alloc(unsigned long size,
 				   struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
@@ -169,7 +169,7 @@ static unsigned long l1_sram_alloc(unsigned long size,
 }
 
 /* Allocate the largest available block.  */
-static unsigned long l1_sram_alloc_max (struct l1_sram_piece *pfree, int count, unsigned long *psize)
+static unsigned long _l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned long *psize)
 {
 	unsigned long best = 0;
 	int i, index = -1;
@@ -192,7 +192,7 @@ static unsigned long l1_sram_alloc_max (struct l1_sram_piece *pfree, int count, 
 }
 
 /* L1 memory free function */
-static int l1_sram_free(unsigned long addr,
+static int _l1_sram_free(unsigned long addr,
 			struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
@@ -246,12 +246,12 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 #if L1_DATA_A_LENGTH != 0
-	addr = l1_sram_alloc(size, l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
+	addr = _l1_sram_alloc(size, l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 #endif
 
 #if L1_DATA_B_LENGTH != 0
 	if (!addr)
-		addr = l1_sram_alloc(size,
+		addr = _l1_sram_alloc(size,
 				     l1_data_B_sram,
 				     ARRAY_SIZE(l1_data_B_sram));
 #endif
@@ -273,12 +273,12 @@ int l1_data_A_sram_free(unsigned long addr)
 
 #if L1_DATA_B_LENGTH != 0
 	if (L1_DATA_B_START == (addr & ~0xffff))
-		ret = l1_sram_free(addr,
+		ret = _l1_sram_free(addr,
 				   l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 	else
 #endif
 #if L1_DATA_A_LENGTH != 0
-		ret = l1_sram_free(addr,
+		ret = _l1_sram_free(addr,
 				   l1_data_A_sram, ARRAY_SIZE(l1_data_A_sram));
 #else
 		ret = -1;
@@ -314,7 +314,7 @@ unsigned long l1_data_B_sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
-	addr = l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+	addr = _l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
@@ -332,7 +332,7 @@ int l1_data_B_sram_free(unsigned long addr)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
-	ret = l1_sram_free(addr, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+	ret = _l1_sram_free(addr, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
@@ -351,7 +351,7 @@ unsigned long l1_inst_sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_inst_sram_lock, flags);
 
-	addr = l1_sram_alloc(size, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
+	addr = _l1_sram_alloc(size, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
@@ -372,7 +372,7 @@ int l1_inst_sram_free(unsigned long addr)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_inst_sram_lock, flags);
 
-	ret = l1_sram_free(addr, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
+	ret = _l1_sram_free(addr, l1_inst_sram, ARRAY_SIZE(l1_inst_sram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
@@ -392,7 +392,7 @@ unsigned long l1sram_alloc(unsigned long size)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1sram_lock, flags);
 
-	addr = l1_sram_alloc(size, l1_ssram, ARRAY_SIZE(l1_ssram));
+	addr = _l1_sram_alloc(size, l1_ssram, ARRAY_SIZE(l1_ssram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1sram_lock, flags);
@@ -409,7 +409,7 @@ unsigned long l1sram_alloc_max(unsigned long *psize)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1sram_lock, flags);
 
-	addr = l1_sram_alloc_max(l1_ssram, ARRAY_SIZE(l1_ssram), psize);
+	addr = _l1_sram_alloc_max(l1_ssram, ARRAY_SIZE(l1_ssram), psize);
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1sram_lock, flags);
@@ -426,7 +426,7 @@ int l1sram_free(unsigned long addr)
 	/* add mutex operation */
 	spin_lock_irqsave(&l1sram_lock, flags);
 
-	ret = l1_sram_free(addr, l1_ssram, ARRAY_SIZE(l1_ssram));
+	ret = _l1_sram_free(addr, l1_ssram, ARRAY_SIZE(l1_ssram));
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1sram_lock, flags);
