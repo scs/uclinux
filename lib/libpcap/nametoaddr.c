@@ -23,30 +23,58 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
+static const char rcsid[] _U_ =
     "@(#) $Header$ (LBL)";
 #endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifdef WIN32
+#include <pcap-stdinc.h>
+
+#else /* WIN32 */
 
 #include <sys/param.h>
 #include <sys/types.h>				/* concession to AIX */
 #include <sys/socket.h>
 #include <sys/time.h>
 
-#if __STDC__
-struct mbuf;
-struct rtentry;
+#include <netinet/in.h>
+#endif /* WIN32 */
+
+/*
+ * XXX - why was this included even on UNIX?
+ */
+#ifdef __MINGW32__
+#include "IP6_misc.h"
 #endif
 
-#include <net/if.h>
-#include <netinet/in.h>
+#ifndef WIN32
+#ifdef HAVE_ETHER_HOSTTON
+/*
+ * XXX - do we need any of this if <netinet/if_ether.h> doesn't declare
+ * ether_hostton()?
+ */
+#ifdef HAVE_NETINET_IF_ETHER_H
+struct mbuf;		/* Squelch compiler warnings on some platforms for */
+struct rtentry;		/* declarations in <net/if.h> */
+#include <net/if.h>	/* for "struct ifnet" in "struct arpcom" on Solaris */
 #include <netinet/if_ether.h>
+#endif /* HAVE_NETINET_IF_ETHER_H */
+#ifdef NETINET_ETHER_H_DECLARES_ETHER_HOSTTON
+#include <netinet/ether.h>
+#endif /* NETINET_ETHER_H_DECLARES_ETHER_HOSTTON */
+#endif /* HAVE_ETHER_HOSTTON */
 #include <arpa/inet.h>
+#include <netdb.h>
+#endif /* WIN32 */
 
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <memory.h>
-#include <netdb.h>
+#include <string.h>
 #include <stdio.h>
 
 #include "pcap-int.h"
@@ -54,7 +82,6 @@ struct rtentry;
 #include "gencode.h"
 #include <pcap-namedb.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -94,6 +121,25 @@ pcap_nametoaddr(const char *name)
 		return 0;
 }
 
+#ifdef INET6
+struct addrinfo *
+pcap_nametoaddrinfo(const char *name)
+{
+	struct addrinfo hints, *res;
+	int error;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;	/*not really*/
+	hints.ai_protocol = IPPROTO_TCP;	/*not really*/
+	error = getaddrinfo(name, NULL, &hints, &res);
+	if (error)
+		return NULL;
+	else
+		return res;
+}
+#endif /*INET6*/
+
 /*
  *  Convert net name to internet address.
  *  Return 0 upon failure.
@@ -101,14 +147,19 @@ pcap_nametoaddr(const char *name)
 bpf_u_int32
 pcap_nametonetaddr(const char *name)
 {
+#ifndef WIN32
 	struct netent *np;
 
-#ifndef EMBED
 	if ((np = getnetbyname(name)) != NULL)
 		return np->n_net;
 	else
-#endif
 		return 0;
+#else
+	/*
+	 * There's no "getnetbyname()" on Windows.
+	 */
+	return 0;
+#endif
 }
 
 /*
@@ -120,44 +171,38 @@ int
 pcap_nametoport(const char *name, int *port, int *proto)
 {
 	struct servent *sp;
-	char *other;
+	int tcp_port = -1;
+	int udp_port = -1;
 
-#ifdef EMBED
-	sp = NULL;
-#else
-	sp = getservbyname(name, (char *)0);
-#endif
-	if (sp != NULL) {
-		NTOHS(sp->s_port);
-		*port = sp->s_port;
-		*proto = pcap_nametoproto(sp->s_proto);
-		/*
-		 * We need to check /etc/services for ambiguous entries.
-		 * If we find the ambiguous entry, and it has the
-		 * same port number, change the proto to PROTO_UNDEF
-		 * so both TCP and UDP will be checked.
-		 */
-		if (*proto == IPPROTO_TCP)
-			other = "udp";
-		else
-			other = "tcp";
-
-#ifdef EMBED
-		sp = NULL;
-#else
-		sp = getservbyname(name, other);
-#endif
-		if (sp != 0) {
-			NTOHS(sp->s_port);
+	/*
+	 * We need to check /etc/services for ambiguous entries.
+	 * If we find the ambiguous entry, and it has the
+	 * same port number, change the proto to PROTO_UNDEF
+	 * so both TCP and UDP will be checked.
+	 */
+	sp = getservbyname(name, "tcp");
+	if (sp != NULL) tcp_port = ntohs(sp->s_port);
+	sp = getservbyname(name, "udp");
+	if (sp != NULL) udp_port = ntohs(sp->s_port);
+	if (tcp_port >= 0) {
+		*port = tcp_port;
+		*proto = IPPROTO_TCP;
+		if (udp_port >= 0) {
+			if (udp_port == tcp_port)
+				*proto = PROTO_UNDEF;
 #ifdef notdef
-			if (*port != sp->s_port)
+			else
 				/* Can't handle ambiguous names that refer
 				   to different port numbers. */
 				warning("ambiguous port %s in /etc/services",
 					name);
 #endif
-			*proto = PROTO_UNDEF;
 		}
+		return 1;
+	}
+	if (udp_port >= 0) {
+		*port = udp_port;
+		*proto = IPPROTO_UDP;
 		return 1;
 	}
 #if defined(ultrix) || defined(__osf__)
@@ -169,6 +214,51 @@ pcap_nametoport(const char *name, int *port, int *proto)
 	}
 #endif
 	return 0;
+}
+
+/*
+ * Convert a string in the form PPP-PPP, where correspond to ports, to
+ * a starting and ending port in a port range.
+ * Return 0 on failure.
+ */
+int
+pcap_nametoportrange(const char *name, int *port1, int *port2, int *proto)
+{
+	u_int p1, p2;
+	char *off, *cpy;
+	int save_proto;
+
+	if (sscanf(name, "%d-%d", &p1, &p2) != 2) {
+		if ((cpy = strdup(name)) == NULL)
+			return 0;
+
+		if ((off = strchr(cpy, '-')) == NULL) {
+			free(cpy);
+			return 0;
+		}
+
+		*off = '\0';
+
+		if (pcap_nametoport(cpy, port1, proto) == 0) {
+			free(cpy);
+			return 0;
+		}
+		save_proto = *proto;
+
+		if (pcap_nametoport(off + 1, port2, proto) == 0) {
+			free(cpy);
+			return 0;
+		}
+
+		if (*proto != save_proto)
+			*proto = PROTO_UNDEF;
+	} else {
+		*port1 = p1;
+		*port2 = p2;
+		*proto = PROTO_UNDEF;
+	}
+
+	return 1;
 }
 
 int
@@ -195,6 +285,9 @@ struct eproto eproto_db[] = {
 	{ "pup", ETHERTYPE_PUP },
 	{ "xns", ETHERTYPE_NS },
 	{ "ip", ETHERTYPE_IP },
+#ifdef INET6
+	{ "ip6", ETHERTYPE_IPV6 },
+#endif
 	{ "arp", ETHERTYPE_ARP },
 	{ "rarp", ETHERTYPE_REVARP },
 	{ "sprite", ETHERTYPE_SPRITE },
@@ -218,6 +311,30 @@ int
 pcap_nametoeproto(const char *s)
 {
 	struct eproto *p = eproto_db;
+
+	while (p->s != 0) {
+		if (strcmp(p->s, s) == 0)
+			return p->p;
+		p += 1;
+	}
+	return PROTO_UNDEF;
+}
+
+#include "llc.h"
+
+/* Static data base of LLC values. */
+static struct eproto llc_db[] = {
+	{ "iso", LLCSAP_ISONS },
+	{ "stp", LLCSAP_8021D },
+	{ "ipx", LLCSAP_IPX },
+	{ "netbeui", LLCSAP_NETBEUI },
+	{ (char *)0, 0 }
+};
+
+int
+pcap_nametollc(const char *s)
+{
+	struct eproto *p = llc_db;
 
 	while (p->s != 0) {
 		if (strcmp(p->s, s) == 0)
@@ -296,7 +413,7 @@ pcap_ether_aton(const char *s)
 		if (*s == ':')
 			s += 1;
 		d = xdtoi(*s++);
-		if (isxdigit(*s)) {
+		if (isxdigit((unsigned char)*s)) {
 			d <<= 4;
 			d |= xdtoi(*s++);
 		}
@@ -314,7 +431,7 @@ pcap_ether_hostton(const char *name)
 	register struct pcap_etherent *ep;
 	register u_char *ap;
 	static FILE *fp = NULL;
-	static init = 0;
+	static int init = 0;
 
 	if (!init) {
 		fp = fopen(PCAP_ETHERS_FILE, "r");
@@ -325,7 +442,7 @@ pcap_ether_hostton(const char *name)
 		return (NULL);
 	else
 		rewind(fp);
-	
+
 	while ((ep = pcap_next_etherent(fp)) != NULL) {
 		if (strcmp(ep->name, name) == 0) {
 			ap = (u_char *)malloc(6);
@@ -340,8 +457,13 @@ pcap_ether_hostton(const char *name)
 }
 #else
 
-#ifndef sgi
-extern int ether_hostton(char *, struct ether_addr *);
+#if !defined(HAVE_DECL_ETHER_HOSTTON) || !HAVE_DECL_ETHER_HOSTTON
+#ifndef HAVE_STRUCT_ETHER_ADDR
+struct ether_addr {
+	unsigned char ether_addr_octet[6];
+};
+#endif
+extern int ether_hostton(const char *, struct ether_addr *);
 #endif
 
 /* Use the os supplied routines */
@@ -378,5 +500,6 @@ __pcap_nametodnaddr(const char *name)
 #else
 	bpf_error("decnet name support not included, '%s' cannot be translated\n",
 		name);
+	return(0);
 #endif
 }

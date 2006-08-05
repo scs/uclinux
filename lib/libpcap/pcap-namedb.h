@@ -33,8 +33,12 @@
  * @(#) $Header$ (LBL)
  */
 
-#ifndef lib_pcap_ethers_h
-#define lib_pcap_ethers_h
+#ifndef lib_pcap_namedb_h
+#define lib_pcap_namedb_h
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
  * As returned by the pcap_next_etherent()
@@ -55,11 +59,16 @@ u_char *pcap_ether_hostton(const char*);
 u_char *pcap_ether_aton(const char *);
 
 bpf_u_int32 **pcap_nametoaddr(const char *);
+#ifdef INET6
+struct addrinfo *pcap_nametoaddrinfo(const char *);
+#endif
 bpf_u_int32 pcap_nametonetaddr(const char *);
 
 int	pcap_nametoport(const char *, int *, int *);
+int	pcap_nametoportrange(const char *, int *, int *, int *);
 int	pcap_nametoproto(const char *);
 int	pcap_nametoeproto(const char *);
+int	pcap_nametollc(const char *);
 /*
  * If a protocol is unknown, PROTO_UNDEF is returned.
  * Also, pcap_nametoport() returns the protocol along with the port number.
@@ -72,5 +81,9 @@ int	pcap_nametoeproto(const char *);
 int __pcap_atodn(const char *, bpf_u_int32 *);
 int __pcap_atoin(const char *, bpf_u_int32 *);
 u_short	__pcap_nametodnaddr(const char *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

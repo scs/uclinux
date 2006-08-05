@@ -20,8 +20,12 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
+static const char rcsid[] _U_ =
     "@(#) $Header$ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -35,7 +39,6 @@ static const char rcsid[] =
 
 #include <pcap-namedb.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif

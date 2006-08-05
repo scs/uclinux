@@ -19,15 +19,18 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static const char rcsid[] =
+static const char rcsid[] _U_ =
     "@(#) $Header$ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/param.h>			/* optionally get BSD define */
 
 #include <string.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -36,38 +39,16 @@ static const char rcsid[] =
 
 static char nosup[] = "live packet capture not supported on this system";
 
-int
-pcap_stats(pcap_t *p, struct pcap_stat *ps)
-{
-
-	(void)sprintf(p->errbuf, "pcap_stats: %s", nosup);
-	return (-1);
-}
-
-int
-pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
-{
-
-	(void)sprintf(p->errbuf, "pcap_read: %s", nosup);
-	return (-1);
-}
-
 pcap_t *
-pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
+pcap_open_live(const char *device, int snaplen, int promisc, int to_ms,
+    char *ebuf)
 {
-
-	(void)strcpy(ebuf, nosup);
+	(void)strlcpy(ebuf, nosup, PCAP_ERRBUF_SIZE);
 	return (NULL);
 }
 
 int
-pcap_setfilter(pcap_t *p, struct bpf_program *fp)
+pcap_platform_finddevs(pcap_if_t **alldevsp, char *errbuf)
 {
-
-	if (p->sf.rfile == NULL) {
-		(void)sprintf(p->errbuf, "pcap_setfilter: %s", nosup);
-		return (-1);
-	}
-	p->fcode = *fp;
 	return (0);
 }
