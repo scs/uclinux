@@ -42,6 +42,7 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <asm/blackfin.h>
+#include "blackfin_sram.h"
 
 spinlock_t l1sram_lock, l1_data_sram_lock, l1_inst_sram_lock;
 

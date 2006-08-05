@@ -34,6 +34,7 @@
 #include <asm/bfin-global.h>
 #include <asm/uaccess.h>
 #include <asm/l1layout.h>
+#include "blackfin_sram.h"
 
 #undef DEBUG
 
@@ -133,11 +134,6 @@ void paging_init(void)
 		free_area_init(zones_size);
 	}
 }
-
-extern void l1sram_init(void);
-extern void l1_inst_sram_init(void);
-extern void l1_data_sram_init(void);
-extern unsigned long l1sram_alloc(unsigned long);
 
 void mem_init(void)
 {
