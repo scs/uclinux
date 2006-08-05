@@ -1,17 +1,22 @@
 /*
- * File:         ad73311.h 
- * Description:  definitions for AD73311 registers
- * Rev:          $Id$
+ * File:         sound/blackfin/ad73311.h
+ * Based on:
+ * Author:       Roy Huang <Roy.Huang@analog.com>
+ *
  * Created:      Wed Jan 11, 2006
- * Author:       Roy Huang
- * mail:         Roy.Huang@analog.com
- * 
- * Copyright (C) 2006 Analog Device Inc.
+ * Description:  definitions for AD73311 registers
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,10 +24,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
+#ifndef __AD73311_H__
+#define __AD73311_H__
 
 #if CONFIG_SND_BFIN_SPORT == 0
 #define SPORT_ERR_IRQ	IRQ_SPORT0_ERROR
@@ -95,3 +103,5 @@
 #define SEEN		( 1 << 5 )
 #define INV		( 1 << 6 )
 #define ALB		( 1 << 7 )
+
+#endif

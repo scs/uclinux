@@ -1,18 +1,23 @@
 /*
- * File:         ac97_sport.c 
- * Description:  low level driver for ac97 connected to sportX/dmaY on blackfin 53x
- * 
- * Rev:          $Id$
- * Created:      Sat Dec  6 21:40:06 CET 2003
+ * File:         sound/blackfin/ac97_sport.c
+ * Based on:
  * Author:       Luuk van Dijk, Bas Vermeulen
- * mail:         blackfin@buyways.nl
- * 
- * Copyright (C) 2003 Luuk van Dijk, Bas Vermeulen BuyWays B.V.
+ *
+ * Created:      Sat Dec  6 21:40:06 CET 2003
+ * Description:  low level driver for ac97 connected to sportX/dmaY on blackfin 53x
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright (C) 2003 Luuk van Dijk, Bas Vermeulen BuyWays B.V.
+ *               Copyright 2003-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,9 +25,9 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 
@@ -41,7 +46,7 @@
 
 /*
  * note: currently we only handle stereo reception and transmission
- * we also assume that we run in variable frame rate, i.e.: frames 
+ * we also assume that we run in variable frame rate, i.e.: frames
  * come with the sample frequency, and each received/transmitted frame
  * contains valid pcm audio data!!
  */
@@ -63,10 +68,10 @@
 #define  AC97_SPORT_DEBUG
 #undef  AC97_TALKTHROUGH_DIRECT
 
-/* 
+/*
  * frame communicated over the ac97 sport link
  */
-struct ac97_frame 
+struct ac97_frame
 {
 	__u16 ac97_tag;   // slot 0
 #define TAG_VALID 0x8000
@@ -75,13 +80,13 @@ struct ac97_frame
 #define TAG_PCM_RIGHT  0x0800
 #define TAG_PCM  (TAG_PCM_LEFT|TAG_PCM_RIGHT)
 	__u16 ac97_addr;  // slot 1
-	__u16 ac97_data;  // slot 2 
+	__u16 ac97_data;  // slot 2
 	__u32 ac97_pcm;   // slot 3 and 4: left and right pcm data
 	__u16 stuff[11];  // pad to 16 words
 } __attribute__ ((packed));
 
 
-struct ac97_sport_dev_t 
+struct ac97_sport_dev_t
 {
 	size_t bufsize;     // size of r/tx buffer allocated in units of ac97frame!
 	size_t fragsize;    // size of r/tx fragments in units of ac97frame!
@@ -94,7 +99,7 @@ struct ac97_sport_dev_t
 	struct dma_descriptor_block* rx_desc;
 
 	int tx_currfrag;        // fragment currently being handled by DMA
-	int rx_currfrag;  
+	int rx_currfrag;
 
 	int tx_lastfrag;        // fragment last handled by irq
 	int rx_lastfrag;
@@ -124,7 +129,7 @@ struct ac97_sport_dev_t
                             || dev.register_dirty[6] || dev.register_dirty[7] )
 
 
-/* 
+/*
  * one global device struct
  * get rid of all the dev arguments and let the linker do the indirection work
  */
@@ -142,15 +147,15 @@ static void sport_init(void)
 	SPORT0_MTCS1 = SPORT0_MRCS1 = 0x00000000;
 	SPORT0_MTCS2 = SPORT0_MRCS2 = 0x00000000;
 	SPORT0_MTCS3 = SPORT0_MRCS3 = 0x00000000;
-  
-	/* frame size 16 words; enable Multichannel mode & dma packing, 
+
+	/* frame size 16 words; enable Multichannel mode & dma packing,
 	 * frame delay = 1 bit */
 	SPORT0_MCMC1 = 0x1000; /* window size = (1+1) * 8 words */
 	SPORT0_MCMC2 = 0x1000 | MCMEN; /* frame delay = 1 bit, etc */
-  
+
 	/* generate sync every 16th word */
 	SPORT0_RFSDIV = SPORT0_TFSDIV = (16*16) - 1;
-  
+
 	/* rx config: IRFS, SLEN=1111, tx config: slen=1111 */
 	SPORT0_RCR1 = IRFS;
 	SPORT0_TCR1 = ITFS;
@@ -161,32 +166,30 @@ static void sport_init(void)
 
 #define WORDS_PER_FRAME (sizeof(struct ac97_frame)/sizeof(__u16))
 #define BYTES_PER_FRAME (sizeof(struct ac97_frame))
-#define LOG_BYTES_PER_FRAME 5  /* this better be true: 2 << LOG_BYTES_PER_FRAME == BYTES_PER_FRAME */ 
+#define LOG_BYTES_PER_FRAME 5  /* this better be true: 2 << LOG_BYTES_PER_FRAME == BYTES_PER_FRAME */
 
-static void dma_init_xmit(void* data, size_t bufsize, size_t fragsize) 
+static void dma_init_xmit(void* data, size_t bufsize, size_t fragsize)
 {
 	int i, fragcount = bufsize/fragsize;  /* this better be an integer */
 
-	dev.tx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount,
-				GFP_KERNEL);
-	for (i = 0; i < fragcount; i++)
-	{
+	dev.tx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+	for (i = 0; i < fragcount; i++) {
 		dev.tx_desc[i].next = &dev.tx_desc[i+1];
-		dev.tx_desc[i].start_addr = data + 
+		dev.tx_desc[i].start_addr = data +
 			(i * fragsize * BYTES_PER_FRAME);
 		dev.tx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.tx_desc[i].x_modify = sizeof(__u16);
 		dev.tx_desc[i].y_count = fragsize;
 		dev.tx_desc[i].y_modify = sizeof(__u16);
-		/* Large descriptor mode, generate interrupt after each 
+		/* Large descriptor mode, generate interrupt after each
 		 * outer loop (after each fragment) */
-		dev.tx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR | 
-			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER | 
+		dev.tx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR |
+			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER |
 			DMA_2D | DMA_WDSIZE_16 | DMA_ENABLE);
 	}
 	/* Close the circle */
 	dev.tx_desc[fragcount - 1].next = dev.tx_desc;
-	
+
 	DMA2_NEXT_DESC_PTR = (unsigned long)dev.tx_desc;
 	DMA2_CONFIG = dev.tx_desc->dma_config;
 }
@@ -196,26 +199,24 @@ static void dma_init_recv(void* data, size_t bufsize, size_t fragsize)
 {
 	int i, fragcount = bufsize/fragsize;  /* this better be an integer */
 
-	dev.rx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount,
-				GFP_KERNEL);
-	for (i = 0; i < fragcount; i++)
-	{
+	dev.rx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+	for (i = 0; i < fragcount; i++) {
 		dev.rx_desc[i].next = &dev.rx_desc[i+1];
-		dev.rx_desc[i].start_addr = data + 
+		dev.rx_desc[i].start_addr = data +
 			(i * fragsize * BYTES_PER_FRAME);
 		dev.rx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.rx_desc[i].x_modify = sizeof(__u16);
 		dev.rx_desc[i].y_count = fragsize;
 		dev.rx_desc[i].y_modify = sizeof(__u16);
-		/* Large descriptor mode, generate interrupt after each 
+		/* Large descriptor mode, generate interrupt after each
 		 * outer loop (after each fragment) */
-		dev.rx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR | 
-			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER | 
+		dev.rx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR |
+			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER |
 			DMA_2D | DMA_WDSIZE_16 | DMA_WNR | DMA_ENABLE);
 	}
 	/* Close the circle */
 	dev.rx_desc[fragcount - 1].next = dev.rx_desc;
-	
+
 	DMA1_NEXT_DESC_PTR = (unsigned long)dev.rx_desc;
 	DMA1_CONFIG = dev.rx_desc->dma_config;
 }
@@ -224,37 +225,38 @@ static void dma_init_recv(void* data, size_t bufsize, size_t fragsize)
 // 1 = enable, -1 = disable, other = don't change
 static void sport_enable(int tx, int rx)
 {
-	if(tx ==  1) SPORT0_TCR1 |=  TSPEN; 
-	if(tx == -1) SPORT0_TCR1 &= ~TSPEN; 
-	if(rx ==  1) SPORT0_RCR1 |=  RSPEN; 
-	if(rx == -1) SPORT0_RCR1 &= ~RSPEN; 
+	if (tx ==  1) SPORT0_TCR1 |=  TSPEN;
+	if (tx == -1) SPORT0_TCR1 &= ~TSPEN;
+	if (rx ==  1) SPORT0_RCR1 |=  RSPEN;
+	if (rx == -1) SPORT0_RCR1 &= ~RSPEN;
 	return;
 }
 
-
-int ac97_sport_open(size_t bufsize, size_t fragsize) 
+int ac97_sport_open(size_t bufsize, size_t fragsize)
 {
 	int i;
 
 	bzero(&dev,sizeof(dev));
 
 	/* bufsize must be a multiple of fragsize */
-	if( bufsize % fragsize ) return -EINVAL;  
+	if (bufsize % fragsize)
+		return -EINVAL;
 
 	/* See dma_init_XX */
-	if( (fragsize) >= 0x10000 ) return -EINVAL;
+	if ((fragsize) >= 0x10000)
+		return -EINVAL;
 
 	dev.bufsize   = bufsize;
 	dev.fragsize  = fragsize;
 	dev.fragcount = bufsize/fragsize;
 
-	dev.rxbuf = kmalloc( bufsize * sizeof(struct ac97_frame), GFP_KERNEL );
-	dev.txbuf = kmalloc( bufsize * sizeof(struct ac97_frame), GFP_KERNEL );
-	dev.cmd_count = kmalloc( dev.fragcount * sizeof(int), GFP_KERNEL);
+	dev.rxbuf = kmalloc(bufsize * sizeof(struct ac97_frame), GFP_KERNEL);
+	dev.txbuf = kmalloc(bufsize * sizeof(struct ac97_frame), GFP_KERNEL);
+	dev.cmd_count = kmalloc(dev.fragcount * sizeof(int), GFP_KERNEL);
 	dev.tx_desc = NULL;
 	dev.rx_desc = NULL;
 
-	if( !dev.rxbuf || !dev.txbuf || !dev.cmd_count ){
+	if (!dev.rxbuf || !dev.txbuf || !dev.cmd_count) {
 	  ac97_sport_close();
 	  return -ENOMEM;
 	}
@@ -274,10 +276,11 @@ int ac97_sport_open(size_t bufsize, size_t fragsize)
 	   get an answer for every register query.
 	   TODO: figure out which ones to mark dirty
 	 */
-	for( i=0; i<128; i++ ) reg_set_clean(i);
+	for (i=0; i<128; i++)
+		reg_set_clean(i);
 
 	/* First thing to send is 'serial mode 16x16' command
-	 * Watch out: This may get sent in 20 bits mode, 
+	 * Watch out: This may get sent in 20 bits mode,
 	 * in which case the first nibble of data is 'eaten'
 	 * by the addr. (Tag is always 16 bit)
 	 *
@@ -286,12 +289,12 @@ int ac97_sport_open(size_t bufsize, size_t fragsize)
 	 */
 	dev.txbuf[0].ac97_tag |= TAG_CMD;
 	dev.txbuf[0].ac97_addr = 0x7400;
-	dev.txbuf[0].ac97_data = 0x9900;  
+	dev.txbuf[0].ac97_data = 0x9900;
 
 	sport_init();
 
-	dma_init_recv( dev.rxbuf, bufsize, fragsize );
-	dma_init_xmit( dev.txbuf, bufsize, fragsize );
+	dma_init_recv(dev.rxbuf, bufsize, fragsize);
+	dma_init_xmit(dev.txbuf, bufsize, fragsize);
 
 	return 0;
 }
@@ -300,24 +303,29 @@ int ac97_sport_open(size_t bufsize, size_t fragsize)
 
 void ac97_sport_close(void)
 {
-  	sport_enable(-1,-1);
-  
-	if(dev.rxbuf) kfree(dev.rxbuf);
-	if(dev.txbuf) kfree(dev.txbuf);
-	if(dev.cmd_count) kfree(dev.cmd_count);
-	if(dev.tx_desc) kfree(dev.tx_desc);
-	if(dev.rx_desc) kfree(dev.rx_desc);
+	sport_enable(-1,-1);
+
+	if (dev.rxbuf) kfree(dev.rxbuf);
+	if (dev.txbuf) kfree(dev.txbuf);
+	if (dev.cmd_count) kfree(dev.cmd_count);
+	if (dev.tx_desc) kfree(dev.tx_desc);
+	if (dev.rx_desc) kfree(dev.rx_desc);
 
 	bzero(&dev, sizeof(dev));
-  
+
 	return;
 }
 
 
 
-void ac97_sport_start(void) { sport_enable(1,1); }
-
-void ac97_sport_stop(void) { sport_enable(-1,-1); }
+void ac97_sport_start(void)
+{
+	sport_enable(1,1);
+}
+void ac97_sport_stop(void)
+{
+	sport_enable(-1,-1);
+}
 
 
 
@@ -325,32 +333,32 @@ void ac97_sport_stop(void) { sport_enable(-1,-1); }
 // short circuit rx and tx audio, and set mixer for talkthrough mode
 
 void ac97_sport_set_talkthrough_mode(void)
-{ 
+{
   /* TODO */
 }
 
 static int set_current_tx_fragment(void)
-{ 
+{
 	return dev.tx_currfrag = (DMA2_CURR_ADDR - (unsigned long)dev.txbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
 }
 
 static int set_current_rx_fragment(void)
-{ 
+{
 	return dev.tx_currfrag = (DMA1_CURR_ADDR - (unsigned long)dev.rxbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
 }
 
-static void incfrag( int* frg )
-{ 
-	++(*frg); 
-	if( *frg == dev.fragcount ) 
-		*frg = 0; 
+static void incfrag(int *frg)
+{
+	++(*frg);
+	if (*frg == dev.fragcount)
+		*frg = 0;
 }
 
-static void decfrag( int* frg )
+static void decfrag(int *frg)
 {
-	if( *frg == 0 ) 
-		*frg = dev.fragcount; 
-	--(*frg); 
+	if (*frg == 0)
+		*frg = dev.fragcount;
+	--(*frg);
 }
 
 
@@ -362,7 +370,7 @@ static void enqueue_cmd(__u16 addr, __u16 data)
 	incfrag(&nextfrag);
 	incfrag(&nextfrag);
 
-	nextwrite = dev.txbuf + nextfrag * dev.fragsize; 
+	nextwrite = dev.txbuf + nextfrag * dev.fragsize;
 	nextwrite[dev.cmd_count[nextfrag]].ac97_addr = addr;
 	nextwrite[dev.cmd_count[nextfrag]].ac97_data = data;
 	nextwrite[dev.cmd_count[nextfrag]].ac97_tag  |= TAG_CMD;
@@ -375,14 +383,13 @@ static void enqueue_cmd(__u16 addr, __u16 data)
 
 static void init_ac97(void)
 {
-	
 	dev.codec_initialized = 1;
 
 	/* Read all the registers.
 	 * We use this to only check the receive buffer when necessary
 	 */
-	//for( i=0; i<128; i+=2 )
-	//	enqueue_cmd( (i<<8)|0x8000, 0 );
+	//for (i=0; i<128; i+=2)
+	//	enqueue_cmd((i<<8)|0x8000, 0);
 
 	/* Initialize the AC97 */
 	ac97_sport_set_register(0x2a, 0x0001);  // set variable bitrate
@@ -416,28 +423,29 @@ int ac97_sport_handle_rx(void)
 	int prevfrag, nowready;
 	struct ac97_frame* fragp;
 
-	if( !(DMA1_IRQ_STATUS & DMA_DONE) ) return -EINPROGRESS;
+	if (!(DMA1_IRQ_STATUS & DMA_DONE))
+		return -EINPROGRESS;
 
 	/* XXX: Toggle led 6 */
 	(*((volatile unsigned short*)(0xffc0070c))) = (1 << 6);
-	
+
 	prevfrag = set_current_rx_fragment();
-	decfrag( &prevfrag );
+	decfrag(&prevfrag);
 
 	fragp = dev.rxbuf + prevfrag*dev.fragsize;
 
 	nowready = fragp[0].ac97_tag & TAG_VALID;
 
 #if defined(AC97_SPORT_DEBUG)
-	if( nowready != dev.codec_ready )
+	if (nowready != dev.codec_ready)
 		printk(KERN_INFO "ac97_sport: Codec state changed to"
 				" '%sready'\n", (nowready) ? "" : "not " );
 #endif
 	dev.codec_ready = nowready;
 
-	if(dev.codec_ready)
+	if (dev.codec_ready)
 		wake_up(&dev.audio_in_wait); /* wake up any proces waiting for at least 1 fragment */
-	
+
 	dev.rx_lastfrag = prevfrag; /* last fragment handled by irq */
 
 	DMA1_IRQ_STATUS = DMA_DONE;
@@ -451,49 +459,45 @@ int ac97_sport_handle_tx(void)
 {
 	int i;
 
-	if( !(DMA2_IRQ_STATUS & DMA_DONE) ) return -EINPROGRESS;
+	if (!(DMA2_IRQ_STATUS & DMA_DONE))
+		return -EINPROGRESS;
 
 	/* XXX: Toggle led 5 */
 	(*((volatile unsigned short*)(0xffc0070c))) = (1 << 5);
-	
-	if(dev.codec_ready)
-	{
 
-	  int prevfrag = set_current_tx_fragment();
-	  
-	  if( !dev.codec_initialized ) 
-	    {
+	if (dev.codec_ready) {
+
+		int prevfrag = set_current_tx_fragment();
+
+		if (!dev.codec_initialized) {
 #ifdef AC97_SPORT_DEBUG
-	      printk(KERN_INFO "ac97_sport: Sending initialization commands.\n");
+			printk(KERN_INFO "ac97_sport: Sending initialization commands.\n");
 #endif
-	      init_ac97();
-	    }
-	  
-	  prevfrag = set_current_tx_fragment(); // ???
-	  decfrag( &prevfrag );
-	    
-	  while( dev.tx_lastfrag != prevfrag ){
-	      
-	    struct ac97_frame* fragp;
-	      
-	    incfrag( &dev.tx_lastfrag );
-	    fragp =  dev.txbuf + dev.tx_lastfrag*dev.fragsize;
+			init_ac97();
+	}
 
-	    for( i=0; i<dev.cmd_count[dev.tx_lastfrag]; i++ )
-	      fragp[i].ac97_tag = TAG_VALID | TAG_PCM;
+		prevfrag = set_current_tx_fragment(); // ???
+		decfrag(&prevfrag);
 
-	      dev.cmd_count[dev.tx_lastfrag] = 0;
+		while (dev.tx_lastfrag != prevfrag) {
+			struct ac97_frame* fragp;
 
-	  }
+			incfrag(&dev.tx_lastfrag);
+			fragp =  dev.txbuf + dev.tx_lastfrag*dev.fragsize;
 
-	  dev.tx_lastfrag = prevfrag;
-	  
-	  wake_up(&dev.audio_out_wait);
-	  
+			for (i=0; i<dev.cmd_count[dev.tx_lastfrag]; i++)
+				fragp[i].ac97_tag = TAG_VALID | TAG_PCM;
+
+			dev.cmd_count[dev.tx_lastfrag] = 0;
+
+		}
+
+		dev.tx_lastfrag = prevfrag;
+		wake_up(&dev.audio_out_wait);
 	} // codec ready
-	
+
 	DMA2_IRQ_STATUS = DMA_DONE;
-	
+
 	return 0;
 } // handle tx
 
@@ -501,7 +505,7 @@ int ac97_sport_handle_tx(void)
 
 
 
-// enqueue to send 'set register <reg> to <val>' command, 
+// enqueue to send 'set register <reg> to <val>' command,
 // followed by 'read <reg>' command
 // marking the register cache 'dirty'
 // the receive routine will update the register cache when the answer
@@ -509,11 +513,11 @@ int ac97_sport_handle_tx(void)
 
 int ac97_sport_set_register(int reg, __u16 val)
 {
-	if( (reg < 0) || (reg > 127) || (reg & 0x1) ) 
+	if ((reg < 0) || (reg > 127) || (reg & 0x1))
 		return -EINVAL;
-  
-	enqueue_cmd(  reg << 8,           val ); // write
-	enqueue_cmd( (reg << 8) | 0x8000, 0   ); // read back
+
+	enqueue_cmd( reg << 8,           val); // write
+	enqueue_cmd((reg << 8) | 0x8000, 0  ); // read back
 
 	reg_set_dirty(reg);
 
@@ -522,17 +526,17 @@ int ac97_sport_set_register(int reg, __u16 val)
 
 
 // get it from the cache, retval indicates wether it was dirty or not
- 
-int ac97_sport_get_register(int reg, __u16* pval)
+
+int ac97_sport_get_register(int reg, __u16 *pval)
 {
-	if( (reg < 0) || (reg > 127) || (reg & 0x1) ) 
+	if ((reg < 0) || (reg > 127) || (reg & 0x1))
 		return -EINVAL;
-  
+
 	*pval = dev.register_cache[reg];
-  
-	if( reg_is_dirty(reg) )
+
+	if (reg_is_dirty(reg))
 		return -EAGAIN;
-  
+
 	return 0;
 }
 
@@ -541,145 +545,144 @@ int ac97_sport_get_register(int reg, __u16* pval)
 /*
  * copy audio data from/to userspace to our rx/tx buf
  * note: len is in units of __u16's
- * if len will not fit in buffer, these will not transfer data and return -EAGAIN 
+ * if len will not fit in buffer, these will not transfer data and return -EAGAIN
  */
 
 
-static int rx_used(void){
-
-	long bytes = (DMA1_CURR_ADDR - (unsigned long)(dev.rxbuf + dev.rx_tail)); 
-
+static int rx_used(void)
+{
+	long bytes = (DMA1_CURR_ADDR - (unsigned long)(dev.rxbuf + dev.rx_tail));
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
-	
-	if( frames<0 ) frames += dev.bufsize; 
+
+	if (frames < 0)
+		frames += dev.bufsize;
 
 	return frames;
 }
 
 
-static int tx_used(void){
-
-	long bytes = ((unsigned long)(dev.txbuf+dev.tx_head) - DMA2_CURR_ADDR); 
-	
+static int tx_used(void)
+{
+	long bytes = ((unsigned long)(dev.txbuf+dev.tx_head) - DMA2_CURR_ADDR);
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
-	
-	if( frames<0 ) frames += dev.bufsize; 
-	
+
+	if (frames<0)
+		frames += dev.bufsize;
+
 	return frames;
 }
 
 /* note implicit in next few lines: 1 sample per frame */
 #define BYTES_PER_SAMPLE	sizeof(__u32)
 #define LOG_BYTES_PER_SAMPLE	2
-ssize_t ac97_audio_read_min_bytes(void){ 
-	return rx_used() * BYTES_PER_SAMPLE; 
+ssize_t ac97_audio_read_min_bytes(void)
+{
+	return rx_used() * BYTES_PER_SAMPLE;
 }
 
-ssize_t ac97_audio_write_max_bytes(void){ 
+ssize_t ac97_audio_write_max_bytes(void)
+{
 	int write_max = (dev.bufsize - tx_used() - dev.fragsize);
 	if (write_max < 0) write_max = 0;
-	return write_max * BYTES_PER_SAMPLE; 
+	return write_max * BYTES_PER_SAMPLE;
 }
 
-int rx_would_underflow(ssize_t bytes_to_read )
+int rx_would_underflow(ssize_t bytes_to_read)
 {
-       	return ac97_audio_read_min_bytes() < bytes_to_read;	
+	return ac97_audio_read_min_bytes() < bytes_to_read;
 }
 
-int tx_would_overflow( ssize_t bytes_to_write)
-{ 
+int tx_would_overflow(ssize_t bytes_to_write)
+{
 	return ac97_audio_write_max_bytes() < bytes_to_write;
 }
 
 
 // mem2mem dma?  zero overhead loop?
-static void move_frames_to_continuous(__u32* dest, struct ac97_frame* src, size_t count){
-
-  while(count--)
-    *(dest++) = (src++)->ac97_pcm;
-
+static void move_frames_to_continuous(__u32 *dest, struct ac97_frame *src, size_t count)
+{
+	while(count--)
+		*(dest++) = (src++)->ac97_pcm;
 }
 
 
 /* check for overflow or underflow before calling this */
 /* stereo data means 1 uint_32 per sample (and we have 1 sample per frame */
-ssize_t ac97_sport_get_pcm_to_user(uint32_t* pcmdata, size_t /* sample_ */ count )
+ssize_t ac97_sport_get_pcm_to_user(uint32_t *pcmdata, size_t /* sample_ */ count)
 {
 	int cnt = count;
-	
-	if( (dev.rx_tail + count) >= dev.bufsize ){
 
-	  count = dev.bufsize - dev.rx_tail;
+	if ((dev.rx_tail + count) >= dev.bufsize) {
 
-	  if(count){
-	  	move_frames_to_continuous( pcmdata, dev.rxbuf+dev.rx_tail, count );
-	 	pcmdata += count;
-	  }
-	  count = cnt-count;
-	  dev.rx_tail = 0;
-	  
+		count = dev.bufsize - dev.rx_tail;
+
+ 		if (count) {
+			move_frames_to_continuous(pcmdata, dev.rxbuf+dev.rx_tail, count);
+			pcmdata += count;
+		}
+		count = cnt - count;
+		dev.rx_tail = 0;
+
 	}
-	
-	if( count ){
-	  move_frames_to_continuous( pcmdata, dev.rxbuf+dev.rx_tail, count );
-	  dev.rx_tail += count;
+
+	if (count) {
+		move_frames_to_continuous(pcmdata, dev.rxbuf+dev.rx_tail, count );
+		dev.rx_tail += count;
 	}
-	
+
 	return cnt;
 }
 
-ssize_t ac97_audio_read(uint8_t* pcmdata, size_t len)
+ssize_t ac97_audio_read(uint8_t *pcmdata, size_t len)
 {
 	int samples_to_read, samples_read, bytes_read = 0;
 
-	if (!rx_would_underflow(len))
-	{
+	if (!rx_would_underflow(len)) {
 		samples_to_read = len >> LOG_BYTES_PER_SAMPLE;
 		samples_read = ac97_sport_get_pcm_to_user((uint32_t*)pcmdata, samples_to_read);
 		bytes_read = samples_read << LOG_BYTES_PER_SAMPLE;
-	} 
+	}
 	return bytes_read;
 }
 
-static void move_continuous_to_frames(struct ac97_frame* dest, const __u32* src, size_t count){
-	while(count--){
-	  // dest->ac97_tag |= TAG_VALID | TAG_PCM;
-	  (dest++)->ac97_pcm = *(src++);
+static void move_continuous_to_frames(struct ac97_frame *dest, const __u32 *src, size_t count)
+{
+	while (count--) {
+		// dest->ac97_tag |= TAG_VALID | TAG_PCM;
+		(dest++)->ac97_pcm = *(src++);
 	}
 }
 
 /* check for overflow or underflow before calling this */
-ssize_t ac97_sport_put_pcm_from_user( const uint32_t* pcmdata, size_t count )
+ssize_t ac97_sport_put_pcm_from_user(const uint32_t *pcmdata, size_t count)
 {
 	int cnt = count;
 
-	if( (dev.tx_head + count) >= dev.bufsize ){
+	if ((dev.tx_head + count) >= dev.bufsize) {
 
 		count = dev.bufsize - dev.tx_head;
 
-		if(count){
-			move_continuous_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
+		if (count) {
+			move_continuous_to_frames(dev.txbuf+dev.tx_head, pcmdata, count);
 			pcmdata += count;
 		}
 		count = cnt-count;
 		dev.tx_head = 0;
 	}
-	
-	if( count ){
-		move_continuous_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
-		dev.tx_head += count;
 
+	if (count) {
+		move_continuous_to_frames(dev.txbuf+dev.tx_head, pcmdata, count);
+		dev.tx_head += count;
 	}
-	
+
 	return cnt;
 }
 
-ssize_t ac97_audio_write(const uint8_t* pcmdata, size_t len)
+ssize_t ac97_audio_write(const uint8_t *pcmdata, size_t len)
 {
 	int samples_to_write, samples_written, bytes_written = 0;
 
-	if (!tx_would_overflow(len))
-	{
+	if (!tx_would_overflow(len)) {
 		samples_to_write = len >> LOG_BYTES_PER_SAMPLE;
 		samples_written = ac97_sport_put_pcm_from_user((uint32_t*)pcmdata, samples_to_write);
 		bytes_written = samples_written << LOG_BYTES_PER_SAMPLE;
@@ -687,22 +690,31 @@ ssize_t ac97_audio_write(const uint8_t* pcmdata, size_t len)
 	return bytes_written;
 }
 
-void ac97_sport_silence(void){
-  int i;
-  for(i=0; i<dev.bufsize; ++i) dev.txbuf[i].ac97_pcm = 0;
+void ac97_sport_silence(void)
+{
+	int i;
+	for (i=0; i<dev.bufsize; ++i)
+		dev.txbuf[i].ac97_pcm = 0;
 }
 
 
-int ac97_wait_for_audio_read_with_timeout(unsigned long timeout){
+int ac97_wait_for_audio_read_with_timeout(unsigned long timeout)
+{
 	return interruptible_sleep_on_timeout(&dev.audio_in_wait, timeout);
 }
 
-int ac97_wait_for_audio_write_with_timeout(unsigned long timeout){
+int ac97_wait_for_audio_write_with_timeout(unsigned long timeout)
+{
 	return interruptible_sleep_on_timeout(&dev.audio_out_wait, timeout);
 }
 
 
-wait_queue_head_t* ac97_get_read_waitqueue(void){ return &dev.audio_in_wait; }
+wait_queue_head_t *ac97_get_read_waitqueue(void)
+{
+	return &dev.audio_in_wait;
+}
 
-wait_queue_head_t* ac97_get_write_waitqueue(void){ return &dev.audio_out_wait; }
-
+wait_queue_head_t *ac97_get_write_waitqueue(void)
+{
+	return &dev.audio_out_wait;
+}

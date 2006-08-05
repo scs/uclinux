@@ -1,18 +1,23 @@
 /*
- * File:         ac97_sport.c 
- * Description:  low level driver for ac97 connected to sportX/dmaY on blackfin 53x
- * 
- * Rev:          $Id$
+ * File:         sound/blackfin/ac97_sport.c
+ * Based on:
+ * Author:       Luuk van Dijk, Bas Vermeulen <blackfin@buyways.nl>
+ *
  * Created:      Sat Dec  6 21:40:06 CET 2003
- * Author:       Luuk van Dijk, Bas Vermeulen
- * mail:         blackfin@buyways.nl
- * 
- * Copyright (C) 2003 Luuk van Dijk, Bas Vermeulen BuyWays B.V.
+ * Description:  low level driver for ac97 connected to sportX/dmaY on blackfin 53x
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright (C) 2003 Luuk van Dijk, Bas Vermeulen BuyWays B.V.
+ *               Copyright 2003-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,11 +25,13 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifndef __AC97_SPORT_H__
+#define __AC97_SPORT_H__
 
 /*
  * SYNOPSIS:
@@ -107,3 +114,5 @@ void ac97_sport_silence(void);
 
 void ac97_sport_start(void);
 void ac97_sport_stop(void);
+
+#endif

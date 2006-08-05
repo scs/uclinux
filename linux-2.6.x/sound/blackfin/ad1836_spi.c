@@ -1,13 +1,32 @@
 /*
- * AD1836 SPI driver
+ * File:         sound/blackfin/ad1836_spi.c
+ * Based on:
+ * Author:       Roy Huang
  *
- * Copyright (c) 2006 Analog Device Inc.
- * 
- * Author: Roy Huang
- * 
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
+ * Created:
+ * Description:  AD1836 SPI driver
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/device.h>
@@ -16,7 +35,7 @@
 
 #include "ad1836_spi.h"
 
-int ad1836_spi_read(struct ad1836_spi *spi, unsigned short data, 
+int ad1836_spi_read(struct ad1836_spi *spi, unsigned short data,
 					unsigned short *buf)
 {
 	struct spi_transfer t = {
@@ -52,12 +71,11 @@ void snd_ad1836_spi_probed(struct ad1836_spi *spi);
 
 static int __devinit ad1836_spi_probe(struct spi_device *spi)
 {
-	struct ad1836_spi	*chip;
+	struct ad1836_spi *chip;
 
 	chip = kmalloc(sizeof(struct ad1836_spi), GFP_KERNEL);
-	if(!chip) {
-		return -ENOMEM;	
-	}
+	if (!chip)
+		return -ENOMEM;
 	dev_set_drvdata(&spi->dev, chip);
 	spi->dev.power.power_state = PMSG_ON;
 
