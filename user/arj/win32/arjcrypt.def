@@ -1,0 +1,6 @@
+; $Id$
+
+LIBRARY ARJCRYPT
+
+EXPORTS
+ entry         @1
