@@ -114,7 +114,7 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 	memcpy((void *)l1_stack_base, current_l1_stack_save, l1_stack_len);
 }
 
-static noinline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
 	activate_mm(prev, next);
