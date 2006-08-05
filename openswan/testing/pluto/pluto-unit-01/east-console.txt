@@ -1,0 +1,36 @@
+east:~#
+ PATH=/testing/pluto/bin:$PATH export PATH
+east:~#
+ export PLUTO="ipsec pluto"
+east:~#
+ export WHACK="ipsec whack"
+east:~#
+ /testing/pluto/bin/ifconfigs up
+east:~#
+ cd /tmp
+east:/tmp# mkdir log
+east:/tmp# ln -s /testing/pluto/log.ref       .
+east:/tmp# ln -s /testing/pluto/ipsec.secrets .
+east:/tmp# ln -s /testing/pluto/ipsec.d/west .
+east:/tmp# ln -s /testing/pluto/ipsec.d/east .
+east:/tmp# . doauto --diff isakmp-psk isakmp-rsa isakmp-rsa-case
+isakmp-psk:
+isakmp-rsa:
+isakmp-rsa-case:
+east:/tmp# . doauto --diff isakmp-rsa-dot ipsec-psk ipsec-rsa ipsec-rsa-time-neg 
+isakmp-rsa-dot:
+ipsec-psk:
+ipsec-rsa:
+ipsec-rsa-time-neg:
+east:/tmp# . doauto --diff ipsec-rsa-time-trunc ipsec-rsa-time-neg-dontrekey 
+ipsec-rsa-time-trunc:
+ipsec-rsa-time-neg-dontrekey:
+east:/tmp# . doauto --diff ipsec-rsa-delete ipsec-rsa-c ipsec-rsa-co 
+ipsec-rsa-delete:
+ipsec-rsa-c:
+ipsec-rsa-co:
+east:/tmp# . doauto --diff ipsec-psk-rw ipsec-psk-id-rw ipsec-rsa-rw
+ipsec-psk-rw:
+ipsec-psk-id-rw:
+ipsec-rsa-rw:
+
