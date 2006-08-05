@@ -599,8 +599,11 @@ static int __devinit snd_ad73311_probe(struct platform_device *pdev)
 
 	strcpy(card->driver, "ad73311");
 	strcpy(card->shortname, CHIP_NAME);
-	sprintf(card->longname, "Blackfin Stampboard Daughter Card, "
-			"AD73311L soundcard");
+	sprintf(card->longname, "%s at PF%d SPORT%d rx/tx dma %d/%d err irq %d",
+	        card->shortname,
+	        CONFIG_SND_BFIN_AD73311_SE,
+	        CONFIG_SND_BFIN_SPORT,
+	        SPORT_DMA_RX, SPORT_DMA_TX, SPORT_IRQ_ERR);
 
 	snd_card_set_dev(card, (&pdev->dev));
 	if ((err = snd_card_register(card)) < 0) {
