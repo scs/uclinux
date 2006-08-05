@@ -19,4 +19,7 @@ build/config.cache: makefile
 
 
 clean:
-	$(MAKE) MAKE="$(MAKE) -f Makefile" clean
+	-rm -f dynamic/libadns.so.1.0
+	-rm -f client/adnshost
+	find ./ -name "*.o" | env -u xargs rm -Rf
+

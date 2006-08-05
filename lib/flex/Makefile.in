@@ -17,7 +17,7 @@
 CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 DEFS = @DEFS@
-LDFLAGS = 
+LDFLAGS = @LDFLAGS@
 LIBS = @LIBS@
 
 # Installation targeting.  Files will be installed under the tree

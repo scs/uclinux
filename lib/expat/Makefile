@@ -46,9 +46,12 @@ ifdef DISABLE_SHARED_LIBS
 LIBRARY = libexpat.a
 else
 LIBRARY = libexpat.so
+CFLAGS += -fPIC
 endif
 
-default:  buildlib xmlwf/xmlwf
+default:  buildlib 
+
+#xmlwf/xmlwf
 
 buildlib: $(LIBRARY)
 
@@ -115,14 +118,12 @@ LTFLAGS = --silent
 
 COMPILE = $(CC) $(CFLAGS) $(DEFS) $(CPPFLAGS) $(INCLUDES)
 LTCOMPILE = $(COMPILE)
-LINK_LIB = $(COMPILE) -shared $(LDFLAGS) -o $@
 LINK_STATICLIB = $(COMPILE) -static $(LDFLAGS) -o $@
 LINK_EXE = $(COMPILE) $(LDFLAGS) -o $@
 
 LIB_OBJS = lib/xmlparse.lo lib/xmltok.lo lib/xmlrole.lo
 libexpat.so: $(LIB_OBJS)
-	$(LINK_LIB) $(LIB_OBJS) -Wl,--no-whole-archive \
-		-L${ROOTDIR}/lib/${LIBCDIR}/lib -nodefaultlibs -lc -lgcc
+	$(CC) -shared -o $@ $(SH_LDFLAGS) $(LIB_OBJS) $(SH_LDLIBS)
 
 libexpat.a: $(LIB_OBJS)
 	$(AR) cr $@ $(LIB_OBJS)
