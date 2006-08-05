@@ -1,0 +1,21 @@
+# 'include' this file to disable Opportunistic Encryption.
+# See @FINALDOCDIR@/policygroups.html for details.
+#
+# RCSID $Id$
+conn block 
+    auto=ignore
+
+conn private 
+    auto=ignore
+
+conn private-or-clear 
+    auto=ignore
+
+conn clear-or-private 
+    auto=ignore
+
+conn clear 
+    auto=ignore
+
+conn packetdefault 
+    auto=ignore

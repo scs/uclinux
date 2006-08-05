@@ -1,0 +1,24 @@
+The following people have contributed patches to Openswan 2.x
+
+	Andreas Steffen <andreas.steffen@strongsec.com> - X.509 Digital Certificates
+	Dr{Who} on Freenode - Porting NAT-T + XAUTH to Openswan 2.x 
+	Herbert Xu - Support for 26sec, NAT-T on 26sec, etc...
+	Jacco de Leeuw <jacco2@dds.nl> - Fixes for MS Interop
+	Ken Bantoft <ken@xelerance.com> - RFC3706 DPD, cross compiling, etc...
+	Mathieu Lafon <mlafon@arkoon.net> - NAT-T Support
+	Michael Richardson <mcr@xelerance.com> - testing, integration.
+	Nate Carlson - Force NAT-T framework, KLIPS for 2.6, etc...
+	Paul Wouters <paul@xelerance.com> - documentation.
+	Stephen Bevan <stephen@dino.dnsalias.com> - RFC2409 port selectors
+	Tuomo Soini <tis@foobar.fi>
+	willy@w.ods.org
+	Matthew Galgoci <mgalgoci@redhat.com>
+
+Openswan is a fork of the FreeS/WAN 2.04 codebase.
+Please see the doc/CREDITS.freeswan file from FreeS/WAN for details on
+original work.
+
+IXIA Communications (http://www.ixiacom.com/) sponsored the cryptographic
+refit in pluto, which permitted Aggressive mode to be incorporated safely.
+
+This file is RCSID $Id$

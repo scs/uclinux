@@ -1,0 +1,196 @@
+
+include ${OPENSWANSRCDIR}/Makefile.ver
+include ${OPENSWANSRCDIR}/Makefile.inc
+
+CFLAGS+=${USERCOMPILE} -I${OPENSWANSRCDIR} -I${KLIPSINC} -I${OPENSWANSRCDIR}/include
+
+CFLAGS+= -Wall
+#CFLAGS+= -Wconversion
+#CFLAGS+= -Wmissing-prototypes
+CFLAGS+= -Wpointer-arith
+CFLAGS+= -Wcast-qual
+#CFLAGS+= -Wmissing-declarations
+CFLAGS+= -Wstrict-prototypes
+#CFLAGS+= -pedantic
+#CFLAGS+= -W
+#CFLAGS+= -Wwrite-strings
+CFLAGS+= -Wbad-function-cast 
+
+ifeq ($(USE_NAT_TRAVERSAL),true)
+NAT_DEFS=-DNAT_TRAVERSAL -DVIRTUAL_IP 
+endif
+CFLAGS+= ${NAT_DEFS}
+
+LIBS?=${OSWLOGLIB} ${OPENSWANLIB} 
+
+ifeq ($(USE_NAT_TRAVERSAL),true)
+CFLAGS+= -DNAT_TRAVERSAL
+endif
+
+CFLAGS+=-DKERNEL_ALG -DIKE_ALG
+
+# die if there are any warnings
+ifndef WERROR
+WERROR:= -Werror
+endif
+
+CFLAGS+= ${WERROR}
+
+ifneq ($(LD_LIBRARY_PATH),)
+LDFLAGS=-L$(LD_LIBRARY_PATH)
+endif
+
+MANDIR8=$(MANTREE)/man8
+MANDIR5=$(MANTREE)/man5
+
+ifndef PROGRAMDIR
+PROGRAMDIR=${LIBEXECDIR}
+endif
+
+ifndef MANPROGPREFIX
+MANPROGPREFIX=ipsec_
+endif
+
+ifndef CONFDSUBDIR
+CONFDSUBDIR=.
+endif
+
+all: ${PROGRAM}
+
+programs: all
+
+ifneq ($(PROGRAM),check)
+check: $(PROGRAM)
+endif
+
+
+ifneq ($(NOINSTALL),true)
+
+install:: $(PROGRAM) $(CONFFILES) $(EXTRA8MAN) $(EXTRA5MAN) $(EXTRA5PROC) $(LIBFILES) $(CONFDFILES)
+	@mkdir -p $(PROGRAMDIR) $(MANDIR8) $(MANDIR5) $(LIBDIR) $(CONFDIR) $(CONFDDIR) $(CONFDDIR)/$(CONFDSUBDIR) $(EXAMPLECONFDIR)
+	@if [ -n "$(PROGRAM)" ]; then $(INSTALL) $(INSTBINFLAGS) $(PROGRAM) $(PROGRAMDIR); fi
+	@$(foreach f, $(addsuffix .8, $(PROGRAM)), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		$(INSTALL) $(INSTMANFLAGS) $$g $(MANDIR8)/$(MANPROGPREFIX)$f || exit 1; \
+	)
+	@$(foreach f, $(EXTRA8MAN), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		$(INSTALL) $(INSTMANFLAGS) $$g $(MANDIR8)/ipsec_$f || exit 1; \
+	)
+	@$(foreach f, $(EXTRA5MAN), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		$(INSTALL) $(INSTMANFLAGS) $$g $(MANDIR5)/$f || exit 1 ;\
+	)
+	@$(foreach f, $(EXTRA5PROC), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		$(INSTALL) $(INSTMANFLAGS) $$g $(MANDIR5)/ipsec_$f || exit 1 ;\
+	)
+	@$(foreach f, $(LIBFILES), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		$(INSTALL) $(INSTCONFFLAGS) $$g $(LIBDIR)/$f || exit 1 ;\
+	)
+	@$(foreach f, $(CONFFILES), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		if [ ! -f $(CONFDIR)/$f ]; then $(INSTALL) $(INSTCONFFLAGS) $$g $(CONFDIR)/$f || exit 1; fi;\
+		$(INSTALL) $(INSTCONFFLAGS) $$g $(EXAMPLECONFDIR)/$f-sample || exit 1; \
+	)
+	@$(foreach f, $(CONFDFILES), \
+		g=`if [ -r $f ]; then echo $f; else echo ${srcdir}/$f; fi`; \
+		if [ ! -f $(CONFDDIR)/$(CONFDSUBDIR)/$f ]; then $(INSTALL) $(INSTCONFFLAGS) $$g $(CONFDDIR)/$(CONFDSUBDIR)/$f || exit 1; fi;\
+	)
+
+install_file_list::
+	@if [ -n "$(PROGRAM)" ]; then echo $(PROGRAMDIR)/$(PROGRAM); fi
+	@$(foreach f, $(addsuffix .8, $(PROGRAM)), \
+		echo $(MANDIR8)/${MANPROGPREFIX}$f; \
+	)
+	@$(foreach f, $(EXTRA8MAN), \
+		echo $(MANDIR8)/ipsec_$f; \
+	)
+	@$(foreach f, $(EXTRA5MAN), \
+		echo $(MANDIR5)/$f;\
+	)
+	@$(foreach f, $(EXTRA5PROC), \
+		echo $(MANDIR5)/ipsec_$f; \
+	)
+	@$(foreach f, $(LIBFILES), \
+		echo $(LIBDIR)/$f;\
+	)
+	@$(foreach f, $(CONFFILES), \
+		echo $(CONFDIR)/$f;\
+		echo $(EXAMPLECONFDIR)/$f-sample;\
+	)
+	@$(foreach f, $(CONFDFILES), \
+		echo $(CONFDDIR)/${CONFDSUBDIR}/$f;\
+	)
+
+endif
+
+# set values for implicit rules.
+LOADLIBS=${OBJS} 
+LDLIBS=${LIBS} ${USERLINK}
+
+%: %.o $(OBJS) $(OPENSWANLIB)
+	$(CC) $(CFLAGS) -o $@ $@.o ${OBJS} $(LDFLAGS) $(LIBS) $(USERLINK)
+
+%.o: ${srcdir}%.c
+	${CC} -c ${CFLAGS} $<
+
+%.i: %.c 
+	$(CC) $(CFLAGS) -E -o $@ $< 
+
+%: ${srcdir}%.in ${OPENSWANSRCDIR}/Makefile.inc ${OPENSWANSRCDIR}/Makefile.ver
+	@cat $< | sed -e "s/xxx/$(IPSECVERSION)/" \
+			-e "s:@IPSEC_DIR@:$(FINALBINDIR):" \
+			-e "s:@IPSEC_EXECDIR@:$(FINALLIBEXECDIR):" \
+			-e "s:@IPSEC_SBINDIR@:$(FINALSBINDIR):" \
+			-e "s:@IPSEC_LIBDIR@:$(FINALLIBDIR):" \
+			-e "s:@FINALCONFDIR@:$(FINALCONFDIR):" \
+			-e "s:@EXAMPLECONFDIR@:$(EXAMPLECONFDIR):" \
+			-e "s:@FINALDOCDIR@:$(FINALDOCDIR):" \
+			-e "s:@FINALEXAMPLECONFDIR@:$(FINALEXAMPLECONFDIR):" \
+			-e "s:@RSAKEYBITS@:$(RSAKEYBITS):" \
+			-e "s:@MODULE_GOO_LIST@:$(MODULE_GOO_LIST):" \
+			-e "s:@IPSEC_CONFS@:$(FINALCONFDIR):" \
+			-e "s:@IPSEC_CONFDDIR@:$(FINALCONFDDIR):" \
+			-e "s:@USE_IPROUTE2@:$(USE_IPROUTE2):" \
+			-e "s:@IPSEC_FIREWALLTYPE@:$(IPSEC_FIREWALLTYPE):" \
+			-e "s:@OE_FLAG@:$(OE_FLAG):" \
+			-e "s:@USE_DEFAULT_CONNS@:$(USE_DEFAULT_CONNS):" \
+			| cat >$@
+	@if [ -x $< ]; then chmod +x $@; fi
+	@if [ "${PROGRAM}.in" = $< ]; then chmod +x $@; fi
+
+# xmlto is from http://cyberelk.net/tim/xmlto/
+ifneq ($(strip $(XMLTO)),)
+%.8: %.8.xml
+	${XMLTO} man $< 
+	mv "ipsec_$@" $@
+
+%.5: %.5.xml
+	${XMLTO} man $< 
+	mv "ipsec_$@" $@
+
+%.1: %.1.xml
+	${XMLTO} man $< 
+	mv "ipsec_$@" $@
+endif
+
+cleanall: clean
+
+distclean: clean
+
+mostlyclean: clean
+
+realclean: clean
+
+clean::
+ifneq ($(strip $(PROGRAM)),)
+	@if [ -r $(PROGRAM).in ]; then rm -f $(PROGRAM); fi
+	@if [ -r $(PROGRAM).c ];  then rm -f $(PROGRAM); fi
+	@if [ -n "$(OBJS)" ];     then rm -f $(PROGRAM); fi
+endif
+	@rm -f *.o
+
+checkprograms:
+

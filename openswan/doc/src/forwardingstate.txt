@@ -1,0 +1,35 @@
+
+ 
+      .--------------. 	 
+      | non-existant |
+      |    policy    |
+      `--------------'
+             |        
+             | PF_ACQUIRE
+             |           
+             |<---------.
+             V          | new packet
+      .--------------.  | (maybe resend PF_ACQUIRE)
+      |  hold policy |--'                          
+      |              |--.                          
+      `--------------'   \  pass                   
+         |        |       \ msg    .---------.     
+         |        |        \       V         | forward
+         |        |         .-------------.  | packet 
+  create |        |         | pass policy |--'       
+  IPsec  |        |         `-------------'          
+  SA     |        |                                  
+         |         \                                 
+         |          \                                
+         V           \ 	deny                         
+   .---------.        \ msg                          
+   | encrypt |         \                             
+   | policy  |          \         ,---------.        
+   `---------'           \        |         | discard
+                          \       V         | packet 
+                           .-------------.  |        
+                           | deny policy |--'        
+                           '-------------'          
+                                                   
+    
+$Id$

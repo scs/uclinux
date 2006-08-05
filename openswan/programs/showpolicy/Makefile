@@ -1,0 +1,44 @@
+# Makefile for the KLIPS interface utilities
+# Copyright (C) 2003	Michael Richardson <mcr@freeswan.org>
+# 
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by the
+# Free Software Foundation; either version 2 of the License, or (at your
+# option) any later version.  See <http://www.fsf.org/copyleft/gpl.txt>.
+# 
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+# for more details.
+#
+# RCSID $Id$
+
+OPENSWANSRCDIR?=$(shell cd ../..; pwd)
+include ${OPENSWANSRCDIR}/Makefile.inc
+
+PROGRAM=showpolicy
+EXTRA5PROC=${PROGRAM}.8
+
+LIBS=${POLICYLIB} ${FREESWANLIB} 
+
+include ${srcdir}../Makefile.program
+
+#
+# $Log$
+# Revision 1.1  2006/08/05 01:29:42  vapier
+# merge from upstream uClinux
+#
+# Revision 1.4  2004/12/18 18:13:43  mcr
+# 	adjusted Makefiles so that ${OBJDIR} builds work.
+#
+# Revision 1.3  2004/04/03 19:44:49  ken
+# FREESWANSRCDIR -> OPENSWANSRCDIR (patch by folken)
+#
+# Revision 1.2  2003/05/14 02:12:27  mcr
+# 	addition of CGI-focused interface to policy lookup interface
+#
+# Revision 1.1  2003/05/11 00:45:08  mcr
+# 	program to interogate ipsec policy of stdin.
+# 	run this from inetd.
+#
+#
