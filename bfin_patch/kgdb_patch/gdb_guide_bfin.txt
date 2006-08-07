@@ -4,11 +4,14 @@
 
 				Apr. 15th 2005
 
-This guide is for the blackfin uclinux user to debug applications by GDB. The debugging works over the ethernet interface. 
+This guide is for the blackfin uclinux user to debug applications by GDB.
+The debugging works over the ethernet interface. 
 
-In order to compile gdbserver correctly, you must enable the following options for uClibc, after you have configured the kernel:
-cd uClibc
-make menuconfig
+In order to compile gdbserver correctly, you must enable the following options
+for uClibc, after you have configured the kernel:
+
+$ cd uClibc
+$ make menuconfig
 In General Library Settings  ---> select
 .      [*] POSIX Threading Support   and
 .      [*] Build pthreads debugging support
