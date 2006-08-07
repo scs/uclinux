@@ -50,7 +50,7 @@ image:
 	if [ -d $(IMAGEDIR) ] ; then \
 		mkdir -p $(IMAGEDIR) ;\
 	fi
-	rm -f $(IMAGEDIR)/* \
+	rm -rf $(IMAGEDIR)/* \
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
