@@ -6,6 +6,7 @@ set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
 set ttydev /dev/ttyS0
+set send_slow {1 .3}
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -94,7 +95,7 @@ while 1 {
 	
           -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              
-             send "y\r"
+             send -s "y\r"
       }
 
 
