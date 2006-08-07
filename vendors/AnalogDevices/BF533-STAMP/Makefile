@@ -50,7 +50,6 @@ image:
 	if [ -d $(IMAGEDIR) ] ; then \
 		mkdir -p $(IMAGEDIR) ;\
 	fi
-	rm -rf $(IMAGEDIR)/* \
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
@@ -88,7 +87,7 @@ image:
 #
 # make a compressed image, link the first one to uImage
 #
-	for FS in ext2 cramfs ; \
+	for FS in cramfs ext2 ; \
 	do \
 		if [ -f "$(IMAGE).$$FS" ] ; then \
 			$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
@@ -97,21 +96,7 @@ image:
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
-			if [ ! -f $(IMAGEDIR)/uImage ] ; then \
-				ln -s $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
-			fi ; \
-		fi; \
-	done
-#
-# generate link
-#
-	rm -f $(IMAGEDIR)/linux
-	for FS in ext2 cramfs ; \
-	do \
-		if [ -f "$(IMAGE).$$FS" ] ; then \
-			ln -s $(IMAGEDIR)/linux.$$FS $(IMAGEDIR)/linux; \
-			ln -s $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage; \
-			break; \
+			ln -sf $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
 		fi; \
 	done
 #
