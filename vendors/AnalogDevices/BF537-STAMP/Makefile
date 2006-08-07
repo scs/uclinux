@@ -20,9 +20,9 @@ ROMFS_DIRS = bin dev etc etc/dhcpc home lib mnt proc sys usr var root home tmp h
 all:
 
 romfs:
-	[ -d $(ROMFSDIR) ] || mkdir -p $(ROMFSDIR)
+	mkdir -p $(ROMFSDIR)
 	for i in $(ROMFS_DIRS); do \
-		[ -d $(ROMFSDIR)/$$i ] || mkdir -p $(ROMFSDIR)/$$i; \
+		mkdir -p $(ROMFSDIR)/$$i; \
 	done
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
@@ -47,14 +47,13 @@ romfs:
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 image:
-	if [ -d $(IMAGEDIR) ] ; then \
-		mkdir -p $(IMAGEDIR) ;\
-	fi
+	mkdir -p $(IMAGEDIR)
+	rm -rf $(IMAGEDIR)/*
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
-	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
-	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/linux
+	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
+	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(ROMFSIMG).jffs2; \
 	fi
@@ -68,21 +67,21 @@ image:
 	fi
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
 		bfin-uclinux-mkcramfs -z -r -D device_table.txt $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
-		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
-		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
+		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
+		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
 		ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
-		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/linux $(IMAGE).cramfs ;\
+		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ;\
 	fi
 	if [ -n "$(CONFIG_EXT2_FS)" ]; then \
 		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG).ext2 ; \
-		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
-		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
+		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
+		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
 		ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
-		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/linux $(IMAGE).ext2 ;\
+		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ;\
 	fi
 #
 # make a compressed image, link the first one to uImage
@@ -96,6 +95,7 @@ image:
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
+			ln -sf $(IMAGEDIR)/linux.$$FS $(IMAGEDIR)/linux ; \
 			ln -sf $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
 		fi; \
 	done
