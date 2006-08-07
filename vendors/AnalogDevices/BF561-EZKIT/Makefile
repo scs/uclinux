@@ -50,6 +50,7 @@ image:
 	if [ -d $(IMAGEDIR) ] ; then \
 		mkdir -p $(IMAGEDIR) ;\
 	fi
+	rm -f $(IMAGEDIR)/* \
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
@@ -101,7 +102,18 @@ image:
 			fi ; \
 		fi; \
 	done
-
+#
+# generate link
+#
+	rm -f $(IMAGEDIR)/linux
+	for FS in ext2 cramfs ; \
+	do \
+		if [ -f "$(IMAGE).$$FS" ] ; then \
+			ln -s $(IMAGEDIR)/linux.$$FS $(IMAGEDIR)/linux; \
+			ln -s $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage; \
+			break; \
+		fi; \
+	done
 #
 # if we are not attaching a rootfs, make a standalone image
 #
