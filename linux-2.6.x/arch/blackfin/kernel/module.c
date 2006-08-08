@@ -35,6 +35,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <asm/cacheflush.h>
 
 extern void *dma_memcpy(void *dest, const void *src, size_t count);
 
@@ -214,6 +215,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 				       mod->name);
 				return -1;
 			}
+			blackfin_dcache_flush_range((unsigned long)s->sh_addr, 
+						(unsigned long)(s->sh_addr+s->sh_size));
 			dma_memcpy(dest, (void *)s->sh_addr, s->sh_size);
 			s->sh_flags &= ~SHF_ALLOC;
 			s->sh_addr = (unsigned long)dest;
@@ -338,6 +341,8 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 					*location16 = (value & 0xffff);
 				else {
 					temp = (value & 0xffff);
+					blackfin_dcache_flush_range((unsigned long)(&temp), 
+									(unsigned long)(&temp+2));
 					dma_memcpy(location16, &temp, 2);
 				}
 			}
@@ -351,6 +356,8 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 					*location16 = ((value >> 16) & 0xffff);
 				else {
 					temp = (value >> 16) & 0xffff;
+					blackfin_dcache_flush_range((unsigned long)(&temp), 
+									(unsigned long)(&temp+2));
 					dma_memcpy(location16, &temp, 2);
 				}
 			}
