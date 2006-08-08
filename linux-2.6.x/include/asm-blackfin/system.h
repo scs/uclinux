@@ -101,7 +101,7 @@ extern volatile unsigned long irq_flags;
 #define mb()   asm volatile (""   : : :"memory")
 #define rmb()  asm volatile (""   : : :"memory")
 #define wmb()  asm volatile (""   : : :"memory")
-#define set_rmb(var, value)    do { xchg(&var, value); } while (0)
+#define set_rmb(var, value)    do { (void) xchg(&var, value); } while (0)
 #define set_mb(var, value)     set_rmb(var, value)
 #define set_wmb(var, value)    do { var = value; wmb(); } while (0)
 
@@ -120,7 +120,7 @@ extern volatile unsigned long irq_flags;
 #endif
 
 #define xchg(ptr,x) ((__typeof__(*(ptr)))__xchg((unsigned long)(x),(ptr),sizeof(*(ptr))))
-#define tas(ptr) (xchg((ptr),1))
+#define tas(ptr) ((void)xchg((ptr),1))
 
 struct __xchg_dummy {
 	unsigned long a[100];
