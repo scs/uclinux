@@ -2,12 +2,7 @@
 log_file flash_images_log
 send_user "Starting flash_images.exp \n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
-set password "blackfin"
+source ../kernel_config.exp
 
 proc step { message } {
 
@@ -166,7 +161,7 @@ expect   ">"
 step "Flash images."
 
 set timeout 1200   
-send -s "tftp 0x1000000 vmImage\r"
+send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
     while 1 {
 	expect {
 	    
@@ -248,7 +243,7 @@ send -s "tftp 0x1000000 vmImage\r"
 	
 ############################################################################################################	
 	expect ">"
-	send -s "tftp 0x1000000 jffs2.img\r"
+	send -s "tftp 0x1000000 $jffs2_rootfs_image\r"
         while 1 {
 	expect {
 	    

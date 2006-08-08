@@ -2,11 +2,8 @@
 log_file build_pnormtd_kernel_log
 send_user "Starting build_pnormtd_kernel.exp\n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 .3}
+source ../kernel_config.exp
+set send_slow {1 .1}
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -173,7 +170,10 @@ while 1 {
 
              send  -s "Y\r"
       }
-     
+         -re "Enable loadable module support.*MODULES.*\\\[.*]" {
+             send -s "N\r"
+      }
+
          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
              send -s  "N\r"
       }
@@ -305,8 +305,8 @@ step "Copy linux"
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
-exec cp images/vmImage  /tftpboot
-exec cp images/jffs2.img  /tftpboot
+exec cp images/$compressed_kernel_only_image  /tftpboot
+exec cp images/$jffs2_rootfs_image  /tftpboot
 
 log_file
 

@@ -2,10 +2,8 @@
 log_file build_jffs2_kernel_log
 send_user "Starting build_jffs2_kernel.exp\n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
+source ../kernel_config.exp
+set send_slow {1 0.1}
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -99,86 +97,90 @@ while 1 {
           
        -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
             
-             send "N\r"
+             send -s "N\r"
       }
   
       
       
         -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
         -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
        -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
          -re "Caching block device access to MTD devices.*MTD_BLOCK.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
       
       
         -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
        
          -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
            
          -re "ST MW320D compatible flash chip support.*MTD_MW320D.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
          -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
          -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
       
       
         -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
         -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
  
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              
-             send "N\r"
+             send -s "N\r"
       }
       
        -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
 
-             send "Y\r"
+             send -s "Y\r"
       }
-     
+
+         -re "Enable loadable module support.*MODULES.*\\\[.*]" {
+             send -s "N\r"
+      }
+
          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
        	   -re "Sound card support.*SOUND.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
     ####################################################################
@@ -187,81 +189,81 @@ while 1 {
       
            -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
           -re "eraseall.*CONFIG_USER_MTDUTILS_ERASEALL.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
           -re "mkfs.jff2.*CONFIG_USER_MTDUTILS_MKFSJFFS2.*\\\[.*]" {
              
-             send "Y\r"
+             send -s "Y\r"
       }
       
  	      
            -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
        	  -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "Build libjpeg.*CONFIG_LIB_LIBJPEG_FORCE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
      
       	  -re "Build ncurses.*CONFIG_LIB_NCURSES_FORCE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "Build libbfdsp.*CONFIG_LIB_LIBBFDSP.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
         -re "boa-new.*CONFIG_USER_BOA_SRC_BOA_NEW.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
 	  
 	  -re "dhrystone.*CONFIG_USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "whetstone.*CONFIG_USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "Sqlite.*a light weight database.*CONFIG_USER_SQLITE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "VIDEO test program.*CONFIG_USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "TWI LCD test program.*CONFIG_USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
 
       	  -re "strace.*CONFIG_USER_BLACKFIN_STRACE.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
       
       	  -re "jpegview.*CONFIG_USER_JPEGVIEW.*\\\[.*]" {
-             send "N\r"
+             send -s "N\r"
       }
            
        "\\\(*) \\\[*]" {
-	     send "\r"
+	     send  "\r"
       }
 
       -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
+             send  "\r"
       }
 
 
@@ -303,8 +305,8 @@ step "Copy linux"
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
-exec cp images/vmImage  /tftpboot
-exec cp images/jffs2.img  /tftpboot
+exec cp images/$compressed_kernel_only_image  /tftpboot
+exec cp images/$jffs2_rootfs_image  /tftpboot
 
 log_file
 

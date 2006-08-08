@@ -2,12 +2,7 @@
 log_file spi_flash_images_log
 send_user "Starting spi_flash_images.exp \n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
-set password "blackfin"
+source ../kernel_config.exp
 set TEST_PASS pass
 set TEST_FAIL fail
 
@@ -206,7 +201,7 @@ expect {
    	    
 set timeout 120
 
-send -s "tftp 0x1000000 vmImage\r"
+send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
 while 1 {
 expect {
 	
@@ -288,7 +283,7 @@ while 1 {
      
 set timeout 120
 
-send -s "tftp 0x1000000 jffs2.img\r"
+send -s "tftp 0x1000000 $jffs2_rootfs_image\r"
 while 1 {
 expect {
 	

@@ -15,13 +15,13 @@ set targetip 10.100.4.50
 set serverip 10.100.4.174
 
 set password "blackfin"
-set send_slow {1 .01}
+set send_slow {1 .1}
 
 
 #set file names
 
 set kernel_only_image   vmlinux
-set compressed_kernel_only_image  vmlinux
+set compressed_kernel_only_image  vmImage
 
 set kernel_and_ext2_image   linux.ext2
 set kernel_and_cramfs_image linux.cramfs

@@ -4,12 +4,7 @@ send_user "Starting jffs2_fs_test.exp\n"
 
 set TITLE "JFFS2_FS Test"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
-set password "blackfin"
+source ../kernel_config.exp
 
 proc step { message } {
 
@@ -167,7 +162,7 @@ expect   ">"
 send "save\r"
 expect   ">" 
 
-	send -s "tftp 0x1000000 jffs2.img\r"
+	send -s "tftp 0x1000000 $jffs2_rootfs_image\r"
         while 1 {
 	expect {
 	    

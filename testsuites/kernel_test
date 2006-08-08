@@ -628,7 +628,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot_jffs2
   cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.reboot_jffs2
-  cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.image.reboot_jffs2
+  cp $KERNEL_SOURCE/images/rootfs.jffs2 $THIS_LOG/rootfs.jffs2.image.reboot_jffs2
   
   sleep 50
 
@@ -1129,7 +1129,7 @@ if [ $pnormtd_test -eq 1  ] ; then
 
   cp $KERNEL_SCRIPTS/snormtd/build_snormtd_kernel_log $THIS_LOG
   cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.snormtd
-  cp $KERNEL_SOURCE/images/jffs2.img $THIS_LOG/jffs2.img.snormtd
+  cp $KERNEL_SOURCE/images/rootfs.jffs2.img $THIS_LOG/rootfs.jffs2.snormtd
 
   cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
   cp $KERNEL_SCRIPTS/snormtd/snormtd_reboot_test_log $THIS_LOG
