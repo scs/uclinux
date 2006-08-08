@@ -39,20 +39,22 @@
 OUTPUT_FORMAT("elf32-bfin")
 ENTRY(__start)
 _jiffies = _jiffies_64;
+
 MEMORY
-	{
-	ram		: ORIGIN = CONFIG_BOOT_LOAD,       LENGTH = (CONFIG_MEM_SIZE * 1024 * 1024) - (CONFIG_BOOT_LOAD)
-	l1_data_a	: ORIGIN = L1_DATA_A_START, LENGTH = L1_DATA_A_LENGTH
-	l1_data_b	: ORIGIN = L1_DATA_B_START, LENGTH = L1_DATA_B_LENGTH
-	l1_code		: ORIGIN = L1_CODE_START,   LENGTH = L1_CODE_LENGTH
-	l1_scratch	: ORIGIN = L1_SCRATCH_START,LENGTH = L1_SCRATCH_LENGTH
-	}
+{
+	ram         : ORIGIN = CONFIG_BOOT_LOAD, LENGTH = (CONFIG_MEM_SIZE * 1024 * 1024) - (CONFIG_BOOT_LOAD)
+	l1_data_a   : ORIGIN = L1_DATA_A_START,  LENGTH = L1_DATA_A_LENGTH
+	l1_data_b   : ORIGIN = L1_DATA_B_START,  LENGTH = L1_DATA_B_LENGTH
+	l1_code     : ORIGIN = L1_CODE_START,    LENGTH = L1_CODE_LENGTH
+	l1_scratch  : ORIGIN = L1_SCRATCH_START, LENGTH = L1_SCRATCH_LENGTH
+}
 
 SECTIONS
 {
 	. = CONFIG_BOOT_LOAD ;
 
-	.text  : {
+	.text :
+	{
 		 __stext = .;
 		*(.text)
 		SCHED_TEXT
@@ -62,12 +64,12 @@ SECTIONS
 		*(__ex_table)
 		 ___stop___ex_table = .;
 
-		  *($code)
-        	  *(.rodata)
-        	  *(.rodata.*)
-		  *(__vermagic)		/* Kernel version magic */
-        	  *(.rodata1)
-	          *(.fixup)
+		*($code)
+		*(.rodata)
+		*(.rodata.*)
+		*(__vermagic)		/* Kernel version magic */
+		*(.rodata1)
+		*(.fixup)
 
 		/* Kernel symbol table: Normal symbols */
 		. = ALIGN(4);
@@ -94,7 +96,7 @@ SECTIONS
 		*(__ksymtab_strings)
 
 		 . = ALIGN(4) ;
-	  	__etext = . ;
+		__etext = . ;
 	} > ram
 
 	.init :
@@ -136,8 +138,7 @@ SECTIONS
 	} > ram
 
 	 __l1_lma_start = .;
-	.text_l1 L1_CODE_START :
-		AT ( __l1_lma_start )
+	.text_l1 L1_CODE_START : AT ( __l1_lma_start )
 	{
 		. = ALIGN(4) ;
 		 __stext_l1 = . ;
@@ -147,8 +148,7 @@ SECTIONS
 		 __etext_l1 = . ;
 	}
 
-	.data_l1 L1_DATA_A_START :
-		AT ( __l1_lma_start + SIZEOF(.text_l1) )
+	.data_l1 L1_DATA_A_START : AT ( __l1_lma_start + SIZEOF(.text_l1) )
 	{
 		. = ALIGN(4) ;
 		 __sdata_l1 = . ;
@@ -179,7 +179,6 @@ SECTIONS
 		*(.exitcall.exit)
 	} > ram
 
-
 	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
 	{
 		. = ALIGN(4) ;
@@ -189,5 +188,5 @@ SECTIONS
 		. = ALIGN(4) ;
 		 ___bss_stop = . 	;
 		 __end = .	;
-    	} > ram
+	} > ram
 }
