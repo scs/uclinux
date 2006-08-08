@@ -636,6 +636,11 @@ ENTRY(_return_from_int)
 	p1.h = _schedule_and_signal_from_int;
 	[p0] = p1;
 	csync;
+#if defined(ANOMALY_05000281)
+	r0.l = lo(CONFIG_BOOT_LOAD);
+	r0.h = hi(CONFIG_BOOT_LOAD);
+	reti = r0;
+#endif
 	r0 = 0x801f (z);
 	STI r0;
 	raise 15;	/* raise evt15 to do signal or reschedule */
@@ -645,10 +650,10 @@ ENTRY(_return_from_int)
 
 ENTRY(_lower_to_irq14)
 #if defined(ANOMALY_05000281)
-	r0 = 0x1000;
+	r0.l = lo(CONFIG_BOOT_LOAD);
+	r0.h = hi(CONFIG_BOOT_LOAD);
 	reti = r0;
 #endif
-
 	r0 = 0x401f;
 	sti r0;
 	raise 14;
