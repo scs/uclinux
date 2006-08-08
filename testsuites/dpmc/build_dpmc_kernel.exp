@@ -91,11 +91,11 @@ while 1 {
 
 
       -re "Blackfin Power Management support.*BLACKFIN_DPMC.*\\\[.*]" {
-         send "y\r"
+         send -s "y\r"
       }
 
       -re "DPMC test program.*CONFIG_USER_BLACKFIN_DPMC.*\\\[.*]" {
-         send "y\r"
+         send -s "y\r"
       }
 
       "\\\(*) \\\[*]" {

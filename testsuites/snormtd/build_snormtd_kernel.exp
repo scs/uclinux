@@ -180,9 +180,6 @@ while 1 {
 
              send -s "Y\r"
       }
-      -re "Enable loadable module support.*MODULES.*\\\[.*]" {
-             send -s "N\r"
-      }
 
        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
              send -s "N\r"

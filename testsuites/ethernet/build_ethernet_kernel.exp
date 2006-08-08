@@ -3,6 +3,7 @@ log_file build_ethernet_kernel_log
 send_user "Starting build_ethernet_kernel.exp\n"
 
 source ../kernel_config.exp
+set send_slow {1 .03}
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
