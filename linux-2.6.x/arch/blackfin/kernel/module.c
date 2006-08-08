@@ -196,7 +196,7 @@ void module_free(struct module *mod, void *module_region)
 	vfree(module_region);
 }
 
-/* Transfer the section to the L1 instruction memory */
+/* Transfer the section to the L1 memory */
 int
 module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			  char *secstrings, struct module *mod)
@@ -218,6 +218,32 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_flags &= ~SHF_ALLOC;
 			s->sh_addr = (unsigned long)dest;
 		}
+		if (strcmp(".data.l1", secstrings + s->sh_name) == 0){
+			mod->arch.data_l1 = s;
+			dest = (void *)l1_data_A_sram_alloc(s->sh_size);
+			if (dest == NULL) {
+				printk(KERN_ERR
+					"module %s: L1 data memory allocation failed\n",
+					mod->name);
+				return -1;
+			}
+			memcpy(dest, (void *)s->sh_addr, s->sh_size);
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
+		if (strcmp(".bss.l1", secstrings + s->sh_name) == 0){
+                        mod->arch.bss_l1 = s;
+                        dest = (void *)l1_data_A_sram_alloc(s->sh_size);
+                        if (dest == NULL) {
+                                printk(KERN_ERR
+                                        "module %s: L1 data memory allocation failed\n",
+                                        mod->name);
+                                return -1;
+                        }
+			memset(dest, 0, s->sh_size);
+                        s->sh_flags &= ~SHF_ALLOC;
+                        s->sh_addr = (unsigned long)dest;
+                }
 	}
 	return 0;
 }
@@ -406,4 +432,8 @@ void module_arch_cleanup(struct module *mod)
 {
 	if ((mod->arch.text_l1) && (mod->arch.text_l1->sh_addr))
 		l1_inst_sram_free(mod->arch.text_l1->sh_addr);
+	if ((mod->arch.data_l1) && (mod->arch.data_l1->sh_addr))
+		l1_data_A_sram_free(mod->arch.data_l1->sh_addr);
+	if ((mod->arch.bss_l1) && (mod->arch.bss_l1->sh_addr))
+		l1_data_A_sram_free(mod->arch.bss_l1->sh_addr);
 }
