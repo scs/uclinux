@@ -235,18 +235,18 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".bss.l1", secstrings + s->sh_name) == 0){
-                        mod->arch.bss_l1 = s;
-                        dest = (void *)l1_data_A_sram_alloc(s->sh_size);
-                        if (dest == NULL) {
-                                printk(KERN_ERR
-                                        "module %s: L1 data memory allocation failed\n",
-                                        mod->name);
-                                return -1;
-                        }
+			mod->arch.bss_l1 = s;
+			dest = (void *)l1_data_A_sram_alloc(s->sh_size);
+			if (dest == NULL) {
+				printk(KERN_ERR
+					"module %s: L1 data memory allocation failed\n",
+					mod->name);
+				return -1;
+			}
 			memset(dest, 0, s->sh_size);
-                        s->sh_flags &= ~SHF_ALLOC;
-                        s->sh_addr = (unsigned long)dest;
-                }
+			s->sh_flags &= ~SHF_ALLOC;
+			s->sh_addr = (unsigned long)dest;
+		}
 	}
 	return 0;
 }
