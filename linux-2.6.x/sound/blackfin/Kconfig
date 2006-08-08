@@ -2,7 +2,7 @@
 # $Id$
 #
 menu "ALSA Blackfin devices"
-	depends on SND!=n && BFIN
+	depends on SND && BFIN
 
 config SND_BLACKFIN_AD1836
 	tristate "AD1836 Audio support for BF53x"
@@ -30,16 +30,16 @@ config SND_BLACKFIN_AD1836_TDM
 	boolean "TDM interface"
 	help
 	  TDM support all 4 stereo outputs and 3 stereo inputs.
-	  
+
 	  If unsure, say Y.
-	
+
 config SND_BLACKFIN_AD1836_I2S
 	boolean "I2S interface"
 	help
 	  I2S support 1 stereo output and 1 stereo input.
 
 	  If unsure, say N.
-		
+
 endchoice
 choice
 	prompt "5.1 Channels or 3 Separate Stereos"
@@ -48,18 +48,18 @@ choice
 	help
 	  There are 6 output channels (expcept S/PDIF), they can work in
 	  5.1 channels mode or 3 seperate stereos.
-	  
+
 	  When in 3 seperate stereos mode, 3 substreams are supported. 
 	  The /dev/dsp device can be opened 3 times, every susbstream used 
 	  different channels pairs.
-	  
+
 config SND_BLACKFIN_AD1836_MULSUB
 	boolean "3 Stereos"
 	help
 	  Support 3 separate stereos
-	  
+
 	  If unsure, say Y.
-	
+
 config SND_BLACKFIN_AD1836_5P1
 	boolean "5.1 Channels"
 	help
@@ -122,4 +122,3 @@ config SND_BFIN_AD73311_SE
 	  values are 0 to 7
 
 endmenu
-
