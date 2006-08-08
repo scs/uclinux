@@ -36,8 +36,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <asm/cacheflush.h>
-
-extern void *dma_memcpy(void *dest, const void *src, size_t count);
+#include <asm/dma.h>
 
 #define DEBUGP(fmt...)
 

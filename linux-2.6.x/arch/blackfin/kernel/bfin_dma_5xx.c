@@ -577,7 +577,7 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 	return dma_ch[channel].regs->curr_y_count;
 }
 
-void *dma_memcpy(void * dest,const void *src,size_t count)
+void *dma_memcpy(void *dest, const void *src, size_t count)
 {
 	BUG_ON(count > 0xFFFF);
 

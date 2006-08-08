@@ -207,5 +207,6 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback,
 void dma_disable_irq(unsigned int channel);
 void dma_enable_irq(unsigned int channel);
 void clear_dma_irqstat(unsigned int channel);
+void *dma_memcpy(void *dest, const void *src, size_t count);
 
 #endif
