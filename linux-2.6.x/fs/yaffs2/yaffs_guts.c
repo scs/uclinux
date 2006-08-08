@@ -5837,7 +5837,7 @@ static void yaffs_VerifyFreeChunks(yaffs_Device * dev)
 #define yaffs_CheckStruct(structure,syze, name) \
            if(sizeof(structure) != syze) \
 	       { \
-	         T(YAFFS_TRACE_ALWAYS,(TSTR("%s should be %d but is %d\n" TENDSTR),\
+	         T(YAFFS_TRACE_ALWAYS,(TSTR("%s should be %d but is %ld\n" TENDSTR),\
 		 name,syze,sizeof(structure))); \
 	         return YAFFS_FAIL; \
 		}

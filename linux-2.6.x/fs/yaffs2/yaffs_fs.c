@@ -763,7 +763,7 @@ static ssize_t yaffs_file_write(struct file *f, const char *buf, size_t n,
 	} else {
 		T(YAFFS_TRACE_OS,
 		  (KERN_DEBUG
-		   "yaffs_file_write about to write writing %d bytes"
+		   "yaffs_file_write about to write writing %zd bytes"
 		   "to object %d at %d\n",
 		   n, obj->objectId, ipos));
 	}
@@ -771,7 +771,7 @@ static ssize_t yaffs_file_write(struct file *f, const char *buf, size_t n,
 	nWritten = yaffs_WriteDataToFile(obj, buf, ipos, n, 0);
 
 	T(YAFFS_TRACE_OS,
-	  (KERN_DEBUG "yaffs_file_write writing %d bytes, %d written at %d\n",
+	  (KERN_DEBUG "yaffs_file_write writing %zd bytes, %d written at %d\n",
 	   n, nWritten, ipos));
 	if (nWritten > 0) {
 		ipos += nWritten;
