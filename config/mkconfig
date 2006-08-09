@@ -40,6 +40,7 @@ do
 	oldv=$v
 done
 echo "\" AnalogDevices"
+echo "[ -e .config ] || CONFIG_DEFAULTS_ANALOGDEVICES=y"
 #echo "endmenu"
 
 # echo "mainmenu_option next_comment"
