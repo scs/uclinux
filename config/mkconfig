@@ -17,7 +17,7 @@ fix_name()
 # the header of the config
 #
 
-echo "mainmenu_name 'SnapGear Embedded Linux Configuration'"
+echo "mainmenu_name 'Analog Devices Blackfin Embedded Linux Configuration'"
 
 #############################################################################
 #
