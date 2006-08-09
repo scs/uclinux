@@ -123,3 +123,7 @@ EXPORT_SYMBOL(blackfin_dflush_page);
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(__init_begin);
 EXPORT_SYMBOL(__init_end);
+EXPORT_SYMBOL(_ebss_l1);
+EXPORT_SYMBOL(_stext_l1);
+EXPORT_SYMBOL(_etext_l1);
+EXPORT_SYMBOL(_sdata_l1);
