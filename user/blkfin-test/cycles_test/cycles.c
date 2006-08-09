@@ -40,32 +40,17 @@ MODULE_AUTHOR("Mike Frysinger");
 MODULE_DESCRIPTION("Example Blackfin cycles code");
 
 /*
- * Get the high 32bits of the 64bit cycle counter
- */
-static inline unsigned long cycles_get_high(void)
-{
-	unsigned long ret;
-	__asm__ __volatile__("%0 = CYCLES2;" : "=d" (ret));
-	return ret;
-}
-/*
- * Get the low 32bits of the 64bit cycle counter
- */
-static inline unsigned long cycles_get_low(void)
-{
-	unsigned long ret;
-	__asm__ __volatile__("%0 = CYCLES;" : "=d" (ret));
-	return ret;
-}
-/*
  * Return the 64bit cycle counter
  */
 static inline unsigned long long cycles_get(void)
 {
-	unsigned long long ret_high, ret_low;
-	ret_high = cycles_get_high();
-	ret_low = cycles_get_low();
-	return (ret_high << 32) + ret_low;
+	unsigned long ret_high, ret_low;
+	__asm__(
+		"%0 = CYCLES;"
+		"%1 = CYCLES2;"
+		: "=d" (ret_low), "=d" (ret_high)
+	);
+	return ((unsigned long long)ret_high << 32) + ret_low;
 }
 
 /*
@@ -136,7 +121,7 @@ static int __init cycles_module_init(void)
 module_init(cycles_module_init);
 
 /*
- * Need this in order to unload the modulev
+ * Need this in order to unload the module
  */
 static void __exit cycles_module_cleanup(void)
 {
