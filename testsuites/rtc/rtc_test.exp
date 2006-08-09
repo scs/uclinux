@@ -144,12 +144,8 @@ if { $where_are_we == "uboot" } {
        expect {
          "Hit any key " {
 	     send "\r"
+             break
          }
-
-	 ">" {
-	     send_user "successful reset attempt\n"
-	     break
-	 }
 
          timeout {
 	     send_user "failed reset attempt\n"
@@ -158,7 +154,7 @@ if { $where_are_we == "uboot" } {
       }
    }
 	
-
+expect ">"
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">"
 send -s "save\r"

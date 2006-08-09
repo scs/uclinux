@@ -147,12 +147,8 @@ if { $where_are_we == "uboot" } {
        expect {
          "Hit any key " {
 	     send "\r"
-         }
-
-	 ">" {
-	     send_user "successful reset attempt\n"
 	     break
-	 }
+         }
 
          timeout {
 	     send_user "failed reset attempt\n"
@@ -162,6 +158,7 @@ if { $where_are_we == "uboot" } {
    }
 	
 
+expect ">" 
 send -s "set bootargs root=/dev/mtdblock0 rw\r"
 expect ">" 
 send -s "save\r"
@@ -322,7 +319,6 @@ while 1 {
      }
 }
 expect "root:~>"
-set send_slow {1 .1}
 
 incr case_num
 

@@ -3,7 +3,7 @@ log_file build_ethernet_kernel_log
 send_user "Starting build_ethernet_kernel.exp\n"
 
 source ../kernel_config.exp
-set send_slow {1 .03}
+set set_config_file 1
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -60,10 +60,76 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-              
+             break 
       }
    }
 }
+
+if { $set_config_file == 1 } {
+
+send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
+
+cd $uclinux_path/config
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_USER_NETPERF_TEST\[ =]\r"
+      expect "CONFIG_USER_NETPERF_TEST\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_USER_NETPERF_TEST=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5   
+       
+      send "wq\r"
+      expect eof
+      
+      
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+            
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+	     break
+
+      }
+   }
+}
+} else {
 
 cd $uclinux_path
 set timeout 300
@@ -111,11 +177,11 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-                     
+             break        
       }
    }
 }
-
+}
 step "Make"
 
 cd $uclinux_path

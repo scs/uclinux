@@ -2,11 +2,9 @@
 log_file build_nfs_kernel_log
 send_user "Starting build_nfs_kernel.exp\n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.03}
+source  ../kernel_config.exp
+
+set set_config_file 1
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -49,6 +47,11 @@ while 1 {
              send "$board_type\r"
       }
 
+         -re "Default all settings.*CONFIG_DEFAULTS_OVERRIDE.*\\\[././.]" {
+             
+             send "y\r"
+      }
+      
       "\\\(*) \\\[*]" {
 	     send "\r"
       }
@@ -63,10 +66,146 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             
+             break
       }
    }
 }
+
+if { $set_config_file == 1 } {
+
+send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+
+cd $uclinux_path/linux-2.6.x
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_NFS_FS\[ =]\r"
+      expect "CONFIG_NFS_FS\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_NFS_FS=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5
+      
+      send "/CONFIG_LOCKD\[ =]\r"
+      expect "CONFIG_LOCKD\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "# CONFIG_ROOT_NFS is not set\r"
+      sleep .5
+      send "CONFIG_LOCKD=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5
+      
+      send "/CONFIG_SUNRPC\[ =]\r"
+      expect "CONFIG_SUNRPC\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_SUNRPC=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5
+            
+      send "/CONFIG_NFS_V3\[ =]\r"
+      expect "CONFIG_NFS_V3\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_NFS_V3=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5
+      
+      send "wq\r"
+      expect eof
+
+send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
+
+cd $uclinux_path/config
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_USER_PORTMAP_PORTMAP\[ =]\r"
+      expect "CONFIG_USER_PORTMAP_PORTMAP\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_USER_PORTMAP_PORTMAP=y\r"      
+      send ".\r"      
+      expect ":"
+      sleep .5   
+       
+      send "wq\r"
+      expect eof
+      
+      
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+            
+             send "$board_type\r"
+      }
+
+      
+      
+      "\\\(*) \\\[*]" {
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+	     break
+
+      }
+   }
+}
+} else {
 
 cd $uclinux_path
 set timeout 300
@@ -126,6 +265,7 @@ while 1 {
       }
    }
 }
+}
 
 step "Make"
 
@@ -155,9 +295,6 @@ set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
 
-# Check the size, time, and date just to be sure.
-cd /tftpboot
-set dxe_confirmation [exec ls -l $dxe_filename]
 
 log_file
  
