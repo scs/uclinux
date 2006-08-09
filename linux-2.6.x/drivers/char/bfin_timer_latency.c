@@ -59,13 +59,7 @@ static int read_timer_latency(char *page, char **start,
 			      off_t offset, int count, int *eof,
 			      void *data)
 {
-	char *buffer;
-
-	buffer = page;
-
-	sprintf(buffer++, "%lu", timer_latency_data.latency); 
-
-	return 4;
+	return sprintf(page, "%lu", timer_latency_data.latency);
 }
 
 
