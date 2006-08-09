@@ -39,10 +39,11 @@
 
 extern void *current_l1_stack_save;
 extern int nr_l1stack_tasks;
-extern unsigned long l1_stack_base, l1_stack_len;
+extern void *l1_stack_base;
+extern unsigned long l1_stack_len;
 
-extern unsigned long l1sram_alloc_max(unsigned long *);
-extern int l1sram_free(unsigned long);
+extern int l1sram_free(const void*);
+extern void *l1sram_alloc_max(void*);
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
@@ -83,7 +84,7 @@ alloc_l1stack(unsigned long length, unsigned long *stack_base)
 			l1sram_free(l1_stack_base);
 		return 0;
 	}
-	*stack_base = l1_stack_base;
+	*stack_base = (unsigned long)l1_stack_base;
 	nr_l1stack_tasks++;
 	return l1_stack_len;
 }
@@ -92,9 +93,9 @@ static inline int
 activate_l1stack(struct mm_struct *mm, unsigned long sp_base)
 {
 	if (current_l1_stack_save)
-		memcpy(current_l1_stack_save, (void *)l1_stack_base, l1_stack_len);
-	mm->context.l1_stack_save = current_l1_stack_save = (void *)sp_base;
-	memcpy((void *)l1_stack_base, current_l1_stack_save, l1_stack_len);
+		memcpy(current_l1_stack_save, l1_stack_base, l1_stack_len);
+	mm->context.l1_stack_save = current_l1_stack_save = (void*)sp_base;
+	memcpy(l1_stack_base, current_l1_stack_save, l1_stack_len);
 	return 1;
 }
 
@@ -108,10 +109,10 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 	if (next_mm->context.l1_stack_save == current_l1_stack_save)
 		return;
 	if (current_l1_stack_save) {
-		memcpy(current_l1_stack_save, (void *)l1_stack_base, l1_stack_len);
+		memcpy(current_l1_stack_save, l1_stack_base, l1_stack_len);
 	}
 	current_l1_stack_save = next_mm->context.l1_stack_save;
-	memcpy((void *)l1_stack_base, current_l1_stack_save, l1_stack_len);
+	memcpy(l1_stack_base, current_l1_stack_save, l1_stack_len);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,

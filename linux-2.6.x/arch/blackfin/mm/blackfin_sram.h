@@ -35,6 +35,6 @@
 extern void l1sram_init(void);
 extern void l1_inst_sram_init(void);
 extern void l1_data_sram_init(void);
-extern unsigned long l1sram_alloc(size_t);
+extern void *l1sram_alloc(size_t);
 
 #endif

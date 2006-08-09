@@ -80,10 +80,10 @@ MODULE_DESCRIPTION("Blackfin MAC Driver");
 #endif
 
 #if defined(CONFIG_BFIN_MAC_USE_L1)
-# define bfin_mac_alloc(dma_handle, size)  (void*)l1_data_sram_zalloc(size)
-# define bfin_mac_free(dma_handle, ptr)    l1_data_sram_free((unsigned long)ptr)
+# define bfin_mac_alloc(dma_handle, size)  l1_data_sram_zalloc(size)
+# define bfin_mac_free(dma_handle, ptr)    l1_data_sram_free(ptr)
 #else
-# define bfin_mac_alloc(dma_handle, size)  (void*)dma_alloc_coherent(NULL, size, dma_handle, GFP_DMA)
+# define bfin_mac_alloc(dma_handle, size)  dma_alloc_coherent(NULL, size, dma_handle, GFP_DMA)
 # define bfin_mac_free(dma_handle, ptr)    dma_free_coherent(NULL, sizeof(*ptr), ptr, dma_handle)
 #endif
 

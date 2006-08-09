@@ -207,7 +207,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if (strcmp(".text.l1", secstrings + s->sh_name) == 0) {
 			mod->arch.text_l1 = s;
-			dest = (void *)l1_inst_sram_alloc(s->sh_size);
+			dest = l1_inst_sram_alloc(s->sh_size);
 			if (dest == NULL) {
 				printk(KERN_ERR
 				       "module %s: L1 instruction memory allocation failed\n",
@@ -222,7 +222,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if (strcmp(".data.l1", secstrings + s->sh_name) == 0) {
 			mod->arch.data_a_l1 = s;
-			dest = (void *)l1_data_A_sram_alloc(s->sh_size);
+			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -235,7 +235,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if (strcmp(".bss.l1", secstrings + s->sh_name) == 0) {
 			mod->arch.bss_a_l1 = s;
-			dest = (void *)l1_data_A_sram_alloc(s->sh_size);
+			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -248,7 +248,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if (strcmp(".data.b.l1", secstrings + s->sh_name) == 0) {
 			mod->arch.data_b_l1 = s;
-			dest = (void *)l1_data_B_sram_alloc(s->sh_size);
+			dest = l1_data_B_sram_alloc(s->sh_size);
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -261,7 +261,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 		}
 		if (strcmp(".bss.b.l1", secstrings + s->sh_name) == 0) {
 			mod->arch.bss_b_l1 = s;
-			dest = (void *)l1_data_B_sram_alloc(s->sh_size);
+			dest = l1_data_B_sram_alloc(s->sh_size);
 			if (dest == NULL) {
 				printk(KERN_ERR
 					"module %s: L1 data memory allocation failed\n",
@@ -463,13 +463,13 @@ module_finalize(const Elf_Ehdr * hdr,
 void module_arch_cleanup(struct module *mod)
 {
 	if ((mod->arch.text_l1) && (mod->arch.text_l1->sh_addr))
-		l1_inst_sram_free(mod->arch.text_l1->sh_addr);
+		l1_inst_sram_free((void*)mod->arch.text_l1->sh_addr);
 	if ((mod->arch.data_a_l1) && (mod->arch.data_a_l1->sh_addr))
-		l1_data_A_sram_free(mod->arch.data_a_l1->sh_addr);
+		l1_data_A_sram_free((void*)mod->arch.data_a_l1->sh_addr);
 	if ((mod->arch.bss_a_l1) && (mod->arch.bss_a_l1->sh_addr))
-		l1_data_A_sram_free(mod->arch.bss_a_l1->sh_addr);
+		l1_data_A_sram_free((void*)mod->arch.bss_a_l1->sh_addr);
 	if ((mod->arch.data_b_l1) && (mod->arch.data_b_l1->sh_addr))
-		l1_data_B_sram_free(mod->arch.data_b_l1->sh_addr);
+		l1_data_B_sram_free((void*)mod->arch.data_b_l1->sh_addr);
 	if ((mod->arch.bss_b_l1) && (mod->arch.bss_b_l1->sh_addr))
-		l1_data_B_sram_free(mod->arch.bss_b_l1->sh_addr);
+		l1_data_B_sram_free((void*)mod->arch.bss_b_l1->sh_addr);
 }

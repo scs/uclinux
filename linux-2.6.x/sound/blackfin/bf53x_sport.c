@@ -587,7 +587,7 @@ static int sport_config_rx_dummy(struct bf53x_sport *sport, size_t size)
 	sport->dummy_rx_desc = desc;
 
 	desc->next_desc_addr = (unsigned long)desc;
-	desc->start_addr = sport->dummy_buf;
+	desc->start_addr = (unsigned long)sport->dummy_buf;
 	config = DMAFLOW | NDSIZE | compute_wdsize(size) | WNR | DMAEN;
 	desc->cfg = config;
 	desc->x_count = 0x80;
@@ -621,7 +621,7 @@ static int sport_config_tx_dummy(struct bf53x_sport *sport, size_t size)
 	sport->dummy_tx_desc = desc;
 
 	desc->next_desc_addr = (unsigned long)desc;
-	desc->start_addr = sport->dummy_buf + size;
+	desc->start_addr = (unsigned long)sport->dummy_buf + size;
 	config = DMAFLOW | NDSIZE | compute_wdsize(size) | DMAEN;
 	desc->cfg = config;
 	desc->x_count = 0x80;
@@ -838,9 +838,9 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 #if L1_DATA_A_LENGTH != 0
 	sport->dummy_buf = l1_data_A_sram_alloc(DUMMY_BUF_LEN);
 #else
-	sport->dummy_buf = (unsigned long)kmalloc(DUMMY_BUF_LEN, GFP_KERNEL);
+	sport->dummy_buf = kmalloc(DUMMY_BUF_LEN, GFP_KERNEL);
 #endif
-	if (sport->dummy_buf == 0) {
+	if (sport->dummy_buf == NULL) {
 		printk(KERN_ERR "Failed to allocate dummy buffer\n");
 		goto __init_err;
  	}
@@ -887,13 +887,13 @@ void bf53x_sport_done(struct bf53x_sport *sport)
 				sport->dma_tx_desc, 0);
 
 #if L1_DATA_A_LENGTH != 0
-	l1_data_A_sram_free((unsigned long)sport->dummy_rx_desc);
-	l1_data_A_sram_free((unsigned long)sport->dummy_tx_desc);
-	l1_data_A_sram_free((unsigned long)sport->dummy_buf);
+	l1_data_A_sram_free(sport->dummy_rx_desc);
+	l1_data_A_sram_free(sport->dummy_tx_desc);
+	l1_data_A_sram_free(sport->dummy_buf);
 #else
 	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_rx_desc, 0);
 	dma_free_coherent(NULL, 2*sizeof(dmasg_t), sport->dummy_tx_desc, 0);
-	kfree((void*)sport->dummy_buf);
+	kfree(sport->dummy_buf);
 #endif
 	free_dma(sport->dma_rx_chan);
 	free_dma(sport->dma_tx_chan);

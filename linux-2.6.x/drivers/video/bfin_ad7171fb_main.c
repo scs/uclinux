@@ -697,9 +697,9 @@ static int bfin_ad7171_fb_open(struct fb_info *info, int user)
 static int bfin_ad7171_fb_release(struct fb_info *info, int user)
 {
 	if (rgb_l1)
-		l1_data_A_sram_free((unsigned long)rgb_l1);
+		l1_data_A_sram_free(rgb_l1);
 	if (yuv_l1)
-		l1_data_A_sram_free((unsigned long)yuv_l1);
+		l1_data_A_sram_free(yuv_l1);
 	del_timer(&bfin_framebuffer_timer);
 	bfin_disable_dma();
 	bfin_disable_ppi();

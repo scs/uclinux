@@ -86,7 +86,7 @@ struct bf53x_sport {
 
 #define DUMMY_BUF_LEN 8
 	/* for dummy dma transfer */
-	unsigned long dummy_buf;
+	void *dummy_buf;
 
 	/* DMA descriptor ring head of current audio stream*/
 	dmasg_t *dma_rx_desc;

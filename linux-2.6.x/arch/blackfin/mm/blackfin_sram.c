@@ -54,7 +54,7 @@ spinlock_t l1sram_lock, l1_data_sram_lock, l1_inst_sram_lock;
 
 /* the data structure for L1 scratchpad and DATA SRAM */
 struct l1_sram_piece {
-	unsigned long paddr;
+	void *paddr;
 	int size;
 	int flag;
 };
@@ -79,8 +79,8 @@ void l1sram_init(void)
 	printk(KERN_INFO "Blackfin Scratchpad data SRAM: %d KB\n",
 	       L1_SCRATCH_LENGTH >> 10);
 
-	memset((void *)&l1_ssram, 0, sizeof(l1_ssram));
-	l1_ssram[0].paddr = L1_SCRATCH_START;
+	memset(&l1_ssram, 0x00, sizeof(l1_ssram));
+	l1_ssram[0].paddr = (void*)L1_SCRATCH_START;
 	l1_ssram[0].size = L1_SCRATCH_LENGTH;
 	l1_ssram[0].flag = SRAM_SLT_FREE;
 
@@ -93,16 +93,16 @@ void l1_data_sram_init(void)
 #if L1_DATA_A_LENGTH != 0
 	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
 
-	memset((void *)&l1_data_A_sram, 0, sizeof(l1_data_A_sram));
-	l1_data_A_sram[0].paddr = L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
+	memset(&l1_data_A_sram, 0x00, sizeof(l1_data_A_sram));
+	l1_data_A_sram[0].paddr = (void*)L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
 #if L1_DATA_B_LENGTH != 0
 	printk(KERN_INFO "Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
 
-	memset((void *)&l1_data_B_sram, 0, sizeof(l1_data_B_sram));
-	l1_data_B_sram[0].paddr = L1_DATA_B_START;
+	memset(&l1_data_B_sram, 0x00, sizeof(l1_data_B_sram));
+	l1_data_B_sram[0].paddr = (void*)L1_DATA_B_START;
 	l1_data_B_sram[0].size = L1_DATA_B_LENGTH;
 	l1_data_B_sram[0].flag = SRAM_SLT_FREE;
 #endif
@@ -116,8 +116,8 @@ void l1_inst_sram_init(void)
 #if L1_CODE_LENGTH != 0
 	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n", L1_CODE_LENGTH >> 10);
 
-	memset((void *)&l1_inst_sram, 0, sizeof(l1_inst_sram));
-	l1_inst_sram[0].paddr = L1_CODE_START + (_etext_l1 - _stext_l1);
+	memset(&l1_inst_sram, 0x00, sizeof(l1_inst_sram));
+	l1_inst_sram[0].paddr = (void*)L1_CODE_START + (_etext_l1 - _stext_l1);
 	l1_inst_sram[0].size = L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
 	l1_inst_sram[0].flag = SRAM_SLT_FREE;
 #endif
@@ -127,14 +127,13 @@ void l1_inst_sram_init(void)
 }
 
 /* L1 memory allocate function */
-static unsigned long _l1_sram_alloc(unsigned long size,
-				   struct l1_sram_piece *pfree, int count)
+static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
-	unsigned long addr = 0;
+	void *addr = 0;
 
 	if (size <= 0)
-		return 0;
+		return NULL;
 
 	/* Align the size */
 	size = (size + 3) & ~3;
@@ -150,7 +149,7 @@ static unsigned long _l1_sram_alloc(unsigned long size,
 		}
 	}
 	if (i >= count)
-		return 0;
+		return NULL;
 
 	/* updated the NULL memeory slot !!! */
 	if (pfree[i].size > size) {
@@ -169,11 +168,11 @@ static unsigned long _l1_sram_alloc(unsigned long size,
 }
 
 /* Allocate the largest available block.  */
-static unsigned long _l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned long *psize)
+static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned long *psize)
 {
 	unsigned long best = 0;
 	int i, index = -1;
-	unsigned long addr = 0;
+	void *addr = NULL;
 
 	/* search an available memeory slot */
 	for (i = 0; i < count; i++) {
@@ -192,7 +191,7 @@ static unsigned long _l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, 
 }
 
 /* L1 memory free function */
-static int _l1_sram_free(unsigned long addr,
+static int _l1_sram_free(const void *addr,
 			struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
@@ -237,10 +236,10 @@ static int _l1_sram_free(unsigned long addr,
 	return 0;
 }
 
-unsigned long l1_data_A_sram_alloc(unsigned long size)
+void *l1_data_A_sram_alloc(size_t size)
 {
 	unsigned flags;
-	unsigned long addr = 0;
+	void *addr = NULL;
 
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
@@ -251,9 +250,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 
 #if L1_DATA_B_LENGTH != 0
 	if (!addr)
-		addr = _l1_sram_alloc(size,
-				     l1_data_B_sram,
-				     ARRAY_SIZE(l1_data_B_sram));
+		addr = _l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 #endif
 
 	/* add mutex operation */
@@ -263,7 +260,7 @@ unsigned long l1_data_A_sram_alloc(unsigned long size)
 	return addr;
 }
 
-int l1_data_A_sram_free(unsigned long addr)
+int l1_data_A_sram_free(const void *addr)
 {
 	unsigned flags;
 	int ret;
@@ -272,7 +269,7 @@ int l1_data_A_sram_free(unsigned long addr)
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
 
 #if L1_DATA_B_LENGTH != 0
-	if (L1_DATA_B_START == (addr & ~0xffff))
+	if (L1_DATA_B_START == ((unsigned long)addr & ~0x0000FFFF))
 		ret = _l1_sram_free(addr,
 				   l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
 	else
@@ -290,26 +287,23 @@ int l1_data_A_sram_free(unsigned long addr)
 	return ret;
 }
 
-unsigned long l1_data_sram_zalloc(unsigned long size)
+void *l1_data_sram_zalloc(size_t size)
 {
-	unsigned long addr;
-
-	addr = l1_data_A_sram_alloc(size);
-
-	memset((void *)addr,0,size);
+	void *addr = l1_data_A_sram_alloc(size);
+	memset(addr, 0x00, size);
 	return addr;
 }
 
-int l1_data_sram_free(unsigned long addr)
+int l1_data_sram_free(const void *addr)
 {
 	return l1_data_A_sram_free(addr);
 }
 
 #if L1_DATA_B_LENGTH != 0
-unsigned long l1_data_B_sram_alloc(unsigned long size)
+void *l1_data_B_sram_alloc(size_t size)
 {
 	unsigned flags;
-	unsigned long addr;
+	void *addr;
 
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_data_sram_lock, flags);
@@ -324,7 +318,7 @@ unsigned long l1_data_B_sram_alloc(unsigned long size)
 }
 EXPORT_SYMBOL(l1_data_B_sram_alloc);
 
-int l1_data_B_sram_free(unsigned long addr)
+int l1_data_B_sram_free(const void *addr)
 {
 	unsigned flags;
 	int ret;
@@ -342,11 +336,11 @@ int l1_data_B_sram_free(unsigned long addr)
 EXPORT_SYMBOL(l1_data_B_sram_free);
 #endif
 
-unsigned long l1_inst_sram_alloc(unsigned long size)
+void *l1_inst_sram_alloc(size_t size)
 {
 #if L1_DATA_A_LENGTH != 0
 	unsigned flags;
-	unsigned long addr;
+	void *addr;
 
 	/* add mutex operation */
 	spin_lock_irqsave(&l1_inst_sram_lock, flags);
@@ -359,11 +353,11 @@ unsigned long l1_inst_sram_alloc(unsigned long size)
 	//printk ("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
 #else
-	return 0;
+	return NULL;
 #endif
 }
 
-int l1_inst_sram_free(unsigned long addr)
+int l1_inst_sram_free(const void *addr)
 {
 #if L1_DATA_A_LENGTH != 0
 	unsigned flags;
@@ -384,10 +378,10 @@ int l1_inst_sram_free(unsigned long addr)
 }
 
 /* L1 Scratchpad memory allocate function */
-unsigned long l1sram_alloc(unsigned long size)
+void *l1sram_alloc(size_t size)
 {
 	unsigned flags;
-	unsigned long addr;
+	void *addr;
 
 	/* add mutex operation */
 	spin_lock_irqsave(&l1sram_lock, flags);
@@ -401,10 +395,10 @@ unsigned long l1sram_alloc(unsigned long size)
 }
 
 /* L1 Scratchpad memory allocate function */
-unsigned long l1sram_alloc_max(unsigned long *psize)
+void *l1sram_alloc_max(size_t *psize)
 {
 	unsigned flags;
-	unsigned long addr;
+	void *addr;
 
 	/* add mutex operation */
 	spin_lock_irqsave(&l1sram_lock, flags);
@@ -418,7 +412,7 @@ unsigned long l1sram_alloc_max(unsigned long *psize)
 }
 
 /* L1 Scratchpad memory free function */
-int l1sram_free(unsigned long addr)
+int l1sram_free(const void *addr)
 {
 	unsigned flags;
 	int ret;

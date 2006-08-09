@@ -245,10 +245,10 @@ dma_desc_list(struct adv7393fb_device *fbdev, u16 arg)
 
 /* Destruct */
 error:
-  l1_data_A_sram_free((unsigned long) fbdev->vb1);
-  l1_data_A_sram_free((unsigned long) fbdev->av1);
-  l1_data_A_sram_free((unsigned long) fbdev->vb2);
-  l1_data_A_sram_free((unsigned long) fbdev->av2);
+  l1_data_A_sram_free(fbdev->vb1);
+  l1_data_A_sram_free(fbdev->av1);
+  l1_data_A_sram_free(fbdev->vb2);
+  l1_data_A_sram_free(fbdev->av2);
 
   return 0;
 
