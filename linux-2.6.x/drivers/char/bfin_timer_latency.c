@@ -89,6 +89,7 @@ static int write_timer_latency(struct file *file, const char *buffer,
 			"R3 = 0x0004;\n\t"
 			"W[P2] = R3;\n\t"
 			"SYSCFG = R2;\n\t"    /* start cycles counter */
+			: : : "R2", "R3", "P2"
 		);
 
 	}
@@ -112,8 +113,7 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 	asm("%0 = CYCLES; p2 = 0xFFE07040; %1 = [p2]; p2 = 0xFFE07044; %2 = [p2]; p2 = 0xFFE07048; %3 = [p2];"
 	: "=d" (cycles_past), "=d" (first_latency), "=d" (second_latency), "=d" (third_latency):); */
 
-	asm("%0 = CYCLES;"
-	    : "=d" (cycles_past));
+	asm("%0 = CYCLES;" : "=d" (cycles_past));
 
 	bfin_write_WDOG_CTL(0x8AD6);  /* close counter */
 	bfin_write_WDOG_CTL(0x8AD6);  /* have to write it twice to disable the timer */
@@ -122,6 +122,7 @@ static irqreturn_t timer_latency_irq(int irq, void *dev_id, struct pt_regs *regs
 		"R2 = SYSCFG;\n\t"
 		"BITCLR(R2,1);\n\t"
 		"SYSCFG = R2;\n\t"
+		: : : "R2"
 	);
 
 	cclk = get_cclk();
