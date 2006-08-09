@@ -578,6 +578,7 @@ void spawn(int i)
 	} else {
 		/* this is the child */
 		char term[40];
+		char *prog;
 #ifdef INCLUDE_TIMEZONE
 		char tz[BUF_SIZ];
 #endif
@@ -603,7 +604,11 @@ void spawn(int i)
 		env[2] = NULL;
 #endif
 
-		execve(it->toks[0], it->toks, env);
+		if (it->toks[0][0] == '-')
+			prog = strdup(it->toks[0]+1);
+		else
+			prog = it->toks[0];
+		execve(prog, it->toks, env);
 		strcpy(buf, it->toks[0]);
 		strcat(buf, " exec failed\n");
 		err(buf);
@@ -652,7 +657,7 @@ void read_inittab(void)
 		p->fullline = strdup("console");
 		strcpy(p->tty, "console");
 		strcpy(p->termcap, "linux");
-		add_tok(p, "/bin/sh");
+		add_tok(p, "-/bin/sh");
 	}
 #endif
 
