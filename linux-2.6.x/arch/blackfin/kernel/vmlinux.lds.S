@@ -162,9 +162,24 @@ SECTIONS
 		. = ALIGN(4) ;
 		 __ebss_l1 = . ;
 	}
+	.data_b_l1 L1_DATA_B_START : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
+	{
+		. = ALIGN(4) ;
+                 __sdata_b_l1 = . ;
+                *(.data.b.l1)
+                 __edata_b_l1 = . ;
 
-	. = __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) ;
-	.data (__l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1)) :	AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
+                . = ALIGN(4) ;
+                 __sbss_b_l1 = . ;
+                *(.bss.b.l1)
+
+                . = ALIGN(4) ;
+                 __ebss_b_l1 = . ;
+	}
+
+	. = __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) ;
+	.data (__l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) ) :	
+		AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) )
 	{
 		 __sdata = . ;
 		. = ALIGN(0x2000) ;
@@ -179,7 +194,7 @@ SECTIONS
 		*(.exitcall.exit)
 	} > ram
 
-	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data) )
+	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) + SIZEOF(.data) )
 	{
 		. = ALIGN(4) ;
 		 ___bss_start = . ;

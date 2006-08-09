@@ -9,7 +9,9 @@
 
 struct mod_arch_specific {
 	Elf_Shdr	*text_l1;
-	Elf_Shdr	*data_l1;
-	Elf_Shdr	*bss_l1;
+	Elf_Shdr	*data_a_l1;
+	Elf_Shdr	*bss_a_l1;
+	Elf_Shdr	*data_b_l1;
+	Elf_Shdr	*bss_b_l1;
 };
 #endif				/* _ASM_BFIN_MODULE_H */
