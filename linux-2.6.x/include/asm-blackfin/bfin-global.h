@@ -1,12 +1,39 @@
 /*
- * Global extern defines for blackfin
+ * File:         include/asm-blackfin/bfin-global.h
+ * Based on:
+ * Author:
  *
+ * Created:
+ * Description:  Global extern defines for blackfin
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #ifndef _BFIN_GLOBAL_H_
 #define _BFIN_GLOBAL_H_
 
 #ifndef __ASSEMBLY__
+
 #include <asm-generic/sections.h>
 #include <asm/ptrace.h>
 #include <asm/user.h>
@@ -14,9 +41,13 @@
 
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
+
+extern void dump(struct pt_regs *fp, void *);
+extern void dump_thread(struct pt_regs *, struct user *);
+extern void dump_bfin_regs(struct pt_regs *fp, void *);
+
 extern int init_arch_irq(void);
 extern void bfin_reset(void);
-extern void dump_bfin_regs(struct pt_regs *fp, void *);
 extern void _cplb_hdr(void);
 /* Blackfin cache functions */
 extern void bfin_icache_init(void);
@@ -62,6 +93,7 @@ extern unsigned long memory_start, memory_end;
 extern unsigned long memory_mtd_end;
 extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
     _ebss_l1[], _l1_lma_start[];
+
 #endif
 
 #endif				/* _BLACKFIN_H_ */
