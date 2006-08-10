@@ -115,6 +115,7 @@ wireless_network_test=0
 	 usbhost_test=0
 	  usbnet_test=0
 	  sqlite_test=0
+	     ltp_test=0
 
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
@@ -160,6 +161,7 @@ wireless_network_test=0
 	 usbhost_test=0
 	  usbnet_test=0
 	  sqlite_test=0
+	     ltp_test=0
 fi
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
@@ -202,6 +204,7 @@ wireless_network_test=0
 	 usbhost_test=0
 	  usbnet_test=0
 	  sqlite_test=0
+	     ltp_test=0
          	
 fi
  
@@ -245,6 +248,7 @@ wireless_network_test=0
 	 usbhost_test=0
 	  usbnet_test=0
 	  sqlite_test=0
+	     ltp_test=0
          	
 fi
  
@@ -1497,3 +1501,31 @@ if [ $sqlite_test -eq 1 ] ; then
 fi
 
 
+#############################################################################################
+########################## TEST LTP #########################################################
+if [ $ltp_test -eq 1 ] ; then
+  echo "Testing LTP..."
+
+  rm -rf $CHECKOUT/kernel/*
+  cd $CHECKOUT/kernel
+  cp -a  $CHECKOUT/kernel_bak/*  .
+
+  cd $KERNEL_SCRIPTS/ltp
+  ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./ltp_auto_test.exp > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp
+  cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp   1>/dev/null 2>/dev/null     
+   sleep 10
+  fi
+
+fi
