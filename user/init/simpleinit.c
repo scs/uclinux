@@ -604,7 +604,7 @@ void spawn(int i)
 		env[2] = NULL;
 #endif
 
-		prog = it->toks[0]
+		prog = it->toks[0];
 		if (it->toks[0][0] == '-')
 			++prog;
 		execve(prog, it->toks, env);
