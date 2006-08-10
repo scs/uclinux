@@ -604,10 +604,9 @@ void spawn(int i)
 		env[2] = NULL;
 #endif
 
+		prog = it->toks[0]
 		if (it->toks[0][0] == '-')
-			prog = strdup(it->toks[0]+1);
-		else
-			prog = it->toks[0];
+			++prog;
 		execve(prog, it->toks, env);
 		strcpy(buf, it->toks[0]);
 		strcat(buf, " exec failed\n");
