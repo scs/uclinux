@@ -277,12 +277,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 }
 
 /* Typical exception handling routines	*/
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	unsigned long *endstack, addr;
-	int i;
 
+void dump_bfin_trace_buffer(void)
+{
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
+		int i;
 		printk(KERN_EMERG "Hardware Trace:\n");
 		for (i = 0; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
 			printk(KERN_EMERG "%2i Target : ", i);
@@ -292,6 +291,15 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 			printk("\n");
 		}
 	}
+}
+EXPORT_SYMBOL(dump_bfin_trace_buffer);
+
+void show_stack(struct task_struct *task, unsigned long *stack)
+{
+	unsigned long *endstack, addr;
+	int i;
+
+	dump_bfin_trace_buffer();
 
 	if (!stack) {
 		if (task)
