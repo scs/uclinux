@@ -41,8 +41,8 @@
 #define DEBUGP(fmt...)
 
 /* handle arithmetic relocations.
-   See binutils/bfd/elf32-bfin.c for more details
-*/
+ * See binutils/bfd/elf32-bfin.c for more details
+ */
 #define RELOC_STACK_SIZE 100
 static uint32_t reloc_stack[RELOC_STACK_SIZE];
 static unsigned int reloc_stack_tos;
@@ -206,7 +206,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".text.l1", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0)&&(hdr->e_flags&FLG_CODE_IN_L1))) {
+			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -222,7 +222,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if ((strcmp(".data.l1", secstrings + s->sh_name) == 0)||
-			((strcmp(".data", secstrings + s->sh_name)==0) && (hdr->e_flags&FLG_DATA_IN_L1))) {
+			((strcmp(".data", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1))) {
 			mod->arch.data_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -236,7 +236,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".bss.l1", secstrings + s->sh_name) == 0 ||
-			((strcmp(".bss", secstrings + s->sh_name)==0) && (hdr->e_flags&FLG_DATA_IN_L1))) {
+			((strcmp(".bss", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1))) {
 			mod->arch.bss_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -369,7 +369,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 					*location16 = (value & 0xffff);
 				else {
 					temp = (value & 0xffff);
-					blackfin_dcache_flush_range((unsigned long)(&temp), 
+					blackfin_dcache_flush_range((unsigned long)(&temp),
 									(unsigned long)(&temp+2));
 					dma_memcpy(location16, &temp, 2);
 				}
@@ -384,7 +384,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 					*location16 = ((value >> 16) & 0xffff);
 				else {
 					temp = (value >> 16) & 0xffff;
-					blackfin_dcache_flush_range((unsigned long)(&temp), 
+					blackfin_dcache_flush_range((unsigned long)(&temp),
 									(unsigned long)(&temp+2));
 					dma_memcpy(location16, &temp, 2);
 				}
@@ -453,7 +453,7 @@ module_finalize(const Elf_Ehdr * hdr,
 		if (info >= hdr->e_shnum)
 			continue;
 
-		if ((sechdrs[i].sh_type == SHT_RELA)&&
+		if ((sechdrs[i].sh_type == SHT_RELA) &&
 		    ((strcmp(".rela.text.l1", secstrings + sechdrs[i].sh_name) == 0)||
 			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) && (hdr->e_flags & FLG_CODE_IN_L1)))) {
 			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
