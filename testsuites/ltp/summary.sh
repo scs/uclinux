@@ -16,7 +16,7 @@ if [ ! -f detailed.new ] ; then
   chmod 777 detailed.new
 fi
 
-detailed_file=$1
+detailed_file=$2
 
 cat $detailed_file > detailed.new
 

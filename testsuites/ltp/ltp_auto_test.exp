@@ -565,7 +565,7 @@ proc all_done { } {
    send_both "  output pin = $output_pin\n"
 
     log_file
-    exec $LTP_SCRIPT_DIR/summary.sh $summary_logfile
+    exec $LTP_SCRIPT_DIR/summary.sh $summary_logfile $logfile
 
    # We never return back to the main program.
    set end_time [exec date]
@@ -1018,16 +1018,14 @@ set ULIMIT                ulimit
 #
 set i 0
 set cpu_info_loc                        $i
-set result_matrix1 {
-       { fcntl1     	     {fcntl1}                     	 notrun } 
-       { fcntl2     	     {fcntl2}                     	 notrun } 
-       { fcntl14     	     {fcntl14}                     	 notrun } 
+set result_matrix {
+       { readlink04     	     {cp -f /bin/creat_slink /tmp; readlink04}                     	 notrun } 
 }
 
 
 #                user friendly name          command             status
 #                ==================          =======             ======
-set result_matrix {   
+set result_matrix1 {   
        { abort01     	     {ulimit -c 1024;abort01}                     	 notrun } 
        { accept01     	     {accept01}                     	 notrun } 
        { access01     	     {access01}                     	 notrun } 
