@@ -4,6 +4,8 @@ send_user "Starting build_policy_kernel.exp\n"
 
 source  ../kernel_config.exp
 
+set send_slow {1 .05}
+
 set board_type     [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
 
@@ -172,52 +174,52 @@ while 1 {
             
           -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
 		if { $binary_format == "elf" } {
-			send "Y\r"
+			send -s "Y\r"
 		} elseif { $binary_format == "flat" } {
-			send "N\r"
+			send -s "\r"
 		} elseif { $binary_format == "shared-flat" } {
-                       send "N\r"
+                       send -s "\r"
             }	
       }
       
           -re "Kernel support for flat binaries.*BINFMT_FLAT.*\\\[.*]" {
 		if { $binary_format == "elf" } {
-			send "N\r"
+			send -s "\r"
 		} elseif { $binary_format == "flat" } {
-			send "Y\r"
+			send -s "Y\r"
 		} elseif { $binary_format == "shared-flat" } {
-                       send "Y\r"
+                       send -s "\r"
             }	
       }
       
           -re "Enable shared FLAT support.*BINFMT_SHARED_FLAT.*\\\[.*]" {
 		if { $binary_format == "elf" } {
-			send "N\r"
+			send -s "\r"
 		} elseif { $binary_format == "flat" } {
-			send "N\r"
+			send -s "\r"
 		} elseif { $binary_format == "shared-flat" } {
-                       send "Y\r"
+                       send -s "Y\r"
             }	
       }
     
           -re "Binary format.*FLAT, Shared-FLAT, FDPIC.*\\\[.*]" {
             if { $binary_format == "flat" } {
-                       send "FLAT\r"
+                       send -s "FLAT\r"
             } elseif { $binary_format == "elf" } {
-                       send "FDPIC\r"
+                       send -s "FDPIC\r"
             } elseif { $binary_format == "shared-flat" } {
-                       send "Shared-FLAT\r"
+                       send -s "Shared-FLAT\r"
             }
       }
       
            -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
 
-             send "N\r"
+             send -s "N\r"
       }
 
            -re "Install FLAT shared libraries.*CONFIG_INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
 
-             send "N\r"
+             send -s "N\r"
       }
  
            -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
