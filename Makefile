@@ -392,7 +392,7 @@ distclean: mrproper
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	make distclean > /dev/null 2>&1
+#	make distclean > /dev/null 2>&1
 	cp vendors/$(@:_config=)/config.device .config
 	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
 	cp vendors/$(@:_config=)/config.vendor-2.6.x config/.config
@@ -405,7 +405,7 @@ distclean: mrproper
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	make distclean > /dev/null 2>&1
+#	make distclean > /dev/null 2>&1
 	cp vendors/$(@:_config=)/config.device .config
 	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
 	cp vendors/$(@:_config=)/config.vendor-2.6.x config/.config
