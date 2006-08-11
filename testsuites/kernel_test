@@ -991,7 +991,7 @@ if [ $sqlite_test -eq 1 ] ; then
   cd $KERNEL_SCRIPTS/sqlite
   ./build_sqlite_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./sqlite_test > /dev/null 2>&1
+  ./sqlite_test.exp > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.sqlite
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.sqlite
