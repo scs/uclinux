@@ -996,6 +996,8 @@ if [ $ltp_test -eq 1 ] ; then
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp
   cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log 
+  cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log 
     
   sleep 30
   
