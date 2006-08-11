@@ -206,7 +206,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".text.l1", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1))) {
+			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1) && 
+				(s->sh_size > 0))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -222,7 +223,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if ((strcmp(".data.l1", secstrings + s->sh_name) == 0)||
-			((strcmp(".data", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1))) {
+			((strcmp(".data", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1) &&
+				(s->sh_size > 0))) {
 			mod->arch.data_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -236,7 +238,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".bss.l1", secstrings + s->sh_name) == 0 ||
-			((strcmp(".bss", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1))) {
+			((strcmp(".bss", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1) &&
+				(s->sh_size > 0))) {
 			mod->arch.bss_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
