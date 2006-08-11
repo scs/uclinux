@@ -24,35 +24,12 @@ VEND=$(ROOTDIR)/vendors
 #
 # must run the vendor build first
 #
-
+dir_v = $(VEND)/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/.
 dir_p = $(ROOTDIR)/prop
 
-dir_y =
+dir_y = 
 dir_n =
 dir_  =
-
-dir_$(CONFIG_USER_BLACKFIN_RTC)             += blkfin-test/rtc-test
-dir_$(CONFIG_USER_BLACKFIN_PFLAGS)          += blkfin-test/pflags-test
-dir_$(CONFIG_USER_BLACKFIN_PFBUTTONS)       += blkfin-test/pfbuttons-test
-dir_$(CONFIG_USER_BLACKFIN_PPIFCDTEST)      += blkfin-test/ppifcd-test
-dir_$(CONFIG_USER_BLACKFIN_DPMC)            += blkfin-test/dpmc-test
-dir_$(CONFIG_USER_BLACKFIN_AUDIOTEST)       += blkfin-test/audio_test
-dir_$(CONFIG_USER_BLACKFIN_VIDEOTEST)       += blkfin-test/video_test
-dir_$(CONFIG_USER_BLACKFIN_TWI)             += blkfin-test/twi_test
-dir_$(CONFIG_USER_BLACKFIN_SPITEST)         += blkfin-test/spi-test
-dir_$(CONFIG_USER_BLACKFIN_TWILCDTEST)      += blkfin-test/twi_lcd-test
-dir_$(CONFIG_USER_BLACKFIN_TWIKEYPADTEST)      += blkfin-test/twi_keypad-test
-dir_$(CONFIG_USER_BLACKFIN_RTSCTSTEST)      += blkfin-test/rtscts_test
-dir_$(CONFIG_USER_SQLITE_TEST)		    += blkfin-test/sqlite_test
-dir_$(CONFIG_USER_BLACKFIN_PPI)		    += blkfin-test/ppi-test
-dir_$(CONFIG_USER_BLACKFIN_PTHREADTEST)    += blkfin-test/pthread_test
-dir_$(CONFIG_USER_BLACKFIN_CRASHTEST)    += blkfin-test/crash_test
-dir_$(CONFIG_USER_NETPERF_TEST)            += blkfin-test/netperf-bfin
-dir_$(CONFIG_USER_SYSVIPC_TEST)            += blkfin-test/sysv_ipc_test
-dir_$(CONFIG_EVENT_TEST)		   += blkfin-test/event_test
-dir_$(CONFIG_AD9960_TEST)		    += blkfin-test/ad9960_test
-dir_$(CONFIG_FILE_OPERATION_TEST)           += blkfin-test/file_operation-test
-dir_y             			    += blkfin-apps
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils
 dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
@@ -420,3 +397,4 @@ prune:
 	done
 
 
+-include Makefile.blackfin
