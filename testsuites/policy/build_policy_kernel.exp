@@ -2,30 +2,56 @@
 log_file build_policy_kernel_log
 send_user "Starting build_policy_kernel.exp\n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
+source  ../kernel_config.exp
 
-set board_type [lindex $argv 0]
+set board_type     [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
 
-if { $argc < 1} {
-puts "Please input: board_type."
+set cpu            [lindex $argv 1]
+send_log "\n#### cpu is $cpu\n"
+   
+if { $argc < 2} {
+puts "Please input: board_type, cpu."
 exit
 }
-if { $argc >= 2} {
-   set uclinux_path       [lindex $argv 1]
+
+set uclinux_path   /home/test/checkouts/kernel/uClinux-dist
+set binary_format  flat
+set allocator      slab\(p2\)
+set icache	   on 
+set dcache         on
+set policy         write_through
+set uart_mode      dma
+
+
+if { $argc >= 3} {
+   set uclinux_path        [lindex $argv 2]
    send_log "\n#### uclinux_path is $uclinux_path\n"
 }
-if { $argc >= 3} {
-   set binary_format         [lindex $argv 2]
+if { $argc >= 4} {
+   set binary_format       [lindex $argv 3]
    send_log "\n### binary_format is $binary_format\n"
 }
-if { $argc >= 4} {
-   set policy             [lindex $argv 3]
+if { $argc >= 5} {
+   set allocator           [lindex $argv 4]
+   send_log "\n#### allocator is $allocator\n"
+}
+if { $argc >= 6} {
+   set icache              [lindex $argv 5]
+   send_log "\n#### icache is $icache\n"
+}
+if { $argc >= 7} {
+   set dcache              [lindex $argv 6]
+   send_log "\n#### dcache is $dcache\n"
+}
+if { $argc >= 8} {
+   set policy              [lindex $argv 7]
    send_log "\n### policy is $policy\n"
+}
+
+if { $argc >= 9} {
+   set uart_mode           [lindex $argv 8]
+   send_log "\n#### uart_mode is $uart_mode\n"
 }
 
 proc step { message } {
@@ -104,11 +130,83 @@ while 1 {
              send "y\r"
       }
       
-           -re "Binary format.*FLAT, Shared-FLAT, FDPIC.*\\\[.*]" {
-              if { $binary_format == "flat" } {
+        -re "CPU.*BF531.*BF532.*BF533.*BF534.*BF535.*BF536.*BF537.*BF561.*choice.*\\\[.*]" {
+ 	    if { $cpu == "BF531" } {
+                       send "1\r"
+            } elseif { $cpu == "BF532" } {
+                       send "2\r"
+            } elseif { $cpu == "BF533" } {
+                       send "3\r"
+            } elseif { $cpu == "BF534" } {
+                       send "4\r"
+            } elseif { $cpu == "BF535" } {
+                       send "5\r"
+            } elseif { $cpu == "BF536" } {
+                       send "6\r"
+            } elseif { $cpu == "BF537" } {
+                       send "7\r"
+            } elseif { $cpu == "BF561" } {
+                       send "8\r"
+            }
+      }   
+      
+           -re "Use full SLAB allocator.*SLAB.*\\\[.*]" {
+	    if { $allocator == "slab\(p2\)" } {
+                       send "Y\r"		       
+            } elseif { $allocator == "slob\(p2\)" } {
+                       send "N\r"
+            } elseif { $allocator == "slob\(np2\)" } {
+                       send "N\r"
+            }
+      }
+      
+           -re "Use non-power of 2 allocator.*NP2_ALLOC.*\\\[.*]" {
+ 	    if { $allocator == "slab\(p2\)" } {
+                       send "\r"
+            } elseif { $allocator == "slob\(p2\)" } {
+                       send "N\r"
+            } elseif { $allocator == "slob\(np2\)" } {
+                       send "Y\r"
+            }
+      }
+            
+          -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
+		if { $binary_format == "elf" } {
+			send "Y\r"
+		} elseif { $binary_format == "flat" } {
+			send "N\r"
+		} elseif { $binary_format == "shared-flat" } {
+                       send "N\r"
+            }	
+      }
+      
+          -re "Kernel support for flat binaries.*BINFMT_FLAT.*\\\[.*]" {
+		if { $binary_format == "elf" } {
+			send "N\r"
+		} elseif { $binary_format == "flat" } {
+			send "Y\r"
+		} elseif { $binary_format == "shared-flat" } {
+                       send "Y\r"
+            }	
+      }
+      
+          -re "Enable shared FLAT support.*BINFMT_SHARED_FLAT.*\\\[.*]" {
+		if { $binary_format == "elf" } {
+			send "N\r"
+		} elseif { $binary_format == "flat" } {
+			send "N\r"
+		} elseif { $binary_format == "shared-flat" } {
+                       send "Y\r"
+            }	
+      }
+    
+          -re "Binary format.*FLAT, Shared-FLAT, FDPIC.*\\\[.*]" {
+            if { $binary_format == "flat" } {
                        send "FLAT\r"
             } elseif { $binary_format == "elf" } {
                        send "FDPIC\r"
+            } elseif { $binary_format == "shared-flat" } {
+                       send "Shared-FLAT\r"
             }
       }
       
@@ -122,15 +220,42 @@ while 1 {
              send "N\r"
       }
  
-
-           -re "Write back.*BLKFIN_WB.*Write through.*BLKFIN_WT.*choice.*\\\[.*]" {
-              if { $policy == "write_through" } {
-                       send "2\r"
-            } elseif { $policy == "write_back" } {
-                       send "1\r"
-            }
+           -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
+		if { $icache == "on" } {
+			send "Y\r"
+		} elseif { $icache == "off" } {
+			send "N\r"
+		}
+         }
+      
+	   -re "Enable DCACHE.*BLKFIN_DCACHE.*\\\[.*]" {
+		if { $dcache == "on" } {
+			send "Y\r"
+		} elseif { $dcache == "off" } {
+			send "N\r"
+		}
+         }
+	 
+           -re "Policy.*Write back.*BLKFIN_WB.*Write through.*BLKFIN_WT.*choice.*\\\[.*]" {
+		if { $policy == "write_through" } {
+			send "2\r"
+		} elseif { $policy == "write_back" } {
+			send "1\r"
+		}
       }
-
+      
+           -re "Blackfin Serial Driver.*SERIAL_BLACKFIN.*\\\[.*]" {
+	  		
+			send "Y\r"		
+      }
+      
+           -re "Mode.*DMA on RX and TX.*SERIAL_BLACKFIN_DMA.*PIO on RX and TX.*SERIAL_BLACKFIN_PIO.*choice\\\[.*]" {
+		if { $uart_mode == "dma" } {
+			send "1\r"
+		} elseif { $uart_mode == "pio" } {
+			send "2\r"
+		}
+      }
       
        "\\\(*) \\\[*]" {
 	     

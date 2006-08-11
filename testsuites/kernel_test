@@ -9,50 +9,88 @@
 ######### set  serverip  10.100.4.174 (set your server ip here)                                        #################
 ########################################################################################################################
 
-############### Set up the testing environment. Edit the following variables to suit your situation. ###################
+ ############### Set up the testing environment. Edit the following variables to suit your situation. ###################
+ 
+ USER=/home/test
+ BOARD_CONFIG=BF537-STAMP-STD
+ CPU=BF537
+ KERNEL_PATH=$USER/checkouts/kernel
+ BINARY_FORMAT=flat
+ ALLOCATOR=slab\(p2\)
+ ICACHE=on
+ DCACHE=off
+ POLICY=write_through
+ UART_MODE=dma
+ THIS_LOG="$USER/test_scripts/kernel/logs/all_""$CPU""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")""/THIS_LOG"
+ 
+ ########################################### Please don't edit anything below this line.###################################
 
-USER=/home/test
-CHECKOUT=$USER/checkouts
-KERNEL_PATH=$CHECKOUT/kernel
-KERNEL_PATH_BAK=$CHECKOUT/kernel_bak
-KERNEL_SOURCE=$KERNEL_PATH/uClinux-dist
-KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uClinux-dist
-KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites
-BOARD_CONFIG=$1
-
-########################################### Please don't edit anything below this line.###################################
-
-if [ $# -lt 5 ] ; then
-  echo "Please input BOARD_CONFIG KERNEL_SOURCE BINARY_FORMAT POLICY LOG_DIR [VCO_MULT CCLK_DIV SCLK_DIV] values: "
-  echo "The BOARD_CONFIG should be BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
-  echo "For example:./kernel_test BF537-STAMP-STD /home/test/checkouts/kernel/uClinux-dist flat write_through /home/test/test_scripts/kernel/logs/all_flat_write_through/THIS_LOG."
+if [ $# -lt 2 ] ; then
+  echo "Please input BOARD_CONFIG CPU [ KERNEL_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
+  echo
+  echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
+  echo "The CPU :           BF533, BF537, BF561,etc."
+  echo "The BINARY_FORMAT : flat, elf, shared-flat."
+  echo "The ALLOCATOR :     slab\(p2\), slob\(p2\), slob\(np2\)."
+  echo "The ICACHE,DCACHE : on, off."
+  echo "The POLICY :        write_through, write_back."
+  echo
+  echo "For example:./kernel_test BF537-STAMP-STD bf537 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma /home/test/test_scripts/kernel/logs/all_flat_write_through/THIS_LOG."
   exit
 fi
 
-if [ $# -gt 1 ] ; then
-  KERNEL_SOURCE=$2
-  echo "##### KERNEL_SOURCE is $2"
- fi
+if [ $# -gt 0 ] ; then
+  BOARD_CONFIG=$1
+  echo  "##### Testing is done with: $BOARD_CONFIG."
+fi
+
+if [ $# -gt 1 ] ; then     
+  CPU=$2
+  echo "##### CPU: $CPU." 
+fi
+
+  if [ $# -gt 2 ] ; then 
+  KERNEL_PATH=$3
+  echo "##### KERNEL_PATH: $KERNEL_PATH."  
+fi
+
+  KERNEL_PATH_BAK="$KERNEL_PATH""_bak"  
+  KERNEL_SOURCE=$KERNEL_PATH/uClinux-dist
+  KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uClinux-dist  
+  KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites  
+  
+if [ $# -gt 3 ] ; then
+  BINARY_FORMAT=$4  
+  echo "##### BINARY_FORMAT: $BINARY_FORMAT."
+fi
+
+if [ $# -gt 4 ] ; then
+  ALLOCATOR=$5
+  echo "##### ALLOCATOR: $ALLOCATOR."
+fi
+  
+if [ $# -gt 7 ] ; then
+  ICACHE=$6
+  DCACHE=$7
+  POLICY=$8  
+  echo "##### ICACHE: $ICACHE, DCACHE: $DCACHE, POLICY is $POLICY." 
+fi
+  
+if [ $# -gt 8 ] ; then
+  UART_MODE=$9
+  echo "##### UART_MODE: $UART_MODE."
+fi
+  
+if [ $# -gt 9 ] ; then
+  THIS_LOG=${10}
+  echo "##### Test results are in folder: $THIS_LOG."
+fi
  
-if [ $# -gt 2 ] ; then
-  BINARY_FORMAT=$3  
-  echo "##### BINARY_FORMAT is $3"
- fi
- 
- if [ $# -gt 3 ] ; then
-  POLICY=$4  
-  echo "##### POLICY is $4"
- fi
- 
- if [ $# -gt 4 ] ; then
-  THIS_LOG=$5
-  echo "##### THIS_LOG is $5"
- fi
- 
-if [ $# -gt 5 ] ; then
-  VCO_MULT=$6
-  CCLK_DIV=$7
-  SCLK_DIV=$8
+if [ $# -gt 10 ] ; then
+  VCO_MULT=${11}
+  CCLK_DIV=${12}
+  SCLK_DIV=${13}
+  echo "##### VCO_MULT: $VCO_MULT, CCLK_DIV: $CCLK_DIV, SCLK_DIV: $SCLK_DIV."
 fi
 
 
@@ -68,12 +106,11 @@ if [ ! -d $KERNEL_PATH ] ; then
 fi
 
 if [ ! -d $THIS_LOG ] ; then
-  mkdir -p $THIS_LOG  
+  mkdir -p $THIS_LOG    
 else 
   rm -rf $THIS_LOG/*  
 fi
-  echo  "##### Test results are in $THIS_LOG."
-
+  
 # KERNEL_SCRIPTS/change_clk.exp $BOARD_TYPE $VCO_MULT $CCLK_DIV $SCLK_DIV
 
 ######## Set the default value for the test cases
@@ -122,9 +159,7 @@ fi
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
 
-if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
- 
-   echo  "##### Testing is doing with the config $BOARD_CONFIG."
+if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then   
    
    BOARD_TYPE=BF537-STAMP
    
@@ -169,9 +204,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	   coreb_test=0
 fi
 
-if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
- 
-   echo  "##### Testing is doing with the config $BOARD_CONFIG."
+if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then   
    
    BOARD_TYPE=BF533-STAMP
    
@@ -216,9 +249,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
          	
 fi
  
-if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
- 
-   echo  "##### Testing is doing with the config $BOARD_CONFIG."
+if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then  
    
    BOARD_TYPE=BF561-EZKIT
    
@@ -262,14 +293,13 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
 	   coreb_test=1
          	
 fi
- 
 
 
 ####### Build and run the tests      #######################################################
 
 export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
 echo "##### The Toolchain is:" 
-`/opt/uClinux/bfin-uclinux/bin/bfin-uclinux-gcc -v`
+/opt/uClinux/bfin-uclinux/bin/bfin-uclinux-gcc -v
 echo 
 
 cd  $KERNEL_SOURCE_BAK/testsuites
@@ -287,8 +317,9 @@ chmod +x */*.exp
      
   echo  "start building policy kernel..."
   cd $KERNEL_SCRIPTS/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $KERNEL_SOURCE $BINARY_FORMAT $POLICY >/dev/null  2>&1
-
+  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $KERNEL_SOURCE  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
+                         
+   
   cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
 
   if [ ! -f $KERNEL_SOURCE/images/linux ] ; then
@@ -320,9 +351,9 @@ chmod +x */*.exp
   if [ $ethernet_test -eq 1  ] ; then
   echo  "Testing ethernet..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel   
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH   
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/ethernet
   ./build_ethernet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
@@ -353,9 +384,9 @@ chmod +x */*.exp
   if [ $stress_test -eq 1  ] ; then
   echo  "Testing stress ..."
  
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/stress
   ./build_stress_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -385,9 +416,9 @@ chmod +x */*.exp
   if [ $serial_test -eq 1  ] ; then
   echo  "Testing serial..."
        
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd  $KERNEL_SCRIPTS/serial
   ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
@@ -416,9 +447,9 @@ chmod +x */*.exp
   if [ $serial_uart1_test -eq 1  ] ; then
   echo  "Testing serial on uart1..."
        
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd  $KERNEL_SCRIPTS/serial
   ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
@@ -449,9 +480,9 @@ chmod +x */*.exp
   
   echo  "Testing reboot on RAMDISK..."
    
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd  $KERNEL_SCRIPTS/ramfs
   ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -480,9 +511,9 @@ chmod +x */*.exp
   
   echo  "Testing kgdb..."
  
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   
   cd $KERNEL_SCRIPTS/kgdb
@@ -511,9 +542,9 @@ chmod +x */*.exp
    
   echo  "Testing module..."
    
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/module
   ./build_module_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -541,9 +572,9 @@ chmod +x */*.exp
  if [ $rtc_test -eq 1  ] ; then
   echo  "Testing rtc..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/rtc
@@ -573,9 +604,9 @@ chmod +x */*.exp
   
   echo  "Testing NFS mount ..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
    
  
   cd $KERNEL_SCRIPTS/nfs
@@ -606,10 +637,10 @@ if [ $pnormtd_test -eq 1  ] ; then
   echo  "Testing pnormtd..."
   echo  "Switch SW6 to all on and unplug the nand flash board."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
-  rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/pnormtd
   ./build_pnormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -639,10 +670,10 @@ if [ $pnormtd_test -eq 1  ] ; then
   
   echo  "Testing reboot on jffs2 file system ..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
-  rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/jffs2
   ./build_jffs2_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   >/dev/null  2>&1
@@ -689,10 +720,10 @@ if [ $pnormtd_test -eq 1  ] ; then
  if [ $jffs2_fs_test -eq 1  ] ; then 
   echo  "Testing jffs2 fs..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
-  rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/jffs2
   ./build_jffs2_fs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -720,9 +751,9 @@ if [ $pnormtd_test -eq 1  ] ; then
  if [ $strace_test -eq 1  ] ; then
   echo  "Testing strace..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/strace
@@ -751,9 +782,9 @@ if [ $pnormtd_test -eq 1  ] ; then
  if [ $msh_test -eq 1  ] ; then
   echo  "Testing msh..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/msh
@@ -783,9 +814,9 @@ if [ $pnormtd_test -eq 1  ] ; then
  if [ $pthread_test -eq 1  ] ; then
   echo  "Testing pthread..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/pthread
@@ -814,9 +845,9 @@ if [ $pnormtd_test -eq 1  ] ; then
  if [ $dpm_test -eq 1  ] ; then
   echo  "Testing dpm..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/dpm
@@ -845,14 +876,14 @@ if [ $pnormtd_test -eq 1  ] ; then
 if [ $dll_test -eq 1 ] ; then
   echo "Testing dll..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/dll
   ./build_dll_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./dll_test > /dev/null 2>&1
+  ./dll_test.exp > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dll
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dll
@@ -876,9 +907,9 @@ fi
  if [ $timer_test -eq 1  ] ; then
   echo  "Testing timer..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/timer
@@ -922,9 +953,9 @@ fi
  if [ $pound_test -eq 1  ] ; then
   echo  "Testing pound..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
 
   cd $KERNEL_SCRIPTS/pound
@@ -953,9 +984,9 @@ fi
 if [ $sqlite_test -eq 1 ] ; then
   echo "Testing sqlite..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/sqlite
   ./build_sqlite_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
@@ -983,9 +1014,9 @@ fi
 if [ $ltp_test -eq 1 ] ; then
   echo "Testing LTP..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/ltp
   ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
@@ -995,10 +1026,9 @@ if [ $ltp_test -eq 1 ] ; then
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp
   cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log 
-  cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log 
-    
+  cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log
+  cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log
+ 
   sleep 30
   
  
@@ -1021,9 +1051,9 @@ fi
   if [ $spiadc_ndso_test -eq 1  ] ; then
   echo  "Testing SPIADC..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/spiadc
   ./build_ndso_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1044,9 +1074,9 @@ fi
   if [ $spiadc_awg_test -eq 1  ] ; then
   echo  "Testing SPIADC..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/spiadc  
   ./build_awg_kernel.exp $BOARD_TYPE $KERNEL_SOURCE   >/dev/null  2>&1
@@ -1072,9 +1102,9 @@ fi
   echo  "Testing pflags..."
   echo  "Switch SW5.1 to on."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
     
   cd $KERNEL_SCRIPTS/pflag
   ./build_pflags_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1104,9 +1134,9 @@ fi
   
   echo  "Testing audio ad1836..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/audio
   ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1136,9 +1166,9 @@ fi
   
   echo  "Testing audio ad73311..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   ./build_ad73311_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
@@ -1168,9 +1198,9 @@ fi
   if [ $dpmc_test -eq 1  ] ; then
   echo  "Testing dpmc..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/dpmc
   ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1  
@@ -1217,9 +1247,9 @@ fi
   if [ $joystick_test -eq 1  ] ; then
   echo  "Testing joystick..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/joystick
   ./build_joystick_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1249,9 +1279,9 @@ fi
   if [ $i2ctwi_test -eq 1  ] ; then
   echo  "Testing I2CTWI..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   
   cd $KERNEL_SCRIPTS/i2ctwi
@@ -1290,10 +1320,10 @@ fi
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
  # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
-  rm -rf $CHECKOUT/kernel/uClinux-dist/romfs/
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
 
   cd $KERNEL_SCRIPTS/snormtd
   ./build_snormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1341,9 +1371,9 @@ if [ $cf_card_test -eq 1  ] ; then
   echo  "Testing CF card ..."
 # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/cfcard
   ./build_cf_card_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
@@ -1371,9 +1401,9 @@ if [ $ide_test -eq 1  ] ; then
   echo  "Testing ide harddisk and cdrom ..."
  # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel  
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH  
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/ide
   $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1406,14 +1436,14 @@ if [ $wireless_test -eq 1  ] ; then
   echo  "Testing wireless card ..."
  # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel   
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH   
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/wireless
   ./build_wireless_network_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
   sleep 30
-  ./wireless_network_test.exp  >/dev/null  2>&1
+  ./wireless_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.wireless
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.wireless
@@ -1440,19 +1470,19 @@ if [ $yaffs_test -eq 1  ] ; then
   echo  "Testing YAFFS..."
   #Switch SW6 to on on off on, SW5 all on and plug the nand flash board.
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/yaffs
   ./build_yaffs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
   sleep 30
-  ./test_yaffs /dev/ttyS0  >/dev/null  2>&1
+  ./yaffs_test.exp /dev/ttyS0  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.yaffs
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.yaffs
   cp $KERNEL_SCRIPTS/yaffs/build_yaffs_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/yaffs/test_yaffs_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/yaffs/yaffs_test_log $THIS_LOG
 
   sleep 30
    
@@ -1470,9 +1500,9 @@ if [ $yaffs_test -eq 1  ] ; then
   if [ $ppifcd_test -eq 1  ] ; then
   echo  "Testing ppifcd..."
   
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
   
   cd $KERNEL_SCRIPTS/ppifcd
   ./build_ppifcd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
@@ -1502,14 +1532,14 @@ if [ $yaffs_test -eq 1  ] ; then
 if [ $usbhost_test -eq 1 ] ; then
   echo "Testing usbhost..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/usbhost
   ./build_usbhost_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./usbhost_test > /dev/null 2>&1
+  ./usbhost_test.exp > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.usbhost
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.usbhost
@@ -1533,14 +1563,14 @@ fi
 if [ $usbnet_test -eq 1 ] ; then
   echo "Testing usbnet..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/usbnet
   ./build_usbnet_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./usbnet_test > /dev/null 2>&1
+  ./usbnet_test.exp > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.usbnet
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.usbnet
@@ -1565,14 +1595,14 @@ fi
 if [ $coreb_test -eq 1 ] ; then
   echo "Testing coreb..."
 
-  rm -rf $CHECKOUT/kernel/*
-  cd $CHECKOUT/kernel
-  cp -a  $CHECKOUT/kernel_bak/*  .
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/coreb
   ./build_coreb_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./coreb_test > /dev/null 2>&1
+  ./coreb_test.exp > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.coreb
