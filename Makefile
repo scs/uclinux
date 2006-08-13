@@ -406,11 +406,11 @@ distclean: mrproper
 		exit 1; \
 	fi
 #	make distclean > /dev/null 2>&1
-	cp vendors/$(@:_config=)/config.device .config
-	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
-	cp vendors/$(@:_config=)/config.vendor-2.6.x config/.config
-	cp vendors/$(@:_config=)/config.linux-2.6.x linux-2.6.x/.config
-	ln -s vendors/$(@:_config=)/config.arch .
+	cp vendors/$(@:_default=)/config.device .config
+	cp vendors/$(@:_default=)/config.uClibc uClibc/.config
+	cp vendors/$(@:_default=)/config.vendor-2.6.x config/.config
+	cp vendors/$(@:_default=)/config.linux-2.6.x linux-2.6.x/.config
+	ln -s vendors/$(@:_default=)/config.arch .
 	yes "" | make oldconfig
 	make
 
