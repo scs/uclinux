@@ -11,7 +11,12 @@ set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
-set ipaddr 192.168.1.2
+
+set argc [llength $argv]
+if { $argc < 1 } {
+   send_user "\nAppend board_ip_addr\n"
+   exit
+}
 
 proc step { message } {
   global step_sequence_number
@@ -21,6 +26,8 @@ proc step { message } {
   send_log "\n************** STEP $step_sequence_number: $message\n\n"
   incr step_sequence_number
 }
+
+set ipaddr [lindex $argv 0]
 
 set step_sequence_number    1
 

@@ -873,6 +873,8 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 #############################################################################################
 ########################## TEST DLL #########################################################
+if [ -z "$targetip" ]
+  targetip="10.100.4.50"
 if [ $dll_test -eq 1 ] ; then
   echo "Testing dll..."
 
@@ -883,7 +885,7 @@ if [ $dll_test -eq 1 ] ; then
   cd $KERNEL_SCRIPTS/dll
   ./build_dll_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./dll_test.exp > /dev/null 2>&1
+  ./dll_test.exp $targetip > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dll
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dll
@@ -895,7 +897,7 @@ if [ $dll_test -eq 1 ] ; then
  
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1     
+   ./reset_board.exp >/dev/null  2>&1     
    sleep 10
   fi
 
