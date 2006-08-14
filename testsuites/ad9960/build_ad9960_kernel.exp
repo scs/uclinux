@@ -1,0 +1,170 @@
+#!/usr/bin/expect
+log_file build_ad9960_kernel_log
+send_user "Starting build_ad9960_kernel.exp\n"
+
+source ../kernel_config.exp
+
+set send_slow {1 0.05}
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+
+step "Make config."
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             break
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+   
+   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+	     send "$board_type\r"
+      } 
+   
+   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
+
+          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+             send -s "Y\r"
+      }
+
+          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+             send "21\r"
+      }
+
+          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+             send "1\r"
+      }
+
+          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+             send "4\r"
+      }
+     
+          -re "AD9960 chip driver.*AD9960.*\\\[.*]" {
+             send -s "Y\r"
+      }
+    
+	  -re "AD9960 device test.*CONFIG_AD9960_TEST.*\\\[.*]" {
+             send -s "Y\r"
+      }
+   
+   
+       "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+	     break
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+	     "Entering directory" { }
+	     "Leaving directory" { set bfin_make_status success }
+	     "Error" {set bfin_make_status failure }
+	     "/bin/sh" { }
+	     eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}
+
+
+step "Copy linux"
+ 
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+# Check the size, time, and date just to be sure.
+cd /tftpboot
+set dxe_confirmation [exec ls -l $dxe_filename]
+
+log_file
+ 
+send_user "Ending build_ad9960_kernel.exp\n"
+
+
