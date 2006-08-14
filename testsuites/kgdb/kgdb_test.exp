@@ -382,7 +382,7 @@ while 1 {
 		}
 	}
 	incr case_num
-	send "break 22\r"
+	send "break 51\r"
 	expect {
 		"Breakpoint 2" {
 		expect {
