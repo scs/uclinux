@@ -106,9 +106,6 @@ int ad9960_spi_read(struct ad9960_spi *spi, unsigned short data,
                                         unsigned short *buf);
 int ad9960_spi_write(struct ad9960_spi *spi, unsigned short data);
 
-extern unsigned long l1_data_A_sram_alloc(unsigned long size);
-extern int l1_data_A_sram_free(unsigned long addr);
-
 static irqreturn_t ad9960_ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 
@@ -208,7 +205,7 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
     memcpy(buf,dma_buf,count*2);
     DPRINTK("PPI wait_event_interruptible done\n");
 
-    l1_data_A_sram_free((u_long)dma_buf);
+    l1_data_A_sram_free(dma_buf);
     disable_dma(CH_PPI);
     bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
     __builtin_bfin_ssync();
@@ -283,7 +280,7 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 
     DPRINTK("PPI wait_event_interruptible done\n");
 
-    l1_data_A_sram_free((u_long)dma_buf);
+    l1_data_A_sram_free(dma_buf);
     disable_dma(CH_PPI);
     bfin_write_PORTFIO_CLEAR(bfin_read_PORTFIO_CLEAR() | 0x0100);
     __builtin_bfin_ssync();
