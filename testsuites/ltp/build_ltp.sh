@@ -22,6 +22,15 @@ then
 	exit 1
 fi
 
+# Checkout patch file for Makefiles 
+echo "$0:	Checking out from CVS, file [Makefile.patch]"
+cvs -Q -d :pserver:anonymous@$cvs_server_addr:/cvsroot/uclinux533 co -A -P ltp/Makefile.patch
+if [ $? -ne 0 ]
+then
+	echo "$0:	Error, CVS checkout failed"
+	exit 1
+fi
+
 # Checkout ltp source directory
 LTP_WORKING_DIR=`cat ltp/current`
 LTP_SUB_DIR=ltp/$LTP_WORKING_DIR
@@ -37,23 +46,13 @@ then
 	exit 1
 fi
 
-# Checkout patch file for Makefiles 
-echo "$0:	Checking out from CVS, file [Makefile.patch]"
-cvs -Q -d :pserver:anonymous@$cvs_server_addr:/cvsroot/uclinux533 co -A -P ltp/Makefile.patch
-if [ $? -ne 0 ]
-then
-	echo "$0:	Error, CVS checkout failed"
-	exit 1
-fi
-cp /uclinux/ltp/remote/727/ltp/Makefile.patch $LTP_SUB_DIR/.
-
 # Go to working directory
 echo "$0:	Go to working directory"
 cd $LTP_SUB_DIR
 
 # Patch for Makefiles
 echo "$0:	Patching Makefiles"
-patch -p0 < Makefile.patch
+patch -p0 < ../Makefile.patch
 if [ $? -ne 0 ]
 then
 	echo "$0:	Error, patching Makefiles failed"

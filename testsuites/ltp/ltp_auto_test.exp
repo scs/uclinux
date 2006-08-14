@@ -418,6 +418,7 @@ proc all_done { } {
    global result_matrix
    global measurement_matrix
    global summary_logfile
+   global logfile
    global compare_file
    global TEST_PASS
    global TEST_FAIL
@@ -1018,14 +1019,14 @@ set ULIMIT                ulimit
 #
 set i 0
 set cpu_info_loc                        $i
-set result_matrix {
+set result_matrix1 {
        { readlink04     	     {cp -f /bin/creat_slink /tmp; readlink04}                     	 notrun } 
 }
 
 
 #                user friendly name          command             status
 #                ==================          =======             ======
-set result_matrix1 {   
+set result_matrix {   
        { abort01     	     {ulimit -c 1024;abort01}                     	 notrun } 
        { accept01     	     {accept01}                     	 notrun } 
        { access01     	     {access01}                     	 notrun } 
@@ -1746,7 +1747,7 @@ exec mkdir -p $LTP_LOG_DIR
 #exec $LTP_SCRIPT_DIR/build_ltp.sh > /dev/null 2>&1
 puts "\nStart to build ltp...\n"
 #exec $LTP_SCRIPT_DIR/build_ltp.sh 10.99.22.20
-exec ./build_ltp.sh $cvs_server_addr
+exec ./build_ltp.sh $cvs_server_addr > build_ltp_log
 
 set LTP_SUB_DIR			[exec cat ltp/current]
 set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
