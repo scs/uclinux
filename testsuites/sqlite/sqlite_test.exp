@@ -9,6 +9,7 @@ set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
+set TITLE "Sqlite Test"
 
 proc step { message } {
   global step_sequence_number
@@ -266,13 +267,13 @@ send "sqlite_test \"foo\"\r"
 while 1 {
    expect {
       -re ".*foo <foo@test>.*" {
-         send_log "\nSqlite TEST PASS\n"
-         send_user "\nSqlite TEST PASS\n"
+         send_log "\n$TITLE ............\[PASS\]\n"
+         send_user "\n$TITLE ............\[PASS\]\n"
          break
       }
       timeout {
-         send_log "\nSqlite TEST FAIL\n"
-         send_user "\nSqlite TEST FAIL\n"
+         send_log "\n$TITLE ............\[FAIL\]\n"
+         send_user "\n$TITLE ............\[FAIL\]\n"
          break
       }
    }
