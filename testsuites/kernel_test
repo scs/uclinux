@@ -1020,19 +1020,29 @@ if [ $ltp_test -eq 1 ] ; then
 
   rm -rf $KERNEL_PATH/*
   cd $KERNEL_PATH
+  echo "change dir to $KERNEL_PATH"
   cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/ltp
+  echo "change dir to $KERNEL_SCRIPTS/ltp"
   ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  echo "build_ltp_kernel.exp done"
   sleep 30
-  ./ltp_auto_test.exp > /dev/null 2>&1
+  ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
+  echo "ltp_auto_test.exp done"
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp
+  echo "ltp copy linux.ltp done"
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp
+  echo "ltp copy config.ltp done"
   cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG
+  echo "ltp copy build_ltp_kernel_log done"
   cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log
+  echo "ltp copy summary done"
   cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log
+  echo "ltp copy detailed done"
   cp $KERNEL_SCRIPTS/ltp/build_ltp_log $THIS_LOG/.
+  echo "copy log files done"
  
   sleep 30
   
