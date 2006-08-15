@@ -39,6 +39,7 @@
 #include <asm/irqchip.h>
 
 #include <asm/dma.h>
+#include <asm/cacheflush.h>
 
 /* Remove unused code not exported by symbol or internally called */
 #define REMOVE_DEAD_CODE
@@ -581,6 +582,9 @@ void *dma_memcpy(void *dest, const void *src, size_t count)
 {
 	BUG_ON(count > 0xFFFF);
 
+	if((unsigned long)src < memory_end)
+		blackfin_dcache_flush_range((unsigned int)src,(unsigned int)(src+count));
+
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 
 	/* Copy sram functions from sdram to sram */
@@ -608,6 +612,9 @@ void *dma_memcpy(void *dest, const void *src, size_t count)
 		bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
 
 	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
+
+	if((unsigned long)dest < memory_end)
+		blackfin_dcache_invalidate_range((unsigned int)dest, (unsigned int)(dest+count));
 
 	dest += count;
 	src  += count;
