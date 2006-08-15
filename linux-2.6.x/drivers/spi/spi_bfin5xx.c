@@ -477,6 +477,9 @@ static void pump_transfers(unsigned long data)
 	message->state = RUNNING_STATE;
 	dma_config = 0;
 
+	write_CTRL(chip->ctl_reg);
+	write_BAUD(chip->baud);
+
 	/* restore spi status for each spi transfer */
 	if (transfer->speed_hz) {
 		write_BAUD(transfer->speed_hz);
