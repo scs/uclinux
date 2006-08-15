@@ -105,21 +105,17 @@
 
 #if defined(CONFIG_BAUD_9600)
 #define CONSOLE_BAUD_RATE 	9600
-#define DEFAULT_CBAUD		B9600
 #elif defined(CONFIG_BAUD_19200)
 #define CONSOLE_BAUD_RATE 	19200
-#define DEFAULT_CBAUD		B19200
 #elif defined(CONFIG_BAUD_38400)
 #define CONSOLE_BAUD_RATE 	38400
-#define DEFAULT_CBAUD		B38400
 #elif defined(CONFIG_BAUD_57600)
 #define CONSOLE_BAUD_RATE 	57600
-#define DEFAULT_CBAUD		B57600
 #elif defined(CONFIG_BAUD_115200)
 #define CONSOLE_BAUD_RATE 	115200
-#define DEFAULT_CBAUD		B115200
 #endif
 
+static unsigned int bfin_default_baud;
 static int bfin_console_initted = 0;
 
 #ifdef CONFIG_CONSOLE
@@ -1083,13 +1079,13 @@ static void bfin_change_speed(struct bfin_serial *info)
 			break;
 	}
 
-	if (i == BAUD_TABLE_SIZE) {
+	if (i < BAUD_TABLE_SIZE)
+		info->baud = baud_table[i];
+	else {
 		printk(KERN_DEBUG "%s: baud rate not supported: 0%o\n",
 		       __FUNCTION__, cflag & CBAUD);
-		i = 3;
+		info->baud = CONSOLE_BAUD_RATE;
 	}
-
-	info->baud = baud_table[i];
 
 	uart_dl = calc_divisor(baud_table[i]);
 
@@ -2251,7 +2247,7 @@ static int __init rs_bfin_init(void)
 	bfin_serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	bfin_serial_driver->init_termios = tty_std_termios;
 	bfin_serial_driver->init_termios.c_cflag =
-	    DEFAULT_CBAUD | CS8 | CREAD | CLOCAL;
+	    bfin_default_baud | CS8 | CREAD | CLOCAL;
 	bfin_serial_driver->init_termios.c_lflag = ISIG | ICANON | IEXTEN;
 
 	bfin_serial_driver->flags = TTY_DRIVER_REAL_RAW;
@@ -2359,11 +2355,16 @@ int bfin_console_setup(struct console *cp, char *arg)
 	for (i = 0; i < BAUD_TABLE_SIZE; i++)
 		if (baud_table[i] == n)
 			break;
-	if (i < BAUD_TABLE_SIZE) {
+	if (i < BAUD_TABLE_SIZE)
 		info->baud = n;
+	else {
+		info->baud = CONSOLE_BAUD_RATE;
+		for (i = 0; i < BAUD_TABLE_SIZE; i++)
+			if (baud_table[i] == n)
+				break;
+		
 	}
-
-	info->is_cons = 1;
+	bfin_default_baud = unix_baud_table[i];
 
 	bfin_set_baud(info);	/* make sure baud rate changes */
 
