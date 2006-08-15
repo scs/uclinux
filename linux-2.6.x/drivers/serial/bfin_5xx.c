@@ -42,8 +42,12 @@
 
 #include <asm/mach/bfin_serial_5xx.h>
 
+#ifdef CONFIG_SERIAL_BFIN_DMA
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/cacheflush.h>
+#endif
 
 /* We've been assigned a range on the "Low-density serial ports" major */
 #define SERIAL_BFIN_MAJOR	TTY_MAJOR
@@ -71,6 +75,16 @@
 #define CONSOLE_BAUD_RATE       57600
 #elif defined(CONFIG_BAUD_115200)
 #define CONSOLE_BAUD_RATE       115200
+#endif
+
+#define DMA_RX_XCOUNT		TTY_FLIPBUF_SIZE
+#define DMA_RX_YCOUNT  		(PAGE_SIZE / DMA_RX_XCOUNT)
+
+#define DMA_RX_FLUSH_JIFFIES	5
+
+#ifdef CONFIG_SERIAL_BFIN_DMA
+wait_queue_head_t bfin_serial_tx_queue[NR_PORTS];
+static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
 #endif
 
 /*
@@ -118,10 +132,14 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 static void bfin_serial_start_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	bfin_serial_dma_tx_chars(uart);
+#else
 	unsigned short ier;
 	ier = UART_GET_IER(uart);
 	ier |= ETBEI;
 	UART_PUT_IER(uart, ier);
+#endif
 }
 
 /*
@@ -143,6 +161,7 @@ static void bfin_serial_enable_ms(struct uart_port *port)
 {
 }
 
+#ifdef CONFIG_SERIAL_BFIN_PIO
 static void
 bfin_serial_rx_chars(struct bfin_serial_port *uart, struct pt_regs *regs)
 {
@@ -194,7 +213,7 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 static irqreturn_t bfin_serial_int(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct bfin_serial_port *uart = dev_id;
-        unsigned short status;
+	unsigned short status;
 
 	spin_lock(&uart->port.lock);
 	status = UART_GET_IIR(uart);
@@ -206,8 +225,138 @@ static irqreturn_t bfin_serial_int(int irq, void *dev_id, struct pt_regs *regs)
 		status = UART_GET_IIR(uart);
 	}while(status &(IIR_TX_READY | IIR_RX_READY));
 	spin_unlock(&uart->port.lock);
+	return IRQ_HANDLED;
+}
+#endif
+
+#ifdef CONFIG_SERIAL_BFIN_DMA
+
+static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
+{
+        struct circ_buf *xmit = &uart->port.info->xmit;
+        int cnt;
+	unsigned short ier;
+
+        if (uart->port.x_char) {
+                UART_PUT_CHAR(uart, uart->port.x_char);
+                uart->port.icount.tx++;
+                uart->port.x_char = 0;
+                return;
+        }
+	uart->tx_done = 0;
+        /*
+         * Check the modem control lines before
+         * transmitting anything.
+         */
+        bfin_serial_mctrl_check(uart);
+
+        if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
+                bfin_serial_stop_tx(&uart->port);
+                return;
+        }
+
+        cnt = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
+        set_dma_config(uart->tx_dma_channel,
+                               set_bfin_dma_config(DIR_READ, DMA_FLOW_STOP,
+                                                   INTR_ON_BUF,
+                                                   DIMENSION_LINEAR,
+                                                   DATA_SIZE_8));
+        set_dma_start_addr(uart->tx_dma_channel,(unsigned long)(xmit->buf+xmit->tail));
+        set_dma_x_count(uart->tx_dma_channel, cnt);
+        blackfin_dcache_flush_range((unsigned long)(xmit->buf+xmit->tail),
+                                        (unsigned long)(xmit->buf+xmit->tail+cnt));
+        set_dma_x_modify(uart->tx_dma_channel,1);
+        enable_dma(uart->tx_dma_channel);
+	ier = UART_GET_IER(uart);
+        ier |= ETBEI;
+        UART_PUT_IER(uart, ier);
+	wait_event_interruptible(*(uart->tx_avail),uart->tx_done);
+        xmit->tail = (xmit->tail+cnt) &(UART_XMIT_SIZE -1);
+        uart->port.icount.tx+=cnt;
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+                uart_write_wakeup(&uart->port);
+
+        if (uart_circ_empty(xmit))
+                bfin_serial_stop_tx(&uart->port);
+}
+
+static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
+{
+	struct tty_struct *tty = uart->port.info->tty;
+	int i,flg,status = 0;
+	
+	uart->port.icount.rx += CIRC_CNT(uart->rx_dma_buf.head, uart->rx_dma_buf.tail, UART_XMIT_SIZE);;
+        flg = TTY_NORMAL;
+        for(i=uart->rx_dma_buf.head;i<uart->rx_dma_buf.tail;i++){
+              if(uart_handle_sysrq_char(&uart->port, uart->rx_dma_buf.buf[i],NULL))
+                        goto dma_ignore_char;
+                uart_insert_char(&uart->port,status,1,uart->rx_dma_buf.buf[i], flg);
+        }
+dma_ignore_char:
+        tty_flip_buffer_push(tty);
+}
+
+void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
+{
+	int x_pos, pos;
+	
+	x_pos = DMA_RX_XCOUNT - get_dma_curr_xcount(uart->rx_dma_channel);
+	if(x_pos == DMA_RX_XCOUNT) x_pos = 0;
+
+	pos = uart->rx_dma_nrows*DMA_RX_XCOUNT + x_pos;
+
+	if(pos>uart->rx_dma_buf.tail){
+		uart->rx_dma_buf.tail = pos;
+		bfin_serial_dma_rx_chars(uart);
+		uart->rx_dma_buf.head = uart->rx_dma_buf.tail;
+	}
+        uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
+        add_timer(&(uart->rx_dma_timer));
+}
+
+static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id, struct pt_regs *regs)
+{
+        struct bfin_serial_port *uart = dev_id;
+        unsigned short ier;
+
+        spin_lock(&uart->port.lock);
+	if(!(get_dma_curr_irqstat(uart->tx_dma_channel)&DMA_RUN)){
+	        clear_dma_irqstat(uart->tx_dma_channel);
+		disable_dma(uart->tx_dma_channel);
+		ier = UART_GET_IER(uart);
+	        ier &= ~ETBEI;
+	        UART_PUT_IER(uart, ier);
+	
+		uart->tx_done = 1;
+		wake_up_interruptible(uart->tx_avail);
+	}
+		
+        spin_unlock(&uart->port.lock);
         return IRQ_HANDLED;
 }
+
+static irqreturn_t bfin_serial_dma_rx_int(int irq, void *dev_id, struct pt_regs *regs)
+{
+        struct bfin_serial_port *uart = dev_id;
+        unsigned short irqstat;
+	
+	uart->rx_dma_nrows++;
+	if(uart->rx_dma_nrows == DMA_RX_YCOUNT){
+		uart->rx_dma_nrows = 0;
+		uart->rx_dma_buf.tail = DMA_RX_XCOUNT*DMA_RX_YCOUNT;
+		bfin_serial_dma_rx_chars(uart);
+                uart->rx_dma_buf.head = uart->rx_dma_buf.tail = 0;
+	}
+        spin_lock(&uart->port.lock);
+	irqstat = get_dma_curr_irqstat(uart->rx_dma_channel);
+	clear_dma_irqstat(uart->rx_dma_channel);
+
+        spin_unlock(&uart->port.lock);
+        return IRQ_HANDLED;
+}
+
+#endif
 
 /*
  * Return TIOCSER_TEMT when transmitter is not busy.
@@ -243,6 +392,43 @@ int bfin_serial_startup(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	dma_addr_t dma_handle;
+
+	if (request_dma(uart->rx_dma_channel, "BFIN_UART_RX") < 0) {
+                printk(KERN_DEBUG "Unable to attach Blackfin UART RX DMA channel\n");
+                return -EBUSY;
+        }else
+                set_dma_callback(uart->rx_dma_channel, bfin_serial_dma_rx_int, uart);
+
+
+        if (request_dma(uart->tx_dma_channel, "BFIN_UART_TX") < 0) {
+                printk(KERN_DEBUG "Unable to attach Blackfin UART TX DMA channel\n");
+                return -EBUSY;
+        }else
+                set_dma_callback(uart->tx_dma_channel, bfin_serial_dma_tx_int, uart);
+
+        uart->rx_dma_buf.buf = (unsigned char *)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
+        uart->rx_dma_buf.head = 0;
+        uart->rx_dma_buf.tail = 0;
+        uart->rx_dma_nrows = 0;
+
+        set_dma_config(uart->rx_dma_channel,
+                set_bfin_dma_config(DIR_WRITE, DMA_FLOW_AUTO,
+                                INTR_ON_ROW, DIMENSION_2D,
+                                DATA_SIZE_8));
+        set_dma_x_count(uart->rx_dma_channel, DMA_RX_XCOUNT);
+        set_dma_x_modify(uart->rx_dma_channel, 1);
+        set_dma_y_count(uart->rx_dma_channel, DMA_RX_YCOUNT);
+        set_dma_y_modify(uart->rx_dma_channel, 1);
+        set_dma_start_addr(uart->rx_dma_channel, (unsigned long)uart->rx_dma_buf.buf);
+        enable_dma(uart->rx_dma_channel);
+
+        uart->rx_dma_timer.data = (unsigned long)(uart);
+        uart->rx_dma_timer.function = (void *)bfin_serial_rx_dma_timeout;
+        uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
+        add_timer(&(uart->rx_dma_timer));
+#else
 	if (request_irq
             (uart->port.irq, bfin_serial_int, SA_INTERRUPT | SA_SHIRQ,
              "BFIN_UART0_RX", uart)) {
@@ -256,7 +442,7 @@ int bfin_serial_startup(struct uart_port *port)
                 printk("Unable to attach BlackFin UART TX interrupt\n");
                 return -EBUSY;
         }
-	
+#endif
 	UART_PUT_IER(uart, ERBFI);
 	return 0;
 }
@@ -264,8 +450,17 @@ int bfin_serial_startup(struct uart_port *port)
 static void bfin_serial_shutdown(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	disable_dma(uart->tx_dma_channel);
+	free_dma(uart->tx_dma_channel);
+        disable_dma(uart->rx_dma_channel);
+        free_dma(uart->rx_dma_channel);
+        del_timer(&(uart->rx_dma_timer));
+#else
 	free_irq(uart->port.irq, uart);
 	free_irq(uart->port.irq+1, uart);
+#endif
 }
 
 static void
@@ -347,6 +542,7 @@ static int bfin_serial_calc_baud(unsigned int uartclk)
 	return baud/2;
 }
 
+
 static void __init bfin_serial_init_ports(void)
 {
 	static int first = 1;
@@ -368,6 +564,15 @@ static void __init bfin_serial_init_ports(void)
                 bfin_serial_ports[i].port.mapbase   = uart_base_addr[i];
                 bfin_serial_ports[i].port.irq       = uart_irq[i];
                 bfin_serial_ports[i].port.flags     = UPF_BOOT_AUTOCONF;
+#ifdef CONFIG_SERIAL_BFIN_DMA
+		bfin_serial_ports[i].tx_dma_channel = uart_tx_dma_channel[i];
+		bfin_serial_ports[i].rx_dma_channel = uart_rx_dma_channel[i];
+
+		init_waitqueue_head(&bfin_serial_tx_queue[i]);
+		bfin_serial_ports[i].tx_avail	    = &bfin_serial_tx_queue[i];
+		init_timer(&(bfin_serial_ports[i].rx_dma_timer));
+#endif
+
         	baud = bfin_serial_calc_baud(bfin_serial_ports[i].port.uartclk);
 
 	        /* Enable UART */

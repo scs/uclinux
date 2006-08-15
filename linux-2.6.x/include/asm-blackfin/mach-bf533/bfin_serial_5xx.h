@@ -1,4 +1,5 @@
 #include <linux/serial.h>
+#include <asm/dma.h>
 
 #define NR_PORTS                1
 
@@ -34,11 +35,24 @@
 struct bfin_serial_port {
         struct uart_port        port;
         unsigned int            old_status;
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	int			tx_done;
+	wait_queue_head_t	*tx_avail;
+	struct circ_buf		rx_dma_buf;
+	struct timer_list       rx_dma_timer;
+	int			rx_dma_nrows;
+	unsigned int		tx_dma_channel;
+	unsigned int		rx_dma_channel;
+#endif
 };
 
 struct bfin_serial_port bfin_serial_ports[NR_PORTS];
 const unsigned long uart_base_addr[NR_PORTS] = {0xFFC00400};
 const int uart_irq[NR_PORTS] = {IRQ_UART_RX};
+
+#ifdef CONFIG_SERIAL_BFIN_DMA
+unsigned int uart_tx_dma_channel[NR_PORTS] = {CH_UART_TX};
+unsigned int uart_rx_dma_channel[NR_PORTS] = {CH_UART_RX};
 
 static void bfin_serial_hw_init(void)
 {
