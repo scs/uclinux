@@ -873,10 +873,12 @@ if [ $pnormtd_test -eq 1  ] ; then
 
 #############################################################################################
 ########################## TEST DLL #########################################################
-if [ -z "$targetip" ]
-  targetip="10.100.4.50"
 if [ $dll_test -eq 1 ] ; then
   echo "Testing dll..."
+
+  if [ -z $targetip ] ; then
+    targetip="10.100.4.50"
+  fi
 
   rm -rf $KERNEL_PATH/*
   cd $KERNEL_PATH
