@@ -644,31 +644,49 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 	struct tty_struct *tty = info->tty;
 	unsigned char ch = 0, flag = 0;
 	unsigned short status = 0;
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+	static int in_break=0;
+#endif
 	FUNC_ENTER();
 
+#ifdef CONFIG_BFIN_UART_CTSRTS
+	bfin_setsignal(info, 0);
+#endif
 	/*
 	 * This do { } while() loop will get ALL chars out of Rx FIFO
 	 */
-	do {
+	while ((status=bfin_read16(uart_regs->rpUART_LSR)) & DR) {
 		ACCESS_PORT_IER(uart_regs);
 		ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
 
-		if (info->is_cons) {
-			CSYNC;
-			status = bfin_read16(uart_regs->rpUART_LSR);
-			if (status & BI) {	/* break received */
-				status_handle(info, status);
-				goto clear_and_exit;
-			}
 #ifdef CONFIG_CONSOLE
+		if (info->is_cons) {
 			wake_up(&keypress_wait);
-#endif
 		}
+#endif
 
 		if (!tty) {
 			goto clear_and_exit;
 		}
-		if (status & PE) {
+
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+		if (in_break) {
+			if(ch!=0) {
+				ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
+				in_break = 0;
+			}
+			goto clear_and_exit;
+		}
+#endif
+
+		flag = TTY_NORMAL;
+		if (status & BI) {
+			flag = TTY_BREAK;
+			status_handle(info, status);
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+			in_break = 1;
+#endif
+		} else if (status & PE) {
 			flag = TTY_PARITY;
 			status_handle(info, status);
 		} else if (status & OE) {
@@ -679,7 +697,7 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 			status_handle(info, status);
 		}
 		tty_insert_flip_char(tty, ch, flag);
-	} while (status & DR);
+	}
 	tty_flip_buffer_push(tty);
 
       clear_and_exit:
@@ -701,7 +719,6 @@ static void transmit_chars(struct bfin_serial *info)
 		if (!local_put_char(info, info->x_char))
 			goto clear_and_return;
 		info->x_char = 0;
-		goto clear_and_return;
 	}
 
 	if ((info->xmit_cnt <= 0) || info->tty->stopped) {	/* TX ints off */
@@ -757,16 +774,9 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 		if (!(iir & NINT)) {
 			switch (iir & 0x06) {
 			case 0x06:
-				lsr = bfin_read16(uart_regs->rpUART_LSR);
-				break;
 			case STATUS(2):	/*UART_IIR_RBR: */
 				/* Change access to IER & data port */
-				if (bfin_read16(uart_regs->rpUART_LSR) & DR) {
-#ifdef CONFIG_BFIN_UART_CTSRTS
-					bfin_setsignal(info, 0);
-#endif
-					receive_chars(info, regs);
-				}
+				receive_chars(info, regs);
 				break;
 			case STATUS_P1:	/*UART_IIR_THR: */
 				if (bfin_read16(uart_regs->rpUART_LSR) & THRE) {
