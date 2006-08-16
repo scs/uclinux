@@ -315,7 +315,7 @@ send "ifconfig eth0 $ipaddr up\r"
 sleep 2
 
 step "Copy testcase to target board\n"
-spawn rcp src/libhelloworld.so $ipaddr:/lib/.
+spawn rcp src/libhelloworld.so root@$ipaddr:/lib/.
 while 1 {
    expect {
 
@@ -337,7 +337,7 @@ while 1 {
    }
 }
 
-spawn rcp src/test_dll $ipaddr:/.
+spawn rcp src/test_dll root@$ipaddr:/.
 while 1 {
    expect {
 
