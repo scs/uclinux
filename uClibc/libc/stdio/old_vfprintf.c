@@ -188,7 +188,7 @@ static void _outnstr(FILE *stream, const unsigned char *s, size_t n)
 		if (r > n) {
 			r = n;
 		}
-		memcpy(f->bufpos, s, r);
+		__libc_memcpy(f->bufpos, s, r);
 		f->bufpos += r;
 	}
 }

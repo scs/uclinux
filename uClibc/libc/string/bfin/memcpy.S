@@ -70,3 +70,6 @@ finished:
 	P3 = [SP++];
 	RTS;
 .size _memcpy,.-_memcpy
+.global ___libc_memcpy
+.hidden ___libc_memcpy
+.set ___libc_memcpy, _memcpy

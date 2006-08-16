@@ -1129,7 +1129,7 @@ extern int _ppfs_parsespec(ppfs_t *ppfs)
 	} else {
 #endif /* NL_ARGMAX */
 		ppfs->argnumber[2] = 1;
-		memcpy(ppfs->argtype, argtype + 2, ppfs->num_data_args * sizeof(int));
+		__libc_memcpy(ppfs->argtype, argtype + 2, ppfs->num_data_args * sizeof(int));
 #ifdef NL_ARGMAX
 	}
 

@@ -37,6 +37,11 @@ __BEGIN_NAMESPACE_STD
 /* Copy N bytes of SRC to DEST.  */
 extern void *memcpy (void *__restrict __dest,
 		     __const void *__restrict __src, size_t __n) __THROW;
+
+#ifdef _LIBC
+extern void *__libc_memcpy (void *__restrict, const void *__restrict, size_t);
+#endif
+
 /* Copy N bytes of SRC to DEST, guaranteeing
    correct behavior for overlapping strings.  */
 extern void *memmove (void *__dest, __const void *__src, size_t __n)

@@ -49,7 +49,7 @@ size_t __fread_unlocked(void * __restrict ptr, size_t size, size_t nmemb,
 				if (avail > todo) {
 					avail = todo;
 				}
-				memcpy(buffer, stream->__bufpos, avail);
+				__libc_memcpy(buffer, stream->__bufpos, avail);
 				buffer += avail;
 				stream->__bufpos += avail;
 				if (!(todo -= avail)) {

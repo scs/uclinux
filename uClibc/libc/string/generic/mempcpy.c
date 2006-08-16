@@ -12,7 +12,7 @@
 
 void *__mempcpy (void *dstpp, const void *srcpp, size_t len)
 {
-  memcpy(dstpp, srcpp, len);
+  __libc_memcpy(dstpp, srcpp, len);
   return (void *)(((char *)dstpp) + len);
 }
 weak_alias (__mempcpy, mempcpy)

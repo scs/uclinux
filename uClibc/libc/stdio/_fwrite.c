@@ -32,7 +32,7 @@ size_t __stdio_fwrite(const unsigned char * __restrict buffer,
 			if (pending > bytes) {
 				pending = bytes;
 			}
-			memcpy(stream->__bufpos, buffer, pending);
+			__libc_memcpy(stream->__bufpos, buffer, pending);
 			stream->__bufpos += pending;
 			__STDIO_STREAM_VALIDATE(stream);
 			return bytes;
@@ -40,7 +40,7 @@ size_t __stdio_fwrite(const unsigned char * __restrict buffer,
 
 /* 	RETRY: */
 		if (bytes <= __STDIO_STREAM_BUFFER_WAVAIL(stream)) {
-			memcpy(stream->__bufpos, buffer, bytes);
+			__libc_memcpy(stream->__bufpos, buffer, bytes);
 			stream->__bufpos += bytes;
 			if (__STDIO_STREAM_IS_LBF(stream)
 				&& memrchr(buffer, '\n', bytes)	/* Search backwards. */

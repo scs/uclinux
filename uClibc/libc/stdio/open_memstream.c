@@ -51,7 +51,7 @@ static ssize_t oms_write(register void *cookie, const char *buf, size_t bufsize)
 		}
 	}
 
-	memcpy(COOKIE->buf + COOKIE->pos, buf, bufsize);
+	__libc_memcpy(COOKIE->buf + COOKIE->pos, buf, bufsize);
 	COOKIE->pos += bufsize;
 
 	if (COOKIE->pos > COOKIE->eof) {
