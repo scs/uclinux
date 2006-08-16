@@ -201,7 +201,7 @@ unsigned long change_sclk(unsigned long clock)
 		ssel = MAX_SSEL;
 	}
 	__builtin_bfin_ssync();
-	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() | SRFS);
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() | SRFS);
 	__builtin_bfin_ssync();
 
 	ret = set_pll_div(ssel,FLAG_SSEL);
@@ -215,7 +215,7 @@ unsigned long change_sclk(unsigned long clock)
 	__builtin_bfin_ssync();
 
 	/* Get SDRAM out of self refresh mode */
-	bfin_read_EBIU_SDGCTL() = (bfin_read_EBIU_SDGCTL() & ~SRFS);
+	bfin_write_EBIU_SDGCTL(bfin_read_EBIU_SDGCTL() & ~SRFS);
 	__builtin_bfin_ssync();
 
 	/* May not be required */
@@ -491,7 +491,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 {
 	if(flag == FLAG_CSEL)	{
 		if(sel <= 3)	{
-			bfin_read_PLL_DIV() = ((bfin_read_PLL_DIV() & 0xCF) | (sel << 4));
+			bfin_write_PLL_DIV((bfin_read_PLL_DIV() & 0xCF) | (sel << 4));
 			__builtin_bfin_ssync();
 			return 0;
 		}
@@ -502,7 +502,7 @@ int set_pll_div(unsigned short sel,unsigned char flag)
 	}
 	else if(flag == FLAG_SSEL)	{
 		if(sel < 16)	{
-			bfin_read_PLL_DIV() = (bfin_read_PLL_DIV() & 0xF0) | sel;
+			bfin_write_PLL_DIV((bfin_read_PLL_DIV() & 0xF0) | sel);
 			__builtin_bfin_ssync();
 			return 0;
 		}
