@@ -187,6 +187,51 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	     ltp_test=1
      spiadc_ndso_test=1
       spiadc_awg_test=1
+    audio_ad1836_test=1
+   audio_ad73311_test=0
+	   pflag_test=0
+	    dpmc_test=1
+	  i2ctwi_test=1
+        joystick_test=1
+         snormtd_test=1
+	 cf_card_test=0
+	     ide_test=0
+	wireless_test=0
+	   yaffs_test=0
+	  ppifcd_test=0	   
+	 usbhost_test=0
+	  usbnet_test=0
+	   coreb_test=0
+fi
+
+if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then   
+   
+   BOARD_TYPE=BF537-STAMP
+   
+         build_policy=1
+	ethernet_test=1
+	  stress_test=1
+	  serial_test=1
+    serial_uart1_test=1
+	  reboot_test=1	     
+	  module_test=1
+	    kgdb_test=1
+	     rtc_test=1
+	     nfs_test=1
+	 pnormtd_test=1
+    jffs2_reboot_test=1 
+	jffs2_fs_test=1
+	  strace_test=1
+	     msh_test=1
+	 pthread_test=1
+	     dpm_test=1
+	     dll_test=1
+	   timer_test=1
+	   pound_test=0
+	  sqlite_test=1
+	     ltp_test=1
+     spiadc_ndso_test=1
+      spiadc_awg_test=1
     audio_ad1836_test=0
    audio_ad73311_test=0
 	   pflag_test=0
@@ -203,6 +248,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	  usbnet_test=0
 	   coreb_test=0
 fi
+
 
 if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then   
    
