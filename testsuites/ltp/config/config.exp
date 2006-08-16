@@ -7,7 +7,7 @@
 #global output_pin
 #global send_slow
 
-set ipaddr			"192.168.1.2"
+set ipaddr			"10.100.4.50"
 set serverip			"192.168.1.1"
 set cvs_server_addr		"10.99.22.20"
 

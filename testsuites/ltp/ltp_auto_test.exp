@@ -95,6 +95,7 @@ proc reset_board {} {
    global spawn_id
    global timeout
    global LTP_SCRIPT_DIR
+   global password
 
    if { $output_pin == 0 } {
       send "reboot\r"
@@ -106,10 +107,13 @@ proc reset_board {} {
          report "ERROR: You don't have the reset_board_as_root script."
          report "       You should not specify --pin unless you're using"
          report "       a hacked up printer cable to power cycle the board."
-         exit
+      #   exit
       }
       while 1 {
          expect {
+            -re "Password:" {
+               send -r "$password\r"
+            }
             timeout {
                report "ERROR: Failed to reset target board with reset script"
                all_done
@@ -1747,7 +1751,7 @@ exec mkdir -p $LTP_LOG_DIR
 #exec $LTP_SCRIPT_DIR/build_ltp.sh > /dev/null 2>&1
 puts "\nStart to build ltp...\n"
 #exec $LTP_SCRIPT_DIR/build_ltp.sh 10.99.22.20
-exec ./build_ltp.sh $cvs_server_addr > build_ltp_log
+catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log}
 
 set LTP_SUB_DIR			[exec cat ltp/current]
 set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
@@ -1766,7 +1770,7 @@ set skip_manual     $PARAM_OFF
 set logfile         "$LTP_LOG_DIR/$argv0-[exec date +%b-%d-%G-%H-%M]-detailed-log"
 set summary_logfile "$LTP_LOG_DIR/$argv0-[exec date +%b-%d-%G-%H-%M]-summary-log"
 set compare_file    "/dev/null"
-
+set password "blackfin"
 set step_sequence_number    1
 set test_started "test not started"
 
