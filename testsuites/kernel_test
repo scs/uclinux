@@ -148,7 +148,8 @@ fi
         joystick_test=0
          snormtd_test=0
 	 cf_card_test=0
-	     ide_test=0
+    ide_harddisk_test=0
+       ide_cdrom_test=0
 	wireless_test=0
 	   yaffs_test=0
 	  ppifcd_test=0	  
@@ -195,7 +196,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
         joystick_test=1
          snormtd_test=1
 	 cf_card_test=0
-	     ide_test=0
+    ide_harddisk_test=0
+       ide_cdrom_test=0
 	wireless_test=0
 	   yaffs_test=0
 	  ppifcd_test=0	   
@@ -219,8 +221,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 	     rtc_test=1
 	     nfs_test=1
 	 pnormtd_test=1
-    jffs2_reboot_test=1 
-	jffs2_fs_test=1
+    jffs2_reboot_test=0 
+	jffs2_fs_test=0
 	  strace_test=1
 	     msh_test=1
 	 pthread_test=1
@@ -240,7 +242,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
         joystick_test=1
          snormtd_test=0
 	 cf_card_test=1
-	     ide_test=0
+    ide_harddisk_test=0
+       ide_cdrom_test=1
 	wireless_test=0
 	   yaffs_test=0
 	  ppifcd_test=0	   
@@ -285,7 +288,8 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
         joystick_test=0
          snormtd_test=1
 	 cf_card_test=0
-	     ide_test=0
+    ide_harddisk_test=0
+       ide_cdrom_test=0
 	wireless_test=0
 	   yaffs_test=0
 	  ppifcd_test=1	   
@@ -330,7 +334,8 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
         joystick_test=0
          snormtd_test=0
 	 cf_card_test=0
-	     ide_test=0
+    ide_harddisk_test=0
+       ide_cdrom_test=0
 	wireless_test=0
 	   yaffs_test=0
 	  ppifcd_test=0	   
@@ -1458,7 +1463,7 @@ if [ $cf_card_test -eq 1  ] ; then
   fi
   ################# TEST IDE DEVICES ##############################################################
   
-if [ $ide_test -eq 1  ] ; then
+if [ $ide_harddisk_test -eq 1  ] ; then
   echo  "Testing ide harddisk and cdrom ..."
  # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
@@ -1470,17 +1475,13 @@ if [ $ide_test -eq 1  ] ; then
   $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
   ./ide_harddisk_test.exp  >/dev/null  2>&1
-  sleep 30
-  ./ide_cdrom_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
   cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG 
 
-  sleep 30
- 
+  sleep 30 
  
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
@@ -1488,6 +1489,33 @@ if [ $ide_test -eq 1  ] ; then
    sleep 10
   fi
 
+  fi
+  
+  if [ $ide_cdrom_test -eq 1  ] ; then
+  echo  "Testing ide harddisk and cdrom ..."
+ # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
+
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH  
+  cp -a  $KERNEL_PATH_BAK/*  .
+
+  cd $KERNEL_SCRIPTS/ide
+  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  
+  sleep 30
+  ./ide_cdrom_test.exp  >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
+  cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG 
+  cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
+
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+ 
   fi
   #############################################################################################
   ################# TEST WIRELESS CARD ##############################################################
@@ -1522,7 +1550,6 @@ if [ $wireless_test -eq 1  ] ; then
 
   fi
 
- 
  #############################################################################################
  ########################## TEST YAFFS #########################################################
   
