@@ -95,12 +95,6 @@ void __init bf53x_cache_init(void)
 #endif
 }
 
-static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size);
-#if defined(CONFIG_MTD_UCLINUX)
-static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction);
-#endif
-
-
 void bf53x_relocate_l1_mem(void)
 {
 	unsigned long l1_length;
@@ -113,15 +107,15 @@ void bf53x_relocate_l1_mem(void)
 	 */
 
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	DmaMemCpy(_stext_l1, _l1_lma_start, l1_length);
+	dma_memcpy(_stext_l1, _l1_lma_start, l1_length);
 
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		l1_length = L1_DATA_A_LENGTH;
 
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
-	DmaMemCpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),
-		  l1_length);
+	dma_memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),l1_length);
+
 }
 
 /*
@@ -237,7 +231,8 @@ void __init setup_arch(char **cmdline_p)
 	memory_end -= mtd_size;
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	DmaMemCpy16((char *)memory_end, __bss_stop, mtd_size, -1);
+	dma_memcpy((char *)memory_end, __bss_stop, mtd_size);
+	
 
 	_ramstart = mtd_phys;
 
@@ -897,135 +892,6 @@ void panic_cplb_error(int cplb_panic)
 		panic("No CPLB Address Match\n");
 	}
 }
-
-/*copy from SRAM to L1RAM, DMAHandler routine*/
-static int DmaMemCpy(char *dest_addr, char *source_addr, unsigned short size)
-{
-	if (!size)
-		return 0;
-
-	/* Setup destination start address */
-	bfin_write_MDMA_D0_START_ADDR(dest_addr);
-
-	/* Setup destination xcount */
-	bfin_write_MDMA_D0_X_COUNT(size);
-
-	/* Setup destination xmodify */
-	bfin_write_MDMA_D0_X_MODIFY(1);
-
-	/* Setup Source start address */
-	bfin_write_MDMA_S0_START_ADDR(source_addr);
-
-	/* Setup Source xcount */
-	bfin_write_MDMA_S0_X_COUNT(size);
-
-	/* Setup Source xmodify */
-	bfin_write_MDMA_S0_X_MODIFY(1);
-#if defined (CONFIG_BF561)
-	bfin_write_SICA_IWR1((1 << 21));
-#else
-	bfin_write_SIC_IWR((1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1))));
-#endif
-
-	/* Set word size to 8, set to read, enable interrupt for wakeup
-	   Enable source DMA */
-
-	bfin_write_MDMA_S0_CONFIG((DMAEN));
-	__builtin_bfin_ssync();
-
-	bfin_write_MDMA_D0_CONFIG((WNR | DMAEN | DI_EN));
-	asm("IDLE;\n");		/* go into idle and wait for wakeup */
-
-	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
-
-#if defined (CONFIG_BF561)
-	bfin_write_SICA_IWR1(IWR_ENABLE_ALL);
-#else
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
-#endif
-
-	bfin_write_MDMA_S0_CONFIG(0);
-	bfin_write_MDMA_D0_CONFIG(0);
-
-	return 0;
-}
-
-#if defined(CONFIG_MTD_UCLINUX)
-/*
- * direction = 1, address increase(default);
- * direction = -1, address decrease;
- */
-static int DmaMemCpy16(char *dest_addr, char *source_addr, int size, int direction)
-{
-	if (!size)
-		return 0;
-	if (direction == -1) {
-		/* Setup destination start address */
-		bfin_write_MDMA_D0_START_ADDR(dest_addr + size - 2);
-
-		/* Setup destination xmodify */
-		bfin_write_MDMA_D0_X_MODIFY(-2);
-		bfin_write_MDMA_D0_Y_MODIFY(-2);
-
-		/* Setup Source start address */
-		bfin_write_MDMA_S0_START_ADDR(source_addr + size - 2);
-
-		/* Setup Source xmodify */
-		bfin_write_MDMA_S0_X_MODIFY(-2);
-		bfin_write_MDMA_S0_Y_MODIFY(-2);
-	} else {
-		/* Setup destination start address */
-		bfin_write_MDMA_D0_START_ADDR(dest_addr);
-
-		/* Setup destination xmodify */
-		bfin_write_MDMA_D0_X_MODIFY(2);
-		bfin_write_MDMA_D0_Y_MODIFY(2);
-
-		/* Setup Source start address */
-		bfin_write_MDMA_S0_START_ADDR(source_addr);
-
-		/* Setup Source xmodify */
-		bfin_write_MDMA_S0_X_MODIFY(2);
-		bfin_write_MDMA_S0_Y_MODIFY(2);
-	}
-
-	/* Setup destination xcount */
-	bfin_write_MDMA_D0_X_COUNT(1024 / 2);
-	bfin_write_MDMA_D0_Y_COUNT(size >> 10);	/* Divide by 1024 */
-
-	/* Setup Source xcount */
-	bfin_write_MDMA_S0_X_COUNT(1024 / 2);
-	bfin_write_MDMA_S0_Y_COUNT(size >> 10);
-
-#if defined (CONFIG_BF561)
-	bfin_write_SICA_IWR1((1 << 21));
-#else
-	bfin_write_SIC_IWR((1 << (IRQ_MEM_DMA0 - (IRQ_CORETMR + 1))));
-#endif
-
-	/* Set word size to 8, set to read, enable interrupt for wakeup
-	 * Enable source DMA */
-
-	bfin_write_MDMA_S0_CONFIG((DMAEN | DMA2D | WDSIZE_16));
-	__builtin_bfin_ssync();
-	bfin_write_MDMA_D0_CONFIG((WNR | DMAEN | DMA2D | WDSIZE_16 | DI_EN));
-
-	asm("IDLE;\n");		/* go into idle and wait for wakeup */
-
-	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE);
-
-#if defined (CONFIG_BF561)
-	bfin_write_SICA_IWR1(IWR_ENABLE_ALL);
-#else
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
-#endif
-
-	bfin_write_MDMA_S0_CONFIG(0);
-	bfin_write_MDMA_D0_CONFIG(0);
-
-	return 0;
-}
-#endif
 
 void cmdline_init(unsigned long r0)
 {

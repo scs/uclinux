@@ -578,46 +578,134 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 	return dma_ch[channel].regs->curr_y_count;
 }
 
-void *dma_memcpy(void *dest, const void *src, size_t count)
+void *dma_memcpy(void *dest, const void *src, size_t size)
 {
-	BUG_ON(count > 0xFFFF);
+	int direction;	/* 1 - address decrease, 0 - address increase */
+	int flag_align;	/* 1 - address aligned,  0 - address unaligned */
+	int flag_2D;	/* 1 - 2D DMA needed,	 0 - 1D DMA needed */
+	if(size <= 0)
+		return NULL;
 
 	if((unsigned long)src < memory_end)
-		blackfin_dcache_flush_range((unsigned int)src,(unsigned int)(src+count));
+		blackfin_dcache_flush_range((unsigned int)src,(unsigned int)(src+size));
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
+	
+	if((unsigned long)src < (unsigned long)dest)
+		direction = 1;
+	else
+		direction = 0;
 
-	/* Copy sram functions from sdram to sram */
-	/* Setup destination start address */
-	bfin_write_MDMA_D0_START_ADDR(dest);
-	/* Setup destination xcount */
-	bfin_write_MDMA_D0_X_COUNT(count );
-	/* Setup destination xmodify */
-	bfin_write_MDMA_D0_X_MODIFY(1);
+	if((((unsigned long)dest % 2) == 0) && (((unsigned long)src % 2) == 0) && ((size % 2) == 0))
+		flag_align = 1;
+	else
+		flag_align = 0;
 
-	/* Setup Source start address */
-	bfin_write_MDMA_S0_START_ADDR(src);
-	/* Setup Source xcount */
-	bfin_write_MDMA_S0_X_COUNT(count);
-	/* Setup Source xmodify */
-	bfin_write_MDMA_S0_X_MODIFY(1);
+	if(size > 0x10000)	/* size > 64K */
+		flag_2D = 1;
+	else
+		flag_2D = 0;
+			
+
+	/* Setup destination and source start address */
+	if(direction){
+		if(flag_align){
+			bfin_write_MDMA_D0_START_ADDR(dest+size-2);
+			bfin_write_MDMA_S0_START_ADDR(src+size-2);
+		}else{
+			bfin_write_MDMA_D0_START_ADDR(dest+size-1);
+			bfin_write_MDMA_S0_START_ADDR(src+size-1);
+		}
+	}else{
+		bfin_write_MDMA_D0_START_ADDR(dest);
+		bfin_write_MDMA_S0_START_ADDR(src);
+	}
+
+	/* Setup destination and source xcount */
+	if(flag_2D){
+		if(flag_align){
+			bfin_write_MDMA_D0_X_COUNT(1024/2);
+			bfin_write_MDMA_S0_X_COUNT(1024/2);
+		}else{
+			bfin_write_MDMA_D0_X_COUNT(1024);
+			bfin_write_MDMA_S0_X_COUNT(1024);
+		}
+		bfin_write_MDMA_D0_Y_COUNT(size >> 10);
+		bfin_write_MDMA_S0_Y_COUNT(size >> 10);
+	}else{
+		if(flag_align){
+			bfin_write_MDMA_D0_X_COUNT(size/2);
+			bfin_write_MDMA_S0_X_COUNT(size/2);
+		}else{
+			bfin_write_MDMA_D0_X_COUNT(size);
+			bfin_write_MDMA_S0_X_COUNT(size);
+		}
+	}
+
+	/* Setup destination and source xmodify and ymodify */
+	if(direction){
+		if(flag_align){
+			bfin_write_MDMA_D0_X_MODIFY(-2);
+			bfin_write_MDMA_S0_X_MODIFY(-2);
+			if(flag_2D){
+				bfin_write_MDMA_D0_Y_MODIFY(-2);
+				bfin_write_MDMA_S0_Y_MODIFY(-2);
+			}
+		}else{
+			bfin_write_MDMA_D0_X_MODIFY(-1);
+			bfin_write_MDMA_S0_X_MODIFY(-1);
+			if(flag_2D){
+				bfin_write_MDMA_D0_Y_MODIFY(-1);
+				bfin_write_MDMA_S0_Y_MODIFY(-1);
+			}
+		}
+	}else{
+		if(flag_align){
+                        bfin_write_MDMA_D0_X_MODIFY(2);
+			bfin_write_MDMA_S0_X_MODIFY(2);
+			if(flag_2D){
+				bfin_write_MDMA_D0_Y_MODIFY(2);
+				bfin_write_MDMA_S0_Y_MODIFY(2);
+			}
+		}else{
+                        bfin_write_MDMA_D0_X_MODIFY(1);
+			bfin_write_MDMA_S0_X_MODIFY(1);
+			if(flag_2D){
+				bfin_write_MDMA_D0_Y_MODIFY(1);
+				bfin_write_MDMA_S0_Y_MODIFY(1);
+			}
+		}
+	}
 
 	/* Enable source DMA */
-	bfin_write_MDMA_S0_CONFIG((DMAEN));
-	SSYNC;
+	if(flag_2D){
+		if(flag_align){
+			bfin_write_MDMA_S0_CONFIG(DMAEN | DMA2D | WDSIZE_16);
+			bfin_write_MDMA_D0_CONFIG( WNR | DMAEN | DMA2D | WDSIZE_16);
+		}else{
+			bfin_write_MDMA_S0_CONFIG(DMAEN | DMA2D);
+			bfin_write_MDMA_D0_CONFIG( WNR | DMAEN | DMA2D);
+		}
+	}else{
+		if(flag_align){
+			bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_16);
+			bfin_write_MDMA_D0_CONFIG( WNR | DMAEN | WDSIZE_16);
+		}else{
+			bfin_write_MDMA_S0_CONFIG(DMAEN);
+			bfin_write_MDMA_D0_CONFIG( WNR | DMAEN);
+		}
+	}
 
-	bfin_write_MDMA_D0_CONFIG(( WNR | DMAEN));
-
-	while (bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN)
-		bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
+	while ((bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN));
 
 	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
 
-	if((unsigned long)dest < memory_end)
-		blackfin_dcache_invalidate_range((unsigned int)dest, (unsigned int)(dest+count));
+	bfin_write_MDMA_S0_CONFIG(0);
+        bfin_write_MDMA_D0_CONFIG(0);
 
-	dest += count;
-	src  += count;
+	if((unsigned long)dest < memory_end)
+		blackfin_dcache_invalidate_range((unsigned int)dest, (unsigned int)(dest+size));
+
 	return dest;
 }
 
