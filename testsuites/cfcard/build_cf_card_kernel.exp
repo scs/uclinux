@@ -48,6 +48,14 @@ while 1 {
              send "$board_type\r"
       }
 
+       -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
       "\\\(*) \\\[*]" {
 	     send "\r"
       }
@@ -66,6 +74,37 @@ while 1 {
       }
    }
 }
+
+send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+
+cd $uclinux_path/linux-2.6.x
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_BFIN_KERNEL_CLOCK\[ =]\r"
+      expect "CONFIG_BFIN_KERNEL_CLOCK\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_BFIN_KERNEL_CLOCK=y\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+
+      send "wq\r"
+      expect eof
+
 
 cd $uclinux_path
 set timeout 300
@@ -133,24 +172,24 @@ while 1 {
 
 
           -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-             send "Y\r"
+             send -s "Y\r"
       }
 
           -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send "20\r"
+             send -s "20\r"
       }
 
           -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-             send "1\r"
+             send -s "1\r"
       }
 
           -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send "8\r"
+             send -s "8\r"
       }
 
    
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-             send "0xFFC3\r"
+             send -s "0xFFC3\r"
       }
 
       -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {

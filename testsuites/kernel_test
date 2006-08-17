@@ -183,7 +183,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	     dpm_test=1
 	     dll_test=1
 	   timer_test=1
-	   pound_test=0
+	   pound_test=1
 	  sqlite_test=1
 	     ltp_test=1
      spiadc_ndso_test=1
@@ -205,6 +205,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	  usbnet_test=0
 	   coreb_test=0
 fi
+
+# Since the SW6 setting for jffs2(all on) and cf card(on on off off) are conflicting, disable jffs2 test here.
 
 if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then   
    
@@ -229,7 +231,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 	     dpm_test=1
 	     dll_test=1
 	   timer_test=1
-	   pound_test=0
+	   pound_test=1
 	  sqlite_test=1
 	     ltp_test=1
      spiadc_ndso_test=1
@@ -1115,7 +1117,7 @@ fi
   ########################## TEST ADSPI #########################################################
   
   if [ $spiadc_ndso_test -eq 1  ] ; then
-  echo  "Testing SPIADC..."
+  echo  "Testing SPIADC ndso ..."
   
   rm -rf $KERNEL_PATH/*
   cd $KERNEL_PATH
@@ -1138,7 +1140,7 @@ fi
   fi
   
   if [ $spiadc_awg_test -eq 1  ] ; then
-  echo  "Testing SPIADC..."
+  echo  "Testing SPIADC awg ..."
   
   rm -rf $KERNEL_PATH/*
   cd $KERNEL_PATH
@@ -1464,7 +1466,7 @@ if [ $cf_card_test -eq 1  ] ; then
   ################# TEST IDE DEVICES ##############################################################
   
 if [ $ide_harddisk_test -eq 1  ] ; then
-  echo  "Testing ide harddisk and cdrom ..."
+  echo  "Testing ide harddisk ..."
  # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
   rm -rf $KERNEL_PATH/*
@@ -1492,7 +1494,7 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   fi
   
   if [ $ide_cdrom_test -eq 1  ] ; then
-  echo  "Testing ide harddisk and cdrom ..."
+  echo  "Testing ide cdrom ..."
  # Please switch the SW5 to all off,SW6 to on on off off,and plug the add-on board.
 
   rm -rf $KERNEL_PATH/*
@@ -1574,16 +1576,16 @@ if [ $yaffs_test -eq 1  ] ; then
 
   sleep 30
    
- 
   if [ $reset_board -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
+ 
 
   fi
- 
-   #############################################################################################
+   
+  #############################################################################################
   ########################## TEST PPIFCD #####################################################
   if [ $ppifcd_test -eq 1  ] ; then
   echo  "Testing ppifcd..."
@@ -1708,4 +1710,4 @@ if [ $coreb_test -eq 1 ] ; then
 
 fi
 
-
+echo  "Testing Done."
