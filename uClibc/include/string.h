@@ -62,6 +62,10 @@ __BEGIN_NAMESPACE_STD
 /* Set N bytes of S to C.  */
 extern void *memset (void *__s, int __c, size_t __n) __THROW;
 
+#ifdef _LIBC
+extern void *__libc_memset (void *, int, size_t);
+#endif
+
 /* Compare N bytes of S1 and S2.  */
 extern int memcmp (__const void *__s1, __const void *__s2, size_t __n)
      __THROW __attribute_pure__;

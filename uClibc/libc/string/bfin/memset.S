@@ -82,3 +82,6 @@ skip1:
 	B[P0++] = R1;
 	JUMP aligned;
 .size _memset,.-_memset
+.global ___libc_memset
+.hidden ___libc_memset
+.set ___libc_memset, _memset
