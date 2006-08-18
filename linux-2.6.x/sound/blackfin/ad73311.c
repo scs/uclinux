@@ -579,8 +579,8 @@ static int __devinit snd_ad73311_probe(struct platform_device *pdev)
 	ad73311->card = card;
 
 	if ((sport = bf53x_sport_init(CONFIG_SND_BFIN_SPORT,
-			SPORT_DMA_TX, snd_ad73311_dma_rx,
-			SPORT_DMA_RX, snd_ad73311_dma_tx,
+			SPORT_DMA_RX, snd_ad73311_dma_rx,
+			SPORT_DMA_TX, snd_ad73311_dma_tx,
 			SPORT_IRQ_ERR, snd_ad73311_sport_err, ad73311))
 			== NULL) {
 		err = -ENODEV;
