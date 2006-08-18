@@ -50,14 +50,14 @@ ENTRY(_memcpy)
 	call _l1_dma_memcpy;
 	RETS = [SP++];
 
-	CC = R0 == 0;
+	CC = R0 == 0;	/* memory copy is done by DMA? */
 	
 	R0 = [SP++];
-        R1 = [SP++];
-        R2 = [SP++];
-        UNLINK;
+	R1 = [SP++];
+	R2 = [SP++];
+	UNLINK;
 
-	IF CC JUMP .L_P1L2147483647;
+	IF CC JUMP .L_P1L2147483647;	/* memory copy is done, exit */
 
 	P0 = R0 ;	/* dst*/
 	P1 = R1 ;	/* src*/
