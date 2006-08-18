@@ -43,7 +43,7 @@ struct stat {
  */
 struct stat64 {
 	unsigned long long st_dev;
-	unsigned char __pad1[2];
+	unsigned char __pad1[4];
 
 #define STAT64_HAS_BROKEN_ST_INO	1
 	unsigned long __st_ino;
@@ -55,13 +55,12 @@ struct stat64 {
 	unsigned long st_gid;
 
 	unsigned long long st_rdev;
-	unsigned char __pad3[2];
+	unsigned char __pad2[4];
 
 	long long st_size;
 	unsigned long st_blksize;
 
-	unsigned long __pad4;	/* future possible st_blocks high bits */
-	unsigned long st_blocks;	/* Number 512-byte blocks allocated. */
+	long long st_blocks;	/* Number 512-byte blocks allocated. */
 
 	unsigned long st_atime;
 	unsigned long st_atime_nsec;
@@ -73,6 +72,6 @@ struct stat64 {
 	unsigned long st_ctime_nsec;
 
 	unsigned long long st_ino;
-} __attribute__ ((packed));
+};
 
 #endif				/* _BFIN_STAT_H */
