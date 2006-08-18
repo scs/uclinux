@@ -54,8 +54,6 @@ MODULE_LICENSE("GPL");
 # define DPRINTK(x...)	do { } while (0)
 #endif
 
-
-
 #define PF_MASK(_val) (0x1<<_val)
 
 #if defined(CONFIG_BFIN533_TASVOIP)
@@ -148,6 +146,9 @@ static unsigned short bf53xPFbuttons_ledcode[LEDS] = {
 };
 
 #define BELLS 0
+
+#define PF_BELLS_MASK 0
+
 #elif defined(CONFIG_BFIN533_EZKIT)
 #define BUTTONS 4
 #define PF_BUTTON1 7
@@ -173,11 +174,58 @@ static unsigned short bf53xPFbuttons_btncode[BUTTONS] = {
 
 /* I don't know where the leds are routed on EZKIT (Michele) */
 #define LEDS 0
+#define PF_LEDS_MASK 0
+
+#define BELLS 0
+#define PF_BELLS_MASK 0
+
+#elif defined(CONFIG_BFIN537_STAMP)
+#define BUTTONS 4
+#define PF_BUTTON1 2
+#define PF_BUTTON2 3
+#define PF_BUTTON3 4
+#define PF_BUTTON4 5
+
+#define PF_BUTTONS_MASK (PF_MASK(PF_BUTTON1) | PF_MASK(PF_BUTTON2) | PF_MASK(PF_BUTTON3) | PF_MASK(PF_BUTTON4))
+
+static unsigned short bf53xPFbuttons_btn_pfmask[BUTTONS] = {
+	[0] 	= PF_MASK(PF_BUTTON1),
+	[1] 	= PF_MASK(PF_BUTTON2),
+	[2] 	= PF_MASK(PF_BUTTON3),
+	[3] 	= PF_MASK(PF_BUTTON4)
+};
+
+static unsigned short bf53xPFbuttons_btncode[BUTTONS] = {
+	[0] 	= (unsigned short) BTN_0,
+	[1] 	= (unsigned short) BTN_1,
+	[2] 	= (unsigned short) BTN_2,
+	[3] 	= (unsigned short) BTN_3
+};
+
+#define LEDS 3
+#define PF_LED1 6
+#define PF_LED2 7
+#define PF_LED3 8
+
+#define PF_LEDS_MASK (PF_MASK(PF_LED1) | PF_MASK(PF_LED2) | PF_MASK(PF_LED3))
+
+static unsigned short bf53xPFbuttons_led_pfmask[LEDS] = {
+	[0] 	= PF_MASK(PF_LED1),
+	[1] 	= PF_MASK(PF_LED2),
+	[2] 	= PF_MASK(PF_LED3)
+};
+
+static unsigned short bf53xPFbuttons_ledcode[LEDS] = {
+	[0] 	= (unsigned short) LED_MISC,
+	[1] 	= (unsigned short) LED_MUTE,
+	[2] 	= (unsigned short) LED_SUSPEND
+};
 
 #define BELLS 0
 
+#define PF_BELLS_MASK 0
 #else
-#error "ONLY Tasvoip, STAMP and EZKIT 533 are supported"
+#error "ONLY Tasvoip, STAMP and EZKIT are supported"
 #endif
 
 struct bf53xPFbuttons {
@@ -193,7 +241,7 @@ struct bf53xPFbuttons {
 	unsigned short *sndcode;
 	unsigned short *snd_pfmask;
 #endif
-	struct input_dev dev;
+	struct input_dev *dev;
 	char name[64];
 	char phys[32];
 	short laststate;
@@ -257,29 +305,16 @@ static inline void bf53xPFbuttons_unmask_IRQ (struct bf53xPFbuttons *bf53xPFbutt
 
 static inline short read_state (struct bf53xPFbuttons *bf53xPFbuttons){
 	short val;
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(0);
-	__builtin_bfin_ssync();
-#endif
+
 	DPRINTK("read_state\n");
 	val = (bfin_read_FIO_FLAG_D() & PF_BUTTONS_MASK);
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	bfin_write_PORT_FER(portx_fer);
-	__builtin_bfin_ssync();
-#endif
+
 	return val;
 }
 
 static irqreturn_t bf53xPFbuttons_irq_handler ( int irq, void *dev_id, struct pt_regs *regs ){
 	struct bf53xPFbuttons *bf53xPFbuttons = (struct bf53xPFbuttons *) dev_id;
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(0);
-	__builtin_bfin_ssync();
-#endif
+
 	DPRINTK("bf53xPFbuttons_irq_handler PF%d\n", (irq - IRQ_PF0));
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	bf53xPFbuttons->statechanged   = 0x1 << (irq - IRQ_PF0);
@@ -295,16 +330,13 @@ static irqreturn_t bf53xPFbuttons_irq_handler ( int irq, void *dev_id, struct pt
 		int i;
 		for(i=0;i<BUTTONS;i++){
 			if (bf53xPFbuttons->statechanged & bf53xPFbuttons->btn_pfmask[i]){
-				input_report_key(&bf53xPFbuttons->dev, bf53xPFbuttons->btncode[i], (bf53xPFbuttons->laststate&bf53xPFbuttons->btn_pfmask[i])?0:1);
+				input_report_key(bf53xPFbuttons->dev, bf53xPFbuttons->btncode[i], (bf53xPFbuttons->laststate&bf53xPFbuttons->btn_pfmask[i])?0:1);
 				bf53xPFbuttons->events_sended++;
 			}
 		}
-		input_sync(&bf53xPFbuttons->dev);
+		input_sync(bf53xPFbuttons->dev);
 	}
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	bfin_write_PORT_FER(portx_fer);
-	__builtin_bfin_ssync();
-#endif
+
 	bf53xPFbuttons->irq_handled++;
 	return IRQ_HANDLED;
 }
@@ -313,12 +345,6 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 {
 	struct bf53xPFbuttons *bf53xPFbuttons = (struct bf53xPFbuttons *) dev->private;
 	int i;
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(0);
-	__builtin_bfin_ssync();
-#endif
 
 	switch (type) {
 
@@ -355,10 +381,7 @@ static int bf53xPFbuttons_dev_event(struct input_dev *dev, unsigned int type, un
 #endif
 			break;
 	}
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	bfin_write_PORT_FER(portx_fer);
-	__builtin_bfin_ssync();
-#endif
+
 	return -1;
 }
 
@@ -398,12 +421,7 @@ static int inline bf53xPFbuttons_init_IRQ(struct bf53xPFbuttons *bf53xPFbuttons,
 #endif
 
 static void inline bf53xPFbuttons_init_state(struct bf53xPFbuttons *bf53xPFbuttons){
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(0);
-	__builtin_bfin_ssync();
-#endif
+
 	bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~PF_BUTTONS_MASK);
 	bfin_write_FIO_INEN(bfin_read_FIO_INEN() | PF_BUTTONS_MASK);
 	bf53xPFbuttons_init_pf_level(bf53xPFbuttons);
@@ -414,10 +432,6 @@ static void inline bf53xPFbuttons_init_state(struct bf53xPFbuttons *bf53xPFbutto
 	bf53xPFbuttons->laststate = read_state(bf53xPFbuttons);
 #endif
 	bf53xPFbuttons->statechanged = 0x0;
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	bfin_write_PORT_FER(portx_fer);
-	__builtin_bfin_ssync();
-#endif
 }
 
 static int __init bf53xPFbuttons_init (void){
@@ -425,56 +439,66 @@ static int __init bf53xPFbuttons_init (void){
 	int i;
 	unsigned long flags;
 	int ret = 0;
-	init_input_dev(&bf53xPFbuttons->dev);
-	bf53xPFbuttons->dev.evbit[0] = 0;
+
+	bf53xPFbuttons->dev = input_allocate_device();
+
+	if(!bf53xPFbuttons->dev)
+	  return -1;
+
+	bf53xPFbuttons->dev->evbit[0] = 0;
 #if BUTTONS
 	{
-		bf53xPFbuttons->dev.evbit[0] |= BIT(EV_KEY);
-		bf53xPFbuttons->dev.keycode = bf53xPFbuttons->btncode;
-		bf53xPFbuttons->dev.keycodesize = sizeof(bf53xPFbuttons->btncode);
-		bf53xPFbuttons->dev.keycodemax = ARRAY_SIZE(bf53xPFbuttons->btncode);
+		bf53xPFbuttons->dev->evbit[0] |= BIT(EV_KEY);
+		bf53xPFbuttons->dev->keycode = bf53xPFbuttons->btncode;
+		bf53xPFbuttons->dev->keycodesize = sizeof(bf53xPFbuttons->btncode);
+		bf53xPFbuttons->dev->keycodemax = ARRAY_SIZE(bf53xPFbuttons->btncode);
 
 		for (i = 0; i < BUTTONS; i++){
-			set_bit(bf53xPFbuttons->btncode[i], bf53xPFbuttons->dev.keybit);
+			set_bit(bf53xPFbuttons->btncode[i], bf53xPFbuttons->dev->keybit);
 		}
 	}
 #endif
 #if LEDS
 	{
-		bf53xPFbuttons->dev.evbit[0] |= BIT(EV_LED);
+		bf53xPFbuttons->dev->evbit[0] |= BIT(EV_LED);
 		for (i = 0; i < LEDS; i++){
-			set_bit(bf53xPFbuttons->ledcode[i], bf53xPFbuttons->dev.ledbit);
+			set_bit(bf53xPFbuttons->ledcode[i], bf53xPFbuttons->dev->ledbit);
 		}
 	}
 #endif
 #if BELLS
 	{
-		bf53xPFbuttons->dev.evbit[0] |= BIT(EV_SND);
+		bf53xPFbuttons->dev->evbit[0] |= BIT(EV_SND);
 		for (i = 0; i < BELLS; i++){
-			set_bit(bf53xPFbuttons->sndcode[i], bf53xPFbuttons->dev.sndbit);
+			set_bit(bf53xPFbuttons->sndcode[i], bf53xPFbuttons->dev->sndbit);
 		}
 	}
 #endif
 
 	if (LEDS || BELLS){
-		bf53xPFbuttons->dev.event = bf53xPFbuttons_dev_event;
-		bf53xPFbuttons->dev.private = bf53xPFbuttons;
+		bf53xPFbuttons->dev->event = bf53xPFbuttons_dev_event;
+		bf53xPFbuttons->dev->private = bf53xPFbuttons;
 	}
 
 	sprintf(bf53xPFbuttons->name,"BF53X PFButtons");
 	sprintf(bf53xPFbuttons->phys,"pfbuttons/input0");
-	bf53xPFbuttons->dev.name = bf53xPFbuttons->name;
-	bf53xPFbuttons->dev.phys = bf53xPFbuttons->phys;
-	bf53xPFbuttons->dev.id.bustype = BUS_HOST;
-	bf53xPFbuttons->dev.id.vendor = 0x0001;
-	bf53xPFbuttons->dev.id.product = 0x0001;
-	bf53xPFbuttons->dev.id.version = 0x0100;
+	bf53xPFbuttons->dev->name = bf53xPFbuttons->name;
+	bf53xPFbuttons->dev->phys = bf53xPFbuttons->phys;
+	bf53xPFbuttons->dev->id.bustype = BUS_HOST;
+	bf53xPFbuttons->dev->id.vendor = 0x0001;
+	bf53xPFbuttons->dev->id.product = 0x0001;
+	bf53xPFbuttons->dev->id.version = 0x0100;
 
-	input_register_device (&bf53xPFbuttons->dev);
+	input_register_device (bf53xPFbuttons->dev);
 
-	printk(KERN_INFO "input: %s at %s\n", bf53xPFbuttons->name, bf53xPFbuttons->dev.phys);
+	printk(KERN_INFO "input: %s at %s\n", bf53xPFbuttons->name, bf53xPFbuttons->dev->phys);
 
 	create_proc_read_entry ("driver/bf53xPFbuttons", 0, 0, bf53xPFbuttons_read_proc, bf53xPFbuttons);
+
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~(PF_BUTTONS_MASK | PF_LEDS_MASK | PF_BELLS_MASK ));
+#endif
+
 #if LEDS
 	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | PF_LEDS_MASK);
 	bfin_write_FIO_INEN(bfin_read_FIO_INEN() & ~PF_LEDS_MASK);
@@ -534,17 +558,9 @@ module_exit (bf53xPFbuttons_exit);
 static int bf53xPFbuttons_proc_output (struct bf53xPFbuttons *bf53xPFbuttons,char *buf){
 	char *p;
 	unsigned short i, data,dir,maska,maskb,polar,edge,inen,both;
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-#endif
 
 	p = buf;
 
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(0);
-	__builtin_bfin_ssync();
-#endif
 	data = bfin_read_FIO_FLAG_D();
 	dir = bfin_read_FIO_DIR();
 	maska = bfin_read_FIO_MASKA_D();
@@ -553,10 +569,6 @@ static int bf53xPFbuttons_proc_output (struct bf53xPFbuttons *bf53xPFbuttons,cha
 	both = bfin_read_FIO_BOTH();
 	edge = bfin_read_FIO_EDGE();
 	inen = bfin_read_FIO_INEN();
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	bfin_write_PORT_FER(portx_fer);
-	__builtin_bfin_ssync();
-#endif
 
 	p += sprintf (p, "PF Configurations\n");
 	p += sprintf (p, "FIO_DIR \t: = 0x%X\n", dir);
