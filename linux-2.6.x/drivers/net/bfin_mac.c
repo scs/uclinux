@@ -450,20 +450,8 @@ void SetupMacAddr(u8 * mac_addr)
 
 static void adjust_tx_list(void)
 {
-	if (tx_list_head->status.status_word != 0) {
-		do {
-			tx_list_head->desc_a.config.b_DMA_EN = 0;
-			tx_list_head->status.status_word = 0;
-			if (tx_list_head->skb) {
-				dev_kfree_skb(tx_list_head->skb);
-				tx_list_head->skb = NULL;
-			} else {
-				printk(KERN_ERR CARDNAME
-				       ": no sk_buff in a transmitted frame!\n");
-			}
-			tx_list_head = tx_list_head->next;
-		} while (tx_list_head->status.status_word != 0);
-		return;		// released something, just return;
+	if (tx_list_head->status.status_word != 0 && current_tx_ptr != tx_list_head) {
+		goto adjust_head;		// released something, just return;
 	}
 
 	/* if nothing released, check wait condition */
@@ -473,34 +461,37 @@ static void adjust_tx_list(void)
 			udelay(10);
 			if (tx_list_head->status.status_word != 0
 			    || !(bfin_read_DMA2_IRQ_STATUS() & 0x08)) {
-				do {
-					tx_list_head->desc_a.config.b_DMA_EN =
-					    0;
-					tx_list_head->status.status_word = 0;
-					if (tx_list_head->skb) {
-						dev_kfree_skb(tx_list_head->
-							      skb);
-						tx_list_head->skb = NULL;
-					} else {
-						printk(KERN_ERR CARDNAME
-						       ": no sk_buff in a transmitted frame!\n");
-					}
-					tx_list_head = tx_list_head->next;
-				} while (tx_list_head->status.status_word != 0);
-				break;
+				goto adjust_head;
 			}
 		}
+		if (tx_list_head->status.status_word != 0) {
+			goto adjust_head;
+		}
 	}
+
+	return;
+
+adjust_head:
+	do {
+		tx_list_head->desc_a.config.b_DMA_EN = 0;
+		tx_list_head->status.status_word = 0;
+		if (tx_list_head->skb) {
+			dev_kfree_skb(tx_list_head->skb);
+			tx_list_head->skb = NULL;
+		} else {
+			printk(KERN_ERR CARDNAME
+			       ": no sk_buff in a transmitted frame!\n");
+		}
+		tx_list_head = tx_list_head->next;
+	} while (tx_list_head->status.status_word != 0 && current_tx_ptr != tx_list_head);
+	return;
+
 }
 
 static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bf537mac_local *lp = netdev_priv(dev);
 	unsigned int data;
-	unsigned long flags;
-	/* warning: printk in this function may cause error */
-
-	spin_lock_irqsave(&lp->lock, flags);
 
 	current_tx_ptr->skb = skb;
 	// Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)? 
@@ -509,8 +500,6 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		data = (unsigned int)(skb->data) - 2;
 		*((unsigned short *)data) = (unsigned short)(skb->len);
 		current_tx_ptr->desc_a.start_addr = (unsigned long)data;
-		if (current_tx_ptr->status.status_word != 0)
-			current_tx_ptr->status.status_word = 0;
 		blackfin_dcache_flush_range(data, (data + (skb->len)) + 2);	//this is important!
 
 	} else {
@@ -546,7 +535,6 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 	lp->stats.tx_packets++;
 	lp->stats.tx_bytes += (skb->len);
-	spin_unlock_irqrestore(&lp->lock, flags);
 	return 0;
 }
 
@@ -597,22 +585,31 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
 {
-	struct net_device *dev = dev_id;
-	unsigned short len;
-	//  printk("in mac_int\n");
-      get_one_packet:
-	if (current_rx_ptr->status.status_word == 0) {	// no more new packet received
-		bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() |
-					   DMA_DONE | DMA_ERR);
-		//printk("now return..\n");
-		return IRQ_HANDLED;
-	}
+  struct net_device *dev = dev_id;
+  unsigned short len;
+  int number = 0;
 
-	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
-	bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-	current_rx_ptr->status.status_word = 0x00000000;
-	current_rx_ptr = current_rx_ptr->next;
-	goto get_one_packet;
+  //  printk("in mac_int\n");
+ get_one_packet:
+  if (current_rx_ptr->status.status_word == 0) { // no more new packet received
+	  if (number == 0) {
+		  bfin_write_DMA1_NEXT_DESC_PTR(&(current_rx_ptr->desc_a));
+		  current_rx_ptr->status.status_word = 0x00000000;
+		  bfin_write_DMA1_CONFIG(*((unsigned short *)(&(current_rx_ptr->desc_a.config))));
+	  }
+//	  printk("%d\n",number);
+	  current_rx_ptr->status.status_word = 0x00000000;
+	bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() |
+					   DMA_DONE | DMA_ERR);
+    return IRQ_HANDLED;
+  }
+
+  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
+  current_rx_ptr->status.status_word = 0x00000000;
+  current_rx_ptr = current_rx_ptr->next;
+  number++;
+  goto get_one_packet;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
