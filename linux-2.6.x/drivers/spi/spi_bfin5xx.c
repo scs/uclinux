@@ -366,16 +366,14 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	PRINTK("in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
 
-	/* get the last word/byte for DMA reading */
-	if (drv_data->rx != NULL) {
-		if (drv_data->cur_chip->width == CFG_SPI_WORDSIZE16) {
-			dma_buf_end = drv_data->rx + drv_data->len - 2;
-			*(u16 *)(dma_buf_end) = read_SHAW();
-		} else {
-			dma_buf_end = drv_data->rx + drv_data->len - 1;
-			*(u8 *)(dma_buf_end) = read_SHAW();
-		}
+	/* wait for the last transaction shifted out */
+	if (drv_data->tx != NULL) {
+	 while(bfin_read_SPI_STAT() & TXS);
+	 while(bfin_read_SPI_STAT() & TXS);
+
 	}
+
+	 while(!(bfin_read_SPI_STAT() & SPIF));
 
 	bfin_spi_disable(drv_data);
 
@@ -532,8 +530,8 @@ static void pump_transfers(unsigned long data)
 		if (drv_data->rx != NULL) {
 			/* set transfer mode, and enable SPI */
 			PRINTK("doing DMA in.\n");
-			/* For dma reading, only get len-1 by dma. */
-			set_dma_x_count(CH_SPI, drv_data->len - 1);
+
+			set_dma_x_count(CH_SPI, drv_data->len);
 
 			/* start dma*/
 			dma_enable_irq(CH_SPI);
@@ -720,7 +718,7 @@ static int setup(struct spi_device *spi)
 		chip->bits_per_word = chip_info->bits_per_word;
 	}
 
-	/* if any one SPI chip is registered and wants DMA, request the 
+	/* if any one SPI chip is registered and wants DMA, request the
 	   DMA channel for it */
 	if (chip->enable_dma && !dma_requested) {
 		/* register dma irq handler */
