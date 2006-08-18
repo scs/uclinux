@@ -107,14 +107,14 @@ void bf53x_relocate_l1_mem(void)
 	 */
 
 	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	dma_memcpy(_stext_l1, _l1_lma_start, l1_length);
+	memcpy(_stext_l1, _l1_lma_start, l1_length);
 
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		l1_length = L1_DATA_A_LENGTH;
 
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
-	dma_memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),l1_length);
+	memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),l1_length);
 
 }
 

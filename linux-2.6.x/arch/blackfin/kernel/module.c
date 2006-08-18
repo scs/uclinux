@@ -215,7 +215,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 				       mod->name);
 				return -1;
 			}
-			dma_memcpy(dest, (void *)s->sh_addr, s->sh_size);
+			memcpy(dest, (void *)s->sh_addr, s->sh_size);
 			s->sh_flags &= ~SHF_ALLOC;
 			s->sh_addr = (unsigned long)dest;
 		}
@@ -362,28 +362,20 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			break;
 		case R_luimm16:
 			{
-				unsigned short temp;
+				unsigned short tmp;
 				DEBUGP("before %x after %x\n", *location16,
 				       (value & 0xffff));
-				if ((void *)location16 < (void *)_etext_l1)
-					*location16 = (value & 0xffff);
-				else {
-					temp = (value & 0xffff);
-					dma_memcpy(location16, &temp, 2);
-				}
+				tmp = (value & 0xffff);
+				memcpy(location16, &tmp, 2);
 			}
 			break;
 		case R_huimm16:
 			{
-				unsigned short temp;
+				unsigned short tmp;
 				DEBUGP("before %x after %x\n", *location16,
 				       ((value >> 16) & 0xffff));
-				if ((void *)location16 < (void *)_etext_l1)
-					*location16 = ((value >> 16) & 0xffff);
-				else {
-					temp = (value >> 16) & 0xffff;
-					dma_memcpy(location16, &temp, 2);
-				}
+				tmp = ((value >> 16) & 0xffff);
+				memcpy(location16, &tmp, 2);
 			}
 			break;
 		case R_rimm16:

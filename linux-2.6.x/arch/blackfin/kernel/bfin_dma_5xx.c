@@ -709,6 +709,21 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	return dest;
 }
 
+int l1_dma_memcpy(void *dest, void *src, size_t size)
+{
+	int flags = 0;
+	if((((unsigned long)dest >= L1_CODE_START) && 
+		((unsigned long)dest < (L1_CODE_START + L1_CODE_LENGTH))) ||
+	   (((unsigned long)src >= L1_CODE_START) &&
+		((unsigned long)src < (L1_CODE_START + L1_CODE_LENGTH)))){
+		local_irq_save(flags);
+		dma_memcpy(dest, src, size);
+		local_irq_restore(flags);
+		return 0;
+	} else
+		return 1;
+}
+
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(set_dma_callback);
 EXPORT_SYMBOL(enable_dma);
@@ -733,3 +748,4 @@ EXPORT_SYMBOL(set_dma_sg);
 EXPORT_SYMBOL(dma_disable_irq);
 EXPORT_SYMBOL(dma_enable_irq);
 EXPORT_SYMBOL(dma_memcpy);
+EXPORT_SYMBOL(l1_dma_memcpy);
