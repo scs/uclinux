@@ -1474,7 +1474,7 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/ide
-  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
   ./ide_harddisk_test.exp  >/dev/null  2>&1
   
@@ -1502,7 +1502,7 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   cp -a  $KERNEL_PATH_BAK/*  .
 
   cd $KERNEL_SCRIPTS/ide
-  $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_ide_harddisk_cdrom_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   
   sleep 30
   ./ide_cdrom_test.exp  >/dev/null  2>&1

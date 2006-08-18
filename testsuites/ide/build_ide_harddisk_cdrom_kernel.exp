@@ -167,19 +167,19 @@ while 1 {
 
           
           -re "Clock Settings.*Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-            send -s "Y\r"
+            send  "Y\r"
       }
 
           -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send -s "20\r"
+             send  "20\r"
       }
 
           -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-             send -s "1\r"
+             send  "1\r"
       }
 
           -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send -s "8\r"
+             send  "8\r"
       }
 
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
