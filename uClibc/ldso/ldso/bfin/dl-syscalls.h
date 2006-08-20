@@ -187,3 +187,20 @@ _dl_pread(int fd, void *buf, size_t count, off_t offset)
 #endif
 #endif
 
+#ifdef __NR_sram_alloc
+#define __NR__dl_sram_alloc __NR_sram_alloc
+inline static _syscall2(__ptr_t, _dl_sram_alloc,
+			size_t, len, unsigned long, flags);
+#endif
+
+#ifdef __NR_sram_free
+#define __NR__dl_sram_free __NR_sram_free
+inline static _syscall1(int, _dl_sram_free, __ptr_t, addr);
+#endif
+
+#ifdef __NR_dma_memcpy
+#define __NR__dl_dma_memcpy __NR_dma_memcpy
+inline static _syscall3(__ptr_t, _dl_dma_memcpy,
+			__ptr_t, dest, __ptr_t, src, size_t, len);
+#endif
+

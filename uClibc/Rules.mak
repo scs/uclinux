@@ -210,6 +210,7 @@ ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
 	CPU_LDFLAGS-y+=-mfdpic
 	CPU_CFLAGS-y+=-mfdpic -D__BFIN_FDPIC__
 	PICFLAG=-fPIC -DPIC
+	PIEFLAG=-fpie
 	# Using -pie causes the program to have an interpreter, which is
 	# forbidden, so we must make do with -shared.  Unfortunately,
 	# -shared by itself would get us global function descriptors
@@ -217,7 +218,6 @@ ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
 	# which would break as well, but -Bsymbolic comes to the rescue.
 	LDPIEFLAG=-shared -Bsymbolic
 	UCLIBC_LDSO=ld.so.1
-	PICFLAG:=-fpic
 else
 ifeq ($(BUILD_UCLIBC_SEP_DATA),y)
 	CPU_CFLAGS-y += -msep-data

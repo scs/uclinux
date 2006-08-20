@@ -182,6 +182,11 @@ while (0)
  		       (TPNT)->loadaddr.got_value)			     \
    : DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr))
 
+#define DL_IS_SPECIAL_SEGMENT(EPNT, PPNT) \
+  __dl_is_special_segment(EPNT, PPNT)
+#define DL_MAP_SEGMENT(EPNT, PPNT, INFILE, FLAGS) \
+  __dl_map_segment (EPNT, PPNT, INFILE, FLAGS)
+
 #define DL_GET_READY_TO_RUN_EXTRA_PARMS \
     , struct elf32_fdpic_loadmap *dl_boot_progmap, void *dl_boot_got_pointer
 #define DL_GET_READY_TO_RUN_EXTRA_ARGS \

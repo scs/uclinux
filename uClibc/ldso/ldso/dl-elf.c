@@ -565,6 +565,17 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 	ppnt = (ElfW(Phdr) *)(intptr_t) & header[epnt->e_phoff];
 
 	for (i = 0; i < epnt->e_phnum; i++) {
+		if (DL_IS_SPECIAL_SEGMENT (epnt, ppnt)) {
+			char *addr;
+
+			addr = DL_MAP_SEGMENT (epnt, ppnt, infile, flags);
+			if (addr == NULL)
+				goto cant_map;
+
+			DL_INIT_LOADADDR_HDR (lib_loadaddr, addr, ppnt);
+			ppnt++;
+			continue;
+		}
 		if (ppnt->p_type == PT_GNU_RELRO) {
 			relro_addr = ppnt->p_vaddr;
 			relro_size = ppnt->p_memsz;
@@ -578,8 +589,6 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 				piclib = 0;
 				/* flags |= MAP_FIXED; */
 			}
-
-
 
 			if (ppnt->p_flags & PF_W) {
 				unsigned long map_size;

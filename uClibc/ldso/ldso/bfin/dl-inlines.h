@@ -18,6 +18,7 @@ License along with uClibc; see the file COPYING.LIB.  If not, write to
 the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
 USA.  */
 
+#include <bfin_sram.h>
 
 #ifndef _dl_assert
 # define _dl_assert(expr)
@@ -473,4 +474,70 @@ __dl_loadaddr_unmap (struct elf32_fdpic_loadaddr loadaddr,
   _dl_free (loadaddr.map);
   if (funcdesc_ht)
     htab_delete (funcdesc_ht);
+}
+
+inline static int
+__dl_is_special_segment (Elf32_Ehdr *epnt,
+			 Elf32_Phdr *ppnt)
+{
+  if (ppnt->p_type != PT_LOAD)
+    return 0;
+
+  if ((epnt->e_flags & EF_BFIN_CODE_IN_L1)
+      && !(ppnt->p_flags & PF_W)
+      && (ppnt->p_flags & PF_X))
+    return 1;
+
+  if ((epnt->e_flags & EF_BFIN_DATA_IN_L1)
+      && (ppnt->p_flags & PF_W)
+      && !(ppnt->p_flags & PF_X))
+    return 1;
+
+  return 0;	
+}
+
+inline static char *
+__dl_map_segment (Elf32_Ehdr *epnt,
+		  Elf32_Phdr *ppnt,
+		  int infile,
+		  int flags)
+{
+  char *status, *tryaddr, *l1addr;
+  size_t size;
+
+  if ((epnt->e_flags & EF_BFIN_CODE_IN_L1)
+      && !(ppnt->p_flags & PF_W)
+      && (ppnt->p_flags & PF_X)) {
+    status = (char *) _dl_mmap
+      (tryaddr = 0,
+       size = (ppnt->p_vaddr & ADDR_ALIGN) + ppnt->p_filesz,
+       LXFLAGS(ppnt->p_flags),
+       flags | MAP_EXECUTABLE | MAP_DENYWRITE, 
+       infile, ppnt->p_offset & OFFS_ALIGN);
+    if (_dl_mmap_check_error(status)
+	|| (tryaddr && tryaddr != status))
+      return NULL;
+    l1addr = (char *) _dl_sram_alloc (ppnt->p_filesz, L1_INST_SRAM);
+    if (l1addr != NULL)
+      _dl_dma_memcpy (l1addr, status + (ppnt->p_vaddr & ADDR_ALIGN), ppnt->p_filesz);
+    _dl_munmap (status, size);
+    if (l1addr == NULL)
+      return NULL;
+    return l1addr;
+  }
+
+  if ((epnt->e_flags & EF_BFIN_DATA_IN_L1)
+      && (ppnt->p_flags & PF_W)
+      && !(ppnt->p_flags & PF_X)) {
+    l1addr = (char *) _dl_sram_alloc (ppnt->p_memsz, L1_DATA_SRAM);
+    if (l1addr == NULL
+	|| (_DL_PREAD (infile, l1addr, ppnt->p_filesz, ppnt->p_offset)
+	    != ppnt->p_filesz))
+      return NULL;
+    if (ppnt->p_filesz < ppnt->p_memsz)
+      _dl_memset (l1addr + ppnt->p_filesz, 0, ppnt->p_memsz - ppnt->p_filesz);
+    return l1addr;
+  }
+
+  return 0;
 }

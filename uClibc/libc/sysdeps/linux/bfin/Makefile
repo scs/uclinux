@@ -28,7 +28,9 @@ CTOR_TARGETS = crti.o crtn.o
 SSRC= __longjmp.S setjmp.S bsd-_setjmp.S vfork.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
 
-CSRC=brk.c clone.c syscall.c mmap.c
+CSRC=brk.c clone.c syscall.c mmap.c \
+	sram-alloc.c sram-free.c dma-memcpy.c
+
 COBJS=$(patsubst %.c,%.o, $(CSRC))
 
 OBJS=$(SOBJS) $(MOBJ) $(COBJS)
@@ -37,10 +39,10 @@ OBJ_LIST=../../../obj.sysdeps.$(TARGET_ARCH)
 
 all: $(OBJ_LIST)
 
-$(OBJ_LIST): $(OBJS) $(CRT0_OBJ) $(CTOR_TARGETS)
+$(OBJ_LIST): $(OBJS) $(CRT0_OBJ) $(SCRT0_OBJ) $(CTOR_TARGETS)
 	echo $(patsubst %, sysdeps/linux/$(TARGET_ARCH)/%, $(OBJS)) > $(OBJ_LIST)
 	$(INSTALL) -d $(TOPDIR)lib/
-	cp $(CRT0_OBJ) $(CTOR_TARGETS) $(TOPDIR)lib/
+	cp $(CRT0_OBJ) $(SCRT0_OBJ) $(CTOR_TARGETS) $(TOPDIR)lib/
 
 $(CRT0_OBJ): $(CRT0_SRC) crtreloc.o
 	$(CC) $(ASFLAGS) -DL_$* -r -nostdlib $< crtreloc.o -o $*.o
@@ -49,12 +51,12 @@ $(CRT0_OBJ): $(CRT0_SRC) crtreloc.o
 crtreloc.o: crtreloc.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(SCRT0_OBJ): $(CRT0_SRC) Scrtreloc.o
-	$(CC) $(ASFLAGS) $(PIEFLAG) -DL_$* -r -nostdlib $< Scrtreloc.o -o $*.o
+$(SCRT0_OBJ): $(CRT0_SRC)
+	$(CC) $(ASFLAGS) $(PIEFLAG) -D__pie__ -DL_$* -r -nostdlib $< -o $*.o
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
-Scrtreloc.o: crtreloc.c
-	$(CC) $(CFLAGS) $(PIEFLAG) -c $< -o $@
+# Scrtreloc.o: crtreloc.c
+# 	$(CC) $(CFLAGS) $(PIEFLAG) -c $< -o $@
 
 $(SOBJS): %.o : %.S
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -65,6 +67,7 @@ $(COBJS): %.o : %.c
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 headers:
+	$(LN) -fs ../libc/sysdeps/linux/bfin/bfin_sram.h $(TOPDIR)/include/
 
 clean:
 	$(RM) *.[oa] *~ core

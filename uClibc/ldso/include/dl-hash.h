@@ -149,6 +149,16 @@ struct dyn_elf{
 # define DL_FIND_HASH_VALUE(TPNT, TYPE, SYM) (DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr))
 #endif
 
+/* Define this if you have special segment.  */
+#ifndef DL_IS_SPECIAL_SEGMENT
+# define DL_IS_SPECIAL_SEGMENT(EPNT, PPNT) 0
+#endif
+
+/* Define this if you want to use special method to map the segment.  */
+#ifndef DL_MAP_SEGMENT
+# define DL_MAP_SEGMENT(EPNT, PPNT, INFILE, FLAGS) 0
+#endif
+
 /* Define this to enable the dynamic loader to use pread (or something
    equivalent) to load initialized data into anonymously privately
    mapped memory obtained for the entire data segment when PICLIB==2.
