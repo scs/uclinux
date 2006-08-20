@@ -43,6 +43,7 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 #include <asm/ipc.h>
+#include <asm/dma.h>
 
 /*
  * sys_pipe() is the normal C calling standard for creating
@@ -233,3 +234,19 @@ asmlinkage int sys_getpagesize(void)
 {
 	return PAGE_SIZE;
 }
+
+asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags)
+{
+	return sram_alloc_with_lsl(size, flags);
+}
+
+asmlinkage int sys_sram_free(const void *addr)
+{
+	return sram_free_with_lsl(addr);
+}
+
+asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len)
+{
+	return safe_dma_memcpy(dest, src, len);
+}
+

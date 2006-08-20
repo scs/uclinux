@@ -1022,8 +1022,11 @@ ENTRY(_sys_call_table)
 	.long _sys_pselect6
 	.long _sys_ppoll
 	.long _sys_unshare	/* 310 */
-	.rept 2
-	.long _sys_ni_syscall
+	.long _sys_sram_alloc
+	.long _sys_sram_free
+	.long _dma_memcpy
+	.rept NR_syscalls-(.-_sys_call_table)/4
+		.long _sys_ni_syscall
 	.endr
 _excpt_saved_imask:
 	.long 0;

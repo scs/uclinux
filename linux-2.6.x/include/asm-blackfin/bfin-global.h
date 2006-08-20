@@ -70,6 +70,14 @@ extern int l1_data_A_sram_free(const void*);
 extern int l1_data_B_sram_free(const void*);
 extern int l1_inst_sram_free(const void*);
 extern int l1_data_sram_free(const void*);
+extern int sram_free(const void*);
+
+#define L1_INST_SRAM		0x00000001
+#define L1_DATA_A_SRAM		0x00000002
+#define L1_DATA_B_SRAM		0x00000004
+#define L1_DATA_SRAM		0x00000006
+extern void *sram_alloc_with_lsl(size_t, unsigned long);
+extern int sram_free_with_lsl(const void*);
 
 extern char *bfin_board_name __attribute__ ((weak));
 extern unsigned long wall_jiffies;

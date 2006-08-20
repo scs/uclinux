@@ -308,7 +308,12 @@
 #define __NR_ppoll		309
 #define __NR_unshare		310
 
-#define __NR_syscall		256
+/* Blackfin private syscalls */
+#define __NR_sram_alloc		311
+#define __NR_sram_free		312
+#define __NR_dma_memcpy		313
+
+#define __NR_syscall		314
 #define NR_syscalls		__NR_syscall
 
 #define __syscall_return(type, res)					\
@@ -523,6 +528,10 @@ asmlinkage long sys_rt_sigaction(int sig,
 				 const struct sigaction __user * act,
 				 struct sigaction __user * oact,
 				 size_t sigsetsize);
+
+asmlinkage void * sys_sram_alloc(size_t size, unsigned long flags);
+asmlinkage int sys_sram_free(const void *addr);
+asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len);
 
 #endif				/* __KERNEL_SYSCALLS__ */
 /*

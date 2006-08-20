@@ -919,6 +919,8 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(struct elf_fdpic_params *para
 } /* end elf_fdpic_map_file_constdisp_on_uclinux() */
 #endif
 
+extern void *safe_dma_memcpy(void *, const void *, size_t);
+
 /*****************************************************************************/
 /*
  * map a binary by direct mmap() of the individual PT_LOAD segments
@@ -1016,6 +1018,39 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
 
 		if ((params->flags & ELF_FDPIC_FLAG_ARRANGEMENT) == ELF_FDPIC_FLAG_CONTIGUOUS)
 			load_addr += PAGE_ALIGN(phdr->p_memsz + disp);
+
+		/* Hack, hack, hack */
+		if ((params->hdr.e_flags & EF_BFIN_CODE_IN_L1)
+		    && (phdr->p_flags & PF_W) == 0
+		    && (phdr->p_flags & PF_X)) {
+			void *l1_addr;
+			l1_addr = sram_alloc_with_lsl(phdr->p_memsz, L1_INST_SRAM);
+			if (l1_addr != NULL)
+				safe_dma_memcpy(l1_addr, (const void *)(maddr + disp), phdr->p_memsz);
+			down_write(&mm->mmap_sem);
+			do_munmap(mm, maddr, phdr->p_memsz + disp);
+			up_write(&mm->mmap_sem);
+			if (l1_addr == NULL)
+				return -ENOMEM;
+			kdebug("[%x] -> l1_addr = %x of len = %x\n", maddr + disp, l1_addr, phdr->p_memsz);
+			maddr = (unsigned long)l1_addr;
+			disp = 0;
+		} else if ((params->hdr.e_flags & EF_BFIN_DATA_IN_L1)
+			   && (phdr->p_flags & PF_X) == 0
+			   && (phdr->p_flags & PF_W)) {
+			void *l1_addr;
+			l1_addr = sram_alloc_with_lsl(phdr->p_memsz, L1_DATA_SRAM);
+			if (l1_addr != NULL)
+				memcpy(l1_addr, (const void *)(maddr + disp), phdr->p_memsz) ;
+			down_write(&mm->mmap_sem);
+			do_munmap(mm, maddr, phdr->p_memsz + disp);
+			up_write(&mm->mmap_sem);
+			if (l1_addr == NULL)
+				return -ENOMEM;
+			kdebug("[%x] -> l1_addr = %x of len = %x\n", maddr + disp, l1_addr, phdr->p_memsz);
+			maddr = (unsigned long)l1_addr;
+			disp = 0;
+		}
 
 		seg->addr = maddr + disp;
 		seg->p_vaddr = phdr->p_vaddr;

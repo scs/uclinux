@@ -192,7 +192,7 @@ static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned
 
 /* L1 memory free function */
 static int _l1_sram_free(const void *addr,
-			struct l1_sram_piece *pfree, int count)
+			 struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
 
@@ -235,6 +235,28 @@ static int _l1_sram_free(const void *addr,
 
 	return 0;
 }
+
+int sram_free(const void *addr)
+{
+	if (0) {}
+#if L1_CODE_LENGTH != 0
+	else if (addr >= (void *)L1_CODE_START
+		 && addr < (void *)(L1_CODE_START + L1_CODE_LENGTH))
+		return l1_inst_sram_free(addr);
+#endif
+#if L1_DATA_A_LENGTH != 0
+	else if (addr >= (void *)L1_DATA_A_START
+		 && addr < (void *)(L1_DATA_A_START + L1_DATA_A_LENGTH))
+		return l1_data_A_sram_free(addr);
+#endif
+#if L1_DATA_B_LENGTH != 0
+	else if (addr >= (void *)L1_DATA_B_START
+		 && addr < (void *)(L1_DATA_B_START + L1_DATA_B_LENGTH))
+		return l1_data_B_sram_free(addr);
+#endif
+	else
+		return -1;
+}	
 
 void *l1_data_A_sram_alloc(size_t size)
 {
@@ -359,7 +381,7 @@ void *l1_inst_sram_alloc(size_t size)
 
 int l1_inst_sram_free(const void *addr)
 {
-#if L1_DATA_A_LENGTH != 0
+#if L1_CODE_LENGTH != 0
 	unsigned flags;
 	int ret;
 
@@ -428,9 +450,60 @@ int l1sram_free(const void *addr)
 	return ret;
 }
 
+int sram_free_with_lsl(const void *addr)
+{
+	struct sram_list_struct *lsl, **tmp;
+	struct mm_struct *mm = current->mm;
+
+	for (tmp = &mm->context.sram_list; *tmp; tmp = &(*tmp)->next)
+		if ((*tmp)->addr == addr)
+			goto found;
+	return -1;
+found:
+	lsl = *tmp;
+	sram_free(addr);
+	*tmp = lsl->next;
+	kfree(lsl);
+
+	return 0;
+}
+
+void *sram_alloc_with_lsl(size_t size, unsigned long flags)
+{
+	void *addr = NULL;
+	struct sram_list_struct *lsl = NULL;
+	struct mm_struct *mm = current->mm;
+
+	lsl = kmalloc(sizeof(struct sram_list_struct), GFP_KERNEL);
+	if (!lsl)
+		return NULL;
+	memset(lsl, 0, sizeof(*lsl));
+
+	if (flags & L1_INST_SRAM)
+		addr = l1_inst_sram_alloc(size);
+
+	if (addr == NULL && (flags & L1_DATA_A_SRAM))
+		addr = l1_data_A_sram_alloc(size);
+
+	if (addr == NULL && (flags & L1_DATA_B_SRAM))
+		addr = l1_data_B_sram_alloc(size);
+
+	if (addr == NULL) {
+		kfree(lsl);
+		return NULL;
+	}
+	lsl->addr = addr;
+	lsl->next = mm->context.sram_list;
+	mm->context.sram_list = lsl;
+	return addr;
+}
+
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 EXPORT_SYMBOL(l1_data_A_sram_free);
 EXPORT_SYMBOL(l1_inst_sram_alloc);
 EXPORT_SYMBOL(l1_inst_sram_free);
 EXPORT_SYMBOL(l1_data_sram_zalloc);
 EXPORT_SYMBOL(l1_data_sram_free);
+EXPORT_SYMBOL(sram_free);
+EXPORT_SYMBOL(sram_alloc_with_lsl);
+EXPORT_SYMBOL(sram_free_with_lsl);

@@ -14,6 +14,8 @@
 /* Processor specific flags for the ELF header e_flags field.  */
 #define EF_BFIN_PIC		0x00000001	/* -fpic */
 #define EF_BFIN_FDPIC		0x00000002      /* -mfdpic */
+#define EF_BFIN_CODE_IN_L1	0x00000010	/* --code-in-l1 */
+#define EF_BFIN_DATA_IN_L1	0x00000020	/* --data-in-l1 */
 
 typedef unsigned long elf_greg_t;
 

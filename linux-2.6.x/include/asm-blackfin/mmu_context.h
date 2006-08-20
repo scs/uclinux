@@ -64,10 +64,18 @@ static inline void free_l1stack(void)
 }
 static inline void destroy_context(struct mm_struct *mm)
 {
+	struct sram_list_struct *tmp;
+
 	if (current_l1_stack_save == mm->context.l1_stack_save)
 		current_l1_stack_save = 0;
 	if (mm->context.l1_stack_save)
 		free_l1stack();
+
+	while ((tmp = mm->context.sram_list)) {
+		mm->context.sram_list = tmp->next;
+		sram_free(tmp->addr);
+		kfree(tmp);
+	}
 }
 
 static inline unsigned long
