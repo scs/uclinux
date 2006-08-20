@@ -585,31 +585,28 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
 {
-  struct net_device *dev = dev_id;
-  unsigned short len;
-  int number = 0;
+	struct net_device *dev = dev_id;
+	unsigned short len;
+	int number = 0;
 
-  //  printk("in mac_int\n");
- get_one_packet:
-  if (current_rx_ptr->status.status_word == 0) { // no more new packet received
-	  if (number == 0) {
-		  bfin_write_DMA1_NEXT_DESC_PTR(&(current_rx_ptr->desc_a));
-		  current_rx_ptr->status.status_word = 0x00000000;
-		  bfin_write_DMA1_CONFIG(*((unsigned short *)(&(current_rx_ptr->desc_a.config))));
-	  }
-//	  printk("%d\n",number);
-	  current_rx_ptr->status.status_word = 0x00000000;
-	bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() |
-					   DMA_DONE | DMA_ERR);
-    return IRQ_HANDLED;
-  }
+get_one_packet:
+	if (current_rx_ptr->status.status_word == 0) { // no more new packet received
+		if (number == 0) {
+			bfin_write_DMA1_NEXT_DESC_PTR(&(current_rx_ptr->desc_a));
+			current_rx_ptr->status.status_word = 0x00000000;
+			bfin_write_DMA1_CONFIG(*((unsigned short *)(&(current_rx_ptr->desc_a.config))));
+		}
+		current_rx_ptr->status.status_word = 0x00000000;
+		bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() | DMA_DONE | DMA_ERR);
+		return IRQ_HANDLED;
+	}
 
-  len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
-  bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-  current_rx_ptr->status.status_word = 0x00000000;
-  current_rx_ptr = current_rx_ptr->next;
-  number++;
-  goto get_one_packet;
+	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+	bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
+	current_rx_ptr->status.status_word = 0x00000000;
+	current_rx_ptr = current_rx_ptr->next;
+	number++;
+	goto get_one_packet;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

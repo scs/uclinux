@@ -368,12 +368,14 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 
 	/* wait for the last transaction shifted out */
 	if (drv_data->tx != NULL) {
-	 while(bfin_read_SPI_STAT() & TXS);
-	 while(bfin_read_SPI_STAT() & TXS);
-
+		while (bfin_read_SPI_STAT() & TXS)
+			;
+		while (bfin_read_SPI_STAT() & TXS)
+			;
 	}
 
-	 while(!(bfin_read_SPI_STAT() & SPIF));
+	while (!(bfin_read_SPI_STAT() & SPIF))
+		;
 
 	bfin_spi_disable(drv_data);
 
