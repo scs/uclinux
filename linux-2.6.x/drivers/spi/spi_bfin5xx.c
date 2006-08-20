@@ -366,7 +366,9 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 	PRINTK("in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
 
-	/* wait for the last transaction shifted out */
+	/* wait for the last transaction shifted out.  yes, these two
+	 * while loops are supposed to be the same (see the HRM).
+	 */
 	if (drv_data->tx != NULL) {
 		while (bfin_read_SPI_STAT() & TXS)
 			;
