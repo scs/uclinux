@@ -757,6 +757,10 @@ unsigned long do_mmap_pgoff(struct file *file,
 			if (pgoff >= vma->vm_pgoff + vmpglen)
 				continue;
 
+			if (vma->vm_pgoff != pgoff
+			    || vma->vm_end - vma->vm_start < len)
+				continue;
+
 			/* handle inexactly overlapping matches between mappings */
 			if (vma->vm_pgoff != pgoff || vmpglen != pglen) {
 				if (!(capabilities & BDI_CAP_MAP_DIRECT))
