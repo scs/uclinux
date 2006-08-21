@@ -368,7 +368,6 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct driver_data *drv_data = (struct driver_data *)dev_id;
 	struct spi_message *msg = drv_data->cur_msg;
-	void *dma_buf_end;
 
 	PRINTK("in dma_irq_handler\n");
 	clear_dma_irqstat(CH_SPI);
