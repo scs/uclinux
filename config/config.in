@@ -9,7 +9,7 @@
 #
 #############################################################################
 
-mainmenu_name "SnapGear Embedded Linux Application Configuration"
+mainmenu_name "Analog Devices Blackfin Embedded Linux Application Configuration"
 
 #############################################################################
 
