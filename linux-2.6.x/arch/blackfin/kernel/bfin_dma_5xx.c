@@ -719,18 +719,6 @@ void *safe_dma_memcpy(void *dest, const void *src, size_t size)
 	return addr;
 }
 
-int l1_dma_memcpy(void *dest, void *src, size_t size)
-{
-	if((((unsigned long)dest >= L1_CODE_START) && 
-		((unsigned long)dest < (L1_CODE_START + L1_CODE_LENGTH))) ||
-	   (((unsigned long)src >= L1_CODE_START) &&
-		((unsigned long)src < (L1_CODE_START + L1_CODE_LENGTH)))){
-		safe_dma_memcpy(dest, src, size);
-		return 0;
-	} else
-		return 1;
-}
-
 EXPORT_SYMBOL(request_dma);
 EXPORT_SYMBOL(set_dma_callback);
 EXPORT_SYMBOL(enable_dma);
@@ -756,4 +744,3 @@ EXPORT_SYMBOL(dma_disable_irq);
 EXPORT_SYMBOL(dma_enable_irq);
 EXPORT_SYMBOL(dma_memcpy);
 EXPORT_SYMBOL(safe_dma_memcpy);
-EXPORT_SYMBOL(l1_dma_memcpy);

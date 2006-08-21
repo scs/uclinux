@@ -41,28 +41,10 @@ ENTRY(_memcpy)
 	CC = R2 <=  0;	/* length not positive?*/
 	IF CC JUMP  .L_P1L2147483647;	/* Nothing to do */
 
-	LINK 16;
-	[--SP] = R2;
-	[--SP] = R1;
-	[--SP] = R0;
-
-	[--SP] = RETS;
-	call _l1_dma_memcpy;
-	RETS = [SP++];
-
-	CC = R0 == 0;	/* memory copy is done by DMA? */
-	
-	R0 = [SP++];
-	R1 = [SP++];
-	R2 = [SP++];
-	UNLINK;
-
-	IF CC JUMP .L_P1L2147483647;	/* memory copy is done, exit */
-
 	P0 = R0 ;	/* dst*/
 	P1 = R1 ;	/* src*/
 	P2 = R2 ;	/* length */
-	
+
 	/* check for overlapping data */
 	CC = R1 < R0;	/* src < dst */
 	IF !CC JUMP .Lno_overlap;
