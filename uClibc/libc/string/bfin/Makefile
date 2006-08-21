@@ -21,7 +21,8 @@ include $(TOPDIR)Rules.mak
 
 SSRC=memchr.S memcmp.S memcpy.S memmove.S memset.S strcmp.S
 SOBJS=$(patsubst %.S,%.o, $(SSRC))
-OBJS=$(SOBJS)
+LSOBJS=libc_memcpy.o libc_memset.o
+OBJS=$(SOBJS) $(LSOBJS)
 
 OBJ_LIST=../../obj.string.$(TARGET_ARCH)
 
@@ -32,6 +33,10 @@ $(OBJ_LIST): $(OBJS)
 
 $(SOBJS): %.o : %.S
 	$(CC) $(ASFLAGS) -c $< -o $@
+	$(STRIPTOOL) -x -R .note -R .comment $*.o
+
+$(LSOBJS): libc_%.o : %.S
+	$(CC) $(ASFLAGS) -DINTERNAL_VERSION -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 clean:

@@ -21,6 +21,11 @@
 
 .align 2
 
+#ifdef INTERNAL_VERSION
+#define _memcpy ___libc_memcpy
+.hidden ___libc_memcpy
+#endif
+	
 .global _memcpy
 .type _memcpy, STT_FUNC
 _memcpy:
@@ -70,6 +75,3 @@ finished:
 	P3 = [SP++];
 	RTS;
 .size _memcpy,.-_memcpy
-.global ___libc_memcpy
-.hidden ___libc_memcpy
-.set ___libc_memcpy, _memcpy

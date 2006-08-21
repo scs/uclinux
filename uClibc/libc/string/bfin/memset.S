@@ -21,6 +21,11 @@
 
 .align 2
 
+#ifdef INTERNAL_VERSION
+#define _memset ___libc_memset
+.hidden ___libc_memset
+#endif
+	
 .global _memset
 .type _memset, STT_FUNC
 _memset:
@@ -82,6 +87,3 @@ skip1:
 	B[P0++] = R1;
 	JUMP aligned;
 .size _memset,.-_memset
-.global ___libc_memset
-.hidden ___libc_memset
-.set ___libc_memset, _memset
