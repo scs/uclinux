@@ -1,0 +1,40 @@
+#
+# SPI_MMC subsystem configuration
+#
+
+config SPI_MMC
+    tristate "MMC/SD for SPI support (EXPERIMENTAL)"
+        depends on EXPERIMENTAL && SPI
+        default n
+        ---help---
+	MMC/SD card over SPI support.
+	
+	Say Y or M here if you want to attach an MMC/SD socket to the SPI port.
+	The "MMC support" option does not need to be enabled for this driver to work.
+
+	Read spi_mmc.txt documentation for details or more help.
+	
+config SPI_MMC_CS_CHAN
+	int "SPI chip select signal for MMC/SD card"
+	depends on SPI_MMC
+	range 0 7
+	default "4"
+	help
+	Set the Chip Select signal to use for the MMC/SD card.
+
+config SPI_MMC_CARD_DETECT
+	bool "MMC/SD Card detect support"
+	depends on SPI_MMC && BFIN
+	default "y"
+	help
+	Supported platforms can make use of card detect signal to sense insertion
+	and removal of card. Hotplug events could be generated for userspace to
+	take action, such as mounting partitions.
+
+config SPI_MMC_CARD_DETECT_PFLAG
+	int "Card detect PFx number"
+	depends on SPI_MMC_CARD_DETECT
+	default "5"
+	help
+	Which PFx number to use for card detection.
+#endmenu
