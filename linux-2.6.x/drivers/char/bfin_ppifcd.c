@@ -226,15 +226,13 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ppi_device_t *pdev = (ppi_device_t *) dev_id;
 
-	u16 status = bfin_read_PPI_STATUS();
+	DPRINTK("ppifcd_error_irq:\n");
+	DPRINTK("PPI Status = 0x%X\n", bfin_read_PPI_STATUS());
 
 /*BF537/6/4 PPI_STATUS is Write to Clear*/
 #if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
 	bfin_write_PPI_STATUS(0xFFFF);
 #endif
-
-	DPRINTK("ppifcd_error_irq:\n");
-	DPRINTK("PPI Status = 0x%X \n", status);
 
 	/* Acknowledge DMA Interrupt */
 	clear_dma_irqstat(CH_PPI);
