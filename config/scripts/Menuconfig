@@ -322,6 +322,7 @@ function choice () {
 	title=$1
 	choices=$2
 	default=$3
+	default_config=
 	current=
 
 	#
@@ -333,6 +334,10 @@ function choice () {
 
 	while [ -n "$2" ]
 	do
+		if [ "$1" = "$default" ]
+		then
+			default_config=$2
+		fi
 		if eval [ "_\$$2" = "_y" ]
 		then
 			current=$1
@@ -340,6 +345,11 @@ function choice () {
 		fi
 		shift ; shift
 	done
+
+	if [ "_$current" = "_" ]
+	then
+		eval export "$default_config=y"
+	fi
 
 	: ${current:=$default}
 
