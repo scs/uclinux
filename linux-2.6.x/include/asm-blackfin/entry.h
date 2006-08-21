@@ -43,7 +43,6 @@
     p0.l = lo(IPEND);							\
     p0.h = hi(IPEND);							\
     r1 = [p0];								\
-    bitclr (r1,4);	/* user_mode expects master disable cleared. */ \
     R0 = (N);								\
     jump __common_int_entry;
 

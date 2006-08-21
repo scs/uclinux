@@ -91,7 +91,9 @@ struct pt_regs {
 
 #define PS_S  (0x0002)
 
-#define user_mode(regs) (!((regs)->ipend & ((regs)->ipend -1)))
+/* user_mode returns true if only one bit is set in IPEND, other than the
+   master interrupt enable.  */
+#define user_mode(regs) (!(((regs)->ipend & ~0x10) & (((regs)->ipend & ~0x10) - 1)))
 #define instruction_pointer(regs) ((regs)->pc)
 #define profile_pc(regs) instruction_pointer(regs)
 extern void show_regs(struct pt_regs *);
