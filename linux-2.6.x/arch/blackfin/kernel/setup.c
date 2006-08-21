@@ -37,6 +37,9 @@
 #include <linux/module.h>
 #include <linux/console.h>
 
+#include <linux/ext2_fs.h>
+#include <linux/cramfs_fs.h>
+
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 
@@ -213,30 +216,27 @@ void __init setup_arch(char **cmdline_p)
 	memory_mtd_end = memory_end;
 
 #if defined(CONFIG_MTD_UCLINUX)
-/* generic memory mapped MTD driver */
+	/* generic memory mapped MTD driver */
 	mtd_phys = (unsigned long)__bss_stop;
 	mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 8)));
 
-#if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
-	if (*((unsigned short *)(mtd_phys + 0x438)) == 0xEF53 )
+# if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
+	if (*((unsigned short *)(mtd_phys + 0x438)) == EXT2_SUPER_MAGIC)
 		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
-#endif
+# endif
 
-#if defined(CONFIG_CRAMFS)
-	if (*((unsigned long *)(mtd_phys)) ==  0x28cd3d45 )
+# if defined(CONFIG_CRAMFS)
+	if (*((unsigned long *)(mtd_phys)) == CRAMFS_MAGIC)
 		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)) );
-#endif
-
+# endif
 
 	memory_end -= mtd_size;
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
 	dma_memcpy((char *)memory_end, __bss_stop, mtd_size);
-	
 
 	_ramstart = mtd_phys;
-
-#endif  /* CONFIG_MTD_UCLINUX */
+#endif
 
 	memory_mtd_start = memory_end;
 	_ebss = memory_mtd_start;       /* define _ebss for compatible */
