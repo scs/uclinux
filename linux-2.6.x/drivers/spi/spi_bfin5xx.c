@@ -268,11 +268,18 @@ static void u8_writer(struct driver_data *drv_data)
 		do {} while (read_STAT() & BIT_STAT_TXS);
 		++drv_data->tx;
 	}
+
+	// poll for SPI completion before returning
+	do {} while (!(read_STAT() & BIT_STAT_SPIF));
 }
 
 static void u8_reader(struct driver_data *drv_data)
 {
 	PRINTK("cr-8 is 0x%x\n", read_STAT());
+
+	// clear TDBR buffer before read(else it will be shifted out)
+	write_TDBR(0xFFFF);
+
 	dummy_read();
 
 	while (drv_data->rx < drv_data->rx_end - 1) {
@@ -491,7 +498,7 @@ static void pump_transfers(unsigned long data)
 	PRINTK("now pumping a transfer: width is %d, len is %d\n",width,transfer->len);
 	/* Try to map dma buffer and do a dma transfer if successful */
 	/* use different way to r/w according to drv_data->cur_chip->enable_dma */
-	if (drv_data->cur_chip->enable_dma && drv_data->len > 4) {
+	if (drv_data->cur_chip->enable_dma && drv_data->len > 6) {
 
 		write_STAT(BIT_STAT_CLR);
 		disable_dma(CH_SPI);
