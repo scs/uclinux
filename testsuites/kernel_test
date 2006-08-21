@@ -1083,6 +1083,15 @@ if [ $ltp_test -eq 1 ] ; then
   sleep 30
   ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
   echo "ltp_auto_test.exp done"
+  ./ltp_compare_results_all.sh config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new >> ltp_test_log
+  ./ltp_decide_standard.pl config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new
+  if [ $? ] ; then
+    echo "ltp test fail"
+    echo "LTP TEST ............[FAIL]" >> ltp_test_log
+  else
+    echo "ltp test pass"
+    echo "LTP TEST ............[FAIL]" >> ltp_test_log
+  fi
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp
   echo "ltp copy linux.ltp done"
@@ -1095,6 +1104,7 @@ if [ $ltp_test -eq 1 ] ; then
   cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log
   echo "ltp copy detailed done"
   cp $KERNEL_SCRIPTS/ltp/build_ltp_log $THIS_LOG/.
+  cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG/.
   echo "copy log files done"
  
   sleep 30
