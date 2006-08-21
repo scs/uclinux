@@ -291,6 +291,12 @@ void usage(FILE *fp, int rc)
 }
 
 
+void mydelay(unsigned int delay)
+{
+    clock_t goal = delay * CLOCKS_PER_SEC / 1000 + clock();
+    while (goal > clock());
+}
+
 int main( int argc, char *argv[] )
 {
 
@@ -339,7 +345,7 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
         }
     }
 
-	
+
 	if(board==537) {
 		strcpy(trigger, BF537_MICRON_TRIGGER);
 		strcpy(standby, BF537_MICRON_STANDBY);
@@ -352,9 +358,9 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
 		strcpy(led, BF533_MICRON_LED);
 		trigger_strobe = BF533_MICRON_TRIGGER_STROBE;
 	} else {
-       usage(stderr, 1);	
+       usage(stderr, 1);
        exit(1);
-	}	
+	}
 
 
     /* Get latency between to gettimeofday calls */
@@ -362,22 +368,23 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
         offset = getoffset();
         (void)set_gpio(standby, "0");
         if(board==533)
-			(void)set_gpio(FS3, "0");
+	  (void)set_gpio(FS3, "0");
         (void)set_gpio(led, "1");
         (void)set_gpio(trigger, "0");
+
+          if(usetrigger)
+            {
+              i2c_write_register(I2C_DEVICE,DEVID,0x1E,0x8100);
+	      mydelay(36);
+            }
+             else
+              i2c_write_register(I2C_DEVICE,DEVID,0x1E,0x8000);
 
     /* Global Gain: 0x35*/
     i2c_write_register(I2C_DEVICE,DEVID,0x35,0x50);
 
     if(sendi2c==2)
         i2c_write_register(I2C_DEVICE,DEVID,addr,value);
-
-          if(usetrigger)
-            {
-              i2c_write_register(I2C_DEVICE,DEVID,0x1E,0x8700);
-            }
-             else
-              i2c_write_register(I2C_DEVICE,DEVID,0x1E,0x8000);
 
 
     calculate_total_frame_time();
@@ -409,9 +416,9 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
     {
 
         gettimeofday(&o, NULL);
-        
+
           read(fd,buffer+sizeof(bmphead),1234);
-        
+
         gettimeofday(&t, NULL);
 
 		//sleep(1);
@@ -450,9 +457,9 @@ while ((c = getopt(argc, argv, "vth?tr:a:c:b:")) > 0) {
 
 	    /* Copy the BMP header information into the buffer */
 	    (void) memcpy( buffer, bmphead, sizeof(bmphead) );
-	
+
 	    fd = open( filename, O_WRONLY | O_CREAT | O_TRUNC, 0666 );
-	
+
 		    if ( fd == -1 )
 		    {
 		        (void) printf( "%s: failed to open \"%s\"", argv[0], filename );
