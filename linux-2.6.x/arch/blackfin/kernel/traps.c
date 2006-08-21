@@ -235,7 +235,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		DPRINTK3(EXC_0x2C);
 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 	case VEC_CPLB_M:
-		info.si_code = IlL_CPLB_MISS;
+		info.si_code = ILL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		/*Call the handler to replace the CPLB */
