@@ -2366,6 +2366,8 @@ int bfin_console_setup(struct console *cp, char *arg)
 	}
 	bfin_default_baud = unix_baud_table[i];
 
+	info->is_cons = 1;
+
 	bfin_set_baud(info);	/* make sure baud rate changes */
 
 	return 0;
