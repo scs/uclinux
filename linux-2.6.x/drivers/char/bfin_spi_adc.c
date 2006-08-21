@@ -13,20 +13,20 @@
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
- * This program is free software ;  you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation ;  either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY ;  without even the implied warranty of
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program ;  see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/kernel.h>
@@ -67,20 +67,20 @@
 #define SPI_ADC_INTNAME       "BFIN_SPIINT"  /* Should be less than 19 chars. */
 
 struct bfin_spi_adc {
-	int     opened;
-	int     timeout;
-	unsigned char 	sense;
-	unsigned char 	edge;
-	unsigned int     triggerpos;
-	unsigned int     actcount;
-	unsigned short   *buffer;
-	unsigned short 	level;
-	unsigned char 	mode;
-	unsigned char 	cont;
-	unsigned short 	skfs;
-	int     baud;
+	int             opened;
+	int             timeout;
+	unsigned char   sense;
+	unsigned char   edge;
+	unsigned int    triggerpos;
+	unsigned int    actcount;
+	unsigned short  *buffer;
+	unsigned short  level;
+	unsigned char   mode;
+	unsigned char   cont;
+	unsigned short  skfs;
+	int             baud;
 
-	struct spi_device	*spidev;
+	struct spi_device *spidev;
 };
 
 struct bfin_spi_adc spi_adc;
@@ -95,7 +95,7 @@ static u_long spi_get_sclk(void)
 	if (1 & bfin_read_PLL_CTL()) /* DR bit */
 		vco >>= 1;
 
-	if((bfin_read_PLL_DIV() & 0xf) != 0)
+	if ((bfin_read_PLL_DIV() & 0xf) != 0)
 		sclk = vco/(bfin_read_PLL_DIV() & 0xf);
 	else
 		printk(KERN_NOTICE "bfin_spi_adc: Invalid System Clock\n");
@@ -140,15 +140,15 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 		break;
 	}
 	case CMD_SPI_SET_BAUDRATE:
-        {
+	{
 		DPRINTK("spi_ioctl: CMD_SPI_SET_BAUDRATE\n");
 		/* BaudRate 0,1 unavail */
-		if((unsigned short)arg <= 1)
+		if ((unsigned short)arg <= 1)
 			return -EINVAL;
 		/* SPI's baud rate is SCLK / ( arg * 2) */
 		bfin_spi_adc->baud = (unsigned short)arg;
 		break;
-        }
+	}
 	case CMD_SPI_SET_WRITECONTINUOUS:
 	{
 		DPRINTK("spi_ioctl: CMD_SPI_SET_WRITECONTINUOUS\n");
@@ -176,20 +176,16 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 	struct bfin_spi_adc *bfin_spi_adc = filp->private_data;
 	repeat_reading = 0;
 
-	if(count <= 0)
+	if (count <= 0)
 		return 0;
 
 	bfin_spi_adc->timeout = TIMEOUT;
 
-	if(bfin_spi_adc->mode)
-	  {
+	if (bfin_spi_adc->mode)
 		bfin_spi_adc->actcount = 2 * count;
-	  }
-	   else
-	  {	
+	else
 		bfin_spi_adc->actcount = count;
-	  }
-	  			
+
 	/* Allocate some memory */
 	bfin_spi_adc->buffer = kmalloc(bfin_spi_adc->actcount + 2*bfin_spi_adc->skfs, GFP_KERNEL);
 
@@ -207,25 +203,25 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 
 		bfin_spi_adc->triggerpos=0;
 
-		if(bfin_spi_adc->mode) {
+		if (bfin_spi_adc->mode) {
 			/* Search for trigger condition */
-			if(bfin_spi_adc->sense) {
+			if (bfin_spi_adc->sense) {
 				/* Edge sensitive */
-				if(bfin_spi_adc->edge){
+				if (bfin_spi_adc->edge){
 					/* Falling edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for (i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] > bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] < bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
 						}
 					}
-					if(!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
+					if (!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
 
 				} else {
 					/* Rising edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for (i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 
 						if ((bfin_spi_adc->buffer[i-1] < bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] > bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
@@ -233,30 +229,30 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 						}
 					}
 
-					if(!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
+					if (!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
 				}
 			} else {
-				if(bfin_spi_adc->edge){
+				if (bfin_spi_adc->edge){
 					/* Falling edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for (i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] > bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] < bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
 						}
 					}
-					if(!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
+					if (!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
 				} else {
 					/* Rising edge */
 					bfin_spi_adc->triggerpos=0;
-					for(i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
+					for (i=1+bfin_spi_adc->skfs;(i < bfin_spi_adc->actcount)&& !bfin_spi_adc->triggerpos;i++) {
 						if ((bfin_spi_adc->buffer[i-1] < bfin_spi_adc->level)&&(bfin_spi_adc->buffer[i+1] > bfin_spi_adc->level)) {
 							bfin_spi_adc->triggerpos=i;
 							i=bfin_spi_adc->actcount;
 						}
 					}
 
-					if(!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
+					if (!bfin_spi_adc->triggerpos && bfin_spi_adc->timeout--) repeat_reading = 1;
 				}
 			}
 		}
@@ -267,7 +263,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 	DPRINTK(" skfs = %d \n",bfin_spi_adc->skfs);
 	DPRINTK(" count = %d \n",count);
 
-	if(!(bfin_spi_adc->timeout < 0) && (!bfin_spi_adc->triggerpos))
+	if (!(bfin_spi_adc->timeout < 0) && (!bfin_spi_adc->triggerpos))
 		copy_to_user(buf, bfin_spi_adc->buffer + bfin_spi_adc->skfs, count);
 	else
 		copy_to_user(buf, bfin_spi_adc->buffer + bfin_spi_adc->triggerpos, count);
@@ -275,7 +271,7 @@ static ssize_t adc_spi_read (struct file *filp, char *buf, size_t count, loff_t 
 	kfree(bfin_spi_adc->buffer);
 
 	DPRINTK(" timeout = %d \n",bfin_spi_adc->timeout);
-	if(bfin_spi_adc->timeout < 0)
+	if (bfin_spi_adc->timeout < 0)
 		return SPI_ERR_TRIG;
 
 	return count;
@@ -289,7 +285,7 @@ static ssize_t adc_spi_write (struct file *filp, const char *buf, size_t count, 
 
 	DPRINTK("spi_write:\n");
 
-	if(count <= 0)
+	if (count <= 0)
 		return 0;
 
 	bfin_spi_adc->actcount = count;
@@ -313,50 +309,50 @@ static ssize_t adc_spi_write (struct file *filp, const char *buf, size_t count, 
 	return count;
 }
 
-static int adc_spi_open (struct inode *inode, struct file *filp)
+static int adc_spi_open(struct inode *inode, struct file *filp)
 {
-    struct spi_device *spi;
-    int minor = MINOR (inode->i_rdev);
+	struct spi_device *spi;
+	int minor = MINOR (inode->i_rdev);
 
-    DPRINTK("spi_open: start\n");
+	DPRINTK("spi_open: start\n");
 
-    /* SPI ? */
-    if(minor != SPI0_ADC_MINOR) return -ENXIO;
+	/* SPI ? */
+	if (minor != SPI0_ADC_MINOR)
+		return -ENXIO;
 
-    if(spi_adc.opened)
-        return -EMFILE;
+	if (spi_adc.opened)
+		return -EMFILE;
 
-    spi = spi_adc.spidev;
-    /* Clear configuration information */
-    memset(&spi_adc, 0, sizeof(struct bfin_spi_adc));
+	spi = spi_adc.spidev;
+	/* Clear configuration information */
+	memset(&spi_adc, 0, sizeof(struct bfin_spi_adc));
 
-    spi_adc.opened = 1;
-    spi_adc.cont = 0;
-    spi_adc.skfs = 0;
-    spi_adc.spidev = spi;
+	spi_adc.opened = 1;
+	spi_adc.cont = 0;
+	spi_adc.skfs = 0;
+	spi_adc.spidev = spi;
 
-    filp->private_data = &spi_adc;
+	filp->private_data = &spi_adc;
 
-
-    DPRINTK("spi_open: return\n");
-    return 0;
+	DPRINTK("spi_open: return\n");
+	return 0;
 }
 
 static int adc_spi_release (struct inode *inode, struct file *filp)
 {
-    spi_adc.opened = 0;
+	spi_adc.opened = 0;
 
-    DPRINTK("spi_release: close() return\n");
-    return 0;
+	DPRINTK("spi_release: close() return\n");
+	return 0;
 }
 
 static struct file_operations bfin_spi_adc_fops = {
-    .owner = THIS_MODULE,
-    .read = adc_spi_read,
-    .write = adc_spi_write,
-    .ioctl = adc_spi_ioctl,
-    .open = adc_spi_open,
-    .release = adc_spi_release,
+	.owner = THIS_MODULE,
+	.read = adc_spi_read,
+	.write = adc_spi_write,
+	.ioctl = adc_spi_ioctl,
+	.open = adc_spi_open,
+	.release = adc_spi_release,
 };
 
 static int __devinit bfin_spi_adc_probe(struct spi_device *spi)
@@ -382,7 +378,7 @@ static struct spi_driver bfin_spi_adc_driver = {
 	.remove	= __devexit_p(bfin_spi_adc_remove),
 };
 
-static int bfin_spi_adc_init(void)
+static int __init bfin_spi_adc_init(void)
 {
 	int result;
 	result = register_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME, &bfin_spi_adc_fops);
@@ -394,8 +390,7 @@ static int bfin_spi_adc_init(void)
 	return spi_register_driver(&bfin_spi_adc_driver);
 }
 
-
-static void bfin_spi_adc_exit(void)
+static void __exit bfin_spi_adc_exit(void)
 {
 	unregister_chrdev(SPI_ADC_MAJOR, SPI_ADC_DEVNAME);
 	spi_unregister_driver(&bfin_spi_adc_driver);

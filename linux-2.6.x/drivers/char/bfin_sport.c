@@ -1,3 +1,34 @@
+/*
+ * File:         drivers/char/bfin_sport.c
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <asm/dpmc.h>
@@ -6,12 +37,10 @@
 
 #define SSYNC __builtin_bfin_ssync()
 
-static int bfin_sport_config_rx( struct bfin_sport_register *regs, 
-				unsigned int rcr1, unsigned int rcr2, 
-				unsigned int clkdiv, unsigned int fsdiv )
+static int bfin_sport_config_rx(struct bfin_sport_register *regs,
+				unsigned int rcr1, unsigned int rcr2,
+				unsigned int clkdiv, unsigned int fsdiv)
 {
-
-
 	regs->rcr1 = rcr1;
 	regs->rcr2 = rcr2;
 	regs->rclkdiv = clkdiv;
@@ -22,7 +51,7 @@ static int bfin_sport_config_rx( struct bfin_sport_register *regs,
 	return 0;
 }
 
-static int bfin_sport_config_tx( struct bfin_sport_register *regs,
+static int bfin_sport_config_tx(struct bfin_sport_register *regs,
 		unsigned int tcr1, unsigned int tcr2,
 		unsigned int clkdiv, unsigned int fsdiv)
 {
@@ -38,29 +67,29 @@ static int bfin_sport_config_tx( struct bfin_sport_register *regs,
 }
 
 /* note: multichannel is in units of 8 channels, tdm_count is # channels NOT / 8 ! */
-static int bfin_sport_set_multichannel( struct bfin_sport_register *regs, 
+static int bfin_sport_set_multichannel(struct bfin_sport_register *regs,
 					int tdm_count, int packed, int frame_delay)
 {
 
-	if( tdm_count ){
+	if (tdm_count) {
 
-		int shift = 32 - tdm_count;    
+		int shift = 32 - tdm_count;
 		unsigned int mask = (0xffffffff >> shift);
 
 		regs->mcmc1 = ((tdm_count>>3)-1) << 12;  /* set WSIZE bits */
 		regs->mcmc2 = (frame_delay << 12)| MCMEN | \
-					( packed ? (MCDTXPE|MCDRXPE) : 0 );
+					(packed ? (MCDTXPE|MCDRXPE) : 0);
 
-		regs->mtcs0 = mask; 
-		regs->mrcs0 = mask; 
+		regs->mtcs0 = mask;
+		regs->mrcs0 = mask;
 
 	} else {
 
 		regs->mcmc1 = 0;
 		regs->mcmc2 = 0;
 
-		regs->mtcs0 = 0; 
-		regs->mrcs0 = 0; 
+		regs->mtcs0 = 0;
+		regs->mrcs0 = 0;
 	}
 
 	regs->mtcs1 = 0; regs->mtcs2 = 0; regs->mtcs3 = 0;
@@ -79,17 +108,17 @@ static irqreturn_t bfin_sport_handler_err(int irq, void *dev_id, struct pt_regs 
 
 	SSYNC;
 	status = sport->regs->stat;
-	if( status & (TOVF|TUVF|ROVF|RUVF) ){
-		printk( KERN_WARNING  "sport status error:%s%s%s%s\n", 
-				status & TOVF ? " TOVF" : "", 
-				status & TUVF ? " TUVF" : "", 
-				status & ROVF ? " ROVF" : "", 
-				status & RUVF ? " RUVF" : "" );
+	if (status & (TOVF|TUVF|ROVF|RUVF)) {
+		printk(KERN_WARNING  "sport status error:%s%s%s%s\n",
+				status & TOVF ? " TOVF" : "",
+				status & TUVF ? " TUVF" : "",
+				status & ROVF ? " ROVF" : "",
+				status & RUVF ? " RUVF" : "");
 	}
 
 	if(sport->callback)
 		sport->callback(sport->priv);
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -98,13 +127,13 @@ static irqreturn_t bfin_sport_handler_err(int irq, void *dev_id, struct pt_regs 
  *		set the necessary fields.
  * sport:	Object of blackfin sport controller.
  */
-int bfin_sport_init(struct bfin_sport* sport)
+int bfin_sport_init(struct bfin_sport *sport)
 {
 	unsigned int tcr1,tcr2,rcr1,rcr2;
 	unsigned int clkdiv, fsdiv;
 
 	int err = 0;
-	
+
 	tcr1=tcr2=rcr1=rcr2=0;
 	clkdiv = fsdiv =0;
 	if (sport->sport_num == 0)
@@ -112,12 +141,12 @@ int bfin_sport_init(struct bfin_sport* sport)
 	else
 		sport->regs = (struct bfin_sport_register*)SPORT1_TCR1;
 
-	if( (sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN) )
+	if ((sport->regs->tcr1 & TSPEN) || (sport->regs->rcr1 & RSPEN))
 		return -EBUSY;
 
 
 	if (sport->mode == TDM_MODE) {
-		if(sport->channels & 0x7 || sport->channels>32 )
+		if(sport->channels & 0x7 || sport->channels>32)
 			return -EINVAL;
 
 		bfin_sport_set_multichannel(sport->regs, sport->channels, 1, sport->frame_delay);
@@ -132,19 +161,19 @@ int bfin_sport_init(struct bfin_sport* sport)
 	}
 
 	/* Using internal clock*/
-	if (sport->int_clk) { 
+	if (sport->int_clk) {
 		u_long sclk=get_sclk();
-		
-		if ( sport->serial_clk < 0 || sport->serial_clk > sclk/2)
+
+		if (sport->serial_clk < 0 || sport->serial_clk > sclk/2)
 			return -EINVAL;
 		clkdiv = sclk/(2*sport->serial_clk) - 1;
 		fsdiv = (sport->serial_clk + sport->serial_clk/2) \
 					/ sport->fsync_clk - 1;
-		
+
 		tcr1 |= (ITCLK | ITFS);
 		rcr1 |= (IRCLK | IRFS);
 	}
-	
+
 	/* Setting data format */
 	tcr1 |= (sport->data_format << 2); /* Bit TDTYPE */
 	rcr1 |= (sport->data_format << 2); /* Bit TDTYPE */
@@ -153,18 +182,17 @@ int bfin_sport_init(struct bfin_sport* sport)
 		rcr2 |= sport->word_len - 1;
 	} else
 		return -EINVAL;
-	
 
 	bfin_sport_config_tx(sport->regs, tcr1, tcr2, clkdiv, fsdiv);
 	bfin_sport_config_rx(sport->regs, rcr1, rcr2, clkdiv, fsdiv);
 
 	if (sport->err_irq < 0)
 		return -EINVAL;
-	
+
 	err = request_irq(sport->err_irq, &bfin_sport_handler_err, SA_SHIRQ,
 						"Sport Error", sport);
 	if (err < 0) {
-		printk(KERN_ERR "%s: failed to request irq:%d\n", 
+		printk(KERN_ERR "%s: failed to request irq:%d\n",
 						__FUNCTION__,sport->err_irq);
 		return -ENODEV;
 	}
@@ -186,7 +214,7 @@ int bfin_sport_init(struct bfin_sport* sport)
  * mask:	Mask for the bits will be modified in the reigster.
  * value:	value will be set for register.
  */
-int bfin_sport_set_register(struct bfin_sport* sport, int reg, 
+int bfin_sport_set_register(struct bfin_sport *sport, int reg,
 					unsigned mask, unsigned value)
 {
 	unsigned temp;
@@ -209,7 +237,7 @@ int bfin_sport_start(struct bfin_sport *sport)
 	sport->regs->rcr1 |= RSPEN;
 
 	SSYNC;
-	
+
 	return 0;
 }
 
@@ -222,4 +250,3 @@ int bfin_sport_stop(struct bfin_sport *sport)
 
 	return 0;
 }
-

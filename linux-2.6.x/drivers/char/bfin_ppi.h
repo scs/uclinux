@@ -1,26 +1,37 @@
-/************************************************************
-*
-* Copyright (C) 2005 Eastman Kodak Company
-*
-* FILE bfin_ppi.h
-* PROGRAMMER(S): John DeHority (john.dehority@NOSPAM@kodak.com
-*
-*
-* DATE OF CREATION: May 5, 2005
-*
-* SYNOPSIS:
-*
-* DESCRIPTION: It's driver of PPI in Analog Devices BF533 DSP). It can
-*              only be used in unix or linux.
-* CAUTION:     User should use 'ioctl' to change it's 
-               configuration just after openning device.
-**************************************************************
-* MODIFICATION HISTORY:
+/*
+ * File:         drivers/char/bfin_ppi.h
+ * Based on:
+ * Author:       John DeHority <john.dehority@NOSPAM@kodak.com>
+ *
+ * Created:      May 5, 2005
+ * Description:  It's driver of PPI in Analog Devices BF533 DSP
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright (C) 2005 Eastman Kodak Company
+ *               Copyright 2005-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 
-************************************************************/
-
-#ifndef _PPI_H_
-#define _PPI_H_
+#ifndef __BFIN_PPI_H__
+#define __BFIN_PPI_H__
 
 /*
 ** FYI:  Blackfin PPI register masks and offsets are defined in
@@ -120,4 +131,5 @@
 
 #define POLFS	0x8000
 #define POLC	0x4000
-#endif /* _PPI_H_ */
+
+#endif /* __BFIN_PPI_H__ */

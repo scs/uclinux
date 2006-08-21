@@ -1,3 +1,34 @@
+/*
+ * File:         drivers/char/bfin_dpmc.h
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 #define DPMC_VERSION "0.1"
 
 static loff_t dpmc_llseek(struct file *file, loff_t offset, int origin);
@@ -43,13 +74,13 @@ void disable_wdog_timer(void);
 #define MHZ		1000000
 
 #if defined(CONFIG_BAUD_9600)
-#define CONSOLE_BAUD_RATE 	9600
+#define CONSOLE_BAUD_RATE 9600
 #elif defined(CONFIG_BAUD_19200)
-#define CONSOLE_BAUD_RATE 	19200
+#define CONSOLE_BAUD_RATE 19200
 #elif defined(CONFIG_BAUD_38400)
-#define CONSOLE_BAUD_RATE 	38400
+#define CONSOLE_BAUD_RATE 38400
 #elif defined(CONFIG_BAUD_57600)
-#define CONSOLE_BAUD_RATE 	57600
+#define CONSOLE_BAUD_RATE 57600
 #elif defined(CONFIG_BAUD_115200)
-#define CONSOLE_BAUD_RATE 	115200	
+#define CONSOLE_BAUD_RATE 115200
 #endif
