@@ -118,10 +118,6 @@
 static unsigned int bfin_default_baud;
 static int bfin_console_initted = 0;
 
-#ifdef CONFIG_CONSOLE
-extern wait_queue_head_t keypress_wait;
-#endif
-
 /*
  *	Driver data structures.
  */
@@ -527,10 +523,7 @@ static void dma_receive_chars(struct bfin_serial *info, int in_timer)
 		info->recv_head = 0;
 		goto unlock_and_exit;
 	}
-#if defined(CONFIG_CONSOLE)
-	if (info->is_cons && (info->recv_tail != info->recv_head))
-		wake_up(&keypress_wait);
-#endif
+
 	if (!tty) {
 		goto unlock_and_exit;
 	}
@@ -655,12 +648,6 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 		ACCESS_PORT_IER(uart_regs);
 		ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
 
-#ifdef CONFIG_CONSOLE
-		if (info->is_cons) {
-			wake_up(&keypress_wait);
-		}
-#endif
-
 		if (!tty) {
 			goto clear_and_exit;
 		}
@@ -756,7 +743,6 @@ irqreturn_t rs_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 	struct bfin_serial *info = (struct bfin_serial *)dev_id;
 	struct uart_registers *uart_regs = &(info->regs);
 	unsigned short iir;	/* Interrupt Identification Register */
-	unsigned short lsr;
 	unsigned int sic_status = 0;
 
 #if defined(CONFIG_BF561)
