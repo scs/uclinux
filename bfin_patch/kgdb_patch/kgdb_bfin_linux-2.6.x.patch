@@ -34,7 +34,7 @@
 +   With this selected, option "Full Symbolic/Source Debugging support" and 
 +   "Compile the kernel with frame pointers" are also selected.
 +
-+3. Select option "KGDB: on Ethernet".  Add "kgdboe=@target-IP/,@host-IP/" to
++3. Select option "KGDB: connect over (Ethernet)".  Add "kgdboe=@target-IP/,@host-IP/" to
 +   the option "Compiled-in Kernel Boot Parameter" under "Kernel hacking".
 +
 +4. Connect minicom to the serial port and boot the kernel image.
@@ -88,7 +88,7 @@
 +   With this selected, option "Full Symbolic/Source Debugging support" and 
 +   "Compile the kernel with frame pointers" are also selected.
 +
-+3. Select option "KGDB: on Blackfin UART".  Set "KGDB: UART port number" to be
++3. Select option "KGDB: connect over (UART)".  Set "KGDB: UART port number" to be
 +   a different one from the console.  Don't forget to change the mode of
 +   blackfin serial driver to PIO.  Otherwise kgdb works incorrectly on UART.
 + 
@@ -126,7 +126,7 @@
 +   With this selected, option "Full Symbolic/Source Debugging support" and 
 +   "Compile the kernel with frame pointers" are also selected.
 +
-+3. Select option "KGDB: on Blackfin UART".  Set "KGDB: UART port number".
++3. Select option "KGDB: connect over UART".  Set "KGDB: UART port number" to console.
 +   Don't forget to change the mode of blackfin serial driver to PIO.
 +   Otherwise kgdb works incorrectly on UART.
 + 
@@ -1145,14 +1145,33 @@
  obj-$(CONFIG_SERIAL_SGI_IOC3) += ioc3_serial.o
  obj-$(CONFIG_SERIAL_AT91) += at91_serial.o
  obj-$(CONFIG_SERIAL_BLACKFIN) += bfin_serial_5xx.o
-+obj-$(CONFIG_KGDB_BLACKFIN_UART) += kgdb_bfin_uart.o
++obj-$(CONFIG_KGDB_UART) += kgdb_bfin_uart.o
+--- linux-2.6.x.old/drivers/serial/Kconfig
++++ linux-2.6.x/drivers/serial/Kconfig
+@@ -484,7 +484,7 @@
+ 
+ config SERIAL_BFIN_DMA
+         bool "Blackfin UART DMA mode"
+-        depends on DMA_UNCACHED_1M
++        depends on DMA_UNCACHED_1M && KGDB_UART
+         help
+           This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
 --- linux-2.6.x/drivers/serial/bfin_serial_5xx.c
 +++ linux-2.6.x/drivers/serial/bfin_serial_5xx.c
-@@ -638,6 +638,49 @@ static void dma_transmit_chars(struct bf
+@@ -14,7 +14,7 @@
+  * Copyright (C) 1998, 1999 D. Jeff Dionne     <jeff@uclinux.org>
+  * Copyright (C) 1999       Vladimir Gurevich  <vgurevic@cisco.com>
+  *
+- * $Id$
++ * $Id$
+  */
+ 
+ #include <linux/module.h>
+@@ -627,6 +627,49 @@
  }
  #endif
  
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
++#ifdef CONFIG_KGDB_UART
 +extern void kgdb_breakkey_pressed(struct pt_regs *regs);
 +extern void init_kgdb_blackfin_uart(void);
 +static int kgdb_entry_state;
@@ -1166,11 +1185,11 @@
 +	else
 +		uart_regs = &(bfin_uart[CONFIG_KGDB_UART_PORT].regs);
 +	
-+	while (!(*(uart_regs->rpUART_LSR) & THRE)) {
++	while (!(bfin_read16(uart_regs->rpUART_LSR) & THRE)) {
 +		CSYNC;
 +	}
 +	ACCESS_PORT_IER(uart_regs)
-+	*(uart_regs->rpUART_THR) = chr;
++	bfin_write16(uart_regs->rpUART_THR, chr);
 +	CSYNC;
 +}
 +
@@ -1184,11 +1203,11 @@
 +	else
 +		uart_regs = &(bfin_uart[CONFIG_KGDB_UART_PORT].regs);
 +	
-+	while(!(*(uart_regs->rpUART_LSR) & DR)) {
++	while(!(bfin_read16(uart_regs->rpUART_LSR) & DR)) {
 +		CSYNC;
 +	}
 +	ACCESS_PORT_IER(uart_regs)
-+	chr = *(uart_regs->rpUART_RBR);
++	chr = bfin_read16(uart_regs->rpUART_RBR);
 +	CSYNC;
 +
 +	return chr;
@@ -1198,72 +1217,56 @@
  static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
  {
  	struct uart_registers *uart_regs = &(info->regs);
-@@ -660,10 +703,34 @@ static void receive_chars(struct bfin_se
- 				status_handle(info, status);
- 				goto clear_and_exit;
- 			}
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
-+			else if(&bfin_uart[CONFIG_KGDB_UART_PORT] == info && ch == 0x1) { /* Ctrl + A */
+@@ -648,6 +691,27 @@
+ 		ACCESS_PORT_IER(uart_regs);
+ 		ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
+ 
++#ifdef CONFIG_KGDB_UART
++		if(&bfin_uart[CONFIG_KGDB_UART_PORT] == info) {
++			if(info->is_cons && ch == 0x1) { /* Ctrl + A */
 +				kgdb_breakkey_pressed(regs);
-+				continue;
-+			}
-+#endif
-+
- #ifdef CONFIG_CONSOLE
- 			wake_up(&keypress_wait);
- #endif
- 		}
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
-+		else if(&bfin_uart[CONFIG_KGDB_UART_PORT] == info) {
-+			if(ch == 0x2b) /* connection from KGDB */
++				goto clear_and_exit;
++			} else if(kgdb_entry_state == 0 && ch == 0x2b) {/* connection from KGDB */
 +				kgdb_entry_state = 1;
-+			else if(ch == 0x24 && kgdb_entry_state == 1) {
++			} else if(kgdb_entry_state == 1 && ch == 0x30) {
 +				kgdb_entry_state = 0;
 +				kgdb_breakkey_pressed(regs);
-+			}
-+			else if(ch == 0x3) {/* Ctrl + C */
++				goto clear_and_exit;
++			} else if(ch == 0x3) {/* Ctrl + C */
 +				kgdb_entry_state = 0;
 +				kgdb_breakkey_pressed(regs);
-+			}
-+			else
++				goto clear_and_exit;
++			} else {
 +				kgdb_entry_state = 0;
-+			continue;
++			}
 +		}
 +#endif
- 
++
  		if (!tty) {
  			goto clear_and_exit;
-@@ -680,6 +747,9 @@ static void receive_chars(struct bfin_se
  		}
- 		tty_insert_flip_char(tty, ch, flag);
- 	} while (status & DR);
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
-+	if (info->is_cons)
-+#endif
- 	tty_flip_buffer_push(tty);
- 
-       clear_and_exit:
-@@ -2257,6 +2327,13 @@ static int __init rs_bfin_init(void)
+@@ -2249,6 +2313,13 @@
  		tty_register_device(bfin_serial_driver, i, NULL);
  	}
  
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
++#ifdef CONFIG_KGDB_UART
 +	kgdb_entry_state = 0;
 +	if(!bfin_uart[CONFIG_KGDB_UART_PORT].is_cons) {
-+		request_irq(bfin_uart[CONFIG_KGDB_UART_PORT].rx_irq, rs_interrupt, SA_INTERRUPT | SA_SHIRQ,
++		request_irq(bfin_uart[CONFIG_KGDB_UART_PORT].rx_irq, rs_interrupt, SA_SHIRQ,
 +			"BFIN_UART_RX", &bfin_uart[CONFIG_KGDB_UART_PORT]);
 +	}
 +#endif
  	return 0;
  }
  
-@@ -2428,6 +2505,12 @@ int bfin_console_init(void)
+@@ -2427,6 +2498,13 @@
  	bfin_config_uart1(&bfin_uart[1]);
  #endif
  	register_console(&bfin_driver);
-+#ifdef CONFIG_KGDB_BLACKFIN_UART
++#ifdef CONFIG_KGDB_UART
 +	bfin_set_baud(&bfin_uart[CONFIG_KGDB_UART_PORT]);
-+	*(bfin_uart[CONFIG_KGDB_UART_PORT].regs.rpUART_IER) |= ERBFI;
++	bfin_write16(bfin_uart[CONFIG_KGDB_UART_PORT].regs.rpUART_IER, 
++		bfin_read16(bfin_uart[CONFIG_KGDB_UART_PORT].regs.rpUART_IER)|ERBFI);
 +	SSYNC;
 +	init_kgdb_blackfin_uart();
 +#endif
@@ -1873,30 +1876,38 @@
 +	  to use NETCONSOLE in conjunction with KGDB_ETH instead of
 +	  KGDB_CONSOLE.
 +
-+config KGDB_ETH
-+	bool "KGDB: Over Ethernet"
++choice
++	prompt "KGDB: connect over"
 +	depends on KGDB
++	default KGDB_ETH
++	help
++	  choose the way gdb client communicate with kgdb.
++
++config KGDB_ETH
++	bool "Ethernet"
 +	select NETPOLL
 +	select NETPOLL_TRAP
 +	select NETPOLL_RX
 +	help
 +	  Uses ethernet interface in kgdb.
 +
-+config KGDB_BLACKFIN_UART
-+	depends on KGDB
-+	bool "KGDB: Over blackfin UART"
++config KGDB_UART
++	bool "UART"
++	select SERIAL_BFIN_PIO
 +	help
 +	  Uses UART in kgdb. 
 +
++endchoice
++
 +config KGDB_UART_PORT
-+	depends on KGDB_BLACKFIN_UART
++	depends on KGDB && KGDB_UART
 +	int "KGDB: uart port number"
 +	default "0"
 +	help
 +	  Set the kgdb uart port number 
 +
 +config KGDB_WAIT_IN_BOOT
-+	depends on KGDB_BLACKFIN_UART
++	depends on KGDB && KGDB_UART
 +	bool "KGDB: Wait for gdb connection early"
 +	help
 +	  Wait for gdb connection early in kernel boot.
