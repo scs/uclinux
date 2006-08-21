@@ -91,45 +91,6 @@ typedef struct PPI_Device_t {
 
 static DECLARE_WAIT_QUEUE_HEAD(ppirxq0);
 static ppi_device_t ppiinfo;
-static u_long ppi_get_sclk(void);
-
-/* Get the System clock */
-
-/*
- * FUNCTION NAME: ppi_frame_capture_get_sclk
- *
- * INPUTS/OUTPUTS:
- * out_pdata - System Clock in Hz.
- *
- * VALUE RETURNED:
- * NONE
- *
- * FUNCTION(S) CALLED:
- *
- * GLOBAL VARIABLES REFERENCED:
- *
- * GLOBAL VARIABLES MODIFIED: NIL
- *
- * DESCRIPTION: Reading MMR registers.
- *
- * CAUTION:
- */
-static u_long ppi_get_sclk(void)
-{
-	u_long sclk = 0, vco;
-
-	vco = (CONFIG_CLKIN_HZ) * ((bfin_read_PLL_CTL() >> 9) & 0x3F);
-
-	if (1 & bfin_read_PLL_CTL())	/* DR bit */
-		vco >>= 1;
-
-	if ((bfin_read_PLL_DIV() & 0xf) != 0)
-		sclk = vco / (bfin_read_PLL_DIV() & 0xf);
-	else
-		printk(KERN_NOTICE "bfin_ppifcd: Invalid System Clock\n");
-
-	return (sclk);
-}
 
 /*
  * FUNCTION NAME: ppifcd_reg_reset
@@ -334,7 +295,7 @@ static int ppi_ioctl(struct inode *inode, struct file *filp, uint cmd,
 		}
 	case CMD_PPI_GET_SYSTEMCLOCK:
 		{
-			value = ppi_get_sclk();
+			value = get_sclk();
 			DPRINTK
 			    ("ppi_ioctl: CMD_PPI_GET_SYSTEMCLOCK SCLK: %d \n",
 			     (int)value);

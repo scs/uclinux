@@ -85,24 +85,6 @@ struct bfin_spi_adc {
 
 struct bfin_spi_adc spi_adc;
 
-static u_long spi_get_sclk(void)
-{
-	u_long vco;
-	u_long sclk = 0;
-
-	vco = (CONFIG_CLKIN_HZ) * ((bfin_read_PLL_CTL() >> 9)& 0x3F);
-
-	if (1 & bfin_read_PLL_CTL()) /* DR bit */
-		vco >>= 1;
-
-	if ((bfin_read_PLL_DIV() & 0xf) != 0)
-		sclk = vco/(bfin_read_PLL_DIV() & 0xf);
-	else
-		printk(KERN_NOTICE "bfin_spi_adc: Invalid System Clock\n");
-
-	return (sclk);
-}
-
 static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
 {
 	unsigned long value;
@@ -135,7 +117,7 @@ static int adc_spi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsig
 	}
 	case CMD_SPI_GET_SYSTEMCLOCK:
 	{
-		value = spi_get_sclk();
+		value = get_sclk();
 		copy_to_user((unsigned long *)arg, &value, sizeof(unsigned long));
 		break;
 	}
