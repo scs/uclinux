@@ -36,6 +36,19 @@
 #include <asm/blackfin.h>
 #include <asm/bf53x_timers.h>
 
+#define SSYNC() __builtin_bfin_ssync()
+
+#ifndef BFIN_TIMER_DEBUG
+# define ASSERT(expr) do {} while (0)
+#else
+# define ASSERT(expr) \
+	do { \
+		if (!(expr)) \
+			printk(KERN_DEBUG "%s:%s():%d: assertion failed: %s\n", \
+			       __FILE__, __FUNCTION__, __LINE__, #expr); \
+	} while (0)
+#endif
+
 static GPTIMER_registers *gptimers = (GPTIMER_registers *)TIMER0_CONFIG;
 
 /*******************************************************************************
@@ -48,7 +61,7 @@ void set_gptimer_pwidth(int timer_id, int value)
 
 	mask = 1 << timer_id;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	gptimers->a_timer[timer_id].width = value;
 	SSYNC();
@@ -58,7 +71,7 @@ int get_gptimer_pwidth(int timer_id)
 {
 	int value;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	value = gptimers->a_timer[timer_id].width;
 
@@ -67,7 +80,7 @@ int get_gptimer_pwidth(int timer_id)
 
 void set_gptimer_period(int timer_id, int period)
 {
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	gptimers->a_timer[timer_id].period = period;
 	SSYNC();
@@ -78,7 +91,7 @@ int get_gptimer_period(int timer_id)
 {
 	int value;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	value = gptimers->a_timer[timer_id].period;
 	return value;
@@ -88,7 +101,7 @@ int get_gptimer_count(int timer_id)
 {
 	int value;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	value = gptimers->a_timer[timer_id].counter;
 	return value;
@@ -121,7 +134,7 @@ short get_gptimer_intr(int timer_id)
 	short mask = 0;
 	short cur_status;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	mask = 1 << timer_id;
 	cur_status = gptimers->status;
@@ -130,7 +143,7 @@ short get_gptimer_intr(int timer_id)
 
 void set_gptimer_config(int timer_id, short config)
 {
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	gptimers->a_timer[timer_id].config = config;
 	SSYNC();
@@ -141,7 +154,7 @@ short get_gptimer_config(int timer_id)
 {
 	int value;
 
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	value = gptimers->a_timer[timer_id].config;
 	return value;
@@ -171,7 +184,7 @@ void disable_gptimers(short mask)
 
 void set_gptimer_pulse_hi(int timer_id)
 {
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	gptimers->a_timer[timer_id].config |= TIMER_PULSE_HI;
 	SSYNC();
@@ -179,7 +192,7 @@ void set_gptimer_pulse_hi(int timer_id)
 
 void clear_gptimer_pulse_hi(int timer_id)
 {
-	assert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	ASSERT(timer_id < MAX_BLACKFIN_GPTIMERS);
 
 	gptimers->a_timer[timer_id].config &= ~TIMER_PULSE_HI;
 	SSYNC();

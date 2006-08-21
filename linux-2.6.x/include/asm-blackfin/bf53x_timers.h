@@ -11,20 +11,6 @@
 #ifndef _BLACKFIN_TIMERS_H_
 #define _BLACKFIN_TIMERS_H_
 
-
-#define SSYNC() __builtin_bfin_ssync()
-
-#ifndef BFIN_TIMER_DEBUG
-#define assert(expr) do {} while(0)
-#else
-#define assert(expr)                        \
-    if (!(expr)) {                      \
-	    printk("Assertion failed! %s, %s, %s, line=%d \n",  \
-		    #expr, __FILE__,__FUNCTION__,__LINE__);         \
-	}
-#endif
-
-
 /*-------------------------
  * config reg bits value
  *-------------------------*/
