@@ -36,18 +36,20 @@
 #define SPORT_ERR_IRQ	IRQ_SPORT0_ERROR
 #define SPORT_DMA_RX	CH_SPORT0_RX
 #define SPORT_DMA_TX	CH_SPORT0_TX
-#define SPORT_TCR1	SPORT0_TCR1
-#define SPORT_TCR2	SPORT0_TCR2
-#define SPORT_TX	SPORT0_TX
-#define SPORT_STAT	SPORT0_STAT
+#define bfin_write_SPORT_TCR1	bfin_write_SPORT0_TCR1
+#define bfin_read_SPORT_TCR1	bfin_read_SPORT0_TCR1
+#define bfin_write_SPORT_TCR2	bfin_write_SPORT0_TCR2
+#define bfin_write_SPORT_TX16	bfin_write_SPORT0_TX16
+#define bfin_read_SPORT_STAT	bfin_read_SPORT0_STAT
 #else
 #define SPORT_ERR_IRQ	IRQ_SPORT1_ERROR
 #define SPORT_DMA_RX	CH_SPORT1_RX
 #define SPORT_DMA_TX	CH_SPORT1_TX
-#define SPORT_TCR1	SPORT1_TCR1
-#define SPORT_TCR2	SPORT1_TCR2
-#define SPORT_TX	SPORT1_TX
-#define SPORT_STAT	SPORT1_STAT
+#define bfin_write_SPORT_TCR1	bfin_write_SPORT1_TCR1
+#define bfin_read_SPORT_TCR1	bfin_read_SPORT1_TCR1
+#define bfin_write_SPORT_TCR2	bfin_write_SPORT1_TCR2
+#define bfin_write_SPORT_TX16	bfin_write_SPORT1_TX16
+#define bfin_read_SPORT_STAT	bfin_read_SPORT1_STAT
 #endif
 
 #define AD_CONTROL	0x8000

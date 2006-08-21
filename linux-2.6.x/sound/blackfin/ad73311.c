@@ -497,26 +497,27 @@ static int snd_ad73311_configure(void)
 	snd_ad73311_startup();
 	udelay(1);
 
-	*(unsigned short*)SPORT_TCR1 = TFSR;
-	*(unsigned short*)SPORT_TCR2 = 0xF;
+	bfin_write_SPORT_TCR1(TFSR);
+	bfin_write_SPORT_TCR2(0xF);
+	__builtin_bfin_ssync();
 
 	/* SPORT Tx Register is a 8 x 16 FIFO, all the data can be put to
 	 * FIFO before enable SPORT to transfer the data */
 	for (count = 0; count < 6; count++) {
-		*(unsigned short*)SPORT_TX = ctrl_regs[count];
+		bfin_write_SPORT_TX16(ctrl_regs[count]);
 	}
 	__builtin_bfin_ssync();
 
-	*(unsigned short*)SPORT_TCR1 |= TSPEN;
+	bfin_write_SPORT_TCR1(bfin_read_SPORT_TCR1() | TSPEN);
 	__builtin_bfin_ssync();
 
 	/* When TUVF is set, the data is already send out */
-	while(! (status & TUVF) && count++ < 10000) {
+	while(!(status & TUVF) && count++ < 10000) {
 		udelay(1);
-		status = *(unsigned short *)SPORT_STAT;
+		status = bfin_read_SPORT_STAT();
 		__builtin_bfin_ssync();
 	}
-	*(unsigned short*)SPORT_TCR1 &= ~TSPEN;
+	bfin_write_SPORT_TCR1(bfin_read_SPORT_TCR1() & ~TSPEN);
 	__builtin_bfin_ssync();
 	local_irq_enable();
 
