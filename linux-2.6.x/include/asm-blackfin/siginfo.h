@@ -11,7 +11,7 @@
 #define ILL_ILLPARAOP	(__SI_FAULT|2)	/* illegal opcode combine ********** */
 #define ILL_ILLEXCPT	(__SI_FAULT|4)	/* unrecoverable exception ********** */
 #define ILL_CPLB_VI	(__SI_FAULT|9)	/* D/I CPLB protect violation ******** */
-#define IlL_CPLB_MISS	(__SI_FAULT|10)	/* D/I CPLB miss ******** */
+#define ILL_CPLB_MISS	(__SI_FAULT|10)	/* D/I CPLB miss ******** */
 #define ILL_CPLB_MULHIT	(__SI_FAULT|11)	/* D/I CPLB multiple hit ******** */
 
 /*
