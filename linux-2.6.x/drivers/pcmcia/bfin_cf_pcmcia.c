@@ -6,8 +6,8 @@
  * omap_cf.c -- OMAP 16xx CompactFlash controller driver
  *
  * Copyright (c) 2005 David Brownell
- * Copyright (c) 2006 Michael Hennerich Analog Devices Inc. 
- *	
+ * Copyright (c) 2006 Michael Hennerich Analog Devices Inc.
+ *
  * bugs:         enter bugs at http://blackfin.uclinux.org/
  *
  * this program is free software; you can redistribute it and/or modify
@@ -152,7 +152,7 @@ bfin_cf_set_socket(struct pcmcia_socket *sock, struct socket_state_t *s)
 		bfin_cf_reset();
 		enable_irq(cf->irq);
 	}
-	
+
 	pr_debug("%s: Vcc %d, io_irq %d, flags %04x csc %04x\n",
 		driver_name, s->Vcc, s->io_irq, s->flags, s->csc_mask);
 
@@ -167,7 +167,7 @@ static int bfin_cf_ss_suspend(struct pcmcia_socket *s)
 
 /* regions are 2K each:  mem, attrib, io (and reserved-for-ide) */
 
-static int bfin_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io) 
+static int bfin_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 { struct bfin_cf_socket	*cf;
 
 	cf = container_of(s, struct bfin_cf_socket, socket);
@@ -189,7 +189,7 @@ bfin_cf_set_mem_map(struct pcmcia_socket *s, struct pccard_mem_map *map)
 	map->flags &= MAP_ACTIVE|MAP_ATTRIB|MAP_16BIT;
 	if (map->flags & MAP_ATTRIB)
 		map->static_start = cf->phys_cf_attr;
-	
+
 	return 0;
 }
 
@@ -214,7 +214,7 @@ static int __init bfin_cf_probe(struct device *dev)
 	int			status;
 
 	printk(KERN_INFO "Blackfin CompactFlash/PCMCIA Socket Driver\n");
-		
+
 	irq = platform_get_irq(pdev, 0);
 	if (!irq)
 		return -EINVAL;
@@ -229,7 +229,7 @@ static int __init bfin_cf_probe(struct device *dev)
 
 
     bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~(1 << cd_pfx));   /* input */
-    bfin_write_FIO_INEN(bfin_read_FIO_INEN() = (1 << cd_pfx));   /* enable pin */
+    bfin_write_FIO_INEN(bfin_read_FIO_INEN() | (1 << cd_pfx));   /* enable pin */
 
 	cf = kcalloc(1, sizeof *cf, GFP_KERNEL);
 	if (!cf)
@@ -254,7 +254,7 @@ static int __init bfin_cf_probe(struct device *dev)
 
 	io_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	attr_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	
+
 	if (!io_mem || !attr_mem)
 		goto fail0;
 
