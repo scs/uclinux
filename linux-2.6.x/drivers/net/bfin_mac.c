@@ -625,7 +625,7 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 				current_rx_ptr = current_rx_ptr->next;
 				goto real_rx;
 			} else {
-				printk(CARDNAME
+				printk(KERN_NOTICE CARDNAME
 				       ": error happened in rx path\n");
 				lp->stats.rx_dropped++;
 			}
