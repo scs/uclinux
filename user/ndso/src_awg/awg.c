@@ -303,7 +303,7 @@ switch(cgiinfo.choice)
 	case TRIANGLE:
         fprintf (pFile_init, "m(x) = adj(%f)+(%f/%f)*x \n",cgiinfo.DCoffset,cgiinfo.amplitude,cgiinfo.dutycycle);
         fprintf (pFile_init, "m2(x) = adj(%f)+((%f/(100-%f))*x)\n",cgiinfo.DCoffset,cgiinfo.amplitude,cgiinfo.dutycycle);
-        fprintf (pFile_init, "plot [0:100] x < %f ? m(x) : m2(100-x) notitle\n",cgiinfo.dutycycle,cgiinfo.dutycycle);
+        fprintf (pFile_init, "plot [0:100] x < %f ? m(x) : m2(100-x) notitle\n",cgiinfo.dutycycle);
  		break;
  }
 /***************************************************/
@@ -331,7 +331,7 @@ switch(cgiinfo.choice)
 	case TRIANGLE:
         fprintf (pFile_init, "m(x) = adj_dc_off(%f)+amp((%f/%f)*x) \n",cgiinfo.DCoffset,cgiinfo.amplitude,cgiinfo.dutycycle);
         fprintf (pFile_init, "m2(x) = adj_dc_off(%f)+amp((%f/(100-%f))*x)\n",cgiinfo.DCoffset,cgiinfo.amplitude,cgiinfo.dutycycle);
-        fprintf (pFile_init, "plot [0:100] x < %f ? m(x) : m2(100-x) notitle\n",cgiinfo.dutycycle,cgiinfo.dutycycle);
+        fprintf (pFile_init, "plot [0:100] x < %f ? m(x) : m2(100-x) notitle\n",cgiinfo.dutycycle);
  		break;
  }
   fprintf (pFile_init, "exit\n");
