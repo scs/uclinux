@@ -90,7 +90,7 @@ int
 fix_fft (fixed fr[], fixed fi[], int m, int inverse)
 {
   int mr, nn, i, j, l, k, istep, n, scale, shift;
-  fixed qr, qi, tr, ti, wr, wi, t;
+  fixed qr, qi, tr, ti, wr, wi;
 
   n = 1 << m;
 
@@ -300,9 +300,10 @@ fix_dot (fixed * hpa, fixed * pb, int n)
   fixed *pa;
   long sum;
   register fixed a, b;
-  unsigned int seg, off;
 
-/*      seg = FP_SEG(hpa);
+/*
+        unsigned int seg, off;
+        seg = FP_SEG(hpa);
         off = FP_OFF(hpa);
         seg += off>>4;
         off &= 0x000F;
