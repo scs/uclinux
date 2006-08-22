@@ -144,7 +144,7 @@ int
 Sample (int form_method, char **getvars, char **postvars, s_info * info)
 {
 
-  int errval, baud, sclk, i;
+  int errval, baud, sclk;
 
 
 //        info->fd0 = open("/dev/spi",O_RDONLY);
