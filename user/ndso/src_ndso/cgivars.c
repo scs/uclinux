@@ -77,7 +77,7 @@ getRequestMethod ()
 
 /* getRemoteAddr
  * retn:	getRemoteAddrp (IPADDR) on success,
- *			-1 on failure.  */
+ *			"127.0.0.1" on failure.  */
 char *
 getRemoteAddr ()
 {
@@ -85,7 +85,7 @@ getRemoteAddr ()
 
   remote_addr = getenv ("REMOTE_ADDR");
   if (remote_addr == NULL)
-    return -1;
+    return "127.0.0.1";
 
   return remote_addr;
 }

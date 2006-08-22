@@ -75,6 +75,22 @@ getRequestMethod ()
   return form_method;
 }
 
+/* getRemoteAddr
+ * retn:	getRemoteAddrp (IPADDR) on success,
+ *			"127.0.0.1" on failure.  */
+char *
+getRemoteAddr ()
+{
+  char *remote_addr;
+
+  remote_addr = getenv ("REMOTE_ADDR");
+  if (remote_addr == NULL)
+    return "127.0.0.1";
+
+  return remote_addr;
+}
+
+
 
 /* getGETvars
  * retn:	getvars */
