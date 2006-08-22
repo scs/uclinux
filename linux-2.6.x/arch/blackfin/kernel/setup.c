@@ -39,6 +39,7 @@
 
 #include <linux/ext2_fs.h>
 #include <linux/cramfs_fs.h>
+#include <linux/romfs_fs.h>
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
@@ -229,6 +230,11 @@ void __init setup_arch(char **cmdline_p)
 	if (*((unsigned long *)(mtd_phys)) == CRAMFS_MAGIC)
 		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)) );
 # endif
+#if defined(CONFIG_ROMFS_FS)
+	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
+	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
+		mtd_size = PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
+#endif
 
 	memory_end -= mtd_size;
 
