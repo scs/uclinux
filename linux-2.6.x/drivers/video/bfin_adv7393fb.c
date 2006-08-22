@@ -515,7 +515,7 @@ ppi_irq_error(int irq, void *dev_id, struct pt_regs *regs)
     {
       bfin_disable_dma();	/* TODO: Check Sequence */
       bfin_disable_ppi();
-      CLEAR_PPI_STATUS();
+      bfin_clear_PPI_STATUS();
       bfin_config_dma(fbdev);
       bfin_enable_ppi();
     }
