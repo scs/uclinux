@@ -41,6 +41,7 @@
 #include <string.h>
 
 
+#include "readsamples.h"
 #include "cgivars.h"
 #include "htmllib.h"
 #include "adsp-spiadc.h"
@@ -50,7 +51,6 @@ void calc_frequency(int form_method, char **getvars, char **postvars, float freq
 void capture(int , char	**,	char **);
 int	getrand(int);
 char* itostr  (	 u_int	,  u_char  ,  u_char  ,	u_char);
-extern int read_config(FILE *pFile_parse, unsigned short *ptr);
 void display(int form_method, char **getvars, char **postvars);
 int check_request (int form_method, char **getvars, char **postvars);
 int error(int errnum, int form_method, char **getvars, char **postvars);
@@ -461,7 +461,7 @@ sample (int form_method, char **getvars, char **postvars)
 	  if (cgiinfo.samples == NULL)
 	      error (ERR_MEMORY, form_method, getvars, postvars);
 
-	errval = read_config((FILE *)FILENAME_SAMPLES, cgiinfo.samples);
+	errval = read_config(FILENAME_SAMPLES, cgiinfo.samples);
 	  if (errval < 0){
 	  	  free(cgiinfo.samples);
 	      error (ERR_FILE, form_method, getvars, postvars);

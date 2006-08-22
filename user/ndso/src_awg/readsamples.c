@@ -13,10 +13,10 @@
 #include <ctype.h>
 #include <fcntl.h>
 
-
+#include "readsamples.h"
 #include "parse.h"
 
-int read_config_lines(FILE *cfp,unsigned short *ptr)
+static int read_config_lines(FILE *cfp,unsigned short *ptr)
 {
   char **args;
   int cntr;
@@ -32,7 +32,7 @@ int read_config_lines(FILE *cfp,unsigned short *ptr)
 return (cntr);
 }
 
-int read_config(FILE *pFile_parse, unsigned short *ptr)
+int read_config(const char *pFile_parse, unsigned short *ptr)
 {
   FILE *cfp;
   int ret;	
