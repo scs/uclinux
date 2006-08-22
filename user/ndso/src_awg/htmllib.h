@@ -9,5 +9,6 @@ void htmlBody ();
 void htmlFooter ();
 void addTitleElement (char *title);
 void htmlHeaderText (char *title);
+void htmlHeaderNocache (char *title);
 
 #endif /* !_HTMLLIB_H */
