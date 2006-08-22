@@ -984,17 +984,58 @@ config BFIN_UART_CTSRTS
 	help
 	  This option enable hardware flow control for blackfin UART.
 
-config BFIN_UART_CTS
-	int "UART CTS control bit in GPIO port"
+config BFIN_UART0_CTSRTS
+	bool "CTS and RTS setting for UART0"
 	depends on BFIN_UART_CTSRTS
+
+config BFIN_UART0_CTSRTS_PORT
+	string "UART0 GPIO port for CTS and RTS"
+	default 'G' if (BF534||BF536||BF537)
+	default 'F' if (BF531||BF532||BF533)
+	depends on BFIN_UART0_CTSRTS
+	help
+	  This is GPIO port used by CTS and RTS of UART0.
+	  On BF531,532,533, only 'F' is supported.
+	  On BF534,536,537, 'F', 'G' and 'H' are supported.
+
+config BFIN_UART0_CTS
+	int "UART0 CTS control bit in GPIO port"
+	depends on BFIN_UART0_CTSRTS
 	default 7
 	help
-	  This is the UART CTS bit number in the select GPIO port.
+	  This is the UART0 CTS bit number in the select GPIO port.
 
-config BFIN_UART_RTS
-	int "UART RTS control bit in GPIO port"
-	depends on BFIN_UART_CTSRTS
+config BFIN_UART0_RTS
+	int "UART0 RTS control bit in GPIO port"
+	depends on BFIN_UART0_CTSRTS
 	default 6
 	help
+	  This is the UART0 RTS bit number in the select GPIO port.
+
+config BFIN_UART1_CTSRTS
+	bool "CTS and RTS setting for UART1"
+	depends on (BFIN_UART_CTSRTS && (BF534||BF536||BF537))
+
+config BFIN_UART1_CTSRTS_PORT
+	string "UART1 GPIO port for CTS and RTS"
+	default 'G'
+	depends on BFIN_UART1_CTSRTS
+	help
+	  This is GPIO port used by CTS and RTS of UART1.
+	  'F', 'G' and 'H' are supported.
+
+config BFIN_UART1_CTS
+	int "UART1 CTS control bit in GPIO port"
+	default 5
+	depends on BFIN_UART1_CTSRTS
+	help
+	  This is the UART1 CTS bit number in the select GPIO port.
+
+config BFIN_UART1_RTS
+	int "UART1 RTS control bit in GPIO port"
+	default 4
+	depends on BFIN_UART1_CTSRTS
+	help
+	  This is the UART1 RTS bit number in the select GPIO port.
 
 endmenu
