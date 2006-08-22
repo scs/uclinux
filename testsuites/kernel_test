@@ -1490,7 +1490,7 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
-  cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ide/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG 
 
   sleep 30 
@@ -1519,7 +1519,7 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
-  cp $KERNEL_SCRIPTS/build_ide_harddisk_cdrom_kernel_log $THIS_LOG 
+  cp $KERNEL_SCRIPTS/ide/build_ide_harddisk_cdrom_kernel_log $THIS_LOG 
   cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
 
   if [ $reset_board -eq 1  ] ; then

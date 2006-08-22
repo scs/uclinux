@@ -4,10 +4,11 @@ This directory contains three parts:
 3. Test webpages, which locates in testcase/test.
 -----------------
 Install Funkload:
-1. Download funkload-1.4.0.tar.gz to ~/ . You can find the latest funkload package form http://funkload.nuexo.org .
+1. Download funkload-1.4.0.tar.gz to ~/ . You can find the latest funkload package form http://funkload.nuxeo.org .
 2. tar -zxvf funkload-1.4.0.tar.gz. You will find a new directory ~/funkload-1.4.0.
 3. > cd funkload-1.4.0
-   > sudo python ez_setup.py  #install easy_install
+   > sudo python ez_setup.py  #install easy_install. It needs python-devel installed and setuptools.
+   > cd funkload
    > sudo easy_install -U funkload
 -----------------
 Checkout test case and webpages

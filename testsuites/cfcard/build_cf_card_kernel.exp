@@ -90,17 +90,20 @@ sleep 3
          }
       }
       sleep 1
-      send "/CONFIG_BFIN_KERNEL_CLOCK\[ =]\r"
-      expect "CONFIG_BFIN_KERNEL_CLOCK\[ =]"
+      send "/CONFIG_BFIN_KERNEL_CLOCK is not set\r"
+      expect "CONFIG_BFIN_KERNEL_CLOCK is not set"
       send "d\r"
       sleep .5
       expect ":"
       send "i\r"
       sleep .5
       send "CONFIG_BFIN_KERNEL_CLOCK=y\r"
+      send "CONFIG_VCO_MULT=20\r"
+      send "CONFIG_CCLK_DIV=1\r"
+      send "CONFIG_SCLK_DIV=8\r"
       send ".\r"
       expect ":"
-      sleep .5
+      sleep .5    
 
       send "wq\r"
       expect eof
@@ -170,24 +173,7 @@ while 1 {
              send "0x20311800\r"
       }
 
-
-          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-             send  "Y\r"
-      }
-
-          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send  "20\r"
-      }
-
-          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-             send  "1\r"
-      }
-
-          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send  "8\r"
-      }
-
-   
+       
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
              send -s "0xFFC3\r"
       }
