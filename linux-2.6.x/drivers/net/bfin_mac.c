@@ -87,6 +87,8 @@ MODULE_DESCRIPTION("Blackfin MAC Driver");
 # define bfin_mac_free(dma_handle, ptr)    dma_free_coherent(NULL, sizeof(*ptr), ptr, dma_handle)
 #endif
 
+#define PKT_BUF_SZ 1580
+
 static void desc_list_free(void);
 
 /* pointers to maintain transmit list */
@@ -106,15 +108,22 @@ static int desc_list_init(void)
 	struct net_dma_desc_tx *tmp_desc_tx;
 	struct net_dma_desc_rx *tmp_desc_rx;
 	int i;
+	struct sk_buff *new_skb;
 #if !defined(CONFIG_BFIN_MAC_USE_L1)
 	dma_addr_t dma_handle;
 #endif
 
-	tx_desc = bfin_mac_alloc(&dma_handle, sizeof(struct net_dma_desc_tx) * CONFIG_BFIN_TX_DESC_NUM);
+	tx_desc =
+	    bfin_mac_alloc(&dma_handle,
+			   sizeof(struct net_dma_desc_tx) *
+			   CONFIG_BFIN_TX_DESC_NUM);
 	if (tx_desc == NULL)
 		goto init_error;
 
-	rx_desc = bfin_mac_alloc(&dma_handle, sizeof(struct net_dma_desc_rx) * CONFIG_BFIN_RX_DESC_NUM);
+	rx_desc =
+	    bfin_mac_alloc(&dma_handle,
+			   sizeof(struct net_dma_desc_rx) *
+			   CONFIG_BFIN_RX_DESC_NUM);
 	if (rx_desc == NULL)
 		goto init_error;
 
@@ -167,8 +176,18 @@ static int desc_list_init(void)
 			rx_list_tail = tmp_desc_rx;
 		}
 
+		/* allocat a new skb for next time receive */
+		new_skb = dev_alloc_skb(PKT_BUF_SZ + 2);
+		if (!new_skb) {
+			printk(KERN_NOTICE CARDNAME
+			       ": init: low on mem - packet dropped\n");
+			goto init_error;
+		}
+		skb_reserve(new_skb, 2);
+		tmp_desc_rx->skb = new_skb;
+		/* since RXDWA is enabled */
 		tmp_desc_rx->desc_a.start_addr =
-		    (unsigned long)tmp_desc_rx->packet;
+		    (unsigned long)new_skb->data - 2;
 		tmp_desc_rx->desc_a.x_count = 0;
 		tmp_desc_rx->desc_a.config.b_DMA_EN = 1;	//enabled
 		tmp_desc_rx->desc_a.config.b_WNR = 1;	//Write to memory
@@ -186,7 +205,6 @@ static int desc_list_init(void)
 		tmp_desc_rx->desc_b.config.b_NDSIZE = 6;
 		tmp_desc_rx->desc_b.config.b_DI_EN = 1;	//enable interrupt
 		tmp_desc_rx->desc_b.config.b_FLOW = 7;	//large mode
-		tmp_desc_rx->skb = NULL;
 		rx_list_tail->desc_b.next_dma_desc = &(tmp_desc_rx->desc_a);
 
 		rx_list_tail->next = tmp_desc_rx;
@@ -242,7 +260,6 @@ static void desc_list_free(void)
 		bfin_mac_free(dma_handle, rx_desc);
 	}
 }
-
 
 /*---PHY CONTROL AND CONFIGURATION-----------------------------------------*/
 
@@ -450,8 +467,9 @@ void SetupMacAddr(u8 * mac_addr)
 
 static void adjust_tx_list(void)
 {
-	if (tx_list_head->status.status_word != 0 && current_tx_ptr != tx_list_head) {
-		goto adjust_head;		// released something, just return;
+	if (tx_list_head->status.status_word != 0
+	    && current_tx_ptr != tx_list_head) {
+		goto adjust_head;	// released something, just return;
 	}
 
 	/* if nothing released, check wait condition */
@@ -471,7 +489,7 @@ static void adjust_tx_list(void)
 
 	return;
 
-adjust_head:
+      adjust_head:
 	do {
 		tx_list_head->desc_a.config.b_DMA_EN = 0;
 		tx_list_head->status.status_word = 0;
@@ -483,7 +501,8 @@ adjust_head:
 			       ": no sk_buff in a transmitted frame!\n");
 		}
 		tx_list_head = tx_list_head->next;
-	} while (tx_list_head->status.status_word != 0 && current_tx_ptr != tx_list_head);
+	} while (tx_list_head->status.status_word != 0
+		 && current_tx_ptr != tx_list_head);
 	return;
 
 }
@@ -538,36 +557,44 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
+static void bf537mac_rx(struct net_device *dev)
 {
-	struct sk_buff *skb;
+	struct sk_buff *skb, *new_skb;
 	struct bf537mac_local *lp = netdev_priv(dev);
+	unsigned short len;
 
-	skb = dev_alloc_skb(len + 2);
-	if (!skb) {
+	/* allocat a new skb for next time receive */
+	skb = current_rx_ptr->skb;
+	new_skb = dev_alloc_skb(PKT_BUF_SZ + 2);
+	if (!new_skb) {
 		printk(KERN_NOTICE CARDNAME
 		       ": rx: low on mem - packet dropped\n");
 		lp->stats.rx_dropped++;
 		goto out;
 	}
-	skb_reserve(skb, 2);
+	/* reserve 2 bytes for RXDWA padding */
+	skb_reserve(new_skb, 2);
+	current_rx_ptr->skb = new_skb;
+	current_rx_ptr->desc_a.start_addr = (unsigned long)new_skb->data - 2;
+/*
+	int i;
+	if (len >= 64) {
+		for (i=0;i<len;i++){
+			printk("%.2x-",((unsigned char *)pkt)[i]);
+			if (((i%8)==0) && (i!=0)) printk("\n");
+		}
+	printk("\n");
+	}
+*/
 
-	/*
-	   if (len >= 300) {
-	   printk(CARDNAME ": going to copy the big packet\n");
-	   for (i=0;i<len;i++){
-	   printk("%.2x-",((unsigned char *)pkt)[i]);
-	   if (((i%8)==0) && (i!=0)) printk("\n");
-	   }
-	   printk("\n");
-	   }
-	 */
-	memcpy(skb_put(skb, len), pkt + 2, len);
+	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
+	skb_put(skb, len);
+	blackfin_dcache_invalidate_range((unsigned long)skb->head,
+					 (unsigned long)skb->tail);
 
 	dev->last_rx = jiffies;
 	skb->dev = dev;
 	skb->protocol = eth_type_trans(skb, dev);
-
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	skb->csum = current_rx_ptr->status.ip_payload_csum;
 	skb->ip_summed = CHECKSUM_HW;
@@ -576,6 +603,8 @@ static void bf537mac_rx(struct net_device *dev, unsigned char *pkt, int len)
 	netif_rx(skb);
 	lp->stats.rx_packets++;
 	lp->stats.rx_bytes += len;
+	current_rx_ptr->status.status_word = 0x00000000;
+	current_rx_ptr = current_rx_ptr->next;
 
       out:
 	return;
@@ -586,25 +615,28 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
-	unsigned short len;
+	struct bf537mac_local *lp = netdev_priv(dev);
 	int number = 0;
 
-get_one_packet:
-	if (current_rx_ptr->status.status_word == 0) { // no more new packet received
+      get_one_packet:
+	if (current_rx_ptr->status.status_word == 0) {	// no more new packet received
 		if (number == 0) {
-			bfin_write_DMA1_NEXT_DESC_PTR(&(current_rx_ptr->desc_a));
-			current_rx_ptr->status.status_word = 0x00000000;
-			bfin_write_DMA1_CONFIG(*((unsigned short *)(&(current_rx_ptr->desc_a.config))));
+			if (current_rx_ptr->next->status.status_word != 0) {
+				current_rx_ptr = current_rx_ptr->next;
+				goto real_rx;
+			} else {
+				printk(CARDNAME
+				       ": error happened in rx path\n");
+				lp->stats.rx_dropped++;
+			}
 		}
-		current_rx_ptr->status.status_word = 0x00000000;
-		bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() | DMA_DONE | DMA_ERR);
+		bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() |
+					   DMA_DONE | DMA_ERR);
 		return IRQ_HANDLED;
 	}
 
-	len = (unsigned short)((current_rx_ptr->status.status_word) & RX_FRLEN);
-	bf537mac_rx(dev, (char *)(current_rx_ptr->packet), len);
-	current_rx_ptr->status.status_word = 0x00000000;
-	current_rx_ptr = current_rx_ptr->next;
+      real_rx:
+	bf537mac_rx(dev);
 	number++;
 	goto get_one_packet;
 }
@@ -926,23 +958,25 @@ static int bfin_mac_resume(struct platform_device *pdev)
 }
 
 static struct platform_driver bfin_mac_driver = {
-	.probe   = bfin_mac_probe,
-	.remove  = bfin_mac_remove,
-	.resume  = bfin_mac_resume,
+	.probe = bfin_mac_probe,
+	.remove = bfin_mac_remove,
+	.resume = bfin_mac_resume,
 	.suspend = bfin_mac_suspend,
-	.driver  = {
-		.name = CARDNAME,
-	},
+	.driver = {
+		   .name = CARDNAME,
+		   },
 };
 
 static int __init bfin_mac_init(void)
 {
 	return platform_driver_register(&bfin_mac_driver);
 }
+
 module_init(bfin_mac_init);
 
 static void __exit bfin_mac_cleanup(void)
 {
 	platform_driver_unregister(&bfin_mac_driver);
 }
+
 module_exit(bfin_mac_cleanup);
