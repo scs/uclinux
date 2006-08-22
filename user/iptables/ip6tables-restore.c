@@ -116,6 +116,10 @@ int main(int argc, char *argv[])
 	program_version = IPTABLES_VERSION;
 	line = 0;
 
+	lib_dir = getenv("IP6TABLES_LIB_DIR");
+	if (!lib_dir)
+		lib_dir = IP6T_LIB_DIR;
+
 #ifdef NO_SHARED_LIBS
 	init_extensions();
 #endif
@@ -228,13 +232,22 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 
-			if (!ip6tc_builtin(chain, handle)) {
-				DEBUGP("Creating new chain '%s'\n", chain);
-				if (!ip6tc_create_chain(chain, &handle))
-					exit_error(PARAMETER_PROBLEM,
-						   "error creating chain "
-						   "'%s':%s\n", chain,
-						   strerror(errno));
+			if (ip6tc_builtin(chain, handle) <= 0) {
+				if (noflush && ip6tc_is_chain(chain, handle)) {
+					DEBUGP("Flushing existing user defined chain '%s'\n", chain);
+					if (!ip6tc_flush_entries(chain, &handle))
+						exit_error(PARAMETER_PROBLEM,
+							   "error flushing chain "
+							   "'%s':%s\n", chain,
+							   strerror(errno));
+				} else {
+					DEBUGP("Creating new chain '%s'\n", chain);
+					if (!ip6tc_create_chain(chain, &handle))
+						exit_error(PARAMETER_PROBLEM,
+							   "error creating chain "
+							   "'%s':%s\n", chain,
+							   strerror(errno));
+				}
 			}
 
 			policy = strtok(NULL, " \t\n");

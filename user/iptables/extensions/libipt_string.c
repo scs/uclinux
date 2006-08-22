@@ -1,6 +1,15 @@
+#include <linux/version.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14)
+#include "libipt_string_old.c"
+#else
 /* Shared library add-on to iptables to add string matching support. 
  * 
  * Copyright (C) 2000 Emmanuel Roger  <winfield@freegates.be>
+ *
+ * 2005-08-05 Pablo Neira Ayuso <pablo@eurodev.net>
+ * 	- reimplemented to use new string matching iptables match
+ * 	- add functionality to match packets by using window offsets
+ * 	- add functionality to select the string matching algorithm
  *
  * ChangeLog
  *     29.12.2003: Michael Rash <mbr@cipherdyne.org>
@@ -21,10 +30,9 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <ctype.h>
-
 #include <iptables.h>
+#include <stddef.h>
 #include <linux/netfilter_ipv4/ipt_string.h>
-
 
 /* Function which prints out usage message. */
 static void
@@ -32,37 +40,55 @@ help(void)
 {
 	printf(
 "STRING match v%s options:\n"
+"--from                       Offset to start searching from\n"
+"--to                         Offset to stop searching\n"
+"--algo	                      Algorithm\n"
 "--string [!] string          Match a string in a packet\n"
 "--hex-string [!] string      Match a hex string in a packet\n",
 IPTABLES_VERSION);
 }
 
-
 static struct option opts[] = {
-	{ .name = "string",     .has_arg = 1, .flag = 0, .val = '1' },
-	{ .name = "hex-string", .has_arg = 1, .flag = 0, .val = '2' },
-	{ .name = 0 }
+	{ "from", 1, 0, '1' },
+	{ "to", 1, 0, '2' },
+	{ "algo", 1, 0, '3' },
+	{ "string", 1, 0, '4' },
+	{ "hex-string", 1, 0, '5' },
+	{0}
 };
 
-
-/* Initialize the match. */
 static void
 init(struct ipt_entry_match *m, unsigned int *nfcache)
 {
-	*nfcache |= NFC_UNKNOWN;
+	struct ipt_string_info *i = (struct ipt_string_info *) m->data;
+
+	if (i->to_offset == 0)
+		i->to_offset = (u_int16_t) ~0UL;
 }
 
-
 static void
-parse_string(const unsigned char *s, struct ipt_string_info *info)
+parse_string(const char *s, struct ipt_string_info *info)
 {	
-	if (strlen(s) <= BM_MAX_NLEN) strcpy(info->string, s);
-	else exit_error(PARAMETER_PROBLEM, "STRING too long `%s'", s);
+	if (strlen(s) <= IPT_STRING_MAX_PATTERN_SIZE) {
+		strncpy(info->pattern, s, IPT_STRING_MAX_PATTERN_SIZE);
+		info->patlen = strlen(s);
+		return;
+	}
+	exit_error(PARAMETER_PROBLEM, "STRING too long `%s'", s);
 }
 
+static void
+parse_algo(const char *s, struct ipt_string_info *info)
+{
+	if (strlen(s) <= IPT_STRING_MAX_ALGO_NAME_SIZE) {
+		strncpy(info->algo, s, IPT_STRING_MAX_ALGO_NAME_SIZE);
+		return;
+	}
+	exit_error(PARAMETER_PROBLEM, "ALGO too long `%s'", s);
+}
 
 static void
-parse_hex_string(const unsigned char *s, struct ipt_string_info *info)
+parse_hex_string(const char *s, struct ipt_string_info *info)
 {
 	int i=0, slen, sindex=0, schar;
 	short hex_f = 0, literal_f = 0;
@@ -101,7 +127,7 @@ parse_hex_string(const unsigned char *s, struct ipt_string_info *info)
 				exit_error(PARAMETER_PROBLEM,
 					"Bad literal placement at end of string");
 			}
-			info->string[sindex] = s[i+1];
+			info->pattern[sindex] = s[i+1];
 			i += 2;  /* skip over literal char */
 			literal_f = 0;
 		} else if (hex_f) {
@@ -123,22 +149,26 @@ parse_hex_string(const unsigned char *s, struct ipt_string_info *info)
 			if (! sscanf(hextmp, "%x", &schar))
 				exit_error(PARAMETER_PROBLEM,
 					"Invalid hex char `%c'", s[i]);
-			info->string[sindex] = (char) schar;
+			info->pattern[sindex] = (char) schar;
 			if (s[i+2] == ' ')
 				i += 3;  /* spaces included in the hex block */
 			else
 				i += 2;
 		} else {  /* the char is not part of hex data, so just copy */
-			info->string[sindex] = s[i];
+			info->pattern[sindex] = s[i];
 			i++;
 		}
-		if (sindex > BM_MAX_NLEN)
+		if (sindex > IPT_STRING_MAX_PATTERN_SIZE)
 			exit_error(PARAMETER_PROBLEM, "STRING too long `%s'", s);
 		sindex++;
 	}
-	info->len = sindex;
+	info->patlen = sindex;
 }
 
+#define STRING 0x1
+#define ALGO   0x2
+#define FROM   0x4
+#define TO     0x8
 
 /* Function which parses command options; returns true if it
    ate an option */
@@ -152,28 +182,48 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 
 	switch (c) {
 	case '1':
-		if (*flags)
+		if (*flags & FROM)
 			exit_error(PARAMETER_PROBLEM,
-				   "Can't specify multiple strings");
-
+				   "Can't specify multiple --from");
+		stringinfo->from_offset = atoi(optarg);
+		*flags |= FROM;
+		break;
+	case '2':
+		if (*flags & TO)
+			exit_error(PARAMETER_PROBLEM,
+				   "Can't specify multiple --to");
+		stringinfo->to_offset = atoi(optarg);
+		*flags |= TO;
+		break;
+	case '3':
+		if (*flags & ALGO)
+			exit_error(PARAMETER_PROBLEM,
+				   "Can't specify multiple --algo");
+		parse_algo(optarg, stringinfo);
+		*flags |= ALGO;
+		break;
+	case '4':
+		if (*flags & STRING)
+			exit_error(PARAMETER_PROBLEM,
+				   "Can't specify multiple --string");
 		check_inverse(optarg, &invert, &optind, 0);
 		parse_string(argv[optind-1], stringinfo);
 		if (invert)
 			stringinfo->invert = 1;
-		stringinfo->len=strlen((char *)&stringinfo->string);
-		*flags = 1;
+		stringinfo->patlen=strlen((char *)&stringinfo->pattern);
+		*flags |= STRING;
 		break;
 
-	case '2':
-		if (*flags)
+	case '5':
+		if (*flags & STRING)
 			exit_error(PARAMETER_PROBLEM,
-				   "Can't specify multiple strings");
+				   "Can't specify multiple --hex-string");
 
 		check_inverse(optarg, &invert, &optind, 0);
 		parse_hex_string(argv[optind-1], stringinfo);  /* sets length */
 		if (invert)
 			stringinfo->invert = 1;
-		*flags = 1;
+		*flags |= STRING;
 		break;
 
 	default:
@@ -187,9 +237,13 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 static void
 final_check(unsigned int flags)
 {
-	if (!flags)
+	if (!(flags & STRING))
 		exit_error(PARAMETER_PROBLEM,
-			   "STRING match: You must specify `--string' or `--hex-string'");
+			   "STRING match: You must specify `--string' or "
+			   "`--hex-string'");
+	if (!(flags & ALGO))
+		exit_error(PARAMETER_PROBLEM,
+			   "STRING match: You must specify `--algo'");
 }
 
 /* Test to see if the string contains non-printable chars or quotes */
@@ -246,13 +300,18 @@ print(const struct ipt_ip *ip,
 	const struct ipt_string_info *info =
 	    (const struct ipt_string_info*) match->data;
 
-	if (is_hex_string(info->string, info->len)) {
+	if (is_hex_string(info->pattern, info->patlen)) {
 		printf("STRING match %s", (info->invert) ? "!" : "");
-		print_hex_string(info->string, info->len);
+		print_hex_string(info->pattern, info->patlen);
 	} else {
 		printf("STRING match %s", (info->invert) ? "!" : "");
-		print_string(info->string, info->len);
+		print_string(info->pattern, info->patlen);
 	}
+	printf("ALGO name %s ", info->algo);
+	if (info->from_offset != 0)
+		printf("FROM %u ", info->from_offset);
+	if (info->to_offset != 0)
+		printf("TO %u", info->to_offset);
 }
 
 
@@ -263,28 +322,33 @@ save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	const struct ipt_string_info *info =
 	    (const struct ipt_string_info*) match->data;
 
-	if (is_hex_string(info->string, info->len)) {
+	if (is_hex_string(info->pattern, info->patlen)) {
 		printf("--hex-string %s", (info->invert) ? "! ": "");
-		print_hex_string(info->string, info->len);
+		print_hex_string(info->pattern, info->patlen);
 	} else {
 		printf("--string %s", (info->invert) ? "! ": "");
-		print_string(info->string, info->len);
+		print_string(info->pattern, info->patlen);
 	}
+	printf("--algo %s ", info->algo);
+	if (info->from_offset != 0)
+		printf("--from %u ", info->from_offset);
+	if (info->to_offset != 0)
+		printf("--to %u ", info->to_offset);
 }
 
 
 static struct iptables_match string = {
-    .name          = "string",
-    .version       = IPTABLES_VERSION,
-    .size          = IPT_ALIGN(sizeof(struct ipt_string_info)),
-    .userspacesize = IPT_ALIGN(sizeof(struct ipt_string_info)),
-    .help          = &help,
-    .init          = &init,
-    .parse         = &parse,
-    .final_check   = &final_check,
-    .print         = &print,
-    .save          = &save,
-    .extra_opts    = opts
+    .name		= "string",
+    .version		= IPTABLES_VERSION,
+    .size		= IPT_ALIGN(sizeof(struct ipt_string_info)),
+    .userspacesize	= offsetof(struct ipt_string_info, config),
+    .help		= help,
+    .init		= init,
+    .parse		= parse,
+    .final_check	= final_check,
+    .print		= print,
+    .save		= save,
+    .extra_opts		= opts
 };
 
 
@@ -292,3 +356,4 @@ void _init(void)
 {
 	register_match(&string);
 }
+#endif

@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <stddef.h>
 
 #if defined(__GLIBC__) && __GLIBC__ == 2
 #include <net/ethernet.h>
@@ -16,7 +17,7 @@
 
 #include <iptables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
-#include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
+#include "../include/linux/netfilter_ipv4/ipt_CLUSTERIP.h"
 
 static void
 help(void)
@@ -31,10 +32,17 @@ help(void)
 "  --clustermac <mac>		 Set clusterIP MAC address\n"
 "  --total-nodes <num>		 Set number of total nodes in cluster\n"
 "  --local-node <num>		 Set the local node number\n"
-"  --hash-init\n"
+"  --hash-init <num>		 Set init value of the Jenkins hash\n"
 "\n",
 IPTABLES_VERSION);
 }
+
+#define	PARAM_NEW	0x0001
+#define PARAM_HMODE	0x0002
+#define PARAM_MAC	0x0004
+#define PARAM_TOTALNODE	0x0008
+#define PARAM_LOCALNODE	0x0010
+#define PARAM_HASHINIT	0x0020
 
 static struct option opts[] = {
 	{ "new", 0, 0, '1' },
@@ -42,6 +50,7 @@ static struct option opts[] = {
 	{ "clustermac", 1, 0, '3' },
 	{ "total-nodes", 1, 0, '4' },
 	{ "local-node", 1, 0, '5' },
+	{ "hash-init", 1, 0, '6' },
 	{ 0 }
 };
 
@@ -73,12 +82,6 @@ parse_mac(const char *mac, char *macbuf)
 				   "Bad mac address `%s'", mac);
 	}
 }
-
-#define	PARAM_NEW	0x0001
-#define PARAM_HMODE	0x0002
-#define PARAM_MAC	0x0004
-#define PARAM_TOTALNODE	0x0008
-#define PARAM_LOCALNODE	0x0010
 
 static int
 parse(int c, char **argv, int invert, unsigned int *flags,
@@ -117,7 +120,7 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 			exit_error(PARAMETER_PROBLEM, "Can only specify MAC combined with `--new'\n");
 		if (*flags & PARAM_MAC)
 			exit_error(PARAMETER_PROBLEM, "Can only specify MAC once\n");
-		parse_mac(optarg, cipinfo->clustermac);
+		parse_mac(optarg, (char *)cipinfo->clustermac);
 		if (!(cipinfo->clustermac[0] & 0x01))
 			exit_error(PARAMETER_PROBLEM, "MAC has to be a multicast ethernet address\n");
 		*flags |= PARAM_MAC;
@@ -143,6 +146,16 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		cipinfo->local_nodes[0] = (u_int16_t)num;
 		*flags |= PARAM_LOCALNODE;
 		break;
+	case '6':
+		if (!(*flags & PARAM_NEW))
+			exit_error(PARAMETER_PROBLEM, "Can only specify hash init value combined with `--new'\n");
+		if (*flags & PARAM_HASHINIT)
+			exit_error(PARAMETER_PROBLEM, "Can specify hash init value only once\n");
+		if (string_to_number(optarg, 0, UINT_MAX, &num) < 0)
+			exit_error(PARAMETER_PROBLEM, "Unable to parse `%s'\n", optarg);
+		cipinfo->hash_initval = num;
+		*flags |= PARAM_HASHINIT;
+		break;
 	default:
 		return 0;
 	}
@@ -156,7 +169,8 @@ final_check(unsigned int flags)
 	if (flags == 0)
 		return;
 
-	if (flags == (PARAM_NEW|PARAM_HMODE|PARAM_MAC|PARAM_TOTALNODE|PARAM_LOCALNODE))
+	if ((flags & (PARAM_NEW|PARAM_HMODE|PARAM_MAC|PARAM_TOTALNODE|PARAM_LOCALNODE))
+		== (PARAM_NEW|PARAM_HMODE|PARAM_MAC|PARAM_TOTALNODE|PARAM_LOCALNODE))
 		return;
 
 	exit_error(PARAMETER_PROBLEM, "CLUSTERIP target: Invalid parameter combination\n");
@@ -182,7 +196,7 @@ static char *hashmode2str(enum clusterip_hashmode mode)
 	return retstr;
 }
 
-static char *mac2str(u_int8_t mac[ETH_ALEN])
+static char *mac2str(const u_int8_t mac[ETH_ALEN])
 {
 	static char buf[ETH_ALEN*3];
 	sprintf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -205,52 +219,47 @@ print(const struct ipt_ip *ip,
 		return;
 	}
 
-	printf("CLUSTERIP hashmode=%s clustermac=%s total_nodes=%u local_node=%u ", 
+	printf("CLUSTERIP hashmode=%s clustermac=%s total_nodes=%u local_node=%u hash_init=%u", 
 		hashmode2str(cipinfo->hash_mode),
 		mac2str(cipinfo->clustermac),
 		cipinfo->num_total_nodes,
-		cipinfo->local_nodes[0]);
+		cipinfo->local_nodes[0],
+		cipinfo->hash_initval);
 }
 
 /* Saves the union ipt_targinfo in parsable form to stdout. */
 static void
 save(const struct ipt_ip *ip, const struct ipt_entry_target *target)
 {
-	/*
-	const struct ipt_connmark_target_info *markinfo =
-		(const struct ipt_connmark_target_info *)target->data;
+	const struct ipt_clusterip_tgt_info *cipinfo =
+		(const struct ipt_clusterip_tgt_info *)target->data;
 
-	switch (markinfo->mode) {
-	case IPT_CONNMARK_SET:
-	    printf("--set-mark 0x%lx ", markinfo->mark);
-	    break;
-	case IPT_CONNMARK_SAVE:
-	    printf("--save-mark ");
-	    break;
-	case IPT_CONNMARK_RESTORE:
-	    printf("--restore-mark ");
-	    break;
-	default:
-	    printf("ERROR: UNKNOWN CONNMARK MODE ");
-	    break;
-	}
-	*/
+	/* if this is not a new entry, we don't need to save target
+	 * parameters */
+	if (!cipinfo->flags & CLUSTERIP_FLAG_NEW)
+		return;
+
+	printf("--new --hashmode %s --clustermac %s --total-nodes %d --local-node %d --hash-init %u",
+	       hashmode2str(cipinfo->hash_mode),
+	       mac2str(cipinfo->clustermac),
+	       cipinfo->num_total_nodes,
+	       cipinfo->local_nodes[0],
+	       cipinfo->hash_initval);
 }
 
-static
-struct iptables_target clusterip
-= { NULL,
-    "CLUSTERIP",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info)),
-    IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_target clusterip = { 
+	.next		= NULL,
+	.name		= "CLUSTERIP",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_clusterip_tgt_info)),
+	.userspacesize	= offsetof(struct ipt_clusterip_tgt_info, config),
+ 	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

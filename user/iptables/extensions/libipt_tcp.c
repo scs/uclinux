@@ -187,7 +187,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			tcpinfo->invflags |= IPT_TCP_INV_SRCPT;
 		*flags |= TCP_SRC_PORTS;
-		*nfcache |= NFC_IP_SRC_PT;
 		break;
 
 	case '2':
@@ -199,7 +198,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			tcpinfo->invflags |= IPT_TCP_INV_DSTPT;
 		*flags |= TCP_DST_PORTS;
-		*nfcache |= NFC_IP_DST_PT;
 		break;
 
 	case '3':
@@ -207,9 +205,8 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 			exit_error(PARAMETER_PROBLEM,
 				   "Only one of `--syn' or `--tcp-flags' "
 				   " allowed");
-		parse_tcp_flags(tcpinfo, "SYN,RST,ACK", "SYN", invert);
+		parse_tcp_flags(tcpinfo, "SYN,RST,ACK,FIN", "SYN", invert);
 		*flags |= TCP_FLAGS;
-		*nfcache |= NFC_IP_TCPFLAGS;
 		break;
 
 	case '4':
@@ -228,7 +225,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 				invert);
 		optind++;
 		*flags |= TCP_FLAGS;
-		*nfcache |= NFC_IP_TCPFLAGS;
 		break;
 
 	case '5':
@@ -240,7 +236,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			tcpinfo->invflags |= IPT_TCP_INV_OPTION;
 		*flags |= TCP_OPTION;
-		*nfcache |= NFC_IP_PROTO_UNKNOWN;
 		break;
 
 	default:
@@ -423,20 +418,20 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	}
 }
 
-static
-struct iptables_match tcp
-= { NULL,
-    "tcp",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_tcp)),
-    IPT_ALIGN(sizeof(struct ipt_tcp)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts };
+static struct iptables_match tcp = { 
+	.next		= NULL,
+	.name		= "tcp",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_tcp)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_tcp)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
+};
 
 void
 _init(void)

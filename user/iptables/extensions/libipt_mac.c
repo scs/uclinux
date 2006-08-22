@@ -28,14 +28,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 static void
 parse_mac(const char *mac, struct ipt_mac_info *info)
 {
@@ -128,20 +120,18 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	print_mac(((struct ipt_mac_info *)match->data)->srcaddr);
 }
 
-static
-struct iptables_match mac
-= { NULL,
-    "mac",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_mac_info)),
-    IPT_ALIGN(sizeof(struct ipt_mac_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match mac = { 
+	.next		= NULL,
+ 	.name		= "mac",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_mac_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_mac_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

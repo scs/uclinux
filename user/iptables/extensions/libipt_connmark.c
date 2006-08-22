@@ -26,7 +26,7 @@
 #include <getopt.h>
 
 #include <iptables.h>
-#include <linux/netfilter_ipv4/ipt_connmark.h>
+#include "../include/linux/netfilter_ipv4/ipt_connmark.h"
 
 /* Function which prints out usage message. */
 static void
@@ -66,11 +66,13 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		char *end;
 	case '1':
 		check_inverse(optarg, &invert, &optind, 0);
+
 		markinfo->mark = strtoul(optarg, &end, 0);
-		if (*end == '/') {
+		markinfo->mask = 0xffffffffUL;
+		
+		if (*end == '/')
 			markinfo->mask = strtoul(end+1, &end, 0);
-		} else
-			markinfo->mask = ~0;
+
 		if (*end != '\0' || end == optarg)
 			exit_error(PARAMETER_PROBLEM, "Bad MARK value `%s'", optarg);
 		if (invert)
@@ -87,7 +89,7 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 static void
 print_mark(unsigned long mark, unsigned long mask, int numeric)
 {
-	if(mask != ~0)
+	if(mask != 0xffffffffUL)
 		printf("0x%lx/0x%lx ", mark, mask);
 	else
 		printf("0x%lx ", mark);

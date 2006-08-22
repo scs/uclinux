@@ -26,14 +26,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 /* Function which parses command options; returns true if it
    ate an option */
 static int
@@ -122,17 +114,16 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 }
 
 static struct iptables_match connlimit = {
-	name:		"connlimit",
-	version:	IPTABLES_VERSION,
-	size:		IPT_ALIGN(sizeof(struct ipt_connlimit_info)),
-	userspacesize:	offsetof(struct ipt_connlimit_info,data),
-	help:		help,
-	init:		init,
-	parse:		parse,
-	final_check:	final_check,
-	print:		print,
-	save: 		save,
-	extra_opts:	opts
+	.name		= "connlimit",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_connlimit_info)),
+	.userspacesize 	= offsetof(struct ipt_connlimit_info,data),
+	.help		= help,
+	.parse 		= parse,
+	.final_check	= final_check,
+	.print		= print,
+	.save		= save,
+	.extra_opts	= opts
 };
 
 void _init(void)

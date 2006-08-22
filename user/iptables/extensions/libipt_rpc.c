@@ -89,7 +89,7 @@ static int k_itoa(char *string, int number)
 }
 
 
-static int k_atoi(signed char *string)
+static int k_atoi(char *string)
 {
 	unsigned int result = 0;
 	int maxoctet = IPT_RPC_CHAR_LEN;
@@ -180,8 +180,6 @@ static void init(struct ipt_entry_match *match, unsigned int *nfcache)
 	struct ipt_rpc_info *rpcinfo = ((struct ipt_rpc_info *)match->data);
 
 
-	/* caching not yet implemented */
-        *nfcache |= NFC_UNKNOWN;
 
 	/* initialise those funky user vars */
 	rpcinfo->i_procs = -1;
@@ -352,18 +350,19 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 }
 
 
-static struct iptables_match rpcstruct = { NULL,
-    "rpc",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_rpc_info)),
-    IPT_ALIGN(sizeof(struct ipt_rpc_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match rpcstruct = { 
+	.next		= NULL,
+	.name		= "rpc",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_rpc_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_rpc_info)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 

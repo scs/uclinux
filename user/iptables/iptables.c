@@ -41,6 +41,7 @@
 #include <iptables.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/utsname.h>
 
 #ifndef TRUE
 #define TRUE 1
@@ -51,10 +52,6 @@
 
 #if defined(__UC_LIBC__) || defined(__UCLIBC__)
 	#define strtoull strtoul
-#endif
-
-#ifndef IPT_LIB_DIR
-#define IPT_LIB_DIR "/usr/local/lib/iptables"
 #endif
 
 #ifndef PROC_SYS_MODPROBE
@@ -111,7 +108,7 @@ static const char cmdflags[] = { 'I', 'D', 'D', 'R', 'A', 'L', 'F', 'Z',
 #define OPT_COUNTERS	0x00800U
 #define NUMBER_OF_OPT	12
 static const char optflags[NUMBER_OF_OPT]
-= { 'n', 's', 'd', 'p', 'j', 'v', 'x', 'i', 'o', 'f', '3', 'c'};
+= { 'n', 's', 'd', 'p', 'j', 'v', 'x', 'i', 'o', 'f', '0', 'c'};
 
 static struct option original_opts[] = {
 	{ "append", 1, 0, 'A' },
@@ -144,6 +141,7 @@ static struct option original_opts[] = {
 	{ "line-numbers", 0, 0, '0' },
 	{ "modprobe", 1, 0, 'M' },
 	{ "set-counters", 1, 0, 'c' },
+	{ "goto", 1, 0, 'g' },
 	{ 0 }
 };
 
@@ -152,14 +150,6 @@ static struct option original_opts[] = {
  * message.  iptables itself doesn't need this, so it is initialized to the
  * magic number of -1 */
 int line = -1;
-
-#ifndef __OPTIMIZE__
-struct ipt_entry_target *
-ipt_get_target(struct ipt_entry *e)
-{
-	return (void *)e + e->target_offset;
-}
-#endif
 
 static struct option *opts = original_opts;
 static unsigned int global_option_offset = 0;
@@ -209,6 +199,9 @@ static int inverse_for_options[NUMBER_OF_OPT] =
 
 const char *program_version;
 const char *program_name;
+char *lib_dir;
+
+int kernel_version;
 
 /* Keeping track of external matches and targets: linked lists.  */
 struct iptables_match *iptables_matches = NULL;
@@ -323,6 +316,16 @@ inaddrcpy(struct in_addr *dst, struct in_addr *src)
 	dst->s_addr = src->s_addr;
 }
 
+static void free_opts(int reset_offset)
+{
+	if (opts != original_opts) {
+		free(opts);
+		opts = original_opts;
+		if (reset_offset)
+			global_option_offset = 0;
+	}
+}
+
 void
 exit_error(enum exittype status, char *msg, ...)
 {
@@ -338,6 +341,8 @@ exit_error(enum exittype status, char *msg, ...)
 	if (status == VERSION_PROBLEM)
 		fprintf(stderr,
 			"Perhaps iptables or your kernel needs to be upgraded.\n");
+	/* On error paths, make sure that we don't leak memory */
+	free_opts(1);
 	exit(status);
 }
 
@@ -348,6 +353,7 @@ exit_tryhelp(int status)
 		fprintf(stderr, "Error occurred at line: %d\n", line);
 	fprintf(stderr, "Try `%s -h' or '%s --help' for more information.\n",
 			program_name, program_name );
+	free_opts(1);
 	exit(status);
 }
 
@@ -403,6 +409,10 @@ exit_printhelp(struct iptables_rule_match *matches)
 "				network interface name ([+] for wildcard)\n"
 "  --jump	-j target\n"
 "				target for rule (may load target extension)\n"
+#ifdef IPT_F_GOTO
+"  --goto      -g chain\n"
+"                              jump to chain with no return\n"
+#endif
 "  --match	-m match\n"
 "				extended match (may load extension)\n"
 "  --numeric	-n		numeric output of addresses and ports\n"
@@ -488,7 +498,8 @@ cmd2char(int option)
 }
 
 static void
-add_command(int *cmd, const int newcmd, const int othercmds, int invert)
+add_command(unsigned int *cmd, const int newcmd, const int othercmds, 
+	    int invert)
 {
 	if (invert)
 		exit_error(PARAMETER_PROBLEM, "unexpected ! flag");
@@ -557,7 +568,7 @@ host_to_addr(const char *name, unsigned int *naddr)
 
 		while (host->h_addr_list[*naddr] != (char *) NULL)
 			(*naddr)++;
-		addr = fw_calloc(*naddr, sizeof(struct in_addr));
+		addr = fw_calloc(*naddr, sizeof(struct in_addr) * *naddr);
 		for (i = 0; i < *naddr; i++)
 			inaddrcpy(&(addr[i]),
 				  (struct in_addr *) host->h_addr_list[i]);
@@ -680,10 +691,10 @@ find_match(const char *name, enum ipt_tryload tryload, struct iptables_rule_matc
 	}
 
 #ifndef NO_SHARED_LIBS
-	if (!ptr && tryload != DONT_LOAD) {
-		char path[sizeof(IPT_LIB_DIR) + sizeof("/libipt_.so")
+	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
+		char path[strlen(lib_dir) + sizeof("/libipt_.so")
 			 + strlen(name)];
-		sprintf(path, IPT_LIB_DIR "/libipt_%s.so", name);
+		sprintf(path, "%s/libipt_%s.so", lib_dir, name);
 		if (dlopen(path, RTLD_NOW)) {
 			/* Found library.  If it didn't register itself,
 			   maybe they specified target as match. */
@@ -773,8 +784,7 @@ parse_protocol(const char *s)
 	return (u_int16_t)proto;
 }
 
-static void
-parse_interface(const char *arg, char *vianame, unsigned char *mask)
+void parse_interface(const char *arg, char *vianame, unsigned char *mask)
 {
 	int vialen = strlen(arg);
 	unsigned int i;
@@ -990,10 +1000,10 @@ find_target(const char *name, enum ipt_tryload tryload)
 	}
 
 #ifndef NO_SHARED_LIBS
-	if (!ptr && tryload != DONT_LOAD) {
-		char path[sizeof(IPT_LIB_DIR) + sizeof("/libipt_.so")
+	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
+		char path[strlen(lib_dir) + sizeof("/libipt_.so")
 			 + strlen(name)];
-		sprintf(path, IPT_LIB_DIR "/libipt_%s.so", name);
+		sprintf(path, "%s/libipt_%s.so", lib_dir, name);
 		if (dlopen(path, RTLD_NOW)) {
 			/* Found library.  If it didn't register itself,
 			   maybe they specified match as a target. */
@@ -1041,6 +1051,7 @@ merge_options(struct option *oldopts, const struct option *newopts,
 
 	merge = malloc(sizeof(struct option) * (num_new + num_old + 1));
 	memcpy(merge, oldopts, num_old * sizeof(struct option));
+	free_opts(0); /* Release previous options merged if any */
 	for (i = 0; i < num_new; i++) {
 		merge[num_old + i] = newopts[i];
 		merge[num_old + i].val += *option_offset;
@@ -1050,10 +1061,56 @@ merge_options(struct option *oldopts, const struct option *newopts,
 	return merge;
 }
 
+static int compatible_revision(const char *name, u_int8_t revision, int opt)
+{
+	struct ipt_get_revision rev;
+	socklen_t s = sizeof(rev);
+	int max_rev, sockfd;
+
+	sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (sockfd < 0) {
+		fprintf(stderr, "Could not open socket to kernel: %s\n",
+			strerror(errno));
+		exit(1);
+	}
+
+	strcpy(rev.name, name);
+	rev.revision = revision;
+
+	max_rev = getsockopt(sockfd, IPPROTO_IP, opt, &rev, &s);
+	if (max_rev < 0) {
+		/* Definitely don't support this? */
+		if (errno == EPROTONOSUPPORT) {
+			close(sockfd);
+			return 0;
+		} else if (errno == ENOPROTOOPT) {
+			close(sockfd);
+			/* Assume only revision 0 support (old kernel) */
+			return (revision == 0);
+		} else {
+			fprintf(stderr, "getsockopt failed strangely: %s\n",
+				strerror(errno));
+			exit(1);
+		}
+	}
+	close(sockfd);
+	return 1;
+}
+
+static int compatible_match_revision(const char *name, u_int8_t revision)
+{
+	return compatible_revision(name, revision, IPT_SO_GET_REVISION_MATCH);
+}
+
+static int compatible_target_revision(const char *name, u_int8_t revision)
+{
+	return compatible_revision(name, revision, IPT_SO_GET_REVISION_TARGET);
+}
+
 void
 register_match(struct iptables_match *me)
 {
-	struct iptables_match **i;
+	struct iptables_match **i, *old;
 
 	if (strcmp(me->version, program_version) != 0) {
 		fprintf(stderr, "%s: match `%s' v%s (I'm v%s).\n",
@@ -1061,10 +1118,34 @@ register_match(struct iptables_match *me)
 		exit(1);
 	}
 
-	if (find_match(me->name, DONT_LOAD, NULL)) {
-		fprintf(stderr, "%s: match `%s' already registered.\n",
+	/* Revision field stole a char from name. */
+	if (strlen(me->name) >= IPT_FUNCTION_MAXNAMELEN-1) {
+		fprintf(stderr, "%s: target `%s' has invalid name\n",
 			program_name, me->name);
 		exit(1);
+	}
+
+	old = find_match(me->name, DURING_LOAD, NULL);
+	if (old) {
+		if (old->revision == me->revision) {
+			fprintf(stderr,
+				"%s: match `%s' already registered.\n",
+				program_name, me->name);
+			exit(1);
+		}
+
+		/* Now we have two (or more) options, check compatibility. */
+		if (compatible_match_revision(old->name, old->revision)
+		    && old->revision > me->revision)
+			return;
+
+		/* Replace if compatible. */
+		if (!compatible_match_revision(me->name, me->revision))
+			return;
+
+		/* Delete old one. */
+		for (i = &iptables_matches; *i!=old; i = &(*i)->next);
+		*i = old->next;
 	}
 
 	if (me->size != IPT_ALIGN(me->size)) {
@@ -1085,16 +1166,44 @@ register_match(struct iptables_match *me)
 void
 register_target(struct iptables_target *me)
 {
+	struct iptables_target *old;
+
 	if (strcmp(me->version, program_version) != 0) {
 		fprintf(stderr, "%s: target `%s' v%s (I'm v%s).\n",
 			program_name, me->name, me->version, program_version);
 		exit(1);
 	}
 
-	if (find_target(me->name, DONT_LOAD)) {
-		fprintf(stderr, "%s: target `%s' already registered.\n",
+	/* Revision field stole a char from name. */
+	if (strlen(me->name) >= IPT_FUNCTION_MAXNAMELEN-1) {
+		fprintf(stderr, "%s: target `%s' has invalid name\n",
 			program_name, me->name);
 		exit(1);
+	}
+
+	old = find_target(me->name, DURING_LOAD);
+	if (old) {
+		struct iptables_target **i;
+
+		if (old->revision == me->revision) {
+			fprintf(stderr,
+				"%s: target `%s' already registered.\n",
+				program_name, me->name);
+			exit(1);
+		}
+
+		/* Now we have two (or more) options, check compatibility. */
+		if (compatible_target_revision(old->name, old->revision)
+		    && old->revision > me->revision)
+			return;
+
+		/* Replace if compatible. */
+		if (!compatible_target_revision(me->name, me->revision))
+			return;
+
+		/* Delete old one. */
+		for (i = &iptables_targets; *i!=old; i = &(*i)->next);
+		*i = old->next;
 	}
 
 	if (me->size != IPT_ALIGN(me->size)) {
@@ -1312,6 +1421,11 @@ print_firewall(const struct ipt_entry *fw,
 	if (format & FMT_NOTABLE)
 		fputs("  ", stdout);
 
+#ifdef IPT_F_GOTO
+	if(fw->ip.flags & IPT_F_GOTO)
+		printf("[goto] ");
+#endif
+
 	IPT_MATCH_ITERATE(fw, print_match, &fw->ip, format & FMT_NUMERIC);
 
 	if (target) {
@@ -1500,13 +1614,13 @@ for_each_chain(int (*fn)(const ipt_chainlabel, int, iptc_handle_t *),
 	for (i = 0; i < chaincount; i++) {
 		if (!builtinstoo
 		    && iptc_builtin(chains + i*sizeof(ipt_chainlabel),
-				    *handle))
+				    *handle) == 1)
 			continue;
 	        ret &= fn(chains + i*sizeof(ipt_chainlabel), verbose, handle);
 	}
 
 	free(chains);
-	return ret;
+        return ret;
 }
 
 int
@@ -1603,15 +1717,17 @@ static char *get_modprobe(void)
 	int procfile;
 	char *ret;
 
+#define PROCFILE_BUFSIZ	1024
 	procfile = open(PROC_SYS_MODPROBE, O_RDONLY);
 	if (procfile < 0)
 		return NULL;
 
-	ret = malloc(1024);
+	ret = (char *) malloc(PROCFILE_BUFSIZ);
 	if (ret) {
-		switch (read(procfile, ret, 1024)) {
+		memset(ret, 0, PROCFILE_BUFSIZ);
+		switch (read(procfile, ret, PROCFILE_BUFSIZ)) {
 		case -1: goto fail;
-		case 1024: goto fail; /* Partial read.  Wierd */
+		case PROCFILE_BUFSIZ: goto fail; /* Partial read.  Wierd */
 		}
 		if (ret[strlen(ret)-1]=='\n') 
 			ret[strlen(ret)-1]=0;
@@ -1624,32 +1740,11 @@ static char *get_modprobe(void)
 	return NULL;
 }
 
-static int run_modprobe(char *argv[])
-{
-#if __uClinux__
-	switch (vfork()) {
-#else
-	switch (fork()) {
-#endif
-	case 0:
-		execv(argv[0], argv);
-		_exit(0);
-		break;
-	case -1:
-		return(-1);
-		break;
-	default:
-		wait(NULL);
-		break;
-	}
-	return(0);
-}
-
 int iptables_insmod(const char *modname, const char *modprobe)
 {
 	char *buf = NULL;
 	char *argv[3];
-	int rc;
+	int status;
 
 	/* If they don't explicitly set it, read out of kernel */
 	if (!modprobe) {
@@ -1663,11 +1758,28 @@ int iptables_insmod(const char *modname, const char *modprobe)
 	argv[1] = (char *)modname;
 	argv[2] = NULL;
 
-	rc = run_modprobe(argv);
+#if __uClinux__
+	switch (vfork()) {
+#else
+	switch (fork()) {
+#endif
+	case 0:
+		execv(argv[0], argv);
 
-	if (buf != NULL)
+		/* not usually reached */
+		_exit(1);
+	case -1:
 		free(buf);
-	return rc;
+		return -1;
+
+	default: /* parent */
+		wait(&status);
+	}
+
+	free(buf);
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+		return 0;
+	return -1;
 }
 
 static struct ipt_entry *
@@ -1711,6 +1823,29 @@ void clear_rule_matches(struct iptables_rule_match **matches)
 	}
 
 	*matches = NULL;
+}
+
+static void set_revision(char *name, u_int8_t revision)
+{
+	/* Old kernel sources don't have ".revision" field,
+	   but we stole a byte from name. */
+	name[IPT_FUNCTION_MAXNAMELEN - 2] = '\0';
+	name[IPT_FUNCTION_MAXNAMELEN - 1] = revision;
+}
+
+void
+get_kernel_version(void) {
+	static struct utsname uts;
+	int x = 0, y = 0, z = 0;
+
+	if (uname(&uts) == -1) {
+		fprintf(stderr, "Unable to retrieve kernel version.\n");
+		free_opts(1);
+		exit(1); 
+	}
+
+	sscanf(uts.release, "%d.%d.%d", &x, &y, &z);
+	kernel_version = LINUX_VERSION(x, y, z);
 }
 
 int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
@@ -1765,7 +1900,7 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 	opterr = 0;
 
 	while ((c = getopt_long(argc, argv,
-	   "-A:D:R:I:L::M:F::Z::N:X::E:P:Vh::o:p:s:d:j:i:fbvnt:m:xc:",
+	   "-A:D:R:I:L::M:F::Z::N:X::E:P:Vh::o:p:s:d:j:i:fbvnt:m:xc:g:",
 					   opts, NULL)) != -1) {
 		switch (c) {
 			/*
@@ -1839,10 +1974,10 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			break;
 
 		case 'N':
-			if (optarg && *optarg == '-')
+			if (optarg && (*optarg == '-' || *optarg == '!'))
 				exit_error(PARAMETER_PROBLEM,
 					   "chain name not allowed to start "
-					   "with `-'\n");
+					   "with `%c'\n", *optarg);
 			if (find_target(optarg, TRY_LOAD))
 				exit_error(PARAMETER_PROBLEM,
 					   "chain name may not clash "
@@ -1917,7 +2052,6 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			    && (fw.ip.invflags & IPT_INV_PROTO))
 				exit_error(PARAMETER_PROBLEM,
 					   "rule would never match protocol");
-			fw.nfcache |= NFC_IP_PROTO;
 			break;
 
 		case 's':
@@ -1925,7 +2059,6 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			set_option(&options, OPT_SOURCE, &fw.ip.invflags,
 				   invert);
 			shostnetworkmask = argv[optind-1];
-			fw.nfcache |= NFC_IP_SRC;
 			break;
 
 		case 'd':
@@ -1933,8 +2066,16 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			set_option(&options, OPT_DESTINATION, &fw.ip.invflags,
 				   invert);
 			dhostnetworkmask = argv[optind-1];
-			fw.nfcache |= NFC_IP_DST;
 			break;
+
+#ifdef IPT_F_GOTO
+		case 'g':
+			set_option(&options, OPT_JUMP, &fw.ip.invflags,
+				   invert);
+			fw.ip.flags |= IPT_F_GOTO;
+			jumpto = parse_target(optarg);
+			break;
+#endif
 
 		case 'j':
 			set_option(&options, OPT_JUMP, &fw.ip.invflags,
@@ -1952,7 +2093,10 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 				target->t = fw_calloc(1, size);
 				target->t->u.target_size = size;
 				strcpy(target->t->u.user.name, jumpto);
-				target->init(target->t, &fw.nfcache);
+				set_revision(target->t->u.user.name,
+					     target->revision);
+				if (target->init != NULL)
+					target->init(target->t, &fw.nfcache);
 				opts = merge_options(opts, target->extra_opts, &target->option_offset);
 			}
 			break;
@@ -1965,7 +2109,6 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			parse_interface(argv[optind-1],
 					fw.ip.iniface,
 					fw.ip.iniface_mask);
-			fw.nfcache |= NFC_IP_IF_IN;
 			break;
 
 		case 'o':
@@ -1975,14 +2118,12 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			parse_interface(argv[optind-1],
 					fw.ip.outiface,
 					fw.ip.outiface_mask);
-			fw.nfcache |= NFC_IP_IF_OUT;
 			break;
 
 		case 'f':
 			set_option(&options, OPT_FRAGMENT, &fw.ip.invflags,
 				   invert);
 			fw.ip.flags |= IPT_F_FRAG;
-			fw.nfcache |= NFC_IP_FRAG;
 			break;
 
 		case 'v':
@@ -2005,7 +2146,9 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			m->m = fw_calloc(1, size);
 			m->m->u.match_size = size;
 			strcpy(m->m->u.user.name, m->name);
-			m->init(m->m, &fw.nfcache);
+			set_revision(m->m->u.user.name, m->revision);
+			if (m->init != NULL)
+				m->init(m->m, &fw.nfcache);
 			opts = merge_options(opts, m->extra_opts, &m->option_offset);
 		}
 		break;
@@ -2146,7 +2289,10 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 					m->m = fw_calloc(1, size);
 					m->m->u.match_size = size;
 					strcpy(m->m->u.user.name, m->name);
-					m->init(m->m, &fw.nfcache);
+					set_revision(m->m->u.user.name,
+						     m->revision);
+					if (m->init != NULL)
+						m->init(m->m, &fw.nfcache);
 
 					opts = merge_options(opts,
 					    m->extra_opts, &m->option_offset);
@@ -2214,11 +2360,10 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 	/* only allocate handle if we weren't called with a handle */
 	if (!*handle)
 		*handle = iptc_init(*table);
-	if (!*handle) {
-		/* try to insmod the module if iptc_init failed */
-		iptables_insmod("ip_tables", modprobe);
+
+	/* try to insmod the module if iptc_init failed */
+	if (!*handle && iptables_insmod("ip_tables", modprobe) != -1)
 		*handle = iptc_init(*table);
-	}
 
 	if (!*handle)
 		exit_error(VERSION_PROBLEM,
@@ -2274,7 +2419,11 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			target->t = fw_calloc(1, size);
 			target->t->u.target_size = size;
 			strcpy(target->t->u.user.name, jumpto);
-			target->init(target->t, &fw.nfcache);
+			if (!iptc_is_chain(jumpto, *handle))
+				set_revision(target->t->u.user.name,
+					     target->revision);
+			if (target->init != NULL)
+				target->init(target->t, &fw.nfcache);
 		}
 
 		if (!target) {
@@ -2282,6 +2431,11 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			 * We cannot know if the plugin is corrupt, non
 			 * existant OR if the user just misspelled a
 			 * chain. */
+#ifdef IPT_F_GOTO
+			if (fw.ip.flags & IPT_F_GOTO)
+				exit_error(PARAMETER_PROBLEM,
+					   "goto '%s' is not a chain\n", jumpto);
+#endif
 			find_target(jumpto, LOAD_MUST_SUCCEED);
 		} else {
 			e = generate_entry(&fw, matches, target->t);
@@ -2368,17 +2522,9 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 		e = NULL;
 	}
 
-	for (c = 0; c < nsaddrs; c++)
-		free(&saddrs[c]);
-
-	for (c = 0; c < ndaddrs; c++)
-		free(&daddrs[c]);
-
-	if (opts != original_opts) {
-		free(opts);
-		opts = original_opts;
-		global_option_offset = 0;
-	}
+	free(saddrs);
+	free(daddrs);
+	free_opts(1);
 
 	return ret;
 }

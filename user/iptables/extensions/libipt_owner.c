@@ -22,6 +22,7 @@ help(void)
 "[!] --pid-owner processid  Match local pid\n"
 "[!] --sid-owner sessionid  Match local sid\n"
 "[!] --cmd-owner name       Match local command name\n"
+"NOTE: pid, sid and command matching are broken on SMP\n"
 "\n",
 IPTABLES_VERSION);
 #else
@@ -31,6 +32,7 @@ IPTABLES_VERSION);
 "[!] --gid-owner groupid    Match local gid\n"
 "[!] --pid-owner processid  Match local pid\n"
 "[!] --sid-owner sessionid  Match local sid\n"
+"NOTE: pid and sid matching are broken on SMP\n"
 "\n",
 IPTABLES_VERSION);
 #endif /* IPT_OWNER_COMM */
@@ -46,14 +48,6 @@ static struct option opts[] = {
 #endif
 	{0}
 };
-
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this. */
-	*nfcache |= NFC_UNKNOWN;
-}
 
 /* Function which parses command options; returns true if it
    ate an option */
@@ -236,20 +230,18 @@ save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 #endif
 }
 
-static
-struct iptables_match owner
-= { NULL,
-    "owner",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_owner_info)),
-    IPT_ALIGN(sizeof(struct ipt_owner_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match owner = { 
+	.next		= NULL,
+	.name		= "owner",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_owner_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_owner_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

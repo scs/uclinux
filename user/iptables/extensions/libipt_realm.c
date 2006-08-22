@@ -28,14 +28,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 /* Function which parses command options; returns true if it
    ate an option */
 static int
@@ -49,7 +41,8 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 	switch (c) {
 		char *end;
 	case '1':
-		check_inverse(optarg, &invert, &optind, 0);
+		check_inverse(argv[optind-1], &invert, &optind, 0);
+		optarg = argv[optind-1];
 		realminfo->id = strtoul(optarg, &end, 0);
 		if (*end == '/') {
 			realminfo->mask = strtoul(end+1, &end, 0);
@@ -69,12 +62,9 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 }
 
 static void
-print_realm(unsigned long id, unsigned long mask, int invert, int numeric)
+print_realm(unsigned long id, unsigned long mask)
 {
-	if (invert)
-		fputc('!', stdout);
-
-	if(mask != 0xffffffff)
+	if (mask != 0xffffffff)
 		printf("0x%lx/0x%lx ", id, mask);
 	else
 		printf("0x%lx ", id);
@@ -86,10 +76,13 @@ print(const struct ipt_ip *ip,
       const struct ipt_entry_match *match,
       int numeric)
 {
+	struct ipt_realm_info *ri = (struct ipt_realm_info *) match->data;
+
+	if (ri->invert)
+		printf("! ");
+
 	printf("REALM match ");
-	print_realm(((struct ipt_realm_info *)match->data)->id,
-		   ((struct ipt_realm_info *)match->data)->mask,
-		   ((struct ipt_realm_info *)match->data)->invert, numeric);
+	print_realm(ri->id, ri->mask);
 }
 
 
@@ -97,10 +90,13 @@ print(const struct ipt_ip *ip,
 static void
 save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 {
+	struct ipt_realm_info *ri = (struct ipt_realm_info *) match->data;
+
+	if (ri->invert)
+		printf("! ");
+
 	printf("--realm ");
-	print_realm(((struct ipt_realm_info *)match->data)->id,
-		   ((struct ipt_realm_info *)match->data)->mask,
-		   ((struct ipt_realm_info *)match->data)->invert, 0);
+	print_realm(ri->id, ri->mask);
 }
 
 /* Final check; must have specified --mark. */
@@ -112,19 +108,17 @@ final_check(unsigned int flags)
 			   "REALM match: You must specify `--realm'");
 }
 
-struct iptables_match realm
-= { NULL,
-    "realm",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_realm_info)),
-    IPT_ALIGN(sizeof(struct ipt_realm_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match realm = { NULL,
+	.name		= "realm",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_realm_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_realm_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

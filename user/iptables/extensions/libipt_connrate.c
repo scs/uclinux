@@ -34,14 +34,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* caching not yet implemented */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 static u_int32_t
 parse_value(const char *arg, u_int32_t def)
 {
@@ -167,20 +159,18 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	printf(" ");
 }
 
-static
-struct iptables_match state
-= { NULL,
-    "connrate",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_connrate_info)),
-    IPT_ALIGN(sizeof(struct ipt_connrate_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match state = { 
+	.next 		= NULL,
+	.name		= "connrate",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_connrate_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_connrate_info)),
+	.help 		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

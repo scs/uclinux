@@ -34,45 +34,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* copied from iptables.c */
-static void
-parse_interface(const char *arg, char *vianame, unsigned char *mask)
-{
-	int vialen = strlen(arg);
-	unsigned int i;
-
-	memset(mask, 0, IFNAMSIZ);
-	memset(vianame, 0, IFNAMSIZ);
-
-	if (vialen + 1 > IFNAMSIZ)
-		exit_error(PARAMETER_PROBLEM,
-			   "interface name `%s' must be shorter than IFNAMSIZ"
-			   " (%i)", arg, IFNAMSIZ-1);
-
-	strcpy(vianame, arg);
-	if (vialen == 0)
-		memset(mask, 0, IFNAMSIZ);
-	else if (vianame[vialen - 1] == '+') {
-		memset(mask, 0xFF, vialen - 1);
-		memset(mask + vialen - 1, 0, IFNAMSIZ - vialen + 1);
-		/* Don't remove `+' here! -HW */
-	} else {
-		/* Include nul-terminator in match */
-		memset(mask, 0xFF, vialen + 1);
-		memset(mask + vialen + 1, 0, IFNAMSIZ - vialen - 1);
-		for (i = 0; vianame[i]; i++) {
-			if (!isalnum(vianame[i])
-			    && vianame[i] != '_'
-			    && vianame[i] != '.') {
-				printf("Warning: wierd character in interface"
-				       " `%s' (No aliases, :, ! or *).\n",
-				       vianame);
-				break;
-			}
-		}
-	}
-}
-
 static void
 init(struct ipt_entry_match *m, unsigned int *nfcache)
 {
@@ -92,7 +53,8 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (*flags & IPT_PHYSDEV_OP_IN)
 			goto multiple_use;
 		check_inverse(optarg, &invert, &optind, 0);
-		parse_interface(argv[optind-1], info->physindev, info->in_mask);
+		parse_interface(argv[optind-1], info->physindev,
+				(unsigned char *)info->in_mask);
 		if (invert)
 			info->invert |= IPT_PHYSDEV_OP_IN;
 		info->bitmask |= IPT_PHYSDEV_OP_IN;
@@ -104,7 +66,7 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 			goto multiple_use;
 		check_inverse(optarg, &invert, &optind, 0);
 		parse_interface(argv[optind-1], info->physoutdev,
-				info->out_mask);
+				(unsigned char *)info->out_mask);
 		if (invert)
 			info->invert |= IPT_PHYSDEV_OP_OUT;
 		info->bitmask |= IPT_PHYSDEV_OP_OUT;
@@ -210,20 +172,19 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	printf(" ");
 }
 
-static
-struct iptables_match physdev
-= { NULL,
-    "physdev",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_physdev_info)),
-    IPT_ALIGN(sizeof(struct ipt_physdev_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match physdev = { 
+	.next		= NULL,
+	.name		= "physdev",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_physdev_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_physdev_info)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

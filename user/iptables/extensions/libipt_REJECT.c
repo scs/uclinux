@@ -44,7 +44,7 @@ static const struct reject_names reject_table[] = {
 	 IPT_ICMP_NET_PROHIBITED, "ICMP network prohibited"},
 	{"icmp-host-prohibited", "host-prohib",
 	 IPT_ICMP_HOST_PROHIBITED, "ICMP host prohibited"},
-	{"tcp-reset", "tcp-reset",
+	{"tcp-reset", "tcp-rst",
 	 IPT_TCP_RESET, "TCP RST packet"},
 	{"icmp-admin-prohibited", "admin-prohib",
 	 IPT_ICMP_ADMIN_PROHIBITED, "ICMP administratively prohibited (*)"}
@@ -94,8 +94,6 @@ init(struct ipt_entry_target *t, unsigned int *nfcache)
 	/* default */
 	reject->with = IPT_ICMP_PORT_UNREACHABLE;
 
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
 }
 
 /* Function which parses command options; returns true if it
@@ -170,20 +168,19 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_target *target)
 	printf("--reject-with %s ", reject_table[i].name);
 }
 
-static
-struct iptables_target reject
-= { NULL,
-    "REJECT",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_reject_info)),
-    IPT_ALIGN(sizeof(struct ipt_reject_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_target reject = { 
+	.next		= NULL,
+	.name		= "REJECT",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_reject_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_reject_info)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

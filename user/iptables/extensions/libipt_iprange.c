@@ -26,14 +26,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this. */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 static void
 parse_iprange(char *arg, struct ipt_iprange *range)
 {
@@ -99,7 +91,7 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 			info->flags |= IPRANGE_DST_INV;
 
 		parse_iprange(optarg, &info->dst);		
-		*flags = 1;
+
 		break;
 
 	default:
@@ -173,20 +165,18 @@ save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	}
 }
 
-static
-struct iptables_match iprange
-= { NULL,
-    "iprange",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_iprange_info)),
-    IPT_ALIGN(sizeof(struct ipt_iprange_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match iprange = { 
+	.next		= NULL,
+	.name		= "iprange",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_iprange_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_iprange_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

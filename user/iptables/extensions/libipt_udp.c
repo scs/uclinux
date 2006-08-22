@@ -109,7 +109,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			udpinfo->invflags |= IPT_UDP_INV_SRCPT;
 		*flags |= UDP_SRC_PORTS;
-		*nfcache |= NFC_IP_SRC_PT;
 		break;
 
 	case '2':
@@ -121,7 +120,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			udpinfo->invflags |= IPT_UDP_INV_DSTPT;
 		*flags |= UDP_DST_PORTS;
-		*nfcache |= NFC_IP_DST_PT;
 		break;
 
 	default:
@@ -234,19 +232,19 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 }
 
 static
-struct iptables_match udp
-= { NULL,
-    "udp",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_udp)),
-    IPT_ALIGN(sizeof(struct ipt_udp)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+struct iptables_match udp = { 
+	.next		= NULL,
+	.name		= "udp",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_udp)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_udp)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void

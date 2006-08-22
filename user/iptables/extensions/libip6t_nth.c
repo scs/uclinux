@@ -50,13 +50,6 @@ static struct option opts[] = {
 	{ 0 }
 };
 
-/* Initialize the target. */
-static void
-init(struct ip6t_entry_match *m, unsigned int *nfcache)
-{
-	*nfcache |= NFC_UNKNOWN;
-}
-
 #define IP6T_NTH_OPT_EVERY	0x01
 #define IP6T_NTH_OPT_NOT_EVERY	0x02
 #define IP6T_NTH_OPT_START	0x04
@@ -217,19 +210,17 @@ save(const struct ip6t_ip6 *ip, const struct ip6t_entry_match *match)
                 printf("--packet %u ", nthinfo->packet );
 }
 
-struct ip6tables_match nth
-= { NULL,
-    "nth",
-    IPTABLES_VERSION,
-    IP6T_ALIGN(sizeof(struct ip6t_nth_info)),
-    IP6T_ALIGN(sizeof(struct ip6t_nth_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+struct ip6tables_match nth = {
+	.name 		= "nth",
+	.version	= IPTABLES_VERSION,
+	.size		= IP6T_ALIGN(sizeof(struct ip6t_nth_info)),
+	.userspacesize	= IP6T_ALIGN(sizeof(struct ip6t_nth_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts,
 };
 
 void _init(void)

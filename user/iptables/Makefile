@@ -19,8 +19,8 @@ TOPLEVEL_INCLUDED=YES
 ifndef KERNEL_DIR
 KERNEL_DIR=$(ROOTDIR)/$(LINUXDIR)
 endif
-IPTABLES_VERSION:=1.2.11
-OLD_IPTABLES_VERSION:=1.2.10
+IPTABLES_VERSION:=1.3.5
+OLD_IPTABLES_VERSION:=1.3.4
 
 PREFIX:=/usr/local
 LIBDIR:=$(PREFIX)/lib
@@ -204,7 +204,7 @@ iptables.8: iptables.8.in extensions/libipt_matches.man extensions/libipt_target
 	sed -e '/@MATCH@/ r extensions/libipt_matches.man' -e '/@TARGET@/ r extensions/libipt_targets.man' iptables.8.in >iptables.8
 
 ip6tables.8: ip6tables.8.in extensions/libip6t_matches.man extensions/libip6t_targets.man
-	sed -e '/@MATCH@/ r extensions/libip6t_matches.man' -e '/@TARGET@/ r extensions/libiptt_targets.man' ip6tables.8.in >ip6tables.8
+	sed -e '/@MATCH@/ r extensions/libip6t_matches.man' -e '/@TARGET@/ r extensions/libip6t_targets.man' ip6tables.8.in >ip6tables.8
 
 # Development Targets
 .PHONY: install-devel-man3
@@ -248,7 +248,7 @@ delrelease:
 	rm -f $(RELEASE_DIR)/iptables-$(IPTABLES_VERSION).tar.bz2
 
 $(RELEASE_DIR)/iptables-$(IPTABLES_VERSION).tar.bz2:
-	cd .. && ln -sf iptables iptables-$(IPTABLES_VERSION) && tar cvf - --exclude CVS iptables-$(IPTABLES_VERSION)/. | bzip2 -9 > $@ && rm iptables-$(IPTABLES_VERSION)
+	cd .. && ln -sf iptables iptables-$(IPTABLES_VERSION) && tar cvf - --exclude .svn iptables-$(IPTABLES_VERSION)/. | bzip2 -9 > $@ && rm iptables-$(IPTABLES_VERSION)
 
 .PHONY: diff
 diff: $(RELEASE_DIR)/iptables-$(IPTABLES_VERSION).tar.bz2

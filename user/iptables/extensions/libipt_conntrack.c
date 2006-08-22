@@ -56,14 +56,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 static int
 parse_state(const char *state, size_t strlen, struct ipt_conntrack_info *sinfo)
 {
@@ -422,8 +414,8 @@ print_addr(struct in_addr *addr, struct in_addr *mask, int inv, int numeric)
 {
 	char buf[BUFSIZ];
 
-        if (inv)
-               	fputc('!', stdout);
+        if (inv) 
+               	printf("! ");
 
 	if (mask->s_addr == 0L && !numeric)
 		printf("%s ", "anywhere");
@@ -448,6 +440,13 @@ matchinfo_print(const struct ipt_ip *ip, const struct ipt_entry_match *match, in
         	if (sinfo->invflags & IPT_CONNTRACK_STATE)
                 	printf("! ");
 		print_state(sinfo->statemask);
+	}
+
+	if(sinfo->flags & IPT_CONNTRACK_PROTO) {
+		printf("%sctproto ", optpfx);
+        	if (sinfo->invflags & IPT_CONNTRACK_PROTO)
+                	printf("! ");
+		printf("%u ", sinfo->tuple[IP_CT_DIR_ORIGINAL].dst.protonum);
 	}
 
 	if(sinfo->flags & IPT_CONNTRACK_ORIGSRC) {
@@ -492,7 +491,7 @@ matchinfo_print(const struct ipt_ip *ip, const struct ipt_entry_match *match, in
 
 	if(sinfo->flags & IPT_CONNTRACK_STATUS) {
 		printf("%sctstatus ", optpfx);
-        	if (sinfo->invflags & IPT_CONNTRACK_STATE)
+        	if (sinfo->invflags & IPT_CONNTRACK_STATUS)
                 	printf("! ");
 		print_status(sinfo->statusmask);
 	}
@@ -531,20 +530,18 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	matchinfo_print(ip, match, 1, "--");
 }
 
-static
-struct iptables_match conntrack
-= { NULL,
-    "conntrack",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_conntrack_info)),
-    IPT_ALIGN(sizeof(struct ipt_conntrack_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match conntrack = { 
+	.next 		= NULL,
+	.name		= "conntrack",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_conntrack_info)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_conntrack_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

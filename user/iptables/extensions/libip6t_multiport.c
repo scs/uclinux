@@ -112,32 +112,36 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 
 	switch (c) {
 	case '1':
+		check_inverse(argv[optind-1], &invert, &optind, 0);
 		proto = check_proto(entry);
 		multiinfo->count = parse_multi_ports(argv[optind-1],
 						     multiinfo->ports, proto);
 		multiinfo->flags = IP6T_MULTIPORT_SOURCE;
-		*nfcache |= NFC_IP6_SRC_PT;
 		break;
 
 	case '2':
+		check_inverse(argv[optind-1], &invert, &optind, 0);
 		proto = check_proto(entry);
 		multiinfo->count = parse_multi_ports(argv[optind-1],
 						     multiinfo->ports, proto);
 		multiinfo->flags = IP6T_MULTIPORT_DESTINATION;
-		*nfcache |= NFC_IP6_DST_PT;
 		break;
 
 	case '3':
+		check_inverse(argv[optind-1], &invert, &optind, 0);
 		proto = check_proto(entry);
 		multiinfo->count = parse_multi_ports(argv[optind-1],
 						     multiinfo->ports, proto);
 		multiinfo->flags = IP6T_MULTIPORT_EITHER;
-		*nfcache |= NFC_IP6_SRC_PT | NFC_IP6_DST_PT;
 		break;
 
 	default:
 		return 0;
 	}
+
+	if (invert)
+		exit_error(PARAMETER_PROBLEM,
+			   "multiport does not support invert");
 
 	if (*flags)
 		exit_error(PARAMETER_PROBLEM,
@@ -242,20 +246,18 @@ static void save(const struct ip6t_ip6 *ip, const struct ip6t_entry_match *match
 	printf(" ");
 }
 
-static
-struct ip6tables_match multiport
-= { NULL,
-    "multiport",
-    IPTABLES_VERSION,
-    IP6T_ALIGN(sizeof(struct ip6t_multiport)),
-    IP6T_ALIGN(sizeof(struct ip6t_multiport)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct ip6tables_match multiport = {
+	.name		= "multiport",
+	.version	= IPTABLES_VERSION,
+	.size		= IP6T_ALIGN(sizeof(struct ip6t_multiport)),
+	.userspacesize	= IP6T_ALIGN(sizeof(struct ip6t_multiport)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts,
 };
 
 void

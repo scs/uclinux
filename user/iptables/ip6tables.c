@@ -1,4 +1,4 @@
-/* Code to take an iptables-style command line and do it. */
+/* Code to take an ip6tables-style command line and do it. */
 
 /*
  * Author: Paul.Russell@rustcorp.com.au and mneuling@radlogic.com.au
@@ -50,10 +50,6 @@
 #endif
 #ifndef FALSE
 #define FALSE 0
-#endif
-
-#ifndef IP6T_LIB_DIR
-#define IP6T_LIB_DIR "/usr/local/lib/iptables"
 #endif
 
 #ifndef PROC_SYS_MODPROBE
@@ -109,7 +105,7 @@ static const char cmdflags[] = { 'I', 'D', 'D', 'R', 'A', 'L', 'F', 'Z',
 #define OPT_COUNTERS	0x00400U
 #define NUMBER_OF_OPT	11
 static const char optflags[NUMBER_OF_OPT]
-= { 'n', 's', 'd', 'p', 'j', 'v', 'x', 'i', 'o', '3', 'c'};
+= { 'n', 's', 'd', 'p', 'j', 'v', 'x', 'i', 'o', '0', 'c'};
 
 static struct option original_opts[] = {
 	{ "append", 1, 0, 'A' },
@@ -149,14 +145,6 @@ static struct option original_opts[] = {
  * message. ip6tables itself doesn't need this, so it is initialized to the
  * magic number of -1 */
 int line = -1;
-
-#ifndef __OPTIMIZE__
-struct ip6t_entry_target *
-ip6t_get_target(struct ip6t_entry *e)
-{
-	return (void *)e + e->target_offset;
-}
-#endif
 
 static struct option *opts = original_opts;
 static unsigned int global_option_offset = 0;
@@ -205,6 +193,7 @@ static int inverse_for_options[NUMBER_OF_OPT] =
 
 const char *program_version;
 const char *program_name;
+char *lib_dir;
 
 /* Keeping track of external matches and targets: linked lists.  */
 struct ip6tables_match *ip6tables_matches = NULL;
@@ -265,6 +254,16 @@ in6addrcpy(struct in6_addr *dst, struct in6_addr *src)
 	/* dst->s6_addr = src->s6_addr; */
 }
 
+static void free_opts(int reset_offset)
+{
+	if (opts != original_opts) {
+		free(opts);
+		opts = original_opts;
+		if (reset_offset)
+			global_option_offset = 0;
+	}
+}
+
 void
 exit_error(enum exittype status, char *msg, ...)
 {
@@ -279,7 +278,9 @@ exit_error(enum exittype status, char *msg, ...)
 		exit_tryhelp(status);
 	if (status == VERSION_PROBLEM)
 		fprintf(stderr,
-			"Perhaps iptables or your kernel needs to be upgraded.\n");
+			"Perhaps ip6tables or your kernel needs to be upgraded.\n");
+	/* On error paths, make sure that we don't leak memory */
+	free_opts(1);
 	exit(status);
 }
 
@@ -290,6 +291,7 @@ exit_tryhelp(int status)
 		fprintf(stderr, "Error occurred at line: %d\n", line);
 	fprintf(stderr, "Try `%s -h' or '%s --help' for more information.\n",
 			program_name, program_name );
+	free_opts(1);
 	exit(status);
 }
 
@@ -430,7 +432,8 @@ cmd2char(int option)
 }
 
 static void
-add_command(int *cmd, const int newcmd, const int othercmds, int invert)
+add_command(unsigned int *cmd, const int newcmd, const int othercmds,
+	    int invert)
 {
 	if (invert)
 		exit_error(PARAMETER_PROBLEM, "unexpected ! flag");
@@ -733,13 +736,13 @@ find_match(const char *name, enum ip6t_tryload tryload, struct ip6tables_rule_ma
   	}
 
 #ifndef NO_SHARED_LIBS
-	if (!ptr && tryload != DONT_LOAD) {
-		char path[sizeof(IP6T_LIB_DIR) + sizeof("/libip6t_.so")
+	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
+		char path[strlen(lib_dir) + sizeof("/libip6t_.so")
 			 + strlen(name)];
 		if (!icmphack)
-			sprintf(path, IP6T_LIB_DIR "/libip6t_%s.so", name);
+			sprintf(path, "%s/libip6t_%s.so", lib_dir, name);
 		else
-			sprintf(path, IP6T_LIB_DIR "/libip6t_%s.so", "icmpv6");
+			sprintf(path, "%s/libip6t_%s.so", lib_dir, "icmpv6");
 		if (dlopen(path, RTLD_NOW)) {
 			/* Found library.  If it didn't register itself,
 			   maybe they specified target as match. */
@@ -829,8 +832,7 @@ parse_protocol(const char *s)
 	return (u_int16_t)proto;
 }
 
-static void
-parse_interface(const char *arg, char *vianame, unsigned char *mask)
+void parse_interface(const char *arg, char *vianame, unsigned char *mask)
 {
 	int vialen = strlen(arg);
 	unsigned int i;
@@ -986,10 +988,10 @@ find_target(const char *name, enum ip6t_tryload tryload)
 	}
 
 #ifndef NO_SHARED_LIBS
-	if (!ptr && tryload != DONT_LOAD) {
-		char path[sizeof(IP6T_LIB_DIR) + sizeof("/libip6t_.so")
+	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
+		char path[strlen(lib_dir) + sizeof("/libip6t_.so")
 			 + strlen(name)];
-		sprintf(path, IP6T_LIB_DIR "/libip6t_%s.so", name);
+		sprintf(path, "%s/libip6t_%s.so", lib_dir, name);
 		if (dlopen(path, RTLD_NOW)) {
 			/* Found library.  If it didn't register itself,
 			   maybe they specified match as a target. */
@@ -1037,6 +1039,7 @@ merge_options(struct option *oldopts, const struct option *newopts,
 
 	merge = malloc(sizeof(struct option) * (num_new + num_old + 1));
 	memcpy(merge, oldopts, num_old * sizeof(struct option));
+	free_opts(0); /* Release previous options merged if any */
 	for (i = 0; i < num_new; i++) {
 		merge[num_old + i] = newopts[i];
 		merge[num_old + i].val += *option_offset;
@@ -1057,7 +1060,7 @@ register_match6(struct ip6tables_match *me)
 		exit(1);
 	}
 
-	if (find_match(me->name, DONT_LOAD, NULL)) {
+	if (find_match(me->name, DURING_LOAD, NULL)) {
 		fprintf(stderr, "%s: match `%s' already registered.\n",
 			program_name, me->name);
 		exit(1);
@@ -1087,7 +1090,7 @@ register_target6(struct ip6tables_target *me)
 		exit(1);
 	}
 
-	if (find_target(me->name, DONT_LOAD)) {
+	if (find_target(me->name, DURING_LOAD)) {
 		fprintf(stderr, "%s: target `%s' already registered.\n",
 			program_name, me->name);
 		exit(1);
@@ -1494,7 +1497,7 @@ for_each_chain(int (*fn)(const ip6t_chainlabel, int, ip6tc_handle_t *),
 	for (i = 0; i < chaincount; i++) {
 		if (!builtinstoo
 		    && ip6tc_builtin(chains + i*sizeof(ip6t_chainlabel),
-				    *handle))
+				    *handle) == 1)
 			continue;
 	        ret &= fn(chains + i*sizeof(ip6t_chainlabel), verbose, handle);
 	}
@@ -1597,15 +1600,17 @@ static char *get_modprobe(void)
 	int procfile;
 	char *ret;
 
+#define PROCFILE_BUFSIZ 1024
 	procfile = open(PROC_SYS_MODPROBE, O_RDONLY);
 	if (procfile < 0)
 		return NULL;
 
-	ret = malloc(1024);
+	ret = malloc(PROCFILE_BUFSIZ);
 	if (ret) {
-		switch (read(procfile, ret, 1024)) {
+		memset(ret, 0, PROCFILE_BUFSIZ);
+		switch (read(procfile, ret, PROCFILE_BUFSIZ)) {
 		case -1: goto fail;
-		case 1024: goto fail; /* Partial read.  Wierd */
+		case PROCFILE_BUFSIZ: goto fail; /* Partial read.  Wierd */
 		}
 		if (ret[strlen(ret)-1]=='\n') 
 			ret[strlen(ret)-1]=0;
@@ -1622,6 +1627,7 @@ int ip6tables_insmod(const char *modname, const char *modprobe)
 {
 	char *buf = NULL;
 	char *argv[3];
+	int status;
 
 	/* If they don't explicitly set it, read out of kernel */
 	if (!modprobe) {
@@ -1639,16 +1645,18 @@ int ip6tables_insmod(const char *modname, const char *modprobe)
 		execv(argv[0], argv);
 
 		/* not usually reached */
-		exit(0);
+		exit(1);
 	case -1:
 		return -1;
 
 	default: /* parent */
-		wait(NULL);
+		wait(&status);
 	}
 
 	free(buf);
-	return 0;
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
+		return 0;
+	return -1;
 }
 
 static struct ip6t_entry *
@@ -1814,10 +1822,10 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			break;
 
 		case 'N':
-			if (optarg && *optarg == '-')
+			if (optarg && (*optarg == '-' || *optarg == '!'))
 				exit_error(PARAMETER_PROBLEM,
 					   "chain name not allowed to start "
-					   "with `-'\n");
+					   "with `%c'\n", *optarg);
 			if (find_target(optarg, TRY_LOAD))
 				exit_error(PARAMETER_PROBLEM,
 					   "chain name may not clash "
@@ -1867,7 +1875,7 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			if (!optarg)
 				optarg = argv[optind];
 
-			/* iptables -p icmp -h */
+			/* ip6tables -p icmp -h */
 			if (!matches && protocol)
 				find_match(protocol, TRY_LOAD, &matches);
 
@@ -1895,7 +1903,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			    && (fw.ipv6.invflags & IP6T_INV_PROTO))
 				exit_error(PARAMETER_PROBLEM,
 					   "rule would never match protocol");
-			fw.nfcache |= NFC_IP6_PROTO;
 			break;
 
 		case 's':
@@ -1903,7 +1910,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			set_option(&options, OPT_SOURCE, &fw.ipv6.invflags,
 				   invert);
 			shostnetworkmask = argv[optind-1];
-			fw.nfcache |= NFC_IP6_SRC;
 			break;
 
 		case 'd':
@@ -1911,7 +1917,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			set_option(&options, OPT_DESTINATION, &fw.ipv6.invflags,
 				   invert);
 			dhostnetworkmask = argv[optind-1];
-			fw.nfcache |= NFC_IP6_DST;
 			break;
 
 		case 'j':
@@ -1930,7 +1935,8 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 				target->t = fw_calloc(1, size);
 				target->t->u.target_size = size;
 				strcpy(target->t->u.user.name, jumpto);
-				target->init(target->t, &fw.nfcache);
+				if (target->init != NULL)
+					target->init(target->t, &fw.nfcache);
 				opts = merge_options(opts, target->extra_opts, &target->option_offset);
 			}
 			break;
@@ -1943,7 +1949,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			parse_interface(argv[optind-1],
 					fw.ipv6.iniface,
 					fw.ipv6.iniface_mask);
-			fw.nfcache |= NFC_IP6_IF_IN;
 			break;
 
 		case 'o':
@@ -1953,7 +1958,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			parse_interface(argv[optind-1],
 					fw.ipv6.outiface,
 					fw.ipv6.outiface_mask);
-			fw.nfcache |= NFC_IP6_IF_OUT;
 			break;
 
 		case 'v':
@@ -1976,7 +1980,8 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			m->m = fw_calloc(1, size);
 			m->m->u.match_size = size;
 			strcpy(m->m->u.user.name, m->name);
-			m->init(m->m, &fw.nfcache);
+			if (m->init != NULL)
+				m->init(m->m, &fw.nfcache);
 			opts = merge_options(opts, m->extra_opts, &m->option_offset);
 		}
 		break;
@@ -2092,7 +2097,7 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 				 * - a protocol has been specified
 				 * - the protocol extension has not been
 				 *   loaded yet, or is loaded and unused
-				 *   [think of iptables-restore!]
+				 *   [think of ip6tables-restore!]
 				 * - the protocol extension can be successively
 				 *   loaded
 				 */
@@ -2117,7 +2122,8 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 					m->m = fw_calloc(1, size);
 					m->m->u.match_size = size;
 					strcpy(m->m->u.user.name, m->name);
-					m->init(m->m, &fw.nfcache);
+					if (m->init != NULL)
+						m->init(m->m, &fw.nfcache);
 
 					opts = merge_options(opts,
 					    m->extra_opts, &m->option_offset);
@@ -2187,11 +2193,9 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 	if (!*handle)
 		*handle = ip6tc_init(*table);
 
-	if (!*handle) {
-		/* try to insmod the module if iptc_init failed */
-		ip6tables_insmod("ip6_tables", modprobe);
+	/* try to insmod the module if iptc_init failed */
+	if (!*handle && ip6tables_insmod("ip6_tables", modprobe) != -1)
 		*handle = ip6tc_init(*table);
-	}
 
 	if (!*handle)
 		exit_error(VERSION_PROBLEM,
@@ -2247,7 +2251,8 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			target->t = fw_calloc(1, size);
 			target->t->u.target_size = size;
 			strcpy(target->t->u.user.name, jumpto);
-			target->init(target->t, &fw.nfcache);
+			if (target->init != NULL)
+				target->init(target->t, &fw.nfcache);
 		}
 
 		if (!target) {
@@ -2347,11 +2352,7 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 	for (c = 0; c < ndaddrs; c++)
 		free(&daddrs[c]);
 
-	if (opts != original_opts) {
-		free(opts);
-		opts = original_opts;
-		global_option_offset = 0;
-	}
+	free_opts(1);
 
 	return ret;
 }

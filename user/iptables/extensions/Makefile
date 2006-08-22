@@ -5,8 +5,9 @@
 # header files are present in the include/linux directory of this iptables
 # package (HW)
 #
-PF_EXT_SLIB:=ah connlimit connmark conntrack dscp ecn esp helper icmp iprange length limit mac mark multiport owner physdev pkttype realm rpc sctp standard state tcp tcpmss tos ttl udp unclean CLASSIFY CONNLOG CONNMARK DNAT DSCP ECN LOG MARK MASQUERADE MIRROR NETMAP NOTRACK REDIRECT REJECT SAME SNAT TARPIT TCPMSS TOS TRACE TTL ULOG
-PF6_EXT_SLIB:=eui64 hl icmpv6 length limit mac mark multiport owner standard tcp udp HL LOG MARK TRACE
+PF_EXT_SLIB:=ah addrtype comment connlimit connmark conntrack dscp ecn esp hashlimit helper icmp iprange length limit mac mark multiport owner physdev pkttype policy realm rpc sctp standard state tcp tcpmss tos ttl udp unclean CLASSIFY CONNMARK DNAT DSCP ECN LOG MARK MASQUERADE MIRROR NETMAP NFQUEUE NOTRACK REDIRECT REJECT SAME SNAT TARPIT TCPMSS TOS TRACE TTL ULOG
+PF_EXT_SLIB+=CONNLOG
+PF6_EXT_SLIB:=connmark eui64 hl icmpv6 length limit mac mark multiport owner physdev policy standard state tcp udp CONNMARK HL LOG NFQUEUE MARK TRACE
 
 # Optionals
 PF_EXT_SLIB_OPTS:=$(foreach T,$(wildcard extensions/.*-test),$(shell KERNEL_DIR=$(KERNEL_DIR) $(T)))
@@ -43,30 +44,33 @@ OPTIONALS+=$(patsubst %,IPv6:%,$(PF6_EXT_SLIB_OPTS))
 
 ifdef NO_SHARED_LIBS
 # Only build matches/targets for the current kernel config
-include $(KERNEL_DIR)/.config
+-include $(KERNEL_DIR)/.config
 lower=$(shell echo $(1) | tr [:upper:] [:lower:])
 upper=$(shell echo $(1) | tr [:lower:] [:upper:])
-TEST_CONFIG=$(patsubst y_%,%,$(filter y_%,$(foreach i,$(1),$(CONFIG_$(2)_$(i))_$(i))))
+TEST_CONFIG_VAL=$(patsubst $(3)_%,%,$(filter $(3)_%,$(foreach i,$(1),$(CONFIG_$(2)_$(i))_$(i))))
+TEST_CONFIG_TYPE=$(call TEST_CONFIG_VAL,$(1),$(2),y) $(call TEST_CONFIG_VAL,$(1),$(2),m)
+TEST_CONFIG=$(call TEST_CONFIG_TYPE,$(1),$(2)_$(3)) $(call TEST_CONFIG_TYPE,$(1),NETFILTER_XT_$(3))
 
 PF_EXT_SLIB_BASE:=tcp udp icmp standard
 PF_EXT_SLIB_CONFIG:=$(sort $(call upper,$(filter-out $(PF_EXT_SLIB_BASE),$(PF_EXT_SLIB))))
 PF_EXT_SLIB:=$(PF_EXT_SLIB_BASE)
-PF_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF_MATCH))
-PF_EXT_SLIB+=$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF_TARGET)
+PF_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF,MATCH))
+PF_EXT_SLIB+=$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF,TARGET)
 
 PF6_EXT_SLIB_BASE:=tcp udp icmpv6 standard
 PF6_EXT_SLIB_CONFIG:=$(sort $(call upper,$(filter-out $(PF6_EXT_SLIB_BASE),$(PF6_EXT_SLIB))))
 PF6_EXT_SLIB:=$(PF6_EXT_SLIB_BASE)
-PF6_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF6_EXT_SLIB_CONFIG),IP6_NF_MATCH))
-PF6_EXT_SLIB+=$(call TEST_CONFIG,$(PF6_EXT_SLIB_CONFIG),IP6_NF_TARGET)
+PF6_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF6_EXT_SLIB_CONFIG),IP6_NF,MATCH))
+PF6_EXT_SLIB+=$(call TEST_CONFIG,$(PF6_EXT_SLIB_CONFIG),IP6_NF,TARGET)
 
-ifdef CONFIG_IP_NF_NAT
+ifneq ($(CONFIG_IP_NF_NAT)$(CONFIG_IP_NF_NAT_MODULE),)
 PF_EXT_SLIB+=SNAT DNAT
 endif
-ifdef CONFIG_IP_NF_MATCH_AH_ESP
+ifneq ($(CONFIG_IP_NF_MATCH_AH_ESP)$(CONFIG_IP_NF_MATCH_AH_ESP_MODULE),)
 PF_EXT_SLIB+=ah esp
 endif
 PF_EXT_SLIB+=authd
+
 endif
 
 ifndef NO_SHARED_LIBS
@@ -96,12 +100,12 @@ endif
 ifdef NO_SHARED_LIBS
 extensions/libext.a: $(EXT_OBJS)
 	rm -f $@
-	$(CROSS)ar crv $@ $(EXT_OBJS)
+	$(CROSS)ar cr $@ $(EXT_OBJS)
 	$(CROSS)ranlib $@
 
 extensions/libext6.a: $(EXT6_OBJS)
 	rm -f $@
-	$(CROSS)ar crv $@ $(EXT6_OBJS)
+	$(CROSS)ar cr $@ $(EXT6_OBJS)
 	$(CROSS)ranlib $@
 
 extensions/initext.o: extensions/initext.c

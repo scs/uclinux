@@ -37,13 +37,6 @@ static struct option opts[] = {
 	{ 0 }
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	*nfcache |= NFC_UNKNOWN;
-}
-
 /* shared printing code */
 static void print_u32(struct ipt_u32 *data)
 {
@@ -85,7 +78,7 @@ u_int32_t parse_number(char **s, int pos)
 	char *end;
 	errno = 0;
 
-	number = strtol(*s, &end, 0);
+	number = strtoul(*s, &end, 0);
 	if (end == *s)
 		exit_error(PARAMETER_PROBLEM, 
 			   "u32: at char %d expected number", pos);
@@ -250,19 +243,18 @@ static void save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	print_u32((struct ipt_u32 *)match->data);
 }
 
-struct iptables_match u32
-= { NULL,
-    "u32",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_u32)),
-    IPT_ALIGN(sizeof(struct ipt_u32)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+struct iptables_match u32 = {
+	.next		= NULL,
+	.name		= "u32",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_u32)),
+	.userspacesize	= IPT_ALIGN(sizeof(struct ipt_u32)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void

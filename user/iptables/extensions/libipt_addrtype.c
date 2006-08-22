@@ -48,12 +48,6 @@ static void help(void)
 	help_types();
 }
 
-static void init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* caching not yet implemented */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 static int
 parse_type(const char *name, size_t strlen, u_int16_t *mask)
 {
@@ -193,18 +187,17 @@ static struct option opts[] = {
 
 static
 struct iptables_match addrtype = {
-	NULL,
-	"addrtype",
-	IPTABLES_VERSION,
-	IPT_ALIGN(sizeof(struct ipt_addrtype_info)),
-	IPT_ALIGN(sizeof(struct ipt_addrtype_info)),
-	&help,
-	&init,
-	&parse,
-	&final_check,
-	&print,
-	&save,
-	opts
+	.next 		= NULL,
+	.name 		= "addrtype",
+	.version 	= IPTABLES_VERSION,
+	.size 		= IPT_ALIGN(sizeof(struct ipt_addrtype_info)),
+	.userspacesize 	= IPT_ALIGN(sizeof(struct ipt_addrtype_info)),
+	.help 		= &help,
+	.parse 		= &parse,
+	.final_check 	= &final_check,
+	.print 		= &print,
+	.save 		= &save,
+	.extra_opts 	= opts
 };
 
 

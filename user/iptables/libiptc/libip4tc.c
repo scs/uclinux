@@ -132,8 +132,8 @@ dump_entry(STRUCT_ENTRY *e, const TC_HANDLE_T handle)
 	size_t i;
 	STRUCT_ENTRY_TARGET *t;
 
-	printf("Entry %u (%lu):\n", entry2index(handle, e),
-	       entry2offset(handle, e));
+	printf("Entry %u (%lu):\n", iptcb_entry2index(handle, e),
+	       iptcb_entry2offset(handle, e));
 	printf("SRC IP: %u.%u.%u.%u/%u.%u.%u.%u\n",
 	       IP_PARTS(e->ip.src.s_addr),IP_PARTS(e->ip.smsk.s_addr));
 	printf("DST IP: %u.%u.%u.%u/%u.%u.%u.%u\n",
@@ -152,17 +152,6 @@ dump_entry(STRUCT_ENTRY *e, const TC_HANDLE_T handle)
 	printf("Cache: %08X ", e->nfcache);
 	if (e->nfcache & NFC_ALTERED) printf("ALTERED ");
 	if (e->nfcache & NFC_UNKNOWN) printf("UNKNOWN ");
-	if (e->nfcache & NFC_IP_SRC) printf("IP_SRC ");
-	if (e->nfcache & NFC_IP_DST) printf("IP_DST ");
-	if (e->nfcache & NFC_IP_IF_IN) printf("IP_IF_IN ");
-	if (e->nfcache & NFC_IP_IF_OUT) printf("IP_IF_OUT ");
-	if (e->nfcache & NFC_IP_TOS) printf("IP_TOS ");
-	if (e->nfcache & NFC_IP_PROTO) printf("IP_PROTO ");
-	if (e->nfcache & NFC_IP_OPTIONS) printf("IP_OPTIONS ");
-	if (e->nfcache & NFC_IP_TCPFLAGS) printf("IP_TCPFLAGS ");
-	if (e->nfcache & NFC_IP_SRC_PT) printf("IP_SRC_PT ");
-	if (e->nfcache & NFC_IP_DST_PT) printf("IP_DST_PT ");
-	if (e->nfcache & NFC_IP_PROTO_UNKNOWN) printf("IP_PROTO_UNKNOWN ");
 	printf("\n");
 
 	IPT_MATCH_ITERATE(e, print_match);
@@ -187,11 +176,10 @@ dump_entry(STRUCT_ENTRY *e, const TC_HANDLE_T handle)
 	return 0;
 }
 
-static int
+static unsigned char *
 is_same(const STRUCT_ENTRY *a, const STRUCT_ENTRY *b, unsigned char *matchmask)
 {
 	unsigned int i;
-	STRUCT_ENTRY_TARGET *ta, *tb;
 	unsigned char *mptr;
 
 	/* Always compare head structures: ignore mask here. */
@@ -202,45 +190,35 @@ is_same(const STRUCT_ENTRY *a, const STRUCT_ENTRY *b, unsigned char *matchmask)
 	    || a->ip.proto != b->ip.proto
 	    || a->ip.flags != b->ip.flags
 	    || a->ip.invflags != b->ip.invflags)
-		return 0;
+		return NULL;
 
 	for (i = 0; i < IFNAMSIZ; i++) {
 		if (a->ip.iniface_mask[i] != b->ip.iniface_mask[i])
-			return 0;
+			return NULL;
 		if ((a->ip.iniface[i] & a->ip.iniface_mask[i])
 		    != (b->ip.iniface[i] & b->ip.iniface_mask[i]))
-			return 0;
+			return NULL;
 		if (a->ip.outiface_mask[i] != b->ip.outiface_mask[i])
-			return 0;
+			return NULL;
 		if ((a->ip.outiface[i] & a->ip.outiface_mask[i])
 		    != (b->ip.outiface[i] & b->ip.outiface_mask[i]))
-			return 0;
+			return NULL;
 	}
 
 	if (a->nfcache != b->nfcache
 	    || a->target_offset != b->target_offset
 	    || a->next_offset != b->next_offset)
-		return 0;
+		return NULL;
 
 	mptr = matchmask + sizeof(STRUCT_ENTRY);
 	if (IPT_MATCH_ITERATE(a, match_different, a->elems, b->elems, &mptr))
-		return 0;
+		return NULL;
+	mptr += IPT_ALIGN(sizeof(struct ipt_entry_target));
 
-	ta = GET_TARGET((STRUCT_ENTRY *)a);
-	tb = GET_TARGET((STRUCT_ENTRY *)b);
-	if (ta->u.target_size != tb->u.target_size)
-		return 0;
-	if (strcmp(ta->u.user.name, tb->u.user.name) != 0)
-		return 0;
-
-	mptr += sizeof(*ta);
-	if (target_different(ta->data, tb->data,
-			     ta->u.target_size - sizeof(*ta), mptr))
-		return 0;
-
-   	return 1;
+	return mptr;
 }
 
+#if 0
 /***************************** DEBUGGING ********************************/
 static inline int
 unconditional(const struct ipt_ip *ip)
@@ -295,20 +273,20 @@ check_entry(const STRUCT_ENTRY *e, unsigned int *i, unsigned int *off,
 		assert(t->verdict == -NF_DROP-1
 		       || t->verdict == -NF_ACCEPT-1
 		       || t->verdict == RETURN
-		       || t->verdict < (int)h->entries.size);
+		       || t->verdict < (int)h->entries->size);
 
 		if (t->verdict >= 0) {
 			STRUCT_ENTRY *te = get_entry(h, t->verdict);
 			int idx;
 
-			idx = entry2index(h, te);
+			idx = iptcb_entry2index(h, te);
 			assert(strcmp(GET_TARGET(te)->u.user.name,
 				      IPT_ERROR_TARGET)
 			       != 0);
 			assert(te != e);
 
 			/* Prior node must be error node, or this node. */
-			assert(t->verdict == entry2offset(h, e)+e->next_offset
+			assert(t->verdict == iptcb_entry2offset(h, e)+e->next_offset
 			       || strcmp(GET_TARGET(index2entry(h, idx-1))
 					 ->u.user.name, IPT_ERROR_TARGET)
 			       == 0);
@@ -521,3 +499,5 @@ do_check(TC_HANDLE_T h, unsigned int line)
 		      ERROR_TARGET) == 0);
 }
 #endif /*IPTC_DEBUG*/
+
+#endif

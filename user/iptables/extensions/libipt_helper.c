@@ -24,14 +24,6 @@ static struct option opts[] = {
 	{0}
 };
 
-/* Initialize the match. */
-static void
-init(struct ipt_entry_match *m, unsigned int *nfcache)
-{
-	/* Can't cache this. */
-	*nfcache |= NFC_UNKNOWN;
-}
-
 /* Function which parses command options; returns true if it
    ate an option */
 static int
@@ -44,6 +36,9 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 
 	switch (c) {
 	case '1':
+		if (*flags)
+			exit_error(PARAMETER_PROBLEM,
+					"helper match: Only use --helper ONCE!");
 		check_inverse(optarg, &invert, &invert, 0);
 		strncpy(info->name, optarg, 29);
 		info->name[29] = '\0';
@@ -87,20 +82,17 @@ save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 	printf("%s--helper \"%s\" ",info->invert ? "! " : "", info->name);
 }
 
-static
-struct iptables_match helper
-= { NULL,
-    "helper",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_helper_info)),
-    IPT_ALIGN(sizeof(struct ipt_helper_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+static struct iptables_match helper = { 
+	.next		= NULL,
+	.name		= "helper",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_helper_info)),
+	.help		= &help,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)

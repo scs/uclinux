@@ -4,9 +4,25 @@
 #include "iptables_common.h"
 #include "libiptc/libiptc.h"
 
+#ifndef IPT_LIB_DIR
+#define IPT_LIB_DIR "/usr/local/lib/iptables"
+#endif
+
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP 132
 #endif
+
+#ifndef IPT_SO_GET_REVISION_MATCH /* Old kernel source. */
+#define IPT_SO_GET_REVISION_MATCH	(IPT_BASE_CTL + 2)
+#define IPT_SO_GET_REVISION_TARGET	(IPT_BASE_CTL + 3)
+
+struct ipt_get_revision
+{
+	char name[IPT_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
+};
+#endif /* IPT_SO_GET_REVISION_MATCH   Old kernel source */
 
 struct iptables_rule_match
 {
@@ -21,6 +37,9 @@ struct iptables_match
 	struct iptables_match *next;
 
 	ipt_chainlabel name;
+
+	/* Revision of match (0 by default). */
+	u_int8_t revision;
 
 	const char *version;
 
@@ -71,6 +90,9 @@ struct iptables_target
 	struct iptables_target *next;
 
 	ipt_chainlabel name;
+
+	/* Revision of target (0 by default). */
+	u_int8_t revision;
 
 	const char *version;
 
@@ -130,6 +152,7 @@ extern char *mask_to_dotted(const struct in_addr *mask);
 extern void parse_hostnetworkmask(const char *name, struct in_addr **addrpp,
                       struct in_addr *maskp, unsigned int *naddrs);
 extern u_int16_t parse_protocol(const char *s);
+extern void parse_interface(const char *arg, char *vianame, unsigned char *mask);
 
 extern int do_command(int argc, char *argv[], char **table,
 		      iptc_handle_t *handle);
@@ -139,6 +162,7 @@ extern struct iptables_target *iptables_targets;
 
 enum ipt_tryload {
 	DONT_LOAD,
+	DURING_LOAD,
 	TRY_LOAD,
 	LOAD_MUST_SUCCEED
 };
@@ -152,4 +176,13 @@ extern int flush_entries(const ipt_chainlabel chain, int verbose,
 			iptc_handle_t *handle);
 extern int for_each_chain(int (*fn)(const ipt_chainlabel, int, iptc_handle_t *),
 		int verbose, int builtinstoo, iptc_handle_t *handle);
+
+/* kernel revision handling */
+extern int kernel_version;
+extern void get_kernel_version(void);
+#define LINUX_VERSION(x,y,z)	(0x10000*(x) + 0x100*(y) + z)
+#define LINUX_VERSION_MAJOR(x)	(((x)>>16) & 0xFF)
+#define LINUX_VERSION_MINOR(x)	(((x)>> 8) & 0xFF)
+#define LINUX_VERSION_PATCH(x)	( (x)      & 0xFF)
+
 #endif /*_IPTABLES_USER_H*/

@@ -79,8 +79,6 @@ init(struct ip6t_entry_target *t, unsigned int *nfcache)
 	/* default */
 	reject->with = IP6T_ICMP6_PORT_UNREACH;
 
-	/* Can't cache this */
-	*nfcache |= NFC_UNKNOWN;
 }
 
 /* Function which parses command options; returns true if it
@@ -152,19 +150,18 @@ static void save(const struct ip6t_ip6 *ip,
 	printf("--reject-with %s ", reject_table[i].name);
 }
 
-struct ip6tables_target reject
-= { NULL,
-    "REJECT",
-    IPTABLES_VERSION,
-    IP6T_ALIGN(sizeof(struct ip6t_reject_info)),
-    IP6T_ALIGN(sizeof(struct ip6t_reject_info)),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+struct ip6tables_target reject = {
+	.name = "REJECT",
+	.version	= IPTABLES_VERSION,
+	.size 		= IP6T_ALIGN(sizeof(struct ip6t_reject_info)),
+	.userspacesize 	= IP6T_ALIGN(sizeof(struct ip6t_reject_info)),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts,
 };
 
 void _init(void)

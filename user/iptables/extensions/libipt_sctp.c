@@ -16,7 +16,20 @@
 
 #include <iptables.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #include <linux/netfilter_ipv4/ipt_sctp.h>
+
+/* Some ZS!#@:$%*#$! has replaced the ELEMCOUNT macro in ipt_sctp.h with
+ * ARRAY_SIZE without noticing that this file is used from userserspace,
+ * and userspace doesn't have ARRAY_SIZE */
+
+#ifndef ELEMCOUNT
+#define ELEMCOUNT ARRAY_SIZE
+#endif
 
 #if 0
 #define DEBUGP(format, first...) printf(format, ##first)
@@ -293,7 +306,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			einfo->invflags |= IPT_SCTP_SRC_PORTS;
 		*flags |= IPT_SCTP_SRC_PORTS;
-		*nfcache |= NFC_IP_SRC_PT;
 		break;
 
 	case '2':
@@ -306,7 +318,6 @@ parse(int c, char **argv, int invert, unsigned int *flags,
 		if (invert)
 			einfo->invflags |= IPT_SCTP_DEST_PORTS;
 		*flags |= IPT_SCTP_DEST_PORTS;
-		*nfcache |= NFC_IP_DST_PT;
 		break;
 
 	case '3':

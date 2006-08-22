@@ -21,6 +21,7 @@ help(void)
 " [ --timestart value ] [ --timestop value] [ --days listofdays ] [ --datestart value ] [ --datestop value ]\n"
 "          timestart value : HH:MM (default 00:00)\n"
 "          timestop  value : HH:MM (default 23:59)\n"
+"                            Note: daylight savings time changes are not tracked\n"
 "          listofdays value: a list of days to apply\n"
 "                            from Mon,Tue,Wed,Thu,Fri,Sat,Sun\n"
 "                            Coma speparated, no space, case sensitive.\n"
@@ -56,8 +57,6 @@ init(struct ipt_entry_match *m, unsigned int *nfcache)
 {
 	struct ipt_time_info *info = (struct ipt_time_info *)m->data;
 	globaldays = 0;
-	/* caching not yet implemented */
-        *nfcache |= NFC_UNKNOWN;
         /* By default, we match on everyday */
 	info->days_match = 127;
 	/* By default, we match on every hour:min of the day */
@@ -453,6 +452,7 @@ static void
 print_date(time_t date, char *command)
 {
 	struct tm *t;
+
 	/* If it's default value, don't print..*/
 	if (((date == 0) || (date == LONG_MAX)) && (command != NULL))
 		return;
@@ -528,19 +528,19 @@ save(const struct ipt_ip *ip, const struct ipt_entry_match *match)
 /* have to use offsetof() instead of IPT_ALIGN(), since kerneltime must not
  * be compared when user deletes rule with '-D' */
 static
-struct iptables_match timestruct
-= { NULL,
-    "time",
-    IPTABLES_VERSION,
-    IPT_ALIGN(sizeof(struct ipt_time_info)),
-    offsetof(struct ipt_time_info, kerneltime),
-    &help,
-    &init,
-    &parse,
-    &final_check,
-    &print,
-    &save,
-    opts
+struct iptables_match timestruct = {
+	.next		= NULL,
+	.name		= "time",
+	.version	= IPTABLES_VERSION,
+	.size		= IPT_ALIGN(sizeof(struct ipt_time_info)),
+	.userspacesize	= offsetof(struct ipt_time_info, kerneltime),
+	.help		= &help,
+	.init		= &init,
+	.parse		= &parse,
+	.final_check	= &final_check,
+	.print		= &print,
+	.save		= &save,
+	.extra_opts	= opts
 };
 
 void _init(void)
