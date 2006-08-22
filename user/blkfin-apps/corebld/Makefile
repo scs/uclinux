@@ -12,7 +12,7 @@ coreb_get_testarg.o:
 	$(CC) $(NOLIB_FLAGS) -c -I ../../../uClibc/include coreb_get_testarg.S -o coreb_get_testarg.o
 
 coreb: coreb.o coreb.lds
-	$(CC) $(NOLIB_FLAGS) -N -M -T coreb.lds coreb.o -o coreb > coreb.map
+	$(LD) $(NOLIB_FLAGS) -N -M -T coreb.lds coreb.o -o coreb > coreb.map
 
 coreb_get_testarg: coreb_get_testarg.o coreb.lds
 	$(LD) $(NOLIB_FLAGS) -N -T coreb.lds coreb_get_testarg.o -o coreb_get_testarg
