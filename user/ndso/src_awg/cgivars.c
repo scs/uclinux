@@ -75,22 +75,6 @@ getRequestMethod ()
   return form_method;
 }
 
-/* getRemoteAddr
- * retn:	getRemoteAddrp (IPADDR) on success,
- *			-1 on failure.  */
-char *
-getRemoteAddr ()
-{
-  char *remote_addr;
-
-  remote_addr = getenv ("REMOTE_ADDR");
-  if (remote_addr == NULL)
-    return -1;
-
-  return remote_addr;
-}
-
-
 
 /* getGETvars
  * retn:	getvars */
