@@ -1085,7 +1085,7 @@ MakeSessionFiles (s_info * info)
   char str[80];
   
 /* Generate File Names Based on the REMOTE IP ADDR */
-    info->pREMOTE_ADDR = strdup ((char *) getRemoteAddr ());
+    info->pREMOTE_ADDR = strdup (getRemoteAddr ());
 
   info->pGNUPLOT =
     strdup (strcat (strcpy (str, CALL_GNUPLOT), info->pREMOTE_ADDR));
