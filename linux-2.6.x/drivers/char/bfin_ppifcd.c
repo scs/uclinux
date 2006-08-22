@@ -115,12 +115,7 @@ void ppifcd_reg_reset(ppi_device_t *pdev)
 /* Do some initializaion stuff here based on the defined Camera Module
    so we don't have to use ioctls                     */
 
-/*BF537/6/4 PPI_STATUS is Write to Clear*/
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-	bfin_write_PPI_STATUS(0xFFFF);
-#else
-	u16 status = bfin_read_PPI_STATUS();
-#endif
+	bfin_clear_PPI_STATUS();
 
 	bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
 	bfin_write_PPI_DELAY(pdev->ppi_delay);
@@ -190,10 +185,7 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 	DPRINTK("ppifcd_error_irq:\n");
 	DPRINTK("PPI Status = 0x%X\n", bfin_read_PPI_STATUS());
 
-/*BF537/6/4 PPI_STATUS is Write to Clear*/
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-	bfin_write_PPI_STATUS(0xFFFF);
-#endif
+	bfin_clear_PPI_STATUS();
 
 	/* Acknowledge DMA Interrupt */
 	clear_dma_irqstat(CH_PPI);

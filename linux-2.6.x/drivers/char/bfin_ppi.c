@@ -289,7 +289,7 @@ static void setup_gpio_for_PPI(unsigned char datalen)
 void ppi_reg_reset(ppi_device_t * pdev)
 {
 	bfin_write_PPI_CONTROL(0x0000);
-	bfin_write_PPI_STATUS(0xFFFF);
+	bfin_clear_PPI_STATUS();
 	bfin_write_PPI_COUNT(0x0000);
 	bfin_write_PPI_FRAME(0x0000);
 	bfin_write_PPI_DELAY(0x0000);
@@ -382,12 +382,8 @@ static irqreturn_t ppi_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 	printk(KERN_ERR "PPI Error: PPI Status = 0x%X \n",
 	       bfin_read_PPI_STATUS());
 
-	if (bfin_read_PPI_STATUS()) {
-		/* Add some more Error Handling Code */
-		/* Here */
-
-		bfin_write_PPI_STATUS(0xFFFF);
-	}
+	/* Add some more Error Handling Code Here */
+	bfin_clear_PPI_STATUS();
 
 	return IRQ_HANDLED;
 }
@@ -807,8 +803,8 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
 	__builtin_bfin_ssync();
 	enable_dma(CH_PPI);
 
-	/* write ppi status to clear it before enabling */
-	bfin_write_PPI_STATUS(0xFFFF);
+	/* clear ppi status before enabling */
+	bfin_clear_PPI_STATUS();
 
 	// enable ppi
 	regdata = bfin_read_PPI_CONTROL();
