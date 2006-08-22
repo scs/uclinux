@@ -130,7 +130,7 @@ getGETvars ()
   getvars = (char **) malloc ((paircount * 2 + 1) * sizeof (char **));
   for (i = 0; i < paircount; i++)
     {
-      if (eqpos = strchr (pairlist[i], '='))
+      if ((eqpos = strchr (pairlist[i], '=')) != NULL)
 	{
 	  *eqpos = '\0';
 	  unescape_url (getvars[i * 2 + 1] = strdup (eqpos + 1));
@@ -197,7 +197,7 @@ getPOSTvars ()
   postvars = (char **) malloc ((paircount * 2 + 1) * sizeof (char **));
   for (i = 0; i < paircount; i++)
     {
-      if (eqpos = strchr (pairlist[i], '='))
+      if ((eqpos = strchr (pairlist[i], '=')) != NULL)
 	{
 	  *eqpos = '\0';
 	  unescape_url (postvars[i * 2 + 1] = strdup (eqpos + 1));
