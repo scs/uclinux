@@ -1146,27 +1146,19 @@
  obj-$(CONFIG_SERIAL_AT91) += at91_serial.o
  obj-$(CONFIG_SERIAL_BLACKFIN) += bfin_serial_5xx.o
 +obj-$(CONFIG_KGDB_UART) += kgdb_bfin_uart.o
---- linux-2.6.x.old/drivers/serial/Kconfig
+--- linux-2.6.x/drivers/serial/Kconfig
 +++ linux-2.6.x/drivers/serial/Kconfig
-@@ -484,7 +484,7 @@
+@@ -967,7 +967,7 @@
  
- config SERIAL_BFIN_DMA
-         bool "Blackfin UART DMA mode"
--        depends on DMA_UNCACHED_1M
-+        depends on DMA_UNCACHED_1M && KGDB_UART
-         help
-           This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
+ config SERIAL_BLACKFIN_DMA
+ 	bool "DMA on RX and TX"
+-	depends on DMA_UNCACHED_1M
++	depends on DMA_UNCACHED_1M && !KGDB_UART
+ 	help
+ 	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
+ 
 --- linux-2.6.x/drivers/serial/bfin_serial_5xx.c
 +++ linux-2.6.x/drivers/serial/bfin_serial_5xx.c
-@@ -14,7 +14,7 @@
-  * Copyright (C) 1998, 1999 D. Jeff Dionne     <jeff@uclinux.org>
-  * Copyright (C) 1999       Vladimir Gurevich  <vgurevic@cisco.com>
-  *
-- * $Id$
-+ * $Id$
-  */
- 
- #include <linux/module.h>
 @@ -627,6 +627,49 @@
  }
  #endif
@@ -1848,7 +1840,7 @@
 +#endif				/* _KGDB_H_ */
 --- linux-2.6.x/kernel/Kconfig.kgdb
 +++ linux-2.6.x/kernel/Kconfig.kgdb
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,60 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
 +	depends on DEBUG_KERNEL
@@ -1893,7 +1885,8 @@
 +
 +config KGDB_UART
 +	bool "UART"
-+	select SERIAL_BFIN_PIO
++	select SERIAL_BLACKFIN
++	select SERIAL_BLACKFIN_PIO
 +	help
 +	  Uses UART in kgdb. 
 +
@@ -1908,14 +1901,6 @@
 +
 +config KGDB_WAIT_IN_BOOT
 +	depends on KGDB && KGDB_UART
-+	bool "KGDB: Wait for gdb connection early"
-+	help
-+	  Wait for gdb connection early in kernel boot.
-+
-+config KGDB_TEST
-+	tristate "KGDB: test"
-+	depends on KGDB
-+	help
 --- linux-2.6.x/kernel/Makefile
 +++ linux-2.6.x/kernel/Makefile
 @@ -33,6 +33,7 @@ obj-$(CONFIG_SYSFS) += ksysfs.o
@@ -1928,7 +1913,7 @@
  ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
 --- linux-2.6.x/kernel/kgdb.c
 +++ linux-2.6.x/kernel/kgdb.c
-@@ -0,0 +1,1352 @@
+@@ -0,0 +1,1425 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -2323,6 +2308,39 @@
 +	unsigned char ch;
 +	int error;
 +
++#ifdef CONFIG_BLACKFIN
++	unsigned short mmr16;
++	unsigned long mmr32;
++	unsigned char *pch;
++
++	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
++		switch(count) {
++		case 2:
++			if (get_user(mmr16, (unsigned short *)mem) != 0)
++				return ERR_PTR(-EFAULT);
++			pch = (unsigned char *)&mmr16;
++			for (i = 0; i < count; i++) {
++				*buf++ = hexchars[*pch >> 4];
++				*buf++ = hexchars[*pch % 16];
++				pch++;
++			}
++			break;
++		case 4:
++			if (get_user(mmr32, (unsigned long *)mem) != 0)
++				return ERR_PTR(-EFAULT);
++			pch = (unsigned char *)&mmr32;
++			for (i = 0; i < count; i++) {
++				*buf++ = hexchars[*pch >> 4];
++				*buf++ = hexchars[*pch % 16];
++				pch++;
++			}
++			break;
++		default:
++			return ERR_PTR(-EFAULT);
++		}
++	}
++	else {
++#endif
 +	for (i = 0; i < count; i++) {
 +
 +		if ((error = get_char(mem++, &ch)) < 0)
@@ -2331,6 +2349,9 @@
 +		*buf++ = hexchars[ch >> 4];
 +		*buf++ = hexchars[ch % 16];
 +	}
++#ifdef CONFIG_BLACKFIN
++	}
++#endif
 +	*buf = 0;
 +	return (buf);
 +}
@@ -2346,12 +2367,49 @@
 +	unsigned char ch;
 +	int error;
 +
++#ifdef CONFIG_BLACKFIN
++	unsigned short mmr16 = 0;
++	unsigned long mmr32 = 0;
++
++	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
++		switch(count) {
++		case 2:
++			buf += 2;
++			for (i = 0; i < count; i++) {
++				mmr16 <<= 8;
++				mmr16 += hex(*buf) << 4;
++				mmr16 += hex(*(buf+1));
++				buf-=2;
++			}
++			if (put_user(mmr16, (unsigned short *)mem) != 0)
++				return ERR_PTR(-EFAULT);
++			break;
++		case 4:
++			buf += 8;
++			for (i = 0; i < count; i++) {
++				mmr32 <<= 8;
++				mmr32 += hex(*buf) << 4;
++				mmr32 += hex(*(buf+1));
++				buf-=2;
++			}
++			if (put_user(mmr32, (unsigned long *)mem) != 0)
++				return ERR_PTR(-EFAULT);
++			break;
++		default:
++			return ERR_PTR(-EFAULT);
++		}
++	}
++	else {
++#endif
 +	for (i = 0; i < count; i++) {
 +		ch = hex(*buf++) << 4;
 +		ch = ch + hex(*buf++);
 +		if ((error = set_char(mem++, ch)) < 0)
 +			return ERR_PTR(error);
 +	}
++#ifdef CONFIG_BLACKFIN
++	}
++#endif
 +	return (mem);
 +}
 +
