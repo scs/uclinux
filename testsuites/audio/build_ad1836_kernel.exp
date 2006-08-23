@@ -68,7 +68,36 @@ while 1 {
    }
 }
 
+send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
 
+cd $uclinux_path/linux-2.6.x
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1      
+      send "/CONFIG_SOUND\[ =]\r"
+      expect "CONFIG_SOUND\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_SOUND=y\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+
+      send "wq\r"
+      expect eof
+      
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -95,7 +124,6 @@ while 1 {
 
            -re "Sound card support.*SOUND.*\\\[.*]" {
              send "Y\r"
-             
       }
    
           -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
