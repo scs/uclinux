@@ -105,9 +105,59 @@ sleep 3
       expect ":"
       sleep .5    
       
+      send "/CONFIG_BANK_3\[ =]\r"
+      expect "CONFIG_BANK_3\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_BANK_3=0xFFC3\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+      
       send "wq\r"
       expect eof
 
+      
+send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
+
+cd $uclinux_path/config
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_USER_BUSYBOX_HDPARM\[ =]\r"
+      expect "CONFIG_USER_BUSYBOX_HDPARM\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_USER_BUSYBOX_HDPARM=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF=y\r"
+      send "CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA=y\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+
+      send "wq\r"
+      expect eof
+      
+      
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -168,9 +218,9 @@ while 1 {
              send "2\r"
       }
    
-          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-             send -s "0xFFC3\r"
-      }
+#          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+#             send -s "0xFFC3\r"
+#      }
 
 	-re "ISO 9660 CDROM file system support.*ISO9660_FS.*\\\[.*]" {
              send "Y\r"
@@ -208,32 +258,32 @@ while 1 {
              send "Y\r"
       }
 
-     -re "hdparm.*CONFIG_USER_BUSYBOX_HDPARM.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "hdparm. get identity.*CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY.*\\\[.*]" {
-             send "Y\r"
-      }
-
-      -re "hdparm. scan hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-       -re "hdparm. unregister hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "hdparm. drive reset.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
-             send "Y\r"
-      }
-
-      -re "hdparm. tristate hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-      -re "hdparm. get.set dma.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
-             send "Y\r"
-      }
+#     -re "hdparm.*CONFIG_USER_BUSYBOX_HDPARM.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#
+#       -re "hdparm. get identity.*CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#
+#      -re "hdparm. scan hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#       -re "hdparm. unregister hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#
+#       -re "hdparm. drive reset.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#
+#      -re "hdparm. tristate hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
+#             send "Y\r"
+#      }
+#
+#      -re "hdparm. get.set dma.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
+#             send "Y\r"
+#      }
 
       
        "\\\(*) \\\[*]" {

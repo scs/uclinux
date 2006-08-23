@@ -171,6 +171,10 @@ while 1 {
              send -s "Y\r"
       }
 
+         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+             send -s "M\r"
+      }
+
          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
              send -s "N\r"
       }
