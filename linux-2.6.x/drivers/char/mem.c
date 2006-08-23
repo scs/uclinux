@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
- *  Added devfs support. 
+ *  Added devfs support.
  *    Jan-11-1998, C. Scott Ananian <cananian@alumni.princeton.edu>
  *  Shared /dev/zero mmaping support, Feb 2000, Kanoj Sarcar <kanoj@sgi.com>
  */
@@ -59,7 +59,7 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 		  test_bit(X86_FEATURE_CENTAUR_MCR, boot_cpu_data.x86_capability) )
 	  && addr >= __pa(high_memory);
 #elif defined(__x86_64__)
-	/* 
+	/*
 	 * This is broken because it can generate memory type aliases,
 	 * which can cause cache corruptions
 	 * But it is only available for root and we have to be bug-to-bug
@@ -68,8 +68,8 @@ static inline int uncached_access(struct file *file, unsigned long addr)
 	if (file->f_flags & O_SYNC)
 		return 1;
 	/* same behaviour as i386. PAT always set to cached and MTRRs control the
-	   caching behaviour. 
-	   Hopefully a full PAT implementation will fix that soon. */	   
+	   caching behaviour.
+	   Hopefully a full PAT implementation will fix that soon. */
 	return 0;
 #elif defined(CONFIG_IA64)
 	/*
@@ -104,13 +104,14 @@ static inline int valid_phys_addr_range(unsigned long addr, size_t *count)
 
 static inline int valid_mmap_phys_addr_range(unsigned long addr, size_t *size)
 {
+
 	return 1;
 }
 #endif
 
 /*
- * This funcion reads the *physical* memory. The f_pos points directly to the 
- * memory location. 
+ * This funcion reads the *physical* memory. The f_pos points directly to the
+ * memory location.
  */
 static ssize_t read_mem(struct file * file, char __user * buf,
 			size_t count, loff_t *ppos)
@@ -126,15 +127,15 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 	/* we don't have page 0 mapped on sparc and m68k.. */
 	if (p < PAGE_SIZE) {
 		sz = PAGE_SIZE - p;
-		if (sz > count) 
-			sz = count; 
+		if (sz > count)
+			sz = count;
 		if (sz > 0) {
 			if (clear_user(buf, sz))
 				return -EFAULT;
-			buf += sz; 
-			p += sz; 
-			count -= sz; 
-			read += sz; 
+			buf += sz;
+			p += sz;
+			count -= sz;
+			read += sz;
 		}
 	}
 #endif
@@ -169,7 +170,7 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 	return read;
 }
 
-static ssize_t write_mem(struct file * file, const char __user * buf, 
+static ssize_t write_mem(struct file * file, const char __user * buf,
 			 size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
@@ -247,12 +248,31 @@ static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 }
 #endif
 
+#ifndef CONFIG_MMU
+static unsigned long get_unmapped_area_mem(struct file *file,
+					   unsigned long addr,
+					   unsigned long len,
+					   unsigned long pgoff,
+					   unsigned long flags)
+{
+	if (!valid_mmap_phys_addr_range(pgoff, &len))
+		return (unsigned long) -EINVAL;
+	return pgoff;
+}
+#endif
+
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
 
 	if (!valid_mmap_phys_addr_range(vma->vm_pgoff << PAGE_SHIFT, &size))
 		return -EINVAL;
+
+#ifndef CONFIG_MMU
+	/* can't do an in-place private mapping if there's no MMU */
+	if (!(vma->vm_flags & VM_MAYSHARE))
+		return -ENOSYS;
+#endif
 
 	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
 						 size,
@@ -329,7 +349,7 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
 /*
  * This function reads the *virtual* memory as seen by the kernel.
  */
-static ssize_t read_kmem(struct file *file, char __user *buf, 
+static ssize_t read_kmem(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
@@ -478,7 +498,7 @@ do_write_kmem(void *p, unsigned long realp, const char __user * buf,
 /*
  * This function writes to the *virtual* memory as seen by the kernel.
  */
-static ssize_t write_kmem(struct file * file, const char __user * buf, 
+static ssize_t write_kmem(struct file * file, const char __user * buf,
 			  size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
@@ -542,10 +562,10 @@ static ssize_t read_port(struct file * file, char __user * buf,
 	char __user *tmp = buf;
 
 	if (!access_ok(VERIFY_WRITE, buf, count))
-		return -EFAULT; 
+		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
-		if (__put_user(inb(i),tmp) < 0) 
-			return -EFAULT;  
+		if (__put_user(inb(i),tmp) < 0)
+			return -EFAULT;
 		i++;
 		tmp++;
 	}
@@ -563,8 +583,8 @@ static ssize_t write_port(struct file * file, const char __user * buf,
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
 		char c;
-		if (__get_user(c, tmp)) 
-			return -EFAULT; 
+		if (__get_user(c, tmp))
+			return -EFAULT;
 		outb(c,i);
 		i++;
 		tmp++;
@@ -623,8 +643,8 @@ static inline size_t read_zero_pagealigned(char __user * buf, size_t size)
 	}
 
 	up_read(&mm->mmap_sem);
-	
-	/* The shared case is hard. Let's do the conventional zeroing. */ 
+
+	/* The shared case is hard. Let's do the conventional zeroing. */
 	do {
 		unsigned long unwritten = clear_user(buf, PAGE_SIZE);
 		if (unwritten)
@@ -640,7 +660,7 @@ out_up:
 	return size;
 }
 
-static ssize_t read_zero(struct file * file, char __user * buf, 
+static ssize_t read_zero(struct file * file, char __user * buf,
 			 size_t count, loff_t *ppos)
 {
 	unsigned long left, unwritten, written = 0;
@@ -687,7 +707,7 @@ static int mmap_zero(struct file * file, struct vm_area_struct * vma)
 	return 0;
 }
 #else /* CONFIG_MMU */
-static ssize_t read_zero(struct file * file, char * buf, 
+static ssize_t read_zero(struct file * file, char * buf,
 			 size_t count, loff_t *ppos)
 {
 	size_t todo = count;
@@ -779,6 +799,9 @@ static struct file_operations mem_fops = {
 	.write		= write_mem,
 	.mmap		= mmap_mem,
 	.open		= open_mem,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = get_unmapped_area_mem,
+#endif
 };
 
 static struct file_operations kmem_fops = {
@@ -787,6 +810,9 @@ static struct file_operations kmem_fops = {
 	.write		= write_kmem,
 	.mmap		= mmap_kmem,
 	.open		= open_kmem,
+#ifndef CONFIG_MMU
+	.get_unmapped_area = get_unmapped_area_mem,
+#endif
 };
 
 static struct file_operations null_fops = {
@@ -814,6 +840,12 @@ static struct file_operations zero_fops = {
 static struct backing_dev_info zero_bdi = {
 	.capabilities	= BDI_CAP_MAP_COPY,
 };
+
+ static struct backing_dev_info mem_bdi = {
+ 	.capabilities	= (/*BDI_CAP_MAP_COPY |*/ BDI_CAP_MAP_DIRECT |
+ 			   BDI_CAP_READ_MAP | BDI_CAP_WRITE_MAP |
+ 			   BDI_CAP_EXEC_MAP),
+ };
 
 static struct file_operations full_fops = {
 	.llseek		= full_lseek,
@@ -857,9 +889,11 @@ static int memory_open(struct inode * inode, struct file * filp)
 {
 	switch (iminor(inode)) {
 		case 1:
+			filp->f_mapping->backing_dev_info = &mem_bdi;
 			filp->f_op = &mem_fops;
 			break;
 		case 2:
+			filp->f_mapping->backing_dev_info = &mem_bdi;
 			filp->f_op = &kmem_fops;
 			break;
 		case 3:
@@ -942,7 +976,7 @@ static int __init chr_dev_init(void)
 		devfs_mk_cdev(MKDEV(MEM_MAJOR, devlist[i].minor),
 				S_IFCHR | devlist[i].mode, devlist[i].name);
 	}
-	
+
 	return 0;
 }
 
