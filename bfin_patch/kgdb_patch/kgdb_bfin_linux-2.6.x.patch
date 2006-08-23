@@ -1840,7 +1840,7 @@
 +#endif				/* _KGDB_H_ */
 --- linux-2.6.x/kernel/Kconfig.kgdb
 +++ linux-2.6.x/kernel/Kconfig.kgdb
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,66 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
 +	depends on DEBUG_KERNEL
@@ -1901,6 +1901,12 @@
 +
 +config KGDB_WAIT_IN_BOOT
 +	depends on KGDB && KGDB_UART
++
++config KGDB_TEST
++	tristate "KGDB: test"
++	depends on KGDB
++	help
++
 --- linux-2.6.x/kernel/Makefile
 +++ linux-2.6.x/kernel/Makefile
 @@ -33,6 +33,7 @@ obj-$(CONFIG_SYSFS) += ksysfs.o
