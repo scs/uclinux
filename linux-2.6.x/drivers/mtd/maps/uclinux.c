@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/romfs_fs.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/mtd/mtd.h>
@@ -84,6 +85,11 @@ int __init uclinux_mtd_init(void)
 		sprintf(name, "cramfs ");
 		mapp->size = *((unsigned long *)(addr + 0x4)) ;
 	}
+#endif
+#if defined(CONFIG_ROMFS_FS)
+	if (((unsigned long *)addr)[0] == ROMSB_WORD0
+	    && ((unsigned long *)addr)[1] == ROMSB_WORD1)
+		mapp->size = be32_to_cpu(((unsigned long *)addr)[2]);
 #endif
 
 
