@@ -1,4 +1,4 @@
-#include <asm/mach/blackfin.h>
+#include <asm/mach-bf561/blackfin.h>
 .global start;
 .global _start;
 .global __stack_top;
