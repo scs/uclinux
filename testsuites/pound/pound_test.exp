@@ -398,6 +398,8 @@ while 1 {
      }
 }
 
+set timeout 1000
+
 cd $uclinux_path/testsuites/webserver/testcase/simple/
 
 spawn fl-run-test test_Simple.py 

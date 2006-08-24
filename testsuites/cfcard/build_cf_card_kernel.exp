@@ -224,9 +224,9 @@ while 1 {
       }
 
        
-#          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-#             send -s "0xFFC3\r"
-#      }
+          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+             send -s "0xFFC3\r"
+      }
 
       -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
              send "Y\r"
@@ -324,6 +324,22 @@ while 1 {
 if { $bfin_make_status == "failure" } {
       puts "ERROR: Error somewhere during make"
 
+}
+
+step "Make again."
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+             "Entering directory" { }
+             "Leaving directory" { set bfin_make_status success }
+             "Error" {set bfin_make_status failure }
+             "/bin/sh" { }
+             eof { break }
+      }
 }
 
 

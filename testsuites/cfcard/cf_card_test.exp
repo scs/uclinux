@@ -560,8 +560,8 @@ while 1 {
 }
 
 
-send_log "                       \r"
-send_log "\r$TITLE ............\[PASS\]\r"
+send_log "                       \n"
+send_log "\n$TITLE ............\[PASS\]\n"
                                      
 log_file
  
