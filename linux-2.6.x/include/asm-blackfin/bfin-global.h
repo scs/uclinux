@@ -79,6 +79,12 @@ extern int sram_free(const void*);
 extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
 
+extern void led_on(int);
+extern void led_off(int);
+extern void led_toggle(int);
+extern void led_disp_num(int);
+extern void led_toggle_num(int);
+
 extern char *bfin_board_name __attribute__ ((weak));
 extern unsigned long wall_jiffies;
 extern unsigned long memory_end;
