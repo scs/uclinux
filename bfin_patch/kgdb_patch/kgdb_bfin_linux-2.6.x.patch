@@ -1919,7 +1919,7 @@
  ifneq ($(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER),y)
 --- linux-2.6.x/kernel/kgdb.c
 +++ linux-2.6.x/kernel/kgdb.c
-@@ -0,0 +1,1425 @@
+@@ -0,0 +1,1441 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -2322,24 +2322,32 @@
 +	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
 +		switch(count) {
 +		case 2:
-+			if (get_user(mmr16, (unsigned short *)mem) != 0)
-+				return ERR_PTR(-EFAULT);
-+			pch = (unsigned char *)&mmr16;
-+			for (i = 0; i < count; i++) {
-+				*buf++ = hexchars[*pch >> 4];
-+				*buf++ = hexchars[*pch % 16];
-+				pch++;
++			if((unsigned int)mem % 2 == 0) {
++				if (get_user(mmr16, (unsigned short *)mem) != 0)
++					return ERR_PTR(-EFAULT);
++				pch = (unsigned char *)&mmr16;
++				for (i = 0; i < count; i++) {
++					*buf++ = hexchars[*pch >> 4];
++					*buf++ = hexchars[*pch % 16];
++					pch++;
++				}
 +			}
++			else
++				return ERR_PTR(-EFAULT);
 +			break;
 +		case 4:
-+			if (get_user(mmr32, (unsigned long *)mem) != 0)
-+				return ERR_PTR(-EFAULT);
-+			pch = (unsigned char *)&mmr32;
-+			for (i = 0; i < count; i++) {
-+				*buf++ = hexchars[*pch >> 4];
-+				*buf++ = hexchars[*pch % 16];
-+				pch++;
++			if((unsigned int)mem % 4 == 0) {
++				if (get_user(mmr32, (unsigned long *)mem) != 0)
++					return ERR_PTR(-EFAULT);
++				pch = (unsigned char *)&mmr32;
++				for (i = 0; i < count; i++) {
++					*buf++ = hexchars[*pch >> 4];
++					*buf++ = hexchars[*pch % 16];
++					pch++;
++				}
 +			}
++			else
++				return ERR_PTR(-EFAULT);
 +			break;
 +		default:
 +			return ERR_PTR(-EFAULT);
@@ -2380,25 +2388,33 @@
 +	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
 +		switch(count) {
 +		case 2:
-+			buf += 2;
-+			for (i = 0; i < count; i++) {
-+				mmr16 <<= 8;
-+				mmr16 += hex(*buf) << 4;
-+				mmr16 += hex(*(buf+1));
-+				buf-=2;
++			if((unsigned int)mem % 2 == 0) {
++				buf += 2;
++				for (i = 0; i < count; i++) {
++					mmr16 <<= 8;
++					mmr16 += hex(*buf) << 4;
++					mmr16 += hex(*(buf+1));
++					buf-=2;
++				}
++				if (put_user(mmr16, (unsigned short *)mem) != 0)
++					return ERR_PTR(-EFAULT);
 +			}
-+			if (put_user(mmr16, (unsigned short *)mem) != 0)
++			else
 +				return ERR_PTR(-EFAULT);
 +			break;
 +		case 4:
-+			buf += 8;
-+			for (i = 0; i < count; i++) {
-+				mmr32 <<= 8;
-+				mmr32 += hex(*buf) << 4;
-+				mmr32 += hex(*(buf+1));
-+				buf-=2;
++			if((unsigned int)mem % 4 == 0) {
++				buf += 8;
++				for (i = 0; i < count; i++) {
++					mmr32 <<= 8;
++					mmr32 += hex(*buf) << 4;
++					mmr32 += hex(*(buf+1));
++					buf-=2;
++				}
++				if (put_user(mmr32, (unsigned long *)mem) != 0)
++					return ERR_PTR(-EFAULT);
 +			}
-+			if (put_user(mmr32, (unsigned long *)mem) != 0)
++			else
 +				return ERR_PTR(-EFAULT);
 +			break;
 +		default:
