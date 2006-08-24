@@ -22,7 +22,6 @@ $(EXEC): $(OBJS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
-	$(ROMFSINST) /etc/coreb
 	$(ROMFSINST) /bin/coreb_get_testarg
 
 clean:
