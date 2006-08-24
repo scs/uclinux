@@ -62,43 +62,19 @@ while 1 {
       }
       timeout {
              puts "\n\nFATAL ERROR: config prompt timeout in make config"
-
+	     break
 
       }
    }
 }
 
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+step "Apply ad73311 config patch."
 
 cd $uclinux_path/linux-2.6.x
+exec patch -p1 < ../testsuites/audio/ad73311_config_patch
+
 sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1      
-      send "/CONFIG_SOUND\[ =]\r"
-      expect "CONFIG_SOUND\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_SOUND=y\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-
-      send "wq\r"
-      expect eof
-      
-      
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -123,45 +99,45 @@ while 1 {
              send "y\r"
       }
 
-           -re "Sound card support.*SOUND.*\\\[.*]" {
-             send "Y\r"
-             
-      }
-   
-          -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-             
-             send "Y\r"
-             
-      }
-      
-          -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
-             
-             send "Y\r"
-             
-      }
-      
-          -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-             
-             send "Y\r"
-             
-      }
-
-          -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS.*\\\[.*]" {
-             
-             send "Y\r"
-             
-      }
-      
-          -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-             
-             send "N\r"
-             
-      }
-
-          -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-
-             send "Y\r"
-      }
+#           -re "Sound card support.*SOUND.*\\\[.*]" {
+#             send "Y\r"
+#             
+#      }
+#   
+#          -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+#             
+#             send "Y\r"
+#             
+#      }
+#      
+#          -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+#             
+#             send "Y\r"
+#             
+#      }
+#      
+#          -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+#             
+#             send "Y\r"
+#             
+#      }
+#
+#          -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS.*\\\[.*]" {
+#             
+#             send "Y\r"
+#             
+#      }
+#      
+#          -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+#             
+#             send "N\r"
+#             
+#      }
+#
+#          -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+#
+#             send "Y\r"
+#      }
 
           -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
              
