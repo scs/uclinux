@@ -787,7 +787,7 @@ config BOOTPARAM
 
 config BOOTPARAM_STRING
 	string 'Kernel Boot Parameter'
-	default 'console=ttyS0,19200'
+	default 'console=ttyS0,57600'
 	depends on BOOTPARAM
 
 config NO_KERNEL_MSG
