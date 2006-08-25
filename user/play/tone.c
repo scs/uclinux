@@ -38,7 +38,7 @@ short	buf[BUFSIZE];
  *	quality testing anyways.
  */
 
-int mksinebuf(short *bp, int rf, int wf)
+int mksinebuf(short *bp, int rf, int wf, int mag)
 {
 	float	radspersample;
 	int	samplespercycle, i;
@@ -48,7 +48,7 @@ int mksinebuf(short *bp, int rf, int wf)
 	radspersample = (2 * PI) / samplespercycle;
 
 	for (i = 0; (i < samplespercycle); i++) {
-		val = (short) (32767 * sin(i * radspersample));
+		val = (short) ((mag * 128 -1) * sin(i * radspersample));
 		*bp++ = val;
 		*bp++ = val;
 	}
@@ -59,7 +59,7 @@ int mksinebuf(short *bp, int rf, int wf)
 
 /*****************************************************************************/
 
-int mksquarebuf(short *bp, int rf, int wf)
+int mksquarebuf(short *bp, int rf, int wf, int mag)
 {
 	int	samplespercycle, samplesperhalfcycle, i;
 	short	val;
@@ -68,7 +68,7 @@ int mksquarebuf(short *bp, int rf, int wf)
 	samplesperhalfcycle = samplespercycle / 2;
 
 	for (i = 0; (i < samplespercycle); i++) {
-		val = (i >= samplesperhalfcycle) ? -32767 : 32767;
+		val = (i >= samplesperhalfcycle) ? -(mag * 128 -1) : (mag * 128 -1);
 		*bp++ = val;
 		*bp++ = val;
 	}
@@ -78,15 +78,15 @@ int mksquarebuf(short *bp, int rf, int wf)
 
 /*****************************************************************************/
 
-int mkrampbuf(short *bp, int rf, int wf)
+int mkrampbuf(short *bp, int rf, int wf, int mag)
 {
 	int	samplespercycle, incpersample, i;
 	short	val;
 
 	samplespercycle = rf / wf;
-	incpersample = 65535 / samplespercycle;
+	incpersample = (mag * 256) / samplespercycle;
 
-	for (i = 0, val = -32767; (i < samplespercycle); i++) {
+	for (i = 0, val = -(mag * 128 -1); (i < samplespercycle); i++) {
 		*bp++ = val;
 		*bp++ = val;
 		val += incpersample;
@@ -97,7 +97,7 @@ int mkrampbuf(short *bp, int rf, int wf)
 
 /*****************************************************************************/
 
-int mksawtoothbuf(short *bp, int rf, int wf)
+int mksawtoothbuf(short *bp, int rf, int wf, int mag)
 {
 	int	samplespercycle, samplesperhalfcycle;
 	int	incpersample, i;
@@ -105,9 +105,9 @@ int mksawtoothbuf(short *bp, int rf, int wf)
 
 	samplespercycle = rf / wf;
 	samplesperhalfcycle = samplespercycle / 2;
-	incpersample = 65535 / samplesperhalfcycle;
+	incpersample = (mag * 256) / samplesperhalfcycle;
 
-	for (i = 0, val = -32767; (i < samplespercycle); i++) {
+	for (i = 0, val = -(mag * 128 -1); (i < samplespercycle); i++) {
 		*bp++ = val;
 		*bp++ = val;
 		val += (incpersample * ((i >= samplesperhalfcycle) ? -1 : 1));
@@ -125,7 +125,7 @@ int mksawtoothbuf(short *bp, int rf, int wf)
 
 #define	NUMTYPES	4
 
-int (*mkwavbuf[])(short *, int, int) = {
+int (*mkwavbuf[])(short *, int, int, int) = {
 	mksinebuf,
 	mksquarebuf,
 	mkrampbuf,
@@ -158,21 +158,30 @@ void usage(int rc)
 
 int main(int argc, char *argv[])
 {
-	int	ofd, i, c, size, endian;
+	int	ofd, i, c, size, endian, mag;
 	int	replayfreq, wavefreq, wavetyp;
 
 	replayfreq = 48000;
+	mag = 255;
 	wavetyp = SINE;
 	wavefreq = 1000;
 	endian = AFMT_S16_LE;
 
-	while ((c = getopt(argc, argv, "?hsqrewf:")) >= 0) {
+	while ((c = getopt(argc, argv, "?hsqrewf:m:")) >= 0) {
 		switch (c) {
 		case 'f':
 			replayfreq = atoi(optarg);
 			if ((replayfreq < 1) || (replayfreq > MAXFREQ)) {
 				printf("ERROR: invalid frequency %d, range "
 					"1-%d\n", replayfreq, MAXFREQ);
+				exit(1);
+			}
+			break;
+		case 'm':
+			mag = atoi(optarg);
+			if ((mag < 0) || ( mag > 255)) {
+				printf ("ERROR: invalid magintude %d, range "
+					"1 - 255\n", mag);
 				exit(1);
 			}
 			break;
@@ -236,7 +245,7 @@ int main(int argc, char *argv[])
 
 	printf("TONE: generating %s wave at %d Hz...\n", 
 		wavnames[wavetyp], wavefreq);
-	size = (mkwavbuf[wavetyp])(buf, replayfreq, wavefreq);
+	size = (mkwavbuf[wavetyp])(buf, replayfreq, wavefreq, mag);
 	size *= 2 * sizeof(short);
 
 	for (;;) {
