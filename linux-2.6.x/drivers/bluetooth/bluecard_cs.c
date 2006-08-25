@@ -90,6 +90,52 @@ static void bluecard_release(dev_link_t *link);
 
 static void bluecard_detach(struct pcmcia_device *p_dev);
 
+#ifdef CONFIG_BFIN_CFPCMCIA
+/*The ANYCOM CF-300 Bluetooth card doesn't support the
+  High Byte Input/Output only modes (Table 35: PCMCIA Mode I/O Functions)
+  as specified in the CompactFlash Speicification Rev 3.0 (cfspc30)
+  This hack therefore uses address strobe A13 as CF_A0, odd byte addresses
+  are masked off
+*/
+
+#define CF_A0 13
+
+void l_outb(u8 val, u32 addr){
+
+  if (addr & 1) {
+    addr |= 1 << CF_A0;
+    addr &= ~1;
+  }
+ outb(val,addr);
+}
+
+void l_outb_p(u8 val, u32 addr){
+
+  if (addr & 1) {
+    addr |= 1 << CF_A0;
+    addr &= ~1;
+  }
+ outb_p(val,addr);
+}
+
+u8 l_inb(u32 addr){
+
+  if (addr & 1) {
+    addr |= 1 << CF_A0;
+    addr &= ~1;
+  }
+ return inb(addr);
+}
+
+#undef outb
+#undef outb_p
+#undef inb
+
+#define outb(val,addr)  	l_outb(val,addr)
+#define outb_p(val,addr) 	l_outb_p(val,addr)
+#define inb(addr)		l_inb(addr)
+
+#endif /*CONFIG_BFIN_CFPCMCIA*/
 
 /* Default baud rate: 57600, 115200, 230400 or 460800 */
 #define DEFAULT_BAUD_RATE  230400
