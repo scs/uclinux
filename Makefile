@@ -410,7 +410,7 @@ distclean: mrproper
 	cp vendors/$(@:_default=)/config.uClibc uClibc/.config
 	cp vendors/$(@:_default=)/config.vendor-2.6.x config/.config
 	cp vendors/$(@:_default=)/config.linux-2.6.x linux-2.6.x/.config
-	ln -s vendors/$(@:_default=)/config.arch .
+	ln -sf vendors/$(@:_default=)/config.arch .
 	yes "" | make oldconfig
 	make
 
