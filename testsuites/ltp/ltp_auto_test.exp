@@ -1024,7 +1024,57 @@ set ULIMIT                ulimit
 set i 0
 set cpu_info_loc                        $i
 set result_matrix1 {
-       { readlink04     	     {cp -f /bin/creat_slink /tmp; readlink04}                     	 notrun } 
+       { msgget01     	     {msgget01}                     	 notrun } 
+       { msgget02     	     {msgget02}                     	 notrun } 
+       { msgget03     	     {msgget03}                     	 notrun } 
+       { msgget04     	     {msgget04}                     	 notrun } 
+       { msgsnd01     	     {msgsnd01}                     	 notrun } 
+       { msgsnd02     	     {msgsnd02}                     	 notrun } 
+       { msgsnd03     	     {msgsnd03}                     	 notrun } 
+       { msgsnd04     	     {msgsnd04}                     	 notrun } 
+       { msgsnd05     	     {msgsnd05}                     	 notrun } 
+       { msgsnd06     	     {msgsnd06}                     	 notrun } 
+       { msgctl01     	     {msgctl01}                     	 notrun } 
+       { msgctl02     	     {msgctl02}                     	 notrun } 
+       { msgctl03     	     {msgctl03}                     	 notrun } 
+       { msgctl04     	     {msgctl04}                     	 notrun } 
+       { msgctl05     	     {msgctl05}                     	 notrun } 
+       { msgctl06     	     {msgctl06}                     	 notrun } 
+       { msgctl07     	     {msgctl07}                     	 notrun } 
+       { msgctl08     	     {msgctl08}                     	 notrun } 
+       { msgctl09     	     {msgctl09}                     	 notrun } 
+       { semget01     	     {semget01}                     	 notrun } 
+       { semget02     	     {semget02}                     	 notrun } 
+       { semget03     	     {semget03}                     	 notrun } 
+       { semget04     	     {semget04}                     	 notrun } 
+       { semget05     	     {semget05}                     	 notrun } 
+       { semget06     	     {semget06}                     	 notrun } 
+       { semop01     	     {semop01}                     	 notrun } 
+       { semop02     	     {semop02}                     	 notrun } 
+       { semop03     	     {semop03}                     	 notrun } 
+       { semop04     	     {semop04}                     	 notrun } 
+       { semop05     	     {semop05}                     	 notrun } 
+       { semctl01     	     {semctl01}                     	 notrun } 
+       { semctl02     	     {semctl02}                     	 notrun } 
+       { semctl03     	     {semctl03}                     	 notrun } 
+       { semctl04     	     {semctl04}                     	 notrun } 
+       { semctl05     	     {semctl05}                     	 notrun } 
+       { semctl06     	     {semctl06}                     	 notrun } 
+       { semctl07     	     {semctl07}                     	 notrun } 
+       { shmget01     	     {shmget01}                     	 notrun } 
+       { shmget02     	     {shmget02}                     	 notrun } 
+       { shmget03     	     {shmget03}                     	 notrun } 
+       { shmget04     	     {shmget04}                     	 notrun } 
+       { shmget05     	     {shmget05}                     	 notrun } 
+       { shmat01     	     {shmat01}                     	 notrun } 
+       { shmat02     	     {shmat02}                     	 notrun } 
+       { shmat03     	     {shmat03}                     	 notrun } 
+       { shmctl01     	     {shmctl01}                     	 notrun } 
+       { shmctl02     	     {shmctl02}                     	 notrun } 
+       { shmctl03     	     {shmctl03}                     	 notrun } 
+       { shmctl04     	     {shmctl04}                     	 notrun } 
+       { shmdt01     	     {shmdt01}                     	 notrun } 
+       { shmdt02     	     {shmdt02}                     	 notrun } 
 }
 
 
@@ -1656,6 +1706,57 @@ set result_matrix {
        { writev03     	     {writev03}                     	 notrun } 
        { writev04     	     {writev04}                     	 notrun } 
        { writev05     	     {writev05}                     	 notrun } 
+       { msgget01     	     {msgget01}                     	 notrun } 
+       { msgget02     	     {msgget02}                     	 notrun } 
+       { msgget03     	     {msgget03}                     	 notrun } 
+       { msgget04     	     {msgget04}                     	 notrun } 
+       { msgsnd01     	     {msgsnd01}                     	 notrun } 
+       { msgsnd02     	     {msgsnd02}                     	 notrun } 
+       { msgsnd03     	     {msgsnd03}                     	 notrun } 
+       { msgsnd04     	     {msgsnd04}                     	 notrun } 
+       { msgsnd05     	     {msgsnd05}                     	 notrun } 
+       { msgsnd06     	     {msgsnd06}                     	 notrun } 
+       { msgctl01     	     {msgctl01}                     	 notrun } 
+       { msgctl02     	     {msgctl02}                     	 notrun } 
+       { msgctl03     	     {msgctl03}                     	 notrun } 
+       { msgctl04     	     {msgctl04}                     	 notrun } 
+       { msgctl05     	     {msgctl05}                     	 notrun } 
+       { msgctl06     	     {msgctl06}                     	 notrun } 
+       { msgctl07     	     {msgctl07}                     	 notrun } 
+       { msgctl08     	     {msgctl08}                     	 notrun } 
+       { msgctl09     	     {msgctl09}                     	 notrun } 
+       { semget01     	     {semget01}                     	 notrun } 
+       { semget02     	     {semget02}                     	 notrun } 
+       { semget03     	     {semget03}                     	 notrun } 
+       { semget04     	     {semget04}                     	 notrun } 
+       { semget05     	     {semget05}                     	 notrun } 
+       { semget06     	     {semget06}                     	 notrun } 
+       { semop01     	     {semop01}                     	 notrun } 
+       { semop02     	     {semop02}                     	 notrun } 
+       { semop03     	     {semop03}                     	 notrun } 
+       { semop04     	     {semop04}                     	 notrun } 
+       { semop05     	     {semop05}                     	 notrun } 
+       { semctl01     	     {semctl01}                     	 notrun } 
+       { semctl02     	     {semctl02}                     	 notrun } 
+       { semctl03     	     {semctl03}                     	 notrun } 
+       { semctl04     	     {semctl04}                     	 notrun } 
+       { semctl05     	     {semctl05}                     	 notrun } 
+       { semctl06     	     {semctl06}                     	 notrun } 
+       { semctl07     	     {semctl07}                     	 notrun } 
+       { shmget01     	     {shmget01}                     	 notrun } 
+       { shmget02     	     {shmget02}                     	 notrun } 
+       { shmget03     	     {shmget03}                     	 notrun } 
+       { shmget04     	     {shmget04}                     	 notrun } 
+       { shmget05     	     {shmget05}                     	 notrun } 
+       { shmat01     	     {shmat01}                     	 notrun } 
+       { shmat02     	     {shmat02}                     	 notrun } 
+       { shmat03     	     {shmat03}                     	 notrun } 
+       { shmctl01     	     {shmctl01}                     	 notrun } 
+       { shmctl02     	     {shmctl02}                     	 notrun } 
+       { shmctl03     	     {shmctl03}                     	 notrun } 
+       { shmctl04     	     {shmctl04}                     	 notrun } 
+       { shmdt01     	     {shmdt01}                     	 notrun } 
+       { shmdt02     	     {shmdt02}                     	 notrun } 
                     							}
 
 
