@@ -230,11 +230,11 @@ static irqreturn_t bfin_serial_int(int irq, void *dev_id, struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
-
+int cnt;
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
         struct circ_buf *xmit = &uart->port.info->xmit;
-        int cnt;
+       // int cnt;
 	unsigned short ier;
 
         if (uart->port.x_char) {
@@ -256,6 +256,8 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
         }
 
         cnt = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	if(cnt > (UART_XMIT_SIZE - xmit->tail))
+		cnt = UART_XMIT_SIZE - xmit->tail;
         set_dma_config(uart->tx_dma_channel,
                                set_bfin_dma_config(DIR_READ, DMA_FLOW_STOP,
                                                    INTR_ON_BUF,
