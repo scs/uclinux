@@ -624,10 +624,6 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 			if (current_rx_ptr->next->status.status_word != 0) {
 				current_rx_ptr = current_rx_ptr->next;
 				goto real_rx;
-			} else {
-				printk(KERN_NOTICE CARDNAME
-				       ": error happened in rx path\n");
-				lp->stats.rx_dropped++;
 			}
 		}
 		bfin_write_DMA1_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() |
@@ -645,11 +641,7 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 static void bf537mac_poll(struct net_device *dev)
 {
 	disable_irq(IRQ_MAC_RX);
-	if (current_rx_ptr->status.status_word == 0) {
-		return;
-	} else {
-		bf537mac_interrupt(IRQ_MAC_RX, dev, NULL);
-	}
+	bf537mac_interrupt(IRQ_MAC_RX, dev, NULL);
 	enable_irq(IRQ_MAC_RX);
 }
 #endif				/* CONFIG_NET_POLL_CONTROLLER */
