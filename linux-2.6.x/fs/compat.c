@@ -1215,6 +1215,10 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	if (ret < 0)
 		goto out;
 
+	ret = security_file_permission(file, type == READ ? MAY_READ:MAY_WRITE);
+	if (ret)
+		goto out;
+
 	fnv = NULL;
 	if (type == READ) {
 		fn = file->f_op->read;
@@ -1897,7 +1901,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 	}
 
 	if (sigmask) {
-		if (sigsetsize |= sizeof(compat_sigset_t))
+		if (sigsetsize != sizeof(compat_sigset_t))
 			return -EINVAL;
 		if (copy_from_user(&ss32, sigmask, sizeof(ss32)))
 			return -EFAULT;
