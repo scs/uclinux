@@ -398,7 +398,7 @@ while 1 {
      }
 }
 
-set timeout 1000
+set timeout 3000
 
 cd $uclinux_path/testsuites/webserver/testcase/simple/
 
