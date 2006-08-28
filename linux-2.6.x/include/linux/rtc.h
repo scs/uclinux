@@ -11,10 +11,6 @@
 #ifndef _LINUX_RTC_H_
 #define _LINUX_RTC_H_
 
-#ifdef __KERNEL__
-#include <linux/interrupt.h>
-#endif /* __KERNEL__ */
-
 /*
  * The struct used to pass data via the following ioctl. Similar to the
  * struct tm in <time.h>, but it needs to be here so that the kernel 
@@ -96,6 +92,8 @@ struct rtc_pll_info {
 #define RTC_PLL_SET	_IOW('p', 0x12, struct rtc_pll_info)  /* Set PLL correction */
 
 #ifdef __KERNEL__
+
+#include <linux/interrupt.h>
 
 typedef struct rtc_task {
 	void (*func)(void *private_data);

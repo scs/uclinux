@@ -2100,6 +2100,7 @@ static int shmem_fill_super(struct super_block *sb,
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = TMPFS_MAGIC;
 	sb->s_op = &shmem_ops;
+	sb->s_time_gran = 1;
 
 	inode = shmem_get_inode(sb, S_IFDIR | mode, 0);
 	if (!inode)
@@ -2172,6 +2173,7 @@ static struct address_space_operations shmem_aops = {
 	.prepare_write	= shmem_prepare_write,
 	.commit_write	= simple_commit_write,
 #endif
+	.migratepage	= migrate_page,
 };
 
 static struct file_operations shmem_file_operations = {
