@@ -645,9 +645,13 @@ extern char tclTypeTable[];
  *			evalFirst and evalLast fields for each command
  *			executed directly from the string (top-level
  *			commands and those from command substitution).
+ *
+ * TCL_CATCH_SIGNAL	Tells Tcl_Eval that a signal can be caught and
+ *			delivered at this level.
  */
 
 #define TCL_RECORD_BOUNDS	0x100
+#define TCL_CATCH_SIGNAL	0x200
 
 /*
  * Maximum number of levels of nesting permitted in Tcl commands.

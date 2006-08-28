@@ -546,6 +546,10 @@ Tcl_Eval(interp, cmd, flags, termPtr)
     *termPtr = src;
     cmdStart = src;
 
+    if (flags & TCL_CATCH_SIGNAL) {
+	iPtr->catch_level++;
+    }
+
     /*
      * There can be many sub-commands (separated by semi-colons or
      * newlines) in one command string.  This outer loop iterates over
@@ -776,6 +780,10 @@ Tcl_Eval(interp, cmd, flags, termPtr)
 	}
     }
 
+    if (flags & TCL_CATCH_SIGNAL) {
+	iPtr->catch_level--;
+    }
+
     /*
      * If an error occurred, record information about what was being
      * executed when the error occurred.
@@ -825,6 +833,7 @@ Tcl_Eval(interp, cmd, flags, termPtr)
     } else {
 	iPtr->flags &= ~ERR_ALREADY_LOGGED;
     }
+
     return result;
 }
 

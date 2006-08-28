@@ -1,5 +1,5 @@
 ifndef ROOTDIR
-	ROOTDIR = $(PWD)/../..
+	ROOTDIR = $(shell pwd)/../..
 
 	-include hostbuild.import
 

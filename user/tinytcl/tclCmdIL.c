@@ -544,7 +544,7 @@ Tcl_InfoCmd(dummy, interp, argc, argv)
 	 * switch in the Makefile.
 	 */
 
-	strcpy(iPtr->result, TCL_VERSION);
+	iPtr->result = TCL_VERSION;
 	return TCL_OK;
     } else if ((c == 'v') && (strncmp(argv[1], "vars", length)) == 0) {
 	Tcl_HashTable *tablePtr;

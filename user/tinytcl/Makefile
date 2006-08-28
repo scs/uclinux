@@ -20,16 +20,19 @@ endif
 
 OBJS=tclAssem.o tclGet.o tclBasic.o tclGlob.o tclUtil.o panic.o tclCmdAH.o tclHash.o tclCmdIL.o tclParse.o \
 	regex_compat.o tclCmdMZ.o tclEnv.o tclProc.o tclVar.o tclalloc.o tclExpr.o tclunxaz.o tcluxutl.o tcluxstr.o \
-	tclXdbg.o tclXgen.o tclHistory.o
+	tclXdbg.o tclXgen.o tclHistory.o tclmod.o
 
 # Defines the extensions to include from extension/...
 EXTENSIONS=syslog
+ifdef CONFIG_LEDMAN
+EXTENSIONS += ledman
+endif
 
 # For dynamic loading
 ifndef CONFIG_LIB_TINYTCL_STATIC
 CFLAGS += -DHAVE_TCL_LOAD
 LDFLAGS += -rdynamic
-LIBDL += -ldl
+EXTRALIBS += -ldl
 OBJS += tclLoad.o tclLoadDl.o noextensions.o
 else
 OBJS += load_extensions.o
@@ -49,17 +52,17 @@ endif
 all: $(TARGETS)
 
 $(EXE): $(LIBTCL) tinytcl.o
-	$(PURIFY) $(CC) $(LDFLAGS) -o $@ tinytcl.o $(LIBTCL) $(LDLIBS$(LDLIBS_$@)) $(LIBDL)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ tinytcl.o $(LIBTCL) $(LDLIBS$(LDLIBS_$@)) $(EXTRALIBS)
 
 tcltest: $(LIBTCL) tclTest.o
-	$(PURIFY) $(CC) $(LDFLAGS) -o $@ tclTest.o $(LIBTCL) $(LDLIBS$(LDLIBS_$@)) $(LIBDL)
+	$(PURIFY) $(CC) $(LDFLAGS) -o $@ tclTest.o $(LIBTCL) $(LDLIBS$(LDLIBS_$@)) $(EXTRALIBS)
 
 $(STATIC_LIBTCL): $(OBJS) build_extensions
 	$(AR) cr $@ $(OBJS)
 	-$(AR) r $@ extensions/*.o
 
 libtcl.so: $(OBJS) build_extensions
-	$(CC) -s -shared -o $@ $(SH_LDFLAGS) $(OBJS) $(SH_LDLIBS)
+	$(CC) -shared -o $@ $(SH_LDFLAGS) $(OBJS) $(SH_LDLIBS)
 
 # The dependency here is a bit overkill, but it's simple
 build_extensions: extensions/*/*

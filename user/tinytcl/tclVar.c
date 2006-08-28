@@ -1501,7 +1501,8 @@ Tcl_ArrayCmd(dummy, interp, argc, argv)
     } else {
 	varPtr = (Var *) Tcl_GetHashValue(hPtr);
 	if (varPtr->flags & VAR_UPVAR) {
-	    varPtr = (Var *)varPtr->value.upvarPtr;
+	    hPtr = varPtr->value.upvarPtr;
+	    varPtr = (Var *) Tcl_GetHashValue(hPtr);
 	}
 	if (!(varPtr->flags & VAR_ARRAY)) {
 	    notArray = 1;

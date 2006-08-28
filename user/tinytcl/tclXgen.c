@@ -237,7 +237,7 @@ find_signal_by_name(const char *name)
  *
  * Tcl_SignalCmd --
  *     Implements the TCL signal command:
- *         signal ?handle|ignore|default SIG...?
+ *         signal ?handle|ignore|default|throw SIG...?
  *
  *     Specifies which signals are handled by Tcl code.
  *     If the one of the given signals is caught, it causes a TCL_SIGNAL
@@ -245,6 +245,7 @@ find_signal_by_name(const char *name)
  *
  *     Use 'signal ignore' to ignore the signal(s)
  *     Use 'signal default' to go back to the default behaviour
+ *     Use 'signal throw' to rethrow a signal caught in a catch (or simulate a signal)
  *
  *     If no arguments are given, returns the list of signals which are being handled
  *
@@ -273,10 +274,27 @@ Tcl_SignalCmd(dummy, interp, argc, argv)
 
     if (argc == 1) {
         Tcl_AppendResult (interp, "bad # args: ", argv [0], 
-                          " handle|ignore|default ?SIG...?", 0);
+                          " handle|ignore|default|throw ?SIG...?", 0);
         return TCL_ERROR;
     }
 
+    if (strcmp(argv[1], "throw") == 0) {
+	if (argc > 2) {
+	    int sig = SIGINT;
+	    if (argc > 2) {
+		if ((sig = find_signal_by_name(argv[2])) < 0) {
+		    Tcl_AppendResult (interp, argv [0], 
+			      " unknown signal ", argv[2], 0);
+		    return TCL_ERROR;
+		}
+	    }
+	    /* Set the canonical name of the signal as the result */
+	    Tcl_SetResult(interp, Tcl_SignalId(sig), TCL_STATIC);
+	}
+
+	/* And simply say we caught the signal */
+	return TCL_SIGNAL;
+    }
     if (strcmp(argv[1], "ignore") == 0) {
         action = ACTION_IGNORE;
     }

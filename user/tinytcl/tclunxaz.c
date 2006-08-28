@@ -613,6 +613,20 @@ Tcl_FileCmd(dummy, interp, argc, argv)
 	}
 	return TCL_OK;
     }
+    else if (strcmp(argv[1], "rename") == 0) {
+	if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+		    " ", argv[1], " source target\"", (char *) NULL);
+	    return TCL_ERROR;
+	}
+	if (rename(argv[2], argv[3]) == -1) {
+	    Tcl_AppendResult(interp, "couldn't rename \"", argv[2],
+		    "\": ", Tcl_UnixError(interp), (char *) NULL);
+	    return TCL_ERROR;
+	}
+	return TCL_OK;
+    }
+
 
     /*
      * Lastly, check stuff that requires the file to be stat-ed.

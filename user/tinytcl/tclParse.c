@@ -128,12 +128,12 @@ static char *	VarNameEnd _ANSI_ARGS_((char *string));
 
 char
 Tcl_Backslash(src, readPtr)
-    char *src;			/* Points to the backslash character of
+    CONST char *src;			/* Points to the backslash character of
 				 * a backslash sequence. */
     int *readPtr;		/* Fill in with number of characters read
 				 * from src, unless NULL. */
 {
-    register char *p = src+1;
+    register CONST char *p = src+1;
     char result;
     int count;
 

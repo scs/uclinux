@@ -1,11 +1,11 @@
 CFLAGS += -I$(TCLDIR)
 
-OBJS=syslog.o
+OBJS=ledman.o
 
 ifndef CONFIG_LIB_TINYTCL_STATIC
 CFLAGS += -fpic
 
-syslog.so: $(OBJS)
+ledman.so: $(OBJS)
 	$(CC) -shared $(SH_LDFLAGS) -o $@ $(OBJS) $(SH_LDLIBS)
 
 else
@@ -18,4 +18,4 @@ clean:
 
 romfs:
 	@-mkdir -p $(ROMFSDIR)/lib/tcl
-	$(ROMFSINST) /lib/tcl/syslog.so
+	$(ROMFSINST) /lib/tcl/ledman.so

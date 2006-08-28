@@ -221,16 +221,13 @@ Tcl_CatchCmd(dummy, interp, argc, argv)
     char **argv;			/* Argument strings. */
 {
     int result;
-    Interp *iPtr = (Interp *)interp;
 
     if ((argc != 2) && (argc != 3)) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 		argv[0], " command ?varName?\"", (char *) NULL);
 	return TCL_ERROR;
     }
-    iPtr->catch_level++;
-    result = Tcl_Eval(interp, argv[1], 0, (char **) NULL);
-    iPtr->catch_level--;
+    result = Tcl_Eval(interp, argv[1], TCL_CATCH_SIGNAL, (char **) NULL);
     if (argc == 3) {
 	if (Tcl_SetVar(interp, argv[2], interp->result, 0) == NULL) {
 	    Tcl_SetResult(interp, "couldn't save command result in variable",

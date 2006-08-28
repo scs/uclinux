@@ -429,12 +429,12 @@ Tcl_SplitList(interp, list, argcPtr, argvPtr)
 
 int
 Tcl_ScanElement(string, flagPtr)
-    char *string;		/* String to convert to Tcl list element. */
+    const char *string;		/* String to convert to Tcl list element. */
     int *flagPtr;		/* Where to store information to guide
 				 * Tcl_ConvertElement. */
 {
     int flags, nestingLevel;
-    register char *p;
+    register const char *p;
 
     /*
      * This procedure and Tcl_ConvertElement together do two things:
@@ -551,7 +551,7 @@ Tcl_ScanElement(string, flagPtr)
 
 int
 Tcl_ConvertElement(src, dst, flags)
-    register char *src;		/* Source information for list element. */
+    register CONST char *src;		/* Source information for list element. */
     char *dst;			/* Place to put list-ified element. */
     int flags;			/* Flags produced by Tcl_ScanElement. */
 {
@@ -1077,7 +1077,7 @@ void
 Tcl_AppendElement(interp, string, noSep)
     Tcl_Interp *interp;		/* Interpreter whose result is to be
 				 * extended. */
-    char *string;		/* String to convert to list element and
+    CONST char *string;		/* String to convert to list element and
 				 * add to result. */
     int noSep;			/* If non-zero, then don't output a
 				 * space character before this element,

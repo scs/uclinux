@@ -40,6 +40,7 @@ static EnvInterp *firstInterpPtr;
 				/* First in list of all managed interpreters,
 				 * or NULL if none. */
 
+#if 0
 static int environSize = 0;	/* Non-zero means that the all of the
 				 * environ-related information is malloc-ed
 				 * and the environ array itself has this
@@ -47,6 +48,7 @@ static int environSize = 0;	/* Non-zero means that the all of the
 				 * all may be in use at once).  Zero means
 				 * that the environment array is in its
 				 * original static state. */
+#endif
 
 /*
  * Declarations for local procedures defined in this file:
@@ -95,6 +97,7 @@ TclSetupEnv(interp)
     EnvInterp *eiPtr;
     int i;
 
+#if 0
     /*
      * First, initialize our environment-related information, if
      * necessary.
@@ -103,6 +106,7 @@ TclSetupEnv(interp)
     if (environSize == 0) {
 	EnvInit();
     }
+#endif
 
     /* Next, verify that file descriptors 0, 1 and 2 are connected to something.
      * If not, we open them connected to /dev/null since Tcl assumes that
@@ -483,6 +487,7 @@ EnvTraceProc(clientData, interp, name1, name2, flags)
     return NULL;
 }
 
+#if 0
 /*
  *----------------------------------------------------------------------
  *
@@ -524,3 +529,4 @@ EnvInit()
     newEnviron[length] = NULL;
     environ = newEnviron;
 }
+#endif

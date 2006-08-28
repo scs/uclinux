@@ -610,7 +610,7 @@ Tcl_CreatePipeline(interp, argc, argv, pidArrayPtr, inPipePtr,
      */
 
     if (input != NULL) {
-	if (inputFile == 1) {
+	if (inputFile == 0) {
 	    /*
 	     * Immediate data in command.  Create temporary file and
 	     * put data into file.

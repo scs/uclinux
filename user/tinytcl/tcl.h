@@ -245,17 +245,17 @@ EXTERN void		Tcl_ValidateAllMemory _ANSI_ARGS_((char *file,
  */
 
 EXTERN void		Tcl_AppendElement _ANSI_ARGS_((Tcl_Interp *interp,
-			    char *string, int noSep));
+			    CONST char *string, int noSep));
 EXTERN void		Tcl_AppendResult _ANSI_ARGS_((Tcl_Interp *interp, ...));
 EXTERN char *		Tcl_AssembleCmd _ANSI_ARGS_((Tcl_CmdBuf buffer,
 			    char *string));
 EXTERN void		Tcl_AddErrorInfo _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *message));
-EXTERN char		Tcl_Backslash _ANSI_ARGS_((char *src,
+EXTERN char		Tcl_Backslash _ANSI_ARGS_((CONST char *src,
 			    int *readPtr));
 EXTERN int		Tcl_CommandComplete _ANSI_ARGS_((char *cmd));
 EXTERN char *		Tcl_Concat _ANSI_ARGS_((int argc, char **argv));
-EXTERN int		Tcl_ConvertElement _ANSI_ARGS_((char *src,
+EXTERN int		Tcl_ConvertElement _ANSI_ARGS_((CONST char *src,
 			    char *dst, int flags));
 EXTERN Tcl_CmdBuf	Tcl_CreateCmdBuf _ANSI_ARGS_((void));
 EXTERN void		Tcl_CreateCommand _ANSI_ARGS_((Tcl_Interp *interp,
@@ -313,7 +313,7 @@ EXTERN int		Tcl_RecordAndEval _ANSI_ARGS_((Tcl_Interp *interp,
 			    char *cmd, int flags));
 EXTERN void		Tcl_ResetResult _ANSI_ARGS_((Tcl_Interp *interp));
 #define Tcl_Return Tcl_SetResult
-EXTERN int		Tcl_ScanElement _ANSI_ARGS_((char *string,
+EXTERN int		Tcl_ScanElement _ANSI_ARGS_((CONST char *string,
 			    int *flagPtr));
 EXTERN void		Tcl_SetErrorCode _ANSI_ARGS_((Tcl_Interp *interp, ...));
 EXTERN void		Tcl_SetResult _ANSI_ARGS_((Tcl_Interp *interp,
