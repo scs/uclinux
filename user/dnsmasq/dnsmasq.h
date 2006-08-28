@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <syslog.h>
+#include <stdarg.h>
 #ifdef HAVE_GETOPT_LONG
 #  include <getopt.h>
 #endif
@@ -48,7 +49,7 @@
 struct all_addr {
   union {
     struct in_addr addr4;
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
     struct in6_addr addr6;
 #endif
   } addr;
@@ -84,7 +85,7 @@ struct crec {
 union mysockaddr {
   struct sockaddr sa;
   struct sockaddr_in in;
-#ifndef NO_IPV6 
+#ifdef HAVE_IPV6 
 #ifdef HAVE_BROKEN_SOCKADDR_IN6
   /* early versions of glibc don't include sin6_scope_id in sockaddr_in6
      but latest kernels _require_ it to be set. The choice is to have
@@ -125,15 +126,18 @@ struct iname {
 
 struct frec {
   union mysockaddr source;
+#ifndef BIND_EACH_INTERFACE
+  union mysockaddr dest;
+  int ifindex;
+#endif
   struct server *sentto;
   unsigned short orig_id, new_id;
   int fd;
   time_t time;
-  int response_count;
-  HEADER *last_header; /*a pointer into the header*/
-  void *buffer;		/*The buffer for caching data*/
-  int pack_size;	/*the size of the received packet*/
-  int buf_size;		/*the size of the allocated buffer*/
+  int forward_count;
+  void *packet;		/*The buffer for caching data*/
+  int packet_size;	/*the size of the received packet*/
+  int packet_alloc;	/*the size of the allocated buffer*/
 };
 
 /* cache.c */
@@ -151,7 +155,7 @@ void cache_name_insert(char *name, struct all_addr *addr,
 		       time_t now, unsigned long ttl, int prot);
 void cache_addr_insert(char *name, struct all_addr *addr,
 		       time_t now, unsigned long ttl, int prot);
-void cache_reload(int use_hosts, int cachesize);
+void cache_reload(int use_hosts, int cachesize, const char *suffix);
 struct crec *cache_clear_dhcp(void);
 void dump_cache(int daemon, int size);
 

@@ -32,11 +32,13 @@ void cache_init(int cachesize)
 
   cache_head = NULL;
   cache_tail = crecp;
-  for (i=0; i<cachesize; i++, crecp++) {
-	crecp->nameSize = 0;
-	crecp->name = NULL;
-    cache_insert(crecp);
-  }
+  for (i=0; i<cachesize; i++, crecp++)
+    {
+      crecp->nameSize = 0;
+      crecp->name = NULL;
+      cache_insert(crecp);
+      crecp->flags = 0;
+    }
   cache_inserted = cache_live_freed = 0;
 }
 
@@ -169,13 +171,15 @@ void cache_name_insert(char *name, struct all_addr *addr,
   struct crec *crecp = cache_get_free(now);
   int len;
   crecp->flags = F_NEW | F_FORWARD | prot;
-  if ((len = strlen(name)) >= crecp->nameSize) {
-    if(crecp->name) 
-      free(crecp->name);
-    crecp->name = strdup(name);
-    crecp->nameSize = len + 1;
-  } else
-    strcpy(crecp->name, name);
+  len = strlen(name) + 1;
+  if (len > crecp->nameSize)
+    {
+      if(crecp->name) 
+	free(crecp->name);
+      crecp->nameSize = len;
+      crecp->name = malloc(crecp->nameSize);
+    }
+  strcpy(crecp->name, name);
   if (addr)
     memcpy(&crecp->addr, addr, addrlen);
   else
@@ -191,13 +195,15 @@ void cache_addr_insert(char *name, struct all_addr *addr,
   int addrlen = (prot == F_IPV6) ? IN6ADDRSZ : INADDRSZ;
   int len;
   crecp->flags = F_NEW | F_REVERSE | prot;
-  if ((len = strlen(name)) >= crecp->nameSize) {
-    if (crecp->name)
-      free(crecp->name);
-	crecp->name = strdup(name);
-	crecp->nameSize = len + 1;
-  } else
-    strcpy(crecp->name, name);
+  len = strlen(name) + 1;
+  if (len > crecp->nameSize)
+    {
+      if(crecp->name) 
+	free(crecp->name);
+      crecp->nameSize = len;
+      crecp->name = malloc(crecp->nameSize);
+    }
+  strcpy(crecp->name, name);
   memcpy(&crecp->addr, addr, addrlen);
   crecp->ttd = ttl + now;
   cache_insert(crecp);
@@ -297,7 +303,32 @@ struct crec *cache_find_by_addr(struct crec *crecp, struct all_addr *addr,
   return NULL;
 }
 
-void cache_reload(int use_hosts, int cachesize)
+static void cache_add(const char *name, int flags, struct all_addr *addr, int addrlen)
+{
+  char *cp;
+  struct crec *cache = malloc(sizeof(struct crec));
+
+  if (!cache) {
+    return;
+  }
+
+  cache->nameSize = strlen(name) + 1;
+  cache->name = malloc(cache->nameSize);
+  if (!cache->name)
+    {
+      free(cache);
+      return;
+    }
+  for (cp = cache->name; *name; name++, cp++)
+    *cp = tolower(*name);
+  *cp = 0;
+  cache->flags = flags;
+  memcpy(&cache->addr, addr, addrlen);
+
+  cache_insert(cache);
+}
+
+void cache_reload(int use_hosts, int cachesize, const char *suffix)
 {
   struct crec *cache, *tmp;
   FILE *f;
@@ -353,29 +384,21 @@ void cache_reload(int use_hosts, int cachesize)
       else
 	continue;
 
-      while ((token = strtok(NULL, " \t\n")) && (*token != '#'))
-	if ((cache = malloc(sizeof(struct crec))))
-	  {
-	    char *cp;
-		int len;
-
-		len = strlen(token);
-		cache->nameSize = len + 1;
-		cache->name = malloc(cache->nameSize);
-		if (!(cache->name)) {
-			free(cache);
-			continue;
-		}
-	    for (cp = cache->name; *token; token++, cp++)
-	      *cp = tolower(*token);
-	    *cp = 0;
-	    cache->flags = flags;
-	    memcpy(&cache->addr, &addr, addrlen);
-	    cache_insert(cache);
-	    /* Only the first name is canonical, and should be 
-	       returned to reverse queries */
-	    flags &=  ~F_REVERSE;
-	  }
+      while ((token = strtok(NULL, " \t\n")) && (*token != '#')) {
+	/* If the name is unqualified and we have a suffix, add
+	 * the qualified name first
+	 */
+	if (suffix && strchr(token, '.') == 0) {
+	  char hostname[MAXDNAME];
+	  snprintf(hostname, sizeof(hostname), "%s.%s", token, suffix);
+	  cache_add(hostname, flags, &addr, addrlen);
+	  flags &=  ~F_REVERSE;
+	}
+	cache_add(token, flags, &addr, addrlen);
+	/* Only the first name is canonical, and should be 
+	   returned to reverse queries */
+	flags &=  ~F_REVERSE;
+      }
     }
 
   fclose(f);

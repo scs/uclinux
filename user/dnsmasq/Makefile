@@ -1,6 +1,14 @@
 OBJS = cache.o rfc1035.o dhcp.o dnsmasq.o
+BINDIR = /usr/local/sbin
+MANDIR = /usr/local/man
 
-CFLAGS += -D__USE_BSD=1 -DNO_FORK=1 -DDEFAULT_CACHE_SIZE=20 -DNO_IPV6
+CFLAGS += -g -D__USE_BSD=1
+ifdef CONFIG_IPV6
+CFLAGS += -DHAVE_IPV6
+endif
+ifdef CONFIG_USER_FLATFSD_FLATFSD
+CFLAGS += -DETC_DIR=\"/etc/config\"
+endif
 
 all : dnsmasq
 
@@ -8,7 +16,7 @@ clean :
 	rm -f *~ $(OBJS) dnsmasq dnsmasq.gdb
 
 .c.o: dnsmasq.h config.h
-	$(CC) -c $(CFLAGS) $*.c 
+	$(CC) -Wall -c $(CFLAGS) $*.c 
 
 
 dnsmasq : $(OBJS) dnsmasq.h config.h

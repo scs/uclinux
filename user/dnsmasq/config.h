@@ -21,13 +21,18 @@
 #define CACHESIZ 300 /* default cache size */
 #endif
 #define MAXLIN 1024 /* line length in config files */
-#define HOSTSFILE "/etc/config/hosts"
-#define RESOLVFILE "/etc/config/resolv.conf"
+
+#ifndef ETC_DIR
+#define ETC_DIR "/etc"
+#endif
+
+#define HOSTSFILE ETC_DIR "/hosts"
+#define RESOLVFILE ETC_DIR "/resolv.conf"
+#define CONFFILE ETC_DIR "/dnsmasq.conf"
+
 #define RUNFILE "/var/run/dnsmasq.pid"
 #define CHUSER "nobody"
-#ifndef NO_IPV6
 #define IP6INTERFACES "/proc/net/if_inet6"
-#endif
 
 /* Follows system specific switches. If you run on a 
    new system, you may want to edit these. 
@@ -74,7 +79,7 @@ NOTES:
 
 /* define this if you have GNU libc or GNU getopt. */
 #ifdef __linux__
-//#define HAVE_LINUX_IPV6_PROC
+#define HAVE_LINUX_IPV6_PROC
 #define HAVE_GETOPT_LONG
 #undef HAVE_ARC4RANDOM
 #undef HAVE_SOCKADDR_SA_LEN

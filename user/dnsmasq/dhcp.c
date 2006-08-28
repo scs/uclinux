@@ -205,7 +205,6 @@ static void process_lease(struct crec **empty_cache, char *host_name,
 			  struct in_addr host_address, time_t ttd, int flags) 
 {
   struct crec *crec;
-  int len;
   char *cp;
   
   if ((crec = cache_find_by_name(NULL, host_name, 0, F_IPV4)))
@@ -245,21 +244,20 @@ static void process_lease(struct crec **empty_cache, char *host_name,
       
       if (crec) /* malloc may fail */
 	{
-      crec->nameSize = 0;
-	  crec->name = NULL;
 	  crec->flags = F_DHCP | F_FORWARD | F_IPV4 | flags;
 	  if (ttd == (time_t)-1)
 	    crec->flags |= F_IMMORTAL;
 	  else
 	    crec->ttd = ttd;
 	  memcpy(&crec->addr, &host_address, INADDRSZ);
-      crec->name = malloc((len = strlen(host_name)) + 1);
-	  if (!crec->name) {
-        free (crec);
-        return;
-	  }
-      crec->nameSize = len;
-      for (cp = crec->name; *host_name; host_name++, cp++)
+	  crec->nameSize = strlen(host_name) + 1;
+	  crec->name = malloc(crec->nameSize);
+	  if (!crec->name)
+	    {
+	      free(crec);
+	      return;
+	    }
+	  for (cp = crec->name; *host_name; host_name++, cp++)
 	    *cp = tolower(*host_name);
 	  *cp = 0;
 	  cache_insert(crec);

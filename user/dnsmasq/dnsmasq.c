@@ -23,12 +23,22 @@ static int wait_timeout = 2;
 static int cache_failures = 0;
 static int num_servers = 0;
 
-int response_better_than(HEADER *old, HEADER *new);
-void timeout_responses(int cachesize);
-int response_acceptable(HEADER *header);
-void cancel(struct frec *fr);
+#ifndef HAVE_GETOPT_LONG
+  struct option
+  {
+    const char *name;
+    int has_arg;
+    int *flag;
+    int val;
+  };
 
-#ifdef HAVE_GETOPT_LONG
+  #define no_argument		0
+  #define required_argument	1
+  #define optional_argument	2
+
+  #define getopt_long(ARGC, ARGV, OPTS, OPTARRAY, INDEX) getopt(ARGC, ARGV, OPTS)
+#endif
+
 static struct option opts[] = { 
   {"version", no_argument, 0, 'v'},
   {"no-hosts", no_argument, 0, 'h'},
@@ -49,10 +59,10 @@ static struct option opts[] = {
   {"filterwin2k", no_argument, 0, 'f'},
   {"pid-file", required_argument, 0, 'x'},
   {"wait-timeout", required_argument, 0, 'w'},
-  {"dont-cache-failures", no_argument, 0, 'F'},
+  {"cache-failures", no_argument, 0, 'F'},
+  {"conf-file", required_argument, 0, 'C'},
   {0}
 };
-#endif
 
 static char *usage =
 "Usage: dnsmasq [options]\n"
@@ -75,6 +85,8 @@ static char *usage =
 "-i, --interface=interface   Specify interface(s) to listen on.\n"
 "-a, --listen-address=ipaddr Specify local address(es) to listen on.\n"
 "-w, --wait-timeout=to       The amount of time to wait before returning the best answer.\n"
+"-F, --cache-failures        Cache failed query responses.\n"
+"-C, --conf-file             Specify an additional conf file to read for options (defaults to " CONFFILE ").\n"
 "-?, --help                  Display this message.\n"
 "\n";
 
@@ -82,17 +94,24 @@ static void forward_query(int udpfd,
 			  int peerfd,
 			  int peerfd6,
 			  union mysockaddr *udpaddr, 
+			  union mysockaddr *myaddr,
+			  int ifindex,
 			  HEADER *header,
 			  int plen);
 static void reply_query(int fd, char *packet, int cachesize);
+static void forward_reply(struct frec *forward, char *packet, int n);
 static int reload_servers(char *fname, struct irec *interfaces,
 			   int peerfd, int peerfd6);
 static void *safe_malloc(int size);
-static char *safe_string_alloc(char *cp);
+static char *safe_string_alloc(const char *cp);
+static void die(const char *message, ...);
 static int sa_len(union mysockaddr *addr);
 static struct irec *find_all_interfaces(struct iname *names, 
 					struct iname *addrs,
 					int fd, int port);
+#ifndef BIND_EACH_INTERFACE
+static struct irec *bind_any_interface(int port);
+#endif
 static int sockaddr_isequal(union mysockaddr *s1, union mysockaddr *s2);
 static void sig_handler(int sig);
 static struct frec *get_new_frec(time_t now);
@@ -100,32 +119,244 @@ static struct frec *lookup_frec(unsigned short id);
 static struct frec *lookup_frec_by_sender(unsigned short id,
 					  union mysockaddr *addr);
 static unsigned short get_id(void);
+static int response_better_than(struct frec *forward, HEADER *new);
+static void timeout_responses(int cachesize);
+static int response_acceptable(HEADER *header);
+static int recvto(int s, void *buf, size_t len, int flags,
+		  struct sockaddr *from, socklen_t *fromlen,
+		  union mysockaddr *to,
+		  unsigned int *ifindex);
+static int sendfrom(int s, void *buf, size_t len, int flags,
+    		    struct sockaddr *to, socklen_t tolen,
+		    union mysockaddr *from,
+		    unsigned int ifindex);
 
+static int cachesize = CACHESIZ;
+static int port = NAMESERVER_PORT;
+static int boguspriv = 0;
+static int filterwin2k = 0;
+static int use_hosts = 1, daemonize = 1, do_poll = 1, first_loop = 1;
+static char *runfile = RUNFILE;
+static char *resolv = RESOLVFILE;
+static char *mxname = NULL;
+static char *mxtarget = NULL;
+static char *lease_file = NULL;
+static char *domain_suffix = NULL;
+static char *username = CHUSER;
+static struct iname *if_names = NULL;
+static struct iname *if_addrs = NULL;
+static char *conffile = NULL;
 
+static int do_option(int option, const char *optarg)
+{
+  if (option == 'b')
+      boguspriv = 1;
+    
+  if (option == 'f')
+      filterwin2k = 1;
+      
+  if (option == 'v')
+    {
+      fprintf(stderr, "dnsmasq version %s\n", VERSION);
+      exit(0);
+    }
+
+  if (option == 'h')
+    use_hosts = 0;
+
+  if (option == 'n')
+    do_poll = 0;
+
+  if (option == 'd')
+    daemonize = 0;
+  
+  if (option == 'x')
+    runfile = safe_string_alloc(optarg);
+
+  if (option == 'r')
+    resolv = safe_string_alloc(optarg);
+    
+  if (option == 'm')
+    mxname = safe_string_alloc(optarg);
+
+  if (option == 't')
+    mxtarget = safe_string_alloc(optarg);
+  
+  if (option == 'l')
+    lease_file = safe_string_alloc(optarg);
+  
+  if (option == 's')
+    domain_suffix = safe_string_alloc(optarg);
+
+  if (option == 'u')
+    username = safe_string_alloc(optarg);
+  
+  if (option == 'i')
+    {
+      struct iname *new = safe_malloc(sizeof(struct iname));
+      new->next = if_names;
+      if_names = new;
+      new->name = safe_string_alloc(optarg);
+      new->found = 0;
+    }
+
+  if (option == 'a')
+    {
+      struct iname *new = safe_malloc(sizeof(struct iname));
+      new->next = if_addrs;
+      if_addrs = new;
+      new->found = 0;
+      if (inet_pton(AF_INET, optarg, &new->addr.in.sin_addr))
+	new->addr.sa.sa_family = AF_INET;
+#ifdef HAVE_IPV6
+      else if (inet_pton(AF_INET6, optarg, &new->addr.in6.sin6_addr))
+	new->addr.sa.sa_family = AF_INET6;
+#endif
+      else
+	option = '?'; /* error */
+    }
+
+  if (option == 'c')
+    {
+      cachesize = atoi(optarg);
+      /* zero is OK, and means no caching.
+	 Very low values cause prolems with  hosts
+	 with many A records. */
+      
+      if (cachesize < 0)
+	option = '?'; /* error */
+      else if ((cachesize > 0) && (cachesize < 20))
+	cachesize = 20;
+      else if (cachesize > 1000)
+	cachesize = 1000;
+    }
+
+  if (option == 'p')
+    port = atoi(optarg);
+
+  if (option == 'w')
+    wait_timeout = atoi(optarg);
+
+  if (option == 'F')
+    cache_failures = 1; /* cache failures */
+
+  if (option == 'C')
+	conffile = safe_string_alloc(optarg);
+
+  return option;
+}
+
+static void read_opts (int argc, char **argv)
+{
+  int option = 0, i;
+  FILE *f = NULL;
+  char buff[256];
+
+  opterr = 0;
+
+  while (1)
+    {
+      if (!f)
+        {
+	  option = getopt_long(argc, argv, "fFnbvhdr:m:p:c:l:s:i:t:u:a:x:w:C:", opts, NULL);
+        }
+      else
+	{ /* f non-NULL, reading from conffile. */
+	  if (!fgets(buff, MAXDNAME, f))
+	    {
+	      /* At end of file, all done */
+	      fclose(f);
+	      break;
+	    }
+	  else
+	    {
+	      char *p;
+	      /* fgets gets end of line char too. */
+	      while (strlen(buff) > 0 && 
+		     (buff[strlen(buff)-1] == '\n' || 
+		      buff[strlen(buff)-1] == ' ' || 
+		      buff[strlen(buff)-1] == '\t'))
+		buff[strlen(buff)-1] = 0;
+	      if (*buff == '#' || *buff == 0)
+		continue; /* comment */
+	      if ((p=strchr(buff, '=')))
+		{
+		  optarg = p+1;
+		  *p = 0;
+		}
+	      else
+		optarg = NULL;
+	      
+	      option = 0;
+	      for (i=0; opts[i].name; i++) 
+		if (strcmp(opts[i].name, buff) == 0)
+		  option = opts[i].val;
+	      if (!option)
+		die("Bad option in %s: %s", conffile ?: CONFFILE, buff);
+	    }
+	}
+      
+      if (option == -1)
+	{ /* end of command line args, start reading conffile. */
+	  if (conffile && !*conffile)
+	    break; /* "confile=" option disables */
+	  if (!(f = fopen(conffile ?: CONFFILE, "r")))
+	    {   
+	      if (errno == ENOENT && !conffile)
+		break; /* No conffile, all done. */
+	      else
+		die("Cannot read %s: %m", conffile);
+	    }
+		continue;
+	}
+     
+      if (f) {
+		  if (option == 'v' || option == 'C' || option == '?')
+			  continue;
+      
+	for (i=0; opts[i].name; i++)
+	  if (option == opts[i].val)
+	    {
+	      if (opts[i].has_arg == no_argument && optarg) {
+		die("Extraneous parameter for %s in config file.", buff);
+	      }
+	      if (opts[i].has_arg == required_argument && !optarg) {
+		die("Missing parameter for %s in config file.", buff);
+	      }
+	      break;
+	    }
+      }
+      
+      if (option && option != '?')
+	{
+	  option = do_option(option, optarg);
+	}
+
+      if (option == '?')
+	{
+	  if (f)
+	    {
+	      die("Missing parameter for %s in config file.", buff);
+	    }
+	  else
+	    {
+	      fprintf (stderr, usage, CACHESIZ);
+	      exit(0);
+	    }
+	}
+    }
+}
+      
 int main (int argc, char **argv)
 {
-  int i, cachesize = CACHESIZ;
-  int port = NAMESERVER_PORT;
-  int peerfd, peerfd6, option; 
-  int use_hosts = 1, daemon = 1, do_poll = 1, first_loop = 1;
-  char *resolv = RESOLVFILE;
-  char *runfile = RUNFILE;
+  int i;
+  int peerfd, peerfd6;
   time_t resolv_changed = 0;
   off_t lease_file_size = (off_t)0;
   ino_t lease_file_inode = (ino_t)0;
   time_t lease_file_mtime = (time_t)0;
   struct irec *iface, *interfaces = NULL;
-  char *mxname = NULL;
-  char *mxtarget = NULL;
-  char *lease_file = NULL;
-  char *domain_suffix = NULL;
-  char *username = CHUSER;
-  int boguspriv = 0;
-  int filterwin2k = 0;
-  struct iname *if_names = NULL;
-  struct iname *if_addrs = NULL;
-  struct timeval to = {0,0};
-  struct timeval *actual_to = NULL;
+  struct timeval to;
   FILE *pidfile;
 
   sighup = 1; /* init cache the first time through */
@@ -134,129 +365,15 @@ int main (int argc, char **argv)
   signal(SIGHUP, sig_handler);
 
   last_server = NULL;
+
+  read_opts(argc, argv);
   
-  opterr = 0;
-
-  while (1)
-    {
-#ifdef HAVE_GETOPT_LONG
-      option = getopt_long(argc, argv, "fFnbvhdr:m:p:c:l:s:i:t:u:a:x:w:", opts, NULL);
-#else
-      option = getopt(argc, argv, "fFnbvhdr:m:p:c:l:s:i:t:u:a:x:w:");
-#endif
-
-      if (option == 'b')
-	  boguspriv = 1;
-	
-      if (option == 'f')
-          filterwin2k = 1;
-          
-      if (option == 'v')
-	{
-	  fprintf(stderr, "dnsmasq version %s\n", VERSION);
-	  exit(0);
-	}
-
-      if (option == 'h')
-	use_hosts = 0;
-
-      if (option == 'n')
-	do_poll = 0;
-
-      if (option == 'd')
-	daemon = 0;
-      
-      if (option == 'x')
-	runfile = safe_string_alloc(optarg);
-
-      if (option == 'r')
-	resolv = safe_string_alloc(optarg);
-	
-      if (option == 'm')
-	mxname = safe_string_alloc(optarg);
-
-      if (option == 't')
-	mxtarget = safe_string_alloc(optarg);
-      
-      if (option == 'l')
-	lease_file = safe_string_alloc(optarg);
-      
-      if (option == 's')
-	domain_suffix = safe_string_alloc(optarg);
-
-      if (option == 'u')
-	username = safe_string_alloc(optarg);
-      
-      if (option == 'i')
-	{
-	  struct iname *new = safe_malloc(sizeof(struct iname));
-	  new->next = if_names;
-	  if_names = new;
-	  new->name = safe_string_alloc(optarg);
-	  new->found = 0;
-	}
-
-      if (option == 'a')
-	{
-	  struct iname *new = safe_malloc(sizeof(struct iname));
-	  new->next = if_addrs;
-	  if_addrs = new;
-	  new->found = 0;
-	  if (inet_pton(AF_INET, optarg, &new->addr.in.sin_addr))
-	    new->addr.sa.sa_family = AF_INET;
-#ifndef NO_IPV6
-	  else if (inet_pton(AF_INET6, optarg, &new->addr.in6.sin6_addr))
-	    new->addr.sa.sa_family = AF_INET6;
-#endif
-	  else
-	    option = '?'; /* error */
-	}
-
-      if (option == 'c')
-	{
-	  cachesize = atoi(optarg);
-	  /* zero is OK, and means no caching.
-	     Very low values cause prolems with  hosts
-	     with many A records. */
-	  
-	  if (cachesize < 0)
-	    option = '?'; /* error */
-	  else if ((cachesize > 0) && (cachesize < 20))
-	    cachesize = 20;
-	  else if (cachesize > 1000)
-	    cachesize = 1000;
-	}
-
-      if (option == 'p')
-	port = atoi(optarg);
-
-      if (option == 'w') {
-	wait_timeout = atoi(optarg);
-	to.tv_sec = wait_timeout;
-	to.tv_usec = 0;
-	actual_to = &to;
-      }
-
-      if (option == 'F') {
-	cache_failures = 0;	/*don't cache failures*/
-      }
-      
-      if (option == '?')
-	{ 
-	  fprintf (stderr, usage,  CACHESIZ);
-          exit (0);
-	}
-      
-      if (option == -1)
-	break;
-    }
-
   /* port might no be known when the address is parsed - fill in here */
   if (if_addrs)
     {  
       struct iname *tmp;
       for(tmp = if_addrs; tmp; tmp = tmp->next)
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
 	if (tmp->addr.sa.sa_family == AF_INET6)
 	  { 
 #ifdef HAVE_SOCKADDR_SA_LEN
@@ -319,6 +436,7 @@ int main (int argc, char **argv)
       exit(1);
     }
 
+#ifdef BIND_EACH_INTERFACE
   interfaces = find_all_interfaces(if_names, if_addrs,
 				   peerfd == -1 ? peerfd6 : peerfd, port);
   
@@ -339,27 +457,31 @@ int main (int argc, char **argv)
 	  exit(1);
 	}
     }
+#else
+  interfaces = bind_any_interface(port);
+#endif
 
   ftab = safe_malloc(FTABSIZ*sizeof(struct frec));
-  for (i=0; i<FTABSIZ; i++) {
-    cancel(&ftab[i]);
-    ftab[i].buf_size = 0;
-    ftab[i].buffer = NULL;
-  }
- 
+  for (i=0; i<FTABSIZ; i++)
+    {
+      ftab[i].new_id = 0;
+      ftab[i].packet_alloc = 0;
+      ftab[i].packet = NULL;
+    }
+  
   if (cachesize) 
     cache_init(cachesize);
 
   setbuf(stdout,NULL);
 
-  if (daemon)
+  if (daemonize)
     {
       struct passwd *ent_pw;
         
       /* The following code "daemonizes" the process. 
 	 See Stevens section 12.4 */
 
-#ifndef NO_FORK
+#ifndef __uClinux__
       if (fork() != 0 )
 	exit(0);
       
@@ -397,17 +519,19 @@ int main (int argc, char **argv)
 	}
     }
   
-	chdir("/");
-	umask(022); /* make pidfile 0644 */
+  chdir("/");
+  umask(022); /* make pidfile 0644 */
       
-	/* write pidfile _after_ forking ! */
-	if ((pidfile = fopen(runfile, "w"))) {
-		fprintf(pidfile, "%d\n", (int) getpid());
-		fclose(pidfile);
-	}
-	umask(0);
+  /* write pidfile _after_ forking ! */
+  if ((pidfile = fopen(runfile, "w")))
+    {
+      fprintf(pidfile, "%d\n", (int) getpid());
+      fclose(pidfile);
+    }
 
-  openlog("dnsmasq", LOG_PID, LOG_USER);
+  umask(0);
+
+  openlog("dnsmasq", LOG_PID, LOG_DAEMON);
   
   if (cachesize)
     syslog(LOG_INFO, "started, version %s cachesize %d", VERSION, cachesize);
@@ -427,7 +551,7 @@ int main (int argc, char **argv)
 	 memory for the largest packet, and the largest record */
       /* declare packet as below to ensure alignment for header access */
       static HEADER _packet[(PACKETSZ+MAXDNAME+RRFIXEDSZ)/sizeof(HEADER)+1];
-      unsigned char *packet = (char *) &_packet[0];
+      char *packet = (char *) &_packet[0];
       int ready, maxfd = peerfd > peerfd6 ? peerfd : peerfd6;
       fd_set rset;
       HEADER *header;
@@ -441,6 +565,14 @@ int main (int argc, char **argv)
 	}
       else
 	{
+	  if (wait_timeout)
+	    {
+	      /* Send the best response so far for anything taking too long */
+	      timeout_responses(cachesize);
+	      to.tv_sec = wait_timeout;
+	      to.tv_usec = 0;
+	    }
+
 	  FD_ZERO(&rset);
 	  if (peerfd != -1)
 	    FD_SET(peerfd, &rset);
@@ -453,7 +585,7 @@ int main (int argc, char **argv)
 		maxfd = iface->fd;
 	    }
 	  
-	  ready = select(maxfd+1, &rset, NULL, NULL, actual_to);
+	  ready = select(maxfd+1, &rset, NULL, NULL, wait_timeout ? &to : NULL);
 	  
 	  if (ready == -1)
 	    {
@@ -467,7 +599,7 @@ int main (int argc, char **argv)
       if (sighup)
 	{
 	  signal(SIGHUP, SIG_IGN);
-	  cache_reload(use_hosts, cachesize);
+	  cache_reload(use_hosts, cachesize, domain_suffix);
 	  if (!do_poll)
 	    num_servers = reload_servers(resolv, interfaces, peerfd, peerfd6);
 	  sighup = 0;
@@ -477,7 +609,7 @@ int main (int argc, char **argv)
       if (sigusr1)
 	{
 	  signal(SIGUSR1, SIG_IGN);
-	  dump_cache(daemon, cachesize);
+	  dump_cache(daemonize, cachesize);
 	  sigusr1 = 0;
 	  signal(SIGUSR1, sig_handler);
 	}
@@ -518,9 +650,11 @@ int main (int argc, char **argv)
 	      /* request packet, deal with query */
 	      union mysockaddr udpaddr;
 	      socklen_t udplen = sizeof(udpaddr);
-	      int m, n = recvfrom(iface->fd, packet, PACKETSZ, 0, &udpaddr.sa, &udplen); 
+	      union mysockaddr myaddr;
+	      unsigned int ifindex;
+	      int m, n = recvto(iface->fd, packet, PACKETSZ, 0, &udpaddr.sa, &udplen, &myaddr, &ifindex); 
 	      udpaddr.sa.sa_family = iface->addr.sa.sa_family;
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
 	      if (udpaddr.sa.sa_family == AF_INET6)
 		udpaddr.in6.sin6_flowinfo = htonl(0);
 #endif
@@ -534,20 +668,20 @@ int main (int argc, char **argv)
 		  if (m >= 1)
 		    {
 		      /* answered from cache, send reply */
-		      sendto(iface->fd, (char *)header, m, 0, 
-			     &udpaddr.sa, sa_len(&udpaddr));
+		      sendfrom(iface->fd, (char *)header, m, 0, 
+			     &udpaddr.sa, sa_len(&udpaddr), &myaddr, ifindex);
 		    }
 		  else 
 		    {
 		      /* cannot answer from cache, send on to real nameserver */
-		      forward_query(iface->fd, peerfd, peerfd6, &udpaddr, header, n);
+		      forward_query(iface->fd, peerfd, peerfd6, &udpaddr,
+				    &myaddr, ifindex,
+				    header, n);
 		    }
 		}
 	      
 	    }
 	}
-      /* Used to timeout anything that is taking too long */
-      timeout_responses(cachesize);
     }
   
   return 0;
@@ -567,7 +701,7 @@ static void *safe_malloc(int size)
   return ret;
 }
     
-static char *safe_string_alloc(char *cp)
+static char *safe_string_alloc(const char *cp)
 {
   char *ret = safe_malloc(strlen(cp)+1);
   strcpy(ret, cp);
@@ -579,18 +713,17 @@ static int sa_len(union mysockaddr *addr)
 #ifdef HAVE_SOCKADDR_SA_LEN
   return addr->sa.sa_len;
 #else
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
   if (addr->sa.sa_family == AF_INET)
 #endif
     return sizeof(addr->in);
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
   else
     return sizeof(addr->in6); 
 #endif
 #endif /*HAVE_SOCKADDR_SA_LEN*/
 }
 
-#ifdef BIND_EACH_INTERFACE
 static struct irec *add_iface(struct irec *list, unsigned int flags, 
 			      char *name, union mysockaddr *addr, 
 			      struct iname *names, struct iname *addrs)
@@ -690,7 +823,7 @@ static struct irec *find_all_interfaces(struct iname *names,
 	{
 	  /* copy since getting flags overwrites */
 	  union mysockaddr addr;
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
 	  if (ifr->ifr_addr.sa_family == AF_INET6)
 	    {
 #ifdef HAVE_BROKEN_SOCKADDR_IN6
@@ -720,8 +853,7 @@ static struct irec *find_all_interfaces(struct iname *names,
     }
   free(buf);
 
-#ifndef NO_IPV6
-#ifdef HAVE_LINUX_IPV6_PROC
+#if defined(HAVE_LINUX_IPV6_PROC) && defined(HAVE_IPV6)
   /* IPv6 addresses don't seem to work with SIOCGIFCONF. Barf */
   /* This code snarfed from net-tools 1.60 and certainly linux specific, though
      it shouldn't break on other Unices, and their SIOGIFCONF might work. */
@@ -761,7 +893,6 @@ static struct irec *find_all_interfaces(struct iname *names,
 	fclose(f);
       }
   }
-#endif /*NO_IPV6*/
 #endif /* LINUX */
 
   /* if a whitelist provided, make sure the if names on it were OK */
@@ -780,7 +911,7 @@ static struct irec *find_all_interfaces(struct iname *names,
       if (!addrs->found)
 	{
 	  char addrbuff[INET6_ADDRSTRLEN];
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
 	  if (addrs->addr.sa.sa_family == AF_INET6)
 	    inet_ntop(AF_INET6, &addrs->addr.in6.sin6_addr,
 		      addrbuff, INET6_ADDRSTRLEN);
@@ -796,23 +927,60 @@ static struct irec *find_all_interfaces(struct iname *names,
     
   return ret;
 }
-#else
-/* Just bind to PF_INET, INADDR_ANY */
-static struct irec *find_all_interfaces(struct iname *names,
-					struct iname *addrs,
-					int fd, int port)
+
+#ifndef BIND_EACH_INTERFACE
+/* Just bind to AF_INET, INADDR_ANY */
+static struct irec *bind_any_interface(int port)
 {
-  struct irec *ret = safe_malloc(sizeof(*ret));
+  struct irec *iface;
+  int opt = 1;
 
-  memset(ret, 0, sizeof(*ret));
+  iface = safe_malloc(sizeof(struct irec));
+  memset(iface, 0, sizeof(struct irec));
 
-  ret->addr.in.sin_addr.s_addr = INADDR_ANY;
-  ret->addr.in.sin_port = htons(port);
-  ret->addr.in.sin_family = PF_INET;
+#ifdef HAVE_IPV6
+  iface->addr.in6.sin6_family = AF_INET6;
+  iface->addr.in6.sin6_addr = in6addr_any;
+  iface->addr.in6.sin6_port = htons(port);
+#ifdef HAVE_SOCKADDR_SA_LEN 
+  iface->addr.in6.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+  if ((iface->fd = socket(AF_INET6, SOCK_DGRAM, 0)) == -1)
+    {
+      perror("dnsmasq: cannot create socket");
+      exit(1);
+    }
+  if (setsockopt(iface->fd, SOL_IPV6, IPV6_PKTINFO, &opt, sizeof(opt)) == -1)
+    {
+      perror("dnsmasq: cannot setsockopt IPV6_PKTINFO");
+      exit(1);
+    }
+#else
+  iface->addr.in.sin_family = AF_INET;
+  iface->addr.in.sin_addr.s_addr = INADDR_ANY;
+  iface->addr.in.sin_port = htons(port);
+#ifdef HAVE_SOCKADDR_SA_LEN 
+  iface->addr.in.sin_len = sizeof(struct sockaddr_in);
+#endif
+  if ((iface->fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    {
+      perror("dnsmasq: cannot create socket");
+      exit(1);
+    }
+#endif
+      
+  if (setsockopt(iface->fd, SOL_IP, IP_PKTINFO, &opt, sizeof(opt)) == -1)
+    {
+      perror("dnsmasq: cannot setsockopt IP_PKTINFO");
+      exit(1);
+    }
+  if (bind(iface->fd, &iface->addr.sa, sa_len(&iface->addr)) == -1)
+    {
+      perror("dnsmasq: bind failed");
+      exit(1);
+    }
 
-  printf("sin_port=%d, sin_family=%d\n", port, PF_INET);
-
-  return ret;
+  return iface;
 }
 #endif
 
@@ -843,9 +1011,8 @@ static int reload_servers(char *fname, struct irec *interfaces,
 
   /* forward table rules reference servers, so have to blow 
      them away */
-  for (i=0; i<FTABSIZ; i++) {
-    cancel(&ftab[i]);
-  }
+  for (i=0; i<FTABSIZ; i++)
+    ftab[i].new_id = 0;
   
   /* delete existing ones */
   if (last_server)
@@ -861,15 +1028,15 @@ static int reload_servers(char *fname, struct irec *interfaces,
 	}
       last_server = NULL;
     }
-
+	
   i = 0; /* # servers */
 
   while ((line = fgets(buff, MAXLIN, f)))
     {
       union  mysockaddr addr;
       char *token = strtok(line, " \t\n");
-      struct irec *iface;
       struct server *serv;
+      struct irec *iface;
 
       if (!token || strcmp(token, "nameserver") != 0)
 	continue;
@@ -892,7 +1059,7 @@ static int reload_servers(char *fname, struct irec *interfaces,
 	  addr.in.sin_family = AF_INET;
 	  addr.in.sin_port = htons(NAMESERVER_PORT);
 	}
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
       else if (inet_pton(AF_INET6, token, &addr.in6.sin6_addr))
 	{
 	  if (IN6_IS_ADDR_LOOPBACK(&addr.in6.sin6_addr))
@@ -914,7 +1081,8 @@ static int reload_servers(char *fname, struct irec *interfaces,
       else
 	continue;
       
-      /* Avoid loops back to ourself */
+	  /* Avoid loops back to ourself */
+#ifdef BIND_EACH_INTERFACE
       for (iface = interfaces; iface; iface = iface->next)
 	if (sockaddr_isequal(&addr, &iface->addr))
 	  {
@@ -923,6 +1091,29 @@ static int reload_servers(char *fname, struct irec *interfaces,
 	  }
       if (iface)
 	continue;
+#else
+	  {
+		struct irec *current_interfaces;
+		struct irec *p, *next_p;
+		/* need to rebuild a list of the current interfaces */
+
+		current_interfaces = find_all_interfaces(NULL, NULL,
+				peerfd == -1 ? peerfd6 : peerfd, NAMESERVER_PORT);
+		for (iface = current_interfaces; iface; iface = iface->next) {
+			if (sockaddr_isequal(&addr, &iface->addr)) {
+				syslog(LOG_WARNING, "ignoring nameserver %s - local interface", token);
+				break;
+			}
+		}
+		/* free the list of current_interfaces */
+		for (p = current_interfaces; p; p = next_p) {
+			next_p = p->next;
+			free(p);
+		}
+		if (iface)
+			continue;
+	}
+#endif
     
       if (!(serv = malloc(sizeof (struct server))))
 	continue;
@@ -937,7 +1128,7 @@ static int reload_servers(char *fname, struct irec *interfaces,
       syslog(LOG_INFO, "using nameserver %s", token); 
       i++;
     }
-
+  
   fclose(f);
   if (!last_server)
       return 0;
@@ -955,7 +1146,7 @@ static int sockaddr_isequal(union mysockaddr *s1, union mysockaddr *s2)
 	  memcmp(&s1->in.sin_addr, &s2->in.sin_addr, sizeof(struct in_addr)) == 0)
 	return 1;
       
-#ifndef NO_IPV6
+#ifdef HAVE_IPV6
       if (s1->sa.sa_family == AF_INET6 &&
 	  s1->in6.sin6_port == s2->in6.sin6_port &&
 	  s1->in6.sin6_flowinfo == s2->in6.sin6_flowinfo &&
@@ -971,18 +1162,23 @@ static void forward_query(int udpfd,
 			  int peerfd,
 			  int peerfd6,
 			  union mysockaddr *udpaddr, 
+			  union mysockaddr *myaddr,
+			  int ifindex,
 			  HEADER *header,
 			  int plen)
 {
   time_t now = time(NULL);
   struct frec *forward;
-  int success = 0;
 
    /* may be no available servers or recursion not speced */
   if (!last_server || !header->rd)
     forward = NULL;
   else if ((forward = lookup_frec_by_sender(ntohs(header->id), udpaddr)))
     {
+      /* keep waiting */
+      if (wait_timeout)
+	return;
+
       /* retry on existing query, send to next server */
       forward->sentto = forward->sentto->next;
       header->id = htons(forward->new_id);
@@ -992,13 +1188,16 @@ static void forward_query(int udpfd,
       /* new query, pick nameserver and send */
       forward = get_new_frec(now);
       forward->source = *udpaddr;
+      forward->dest = *myaddr;
+      forward->ifindex = ifindex;
       forward->new_id = get_id();
       forward->fd = udpfd;
       forward->orig_id = ntohs(header->id);
       header->id = htons(forward->new_id);
       forward->sentto = last_server;
       last_server = last_server->next;
-      forward->pack_size = 0;
+      forward->forward_count = 0;
+      forward->packet_size = 0;
     }
 
   /* check for sendto errors here (no route to host) 
@@ -1013,26 +1212,26 @@ static void forward_query(int udpfd,
 	  int fd = forward->sentto->addr.sa.sa_family == AF_INET ? peerfd : peerfd6;
 	  if (sendto(fd, (char *)header, plen, 0, 
 		     &forward->sentto->addr.sa, 
-		     sa_len(&forward->sentto->addr)) != -1) {
-	    if (wait_timeout)
-	      success = 1;
-	    else
-	      return;
-	  }
-
+		     sa_len(&forward->sentto->addr)) != -1)
+	    {
+	      if (!wait_timeout)
+		return;
+	      forward->forward_count++;
+	    }
 	  
 	  forward->sentto = forward->sentto->next;
 	  /* check if we tried all without success */
-	  if (forward->sentto == firstsentto) {
-	    if (success && wait_timeout)
-	      return;
-	    break;
-	  }
+	  if (forward->sentto == firstsentto)
+	    {
+	      if (wait_timeout && forward->forward_count)
+		return;
+	      break;
+	    }
 	}
       
       /* could not send on, prepare to return */ 
       header->id = htons(forward->orig_id);
-      cancel(forward);
+      forward->new_id = 0; /* cancel */
     }	  
   
   /* could not send on, return empty answer */
@@ -1044,7 +1243,7 @@ static void forward_query(int udpfd,
   header->ancount = htons(0); /* no answers */
   header->nscount = htons(0);
   header->arcount = htons(0);
-  sendto(udpfd, (char *)header, plen, 0, &udpaddr->sa, sa_len(udpaddr));
+  sendfrom(udpfd, (char *)header, plen, 0, &udpaddr->sa, sa_len(udpaddr), myaddr, ifindex);
 }
 
 static void reply_query(int fd, char *packet, int cachesize)
@@ -1060,48 +1259,64 @@ static void reply_query(int fd, char *packet, int cachesize)
     {
       if ((forward = lookup_frec(ntohs(header->id))))
 	{
-	  forward->response_count++;
-	  if (response_acceptable(header))	    {
-	      last_server = forward->sentto; /*known good */
-	      if (cachesize != 0 && header->opcode == QUERY) {
+	  if (response_acceptable(header))
+	    {
+	      last_server = forward->sentto; /* known good */
+	      if (cachesize != 0 && header->opcode == QUERY)
 		extract_addresses(header, n);
-		  }
-	    } else {
-	      if (response_better_than(forward->last_header, header)) {
-		if (forward->buf_size < n) {
-		  if (forward->buffer)
-		    free(forward->buffer);
-		  forward->buffer = malloc(n);
-		  if (!forward->buffer) {
-		    forward->buffer = NULL;
-		    forward->buf_size = 0;
-		    forward->pack_size = 0;
-		    goto forward_to_client;
-		  }
-		  forward->buf_size = n;
-		}
-		forward->pack_size = n;
-	        memcpy(forward->buffer, packet, forward->pack_size);
-		forward->last_header = (HEADER *)forward->buffer;
-	      }
-	      if (forward->response_count == num_servers)
-	        goto forward_to_client;
-	      return;
+	      forward_reply(forward, packet, n);
 	    }
-	  
-forward_to_client:
-	  header->id = htons(forward->orig_id);
-	  /* There's no point returning an upstream reply marked as truncated,
-	     since that will prod the resolver into moving to TCP - which we
-	     don't support. */
-	  header->tc = 0; /* goodbye truncate */
-	  sendto(forward->fd, packet, n, 0, 
-		 &forward->source.sa, sa_len(&forward->source));
-	  cancel(forward);
+	  else if (!wait_timeout)
+	    {
+	      forward_reply(forward, packet, n);
+	    }
+	  else
+	    {
+	      /* If this reply is the best so far then save it */
+	      if (response_better_than(forward, header))
+		{
+		  if (forward->packet_alloc < n)
+		    {
+		      if (forward->packet)
+			free(forward->packet);
+		      forward->packet = malloc(n);
+		      if (!forward->packet)
+			{
+			  /* Forward this reply; it may be the best we'll get */
+			  forward->packet_alloc = 0;
+			  forward_reply(forward, packet, n);
+			  return;
+			}
+		      forward->packet_alloc = n;
+		    }
+		  forward->packet_size = n;
+	          memcpy(forward->packet, packet, n);
+		}
+
+	      /* If all replies received then forward the best */
+	      forward->forward_count--;
+	      if (forward->forward_count <= 0)
+		forward_reply(forward, forward->packet, forward->packet_size);
+	    }
 	}
     }
 }
-      
+	  
+static void forward_reply(struct frec *forward, char *packet, int n)
+{
+  HEADER *header;
+  
+  header = (HEADER *)packet;
+  header->id = htons(forward->orig_id);
+  /* There's no point returning an upstream reply marked as truncated,
+     since that will prod the resolver into moving to TCP - which we
+     don't support. */
+  header->tc = 0; /* goodbye truncate */
+  sendfrom(forward->fd, packet, n, 0, 
+	  &forward->source.sa, sa_len(&forward->source),
+	  &forward->dest, forward->ifindex);
+  forward->new_id = 0; /* cancel */
+}
 
 static struct frec *get_new_frec(time_t now)
 {
@@ -1194,66 +1409,222 @@ static unsigned short get_id(void)
 /*
  * Return whether the new is a better response to old.
  */
-int response_better_than(HEADER *old, HEADER *new)
+static int response_better_than(struct frec *forward, HEADER *new)
 {
-    if (!old)
-	return 1;
-    if (old->rcode == DNS_WORST) {
-	return 1;
-    } else if ((old->rcode == NOERROR) && (old->ancount == 0)){
-	if ((new->rcode == NOERROR) && (old->ancount > 0))
-	    return 1;
-	return 0;
-    } else if (old->rcode == NXDOMAIN) /*NXDOMAIN - at least it isn't an error*/
-	return 0;
-    else  /*lets assume the rest don't matter for the time being*/
-	return (old->rcode > new->rcode);
+  HEADER *old;
 
+  if (!forward->packet || !forward->packet_size)
+    return 1;
+
+  old = (HEADER *)forward->packet;
+  if (old->rcode == DNS_WORST)
+    return 1;
+
+  if ((old->rcode == NOERROR) && (old->ancount == 0))
+    {
+      if ((new->rcode == NOERROR) && (old->ancount > 0))
+	return 1;
+      return 0;
+    }
+
+  if (old->rcode == NXDOMAIN) /*NXDOMAIN - at least it isn't an error*/
+    return 0;
+
+  /*lets assume the rest don't matter for the time being*/
+  return (old->rcode > new->rcode);
 }
 
 /*
  * Is the response we got from the server acceptable
  */
-int response_acceptable(HEADER *header)
+static int response_acceptable(HEADER *header)
 {
-	if ((header->rcode == NOERROR) && 
-			(cache_failures?header->ancount:1))
-		return 1;
-	if ((header->rcode == NXDOMAIN) && cache_failures)
-		return 1;
-	return 0;
+  if ((header->rcode == NOERROR) && (cache_failures || header->ancount))
+    return 1;
+  if ((header->rcode == NXDOMAIN) && cache_failures)
+    return 1;
+  return 0;
 }
 
 /*
  * timeout anything that has a response that we haven't sent to the user
  * yet.
  */
-void timeout_responses(int cachesize)
+static void timeout_responses(int cachesize)
 {
   int i;
-  for (i=0;i<FTABSIZ;i++) {
-	if ((ftab[i].new_id != 0) && (time(NULL) - ftab[i].time >= 2) &&
-		ftab[i].pack_size) {
-	  if ((ftab[i].last_header->rcode == NXDOMAIN) && cache_failures) {
-	      if (cachesize != 0 && ftab[i].last_header->opcode == QUERY)
-	      	extract_addresses(ftab[i].last_header, ftab[i].pack_size);
-	  }
-	  ftab[i].last_header->id = htons(ftab[i].orig_id);
-	  /* There's no point returning an upstream reply marked as truncated,
-		 since that will prod the resolver into moving to TCP - which we
-		 don't support. */
-	  ftab[i].last_header->tc = 0; /* goodbye truncate */
-	  sendto(ftab[i].fd, ftab[i].buffer, ftab[i].pack_size, 0, 
-		 &ftab[i].source.sa, sa_len(&ftab[i].source));
-	  cancel(&ftab[i]);
+  time_t now = time(NULL);
+
+  for(i=0; i<FTABSIZ; i++)
+    {
+      struct frec *f = &ftab[i];
+      if (f->new_id && (now - f->time >= wait_timeout) && f->packet_size)
+	forward_reply(f, f->packet, f->packet_size);
     }
-  }
 }
 
-void cancel(struct frec *fr)
+static int recvto(int s, void *buf, size_t len, int flags,
+		  struct sockaddr *from, socklen_t *fromlen,
+		  union mysockaddr *to,
+		  unsigned int *ifindex)
 {
-    fr->new_id = 0;
-    fr->last_header = NULL;
-    fr->pack_size = 0;
-    fr->response_count = 0;
+  struct iovec iov;
+  struct msghdr msg;
+  union {
+    struct cmsghdr hdr;
+    char control[CMSG_SPACE(sizeof(struct in_pktinfo))];
+#ifdef HAVE_IPV6
+    char control6[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+#endif
+  } control;
+  struct cmsghdr *cmsg;
+  int ret;
+
+  iov.iov_base = buf;
+  iov.iov_len = len;
+
+  memset(&msg, 0, sizeof(msg));
+  msg.msg_name = from;
+  msg.msg_namelen = fromlen ? *fromlen: 0;
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_flags = 0;
+  msg.msg_control = &control;
+  msg.msg_controllen = sizeof(control);
+
+  ret = recvmsg(s, &msg, flags);
+  if (ret == -1)
+    return ret;
+
+  if (fromlen)
+    *fromlen = msg.msg_namelen;
+
+  for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg))
+    {
+      if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO)
+	{
+	  struct in_pktinfo *pkt;
+
+	  pkt = (struct in_pktinfo *)CMSG_DATA(cmsg);
+	  if (to)
+	    {
+	      to->in.sin_family = AF_INET;
+	      to->in.sin_addr = pkt->ipi_addr;
+	    }
+	  if (ifindex)
+	    *ifindex = pkt->ipi_ifindex;
+
+	  return ret;
+	}
+#ifdef HAVE_IPV6
+      else if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)
+	{
+	  struct in6_pktinfo *pkt;
+
+	  pkt = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+	  if (to)
+	    {
+	      to->in6.sin6_family = AF_INET6;
+	      to->in6.sin6_addr = pkt->ipi6_addr;
+	    }
+	  if (ifindex)
+	    *ifindex = pkt->ipi6_ifindex;
+
+	  return ret;
+	}
+#endif
+    }
+
+  if (to)
+    to->sa.sa_family = AF_UNSPEC;
+  if (ifindex)
+    *ifindex = 0;
+
+  return ret;
+}
+
+static int sendfrom(int s, void *buf, size_t len, int flags,
+    		    struct sockaddr *to, socklen_t tolen,
+		    union mysockaddr *from,
+		    unsigned int ifindex)
+{
+  struct iovec iov;
+  struct msghdr msg;
+  union {
+    struct cmsghdr hdr;
+    char control[CMSG_SPACE(sizeof(struct in_pktinfo))];
+#ifdef HAVE_IPV6
+    char control6[CMSG_SPACE(sizeof(struct in6_pktinfo))];
+#endif
+  } control;
+  struct cmsghdr *cmsg;
+
+  iov.iov_base = buf;
+  iov.iov_len = len;
+
+  memset(&msg, 0, sizeof(msg));
+  msg.msg_name = to;
+  msg.msg_namelen = tolen;
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_flags = 0;
+
+  if (from->sa.sa_family == AF_INET)
+    {
+      struct in_pktinfo *pkt;
+
+      memset(&control, 0, sizeof(control));
+      msg.msg_control = &control;
+      msg.msg_controllen = CMSG_LEN(sizeof(*pkt));
+
+      cmsg = CMSG_FIRSTHDR(&msg);
+      cmsg->cmsg_len = CMSG_LEN(sizeof(*pkt));
+      cmsg->cmsg_level = SOL_IP;
+      cmsg->cmsg_type = IP_PKTINFO;
+
+      pkt = (struct in_pktinfo *)CMSG_DATA(cmsg);
+      pkt->ipi_ifindex = ifindex;
+      pkt->ipi_spec_dst = from->in.sin_addr;
+    }
+#ifdef HAVE_IPV6
+  else if (from->sa.sa_family == AF_INET6)
+    {
+      struct in6_pktinfo *pkt;
+
+      memset(&control, 0, sizeof(control));
+      msg.msg_control = &control;
+      msg.msg_controllen = CMSG_LEN(sizeof(*pkt));
+
+      cmsg = CMSG_FIRSTHDR(&msg);
+      cmsg->cmsg_len = CMSG_LEN(sizeof(*pkt));
+      cmsg->cmsg_level = SOL_IPV6;
+      cmsg->cmsg_type = IPV6_PKTINFO;
+
+      pkt = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+      pkt->ipi6_ifindex = ifindex;
+      pkt->ipi6_addr = from->in6.sin6_addr;
+    }
+#endif
+  else
+    {
+      msg.msg_control = NULL;
+      msg.msg_controllen = 0;
+    }
+
+  return sendmsg(s, &msg, flags);
+}
+
+static void die(const char *message, ...)
+{
+	va_list ap;
+
+	va_start(ap, message);
+  
+  fprintf(stderr, "dnsmasq: ");
+  vfprintf(stderr, message, ap);
+  fprintf(stderr, "\n");
+  
+  vsyslog(LOG_CRIT, message, ap);
+  syslog(LOG_CRIT, "FAILED to start up");
+  exit(1);
 }
