@@ -26,7 +26,7 @@ romfs:
 	for i in $(sort $(dir_y)) ; do  make -C $$i romfs || exit $? ; done
 
 clean:
-	-for i in $(sort $(dir_y)) ; do \
+	for i in $(sort $(dir_y)) ; do \
 		[ ! -d $$i ] || make -C $$i clean; \
 	done
 
