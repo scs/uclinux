@@ -1907,7 +1907,7 @@ static int snd_ad1836_resume(struct platform_device *pdev)
 
 static struct platform_driver snd_ad1836_driver = {
 	.probe		= snd_ad1836_probe,
-	.remove		= snd_ad1836_remove,
+	.remove		= __devexit_p(snd_ad1836_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_ad1836_suspend,
 	.resume		= snd_ad1836_resume,

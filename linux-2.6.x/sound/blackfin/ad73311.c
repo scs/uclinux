@@ -660,7 +660,7 @@ static int snd_ad73311_resume(struct platform_device *pdev)
 
 static struct platform_driver snd_ad73311_driver = {
 	.probe		= snd_ad73311_probe,
-	.remove		= snd_ad73311_remove,
+	.remove		= __devexit_p(snd_ad73311_remove),
 #ifdef CONFIG_PM
 	.suspend	= snd_ad73311_suspend,
 	.resume		= snd_ad73311_resume,
