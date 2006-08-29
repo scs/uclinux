@@ -57,8 +57,6 @@ extern int _dl_fixup(struct dyn_elf *rpnt, int lazy)
 	 __attribute__ ((__weak__));
 extern void _dl_protect_relro(struct elf_resolve * tpnt)
 	__attribute__ ((__weak__));
-extern void _dl_dprintf(int fd, const char *, ...)
-     __attribute__ ((__weak__));
 extern void *_dl_malloc(size_t size)
      __attribute__ ((__weak__));
 extern void _dl_free(void *)
@@ -91,13 +89,6 @@ extern char *_dl_debug __attribute__ ((__weak__));
 
 #ifdef __SUPPORT_LD_DEBUG__
 char *_dl_debug  = 0;
-char *_dl_debug_symbols   = 0;
-char *_dl_debug_move      = 0;
-char *_dl_debug_reloc     = 0;
-char *_dl_debug_detail    = 0;
-char *_dl_debug_nofixups  = 0;
-char *_dl_debug_bindings  = 0;
-int   _dl_debug_file      = 2;
 #endif
 void *(*_dl_malloc_function)(size_t);
 void (*_dl_free_function) (void *p);
@@ -392,19 +383,6 @@ void *dlopen(const char *libname, int flag)
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		    }
 		}
-#if 0
-		if (tpnt->dynamic_info[DT_FINI]) {
-			void (*dl_elf_func) (void);
-			dl_elf_func = DL_ADDR_TO_FUNC_PTR ((intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr), tpnt->loadaddr);
-			if (dl_elf_func) {
-#ifdef __SUPPORT_LD_DEBUG__
-				if(_dl_debug)
-					_dl_dprintf(2, "setting up dtors for library %s at '%x'\n", tpnt->libname, dl_elf_func);
-#endif
-				atexit(dl_elf_func);
-			}
-		}
-#endif
 	}
 #endif
 	_dl_unmap_cache();
@@ -628,7 +606,7 @@ const char *dlerror(void)
  */
 static char *type[] = { "Lib", "Exe", "Int", "Mod" };
 
-int dlinfo(void)
+void dlinfo(void)
 {
 	struct elf_resolve *tpnt;
 	struct dyn_elf *rpnt, *hpnt;
@@ -656,7 +634,6 @@ int dlinfo(void)
 			fprintf(stderr, "\t%x %s\n", (unsigned) rpnt->dyn,
 					rpnt->dyn->libname);
 	}
-	return 0;
 }
 
 int dladdr(const void *__address, Dl_info * __info)
