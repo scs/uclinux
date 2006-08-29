@@ -346,7 +346,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 #endif
 }
 
-/* Sets or clears RTS on the requested line */
+/* Gets CTS on the requested line */
 static inline int bfin_getsignal(struct bfin_serial *info)
 {
 	int sig = info->sig;
