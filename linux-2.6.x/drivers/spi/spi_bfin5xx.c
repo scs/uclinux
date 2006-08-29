@@ -300,6 +300,10 @@ static void u16_writer(struct driver_data *drv_data)
 		do {} while ((read_STAT() & BIT_STAT_TXS));
 		drv_data->tx += 2;
 	}
+
+	// poll for SPI completion before returning
+	do {} while (!(read_STAT() & BIT_STAT_SPIF));
+
 }
 
 static void u16_reader(struct driver_data *drv_data)
@@ -485,12 +489,11 @@ static void pump_transfers(unsigned long data)
 	message->state = RUNNING_STATE;
 	dma_config = 0;
 
-	write_CTRL(chip->ctl_reg);
-	write_BAUD(chip->baud);
-
 	/* restore spi status for each spi transfer */
 	if (transfer->speed_hz) {
 		write_BAUD(transfer->speed_hz);
+	} else {
+		write_BAUD(chip->baud);
 	}
 	write_FLAG(chip->flag);
 
