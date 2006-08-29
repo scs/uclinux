@@ -35,6 +35,36 @@ int verbose_cgi_logs = 0;
 static char **common_cgi_env = NULL;
 short common_cgi_env_count = 0;
 
+
+/*
+ * Name: increment_space_common_env
+ */
+
+void increment_space_common_env(int n){
+	if (!common_cgi_env){
+	    common_cgi_env = calloc((n + 1),sizeof(char *));
+	    common_cgi_env_count = 0;
+
+	    if (common_cgi_env == NULL) {
+	        DIE("unable to allocate memory for common_cgi_env");
+	    }
+	}else{
+	    /* I find it hard to believe that somebody would actually
+	     * make 90+ *common* CGI variables, but it's always better
+	     * to be safe.
+	     */
+	    if (common_cgi_env_count + n > CGI_ENV_MAX) {
+	        DIE("far too many common CGI environment variables added.");
+	    }
+		common_cgi_env = realloc(common_cgi_env, (common_cgi_env_count + 1 + n) * (sizeof(char *)));
+		memset(&common_cgi_env[common_cgi_env_count+1],0,n);
+	    if (common_cgi_env== NULL) {
+	        DIE("Unable to allocate memory for common CGI environment variable.");
+	    }
+	}
+}
+ 
+
 /*
  * Name: create_common_env
  *
@@ -45,13 +75,9 @@ short common_cgi_env_count = 0;
 void create_common_env(void)
 {
     int i;
-    common_cgi_env = calloc((COMMON_CGI_COUNT + 1),sizeof(char *));
-    common_cgi_env_count = 0;
-
-    if (common_cgi_env == NULL) {
-        DIE("unable to allocate memory for common_cgi_env");
-    }
-
+	int const st_common_cgi_env_count = common_cgi_env_count;
+	increment_space_common_env(COMMON_CGI_COUNT);
+	
     /* NOTE NOTE NOTE:
        If you (the reader) someday modify this chunk of code to
        handle more "common" CGI environment variables, then bump the
@@ -93,13 +119,13 @@ void create_common_env(void)
     common_cgi_env[common_cgi_env_count] = NULL;
 
     /* Sanity checking -- make *sure* the memory got allocated */
-    if (common_cgi_env_count != COMMON_CGI_COUNT) {
+    if (common_cgi_env_count - st_common_cgi_env_count != COMMON_CGI_COUNT) {
         log_error_time();
         fprintf(stderr, "COMMON_CGI_COUNT not high enough.\n");
         exit(EXIT_FAILURE);
     }
 
-    for (i = 0; i < common_cgi_env_count; ++i) {
+    for (i = st_common_cgi_env_count; i < common_cgi_env_count; ++i) {
         if (common_cgi_env[i] == NULL) {
             log_error_time();
             fprintf(stderr,
@@ -111,30 +137,20 @@ void create_common_env(void)
 
 void add_to_common_env(char *key, char *value)
 {
-    common_cgi_env = realloc(common_cgi_env, (common_cgi_env_count + 2) * (sizeof(char *)));
-    if (common_cgi_env== NULL) {
-        DIE("Unable to allocate memory for common CGI environment variable.");
-    }
+    increment_space_common_env(1);
     common_cgi_env[common_cgi_env_count] = env_gen_extra(key,value, 0);
     if (common_cgi_env[common_cgi_env_count] == NULL) {
         /* errors already reported */
         DIE("memory allocation failure in add_to_common_env");
     }
     common_cgi_env[++common_cgi_env_count] = NULL;
-    /* I find it hard to believe that somebody would actually
-     * make 90+ *common* CGI variables, but it's always better
-     * to be safe.
-     */
-    if (common_cgi_env_count > CGI_ENV_MAX) {
-        DIE("far too many common CGI environment variables added.");
-    }
 }
 
 void clear_common_env(void)
 {
     int i;
 
-    for (i = 0; i <= COMMON_CGI_COUNT; ++i) {
+    for (i = 0; common_cgi_env[i]; ++i) {
         if (common_cgi_env[i] != NULL) {
             free(common_cgi_env[i]);
             common_cgi_env[i] = NULL;
