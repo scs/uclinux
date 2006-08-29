@@ -80,7 +80,7 @@ void flushWarningLog() {
 }
 
 #ifndef NDEBUG
-# include <execinfo.h>
+//# include <execinfo.h>
 
 /* Taken from the glibc manual: */
 /* Obtain a backtrace and print it to stdout. */
