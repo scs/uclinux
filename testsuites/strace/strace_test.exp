@@ -244,7 +244,7 @@ incr case_num
 send -s "strace date\r"
 while 1 {
 expect {
-        -re "in trace.*mmap" {
+        -re "in trace.*time" {
                 expect "exit"
                 send_log "\rCase $case_num ...PASS\r"
                 break
@@ -262,7 +262,7 @@ incr case_num
 send -s "strace pwd\r"
 while 1 {
 expect {
-        -re "in trace.*mmap" {
+        -re "in trace.*getcwd" {
                 expect "exit"
                 send_log "\rCase $case_num ...PASS\r"
                 break
@@ -280,7 +280,8 @@ incr case_num
 send -s "strace ls /home\r"
 while 1 {
 expect {
-        -re "in trace.*mmap.*exit" {
+        -re "in trace.*lstat" {
+                expect "exit"
                 send_log "\rCase $case_num ...PASS\r"
                 break
         }
