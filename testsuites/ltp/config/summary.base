@@ -1,21 +1,21 @@
 
-test started Aug-17-2006-02:53pm
+test started Aug-28-2006-07:50pm
 
 Test Results
 =====================================
-  Total Tests        :  625
-  Passed Tests       :  453
-  Failed Tests       :  15
-  Broken Tests       :  10
+  Total Tests        :  676
+  Passed Tests       :  483
+  Failed Tests       :  24
+  Broken Tests       :  14
   Warning Tests      :  0
-  Crashing Tests     :  8
-  Skipped Tests     :  139
+  Crashing Tests     :  11
+  Skipped Tests     :  144
 
 Failed Tests List
 =====================================
   -  abort01
   -  creat07
-  -  execve03
+  -  fcntl14
   -  fcntl15
   -  getsid02
   -  kill11
@@ -24,10 +24,19 @@ Failed Tests List
   -  mremap04
   -  readlink04
   -  readv01
+  -  readv02
   -  rmdir05
   -  setgroups03
   -  write05
   -  writev01
+  -  msgsnd01
+  -  msgctl02
+  -  semget01
+  -  semctl01
+  -  semctl07
+  -  shmget01
+  -  shmat01
+  -  shmdt01
 
 Broken Tests List
 =====================================
@@ -41,20 +50,27 @@ Broken Tests List
   -  swapoff02
   -  swapon01
   -  swapon02
+  -  msgctl08
+  -  msgctl09
+  -  semop05
+  -  shmctl01
 
 Warning Tests List
 =====================================
 
 Crashing Tests List(Causing Crashes or Lockups)!
 =====================================
-  -  fcntl14
   -  getgroups01
-  -  readv02
   -  recvfrom01
   -  recvmsg01
   -  sendmsg01
   -  sigpending02
   -  sockioctl01
+  -  msgsnd02
+  -  msgctl04
+  -  semop02
+  -  semctl03
+  -  shmctl02
 
 Passed Tests List
 =====================================
@@ -102,7 +118,6 @@ Passed Tests List
   -  dup03
   -  dup04
   -  dup05
-  -  dup06
   -  dup07
   -  dup201
   -  dup202
@@ -115,6 +130,7 @@ Passed Tests List
   -  execv01
   -  execve01
   -  execve02
+  -  execve03
   -  execve05
   -  execve06
   -  execvp01
@@ -147,7 +163,6 @@ Passed Tests List
   -  fcntl25
   -  fcntl26
   -  fcntl27
-  -  fdatasync01
   -  fdatasync02
   -  flock01
   -  flock02
@@ -182,6 +197,7 @@ Passed Tests List
   -  getgroups02
   -  getgroups03
   -  getgroups04
+  -  gethostid01
   -  gethostname01
   -  getitimer01
   -  getitimer03
@@ -203,6 +219,7 @@ Passed Tests List
   -  getresuid02
   -  getresuid03
   -  getrlimit01
+  -  getrlimit02
   -  getrusage01
   -  getrusage02
   -  getsid01
@@ -214,7 +231,6 @@ Passed Tests List
   -  getuid02
   -  getuid03
   -  ioperm01
-  -  ioperm02
   -  iopl01
   -  iopl02
   -  kill01
@@ -229,7 +245,6 @@ Passed Tests List
   -  link02
   -  link03
   -  link04
-  -  link05
   -  link06
   -  link07
   -  listen01
@@ -262,6 +277,7 @@ Passed Tests List
   -  mknod05
   -  mknod06
   -  mknod07
+  -  mknod08
   -  mknod09
   -  munmap01
   -  munmap03
@@ -270,7 +286,6 @@ Passed Tests List
   -  nanosleep03
   -  nanosleep04
   -  nice01
-  -  nice02
   -  nice03
   -  nice04
   -  nice05
@@ -288,7 +303,6 @@ Passed Tests List
   -  pause01
   -  pause03
   -  pipe01
-  -  pipe02
   -  pipe03
   -  pipe04
   -  pipe05
@@ -304,7 +318,6 @@ Passed Tests List
   -  pread01
   -  pread02
   -  pread03
-  -  ptrace01
   -  ptrace02
   -  ptrace03
   -  pwrite01
@@ -385,11 +398,11 @@ Passed Tests List
   -  sethostname03
   -  setitimer01
   -  setitimer03
-  -  setpgid01
   -  setpgid02
   -  setpgid03
   -  setpgrp01
   -  setpgrp02
+  -  setpriority01
   -  setpriority02
   -  setpriority03
   -  setpriority04
@@ -416,6 +429,7 @@ Passed Tests List
   -  setsid01
   -  setsockopt01
   -  setuid01
+  -  setuid02
   -  setuid03
   -  sigaction01
   -  sigaction02
@@ -424,6 +438,7 @@ Passed Tests List
   -  sighold02
   -  signal01
   -  signal02
+  -  signal03
   -  signal04
   -  signal05
   -  sigprocmask01
@@ -459,7 +474,6 @@ Passed Tests List
   -  sysfs01
   -  sysfs02
   -  sysfs03
-  -  sysfs04
   -  sysfs05
   -  sysfs06
   -  sysinfo01
@@ -511,6 +525,38 @@ Passed Tests List
   -  write01
   -  write02
   -  write04
+  -  msgget01
+  -  msgget02
+  -  msgget03
+  -  msgget04
+  -  msgsnd03
+  -  msgsnd04
+  -  msgsnd05
+  -  msgsnd06
+  -  msgctl03
+  -  msgctl05
+  -  msgctl06
+  -  msgctl07
+  -  semget02
+  -  semget03
+  -  semget05
+  -  semget06
+  -  semop01
+  -  semop03
+  -  semop04
+  -  semctl02
+  -  semctl04
+  -  semctl05
+  -  semctl06
+  -  shmget02
+  -  shmget03
+  -  shmget04
+  -  shmget05
+  -  shmat02
+  -  shmat03
+  -  shmctl03
+  -  shmctl04
+  -  shmdt02
 
 Skipped Tests List(Tests Not Run)
 =====================================
@@ -541,6 +587,7 @@ Skipped Tests List(Tests Not Run)
   -  clone05
   -  clone06
   -  clone07
+  -  dup06
   -  execve04
   -  fchmod01
   -  fchmod02
@@ -555,6 +602,7 @@ Skipped Tests List(Tests Not Run)
   -  fchown04
   -  fchown05
   -  fcntl17
+  -  fdatasync01
   -  fmtmsg01
   -  fork01
   -  fork02
@@ -573,12 +621,12 @@ Skipped Tests List(Tests Not Run)
   -  getdents02
   -  getdents03
   -  getdents04
-  -  gethostid01
   -  getitimer02
-  -  getrlimit02
+  -  ioperm02
   -  lchown01
   -  lchown02
   -  link01
+  -  link05
   -  llseek01
   -  llseek02
   -  lstat01A
@@ -587,7 +635,6 @@ Skipped Tests List(Tests Not Run)
   -  mlockall02
   -  mlockall03
   -  mkdir05A
-  -  mknod08
   -  mlock01
   -  mlock02
   -  qmm01
@@ -614,10 +661,13 @@ Skipped Tests List(Tests Not Run)
   -  munmap02
   -  nftw01
   -  nftw6401
+  -  nice02
   -  open01A
   -  mincore01
+  -  pipe02
   -  profil01
   -  pselect01
+  -  ptrace01
   -  pwrite03
   -  read03
   -  readlink01A
@@ -626,13 +676,12 @@ Skipped Tests List(Tests Not Run)
   -  sbrk01
   -  setgroups04
   -  setitimer02
-  -  setpriority01
+  -  setpgid01
   -  settimeofday01
   -  settimeofday02
-  -  setuid02
-  -  signal03
   -  stat04
   -  sysctl05
+  -  sysfs04
   -  sysinfo02
   -  syslog01
   -  syslog02
@@ -653,6 +702,8 @@ Skipped Tests List(Tests Not Run)
   -  writev03
   -  writev04
   -  writev05
+  -  msgctl01
+  -  semget04
 
 Measurement Tests
 =====================================
@@ -666,11 +717,11 @@ Measurement Tests
   D cache size             = not measured
   I cache enable/disable   = not measured
   D cache enable/disable   = not measured
-  text map                 = 0x00001000-0x0010458c
-  rootfs map               = 0x07700000-0x07f00000
-  data map                 = 0x00112858-0x00143b
+  text map                 = 0x00001000-0x001058bc
+  rootfs map               = 0x03700000-0x03f00000
+  data map                 = 0x00113764-0x00143e6c
   stack map                = not found
-  bss map                  = 0x00143ba0-0x00151154
+  bss map                  = 0x00143e70-0x00151a6c
   crashes during stability test               = not measured
   failures during stability test              = not measured
   warnings during stability test              = not measured
