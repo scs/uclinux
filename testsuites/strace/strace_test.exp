@@ -7,8 +7,6 @@ send_user "Starting strace_test.exp\n"
 
 set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Strace Test"
-set targetip 10.100.4.2
-set serverip 10.100.4.174
 set send_slow {1 .01}
 
 set argc [llength $argv]
@@ -21,16 +19,6 @@ if { $argc < 1} {
 # grab the user specified parameters.
 set ttydev             [lindex $argv 0]
 
-if { $argc >= 2} {
-   set srcdir             [lindex $argv 1]
-}
-
-if { $argc >= 3} {
-   set targetip           [lindex $argv 2]
-}
-if { $argc >= 4} {
-   set serverip           [lindex $argv 3]
-}
 
 proc step { message } {
 
@@ -51,7 +39,7 @@ step "Start kermit"
 #  This just builds up a list of commands which are sent to kermit.
 #
 set kparams     [list "set line $ttydev\r"]
-lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
+lappend kparams "set speed 57600\r"
 lappend kparams "set carrier-watch off\r"
 lappend kparams "set handshake none\r"
 lappend kparams "set flow-control none\r"
@@ -61,6 +49,7 @@ lappend kparams "set file name lit\r"
 lappend kparams "set rec pack 1000\r"
 lappend kparams "set send pack 1000\r"
 lappend kparams "set window 5\r"
+lappend kparams "set escape 255\r"
 set nkparams [llength $kparams]
 
 set timeout 3
@@ -222,19 +211,6 @@ if {$flag==0} {
    exit
 }
 
-set timeout 3
-send -s "ifconfig eth0 $targetip\r"
-expect {
-	"> " {
-	}
-
-        timeout {
-		puts "Fail to config eth0\r"
-		exit
-        }
-}
-
-
 step "Start $TITLE\r"
 
 set timeout 10
@@ -245,7 +221,7 @@ send -s "strace date\r"
 while 1 {
 expect {
         -re "in trace.*time" {
-                expect "exit"
+                expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break
 
@@ -263,7 +239,7 @@ send -s "strace pwd\r"
 while 1 {
 expect {
         -re "in trace.*getcwd" {
-                expect "exit"
+                expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break
 
@@ -281,7 +257,7 @@ send -s "strace ls /home\r"
 while 1 {
 expect {
         -re "in trace.*lstat" {
-                expect "exit"
+                expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break
         }
