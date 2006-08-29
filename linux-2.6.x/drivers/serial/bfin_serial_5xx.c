@@ -308,7 +308,6 @@ static inline void bfin_uart_portio_ctsrts_init(char *port, unsigned short cts, 
 }
 #endif
 
-
 /* Sets or clears RTS on the requested line */
 static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 {
@@ -334,7 +333,7 @@ static inline void bfin_setsignal(struct bfin_serial *info, int rts)
 	default:
 		return;
 	}
-	
+
 	if (rts) {
 		/* set the RTS/CTS line */
 		bfin_uart_write_PORTIO_CLEAR(port[0], rts_mask);
@@ -354,7 +353,7 @@ static inline int bfin_getsignal(struct bfin_serial *info)
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	unsigned short cts_mask;
 	char *port;
-	
+
 	DEBUG_OPEN("(info=%p)\n", info);
 
 	switch(info->line) {
@@ -2011,7 +2010,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 			}
 		}
 #if defined(CONFIG_BFIN_UART0_CTSRTS)
-		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT, 
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT,
 			CONFIG_BFIN_UART0_CTS, CONFIG_BFIN_UART0_RTS);
 #endif
 	}
@@ -2031,7 +2030,7 @@ int rs_open(struct tty_struct *tty, struct file *filp)
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 		SSYNC;
 # if defined(CONFIG_BFIN_UART1_CTSRTS)
-		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT, 
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT,
 			CONFIG_BFIN_UART1_CTS, CONFIG_BFIN_UART1_RTS);
 # endif
 	}
@@ -2317,7 +2316,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 #endif
 		SSYNC;
 #ifdef CONFIG_BFIN_UART0_CTSRTS
-		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT, 
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART0_CTSRTS_PORT,
 			CONFIG_BFIN_UART0_CTS, CONFIG_BFIN_UART0_RTS);
 #endif
 	}
@@ -2327,7 +2326,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0xc);
 		SSYNC;
 # ifdef CONFIG_BFIN_UART1_CTSRTS
-		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT, 
+		bfin_uart_portio_ctsrts_init(CONFIG_BFIN_UART1_CTSRTS_PORT,
 			CONFIG_BFIN_UART1_CTS, CONFIG_BFIN_UART1_RTS);
 # endif
 	}
@@ -2348,7 +2347,7 @@ int bfin_console_setup(struct console *cp, char *arg)
 		for (i = 0; i < BAUD_TABLE_SIZE; i++)
 			if (baud_table[i] == n)
 				break;
-		
+
 	}
 	bfin_default_baud = unix_baud_table[i];
 
