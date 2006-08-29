@@ -1,14 +1,5 @@
 --- linux-2.6.x/.config	2006-08-28 19:23:44.880909528 +0800
 +++ linux-2.6.x/.config.ppi	2006-08-28 19:23:10.914073272 +0800
-@@ -1,7 +1,7 @@
- #
- # Automatically generated make config: don't edit
- # Linux kernel version: 2.6.16.11
--# Mon Aug 28 19:23:44 2006
-+# Mon Aug 28 19:23:10 2006
- #
- # CONFIG_MMU is not set
- # CONFIG_FPU is not set
 @@ -607,8 +607,8 @@
  #
  # CONFIG_AD9960 is not set
