@@ -611,7 +611,7 @@ static void pump_transfers(unsigned long data)
 
 		write_STAT(BIT_STAT_CLR);
 
-		if (drv_data->tx != NULL && drv->data->rx != NULL) { /* full duplex mode */
+		if (drv_data->tx != NULL && drv_data->rx != NULL) { /* full duplex mode */
 			ASSERT((drv->data->tx_end - drv_data->tx) == (drv_data->rx_end - drv_data->rx));
 			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
