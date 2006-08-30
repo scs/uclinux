@@ -11,6 +11,7 @@
  *
  * Modified:
  *	March 10, 2006  bfin5xx_spi.c Created. (Luke Yang)
+ *      August 7, 2006  added full duplex mode (Axel Weiss & Luke Yang)
  *
  * Copyright 2004-2006 Analog Devices Inc.
  *
@@ -57,9 +58,15 @@ MODULE_LICENSE("GPL");
 //#define BFIN_SPI_DEBUG  1
 
 #ifdef BFIN_SPI_DEBUG
-#define PRINTK(args...) printk(KERN_DEBUG "spi_bfin: " args)
+#define PRINTK(args...)  printk(KERN_DEBUG "spi_bfin: " args)
+#define ASSERT(expr)     if (!(expr)) { \
+			     printk(KERN_DEBUG "assertion failed! %s[%d]: %s\n", \
+				    __FUNCTION__, __LINE__, #expr); \
+			     panic(KERN_DEBUG "%s", __FUNCTION__);	    \
+			 }
 #else
 #define PRINTK(args...)
+#define ASSERT(expr)
 #endif
 
 #define IS_DMA_ALIGNED(x) (((u32)(x)&0x07)==0)
@@ -129,6 +136,7 @@ struct driver_data {
 	u8 n_bytes;
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
+	void (*duplex) (struct driver_data *);
 };
 
 struct chip_data {
@@ -143,6 +151,7 @@ struct chip_data {
 	u8 bits_per_word;	/* 8 or 16 */
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
+	void (*duplex) (struct driver_data *);
 };
 
 void bfin_spi_enable(struct driver_data *drv_data)
@@ -292,6 +301,20 @@ static void u8_reader(struct driver_data *drv_data)
 	++drv_data->rx;
 }
 
+static void u8_duplex(struct driver_data *drv_data)
+{
+	/* in duplex mode, clk is triggered by writing of TDBR */
+	while (drv_data->rx < drv_data->rx_end) {
+		write_TDBR(*(u8 *)(drv_data->tx));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u8 *)(drv_data->rx) = read_RDBR();
+		//if (*(u8 *)(drv_data->rx)) PRINTK(KERN_NOTICE "u8_duplex: %c\n", *(u8 *)(drv_data->rx));
+		++drv_data->rx;
+		++drv_data->tx;
+	}
+}
+
 static void u16_writer(struct driver_data *drv_data)
 {
 	PRINTK("cr16 is 0x%x\n", read_STAT());
@@ -319,6 +342,19 @@ static void u16_reader(struct driver_data *drv_data)
 	do {} while (!(read_STAT() & BIT_STAT_RXS));
 	*(u16 *)(drv_data->rx) = read_SHAW();
 	drv_data->rx += 2;
+}
+
+static void u16_duplex(struct driver_data *drv_data)
+{
+	/* in duplex mode, clk is triggered by writing of TDBR */
+	while (drv_data->tx < drv_data->tx_end) {
+		write_TDBR(*(u16 *)(drv_data->tx));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u16 *)(drv_data->rx) = read_RDBR();
+		drv_data->rx += 2;
+		drv_data->tx += 2;
+	}
 }
 
 /* test if ther is more transfer to be done */
@@ -481,6 +517,7 @@ static void pump_transfers(unsigned long data)
 	}
 	drv_data->write = drv_data->tx ? chip->write : null_writer;
 	drv_data->read = drv_data->rx ? chip->read : null_reader;
+	drv_data->duplex = chip->duplex ? chip->duplex : null_writer;
 	PRINTK("transfer: drv_data->write is %p, chip->write is %p, null_wr is %p\n",
 	       drv_data->write, chip->write, null_writer);
 
@@ -574,31 +611,47 @@ static void pump_transfers(unsigned long data)
 
 		write_STAT(BIT_STAT_CLR);
 
-		/* write then read. TBD: is there any need of full duplex(read while writing)? */
-		if (drv_data->tx != NULL) {
+		if (transfer->is_duplex) { /* full duplex mode */
+			ASSERT((drv->data->tx_end - drv_data->tx) == (drv_data->rx_end - drv_data->rx));
 			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("IO write: cr is 0x%x\n", cr);
+			PRINTK("IO duplex: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
 			__builtin_bfin_ssync();
 
-			drv_data->write(drv_data);
+			drv_data->duplex(drv_data);
 
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
-		}
-		if (drv_data->rx != NULL) {
-			cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
-			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
-			PRINTK("IO read: cr is 0x%x\n", cr);
+		} else {                 /* none full duplex mode */
 
-			write_CTRL(cr);
-			__builtin_bfin_ssync();
+			/* write then read. */
+			if (drv_data->tx != NULL) {
+				cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
+				cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
+				PRINTK("IO write: cr is 0x%x\n", cr);
 
-			drv_data->read(drv_data);
-			if (drv_data->rx != drv_data->rx_end)
-				tranf_success = 0;
+				write_CTRL(cr);
+				__builtin_bfin_ssync();
+
+				drv_data->write(drv_data);
+
+				if (drv_data->tx != drv_data->tx_end)
+					tranf_success = 0;
+			}
+			if (drv_data->rx != NULL) {
+				cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
+				cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
+				PRINTK("IO read: cr is 0x%x\n", cr);
+
+				write_CTRL(cr);
+				__builtin_bfin_ssync();
+
+				drv_data->read(drv_data);
+				if (drv_data->rx != drv_data->rx_end)
+					tranf_success = 0;
+			}
 		}
 
 		if (!tranf_success) {
@@ -756,13 +809,13 @@ static int setup(struct spi_device *spi)
 		chip->width = CFG_SPI_WORDSIZE8;
 		chip->read = u8_reader;
 		chip->write = u8_writer;
-		PRINTK("8bit: chip->write is %p, u8_writer is %p\n", chip->write, u8_writer);
+		chip->duplex = u8_duplex;
 	} else if (spi->bits_per_word <= 16) {
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
 		chip->read = u16_reader;
 		chip->write = u16_writer;
-		PRINTK("16bit: chip->write is %p, u16_writer is %p\n", chip->write, u16_writer);
+		chip->duplex = u16_duplex;
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
 		kfree(chip);

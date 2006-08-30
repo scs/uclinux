@@ -331,6 +331,7 @@ struct spi_transfer {
 	dma_addr_t	rx_dma;
 
 	unsigned	cs_change:1;
+	unsigned        is_duplex:1;
 	u8		bits_per_word;
 	u16		delay_usecs;
 	u32		speed_hz;
