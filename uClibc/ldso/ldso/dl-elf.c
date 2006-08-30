@@ -109,7 +109,6 @@ int _dl_unmap_cache(void)
 	_dl_munmap(_dl_cache_addr, _dl_cache_size);
 	_dl_cache_addr = NULL;
 #endif
-
 	return 0;
 }
 #endif

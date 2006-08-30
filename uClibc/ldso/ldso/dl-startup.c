@@ -117,13 +117,11 @@ DL_BOOT(unsigned long args)
 	DL_LOADADDR_TYPE load_addr;
 	Elf32_Addr got;
 	unsigned long *aux_dat;
-	int goof = 0;
 	ElfW(Ehdr) *header;
 	struct elf_resolve tpnt_tmp;
 	struct elf_resolve *tpnt = &tpnt_tmp;
 	Elf32_auxv_t auxvt[AT_EGID + 1];
 	Elf32_Dyn *dpnt;
-	int indx;
 
 	/* WARNING! -- we cannot make _any_ funtion calls until we have
 	 * taken care of fixing up our own relocations.  Making static
@@ -227,93 +225,99 @@ DL_BOOT(unsigned long args)
 	SEND_EARLY_STDERR("done scanning DYNAMIC section\n");
 #endif
 
-#ifdef PERFORM_BOOTSTRAP_GOT
+#if defined(__mips__)
+
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 	SEND_STDERR("About to do specific GOT bootstrap\n");
 #endif
 	/* For MIPS we have to do stuff to the GOT before we do relocations.  */
 	PERFORM_BOOTSTRAP_GOT(tpnt);
-#endif
+
+#else
 
 	/* OK, now do the relocations.  We do not do a lazy binding here, so
 	   that once we are done, we have considerably more flexibility. */
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 	SEND_EARLY_STDERR("About to do library loader relocations\n");
 #endif
+
+	{
+		int goof, indx;
 #ifdef  ELF_MACHINE_PLTREL_OVERLAP
 # define INDX_MAX 1
 #else
 # define INDX_MAX 2
 #endif
-	goof = 0;
-	for (indx = 0; indx < INDX_MAX; indx++) {
-		unsigned int i;
-		unsigned long *reloc_addr;
-		unsigned long symbol_addr;
-		int symtab_index;
-		Elf32_Sym *sym;
-		ELF_RELOC *rpnt;
-		unsigned long rel_addr, rel_size;
-		Elf32_Word relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
+		goof = 0;
+		for (indx = 0; indx < INDX_MAX; indx++) {
+			unsigned int i;
+			unsigned long *reloc_addr;
+			unsigned long symbol_addr;
+			int symtab_index;
+			Elf32_Sym *sym;
+			ELF_RELOC *rpnt;
+			unsigned long rel_addr, rel_size;
+			Elf32_Word relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
 
-		rel_addr = (indx ? tpnt->dynamic_info[DT_JMPREL] : tpnt->
-				dynamic_info[DT_RELOC_TABLE_ADDR]);
-		rel_size = (indx ? tpnt->dynamic_info[DT_PLTRELSZ] : tpnt->
-				dynamic_info[DT_RELOC_TABLE_SIZE]);
+			rel_addr = (indx ? tpnt->dynamic_info[DT_JMPREL] : tpnt->
+					dynamic_info[DT_RELOC_TABLE_ADDR]);
+			rel_size = (indx ? tpnt->dynamic_info[DT_PLTRELSZ] : tpnt->
+					dynamic_info[DT_RELOC_TABLE_SIZE]);
 
-		if (!rel_addr)
-			continue;
+			if (!rel_addr)
+				continue;
 
-		/* Now parse the relocation information */
-		/* Since ldso is linked with -Bsymbolic, all relocs will be RELATIVE(for those archs that have
-		   RELATIVE relocs) which means that the for(..) loop below has noting to do and can be deleted.
-		   Possibly one should add a HAVE_RELATIVE_RELOCS directive and #ifdef away some code. */
-		if (!indx && relative_count) {
+			/* Now parse the relocation information */
+			/* Since ldso is linked with -Bsymbolic, all relocs will be RELATIVE(for those archs that have
+			   RELATIVE relocs) which means that the for(..) loop below has noting to do and can be deleted.
+			   Possibly one should add a HAVE_RELATIVE_RELOCS directive and #ifdef away some code. */
+			if (!indx && relative_count) {
+				rel_size -= relative_count * sizeof(ELF_RELOC);
+				elf_machine_relative (load_addr, rel_addr, relative_count);
+				rel_addr += relative_count * sizeof(ELF_RELOC);;
+			}
 
-			rel_size -= relative_count * sizeof(ELF_RELOC);
-			elf_machine_relative (load_addr, rel_addr, relative_count);
-			rel_addr += relative_count * sizeof(ELF_RELOC);;
-		}
-
-		rpnt = (ELF_RELOC *) rel_addr;
-		for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
-			reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
-			symtab_index = ELF32_R_SYM(rpnt->r_info);
+			rpnt = (ELF_RELOC *) rel_addr;
+			for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
+				reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
+				symtab_index = ELF32_R_SYM(rpnt->r_info);
 #if 0
-			SEND_EARLY_STDERR("one symbol, offset: ");
-			SEND_ADDRESS_STDERR (rpnt->r_offset, 0);
-			SEND_EARLY_STDERR(" info: ");
-			SEND_ADDRESS_STDERR (rpnt->r_info, 0);
-			SEND_EARLY_STDERR(" that's an index of: ");
-			SEND_ADDRESS_STDERR (symtab_index, 0);
-			SEND_EARLY_STDERR(" symtab at: ");
-			SEND_ADDRESS_STDERR ((Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB], 1);
+				SEND_EARLY_STDERR("one symbol, offset: ");
+				SEND_ADDRESS_STDERR (rpnt->r_offset, 0);
+				SEND_EARLY_STDERR(" info: ");
+				SEND_ADDRESS_STDERR (rpnt->r_info, 0);
+				SEND_EARLY_STDERR(" that's an index of: ");
+				SEND_ADDRESS_STDERR (symtab_index, 0);
+				SEND_EARLY_STDERR(" symtab at: ");
+				SEND_ADDRESS_STDERR ((Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB], 1);
 #endif
-			symbol_addr = 0;
-			sym = NULL;
-			if (symtab_index) {
-				char *strtab;
-				Elf32_Sym *symtab;
+				symbol_addr = 0;
+				sym = NULL;
+				if (symtab_index) {
+					char *strtab;
+					Elf32_Sym *symtab;
 
-				symtab = (Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB];
-				strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
-				sym = &symtab[symtab_index];
-				symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
+					symtab = (Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB];
+					strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
+					sym = &symtab[symtab_index];
+					symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
 
 #if 0 && defined __SUPPORT_LD_DEBUG_EARLY__
-				SEND_EARLY_STDERR("relocating symbol: ");
-				SEND_STDERR(strtab + sym->st_name);
-				SEND_EARLY_STDERR("\n");
+					SEND_EARLY_STDERR("relocating symbol: ");
+					SEND_STDERR(strtab + sym->st_name);
+					SEND_EARLY_STDERR("\n");
 #endif
+				}
+				/* Use this machine-specific macro to perform the actual relocation.  */
+				PERFORM_BOOTSTRAP_RELOC(rpnt, reloc_addr, symbol_addr, load_addr, sym);
 			}
-			/* Use this machine-specific macro to perform the actual relocation.  */
-			PERFORM_BOOTSTRAP_RELOC(rpnt, reloc_addr, symbol_addr, load_addr, sym);
+		}
+
+		if (goof) {
+			_dl_exit(14);
 		}
 	}
-
-	if (goof) {
-		_dl_exit(14);
-	}
+#endif
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 	/* Wahoo!!! */
