@@ -60,6 +60,9 @@ char *_dl_debug_bindings  = 0;
 int   _dl_debug_file      = 2;
 #endif
 
+/* Needed for standalone execution. */
+unsigned long attribute_hidden _dl_skip_args = 0;
+
 #include "dl-startup.c"
 /* Forward function declarations */
 static int _dl_suid_ok(void);
@@ -142,10 +145,11 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	ElfW(Addr) relro_addr = 0;
 	size_t relro_size = 0;
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	/* Wahoo!!! */
-	SEND_EARLY_STDERR("Cool, we managed to make a function call.\n");
-#endif
+
+	/* Wahoo!!! We managed to make a function call!  Get malloc
+	 * setup so we can use _dl_dprintf() to print debug noise
+	 * instead of the SEND_STDERR macros used in dl-startup.c */
+
 
 	/* Store the page size for later use */
 	_dl_pagesize = (auxvt[AT_PAGESZ].a_un.a_val) ? (size_t) auxvt[AT_PAGESZ].a_un.a_val : PAGE_SIZE;
@@ -155,6 +159,11 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	 */
 	_dl_malloc_addr = (unsigned char *)_dl_pagesize;
 	_dl_mmap_zero = 0;
+
+#ifdef __SUPPORT_LD_DEBUG_EARLY__
+	/* Wahoo!!! */
+	_dl_dprintf(2, "\nCool, ldso survived making function calls.\n");
+#endif
 
 	/* Now we have done the mandatory linking of some things.  We are now
 	 * free to start using global variables, since these things have all
@@ -234,8 +243,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 		if (DL_LOADADDR_BASE (app_tpnt->loadaddr)) {
-			SEND_EARLY_STDERR("Position Independent Executable: app_tpnt->loadaddr=");
-			SEND_ADDRESS_STDERR(DL_LOADADDR_BASE (app_tpnt->loadaddr), 1);
+			_dl_dprintf(2, "Position Independent Executable: "
+					"app_tpnt->loadaddr=%x\n", app_tpnt->loadaddr);
 		}
 #endif
 	}
@@ -276,7 +285,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 			 * again once we are done.
 			 */
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-			SEND_STDERR("calling mprotect on the application program\n");
+			_dl_dprintf(2, "calling mprotect on the application program\n");
 #endif
 			/* Now cover the application program. */
 			if (app_tpnt->dynamic_info[DT_TEXTREL]) {
@@ -330,7 +339,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 				*ptmp = '\0';
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-			_dl_dprintf(_dl_debug_file, "Lib Loader:\t(%x) %s\n",
+			_dl_dprintf(2, "Lib Loader:\t(%x) %s\n",
 				    (unsigned) DL_LOADADDR_BASE (tpnt->loadaddr), tpnt->libname);
 #endif
 		}
@@ -462,10 +471,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 					tpnt1->rtld_flags = unlazy | RTLD_GLOBAL;
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-					_dl_dprintf(_dl_debug_file,
-						    "Loading:\t(%x) %s\n",
-						    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr),
-						    tpnt1->libname);
+					_dl_dprintf(2,
+						    "Loading:\t(%x) %s\n", (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr), tpnt1->libname);
 #endif
 
 #ifdef __LDSO_LDD_SUPPORT__
@@ -569,9 +576,8 @@ next_lib:
 				tpnt1->rtld_flags = unlazy | RTLD_GLOBAL;
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-				_dl_dprintf(_dl_debug_file,
-					    "Loading:\t(%x) %s\n",
-					    (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr), tpnt1->libname);
+				_dl_dprintf(2,
+					    "Loading:\t(%x) %s\n", (unsigned) DL_LOADADDR_BASE (tpnt1->loadaddr), tpnt1->libname);
 #endif
 
 #ifdef __LDSO_LDD_SUPPORT__
@@ -772,7 +778,7 @@ next_lib2:
 #endif
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
-	_dl_dprintf(_dl_debug_file, "Beginning relocation fixups\n");
+	_dl_dprintf(2, "Beginning relocation fixups\n");
 #endif
 
 #ifdef __mips__
@@ -850,26 +856,28 @@ next_lib2:
 					    "\ncalling INIT: %s\n\n",
 					    tpnt->libname);
 #endif
+
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		}
 	}
-
 #ifndef _DL_DO_FINI_IN_LIBC
-/* arches that has moved their ldso FINI handling should ship this part */
+	/* arches that has moved their ldso FINI handling should ship this part */
 	{
-		int (*_dl_atexit) (void *) = (int (*)(void *)) (intptr_t) _dl_find_hash_mod(__C_SYMBOL_PREFIX__ "atexit", _dl_symbol_tables,
-											    NULL, ELF_RTYPE_CLASS_PLT,
-											    &_dl_atexit_tpnt);
+		int (*_dl_atexit) (void *) = (int (*)(void *)) (intptr_t) _dl_find_hash_mod(__C_SYMBOL_PREFIX__ "atexit",
+				_dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT, &_dl_atexit_tpnt);
+
 		if (_dl_atexit)
 			DL_CALL_FUNC_AT_ADDR (_dl_atexit, _dl_atexit_tpnt->loadaddr, (void(*)(void *)), _dl_fini);
-		/* Notify the debugger that all objects are now mapped in.  */
 	}
 #endif
-	_dl_debug_addr->r_state = RT_CONSISTENT;
-	_dl_debug_state();
 
 	/* Find the real malloc function and make ldso functions use that from now on */
-	 _dl_malloc_function = (void* (*)(size_t)) (intptr_t) _dl_find_hash(__C_SYMBOL_PREFIX__ "malloc", _dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT);
+	_dl_malloc_function = (void* (*)(size_t)) (intptr_t) _dl_find_hash(__C_SYMBOL_PREFIX__ "malloc",
+			_dl_symbol_tables, NULL, ELF_RTYPE_CLASS_PLT);
+
+	/* Notify the debugger that all objects are now mapped in.  */
+	_dl_debug_addr->r_state = RT_CONSISTENT;
+	_dl_debug_state();
 }
 
 char *_dl_getenv(const char *symbol, char **envp)
