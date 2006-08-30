@@ -182,29 +182,35 @@
 #define SEQSTAT_HWERRCAUSE2_P   0x00000010	/* Last hw error cause bit 2 */
 #define SEQSTAT_HWERRCAUSE3_P   0x00000011	/* Last hw error cause bit 3 */
 #define SEQSTAT_HWERRCAUSE4_P   0x00000012	/* Last hw error cause bit 4 */
-#define SEQSTAT_HWERRCAUSE5_P   0x00000013	/* Last hw error cause bit 5 */
-#define SEQSTAT_HWERRCAUSE6_P   0x00000014	/* Last hw error cause bit 6 */
-#define SEQSTAT_HWERRCAUSE7_P   0x00000015	/* Last hw error cause bit 7 */
 /* Masks */
 /* Exception cause */
-#define SEQSTAT_EXCAUSE        MK_BMSK_(SEQSTAT_EXCAUSE0_P ) | \
-                               MK_BMSK_(SEQSTAT_EXCAUSE1_P ) | \
-                               MK_BMSK_(SEQSTAT_EXCAUSE2_P ) | \
-                               MK_BMSK_(SEQSTAT_EXCAUSE3_P ) | \
-                               MK_BMSK_(SEQSTAT_EXCAUSE4_P ) | \
-                               MK_BMSK_(SEQSTAT_EXCAUSE5_P ) | \
-                               0
+#define SEQSTAT_EXCAUSE        (MK_BMSK_(SEQSTAT_EXCAUSE0_P) | \
+                                MK_BMSK_(SEQSTAT_EXCAUSE1_P) | \
+                                MK_BMSK_(SEQSTAT_EXCAUSE2_P) | \
+                                MK_BMSK_(SEQSTAT_EXCAUSE3_P) | \
+                                MK_BMSK_(SEQSTAT_EXCAUSE4_P) | \
+                                MK_BMSK_(SEQSTAT_EXCAUSE5_P) | \
+                                0)
 
 /* Indicates whether the last reset was a software reset (=1) */
-#define SEQSTAT_SFTRESET       MK_BMSK_(SEQSTAT_SFTRESET_P )
+#define SEQSTAT_SFTRESET       (MK_BMSK_(SEQSTAT_SFTRESET_P))
 
 /* Last hw error cause */
-#define SEQSTAT_HWERRCAUSE     MK_BMSK_(SEQSTAT_HWERRCAUSE0_P ) | \
-                               MK_BMSK_(SEQSTAT_HWERRCAUSE1_P ) | \
-                               MK_BMSK_(SEQSTAT_HWERRCAUSE2_P ) | \
-                               MK_BMSK_(SEQSTAT_HWERRCAUSE3_P ) | \
-                               MK_BMSK_(SEQSTAT_HWERRCAUSE4_P ) | \
-                               0
+#define SEQSTAT_HWERRCAUSE     (MK_BMSK_(SEQSTAT_HWERRCAUSE0_P) | \
+                                MK_BMSK_(SEQSTAT_HWERRCAUSE1_P) | \
+                                MK_BMSK_(SEQSTAT_HWERRCAUSE2_P) | \
+                                MK_BMSK_(SEQSTAT_HWERRCAUSE3_P) | \
+                                MK_BMSK_(SEQSTAT_HWERRCAUSE4_P) | \
+                                0)
+
+/* Translate bits to something useful */
+
+/* Last hw error cause */
+#define SEQSTAT_HWERRCAUSE_SHIFT         (14)
+#define SEQSTAT_HWERRCAUSE_SYSTEM_MMR    (0x02 << SEQSTAT_HWERRCAUSE_SHIFT)
+#define SEQSTAT_HWERRCAUSE_EXTERN_ADDR   (0x03 << SEQSTAT_HWERRCAUSE_SHIFT)
+#define SEQSTAT_HWERRCAUSE_PERF_FLOW     (0x12 << SEQSTAT_HWERRCAUSE_SHIFT)
+#define SEQSTAT_HWERRCAUSE_RAISE_5       (0x18 << SEQSTAT_HWERRCAUSE_SHIFT)
 
 /**************************************************
  *   SYSCFG register

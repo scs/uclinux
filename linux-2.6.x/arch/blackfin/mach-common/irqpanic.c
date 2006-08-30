@@ -36,15 +36,15 @@
 
 #include "../oprofile/op_blackfin.h"
 
-/*********
- * irq_panic - calls panic with string setup
- *********/
 #ifdef CONFIG_DEBUG_ICACHE_CHECK
 #define L1_ICACHE_START 0xffa10000
 #define L1_ICACHE_END   0xffa13fff
 void irq_panic(int reason, struct pt_regs *regs) __attribute__ ((section (".text.l1")));
 #endif
 
+/*
+ * irq_panic - calls panic with string setup
+ */
 asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 {
 	int sig = 0;
@@ -135,31 +135,30 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	printk(" stack frame=0x%04x,  ", (unsigned int)(unsigned long)regs);
 	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
 	if (reason == 0x5) {
-
 		printk("\n----------- HARDWARE ERROR -----------\n\n");
 
 		/* There is only need to check for Hardware Errors, since other
 		 * EXCEPTIONS are handled in TRAPS.c (MH)
 		 */
-		switch (((unsigned int)regs->seqstat) >> 14) {
-		case (0x2):	/* System MMR Error */
+		switch (regs->seqstat & SEQSTAT_HWERRCAUSE) {
+		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):	/* System MMR Error */
 			info.si_code = BUS_ADRALN;
 			sig = SIGBUS;
 			printk(HWC_x2);
 			break;
-		case (0x3):	/* External Memory Addressing Error */
+		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):	/* External Memory Addressing Error */
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
-			printk(HWC_x3);
+			printk(KERN_EMERG HWC_x3);
 			break;
-		case (0x12):	/* Performance Monitor Overflow */
-			printk(HWC_x12);
+		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):	/* Performance Monitor Overflow */
+			printk(KERN_EMERG HWC_x12);
 			break;
-		case (0x18):	/* RAISE 5 instruction */
-			printk(HWC_x18);
+		case (SEQSTAT_HWERRCAUSE_RAISE_5):	/* RAISE 5 instruction */
+			printk(KERN_EMERG HWC_x18);
 			break;
 		default:	/* Reserved */
-			printk(HWC_default);
+			printk(KERN_EMERG HWC_default);
 			break;
 		}
 	}
@@ -176,11 +175,11 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_HARDWARE_PM
-/****
- *
- *   call the handler of Performance overflow
- ****/
-asmlinkage void pm_overflow(int irq, struct pt_regs *regs){
-	pm_overflow_handler(irq , regs);
+/*
+ * call the handler of Performance overflow
+ */
+asmlinkage void pm_overflow(int irq, struct pt_regs *regs)
+{
+	pm_overflow_handler(irq, regs);
 }
 #endif

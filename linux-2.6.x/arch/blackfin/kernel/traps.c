@@ -45,24 +45,26 @@
  * >2 for various levels of hopefully increasingly useless information
  */
 
-#define TRAPS_DEBUG 1		/* Must be defined here or in in Makefile */
-
-#if (TRAPS_DEBUG > 2 )
-#define DPRINTK3(args...) printk(args)
-#else
-#define DPRINTK3(args...)
+#ifndef TRAPS_DEBUG
+# define TRAPS_DEBUG 0
 #endif
 
-#if TRAPS_DEBUG > 1
-#define DPRINTK2(args...) printk(args)
+#if (TRAPS_DEBUG > 2 )
+# define DPRINTK3(args...) printk(KERN_DEBUG args)
 #else
-#define DPRINTK2(args...)
+# define DPRINTK3(args...)
+#endif
+
+#if (TRAPS_DEBUG > 1)
+# define DPRINTK2(args...) printk(KERN_DEBUG args)
+#else
+# define DPRINTK2(args...)
 #endif
 
 #ifdef TRAPS_DEBUG
-#define DPRINTK(args...) printk(args)
+# define DPRINTK1(args...) printk(KERN_DEBUG args)
 #else
-#define DPRINTK(args...)
+# define DPRINTK1(args...)
 #endif
 
 /* assembler routines */
@@ -145,12 +147,12 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	fp->orig_pc = fp->retx;
 
 	/* send the appropriate signal to the user program */
-	switch (fp->seqstat & 0x3f) {
+	switch (fp->seqstat & SEQSTAT_EXCAUSE) {
 	case VEC_STEP:
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
 		/* Check if this is a single step in kernel space */
-		if(fp->ipend & 0xffc0)
+		if (fp->ipend & 0xffc0)
 			return;
 		else
 			break;
@@ -158,14 +160,14 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		/* Check if this is a breakpoint in kernel space */
-		if(fp->ipend & 0xffc0)
+		if (fp->ipend & 0xffc0)
 			return;
 		else
 			break;
 	case VEC_EXCPT03:	/* Atomic test and set service */
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
-		DPRINTK(EXC_0x03);
+		printk(KERN_EMERG EXC_0x03);
 		break;
 	case VEC_EXCPT04:	/* Atomic test and set service */
 		panic("Exception 4");
@@ -173,52 +175,53 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
-		DPRINTK(EXC_0x21);
+		printk(KERN_EMERG EXC_0x21);
 		break;
 	case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		DPRINTK(EXC_0x11);
+		printk(KERN_EMERG EXC_0x11);
 		break;
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		DPRINTK(EXC_0x22);
+		printk(KERN_EMERG EXC_0x22);
 		break;
 	case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
-		DPRINTK(EXC_0x2E);
+		printk(KERN_EMERG EXC_0x2E);
 		break;
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		DPRINTK(EXC_0x24);
-		DPRINTK("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		printk(KERN_EMERG EXC_0x24);
+		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		DPRINTK(EXC_0x2A);
-		DPRINTK("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		printk(KERN_EMERG EXC_0x2A);
+		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
-		DPRINTK(EXC_0x25);
+		printk(KERN_EMERG EXC_0x25);
 		break;
 	case VEC_WATCH:
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
 		DPRINTK3(EXC_0x28);
 		/* Check if this is a watchpoint in kernel space */
-		if(fp->ipend & 0xffc0)
+		if (fp->ipend & 0xffc0)
 			return;
 		else
 			break;
 	case VEC_ISTRU_VL:	/* ADSP-BF535 only (MH) */
 		info.si_code = BUS_OPFETCH;
 		sig = SIGBUS;
+		printk(KERN_EMERG "BF535: VEC_ISTRU_VL\n");
 		break;
 	case VEC_CPLB_I_VL:
 		DPRINTK2(EXC_0x2B);
@@ -229,8 +232,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		_cplb_hdr();
 		goto nsig;
-		sig = SIGILL;
-		break;
 	case VEC_CPLB_I_M:
 		DPRINTK3(EXC_0x2C);
 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
@@ -244,18 +245,19 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_CPLB_I_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 		sig = SIGILL;
-		DPRINTK3(EXC_0x2D);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		printk(KERN_EMERG EXC_0x2D);
+		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		sig = SIGSEGV;
+		printk(KERN_EMERG "\n\nNULL pointer access (probably)\n");
 #else
 		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x27);
 #endif
-		DPRINTK3(EXC_0x27);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	default:
 		info.si_code = TRAP_ILLTRAP;
@@ -270,6 +272,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		unsigned long stack;
 		dump_bfin_regs(fp, (void *)fp->retx);
 		show_stack(current, &stack);
+		if (current == NULL)
+			panic("Kernel exception");
 	}
       nsig:
 	trace_buffer_restore(j);
