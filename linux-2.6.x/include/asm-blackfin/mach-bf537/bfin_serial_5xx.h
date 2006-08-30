@@ -32,17 +32,31 @@
 #define UART_PUT_LCR(uart,v)    bfin_write16(((uart)->port.membase + OFFSET_LCR),v)
 #define UART_PUT_GCTL(uart,v)   bfin_write16(((uart)->port.membase + OFFSET_GCTL),v)
 
+#define CTS_PORT	PORTGIO
+#define CTS_PIN		7
+#define CTS_PORT_DIR	PORTGIO_DIR
+#define CTS_PORT_INEN	PORTGIO_INEN
+#define CTS_PORT_FER	PORTG_FER
+
+#define RTS_PORT	PORTGIO
+#define RTS_PIN		6
+#define RTS_PORT_DIR	PORTGIO_DIR
+#define RTS_PORT_INEN	PORTGIO_INEN
+#define RTS_PORT_FER	PORTG_FER
+
 struct bfin_serial_port {
         struct uart_port        port;
         unsigned int            old_status;
 #ifdef CONFIG_SERIAL_BFIN_DMA
 	int			tx_done;
-	wait_queue_head_t	*tx_avail;
 	struct circ_buf		rx_dma_buf;
 	struct timer_list       rx_dma_timer;
 	int			rx_dma_nrows;
 	unsigned int		tx_dma_channel;
 	unsigned int		rx_dma_channel;
+	struct work_struct	tx_dma_workqueue;
+#else
+	struct work_struct 	cts_workqueue;
 #endif
 };
 
@@ -65,4 +79,21 @@ static void bfin_serial_hw_init(void)
         val = bfin_read16(PORTF_FER);
         val |= 0xF;
         bfin_write16(PORTF_FER, val);
+
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	bfin_write16(CTS_PORT_DIR,bfin_read16(CTS_PORT_DIR)&(~1<<CTS_PIN));
+	bfin_write16(CTS_PORT_INEN,bfin_read16(CTS_PORT_INEN)|(1<<CTS_PIN));
+	bfin_write16(CTS_PORT_FER,bfin_read16(CTS_PORT_FER)&(~1<<CTS_PIN));
+
+	bfin_write16(RTS_PORT_DIR,bfin_read16(RTS_PORT_DIR)|(1<<RTS_PIN));
+	bfin_write16(RTS_PORT_FER,bfin_read16(RTS_PORT_FER)&(~1<<RTS_PIN));
+#endif
+
+
+	bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~(1 << 7));
+        bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | (1 << 7));
+        bfin_write_PORTGIO_MASKA_SET(bfin_read_PORTGIO_MASKA_SET() & ~(1 << 7));
+        bfin_write_PORTGIO_MASKB_SET(bfin_read_PORTGIO_MASKB_SET() & ~(1 << 7));
+        bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() | (1 << 6));
+        bfin_write_PORTG_FER(bfin_read_PORTG_FER() & ~((1 <<6)|(1 << 7)|0x3));
 }

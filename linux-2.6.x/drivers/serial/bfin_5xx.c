@@ -85,34 +85,11 @@
 #ifdef CONFIG_SERIAL_BFIN_DMA
 wait_queue_head_t bfin_serial_tx_queue[NR_PORTS];
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
+#else
+static void bfin_serial_do_work(void *);
 #endif
 
-/*
- * Handle any change of modem status signal since we were last called.
- */
-static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
-{
-	unsigned int status, changed;
-
-	status = uart->port.ops->get_mctrl(&uart->port);
-	changed = status ^ uart->old_status;
-
-	if (changed == 0)
-		return;
-
-	uart->old_status = status;
-
-	if (changed & TIOCM_RI)
-		uart->port.icount.rng++;
-	if (changed & TIOCM_DSR)
-		uart->port.icount.dsr++;
-	if (changed & TIOCM_CAR)
-		uart_handle_dcd_change(&uart->port, status & TIOCM_CAR);
-	if (changed & TIOCM_CTS)
-		uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
-
-	wake_up_interruptible(&uart->port.info->delta_msr_wait);
-}
+static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
 
 /*
  * interrupts disabled on entry
@@ -124,6 +101,9 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 	ier = UART_GET_IER(uart);
 	ier &= ~ETBEI;
 	UART_PUT_IER(uart, ier);
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	disable_dma(uart->tx_dma_channel);
+#endif
 }
 
 /*
@@ -227,15 +207,24 @@ static irqreturn_t bfin_serial_int(int irq, void *dev_id, struct pt_regs *regs)
 	spin_unlock(&uart->port.lock);
 	return IRQ_HANDLED;
 }
+
+static void bfin_serial_do_work(void *port)
+{
+        struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+        bfin_serial_mctrl_check(uart);
+}
+
 #endif
 
 #ifdef CONFIG_SERIAL_BFIN_DMA
-int cnt;
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
         struct circ_buf *xmit = &uart->port.info->xmit;
-       // int cnt;
+        int cnt;
 	unsigned short ier;
+
+	if(!uart->tx_done)
+		return;
 
         if (uart->port.x_char) {
                 UART_PUT_CHAR(uart, uart->port.x_char);
@@ -243,7 +232,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
                 uart->port.x_char = 0;
                 return;
         }
-	uart->tx_done = 0;
         /*
          * Check the modem control lines before
          * transmitting anything.
@@ -258,6 +246,9 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
         cnt = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if(cnt > (UART_XMIT_SIZE - xmit->tail))
 		cnt = UART_XMIT_SIZE - xmit->tail;
+		uart->tx_done = 0;
+		blackfin_dcache_flush_range((unsigned long)(xmit->buf+xmit->tail),
+                                        (unsigned long)(xmit->buf+xmit->tail+cnt));
         set_dma_config(uart->tx_dma_channel,
                                set_bfin_dma_config(DIR_READ, DMA_FLOW_STOP,
                                                    INTR_ON_BUF,
@@ -265,22 +256,17 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
                                                    DATA_SIZE_8));
         set_dma_start_addr(uart->tx_dma_channel,(unsigned long)(xmit->buf+xmit->tail));
         set_dma_x_count(uart->tx_dma_channel, cnt);
-        blackfin_dcache_flush_range((unsigned long)(xmit->buf+xmit->tail),
-                                        (unsigned long)(xmit->buf+xmit->tail+cnt));
         set_dma_x_modify(uart->tx_dma_channel,1);
         enable_dma(uart->tx_dma_channel);
 	ier = UART_GET_IER(uart);
         ier |= ETBEI;
         UART_PUT_IER(uart, ier);
-	wait_event_interruptible(*(uart->tx_avail),uart->tx_done);
         xmit->tail = (xmit->tail+cnt) &(UART_XMIT_SIZE -1);
         uart->port.icount.tx+=cnt;
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
                 uart_write_wakeup(&uart->port);
 
-        if (uart_circ_empty(xmit))
-                bfin_serial_stop_tx(&uart->port);
 }
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
@@ -304,6 +290,8 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	int x_pos, pos;
 	int flags = 0;
 
+	bfin_serial_dma_tx_chars(uart);
+
 	local_irq_save(flags);	
 	x_pos = DMA_RX_XCOUNT - get_dma_curr_xcount(uart->rx_dma_channel);
 	if(x_pos == DMA_RX_XCOUNT) x_pos = 0;
@@ -323,6 +311,7 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id, struct pt_regs *regs)
 {
         struct bfin_serial_port *uart = dev_id;
+	struct circ_buf *xmit = &uart->port.info->xmit;
         unsigned short ier;
 
         spin_lock(&uart->port.lock);
@@ -332,9 +321,10 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id, struct pt_regs 
 		ier = UART_GET_IER(uart);
 	        ier &= ~ETBEI;
 	        UART_PUT_IER(uart, ier);
-	
+
+		if (uart_circ_empty(xmit))
+	                bfin_serial_stop_tx(&uart->port);
 		uart->tx_done = 1;
-		wake_up_interruptible(uart->tx_avail);
 	}
 		
         spin_unlock(&uart->port.lock);
@@ -378,11 +368,47 @@ static unsigned int bfin_serial_tx_empty(struct uart_port *port)
 
 static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 {
-	return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	if(bfin_read16(CTS_PORT) & (1<<CTS_PIN))
+		return TIOCM_DSR | TIOCM_CAR;
+	else
+#endif
+		return TIOCM_CTS | TIOCM_DSR | TIOCM_CAR;
 }
 
 static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	if (mctrl & TIOCM_RTS)
+		bfin_write16(RTS_PORT,bfin_read16(RTS_PORT)&(~1<<RTS_PIN));
+	else
+		bfin_write16(RTS_PORT,bfin_read16(RTS_PORT)|(1<<RTS_PIN));
+#endif
+}
+
+/*
+ * Handle any change of modem status signal since we were last called.
+ */
+static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
+{
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+        unsigned int status;
+#ifdef CONFIG_SERIAL_BFIN_DMA
+	struct uart_info *info = uart->port.info;
+        struct tty_struct *tty = info->tty;
+        status = bfin_serial_get_mctrl(&uart->port);
+        if(!(status & TIOCM_CTS)){
+		tty->hw_stopped = 1;
+	}else{
+		tty->hw_stopped = 0;
+	}
+#else
+        status = bfin_serial_get_mctrl(&uart->port);
+	uart_handle_cts_change(&uart->port, status & TIOCM_CTS);
+        if(!(status & TIOCM_CTS))
+                schedule_work(&uart->cts_workqueue);
+#endif
+#endif
 }
 
 /*
@@ -569,12 +595,13 @@ static void __init bfin_serial_init_ports(void)
                 bfin_serial_ports[i].port.irq       = uart_irq[i];
                 bfin_serial_ports[i].port.flags     = UPF_BOOT_AUTOCONF;
 #ifdef CONFIG_SERIAL_BFIN_DMA
+		bfin_serial_ports[i].tx_done	    = 1;
 		bfin_serial_ports[i].tx_dma_channel = uart_tx_dma_channel[i];
 		bfin_serial_ports[i].rx_dma_channel = uart_rx_dma_channel[i];
 
-		init_waitqueue_head(&bfin_serial_tx_queue[i]);
-		bfin_serial_ports[i].tx_avail	    = &bfin_serial_tx_queue[i];
 		init_timer(&(bfin_serial_ports[i].rx_dma_timer));
+#else
+		INIT_WORK(&bfin_serial_ports[i].cts_workqueue, bfin_serial_do_work, &bfin_serial_ports[i]);
 #endif
 
         	baud = bfin_serial_calc_baud(bfin_serial_ports[i].port.uartclk);
@@ -694,7 +721,11 @@ bfin_serial_console_setup(struct console *co, char *options)
 	int baud = CONSOLE_BAUD_RATE;
 	int bits = 8;
 	int parity = 'n';
-	int flow = 'n';
+#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+	int flow = 'r';
+#else
+	int flow = 'n'
+#endif
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
