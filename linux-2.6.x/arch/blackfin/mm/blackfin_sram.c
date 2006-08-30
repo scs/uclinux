@@ -46,7 +46,15 @@
 
 spinlock_t l1sram_lock, l1_data_sram_lock, l1_inst_sram_lock;
 
-#define L1_MAX_PIECE        16
+#if CONFIG_L1_MAX_PIECE < 16
+#undef CONFIG_L1_MAX_PIECE
+#define CONFIG_L1_MAX_PIECE        16
+#endif
+
+#if CONFIG_L1_MAX_PIECE > 1024
+#undef CONFIG_L1_MAX_PIECE
+#define CONFIG_L1_MAX_PIECE        1024
+#endif
 
 #define SRAM_SLT_NULL      0
 #define SRAM_SLT_FREE      1
@@ -59,18 +67,18 @@ struct l1_sram_piece {
 	int flag;
 };
 
-static struct l1_sram_piece l1_ssram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_ssram[CONFIG_L1_MAX_PIECE];
 
 #if L1_DATA_A_LENGTH != 0
-static struct l1_sram_piece l1_data_A_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_data_A_sram[CONFIG_L1_MAX_PIECE];
 #endif
 
 #if L1_DATA_B_LENGTH != 0
-static struct l1_sram_piece l1_data_B_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_data_B_sram[CONFIG_L1_MAX_PIECE];
 #endif
 
 #if L1_CODE_LENGTH != 0
-static struct l1_sram_piece l1_inst_sram[L1_MAX_PIECE];
+static struct l1_sram_piece l1_inst_sram[CONFIG_L1_MAX_PIECE];
 #endif
 
 /* L1 Scratchpad SRAM initialization function */
