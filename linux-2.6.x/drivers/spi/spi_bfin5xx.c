@@ -611,7 +611,7 @@ static void pump_transfers(unsigned long data)
 
 		write_STAT(BIT_STAT_CLR);
 
-		if (transfer->is_duplex) { /* full duplex mode */
+		if (drv_data->tx != NULL && drv->data->rx != NULL) { /* full duplex mode */
 			ASSERT((drv->data->tx_end - drv_data->tx) == (drv_data->rx_end - drv_data->rx));
 			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
@@ -624,34 +624,29 @@ static void pump_transfers(unsigned long data)
 
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
-		} else {                 /* none full duplex mode */
+		} else if (drv_data->tx != NULL) {        /* write only half duplex */
+			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
+			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
+			PRINTK("IO write: cr is 0x%x\n", cr);
 
-			/* write then read. */
-			if (drv_data->tx != NULL) {
-				cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
-				cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
-				PRINTK("IO write: cr is 0x%x\n", cr);
+			write_CTRL(cr);
+			__builtin_bfin_ssync();
 
-				write_CTRL(cr);
-				__builtin_bfin_ssync();
+			drv_data->write(drv_data);
 
-				drv_data->write(drv_data);
+			if (drv_data->tx != drv_data->tx_end)
+				tranf_success = 0;
+		} else if (drv_data->rx != NULL) {        /* read only half duplex */
+			cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
+			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
+			PRINTK("IO read: cr is 0x%x\n", cr);
 
-				if (drv_data->tx != drv_data->tx_end)
-					tranf_success = 0;
-			}
-			if (drv_data->rx != NULL) {
-				cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
-				cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
-				PRINTK("IO read: cr is 0x%x\n", cr);
+			write_CTRL(cr);
+			__builtin_bfin_ssync();
 
-				write_CTRL(cr);
-				__builtin_bfin_ssync();
-
-				drv_data->read(drv_data);
-				if (drv_data->rx != drv_data->rx_end)
-					tranf_success = 0;
-			}
+			drv_data->read(drv_data);
+			if (drv_data->rx != drv_data->rx_end)
+				tranf_success = 0;
 		}
 
 		if (!tranf_success) {
