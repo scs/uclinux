@@ -135,17 +135,14 @@ _dl_linux_resolver (struct elf_resolve *tpnt, int reloc_entry)
 	struct funcdesc_value volatile *got_entry;
 	char *symname;
 
-	rel_addr = DL_RELOC_ADDR (tpnt->dynamic_info[DT_JMPREL],
-				  tpnt->loadaddr);
+	rel_addr = (ELF_RELOC *) tpnt->dynamic_info[DT_JMPREL];
 
 	this_reloc = (ELF_RELOC *)(intptr_t)(rel_addr + reloc_entry);
 	reloc_type = ELF32_R_TYPE(this_reloc->r_info);
 	symtab_index = ELF32_R_SYM(this_reloc->r_info);
 
-	symtab = (Elf32_Sym *)(intptr_t)
-				  DL_RELOC_ADDR (tpnt->dynamic_info[DT_SYMTAB],
-						 tpnt->loadaddr);
-	strtab = DL_RELOC_ADDR (tpnt->dynamic_info[DT_STRTAB], tpnt->loadaddr);
+	symtab = (Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB];
+	strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
 	symname= strtab + symtab[symtab_index].st_name;
 
 	if (reloc_type != R_BFIN_FUNCDESC_VALUE) {
@@ -208,12 +205,11 @@ _dl_parse(struct elf_resolve *tpnt, struct dyn_elf *scope,
 	int symtab_index;
 
 	/* Now parse the relocation information */
-	rpnt = (ELF_RELOC *)(intptr_t) DL_RELOC_ADDR (rel_addr, tpnt->loadaddr);
+	rpnt = (ELF_RELOC *) rel_addr;
 	rel_size = rel_size / sizeof(ELF_RELOC);
 
-	symtab = (Elf32_Sym *)(intptr_t)
-	  DL_RELOC_ADDR (tpnt->dynamic_info[DT_SYMTAB], tpnt->loadaddr);
-	strtab = DL_RELOC_ADDR (tpnt->dynamic_info[DT_STRTAB], tpnt->loadaddr);
+	symtab = (Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB];
+	strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
 
 	  for (i = 0; i < rel_size; i++, rpnt++) {
 	        int res;

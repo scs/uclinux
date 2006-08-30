@@ -3,6 +3,7 @@
  * Program to load an ELF binary on a linux system, and run it
  * after resolving ELF shared library symbols
  *
+ * Copyright (C) 2005 by Joakim Tjernlund
  * Copyright (C) 2000-2004 by Erik Andersen <andersen@codepoet.org>
  * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald,
  *				David Engel, Hongjiu Lu and Mitch D'Souza
@@ -86,13 +87,38 @@ void _dl_debug_state(void)
 static unsigned char *_dl_malloc_addr = 0;	/* Lets _dl_malloc use the already allocated memory page */
 static unsigned char *_dl_mmap_zero   = 0;	/* Also used by _dl_malloc */
 
-#if defined (__SUPPORT_LD_DEBUG__)
-static void debug_fini (int status, void *arg)
-{
-	(void)status;
-	_dl_dprintf(_dl_debug_file,"\ncalling fini: %s\n\n", (const char*)arg);
-}
+static struct elf_resolve **init_fini_list;
+static int nlist; /* # items in init_fini_list */
+
+#if 0
+extern void _start(void);
 #endif
+
+static void __attribute__ ((destructor)) __attribute_used__ _dl_fini(void)
+{
+	int i;
+	struct elf_resolve * tpnt;
+
+	for (i = 0; i < nlist; ++i) {
+		tpnt = init_fini_list[i];
+		if (tpnt->init_flag & FINI_FUNCS_CALLED)
+			continue;
+		tpnt->init_flag |= FINI_FUNCS_CALLED;
+		if (tpnt->dynamic_info[DT_FINI]) {
+			void (*dl_elf_func) (void);
+
+			dl_elf_func = (void (*)(void)) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI],
+								      tpnt->loadaddr);
+#if defined (__SUPPORT_LD_DEBUG__)
+			if(_dl_debug)
+				_dl_dprintf(_dl_debug_file,
+					    "\ncalling FINI: %s\n\n",
+					    tpnt->libname);
+#endif
+			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
+		}
+	}
+}
 
 void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr, 
 			  Elf32_auxv_t auxvt[AT_EGID + 1], char **envp,
@@ -102,8 +128,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	ElfW(Phdr) *ppnt;
 	Elf32_Dyn *dpnt;
 	char *lpntstr;
-	int i, nlist, goof = 0, unlazy = 0, trace_loaded_objects = 0;
-	struct elf_resolve **init_fini_list;
+	int i, goof = 0, unlazy = 0, trace_loaded_objects = 0;
 	struct dyn_elf *rpnt;
 	struct elf_resolve *tcurr;
 	struct elf_resolve *tpnt1;
@@ -112,15 +137,10 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	struct r_debug *debug_addr;
 	unsigned long *lpnt;
 	unsigned long exec_base;
-	intptr_t _dl_atexit;
 	struct elf_resolve *_dl_atexit_tpnt;
 	unsigned long *_dl_envp;		/* The environment address */
 	ElfW(Addr) relro_addr = 0;
 	size_t relro_size = 0;
-#if defined (__SUPPORT_LD_DEBUG__)
-	intptr_t _dl_on_exit;
-	struct elf_resolve *_dl_on_exit_tpnt;
-#endif
 
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 	/* Wahoo!!! */
@@ -144,6 +164,12 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	if (argv[0]) {
 		_dl_progname = argv[0];
 	}
+#if 0
+	if (_start == (void *) auxvt[AT_ENTRY].a_un.a_fcn) {
+		_dl_dprintf(2, "Standalone execution is not supported yet\n");
+		_dl_exit(1);
+	}
+#endif
 
 	/* Start to build the tables of the modules that are required for
 	 * this beast to run.  We start with the basic executable, and then
@@ -154,6 +180,38 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	rpnt = NULL;
 	if (_dl_getenv("LD_BIND_NOW", envp))
 		unlazy = RTLD_NOW;
+
+	/* Now we need to figure out what kind of options are selected.
+	 * Note that for SUID programs we ignore the settings in
+	 * LD_LIBRARY_PATH.
+	 */
+	if ((auxvt[AT_UID].a_un.a_val == -1 && _dl_suid_ok()) ||
+	    (auxvt[AT_UID].a_un.a_val != -1 &&
+	     auxvt[AT_UID].a_un.a_val == auxvt[AT_EUID].a_un.a_val &&
+	     auxvt[AT_GID].a_un.a_val == auxvt[AT_EGID].a_un.a_val)) {
+		_dl_secure = 0;
+		_dl_preload = _dl_getenv("LD_PRELOAD", envp);
+		_dl_library_path = _dl_getenv("LD_LIBRARY_PATH", envp);
+	} else {
+		static const char unsecure_envvars[] =
+#ifdef EXTRA_UNSECURE_ENVVARS
+			EXTRA_UNSECURE_ENVVARS
+#endif
+			UNSECURE_ENVVARS;
+		const char *nextp;
+		_dl_secure = 1;
+
+		nextp = unsecure_envvars;
+		do {
+			_dl_unsetenv (nextp, envp);
+			/* We could use rawmemchr but this need not be fast.  */
+			nextp = (char *) _dl_strchr(nextp, '\0') + 1;
+		} while (*nextp != '\0');
+		_dl_preload = NULL;
+		_dl_library_path = NULL;
+		/* SUID binaries can be exploited if they do LAZY relocation. */
+		unlazy = RTLD_NOW;
+	}
 
 	/* At this point we are now free to examine the user application,
 	 * and figure out which libraries are supposed to be called.  Until
@@ -210,7 +268,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 		}
 		if (ppnt->p_type == PT_DYNAMIC) {
 			dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr);
-			_dl_parse_dynamic_info(dpnt, app_tpnt->dynamic_info, debug_addr);
+			_dl_parse_dynamic_info(dpnt, app_tpnt->dynamic_info, debug_addr, app_tpnt->loadaddr);
 #ifndef __FORCE_SHAREABLE_TEXT_SEGMENTS__
 			/* Ugly, ugly.  We need to call mprotect to change the
 			 * protection of the text pages so that we can do the
@@ -250,7 +308,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 			app_tpnt->rtld_flags = unlazy | RTLD_GLOBAL;
 			app_tpnt->usage_count++;
 			app_tpnt->symbol_scope = _dl_symbol_tables;
-			lpnt = (unsigned long *) DL_RELOC_ADDR (app_tpnt->dynamic_info[DT_PLTGOT], app_tpnt->loadaddr);
+			lpnt = (unsigned long *) (app_tpnt->dynamic_info[DT_PLTGOT]);
 #ifdef ALLOW_ZERO_PLTGOT
 			if (lpnt)
 #endif
@@ -259,38 +317,18 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 
 		/* OK, fill this in - we did not have this before */
 		if (ppnt->p_type == PT_INTERP) {
-			int readsize = 0;
-			char *pnt, *pnt1, buf[1024];
+			char *ptmp;
 
-			tpnt->libname = _dl_strdup((char *) ppnt->p_offset +
-						   exec_base);
-
-			/* Determine if the shared lib loader is a symlink */
-			_dl_memset(buf, 0, sizeof(buf));
-			readsize = _dl_readlink(tpnt->libname, buf, sizeof(buf));
-			if (readsize > 0 && readsize < (int)(sizeof(buf)-1)) {
-				pnt1 = _dl_strrchr(buf, '/');
-				if (pnt1 && buf != pnt1) {
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-					_dl_dprintf(_dl_debug_file,
-						    "changing tpnt->libname from '%s' to '%s'\n",
-						    tpnt->libname, buf);
-#endif
-					tpnt->libname = _dl_strdup(buf);
-				}
-			}
+			tpnt->libname = DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr);
 
 			/* Store the path where the shared lib loader was found
 			 * for later use
 			 */
-			pnt = _dl_strdup(tpnt->libname);
-			pnt1 = _dl_strrchr(pnt, '/');
-			if (pnt != pnt1) {
-				*pnt1 = '\0';
-				_dl_ldsopath = pnt;
-			} else {
-				_dl_ldsopath = tpnt->libname;
-			}
+			_dl_ldsopath = _dl_strdup(tpnt->libname);
+			ptmp = _dl_strrchr(_dl_ldsopath, '/');
+			if (ptmp != _dl_ldsopath)
+				*ptmp = '\0';
+
 #ifdef __SUPPORT_LD_DEBUG_EARLY__
 			_dl_dprintf(_dl_debug_file, "Lib Loader:\t(%x) %s\n",
 				    (unsigned) DL_LOADADDR_BASE (tpnt->loadaddr), tpnt->libname);
@@ -299,36 +337,6 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	}
 	app_tpnt->relro_addr = relro_addr;
 	app_tpnt->relro_size = relro_size;
-
-	/* Now we need to figure out what kind of options are selected.
-	 * Note that for SUID programs we ignore the settings in
-	 * LD_LIBRARY_PATH.
-	 */
-	if ((auxvt[AT_UID].a_un.a_val == -1 && _dl_suid_ok()) ||
-	    (auxvt[AT_UID].a_un.a_val != -1 &&
-	     auxvt[AT_UID].a_un.a_val == auxvt[AT_EUID].a_un.a_val &&
-	     auxvt[AT_GID].a_un.a_val == auxvt[AT_EGID].a_un.a_val)) {
-		_dl_secure = 0;
-		_dl_preload = _dl_getenv("LD_PRELOAD", envp);
-		_dl_library_path = _dl_getenv("LD_LIBRARY_PATH", envp);
-	} else {
-		static const char unsecure_envvars[] =
-#ifdef EXTRA_UNSECURE_ENVVARS
-			EXTRA_UNSECURE_ENVVARS
-#endif
-			UNSECURE_ENVVARS;
-		const char *nextp;
-		_dl_secure = 1;
-
-		nextp = unsecure_envvars;
-		do {
-			_dl_unsetenv (nextp, envp);
-			/* We could use rawmemchr but this need not be fast.  */
-			nextp = (char *) _dl_strchr(nextp, '\0') + 1;
-		} while (*nextp != '\0');
-		_dl_preload = NULL;
-		_dl_library_path = NULL;
-	}
 
 #ifdef __SUPPORT_LD_DEBUG__
 	_dl_debug = _dl_getenv("LD_DEBUG", envp);
@@ -597,7 +605,7 @@ next_lib2:
 				char *name;
 				struct init_fini_list *tmp;
 
-				lpntstr = (char *) DL_RELOC_ADDR (tcurr->dynamic_info[DT_STRTAB] + dpnt->d_un.d_val, tcurr->loadaddr);
+				lpntstr = (char*) (tcurr->dynamic_info[DT_STRTAB] + dpnt->d_un.d_val);
 				name = _dl_get_last_path_component(lpntstr);
 
 				if ((tpnt1 = _dl_check_if_named_library_is_loaded(name, trace_loaded_objects)))	{
@@ -653,12 +661,7 @@ next_lib2:
 	_dl_unmap_cache();
 
 	--nlist; /* Exclude the application. */
-
-	/* As long as atexit() is used to run the FINI functions, we can use
-	 * alloca here. The use of atexit() should go away at some time as that
-	 * will make Valgring happy.
-	 */
-	init_fini_list = alloca(nlist * sizeof(struct elf_resolve *));
+	init_fini_list = _dl_malloc(nlist * sizeof(struct elf_resolve *));
 	i = 0;
 	for (tcurr = _dl_loaded_modules->next; tcurr; tcurr = tcurr->next) {
 		init_fini_list[i++] = tcurr;
@@ -747,7 +750,7 @@ next_lib2:
 #ifdef RERELOCATE_LDSO
 		/* Only rerelocate functions for now. */
 		tpnt->init_flag = RELOCS_DONE;
-		lpnt = (unsigned long *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_PLTGOT], load_addr);
+		lpnt = (unsigned long *) (tpnt->dynamic_info[DT_PLTGOT]);
 # ifdef ALLOW_ZERO_PLTGOT
 		if (tpnt->dynamic_info[DT_PLTGOT])
 # endif
@@ -827,16 +830,6 @@ next_lib2:
 
 	}
 #endif
-	_dl_atexit = (intptr_t) _dl_find_hash_mod(__C_SYMBOL_PREFIX__ "atexit", _dl_symbol_tables,
-						  NULL, ELF_RTYPE_CLASS_PLT,
-						  &_dl_atexit_tpnt);
-#if defined (__SUPPORT_LD_DEBUG__)
-	_dl_on_exit = (intptr_t) _dl_find_hash_mod(__C_SYMBOL_PREFIX__ "on_exit",
-						   _dl_symbol_tables,
-						   NULL, ELF_RTYPE_CLASS_PLT,
-						   &_dl_on_exit_tpnt);
-#endif
-
 	/* Notify the debugger we have added some objects. */
 	_dl_debug_addr->r_state = RT_ADD;
 	_dl_debug_state();
@@ -854,31 +847,24 @@ next_lib2:
 #if defined (__SUPPORT_LD_DEBUG__)
 			if(_dl_debug)
 				_dl_dprintf(_dl_debug_file,
-					    "\ncalling init: %s\n\n",
+					    "\ncalling INIT: %s\n\n",
 					    tpnt->libname);
 #endif
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		}
-		tpnt->init_flag |= FINI_FUNCS_CALLED;
-		if (_dl_atexit && tpnt->dynamic_info[DT_FINI]) {
-			void (*dl_elf_func) (void);
-			dl_elf_func = DL_ADDR_TO_FUNC_PTR ((intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr), tpnt->loadaddr);
-			DL_CALL_FUNC_AT_ADDR (_dl_atexit, _dl_atexit_tpnt->loadaddr, (void(*)(void *)), dl_elf_func);
-#if defined (__SUPPORT_LD_DEBUG__)
-			if(_dl_debug && _dl_on_exit) {
-				DL_CALL_FUNC_AT_ADDR (_dl_on_exit, _dl_on_exit_tpnt->loadaddr, (void(*)(void (*)(int, void *),void*)), debug_fini, tpnt->libname);
-			}
-#endif
-		}
-#if defined (__SUPPORT_LD_DEBUG__)
-		else {
-			if (!_dl_atexit)
-				_dl_dprintf(_dl_debug_file, "%s: The address of atexit () is 0x0.\n", tpnt->libname);
-		}
-#endif
 	}
 
-	/* Notify the debugger that all objects are now mapped in.  */
+#ifndef _DL_DO_FINI_IN_LIBC
+/* arches that has moved their ldso FINI handling should ship this part */
+	{
+		int (*_dl_atexit) (void *) = (int (*)(void *)) (intptr_t) _dl_find_hash_mod(__C_SYMBOL_PREFIX__ "atexit", _dl_symbol_tables,
+											    NULL, ELF_RTYPE_CLASS_PLT,
+											    &_dl_atexit_tpnt);
+		if (_dl_atexit)
+			DL_CALL_FUNC_AT_ADDR (_dl_atexit, _dl_atexit_tpnt->loadaddr, (void(*)(void *)), _dl_fini);
+		/* Notify the debugger that all objects are now mapped in.  */
+	}
+#endif
 	_dl_debug_addr->r_state = RT_CONSISTENT;
 	_dl_debug_state();
 

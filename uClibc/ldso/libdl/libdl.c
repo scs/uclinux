@@ -37,6 +37,7 @@
 #define _dl_free free
 #endif
 
+#define _GNU_SOURCE
 #include <ldso.h>
 #include <stdio.h>
 #include <string.h>
@@ -231,9 +232,8 @@ void *dlopen(const char *libname, int flag)
 			if (dpnt->d_tag == DT_NEEDED) {
 				char *name;
 
-				lpntstr = (char*) DL_RELOC_ADDR
-				  (tcurr->dynamic_info[DT_STRTAB] + 
-				   dpnt->d_un.d_val, tcurr->loadaddr);
+				lpntstr = (char*) (tcurr->dynamic_info[DT_STRTAB] +
+						dpnt->d_un.d_val);
 				name = _dl_get_last_path_component(lpntstr);
 				tpnt1 = _dl_check_if_named_library_is_loaded(name, 0);
 #ifdef __SUPPORT_LD_DEBUG__
@@ -378,7 +378,7 @@ void *dlopen(const char *libname, int flag)
 			if (dl_elf_func) {
 #ifdef __SUPPORT_LD_DEBUG__
 				if(_dl_debug)
-					fprintf(stderr, "running ctors for library %s at '%x'\n", tpnt->libname, dl_elf_func);
+					fprintf(stderr, "running ctors for library %s at '%x'\n", tpnt->libname, (unsigned)dl_elf_func);
 #endif
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		    }
@@ -507,7 +507,7 @@ static int do_dlclose(void *vhandle, int need_fini)
 				   tpnt->loadaddr);
 #ifdef __SUPPORT_LD_DEBUG__
 				if(_dl_debug)
-					fprintf(stderr, "running dtors for library %s at '%x'\n", tpnt->libname, dl_elf_fini);
+					fprintf(stderr, "running dtors for library %s at '%x'\n", tpnt->libname, (unsigned)dl_elf_fini);
 #endif
 				DL_CALL_FUNC_AT_ADDR
 				  (dl_elf_fini, tpnt->loadaddr,
@@ -591,7 +591,7 @@ int dlclose(void *vhandle)
 	return do_dlclose(vhandle, 1);
 }
 
-const char *dlerror(void)
+char *dlerror(void)
 {
 	const char *retval;
 
@@ -599,7 +599,7 @@ const char *dlerror(void)
 		return NULL;
 	retval = dl_error_names[_dl_error_number];
 	_dl_error_number = 0;
-	return retval;
+	return (char *)retval;
 }
 
 /*
@@ -607,7 +607,7 @@ const char *dlerror(void)
  */
 static char *type[] = { "Lib", "Exe", "Int", "Mod" };
 
-void dlinfo(void)
+int dlinfo(void)
 {
 	struct elf_resolve *tpnt;
 	struct dyn_elf *rpnt, *hpnt;
@@ -635,6 +635,7 @@ void dlinfo(void)
 			fprintf(stderr, "\t%x %s\n", (unsigned) rpnt->dyn,
 					rpnt->dyn->libname);
 	}
+	return 0;
 }
 
 int dladdr(const void *__address, Dl_info * __info)
@@ -687,8 +688,8 @@ int dladdr(const void *__address, Dl_info * __info)
 		ElfW(Addr) sa;
 
 		sa = 0;
-		symtab = (Elf32_Sym *) DL_RELOC_ADDR (pelf->dynamic_info[DT_SYMTAB], pelf->loadaddr);
-		strtab = (char *) DL_RELOC_ADDR (pelf->dynamic_info[DT_STRTAB], pelf->loadaddr);
+		symtab = (Elf32_Sym *) (pelf->dynamic_info[DT_SYMTAB]);
+		strtab = (char *) (pelf->dynamic_info[DT_STRTAB]);
 
 		sf = 0;
 		for (hn = 0; hn < pelf->nbucket; hn++) {

@@ -50,7 +50,7 @@ an ELF sharable library or a linux style of shared library. */
    a more than adequate job of explaining everything required to get this
    working. */
 
-extern _dl_linux_resolve(void);
+extern int _dl_linux_resolve(void);
 
 unsigned int _dl_linux_resolver(unsigned int reloc_entry, unsigned int * plt)
 {
@@ -66,8 +66,7 @@ unsigned int _dl_linux_resolver(unsigned int reloc_entry, unsigned int * plt)
   unsigned int instr_addr;
   tpnt = (struct elf_resolve *) plt[2];
 
-  rel_addr = (Elf32_Rela *) (tpnt->dynamic_info[DT_JMPREL] +
-				   tpnt->loadaddr);
+  rel_addr = (Elf32_Rela *)tpnt->dynamic_info[DT_JMPREL];
 
   /*
    * Generate the correct relocation index into the .rela.plt section.
@@ -79,8 +78,8 @@ unsigned int _dl_linux_resolver(unsigned int reloc_entry, unsigned int * plt)
   reloc_type = ELF32_R_TYPE(this_reloc->r_info);
   symtab_index = ELF32_R_SYM(this_reloc->r_info);
 
-  symtab =  (Elf32_Sym *) (tpnt->dynamic_info[DT_SYMTAB] + tpnt->loadaddr);
-  strtab = (char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
+  symtab =  (Elf32_Sym *)tpnt->dynamic_info[DT_SYMTAB];
+  strtab = (char *)tpnt->dynamic_info[DT_STRTAB];
 
 #ifdef __SUPPORT_LD_DEBUG__
   if (_dl_debug_symbols) {
@@ -146,7 +145,7 @@ unsigned int _dl_linux_resolver(unsigned int reloc_entry, unsigned int * plt)
   return (unsigned int) new_addr;
 }
 
-void _dl_parse_lazy_relocation_information(struct dyn_elf *rpnt,
+void _dl_parse_lazy_relocation_information(struct dyn_elf *arg_rpnt,
 	unsigned long rel_addr, unsigned long rel_size)
 {
   int i;
@@ -156,13 +155,13 @@ void _dl_parse_lazy_relocation_information(struct dyn_elf *rpnt,
   Elf32_Sym * symtab;
   Elf32_Rela * rpnt;
   unsigned int * reloc_addr;
-  struct elf_resolve * tpnt = rpnt->dyn;
+  struct elf_resolve * tpnt = arg_rpnt->dyn;
 
   /* Now parse the relocation information */
-  rpnt = (Elf32_Rela *) (rel_addr + tpnt->loadaddr);
+  rpnt = (Elf32_Rela *)rel_addr;
 
-  symtab =  (Elf32_Sym *) (tpnt->dynamic_info[DT_SYMTAB] + tpnt->loadaddr);
-  strtab = ( char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
+  symtab =  (Elf32_Sym *)tpnt->dynamic_info[DT_SYMTAB];
+  strtab = ( char *)tpnt->dynamic_info[DT_STRTAB];
 
   for(i=0; i< rel_size; i += sizeof(Elf32_Rela), rpnt++){
     reloc_addr = (int *) (tpnt->loadaddr + (int)rpnt->r_offset);
@@ -186,7 +185,7 @@ void _dl_parse_lazy_relocation_information(struct dyn_elf *rpnt,
   };
 }
 
-int _dl_parse_relocation_information(struct dyn_elf *rpnt,
+int _dl_parse_relocation_information(struct dyn_elf *arg_rpnt,
 	unsigned long rel_addr, unsigned long rel_size)
 {
   int i;
@@ -198,13 +197,13 @@ int _dl_parse_relocation_information(struct dyn_elf *rpnt,
   unsigned int * reloc_addr;
   unsigned int symbol_addr;
   int symtab_index;
-  struct elf_resolve * tpnt = rpnt->dyn;
+  struct elf_resolve * tpnt = arg_rpnt->dyn;
   /* Now parse the relocation information */
 
-  rpnt = (Elf32_Rela *) (rel_addr + tpnt->loadaddr);
+  rpnt = (Elf32_Rela *)rel_addr;
 
-  symtab =  (Elf32_Sym *) (tpnt->dynamic_info[DT_SYMTAB] + tpnt->loadaddr);
-  strtab = ( char *) (tpnt->dynamic_info[DT_STRTAB] + tpnt->loadaddr);
+  symtab =  (Elf32_Sym *)tpnt->dynamic_info[DT_SYMTAB];
+  strtab = ( char *)tpnt->dynamic_info[DT_STRTAB];
 
   for(i=0; i< rel_size; i+= sizeof(Elf32_Rela), rpnt++){
     reloc_addr = (int *) (tpnt->loadaddr + (int)rpnt->r_offset);

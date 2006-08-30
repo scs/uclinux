@@ -116,7 +116,7 @@ asm("" \
 #define _dl_boot _dl_boot2
 #define DL_BOOT(X)   \
 static void  __attribute__ ((used)) \
-_dl_boot (void *dl_boot_got_pointer, \
+_dl_boot (Elf32_Addr dl_boot_got_pointer, \
 	  struct elf32_fdpic_loadmap *dl_boot_progmap, \
 	  struct elf32_fdpic_loadmap *dl_boot_ldsomap, \
 	  Elf32_Dyn *dl_boot_ldso_dyn_pointer, \

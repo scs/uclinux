@@ -307,9 +307,7 @@ struct elf_resolve *_dl_load_shared_library(int secure, struct dyn_elf **rpnt,
 		if (tpnt->libtype == elf_executable) {
 			pnt = (char *) tpnt->dynamic_info[DT_RPATH];
 			if (pnt) {
-				pnt += (intptr_t) DL_RELOC_ADDR
-				  (tpnt->dynamic_info[DT_STRTAB],
-				   tpnt->loadaddr);
+				pnt += (unsigned long) tpnt->dynamic_info[DT_STRTAB];
 #if defined (__SUPPORT_LD_DEBUG__)
 				if(_dl_debug) _dl_dprintf(_dl_debug_file, "\tsearching RPATH='%s'\n", pnt);
 #endif
@@ -775,7 +773,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 
 	dpnt = (Elf32_Dyn *) dynamic_addr;
 	_dl_memset(dynamic_info, 0, sizeof(dynamic_info));
-	_dl_parse_dynamic_info(dpnt, dynamic_info, NULL);
+	_dl_parse_dynamic_info(dpnt, dynamic_info, NULL, lib_loadaddr);
 	/* If the TEXTREL is set, this means that we need to make the pages
 	   writable before we perform relocations.  Do this now. They get set
 	   back again later. */
@@ -827,8 +825,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 	lpnt = (unsigned long *) dynamic_info[DT_PLTGOT];
 
 	if (lpnt) {
-		lpnt = (unsigned long *) DL_RELOC_ADDR
-		  (dynamic_info[DT_PLTGOT], lib_loadaddr);
+		lpnt = (unsigned long *) (dynamic_info[DT_PLTGOT]);
 		INIT_GOT(lpnt, tpnt);
 	};
 
@@ -852,7 +849,7 @@ int _dl_fixup(struct dyn_elf *rpnt, int now_flag)
 {
 	int goof = 0;
 	struct elf_resolve *tpnt;
-	unsigned long reloc_size;
+	Elf32_Word reloc_size, reloc_addr, relative_count;
 
 	if (rpnt->next)
 		goof += _dl_fixup(rpnt->next, now_flag);
@@ -883,9 +880,16 @@ int _dl_fixup(struct dyn_elf *rpnt, int now_flag)
 	if (tpnt->dynamic_info[DT_RELOC_TABLE_ADDR] &&
 	    !(tpnt->init_flag & RELOCS_DONE)) {
 		tpnt->init_flag |= RELOCS_DONE;
+		reloc_addr = tpnt->dynamic_info[DT_RELOC_TABLE_ADDR];
+		relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
+		if (relative_count) { /* Optimize the XX_RELATIVE relocations if possible */
+			reloc_size -= relative_count * sizeof(ELF_RELOC);
+			elf_machine_relative (tpnt->loadaddr, reloc_addr, relative_count);
+			reloc_addr += relative_count * sizeof(ELF_RELOC);
+		}
 
 		goof += _dl_parse_relocation_information(rpnt,
-				tpnt->dynamic_info[DT_RELOC_TABLE_ADDR],
+				reloc_addr,
 				reloc_size);
 	}
 	if (tpnt->dynamic_info[DT_BIND_NOW])
@@ -1001,9 +1005,9 @@ char *_dl_strdup(const char *string)
 	return retval;
 }
 
-void _dl_parse_dynamic_info(Elf32_Dyn *dpnt, unsigned long dynamic_info[], void *debug_addr)
+void _dl_parse_dynamic_info(Elf32_Dyn *dpnt, unsigned long dynamic_info[], void *debug_addr, DL_LOADADDR_TYPE load_off)
 {
-	__dl_parse_dynamic_info(dpnt, dynamic_info, debug_addr);
+	__dl_parse_dynamic_info(dpnt, dynamic_info, debug_addr, load_off);
 }
 #ifdef __USE_GNU
 #if ! defined LIBDL || (! defined PIC && ! defined __PIC__)

@@ -188,11 +188,9 @@ while (0)
   __dl_map_segment (EPNT, PPNT, INFILE, FLAGS)
 
 #define DL_GET_READY_TO_RUN_EXTRA_PARMS \
-    , struct elf32_fdpic_loadmap *dl_boot_progmap, void *dl_boot_got_pointer
+    , struct elf32_fdpic_loadmap *dl_boot_progmap, Elf32_Addr dl_boot_got_pointer
 #define DL_GET_READY_TO_RUN_EXTRA_ARGS \
     , dl_boot_progmap, dl_boot_got_pointer
-
-	  
 
 
 #ifdef __USE_GNU
@@ -202,3 +200,19 @@ while (0)
 # include <link.h>
 # undef __USE_GNU
 #endif
+
+#include <elf.h>
+static inline void
+elf_machine_relative (DL_LOADADDR_TYPE load_off, const Elf32_Addr rel_addr,
+		      Elf32_Word relative_count)
+{
+#if 0
+	 Elf32_Rel * rpnt = (void *) rel_addr;
+	--rpnt;
+	do {
+		Elf32_Addr *const reloc_addr = (void *) (load_off + (++rpnt)->r_offset);
+
+		*reloc_addr = DL_RELOC_ADDR (load_off, *reloc_addr);
+	} while (--relative_count);
+#endif
+}

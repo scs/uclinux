@@ -27,7 +27,7 @@ USA.  */
 /* Initialize a DL_LOADADDR_TYPE given a got pointer and a complete
    load map.  */
 inline static void
-__dl_init_loadaddr_map (struct elf32_fdpic_loadaddr *loadaddr, void *dl_boot_got_pointer,
+__dl_init_loadaddr_map (struct elf32_fdpic_loadaddr *loadaddr, Elf32_Addr dl_boot_got_pointer,
 			struct elf32_fdpic_loadmap *map)
 {
   if (map->version != 0)
