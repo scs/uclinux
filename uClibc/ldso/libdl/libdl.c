@@ -557,8 +557,9 @@ static int do_dlclose(void *vhandle, int need_fini)
 			} else
 				for (rpnt1 = _dl_symbol_tables; rpnt1->next; rpnt1 = rpnt1->next) {
 					if (rpnt1->next->dyn == rpnt->dyn) {
+						struct dyn_elf *new_next = rpnt1->next->next;
 						free(rpnt1->next);
-						rpnt1->next = rpnt1->next->next;
+						rpnt1->next = new_next;
 						if (rpnt1->next)
 							rpnt1->next->prev = rpnt1;
 						break;
