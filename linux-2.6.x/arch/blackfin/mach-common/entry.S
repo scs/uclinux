@@ -1024,7 +1024,7 @@ ENTRY(_sys_call_table)
 	.long _sys_unshare	/* 310 */
 	.long _sys_sram_alloc
 	.long _sys_sram_free
-	.long _dma_memcpy
+	.long _sys_dma_memcpy
 	.rept NR_syscalls-(.-_sys_call_table)/4
 		.long _sys_ni_syscall
 	.endr
