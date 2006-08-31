@@ -99,11 +99,21 @@ __start:
 	R3 += 4;
 	R3 = R2 + R3;
 
-	SP += -24;
+	P2 = SP;
+	SP += -32;
 	[SP + 12] = R3;
+
+#ifndef __BFIN_FDPIC__
+	P1 = 0;
+#endif
+	/* Pass highest stack pointer to the app.  */
+	[SP + 28] = P2;
+	/* Store the pointer to ld.so's fini that we got in P1.  */
+	[SP + 24] = P1;
 
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__
+
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __init@FUNCDESC_GOT17M4];
 #elif defined __ID_SHARED_LIB__
@@ -114,6 +124,7 @@ __start:
 	R3.L = __init;
 #endif
 	[SP+16] = R3;
+
 #ifdef __BFIN_FDPIC__
 	R3 = [P3 + __fini@FUNCDESC_GOT17M4];
 #elif defined __ID_SHARED_LIB__

@@ -153,8 +153,10 @@ void  __attribute__((constructor)) __uClibc_init(void)
 }
 
 #ifdef __UCLIBC_CTOR_DTOR__
-void (*__app_fini)(void) = NULL;
+void attribute_hidden (*__app_fini)(void) = NULL;
 #endif
+
+void attribute_hidden (*__rtld_fini)(void) = NULL;
 
 /* __uClibc_start_main is the new main stub for uClibc. This function is
  * called from crt0 (version 0.9.16 or newer), after ALL shared libraries
@@ -163,7 +165,8 @@ void (*__app_fini)(void) = NULL;
 void __attribute__ ((__noreturn__))
 __uClibc_start_main(int (*main) (int, char **, char **),
 	int argc, char **argv, char **envp,
-	void (*app_init)(void), void (*app_fini)(void))
+	void (*app_init)(void), void (*app_fini)(void), void (*rtld_fini)(void),
+	void *stack_end)
 {
 #ifdef __ARCH_HAS_MMU__
     unsigned long *aux_dat;
@@ -174,6 +177,8 @@ __uClibc_start_main(int (*main) (int, char **, char **),
      * may have already been completed by the shared lib loader.  We call
      * __uClibc_init() regardless, to be sure the right thing happens. */
     __uClibc_init();
+
+    __rtld_fini = rtld_fini;
 
     /* If we are dynamically linked, then ldso already did this for us. */
     if (__environ==NULL) {

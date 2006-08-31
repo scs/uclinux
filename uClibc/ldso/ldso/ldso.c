@@ -93,9 +93,7 @@ static unsigned char *_dl_mmap_zero   = 0;	/* Also used by _dl_malloc */
 static struct elf_resolve **init_fini_list;
 static int nlist; /* # items in init_fini_list */
 
-#if 0
 extern void _start(void);
-#endif
 
 static void __attribute__ ((destructor)) __attribute_used__ _dl_fini(void)
 {

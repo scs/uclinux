@@ -41,9 +41,9 @@ USA.  */
 
 asm("" \
     "	.text\n"			\
-    "	.global	_dl_boot\n"		\
-    "	.type	_dl_boot,@function\n"	\
-    "_dl_boot:\n"			\
+    "	.global	__dl_boot\n"		\
+    "	.type	__dl_boot,@function\n"	\
+    "__dl_boot:\n"			\
     "	call	.Lcall\n"		\
     ".Lcall:\n"				\
     "	R4 = RETS;\n"			\
@@ -74,54 +74,25 @@ asm("" \
     "	[SP + 16] = P0;\n"		\
     "	P0 += 12;\n"			\
     "	[SP + 20] = P0;\n"		\
-    "	CALL	__dl_boot2;\n"		\
+    "	CALL	__dl_start;\n"		\
     "	P4 = [SP + 24];\n"		\
     "	P3 = [SP + 28];\n"		\
-    "	P0 = R5;\n"		\
+    "	P0 = R5;\n"			\
     "   SP += 32;\n"			\
+    "	/* Pass our FINI ptr() to the user in P1 */\n"	\
+    "	P1 = [P3 + __dl_fini@FUNCDESC_GOT17M4];\n" \
     "   JUMP (P4);\n"			\
-    "	.size	_dl_boot,.-_dl_boot\n"
-
-#if 0
-    "	sethi.p	#gprelhi(.Lcall), gr5\n"	\
-    "	setlo	#gprello(.Lcall), gr5\n"	\
-"	mov.p	gr17, gr8\n"		\
-"	cmp	gr17, gr0, icc0\n"	\
-"	sub.p	gr4, gr5, gr4\n"	\
-"	ckeq	icc0, cc4\n"		\
-"	cmov.p	gr16, gr8, cc4, 1\n"	\
-"	sethi	#gprelhi(__ROFIXUP_LIST__), gr9\n"	\
-"	sethi.p	#gprelhi(__ROFIXUP_END__), gr10\n"	\
-"	setlo	#gprello(__ROFIXUP_LIST__), gr9\n"	\
-"	setlo.p	#gprello(__ROFIXUP_END__), gr10\n"	\
-"	add	gr9, gr4, gr9\n"	\
-"	add.p	gr10, gr4, gr10\n"	\
-"	call	__self_reloc\n"		\
-"	mov.p	gr8, gr15\n"		\
-"	mov	gr16, gr9\n"		\
-"	mov.p	gr17, gr10\n"		\
-"	mov	gr18, gr11\n"		\
-"	addi.p	sp, #4, gr13\n"		\
-"	addi	sp, #-8, sp\n"		\
-"	mov.p	sp, gr12\n"		\
-"	call	_dl_boot2\n"		\
-"	ldd.p	@(sp, gr0), gr14\n"	\
-"	addi	sp, #8, sp\n"		\
-"	movgs	gr0, lr\n"		\
-"	jmpl	@(gr14, gr0)\n"		\
-
-#endif
+    "	.size	__dl_boot,.-__dl_boot\n"
 );
 
-#define _dl_boot _dl_boot2
 #define DL_BOOT(X)   \
 static void  __attribute__ ((used)) \
-_dl_boot (Elf32_Addr dl_boot_got_pointer, \
-	  struct elf32_fdpic_loadmap *dl_boot_progmap, \
-	  struct elf32_fdpic_loadmap *dl_boot_ldsomap, \
-	  Elf32_Dyn *dl_boot_ldso_dyn_pointer, \
-	  struct funcdesc_value *dl_main_funcdesc, \
-	  X)
+_dl_start (Elf32_Addr dl_boot_got_pointer, \
+	   struct elf32_fdpic_loadmap *dl_boot_progmap, \
+	   struct elf32_fdpic_loadmap *dl_boot_ldsomap, \
+	   Elf32_Dyn *dl_boot_ldso_dyn_pointer, \
+	   struct funcdesc_value *dl_main_funcdesc, \
+	   X)
 
 struct elf32_fdpic_loadmap;
 

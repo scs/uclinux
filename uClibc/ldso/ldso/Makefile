@@ -76,7 +76,7 @@ XXFLAGS := $(XXFLAGS:-fomit-frame-pointer=)
 all: lib
 
 lib:: $(OBJS) $(DLINK_OBJS)
-	$(CC) $(LDFLAGS) -Wl,-e,_dl_boot -Wl,-soname=$(UCLIBC_LDSO) \
+	$(CC) $(LDFLAGS) -Wl,-e,__dl_boot -Wl,-soname=$(UCLIBC_LDSO) \
 		-o $(LDSO_FULLNAME) $(OBJS) -nostartfiles -nodefaultlibs $(LIBGCC);
 	$(INSTALL) -d $(TOPDIR)lib
 	$(INSTALL) -m 755 $(LDSO_FULLNAME) $(TOPDIR)lib
