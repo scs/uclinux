@@ -139,16 +139,6 @@ struct funcdesc_ht;
    && ((flags & EF_FRV_FPR_MASK) == EF_FRV_FPR_64 ? __FRV_FPR__ == 64 : 1) \
    && ((flags & EF_FRV_FPR_MASK) == EF_FRV_FPR_NONE ? __FRV_FPR__ == 0 : 1))
 
-/* Make sure we only load libraries that use the same number of
-   general-purpose and floating-point registers the dynamic loader was
-   compiled for.  */
-#define DL_CHECK_REG_COUNT(flags) \
-  (((flags & EF_FRV_GPR_MASK) == EF_FRV_GPR_32 ? __FRV_GPR__ == 32 : 1) \
-   && ((flags & EF_FRV_GPR_MASK) == EF_FRV_GPR_64 ? __FRV_GPR__ == 64 : 1) \
-   && ((flags & EF_FRV_FPR_MASK) == EF_FRV_FPR_32 ? __FRV_FPR__ == 32 : 1) \
-   && ((flags & EF_FRV_FPR_MASK) == EF_FRV_FPR_64 ? __FRV_FPR__ == 64 : 1) \
-   && ((flags & EF_FRV_FPR_MASK) == EF_FRV_FPR_NONE ? __FRV_FPR__ == 0 : 1))
-
 /* We only support loading FDPIC independently-relocatable shared
    libraries.  It probably wouldn't be too hard to support loading
    shared libraries that require relocation by the same amount, but we
@@ -168,14 +158,6 @@ do \
 		  "\n", (_dl_progname), (libname)); \
       _dl_close(infile); \
       return NULL; \
-    } \
-\
-  if (! DL_CHECK_REG_COUNT ((epnt)->e_flags)) \
-    { \
-      _dl_internal_error_number = LD_ERROR_NOTDYN; \
-      _dl_dprintf(2, "%s: '%s' assumes different register counts" \
-		  "\n", (_dl_progname), (libname)); \
-      _dl_close(infile); \
     } \
 \
   if (! DL_CHECK_REG_COUNT ((epnt)->e_flags)) \
@@ -207,14 +189,6 @@ while (0)
    ? _dl_funcdesc_for (DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr),    \
  		       (TPNT)->loadaddr.got_value)			     \
    : DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr))
-
-#define DL_GET_READY_TO_RUN_EXTRA_PARMS \
-  , struct elf32_fdpic_loadmap *dl_boot_progmap
-#define DL_GET_READY_TO_RUN_EXTRA_ARGS \
-  , dl_boot_progmap
-
-	  
-
 
 #define DL_GET_READY_TO_RUN_EXTRA_PARMS \
   , struct elf32_fdpic_loadmap *dl_boot_progmap
