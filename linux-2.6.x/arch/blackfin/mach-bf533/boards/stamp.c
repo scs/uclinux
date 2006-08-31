@@ -167,7 +167,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	       /* this value is the baudrate divisor */
                .max_speed_hz = 2,     /* actual baudrate is SCLK/(2xspeed_hz) */
                .bus_num = 1, /* Framework bus number */
-               .chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL2*/
+               .chip_select = 2, /* Framework chip select. On STAMP537 it is SPISSEL2*/
                .platform_data = &bfin_spi_flash_data,
                .controller_data = &spi_flash_chip_info,
        },
