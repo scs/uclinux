@@ -154,15 +154,15 @@
 +14. All other operations are the same as that in KGDB over Ethernet. The only difference is that after continue command in GDB, please stop GDB connection by 2 "Ctrl+C"s and connect again after breakpoints are hit or Ctrl+A is entered.
 --- linux-2.6.x/arch/blackfin/Kconfig
 +++ linux-2.6.x/arch/blackfin/Kconfig
-@@ -742,6 +742,8 @@ config DEBUG_HWERR
- 	  hardware error interrupts and need to know where they are coming
- 	  from.
+@@ -759,6 +759,8 @@ config DEBUG_KERNEL_START
+ 	  replaces the bootloader exception handler. This will stop kernels
+ 	  from dieing at startup with no visible error messages
  
 +source "kernel/Kconfig.kgdb"
 +
- config DUAL_CORE_TEST_MODULE
- 	tristate "Dual Core Test Module"
- 	depends on (BF561)
+ config DEBUG_SERIAL_EARLY_INIT
+ 	bool 'Initialize serial driver early'
+ 	default n
 --- linux-2.6.x/arch/blackfin/kernel/Makefile
 +++ linux-2.6.x/arch/blackfin/kernel/Makefile
 @@ -9,3 +9,5 @@ obj-y := entry.o process.o bfin_ksyms.o 
@@ -744,7 +744,7 @@
 +MODULE_LICENSE("GPL");
 --- linux-2.6.x/arch/blackfin/kernel/setup.c
 +++ linux-2.6.x/arch/blackfin/kernel/setup.c
-@@ -535,10 +535,21 @@ static void __init generate_cpl_tables(v
+@@ -536,10 +536,21 @@ static void __init generate_cpl_tables(v
  
  #if defined (CONFIG_BF561)
  # if defined (CONFIG_BFIN561_EZKIT)
@@ -766,7 +766,7 @@
  	pos =
  	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
  			    ASYNC_BANK3_BASE + 0x400000,
-@@ -547,11 +558,18 @@ static void __init generate_cpl_tables(v
+@@ -548,11 +559,18 @@ static void __init generate_cpl_tables(v
  #  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
  # endif
  #else
@@ -798,15 +798,15 @@
  
  /*
   *  . EXCEPTION TRAPS DEBUGGING LEVELS
-@@ -136,6 +140,7 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -138,6 +142,7 @@ asmlinkage void trap_c(struct pt_regs *f
  {
  	int j, sig = 0;
  	siginfo_t info;
-+	unsigned long trapnr = fp->seqstat & 0x3f;
++	unsigned long trapnr = fp->seqstat & SEQSTAT_EXCAUSE;
  
  	trace_buffer_save(j);
  
-@@ -143,12 +148,18 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -145,12 +150,18 @@ asmlinkage void trap_c(struct pt_regs *f
  	   processing, the pc value should be set with retx value.
  	   With this change we can cleanup some code in signal.c- TODO */
  	fp->orig_pc = fp->retx;
@@ -814,7 +814,7 @@
 +		trapnr, fp->ipend, fp->pc, fp->retx); */
  
  	/* send the appropriate signal to the user program */
--	switch (fp->seqstat & 0x3f) {
+-	switch (fp->seqstat & SEQSTAT_EXCAUSE) {
 +	switch (trapnr) {
  	case VEC_STEP:
  		info.si_code = TRAP_STEP;
@@ -824,9 +824,9 @@
 +			CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
 +#endif
  		/* Check if this is a single step in kernel space */
- 		if(fp->ipend & 0xffc0)
+ 		if (fp->ipend & 0xffc0)
  			return;
-@@ -157,11 +168,22 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -159,11 +170,22 @@ asmlinkage void trap_c(struct pt_regs *f
  	case VEC_EXCPT01:	/* gdb breakpoint */
  		info.si_code = TRAP_ILLTRAP;
  		sig = SIGTRAP;
@@ -835,7 +835,7 @@
 +			CHK_DEBUGGER(trapnr,SIGTRAP,info.si_code,fp,)
 +#endif
  		/* Check if this is a breakpoint in kernel space */
- 		if(fp->ipend & 0xffc0)
+ 		if (fp->ipend & 0xffc0)
  			return;
  		else
  			break;
@@ -849,20 +849,20 @@
  	case VEC_EXCPT03:	/* Atomic test and set service */
  		info.si_code = SEGV_STACKFLOW;
  		sig = SIGSEGV;
-@@ -174,6 +196,9 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -176,6 +198,9 @@ asmlinkage void trap_c(struct pt_regs *f
  		info.si_code = ILL_ILLOPC;
  		sig = SIGILL;
- 		DPRINTK(EXC_0x21);
+ 		printk(KERN_EMERG EXC_0x21);
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
  		break;
  	case VEC_OVFLOW:
  		info.si_code = TRAP_TRACEFLOW;
-@@ -184,33 +209,52 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -186,33 +211,52 @@ asmlinkage void trap_c(struct pt_regs *f
  		info.si_code = ILL_ILLPARAOP;
  		sig = SIGILL;
- 		DPRINTK(EXC_0x22);
+ 		printk(KERN_EMERG EXC_0x22);
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
@@ -870,7 +870,7 @@
  	case VEC_ILL_RES:
  		info.si_code = ILL_PRVOPC;
  		sig = SIGILL;
- 		DPRINTK(EXC_0x2E);
+ 		printk(KERN_EMERG EXC_0x2E);
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
@@ -878,8 +878,8 @@
  	case VEC_MISALI_D:
  		info.si_code = BUS_ADRALN;
  		sig = SIGBUS;
- 		DPRINTK(EXC_0x24);
- 		DPRINTK("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+ 		printk(KERN_EMERG EXC_0x24);
+ 		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
@@ -887,8 +887,8 @@
  	case VEC_MISALI_I:
  		info.si_code = BUS_ADRALN;
  		sig = SIGBUS;
- 		DPRINTK(EXC_0x2A);
- 		DPRINTK("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+ 		printk(KERN_EMERG EXC_0x2A);
+ 		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
@@ -896,7 +896,7 @@
  	case VEC_UNCOV:
  		info.si_code = ILL_ILLEXCPT;
  		sig = SIGILL;
- 		DPRINTK(EXC_0x25);
+ 		printk(KERN_EMERG EXC_0x25);
 +#ifdef CONFIG_KGDB
 +		CHK_DEBUGGER(trapnr,sig,info.si_code,fp,);
 +#endif
@@ -910,9 +910,9 @@
 +			CHK_DEBUGGER(trapnr,sig,info.si_code,fp,)
 +#endif
  		/* Check if this is a watchpoint in kernel space */
- 		if(fp->ipend & 0xffc0)
+ 		if (fp->ipend & 0xffc0)
  			return;
-@@ -260,6 +304,9 @@ asmlinkage void trap_c(struct pt_regs *f
+@@ -262,6 +306,9 @@ asmlinkage void trap_c(struct pt_regs *f
  	default:
  		info.si_code = TRAP_ILLTRAP;
  		sig = SIGTRAP;
@@ -2319,10 +2319,10 @@
 +	unsigned long mmr32;
 +	unsigned char *pch;
 +
-+	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
++	if ((unsigned int)mem > 0xffc00000) { /*workaround to access MMR registers*/
 +		switch(count) {
 +		case 2:
-+			if((unsigned int)mem % 2 == 0) {
++			if ((unsigned int)mem % 2 == 0) {
 +				if (get_user(mmr16, (unsigned short *)mem) != 0)
 +					return ERR_PTR(-EFAULT);
 +				pch = (unsigned char *)&mmr16;
@@ -2336,7 +2336,7 @@
 +				return ERR_PTR(-EFAULT);
 +			break;
 +		case 4:
-+			if((unsigned int)mem % 4 == 0) {
++			if ((unsigned int)mem % 4 == 0) {
 +				if (get_user(mmr32, (unsigned long *)mem) != 0)
 +					return ERR_PTR(-EFAULT);
 +				pch = (unsigned char *)&mmr32;
@@ -2385,10 +2385,10 @@
 +	unsigned short mmr16 = 0;
 +	unsigned long mmr32 = 0;
 +
-+	if((unsigned int)mem>0xffc00000) { /*walkaround to access MMR registers*/
++	if ((unsigned int)mem > 0xffc00000) { /*workaround to access MMR registers*/
 +		switch(count) {
 +		case 2:
-+			if((unsigned int)mem % 2 == 0) {
++			if ((unsigned int)mem % 2 == 0) {
 +				buf += 2;
 +				for (i = 0; i < count; i++) {
 +					mmr16 <<= 8;
@@ -2403,7 +2403,7 @@
 +				return ERR_PTR(-EFAULT);
 +			break;
 +		case 4:
-+			if((unsigned int)mem % 4 == 0) {
++			if ((unsigned int)mem % 4 == 0) {
 +				buf += 8;
 +				for (i = 0; i < count; i++) {
 +					mmr32 <<= 8;
