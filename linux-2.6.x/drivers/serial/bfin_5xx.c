@@ -724,7 +724,7 @@ bfin_serial_console_setup(struct console *co, char *options)
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	int flow = 'r';
 #else
-	int flow = 'n'
+	int flow = 'n';
 #endif
 
 	/*
