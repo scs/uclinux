@@ -463,6 +463,17 @@ __dl_loadaddr_unmap (struct elf32_fdpic_loadaddr loadaddr,
       struct elf32_fdpic_loadseg *segdata;
       ssize_t offs;
       segdata = loadaddr.map->segs + i;
+
+      /* FIXME:
+	 A more cleaner way is to add type for struct elf32_fdpic_loadseg,
+	 and release the memory according to the type.
+	 Currently, we hardcode the memory address of L1 SRAM.  */
+      if ((segdata->addr & 0xff800000) == 0xff800000)
+	{
+	  _dl_sram_free ((void *)segdata->addr);
+	  continue;
+	}
+
       offs = (segdata->p_vaddr & ADDR_ALIGN);
       _dl_munmap ((void*)segdata->addr - offs,
 		  segdata->p_memsz + offs);
