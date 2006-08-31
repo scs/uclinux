@@ -579,7 +579,7 @@ static void bf537mac_rx(struct net_device *dev)
 /*
 	int i;
 	if (len >= 64) {
-		for (i=0;i<len;i++){
+		for (i=0;i<len;i++) {
 			printk("%.2x-",((unsigned char *)pkt)[i]);
 			if (((i%8)==0) && (i!=0)) printk("\n");
 		}
@@ -615,7 +615,6 @@ static irqreturn_t bf537mac_interrupt(int irq, void *dev_id,
 				      struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
-	struct bf537mac_local *lp = netdev_priv(dev);
 	int number = 0;
 
       get_one_packet:
