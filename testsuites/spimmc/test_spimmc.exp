@@ -2,7 +2,7 @@
 
 # Main entrance
 #set logfile		"~/spimmc_testlog"
-log_file coreb_test_log
+log_file spimmc_test_log
 send_log "\nSPI MMC test is starting...\r"
 send_user "Starting spimmc_test.exp\n"
 
@@ -259,179 +259,177 @@ step "Start SPI MMC/SD testing"
 
 set test_flag 0
 
-#step "Create mount directories for testing"
-#send "mkdir /mnt/mmc\r"
-#send "mkdir /mnt/mmc1\r"
-#send "mkdir /mnt/mmc2\r"
-#
-#set timeout 2
-#step "Check dmesg result"
-#send "dmesg | grep MMC\r"
-#while 1 {
-#   expect {
-#      -re ".*MMC\\\/SD card found.*" {
-#         send_log "\nMMC/SD card found\n"
-#         send_user "\nMMC/SD card found\n"
-#         break
-#      }
-#      timeout {
-#         send_log "\nNot found MMC/SD card in dmesg\n"
-#         send_user "\nNot found MMC/SD card in dmesg\n"
-#         incr test_flag
-#      }
-#   }
-#}
+step "Create mount directories for testing"
+send "mkdir /mnt/mmc\r"
+send "mkdir /mnt/mmc1\r"
+send "mkdir /mnt/mmc2\r"
 
-#step "Create dos fs"
-#set timeout 2
-#send "mkdosfs /dev/mmc\r"
-#while 1 {
-#   expect {
-#      -re "No such device" {
-#         send_log "\nNo /dev/mmc device\n"
-#         send_user "\nNo /dev/mmc device\n"
-#         incr test_flag
-#         break
-#      }
-#      -re "root:~>" {
-#         send_log "\nmkdosfs done\n"
-#         send_user "\nmkdosfs done\n"
-#         break
-#      }
-#      timeout {
-#         break
-#      }
-#   }
-#}
-#
-#step "Mount dos fs on /mnt/mmc1"
-#set timeout 2
-#send "mount -t msdos /dev/mmc /mnt/mmc1\r"
-#while 1 {
-#   expect {
-#      -re ".*failed.*" {
-#         send_log "\nmount dos fs failed\n"
-#         send_user "\nmount dos fs failed\n"
-#         incr test_flag
-#         break
-#      }
-#      -re "root:~>" {
-#         send_log "\nmount dos fs done\n"
-#         send_user "\nmount dos fs done\n"
-#         break
-#      }
-#      timeout {
-#         break
-#      }
-#   }
-#}
-#
-#step "Umount dos fs from /mnt/mmc1"
-#set timeout 2
-#send "umount /mnt/mmc1\r"
-#while 1 {
-#   expect {
-#      -re "root:~>" {
-#         send_log "\numount dos fs done\n"
-#         send_user "\numount dos fs done\n"
-#         break
-#      }
-#      -re ".*busy" {
-#         send_log "\numount dos fs failed\n"
-#         send_user "\numount dos fs failed\n"
-#         incr test_flag
-#         break
-#      }
-#      timeout {
-#         break
-#      }
-#   }
-#} 
+set timeout 2
+step "Check dmesg result"
+send "dmesg | grep MMC\r"
+while 1 {
+   expect {
+      -re ".*MMC\\\/SD card found.*" {
+         send_log "\nMMC/SD card found\n"
+         send_user "\nMMC/SD card found\n"
+         break
+      }
+      timeout {
+         send_log "\nNot found MMC/SD card in dmesg\n"
+         send_user "\nNot found MMC/SD card in dmesg\n"
+         incr test_flag
+         break
+      }
+   }
+}
 
-#step "remove old partion"
+step "Create dos fs"
+set timeout 2
+send "mkdosfs /dev/mmc\r"
+while 1 {
+   expect {
+      -re "No such device" {
+         send_log "\nNo /dev/mmc device\n"
+         send_user "\nNo /dev/mmc device\n"
+         break
+      }
+      -re "root:~>" {
+         send_log "\nmkdosfs done\n"
+         send_user "\nmkdosfs done\n"
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
 
-#set timeout 10
-#send "fdisk /dev/mmc\r"
-#expect -re "Command.*:"
-#send "p\r"
-#set timeout 10
-#while 1 {
-#   expect {
-#            -re "/dev/mmc1" {
-#               send "d\r"
-#               expect -re "Partition number.*"
-#               send "1\r"
-#               expect -re "Command.*"
-#               send "w\r"
-#               break
-#            }
-#            eof {
-#               send "q\r"
-#               break
-#            }
-#            timeout {
-#               send "q\r"
-#               break
-#            }
-#   }
-#}
-#
-#set timeout 10
-#send "fdisk /dev/mmc\r"
-#expect -re "Command.*:"
-#send "p\r"
-#set timeout 10
-#while 1 {
-#   expect {
-#            -re "/dev/mmc2" {
-#               send "d\r"
-#               expect -re "Partition number.*"
-#               send "2\r"
-#               expect -re "Command.*"
-#               send "w\r"
-#               expect -re "root:~>"
-#               break
-#            }
-#            eof {
-#               send "q\r"
-#               break
-#            }
-#            timeout {
-#               send "q\r"
-#               break
-#            }
-#   }
-#}
+step "Mount dos fs on /mnt/mmc1"
+set timeout 2
+send "mount -t msdos /dev/mmc /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re ".*failed.*" {
+         send_log "\nmount dos fs failed\n"
+         send_user "\nmount dos fs failed\n"
+         break
+      }
+      -re "root:~>" {
+         send_log "\nmount dos fs done\n"
+         send_user "\nmount dos fs done\n"
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
+
+step "Umount dos fs from /mnt/mmc1"
+set timeout 2
+send "umount /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re "root:~>" {
+         send_log "\numount dos fs done\n"
+         send_user "\numount dos fs done\n"
+         break
+      }
+      -re ".*busy" {
+         send_log "\numount dos fs failed\n"
+         send_user "\numount dos fs failed\n"
+         break
+      }
+      timeout {
+         break
+      }
+   }
+} 
+
+step "remove old partion"
+
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "p\r"
+set timeout 10
+while 1 {
+   expect {
+            -re "/dev/mmc1" {
+               send "d\r"
+               expect -re "Partition number.*"
+               send "1\r"
+               expect -re "Command.*"
+               send "w\r"
+               break
+            }
+            eof {
+               send "q\r"
+               break
+            }
+            timeout {
+               send "q\r"
+               break
+            }
+   }
+}
+
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "p\r"
+set timeout 10
+while 1 {
+   expect {
+            -re "/dev/mmc2" {
+               send "d\r"
+               expect -re "Partition number.*"
+               send "2\r"
+               expect -re "Command.*"
+               send "w\r"
+               expect -re "root:~>"
+               break
+            }
+            eof {
+               send "q\r"
+               break
+            }
+            timeout {
+               send "q\r"
+               break
+            }
+   }
+}
 
 
-#set timeout 10
-#send "fdisk /dev/mmc\r"
-#expect -re "Command.*:"
-#send "n\r"
-#expect -re "primary partition.*"
-#send "p\r"
-#expect -re "Partition number.*"
-#send "1\r"
-#expect -re "First cylinder.*"
-#send "\r"
-#expect -re "Last cylinder.*"
-#send "15000\r"
-#expect -re "Command.*"
-#send "n\r"
-#expect -re "primary partition.*"
-#send "p\r"
-#expect -re "Partition number.*"
-#send "2\r"
-#expect -re "First cylinder.*"
-#send "\r"
-#expect -re "Last cylinder.*"
-#send "\r"
-#expect -re "Command.*"
-#send "w\r"
-#expect -re "root:~>"
-#
-#send_log "\ncreat 2 partitions done\n"
-#send_user "\ncreat 2 partitions done\n"
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "1\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "15000\r"
+expect -re "Command.*"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "2\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "\r"
+expect -re "Command.*"
+send "w\r"
+expect -re "root:~>"
+
+send_log "\ncreat 2 partitions done\n"
+send_user "\ncreat 2 partitions done\n"
 
 step "Start to try use mmc flash as rootfs"
 
@@ -464,23 +462,42 @@ while 1 {
    }
 }
 
-set timeout 10
+set timeout 20
 send "umount /mnt/rootfs\r"
-expect "root:~>"
-
-set timeout 60
-send "reboot\r"
-
 while 1 {
    expect {
-      -re "Hit any key.*" {
-         send "\r"
-      }
-
-      ">" {
-         send_user "successful reset attemp\n"
+      -re "root:~>" {
+         send_user "\rumount /dev/mmc1 done\r"
          break
       }
+      timeout {
+         send_user "\rumount timeout\r"
+         break
+      }
+   }
+}
+
+send "\r"
+
+send_user "umount /dev/mmc1 done"
+
+step "restart board"
+
+sleep 5
+send "reboot\r"
+set timeout 60
+while 1 {
+   expect {
+
+      "Hit any key " {
+         send "\r"
+         break
+      }
+
+#      ">" {
+#         send_user "successful reset attemp\n"
+#         break
+#      }
 
       timeout {
          send_user "failed reset attemp\n"
@@ -489,16 +506,30 @@ while 1 {
    }
 }
 
-send -s "set mmcargs setenv bootargs root=2401 rw\r"
+sleep 5
+
+set timeout 10
+send -s "setenv mmcargs setenv bootargs root=2401 rw\r"
 expect ">"
-send -s "set mmcboot 'tftpboot 0x1000000 linux; run mmcargs; run addip; bootelf'\r"
+send -s "setenv mmcboot \'tftpboot 0x1000000 linux; run mmcargs; run addip; bootelf\'\r"
 expect ">"
 send -s "save\r"
-expect ">"
-
-send -s "run mmcboot\r"
+while 1 {
+   expect {
+      ">" {
+         send_user "\nsave!!!\n"
+         break
+      }
+      timeout {
+         send_user "\nsave timeout!!!\n"
+         break
+      }
+   }
+}
+sleep 5
 
 set timeout 180
+send -s "run mmcboot\r"
 while 1 {
    expect {
 
@@ -568,36 +599,22 @@ while 1 {
 
       timeout {
          puts "failed boot attempt"
+         incr test_flag
          break
       }
    }
 }
 
+if { $test_flag==0 } {
+   send_log "\n$TITLE ............\[PASS\]\n"
+   send_user "\n$TITLE ............\[PASS\]\n" 
+} else {
+   send_log "\n$TITLE ............\[FAIL\]\n"
+   send_user "\n$TITLE ............\[FAIL\]\n" 
+}
 
-
-
-
-exit
-
-#send "rmmod dualcore_test\r"
-#while 1 {
-#   expect {
-#
-#      -re "testarg = \[2\]*" {
-#         send_log "\n$TITLE ............\[PASS\]\n"
-#         send_user "\n$TITLE ............\[PASS\]\n"
-#         break
-#      }
-#      timeout {
-#         send_log "\n$TITLE ............\[FAIL\]\n"
-#         send_user "\n$TITLE ............\[FAIL\]\n"
-#         break
-#      }
-#   }
-#}
 
 log_file
 
 send_user "\n$TITLE is finished.\n"
 
-exit
