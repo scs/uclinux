@@ -493,6 +493,14 @@ __dl_is_special_segment (Elf32_Ehdr *epnt,
       && !(ppnt->p_flags & PF_X))
     return 1;
 
+  /* 0xff700000, 0xff800000, 0xff900000 and 0xffa00000 are also used in
+     GNU ld and linux kernel. They need to be keep synchronized.  */
+  if (ppnt->p_vaddr == 0xff700000
+      || ppnt->p_vaddr == 0xff800000
+      || ppnt->p_vaddr == 0xff900000
+      || ppnt->p_vaddr == 0xffa00000)
+    return 1;
+
   return 0;	
 }
 
@@ -505,7 +513,7 @@ __dl_map_segment (Elf32_Ehdr *epnt,
   char *status, *tryaddr, *l1addr;
   size_t size;
 
-  if ((epnt->e_flags & EF_BFIN_CODE_IN_L1)
+  if (((epnt->e_flags & EF_BFIN_CODE_IN_L1) || ppnt->p_vaddr == 0xffa00000)
       && !(ppnt->p_flags & PF_W)
       && (ppnt->p_flags & PF_X)) {
     status = (char *) _dl_mmap
@@ -526,10 +534,18 @@ __dl_map_segment (Elf32_Ehdr *epnt,
     return l1addr;
   }
 
-  if ((epnt->e_flags & EF_BFIN_DATA_IN_L1)
+  if (((epnt->e_flags & EF_BFIN_DATA_IN_L1)
+       || ppnt->p_vaddr == 0xff700000
+       || ppnt->p_vaddr == 0xff800000
+       || ppnt->p_vaddr == 0xff900000)
       && (ppnt->p_flags & PF_W)
       && !(ppnt->p_flags & PF_X)) {
-    l1addr = (char *) _dl_sram_alloc (ppnt->p_memsz, L1_DATA_SRAM);
+    if (ppnt->p_vaddr == 0xff800000)
+      l1addr = (char *) _dl_sram_alloc (ppnt->p_memsz, L1_DATA_A_SRAM);
+    else if (ppnt->p_vaddr == 0xff900000)
+      l1addr = (char *) _dl_sram_alloc (ppnt->p_memsz, L1_DATA_B_SRAM);
+    else
+      l1addr = (char *) _dl_sram_alloc (ppnt->p_memsz, L1_DATA_SRAM);
     if (l1addr == NULL
 	|| (_DL_PREAD (infile, l1addr, ppnt->p_filesz, ppnt->p_offset)
 	    != ppnt->p_filesz))
