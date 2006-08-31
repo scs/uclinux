@@ -113,7 +113,7 @@ while 1 {
       }
 
       -re "MMC/SD for SPI support \\\(EXPERIMENTAL\\\) \\\(SPI_MMC\\\).*\\\[./././.]" {
-         send "m\r"
+         send "y\r"
       }
 
       -re "SPI chip select signal for MMC/SD card \\\(SPI_MMC_CS_CHAN\\\).*\\\[.*]" {
