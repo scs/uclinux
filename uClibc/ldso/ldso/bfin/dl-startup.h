@@ -66,21 +66,22 @@ asm("" \
     "	IF CC R0 = P0;\n"		\
     "	CALL	___self_reloc;\n"	\
     "	P3 = R0;\n"			\
+    "	P5 = R0;\n"			\
     "	R1 = R5;\n"			\
     "	R2 = R6;\n"			\
     "	[SP + 12] = R7;\n"		\
     "	P0 = SP;\n"			\
     "	P0 += 24;\n"			\
     "	[SP + 16] = P0;\n"		\
-    "	P0 += 12;\n"			\
+    "	P0 += 8;\n"			\
     "	[SP + 20] = P0;\n"		\
     "	CALL	__dl_start;\n"		\
+    "	/* Pass our FINI ptr() to the user in P1 */\n"	\
+    "	R7 = [P5 + __dl_fini@FUNCDESC_GOT17M4];\n" \
     "	P4 = [SP + 24];\n"		\
     "	P3 = [SP + 28];\n"		\
     "	P0 = R5;\n"			\
     "   SP += 32;\n"			\
-    "	/* Pass our FINI ptr() to the user in P1 */\n"	\
-    "	P1 = [P3 + __dl_fini@FUNCDESC_GOT17M4];\n" \
     "   JUMP (P4);\n"			\
     "	.size	__dl_boot,.-__dl_boot\n"
 );
@@ -101,7 +102,7 @@ struct elf32_fdpic_loadmap;
  * the address if the first argument, on other platforms we need to
  * do something a little more subtle here.
  */
-#define GET_ARGV(ARGVP, ARGS) ARGVP = ((unsigned long*) ARGS)
+#define GET_ARGV(ARGVP, ARGS) ARGVP = (((unsigned long*) ARGS) + 1)
 
 /*
  * Compute the GOT address.  On several platforms, we use assembly

@@ -104,12 +104,12 @@ __start:
 	[SP + 12] = R3;
 
 #ifndef __BFIN_FDPIC__
-	P1 = 0;
+	R7 = 0;
 #endif
 	/* Pass highest stack pointer to the app.  */
 	[SP + 28] = P2;
 	/* Store the pointer to ld.so's fini that we got in P1.  */
-	[SP + 24] = P1;
+	[SP + 24] = R7;
 
 /*	Ok, now run uClibc's main() -- shouldn't return */
 #if defined L_crt1 && defined __UCLIBC_CTOR_DTOR__

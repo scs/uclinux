@@ -97,8 +97,8 @@
 /* Static declarations */
 int (*_dl_elf_main) (int, char **, char **);
 
-
-
+static void* __rtld_stack_end; /* Points to argc on stack, e.g *((long *)__rtld_stackend) == argc */
+strong_alias(__rtld_stack_end, __libc_stack_end); /* Exported version of __rtld_stack_end */
 
 /* When we enter this piece of code, the program stack looks like this:
         argc            argument counter (integer)
@@ -179,10 +179,8 @@ DL_BOOT(unsigned long args)
 		SEND_EARLY_STDERR("Invalid ELF header\n");
 		_dl_exit(0);
 	}
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_EARLY_STDERR("ELF header=");
-	SEND_ADDRESS_STDERR(DL_LOADADDR_BASE (load_addr), 1);
-#endif
+	SEND_EARLY_STDERR_DEBUG("ELF header=");
+	SEND_ADDRESS_STDERR_DEBUG(DL_LOADADDR_BASE (load_addr), 1);
 
 
 	/* Locate the global offset table.  Since this code must be PIC
@@ -202,17 +200,13 @@ DL_BOOT(unsigned long args)
 	dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (*got, load_addr);
 #endif
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_EARLY_STDERR("First Dynamic section entry=");
-	SEND_ADDRESS_STDERR(dpnt, 1);
-#endif
+	SEND_EARLY_STDERR_DEBUG("First Dynamic section entry=");
+	SEND_ADDRESS_STDERR_DEBUG(dpnt, 1);
 	_dl_memset(tpnt, 0, sizeof(struct elf_resolve));
 	tpnt->loadaddr = load_addr;
 	/* OK, that was easy.  Next scan the DYNAMIC section of the image.
 	   We are only doing ourself right now - we will have to do the rest later */
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_EARLY_STDERR("scanning DYNAMIC section\n");
-#endif
+	SEND_EARLY_STDERR_DEBUG("scanning DYNAMIC section\n");
 	tpnt->dynamic_addr = dpnt;
 #if defined(__mips__) || defined(__sh__)
 	/* MIPS cannot call functions here, must inline */
@@ -221,15 +215,11 @@ DL_BOOT(unsigned long args)
 	_dl_parse_dynamic_info(dpnt, tpnt->dynamic_info, NULL, load_addr);
 #endif
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_EARLY_STDERR("done scanning DYNAMIC section\n");
-#endif
+	SEND_EARLY_STDERR_DEBUG("done scanning DYNAMIC section\n");
 
 #if defined(__mips__)
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("About to do specific GOT bootstrap\n");
-#endif
+	SEND_STDERR_DEBUG("About to do specific GOT bootstrap\n");
 	/* For MIPS we have to do stuff to the GOT before we do relocations.  */
 	PERFORM_BOOTSTRAP_GOT(tpnt);
 
@@ -237,9 +227,7 @@ DL_BOOT(unsigned long args)
 
 	/* OK, now do the relocations.  We do not do a lazy binding here, so
 	   that once we are done, we have considerably more flexibility. */
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_EARLY_STDERR("About to do library loader relocations\n");
-#endif
+	SEND_EARLY_STDERR_DEBUG("About to do library loader relocations\n");
 
 	{
 		int goof, indx;
@@ -281,16 +269,6 @@ DL_BOOT(unsigned long args)
 			for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
 				reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
 				symtab_index = ELF32_R_SYM(rpnt->r_info);
-#if 0
-				SEND_EARLY_STDERR("one symbol, offset: ");
-				SEND_ADDRESS_STDERR (rpnt->r_offset, 0);
-				SEND_EARLY_STDERR(" info: ");
-				SEND_ADDRESS_STDERR (rpnt->r_info, 0);
-				SEND_EARLY_STDERR(" that's an index of: ");
-				SEND_ADDRESS_STDERR (symtab_index, 0);
-				SEND_EARLY_STDERR(" symtab at: ");
-				SEND_ADDRESS_STDERR ((Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB], 1);
-#endif
 				symbol_addr = 0;
 				sym = NULL;
 				if (symtab_index) {
@@ -302,10 +280,10 @@ DL_BOOT(unsigned long args)
 					sym = &symtab[symtab_index];
 					symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
 
-#if 0 && defined __SUPPORT_LD_DEBUG_EARLY__
-					SEND_EARLY_STDERR("relocating symbol: ");
-					SEND_STDERR(strtab + sym->st_name);
-					SEND_EARLY_STDERR("\n");
+#if 0
+					SEND_EARLY_STDERR_DEBUG("relocating symbol: ");
+					SEND_STDERR_DEBUG(strtab + sym->st_name);
+					SEND_EARLY_STDERR_DEBUG("\n");
 #endif
 				}
 				/* Use this machine-specific macro to perform the actual relocation.  */
@@ -319,24 +297,25 @@ DL_BOOT(unsigned long args)
 	}
 #endif
 
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
 	/* Wahoo!!! */
-	SEND_STDERR("Done relocating library loader, so we can now\n"
+	SEND_STDERR_DEBUG("Done relocating library loader, so we can now\n"
 			"\tuse globals and make function calls!\n");
-#endif
 
 	/* Now we have done the mandatory linking of some things.  We are now
 	   free to start using global variables, since these things have all been
 	   fixed up by now.  Still no function calls outside of this library ,
 	   since the dynamic resolver is not yet ready. */
+
+	__rtld_stack_end = (void *)args; /* Needs to be after ld.so self relocation */
+	if (*((long *)__rtld_stack_end) != argc) {
+		SEND_STDERR_DEBUG("__rtld_stack_end doesn't point to argc!");
+	}
 	_dl_get_ready_to_run(tpnt, load_addr, auxvt, envp, argv
 			     DL_GET_READY_TO_RUN_EXTRA_ARGS);
 
 
 	/* Transfer control to the application.  */
-#ifdef __SUPPORT_LD_DEBUG_EARLY__
-	SEND_STDERR("transfering control to application\n");
-#endif
+	SEND_STDERR_DEBUG("transfering control to application\n");
 	_dl_elf_main = (int (*)(int, char **, char **)) auxvt[AT_ENTRY].a_un.a_fcn;
 	START();
 }

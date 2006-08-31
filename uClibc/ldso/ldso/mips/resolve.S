@@ -11,35 +11,57 @@
  * Copyright (C) 2002 Steven J. Hill <sjhill@realitydiluted.com>
  *
  */
+
 .text
 .align	2
-.globl	_dl_linux_resolve
-.type	_dl_linux_resolve,@function
-.ent	_dl_linux_resolve
-_dl_linux_resolve:
+.globl	_dl_runtime_resolve
+.type	_dl_runtime_resolve,@function
+.ent	_dl_runtime_resolve
+_dl_runtime_resolve:
 	.frame	$29, 40, $31
 	.set noreorder
-	move	$3, $28		# Save GP
-	addu	$25, 8		# t9 ($25) now points at .cpload instruction
-	.cpload	$25		# Compute GP
-	.set reorder
+
+	# Save GP.
+	move	$3, $28
+
+	# Save arguments and sp value on stack.
 	subu	$29, 40
+
+	# Modify t9 ($25) so as to point .cpload instruction.
+	addiu	$25, 12
+
+	# Compute GP.
+	.set noreorder
+	.cpload $25
+	.set reorder
+
+	# Save slot call pc.
+	move	$2, $31
 	.cprestore 32
+
+	# Store function arguments from registers to stack
 	sw	$15, 36($29)
 	sw	$4, 16($29)
 	sw	$5, 20($29)
 	sw	$6, 24($29)
 	sw	$7, 28($29)
+
+	# Setup functions args and call __dl_runtime_resolve
 	move	$4, $24
 	move	$5, $3
-	jal     _dl_linux_resolver
+	jal	__dl_runtime_resolve
+
+	# Restore function arguments from stack to registers
 	lw	$31, 36($29)
 	lw	$4, 16($29)
 	lw	$5, 20($29)
 	lw	$6, 24($29)
 	lw	$7, 28($29)
-	addu	$29, 40
+
+	# Do a tail call to the original function
+	addiu	$29, 40
 	move	$25, $2
 	jr	$25
-.size _dl_linux_resolve,.-_dl_linux_resolve
-.end _dl_linux_resolve
+.end	_dl_runtime_resolve
+.previous
+
