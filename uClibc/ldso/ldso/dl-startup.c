@@ -98,17 +98,17 @@
 int (*_dl_elf_main) (int, char **, char **);
 
 static void* __rtld_stack_end; /* Points to argc on stack, e.g *((long *)__rtld_stackend) == argc */
-strong_alias(__rtld_stack_end, __libc_stack_end); /* Exported version of __rtld_stack_end */
+strong_alias(__rtld_stack_end, __libc_stack_end) /* Exported version of __rtld_stack_end */
 
 /* When we enter this piece of code, the program stack looks like this:
-        argc            argument counter (integer)
-        argv[0]         program name (pointer)
-        argv[1...N]     program args (pointers)
-        argv[argc-1]    end of args (integer)
-		NULL
-        env[0...N]      environment variables (pointers)
-        NULL
-		auxvt[0...N]   Auxiliary Vector Table elements (mixed types)
+	argc            argument counter (integer)
+	argv[0]         program name (pointer)
+	argv[1...N]     program args (pointers)
+	argv[argc-1]    end of args (integer)
+	NULL
+	env[0...N]      environment variables (pointers)
+	NULL
+	auxvt[0...N]   Auxiliary Vector Table elements (mixed types)
 */
 DL_BOOT(unsigned long args)
 {
@@ -136,6 +136,14 @@ DL_BOOT(unsigned long args)
 	aux_dat += argc;			/* Skip over the argv pointers */
 	aux_dat++;					/* Skip over NULL at end of argv */
 	envp = (char **) aux_dat;
+#ifndef NO_EARLY_SEND_STDERR
+	SEND_STDERR_DEBUG("argc=");
+	SEND_NUMBER_STDERR_DEBUG(argc, 0);
+	SEND_STDERR_DEBUG(" argv=");
+	SEND_ADDRESS_STDERR_DEBUG(argv, 0);
+	SEND_STDERR_DEBUG(" envp=");
+	SEND_ADDRESS_STDERR_DEBUG(envp, 1);
+#endif
 	while (*aux_dat)
 		aux_dat++;				/* Skip over the envp pointers */
 	aux_dat++;					/* Skip over NULL at end of envp */
@@ -182,7 +190,6 @@ DL_BOOT(unsigned long args)
 	SEND_EARLY_STDERR_DEBUG("ELF header=");
 	SEND_ADDRESS_STDERR_DEBUG(DL_LOADADDR_BASE (load_addr), 1);
 
-
 	/* Locate the global offset table.  Since this code must be PIC
 	 * we can take advantage of the magic offset register, if we
 	 * happen to know what that is for this architecture.  If not,
@@ -206,21 +213,21 @@ DL_BOOT(unsigned long args)
 	tpnt->loadaddr = load_addr;
 	/* OK, that was easy.  Next scan the DYNAMIC section of the image.
 	   We are only doing ourself right now - we will have to do the rest later */
-	SEND_EARLY_STDERR_DEBUG("scanning DYNAMIC section\n");
+	SEND_EARLY_STDERR_DEBUG("Scanning DYNAMIC section\n");
 	tpnt->dynamic_addr = dpnt;
-#if defined(__mips__) || defined(__sh__)
-	/* MIPS cannot call functions here, must inline */
+#if defined(NO_FUNCS_BEFORE_BOOTSTRAP)
+	/* Some architectures cannot call functions here, must inline */
 	__dl_parse_dynamic_info(dpnt, tpnt->dynamic_info, NULL, load_addr);
 #else
 	_dl_parse_dynamic_info(dpnt, tpnt->dynamic_info, NULL, load_addr);
 #endif
 
-	SEND_EARLY_STDERR_DEBUG("done scanning DYNAMIC section\n");
+	SEND_EARLY_STDERR_DEBUG("Done scanning DYNAMIC section\n");
 
-#if defined(__mips__)
+#if defined(PERFORM_BOOTSTRAP_GOT)
 
 	SEND_STDERR_DEBUG("About to do specific GOT bootstrap\n");
-	/* For MIPS we have to do stuff to the GOT before we do relocations.  */
+	/* some arches (like MIPS) we have to tweak the GOT before relocations */
 	PERFORM_BOOTSTRAP_GOT(tpnt);
 
 #else
@@ -247,21 +254,21 @@ DL_BOOT(unsigned long args)
 			unsigned long rel_addr, rel_size;
 			ElfW(Word) relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
 
-			rel_addr = (indx ? tpnt->dynamic_info[DT_JMPREL] : tpnt->
-					dynamic_info[DT_RELOC_TABLE_ADDR]);
-			rel_size = (indx ? tpnt->dynamic_info[DT_PLTRELSZ] : tpnt->
-					dynamic_info[DT_RELOC_TABLE_SIZE]);
+			rel_addr = (indx ? tpnt->dynamic_info[DT_JMPREL] :
+			                   tpnt->dynamic_info[DT_RELOC_TABLE_ADDR]);
+			rel_size = (indx ? tpnt->dynamic_info[DT_PLTRELSZ] :
+			                   tpnt->dynamic_info[DT_RELOC_TABLE_SIZE]);
 
 			if (!rel_addr)
 				continue;
 
 			/* Now parse the relocation information */
 			/* Since ldso is linked with -Bsymbolic, all relocs will be RELATIVE(for those archs that have
-			   RELATIVE relocs) which means that the for(..) loop below has noting to do and can be deleted.
+			   RELATIVE relocs) which means that the for(..) loop below has nothing to do and can be deleted.
 			   Possibly one should add a HAVE_RELATIVE_RELOCS directive and #ifdef away some code. */
 			if (!indx && relative_count) {
 				rel_size -= relative_count * sizeof(ELF_RELOC);
-				elf_machine_relative (load_addr, rel_addr, relative_count);
+				elf_machine_relative(load_addr, rel_addr, relative_count);
 				rel_addr += relative_count * sizeof(ELF_RELOC);;
 			}
 
@@ -285,7 +292,8 @@ DL_BOOT(unsigned long args)
 					SEND_STDERR_DEBUG(strtab + sym->st_name);
 					SEND_EARLY_STDERR_DEBUG("\n");
 #endif
-				}
+				} else
+					SEND_STDERR_DEBUG("relocating unknown symbol\n");
 				/* Use this machine-specific macro to perform the actual relocation.  */
 				PERFORM_BOOTSTRAP_RELOC(rpnt, reloc_addr, symbol_addr, load_addr, sym);
 			}
@@ -298,25 +306,28 @@ DL_BOOT(unsigned long args)
 #endif
 
 	/* Wahoo!!! */
-	SEND_STDERR_DEBUG("Done relocating library loader, so we can now\n"
-			"\tuse globals and make function calls!\n");
+	SEND_STDERR_DEBUG("Done relocating ldso; we can now use globals and make function calls!\n");
 
 	/* Now we have done the mandatory linking of some things.  We are now
 	   free to start using global variables, since these things have all been
-	   fixed up by now.  Still no function calls outside of this library ,
+	   fixed up by now.  Still no function calls outside of this library,
 	   since the dynamic resolver is not yet ready. */
 
-	__rtld_stack_end = (void *)args; /* Needs to be after ld.so self relocation */
-	if (*((long *)__rtld_stack_end) != argc) {
-		SEND_STDERR_DEBUG("__rtld_stack_end doesn't point to argc!");
-	}
+	__rtld_stack_end = (void *)(argv - 1);
+
 	_dl_get_ready_to_run(tpnt, load_addr, auxvt, envp, argv
 			     DL_GET_READY_TO_RUN_EXTRA_ARGS);
 
 
 	/* Transfer control to the application.  */
-	SEND_STDERR_DEBUG("transfering control to application\n");
+	SEND_STDERR_DEBUG("transfering control to application @ ");
 	_dl_elf_main = (int (*)(int, char **, char **)) auxvt[AT_ENTRY].a_un.a_val;
+	SEND_ADDRESS_STDERR_DEBUG(_dl_elf_main, 1);
+
+#ifndef START
+	return _dl_elf_main;
+#else
 	START();
+#endif
 }
 

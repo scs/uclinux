@@ -39,7 +39,7 @@ USA.  */
    __self_reloc returns the relocated pointer to us, so that we can
    use this value to initialize the PIC register.  */
 
-asm("" \
+__asm__(
     "	.text\n"			\
     "	.global	__dl_boot\n"		\
     "	.type	__dl_boot,@function\n"	\

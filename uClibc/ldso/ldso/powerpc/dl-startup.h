@@ -42,8 +42,10 @@ asm(
     "	bne	2b\n"
     "	addi	6,6,4\n"
 #endif
-    /* Pass a termination function pointer (in this case _dl_fini) in r7.  */
-    "	lwz	7,_dl_fini@got(31)\n"
+    /* Pass a termination function pointer (in this case _dl_fini) in r3. */
+    /* Paulus promized he would keep r3 zero in the exec ABI. */
+    "	lwz	3,_dl_fini@got(31)\n"
+    "	mr	7,3\n"		/* Pass _dl_fini in r7 to maintain compat */
     "	bctr\n" /* Jump to entry point */
     "	.size	_start,.-_start\n"
     "	.previous\n"
@@ -78,9 +80,3 @@ asm(
 		_dl_exit(100+ELF32_R_TYPE((RELP)->r_info));\
 	}						\
 	}
-/*
- * Transfer control to the user's application, once the dynamic loader
- * is done.  This routine has to exit the current function, then
- * call the _dl_elf_main function.
- */
-#define START()	    return _dl_elf_main

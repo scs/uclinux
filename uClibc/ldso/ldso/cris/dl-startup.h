@@ -26,6 +26,11 @@ asm(""					\
  * do something a little more subtle here.  */
 #define GET_ARGV(ARGVP, ARGS) ARGVP = (((unsigned long *) ARGS)+1)
 
+
+/* We can't call functions earlier in the dl startup process */
+#define NO_FUNCS_BEFORE_BOOTSTRAP
+
+
 /* Handle relocation of the symbols in the dynamic loader. */
 static inline
 void PERFORM_BOOTSTRAP_RELOC(ELF_RELOC *rpnt, unsigned long *reloc_addr,
@@ -53,8 +58,3 @@ void PERFORM_BOOTSTRAP_RELOC(ELF_RELOC *rpnt, unsigned long *reloc_addr,
 			break;
 	}
 }
-
-/* Transfer control to the user's application, once the dynamic loader is
- * done.  This routine has to exit the current function, then call the
- * _dl_elf_main function.  */
-#define START()     return _dl_elf_main

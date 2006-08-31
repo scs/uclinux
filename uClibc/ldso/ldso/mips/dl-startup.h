@@ -70,6 +70,10 @@ asm(""
 #define GET_ARGV(ARGVP, ARGS) ARGVP = (((unsigned long *) ARGS)+1)
 
 
+/* We can't call functions earlier in the dl startup process */
+#define NO_FUNCS_BEFORE_BOOTSTRAP
+
+
 /*
  * Here is a macro to perform the GOT relocation. This is only
  * used when bootstrapping the dynamic loader.
@@ -132,13 +136,3 @@ do {										\
 		SEND_STDERR("Aiieeee!");					\
 		_dl_exit(1);							\
 	}
-
-
-/*
- * Transfer control to the user's application, once the dynamic loader
- * is done.  This routine has to exit the current function, then
- * call the _dl_elf_main function. For MIPS, we do it in assembly
- * because the stack doesn't get properly restored otherwise. Got look
- * at boot1_arch.h
- */
-#define START() return _dl_elf_main

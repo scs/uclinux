@@ -1,3 +1,10 @@
+/* vi: set sw=4 ts=4: */
+/*
+ * Copyright (C) 2000-2005 by Erik Andersen <andersen@codepoet.org>
+ *
+ * GNU Lesser General Public License version 2.1 or later.
+ */
+
 #ifndef LINUXELF_H
 #define LINUXELF_H
 
@@ -40,7 +47,7 @@ extern void _dl_protect_relro (struct elf_resolve *l);
  * does not handle already
  */
 #if __WORDSIZE == 64
-# define ELF_ST_BIND(val) ELF64_ST_TYPE(val)
+# define ELF_ST_BIND(val) ELF64_ST_BIND(val)
 # define ELF_ST_TYPE(val) ELF64_ST_TYPE(val)
 # define ELF_R_SYM(i)     ELF64_R_SYM(i)
 # define ELF_R_TYPE(i)    ELF64_R_TYPE(i)
@@ -48,7 +55,7 @@ extern void _dl_protect_relro (struct elf_resolve *l);
 #  define ELF_CLASS ELFCLASS64
 # endif
 #else
-# define ELF_ST_BIND(val) ELF32_ST_TYPE(val)
+# define ELF_ST_BIND(val) ELF32_ST_BIND(val)
 # define ELF_ST_TYPE(val) ELF32_ST_TYPE(val)
 # define ELF_R_SYM(i)     ELF32_R_SYM(i)
 # define ELF_R_TYPE(i)    ELF32_R_TYPE(i)
@@ -108,10 +115,12 @@ void __dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
 				dynamic_info[DT_BIND_NOW] = 1;
 			if (dpnt->d_tag == DT_TEXTREL)
 				dynamic_info[DT_TEXTREL] = 1;
+#ifdef __LDSO_RUNPATH__
 			if (dpnt->d_tag == DT_RUNPATH)
 				dynamic_info[DT_RPATH] = 0;
 			if (dpnt->d_tag == DT_RPATH && dynamic_info[DT_RUNPATH])
 				dynamic_info[DT_RPATH] = 0;
+#endif
 		} else if (dpnt->d_tag < DT_LOPROC) {
 			if (dpnt->d_tag == DT_RELOCCOUNT)
 				dynamic_info[DT_RELCONT_IDX] = dpnt->d_un.d_val;
@@ -125,21 +134,19 @@ void __dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
 		}
 #endif
 	}
-# define ADJUST_DYN_INFO(tag, load_off) \
+#define ADJUST_DYN_INFO(tag, load_off) \
 	do { \
 		if (dynamic_info[tag]) \
 			dynamic_info[tag] = (unsigned long) DL_RELOC_ADDR(dynamic_info[tag], load_off); \
 	} while(0)
-
-      ADJUST_DYN_INFO (DT_HASH, load_off);
-      ADJUST_DYN_INFO (DT_PLTGOT, load_off);
-      ADJUST_DYN_INFO (DT_STRTAB, load_off);
-      ADJUST_DYN_INFO (DT_SYMTAB, load_off);
-      ADJUST_DYN_INFO (DT_RELOC_TABLE_ADDR, load_off);
-      ADJUST_DYN_INFO (DT_JMPREL, load_off);
-# undef ADJUST_DYN_INFO
-
-					    }
+	ADJUST_DYN_INFO(DT_HASH, load_off);
+	ADJUST_DYN_INFO(DT_PLTGOT, load_off);
+	ADJUST_DYN_INFO(DT_STRTAB, load_off);
+	ADJUST_DYN_INFO(DT_SYMTAB, load_off);
+	ADJUST_DYN_INFO(DT_RELOC_TABLE_ADDR, load_off);
+	ADJUST_DYN_INFO(DT_JMPREL, load_off);
+#undef ADJUST_DYN_INFO
+}
 
 /* Reloc type classes as returned by elf_machine_type_class().
    ELF_RTYPE_CLASS_PLT means this reloc should not be satisfied by

@@ -31,6 +31,8 @@ XXFLAGS+= $(XARCH_CFLAGS) $(CPU_CFLAGS) \
 	-DUCLIBC_RUNTIME_PREFIX=\"$(RUNTIME_PREFIX)\" \
 	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)ldso/include -I$(TOPDIR)ldso/ldso -I. -I$(TOPDIR)include
 
+XXFLAGS+=-DLDSO_ELFINTERP=\"$(TARGET_ARCH)/elfinterp.c\" -DUCLIBC_LDSO=\"ld-uClibc.so.0\"
+
 XXFLAGS+=-DLIBDL
 
 XXFLAGS+=-isystem $(shell $(CC) -print-file-name=include)

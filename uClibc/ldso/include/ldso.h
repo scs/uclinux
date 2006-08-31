@@ -1,3 +1,10 @@
+/* vi: set sw=4 ts=4: */
+/*
+ * Copyright (C) 2000-2005 by Erik Andersen <andersen@codepoet.org>
+ *
+ * GNU Lesser General Public License version 2.1 or later.
+ */
+
 #ifndef _LDSO_H_
 #define _LDSO_H_
 
@@ -20,6 +27,7 @@
 /* Pull in compiler and arch stuff */
 #include <stdlib.h>
 #include <stdarg.h>
+#include <bits/wordsize.h>
 /* Pull in the arch specific type information */
 #include <sys/types.h>
 /* Pull in the ldso syscalls and string functions */
@@ -54,15 +62,21 @@ extern char *_dl_debug_detail;
 extern char *_dl_debug_nofixups;
 extern char *_dl_debug_bindings;
 extern int   _dl_debug_file;
+# define __dl_debug_dprint(fmt, args...) \
+	_dl_dprintf(_dl_debug_file, "%s:%i: " fmt, __FUNCTION__, __LINE__, ## args);
 # define _dl_if_debug_dprint(fmt, args...) \
-	do { \
-	if (_dl_debug) \
-		_dl_dprintf(_dl_debug_file, "%s():%i: " fmt, __FUNCTION__, __LINE__, ## args); \
-	} while (0)
+	do { if (_dl_debug) __dl_debug_dprint(fmt, ## args); } while (0)
 #else
+# define _dl_debug_dprint(fmt, args...)
 # define _dl_if_debug_dprint(fmt, args...)
 # define _dl_debug_file 2
-#endif
+#endif /* __SUPPORT_LD_DEBUG__ */
+
+#ifdef __SUPPORT_LD_DEBUG_EARLY__
+# define _dl_debug_early(fmt, args...) __dl_debug_dprint(fmt, ## args)
+#else
+# define _dl_debug_early(fmt, args...)
+#endif /* __SUPPORT_LD_DEBUG_EARLY__ */
 
 #ifndef NULL
 #define NULL ((void *) 0)

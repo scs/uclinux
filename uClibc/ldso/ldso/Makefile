@@ -40,6 +40,8 @@ XXFLAGS+= $(XARCH_CFLAGS) $(CPU_CFLAGS) $(PICFLAG) \
 	-DUCLIBC_RUNTIME_PREFIX=\"$(RUNTIME_PREFIX)\" \
 	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)ldso/include -I. -I$(TOPDIR)include
 
+XXFLAGS+=-DLDSO_ELFINTERP=\"$(TARGET_ARCH)/elfinterp.c\" -DUCLIBC_LDSO=\"ld-uClibc.so.0\"
+
 # BEWARE!!! At least mips* will die if -O0 is used!!!
 XXFLAGS:=$(XXFLAGS:-O0=-O1)
 XXFLAGS+=-isystem $(shell $(CC) -print-file-name=include)

@@ -1,3 +1,10 @@
+/* vi: set sw=4 ts=4: */
+/*
+ * Copyright (C) 2000-2005 by Erik Andersen <andersen@codepoet.org>
+ *
+ * GNU Lesser General Public License version 2.1 or later.
+ */
+
 #ifndef _LD_SYSCALL_H_
 #define _LD_SYSCALL_H_
 
@@ -11,7 +18,6 @@
 #define kernel_stat stat
 #include <bits/kernel_stat.h>
 #include <bits/kernel_types.h>
-
 
 /* _dl_open() parameters */
 #define O_RDONLY        0x0000
@@ -82,31 +88,53 @@ static inline _syscall3(int, _dl_mprotect, const void *, addr, unsigned long, le
 #define __NR__dl_stat __NR_stat
 static inline _syscall2(int, _dl_stat, const char *, file_name, struct stat *, buf);
 
+#define __NR__dl_fstat __NR_fstat
+static inline _syscall2(int, _dl_fstat, int, fd, struct stat *, buf);
+
 #define __NR__dl_munmap __NR_munmap
 static inline _syscall2(int, _dl_munmap, void *, start, unsigned long, length);
 
+#ifdef __NR_getxuid
+# define __NR_getuid __NR_getxuid
+#endif
 #define __NR__dl_getuid __NR_getuid
 static inline _syscall0(uid_t, _dl_getuid);
 
+#ifndef __NR_geteuid
+# define __NR_geteuid __NR_getuid
+#endif
 #define __NR__dl_geteuid __NR_geteuid
 static inline _syscall0(uid_t, _dl_geteuid);
 
+#ifdef __NR_getxgid
+# define __NR_getgid __NR_getxgid
+#endif
 #define __NR__dl_getgid __NR_getgid
 static inline _syscall0(gid_t, _dl_getgid);
 
+#ifndef __NR_getegid
+# define __NR_getegid __NR_getgid
+#endif
 #define __NR__dl_getegid __NR_getegid
 static inline _syscall0(gid_t, _dl_getegid);
 
+#ifdef __NR_getxpid
+# define __NR_getpid __NR_getxpid
+#endif
 #define __NR__dl_getpid __NR_getpid
 static inline _syscall0(gid_t, _dl_getpid);
 
 #define __NR__dl_readlink __NR_readlink
 static inline _syscall3(int, _dl_readlink, const char *, path, char *, buf, size_t, bufsiz);
 
+#ifdef __UCLIBC_HAS_SSP__
+#include <sys/time.h>
+#define __NR__dl_gettimeofday __NR_gettimeofday
+static inline _syscall2(int, _dl_gettimeofday, struct timeval *, tv, struct timezone *, tz);
+#endif
+
 #ifdef __NR_mmap
-#if defined(__powerpc__) || defined(__mips__) || defined(__sh__) || defined(__sparc__) || defined(BFIN)
-/* PowerPC, MIPS, SuperH, SPARC and Blackfin have a different calling
-   convention for mmap(). */
+#ifdef __UCLIBC_MMAP_HAS_6_ARGS__
 #define __NR__dl_mmap __NR_mmap
 static inline _syscall6(void *, _dl_mmap, void *, start, size_t, length,
 		int, prot, int, flags, int, fd, off_t, offset);
@@ -142,6 +170,8 @@ static inline void * _dl_mmap(void * addr, unsigned long size, int prot,
     return(__syscall_mmap2(addr, size, prot, flags,
 		fd, (off_t) (offset >> MMAP2_PAGE_SHIFT)));
 }
+#else
+#error "Your architecture doesn't seem to provide mmap() !?"
 #endif
 
 #endif /* _LD_SYSCALL_H_ */
