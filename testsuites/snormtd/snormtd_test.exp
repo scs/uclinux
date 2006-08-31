@@ -31,6 +31,9 @@ set TEST_FAIL               "fail"
 # Note that the TEST_INFO value must match the tables below. Sorry.
 set TEST_INFO               "notrun"
 
+# grab the user selections.
+set ttydev         /dev/ttyS0
+
 set send_slow               {1 .1}
 
 proc step { message } {
@@ -55,16 +58,6 @@ set step_sequence_number    1
 set mtd_loc	0
 
 set result_matrix { {mtd                                notrun}}
-
-set argc [llength $argv]
-if { $argc < 1} {
-    puts "Please input ttydev port."
-    exit
-}
-
-
-# grab the user selections.
-set ttydev         [lindex $argv 0]
 
 for {set i 1} {$i<$argc} {incr i} {
 

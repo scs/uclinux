@@ -22,17 +22,12 @@ set SERIAL_PORT_BAUD_RATE   "57600"
 set TITLE "Snormtd Reboot Test"
 set count 30
 
-set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device \[reboot_count\]"
-   puts "   where tty-device is something like /dev/ttyS0"
-   puts ""
-   exit
-}
 # grab the user specified parameters.
-set ttydev             [lindex $argv 0]
-if { $argc >=2 } {
-	set count             [lindex $argv 1]
+set ttydev             /dev/ttyS0 
+
+set argc [llength $argv]
+if { $argc == 1 } {
+	set count             [lindex $argv 0]
 }
 
 # Now set up the kermit parameters.
