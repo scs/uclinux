@@ -32,7 +32,7 @@ ifeq ($(DODEBUG),y)
 # Not really much point in including debugging info, since gdb
 # can't really debug ldso, since gdb requires help from ldso to
 # debug things....
-XXFLAGS+=-Os #-g3
+XXFLAGS+=-Os -g3
 else
 XXFLAGS+=$(OPTIMIZATION)
 endif
@@ -90,8 +90,8 @@ $(AOBJS): %.o : %.S
 	$(CC) $(XXFLAGS) $(ASFLAGS) -I../libdl -c $< -o $@
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
-ldso.o: $(CSRC) dl-elf.c dl-hash.c dl-startup.c \
-	$(TARGET_ARCH)/dl-startup.h
+ldso.o: $(CSRC) dl-elf.c dl-hash.c dl-startup.c dl-debug.c \
+	$(TARGET_ARCH)/*.h $(TARGET_ARCH)/*.c $(TOPDIR)ldso/include/*.h
 
 clean:
 	$(RM) $(UCLIBC_LDSO)* $(OBJS) $(LDSO_FULLNAME)* core *.o *.a *.s *.i ldso.h *~

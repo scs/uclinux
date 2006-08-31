@@ -83,7 +83,7 @@ extern void _dl_dprintf(int, const char *, ...);
 #endif
 
 extern void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
-		Elf32_auxv_t auxvt[AT_EGID + 1], char **envp, char **argv
+		ElfW(auxv_t) auxvt[AT_EGID + 1], char **envp, char **argv
 		DL_GET_READY_TO_RUN_EXTRA_PARMS);
 
 #include <dl-inlines.h>

@@ -36,6 +36,28 @@ extern int _dl_fixup(struct dyn_elf *rpnt, int flag);
 extern void _dl_protect_relro (struct elf_resolve *l);
 
 /*
+ * Bitsize related settings for things ElfW()
+ * does not handle already
+ */
+#if __WORDSIZE == 64
+# define ELF_ST_BIND(val) ELF64_ST_TYPE(val)
+# define ELF_ST_TYPE(val) ELF64_ST_TYPE(val)
+# define ELF_R_SYM(i)     ELF64_R_SYM(i)
+# define ELF_R_TYPE(i)    ELF64_R_TYPE(i)
+# ifndef ELF_CLASS
+#  define ELF_CLASS ELFCLASS64
+# endif
+#else
+# define ELF_ST_BIND(val) ELF32_ST_TYPE(val)
+# define ELF_ST_TYPE(val) ELF32_ST_TYPE(val)
+# define ELF_R_SYM(i)     ELF32_R_SYM(i)
+# define ELF_R_TYPE(i)    ELF32_R_TYPE(i)
+# ifndef ELF_CLASS
+#  define ELF_CLASS ELFCLASS32
+# endif
+#endif
+
+/*
  * Datatype of a relocation on this platform
  */
 #ifdef ELF_USES_RELOCA
@@ -65,11 +87,11 @@ extern void _dl_protect_relro (struct elf_resolve *l);
 
 #define DYNAMIC_SIZE (DT_NUM+OS_NUM+ARCH_NUM)
 
-extern void _dl_parse_dynamic_info(Elf32_Dyn *dpnt, unsigned long dynamic_info[],
+extern void _dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
 				   void *debug_addr, DL_LOADADDR_TYPE load_off);
 
-static inline __attribute__((always_inline))
-void __dl_parse_dynamic_info(Elf32_Dyn *dpnt, unsigned long dynamic_info[],
+static __always_inline
+void __dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
 			     void *debug_addr, DL_LOADADDR_TYPE load_off)
 {
 	for (; dpnt->d_tag; dpnt++) {

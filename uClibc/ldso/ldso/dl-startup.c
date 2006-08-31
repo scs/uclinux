@@ -115,13 +115,13 @@ DL_BOOT(unsigned long args)
 	unsigned int argc;
 	char **argv, **envp;
 	DL_LOADADDR_TYPE load_addr;
-	Elf32_Addr got;
+	ElfW(Addr) got;
 	unsigned long *aux_dat;
 	ElfW(Ehdr) *header;
 	struct elf_resolve tpnt_tmp;
 	struct elf_resolve *tpnt = &tpnt_tmp;
-	Elf32_auxv_t auxvt[AT_EGID + 1];
-	Elf32_Dyn *dpnt;
+	ElfW(auxv_t) auxvt[AT_EGID + 1];
+	ElfW(Dyn) *dpnt;
 
 	/* WARNING! -- we cannot make _any_ funtion calls until we have
 	 * taken care of fixing up our own relocations.  Making static
@@ -148,10 +148,10 @@ DL_BOOT(unsigned long args)
 	 * the Auxiliary Vector Table.  Read out the elements of the auxvt,
 	 * sort and store them in auxvt for later use. */
 	while (*aux_dat) {
-		Elf32_auxv_t *auxv_entry = (Elf32_auxv_t *) aux_dat;
+		ElfW(auxv_t) *auxv_entry = (ElfW(auxv_t) *) aux_dat;
 
 		if (auxv_entry->a_type <= AT_EGID) {
-			_dl_memcpy(&(auxvt[auxv_entry->a_type]), auxv_entry, sizeof(Elf32_auxv_t));
+			_dl_memcpy(&(auxvt[auxv_entry->a_type]), auxv_entry, sizeof(ElfW(auxv_t)));
 		}
 		aux_dat += 2;
 	}
@@ -163,10 +163,10 @@ DL_BOOT(unsigned long args)
 		auxvt[AT_BASE].a_un.a_val = elf_machine_load_address();
 #endif
 	DL_INIT_LOADADDR_BOOT(load_addr, auxvt[AT_BASE].a_un.a_val);
-	header = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_ptr;
+	header = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_val;
 
 	/* Check the ELF header to make sure everything looks ok.  */
-	if (!header || header->e_ident[EI_CLASS] != ELFCLASS32 ||
+	if (!header || header->e_ident[EI_CLASS] != ELF_CLASS ||
 			header->e_ident[EI_VERSION] != EV_CURRENT
 			/* Do not use an inline _dl_strncmp here or some arches
 			* will blow chunks, i.e. those that need to relocate all
@@ -197,7 +197,7 @@ DL_BOOT(unsigned long args)
 #ifdef DL_BOOT_COMPUTE_DYN
 	DL_BOOT_COMPUTE_DYN (dpnt, got, load_addr);
 #else
-	dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (*got, load_addr);
+	dpnt = (ElfW(Dyn) *) DL_RELOC_ADDR (*got, load_addr);
 #endif
 
 	SEND_EARLY_STDERR_DEBUG("First Dynamic section entry=");
@@ -242,10 +242,10 @@ DL_BOOT(unsigned long args)
 			unsigned long *reloc_addr;
 			unsigned long symbol_addr;
 			int symtab_index;
-			Elf32_Sym *sym;
+			ElfW(Sym) *sym;
 			ELF_RELOC *rpnt;
 			unsigned long rel_addr, rel_size;
-			Elf32_Word relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
+			ElfW(Word) relative_count = tpnt->dynamic_info[DT_RELCONT_IDX];
 
 			rel_addr = (indx ? tpnt->dynamic_info[DT_JMPREL] : tpnt->
 					dynamic_info[DT_RELOC_TABLE_ADDR]);
@@ -268,14 +268,14 @@ DL_BOOT(unsigned long args)
 			rpnt = (ELF_RELOC *) rel_addr;
 			for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
 				reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
-				symtab_index = ELF32_R_SYM(rpnt->r_info);
+				symtab_index = ELF_R_SYM(rpnt->r_info);
 				symbol_addr = 0;
 				sym = NULL;
 				if (symtab_index) {
 					char *strtab;
-					Elf32_Sym *symtab;
+					ElfW(Sym) *symtab;
 
-					symtab = (Elf32_Sym *) tpnt->dynamic_info[DT_SYMTAB];
+					symtab = (ElfW(Sym) *) tpnt->dynamic_info[DT_SYMTAB];
 					strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
 					sym = &symtab[symtab_index];
 					symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
@@ -316,7 +316,7 @@ DL_BOOT(unsigned long args)
 
 	/* Transfer control to the application.  */
 	SEND_STDERR_DEBUG("transfering control to application\n");
-	_dl_elf_main = (int (*)(int, char **, char **)) auxvt[AT_ENTRY].a_un.a_fcn;
+	_dl_elf_main = (int (*)(int, char **, char **)) auxvt[AT_ENTRY].a_un.a_val;
 	START();
 }
 

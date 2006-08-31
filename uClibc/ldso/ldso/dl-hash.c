@@ -153,7 +153,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 	struct elf_resolve *tpnt;
 	int si;
 	char *strtab;
-	Elf32_Sym *symtab;
+	ElfW(Sym) *symtab;
 	unsigned long elf_hash_number, hn;
 	const ElfW(Sym) *weak_sym = 0;
 	struct elf_resolve *weak_tpnt = 0;
@@ -184,7 +184,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 
 		/* Avoid calling .urem here. */
 		do_rem(hn, elf_hash_number, tpnt->nbucket);
-		symtab = (Elf32_Sym *) (intptr_t) (tpnt->dynamic_info[DT_SYMTAB]);
+		symtab = (ElfW(Sym) *) (intptr_t) (tpnt->dynamic_info[DT_SYMTAB]);
 		strtab = (char *) (tpnt->dynamic_info[DT_STRTAB]);
 
 		for (si = tpnt->elf_buckets[hn]; si != STN_UNDEF; si = tpnt->chains[si]) {
@@ -196,7 +196,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 				continue;
 			if (sym->st_value == 0)
 				continue;
-			if (ELF32_ST_TYPE(sym->st_info) > STT_FUNC)
+			if (ELF_ST_TYPE(sym->st_info) > STT_FUNC)
 				continue;
 
 #if defined (__SUPPORT_LD_DEBUG__)
@@ -213,7 +213,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 			}
 #endif
 
-			switch (ELF32_ST_BIND(sym->st_info)) {
+			switch (ELF_ST_BIND(sym->st_info)) {
 			case STB_WEAK:
 #if 0
 /* Perhaps we should support old style weak symbol handling

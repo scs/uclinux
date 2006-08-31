@@ -1,4 +1,4 @@
-/* FR-V FDPIC ELF shared library loader suppport
+/* Blackfin ELF shared library loader suppport
    Copyright (C) 2003, 2004 Red Hat, Inc.
    Contributed by Alexandre Oliva <aoliva@redhat.com>
    Lots of code copied from ../i386/elfinterp.c, so:
@@ -26,89 +26,6 @@ USA.  */
 
 #include <sys/cdefs.h>	    /* __attribute_used__ */
 
-#if defined (__SUPPORT_LD_DEBUG__)
-static const char *_dl_reltypes_tab[] =
-{
-  [0]	"R_BFIN_unused0",	"R_BFIN_pcrel5m2",
-  [2]	"R_BFIN_unused1",	"R_BFIN_pcrel10",
-  [4]	"R_BFIN_pcrel12_jump",	"R_BFIN_rimm16",
-  [6]	"R_BFIN_luimm16",	"R_BFIN_huimm16",
-  [8]	"R_BFIN_pcrel12_jump_s","R_BFIN_pcrel24_jump_x",
-  [10]	"R_BFIN_pcrel24",	"R_BFIN_unusedb",
-  [12]	"R_BFIN_unusedc",	"R_BFIN_pcrel24_jump_l",
-  [14]	"R_BFIN_pcrel24_call_x","R_BFIN_var_eq_symb",
-  [16]	"R_BFIN_byte_data",	"R_BFIN_byte2_data",	"R_BFIN_byte4_data",
-  [19]	"R_BFIN_pcrel11",
-
-  [20]	"R_BFIN_GOT17M4",	"R_BFIN_GOTHI",		"R_BFIN_GOTLO",
-  [23]	"R_BFIN_FUNCDESC",
-  [24]	"R_BFIN_FUNCDESC_GOT17M4",	"R_BFIN_FUNCDESC_GOTHI",	"R_BFIN_FUNCDESC_GOTLO",
-  [27]	"R_BFIN_FUNCDESC_VALUE", "R_BFIN_FUNCDESC_GOTOFF17M4",
-  [29]	"R_BFIN_FUNCDESC_GOTOFFHI", "R_BFIN_FUNCDESC_GOTOFFLO",
-  [31]	"R_BFIN_GOTOFF17M4",	"R_BFIN_GOTOFFHI",	"R_BFIN_GOTOFFLO",
-#if 0
-  [200]	"R_BFIN_GNU_VTINHERIT",	"R_BFIN_GNU_VTENTRY"
-#endif
-};
-
-static const char *
-_dl_reltypes(int type)
-{
-  static char buf[22];  
-  const char *str;
-  
-  if (type >= (int)(sizeof (_dl_reltypes_tab)/sizeof(_dl_reltypes_tab[0])) ||
-      NULL == (str = _dl_reltypes_tab[type]))
-  {
-    str =_dl_simple_ltoa( buf, (unsigned long)(type));
-  }
-  return str;
-}
-
-static 
-void debug_sym(Elf32_Sym *symtab,char *strtab,int symtab_index)
-{
-  if(_dl_debug_symbols)
-  {
-    if(symtab_index){
-      _dl_dprintf(_dl_debug_file, "\n%s\n\tvalue=%x\tsize=%x\tinfo=%x\tother=%x\tshndx=%x",
-		  strtab + symtab[symtab_index].st_name,
-		  symtab[symtab_index].st_value,
-		  symtab[symtab_index].st_size,
-		  symtab[symtab_index].st_info,
-		  symtab[symtab_index].st_other,
-		  symtab[symtab_index].st_shndx);
-    }
-  }
-}
-
-static void debug_reloc(Elf32_Sym *symtab,char *strtab, ELF_RELOC *rpnt)
-{
-  if(_dl_debug_reloc)
-  {
-    int symtab_index;
-    const char *sym;
-    symtab_index = ELF32_R_SYM(rpnt->r_info);
-    sym = symtab_index ? strtab + symtab[symtab_index].st_name : "sym=0x0";
-    
-  if(_dl_debug_symbols)
-	  _dl_dprintf(_dl_debug_file, "\n\t");
-  else
-	  _dl_dprintf(_dl_debug_file, "\n%s\n\t", sym);
-#ifdef ELF_USES_RELOCA
-    _dl_dprintf(_dl_debug_file, "%s\toffset=%x\taddend=%x",
-		_dl_reltypes(ELF32_R_TYPE(rpnt->r_info)),
-		rpnt->r_offset,
-		rpnt->r_addend);
-#else
-    _dl_dprintf(_dl_debug_file, "%s\toffset=%x\n",
-		_dl_reltypes(ELF32_R_TYPE(rpnt->r_info)),
-		rpnt->r_offset);
-#endif
-  }
-}
-#endif
-
 /* Program to load an ELF binary on a linux system, and run it.
    References to symbols in sharable libraries can be resolved by either
    an ELF sharable library or a linux style of shared library. */
@@ -135,7 +52,7 @@ _dl_linux_resolver (struct elf_resolve *tpnt, int reloc_entry)
 	struct funcdesc_value volatile *got_entry;
 	char *symname;
 
-	rel_addr = (ELF_RELOC *) tpnt->dynamic_info[DT_JMPREL];
+	rel_addr = (char *)tpnt->dynamic_info[DT_JMPREL];
 
 	this_reloc = (ELF_RELOC *)(intptr_t)(rel_addr + reloc_entry);
 	reloc_type = ELF32_R_TYPE(this_reloc->r_info);
@@ -215,10 +132,8 @@ _dl_parse(struct elf_resolve *tpnt, struct dyn_elf *scope,
 	        int res;
 	    
 		symtab_index = ELF32_R_SYM(rpnt->r_info);
-#if defined (__SUPPORT_LD_DEBUG__)
 		debug_sym(symtab,strtab,symtab_index);
 		debug_reloc(symtab,strtab,rpnt);
-#endif
 
 		res = reloc_fnc (tpnt, scope, rpnt, symtab, strtab);
 

@@ -52,6 +52,7 @@ headers: include/dl-progname.h
 	     echo > include/dl-inlines.h ; \
 	fi
 	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-sysdep.h include/
+	$(LN) -fs ../ldso/$(TARGET_ARCH)/dl-debug.h include/
 
 clean:
 	set -e ; for d in $(ALL_SUBDIRS) ; do $(MAKE) -C $$d $@ ; done

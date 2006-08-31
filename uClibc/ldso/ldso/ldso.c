@@ -33,6 +33,9 @@
 #include "ldso.h"
 #include "unsecvars.h"
 
+/* Pull in common debug code */
+#include "dl-debug.c"
+
 #define ALLOW_ZERO_PLTGOT
 
 /* Pull in the value of _dl_progname */
@@ -117,12 +120,12 @@ static void __attribute__ ((destructor)) __attribute_used__ _dl_fini(void)
 }
 
 void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr, 
-			  Elf32_auxv_t auxvt[AT_EGID + 1], char **envp,
+			  ElfW(auxv_t) auxvt[AT_EGID + 1], char **envp,
 			  char **argv
 			  DL_GET_READY_TO_RUN_EXTRA_PARMS)
 {
 	ElfW(Phdr) *ppnt;
-	Elf32_Dyn *dpnt;
+	ElfW(Dyn) *dpnt;
 	char *lpntstr;
 	int i, goof = 0, unlazy = 0, trace_loaded_objects = 0;
 	struct dyn_elf *rpnt;
@@ -137,7 +140,6 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	unsigned long *_dl_envp;		/* The environment address */
 	ElfW(Addr) relro_addr = 0;
 	size_t relro_size = 0;
-
 
 	/* Wahoo!!! We managed to make a function call!  Get malloc
 	 * setup so we can use _dl_dprintf() to print debug noise
@@ -167,7 +169,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 		_dl_progname = argv[0];
 	}
 #if 0
-	if (_start == (void *) auxvt[AT_ENTRY].a_un.a_fcn) {
+	if (_start == (void *) auxvt[AT_ENTRY].a_un.a_val) {
 		_dl_dprintf(_dl_debug_file, "Standalone execution is not supported yet\n");
 		_dl_exit(1);
 	}
@@ -226,7 +228,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	 */
 	{
 		int i;
-		ElfW(Phdr) *ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
+		ElfW(Phdr) *ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_val;
 
 		for (i = 0; i < auxvt[AT_PHNUM].a_un.a_val; i++, ppnt++)
 			if (ppnt->p_type == PT_PHDR) {
@@ -249,7 +251,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	debug_addr = _dl_malloc(sizeof(struct r_debug));
 	_dl_memset(debug_addr, 0, sizeof(struct r_debug));
 
-	ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
+	ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_val;
 
 	/* Locate the equivalent of AT_BASE for the main program.  We
 	   need it to compute the address of the PT_INTERP string
@@ -269,7 +271,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 			relro_size = ppnt->p_memsz;
 		}
 		if (ppnt->p_type == PT_DYNAMIC) {
-			dpnt = (Elf32_Dyn *) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr);
+			dpnt = (ElfW(Dyn) *) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr);
 			_dl_parse_dynamic_info(dpnt, app_tpnt->dynamic_info, debug_addr, app_tpnt->loadaddr);
 #ifndef __FORCE_SHAREABLE_TEXT_SEGMENTS__
 			/* Ugly, ugly.  We need to call mprotect to change the
@@ -282,7 +284,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 #endif
 			/* Now cover the application program. */
 			if (app_tpnt->dynamic_info[DT_TEXTREL]) {
-				ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
+				ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_val;
 				for (i = 0; i < auxvt[AT_PHNUM].a_un.a_val; i++, ppnt++) {
 					if (ppnt->p_type == PT_LOAD && !(ppnt->p_flags & PF_W))
 						_dl_mprotect((void *) ((ppnt->p_vaddr + app_tpnt->loadaddr) & PAGE_ALIGN),
@@ -302,7 +304,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 			app_tpnt = _dl_add_elf_hash_table(_dl_progname, app_tpnt->loadaddr,
 					app_tpnt->dynamic_info, (unsigned long) DL_RELOC_ADDR (ppnt->p_vaddr, app_tpnt->loadaddr), ppnt->p_filesz);
 			_dl_loaded_modules->libtype = elf_executable;
-			_dl_loaded_modules->ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_ptr;
+			_dl_loaded_modules->ppnt = (ElfW(Phdr) *) auxvt[AT_PHDR].a_un.a_val;
 			_dl_loaded_modules->n_phent = auxvt[AT_PHNUM].a_un.a_val;
 			_dl_symbol_tables = rpnt = (struct dyn_elf *) _dl_malloc(sizeof(struct dyn_elf));
 			_dl_memset(rpnt, 0, sizeof(struct dyn_elf));
@@ -583,16 +585,18 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 
 	nlist = 0;
 	for (tcurr = _dl_loaded_modules; tcurr; tcurr = tcurr->next) {
-		Elf32_Dyn *dpnt;
+		ElfW(Dyn) *dpnt;
 
 		nlist++;
-		for (dpnt = (Elf32_Dyn *) tcurr->dynamic_addr; dpnt->d_tag; dpnt++) {
+		for (dpnt = (ElfW(Dyn) *) tcurr->dynamic_addr; dpnt->d_tag; dpnt++) {
 			if (dpnt->d_tag == DT_NEEDED) {
 				char *name;
 				struct init_fini_list *tmp;
 
 				lpntstr = (char*) (tcurr->dynamic_info[DT_STRTAB] + dpnt->d_un.d_val);
 				name = _dl_get_last_path_component(lpntstr);
+				if (_dl_strcmp(name, "ld-uClibc.so.0") == 0)
+					continue;
 
 #if defined (__SUPPORT_LD_DEBUG__)
 				if(_dl_debug)
@@ -695,7 +699,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	 * again once all libs are loaded.
 	 */
 	if (tpnt) {
-		ElfW(Ehdr) *epnt = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_ptr;
+		ElfW(Ehdr) *epnt = (ElfW(Ehdr) *) auxvt[AT_BASE].a_un.a_val;
 		ElfW(Phdr) *myppnt = (ElfW(Phdr) *) DL_RELOC_ADDR (epnt->e_phoff, load_addr);
 		int j;
 		

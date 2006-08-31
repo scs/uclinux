@@ -225,6 +225,13 @@
 # define __attribute_format_strfmon__(a,b) /* Ignore */
 #endif
 
+/* Forces a function to be always inlined.  */
+#if __GNUC_PREREQ (3,2)
+# define __always_inline __inline __attribute__ ((__always_inline__))
+#else
+# define __always_inline __inline
+#endif
+
 /* It is possible to compile containing GCC extensions even if GCC is
    run in pedantic mode if the uses are carefully marked using the
    `__extension__' keyword.  But this is not generally available before
