@@ -95,6 +95,10 @@
 /dev/time	c	664	0	0	10	101	0	0	-
 /dev/lcd	c	664	0	0	60	0	0	0	-
 /dev/watchdog	c	664	0	0	10	130	0	0	-
+/dev/mmc	b	660	0	0	36	0	0	0	-
+/dev/mmc	b	660	0	0	36	1	1	1	4
+/dev/sport0	c	660	0	0	237	0	0	0	-
+/dev/sport1	c	660	0	0	237	1	0	0	-
 
 # IDE Devices
 /dev/hda	b	640	0	0	3	0	0	0	-
