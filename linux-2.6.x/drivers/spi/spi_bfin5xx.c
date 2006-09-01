@@ -286,13 +286,16 @@ static void u8_writer(struct driver_data *drv_data)
 static void u8_cs_chg_writer(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
 	while (drv_data->tx < drv_data->tx_end) {
 		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
 		write_TDBR(*(u8 *)(drv_data->tx));
 		do {} while (read_STAT() & BIT_STAT_TXS);
-		if (drv_data->tx == (drv_data->tx_end - 1))
-			do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		write_FLAG(0xFF00);
+		udelay(1);
+		__builtin_bfin_ssync();
 		++drv_data->tx;
 	}
 }
@@ -322,10 +325,15 @@ static void u8_cs_chg_reader(struct driver_data *drv_data)
 
 	while (drv_data->rx < drv_data->rx_end) {
 		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
+
 		read_RDBR(); /* kick off */
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		*(u8 *)(drv_data->rx) = read_SHAW();
 		write_FLAG(0xFF00);
+		__builtin_bfin_ssync();
+		udelay(1);
 		++drv_data->rx;
 	}
 }
@@ -613,7 +621,7 @@ static void pump_transfers(unsigned long data)
 
 		/* Go baby, go */
 		/* set transfer width,direction. And enable spi */
-		cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
+		cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
 
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
@@ -668,7 +676,7 @@ static void pump_transfers(unsigned long data)
 
 		if (drv_data->tx != NULL && drv_data->rx != NULL) { /* full duplex mode */
 			ASSERT((drv->data->tx_end - drv_data->tx) == (drv_data->rx_end - drv_data->rx));
-			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
+			cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO duplex: cr is 0x%x\n", cr);
 
@@ -680,7 +688,7 @@ static void pump_transfers(unsigned long data)
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
 		} else if (drv_data->tx != NULL) {        /* write only half duplex */
-			cr = (read_CTRL() & 0xFFC0);	/* clear the TIMOD bits */
+			cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO write: cr is 0x%x\n", cr);
 
@@ -692,7 +700,7 @@ static void pump_transfers(unsigned long data)
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
 		} else if (drv_data->rx != NULL) {        /* read only half duplex */
-			cr = (read_CTRL() & 0xFFC0);	/* cleare the TIMOD bits */
+			cr = (read_CTRL() & 0xFFCC);	/* cleare the TIMOD bits */
 			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO read: cr is 0x%x\n", cr);
 
