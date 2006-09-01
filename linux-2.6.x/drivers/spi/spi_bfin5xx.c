@@ -149,6 +149,7 @@ struct chip_data {
 	u32 width;		/* 0 or 1 */
 	u8 enable_dma;
 	u8 bits_per_word;	/* 8 or 16 */
+	u8 cs_change_per_word;
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
 	void (*duplex) (struct driver_data *);
@@ -282,6 +283,20 @@ static void u8_writer(struct driver_data *drv_data)
 	do {} while (!(read_STAT() & BIT_STAT_SPIF));
 }
 
+static void u8_cs_chg_writer(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+	while (drv_data->tx < drv_data->tx_end) {
+		write_FLAG(chip->flag);
+		write_TDBR(*(u8 *)(drv_data->tx));
+		do {} while (read_STAT() & BIT_STAT_TXS);
+		if (drv_data->tx == (drv_data->tx_end - 1))
+			do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		write_FLAG(0xFF00);
+		++drv_data->tx;
+	}
+}
+
 static void u8_reader(struct driver_data *drv_data)
 {
 	PRINTK("cr-8 is 0x%x\n", read_STAT());
@@ -299,6 +314,20 @@ static void u8_reader(struct driver_data *drv_data)
 	do {} while (!(read_STAT() & BIT_STAT_RXS));
 	*(u8 *)(drv_data->rx) = read_SHAW();
 	++drv_data->rx;
+}
+
+static void u8_cs_chg_reader(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+
+	while (drv_data->rx < drv_data->rx_end) {
+		write_FLAG(chip->flag);
+		read_RDBR(); /* kick off */
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u8 *)(drv_data->rx) = read_SHAW();
+		write_FLAG(0xFF00);
+		++drv_data->rx;
+	}
 }
 
 static void u8_duplex(struct driver_data *drv_data)
@@ -326,7 +355,19 @@ static void u16_writer(struct driver_data *drv_data)
 
 	// poll for SPI completion before returning
 	do {} while (!(read_STAT() & BIT_STAT_SPIF));
+}
 
+static void u16_cs_chg_writer(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+
+	while (drv_data->tx < drv_data->tx_end) {
+		write_FLAG(chip->flag);
+		write_TDBR(*(u16 *)(drv_data->tx));
+		do {} while ((read_STAT() & BIT_STAT_TXS));
+		write_FLAG(0xFF00);
+		drv_data->tx += 2;
+	}
 }
 
 static void u16_reader(struct driver_data *drv_data)
@@ -342,6 +383,20 @@ static void u16_reader(struct driver_data *drv_data)
 	do {} while (!(read_STAT() & BIT_STAT_RXS));
 	*(u16 *)(drv_data->rx) = read_SHAW();
 	drv_data->rx += 2;
+}
+
+static void u16_cs_chg_reader(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+
+	while (drv_data->rx < drv_data->rx_end) {
+		write_FLAG(chip->flag);
+		read_RDBR();  /* kick off */
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u16 *)(drv_data->rx) = read_SHAW();
+		write_FLAG(0xFF00);
+		drv_data->rx += 2;
+	}
 }
 
 static void u16_duplex(struct driver_data *drv_data)
@@ -777,6 +832,7 @@ static int setup(struct spi_device *spi)
 					&& drv_data->master_info->enable_dma;
 		chip->ctl_reg = chip_info->ctl_reg;
 		chip->bits_per_word = chip_info->bits_per_word;
+		chip->cs_change_per_word = chip_info->cs_change_per_word;
 	}
 
 	/* if any one SPI chip is registered and wants DMA, request the
@@ -802,15 +858,17 @@ static int setup(struct spi_device *spi)
 	if (chip->bits_per_word <= 8) {
 		chip->n_bytes = 1;
 		chip->width = CFG_SPI_WORDSIZE8;
-		chip->read = u8_reader;
-		chip->write = u8_writer;
+		chip->read = chip->cs_change_per_word? u8_cs_chg_reader: u8_reader;
+		chip->write = chip->cs_change_per_word? u8_cs_chg_writer: u8_writer;
 		chip->duplex = u8_duplex;
+		PRINTK("8bit: chip->write is %p, u8_writer is %p\n", chip->write, u8_writer);
 	} else if (spi->bits_per_word <= 16) {
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
-		chip->read = u16_reader;
-		chip->write = u16_writer;
+		chip->read = chip->cs_change_per_word? u16_cs_chg_reader: u16_reader;
+		chip->write = chip->cs_change_per_word? u16_cs_chg_writer: u16_writer;
 		chip->duplex = u16_duplex;
+		PRINTK("16bit: chip->write is %p, u16_writer is %p\n", chip->write, u16_writer);
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
 		kfree(chip);

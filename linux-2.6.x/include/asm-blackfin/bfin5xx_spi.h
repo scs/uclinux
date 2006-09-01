@@ -63,7 +63,7 @@
 #define CMD_SPI_GET_SYSTEMCLOCK   25
 
 #define CMD_SPI_SET_WRITECONTINUOUS     26
-#define CMD_SPI_SET_SKFS    			27
+#define CMD_SPI_SET_SKFS    		27
 
 #define CMD_SPI_GET_ALLCONFIG 32 /* For debug */
 
@@ -165,6 +165,7 @@ struct bfin5xx_spi_chip {
 	u16 ctl_reg;
 	u8 enable_dma;
 	u8 bits_per_word;
+	u8 cs_change_per_word;
 };
 
 
