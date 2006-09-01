@@ -882,23 +882,6 @@ struct seq_operations cpuinfo_op = {
 	.show = show_cpuinfo,
 };
 
-void panic_cplb_error(int cplb_panic)
-{
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-	dump_stack();
-	switch (cplb_panic) {
-	case CPLB_NO_UNLOCKED:
-		panic("All CPLBs are locked\n");
-		break;
-	case CPLB_PROT_VIOL:
-		panic("Data Access CPLB Protection Voilation\n");
-		break;
-	case CPLB_NO_ADDR_MATCH:
-		panic("No CPLB Address Match\n");
-	}
-}
-
 void cmdline_init(unsigned long r0)
 {
 	if (r0)

@@ -31,6 +31,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/traps.h>
+#include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/uaccess.h>
 #include <linux/interrupt.h>
@@ -436,4 +437,21 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 	put_user(tmp, spinlock);
 	local_irq_enable();
 	return ret;
+}
+
+void panic_cplb_error(int cplb_panic)
+{
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+	dump_stack();
+	switch (cplb_panic) {
+	case CPLB_NO_UNLOCKED:
+		panic("All CPLBs are locked\n");
+		break;
+	case CPLB_PROT_VIOL:
+		panic("Data Access CPLB Protection Voilation\n");
+		break;
+	case CPLB_NO_ADDR_MATCH:
+		panic("No CPLB Address Match\n");
+	}
 }
