@@ -8,6 +8,7 @@ set dxe_filename linux
 set ttydev /dev/ttyS0
 set send_slow {1 0.1}
 set password "blackfin"
+set TITLE "Pound Test"
 
 proc step { message } {
 
@@ -306,6 +307,10 @@ sleep 5
 
 step "Start testing."
 
+set case_num 0
+
+incr case_num
+
 set timeout 8
 
 send "ls /etc/pound/mycert.pem\r"
@@ -408,15 +413,20 @@ while 1 {
    expect {
       "rcp ok! Start webserver test" {
          expect -re "Ran .* test in .*s.*OK" 
+	 send_log "\nCase $case_num ...PASS\n"
          break
       }
 
       timeout {
-            puts "Fail . "
-            break
+            send_log "pfbutton test fail to exit. "
+            send_log "$TITLE ............\[FAIL\]\n"
+            exit
          }
      }
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
 

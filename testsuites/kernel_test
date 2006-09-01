@@ -137,12 +137,16 @@ fi
 	   timer_test=0
 	   pound_test=0
 	  sqlite_test=0
+        watchdog_test=0
+module_l1_memory_test=0	  
 	     ltp_test=0
      spiadc_ndso_test=0
-      spiadc_awg_test=0
+      spiadc_awg_test=0      
     audio_ad1836_test=0
    audio_ad73311_test=0
 	   pflag_test=0
+        pfbutton_test=0
+	  ad9960_test=0
 	    dpmc_test=0
 	  i2ctwi_test=0
         joystick_test=0
@@ -185,12 +189,16 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 	   timer_test=1
 	   pound_test=1
 	  sqlite_test=1
+        watchdog_test=1
+module_l1_memory_test=1	  
 	     ltp_test=1
      spiadc_ndso_test=1
-      spiadc_awg_test=1
+      spiadc_awg_test=1      
     audio_ad1836_test=1
    audio_ad73311_test=0
 	   pflag_test=0
+        pfbutton_test=0
+	  ad9960_test=0
 	    dpmc_test=1
 	  i2ctwi_test=1
         joystick_test=1
@@ -233,12 +241,16 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 	   timer_test=1
 	   pound_test=1
 	  sqlite_test=1
+        watchdog_test=1
+module_l1_memory_test=1	  
 	     ltp_test=1
      spiadc_ndso_test=1
-      spiadc_awg_test=1
-    audio_ad1836_test=0
+      spiadc_awg_test=1      
+    audio_ad1836_test=1
    audio_ad73311_test=0
 	   pflag_test=0
+        pfbutton_test=0
+	  ad9960_test=0
 	    dpmc_test=1
 	  i2ctwi_test=1
         joystick_test=1
@@ -279,12 +291,16 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 	   timer_test=1
 	   pound_test=1
 	  sqlite_test=1
+        watchdog_test=1
+module_l1_memory_test=1	  
 	     ltp_test=1
      spiadc_ndso_test=1
-      spiadc_awg_test=1
-    audio_ad1836_test=0
+      spiadc_awg_test=1      
+    audio_ad1836_test=1
    audio_ad73311_test=0
-	   pflag_test=1
+	   pflag_test=0
+        pfbutton_test=0
+	  ad9960_test=0
 	    dpmc_test=1
 	  i2ctwi_test=1
         joystick_test=0
@@ -324,14 +340,18 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
 	     dll_test=1
 	   timer_test=0
 	   pound_test=0
-	  sqlite_test=0
+	  sqlite_test=1
+        watchdog_test=1
+module_l1_memory_test=1	  
 	     ltp_test=1
-     spiadc_ndso_test=0
-      spiadc_awg_test=0
-    audio_ad1836_test=0
+     spiadc_ndso_test=1
+      spiadc_awg_test=1      
+    audio_ad1836_test=1
    audio_ad73311_test=0
 	   pflag_test=0
-	    dpmc_test=0
+        pfbutton_test=0
+	  ad9960_test=0
+	    dpmc_test=1
 	  i2ctwi_test=0
         joystick_test=0
          snormtd_test=0
@@ -1067,6 +1087,66 @@ if [ $sqlite_test -eq 1 ] ; then
 fi
 
 #############################################################################################
+########################## TEST Watchdog ######################################################
+if [ $watchdog_test -eq 1 ] ; then
+  echo "Testing watchdog..."
+
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+
+  cd $KERNEL_SCRIPTS/watchdog
+  ./build_watchdog_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./watchdog_test.exp > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.watchdog
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.watchdog
+  cp $KERNEL_SCRIPTS/watchdog/build_watchdog_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/watchdog/watchdog_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1     
+   sleep 10
+  fi
+
+fi
+
+#############################################################################################
+########################## TEST L1_memory ######################################################
+if [ $module_l1_memory_test -eq 1 ] ; then
+  echo "Testing module_l1_memory..."
+
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+
+  cd $KERNEL_SCRIPTS/l1_memory
+  ./build_module_l1_memory_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./module_l1_memory_test.exp > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.module_l1_memory
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.module_l1_memory
+  cp $KERNEL_SCRIPTS/l1_memory/build_module_l1_memory_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/l1_memory/module_l1_memory_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1     
+   sleep 10
+  fi
+
+fi
+
+#############################################################################################
 ########################## TEST LTP #########################################################
 if [ $ltp_test -eq 1 ] ; then
   echo "Testing LTP..."
@@ -1205,6 +1285,72 @@ fi
 
   fi
 
+   #############################################################################################
+  ########################## TEST PFbuttons #########################################################
+ 
+ if [ $pfbutton_test -eq 1  ] ; then
+ 
+  echo  "Testing pfbutton..."
+  echo  "Switch SW5 to all on."
+  
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+    
+  cd $KERNEL_SCRIPTS/pfbutton
+  ./build_pfbutton_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  sleep 30
+  ./pfbutton_test.exp $BOARD_TYPE >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pfbutton
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.pfbutton
+  cp $KERNEL_SCRIPTS/pfbutton/build_pfbutton_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/pfbutton/pfbutton_test_log $THIS_LOG 
+  
+  sleep 30
+    
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+  
+  #############################################################################################
+  ########################## TEST AD9960 #########################################################
+ 
+ if [ $ad9960_test -eq 1  ] ; then
+ 
+  echo  "Testing ad9960..."
+ 
+  
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+    
+  cd $KERNEL_SCRIPTS/ad9960
+  ./build_ad9960_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  sleep 30
+  ./ad9960_test.exp $BOARD_TYPE >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad9960
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad9960
+  cp $KERNEL_SCRIPTS/ad9960/build_ad9960_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/ad9960/ad9960_test_log $THIS_LOG 
+  
+  sleep 30
+    
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+  
   #############################################################################################
   ########################## TEST AUDIO #########################################################
   
