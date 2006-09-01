@@ -177,7 +177,7 @@ expect {
 }
 
 
-send -s "eeprom write 0x1000000 0x100000 0x6fffff\r"
+send -s "eeprom write 0x1000000 0x100000 0x700000\r"
 
 while 1 {
 set timeout 500
@@ -220,7 +220,7 @@ expect {
 }
 
 expect ">"   
-send -s "eeprom write 0x1000000 0x40000 0xd0000\r"
+send -s "eeprom write 0x1000000 0x40000 0xc0000\r"
 
 while 1 {
 	set timeout 500
@@ -240,7 +240,7 @@ while 1 {
     }
   
 expect ">"   
-send -s "eeprom read 0x2000000 0x40000 0xd0000\r"
+send -s "eeprom read 0x2000000 0x40000 0xc0000\r"
 
 while 1 {
 	set timeout 500
@@ -260,13 +260,13 @@ while 1 {
     }
 
 expect ">"
-send -s "cmp.b 0x1000000 0x2000000 0xd0000\r"
+send -s "cmp.b 0x1000000 0x2000000 0xc0000\r"
 
 while 1 {
 	set timeout 15
 	expect {
 
-	  -re  "Total of [expr 0xd0000] bytes were the same" {
+	  -re  "Total of [expr 0xc0000] bytes were the same" {
 		set temp_status_flag $TEST_PASS
 		break
 	    }
@@ -302,7 +302,7 @@ expect {
 }
 
 expect ">"   
-send -s "eeprom write 0x1000000 0x100000 0x3effff\r"
+send -s "eeprom write 0x1000000 0x100000 0x700000\r"
 
 while 1 {
 	set timeout 500
