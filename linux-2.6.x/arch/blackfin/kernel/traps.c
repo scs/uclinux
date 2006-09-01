@@ -95,30 +95,63 @@ static int printk_address(unsigned long address)
 	char *delim = ":";
 	char namebuf[128];
 
-	symname =
-	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
-	if (!symname) {
-		if (current->mm) {
-			if ((address > current->mm->start_code) &&
-			    (address < current->mm->end_code)) {
-				return printk("<%08lx>[%s+0x%lx]",
-					      address,
-					      current->comm,
-					      (long)(address -
-						    current->mm->start_code));
+	/* look up the address and see if we are in kernel space */
+	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+
+	if (symname) {
+		/* yeah! kernel space! */
+		if (!modname)
+			modname = delim = "";
+		return printk("<0x%p> { %s%s%s%s + 0x%lX }",
+			      (void*)address, delim, modname, delim, symname, (unsigned long)offset);
+
+	} else {
+		/* looks like we're off in user-land, so let's walk all the
+		 * mappings of all our processes and see if we can't be a whee
+		 * bit more specific
+		 */
+		struct vm_list_struct *vml;
+		struct task_struct *p;
+		struct mm_struct *mm;
+
+		write_lock_irq(&tasklist_lock);
+		for_each_process (p) {
+			mm = get_task_mm(p);
+			if (!mm)
+				continue;
+
+			vml = mm->context.vmlist;
+			while (vml) {
+				struct vm_area_struct *vma = vml->vma;
+
+				if ((address >= vma->vm_start) && (address < vma->vm_end)) {
+					char *name = p->comm;
+					struct file *file = vma->vm_file;
+					if (file) {
+						char _tmpbuf[256];
+						name = d_path(file->f_dentry, file->f_vfsmnt, _tmpbuf, sizeof(_tmpbuf));
+					}
+
+					write_unlock_irq(&tasklist_lock);
+					return printk("<0x%p> [ %s + 0x%lX ]",
+						      (void*)address,
+						      name,
+						      (unsigned long)((address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT)));
+				}
+
+				vml = vml->next;
 			}
 		}
-		return printk("[<%08lx>]", address);
+		write_unlock_irq(&tasklist_lock);
 	}
-	if (!modname)
-		modname = delim = "";
-	return printk("<%08lx>{%s%s%s%s+0x%lx}",
-		      address, delim, modname, delim, symname, (long)offset);
+
+	/* we were unable to find this address anywhere */
+	return printk("[<0x%p>]", (void*)address);
 }
 #else
 static int printk_address(unsigned long address)
 {
-	return printk("[<%08lx>]", address);
+	return printk("[<0x%p>]", (void*)address);
 }
 #endif
 
