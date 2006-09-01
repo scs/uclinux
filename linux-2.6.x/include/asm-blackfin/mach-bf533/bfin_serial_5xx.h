@@ -47,6 +47,7 @@ struct bfin_serial_port {
         unsigned int            old_status;
 #ifdef CONFIG_SERIAL_BFIN_DMA
 	int			tx_done;
+	int			tx_count;
 	struct circ_buf		rx_dma_buf;
 	struct timer_list       rx_dma_timer;
 	int			rx_dma_nrows;
