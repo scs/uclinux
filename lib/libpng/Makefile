@@ -52,12 +52,17 @@ OBJSDLL = $(OBJS:.o=.pic.o)
 	$(CC) -c $(CFLAGS) -o $@ $*.c
 
 #all: libpng.a libpng.so pngtest
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
 all: libpng.a libpng.so
+else
+all: libpng.a
+endif
 
 libpng.a: $(OBJS)
 	ar rc $@ $(OBJS)
 	$(RANLIB) $@
 
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
 libpng.so: libpng.so.$(PNGMAJ)
 	ln -sf libpng.so.$(PNGMAJ) libpng.so
 
@@ -66,7 +71,8 @@ libpng.so.$(PNGMAJ): libpng.so.$(PNGVER)
 
 libpng.so.$(PNGVER): $(OBJSDLL)
 	$(CC) $(CFLAGS) -shared -Wl,-soname,libpng.so.$(PNGMAJ) -o libpng.so.$(PNGVER) \
-	 $(OBJSDLL) -L$(ZLIBLIB) -lz -lm -lc
+	$(OBJSDLL) -L$(ZLIBLIB) -lz -lm -lc
+endif
 
 pngtest: pngtest.o libpng.so
 	$(CC) -o pngtest $(CFLAGS) pngtest.o $(LDFLAGS)
