@@ -421,6 +421,10 @@ static int validate_mmap_request(struct file *file,
 	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
 		return -EOVERFLOW;
 
+	/* Too many mappings? */
+	if (current->mm->map_count > sysctl_max_map_count)
+		return -ENOMEM;
+
 	if (file) {
 		/* validate file mapping requests */
 		struct address_space *mapping;
@@ -853,6 +857,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 
 	vml->next = current->mm->context.vmlist;
 	current->mm->context.vmlist = vml;
+	current->mm->map_count++;
 
 	up_write(&nommu_vma_sem);
 
@@ -961,6 +966,7 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 
 	update_hiwater_vm(mm);
 	mm->total_vm -= len >> PAGE_SHIFT;
+	mm->map_count--;
 
 #ifdef DEBUG
 	show_process_blocks();
