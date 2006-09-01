@@ -311,11 +311,6 @@ exec cp images/linux  /tftpboot
 exec cp images/$compressed_kernel_only_image  /tftpboot
 exec cp images/$jffs2_rootfs_image  /tftpboot
 
-
-# Check the size, time, and date just to be sure.
-cd /tftpboot
-set dxe_confirmation [exec ls -l $dxe_filename]
-
 log_file
  
 send_user "Ending build_snormtd_mount_kernel.exp\n"

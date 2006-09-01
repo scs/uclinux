@@ -8,7 +8,7 @@ log_file build_dll_kernel_log
 send_user "Starting build_coreb_kernel.exp\n"
 
 set user /home/test
-set uclinux_path $user/checkout/kernel/uClinux-dist
+set uclinux_path $user/checkouts/kernel/uClinux-dist
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"

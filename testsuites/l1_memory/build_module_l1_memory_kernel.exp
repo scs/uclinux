@@ -1,0 +1,182 @@
+#!/usr/bin/expect
+log_file build_module_l1_memory_kernel_log
+send_user "Starting build_module_l1_memory_kernel.exp\n"
+
+source  ../kernel_config.exp
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $argc >= 2} {
+   set uclinux_path       [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
+
+set step_sequence_number    1
+
+step "Apply module_l1_memory config patch."
+
+cd $uclinux_path/linux-2.6.x/drivers/char
+
+exec patch -p1 < ../../../testsuites/l1_memory/module_l1_memory_patch
+
+
+step "Make config."
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+#puts "ON THE FIRST PASS, DON'T EVEN TRY TO SET ANYTHING: BUG WORKAROUND"
+while 1 {
+   expect {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+              send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             break
+      }
+   }
+}
+
+sleep 3
+
+send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+
+cd $uclinux_path/linux-2.6.x
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_MODULE_L1_EXAMPLE\[ =]\r"
+      expect "CONFIG_MODULE_L1_EXAMPLE\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_MODULE_L1_EXAMPLE=m\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+
+      send "wq\r"
+      expect eof
+
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+   
+   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+	      send "$board_type\r"
+      } 
+   
+   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+          
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+     
+
+       "\\\(*) \\\[*]" {
+	     send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+
+      eof {
+	     puts "End of configuration"
+	     break
+      }
+      timeout {
+	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+             break
+      }
+   }
+}
+
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+      expect {
+	     "Entering directory" { }
+	     "Leaving directory" { set bfin_make_status success }
+	     "Error" {set bfin_make_status failure }
+	     "/bin/sh" { }
+	     eof { break }
+      }
+}
+
+if { $bfin_make_status == "failure" } {
+      puts "ERROR: Error somewhere during make"
+
+}    
+
+
+step "Copy linux"
+  
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+
+log_file
+ 
+send_user "Ending build_module_l1_memory_kernel.exp\n"
+
+

@@ -1418,6 +1418,12 @@ fi
   cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
   cp $KERNEL_SCRIPTS/snormtd/snormtd_reboot_test_log $THIS_LOG
 
+    
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
 
   cd $KERNEL_SCRIPTS/snormtd
   ./build_snormtd_mount_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
