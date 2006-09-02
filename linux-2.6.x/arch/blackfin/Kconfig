@@ -783,6 +783,18 @@ config DEBUG_HUNT_FOR_ZERO
 	  Enabling this option will take up an extra entry in CPLB table.
 	  Otherwise, there is no extra overhead.
 
+config DEBUG_BFIN_NO_KERN_HWTRACE
+	bool "Trace user apps (turn off hwtrace in kernel)"
+	default n
+	help
+	  Some pieces of the kernel contain a lot of flow changes which can
+	  quickly fill up the hardware trace buffer.  When debugging crashes,
+	  the hardware trace may indicate that the problem lies in kernel
+	  space when in reality an application is buggy.
+
+	  Say Y here to disable hardware tracing in some known "jumpy" pieces
+	  of code so that the trace buffer will extend further back.
+
 config DUAL_CORE_TEST_MODULE
 	tristate "Dual Core Test Module"
 	depends on (BF561)

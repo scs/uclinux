@@ -57,6 +57,26 @@
 #include <asm/thread_info.h>  /* TIF_NEED_RESCHED */
 #include <asm/asm-offsets.h>
 
+#ifdef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
+	/*
+	 * TODO: this should be proper save/restore, but for now
+	 * we'll just cheat and use 0x1/0x13
+	 */
+# define DEBUG_START_HWTRACE \
+	P0.l = LO(TBUFCTL); \
+	P0.h = HI(TBUFCTL); \
+	R0 = 0x13; \
+	[P0] = R0;
+# define DEBUG_STOP_HWTRACE \
+	P0.l = LO(TBUFCTL); \
+	P0.h = HI(TBUFCTL); \
+	R0 = 0x01; \
+	[P0] = R0;
+#else
+# define DEBUG_START_HWTRACE
+# define DEBUG_STOP_HWTRACE
+#endif
+
 .data
 ALIGN
 _extable:
@@ -149,7 +169,9 @@ ENTRY(_ex_icplb)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
+	DEBUG_STOP_HWTRACE
 	call __cplb_hdr;
+	DEBUG_START_HWTRACE
 	RESTORE_ALL_SYS
 	SP = RETN;
 	rtx;
