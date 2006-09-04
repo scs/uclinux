@@ -501,6 +501,7 @@ void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 		return NULL;
 	}
 	lsl->addr = addr;
+	lsl->length = size;
 	lsl->next = mm->context.sram_list;
 	mm->context.sram_list = lsl;
 	return addr;

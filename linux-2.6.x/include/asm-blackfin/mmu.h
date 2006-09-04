@@ -6,6 +6,7 @@
 struct sram_list_struct {
 	struct sram_list_struct *next;
 	void *addr;
+	size_t length;
 };
 
 typedef struct {

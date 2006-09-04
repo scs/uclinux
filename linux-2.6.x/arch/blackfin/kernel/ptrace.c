@@ -155,6 +155,27 @@ put_reg(struct task_struct *task, int regno, unsigned long data)
 }
 
 /*
+ * check that an address falls within the bounds of the target process's memory mappings
+ */
+static inline int is_user_addr_valid(struct task_struct *child,
+				     unsigned long start, unsigned long len)
+{
+	struct vm_list_struct *vml;
+	struct sram_list_struct *sraml;
+
+	for (vml = child->mm->context.vmlist; vml; vml = vml->next)
+		if (start >= vml->vma->vm_start && start + len <= vml->vma->vm_end)
+			return 0;
+
+	for (sraml = child->mm->context.sram_list; sraml; sraml = sraml->next)
+		if (start >= (unsigned long)sraml->addr
+		    && start + len <= (unsigned long)sraml->addr + sraml->length)
+			return 0;
+
+	return -EIO;
+}
+
+/*
  * Called by kernel/ptrace.c when detaching..
  *
  * Make sure the single step bit is not set.
@@ -185,17 +206,20 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			unsigned long tmp = 0;
 			int copied;
 
+			ret = -EIO;
 #ifdef DEBUG
 			printk("PEEKTEXT at addr %x + add %d %d", addr, add,
 			       sizeof(data));
 #endif
+			if (is_user_addr_valid(child, addr + add, sizeof(tmp)) < 0)
+				break;
+
 			copied =
 			    access_process_vm(child, addr + add, &tmp,
 					      sizeof(tmp), 0);
 #ifdef DEBUG
 			printk(" bytes %x\n", data);
 #endif
-			ret = -EIO;
 			if (copied != sizeof(tmp))
 				break;
 			ret = put_user(tmp, (unsigned long *)data);
@@ -249,16 +273,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* fall through */
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
 		{
-			ret = 0;
+			ret = -EIO;
 #ifdef DEBUG
 			printk("POKETEXT at addr %x + add %d %d bytes %x\n",
 			       addr, add, sizeof(data), data);
 #endif
+			if (is_user_addr_valid(child, addr + add, sizeof(data)) < 0)
+				break;
+
 			if (access_process_vm(child, addr + add,
 					      &data, sizeof(data),
-					      1) == sizeof(data))
+					      1) != sizeof(data))
 				break;
-			ret = -EIO;
+			ret = 0;
 			break;
 		}
 

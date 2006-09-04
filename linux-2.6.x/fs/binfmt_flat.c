@@ -555,6 +555,9 @@ static int load_flat_file(struct linux_binprm * bprm,
 		realdatastart = do_mmap(0, 0, data_len + extra +
 				MAX_SHARED_LIBS * sizeof(unsigned long),
 				PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, 0);
+		do_mremap(realdatastart, data_len + extra +
+			  MAX_SHARED_LIBS * sizeof(unsigned long),
+			  ksize((void *)realdatastart), 0, 0);
 		up_write(&current->mm->mmap_sem);
 
 		if (realdatastart == 0 || realdatastart >= (unsigned long)-4096) {
@@ -598,8 +601,8 @@ static int load_flat_file(struct linux_binprm * bprm,
 		textpos = do_mmap(0, 0, text_len + data_len + extra +
 					MAX_SHARED_LIBS * sizeof(unsigned long),
 				PROT_READ | PROT_EXEC | PROT_WRITE, MAP_PRIVATE, 0);
-		up_write(&current->mm->mmap_sem);
 		if (!textpos  || textpos >= (unsigned long) -4096) {
+			up_write(&current->mm->mmap_sem);
 			if (!textpos)
 				textpos = (unsigned long) -ENOMEM;
 			printk("Unable to allocate RAM for process text/data, errno %d\n",
@@ -607,6 +610,10 @@ static int load_flat_file(struct linux_binprm * bprm,
 			result = textpos;
 			goto out_fail;
 		}
+		do_mremap(textpos, text_len + data_len + extra +
+			  MAX_SHARED_LIBS * sizeof(unsigned long),
+			  ksize((void *)textpos), 0, 0);
+		up_write(&current->mm->mmap_sem);
 
 		realdatastart = textpos + ntohl(hdr->data_start);
 		datapos = realdatastart + MAX_SHARED_LIBS * sizeof(unsigned long);
