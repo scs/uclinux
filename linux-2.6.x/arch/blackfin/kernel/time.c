@@ -126,10 +126,10 @@ static struct irqaction bfin_timer_irq = {
  * The way that the Blackfin core timer works is:
  *  - CCLK is divided by a programmable 8-bit pre-scaler (TSCALE)
  *  - Every time TSCALE ticks, a 32bit is counted down (TCOUNT)
- * 
+ *
  * If you take the fastest clock (1ns, or 1GHz to make the math work easier)
  *    10ms is 10,000,000 clock ticks, which fits easy into a 32-bit counter
- *    (32 bit counter is 4,294,967,296ns or 4.2 seconds) so, we don't need 
+ *    (32 bit counter is 4,294,967,296ns or 4.2 seconds) so, we don't need
  *    to use TSCALE, and program it to zero (which is pass CCLK through).
  *    If you feel like using it, try to keep HZ * TIMESCALE to some
  *    value that divides easy (like power of 2).
@@ -174,7 +174,7 @@ static unsigned long gettimeoffset(void)
 	unsigned long clocks_per_jiffy ;
 
 	clocks_per_jiffy =  bfin_read_TPERIOD() ;
-	offset =  (clocks_per_jiffy - bfin_read_TCOUNT())  / (( (clocks_per_jiffy + 1) *  HZ * TIME_SCALE) /  USEC_PER_SEC ) ;
+	offset =  (clocks_per_jiffy - bfin_read_TCOUNT())  / (( (clocks_per_jiffy + 1) *  HZ ) /  USEC_PER_SEC ) ;
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
@@ -260,7 +260,7 @@ void do_gettimeofday(struct timeval *tv)
 		usec = gettimeoffset();
 		lost = jiffies - wall_jiffies;
 		if (unlikely(lost))
-			usec += lost * ( USEC_PER_SEC / HZ); 
+			usec += lost * ( USEC_PER_SEC / HZ);
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec /  NSEC_PER_USEC );
 	}
