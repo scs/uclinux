@@ -57,7 +57,6 @@ endmenu
 mainmenu_option next_comment
 comment 'Blackfin app programs'
 
-bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
 bool    'Sqlite, a light weight database' CONFIG_USER_SQLITE
 bool	'lmbench'			CONFIG_USER_LMBENCH
 bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
