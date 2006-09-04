@@ -92,6 +92,8 @@ wait_queue_head_t bfin_serial_tx_queue[NR_PORTS];
 static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
 #else
 static void bfin_serial_do_work(void *);
+static void bfin_serial_tx_chars(struct bfin_serial_port *uart);
+static void local_put_char(struct bfin_serial_port *uart, char ch);
 #endif
 
 static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
@@ -124,6 +126,7 @@ static void bfin_serial_start_tx(struct uart_port *port)
 	ier = UART_GET_IER(uart);
 	ier |= ETBEI;
 	UART_PUT_IER(uart, ier);
+	bfin_serial_tx_chars(uart);
 #endif
 }
 
@@ -147,6 +150,21 @@ static void bfin_serial_enable_ms(struct uart_port *port)
 }
 
 #ifdef CONFIG_SERIAL_BFIN_PIO
+static void local_put_char(struct bfin_serial_port *uart, char ch)
+{
+        unsigned short status;
+        int flags = 0;
+
+        local_irq_save(flags);
+
+        do {
+                status = UART_GET_LSR(uart);
+        } while (!(status & THRE));
+
+        UART_PUT_CHAR(uart, ch);
+        local_irq_restore(flags);
+}
+
 static void
 bfin_serial_rx_chars(struct bfin_serial_port *uart, struct pt_regs *regs)
 {
@@ -184,7 +202,7 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		return;
 	}
 
-	UART_PUT_CHAR(uart, xmit->buf[xmit->tail]);
+	local_put_char(uart, xmit->buf[xmit->tail]);
 	xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 	uart->port.icount.tx++;
 
@@ -262,7 +280,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 			DIMENSION_LINEAR,
 			DATA_SIZE_8));
 	set_dma_start_addr(uart->tx_dma_channel, (unsigned long)(xmit->buf+xmit->tail));
-	set_dma_x_count(uart->tx_dma_channel, cnt);
+	set_dma_x_count(uart->tx_dma_channel, uart->tx_count);
 	set_dma_x_modify(uart->tx_dma_channel, 1);
 	enable_dma(uart->tx_dma_channel);
 	ier = UART_GET_IER(uart);
