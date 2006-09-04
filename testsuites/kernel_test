@@ -118,6 +118,7 @@ fi
 	  
          build_policy=0
 	ethernet_test=0
+ethernet_in_buffer_test=0
 	  stress_test=0
 	  serial_test=0 
     serial_uart1_test=0
@@ -170,6 +171,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
          build_policy=1
 	ethernet_test=1
+ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
     serial_uart1_test=1
@@ -222,6 +224,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
    
          build_policy=1
 	ethernet_test=1
+ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
     serial_uart1_test=1
@@ -273,6 +276,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
    
          build_policy=1
 	ethernet_test=1
+ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
 	  reboot_test=1	     
@@ -323,6 +327,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
    
          build_policy=0
 	ethernet_test=1
+ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
 	  reboot_test=1	     
@@ -450,7 +455,37 @@ chmod +x */*.exp
  
   fi
  
+  #############################################################################################
+  ########################## TEST ETHERNET in BUFFER ##########################################
+
+  if [ $ethernet_in_buffer_test -eq 1  ] ; then
+  echo  "Testing ethernet in buffer..."
+
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH   
+  cp -a  $KERNEL_PATH_BAK/*  .
   
+  cd $KERNEL_SCRIPTS/ethernet
+  ./build_ethernet_in_buffer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
+  sleep 30
+  ./ethernet_test.exp  $BOARD_TYPE >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ethernet_in_buffer
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ethernet_in_buffer
+  cp $KERNEL_SCRIPTS/ethernet/build_ethernet_in_buffer_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/ethernet/ethernet_test_log  $THIS_LOG/ethernet_in_buffer_test_log
+  cp $KERNEL_SCRIPTS/ethernet/netperf_tcp_rr $THIS_LOG/netperf_tcp_rr_in_buffer
+  cp $KERNEL_SCRIPTS/ethernet/netperf_tcp_stream $THIS_LOG/netperf_tcp_stream_in_buffer
+
+  sleep 30
+  
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+ 
+  fi
   #############################################################################################
   ########################## TEST STRESS ######################################################
   

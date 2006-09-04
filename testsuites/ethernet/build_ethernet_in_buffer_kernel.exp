@@ -1,6 +1,6 @@
 #!/usr/bin/expect
-log_file build_ethernet_kernel_log
-send_user "Starting build_ethernet_kernel.exp\n"
+log_file build_ethernet_in_buffer_kernel_log
+send_user "Starting build_ethernet_in_buffer_kernel.exp\n"
 
 source ../kernel_config.exp
 set set_config_file 1
@@ -28,7 +28,7 @@ proc step { message } {
   incr step_sequence_number
 }
 
-set step_sequence_number    1
+set step_sequence_number    0
 
 
 step "Make config."
@@ -66,6 +66,61 @@ while 1 {
 }
 
 if { $set_config_file == 1 } {
+
+
+send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+
+cd $uclinux_path/linux-2.6.x
+sleep 3
+ set timeout 2
+      spawn ex .config
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/CONFIG_BFIN_MAC_USE_L1\[ =]\r"
+      expect "CONFIG_BFIN_MAC_USE_L1\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "# CONFIG_BFIN_MAC_USE_L1 is not set\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+      
+      send "/CONFIG_BFIN_TX_DESC_NUM\[ =]\r"
+      expect "CONFIG_BFIN_TX_DESC_NUM\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_BFIN_TX_DESC_NUM=100\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+      
+      send "/CONFIG_BFIN_RX_DESC_NUM\[ =]\r"
+      expect "CONFIG_BFIN_RX_DESC_NUM\[ =]"
+      send "d\r"
+      sleep .5
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "CONFIG_BFIN_RX_DESC_NUM=500\r"
+      send ".\r"
+      expect ":"
+      sleep .5
+
+      send "wq\r"
+      expect eof
 
 send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
 
@@ -155,7 +210,20 @@ while 1 {
              send "y\r"
       }
        
-	
+          -re "Use L1 memory for rx/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
+             
+             send -s "n\r"
+      }
+      
+          -re "Number of transmit buffer packets.*BFIN_TX_DESC_NUM.*\\\[.*]" {
+             
+             send -s "100\r"
+      }
+      
+          -re "Number of receive buffer packets.*BFIN_RX_DESC_NUM.*\\\[.*]" {
+             
+             send -s "500\r"
+      }
           -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              
              send -s "y\r"
@@ -163,6 +231,7 @@ while 1 {
 
 
        "\\\(*) \\\[*]" {
+             sleep .001
 	     send "\r"
       }
 
@@ -268,6 +337,6 @@ exec cp images/linux  /tftpboot
 
 log_file
  
-send_user "Ending build_ethernet_kernel.exp\n"
+send_user "Ending build_ethernet_in_buffer_kernel.exp\n"
 
 
