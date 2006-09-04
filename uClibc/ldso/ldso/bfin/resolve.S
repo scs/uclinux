@@ -43,6 +43,7 @@ USA.  */
 __dl_linux_resolve:
 	/* Preserve arguments.  */
 	[--SP] = RETS;
+	[--SP] = P0;
 	[--SP] = R0;
 	[--SP] = R1;
 	[--SP] = R2;
@@ -68,36 +69,9 @@ __dl_linux_resolve:
 	R2 = [SP++];
 	R1 = [SP++];
 	R0 = [SP++];
+	P0 = [SP++];
 	RETS = [SP++];
 
 	/* Now jump to the actual function.  */
 	JUMP	(P1);
-#if 0
-	addi	sp, -8*4, sp
-	stdi	gr8, @(sp, 8)
-	stdi	gr10, @(sp, 16)
-	stdi	gr12, @(sp, 24)
-	movsg	lr,gr8
-	st	gr8, @(sp,gr0)
-
-	/* Prepare to call _dl_linux_resolver.  */
-	ldi	@(gr15, 8), gr8
-	ldi	@(gr14, -4), gr9
-	mov.p	gr5, gr15
-	call	_dl_linux_resolver
-
-	/* Move aside return value that contains the FUNCDESC_VALUE.  */
-	ldd	@(gr8,gr0),gr14
-
-	/* Restore arguments.  */
-	ld	@(sp, gr0), gr8
-	movgs	gr8,lr
-	lddi	@(sp, 24), gr12
-	lddi	@(sp, 16), gr10
-	lddi	@(sp, 8), gr8
-	addi	sp, 8*4, sp
-
-	/* Now jump to the actual function.  */
-	jmpl	@(gr14, gr0)
-#endif	
 	.size	__dl_linux_resolve, . - __dl_linux_resolve
