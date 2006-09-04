@@ -6,3 +6,11 @@ and newer release of ADEOS at:
 http://download.gna.org/adeos/patches/v2.6/blackfin/
 
 
+File: adeos-bfin-tracer.patch
+
+This patch implements the profiling tool ipipe-tracer on Blackfin.
+It is based on adeos-ipipe-R06R1RC2-bf53x-1.4-03.patch and it requires
+blacfin toolchain support (toolchain cvs 09-01-2006 and later).
+
+ 
+
