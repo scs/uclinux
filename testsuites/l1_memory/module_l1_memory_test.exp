@@ -10,13 +10,6 @@ set send_slow {1 0.1}
 
 set TITLE "Module in L1 memory Test"
 
-set board_type [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-if { $argc < 1} {
-puts "Please input: board_type."
-exit
-}
 
 proc step { message } {
 

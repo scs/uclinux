@@ -98,12 +98,12 @@ while 1 {
              send -s "Y\r"
       }
 	 
-         -re "Generate a Kernel Panic.*CONFIG_USER_BLACKFIN_CRASHTEST.*\\\[.*]" {
+         -re "Kernel Panic.*test Watchdog.*CONFIG_USER_BLACKFIN_CRASHTEST.*\\\[.*]" {
             
              send -s "Y\r"
       }
       
-           -re "Blackfin watchdog simple deamon.*CONFIG_USER_BLACKFIN_WATCHDOGD.*\\\[.*]" {
+         -re "watchdog simple deamon.*CONFIG_USER_BLACKFIN_WATCHDOGD.*\\\[.*]" {
              send -s "y\r"
       }
       
