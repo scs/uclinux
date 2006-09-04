@@ -43,13 +43,6 @@
 .global __cplb_hdr;
 .type __cplb_hdr, STT_FUNC;
 ENTRY(__cplb_hdr)
-	SSYNC;
-	[--SP] = ASTAT;
-	[--SP] = SEQSTAT;
-	[--SP] = I0;
-	[--SP] = I1;
-	[--SP] = I2;
-	[--SP] = I3;
 	R2 = SEQSTAT;
 
 	/*Mask the contents of SEQSTAT and leave only EXCAUSE in R2*/
@@ -95,97 +88,41 @@ ENTRY(__cplb_hdr)
 	RETS = [SP++];
 	CC = R0 == 0;
 	IF !CC JUMP .Lnot_replaced;
-	I3 = [SP++];
-	I2 = [SP++];
-	I1 = [SP++];
-	I0 = [SP++];
-	SEQSTAT = [SP++];
-	ASTAT = [SP++];
 	RTS;
 
+/************************************
+ * Diagnostic exception handlers
+ */
 .Lunknown:
-	[--SP] = RETS;
-	CALL __unknown_exception_occurred;
-	RETS = [SP++];
-	JUMP .Lunknown;
+	R0 = CPLB_UNKNOWN_ERR;
+	JUMP .Lcplb_error;
+
 .Lnot_replaced:
 	CC = R0 == CPLB_NO_UNLOCKED;
 	IF !CC JUMP .Lnext_check;
-	[--SP] = RETS;
-	CALL __cplb_miss_all_locked;
-	RETS = [SP++];
+	R0 = CPLB_NO_UNLOCKED;
+	JUMP .Lcplb_error;
+
 .Lnext_check:
 	CC = R0 == CPLB_NO_ADDR_MATCH;
 	IF !CC JUMP .Lnext_check2;
-	[--SP] = RETS;
-	CALL __cplb_miss_without_replacement;
-	RETS = [SP++];
-	JUMP .Lnot_replaced;
+        R0 = CPLB_NO_ADDR_MATCH;
+        JUMP .Lcplb_error;
+
 .Lnext_check2:
 	CC = R0 == CPLB_PROT_VIOL;
 	IF !CC JUMP .Lstrange_return_from_cplb_mgr;
-	[--SP] = RETS;
-	CALL __cplb_protection_violation;
-	RETS = [SP++];
-	JUMP .Lnot_replaced;
+	R0 = CPLB_PROT_VIOL;
+	JUMP .Lcplb_error;
+
 .Lstrange_return_from_cplb_mgr:
 	IDLE;
 	CSYNC;
 	JUMP .Lstrange_return_from_cplb_mgr;
 
-/************************************
- * Diagnostic exception handlers
- */
-
-.type __cplb_miss_all_locked, STT_FUNC;
-.hidden __cplb_miss_all_locked
-__cplb_miss_all_locked:
-	sp += -12;
-	R0 = CPLB_NO_UNLOCKED;
+.Lcplb_error:
+	R1 = sp;
+	SP += -12;
 	call _panic_cplb_error;
 	SP += 12;
-	RTS;
-
-.type __cplb_miss_without_replacement, STT_FUNC;
-.hidden __cplb_miss_without_replacement
-__cplb_miss_without_replacement:
-	sp += -12;
-	R0 = CPLB_NO_ADDR_MATCH;
-	call _panic_cplb_error;
-	SP += 12;
-	RTS;
-
-.type __cplb_protection_violation, STT_FUNC;
-.hidden __cplb_protection_violation
-__cplb_protection_violation:
-	sp += -12;
-	R0 = CPLB_PROT_VIOL;
-	call _panic_cplb_error;
-	SP += 12;
-	RTS;
-
-.type __unknown_exception_occurred, STT_FUNC;
-.hidden __unknown_exception_occurred
-__unknown_exception_occurred:
-
-	/* This function is invoked by the default exception
-	 * handler, if it does not recognise the kind of
-	 * exception that has occurred. In other words, the
-	 * default handler only handles some of the system's
-	 * exception types, and it does not expect any others
-	 * to occur. If your application is going to be using
-	 * other kinds of exceptions, you must replace the
-	 * default handler with your own, that handles all the
-	 * exceptions you will use.
-	 *
-	 * Since there's nothing we can do, we just loop here
-	 * at what we hope is a suitably informative label.
-	 */
-
-	IDLE;
-.Ldo_not_know_what_to_do:
-	NOP;
-	CSYNC;
-	JUMP __unknown_exception_occurred;
-
-	RTS;
+	JUMP _handle_bad_cplb;

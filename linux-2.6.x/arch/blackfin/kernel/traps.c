@@ -182,6 +182,44 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 	/* send the appropriate signal to the user program */
 	switch (fp->seqstat & SEQSTAT_EXCAUSE) {
+
+	/* This table works in conjuction with the one in ./mach-common/entry.S
+         * Some exceptions are handled there (in assembly, in exception space)
+	 * Some are handled here, (in C, in interrupt space)
+	 * Some, like CPLB, are handled in both, where the normal path is
+	 * handled in assembly/exception space, and the error path is handled here
+	 */
+	
+	/* 0x00 - Linux Syscall, getting here is an error */
+	/* 0x01 - userspace gdb breakpoint, handled here */
+	case VEC_EXCPT01:
+		info.si_code = TRAP_ILLTRAP;
+		sig = SIGTRAP;
+		/* Check if this is a breakpoint in kernel space */
+		if (fp->ipend & 0xffc0)
+			return;
+		else
+			break;
+	/* 0x02 - User Defined, Caught by default */
+	/* 0x03  - Atomic test and set */
+	case VEC_EXCPT03:
+		info.si_code = SEGV_STACKFLOW;
+		sig = SIGSEGV;
+		printk(KERN_EMERG EXC_0x03);
+		break;
+	/* 0x04 - spinlock - handled by _ex_spinlock, getting here is an error */
+	/* 0x05 - User Defined, Caught by default */
+	/* 0x06 - User Defined, Caught by default */
+	/* 0x07 - User Defined, Caught by default */
+	/* 0x08 - User Defined, Caught by default */
+	/* 0x09 - User Defined, Caught by default */
+	/* 0x0A - User Defined, Caught by default */
+	/* 0x0B - User Defined, Caught by default */
+	/* 0x0C - User Defined, Caught by default */
+	/* 0x0D - User Defined, Caught by default */
+	/* 0x0E - User Defined, Caught by default */
+	/* 0x0F - User Defined, Caught by default */
+	/* 0x10 HW Single step, handled here */
 	case VEC_STEP:
 		info.si_code = TRAP_STEP;
 		sig = SIGTRAP;
@@ -190,98 +228,68 @@ asmlinkage void trap_c(struct pt_regs *fp)
 			return;
 		else
 			break;
-	case VEC_EXCPT01:	/* gdb breakpoint */
-		info.si_code = TRAP_ILLTRAP;
-		sig = SIGTRAP;
-		/* Check if this is a breakpoint in kernel space */
-		if (fp->ipend & 0xffc0)
-			return;
-		else
-			break;
-	case VEC_EXCPT03:	/* Atomic test and set service */
-		info.si_code = SEGV_STACKFLOW;
-		sig = SIGSEGV;
-		printk(KERN_EMERG EXC_0x03);
-		break;
-	case VEC_EXCPT04:	/* Atomic test and set service */
-		panic("Exception 4");
-		goto nsig;
-	case VEC_UNDEF_I:
-		info.si_code = ILL_ILLOPC;
-		sig = SIGILL;
-		printk(KERN_EMERG EXC_0x21);
-		break;
+	/* 0x11 - Trace Buffer Full, handled here */
 	case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
 		printk(KERN_EMERG EXC_0x11);
 		break;
+	/* 0x12 - Reserved, Caught by default */
+	/* 0x13 - Reserved, Caught by default */
+	/* 0x14 - Reserved, Caught by default */
+	/* 0x15 - Reserved, Caught by default */
+	/* 0x16 - Reserved, Caught by default */
+	/* 0x17 - Reserved, Caught by default */
+	/* 0x18 - Reserved, Caught by default */
+	/* 0x19 - Reserved, Caught by default */
+	/* 0x1A - Reserved, Caught by default */
+	/* 0x1B - Reserved, Caught by default */
+	/* 0x1C - Reserved, Caught by default */
+	/* 0x1D - Reserved, Caught by default */
+	/* 0x1E - Reserved, Caught by default */
+	/* 0x1F - Reserved, Caught by default */
+	/* 0x20 - Reserved, Caught by default */
+	/* 0x21 - Undefined Instruction, handled here */
+	case VEC_UNDEF_I:
+		info.si_code = ILL_ILLOPC;
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x21);
+		break;
+	/* 0x22 - Illegal Instruction Combination, handled here */
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x22);
 		break;
-	case VEC_ILL_RES:
-		info.si_code = ILL_PRVOPC;
-		sig = SIGILL;
-		printk(KERN_EMERG EXC_0x2E);
-		break;
+	/* 0x23 - Data CPLB Protection Violationi, normal case is handled in _cplb_hdr */
+	case VEC_CPLB_VL:
+		info.si_code = ILL_CPLB_VI;
+		DPRINTK3(EXC_0x23);
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+			"Please report a bug to http://blackfin.uclinux.org\n");
+	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_EMERG EXC_0x24);
 		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
-	case VEC_MISALI_I:
-		info.si_code = BUS_ADRALN;
-		sig = SIGBUS;
-		printk(KERN_EMERG EXC_0x2A);
-		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-		break;
+	/* 0x25 - Unrecoverable Eventi, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x25);
 		break;
-	case VEC_WATCH:
-		info.si_code = TRAP_WATCHPT;
-		sig = SIGTRAP;
-		DPRINTK3(EXC_0x28);
-		/* Check if this is a watchpoint in kernel space */
-		if (fp->ipend & 0xffc0)
-			return;
-		else
-			break;
-	case VEC_ISTRU_VL:	/* ADSP-BF535 only (MH) */
-		info.si_code = BUS_OPFETCH;
-		sig = SIGBUS;
-		printk(KERN_EMERG "BF535: VEC_ISTRU_VL\n");
-		break;
-	case VEC_CPLB_I_VL:
-		DPRINTK2(EXC_0x2B);
-		DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-	case VEC_CPLB_VL:
-		info.si_code = ILL_CPLB_VI;
-		DPRINTK3(EXC_0x23);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		_cplb_hdr();
-		goto nsig;
-	case VEC_CPLB_I_M:
-		DPRINTK3(EXC_0x2C);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr, error case is handled here */
 	case VEC_CPLB_M:
 		info.si_code = ILL_CPLB_MISS;
 		DPRINTK3(EXC_0x26);
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		/*Call the handler to replace the CPLB */
-		_cplb_hdr();
-		goto nsig;
-	case VEC_CPLB_I_MHIT:
-		info.si_code = ILL_CPLB_MULHIT;
-		sig = SIGILL;
-		printk(KERN_EMERG EXC_0x2D);
-		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		info.si_code = BUS_ADRALN;
+		sig = SIGBUS;
 		break;
+	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
@@ -293,11 +301,87 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #endif
 		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
+	/* 0x28 - Emulation Watchpoint, handled here */
+	case VEC_WATCH:
+		info.si_code = TRAP_WATCHPT;
+		sig = SIGTRAP;
+		DPRINTK3(EXC_0x28);
+		/* Check if this is a watchpoint in kernel space */
+		if (fp->ipend & 0xffc0)
+			return;
+		else
+			break;
+#ifdef CONFIG_BF535
+	/* 0x29 - Instruction fetch access error (535 only) */
+	case VEC_ISTRU_VL:      /* ADSP-BF535 only (MH) */
+		info.si_code = BUS_OPFETCH;
+		sig = SIGBUS;
+		printk(KERN_EMERG "BF535: VEC_ISTRU_VL\n");
+		break;
+#else
+	/* 0x29 - Reserved, Caught by default */
+#endif
+	/* 0x2A - Instruction fetch misaligned, handled here */
+	case VEC_MISALI_I:
+		info.si_code = BUS_ADRALN;
+		sig = SIGBUS;
+		printk(KERN_EMERG EXC_0x2A);
+		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		break;
+	/* 0x2B - Instruction CPLB protection Violation, handled in _cplb_hdr */
+        case VEC_CPLB_I_VL:
+		info.si_code = ILL_CPLB_VI;
+                DPRINTK2(EXC_0x2B);
+                DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+                DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+			"Please report a bug to http://blackfin.uclinux.org\n");
+		break;
+	/* 0x2C - Instruction CPLB miss,  handled in _cplb_hdr */
+	case VEC_CPLB_I_M:
+		DPRINTK3(EXC_0x2C);
+		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		info.si_code = ILL_CPLB_MISS;
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+			"Please report a bug to http://blackfin.uclinux.org\n");
+		break;
+	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
+	case VEC_CPLB_I_MHIT:
+		info.si_code = ILL_CPLB_MULHIT;
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x2D);
+		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		break;
+	/* 0x2E - Illegal use of Supervisor Resource, handled here */
+	case VEC_ILL_RES:
+		info.si_code = ILL_PRVOPC;
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x2E);
+		break;
+	/* 0x2F - Reserved, Caught by default */
+	/* 0x30 - Reserved, Caught by default */
+	/* 0x31 - Reserved, Caught by default */
+	/* 0x32 - Reserved, Caught by default */
+	/* 0x33 - Reserved, Caught by default */
+	/* 0x34 - Reserved, Caught by default */
+	/* 0x35 - Reserved, Caught by default */
+	/* 0x36 - Reserved, Caught by default */
+	/* 0x37 - Reserved, Caught by default */
+	/* 0x38 - Reserved, Caught by default */
+	/* 0x39 - Reserved, Caught by default */
+	/* 0x3A - Reserved, Caught by default */
+	/* 0x3B - Reserved, Caught by default */
+	/* 0x3C - Reserved, Caught by default */
+	/* 0x3D - Reserved, Caught by default */
+	/* 0x3E - Reserved, Caught by default */
+	/* 0x3F - Reserved, Caught by default */
 	default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
 		break;
 	}
+
 	info.si_signo = sig;
 	info.si_errno = 0;
 	info.si_addr = (void *)fp->pc;
@@ -309,7 +393,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		if (current == NULL)
 			panic("Kernel exception");
 	}
-      nsig:
+
 	trace_buffer_restore(j);
 	return;
 }
@@ -394,8 +478,14 @@ EXPORT_SYMBOL(dump_stack);
 
 void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 {
-	printk("\nCURRENT PROCESS:\n\n");
-	printk("COMM=%s PID=%d\n", current->comm, current->pid);
+
+	if (current->pid) {
+		printk("\nCURRENT PROCESS:\n\n");
+		printk("COMM=%s PID=%d\n", current->comm, current->pid);
+	} else {
+		printk("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
+	}
+
 	if (current->mm) {
 		printk("TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
 		       "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n\n",
@@ -472,19 +562,28 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 	return ret;
 }
 
-void panic_cplb_error(int cplb_panic)
+void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 {
+
 	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-	dump_stack();
+
 	switch (cplb_panic) {
 	case CPLB_NO_UNLOCKED:
+		dump_bfin_regs(fp, (void *)fp->retx);
+		dump_stack();
 		panic("All CPLBs are locked\n");
 		break;
 	case CPLB_PROT_VIOL:
-		panic("Data Access CPLB Protection Voilation\n");
+		printk("Data Access CPLB Protection Voilation\n");
 		break;
 	case CPLB_NO_ADDR_MATCH:
-		panic("No CPLB Address Match\n");
+		printk("No CPLB Address Match\n");
+		break;
+	case CPLB_UNKNOWN_ERR:
+		dump_bfin_regs(fp, (void *)fp->retx);
+		dump_stack();
+		panic("Unknown CPLB Exception\n");
+		break;
 	}
 }

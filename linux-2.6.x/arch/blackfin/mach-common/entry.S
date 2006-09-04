@@ -63,15 +63,15 @@
 	 * we'll just cheat and use 0x1/0x13
 	 */
 # define DEBUG_START_HWTRACE \
-	P0.l = LO(TBUFCTL); \
-	P0.h = HI(TBUFCTL); \
-	R0 = 0x13; \
-	[P0] = R0;
+	P5.l = LO(TBUFCTL); \
+	P5.h = HI(TBUFCTL); \
+	R7 = 0x13; \
+	[P5] = R7;
 # define DEBUG_STOP_HWTRACE \
-	P0.l = LO(TBUFCTL); \
-	P0.h = HI(TBUFCTL); \
-	R0 = 0x01; \
-	[P0] = R0;
+	P5.l = LO(TBUFCTL); \
+	P5.h = HI(TBUFCTL); \
+	R7 = 0x01; \
+	[P5] = R7;
 #else
 # define DEBUG_START_HWTRACE
 # define DEBUG_STOP_HWTRACE
@@ -80,70 +80,74 @@
 .data
 ALIGN
 _extable:
-	.long _ex_syscall;	/* 0 */
-	.long _ex_soft_bp
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_spinlock
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c		/* 8 */
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_single_step	/* 16 - STEP */
-	.long _ex_trap_c		/* 17 - OVFLOW */
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c		/* 24 */
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c		/* 32 */
-	.long _ex_trap_c		/* 33 - UNDEF_I */
-	.long _ex_trap_c		/* 34 - ILGAL_I */
-	.long _ex_dcplb		/* 35 - CPLB_VL */
-	.long _ex_trap_c		/* 36 - MISALI_D */
-	.long _ex_trap_c		/* 37 - UNCOV */
-	.long _ex_dcplb		/* 38 - CPLB_M */
-	.long _ex_trap_c		/* 39 - CPLB_MHIT */
-	.long _ex_trap_c		/* 40 - WATCH */
-	.long _ex_trap_c		/* 41 - ISTRU_VL */
-	.long _ex_trap_c		/* 42 - MISALI_I */
-	.long _ex_icplb		/* 43 - CPLB_I_VL */
-	.long _ex_icplb		/* 44 - CPLB_I_M */
-	.long _ex_trap_c		/* 45 - CPLB_I_MHIT */
-	.long _ex_trap_c		/* 46 - ILL_RES */
-	.long _ex_trap_c
-	.long _ex_trap_c		/* 48 */
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c		/* 56 */
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
-	.long _ex_trap_c
+	/* entry for each EXCAUSE[5:0] 
+	 * This table bmust be in sync with the table in ./kernel/traps.c
+	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined */
+	
+	.long _ex_syscall;	/* 0x00 - User Defined - Linux Syscall */
+	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
+	.long _ex_trap_c        /* 0x02 - User Defined */
+	.long _ex_trap_c        /* 0x03 - User Defined  - Atomic test and set service */
+	.long _ex_spinlock      /* 0x04 - User Defined */
+	.long _ex_trap_c	/* 0x05 - User Defined */
+	.long _ex_trap_c        /* 0x06 - User Defined */
+	.long _ex_trap_c        /* 0x07 - User Defined */
+	.long _ex_trap_c        /* 0x08 - User Defined */
+	.long _ex_trap_c        /* 0x09 - User Defined */
+	.long _ex_trap_c        /* 0x0A - User Defined */
+	.long _ex_trap_c        /* 0x0B - User Defined */
+	.long _ex_trap_c        /* 0x0C - User Defined */
+	.long _ex_trap_c        /* 0x0D - User Defined */
+	.long _ex_trap_c        /* 0x0E - User Defined */
+	.long _ex_trap_c        /* 0x0F - User Defined */
+	.long _ex_single_step	/* 0x10 - HW Single step */
+	.long _ex_trap_c        /* 0x11 - Trace Buffer Full */
+	.long _ex_trap_c        /* 0x12 - Reserved */
+	.long _ex_trap_c        /* 0x13 - Reserved */
+	.long _ex_trap_c        /* 0x14 - Reserved */
+	.long _ex_trap_c        /* 0x15 - Reserved */
+	.long _ex_trap_c        /* 0x16 - Reserved */
+	.long _ex_trap_c        /* 0x17 - Reserved */
+	.long _ex_trap_c        /* 0x18 - Reserved */
+	.long _ex_trap_c        /* 0x19 - Reserved */
+	.long _ex_trap_c        /* 0x1A - Reserved */
+	.long _ex_trap_c        /* 0x1B - Reserved */
+	.long _ex_trap_c        /* 0x1C - Reserved */
+	.long _ex_trap_c        /* 0x1D - Reserved */
+	.long _ex_trap_c        /* 0x1E - Reserved */
+	.long _ex_trap_c        /* 0x1F - Reserved */
+	.long _ex_trap_c        /* 0x20 - Reserved */
+	.long _ex_trap_c	/* 0x21 - Undefined Instruction */
+	.long _ex_trap_c        /* 0x22 - Illegal Instruction Combination */
+	.long _ex_dcplb		/* 0x23 - Data CPLB Protection Violation */
+	.long _ex_trap_c        /* 0x24 - Data access misaligned */
+	.long _ex_trap_c        /* 0x25 - Unrecoverable Event */
+	.long _ex_dcplb         /* 0x26 - Data CPLB Miss */
+	.long _ex_trap_c        /* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero */
+	.long _ex_trap_c        /* 0x28 - Emulation Watchpoint */
+	.long _ex_trap_c        /* 0x29 - Instruction fetch access error (535 only) */
+	.long _ex_trap_c        /* 0x2A - Instruction fetch misaligned */
+	.long _ex_icplb         /* 0x2B - Instruction CPLB protection Violation */
+	.long _ex_icplb         /* 0x2C - Instruction CPLB miss */
+	.long _ex_trap_c        /* 0x2D - Instruction CPLB Multiple Hits */
+	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
+	.long _ex_trap_c        /* 0x2F - Reserved */
+	.long _ex_trap_c        /* 0x30 - Reserved */
+	.long _ex_trap_c        /* 0x31 - Reserved */
+	.long _ex_trap_c        /* 0x32 - Reserved */
+	.long _ex_trap_c        /* 0x33 - Reserved */
+	.long _ex_trap_c        /* 0x34 - Reserved */
+	.long _ex_trap_c        /* 0x35 - Reserved */
+	.long _ex_trap_c        /* 0x36 - Reserved */
+	.long _ex_trap_c        /* 0x37 - Reserved */
+	.long _ex_trap_c        /* 0x38 - Reserved */
+	.long _ex_trap_c        /* 0x39 - Reserved */
+	.long _ex_trap_c        /* 0x3A - Reserved */
+	.long _ex_trap_c        /* 0x3B - Reserved */
+	.long _ex_trap_c        /* 0x3C - Reserved */
+	.long _ex_trap_c        /* 0x3D - Reserved */
+	.long _ex_trap_c        /* 0x3E - Reserved */
+	.long _ex_trap_c        /* 0x3F - Reserved */
 .text
 
 /* Slightly simplified and streamlined entry point for CPLB misses.
@@ -162,14 +166,13 @@ ENTRY(_ex_dcplb)
 	r6 = retx;
 	[p5] = r6;
 	cc = r6 == r7;
-	if !cc jump .Lexception_do_nothing;
+	if !cc jump _return_from_exception;
 	/* fall through */
 
 ENTRY(_ex_icplb)
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SAVE_ALL_SYS
-	DEBUG_STOP_HWTRACE
 	call __cplb_hdr;
 	DEBUG_START_HWTRACE
 	RESTORE_ALL_SYS
@@ -187,6 +190,7 @@ ENTRY(_ex_spinlock)
 	/* Fall through.  */
 
 ENTRY(_ex_syscall)
+	DEBUG_START_HWTRACE
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	raise 15;		/* invoked by TRAP #0, for sys call */
@@ -222,7 +226,7 @@ ENTRY(_ex_single_step)
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
-	if cc jump .Lexception_do_nothing;
+	if cc jump _return_from_exception
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
@@ -239,11 +243,26 @@ ENTRY(_ex_single_step)
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
-.Lexception_do_nothing:
+_return_from_exception:
+	DEBUG_START_HWTRACE
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	sp = retn;
 	rtx;
+
+ENTRY(_handle_bad_cplb)
+	/* To get here, we just tried and failed to change a CPLB
+	 * so, handle things in trap_c (C code), by lowering to
+	 * IRQ5, just like we normally do. Since this is not a
+	 * "normal" return path, we have a do alot of stuff to
+	 * the stack to get ready so, we can fall through - we
+	 * need to make a CPLB exception look like a normal exception
+	 */
+
+        DEBUG_START_HWTRACE
+        RESTORE_ALL_SYS
+        [--sp] = ASTAT;
+        [--sp] = (R7:6, P5:4);
 
 ENTRY(_ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
@@ -265,7 +284,7 @@ ENTRY(_ex_trap_c)
 	[p4] = r6;
 	r6 = 0x3f;
 	sti r6;
-
+	DEBUG_START_HWTRACE
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
 	SP = RETN;
@@ -315,6 +334,7 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	/* Try to deal with syscalls quickly.  */
 	[--sp] = ASTAT;
 	[--sp] = (R7:6, P5:4);
+	DEBUG_STOP_HWTRACE
 	r7 = SEQSTAT;		/* reason code is in bit 5:0 */
 	r6.l = lo(SEQSTAT_EXCAUSE);
 	r6.h = hi(SEQSTAT_EXCAUSE);
