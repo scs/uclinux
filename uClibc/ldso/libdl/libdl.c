@@ -45,33 +45,36 @@
 
 #if defined (__LIBDL_SHARED__)
 
+#define WEAK __attribute__((weak))
 /* When libdl is loaded as a shared library, we need to load in
  * and use a pile of symbols from ldso... */
 
-extern char *_dl_find_hash(const char *, struct dyn_elf *, struct elf_resolve *, int);
+extern char *_dl_find_hash(const char *, struct dyn_elf *, struct elf_resolve *, int) WEAK;
 extern struct elf_resolve * _dl_load_shared_library(int, struct dyn_elf **,
-	struct elf_resolve *, char *, int);
-extern int _dl_fixup(struct dyn_elf *rpnt, int lazy);
-extern void _dl_protect_relro(struct elf_resolve * tpnt);
-extern void *_dl_malloc(size_t size);
-extern void _dl_free(void *);
-extern int _dl_errno;
-extern struct dyn_elf *_dl_symbol_tables;
-extern struct dyn_elf *_dl_handles;
-extern struct elf_resolve *_dl_loaded_modules;
-extern struct r_debug *_dl_debug_addr;
-extern unsigned long _dl_error_number;
-extern void *(*_dl_malloc_function)(size_t);
-extern void (*_dl_free_function) (void *p);
+	struct elf_resolve *, char *, int) WEAK;
+extern int _dl_fixup(struct dyn_elf *rpnt, int lazy) WEAK;
+extern void _dl_protect_relro(struct elf_resolve * tpnt) WEAK;
+extern void *_dl_malloc(size_t size) WEAK;
+extern void _dl_free(void *) WEAK;
+extern int _dl_errno WEAK;
+extern struct dyn_elf *_dl_symbol_tables WEAK;
+extern struct dyn_elf *_dl_handles WEAK;
+extern struct elf_resolve *_dl_loaded_modules WEAK;
+extern struct r_debug *_dl_debug_addr WEAK;
+extern unsigned long _dl_error_number WEAK;
+extern void *(*_dl_malloc_function)(size_t) WEAK;
+extern void (*_dl_free_function) (void *p) WEAK;
+extern void _dl_run_init_array(struct elf_resolve *) WEAK;
+extern void _dl_run_fini_array(struct elf_resolve *) WEAK;
 #ifdef __LDSO_CACHE_SUPPORT__
-int _dl_map_cache(void);
-int _dl_unmap_cache(void);
+int _dl_map_cache(void) WEAK;
+int _dl_unmap_cache(void) WEAK;
 #endif
 #ifdef __mips__
-extern void _dl_perform_mips_global_got_relocations(struct elf_resolve *tpnt, int lazy);
+extern void _dl_perform_mips_global_got_relocations(struct elf_resolve *tpnt, int lazy) WEAK;
 #endif
 #ifdef __SUPPORT_LD_DEBUG__
-extern char *_dl_debug;
+extern char *_dl_debug WEAK;
 #endif
 
 
@@ -404,6 +407,8 @@ void *dlopen(const char *libname, int flag)
 				DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 			}
 		}
+
+		_dl_run_init_array(tpnt);
 	}
 #endif /* SHARED */
 
@@ -538,17 +543,21 @@ static int do_dlclose(void *vhandle, int need_fini)
 	for (j = 0; j < handle->init_fini.nlist; ++j) {
 		tpnt = handle->init_fini.init_fini[j];
 		if (--tpnt->usage_count == 0) {
-			if (tpnt->dynamic_info[DT_FINI] && need_fini &&
+			if ((tpnt->dynamic_info[DT_FINI]
+			     || tpnt->dynamic_info[DT_FINI_ARRAY])
+			    && need_fini &&
 			    !(tpnt->init_flag & FINI_FUNCS_CALLED)) {
 				tpnt->init_flag |= FINI_FUNCS_CALLED;
-				dl_elf_fini = DL_RELOC_ADDR
-				  (tpnt->dynamic_info[DT_FINI],
-				   tpnt->loadaddr);
-				_dl_if_debug_print("running dtors for library %s at '%p'\n",
-						tpnt->libname, (unsigned)dl_elf_fini);
-				DL_CALL_FUNC_AT_ADDR
-				  (dl_elf_fini, tpnt->loadaddr,
-				   (int (*)(void)));
+#ifdef SHARED
+				_dl_run_fini_array(tpnt);
+#endif
+
+				if (tpnt->dynamic_info[DT_FINI]) {
+					dl_elf_fini = DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr);
+					_dl_if_debug_print("running dtors for library %s at '%p'\n",
+							tpnt->libname, (unsigned)dl_elf_fini);
+					DL_CALL_FUNC_AT_ADDR (dl_elf_fini, tpnt->loadaddr, (int (*)(void)));
+				}
 			}
 
 			_dl_if_debug_print("unmapping: %s\n", tpnt->libname);
@@ -640,7 +649,7 @@ char *dlerror(void)
 }
 
 /*
- * Dump information to stderrr about the current loaded modules
+ * Dump information to stderr about the current loaded modules
  */
 #ifdef __USE_GNU
 static char *type[] = { "Lib", "Exe", "Int", "Mod" };

@@ -91,7 +91,7 @@ _dl_linux_resolver (struct elf_resolve *tpnt, int reloc_entry)
 #if defined (__SUPPORT_LD_DEBUG__)
 	if (_dl_debug_bindings) {
 		_dl_dprintf(_dl_debug_file, "\nresolve function: %s", symname);
-		if(_dl_debug_detail)
+		if (_dl_debug_detail)
 			_dl_dprintf(_dl_debug_file, 
 				    "\n\tpatched (%x,%x) ==> (%x,%x) @ %x\n",
 				    got_entry->entry_point, got_entry->got_value,
@@ -266,7 +266,7 @@ _dl_do_reloc (struct elf_resolve *tpnt,struct dyn_elf *scope,
 		return -1;
 	}
 #if defined (__SUPPORT_LD_DEBUG__)
-	if(_dl_debug_reloc && _dl_debug_detail) {
+	if (_dl_debug_reloc && _dl_debug_detail) {
 		_dl_dprintf(_dl_debug_file, "\tpatched: %x ==> %x @ %x", old_val, reloc_value, reloc_addr);
 		switch (reloc_type) {
 		case R_BFIN_FUNCDESC_VALUE:
@@ -321,7 +321,7 @@ _dl_do_lazy_reloc (struct elf_resolve *tpnt,
 				return -1;
 		}
 #if defined (__SUPPORT_LD_DEBUG__)
-	if(_dl_debug_reloc && _dl_debug_detail)
+	if (_dl_debug_reloc && _dl_debug_detail)
 		_dl_dprintf(_dl_debug_file, "\tpatched: %x ==> %x @ %x", old_val, reloc_addr->entry_point, reloc_addr);
 #endif
 	return 0;

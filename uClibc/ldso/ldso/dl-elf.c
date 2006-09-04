@@ -3,7 +3,7 @@
  * This file contains the helper routines to load an ELF shared
  * library into memory and add the symbol table info to the chain.
  *
- * Copyright (C) 2000-2004 by Erik Andersen <andersen@codepoet.org>
+ * Copyright (C) 2000-2006 by Erik Andersen <andersen@codepoet.org>
  * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald,
  *				David Engel, Hongjiu Lu and Mitch D'Souza
  *
@@ -60,8 +60,8 @@ int _dl_map_cache(void)
 	_dl_cache_addr = (caddr_t) _dl_mmap(0, _dl_cache_size, PROT_READ, MAP_SHARED, fd, 0);
 	_dl_close(fd);
 	if (_dl_mmap_check_error(_dl_cache_addr)) {
-		_dl_dprintf(2, "%s: can't map cache '%s'\n",
-				_dl_progname, LDSO_CACHE);
+		_dl_dprintf(2, "%s:%i: can't map '%s'\n",
+				_dl_progname, __LINE__, LDSO_CACHE);
 		return -1;
 	}
 
@@ -115,7 +115,7 @@ int _dl_unmap_cache(void)
 #endif
 
 
-void 
+void
 _dl_protect_relro (struct elf_resolve *l)
 {
 	ElfW(Addr) base = (ElfW(Addr)) DL_RELOC_ADDR (l->relro_addr,
@@ -136,27 +136,41 @@ static struct elf_resolve *
 search_for_named_library(const char *name, int secure, const char *path_list,
 	struct dyn_elf **rpnt)
 {
-	char *path, *path_n;
-	char mylibname[2050];
+	char *path, *path_n, *mylibname;
 	struct elf_resolve *tpnt;
-	int done = 0;
+	int done;
 
 	if (path_list==NULL)
 		return NULL;
 
-	/* We need a writable copy of this string */
-	path = _dl_strdup(path_list);
-	if (!path) {
+	/* We need a writable copy of this string, but we don't
+	 * need this allocated permanently since we don't want
+	 * to leak memory, so use alloca to put path on the stack */
+	done = _dl_strlen(path_list);
+	path = alloca(done + 1);
+
+	/* another bit of local storage */
+	mylibname = alloca(2050);
+
+	/* gcc inlines alloca using a single instruction adjusting
+	 * the stack pointer and no stack overflow check and thus
+	 * no NULL error return.  No point leaving in dead code... */
+#if 0
+	if (!path || !mylibname) {
 		_dl_dprintf(2, "Out of memory!\n");
 		_dl_exit(0);
 	}
+#endif
+
+	_dl_memcpy(path, path_list, done+1);
 
 	/* Unlike ldd.c, don't bother to eliminate double //s */
 
 	/* Replace colons with zeros in path_list */
 	/* : at the beginning or end of path maps to CWD */
 	/* :: anywhere maps CWD */
-	/* "" maps to CWD */ 
+	/* "" maps to CWD */
+	done = 0;
 	path_n = path;
 	do {
 		if (*path == 0) {
@@ -363,7 +377,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 
 	/* Check if file is already loaded */
 	for (tpnt = _dl_loaded_modules; tpnt; tpnt = tpnt->next) {
-		if(tpnt->st_dev == st.st_dev && tpnt->st_ino == st.st_ino) {
+		if (tpnt->st_dev == st.st_dev && tpnt->st_ino == st.st_ino) {
 			/* Already loaded */
 			tpnt->usage_count++;
 			_dl_close(infile);
@@ -373,11 +387,11 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 	header = _dl_mmap((void *) 0, _dl_pagesize, PROT_READ | PROT_WRITE,
 			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (_dl_mmap_check_error(header)) {
-		_dl_dprintf(2, "%s: can't map '%s'\n", _dl_progname, libname);
+		_dl_dprintf(2, "%s:%i: can't map '%s'\n", _dl_progname, __LINE__, libname);
 		_dl_internal_error_number = LD_ERROR_MMAP_FAILED;
 		_dl_close(infile);
 		return NULL;
-	};
+	}
 
 	_dl_read(infile, header, _dl_pagesize);
 	epnt = (ElfW(Ehdr) *) (intptr_t) header;
@@ -392,7 +406,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 		_dl_close(infile);
 		_dl_munmap(header, _dl_pagesize);
 		return NULL;
-	};
+	}
 
 	if ((epnt->e_type != ET_DYN) || (epnt->e_machine != MAGIC1
 #ifdef MAGIC2
@@ -407,7 +421,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 		_dl_close(infile);
 		_dl_munmap(header, _dl_pagesize);
 		return NULL;
-	};
+	}
 
 	ppnt = (ElfW(Phdr) *)(intptr_t) & header[epnt->e_phoff];
 
@@ -419,7 +433,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 				_dl_dprintf(2, "%s: '%s' has more than one dynamic section\n",
 						_dl_progname, libname);
 			dynamic_addr = ppnt->p_vaddr;
-		};
+		}
 
 		if (ppnt->p_type == PT_LOAD) {
 			/* See if this is a PIC library. */
@@ -435,7 +449,7 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 			}
 		}
 		ppnt++;
-	};
+	}
 
 	DL_CHECK_LIB_TYPE (epnt, piclib, _dl_progname, libname);
 
@@ -447,17 +461,17 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 		flags |= MAP_FIXED;
 
 	if (piclib == 0 || piclib == 1) {
-	  status = (char *) _dl_mmap((char *) (piclib ? 0 : minvma),
-			maxvma - minvma, PROT_NONE, flags | MAP_ANONYMOUS, -1, 0);
-	  if (_dl_mmap_check_error(status)) {
-		_dl_dprintf(2, "%s: can't map %s\n", _dl_progname, libname);
-		_dl_internal_error_number = LD_ERROR_MMAP_FAILED;
-		_dl_close(infile);
-		_dl_munmap(header, _dl_pagesize);
-		return NULL;
-	  };
-	  libaddr = (unsigned long) status;
-	  flags |= MAP_FIXED;
+		status = (char *) _dl_mmap((char *) (piclib ? 0 : minvma),
+				maxvma - minvma, PROT_NONE, flags | MAP_ANONYMOUS, -1, 0);
+		if (_dl_mmap_check_error(status)) {
+			_dl_dprintf(2, "%s:%i: can't map '%s'\n", _dl_progname, __LINE__, libname);
+			_dl_internal_error_number = LD_ERROR_MMAP_FAILED;
+			_dl_close(infile);
+			_dl_munmap(header, _dl_pagesize);
+			return NULL;
+		}
+		libaddr = (unsigned long) status;
+		flags |= MAP_FIXED;
 	}
 	DL_INIT_LOADADDR (lib_loadaddr, libaddr,
 			  (Elf32_Phdr *)& header[epnt->e_phoff],
@@ -566,8 +580,8 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 				if (_dl_mmap_check_error(status)
 				    || (tryaddr && tryaddr != status)) {
 				cant_map:
-					_dl_dprintf(2, "%s: can't map '%s'\n", 
-						    _dl_progname, libname);
+					_dl_dprintf(2, "%s:%i: can't map '%s'\n",
+							_dl_progname, __LINE__, libname);
 					_dl_internal_error_number = LD_ERROR_MMAP_FAILED;
 					DL_LOADADDR_UNMAP (lib_loadaddr, maxvma - minvma);
 					_dl_close(infile);
@@ -646,13 +660,13 @@ struct elf_resolve *_dl_load_elf_shared_library(int secure,
 				   + (ppnt->p_vaddr & ADDR_ALIGN), ppnt);
 			}
 
-			/* if(libaddr == 0 && piclib) {
+			/* if (libaddr == 0 && piclib) {
 			   libaddr = (unsigned long) status;
 			   flags |= MAP_FIXED;
-			   }; */
-		};
+			   } */
+		}
 		ppnt++;
-	};
+	}
 	_dl_close(infile);
 
 	/* For a non-PIC library, the addresses are all absolute */
@@ -759,7 +773,7 @@ int _dl_fixup(struct dyn_elf *rpnt, int now_flag)
 		return goof;
 	tpnt = rpnt->dyn;
 
-	if(!(tpnt->init_flag & RELOCS_DONE)) 
+	if (!(tpnt->init_flag & RELOCS_DONE))
 		_dl_if_debug_dprint("relocation processing: %s\n", tpnt->libname);
 
 	if (unlikely(tpnt->dynamic_info[UNSUPPORTED_RELOC_TYPE])) {
@@ -794,7 +808,7 @@ int _dl_fixup(struct dyn_elf *rpnt, int now_flag)
 	if (tpnt->dynamic_info[DT_JMPREL] &&
 	    (!(tpnt->init_flag & JMP_RELOCS_DONE) ||
 	     (now_flag && !(tpnt->rtld_flags & now_flag)))) {
-		tpnt->rtld_flags |= now_flag; 
+		tpnt->rtld_flags |= now_flag;
 		if (!(tpnt->rtld_flags & RTLD_NOW)) {
 			_dl_parse_lazy_relocation_information(rpnt,
 					tpnt->dynamic_info[DT_JMPREL],

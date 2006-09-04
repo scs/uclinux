@@ -99,15 +99,71 @@ static unsigned int nlist; /* # items in init_fini_list */
 extern void _start(void);
 
 #ifdef __UCLIBC_HAS_SSP__
-#include <dl-osinfo.h>
+# include <dl-osinfo.h>
 uintptr_t stack_chk_guard;
-#ifndef THREAD_SET_STACK_GUARD
+# ifndef THREAD_SET_STACK_GUARD
 /* Only exported for architectures that don't store the stack guard canary
  * in local thread area.  */
 uintptr_t __stack_chk_guard attribute_relro;
+#  ifdef __UCLIBC_HAS_SSP_COMPAT__
 strong_alias(__stack_chk_guard,__guard)
+#  endif
+# elif __UCLIBC_HAS_SSP_COMPAT__
+uintptr_t __guard attribute_relro;
+# endif
 #endif
-#endif
+
+static void _dl_run_array_forward(unsigned long array, unsigned long size,
+				  DL_LOADADDR_TYPE loadaddr)
+{
+	if (array != 0) {
+		unsigned int j;
+		unsigned int jm;
+		ElfW(Addr) *addrs;
+		jm = size / sizeof (ElfW(Addr));
+		addrs = (ElfW(Addr) *) DL_RELOC_ADDR (array, loadaddr);
+		for (j = 0; j < jm; ++j) {
+			void (*dl_elf_func) (void);
+			dl_elf_func = (void (*)(void)) (intptr_t) addrs[j];
+			DL_CALL_FUNC_AT_ADDR (dl_elf_func, loadaddr, (void (*)(void)));
+		}
+	}
+}
+
+void _dl_run_init_array(struct elf_resolve *tpnt);
+void _dl_run_init_array(struct elf_resolve *tpnt)
+{
+	_dl_run_array_forward(tpnt->dynamic_info[DT_INIT_ARRAY],
+			      tpnt->dynamic_info[DT_INIT_ARRAYSZ],
+			      tpnt->loadaddr);
+}
+
+void _dl_app_init_array(void);
+void _dl_app_init_array(void)
+{
+	_dl_run_init_array(_dl_loaded_modules);
+}
+
+void _dl_run_fini_array(struct elf_resolve *tpnt);
+void _dl_run_fini_array(struct elf_resolve *tpnt)
+{
+	if (tpnt->dynamic_info[DT_FINI_ARRAY]) {
+		ElfW(Addr) *array = (ElfW(Addr) *) DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI_ARRAY],
+								  tpnt->loadaddr);
+		unsigned int i = (tpnt->dynamic_info[DT_FINI_ARRAYSZ] / sizeof(ElfW(Addr)));
+		while (i-- > 0) {
+			void (*dl_elf_func) (void);
+			dl_elf_func = (void (*)(void)) (intptr_t) array[i];
+			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void (*)(void)));
+		}
+	}
+}
+
+void _dl_app_fini_array(void);
+void _dl_app_fini_array(void)
+{
+	_dl_run_fini_array(_dl_loaded_modules);
+}
 
 static void __attribute__ ((destructor)) __attribute_used__ _dl_fini(void)
 {
@@ -119,6 +175,7 @@ static void __attribute__ ((destructor)) __attribute_used__ _dl_fini(void)
 		if (tpnt->init_flag & FINI_FUNCS_CALLED)
 			continue;
 		tpnt->init_flag |= FINI_FUNCS_CALLED;
+		_dl_run_fini_array(tpnt);
 		if (tpnt->dynamic_info[DT_FINI]) {
 			void (*dl_elf_func) (void);
 
@@ -233,6 +290,9 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	stack_chk_guard = _dl_setup_stack_chk_guard ();
 # ifdef THREAD_SET_STACK_GUARD
 	THREAD_SET_STACK_GUARD (stack_chk_guard);
+#  ifdef __UCLIBC_HAS_SSP_COMPAT__
+	__guard = stack_chk_guard;
+#  endif
 # else
 	__stack_chk_guard = stack_chk_guard;
 # endif
@@ -514,8 +574,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 					     PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 		_dl_close(fd);
 		if (preload == (caddr_t) -1) {
-			_dl_dprintf(_dl_debug_file, "%s: can't map file '%s'\n",
-				    _dl_progname, LDSO_PRELOAD);
+			_dl_dprintf(_dl_debug_file, "%s:%i: can't map '%s'\n",
+				    _dl_progname, __LINE__, LDSO_PRELOAD);
 			break;
 		}
 
@@ -663,7 +723,7 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 		}
 	}
 #ifdef __SUPPORT_LD_DEBUG__
-	if(_dl_debug) {
+	if (_dl_debug) {
 		_dl_dprintf(_dl_debug_file, "\nINIT/FINI order and dependencies:\n");
 		for (i = 0; i < nlist; i++) {
 			struct init_fini_list *tmp;
@@ -799,6 +859,14 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 	/* Notify the debugger we have added some objects. */
 	_dl_debug_addr->r_state = RT_ADD;
 	_dl_debug_state();
+
+	/* Run pre-initialization functions for the executable.  */
+	_dl_run_array_forward(_dl_loaded_modules->dynamic_info[DT_PREINIT_ARRAY],
+			      _dl_loaded_modules->dynamic_info[DT_PREINIT_ARRAYSZ],
+			      _dl_loaded_modules->loadaddr);
+
+	/* Run initialization functions for loaded objects.  For the
+	   main executable, they will be run from __uClibc_main.  */
 	for (i = nlist; i; --i) {
 		tpnt = init_fini_list[i-1];
 		tpnt->init_fini = NULL; /* Clear, since alloca was used */
@@ -814,6 +882,8 @@ void _dl_get_ready_to_run(struct elf_resolve *tpnt, DL_LOADADDR_TYPE load_addr,
 
 			DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 		}
+
+		_dl_run_init_array(tpnt);
 	}
 
 	/* Find the real malloc function and make ldso functions use that from now on */
@@ -868,7 +938,7 @@ static int _dl_suid_ok(void)
 	gid = _dl_getgid();
 	egid = _dl_getegid();
 
-	if(uid == euid && gid == egid) {
+	if (uid == euid && gid == egid) {
 		return 1;
 	}
 	return 0;

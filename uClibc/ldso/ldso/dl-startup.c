@@ -269,7 +269,7 @@ DL_BOOT(unsigned long args)
 			if (!indx && relative_count) {
 				rel_size -= relative_count * sizeof(ELF_RELOC);
 				elf_machine_relative(load_addr, rel_addr, relative_count);
-				rel_addr += relative_count * sizeof(ELF_RELOC);;
+				rel_addr += relative_count * sizeof(ELF_RELOC);
 			}
 
 			rpnt = (ELF_RELOC *) rel_addr;
