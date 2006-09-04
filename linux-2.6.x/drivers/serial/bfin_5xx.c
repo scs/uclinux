@@ -244,6 +244,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 {
 	struct circ_buf *xmit = &uart->port.info->xmit;
 	unsigned short ier;
+	int flags = 0;
 
 	if (!uart->tx_done)
 		return;
@@ -269,6 +270,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 		return;
 	}
 
+	local_irq_save(flags);
 	uart->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
 	if (uart->tx_count > (UART_XMIT_SIZE - xmit->tail))
 	uart->tx_count = UART_XMIT_SIZE - xmit->tail;
@@ -286,6 +288,7 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	ier = UART_GET_IER(uart);
 	ier |= ETBEI;
 	UART_PUT_IER(uart, ier);
+	local_irq_restore(flags);
 }
 
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
