@@ -266,7 +266,7 @@ static struct mtd_partition bfin_spi_flash_partitions[] = {
 		offset: 0x40000
 	},{
 		name: "file system",
-		size: 0x400000,
+		size: 0x300000,
 		offset: 0x00100000,
 	}
 };
