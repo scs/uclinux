@@ -124,9 +124,9 @@ int main(void)
 	DEFINE(PT_SYSCFG, offsetof(struct pt_regs, syscfg));
 	DEFINE(PT_IPEND, offsetof(struct pt_regs, ipend));
 	DEFINE(SIZEOF_PTREGS, sizeof(struct pt_regs));
-	DEFINE(PT_EXTRA1, sizeof(struct pt_regs));	/* Needed by gdb */
-	DEFINE(PT_EXTRA2, 4 + sizeof(struct pt_regs));	/* Needed by gdb */
-	DEFINE(PT_EXTRA3, 8 + sizeof(struct pt_regs));	/* Needed by gdb */
+	DEFINE(PT_TEXT_ADDR, sizeof(struct pt_regs));        /* Needed by gdb */
+	DEFINE(PT_TEXT_END_ADDR, 4 + sizeof(struct pt_regs));/* Needed by gdb */
+	DEFINE(PT_DATA_ADDR, 8 + sizeof(struct pt_regs));    /* Needed by gdb */
 	DEFINE(PT_FDPIC_EXEC, 12 + sizeof(struct pt_regs));  /* Needed by gdb */
 	DEFINE(PT_FDPIC_INTERP, 16 + sizeof(struct pt_regs));/* Needed by gdb */
 
