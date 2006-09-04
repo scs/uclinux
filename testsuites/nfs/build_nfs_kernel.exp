@@ -47,10 +47,6 @@ while 1 {
              send "$board_type\r"
       }
 
-         -re "Default all settings.*CONFIG_DEFAULTS_OVERRIDE.*\\\[././.]" {
-             
-             send "y\r"
-      }
       
       "\\\(*) \\\[*]" {
 	     send "\r"

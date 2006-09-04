@@ -22,7 +22,7 @@
 ###########################################################################
 CC=bfin-uclinux-gcc
 CFLAGS+=	-I../../../../include -Wall
-LOADLIBES+=	-L../../../../lib -lc  -Wl,-elf2flt  
+LOADLIBES+=	-L../../../../lib -lc    
 
 SRCS=$(wildcard *.c)
 TARGETS=$(patsubst %.c,%,$(SRCS))
