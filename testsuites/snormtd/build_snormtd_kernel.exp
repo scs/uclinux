@@ -101,10 +101,10 @@ while 1 {
              send -s "Y\r"
       }
 
-        -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
-             
-             send -s "Y\r"
-      }
+  #      -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
+  #           
+  #           send -s "Y\r"
+  #    }
     
         -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
              
@@ -270,6 +270,7 @@ while 1 {
            
       
        "\\\(*) \\\[*]" {
+             sleep .001
 	     send  "\r"
       }
 
