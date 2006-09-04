@@ -58,9 +58,12 @@ static void bfin_disable_dma(void);
 static void bfin_enable_ppi(void);
 static void bfin_disable_ppi(void);
 static void bfin_framebuffer_init(void *ycrcb_buffer);
-extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buffer)__attribute((section(".text.l1")));
-extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], int n)__attribute((section(".text.l1")));
-extern void fb_memcpy(unsigned int * dest,unsigned int *src,size_t count)__attribute((section(".text.l1")));
+extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, 
+				struct rgb_t *rgb_buffer)__attribute__((l1_text));
+extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], 
+				int n)__attribute__((l1_text));
+extern void fb_memcpy(unsigned int * dest,unsigned int *src,
+				size_t count)__attribute__((l1_text));
 static void bfin_framebuffer_timer_setup(void);
 static void bfin_framebuffer_timerfn(unsigned long data);
 /*
