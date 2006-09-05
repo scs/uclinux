@@ -284,7 +284,7 @@ ENTRY(_real_start)
 .L_exit:
 	jump.s	.L_exit;
 
-.section .text.l1
+.section .l1.text
 #if CONFIG_BFIN_KERNEL_CLOCK
 ENTRY(_start_dma_code)
 	p0.h = hi(SICA_IWR0);

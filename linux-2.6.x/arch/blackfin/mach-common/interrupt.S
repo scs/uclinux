@@ -40,7 +40,7 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_I_ENTRY_L1
-.section .text.l1
+.section .l1.text
 #else
 .text
 #endif

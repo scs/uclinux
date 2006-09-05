@@ -170,7 +170,7 @@ _disable_wdog_timer:
 
 #if !defined(CONFIG_BF561)
 
-.section .text.l1
+.section .l1.text
 
 .global _sleep_mode
 _sleep_mode:

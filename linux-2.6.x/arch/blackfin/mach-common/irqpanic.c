@@ -39,7 +39,7 @@
 #ifdef CONFIG_DEBUG_ICACHE_CHECK
 #define L1_ICACHE_START 0xffa10000
 #define L1_ICACHE_END   0xffa13fff
-void irq_panic(int reason, struct pt_regs *regs) __attribute__ ((section (".text.l1")));
+void irq_panic(int reason, struct pt_regs *regs) __attribute__ ((l1_text));
 #endif
 
 /*
