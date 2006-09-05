@@ -266,7 +266,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = ILL_CPLB_VI;
 		DPRINTK3(EXC_0x23);
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+		panic("Congratulations - you found an error I cannot handle.\n\n"
 			"Please report a bug to http://blackfin.uclinux.org\n");
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
@@ -334,7 +334,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
                 DPRINTK2(EXC_0x2B);
                 DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
                 DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+		panic("Congratulations - you found an error I cannot handle.\n\n"
 			"Please report a bug to http://blackfin.uclinux.org\n");
 		break;
 	/* 0x2C - Instruction CPLB miss,  handled in _cplb_hdr */
@@ -343,7 +343,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		info.si_code = ILL_CPLB_MISS;
 		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic ("Congratulations - you found an error I couldn't figure how how to make.\n\n"
+		panic("Congratulations - you found an error I cannot handle.\n\n"
 			"Please report a bug to http://blackfin.uclinux.org\n");
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
