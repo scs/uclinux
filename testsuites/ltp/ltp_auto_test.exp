@@ -743,68 +743,67 @@ proc run_LTP_test { filename command mode} {
 #			break             
 #         	}
      
-#	  "getgroups01" {
-#	       set timeout 1
-#	       while 1 {
-#                 expect { 
-#         	"Kernel panic " {
-#		 	report "---crash"
-#            		set result_flag $LTP_CRASH
-#           		 break          		 
-#        		 }
-#			 
-#		 "CURRENT PROCESS" {
-#               report "---crash"
-#               set result_flag $LTP_CRASH
-#               break
-#               }
-#	       
-#		 "Unknown relocation type" {
-#		 	report "---locks up"
-#            		set result_flag $LTP_CRASH
-#           		 break 
-#		 
-#		 }
-#		  $LTP_PASS {
-#          	  if {$result_flag == $LTP_NOT_RUN} {
-#           	    report "---pass"
-#           	    set result_flag $LTP_PASS
-#           	 }
-#        	 }
-#		   $LTP_FAIL {
-#           	 report "---fail"
-#            	set result_flag $LTP_FAIL
-#         	}
-#        	timeout { 
-#			
-#		        send "\r"
-#			set timeout 2
-#			 while 1 {
-#      				expect {       
-#
-#         			"> " {	
-#				     send "ls \r"
-#				     report "---locks up"
-#            			 	set result_flag $LTP_CRASH
-#					reset_board
-#           		 	 	break	  
-#          			    
-#          			  
-#        			 }   
-#				 timeout {
-#				 report "---locks up"
-#            			 set result_flag $LTP_CRASH
-#           		 	 break				 
-#				 }    
-#     			 	}
-#   			}         
-#             		break
-#         		}
-#      		}
-#   		}      
-#		break    
-#         }
+	  "getgroups01" {
+	       set timeout 1
+	       while 1 {
+                 expect { 
+         	"Kernel panic " {
+		 	report "---crash"
+            		set result_flag $LTP_CRASH
+           		 break          		 
+        		 }
+			 
+		 "CURRENT PROCESS" {
+               report "---crash"
+               set result_flag $LTP_CRASH
+               break
+               }
+	       
+		 "Unknown relocation type" {
+		 	report "---locks up"
+            		set result_flag $LTP_CRASH
+           		 break 
+		 
+		 }
+		  $LTP_PASS {
+          	  if {$result_flag == $LTP_NOT_RUN} {
+           	    report "---pass"
+           	    set result_flag $LTP_PASS
+           	 }
+        	 }
+		   $LTP_FAIL {
+           	 report "---fail"
+            	set result_flag $LTP_FAIL
+         	}
+        	timeout { 
+			
+		        send "\r"
+			set timeout 2
+			 while 1 {
+      				expect {       
 
+         			"> " {	
+				     send "ls \r"
+				     report "---locks up"
+            			 	set result_flag $LTP_CRASH
+					reset_board
+           		 	 	break	  
+          			    
+          			  
+        			 }   
+				 timeout {
+				 report "---locks up"
+            			 set result_flag $LTP_CRASH
+           		 	 break				 
+				 }    
+     			 	}
+   			}         
+             		break
+         		}
+      		}
+   		}      
+		break    
+         }
 
 #	  -re "\[^o-q]read03" {
 #	 		
