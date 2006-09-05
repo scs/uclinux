@@ -102,7 +102,7 @@ static int printk_address(unsigned long address)
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
-		return printk("<0x%p> { %s%s%s%s + 0x%lX }",
+		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
 			      (void*)address, delim, modname, delim, symname, (unsigned long)offset);
 
 	} else {
@@ -133,7 +133,7 @@ static int printk_address(unsigned long address)
 					}
 
 					write_unlock_irq(&tasklist_lock);
-					return printk("<0x%p> [ %s + 0x%lX ]",
+					return printk("<0x%p> [ %s + 0x%lx ]",
 						      (void*)address,
 						      name,
 						      (unsigned long)((address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT)));
@@ -390,7 +390,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		unsigned long stack;
 		dump_bfin_regs(fp, (void *)fp->retx);
 		show_stack(current, &stack);
-		if (current == NULL)
+		if (current->mm == NULL)
 			panic("Kernel exception");
 	}
 
