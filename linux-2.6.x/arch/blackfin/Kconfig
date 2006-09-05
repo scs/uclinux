@@ -649,6 +649,8 @@ config BANK_3
 	default 0x99B3
 endmenu
 
+endmenu
+
 #############################################################################
 menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 
