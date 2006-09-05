@@ -38,7 +38,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 #ifndef MODULE
-.section .text.l1, "ax", @progbits;
+.section .l1.text, "ax", @progbits;
 #endif
 .global         _rgb2yuv;
 .align          8;

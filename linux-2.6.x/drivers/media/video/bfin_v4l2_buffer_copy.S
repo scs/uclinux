@@ -23,7 +23,7 @@ Purpose:		This file copies YCRCB data from user buffer to output
  * even field, then second line of odd field and then second line of even
  k field and so on ..... This update functin do it in this way.
  */
-.section .text.l1, "ax", @progbits;
+.section .l1.text, "ax", @progbits;
 .global _bfin_v4l2_copy_buffer ;
 .type _bfin_v4l2_copy_buffer, STT_FUNC;
 

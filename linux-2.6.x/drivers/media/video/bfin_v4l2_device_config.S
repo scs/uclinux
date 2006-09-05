@@ -380,7 +380,7 @@ _ColorBarTable:
 .byte4   0x00ff00ff;  
 .byte4   0xffff00ff;
 
-.section .text.l1, "ax", @progbits;
+.section .l1.text, "ax", @progbits;
 .align 4;
 
 /*****************************************************************************
@@ -633,7 +633,7 @@ NOP;
 
 _NtscVideoOutFrameBuffInit.END:
 
-.section .text.l1, "ax", @progbits;
+.section .l1.text, "ax", @progbits;
 
 // Use DMA to do a mem copy
 // R2 has the size

@@ -82,7 +82,7 @@ extern wait_queue_head_t bfin_v4l2_write_wait ;
 int ycrcb_buffer_1_status, ycrcb_buffer_2_status ;
 int which_buff =0;
 
-irqreturn_t __attribute((section(".text.l1")))
+irqreturn_t __attribute__((l1_text))
 ppi_handler(int irq,
             void *dev_id,
             struct pt_regs *regs)
@@ -103,7 +103,7 @@ ppi_handler(int irq,
 	return IRQ_HANDLED;
 }
 
-irqreturn_t __attribute((section(".text.l1")))
+irqreturn_t __attribute__((l1_text))
 bfin_v4l2_memdma0_interrupt_handler(int irq,
             void *dev_id,
             struct pt_regs *regs)
@@ -113,7 +113,7 @@ bfin_v4l2_memdma0_interrupt_handler(int irq,
 	return IRQ_HANDLED;
 }
 
-irqreturn_t __attribute((section(".text.l1")))
+irqreturn_t __attribute__((l1_text))
 bfin_v4l2_memdma1_interrupt_handler(int irq,
             void *dev_id,
             struct pt_regs *regs)
@@ -206,7 +206,7 @@ device_bfin_close()
 	printk(" bfin_ad7171 Realeased\n") ;
 }
 
-void __attribute((section(".text.l1")))
+void __attribute__((l1_text))
 bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 {
 
