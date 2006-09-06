@@ -85,6 +85,7 @@ asmlinkage void evt_evt12(void);
 asmlinkage void evt_evt13(void);
 asmlinkage void evt_soft_int1(void);
 asmlinkage void evt_system_call(void);
+asmlinkage void init_exception_buff(void);
 
 static void search_IAR(void);
 
@@ -436,6 +437,8 @@ int __init init_arch_irq(void)
 	__builtin_bfin_ssync();
 
 	local_irq_disable();
+
+	init_exception_buff();
 
 #ifndef CONFIG_KGDB
 	bfin_write_EVT0(evt_emulation);

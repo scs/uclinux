@@ -155,9 +155,6 @@ static int printk_address(unsigned long address)
 }
 #endif
 
-/* Used by the assembly entry point to work around an anomaly.  */
-void *last_cplb_fault_retx;
-
 #define trace_buffer_save(x) \
 	do { \
 		(x) = bfin_read_TBUFCTL(); \

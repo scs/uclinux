@@ -77,77 +77,6 @@
 # define DEBUG_STOP_HWTRACE
 #endif
 
-.data
-ALIGN
-_extable:
-	/* entry for each EXCAUSE[5:0] 
-	 * This table bmust be in sync with the table in ./kernel/traps.c
-	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined */
-	
-	.long _ex_syscall;	/* 0x00 - User Defined - Linux Syscall */
-	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
-	.long _ex_trap_c        /* 0x02 - User Defined */
-	.long _ex_trap_c        /* 0x03 - User Defined  - Atomic test and set service */
-	.long _ex_spinlock      /* 0x04 - User Defined */
-	.long _ex_trap_c	/* 0x05 - User Defined */
-	.long _ex_trap_c        /* 0x06 - User Defined */
-	.long _ex_trap_c        /* 0x07 - User Defined */
-	.long _ex_trap_c        /* 0x08 - User Defined */
-	.long _ex_trap_c        /* 0x09 - User Defined */
-	.long _ex_trap_c        /* 0x0A - User Defined */
-	.long _ex_trap_c        /* 0x0B - User Defined */
-	.long _ex_trap_c        /* 0x0C - User Defined */
-	.long _ex_trap_c        /* 0x0D - User Defined */
-	.long _ex_trap_c        /* 0x0E - User Defined */
-	.long _ex_trap_c        /* 0x0F - User Defined */
-	.long _ex_single_step	/* 0x10 - HW Single step */
-	.long _ex_trap_c        /* 0x11 - Trace Buffer Full */
-	.long _ex_trap_c        /* 0x12 - Reserved */
-	.long _ex_trap_c        /* 0x13 - Reserved */
-	.long _ex_trap_c        /* 0x14 - Reserved */
-	.long _ex_trap_c        /* 0x15 - Reserved */
-	.long _ex_trap_c        /* 0x16 - Reserved */
-	.long _ex_trap_c        /* 0x17 - Reserved */
-	.long _ex_trap_c        /* 0x18 - Reserved */
-	.long _ex_trap_c        /* 0x19 - Reserved */
-	.long _ex_trap_c        /* 0x1A - Reserved */
-	.long _ex_trap_c        /* 0x1B - Reserved */
-	.long _ex_trap_c        /* 0x1C - Reserved */
-	.long _ex_trap_c        /* 0x1D - Reserved */
-	.long _ex_trap_c        /* 0x1E - Reserved */
-	.long _ex_trap_c        /* 0x1F - Reserved */
-	.long _ex_trap_c        /* 0x20 - Reserved */
-	.long _ex_trap_c	/* 0x21 - Undefined Instruction */
-	.long _ex_trap_c        /* 0x22 - Illegal Instruction Combination */
-	.long _ex_dcplb		/* 0x23 - Data CPLB Protection Violation */
-	.long _ex_trap_c        /* 0x24 - Data access misaligned */
-	.long _ex_trap_c        /* 0x25 - Unrecoverable Event */
-	.long _ex_dcplb         /* 0x26 - Data CPLB Miss */
-	.long _ex_trap_c        /* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero */
-	.long _ex_trap_c        /* 0x28 - Emulation Watchpoint */
-	.long _ex_trap_c        /* 0x29 - Instruction fetch access error (535 only) */
-	.long _ex_trap_c        /* 0x2A - Instruction fetch misaligned */
-	.long _ex_icplb         /* 0x2B - Instruction CPLB protection Violation */
-	.long _ex_icplb         /* 0x2C - Instruction CPLB miss */
-	.long _ex_trap_c        /* 0x2D - Instruction CPLB Multiple Hits */
-	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
-	.long _ex_trap_c        /* 0x2F - Reserved */
-	.long _ex_trap_c        /* 0x30 - Reserved */
-	.long _ex_trap_c        /* 0x31 - Reserved */
-	.long _ex_trap_c        /* 0x32 - Reserved */
-	.long _ex_trap_c        /* 0x33 - Reserved */
-	.long _ex_trap_c        /* 0x34 - Reserved */
-	.long _ex_trap_c        /* 0x35 - Reserved */
-	.long _ex_trap_c        /* 0x36 - Reserved */
-	.long _ex_trap_c        /* 0x37 - Reserved */
-	.long _ex_trap_c        /* 0x38 - Reserved */
-	.long _ex_trap_c        /* 0x39 - Reserved */
-	.long _ex_trap_c        /* 0x3A - Reserved */
-	.long _ex_trap_c        /* 0x3B - Reserved */
-	.long _ex_trap_c        /* 0x3C - Reserved */
-	.long _ex_trap_c        /* 0x3D - Reserved */
-	.long _ex_trap_c        /* 0x3E - Reserved */
-	.long _ex_trap_c        /* 0x3F - Reserved */
 .text
 
 /* Slightly simplified and streamlined entry point for CPLB misses.
@@ -243,6 +172,7 @@ ENTRY(_ex_single_step)
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
+
 _return_from_exception:
 	DEBUG_START_HWTRACE
 	(R7:6,P5:4) = [sp++];
@@ -284,6 +214,24 @@ ENTRY(_ex_trap_c)
 	[p4] = r6;
 	r6 = 0x3f;
 	sti r6;
+
+	/* Save the excause into a circular buffer, in case the instruction
+	 * which caused this excecptions causes others.
+	 */
+	P5.l = _in_ptr_excause;
+	P5.h = _in_ptr_excause;
+	R7 = [P5];
+	R7 += 4;
+	R6 = 0xF;
+	R7 = R7 & R6;
+	[P5] = R7;
+	R6.l = _excause_circ_buf;
+	R6.h = _excause_circ_buf;
+	R7 = R7 + R6;
+	p5 = R7;
+	R6 = SEQSTAT;
+	[P5] = R6;
+
 	DEBUG_START_HWTRACE
 	(R7:6,P5:4) = [sp++];
 	ASTAT = [sp++];
@@ -315,10 +263,42 @@ ENTRY(_exception_to_level5)
         r0 = [p2];              /* Read current IPEND */
         [sp + PT_IPEND] = r0;   /* Store IPEND */
 
+	/* Pop the excause from the circular buffer and push it on the stack
+	 * (in the right place - if you change the location of SEQSTAT, you
+	 * must change this offset.
+	 */
+.L_excep_to_5_again:
+	P5.l = _out_ptr_excause;
+	P5.h = _out_ptr_excause;
+	R7 = [P5];
+	R7 += 4;
+	R6 = 0xF;
+	R7 = R7 & R6;
+	[P5] = R7;
+	R6.l = _excause_circ_buf;
+	R6.h = _excause_circ_buf;
+	R7 = R7 + R6;
+	P5 = R7;
+	R1 = [P5];
+	[SP + 8] = r1;
+
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
 	call _trap_c;
 	SP += 12;
+
+	/* See if anything else is in the exception buffer 
+	 * if there is, process it
+	 */
+        P5.l = _out_ptr_excause;
+	P5.h = _out_ptr_excause;
+	P4.l = _in_ptr_excause;
+	P4.h = _in_ptr_excause;
+	R6 = [P5];
+	R7 = [P4];
+	CC = R6 == R7;
+	if ! CC JUMP .L_excep_to_5_again
+
 	call _ret_from_exception;
 	RESTORE_ALL_SYS
 	rti;
@@ -750,7 +730,96 @@ _schedule_and_signal:
 	RESTORE_CONTEXT
 	rti;
 
+/* Make sure when we start, that the circular buffer is initialized properly 
+ * R0 and P0 are call clobbered, so we can use them here.
+ */
+ENTRY(_init_exception_buff)
+        r0 = 0;
+        p0.h = _in_ptr_excause;
+        p0.l = _in_ptr_excause;
+        [p0] = r0;
+        p0.h = _out_ptr_excause;
+        p0.l = _out_ptr_excause;
+        [p0] = r0;
+
+/*
+ * Put these in the kernel data section - that should always be covered by
+ * a CPLB. This is needed to ensure we don't get double fault conditions
+ */
+
 .data
+ALIGN
+_extable:
+	/* entry for each EXCAUSE[5:0]
+	 * This table bmust be in sync with the table in ./kernel/traps.c
+	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined 
+	 */
+	.long _ex_syscall;      /* 0x00 - User Defined - Linux Syscall */
+	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
+	.long _ex_trap_c        /* 0x02 - User Defined */
+	.long _ex_trap_c        /* 0x03 - User Defined  - Atomic test and set service */
+	.long _ex_spinlock      /* 0x04 - User Defined */
+	.long _ex_trap_c        /* 0x05 - User Defined */
+	.long _ex_trap_c        /* 0x06 - User Defined */
+	.long _ex_trap_c        /* 0x07 - User Defined */
+	.long _ex_trap_c        /* 0x08 - User Defined */
+	.long _ex_trap_c        /* 0x09 - User Defined */
+	.long _ex_trap_c        /* 0x0A - User Defined */
+	.long _ex_trap_c        /* 0x0B - User Defined */
+	.long _ex_trap_c        /* 0x0C - User Defined */
+	.long _ex_trap_c        /* 0x0D - User Defined */
+	.long _ex_trap_c        /* 0x0E - User Defined */
+	.long _ex_trap_c        /* 0x0F - User Defined */
+	.long _ex_single_step   /* 0x10 - HW Single step */
+	.long _ex_trap_c        /* 0x11 - Trace Buffer Full */
+	.long _ex_trap_c        /* 0x12 - Reserved */
+	.long _ex_trap_c        /* 0x13 - Reserved */
+	.long _ex_trap_c        /* 0x14 - Reserved */
+	.long _ex_trap_c        /* 0x15 - Reserved */
+	.long _ex_trap_c        /* 0x16 - Reserved */
+	.long _ex_trap_c        /* 0x17 - Reserved */
+	.long _ex_trap_c        /* 0x18 - Reserved */
+	.long _ex_trap_c        /* 0x19 - Reserved */
+	.long _ex_trap_c        /* 0x1A - Reserved */
+	.long _ex_trap_c        /* 0x1B - Reserved */
+	.long _ex_trap_c        /* 0x1C - Reserved */
+	.long _ex_trap_c        /* 0x1D - Reserved */
+	.long _ex_trap_c        /* 0x1E - Reserved */
+	.long _ex_trap_c        /* 0x1F - Reserved */
+	.long _ex_trap_c        /* 0x20 - Reserved */
+	.long _ex_trap_c        /* 0x21 - Undefined Instruction */
+	.long _ex_trap_c        /* 0x22 - Illegal Instruction Combination */
+	.long _ex_dcplb         /* 0x23 - Data CPLB Protection Violation */
+	.long _ex_trap_c        /* 0x24 - Data access misaligned */
+	.long _ex_trap_c        /* 0x25 - Unrecoverable Event */
+	.long _ex_dcplb         /* 0x26 - Data CPLB Miss */
+	.long _ex_trap_c        /* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero */
+	.long _ex_trap_c        /* 0x28 - Emulation Watchpoint */
+	.long _ex_trap_c        /* 0x29 - Instruction fetch access error (535 only) */
+	.long _ex_trap_c        /* 0x2A - Instruction fetch misaligned */
+	.long _ex_icplb         /* 0x2B - Instruction CPLB protection Violation */
+	.long _ex_icplb         /* 0x2C - Instruction CPLB miss */
+	.long _ex_trap_c        /* 0x2D - Instruction CPLB Multiple Hits */
+	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
+	.long _ex_trap_c        /* 0x2E - Illegal use of Supervisor Resource */
+	.long _ex_trap_c        /* 0x2F - Reserved */
+	.long _ex_trap_c        /* 0x30 - Reserved */
+	.long _ex_trap_c        /* 0x31 - Reserved */
+	.long _ex_trap_c        /* 0x32 - Reserved */
+	.long _ex_trap_c        /* 0x33 - Reserved */
+	.long _ex_trap_c        /* 0x34 - Reserved */
+	.long _ex_trap_c        /* 0x35 - Reserved */
+	.long _ex_trap_c        /* 0x36 - Reserved */
+	.long _ex_trap_c        /* 0x37 - Reserved */
+	.long _ex_trap_c        /* 0x38 - Reserved */
+	.long _ex_trap_c        /* 0x39 - Reserved */
+	.long _ex_trap_c        /* 0x3A - Reserved */
+	.long _ex_trap_c        /* 0x3B - Reserved */
+	.long _ex_trap_c        /* 0x3C - Reserved */
+	.long _ex_trap_c        /* 0x3D - Reserved */
+	.long _ex_trap_c        /* 0x3E - Reserved */
+	.long _ex_trap_c        /* 0x3F - Reserved */
+
 ALIGN
 ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* 0  -  old "setup()" system call*/
@@ -1072,11 +1141,29 @@ ENTRY(_sys_call_table)
 	.endr
 _excpt_saved_imask:
 	.long 0;
-/* Put this in the kernel data section - that should always be covered by
- * a CPLB.
- */
+
 _exception_stack:
 	.rept 1024
 	.long 0;
 	.endr
 _exception_stack_top:
+
+/* Used by the assembly entry point to work around an anomaly.  */
+_last_cplb_fault_retx:
+	.long 0;
+
+/* 
+ * Single instructions can have multiple faults, which need to be
+ * handled by traps.c, in irq5. We store the exception cause to ensure
+ * we don't miss a double fault condition
+ */
+ENTRY(_in_ptr_excause)
+	.long 0;
+ENTRY(_out_ptr_excause)
+	.long 0;
+ALIGN
+ENTRY(_excause_circ_buf)
+	.rept 4
+	.long 0
+	.endr
+
