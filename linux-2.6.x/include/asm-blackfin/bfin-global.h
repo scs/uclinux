@@ -39,6 +39,18 @@
 #include <asm/user.h>
 #include <linux/linkage.h>
 
+#if defined(CONFIG_DMA_UNCACHED_2M)
+# define DMA_UNCACHED_REGION (2 * 1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_1M)
+# define DMA_UNCACHED_REGION (1024 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_512K)
+# define DMA_UNCACHED_REGION (512 * 1024)
+#elif defined(CONFIG_DMA_UNCACHED_256K)
+# define DMA_UNCACHED_REGION (256 * 1024)
+#else
+# define DMA_UNCACHED_REGION (0)
+#endif
+
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
 
