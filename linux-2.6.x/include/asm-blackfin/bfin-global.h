@@ -103,7 +103,7 @@ extern unsigned long table_start, table_end;
 
 extern struct file_operations dpmc_fops;
 extern char _start;
-extern int _ramstart, _ramend, _rambase;
+extern unsigned long _ramstart, _ramend, _rambase;
 extern unsigned long memory_start, memory_end;
 extern unsigned long memory_mtd_end;
 extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
