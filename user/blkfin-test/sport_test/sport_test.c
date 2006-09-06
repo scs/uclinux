@@ -21,8 +21,9 @@
 #define SPORT "/dev/sport0"
 
 int transmit = 1;
-int omode = O_WRONLY;
+int omode = O_RDWR;
 int sport = 0;
+int count = 10 * 2 * 8000; /* Only recored 10 second */
 
 /* Definitions for Microsoft WAVE format */
 #define RIFF		0x46464952
@@ -71,6 +72,26 @@ int test_wavefile (void *buffer)
 
 #define BUF_LEN		0x1000
 
+static void fill_waveheader(int fd, int cnt)
+{
+	struct wave_header wh;
+
+	wh.main_chunk = RIFF;
+	wh.length     = cnt + sizeof(wh) - 8; 
+	wh.chunk_type = WAVE;
+	wh.sub_chunk  = FMT;
+	wh.sc_len     = 16;
+	wh.format     = PCM_CODE;
+	wh.modus      =  1;
+	wh.sample_fq  = 8000;
+	wh.byte_p_spl = 2;
+	wh.byte_p_sec = 8000 * 1 * 2;
+	wh.bit_p_spl  = 16;
+	wh.data_chunk = DATA;
+	wh.data_length= cnt;
+	write (fd, &wh, sizeof(wh));
+}
+
 int main (int argc, char *argv[])
 {
 	int fd;
@@ -79,15 +100,18 @@ int main (int argc, char *argv[])
 	struct sport_config config;
 	unsigned char *buffer = NULL;
 
+	if (argc < 3) {
+		fprintf (stderr, "Usage: sport_test -r or -t filename\n");
+		return -1;
+	}
+
 	while ((c = getopt (argc, argv, "rt")) != EOF)
 		switch (c) {
 		case 'r':
 			transmit = 0;
-			omode = O_RDONLY;
 			break;
 		case 't':
 			transmit = 1;
-			omode = O_WRONLY;
 			break;
 		default:
 			fprintf (stderr, "Usage: sport_test -r or -t filename\n");
@@ -102,14 +126,15 @@ int main (int argc, char *argv[])
 		exit (-1);
 	}
 
+	if ((buffer = malloc(BUF_LEN))  == NULL) {
+		perror ("Failed to allocate memory\n");
+		close (sport);
+		return -1;
+	}
+
 	if (transmit == 1) { /* Test and read wave data file */
 		if ( (fd = open (filename, O_RDONLY, 0)) < 0) {
 			perror (filename);
-			close (sport);
-			return -1;
-		}
-		if ((buffer = malloc(BUF_LEN))  == NULL) {
-			perror ("Failed to allocate memory\n");
 			close (sport);
 			return -1;
 		}
@@ -125,8 +150,14 @@ int main (int argc, char *argv[])
 			return -1;
 		}
 	} else {
-		perror(" Not support\n");
-		return -1;
+		/* Open the file for write data */
+		if ( (fd = open (filename, O_WRONLY | O_CREAT , O_TRUNC)) <0) {
+			fprintf(stderr, "Failed to open %s\n", filename);
+			close (sport);
+			return -1;
+		}
+		/* Write the head of the wave file */
+		fill_waveheader(fd, count);
 	}
 
 	/* IOCTL to enable ad73311 */
@@ -171,6 +202,7 @@ int main (int argc, char *argv[])
 	memset(&config, 0, sizeof (struct sport_config));
 	config.fsync = 1;
 	config.word_len = 16;
+	config.dma_enabled = 1;
 
 	/* Write control data to ad73311's control register by write operation*/
 	if (ioctl (sport, SPORT_IOC_CONFIG, &config) < 0) {
@@ -188,13 +220,31 @@ int main (int argc, char *argv[])
 		return -1;
 	}
 
-	/* Write data into sport device through write operation */
-	while (read(fd, buffer, BUF_LEN) > 0 ) {
-		if (write (sport, buffer, BUF_LEN) != BUF_LEN) {
-			perror (SPORT);
-			close(sport);
-			close(fd);
-			return -1;
+	if (transmit == 1)
+		/* Write data into sport device through write operation */
+		while (read(fd, buffer, BUF_LEN) > 0 ) {
+			if (write (sport, buffer, BUF_LEN) != BUF_LEN) {
+				perror (SPORT);
+				free(buffer);
+				close(sport);
+				close(fd);
+				return -1;
+			}
+		}
+	else {
+		int left = count, temp1, temp2;
+		/* Read data from sport and write it into file */
+		while (left > 0) {
+			temp1 = left > BUF_LEN? BUF_LEN: left;
+			if ((temp2 = read (sport, buffer, temp1))<0) {
+				perror (SPORT);
+				free(buffer);
+				close(sport);
+				close(fd);
+				return -1;
+			}
+			write(fd, buffer, temp1);
+			left -= temp2;
 		}
 	}
 

@@ -8,6 +8,7 @@ $(EXEC): $(OBJS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) /sample.wav
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o

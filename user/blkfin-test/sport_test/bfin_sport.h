@@ -76,6 +76,7 @@ struct sport_config {
 	unsigned int data_format:2;	/*Normal, u-law or a-law */
 
 	int word_len;	/* How length of the word in bits, 3-32 bits */
+	int dma_enabled;
 };
 
 #define SPORT_IOC_MAGIC		'P'
