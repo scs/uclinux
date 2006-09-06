@@ -142,7 +142,7 @@ SECTIONS
 	{
 		. = ALIGN(4) ;
 		 __stext_l1 = . ;
-		*(l1.text)
+		*(.l1.text)
 
 		. = ALIGN(4) ;
 		 __etext_l1 = . ;
@@ -152,12 +152,12 @@ SECTIONS
 	{
 		. = ALIGN(4) ;
 		 __sdata_l1 = . ;
-		*(l1.data)
+		*(.l1.data)
 		 __edata_l1 = . ;
 
 		. = ALIGN(4) ;
 		 __sbss_l1 = . ;
-		*(l1.bss)
+		*(.l1.bss)
 
 		. = ALIGN(4) ;
 		 __ebss_l1 = . ;
@@ -166,12 +166,12 @@ SECTIONS
 	{
 		. = ALIGN(4) ;
                  __sdata_b_l1 = . ;
-                *(l1.data.B)
+                *(.l1.data.B)
                  __edata_b_l1 = . ;
 
                 . = ALIGN(4) ;
                  __sbss_b_l1 = . ;
-                *(l1.bss.B)
+                *(.l1.bss.B)
 
                 . = ALIGN(4) ;
                  __ebss_b_l1 = . ;
