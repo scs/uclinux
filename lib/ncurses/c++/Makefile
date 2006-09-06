@@ -66,13 +66,13 @@ CXX_AR		= $(AR)
 CXX_AR_OPTS	= $(AR_OPTS)
 RANLIB		= ranlib
 
-CXX		= /usr/bin/g++
-CPP		= /usr/bin/g++ -E
-CXXFLAGS	= -O2 
+CXX		= bfin-uclinux-g++
+CPP		= bfin-uclinux-g++ -E
+CXXFLAGS	?= -O2 
 CXXLIBS		= 
 
 INCDIR		= ../include
-CPPFLAGS	= -I../c++ -I$(INCDIR) -I$(srcdir) -DHAVE_CONFIG_H -I. -I../include  -D_GNU_SOURCE -DNDEBUG
+CPPFLAGS	+= -I../c++ -I$(INCDIR) -I$(srcdir) -DHAVE_CONFIG_H -I. -I../include  -D_GNU_SOURCE -DNDEBUG
 
 CCFLAGS		= $(CPPFLAGS) $(CXXFLAGS)
 
@@ -107,7 +107,7 @@ LINK_DEBUG	= $(LINK_FLAGS)
 LINK_PROFILE	= $(LINK_FLAGS)
 LINK_SHARED	= $(LINK_FLAGS)
 
-LDFLAGS		= -L../lib -lform -lmenu -lpanel -lncurses   \
+LDFLAGS		+= -L../lib -lform -lmenu -lpanel -lncurses   \
 	   $(CXXLIBS)
 
 LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)

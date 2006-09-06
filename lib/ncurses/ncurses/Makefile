@@ -85,10 +85,10 @@ LN_S		= ln -s
 
 CC		= bfin-uclinux-gcc
 CPP		= bfin-uclinux-gcc -E
-CFLAGS		= -O2
+CFLAGS		?= -O2
 
 INCDIR		= $(srcdir)/../include
-CPPFLAGS	= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) -I. -I../include  -D_GNU_SOURCE -DNDEBUG
+CPPFLAGS	+= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) -I. -I../include  -D_GNU_SOURCE -DNDEBUG
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
@@ -113,7 +113,7 @@ CFLAGS_SHARED	= $(CCFLAGS) -fPIC
 CFLAGS_DEFAULT	= $(CFLAGS_NORMAL)
 
 LINK		= $(LIBTOOL) $(CC)
-LDFLAGS		=   
+LDFLAGS		+=   
 
 SHLIB_DIRS	= -L../lib
 SHLIB_LIST	= $(SHLIB_DIRS) 

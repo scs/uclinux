@@ -209,4 +209,5 @@ distclean ::
 	rm -rf $(DIRS_TO_MAKE)
 romfs:
 	mkdir -p $(ROMFSDIR)/usr/share/terminfo
+	$(ROMFSINST) -e CONFIG_BLACKFIN_USE_FDPIC lib/libncurses.so /lib/libncurses.so
 	tic -x -s -e '$(INSTALL_TERMINFO_TYPE)' -o $(ROMFSDIR)/usr/share/terminfo/ misc/terminfo.src	
