@@ -44,6 +44,7 @@ typedef struct user_bfinfp_struct elf_fpregset_t;
 
 #define ELF_FDPIC_PLAT_INIT(_regs, _exec_map_addr, _interp_map_addr, _dynamic_addr)	\
 do {											\
+	_regs->r7	= 0;						\
 	_regs->p0	= _exec_map_addr;				\
 	_regs->p1	= _interp_map_addr;				\
 	_regs->p2	= _dynamic_addr;				\
