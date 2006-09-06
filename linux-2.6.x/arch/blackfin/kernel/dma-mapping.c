@@ -47,6 +47,14 @@ static unsigned long dma_base;
 static unsigned long dma_size;
 static unsigned int dma_initialized;
 
+#if defined (CONFIG_UNCACHED_256K)
+#define UNCACHED_MEM_SIZE 256*1024
+#elif defined (CONFIG_UNCACHED_512K)
+#define UNCACHED_MEM_SIZE 512*1024
+#else
+#define UNCACHED_MEM_SIZE 1024*1024
+#endif
+
 void dma_alloc_init(unsigned long start, unsigned long end)
 {
 	spin_lock_init(&dma_page_lock);
@@ -57,7 +65,7 @@ void dma_alloc_init(unsigned long start, unsigned long end)
 	dma_base = PAGE_ALIGN(start);
 	dma_size = PAGE_ALIGN(end) - PAGE_ALIGN(start);
 	dma_pages = dma_size >> PAGE_SHIFT;
-	memset((void *)dma_base, 0, 1024 * 1024);
+	memset((void *)dma_base, 0, UNCACHED_MEM_SIZE);
 	dma_initialized = 1;
 
 	printk(KERN_INFO "%s: dma_page @ 0x%p - %d pages at 0x%08lx\n", __FUNCTION__,
