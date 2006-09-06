@@ -46,6 +46,10 @@ romfs:
 	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
+BSS      = $(shell $(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
+BSS_SIZE = $(shell $(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
+ADDR     = $(shell echo $$(($(BSS) + $(BSS_SIZE))))
+
 image:
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
@@ -67,31 +71,22 @@ image:
 	fi
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
 		bfin-uclinux-mkcramfs -z -r -D device_table.txt $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
-		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
-		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
-		ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
-		--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
+		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ;\
 	fi
 	if [ -n "$(CONFIG_EXT2_FS)" ]; then \
 		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG).ext2 ; \
-		BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
-		BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
-		ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
-		--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
+		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ;\
 	fi
 	if [ -n "$(CONFIG_ROMFS_FS)" ]; then \
 		if  which genromfs >/dev/null 2>&1; then \
 			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) device_table.txt; \
 			genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
-			BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
-			BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
-			ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 			$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
-			--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
+			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ;\
 			rm -rf $(ROMFSDIR)/dev/*; \
 		fi; \
@@ -123,6 +118,6 @@ image:
 			-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel Only Image" \
 			-d $(IMAGEDIR)/vmlinux.bin.gz  $(IMAGEDIR)/vmImage; \
 		rm  $(IMAGEDIR)/vmlinux.bin.gz; \
-	fi ; \
+	fi
 
 clean:
