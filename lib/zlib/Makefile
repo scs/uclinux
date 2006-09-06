@@ -20,13 +20,16 @@
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 
-LDFLAGS+=-L. -lz
-LDSHARED=$(CC)
+LDLIBS+=-L. -lz
+LDSHARED=$(CC) -shared $(LDFLAGS)
 CPP=$(CC) -E
 
 VER=1.1.4
 LIBS=libz.a
 SHAREDLIB=libz.so
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
+LIBS += $(SHAREDLIB).$(VER)
+endif
 
 #AR=ar rc
 ARFLAGS=rc
@@ -89,10 +92,10 @@ $(SHAREDLIB).$(VER): $(OBJS)
 	ln -s $@ $(SHAREDLIB).1
 
 example: example.o $(LIBS)
-	$(CC) $(CFLAGS) -o $@ example.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ example.o $(LDFLAGS) $(LDLIBS)
 
 minigzip: minigzip.o $(LIBS)
-	$(CC) $(CFLAGS) -o $@ minigzip.o $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ minigzip.o $(LDFLAGS) $(LDLIBS)
 
 install: $(LIBS)
 	-@if [ ! -d $(includedir)  ]; then mkdir $(includedir); fi
@@ -124,6 +127,7 @@ uninstall:
 	fi
 
 romfs:
+	$(ROMFSINST) -e CONFIG_BLACKFIN_USE_FDPIC libz.so /lib/libz.so
 
 clean:
 	-rm -f *.o *~ example minigzip libz.a libz.so* foo.gz so_locations \
