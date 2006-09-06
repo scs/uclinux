@@ -268,7 +268,7 @@ mostlyclean ::
 
 clean :: mostlyclean
 	-sh -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
-	-rm -rf *$o screendump *.lis $(TESTS) .libs
+	-rm -rf *$o screendump *.lis $(TESTS) .libs *.gdb
 
 distclean :: clean
 	-rm -f Makefile ncurses_cfg.h config.*
