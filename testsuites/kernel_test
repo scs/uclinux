@@ -121,6 +121,7 @@ fi
 ethernet_in_buffer_test=0
 	  stress_test=0
 	  serial_test=0 
+     serial_port_test=0
     serial_uart1_test=0
 	  reboot_test=0	     
 	  module_test=0
@@ -174,6 +175,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
+     serial_port_test=1
     serial_uart1_test=1
 	  reboot_test=1	     
 	  module_test=1
@@ -227,6 +229,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
+     serial_port_test=1
     serial_uart1_test=1
 	  reboot_test=1	     
 	  module_test=1
@@ -279,6 +282,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
 ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
+     serial_port_test=1
 	  reboot_test=1	     
 	  module_test=1
 	    kgdb_test=1
@@ -330,6 +334,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
 ethernet_in_buffer_test=1
 	  stress_test=1
 	  serial_test=1
+     serial_port_test=1
 	  reboot_test=1	     
 	  module_test=0
 	    kgdb_test=0
@@ -534,7 +539,7 @@ chmod +x */*.exp
   ./serial_test.exp /dev/ttyS0 >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.stress
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.serial
   cp $KERNEL_SCRIPTS/serial/build_serial_kernel_log  $THIS_LOG
   cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/
   
@@ -547,6 +552,35 @@ chmod +x */*.exp
    sleep 10
   fi
     
+  fi
+  
+  if [ $serial_port_test -eq 1  ] ; then
+  echo  "Testing serial port..."
+  
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+  
+    
+  cd  $KERNEL_SCRIPTS/serial
+  ./build_serial_port_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
+  sleep 30
+  ./serial_test.exp /dev/ttyS0 >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial_port
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.serial_port
+  cp $KERNEL_SCRIPTS/serial/build_serial_port_kernel_log  $THIS_LOG
+  cp $KERNEL_SCRIPTS/serial/serial_test_log $THIS_LOG/serial_port_test_log
+  
+  sleep 30
+  
+  
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+  
   fi
 
   #############################################################################################

@@ -1,12 +1,11 @@
 #!/usr/bin/expect
-log_file build_i2ctwi_keyboard_kernel_log
-send_user "Starting build_i2ctwi_keyboard_kernel.exp\n"
+log_file build_serial_port_kernel_log
+send_user "Starting build_serial_port_kernel.exp\n"
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
 set dxe_filename linux
 set ttydev /dev/ttyS0
-set send_slow {1 0.1}
 
 set board_type [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
@@ -33,18 +32,17 @@ proc step { message } {
 
 set step_sequence_number    1
 
-
 step "Make config."
 
 cd $uclinux_path
 set timeout 300
 spawn make config
 
-
+#puts "Begin the interactive process of configuration"
+#puts "ON THE FIRST PASS, DON'T EVEN TRY TO SET ANYTHING: BUG WORKAROUND"
 while 1 {
    expect {
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
              send "$board_type\r"
       }
 
@@ -62,7 +60,7 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             
+             break
       }
    }
 }
@@ -87,73 +85,31 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
-
-    
-           -re "Select BF537/6/4 default GPIO PFx PORTG.*BF537_PORT_G.*choice\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                       send "2\r"
-	    } else {
-	               send "\r"
-	    }
+             
+	   -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
+             send "y\r"
       }
 
-      	   -re "I2C support.*I2C\[^_].*\\\[.*]" {             
-             send "Y\r"
+          -re "Console on Blackfin serial port.*SERIAL_BFIN_CONSOLE.*\\\[.*]" {
+             send "y\r"
+      }
+      
+         -re "Blackfin UART Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
+             send "1\r"
+      }
+      
+         -re "Enable hardware flow control.*SERIAL_BFIN_CTSRTS.*\\\[.*]" {
+             send "y\r"
+      }
+      
+         -re "Blackfin Serial Driver.*SERIAL_BLACKFIN.*\\\[.*]" {
+             send "n\r"
+      }
+         
+         -re "RTS/CTS test program.*CONFIG_USER_BLACKFIN_RTSCTSTEST.*\\\[.*]" {
+             send "y\r"
       }
 
-      	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-     	   -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_GPIO.*\\\[.*]" {
-	     if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {             
-             		send "Y\r"
-	     } else {
-	     		send "N\r"
-	     }	     
-      }
-      
-      	   -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "Y\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      	   -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "50\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      
-      	   -re "Generic input layer.*\\\[.*]" {            
-             send "Y\r"
-      }
-  
-      	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-      	   -re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-      	   -re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {            
-             send "Y\r"
-      }
-       
-           -re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
-             send "m\r"
-      }
-           
-           -re "TWI KEYPAD test program.*CONFIG_USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
-             send "Y\r"
-      }
- 
        "\\\(*) \\\[*]" {
              sleep .001
 	     send "\r"
@@ -169,6 +125,7 @@ while 1 {
       }
       timeout {
 	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
+           
       }
    }
 }
@@ -192,21 +149,19 @@ while 1 {
 if { $bfin_make_status == "failure" } {
       puts "ERROR: Error somewhere during make"
 
-}
-
+}    
 
 step "Copy linux"
- 
+  
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
 
-# Check the size, time, and date just to be sure.
-cd /tftpboot
-set dxe_confirmation [exec ls -l $dxe_filename]
-
 log_file
+
+send_user "Ending build_serial_port_kernel.exp\n"
+
+
+
+
  
-send_user "Ending build_i2ctwi_keyboard_kernel.exp\n"
-
-
