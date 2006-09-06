@@ -64,7 +64,7 @@ struct sport_dev *sport_devices;	/* allocated in sport_init_module */
 
 #undef assert
 
-#define DEBUG
+#undef DEBUG
 #ifdef DEBUG
 #define dprintk(fmt, args...) printk(KERN_ERR fmt, ##args)
 #define assert(expr) \
@@ -140,10 +140,9 @@ static int sport_configure(struct sport_dev *dev, struct sport_config *config)
 			goto fail;
 		}
 		set_dma_callback(dev->dma_tx_chan, dma_tx_irq_handler, dev);
-
-		memcpy(old_cfg, config, sizeof(*config));
-
 	}
+	memcpy(old_cfg, config, sizeof(*config));
+
 	if ((dev->regs->tcr1 & TSPEN) || (dev->regs->rcr1 & RSPEN))
 		return -EBUSY;
 
@@ -245,6 +244,7 @@ static irqreturn_t dma_rx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 	dev->wait_con = 1;
 	wake_up(&dev->waitq);
 	
+	clear_dma_irqstat(dev->dma_rx_chan);
 	return IRQ_HANDLED;
 }
 
@@ -254,19 +254,26 @@ static irqreturn_t dma_tx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 	unsigned short status ;
 
 	dprintk("%s enter\n", __FUNCTION__);
-	status = dev->regs->stat;
-	while (!(status & TUVF)) {
-//		udelay(1);
-//	while (!(status & TXHRE)) {
-		status = dev->regs->stat;
-//		__builtin_bfin_ssync();
+	status = get_dma_curr_irqstat(dev->dma_tx_chan);
+	dprintk("status:0x%04x\n", status);
+	while (status & DMA_RUN) {
+		status = get_dma_curr_irqstat(dev->dma_tx_chan);
+		dprintk("status:0x%04x\n", status);
 	}
+	status = 0;
+	while (!(status & TUVF)) {
+		status = dev->regs->stat;
+	}
+
 	dev->regs->tcr1 &= ~TSPEN;
 	__builtin_bfin_ssync();
 	disable_dma(dev->dma_tx_chan);
 
 	dev->wait_con = 1;
 	wake_up(&dev->waitq);
+
+	/* Clear the interrupt status */
+	clear_dma_irqstat(dev->dma_tx_chan);
 
 	return IRQ_HANDLED;
 }
@@ -345,7 +352,9 @@ static inline void sport_tx_write(struct sport_dev *dev)
 
 static irqreturn_t sport_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
-	sport_tx_write(dev_id);
+	struct sport_dev *dev = dev_id;
+	
+	sport_tx_write(dev);
 
 	return IRQ_HANDLED;
 }
@@ -368,18 +377,17 @@ static irqreturn_t sport_err_handler(int irq, void *dev_id, struct pt_regs *regs
 		dev->regs->rcr1 &= ~RSPEN;
 		__builtin_bfin_ssync();
 
-		if (status & TUVF) {
-			dev->wait_con = 1;
-			wake_up(&dev->waitq);
-		}
-
-#if 0
-		printk(KERN_WARNING "sport status error:%s%s%s%s\n",
-				status & TOVF ? " TOVF" : "",
-				status & TUVF ? " TUVF" : "",
-				status & ROVF ? " ROVF" : "",
-				status & RUVF ? " RUVF" : "");
-#endif
+		if (!dev->config.dma_enabled) {
+			if (status & TUVF) {
+				dev->wait_con = 1;
+				wake_up(&dev->waitq);
+			}
+		} else	
+			printk(KERN_WARNING "sport status error:%s%s%s%s\n",
+					status & TOVF ? " TOVF" : "",
+					status & TUVF ? " TUVF" : "",
+					status & ROVF ? " ROVF" : "",
+					status & RUVF ? " RUVF" : "");
 	}
 
 	return IRQ_HANDLED;
@@ -468,12 +476,13 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 
 		if (word_bytes == 3) word_bytes = 4;
 
+		dprintk("DMA mode read\n");
 		/* Configure dma */
+		set_dma_start_addr(dev->dma_rx_chan, (unsigned long)buf);
 		set_dma_x_count(dev->dma_rx_chan, count / word_bytes);
 		set_dma_x_modify(dev->dma_rx_chan, word_bytes);
 		dma_config = (WNR | RESTART | sport_wordsize(cfg->word_len) | DI_EN);
 		set_dma_config(dev->dma_rx_chan, dma_config);
-		set_dma_start_addr(dev->dma_rx_chan, (unsigned long)buf);
 
 		enable_dma(dev->dma_rx_chan);
 	} else {
@@ -498,7 +507,7 @@ static void dump_dma_regs( void )
 {
 	dma_register_t *dma = (dma_register_t*)DMA4_NEXT_DESC_PTR;
 
-	printk(KERN_ERR " config:0x%04x, x_count:0x%04x,"
+	dprintk(KERN_ERR " config:0x%04x, x_count:0x%04x,"
 			" x_modify:0x%04x\n", dma->cfg,
 			dma->x_count, dma->x_modify);
 }
@@ -520,10 +529,9 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 		uint16_t dma_config = 0;
 		int word_bytes = (cfg->word_len + 7) / 8;
 
-		if (word_bytes == 3)
-			word_bytes = 4;
+		if (word_bytes == 3) word_bytes = 4;
 
-//		dma_register_t *dma_tx = (dma_register_t*)DMA4_NEXT_DESC_PTR;
+		dprintk("DMA mode\n");
 		/* Configure dma */
 		set_dma_start_addr(dev->dma_tx_chan, (unsigned long)buf);
 		set_dma_x_count(dev->dma_tx_chan, count / word_bytes);
