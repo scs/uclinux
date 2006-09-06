@@ -329,9 +329,9 @@ int l1_data_sram_free(const void *addr)
 	return l1_data_A_sram_free(addr);
 }
 
-#if L1_DATA_B_LENGTH != 0
 void *l1_data_B_sram_alloc(size_t size)
 {
+#if L1_DATA_B_LENGTH != 0
 	unsigned flags;
 	void *addr;
 
@@ -345,11 +345,14 @@ void *l1_data_B_sram_alloc(size_t size)
 
 	//printk ("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",addr,size);
 	return addr;
+#else
+	return NULL;
+#endif
 }
-EXPORT_SYMBOL(l1_data_B_sram_alloc);
 
 int l1_data_B_sram_free(const void *addr)
 {
+#if L1_DATA_B_LENGTH != 0
 	unsigned flags;
 	int ret;
 
@@ -362,9 +365,10 @@ int l1_data_B_sram_free(const void *addr)
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
 	return ret;
-}
-EXPORT_SYMBOL(l1_data_B_sram_free);
+#else
+	return -1;
 #endif
+}
 
 void *l1_inst_sram_alloc(size_t size)
 {
@@ -509,6 +513,8 @@ void *sram_alloc_with_lsl(size_t size, unsigned long flags)
 
 EXPORT_SYMBOL(l1_data_A_sram_alloc);
 EXPORT_SYMBOL(l1_data_A_sram_free);
+EXPORT_SYMBOL(l1_data_B_sram_free);
+EXPORT_SYMBOL(l1_data_B_sram_alloc);
 EXPORT_SYMBOL(l1_inst_sram_alloc);
 EXPORT_SYMBOL(l1_inst_sram_free);
 EXPORT_SYMBOL(l1_data_sram_zalloc);
