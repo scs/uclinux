@@ -59,10 +59,10 @@ image:
 	fi
 	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
 		if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
-			$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs; \
+			$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs > /dev/null; \
 		fi ; \
 		if [ -x "$(MKFS_YAFFS2)" -a -n "$(CONFIG_YAFFS_YAFFS2)" ]; then \
-			$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2; \
+			$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2 > /dev/null; \
 		fi ; \
 	fi
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
