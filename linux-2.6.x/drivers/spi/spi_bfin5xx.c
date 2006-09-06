@@ -150,6 +150,7 @@ struct chip_data {
 	u8 enable_dma;
 	u8 bits_per_word;	/* 8 or 16 */
 	u8 cs_change_per_word;
+	u8 cs_chg_udelay;
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
 	void (*duplex) (struct driver_data *);
@@ -294,8 +295,8 @@ static void u8_cs_chg_writer(struct driver_data *drv_data)
 		do {} while (read_STAT() & BIT_STAT_TXS);
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		write_FLAG(0xFF00);
-		udelay(1);
-		__builtin_bfin_ssync();
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
 		++drv_data->tx;
 	}
 }
@@ -332,8 +333,8 @@ static void u8_cs_chg_reader(struct driver_data *drv_data)
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		*(u8 *)(drv_data->rx) = read_SHAW();
 		write_FLAG(0xFF00);
-		__builtin_bfin_ssync();
-		udelay(1);
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
 		++drv_data->rx;
 	}
 }
@@ -373,7 +374,10 @@ static void u16_cs_chg_writer(struct driver_data *drv_data)
 		write_FLAG(chip->flag);
 		write_TDBR(*(u16 *)(drv_data->tx));
 		do {} while ((read_STAT() & BIT_STAT_TXS));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		write_FLAG(0xFF00);
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
 		drv_data->tx += 2;
 	}
 }
@@ -401,8 +405,11 @@ static void u16_cs_chg_reader(struct driver_data *drv_data)
 		write_FLAG(chip->flag);
 		read_RDBR();  /* kick off */
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		*(u16 *)(drv_data->rx) = read_SHAW();
 		write_FLAG(0xFF00);
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
 		drv_data->rx += 2;
 	}
 }
@@ -621,7 +628,7 @@ static void pump_transfers(unsigned long data)
 
 		/* Go baby, go */
 		/* set transfer width,direction. And enable spi */
-		cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
+		cr = (read_CTRL() & (~BIT_CTL_TIMOD));	/* clear the TIMOD bits */
 
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
@@ -676,7 +683,7 @@ static void pump_transfers(unsigned long data)
 
 		if (drv_data->tx != NULL && drv_data->rx != NULL) { /* full duplex mode */
 			ASSERT((drv->data->tx_end - drv_data->tx) == (drv_data->rx_end - drv_data->rx));
-			cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
+			cr = (read_CTRL() & (~BIT_CTL_TIMOD));	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO duplex: cr is 0x%x\n", cr);
 
@@ -688,7 +695,7 @@ static void pump_transfers(unsigned long data)
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
 		} else if (drv_data->tx != NULL) {        /* write only half duplex */
-			cr = (read_CTRL() & 0xFFCC);	/* clear the TIMOD bits */
+			cr = (read_CTRL() & (~BIT_CTL_TIMOD));	/* clear the TIMOD bits */
 			cr |= CFG_SPI_WRITE | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO write: cr is 0x%x\n", cr);
 
@@ -700,7 +707,7 @@ static void pump_transfers(unsigned long data)
 			if (drv_data->tx != drv_data->tx_end)
 				tranf_success = 0;
 		} else if (drv_data->rx != NULL) {        /* read only half duplex */
-			cr = (read_CTRL() & 0xFFCC);	/* cleare the TIMOD bits */
+			cr = (read_CTRL() & (~BIT_CTL_TIMOD));	/* cleare the TIMOD bits */
 			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
 			PRINTK("IO read: cr is 0x%x\n", cr);
 
@@ -841,6 +848,7 @@ static int setup(struct spi_device *spi)
 		chip->ctl_reg = chip_info->ctl_reg;
 		chip->bits_per_word = chip_info->bits_per_word;
 		chip->cs_change_per_word = chip_info->cs_change_per_word;
+		chip->cs_chg_udelay = chip_info->cs_chg_udelay;
 	}
 
 	/* if any one SPI chip is registered and wants DMA, request the

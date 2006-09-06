@@ -85,6 +85,7 @@
 #define BIT_CTL_TIMOD_DMA_TX 0x0003
 #define BIT_CTL_TIMOD_DMA_RX 0x0002
 #define BIT_CTL_SENDOPT     0x0004
+#define BIT_CTL_TIMOD       0x0003
 
 #define BIT_STAT_SPIF       0x0001
 #define BIT_STAT_MODF       0x0002
@@ -166,6 +167,7 @@ struct bfin5xx_spi_chip {
 	u8 enable_dma;
 	u8 bits_per_word;
 	u8 cs_change_per_word;
+	u8 cs_chg_udelay;
 };
 
 
