@@ -83,10 +83,23 @@ image:
 		--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ;\
 	fi
+	if [ -n "$(CONFIG_ROMFS_FS)" ]; then \
+		if  which genromfs >/dev/null 2>&1; then \
+			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) device_table.txt; \
+			genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
+			BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${4}` ; \
+			BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss\` ; echo 0x$${3}` ; \
+			ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
+			$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
+			--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
+			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ;\
+			rm -rf $(ROMFSDIR)/dev/*; \
+		fi; \
+	fi
 #
 # make a compressed image, link the first one to uImage
 #
-	for FS in cramfs ext2 ; \
+	for FS in cramfs ext2 romfs ; \
 	do \
 		if [ -f "$(IMAGE).$$FS" ] ; then \
 			$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
