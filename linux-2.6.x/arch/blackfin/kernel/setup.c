@@ -276,7 +276,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end>>20);
-	printk(KERN_INFO "Kernel Managed Memory: %dMB\n", _ramend>>20);
+	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend>>20);
 
 	printk(KERN_INFO "Memory map:\n"
 	       KERN_INFO "  text      = 0x%p-0x%p\n"
@@ -399,8 +399,7 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 static void __init generate_cpl_tables(void)
 {
 #if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-	unsigned short pos;
-	int unalign_ram_tmp, physical_mem_aligned_end;
+	unsigned long pos, unalign_ram_tmp, physical_mem_aligned_end;
 
 	unalign_ram_tmp = ((_ramend / 1024 / 1024) % 4) * 1024 * 1024;
 	if (unalign_ram_tmp == 0)
