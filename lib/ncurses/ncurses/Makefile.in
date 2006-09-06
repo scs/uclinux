@@ -237,7 +237,7 @@ tags:
 @MAKE_UPPER_TAGS@	etags *.[ch] */*.[ch]
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac
 	-rm -f $(TEST_PROGS)
 
 clean :: mostlyclean

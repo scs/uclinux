@@ -260,8 +260,6 @@ uninstall.panel ::
 
 clean ::
 	-rm -f ../lib/libpanel.a
-	-rm -f ../lib/
-	-rm -f ../lib/libpanel.a
 
 mostlyclean::
 	-rm -f $(NORMAL_OBJS)
@@ -391,8 +389,6 @@ uninstall.panel ::
 	-@rm -f $(DESTDIR)$(libdir)/libpanel_g.a
 
 clean ::
-	-rm -f ../lib/libpanel_g.a
-	-rm -f ../lib/
 	-rm -f ../lib/libpanel_g.a
 
 mostlyclean::

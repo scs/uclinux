@@ -291,8 +291,6 @@ uninstall.menu ::
 
 clean ::
 	-rm -f ../lib/libmenu.a
-	-rm -f ../lib/
-	-rm -f ../lib/libmenu.a
 
 mostlyclean::
 	-rm -f $(NORMAL_OBJS)
@@ -478,8 +476,6 @@ uninstall.menu ::
 	-@rm -f $(DESTDIR)$(libdir)/libmenu_g.a
 
 clean ::
-	-rm -f ../lib/libmenu_g.a
-	-rm -f ../lib/
 	-rm -f ../lib/libmenu_g.a
 
 mostlyclean::

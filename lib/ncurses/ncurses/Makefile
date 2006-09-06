@@ -237,7 +237,7 @@ TAGS:
 	etags *.[ch] */*.[ch]
 
 mostlyclean ::
-	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
+	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac
 	-rm -f $(TEST_PROGS)
 
 clean :: mostlyclean
@@ -653,8 +653,6 @@ uninstall.ncurses ::
 	-@rm -f $(DESTDIR)$(libdir)/libcurses.a
 
 clean ::
-	-rm -f ../lib/libncurses.a
-	-rm -f ../lib/
 	-rm -f ../lib/libncurses.a
 
 mostlyclean::
@@ -1388,8 +1386,6 @@ uninstall.ncurses ::
 	-@rm -f $(DESTDIR)$(libdir)/libncurses_g.a
 
 clean ::
-	-rm -f ../lib/libncurses_g.a
-	-rm -f ../lib/
 	-rm -f ../lib/libncurses_g.a
 
 mostlyclean::

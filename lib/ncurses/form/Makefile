@@ -315,8 +315,6 @@ uninstall.form ::
 
 clean ::
 	-rm -f ../lib/libform.a
-	-rm -f ../lib/
-	-rm -f ../lib/libform.a
 
 mostlyclean::
 	-rm -f $(NORMAL_OBJS)
@@ -567,8 +565,6 @@ uninstall.form ::
 	-@rm -f $(DESTDIR)$(libdir)/libform_g.a
 
 clean ::
-	-rm -f ../lib/libform_g.a
-	-rm -f ../lib/
 	-rm -f ../lib/libform_g.a
 
 mostlyclean::
