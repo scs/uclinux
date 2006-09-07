@@ -787,7 +787,6 @@ static void do_softint(void *private_)
 		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 		    tty->ldisc.write_wakeup)
 			(tty->ldisc.write_wakeup) (tty);
-		wake_up_interruptible(&tty->write_wait);
 	}
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
 	if (test_and_clear_bit(RS_EVENT_READ, &info->event)) {
@@ -1192,11 +1191,6 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		return 0;
 
 	local_irq_save(flags);
-	if (info->xmit_cnt + 1 >= SERIAL_XMIT_SIZE) {
-		local_irq_restore(flags);
-		interruptible_sleep_on(&tty->write_wait);
-		local_irq_save(flags);
-	}
 
 	if (info->xmit_cnt == 0)
 		wait_complete = 1;
@@ -1299,7 +1293,6 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	if (info->closing_wait != S_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, info->closing_wait);
 
-	wake_up_interruptible(&tty->write_wait);
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 	    tty->ldisc.write_wakeup)
 		(tty->ldisc.write_wakeup) (tty);
