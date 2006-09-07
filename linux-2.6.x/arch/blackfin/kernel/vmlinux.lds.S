@@ -138,7 +138,8 @@ SECTIONS
 	} > ram
 
 	 __l1_lma_start = .;
-	.text_l1 L1_CODE_START : AT ( __l1_lma_start )
+
+	.text_l1 :
 	{
 		. = ALIGN(4) ;
 		 __stext_l1 = . ;
@@ -146,9 +147,9 @@ SECTIONS
 
 		. = ALIGN(4) ;
 		 __etext_l1 = . ;
-	}
+	} > l1_code AT > ram
 
-	.data_l1 L1_DATA_A_START : AT ( __l1_lma_start + SIZEOF(.text_l1) )
+	.data_l1 :
 	{
 		. = ALIGN(4) ;
 		 __sdata_l1 = . ;
@@ -161,8 +162,8 @@ SECTIONS
 
 		. = ALIGN(4) ;
 		 __ebss_l1 = . ;
-	}
-	.data_b_l1 L1_DATA_B_START : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) )
+	} > l1_data_a AT > ram
+	.data_b_l1 :
 	{
 		. = ALIGN(4) ;
                  __sdata_b_l1 = . ;
@@ -175,11 +176,9 @@ SECTIONS
 
                 . = ALIGN(4) ;
                  __ebss_b_l1 = . ;
-	}
+	} > l1_data_b AT > ram
 
-	. = __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) ;
-	.data (__l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) ) :	
-		AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) )
+	.data :
 	{
 		 __sdata = . ;
 		. = ALIGN(0x2000) ;
@@ -194,7 +193,7 @@ SECTIONS
 		*(.exitcall.exit)
 	} > ram
 
-	.bss : AT ( __l1_lma_start + SIZEOF(.text_l1) + SIZEOF(.data_l1) + SIZEOF(.data_b_l1) + SIZEOF(.data) )
+	.bss :
 	{
 		. = ALIGN(4) ;
 		 ___bss_start = . ;
