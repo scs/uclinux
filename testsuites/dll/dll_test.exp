@@ -314,6 +314,7 @@ set spawn_id $kermit_spawn_id
 send "ifconfig eth0 $ipaddr up\r"
 sleep 15
 
+set timeout 10
 step "Copy testcase to target board\n"
 spawn rcp src/libhelloworld.so root@$ipaddr:/lib/.
 while 1 {

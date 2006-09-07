@@ -305,11 +305,19 @@ send -s  "./crash_test\r"
 while 1 {
    expect {
       "Go in PANIC" {
-         expect "Hit any key"
-	 expect ">"
-         puts "watchdog test success.\n"
-	 send_log "\nCase $case_num ...PASS\n"
-         break
+         expect {
+	 "Hit any key" {
+	        expect ">"
+		send_log "\nCase $case_num ...PASS\n"
+		break
+         }
+
+         timeout {
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+         }
+	 }         
       }
 
       timeout {
