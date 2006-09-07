@@ -575,8 +575,6 @@ static void dma_transmit_chars(struct bfin_serial *info)
 
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	if (!(bfin_getsignal(info)&TIOCM_CTS)) {
-		info->event |= 1 << RS_EVENT_WRITE;
-		schedule_work(&info->tqueue);
 		goto clear_and_return;
 	}
 #endif
@@ -693,10 +691,6 @@ static void transmit_chars(struct bfin_serial *info)
 {
 	struct uart_registers *regs = &(info->regs);
 
-#ifdef CONFIG_BFIN_UART_CTSRTS
-	unsigned long flags = 0;
-	local_irq_save(flags);
-#endif
 	if (info->x_char) {	/* Send next char */
 		if (!local_put_char(info, info->x_char))
 			goto clear_and_return;
@@ -724,9 +718,6 @@ static void transmit_chars(struct bfin_serial *info)
 
       clear_and_return:
 	/* Clear interrupt (should be auto) */
-#ifdef CONFIG_BFIN_UART_CTSRTS
-	local_irq_restore(flags);
-#endif
 	return;
 }
 
@@ -796,9 +787,14 @@ static void do_softint(void *private_)
 		dma_transmit_chars(info);
 	}
 #else
+# ifdef CONFIG_BFIN_UART_CTSRTS
 	if (test_and_clear_bit(RS_EVENT_WRITE, &info->event)) {
+		unsigned long flags = 0;
+		local_irq_save(flags);
 		transmit_chars(info);
+		local_irq_restore(flags);
 	}
+# endif
 #endif
 }
 
@@ -1143,7 +1139,6 @@ static void rs_set_ldisc(struct tty_struct *tty)
 static void rs_flush_chars(struct tty_struct *tty)
 {
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
-	unsigned long flags = 0;
 #ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	struct uart_registers *regs = &(info->regs);
 #endif
@@ -1155,12 +1150,15 @@ static void rs_flush_chars(struct tty_struct *tty)
 	    !info->xmit_buf)
 		return;
 
-	local_irq_save(flags);
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
+	local_bh_disable();
 	dma_transmit_chars(info);
+	local_bh_enable();
 #else
 	/* Send char */
 	if (bfin_read16(regs->rpUART_LSR) & TEMT) {
+		long flag=0;
+		local_irq_save(flag);
 		ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 		bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 		SSYNC;
@@ -1169,9 +1167,9 @@ static void rs_flush_chars(struct tty_struct *tty)
 			info->xmit_tail = info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 			info->xmit_cnt--;
 		}
+		local_irq_restore(flag);
 	}
 #endif
-	local_irq_restore(flags);
 }
 
 static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
@@ -1179,7 +1177,6 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	int c, total = 0;
 	int wait_complete = 0;
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
-	unsigned long flags = 0;
 #ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	struct uart_registers *regs = &(info->regs);
 #endif
@@ -1189,8 +1186,6 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	if (!tty || !info->xmit_buf)
 		return 0;
-
-	local_irq_save(flags);
 
 	if (info->xmit_cnt == 0)
 		wait_complete = 1;
@@ -1212,14 +1207,17 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	if (info->xmit_cnt>0 && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
+		local_bh_disable();
 		dma_transmit_chars(info);
+		local_bh_enable();
 #else
 		/* Enable transmitter */
 		if (wait_complete)
 			while (!(bfin_read16(regs->rpUART_LSR) & TEMT))
 				SSYNC;
 		if (bfin_read16(regs->rpUART_LSR) & TEMT) {
-
+			long flag=0;
+			local_irq_save(flag);
 			ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 			bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 			SSYNC;
@@ -1230,10 +1228,10 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 				    info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 				info->xmit_cnt--;
 			}
+			local_irq_restore(flag);
 		}
 #endif
 	}
-	local_irq_restore(flags);
 
 	return total;
 }
