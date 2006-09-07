@@ -119,7 +119,7 @@ SHLIB_DIRS	= -L../lib
 SHLIB_LIST	= $(SHLIB_DIRS) 
 TINFO_LIST	= $(SHLIB_DIRS) 
 
-MK_SHARED_LIB	= $(CC) -shared -Wl,-soname,`basename $@ .$(REL_VERSION)`.$(ABI_VERSION),-stats,-lc -o $@
+MK_SHARED_LIB	= $(CC) $(CFLAGS) $(LDFLAGS) -shared -Wl,-soname,`basename $@` -o $@ $^
 
 NCURSES_MAJOR	= 5
 NCURSES_MINOR	= 5
@@ -131,6 +131,9 @@ RANLIB		= ranlib
 IMPORT_LIB	= 
 SHARED_LIB	= 
 LIBRARIES	=  ../lib/libncurses.a ../lib/libncurses_g.a
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
+LIBRARIES	+= ../lib/libncurses.so ../lib/libncurses_g.
+endif
 
 LINT		= 
 LINT_OPTS	= 
@@ -633,6 +636,9 @@ $(NORMAL_OBJS) : ../include/ncurses_cfg.h ./curses.priv.h
 ../lib/libncurses.a : $(NORMAL_OBJS)
 	$(AR) $(AR_OPTS) $@ $?
 	$(RANLIB) $@
+
+../lib/libncurses.so : $(NORMAL_OBJS)
+	$(MK_SHARED_LIB)
 
 install \
 install.libs \
@@ -1371,6 +1377,9 @@ $(DEBUG_OBJS) : ../include/ncurses_cfg.h ./curses.priv.h
 ../lib/libncurses_g.a : $(DEBUG_OBJS)
 	$(AR) $(AR_OPTS) $@ $?
 	$(RANLIB) $@
+
+../lib/libncurses_g.so : $(DEBUG_OBJS)
+	$(MK_SHARED_LIB)
 
 install \
 install.libs \
