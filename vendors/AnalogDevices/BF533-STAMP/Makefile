@@ -46,9 +46,9 @@ romfs:
 	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
-BSS      = $(shell $(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
-BSS_SIZE = $(shell $(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
-ADDR     = $(shell echo $$(($(BSS) + $(BSS_SIZE))))
+BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
+BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
+ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
 
 image:
 	mkdir -p $(IMAGEDIR)
