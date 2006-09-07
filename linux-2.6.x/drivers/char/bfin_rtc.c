@@ -497,8 +497,8 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 	case RTC_SWCNT_SET:	/* Read the periodic IRQ rate.  */
 		{
-			copy_from_user(&swcnttm, (unsigned long *)&arg,
-				       sizeof(unsigned long));
+			copy_from_user(&swcnttm, (unsigned short *)&arg,
+				       sizeof(unsigned short));
 
 			spin_lock_irq(&rtc_lock);
 			bfin_write_RTC_SWCNT(swcnttm);
