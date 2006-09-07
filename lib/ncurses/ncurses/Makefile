@@ -132,7 +132,7 @@ IMPORT_LIB	=
 SHARED_LIB	= 
 LIBRARIES	=  ../lib/libncurses.a ../lib/libncurses_g.a
 ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
-LIBRARIES	+= ../lib/libncurses.so ../lib/libncurses_g.
+LIBRARIES	+= ../lib/libncurses.so ../lib/libncurses_g.so
 endif
 
 LINT		= 
