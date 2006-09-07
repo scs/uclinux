@@ -659,7 +659,7 @@ uninstall.ncurses ::
 	-@rm -f $(DESTDIR)$(libdir)/libcurses.a
 
 clean ::
-	-rm -f ../lib/libncurses.a
+	-rm -f ../lib/libncurses.a ../lib/libncurses.so
 
 mostlyclean::
 	-rm -f $(NORMAL_OBJS)
@@ -1395,7 +1395,7 @@ uninstall.ncurses ::
 	-@rm -f $(DESTDIR)$(libdir)/libncurses_g.a
 
 clean ::
-	-rm -f ../lib/libncurses_g.a
+	-rm -f ../lib/libncurses_g.a ../lib/libncurses_g.so
 
 mostlyclean::
 	-rm -f $(DEBUG_OBJS)
