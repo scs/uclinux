@@ -346,8 +346,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
+		sig = SIGSEGV;
+		printk(KERN_EMERG "\n\nJump to address 0\n");
+#else
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x2D);
+#endif
 		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
@@ -496,8 +501,15 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	}
 	printk("return address: 0x%p; contents of [PC-16...PC+8]:\n", retaddr);
 
-#ifndef CONFIG_I_ENTRY_L1 /* Very Unlikely */
-	{
+
+	if (retaddr != 0
+#if L1_CODE_LENGTH != 0
+	    /* FIXME: Copy the code out of L1 Instruction SRAM through dma
+	       memcpy.  */
+	    && !(retaddr >= L1_CODE_START
+		 && retaddr < L1_CODE_START + L1_CODE_LENGTH)
+#endif
+	    ) {
 		int i;
 		for (i = -16; i < 8; i++) {
 			unsigned short x;
@@ -509,7 +521,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 			printk("%04x ", x);
 		}
 	}
-#endif
+
 	printk("\n\n");
 
 	printk("RETE:  %08lx  RETN: %08lx  RETX: %08lx  RETS: %08lx\n",

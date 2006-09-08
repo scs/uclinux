@@ -565,6 +565,11 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(icplb_table, pos, L1_CODE_START,
 			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
+#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
+	pos =
+	    fill_cpl_tables(icplb_table, pos, 0x0, SIZE_4K, SIZE_4K,
+			    SDRAM_OOPS);
+#endif
 	pos =
 	    fill_cpl_tables(icplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_IKERNEL);
