@@ -373,7 +373,10 @@ static int direct_mmap(struct fb_info *info, struct vm_area_struct * vma)
 {
 	vma->vm_start = (unsigned long) (fb_buffer + 240*2*START_LINES);
 	vma->vm_end = vma->vm_start + 320*240*2;
-	/*   VM_MAYSHARE limits for mprotect(), and must be set on nommu.
+	/* For those who don't understand how mmap works, go read 
+	 *   Documentation/nommu-mmap.txt. 
+	 * For those that do, you will know that the VM_MAYSHARE flag 
+	 * must be set in the vma->vm_flags structure on noMMU
 	 *   Other flags can be set, and are documented in
 	 *   include/linux/mm.h
 	 */
