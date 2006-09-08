@@ -181,7 +181,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	switch (fp->seqstat & SEQSTAT_EXCAUSE) {
 
 	/* This table works in conjuction with the one in ./mach-common/entry.S
-         * Some exceptions are handled there (in assembly, in exception space)
+	 * Some exceptions are handled there (in assembly, in exception space)
 	 * Some are handled here, (in C, in interrupt space)
 	 * Some, like CPLB, are handled in both, where the normal path is
 	 * handled in assembly/exception space, and the error path is handled here
@@ -326,11 +326,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	/* 0x2B - Instruction CPLB protection Violation, handled in _cplb_hdr */
-        case VEC_CPLB_I_VL:
+	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
-                DPRINTK2(EXC_0x2B);
-                DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-                DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		DPRINTK2(EXC_0x2B);
+		DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		panic("Congratulations - you found an error I cannot handle.\n\n"
 			"Please report a bug to http://blackfin.uclinux.org\n");
 		break;
