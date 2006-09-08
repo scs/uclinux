@@ -88,7 +88,18 @@
  #endif
 --- konqueror3-embedded/konq-embed/dropin/kio/kio_file.cpp	2005-12-04 10:13:04.000000000 +0800
 +++ konqueror3-embedded.bfin/konq-embed/dropin/kio/kio_file.cpp	2006-04-25 09:42:46.000000000 +0800
-@@ -114,7 +114,11 @@
+@@ -37,6 +37,10 @@
+ #include <kconfig.h>
+ #include <klocale.h>
+ 
++#ifdef NOMMU
++#include <pthread.h>
++#endif
++
+ using namespace KIO;
+ 
+ #define MAX_IPC_SIZE (1024*32)
+@@ -114,7 +118,11 @@
  		return;
  	    }
  
@@ -100,7 +111,7 @@
  	    if ( pid == -1 )
  	    {
  		error( KIO::ERR_CANNOT_LAUNCH_PROCESS, path );
-@@ -124,8 +128,13 @@
+@@ -124,8 +132,13 @@
  	    if ( pid == 0 )
  	    { // in child here
  		::close( pipefd [0] );
@@ -115,7 +126,7 @@
  		int i;
  		for ( i=getdtablesize(); i >= 3 ; i-- )
  		    ::close( i );
-@@ -150,7 +159,11 @@
+@@ -150,7 +163,11 @@
  		::setenv( "PROTOCOL_NAME", mProtocol.data(), true );
  		QDir::setCurrent( info.dirPath( true ) );
  		execl( path.latin1(), path.latin1(), 0 );
@@ -208,12 +219,13 @@
      };
 --- konqueror3-embedded/konq-embed/dropin/kio/launcher.cpp	2005-12-04 10:13:04.000000000 +0800
 +++ konqueror3-embedded.bfin/konq-embed/dropin/kio/launcher.cpp	2006-04-25 11:04:26.000000000 +0800
-@@ -30,6 +30,9 @@
+@@ -30,6 +30,10 @@
  #include <stdio.h>
  #include <stdlib.h>
  #include <assert.h>
 +#ifdef NOMMU
 +#include <sched.h>
++#include <pthread.h>
 +#endif
  
  #include <kdebug.h>
@@ -470,13 +482,14 @@
  
 --- konqueror3-embedded/konq-embed/dropin/kapplication.cpp	2005-12-04 10:13:04.000000000 +0800
 +++ konqueror3-embedded.bfin/konq-embed/dropin/kapplication.cpp	2006-04-25 11:01:05.000000000 +0800
-@@ -31,6 +31,10 @@
+@@ -31,6 +31,11 @@
  #include <qdir.h>
  
  #include <assert.h>
 +#ifdef NOMMU
 +#include <sched.h>
 +#include <signal.h>
++#include <pthread.h>
 +#endif
  
  bool kde_kiosk_admin = false;
