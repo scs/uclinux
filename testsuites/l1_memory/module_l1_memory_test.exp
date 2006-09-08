@@ -277,14 +277,23 @@ send "modprobe hello\r"
 while 1 {
    expect {
       "Load module into L1 memory" {  
-         expect "Code test: code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]"
-	 expect "Data bank A test: data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 1"	 
-	 expect "BSS  bank A test: bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0"
-         expect "Data bank B test: data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 2"
-         expect "BSS  bank B test: bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0"
-         send_log "\nCase $case_num ...PASS\n"
-         break
-      }
+         expect {
+	  "Code test: code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[
+	   ]*Data bank A test: data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 1*\[
+	   ]*BSS  bank A test: bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0*\[
+	   ]*Data bank B test: data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 2*\[
+	   ]*BSS  bank B test: bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
+		send_log "\nCase $case_num ...PASS\n"
+		break
+	 }
+	  
+	  timeout {
+	   send_log "\nCase $case_num ...FAIL\n"
+	   send_log "$TITLE ............\[FAIL\]\n"
+	   exit
+	 }
+	 }
+	}
 
       timeout {
         send_log "\nCase $case_num ...FAIL\n"

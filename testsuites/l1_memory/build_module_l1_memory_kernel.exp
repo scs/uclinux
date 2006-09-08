@@ -35,6 +35,7 @@ cd $uclinux_path/linux-2.6.x/drivers/char
 
 exec patch -p1 < ../../../testsuites/l1_memory/module_l1_memory_patch
 
+sleep 10
 
 step "Make config."
 
@@ -101,6 +102,7 @@ sleep 3
       send "wq\r"
       expect eof
 
+sleep 10
 
 cd $uclinux_path
 set timeout 300
