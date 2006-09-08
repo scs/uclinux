@@ -466,9 +466,11 @@ static void giveback(struct driver_data *drv_data)
 					transfer_list);
 
 	msg->state = NULL;
-	/* disable chip select signal */
-	write_FLAG(0xFF00);
-	bfin_spi_disable(drv_data);
+	/* disable chip select signal. And not stop spi in autobuffer mode */
+	if (drv_data->tx_dma != 0xFFFF) {
+		write_FLAG(0xFF00);
+		bfin_spi_disable(drv_data);
+	}
 
 	if (msg->complete)
 		msg->complete(msg->context);
