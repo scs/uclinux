@@ -1,0 +1,87 @@
+.TH ALSACTL 1 "15 May 2001"
+.SH NAME
+alsactl \- advanced controls for ALSA soundcard driver
+
+.SH SYNOPSIS
+
+\fBalsactl\fP [\fIoptions\fP] [\fIstore\fP|\fIrestore\fP|\fInames\fP] <card # or id>
+
+.SH DESCRIPTION
+\fBalsactl\fP is used to control advanced settings for the ALSA
+soundcard drivers. It supports multiple soundcards. If your card has
+features that you can't seem to control from a mixer application,
+you have come to the right place.
+
+.SH COMMANDS
+
+\fIstore\fP saves the current driver state for the selected soundcard
+to the configuration file.
+
+\fIrestore\fP loads driver state for the selected soundcard from the
+configuration file.
+
+\fInames\fP generates list of available device names for applications.
+The card number or id is ignored for this command. The list is always
+generated for all available cards.
+
+If no soundcards are specified, setup for all cards will be saved or
+loaded.
+
+.SH OPTIONS
+
+.TP
+\fI\-h, \-\-help\fP 
+Help: show available flags and commands.
+
+.TP
+\fI\-f, \-\-file\fP
+Select the configuration file to use. The default is /etc/asound.state or
+/etc/asound.names (for the \fInames\fP command).
+
+.TP
+\fI\-F, \-\-force\fP
+Used with restore command.  Try to restore the matching control elements
+as much as possible.
+
+.TP
+\fI\-d, \-\-debug\fP
+Use debug mode: a bit more verbose.
+
+.TP
+\fI\-v, \-\-version\fP
+Print alsactl version number.
+
+.SH FILES
+\fI/etc/asound.state\fP (or whatever file you specify with the
+\fB\-f\fP flag) is used to store current settings for your
+soundcards. The settings include all the usual soundcard mixer
+settings.  More importantly, alsactl is
+capable of controlling other card-specific features that mixer apps
+usually don't know about.
+
+The configuration file is generated automatically by running
+\fBalsactl store\fP. Editing the configuration file by hand may be
+necessary for some soundcard features (e.g. enabling/disabling
+automatic mic gain, digital output, joystick/game ports, some future MIDI
+routing options, etc).
+
+\fI/etc/asound.names\fP (or whatever file you specify with the
+\fB\-f\fP flag) is used to store the list of device names available
+in your system. The list does not contain all virtual names, because
+the name space is infinite, but it detects present hardware and
+generates list of common names. The user / system administrator / another
+configuration tool might modify the file to add virtual names as well.
+
+.SH SEE ALSO
+\fB
+amixer(1),
+alsamixer(1),
+aplay(1)
+\fP
+
+.SH BUGS 
+None known.
+
+.SH AUTHOR
+\fBalsactl\fP is by Jaroslav Kysela <perex@suse.cz> and Abramo Bagnara
+<abramo@alsa\-project.org>. This document is by Paul Winkler <zarmzarm@erols.com>.

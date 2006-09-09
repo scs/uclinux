@@ -18,6 +18,9 @@ dir_$(CONFIG_USER_POUND)                         += pound
 dir_$(CONFIG_USER_IRATTACH)                      += irattach
 dir_$(CONFIG_USER_JPEGVIEW)                      += jpegview
 dir_$(CONFIG_USER_BLACKFIN_WATCHDOGD)            += watchdogd
+dir_$(CONFIG_LIB_ALSA_LIB)                       += alsa
+dir_$(CONFIG_LIB_ALSA_LIB_FORCE)                 += alsa
+dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
 
 all %::
 	for i in $(sort $(dir_y)) ; do make -C $$i $@ || exit $$? ; done

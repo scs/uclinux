@@ -1,0 +1,391 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_PREREQ(2.59)
+AC_INIT(src/control/control.c)
+dnl *************************************************
+dnl current:revision:age
+dnl change (without API) = c:r+1:a
+dnl change API = c+1:0:a
+dnl add API = c+1:0:a+1
+dnl remove API = c+1:0:0
+dnl *************************************************
+AC_CANONICAL_SYSTEM
+AM_INIT_AUTOMAKE(alsa-lib, 1.0.12)
+eval LIBTOOL_VERSION_INFO="2:0:0"
+dnl *************************************************
+AM_CONDITIONAL(INSTALL_M4, test -n "${ACLOCAL}")
+
+AC_PREFIX_DEFAULT(/usr)
+
+dnl Checks for programs.
+
+dnl try to gues cross-compiler if not set
+if test "x$target" != "x$host" -a -z "`echo $CC | grep -e '-gcc'`";
+then
+  AC_MSG_CHECKING(for cross-compiler)
+
+  which ${program_prefix}gcc >/dev/null 2>&1 && CC=${program_prefix}gcc
+  which ${target_cpu}-${target_os}-gcc >/dev/null 2>&1 \
+  && CC=${target_cpu}-${target-os}-gcc
+  which ${target_cpu}-${target_vendor}-${target_os}-gcc >/dev/null 2>&1 \
+  && CC=${target_cpu}-${target_vendor}-${target_os}-gcc
+
+  AC_MSG_RESULT($CC)
+fi
+	    
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_LN_S 
+AC_DISABLE_STATIC
+AC_LIBTOOL_DLOPEN
+AM_PROG_LIBTOOL
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AM_CONFIG_HEADER(include/config.h)
+
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_HEADER_TIME
+
+dnl Checks for library functions.
+AC_PROG_GCC_TRADITIONAL
+AC_CHECK_FUNC([hsearch_r], [HAVE_HSEARCH_R=yes])
+AM_CONDITIONAL(ALSA_HSEARCH_R, [test "x$HAVE_HSEARCH_R" != xyes])
+
+SAVE_LIBRARY_VERSION
+AC_SUBST(LIBTOOL_VERSION_INFO)
+
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+
+eval dir="$datadir"
+case "$dir" in
+/*) ;;
+*) dir="$prefix/share"
+esac
+AC_DEFINE_UNQUOTED(DATADIR, "$dir", [directory containing ALSA configuration database])
+
+test "x$exec_prefix" = xNONE && exec_prefix=$prefix
+
+eval dir="$libdir"
+case "$dir" in
+/*) ;;
+*) dir="$dir"
+esac
+AC_DEFINE_UNQUOTED(PKGLIBDIR, "$dir/$PACKAGE", [directory containing ALSA add-on modules])
+
+dnl Check for versioned symbols
+AC_MSG_CHECKING(for versioned symbols)
+AC_ARG_WITH(versioned,
+  [  --with-versioned=yes,no  shared library will (not) be compiled with versioned symbols],
+  versioned="$withval", versioned="yes")
+if test "$versioned" = "yes"; then
+  # it seems that GNU ld versions since 2.10 are not broken
+  xres=`grep '^VERSION=' $ac_aux_dir/libtool | cut -d = -f 2`
+  major=`echo $xres | cut -d . -f 1`
+  minor=`echo $xres | cut -d . -f 2`
+  pass=0
+  if test $major -eq 1 -a $minor -gt 3; then
+    pass=1
+  else
+    if test $major -gt 1; then
+      pass=1
+    fi
+  fi
+  if test $pass -eq 1; then
+    AC_DEFINE(VERSIONED_SYMBOLS,,[compiled with versioned symbols])
+    AC_MSG_RESULT(yes)
+  else
+    AC_MSG_RESULT(broken libtool - use libtool v1.4+; no versions)
+  fi
+else
+  AC_MSG_RESULT(no)
+fi
+AM_CONDITIONAL(VERSIONED_SYMBOLS, test x$versioned = xyes)
+
+dnl See if toolchain has a custom prefix for symbols ...
+AC_MSG_CHECKING(for custom symbol prefixes)
+SYMBOL_PREFIX=` \
+	echo "PREFIX=__USER_LABEL_PREFIX__" \
+		| ${CPP-${CC-gcc} -E} - 2>&1 \
+		| ${EGREP-grep} "^PREFIX=" \
+		| ${SED-sed} "s:^PREFIX=::"`
+AC_DEFINE_UNQUOTED([__SYMBOL_PREFIX], "$SYMBOL_PREFIX", [Toolchain Symbol Prefix])
+AC_MSG_RESULT($SYMBOL_PREFIX)
+
+dnl Check for debug...
+AC_MSG_CHECKING(for debug)
+AC_ARG_WITH(debug,
+  [  --with-debug=yes,no     library will (not) be compiled with asserts],
+  debug="$withval", debug="yes")
+if test "$debug" = "yes"; then
+  AC_MSG_RESULT(yes)
+else
+  AC_DEFINE(NDEBUG,,[No assert debug])
+  AC_MSG_RESULT(no)
+fi
+
+dnl Temporary directory
+AC_MSG_CHECKING(for tmpdir)
+AC_ARG_WITH(tmpdir,
+  [  --with-tmpdir=directory   directory to put tmp socket files (/tmp)],
+  tmpdir="$withval", tmpdir="/tmp")
+AC_MSG_RESULT($tmpdir)
+AC_DEFINE_UNQUOTED(TMPDIR, "$tmpdir", [directory to put tmp socket files])
+
+dnl Check for softfloat...
+AC_MSG_CHECKING(for softfloat)
+AC_ARG_WITH(softfloat,
+  [  --with-softfloat        do you have floating point unit on this machine? (optional)],
+  [  AC_DEFINE(HAVE_SOFT_FLOAT, "1", [Avoid calculation in float])
+     softfloat=yes ],)
+if test "$softloat" = "yes" ; then
+  AC_MSG_RESULT(yes)
+else
+  AC_MSG_RESULT(no)
+fi
+
+dnl Check for architecture
+AC_MSG_CHECKING(for architecture)
+case "$target" in
+i?86*)
+  AC_MSG_RESULT(x86)
+  ;;
+x86_64*)
+  AC_MSG_RESULT(x86)
+  ;;
+alpha*)
+  AC_MSG_RESULT(alpha)
+  ;;
+powerpc*|ppc*)
+  AC_MSG_RESULT(ppc)
+  CPPFLAGS="$CPPFLAGS -D__ppc__"
+  ;;
+ia64*)
+  AC_MSG_RESULT(ia64)
+  CPPFLAGS="$CPPFLAGS -D__ia64__"
+  ;;
+mips*)
+  AC_MSG_RESULT(mips)
+  CPPFLAGS="$CPPFLAGS -D__mips__"
+  ;;
+arm*)
+  AC_MSG_RESULT(arm)
+  CPPFLAGS="$CPPFLAGS -D__arm__"
+  ;;
+*)
+  AC_MSG_RESULT($host_cpu)
+  echo "No atomic operations supported.." 
+  ;;
+esac
+
+dnl Check for wordexp.h
+AC_CHECK_HEADERS([wordexp.h])
+
+dnl Check for resmgr support...
+AC_MSG_CHECKING(for resmgr support)
+AC_ARG_ENABLE(resmgr,
+  [  --enable-resmgr         support resmgr (optional)],
+  resmgr="$enableval", resmgr="no")
+AC_MSG_RESULT($resmgr)
+if test "$resmgr" = "yes"; then
+  AC_CHECK_LIB(resmgr, rsm_open_device,,
+    AC_ERROR([Cannot find libresmgr]))
+  AC_DEFINE(SUPPORT_RESMGR, "1", [Support resmgr with alsa-lib])
+fi
+
+dnl Check for aload* support...
+AC_MSG_CHECKING(for aload* support)
+AC_ARG_ENABLE(aload,
+  [  --disable-aload         disable reading /dev/aload*],
+  aload="$enableval", aload="yes")
+AC_MSG_RESULT($aload)
+if test "$aload" = "yes"; then
+  AC_DEFINE(SUPPORT_ALOAD, "1", [Support /dev/aload* access for auto-loading])
+fi
+
+dnl Check for non-standard /dev directory
+AC_MSG_CHECKING([for ALSA device file directory])
+AC_ARG_WITH(alsa-devdir,
+  [  --with-alsa-devdir=dir  directory with ALSA device files (default /dev/snd)],
+  [alsa_dev_dir="$withval"],
+  [alsa_dev_dir="/dev/snd"])
+dnl make sure it has a trailing slash
+if echo "$alsa_dev_dir" | grep -v '/$' > /dev/null; then
+  alsa_dev_dir="$alsa_dev_dir/"
+fi
+AC_DEFINE_UNQUOTED(ALSA_DEVICE_DIRECTORY, "$alsa_dev_dir", [Directory with ALSA device files])
+AC_MSG_RESULT([$alsa_dev_dir])
+
+AC_MSG_CHECKING([for aload* device file directory])
+AC_ARG_WITH(aload-devdir,
+  [  --with-aload-devdir=dir directory with aload* device files (default /dev)],
+  [aload_dev_dir="$withval"],
+  [aload_dev_dir="/dev"])
+if echo "$aload_dev_dir" | grep -v '/$' > /dev/null; then
+  aload_dev_dir="$aload_dev_dir/"
+fi
+AC_DEFINE_UNQUOTED(ALOAD_DEVICE_DIRECTORY, "$aload_dev_dir", [Directory with aload* device files])
+AC_MSG_RESULT([$aload_dev_dir])
+
+dnl Build conditions
+AC_ARG_ENABLE(mixer,
+  [  --disable-mixer     Disable the mixer component],
+  [build_mixer="$enableval"], [build_mixer="yes"])
+AC_ARG_ENABLE(pcm,
+  [  --disable-pcm       Disable the PCM component],
+  [build_pcm="$enableval"], [build_pcm="yes"])
+AC_ARG_ENABLE(rawmidi,
+  [  --disable-rawmidi   Disable the raw MIDI component],
+  [build_rawmidi="$enableval"], [build_rawmidi="yes"])
+AC_ARG_ENABLE(hwdep,
+  [  --disable-hwdep     Disable the hwdep component],
+  [build_hwdep="$enableval"], [build_hwdep="yes"])
+AC_ARG_ENABLE(seq,
+  [  --disable-seq       Disable the sequencer component],
+  [build_seq="$enableval"], [build_seq="yes"])
+AC_ARG_ENABLE(instr,
+  [  --disable-instr     Disable the instrument component],
+  [build_instr="$enableval"], [build_instr="yes"])
+
+if test "$build_seq" != "yes"; then
+  build_instr="no"
+fi
+
+AM_CONDITIONAL(BUILD_MIXER, test x$build_mixer = xyes)
+AM_CONDITIONAL(BUILD_PCM, test x$build_pcm = xyes)
+AM_CONDITIONAL(BUILD_RAWMIDI, test x$build_rawmidi = xyes)
+AM_CONDITIONAL(BUILD_HWDEP, test x$build_hwdep = xyes)
+AM_CONDITIONAL(BUILD_SEQ, test x$build_seq = xyes)
+AM_CONDITIONAL(BUILD_INSTR, test x$build_instr = xyes)
+
+if test "$build_mixer" = "yes"; then
+  AC_DEFINE([BUILD_MIXER], "1", [Build mixer component])
+fi
+if test "$build_pcm" = "yes"; then
+  AC_DEFINE([BUILD_PCM], "1", [Build PCM component])
+fi
+if test "$build_rawmidi" = "yes"; then
+  AC_DEFINE([BUILD_RAWMIDI], "1", [Build raw MIDI component])
+fi
+if test "$build_seq" = "yes"; then
+  AC_DEFINE([BUILD_SEQ], "1", [Build sequencer component])
+fi
+if test "$build_instr" = "yes"; then
+  AC_DEFINE([BUILD_INSTR], "1", [Build instrument component])
+fi
+
+dnl PCM Plugins
+
+if test "$build_pcm" = "yes"; then
+AC_ARG_WITH(pcm-plugins,
+  [  --with-pcm-plugins=<list>  Build PCM plugins ],
+  [pcm_plugins="$withval"], [pcm_plugins="all"])
+else
+pcm_plugins=""
+fi
+
+PCM_PLUGIN_LIST="copy linear route mulaw alaw adpcm rate plug multi shm file null share meter hooks lfloat ladspa dmix dshare dsnoop asym iec958 softvol extplug ioplug"
+
+build_pcm_plugin="no"
+for t in $PCM_PLUGIN_LIST; do
+  eval build_pcm_$t="no"
+done
+
+pcm_plugins=`echo $pcm_plugins | sed 's/,/ /g'`
+for p in $pcm_plugins; do
+  for t in $PCM_PLUGIN_LIST; do
+    if test "$p" = "$t" -o "$p" = "all"; then
+      eval build_pcm_$t="yes"
+      build_pcm_plugin="yes"
+    fi
+  done
+done
+
+dnl special dependencies
+if test "$build_pcm_plug" = "yes"; then
+  build_pcm_linear="yes"
+  build_pcm_copy="yes"
+fi
+
+if test "$build_pcm_ioplug" = "yes"; then
+  build_pcm_extplug="yes"
+fi
+
+AM_CONDITIONAL(BUILD_PCM_PLUGIN, test x$build_pcm_plugin = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_COPY, test x$build_pcm_copy = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_LINEAR, test x$build_pcm_linear = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_ROUTE, test x$build_pcm_route = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_MULAW, test x$build_pcm_mulaw = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_ALAW, test x$build_pcm_alaw = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_ADPCM, test x$build_pcm_adpcm = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_RATE, test x$build_pcm_rate = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_PLUG, test x$build_pcm_plug = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_MULTI, test x$build_pcm_multi = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_SHM, test x$build_pcm_shm = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_FILE, test x$build_pcm_file = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_NULL, test x$build_pcm_null = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_SHARE, test x$build_pcm_share = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_METER, test x$build_pcm_meter = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_HOOKS, test x$build_pcm_hooks = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_LFLOAT, test x$build_pcm_lfloat = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_LADSPA, test x$build_pcm_ladspa = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_DMIX, test x$build_pcm_dmix = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_DSHARE, test x$build_pcm_dshare = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_DSNOOP, test x$build_pcm_dsnoop = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_ASYM, test x$build_pcm_asym = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_IEC958, test x$build_pcm_iec958 = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_SOFTVOL, test x$build_pcm_softvol = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_EXTPLUG, test x$build_pcm_extplug = xyes)
+AM_CONDITIONAL(BUILD_PCM_PLUGIN_IOPLUG, test x$build_pcm_ioplug = xyes)
+
+dnl Defines for plug plugin
+if test "$build_pcm_rate" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_RATE], "1", [Build PCM rate plugin])
+fi
+if test "$build_pcm_route" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_ROUTE], "1", [Build PCM route plugin])
+fi
+if test "$build_pcm_lfloat" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_LFLOAT], "1", [Build PCM lfloat plugin])
+fi
+if test "$build_pcm_adpcm" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_ADPCM], "1", [Build PCM adpcm plugin])
+fi
+if test "$build_pcm_mulaw" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_MULAW], "1", [Build PCM mulaw plugin])
+fi
+if test "$build_pcm_alaw" = "yes"; then
+  AC_DEFINE([BUILD_PCM_PLUGIN_ALAW], "1", [Build PCM alaw plugin])
+fi
+
+
+dnl Create PCM plugin symbol list for static library
+rm -f src/pcm/pcm_symbols_list.c
+for t in $PCM_PLUGIN_LIST; do
+  if eval test \$build_pcm_$t = yes; then
+    echo \&_snd_module_pcm_$t, >> src/pcm/pcm_symbols_list.c
+  fi
+done
+
+dnl Make a symlink for inclusion of alsa/xxx.h
+if test ! -L include/alsa ; then
+  echo "Making a symlink include/alsa"
+  rm -f include/alsa
+  ln -sf . include/alsa
+fi
+
+AC_OUTPUT(Makefile doc/Makefile doc/pictures/Makefile include/Makefile
+	  include/sound/Makefile src/Makefile \
+          src/control/Makefile src/mixer/Makefile \
+	  src/pcm/Makefile src/pcm/scopes/Makefile \
+	  src/rawmidi/Makefile src/timer/Makefile \
+          src/hwdep/Makefile src/seq/Makefile src/instr/Makefile \
+          src/compat/Makefile src/alisp/Makefile src/conf/Makefile \
+	  src/conf/cards/Makefile \
+	  src/conf/pcm/Makefile \
+	  modules/Makefile modules/mixer/Makefile modules/mixer/simple/Makefile \
+	  alsalisp/Makefile aserver/Makefile test/Makefile utils/Makefile \
+          utils/alsa-lib.spec utils/alsa.pc)
