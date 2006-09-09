@@ -917,6 +917,7 @@ static int snd_ad1836_playback_close(snd_pcm_substream_t *substream)
 		}
 	}
 #else
+	snd_printk_marker();
 	chip->tx_substream = NULL;
 #endif
 
@@ -946,10 +947,12 @@ static int snd_ad1836_hw_params(snd_pcm_substream_t *substream,
 	 */
 #ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
 
-#ifdef MULTI_SUBSTREAM
+# ifdef MULTI_SUBSTREAM
 	substream_info_t *sub_info = NULL;
 	ad1836_t *chip = snd_pcm_substream_chip(substream);
 	int index = find_substream(chip, substream, &sub_info);
+
+	snd_printk_marker();
 
 	if (chip->rx_substream == substream) {
 		substream->runtime->dma_area = chip->rx_dma_buf;
@@ -961,18 +964,19 @@ static int snd_ad1836_hw_params(snd_pcm_substream_t *substream,
 		substream->runtime->dma_bytes = AD1836_BUF_SZ;
 	}
 
-#else
+# else
+	snd_printk_marker();
 	if (snd_pcm_lib_malloc_pages(substream, AD1836_BUF_SZ) < 0)
 		return -ENOMEM;
-#endif
+# endif
 
 #else
+	snd_printk_marker();
 	if (snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hwparams)) < 0)
 		return -ENOMEM;
 #endif
 
 	return 0;
-
 }
 
 static int snd_ad1836_hw_free(snd_pcm_substream_t * substream)
@@ -1080,6 +1084,8 @@ static int snd_ad1836_playback_trigger(snd_pcm_substream_t *substream, int cmd)
 	snd_assert((index >= 0 && index <= 2 && sub_info), return -EINVAL);
 #endif
 
+	snd_printk_marker();
+
 	spin_lock(&chip->ad1836_lock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -1121,6 +1127,8 @@ static int snd_ad1836_capture_trigger(snd_pcm_substream_t *substream, int cmd)
 {
 	ad1836_t *chip = snd_pcm_substream_chip(substream);
 
+	snd_printk_marker();
+
 	spin_lock(&chip->ad1836_lock);
 	snd_assert(substream == chip->rx_substream, return -EINVAL);
 	switch (cmd) {
@@ -1157,6 +1165,8 @@ static snd_pcm_uframes_t snd_ad1836_playback_pointer(snd_pcm_substream_t *substr
 	unsigned long bytes_per_frame = runtime->frame_bits/8;
 #endif
 	size_t frames = diff / bytes_per_frame;
+
+	snd_printk_marker();
 
 #ifdef MULTI_SUBSTREAM
 	find_substream(chip, substream, &sub_info);
@@ -1197,8 +1207,10 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer(snd_pcm_substream_t *substre
 #endif
 	size_t frames = diff / bytes_per_frame;
 
+	snd_printk_marker();
+
 #ifdef CONFIG_SND_DEBUG_CURRPTR
-	snd_printk(KERN_INFO " capture pos: 0x%04x / %lx\n", frames,
+	snd_printk(KERN_DEBUG "capture pos: 0x%04x / %lx\n", frames,
 						runtime->buffer_size);
 #endif
 
@@ -1399,7 +1411,7 @@ static int snd_ad1836_playback_silence(snd_pcm_substream_t *substream,
 			frames_to_bytes(substream->runtime, count));
 #endif
 #ifdef CONFIG_SND_DEBUG_CURRPTR
-	snd_printk(KERN_INFO "silence: pos %x, count %x\n", (uint)pos, (uint)count);
+	snd_printk(KERN_DEBUG "silence: pos %x, count %x\n", (uint)pos, (uint)count);
 #endif
 
 	return 0;
@@ -1411,7 +1423,7 @@ static int snd_ad1836_capture_silence(snd_pcm_substream_t *substream,
 	unsigned char *buf = substream->runtime->dma_area;
 
 #ifdef CONFIG_SND_DEBUG
-	snd_printk(KERN_INFO "silence: pos %x, count %x\n",
+	snd_printk(KERN_DEBUG "silence: pos %x, count %x\n",
 				(uint)pos, (uint)count);
 #endif
 #ifdef CONFIG_SND_BLACKFIN_AD1836_TDM
@@ -1457,6 +1469,8 @@ static snd_pcm_ops_t snd_ad1836_capture_ops = {
  *************************************************************/
 static int snd_ad1836_stop(struct snd_ad1836 *chip)
 {
+	snd_printk_marker();
+
 	snd_ad1836_set_register(chip, DAC_CTRL_2, DAC_MUTE_MASK, DAC_MUTE_MASK);
 	snd_ad1836_set_register(chip, ADC_CTRL_2, ADC_MUTE_MASK, ADC_MUTE_MASK);
 	snd_ad1836_set_register(chip, DAC_CTRL_1, DAC_PWRDWN, DAC_PWRDWN);
@@ -1468,6 +1482,8 @@ static int snd_ad1836_stop(struct snd_ad1836 *chip)
 static int snd_ad1836_dev_free(snd_device_t *device)
 {
 	struct snd_ad1836 *chip = (ad1836_t *)device->device_data;
+
+	snd_printk_marker();
 
 #ifdef MULTI_SUBSTREAM
 	dma_free_coherent(NULL, AD1836_BUF_SZ, chip->rx_dma_buf, 0);
@@ -1514,7 +1530,7 @@ static int snd_bf53x_ad1836_reset(ad1836_t *chip)
 
 	bfin_write(FlashA_PortA_Dir,0x1);	/* configure flag as an output pin */
 
-	snd_printk(KERN_INFO "resetting ezkit 1836 using flash flag pin\n");
+	snd_printk(KERN_INFO "resetting ezkit using flash flag pin\n");
 	bfin_write(FlashA_PortA_Data,0x0);	/* reset is active low */
 	udelay(1);			/* hold low */
 
@@ -1531,6 +1547,8 @@ static int snd_ad1836_configure(ad1836_t *chip)
 {
 	int err = 0;
 	struct bf53x_sport *sport= chip->sport;
+
+	snd_printk_marker();
 
 	snd_bf53x_ad1836_reset(chip);
 
@@ -1591,6 +1609,8 @@ static int snd_ad1836_configure(ad1836_t *chip)
 {
 	int err = 0;
 	struct bf53x_sport *sport= chip->sport;
+
+	snd_printk_marker();
 
 	snd_bf53x_ad1836_reset(chip);
 
@@ -1672,7 +1692,7 @@ static void snd_ad1836_dma_tx(void *data)
 
 static void snd_ad1836_sport_err(void *data)
 {
-	printk(KERN_ERR "%s: err happened on sport\n", __FUNCTION__);
+	printk(KERN_ERR DRIVER_NAME ":%s: err happened on sport\n", __FUNCTION__);
 }
 
 static void snd_ad1836_proc_registers_read(snd_info_entry_t * entry,
@@ -1742,6 +1762,8 @@ static int __devinit snd_ad1836_pcm(struct snd_ad1836 *ad1836)
 	struct snd_pcm *pcm;
 	int err = 0;
 
+	snd_printk_marker();
+
 #ifdef MULTI_SUBSTREAM
 	/* 3 playback and 1 capture substream, 2 channels each */
 	err = snd_pcm_new(ad1836->card, PCM_NAME, 0, 3, 1, &pcm);
@@ -1779,12 +1801,16 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	dma_addr_t addr;
 #endif
 
+	snd_printk_marker();
+
 	if (device != NULL)
 		return -ENOENT;
 
 	card = snd_card_new(-1, NULL, THIS_MODULE, sizeof(struct snd_ad1836));
-	if (card == NULL)
+	if (card == NULL) {
+		snd_printdd(KERN_DEBUG "%s: snd_card_new() failed\n", __FUNCTION__);
 		return -ENOMEM;
+	}
 
 	ad1836 = card->private_data;
 	ad1836->card = card;
@@ -1810,7 +1836,7 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	ad1836->rx_dma_buf = dma_alloc_coherent(NULL, AD1836_BUF_SZ, &addr, 0);
 	ad1836->tx_dma_buf = dma_alloc_coherent(NULL, AD1836_BUF_SZ, &addr, 0);
 	if (!ad1836->rx_dma_buf || !ad1836->tx_dma_buf) {
-		printk(KERN_ERR"Failed to allocate DMA buffer\n");
+		printk(KERN_ERR DRIVER_NAME ": Failed to allocate DMA buffer\n");
 		return -ENOMEM;
 	}
 #endif
@@ -1820,6 +1846,7 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 			SPORT_DMA_TX, snd_ad1836_dma_tx,
 			SPORT_IRQ_ERR, snd_ad1836_sport_err, ad1836))
 			== NULL) {
+		printk(KERN_ERR DRIVER_NAME ": Failed to find device on sport\n");
 		err = -ENODEV;
 		goto __nodev;
 	}
@@ -1891,6 +1918,8 @@ static int snd_ad1836_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_card *card = platform_get_drvdata(pdev);
 	struct snd_ad1836 *ad1836 = card->private_data;
 
+	snd_printk_marker();
+
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	snd_pcm_suspend_all(ad1836->pcm);
 	return 0;
@@ -1899,6 +1928,8 @@ static int snd_ad1836_suspend(struct platform_device *pdev, pm_message_t state)
 static int snd_ad1836_resume(struct platform_device *pdev)
 {
 	struct snd_card *card = platform_get_drvdata(pdev);
+
+	snd_printk_marker();
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
