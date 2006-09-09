@@ -75,6 +75,7 @@
 /dev/ppp	c	660	0	0	108	0	0	0	-
 /dev/pppox	c	660	0	0	144	0	0	1	4
 /dev/can	c	666	0	0	91	0	0	1	1
+#/dev/coreb	c	640	0	0	10	229	0	0	-
 /dev/ircomm	c	666	0	0	161	0	0	1	2
 
 # Adjust permissions on some normal files
