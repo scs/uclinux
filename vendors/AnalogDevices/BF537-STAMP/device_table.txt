@@ -83,12 +83,20 @@
 #/etc/shadow	f	600	0	0	-	-	-	-	-
 #/bin/tinylogin	f	4755	0	0	-	-	-	-	-
 
+# Sound devices (OSS)
+/dev/dsp	c	664	0	0	14	3	0	0	-
+/dev/mixer	c	664	0	0	14	0	0	0	-
+# Sound devices (ALSA)
+/dev/snd	d	755	0	0	-	-	-	-	-
+/dev/snd/controlC0	c	664	0	0	116	0	0	0	-
+/dev/snd/pcmC0D0c	c	664	0	0	116	24	0	0	-
+/dev/snd/pcmC0D0p	c	664	0	0	116	16	0	0	-
+/dev/snd/timer	c	664	0	0	116	33	0	0	-
+
 # User-mode Linux stuff
 #/dev/ubda	b	640	0	0	98	0	0	0	-
 #/dev/ubda	b	640	0	0	98	1	1	1	15
 #/dev/adi_usb	c	664	0	0	221	0	0	0	-
-/dev/dsp	c	664	0	0	14	3	0	0	-
-/dev/mixer	c	664	0	0	14	0	0	0	-
 /dev/i2c-0	c	664	0	0	89	0	0	0	-
 /dev/rtc	c	664	0	0	10	135	0	0	-
 /dev/spi	c	664	0	0	252	0	0	0	-
