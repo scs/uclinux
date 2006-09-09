@@ -71,8 +71,7 @@ ifdef UCLINUX_BUILD_LIB
   endif
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
-	CFLAGS  += -I$(ROOTDIR)/lib/$(LIBCDIR)/include
-	CFLAGS  += -Dlinux -D__linux__ -D__uClinux__ -Dunix
+	CFLAGS  += -D__uClinux__
 
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
 	# the following is needed for uClinux-2.4
