@@ -197,7 +197,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-man_MANS = strace.1
+man_MANS = 
 bin_SCRIPTS = strace-graph
 
 # OS is one of `linux', `sunos4', `svr4', or `freebsd'.
