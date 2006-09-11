@@ -16,11 +16,12 @@
 
 # ARCH = kernel,  TARGET_ARCH = uClibc
 
-MACHINE       = bfin
-ARCH          = blackfin
-ENDIAN        = little 
-CROSS_COMPILE = bfin-uclinux-
-CROSS         = $(CROSS_COMPILE)
+MACHINE        = bfin
+ARCH           = blackfin
+ENDIAN         = little 
+CROSS_COMPILE  = bfin-uclinux-
+CROSS          = $(CROSS_COMPILE)
+CONFIGURE_HOST = bfin-uclinux
 
 CC        = $(CROSS_COMPILE)gcc
 AS        = $(CROSS_COMPILE)as
