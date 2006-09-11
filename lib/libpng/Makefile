@@ -94,8 +94,8 @@ install: libpng.a libpng.so.$(PNGVER)
 romfs:
 	if [ "$(CONFIG_BLACKFIN_USE_FDPIC)" = "y" ]; then \
 		$(ROMFSINST) libpng.so.$(PNGVER) /lib/libpng.so.$(PNGVER) ; \
-		ln -sf $(ROMFSDIR)/lib/libpng.so.$(PNGVER) $(ROMFSDIR)/lib/libpng.so.$(PNGMAJ); \
-		ln -sf $(ROMFSDIR)/lib/libpng.so.$(PNGMAJ) $(ROMFSDIR)/lib/libpng.so ; \
+		ln -sf /lib/libpng.so.$(PNGVER) $(ROMFSDIR)/lib/libpng.so.$(PNGMAJ); \
+		ln -sf /lib/libpng.so.$(PNGMAJ) $(ROMFSDIR)/lib/libpng.so ; \
 	fi
 
 clean:
