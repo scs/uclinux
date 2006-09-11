@@ -1834,8 +1834,13 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 
 #ifdef MULTI_SUBSTREAM
 	ad1836->rx_dma_buf = dma_alloc_coherent(NULL, AD1836_BUF_SZ, &addr, 0);
+	if (!ad1836->rx_dma_buf) {
+		printk(KERN_ERR DRIVER_NAME ": Failed to allocate DMA buffer\n");
+		return -ENOMEM;
+	}
 	ad1836->tx_dma_buf = dma_alloc_coherent(NULL, AD1836_BUF_SZ, &addr, 0);
-	if (!ad1836->rx_dma_buf || !ad1836->tx_dma_buf) {
+	if (!ad1836->tx_dma_buf) {
+		dma_free_coherent(NULL, AD1836_BUF_SZ, chip->rx_dma_buf, 0);
 		printk(KERN_ERR DRIVER_NAME ": Failed to allocate DMA buffer\n");
 		return -ENOMEM;
 	}
