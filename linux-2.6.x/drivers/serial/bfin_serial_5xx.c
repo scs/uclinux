@@ -775,6 +775,7 @@ static void do_softint(void *private_)
 		return;
 
 	if (test_and_clear_bit(RS_EVENT_WRITE_WAKEUP, &info->event)) {
+		wake_up_interruptible(&tty->write_wait);
 		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 		    tty->ldisc.write_wakeup)
 			(tty->ldisc.write_wakeup) (tty);
@@ -1291,6 +1292,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
 	if (info->closing_wait != S_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, info->closing_wait);
 
+	wake_up_interruptible(&tty->write_wait);
 	if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
 	    tty->ldisc.write_wakeup)
 		(tty->ldisc.write_wakeup) (tty);
