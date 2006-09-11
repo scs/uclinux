@@ -67,10 +67,13 @@ PDEBUG("self=%p, pid=%d\n", self, self->p_pid);
     }
   /* See if someone is joining on us */
   joining = THREAD_GETMEM(self, p_joining);
-PDEBUG("joining = %p, pid=%d\n", joining, joining->p_pid);
   __pthread_unlock(THREAD_GETMEM(self, p_lock));
   /* Restart joining thread if any */
-  if (joining != NULL) restart(joining);
+  if (joining != NULL)
+    {
+      PDEBUG("joining = %p, pid=%d\n", joining, joining->p_pid);
+      restart(joining);
+    }
   /* If this is the initial thread, block until all threads have terminated.
      If another thread calls exit, we'll be terminated from our signal
      handler. */
