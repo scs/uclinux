@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <bfin_sram.h>
 
 #define N 100			/* size of vectors                           */
 #define M 10			/* number of times to repeat tests           */
@@ -231,6 +232,38 @@ int test4()
 	return ret;
 }
 
+int test5()
+{
+	/* Blackfin GCC after version 2006R2 supports L1 allocation */
+	short *x = (short *) sram_alloc(N * 2, L1_DATA_B_SRAM);
+	short *y = (short *) sram_alloc(N * 2, L1_DATA_A_SRAM);
+
+	int i, k, ret;
+	unsigned int time[M];
+
+	for (i = 0; i < N; i++) {
+		x[i] = 1;
+		y[i] = 1;
+	}
+
+	for (k = 0; k < M; k++) {
+		ret = dot_asm_cycles(x, y, N);
+		time[k] = after - before;
+	}
+
+	printf("Test 5: data in internal memory, inboard cycles\n");
+	printf("  ret = %d: run time:\n  ", ret);
+	for (k = 0; k < M; k++)
+		printf("%u ", time[k]);
+	printf("\n");
+
+	sram_free(x);
+	sram_free(y);
+	
+	return ret;
+}
+
+
 int main(void)
 {
 	printf("Theoretical best case is N/2 = %d cycles\n", N / 2);
@@ -239,6 +272,7 @@ int main(void)
 	test2();
 	test3();
 	test4();
-
+	test5();
+	
 	return 0;
 }

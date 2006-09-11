@@ -3,13 +3,16 @@ Test 0: Cycles only
 1 1 1 1 1 1 1 1 1 1 
 Test 1: Vanilla C
   ret = 100: run time:
-  1515 1507 1507 1507 1507 1507 1507 1507 1507 1507 
+  1579 1507 1507 1507 1507 1507 1507 1507 1507 1507 
 Test 2: data in external memory, outboard cycles function
   ret = 100: run time:
-  174 109 109 109 109 109 109 109 109 109 
+  194 109 109 109 109 109 109 109 109 109 
 Test 3: data in external memory, inboard cycles
   ret = 100: run time:
  138 103 103 103 103 103 103 103 103 103 
 Test 4: data in internal memory, inboard cycles
   ret = 100: run time:
-  54 53 53 53 53 53 53 53 53 53 
+  72 53 53 53 53 53 53 53 53 53 
+Test 5: data in internal memory, inboard cycles
+  ret = 100: run time:
+  53 53 53 53 53 53 53 53 53 53 
