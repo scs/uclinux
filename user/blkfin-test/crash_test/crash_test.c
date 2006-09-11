@@ -6,10 +6,7 @@
 
 int main(int argc,char *argv[]){
 
-	char *p_o = (char *) 0x30000000;
-	char *p_i = (char *) 0x40000000;
-	int cd = COUNTDOWN;
-	
+	int cd = 3;
 	fprintf(stdout,"Go in PANIC ....");
 	fflush(stdout);
 	while(cd--){
@@ -17,9 +14,7 @@ int main(int argc,char *argv[]){
 		fprintf(stdout,"%d ...",cd+1);
 		fflush(stdout);
 	}
-	while(1){
-		*p_o++ = *p_i++;
-		sleep(1);
-	}
+
+	asm("R3.L=0xFFF0\n\r;R3.H=0x9FFF\n\r;P3=R3;jump (P3)\n\r;");
 }
 
