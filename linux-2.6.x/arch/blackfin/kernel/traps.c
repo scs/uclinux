@@ -506,8 +506,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 #if L1_CODE_LENGTH != 0
 	    /* FIXME: Copy the code out of L1 Instruction SRAM through dma
 	       memcpy.  */
-	    && !(retaddr >= L1_CODE_START
-		 && retaddr < L1_CODE_START + L1_CODE_LENGTH)
+	    && !(retaddr >= (void*)L1_CODE_START
+		 && retaddr < (void*)(L1_CODE_START + L1_CODE_LENGTH))
 #endif
 	    ) {
 		int i;
