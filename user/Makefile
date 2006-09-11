@@ -10,7 +10,7 @@
 #
 
 ifndef ROOTDIR
-ROOTDIR=..
+ROOTDIR=$(PWD)/..
 endif
 
 UCLINUX_BUILD_USER=1
