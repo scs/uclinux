@@ -1840,7 +1840,7 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	}
 	ad1836->tx_dma_buf = dma_alloc_coherent(NULL, AD1836_BUF_SZ, &addr, 0);
 	if (!ad1836->tx_dma_buf) {
-		dma_free_coherent(NULL, AD1836_BUF_SZ, chip->rx_dma_buf, 0);
+		dma_free_coherent(NULL, AD1836_BUF_SZ, ad1836->rx_dma_buf, 0);
 		printk(KERN_ERR DRIVER_NAME ": Failed to allocate DMA buffer\n");
 		return -ENOMEM;
 	}
@@ -1895,8 +1895,8 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	return 0;
 
 __nodev:
-	dma_free_coherent(NULL, AD1836_BUF_SZ, chip->rx_dma_buf, 0);
-	dma_free_coherent(NULL, AD1836_BUF_SZ, chip->tx_dma_buf, 0);
+	dma_free_coherent(NULL, AD1836_BUF_SZ, ad1836->rx_dma_buf, 0);
+	dma_free_coherent(NULL, AD1836_BUF_SZ, ad1836->tx_dma_buf, 0);
 	snd_card_free(card);
 	return err;
 }
