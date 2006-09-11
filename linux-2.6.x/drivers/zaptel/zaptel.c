@@ -78,6 +78,7 @@
 #define FAST_HDLC_NEED_TABLES
 #include "fasthdlc.h"
 
+#define STANDALONE_ZAPATA
 #ifdef STANDALONE_ZAPATA
 #include "zaptel.h"
 #else
@@ -211,7 +212,7 @@ __u16 fcstab[256] =
 	0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78
 };
 
-static int debug;
+static int debug=1;
 
 /* states for transmit signalling */
 typedef enum {ZT_TXSTATE_ONHOOK,ZT_TXSTATE_OFFHOOK,ZT_TXSTATE_START,
@@ -2184,6 +2185,7 @@ static int zt_specchan_open(struct inode *inode, struct file *file, int unit, in
 {
 	int res = 0;
 
+	printk("chans[unit]=%x, chans[unit]->sig=%x,unit=%x,-EBUSY=%x,-ENXIO=%x\n",chans[unit],chans[unit]->sig,unit,-EBUSY,-ENXIO);
 	if (chans[unit] && chans[unit]->sig) {
 		/* Make sure we're not already open, a net device, or a slave device */
 		if (chans[unit]->flags & ZT_FLAG_OPEN) 
@@ -3930,6 +3932,7 @@ static int zt_chan_ioctl(struct inode *inode, struct file *file, unsigned int cm
 	void *rxgain=NULL;
 	echo_can_state_t *ec, *tec;
 
+	printk("zt_chan_ioctl() entering ...\n");
 	if (!chan)
 		return -ENOSYS;
 
@@ -4292,17 +4295,21 @@ static int zt_prechan_ioctl(struct inode *inode, struct file *file, unsigned int
 	int channo;
 	int res;
 
+	printk("zt_prechan_ioctl() entering ...\n");
 	if (chan) {
 		printk("Huh?  Prechan already has private data??\n");
 	}
 	switch(cmd) {
 	case ZT_SPECIFY:
+	printk("cmd = %x\n",cmd);
 		get_user(channo,(int *)data);
+		printk("channo= %x, ZT_MAX_CHANNELS=%d\n",channo,ZT_MAX_CHANNELS);
 		if (channo < 1)
 			return -EINVAL;
 		if (channo > ZT_MAX_CHANNELS)
 			return -EINVAL;
 		res = zt_specchan_open(inode, file, channo, 0);
+		printk("zt_specchan_open()=%d\n",res);
 		if (!res) {
 			/* Setup the pointer for future stuff */
 			chan = chans[channo];
@@ -4314,6 +4321,7 @@ static int zt_prechan_ioctl(struct inode *inode, struct file *file, unsigned int
 	default:
 		return -ENOSYS;
 	}
+	printk("cmd=%d, not ZT_SPECIFY\n",cmd);
 	return 0;
 }
 
@@ -4322,7 +4330,7 @@ static int zt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	int unit = UNIT(file);
 	struct zt_chan *chan;
 	struct zt_timer *timer;
-
+printk("zt_ioctl entering .... unit=%d\n ",unit);
 	if (!unit)
 		return zt_ctl_ioctl(inode, file, cmd, data);
 	if (unit == 253) {
@@ -4334,6 +4342,7 @@ static int zt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, un
 	}
 	if (unit == 254) {
 		chan = file->private_data;
+		printk("chan=%d\n",chan);
 		if (chan)
 			return zt_chan_ioctl(inode, file, cmd, data, chan->channo);
 		else

@@ -78,6 +78,7 @@
 #define FAST_HDLC_NEED_TABLES
 #include "fasthdlc.h"
 
+#define STANDALONE_ZAPATA
 #ifdef STANDALONE_ZAPATA
 #include "zaptel.h"
 #else
@@ -105,7 +106,7 @@
 /* macro-oni for determining a unit (channel) number */
 #define	UNIT(file) MINOR(file->f_dentry->d_inode->i_rdev)
 
-#define CONFIG_ZAPATA_DEBUG 1
+//#define CONFIG_ZAPATA_DEBUG 1
 
 /* names of tx level settings */
 static char *zt_txlevelnames[] = {
@@ -2184,6 +2185,7 @@ static int zt_specchan_open(struct inode *inode, struct file *file, int unit, in
 {
 	int res = 0;
 
+	printk("chans[unit]=%x, chans[unit]->sig=%x,unit=%x,-EBUSY=%x,-ENXIO=%x\n",chans[unit],chans[unit]->sig,unit,-EBUSY,-ENXIO);
 	if (chans[unit] && chans[unit]->sig) {
 		/* Make sure we're not already open, a net device, or a slave device */
 		if (chans[unit]->flags & ZT_FLAG_OPEN) 
@@ -4292,12 +4294,14 @@ static int zt_prechan_ioctl(struct inode *inode, struct file *file, unsigned int
 	int channo;
 	int res;
 
+//	printk("zt_prechan_ioctl() entering ...\n");
 	if (chan) {
 		printk("Huh?  Prechan already has private data??\n");
 	}
 	switch(cmd) {
 	case ZT_SPECIFY:
 		get_user(channo,(int *)data);
+//		printk("channo= %x, ZT_MAX_CHANNELS=%d\n",channo,ZT_MAX_CHANNELS);
 		if (channo < 1)
 			return -EINVAL;
 		if (channo > ZT_MAX_CHANNELS)

@@ -1,11 +1,10 @@
-ifneq ($(KERNELRELEASE),)
-obj-m := wcfxs.o
-obj-m += zaptel.o
-zaptel-objs := zaptel.o crc-ccitt.o 
-wcfxs-objs := zaptel.o wcfxs.o
-
-else
 EXTRA_CFLAGS+=-DSTANDALONE_ZAPATA -DEXPORT_SYMTAB 
+MODULES= zaptel wcfxs
+
+MODULESO=$(shell for x in $(MODULES); do echo "$$x.o "; done )
+MODULESKO=$(shell for x in $(MODULES); do echo "$$x.ko "; done )
+PWD=$(shell pwd)
+
 TZOBJS=zonedata.o tonezone.o
 LIBTONEZONE=libtonezone.a
 CFLAGS+=-I. -Wall -DBUILDING_TONEZONE 
@@ -13,13 +12,15 @@ CFLAGS+=-I. -Wall -DBUILDING_TONEZONE
 CONFIG_FILE=/etc/zaptel.conf
 CFLAGS+=-DZAPTEL_CONFIG=\"$(CONFIG_FILE)\"
 
-KDIR=$(ROOTDIR)/linux-2.6.x
-PWD=$(shell pwd)
+all: linux26 libtonezone.a ztcfg
 
-all: apps zaptel
-	
+linux26: 
+	make -C $(KERNEL_SOURCE) SUBDIRS=$(PWD) modules
 
-apps: libtonezone.a ztcfg
+# note we need to remane zaptel.c to zaptel1.c to use multi-source
+# files for ko creation 
+obj-m := $(MODULESO)
+zaptel-objs := zaptel1.o crc-ccitt.o
 
 tones.h: gendigits
 	./gendigits
@@ -43,22 +44,6 @@ ztcfg: ztcfg.o libtonezone.a
 	$(CC) $(CFLAGS) -Wl,-elf2flt -o ztcfg ztcfg.o libtonezone.a -lm   
 
 clean:
-	make -C $(KDIR) SUBDIRS=$(PWD) clean
+	make -C $(KERNEL_SOURCE) SUBDIRS=$(PWD) clean
 	rm -f *.o *.ko *.lo gendigits tor2fw.h tones.h ztcfg
-
-zaptel:
-	$(MAKE) LDFLAGS="" -C $(KDIR) M=`pwd` modules
-
-romfs:
-	echo "Here, Jerry"
-	rm -rf $(ROMFSDIR)/lib/modules/2.6.16.27-ADI-2006R2_pre/kernel/drivers/zaptel
-	mkdir $(ROMFSDIR)/lib/modules/2.6.16.27-ADI-2006R2_pre/kernel/drivers/zaptel
-	$(ROMFSINST) $(ROMFSDIR)/lib/modules/2.6.16.27-ADI-2006R2_pre/kernel/drivers/zaptel/wcfxs.o
-	$(ROMFSINST) $(ROMFSDIR)/lib/modules/2.6.16.27-ADI-2006R2_pre/kernel/drivers/zaptel/zaptel.o
-	cp ./zaptel.conf $(ROMFSDIR)/etc/
-	
-install:
-	$(MAKE) -C $(KDIR) INSTALL_MOD_PATH=$(IDIR) \
-	SUBDIRS=$(PWD) modules_install
-endif
 

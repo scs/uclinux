@@ -9,8 +9,8 @@
 #define __BFSI__
 
 #define FXS_FXO_CARD
-#define FXS_CS	CFG_SPI_CHIPSEL3
-#define FXO_CS	CFG_SPI_CHIPSEL2
+#define FXS_CS	CFG_SPI_CHIPSEL1
+#define FXO_CS	CFG_SPI_CHIPSEL6
 
 void bfsi_reset(int pf_bit);
 void bfsi_spi_init(int baud);

@@ -40,6 +40,8 @@
 #include "bfsi.h"
 #include "bfsi.c"
 
+
+#define STANDALONE_ZAPATA 1
 /*
  *  Define for audio vs. register based ring detection
  *  
