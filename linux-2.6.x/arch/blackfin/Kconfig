@@ -436,23 +436,12 @@ config IRQCHIP_DEMUX_GPIO
 	help
 	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
 
-comment 'DMA Support'
-choice
-	prompt "Select DMA driver"
-	---help---
-	  Choose DMA driver implemntation
-
-config NO_DMA
-	bool 'Disable DMA Support'
-	help
-	  Disable DMA driver
-
 config BFIN_DMA_5XX
 	bool 'Enable DMA Support'
 	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
+	default y
 	help
 	  DMA driver for BF5xx
-endchoice
 
 choice
 	prompt "Uncached SDRAM region"
