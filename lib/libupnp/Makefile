@@ -11,6 +11,6 @@ all:
 romfs:
 # For static library, do nothing. For shared lib, cp the library to <romfs>/lib
 
-clean:
-	make -C $(LIB_VER) clean
+clean distclean:
+	$(MAKE) -C $(LIB_VER) $@
 	rm -f libupnp.a upnp_tv_ctrlpt upnp_tv_device

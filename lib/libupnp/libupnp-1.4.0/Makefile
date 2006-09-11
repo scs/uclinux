@@ -15,5 +15,7 @@ static_upnp:
 	./configure --host=bfin-linux --enable-shared=no --enable-samples; \
 	make
 
-clean:
-	make -C $(LIB_VER) distclean
+clean distclean:
+	if [ -e $(LIB_VER)/Makefile ] ; then \
+		$(MAKE) -C $(LIB_VER) $@ || exit $$? ; \
+	fi
