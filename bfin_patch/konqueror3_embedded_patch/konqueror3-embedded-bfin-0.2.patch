@@ -548,8 +548,8 @@
 +  version_type=uclinux
 +  need_lib_prefix=no
 +  need_version=no
-+  sys_lib_dlsearch_path_spec=""
-+  sys_lib_search_path_spec="/lib"
++  sys_lib_dlsearch_path_spec="/lib"
++  sys_lib_search_path_spec=""
 +  ;;
 +
  netbsd*)
