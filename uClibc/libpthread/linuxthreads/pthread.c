@@ -562,7 +562,7 @@ pthread_descr __pthread_find_self()
 
 #ifdef DEBUG_PT
   if (h->h_descr == NULL) {
-      printf("*** "__FUNCTION__" ERROR descriptor is NULL!!!!! ***\n\n");
+      printf("*** %s ERROR descriptor is NULL!!!!! ***\n\n", __FUNCTION__);
       _exit(1);
   }
 #endif

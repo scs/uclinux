@@ -29,7 +29,7 @@
 /* define the PDEBUG macro here */
 #undef PDEBUG
 #ifdef DEBUG_PT
-#  define PDEBUG(fmt, args...) __pthread_message(__FUNCTION__": " fmt, ## args)
+#  define PDEBUG(fmt, ...) __pthread_message("%s: " fmt, __FUNCTION__, ## __VA_ARGS__)
 #else
 #  define PDEBUG(fmt, args...) /* debug switched off */
 #endif

@@ -20,6 +20,7 @@
 #include "pthread.h"
 #include "internals.h"
 #include "spinlock.h"
+#include "debug.h"
 #include <ucontext.h>
 #include <bits/sigcontextinfo.h>
 
@@ -137,9 +138,7 @@ int __sigaction(int sig, const struct sigaction * act,
   struct sigaction newact;
   struct sigaction *newactp;
 
-#ifdef DEBUG_PT
-printf(__FUNCTION__": pthreads wrapper!\n");
-#endif
+PDEBUG("pthreads wrapper!\n");
   if (sig == __pthread_sig_restart ||
       sig == __pthread_sig_cancel ||
       (sig == __pthread_sig_debug && __pthread_sig_debug > 0))
@@ -161,9 +160,7 @@ printf(__FUNCTION__": pthreads wrapper!\n");
     newactp = NULL;
   if (__libc_sigaction(sig, newactp, oact) == -1)
     return -1;
-#ifdef DEBUG_PT
-printf(__FUNCTION__": signahdler installed, __sigaction successful\n");
-#endif
+PDEBUG("sighandler installed, __sigaction successful\n");
   if (sig > 0 && sig < NSIG)
     {
       if (oact != NULL)
