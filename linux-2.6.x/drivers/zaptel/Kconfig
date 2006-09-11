@@ -1,0 +1,22 @@
+#
+# PBX driver configuration
+#
+#
+menu "PBX support for BF533-STAMP"
+
+config PBX
+	tristate "PBX support"
+	help
+	  PBX is Private Branch eXchange. BF533 and BF537 STAMP board now
+	  support PBX card which has 2 FXS ports, as well as 2 FXO ports.
+
+config SPORT_NUM 
+	int "Select SPORT number you connected"
+	depends on PBX
+	default 0
+	help
+	  input 0 for SPORT0 and 1 for SPORT1.
+
+#
+endmenu # "PBX support"
+

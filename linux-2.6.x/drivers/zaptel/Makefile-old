@@ -1,0 +1,49 @@
+EXTRA_CFLAGS+=-DSTANDALONE_ZAPATA -DEXPORT_SYMTAB 
+MODULES= zaptel wcfxs
+
+MODULESO=$(shell for x in $(MODULES); do echo "$$x.o "; done )
+MODULESKO=$(shell for x in $(MODULES); do echo "$$x.ko "; done )
+PWD=$(shell pwd)
+
+TZOBJS=zonedata.o tonezone.o
+LIBTONEZONE=libtonezone.a
+CFLAGS+=-I. -Wall -DBUILDING_TONEZONE 
+
+CONFIG_FILE=/etc/zaptel.conf
+CFLAGS+=-DZAPTEL_CONFIG=\"$(CONFIG_FILE)\"
+
+all: linux26 libtonezone.a ztcfg
+
+linux26: 
+	make -C $(KERNEL_SOURCE) SUBDIRS=$(PWD) modules
+
+# note we need to remane zaptel.c to zaptel1.c to use multi-source
+# files for ko creation 
+obj-m := $(MODULESO)
+zaptel-objs := zaptel1.o crc-ccitt.o
+
+tones.h: gendigits
+	./gendigits
+
+gendigits: gendigits.o
+	$(CC) -o gendigits gendigits.o -lm
+
+zonedata.o: zonedata.c
+	$(CC) $(CFLAGS) -c -o zonedata.o zonedata.c
+
+tonezone.o: tonezone.c
+	$(CC) $(CFLAGS) -c -o tonezone.o tonezone.c
+
+libtonezone.a: $(TZOBJS)
+	ar rcs libtonezone.a $(TZOBJS)
+
+ztcfg.o: ztcfg.c
+	$(CC) $(CFLAGS) -c -o ztcfg.o ztcfg.c
+
+ztcfg: ztcfg.o libtonezone.a
+	$(CC) $(CFLAGS) -Wl,-elf2flt -o ztcfg ztcfg.o libtonezone.a -lm   
+
+clean:
+	make -C $(KERNEL_SOURCE) SUBDIRS=$(PWD) clean
+	rm -f *.o *.ko *.lo gendigits tor2fw.h tones.h ztcfg
+

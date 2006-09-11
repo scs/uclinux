@@ -1,0 +1,45 @@
+UDEV -- What the heck is udev OR why did I get a message to read this?
+
+This is the new mechanism of doing a dyamic /dev.  What does
+that mean?  Basically, before the days of linux-2.3/linux-2.4 your /dev
+had to have ~18000 files in it for all the possible device that your
+kernel could possibly have, most of which you will NEVER use.  This, for
+obvious reasons, is somewhat undesirable.  So then came devfs.  Devfs
+solved a lot of these problems by dynamically populating /dev with only
+the device nodes of the devices that existed on your system.  Now, in
+linux-2.6, udev+sysfs has become the mechanism of choice for populating
+your dynamic /dev with device nodes.
+
+You got this message because you are probably running udev on your system.
+
+If you are not, or you feel that you have reached this message in error you
+can send me an email (look to bottom of file for address).
+
+If you're running udev on your system, you were probably directed
+to read this file during build.  For udevd (the daemon responsible
+for creation/deletion of device nodes), you will need to add the following
+lines to your udev rules (ie, /etc/udev/rules.d/50-udev.rules):.
+
+# Section for zaptel device
+KERNEL="zapctl",     NAME="zap/ctl"
+KERNEL="zaptimer",   NAME="zap/timer"
+KERNEL="zapchannel", NAME="zap/channel"
+KERNEL="zappseudo",  NAME="zap/pseudo"
+KERNEL="zap[0-9]*",  NAME="zap/%n"
+
+This will take care of making all the automagic occur that needs to be
+done so that udevd will make the right files for zaptel.
+
+And, You may wish to add these permissions to your permissions file
+(ie /etc/udev/permissions.d/50-udev.permissions), as some have found
+that the ctl device is inaccessible without the following:
+
+# zaptel devices -- for running asterisk as root
+zap/*:root:root:05700
+
+# zaptel devices -- if you want to run asterisk as a different user
+# (asterisk in this case)
+zap/*:asterisk:asterisk:660
+
+Matthew Fredrickson
+creslin@NOSPAMdigium.com
