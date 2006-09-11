@@ -2,7 +2,7 @@ all: Makefile
 	$(MAKE) -f Makefile
 
 Makefile:
-	./configure --host=bfin-uclinux --prefix=/usr
+	./configure --host=$(CONFIGURE_HOST) --prefix=/usr
 
 romfs:
 	@true
