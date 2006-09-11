@@ -1,50 +1,52 @@
-EXTRA_CFLAGS+=-DSTANDALONE_ZAPATA -DEXPORT_SYMTAB 
-TZOBJS=zonedata.o tonezone.o
-LIBTONEZONE=libtonezone.a
-CFLAGS+=-I. -Wall -DBUILDING_TONEZONE 
+# Makefile for thread stack functions
+# David Rowe 
+# 12 May 2006
 
-CONFIG_FILE=/etc/zaptel.conf
-CFLAGS+=-DZAPTEL_CONFIG=\"$(CONFIG_FILE)\"
+# Default configuration is for the Blackfin uClinux platform
+# Chnage the following to suit your target:
+#
+# 1/ LIBPTHREAD_PATH
+# 2/ CC 
+# 3/ LDFLAGS
 
-KDIR=$(ROOTDIR)/linux-2.6.x
-PWD=$(shell pwd)
+LIBPTHREAD_PATH  = $(ROOTDIR)/uClibc/libpthread/linuxthreads
+CC = bfin-uclinux-gcc
+LDFLAGS = -Wl,-elf2flt
 
-all: apps
-	
+INCLUDES  = -I $(LIBPTHREAD_PATH)
+INCLUDES += -I $(LIBPTHREAD_PATH)/sysdeps/pthread/
+INCLUDES += -I $(LIBPTHREAD_PATH)/sysdeps/bfin
 
-apps: libtonezone.a ztcfg
+PROJ=threadstack
+VERSION=0.1
 
-tones.h: gendigits
-	./gendigits
+# extract dir from /path/to/dir
+RELCWD = $(shell pwd | sed -e "s/.*\///")
 
-gendigits: gendigits.o
-	$(CC) -o gendigits gendigits.o -lm
+all: test_threadstack
 
-zonedata.o: zonedata.c
-	$(CC) $(CFLAGS) -c -o zonedata.o zonedata.c
+test_threadstack: test_threadstack.c threadstack.o
+	$(CC) -Wall test_threadstack.c threadstack.o \
+	-o test_threadstack $(LDFLAGS) -pthread
 
-tonezone.o: tonezone.c
-	$(CC) $(CFLAGS) -c -o tonezone.o tonezone.c
-
-libtonezone.a: $(TZOBJS)
-	ar rcs libtonezone.a $(TZOBJS)
-
-ztcfg.o: ztcfg.c
-	$(CC) $(CFLAGS) -c -o ztcfg.o ztcfg.c
-
-ztcfg: ztcfg.o libtonezone.a
-	$(CC) $(CFLAGS) -Wl,-elf2flt -o ztcfg ztcfg.o libtonezone.a -lm   
-
-clean:
-	make -C $(KDIR) SUBDIRS=$(PWD) clean
-	rm -f *.o *.ko *.lo gendigits tor2fw.h tones.h ztcfg
+threadstack.o: threadstack.c
+	$(CC) -Wall -c $(INCLUDES) threadstack.c
 
 romfs:
-	cp ./zaptel.conf $(ROMFSDIR)/etc/
-	chmod u+x ztcfg 
-	cp ./ztcfg $(ROMFSDIR)/bin
-	
-install:
-	$(MAKE) -C $(KDIR) INSTALL_MOD_PATH=$(IDIR) \
-	SUBDIRS=$(PWD) modules_install
 
+
+
+dist:
+	@if [ ! -d ../$(PROJ)-$(VERSION) ]; then \
+	  echo "Please change directory name to $(PROJ)-$(VERSION)"; \
+	  exit 1; \
+        fi 
+
+	# remove unneeded files
+	rm -f *~ test_threadstack *.o
+
+	# create tar ball containing only directories we need
+	cd ..; tar vczf $(PROJ)-$(VERSION).tar.gz $(RELCWD)
+	@echo
+	@echo "Tar ball created in ../"
+	ls -lh ../$(PROJ)-$(VERSION).tar.gz
