@@ -1,0 +1,1 @@
+cmd_/home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/wcfxs.o := bfin-uclinux-ld   -r -o /home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/wcfxs.o /home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/zaptel.o

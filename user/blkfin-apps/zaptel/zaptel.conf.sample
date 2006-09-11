@@ -1,0 +1,142 @@
+#
+# Zaptel Configuration File
+#
+# This file is parsed by the Zaptel Configurator, ztcfg
+#
+#
+# First come the span definitions, in the format
+# span=<span num>,<timing>,<line build out (LBO)>,<framing>,<coding>[,yellow]
+# 
+# The timing parameter determines the selection of primary, secondary, and
+# so on sync sources.  If this span should be considered a primary sync
+# source, then give it a value of "1".  For a secondary, use "2", and so on.
+# To not use this as a sync source, just use "0"
+#
+# The line build-out (or LBO) is an integer, from the following table:
+# 0: 0 db (CSU) / 0-133 feet (DSX-1)
+# 1: 133-266 feet (DSX-1)
+# 2: 266-399 feet (DSX-1)
+# 3: 399-533 feet (DSX-1)
+# 4: 533-655 feet (DSX-1)
+# 5: -7.5db (CSU)
+# 6: -15db (CSU)
+# 7: -22.5db (CSU)
+#
+# The framing is one of "d4" or "esf" for T1 or "cas" or "ccs" for E1
+#
+# Note: "d4" could be referred to as "sf" or "superframe" 
+#
+# The coding is one of "ami" or "b8zs" for T1 or "ami" or "hdb3" for E1
+#
+# E1's may have the additional keyword "crc4" to enable CRC4 checking
+#
+# If the keyword "yellow" follows, yellow alarm is transmitted when no
+# channels are open.
+#
+#span=1,0,0,esf,b8zs
+#span=2,1,0,esf,b8zs
+#span=3,0,0,ccs,hdb3,crc4
+#
+# Next come the dynamic span definitions, in the form:
+# dynamic=<driver>,<address>,<numchans>,<timing>
+#
+# Where <driver> is the name of the driver (e.g. eth), <address> is the
+# driver specific address (like a MAC for eth), <numchans> is the number
+# of channels, and <timing> is a timing priority, like for a normal span.
+# use "0" to not use this as a timing source, or prioritize them as
+# primary, secondard, etc.  Note that you MUST have a REAL zaptel device
+# if you are not using external timing.
+#
+# dynamic=eth,eth0/00:02:b3:35:43:9c,24,0
+#
+# Next come the definitions for using the channels.  The format is:
+# <device>=<channel list>
+#
+# Valid devices are:
+#
+# "e&m"     : Channel(s) are signalled using E&M signalling (specific
+#             implementation, such as Immediate, Wink, or Feature Group D
+#             are handled by the userspace library).
+# "fxsls"   : Channel(s) are signalled using FXS Loopstart protocol.
+# "fxsgs"   : Channel(s) are signalled using FXS Groundstart protocol.
+# "fxsks"   : Channel(s) are signalled using FXS Koolstart protocol.
+# "fxols"   : Channel(s) are signalled using FXO Loopstart protocol.
+# "fxogs"   : Channel(s) are signalled using FXO Groundstart protocol.
+# "fxoks"   : Channel(s) are signalled using FXO Koolstart protocol.
+# "sf"	    : Channel(s) are signalled using in-band single freq tone.
+#		Syntax as follows: 
+#		 channel# => sf:<rxfreq>,<rxbw>,<rxflag>,<txfreq>,<txlevel>,<txflag>
+#		rxfreq is rx tone freq in hz, rxbw is rx notch (and decode)
+#		bandwith in hz (typically 10.0), rxflag is either 'normal' or
+#		'inverted', txfreq is tx tone freq in hz, txlevel is tx tone 
+#		level in dbm, txflag is either 'normal' or 'inverted'. Set 
+#		rxfreq or txfreq to 0.0 if that tone is not desired.
+# "unused"  : No signalling is performed, each channel in the list remains idle
+# "clear"   : Channel(s) are bundled into a single span.  No conversion or
+#             signalling is performed, and raw data is available on the master.
+# "indclear": Like "clear" except all channels are treated individually and
+#             are not bundled.  "bchan" is an alias for this.
+# "rawhdlc" : The zaptel driver performs HDLC encoding and decoding on the 
+#             bundle, and the resulting data is communicated via the master
+#             device.
+# "fcshdlc" : The zapdel driver performs HDLC encoding and decoding on the
+#             bundle and also performs incoming and outgoing FCS insertion
+#             and verification.  "dchan" is an alias for this.
+# "nethdlc" : The zaptel driver bundles the channels together into an
+#             hdlc network device, which in turn can be configured with
+#             sethdlc (available separately).
+# "dacs"    : The zaptel driver cross connects the channels starting at
+#             the channel number listed at the end, after a colon
+# "dacsrbs" : The zaptel driver cross connects the channels starting at
+#             the channel number listed at the end, after a colon and 
+#             also performs the DACSing of RBS bits
+#
+# The channel list is a comma-separated list of channels or ranges, for
+# example:
+#
+#   1,3,5 (channels one, three, and five)
+#   16-23, 29 (channels 16 through 23, as well as channel 29
+#
+# So, some complete examples are:
+#   e&m=1-12
+#   nethdlc=13-24
+#   fxsls=25,26,27,28
+#   fxols=29-32
+#
+#fxoks=1-24
+#bchan=25-47
+#dchan=48
+#fxols=1-12
+#fxols=13-24
+#e&m=25-29
+#nethdlc=30-33
+#clear=44
+#clear=45
+#clear=46
+#clear=47
+#fcshdlc=48
+#dacs=1-24:48
+#dacsrbs=1-24:48
+#
+# Finally, you can preload some tone zones, to prevent them from getting
+# overwritten by other users (if you allow non-root users to open /dev/zap/*
+# interfaces anyway.  Also this means they won't have to be loaded at runtime.
+# The format is "loadzone=<zone>" where the zone is a two letter country code.
+# 
+# You may also specify a default zone with "defaultzone=<zone>" where zone
+# is a two letter country code.
+#
+# An up-to-date list of the zones can be found in the file zaptel/zonedata.c
+#
+loadzone = us
+#loadzone = us-old
+#loadzone=gr
+#loadzone=it
+#loadzone=fr
+#loadzone=de
+#loadzone=uk
+#loadzone=fi
+#loadzone=jp
+#loadzone=sp
+#loadzone=no
+defaultzone=us
