@@ -1,0 +1,45 @@
+preprocess.lo preprocess.o: preprocess.c ../config.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/math.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/features.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/uClibc_config.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/sys/cdefs.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/huge_val.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/mathdef.h \
+  /home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/mathcalls.h \
+  ../include/speex/speex_preprocess.h ../include/speex/speex_types.h \
+  ../include/speex/speex_config_types.h misc.h arch.h \
+  ../include/speex/speex_types.h fixed_generic.h fixed_bfin.h smallft.h
+
+../config.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/math.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/features.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/uClibc_config.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/sys/cdefs.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/huge_val.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/mathdef.h:
+
+/home/cvshdr/toolchain-new/uClinux/bfin-uclinux/bin/../bfin-uclinux/runtime/usr/include/bits/mathcalls.h:
+
+../include/speex/speex_preprocess.h:
+
+../include/speex/speex_types.h:
+
+../include/speex/speex_config_types.h:
+
+misc.h:
+
+arch.h:
+
+../include/speex/speex_types.h:
+
+fixed_generic.h:
+
+fixed_bfin.h:
+
+smallft.h:

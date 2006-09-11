@@ -1,0 +1,3 @@
+lbr_48k_tables.lo lbr_48k_tables.o: lbr_48k_tables.c ../config.h
+
+../config.h:
