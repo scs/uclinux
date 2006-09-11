@@ -102,6 +102,8 @@ dir_$(CONFIG_LIB_ADNS_FORCE)   += adns
 dir_$(CONFIG_LIB_LIBCRYPT_OLD) += libcrypt_old
 dir_$(CONFIG_LIB_LIBCRYPT_OLD_FORCE) += libcrypt_old
 dir_$(CONFIG_LIB_NCURSES_FORCE) += ncurses
+dir_$(CONFIG_LIB_READLINE)       += readline
+dir_$(CONFIG_LIB_READLINE_FORCE) += readline
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop

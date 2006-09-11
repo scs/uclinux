@@ -102,6 +102,7 @@ bool 'Build libpng'		CONFIG_LIB_LIBPNG_FORCE
 bool 'Build libjpeg'		CONFIG_LIB_LIBJPEG_FORCE
 bool 'Build libupnp'    CONFIG_LIB_LIBUPNP_FORCE
 bool 'Build ncurses'		CONFIG_LIB_NCURSES_FORCE
+bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'Build STLport'		CONFIG_LIB_STLPORT
 dep_bool '  Build STLport as shared'	CONFIG_LIB_STLPORT_SHARED $CONFIG_LIB_STLPORT
 bool 'Build expat'		CONFIG_LIB_EXPAT_FORCE
