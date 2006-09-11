@@ -1895,6 +1895,8 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	return 0;
 
 __nodev:
+	dma_free_coherent(NULL, AD1836_BUF_SZ, chip->rx_dma_buf, 0);
+	dma_free_coherent(NULL, AD1836_BUF_SZ, chip->tx_dma_buf, 0);
 	snd_card_free(card);
 	return err;
 }
