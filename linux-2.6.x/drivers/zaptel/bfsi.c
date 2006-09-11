@@ -213,44 +213,6 @@ void bfsi_spi_set_cs(int card)
 	u16 flag;
 
 	chip_select = card_cs[card];
-#if defined(CONFIG_BF537)
-	if (chip_select == 1) {
-		PRINTK("set for chip select 1\n");
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3c00);
-		__builtin_bfin_ssync();
-
-	} else if (chip_select == 2 || chip_select == 3) {
-		PRINTK("set for chip select 2\n");
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJSE_SPI);
-		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3800);
-		__builtin_bfin_ssync();
-
-	} else if (chip_select == 4) {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS4E_SPI);
-		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3840);
-		__builtin_bfin_ssync();
-
-	} else if (chip_select == 5) {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS5E_SPI);
-		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3820);
-		__builtin_bfin_ssync();
-
-	} else if (chip_select == 6) {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFS6E_SPI);
-		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3810);
-		__builtin_bfin_ssync();
-
-	} else if (chip_select == 7) {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJCE_SPI);
-		__builtin_bfin_ssync();
-		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3800);
-		__builtin_bfin_ssync();
-	}
-#endif
 	chip_select_mask = 1<<chip_select;
 	flag = 0xff00 | chip_select_mask;
 	write_FLAG(flag);
@@ -288,74 +250,18 @@ void bfsi_spi_init(int baud)
 /*-------------------------- RESET FUNCTION ----------------------------*/
 
 void bfsi_reset(int pf_bit) {
-	PRINTK("toggle reset\n");
+  PRINTK("toggle reset\n");
   
-#if defined(CONFIG_BF533)
-       	PRINTK("set reset to PF%d\n",(8-pf_bit));
-  	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1<<pf_bit)); 
-  	__builtin_bfin_ssync();
+  bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1<<pf_bit)); 
+  __builtin_bfin_ssync();
 
-  	bfin_write_FIO_FLAG_C((1<<pf_bit)); 
-  	__builtin_bfin_ssync();
-  	udelay(100);
+  bfin_write_FIO_FLAG_C((1<<pf_bit)); 
+  __builtin_bfin_ssync();
+  udelay(100);
 
-  	bfin_write_FIO_FLAG_S((1<<pf_bit));
-  	__builtin_bfin_ssync();
-#endif
-  	
-#if defined(CONFIG_BF537)
-	if (pf_bit == 7) {
-       		PRINTK("set reset to PF10\n");
-                bfin_write_PORTF_FER(bfin_read_PORTF_FER() & 0xFBFF);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0400);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_SET(1<<10);
-		__builtin_bfin_ssync();
-		udelay(100);
-		bfin_write_PORTFIO_CLEAR(1<<10);
-		__builtin_bfin_ssync();
-        } else if (pf_bit == 6)  {
-                PRINTK("Error: cannot set reset to PJ11\n");
-        } else if (pf_bit == 5) {
-                PRINTK("Error: cannot set reset to PJ10\n");
-        } else if (pf_bit == 4) {
-                PRINTK("set reset to PF6\n");
-                bfin_write_PORTF_FER(bfin_read_PORTF_FER() & 0xFFBF);
-                __builtin_bfin_ssync();
-		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0040);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_SET(1<<6);
-		__builtin_bfin_ssync();
-		udelay(100);
-		bfin_write_PORTFIO_CLEAR(1<<6);
-		__builtin_bfin_ssync();
-        } else if (pf_bit == 3) {
-                PRINTK("set reset to PF5\n");
-                bfin_write_PORTF_FER(bfin_read_PORTF_FER() & 0xFFDF);
-                __builtin_bfin_ssync();
-		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0020);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_SET(1<<5);
-		__builtin_bfin_ssync();
-		udelay(100);
-		bfin_write_PORTFIO_CLEAR(1<<5);
-		__builtin_bfin_ssync();
-        } else if (pf_bit == 2) {
-                PRINTK("set reset to PF4\n");
-                bfin_write_PORTF_FER(bfin_read_PORTF_FER() & 0xFFEF);
-                __builtin_bfin_ssync();
-		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0010);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_SET(1<<4);
-		__builtin_bfin_ssync();
-		udelay(100);
-		bfin_write_PORTFIO_CLEAR(1<<4);
-		__builtin_bfin_ssync();
-        } else if (pf_bit == 1) {
-                PRINTK("Error: cannot set reset to PJ5\n");
-        }
-#endif	
+  bfin_write_FIO_FLAG_S((1<<pf_bit));
+  __builtin_bfin_ssync();
+
   /* 
      p24 3050 data sheet, allow 1ms for PLL lock, with
      less than 1ms (1000us) I found register 2 would have
