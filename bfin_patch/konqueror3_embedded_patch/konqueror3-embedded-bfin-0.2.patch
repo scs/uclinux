@@ -538,3 +538,20 @@
  
          return true;
      }
+--- konqueror3-embedded/configure	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/configure	2006-09-11 17:01:05.000000000 +0800
+@@ -11152,6 +11152,14 @@
+   dynamic_linker='GNU/Linux ld.so'
+   ;;
+ 
++uclinux*)
++  version_type=uclinux
++  need_lib_prefix=no
++  need_version=no
++  sys_lib_dlsearch_path_spec=""
++  sys_lib_search_path_spec="/lib"
++  ;;
++
+ netbsd*)
+   version_type=sunos
+   need_lib_prefix=no
