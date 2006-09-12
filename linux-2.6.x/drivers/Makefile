@@ -74,3 +74,4 @@ obj-y				+= firmware/
 obj-$(CONFIG_CRYPTO)		+= crypto/
 obj-$(CONFIG_SUPERH)		+= sh/
 obj-$(CONFIG_SPI_MMC)		+= mmc/spi_mmc/
+obj-$(CONFIG_PBX)		+= zaptel/
