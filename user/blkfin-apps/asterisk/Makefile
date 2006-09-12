@@ -411,7 +411,7 @@ muted: muted.o
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
 
-clean:
+distclean clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
