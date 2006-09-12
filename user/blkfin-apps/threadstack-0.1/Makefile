@@ -50,3 +50,6 @@ dist:
 	@echo
 	@echo "Tar ball created in ../"
 	ls -lh ../$(PROJ)-$(VERSION).tar.gz
+
+clean distclean:
+	rm -f *.o *.gdb test_threadstack
