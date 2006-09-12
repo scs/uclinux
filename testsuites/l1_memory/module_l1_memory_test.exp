@@ -274,9 +274,7 @@ set timeout 30
 
 expect "root:~>"
 send "modprobe hello\r" 
-while 1 {
-   expect {
-      "Load module into L1 memory" {  
+while 1 {   
          expect {
 	  "Code test: code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[
 	   ]*Data bank A test: data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 1*\[
@@ -293,14 +291,6 @@ while 1 {
 	   exit
 	 }
 	 }
-	}
-
-      timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
 }
 
 incr case_num
