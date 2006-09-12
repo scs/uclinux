@@ -371,8 +371,8 @@ clean: modules_clean
 real_clean mrproper: clean
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) mrproper
 	-$(MAKEARCH) -C config clean
-	-$(MAKEARCH) -C uClibc distclean
-	-$(MAKEARCH) -C $(RELDIR) clean
+	#-$(MAKEARCH) -C uClibc distclean
+	#-$(MAKEARCH) -C $(RELDIR) clean
 	rm -rf romfs config.in config.arch config.tk images
 	rm -f modules/config.tk
 	rm -rf .config .config.old .oldconfig autoconf.h
