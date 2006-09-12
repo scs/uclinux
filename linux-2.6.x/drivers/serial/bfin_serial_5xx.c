@@ -153,18 +153,18 @@ static struct bfin_serial bfin_uart[NR_PORTS];
 
 static int baud_table[] =
     { 0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
-	9600, 19200, 38400, 57600, 115200, 230400
+	9600, 19200, 38400, 57600, 115200
 };
 
 static int unix_baud_table[] =
     { B0, B50, B75, B110, B134, B150, B200, B300, B600, B1200, B1800, B2400, B4800,
-	B9600, B19200, B38400, B57600, B115200, B230400
+	B9600, B19200, B38400, B57600, B115200
 };
 
 #define BAUD_TABLE_SIZE (sizeof(baud_table)/sizeof(baud_table[0]))
 
 /* Forward declarations.... */
-static void bfin_change_speed(struct bfin_serial *info);
+static int bfin_change_speed(struct bfin_serial *info);
 static void bfin_set_baud(struct bfin_serial *info);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
 static int rs_write(struct tty_struct *tty, const unsigned char *buf,
@@ -944,7 +944,8 @@ static int startup(struct bfin_serial *info)
 	/*
 	 * and set the speed of the serial port
 	 */
-	bfin_change_speed(info);
+	if(bfin_change_speed(info)!=0)
+		return EINVAL;
 
 	info->flags |= S_INITIALIZED;
 	local_irq_restore(flags);
@@ -1015,7 +1016,7 @@ static void shutdown(struct bfin_serial *info)
  * This routine is called to set the UART divisor registers to match
  * the specified baud rate for a serial port.
  */
-static void bfin_change_speed(struct bfin_serial *info)
+static int bfin_change_speed(struct bfin_serial *info)
 {
 	unsigned short uart_dl;
 	unsigned cflag, flags, cval;
@@ -1025,7 +1026,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	FUNC_ENTER();
 
 	if (!info->tty || !info->tty->termios)
-		return;
+		return -1;
 
 	cflag = info->tty->termios->c_cflag;
 
@@ -1065,7 +1066,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 	else {
 		printk(KERN_DEBUG "%s: baud rate not supported: 0%o\n",
 		       __FUNCTION__, cflag & CBAUD);
-		info->baud = CONSOLE_BAUD_RATE;
+		return -1;
 	}
 
 	uart_dl = calc_divisor(baud_table[i]);
@@ -1104,7 +1105,7 @@ static void bfin_change_speed(struct bfin_serial *info)
 
 	DPRINTK("baud = %d, cval = 0x%x\n", baud_table[i], cval);
 
-	return;
+	return 0;
 }
 
 static void rs_set_ldisc(struct tty_struct *tty)
@@ -1569,7 +1570,8 @@ static void rs_set_termios(struct tty_struct *tty, struct termios *old_termios)
 	DUMP_TERMIOS(old_termios);
 	DUMP_TERMIOS(tty->termios);
 
-	bfin_change_speed(info);
+	if(bfin_change_speed(info)!=0)
+		*(tty->termios) = *old_termios;
 }
 
 /*
