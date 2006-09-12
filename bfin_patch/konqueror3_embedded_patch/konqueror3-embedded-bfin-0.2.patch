@@ -545,7 +545,7 @@
    ;;
  
 +uclinux*)
-+  version_type=uclinux
++  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  dynamic_linker=no
@@ -561,7 +561,7 @@
    ;;
  
 +uclinux*)
-+  version_type=uclinux
++  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  dynamic_linker=no
