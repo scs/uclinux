@@ -251,8 +251,6 @@ static struct fxo_mode {
 /* ------------------------ Blackfin -------------------------*/
 
 #define SPI_BAUDS   4 /* 12.5 MHz for 100MHz system clock */
-#define SPI_SPISEL3 3
-#define RESET_BIT   4 /* GPIO bit tied to nRESET on Si chips */
 
 #define __write_8bits(X, Y) bfsi_spi_write_8_bits(Y)
 #define __read_8bits(X) bfsi_spi_read_8_bits()
@@ -2153,7 +2151,7 @@ static int wcfxs_hardware_init(struct wcfxs *wc)
 	#endif
 
 	bfsi_sport_init(regular_interrupt_processing, ZT_CHUNKSIZE, debug);
-	bfsi_reset(RESET_BIT);
+	bfsi_reset();
 
 	#ifdef DAISY
 	/* put 3210 in daisy chain mode */
@@ -2168,6 +2166,7 @@ static int wcfxs_hardware_init(struct wcfxs *wc)
 		int sane=0,ret=0,readi=0;
 
 		if(wc->modtype[x] == MOD_TYPE_FXS){
+printk("FXS detect..... card=%d\n",x);
 			/* Init with Auto Calibration */
 			if (!(ret=wcfxs_init_proslic(wc, x, 0, 0, sane))) {
 				wc->cardflag |= (1 << x);
@@ -2195,7 +2194,7 @@ static int wcfxs_hardware_init(struct wcfxs *wc)
 				} 
 			}
 		}else { 
-printk("FXO detect.....\n");
+printk("FXO detect..... card=%d\n",x);
 			if (!(ret = wcfxs_init_voicedaa(wc, x, 0, 0, sane))) {
 				wc->cardflag |= (1 << x);
 				printk("Module %d: Installed -- AUTO FXO (%s mode)\n",x, fxo_modes[_opermode].name);

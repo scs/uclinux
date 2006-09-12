@@ -2,7 +2,7 @@
 # PBX driver configuration
 #
 #
-menu "PBX support for BF533-STAMP"
+menu "PBX support"
 
 config PBX
 	tristate "PBX support"
@@ -10,13 +10,26 @@ config PBX
 	  PBX is Private Branch eXchange. BF533 and BF537 STAMP board now
 	  support PBX card which has 2 FXS ports, as well as 2 FXO ports.
 
-config SPORT_NUM 
-	int "Select SPORT number you connected"
+config J11_JUMPER
+	int "Select J11 jumper on PBX card"
 	depends on PBX
-	default 0
+	default 7
 	help
-	  input 0 for SPORT0 and 1 for SPORT1.
+	  Input from 1-7, no confliction with others. 
 
-#
+config J16_JUMPER
+	int "Select J16 jumper on PBX card"
+	depends on PBX
+	default 4
+	help
+	  Input from 1-7, no confliction with others.
+
+config J19_JUMPER
+	int "Select J19 jumper on PBX card"
+	depends on PBX
+	default 6
+	help
+	  Input form 1-7, no confliction with others.
+
 endmenu # "PBX support"
 
