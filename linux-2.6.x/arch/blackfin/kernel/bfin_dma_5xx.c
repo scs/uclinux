@@ -680,22 +680,22 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	if (flag_2D) {
 		if (flag_align) {
 			bfin_write_MDMA_S0_CONFIG(DMAEN | DMA2D | WDSIZE_16);
-			bfin_write_MDMA_D0_CONFIG(WNR | DMAEN | DMA2D | WDSIZE_16);
+			bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | DMA2D | WDSIZE_16);
 		} else {
 			bfin_write_MDMA_S0_CONFIG(DMAEN | DMA2D);
-			bfin_write_MDMA_D0_CONFIG(WNR | DMAEN | DMA2D);
+			bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | DMA2D);
 		}
 	} else {
 		if (flag_align) {
 			bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_16);
-			bfin_write_MDMA_D0_CONFIG(WNR | DMAEN | WDSIZE_16);
+			bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_16);
 		} else {
 			bfin_write_MDMA_S0_CONFIG(DMAEN);
-			bfin_write_MDMA_D0_CONFIG(WNR | DMAEN);
+			bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN);
 		}
 	}
 
-	while ((bfin_read_MDMA_D0_IRQ_STATUS() & DMA_RUN))
+	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE))
 		;
 
 	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
