@@ -80,6 +80,7 @@ bool    'ALSA lib'                      CONFIG_LIB_ALSA_LIB_FORCE
 bool    'ALSA utils'                    CONFIG_USER_ALSA_UTILS
 if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
 	define_bool CONFIG_LIB_ALSA_LIB y
+fi
 bool    'Asterisk PBX'         		CONFIG_USER_ASTERISK
 if [ "$CONFIG_USER_ASTERISK" = "y" ]; then
 	define_bool CONFIG_USER_THREADSTACK	y
