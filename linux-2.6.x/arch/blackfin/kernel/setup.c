@@ -238,10 +238,17 @@ void __init setup_arch(char **cmdline_p)
 
 #if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
 	/* Due to a Hardware Anomaly we need to limit the size of usable
-	 * instruction memory to max 60MB:
+	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception */
+
+#if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
+	 if (memory_end >= 56 * 1024 * 1024)
+		memory_end = 60 * 1024 * 1024;
+#else
 	if (memory_end >= 60 * 1024 * 1024)
 		memory_end = 60 * 1024 * 1024;
+#endif
+
 #endif
 
 	init_mm.start_code = (unsigned long)_stext;
