@@ -90,7 +90,7 @@ BUILD_SL_9 = $(LIB_TH_CXX_SL)
 INSTALL_SL_9 = installthcxxsl
 
 # now construct our build and install targets
-BUILD_ALL = dmalloc.h $(LIBRARY) \
+BUILD_ALL = dmalloc.h tests $(LIBRARY) \
 	$(BUILD_ALL_1) $(BUILD_ALL_2) $(BUILD_ALL_3) $(BUILD_ALL_4) \
 	$(BUILD_ALL_5) $(BUILD_ALL_6) $(BUILD_ALL_7) $(BUILD_ALL_8)
 INSTALL_LIB = $(LIBRARY) \
@@ -133,6 +133,7 @@ DOCFILES = $(HTMLFILE) $(TEXIFILE)
 
 CCFLAGS = -g -O2
 LDFLAGS ?= 
+LDFLAGS += -Wl,-elf2flt
 
 INSTALL = /usr/bin/install -c
 INSTALL_PROGRAM = ${INSTALL}
@@ -239,10 +240,10 @@ install : installincs installlib $(UTIL)
 	@echo "Enter 'make installdocs' to install $(DOCFILES) in $(docdir)"
 
 dmalloc.h.2 : $(srcdir)/configure
-	$(SHELL) $(srcdir)/configure
+	$(SHELL) $(srcdir)/configure --host uclinux
 
 settings.h : $(srcdir)/settings.dist $(srcdir)/configure
-	$(SHELL) $(srcdir)/configure
+	$(SHELL) $(srcdir)/configure --host uclinux
 
 dmalloc.h : $(srcdir)/dmalloc.h.1 dmalloc.h.2 $(srcdir)/dmalloc.h.3
 	rm -f $@ $@.t
