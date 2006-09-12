@@ -243,7 +243,7 @@ void __init setup_arch(char **cmdline_p)
 
 #if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
 	 if (memory_end >= 56 * 1024 * 1024)
-		memory_end = 60 * 1024 * 1024;
+		memory_end = 56 * 1024 * 1024;
 #else
 	if (memory_end >= 60 * 1024 * 1024)
 		memory_end = 60 * 1024 * 1024;
