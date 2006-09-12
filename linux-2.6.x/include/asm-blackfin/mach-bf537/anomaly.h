@@ -40,7 +40,7 @@
 #define _MACH_ANOMALY_H_
 
 /* We do not support 0.1 silicon - sorry */
-#if (defined(CONFIG_BF_REV_0_1) || defined(CONFIG_BF_REV_0_2))
+#if (defined(CONFIG_BF_REV_0_1))
 #error Kernel will not work on BF537/6/4 Version 0.1
 #endif
 
