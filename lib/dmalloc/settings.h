@@ -391,7 +391,7 @@
  * comments on this feature.
  */
 #if HAVE_SBRK == 0 && USE_MMAP == 0
-#define INTERNAL_MEMORY_SPACE (1024 * 1024)
+#define INTERNAL_MEMORY_SPACE (4096 * 1024)
 #endif
 
 /*
