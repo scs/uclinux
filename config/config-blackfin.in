@@ -57,7 +57,6 @@ endmenu
 mainmenu_option next_comment
 comment 'Blackfin app programs'
 
-bool    'gdbserver'  	    	        CONFIG_USER_BLACKFIN_GDB
 bool    'Sqlite, a light weight database' CONFIG_USER_SQLITE
 bool	'lmbench'			CONFIG_USER_LMBENCH
 bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
@@ -98,7 +97,7 @@ endmenu
 mainmenu_option next_comment
 comment 'Blackfin canned demos'
 bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO
-if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
+if [ "$CONFIG_USER_NDSO" = "y" ]; then
 	define_bool CONFIG_LIB_LIBPNG y
 fi
 bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
