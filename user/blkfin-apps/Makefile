@@ -22,8 +22,8 @@ dir_$(CONFIG_LIB_ALSA_LIB)                       += alsa
 dir_$(CONFIG_LIB_ALSA_LIB_FORCE)                 += alsa
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
 dir_$(CONFIG_USER_ASTERISK)                      += asterisk
-dir_$(CONFIG_USER_ZAPTEL)                        += zaptel
-dir_$(CONFIG_USER_THREADSTACK)                   += threadstack-0.1
 
 all %::
+	[ -n "${CONFIG_USER_ZAPTEL}" ] &&  make -C zaptel
+	[ -n "${CONFIG_USER_THREADSTACK}" ] && make -C threadstack-0.1
 	for i in $(sort $(dir_y)) ; do make -C $$i $@ || exit $$? ; done
