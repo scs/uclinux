@@ -80,8 +80,8 @@ bool    'ALSA utils'                    CONFIG_USER_ALSA_UTILS
 if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
 	define_bool CONFIG_LIB_ALSA_LIB y
 fi
-bool    'Asterisk PBX'         		CONFIG_USER_ASTERISK
-if [ "$CONFIG_USER_ASTERISK" = "y" ]; then
+bool    'Asterisk PBX'         		CONFIG_USER_BLACKFIN_ASTERISK
+if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_USER_THREADSTACK	y
 	define_bool CONFIG_LIB_LIBTOOL 		y
 	define_bool CONFIG_LIB_SPEEX		y

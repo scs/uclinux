@@ -21,7 +21,7 @@ dir_$(CONFIG_USER_BLACKFIN_WATCHDOGD)            += watchdogd
 dir_$(CONFIG_LIB_ALSA_LIB)                       += alsa
 dir_$(CONFIG_LIB_ALSA_LIB_FORCE)                 += alsa
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
-dir_$(CONFIG_USER_ASTERISK)                      += asterisk
+dir_$(CONFIG_USER_BLACKFIN_ASTERISK)                      += asterisk
 
 all %::
 	[ -n "${CONFIG_USER_ZAPTEL}" ] &&  make -C zaptel
