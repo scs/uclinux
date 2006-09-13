@@ -110,6 +110,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align)
 
 			slob_free(cur, PAGE_SIZE);
 			spin_lock_irqsave(&slob_lock, flags);
+			SetPageSlab(virt_to_page(cur));
 			cur = slobfree;
 		}
 	}
@@ -221,12 +222,17 @@ void *kmalloc(size_t size, gfp_t gfp)
 		return 0;
 
 	bb->order = find_order(size);
-	bb->pages = (void *)__get_free_pages(gfp, bb->order);
+	page = alloc_pages(gfp, bb->order);
+	bb->pages = page_address(page);
 
 	if (bb->pages) {
 		spin_lock_irqsave(&block_lock, flags);
 		bb->next = bigblocks;
 		bigblocks = bb;
+		for (i = 0; i < (1 << bb->order); i++) {
+			SetPageSlab(page);
+			page++;
+		}
 		spin_unlock_irqrestore(&block_lock, flags);
 		return bb->pages;
 	}
@@ -250,8 +256,15 @@ void kfree(const void *block)
 		spin_lock_irqsave(&block_lock, flags);
 		for (bb = bigblocks; bb; last = &bb->next, bb = bb->next) {
 			if (bb->pages == block) {
+				struct page *page = virt_to_page(bb->pages);
+				int i;
+
 				*last = bb->next;
 				spin_unlock_irqrestore(&block_lock, flags);
+				for (i = 0; i < (1 << bb->order); i++) {
+					ClearPageSlab(page);
+					page++;
+				}
 				free_pages((unsigned long)block, bb->order);
 				slob_free(bb, sizeof(bigblock_t));
 				return;
@@ -370,11 +383,6 @@ static struct timer_list slob_timer = TIMER_INITIALIZER(
 
 void kmem_cache_init(void)
 {
-	void *p = slob_alloc(PAGE_SIZE, 0, PAGE_SIZE-1);
-
-	if (p)
-		free_page((unsigned long)p);
-
 	mod_timer(&slob_timer, jiffies + HZ);
 }
 
