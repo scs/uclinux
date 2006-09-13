@@ -199,6 +199,8 @@ asmlinkage int bfin_clone(struct pt_regs *regs)
 	newsp = regs->r1;
 	if (!newsp)
 		newsp = rdusp();
+	else
+		newsp -= 12;
 	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
 }
 
