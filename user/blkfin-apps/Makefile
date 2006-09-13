@@ -24,6 +24,12 @@ dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
 dir_$(CONFIG_USER_BLACKFIN_ASTERISK)                      += asterisk
 
 all %::
-	[ -n "${CONFIG_USER_ZAPTEL}" ] &&  make -C zaptel
-	[ -n "${CONFIG_USER_THREADSTACK}" ] && make -C threadstack-0.1
+	if [ ${CONFIG_USER_ZAPTEL} = y ]; \
+	then \
+		make -C zaptel; \
+	fi; \
+	if [ ${CONFIG_USER_THREADSTACK} = y ]; \
+	then \
+		make -C threadstack-0.1; \
+	fi; \
 	for i in $(sort $(dir_y)) ; do make -C $$i $@ || exit $$? ; done
