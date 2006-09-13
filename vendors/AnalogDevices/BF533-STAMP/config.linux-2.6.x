@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16.11.ADI-2006R1
-# Fri May 12 17:39:51 2006
+# Linux kernel version: 2.6.16.27
+# Wed Sep 13 17:35:28 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -89,20 +89,25 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 #
 # Processor and Board Settings
 #
-CONFIG_BF533=y
-# CONFIG_BF532 is not set
 # CONFIG_BF531 is not set
+# CONFIG_BF532 is not set
+CONFIG_BF533=y
 # CONFIG_BF534 is not set
 # CONFIG_BF535 is not set
 # CONFIG_BF536 is not set
 # CONFIG_BF537 is not set
 # CONFIG_BF561 is not set
+# CONFIG_BF_REV_0_2 is not set
+CONFIG_BF_REV_0_3=y
+# CONFIG_BF_REV_0_4 is not set
+# CONFIG_BF_REV_0_5 is not set
 CONFIG_BLACKFIN=y
 CONFIG_BFIN_SINGLE_CORE=y
 # CONFIG_BFIN533_EZKIT is not set
 CONFIG_BFIN533_STAMP=y
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_BFIN533_BLUETECHNIX_CM is not set
+# CONFIG_BFIN537_BLUETECHNIX_CM is not set
 # CONFIG_BFIN561_EZKIT is not set
 # CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC64M4A2FB_7E=y
@@ -146,7 +151,7 @@ CONFIG_WDTIMER=13
 CONFIG_BFIN_HAVE_RTC=y
 
 #
-# Board specific issues
+# Board customizations
 #
 
 #
@@ -156,6 +161,7 @@ CONFIG_CLKIN_HZ=11059200
 CONFIG_MEM_SIZE=128
 CONFIG_MEM_ADD_WIDTH=11
 CONFIG_ENET_FLASH_PIN=1
+CONFIG_BOOT_LOAD=0x1000
 
 #
 # LED Status Indicators
@@ -179,6 +185,23 @@ CONFIG_BAUD_NO_PARITY=y
 # CONFIG_BAUD_PARITY is not set
 CONFIG_BAUD_1_STOPBIT=y
 # CONFIG_BAUD_2_STOPBIT is not set
+
+#
+# Blackfin Kernel Optimizations
+#
+
+#
+# Timer Tick
+#
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
+
+#
+# Memory Optimizations
+#
+CONFIG_I_ENTRY_L1=y
 CONFIG_RAMKERNEL=y
 # CONFIG_ROMKERNEL is not set
 CONFIG_SELECT_MEMORY_MODEL=y
@@ -191,12 +214,12 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_LARGE_ALLOCS=y
 # CONFIG_IRQCHIP_DEMUX_GPIO is not set
-
-#
-# DMA Support
-#
-# CONFIG_NO_DMA is not set
 CONFIG_BFIN_DMA_5XX=y
+# CONFIG_DMA_UNCACHED_2M is not set
+CONFIG_DMA_UNCACHED_1M=y
+# CONFIG_DMA_UNCACHED_512K is not set
+# CONFIG_DMA_UNCACHED_256K is not set
+# CONFIG_DMA_UNCACHED_NONE is not set
 
 #
 # Cache Support
@@ -206,15 +229,11 @@ CONFIG_BLKFIN_DCACHE=y
 # CONFIG_BLKFIN_CACHE_LOCK is not set
 # CONFIG_BLKFIN_WB is not set
 CONFIG_BLKFIN_WT=y
-CONFIG_UNCACHED_1M=y
+CONFIG_L1_MAX_PIECE=16
 
 #
 # Clock Settings
 #
-# CONFIG_HZ_100 is not set
-CONFIG_HZ_250=y
-# CONFIG_HZ_1000 is not set
-CONFIG_HZ=250
 # CONFIG_BFIN_KERNEL_CLOCK is not set
 
 #
@@ -239,7 +258,6 @@ CONFIG_BANK_0=0x7BB0
 CONFIG_BANK_1=0x7BB0
 CONFIG_BANK_2=0x7BB0
 CONFIG_BANK_3=0x99B3
-CONFIG_BFIN_SPORT=y
 
 #
 # Bus options (PCI, PCMCIA, EISA, MCA, ISA)
@@ -260,7 +278,7 @@ CONFIG_BFIN_SPORT=y
 #
 CONFIG_BINFMT_ELF_FDPIC=y
 CONFIG_BINFMT_FLAT=y
-# CONFIG_BINFMT_ZFLAT is not set
+CONFIG_BINFMT_ZFLAT=y
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_MISC is not set
 
@@ -284,7 +302,6 @@ CONFIG_NET=y
 #
 # CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
@@ -347,7 +364,48 @@ CONFIG_TCP_CONG_BIC=y
 #
 # CONFIG_NET_PKTGEN is not set
 # CONFIG_HAMRADIO is not set
-# CONFIG_IRDA is not set
+CONFIG_IRDA=m
+
+#
+# IrDA protocols
+#
+CONFIG_IRLAN=m
+CONFIG_IRCOMM=m
+# CONFIG_IRDA_ULTRA is not set
+
+#
+# IrDA options
+#
+CONFIG_IRDA_CACHE_LAST_LSAP=y
+# CONFIG_IRDA_FAST_RR is not set
+# CONFIG_IRDA_DEBUG is not set
+
+#
+# Infrared-port device drivers
+#
+
+#
+# SIR device drivers
+#
+CONFIG_IRTTY_SIR=m
+
+#
+# Dongle support
+#
+# CONFIG_DONGLE is not set
+
+#
+# Old SIR device drivers
+#
+# CONFIG_IRPORT_SIR is not set
+
+#
+# Old Serial dongle support
+#
+
+#
+# FIR device drivers
+#
 # CONFIG_BT is not set
 # CONFIG_IEEE80211 is not set
 
@@ -572,7 +630,30 @@ CONFIG_SMC91X=y
 #
 # Input device support
 #
-# CONFIG_INPUT is not set
+CONFIG_INPUT=m
+
+#
+# Userland interfaces
+#
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_INPUT_JOYDEV is not set
+# CONFIG_INPUT_TSDEV is not set
+CONFIG_INPUT_EVDEV=m
+# CONFIG_INPUT_EVBUG is not set
+
+#
+# Input Device Drivers
+#
+# CONFIG_INPUT_KEYBOARD is not set
+# CONFIG_INPUT_MOUSE is not set
+# CONFIG_INPUT_JOYSTICK is not set
+# CONFIG_INPUT_TOUCHSCREEN is not set
+CONFIG_INPUT_MISC=y
+# CONFIG_INPUT_UINPUT is not set
+# CONFIG_BF53X_PFBUTTONS is not set
+CONFIG_TWI_KEYPAD=m
+CONFIG_BFIN_TWIKEYPAD_IRQ=26
+CONFIG_BFIN_TWIKEYPAD_IRQ_PFX=6
 
 #
 # Hardware I/O ports
@@ -583,10 +664,12 @@ CONFIG_SMC91X=y
 #
 # Character devices
 #
+# CONFIG_AD9960 is not set
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
 # CONFIG_BF5xx_PPI is not set
+CONFIG_BFIN_SPORT=y
 # CONFIG_BFIN_TIMER_LATENCY is not set
 CONFIG_TWI_LCD=m
 CONFIG_TWI_LCD_SLAVE_ADDR=34
@@ -601,9 +684,11 @@ CONFIG_TWI_LCD_SLAVE_ADDR=34
 #
 # Non-8250 serial port support
 #
+# CONFIG_SERIAL_BFIN is not set
 CONFIG_SERIAL_BLACKFIN=y
 CONFIG_SERIAL_BLACKFIN_DMA=y
 # CONFIG_SERIAL_BLACKFIN_PIO is not set
+# CONFIG_BFIN_UART_CTSRTS is not set
 CONFIG_UNIX98_PTYS=y
 CONFIG_LEGACY_PTYS=y
 CONFIG_LEGACY_PTY_COUNT=256
@@ -625,7 +710,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
 CONFIG_BLACKFIN_RTC=y
-# CONFIG_BLACKFIN_DPMC is not set
+CONFIG_BLACKFIN_DPMC=m
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 
@@ -663,6 +748,7 @@ CONFIG_I2C_BFIN_GPIO=m
 #
 CONFIG_BFIN_SDA=2
 CONFIG_BFIN_SCL=3
+CONFIG_I2C_BFIN_GPIO_CYCLE_DELAY=40
 # CONFIG_I2C_PARPORT_LIGHT is not set
 # CONFIG_I2C_STUB is not set
 # CONFIG_I2C_PCA_ISA is not set
@@ -775,8 +861,15 @@ CONFIG_FB_CFB_IMAGEBLIT=m
 # CONFIG_FB_MODE_HELPERS is not set
 # CONFIG_FB_TILEBLITTING is not set
 CONFIG_FB_BFIN_7171=m
+CONFIG_FB_BFIN_7393=m
 CONFIG_NTSC=y
 # CONFIG_PAL is not set
+# CONFIG_NTSC_640x480 is not set
+# CONFIG_PAL_640x480 is not set
+# CONFIG_NTSC_YCBCR is not set
+# CONFIG_PAL_YCBCR is not set
+CONFIG_ADV7393_1XMEM=y
+# CONFIG_ADV7393_2XMEM is not set
 # CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
 
@@ -852,6 +945,7 @@ CONFIG_USB_ARCH_HAS_HCD=y
 #
 # MMC/SD Card support
 #
+# CONFIG_SPI_MMC is not set
 # CONFIG_MMC is not set
 
 #
@@ -861,6 +955,11 @@ CONFIG_USB_ARCH_HAS_HCD=y
 #
 # EDAC - error detection and reporting (RAS) (EXPERIMENTAL)
 #
+
+#
+# PBX support
+#
+# CONFIG_PBX is not set
 
 #
 # File systems
@@ -1032,7 +1131,8 @@ CONFIG_NLS_DEFAULT="iso8859-1"
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_DEBUG_SERIAL_EARLY_INIT is not set
-# CONFIG_DEBUG_HWERR is not set
+CONFIG_DEBUG_HUNT_FOR_ZERO=y
+# CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE is not set
 # CONFIG_BOOTPARAM is not set
 # CONFIG_NO_KERNEL_MSG is not set
 CONFIG_CPLB_INFO=y
@@ -1059,9 +1159,9 @@ CONFIG_SECURITY_CAPABILITIES=y
 #
 # Library routines
 #
-# CONFIG_CRC_CCITT is not set
+CONFIG_CRC_CCITT=m
 # CONFIG_CRC16 is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
-CONFIG_ZLIB_INFLATE=m
+CONFIG_ZLIB_INFLATE=y
 CONFIG_ZLIB_DEFLATE=m
