@@ -23,17 +23,22 @@ dir_$(CONFIG_LIB_ALSA_LIB_FORCE)                 += alsa
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
 dir_$(CONFIG_USER_BLACKFIN_ASTERISK)                      += asterisk
 
-all %::
+all:
 	if [ ${CONFIG_USER_ZAPTEL} = y ]; then \
 		make -C zaptel; \
 	fi 
 	if [ ${CONFIG_USER_THREADSTACK} = y ]; then \
 		make -C threadstack-0.1; \
 	fi
-	for i in $(sort $(dir_y)) ; do make -C $$i $@ || exit $$? ; done
+	for i in $(dir_y) ; do make -C $$i || exit $$? ; done
 
 romfs:
 	if [ ${CONFIG_USER_ZAPTEL} = y ]; then \
 		make -C zaptel romfs; \
 	fi 
-		
+	for i in $(dir_y) ; do  make -C $$i romfs || exit $? ; done
+
+clean:
+	for i in $(dir_y) ; do \
+		[ ! -d $$i ] || make -C $$i clean; \
+	done
