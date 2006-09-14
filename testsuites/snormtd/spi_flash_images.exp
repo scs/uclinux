@@ -157,7 +157,7 @@ if { $where_are_we == "uboot" } {
 ###########################################################################################################
 
   
-send -s "mw.b 0x1000000 0xff 0x700000\r"
+send -s "mw.b 0x1000000 0xff 0x6fffff\r"
 
 while 1 {
 set timeout 500
@@ -177,7 +177,7 @@ expect {
 }
 
 
-send -s "eeprom write 0x1000000 0x100000 0x700000\r"
+send -s "eeprom write 0x1000000 0x100000 0x6fffff\r"
 
 while 1 {
 set timeout 500
@@ -204,11 +204,12 @@ set timeout 120
 send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
 while 1 {
 expect {
-	
-	"done" {
-	set tftp_flag SUCCESS
-	break
-	}
+
+        -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
+                set image_size $expect_out(1,string)
+                send_user "Image size is $image_size\n"
+                break
+        }
 	
 		
 	timeout {
@@ -220,7 +221,7 @@ expect {
 }
 
 expect ">"   
-send -s "eeprom write 0x1000000 0x40000 0xc0000\r"
+send -s "eeprom write 0x1000000 0x40000 0x$image_size\r"
 
 while 1 {
 	set timeout 500
@@ -240,7 +241,7 @@ while 1 {
     }
   
 expect ">"   
-send -s "eeprom read 0x2000000 0x40000 0xc0000\r"
+send -s "eeprom read 0x2000000 0x40000 0x$image_size\r"
 
 while 1 {
 	set timeout 500
@@ -260,13 +261,13 @@ while 1 {
     }
 
 expect ">"
-send -s "cmp.b 0x1000000 0x2000000 0xc0000\r"
+send -s "cmp.b 0x1000000 0x2000000 0x$image_size\r"
 
 while 1 {
 	set timeout 15
 	expect {
 
-	  -re  "Total of [expr 0xc0000] bytes were the same" {
+	  -re  "Total of [expr 0x$image_size] bytes were the same" {
 		set temp_status_flag $TEST_PASS
 		break
 	    }
@@ -286,13 +287,13 @@ set timeout 120
 send -s "tftp 0x1000000 $jffs2_rootfs_image\r"
 while 1 {
 expect {
+
+         -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
+                set image_size $expect_out(1,string)
+                send_user "Image size is $image_size\n"
+                break
+        }
 	
-	"done" {
-	set tftp_flag SUCCESS
-	break
-	}
-	
-		
 	timeout {
 	send_user "ERROR: Uboot locked up during tftp\n"
 	
@@ -302,7 +303,7 @@ expect {
 }
 
 expect ">"   
-send -s "eeprom write 0x1000000 0x100000 0x700000\r"
+send -s "eeprom write 0x1000000 0x100000 0x$image_size\r"
 
 while 1 {
 	set timeout 500
