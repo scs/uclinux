@@ -19,7 +19,7 @@ i) Preface - Blackfin specific info
 -----------------------------
 
   1. You will need a cross-compiler package for your target. Many binary
-     tools packages exists specifically for compiling uClinux. Install
+     tool packages exists specifically for compiling uClinux. Install
      that in the standard way first. For example, if you are targeting m68k
      or ColdFire systems then you can use the m68k-elf-tools binary
      packages of www.uclinux.org.
@@ -55,7 +55,7 @@ i) Preface - Blackfin specific info
      at this top level. Not all kernel versions support all boards, as a
      general rule choose 2.4.x. Also typically you would use glibc only on
      target processors that support virtual memory (x86, SH4, XSCALE).
-     Most MMUless processors use uC-libc. If you choose a combination that
+     Most MMUless processors use uClibc. If you choose a combination that
      doesn't have a default configuration file then the xconfig step will
      issue a message letting you know.
  
@@ -63,7 +63,7 @@ i) Preface - Blackfin specific info
      an appropriate default application set.
 
      Sometimes a number of questions will appear after you 'Save and Exit'.
-     Do not be concerned,  it just means that some new config options have
+     Do not be concerned, it just means that some new config options have
      been added to the source tree that do not have defaults for the
      configuration you have chosen.  If this happens the safest option is
      to answer 'N' to each question as they appear.
