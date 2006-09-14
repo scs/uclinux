@@ -1835,7 +1835,7 @@ host_os=`echo $ac_cv_host | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\3/'`
 echo "$as_me:$LINENO: checking for supported operating system" >&5
 echo $ECHO_N "checking for supported operating system... $ECHO_C" >&6
 case "$host_os" in
-linux*)
+linux*|uclinux*)
 	opsys=linux
 
 cat >>confdefs.h <<\_ACEOF
