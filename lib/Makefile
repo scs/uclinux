@@ -106,6 +106,7 @@ dir_$(CONFIG_LIB_READLINE)       += readline
 dir_$(CONFIG_LIB_READLINE_FORCE) += readline
 dir_$(CONFIG_LIB_LIBTOOL)        += libtool
 dir_$(CONFIG_LIB_LIBTOOL_FORCE)  += libtool
+dir_$(CONFIG_LIB_BFIN_GSM)       += blackfin-gsm
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop
