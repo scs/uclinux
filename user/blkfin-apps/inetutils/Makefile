@@ -1,20 +1,7 @@
-SUBDIRS = libinetutils
+dir_y = libinetutils
+dir_$(CONFIG_USER_INETUTILS_RCP)   += rcp
+dir_$(CONFIG_USER_INETUTILS_RSH)   += rsh
+dir_$(CONFIG_USER_INETUTILS_RSHD)  += rshd
 
-ifdef CONFIG_USER_INETUTILS_RCP
-SUBDIRS += rcp
-endif
-
-ifdef CONFIG_USER_INETUTILS_RSH
-SUBDIRS += rsh
-endif
-
-ifdef CONFIG_USER_INETUTILS_RSHD
-SUBDIRS += rshd
-endif
-
-all romfs:
-	for i in $(SUBDIRS) ; do $(MAKE) -C $$i $@ || exit $? ; done
-
-clean:
-	for i in $(SUBDIRS) rcp rsh rshd ; do $(MAKE) -C $$i $@ || exit $? ; done
-
+all %::
+	for i in $(dir_y) ; do make -C $$i $@ || exit $$? ; done
