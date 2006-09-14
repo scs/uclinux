@@ -33,7 +33,7 @@ ztcfg.o: ztcfg.c
 	$(CC) $(CFLAGS) -c -o ztcfg.o ztcfg.c
 
 ztcfg: ztcfg.o libtonezone.a
-	$(CC) $(CFLAGS) -Wl,-elf2flt -o ztcfg ztcfg.o libtonezone.a -lm   
+	$(CC) $(CFLAGS) -o ztcfg ztcfg.o libtonezone.a -lm $(LDFLAGS)
 
 clean:
 	make -C $(KDIR) SUBDIRS=$(PWD) clean
