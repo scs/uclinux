@@ -104,6 +104,8 @@ dir_$(CONFIG_LIB_LIBCRYPT_OLD_FORCE) += libcrypt_old
 dir_$(CONFIG_LIB_NCURSES_FORCE) += ncurses
 dir_$(CONFIG_LIB_READLINE)       += readline
 dir_$(CONFIG_LIB_READLINE_FORCE) += readline
+dir_$(CONFIG_LIB_LIBTOOL)        += libtool
+dir_$(CONFIG_LIB_LIBTOOL_FORCE)  += libtool
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop
