@@ -20580,7 +20580,7 @@ cat >>confdefs.h <<\_ACEOF
 #define BFIN_ASM
 _ACEOF
 
-  LDFLAGS="-Wl,-elf2flt=-s100000"
+  #LDFLAGS="-Wl,-elf2flt=-s100000"
 fi
 fi;
 

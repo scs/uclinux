@@ -9,19 +9,20 @@ RELCWD = $(shell pwd | sed -e "s/.*\///")
 
 # these will override flags of same name in the gsm Makefile
 
-CC=bfin-uclinux-gcc
-CCFLAGS=-c -O2
-AR=bfin-uclinux-ar
-LDFLAGS=-Wl,-elf2flt=-s100000 -lm
+CC ?= bfin-uclinux-gcc
+CCFLAGS = $(CFLAGS) -c
+AR ?= bfin-uclinux-ar
+FLTFLAGS += -s 100000
+LDFLAGS += -lm
 FLAGS=CC=$(CC) CCFLAGS='$(CCFLAGS)' AR=$(AR) WAV49=
 
 all: tgsm
 
 gsm/lib/libgsm.a:
-	make $(FLAGS) -C gsm lib/libgsm.a
+	$(MAKE) $(FLAGS) -C gsm lib/libgsm.a
 
 tgsm: tgsm.c gsm/lib/libgsm.a
-	$(CC) -I. tgsm.c -o tgsm gsm/lib/libgsm.a samcycles.c -Wall $(LDFLAGS)
+	$(CC) $(CFLAGS) -I. tgsm.c -o tgsm gsm/lib/libgsm.a samcycles.c -Wall $(LDFLAGS)
 
 romfs:
 
