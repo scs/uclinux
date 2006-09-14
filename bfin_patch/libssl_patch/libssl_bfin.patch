@@ -1,5 +1,5 @@
---- openssl-0.9.8/Configure
-+++ libssl/Configure
+--- openssl-0.9.8c/Configure
++++ openssl-0.9.8c/Configure
 @@ -98,9 +98,11 @@
  # AES_ASM	ASE_[en|de]crypt is implemented in assembler
  
@@ -20,8 +20,8 @@
  "linux-aout",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -march=i486 -Wall::(unknown):::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_out_asm}",
  ####
  "linux-generic64","gcc:-DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
---- openssl-0.9.8/crypto/opensslconf.h
-+++ libssl/crypto/opensslconf.h
+--- openssl-0.9.8c/crypto/opensslconf.h
++++ openssl-0.9.8c/crypto/opensslconf.h
 @@ -18,6 +18,9 @@
  #endif
  
@@ -76,8 +76,8 @@
  #endif
  
  /* These default values were supplied by
---- openssl-0.9.8/INSTALL
-+++ libssl/INSTALL
+--- openssl-0.9.8c/INSTALL
++++ openssl-0.9.8c/INSTALL
 @@ -132,7 +132,7 @@
       as the argument to ./Configure. For example, a "linux-elf" user would
       run:
@@ -87,17 +87,17 @@
  
       If your system is not available, you will have to edit the Configure
       program and add the correct configuration for your system. The
---- openssl-0.9.8/Makefile
-+++ libssl/Makefile
-@@ -12,9 +12,9 @@
+--- openssl-0.9.8c/Makefile
++++ openssl-0.9.8c/Makefile
+@@ -12,9 +12,10 @@
  SHLIB_MAJOR=0
  SHLIB_MINOR=9.8
  SHLIB_EXT=
 -PLATFORM=dist
--OPTIONS= no-gmp no-krb5 no-mdc2 no-rc5 no-shared no-zlib no-zlib-dynamic
--CONFIGURE_ARGS=dist
 +PLATFORM=linux-bfin
-+OPTIONS=enable-threads no-gmp no-krb5 no-mdc2 no-rc5 no-shared no-zlib no-zlib-dynamic
+ OPTIONS= no-camellia no-gmp no-krb5 no-mdc2 no-rc5 no-shared no-zlib no-zlib-dynamic
++OPTIONS += enable-threads
+-CONFIGURE_ARGS=dist
 +CONFIGURE_ARGS=linux-bfin threads
  SHLIB_TARGET=
  
@@ -110,7 +110,7 @@
 -CFLAG= -O
 +CC= bfin-uclinux-gcc
 +CFLAG= -DOPENSSL_THREADS -D_REENTRANT -DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall
- DEPFLAG= -DOPENSSL_NO_GMP -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 
+ DEPFLAG= -DOPENSSL_NO_CAMELLIA -DOPENSSL_NO_GMP -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 
  PEX_LIBS= 
  EX_LIBS= 
  EXE_EXT= 
@@ -119,7 +119,8 @@
 -RANLIB= /usr/bin/ranlib
 +AR=bfin-uclinux-ar $(ARFLAGS) r
 +RANLIB= bfin-uclinux-ranlib
- PERL= /usr/bin/perl
+-PERL= /usr/local/bin/perl
++PERL= perl
  TAR= tar
  TARFLAGS= --no-recursion
 -MAKEDEPPROG=makedepend
@@ -128,8 +129,8 @@
  # We let the C compiler driver to take care of .s files. This is done in
  # order to be excused from maintaining a separate set of architecture
 @@ -102,7 +102,7 @@
- KRB5_INCLUDES=
- LIBKRB5=
+ ZLIB_INCLUDE=
+ LIBZLIB=
  
 -DIRS=   crypto ssl engines apps test tools
 +DIRS=   crypto ssl engines 
