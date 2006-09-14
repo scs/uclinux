@@ -138,10 +138,10 @@ while 1 {
              
              send "Y\r"
       }
-      
-         -re "KGDB: Over Ethernet.*KGDB_ETH.*\\\[.*]" {
+  
+         -re "KGDB: connect over.*Ethernet.*KGDB_ETH.*UART.*KGDB_UART.*choice.*\\\[.*]" {
              
-             send "Y\r"
+             send "1\r"
       }
        
 	 -re "KGDB: test.*KGDB_TEST.*\\\[.*]" {
@@ -162,7 +162,7 @@ while 1 {
       
       
        "\\\(*) \\\[*]" {
-            
+           sleep .001 
 	     send "\r"
       }
 
