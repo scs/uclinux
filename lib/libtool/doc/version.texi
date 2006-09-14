@@ -1,4 +1,0 @@
-@set UPDATED 4 September 2006
-@set UPDATED-MONTH September 2006
-@set EDITION 1.5.20
-@set VERSION 1.5.20
