@@ -10,12 +10,12 @@
 # 3/ LDFLAGS
 
 LIBPTHREAD_PATH  = $(ROOTDIR)/uClibc/libpthread/linuxthreads
-CC = bfin-uclinux-gcc
-LDFLAGS = -Wl,-elf2flt
+CC ?= bfin-uclinux-gcc
 
-INCLUDES  = -I $(LIBPTHREAD_PATH)
-INCLUDES += -I $(LIBPTHREAD_PATH)/sysdeps/pthread/
-INCLUDES += -I $(LIBPTHREAD_PATH)/sysdeps/bfin
+CFLAGS += \
+	-I $(LIBPTHREAD_PATH) \
+	-I $(LIBPTHREAD_PATH)/sysdeps/pthread/ \
+	+= -I $(LIBPTHREAD_PATH)/sysdeps/bfin
 
 PROJ=threadstack
 VERSION=0.1
@@ -26,11 +26,11 @@ RELCWD = $(shell pwd | sed -e "s/.*\///")
 all: test_threadstack
 
 test_threadstack: test_threadstack.c threadstack.o
-	$(CC) -Wall test_threadstack.c threadstack.o \
-	-o test_threadstack $(LDFLAGS) -pthread
+	$(CC) $(CFLAGS) test_threadstack.c threadstack.o \
+	-o test_threadstack $(LDFLAGS) -lpthread
 
 threadstack.o: threadstack.c
-	$(CC) -Wall -c $(INCLUDES) threadstack.c
+	$(CC) $(CFLAGS) -c threadstack.c -o threadstack.o
 
 romfs:
 
