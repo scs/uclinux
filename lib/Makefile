@@ -108,6 +108,8 @@ dir_$(CONFIG_LIB_LIBTOOL)        += libtool
 dir_$(CONFIG_LIB_LIBTOOL_FORCE)  += libtool
 dir_$(CONFIG_LIB_BFIN_GSM)       += blackfin-gsm
 dir_$(CONFIG_LIB_SPEEX)          += speex/libspeex
+dir_$(CONFIG_LIB_LIBUSB)         += libusb
+dir_$(CONFIG_LIB_LIBUSB_FORCE)   += libusb
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop
