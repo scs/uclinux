@@ -20,13 +20,13 @@ TOP = .
 # C Compiler and options for use in building executables that
 # will run on the platform that is doing the build.
 #
-BCC = gcc -g -O2
+BCC = gcc
 
 # C Compile and options for use in building executables that 
 # will run on the target platform.  (BCC and TCC are usually the
 # same unless your are cross-compiling.)
 #
-TCC = bfin-uclinux-gcc -g -O2 -DOS_UNIX=1 -DHAVE_USLEEP=1 -DSQLITE_DISABLE_LFS -I. -I${TOP}/src
+TCC = bfin-uclinux-gcc -DOS_UNIX=1 -DHAVE_USLEEP=1 -DSQLITE_DISABLE_LFS -I. -I${TOP}/src
 
 # Define -DNDEBUG to compile without debugging (i.e., for production usage)
 # Omitting the define will cause extra debugging code to be inserted and
