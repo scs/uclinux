@@ -1,0 +1,28 @@
+
+
+CC:= bfin-uclinux-gcc
+CPPC:= bfin-uclinux-g++
+CFLAGS:= -fno-jump-tables -mfdpic
+LDFLAGS:= -Wl,-elf2flt
+L1FLAGS:= -Wl,--sep-code -Wl,--code-in-l1 -Wl,-z -Wl,now -Wl,--data-in-l1
+
+all: test_helloworld test_helloworldcpp test_helloworld_stack
+
+test_helloworld: libhelloworld
+	$(CC) -pie -o $@ $@.c -lhelloworld -L./ $(CFLAGS)
+
+test_helloworld_stack:
+	$(CC) $(LDFLAGS) -o $@ $@.c
+	bfin-uclinux-flthdr -u -s 3500 test_helloworld_stack
+
+libhelloworld:
+	$(CC) -shared -o libhelloworld.so helloworld.c $(CFLAGS) $(L1FLAGS)
+
+test_helloworldcpp: libhelloworldcpp
+	$(CPPC) -o test_helloworldcpp test_helloworld.cpp -lhelloworldcpp -L./ $(CFLAGS)
+
+libhelloworldcpp:
+	$(CPPC) -shared -o libhelloworldcpp.so helloworld.cpp $(CFLAGS)
+
+clean:
+	rm -rf *.o *.so *.gdb test_helloworld test_helloworldcpp test_helloworld_stack
