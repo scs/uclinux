@@ -1853,7 +1853,7 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 			== NULL) {
 		printk(KERN_ERR DRIVER_NAME ": Failed to find device on sport\n");
 		err = -ENODEV;
-		goto __nodev;
+		goto __sport_err;
 	}
 
 	ad1836->sport = sport;
@@ -1895,8 +1895,12 @@ static int __devinit snd_ad1836_probe(struct platform_device *pdev)
 	return 0;
 
 __nodev:
+	bf53x_sport_done(sport);
+__sport_err:
+#ifdef MULTI_SUBSTREAM
 	dma_free_coherent(NULL, AD1836_BUF_SZ, ad1836->rx_dma_buf, 0);
 	dma_free_coherent(NULL, AD1836_BUF_SZ, ad1836->tx_dma_buf, 0);
+#endif
 	snd_card_free(card);
 	return err;
 }
