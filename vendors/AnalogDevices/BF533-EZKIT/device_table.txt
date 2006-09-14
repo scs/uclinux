@@ -34,7 +34,7 @@
 #<name>		<type>	<mode>	<uid>	<gid>	<major>	<minor>	<start>	<inc>	<count>
 /dev		d	755	0	0	-	-	-	-	-
 /dev/input	d	755	0	0	-	-	-	-	-
-/dev/usb	d	755	0	0	-	-	-	-	-
+#/dev/usb	d	755	0	0	-	-	-	-	-
 /dev/mtd0	c	640	0	0	90	0	0	0	-
 /dev/mtd1	c	640	0	0	90	2	0	0	-
 /dev/mtd2	c	640	0	0	90	4	0	0	-
@@ -69,13 +69,13 @@
 /dev/ptmx	c	666	0	0	5	2	0	0	-
 /dev/ttyS0	c	755	0	0	4	64	0	0	-
 #/dev/ttyS1	c	755	0	0	4	65	0	0	-
-/dev/ttyUSB c	664	0	0	188	0	0	1	1
+#/dev/ttyUSB c	664	0	0	188	0	0	1	1
 /dev/psaux	c	640	0	0	10	1	0	0	-
 /dev/rtc	c	640	0	0	10	135	0	0	-
 /dev/dpmc	c	640	0	0	10	254	0	0	-
 /dev/ppp	c	660	0	0	108	0	0	0	-
 /dev/pppox	c	660	0	0	144	0	0	1	4
-/dev/can	c	666	0	0	91	0	0	1	1
+#/dev/can	c	666	0	0	91	0	0	1	1
 #/dev/coreb	c	640	0	0	10	229	0	0	-
 /dev/ircomm	c	666	0	0	161	0	0	1	2
 
@@ -102,12 +102,12 @@
 /dev/spi	c	664	0	0	252	0	0	0	-
 /dev/pf		c	664	0	0	253	0	0	1	16
 /dev/input/event c	664	0	0	13	64	0	1	1
-/dev/usb/mouse c	664	0	0	180	16	0	1	1
+#/dev/usb/mouse c	664	0	0	180	16	0	1	1
 /dev/ppi	c	664	0	0	241	0	0	1	1
 #/dev/sport	c	664	0	0	251	0	0	1	-
 /dev/time	c	664	0	0	10	101	0	0	-
-/dev/lcd	c	664	0	0	60	0	0	0	-
-/dev/ad9960	c	664	0	0	240	0	0	0	-
+#/dev/lcd	c	664	0	0	60	0	0	0	-
+#/dev/ad9960	c	664	0	0	240	0	0	0	-
 /dev/watchdog	c	664	0	0	10	130	0	0	-
 /dev/mmc	b	660	0	0	36	0	0	0	-
 /dev/mmc	b	660	0	0	36	1	1	1	4
@@ -115,10 +115,10 @@
 /dev/sport1	c	660	0	0	237	1	0	0	-
 
 # IDE Devices
-/dev/hda	b	640	0	0	3	0	0	0	-
-/dev/hda	b	640	0	0	3	1	1	1	15
-/dev/hdb	b	640	0	0	3	64	0	0	-
-/dev/hdb	b	640	0	0	3	65	1	1	15
+#/dev/hda	b	640	0	0	3	0	0	0	-
+#/dev/hda	b	640	0	0	3	1	1	1	15
+#/dev/hdb	b	640	0	0	3	64	0	0	-
+#/dev/hdb	b	640	0	0	3	65	1	1	15
 #/dev/hdc	b	640	0	0	22	0	0	0	-
 #/dev/hdc	b	640	0	0	22	1	1	1	15
 #/dev/hdd	b	640	0	0	22	64	0	0	-
@@ -133,8 +133,8 @@
 #/dev/hdh	b	640	0	0	34	65	1	1	15
 
 # SCSI Devices
-/dev/sda	b	640	0	0	8	0	0	0	-
-/dev/sda	b	640	0	0	8	1	1	1	15
+#/dev/sda	b	640	0	0	8	0	0	0	-
+#/dev/sda	b	640	0	0	8	1	1	1	15
 #/dev/sdb	b	640	0	0	8	16	0	0	-
 #/dev/sdb	b	640	0	0	8	17	1	1	15
 #/dev/sdc	b	640	0	0	8	32	0	0	-
@@ -149,7 +149,7 @@
 #/dev/sdg	b	640	0	0	8	97	1	1	15
 #/dev/sdh	b	640	0	0	8	112	0	0	-
 #/dev/sdh	b	640	0	0	8	113	1	1	15
-/dev/sg		c	640	0	0	21	0	0	1	15
+#/dev/sg		c	640	0	0	21	0	0	1	15
 #/dev/scd	b	640	0	0	11	0	0	1	15
 #/dev/st		c	640	0	0	9	0	0	1	8
 #/dev/nst	c	640	0	0	9	128	0	1	8
