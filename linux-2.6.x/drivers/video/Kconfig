@@ -406,6 +406,7 @@ config FB_VGA16
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vga16fb.
+
 config FB_BFIN_7171
 	tristate "Blackfin ADI7171 video encoder on uClinux"
 	depends on FB && BFIN
@@ -417,6 +418,9 @@ config FB_BFIN_7171
 	  attached to a Blackfin on the PPI port.
 	  If your Blackfin board has a 7171 select Y.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_ad7171fb.
+
 config FB_BFIN_7393
 	tristate "Blackfin ADV7393 Video encoder on uClinux"
 	depends on FB && BFIN
@@ -427,6 +431,9 @@ config FB_BFIN_7393
 	  This is the framebuffer device for a ADV7393 video encoder
 	  attached to a Blackfin on the PPI port.
 	  If your Blackfin board has a ADV7393 select Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_adv7393fb.
 
 choice
 	prompt  "Video mode support"
@@ -472,8 +479,11 @@ config FB_BF537_LQ035
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
-	 This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
-         attached to a BF537.
+	  This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
+	  attached to a BF537.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf537-lq035.
 
 config LQ035_SLAVE_ADDR
 	hex "The slave address of the I2C device (0x58, 0x5A, 0x5C and 0x5E)"
