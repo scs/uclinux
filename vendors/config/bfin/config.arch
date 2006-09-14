@@ -142,7 +142,7 @@ ifdef UCLINUX_BUILD_USER
   else
 	CFLAGS  := -O2
   endif
-	CFLAGS  += -Wall -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
+	CFLAGS  += -Wall -D__uClinux__ -DEMBED
 	CFLAGS  += -fno-builtin
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
 	CFLAGS  += -fstack-limit-symbol=_stack_start
