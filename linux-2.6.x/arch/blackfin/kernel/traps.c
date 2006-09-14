@@ -37,6 +37,8 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 
+extern unsigned long memory_end, physical_mem_end;
+
 /*
  *  . EXCEPTION TRAPS DEBUGGING LEVELS
  *  .
@@ -184,7 +186,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	 * Some exceptions are handled there (in assembly, in exception space)
 	 * Some are handled here, (in C, in interrupt space)
 	 * Some, like CPLB, are handled in both, where the normal path is
-	 * handled in assembly/exception space, and the error path is handled here
+	 * handled in assembly/exception space, and the error path is handled
+	 * here
 	 */
 	
 	/* 0x00 - Linux Syscall, getting here is an error */
@@ -204,7 +207,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGSEGV;
 		printk(KERN_EMERG EXC_0x03);
 		break;
-	/* 0x04 - spinlock - handled by _ex_spinlock, getting here is an error */
+	/* 0x04 - spinlock - handled by _ex_spinlock,
+		getting here is an error */
 	/* 0x05 - User Defined, Caught by default */
 	/* 0x06 - User Defined, Caught by default */
 	/* 0x07 - User Defined, Caught by default */
@@ -258,33 +262,31 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x22);
 		break;
-	/* 0x23 - Data CPLB Protection Violationi, normal case is handled in _cplb_hdr */
+	/* 0x23 - Data CPLB Protection Violation,
+		 normal case is handled in _cplb_hdr */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
-		DPRINTK3(EXC_0x23);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic("Congratulations - you found an error I cannot handle.\n\n"
-			"Please report a bug to http://blackfin.uclinux.org\n");
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x23);
+		break;
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_EMERG EXC_0x24);
-		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
-	/* 0x25 - Unrecoverable Eventi, handled here */
+	/* 0x25 - Unrecoverable Event, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x25);
 		break;
-	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr, error case is handled here */
+	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr,
+		error case is handled here */
 	case VEC_CPLB_M:
-		info.si_code = ILL_CPLB_MISS;
-		DPRINTK3(EXC_0x26);
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
+		printk(KERN_EMERG EXC_0x26);
 		break;
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
 	case VEC_CPLB_MHIT:
@@ -296,7 +298,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x27);
 #endif
-		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		break;
 	/* 0x28 - Emulation Watchpoint, handled here */
 	case VEC_WATCH:
@@ -323,37 +324,30 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
 		printk(KERN_EMERG EXC_0x2A);
-		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
-	/* 0x2B - Instruction CPLB protection Violation, handled in _cplb_hdr */
+	/* 0x2B - Instruction CPLB protection Violation,
+		handled in _cplb_hdr */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
-		DPRINTK2(EXC_0x2B);
-		DPRINTK2("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic("Congratulations - you found an error I cannot handle.\n\n"
-			"Please report a bug to http://blackfin.uclinux.org\n");
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x2B);
 		break;
-	/* 0x2C - Instruction CPLB miss,  handled in _cplb_hdr */
+	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
-		DPRINTK3(EXC_0x2C);
-		DPRINTK3("ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		info.si_code = ILL_CPLB_MISS;
-		DPRINTK3("DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-		panic("Congratulations - you found an error I cannot handle.\n\n"
-			"Please report a bug to http://blackfin.uclinux.org\n");
+		sig = SIGILL;
+		printk(KERN_EMERG EXC_0x2C);
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
 	case VEC_CPLB_I_MHIT:
 		info.si_code = ILL_CPLB_MULHIT;
 #ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
 		sig = SIGSEGV;
-		printk(KERN_EMERG "\n\nJump to address 0\n");
+		printk(KERN_EMERG "\n\nJump to address 0 - 0x0fff\n");
 #else
 		sig = SIGILL;
 		printk(KERN_EMERG EXC_0x2D);
 #endif
-		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
 		break;
 	/* 0x2E - Illegal use of Supervisor Resource, handled here */
 	case VEC_ILL_RES:
@@ -381,6 +375,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
+		printk(KERN_EMERG "Caught Unhandled Exception, code = %08lx\n",
+			(fp->seqstat & SEQSTAT_EXCAUSE));
 		break;
 	}
 
@@ -394,6 +390,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		show_stack(current, &stack);
 		if (current->mm == NULL)
 			panic("Kernel exception");
+	}
+
+	if ( ! ( fp->orig_pc <= physical_mem_end 
+#if L1_CODE_LENGTH != 0
+            || ( fp->orig_pc >= L1_CODE_START &&
+                 fp->orig_pc <= (L1_CODE_START + L1_CODE_LENGTH)) )
+#endif
+	) {
+		panic ("I can't return to memory that doesn't exist - bad things happen");
 	}
 
 	trace_buffer_restore(j);
@@ -499,9 +504,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		       (void*)current->mm->brk,
 		       (void*)current->mm->start_stack);
 	}
+
 	printk("return address: 0x%p; contents of [PC-16...PC+8]:\n", retaddr);
-
-
 	if (retaddr != 0
 #if L1_CODE_LENGTH != 0
 	    /* FIXME: Copy the code out of L1 Instruction SRAM through dma
@@ -509,17 +513,31 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	    && !(retaddr >= (void*)L1_CODE_START
 		 && retaddr < (void*)(L1_CODE_START + L1_CODE_LENGTH))
 #endif
+		&& retaddr <= (void*)physical_mem_end
 	    ) {
 		int i;
+		unsigned short x;
 		for (i = -16; i < 8; i++) {
-			unsigned short x;
 			get_user(x, (unsigned short *)retaddr + i);
+#ifndef CONFIG_DEBUG_HWERR
+			/* If one of the last few instructions was a STI 
+			 * it is likily that the error occured awhile ago
+			 * and we just noticed 
+			 */
+			if (x >= 0x0040 && x <= 0x0047 && i <= 0)
+				panic("\n\nWARNING : You should reconfigure the kernel to turn on\n"
+					" 'Hardware error interrupt debugging'\n"
+					" The rest of this error is meanless\n");
+#endif
+
 			if (i == -8)
 				printk("\n");
 			if (i == 0)
 				printk("X\n");
 			printk("%04x ", x);
 		}
+	} else {
+		printk("Can't look at the [PC] now - sorry\n");
 	}
 
 	printk("\n\n");
@@ -552,6 +570,10 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	       fp->m3, fp->i3);
 
 	printk("\nUSP: %08lx   ASTAT: %08lx\n", rdusp(), fp->astat);
+	if ( (long)fp->seqstat & SEQSTAT_EXCAUSE ) {
+		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p", (void*)bfin_read_DCPLB_FAULT_ADDR());
+		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+ 	}
 
 	printk("\n\n");
 }
@@ -574,25 +596,23 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 {
 
-	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
-	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
-
 	switch (cplb_panic) {
 	case CPLB_NO_UNLOCKED:
-		dump_bfin_regs(fp, (void *)fp->retx);
-		dump_stack();
-		panic("All CPLBs are locked\n");
+		printk(KERN_EMERG "All CPLBs are locked\n");
 		break;
 	case CPLB_PROT_VIOL:
-		printk("Data Access CPLB Protection Voilation\n");
-		break;
+		return;
 	case CPLB_NO_ADDR_MATCH:
-		printk("No CPLB Address Match\n");
-		break;
+		return;
 	case CPLB_UNKNOWN_ERR:
-		dump_bfin_regs(fp, (void *)fp->retx);
-		dump_stack();
-		panic("Unknown CPLB Exception\n");
+		printk(KERN_EMERG "Unknown CPLB Exception\n");
 		break;
 	}
+
+	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
+	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
+	dump_bfin_regs(fp, (void *)fp->retx);
+	dump_stack();
+	panic("Unrecoverable event\n");
+	
 }
