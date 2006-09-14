@@ -25,28 +25,9 @@ RANLIB=$(CROSS_COMPILE)ranlib
 # Create OPTIONS variable
 OPTIONS=
 
-OSARCH=$(shell uname -s)
+OSARCH=Linux
 
 ifeq (${OSARCH},Linux)
-PROC=$(shell uname -m)
-ifeq ($(PROC),x86_64)
-# You must have GCC 3.4 to use k8, otherwise use athlon
-PROC=k8
-#PROC=athlon
-OPTIONS+=-m64
-endif
-ifeq ($(PROC),sparc64)
-#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-#This works for even old (2.96) versions of gcc and provides a small boost either way.
-#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-#So we go lowest common available by gcc and go a step down, still a step up from
-#the default as we now have a better instruction set to work with. - Belgarath
-PROC=ultrasparc
-OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
-OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
-OPTIONS+=-fomit-frame-pointer
-endif
-
 MPG123TARG=linux
 endif
 
