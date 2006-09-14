@@ -88,6 +88,10 @@ if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_LIB_BFIN_GSM		y
 	define_bool CONFIG_USER_ZAPTEL		y
 fi
+bool    'usbutils (lsusb)'              CONFIG_USER_USBUTILS
+if [ "$CONFIG_USER_USBUTILS" = "y" ]; then
+	define_bool CONFIG_LIB_LIBUSB y
+fi
 endmenu
 
 

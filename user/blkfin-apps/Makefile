@@ -24,6 +24,7 @@ dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa
 dir_$(CONFIG_USER_ZAPTEL)                        += zaptel
 dir_$(CONFIG_USER_THREADSTACK)                   += threadstack-0.1
 dir_$(CONFIG_USER_BLACKFIN_ASTERISK)             += asterisk
+dir_$(CONFIG_USER_USBUTILS)                      += usbutils
 
 all %::
 	for i in $(dir_y) ; do make -C $$i $@ || exit $$? ; done

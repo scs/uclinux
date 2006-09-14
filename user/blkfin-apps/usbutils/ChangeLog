@@ -1,0 +1,116 @@
+2005-05-14 David Brownell <dbrownell@users.sourceforge.net>
+	Label as version 0.71
+	* usb.ids: update to current version
+
+2005-05-13 Toby Ernst <tee@sgi.com>
+	* lsusb.c: /proc/bus/usb/BBB/DDD numbers are decimal not octal
+	* lsusb.8: ditto
+
+2005-04-29 Olaf Hering <olh@suse.de>
+	* lsusb.c: fix some compiler warnings
+
+2005-04-14 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c: add some more CDC WHCM dumping, matching a Sony 3G phone
+
+2005-03-28 Aurelien Jarno <aurelien@aurel32.net> 
+	* lsusb.c: disallow decimal product and vendor codes (hex only)
+
+2005-03-05 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c: add basic CDC MDLM dumping, to cope with new CDC
+	  conformance lies from a Zaurus C-860
+
+2005-02-11 Thierry Vignaud <tvignaud@mandrakesoft.com>
+	* usbmodules.8: fix --device /proc/usb/usb/BBB/DDD typo
+
+2005-02-02 David Brownell <dbrownell@users.sourceforge.net>
+	* configure.in: fix typo, recommend libusb 0.1.8 not 1.8
+
+2005-01-30 David Brownell <dbrownell@users.sourceforge.net>
+	Fix some more warnings reported by Aurelian, and configure
+	gcc for "-W -Wunused" to discourage more from appearing.
+
+2005-01-27 Aurelien Jarno <aurelien@aurel32.net> 
+	Fix "configure --enable-usbmodules" glitch, and remove
+	some warnings reported by GCC 4.0 (and "gcc -Wall -W").
+
+2005-01-22 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c:  for hubs, dump port status.
+	* AUTHORS, NEWS, README, lsusb.8:  update/correct
+	* configure.in, Makefile.am: bumped version, use more current
+	  autotools, disable usbmodules by default.
+
+2005-01-05 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c:  handle more descriptors; misplaced comm descriptors
+	  get interpreted; some minor fixes.
+	* usb.ids: update to current version
+
+2004-12-11 David Brownell <dbrownell@users.sourceforge.net>
+	* update-usbids.sh:  add, based on update-pciids.sh
+
+2004-10-20 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c: minor formatting updates; add a warning when those HID
+	  descriptors aren't available.
+
+2004-10-20 Aurelien Jarno <aurelien@aurel32.net> 
+	* lsusb.c: bugfixes for reading HID descriptors
+
+2004-10-15 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c: USB 2.0 updates for dual-speed and OTG devices, hubs.
+	  Display all descriptors in the right sequence, and dump ones
+	  we don't (yet) recognize.  Minor cleanups.
+	* usb.ids: update to current version
+
+2004-02-20 Thomas Sailer  <sailer@eldrich.ee.ethz.ch>
+	Move to CVS at linux-usb.sf.net
+	Label as version 0.12.
+
+2003-12-06 Aurelien Jarno <aurelien@aurel32.net> 
+	Update Debian with libusb based version.
+
+2003-08-31 David Brownell <dbrownell@users.sourceforge.net>
+	* lsusb.c: (against 0.11) recognize CDC descriptors, USB 2.0 updates,
+	  string handling updates, 
+
+2003-??-??  Aurelien Jarno <aurelien@aurel32.net> 
+	Convert to latest libusb, supporting BSD and Darwin.
+
+2000-11-06  Thomas Sailer  <sailer@eldrich.ee.ethz.ch>
+
+	* names.c, lsusb.c: Fixup of Gunther Mayer's patch; do not export
+	internal storage arch out of names.h; formatting beautification;
+	fixed several memory leaks and scribbles
+
+2000-11-05  Gunther Mayer <Gunther.Mayer@t-online.de>
+	* lsusb.c: Hub Descriptor decode
+	* usb.std: New
+	* lsusb.c: HID Report Descriptor decode
+	* lsusb.c: String Descriptors w/ LANGID, assume Unicode-ASCII for the moment
+
+2000-11-03  Adam J. Richter  <adam@yggdrasil.com>
+
+	* lsusb.c: Retry usb_control.
+
+1999-12-03  Thomas Sailer  <sailer@spaceballs.ee.ethz.ch>
+
+	* lsusb.c: bogus error checks for open calls, reported by Matthew Darm
+
+1999-09-17  Thomas Sailer  <sailer@ife.ee.ethz.ch>
+
+	* configure.in: bumped version number.
+
+	* usbutils.spec: likewise.
+
+	* names.c: added parsing routines for terminal types to be listed in usb.ids
+
+	* names.h: likewise.
+
+	* lsusb.c (dump_audiocontrol_interface): likewise.
+
+1999-09-16  Thomas Sailer  <sailer@ife.ee.ethz.ch>
+
+	* lsusb.c (dump_audiocontrol_interface): fixed a couple of forgotten printf arguments
+
+1999-09-13  Thomas Sailer  <sailer@ife.ee.ethz.ch>
+
+	* Created package
+
