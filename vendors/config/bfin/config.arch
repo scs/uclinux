@@ -123,8 +123,7 @@ ifdef UCLINUX_BUILD_USER
 			-L$(ROOTDIR)/lib/libaes \
 			-L$(ROOTDIR)/lib/libpcap \
 			-L$(ROOTDIR)/lib/zlib \
-			-L$(ROOTDIR)/lib/libssl \
-			-L$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
+			-L$(ROOTDIR)/lib/libssl
 
 	INCLIBC =
 	INCLIBM =
@@ -135,7 +134,6 @@ ifdef UCLINUX_BUILD_USER
 	INCPCAP = -I$(ROOTDIR)/lib/libpcap
 	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
 	INCZ    = -I$(ROOTDIR)/lib/zlib
-	INCCRYPT= -I$(ROOTDIR)/lib/$(LIBCDIR)/libcrypt
 	INCLINUX= -I$(ROOTDIR)/$(LINUXDIR)/include
 	INCDIST= -I$(ROOTDIR)
 
