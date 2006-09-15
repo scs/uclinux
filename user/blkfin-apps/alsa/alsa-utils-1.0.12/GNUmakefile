@@ -1,4 +1,4 @@
-ALSA_VER := $(shell cat version)
+ALSA_VER := $(shell sed -n '/AM_INIT_AUTOMAKE/s:.* \(.*\)):\1:p' configure.in)
 
 all: Makefile
 	$(MAKE) -f Makefile
