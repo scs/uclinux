@@ -37,9 +37,9 @@ step "Apply pound patch."
 
 cd $uclinux_path/lib/
 exec rm -rf $uclinux_path/lib/libssl
-catch {exec tar zxf $user/openssl-0.9.8.tar.gz}
-exec patch -p0 < ../bfin_patch/libssl_patch/libssl_bfin_patch
-exec mv openssl-0.9.8 libssl
+catch {exec tar zxf $user/openssl-0.9.8c.tar.gz}
+exec patch -p0 < ../bfin_patch/libssl_patch/libssl_bfin.patch
+exec mv openssl-0.9.8c libssl
 
 step "Change config file in /vender folder."
 

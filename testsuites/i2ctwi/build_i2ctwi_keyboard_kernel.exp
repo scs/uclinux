@@ -130,7 +130,7 @@ while 1 {
       }
       
       
-      	   -re "Generic input layer.*\\\[.*]" {            
+      	   -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {            
              send "Y\r"
       }
   
