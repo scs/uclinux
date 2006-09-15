@@ -60,7 +60,7 @@ ifdef UCLINUX_BUILD_LIB
   endif
 	CFLAGS  += -fno-builtin 
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
-	CFLAGS  += -fstack-limit-symbol=_stack_start
+	CFLAGS  += -mstack-check-l1
   endif
 	CFLAGS  += -DEMBED
   ifdef BUILD_SHARED
@@ -145,7 +145,7 @@ ifdef UCLINUX_BUILD_USER
 	CFLAGS  += -Wall -D__uClinux__ -DEMBED
 	CFLAGS  += -fno-builtin
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
-	CFLAGS  += -fstack-limit-symbol=_stack_start
+	CFLAGS  += -mstack-check-l1
   endif
 
   ifdef BUILD_SHARED
