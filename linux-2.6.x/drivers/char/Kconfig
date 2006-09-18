@@ -864,7 +864,7 @@ config BLACKFIN_RTC
 	  ---help---
 
 config BLACKFIN_DPMC
-	tristate "Blackfin Power Management support"
+	bool "Blackfin Power Management support"
 	default n
 	help
 	  This feature is not completly tested. This module is under construction.
