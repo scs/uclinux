@@ -646,7 +646,7 @@ CONFIG_BFIN_RX_DESC_NUM=20
 #
 # Input device support
 #
-CONFIG_INPUT=m
+CONFIG_INPUT=y
 
 #
 # Userland interfaces
@@ -733,7 +733,7 @@ CONFIG_CAN_BLACKFIN=m
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
 CONFIG_BLACKFIN_RTC=y
-CONFIG_BLACKFIN_DPMC=m
+CONFIG_BLACKFIN_DPMC=y
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 

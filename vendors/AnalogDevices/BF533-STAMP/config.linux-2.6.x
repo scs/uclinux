@@ -630,7 +630,7 @@ CONFIG_SMC91X=y
 #
 # Input device support
 #
-CONFIG_INPUT=m
+CONFIG_INPUT=y
 
 #
 # Userland interfaces
@@ -710,7 +710,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
 CONFIG_BLACKFIN_RTC=y
-CONFIG_BLACKFIN_DPMC=m
+CONFIG_BLACKFIN_DPMC=y
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
 
