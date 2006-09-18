@@ -162,7 +162,8 @@ module_l1_memory_test=0
 	 usbhost_test=0
 	  usbnet_test=0	  
 	   coreb_test=0
-	  l1_app_test=1
+	  l1_app_test=0
+	sigqueue_test=0
 
      
 #######  BOARD CONFIG DEFINITION      ###################################################### 
@@ -218,6 +219,7 @@ module_l1_memory_test=1
 	  usbnet_test=0
 	   coreb_test=0
 	  l1_app_test=1
+	sigqueue_test=1
 fi
 
 # Since the SW6 setting for jffs2(all on) and cf card(on on off off) are conflicting, disable jffs2 test here.
@@ -273,6 +275,7 @@ module_l1_memory_test=1
 	  usbnet_test=0
 	   coreb_test=0
 	  l1_app_test=1
+	sigqueue_test=1
 fi
 
 
@@ -326,6 +329,7 @@ module_l1_memory_test=1
 	  usbnet_test=0
 	   coreb_test=0
 	  l1_app_test=1
+	sigqueue_test=1
          	
 fi
  
@@ -379,6 +383,7 @@ module_l1_memory_test=1
 	  usbnet_test=0
 	   coreb_test=1
 	  l1_app_test=1
+	sigqueue_test=1
          	
 fi
 
@@ -1963,12 +1968,47 @@ if [ $coreb_test -eq 1 ] ; then
   cd $KERNEL_SCRIPTS/l1_app
   ./build_l1_app_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
   sleep 30
-  ./l1_app_test.exp $targetip > /dev/null 2>&1
+  ./test_l1_app.exp $targetip > /dev/null 2>&1
 
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.l1_app
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.l1_app
   cp $KERNEL_SCRIPTS/l1_app/build_l1_app_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/l1_app/l1_app_test_log $THIS_LOG
+    
+  sleep 30
+  
+ 
+  if [ $reset_board -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1     
+   sleep 10
+  fi
+
+fi
+
+
+#############################################################################################
+########################## TEST Sigqueue ####################################################
+if [ $coreb_test -eq 1 ] ; then
+  echo "Testing Sigqueue..."
+
+  if [ -z $targetip ] ; then
+    targetip="10.100.4.50"
+  fi
+
+  rm -rf $KERNEL_PATH/*
+  cd $KERNEL_PATH
+  cp -a  $KERNEL_PATH_BAK/*  .
+
+  cd $KERNEL_SCRIPTS/sigqueue
+  ./build_sigqueue_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
+  sleep 30
+  ./test_sigqueue.exp $targetip > /dev/null 2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.sigqueue
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.sigqueue
+  cp $KERNEL_SCRIPTS/sigqueue/build_sigqueue_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/sigqueue/sigqueue_test_log $THIS_LOG
     
   sleep 30
   
