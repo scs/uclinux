@@ -585,7 +585,7 @@ static int __devinit snd_ad73311_probe(struct platform_device *pdev)
 			SPORT_IRQ_ERR, snd_ad73311_sport_err, ad73311))
 			== NULL) {
 		err = -ENODEV;
-		goto __nodev;
+		goto __sport_err;
 	}
 
 	ad73311->sport = sport;
@@ -616,6 +616,8 @@ static int __devinit snd_ad73311_probe(struct platform_device *pdev)
 	return 0;
 
 __nodev:
+	bf53x_sport_done(sport);
+__sport_err:
 	snd_card_free(card);
 	return err;
 }

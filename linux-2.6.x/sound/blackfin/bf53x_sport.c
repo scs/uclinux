@@ -847,7 +847,7 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 
 	if (request_dma(dma_rx, "SPORT RX Data") == -EBUSY) {
 		printk(KERN_ERR "Failed to request RX dma %d\n", dma_rx);
-		goto __init_err;
+		goto __init_err1;
 	}
 
 	init_waitqueue_head(&sport->wqh_rx);
@@ -856,12 +856,12 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 
 	if (set_dma_callback(dma_rx, rx_handler, sport) != 0) {
 		printk(KERN_ERR "Failed to request RX irq %d\n", dma_rx);
-		goto __init_err;
+		goto __init_err2;
 	}
 
 	if (request_dma(dma_tx, "SPORT TX Data") == -EBUSY) {
 		printk(KERN_ERR "Failed to request TX dma %d\n", dma_tx);
-		goto __init_err;
+		goto __init_err2;
 	}
 
 	init_waitqueue_head(&sport->wqh_tx);
@@ -870,13 +870,13 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 
 	if (set_dma_callback(dma_tx, tx_handler, sport) != 0) {
 		printk(KERN_ERR "Failed to request TX irq %d\n", dma_tx);
-		goto __init_err;
+		goto __init_err3;
 	}
 
 	if (request_irq(err_irq, err_handler, SA_SHIRQ, "SPORT error",
 			sport) < 0) {
 		printk(KERN_ERR "Failed to request err irq:%d\n", err_irq);
-		goto __init_err;
+		goto __init_err3;
 	}
 
 	sport->dma_rx_chan = dma_rx;
@@ -896,7 +896,7 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 #endif
 	if (sport->dummy_buf == NULL) {
 		printk(KERN_ERR "Failed to allocate dummy buffer\n");
-		goto __init_err;
+		goto __init_err4;
  	}
 
  	sport_config_rx_dummy(sport, DUMMY_BUF_LEN/2);
@@ -919,10 +919,13 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 
 	return sport;
 
-__init_err:
-	free_dma(sport->dma_rx_chan);
-	free_dma(sport->dma_tx_chan);
+__init_err4:
 	free_irq(sport->err_irq, sport);
+__init_err3:
+	free_dma(sport->dma_tx_chan);
+__init_err2:
+	free_dma(sport->dma_rx_chan);
+__init_err1:
 	kfree(sport);
 	return NULL;
 }
