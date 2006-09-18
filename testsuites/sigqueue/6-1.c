@@ -69,7 +69,7 @@ int main()
 		printf("Test FAILED: signal was not delivered to process\n");
 		return PTS_FAIL;
 	}
-	printf("Test Passed\n");
+	printf("Test PASSED\n");
 	return PTS_PASS;
 }
 
