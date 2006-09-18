@@ -335,7 +335,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
 		info.si_code = ILL_CPLB_MISS;
-		sig = SIGILL;
+		sig = SIGBUS;
 		printk(KERN_EMERG EXC_0x2C);
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
@@ -392,13 +392,21 @@ asmlinkage void trap_c(struct pt_regs *fp)
 			panic("Kernel exception");
 	}
 
-	if ( ! ( fp->orig_pc <= physical_mem_end 
+	/* if the address that we are about to return to is not valid, set it
+	 * to a valid address, if we have a current application or panic
+	 */
+	if ( ! ( fp->pc <= physical_mem_end 
 #if L1_CODE_LENGTH != 0
-            || ( fp->orig_pc >= L1_CODE_START &&
-                 fp->orig_pc <= (L1_CODE_START + L1_CODE_LENGTH)) )
+            || ( fp->pc >= L1_CODE_START &&
+                 fp->pc <= (L1_CODE_START + L1_CODE_LENGTH)) )
 #endif
 	) {
-		panic ("I can't return to memory that doesn't exist - bad things happen");
+	        if (current->mm) {
+			fp->pc = current->mm->start_code;
+		} else {
+			printk(KERN_EMERG "I can't return to memory that doesn't exist - bad things happen\n");
+			panic("Help- I have fallen and can't get up\n");
+		}
 	}
 
 	trace_buffer_restore(j);
