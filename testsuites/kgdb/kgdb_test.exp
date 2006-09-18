@@ -470,7 +470,7 @@ while 1 {
 	incr case_num
 	send "print len\r"
 	expect {
-		"value optimized out" {
+		"1 =" {
 			send_log "\rCase $case_num ...PASS\r"
 		expect {
 			"(gdb) " {
