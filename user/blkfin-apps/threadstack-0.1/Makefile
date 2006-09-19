@@ -15,7 +15,7 @@ CC ?= bfin-uclinux-gcc
 CFLAGS += \
 	-I $(LIBPTHREAD_PATH) \
 	-I $(LIBPTHREAD_PATH)/sysdeps/pthread/ \
-	+= -I $(LIBPTHREAD_PATH)/sysdeps/bfin
+	-I $(LIBPTHREAD_PATH)/sysdeps/bfin
 
 PROJ=threadstack
 VERSION=0.1
