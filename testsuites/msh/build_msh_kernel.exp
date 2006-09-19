@@ -37,7 +37,7 @@ set step_sequence_number    1
 step "Apply msh patch."
 
 cd $uclinux_path/user/busybox/shell
-exec patch -p0 < ../../../bfin_patch/msh_patch/busybox-msh-patch
+exec patch -p2 < ../../../bfin_patch/msh_patch/busybox-msh.patch
 
 step "Change config file in /vender folder."
 
