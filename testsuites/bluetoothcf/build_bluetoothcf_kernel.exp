@@ -1,0 +1,210 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for Bluetooth CF test
+#
+
+log_file build_bluetoothcf_kernel_log
+send_user "Starting build_bluetoothcf_kernel.exp\n"
+
+set user /home/test
+set uclinux_path $user/checkout/kernel/uClinux-dist
+
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1 } {
+   puts "Please input: board_type."
+   exit
+} 
+
+if { $argc >= 2 } {
+   set uclinux_path [lindex $argv 1]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+
+proc step { message } {
+   global step_sequence_number
+   puts "\n******************************************************************"
+   puts "STEP $step_sequence_number: $message\n\n"
+   send_log "\n************** STEP :$step_sequence_number: $message\n\n"
+   incr step_sequence_number
+}
+
+set step_sequence_number 1
+
+step "Make config"
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+
+      }
+   }
+}
+
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+         send "0xFFC3\r"
+      }
+
+      -re "PCCard \\\(PCMCIA/CardBus\\\) support \\\(PCCARD\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "16-bit PCMCIA support \\\(PCMCIA\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Load CIS updates from userspace \\\(EXPERIMENTAL\\\) \\\(PCMCIA_LOAD_CIS\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "PCMCIA control ioctl \\\(obsolete\\\) \\\(PCMCIA_IOCTL\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Blackfin CompactFlash PCMCIA Driver \\\(BFIN_CFPCMCIA\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Re-program Clocks while Kernel boots.*\\\(BFIN_KERNEL_CLOCK\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "System Clock Divider \\\(SCLK_DIV\\\).*\\\[.*].*" {
+         send "8\r"
+      }
+
+      -re "Networking support \\\(NET\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Bluetooth subsystem support \\\(BT\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "L2CAP protocol support \\\(BT_L2CAP\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "SCO links support \\\(BT_SCO\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "RFCOMM protocol support \\\(BT_RFCOMM\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "RFCOMM TTY support \\\(BT_RFCOMM_TTY\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "BNEP protocol support \\\(BT_BNEP\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Multicast filter support \\\(BT_BNEP_MC_FILTER\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Protocol filter support \\\(BT_BNEP_PROTO_FILTER\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "HIDP protocol support \\\(BT_HIDP\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "HCI BlueCard \\\(PC Card\\\) driver \\\(BT_HCIBLUECARD\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+   expect {
+      "Entering directory" { }
+      "Leaving directory" { set bfin_make_status success }
+      "Error" {set bfin_make_status failure }
+      "/bin/sh" { }
+      eof { break }
+   }
+}
+
+if { $bfin_make_status == "failure" } {
+   puts "ERROR: Error somewhere during make"
+}    
+     
+step "Copy linux"
+  
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot
+
+log_file
+
+send_user "\nKernel building for bluetooth CF test finishes!\n"
