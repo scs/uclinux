@@ -88,8 +88,10 @@ int __init uclinux_mtd_init(void)
 #endif
 #if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)addr)[0] == ROMSB_WORD0
-	    && ((unsigned long *)addr)[1] == ROMSB_WORD1)
+	    && ((unsigned long *)addr)[1] == ROMSB_WORD1) {
+		sprintf (name, "romfs ");
 		mapp->size = be32_to_cpu(((unsigned long *)addr)[2]);
+	}
 #endif
 
 
