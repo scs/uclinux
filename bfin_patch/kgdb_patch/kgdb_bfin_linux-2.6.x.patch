@@ -963,7 +963,7 @@ diff -urN linux-2.6.x/arch/blackfin/kernel/traps.c linux-2.6.x.kgdb/arch/blackfi
  	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
  	case VEC_CPLB_I_M:
  		info.si_code = ILL_CPLB_MISS;
- 		sig = SIGILL;
+ 		sig = SIGBUS;
  		printk(KERN_EMERG EXC_0x2C);
 +		CHK_DEBUGGER_TRAP();
  		break;
