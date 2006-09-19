@@ -1,5 +1,5 @@
---- msh.c	2005-12-21 14:46:40.000000000 +0800
-+++ msh_function.c	2005-12-21 14:46:10.000000000 +0800
+--- busybox/shell/msh.c
++++ busybox/shell/msh.c
 @@ -54,10 +54,19 @@
  
  
@@ -132,39 +132,6 @@
  static int execflg;
  static int multiline;			/* \n changed to ; */
  static struct op *outtree;		/* result from parser */
-@@ -765,6 +803,7 @@
- static void *brktop;
- static void *brkaddr;
- 
-+
- static struct env e = {
- 	line,						/* linep:  char ptr */
- 	iostack,					/* iobase:  struct io ptr */
-@@ -825,7 +864,7 @@
- 	int cflag;
- 	char *name, **ap;
- 	int (*iof) (struct ioarg *);
--
-+	//printf("in %s\n",__FUNCTION__);
- 	DBGPRINTF(("MSH_MAIN: argc %d, environ 0x%x\n", argc, environ));
- 
- 	initarea();
-@@ -837,7 +876,6 @@
- 	}
- 	closeall();
- 	areanum = 1;
--
- 	shell = lookup("SHELL");
- 	if (shell->value == null)
- 		setval(shell, (char *)DEFAULT_SHELL);
-@@ -858,7 +896,6 @@
- 			setval(path, "/bin:/usr/bin");
- 	}
- 	export(path);
--
- 	ifs = lookup("IFS");
- 	if (ifs->value == null)
- 		setval(ifs, " \t\n");
 @@ -874,9 +911,9 @@
  #ifdef CONFIG_FEATURE_SH_FANCY_PROMPT
  	if (prompt->value == null)
@@ -177,38 +144,6 @@
  		prompt->status &= ~EXPORT;
  	}
  	cprompt = lookup("PS2");
-@@ -945,7 +982,6 @@
- 				exit(1);		/* Exit on error */
- 		}
- 	}
--
- 	setdash();
- 
- 	/* This won't be true if PUSHIO has been called, say from newfile() above */
-@@ -989,6 +1025,7 @@
- 			}
- 		}
- 	}
-+	//fprintf(stderr,"KSDBG:%s,%s\n",dolv[0],dolv[1]);
- 	setval(lookup("#"), putn((--dolc < 0) ? (dolc = 0) : dolc));
- 
- 	DBGPRINTF(("MSH_MAIN: begin FOR loop, interactive %d, e.iop 0x%x, iostack 0x%x\n", interactive, e.iop, iostack));
-@@ -1001,6 +1038,7 @@
- 			prs(prompt->value);
- #endif
- 		}
-+		//printf("command=%s\n")
- 		onecommand();
- 		/* Ensure that getenv("PATH") stays current */
- 		setenv("PATH", path->value, 1);
-@@ -1909,6 +1947,7 @@
- 	peeksym = 0;
- }
- 
-+
- static struct op *simple()
- {
- 	REGISTER struct op *t;
 @@ -1920,7 +1959,40 @@
  		case '>':
  			(void) synio(0);
@@ -251,23 +186,6 @@
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -1929,7 +2001,7 @@
- 			peeksym = 0;
- 			word(yylval.cp);
- 			break;
--
-+		
- 		default:
- 			return (t);
- 		}
-@@ -2051,7 +2123,6 @@
- 		word(NOWORD);			/* terminate  wdlist */
- 		t->words = copyw();		/* dup wdlist */
- 		break;
--
- 	}
- 
- 	while (synio(0));
 @@ -2244,7 +2315,7 @@
  static int rlookup(n)
  REGISTER char *n;
@@ -293,15 +211,6 @@
  	unget(c);
  
    pack:
-@@ -2481,7 +2558,7 @@
- 
- 	if (any(c, "\"'`$"))
- 		goto loop;
--
-+	
- 	*e.linep++ = '\0';
- 
- 	if (atstart && (c = rlookup(line)) != 0) {
 @@ -2490,10 +2567,169 @@
  	}
  
@@ -483,15 +392,6 @@
  
  	};
  
-@@ -4290,7 +4530,7 @@
- 			}
- 
- 			var_name[var_index++] = *src++;
--			while (isalnum(*src))
-+			while (isalnum(*src) || *src=='_')
- 				var_name[var_index++] = *src++;
- 			var_name[var_index] = 0;
- 
 @@ -4638,8 +4878,8 @@
  	return (wd);
  }
@@ -503,14 +403,6 @@
  
  static void glob0(a0, a1, a2, a3)
  char *a0;
-@@ -4840,7 +5080,6 @@
- 		}
- 
- 	}							/* FOR */
--
- 	if (e.iop >= iostack) {
- 		RCPRINTF(("READC: return 0, e.iop 0x%x\n", e.iop));
- 		return (0);
 @@ -5046,11 +5285,13 @@
  	struct iobuf *bp = ap->afbuf;
  
