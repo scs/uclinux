@@ -106,7 +106,8 @@
 /* macro-oni for determining a unit (channel) number */
 #define	UNIT(file) MINOR(file->f_dentry->d_inode->i_rdev)
 
-//#define CONFIG_ZAPATA_DEBUG 1
+/* 0 -- not print debug info; 1 -- print debug info */
+#define CONFIG_ZAPATA_DEBUG 0
 
 /* names of tx level settings */
 static char *zt_txlevelnames[] = {
