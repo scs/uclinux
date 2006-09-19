@@ -1,0 +1,88 @@
+<!-- ##### SECTION Title ##### -->
+Telephone events (RFC2833)
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### STRUCT telephone_event ##### -->
+<para>
+
+</para>
+
+@E: 
+@R: 
+@volume: 
+@duration: 
+@volume: 
+@R: 
+@E: 
+@duration: 
+
+<!-- ##### FUNCTION rtp_session_telephone_events_supported ##### -->
+<para>
+
+</para>
+
+@session: 
+@Returns: 
+
+
+<!-- ##### FUNCTION rtp_session_create_telephone_event_packet ##### -->
+<para>
+
+</para>
+
+@session: 
+@start: 
+@Returns: 
+
+
+<!-- ##### FUNCTION rtp_session_add_telephone_event ##### -->
+<para>
+
+</para>
+
+@session: 
+@packet: 
+@event: 
+@end: 
+@volume: 
+@duration: 
+@Returns: 
+
+
+<!-- ##### FUNCTION rtp_session_read_telephone_event ##### -->
+<para>
+
+</para>
+
+@session: 
+@packet: 
+@tab: 
+@Returns: 
+
+
+<!-- ##### FUNCTION rtp_session_send_dtmf ##### -->
+<para>
+
+</para>
+
+@session: 
+@dtmf: 
+@userts: 
+@Returns: 
+
+

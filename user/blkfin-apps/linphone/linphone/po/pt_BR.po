@@ -1,0 +1,906 @@
+# Portuguese translations for gnomebaker package.
+# Copyright (C) 2005 THE linphone COPYRIGHT HOLDER
+# This file is distributed under the same license as the linphone package.
+# Rafael Caesar Lenzi <rc_lenzi@yahoo.com.br>, 2005.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: linphone-1.1.0\n"
+"Report-Msgid-Bugs-To: linphone-developers@nongnu.org\n"
+"POT-Creation-Date: 2006-08-29 15:27+0200\n"
+"PO-Revision-Date: 2006-07-11 23:30+0200\n"
+"Last-Translator: Rafael Caesar Lenzi <rc_lenzi@yahoo.com.br>\n"
+"Language-Team: pt_BR <pt_BR@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: gnome/interface.c:32
+msgid "Address book"
+msgstr "Catálogo de endereços"
+
+#: gnome/interface.c:40
+msgid "Call history"
+msgstr "Histórico de chamadas"
+
+#: gnome/interface.c:41
+msgid "Shows calls"
+msgstr "Exibir chamadas"
+
+#: gnome/interface.c:55
+msgid "User manual"
+msgstr "Manual do usuário"
+
+#: gnome/interface.c:67
+msgid "Go"
+msgstr "Ir"
+
+#: gnome/interface.c:166
+msgid "linphone"
+msgstr ""
+
+#: gnome/interface.c:204
+msgid "enter sip uri here"
+msgstr ""
+
+#: gnome/interface.c:205 gnome/interface.c:1331 gnome/interface.c:2215
+#: gnome/interface.c:2237 gnome/interface.c:2377
+msgid "sip:"
+msgstr ""
+
+#: gnome/interface.c:207 gnome/interface.c:2392
+msgid "Sip address:"
+msgstr "Endereço sip:"
+
+#: gnome/interface.c:215
+msgid "Shows the address book"
+msgstr "Exibe o catálogo de endereços"
+
+#: gnome/interface.c:229
+msgid "..."
+msgstr ""
+
+#: gnome/interface.c:237 gnome/interface.c:2399
+msgid "Proxy to use:"
+msgstr "Proxy à usar:"
+
+#: gnome/interface.c:246
+msgid ""
+"Call or\n"
+"answer"
+msgstr ""
+"Ligar ou\n"
+"atender"
+
+#: gnome/interface.c:251
+msgid ""
+"Hangup\n"
+"or refuse"
+msgstr ""
+"Desligar\n"
+"ou recusar"
+
+#: gnome/interface.c:256
+msgid "Or chat !"
+msgstr "Ou bate-papo!"
+
+#: gnome/interface.c:278
+msgid "Show more..."
+msgstr "Exibir mais..."
+
+#: gnome/interface.c:300
+msgid "Playback level:"
+msgstr "Volume do auto-falante:"
+
+#: gnome/interface.c:311
+msgid "Recording level:"
+msgstr "Volume do microfone:"
+
+#: gnome/interface.c:322
+#, fuzzy
+msgid "Ring level:"
+msgstr "Volume do microfone:"
+
+#: gnome/interface.c:333
+msgid "Sound"
+msgstr "Som"
+
+#: gnome/interface.c:350
+#, fuzzy
+msgid "Enable video"
+msgstr "Ativado"
+
+#: gnome/interface.c:355
+msgid "Video"
+msgstr ""
+
+#: gnome/interface.c:360
+msgid "Controls"
+msgstr ""
+
+#: gnome/interface.c:378
+msgid "Reachable"
+msgstr ""
+
+#: gnome/interface.c:389
+msgid "Busy, I'll be back in "
+msgstr "Ocupado, volto em "
+
+#: gnome/interface.c:398
+msgid "The other party will be informed that you'll be back in X minutes"
+msgstr ""
+
+#: gnome/interface.c:399
+msgid "5"
+msgstr ""
+
+#: gnome/interface.c:401
+msgid "mn"
+msgstr "min"
+
+#: gnome/interface.c:406
+msgid "Away"
+msgstr "Ocupado"
+
+#: gnome/interface.c:412
+msgid "Do not disturb"
+msgstr "Não perturbe"
+
+#: gnome/interface.c:418
+msgid "Moved temporarily"
+msgstr "Movido temporáriamente"
+
+#: gnome/interface.c:424
+msgid "Alternative service"
+msgstr "Serviço alternativo"
+
+#: gnome/interface.c:434
+msgid "URL:"
+msgstr ""
+
+#: gnome/interface.c:443
+msgid "Presence"
+msgstr "Presença"
+
+#: gnome/interface.c:460
+msgid "Press digits to send DTMFs."
+msgstr ""
+
+#: gnome/interface.c:469
+msgid ""
+"  3\n"
+"def"
+msgstr ""
+
+#: gnome/interface.c:475
+msgid ""
+"  2\n"
+"abc"
+msgstr ""
+
+#: gnome/interface.c:481
+msgid "1"
+msgstr ""
+
+#: gnome/interface.c:487
+msgid ""
+"  4\n"
+"ghi"
+msgstr ""
+
+#: gnome/interface.c:493
+msgid ""
+" 5\n"
+"jkl"
+msgstr ""
+
+#: gnome/interface.c:499
+msgid ""
+"  6\n"
+"mno"
+msgstr ""
+
+#: gnome/interface.c:505
+msgid ""
+"   7\n"
+"pqrs"
+msgstr ""
+
+#: gnome/interface.c:511
+msgid ""
+"  8\n"
+"tuv"
+msgstr ""
+
+#: gnome/interface.c:517
+msgid ""
+"   9\n"
+"wxyz"
+msgstr ""
+
+#: gnome/interface.c:523
+msgid "*"
+msgstr ""
+
+#: gnome/interface.c:529
+msgid "0"
+msgstr ""
+
+#: gnome/interface.c:535
+msgid "#"
+msgstr ""
+
+#: gnome/interface.c:541
+msgid "DTMF"
+msgstr ""
+
+#: gnome/interface.c:558
+msgid "My online friends"
+msgstr "Meus amigos online"
+
+#: gnome/interface.c:787
+msgid ""
+"C: 2001\n"
+"Made in Old Europe"
+msgstr ""
+
+#: gnome/interface.c:788
+msgid ""
+"Linphone is a web-phone.\n"
+"It is compatible with SIP and RTP protocols."
+msgstr ""
+"Linphone é um web-fone.\n"
+"Ele é compatível com os protocolos SIP e RTP."
+
+#: gnome/interface.c:960
+msgid "Parameters"
+msgstr "Parâmetros"
+
+#: gnome/interface.c:990
+msgid "Use IPv6 network (if available)"
+msgstr "Usar rede IPv6 (se disponível)"
+
+#: gnome/interface.c:993
+msgid ""
+"Toggle this if you are on an ipv6 network and you wish linphone to use it."
+msgstr ""
+"Marque isto se você estiver em uma rede IPv6, e deseja que o linphone este "
+"protocolo."
+
+#: gnome/interface.c:995
+msgid "Global"
+msgstr ""
+
+#: gnome/interface.c:1010
+#, fuzzy
+msgid ""
+"These options is only for users in a private network, behind a gateway. If "
+"you are not in this situation, then leave this empty."
+msgstr ""
+"Esta opção é somente para usuários de uma rede privada, atrás de um gateway. "
+"Se você não está nesta situação, deixe isto em braco."
+
+#: gnome/interface.c:1020
+msgid "No firewall"
+msgstr ""
+
+#: gnome/interface.c:1028
+msgid "Use this STUN server to guess firewall address :"
+msgstr ""
+
+#: gnome/interface.c:1036
+msgid "Specify firewall address manually:"
+msgstr ""
+
+#: gnome/interface.c:1056
+msgid "NAT traversal options (experimental)"
+msgstr "Opções de NAT(Experimental)"
+
+#: gnome/interface.c:1085
+msgid "Number of buffered miliseconds (jitter compensation):"
+msgstr "Número de segundos em bueffer:"
+
+#: gnome/interface.c:1093
+msgid "RTP port used for audio:"
+msgstr "Porta RTP usada para audio:"
+
+#: gnome/interface.c:1100
+msgid "RTP properties"
+msgstr "Propriedades RTP:"
+
+#: gnome/interface.c:1118
+msgid "Use SIP INFO message instead of RTP rfc2833 for DTMF transmitting"
+msgstr "Usar mensagem SIP INFO em vez de RTP rfc2833 para transmissão de DTMF"
+
+#: gnome/interface.c:1121
+msgid "RTP-RFC2833 is the recommended way."
+msgstr "RTP-RFC2833 é a maneira recomendada."
+
+#: gnome/interface.c:1123
+msgid "Other"
+msgstr "Outro"
+
+#: gnome/interface.c:1128
+msgid "Network"
+msgstr "Rede"
+
+#: gnome/interface.c:1154
+msgid "Playback sound device:"
+msgstr "Dispositivo de som:"
+
+#: gnome/interface.c:1169 gnome/propertybox.c:609 gnome/propertybox.c:634
+msgid "micro"
+msgstr "microfone"
+
+#: gnome/interface.c:1170 gnome/propertybox.c:612 gnome/propertybox.c:635
+msgid "line"
+msgstr "linha"
+
+#: gnome/interface.c:1179
+msgid "Capture sound device:"
+msgstr "Dispositivo de captura de som:"
+
+#: gnome/interface.c:1205
+msgid "Ring sound selection"
+msgstr "Seleção de toque"
+
+#: gnome/interface.c:1229
+msgid "Listen"
+msgstr "Escutar"
+
+#: gnome/interface.c:1233
+msgid "Recording source:"
+msgstr "Origem de gravação:"
+
+#: gnome/interface.c:1240
+#, fuzzy
+msgid "Ring sound device"
+msgstr "Dispositivo de som"
+
+#: gnome/interface.c:1248
+msgid "Ring sound:"
+msgstr "Som do toque:"
+
+#: gnome/interface.c:1268
+msgid "Enable echo-canceler (cancels the echo heard by the remote party)"
+msgstr ""
+
+#: gnome/interface.c:1276
+msgid "Sound properties"
+msgstr "Propriedades de som"
+
+#: gnome/interface.c:1280
+msgid "Sound device"
+msgstr "Dispositivo de som"
+
+#: gnome/interface.c:1298
+msgid "Run sip user agent on port:"
+msgstr "Executar agente sip na porta:"
+
+#: gnome/interface.c:1307
+msgid "It is strongly recommended to use port 5060."
+msgstr "É altamente recomendavel usar a porta 5060."
+
+#: gnome/interface.c:1309
+msgid "SIP port"
+msgstr "Porta SIP"
+
+#: gnome/interface.c:1326
+msgid "Your sip address:"
+msgstr "Seu endereço SIP:"
+
+#: gnome/interface.c:1340
+msgid "@"
+msgstr ""
+
+#: gnome/interface.c:1349
+msgid "Automatically guess a valid hostname"
+msgstr "Adquirir automaticamente um nome de servidor válido."
+
+#: gnome/interface.c:1353
+msgid "Identity"
+msgstr "Identificação"
+
+#: gnome/interface.c:1400
+msgid "Add proxy/registrar"
+msgstr "Adicionar proxy/registrador"
+
+#: gnome/interface.c:1421 gnome/interface.c:1994
+msgid "Edit"
+msgstr "Editar"
+
+#: gnome/interface.c:1442
+msgid "Remove"
+msgstr "Remover"
+
+#: gnome/interface.c:1446
+msgid "Remote services"
+msgstr "Serviços remotos"
+
+#: gnome/interface.c:1476
+msgid "Clear all stored authentication information (username,password...)"
+msgstr ""
+"Limpar todas as informações de autenticação (nomes de usuário, senha...)"
+
+#: gnome/interface.c:1480
+msgid "Authentication information"
+msgstr "Informações de autenticação"
+
+#: gnome/interface.c:1484
+msgid "SIP"
+msgstr ""
+
+#: gnome/interface.c:1507
+msgid "List of audio codecs, in order of preference:"
+msgstr "Lista de codecs de audio, em ordem de preferência:"
+
+#: gnome/interface.c:1556
+msgid "Enable"
+msgstr "Ativado"
+
+#: gnome/interface.c:1577
+msgid "Disable"
+msgstr "Desativar"
+
+#: gnome/interface.c:1585
+msgid "Upload bandwidth (kbit/sec):"
+msgstr ""
+
+#: gnome/interface.c:1593
+msgid "Download bandwidth (kbit/sec):"
+msgstr ""
+
+#: gnome/interface.c:1620
+msgid ""
+"Note: Codecs in red are not usable regarding to your connection type to the "
+"internet."
+msgstr ""
+
+#: gnome/interface.c:1632
+msgid "No information availlable"
+msgstr "Informações não disponíveis"
+
+#: gnome/interface.c:1639
+msgid "Codec information"
+msgstr "Informações sobre o codec"
+
+#: gnome/interface.c:1643
+msgid "Audio codecs"
+msgstr "Codec's de áudio"
+
+#: gnome/interface.c:1647
+msgid "Codecs"
+msgstr ""
+
+#: gnome/interface.c:1924
+msgid "Address Book"
+msgstr "Catálogo de endereços"
+
+#: gnome/interface.c:2020
+msgid "Select"
+msgstr "Selecionar"
+
+#: gnome/interface.c:2079
+msgid "Information"
+msgstr "Informações"
+
+#: gnome/interface.c:2097
+msgid ""
+"User is not reachable at the moment but he invites you to contact him using "
+"the following alternate ressource:"
+msgstr ""
+
+#: gnome/interface.c:2104
+msgid "None."
+msgstr "Nenhum"
+
+#: gnome/interface.c:2165 gnome/interface.c:2274
+msgid "Proxy/Registrar configuration box"
+msgstr "Configuração de proxy/registrador"
+
+#: gnome/interface.c:2195
+msgid "Route (optional):"
+msgstr "Rota (opcional):"
+
+#: gnome/interface.c:2217
+msgid "SIP Proxy:"
+msgstr "Proxy SIP:"
+
+#: gnome/interface.c:2224
+msgid "SIP Identity:"
+msgstr "Identificação SIP:"
+
+#: gnome/interface.c:2239
+msgid "Registration Period:"
+msgstr "Período do registo:"
+
+#: gnome/interface.c:2254
+msgid "Send registration:"
+msgstr "Enviar registro:"
+
+#: gnome/interface.c:2261
+msgid "Publish presence information:"
+msgstr "Informar informação de presença"
+
+#: gnome/interface.c:2346
+msgid "Edit contact information"
+msgstr "Edicar informação de contato"
+
+#: gnome/interface.c:2385
+msgid "Name:"
+msgstr "Nome:"
+
+#: gnome/interface.c:2406
+msgid "Subscribe policy:"
+msgstr ""
+
+#: gnome/interface.c:2413
+msgid "Send subscription (see person's online status)"
+msgstr ""
+
+#: gnome/interface.c:2417
+msgid "Contact information"
+msgstr "Informação de contato"
+
+#: gnome/interface.c:2488
+msgid "New incoming subscription"
+msgstr ""
+
+#: gnome/interface.c:2508
+msgid "You have received a new subscription..."
+msgstr ""
+
+#: gnome/interface.c:2535
+msgid "Refuse"
+msgstr "Recusar"
+
+#: gnome/interface.c:2556
+msgid "Accept"
+msgstr "Aceitar"
+
+#: gnome/interface.c:2609
+msgid "Authentication requested"
+msgstr "Autenticação requerida"
+
+#: gnome/interface.c:2635
+msgid "Authentication required for realm"
+msgstr ""
+
+#: gnome/interface.c:2671
+msgid "userid:"
+msgstr "Identificação:"
+
+#: gnome/interface.c:2679
+msgid "password:"
+msgstr "Senha:"
+
+#: gnome/interface.c:2687
+msgid "username:"
+msgstr "Usuário"
+
+#: gnome/interface.c:2695
+msgid "realm:"
+msgstr ""
+
+#: gnome/interface.c:2756
+msgid "Linphone - Call history"
+msgstr "Linphone - Histórico de chamadas"
+
+#: gnome/interface.c:2823
+msgid "Chat Room"
+msgstr "Sala de bate-papo"
+
+#: gnome/interface.c:2851
+msgid "Text:"
+msgstr "Texto:"
+
+#: gnome/callbacks.c:589
+#, c-format
+msgid "Chat with %s"
+msgstr "Bate-papo com %s"
+
+#: gnome/support.c:60 gnome/support.c:85
+#, c-format
+msgid "Couldn't find pixmap file: %s"
+msgstr "Não é possível achar arquivo pixmap: %s"
+
+#: gnome/propertybox.c:206
+#, fuzzy
+msgid "Account"
+msgstr "Aceitar"
+
+#: gnome/propertybox.c:436 gnome/propertybox.c:519 gnome/propertybox.c:846
+msgid "Enabled"
+msgstr "Ativado"
+
+#: gnome/propertybox.c:437 gnome/propertybox.c:847
+msgid "Disabled"
+msgstr "Desativado"
+
+#: gnome/propertybox.c:455 gnome/friends.c:110
+msgid "Name"
+msgstr "Nome"
+
+#: gnome/propertybox.c:461
+msgid "Rate (Hz)"
+msgstr "Taxa (Hz)"
+
+#: gnome/propertybox.c:467
+msgid "Status"
+msgstr ""
+
+#: gnome/propertybox.c:473
+msgid "Min bitrate (kbit/s)"
+msgstr "Bitrate mínimo (kbits/s)"
+
+#: gnome/propertybox.c:499 gnome/propertybox.c:504 gnome/propertybox.c:987
+#: gnome/propertybox.c:997
+msgid "Unlimited"
+msgstr ""
+
+#: gnome/linphone.c:191
+msgid "The caller asks for resource reservation. Do you agree ?"
+msgstr ""
+
+#: gnome/linphone.c:194
+msgid ""
+"The caller doesn't use resource reservation. \t\t\t\t\tDo you wish to "
+"continue anyway ?"
+msgstr ""
+
+#: gnome/linphone.c:220
+#, c-format
+msgid "linphone - receiving call from %s"
+msgstr "Linphone - Recebendo chamada de %s"
+
+#: gnome/linphone.c:246
+#, c-format
+msgid ""
+"You have received a subscription from %s.This means that this person wishes "
+"to be notified of your presence information (online, busy, away...).\n"
+"Do you agree ?"
+msgstr ""
+
+#: gnome/linphone.c:256
+#, c-format
+msgid "Authentication required for realm %s"
+msgstr ""
+
+#: gnome/linphone.c:377
+msgid "None"
+msgstr "Nenhum"
+
+#: gnome/friends.c:117
+msgid "Presence status"
+msgstr "Status de presença"
+
+#: coreapi/linphonecore.c:152
+#, c-format
+msgid "You have missed %i call(s)."
+msgstr "Você perdeu %i ligação(ões)."
+
+#: coreapi/linphonecore.c:178
+msgid "aborted"
+msgstr "Abortado"
+
+#: coreapi/linphonecore.c:181
+msgid "completed"
+msgstr "Competado"
+
+#: coreapi/linphonecore.c:184
+msgid "missed"
+msgstr "Perdido"
+
+#: coreapi/linphonecore.c:189
+#, c-format
+msgid ""
+"%s at %sFrom: %s\n"
+"To: %s\n"
+"Status: %s\n"
+"Duration: %i mn %i sec\n"
+msgstr ""
+"%s em %sDe: %s\n"
+"Para: %s\n"
+"Status: %s\n"
+"Duração: %i min %i seg\n"
+
+#: coreapi/linphonecore.c:190
+msgid "Incoming call"
+msgstr "Camadas recebidas"
+
+#: coreapi/linphonecore.c:190
+msgid "Outgoing call"
+msgstr "Chamadas efetuadas"
+
+#: coreapi/linphonecore.c:322
+msgid ""
+"Your machine appears to be connected to an IPv6 network. By default linphone "
+"always uses IPv4. Please update your configuration if you want to use IPv6"
+msgstr ""
+"Sua máquina aparentemente está conectada em uma rede IPv6. Por padrão o "
+"linphone sempre usa IPv4. Por favor atualize sua configuração se deseja usar "
+"IPv6"
+
+#: coreapi/linphonecore.c:543
+#, fuzzy
+msgid "Ready"
+msgstr "Pronto."
+
+#: coreapi/linphonecore.c:583
+msgid "Stun lookup in progress..."
+msgstr ""
+
+#: coreapi/linphonecore.c:591
+msgid "Stun lookup done..."
+msgstr ""
+
+#: coreapi/linphonecore.c:875
+msgid "Looking for telephone number destination..."
+msgstr "Procurando por telefone de destino..."
+
+#: coreapi/linphonecore.c:877
+msgid "Could not resolve this number."
+msgstr "Não foi possível encontrar este número."
+
+#: coreapi/linphonecore.c:921
+msgid ""
+"Could not parse given sip address. A sip url usually looks like sip:"
+"user@domain"
+msgstr ""
+
+#: coreapi/linphonecore.c:965
+#, fuzzy
+msgid "Contacting"
+msgstr "Contatando "
+
+#: coreapi/linphonecore.c:996
+msgid "could not call"
+msgstr ""
+
+#: coreapi/linphonecore.c:1210 coreapi/exevents.c:58
+msgid "Connected."
+msgstr "Conectado."
+
+#: coreapi/linphonecore.c:1234
+#, fuzzy
+msgid "Call ended"
+msgstr "Chamada cancelada."
+
+#: coreapi/linphonecore.c:1499 coreapi/linphonecore.c:1510
+#, c-format
+msgid "Invalid nat address '%s' : %s"
+msgstr ""
+
+#: coreapi/misc.c:130
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the pcm oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+"'modprobe snd-pcm-oss' as root to load it."
+msgstr ""
+
+#: coreapi/misc.c:133
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the mixer oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+" 'modprobe snd-mixer-oss' as root to load it."
+msgstr ""
+
+#: coreapi/exevents.c:88
+msgid "Call terminated."
+msgstr ""
+
+#: coreapi/exevents.c:105
+msgid "Could not reach destination."
+msgstr "Não foi possível alcançar o detino."
+
+#: coreapi/exevents.c:113
+msgid "User is busy."
+msgstr "Usuário está ocupado."
+
+#: coreapi/exevents.c:114
+msgid "User is temporarily unavailable."
+msgstr "Usuário está temporáriamente indisponível."
+
+#: coreapi/exevents.c:115
+msgid "Request Cancelled."
+msgstr "Pedido cancelado."
+
+#: coreapi/exevents.c:117
+msgid "User does not want to be disturbed."
+msgstr ""
+
+#: coreapi/exevents.c:118
+msgid "Call declined."
+msgstr ""
+
+#: coreapi/exevents.c:132
+msgid "Bad request"
+msgstr ""
+
+#: coreapi/exevents.c:135
+msgid "User cannot be found at given address."
+msgstr "Usuário não pode ser encontrado no endereço especificado."
+
+#: coreapi/exevents.c:138
+msgid "Remote user cannot support any of proposed codecs."
+msgstr ""
+
+#: coreapi/exevents.c:164
+msgid "Timeout."
+msgstr "Tempo esgotado."
+
+#: coreapi/exevents.c:167
+msgid "Remote host was found but refused connection."
+msgstr "Servidor de destino encontrado, porém recusou a conexão."
+
+#: coreapi/exevents.c:319
+#, fuzzy
+msgid "is contacting you."
+msgstr "está chamado você."
+
+#: coreapi/exevents.c:343
+#, c-format
+msgid "Redirected to %s..."
+msgstr "Redirecionado para %s..."
+
+#: coreapi/exevents.c:354
+msgid ""
+"User is not reachable at the moment but he invites you\n"
+"to contact him using the following alternate resource:"
+msgstr ""
+
+#: coreapi/exevents.c:656
+#, fuzzy, c-format
+msgid "Registration on %s failed (timeout)."
+msgstr "Registro falhou (tempo esgotado)."
+
+#: coreapi/exevents.c:666
+#, c-format
+msgid "Registration on %s sucessful."
+msgstr "Registro em %s efetuado."
+
+#~ msgid "Communication ended."
+#~ msgstr "Comunicação encerrada."
+
+#~ msgid "Firewall 's external ip address (in dot notations):"
+#~ msgstr "Endereço externo do firewall:"
+
+#~ msgid "Index"
+#~ msgstr "Índice"
+
+#~ msgid "Address"
+#~ msgstr "Endereço"
+
+#~ msgid "Server address"
+#~ msgstr "Endereço do servidor"
+
+#~ msgid "28k modem"
+#~ msgstr "Modem 28k"
+
+#~ msgid "56k modem"
+#~ msgstr "Modem 56l"
+
+#~ msgid "64k modem (numeris)"
+#~ msgstr "Modem 64k"
+
+#~ msgid "ADSL or Cable modem"
+#~ msgstr "ADSL ou Cable modem"
+
+#~ msgid "Ethernet or equivalent"
+#~ msgstr "Ethernet ou equivalente"
+
+#~ msgid "Connection type:"
+#~ msgstr "Tipo de conexão:"
+
+#~ msgid ""
+#~ "Linphone could not open audio device %s. Check if your sound card is "
+#~ "fully configured and working."
+#~ msgstr ""
+#~ "Linphone não pode abrir dispositivo de áudio %s. Verifique se sua placa "
+#~ "de som está configurada e funcionando."
+
+#~ msgid "Type here the sip address of the person you want to call."
+#~ msgstr "Escreva aqui o endereço sip da pessoa que você quer ligar."

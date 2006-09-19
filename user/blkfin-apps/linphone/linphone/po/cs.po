@@ -1,0 +1,951 @@
+# translation of linphone.po to cs_CZ
+# This file is distributed under the same license as the PACKAGE package.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER.
+# Klara Cihlarova <koty@seznam.cz>, 2005.
+# Petr Pisar <petr.pisar@atlas.cz>, 2006.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: linphone\n"
+"Report-Msgid-Bugs-To: linphone-developers@nongnu.org\n"
+"POT-Creation-Date: 2006-08-29 15:27+0200\n"
+"PO-Revision-Date: 2006-06-08 19:02+0200\n"
+"Last-Translator: Petr Pisar <petr.pisar@atlas.cz>\n"
+"Language-Team: cs_CZ <cs@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.9\n"
+
+#: gnome/interface.c:32
+msgid "Address book"
+msgstr "Adresář"
+
+#: gnome/interface.c:40
+msgid "Call history"
+msgstr "Historie volání"
+
+#: gnome/interface.c:41
+msgid "Shows calls"
+msgstr "Zobrazit volání"
+
+#: gnome/interface.c:55
+msgid "User manual"
+msgstr "Uživatelská příručka"
+
+#: gnome/interface.c:67
+msgid "Go"
+msgstr "Soubor"
+
+#: gnome/interface.c:166
+msgid "linphone"
+msgstr "linphone"
+
+#: gnome/interface.c:204
+msgid "enter sip uri here"
+msgstr "Sem zadejte SIP URI"
+
+#: gnome/interface.c:205 gnome/interface.c:1331 gnome/interface.c:2215
+#: gnome/interface.c:2237 gnome/interface.c:2377
+msgid "sip:"
+msgstr "sip:"
+
+#: gnome/interface.c:207 gnome/interface.c:2392
+msgid "Sip address:"
+msgstr "SIP adresa:"
+
+#: gnome/interface.c:215
+msgid "Shows the address book"
+msgstr "Zobrazit adresář"
+
+#: gnome/interface.c:229
+msgid "..."
+msgstr "…"
+
+#: gnome/interface.c:237 gnome/interface.c:2399
+msgid "Proxy to use:"
+msgstr "Proxy:"
+
+#: gnome/interface.c:246
+msgid ""
+"Call or\n"
+"answer"
+msgstr ""
+"Volat nebo\n"
+"přijmout"
+
+#: gnome/interface.c:251
+msgid ""
+"Hangup\n"
+"or refuse"
+msgstr ""
+"Zavěsit nebo\n"
+"odmítnout"
+
+#: gnome/interface.c:256
+msgid "Or chat !"
+msgstr "Nebo poslat zprávu!"
+
+#: gnome/interface.c:278
+msgid "Show more..."
+msgstr "Zobrazit více…"
+
+#: gnome/interface.c:300
+msgid "Playback level:"
+msgstr "Úroveň přehrávání:"
+
+#: gnome/interface.c:311
+msgid "Recording level:"
+msgstr "Úroveň nahrávání:"
+
+#: gnome/interface.c:322
+msgid "Ring level:"
+msgstr "Úroveň vyzvánění:"
+
+#: gnome/interface.c:333
+msgid "Sound"
+msgstr "Zvuk"
+
+#: gnome/interface.c:350
+msgid "Enable video"
+msgstr "Povolit obraz"
+
+#: gnome/interface.c:355
+msgid "Video"
+msgstr "Obraz"
+
+#: gnome/interface.c:360
+msgid "Controls"
+msgstr "Ovládání"
+
+#: gnome/interface.c:378
+msgid "Reachable"
+msgstr "Dosažitelný"
+
+#: gnome/interface.c:389
+msgid "Busy, I'll be back in "
+msgstr "Mám práci, jsem zpět za "
+
+#: gnome/interface.c:398
+msgid "The other party will be informed that you'll be back in X minutes"
+msgstr "Druhá strana bude informována, že se vrátíte za X minut"
+
+#: gnome/interface.c:399
+msgid "5"
+msgstr "5"
+
+#: gnome/interface.c:401
+msgid "mn"
+msgstr "min"
+
+#: gnome/interface.c:406
+msgid "Away"
+msgstr "Pryč"
+
+#: gnome/interface.c:412
+msgid "Do not disturb"
+msgstr "Nerušit"
+
+#: gnome/interface.c:418
+msgid "Moved temporarily"
+msgstr "Dočasně mimo"
+
+#: gnome/interface.c:424
+msgid "Alternative service"
+msgstr "Alternativní služba"
+
+#: gnome/interface.c:434
+msgid "URL:"
+msgstr "URL:"
+
+#: gnome/interface.c:443
+msgid "Presence"
+msgstr "Přítomnost"
+
+#: gnome/interface.c:460
+msgid "Press digits to send DTMFs."
+msgstr "Zadejte čísla pro zaslání DTMF."
+
+#: gnome/interface.c:469
+msgid ""
+"  3\n"
+"def"
+msgstr ""
+"  3\n"
+"def"
+
+#: gnome/interface.c:475
+msgid ""
+"  2\n"
+"abc"
+msgstr ""
+"  2\n"
+"abc"
+
+#: gnome/interface.c:481
+msgid "1"
+msgstr "1"
+
+#: gnome/interface.c:487
+msgid ""
+"  4\n"
+"ghi"
+msgstr ""
+"  4\n"
+"ghi"
+
+#: gnome/interface.c:493
+msgid ""
+" 5\n"
+"jkl"
+msgstr ""
+" 5\n"
+"jkl"
+
+#: gnome/interface.c:499
+msgid ""
+"  6\n"
+"mno"
+msgstr ""
+"  6\n"
+"mno"
+
+#: gnome/interface.c:505
+msgid ""
+"   7\n"
+"pqrs"
+msgstr ""
+"   7\n"
+"pqrs"
+
+#: gnome/interface.c:511
+msgid ""
+"  8\n"
+"tuv"
+msgstr ""
+"  8\n"
+"tuv"
+
+#: gnome/interface.c:517
+msgid ""
+"   9\n"
+"wxyz"
+msgstr ""
+"   9\n"
+"wxyz"
+
+#: gnome/interface.c:523
+msgid "*"
+msgstr "*"
+
+#: gnome/interface.c:529
+msgid "0"
+msgstr "0"
+
+#: gnome/interface.c:535
+msgid "#"
+msgstr "#"
+
+#: gnome/interface.c:541
+msgid "DTMF"
+msgstr "DTMF"
+
+#: gnome/interface.c:558
+msgid "My online friends"
+msgstr "Přátelé online"
+
+#: gnome/interface.c:787
+msgid ""
+"C: 2001\n"
+"Made in Old Europe"
+msgstr ""
+"C: 2001\n"
+"Vyrobeno ve Staré Dobré Evropě"
+
+#: gnome/interface.c:788
+msgid ""
+"Linphone is a web-phone.\n"
+"It is compatible with SIP and RTP protocols."
+msgstr ""
+"Linphone je program pro IP telefonii.\n"
+"Je kompatibilní s protokoly SIP a RTP."
+
+#: gnome/interface.c:960
+msgid "Parameters"
+msgstr "Parametry"
+
+#: gnome/interface.c:990
+msgid "Use IPv6 network (if available)"
+msgstr "Použít IPv6 síť (je-li dostupná)"
+
+#: gnome/interface.c:993
+msgid ""
+"Toggle this if you are on an ipv6 network and you wish linphone to use it."
+msgstr ""
+"Jestliže jste v síti podporující IPv6 protokol a chcete-li, aby jej linphone "
+"používal, zapněte tuto volbu."
+
+#: gnome/interface.c:995
+msgid "Global"
+msgstr "Obecné"
+
+#: gnome/interface.c:1010
+msgid ""
+"These options is only for users in a private network, behind a gateway. If "
+"you are not in this situation, then leave this empty."
+msgstr ""
+"Tato volba je určena pouze pro uživatele v intranetu za firewallem. Pokud to "
+"není váš případ, nevyplňujte."
+
+#: gnome/interface.c:1020
+msgid "No firewall"
+msgstr "Bez firewallu"
+
+#: gnome/interface.c:1028
+msgid "Use this STUN server to guess firewall address :"
+msgstr "Pro odhad veřejné adresy použít tento STUN server:"
+
+#: gnome/interface.c:1036
+msgid "Specify firewall address manually:"
+msgstr "Veřejná adresa firewallu:"
+
+#: gnome/interface.c:1056
+msgid "NAT traversal options (experimental)"
+msgstr "Volby průchodu NATem (experimentální)"
+
+#: gnome/interface.c:1085
+msgid "Number of buffered miliseconds (jitter compensation):"
+msgstr "Velikosti vyrovnávací fronty v milisekundách (potlačení rozptylu):"
+
+#: gnome/interface.c:1093
+msgid "RTP port used for audio:"
+msgstr "RTP port pro zvuk:"
+
+#: gnome/interface.c:1100
+msgid "RTP properties"
+msgstr "RTP vlastnosti"
+
+#: gnome/interface.c:1118
+msgid "Use SIP INFO message instead of RTP rfc2833 for DTMF transmitting"
+msgstr "Místo RTP rfc2833 použít pro DTMF přenos SIP INFO zprávu"
+
+#: gnome/interface.c:1121
+msgid "RTP-RFC2833 is the recommended way."
+msgstr "Doporučeno je RTP-RFC2833."
+
+#: gnome/interface.c:1123
+msgid "Other"
+msgstr "Ostatní"
+
+#: gnome/interface.c:1128
+msgid "Network"
+msgstr "Síť"
+
+#: gnome/interface.c:1154
+msgid "Playback sound device:"
+msgstr "Zvukové zařízení pro přehrávání:"
+
+#: gnome/interface.c:1169 gnome/propertybox.c:609 gnome/propertybox.c:634
+msgid "micro"
+msgstr "mikro"
+
+#: gnome/interface.c:1170 gnome/propertybox.c:612 gnome/propertybox.c:635
+msgid "line"
+msgstr "line"
+
+#: gnome/interface.c:1179
+msgid "Capture sound device:"
+msgstr "Zvukové zařízení pro nahrávání:"
+
+#: gnome/interface.c:1205
+msgid "Ring sound selection"
+msgstr "Výběr zvonění"
+
+#: gnome/interface.c:1229
+msgid "Listen"
+msgstr "Test"
+
+#: gnome/interface.c:1233
+msgid "Recording source:"
+msgstr "Zdroj nahrávání:"
+
+#: gnome/interface.c:1240
+msgid "Ring sound device"
+msgstr "Zvukové zařízení pro vyzvánění:"
+
+#: gnome/interface.c:1248
+msgid "Ring sound:"
+msgstr "Zvonění:"
+
+#: gnome/interface.c:1268
+msgid "Enable echo-canceler (cancels the echo heard by the remote party)"
+msgstr "Potlačit ozvěnu (projeví se na druhém konci)"
+
+#: gnome/interface.c:1276
+msgid "Sound properties"
+msgstr "Vlastnosti zvuku"
+
+#: gnome/interface.c:1280
+msgid "Sound device"
+msgstr "Zvukové zařízení"
+
+#: gnome/interface.c:1298
+msgid "Run sip user agent on port:"
+msgstr "Spustit uživatelského agenta SIP na portu:"
+
+#: gnome/interface.c:1307
+msgid "It is strongly recommended to use port 5060."
+msgstr "Je doporučeno používat port 5060."
+
+#: gnome/interface.c:1309
+msgid "SIP port"
+msgstr "SIP port"
+
+#: gnome/interface.c:1326
+msgid "Your sip address:"
+msgstr "Vaše SIP adresa:"
+
+#: gnome/interface.c:1340
+msgid "@"
+msgstr "@"
+
+#: gnome/interface.c:1349
+msgid "Automatically guess a valid hostname"
+msgstr "Automaticky uhodnout platné jméno"
+
+#: gnome/interface.c:1353
+msgid "Identity"
+msgstr "Identita"
+
+#: gnome/interface.c:1400
+msgid "Add proxy/registrar"
+msgstr "Přidat proxy/registraci"
+
+#: gnome/interface.c:1421 gnome/interface.c:1994
+msgid "Edit"
+msgstr "Upravit"
+
+#: gnome/interface.c:1442
+msgid "Remove"
+msgstr "Odstranit"
+
+#: gnome/interface.c:1446
+msgid "Remote services"
+msgstr "Vzdálené služby"
+
+#: gnome/interface.c:1476
+msgid "Clear all stored authentication information (username,password...)"
+msgstr "Vyprázdnit všechny ověřovací informace (uživatelské jméno, heslo…)"
+
+#: gnome/interface.c:1480
+msgid "Authentication information"
+msgstr "Ověřovací informace"
+
+#: gnome/interface.c:1484
+msgid "SIP"
+msgstr "SIP"
+
+#: gnome/interface.c:1507
+msgid "List of audio codecs, in order of preference:"
+msgstr "Seznam audio kodeků podle preference:"
+
+#: gnome/interface.c:1556
+msgid "Enable"
+msgstr "Povoleno"
+
+#: gnome/interface.c:1577
+msgid "Disable"
+msgstr "Zakázat"
+
+#: gnome/interface.c:1585
+msgid "Upload bandwidth (kbit/sec):"
+msgstr "Odchozí šířka pásma (kb/s):"
+
+#: gnome/interface.c:1593
+msgid "Download bandwidth (kbit/sec):"
+msgstr "Příchozí šířka pásma (kb/s):"
+
+#: gnome/interface.c:1620
+msgid ""
+"Note: Codecs in red are not usable regarding to your connection type to the "
+"internet."
+msgstr ""
+"Poznámka: Kodeky označené červeně nelze u vašeho typu připojení použít."
+
+#: gnome/interface.c:1632
+msgid "No information availlable"
+msgstr "Nejsou dostupné žádné informace"
+
+#: gnome/interface.c:1639
+msgid "Codec information"
+msgstr "Informace o kodeku"
+
+#: gnome/interface.c:1643
+msgid "Audio codecs"
+msgstr "Audio kodeky"
+
+#: gnome/interface.c:1647
+msgid "Codecs"
+msgstr "Kodeky"
+
+#: gnome/interface.c:1924
+msgid "Address Book"
+msgstr "Adresář"
+
+#: gnome/interface.c:2020
+msgid "Select"
+msgstr "Vybrat"
+
+#: gnome/interface.c:2079
+msgid "Information"
+msgstr "Informace"
+
+#: gnome/interface.c:2097
+msgid ""
+"User is not reachable at the moment but he invites you to contact him using "
+"the following alternate ressource:"
+msgstr ""
+"Uživatel je momentálně nedostupný, ale navrhuje tyto alternativní formy "
+"kontaktu:"
+
+#: gnome/interface.c:2104
+msgid "None."
+msgstr "Žádné."
+
+#: gnome/interface.c:2165 gnome/interface.c:2274
+msgid "Proxy/Registrar configuration box"
+msgstr "Konfigurace proxy a registrace"
+
+#: gnome/interface.c:2195
+msgid "Route (optional):"
+msgstr "Směrování (volitelné):"
+
+#: gnome/interface.c:2217
+msgid "SIP Proxy:"
+msgstr "SIP proxy:"
+
+#: gnome/interface.c:2224
+msgid "SIP Identity:"
+msgstr "SIP identita:"
+
+#: gnome/interface.c:2239
+msgid "Registration Period:"
+msgstr "Registrační období:"
+
+#: gnome/interface.c:2254
+msgid "Send registration:"
+msgstr "Odeslat registraci:"
+
+#: gnome/interface.c:2261
+msgid "Publish presence information:"
+msgstr "Zveřejnit svůj stav:"
+
+#: gnome/interface.c:2346
+msgid "Edit contact information"
+msgstr "Upravit kontaktní informace"
+
+#: gnome/interface.c:2385
+msgid "Name:"
+msgstr "Jméno:"
+
+#: gnome/interface.c:2406
+msgid "Subscribe policy:"
+msgstr "Pravidlo přihlášení:"
+
+#: gnome/interface.c:2413
+msgid "Send subscription (see person's online status)"
+msgstr "Odeslat přihlášení (podle online stavu osoby)"
+
+#: gnome/interface.c:2417
+msgid "Contact information"
+msgstr "Informace o kontaktu"
+
+#: gnome/interface.c:2488
+msgid "New incoming subscription"
+msgstr "Nové příchozí přihlášení"
+
+#: gnome/interface.c:2508
+msgid "You have received a new subscription..."
+msgstr "Obdrželi jste nové přihlášení…"
+
+#: gnome/interface.c:2535
+msgid "Refuse"
+msgstr "Odmítnout"
+
+#: gnome/interface.c:2556
+msgid "Accept"
+msgstr "Přijmout"
+
+#: gnome/interface.c:2609
+msgid "Authentication requested"
+msgstr "Žádost o ověření"
+
+#: gnome/interface.c:2635
+msgid "Authentication required for realm"
+msgstr "pro doménu je vyžadováno ověření"
+
+#: gnome/interface.c:2671
+msgid "userid:"
+msgstr "ID uživatele:"
+
+#: gnome/interface.c:2679
+msgid "password:"
+msgstr "heslo:"
+
+#: gnome/interface.c:2687
+msgid "username:"
+msgstr "uživatelské jméno:"
+
+#: gnome/interface.c:2695
+msgid "realm:"
+msgstr "doména:"
+
+#: gnome/interface.c:2756
+msgid "Linphone - Call history"
+msgstr "Linphone – historie volání"
+
+#: gnome/interface.c:2823
+msgid "Chat Room"
+msgstr "Diskuzní skupina"
+
+#: gnome/interface.c:2851
+msgid "Text:"
+msgstr "Text:"
+
+#: gnome/callbacks.c:589
+#, c-format
+msgid "Chat with %s"
+msgstr "Diskuze s %s"
+
+#: gnome/support.c:60 gnome/support.c:85
+#, c-format
+msgid "Couldn't find pixmap file: %s"
+msgstr "Nelze najít soubor s obrázkem: %s"
+
+#: gnome/propertybox.c:206
+msgid "Account"
+msgstr "Účet"
+
+#: gnome/propertybox.c:436 gnome/propertybox.c:519 gnome/propertybox.c:846
+msgid "Enabled"
+msgstr "Povoleno"
+
+#: gnome/propertybox.c:437 gnome/propertybox.c:847
+msgid "Disabled"
+msgstr "Zakázáno"
+
+#: gnome/propertybox.c:455 gnome/friends.c:110
+msgid "Name"
+msgstr "Jméno"
+
+#: gnome/propertybox.c:461
+msgid "Rate (Hz)"
+msgstr "Rychlost (Hz)"
+
+#: gnome/propertybox.c:467
+msgid "Status"
+msgstr "Stav"
+
+#: gnome/propertybox.c:473
+msgid "Min bitrate (kbit/s)"
+msgstr "Min rychlost (kbit/s)"
+
+#: gnome/propertybox.c:499 gnome/propertybox.c:504 gnome/propertybox.c:987
+#: gnome/propertybox.c:997
+msgid "Unlimited"
+msgstr "Neomezená"
+
+#: gnome/linphone.c:191
+msgid "The caller asks for resource reservation. Do you agree ?"
+msgstr "Volající žádá o rezervaci zdrojů. Souhlasíte?"
+
+#: gnome/linphone.c:194
+msgid ""
+"The caller doesn't use resource reservation. \t\t\t\t\tDo you wish to "
+"continue anyway ?"
+msgstr ""
+"Volající nepoužívá rezervaci zdrojů. \t\t\t\t\tChcete přesto pokračovat?"
+
+#: gnome/linphone.c:220
+#, c-format
+msgid "linphone - receiving call from %s"
+msgstr "linphone – příchozí hovor z %s"
+
+#: gnome/linphone.c:246
+#, c-format
+msgid ""
+"You have received a subscription from %s.This means that this person wishes "
+"to be notified of your presence information (online, busy, away...).\n"
+"Do you agree ?"
+msgstr ""
+"Obdrželi jste přihlášení od %s. Znamená to, že si tato osoba přeje být "
+"informována o vašem stavu přítomnosti (online, zaneprázdněn, pryč…).\n"
+"Souhlasíte?"
+
+#: gnome/linphone.c:256
+#, c-format
+msgid "Authentication required for realm %s"
+msgstr "Pro doménu %s je vyžadováno ověření"
+
+#: gnome/linphone.c:377
+msgid "None"
+msgstr "Žádná"
+
+#: gnome/friends.c:117
+msgid "Presence status"
+msgstr "Stav"
+
+#: coreapi/linphonecore.c:152
+#, c-format
+msgid "You have missed %i call(s)."
+msgstr "Zameškané hovory: %i"
+
+#: coreapi/linphonecore.c:178
+msgid "aborted"
+msgstr "přerušen"
+
+#: coreapi/linphonecore.c:181
+msgid "completed"
+msgstr "dokončen"
+
+#: coreapi/linphonecore.c:184
+msgid "missed"
+msgstr "promeškán"
+
+#: coreapi/linphonecore.c:189
+#, c-format
+msgid ""
+"%s at %sFrom: %s\n"
+"To: %s\n"
+"Status: %s\n"
+"Duration: %i mn %i sec\n"
+msgstr ""
+"%s z %s Od: %s\n"
+"Pro: %s\n"
+"Stav: %s\n"
+"Trvání: %i min %i sec\n"
+
+#: coreapi/linphonecore.c:190
+msgid "Incoming call"
+msgstr "Příchozí volání"
+
+#: coreapi/linphonecore.c:190
+msgid "Outgoing call"
+msgstr "Odchozí volání"
+
+#: coreapi/linphonecore.c:322
+msgid ""
+"Your machine appears to be connected to an IPv6 network. By default linphone "
+"always uses IPv4. Please update your configuration if you want to use IPv6"
+msgstr ""
+"Zdá se, že váš počítač je připojen do IPv6 sítě. Standardně linphone používá "
+"pouze IPv4. Prosím, povedtě změny v konfiguraci programu, pokud chcete "
+"používat IPv6."
+
+#: coreapi/linphonecore.c:543
+#, fuzzy
+msgid "Ready"
+msgstr "Připraven."
+
+#: coreapi/linphonecore.c:583
+msgid "Stun lookup in progress..."
+msgstr "Hledá se adresa pomocí STUN…"
+
+#: coreapi/linphonecore.c:591
+msgid "Stun lookup done..."
+msgstr "STUN vyhledávání dokončeno…"
+
+#: coreapi/linphonecore.c:875
+msgid "Looking for telephone number destination..."
+msgstr "Vyhledává se umístění čísla…"
+
+#: coreapi/linphonecore.c:877
+msgid "Could not resolve this number."
+msgstr "Toto číslo nelze vyhledat."
+
+#: coreapi/linphonecore.c:921
+msgid ""
+"Could not parse given sip address. A sip url usually looks like sip:"
+"user@domain"
+msgstr ""
+"Špatně zadaná SIP adresa. Adresa má mít tento formát <sip:uživatel@doména>"
+
+#: coreapi/linphonecore.c:965
+#, fuzzy
+msgid "Contacting"
+msgstr "Kontaktuji "
+
+#: coreapi/linphonecore.c:996
+msgid "could not call"
+msgstr ""
+
+#: coreapi/linphonecore.c:1210 coreapi/exevents.c:58
+msgid "Connected."
+msgstr "Připojeno."
+
+#: coreapi/linphonecore.c:1234
+#, fuzzy
+msgid "Call ended"
+msgstr "Volání odmítnuto."
+
+#: coreapi/linphonecore.c:1499 coreapi/linphonecore.c:1510
+#, c-format
+msgid "Invalid nat address '%s' : %s"
+msgstr "Neplatná adresa NATu '%s': '%s"
+
+#: coreapi/misc.c:130
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the pcm oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+"'modprobe snd-pcm-oss' as root to load it."
+msgstr ""
+"Váš počítač používá zvukový ovladač ALSA. Jde o nejlepší\n"
+"volbu. Linphone však potřebuje ke své práci modul emulace\n"
+"oss, který chybí. Prosím zadejte jako uživatel root příkaz\n"
+"'modprobe snd-pcm-oss', kterým modul zavede."
+
+#: coreapi/misc.c:133
+msgid ""
+"Your computer appears to be using ALSA sound drivers.\n"
+"This is the best choice. However the mixer oss emulation module\n"
+"is missing and linphone needs it. Please execute\n"
+" 'modprobe snd-mixer-oss' as root to load it."
+msgstr ""
+"Váš počítač používá zvukový ovladač ALSA. Jde o nejlepší\n"
+"volbu. Linphone však potřebuje ke své práci modul mixer emulace\n"
+"oss, který chybí. Prosím zadejte jako uživatel root příkaz\n"
+"'modprobe snd-mixer-oss', kterým modul zavede."
+
+#: coreapi/exevents.c:88
+#, fuzzy
+msgid "Call terminated."
+msgstr "Volání odmítnuto."
+
+#: coreapi/exevents.c:105
+msgid "Could not reach destination."
+msgstr "Cíl je nedostupný."
+
+#: coreapi/exevents.c:113
+msgid "User is busy."
+msgstr "Uživatel je zaneprázdněn."
+
+#: coreapi/exevents.c:114
+msgid "User is temporarily unavailable."
+msgstr "Uživatel je dočasně nedostupný."
+
+#: coreapi/exevents.c:115
+msgid "Request Cancelled."
+msgstr "Dotaz přerušen."
+
+#: coreapi/exevents.c:117
+msgid "User does not want to be disturbed."
+msgstr "Uživatel si nepřeje být rušen."
+
+#: coreapi/exevents.c:118
+msgid "Call declined."
+msgstr "Volání odmítnuto."
+
+#: coreapi/exevents.c:132
+msgid "Bad request"
+msgstr "Chybný dotaz"
+
+#: coreapi/exevents.c:135
+msgid "User cannot be found at given address."
+msgstr "Uživatele nelze na dané adrese zastihnout."
+
+#: coreapi/exevents.c:138
+msgid "Remote user cannot support any of proposed codecs."
+msgstr "Vzdálený uživatel nemá podporu pro žádný z navržených kodeků."
+
+#: coreapi/exevents.c:164
+msgid "Timeout."
+msgstr "Vypršení časového limitu."
+
+#: coreapi/exevents.c:167
+msgid "Remote host was found but refused connection."
+msgstr "Vzdálený počítač byl nalezen, ale odmítl připojení."
+
+#: coreapi/exevents.c:319
+#, fuzzy
+msgid "is contacting you."
+msgstr "vás volá."
+
+#: coreapi/exevents.c:343
+#, c-format
+msgid "Redirected to %s..."
+msgstr "Přesměrováno na %s…"
+
+#: coreapi/exevents.c:354
+msgid ""
+"User is not reachable at the moment but he invites you\n"
+"to contact him using the following alternate resource:"
+msgstr ""
+"Uživatel je nedostupný, ale navrhuje tyto alternativní\n"
+"setkání:"
+
+#: coreapi/exevents.c:656
+#, c-format
+msgid "Registration on %s failed (timeout)."
+msgstr "Registrace na %s selhala (vypršení časového limitu)."
+
+#: coreapi/exevents.c:666
+#, c-format
+msgid "Registration on %s sucessful."
+msgstr "Registrace na %s byla úspěšná."
+
+#~ msgid "Communication ended."
+#~ msgstr "Komunikace ukončena."
+
+#~ msgid "Call cancelled."
+#~ msgstr "Volání přerušeno."
+
+#~ msgid "Firewall 's external ip address (in dot notations):"
+#~ msgstr "Vnější IP adresa firewallu (v tečkové notaci):"
+
+#~ msgid "Index"
+#~ msgstr "Rejstřík"
+
+#~ msgid "Address"
+#~ msgstr "Adresa"
+
+#~ msgid "28k modem"
+#~ msgstr "28k modem"
+
+#~ msgid "56k modem"
+#~ msgstr "56k modem"
+
+#~ msgid "64k modem (numeris)"
+#~ msgstr "64k modem"
+
+#~ msgid "ADSL or Cable modem"
+#~ msgstr "ADSL nebo kabelový modem"
+
+#~ msgid "Ethernet or equivalent"
+#~ msgstr "Ethernet nebo podobný"
+
+#~ msgid "Connection type:"
+#~ msgstr "Typ připojení:"
+
+#~ msgid "Server address"
+#~ msgstr "Adresa serveru:"
+
+#~ msgid ""
+#~ "Linphone could not open audio device %s. Check if your sound card is "
+#~ "fully configured and working."
+#~ msgstr ""
+#~ "Linphone nemůže otevřít zvukové zařízení %s. Překontrolujte nastavení a "
+#~ "funkčnost zvukové karty."
+
+#~ msgid "Type here the sip address of the person you want to call."
+#~ msgstr "Zde zadejte SIP adresu osoby, které si přejete volat."
+
+#~ msgid ""
+#~ "Release or\n"
+#~ "Refuse"
+#~ msgstr ""
+#~ "Přijmout nebo\n"
+#~ "odmítnout"
+
+#~ msgid "%s. Retry after %i minute(s)."
+#~ msgstr "%s. Zkusit znovu po %i min."

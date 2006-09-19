@@ -1,0 +1,18 @@
+<!doctype book PUBLIC "-//Davenport//DTD DocBook V3.0//EN" [
+<!entity rtpsessionapi SYSTEM "sgml/rtpsessionapi.sgml">
+<!entity stackmanagement SYSTEM "sgml/stackmanagement.sgml">
+<!entity payloads SYSTEM "sgml/payloads.sgml">
+<!entity multiplexing SYSTEM "sgml/multiplexing.sgml">
+<!entity telephoneevents SYSTEM "sgml/telephoneevents.sgml">
+]>
+<book>
+<bookinfo><title>oRTP Reference Manual</title></bookinfo>
+<chapter id="oRTPAPI">
+<title>oRTP API</title>
+&stackmanagement;
+&rtpsessionapi;
+&payloads;
+&multiplexing;
+&telephoneevents;
+</chapter>
+</book>
