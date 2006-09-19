@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 Jean-Marc Valin 
+/* Copyright (C) 2002-2006 Jean-Marc Valin 
    File: filters.c
    Various analysis/synthesis filters
 
@@ -62,6 +62,32 @@ void bw_lpc(spx_word16_t gamma, const spx_coef_t *lpc_in, spx_coef_t *lpc_out, i
    }
 }
 
+void highpass(const spx_word16_t *x, spx_word16_t *y, int len, int filtID, spx_mem_t *mem)
+{
+   int i;
+#ifdef FIXED_POINT
+   const spx_word16_t Pcoef[5][3] = {{16384, -31313, 14991}, {16384, -31569, 15249}, {16384, -31677, 15328}, {16384, -32313, 15947}, {16384, -22446, 6537}};
+   const spx_word16_t Zcoef[5][3] = {{15672, -31344, 15672}, {15802, -31601, 15802}, {15847, -31694, 15847}, {16162, -32322, 16162}, {14418, -28836, 14418}};
+#else
+   const spx_word16_t Pcoef[5][3] = {{1.00000f, -1.91120f, 0.91498f}, {1.00000f, -1.92683f, 0.93071f}, {1.00000f, -1.93338f, 0.93553f}, {1.00000f, -1.97226f, 0.97332f}, {1.00000f, -1.37000f, 0.39900f}};
+   const spx_word16_t Zcoef[5][3] = {{0.95654f, -1.91309f, 0.95654f}, {0.96446f, -1.92879f, 0.96446f}, {0.96723f, -1.93445f, 0.96723f}, {0.98645f, -1.97277f, 0.98645f}, {0.88000f, -1.76000f, 0.88000f}};
+#endif
+   const spx_word16_t *den, *num;
+   if (filtID>4)
+      filtID=4;
+   
+   den = Pcoef[filtID]; num = Zcoef[filtID];
+   /*return;*/
+   for (i=0;i<len;i++)
+   {
+      spx_word16_t yi;
+      spx_word32_t vout = ADD32(MULT16_16(num[0], x[i]),mem[0]);
+      yi = EXTRACT16(SATURATE(PSHR32(vout,14),32767));
+      mem[0] = ADD32(MAC16_16(mem[1], num[1],x[i]), MULT16_32_Q14(-den[1],vout));
+      mem[1] = ADD32(MULT16_16(num[2],x[i]), MULT16_32_Q14(-den[2],vout));
+      y[i] = yi;
+   }
+}
 
 #ifdef FIXED_POINT
 
@@ -648,8 +674,6 @@ void fir_mem_up(const spx_sig_t *x, const spx_word16_t *a, spx_sig_t *y, int N, 
       mem[i+1] = xx[i];
 }
 
-#ifndef OLD_ENHANCER
-
 #ifdef FIXED_POINT
 #if 0
 spx_word16_t shift_filt[3][7] = {{-33,    1043,   -4551,   19959,   19959,   -4551,    1043},
@@ -876,125 +900,3 @@ char *stack
       new_exc[i] = MULT16_16_Q14(ngain, new_exc[i]);
 }
 
-#else
-
-void comb_filter_mem_init (CombFilterMem *mem)
-{
-   mem->last_pitch=0;
-   mem->last_pitch_gain[0]=mem->last_pitch_gain[1]=mem->last_pitch_gain[2]=0;
-   mem->smooth_gain=1;
-}
-
-#ifdef FIXED_POINT
-#define COMB_STEP 32767
-#else
-#define COMB_STEP 1.0
-#endif
-
-void comb_filter(
-spx_sig_t *exc,          /*decoded excitation*/
-spx_word16_t *_new_exc,      /*enhanced excitation*/
-spx_coef_t *ak,           /*LPC filter coefs*/
-int p,               /*LPC order*/
-int nsf,             /*sub-frame size*/
-int pitch,           /*pitch period*/
-spx_word16_t *pitch_gain,   /*pitch gain (3-tap)*/
-spx_word16_t  comb_gain,    /*gain of comb filter*/
-CombFilterMem *mem
-)
-{
-   int i;
-   spx_word16_t exc_energy=0, new_exc_energy=0;
-   spx_word16_t gain;
-   spx_word16_t step;
-   spx_word16_t fact;
-   /* FIXME: This is a temporary kludge */
-   spx_sig_t new_exc[40];
-   
-   /*Compute excitation amplitude prior to enhancement*/
-   exc_energy = compute_rms(exc, nsf);
-   /*for (i=0;i<nsf;i++)
-     exc_energy+=((float)exc[i])*exc[i];*/
-
-   /*Some gain adjustment if pitch is too high or if unvoiced*/
-#ifdef FIXED_POINT
-   {
-      spx_word16_t g = gain_3tap_to_1tap(pitch_gain)+gain_3tap_to_1tap(mem->last_pitch_gain);
-      if (g > 166)
-         comb_gain = MULT16_16_Q15(DIV32_16(SHL32(EXTEND32(165),15),g), comb_gain);
-      if (g < 64)
-         comb_gain = MULT16_16_Q15(SHL16(g, 9), comb_gain);
-   }
-#else
-   {
-      float g=0;
-      g = GAIN_SCALING_1*.5*(gain_3tap_to_1tap(pitch_gain)+gain_3tap_to_1tap(mem->last_pitch_gain));
-      if (g>1.3)
-         comb_gain*=1.3/g;
-      if (g<.5)
-         comb_gain*=2.*g;
-   }
-#endif
-   step = DIV32(COMB_STEP, nsf);
-   fact=0;
-
-   /*Apply pitch comb-filter (filter out noise between pitch harmonics)*/
-   for (i=0;i<nsf;i++)
-   {
-      spx_word32_t exc1, exc2;
-
-      fact = ADD16(fact,step);
-      
-      exc1 = SHL32(MULT16_32_Q15(SHL16(pitch_gain[0],7),exc[i-pitch+1]) +
-                 MULT16_32_Q15(SHL16(pitch_gain[1],7),exc[i-pitch]) +
-                 MULT16_32_Q15(SHL16(pitch_gain[2],7),exc[i-pitch-1]) , 2);
-      exc2 = SHL32(MULT16_32_Q15(SHL16(mem->last_pitch_gain[0],7),exc[i-mem->last_pitch+1]) +
-                 MULT16_32_Q15(SHL16(mem->last_pitch_gain[1],7),exc[i-mem->last_pitch]) +
-                 MULT16_32_Q15(SHL16(mem->last_pitch_gain[2],7),exc[i-mem->last_pitch-1]),2);
-
-      new_exc[i] = exc[i] + MULT16_32_Q15(comb_gain, ADD32(MULT16_32_Q15(fact,exc1), MULT16_32_Q15(SUB16(COMB_STEP,fact), exc2)));
-   }
-
-   mem->last_pitch_gain[0] = pitch_gain[0];
-   mem->last_pitch_gain[1] = pitch_gain[1];
-   mem->last_pitch_gain[2] = pitch_gain[2];
-   mem->last_pitch = pitch;
-
-   /*Amplitude after enhancement*/
-   new_exc_energy = compute_rms(new_exc, nsf);
-
-   if (exc_energy > new_exc_energy)
-      exc_energy = new_exc_energy;
-   
-   if (new_exc_energy<1)
-      new_exc_energy=1;
-   if (exc_energy<1)
-      exc_energy=1;
-   gain = DIV32_16(SUB32(SHL32(exc_energy,15),1),new_exc_energy);
-
-#ifdef FIXED_POINT
-   if (gain < 16384)
-      gain = 16384;
-#else
-   if (gain < .5)
-      gain=.5;
-#endif
-
-#ifdef FIXED_POINT
-   for (i=0;i<nsf;i++)
-   {
-      mem->smooth_gain = ADD16(MULT16_16_Q15(31457,mem->smooth_gain), MULT16_16_Q15(1311,gain));
-      new_exc[i] = MULT16_32_Q15(mem->smooth_gain, new_exc[i]);
-   }
-#else
-   for (i=0;i<nsf;i++)
-   {
-      mem->smooth_gain = .96*mem->smooth_gain + .04*gain;
-      new_exc[i] *= mem->smooth_gain;
-   }
-#endif
-   for (i=0;i<nsf;i++)
-      _new_exc[i] = EXTRACT16(PSHR32(new_exc[i],SIG_SHIFT));
-}
-
-#endif

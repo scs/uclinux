@@ -299,7 +299,7 @@ void version_short()
    printf ("Copyright (C) 2002-2006 Jean-Marc Valin\n");
 }
 
-static void *process_header(ogg_packet *op, int enh_enabled, int *frame_size, int *rate, int *nframes, int forceMode, int *channels, SpeexStereoState *stereo, int *extra_headers, int quiet)
+static void *process_header(ogg_packet *op, spx_int32_t enh_enabled, spx_int32_t *frame_size, int *granule_frame_size, spx_int32_t *rate, int *nframes, int forceMode, int *channels, SpeexStereoState *stereo, int *extra_headers, int quiet)
 {
    void *st;
    const SpeexMode *mode;
@@ -351,6 +351,7 @@ static void *process_header(ogg_packet *op, int enh_enabled, int *frame_size, in
    }
    speex_decoder_ctl(st, SPEEX_SET_ENH, &enh_enabled);
    speex_decoder_ctl(st, SPEEX_GET_FRAME_SIZE, frame_size);
+   *granule_frame_size = *frame_size;
 
    if (!(*channels==1))
    {
@@ -365,10 +366,17 @@ static void *process_header(ogg_packet *op, int enh_enabled, int *frame_size, in
    if (forceMode!=-1)
    {
       if (header->mode < forceMode)
+      {
          *rate <<= (forceMode - header->mode);
+         *granule_frame_size >>= (forceMode - header->mode);
+      }
       if (header->mode > forceMode)
+      {
          *rate >>= (header->mode - forceMode);
+         *granule_frame_size <<= (header->mode - forceMode);
+      }
    }
+
 
    speex_decoder_ctl(st, SPEEX_SET_SAMPLING_RATE, rate);
 
@@ -409,7 +417,7 @@ int main(int argc, char **argv)
    FILE *fin, *fout=NULL;
    short out[MAX_FRAME_SIZE];
    short output[MAX_FRAME_SIZE];
-   int frame_size=0;
+   int frame_size=0, granule_frame_size=0;
    void *st=NULL;
    SpeexBits bits;
    int packet_count=0;
@@ -451,9 +459,10 @@ int main(int argc, char **argv)
    SpeexStereoState stereo = SPEEX_STEREO_STATE_INIT;
    int channels=-1;
    int rate=0;
-   int extra_headers;
+   int extra_headers=0;
    int wav_format=0;
    int lookahead;
+   int speex_serialno = -1;
 
    enh_enabled = 1;
 
@@ -576,6 +585,7 @@ int main(int argc, char **argv)
    
    speex_bits_init(&bits);
    /*Main decoding loop*/
+   
    while (1)
    {
       char *data;
@@ -594,6 +604,10 @@ int main(int argc, char **argv)
             ogg_stream_init(&os, ogg_page_serialno(&og));
             stream_init = 1;
          }
+	 if (ogg_page_serialno(&og) != os.serialno) {
+	    /* so all streams are read. */
+	    ogg_stream_reset_serialno(&os, ogg_page_serialno(&og));
+	 }
          /*Add page to the bitstream*/
          ogg_stream_pagein(&os, &og);
          page_granule = ogg_page_granulepos(&og);
@@ -601,7 +615,7 @@ int main(int argc, char **argv)
          if (page_granule>0 && frame_size)
          {
             /* FIXME: shift the granule values if --force-* is specified */
-            skip_samples = page_nb_packets*frame_size*nframes - (page_granule-last_granule);
+            skip_samples = frame_size*(page_nb_packets*granule_frame_size*nframes - (page_granule-last_granule))/granule_frame_size;
             if (ogg_page_eos(&og))
                skip_samples = -skip_samples;
             /*else if (!ogg_page_bos(&og))
@@ -614,17 +628,22 @@ int main(int argc, char **argv)
          last_granule = page_granule;
          /*Extract all available packets*/
          packet_no=0;
-         while (!eos && ogg_stream_packetout(&os, &op)==1)
+         while (!eos && ogg_stream_packetout(&os, &op) == 1)
          {
+	    if (!memcmp(op.packet, "Speex", 5)) {
+	       speex_serialno = os.serialno;
+	    }
+	    if (speex_serialno == -1 || os.serialno != speex_serialno)
+	       break;
             /*If first packet, process as Speex header*/
             if (packet_count==0)
             {
-               st = process_header(&op, enh_enabled, &frame_size, &rate, &nframes, forceMode, &channels, &stereo, &extra_headers, quiet);
+               st = process_header(&op, enh_enabled, &frame_size, &granule_frame_size, &rate, &nframes, forceMode, &channels, &stereo, &extra_headers, quiet);
+               if (!st)
+                  exit(1);
                speex_decoder_ctl(st, SPEEX_GET_LOOKAHEAD, &lookahead);
                if (!nframes)
                   nframes=1;
-               if (!st)
-                  exit(1);
                fout = out_file_open(outFile, rate, &channels);
 
             } else if (packet_count==1)
@@ -641,9 +660,9 @@ int main(int argc, char **argv)
                   lost=1;
 
                /*End of stream condition*/
-               if (op.e_o_s)
+               if (op.e_o_s && os.serialno == speex_serialno) /* don't care for anything except speex eos */
                   eos=1;
-
+	       
                /*Copy Ogg packet to Speex bitstream*/
                speex_bits_read_from(&bits, (char*)op.packet, op.bytes);
                for (j=0;j!=nframes;j++)
@@ -674,7 +693,7 @@ int main(int argc, char **argv)
                      speex_decode_stereo_int(output, frame_size, &stereo);
 
                   if (print_bitrate) {
-                     int tmp;
+                     spx_int32_t tmp;
                      char ch=13;
                      speex_decoder_ctl(st, SPEEX_GET_BITRATE, &tmp);
                      fputc (ch, stderr);
@@ -732,7 +751,7 @@ int main(int argc, char **argv)
 
    }
 
-   if (wav_format)
+   if (fout && wav_format)
    {
       if (fseek(fout,4,SEEK_SET)==0)
       {

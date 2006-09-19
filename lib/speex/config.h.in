@@ -123,7 +123,7 @@
 /* Use C99 variable-size arrays */
 #undef VAR_ARRAYS
 
-/* Enable Vorbis-style psychoacoustics */
+/* Enable Vorbis-style psychoacoustics (EXPERIMENTAL) */
 #undef VORBIS_PSYCHO
 
 /* Define to 1 if your processor stores words with the most significant byte

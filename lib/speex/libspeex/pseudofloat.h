@@ -36,6 +36,7 @@
 #define PSEUDOFLOAT_H
 
 #include "misc.h"
+#include "math_approx.h"
 #include <math.h>
 
 #ifdef FIXED_POINT
@@ -166,9 +167,9 @@ static inline spx_float_t FLOAT_SUB(spx_float_t a, spx_float_t b)
 static inline int FLOAT_LT(spx_float_t a, spx_float_t b)
 {
    if (a.m==0)
-      return b.m<0;
+      return b.m>0;
    else if (b.m==0)
-      return a.m>0;   
+      return a.m<0;   
    if ((a).e > (b).e)
       return ((a).m>>1) < ((b).m>>MIN(15,(a).e-(b).e+1));
    else 
@@ -216,9 +217,17 @@ static inline spx_float_t FLOAT_SHL(spx_float_t a, int b)
 static inline spx_int16_t FLOAT_EXTRACT16(spx_float_t a)
 {
    if (a.e<0)
-      return EXTRACT16((EXTEND32(a.m)+(1<<(-a.e-1)))>>-a.e);
+      return EXTRACT16((EXTEND32(a.m)+(EXTEND32(1)<<(-a.e-1)))>>-a.e);
    else
       return a.m<<a.e;
+}
+
+static inline spx_int32_t FLOAT_EXTRACT32(spx_float_t a)
+{
+   if (a.e<0)
+      return (EXTEND32(a.m)+(EXTEND32(1)<<(-a.e-1)))>>-a.e;
+   else
+      return EXTEND32(a.m)<<a.e;
 }
 
 static inline spx_int32_t FLOAT_MUL32(spx_float_t a, spx_word32_t b)
@@ -334,6 +343,22 @@ static inline spx_float_t FLOAT_DIVU(spx_float_t a, spx_float_t b)
    return r;
 }
 
+static inline spx_float_t FLOAT_SQRT(spx_float_t a)
+{
+   spx_float_t r;
+   spx_int32_t m;
+   m = a.m << 14;
+   r.e = a.e - 14;
+   if (r.e & 1)
+   {
+      r.e -= 1;
+      m <<= 1;
+   }
+   r.e >>= 1;
+   r.m = spx_sqrt(m);
+   return r;
+}
+
 #else
 
 #define spx_float_t float
@@ -345,6 +370,7 @@ static inline spx_float_t FLOAT_DIVU(spx_float_t a, spx_float_t b)
 #define FLOAT_MUL32(a,b) ((a)*(b))
 #define FLOAT_DIV32(a,b) ((a)/(b))
 #define FLOAT_EXTRACT16(a) (a)
+#define FLOAT_EXTRACT32(a) (a)
 #define FLOAT_ADD(a,b) ((a)+(b))
 #define FLOAT_SUB(a,b) ((a)-(b))
 #define REALFLOAT(x) (x)
@@ -354,6 +380,7 @@ static inline spx_float_t FLOAT_DIVU(spx_float_t a, spx_float_t b)
 #define FLOAT_LT(a,b) ((a)<(b))
 #define FLOAT_GT(a,b) ((a)>(b))
 #define FLOAT_DIVU(a,b) ((a)/(b))
+#define FLOAT_SQRT(a) (spx_sqrt(a))
 
 #endif
 

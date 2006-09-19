@@ -78,7 +78,7 @@ struct JitterBuffer_ {
 /** Initialise jitter buffer */
 JitterBuffer *jitter_buffer_init(int tick)
 {
-   JitterBuffer *jitter = speex_alloc(sizeof(JitterBuffer));
+   JitterBuffer *jitter = (JitterBuffer*)speex_alloc(sizeof(JitterBuffer));
    if (jitter)
    {
       int i;
@@ -180,7 +180,7 @@ void jitter_buffer_put(JitterBuffer *jitter, const JitterBufferPacket *packet)
    }
    
    /* Copy packet in buffer */
-   jitter->buf[i]=speex_alloc(packet->len);
+   jitter->buf[i]=(char*)speex_alloc(packet->len);
    for (j=0;j<packet->len;j++)
       jitter->buf[i][j]=packet->data[j];
    jitter->timestamp[i]=packet->timestamp;
@@ -270,7 +270,7 @@ int jitter_buffer_get(JitterBuffer *jitter, JitterBufferPacket *packet, spx_uint
    }
    if (0&&jitter->pointer_timestamp%1000==0)
    {
-      fprintf (stderr, "%f %f %f %f %f %f\n", early_ratio_short, early_ratio_long, ontime_ratio_short, ontime_ratio_long, late_ratio_short, late_ratio_long);
+      /*fprintf (stderr, "%f %f %f %f %f %f\n", early_ratio_short, early_ratio_long, ontime_ratio_short, ontime_ratio_long, late_ratio_short, late_ratio_long);*/
       /*fprintf (stderr, "%f %f\n", early_ratio_short + ontime_ratio_short + late_ratio_short, early_ratio_long + ontime_ratio_long + late_ratio_long);*/
    }
    
@@ -372,7 +372,7 @@ int jitter_buffer_get(JitterBuffer *jitter, JitterBufferPacket *packet, spx_uint
    /* If we find something */
    if (i!=SPEEX_JITTER_MAX_BUFFER_SIZE)
    {
-      /* We (ibviously) haven't lost this packet */
+      /* We (obviously) haven't lost this packet */
       jitter->lost_count = 0;
       jitter->loss_rate = .999*jitter->loss_rate;
       /* Check for potential overflow */

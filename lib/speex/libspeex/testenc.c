@@ -11,20 +11,6 @@
 extern long long spx_mips;
 #endif
 
-inline unsigned int cycles() {
-  int ret;
-
-   __asm__ __volatile__ 
-   (
-   "%0 = CYCLES;\n\t"
-   : "=&d" (ret)
-   : 
-   : "R1"
-   );
-
-   return ret;
-}
-
 #define FRAME_SIZE 160
 #include <math.h>
 int main(int argc, char **argv)
@@ -41,18 +27,18 @@ int main(int argc, char **argv)
    void *st;
    void *dec;
    SpeexBits bits;
-   int tmp;
+   spx_int32_t tmp;
    int bitCount=0;
-   int skip_group_delay;
+   spx_int32_t skip_group_delay;
    SpeexCallback callback;
-   unsigned int before, frames, total;
-   
+
    sigpow = 0;
    errpow = 0;
 
    st = speex_encoder_init(&speex_nb_mode);
    dec = speex_decoder_init(&speex_nb_mode);
 
+   /* BEGIN: You probably don't need the following in a real application */
    callback.callback_id = SPEEX_INBAND_CHAR;
    callback.func = speex_std_char_handler;
    callback.data = stderr;
@@ -62,6 +48,7 @@ int main(int argc, char **argv)
    callback.func = speex_std_mode_request_handler;
    callback.data = st;
    speex_decoder_ctl(dec, SPEEX_SET_HANDLER, &callback);
+   /* END of unnecessary stuff */
 
    tmp=1;
    speex_decoder_ctl(dec, SPEEX_SET_ENH, &tmp);
@@ -71,6 +58,11 @@ int main(int argc, char **argv)
    speex_encoder_ctl(st, SPEEX_SET_QUALITY, &tmp);
    tmp=1;
    speex_encoder_ctl(st, SPEEX_SET_COMPLEXITY, &tmp);
+
+   /* Turn this off if you want to measure SNR (on by default) */
+   tmp=1;
+   speex_encoder_ctl(st, SPEEX_SET_HIGHPASS, &tmp);
+   speex_decoder_ctl(dec, SPEEX_SET_HIGHPASS, &tmp);
 
    speex_encoder_ctl(st, SPEEX_GET_LOOKAHEAD, &skip_group_delay);
    speex_decoder_ctl(dec, SPEEX_GET_LOOKAHEAD, &tmp);
@@ -98,11 +90,7 @@ int main(int argc, char **argv)
          break;
       speex_bits_reset(&bits);
 
-      before = cycles();
       speex_encode_int(st, in_short, &bits);
-      total += (cycles()-before)/1000;
-      frames++;
-
       nbBits = speex_bits_write(&bits, cbits, 200);
       bitCount+=bits.nbBits;
 
@@ -121,6 +109,7 @@ int main(int argc, char **argv)
    speex_decoder_destroy(dec);
    speex_bits_destroy(&bits);
 
+   /* This code just computes SNR, so you don't need it either */
    rewind(fin);
    rewind(fout);
 
@@ -144,7 +133,6 @@ int main(int argc, char **argv)
    snr = 10 * log10( sigpow / errpow );
    seg_snr /= snr_frames;
    fprintf(stderr,"SNR = %f\nsegmental SNR = %f\n",snr, seg_snr);
-   fprintf (stderr, "Av k cycles/encode: %d \n", total/frames);
 
 #ifdef FIXED_DEBUG
    printf ("Total: %f MIPS\n", (float)(1e-6*50*spx_mips/snr_frames));

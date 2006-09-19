@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 Jean-Marc Valin */
+/* Copyright (C) 2002-2006 Jean-Marc Valin */
 /**
    @file modes.h
    @brief Describes the different modes of the codec
@@ -57,7 +57,7 @@ typedef void (*lsp_unquant_func)(spx_lsp_t *, int, SpeexBits *);
 /** Long-term predictor quantization */
 typedef int (*ltp_quant_func)(spx_word16_t *, spx_word16_t *, spx_coef_t *, spx_coef_t *, 
                               spx_coef_t *, spx_sig_t *, const void *, int, int, spx_word16_t, 
-                              int, int, SpeexBits*, char *, spx_word16_t *, spx_word16_t *, int, int, int);
+                              int, int, SpeexBits*, char *, spx_word16_t *, spx_word16_t *, int, int, int, spx_word32_t *);
 
 /** Long-term un-quantize */
 typedef void (*ltp_unquant_func)(spx_word16_t *, spx_word32_t *, int, int, spx_word16_t, const void *, int, int *,
@@ -69,7 +69,7 @@ typedef void (*innovation_quant_func)(spx_word16_t *, spx_coef_t *, spx_coef_t *
                                       spx_sig_t *, spx_word16_t *, SpeexBits *, char *, int, int);
 
 /** Innovation unquantization function */
-typedef void (*innovation_unquant_func)(spx_sig_t *, const void *, int, SpeexBits*, char *);
+typedef void (*innovation_unquant_func)(spx_sig_t *, const void *, int, SpeexBits*, char *, spx_int32_t *);
 
 /** Description of a Speex sub-mode (wither narrowband or wideband */
 typedef struct SpeexSubmode {
@@ -84,7 +84,7 @@ typedef struct SpeexSubmode {
    /*Lont-term predictor functions*/
    ltp_quant_func    ltp_quant; /**< Long-term predictor (pitch) quantizer */
    ltp_unquant_func  ltp_unquant; /**< Long-term predictor (pitch) un-quantizer */
-   const void             *ltp_params; /**< Pitch parameters (options) */
+   const void       *ltp_params; /**< Pitch parameters (options) */
 
    /*Quantization of innovation*/
    innovation_quant_func innovation_quant; /**< Innovation quantization */

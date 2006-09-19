@@ -73,10 +73,7 @@ void compute_weighted_codebook(const signed char *shape_cb, const spx_word16_t *
          :
       : "m" (subvect_size), "m" (shape_cb), "m" (r), "m" (resp), "m" (E)
       : "A0", "P0", "P1", "P2", "P3", "P4", "R0", "R1", "R2", "I0", "I1", "L0", 
-        "L1", "A0", "A1", "memory"
-#if (__GNUC__ == 4)
-        ,"LC0","LC1"
-#endif
+        "L1", "A0", "A1", "memory", "LC0", "LC1"
       );
       shape_cb += subvect_size;
       resp += subvect_size;

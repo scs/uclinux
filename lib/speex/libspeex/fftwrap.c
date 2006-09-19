@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 Jean-Marc Valin 
+/* Copyright (C) 2005-2006 Jean-Marc Valin 
    File: fftwrap.c
 
    Wrapper for various FFTs 
@@ -145,8 +145,8 @@ struct kiss_config {
 void *spx_fft_init(int size)
 {
    struct kiss_config *table;
-   table = speex_alloc(sizeof(struct kiss_config));
-   table->freq_data = speex_alloc(sizeof(kiss_fft_cpx)*((size>>1)+1));
+   table = (struct kiss_config*)speex_alloc(sizeof(struct kiss_config));
+   table->freq_data = (kiss_fft_cpx*)speex_alloc(sizeof(kiss_fft_cpx)*((size>>1)+1));
    table->forward = kiss_fftr_alloc(size,0,NULL,NULL);
    table->backward = kiss_fftr_alloc(size,1,NULL,NULL);
    table->N = size;

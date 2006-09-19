@@ -59,6 +59,8 @@
 #include <fcntl.h>
 #endif
 
+#include "skeleton.h"
+
 
 void comment_init(char **comments, int* length, char *vendor_string);
 void comment_add(char **comments, int* length, char *tag, char *val);
@@ -78,7 +80,7 @@ int oe_write_page(ogg_page *page, FILE *fp)
 #define MAX_FRAME_BYTES 2000
 
 /* Convert input audio bits, endians and channels */
-static int read_samples(FILE *fin,int frame_size, int bits, int channels, int lsb, short * input, char *buff, int *size)
+static int read_samples(FILE *fin,int frame_size, int bits, int channels, int lsb, short * input, char *buff, spx_int32_t *size)
 {   
    unsigned char in[MAX_FRAME_BYTES*2];
    int i;
@@ -144,6 +146,40 @@ static int read_samples(FILE *fin,int frame_size, int bits, int channels, int ls
    return nb_read;
 }
 
+void add_fishead_packet (ogg_stream_state *os) {
+
+   fishead_packet fp;
+
+   memset(&fp, 0, sizeof(fp));
+   fp.ptime_n = 0;
+   fp.ptime_d = 1000;
+   fp.btime_n = 0;
+   fp.btime_d = 1000;
+
+   add_fishead_to_stream(os, &fp);
+}
+
+/*
+ * Adds the fishead packets in the skeleton output stream along with the e_o_s packet
+ */
+void add_fisbone_packet (ogg_stream_state *os, spx_int32_t serialno, SpeexHeader *header) {
+
+   fisbone_packet fp;
+
+   memset(&fp, 0, sizeof(fp));
+   fp.serial_no = serialno;
+   fp.nr_header_packet = 2 + header->extra_headers;
+   fp.granule_rate_n = header->rate;
+   fp.granule_rate_d = 1;
+   fp.start_granule = 0;
+   fp.preroll = 3;
+   fp.granule_shift = 0;
+
+   add_message_header_field(&fp, "Content-Type", "audio/x-speex");
+
+   add_fisbone_to_stream(os, &fp);
+}
+
 void version()
 {
    printf ("speexenc (Speex encoder) version " SPEEX_VERSION " (compiled " __DATE__ ")\n");
@@ -178,6 +214,7 @@ void usage()
    printf (" --quality n        Encoding quality (0-10), default 8\n"); 
    printf (" --bitrate n        Encoding bit-rate (use bit-rate n or lower)\n"); 
    printf (" --vbr              Enable variable bit-rate (VBR)\n"); 
+   printf (" --vbr-max-bitrate  Set max VBR bit-rate allowed\n"); 
    printf (" --abr rate         Enable average bit-rate (ABR) at rate bps\n"); 
    printf (" --vad              Enable voice activity detection (VAD)\n"); 
    printf (" --dtx              Enable file-based discontinuous transmission (DTX)\n"); 
@@ -185,6 +222,7 @@ void usage()
    printf (" --nframes n        Number of frames per Ogg packet (1-10), default 1\n"); 
    printf (" --denoise          Denoise the input before encoding\n"); 
    printf (" --agc              Apply adaptive gain control (AGC) before encoding\n"); 
+   printf (" --skeleton         Outputs ogg skeleton metadata (may cause incompatibilities)\n");
    printf (" --comment          Add the given string as an extra comment. This may be\n");
    printf ("                     used multiple times\n");
    printf (" --author           Author of this track\n");
@@ -215,24 +253,27 @@ int main(int argc, char **argv)
    char *inFile, *outFile;
    FILE *fin, *fout;
    short input[MAX_FRAME_SIZE];
-   int frame_size;
+   spx_int32_t frame_size;
    int quiet=0;
-   int vbr_enabled=0;
+   spx_int32_t vbr_enabled=0;
+   spx_int32_t vbr_max=0;
    int abr_enabled=0;
-   int vad_enabled=0;
-   int dtx_enabled=0;
+   spx_int32_t vad_enabled=0;
+   spx_int32_t dtx_enabled=0;
    int nbBytes;
    const SpeexMode *mode=NULL;
    int modeID = -1;
    void *st;
    SpeexBits bits;
    char cbits[MAX_FRAME_BYTES];
+   int with_skeleton = 0;
    struct option long_options[] =
    {
       {"wideband", no_argument, NULL, 0},
       {"ultra-wideband", no_argument, NULL, 0},
       {"narrowband", no_argument, NULL, 0},
       {"vbr", no_argument, NULL, 0},
+      {"vbr-max-bitrate", required_argument, NULL, 0},
       {"abr", required_argument, NULL, 0},
       {"vad", no_argument, NULL, 0},
       {"dtx", no_argument, NULL, 0},
@@ -242,6 +283,7 @@ int main(int argc, char **argv)
       {"comp", required_argument, NULL, 0},
       {"denoise", no_argument, NULL, 0},
       {"agc", no_argument, NULL, 0},
+      {"skeleton",no_argument,NULL, 0},
       {"help", no_argument, NULL, 0},
       {"quiet", no_argument, NULL, 0},
       {"le", no_argument, NULL, 0},
@@ -258,33 +300,35 @@ int main(int argc, char **argv)
       {0, 0, 0, 0}
    };
    int print_bitrate=0;
-   int rate=0, size;
+   spx_int32_t rate=0;
+   spx_int32_t size;
    int chan=1;
    int fmt=16;
-   int quality=-1;
+   spx_int32_t quality=-1;
    float vbr_quality=-1;
    int lsb=1;
    ogg_stream_state os;
+   ogg_stream_state so; /* ogg stream for skeleton bitstream */
    ogg_page 		 og;
    ogg_packet 		 op;
    int bytes_written=0, ret, result;
    int id=-1;
    SpeexHeader header;
    int nframes=1;
-   int complexity=3;
+   spx_int32_t complexity=3;
    char *vendor_string = "Encoded with Speex " SPEEX_VERSION;
    char *comments;
    int comments_length;
    int close_in=0, close_out=0;
    int eos=0;
-   int bitrate=0;
+   spx_int32_t bitrate=0;
    double cumul_bits=0, enc_frames=0;
    char first_bytes[12];
    int wave_input=0;
-   int tmp;
+   spx_int32_t tmp;
    SpeexPreprocessState *preprocess = NULL;
    int denoise_enabled=0, agc_enabled=0;
-   int lookahead = 0;
+   spx_int32_t lookahead = 0;
    
    comment_init(&comments, &comments_length, vendor_string);
 
@@ -311,6 +355,14 @@ int main(int argc, char **argv)
          } else if (strcmp(long_options[option_index].name,"vbr")==0)
          {
             vbr_enabled=1;
+         } else if (strcmp(long_options[option_index].name,"vbr-max-bitrate")==0)
+         {
+            vbr_max=atoi(optarg);
+            if (vbr_max<1)
+            {
+               fprintf (stderr, "Invalid VBR max bit-rate value: %d\n", vbr_max);
+               exit(1);
+            }
          } else if (strcmp(long_options[option_index].name,"abr")==0)
          {
             abr_enabled=atoi(optarg);
@@ -348,6 +400,9 @@ int main(int argc, char **argv)
          } else if (strcmp(long_options[option_index].name,"agc")==0)
          {
             agc_enabled=1;
+         } else if (strcmp(long_options[option_index].name,"skeleton")==0)
+         {
+            with_skeleton=1;
          } else if (strcmp(long_options[option_index].name,"help")==0)
          {
             usage();
@@ -436,6 +491,11 @@ int main(int argc, char **argv)
    /*Initialize Ogg stream struct*/
    srand(time(NULL));
    if (ogg_stream_init(&os, rand())==-1)
+   {
+      fprintf(stderr,"Error: stream init failed\n");
+      exit(1);
+   }
+   if (with_skeleton && ogg_stream_init(&so, rand())==-1)
    {
       fprintf(stderr,"Error: stream init failed\n");
       exit(1);
@@ -584,7 +644,11 @@ int main(int argc, char **argv)
    if (quality >= 0)
    {
       if (vbr_enabled)
+      {
+         if (vbr_max>0)
+            speex_encoder_ctl(st, SPEEX_SET_VBR_MAX_BITRATE, &vbr_max);
          speex_encoder_ctl(st, SPEEX_SET_VBR_QUALITY, &vbr_quality);
+      }
       else
          speex_encoder_ctl(st, SPEEX_SET_QUALITY, &quality);
    }
@@ -612,6 +676,9 @@ int main(int argc, char **argv)
    {
       fprintf (stderr, "Warning: --vad is already implied by --vbr or --abr\n");
    }
+   if (with_skeleton) {
+      fprintf (stderr, "Warning: Enabling skeleton output may cause some decoders to fail.\n");
+   }
 
    if (abr_enabled)
    {
@@ -628,6 +695,17 @@ int main(int argc, char **argv)
       lookahead += frame_size;
    }
 
+   /* first packet should be the skeleton header. */
+
+   if (with_skeleton) {
+      add_fishead_packet(&so);
+      if ((ret = flush_ogg_stream_to_file(&so, fout))) {
+	 fprintf (stderr,"Error: failed skeleton (fishead) header to output stream\n");
+         exit(1);
+      } else
+	 bytes_written += ret;
+   }
+
    /*Write header*/
    {
       int packet_size;
@@ -640,14 +718,6 @@ int main(int argc, char **argv)
       ogg_stream_packetin(&os, &op);
       free(op.packet);
 
-      op.packet = (unsigned char *)comments;
-      op.bytes = comments_length;
-      op.b_o_s = 0;
-      op.e_o_s = 0;
-      op.granulepos = 0;
-      op.packetno = 1;
-      ogg_stream_packetin(&os, &op);
-      
       while((result = ogg_stream_flush(&os, &og)))
       {
          if(!result) break;
@@ -660,9 +730,52 @@ int main(int argc, char **argv)
          else
             bytes_written += ret;
       }
+
+      op.packet = (unsigned char *)comments;
+      op.bytes = comments_length;
+      op.b_o_s = 0;
+      op.e_o_s = 0;
+      op.granulepos = 0;
+      op.packetno = 1;
+      ogg_stream_packetin(&os, &op);
+   }
+
+   /* fisbone packet should be write after all bos pages */
+   if (with_skeleton) {
+      add_fisbone_packet(&so, os.serialno, &header);
+      if ((ret = flush_ogg_stream_to_file(&so, fout))) {
+	 fprintf (stderr,"Error: failed writing skeleton (fisbone )header to output stream\n");
+         exit(1);
+      } else
+	 bytes_written += ret;
+   }
+
+   /* writing the rest of the speex header packets */
+   while((result = ogg_stream_flush(&os, &og)))
+   {
+      if(!result) break;
+      ret = oe_write_page(&og, fout);
+      if(ret != og.header_len + og.body_len)
+      {
+         fprintf (stderr,"Error: failed writing header to output stream\n");
+         exit(1);
+      }
+      else
+         bytes_written += ret;
    }
 
    free(comments);
+
+   /* write the skeleton eos packet */
+   if (with_skeleton) {
+      add_eos_packet_to_stream(&so);
+      if ((ret = flush_ogg_stream_to_file(&so, fout))) {
+         fprintf (stderr,"Error: failed writing skeleton header to output stream\n");
+         exit(1);
+      } else
+	 bytes_written += ret;
+   }
+
 
    speex_bits_init(&bits);
 

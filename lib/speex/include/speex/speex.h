@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 Jean-Marc Valin*/
+/* Copyright (C) 2002-2006 Jean-Marc Valin*/
 /**
   @file speex.h
   @brief Describes the different modes of the codec
@@ -36,8 +36,8 @@
 #ifndef SPEEX_H
 #define SPEEX_H
 
-#include "speex_bits.h"
-#include "speex_types.h"
+#include "speex/speex_bits.h"
+#include "speex/speex_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -141,7 +141,17 @@ extern "C" {
 /** Gets tuning for PLC */
 #define SPEEX_GET_PLC_TUNING 41
 
-/* Used internally, not to be used in applications */
+/** Sets the max bit-rate allowed in VBR mode */
+#define SPEEX_SET_VBR_MAX_BITRATE 42
+/** Gets the max bit-rate allowed in VBR mode */
+#define SPEEX_GET_VBR_MAX_BITRATE 43
+
+/** Turn on/off input/output high-pass filtering */
+#define SPEEX_SET_HIGHPASS 44
+/** Get status of input/output high-pass filtering */
+#define SPEEX_GET_HIGHPASS 45
+
+/* Used internally, NOT TO BE USED in applications */
 /** Used internally*/
 #define SPEEX_GET_PI_GAIN 100
 /** Used internally*/
@@ -152,6 +162,8 @@ extern "C" {
 #define SPEEX_GET_DTX_STATUS   103
 /** Used internally*/
 #define SPEEX_SET_INNOVATION_SAVE   104
+/** Used internally*/
+#define SPEEX_SET_WIDEBAND   105
 
 
 /* Preserving compatibility:*/
