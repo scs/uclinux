@@ -96,6 +96,17 @@ static int part_read_ecc (struct mtd_info *mtd, loff_t from, size_t len,
 					len, retlen, buf, eccbuf, oobsel);
 }
 
+static unsigned long part_get_unmapped_area(struct mtd_info *mtd,
+					    unsigned long len,
+					    unsigned long offset,
+					    unsigned long flags)
+{
+	struct mtd_part *part = PART(mtd);
+
+	return part->master->get_unmapped_area(part->master, len,
+					       offset + part->offset, flags);
+}
+
 static int part_read_oob (struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf)
 {
@@ -419,6 +430,8 @@ int add_mtd_partitions(struct mtd_info *master,
 			slave->mtd.read_ecc = part_read_ecc;
 		if (master->write_ecc)
 			slave->mtd.write_ecc = part_write_ecc;
+		if (master->get_unmapped_area)
+			slave->mtd.get_unmapped_area = part_get_unmapped_area;
 		if (master->read_oob)
 			slave->mtd.read_oob = part_read_oob;
 		if (master->write_oob)

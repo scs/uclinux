@@ -10,6 +10,8 @@
 
 #include <asm/atomic.h>
 
+struct page;
+
 /*
  * Bits in backing_dev_info.state
  */
