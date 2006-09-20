@@ -1049,14 +1049,14 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 		break;
 	case GetHubStatus:
 		DBG("GetHubStatus\n");
-		*(__le32 *) buf = 0;
+		put_unaligned (0, (__le32 *) buf);
 		break;
 	case GetPortStatus:
 		DBG("GetPortStatus\n");
 		if (!wIndex || wIndex > ports)
 			goto error;
 		tmp = isp116x->rhport[--wIndex];
-		*(__le32 *) buf = cpu_to_le32(tmp);
+		put_unaligned (cpu_to_le32(tmp), (__le32 *) buf);
 		DBG("GetPortStatus: port[%d]  %08x\n", wIndex + 1, tmp);
 		break;
 	case ClearPortFeature:

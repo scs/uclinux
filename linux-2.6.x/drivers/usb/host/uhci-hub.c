@@ -214,7 +214,7 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	switch (typeReq) {
 
 	case GetHubStatus:
-		*(__le32 *)buf = cpu_to_le32(0);
+		put_unaligned (cpu_to_le32(0), (__le32 *)buf);
 		OK(4);		/* hub power */
 	case GetPortStatus:
 		if (port >= uhci->rh_numports)
@@ -269,8 +269,8 @@ static int uhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			dev_dbg(uhci_dev(uhci), "port %d portsc %04x,%02x\n",
 					wIndex, status, lstatus);
 
-		*(__le16 *)buf = cpu_to_le16(wPortStatus);
-		*(__le16 *)(buf + 2) = cpu_to_le16(wPortChange);
+		put_unaligned (cpu_to_le16(wPortStatus), (__le16 *)buf);
+		put_unaligned (cpu_to_le16(wPortChange), (__le16 *)(buf + 2));
 		OK(4);
 	case SetHubFeature:		/* We don't implement these */
 	case ClearHubFeature:
