@@ -397,7 +397,7 @@ distclean clean:
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
-	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
+	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi	
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
