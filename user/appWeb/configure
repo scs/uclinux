@@ -113,7 +113,7 @@ setupMakeRules() {
 
 	[ $quiet = 0 ] && echo "    # Creating make.os ..."
 	rm -f make.os
-	ln -s conf/make.os.${BLD_OS} make.os
+	cp -f conf/make.os.${BLD_OS} make.os
 }
 
 ###############################################################################
