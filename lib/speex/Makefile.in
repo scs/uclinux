@@ -194,7 +194,7 @@ pkgconfig_DATA = speex.pc
 EXTRA_DIST = Speex.spec Speex.spec.in Speex.kdevelop speex.m4 speex.pc.in README.blackfin README.symbian README.TI-DSP
 
 #Fools KDevelop into including all files
-SUBDIRS = libspeex include @src@ doc win32 symbian ti
+SUBDIRS = libspeex include doc win32 symbian ti
 DIST_SUBDIRS = libspeex include src doc win32 symbian ti
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -610,6 +610,8 @@ html: html-recursive
 info: info-recursive
 
 info-am:
+
+romfs:
 
 install-data-am: install-m4dataDATA install-pkgconfigDATA
 
