@@ -87,6 +87,7 @@
 #include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/bitops.h>
+#include <asm/unaligned.h>
 
 static int dbg_level = 0;
 #ifdef DEBUG
@@ -1702,7 +1703,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 	case GetHubStatus:
 		DBG(0, "GetHubStatus\n");
-		*(__le32 *) buf = cpu_to_le32(0);
+		put_unaligned (cpu_to_le32(0), (__le32 *) buf);
 		break;
 	case GetPortStatus:
 #ifndef VERBOSE
@@ -1712,7 +1713,7 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		}
 		tmp = isp1362_hcd->rhport[--wIndex];
-		*(__le32 *) buf = cpu_to_le32(tmp);
+		put_unaligned (cpu_to_le32(tmp), (__le32 *) buf);
 #ifndef	VERBOSE
 		if (*(u16 *) (buf + 2))	/* only if wPortChange is interesting */
 #endif
