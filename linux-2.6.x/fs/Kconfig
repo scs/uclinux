@@ -389,6 +389,14 @@ config ROMFS_FS
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
 
+config ROMFS_MTD_FS
+	tristate "MTD-based ROM file system support"
+	depends on ROMFS_FS && MTD
+	help
+	  This is an MTD specific version of romfs that accesses MTD devices
+	  directly rather than going through the block layer.  It may be given MTD
+	  chardevs instead of MTD blockdevs to mount.
+
 config INOTIFY
 	bool "Inotify file change notification support"
 	default y
