@@ -578,8 +578,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	       fp->m3, fp->i3);
 
 	printk("\nUSP: %08lx   ASTAT: %08lx\n", rdusp(), fp->astat);
-	if ( (long)fp->seqstat & SEQSTAT_EXCAUSE ) {
-		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p", (void*)bfin_read_DCPLB_FAULT_ADDR());
+	if ((long)fp->seqstat & SEQSTAT_EXCAUSE) {
+		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
  	}
 
