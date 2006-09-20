@@ -61,9 +61,18 @@ config BF5xx_PPIFCD
 	  If you say Y here, you will get support for various CMOS Camera Modules
 	  connected to Balckfins PPI port. (Tested with Micron Modules)
 
+config BF5xx_TIMERS
+    bool "Blackfin BF5xx HW-Timers Driver"
+	depends on BFIN
+	default n
+	---help---
+	If you say Y here, you will get support for the hardware timers of
+	blackfin processors.
+
 config BF5xx_PPI
     bool "Blackfin BF5xx PPI Driver"
 	depends on BFIN
+	select BF5xx_TIMERS
 	default n
 	---help---
 

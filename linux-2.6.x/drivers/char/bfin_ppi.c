@@ -47,7 +47,7 @@
 #include <asm/dma.h>
 #include <asm/cacheflush.h>
 
-#include <asm/bf53x_timers.h>
+#include <asm/bf5xx_timers.h>
 
 #include "bfin_ppi.h"
 
