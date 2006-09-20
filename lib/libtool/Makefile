@@ -683,6 +683,8 @@ install-exec: install-exec-recursive
 install-data: install-data-recursive
 uninstall: uninstall-recursive
 
+romfs:
+
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 

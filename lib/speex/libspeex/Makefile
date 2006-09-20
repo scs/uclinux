@@ -150,7 +150,7 @@ INSTALL_STRIP_PROGRAM = ${SHELL} $(install_sh) -c -s
 LDFLAGS = 
 LIBOBJS = 
 LIBS = -lm 
-LIBTOOL = $(SHELL) $(top_builddir)/libtool
+LIBTOOL = $(SHELL) $(ROOTDIR)/lib/libtool/libltdl/libtool
 LN_S = ln -s
 LTLIBOBJS = 
 MAINT = #
@@ -509,6 +509,8 @@ install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
 uninstall: uninstall-am
+
+romfs:
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
