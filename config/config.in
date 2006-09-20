@@ -100,8 +100,9 @@ bool 'Build libZ'		CONFIG_LIB_ZLIB_FORCE
 bool 'Build libATM'		CONFIG_LIB_LIBATM_FORCE
 bool 'Build libpng'		CONFIG_LIB_LIBPNG_FORCE
 bool 'Build libjpeg'		CONFIG_LIB_LIBJPEG_FORCE
+bool 'Build libspeex'		CONFIG_LIB_SPEEX
 bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
-bool 'Build libupnp'    CONFIG_LIB_LIBUPNP_FORCE
+bool 'Build libupnp'		CONFIG_LIB_LIBUPNP_FORCE
 bool 'Build libusb'		CONFIG_LIB_LIBUSB_FORCE
 bool 'Build ncurses'		CONFIG_LIB_NCURSES_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
