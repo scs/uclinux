@@ -1,9 +1,33 @@
 /*
- * Flash memory access on BlackFin BF5xx based devices
+ * File:         drivers/mtd/maps/bf5xx-flash.c
+ * Based on:
+ * Author:
  *
- * (C) 2000 Nicolas Pitre <nico@cam.org>
- * (C) 2004 LG Soft India
+ * Created:
+ * Description:  Flash memory access on BlackFin BF5xx based devices
  *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2000 Nicolas Pitre <nico@cam.org>
+ *               Copyright 2000-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/config.h>
@@ -29,24 +53,23 @@
 
 struct flash_save {
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-    u32 ambctl0;
-    u32 ambctl1;
+	u32 ambctl0;
+	u32 ambctl1;
 #endif
-    unsigned long flags;
-} ;
+	unsigned long flags;
+};
 
 #if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
 static inline void switch_to_flash(struct flash_save *save)
 {
 	local_irq_save(save->flags);
 
-        bfin_write_FIO_FLAG_C(CONFIG_ENET_FLASH_PIN);
+	bfin_write_FIO_FLAG_C(CONFIG_ENET_FLASH_PIN);
 
 	__builtin_bfin_ssync();
 
-
-	save->ambctl0	= bfin_read_EBIU_AMBCTL0();
-	save->ambctl1	= bfin_read_EBIU_AMBCTL1();
+	save->ambctl0 = bfin_read_EBIU_AMBCTL0();
+	save->ambctl1 = bfin_read_EBIU_AMBCTL1();
 	bfin_write_EBIU_AMBCTL0(BFIN_FLASH_AMBCTL0VAL);
 	bfin_write_EBIU_AMBCTL1(BFIN_FLASH_AMBCTL1VAL);
 	__builtin_bfin_ssync();
@@ -91,10 +114,9 @@ static map_word bf5xx_read(struct map_info *map, unsigned long ofs)
 
 	switch_to_flash(&save);
 	__builtin_bfin_ssync();
-        nValue = readw(CONFIG_EBIU_FLASH_BASE + ofs);
+	nValue = readw(CONFIG_EBIU_FLASH_BASE + ofs);
 	__builtin_bfin_ssync();
 	switch_back(&save);
-
 
 	test.x[0]=(__u16)nValue;
 	return test;
@@ -105,26 +127,19 @@ static void bf5xx_copy_from(struct map_info *map, void *to, unsigned long from, 
 	unsigned long i;
 	map_word test;
 
-
-  if( (unsigned long)to & 0x1 )
-	  {
-	   for (i = 0; i < len/2*2; i += 2)
-		{
+	if((unsigned long)to & 0x1) {
+		for (i = 0; i < len/2*2; i += 2) {
 			test = bf5xx_read(map,from+i);
 			put_unaligned(test.x[0], (__le16 *) (to + i));
 		}
-	  }
-	   else
-	  {
-	   for (i = 0; i < len/2*2; i += 2)
-	 	{
+	} else {
+		for (i = 0; i < len/2*2; i += 2) {
 			test = bf5xx_read(map,from+i);
 			*((u16*)(to + i)) = test.x[0];
 		}
-	  }
+	}
 
 	if (len & 0x01) {
-
 		test = bf5xx_read(map, from + i);
 		*((u8*)(to + i)) = (u8)test.x[0];
 	}
@@ -132,7 +147,6 @@ static void bf5xx_copy_from(struct map_info *map, void *to, unsigned long from, 
 
 static void bf5xx_write(struct map_info *map, map_word d1, unsigned long ofs)
 {
-
 	__u16 d;
 	struct flash_save save;
 
@@ -141,35 +155,33 @@ static void bf5xx_write(struct map_info *map, map_word d1, unsigned long ofs)
 	switch_to_flash(&save);
 
 		__builtin_bfin_ssync();
-		  writew(d, CONFIG_EBIU_FLASH_BASE + ofs);
+		writew(d, CONFIG_EBIU_FLASH_BASE + ofs);
 		__builtin_bfin_ssync();
 
 	switch_back(&save);
-
 }
 
 static void bf5xx_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
 {
-
 	struct flash_save save;
 
 	switch_to_flash(&save);
 
-      memcpy((void *)(CONFIG_EBIU_FLASH_BASE + to), from, len);
+	memcpy((void *)(CONFIG_EBIU_FLASH_BASE + to), from, len);
 
 	switch_back(&save);
 }
 
 static struct map_info bf5xx_map = {
-	name:    	"BF5xx flash",
+	name:        "BF5xx flash",
 	CONFIG_BFIN_FLASH_SIZE,
 	CONFIG_EBIU_FLASH_BASE,
 	(void __iomem *)CONFIG_EBIU_FLASH_BASE,
 	(void *)NULL,
-	read:		bf5xx_read,
-	copy_from:	bf5xx_copy_from,
-	write:		bf5xx_write,
-	copy_to:	bf5xx_copy_to
+	read:        bf5xx_read,
+	copy_from:   bf5xx_copy_from,
+	write:       bf5xx_write,
+	copy_to:     bf5xx_copy_to
 };
 
 
@@ -208,11 +220,11 @@ static struct mtd_partition bf5xx_partitions[] = {
 	}
 #else
 	{
-                name: "JFFS2",
-                size: 0x300000,
-                //size: 0x2fffff,
-                offset: 0x100000,
-        }
+		name: "JFFS2",
+		size: 0x300000,
+		//size: 0x2fffff,
+		offset: 0x100000,
+	}
 #endif
 };
 
