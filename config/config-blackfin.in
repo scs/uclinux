@@ -83,7 +83,6 @@ fi
 bool    'Asterisk PBX'         		CONFIG_USER_BLACKFIN_ASTERISK
 if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_USER_THREADSTACK	y
-	define_bool CONFIG_LIB_LIBTOOL 		y
 	define_bool CONFIG_LIB_SPEEX		y
 	define_bool CONFIG_LIB_BFIN_GSM		y
 	define_bool CONFIG_USER_ZAPTEL		y
