@@ -832,9 +832,7 @@ static snd_kcontrol_new_t snd_ad1836_controls[] __devinitdata = {
  *************************************************************/
 
 static snd_pcm_hardware_t snd_ad1836_playback_hw = {
-	.info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | \
-			SNDRV_PCM_INFO_BLOCK_TRANSFER | \
-			SNDRV_PCM_INFO_MMAP_VALID),
+	.info = ( SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER ),
 	.formats =          SNDRV_PCM_FMTBIT_S32_LE,
 	.rates =            SNDRV_PCM_RATE_48000,
 	.rate_min =         48000,
@@ -849,9 +847,7 @@ static snd_pcm_hardware_t snd_ad1836_playback_hw = {
 };
 
 static snd_pcm_hardware_t snd_ad1836_capture_hw = {
-	.info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED | \
-			SNDRV_PCM_INFO_BLOCK_TRANSFER | \
-			SNDRV_PCM_INFO_MMAP_VALID),
+	.info = ( SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER ),
 	.formats =          SNDRV_PCM_FMTBIT_S32_LE,
 	.rates =            SNDRV_PCM_RATE_48000,
 	.rate_min =         48000,
