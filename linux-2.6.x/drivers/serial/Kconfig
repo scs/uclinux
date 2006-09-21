@@ -466,7 +466,7 @@ config SERIAL_SA1100_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_BFIN
-	bool "Blackfin serial port support (EXPERIMENTAL)"
+	tristate "Blackfin serial port support (EXPERIMENTAL)"
 	depends on BFIN && EXPERIMENTAL
 	select SERIAL_CORE
 
@@ -480,13 +480,15 @@ choice
         depends on SERIAL_BFIN
         default SERIAL_BFIN_DMA
         ---help---
-          This driver supports the built-in serial ports of the Blackfin family of CPUs
+          This driver supports the built-in serial ports of the Blackfin family
+	  of CPUs
 
 config SERIAL_BFIN_DMA
         bool "Blackfin UART DMA mode"
         depends on DMA_UNCACHED_1M
         help
-          This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
+          This driver works under DMA mode. If this option is selected, the 
+	  blackfin simple dma driver is also enabled.
 
 config SERIAL_BFIN_PIO
         bool "Blackfin UART PIO mode"
@@ -498,7 +500,8 @@ config SERIAL_BFIN_CTSRTS
 	bool "Enable hardware flow control"
 	depends on SERIAL_BFIN
 	help
-	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS signal.
+	  Enable hardware flow control in the driver. Using GPIO emulate the CTS/RTS
+	  signal.
 
 config SERIAL_IMX
 	bool "IMX serial port support"
