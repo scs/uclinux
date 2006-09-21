@@ -946,6 +946,7 @@ CONFIG_USER_IRATTACH=y
 # CONFIG_USER_ALSA_UTILS is not set
 # CONFIG_USER_BLACKFIN_ASTERISK is not set
 # CONFIG_USER_USBUTILS is not set
+# CONFIG_USER_BLUEZ is not set
 
 #
 # Blackfin canned demos
