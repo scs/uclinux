@@ -1,11 +1,10 @@
 DESTDIR=$(TEMPDIR)
 CFLAGS += -fno-strict-aliasing
-#CFLAGS += -I$(DESTDIR)/include/readline
-SPEEX_CFLAGS=-I$(ROOTDIR)/lib/speex/DESTDIR/usr/include
-SPEEX_LIB=-L$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
 CFLAGS += -I$(ROOTDIR)/lib/readline/DESTDIR/usr/include/readline
 CFLAGS += -I$(ROOTDIR)/lib/ncurses/include/
-LDFLAGS +=-L$(ROOTDIR)/lib/ncurses/lib/
+LDFLAGS += -L$(ROOTDIR)/lib/ncurses/lib/
+CFLAGS += -I$(ROOTDIR)/lib/speex/DESTDIR/usr/include
+CFLAGS += -L$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
 LINPHONE_FLAGS+=--disable-video
