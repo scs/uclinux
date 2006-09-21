@@ -1,11 +1,6 @@
 linphone_subdirs = libosip2
-linphone_subdirs += speex 
 linphone_subdirs += linphone
 export TEMPDIR=$(CURDIR)/temp
-unexport LDFLAGS
-unexport LDLIBS
-unexport CFLAGS
-unexport LIBS
 
 
 all:
