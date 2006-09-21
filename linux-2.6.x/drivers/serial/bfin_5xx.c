@@ -394,8 +394,9 @@ static unsigned int bfin_serial_tx_empty(struct uart_port *port)
 
 static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 {
+	/* Hardware flow control is only supported on the first port */
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	if (bfin_read16(CTS_PORT) & (1 << CTS_PIN))
+	if ((bfin_read16(CTS_PORT) & (1 << CTS_PIN)) && (port->line == 0))
 		return TIOCM_DSR | TIOCM_CAR;
 	else
 #endif
