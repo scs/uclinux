@@ -114,6 +114,7 @@
 /dev/mmc	b	660	0	0	36	1	1	1	4
 /dev/sport0	c	660	0	0	237	0	0	0	-
 /dev/sport1	c	660	0	0	237	1	0	0	-
+/dev/timer	c	660	0	0	238	0	0	1	8
 
 # IDE Devices
 /dev/hda	b	640	0	0	3	0	0	0	-

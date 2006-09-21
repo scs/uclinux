@@ -69,6 +69,15 @@ config BF5xx_TIMERS
 	If you say Y here, you will get support for the hardware timers of
 	blackfin processors.
 
+config BFIN_SIMPLE_TIMER
+    bool "Blackfin 5xx example char-device interface for Blackfin BF5xx HW-Timers Driver"
+	depends on BF5xx_TIMERS
+	default n
+	---help---
+	If you say Y here, you will get an example char-device driver that
+	provides an interface to the above BF5xx HW-Timers Driver. See
+	drivers/char/bfin_simple_timer.c for details.
+
 config BF5xx_PPI
     bool "Blackfin BF5xx PPI Driver"
 	depends on BFIN
