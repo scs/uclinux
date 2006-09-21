@@ -456,14 +456,16 @@ int bfin_serial_startup(struct uart_port *port)
 	if (request_dma(uart->rx_dma_channel, "BFIN_UART_RX") < 0) {
 		printk(KERN_NOTICE "Unable to attach Blackfin UART RX DMA channel\n");
 		return -EBUSY;
-	} else
-		set_dma_callback(uart->rx_dma_channel, bfin_serial_dma_rx_int, uart);
+	}
 
 	if (request_dma(uart->tx_dma_channel, "BFIN_UART_TX") < 0) {
 		printk(KERN_NOTICE "Unable to attach Blackfin UART TX DMA channel\n");
+		free_dma(uart->rx_dma_channel);
 		return -EBUSY;
-	} else
-		set_dma_callback(uart->tx_dma_channel, bfin_serial_dma_tx_int, uart);
+	}
+
+	set_dma_callback(uart->rx_dma_channel, bfin_serial_dma_rx_int, uart);
+	set_dma_callback(uart->tx_dma_channel, bfin_serial_dma_tx_int, uart);
 
 	uart->rx_dma_buf.buf = (unsigned char *)dma_alloc_coherent(NULL, PAGE_SIZE, &dma_handle, GFP_DMA);
 	uart->rx_dma_buf.head = 0;
@@ -497,6 +499,7 @@ int bfin_serial_startup(struct uart_port *port)
 	    (uart->port.irq+1, bfin_serial_int, SA_INTERRUPT | SA_SHIRQ,
 	     "BFIN_UART0_TX", uart)) {
 		printk(KERN_NOTICE "Unable to attach BlackFin UART TX interrupt\n");
+		free_irq(uart->port.irq, uart);
 		return -EBUSY;
 	}
 #endif
@@ -592,7 +595,7 @@ static struct uart_ops bfin_serial_pops = {
 static int bfin_serial_calc_baud(unsigned int uartclk)
 {
 	int baud;
-	baud = get_sclk()/(uartclk*8);
+	baud = get_sclk() / (uartclk*8);
 	if ((baud & 0x1) == 1) {
 		baud++;
 	}
@@ -736,7 +739,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 		val &= ~DLAB;
 		UART_PUT_LCR(uart, val);
 
-		*baud = get_sclk()/(16*(dll|dlh<<8));
+		*baud = get_sclk() / (16*(dll|dlh<<8));
 	}
 	DPRINTK("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
 }
