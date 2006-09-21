@@ -343,9 +343,9 @@ static void bfin_SMC_interrupt_setup(int irq)
 {
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	/* fix a floating input on the USB-LAN EZ-Extender */
-# if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT)
 	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
-# endif /* defined (CONFIG_BF561) */
+# endif /* defined (CONFIG_BFIN561_EZKIT) */
 	printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
 	set_irq_type(irq, IRQT_HIGH);
 #else

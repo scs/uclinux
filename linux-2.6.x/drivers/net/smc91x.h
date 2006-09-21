@@ -56,7 +56,7 @@
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
 #elif defined(CONFIG_BFIN)
-# if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT)
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
 #define SMC_CAN_USE_32BIT	1
