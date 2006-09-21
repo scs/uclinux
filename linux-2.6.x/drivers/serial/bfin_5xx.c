@@ -56,7 +56,7 @@
 #define SERIAL_BFIN_MAJOR	TTY_MAJOR
 #define MINOR_START		64
 
-#define DEBUG
+#undef DEBUG
 
 #ifdef DEBUG
 # define DPRINTK(x...)   printk(KERN_DEBUG x)
@@ -80,7 +80,7 @@
 #define CONSOLE_BAUD_RATE       115200
 #endif
 
-#define DMA_RX_XCOUNT		TTY_FLIPBUF_SIZE
+#define DMA_RX_XCOUNT		512
 #define DMA_RX_YCOUNT		(PAGE_SIZE / DMA_RX_XCOUNT)
 
 #define DMA_RX_FLUSH_JIFFIES	5
