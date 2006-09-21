@@ -44,7 +44,7 @@ romfs:
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
 	$(ROMFSINST) /etc/modprobe.conf
-	$(ROMFSINST) /etc/asound.conf
+	$(ROMFSINST) -e CONFIG_LIB_ALSA_LIB /etc/asound.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
