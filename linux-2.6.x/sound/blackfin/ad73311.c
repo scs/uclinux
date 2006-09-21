@@ -116,8 +116,7 @@ static void snd_ad73311_stop(void);
  *************************************************************/
 
 static snd_pcm_hardware_t snd_ad73311_play_hw = {
-	.info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_MMAP_VALID),
+	.info = (SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER),
 	.formats =          SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =            SNDRV_PCM_RATE_8000,
 	.rate_min =         8000,
@@ -131,8 +130,7 @@ static snd_pcm_hardware_t snd_ad73311_play_hw = {
 	.periods_max =      FRAGMENTS_MAX,
 };
 static snd_pcm_hardware_t snd_ad73311_cap_hw = {
-	.info = (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_BLOCK_TRANSFER |  SNDRV_PCM_INFO_MMAP_VALID),
+	.info = (SNDRV_PCM_INFO_INTERLEAVED |SNDRV_PCM_INFO_BLOCK_TRANSFER),
 	.formats =          SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =            SNDRV_PCM_RATE_8000,
 	.rate_min =         8000,
