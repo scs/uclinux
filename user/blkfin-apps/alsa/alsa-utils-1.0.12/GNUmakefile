@@ -5,6 +5,8 @@ all: Makefile
 	$(MAKE) -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 Makefile:
+	LDFLAGS="-L$(ROOTDIR)/lib/ncurses/lib $(LDFLAGS)" \
+	CPPFLAGS="-I$(ROOTDIR)/lib/ncurses/include $(CPPFLAGS)" \
 	./configure \
 		--host=bfin-uclinux \
 		--prefix=/usr \
