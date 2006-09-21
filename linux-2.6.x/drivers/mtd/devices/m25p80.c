@@ -35,13 +35,14 @@
 #define FLASH_PAGESIZE		256
 
 /* Flash opcodes. */
-#define	OPCODE_WREN		6	/* Write enable */
-#define	OPCODE_RDSR		5	/* Read status register */
-#define	OPCODE_READ		3	/* Read data bytes */
-#define	OPCODE_PP		2	/* Page program */
-#define	OPCODE_SE		0xd8	/* Sector erase */
-#define	OPCODE_RES		0xab	/* Read Electronic Signature */
-#define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
+#define OPCODE_WREN       0x6 /* Write enable */
+#define OPCODE_RDSR       0x5 /* Read status register */
+#define OPCODE_NORM_READ  0x3 /* Read data bytes */
+#define OPCODE_FAST_READ  0xB /* Read data bytes */
+#define OPCODE_PP         0x2 /* Page program */
+#define OPCODE_SE         0xD8  /* Sector erase */
+#define OPCODE_RES        0xAB  /* Read Electronic Signature */
+#define OPCODE_RDID       0x9F  /* Read JEDEC ID */
 
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
@@ -54,6 +55,13 @@
 /* Define max times to check status register before we give up. */
 #define	MAX_READY_WAIT_COUNT	100000
 
+#ifdef CONFIG_M25PXX_USE_FAST_READ
+#define OPCODE_READ 	OPCODE_FAST_READ
+#define FAST_READ_DUMMY_BYTE 1
+#else
+#define OPCODE_READ 	OPCODE_NORM_READ
+#define FAST_READ_DUMMY_BYTE 0
+#endif
 
 #ifdef CONFIG_MTD_PARTITIONS
 #define	mtd_has_partitions()	(1)
@@ -249,7 +257,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	memset(t, 0, (sizeof t));
 
 	t[0].tx_buf = flash->command;
-	t[0].len = sizeof(flash->command);
+	t[0].len = sizeof(flash->command) + FAST_READ_DUMMY_BYTE;
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].rx_buf = buf;
@@ -279,7 +287,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	spi_sync(flash->spi, &m);
 
-	*retlen = m.actual_length - sizeof(flash->command);
+	*retlen = m.actual_length - sizeof(flash->command) - FAST_READ_DUMMY_BYTE;
 
   	up(&flash->lock);
 
