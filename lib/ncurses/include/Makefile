@@ -90,6 +90,7 @@ curses.h : $(TERMINFO_CAPS) \
 	AWK=$(AWK) sh $(srcdir)/MKkey_defs.sh $(TERMINFO_CAPS) >>$@
 	sh -c 'if test "chtype" = "cchar_t" ; then cat $(srcdir)/curses.wide >>$@ ; fi'
 	cat $(srcdir)/curses.tail >>$@
+	$(LN_S) -f curses.h ncurses.h
 
 term.h: $(TERMINFO_CAPS) MKterm.h.awk
 	$(AWK) -f MKterm.h.awk $(TERMINFO_CAPS) > $@
@@ -114,7 +115,7 @@ mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace
 
 clean :: mostlyclean
-	-rm -f $(AUTO_SRC)
+	-rm -f $(AUTO_SRC) ncurses.h
 
 distclean :: clean
 	-rm -f Makefile $(CONFIG_SRC)
