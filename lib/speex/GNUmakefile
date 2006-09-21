@@ -1,5 +1,6 @@
 all: Makefile
 	$(MAKE) -f Makefile
+	$(MAKE) -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 Makefile:
 	./configure \
@@ -11,6 +12,11 @@ Makefile:
 
 %::
 	if [ -f Makefile ] ; then $(MAKE) -f Makefile $@ || exit $$? ; fi
+
+
+clean distclean::
+	$(MAKE) -f Makefile distclean
+	rm -rf DESTDIR
 
 romfs:
 	@true
