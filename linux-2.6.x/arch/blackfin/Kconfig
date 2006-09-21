@@ -168,6 +168,12 @@ config BFIN537_BLUETECHNIX_CM
 	help
 	  CM-BF537 support for EVAL- and DEV-Board
 
+config BFIN561_BLUETECHNIX_CM
+	bool "BF561-EZKIT"
+	depends on (BF561)
+	help
+	  CM-BF561 support for EVAL- and DEV-Board
+
 config BFIN561_EZKIT
 	bool "BF561-EZKIT"
 	depends on (BF561)
@@ -202,6 +208,11 @@ config MEM_MT48LC32M8A2_75
 	depends on (BFIN537_STAMP)
 	default y
 
+config MEM_MT48LC8M32B2B5_7
+	bool
+	depends on (BFIN561_BLUETECHNIX_CM)
+	default y
+
 config BFIN_SHARED_FLASH_ENET
 	bool
 	depends on (BFIN533_STAMP)
@@ -221,8 +232,6 @@ config CLKIN_HZ
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if BFIN537_STAMP
-	default "25000000" if BFIN533_BLUETECHNIX_CM
-	default "25000000" if BFIN537_BLUETECHNIX_CM
 	default "30000000" if BFIN561_EZKIT
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
@@ -230,8 +239,6 @@ config CLKIN_HZ
 config MEM_SIZE
 	int "SDRAM Memory Size in MBytes"
 	default  32 if BFIN533_EZKIT
-	default  32 if BFIN533_BLUETECHNIX_CM
-	default  32 if BFIN537_BLUETECHNIX_CM
 	default  64 if BFIN537_STAMP
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
@@ -240,8 +247,6 @@ config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
 	default  9 if BFIN533_EZKIT
 	default  9 if BFIN561_EZKIT
-	default  9 if BFIN533_BLUETECHNIX_CM
-	default  9 if BFIN537_BLUETECHNIX_CM
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 
@@ -279,9 +284,7 @@ config BFIN_ALIVE_LED_NUM
 	int "LED"
 	depends on BFIN_ALIVE_LED
 	range 1 3 if BFIN533_STAMP
-	range 1 2 if BFIN533_BLUETECHNIX_CM
 	default "3" if BFIN533_STAMP
-	default "1" if BFIN533_BLUETECHNIX_CM
 	help
 	  Select the LED (marked on the board) for you to blink.
 
@@ -296,9 +299,7 @@ config BFIN_IDLE_LED_NUM
 	int "LED"
 	depends on BFIN_IDLE_LED
 	range 1 3 if BFIN533_STAMP
-	range 1 2 if BFIN533_BLUETECHNIX_CM
 	default "2" if BFIN533_STAMP
-	default "2" if BFIN533_BLUETECHNIX_CM
 	help
 	  Select the LED (marked on the board) for you to blink.
 
@@ -310,40 +311,32 @@ config BFIN_IDLE_LED_NUM
 config BFIN_ALIVE_LED_PORT
 	hex
 	default 0xFFC00700 if (BFIN533_STAMP)
-	default 0xFFC00700 if (BFIN533_BLUETECHNIX_CM)
 
 # Peripheral Flag Direction Register
 config BFIN_ALIVE_LED_DPORT
 	hex
 	default 0xFFC00730 if (BFIN533_STAMP)
-	default 0xFFC00730 if (BFIN533_BLUETECHNIX_CM)
 
 config BFIN_ALIVE_LED_PIN
 	hex
 	default 0x04 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 1 ))
 	default 0x08 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 2 ))
 	default 0x10 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 3 ))
-	default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_ALIVE_LED_NUM = 1 ))
-	default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 config BFIN_IDLE_LED_PORT
 	hex
 	default 0xFFC00700 if (BFIN533_STAMP)
-	default 0xFFC00700 if (BFIN533_BLUETECHNIX_CM)
 
 # Peripheral Flag Direction Register
 config BFIN_IDLE_LED_DPORT
 	hex
 	default 0xFFC00730 if (BFIN533_STAMP)
-	default 0xFFC00730 if (BFIN533_BLUETECHNIX_CM)
 
 config BFIN_IDLE_LED_PIN
 	hex
 	default 0x04 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 1 ))
 	default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
 	default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
-	default 0x80 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 1 ))
-	default 0x40 if (BFIN533_BLUETECHNIX_CM && ( BFIN_IDLE_LED_NUM = 2 ))
 
 comment 'Console UART Setup'
 
@@ -532,8 +525,6 @@ config VCO_MULT
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
 	default "20" if BFIN537_STAMP
-	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_EZKIT
 
 config CCLK_DIV
@@ -542,8 +533,6 @@ config CCLK_DIV
 	default 1 if BFIN533_EZKIT
 	default 1 if BFIN533_STAMP
 	default 1 if BFIN537_STAMP
-	default 1 if BFIN533_BLUETECHNIX_CM
-	default 1 if BFIN537_BLUETECHNIX_CM
 	default 1 if BFIN561_EZKIT
 
 config SCLK_DIV
@@ -552,8 +541,6 @@ config SCLK_DIV
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
 	default 4 if BFIN537_STAMP
-	default 5 if BFIN533_BLUETECHNIX_CM
-	default 4 if BFIN537_BLUETECHNIX_CM
 	default 5 if BFIN561_EZKIT
 
 config CLKIN_HALF

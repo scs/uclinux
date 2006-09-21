@@ -1,15 +1,14 @@
 /*
- * File:         arch/blackfin/mach-bf537/boards/cm_bf537.c
+ * File:         arch/blackfin/mach-bf533/boards/cm_bf561.c
  * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
- * Author:       Aidan Williams <aidan@nicta.com.au>
+ * Author:       Aidan Williams <aidan@nicta.com.au> Copright 2005
  *
- * Created:      2005
+ * Created:      2006
  * Description:  Board description file
  *
  * Rev:          $Id$
  *
  * Modified:
- *               Copyright 2005 National ICT Australia (NICTA)
  *               Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
@@ -190,15 +189,17 @@ static struct platform_device spi_bfin_master_device = {
 
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+
 static struct resource smc91x_resources[] = {
 	[0] = {
-	       .start = 0x20200300,
-	       .end = 0x20200300 + 16,
+	       .name	= "smc91x-regs",
+	       .start = 0x28000300,
+	       .end = 0x28000300 + 16,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[1] = {
-	       .start = IRQ_PROG_INTB,
-	       .end = IRQ_PROG_INTB,
+	       .start = IRQ_PROG0_INTB,
+	       .end = IRQ_PROG0_INTB,
 	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	       },
 	[2] = {
@@ -222,13 +223,13 @@ static struct platform_device smc91x_device = {
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 static struct resource isp1362_hcd_resources[] = {
 	[0] = {
-	       .start = 0x20308000,
+	       .start = 0x28000000,
 	       .end = 0x20308000,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[1] = {
-	       .start = 0x20308002,
-	       .end = 0x20308002,
+	       .start = 0x28000002,
+	       .end = 0x28000002,
 	       .flags = IORESOURCE_MEM,
 	       },
 	[2] = {
@@ -241,7 +242,6 @@ static struct resource isp1362_hcd_resources[] = {
 	       .end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
 	       .flags = IORESOURCE_IRQ,
 	       },
-
 };
 
 static struct isp1362_platform_data isp1362_priv = {
@@ -266,35 +266,8 @@ static struct platform_device isp1362_hcd_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
-static struct resource net2272_bfin_resources[] = {
-	[0] = 	{
-		.start = 0x20200000,
-		.end = 0x20200000 + 0x100,
-		.flags = IORESOURCE_MEM,
-		},
-	[1] =	{
-		.start = IRQ_PF7,
-		.end = IRQ_PF7,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-		},
-};
 
-static struct platform_device net2272_bfin_device = {
-	.name = "net2272",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
-	.resource = net2272_bfin_resources,
-};
-#endif
-
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-static struct platform_device bfin_mac_device = {
-	.name = "bfin_mac",
-};
-#endif
-
-static struct platform_device *cm_bf537_devices[] __initdata = {
+static struct platform_device *cm_bf561_devices[] __initdata = {
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 	&isp1362_hcd_device,
 #endif
@@ -302,26 +275,17 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 	&smc91x_device,
 #endif
 
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-	&bfin_mac_device,
-#endif
-
-#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
-	&net2272_bfin_device,
-#endif
-
-
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&spi_bfin_master_device,
 #endif
 
 };
 
-static int __init cm_bf537_init(void)
+static int __init cm_bf561_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
-	platform_add_devices(cm_bf537_devices,
-				    ARRAY_SIZE(cm_bf537_devices));
+	platform_add_devices(cm_bf561_devices,
+				    ARRAY_SIZE(cm_bf561_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	spi_register_board_info(bfin_spi_board_info,
 			       ARRAY_SIZE(bfin_spi_board_info));
@@ -329,15 +293,4 @@ static int __init cm_bf537_init(void)
 	return 0;
 }
 
-void get_bf537_ether_addr(char *addr)
-{
-	/* currently the mac addr is saved in flash */
-	int flash_mac = 0x203f0000;
-	*(u32 *)(&(addr[0])) = *(int *)flash_mac;
-	flash_mac += 4;
-	*(u16 *)(&(addr[4])) = (u16)*(int *)flash_mac;
-}
-
-EXPORT_SYMBOL(get_bf537_ether_addr);
-
-arch_initcall(cm_bf537_init);
+arch_initcall(cm_bf561_init);

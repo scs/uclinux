@@ -437,8 +437,9 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+
 # else
-#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
+//#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
 # endif
 #else
 	pos =
@@ -529,6 +530,7 @@ static void __init generate_cpl_tables(void)
 
 
 #if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT) || defined (CONFIG_BFIN561_BLUETECHNIX_CM)
 # if defined (CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
@@ -538,6 +540,21 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+#endif
+#if defined (CONFIG_BFIN561_BLUETECHNIX_CM)
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
+			    ASYNC_BANK0_BASE + SIZE_4M,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK1_BASE,
+			    ASYNC_BANK1_BASE + SIZE_4M,
+			    SIZE_4M, SDRAM_EBIU);
+	pos =
+	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK2_BASE,
+			    ASYNC_BANK2_BASE + SIZE_4M,
+			    SIZE_4M, SDRAM_EBIU);
+#endif
 # else
 #  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
 # endif
@@ -635,6 +652,7 @@ static void __init generate_cpl_tables(void)
 	}
 
 #if defined (CONFIG_BF561)
+# if defined (CONFIG_BFIN561_EZKIT) || defined (CONFIG_BFIN561_BLUETECHNIX_CM)
 # if defined (CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
@@ -644,6 +662,13 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK3_BASE,
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
+#endif
+#if defined (CONFIG_BFIN561_BLUETECHNIX_CM)
+	pos =
+	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
+			    ASYNC_BANK0_BASE + SIZE_4M,
+			    SIZE_4M, SDRAM_EBIU);
+#endif
 # else
 #  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
 # endif
