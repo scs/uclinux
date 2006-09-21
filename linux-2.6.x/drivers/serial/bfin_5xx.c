@@ -29,8 +29,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/config.h>
-
 #if defined(CONFIG_SERIAL_BFIN_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif
@@ -397,7 +395,7 @@ static unsigned int bfin_serial_tx_empty(struct uart_port *port)
 static unsigned int bfin_serial_get_mctrl(struct uart_port *port)
 {
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
-	if (bfin_read16(CTS_PORT) & (1<<CTS_PIN))
+	if (bfin_read16(CTS_PORT) & (1 << CTS_PIN))
 		return TIOCM_DSR | TIOCM_CAR;
 	else
 #endif
@@ -408,9 +406,9 @@ static void bfin_serial_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	if (mctrl & TIOCM_RTS)
-		bfin_write16(RTS_PORT, bfin_read16(RTS_PORT)&(~1<<RTS_PIN));
+		bfin_write16(RTS_PORT, bfin_read16(RTS_PORT) & (~1 << RTS_PIN));
 	else
-		bfin_write16(RTS_PORT, bfin_read16(RTS_PORT)|(1<<RTS_PIN));
+		bfin_write16(RTS_PORT, bfin_read16(RTS_PORT) | (1 << RTS_PIN));
 #endif
 }
 
@@ -646,8 +644,8 @@ static void __init bfin_serial_init_ports(void)
 		val |= DLAB;
 		UART_PUT_LCR(&bfin_serial_ports[i], val);
 
-		UART_PUT_DLL(&bfin_serial_ports[i], baud&0xFF);
-		UART_PUT_DLH(&bfin_serial_ports[i], (baud>>8)&0xFF);
+		UART_PUT_DLL(&bfin_serial_ports[i], baud & 0xFF);
+		UART_PUT_DLH(&bfin_serial_ports[i], (baud >> 8) & 0xFF);
 
 		/* Clear DLAB in LCR to Access THR RBR IER */
 		val = UART_GET_LCR(&bfin_serial_ports[i]);
@@ -739,7 +737,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 		val &= ~DLAB;
 		UART_PUT_LCR(uart, val);
 
-		*baud = get_sclk() / (16*(dll|dlh<<8));
+		*baud = get_sclk() / (16*(dll | dlh << 8));
 	}
 	DPRINTK("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
 }
