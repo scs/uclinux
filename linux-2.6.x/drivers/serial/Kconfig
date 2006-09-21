@@ -469,6 +469,10 @@ config SERIAL_BFIN
 	tristate "Blackfin serial port support (EXPERIMENTAL)"
 	depends on BFIN && EXPERIMENTAL
 	select SERIAL_CORE
+	  Add support for the built-in UARTs on the Blackfin.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_5xx.
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
@@ -476,24 +480,25 @@ config SERIAL_BFIN_CONSOLE
 	select SERIAL_CORE_CONSOLE
 
 choice
-        prompt  "Blackfin UART Mode"
-        depends on SERIAL_BFIN
-        default SERIAL_BFIN_DMA
-        ---help---
-          This driver supports the built-in serial ports of the Blackfin family
+	prompt  "Blackfin UART Mode"
+	depends on SERIAL_BFIN
+	default SERIAL_BFIN_DMA
+	help
+	  This driver supports the built-in serial ports of the Blackfin family
 	  of CPUs
 
 config SERIAL_BFIN_DMA
-        bool "Blackfin UART DMA mode"
-        depends on DMA_UNCACHED_1M
-        help
-          This driver works under DMA mode. If this option is selected, the 
+	bool "Blackfin UART DMA mode"
+	depends on DMA_UNCACHED_1M
+	help
+	  This driver works under DMA mode. If this option is selected, the 
 	  blackfin simple dma driver is also enabled.
 
 config SERIAL_BFIN_PIO
-        bool "Blackfin UART PIO mode"
-        help
-          This driver works under PIO mode.
+	bool "Blackfin UART PIO mode"
+	help
+	  This driver works under PIO mode.
+
 endchoice
 
 config SERIAL_BFIN_CTSRTS
