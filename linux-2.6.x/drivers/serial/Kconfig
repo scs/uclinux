@@ -469,6 +469,7 @@ config SERIAL_BFIN
 	tristate "Blackfin serial port support (EXPERIMENTAL)"
 	depends on BFIN && EXPERIMENTAL
 	select SERIAL_CORE
+	help
 	  Add support for the built-in UARTs on the Blackfin.
 
 	  To compile this driver as a module, choose M here: the
