@@ -290,7 +290,7 @@ while 1 {
      }
 }
 
-set timeout 50
+set timeout 100
 
 expect "root:/bin>"
 send -s  "./ex1\r" 
