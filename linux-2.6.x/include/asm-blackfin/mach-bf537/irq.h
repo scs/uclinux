@@ -126,8 +126,42 @@ Core        Emulation               **
 #define IRQ_PF14        64
 #define IRQ_PF15        65
 
+#define IRQ_PG0         66
+#define IRQ_PG1         67
+#define IRQ_PG2         68
+#define IRQ_PG3         69
+#define IRQ_PG4         70
+#define IRQ_PG5         71
+#define IRQ_PG6         72
+#define IRQ_PG7         73
+#define IRQ_PG8         74
+#define IRQ_PG9         75
+#define IRQ_PG10        76
+#define IRQ_PG11        77
+#define IRQ_PG12        78
+#define IRQ_PG13        79
+#define IRQ_PG14        80
+#define IRQ_PG15        81
+
+#define IRQ_PH0         82
+#define IRQ_PH1         83
+#define IRQ_PH2         84
+#define IRQ_PH3         85
+#define IRQ_PH4         86
+#define IRQ_PH5         87
+#define IRQ_PH6         88
+#define IRQ_PH7         89
+#define IRQ_PH8         90
+#define IRQ_PH9         91
+#define IRQ_PH10        92
+#define IRQ_PH11        93
+#define IRQ_PH12        94
+#define IRQ_PH13        95
+#define IRQ_PH14        96
+#define IRQ_PH15        97
+
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-#define NR_IRQS     (IRQ_PF15+1)
+#define NR_IRQS     (IRQ_PH15+1)
 #else
 #define NR_IRQS     (IRQ_UART1_ERROR+1)
 #endif
