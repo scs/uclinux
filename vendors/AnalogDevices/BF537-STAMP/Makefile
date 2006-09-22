@@ -2,7 +2,9 @@
 #	Makefile -- Build instructions for ADI/Blackfin
 #
 
+.EXPORT_ALL_VARIABLES:
 include $(LINUX_CONFIG)
+include $(CONFIG_CONFIG)
 
 ROMFSIMG = $(IMAGEDIR)/rootfs
 IMAGE    = $(IMAGEDIR)/linux
