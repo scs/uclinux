@@ -31,48 +31,51 @@
  */
 
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/irq.h>
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
-	[0] = {
-	       .start = 0x2C010300,
-	       .end = 0x2C010300 + 16,
-	       .flags = IORESOURCE_MEM,
-	       },
-	[1] = {
-	       .start = IRQ_PROG_INTB,
-	       .end = IRQ_PROG_INTB,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
-	[2] = {
-	       /*
-	        *  denotes the flag pin and is used directly if
-	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-	        */
-	       .start = IRQ_PF9,
-	       .end = IRQ_PF9,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
+	{
+		.start = 0x2C010300,
+		.end = 0x2C010300 + 16,
+		.flags = IORESOURCE_MEM,
+	},{
+		.start = IRQ_PROG_INTB,
+		.end = IRQ_PROG_INTB,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},{
+		/*
+		 *  denotes the flag pin and is used directly if
+		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+		 */
+		.start = IRQ_PF9,
+		.end = IRQ_PF9,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},
 };
+
 static struct platform_device smc91x_device = {
 	.name = "smc91x",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
 };
+#endif
 
 static struct platform_device *generic_board_devices[] __initdata = {
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
+#endif
 };
 
 static int __init generic_board_init(void)
 {
-	printk("%s(): registering device resources\n", __FUNCTION__);
-	return platform_add_devices(generic_board_devices,
-				    ARRAY_SIZE(generic_board_devices));
+	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
+	return platform_add_devices(generic_board_devices, ARRAY_SIZE(generic_board_devices));
 }
 
 arch_initcall(generic_board_init);

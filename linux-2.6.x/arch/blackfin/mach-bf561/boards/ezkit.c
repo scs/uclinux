@@ -42,42 +42,45 @@ char *bfin_board_name = "ADDS-BF561-EZKIT";
  *  USB-LAN EzExtender board
  *  Driver needs to know address, irq and flag pin.
  */
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
-	[0] = {
-	       .name	= "smc91x-regs",
-	       .start = 0x2C010300,
-	       .end = 0x2C010300 + 16,
-	       .flags = IORESOURCE_MEM,
-	       },
-	[1] = {
-	       .start = IRQ_PROG0_INTB,
-	       .end = IRQ_PROG0_INTB,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
-	[2] = {
-	       /*
-	        *  denotes the flag pin and is used directly if
-	        *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-	        */
-	       .start = IRQ_PF9,
-	       .end = IRQ_PF9,
-	       .flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	       },
+	{
+		.name = "smc91x-regs",
+		.start = 0x2C010300,
+		.end = 0x2C010300 + 16,
+		.flags = IORESOURCE_MEM,
+	},{
+		.start = IRQ_PROG0_INTB,
+		.end = IRQ_PROG0_INTB,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},{
+		/*
+		 *  denotes the flag pin and is used directly if
+		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+		 */
+		.start = IRQ_PF9,
+		.end = IRQ_PF9,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},
 };
+
 static struct platform_device smc91x_device = {
 	.name = "smc91x",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
 };
+#endif
 
 static struct platform_device *ezkit_devices[] __initdata = {
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
+#endif
 };
 
 static int __init ezkit_init(void)
 {
-	printk("%s(): registering device resources\n", __FUNCTION__);
+	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	return platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
 }
 
