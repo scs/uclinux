@@ -4,6 +4,7 @@ all: build/Makefile
 build/Makefile:
 	touch *
 	set -e ; \
+	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
 	../configure --host=bfin-uclinux --prefix=/usr
