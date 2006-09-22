@@ -97,12 +97,13 @@ static void local_put_char(struct bfin_serial_port *uart, char ch);
 static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
 
 /*
- * interrupts disabled on entry
+ * interrupts are disabled on entry
  */
 static void bfin_serial_stop_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned short ier;
+
 	ier = UART_GET_IER(uart);
 	ier &= ~ETBEI;
 	UART_PUT_IER(uart, ier);
@@ -112,11 +113,12 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 }
 
 /*
- * port locked and interrupts disabled
+ * port is locked and interrupts are disabled
  */
 static void bfin_serial_start_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
 #ifdef CONFIG_SERIAL_BFIN_DMA
 	bfin_serial_dma_tx_chars(uart);
 #else
@@ -129,12 +131,13 @@ static void bfin_serial_start_tx(struct uart_port *port)
 }
 
 /*
- * Interrupts enabled
+ * Interrupts are enabled
  */
 static void bfin_serial_stop_rx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned short ier;
+
 	ier = UART_GET_IER(uart);
 	ier &= ERBFI;
 	UART_PUT_IER(uart, ier);
@@ -168,6 +171,7 @@ bfin_serial_rx_chars(struct bfin_serial_port *uart, struct pt_regs *regs)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status=0, ch, flg;
+
 	ch = UART_GET_CHAR(uart);
 	uart->port.icount.rx++;
 	flg = TTY_NORMAL;
@@ -232,6 +236,7 @@ static irqreturn_t bfin_serial_int(int irq, void *dev_id, struct pt_regs *regs)
 static void bfin_serial_do_work(void *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
 	bfin_serial_mctrl_check(uart);
 }
 
@@ -385,6 +390,7 @@ static unsigned int bfin_serial_tx_empty(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 	unsigned short lsr;
+
 	lsr = UART_GET_LSR(uart);
 	if (lsr & THRE)
 		return TIOCSER_TEMT;
@@ -423,6 +429,7 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
 #ifdef CONFIG_SERIAL_BFIN_DMA
 	struct uart_info *info = uart->port.info;
 	struct tty_struct *tty = info->tty;
+
 	status = bfin_serial_get_mctrl(&uart->port);
 	if (!(status & TIOCM_CTS)) {
 		tty->hw_stopped = 1;
@@ -439,13 +446,13 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart)
 }
 
 /*
- * Interrupts always disabled.
+ * Interrupts are always disabled.
  */
 static void bfin_serial_break_ctl(struct uart_port *port, int break_state)
 {
 }
 
-int bfin_serial_startup(struct uart_port *port)
+static int bfin_serial_startup(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
 
@@ -531,6 +538,7 @@ bfin_serial_set_termios(struct uart_port *port, struct termios *termios,
 static const char *bfin_serial_type(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
 	return uart->port.type == PORT_BFIN ? "BFIN-UART" : NULL;
 }
 
@@ -594,6 +602,7 @@ static struct uart_ops bfin_serial_pops = {
 static int bfin_serial_calc_baud(unsigned int uartclk)
 {
 	int baud;
+
 	baud = get_sclk() / (uartclk*8);
 	if ((baud & 0x1) == 1) {
 		baud++;
