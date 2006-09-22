@@ -8,9 +8,9 @@
 -# CONFIG_BF5xx_PPIFCD is not set
 +CONFIG_BF533_PFLAGS=y
 +CONFIG_BF5xx_PPIFCD=y
+ # CONFIG_BF5xx_TIMERS is not set
  # CONFIG_BF5xx_PPI is not set
- # CONFIG_BFIN_TIMER_LATENCY is not set
- CONFIG_TWI_LCD=m
+ CONFIG_BFIN_SPORT=y
 @@ -668,26 +668,26 @@
  #
  # I2C support
