@@ -17,3 +17,10 @@ clean %::
 
 clean::
 	rm -rf DESTDIR
+
+romfs:
+	if [ "$(CONFIG_LIB_ALSA_LIB)" = "y" ] || [ "$(CONFIG_LIB_ALSA_LIB_FORCE)" = "y" ] ; then \
+		for conf in `cd DESTDIR ; find usr/share/alsa -type f` ; do \
+			$(ROMFSINST) -d DESTDIR/$$conf /$$conf || exit $$? ; \
+		done ; \
+	fi
