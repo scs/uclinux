@@ -168,6 +168,14 @@ void __init setup_arch(char **cmdline_p)
 	int bootmap_size, id;
 	unsigned long l1_length,sclk,cclk;
 
+	cclk = get_cclk();
+	sclk = get_sclk();
+
+#if (! defined(CONFIG_BFIN_KERNEL_CLOCK) && defined (ANOMALY_05000273)
+	if ( cclk == sclk )
+		panic("ANOMALY 05000273, SCLK can not be same as CCLK");
+#endif
+
 #ifdef DEBUG_SERIAL_EARLY_INIT
 	bfin_console_init();	/* early console registration */
 	/* this give a chance to get printk() working before crash. */
@@ -270,9 +278,6 @@ void __init setup_arch(char **cmdline_p)
 		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected\n",
 		       CPU, id);
 	printk(KERN_INFO "Blackfin uClinux support by http://blackfin.uclinux.org/\n");
-
-	cclk = get_cclk();
-	sclk = get_sclk();
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       cclk / 1000000,  sclk / 1000000);
