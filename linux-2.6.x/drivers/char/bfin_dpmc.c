@@ -750,17 +750,6 @@ unsigned long change_voltage(unsigned long volt)
 	val = (bfin_read_VR_CTL() & 0xFF0F);
 	val = (val | (vlt << 4));
 	bfin_write_VR_CTL(val);
-	__builtin_bfin_ssync();
-
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	bfin_write_SIC_IWR(IWR_ENABLE(0));
-
-	local_irq_save(flags);
-	__builtin_bfin_ssync();
-	asm("IDLE;");
-	local_irq_restore(flags);
-
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 
 	while(!(get_pll_status() & VOLTAGE_REGULATED))
 		;

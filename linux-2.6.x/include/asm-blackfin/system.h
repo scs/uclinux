@@ -1,40 +1,44 @@
+/*
+ * File:        include/asm/system.h
+ * Based on:
+ * Author:      Tony Kou (tonyko@lineo.ca)
+ *              Copyright (c) 2002 Arcturus Networks Inc. 
+ *                    (www.arcturusnetworks.com)
+ *              Copyright (c) 2003 Metrowerks (www.metrowerks.com)
+ *              Copyright (c) 2004 Analog Device Inc.
+ * Created:     25Jan2001 - Tony Kou
+ * Description: system.h include file
+ *
+ * Rev:       $Id$
+ *
+ * Modified:     22Sep2006 - Robin Getz 
+ *                - move include blackfin.h down, so I can get access to
+ *                   irq functions in other include files.
+ *
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.
+ * If not, write to the Free Software Foundation,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
 #ifndef _BLACKFIN_SYSTEM_H
 #define _BLACKFIN_SYSTEM_H
 
 #include <linux/linkage.h>
-#include <asm/blackfin.h>
 #include <linux/compiler.h>
-
-#define prepare_to_switch()	do { } while(0)
-
-/*
- * switch_to(n) should switch tasks to task ptr, first checking that
- * ptr isn't the current task, in which case it does nothing.  This
- * also clears the TS-flag if the task we switched to has used the
- * math co-processor latest.
- *
- * 05/25/01 - Tony Kou (tonyko@lineo.ca)
- *
- * Adapted for BlackFin (ADI) by Ted Ma, Metrowerks, and Motorola GSG
- * Copyright (c) 2002 Arcturus Networks Inc. (www.arcturusnetworks.com)
- * Copyright (c) 2003 Metrowerks (www.metrowerks.com)
- * Copyright (c) 2004 Analog Device Inc.
- */
-
-/**************
-MACRO definitions
-***************/
-
-asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next);
-
-#define switch_to(prev,next,last) \
-do {	\
-	memcpy (&prev->thread_info->l1_task_info, L1_SCRATCH_TASK_INFO, \
-		sizeof *L1_SCRATCH_TASK_INFO); \
-	memcpy (L1_SCRATCH_TASK_INFO, &next->thread_info->l1_task_info, \
-		sizeof *L1_SCRATCH_TASK_INFO); \
-	(last) = resume (prev, next);	\
-} while (0)
 
 /*
  * Interrupt configuring macros.
@@ -208,4 +212,25 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define cmpxchg(ptr,o,n)\
         ((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
                                         (unsigned long)(n),sizeof(*(ptr))))
+
+#define prepare_to_switch()     do { } while(0)
+
+/*
+ * switch_to(n) should switch tasks to task ptr, first checking that
+ * ptr isn't the current task, in which case it does nothing.
+ */
+
+#include <asm/blackfin.h>
+
+asmlinkage struct task_struct *resume(struct task_struct *prev, struct task_struct *next);
+
+#define switch_to(prev,next,last) \
+do {    \
+	memcpy (&prev->thread_info->l1_task_info, L1_SCRATCH_TASK_INFO, \
+		sizeof *L1_SCRATCH_TASK_INFO); \
+	memcpy (L1_SCRATCH_TASK_INFO, &next->thread_info->l1_task_info, \
+		sizeof *L1_SCRATCH_TASK_INFO); \
+	(last) = resume (prev, next);   \
+} while (0)
+
 #endif				/* _BLACKFIN_SYSTEM_H */
