@@ -233,8 +233,8 @@ LIBS=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone
 LIBS+=-lpthread -lgsm -lspeex -lm 
 
 #uClinux libtool
-LIBTOOL=$(PWD)/libtool/libtool 
-CFLAGS+=-I$(PWD)/libtool
+LIBTOOL=$(PWD)/libtool/libtool
+CFLAGS+=-I$(ROOTDIR)/lib/libtool/libltdl
 CFLAGS+=-I$(ROOTDIR)/lib/libssl/include
 CFLAGS+=-I$(ROOTDIR)/lib/ncurses/include
 CFLAGS+=-I$(ROOTDIR)/lib/zlib
@@ -243,7 +243,7 @@ CFLAGS+=-I$(ROOTDIR)/lib/blackfin-gsm/gsm/inc
 CFLAGS+=-I$(ROOTDIR)/lib/speex/include/speex
 CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/zaptel
 
-LIBS+= -L$(PWD)/libtool/
+LIBS+= -L$(ROOTDIR)/lib/libtool/libltdl/.libs
 LIBS+= -L$(ROOTDIR)/lib/libssl
 LIBS+= -L$(ROOTDIR)/lib/ncurses/lib 
 LIBS+= -L$(ROOTDIR)/lib 
