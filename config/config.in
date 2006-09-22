@@ -81,6 +81,7 @@ mainmenu_option next_comment
 comment 'Library Configuration'
 
 comment 'Force build (Normally built when required)'
+bool 'build ALSA lib'		CONFIG_LIB_ALSA_LIB_FORCE
 bool 'Build dmalloc'		CONFIG_LIB_DMALLOC_FORCE
 bool 'Build flex'		CONFIG_LIB_FLEX_FORCE
 bool 'Build libAES'		CONFIG_LIB_LIBAES_FORCE
@@ -101,6 +102,7 @@ bool 'Build libATM'		CONFIG_LIB_LIBATM_FORCE
 bool 'Build libpng'		CONFIG_LIB_LIBPNG_FORCE
 bool 'Build libjpeg'		CONFIG_LIB_LIBJPEG_FORCE
 bool 'Build libspeex'		CONFIG_LIB_SPEEX
+bool 'Build libssl'		CONFIG_LIB_LIBTOOL_FORCE
 bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
 bool 'Build libupnp'		CONFIG_LIB_LIBUPNP_FORCE
 bool 'Build libusb'		CONFIG_LIB_LIBUSB_FORCE
