@@ -233,7 +233,7 @@ LIBS=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone
 LIBS+=-lpthread -lgsm -lspeex -lm 
 
 #uClinux libtool
-LIBTOOL=$(PWD)/libtool/libtool
+LIBTOOL=$(ROOTDIR)/lib/libtool/libtool
 CFLAGS+=-I$(ROOTDIR)/lib/libtool/libltdl
 CFLAGS+=-I$(ROOTDIR)/lib/libssl/include
 CFLAGS+=-I$(ROOTDIR)/lib/ncurses/include
