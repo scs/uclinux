@@ -110,6 +110,8 @@ dir_$(CONFIG_LIB_BFIN_GSM)       += blackfin-gsm
 dir_$(CONFIG_LIB_SPEEX)          += speex
 dir_$(CONFIG_LIB_LIBUSB)         += libusb
 dir_$(CONFIG_LIB_LIBUSB_FORCE)   += libusb
+dir_$(CONFIG_LIB_ALSA_LIB)       += alsa-lib
+dir_$(CONFIG_LIB_ALSA_LIB_FORCE) += alsa-lib
 
 # And build libraries in the prop directory last
 dir_y += $(ROOTDIR)/prop
