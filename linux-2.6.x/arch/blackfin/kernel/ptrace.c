@@ -37,7 +37,6 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/config.h>
 #include <linux/signal.h>
 
 /*#define DEBUG*/
