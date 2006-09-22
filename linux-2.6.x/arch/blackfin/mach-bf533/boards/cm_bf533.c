@@ -39,6 +39,10 @@
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
 
+/*
+ * Name the Board for the /proc/cpuinfo
+ */
+char *bfin_board_name = "Bluetechnix CM BF533";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI perpherals info goes here */

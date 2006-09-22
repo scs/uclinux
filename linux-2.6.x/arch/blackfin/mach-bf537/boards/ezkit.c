@@ -40,6 +40,10 @@
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
 
+/*
+ * Name the Board for the /proc/cpuinfo
+ */
+char *bfin_board_name = "ADDS-BF537-EZKIT";
 
 /*
  *  USB-LAN EzExtender board

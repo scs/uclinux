@@ -42,6 +42,11 @@
 #include <linux/usb_sl811.h>
 
 /*
+ * Name the Board for the /proc/cpuinfo
+ */
+char *bfin_board_name = "ADDS-BF537-STAMP";
+
+/*
  *  Driver needs to know address, irq and flag pin.
  */
 
