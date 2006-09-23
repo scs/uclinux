@@ -41,7 +41,7 @@
 #define	LED_ON	0
 #define	LED_OFF	1
 
-inline void static leds_switch(int flag);
+static inline void leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
 
 /* Points to the SDRAM backup memory for the stack that is currently in
@@ -69,7 +69,7 @@ EXPORT_SYMBOL(pm_power_off);
 /*
  * The idle loop on BFIN
  */
-inline static void default_idle(void)
+static inline void default_idle(void)
 {
 	while (!need_resched()) {
 		leds_switch(LED_OFF);
@@ -316,7 +316,7 @@ unsigned long get_wchan(struct task_struct *p)
  * We are using a different LED from the one used to indicate timer interrupt.
  */
 #if defined(CONFIG_BFIN_IDLE_LED)
-inline void static leds_switch(int flag)
+static inline void leds_switch(int flag)
 {
 	unsigned short tmp = 0;
 
@@ -333,7 +333,7 @@ inline void static leds_switch(int flag)
 
 }
 #else
-inline void static leds_switch(int flag)
+static inline void leds_switch(int flag)
 {
 }
 #endif

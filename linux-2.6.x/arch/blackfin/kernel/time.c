@@ -46,7 +46,7 @@ static void time_sched_init(irqreturn_t (*timer_routine)
 		      (int, void *, struct pt_regs *));
 static unsigned long gettimeoffset(void);
 extern int setup_irq(unsigned int, struct irqaction *);
-inline static void do_leds(void);
+static inline void do_leds(void);
 
 #if (defined(CONFIG_BFIN_ALIVE_LED) || defined(CONFIG_BFIN_IDLE_LED))
 void __init init_leds(void)
@@ -89,7 +89,7 @@ inline void __init init_leds(void)
 #endif
 
 #if defined(CONFIG_BFIN_ALIVE_LED)
-inline static void do_leds(void)
+static inline void do_leds(void)
 {
 	static unsigned int count = 50;
 	static int flag = 0;
@@ -112,7 +112,7 @@ inline static void do_leds(void)
 
 }
 #else
-inline static void do_leds(void)
+static inline void do_leds(void)
 {
 }
 #endif
