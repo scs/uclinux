@@ -45,15 +45,7 @@
 
 #define MAX_DMA_ADDRESS PAGE_OFFSET
 
-#undef BFIN_DMA_DEBUG
 #undef BFIN_DMA_NDEBUG
-
-#ifdef BFIN_DMA_DEBUG
-#define DMA_DBG(fmt, args...) 					\
-do { printk("Blackfin DMA driver: "fmt, ##args);} while (0)
-#else
-#define DMA_DBG(fmt, args...)
-#endif
 
 #ifdef BFIN_DMA_NDEBUG
 #define assert(expr) do {} while(0)

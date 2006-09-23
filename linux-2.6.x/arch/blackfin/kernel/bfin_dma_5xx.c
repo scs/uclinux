@@ -289,17 +289,17 @@ static int bf561_channel2irq(unsigned int channel)
 int request_dma(unsigned int channel, char *device_id)
 {
 
-	DMA_DBG("request_dma() : BEGIN \n");
+	pr_debug("request_dma() : BEGIN \n");
 	down(&(dma_ch[channel].dmalock));
 
 	if ((dma_ch[channel].chan_status == DMA_CHANNEL_REQUESTED)
 	    || (dma_ch[channel].chan_status == DMA_CHANNEL_ENABLED)) {
 		up(&(dma_ch[channel].dmalock));
-		DMA_DBG("DMA CHANNEL IN USE  \n");
+		pr_debug("DMA CHANNEL IN USE  \n");
 		return -EBUSY;
 	} else {
 		dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
-		DMA_DBG("DMA CHANNEL IS ALLOCATED  \n");
+		pr_debug("DMA CHANNEL IS ALLOCATED  \n");
 	}
 
 	up(&(dma_ch[channel].dmalock));
@@ -311,7 +311,7 @@ int request_dma(unsigned int channel, char *device_id)
 	   you have to request DMA , before doing any operations on
 	   descriptor/channel
 	 */
-	DMA_DBG("request_dma() : END  \n");
+	pr_debug("request_dma() : END  \n");
 	return channel;
 }
 
@@ -344,7 +344,7 @@ void free_dma(unsigned int channel)
 {
 	int ret_irq;
 
-	DMA_DBG("freedma() : BEGIN \n");
+	pr_debug("freedma() : BEGIN \n");
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
@@ -362,14 +362,14 @@ void free_dma(unsigned int channel)
 	dma_ch[channel].chan_status = DMA_CHANNEL_FREE;
 	up(&(dma_ch[channel].dmalock));
 
-	DMA_DBG("freedma() : END \n");
+	pr_debug("freedma() : END \n");
 }
 
 void dma_enable_irq(unsigned int channel)
 {
 	int ret_irq;
 
-	DMA_DBG("dma_enable_irq() : BEGIN \n");
+	pr_debug("dma_enable_irq() : BEGIN \n");
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
@@ -381,7 +381,7 @@ void dma_disable_irq(unsigned int channel)
 {
 	int ret_irq;
 
-	DMA_DBG("dma_disable_irq() : BEGIN \n");
+	pr_debug("dma_disable_irq() : BEGIN \n");
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
@@ -404,7 +404,7 @@ int dma_channel_active(unsigned int channel)
 *-----------------------------------------------------------------------------*/
 void disable_dma(unsigned int channel)
 {
-	DMA_DBG("stop_dma() : BEGIN \n");
+	pr_debug("stop_dma() : BEGIN \n");
 
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
@@ -413,13 +413,13 @@ void disable_dma(unsigned int channel)
 	SSYNC;
 	dma_ch[channel].chan_status = DMA_CHANNEL_REQUESTED;
 	/* Needs to be enabled Later */
-	DMA_DBG("stop_dma() : END \n");
+	pr_debug("stop_dma() : END \n");
 	return;
 }
 
 void enable_dma(unsigned int channel)
 {
-	DMA_DBG("enable_dma() : BEGIN \n");
+	pr_debug("enable_dma() : BEGIN \n");
 
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
@@ -430,7 +430,7 @@ void enable_dma(unsigned int channel)
 
 	dma_ch[channel].regs->cfg |= DMAEN;	/* Set the enable bit */
 	SSYNC;
-	DMA_DBG("enable_dma() : END \n");
+	pr_debug("enable_dma() : END \n");
 	return;
 }
 
@@ -442,26 +442,26 @@ void enable_dma(unsigned int channel)
 *-----------------------------------------------------------------------------*/
 void set_dma_start_addr(unsigned int channel, unsigned long addr)
 {
-	DMA_DBG("set_dma_start_addr() : BEGIN \n");
+	pr_debug("set_dma_start_addr() : BEGIN \n");
 
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->start_addr = addr;
 	SSYNC;
-	DMA_DBG("set_dma_start_addr() : END\n");
+	pr_debug("set_dma_start_addr() : END\n");
 }
 
 void set_dma_next_desc_addr(unsigned int channel, unsigned long addr)
 {
-	DMA_DBG("set_dma_next_desc_addr() : BEGIN \n");
+	pr_debug("set_dma_next_desc_addr() : BEGIN \n");
 
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
 
 	dma_ch[channel].regs->next_desc_ptr = addr;
 	SSYNC;
-	DMA_DBG("set_dma_start_addr() : END\n");
+	pr_debug("set_dma_start_addr() : END\n");
 }
 
 void set_dma_x_count(unsigned int channel, unsigned short x_count)
