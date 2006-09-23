@@ -51,14 +51,14 @@
 
 ENTRY(__start)
 ENTRY(__stext)
-/*  R0: argument of command line string, passed from uboot, save it */
+/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
 	/* Set the SYSCFG register */
 	R0 = 0x36;
-	SYSCFG = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0; 		/* Enable Cycle Counter and Nesting Of Interrupts(3rd Bit) */
 	R0 = 0;
 
-/*Clear Out All the data and pointer  Registers*/
+/* Clear Out All the data and pointer Registers */
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -80,7 +80,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-/*Clear Out All the DAG Registers*/
+/* Clear Out All the DAG Registers */
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -152,21 +152,21 @@ ENTRY(__stext)
 	SSYNC;
 	STI R2;
 
-    /* Turn off the dcache */
-    p0.l = (DMEM_CONTROL & 0xFFFF);
-    p0.h = (DMEM_CONTROL >> 16);
-    R1 = [p0];
-    R0 = ~ENDCPLB;
-    R0 = R0 & R1;
+/* Turn off the dcache */
+	p0.l = (DMEM_CONTROL & 0xFFFF);
+	p0.h = (DMEM_CONTROL >> 16);
+	R1 = [p0];
+	R0 = ~ENDCPLB;
+	R0 = R0 & R1;
 
-    /* Anamoly 05000125 */
-    CLI R2;
-    SSYNC;
-    [p0] = R0;
-    SSYNC;
-    STI R2;
+/* Anamoly 05000125 */
+	CLI R2;
+	SSYNC;
+	[p0] = R0;
+	SSYNC;
+	STI R2;
 
-/*Initialise UART*/
+/* Initialise UART */
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
@@ -193,11 +193,11 @@ ENTRY(__stext)
 
 	/* Initialize stack pointer */
 	sp.l = lo(INITIAL_STACK);
-        sp.h = hi(INITIAL_STACK);
-        fp = sp;
-        usp = sp;
+	sp.h = hi(INITIAL_STACK);
+	fp = sp;
+	usp = sp;
 
-	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
+	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
 #if CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
@@ -205,28 +205,28 @@ ENTRY(__stext)
 
 	/* Code for initializing Async memory banks */
 
-        p2.h = hi(EBIU_AMBCTL1);
-        p2.l = lo(EBIU_AMBCTL1);
-        r0.h = hi(AMBCTL1VAL);
-        r0.l = lo(AMBCTL1VAL);
-        [p2] = r0;
-        ssync;
+	p2.h = hi(EBIU_AMBCTL1);
+	p2.l = lo(EBIU_AMBCTL1);
+	r0.h = hi(AMBCTL1VAL);
+	r0.l = lo(AMBCTL1VAL);
+	[p2] = r0;
+	ssync;
 
-        p2.h = hi(EBIU_AMBCTL0);
-        p2.l = lo(EBIU_AMBCTL0);
-        r0.h = hi(AMBCTL0VAL);
-        r0.l = lo(AMBCTL0VAL);
-        [p2] = r0;
-        ssync;
+	p2.h = hi(EBIU_AMBCTL0);
+	p2.l = lo(EBIU_AMBCTL0);
+	r0.h = hi(AMBCTL0VAL);
+	r0.l = lo(AMBCTL0VAL);
+	[p2] = r0;
+	ssync;
 
-        p2.h = hi(EBIU_AMGCTL);
-        p2.l = lo(EBIU_AMGCTL);
-        r0 = AMGCTLVAL;
-        w[p2] = r0;
-        ssync;
+	p2.h = hi(EBIU_AMGCTL);
+	p2.l = lo(EBIU_AMGCTL);
+	r0 = AMGCTLVAL;
+	w[p2] = r0;
+	ssync;
 
 	/* This section keeps the processor in supervisor mode
-         * during kernel boot.  Switches to user mode at end of boot.
+	 * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.
 	 */
 
@@ -340,17 +340,17 @@ ENTRY(_start_dma_code)
 	SSYNC;
 
 	/*
-         *  Set PLL_CTL
-         *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
-         *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
-         *   - [7]     = output delay (add 200ps of delay to mem signals)
-         *   - [6]     = input delay (add 200ps of input delay to mem signals)
-         *   - [5]     = PDWN      : 1=All Clocks off
-         *   - [3]     = STOPCK    : 1=Core Clock off
-         *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
-         *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
-         *   all other bits set to zero
-         */
+	 *  Set PLL_CTL
+	 *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
+	 *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
+	 *   - [7]     = output delay (add 200ps of delay to mem signals)
+	 *   - [6]     = input delay (add 200ps of input delay to mem signals)
+	 *   - [5]     = PDWN      : 1=All Clocks off
+	 *   - [3]     = STOPCK    : 1=Core Clock off
+	 *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
+	 *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
+	 *   all other bits set to zero
+	 */
 
 	p0.h = hi(PLL_LOCKCNT);
 	p0.l = lo(PLL_LOCKCNT);
@@ -358,28 +358,28 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-        P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITSET (R0, 24);
-        [P2] = R0;
-        SSYNC;
+	P2.H = hi(EBIU_SDGCTL);
+	P2.L = lo(EBIU_SDGCTL);
+	R0 = [P2];
+	BITSET (R0, 24);
+	[P2] = R0;
+	SSYNC;
 
-        r0 = CONFIG_VCO_MULT & 63; /* Load the VCO multiplier         */
-        r0 = r0 << 9;                   /* Shift it over,                  */
-        r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
-        r0 = r1 | r0;
-        r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
-        r1 = r1 << 8;                   /* Shift it over                   */
-        r0 = r1 | r0;                   /* add them all together           */
+	r0 = CONFIG_VCO_MULT & 63;       /* Load the VCO multiplier         */
+	r0 = r0 << 9;                    /* Shift it over,                  */
+	r1 = CLKIN_HALF;                 /* Do we need to divide CLKIN by 2?*/
+	r0 = r1 | r0;
+	r1 = PLL_BYPASS;                 /* Bypass the PLL?                 */
+	r1 = r1 << 8;                    /* Shift it over                   */
+	r0 = r1 | r0;                    /* add them all together           */
 
-        p0.h = hi(PLL_CTL);
-        p0.l = lo(PLL_CTL);      /* Load the address                */
-        cli r2;                         /* Disable interrupts              */
+	p0.h = hi(PLL_CTL);
+	p0.l = lo(PLL_CTL);              /* Load the address                */
+	cli r2;                          /* Disable interrupts              */
 	ssync;
-        w[p0] = r0.l;                     /* Set the value                   */
-        idle;                           /* Wait for the PLL to stablize    */
-        sti r2;                         /* Enable interrupts               */
+	w[p0] = r0.l;                    /* Set the value                   */
+	idle;                            /* Wait for the PLL to stablize    */
+	sti r2;                          /* Enable interrupts               */
 
 .Lcheck_again:
 	p0.h = hi(PLL_STAT);
@@ -389,45 +389,45 @@ ENTRY(_start_dma_code)
 	if ! CC jump .Lcheck_again;
 
 	/* Configure SCLK & CCLK Dividers */
-       	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
-        p0.h = hi(PLL_DIV);
-        p0.l = lo(PLL_DIV);
-        w[p0] = r0.l;
-        ssync;
+	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
+	p0.h = hi(PLL_DIV);
+	p0.l = lo(PLL_DIV);
+	w[p0] = r0.l;
+	ssync;
 
 	p0.l = lo(EBIU_SDRRC);
-        p0.h = hi(EBIU_SDRRC);
-        r0 = mem_SDRRC;
-        w[p0] = r0.l;
-        ssync;
+	p0.h = hi(EBIU_SDRRC);
+	r0 = mem_SDRRC;
+	w[p0] = r0.l;
+	ssync;
 
-        p0.l = (EBIU_SDBCTL & 0xFFFF);
-        p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
-        r0 = mem_SDBCTL;
-        w[p0] = r0.l;
-        ssync;
+	p0.l = (EBIU_SDBCTL & 0xFFFF);
+	p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+	r0 = mem_SDBCTL;
+	w[p0] = r0.l;
+	ssync;
 
 	P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITCLR (R0, 24);
+	P2.L = lo(EBIU_SDGCTL);
+	R0 = [P2];
+	BITCLR (R0, 24);
 	p0.h = hi(EBIU_SDSTAT);
 	p0.l = lo(EBIU_SDSTAT);
 	r2.l = w[p0];
 	cc = bittst(r2,3);
 	if !cc jump .Lskip;
-    NOP;
+	NOP;
 	BITSET (R0, 23);
 .Lskip:
 	[P2] = R0;
-        SSYNC;
+	SSYNC;
 
-        R0.L = lo(mem_SDGCTL);
-        R0.H = hi(mem_SDGCTL);
+	R0.L = lo(mem_SDGCTL);
+	R0.H = hi(mem_SDGCTL);
 	R1 = [p2];
 	R1 = R1 | R0;
 	[P2] = R1;
-        SSYNC;
+	SSYNC;
 
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
@@ -523,19 +523,19 @@ ENTRY(_bfin_reset)
 .LSKIP_WRITE:
 	/* Enable the reset event */
 	P0.h = hi(WDOG_CTL);
-        P0.l = lo(WDOG_CTL);
-        R0 = W[P0](Z);
-        BITCLR(R0,1);
-        BITCLR(R0,2);
-        W[P0] = R0.L;
-        SSYNC;
-        NOP;
+	P0.l = lo(WDOG_CTL);
+	R0 = W[P0](Z);
+	BITCLR(R0,1);
+	BITCLR(R0,2);
+	W[P0] = R0.L;
+	SSYNC;
+	NOP;
 
 	/* Enable the wdog counter */
-        R0 = W[P0](Z);
-        BITCLR(R0,4);
-        W[P0] = R0.L;
-        SSYNC;
+	R0 = W[P0](Z);
+	BITCLR(R0,4);
+	W[P0] = R0.L;
+	SSYNC;
 
 	IDLE;
 
@@ -549,40 +549,40 @@ debug_kernel_start_trap:
 	SP = P0;
 
 	/* Make sure the Clocks are the way I think they should be */
-        r0 = CONFIG_VCO_MULT & 63;      /* Load the VCO multiplier         */
-        r0 = r0 << 9;                   /* Shift it over,                  */
-        r1 = CLKIN_HALF;                /* Do we need to divide CLKIN by 2?*/
-        r0 = r1 | r0;
-        r1 = PLL_BYPASS;                /* Bypass the PLL?                 */
-        r1 = r1 << 8;                   /* Shift it over                   */
-        r0 = r1 | r0;                   /* add them all together           */
+	r0 = CONFIG_VCO_MULT & 63;       /* Load the VCO multiplier         */
+	r0 = r0 << 9;                    /* Shift it over,                  */
+	r1 = CLKIN_HALF;                 /* Do we need to divide CLKIN by 2?*/
+	r0 = r1 | r0;
+	r1 = PLL_BYPASS;                 /* Bypass the PLL?                 */
+	r1 = r1 << 8;                    /* Shift it over                   */
+	r0 = r1 | r0;                    /* add them all together           */
 
-        p0.h = hi(PLL_CTL);
-        p0.l = lo(PLL_CTL);      /* Load the address                */
-        cli r2;                         /* Disable interrupts              */
-        ssync;
-        w[p0] = r0.l;                     /* Set the value                   */
-        idle;                           /* Wait for the PLL to stablize    */
-        sti r2;                         /* Enable interrupts               */
+	p0.h = hi(PLL_CTL);
+	p0.l = lo(PLL_CTL);              /* Load the address                */
+	cli r2;                          /* Disable interrupts              */
+	ssync;
+	w[p0] = r0.l;                    /* Set the value                   */
+	idle;                            /* Wait for the PLL to stablize    */
+	sti r2;                          /* Enable interrupts               */
 
 .Lcheck_again1:
-        p0.h = hi(PLL_STAT);
-        p0.l = lo(PLL_STAT);
-        R0 = W[P0](Z);
-        CC = BITTST(R0,5);
-        if ! CC jump .Lcheck_again1;
+	p0.h = hi(PLL_STAT);
+	p0.l = lo(PLL_STAT);
+	R0 = W[P0](Z);
+	CC = BITTST(R0,5);
+	if ! CC jump .Lcheck_again1;
 
-        /* Configure SCLK & CCLK Dividers */
-        r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
-        p0.h = hi(PLL_DIV);
-        p0.l = lo(PLL_DIV);
-        w[p0] = r0.l;
-        ssync;
+	/* Configure SCLK & CCLK Dividers */
+	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
+	p0.h = hi(PLL_DIV);
+	p0.l = lo(PLL_DIV);
+	w[p0] = r0.l;
+	ssync;
 
-        /* Make sure UART is enabled - you can never be sure */
+	/* Make sure UART is enabled - you can never be sure */
 
 /*
- *      Setup for console. Argument comes from the menuconfig
+ * Setup for console. Argument comes from the menuconfig
  */
 
 #ifdef CONFIG_BAUD_9600
@@ -597,156 +597,156 @@ debug_kernel_start_trap:
 #define CONSOLE_BAUD_RATE       115200
 #endif
 
-        p0.h = hi(UART_GCTL);
-        p0.l = lo(UART_GCTL);
-        r0 = 0x00(Z);
-        w[p0] = r0.L;   /* To Turn off UART clocks */
-        ssync;
+	p0.h = hi(UART_GCTL);
+	p0.l = lo(UART_GCTL);
+	r0 = 0x00(Z);
+	w[p0] = r0.L;   /* To Turn off UART clocks */
+	ssync;
 
-        p0.h = hi(UART_LCR);
-        p0.l = lo(UART_LCR);
-        r0 = 0x83(Z);
-        w[p0] = r0.L;   /* To enable DLL writes */
-        ssync;
+	p0.h = hi(UART_LCR);
+	p0.l = lo(UART_LCR);
+	r0 = 0x83(Z);
+	w[p0] = r0.L;   /* To enable DLL writes */
+	ssync;
 
 	R1 = (((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT) / CONFIG_SCLK_DIV) / ( CONSOLE_BAUD_RATE * 16 ) );
 
-        p0.h = hi(UART_DLL);
-        p0.l = lo(UART_DLL);
+	p0.h = hi(UART_DLL);
+	p0.l = lo(UART_DLL);
 	r0 = 0xFF(Z);
-        r0 = R1 & R0;
-        w[p0] = r0.L;
-        ssync;
+	r0 = R1 & R0;
+	w[p0] = r0.L;
+	ssync;
 
-        p0.h = hi(UART_DLH);
-        p0.l = lo(UART_DLH);
-        r1 >>= 8 ;
-        w[p0] = r1.L;
-        ssync;
+	p0.h = hi(UART_DLH);
+	p0.l = lo(UART_DLH);
+	r1 >>= 8 ;
+	w[p0] = r1.L;
+	ssync;
 
-        p0.h = hi(UART_GCTL);
-        p0.l = lo(UART_GCTL);
-        r0 = 0x0(Z);
-        w[p0] = r0.L;   /* To enable UART clock */
-        ssync;
+	p0.h = hi(UART_GCTL);
+	p0.l = lo(UART_GCTL);
+	r0 = 0x0(Z);
+	w[p0] = r0.L;   /* To enable UART clock */
+	ssync;
 
-        p0.h = hi(UART_LCR);
-        p0.l = lo(UART_LCR);
-        r0 = 0x03(Z);
-        w[p0] = r0.L;   /* To Turn on UART */
-        ssync;
+	p0.h = hi(UART_LCR);
+	p0.l = lo(UART_LCR);
+	r0 = 0x03(Z);
+	w[p0] = r0.L;   /* To Turn on UART */
+	ssync;
 
-        p0.h = hi(UART_GCTL);
-        p0.l = lo(UART_GCTL);
-        r0 = 0x01(Z);
-        w[p0] = r0.L;   /* To Turn on UART Clocks */
-        ssync;
+	p0.h = hi(UART_GCTL);
+	p0.l = lo(UART_GCTL);
+	r0 = 0x01(Z);
+	w[p0] = r0.L;   /* To Turn on UART Clocks */
+	ssync;
 
-        P0.h = hi(UART_THR);
-        P0.l = lo(UART_THR);
-        P1.h = hi(UART_LSR);
-        P1.l = lo(UART_LSR);
+	P0.h = hi(UART_THR);
+	P0.l = lo(UART_THR);
+	P1.h = hi(UART_LSR);
+	P1.l = lo(UART_LSR);
 
 	R0.L = 'K';
 	call .Lwait_char;
-        R0.L='e';
-        call .Lwait_char;
-        R0.L='r';
-        call .Lwait_char;
-        R0.L='n'
-        call .Lwait_char;
-        R0.L='e'
-        call .Lwait_char;
-        R0.L='l';
-        call .Lwait_char;
-        R0.L=' ';
-        call .Lwait_char;
-        R0.L='c';
-        call .Lwait_char;
-        R0.L='r';
-        call .Lwait_char;
-        R0.L='a';
-        call .Lwait_char;
-        R0.L='s';
-        call .Lwait_char;
-        R0.L='h';
-        call .Lwait_char;
-        R0.L='\r';
-        call .Lwait_char;
-        R0.L='\n';
-        call .Lwait_char;
+	R0.L='e';
+	call .Lwait_char;
+	R0.L='r';
+	call .Lwait_char;
+	R0.L='n'
+	call .Lwait_char;
+	R0.L='e'
+	call .Lwait_char;
+	R0.L='l';
+	call .Lwait_char;
+	R0.L=' ';
+	call .Lwait_char;
+	R0.L='c';
+	call .Lwait_char;
+	R0.L='r';
+	call .Lwait_char;
+	R0.L='a';
+	call .Lwait_char;
+	R0.L='s';
+	call .Lwait_char;
+	R0.L='h';
+	call .Lwait_char;
+	R0.L='\r';
+	call .Lwait_char;
+	R0.L='\n';
+	call .Lwait_char;
 
-        R0.L='S';
-        call .Lwait_char;
-        R0.L='E';
-        call .Lwait_char;
-        R0.L='Q'
-        call .Lwait_char;
-        R0.L='S'
-        call .Lwait_char;
-        R0.L='T';
-        call .Lwait_char;
-        R0.L='A';
-        call .Lwait_char;
-        R0.L='T';
-        call .Lwait_char;
-        R0.L='=';
-        call .Lwait_char;
+	R0.L='S';
+	call .Lwait_char;
+	R0.L='E';
+	call .Lwait_char;
+	R0.L='Q'
+	call .Lwait_char;
+	R0.L='S'
+	call .Lwait_char;
+	R0.L='T';
+	call .Lwait_char;
+	R0.L='A';
+	call .Lwait_char;
+	R0.L='T';
+	call .Lwait_char;
+	R0.L='=';
+	call .Lwait_char;
 	R2 = SEQSTAT;
 	call .Ldump_reg;
 
-        R0.L=' ';
-        call .Lwait_char;
-        R0.L='R';
-        call .Lwait_char;
-        R0.L='E'
-        call .Lwait_char;
-        R0.L='T'
-        call .Lwait_char;
-        R0.L='X';
-        call .Lwait_char;
-        R0.L='=';
-        call .Lwait_char;
-        R2 = RETX;
-        call .Ldump_reg;
+	R0.L=' ';
+	call .Lwait_char;
+	R0.L='R';
+	call .Lwait_char;
+	R0.L='E'
+	call .Lwait_char;
+	R0.L='T'
+	call .Lwait_char;
+	R0.L='X';
+	call .Lwait_char;
+	R0.L='=';
+	call .Lwait_char;
+	R2 = RETX;
+	call .Ldump_reg;
 
-        R0.L='\r';
-        call .Lwait_char;
-        R0.L='\n';
-        call .Lwait_char;
+	R0.L='\r';
+	call .Lwait_char;
+	R0.L='\n';
+	call .Lwait_char;
 
 .Ldebug_kernel_start_trap_done:
-        JUMP    .Ldebug_kernel_start_trap_done;
+	JUMP    .Ldebug_kernel_start_trap_done;
 .Ldump_reg:
-        R3 = 32;
-        R4 = 0x0F;
+	R3 = 32;
+	R4 = 0x0F;
 	R5 = ':';  /* one past 9 */
 
 .Ldump_reg2:
-        R0 = R2;
-        R3 += -4;
-        R0 >>>= R3;
-        R0 = R0 & R4;
-        R0 += 0x30;
+	R0 = R2;
+	R3 += -4;
+	R0 >>>= R3;
+	R0 = R0 & R4;
+	R0 += 0x30;
 	CC = R0 <= R5;
 	if CC JUMP .Ldump_reg1;
 	R0 += 7;
 
 .Ldump_reg1:
-        R1.l = W[P1];
-        CC = BITTST(R1, 5);
-        if !CC JUMP .Ldump_reg1;
-        W[P0] = r0;
+	R1.l = W[P1];
+	CC = BITTST(R1, 5);
+	if !CC JUMP .Ldump_reg1;
+	W[P0] = r0;
 
-        CC = R3 == 0;
-        if !CC JUMP .Ldump_reg2
+	CC = R3 == 0;
+	if !CC JUMP .Ldump_reg2
 	RTS;
 
 .Lwait_char:
-        R1.l = W[P1];
-        CC = BITTST(R1, 5);
-        if !CC JUMP .Lwait_char;
-        W[P0] = r0;
+	R1.l = W[P1];
+	CC = BITTST(R1, 5);
+	if !CC JUMP .Lwait_char;
+	W[P0] = r0;
 	RTS;
 
 #endif  /* CONFIG_DEBUG_KERNEL_START  */
@@ -754,8 +754,8 @@ debug_kernel_start_trap:
 .data
 
 /*
- *      Set up the usable of RAM stuff. Size of RAM is determined then
- *      an initial stack set up at the end.
+ * Set up the usable of RAM stuff. Size of RAM is determined then
+ * an initial stack set up at the end.
  */
 
 .align 4

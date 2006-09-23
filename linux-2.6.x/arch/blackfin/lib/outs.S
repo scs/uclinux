@@ -30,7 +30,8 @@
  */
 
 #include <linux/linkage.h>
-	.align 2;
+
+.align 2
 
 ENTRY(_outsl)
 	P0 = R0;	/* P0 = port */

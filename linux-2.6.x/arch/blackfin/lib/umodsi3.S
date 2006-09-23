@@ -29,9 +29,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-	.text
-	.extern ___udivsi3;
-	.globl	___umodsi3
+.text
+.extern ___udivsi3;
+.globl	___umodsi3
 ___umodsi3:
 
 	CC=R0==0;

@@ -88,7 +88,7 @@ ENTRY(_ex_dcplb)
 	 * Work around an anomaly: if we see a new DCPLB fault, return
 	 * without doing anything.  Then, if we get the same fault again,
 	 * handle it.
- 	 */
+	 */
 	p5.l = _last_cplb_fault_retx;
 	p5.h = _last_cplb_fault_retx;
 	r7 = [p5];
@@ -189,10 +189,10 @@ ENTRY(_handle_bad_cplb)
 	 * need to make a CPLB exception look like a normal exception
 	 */
 
-        DEBUG_START_HWTRACE
-        RESTORE_ALL_SYS
-        [--sp] = ASTAT;
-        [--sp] = (R7:6, P5:4);
+	DEBUG_START_HWTRACE
+	RESTORE_ALL_SYS
+	[--sp] = ASTAT;
+	[--sp] = (R7:6, P5:4);
 
 ENTRY(_ex_trap_c)
 	/* Call C code (trap_c) to handle the exception, which most
@@ -207,7 +207,7 @@ ENTRY(_ex_trap_c)
 	csync;
 
 	/* Disable all interrupts, but make sure level 5 is enabled so
-	   we can switch to that level.  Save the old mask.  */
+	 * we can switch to that level.  Save the old mask.  */
 	cli r6;
 	p4.l = _excpt_saved_imask;
 	p4.h = _excpt_saved_imask;
@@ -243,7 +243,7 @@ ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS
 
 	/* Restore interrupt mask.  We haven't pushed RETI, so this
-	   doesn't enable interrupts until we return from this handler.  */
+	 * doesn't enable interrupts until we return from this handler.  */
 	p4.l = _excpt_saved_imask;
 	p4.h = _excpt_saved_imask;
 	r6 = [p4];
@@ -257,11 +257,11 @@ ENTRY(_exception_to_level5)
 	[p4] = p5;
 	csync;
 
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
 	csync;
-        r0 = [p2];              /* Read current IPEND */
-        [sp + PT_IPEND] = r0;   /* Store IPEND */
+	r0 = [p2];              /* Read current IPEND */
+	[sp + PT_IPEND] = r0;   /* Store IPEND */
 
 	/* Pop the excause from the circular buffer and push it on the stack
 	 * (in the right place - if you change the location of SEQSTAT, you
@@ -290,7 +290,7 @@ ENTRY(_exception_to_level5)
 	/* See if anything else is in the exception buffer 
 	 * if there is, process it
 	 */
-        P5.l = _out_ptr_excause;
+	P5.l = _out_ptr_excause;
 	P5.h = _out_ptr_excause;
 	P4.l = _in_ptr_excause;
 	P4.h = _in_ptr_excause;
@@ -387,8 +387,8 @@ ENTRY(_execve)
 
 ENTRY(_system_call)
 	/* Store IPEND */
-        p2.l = lo(IPEND);
-        p2.h = hi(IPEND);
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
 	csync;
 	r0 = [p2];
 	[sp + PT_IPEND] = r0;
@@ -413,16 +413,15 @@ ENTRY(_system_call)
 	cc = r6 < r7;
 	if ! cc jump .Lbadsys;
 
-
-   /* are we tracing syscalls?*/
-        r7 = sp;
-        r6.l = lo(ALIGN_PAGE_MASK);
-        r6.h = hi(ALIGN_PAGE_MASK);
-        r7 = r7 & r6;
-        p2 = r7;
-        r7 = [p2+TI_FLAGS];
-        CC = BITTST(r7,TIF_SYSCALL_TRACE);
-        if CC JUMP _sys_trace;
+	/* are we tracing syscalls?*/
+	r7 = sp;
+	r6.l = lo(ALIGN_PAGE_MASK);
+	r6.h = hi(ALIGN_PAGE_MASK);
+	r7 = r7 & r6;
+	p2 = r7;
+	r7 = [p2+TI_FLAGS];
+	CC = BITTST(r7,TIF_SYSCALL_TRACE);
+	if CC JUMP _sys_trace;
 
 	/* Execute the appropriate system call */
 
@@ -734,13 +733,13 @@ _schedule_and_signal:
  * R0 and P0 are call clobbered, so we can use them here.
  */
 ENTRY(_init_exception_buff)
-        r0 = 0;
-        p0.h = _in_ptr_excause;
-        p0.l = _in_ptr_excause;
-        [p0] = r0;
-        p0.h = _out_ptr_excause;
-        p0.l = _out_ptr_excause;
-        [p0] = r0;
+	r0 = 0;
+	p0.h = _in_ptr_excause;
+	p0.l = _in_ptr_excause;
+	[p0] = r0;
+	p0.h = _out_ptr_excause;
+	p0.l = _out_ptr_excause;
+	[p0] = r0;
 
 /*
  * Put these in the kernel data section - that should always be covered by
@@ -1166,4 +1165,3 @@ ENTRY(_excause_circ_buf)
 	.rept 4
 	.long 0
 	.endr
-

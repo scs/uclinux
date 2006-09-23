@@ -385,7 +385,7 @@ ENTRY(_dcplb_flush)
 	CC = BITTST(R1, 16);	/* Whether 1K or 4K*/
 	IF CC P1 = P2;
 	P1 += -1;		/* Unroll one iteration*/
-    SSYNC;
+	SSYNC;
 	FLUSHINV [P0++];	/* because CSYNC can't end loops.*/
 	LSETUP (.Leall, .Leall) LC0 = P1;
 .Leall:	FLUSHINV [P0++];

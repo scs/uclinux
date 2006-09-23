@@ -38,7 +38,7 @@
 .type _cplb_mgr, STT_FUNC;
 .type _panic_cplb_error, STT_FUNC;
 
-.align 2;
+.align 2
 
 .global __cplb_hdr;
 .type __cplb_hdr, STT_FUNC;
@@ -69,16 +69,16 @@ ENTRY(__cplb_hdr)
 
 .Lis_icplb_miss:
 
-#if ( defined (CONFIG_BLKFIN_CACHE) || defined (CONFIG_BLKFIN_DCACHE))
-#if ( defined (CONFIG_BLKFIN_CACHE) && !defined (CONFIG_BLKFIN_DCACHE))
+#if defined (CONFIG_BLKFIN_CACHE) || defined (CONFIG_BLKFIN_DCACHE)
+# if defined (CONFIG_BLKFIN_CACHE) && !defined (CONFIG_BLKFIN_DCACHE)
 	R1 = CPLB_ENABLE_ICACHE;
-#endif
-#if ( !defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
+# endif
+# if !defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE)
 	R1 = CPLB_ENABLE_DCACHE;
-#endif
-#if ( defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE))
+# endif
+# if defined (CONFIG_BLKFIN_CACHE) && defined (CONFIG_BLKFIN_DCACHE)
 	R1 = CPLB_ENABLE_DCACHE | CPLB_ENABLE_ICACHE;
-#endif
+# endif
 #else
 	R1 = 0;
 #endif
@@ -106,8 +106,8 @@ ENTRY(__cplb_hdr)
 .Lnext_check:
 	CC = R0 == CPLB_NO_ADDR_MATCH;
 	IF !CC JUMP .Lnext_check2;
-        R0 = CPLB_NO_ADDR_MATCH;
-        JUMP .Lcplb_error;
+	R0 = CPLB_NO_ADDR_MATCH;
+	JUMP .Lcplb_error;
 
 .Lnext_check2:
 	CC = R0 == CPLB_PROT_VIOL;

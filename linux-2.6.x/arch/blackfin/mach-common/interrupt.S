@@ -30,8 +30,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#define ASSEMBLY
-
 #include <asm/blackfin.h>
 #include <asm/mach/irq.h>
 #include <linux/autoconf.h>
@@ -71,10 +69,10 @@ ENTRY(_evt_emulation)
 #endif
 
 /* Common interrupt entry code.	 First we do CLI, then push
-   RETI, to keep interrupts disabled, but to allow this state to be changed
-   by local_bh_enable.
-   R0 contains the interrupt number, while R1 may contain the value of IPEND,
-   or garbage if IPEND won't be needed by the ISR.  */
+ * RETI, to keep interrupts disabled, but to allow this state to be changed
+ * by local_bh_enable.
+ * R0 contains the interrupt number, while R1 may contain the value of IPEND,
+ * or garbage if IPEND won't be needed by the ISR.  */
 __common_int_entry:
 	[--sp] = fp;
 	[--sp] = usp;

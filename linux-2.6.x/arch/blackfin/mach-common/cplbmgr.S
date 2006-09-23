@@ -269,17 +269,17 @@ ENTRY(_cplb_mgr)
 
 /* FAILED CASES*/
 .Lno_page_in_table:
-        ( R7:4,P5:3 ) = [SP++];
-        R0 = CPLB_NO_ADDR_MATCH;
-        RTS;
+	( R7:4,P5:3 ) = [SP++];
+	R0 = CPLB_NO_ADDR_MATCH;
+	RTS;
 .Lall_locked:
-        ( R7:4,P5:3 ) = [SP++];
-        R0 = CPLB_NO_UNLOCKED;
-        RTS;
+	( R7:4,P5:3 ) = [SP++];
+	R0 = CPLB_NO_UNLOCKED;
+	RTS;
 .Lprot_violation:
-        ( R7:4,P5:3 ) = [SP++];
-        R0 = CPLB_PROT_VIOL;
-        RTS;
+	( R7:4,P5:3 ) = [SP++];
+	R0 = CPLB_PROT_VIOL;
+	RTS;
 
 .Ldcplb_write:
 
@@ -477,7 +477,7 @@ ENTRY(_cplb_mgr)
 	 */
 
 	/* Retrieve the page start address*/
-    R0 = [P0 - 0x104];
+	R0 = [P0 - 0x104];
 	[--sp] = rets;
 	[--sp] = p0;
 	CALL _dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
@@ -505,7 +505,7 @@ ENTRY(_cplb_mgr)
 	P1 = R1;
 	LSETUP(.Lds_move, .Lde_move) LC0=P1;
 .Lds_move:
-	 R0 = [P0++];	/* move data */
+	R0 = [P0++];	/* move data */
 	[P0 - 8] = R0;
 	R0 = [P0-0x104]	/* move address */
 .Lde_move: [P0-0x108] = R0;
@@ -543,7 +543,7 @@ ENTRY(_cplb_mgr)
 
 	/* See if failed address > start address */
 	CC = R4 <= R0(IU);
- 	IF !CC JUMP .Ldnext;
+	IF !CC JUMP .Ldnext;
 
 	/* extract page size (17:16)*/
 	R3 = EXTRACT(R2, R1.L) (Z);

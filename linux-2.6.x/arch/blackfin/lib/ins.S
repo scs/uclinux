@@ -31,7 +31,8 @@
  */
 
 #include <linux/linkage.h>
-	.align 2;
+
+.align 2
 
 ENTRY(_insl)
 	P0 = R0;	/* P0 = port */
@@ -45,7 +46,7 @@ ENTRY(_insl)
 .Llong_loop_s: R0 = [P0];
 .Llong_loop_e: [P1++] = R0;
 
-    sti R2;
+	sti R2;
 	RTS;
 
 ENTRY(_insw)

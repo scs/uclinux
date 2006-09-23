@@ -29,9 +29,10 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-.text
-.global _memcmp;
-	.align 2;
+#include <linux/linkage.h>
+
+.align 2
+
 /*
  * C Library function MEMCMP
  * R0 = First Address
@@ -39,7 +40,8 @@
  * R2 = count
  * Favours word aligned data.
  */
-_memcmp:
+
+ENTRY(_memcmp)
 	I1 = P3;
 	P0 = R0;			/* P0 = s1 address */
 	P3 = R1;			/* P3 = s2 Address  */

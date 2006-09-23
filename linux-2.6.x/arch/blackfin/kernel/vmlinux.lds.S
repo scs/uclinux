@@ -48,10 +48,9 @@ MEMORY
 	l1_code     : ORIGIN = L1_CODE_START,    LENGTH = L1_CODE_LENGTH
 	l1_scratch  : ORIGIN = L1_SCRATCH_START, LENGTH = L1_SCRATCH_LENGTH
 }
-
 SECTIONS
 {
-	. = CONFIG_BOOT_LOAD ;
+	. = CONFIG_BOOT_LOAD;
 
 	.text :
 	{
@@ -95,8 +94,8 @@ SECTIONS
 		/* Kernel symbol table: strings */
 		*(__ksymtab_strings)
 
-		 . = ALIGN(4) ;
-		__etext = . ;
+		 . = ALIGN(4);
+		__etext = .;
 	} > ram
 
 	.init :
@@ -141,50 +140,50 @@ SECTIONS
 
 	.text_l1 :
 	{
-		. = ALIGN(4) ;
-		 __stext_l1 = . ;
+		. = ALIGN(4);
+		 __stext_l1 = .;
 		*(.l1.text)
 
-		. = ALIGN(4) ;
-		 __etext_l1 = . ;
+		. = ALIGN(4);
+		 __etext_l1 = .;
 	} > l1_code AT > ram
 
 	.data_l1 :
 	{
-		. = ALIGN(4) ;
-		 __sdata_l1 = . ;
+		. = ALIGN(4);
+		 __sdata_l1 = .;
 		*(.l1.data)
-		 __edata_l1 = . ;
+		 __edata_l1 = .;
 
-		. = ALIGN(4) ;
-		 __sbss_l1 = . ;
+		. = ALIGN(4);
+		 __sbss_l1 = .;
 		*(.l1.bss)
 
-		. = ALIGN(4) ;
-		 __ebss_l1 = . ;
+		. = ALIGN(4);
+		 __ebss_l1 = .;
 	} > l1_data_a AT > ram
 	.data_b_l1 :
 	{
-		. = ALIGN(4) ;
-                 __sdata_b_l1 = . ;
-                *(.l1.data.B)
-                 __edata_b_l1 = . ;
+		. = ALIGN(4);
+		__sdata_b_l1 = .;
+		*(.l1.data.B)
+		__edata_b_l1 = .;
 
-                . = ALIGN(4) ;
-                 __sbss_b_l1 = . ;
-                *(.l1.bss.B)
+		. = ALIGN(4);
+		__sbss_b_l1 = .;
+		*(.l1.bss.B)
 
-                . = ALIGN(4) ;
-                 __ebss_b_l1 = . ;
+		. = ALIGN(4);
+		__ebss_b_l1 = .;
 	} > l1_data_b AT > ram
 
 	.data :
 	{
-		 __sdata = . ;
-		. = ALIGN(0x2000) ;
+		 __sdata = .;
+		. = ALIGN(0x2000);
 		*(.data.init_task)
 		*(.data)
-		__edata = . ;
+		__edata = .;
 	} > ram
 
 	/DISCARD/ : {			/* Exit code and data*/
@@ -195,12 +194,12 @@ SECTIONS
 
 	.bss :
 	{
-		. = ALIGN(4) ;
-		 ___bss_start = . ;
+		. = ALIGN(4);
+		 ___bss_start = .;
 		*(.bss)
 		*(COMMON)
-		. = ALIGN(4) ;
-		 ___bss_stop = . 	;
+		. = ALIGN(4);
+		 ___bss_stop = .;
 		 __end = .	;
 	} > ram
 }

@@ -36,7 +36,8 @@
 
 #include <linux/linkage.h>
 
-	.align 2;
+.align 2
+
 ENTRY(_memcpy)
 	CC = R2 <=  0;	/* length not positive?*/
 	IF CC JUMP  .L_P1L2147483647;	/* Nothing to do */

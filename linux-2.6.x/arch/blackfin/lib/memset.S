@@ -29,9 +29,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-	.global _memset;
-	.type _memset,STT_FUNC;
-	.align 2;
+#include <linux/linkage.h>
+
+.align 2
 
 /*
  * C Library function MEMSET
@@ -41,7 +41,7 @@
  * Favours word aligned data.
  */
 
-_memset:
+ENTRY(_memset)
 	P0 = R0 ;              /* P0 = address */
 	P2 = R2 ;              /* P2 = count   */
 	R3 = R0 + R2;          /* end          */

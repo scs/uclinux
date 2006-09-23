@@ -30,35 +30,36 @@
  */
 
 #include <linux/linkage.h>
-	.align 2;
 
-	   /*
-	   * C Library function MEMCHR
-	   * R0 = address
-	   * R1 = sought byte
-	   * R2 = count
-	   * Returns pointer to located character.
-	   */
+.align 2
+
+/*
+ * C Library function MEMCHR
+ * R0 = address
+ * R1 = sought byte
+ * R2 = count
+ * Returns pointer to located character.
+ */
 
 ENTRY(_memchr)
-	     P0 = R0 ;             /* P0 = address */
-	     P2 = R2 ;             /* P2 = count */
-	     R1 = R1.B(Z);
-	     CC = R2 == 0;
-	     IF CC JUMP .Lfailed;
+	P0 = R0 ;             /* P0 = address */
+	P2 = R2 ;             /* P2 = count */
+	R1 = R1.B(Z);
+	CC = R2 == 0;
+	IF CC JUMP .Lfailed;
 
-.Lbytes:       LSETUP (.Lbyte_loop_s , .Lbyte_loop_e) LC0=P2;
+.Lbytes: LSETUP (.Lbyte_loop_s , .Lbyte_loop_e) LC0=P2;
 
 .Lbyte_loop_s:
-	     R3 = B[P0++](Z);
-	     CC = R3 == R1;
-	     IF CC JUMP .Lfound;
+	R3 = B[P0++](Z);
+	CC = R3 == R1;
+	IF CC JUMP .Lfound;
 .Lbyte_loop_e:
-	     NOP;
+	NOP;
 
-.Lfailed:      R0=0;
-	     RTS;
+.Lfailed: R0=0;
+	RTS;
 
-.Lfound:       R0 = P0;
-	     R0 += -1;
-	     RTS;
+.Lfound: R0 = P0;
+	R0 += -1;
+	RTS;

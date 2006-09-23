@@ -53,7 +53,7 @@ ___modsi3:
 	IF CC JUMP .LRETURN_ZERO;		/* Return 0, if denominator == -1 */
 
 	/* Valid input. Use __divsi3() to compute the quotient, and then
-	   derive the remainder from that. */
+	 * derive the remainder from that. */
 
 	[--SP] = (R7:6);		/* Push  R7 and R6 */
 	[--SP] = RETS;			/* and return address */

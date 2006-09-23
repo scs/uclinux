@@ -29,20 +29,20 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-	.text
-	.globl	___udivsi3
-___udivsi3:
+#include <linux/linkage.h>
+
+ENTRY(___udivsi3)
 
 	/* Attempt to use divide primitive first; these will handle
-	most cases, and they're quick - avoids stalls incurred by
-	testing for identities. */
+	 * most cases, and they're quick - avoids stalls incurred by
+	 * testing for identities. */
 
 	R2.H = 0x8000;
 	R2 >>>= 16;                     /* R2 now 0xFFFF8000 */
 	R3 = R0 | R1;                   /* If either dividend or */
 	R2 = R3 & R2;                   /* divisor have bits in */
 	CC = R2;                        /* top half or low half's sign */
-	IF CC JUMP .LIDENTS;              /* bit, skip builtins. */
+	IF CC JUMP .LIDENTS;            /* bit, skip builtins. */
 
 	/* Can use the builtins. */
 
@@ -68,8 +68,8 @@ ___udivsi3:
 	RTS;
 
 .LIDENTS:
-       /* Test for common identities. Value to be returned is
-	  placed in R2. */
+	/* Test for common identities. Value to be returned is
+	 * placed in R2. */
 	CC = R0 == 0;                   /* NR==0 => 0 */
 	IF CC JUMP .LRETURN_R0;
 	R2 = -1 (X);                    /* DR==0 => 0xFFFFFFFF */
@@ -85,15 +85,15 @@ ___udivsi3:
 	CC = R0 < R1 (IU);
 	IF CC JUMP .LRETURN_IDENT;        /* NR < DR => 0 */
 
-       /* Idents don't match. Go for the full operation. */
+	/* Idents don't match. Go for the full operation. */
 
 	[--SP] = (R7:4);                /* Push registers R4-R7 */
 	[--SP] = P3;                    /* Push P3 */
 	P1 = R0;
 	P2 = R1;
-					/* If either R0 or R1 have sign set, */
-					/* divide them by two, and note it's */
-					/* been done. */
+	                                /* If either R0 or R1 have sign set, */
+	                                /* divide them by two, and note it's */
+	                                /* been done. */
 	R6 = 2;                         /* assume we'll shift two */
 	R7 = 1;
 	R3 = 0;
@@ -116,7 +116,7 @@ ___udivsi3:
 	LSETUP( .LULST, .LULEND ) LC0 = P3;   /* Set loop counter */
 .LULST:
 	R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
-	R2 <<= 1;                   	/* Shift 64 bit dividend up by 1 bit */
+	R2 <<= 1;                       /* Shift 64 bit dividend up by 1 bit */
 	R3 <<= 1;
 	R3 = R3 | R6;                   /* Include any carry */
 	CC = R4 < 0;                    /* Check quotient(AQ) */
@@ -131,7 +131,7 @@ ___udivsi3:
 	R2 = R2 + R5;                   /* and "shift" it in. */
 
 	CC = P0 == 0;                   /* Check how many inputs we shifted */
-	IF CC JUMP .LNO_MULT;             /* if none... */
+	IF CC JUMP .LNO_MULT;           /* if none... */
 	R2 <<= 0x1;
 	R6 = R2;
 	CC = P0 == 1;

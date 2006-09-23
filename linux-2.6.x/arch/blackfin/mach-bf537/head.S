@@ -48,14 +48,14 @@
 
 ENTRY(__start)
 ENTRY(__stext)
-/*  R0: argument of command line string, passed from uboot, save it */
+/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
 	/* Set the SYSCFG register */
 	R0 = 0x36;
-	SYSCFG = R0; 		/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0; 		/* Enable Cycle Counter and Nesting Of Interrupts(3rd Bit) */
 	R0 = 0;
 
-/*Clear Out All the data and pointer  Registers*/
+/* Clear Out All the data and pointer Registers */
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -77,7 +77,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-/*Clear Out All the DAG Registers*/
+/* Clear Out All the DAG Registers */
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -100,6 +100,20 @@ ENTRY(__stext)
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
+/* Anamoly 05000125 */
+	CLI R2;
+	SSYNC;
+	[p0] = R0;
+	SSYNC;
+	STI R2;
+
+	/* Turn off the dcache */
+	p0.l = (DMEM_CONTROL & 0xFFFF);
+	p0.h = (DMEM_CONTROL >> 16);
+	R1 = [p0];
+	R0 = ~ENDCPLB;
+	R0 = R0 & R1;
+
 	/* Anamoly 05000125 */
 	CLI R2;
 	SSYNC;
@@ -107,38 +121,24 @@ ENTRY(__stext)
 	SSYNC;
 	STI R2;
 
-    /* Turn off the dcache */
-    p0.l = (DMEM_CONTROL & 0xFFFF);
-    p0.h = (DMEM_CONTROL >> 16);
-    R1 = [p0];
-    R0 = ~ENDCPLB;
-    R0 = R0 & R1;
-
-    /* Anamoly 05000125 */
-    CLI R2;
-    SSYNC;
-    [p0] = R0;
-    SSYNC;
-    STI R2;
-
 /* Initialise General-Purpose I/O Modules on BF537 */
 /* Rev 0.0 Anomaly 05000212 - PORTx_FER, PORT_MUX Registers Do Not accept "writes" correctly: */
 	p0.h = hi(BFIN_PORT_MUX);
 	p0.l = lo(BFIN_PORT_MUX);
-	R0.L = W[P0]; //Read
+	R0.L = W[P0]; /* Read */
 	SSYNC;
 	R0 = (PGDE_UART | PFTE_UART)(Z);
-	W[P0] = R0.L; //Write
+	W[P0] = R0.L; /* Write */
 	SSYNC;
 	W[P0] = R0.L; /* Enable both UARTS */
 	SSYNC;
 
 	p0.h = hi(PORTF_FER);
 	p0.l = lo(PORTF_FER);
-	R0.L = W[P0]; //Read
+	R0.L = W[P0]; /* Read */
 	SSYNC;
 	R0 = 0x000F(Z);
-	W[P0] = R0.L; //Write
+	W[P0] = R0.L; /* Write */
 	SSYNC;
 	W[P0] = R0.L; /* Enable peripheral function of PORTF for UART0 and UART1 */
 	SSYNC;
@@ -155,16 +155,16 @@ ENTRY(__stext)
 #ifdef CONFIG_BF537_PORT_H
 	p0.h = hi(PORTH_FER);
 	p0.l = lo(PORTH_FER);
-	R0.L = W[P0]; //Read
+	R0.L = W[P0]; /* Read */
 	SSYNC;
 	R0 = 0x0000;
-	W[P0] = R0.L; //Write
+	W[P0] = R0.L; /* Write */
 	SSYNC;
 	W[P0] = R0.L; /* Disable peripheral function of PORTH */
 	SSYNC;
 #endif
 
-/*Initialise UART*/
+/* Initialise UART */
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
@@ -189,42 +189,42 @@ ENTRY(__stext)
 	w[p0] = r0.L;	/* To enable UART clock */
 	ssync;
 
-        /* Initialize stack pointer */
-        sp.l = lo(INITIAL_STACK);
-        sp.h = hi(INITIAL_STACK);
-        fp = sp;
-        usp = sp;
+	/* Initialize stack pointer */
+	sp.l = lo(INITIAL_STACK);
+	sp.h = hi(INITIAL_STACK);
+	fp = sp;
+	usp = sp;
 
-	/*Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM*/
+	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
 #if CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif
 	/* Code for initializing Async memory banks */
 
-        p2.h = hi(EBIU_AMBCTL1);
-        p2.l = lo(EBIU_AMBCTL1);
-        r0.h = hi(AMBCTL1VAL);
-        r0.l = lo(AMBCTL1VAL);
-        [p2] = r0;
-        ssync;
+	p2.h = hi(EBIU_AMBCTL1);
+	p2.l = lo(EBIU_AMBCTL1);
+	r0.h = hi(AMBCTL1VAL);
+	r0.l = lo(AMBCTL1VAL);
+	[p2] = r0;
+	ssync;
 
-        p2.h = hi(EBIU_AMBCTL0);
-        p2.l = lo(EBIU_AMBCTL0);
-        r0.h = hi(AMBCTL0VAL);
-        r0.l = lo(AMBCTL0VAL);
-        [p2] = r0;
-        ssync;
+	p2.h = hi(EBIU_AMBCTL0);
+	p2.l = lo(EBIU_AMBCTL0);
+	r0.h = hi(AMBCTL0VAL);
+	r0.l = lo(AMBCTL0VAL);
+	[p2] = r0;
+	ssync;
 
-        p2.h = hi(EBIU_AMGCTL);
-        p2.l = lo(EBIU_AMGCTL);
-        r0 = AMGCTLVAL;
-        w[p2] = r0;
-        ssync;
-        call _real_start;
+	p2.h = hi(EBIU_AMGCTL);
+	p2.l = lo(EBIU_AMGCTL);
+	r0 = AMGCTLVAL;
+	w[p2] = r0;
+	ssync;
+	call _real_start;
 
 	/* This section keeps the processor in supervisor mode
-         * during kernel boot.  Switches to user mode at end of boot.
+	 * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.
 	 */
 
@@ -333,12 +333,12 @@ ENTRY(_real_start)
 ENTRY(_start_dma_code)
 
 	/* Enable PHY CLK buffer output */
-        p0.h = hi(VR_CTL);
-        p0.l = lo(VR_CTL);
-        r0.l = w[p0];
-        bitset(r0, 14);
-        w[p0] = r0.l;
-        ssync;
+	p0.h = hi(VR_CTL);
+	p0.l = lo(VR_CTL);
+	r0.l = w[p0];
+	bitset(r0, 14);
+	w[p0] = r0.l;
+	ssync;
 
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
@@ -348,17 +348,17 @@ ENTRY(_start_dma_code)
 	SSYNC;
 
 	/*
-         *  Set PLL_CTL
-         *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
-         *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
-         *   - [7]     = output delay (add 200ps of delay to mem signals)
-         *   - [6]     = input delay (add 200ps of input delay to mem signals)
-         *   - [5]     = PDWN      : 1=All Clocks off
-         *   - [3]     = STOPCK    : 1=Core Clock off
-         *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
-         *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
-         *   all other bits set to zero
-         */
+	 *  Set PLL_CTL
+	 *   - [14:09] = MSEL[5:0] : CLKIN / VCO multiplication factors
+	 *   - [8]     = BYPASS    : BYPASS the PLL, run CLKIN into CCLK/SCLK
+	 *   - [7]     = output delay (add 200ps of delay to mem signals)
+	 *   - [6]     = input delay (add 200ps of input delay to mem signals)
+	 *   - [5]     = PDWN      : 1=All Clocks off
+	 *   - [3]     = STOPCK    : 1=Core Clock off
+	 *   - [1]     = PLL_OFF   : 1=Disable Power to PLL
+	 *   - [0]     = DF        : 1=Pass CLKIN/2 to PLL / 0=Pass CLKIN to PLL
+	 *   all other bits set to zero
+	 */
 
 	p0.h = hi(PLL_LOCKCNT);
 	p0.l = lo(PLL_LOCKCNT);
@@ -366,28 +366,28 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-        P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITSET (R0, 24);
-        [P2] = R0;
-        SSYNC;
+	P2.H = hi(EBIU_SDGCTL);
+	P2.L = lo(EBIU_SDGCTL);
+	R0 = [P2];
+	BITSET (R0, 24);
+	[P2] = R0;
+	SSYNC;
 
-        r0 = CONFIG_VCO_MULT & 63; /* Load the VCO multiplier         */
-        r0 = r0 << 9;                   /* Shift it over,                  */
-        r1 = CLKIN_HALF;        /* Do we need to divide CLKIN by 2?*/
-        r0 = r1 | r0;
-        r1 = PLL_BYPASS;         /* Bypass the PLL?                 */
-        r1 = r1 << 8;                   /* Shift it over                   */
-        r0 = r1 | r0;                   /* add them all together           */
+	r0 = CONFIG_VCO_MULT & 63;       /* Load the VCO multiplier         */
+	r0 = r0 << 9;                    /* Shift it over,                  */
+	r1 = CLKIN_HALF;                 /* Do we need to divide CLKIN by 2?*/
+	r0 = r1 | r0;
+	r1 = PLL_BYPASS;                 /* Bypass the PLL?                 */
+	r1 = r1 << 8;                    /* Shift it over                   */
+	r0 = r1 | r0;                    /* add them all together           */
 
-        p0.h = hi(PLL_CTL);
-        p0.l = lo(PLL_CTL);      /* Load the address                */
-        cli r2;                         /* Disable interrupts              */
+	p0.h = hi(PLL_CTL);
+	p0.l = lo(PLL_CTL);              /* Load the address                */
+	cli r2;                          /* Disable interrupts              */
 	ssync;
-        w[p0] = r0.l;                     /* Set the value                   */
-        idle;                           /* Wait for the PLL to stablize    */
-        sti r2;                         /* Enable interrupts               */
+	w[p0] = r0.l;                    /* Set the value                   */
+	idle;                            /* Wait for the PLL to stablize    */
+	sti r2;                          /* Enable interrupts               */
 
 .Lcheck_again:
 	p0.h = hi(PLL_STAT);
@@ -397,45 +397,45 @@ ENTRY(_start_dma_code)
 	if ! CC jump .Lcheck_again;
 
 	/* Configure SCLK & CCLK Dividers */
-       	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
-        p0.h = hi(PLL_DIV);
-        p0.l = lo(PLL_DIV);
-        w[p0] = r0.l;
-        ssync;
+	r0 = (CONFIG_CCLK_ACT_DIV | CONFIG_SCLK_DIV);
+	p0.h = hi(PLL_DIV);
+	p0.l = lo(PLL_DIV);
+	w[p0] = r0.l;
+	ssync;
 
 	p0.l = lo(EBIU_SDRRC);
-        p0.h = hi(EBIU_SDRRC);
-        r0 = mem_SDRRC;
-        w[p0] = r0.l;
-        ssync;
+	p0.h = hi(EBIU_SDRRC);
+	r0 = mem_SDRRC;
+	w[p0] = r0.l;
+	ssync;
 
-        p0.l = (EBIU_SDBCTL & 0xFFFF);
-        p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
-        r0 = mem_SDBCTL;
-        w[p0] = r0.l;
-        ssync;
+	p0.l = (EBIU_SDBCTL & 0xFFFF);
+	p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+	r0 = mem_SDBCTL;
+	w[p0] = r0.l;
+	ssync;
 
 	P2.H = hi(EBIU_SDGCTL);
-        P2.L = lo(EBIU_SDGCTL);
-        R0 = [P2];
-        BITCLR (R0, 24);
+	P2.L = lo(EBIU_SDGCTL);
+	R0 = [P2];
+	BITCLR (R0, 24);
 	p0.h = hi(EBIU_SDSTAT);
 	p0.l = lo(EBIU_SDSTAT);
 	r2.l = w[p0];
 	cc = bittst(r2,3);
 	if !cc jump .Lskip;
-    NOP;
+	NOP;
 	BITSET (R0, 23);
 .Lskip:
 	[P2] = R0;
-        SSYNC;
+	SSYNC;
 
-        R0.L = lo(mem_SDGCTL);
-        R0.H = hi(mem_SDGCTL);
+	R0.L = lo(mem_SDGCTL);
+	R0.H = hi(mem_SDGCTL);
 	R1 = [p2];
 	R1 = R1 | R0;
 	[P2] = R1;
-        SSYNC;
+	SSYNC;
 
 	p0.h = hi(SIC_IWR);
 	p0.l = lo(SIC_IWR);
@@ -457,35 +457,35 @@ ENTRY(_bfin_reset)
  * The following code fix the SPI flash reboot issue,
  * /CS signal of the chip which is using PF10 return to GPIO mode
  */
-        p0.h = hi(PORTF_FER);
-        p0.l = lo(PORTF_FER);
-        r0.l = 0x0000;
-        w[p0] = r0.l;
-        SSYNC;
+	p0.h = hi(PORTF_FER);
+	p0.l = lo(PORTF_FER);
+	r0.l = 0x0000;
+	w[p0] = r0.l;
+	SSYNC;
 
 /* /CS return to high */
-        p0.h = hi(PORTFIO);
-        p0.l = lo(PORTFIO);
-        r0.l = 0xFFFF;
-        w[p0] = r0.l;
-        SSYNC;
+	p0.h = hi(PORTFIO);
+	p0.l = lo(PORTFIO);
+	r0.l = 0xFFFF;
+	w[p0] = r0.l;
+	SSYNC;
 
 /* Delay some time, This is necessary */
-        r1.h = 0;
-        r1.l = 0x400;
-        p1   = r1;
-        lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
+	r1.h = 0;
+	r1.l = 0x400;
+	p1   = r1;
+	lsetup (_delay_lab1,_delay_lab1_end ) lc1 = p1;
 _delay_lab1:
-        r0.h = 0;
-        r0.l = 0x8000;
-        p0   = r0;
-        lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
+	r0.h = 0;
+	r0.l = 0x8000;
+	p0   = r0;
+	lsetup (_delay_lab0,_delay_lab0_end ) lc0 = p0;
 _delay_lab0:
-        nop;
+	nop;
 _delay_lab0_end:
-        nop;
+	nop;
 _delay_lab1_end:
-        nop;
+	nop;
 #endif
 
 	/* Clear the bits 13-15 in SWRST if they werent cleared */
@@ -550,19 +550,19 @@ _delay_lab1_end:
 .LSKIP_WRITE:
 	/* Enable the reset event */
 	P0.h = hi(WDOG_CTL);
-        P0.l = lo(WDOG_CTL);
-        R0 = W[P0](Z);
-        BITCLR(R0,1);
-        BITCLR(R0,2);
-        W[P0] = R0.L;
-        SSYNC;
-        NOP;
+	P0.l = lo(WDOG_CTL);
+	R0 = W[P0](Z);
+	BITCLR(R0,1);
+	BITCLR(R0,2);
+	W[P0] = R0.L;
+	SSYNC;
+	NOP;
 
 	/* Enable the wdog counter */
-        R0 = W[P0](Z);
-        BITCLR(R0,4);
-        W[P0] = R0.L;
-        SSYNC;
+	R0 = W[P0](Z);
+	BITCLR(R0,4);
+	W[P0] = R0.L;
+	SSYNC;
 
 	IDLE;
 
@@ -571,8 +571,8 @@ _delay_lab1_end:
 .data
 
 /*
- *      Set up the usable of RAM stuff. Size of RAM is determined then
- *      an initial stack set up at the end.
+ * Set up the usable of RAM stuff. Size of RAM is determined then
+ * an initial stack set up at the end.
  */
 
 .align 4

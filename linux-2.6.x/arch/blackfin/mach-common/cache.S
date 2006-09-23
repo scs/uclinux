@@ -36,7 +36,7 @@
 #include <asm/cache.h>
 
 .text
- .align 2
+.align 2
 ENTRY(_cache_invalidate)
 
 	/********************************************

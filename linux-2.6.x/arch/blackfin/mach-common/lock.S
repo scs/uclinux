@@ -41,9 +41,6 @@
  * R0 - Which way to be locked
  */
 
-.global _cache_grab_lock
-.type	_cache_grab_lock, STT_FUNC;
-
 ENTRY(_cache_grab_lock)
 
 	[--SP]=( R7:0,P5:0 );
@@ -58,7 +55,7 @@ ENTRY(_cache_grab_lock)
 
 	/* If the code of interest already resides in the cache
 	 * invalidate the entire cache itself.
-  	 * invalidate_entire_icache;
+	 * invalidate_entire_icache;
 	 */
 
 	SP += -12;
@@ -167,10 +164,7 @@ ENTRY(_cache_grab_lock)
  * R0 - Which way to be locked
  */
 
-.global _cache_lock
-.type	_cache_lock, STT_FUNC;
-
-_cache_lock:
+ENTRY(_cache_lock)
 
 	[--SP]=( R7:0,P5:0 );
 
@@ -200,10 +194,7 @@ _cache_lock:
 /* Return the ILOC bits of IMEM_CONTROL
  */
 
-.global _read_iloc
-.type _read_iloc, STT_FUNC;
-
-_read_iloc:
+ENTRY(_read_iloc)
 
 	P1.H = (IMEM_CONTROL >> 16);
 	P1.L = (IMEM_CONTROL & 0xFFFF);

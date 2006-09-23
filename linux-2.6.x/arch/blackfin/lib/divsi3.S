@@ -4,7 +4,7 @@
  * Author:
  *
  * Created:
- * Description:  16 / 32 bit signed division .
+ * Description:  16 / 32 bit signed division.
  *                 Special cases :
  *                      1)  If(numerator == 0)
  *                             return 0
@@ -58,7 +58,7 @@ ___divsi3 :
 	R3 = R0 | R1;                   /* If either dividend or */
 	R2 = R3 & R2;                   /* divisor have bits in */
 	CC = R2;                        /* top half or low half's sign */
-	IF CC JUMP .LIDENTS;             /* bit, skip builtins. */
+	IF CC JUMP .LIDENTS;            /* bit, skip builtins. */
 	DIVS(R0, R1);
 	DIVQ(R0, R1);
 	DIVQ(R0, R1);
@@ -138,7 +138,7 @@ ___divsi3 :
 	R5 = R4 >> 31;
 	BITCLR(R2,0);                   /* Assume AQ==1, shift in zero */
 	BITTGL(R5,0);                   /* tweak AQ to be what we want to shift in */
-.LEND:   R2 = R2 + R5;                   /* and then set shifted-in value to tweaked AQ. */
+.LEND:   R2 = R2 + R5;              /* and then set shifted-in value to tweaked AQ. */
 
 	R2 = R2 + R7;
 	R0 = P0;
