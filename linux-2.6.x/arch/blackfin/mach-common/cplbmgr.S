@@ -241,7 +241,7 @@ ENTRY(_cplb_mgr)
 	 * last entry of the table.
 	 */
 
-	P1.L = (ICPLB_DATA15 & 0xFFFF);		/*ICPLB_DATA15*/
+	P1.L = (ICPLB_DATA15 & 0xFFFF);		/* ICPLB_DATA15 */
 	P1.H = (ICPLB_DATA15 >> 16);
 	[P1] = R2;
 	[P1-0x100] = R4;
@@ -403,7 +403,7 @@ ENTRY(_cplb_mgr)
 	P3.L = _page_size_table; /* retrive end address */
 	P3.H = _page_size_table; /* retrive end address */
 	R3 = 0x1002;		/* 16th - position, 2 bits -length */
-	nop;			/*Anamoly 05000209*/
+	nop;			/* Anamoly 05000209 */
 	R7 = EXTRACT(R1,R3.l);
 	R7 = R7 << 2;		/* Page size index offset */
 	P5 = R7;
@@ -490,7 +490,7 @@ ENTRY(_cplb_mgr)
 	 * one space closer to the start.
 	 */
 
-	R1.L = (DCPLB_DATA16 & 0xFFFF);		/*DCPLB_DATA15+4*/
+	R1.L = (DCPLB_DATA16 & 0xFFFF);		/* DCPLB_DATA15 + 4 */
 	R1.H = (DCPLB_DATA16 >> 16);
 	R0 = P0;
 

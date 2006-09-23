@@ -81,7 +81,7 @@ ENTRY(_bfin_icache_init)
 	R0 = (IMC | ENICPLB);
 	R0 = R0 | R1;
 
-	/*Anamoly 05000125 */
+	/* Anamoly 05000125 */
 	CLI R2;
 	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
 	.align 8;
@@ -129,7 +129,7 @@ ENTRY(_bfin_dcache_init)
 	R0 = DMEM_CNTR;
 
 	R0 = R0 | R1;
-	/*Anamoly 05000125 */
+	/* Anamoly 05000125 */
 	CLI R2;
 	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
 	.align 8;

@@ -400,7 +400,7 @@ ENTRY(_system_call)
 	r7 = sp;
 	r6.l = lo(ALIGN_PAGE_MASK);
 	r6.h = hi(ALIGN_PAGE_MASK);
-	r7 = r7 & r6;  		/*thread_info*/
+	r7 = r7 & r6;  		/* thread_info */
 	p2 = r7;
 	p2 = [p2];
 
@@ -408,7 +408,7 @@ ENTRY(_system_call)
 
 	/* Check the System Call */
 	r7 = __NR_syscall;
-	/*System call number is passed in P0 */
+	/* System call number is passed in P0 */
 	r6 = p0;
 	cc = r6 < r7;
 	if ! cc jump .Lbadsys;
@@ -446,7 +446,7 @@ ENTRY(_system_call)
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
-	r7 = r7 & r4;		/*thread_info->flags*/
+	r7 = r7 & r4;		/* thread_info->flags */
 	p5 = r7;
 .Lresume_userspace_1:
 	/* Disable interrupts.  */
@@ -604,7 +604,7 @@ ENTRY(_ret_from_exception)
 	r7 = sp;
 	r4.l = lo(ALIGN_PAGE_MASK);
 	r4.h = hi(ALIGN_PAGE_MASK);
-	r7 = r7 & r4;		/*thread_info->flags*/
+	r7 = r7 & r4;		/* thread_info->flags */
 	p5 = r7;
 	r7 = [p5 + TI_FLAGS];
 	r4.l = lo(_TIF_WORK_MASK);

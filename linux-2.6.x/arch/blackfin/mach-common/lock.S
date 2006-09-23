@@ -189,7 +189,7 @@ ENTRY(_cache_lock)
 	( R7:0,P5:0 ) = [SP++];
 	RTS;
 
-#endif	/*BLKFIN_CACHE_LOCK*/
+#endif	/* BLKFIN_CACHE_LOCK */
 
 /* Return the ILOC bits of IMEM_CONTROL
  */

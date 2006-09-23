@@ -39,13 +39,13 @@
 .align 2
 ENTRY(_cache_invalidate)
 
-	/********************************************
+	/*
 	 * Icache or DcacheA or DcacheB Invalidation
 	 * or any combination thereof
 	 * R0 has bits
 	 * CPLB_ENABLE_ICACHE_P,CPLB_ENABLE_DCACHE_P,CPLB_ENABLE_DCACHE2_P
 	 * set as required
-	 ********************************************/
+	 */
 	[--SP] = R7;
 
 	R7 = R0;

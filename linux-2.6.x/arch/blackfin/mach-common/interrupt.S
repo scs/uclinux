@@ -127,7 +127,7 @@ __common_int_entry:
 #else
 	cli r1;
 #endif
-	[--sp] = RETI;  /*orig_pc*/
+	[--sp] = RETI;  /* orig_pc */
 	/* Clear all L registers.  */
 	r1 = 0 (x);
 	l0 = r1;
@@ -183,7 +183,7 @@ ENTRY(_evt_ivhw)
 	r7 = r7 & r6;
 	r5 = 0x12;
 	cc = r7 == r5;
-	if cc jump .Lcall_do_ovf; /*deal with performance counter overflow*/
+	if cc jump .Lcall_do_ovf; /* deal with performance counter overflow */
 #endif
 
 	SP += -12;

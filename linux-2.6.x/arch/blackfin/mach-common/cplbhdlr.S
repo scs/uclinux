@@ -45,7 +45,7 @@
 ENTRY(__cplb_hdr)
 	R2 = SEQSTAT;
 
-	/*Mask the contents of SEQSTAT and leave only EXCAUSE in R2*/
+	/* Mask the contents of SEQSTAT and leave only EXCAUSE in R2 */
 	R2 <<= 26;
 	R2 >>= 26;
 
@@ -90,7 +90,7 @@ ENTRY(__cplb_hdr)
 	IF !CC JUMP .Lnot_replaced;
 	RTS;
 
-/************************************
+/*
  * Diagnostic exception handlers
  */
 .Lunknown:
