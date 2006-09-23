@@ -171,8 +171,8 @@ void __init setup_arch(char **cmdline_p)
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-#if (! defined(CONFIG_BFIN_KERNEL_CLOCK) && defined (ANOMALY_05000273)
-	if ( cclk == sclk )
+#if !defined(CONFIG_BFIN_KERNEL_CLOCK) && defined(ANOMALY_05000273)
+	if (cclk == sclk)
 		panic("ANOMALY 05000273, SCLK can not be same as CCLK");
 #endif
 
