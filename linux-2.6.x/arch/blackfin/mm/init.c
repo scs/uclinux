@@ -36,14 +36,6 @@
 #include <asm/l1layout.h>
 #include "blackfin_sram.h"
 
-#undef DEBUG
-
-#ifdef DEBUG
-# define DPRINTK(x...) printk(KERN_DEBUG x)
-#else
-# define DPRINTK(x...) do {} while (0)
-#endif
-
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
@@ -104,7 +96,7 @@ void paging_init(void)
 	 */
 	unsigned long end_mem = memory_end & PAGE_MASK;
 
-	DPRINTK("start_mem is %#lx   virtual_end is %#lx\n", PAGE_ALIGN(memory_start), end_mem);
+	pr_debug("start_mem is %#lx   virtual_end is %#lx\n", PAGE_ALIGN(memory_start), end_mem);
 
 	/*
 	 * initialize the bad page table and bad page to point
@@ -120,7 +112,7 @@ void paging_init(void)
 	 */
 	set_fs(KERNEL_DS);
 
-	DPRINTK("free_area_init -> start_mem is %#lx   virtual_end is %#lx\n",
+	pr_debug("free_area_init -> start_mem is %#lx   virtual_end is %#lx\n",
 	        PAGE_ALIGN(memory_start), end_mem);
 
 	{
