@@ -35,7 +35,7 @@
 
 /*
  * C Library function MEMSET
- * R0 = address ( leave unchanged to form result)
+ * R0 = address (leave unchanged to form result)
  * R1 = filler byte
  * R2 = count
  * Favours word aligned data.

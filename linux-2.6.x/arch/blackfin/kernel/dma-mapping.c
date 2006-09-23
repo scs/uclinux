@@ -135,7 +135,7 @@ dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 }
 
 /*
-  Dummy functions defined for some existing drivers
+ * Dummy functions defined for some existing drivers
  */
 
 dma_addr_t

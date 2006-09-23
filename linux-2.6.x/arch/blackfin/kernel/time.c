@@ -80,10 +80,9 @@ void __init init_leds(void)
 	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp | CONFIG_BFIN_IDLE_LED_PIN);	/* light off */
 	__builtin_bfin_ssync();
 #endif
-
 }
 #else
-inline void __init init_leds(void)
+void __init init_leds(void)
 {
 }
 #endif
@@ -161,7 +160,9 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 	bfin_write_TCNTL(7);
 
 	bfin_timer_irq.handler = timer_routine;
-	/* call setup_irq instead of request_irq because request_irq calls kmalloc which has not been initialized yet */
+	/* call setup_irq instead of request_irq because request_irq calls
+	 * kmalloc which has not been initialized yet
+	 */
 	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
 }
 
@@ -171,14 +172,14 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
 static unsigned long gettimeoffset(void)
 {
 	unsigned long offset;
-	unsigned long clocks_per_jiffy ;
+	unsigned long clocks_per_jiffy;
 
-	clocks_per_jiffy =  bfin_read_TPERIOD() ;
-	offset =  (clocks_per_jiffy - bfin_read_TCOUNT())  / (( (clocks_per_jiffy + 1) *  HZ ) /  USEC_PER_SEC ) ;
+	clocks_per_jiffy = bfin_read_TPERIOD();
+	offset = (clocks_per_jiffy - bfin_read_TCOUNT()) / (( (clocks_per_jiffy + 1) *  HZ) / USEC_PER_SEC);
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
 	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
-		offset += ( USEC_PER_SEC / HZ);
+		offset += (USEC_PER_SEC / HZ);
 
 
 	return offset;
@@ -216,8 +217,8 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs *regs)
 
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec /  NSEC_PER_USEC ) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec /  NSEC_PER_USEC ) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
+	    (xtime.tv_nsec / NSEC_PER_USEC) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
+	    (xtime.tv_nsec / NSEC_PER_USEC) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
 		if (set_rtc_mmss(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
@@ -260,9 +261,9 @@ void do_gettimeofday(struct timeval *tv)
 		usec = gettimeoffset();
 		lost = jiffies - wall_jiffies;
 		if (unlikely(lost))
-			usec += lost * ( USEC_PER_SEC / HZ);
+			usec += lost * (USEC_PER_SEC / HZ);
 		sec = xtime.tv_sec;
-		usec += (xtime.tv_nsec /  NSEC_PER_USEC );
+		usec += (xtime.tv_nsec / NSEC_PER_USEC);
 	}
 	while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
@@ -293,7 +294,7 @@ int do_settimeofday(struct timespec *tv)
 	 * Discover what correction gettimeofday
 	 * would have done, and then undo it!
 	 */
-	nsec -= (gettimeoffset() *  NSEC_PER_USEC );
+	nsec -= (gettimeoffset() * NSEC_PER_USEC);
 
 	wtm_sec = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);

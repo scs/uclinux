@@ -41,19 +41,21 @@
 #define	LED_ON	0
 #define	LED_OFF	1
 
-static inline void leds_switch(int flag);
 asmlinkage void ret_from_fork(void);
 
 /* Points to the SDRAM backup memory for the stack that is currently in
-   L1 scratchpad memory.  */
+ * L1 scratchpad memory.
+ */
 void *current_l1_stack_save;
 
 /* The number of tasks currently using a L1 stack area.  The SRAM is
-   allocated/deallocated whenever this changes from/to zero.  */
+ * allocated/deallocated whenever this changes from/to zero.
+ */
 int nr_l1stack_tasks;
 
 /* Start and length of the area in L1 scratchpad memory which we've allocated
-   for process stacks.  */
+ * for process stacks.
+ */
 void *l1_stack_base;
 unsigned long l1_stack_len;
 
@@ -65,6 +67,32 @@ EXPORT_SYMBOL(pm_idle);
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
+
+/*
+ * We are using a different LED from the one used to indicate timer interrupt.
+ */
+#if defined(CONFIG_BFIN_IDLE_LED)
+static inline void leds_switch(int flag)
+{
+	unsigned short tmp = 0;
+
+	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
+	__builtin_bfin_ssync();
+
+	if (flag == LED_ON)
+		tmp &= ~CONFIG_BFIN_IDLE_LED_PIN;	/* light on */
+	else
+		tmp |= CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
+
+	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp);
+	__builtin_bfin_ssync();
+
+}
+#else
+static inline void leds_switch(int flag)
+{
+}
+#endif
 
 /*
  * The idle loop on BFIN
@@ -311,29 +339,3 @@ unsigned long get_wchan(struct task_struct *p)
 	while (count++ < 16);
 	return 0;
 }
-
-/*
- * We are using a different LED from the one used to indicate timer interrupt.
- */
-#if defined(CONFIG_BFIN_IDLE_LED)
-static inline void leds_switch(int flag)
-{
-	unsigned short tmp = 0;
-
-	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
-	__builtin_bfin_ssync();
-
-	if (flag == LED_ON)
-		tmp &= ~CONFIG_BFIN_IDLE_LED_PIN;	/* light on */
-	else
-		tmp |= CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
-
-	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp);
-	__builtin_bfin_ssync();
-
-}
-#else
-static inline void leds_switch(int flag)
-{
-}
-#endif

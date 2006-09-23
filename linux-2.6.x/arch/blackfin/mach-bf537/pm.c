@@ -56,12 +56,12 @@ void bf537_pm_idle(void)
  */
 void bf537_pm_suspend(void)
 {
-  unsigned long flags;
+	unsigned long flags;
 
- /*FIXME: Add a useful Power Saving Mode Here ...*/
-   
+	/* FIXME: Add a useful Power Saving Mode Here ... */
+
 	local_irq_save(flags);
-    bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 	__builtin_bfin_ssync();
 	asm("IDLE;");
 	local_irq_restore(flags);
@@ -73,7 +73,6 @@ void bf537_pm_suspend(void)
  *	@state:		suspend state we're entering.
  *
  */
-
 static int bf537_pm_prepare(suspend_state_t state)
 {
 	int error = 0;
@@ -99,7 +98,6 @@ static int bf537_pm_prepare(suspend_state_t state)
  *	@state:		State we're entering.
  *
  */
-
 static int bf537_pm_enter(suspend_state_t state)
 {
 	switch (state) {
@@ -120,14 +118,13 @@ static int bf537_pm_enter(suspend_state_t state)
 	return 0;
 }
 
-/**
+/*
  *	bf537_pm_finish - Finish up suspend sequence.
  *	@state:		State we're coming out of.
  *
  *	This is called after we wake back up (or if entering the sleep state
  *	failed).
  */
-
 static int bf537_pm_finish(suspend_state_t state)
 {
 	return 0;

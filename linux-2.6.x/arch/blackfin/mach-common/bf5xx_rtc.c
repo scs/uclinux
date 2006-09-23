@@ -49,7 +49,7 @@
 static void wait_for_complete(void);
 
 /* Initialize the RTC. Enable pre-scaler to scale RTC clock to 1Hz. */
-int rtc_init()
+int rtc_init(void)
 {
 	bfin_write_RTC_PREN(0x1);
 	wait_for_complete();

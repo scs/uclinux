@@ -177,7 +177,7 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 	return len;
 }
 
-static int cplbinfo_write_proc(struct file *file, const char *buffer,
+static int cplbinfo_write_proc(struct file *file, const char __user *buffer,
 			       unsigned long count, void *data)
 {
 	printk("Reset the CPLB swap in/out counts.\n");

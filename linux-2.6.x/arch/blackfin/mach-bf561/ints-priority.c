@@ -33,10 +33,7 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 
-void program_IAR(void);
-/*Program the IAR registers*/
-
-void program_IAR()
+void program_IAR(void)
 {
 	/* Program the IAR0 Register with the configured priority */
 	bfin_write_SICA_IAR0(((CONFIG_IRQ_PLL_WAKEUP - 7) << IRQ_PLL_WAKEUP_POS) |
@@ -108,6 +105,6 @@ void program_IAR()
 			     ((CONFIG_IRQ_WDTIMER - 7) << IRQ_WDTIMER_POS) |
 			     (0 << IRQ_RESERVED_1_POS) | (0 << IRQ_RESERVED_2_POS) |
 			     (0 << IRQ_SUPPLE_0_POS) | (0 << IRQ_SUPPLE_1_POS));
-			     __builtin_bfin_ssync();
 
+	__builtin_bfin_ssync();
 }

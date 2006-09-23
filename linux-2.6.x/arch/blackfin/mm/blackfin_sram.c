@@ -138,7 +138,7 @@ void l1_inst_sram_init(void)
 static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 {
 	int i, index = 0;
-	void *addr = 0;
+	void *addr = NULL;
 
 	if (size <= 0)
 		return NULL;
@@ -191,7 +191,7 @@ static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned
 		}
 	}
 	if (index < 0)
-		return 0;
+		return NULL;
 	*psize = best;
 
 	pfree[index].flag = SRAM_SLT_ALLOCATED;
@@ -264,7 +264,7 @@ int sram_free(const void *addr)
 #endif
 	else
 		return -1;
-}	
+}
 
 void *l1_data_A_sram_alloc(size_t size)
 {
@@ -286,7 +286,8 @@ void *l1_data_A_sram_alloc(size_t size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
-	//printk ("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	pr_debug("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+
 	return addr;
 }
 
@@ -343,7 +344,8 @@ void *l1_data_B_sram_alloc(size_t size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
-	//printk ("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	pr_debug("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+
 	return addr;
 #else
 	return NULL;
@@ -384,7 +386,8 @@ void *l1_inst_sram_alloc(size_t size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
 
-	//printk ("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n",addr,size);
+	pr_debug("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+
 	return addr;
 #else
 	return NULL;

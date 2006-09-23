@@ -41,7 +41,7 @@
 
 .text
 
-#if defined (CONFIG_BLKFIN_CACHE)
+#if defined(CONFIG_BLKFIN_CACHE)
 ENTRY(_bfin_icache_init)
 
 	/* Initialize Instruction CPLBS */
@@ -91,7 +91,7 @@ ENTRY(_bfin_icache_init)
 	RTS;
 #endif
 
-#if defined (CONFIG_BLKFIN_DCACHE)
+#if defined(CONFIG_BLKFIN_DCACHE)
 ENTRY(_bfin_dcache_init)
 
 	/* Initialize Data CPLBS */

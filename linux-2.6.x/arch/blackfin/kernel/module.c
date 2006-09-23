@@ -203,7 +203,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".l1.text", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1) && 
+			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1) &&
 				(s->sh_size > 0))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);

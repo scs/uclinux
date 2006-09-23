@@ -125,7 +125,7 @@ ___divsi3 :
 	P2 = 31;                        /* Set loop counter   */
 	R4 = R3^R1;                     /* Get new quotient bit */
 
-	LSETUP ( .LST,.LEND )  LC0 = P2;     /* Setup loop */
+	LSETUP (.LST, .LEND)  LC0 = P2;     /* Setup loop */
 .LST:    R5 = R2 >> 31;                  /* record copy of carry from R2 */
 	R2 = R2 << 1;                   /* Shift 64 bit dividend up by 1 bit */
 	R3 = R3 << 1;

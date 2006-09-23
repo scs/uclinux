@@ -37,7 +37,7 @@
 
 ENTRY(_unmask_wdog_wakeup_evt)
 	[--SP] = ( R7:0, P5:0 );
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	P0.H = hi(SICA_IWR1);
 	P0.L = lo(SICA_IWR1);
 #else
@@ -45,7 +45,7 @@ ENTRY(_unmask_wdog_wakeup_evt)
 	P0.l = (SIC_IWR & 0xFFFF);
 #endif
 	R7 = [P0];
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	BITSET(R7, 27);
 #else
 	BITSET(R7,(IRQ_WATCH - IVG7));

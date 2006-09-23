@@ -36,7 +36,6 @@
 
 static unsigned short do_csum(const unsigned char *buff, int len)
 {
-
 	register unsigned long sum = 0;
 	int swappem = 0;
 

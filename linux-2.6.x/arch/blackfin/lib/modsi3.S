@@ -63,7 +63,7 @@ ___modsi3:
 	CALL ___divsi3;			/* Compute signed quotient using ___divsi3()*/
 	SP += 12;
 	R0 *= R6;			/* Quotient * divisor */
-	R0 = R7 - R0;			/* Dividend - ( quotient *divisor) */
+	R0 = R7 - R0;			/* Dividend - (quotient * divisor) */
 	RETS = [SP++];			/* Get back return address */
 	(R7:6) = [SP++];		/* Pop registers R7 and R4 */
 	RTS;				/* Store remainder    */

@@ -51,13 +51,14 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	siginfo_t info;
 
 #ifdef CONFIG_DEBUG_ICACHE_CHECK
-        unsigned int cmd, tag, ca, cache_hi, cache_lo, *pa;
-        unsigned short i, j, die;
-        unsigned int bad[10][6];
+	unsigned int cmd, tag, ca, cache_hi, cache_lo, *pa;
+	unsigned short i, j, die;
+	unsigned int bad[10][6];
 
-	/* check entire cache for coherency                */
-        /* Since printk is in cacheable memory,            */
-        /* don't call it until you have checked everything */
+	/* check entire cache for coherency
+	 * Since printk is in cacheable memory,
+	 * don't call it until you have checked everything
+	*/
 
 	die = 0;
 	i = 0;
@@ -68,9 +69,9 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 
 		/* Grab various address bits for the itest_cmd fields                      */
 		cmd = ( (( ca & 0x3000) <<  4 ) |   /* ca[13:12] for SBNK[1:0]             */
-			(( ca & 0x0c00) << 16 ) |   /* ca[11:10] for WAYSEL[1:0]           */
-			(( ca & 0x3f8)       ) |    /* ca[09:03] for SET[4:0] and DW[1:0]  */
-			0 );                        /* Access Tag, Read access             */
+		        (( ca & 0x0c00) << 16 ) |   /* ca[11:10] for WAYSEL[1:0]           */
+		        (( ca & 0x3f8)        ) |   /* ca[09:03] for SET[4:0] and DW[1:0]  */
+		        0 );                        /* Access Tag, Read access             */
 
 		__builtin_bfin_ssync();
 		bfin_write_ITEST_COMMAND(cmd);
@@ -79,17 +80,17 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		__builtin_bfin_ssync();
 
 		/* if tag is marked as valid, check it */
-		if ( tag & 1 ) {
+		if (tag & 1) {
 			/* The icache is arranged in 4 groups of 64-bits */
-			for (j = 0 ; j < 32 ; j+=8 ) {
+			for (j = 0; j < 32; j+=8) {
 				cmd = ( (( (ca+j) & 0x3000) <<  4 ) |   /* ca[13:12] for SBNK[1:0]             */
-					(( (ca+j) & 0x0c00) << 16 ) |   /* ca[11:10] for WAYSEL[1:0]           */
-					(( (ca+j) & 0x3f8)       ) |    /* ca[09:03] for SET[4:0] and DW[1:0]  */
-					4 );                            /* Access Data, Read access             */
+				        (( (ca+j) & 0x0c00) << 16 ) |   /* ca[11:10] for WAYSEL[1:0]           */
+				        (( (ca+j) & 0x3f8)        ) |   /* ca[09:03] for SET[4:0] and DW[1:0]  */
+				        4 );                            /* Access Data, Read access             */
 
-                                __builtin_bfin_ssync();
-                                bfin_write_ITEST_COMMAND(cmd);
-                                __builtin_bfin_ssync();
+				__builtin_bfin_ssync();
+				bfin_write_ITEST_COMMAND(cmd);
+				__builtin_bfin_ssync();
 
 				cache_hi = bfin_read_ITEST_DATA1();
 				cache_lo = bfin_read_ITEST_DATA0();
@@ -104,7 +105,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 				 *   cache_hi, cache_lo, *(pa+1), *pa);
 				 */
 
-				if ( cache_hi != *(pa+1) || cache_lo != *pa ) {
+				if (cache_hi != *(pa+1) || cache_lo != *pa) {
 					/* Since icache is not working, stay out of it, by not printing */
 					die = 1;
 					bad [i][0] = (ca+j);
@@ -120,7 +121,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	}
 	if (die) {
 		printk ("icache coherency error\n");
-		for (j=0 ; j <= i; j++) {
+		for (j=0; j <= i; j++) {
 			printk("cache address   : %08x  cache value : %08x%08x\n",  bad [j][0],  bad [j][1],  bad [j][2]);
 			printk("physical address: %08x  SDRAM value : %08x%08x\n",  bad [j][3],  bad [j][4],  bad [j][5]);
 		}

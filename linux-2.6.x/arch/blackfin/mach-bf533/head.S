@@ -276,7 +276,7 @@ ENTRY(_real_start)
 	p2.h = ___bss_stop;
 	r0 = 0;
 	p2 -= p1;
-	lsetup (.L_clear_bss, .L_clear_bss ) lc0 = p2;
+	lsetup (.L_clear_bss, .L_clear_bss) lc0 = p2;
 .L_clear_bss:
 	B[p1++] = r0;
 
@@ -291,7 +291,7 @@ ENTRY(_real_start)
 	r0 = r0 >> 1;
 	p2 = r0;
 	r0 = 0;
-	lsetup (.L_clear_zero, .L_clear_zero ) lc0 = p2;
+	lsetup (.L_clear_zero, .L_clear_zero) lc0 = p2;
 .L_clear_zero:
 	W[p1++] = r0;
 
@@ -609,7 +609,7 @@ debug_kernel_start_trap:
 	w[p0] = r0.L;   /* To enable DLL writes */
 	ssync;
 
-	R1 = (((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT) / CONFIG_SCLK_DIV) / ( CONSOLE_BAUD_RATE * 16 ) );
+	R1 = (((CONFIG_CLKIN_HZ * CONFIG_VCO_MULT) / CONFIG_SCLK_DIV) / (CONSOLE_BAUD_RATE * 16));
 
 	p0.h = hi(UART_DLL);
 	p0.l = lo(UART_DLL);

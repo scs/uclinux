@@ -70,9 +70,10 @@ EXPORT_SYMBOL(dump_stack);
 EXPORT_SYMBOL(csum_partial_copy);
 
 /* The following are special because they're not called
-   explicitly (the C compiler generates them).  Fortunately,
-   their interface isn't gonna change any time soon now, so
-   it's OK to leave it out of version control.  */
+ * explicitly (the C compiler generates them).  Fortunately,
+ * their interface isn't gonna change any time soon now, so
+ * it's OK to leave it out of version control.
+ */
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcmp);

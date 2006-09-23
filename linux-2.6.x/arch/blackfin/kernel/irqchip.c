@@ -194,7 +194,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_printf(p, ", %s", action->name);
 
 		seq_putc(p, '\n');
-	      unlock:
+      unlock:
 		spin_unlock_irqrestore(&irq_controller_lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "Err: %10lu\n", irq_err_count);
@@ -478,9 +478,10 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 	spin_unlock(&irq_controller_lock);
 
 	/* If we're the only interrupt running (ignoring IRQ15 which is for
-	   syscalls), lower our priority to IRQ14 so that softirqs run at
-	   that level.  If there's another, lower-level interrupt, irq_exit
-	   will defer softirqs to that.  */
+	 * syscalls), lower our priority to IRQ14 so that softirqs run at
+	 * that level.  If there's another, lower-level interrupt, irq_exit
+	 * will defer softirqs to that.
+	 */
 	__builtin_bfin_csync();
 	pending = bfin_read_IPEND() & ~0x8000;
 	other_ints = pending & (pending - 1);

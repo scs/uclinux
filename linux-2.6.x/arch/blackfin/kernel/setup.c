@@ -71,10 +71,7 @@ EXPORT_SYMBOL(mtd_size);
 
 char command_line[COMMAND_LINE_SIZE];
 
-void init_leds(void);
-void bf53x_cache_init(void);
-static u_int get_dsp_rev_id(void);
-static inline u_int get_compiled_rev_id(void);
+extern void init_leds(void);
 static void generate_cpl_tables(void);
 
 
@@ -120,6 +117,31 @@ void bf53x_relocate_l1_mem(void)
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
 	dma_memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),l1_length);
 
+}
+
+/* Get the DSP Revision ID */
+static u_int get_dsp_rev_id(void)
+{
+	u_int id;
+	id = bfin_read_DSPID() & 0xffff;
+	return id;
+}
+
+static inline u_int get_compiled_rev_id(void)
+{
+#if defined(CONFIG_BF_REV_0_0)
+	return 0;
+#elif defined(CONFIG_BF_REV_0_1)
+	return 1;
+#elif defined(CONFIG_BF_REV_0_2)
+	return 2;
+#elif defined(CONFIG_BF_REV_0_3)
+	return 3;
+#elif defined(CONFIG_BF_REV_0_4)
+	return 4;
+#elif defined(CONFIG_BF_REV_0_5)
+	return 5;
+#endif
 }
 
 /*
@@ -247,7 +269,8 @@ void __init setup_arch(char **cmdline_p)
 #if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
-	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception */
+	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	 */
 
 #if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
 	 if (memory_end >= 56 * 1024 * 1024)
@@ -355,14 +378,14 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_TBUFCTL(0x03);
 }
 
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 static struct cpu cpu[2];
 #else
 static struct cpu cpu[1];
 #endif
 static int __init topology_init(void)
 {
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	register_cpu(&cpu[0], 0, NULL);
 	register_cpu(&cpu[1], 1, NULL);
 	return 0;
@@ -432,8 +455,8 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
-#if defined (CONFIG_BF561)
-# if defined (CONFIG_BFIN561_EZKIT)
+#if defined(CONFIG_BF561)
+# if defined(CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK0_BASE + 0x800000,
@@ -442,9 +465,6 @@ static void __init generate_cpl_tables(void)
 	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
-
-# else
-//#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
 # endif
 #else
 	pos =
@@ -534,9 +554,9 @@ static void __init generate_cpl_tables(void)
 	}
 
 
-#if defined (CONFIG_BF561)
-# if defined (CONFIG_BFIN561_EZKIT) || defined (CONFIG_BFIN561_BLUETECHNIX_CM)
-# if defined (CONFIG_BFIN561_EZKIT)
+#if defined(CONFIG_BF561)
+# if defined(CONFIG_BFIN561_EZKIT) || defined(CONFIG_BFIN561_BLUETECHNIX_CM)
+# if defined(CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK0_BASE + 0x800000,
@@ -546,7 +566,7 @@ static void __init generate_cpl_tables(void)
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
 #endif
-#if defined (CONFIG_BFIN561_BLUETECHNIX_CM)
+#if defined(CONFIG_BFIN561_BLUETECHNIX_CM)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK0_BASE + SIZE_4M,
@@ -574,12 +594,12 @@ static void __init generate_cpl_tables(void)
 			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
 			    L1_DMEMORY);
 
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, L2_SRAM,
 			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
 #endif
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	pos =
 	    fill_cpl_tables(dpdt_table, pos, L2_SRAM,
 			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
@@ -656,9 +676,9 @@ static void __init generate_cpl_tables(void)
 		}
 	}
 
-#if defined (CONFIG_BF561)
-# if defined (CONFIG_BFIN561_EZKIT) || defined (CONFIG_BFIN561_BLUETECHNIX_CM)
-# if defined (CONFIG_BFIN561_EZKIT)
+#if defined(CONFIG_BF561)
+# if defined(CONFIG_BFIN561_EZKIT) || defined(CONFIG_BFIN561_BLUETECHNIX_CM)
+# if defined(CONFIG_BFIN561_EZKIT)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK0_BASE + 0x800000,
@@ -668,7 +688,7 @@ static void __init generate_cpl_tables(void)
 			    ASYNC_BANK3_BASE + 0x400000,
 			    SIZE_4M, SDRAM_EBIU);
 #endif
-#if defined (CONFIG_BFIN561_BLUETECHNIX_CM)
+#if defined(CONFIG_BFIN561_BLUETECHNIX_CM)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
 			    ASYNC_BANK0_BASE + SIZE_4M,
@@ -686,7 +706,7 @@ static void __init generate_cpl_tables(void)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, L1_CODE_START,
 			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, L2_SRAM,
 			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
@@ -712,7 +732,7 @@ static inline u_long get_vco(void)
 }
 
 /*Get the Core clock*/
-u_long get_cclk()
+u_long get_cclk(void)
 {
 	u_long csel, ssel;
 	if (bfin_read_PLL_STAT() & 0x1)
@@ -728,7 +748,7 @@ u_long get_cclk()
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
-u_long get_sclk()
+u_long get_sclk(void)
 {
 	u_long ssel;
 
@@ -744,31 +764,6 @@ u_long get_sclk()
 	return get_vco() / ssel;
 }
 EXPORT_SYMBOL(get_sclk);
-
-/*Get the DSP Revision ID*/
-static u_int get_dsp_rev_id()
-{
-	u_int id;
-	id = bfin_read_DSPID() & 0xffff;
-	return id;
-}
-
-static inline u_int get_compiled_rev_id()
-{
-#if defined (CONFIG_BF_REV_0_0)
-	return 0;
-#elif defined (CONFIG_BF_REV_0_1)
-	return 1;
-#elif defined (CONFIG_BF_REV_0_2)
-	return 2;
-#elif defined (CONFIG_BF_REV_0_3)
-	return 3;
-#elif defined (CONFIG_BF_REV_0_4)
-	return 4;
-#elif defined (CONFIG_BF_REV_0_5)
-	return 5;
-#endif
-}
 
 /*
  *	Get CPU information for use by the procfs.

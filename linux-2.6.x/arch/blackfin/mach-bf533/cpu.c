@@ -37,7 +37,7 @@
 #include <linux/fs.h>
 #include <asm/bfin-global.h>
 
-//CONFIG_CLKIN_HZ=11059200
+/* CONFIG_CLKIN_HZ=11059200 */
 #define VCO5 (CONFIG_CLKIN_HZ*45)	/*497664000 */
 #define VCO4 (CONFIG_CLKIN_HZ*36)	/*398131200 */
 #define VCO3 (CONFIG_CLKIN_HZ*27)	/*298598400 */
@@ -55,25 +55,23 @@ static struct cpufreq_frequency_table bf533_freq_table[] = {
 	{0, CPUFREQ_TABLE_END},
 };
 
-
 /*
  * dpmc_fops->ioctl()
  * static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
  */
-
 static int bf533_getfreq(unsigned int cpu)
 {
 	unsigned long cclk_mhz, vco_mhz;
 
-	/*The driver only support single cpu */
+	/* The driver only support single cpu */
 	if (cpu == 0)
 		dpmc_fops.ioctl(NULL, NULL, IOCTL_GET_CORECLOCK, &cclk_mhz);
 	else
 		cclk_mhz = -1;
 	return cclk_mhz;
 }
- /**/
-    static int bf533_target(struct cpufreq_policy *policy,
+
+static int bf533_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq, unsigned int relation)
 {
 	unsigned long cclk_mhz;
@@ -149,8 +147,7 @@ static struct cpufreq_driver bf533_driver = {
 
 static int __init bf533_cpu_init(void)
 {
-	//MISC_MAJOR, DPMC_MINOR
-	return (cpufreq_register_driver(&bf533_driver));
+	return cpufreq_register_driver(&bf533_driver);
 }
 
 static void __exit bf533_cpu_exit(void)

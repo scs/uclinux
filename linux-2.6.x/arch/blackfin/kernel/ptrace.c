@@ -87,8 +87,9 @@ static inline int ptrace_getregs(struct task_struct *tsk, void __user * uregs)
 }
 
 /* Mapping from PT_xxx to the stack offset at which the register is
-   saved.  Notice that usp has no stack-slot and needs to be treated
-   specially (see get_reg/put_reg below). */
+ * saved.  Notice that usp has no stack-slot and needs to be treated
+ * specially (see get_reg/put_reg below).
+ */
 
 /*
  * Get contents of register REGNO in task TASK.
@@ -229,13 +230,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			}
 			if (addr == sizeof(struct pt_regs)) {
-				// PT_TEXT_ADDR
+				/* PT_TEXT_ADDR */
 				tmp = child->mm->start_code + TEXT_OFFSET;
 			} else if (addr == (sizeof(struct pt_regs) + 4)) {
-				// PT_TEXT_END_ADDR
+				/* PT_TEXT_END_ADDR */
 				tmp = child->mm->end_code;
 			} else if (addr == (sizeof(struct pt_regs) + 8)) {
-				// PT_DATA_ADDR
+				/* PT_DATA_ADDR */
 				tmp = child->mm->start_data;
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 			} else if (addr == (sizeof(struct pt_regs) + 12)) {
@@ -391,7 +392,8 @@ asmlinkage void syscall_trace(void)
 		return;
 
 	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
+	 * between a syscall stop and SIGTRAP delivery
+	 */
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
 				 ? 0x80 : 0));
 

@@ -37,7 +37,7 @@
 #define __ll_highpart(t) ((usitype) (t) / __ll_b)
 #define BITS_PER_UNIT 8
 
-#if !defined (umul_ppmm)
+#if !defined(umul_ppmm)
 #define umul_ppmm(w1, w0, u, v)						\
   do {									\
     usitype __x0, __x1, __x2, __x3;					\
@@ -63,7 +63,7 @@
   } while (0)
 #endif
 
-#if !defined (__umulsidi3)
+#if !defined(__umulsidi3)
 #define __umulsidi3(u, v) 						\
   ({diunion __w;                                                        \
        umul_ppmm (__w.s.high, __w.s.low, u, v);                         \

@@ -113,7 +113,7 @@ ENTRY(___udivsi3)
 	P3 = 32;                        /* Set loop counter */
 	R4 = 0;                         /* Initialise quotient bit */
 
-	LSETUP( .LULST, .LULEND ) LC0 = P3;   /* Set loop counter */
+	LSETUP (.LULST, .LULEND) LC0 = P3;   /* Set loop counter */
 .LULST:
 	R6 = R2 >> 31;                  /* R6 = sign bit of R2, for carry */
 	R2 <<= 1;                       /* Shift 64 bit dividend up by 1 bit */

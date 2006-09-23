@@ -271,11 +271,11 @@ config BOOT_LOAD
 	  as this will allow the kernel to capture NULL pointer references.
 
 comment 'LED Status Indicators'
-	depends on ( BFIN533_STAMP || BFIN533_BLUETECHNIX_CM )
+	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 
 config BFIN_ALIVE_LED
 	bool "Enable Board Alive"
-	depends on ( BFIN533_STAMP || BFIN533_BLUETECHNIX_CM )
+	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default n
 	help
 	  Blinks the LED you select when the kernel is running. Helps detect a hung kernel.
@@ -290,7 +290,7 @@ config BFIN_ALIVE_LED_NUM
 
 config BFIN_IDLE_LED
 	bool 'Enable System Load/Idle LED'
-	depends on ( BFIN533_STAMP || BFIN533_BLUETECHNIX_CM )
+	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default n
 	help
 	  Blinks the LED you select when to determine kernel load.
@@ -319,9 +319,9 @@ config BFIN_ALIVE_LED_DPORT
 
 config BFIN_ALIVE_LED_PIN
 	hex
-	default 0x04 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 1 ))
-	default 0x08 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 2 ))
-	default 0x10 if (BFIN533_STAMP && ( BFIN_ALIVE_LED_NUM = 3 ))
+	default 0x04 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 1)
+	default 0x08 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 2)
+	default 0x10 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 3)
 
 config BFIN_IDLE_LED_PORT
 	hex
@@ -334,9 +334,9 @@ config BFIN_IDLE_LED_DPORT
 
 config BFIN_IDLE_LED_PIN
 	hex
-	default 0x04 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 1 ))
-	default 0x08 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 2 ))
-	default 0x10 if (BFIN533_STAMP && ( BFIN_IDLE_LED_NUM = 3 ))
+	default 0x04 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 1)
+	default 0x08 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 2)
+	default 0x10 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 3)
 
 comment 'Console UART Setup'
 

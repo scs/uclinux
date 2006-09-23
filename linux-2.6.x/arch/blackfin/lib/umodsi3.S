@@ -53,7 +53,7 @@ ___umodsi3:
 	CALL ___udivsi3;		/* Compute unsigned quotient using ___udiv32()*/
 	SP += 12;
 	R0 *= R6;			/* Quotient * divisor */
-	R0 = R7 - R0;			/* Dividend - ( quotient *divisor) */
+	R0 = R7 - R0;			/* Dividend - (quotient * divisor) */
 	RETS = [SP++];			/* Pop return address */
 	( R7:6) = [SP++];		/* And registers */
 	RTS;				/* Return remainder */

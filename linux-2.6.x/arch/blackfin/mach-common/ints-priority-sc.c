@@ -350,8 +350,8 @@ static void bf534_gpio_mask_irq(unsigned int irq)
 		mask = (1L << gpionr);
 		bfin_write_PORTHIO_CLEAR(mask);
 		__builtin_bfin_ssync();
-		//bfin_write_PORTHIO_MASKA_CLEAR(mask);
-		//bfin_write_PORTHIO_MASKB_CLEAR(mask);
+		/*bfin_write_PORTHIO_MASKA_CLEAR(mask);*/
+		/*bfin_write_PORTHIO_MASKB_CLEAR(mask);*/
 	}
 	__builtin_bfin_ssync();
 }
@@ -373,8 +373,8 @@ static void bf534_gpio_unmask_irq(unsigned int irq)
 	} else {
 		gpionr = irq - IRQ_PH0;
 		mask = (1L << gpionr);
-		//bfin_write_PORTHIO_MASKA_SET(mask);
-		//bfin_write_PORTHIO_MASKB_SET(mask);
+		/*bfin_write_PORTHIO_MASKA_SET(mask);*/
+		/*bfin_write_PORTHIO_MASKB_SET(mask);*/
 	}
 	__builtin_bfin_ssync();
 }
@@ -589,7 +589,7 @@ static void bf534_demux_gpio_irq(unsigned int intb_irq,
 	do {
 		int irq = IRQ_PH0;
 		int flag_d = bfin_read_PORTHIO();
-		//int mask = flag_d & (gpioh_enabled & bfin_read_PORTHIO_MASKA_CLEAR());
+		/*int mask = flag_d & (gpioh_enabled & bfin_read_PORTHIO_MASKA_CLEAR());*/
 		int mask =
 		    flag_d & (gpioh_enabled &
 			      bfin_read_PORTHIO_MASKB_CLEAR());

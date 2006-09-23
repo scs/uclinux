@@ -35,7 +35,7 @@
 
 /*
  * C Library function MEMMOVE
- * R0 = To Address ( leave unchanged to form result)
+ * R0 = To Address (leave unchanged to form result)
  * R1 = From Address
  * R2 = count
  * Data may overlap

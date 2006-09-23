@@ -37,33 +37,32 @@
 #include <asm/ptrace.h>
 
 
-static void enable_sys_timer0(){
-}
-static void disable_sys_timer0(){
+static void enable_sys_timer0(void)
+{
 }
 
-static irqreturn_t sys_timer0_int_handler(int irq, void *dev_id, struct pt_regs *regs){
+static void disable_sys_timer0(void)
+{
+}
+
+static irqreturn_t sys_timer0_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+{
 	oprofile_add_sample(regs, 0);
 	return IRQ_HANDLED;
 }
+
 static int sys_timer0_start(void)
 {
 	enable_sys_timer0();
-	int retval = request_irq(IVG11, sys_timer0_int_handler, 0,
-                             "sys_timer0", NULL);
-	if (retval)
-        	return retval;
-	return 0;
+	return request_irq(IVG11, sys_timer0_int_handler, 0, "sys_timer0", NULL);
 }
-
 
 static void sys_timer0_stop(void)
 {
 	disable_sys_timer();
 }
 
-
-int __init sys_timer0_init(struct oprofile_operations * ops)
+int __init sys_timer0_init(struct oprofile_operations *ops)
 {
 	extern int nmi_active;
 

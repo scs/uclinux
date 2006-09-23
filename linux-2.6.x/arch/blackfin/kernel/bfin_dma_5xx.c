@@ -50,7 +50,7 @@
 ***************************************************************************/
 
 static dma_channel_t dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
-#if defined (CONFIG_BF561)
+#if defined(CONFIG_BF561)
 static dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
 	(dma_register_t *) DMA1_0_NEXT_DESC_PTR,
 	(dma_register_t *) DMA1_1_NEXT_DESC_PTR,
@@ -144,7 +144,7 @@ arch_initcall(blackfin_dma_init);
 /*
  *	Form the channel find the irq number for that channel.
  */
-#if !defined (CONFIG_BF561)
+#if !defined(CONFIG_BF561)
 
 static int bf533_channel2irq(unsigned int channel)
 {
@@ -308,8 +308,8 @@ int request_dma(unsigned int channel, char *device_id)
 	dma_ch[channel].irq_callback = NULL;
 
 	/* This is to be enabled by putting a restriction -
-	   you have to request DMA , before doing any operations on
-	   descriptor/channel
+	 * you have to request DMA, before doing any operations on
+	 * descriptor/channel
 	 */
 	pr_debug("request_dma() : END  \n");
 	return channel;
@@ -589,7 +589,7 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 		blackfin_dcache_flush_range((unsigned int)src,(unsigned int)(src+size));
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
-	
+
 	if ((unsigned long)src < (unsigned long)dest)
 		direction = 1;
 	else

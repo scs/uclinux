@@ -58,12 +58,12 @@ void bf533_pm_idle(void)
  */
 void bf533_pm_suspend(void)
 {
-  unsigned long flags;
+	unsigned long flags;
 
- /*FIXME: Add a useful Power Saving Mode Here ...*/
-   
+	/* FIXME: Add a useful Power Saving Mode Here ... */
+
 	local_irq_save(flags);
-    bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 	__builtin_bfin_ssync();
 	asm("IDLE;");
 	local_irq_restore(flags);

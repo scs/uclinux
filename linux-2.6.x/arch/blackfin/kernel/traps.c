@@ -144,8 +144,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	trace_buffer_save(j);
 
 	/* trap_c() will be called for exceptions. During exceptions
-	   processing, the pc value should be set with retx value.
-	   With this change we can cleanup some code in signal.c- TODO */
+	 * processing, the pc value should be set with retx value.
+	 * With this change we can cleanup some code in signal.c- TODO
+	 */
 	fp->orig_pc = fp->retx;
 
 	/* send the appropriate signal to the user program */
@@ -158,7 +159,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	 * handled in assembly/exception space, and the error path is handled
 	 * here
 	 */
-	
+
 	/* 0x00 - Linux Syscall, getting here is an error */
 	/* 0x01 - userspace gdb breakpoint, handled here */
 	case VEC_EXCPT01:
@@ -364,13 +365,13 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* if the address that we are about to return to is not valid, set it
 	 * to a valid address, if we have a current application or panic
 	 */
-	if ( ! ( fp->pc <= physical_mem_end 
+	if (!fp->pc <= physical_mem_end
 #if L1_CODE_LENGTH != 0
-            || ( fp->pc >= L1_CODE_START &&
-                 fp->pc <= (L1_CODE_START + L1_CODE_LENGTH)) )
+	    || (fp->pc >= L1_CODE_START &&
+	        fp->pc <= (L1_CODE_START + L1_CODE_LENGTH))
 #endif
 	) {
-	        if (current->mm) {
+		if (current->mm) {
 			fp->pc = current->mm->start_code;
 		} else {
 			printk(KERN_EMERG "I can't return to memory that doesn't exist - bad things happen\n");
@@ -497,9 +498,9 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		for (i = -16; i < 8; i++) {
 			get_user(x, (unsigned short *)retaddr + i);
 #ifndef CONFIG_DEBUG_HWERR
-			/* If one of the last few instructions was a STI 
+			/* If one of the last few instructions was a STI
 			 * it is likily that the error occured awhile ago
-			 * and we just noticed 
+			 * and we just noticed
 			 */
 			if (x >= 0x0040 && x <= 0x0047 && i <= 0)
 				panic("\n\nWARNING : You should reconfigure the kernel to turn on\n"
@@ -550,7 +551,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	if ((long)fp->seqstat & SEQSTAT_EXCAUSE) {
 		printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void*)bfin_read_DCPLB_FAULT_ADDR());
 		printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void*)bfin_read_ICPLB_FAULT_ADDR());
- 	}
+	}
 
 	printk("\n\n");
 }
@@ -591,5 +592,4 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 	dump_bfin_regs(fp, (void *)fp->retx);
 	dump_stack();
 	panic("Unrecoverable event\n");
-	
 }
