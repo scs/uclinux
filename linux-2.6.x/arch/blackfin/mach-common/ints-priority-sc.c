@@ -43,16 +43,9 @@
 #include <asm/blackfin.h>
 
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534))
-#define BF537_GENERIC_ERROR_INT_DEMUX
+# define BF537_GENERIC_ERROR_INT_DEMUX
 #else
-#undef BF537_GENERIC_ERROR_INT_DEMUX
-#endif
-
-#undef DEBUG_IRQ
-#ifdef DEBUG_IRQ
-#define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __FUNCTION__ , ## args)
-#else
-#define DPRINTK(fmt, args...)
+# undef BF537_GENERIC_ERROR_INT_DEMUX
 #endif
 
 /*
@@ -291,7 +284,7 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 				break;
 			}
 
-			DPRINTK("IRQ %d:"
+			pr_debug("IRQ %d:"
 				" MASKED PERIPHERAL ERROR INTERRUPT ASSERTED\n",
 				irq);
 		}

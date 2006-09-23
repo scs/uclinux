@@ -43,11 +43,6 @@
 
 #include "op_blackfin.h"
 
-#ifdef PM_DEBUG
-#define dbg(args...) printk(args)
-#else
-#define dbg(args...)
-#endif
 #define PM_ENABLE 0x01;
 #define PM_CTL1_ENABLE  0x18
 #define PM_CTL0_ENABLE  0xC000
@@ -74,11 +69,11 @@ static int bfin533_reg_setup(struct op_counter_config *ctr)
 		curr_count[1] = count[1];
 	}
 
-	dbg("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n", ctr[0].enabled, ctr[1].enabled, ctr[0].event << 5, ctr[1].event << 16);
+	pr_debug("ctr[0].enabled=%d,ctr[1].enabled=%d,ctr[0].event<<5=0x%x,ctr[1].event<<16=0x%x\n", ctr[0].enabled, ctr[1].enabled, ctr[0].event << 5, ctr[1].event << 16);
 	pfctl |= COUNT_EDGE_ONLY;
 	curr_pfctl = pfctl;
 
-	dbg("write 0x%x to pfctl\n", pfctl);
+	pr_debug("write 0x%x to pfctl\n", pfctl);
 	ctr_write(pfctl);
 	count_write(count);
 
@@ -95,7 +90,7 @@ static int bfin533_start(struct op_counter_config *ctr)
 	ctr_write(pfctl);
 
 	oprofile_running = 1;
-	dbg("start oprofile counter \n");
+	pr_debug("start oprofile counter \n");
 
 	return 0;
 }
@@ -110,7 +105,7 @@ static void bfin533_stop(void)
 	ctr_write(pfctl);
 
 	oprofile_running = 0;
-	dbg("stop oprofile counter \n");
+	pr_debug("stop oprofile counter \n");
 }
 
 static int get_kernel(void)
@@ -132,9 +127,9 @@ int pm_overflow_handler(int irq, struct pt_regs *regs)
 	unsigned int pc, pfctl;
 	unsigned int count[2];
 
-	dbg("get interrupt in %s\n", __FUNCTION__);
+	pr_debug("get interrupt in %s\n", __FUNCTION__);
 	if (oprofile_running == 0) {
-		dbg("error: entering interrupt when oprofile is stopped.\n\r");
+		pr_debug("error: entering interrupt when oprofile is stopped.\n\r");
 		return -1;
 	}
 

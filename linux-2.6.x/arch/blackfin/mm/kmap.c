@@ -31,8 +31,6 @@
 
 #include <asm/bfin-global.h>
 
-#undef DEBUG
-
 /*
  * Map some physical address range into the kernel address space.
  */

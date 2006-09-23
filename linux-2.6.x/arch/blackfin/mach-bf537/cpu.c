@@ -37,8 +37,6 @@
 #include <linux/fs.h>
 #include <asm/bfin-global.h>
 
-#undef BF533_CPU_DEBUG
-
 //CONFIG_CLKIN_HZ=11059200
 #define VCO5 (CONFIG_CLKIN_HZ*45)	/*497664000 */
 #define VCO4 (CONFIG_CLKIN_HZ*36)	/*398131200 */
@@ -95,11 +93,9 @@ static int bf537_getfreq(unsigned int cpu)
 	freqs.new = cclk_mhz;
 	freqs.cpu = 0;
 
-#if defined(BF533_CPU_DEBUG)
-	printk
-	    ("cclk begin change to cclk %d,vco=%d,index=%d,target=%d,oldfreq=%d\n",
-	     cclk_mhz, vco_mhz, index, target_freq, freqs.old);
-#endif
+	pr_debug("cclk begin change to cclk %d,vco=%d,index=%d,target=%d,oldfreq=%d\n",
+	         cclk_mhz, vco_mhz, index, target_freq, freqs.old);
+
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	local_irq_save(flags);
 	dpmc_fops.ioctl(NULL, NULL, IOCTL_SET_CCLK, &cclk_mhz);

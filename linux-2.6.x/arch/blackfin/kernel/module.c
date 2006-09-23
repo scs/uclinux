@@ -37,8 +37,6 @@
 #include <linux/kernel.h>
 #include <asm/dma.h>
 
-#define DEBUGP(fmt...)
-
 /* handle arithmetic relocations.
  * See binutils/bfd/elf32-bfin.c for more details
  */
@@ -309,7 +307,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 	uint16_t *location16;
 	uint32_t value;
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
+	pr_debug("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
@@ -327,7 +325,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			value = reloc_stack_pop();
 		}
 		value += rel[i].r_addend;
-		DEBUGP("location is %x, value is %x type is %d \n", location32,
+		pr_debug("location is %x, value is %x type is %d \n", location32,
 		       value, ELF32_R_TYPE(rel[i].r_info));
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
@@ -341,7 +339,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			location32 = (uint32_t *) location16;
 			value -= (uint32_t) location32;
 			value >>= 1;
-			DEBUGP("value is %x, before %x-%x after %x-%x\n", value,
+			pr_debug("value is %x, before %x-%x after %x-%x\n", value,
 			       *location16, *(location16 + 1),
 			       (*location16 & 0xff00) | (value >> 16 & 0x00ff),
 			       value & 0xffff);
@@ -363,7 +361,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		case R_luimm16:
 			{
 				unsigned short tmp;
-				DEBUGP("before %x after %x\n", *location16,
+				pr_debug("before %x after %x\n", *location16,
 				       (value & 0xffff));
 				tmp = (value & 0xffff);
 				dma_memcpy(location16, &tmp, 2);
@@ -372,7 +370,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		case R_huimm16:
 			{
 				unsigned short tmp;
-				DEBUGP("before %x after %x\n", *location16,
+				pr_debug("before %x after %x\n", *location16,
 				       ((value >> 16) & 0xffff));
 				tmp = ((value >> 16) & 0xffff);
 				dma_memcpy(location16, &tmp, 2);
@@ -382,7 +380,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			*location16 = (value & 0xffff);
 			break;
 		case R_byte4_data:
-			DEBUGP("before %x after %x\n", *location32, value);
+			pr_debug("before %x after %x\n", *location32, value);
 			*location32 = value;
 			break;
 		case R_push:

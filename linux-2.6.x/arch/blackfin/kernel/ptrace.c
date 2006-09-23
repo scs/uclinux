@@ -38,9 +38,6 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
-
-/*#define DEBUG*/
-
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -195,9 +192,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	switch (request) {
 		/* when I and D space are separate, these will need to be fixed. */
 	case PTRACE_PEEKDATA:
-#ifdef DEBUG
-		printk("PTRACE_PEEKDATA\n");
-#endif
+		pr_debug("PTRACE_PEEKDATA\n");
 		add = MAX_SHARED_LIBS * 4;	/* space between text and data */
 		/* fall through */
 	case PTRACE_PEEKTEXT:	/* read word at location addr. */
@@ -206,19 +201,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			int copied;
 
 			ret = -EIO;
-#ifdef DEBUG
-			printk("PEEKTEXT at addr %x + add %d %d", addr, add,
-			       sizeof(data));
-#endif
+			pr_debug("PEEKTEXT at addr %x + add %d %d", addr, add,
+			         sizeof(data));
 			if (is_user_addr_valid(child, addr + add, sizeof(tmp)) < 0)
 				break;
 
 			copied =
 			    access_process_vm(child, addr + add, &tmp,
 					      sizeof(tmp), 0);
-#ifdef DEBUG
-			printk(" bytes %x\n", data);
-#endif
+			pr_debug(" bytes %x\n", data);
 			if (copied != sizeof(tmp))
 				break;
 			ret = put_user(tmp, (unsigned long *)data);
@@ -232,8 +223,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = -EIO;
 			tmp = 0;
 			if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
-				printk
-				    ("ptrace error : PEEKUSR : temporarily returning 0 - %x sizeof(pt_regs) is %lx\n",
+				printk(KERN_WARNING "ptrace error : PEEKUSR : temporarily returning "
+				                    "0 - %x sizeof(pt_regs) is %lx\n",
 				     (int)addr, sizeof(struct pt_regs));
 				break;
 			}
@@ -266,10 +257,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_POKETEXT:	/* write the word at location addr. */
 		{
 			ret = -EIO;
-#ifdef DEBUG
-			printk("POKETEXT at addr %x + add %d %d bytes %x\n",
-			       addr, add, sizeof(data), data);
-#endif
+			pr_debug("POKETEXT at addr %x + add %d %d bytes %x\n",
+			         addr, add, sizeof(data), data);
 			if (is_user_addr_valid(child, addr + add, sizeof(data)) < 0)
 				break;
 
@@ -284,8 +273,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
 		ret = -EIO;
 		if ((addr & 3) || (addr > (sizeof(struct pt_regs) + 16))) {
-			printk
-			    ("ptrace error : POKEUSR: temporarily returning 0\n");
+			printk(KERN_WARNING "ptrace error : POKEUSR: temporarily returning 0\n");
 			break;
 		}
 
@@ -304,9 +292,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_CONT:
 		{		/* restart after signal. */
 			long tmp;
-#ifdef DEBUG
-			printk("ptrace_cont\n");
-#endif
+
+			pr_debug("ptrace_cont\n");
 
 			ret = -EIO;
 			if (!valid_signal(data))
@@ -320,19 +307,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			/* make sure the single step bit is not set. */
 			tmp = get_reg(child, PT_SYSCFG) & ~(TRACE_BITS);
 			put_reg(child, PT_SYSCFG, tmp);
-#ifdef DEBUG
-			printk("before wake_up_process\n");
-#endif
+			pr_debug("before wake_up_process\n");
 			wake_up_process(child);
 			ret = 0;
 			break;
 		}
 
-/*
- * make the child exit.  Best I can do is send it a sigkill.
- * perhaps it should be put in the status that it wants to
- * exit.
- */
+	/*
+	 * make the child exit.  Best I can do is send it a sigkill.
+	 * perhaps it should be put in the status that it wants to
+	 * exit.
+	 */
 	case PTRACE_KILL:
 		{
 			long tmp;
@@ -350,9 +335,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_SINGLESTEP:
 		{		/* set the trap flag. */
 			long tmp;
-#ifdef DEBUG
-			printk("single step\n");
-#endif
+			pr_debug("single step\n");
 			ret = -EIO;
 			if (!valid_signal(data))
 				break;

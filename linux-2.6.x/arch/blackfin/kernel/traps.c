@@ -39,37 +39,6 @@
 
 extern unsigned long memory_end, physical_mem_end;
 
-/*
- *  . EXCEPTION TRAPS DEBUGGING LEVELS
- *  .
- *  0 for normal operation without any error messages
- *  1 for serious error messages
- *  2 for errors but handled somwhere else
- * >2 for various levels of hopefully increasingly useless information
- */
-
-#ifndef TRAPS_DEBUG
-# define TRAPS_DEBUG 0
-#endif
-
-#if (TRAPS_DEBUG > 2 )
-# define DPRINTK3(args...) printk(KERN_DEBUG args)
-#else
-# define DPRINTK3(args...)
-#endif
-
-#if (TRAPS_DEBUG > 1)
-# define DPRINTK2(args...) printk(KERN_DEBUG args)
-#else
-# define DPRINTK2(args...)
-#endif
-
-#ifdef TRAPS_DEBUG
-# define DPRINTK1(args...) printk(KERN_DEBUG args)
-#else
-# define DPRINTK1(args...)
-#endif
-
 /* assembler routines */
 asmlinkage void evt_system_call(void);
 asmlinkage void evt_soft_int1(void);
@@ -303,7 +272,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_WATCH:
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
-		DPRINTK3(EXC_0x28);
+		pr_debug(EXC_0x28);
 		/* Check if this is a watchpoint in kernel space */
 		if (fp->ipend & 0xffc0)
 			return;

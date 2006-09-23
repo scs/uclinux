@@ -123,7 +123,7 @@ void enable_irq(unsigned int irq)
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
 	if (unlikely(!desc->disable_depth)) {
-		printk("enable_irq(%u) unbalanced from %p\n", irq,
+		printk(KERN_WARNING "enable_irq(%u) unbalanced from %p\n", irq,
 		       __builtin_return_address(0));
 	} else if (!--desc->disable_depth) {
 		desc->probing = 0;
@@ -686,8 +686,7 @@ request_irq(unsigned int irq,
 	unsigned long retval;
 	struct irqaction *action;
 
-	pr_debug
-	    ("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
+	pr_debug("request_irq: irq=%d handler=%p irq_flags=%#lx devname=%s devid=%p\n",
 	     irq, handler, irq_flags, devname, dev_id);
 	if (irq >= NR_IRQS || !irq_desc[irq].valid || !handler
 	    || (irq_flags & SA_SHIRQ && !dev_id))
