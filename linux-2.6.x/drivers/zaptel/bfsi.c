@@ -485,7 +485,7 @@ static void init_dma_wc(void)
 #if defined(CONFIG_BF537)
   /* Set up DMA3 to receive, map DMA3 to Sport0 RX */
   bfin_write_DMA3_PERIPHERAL_MAP(0x3000);
-  bfin_write_DMA3_IRQ_STATUS(bfin_read_DMA1_IRQ_STATUS() | 0x2);
+  bfin_write_DMA3_IRQ_STATUS(bfin_read_DMA3_IRQ_STATUS() | 0x2);
 #endif  
   
 #if L1_DATA_A_LENGTH != 0
