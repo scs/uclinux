@@ -239,18 +239,18 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		name: "bootloader",
-		size: 0x00040000,
-		offset: 0,
-		mask_flags: MTD_CAP_ROM
+		name = "bootloader",
+		size = 0x00040000,
+		offset = 0,
+		mask_flags = MTD_CAP_ROM
 	},{
-		name: "kernel",
-		size: 0xc0000,
-		offset: 0x40000
+		name = "kernel",
+		size = 0xc0000,
+		offset = 0x40000
 	},{
-		name: "file system",
-		size: 0x300000,
-		offset: 0x00100000,
+		name = "file system",
+		size = 0x300000,
+		offset = 0x00100000,
 	}
 };
 

@@ -48,6 +48,7 @@ char *bfin_board_name = "ADDS-BF533-STAMP";
 /*
  *  Driver needs to know address, irq and flag pin.
  */
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	{
 		.name = "smc91x-regs",
@@ -68,12 +69,14 @@ static struct resource smc91x_resources[] = {
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
+
 static struct platform_device smc91x_device = {
 	.name = "smc91x",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
 };
+#endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 static struct resource net2272_bfin_resources[] = {
@@ -102,18 +105,18 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		name: "bootloader",
-		size: 0x00040000,
-		offset: 0,
-		mask_flags: MTD_CAP_ROM
+		name = "bootloader",
+		size = 0x00040000,
+		offset = 0,
+		mask_flags = MTD_CAP_ROM
 	},{
-		name: "kernel",
-		size: 0xc0000,
-		offset: 0x40000
+		name = "kernel",
+		size = 0xc0000,
+		offset = 0x40000
 	},{
-		name: "file system",
-		size: 0x300000,
-		offset: 0x00100000,
+		name = "file system",
+		size = 0x300000,
+		offset = 0x00100000,
 	}
 };
 
@@ -226,7 +229,9 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 static struct platform_device *stamp_devices[] __initdata = {
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
+#endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
 	&net2272_bfin_device,

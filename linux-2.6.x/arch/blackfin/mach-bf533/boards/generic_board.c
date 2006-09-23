@@ -37,6 +37,7 @@
 /*
  *  Driver needs to know address, irq and flag pin.
  */
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	{
 		.start = 0x20300300,
@@ -56,15 +57,19 @@ static struct resource smc91x_resources[] = {
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };
+
 static struct platform_device smc91x_device = {
 	.name = "smc91x",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
 };
+#endif
 
 static struct platform_device *generic_board_devices[] __initdata = {
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 	&smc91x_device,
+#endif
 };
 
 static int __init generic_board_init(void)

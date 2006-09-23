@@ -217,8 +217,6 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 	int retval = 0;
 	int coreb_index = 0;
 
-
-
 	switch (cmd) {
 	case CMD_COREB_INDEX:
 		if (copy_from_user(&coreb_index, (int *)arg, sizeof(int))) {
@@ -286,13 +284,13 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 }
 
 static struct file_operations coreb_fops = {
-      owner:THIS_MODULE,
-      llseek:coreb_lseek,
-      read:coreb_read,
-      write:coreb_write,
-      ioctl:coreb_ioctl,
-      open:coreb_open,
-      release:coreb_release
+	owner = THIS_MODULE,
+	llseek = coreb_lseek,
+	read = coreb_read,
+	write = coreb_write,
+	ioctl = coreb_ioctl,
+	open = coreb_open,
+	release = coreb_release
 };
 
 static struct miscdevice coreb_dev = {
