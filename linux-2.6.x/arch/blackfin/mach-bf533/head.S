@@ -145,7 +145,7 @@ ENTRY(__stext)
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
-	/* Anamoly 05000125 */
+	/* Anomaly 05000125 */
 	CLI R2;
 	SSYNC;
 	[p0] = R0;
@@ -159,7 +159,7 @@ ENTRY(__stext)
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
 
-/* Anamoly 05000125 */
+/* Anomaly 05000125 */
 	CLI R2;
 	SSYNC;
 	[p0] = R0;

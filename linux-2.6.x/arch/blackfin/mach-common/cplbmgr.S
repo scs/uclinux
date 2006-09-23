@@ -400,10 +400,10 @@ ENTRY(_cplb_mgr)
 	IF !CC JUMP .Lskip_stack_check;
 
 	R2 = [P0 - 0x104]; 	/* R2 - PageStart */
-	P3.L = _page_size_table; /* retrive end address */
-	P3.H = _page_size_table; /* retrive end address */
+	P3.L = _page_size_table; /* retrieve end address */
+	P3.H = _page_size_table; /* retrieve end address */
 	R3 = 0x1002;		/* 16th - position, 2 bits -length */
-	nop;			/* Anamoly 05000209 */
+	nop;			/* Anomaly 05000209 */
 	R7 = EXTRACT(R1,R3.l);
 	R7 = R7 << 2;		/* Page size index offset */
 	P5 = R7;
