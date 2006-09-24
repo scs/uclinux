@@ -55,6 +55,7 @@ static wait_queue_head_t coreb_dma_wait;
 static unsigned long coreb_status = 0;
 static unsigned long coreb_base = 0xff600000;
 static unsigned long coreb_size = 0x4000;
+int coreb_dma_done;
 
 static loff_t coreb_lseek(struct file *file, loff_t offset, int origin);
 static ssize_t coreb_read(struct file *file, char *buf, size_t count,
@@ -70,7 +71,8 @@ static irqreturn_t coreb_dma_interrupt(int irq, void *dev_id,
 				       struct pt_regs *regs)
 {
 	clear_dma_irqstat(CH_MEM_STREAM2_DEST);
-	wake_up(&coreb_dma_wait);
+	coreb_dma_done = 1;
+	wake_up_interruptible(&coreb_dma_wait);
 	return IRQ_HANDLED;
 }
 
@@ -89,6 +91,8 @@ static ssize_t coreb_write(struct file *file, const char *buf, size_t count,
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
 
+		coreb_dma_done = 0;
+
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, (unsigned long)buf);
 		set_dma_x_count(CH_MEM_STREAM2_SRC, len);
@@ -103,7 +107,7 @@ static ssize_t coreb_write(struct file *file, const char *buf, size_t count,
 		enable_dma(CH_MEM_STREAM2_SRC);
 		enable_dma(CH_MEM_STREAM2_DEST);
 
-		interruptible_sleep_on(&coreb_dma_wait);
+		wait_event_interruptible(coreb_dma_wait, coreb_dma_done);
 
 		disable_dma(CH_MEM_STREAM2_SRC);
 		disable_dma(CH_MEM_STREAM2_DEST);
@@ -128,8 +132,11 @@ static ssize_t coreb_read(struct file *file, char *buf, size_t count,
 
 	while (count > 0) {
 		int len = count;
+
 		if (len > PAGE_SIZE)
 			len = PAGE_SIZE;
+
+		coreb_dma_done = 0;
 
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, coreb_base + p);
@@ -145,7 +152,7 @@ static ssize_t coreb_read(struct file *file, char *buf, size_t count,
 		enable_dma(CH_MEM_STREAM2_SRC);
 		enable_dma(CH_MEM_STREAM2_DEST);
 
-		interruptible_sleep_on(&coreb_dma_wait);
+		wait_event_interruptible(coreb_dma_wait, coreb_dma_done);
 
 		disable_dma(CH_MEM_STREAM2_SRC);
 		disable_dma(CH_MEM_STREAM2_DEST);
