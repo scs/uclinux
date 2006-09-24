@@ -56,14 +56,6 @@
 #define SERIAL_BFIN_MAJOR	TTY_MAJOR
 #define MINOR_START		64
 
-#undef DEBUG
-
-#ifdef DEBUG
-# define DPRINTK(x...)   printk(KERN_DEBUG x)
-#else
-# define DPRINTK(x...)   do { } while (0)
-#endif
-
 /*
  * Setup for console. Argument comes from the menuconfig
  */
@@ -749,7 +741,7 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 
 		*baud = get_sclk() / (16*(dll | dlh << 8));
 	}
-	DPRINTK("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
+	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
 }
 
 static int __init
@@ -885,7 +877,7 @@ static int __init bfin_serial_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "Serial: Blackfin serial driver\n");
+	pr_info("Serial: Blackfin serial driver\n");
 
 	bfin_serial_init_ports();
 
@@ -893,7 +885,7 @@ static int __init bfin_serial_init(void)
 	if (ret == 0) {
 		ret = platform_driver_register(&bfin_serial_driver);
 		if (ret) {
-			DPRINTK("uart register failed\n");
+			pr_debug("uart register failed\n");
 			uart_unregister_driver(&bfin_serial_reg);
 		}
 	}
