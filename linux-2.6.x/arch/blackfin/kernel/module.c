@@ -37,7 +37,8 @@
 #include <linux/kernel.h>
 #include <asm/dma.h>
 
-/* handle arithmetic relocations.
+/* 
+ * handle arithmetic relocations.
  * See binutils/bfd/elf32-bfin.c for more details
  */
 #define RELOC_STACK_SIZE 100
@@ -59,119 +60,80 @@ static uint32_t reloc_stack_pop(void)
 static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
 {
 	uint32_t value;
+
 	switch (oper) {
 	case R_add:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos - 2] +
-			    reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] + 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_sub:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos - 2] -
-			    reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] -
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_mult:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] * reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] * 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_div:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] / reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] / 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_mod:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] % reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] % 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_lshift:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] << reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] << 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_rshift:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] >> reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] >> 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_and:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] & reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] & 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_or:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] | reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] | 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_xor:
-		{
-			value =
-			    reloc_stack[reloc_stack_tos -
-					2] ^ reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] ^ 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_land:
-		{
-			value = reloc_stack[reloc_stack_tos - 2]
-			    && reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] && 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_lor:
-		{
-			value = reloc_stack[reloc_stack_tos - 2]
-			    || reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 2;
-			break;
-		}
+		value = reloc_stack[reloc_stack_tos - 2] || 
+			reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 2;
+		break;
 	case R_neg:
-		{
-			value = -reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos--;
-			break;
-		}
+		value = -reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos--;
+		break;
 	case R_comp:
-		{
-			value = ~reloc_stack[reloc_stack_tos - 1];
-			reloc_stack_tos -= 1;
-			break;
-		}
+		value = ~reloc_stack[reloc_stack_tos - 1];
+		reloc_stack_tos -= 1;
+		break;
 	default:
-		{
-			printk(KERN_WARNING "module %s: unhandled reloction\n",
-			       mod->name);
-			return 0;
-		}
+		printk(KERN_WARNING "module %s: unhandled reloction\n", 
+				mod->name);
+		return 0;
 	}
 
 	/* now push the new value back on stack */
@@ -203,8 +165,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".l1.text", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_CODE_IN_L1) &&
-				(s->sh_size > 0))) {
+			((strcmp(".text", secstrings + s->sh_name)==0) && 
+			 (hdr->e_flags & FLG_CODE_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -218,8 +180,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if ((strcmp(".l1.data", secstrings + s->sh_name) == 0)||
-			((strcmp(".data", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1) &&
-				(s->sh_size > 0))) {
+			((strcmp(".data", secstrings + s->sh_name)==0) && 
+			 (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.data_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -233,8 +195,8 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if (strcmp(".l1.bss", secstrings + s->sh_name) == 0 ||
-			((strcmp(".bss", secstrings + s->sh_name)==0) && (hdr->e_flags & FLG_DATA_IN_L1) &&
-				(s->sh_size > 0))) {
+			((strcmp(".bss", secstrings + s->sh_name)==0) &&
+			 (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.bss_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
 			if (dest == NULL) {
@@ -301,6 +263,7 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 		   struct module *mod)
 {
 	unsigned int i;
+	unsigned short tmp;
 	Elf32_Rela *rel = (void *)sechdrs[relsec].sh_addr;
 	Elf32_Sym *sym;
 	uint32_t *location32;
@@ -359,22 +322,16 @@ apply_relocate_add(Elf_Shdr * sechdrs, const char *strtab,
 			*location16 = (value & 0x3ff);
 			break;
 		case R_luimm16:
-			{
-				unsigned short tmp;
-				pr_debug("before %x after %x\n", *location16,
+			pr_debug("before %x after %x\n", *location16,
 				       (value & 0xffff));
-				tmp = (value & 0xffff);
-				dma_memcpy(location16, &tmp, 2);
-			}
+			tmp = (value & 0xffff);
+			dma_memcpy(location16, &tmp, 2);
 			break;
 		case R_huimm16:
-			{
-				unsigned short tmp;
-				pr_debug("before %x after %x\n", *location16,
+			pr_debug("before %x after %x\n", *location16,
 				       ((value >> 16) & 0xffff));
-				tmp = ((value >> 16) & 0xffff);
-				dma_memcpy(location16, &tmp, 2);
-			}
+			tmp = ((value >> 16) & 0xffff);
+			dma_memcpy(location16, &tmp, 2);
 			break;
 		case R_rimm16:
 			*location16 = (value & 0xffff);
@@ -441,7 +398,8 @@ module_finalize(const Elf_Ehdr * hdr,
 
 		if ((sechdrs[i].sh_type == SHT_RELA) &&
 		    ((strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0)||
-			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) && (hdr->e_flags & FLG_CODE_IN_L1)))) {
+			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) && 
+			 (hdr->e_flags & FLG_CODE_IN_L1)))) {
 			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
 					   symindex, i, mod);
 		}
