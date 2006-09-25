@@ -45,7 +45,7 @@
 char *bfin_board_name = "Bluetechnix CM BF533";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-/* all SPI perpherals info goes here */
+/* all SPI peripherals info goes here */
 
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
