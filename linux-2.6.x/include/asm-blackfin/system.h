@@ -44,7 +44,7 @@
  * Interrupt configuring macros.
  */
 
-extern volatile unsigned long irq_flags;
+extern unsigned long irq_flags;
 
 #define local_irq_enable() do {		\
 	__asm__ __volatile__ (		\
