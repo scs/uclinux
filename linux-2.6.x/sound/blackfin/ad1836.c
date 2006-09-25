@@ -838,7 +838,11 @@ static snd_pcm_hardware_t snd_ad1836_playback_hw = {
 	.rate_min =         48000,
 	.rate_max =         48000,
 	.channels_min =     2,
+#ifdef MULTI_SUBSTREAM
+	.channels_max =     2,
+#else
 	.channels_max =     CHANNELS_MAX,
+#endif
 	.buffer_bytes_max = PCM_BUFFER_MAX,
 	.period_bytes_min = FRAGMENT_SIZE_MIN,
 	.period_bytes_max = PCM_BUFFER_MAX/2,
@@ -853,7 +857,11 @@ static snd_pcm_hardware_t snd_ad1836_capture_hw = {
 	.rate_min =         48000,
 	.rate_max =         48000,
 	.channels_min =     2,
+#ifdef MULTI_SUBSTREAM
+	.channels_max =     2,
+#else
 	.channels_max =     CHANNELS_MAX,
+#endif
 	.buffer_bytes_max = PCM_BUFFER_MAX,
 	.period_bytes_min = FRAGMENT_SIZE_MIN,
 	.period_bytes_max = PCM_BUFFER_MAX/2,
@@ -1206,7 +1214,7 @@ static snd_pcm_uframes_t snd_ad1836_capture_pointer(snd_pcm_substream_t *substre
 	snd_printk_marker();
 
 #ifdef CONFIG_SND_DEBUG_CURRPTR
-	snd_printk(KERN_DEBUG "capture pos: 0x%04x / %lx\n", frames,
+	snd_printk(KERN_DEBUG "capture pos: 0x%04lx / %lx\n", frames,
 						runtime->buffer_size);
 #endif
 
