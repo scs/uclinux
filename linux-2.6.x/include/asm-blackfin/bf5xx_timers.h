@@ -78,7 +78,7 @@
 #  define TIMER11_id 11
 #endif
 
-// associated timers for ppi framesync:
+/* associated timers for ppi framesync: */
 
 #if defined( CONFIG_BF561 )
 #  define FS0_1_TIMER_ID   TIMER8_id
