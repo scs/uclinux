@@ -47,12 +47,13 @@
 #define bfin_write_PLL_DIV(val)              bfin_write16(PLL_DIV,val)
 #define bfin_read_VR_CTL()                   bfin_read16(VR_CTL)
 /* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val) {
-	unsigned long flags, iwr ;
+static __inline__ void bfin_write_VR_CTL(unsigned int val)
+{
+	unsigned long flags, iwr;
 
-	bfin_write16(VR_CTL,val);
+	bfin_write16(VR_CTL, val);
 	__builtin_bfin_ssync();
-        /* Enable the PLL Wakeup bit in SIC IWR */
+	/* Enable the PLL Wakeup bit in SIC IWR */
 	iwr = bfin_read32(SIC_IWR);
 	/* Only allow PPL Wakeup) */
 	bfin_write32(SIC_IWR, IWR_ENABLE(0));
