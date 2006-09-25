@@ -36,7 +36,6 @@ ztcfg: ztcfg.o libtonezone.a
 	$(CC) $(CFLAGS) -o ztcfg ztcfg.o libtonezone.a -lm $(LDFLAGS)
 
 clean:
-	make -C $(KDIR) SUBDIRS=$(PWD) clean
 	rm -f *.o *.ko *.lo gendigits tor2fw.h tones.h ztcfg
 
 romfs:

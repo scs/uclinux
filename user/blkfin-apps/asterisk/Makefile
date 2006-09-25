@@ -119,7 +119,7 @@ MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 CFLAGS+=$(OPTIMIZE)
 
 ifneq ($(PROC),ultrasparc)
@@ -157,8 +157,6 @@ endif
 # uCasterisk - do this instead
 CFLAGS+= -DZAPTEL_OPTIMIZATIONS
 
-LIBEDIT=editline/libedit.a
-
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD-`date +"%D-%T"`"; fi; fi; fi)
 HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
@@ -181,9 +179,9 @@ CFLAGS+= $(BUSYDETECT)
 CFLAGS+= $(OPTIONS)
 CFLAGS+=# -fomit-frame-pointer 
 #SUBDIRS=res channels pbx apps codecs formats agi cdr astman stdtime
-SUBDIRS=res channels pbx apps codecs formats cdr
+SUBDIRS=res channels pbx apps codecs formats cdr editline db1-ast stdtime
 ifeq (${OSARCH},Linux)
-# uCasterisk LIBS=-ldl -lpthread
+#LIBS+=-ldl -lpthread
 endif
 LIBS+=-lncurses -lm
 ifeq (${OSARCH},Linux)
@@ -221,16 +219,13 @@ SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
 # uCasterisk ASTLINK=-Wl,-E 
 # note adjust this line to change main thread stack
-ASTLINK= $(EXTRA_MODS) -Wl,-elf2flt='-s 512000' -all-static
+ASTLINK= $(EXTRA_MODS)
 # uCasterisk SOLINK=-shared -Xlinker -x
 endif
 
-LIBS+= $(ROOTDIR)/user/blkfin-apps/threadstack-0.1/threadstack.o
-
 # uCasterisk CC=gcc (C compiler is passed in from top level makefile) 
-LIBS=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone 
-#LIBS+=/root/uClinux-dist/lib/uClibc/lib/libpthread.a $(LDFLAGS_EXTRA)
-LIBS+=-lpthread -lgsm -lspeex -lm 
+LIBS+=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone 
+LIBS+=-lpthread -lgsm -lspeex -lm -lthreadstack
 
 #uClinux libtool
 LIBTOOL=$(ROOTDIR)/lib/libtool/libtool
@@ -247,7 +242,7 @@ LIBS+= -L$(ROOTDIR)/lib/libtool/libltdl/.libs
 LIBS+= -L$(ROOTDIR)/lib/libssl
 LIBS+= -L$(ROOTDIR)/lib/ncurses/lib 
 LIBS+= -L$(ROOTDIR)/lib 
-LIBS+= $(ROOTDIR)/user/blkfin-apps/threadstack-0.1/threadstack.o -lpthread 
+LIBS+= -L$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
 LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib 
 LIBS+= -L$(ROOTDIR)/lib/speex/libspeex/.libs 
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/zaptel 
@@ -269,21 +264,6 @@ _all: all
 
 # uCasterisk all: depend asterisk subdirs
 all: depend subdirs asterisk
-
-editline/config.h:
-	cd editline && ./configure ; \
-
-editline/libedit.a: FORCE
-	cd editline && test -f config.h || ./configure  
-	$(MAKE) -C editline libedit.a
-
-db1-ast/libdb1.a: FORCE
-	@if [ -d db1-ast ]; then \
-		$(MAKE) -C db1-ast libdb1.a ; \
-	else \
-		echo "You need to do a cvs update -d not just cvs update"; \
-		exit 1; \
-	fi
 
 ifneq ($(wildcard .depend),)
 include .depend
@@ -375,6 +355,9 @@ APPS_LA = $(patsubst %.so, apps/%.la, $(APPS_SO))
 FORMATS_LA = $(patsubst %.so, formats/%.la, $(FORMATS_SO))
 CDR_LA = $(patsubst %.so, cdr/%.la, $(CDR_SO))
 CODECS_LA = $(patsubst %.so, codecs/%.la, $(CODECS_SO))
+DB1_LA = $(patsubst %.so, db1-ast/%.a, libdb1.so)
+EDITLINE_LA = $(patsubst %.so, editline/%.a, libedit.so)
+STDTIME_LA = $(patsubst %.so, stdtime/%.a, libtime.so)
 
 ALL_LA = $(CHANNELS_LA) $(RES_LA) $(PBX_LA) $(APPS_LA) $(FORMATS_LA) \
          $(CDR_LA)  $(CODECS_LA)
@@ -382,9 +365,9 @@ LINK_LA = $(patsubst %,"-dlopen" %, $(ALL_LA))
 
 # uCasterisk - end static linking
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS) gentone
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) \
-        $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS) $(LINK_LA)
+asterisk: $(OBJS) gentone
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(DEBUG) -o asterisk $(CFLAGS) $(ASTLINK)\
+	$(OBJS) $(DB1_LA) $(EDITLINE_LA) $(STDTIME_LA) $(LIBS) $(LINK_LA)
 
 muted: muted.o
 	$(CC) -o muted muted.o

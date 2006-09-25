@@ -13,7 +13,7 @@ PROC=ultrasparc
 CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-LIBDBSO=libdb.so.$(SOVER)
+LIBDBSO=libdb1.so.$(SOVER)
 PROG=	db_dump185
 OBJ1=	hash.o hash_bigkey.o hash_buf.o hash_func.o hash_log2.o hash_page.o \
 	ndbm.o
@@ -28,25 +28,32 @@ MISC=
 OBJS=	$(OBJ1) $(OBJ2) $(OBJ3) $(OBJ4) $(OBJ5) $(MISC)
 SHOBJS=	$(patsubst %.o,%.os,$(OBJS))
 
-all: $(LIBDB) #$(LIBDBSO) $(PROG)
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
+all: $(LIBDB) $(LIBDBSO)
+else
+all: $(LIBDB)
+endif
 
 $(LIBDB): $(OBJS)
 	rm -f $@
-	ar cq $@ $(OBJS)
-	ranlib $@
+	$(AR) cq $@ $(OBJS)
+	$(RANLIB) $@
 
+ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
 $(LIBDBSO): $(SHOBJS)
 	$(CC) -Wl,-O1 -Wl,--version-script=libdb.map -Wl,-soname=$(LIBDBSO) -shared -o $@ $^
-	ln -sf $@ libdb.so
-
-$(PROG): db_dump185.o $(LIBDBSO)
-	$(CC) -o $@ db_dump185.o -L. -ldb
+	ln -sf $@ libdb1.so
+endif
 
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
+depend:
+
+install:
+
 
 OORG=	-O2
-CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude
+CL=	$(CC) -Wall -c -D__DBINTERFACE_PRIVATE $(OORG) -I. -Iinclude $(CFLAGS)
 
 db_dump185.o: db_dump185.c
 	$(CL) -o $@ $<

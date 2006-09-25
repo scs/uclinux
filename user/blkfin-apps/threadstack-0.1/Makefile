@@ -23,7 +23,7 @@ VERSION=0.1
 # extract dir from /path/to/dir
 RELCWD = $(shell pwd | sed -e "s/.*\///")
 
-all: test_threadstack
+all: test_threadstack threadstack.a
 
 test_threadstack: test_threadstack.c threadstack.o
 	$(CC) $(CFLAGS) test_threadstack.c threadstack.o \
@@ -31,6 +31,11 @@ test_threadstack: test_threadstack.c threadstack.o
 
 threadstack.o: threadstack.c
 	$(CC) $(CFLAGS) -c threadstack.c -o threadstack.o
+
+threadstack.a:  threadstack.o
+	$(RM) libthreadstack.a
+	$(AR) rv libthreadstack.a  threadstack.o
+	$(RANLIB) libthreadstack.a
 
 romfs:
 
@@ -52,4 +57,4 @@ dist:
 	ls -lh ../$(PROJ)-$(VERSION).tar.gz
 
 clean distclean:
-	rm -f *.o *.gdb test_threadstack
+	rm -f *.o *.gdb test_threadstack *.a
