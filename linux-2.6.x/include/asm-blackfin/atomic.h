@@ -21,44 +21,33 @@ typedef struct {
 
 static __inline__ void atomic_add(int i, atomic_t * v)
 {
-	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 + %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(i), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter += i;
+	local_irq_restore(flags);
 }
 
 static __inline__ void atomic_sub(int i, atomic_t * v)
 {
-	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 - %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(i), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter -= i;
+	local_irq_restore(flags);
+
 }
 
 static inline int atomic_add_return(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 + %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(i), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter += i;
+	__temp = v->counter;
+	local_irq_restore(flags);
+
 
 	return __temp;
 }
@@ -67,31 +56,23 @@ static inline int atomic_add_return(int i, atomic_t * v)
 static inline int atomic_sub_return(int i, atomic_t * v)
 {
 	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 - %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(i), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter -= i;
+	__temp = v->counter;
+	local_irq_restore(flags);
 
 	return __temp;
 }
 
 static __inline__ void atomic_inc(volatile atomic_t * v)
 {
-	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 += 1;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter++;
+	local_irq_restore(flags);
 }
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
@@ -109,44 +90,29 @@ static __inline__ void atomic_inc(volatile atomic_t * v)
 
 static __inline__ void atomic_dec(volatile atomic_t * v)
 {
-	int __temp = 0;
-	__asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 += -1;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter--;
+	local_irq_restore(flags);
 }
 
 static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t * v)
 {
-	int __temp = 0;
-        __asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 & %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(~(mask)), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter &= ~mask;
+	local_irq_restore(flags);
 }
 
 static __inline__ void atomic_set_mask(unsigned int mask, atomic_t * v)
 {
-	int __temp = 0;
-        __asm__ __volatile__(
-		"cli R3;\n\t"
-			     "%0 = %1;\n\t"
-			     "%0 = %0 | %2;\n\t"
-			     "%1 = %0;\n\t"
-		"sti R3;\n\t"
-		: "=d" (__temp), "=m" (v->counter)
-			     :"d"(mask), "m"(v->counter), "0"(__temp)
-			     :"R3");
+	long flags;
+
+	local_irq_save(flags);
+	v->counter |= mask;
+	local_irq_restore(flags);
 }
 
 /* Atomic operations are already serializing */
