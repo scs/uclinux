@@ -18,6 +18,7 @@
 #ifndef __ASSEMBLER__
 
 /* user-visible error numbers are in the range -1 - -4095: see <asm-frv/errno.h> */
+#undef __syscall_return
 #if defined _LIBC && !defined __set_errno
 # define __syscall_return(type, res) \
 do { \
@@ -46,6 +47,7 @@ do { \
 # define __set_errno(val) ((*__errno_location ()) = (val))
 #endif
 
+#undef _syscall0
 #define _syscall0(type,name)						\
 type name(void) {							\
 	long __res;							\
@@ -59,6 +61,7 @@ type name(void) {							\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall1
 #define _syscall1(type,name,type1,arg1)					\
 type name(type1 arg1) {							\
 	long __res;							\
@@ -74,6 +77,7 @@ type name(type1 arg1) {							\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall2
 #define _syscall2(type,name,type1,arg1,type2,arg2)			\
 type name(type1 arg1,type2 arg2) {					\
 	long __res;							\
@@ -91,6 +95,7 @@ type name(type1 arg1,type2 arg2) {					\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall3
 #define _syscall3(type,name,type1,arg1,type2,arg2,type3,arg3)		\
 type name(type1 arg1,type2 arg2,type3 arg3) {				\
 	long __res;							\
@@ -110,6 +115,7 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall4
 #define _syscall4(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4)\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 	long __res;							\
@@ -131,6 +137,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall5
 #define _syscall5(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5)	\
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 	long __res;							\
@@ -154,6 +161,7 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
 	__syscall_return(type,__res);					\
 }
 
+#undef _syscall6
 #define _syscall6(type,name,type1,arg1,type2,arg2,type3,arg3,type4,arg4,type5,arg5,type6,arg6) \
 type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6) { \
 	long __res;							\
