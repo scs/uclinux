@@ -64,16 +64,13 @@ struct sport_dev *sport_devices;	/* allocated in sport_init_module */
 
 #undef assert
 
-#undef DEBUG
 #ifdef DEBUG
-#define dprintk(fmt, args...) printk(KERN_ERR fmt, ##args)
 #define assert(expr) \
 	if (!(expr)) { \
 		printk("Assertion failed! %s, %s, %s, line=%d \n", \
 			#expr, __FILE__, __FUNCTION__, __LINE__); \
 	}
 #else
-#define dprintk(fmt, args...)
 #define assert(expr)
 #endif
 
@@ -81,7 +78,7 @@ static irqreturn_t dma_rx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 static irqreturn_t dma_tx_irq_handler(int irq, void *dev_id, struct pt_regs *regs);
 
 /* note: multichannel is in units of 8 channels, tdm_count is # channels NOT / 8 ! */
-static int sport_set_multichannel( struct sport_register *regs, 
+static int sport_set_multichannel(struct sport_register *regs,
 					int tdm_count, int packed, int frame_delay)
 {
 
@@ -190,7 +187,7 @@ static int sport_configure(struct sport_dev *dev, struct sport_config *config)
 		rcr2 |= config->word_len - 1;
 	} else
 		return -EINVAL;
-	
+
 	dev->regs->rcr1 = rcr1;
 	dev->regs->rcr2 = rcr2;
 	dev->regs->rclkdiv = clkdiv;
@@ -202,7 +199,7 @@ static int sport_configure(struct sport_dev *dev, struct sport_config *config)
 	__builtin_bfin_ssync();
 
 #if 1
-	dprintk("tcr1:0x%x, tcr2:0x%x, rcr1:0x%x, rcr2:0x%x\n"
+	pr_debug("tcr1:0x%x, tcr2:0x%x, rcr1:0x%x, rcr2:0x%x\n"
 		"mcmc1:0x%x, mcmc2:0x%x\n",
 		dev->regs->tcr1, dev->regs->tcr2,
 		dev->regs->rcr1, dev->regs->rcr2,
@@ -226,7 +223,7 @@ static inline uint16_t sport_wordsize(int word_len)
 	} else if (word_len <=32) {
 		wordsize = WDSIZE_32;
 	} else {
-		printk(KERN_ERR "%s: word_len:%d is error\n", __FUNCTION__, word_len); 
+		printk(KERN_ERR "%s: word_len:%d is error\n", __FUNCTION__, word_len);
 	}
 
 	return wordsize;
@@ -235,15 +232,15 @@ static inline uint16_t sport_wordsize(int word_len)
 static irqreturn_t dma_rx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct sport_dev *dev = dev_id;
-	
-	dprintk("%s enter\n", __FUNCTION__);
+
+	pr_debug("%s enter\n", __FUNCTION__);
 	dev->regs->rcr1 &= ~RSPEN;
 	__builtin_bfin_ssync();
 	disable_dma(dev->dma_rx_chan);
 
 	dev->wait_con = 1;
 	wake_up(&dev->waitq);
-	
+
 	clear_dma_irqstat(dev->dma_rx_chan);
 	return IRQ_HANDLED;
 }
@@ -253,12 +250,12 @@ static irqreturn_t dma_tx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 	struct sport_dev *dev = dev_id;
 	unsigned short status ;
 
-	dprintk("%s enter\n", __FUNCTION__);
+	pr_debug("%s enter\n", __FUNCTION__);
 	status = get_dma_curr_irqstat(dev->dma_tx_chan);
-	dprintk("status:0x%04x\n", status);
+	pr_debug("status:0x%04x\n", status);
 	while (status & DMA_RUN) {
 		status = get_dma_curr_irqstat(dev->dma_tx_chan);
-		dprintk("status:0x%04x\n", status);
+		pr_debug("status:0x%04x\n", status);
 	}
 	status = 0;
 	while (!(status & TUVF)) {
@@ -315,7 +312,7 @@ static irqreturn_t sport_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
 		dev->wait_con = 1;
 		wake_up(&dev->waitq);
 	}
-	
+
 	return IRQ_HANDLED;
 }
 
@@ -353,7 +350,7 @@ static inline void sport_tx_write(struct sport_dev *dev)
 static irqreturn_t sport_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct sport_dev *dev = dev_id;
-	
+
 	sport_tx_write(dev);
 
 	return IRQ_HANDLED;
@@ -364,7 +361,7 @@ static irqreturn_t sport_err_handler(int irq, void *dev_id, struct pt_regs *regs
 	struct sport_dev *dev = dev_id;
 	uint16_t status;
 
-	dprintk("%s enter\n", __FUNCTION__);
+	pr_debug("%s enter\n", __FUNCTION__);
 	status = dev->regs->stat;
 
 	if (status & (TOVF|TUVF|ROVF|RUVF)) {
@@ -382,7 +379,7 @@ static irqreturn_t sport_err_handler(int irq, void *dev_id, struct pt_regs *regs
 				dev->wait_con = 1;
 				wake_up(&dev->waitq);
 			}
-		} else	
+		} else
 			printk(KERN_WARNING "sport status error:%s%s%s%s\n",
 					status & TOVF ? " TOVF" : "",
 					status & TUVF ? " TUVF" : "",
@@ -443,7 +440,7 @@ fail:
 static int sport_release(struct inode *inode, struct file *filp)
 {
 	struct sport_dev *dev;
-	
+
 	dev = container_of(inode->i_cdev, struct sport_dev, cdev);
 
 	if (dev->config.dma_enabled) {
@@ -462,10 +459,10 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
                 loff_t *f_pos)
 {
 	DECLARE_COMPLETION(done);
-	struct sport_dev *dev = filp->private_data; 
+	struct sport_dev *dev = filp->private_data;
 	struct sport_config *cfg = &dev->config;
 
-	dprintk("%s count:%ld\n", __FUNCTION__, count);
+	pr_debug("%s count:%ld\n", __FUNCTION__, count);
 
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
@@ -476,7 +473,7 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 
 		if (word_bytes == 3) word_bytes = 4;
 
-		dprintk("DMA mode read\n");
+		pr_debug("DMA mode read\n");
 		/* Configure dma */
 		set_dma_start_addr(dev->dma_rx_chan, (unsigned long)buf);
 		set_dma_x_count(dev->dma_rx_chan, count / word_bytes);
@@ -497,7 +494,7 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 	wait_event_interruptible(dev->waitq, dev->wait_con);
 	dev->wait_con = 0;
 
-	dprintk("Complete called in dma rx irq handler\n");
+	pr_debug("Complete called in dma rx irq handler\n");
 	up(&dev->sem);
 
 	return count;
@@ -507,7 +504,7 @@ static void dump_dma_regs( void )
 {
 	dma_register_t *dma = (dma_register_t*)DMA4_NEXT_DESC_PTR;
 
-	dprintk(KERN_ERR " config:0x%04x, x_count:0x%04x,"
+	pr_debug(KERN_ERR " config:0x%04x, x_count:0x%04x,"
 			" x_modify:0x%04x\n", dma->cfg,
 			dma->x_count, dma->x_modify);
 }
@@ -518,7 +515,7 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 	DECLARE_COMPLETION(done);
 	struct sport_dev *dev = filp->private_data;
 	struct sport_config *cfg = &dev->config;
-	dprintk("%s count:%ld  dma_tx_chan:%d\n", 
+	pr_debug("%s count:%ld  dma_tx_chan:%d\n",
 			__FUNCTION__, count, dev->dma_tx_chan);
 
 	if (down_interruptible(&dev->sem))
@@ -531,7 +528,7 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 
 		if (word_bytes == 3) word_bytes = 4;
 
-		dprintk("DMA mode\n");
+		pr_debug("DMA mode\n");
 		/* Configure dma */
 		set_dma_start_addr(dev->dma_tx_chan, (unsigned long)buf);
 		set_dma_x_count(dev->dma_tx_chan, count / word_bytes);
@@ -565,10 +562,10 @@ static int sport_ioctl(struct inode *inode, struct file *filp,
 	struct sport_dev *dev = filp->private_data;
 	struct sport_config config;
 
-	dprintk("%s: enter, arg:0x%lx\n", __FUNCTION__, arg);
+	pr_debug("%s: enter, arg:0x%lx\n", __FUNCTION__, arg);
 	switch (cmd) {
 		case SPORT_IOC_CONFIG:
-			copy_from_user(&config, (void*)arg, 
+			copy_from_user(&config, (void*)arg,
 					sizeof(struct sport_config));
 			if (sport_configure(dev, &config) < 0)
 				return -EFAULT;
@@ -626,7 +623,7 @@ static void sport_cleanup_module(void)
 static void sport_setup_cdev(struct sport_dev *dev, int index)
 {
 	int err, devno = MKDEV(sport_major, sport_minor + index);
-    
+
 	cdev_init(&dev->cdev, &sport_fops);
 	dev->cdev.owner = THIS_MODULE;
 	dev->cdev.ops = &sport_fops;
@@ -688,4 +685,3 @@ module_exit(sport_cleanup_module);
 MODULE_AUTHOR("Roy Huang <roy.huang@analog.com>");
 MODULE_DESCRIPTION("Common sport driver for blackfin");
 MODULE_LICENSE("GPL");
-
