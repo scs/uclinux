@@ -97,7 +97,7 @@ static unsigned long mapram_unmapped_area(struct mtd_info *mtd,
 					  unsigned long flags)
 {
 	struct map_info *map = mtd->priv;
-	return map->virt + offset;
+	return (unsigned long)(map->virt + offset);
 }
 
 static int mapram_read (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
