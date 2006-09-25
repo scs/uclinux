@@ -70,14 +70,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luke Yang");
 MODULE_DESCRIPTION("Blackfin MAC Driver");
 
-#undef BFIN_MAC_DEBUG
-
-#ifdef BFIN_MAC_DEBUG
-# define DPRINTK(fmt, args...) printk(KERN_DEBUG CARDNAME ":%s:%i: " fmt, __FUNCTION__, __LINE__, ## args);
-#else
-# define DPRINTK(x...) do { } while (0)
-#endif
-
 #if defined(CONFIG_BFIN_MAC_USE_L1)
 # define bfin_mac_alloc(dma_handle, size)  l1_data_sram_zalloc(size)
 # define bfin_mac_free(dma_handle, ptr)    l1_data_sram_free(ptr)
