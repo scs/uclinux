@@ -49,14 +49,6 @@
 #include "bfin_dpmc.h"
 #include <asm/delay.h>
 
-#undef DPMC_DEBUG
-
-#ifdef DPMC_DEBUG
-#define DPRINTK(x...)	printk(KERN_DEBUG x)
-#else
-#define DPRINTK(x...)	do { } while (0)
-#endif
-
 unsigned long SDRAM_tRP1;
 unsigned long SDRAM_tRAS1;
 unsigned long SDRAM_tRCD1;
@@ -221,7 +213,7 @@ unsigned long change_sclk(unsigned long clock)
 		ssel = 1;
 
 	if (ssel > MAX_SSEL) {
-		DPRINTK("Selecting ssel = 15\n");
+		pr_debug("Selecting ssel = 15\n");
 		ssel = MAX_SSEL;
 	}
 	__builtin_bfin_ssync();
@@ -230,10 +222,8 @@ unsigned long change_sclk(unsigned long clock)
 
 	ret = set_pll_div(ssel,FLAG_SSEL);
 
-#ifdef DPMC_DEBUG
 	if (ret < 0)
-		DPRINTK("Wrong system clock selection\n");
-#endif
+		pr_debug("Wrong system clock selection\n");
 
 	bfin_write_EBIU_SDRRC(get_sdrrcval(get_sclk()));
 	__builtin_bfin_ssync();
@@ -336,7 +326,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 				vco_mhz = change_frequency(INTER_FREQ/MHZ);
 				change_core_clock(vco_mhz/MHZ);
 				if ((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
-					DPRINTK("System clock being changed to minimum\n");
+					pr_debug("System clock being changed to minimum\n");
 					sclk_mhz = change_sclk((MIN_SCLK/MHZ));
 				} else
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
@@ -345,7 +335,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 				vco_mhz = change_frequency(vco_mhz_bk/MHZ);
 				change_core_clock(vco_mhz/MHZ);
 				if ((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
-					DPRINTK("System clock being changed to minimum\n");
+					pr_debug("System clock being changed to minimum\n");
 					sclk_mhz = change_sclk((MIN_SCLK/MHZ));
 				} else
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
@@ -355,7 +345,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 				vco_mhz = change_frequency(vco_mhz_bk/MHZ);
 				change_core_clock(vco_mhz/MHZ);
 				if ((vco_mhz/(DEF_SSEL * MHZ)) < (MIN_SCLK/MHZ)) {
-					DPRINTK("System clock being changed to minimum\n");
+					pr_debug("System clock being changed to minimum\n");
 					sclk_mhz = change_sclk(MIN_SCLK/MHZ);
 				} else
 					sclk_mhz = change_sclk((vco_mhz/(DEF_SSEL * MHZ)));
@@ -386,8 +376,8 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			if (get_vco() < cclk_mhz)
 				return -1;
 			if (cclk_mhz <= get_sclk()) {
-				DPRINTK("Sorry, core clock has to be greater than system clock\n");
-				DPRINTK("Current System Clock is %u MHz\n",get_sclk()/1000000);
+				pr_debug("Sorry, core clock has to be greater than system clock\n");
+				pr_debug("Current System Clock is %u MHz\n",get_sclk()/1000000);
 				return -1;
 			}
 			cclk_mhz = change_core_clock(cclk_mhz/MHZ);
@@ -512,16 +502,14 @@ unsigned long change_core_clock(unsigned long clock)
 	else if (tempcsel == 8)
 		csel = 3;
 	else {
-		DPRINTK("Wrong core clock selection\n");
-		DPRINTK("Selecting clock to be same as VCO\n");
+		pr_debug("Wrong core clock selection\n");
+		pr_debug("Selecting clock to be same as VCO\n");
 		csel = 0;
 	}
 	ret = set_pll_div(csel,FLAG_CSEL);
 
-#ifdef DPMC_DEBUG
 	if (ret < 0)
-		DPRINTK("Wrong core clock selection\n");
-#endif
+		pr_debug("Wrong core clock selection\n");
 
 	return get_cclk();
 }
@@ -541,7 +529,7 @@ int set_pll_div(unsigned short sel, unsigned char flag)
 			__builtin_bfin_ssync();
 			return 0;
 		} else {
-			DPRINTK("CCLK value selected not valid\n");
+			pr_debug("CCLK value selected not valid\n");
 			return -1;
 		}
 	} else if(flag == FLAG_SSEL){
@@ -550,7 +538,7 @@ int set_pll_div(unsigned short sel, unsigned char flag)
 			__builtin_bfin_ssync();
 			return 0;
 		} else {
-			DPRINTK("SCLK value selected not valid\n");
+			pr_debug("SCLK value selected not valid\n");
 			return -1;
 		}
 	}
@@ -736,24 +724,24 @@ unsigned long calc_volt()
 	if (val == 6)
 		return base;
 
-	DPRINTK("calc_volt() returning %u \n",(((val - 6) * 50) + base));
+	pr_debug("calc_volt() returning %u \n",(((val - 6) * 50) + base));
 	return (((val - 6) * 50) + base);
 }
 
 /* Change the voltage of the processor */
 unsigned long change_voltage(unsigned long volt)
 {
-	unsigned long vlt,val,flags;
+	unsigned long vlt, val;
 
 	vlt = calc_vlev(volt);
 	val = (bfin_read_VR_CTL() & 0xFF0F);
 	val = (val | (vlt << 4));
 	bfin_write_VR_CTL(val);
 
-	while(!(get_pll_status() & VOLTAGE_REGULATED))
+	while (!(get_pll_status() & VOLTAGE_REGULATED))
 		;
 
-	return(calc_volt());
+	return calc_volt();
 }
 
 /* Calculates the voltage at which the processor is running */
@@ -776,7 +764,7 @@ int calc_vlev(int vlt)
 /* We use dpmc_lock to protect against concurrent opens.*/
 static int dpmc_open(struct inode *inode, struct file *file)
 {
-	//DPRINTK("DPMC Device Opening");
+	//pr_debug("DPMC Device Opening");
 	return 0;
 }
 
@@ -808,7 +796,7 @@ int __init dpmc_init(void)
 {
 	struct proc_dir_entry *entry;
 
-	DPRINTK("blackfin_dpmc_init\n");
+	pr_debug("blackfin_dpmc_init\n");
 
 	misc_register(&dpmc_dev);
 
