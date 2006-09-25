@@ -70,17 +70,17 @@ config BFIN_IDE_ALT
 	  default "0x2031C01C" if BFIN_IDE_ADDRESS_MAPPING_MODE1
 
 config BFIN_IDE_IRQ
-	int "IDE IRQ no"
+	int "IDE IRQ number"
 	depends on IDE_BFIN
 	default "34" if BFIN537_STAMP
 	default "26" if BFIN533_STAMP
 	default "26" if BFIN533_BLUETECHNIX_CM
 	help
-	  IDE use IRQ no IRQ_PROG_INTA
-	  This option is IGNORED if IRQCHIP_DEMUX_GPIO is selected
+	  IDE use IRQ number IRQ_PROG_INTA.
+	  This option is IGNORED if IRQCHIP_DEMUX_GPIO is selected.
 
 config BFIN_IDE_IRQ_PFX
-	int "IDE IRQ PFx no"
+	int "IDE IRQ PFx number"
 	depends on BFIN_IDE_ADDRESS_MAPPING_MODE0 || BFIN_IDE_ADDRESS_MAPPING_MODE1
 	range 0 15 
 	default "5" if (BFIN_IDE_ADDRESS_MAPPING_MODE0 && (BFIN537_STAMP || BFIN533_STAMP || BF533_EZKIT || BF561_EZKIT))
