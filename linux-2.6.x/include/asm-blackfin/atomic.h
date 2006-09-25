@@ -1,6 +1,8 @@
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
 
+#include <asm/system.h>
+
 /*
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
