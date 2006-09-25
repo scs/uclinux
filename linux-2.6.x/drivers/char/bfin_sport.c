@@ -81,7 +81,6 @@ static irqreturn_t dma_tx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 static int sport_set_multichannel(struct sport_register *regs,
 					int tdm_count, int packed, int frame_delay)
 {
-
 	if (tdm_count) {
 
 		int shift = 32 - tdm_count;
@@ -198,13 +197,11 @@ static int sport_configure(struct sport_dev *dev, struct sport_config *config)
 	dev->regs->tfsdiv = fsdiv;
 	__builtin_bfin_ssync();
 
-#if 1
 	pr_debug("tcr1:0x%x, tcr2:0x%x, rcr1:0x%x, rcr2:0x%x\n"
 		"mcmc1:0x%x, mcmc2:0x%x\n",
 		dev->regs->tcr1, dev->regs->tcr2,
 		dev->regs->rcr1, dev->regs->rcr2,
 		dev->regs->mcmc1, dev->regs->mcmc2);
-#endif
 
 	return 0;
 
@@ -500,9 +497,11 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 	return count;
 }
 
-static void dump_dma_regs( void )
+static void dump_dma_regs(void)
 {
-	dma_register_t *dma = (dma_register_t*)DMA4_NEXT_DESC_PTR;
+#ifdef DEBUG
+	struct dma_register_t *dma = (struct dma_register_t *)DMA4_NEXT_DESC_PTR;
+#endif
 
 	pr_debug(KERN_ERR " config:0x%04x, x_count:0x%04x,"
 			" x_modify:0x%04x\n", dma->cfg,
