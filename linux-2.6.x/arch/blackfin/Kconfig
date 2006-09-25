@@ -54,42 +54,42 @@ choice
 config BF531
 	bool "BF531"
 	help
-	 BF531 Processor Support.
+	  BF531 Processor Support.
 
 config BF532
 	bool "BF532"
 	help
-	 BF532 Processor Support.
+	  BF532 Processor Support.
 
 config BF533
 	bool "BF533"
 	help
-	 BF533 Processor Support.
+	  BF533 Processor Support.
 
 config BF534
 	bool "BF534"
 	help
-	 BF534 Processor Support.
+	  BF534 Processor Support.
 
 config BF535
 	bool "BF535 (not supported)"
 	help
-	 Not Supported - BF535 Processor Support.
+	  Not Supported - BF535 Processor Support.
 
 config BF536
 	bool "BF536"
 	help
-	 BF536 Processor Support.
+	  BF536 Processor Support.
 
 config BF537
 	bool "BF537"
 	help
-	 BF537 Processor Support.
+	  BF537 Processor Support.
 
 config BF561
 	bool "BF561"
 	help
-	 Not Supported Yet - Work in progress - BF561 Processor Support.
+	  Not Supported Yet - Work in progress - BF561 Processor Support.
 
 endchoice
 
@@ -137,20 +137,21 @@ choice
 	prompt "System type"
 	default BFIN533_STAMP
 	help
-	  Do NOT change the board here, please use the top level configuration to ensure all
-	  all the other settings are correct
+	  Do NOT change the board here.  Please use the top level
+	  configuration to ensure that all the other settings are
+	  correct.
 
 config BFIN533_EZKIT
 	bool "BF533-EZKIT"
 	depends on (BF533 || BF532 || BF531)
 	help
-	 BF533-EZKIT-LITE board Support.
+	  BF533-EZKIT-LITE board Support.
 
 config  BFIN533_STAMP
 	bool "BF533-STAMP"
 	depends on (BF533 || BF532 || BF531)
 	help
-	 BF533-STAMP board Support.
+	  BF533-STAMP board Support.
 
 config BFIN537_STAMP
 	bool "BF537-STAMP"
@@ -180,14 +181,14 @@ config BFIN561_EZKIT
 	bool "BF561-EZKIT"
 	depends on (BF561)
 	help
-	 BF561-EZKIT-LITE board Support.
+	  BF561-EZKIT-LITE board Support.
 
 config GENERIC_BOARD
 	bool "Custom"
 	depends on (BF537 || BF536 \
 		|| BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
 	help
-	 GENERIC or Custom board Support.
+	  GENERIC or Custom board Support.
 
 endchoice
 
@@ -222,14 +223,13 @@ config BFIN_SHARED_FLASH_ENET
 	depends on (BFIN533_STAMP)
 	default y
 
-
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
 
-menu 'Board customizations'
+menu "Board customizations"
 
-comment 'Board Setup'
+comment "Board Setup"
 
 config CLKIN_HZ
 	int "Crystal Frequency in Hz"
@@ -277,7 +277,7 @@ config BOOT_LOAD
 	  (0x1000) as this will allow the kernel to capture NULL pointer
 	  references.
 
-comment 'LED Status Indicators'
+comment "LED Status Indicators"
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 
 config BFIN_ALIVE_LED
@@ -285,7 +285,7 @@ config BFIN_ALIVE_LED
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default n
 	help
-	  Blinks the LED you select when the kernel is running. Helps detect
+	  Blink the LEDs you select when the kernel is running.  Helps detect
 	  a hung kernel.
 
 config BFIN_ALIVE_LED_NUM
@@ -297,7 +297,7 @@ config BFIN_ALIVE_LED_NUM
 	  Select the LED (marked on the board) for you to blink.
 
 config BFIN_IDLE_LED
-	bool 'Enable System Load/Idle LED'
+	bool "Enable System Load/Idle LED"
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default n
 	help
@@ -346,7 +346,7 @@ config BFIN_IDLE_LED_PIN
 	default 0x08 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 2)
 	default 0x10 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 3)
 
-comment 'Console UART Setup'
+comment "Console UART Setup"
 
 choice
 	prompt "Baud Rate"
@@ -384,13 +384,13 @@ endchoice
 endmenu
 
 
-menu 'Blackfin Kernel Optimizations'
+menu "Blackfin Kernel Optimizations"
 
-comment 'Timer Tick'
+comment "Timer Tick"
 
 source kernel/Kconfig.hz
 
-comment 'Memory Optimizations'
+comment "Memory Optimizations"
 
 config I_ENTRY_L1
 	bool "Locate interrupt entry code in L1 Memory"
@@ -438,7 +438,7 @@ config IRQCHIP_DEMUX_GPIO
 	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15.
 
 config BFIN_DMA_5XX
-	bool 'Enable DMA Support'
+	bool "Enable DMA Support"
 	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
 	default y
 	help
@@ -449,19 +449,19 @@ choice
 	default DMA_UNCACHED_1M
 	depends BFIN_DMA_5XX
 config DMA_UNCACHED_2M
-	bool 'Enable 2M DMA Zone'
+	bool "Enable 2M DMA Zone"
 config DMA_UNCACHED_1M
-	bool 'Enable 1M DMA Zone'
+	bool "Enable 1M DMA Zone"
 config DMA_UNCACHED_512K
-	bool 'Enable 512K DMA Zone'
+	bool "Enable 512K DMA Zone"
 config DMA_UNCACHED_256K
-	bool 'Enable 256k DMA Zone'
+	bool "Enable 256K DMA Zone"
 config DMA_UNCACHED_NONE
-	bool 'Disable DMA Zone'
+	bool "Disable DMA Zone"
 endchoice
 
 
-comment 'Cache Support'
+comment "Cache Support"
 config BLKFIN_CACHE
 	bool "Enable ICACHE"
 config BLKFIN_DCACHE
@@ -564,9 +564,9 @@ config PLL_BYPASS
 
 endmenu
 
-comment'Asynchonous Memory Configuration'
+comment "Asynchonous Memory Configuration"
 
-menu'EBIU_AMBCTL Global Control'
+menu "EBIU_AMBCTL Global Control"
 config C_AMCKEN
 	bool "Enable CLKOUT"
 	default y
@@ -587,7 +587,7 @@ config C_B1PEN
 
 config C_B2PEN
 	depends on BF561
-	bool "Bank 3 16 bit packing enable"
+	bool "Bank 2 16 bit packing enable"
 	default y
 
 config C_B3PEN
@@ -616,7 +616,7 @@ config C_AMBEN_ALL
 endchoice
 endmenu
 
-menu'EBIU_AMBCTL Control'
+menu "EBIU_AMBCTL Control"
 config BANK_0
 	hex "Bank 0"
 	default 0x7BB0
@@ -693,8 +693,8 @@ config CPU_FREQ
 	bool
 	default n
 	help
-	  If you want to enable this option, you should select DPMC driver
-	  from Character Devices.
+	  If you want to enable this option, you should select the
+	  DPMC driver from Character Devices.
 endmenu
 
 endif
@@ -741,7 +741,7 @@ config DEBUG_KERNEL_START
 	  from dieing at startup with no visible error messages.
 
 config DEBUG_SERIAL_EARLY_INIT
-	bool 'Initialize serial driver early'
+	bool "Initialize serial driver early"
 	default n
 	depends on SERIAL_BLACKFIN
 	help
@@ -784,11 +784,11 @@ config DUAL_CORE_TEST_MODULE
 	  Say Y here to build-in dual core test module for dual core test.
 
 config BOOTPARAM
-	bool 'Compiled-in Kernel Boot Parameter'
+	bool "Compiled-in Kernel Boot Parameter"
 
 config BOOTPARAM_STRING
-	string 'Kernel Boot Parameter'
-	default 'console=ttyS0,57600'
+	string "Kernel Boot Parameter"
+	default "console=ttyS0,57600"
 	depends on BOOTPARAM
 
 config NO_KERNEL_MSG
@@ -802,7 +802,7 @@ config CPLB_INFO
 	  Display the CPLB information.
 
 config NO_ACCESS_CHECK
-	bool "Don't check the user pointer address"
+	bool "Do not check the user pointer address"
 	help
 	  Usually the pointer transfer from user space is checked to see if its
 	  address is in the kernel space. This option disable that check to
