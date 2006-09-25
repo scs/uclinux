@@ -274,9 +274,9 @@
 #define pITEST_COMMAND ((volatile unsigned long *)ITEST_COMMAND)
 #define bfin_read_ITEST_COMMAND()            bfin_read32(ITEST_COMMAND)
 #define bfin_write_ITEST_COMMAND(val)        bfin_write32(ITEST_COMMAND,val)
-/*
+#if 0
 #define ITEST_INDEX            0xFFE01304   /* Instruction Test Index Register */
-*/
+#endif
 #define pITEST_DATA0 ((volatile unsigned long *)ITEST_DATA0)
 #define bfin_read_ITEST_DATA0()              bfin_read32(ITEST_DATA0)
 #define bfin_write_ITEST_DATA0(val)          bfin_write32(ITEST_DATA0,val)
