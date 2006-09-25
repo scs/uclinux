@@ -55,10 +55,10 @@
  * -
  */
 
-volatile unsigned long irq_flags = 0;
+unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
-volatile unsigned int num_spurious;
+unsigned int num_spurious;
 
 struct ivgx {
 	/* irq number for request_irq, available in mach-bf533/irq.h */
