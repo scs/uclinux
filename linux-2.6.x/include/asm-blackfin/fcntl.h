@@ -1,7 +1,7 @@
 #ifndef _BFIN_FCNTL_H
 #define _BFIN_FCNTL_H
 
-/* open/fcntl - O_SYNC is only implemented on blocks devices and on files
+/* open/fcntl - O_SYNC is only implemented on block devices and on files
    located on an ext2 file system */
 #define O_ACCMODE	  0003
 #define O_RDONLY	    00

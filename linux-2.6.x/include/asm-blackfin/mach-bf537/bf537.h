@@ -1,37 +1,36 @@
+/*
+ * File:         include/asm-blackfin/mach-bf537/bf537.h
+ * Based on:
+ * Author:
+ *
+ * Created:
+ * Description:  SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF537
+ *
+ * Rev:          $Id$
+ *
+ * Modified:
+ *               Copyright 2004-2006 Analog Devices Inc.
+ *
+ * Bugs:         Enter bugs at http://blackfin.uclinux.org/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 
- /*
-  * File:         include/asm-blackfin/mach-bf537/bf537.h
-  * Based on:
-  * Author:
-  *
-  * Created:
-  * Description:
-  *
-  * Rev:
-  *
-  * Modified:
-  *
-  *
-  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2, or (at your option)
-  * any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; see the file COPYING.
-  * If not, write to the Free Software Foundation,
-  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
-  */
-
-#ifndef _BLKFin_H_
-#define _BLKFin_H_
+#ifndef __MACH_BF537_H__
+#define __MACH_BF537_H__
 
 #include <linux/config.h>
 
@@ -47,7 +46,7 @@
 #define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
 #define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF)
+#define OFFSET_(x) ((x) & 0x0000FFFF)
 
 /*some misc defines*/
 #define IMASK_IVG15		0x8000
@@ -145,7 +144,7 @@
 #error "VCO Multiplier should be greater than 0. Please select a different value"
 #endif
 
-#if(CONFIG_VCO_MULT > 64)
+#if (CONFIG_VCO_MULT > 64)
 #error "VCO Multiplier is more than 64. Please select a different value"
 #endif
 
@@ -175,7 +174,7 @@
 #if (CONFIG_CCLK_DIV != 2)
 #if (CONFIG_CCLK_DIV != 4)
 #if (CONFIG_CCLK_DIV != 8)
-#error "CCLK DIV can be 1,2,4 or 8 only.Please select a proper value"
+#error "CCLK DIV can be 1,2,4 or 8 only. Please select a proper value"
 #endif
 #endif
 #endif
@@ -183,21 +182,21 @@
 
 #define MAX_VC	650000000
 
-#if(CONFIG_VCO_HZ > MAX_VC)
+#if (CONFIG_VCO_HZ > MAX_VC)
 #error "VCO selected is more than maximum value. Please change the VCO multipler"
 #endif
 
 #if (CONFIG_SCLK_HZ > 133000000)
-#error "Sclk value selected is more than maximum.Please select a proper value for SCLK multiplier"
+#error "Sclk value selected is more than maximum. Please select a proper value for SCLK multiplier"
 #endif
 
 #if (CONFIG_SCLK_HZ < 27000000)
-#error "Sclk value selected is less than minimum.Please select a proper value for SCLK multiplier"
+#error "Sclk value selected is less than minimum. Please select a proper value for SCLK multiplier"
 #endif
 
 #if (CONFIG_SCLK_HZ >= CONFIG_CCLK_HZ)
-#if(CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
-#if(CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
+#if (CONFIG_SCLK_HZ != CONFIG_CLKIN_HZ)
+#if (CONFIG_CCLK_HZ != CONFIG_CLKIN_HZ)
 #error "Please select sclk less than cclk"
 #endif
 #endif
@@ -235,7 +234,7 @@
 #define CPU "BF534"
 #endif
 #ifndef CPU
-#define	CPU "UNKOWN"
+#define	CPU "UNKNOWN"
 #endif
 
 #if (CONFIG_MEM_SIZE % 4)
@@ -269,4 +268,4 @@
 #define SIZE_1M 0x00100000	/* 1M */
 #define SIZE_4M 0x00400000	/* 4M */
 
-#endif				/* _BLKFin_H_  */
+#endif				/* __MACH_BF537_H__  */

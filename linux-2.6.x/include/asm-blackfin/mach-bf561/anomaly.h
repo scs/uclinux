@@ -42,7 +42,7 @@
 #error Kernel will not work on BF561 Version 0.1, 0.2, or 0.4
 #endif
 
-/* Issues that are commone to 0.5 and  0.3 silicon */
+/* Issues that are common to 0.5 and  0.3 silicon */
 #if  (defined(CONFIG_BF_REV_0_5) || defined(CONFIG_BF_REV_0_3))
 #define ANOMALY_05000074 /* A multi issue instruction with dsp32shiftimm in
                             slot1 and store of a P register in slot 2 is not

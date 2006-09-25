@@ -1,23 +1,22 @@
-
 /*
- * File:         include/asm-blackfin/mach-bf533/bf535.h
+ * File:         include/asm-blackfin/mach-bf535/bf535.h
  * Based on:
  * Author:
  *
  * Created:
- * Description:
+ * Description:  SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF561
  *
- * Rev:
+ * Rev:          $Id$
  *
  * Modified:
- *
+ *               Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,19 +24,15 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.
- * If not, write to the Free Software Foundation,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- */
-/*
- * Copyright (c) 2000, 2001 by Lineo, Inc./Lineo Canada Corp. (www.lineo.com),
- * Copyright (c) 2001,2002 by Arcturus Networks Inc. (www.arcturusnetworks.com),
+ * along with this program; if not, see the file COPYING, or write
+ * to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 /* FOR BlackFin DSP:     BYTE = 08 bits,  HALFWORD = 16 bit & WORD = 32 bits    */
 
-#ifndef _BF535_H_
-#define _BF535_H_
+#ifndef __MACH_BF535_H__
+#define __MACH_BF535_H__
 
 #define BYTE_REF(addr)		 (*((volatile unsigned char*)addr))
 #define HALFWORD_REF(addr) 	 (*((volatile unsigned short*)addr))
@@ -1064,12 +1059,12 @@
 #define DATA_FAULT_ADDR_ADDR	0xffe0000c	/* read only register 32 bit */
 #define DATA_FAULT_ADDR		WORD_REF(DATA_FAULT_ADDR_ADDR)
 
-		/* These are total sixtenn */
+		/* These are total sixteen */
 
 #define DCPLB_ADDR_ADDR		0xffe00100	/* read/write register 32 bit */
 #define DCPLB_ADDR		WORD_REF(DCPLB_ADDR_ADDR)
 
-		/* These are total sixtenn */
+		/* These are total sixteen */
 
 #define DCPLB_DATA_ADDR		0xffe00200	/* read/write register 32 bit */
 #define DCPLB_DATA		WORD_REF(DCPLB_DATA_ADDR)
@@ -1090,12 +1085,12 @@
 #define CODE_FAULT_ADDR_ADDR	0xffe0100c	/* read only register 32 bit */
 #define CODE_FAULT_ADDR		WORD_REF(CODE_FAULT_ADDR_ADDR)
 
-		/* These are total sixtenn */
+		/* These are total sixteen */
 
 #define ICPLB_ADDR_ADDR		0xffe01100	/* read/write register 32 bit */
 #define ICPLB_ADDR		WORD_REF(ICPLB_ADDR_ADDR)
 
-		/* These are total sixtenn */
+		/* These are total sixteen */
 
 #define ICPLB_DATA_ADDR		0xffe01200	/* read/write register 32 bit */
 #define ICPLB_DATA		WORD_REF(ICPLB_DATA_ADDR)
@@ -1279,4 +1274,4 @@
 
 #define SIC_MASK_ALL		0x80000000
 
-#endif				/* _BLKFin_H_  */
+#endif				/* __MACH_BF535_H__  */

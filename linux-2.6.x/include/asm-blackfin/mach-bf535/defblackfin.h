@@ -37,7 +37,7 @@
 #if defined(__ADSPLPBLACKFIN__)
 #warning defblackfin.h should only be included for 535 compatible chips.
 #endif
-#define MK_BMSK_( x ) (1<<x)	 /* Make a bit mask from a bit position */
+#define MK_BMSK_(x) (1<<x)
 
  /*********************************************************************************** */
  /* System Register Bits */

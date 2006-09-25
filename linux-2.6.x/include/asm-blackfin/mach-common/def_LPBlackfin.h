@@ -41,7 +41,7 @@
 #endif
 */
 
-#define MK_BMSK_( x ) (1<<x)	 /* Make a bit mask from a bit position */
+#define MK_BMSK_(x) (1<<x)
 
 #if defined(ANOMALY_05000198)
 

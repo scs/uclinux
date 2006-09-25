@@ -16,14 +16,14 @@
 /*
  * BF537: 8 timers:
  */
-#if defined( CONFIG_BF537 )
+#if defined(CONFIG_BF537)
 #  define MAX_BLACKFIN_GPTIMERS 8
 #  define TIMER0_GROUP_REG     TIMER_ENABLE
 #endif
 /*
  * BF561: 12 timers:
  */
-#if defined( CONFIG_BF561 )
+#if defined(CONFIG_BF561)
 #  define MAX_BLACKFIN_GPTIMERS 12
 #  define TIMER0_GROUP_REG     TMRS8_ENABLE
 #  define TIMER8_GROUP_REG     TMRS4_ENABLE
@@ -80,7 +80,7 @@
 
 /* associated timers for ppi framesync: */
 
-#if defined( CONFIG_BF561 )
+#if defined(CONFIG_BF561)
 #  define FS0_1_TIMER_ID   TIMER8_id
 #  define FS0_2_TIMER_ID   TIMER9_id
 #  define FS1_1_TIMER_ID   TIMER10_id
