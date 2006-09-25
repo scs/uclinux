@@ -26,5 +26,9 @@ clean::
 
 romfs:
 	for bin in `cd DESTDIR ; ls usr/bin/* usr/sbin/*` ; do \
-		$(ROMFSINST) -d -e CONFIG_USER_ALSA_UTILS DESTDIR/$$bin /$$bin || exit $$? ; \
+		if echo "$$bin" | grep -e "arecord$$" > /dev/null ; then \
+			$(ROMFSINST) -s /usr/bin/aplay /$$bin ; \
+		else \
+			$(ROMFSINST) -d -e CONFIG_USER_ALSA_UTILS DESTDIR/$$bin /$$bin || exit $$? ; \
+		fi ; \
 	done
