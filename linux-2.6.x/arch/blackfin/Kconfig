@@ -118,12 +118,14 @@ endchoice
 
 config BLACKFIN
 	bool
-	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
+	depends on (BF537 || BF536 \
+		|| BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
 	default y
 
 config BFIN_SINGLE_CORE
 	bool
-	depends on (BF537 || BF536 || BF534 || BF535 || BF533 || BF532 || BF531)
+	depends on (BF537 || BF536 \
+		|| BF534 || BF535 || BF533 || BF532 || BF531)
 	default y
 
 config BFIN_DUAL_CORE
@@ -160,19 +162,19 @@ config BFIN533_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF533 board support"
 	depends on (BF533)
 	help
-	  CM-BF533 support for EVAL- and DEV-Board
+	  CM-BF533 support for EVAL- and DEV-Board.
 
 config BFIN537_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF537 board support"
 	depends on (BF537)
 	help
-	  CM-BF537 support for EVAL- and DEV-Board
+	  CM-BF537 support for EVAL- and DEV-Board.
 
 config BFIN561_BLUETECHNIX_CM
 	bool "BF561-EZKIT"
 	depends on (BF561)
 	help
-	  CM-BF561 support for EVAL- and DEV-Board
+	  CM-BF561 support for EVAL- and DEV-Board.
 
 config BFIN561_EZKIT
 	bool "BF561-EZKIT"
@@ -182,7 +184,8 @@ config BFIN561_EZKIT
 
 config GENERIC_BOARD
 	bool "Custom"
-	depends on (BF537 || BF536 || BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
+	depends on (BF537 || BF536 \
+		|| BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
 	help
 	 GENERIC or Custom board Support.
 
@@ -200,7 +203,8 @@ config MEM_MT48LC64M4A2FB_7E
 
 config MEM_MT48LC16M16A2TG_75
 	bool
-	depends on (BFIN533_EZKIT || BFIN561_EZKIT || BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM)
+	depends on (BFIN533_EZKIT || BFIN561_EZKIT \
+		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -256,19 +260,22 @@ config ENET_FLASH_PIN
 	default  1
 	help
 	  PF port/pin used for flash and ethernet sharing to allow other PF
-	  pins to be used on other platforms without having to touch common code.
+	  pins to be used on other platforms without having to touch common
+	  code.
 	  For example: PF0 --> 1,PF1 --> 2,PF2 --> 4, etc.
 
 config BOOT_LOAD
 	hex "Kernel load address for booting"
 	default "0x1000"
 	help
-	  This option allows you to set the load address of the kernel.  This can
-	  be useful if you are on a board which has a small amount of memory or
-	  you wish to reserve some memory at the beginning of the address space.
+	  This option allows you to set the load address of the kernel.
+	  This can be useful if you are on a board which has a small amount
+	  of memory or you wish to reserve some memory at the beginning of
+	  the address space.
 
-	  Note that you generally want to keep this value at or above 4k (0x1000)
-	  as this will allow the kernel to capture NULL pointer references.
+	  Note that you generally want to keep this value at or above 4k
+	  (0x1000) as this will allow the kernel to capture NULL pointer
+	  references.
 
 comment 'LED Status Indicators'
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
@@ -278,7 +285,8 @@ config BFIN_ALIVE_LED
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
 	default n
 	help
-	  Blinks the LED you select when the kernel is running. Helps detect a hung kernel.
+	  Blinks the LED you select when the kernel is running. Helps detect
+	  a hung kernel.
 
 config BFIN_ALIVE_LED_NUM
 	int "LED"
@@ -396,7 +404,7 @@ endmenu
 
 choice
 	prompt "Kernel executes from"
-	---help---
+	help
 	  Choose the memory type that the kernel will be running in.
 
 config RAMKERNEL
@@ -427,14 +435,14 @@ config IRQCHIP_DEMUX_GPIO
 	depends on BLACKFIN
 	default n
 	help
-	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15
+	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15.
 
 config BFIN_DMA_5XX
 	bool 'Enable DMA Support'
 	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561)
 	default y
 	help
-	  DMA driver for BF5xx
+	  DMA driver for BF5xx.
 
 choice
 	prompt "Uncached SDRAM region"
@@ -515,9 +523,10 @@ config BFIN_KERNEL_CLOCK
 	bool "Re-program Clocks while Kernel boots?"
 	default n
 	help
-	  This option decides if kernel clocks are re-programed from the bootloader
-	  settings. If the clocks are not set, the SDRAM settings are also not
-	  changed, and the Bootloader does 100% of the hardware configuration.
+	  This option decides if kernel clocks are re-programed from the
+	  bootloader settings. If the clocks are not set, the SDRAM settings
+	  are also not changed, and the Bootloader does 100% of the hardware
+	  configuration.
 
 config VCO_MULT
 	int "VCO Multiplier"
@@ -639,7 +648,7 @@ source "drivers/pci/Kconfig"
 
 config HOTPLUG
 	bool "Support for hot-pluggable device"
-	  ---help---
+	  help
 	  Say Y here if you want to plug devices into your computer while
 	  the system is running, and be able to use them quickly.  In many
 	  cases, the devices can likewise be unplugged at any time too.
@@ -671,7 +680,7 @@ menu "Power management options"
 config PM
 	bool "Power Management support for BF533/BF537"
 	help
-	  Support processor power management modes
+	  Support processor power management modes.
 endmenu
 
 if (BF537 || BF533)
@@ -684,7 +693,8 @@ config CPU_FREQ
 	bool
 	default n
 	help
-	If you want to enable this option, you should select DPMC driver from Character Devices
+	  If you want to enable this option, you should select DPMC driver
+	  from Character Devices.
 endmenu
 
 endif
@@ -728,7 +738,7 @@ config DEBUG_KERNEL_START
 	help
 	  Say Y here to put in an mini-execption handler before the kernel
 	  replaces the bootloader exception handler. This will stop kernels
-	  from dieing at startup with no visible error messages
+	  from dieing at startup with no visible error messages.
 
 config DEBUG_SERIAL_EARLY_INIT
 	bool 'Initialize serial driver early'

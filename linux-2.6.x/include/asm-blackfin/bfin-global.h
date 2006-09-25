@@ -1,8 +1,7 @@
 /*
  * File:         include/asm-blackfin/bfin-global.h
  * Based on:
- * Author:
- *
+ * Author: *
  * Created:
  * Description:  Global extern defines for blackfin
  *
@@ -54,9 +53,9 @@
 extern unsigned long get_cclk(void);
 extern unsigned long get_sclk(void);
 
-extern void dump(struct pt_regs *fp, void *);
-extern void dump_thread(struct pt_regs *, struct user *);
-extern void dump_bfin_regs(struct pt_regs *fp, void *);
+extern void dump(struct pt_regs *fp, void *retaddr);
+extern void dump_thread(struct pt_regs *regs, struct user *dump);
+extern void dump_bfin_regs(struct pt_regs *fp, void *retaddr);
 extern void dump_bfin_trace_buffer(void);
 
 extern int init_arch_irq(void);

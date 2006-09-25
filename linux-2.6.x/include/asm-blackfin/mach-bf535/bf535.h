@@ -46,9 +46,6 @@
 /*
  * Typedefs
  */
-typedef unsigned long UINT32;
-typedef unsigned short UINT16;
-typedef unsigned char UCHAR;
 
 #define PUT_FIELD(field, val) (((val) << field##_SHIFT) & field##_MASK)	/* ?  */
 #define GET_FIELD(reg, field) (((reg) & field##_MASK) >> field##_SHIFT)	/*  ?   */

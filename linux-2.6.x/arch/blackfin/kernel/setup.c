@@ -74,7 +74,6 @@ char command_line[COMMAND_LINE_SIZE];
 extern void init_leds(void);
 static void generate_cpl_tables(void);
 
-
 void __init bf53x_cache_init(void)
 {
 	generate_cpl_tables();
@@ -115,7 +114,8 @@ void bf53x_relocate_l1_mem(void)
 		l1_length = L1_DATA_A_LENGTH;
 
 	/* Copy _sdata_l1 to _ebss_l1 to L1 instruction SRAM */
-	dma_memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),l1_length);
+	dma_memcpy(_sdata_l1, _l1_lma_start + (_etext_l1 - _stext_l1),
+		   l1_length);
 
 }
 
@@ -170,10 +170,14 @@ static __init void parse_cmdline_early(char *cmdline_p)
 				if (memsize) {
 					physical_mem_end = memsize;
 					if (*to != ' ') {
-						if (*to == '$' || *(to+1) == '$')
-							reserved_mem_dcache_on = 1;
-						if (*to == '#' || *(to+1) == '#')
-							reserved_mem_icache_on = 1;
+						if (*to == '$'
+						    || *(to + 1) == '$')
+							reserved_mem_dcache_on =
+							    1;
+						if (*to == '#'
+						    || *(to + 1) == '#')
+							reserved_mem_icache_on =
+							    1;
 					}
 				}
 			}
@@ -241,7 +245,8 @@ void __init setup_arch(char **cmdline_p)
 
 # if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
 	if (*((unsigned short *)(mtd_phys + 0x438)) == EXT2_SUPER_MAGIC)
-		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
+		mtd_size =
+		    PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x404)) << 10);
 # endif
 
 # if defined(CONFIG_CRAMFS)
@@ -251,7 +256,8 @@ void __init setup_arch(char **cmdline_p)
 #if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
-		mtd_size = PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
+		mtd_size =
+		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
 #endif
 
 	memory_end -= mtd_size;
@@ -290,8 +296,10 @@ void __init setup_arch(char **cmdline_p)
 	init_leds();
 	id = get_dsp_rev_id();
 
-	printk(KERN_INFO "Blackfin support (C) 2004-2006 Analog Devices, Inc.\n");
-	printk(KERN_INFO "Compiled for ADSP-%s Rev. 0.%d\n", CPU, get_compiled_rev_id());
+	printk(KERN_INFO
+	       "Blackfin support (C) 2004-2006 Analog Devices, Inc.\n");
+	printk(KERN_INFO "Compiled for ADSP-%s Rev. 0.%d\n", CPU,
+	       get_compiled_rev_id());
 	if (id != get_compiled_rev_id())
 		printk(KERN_ERR
 		       "Warning: Compiled for Rev %d, but running on Rev %d\n",
@@ -300,18 +308,20 @@ void __init setup_arch(char **cmdline_p)
 		printk(KERN_ERR
 		       "Warning: Unsupported Chip Revision ADSP-%s Rev. 0.%d detected\n",
 		       CPU, id);
-	printk(KERN_INFO "Blackfin uClinux support by http://blackfin.uclinux.org/\n");
+	printk(KERN_INFO
+	       "Blackfin uClinux support by http://blackfin.uclinux.org/\n");
 
 	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
 	       cclk / 1000000,  sclk / 1000000);
 
 #if defined(ANOMALY_05000273)
 	if ((cclk >> 1) <= sclk)
-		printk(KERN_ERR "\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
+		printk(KERN_ERR
+		       "\n\n\nANOMALY_05000273: CCLK must be >= 2*SCLK !!!\n\n\n");
 #endif
 
-	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end>>20);
-	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend>>20);
+	printk(KERN_INFO "Board Memory: %ldMB\n", physical_mem_end >> 20);
+	printk(KERN_INFO "Kernel Managed Memory: %ldMB\n", _ramend >> 20);
 
 	printk(KERN_INFO "Memory map:\n"
 	       KERN_INFO "  text      = 0x%p-0x%p\n"
@@ -440,7 +450,8 @@ static void __init generate_cpl_tables(void)
 	if (unalign_ram_tmp == 0)
 		physical_mem_aligned_end = _ramend;
 	else
-		physical_mem_aligned_end = (SIZE_4M - unalign_ram_tmp) + _ramend;
+		physical_mem_aligned_end =
+		    (SIZE_4M - unalign_ram_tmp) + _ramend;
 #endif
 
 #ifdef CONFIG_BLKFIN_DCACHE
@@ -453,7 +464,7 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_OOPS);
 #endif
 	pos =
-	    fill_cpl_tables(dcplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
+	    fill_cpl_tables(dcplb_table, pos, 0x0, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
 #if defined(CONFIG_BF561)
 # if defined(CONFIG_BFIN561_EZKIT)
@@ -478,33 +489,43 @@ static void __init generate_cpl_tables(void)
 
 	if (unalign_ram_tmp == 0) {
 		pos =
-			fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
-					_ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+		    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
+				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 		pos =
-			fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-					min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-					    _ramend - SIZE_4M), SIZE_4M, SDRAM_DGENERIC);
+		    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
+				    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
+					_ramend - SIZE_4M), SIZE_4M,
+				    SDRAM_DGENERIC);
 	} else {
 		pos =
-			fill_cpl_tables(dcplb_table, pos, _ramend - unalign_ram_tmp,
-					_ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
+		    fill_cpl_tables(dcplb_table, pos, _ramend - unalign_ram_tmp,
+				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 		pos =
-			fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-					min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-					    _ramend - unalign_ram_tmp), SIZE_4M, SDRAM_DGENERIC);
+		    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
+				    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
+					_ramend - unalign_ram_tmp), SIZE_4M,
+				    SDRAM_DGENERIC);
 	}
 
 	if (physical_mem_end > _ramend) {
 		if (reserved_mem_dcache_on) {
 			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_DGENERIC);
-			pos = fill_cpl_tables(dcplb_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_DGENERIC);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_DGENERIC);
+			pos =
+			    fill_cpl_tables(dcplb_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_DGENERIC);
 		} else {
 			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_DNON_CHBL);
-			pos = fill_cpl_tables(dcplb_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_DNON_CHBL);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_DNON_CHBL);
+			pos =
+			    fill_cpl_tables(dcplb_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_DNON_CHBL);
 		}
 	}
 
@@ -516,7 +537,7 @@ static void __init generate_cpl_tables(void)
 /* Generarte DCPLB switch table */
 	pos = 0;
 	pos =
-	    fill_cpl_tables(dpdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
+	    fill_cpl_tables(dpdt_table, pos, 0x0, SIZE_4M, SIZE_4M,
 			    SDRAM_DKERNEL);
 
 	if (unalign_ram_tmp == 0) {
@@ -528,8 +549,9 @@ static void __init generate_cpl_tables(void)
 				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
 	} else {
 		pos =
-		    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - unalign_ram_tmp,
-				    SIZE_4M, SDRAM_DGENERIC);
+		    fill_cpl_tables(dpdt_table, pos, SIZE_4M,
+				    _ramend - unalign_ram_tmp, SIZE_4M,
+				    SDRAM_DGENERIC);
 		pos =
 		    fill_cpl_tables(dpdt_table, pos, _ramend - unalign_ram_tmp,
 				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
@@ -542,17 +564,24 @@ static void __init generate_cpl_tables(void)
 	if (physical_mem_end > _ramend) {
 		if (reserved_mem_dcache_on) {
 			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_DGENERIC);
-			pos = fill_cpl_tables(dpdt_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_DGENERIC);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_DGENERIC);
+			pos =
+			    fill_cpl_tables(dpdt_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_DGENERIC);
 		} else {
 			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_DNON_CHBL);
-			pos = fill_cpl_tables(dpdt_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_DNON_CHBL);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_DNON_CHBL);
+			pos =
+			    fill_cpl_tables(dpdt_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_DNON_CHBL);
 		}
 	}
-
 
 #if defined(CONFIG_BF561)
 # if defined(CONFIG_BFIN561_EZKIT) || defined(CONFIG_BFIN561_BLUETECHNIX_CM)
@@ -620,12 +649,13 @@ static void __init generate_cpl_tables(void)
 			    SDRAM_OOPS);
 #endif
 	pos =
-	    fill_cpl_tables(icplb_table, pos, ZERO, SIZE_4M, SIZE_4M,
+	    fill_cpl_tables(icplb_table, pos, 0x0, SIZE_4M, SIZE_4M,
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M, _ramend - unalign_ram_tmp),
-			    SIZE_4M, SDRAM_IGENERIC);
+			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M,
+				_ramend - unalign_ram_tmp), SIZE_4M,
+			    SDRAM_IGENERIC);
 	pos =
 	    fill_cpl_tables(icplb_table, pos, _ramend - unalign_ram_tmp, _ramend,
 			    SIZE_1M, SDRAM_IGENERIC);
@@ -633,14 +663,22 @@ static void __init generate_cpl_tables(void)
 	if (physical_mem_end > _ramend) {
 		if (reserved_mem_icache_on) {
 			pos = fill_cpl_tables(icplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_IGENERIC);
-			pos = fill_cpl_tables(icplb_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_IGENERIC);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_IGENERIC);
+			pos =
+			    fill_cpl_tables(icplb_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_IGENERIC);
 		} else {
 			pos = fill_cpl_tables(icplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_INON_CHBL);
-			pos = fill_cpl_tables(icplb_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_INON_CHBL);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_INON_CHBL);
+			pos =
+			    fill_cpl_tables(icplb_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_INON_CHBL);
 		}
 	}
 
@@ -653,7 +691,7 @@ static void __init generate_cpl_tables(void)
 	pos = 0;
 
 	pos =
-	    fill_cpl_tables(ipdt_table, pos, ZERO, SIZE_4M, SIZE_4M,
+	    fill_cpl_tables(ipdt_table, pos, 0x0, SIZE_4M, SIZE_4M,
 			    SDRAM_IKERNEL);
 	pos =
 	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, _ramend - unalign_ram_tmp,
@@ -665,14 +703,22 @@ static void __init generate_cpl_tables(void)
 	if (physical_mem_end > _ramend) {
 		if (reserved_mem_icache_on) {
 			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_IGENERIC);
-			pos = fill_cpl_tables(ipdt_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_IGENERIC);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_IGENERIC);
+			pos =
+			    fill_cpl_tables(ipdt_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_IGENERIC);
 		} else {
 			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M, SDRAM_INON_CHBL);
-			pos = fill_cpl_tables(ipdt_table, pos, physical_mem_aligned_end,
-					      physical_mem_end, SIZE_4M, SDRAM_INON_CHBL);
+					      physical_mem_aligned_end, SIZE_1M,
+					      SDRAM_INON_CHBL);
+			pos =
+			    fill_cpl_tables(ipdt_table, pos,
+					    physical_mem_aligned_end,
+					    physical_mem_end, SIZE_4M,
+					    SDRAM_INON_CHBL);
 		}
 	}
 
@@ -745,6 +791,7 @@ u_long get_cclk(void)
 		return get_vco() / ssel;
 	return get_vco() >> csel;
 }
+
 EXPORT_SYMBOL(get_cclk);
 
 /* Get the System clock */
@@ -763,6 +810,7 @@ u_long get_sclk(void)
 
 	return get_vco() / ssel;
 }
+
 EXPORT_SYMBOL(get_sclk);
 
 /*
@@ -805,8 +853,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   ((loops_per_jiffy * HZ) / 5000) % 100,
 		   (loops_per_jiffy * HZ));
 	seq_printf(m, "Board Name:\t%s\n", name);
-	seq_printf(m, "Board Memory:\t%ld MB\n", physical_mem_end>>20);
-	seq_printf(m, "Kernel Memory:\t%ld MB\n", (unsigned long)_ramend>>20);
+	seq_printf(m, "Board Memory:\t%ld MB\n", physical_mem_end >> 20);
+	seq_printf(m, "Kernel Memory:\t%ld MB\n", (unsigned long)_ramend >> 20);
 	if (bfin_read_IMEM_CONTROL() & (ENICPLB | IMC))
 		seq_printf(m, "I-CACHE:\tON\n");
 	else
@@ -884,12 +932,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void *c_start(struct seq_file *m, loff_t * pos)
+static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	return *pos < NR_CPUS ? ((void *)0x12345678) : NULL;
 }
 
-static void *c_next(struct seq_file *m, void *v, loff_t * pos)
+static void *c_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	++*pos;
 	return c_start(m, pos);

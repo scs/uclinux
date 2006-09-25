@@ -81,7 +81,8 @@ static struct platform_device *ezkit_devices[] __initdata = {
 static int __init ezkit_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
-	return platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));
+	return platform_add_devices(ezkit_devices,
+		 ARRAY_SIZE(ezkit_devices));
 }
 
 arch_initcall(ezkit_init);

@@ -21,7 +21,6 @@
 #ifndef _SPI_CHANNEL_H_
 #define _SPI_CHANNEL_H_
 
-
 #define SPI0_REGBASE       0xffc00500
 
 #define SPI_READ              0
@@ -47,8 +46,8 @@
 #define CMD_SPI_GET_STAT      11
 #define CMD_SPI_GET_CFG       12
 #define CMD_SPI_SET_CSAVAIL   13
-#define CMD_SPI_SET_CSHIGH    14 /* CS unavail */
-#define CMD_SPI_SET_CSLOW     15 /* CS avail */
+#define CMD_SPI_SET_CSHIGH    14	/* CS unavail */
+#define CMD_SPI_SET_CSLOW     15	/* CS avail */
 #define CMD_SPI_MISO_ENABLE   16
 #define CMD_SPI_SET_CSENABLE  17
 #define CMD_SPI_SET_CSDISABLE 18
@@ -65,7 +64,7 @@
 #define CMD_SPI_SET_WRITECONTINUOUS     26
 #define CMD_SPI_SET_SKFS    		27
 
-#define CMD_SPI_GET_ALLCONFIG 32 /* For debug */
+#define CMD_SPI_GET_ALLCONFIG 32	/* For debug */
 
 #define SPI_DEFAULT_BARD    0x0100
 
@@ -95,7 +94,6 @@
 #define BIT_STAT_RXS        0x0020
 #define BIT_STAT_TXCOL      0x0040
 #define BIT_STAT_CLR        0xFFFF
-
 
 #define BIT_STU_SENDOVER    0x0001
 #define BIT_STU_RECVFULL    0x0020
@@ -152,7 +150,6 @@
 #define CFG_SPI_CS6VALUE    6
 #define CFG_SPI_CS7VALUE    7
 
-
 /* device.platform_data for SSP controller devices */
 struct bfin5xx_spi_master {
 	u16 num_chipselect;
@@ -169,6 +166,5 @@ struct bfin5xx_spi_chip {
 	u8 cs_change_per_word;
 	u8 cs_chg_udelay;
 };
-
 
 #endif /* _SPI_CHANNEL_H_ */

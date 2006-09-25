@@ -132,7 +132,7 @@
 #define ANOMALY_05000205 /* Specific sequence that can cause DMA error or DMA
                             stopping */
 #define ANOMALY_05000207 /* Recovery from "brown-out" condition */
-#define ANOMALY_05000209 /* Speed-Path in computational unit affects certain 
+#define ANOMALY_05000209 /* Speed-Path in computational unit affects certain
                             instructions */
 #define ANOMALY_05000215 /* UART TX Interrupt masked erroneously */
 #define ANOMALY_05000219 /* NMI event at boot time results in unpredictable
@@ -142,12 +142,12 @@
 #define ANOMALY_05000225 /* Incorrect pulse-width of UART start-bit */
 #define ANOMALY_05000227 /* Scratchpad memory bank reads may return incorrect
                             data */
-#define ANOMALY_05000230 /* UART Receiver is less robust against Baudrate 
+#define ANOMALY_05000230 /* UART Receiver is less robust against Baudrate
                             Differences in certain Conditions */
 #define ANOMALY_05000231 /* UART STB bit incorrectly affects receiver setting */
 #define ANOMALY_05000232 /* SPORT data transmit lines are incorrectly driven in
                             multichannel mode */
-#define ANOMALY_05000242 /* DF bit in PLL_CTL register does not respond to 
+#define ANOMALY_05000242 /* DF bit in PLL_CTL register does not respond to
                             hardware reset */
 #define ANOMALY_05000244 /* If i-cache is on, CSYNC/SSYNC/IDLE around Change of
                             Control causes failures */

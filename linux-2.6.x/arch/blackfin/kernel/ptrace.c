@@ -38,6 +38,7 @@
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
+
 #include <asm/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -336,6 +337,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_SINGLESTEP:
 		{		/* set the trap flag. */
 			long tmp;
+
 			pr_debug("single step\n");
 			ret = -EIO;
 			if (!valid_signal(data))
@@ -368,13 +370,15 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SETREGS:
 		{
-			printk(KERN_NOTICE "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
+			printk(KERN_NOTICE
+			       "ptrace: SETREGS: **** NOT IMPLEMENTED ***\n");
 			/* Set all gp regs in the child. */
 			ret = 0;
 			break;
 		}
 	default:
-		printk(KERN_NOTICE "ptrace: *** Unhandled case **** %d\n", (int)request);
+		printk(KERN_NOTICE "ptrace: *** Unhandled case **** %d\n",
+		       (int)request);
 		ret = -EIO;
 		break;
 	}

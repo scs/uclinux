@@ -67,14 +67,16 @@ static int printk_address(unsigned long address)
 	char namebuf[128];
 
 	/* look up the address and see if we are in kernel space */
-	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+	symname =
+	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
 
 	if (symname) {
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
 		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
-			      (void*)address, delim, modname, delim, symname, (unsigned long)offset);
+			      (void*)address, delim, modname, delim, symname,
+			      (unsigned long)offset);
 
 	} else {
 		/* looks like we're off in user-land, so let's walk all the
@@ -86,7 +88,7 @@ static int printk_address(unsigned long address)
 		struct mm_struct *mm;
 
 		write_lock_irq(&tasklist_lock);
-		for_each_process (p) {
+		for_each_process(p) {
 			mm = get_task_mm(p);
 			if (!mm)
 				continue;
@@ -95,19 +97,29 @@ static int printk_address(unsigned long address)
 			while (vml) {
 				struct vm_area_struct *vma = vml->vma;
 
-				if ((address >= vma->vm_start) && (address < vma->vm_end)) {
+				if ((address >= vma->vm_start)
+				    && (address < vma->vm_end)) {
 					char *name = p->comm;
 					struct file *file = vma->vm_file;
 					if (file) {
 						char _tmpbuf[256];
-						name = d_path(file->f_dentry, file->f_vfsmnt, _tmpbuf, sizeof(_tmpbuf));
+						name =
+						    d_path(file->f_dentry,
+							   file->f_vfsmnt,
+							   _tmpbuf,
+							   sizeof(_tmpbuf));
 					}
 
 					write_unlock_irq(&tasklist_lock);
 					return printk("<0x%p> [ %s + 0x%lx ]",
 						      (void*)address,
 						      name,
-						      (unsigned long)((address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT)));
+						      (unsigned
+						       long)((address -
+							      vma->vm_start) +
+							     (vma->
+							      vm_pgoff <<
+							      PAGE_SHIFT)));
 				}
 
 				vml = vml->next;
@@ -468,7 +480,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk("\nCURRENT PROCESS:\n\n");
 		printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	} else {
-		printk("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
+		printk
+		    ("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
 	}
 
 	if (current->mm) {

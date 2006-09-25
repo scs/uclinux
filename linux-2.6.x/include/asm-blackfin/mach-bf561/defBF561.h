@@ -44,7 +44,7 @@
 /* System MMR Register Map */
 /*********************************************************************************** */
 
-/*// Clock and System Control (0xFFC00000 - 0xFFC000FF) */
+/* Clock and System Control (0xFFC00000 - 0xFFC000FF) */
 
 #define PLL_CTL                0xFFC00000	/* PLL Control register (16-bit) */
 #define PLL_DIV			        0xFFC00004	/* PLL Divide Register (16-bit) */
@@ -251,7 +251,7 @@
 #define FIO2_BOTH 					0xFFC0173C	/* Flag Set on Both Edges register */
 #define FIO2_INEN 					0xFFC01740	/* Flag Input Enable register */
 
-/*// SPORT0 Controller (0xFFC00800 - 0xFFC008FF) */
+/* SPORT0 Controller (0xFFC00800 - 0xFFC008FF) */
 #define SPORT0_TCR1     	 	0xFFC00800	/* SPORT0 Transmit Configuration 1 Register */
 #define SPORT0_TCR2      	 	0xFFC00804	/* SPORT0 Transmit Configuration 2 Register */
 #define SPORT0_TCLKDIV        		0xFFC00808	/* SPORT0 Transmit Clock Divider */
@@ -275,7 +275,7 @@
 #define SPORT0_MRCS2           		0xFFC00858	/* SPORT0 Multi-Channel Receive Select Register 2 */
 #define SPORT0_MRCS3           		0xFFC0085C	/* SPORT0 Multi-Channel Receive Select Register 3 */
 
-/*// SPORT1 Controller (0xFFC00900 - 0xFFC009FF) */
+/* SPORT1 Controller (0xFFC00900 - 0xFFC009FF) */
 #define SPORT1_TCR1     	 		0xFFC00900	/* SPORT1 Transmit Configuration 1 Register */
 #define SPORT1_TCR2      	 		0xFFC00904	/* SPORT1 Transmit Configuration 2 Register */
 #define SPORT1_TCLKDIV        		0xFFC00908	/* SPORT1 Transmit Clock Divider */
@@ -841,7 +841,7 @@
 
 /* ********************* PLL AND RESET MASKS ************************ */
 
-/*// PLL_CTL Masks */
+/* PLL_CTL Masks */
 #define PLL_CLKIN              0x00000000	/* Pass CLKIN to PLL */
 #define PLL_CLKIN_DIV2         0x00000001	/* Pass CLKIN/2 to PLL */
 #define PLL_OFF                0x00000002	/* Shut off PLL clocks */
@@ -849,7 +849,7 @@
 #define PDWN                   0x00000020	/* Put the PLL in a Deep Sleep state */
 #define BYPASS                 0x00000100	/* Bypass the PLL */
 
-/*// PLL_DIV Masks */
+/* PLL_DIV Masks */
 
 #define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
 
@@ -974,9 +974,9 @@
 #define STATUS_P1	0x02
 #define STATUS_P0	0x01
 #define NINT_P		0x00
-#define IIR_TX_READY    0x02    /* UART_THR empty                               */
-#define IIR_RX_READY    0x04    /* Receive data ready                           */
-#define IIR_LINE_CHANGE 0x06    /* Receive line status                          */
+#define IIR_TX_READY    0x02	/* UART_THR empty                               */
+#define IIR_RX_READY    0x04	/* Receive data ready                           */
+#define IIR_LINE_CHANGE 0x06	/* Receive line status                          */
 #define IIR_STATUS	0x06
 
 /* UART_GCTL Register */
@@ -1056,7 +1056,7 @@
 
 /*  *********  PARALLEL PERIPHERAL INTERFACE (PPI) MASKS ****************   */
 
-/*//  PPI_CONTROL Masks         */
+/*  PPI_CONTROL Masks         */
 #define PORT_EN              0x00000001	/* PPI Port Enable  */
 #define PORT_DIR             0x00000002	/* PPI Port Direction       */
 #define XFR_TYPE             0x0000000C	/* PPI Transfer Type  */
@@ -1071,7 +1071,7 @@
 #define DLEN(x)	(((x-9) & 0x07) << 11)	/* PPI Data Length (only works for x=10-->x=16) */
 #define POL                  0x0000C000	/* PPI Signal Polarities       */
 
-/*// PPI_STATUS Masks                                          */
+/* PPI_STATUS Masks */
 #define FLD	             0x00000400	/* Field Indicator   */
 #define FT_ERR	             0x00000800	/* Frame Track Error */
 #define OVR	             0x00001000	/* FIFO Overflow Error */
@@ -1081,7 +1081,7 @@
 
 /* **********  DMA CONTROLLER MASKS  *********************8 */
 
-/*//DMAx_CONFIG, MDMA_yy_CONFIG, IMDMA_yy_CONFIG Masks */
+/* DMAx_CONFIG, MDMA_yy_CONFIG, IMDMA_yy_CONFIG Masks */
 #define DMAEN	        0x00000001	/* Channel Enable */
 #define WNR	   	0x00000002	/* Channel Direction (W/R*) */
 #define WDSIZE_8	0x00000000	/* Word Size 8 bits */
@@ -1116,7 +1116,7 @@
 #define DI_SEL_P	     	6	/* Data Interrupt Select */
 #define DI_EN_P	            	7	/* Data Interrupt Enable */
 
-/*//DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS, IMDMA_yy_IRQ_STATUS Masks */
+/* DMAx_IRQ_STATUS, MDMA_yy_IRQ_STATUS, IMDMA_yy_IRQ_STATUS Masks */
 
 #define DMA_DONE		0x00000001	/* DMA Done Indicator */
 #define DMA_ERR	        	0x00000002	/* DMA Error Indicator */
@@ -1128,7 +1128,7 @@
 #define DFETCH_P     		2	/* Descriptor Fetch Indicator */
 #define DMA_RUN_P     		3	/* DMA Running Indicator */
 
-/*//DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP, IMDMA_yy_PERIPHERAL_MAP Masks */
+/* DMAx_PERIPHERAL_MAP, MDMA_yy_PERIPHERAL_MAP, IMDMA_yy_PERIPHERAL_MAP Masks */
 
 #define CTYPE	            0x00000040	/* DMA Channel Type Indicator */
 #define CTYPE_P             6	/* DMA Channel Type Indicator BIT POSITION */
@@ -1339,7 +1339,7 @@
 
 /* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  **************** */
 
-/*// SPI_CTL Masks */
+/* SPI_CTL Masks */
 #define TIMOD                  0x00000003	/* Transfer initiation mode and interrupt generation */
 #define SZ                     0x00000004	/* Send Zero (=0) or last (=1) word when TDBR empty. */
 #define GM                     0x00000008	/* When RDBR full, get more (=1) data or discard (=0) incoming Data */
@@ -1353,7 +1353,7 @@
 #define WOM                    0x00002000	/* Open drain (=1) data output enable (for MOSI and MISO) */
 #define SPE                    0x00004000	/* SPI module enable (=1), disable (=0) */
 
-/*// SPI_FLG Masks */
+/* SPI_FLG Masks */
 #define FLS1                   0x00000002	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
 #define FLS2                   0x00000004	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
 #define FLS3                   0x00000008	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
@@ -1369,7 +1369,7 @@
 #define FLG6                   0x00004000	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
 #define FLG7                   0x00008000	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
 
-/*// SPI_FLG Bit Positions */
+/* SPI_FLG Bit Positions */
 #define FLS1_P                 0x00000001	/* Enables (=1) SPI_FLOUT1 as flag output for SPI Slave-select */
 #define FLS2_P                 0x00000002	/* Enables (=1) SPI_FLOUT2 as flag output for SPI Slave-select */
 #define FLS3_P                 0x00000003	/* Enables (=1) SPI_FLOUT3 as flag output for SPI Slave-select */
@@ -1385,7 +1385,7 @@
 #define FLG6_P                 0x0000000E	/* Activates (=0) SPI_FLOUT6 as flag output for SPI Slave-select  */
 #define FLG7_P                 0x0000000F	/* Activates (=0) SPI_FLOUT7 as flag output for SPI Slave-select */
 
-/*// SPI_STAT Masks */
+/* SPI_STAT Masks */
 #define SPIF                   0x00000001	/* Set (=1) when SPI single-word transfer complete */
 #define MODF                   0x00000002	/* Set (=1) in a master device when some other device tries to become master */
 #define TXE                    0x00000004	/* Set (=1) when transmission occurs with no new data in SPI_TDBR */

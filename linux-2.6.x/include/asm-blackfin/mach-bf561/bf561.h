@@ -36,7 +36,7 @@
 
 #define SUPPORTED_DSPID		0x300
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
+#define OFFSET_( x ) ((x) & 0x0000FFFF)
 #define L1_ISRAM		0xFFA00000
 #define L1_ISRAM_END		0xFFA04000
 #define DATA_BANKA_SRAM		0xFF800000
@@ -182,7 +182,6 @@
 #define SUPPLE_1_BIT	        0x0FFFFFFF
 
 /* Miscellaneous Values */
-#define ZERO			0x0
 
 /****************************** EBIU Settings ********************************/
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)

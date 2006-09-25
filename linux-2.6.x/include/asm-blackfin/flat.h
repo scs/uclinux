@@ -35,7 +35,8 @@ flat_get_relocate_addr (unsigned long relval)
 	return relval & 0x03ffffff; /* Mask out top 6 bits */
 }
 
-static inline int flat_set_persistent (unsigned long relval, unsigned long *persistent)
+static inline int flat_set_persistent(unsigned long relval,
+				      unsigned long *persistent)
 {
 	int type = (relval >> 26) & 7;
 	if (type == 3) {
@@ -45,15 +46,15 @@ static inline int flat_set_persistent (unsigned long relval, unsigned long *pers
 	return 0;
 }
 
-static inline int flat_addr_absolute (unsigned long relval)
+static inline int flat_addr_absolute(unsigned long relval)
 {
 	return (relval & (1 << 29)) != 0;
 }
 
-static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
-						   unsigned long relval,
-						   unsigned long flags,
-						   unsigned long *persistent)
+static inline unsigned long bfin_get_addr_from_rp(unsigned long *ptr,
+						  unsigned long relval,
+						  unsigned long flags,
+						  unsigned long *persistent)
 {
 	unsigned short *usptr = (unsigned short *)ptr;
 	int type = (relval >> 26) & 7;
@@ -62,24 +63,24 @@ static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
 	switch (type) {
 	case FLAT_BFIN_RELOC_TYPE_16_BIT:
 	case FLAT_BFIN_RELOC_TYPE_16H_BIT:
-		usptr = (unsigned short *) ptr;
+		usptr = (unsigned short *)ptr;
 #ifdef DEBUG_BFIN_RELOC
-		printk(" *usptr = %x", get_unaligned (usptr));
+		printk(KERN_INFO " *usptr = %x", get_unaligned(usptr));
 #endif
-		val = get_unaligned (usptr);
+		val = get_unaligned(usptr);
 		val += *persistent;
 		break;
 
 	case FLAT_BFIN_RELOC_TYPE_32_BIT:
 #ifdef DEBUG_BFIN_RELOC
-		printk(" *ptr = %x", get_unaligned (ptr));
+		printk(KERN_INFO " *ptr = %x", get_unaligned(ptr));
 #endif
-		val = get_unaligned (ptr);
+		val = get_unaligned(ptr);
 		break;
 
 	default:
-		printk("BINFMT_FLAT: Unknown relocation type %x\n",
-		       type);
+		printk(KERN_INFO "BINFMT_FLAT: Unknown relocation type %x\n",
+			type);
 		return 0;
 	}
 
@@ -90,37 +91,37 @@ static inline unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
 		return val + current->mm->context.end_brk;
 
 	if ((flags & FLAT_FLAG_GOTPIC) == 0)
-	    val = htonl (val);
+		val = htonl(val);
 	return val;
 }
 
 /* Insert the address ADDR into the symbol reference at RP;
    RELVAL is the raw relocation-table entry from which RP is derived.  */
-static inline void bfin_put_addr_at_rp (unsigned long *ptr, unsigned long addr,
-					unsigned long relval)
+static inline void bfin_put_addr_at_rp(unsigned long *ptr, unsigned long addr,
+				       unsigned long relval)
 {
 	unsigned short *usptr = (unsigned short *)ptr;
 	int type = (relval >> 26) & 7;
 
 	switch (type) {
 	case FLAT_BFIN_RELOC_TYPE_16_BIT:
-		put_unaligned (addr, usptr);
+		put_unaligned(addr, usptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x at %p", get_unaligned (usptr), usptr);
+		printk(KERN_INFO " new value %x at %p", get_unaligned(usptr), usptr);
 #endif
 		break;
 
 	case FLAT_BFIN_RELOC_TYPE_16H_BIT:
-		put_unaligned (addr >> 16, usptr);
+		put_unaligned(addr >> 16, usptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new value %x", get_unaligned (usptr));
+		printk(KERN_INFO " new value %x", get_unaligned(usptr));
 #endif
 		break;
 
 	case FLAT_BFIN_RELOC_TYPE_32_BIT:
-		put_unaligned (addr, ptr);
+		put_unaligned(addr, ptr);
 #ifdef DEBUG_BFIN_RELOC
-		printk(" new ptr =%x", get_unaligned (ptr));
+		printk(KERN_INFO " new ptr =%x", get_unaligned(ptr));
 #endif
 		break;
 	}

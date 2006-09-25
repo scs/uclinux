@@ -39,31 +39,31 @@
 */
 #include "defblackfin.h"
 
-// Cache & SRAM Memory
+ /* Cache & SRAM Memory */
 /*
-#define MMR_TIMEOUT            0xFFE00010  // Memory-Mapped Register Timeout Register
+#define MMR_TIMEOUT            0xFFE00010   /* Memory-Mapped Register Timeout Register */
 */
 /*
-#define DTEST_INDEX            0xFFE00304  // Data Test Index Register
+#define DTEST_INDEX            0xFFE00304   /* Data Test Index Register */
 */
 /*
-#define DTEST_DATA2            0xFFE00408  // Data Test Data Register
-#define DTEST_DATA3            0xFFE0040C  // Data Test Data Register
+/* #define DTEST_DATA2            0xFFE00408 */   /* Data Test Data Register */
+/* #define DTEST_DATA3            0xFFE0040C */   /* Data Test Data Register */
 */
 /*
-#define ITEST_INDEX            0xFFE01304  // Instruction Test Index Register
+#define ITEST_INDEX            0xFFE01304   /* Instruction Test Index Register */
 */
 
-// Event/Interrupt Registers
+ /* Event/Interrupt Registers */
 
-// Core Timer Registers
+ /* Core Timer Registers */
 
-// Debug/MP/Emulation Registers
+ /* Debug/MP/Emulation Registers */
 
-// Trace Buffer Registers
+ /* Trace Buffer Registers */
 
-// Watch Point Control Registers
+ /* Watch Point Control Registers */
 
-// Performance Monitor Registers
+ /* Performance Monitor Registers */
 
 #endif				/* _CDEF_BLACKFIN_H */

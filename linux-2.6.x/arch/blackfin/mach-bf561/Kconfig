@@ -211,11 +211,9 @@ config  IRQ_WDTIMER
 	default 13
 
 	help
-	------------------------- GENERAL HELP -------------------------
-
-	Enter the priority numbers between 7-13 ONLY. Others are Reserved.
- 	This applies to all the above.It is not recommended to assign the
-	highest priority no 7 to UART or any other device.
+	  Enter the priority numbers between 7-13 ONLY. Others are Reserved.
+ 	  This applies to all the above.It is not recommended to assign the
+	  highest priority no 7 to UART or any other device.
 
 endmenu
 

@@ -51,14 +51,15 @@
 
 ENTRY(__start)
 ENTRY(__stext)
-/* R0: argument of command line string, passed from uboot, save it */
+	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
 	/* Set the SYSCFG register */
 	R0 = 0x36;
-	SYSCFG = R0; 		/* Enable Cycle Counter and Nesting Of Interrupts(3rd Bit) */
+	/*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
+	SYSCFG = R0;
 	R0 = 0;
 
-/* Clear Out All the data and pointer Registers */
+	/*Clear Out All the data and pointer  Registers*/
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -80,7 +81,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-/* Clear Out All the DAG Registers */
+	/* Clear Out All the DAG Registers*/
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -138,7 +139,7 @@ ENTRY(__stext)
 	w[p0] = r0.L;	/* Disable all interrupts */
 	ssync;
 
-/* Turn off the icache */
+	/* Turn off the icache */
 	p0.l = (IMEM_CONTROL & 0xFFFF);
 	p0.h = (IMEM_CONTROL >> 16);
 	R1 = [p0];
@@ -152,21 +153,21 @@ ENTRY(__stext)
 	SSYNC;
 	STI R2;
 
-/* Turn off the dcache */
+	/* Turn off the dcache */
 	p0.l = (DMEM_CONTROL & 0xFFFF);
 	p0.h = (DMEM_CONTROL >> 16);
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
 
-/* Anomaly 05000125 */
+	/* Anomaly 05000125 */
 	CLI R2;
 	SSYNC;
 	[p0] = R0;
 	SSYNC;
 	STI R2;
 
-/* Initialise UART */
+	/* Initialise UART */
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);

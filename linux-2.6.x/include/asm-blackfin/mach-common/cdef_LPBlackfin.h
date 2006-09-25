@@ -275,7 +275,7 @@
 #define bfin_read_ITEST_COMMAND()            bfin_read32(ITEST_COMMAND)
 #define bfin_write_ITEST_COMMAND(val)        bfin_write32(ITEST_COMMAND,val)
 /*
-#define ITEST_INDEX            0xFFE01304  // Instruction Test Index Register
+#define ITEST_INDEX            0xFFE01304   /* Instruction Test Index Register */
 */
 #define pITEST_DATA0 ((volatile unsigned long *)ITEST_DATA0)
 #define bfin_read_ITEST_DATA0()              bfin_read32(ITEST_DATA0)
@@ -470,6 +470,5 @@
 #define pCONFIG_BFIN_IDLE_LED_PORT \
 	(volatile unsigned short *)CONFIG_BFIN_IDLE_LED_PORT
 #endif
-
 
 #endif				/* _CDEF_LPBLACKFIN_H */

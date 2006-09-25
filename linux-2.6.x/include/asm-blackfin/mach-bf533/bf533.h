@@ -37,7 +37,7 @@
 
 #define SUPPORTED_DSPID 2
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
+#define OFFSET_( x ) ((x) & 0x0000FFFF)
 
 /*some misc defines*/
 #define IMASK_IVG15		0x8000
@@ -122,8 +122,6 @@
 #define TIMER2_BIT			0xFFFFF0FF
 #define TIMER1_BIT			0xFFFFFF0F
 #define TIMER0_BIT		        0xFFFFFFFF
-
-#define ZERO		0x0
 
 /********************************* EBIU Settings ************************************/
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)

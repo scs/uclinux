@@ -56,16 +56,16 @@ struct sport_config {
 	unsigned int frame_delay:4;	/* Delay between frame sync pulse and first bit */
 
 	/* I2S mode */
-	unsigned int right_first:1; /* Right stereo channel first */
-	
+	unsigned int right_first:1;	/* Right stereo channel first */
+
 	/* In mormal mode, the following item need to be set */
-	unsigned int  lsb_first:1; /* order of transmit or receive data */
-	unsigned int fsync:1; /* Frame sync required */
-	unsigned int data_indep:1; /* data independent frame sync generated */
-	unsigned int act_low:1; /* Active low TFS */
-	unsigned int late_fsync:1; /* Late frame sync */
+	unsigned int lsb_first:1;	/* order of transmit or receive data */
+	unsigned int fsync:1;	/* Frame sync required */
+	unsigned int data_indep:1;	/* data independent frame sync generated */
+	unsigned int act_low:1;	/* Active low TFS */
+	unsigned int late_fsync:1;	/* Late frame sync */
 	unsigned int tckfe:1;
-	unsigned int sec_en:1; /* Secondary side enabled */
+	unsigned int sec_en:1;	/* Secondary side enabled */
 
 	/* Choose clock source */
 	unsigned int int_clk:1;	/* Internal or external clock */
@@ -76,7 +76,7 @@ struct sport_config {
 
 	unsigned int data_format:2;	/*Normal, u-law or a-law */
 
-	int word_len;	/* How length of the word in bits, 3-32 bits */
+	int word_len;		/* How length of the word in bits, 3-32 bits */
 	int dma_enabled;
 };
 
@@ -126,7 +126,7 @@ struct sport_register {
 #define ENABLE_AD73311		_IOWR('P', 0x02, int)
 
 struct sport_dev {
-	struct cdev cdev;  /* Char device structure */
+	struct cdev cdev;	/* Char device structure */
 
 	int sport_num;
 
@@ -134,10 +134,10 @@ struct sport_dev {
 	int dma_tx_chan;
 
 	int rx_irq;
-	unsigned char *rx_buf; /* Buffer store the received data */
-	int rx_len;	/* How many bytes will be received */
-	int rx_received; /* How many bytes has been received */
-	
+	unsigned char *rx_buf;	/* Buffer store the received data */
+	int rx_len;		/* How many bytes will be received */
+	int rx_received;	/* How many bytes has been received */
+
 	int tx_irq;
 	const unsigned char *tx_buf;
 	int tx_len;
@@ -145,7 +145,7 @@ struct sport_dev {
 
 	int sport_err_irq;
 
-	struct semaphore sem;  /* mutual exclusion semaphore */
+	struct mutex sem;	/* mutual exclusion semaphore */
 
 	wait_queue_head_t waitq;
 	int	wait_con;

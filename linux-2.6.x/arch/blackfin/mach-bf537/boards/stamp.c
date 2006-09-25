@@ -36,7 +36,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
+#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 #include <linux/usb_isp1362.h>
+#endif
 #include <asm/irq.h>
 #include <asm/bfin5xx_spi.h>
 #include <linux/usb_sl811.h>
@@ -136,7 +138,7 @@ static struct resource sl811_hcd_resources[] = {
 #if defined(CONFIG_USB_SL811_BFIN_USE_VBUS)
 void sl811_port_power(struct device *dev, int is_on)
 {
-	unsigned short mask = (1<<CONFIG_USB_SL811_BFIN_GPIO_VBUS);
+	unsigned short mask = (1 << CONFIG_USB_SL811_BFIN_GPIO_VBUS);
 
 	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~mask);
 	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | mask);
@@ -240,7 +242,8 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI perpherals info goes here */
 
-#if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
+#if defined(CONFIG_MTD_M25P80) \
+	|| defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		name = "bootloader",
@@ -273,7 +276,8 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_ADC_BF533) || defined(CONFIG_SPI_ADC_BF533_MODULE)
+#if defined(CONFIG_SPI_ADC_BF533) \
+	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
 	.ctl_reg = 0x1000,
@@ -282,7 +286,8 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BLACKFIN_AD1836) \
+	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.ctl_reg = 0x1000,
 	.enable_dma = 0,
@@ -309,7 +314,8 @@ static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 /* Notice: for blackfin, the speed_hz is the value of register
  * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
-#if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
+#if defined(CONFIG_MTD_M25P80) \
+	|| defined(CONFIG_MTD_M25P80_MODULE)
 	{
 		/* the modalias must be the same as spi device driver name */
 		.modalias = "m25p80", /* Name of spi_driver for this device */
@@ -322,7 +328,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SPI_ADC_BF533) || defined(CONFIG_SPI_ADC_BF533_MODULE)
+#if defined(CONFIG_SPI_ADC_BF533) \
+	|| defined(CONFIG_SPI_ADC_BF533_MODULE)
 	{
 		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
 		.max_speed_hz = 8,     /* actual baudrate is SCLK/(2xspeed_hz) */
@@ -333,7 +340,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BLACKFIN_AD1836) \
+	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 	{
 		.modalias = "ad1836-spi",
 		.max_speed_hz = 16,
@@ -448,7 +456,8 @@ static int __init stamp_init(void)
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
+	spi_register_board_info(bfin_spi_board_info,
+				ARRAY_SIZE(bfin_spi_board_info));
 #endif
 	return 0;
 }
@@ -459,7 +468,7 @@ void get_bf537_ether_addr(char *addr)
 	int flash_mac = 0x203f0000;
 	*(u32 *)(&(addr[0])) = *(int *)flash_mac;
 	flash_mac += 4;
-	*(u16 *)(&(addr[4])) = (u16)*(int *)flash_mac;
+	*(u16 *)(&(addr[4])) = (u16) * (int *)flash_mac;
 }
 
 EXPORT_SYMBOL(get_bf537_ether_addr);

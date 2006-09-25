@@ -94,7 +94,6 @@ static __inline__ void atomic_inc(volatile atomic_t * v)
 			     :"R3");
 }
 
-
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 

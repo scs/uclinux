@@ -99,15 +99,18 @@ void l1sram_init(void)
 void l1_data_sram_init(void)
 {
 #if L1_DATA_A_LENGTH != 0
-	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n", L1_DATA_A_LENGTH >> 10);
+	printk(KERN_INFO "Blackfin DATA_A SRAM: %d KB\n",
+	       L1_DATA_A_LENGTH >> 10);
 
 	memset(&l1_data_A_sram, 0x00, sizeof(l1_data_A_sram));
-	l1_data_A_sram[0].paddr = (void*)L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
+	l1_data_A_sram[0].paddr = (void*)L1_DATA_A_START +
+		(_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].size = L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
 	l1_data_A_sram[0].flag = SRAM_SLT_FREE;
 #endif
 #if L1_DATA_B_LENGTH != 0
-	printk(KERN_INFO "Blackfin DATA_B SRAM: %d KB\n", L1_DATA_B_LENGTH >> 10);
+	printk(KERN_INFO "Blackfin DATA_B SRAM: %d KB\n",
+	       L1_DATA_B_LENGTH >> 10);
 
 	memset(&l1_data_B_sram, 0x00, sizeof(l1_data_B_sram));
 	l1_data_B_sram[0].paddr = (void*)L1_DATA_B_START;
@@ -122,7 +125,8 @@ void l1_data_sram_init(void)
 void l1_inst_sram_init(void)
 {
 #if L1_CODE_LENGTH != 0
-	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n", L1_CODE_LENGTH >> 10);
+	printk(KERN_INFO "Blackfin Instruction SRAM: %d KB\n",
+	       L1_CODE_LENGTH >> 10);
 
 	memset(&l1_inst_sram, 0x00, sizeof(l1_inst_sram));
 	l1_inst_sram[0].paddr = (void*)L1_CODE_START + (_etext_l1 - _stext_l1);
@@ -149,7 +153,8 @@ static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 	/* not use the good method to match the best slot !!! */
 	/* search an available memeory slot */
 	for (i = 0; i < count; i++) {
-		if ((pfree[i].flag == SRAM_SLT_FREE) && (pfree[i].size >= size)) {
+		if ((pfree[i].flag == SRAM_SLT_FREE)
+		    && (pfree[i].size >= size)) {
 			addr = pfree[i].paddr;
 			pfree[i].flag = SRAM_SLT_ALLOCATED;
 			index = i;
@@ -176,7 +181,8 @@ static void *_l1_sram_alloc(size_t size, struct l1_sram_piece *pfree, int count)
 }
 
 /* Allocate the largest available block.  */
-static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count, unsigned long *psize)
+static void *_l1_sram_alloc_max(struct l1_sram_piece *pfree, int count,
+				unsigned long *psize)
 {
 	unsigned long best = 0;
 	int i, index = -1;
@@ -280,13 +286,15 @@ void *l1_data_A_sram_alloc(size_t size)
 
 #if L1_DATA_B_LENGTH != 0
 	if (!addr)
-		addr = _l1_sram_alloc(size, l1_data_B_sram, ARRAY_SIZE(l1_data_B_sram));
+		addr = _l1_sram_alloc(size, l1_data_B_sram,
+				   ARRAY_SIZE(l1_data_B_sram));
 #endif
 
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
-	pr_debug("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+	pr_debug("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n",
+		 addr, size);
 
 	return addr;
 }
@@ -344,7 +352,8 @@ void *l1_data_B_sram_alloc(size_t size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
 
-	pr_debug("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+	pr_debug("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",
+		 addr, size);
 
 	return addr;
 #else
@@ -386,7 +395,8 @@ void *l1_inst_sram_alloc(size_t size)
 	/* add mutex operation */
 	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
 
-	pr_debug("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n", addr, size);
+	pr_debug("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n",
+		 addr, size);
 
 	return addr;
 #else

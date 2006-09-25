@@ -486,8 +486,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/interrupt.h>
-
 #define __NR__exit __NR_exit
 #if 0
 static inline _syscall0(int, pause)
@@ -497,7 +495,7 @@ static inline _syscall3(int, write, int, fd, const char *, buf, off_t, count)
 static inline _syscall3(int, read, int, fd, char *, buf, off_t, count)
 static inline _syscall3(off_t, lseek, int, fd, off_t, offset, int, count)
 static inline _syscall1(int, dup, int, fd)
-//static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
+/*static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp) */
 static inline _syscall3(int, open, const char *, file, int, flag, int, mode)
 static inline _syscall1(int, close, int, fd)
 static inline _syscall1(int, _exit, int, exitcode)
@@ -518,18 +516,13 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long fd, unsigned long pgoff);
 asmlinkage int sys_execve(char *name, char **argv, char **envp);
 asmlinkage int sys_pipe(unsigned long *fildes);
-struct pt_regs;
-int sys_request_irq(unsigned int,
-		    irqreturn_t(*)(int, void *, struct pt_regs *),
-		    unsigned long, const char *, void *);
-void sys_free_irq(unsigned int, void *);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				 const struct sigaction __user * act,
 				 struct sigaction __user * oact,
 				 size_t sigsetsize);
 
-asmlinkage void * sys_sram_alloc(size_t size, unsigned long flags);
+asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags);
 asmlinkage int sys_sram_free(const void *addr);
 asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len);
 

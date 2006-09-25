@@ -46,7 +46,6 @@
     R0 = (N);								\
     jump __common_int_entry;
 
-
 /* This one pushes RETI without using CLI.  Interrupts are enabled.  */
 #define SAVE_CONTEXT_SYSCALL	save_context_syscall
 #define SAVE_CONTEXT		save_context_with_interrupts
@@ -64,7 +63,7 @@
 
 	[--sp] = P0;	/*orig_p0*/
 	[--sp] = R0;	/*orig_r0*/
-        
+
 	[--sp] = ( R7:0, P5:0 );
 	[--sp] = fp;
 	[--sp] = usp;

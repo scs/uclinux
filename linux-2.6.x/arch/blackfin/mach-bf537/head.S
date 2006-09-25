@@ -48,14 +48,14 @@
 
 ENTRY(__start)
 ENTRY(__stext)
-/* R0: argument of command line string, passed from uboot, save it */
+	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
 	/* Set the SYSCFG register */
 	R0 = 0x36;
-	SYSCFG = R0; 		/* Enable Cycle Counter and Nesting Of Interrupts(3rd Bit) */
+	SYSCFG = R0;   /*Enable Cycle Counter and Nesting Of Interrupts(3rd Bit)*/
 	R0 = 0;
 
-/* Clear Out All the data and pointer Registers */
+	/* Clear Out All the data and pointer  Registers*/
 	R1 = R0;
 	R2 = R0;
 	R3 = R0;
@@ -77,7 +77,7 @@ ENTRY(__stext)
 	L2 = r0;
 	L3 = r0;
 
-/* Clear Out All the DAG Registers */
+	/* Clear Out All the DAG Registers*/
 	B0 = r0;
 	B1 = r0;
 	B2 = r0;
@@ -93,14 +93,14 @@ ENTRY(__stext)
 	M2 = r0;
 	M3 = r0;
 
-/* Turn off the icache */
+	/* Turn off the icache */
 	p0.l = (IMEM_CONTROL & 0xFFFF);
 	p0.h = (IMEM_CONTROL >> 16);
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
-/* Anomaly 05000125 */
+	/* Anomaly 05000125 */
 	CLI R2;
 	SSYNC;
 	[p0] = R0;
@@ -121,8 +121,10 @@ ENTRY(__stext)
 	SSYNC;
 	STI R2;
 
-/* Initialise General-Purpose I/O Modules on BF537 */
-/* Rev 0.0 Anomaly 05000212 - PORTx_FER, PORT_MUX Registers Do Not accept "writes" correctly: */
+	/* Initialise General-Purpose I/O Modules on BF537 */
+	/* Rev 0.0 Anomaly 05000212 - PORTx_FER,
+	 * PORT_MUX Registers Do Not accept "writes" correctly:
+	 */
 	p0.h = hi(BFIN_PORT_MUX);
 	p0.l = lo(BFIN_PORT_MUX);
 	R0.L = W[P0]; /* Read */
@@ -140,7 +142,8 @@ ENTRY(__stext)
 	R0 = 0x000F(Z);
 	W[P0] = R0.L; /* Write */
 	SSYNC;
-	W[P0] = R0.L; /* Enable peripheral function of PORTF for UART0 and UART1 */
+	/* Enable peripheral function of PORTF for UART0 and UART1 */
+	W[P0] = R0.L;
 	SSYNC;
 
 #if !defined(CONFIG_BF534)
@@ -164,7 +167,7 @@ ENTRY(__stext)
 	SSYNC;
 #endif
 
-/* Initialise UART */
+	/*Initialise UART*/
 	p0.h = hi(UART_LCR);
 	p0.l = lo(UART_LCR);
 	r0 = 0x0(Z);
@@ -293,7 +296,7 @@ ENTRY(_real_start)
 .L_clear_zero:
 	W[p1++] = r0;
 
-/* pass the uboot arguments to the global value command line */
+	/* pass the uboot arguments to the global value command line */
 	R0 = R7;
 	call _cmdline_init;
 
@@ -540,7 +543,9 @@ _delay_lab1_end:
 	JUMP .LSKIP_WRITE;
 
 .LWRITESTAT:
-	/* When watch dog timer is enabled, a write to STAT will load the contents of CNT to STAT */
+	/* When watch dog timer is enabled,
+	 * a write to STAT will load the contents of CNT to STAT
+	 */
 	R0 = 0x0000(z);
 	P0.h = hi(WDOG_STAT);
 	P0.l = lo(WDOG_STAT)

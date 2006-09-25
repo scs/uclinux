@@ -55,7 +55,7 @@ struct thread_info {
 	unsigned long flags;	/* low level flags */
 	int cpu;		/* cpu we're on */
 	int preempt_count;	/* 0 => preemptable, <0 => BUG */
-	mm_segment_t            addr_limit;     /* address limit */
+	mm_segment_t addr_limit;	/* address limit */
 	struct restart_block restart_block;
 	struct l1_scratch_task_info l1_task_info;
 };

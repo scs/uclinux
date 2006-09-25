@@ -78,9 +78,9 @@ int rtc_set(time_t time_in_secs)
 	n_secs = n_secs_rem % (NUM_SECS_IN_MIN);
 
 	/* Store the new time in the RTC_STAT register */
-	bfin_write_RTC_STAT(
-	    ((n_days_1970 << DAY_BITS_OFF) | (n_hrs << HOUR_BITS_OFF) |
-	     (n_mins << MIN_BITS_OFF) | (n_secs << SEC_BITS_OFF)));
+	bfin_write_RTC_STAT(((n_days_1970 << DAY_BITS_OFF) |
+			     (n_hrs << HOUR_BITS_OFF) | (n_mins << MIN_BITS_OFF)
+			     | (n_secs << SEC_BITS_OFF)));
 
 	wait_for_complete();
 	return 0;

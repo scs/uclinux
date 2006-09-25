@@ -74,52 +74,52 @@ Core        Emulation               **
  */
 /* The ABSTRACT IRQ definitions */
 /** the first seven of the following are fixed, the rest you change if you need to **/
-#define	IRQ_EMU			0	// Emulation
-#define	IRQ_RST			1	// reset
-#define	IRQ_NMI			2	// Non Maskable
-#define	IRQ_EVX			3	// Exception
-#define	IRQ_UNUSED		4	//  - unused interrupt
-#define	IRQ_HWERR		5	// Hardware Error
-#define	IRQ_CORETMR		6	// Core timer
-#define	IRQ_RTC			7	// Real Time Clock
-#define	IRQ_USB			8	// Universal Serial Bus
-#define	IRQ_SPARE1		9	//  Spare ?? USB
-#define IRQ_PCI_INTA		9	// PCI INTA
+#define	IRQ_EMU			0	 /* Emulation */
+#define	IRQ_RST			1	 /* reset */
+#define	IRQ_NMI			2	 /* Non Maskable */
+#define	IRQ_EVX			3	 /* Exception */
+#define	IRQ_UNUSED		4	 /*  - unused interrupt */
+#define	IRQ_HWERR		5	 /* Hardware Error */
+#define	IRQ_CORETMR		6	 /* Core timer */
+#define	IRQ_RTC			7	 /* Real Time Clock */
+#define	IRQ_USB			8	 /* Universal Serial Bus */
+#define	IRQ_SPARE1		9	 /*  Spare ?? USB */
+#define IRQ_PCI_INTA		9	 /* PCI INTA */
 
-// Exchanged with IRQ_UART1. HuTao Apr18 2003
-#define	IRQ_PCI			10	// Personal Computer Interface ??
-#define	IRQ_SPORT0		11	// Synchronous Serial Port 0
-#define	IRQ_SPARE2		12	//  Spare ?? split SPORT0
-#define IRQ_PCI_INTB		12	// PCI INTB
+ /* Exchanged with IRQ_UART1. HuTao Apr18 2003 */
+#define	IRQ_PCI			10	 /* Personal Computer Interface ?? */
+#define	IRQ_SPORT0		11	 /* Synchronous Serial Port 0 */
+#define	IRQ_SPARE2		12	 /*  Spare ?? split SPORT0 */
+#define IRQ_PCI_INTB		12	 /* PCI INTB */
 
-#define	IRQ_SPORT1		13	// Synchronous Serial Port 1
-#define	IRQ_SPARE3		14	//  Spare ?? split SPORT1
+#define	IRQ_SPORT1		13	 /* Synchronous Serial Port 1 */
+#define	IRQ_SPARE3		14	 /*  Spare ?? split SPORT1 */
 #define IRQ_PCI_INTC		14
 
-#define	IRQ_SPI0		15	// Serial Peripheral Interface 0
-#define	IRQ_SPARE4		16	//  Spare
+#define	IRQ_SPI0		15	 /* Serial Peripheral Interface 0 */
+#define	IRQ_SPARE4		16	 /*  Spare */
 #define IRQ_PCI_INTD		16
 
-#define	IRQ_SPI1		17	// Serial Peripheral Interface 1
-#define	IRQ_SPARE5		18	//  Spare
-#define	IRQ_UART0		19	// UART 0
-#define	IRQ_SPARE6		20	//  Spare
+#define	IRQ_SPI1		17	 /* Serial Peripheral Interface 1 */
+#define	IRQ_SPARE5		18	 /*  Spare */
+#define	IRQ_UART0		19	 /* UART 0 */
+#define	IRQ_SPARE6		20	 /*  Spare */
 
-// Changed to make UART driver work. HuTao Apr18 2003
-#define	IRQ_UART1		21	// UART 1
+ /* Changed to make UART driver work. HuTao Apr18 2003 */
+#define	IRQ_UART1		21	 /* UART 1 */
 
-#define	IRQ_SPARE7		22	//  Spare
-#define	IRQ_TMR0		23	// Timer 0
-#define	IRQ_TMR1		24	// Timer 1
-#define	IRQ_TMR2		25	// Timer 2
-#define	IRQ_SPARE8		26	//  Spare
-#define	IRQ_PROG_INTA		27	// Programmable Flags A (8)
-#define	IRQ_PROG_INTB		28	// Programmable Flags B (8)
-#define	IRQ_MEM_DMA		29	// Memory DMA Xfer Comp
-#define	IRQ_WATCH	   	30	// Watch Dog Timer
-#define	IRQ_SW_INT1		31	// Software Int 1
-#define	IRQ_SW_INT2		32	// Software Int 2 (reserved for SYSCALL)
+#define	IRQ_SPARE7		22	 /*  Spare */
+#define	IRQ_TMR0		23	 /* Timer 0 */
+#define	IRQ_TMR1		24	 /* Timer 1 */
+#define	IRQ_TMR2		25	 /* Timer 2 */
+#define	IRQ_SPARE8		26	 /*  Spare */
+#define	IRQ_PROG_INTA		27	 /* Programmable Flags A (8) */
+#define	IRQ_PROG_INTB		28	 /* Programmable Flags B (8) */
+#define	IRQ_MEM_DMA		29	 /* Memory DMA Xfer Comp */
+#define	IRQ_WATCH	   	30	 /* Watch Dog Timer */
+#define	IRQ_SW_INT1		31	 /* Software Int 1 */
+#define	IRQ_SW_INT2		32	 /* Software Int 2 (reserved for SYSCALL) */
 
-#define SYS_IRQS		33	// Number of interrupt levels the kernel sees.
+#define SYS_IRQS		33	 /* Number of interrupt levels the kernel sees. */
 
 #endif				/* _BF535_IRQ_H_ */

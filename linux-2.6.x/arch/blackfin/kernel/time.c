@@ -42,11 +42,11 @@
 /* This is an NTP setting */
 #define	TICK_SIZE (tick_nsec / 1000)
 
-static void time_sched_init(irqreturn_t (*timer_routine)
-		      (int, void *, struct pt_regs *));
+static void time_sched_init(irqreturn_t(*timer_routine)
+			(int, void *, struct pt_regs *));
 static unsigned long gettimeoffset(void);
-extern int setup_irq(unsigned int, struct irqaction *);
-static inline void do_leds(void);
+extern int setup_irq(unsigned int irq, struct irqaction *handler);
+inline static void do_leds(void);
 
 #if (defined(CONFIG_BFIN_ALIVE_LED) || defined(CONFIG_BFIN_IDLE_LED))
 void __init init_leds(void)
@@ -175,12 +175,15 @@ static unsigned long gettimeoffset(void)
 	unsigned long clocks_per_jiffy;
 
 	clocks_per_jiffy = bfin_read_TPERIOD();
-	offset = (clocks_per_jiffy - bfin_read_TCOUNT()) / (( (clocks_per_jiffy + 1) *  HZ) / USEC_PER_SEC);
+	offset =
+	    (clocks_per_jiffy -
+	     bfin_read_TCOUNT()) / (((clocks_per_jiffy + 1) * HZ) /
+				    USEC_PER_SEC);
 
 	/* Check if we just wrapped the counters and maybe missed a tick */
-	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR)) && (offset < (100000 / HZ / 2)))
+	if ((bfin_read_ILAT() & (1 << IRQ_CORETMR))
+	    && (offset < (100000 / HZ / 2)))
 		offset += (USEC_PER_SEC / HZ);
-
 
 	return offset;
 }
@@ -217,8 +220,10 @@ irqreturn_t timer_interrupt(int irq, void *dummy, struct pt_regs *regs)
 
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / NSEC_PER_USEC) >= 500000 - ((unsigned)TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / NSEC_PER_USEC) <= 500000 + ((unsigned)TICK_SIZE) / 2) {
+	    (xtime.tv_nsec / NSEC_PER_USEC) >=
+	    500000 - ((unsigned)TICK_SIZE) / 2
+	    && (xtime.tv_nsec / NSEC_PER_USEC) <=
+	    500000 + ((unsigned)TICK_SIZE) / 2) {
 		if (set_rtc_mmss(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
@@ -267,8 +272,8 @@ void do_gettimeofday(struct timeval *tv)
 	}
 	while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 
-	while (usec >=  USEC_PER_SEC) {
-		usec -=  USEC_PER_SEC;
+	while (usec >= USEC_PER_SEC) {
+		usec -= USEC_PER_SEC;
 		sec++;
 	}
 

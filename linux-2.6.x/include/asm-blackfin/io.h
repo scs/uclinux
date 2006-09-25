@@ -95,7 +95,6 @@
 
 #ifndef __ASSEMBLY__
 
-
 extern void outsb(void __iomem *port, const void *addr, unsigned long count);
 extern void outsw(void __iomem *port, const void *addr, unsigned long count);
 extern void outsl(void __iomem *port, const void *addr, unsigned long count);
@@ -103,7 +102,6 @@ extern void outsl(void __iomem *port, const void *addr, unsigned long count);
 extern void insb(const void __iomem *port, void *addr, unsigned long count);
 extern void insw(const void __iomem *port, void *addr, unsigned long count);
 extern void insl(const void __iomem *port, void *addr, unsigned long count);
-
 
 extern void *__ioremap(unsigned long physaddr, unsigned long size,
 		       int cacheflag);
@@ -124,7 +122,7 @@ extern void blkfin_inv_cache_all(void);
 #endif
 
 #define	ioport_map(port, nr)		((void __iomem*)(port))
-#define	ioport_unmap(addr) 
+#define	ioport_unmap(addr)
 
 #define dma_cache_inv(_start,_size) do { blkfin_inv_cache_all();} while (0)
 #define dma_cache_wback(_start,_size) do { } while (0)

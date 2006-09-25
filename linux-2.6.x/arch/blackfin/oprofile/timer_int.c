@@ -36,16 +36,15 @@
 
 #include <asm/ptrace.h>
 
-
-static void enable_sys_timer0(void)
+static void enable_sys_timer0()
+{
+}
+static void disable_sys_timer0()
 {
 }
 
-static void disable_sys_timer0(void)
-{
-}
-
-static irqreturn_t sys_timer0_int_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t sys_timer0_int_handler(int irq, void *dev_id,
+					  struct pt_regs *regs)
 {
 	oprofile_add_sample(regs, 0);
 	return IRQ_HANDLED;

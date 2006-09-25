@@ -59,7 +59,7 @@
 #define ANOMALY_05000167 /* Turning Serial Ports on With External Frame Syncs */
 #define ANOMALY_05000180 /* PPI_DELAY not functional in PPI modes with 0 frame
                             syncs */
-#define ANOMALY_05000208 /* VSTAT status bit in PLL_STAT register is not 
+#define ANOMALY_05000208 /* VSTAT status bit in PLL_STAT register is not
                             functional */
 #define ANOMALY_05000219 /* NMI event at boot time results in unpredictable
                             state */
@@ -98,17 +98,17 @@
 #define ANOMALY_05000225 /* Incorrect pulse-width of UART start-bit */
 #define ANOMALY_05000227 /* Scratchpad memory bank reads may return incorrect
                             data*/
-#define ANOMALY_05000230 /* UART Receiver is less robust against Baudrate 
+#define ANOMALY_05000230 /* UART Receiver is less robust against Baudrate
                             Differences in certain Conditions */
 #define ANOMALY_05000231 /* UART STB bit incorrectly affects receiver setting */
 #define ANOMALY_05000242 /* DF bit in PLL_CTL register does not respond to
                             hardware reset */
 #define ANOMALY_05000244 /* With instruction cache enabled, a CSYNC or SSYNC or
-                            IDLE around a Change of Control causes 
+                            IDLE around a Change of Control causes
                             unpredictable results */
 #define ANOMALY_05000245 /* Spurious Hardware Error from an access in the
                             shadow of a conditional branch */
-#define ANOMALY_05000246 /* Data CPLB's should prevent spurious hardware 
+#define ANOMALY_05000246 /* Data CPLB's should prevent spurious hardware
                             errors */
 #define ANOMALY_05000253 /* Maximum external clock speed for Timers */
 #define ANOMALY_05000255 /* Entering Hibernate Mode with RTC Seconds event

@@ -29,7 +29,7 @@
 #define SPI_READ              0
 #define SPI_WRITE             1
 
-typedef struct Spi_Device_t {
+struct spi_device_t {
 	char *dev_name;
 
 	unsigned short flag;
@@ -52,9 +52,9 @@ typedef struct Spi_Device_t {
 	unsigned short dma_config;	/* only valid if dma enabled */
 
 	 irqreturn_t(*irq_handler) (int irq, void *dev_id,
-				    struct pt_regs * regs);
+				    struct pt_regs *regs);
 	void *priv_data;
-} spi_device_t;
+};
 
 #define SPI_CTRL_OFF            0x0
 #define SPI_FLAG_OFF            0x4
@@ -166,15 +166,17 @@ typedef struct Spi_Device_t {
 
 void spi_send_data(unsigned short data);
 unsigned short spi_receive_data(void);
-void spi_enable(spi_device_t * spi_dev);
-void spi_disable(spi_device_t * spi_dev);
-int spi_dma_read(spi_device_t * spi_dev, void *buffer, unsigned int count);
-int spi_dma_write(spi_device_t * spi_dev, void *buffer, unsigned int count);
-void spi_clear_irqstat(spi_device_t * spi_dev);
-void spi_set_ctl(spi_device_t * spi_dev);
-void spi_get_stat(unsigned short *data);
-void spi_get_ctl(unsigned short *data);
-int spi_channel_request(spi_device_t * spi_dev);
-int spi_channel_release(spi_device_t * spi_dev);
+void spi_enable(struct spi_device_t *spi_dev);
+void spi_disable(struct spi_device_t *spi_dev);
+int spi_dma_read(struct spi_device_t *spi_dev,
+		 void *buffer, unsigned int count);
+int spi_dma_write(struct spi_device_t *spi_dev,
+		  void *buffer, unsigned int count);
+void spi_clear_irqstat(struct spi_device_t *spi_dev);
+void spi_set_ctl(struct spi_device_t *spi_dev);
+void spi_get_stat(struct unsigned short *data);
+void spi_get_ctl(struct unsigned short *data);
+int spi_channel_request(struct spi_device_t *spi_dev);
+int spi_channel_release(struct spi_device_t *spi_dev);
 
 #endif				/* _SPI_CHANNEL_H_ */

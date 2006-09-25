@@ -57,7 +57,7 @@
 #define ANOMALY_05000180 /* PPI_DELAY not functional in PPI modes with 0 frame
                             syncs */
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
-#define ANOMALY_05000247 /* CLKIN Buffer Output Enable Reset Behavior Is 
+#define ANOMALY_05000247 /* CLKIN Buffer Output Enable Reset Behavior Is
                             Changed */
 #endif
 #define ANOMALY_05000265 /* Sensitivity to noise with slow input edge rates on

@@ -88,16 +88,16 @@ do_mmap2(unsigned long addr, unsigned long len,
 	return error;
 }
 
-asmlinkage long sys_mmap2 (unsigned long addr, unsigned long len,
-			   unsigned long prot, unsigned long flags,
-			   unsigned long fd, unsigned long pgoff)
+asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
+			  unsigned long prot, unsigned long flags,
+			  unsigned long fd, unsigned long pgoff)
 {
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
 }
 
-asmlinkage int sys_mmap (unsigned long addr, unsigned long len,
-			 unsigned long prot, unsigned long flags,
-			 unsigned long fd, unsigned long pgoff)
+asmlinkage int sys_mmap(unsigned long addr, unsigned long len,
+			unsigned long prot, unsigned long flags,
+			unsigned long fd, unsigned long pgoff)
 {
 	int error = -EINVAL;
 
@@ -201,20 +201,23 @@ sys_ipc(uint call, int first, int second, int third, void *ptr, long fifth)
 		switch (call) {
 		case SHMAT:
 			switch (version) {
-			default: {
-				ulong raddr;
-				ret = do_shmat (first, ptr, second, &raddr);
-				if (ret)
-					return ret;
-				return put_user (raddr, (ulong __user *) third);
-			}
+			default:{
+					ulong raddr;
+					ret =
+					    do_shmat(first, ptr, second,
+						     &raddr);
+					if (ret)
+						return ret;
+					return put_user(raddr,
+							(ulong __user *) third);
+				}
 			}
 		case SHMDT:
-			return sys_shmdt (ptr);
+			return sys_shmdt(ptr);
 		case SHMGET:
-			return sys_shmget (first, second, third);
+			return sys_shmget(first, second, third);
 		case SHMCTL:
-			return sys_shmctl (first, second, ptr);
+			return sys_shmctl(first, second, ptr);
 		default:
 			return -ENOSYS;
 		}
@@ -249,4 +252,3 @@ asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len)
 {
 	return safe_dma_memcpy(dest, src, len);
 }
-

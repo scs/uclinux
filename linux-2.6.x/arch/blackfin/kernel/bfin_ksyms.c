@@ -80,7 +80,6 @@ EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memchr);
-
 EXPORT_SYMBOL(get_wchan);
 
 /*

@@ -47,7 +47,7 @@
 #define UART_ERR_MASK_STAT0 (0x2)	/* UARTx_IIR */
 #define CAN_ERR_MASK  (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 
-#define OFFSET_( x ) ((x) & 0x0000FFFF)	/* define macro for offset */
+#define OFFSET_( x ) ((x) & 0x0000FFFF)
 
 /*some misc defines*/
 #define IMASK_IVG15		0x8000
@@ -102,8 +102,6 @@
 #define	WAYALL_L		0xF
 
 #define DMC_ENABLE (2<<2)	/*yes, 2, not 1 */
-
-#define ZERO		0x0
 
 /********************************* EBIU Settings ************************************/
 #define AMBCTL0VAL	((CONFIG_BANK_1 << 16) | CONFIG_BANK_0)

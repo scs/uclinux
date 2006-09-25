@@ -52,7 +52,7 @@
 #else
 #define assert(expr) 						\
 	if (!(expr)) {						\
-	printk("Assertion failed! %s, %s, %s, line=%d \n",	\
+	printk(KERN_INFO "Assertion failed! %s, %s, %s, line=%d \n",	\
 	#expr, __FILE__,__FUNCTION__,__LINE__); 		\
 	}
 #endif
@@ -61,11 +61,11 @@
 *        Generic DMA  Declarations
 *
 ****************************************************************************/
-typedef enum {
+enum dma_chan_status_t {
 	DMA_CHANNEL_FREE,
 	DMA_CHANNEL_REQUESTED,
 	DMA_CHANNEL_ENABLED,
-} dma_chan_status_t;
+};
 
 /*-------------------------
  * config reg bits value
@@ -86,12 +86,12 @@ typedef enum {
 #define DIR_READ     0
 #define DIR_WRITE    1
 
-#define INTR_DISABLE   0	//00b
-#define INTR_ON_BUF    2	//10b
-#define INTR_ON_ROW   3		//11b
+#define INTR_DISABLE   0
+#define INTR_ON_BUF    2
+#define INTR_ON_ROW    3
 
 #pragma pack(2)
-typedef struct _dmasglarge_t {
+struct dmasg_t {
 	unsigned long next_desc_addr;
 	unsigned long start_addr;
 	unsigned short cfg;
@@ -99,10 +99,10 @@ typedef struct _dmasglarge_t {
 	short x_modify;
 	unsigned short y_count;
 	short y_modify;
-} dmasg_t;
+};
 #pragma pack()
 
-typedef struct {
+struct dma_register_t {
 	unsigned long next_desc_ptr;	/* DMA Next Descriptor Pointer register */
 	unsigned long start_addr;	/* DMA Start address  register */
 
@@ -145,28 +145,28 @@ typedef struct {
 
 	unsigned long reserved3;
 
-} dma_register_t;
+};
 
 typedef irqreturn_t(*dma_interrupt_t) (int irq, void *dev_id,
 				       struct pt_regs * pt_regs);
 
-typedef struct {
+struct dma_channel_t {
 	struct semaphore dmalock;
 	char *device_id;
-	dma_chan_status_t chan_status;
-	dma_register_t *regs;
-	dmasg_t *sg;		/* large mode descriptor */
+	enum dma_chan_status_t chan_status;
+	struct dma_register_t *regs;
+	struct dmasg_t *sg;		/* large mode descriptor */
 	unsigned int ctrl_num;	/* controller number */
 	dma_interrupt_t irq_callback;
 	void *data;
 	unsigned int dma_enable_flag;
 	unsigned int loopback_flag;
-} dma_channel_t;
+};
 
 /*******************************************************************************
 *	DMA API's
 *******************************************************************************/
-//functions to set register mode
+/* functions to set register mode */
 void set_dma_start_addr(unsigned int channel, unsigned long addr);
 void set_dma_next_desc_addr(unsigned int channel, unsigned long addr);
 void set_dma_x_count(unsigned int channel, unsigned short x_count);
@@ -177,22 +177,22 @@ void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
 				   char intr_mode, char dma_mode, char width);
 
-// get curr status for polling
+/* get curr status for polling */
 unsigned short get_dma_curr_irqstat(unsigned int channel);
 unsigned short get_dma_curr_xcount(unsigned int channel);
 unsigned short get_dma_curr_ycount(unsigned int channel);
 
-//set large DMA mode descriptor
-void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg);
+/* set large DMA mode descriptor */
+void set_dma_sg(unsigned int channel, struct dmasg_t *sg, int nr_sg);
 
-//check if current channel is in use
+/* check if current channel is in use */
 int dma_channel_active(unsigned int channel);
 
-//common functions must be called in any mode
-void free_dma(unsigned int channel);	//free resources
-int dma_channel_active(unsigned int channel);	//check if a channel is in use
-void disable_dma(unsigned int channel);	//disable
-void enable_dma(unsigned int channel);	//enable
+/* common functions must be called in any mode */
+void free_dma(unsigned int channel);
+int dma_channel_active(unsigned int channel); /* check if a channel is in use */
+void disable_dma(unsigned int channel);
+void enable_dma(unsigned int channel);
 int request_dma(unsigned int channel, char *device_id);
 int set_dma_callback(unsigned int channel, dma_interrupt_t callback,
 		     void *data);

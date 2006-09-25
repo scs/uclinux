@@ -47,9 +47,9 @@
 #define CH_UART1_RX 		10
 #define CH_UART1_TX 		11
 
-#define CH_MEM_STREAM0_DEST	12	// TX
-#define CH_MEM_STREAM0_SRC  13	// RX
-#define CH_MEM_STREAM1_DEST	14	// TX
-#define CH_MEM_STREAM1_SRC 	15	// RX
+#define CH_MEM_STREAM0_DEST	12	 /* TX */
+#define CH_MEM_STREAM0_SRC  	13	 /* RX */
+#define CH_MEM_STREAM1_DEST	14	 /* TX */
+#define CH_MEM_STREAM1_SRC 	15	 /* RX */
 
 #endif

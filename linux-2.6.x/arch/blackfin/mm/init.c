@@ -163,7 +163,7 @@ void mem_init(void)
 	/* Allocate this once; never free it.  We assume this gives us a
 	   pointer to the start of L1 scratchpad memory; panic if it
 	   doesn't.  */
-	tmp = (unsigned long)l1sram_alloc(sizeof (struct l1_scratch_task_info));
+	tmp = (unsigned long)l1sram_alloc(sizeof(struct l1_scratch_task_info));
 	if (tmp != (unsigned long)L1_SCRATCH_TASK_INFO) {
 		printk(KERN_EMERG "mem_init(): Did not get the right address from l1sram_alloc: %08lx != %08lx\n",
 			tmp, (unsigned long)L1_SCRATCH_TASK_INFO);

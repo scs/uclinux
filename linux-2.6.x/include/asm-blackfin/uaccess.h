@@ -12,12 +12,12 @@
 #include <linux/mm.h>
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current_thread_info()->addr_limit)
- 
-static inline void set_fs (mm_segment_t fs)
+
+static inline void set_fs(mm_segment_t fs)
 {
-         current_thread_info()->addr_limit = fs;
+	current_thread_info()->addr_limit = fs;
 }
- 
+
 #define segment_eq(a,b) ((a) == (b))
 
 #define VERIFY_READ	0
@@ -129,7 +129,7 @@ static inline int bad_user_access_length(void)
 	return -1;
 }
 
-#define __put_user_bad() (printk("put_user_bad %s:%d %s\n",\
+#define __put_user_bad() (printk(KERN_INFO "put_user_bad %s:%d %s\n",\
                            __FILE__, __LINE__, __FUNCTION__),\
                            bad_user_access_length(), (-EFAULT))
 
@@ -167,7 +167,8 @@ static inline int bad_user_access_length(void)
     } break;						\
     default:						\
 	x = 0;						\
-        printk("get_user_bad: %s:%d %s\n", __FILE__, __LINE__, __FUNCTION__); \
+        printk(KERN_INFO "get_user_bad: %s:%d %s\n",    \
+	       __FILE__, __LINE__, __FUNCTION__);	\
 	__gu_err = __get_user_bad();			\
 	break;						\
     }							\
@@ -187,8 +188,6 @@ static inline int bad_user_access_length(void)
 	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
 }
 
-
-
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
 #define __copy_to_user_inatomic __copy_to_user
@@ -201,23 +200,23 @@ static inline int bad_user_access_length(void)
                                                    return retval; })
 
 static inline long copy_from_user(void *to,
-				  const void __user *from, unsigned long n)
+				  const void __user * from, unsigned long n)
 {
-	if(access_ok(VERIFY_READ, from, n))
-        	memcpy(to, from, n);
+	if (access_ok(VERIFY_READ, from, n))
+		memcpy(to, from, n);
 	else
 		return n;
-        return 0;
+	return 0;
 }
 
 static inline long copy_to_user(void *to,
-				  const void __user *from, unsigned long n)
+				const void __user * from, unsigned long n)
 {
-	if(access_ok(VERIFY_WRITE, to, n))
-        	memcpy(to, from, n);
+	if (access_ok(VERIFY_WRITE, to, n))
+		memcpy(to, from, n);
 	else
-		return n; 
-        return 0;
+		return n;
+	return 0;
 }
 
 /*
@@ -228,7 +227,7 @@ static inline long strncpy_from_user(char *dst,
                                      const char *src, long count)
 {
 	char *tmp;
-	if(!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(VERIFY_READ, src, 1))
 		return -EFAULT;
 	strncpy(dst, src, count);
 	for (tmp = dst; *tmp && count > 0; tmp++, count--) ;
@@ -254,7 +253,7 @@ static inline long strnlen_user(const char *src, long n)
 static inline unsigned long clear_user(void *to, unsigned long n)
 {
 	memset(to, 0, n);
-	return (0);
+	return 0;
 }
 
 #endif				/* _BLACKFIN_UACCESS_H */

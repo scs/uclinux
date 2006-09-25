@@ -49,66 +49,66 @@
  * Global Variables
 ***************************************************************************/
 
-static dma_channel_t dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
-#if defined(CONFIG_BF561)
-static dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
-	(dma_register_t *) DMA1_0_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_1_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_2_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_3_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_4_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_5_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_6_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_7_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_8_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_9_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_10_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_11_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_0_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_1_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_2_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_3_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_4_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_5_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_6_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_7_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_8_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_9_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_10_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_11_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA1_D0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA1_S0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA1_D1_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA1_S1_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA2_D0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA2_S0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA2_D1_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA2_S1_NEXT_DESC_PTR,
-	(dma_register_t *) IMDMA_D0_NEXT_DESC_PTR,
-	(dma_register_t *) IMDMA_S0_NEXT_DESC_PTR,
-	(dma_register_t *) IMDMA_D1_NEXT_DESC_PTR,
-	(dma_register_t *) IMDMA_S1_NEXT_DESC_PTR,
+static struct dma_channel_t dma_ch[MAX_BLACKFIN_DMA_CHANNEL];
+#if defined (CONFIG_BF561)
+static struct dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
+	(struct dma_register_t *) DMA1_0_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_1_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_2_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_3_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_4_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_5_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_6_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_7_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_8_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_9_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_10_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_11_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_0_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_1_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_2_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_3_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_4_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_5_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_6_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_7_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_8_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_9_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_10_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_11_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA1_D0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA1_S0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA1_D1_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA1_S1_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA2_D0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA2_S0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA2_D1_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA2_S1_NEXT_DESC_PTR,
+	(struct dma_register_t *) IMDMA_D0_NEXT_DESC_PTR,
+	(struct dma_register_t *) IMDMA_S0_NEXT_DESC_PTR,
+	(struct dma_register_t *) IMDMA_D1_NEXT_DESC_PTR,
+	(struct dma_register_t *) IMDMA_S1_NEXT_DESC_PTR,
 };
 #else
-static dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
-	(dma_register_t *) DMA0_NEXT_DESC_PTR,
-	(dma_register_t *) DMA1_NEXT_DESC_PTR,
-	(dma_register_t *) DMA2_NEXT_DESC_PTR,
-	(dma_register_t *) DMA3_NEXT_DESC_PTR,
-	(dma_register_t *) DMA4_NEXT_DESC_PTR,
-	(dma_register_t *) DMA5_NEXT_DESC_PTR,
-	(dma_register_t *) DMA6_NEXT_DESC_PTR,
-	(dma_register_t *) DMA7_NEXT_DESC_PTR,
+static struct dma_register_t *base_addr[MAX_BLACKFIN_DMA_CHANNEL] = {
+	(struct dma_register_t *) DMA0_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA1_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA2_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA3_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA4_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA5_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA6_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA7_NEXT_DESC_PTR,
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF534) || defined(CONFIG_BF536))
-	(dma_register_t *) DMA8_NEXT_DESC_PTR,
-	(dma_register_t *) DMA9_NEXT_DESC_PTR,
-	(dma_register_t *) DMA10_NEXT_DESC_PTR,
-	(dma_register_t *) DMA11_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA8_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA9_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA10_NEXT_DESC_PTR,
+	(struct dma_register_t *) DMA11_NEXT_DESC_PTR,
 #endif
-	(dma_register_t *) MDMA_D0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA_S0_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA_D1_NEXT_DESC_PTR,
-	(dma_register_t *) MDMA_S1_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA_D0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA_S0_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA_D1_NEXT_DESC_PTR,
+	(struct dma_register_t *) MDMA_S1_NEXT_DESC_PTR,
 };
 #endif
 
@@ -279,6 +279,7 @@ static int bf561_channel2irq(unsigned int channel)
 	}
 	return ret_irq;
 }
+
 # define channel2irq(channel) bf561_channel2irq(channel)
 
 #endif
@@ -332,7 +333,8 @@ int set_dma_callback(unsigned int channel, dma_interrupt_t callback, void *data)
 		    request_irq(ret_irq, (void *)callback, SA_INTERRUPT,
 				dma_ch[channel].device_id, data);
 		if (ret_val) {
-			printk(KERN_NOTICE "Request irq in DMA engine failed.\n");
+			printk(KERN_NOTICE
+			       "Request irq in DMA engine failed.\n");
 			return -EPERM;
 		}
 		dma_ch[channel].irq_callback = callback;
@@ -388,7 +390,6 @@ void dma_disable_irq(unsigned int channel)
 	ret_irq = channel2irq(channel);
 	disable_irq(ret_irq);
 }
-
 
 int dma_channel_active(unsigned int channel)
 {
@@ -521,7 +522,7 @@ set_bfin_dma_config(char direction, char flow_mode,
 	return config;
 }
 
-void set_dma_sg(unsigned int channel, dmasg_t * sg, int nr_sg)
+void set_dma_sg(unsigned int channel, struct dmasg_t * sg, int nr_sg)
 {
 	assert(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
 	       && channel < MAX_BLACKFIN_DMA_CHANNEL);
@@ -586,7 +587,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 		return NULL;
 
 	if ((unsigned long)src < memory_end)
-		blackfin_dcache_flush_range((unsigned int)src,(unsigned int)(src+size));
+		blackfin_dcache_flush_range((unsigned int)src,
+					    (unsigned int)(src + size));
 
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 
@@ -595,7 +597,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	else
 		direction = 0;
 
-	if ((((unsigned long)dest % 2) == 0) && (((unsigned long)src % 2) == 0) && ((size % 2) == 0))
+	if ((((unsigned long)dest % 2) == 0) && (((unsigned long)src % 2) == 0)
+	    && ((size % 2) == 0))
 		flag_align = 1;
 	else
 		flag_align = 0;
@@ -608,11 +611,11 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	/* Setup destination and source start address */
 	if (direction) {
 		if (flag_align) {
-			bfin_write_MDMA_D0_START_ADDR(dest+size-2);
-			bfin_write_MDMA_S0_START_ADDR(src+size-2);
+			bfin_write_MDMA_D0_START_ADDR(dest + size - 2);
+			bfin_write_MDMA_S0_START_ADDR(src + size - 2);
 		} else {
-			bfin_write_MDMA_D0_START_ADDR(dest+size-1);
-			bfin_write_MDMA_S0_START_ADDR(src+size-1);
+			bfin_write_MDMA_D0_START_ADDR(dest + size - 1);
+			bfin_write_MDMA_S0_START_ADDR(src + size - 1);
 		}
 	} else {
 		bfin_write_MDMA_D0_START_ADDR(dest);
@@ -622,8 +625,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	/* Setup destination and source xcount */
 	if (flag_2D) {
 		if (flag_align) {
-			bfin_write_MDMA_D0_X_COUNT(1024/2);
-			bfin_write_MDMA_S0_X_COUNT(1024/2);
+			bfin_write_MDMA_D0_X_COUNT(1024 / 2);
+			bfin_write_MDMA_S0_X_COUNT(1024 / 2);
 		} else {
 			bfin_write_MDMA_D0_X_COUNT(1024);
 			bfin_write_MDMA_S0_X_COUNT(1024);
@@ -632,8 +635,8 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 		bfin_write_MDMA_S0_Y_COUNT(size >> 10);
 	} else {
 		if (flag_align) {
-			bfin_write_MDMA_D0_X_COUNT(size/2);
-			bfin_write_MDMA_S0_X_COUNT(size/2);
+			bfin_write_MDMA_D0_X_COUNT(size / 2);
+			bfin_write_MDMA_S0_X_COUNT(size / 2);
 		} else {
 			bfin_write_MDMA_D0_X_COUNT(size);
 			bfin_write_MDMA_S0_X_COUNT(size);
@@ -697,13 +700,15 @@ void *dma_memcpy(void *dest, const void *src, size_t size)
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE))
 		;
 
-	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() | (DMA_DONE | DMA_ERR));
+	bfin_write_MDMA_D0_IRQ_STATUS(bfin_read_MDMA_D0_IRQ_STATUS() |
+				      (DMA_DONE | DMA_ERR));
 
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
 
 	if ((unsigned long)dest < memory_end)
-		blackfin_dcache_invalidate_range((unsigned int)dest, (unsigned int)(dest+size));
+		blackfin_dcache_invalidate_range((unsigned int)dest,
+						 (unsigned int)(dest + size));
 
 	return dest;
 }

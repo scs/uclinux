@@ -6,10 +6,12 @@ static inline void __delay(unsigned long loops)
 
 /* FIXME: Currently the assembler doesn't recognize Loop Register Clobbers,
    uncomment this as soon those are implemented */
-//      __asm__ __volatile__ (  "\t LSETUP (1,1) LC0= %0\n\t"
-//                              "l:\t NOP;\n\t"
-//                              : :"a" (loops)
-//                              : "LT0","LB0","LC0");
+/*
+      __asm__ __volatile__ (  "\t LSETUP (1,1) LC0= %0\n\t"
+                              "l:\t NOP;\n\t"
+                              : :"a" (loops)
+                              : "LT0","LB0","LC0");
+*/
 
 	__asm__ __volatile__("[--SP] = LC0;\n\t"
 			     "[--SP] = LT0;\n\t"
