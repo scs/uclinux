@@ -1,0 +1,39 @@
+This is the test case for AD9960 device driver.
+
+The driver is based on code from Michael Goertz.
+The driver allocates 32MB of SDRAM (this block of memory is not managed
+by Linux kernel) as PPI DMA buffer.
+
+The test has been run on BF537 with 2006R3 kernel and toolchain.
+
+To run this test, configure kernel setting to enable ad9960 driver.
+
+Usage:
+	1. Read <sample_num> samples. <sample_num> is between 64 to 16M. 
+
+		ad9960_test read <sample_num>
+
+	The test at first asks the driver for the location of DMA buffer:
+
+		ioctl(fd, CMD_GET_PPI_BUF, &buf_addr);
+
+	The test sets ad9960 in loop-back mode and read samples from into DMA buffer.
+	Then it validates the data with software generated samples.
+	
+	NOTE: If PPI clock is set as 64MHz, putting DMA buffer in SDRAM will
+	cause lost frames. The test set PPI clock as 32MHz, as bellow:
+	
+		spi_command cmd;
+		/* Disable clock multiplier to set DCLK as 32MHz,
+		 * otherwise, DCLK is set as 64MHz */
+		cmd.address = 0x31;
+		cmd.toWrite = 0x50;
+		ioctl(fd,CMD_SPI_WRITE, &cmd);
+
+	2. Write:
+		
+		ad9960_test write <sample_num>
+
+	Write function has not been verified - since we need a logic analyzer.
+	But it is supposed to work since the orginal driver works well in a Labview test.
+
