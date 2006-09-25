@@ -245,11 +245,11 @@ static int ad1981b_mixer_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_mixer_fops = {
-      owner:THIS_MODULE,
-      llseek:ad1981b_mixer_llseek,
-      ioctl:ad1981b_mixer_ioctl,
-      open:ad1981b_mixer_open,
-      release:ad1981b_mixer_release,
+	owner   = THIS_MODULE,
+	llseek  = ad1981b_mixer_llseek,
+	ioctl   = ad1981b_mixer_ioctl,
+	open    = ad1981b_mixer_open,
+	release = ad1981b_mixer_release,
 };
 
 /*
@@ -499,15 +499,15 @@ static int ad1981b_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_audio_fops = {
-      owner:THIS_MODULE,
-      llseek:ad1981b_llseek,
-      read:ad1981b_read,
-      write:ad1981b_write,
-      poll:ad1981b_poll,
-      ioctl:ad1981b_ioctl,
-      mmap:ad1981b_mmap,
-      open:ad1981b_open,
-      release:ad1981b_release,
+	owner   = THIS_MODULE,
+	llseek  = ad1981b_llseek,
+	read    = ad1981b_read,
+	write   = ad1981b_write,
+	poll    = ad1981b_poll,
+	ioctl   = ad1981b_ioctl,
+	mmap    = ad1981b_mmap,
+	open    = ad1981b_open,
+	release = ad1981b_release,
 };
 
 /*
