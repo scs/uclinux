@@ -145,7 +145,7 @@ struct sport_dev {
 
 	int sport_err_irq;
 
-	struct mutex sem;	/* mutual exclusion semaphore */
+	struct semaphore sem;	/* mutual exclusion semaphore */
 
 	wait_queue_head_t waitq;
 	int	wait_con;
