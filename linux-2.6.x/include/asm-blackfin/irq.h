@@ -65,7 +65,7 @@ static __inline__ int irq_canonicalize(int irq)
 }
 
 /* count of spurious interrupts */
-extern volatile unsigned int num_spurious;
+extern unsigned int num_spurious;
 void enable_irq(unsigned int irq);
 void disable_irq(unsigned int irq);
 
