@@ -66,6 +66,27 @@
 
 extern unsigned long physical_mem_end;
 
+#ifdef CONFIG_AD9960_TX_RX_PORT_F
+# define AD9960_TX_RX_PORT PORTFIO
+# define AD9960_TX_RX_PORT_DIR PORTFIO_DIR
+# define AD9960_TX_RX_PORT_INEN PORTFIO_INEN
+# define AD9960_TX_RX_PORT_FER  PORTF_FER
+#endif
+
+#ifdef CONFIG_AD9960_TX_RX_PORT_G
+# define AD9960_TX_RX_PORT PORTGIO
+# define AD9960_TX_RX_PORT_DIR PORTGIO_DIR
+# define AD9960_TX_RX_PORT_INEN PORTGIO_INEN
+# define AD9960_TX_RX_PORT_FER  PORTG_FER
+#endif
+
+#ifdef CONFIG_AD9960_TX_RX_PORT_H
+# define AD9960_TX_RX_PORT PORTHIO
+# define AD9960_TX_RX_PORT_DIR PORTHIO_DIR
+# define AD9960_TX_RX_PORT_INEN PORTHIO_INEN
+# define AD9960_TX_RX_PORT_FER  PORTH_FER
+#endif
+
 struct spi_command
 {
 	unsigned char address;
@@ -141,7 +162,8 @@ static irqreturn_t ad9960_ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
 	if(pdev->fasyc)
 		kill_fasync(&(pdev->fasyc), SIGIO, POLLIN);
 
-	pr_debug("ad9960_ppi_irq: wake_up_interruptible pdev->done=%d\n",pdev->done);
+	pr_debug("ad9960_ppi_irq: wake_up_interruptible pdev->done=%d\n",
+			pdev->done);
 
 	/* wake up read*/
 	wake_up_interruptible(pdev->rx_avail);
@@ -183,14 +205,15 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~ PORT_EN);
 	/* Disable dma */
 	disable_dma(CH_PPI);
-	bfin_write_PORTFIO_SET(bfin_read_PORTFIO_SET() | 0x0100);
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) | 
+			(1 << CONFIG_AD9960_TX_RX_PIN));
 	bfin_write_PORTG_FER(0xFFFF);
 	__builtin_bfin_ssync();
 
 	/* setup PPI */
-	if(buf[0] == 1)			/* Show only Channel I (skip Channel Q) */
+	if(buf[0] == 1)		/* Show only Channel I (skip Channel Q) */
 		bfin_write_PPI_CONTROL(0x3E3C);
-	else if(buf[0] == 2)		/* Show only Channel Q (skip Channel I) */
+	else if(buf[0] == 2)	/* Show only Channel Q (skip Channel I) */
 		bfin_write_PPI_CONTROL(0x3A3C);
 	else if(buf[0] == 0) 	/* Show both channels */
 		bfin_write_PPI_CONTROL(0x783C);
@@ -204,13 +227,17 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 			desc_count, (unsigned int)descriptors);
 
 	pr_debug("ad9960_read: configuring descriptor\n");
-	descriptors[desc_count-1].next_desc_addr_lo = (unsigned short)(((int)(&descriptors[0]))&0xFFFF);
-	descriptors[desc_count-1].start_addr_lo = _ramend + ((desc_count-1)*65535*65535);
-	descriptors[desc_count-1].start_addr_hi = (_ramend + ((desc_count-1)*65535*65535))>>16;
+	descriptors[desc_count-1].next_desc_addr_lo = 
+		(unsigned short)(((int)(&descriptors[0]))&0xFFFF);
+	descriptors[desc_count-1].start_addr_lo = 
+		_ramend + ((desc_count-1)*65535*65535);
+	descriptors[desc_count-1].start_addr_hi = 
+		(_ramend + ((desc_count-1) * 65535 * 65535)) >> 16;
 	descriptors[desc_count-1].cfg = 0x0097;
 
 	count_remain = count - ((desc_count-1)*0xFFFF);
-	pr_debug("ad9960_read: last descriptor needs to get %i samples\n",count_remain);
+	pr_debug("ad9960_read: last descriptor needs to get %i samples\n",
+			count_remain);
 	for(i=2;i<0xFFFF;i++)
 	{
 		for(j=1;j<0xFFFF;j++)
@@ -239,7 +266,8 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
 	__builtin_bfin_ssync();
 
-	bfin_write_PORTFIO_CLEAR(0x0100);
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) &
+		       	(~(1 << CONFIG_AD9960_TX_RX_PIN)));
 	__builtin_bfin_ssync();
 
 	pr_debug("ad9960_read: PPI ENABLED : DONE \n");
@@ -262,7 +290,8 @@ static ssize_t ad9960_read (struct file *filp, char *buf, size_t count, loff_t *
 
 	l1_data_A_sram_free(descriptors);
 	disable_dma(CH_PPI);
-	bfin_write_PORTFIO_SET(0x0100);
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) |
+			(1 << CONFIG_AD9960_TX_RX_PIN));
 	__builtin_bfin_ssync();
 
 	pr_debug("ppi_read: return \n");
@@ -293,8 +322,8 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() & ~PORT_EN);
 	/* Disable dma */
 	disable_dma(CH_PPI);
-	bfin_write_PORTFIO_CLEAR(0x0100);
-
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) &
+		       (~(1 << CONFIG_AD9960_TX_RX_PIN)));
 	__builtin_bfin_ssync();
 
 	/* setup PPI */
@@ -337,8 +366,9 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 		for (i=0;i < (desc_count-1);i++) {
 			data_pointer = ((unsigned int)_ramend)+((unsigned int)(2*i*65536));
 			pr_debug("ad9960_write: configuring descriptor %i at %08X",
-					"Buffer at 0x%08X\n",i,(unsigned int)&descriptors[i],data_pointer);
-			descriptors[i].next_desc_addr_lo = (unsigned short)(((int)(&descriptors[i+1]))&0xFFFF);
+				"Buffer at 0x%08X\n",i,(unsigned int)&descriptors[i],data_pointer);
+			descriptors[i].next_desc_addr_lo = 
+				(unsigned short)(((int)(&descriptors[i+1]))&0xFFFF);
 			descriptors[i].start_addr_lo = data_pointer&0xFFFF;
 			descriptors[i].start_addr_hi = data_pointer>>16;
 			descriptors[i].cfg = 0x6805;
@@ -351,7 +381,8 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 		count_remain = count_remain - (((unsigned int)(desc_count-1)) * 65536);
 		pr_debug("ad9960_write: configuring last descriptor %i Buffer at 0x%08X-0x%08X\n",
 					desc_count-1,data_pointer,data_pointer+count_remain);
-		descriptors[desc_count-1].next_desc_addr_lo = (unsigned short)(((int)(&descriptors[0])) & 0xFFFF);
+		descriptors[desc_count-1].next_desc_addr_lo = 
+			(unsigned short)(((int)(&descriptors[0])) & 0xFFFF);
 		descriptors[desc_count-1].start_addr_lo = data_pointer & 0xFFFF;
 		descriptors[desc_count-1].start_addr_hi = data_pointer >> 16;
 		descriptors[desc_count-1].cfg = 0x6805;
@@ -371,7 +402,8 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 	bfin_write_PPI_CONTROL(bfin_read_PPI_CONTROL() | PORT_EN);
 	__builtin_bfin_ssync();
 
-	bfin_write_PORTFIO_SET(0x0100);
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) |
+			(1 << CONFIG_AD9960_TX_RX_PIN));
 	__builtin_bfin_ssync();
 
 	pr_debug("ad9960_write: PPI ENABLED : DONE \n");
@@ -397,10 +429,12 @@ static ssize_t ad9960_write (struct file *filp, const char *buf, size_t count, l
 #if 0	
 	l1_data_A_sram_free((u_long)dma_buf);
 	disable_dma(CH_PPI);
-	bfin_write_PORTFIO_CLEAR(0x0100);
 	__builtin_bfin_ssync();
 #endif
 
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) & 
+			(~(1 << CONFIG_AD9960_TX_RX_PIN)));
+	__builtin_bfin_ssync();
 	pr_debug("ppi_write: return \n");
 
 	return count;
@@ -416,7 +450,8 @@ static int ad9960_ioctl(struct inode *inode, struct file *filp, uint cmd, unsign
 
 	switch (cmd) {
 	case CMD_SPI_WRITE:
-		pr_debug("ad9960_ioctl: CMD_SPI_WRITE addr: %x, data: %x\n", (value&0xff00)>>8, (value&0x00ff));
+		pr_debug("ad9960_ioctl: CMD_SPI_WRITE addr: %x, data: %x\n", 
+				(value&0xff00)>>8, (value&0x00ff));
 		ad9960_spi_read(ad9960_info.spi_dev, value,&readin);   
 		pr_debug("ad9960_ioctl: CMD_SPI_WRITE read: %04x\n",readin);
 		spi_cmd->readBack = readin&0x00FF;
@@ -428,7 +463,8 @@ static int ad9960_ioctl(struct inode *inode, struct file *filp, uint cmd, unsign
 		break;
 	case CMD_GET_PPI_BUF:
 		pr_debug("ad9960_ioctl: CMD_GET_PPI_BUF\n");
-		copy_to_user((unsigned long *)arg, &ad9960_info.buffer, sizeof(unsigned long));
+		copy_to_user((unsigned long *)arg, &ad9960_info.buffer, 
+				sizeof(unsigned long));
 	default:
 		return -EINVAL;
 	}
@@ -605,10 +641,14 @@ static int __init ad9960_init(void)
 	/* Enable PPI_CLK(PF15) and PPI_FS1(PF9) */
 	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8200);    
 	/* PF8 select AD9960 TX/RX */
-	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | 0x0100); 
-	bfin_write_PORTFIO_SET(0x0100);
-	bfin_write_PORTG_FER(0xFFFF);
+	bfin_write16(AD9960_TX_RX_PORT_FER,bfin_read16(AD9960_TX_RX_PORT_FER) &
+		       (~(1 << CONFIG_AD9960_TX_RX_PIN)));
+	bfin_write16(AD9960_TX_RX_PORT_DIR,bfin_read16(AD9960_TX_RX_PORT_DIR) |
+		       (1 << CONFIG_AD9960_TX_RX_PIN));
+	bfin_write16(AD9960_TX_RX_PORT,bfin_read16(AD9960_TX_RX_PORT) |
+		       (1 << CONFIG_AD9960_TX_RX_PIN));
 
+	bfin_write_PORTG_FER(0xFFFF);
 	bfin_write_TIMER0_CONFIG(bfin_read_TIMER0_CONFIG() | OUT_DIS);
 	__builtin_bfin_ssync();
 
@@ -627,7 +667,7 @@ static int __init ad9960_init(void)
 
 	if((unsigned int)ad9960_info.buffer >= physical_mem_end) {
 		printk(KERN_ERR "ad9960: ERROR: _ramend = physical_mem_end"
-				"- The driver assumes 32MB SDRAM reserved for AD9960 DMA\n");
+			"- The driver assumes 32MB SDRAM reserved for AD9960 DMA\n");
 	}
 
 	pr_info("ad9960: Buffer allocated at 0x%08X",(unsigned int)ad9960_info.buffer);
