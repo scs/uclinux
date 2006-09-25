@@ -48,7 +48,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define HWC_x2 "System MMR Error \nAn error can occured due to an invalid access to an System MMR location\nPossible reason: a 32-bit register is accessed with a 16-bit instruction,\nor a 16-bit register is accessed with a 32-bit instruction.\n"
+#define HWC_x2 "System MMR Error\nAn error occurred due to an invalid access to an System MMR location\nPossible reason: a 32-bit register is accessed with a 16-bit instruction,\nor a 16-bit register is accessed with a 32-bit instruction.\n"
 #define HWC_x3 "External Memory Addressing Error\n"
 #define HWC_x12 "Performance Monitor Overflow\n"
 #define HWC_x18 "RAISE 5 instruction\n Software issued a RAISE 5 instruction to invoke the Hardware\n"
