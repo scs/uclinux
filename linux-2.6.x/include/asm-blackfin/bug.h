@@ -5,8 +5,7 @@
 #define HAVE_ARCH_BUG
 #define BUG() do { \
 	dump_stack(); \
-	printk(KERN_WARNING "\nkernel BUG at %s:%d!\n",
-		 __FILE__, __LINE__); \
+	printk(KERN_WARNING "\nkernel BUG at %s:%d!\n",  __FILE__, __LINE__); \
 	panic("BUG!"); \
 } while (0)
 #endif
