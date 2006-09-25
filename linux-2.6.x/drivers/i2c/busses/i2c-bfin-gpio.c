@@ -16,7 +16,6 @@
  * Last modified: Wed, 01 Dec 2004 01:19:01 +0800      by mhfan #
  ****************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>

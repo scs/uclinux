@@ -34,7 +34,6 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *********************************************************************************************/ 
 
-#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/init.h>
 #include <linux/module.h>
