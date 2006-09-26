@@ -366,8 +366,8 @@ LINK_LA = $(patsubst %,"-dlopen" %, $(ALL_LA))
 # uCasterisk - end static linking
 
 asterisk: $(OBJS) gentone
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(DEBUG) -o asterisk $(CFLAGS) $(ASTLINK)\
-	$(OBJS) $(DB1_LA) $(EDITLINE_LA) $(STDTIME_LA) $(LIBS) $(LINK_LA)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(DEBUG) -o asterisk $(CFLAGS) $(LDFLAGS) \
+	$(ASTLINK) $(OBJS) $(DB1_LA) $(EDITLINE_LA) $(STDTIME_LA) $(LIBS) $(LINK_LA)
 
 muted: muted.o
 	$(CC) -o muted muted.o

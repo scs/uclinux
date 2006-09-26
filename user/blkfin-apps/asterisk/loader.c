@@ -53,8 +53,9 @@ static void *dlopen(char module_name[], int flags) {
 	lt_dlhandle handle;
 	char *dot;
 
-	assert(strlen(module_name) < 255);
-	strcpy(module_name_a, module_name);
+	assert(strlen(module_name) < 252);
+	strcpy(module_name_a, "lib");
+	strcat(module_name_a, module_name);
 	dot = strstr(module_name_a,".so");
 	if (*dot) {
 		*(dot+1) = 'a';
