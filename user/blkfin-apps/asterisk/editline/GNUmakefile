@@ -10,10 +10,5 @@ Makefile:
 %::
 	if [ -f Makefile ] ; then $(MAKE) -f Makefile $@ || exit $$? ; fi
 
-
-clean distclean::
-	$(MAKE) -f Makefile distclean
-	rm -rf DESTDIR
-
 romfs:
 	@true
