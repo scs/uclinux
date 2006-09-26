@@ -880,7 +880,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 	unsigned short flag;
 	unsigned short FIO_PATTERN;
 
-	if (irq_pfx < IRQ_PF0 || irq_pfx > (NR_IRQS - 1)) {
+	if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
 		printk(KERN_ERR "irq_pfx out of range: %d\n", irq_pfx);
 		return;
 	}
