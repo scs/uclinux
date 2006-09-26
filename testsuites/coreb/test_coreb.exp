@@ -25,11 +25,23 @@ proc step { message } {
 set step_sequence_number    1
 
 step "Start kermit"
-#set argc [llength $argv]
-#if { $argc < 1 } {
-#	send_user "\nAppend /dev/ttyS0\n"
-#}
-#set ttydev	[lindex $argv 0]
+set argc [llength $argv]
+if { $argc < 2 } {
+        send_user "\n./coreb_test.exp dirsrc ipaddr\n"
+	send_user "\nAppend kernel source directory\n"
+	exit
+}
+set srcdir	[lindex $argv 0]
+set ipaddr	[lindex $argv 1]
+
+# Build module
+catch {exec make -C $srcdir/linux-2.6.x SUBDIRS=$srcdir/user/blkfin-apps/corebld modules}
+if [file exists $srcdir/user/blkfin-apps/corebld/dualcore_test.ko] {
+   send_user "\nKernel module build successful\n"
+} else {
+   send_user "\nKernel module build failed\n"
+   send_log "\n$TITLE ............\[FAIL\]\n"
+}
 
 set kparams	[list "set line $ttydev\r"]
 lappend kparams "set speed 57600\r"
@@ -44,6 +56,7 @@ lappend kparams "set send pack 1000\r"
 lappend kparams "set window 5\r"
 lappend kparams "set escape 255\r"
 set nkparams	[llength $kparams]
+
 
 set timeout 5
 spawn kermit
@@ -257,8 +270,16 @@ sleep 5
 
 step "Start CoreB testing"
 
+send "ifconfig eth0 $ipaddr\r"
+sleep 5
+
+spawn rcp $srcdir/user/blkfin-apps/corebld/dualcore_test.ko root@$ipaddr:/.
+sleep 2
+
+set spawn_id $kermit_spawn_id
+
 set timeout 2
-send "modprobe dualcore_test\r"
+send "insmod dualcore_test.ko\r"
 while 1 {
    expect {
       -re "Dual core test module inserted: set testarg = \[1\]*" {
