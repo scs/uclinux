@@ -4,7 +4,7 @@ CFLAGS += -I$(ROOTDIR)/lib/readline/DESTDIR/usr/include/readline
 CFLAGS += -I$(ROOTDIR)/lib/ncurses/include/
 LDFLAGS += -L$(ROOTDIR)/lib/ncurses/lib/
 CFLAGS += -I$(ROOTDIR)/lib/speex/DESTDIR/usr/include
-CFLAGS += -L$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
+LDFLAGS += -I$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
 LINPHONE_FLAGS+=--disable-video
@@ -15,7 +15,7 @@ LINPHONE_FLAGS+=--disable-glib
 LINPHONE_FLAGS+=--with-osip=$(TEMPDIR)
 LINPHONE_FLAGS+=--with-speex=$(ROOTDIR)/lib/speex/DESTDIR/usr
 LINPHONE_FLAGS+=--with-readline=$(ROOTDIR)/lib/readline/DESTDIR/usr
-LINPHONE_FLAGS+=PKG_CONFIG_PATH=$(TEMPDIR)/lib/pkgconfig:$(ROOTDIR)/lib/speex/DESTDIR/usr/lib/pkgconfig:$(ROOTDIR)/lib/readline/DESTDIR/usr/pkgconfig
+LINPHONE_FLAGS+=PKG_CONFIG_PATH=$(TEMPDIR)/lib/pkgconfig:$(ROOTDIR)/lib/speex/DESTDIR/usr/lib/pkgconfig:$(ROOTDIR)/lib/readline/DESTDIR/usr/lib/pkgconfig
 
 PKG_CONFIG=/usr/bin/pkg-config
 
