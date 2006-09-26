@@ -1,10 +1,10 @@
 /*
- * File:         arch/blackfin/mach-bf537/pm.c
+ * File:         arch/blackfin/mach-bfin/pm.c
  * Based on:     arm/mach-omap/pm.c
  * Author:       Cliff Brake <cbrake@accelent.com> Copyright (c) 2001
  *
  * Created:      2001
- * Description:  Power management for the bf537
+ * Description:  Power management for the bfin
  *
  * Rev:          $Id$
  *
@@ -39,34 +39,118 @@
 #include <linux/proc_fs.h>
 
 #include <asm/io.h>
+#include <asm/dpmc.h>
+#include <asm/irq.h>
 
-/*
- * Let's power down on idle, but only if we are really
- * idle, because once we start down the path of
- * going idle we continue to do idle even if we get
- * a clock tick interrupt . .
- */
-void bf537_pm_idle(void)
+/* FIO USE PORT F*/
+#ifdef CONFIG_PM_WAKEUP_GPIO_PORT_F
+#define pm_read_PORT_FER() bfin_read_PORTF_FER()
+#define pm_write_PORT_FER(val) bfin_write_PORTF_FER(val)
+#define pm_read_FIO_MASKA_D() bfin_read_PORTFIO_MASKA()
+#define pm_write_FIO_MASKA_D(val) bfin_write_PORTFIO_MASKA(val)
+#define pm_read_FIO_MASKA_C() bfin_read_PORTFIO_MASKA_CLEAR()
+#define pm_write_FIO_MASKA_C(val) bfin_write_PORTFIO_MASKA_CLEAR(val)
+#define pm_read_FIO_MASKA_S() bfin_read_PORTFIO_MASKA_SET()
+#define pm_write_FIO_MASKA_S(val) bfin_write_PORTFIO_MASKA_SET(val)
+#define pm_read_FIO_DIR() bfin_read_PORTFIO_DIR()
+#define pm_write_FIO_DIR(val) bfin_write_PORTFIO_DIR(val)
+#define pm_read_FIO_POLAR() bfin_read_PORTFIO_POLAR()
+#define pm_write_FIO_POLAR(val) bfin_write_PORTFIO_POLAR(val)
+#define pm_read_FIO_INEN() bfin_read_PORTFIO_INEN()
+#define pm_write_FIO_INEN(val) bfin_write_PORTFIO_INEN(val)
+#define SIC_IWR_VAL 1 << (IRQ_PROG_INTA - (IRQ_CORETMR + 1))
+#endif
+
+/* FIO USE PORT H*/
+#ifdef CONFIG_PM_WAKEUP_GPIO_PORT_H
+#define pm_read_PORT_FER() bfin_read_PORTH_FER()
+#define pm_write_PORT_FER(val) bfin_write_PORTH_FER(val)
+#define pm_read_FIO_MASKA_D() bfin_read_PORTHIO_MASKA()
+#define pm_write_FIO_MASKA_D(val) bfin_write_PORTHIO_MASKA(val)
+#define pm_read_FIO_MASKA_C() bfin_read_PORTHIO_MASKA_CLEAR()
+#define pm_write_FIO_MASKA_C(val) bfin_write_PORTHIO_MASKA_CLEAR(val)
+#define pm_read_FIO_MASKA_S() bfin_read_PORTHIO_MASKA_SET()
+#define pm_write_FIO_MASKA_S(val) bfin_write_PORTHIO_MASKA_SET(val)
+#define pm_read_FIO_DIR() bfin_read_PORTHIO_DIR()
+#define pm_write_FIO_DIR(val) bfin_write_PORTHIO_DIR(val)
+#define pm_read_FIO_POLAR() bfin_read_PORTHIO_POLAR()
+#define pm_write_FIO_POLAR(val) bfin_write_PORTHIO_POLAR(val)
+#define pm_read_FIO_INEN() bfin_read_PORTHIO_INEN()
+#define pm_write_FIO_INEN(val) bfin_write_PORTHIO_INEN(val)
+#define SIC_IWR_VAL 1 << (IRQ_PROG_INTA - (IRQ_CORETMR + 1))
+#endif
+
+/* FIO USE PORT G*/
+#ifdef CONFIG_PM_WAKEUP_GPIO_PORT_G
+#define pm_read_PORT_FER() bfin_read_PORTG_FER()
+#define pm_write_PORT_FER(val) bfin_write_PORTG_FER(val)
+#define pm_read_FIO_MASKA_D() bfin_read_PORTGIO_MASKA()
+#define pm_write_FIO_MASKA_D(val) bfin_write_PORTGIO_MASKA(val)
+#define pm_read_FIO_MASKA_C() bfin_read_PORTGIO_MASKA_CLEAR()
+#define pm_write_FIO_MASKA_C(val) bfin_write_PORTGIO_MASKA_CLEAR(val)
+#define pm_read_FIO_MASKA_S() bfin_read_PORTGIO_MASKA_SET()
+#define pm_write_FIO_MASKA_S(val) bfin_write_PORTGIO_MASKA_SET(val)
+#define pm_read_FIO_DIR() bfin_read_PORTGIO_DIR()
+#define pm_write_FIO_DIR(val) bfin_write_PORTGIO_DIR(val)
+#define pm_read_FIO_POLAR() bfin_read_PORTGIO_POLAR()
+#define pm_write_FIO_POLAR(val) bfin_write_PORTGIO_POLAR(val)
+#define pm_read_FIO_INEN() bfin_read_PORTGIO_INEN()
+#define pm_write_FIO_INEN(val) bfin_write_PORTGIO_INEN(val)
+#define SIC_IWR_VAL 1 << (IRQ_MAC_RX - (IRQ_CORETMR + 1))
+#endif
+
+
+void bf537_pm_suspend_standby_enter(void)
 {
-}
 
-/*
- * When we call pm_suspend, that code  enters into idle state.
- * When there is any interrupt,the core will resume
- */
-void bf537_pm_suspend(void)
-{
-	unsigned long flags;
-
-	/* FIXME: Add a useful Power Saving Mode Here ... */
+#if defined(CONFIG_PM_WAKEUP_BY_GPIO)
+	u16 inen, polar, dir, mask, fer;
+	u16 pattern = 1 << CONFIG_PM_WAKEUP_GPIO_NUMBER;
+	u32 flags;
 
 	local_irq_save(flags);
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
-	__builtin_bfin_ssync();
-	asm("IDLE;");
+  
+  /* save state */
+	inen = pm_read_FIO_INEN();
+	polar = pm_read_FIO_POLAR();
+	dir = pm_read_FIO_DIR();
+	mask = pm_read_FIO_MASKA_D();
+	fer = pm_read_PORT_FER();
+
+	pm_write_PORT_FER(fer & ~pattern);
+
+	pm_write_FIO_MASKA_C(pattern);
+
+#if CONFIG_PM_WAKEUP_GPIO_POLAR_H
+	pm_write_FIO_POLAR(polar & ~pattern);
+#else
+	pm_write_FIO_POLAR(polar | pattern);
+#endif
+
+	pm_write_FIO_DIR(dir & ~pattern);
+	pm_write_FIO_INEN(inen | pattern);
+	pm_write_FIO_MASKA_S(pattern);
+
+  	sleep_deeper(SIC_IWR_VAL);
+	  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+
+  /* Restore original state */
+	pm_write_PORT_FER(fer);
+	pm_write_FIO_INEN(inen);
+	pm_write_FIO_POLAR(polar);
+	pm_write_FIO_DIR(dir);
+	pm_write_FIO_MASKA_D(mask);
+
 	local_irq_restore(flags);
+#endif				/* CONFIG_PM_WAKEUP_BY_GPIO */
+
+#if defined(CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR)
+	sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR);
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif				/* CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR */
 
 }
+
 
 /*
  *	bf537_pm_prepare - Do preliminary suspend work.
@@ -102,11 +186,10 @@ static int bf537_pm_enter(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-		return -ENOTSUPP;
-
-	case PM_SUSPEND_MEM:
-		bf537_pm_suspend();
+		bf537_pm_suspend_standby_enter();
 		break;
+	case PM_SUSPEND_MEM:
+		return -ENOTSUPP;
 
 	case PM_SUSPEND_DISK:
 		return -ENOTSUPP;
@@ -127,21 +210,35 @@ static int bf537_pm_enter(suspend_state_t state)
  */
 static int bf537_pm_finish(suspend_state_t state)
 {
+	switch (state) {
+	case PM_SUSPEND_STANDBY:
+		break;
+
+	case PM_SUSPEND_MEM:
+		return -ENOTSUPP;
+
+	case PM_SUSPEND_DISK:
+		return -ENOTSUPP;
+
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
-struct pm_ops bf537_pm_ops = {
+struct pm_ops bfin_pm_ops = {
 	.pm_disk_mode = PM_DISK_FIRMWARE,
 	.prepare = bf537_pm_prepare,
 	.enter = bf537_pm_enter,
 	.finish = bf537_pm_finish,
 };
 
-static int __init bf537_pm_init(void)
+static int __init bfin_pm_init(void)
 {
 
-	pm_set_ops(&bf537_pm_ops);
+	pm_set_ops(&bfin_pm_ops);
 	return 0;
 }
 
-__initcall(bf537_pm_init);
+__initcall(bfin_pm_init);
