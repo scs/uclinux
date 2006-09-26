@@ -681,6 +681,9 @@ asmlinkage void do_signal(struct pt_regs *regs)
 
 	current->thread.esp0 = (unsigned long)regs;
 
+	if (try_to_freeze())
+		goto no_signal;
+
 	if (test_thread_flag(TIF_RESTORE_SIGMASK))
 		oldset = &current->saved_sigmask;
 	else
@@ -701,6 +704,7 @@ asmlinkage void do_signal(struct pt_regs *regs)
 		return;
 	}
 
+no_signal:
 	/* Did we come from a system call? */
 	if (regs->orig_p0 >= 0)
 		/* Restart the system call - no handlers present */
