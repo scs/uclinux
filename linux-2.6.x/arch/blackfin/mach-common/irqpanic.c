@@ -131,18 +131,21 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 			    "physical address: %08x  SDRAM value : %08x%08x\n",
 			     bad[j][3], bad[j][4], bad[j][5]);
 		}
-		panic(KERN_EMERG "icache coherency error");
+		panic("icache coherency error");
 	} else {
-		printk(KERN_EMERG "\n\nicache checked, and OK\n");
+		printk(KERN_EMERG "icache checked, and OK\n");
 	}
 #endif
 
-	printk(KERN_EMERG "\n\nException: IRQ 0x%x entered\n", reason);
-	printk(KERN_EMERG " code=[0x%08x],  ", (unsigned int)regs->seqstat);
-	printk(KERN_EMERG " stack frame=0x%04x,  ", (unsigned int)(unsigned long)regs);
-	printk(KERN_EMERG " bad PC=0x%04x\n", (unsigned int)regs->pc);
+	printk(KERN_EMERG "\n");
+	printk(KERN_EMERG "Exception: IRQ 0x%x entered\n", reason);
+	printk(KERN_EMERG " code=[0x%08lx],   stack frame=0x%08lx,  "
+	    " bad PC=0x%08lx\n",
+	    (unsigned long)regs->seqstat,
+	    (unsigned long)regs,
+	    (unsigned long)regs->pc);
 	if (reason == 0x5) {
-		printk(KERN_EMERG "\n----------- HARDWARE ERROR -----------\n\n"); 
+		printk(KERN_EMERG "----------- HARDWARE ERROR -----------\n"); 
 
 		/* There is only need to check for Hardware Errors, since other
 		 * EXCEPTIONS are handled in TRAPS.c (MH)
