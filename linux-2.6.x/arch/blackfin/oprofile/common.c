@@ -77,7 +77,7 @@ static int op_bfin_start(void)
 {
 	int ret = -EBUSY;
 
-	printk("KSDBG:in %s\n", __FUNCTION__);
+	printk(KERN_INFO "KSDBG:in %s\n", __FUNCTION__);
 	down(&pfmon_sem);
 	if (!pfmon_enabled) {
 		ret = model->start(ctr);
@@ -105,7 +105,7 @@ static int op_bfin_create_files(struct super_block *sb, struct dentry *root)
 	for (i = 0; i < model->num_counters; ++i) {
 		struct dentry *dir;
 		char buf[3];
-		printk("Oprofile: creating files... \n");
+		printk(KERN_INFO "Oprofile: creating files... \n");
 
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
@@ -134,7 +134,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 
 	dspid = bfin_read_DSPID();
 
-	printk("Oprofile got the cpu id is 0x%x. \n", dspid);
+	printk(KERN_INFO "Oprofile got the cpu id is 0x%x. \n", dspid);
 
 	switch (dspid) {
 	case BFIN_533_ID:

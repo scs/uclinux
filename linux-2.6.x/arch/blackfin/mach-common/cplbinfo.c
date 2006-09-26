@@ -180,7 +180,7 @@ static int cplbinfo_read_proc(char *page, char **start, off_t off,
 static int cplbinfo_write_proc(struct file *file, const char __user *buffer,
 			       unsigned long count, void *data)
 {
-	printk("Reset the CPLB swap in/out counts.\n");
+	printk(KERN_INFO "Reset the CPLB swap in/out counts.\n");
 	memset(ipdt_swapcount_table, 0, 100 * sizeof(unsigned long));
 	memset(dpdt_swapcount_table, 0, 120 * sizeof(unsigned long));
 

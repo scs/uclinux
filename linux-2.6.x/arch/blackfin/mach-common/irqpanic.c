@@ -122,27 +122,27 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		}
 	}
 	if (die) {
-		printk("icache coherency error\n");
+		printk(KERN_EMERG "icache coherency error\n");
 		for (j = 0; j <= i; j++) {
-			printk
-			    ("cache address   : %08x  cache value : %08x%08x\n",
+			printk(KERN_EMERG
+			    "cache address   : %08x  cache value : %08x%08x\n",
 			     bad[j][0], bad[j][1], bad[j][2]);
-			printk
-			    ("physical address: %08x  SDRAM value : %08x%08x\n",
+			printk(KERN_EMERG
+			    "physical address: %08x  SDRAM value : %08x%08x\n",
 			     bad[j][3], bad[j][4], bad[j][5]);
 		}
-		panic("icache coherency error");
+		panic(KERN_EMERG "icache coherency error");
 	} else {
-		printk("\n\nicache checked, and OK\n");
+		printk(KERN_EMERG "\n\nicache checked, and OK\n");
 	}
 #endif
 
-	printk("\n\nException: IRQ 0x%x entered\n", reason);
-	printk(" code=[0x%08x],  ", (unsigned int)regs->seqstat);
-	printk(" stack frame=0x%04x,  ", (unsigned int)(unsigned long)regs);
-	printk(" bad PC=0x%04x\n", (unsigned int)regs->pc);
+	printk(KERN_EMERG "\n\nException: IRQ 0x%x entered\n", reason);
+	printk(KERN_EMERG " code=[0x%08x],  ", (unsigned int)regs->seqstat);
+	printk(KERN_EMERG " stack frame=0x%04x,  ", (unsigned int)(unsigned long)regs);
+	printk(KERN_EMERG " bad PC=0x%04x\n", (unsigned int)regs->pc);
 	if (reason == 0x5) {
-		printk("\n----------- HARDWARE ERROR -----------\n\n");
+		printk(KERN_EMERG "\n----------- HARDWARE ERROR -----------\n\n"); 
 
 		/* There is only need to check for Hardware Errors, since other
 		 * EXCEPTIONS are handled in TRAPS.c (MH)
@@ -151,7 +151,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):	/* System MMR Error */
 			info.si_code = BUS_ADRALN;
 			sig = SIGBUS;
-			printk(HWC_x2);
+			printk(KERN_EMERG HWC_x2);
 			break;
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):	/* External Memory Addressing Error */
 			info.si_code = BUS_ADRERR;
