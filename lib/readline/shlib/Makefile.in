@@ -61,7 +61,7 @@ localedir = $(datadir)/locale
 # Support an alternate destination root directory for package building
 DESTDIR =
 
-CFLAGS = @CFLAGS@
+CFLAGS += @CFLAGS@
 LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CPPFLAGS = @CPPFLAGS@
 LDFLAGS = @LDFLAGS@ @LOCAL_LDFLAGS@ @CFLAGS@
