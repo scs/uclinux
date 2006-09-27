@@ -280,6 +280,7 @@
 #endif
 
 #define MAX_VC	600000000
+#define MIN_VC	50000000
 
 #if (CONFIG_VCO_HZ > MAX_VC)
 #error "VCO selected is more than maximum value. Please change the VCO multipler"

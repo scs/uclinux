@@ -302,7 +302,7 @@ ENTRY(_sleep_deeper)
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R5 = W[P0](z);
-	R0.L = 0x400;
+	R0.L = (MIN_VC/CONFIG_CLKIN_HZ) << 9;
 	W[P0] = R0.l;
 
 	SSYNC;
