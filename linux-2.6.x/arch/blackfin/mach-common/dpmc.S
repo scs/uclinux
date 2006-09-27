@@ -296,13 +296,13 @@ ENTRY(_sleep_deeper)
 	P0.H = hi(PLL_DIV);
 	P0.L = lo(PLL_DIV);
 	R6 = W[P0](z);
-	R0.L = 0x1;
+	R0.L = 0xF;
 	W[P0] = R0.l;
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R5 = W[P0](z);
-	R0.L = 0x200;
+	R0.L = 0x201;
 	W[P0] = R0.l;
 
 	SSYNC;
