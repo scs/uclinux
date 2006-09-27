@@ -171,8 +171,8 @@ while 1 {
              send -s "Y\r"
       }
 
-        -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
-             send  "N\r"
+       -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
+             send "N\r"
       }
 
          -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
