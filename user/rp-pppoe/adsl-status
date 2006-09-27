@@ -62,7 +62,9 @@ for i in $VARRUN/ppp*.pid ; do
 	PID=`cat $i`
 	if [ "$PID" = "$PPPD_PID" ] ; then
 	    IF=`basename $i .pid`
-	    netstat -rn | grep "${IF}\$" > /dev/null
+	    # Busybox has no support for netstat -r	
+	    #netstat -rn | grep "${IF}\$" > /dev/null
+	    route -n | grep "${IF}\$" > /dev/null
 	    # /sbin/ifconfig $IF | grep "UP.*POINTOPOINT" > /dev/null
 	    if [ "$?" != "0" ] ; then
 		echo "adsl-status: Link is attached to $IF, but $IF is down"

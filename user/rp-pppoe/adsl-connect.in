@@ -47,14 +47,16 @@ USER=""
 ETH=""
 
 # Sort out command-line arguments
-case "$#" in
-    1)
-	CONFIG="$1"
-	;;
-    3)
-	CONFIG="$3"
-	;;
-esac
+# Due to a bug of Busybox msh, if call adsl-connect from adsl-start, the arguments
+# cannot be passdown correctly. So here we force to use the default CONFIG file.
+#case "$#" in
+#    1)
+#	CONFIG="$1"
+#	;;
+#    3)
+#	CONFIG="$3"
+#	;;
+#esac
 
 if test ! -f "$CONFIG" -o ! -r "$CONFIG" ; then
     echo "$0: Cannot read configuration file '$CONFIG'" >& 2
@@ -149,7 +151,16 @@ case "$FIREWALL" in
 esac
 
 # Standard PPP options we always use
-PPP_STD_OPTIONS="noipdefault noauth defaultroute hide-password nodetach $USEPEERDNS local mtu 1492 mru 1492 noaccomp noccp nobsdcomp nodeflate nopcomp novj novjccomp user $USER lcp-echo-interval $LCP_INTERVAL lcp-echo-failure $LCP_FAILURE"
+# Due to the version of rp-pppoe(2.3) and pppd(2.3.8) does not match in current uClinux-dist source tree,
+# some of the options bellow cannot recongnized by pppd, nobsdcomp, nodeflate. We remove them for now - until
+# pppd is updated.
+#PPP_STD_OPTIONS="noipdefault noauth defaultroute hide-password nodetach $USEPEERDNS local mtu 1492 mru 1492 noaccomp noccp nobsdcomp nodeflate nopcomp novj novjccomp user $USER lcp-echo-interval $LCP_INTERVAL lcp-echo-failure $LCP_FAILURE"
+
+PPP_STD_OPTIONS="noipdefault noauth defaultroute hide-password nodetach \
+                        $USEPEERDNS local mtu 1492 mru 1492 noaccomp noccp \
+                        nopcomp novj novjccomp user $USER \
+                        lcp-echo-interval $LCP_INTERVAL lcp-echo-failure \
+                        $LCP_FAILURE"
 
 # PPPoE invocation
 PPPOE_CMD="$PPPOE -p $PPPOE_PIDFILE -I $ETH -T $PPPOE_TIMEOUT $PPPOE_SYNC $CLAMPMSS $PPPOE_EXTRA"
