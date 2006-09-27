@@ -59,6 +59,23 @@ extern unsigned long irq_flags;
 		:"=d" (_tmp_dummy):);	\
 } while (0)
 
+#if defined(ANOMALY_05000244) && defined (CONFIG_BLKFIN_CACHE)
+#define idle_with_irq_disabled() do {   \
+        __asm__ __volatile__ (          \
+                "nop; nop;\n"           \
+                ".align 8;\n"           \
+                "sti %0; idle;\n"       \
+                ::"d" (irq_flags));     \
+} while (0)
+#else
+#define idle_with_irq_disabled() do {   \
+	__asm__ __volatile__ (          \
+		".align 8;\n"           \
+		"sti %0; idle;\n"       \
+		::"d" (irq_flags));     \
+} while (0)
+#endif
+
 #ifdef CONFIG_DEBUG_HWERR
 #define __save_and_cli(x) do {			\
 	__asm__ __volatile__ (		        \

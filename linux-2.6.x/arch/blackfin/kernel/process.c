@@ -101,10 +101,10 @@ static inline void default_idle(void)
 {
 	while (!need_resched()) {
 		leds_switch(LED_OFF);
-	      __asm__("nop;\n\t \
-                         nop;\n\t \
-                         nop;\n\t \
-                         idle;\n\t": : :"cc");
+		local_irq_disable();
+		if (likely( !need_resched()))
+			idle_with_irq_disabled();
+		local_irq_enable();
 		leds_switch(LED_ON);
 	}
 }
