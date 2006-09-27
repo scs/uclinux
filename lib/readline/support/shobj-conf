@@ -106,7 +106,10 @@ sunos5*|solaris2*)
 
 # All versions of Linux or the semi-mythical GNU Hurd.
 linux*-*|gnu*-*|k*bsd*-gnu-*|uclinux*)
-	SHOBJ_CFLAGS=-fPIC
+	case ${host_cpu} in
+		bfin) SHOBJ_CFLAGS=-mfdpic;;
+		*)    SHOBJ_CFLAGS=-fPIC;;
+	esac
 	SHOBJ_LD='${CC}'
 	SHOBJ_LDFLAGS='-shared -Wl,-soname,$@'
 
