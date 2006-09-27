@@ -108,6 +108,7 @@ dir_$(CONFIG_LIB_LIBTOOL)        += libtool
 dir_$(CONFIG_LIB_LIBTOOL_FORCE)  += libtool
 dir_$(CONFIG_LIB_BFIN_GSM)       += blackfin-gsm
 dir_$(CONFIG_LIB_SPEEX)          += speex
+dir_$(CONFIG_LIB_SPEEX_FORCE)    += speex
 dir_$(CONFIG_LIB_LIBUSB)         += libusb
 dir_$(CONFIG_LIB_LIBUSB_FORCE)   += libusb
 dir_$(CONFIG_LIB_ALSA_LIB)       += alsa-lib
