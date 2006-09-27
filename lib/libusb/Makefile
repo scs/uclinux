@@ -7,7 +7,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure --host=bfin-uclinux --prefix=/usr
+	../configure --host=$(CONFIGURE_HOST) --prefix=/usr
 
 distclean:
 	rm -rf build DESTDIR
