@@ -388,17 +388,27 @@ distclean: mrproper
 	[ ! -d "$(@:_clean=)" ] || $(MAKEARCH) -C $(@:_clean=) clean
 
 %_config:
+	@if [ ! -d "vendors/$(@:_config=)" ]; then \
+		echo "Can't find $(@:_config=) in the vendors directory" ; \
+		exit 1; \
+	fi
 	@if [ ! -f "vendors/$(@:_config=)/config.device" ]; then \
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	make distclean > /dev/null 2>&1
+	if [ `grep CONFIG_VENDOR .config | awk -F = '{print $2}'` == `grep CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F = '{print $2}'` -a \
+	`grep CONFIG_LINUXDIR .config | awk -F = '{print $2}'` == `grep CONFIG_LINUXDIR  vendors/$(@:_config=)/config.device | awk -F = '{print $2}'` -a \
+	`grep -e "TARGET_.*=y" ./uClibc/.config` == ` grep -e  "TARGET_.*=y" vendors/$(@:_config=)/config.uClibc` ] ; then \
+		make -C linux-2.6.x distclean > /dev/null 2>&1 ; \
+	else  \
+		make distclean > /dev/null 2>&1 ; \
+	fi
 	cp vendors/$(@:_config=)/config.device .config
 	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
 	cp vendors/$(@:_config=)/config.vendor-2.6.x config/.config
 	cp vendors/$(@:_config=)/config.linux-2.6.x linux-2.6.x/.config
 	ln -sf vendors/$(@:_config=)/config.arch .
-	yes "" | make oldconfig
+	yes "" | make oldconfig > /dev/null 2>&1 
 
 %_default:
 	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
@@ -411,7 +421,7 @@ distclean: mrproper
 	cp vendors/$(@:_default=)/config.vendor-2.6.x config/.config
 	cp vendors/$(@:_default=)/config.linux-2.6.x linux-2.6.x/.config
 	ln -sf vendors/$(@:_default=)/config.arch .
-	yes "" | make oldconfig
+	yes "" | make oldconfig  > /dev/null 2>&1 
 	make
 
 config_error:
