@@ -71,7 +71,6 @@ dir_$(CONFIG_LIB_LIBSSL)       += libssl
 dir_$(CONFIG_LIB_LIBSSL_FORCE) += libssl
 dir_$(CONFIG_LIB_LIBGMP)       += libgmp
 dir_$(CONFIG_LIB_LIBGMP_FORCE) += libgmp
-dir_$(CONFIG_LIB_GMP)		+= gmp
 dir_$(CONFIG_LIB_POPT)		+= popt
 dir_$(CONFIG_LIB_MPFR)         += mpfr
 dir_$(CONFIG_LIB_MPFR_FORCE)   += mpfr
