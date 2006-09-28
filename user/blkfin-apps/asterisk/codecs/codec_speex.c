@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <speex.h>
+#include <speex/speex.h>
 
 /* Sample frame data */
 #include "slin_speex_ex.h"

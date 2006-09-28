@@ -228,23 +228,23 @@ LIBS+=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone
 LIBS+=-lpthread -lgsm -lspeex -lm -lthreadstack
 
 #uClinux libtool
-LIBTOOL=$(ROOTDIR)/lib/libtool/libtool
-CFLAGS+=-I$(ROOTDIR)/lib/libtool/libltdl
+LIBTOOL=$(ROOTDIR)/lib/libtool/DESTDIR/usr/bin/libtool
+CFLAGS+=-I$(ROOTDIR)/lib/libtool/DESTDIR/usr/include
 CFLAGS+=-I$(ROOTDIR)/lib/libssl/include
 CFLAGS+=-I$(ROOTDIR)/lib/ncurses/include
 CFLAGS+=-I$(ROOTDIR)/lib/zlib
 CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
 CFLAGS+=-I$(ROOTDIR)/lib/blackfin-gsm/gsm/inc
-CFLAGS+=-I$(ROOTDIR)/lib/speex/include/speex
+CFLAGS+=-I$(ROOTDIR)/lib/speex/DESTDIR/usr/include/
 CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/zaptel
 
-LIBS+= -L$(ROOTDIR)/lib/libtool/libltdl/.libs
+LIBS+= -L$(ROOTDIR)/lib/libtool/build/libltdl/.libs/
 LIBS+= -L$(ROOTDIR)/lib/libssl
-LIBS+= -L$(ROOTDIR)/lib/ncurses/lib 
-LIBS+= -L$(ROOTDIR)/lib 
+LIBS+= -L$(ROOTDIR)/lib/ncurses/lib
+LIBS+= -L$(ROOTDIR)/lib
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
-LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib 
-LIBS+= -L$(ROOTDIR)/lib/speex/libspeex/.libs 
+LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib
+LIBS+= -L$(ROOTDIR)/lib/speex/build/libspeex/.libs/
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/zaptel 
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/asterisk/editline 
 
@@ -380,7 +380,7 @@ distclean clean:
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
 	rm -f ast_expr.c
-	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
+	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi	
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
