@@ -75,25 +75,26 @@ bool    'BF561 Core B support tools'    CONFIG_USER_BF561_COREBLD
 bool    'pound SSL Wrapper'             CONFIG_USER_POUND
 bool    'jpegview'                      CONFIG_USER_JPEGVIEW
 if [ "$CONFIG_USER_JPEGVIEW" = "y" ]; then
-	define_bool CONFIG_LIB_LIBJPEG y
+	define_bool CONFIG_LIB_LIBJPEG_FORCE y
 fi
 bool    'IRDA Tools (irattach)'         CONFIG_USER_IRATTACH
 bool    'ALSA utils'                    CONFIG_USER_ALSA_UTILS
 if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
-	define_bool CONFIG_LIB_ALSA_LIB y
-	define_bool CONFIG_LIB_NCURSES y
+	define_bool CONFIG_LIB_ALSA_LIB_FORCE y
+	define_bool CONFIG_LIB_NCURSES_FORCE y
 fi
 bool    'Asterisk PBX'         		CONFIG_USER_BLACKFIN_ASTERISK
 if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_USER_THREADSTACK	y
+	define_bool CONFIG_LIB_LIBSSL_FORCE	y
 	define_bool CONFIG_LIB_LIBTOOL_FORCE	y
-	define_bool CONFIG_LIB_SPEEX		y
+	define_bool CONFIG_LIB_SPEEX_FORCE	y
 	define_bool CONFIG_LIB_BFIN_GSM		y
 	define_bool CONFIG_USER_ZAPTEL		y
 fi
 bool    'usbutils (lsusb)'              CONFIG_USER_USBUTILS
 if [ "$CONFIG_USER_USBUTILS" = "y" ]; then
-	define_bool CONFIG_LIB_LIBUSB y
+	define_bool CONFIG_LIB_LIBUSB_FORCE y
 fi
 bool	'Bluez lib and utils'		CONFIG_USER_BLUEZ
 endmenu
@@ -106,23 +107,23 @@ mainmenu_option next_comment
 comment 'Blackfin canned demos'
 bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO
 if [ "$CONFIG_USER_NDSO" = "y" ]; then
-	define_bool CONFIG_LIB_LIBPNG y
+	define_bool CONFIG_LIB_LIBPNG_FORCE y
 fi
 bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
 bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
 if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
-	define_bool CONFIG_LIB_SPEEX y
-	define_bool CONFIG_LIB_READLINE y
-	define_bool CONFIG_LIB_NCURSES y
+	define_bool CONFIG_LIB_SPEEX_FORCE y
+	define_bool CONFIG_LIB_READLINE_FORCE y
+	define_bool CONFIG_LIB_NCURSES_FORCE y
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
-	define_bool CONFIG_LIB_LIBMAD y
-	define_bool CONFIG_LIB_FAAD2 y
-	define_bool CONFIG_LIB_FLAC y
-	define_bool CONFIG_LIB_LIBID3TAG y
-	define_bool CONFIG_LIB_TREMOR y
-	define_bool CONFIG_LIB_LIBAUDIO y
+	define_bool CONFIG_LIB_LIBMAD_FORCE y
+	define_bool CONFIG_LIB_FAAD2_FORCE y
+	define_bool CONFIG_LIB_FLAC_FORCE y
+	define_bool CONFIG_LIB_LIBID3TAG_FORCE y
+	define_bool CONFIG_LIB_TREMOR_FORCE y
+	define_bool CONFIG_LIB_LIBAUDIO_FORCE y
 fi
 endmenu
