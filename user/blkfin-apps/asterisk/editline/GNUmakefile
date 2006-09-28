@@ -1,6 +1,5 @@
 all: Makefile
 	$(MAKE) -f Makefile
-	$(MAKE) -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 Makefile:
 	./configure \
