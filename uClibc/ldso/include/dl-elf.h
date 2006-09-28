@@ -95,11 +95,11 @@ extern void _dl_protect_relro (struct elf_resolve *l);
 #define DYNAMIC_SIZE (DT_NUM+OS_NUM+ARCH_NUM)
 
 extern void _dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
-				   void *debug_addr, DL_LOADADDR_TYPE load_off);
+                                   void *debug_addr, DL_LOADADDR_TYPE load_off);
 
 static __always_inline
 void __dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
-			     void *debug_addr, DL_LOADADDR_TYPE load_off)
+                             void *debug_addr, DL_LOADADDR_TYPE load_off)
 {
 	for (; dpnt->d_tag; dpnt++) {
 		if (dpnt->d_tag < DT_NUM) {
@@ -141,7 +141,7 @@ void __dl_parse_dynamic_info(ElfW(Dyn) *dpnt, unsigned long dynamic_info[],
 #define ADJUST_DYN_INFO(tag, load_off) \
 	do { \
 		if (dynamic_info[tag]) \
-			dynamic_info[tag] = (unsigned long) DL_RELOC_ADDR(dynamic_info[tag], load_off); \
+			dynamic_info[tag] = (unsigned long) DL_RELOC_ADDR(load_off, dynamic_info[tag]); \
 	} while(0)
 	ADJUST_DYN_INFO(DT_HASH, load_off);
 	ADJUST_DYN_INFO(DT_PLTGOT, load_off);

@@ -196,7 +196,7 @@ void *dlopen(const char *libname, int flag)
 		tfrom = NULL;
 		for (dpnt = _dl_symbol_tables; dpnt; dpnt = dpnt->next) {
 			tpnt = dpnt->dyn;
-			if (DL_ADDR_IN_LOADADDR (from, tpnt, tfrom))
+			if (DL_ADDR_IN_LOADADDR(from, tpnt, tfrom))
 				tfrom = tpnt;
 		}
 	}
@@ -397,13 +397,11 @@ void *dlopen(const char *libname, int flag)
 		tpnt->init_flag |= INIT_FUNCS_CALLED;
 
 		if (tpnt->dynamic_info[DT_INIT]) {
-			intptr_t dl_elf_func;
-			dl_elf_func = (intptr_t) DL_RELOC_ADDR (tpnt->dynamic_info[DT_INIT], tpnt->loadaddr);
+			void (*dl_elf_func) (void);
+			dl_elf_func = (void (*)(void)) DL_RELOC_ADDR(tpnt->loadaddr, tpnt->dynamic_info[DT_INIT]);
 			if (dl_elf_func) {
-#ifdef __SUPPORT_LD_DEBUG__
-				_dl_if_debug_print("running ctors for library %s at '%x'\n",
-						tpnt->libname, (unsigned)dl_elf_func);
-#endif
+				_dl_if_debug_print("running ctors for library %s at '%p'\n",
+						tpnt->libname, dl_elf_func);
 				DL_CALL_FUNC_AT_ADDR (dl_elf_func, tpnt->loadaddr, (void(*)(void)));
 			}
 		}
@@ -475,7 +473,7 @@ void *dlsym(void *vhandle, const char *name)
 		tfrom = NULL;
 		for (rpnt = _dl_symbol_tables; rpnt; rpnt = rpnt->next) {
 			tpnt = rpnt->dyn;
-			if (DL_ADDR_IN_LOADADDR (from, tpnt, tfrom)) {
+			if (DL_ADDR_IN_LOADADDR(from, tpnt, tfrom)) {
 				tfrom = tpnt;
 				handle = rpnt->next;
 			}
@@ -508,7 +506,7 @@ static int do_dlclose(void *vhandle, int need_fini)
 	struct init_fini_list *runp, *tmp;
 	ElfW(Phdr) *ppnt;
 	struct elf_resolve *tpnt, *run_tpnt;
-	void *dl_elf_fini;
+	int (*dl_elf_fini) (void);
 	void (*dl_brk) (void);
 	struct dyn_elf *handle;
 	unsigned int end;
@@ -553,7 +551,7 @@ static int do_dlclose(void *vhandle, int need_fini)
 #endif
 
 				if (tpnt->dynamic_info[DT_FINI]) {
-					dl_elf_fini = DL_RELOC_ADDR (tpnt->dynamic_info[DT_FINI], tpnt->loadaddr);
+					dl_elf_fini = (int (*)(void)) DL_RELOC_ADDR(tpnt->loadaddr, tpnt->dynamic_info[DT_FINI]);
 					_dl_if_debug_print("running dtors for library %s at '%p'\n",
 							tpnt->libname, (unsigned)dl_elf_fini);
 					DL_CALL_FUNC_AT_ADDR (dl_elf_fini, tpnt->loadaddr, (int (*)(void)));
@@ -662,9 +660,8 @@ int dlinfo(void)
 	fprintf(stderr, "List of loaded modules\n");
 	/* First start with a complete list of all of the loaded files. */
 	for (tpnt = _dl_loaded_modules; tpnt; tpnt = tpnt->next) {
-		fprintf(stderr, "\t%x %p %p %s %d %s\n",
-		        (unsigned) DL_LOADADDR_BASE (tpnt->loadaddr),
-		        tpnt, tpnt->symbol_scope,
+		fprintf(stderr, "\t%p %p %p %s %d %s\n",
+		        DL_LOADADDR_BASE(tpnt->loadaddr), tpnt, tpnt->symbol_scope,
 		        type[tpnt->libtype],
 		        tpnt->usage_count, tpnt->libname);
 	}
@@ -694,9 +691,7 @@ int dladdr(const void *__address, Dl_info * __info)
 	 */
 	pelf = NULL;
 
-#if 0
-	fprintf(stderr, "dladdr( %p, %p )\n", __address, __info);
-#endif
+	_dl_if_debug_print("__address: %p  __info: %p\n", __address, __info);
 
 #ifdef DL_LOOKUP_ADDRESS
 	__address = DL_LOOKUP_ADDRESS (__address);
@@ -706,13 +701,12 @@ int dladdr(const void *__address, Dl_info * __info)
 		struct elf_resolve *tpnt;
 
 		tpnt = rpnt;
-#if 0
-		fprintf(stderr, "Module \"%s\" at %p\n",
-				tpnt->libname, tpnt->loadaddr);
-#endif
-		if (DL_ADDR_IN_LOADADDR ((ElfW(Addr)) __address, tpnt, pelf)) {
+
+		_dl_if_debug_print("Module \"%s\" at %p\n",
+		                   tpnt->libname, DL_LOADADDR_BASE(tpnt->loadaddr));
+
+		if (DL_ADDR_IN_LOADADDR((ElfW(Addr)) __address, tpnt, pelf))
 			pelf = tpnt;
-		}
 	}
 
 	if (!pelf) {
@@ -738,22 +732,21 @@ int dladdr(const void *__address, Dl_info * __info)
 			for (si = pelf->elf_buckets[hn]; si; si = pelf->chains[si]) {
 				ElfW(Addr) symbol_addr;
 
-				symbol_addr = (ElfW(Addr)) DL_RELOC_ADDR (symtab[si].st_value, pelf->loadaddr);
+				symbol_addr = (ElfW(Addr)) DL_RELOC_ADDR(pelf->loadaddr, symtab[si].st_value);
 				if (symbol_addr <= (ElfW(Addr))__address && (!sf || sa < symbol_addr)) {
 					sa = symbol_addr;
 					sn = si;
 					sf = 1;
 				}
-#if 0
-				fprintf(stderr, "Symbol \"%s\" at %p\n",
-						strtab + symtab[si].st_name, symbol_addr);
-#endif
+
+				_dl_if_debug_print("Symbol \"%s\" at %p\n",
+				                   strtab + symtab[si].st_name, symbol_addr);
 			}
 		}
 
 		if (sf) {
 			__info->dli_fname = pelf->libname;
-			__info->dli_fbase = (void *)DL_LOADADDR_BASE (pelf->loadaddr);
+			__info->dli_fbase = (void *) DL_LOADADDR_BASE(pelf->loadaddr);
 			__info->dli_sname = strtab + symtab[sn].st_name;
 			__info->dli_saddr = (void *)sa;
 		}

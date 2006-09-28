@@ -4,7 +4,7 @@
  * after resolving ELF shared library symbols
  *
  * Copyright (C) 2004 by Joakim Tjernlund <joakim.tjernlund@lumentis.se>
- * Copyright (C) 2000-2004 by Erik Andersen <andersen@codepoet.org>
+ * Copyright (C) 2000-2006 by Erik Andersen <andersen@codepoet.org>
  * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald,
  *				David Engel, Hongjiu Lu and Mitch D'Souza
  *
@@ -83,8 +83,8 @@ static inline Elf_Symndx _dl_elf_hash(const char *name)
  * externals properly.
  */
 struct elf_resolve *_dl_add_elf_hash_table(const char *libname,
-	DL_LOADADDR_TYPE loadaddr, unsigned long *dynamic_info,
-	unsigned long dynamic_addr, __attribute__((unused)) unsigned long dynamic_size)
+	DL_LOADADDR_TYPE loadaddr, unsigned long *dynamic_info, unsigned long dynamic_addr,
+	__attribute__((unused)) unsigned long dynamic_size)
 {
 	Elf_Symndx *hash_addr;
 	struct elf_resolve *tpnt;
@@ -117,9 +117,6 @@ struct elf_resolve *_dl_add_elf_hash_table(const char *libname,
 		hash_addr += tpnt->nbucket;
 		tpnt->chains = hash_addr;
 	}
-#if defined (__SUPPORT_LD_DEBUG__)
-	else _dl_dprintf(2, "no hash table for tpnt %x\n", tpnt);
-#endif
 	tpnt->loadaddr = loadaddr;
 	for (i = 0; i < DYNAMIC_SIZE; i++)
 		tpnt->dynamic_info[i] = dynamic_info[i];
@@ -169,7 +166,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 
 		/* Avoid calling .urem here. */
 		do_rem(hn, elf_hash_number, tpnt->nbucket);
-		symtab = (ElfW(Sym) *) (intptr_t) (tpnt->dynamic_info[DT_SYMTAB]);
+		symtab = (ElfW(Sym) *) tpnt->dynamic_info[DT_SYMTAB];
 		strtab = (char *) (tpnt->dynamic_info[DT_STRTAB]);
 
 		for (si = tpnt->elf_buckets[hn]; si != STN_UNDEF; si = tpnt->chains[si]) {
@@ -190,7 +187,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 #if 0
 				_dl_dprintf(2, "while resolving %s in scope %x\n",
 					    name, rpnt);
-				_dl_dprintf(2, "(looking at tpnt %s at %x)\n",
+				_dl_dprintf(2, "(looking at tpnt %s at %p)\n",
 					    tpnt->libname,
 					    DL_LOADADDR_BASE(tpnt->loadaddr));
 #endif

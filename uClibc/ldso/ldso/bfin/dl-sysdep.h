@@ -92,7 +92,7 @@ struct funcdesc_ht;
 
 #define DL_LOADADDR_TYPE struct elf32_fdpic_loadaddr
 
-#define DL_RELOC_ADDR(ADDR, LOADADDR) \
+#define DL_RELOC_ADDR(LOADADDR, ADDR) \
   (__reloc_pointer ((void*)(ADDR), (LOADADDR).map))
 
 #define DL_ADDR_TO_FUNC_PTR(ADDR, LOADADDR) \
@@ -176,9 +176,9 @@ while (0)
 #define DL_FIND_HASH_VALUE(TPNT, TYPE_CLASS, SYM) \
   (((TYPE_CLASS) & ELF_RTYPE_CLASS_DLSYM) \
    && ELF32_ST_TYPE((SYM)->st_info) == STT_FUNC \
-   ? _dl_funcdesc_for (DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr),    \
+   ? _dl_funcdesc_for (DL_RELOC_ADDR ((TPNT)->loadaddr, (SYM)->st_value),    \
  		       (TPNT)->loadaddr.got_value)			     \
-   : DL_RELOC_ADDR ((SYM)->st_value, (TPNT)->loadaddr))
+   : DL_RELOC_ADDR ((TPNT)->loadaddr, (SYM)->st_value))
 
 #define DL_IS_SPECIAL_SEGMENT(EPNT, PPNT) \
   __dl_is_special_segment(EPNT, PPNT)

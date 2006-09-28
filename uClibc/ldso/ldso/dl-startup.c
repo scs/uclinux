@@ -4,7 +4,7 @@
  * after resolving ELF shared library symbols
  *
  * Copyright (C) 2005 by Joakim Tjernlund
- * Copyright (C) 2000-2004 by Erik Andersen <andersen@codepoet.org>
+ * Copyright (C) 2000-2006 by Erik Andersen <andersen@codepoet.org>
  * Copyright (c) 1994-2000 Eric Youngdale, Peter MacDonald,
  *				David Engel, Hongjiu Lu and Mitch D'Souza
  *
@@ -188,7 +188,7 @@ DL_BOOT(unsigned long args)
 		_dl_exit(0);
 	}
 	SEND_EARLY_STDERR_DEBUG("ELF header=");
-	SEND_ADDRESS_STDERR_DEBUG(DL_LOADADDR_BASE (load_addr), 1);
+	SEND_ADDRESS_STDERR_DEBUG(DL_LOADADDR_BASE(load_addr), 1);
 
 	/* Locate the global offset table.  Since this code must be PIC
 	 * we can take advantage of the magic offset register, if we
@@ -204,7 +204,7 @@ DL_BOOT(unsigned long args)
 #ifdef DL_BOOT_COMPUTE_DYN
 	DL_BOOT_COMPUTE_DYN (dpnt, got, load_addr);
 #else
-	dpnt = (ElfW(Dyn) *) DL_RELOC_ADDR (*got, load_addr);
+	dpnt = (ElfW(Dyn) *) DL_RELOC_ADDR(load_addr, got);
 #endif
 
 	SEND_EARLY_STDERR_DEBUG("First Dynamic section entry=");
@@ -274,7 +274,7 @@ DL_BOOT(unsigned long args)
 
 			rpnt = (ELF_RELOC *) rel_addr;
 			for (i = 0; i < rel_size; i += sizeof(ELF_RELOC), rpnt++) {
-				reloc_addr = (unsigned long *) DL_RELOC_ADDR ((unsigned long) rpnt->r_offset, load_addr);
+				reloc_addr = (unsigned long *) DL_RELOC_ADDR(load_addr, (unsigned long)rpnt->r_offset);
 				symtab_index = ELF_R_SYM(rpnt->r_info);
 				symbol_addr = 0;
 				sym = NULL;
@@ -285,7 +285,7 @@ DL_BOOT(unsigned long args)
 					symtab = (ElfW(Sym) *) tpnt->dynamic_info[DT_SYMTAB];
 					strtab = (char *) tpnt->dynamic_info[DT_STRTAB];
 					sym = &symtab[symtab_index];
-					symbol_addr = (unsigned long) DL_RELOC_ADDR (sym->st_value, load_addr);
+					symbol_addr = (unsigned long) DL_RELOC_ADDR(load_addr, sym->st_value);
 
 #if 0
 					SEND_EARLY_STDERR_DEBUG("relocating symbol: ");

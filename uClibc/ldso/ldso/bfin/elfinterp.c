@@ -69,8 +69,7 @@ _dl_linux_resolver (struct elf_resolve *tpnt, int reloc_entry)
 	}
 
 	/* Address of GOT entry fix up */
-	got_entry = (struct funcdesc_value *)
-		DL_RELOC_ADDR (this_reloc->r_offset, tpnt->loadaddr);
+	got_entry = (struct funcdesc_value *) DL_RELOC_ADDR(tpnt->loadaddr, this_reloc->r_offset);
 
 	/* Get the address to be used to fill in the GOT entry.  */
 	new_addr = _dl_find_hash_mod(symname, tpnt->symbol_scope, NULL, 0,
@@ -176,8 +175,7 @@ _dl_do_reloc (struct elf_resolve *tpnt,struct dyn_elf *scope,
 	unsigned long old_val;
 #endif
 
-	reloc_addr   = (unsigned long *)(intptr_t)
-	  DL_RELOC_ADDR (rpnt->r_offset, tpnt->loadaddr);
+	reloc_addr   = (unsigned long *) DL_RELOC_ADDR(tpnt->loadaddr, rpnt->r_offset);
 	__asm__ ("" : "=r" (reloc_addr_packed) : "0" (reloc_addr));
 	reloc_type   = ELF_R_TYPE(rpnt->r_info);
 	symtab_index = ELF_R_SYM(rpnt->r_info);
@@ -185,9 +183,7 @@ _dl_do_reloc (struct elf_resolve *tpnt,struct dyn_elf *scope,
 	symname      = strtab + symtab[symtab_index].st_name;
 
 	if (ELF_ST_BIND (symtab[symtab_index].st_info) == STB_LOCAL) {
-		symbol_addr = (unsigned long)
-		  DL_RELOC_ADDR (symtab[symtab_index].st_value,
-				 tpnt->loadaddr);
+		symbol_addr = (unsigned long) DL_RELOC_ADDR(tpnt->loadaddr, symtab[symtab_index].st_value);
 		symbol_tpnt = tpnt;
 	} else {
 
@@ -299,8 +295,7 @@ _dl_do_lazy_reloc (struct elf_resolve *tpnt,
 	unsigned long old_val;
 #endif
 
-	reloc_addr = (struct funcdesc_value *)(intptr_t)
-	  DL_RELOC_ADDR (rpnt->r_offset, tpnt->loadaddr);
+	reloc_addr = (struct funcdesc_value *) DL_RELOC_ADDR(tpnt->loadaddr, rpnt->r_offset);
 	reloc_type = ELF_R_TYPE(rpnt->r_info);
 
 #if defined (__SUPPORT_LD_DEBUG__)
@@ -311,9 +306,7 @@ _dl_do_lazy_reloc (struct elf_resolve *tpnt,
 				break;
 			case R_BFIN_FUNCDESC_VALUE:
 				funcval = *reloc_addr;
-				funcval.entry_point =
-				  DL_RELOC_ADDR (funcval.entry_point,
-						 tpnt->loadaddr);
+				funcval.entry_point = DL_RELOC_ADDR(tpnt->loadaddr, funcval.entry_point);
 				funcval.got_value = tpnt->loadaddr.got_value;
 				*reloc_addr = funcval;
 				break;
