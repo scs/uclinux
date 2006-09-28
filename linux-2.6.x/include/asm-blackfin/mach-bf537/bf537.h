@@ -134,6 +134,9 @@
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN | V_CDPRIO)
 
+#define MAX_VC	650000000
+#define MIN_VC	50000000
+
 /********************************PLL Settings **************************************/
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 #if (CONFIG_VCO_MULT < 0)
@@ -179,9 +182,6 @@
 #endif
 #endif
 #endif
-
-#define MAX_VC	650000000
-#define MIN_VC	50000000
 
 #if (CONFIG_VCO_HZ > MAX_VC)
 #error "VCO selected is more than maximum value. Please change the VCO multipler"
