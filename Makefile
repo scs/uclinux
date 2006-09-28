@@ -396,8 +396,8 @@ distclean: mrproper
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	if [ `grep CONFIG_VENDOR .config | awk -F = '{print $2}'` == `grep CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F = '{print $2}'` -a \
-	`grep CONFIG_LINUXDIR .config | awk -F = '{print $2}'` == `grep CONFIG_LINUXDIR  vendors/$(@:_config=)/config.device | awk -F = '{print $2}'` -a \
+	if [ `grep CONFIG_VENDOR .config | awk -F = '{print $$2}'` == `grep CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F = '{print $$2}'` -a \
+	`grep CONFIG_LINUXDIR .config | awk -F = '{print $$2}'` == `grep CONFIG_LINUXDIR  vendors/$(@:_config=)/config.device | awk -F = '{print $$2}'` -a \
 	`grep -e "TARGET_.*=y" ./uClibc/.config` == ` grep -e  "TARGET_.*=y" vendors/$(@:_config=)/config.uClibc` ] ; then \
 		make -C linux-2.6.x distclean > /dev/null 2>&1 ; \
 	else  \
