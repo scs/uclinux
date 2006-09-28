@@ -77,7 +77,7 @@
 #define pm_write_FIO_POLAR(val) bfin_write_PORTHIO_POLAR(val)
 #define pm_read_FIO_INEN() bfin_read_PORTHIO_INEN()
 #define pm_write_FIO_INEN(val) bfin_write_PORTHIO_INEN(val)
-#define SIC_IWR_VAL 1 << (IRQ_PROG_INTA - (IRQ_CORETMR + 1))
+#define SIC_IWR_VAL 1 << (IRQ_MAC_RX - (IRQ_CORETMR + 1))
 #endif
 
 /* FIO USE PORT G*/
@@ -96,7 +96,7 @@
 #define pm_write_FIO_POLAR(val) bfin_write_PORTGIO_POLAR(val)
 #define pm_read_FIO_INEN() bfin_read_PORTGIO_INEN()
 #define pm_write_FIO_INEN(val) bfin_write_PORTGIO_INEN(val)
-#define SIC_IWR_VAL 1 << (IRQ_MAC_RX - (IRQ_CORETMR + 1))
+#define SIC_IWR_VAL 1 << (IRQ_PROG_INTA - (IRQ_CORETMR + 1))
 #endif
 
 
@@ -121,7 +121,7 @@ void bf537_pm_suspend_standby_enter(void)
 
 	pm_write_FIO_MASKA_C(pattern);
 
-#if CONFIG_PM_WAKEUP_GPIO_POLAR_H
+#if defined(CONFIG_PM_WAKEUP_GPIO_POLAR_H)
 	pm_write_FIO_POLAR(polar & ~pattern);
 #else
 	pm_write_FIO_POLAR(polar | pattern);

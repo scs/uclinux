@@ -62,7 +62,7 @@ void bf533_pm_suspend_standby_enter(void)
 
 	bfin_write_FIO_MASKA_C(pattern);
 
-#if CONFIG_PM_WAKEUP_GPIO_POLAR_H
+#if defined(CONFIG_PM_WAKEUP_GPIO_POLAR_H)
 	bfin_write_FIO_POLAR(polar & ~pattern);
 #else
 	bfin_write_FIO_POLAR(polar | pattern);
