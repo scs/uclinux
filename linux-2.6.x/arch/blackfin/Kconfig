@@ -738,7 +738,7 @@ choice
 config  PM_WAKEUP_GPIO_POLAR_H
 	bool "Active High"
 config  PM_WAKEUP_GPIO_POLAR_L
-	bool "Active High"
+	bool "Active Low"
 endchoice
 
 endmenu
