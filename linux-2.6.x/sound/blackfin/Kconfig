@@ -14,6 +14,9 @@ config SND_BLACKFIN_AD1836
 	  Select this if you have an AD1836 daughter card connected to 
 	  Blackfin Stamp Board by the SPI and SPORTx ports.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called snd-ad1836.
+
 	  If unsure, say N.
 
 choice
@@ -102,6 +105,9 @@ config SND_BFIN_AD73311
 	select SND_PCM
 	help
 	  Select this if you have an AD73311 or AD73311L connected to SPORT0 ports
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called snd-ad73311.
 
 	  If unsure, say N.
 
