@@ -206,7 +206,7 @@ void enable_gptimers(short mask){
 	int i;
 	assert( (mask & ~BLACKFIN_GPTIMER_IDMASK) == 0);
 	for (i=0; i<BFIN_TIMER_NUM_GROUP; ++i){
-		group_regs[i]->disable = mask & 0xFF;
+		group_regs[i]->enable = mask & 0xFF;
 		mask >>= 8;
 	}
 	__builtin_bfin_ssync();
