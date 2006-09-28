@@ -111,7 +111,7 @@ fi
 bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
 bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
 bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
-if [ "	CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
+if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
 	define_bool CONFIG_LIB_SPEEX y
 	define_bool CONFIG_LIB_READLINE y
 	define_bool CONFIG_LIB_NCURSES y
