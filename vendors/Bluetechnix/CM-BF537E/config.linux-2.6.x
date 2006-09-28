@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16.27
-# Mon Sep 18 16:36:22 2006
+# Thu Sep 28 19:17:21 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -107,6 +107,7 @@ CONFIG_BFIN_SINGLE_CORE=y
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_BFIN533_BLUETECHNIX_CM is not set
 CONFIG_BFIN537_BLUETECHNIX_CM=y
+# CONFIG_BFIN561_BLUETECHNIX_CM is not set
 # CONFIG_BFIN561_EZKIT is not set
 # CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC16M16A2TG_75=y
@@ -236,7 +237,12 @@ CONFIG_L1_MAX_PIECE=16
 #
 # Clock Settings
 #
-# CONFIG_BFIN_KERNEL_CLOCK is not set
+CONFIG_BFIN_KERNEL_CLOCK=y
+CONFIG_VCO_MULT=20
+CONFIG_CCLK_DIV=1
+CONFIG_SCLK_DIV=4
+# CONFIG_CLKIN_HALF is not set
+# CONFIG_PLL_BYPASS is not set
 
 #
 # Asynchonous Memory Configuration
@@ -591,6 +597,7 @@ CONFIG_BFIN_RX_DESC_NUM=20
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
+# CONFIG_BF5xx_TIMERS is not set
 # CONFIG_BF5xx_PPI is not set
 CONFIG_BFIN_SPORT=y
 # CONFIG_BFIN_TIMER_LATENCY is not set
