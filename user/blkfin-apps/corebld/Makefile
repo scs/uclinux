@@ -1,3 +1,4 @@
+obj-m := dualcore_test.o
 
 EXEC = corebld
 OBJS = corebld.o
