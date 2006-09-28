@@ -1690,6 +1690,8 @@ if [ $cf_card_test -eq 1  ] ; then
   ./cf_card_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.cf_card
+  cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.cf_card
+  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.cf_card
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.cf_card
   cp $KERNEL_SCRIPTS/cfcard/build_cf_card_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/cfcard/cf_card_test_log $THIS_LOG
@@ -1720,6 +1722,8 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   ./ide_harddisk_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.ide_harddisk_cdrom
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
   cp $KERNEL_SCRIPTS/ide/build_ide_harddisk_cdrom_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/ide/ide_harddisk_test_log $THIS_LOG 
@@ -1749,6 +1753,8 @@ if [ $ide_harddisk_test -eq 1  ] ; then
   ./ide_cdrom_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.ide_harddisk_cdrom
+  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.ide_harddisk_cdrom
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ide_harddisk_cdrom
   cp $KERNEL_SCRIPTS/ide/build_ide_harddisk_cdrom_kernel_log $THIS_LOG 
   cp $KERNEL_SCRIPTS/ide/ide_cdrom_test_log $THIS_LOG
@@ -1811,6 +1817,8 @@ if [ $yaffs_test -eq 1  ] ; then
   ./yaffs_test.exp /dev/ttyS0  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.yaffs
+  cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.yaffs
+  cp $KERNEL_SOURCE/images/rootfs.yaffs2  $THIS_LOG/rootfs.yaffs2.yaffs
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.yaffs
   cp $KERNEL_SCRIPTS/yaffs/build_yaffs_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/yaffs/yaffs_test_log $THIS_LOG
