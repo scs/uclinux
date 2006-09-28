@@ -106,6 +106,7 @@ bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
 bool 'Build libupnp'		CONFIG_LIB_LIBUPNP_FORCE
 bool 'Build libusb'		CONFIG_LIB_LIBUSB_FORCE
 bool 'Build ncurses'		CONFIG_LIB_NCURSES_FORCE
+bool 'Build osip2'		CONFIG_LIB_OSIP2_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'Build STLport'		CONFIG_LIB_STLPORT
 dep_bool '  Build STLport as shared'	CONFIG_LIB_STLPORT_SHARED $CONFIG_LIB_STLPORT
