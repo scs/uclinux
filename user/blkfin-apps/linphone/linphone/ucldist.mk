@@ -4,7 +4,7 @@ CFLAGS += -I$(ROOTDIR)/lib/readline/DESTDIR/usr/include/readline
 CFLAGS += -I$(ROOTDIR)/lib/ncurses/include/
 LDFLAGS += -L$(ROOTDIR)/lib/ncurses/lib/
 CFLAGS += -I$(ROOTDIR)/lib/speex/DESTDIR/usr/include
-LDFLAGS += -I$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
+LDFLAGS += -L$(ROOTDIR)/lib/speex/DESTDIR/usr/lib
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
 LINPHONE_FLAGS+=--disable-video
