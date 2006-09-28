@@ -20,15 +20,23 @@ LINPHONE_FLAGS+=PKG_CONFIG_PATH=$(TEMPDIR)/lib/pkgconfig:$(ROOTDIR)/lib/speex/DE
 PKG_CONFIG=/usr/bin/pkg-config
 
 
-all:	Makefile
-	make install DESTDIR=$(DESTDIR)
+all: build/Makefile
+	$(MAKE) -C build install DESTDIR=$(DESTDIR)
 
-Makefile:
-	./configure --host=bfin-uclinux --prefix=/usr $(LINPHONE_FLAGS) CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" CC="$(CC) "
- 
+build/Makefile:
+	touch *
+	set -e ; \
+	rm -rf build ; \
+	mkdir build ; \
+	cd build ; \
+	../configure \
+		--host=$(CONFIGURE_HOST) \
+		--prefix=/usr \
+		$(LINPHONE_FLAGS) \
+		CFLAGS="$(CFLAGS)" \
+		LDFLAGS="$(LDFLAGS)" \
+		LIBS="$(LDLIBS)" \
+		CC="$(CC) "
 
 clean:
-	make clean
-	make -i distclean
-	find . -name '*.gdb' -print0 | xargs -0 rm -f
-	
+	rm -rf build
