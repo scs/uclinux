@@ -9,14 +9,11 @@ build/Makefile:
 	cd build ; \
 	../configure --host=bfin-uclinux --prefix=/usr
 
-distclean:
+clean:
 	rm -rf build DESTDIR
 
-clean %::
+%::
 	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
-
-clean::
-	rm -rf DESTDIR
 
 romfs:
 	if [ "$(CONFIG_LIB_ALSA_LIB)" = "y" ] || [ "$(CONFIG_LIB_ALSA_LIB_FORCE)" = "y" ] ; then \

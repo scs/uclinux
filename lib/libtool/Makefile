@@ -1,5 +1,5 @@
 all: build/Makefile
-	$(MAKE) -C build -f Makefile install DESTDIR=$$PWD/DESTDIR
+	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
 
 build/Makefile:
 	touch * */*
@@ -9,11 +9,10 @@ build/Makefile:
 	cd build ; \
 	../configure --host=$(CONFIGURE_HOST) --prefix=/usr
 
-distclean:
+clean:
 	rm -rf build DESTDIR
 
-clean %::
+%::
 	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
 
-clean::
-	rm -rf DESTDIR
+romfs:
