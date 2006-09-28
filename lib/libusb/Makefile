@@ -1,5 +1,7 @@
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
+	# keep libtool from breaking us
+	rm -f DESTDIR/usr/lib/*.la
 
 build/Makefile:
 	touch *
