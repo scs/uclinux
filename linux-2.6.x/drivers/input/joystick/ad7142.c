@@ -324,7 +324,7 @@ static int intr_flag = 0;
 static int ad7142_thread(void *nothing)
 {
         do {
-		wait_event_interruptible(ad7142_wait,intr_flag!=0);
+		wait_event_interruptible(ad7142_wait, kthread_should_stop() || (intr_flag!=0));
 		ad7142_decode();
                 intr_flag = 0;
                 bfin_write_PORTGIO_MASKA(bfin_read_PORTGIO_MASKA() | PF5);
