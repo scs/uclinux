@@ -37,7 +37,7 @@
 #include <linux/kernel.h>
 #include <asm/dma.h>
 
-/* 
+/*
  * handle arithmetic relocations.
  * See binutils/bfd/elf32-bfin.c for more details
  */
@@ -63,7 +63,7 @@ static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
 
 	switch (oper) {
 	case R_add:
-		value = reloc_stack[reloc_stack_tos - 2] + 
+		value = reloc_stack[reloc_stack_tos - 2] +
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
@@ -73,52 +73,52 @@ static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
 		reloc_stack_tos -= 2;
 		break;
 	case R_mult:
-		value = reloc_stack[reloc_stack_tos - 2] * 
+		value = reloc_stack[reloc_stack_tos - 2] *
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_div:
-		value = reloc_stack[reloc_stack_tos - 2] / 
+		value = reloc_stack[reloc_stack_tos - 2] /
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_mod:
-		value = reloc_stack[reloc_stack_tos - 2] % 
+		value = reloc_stack[reloc_stack_tos - 2] %
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_lshift:
-		value = reloc_stack[reloc_stack_tos - 2] << 
+		value = reloc_stack[reloc_stack_tos - 2] <<
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_rshift:
-		value = reloc_stack[reloc_stack_tos - 2] >> 
+		value = reloc_stack[reloc_stack_tos - 2] >>
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_and:
-		value = reloc_stack[reloc_stack_tos - 2] & 
+		value = reloc_stack[reloc_stack_tos - 2] &
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_or:
-		value = reloc_stack[reloc_stack_tos - 2] | 
+		value = reloc_stack[reloc_stack_tos - 2] |
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_xor:
-		value = reloc_stack[reloc_stack_tos - 2] ^ 
+		value = reloc_stack[reloc_stack_tos - 2] ^
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_land:
-		value = reloc_stack[reloc_stack_tos - 2] && 
+		value = reloc_stack[reloc_stack_tos - 2] &&
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
 	case R_lor:
-		value = reloc_stack[reloc_stack_tos - 2] || 
+		value = reloc_stack[reloc_stack_tos - 2] ||
 			reloc_stack[reloc_stack_tos - 1];
 		reloc_stack_tos -= 2;
 		break;
@@ -131,7 +131,7 @@ static uint32_t reloc_stack_operate(unsigned int oper, struct module *mod)
 		reloc_stack_tos -= 1;
 		break;
 	default:
-		printk(KERN_WARNING "module %s: unhandled reloction\n", 
+		printk(KERN_WARNING "module %s: unhandled reloction\n",
 				mod->name);
 		return 0;
 	}
@@ -165,7 +165,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 
 	for (s = sechdrs; s < sechdrs_end; ++s) {
 		if ((strcmp(".l1.text", secstrings + s->sh_name) == 0) ||
-			((strcmp(".text", secstrings + s->sh_name)==0) && 
+			((strcmp(".text", secstrings + s->sh_name)==0) &&
 			 (hdr->e_flags & FLG_CODE_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.text_l1 = s;
 			dest = l1_inst_sram_alloc(s->sh_size);
@@ -180,7 +180,7 @@ module_frob_arch_sections(Elf_Ehdr * hdr, Elf_Shdr * sechdrs,
 			s->sh_addr = (unsigned long)dest;
 		}
 		if ((strcmp(".l1.data", secstrings + s->sh_name) == 0)||
-			((strcmp(".data", secstrings + s->sh_name)==0) && 
+			((strcmp(".data", secstrings + s->sh_name)==0) &&
 			 (hdr->e_flags & FLG_DATA_IN_L1) && (s->sh_size > 0))) {
 			mod->arch.data_a_l1 = s;
 			dest = l1_data_A_sram_alloc(s->sh_size);
@@ -398,7 +398,7 @@ module_finalize(const Elf_Ehdr * hdr,
 
 		if ((sechdrs[i].sh_type == SHT_RELA) &&
 		    ((strcmp(".rela.l1.text", secstrings + sechdrs[i].sh_name) == 0)||
-			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) && 
+			((strcmp(".rela.text", secstrings + sechdrs[i].sh_name) == 0) &&
 			 (hdr->e_flags & FLG_CODE_IN_L1)))) {
 			apply_relocate_add((Elf_Shdr *) sechdrs, strtab,
 					   symindex, i, mod);

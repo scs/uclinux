@@ -685,7 +685,7 @@ choice
 	depends on PM
 	help
 	  If you have a GPIO already configured as input with the corresponding PORTx_MASK
-	  bit set - "Specify Wakeup Event by SIC_IWR value" 
+	  bit set - "Specify Wakeup Event by SIC_IWR value"
 
 config PM_WAKEUP_GPIO_BY_SIC_IWR
 	bool "Specify Wakeup Event by SIC_IWR value"

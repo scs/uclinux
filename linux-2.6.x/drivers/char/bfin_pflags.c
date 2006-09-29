@@ -109,7 +109,7 @@ static int check_minor(struct inode *inode)
 * INPUTS/OUTPUTS:
 * in_inode - Description of openned file.
 * in_filp - Description of openned file.
-* 
+*
 * RETURN
 * 0: Open ok.
 * -ENXIO  No such device
@@ -122,7 +122,7 @@ static int check_minor(struct inode *inode)
 *
 * DESCRIPTION: It is invoked when user call 'open' system call
 *              to open spi device.
-*              
+*
 * CAUTION:
 *************************************************************
 * MODIFICATION HISTORY :
@@ -154,21 +154,21 @@ static int pflags_release(struct inode *inode, struct file *filp)
 * in_filp - Description of openned file.
 * in_count - how many bytes user wants to get.
 * out_buf - data would be write to this address.
-* 
+*
 * RETURN
-* positive number: bytes read back 
+* positive number: bytes read back
 * -ENODEV When minor not available.
 * -EMSGSIZE When size more than a single ASCII digit followed by /n.
 *
 * FUNCTION(S) CALLED:
 *
-* GLOBAL VARIABLES REFERENCED: 
+* GLOBAL VARIABLES REFERENCED:
 *
 * GLOBAL VARIABLES MODIFIED: NIL
 *
 * DESCRIPTION: It is invoked when user call 'read' system call
 *              to read from system.
-*              
+*
 * CAUTION:
 *************************************************************
 * MODIFICATION HISTORY :
@@ -199,12 +199,12 @@ static ssize_t pflags_read(struct file *filp, char *buf, size_t size, loff_t * o
 * in_filp - Description of openned file.
 * in_count - how many bytes user wants to send.
 * out_buf - where we get those sending data.
-* 
+*
 * RETURN
 * positive number: bytes sending out.
 * 0: There is no data send out or parameter error.
 * RETURN
-* positive number: bytes read back 
+* positive number: bytes read back
 * -ENODEV When minor not available.
 * -EMSGSIZE When size more than a single ASCII digit followed by /n.
 *
@@ -216,7 +216,7 @@ static ssize_t pflags_read(struct file *filp, char *buf, size_t size, loff_t * o
 *
 * DESCRIPTION: It is invoked when user call 'Write' system call
 *              to write from system.
-*              
+*
 * CAUTION:
 *************************************************************
 * MODIFICATION HISTORY :
@@ -379,12 +379,12 @@ static int pflags_read_proc(char *page, char **start, off_t off,
 *
 * FUNCTION(S) CALLED:
 *
-* GLOBAL VARIABLES REFERENCED: 
+* GLOBAL VARIABLES REFERENCED:
 *
 * GLOBAL VARIABLES MODIFIED: NIL
 *
-* DESCRIPTION: 
-* 
+* DESCRIPTION:
+*
 * CAUTION:
 *************************************************************
 * MODIFICATION HISTORY :

@@ -341,9 +341,9 @@ static int drv_HD_I2C_load(void)
 	drv_HD_I2C_command(CONTROLLER_BOTH, 0x28);	/* 4 Bit mode, 1/16 duty cycle, 5x8 font */
 
 	/* Set defaults:
-	   Low 0xC0 Display On 
-	   Low 0x06 Cursor increment, no shift 
-	   Low 0x80 Display Address 0 
+	   Low 0xC0 Display On
+	   Low 0x06 Cursor increment, no shift
+	   Low 0x80 Display Address 0
 	   Low 0x02 Cursor Home */
 
 	udelay(T_INIT2);

@@ -11,7 +11,7 @@ config SND_BLACKFIN_AD1836
 	select SPI
 	select SPI_BFIN
 	help
-	  Select this if you have an AD1836 daughter card connected to 
+	  Select this if you have an AD1836 daughter card connected to
 	  Blackfin Stamp Board by the SPI and SPORTx ports.
 
 	  To compile this driver as a module, choose M here: the
@@ -24,9 +24,9 @@ choice
 	depends on SND_BLACKFIN_AD1836
 	default SND_BLACKFIN_AD1836_TDM
 	help
-	  There are two types of interface can be supportted on Blackfin 
+	  There are two types of interface can be supportted on Blackfin
 	  Stamp: TDM and I2S. TDM support 8 channels (DAC0,1,2 SPDIF)*(L+R)
-	  output and 8 channels input (ADC0,1, SPDIF, unused)*(L+R). I2S 
+	  output and 8 channels input (ADC0,1, SPDIF, unused)*(L+R). I2S
 	  only support stereo output on DAC0 and stereo input on ADC0.
 
 config SND_BLACKFIN_AD1836_TDM
@@ -52,8 +52,8 @@ choice
 	  There are 6 output channels (expcept S/PDIF), they can work in
 	  5.1 channels mode or 3 seperate stereos.
 
-	  When in 3 seperate stereos mode, 3 substreams are supported. 
-	  The /dev/dsp device can be opened 3 times, every susbstream used 
+	  When in 3 seperate stereos mode, 3 substreams are supported.
+	  The /dev/dsp device can be opened 3 times, every susbstream used
 	  different channels pairs.
 
 config SND_BLACKFIN_AD1836_MULSUB
@@ -122,9 +122,9 @@ config SND_BFIN_SPORT
 config SND_BFIN_AD73311_SE
 	int "PF pin for AD73311L Chip Select"
 	depends on SND_BFIN_AD73311
-	default 4 
+	default 4
 	help
-	  Enter the GPIO used to control AD73311's SE pin. Acceptable 
+	  Enter the GPIO used to control AD73311's SE pin. Acceptable
 	  values are 0 to 7
 
 endmenu

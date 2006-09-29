@@ -92,8 +92,8 @@ typedef struct Ppi_Device_t {
 } ppi_device_t;
 
 /* Globals */
-/* We must declare queue structure by the following macro. 
- * firstly declare 'wait_queue_head_t' and then 'init_waitqueue_head' 
+/* We must declare queue structure by the following macro.
+ * firstly declare 'wait_queue_head_t' and then 'init_waitqueue_head'
  * doesn't work in 2.4.7 kernel / redhat 7.2 */
 static DECLARE_WAIT_QUEUE_HEAD(ppi_wq0);
 
@@ -275,10 +275,10 @@ static void setup_gpio_for_PPI(unsigned char datalen)
  * in_idev - device number , other unavailable.
  * VALUE RETURNED:
  * void
- * 
+ *
  * FUNCTION(S) CALLED:
  *
- * GLOBAL VARIABLES REFERENCED: 
+ * GLOBAL VARIABLES REFERENCED:
  *
  * GLOBAL VARIABLES MODIFIED: NIL
  *
@@ -305,7 +305,7 @@ void ppi_reg_reset(ppi_device_t * pdev)
  *
  * VALUE RETURNED:
  * void
- * 
+ *
  * FUNCTION(S) CALLED:
  *
  * GLOBAL VARIABLES REFERENCED: ppiinfo
@@ -366,7 +366,7 @@ static irqreturn_t ppi_irq(int irq, void *dev_id, struct pt_regs *regs)
  *
  * VALUE RETURNED:
  * void
- * 
+ *
  * FUNCTION(S) CALLED:
  *
  * GLOBAL VARIABLES REFERENCED: ppiinfo
@@ -407,8 +407,8 @@ static irqreturn_t ppi_irq_error(int irq, void *dev_id, struct pt_regs *regs)
  *
  * GLOBAL VARIABLES MODIFIED: NIL
  *
- * DESCRIPTION: 
- * 
+ * DESCRIPTION:
+ *
  * CAUTION:
  */
 static int
@@ -654,9 +654,9 @@ ppi_ioctl(struct inode *inode, struct file *filp, uint cmd, unsigned long arg)
  * GLOBAL VARIABLES MODIFIED: NIL
  *
  * DESCRIPTION: It is invoked when user changes status of sync
- *              it resister a hook in system. When there is 
+ *              it resister a hook in system. When there is
  *              data coming, user program would get a signal.
- *              
+ *
  * CAUTION:
  */
 static int ppi_fasync(int fd, struct file *filp, int on)
@@ -673,9 +673,9 @@ static int ppi_fasync(int fd, struct file *filp, int on)
  * buf -- Pointer to buffer allocated to hold data.
  * count - how many bytes user wants to get.
  * pos -- unused
- * 
+ *
  * RETURN
- * positive number: bytes read back 
+ * positive number: bytes read back
  * -EINVIL When word size is set to 16, reading odd bytes.
  * -EAGAIN When reading mode is set to non block and there is no rx data.
  *
@@ -687,7 +687,7 @@ static int ppi_fasync(int fd, struct file *filp, int on)
  *
  * DESCRIPTION: It is invoked when user call 'read' system call
  *              to read from system.
- *              
+ *
  * CAUTION:
  */
 static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
@@ -709,9 +709,9 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
 	blackfin_dcache_invalidate_range((unsigned long)buf,
 					 ((unsigned long)buf) + count);
 
-	/* 
+	/*
 	 ** configure ppi port for DMA TIMOD RX (receive)
-	 ** Note:  the rest of PPI control register bits should already be set 
+	 ** Note:  the rest of PPI control register bits should already be set
 	 ** with ioctls before read operation
 	 */
 
@@ -724,7 +724,7 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
 
 	regdata = bfin_read_PPI_STATUS();	// read status register to clear it
 
-	/* 
+	/*
 	 ** Configure DMA Controller
 	 ** WNR:  memory write
 	 ** RESTART: flush DMA FIFO before beginning work unit
@@ -748,7 +748,7 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
 	set_dma_x_modify(CH_PPI, stepSize);
 
 	/*
-	 ** 1D or 2D DMA 
+	 ** 1D or 2D DMA
 	 */
 	if (pdev->dimensions == CFG_PPI_DIMS_2D) {	/* configure for 2D transfers */
 		DPRINTK
@@ -853,7 +853,7 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
  * in_filp - Description of openned file.
  * in_count - how many bytes user wants to send.
  * out_buf - where we get those sending data.
- * 
+ *
  * RETURN
  * positive number: bytes sending out.
  * 0: There is no data send out or parameter error.
@@ -870,7 +870,7 @@ static ssize_t ppi_read(struct file *filp, char *buf, size_t count, loff_t *pos)
  *
  * DESCRIPTION: It is invoked when user call 'read' system call
  *              to read from system.
- *              
+ *
  * CAUTION:
  */
 static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_t *f_pos)
@@ -913,7 +913,7 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
 		stepSize = 1;
 	}
 
-	/* 
+	/*
 	 ** set timer configuration register template
 	 **
 	 ** see note on page 11-29 of BF533 HW Reference Manual
@@ -931,7 +931,7 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
 		fs1_timer_cfg |= TIMER_PULSE_HI;
 
 	fs2_timer_cfg = fs1_timer_cfg;
-	fs1_timer_cfg |= TIMER_PERIOD_CNT;	// set up line sync to be recurring 
+	fs1_timer_cfg |= TIMER_PERIOD_CNT;	// set up line sync to be recurring
 
 	if (pdev->dimensions == CFG_PPI_DIMS_2D) {	/* configure for 2D transfers */
 		DPRINTK("PPI write -- 2D data linelen = %hd, numlines = %hd\n",
@@ -950,7 +950,7 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
 		bfin_write_PPI_FRAME(pdev->numlines);
 		bfin_write_PPI_DELAY(pdev->delay);
 
-		/* 
+		/*
 		 ** configure 2 timers for 2D
 		 ** Timer1 - hsync - line time  PPI_FS1 (Timer0 on BF537)
 		 ** Timer2 - vsync - frame time PPI_FS2 (Timer1 on BF537)
@@ -983,8 +983,8 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
 		set_dma_x_count(CH_PPI, frameSize);
 		set_dma_x_modify(CH_PPI, stepSize);
 
-		/* 
-		 ** set timer for frame vsync 
+		/*
+		 ** set timer for frame vsync
 		 **             use fs2_timer_cfg,  'cuz it is the non-recurring config
 		 */
 		set_gptimer_config(FS1_TIMER_ID, fs2_timer_cfg);
@@ -1079,7 +1079,7 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
  * INPUTS/OUTPUTS:
  * in_inode - Description of openned file.
  * in_filp - Description of openned file.
- * 
+ *
  * RETURN
  * 0: Open ok.
  * -ENXIO  No such device
@@ -1092,7 +1092,7 @@ static ssize_t ppi_write(struct file *filp, const char *buf, size_t count, loff_
  *
  * DESCRIPTION: It is invoked when user call 'open' system call
  *              to open ppi device.
- *              
+ *
  * CAUTION:
  */
 static int ppi_open(struct inode *inode, struct file *filp)
@@ -1152,7 +1152,7 @@ static int ppi_open(struct inode *inode, struct file *filp)
  * INPUTS/OUTPUTS:
  * in_inode - Description of openned file.
  * in_filp - Description of openned file.
- * 
+ *
  * RETURN
  * Always 0
  *
@@ -1164,7 +1164,7 @@ static int ppi_open(struct inode *inode, struct file *filp)
  *
  * DESCRIPTION: It is invoked when user call 'close' system call
  *              to close device.
- *              
+ *
  * CAUTION:
  */
 static int ppi_release(struct inode *inode, struct file *filp)
@@ -1197,9 +1197,9 @@ static struct file_operations ppi_fops = {
 
 /*
  * FUNCTION NAME: ppi_init / init_module
- *                
+ *
  * INPUTS/OUTPUTS:
- * 
+ *
  * RETURN:
  * 0 if module init ok.
  * -1 init fail.
@@ -1230,9 +1230,9 @@ int __init ppi_init(void)
 
 /*
  * FUNCTION NAME: ppi_uninit / cleanup_module
- *                
+ *
  * INPUTS/OUTPUTS:
- * 
+ *
  * RETURN:
  *
  * FUNCTION(S) CALLED:
@@ -1244,7 +1244,7 @@ int __init ppi_init(void)
  * DESCRIPTION: It will be invoked when using 'rmmod' command.
  *              or, you invoke it directly when it needs remove
  *              ppi module.
- *              
+ *
  * CAUTION:
  */
 void __exit ppi_uninit(void)

@@ -217,7 +217,7 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 
 		return put_user(val, (int *)arg);
 
-	} else {		// if _IOC_READ 
+	} else {		// if _IOC_READ
 
 		if (get_user(val, (int *)arg))
 			return -EFAULT;

@@ -6,7 +6,7 @@
  * created: 10/2005
  * description: Blackfin generic IDE interface
  *	
- * rev: 
+ * rev:
  *
  * modified:
  *
@@ -44,7 +44,7 @@
 #define BFIN_IDE_IRQ_PFX   (IRQ_PF0 + CONFIG_BFIN_IDE_IRQ_PFX)
 
 #if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
-#define BFIN_IDE_IRQ	BFIN_IDE_IRQ_PFX		
+#define BFIN_IDE_IRQ	BFIN_IDE_IRQ_PFX
 #else
 #define BFIN_IDE_IRQ	CONFIG_BFIN_IDE_IRQ
 #endif

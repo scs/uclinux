@@ -36,7 +36,7 @@
 #define SET_FIO_POLAR              		2  // Flag Source Polarity Register
 #define SET_FIO_EDGE               		3  // Flag Source Sensitivity Register
 #define SET_FIO_BOTH               		4  // Flag Set on BOTH Edges Register
-#define SET_FIO_INEN					5  // Flag Input Enable Register 
+#define SET_FIO_INEN					5  // Flag Input Enable Register
 
 
 #define INPUT							0 // SET_FIO_DIR

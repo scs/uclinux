@@ -450,7 +450,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		{
 			int tmp = 0;
 
-			/* 
+			/*
 			 * The max we can do is 8192Hz.
 			 */
 			if ((arg < 2) || (arg > 8192))
@@ -483,7 +483,7 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		}
 	case RTC_EPOCH_SET:	/* Set the epoch.   */
 		{
-			/* 
+			/*
 			 * There were no RTC clocks before 1900.
 			 */
 			if (arg < 2000)
@@ -677,7 +677,7 @@ module_exit(blackfin_rtc_exit);
  *  A timer is set, and will call this function if/when that happens.
  *  To get it out of this stalled state, we just read the status.
  *  At least a jiffy of interrupts (rtc_freq/HZ) will have been lost.
- *  (You *really* shouldn't be trying to use a non-realtime system 
+ *  (You *really* shouldn't be trying to use a non-realtime system
  *  for something that requires a steady > 1KHz signal anyways.)
  */
 

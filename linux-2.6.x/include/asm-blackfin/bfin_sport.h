@@ -4,7 +4,7 @@
  * Author:       Roy Huang (roy.huang@analog.com)
  *
  * Created:      Thu Aug. 24 2006
- * Description:  
+ * Description:
  *
  * Rev:          $Id$
  *

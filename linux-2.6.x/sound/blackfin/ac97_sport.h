@@ -35,17 +35,17 @@
 
 /*
  * SYNOPSIS:
- *  
+ *
  *  static struct ac97_sport_dev_t* dev=NULL;
  *
  *  // install a handler before opening the device!
  *  void ivg9handler(void){ if(dev) ac97_sport_handle_irq(dev); }
- *  
+ *
  *  install_interrupt_handler( IVG9, ivghandler );
  *   NOTE: this must enable the interrupt in the IMASK /and/ the SIC_IMASK
  *
- *  
- *  dev = ac97_sport_open(bufsize); 
+ *
+ *  dev = ac97_sport_open(bufsize);
  *  ac97_sport_start|stop(dev);
  *  ac97_sport_close(dev);
  *
@@ -61,14 +61,14 @@
  *  int result = ac97_sport_get_pcm_to_user( dev, uint16_t* pcmdata, size_t len)
  *
  *  result = 0 (ok), EAGAIN or copy_to/from_user result code
- * 
- * 
+ *
+ *
  */
 
 
 /*
  * since we can have only 1 device in the b533 I removed the dev argument
- * and made it a static variable in ac97_sport.c 
+ * and made it a static variable in ac97_sport.c
  * -- lvd 2004/01/09
  */
 

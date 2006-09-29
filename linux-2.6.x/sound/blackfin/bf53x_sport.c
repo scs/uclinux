@@ -11,7 +11,7 @@
  *
  * Modified:	Move blocking from hooking functions to configuration functions
  * 		by Michele d'Amico Sep 8, 2006
- * 
+ *
  *               Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/

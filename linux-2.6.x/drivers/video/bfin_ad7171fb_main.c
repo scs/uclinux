@@ -58,9 +58,9 @@ static void bfin_disable_dma(void);
 static void bfin_enable_ppi(void);
 static void bfin_disable_ppi(void);
 static void bfin_framebuffer_init(void *ycrcb_buffer);
-extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, 
+extern void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer,
 				struct rgb_t *rgb_buffer)__attribute__((l1_text));
-extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[], 
+extern void rgb2yuv(unsigned char rgb[], unsigned char yuv[],
 				int n)__attribute__((l1_text));
 extern void fb_memcpy(unsigned int * dest,unsigned int *src,
 				size_t count)__attribute__((l1_text));
@@ -301,7 +301,7 @@ void bfin_framebuffer_update(struct ycrcb_t *ycrcb_buffer, struct rgb_t *rgb_buf
 	unsigned char *rgb_ptr;
 	int oddline, evenline,rgbline;
 
-	for (oddline = FIELD1_AV_START, evenline = FIELD2_AV_START, rgbline = 0; 
+	for (oddline = FIELD1_AV_START, evenline = FIELD2_AV_START, rgbline = 0;
 	     oddline <= FIELD1_AV_END; oddline ++, evenline ++) {
 		odd_yuv= (unsigned char *)((ycrcb_base + (oddline * YCBCR_WIDTH))+HB_LENGTH+8);
 		rgb_ptr = (unsigned char *)(rgb_base + (rgbline++)*RGB_WIDTH*3);
@@ -718,13 +718,13 @@ static int bfin_ad7171_fb_check_var(struct fb_var_screeninfo *var,
 
 static int bfin_ad7171_fb_set_par(struct fb_info *info)
 {
-	printk(KERN_NOTICE "bfin_ad7171_fb_set_par called not implemented\n") ; 
+	printk(KERN_NOTICE "bfin_ad7171_fb_set_par called not implemented\n") ;
 	return -EINVAL;
 }
 
 
 static int bfin_ad7171_fb_pan_display(struct fb_var_screeninfo *var,
-			       struct fb_info *info) 
+			       struct fb_info *info)
 {
 	printk(KERN_NOTICE "bfin_ad7171_fb_pan_display called ... not implemented\n");
 	return -EINVAL;

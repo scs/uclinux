@@ -292,7 +292,7 @@ static void PollMdcDone(void)
 static u16 RdPHYReg(u16 PHYAddr, u16 RegAddr)
 {
 	PollMdcDone();
-	bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) | STABUSY);	// read mode 
+	bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) | SET_REGAD(RegAddr) | STABUSY);	// read mode
 	PollMdcDone();
 
 	return (u16) bfin_read_EMAC_STADAT();
@@ -504,7 +504,7 @@ static int bf537mac_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int data;
 
 	current_tx_ptr->skb = skb;
-	// Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)? 
+	// Is skb->data always 16-bit aligned? Do we need to memcpy((char *)(tail->packet + 2),skb->data,len)?
 	if ((((unsigned int)(skb->data)) & 0x02) == 2) {
 		//move skb->data to current_tx_ptr payload
 		data = (unsigned int)(skb->data) - 2;

@@ -199,7 +199,7 @@ static int wd_set_action(int code){
 	}
 	spin_unlock_irqrestore(&conf_spinlock,flags);
 	return 0;
-} 
+}
 
 /*
  *	/dev/watchdog handling

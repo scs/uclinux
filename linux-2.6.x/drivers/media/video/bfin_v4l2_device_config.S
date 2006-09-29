@@ -4,11 +4,11 @@
  *									    		    *
  ********************************************************************************************
 
-(C) Copyright 2005 -	Rrap Software Private Limited 
- 
+(C) Copyright 2005 -	Rrap Software Private Limited
+
 File Name:		bfin_v4l2_device_config.S
 
-Date Modified:		4th March 2005	
+Date Modified:		4th March 2005
 
 Purpose:		Contains hardware specific Assembly functions. Description of each func
 			is given at respective places.
@@ -17,16 +17,16 @@ Purpose:		Contains hardware specific Assembly functions. Description of each fun
 			it under the terms of the GNU General Public License as published by
 			the Free Software Foundation; either version 2 of the License, or
 			(at your option) any later version.
-			
+
 			 This program is distributed in the hope that it will be useful,
 			 but WITHOUT ANY WARRANTY; without even the implied warranty of
 			 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 			 GNU General Public License for more details.
-			
+
 			 You should have received a copy of the GNU General Public License
 			 along with this program; if not, write to the Free Software
 			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *********************************************************************************************/ 
+ *********************************************************************************************/
 #include <asm/blackfin.h>
 
 #define NUM_OF_VOUT_FRAMES 2
@@ -69,8 +69,8 @@ _dma_descriptor:
  * 	_config_dma -
  *
  *	Function:	To set PPI as per driver's requirement.
- *	
- *	Parameters:	This function uses value stored in R0 as Buffer 
+ *
+ *	Parameters:	This function uses value stored in R0 as Buffer
  *			address. So the if a c function wants to call
  *			it, it should pass buffer address as the only
  *			parameter.
@@ -80,19 +80,19 @@ _config_dma:
 	[--sp] = p0;	
 	P0.L = _dma_descriptor;
 	P0.H = _dma_descriptor;
-	
+
 	r1 = p0;
-	
+
 	w[p0] = r1.l; // NDPL - set to self
 	p0 += 2;
 	w[p0] = R0.l; // SAL
 	p0 += 2;
 	w[p0] = R0.h; // SAH
-	
+
 	P0.L = lo(DMA0_NEXT_DESC_PTR);
 	P0.H = hi(DMA0_NEXT_DESC_PTR);
-	[P0] = R1; // next desc ptr 
-	
+	[P0] = R1; // next desc ptr
+
 	//DMA0_CONFIG
 	// auto buffer, DI_SEL, 2d, 8bit, read
 	R0.L = 0x6390;		
@@ -171,9 +171,9 @@ dma_set_next_buf :
 	[--sp] = p0;	
 	P0.L = _dma_descriptor;
 	P0.H = _dma_descriptor;
-	
+
 	r1 = p0;
-	
+
 	p0 += 2;
 	w[p0] = R0.l; // SAL
 	p0 += 2;
@@ -191,9 +191,9 @@ dma_set_next_buf.END:
  *
  * Parameters:		No Parameter
  *
- * Special Note: 	Before using this Function user should ensure that 
+ * Special Note: 	Before using this Function user should ensure that
  *			no one else is using PPI.
- ***********************************************************************/  
+ ***********************************************************************/
 
 .global _config_ppi;
 .type _config_ppi, STT_FUNC ;
@@ -371,13 +371,13 @@ _SystemCodeMap:
 .global  _ColorBarTable;
 _ColorBarTable:
 /////BBGG00RR
-.byte4   0x00000000;    
-.byte4   0xff000000;  
-.byte4   0x000000ff;  
+.byte4   0x00000000;
+.byte4   0xff000000;
+.byte4   0x000000ff;
 .byte4   0xff0000ff;
-.byte4   0x00ff0000;  
-.byte4   0xffff0000;  
-.byte4   0x00ff00ff;  
+.byte4   0x00ff0000;
+.byte4   0xffff0000;
+.byte4   0x00ff00ff;
 .byte4   0xffff00ff;
 
 .section .l1.text, "ax", @progbits;
@@ -387,11 +387,11 @@ _ColorBarTable:
  *
  * _NtscVideoOutFrameBuffInit  -
  *
- * Function:		Set up blaking info in the output buffer. Sets a Vertical 
+ * Function:		Set up blaking info in the output buffer. Sets a Vertical
  *			Color Bar pattern also. Needed to called only once.
  * Parameters : 	R0 : destination buffer - YCrCb data buffer
  *             		R1 : source buffer      - RGB   data buffer
- *             		When calling from "C", first parameter is pointer to Destination 
+ *             		When calling from "C", first parameter is pointer to Destination
  *			buffer, secon parameter is pointer to source buffer.
  *
  *****************************************************************************/

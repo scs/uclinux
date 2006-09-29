@@ -5,15 +5,15 @@
  *									    *
  ****************************************************************************
 
-(C) Copyright 2005 -	Rrap Software Private Limited 
- 
+(C) Copyright 2005 -	Rrap Software Private Limited
+
 File Name:		bfin_v4l2_buffer_copy.S
 
-Date Modified:		3rd March 3005	
+Date Modified:		3rd March 3005
 
 Purpose:		This file copies YCRCB data from user buffer to output
 			buffer which has blanking information embedded in it.
-				
+
 ******************************************************************************/
 
 /* This update function is written to address Even and Odd field issue.
@@ -57,16 +57,16 @@ _bfin_v4l2_copy_buffer:
 
 	frame_copy_start:
 		P4 = 0x00000168;	//No. of lines per field
-		LSETUP(line_copy_start, line_copy_end) LC0=P4; 
+		LSETUP(line_copy_start, line_copy_end) LC0=P4;
 line_copy_start:
 			R0 = [P1++];
 			[P0++] = R0 ;
-	
+
 			R0 = [P3++] ;
 line_copy_end: 		[P2++] = R0 ;
 
 		P4 = 0x00000114 ;
-		P0 = P0 + P4; 
+		P0 = P0 + P4;
 		P2 = P2 + P4;
 		
 		P4 = 0x000005A0 ;

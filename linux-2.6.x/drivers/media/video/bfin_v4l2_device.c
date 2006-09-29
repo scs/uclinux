@@ -4,8 +4,8 @@
  *									    		    *
  ********************************************************************************************
 
-(C) Copyright 2005 -	Rrap Software Private Limited 
- 
+(C) Copyright 2005 -	Rrap Software Private Limited
+
 File Name:		bfin_v4l2_device.c
 
 Date Modified:		4th March 2005	
@@ -31,7 +31,7 @@ Based on: 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 			 You should have received a copy of the GNU General Public License
 			 along with this program; if not, write to the Free Software
 			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *********************************************************************************************/ 
+ *********************************************************************************************/
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -43,10 +43,10 @@ Based on: 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include <linux/timer.h>
 #include <asm/bf533_dma.h>
 #include <asm/blackfin.h>
- 
+
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
-#define V4L2_YCRCB_FRAME_SIZE (1512000 * 4) 
+#define V4L2_YCRCB_FRAME_SIZE (1512000 * 4)
 
 extern char *ycrcb_buffer_out ; 	//definition and mem allocation
 					//in driver file.
@@ -65,10 +65,10 @@ int id2;
 int mem_dma1_status = 0, mem_dma0_status = 0 ;
 
 /* As PPI will ping-pong between two buffers
- * it very important to synchronize PPI and 
+ * it very important to synchronize PPI and
  * and MEM DMA. It should be made sure that
  * MEM DMA and PPI DMA both are not accessing
- * the same buffer. For this we will use 
+ * the same buffer. For this we will use
  * flags and macros defined below.
  */
 #define YCRCB_BUFFER_BUSY 1
@@ -164,7 +164,7 @@ init_device_bfin_v4l2(void)
 
 /* Request for getting PPI
  * interrupt vector location
- * to use our own PPI interrupt 
+ * to use our own PPI interrupt
  * handler
  */
         if( request_irq(CONFIG_VIDEO_BLACKFIN_PPI_IRQ, &ppi_handler, SA_SHIRQ, "PPI Data", &id2 ) ){
@@ -173,8 +173,8 @@ init_device_bfin_v4l2(void)
                 return -ENODEV;
         }
 #if CONFIG_MEM_SIZE <= 64
-	ycrcb_buffer_out_1 = YCRCB_BUFFER_1 ;  
-	ycrcb_buffer_out_2 = YCRCB_BUFFER_2 ;  
+	ycrcb_buffer_out_1 = YCRCB_BUFFER_1 ;
+	ycrcb_buffer_out_2 = YCRCB_BUFFER_2 ;
 #else
 	ycrcb_buffer_out_1  = (char *)kmalloc(V4L2_YCRCB_FRAME_SIZE, GFP_KERNEL) ;
 	ycrcb_buffer_out_2  = (char *)kmalloc(V4L2_YCRCB_FRAME_SIZE, GFP_KERNEL) ;
@@ -210,7 +210,7 @@ void __attribute__((l1_text))
 bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 {
 
-	ycrcb_buffer_update += 0x079BC ;//initial offset 
+	ycrcb_buffer_update += 0x079BC ;//initial offset
 //	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 	/* Copy sram functions from sdram to sram */
 	/* Setup destination start address */
@@ -274,6 +274,6 @@ bfin_v4l2_memdma_setup(char *ycrcb_buffer_update, char *ycrcb_buffer_raw)
 	bfin_write_MDMA_S0_CONFIG((DMA2D | WDSIZE_32 | DMAEN) );
 	bfin_write_MDMA_S1_CONFIG((DMA2D | WDSIZE_32 | DMAEN) );
 	__builtin_bfin_ssync();
-	bfin_write_MDMA_D0_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ); 
-	bfin_write_MDMA_D1_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) ); 
+	bfin_write_MDMA_D0_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) );
+	bfin_write_MDMA_D1_CONFIG(( DI_EN | WNR | DMA2D | WDSIZE_32 | DMAEN) );
 }

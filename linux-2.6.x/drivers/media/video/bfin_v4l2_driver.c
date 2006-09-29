@@ -4,8 +4,8 @@
  *									    		    *
  ********************************************************************************************
 
-(C) Copyright 2005 -	Rrap Software Private Limited 
- 
+(C) Copyright 2005 -	Rrap Software Private Limited
+
 File Name:		bfin_v4l2_buffer_copy.S
 
 Date Modified:		4th March 2005	
@@ -32,7 +32,7 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 			 You should have received a copy of the GNU General Public License
 			 along with this program; if not, write to the Free Software
 			 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *********************************************************************************************/ 
+ *********************************************************************************************/
 
 #include <linux/version.h>
 #include <linux/init.h>
@@ -52,17 +52,17 @@ Based on 	 	Zoran zr36057/zr36067 PCI controller driver, for the
 #include <asm/byteorder.h>
 #include "bfin_v4l2_driver.h"
 
-//Func to initialize encoder. Defined in bfin_v4l2_device.c file. 
+//Func to initialize encoder. Defined in bfin_v4l2_device.c file.
 extern int init_device_bfin_v4l2(void);
-//Func to reset encoder. Defined in bfin_v4l2_device.c file. 
+//Func to reset encoder. Defined in bfin_v4l2_device.c file.
 extern int device_bfin_close(void);
 
-//MEM DMA status values, Set by write(), 
+//MEM DMA status values, Set by write(),
 //Reset by Respective interrupt handlers.
 extern int mem_dma1_status , mem_dma0_status ;
 
 /* Buffers defined in bfin_v4l2_device_config.S file as
- * they need to be in different memory banks to avoid memory 
+ * they need to be in different memory banks to avoid memory
  * contention between MEM DMA that is writing buffer and
  * PPI DMA that is reading. In C language apparently there
  * is no way by which we can ensure that. So I have modified
@@ -73,17 +73,17 @@ extern char *ycrcb_buffer_out_1 ;
 extern char *ycrcb_buffer_out_2 ;
 
 /* As PPI will ping-pong between two buffers
- * it very important to synchronize PPI and 
+ * it very important to synchronize PPI and
  * and MEM DMA. It should be made sure that
  * MEM DMA and PPI DMA both are not accessing
- * the same buffer. For this we will use 
+ * the same buffer. For this we will use
  * flags and macros defined below.
  */
 #define YCRCB_BUFFER_BUSY 1
 #define WAIT_TILL_NEXT_PPI_INTR 2
 #define YCRCB_BUFFER_FREE_FOR_MDMA_WRITE 3
 #define BUFFER_BEING_WRITTEN 4
-#define BUFFER_WRITTEN 5 
+#define BUFFER_WRITTEN 5
 
 extern int ycrcb_buffer_1_status, ycrcb_buffer_2_status ;
 
@@ -119,7 +119,7 @@ bfin_v4l2_open (struct inode *inode,
 {
 	unsigned int minor = iminor(inode);
 	int i, res, first_open = 0, have_module_locks = 0;
-	struct bfin_v4l2 *bfn = NULL; 
+	struct bfin_v4l2 *bfn = NULL;
 	struct bfin_v4l2_fh *fh;
 	for (i = 0; i < NO_OF_DEVICES; i++) {
 		if (bfin_v4l2[i].videodev->minor == minor) {
@@ -133,9 +133,9 @@ bfin_v4l2_open (struct inode *inode,
 		goto open_unlock_and_return;
 	}
 
-/* Though we are directly assuming the device to 
- * be vout0 as our first target is to get 
- * video-out up, we ll have to use some device 
+/* Though we are directly assuming the device to
+ * be vout0 as our first target is to get
+ * video-out up, we ll have to use some device
  * finding algorithm when code for capture
  * shall get incorporated.
  */
@@ -235,20 +235,19 @@ bfin_v4l2_write (struct file *file,
  * i.e. simply copy the required no. of
  * bytes(count) in the desired buffer.
  * But as no. of devices shall increase
- * this ll need to be reorganised in more 
+ * this ll need to be reorganised in more
  * elegent way.
  */
 
 	struct bfin_v4l2_fh *fh ;
 	fh = file->private_data;
-/* check if previous write(i.e. mem dma) has completed or not, and 
+/* check if previous write(i.e. mem dma) has completed or not, and
  * if any of buffer has status as YCRCB_BUFFER_FREE_FOR_MDMA_WRITE.
- * If any of these conditions fail then wait. 
+ * If any of these conditions fail then wait.
  */
 
 	for(;;) {
-		if((mem_dma0_status !=0) 
- 		  | (mem_dma1_status !=0) 
+		if((mem_dma0_status !=0) | (mem_dma1_status !=0)
 		    | (ycrcb_buffer_1_status != (YCRCB_BUFFER_FREE_FOR_MDMA_WRITE & ycrcb_buffer_2_status) != YCRCB_BUFFER_FREE_FOR_MDMA_WRITE)
 		) {
 //			interruptible_sleep_on(&bfin_v4l2_write_wait) ;
@@ -258,11 +257,11 @@ bfin_v4l2_write (struct file *file,
 	}
 	if(ycrcb_buffer_1_status == YCRCB_BUFFER_FREE_FOR_MDMA_WRITE) {
 		ycrcb_buffer_out = ycrcb_buffer_out_1 ;
-		ycrcb_buffer_1_status= BUFFER_BEING_WRITTEN ; 
+		ycrcb_buffer_1_status= BUFFER_BEING_WRITTEN ;
 	}
 	if(ycrcb_buffer_2_status == YCRCB_BUFFER_FREE_FOR_MDMA_WRITE) {
 		ycrcb_buffer_out = ycrcb_buffer_out_2 ;
-		ycrcb_buffer_2_status= BUFFER_BEING_WRITTEN ; 
+		ycrcb_buffer_2_status= BUFFER_BEING_WRITTEN ;
 	}
 	mem_dma0_status  = 1 ;
 	mem_dma1_status  = 1 ;
@@ -302,7 +301,7 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 		printk("VIDEOC_QUERYCAP called\n");
 		memset(cap, 0, sizeof(*cap));
 
-/* Currently only vout is being implemented 
+/* Currently only vout is being implemented
  * so we will not go for checking of device
  * i.e. whether it is input or output device,
  * but once capture device is up we will need
@@ -348,7 +347,7 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 		return 0;
 	}
 		break;
-	
+
 	case VIDIOC_ENUMSTD:
 	{
 		struct v4l2_standard *std = arg;
@@ -363,7 +362,7 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 		switch (std->index) {
 
 #if 0		//Intentionaly disabled !
-		//Once the support for PAL is up 
+		//Once the support for PAL is up
 		//we will enable this piece of
 		//code.
 		case 0:
@@ -371,7 +370,7 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 			strncpy(std->name, "PAL", 31);
 			std->frameperiod.numerator = 1;
 			std->frameperiod.denominator = 25;
-			std->framelines = 625 ; 
+			std->framelines = 625 ;
 			break;
 #endif
 		case 0:
@@ -379,7 +378,7 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 			strncpy(std->name, "NTSC", 31);
 			std->frameperiod.numerator = 1001;	//i.e. nearly 30 frames
 			std->frameperiod.denominator = 30000;	//per sec.
-			std->framelines = 624 ; 
+			std->framelines = 624 ;
 			break;
 		default:
 			return -EINVAL;
@@ -426,15 +425,15 @@ do_bfin_v4l2_ioctl (struct inode *inode,
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 		case V4L2_BUF_TYPE_VIDEO_OUTPUT:
 
-			if (!(fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY
- 			     || fmt->fmt.pix.width 		== 320
-			      || fmt->fmt.pix.height 		 == 360
-			       || fmt->fmt.pix.sizeimage 	  == 115200
-			    	|| fmt->fmt.pix.pixelformat 	   == V4L2_PIX_FMT_UYVY 
-			     	 || fmt->fmt.pix.field 		    == V4L2_FIELD_INTERLACED 
-			       	  || fmt->fmt.pix.bytesperline 	     == 0
-				   || fmt->fmt.pix.colorspace 	      == V4L2_COLORSPACE_SMPTE170M
-			  )){
+			if (!(fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY ||
+			      fmt->fmt.pix.width        == 320 ||
+			      fmt->fmt.pix.height       == 360 ||
+			      fmt->fmt.pix.sizeimage    == 115200 ||
+			      fmt->fmt.pix.pixelformat  == V4L2_PIX_FMT_UYVY ||
+			      fmt->fmt.pix.field        == V4L2_FIELD_INTERLACED ||
+			      fmt->fmt.pix.bytesperline == 0 ||
+			      fmt->fmt.pix.colorspace   == V4L2_COLORSPACE_SMPTE170M))
+			{
 				printk("ERROR:DEV/VOUT:Application is trying to set unacceptable parameters\n");
 				return -EINVAL;
 			}
@@ -514,12 +513,12 @@ bfin_v4l2_poll (struct file *file,
 }
 
 
-/* It is for sure this mmap() implementation 
- * has to more elaborate and more cautious about 
- * inadvertant accesses. But lets come to this 
- * issue later and lets assume 
- * the application writer using this driver is 
- * not doing something unexpected. 
+/* It is for sure this mmap() implementation
+ * has to more elaborate and more cautious about
+ * inadvertant accesses. But lets come to this
+ * issue later and lets assume
+ * the application writer using this driver is
+ * not doing something unexpected.
  */
 static char *
 bfin_v4l2_mmap (struct file           *file,
@@ -554,7 +553,7 @@ static struct video_device bfin_v4l2_template = {
 	.hardware 	= BFIN_V4L2_HARDWARE,
 	.fops 		= &v4l2_bfin_v4l2_fops,
 	.release 	= &bfin_v4l2_vdev_release,
-	.minor 		= 0, 
+	.minor 		= 0,
 };
 
 /*******************************************************************
@@ -595,16 +594,16 @@ init_bfin_v4l2(void)
 	int i, j ;
 	struct bfin_v4l2 *bfn ;
 	for(i =0; i<NO_OF_DEVICES ;i++) {
-		bfn = &bfin_v4l2[i] ; 
+		bfn = &bfin_v4l2[i] ;
 		if(bfin_v4l2_register_device(bfn)<0){
 			for(j=i;j>=0;j--)
 				bfin_v4l2_unregister_device(&bfin_v4l2[i]);
 			return -EIO;
-		}	
+		}
 	}
 	return 0;
 }
- 
+
 static void __exit
 unload_bfin_v4l2_module(void)
 {
@@ -612,6 +611,6 @@ unload_bfin_v4l2_module(void)
 	for(i=0; i<NO_OF_DEVICES;i++)
 	bfin_v4l2_unregister_device(&bfin_v4l2[i]);
 }
-		
+
 module_init(init_bfin_v4l2);
 module_exit(unload_bfin_v4l2_module);

@@ -53,7 +53,7 @@ void bf533_pm_suspend_standby_enter(void)
 	u32 flags;
 
 	local_irq_save(flags);
-  
+
   /* save state */
 	inen = bfin_read_FIO_INEN();
 	polar = bfin_read_FIO_POLAR();
@@ -72,7 +72,7 @@ void bf533_pm_suspend_standby_enter(void)
 	bfin_write_FIO_INEN(inen | pattern);
 	bfin_write_FIO_MASKA_S(pattern);
 
-  	sleep_deeper(SIC_IWR_VAL);
+	sleep_deeper(SIC_IWR_VAL);
 	  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 
   /* Restore original state */
@@ -85,10 +85,10 @@ void bf533_pm_suspend_standby_enter(void)
 	local_irq_restore(flags);
 #endif				/* CONFIG_PM_WAKEUP_BY_GPIO */
 
-#if defined(CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR) 
-  sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR); 
-  bfin_write_SIC_IWR(IWR_ENABLE_ALL); 
-#endif				/* CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR */ 
+#if defined(CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR)
+  sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR);
+  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif				/* CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR */
 }
 
 

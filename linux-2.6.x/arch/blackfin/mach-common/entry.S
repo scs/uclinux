@@ -287,7 +287,7 @@ ENTRY(_exception_to_level5)
 	call _trap_c;
 	SP += 12;
 
-	/* See if anything else is in the exception buffer 
+	/* See if anything else is in the exception buffer
 	 * if there is, process it
 	 */
 	P5.l = _out_ptr_excause;
@@ -474,7 +474,7 @@ ENTRY(_system_call)
 
 .Lsyscall_sigpending:
 	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
-	if cc jump .Lsyscall_do_signals; 
+	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
 	if !cc jump .Lsyscall_really_exit;
 .Lsyscall_do_signals:
@@ -729,7 +729,7 @@ _schedule_and_signal:
 	RESTORE_CONTEXT
 	rti;
 
-/* Make sure when we start, that the circular buffer is initialized properly 
+/* Make sure when we start, that the circular buffer is initialized properly
  * R0 and P0 are call clobbered, so we can use them here.
  */
 ENTRY(_init_exception_buff)
@@ -751,7 +751,7 @@ ALIGN
 _extable:
 	/* entry for each EXCAUSE[5:0]
 	 * This table bmust be in sync with the table in ./kernel/traps.c
-	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined 
+	 * EXCPT instruction can provide 4 bits of EXCAUSE, allowing 16 to be user defined
 	 */
 	.long _ex_syscall;      /* 0x00 - User Defined - Linux Syscall */
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
@@ -1151,7 +1151,7 @@ _exception_stack_top:
 _last_cplb_fault_retx:
 	.long 0;
 
-/* 
+/*
  * Single instructions can have multiple faults, which need to be
  * handled by traps.c, in irq5. We store the exception cause to ensure
  * we don't miss a double fault condition

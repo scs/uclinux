@@ -2,7 +2,7 @@
  * File:        include/asm/system.h
  * Based on:
  * Author:      Tony Kou (tonyko@lineo.ca)
- *              Copyright (c) 2002 Arcturus Networks Inc. 
+ *              Copyright (c) 2002 Arcturus Networks Inc.
  *                    (www.arcturusnetworks.com)
  *              Copyright (c) 2003 Metrowerks (www.metrowerks.com)
  *              Copyright (c) 2004 Analog Device Inc.
@@ -11,7 +11,7 @@
  *
  * Rev:       $Id$
  *
- * Modified:     22Sep2006 - Robin Getz 
+ * Modified:     22Sep2006 - Robin Getz
  *                - move include blackfin.h down, so I can get access to
  *                   irq functions in other include files.
  *

@@ -320,7 +320,7 @@ static int dpmc_ioctl(struct inode *inode, struct file *file, unsigned int cmd, 
 			}
 #endif
 			/* This is done to avoid drastic change of frequency since it affects SSEL.
-			 * At 135MHz keeping SSEL as 5 or 1 does not matter 
+			 * At 135MHz keeping SSEL as 5 or 1 does not matter
 			 */
 			if (vco_mhz > INTER_FREQ) {
 				vco_mhz = change_frequency(INTER_FREQ/MHZ);
@@ -627,7 +627,7 @@ int calc_msel(int vco_hz)
 
 void fullon_mode(void)	{
 
-#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
+#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */
 	unsigned long flags;
 
 	bfin_write_SIC_IWR(IWR_ENABLE(0));
@@ -665,7 +665,7 @@ void fullon_mode(void)	{
 
 void active_mode(void)
 {
-#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */ 
+#if 0 /* This is broken - You can't put SDRAM into Self Refresh and then execute from SDRAM */
 	  /* In addition in BYPASS mode SCLK = CCLK which is hazardous condition Anomlay 05000273 */
 	unsigned long flags;
 

@@ -271,7 +271,7 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 		bfin_write_TWI_MASTER_CTL(bfin_read_TWI_MASTER_CTL() | MEN | ((iface->read_write == I2C_SMBUS_READ) ? MDIR : 0) | ((CONFIG_TWICLK_KHZ>100) ? FAST : 0));
 		__builtin_bfin_ssync();
 
-		wait_for_completion(&iface->complete);	
+		wait_for_completion(&iface->complete);
 
 		rc = iface->result;
 		if (rc == 1)
@@ -290,7 +290,7 @@ static int bfin_twi_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
  * SMBus type transfer entrypoint
  */
 
-int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr, 
+int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			unsigned short flags, char read_write,
 			u8 command, int size, union i2c_smbus_data * data)
 {

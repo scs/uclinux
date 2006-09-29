@@ -49,7 +49,7 @@ ENTRY(_ret_from_fork)
 	bitclr(r0,1);
 	[sp + PT_IPEND] = r0;
 	/* do a 'fake' RTI by jumping to [RETI]
-	 * to avoid clearing supervisor mode in child 
+	 * to avoid clearing supervisor mode in child
 	*/
 	RESTORE_ALL_SYS
 	p0 = reti;

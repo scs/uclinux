@@ -56,10 +56,10 @@ static int nand_width = 1; /* default x8*/
  * Define partitions for flash device
  */
 const static struct mtd_partition partition_info[] = {
-	{ 
+	{
 		.name = "linux kernel",
-	  	.offset = 0,
-	  	.size = 0x400000, 
+		.offset = 0,
+		.size = 0x400000,
 	},
 	{
 		.name = "file system",
@@ -101,7 +101,7 @@ static void bfin_write_byte(struct mtd_info *mtd, u_char byte)
  * bfin_read_byte16 -  read one byte endianess aware from the chip
  * @mtd:	MTD device structure
  *
- *  read function for 16bit buswith with 
+ *  read function for 16bit buswith with
  * endianess conversion
  */
 static u_char bfin_read_byte16(struct mtd_info *mtd)
@@ -131,7 +131,7 @@ static void bfin_write_byte16(struct mtd_info *mtd, u_char byte)
  * bfin_read_word -  read one word from the chip
  * @mtd:	MTD device structure
  *
- *  read function for 16bit buswith without 
+ *  read function for 16bit buswith without
  * endianess conversion
  */
 static u16 bfin_read_word(struct mtd_info *mtd)
@@ -147,7 +147,7 @@ static u16 bfin_read_word(struct mtd_info *mtd)
  * @mtd:	MTD device structure
  * @word:	data word to write
  *
- *  write function for 16bit buswith without 
+ *  write function for 16bit buswith without
  * endianess conversion
  */
 static void bfin_write_word(struct mtd_info *mtd, u16 word)
@@ -177,7 +177,7 @@ static void bfin_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 }
 
 /**
- * bfin_read_buf -  read chip data into buffer 
+ * bfin_read_buf -  read chip data into buffer
  * @mtd:	MTD device structure
  * @buf:	buffer to store date
  * @len:	number of bytes to read
@@ -196,7 +196,7 @@ static void bfin_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 }
 
 /**
- * bfin_verify_buf -  Verify chip data against buffer 
+ * bfin_verify_buf -  Verify chip data against buffer
  * @mtd:	MTD device structure
  * @buf:	buffer containing the data to compare
  * @len:	number of bytes to compare
@@ -231,16 +231,16 @@ static void bfin_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
 	struct nand_chip *this = mtd->priv;
 	u16 *p = (u16 *) buf;
 	len >>= 1;
-	
+
 	for (i=0; i<len; i++) {
 		writew(p[i], this->IO_ADDR_W);
 		__builtin_bfin_ssync();
 	}
-		
+
 }
 
 /**
- * bfin_read_buf16 -  read chip data into buffer 
+ * bfin_read_buf16 -  read chip data into buffer
  * @mtd:	MTD device structure
  * @buf:	buffer to store date
  * @len:	number of bytes to read
@@ -261,7 +261,7 @@ static void bfin_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 }
 
 /**
- * bfin_verify_buf16 -  Verify chip data against buffer 
+ * bfin_verify_buf16 -  Verify chip data against buffer
  * @mtd:	MTD device structure
  * @buf:	buffer containing the data to compare
  * @len:	number of bytes to compare
@@ -295,12 +295,12 @@ static void bfin_hwcontrol(struct mtd_info *mtd, int cmd)
 
 	case NAND_CTL_SETALE: this->IO_ADDR_W = p_nand + BFIN_NAND_ALE; break;
 	case NAND_CTL_CLRALE: this->IO_ADDR_W = p_nand; break;
-	case NAND_CTL_SETNCE: 
+	case NAND_CTL_SETNCE:
 	case NAND_CTL_CLRNCE: break;
 	}
 
 	this->IO_ADDR_R = this->IO_ADDR_W;
-	
+
 	/* Drain the writebuffer */
 	__builtin_bfin_ssync();
 }
@@ -321,7 +321,7 @@ int __init bfin_nand_init (void)
 	int retval;
 
 	/* Allocate memory for MTD device structure and private data */
-	bfin_mtd = kmalloc (sizeof(struct mtd_info) + 
+	bfin_mtd = kmalloc (sizeof(struct mtd_info) +
 			sizeof (struct nand_chip), GFP_KERNEL);
 	if (!bfin_mtd) {
 		printk ("Unable to allocate NAND MTD dev structure.\n");

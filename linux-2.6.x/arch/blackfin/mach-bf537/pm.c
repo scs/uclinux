@@ -109,7 +109,7 @@ void bf537_pm_suspend_standby_enter(void)
 	u32 flags;
 
 	local_irq_save(flags);
-  
+
   /* save state */
 	inen = pm_read_FIO_INEN();
 	polar = pm_read_FIO_POLAR();
@@ -131,7 +131,7 @@ void bf537_pm_suspend_standby_enter(void)
 	pm_write_FIO_INEN(inen | pattern);
 	pm_write_FIO_MASKA_S(pattern);
 
-  	sleep_deeper(SIC_IWR_VAL);
+	sleep_deeper(SIC_IWR_VAL);
 	  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 
   /* Restore original state */

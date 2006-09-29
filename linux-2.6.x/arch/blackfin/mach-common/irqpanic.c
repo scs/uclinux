@@ -145,7 +145,7 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	    (unsigned long)regs,
 	    (unsigned long)regs->pc);
 	if (reason == 0x5) {
-		printk(KERN_EMERG "----------- HARDWARE ERROR -----------\n"); 
+		printk(KERN_EMERG "----------- HARDWARE ERROR -----------\n");
 
 		/* There is only need to check for Hardware Errors, since other
 		 * EXCEPTIONS are handled in TRAPS.c (MH)

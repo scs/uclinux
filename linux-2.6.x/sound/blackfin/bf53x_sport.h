@@ -39,8 +39,8 @@
 #include <asm/dma.h>
 
 /*
- * source: ADSP-BF533 Blackfin Processor Hardware Reference, 
- * chapter 12, and appendix B-12 table  B10 
+ * source: ADSP-BF533 Blackfin Processor Hardware Reference,
+ * chapter 12, and appendix B-12 table  B10
  */
 
 struct sport_register {
