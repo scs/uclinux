@@ -12,6 +12,7 @@ LINPHONE_FLAGS+=--disable-manual
 LINPHONE_FLAGS+=--disable-shared
 LINPHONE_FLAGS+=--enable-static
 LINPHONE_FLAGS+=--disable-glib
+LINPHONE_FLAGS+=--enable-ipv6=no
 LINPHONE_FLAGS+=--with-osip=$(TEMPDIR)
 LINPHONE_FLAGS+=--with-speex=$(ROOTDIR)/lib/speex/DESTDIR/usr
 LINPHONE_FLAGS+=--with-readline=$(ROOTDIR)/lib/readline/DESTDIR/usr
