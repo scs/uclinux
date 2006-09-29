@@ -1,1 +1,0 @@
-cmd_/home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/zaptel.o := bfin-uclinux-ld   -r -o /home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/zaptel.o /home/cvshdr/uclinux-outcvs/uClinux-dist/user/blkfin-apps/zaptel/crc-ccitt.o
