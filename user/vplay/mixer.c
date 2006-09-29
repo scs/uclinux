@@ -10,8 +10,11 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
 #include <linux/soundcard.h>
 
 char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
@@ -105,6 +108,8 @@ main(int argc, char *argv[])
 	for (foo = 0; foo < SOUND_MIXER_NRDEVICES && strcmp(names[foo], argv[1]); foo++);
 
 	if (foo >= SOUND_MIXER_NRDEVICES) {
+		if (argc <= 2)
+			usage();
 
 		if (!strcmp("+rec", argv[1]) || !strcmp("-rec", argv[1])) {
 			for (dev = 0; dev < SOUND_MIXER_NRDEVICES && strcmp(names[dev], argv[2]); dev++);
@@ -159,4 +164,5 @@ main(int argc, char *argv[])
 	}
 
 	close(baz);
+	return 0;
 }
