@@ -504,7 +504,7 @@ _nc_setupterm(NCURSES_CONST char *tname, int Filedes, int *errret, bool reuse)
 		ret_error(0, "'%s': unknown terminal type.\n", tname);
 	    }
 	}
-	printf("KSDBG:in %s\n",__FUNCTION__);
+
 	set_curterm(term_ptr);
 
 	if (command_character && getenv("CC"))
