@@ -1,6 +1,6 @@
                                                  Read me
 
-This patch is used to apply to openssl-0.9.8c.tar.gz, which can be downloaded
+This patch is used to apply to openssl-0.9.8d.tar.gz, which can be downloaded
 from: http://www.openssl.org/.  Please use the exact package name, otherwise
 the patch may not apply.
 
