@@ -48,6 +48,10 @@ bool    'Input event device test'       CONFIG_EVENT_TEST
 bool    'AD9960 device test'            CONFIG_AD9960_TEST
 bool    'file operation test'           CONFIG_FILE_OPERATION_TEST
 bool    'common sport test'             CONFIG_USER_BLACKFIN_SPORT
+bool    'UPNP samples'                  CONFIG_USER_UPNP_SAMPLES
+if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
+	define_bool CONFIG_LIB_LIBUPNP y
+fi
 endmenu
 
 
