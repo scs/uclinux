@@ -50,6 +50,7 @@
 #include <asm/blackfin.h>
 #include <asm/bfin_sport.h>
 #include <asm/dma.h>
+#include <asm/cacheflush.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -466,16 +467,30 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 
 	if (cfg->dma_enabled) {
 		int word_bytes = (cfg->word_len + 7) / 8;
-		uint16_t dma_config = 0;
+		uint16_t dma_config , xcount, ycount;
 
 		if (word_bytes == 3) word_bytes = 4;
 
+		/* Invalidate the buffer */
+		invalidate_dcache_range((unsigned long)buf, \
+				(unsigned long)(buf + count));
 		pr_debug("DMA mode read\n");
 		/* Configure dma */
-		set_dma_start_addr(dev->dma_rx_chan, (unsigned long)buf);
-		set_dma_x_count(dev->dma_rx_chan, count / word_bytes);
-		set_dma_x_modify(dev->dma_rx_chan, word_bytes);
 		dma_config = (WNR | RESTART | sport_wordsize(cfg->word_len) | DI_EN);
+		xcount = count / word_bytes;
+		ycount = 0;
+		if (xcount > 0x8000) {
+			ycount = xcount >> 15;
+			xcount = 0x8000;
+			dma_config |= DMA2D;
+		}
+		set_dma_start_addr(dev->dma_rx_chan, (unsigned long)buf);
+		set_dma_x_count(dev->dma_rx_chan, xcount);
+		set_dma_x_modify(dev->dma_rx_chan, word_bytes);
+		if (ycount > 0) {
+			set_dma_y_count(dev->dma_rx_chan, ycount);
+			set_dma_y_modify(dev->dma_rx_chan, word_bytes);
+		}
 		set_dma_config(dev->dma_rx_chan, dma_config);
 
 		enable_dma(dev->dma_rx_chan);
@@ -522,17 +537,28 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 
 	/* Configure dma to start transfer */
 	if (cfg->dma_enabled) {
-		uint16_t dma_config = 0;
+		uint16_t dma_config, xcount, ycount;
 		int word_bytes = (cfg->word_len + 7) / 8;
 
 		if (word_bytes == 3) word_bytes = 4;
 
 		pr_debug("DMA mode\n");
 		/* Configure dma */
-		set_dma_start_addr(dev->dma_tx_chan, (unsigned long)buf);
-		set_dma_x_count(dev->dma_tx_chan, count / word_bytes);
-		set_dma_x_modify(dev->dma_tx_chan, word_bytes);
 		dma_config = (RESTART | sport_wordsize(cfg->word_len) | DI_EN);
+		xcount = count / word_bytes;
+		ycount = 0;
+		if (xcount > 0x8000) {
+			ycount = xcount >> 15;
+			xcount = 0x8000;
+			dma_config |= DMA2D;
+		}
+		set_dma_start_addr(dev->dma_tx_chan, (unsigned long)buf);
+		set_dma_x_count(dev->dma_tx_chan, xcount);
+		set_dma_x_modify(dev->dma_tx_chan, word_bytes);
+		if (ycount > 0){
+			set_dma_y_count(dev->dma_tx_chan, ycount);
+			set_dma_y_modify(dev->dma_tx_chan, word_bytes);
+		}
 		set_dma_config(dev->dma_tx_chan, dma_config);
 
 		enable_dma(dev->dma_tx_chan);
@@ -550,6 +576,12 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 
 	wait_event_interruptible(dev->waitq, dev->wait_con );
 	dev->wait_con = 0;
+
+	/* Flush the data from cache to memory */
+	if (cfg->dma_enabled) {
+		flush_dcache_range((unsigned long)buf, \
+				(unsigned long)(buf + count));
+	}
 	up(&dev->sem);
 
 	return count;
