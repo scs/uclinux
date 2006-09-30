@@ -291,13 +291,13 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 }
 
 static struct file_operations coreb_fops = {
-	owner = THIS_MODULE,
-	llseek = coreb_lseek,
-	read = coreb_read,
-	write = coreb_write,
-	ioctl = coreb_ioctl,
-	open = coreb_open,
-	release = coreb_release
+	.owner = THIS_MODULE,
+	.llseek = coreb_lseek,
+	.read = coreb_read,
+	.write = coreb_write,
+	.ioctl = coreb_ioctl,
+	.open = coreb_open,
+	.release = coreb_release
 };
 
 static struct miscdevice coreb_dev = {
@@ -315,16 +315,16 @@ static int coreb_read_status(char *page, char **start, off_t off, int count,
 		return 0;
 
 	len += sprintf(page,
-		       "Base Address:\t0x%08x\n"
+		       "Base Address:\t0x%08lx\n"
 		       "Core B is %s\n"
 		       "SICA_SYSCR:\t%04x\n"
 		       "SICB_SYSCR:\t%04x\n"
 		       "\n"
 		       "IRQ Status:\tCore A\t\tCore B\n"
-		       "ISR0:\t\t%08lx\t\t%08lx\n"
-		       "ISR1:\t\t%08lx\t\t%08lx\n"
-		       "IMASK0:\t\t%08lx\t\t%08lx\n"
-		       "IMASK1:\t\t%08lx\t\t%08lx\n",
+		       "ISR0:\t\t%08x\t\t%08x\n"
+		       "ISR1:\t\t%08x\t\t%08x\n"
+		       "IMASK0:\t\t%08x\t\t%08x\n"
+		       "IMASK1:\t\t%08x\t\t%08x\n",
 		       coreb_base,
 		       coreb_status & COREB_IS_RUNNING ? "running" : "stalled",
 		       bfin_read_SICA_SYSCR(), bfin_read_SICB_SYSCR(),
