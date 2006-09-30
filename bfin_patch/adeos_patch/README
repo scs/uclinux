@@ -1,5 +1,6 @@
 File: adeos-bfin-cvs.patch
 
+Last updaet: 2006-09-28 for uClinux-R06R2
 This is the adeos patch for Blackfin uClinux CVS.
 The patch will be updated regularly, to sync with kernel update
 and newer release of ADEOS at: 
