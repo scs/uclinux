@@ -1087,9 +1087,9 @@ static void bfin5xx_spi_shutdown(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int suspend_devices(struct device *dev, void *pm_message)
 {
+#if 0 /* FIXME: [uclinux533-Bugs][1718] spi_bfin5xx doesn't want to suspend */
 	pm_message_t *state = pm_message;
 
-#if 0 /* FIXME: [uclinux533-Bugs][1718] spi_bfin5xx doesn't want to suspend */
 	if (dev->power.power_state.event != state->event) {
 		dev_warn(dev, "pm state does not match request\n");
 		return -1;
