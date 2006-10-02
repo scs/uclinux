@@ -43,6 +43,8 @@
 /*include core specific register pointer definitions*/
 #include <asm/mach-common/cdef_LPBlackfin.h>
 
+#include <asm/system.h>
+
 /*********************************************************************************** */
 /* System MMR Register Map */
 /*********************************************************************************** */
@@ -54,10 +56,11 @@
 #define bfin_write_PLL_DIV(val)              bfin_write16(PLL_DIV,val)
 #define bfin_read_VR_CTL()                   bfin_read16(VR_CTL)
 /* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val) {
-	unsigned long flags, iwr ;
+static __inline__ void bfin_write_VR_CTL(unsigned int val)
+{
+	unsigned long flags, iwr;
 
-	bfin_write16(VR_CTL,val);
+	bfin_write16(VR_CTL, val);
 	__builtin_bfin_ssync();
 	/* Enable the PLL Wakeup bit in SIC IWR */
 	iwr = bfin_read32(SICA_IWR0);
