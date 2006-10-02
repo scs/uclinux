@@ -1,13 +1,11 @@
-
-/*  */
 /*
  * File:         include/asm-blackfin/mach-bf561/cdefBF561.h
  * Based on:
  * Author:
  *
  * Created:
- * Description:
- * C POINTERS TO SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF561
+ * Description:  C POINTERS TO SYSTEM MMR REGISTER AND MEMORY MAP FOR ADSP-BF561
+ * 
  * Rev:
  *
  * Modified:
