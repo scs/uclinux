@@ -369,6 +369,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (sig != 0 && sig != SIGTRAP) {
 		unsigned long stack;
 		dump_bfin_regs(fp, (void *)fp->retx);
+		dump_bfin_trace_buffer();
 		show_stack(current, &stack);
 		if (current->mm == NULL)
 			panic("Kernel exception");
@@ -399,6 +400,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 void dump_bfin_trace_buffer(void)
 {
+	int tflags;
+	trace_buffer_save(tflags);
+
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
 		int i;
 		printk(KERN_EMERG "Hardware Trace:\n");
@@ -410,6 +414,8 @@ void dump_bfin_trace_buffer(void)
 			printk("\n");
 		}
 	}
+
+	trace_buffer_restore(tflags);
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
@@ -418,7 +424,9 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	unsigned long *endstack, addr;
 	int i;
 
-	dump_bfin_trace_buffer();
+	/* Cannot call dump_bfin_trace_buffer() here as show_stack() is
+	 * called externally in some places in the kernel.
+	 */
 
 	if (!stack) {
 		if (task)
@@ -465,10 +473,11 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 void dump_stack(void)
 {
 	unsigned long stack;
-	int j;
-	trace_buffer_save(j);
+	int tflags;
+	trace_buffer_save(tflags);
+	dump_bfin_trace_buffer();
 	show_stack(current, &stack);
-	trace_buffer_restore(j);
+	trace_buffer_restore(tflags);
 }
 
 EXPORT_SYMBOL(dump_stack);
