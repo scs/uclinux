@@ -155,7 +155,7 @@ config  BFIN533_STAMP
 
 config BFIN537_STAMP
 	bool "BF537-STAMP"
-	depends on (BF537)
+	depends on (BF537 || BF536 || BF534)
 	help
 	  BF537-STAMP board Support.
 
