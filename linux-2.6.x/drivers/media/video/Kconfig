@@ -360,4 +360,6 @@ config VIDEO_DECODER
 	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
 	  video decoders.
 
+source "drivers/media/video/blackfin/Kconfig"
+
 endmenu

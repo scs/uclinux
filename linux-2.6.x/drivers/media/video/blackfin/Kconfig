@@ -1,0 +1,7 @@
+config VIDEO_BLACKFIN_MT9M001
+	tristate "Micron Camera driver for BF537"
+	depends on BFIN && VIDEO_DEV && I2C
+	default n
+	---help---
+	  V4L Support for the Micron MT9M001 camera attached to the Blackfin
+	  PPI.
