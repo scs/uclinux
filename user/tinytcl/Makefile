@@ -38,10 +38,11 @@ else
 OBJS += load_extensions.o
 endif
 
+CFLAGS += -I.
 ifdef CONFIG_USER_TINYTCL_DEBUGGER
 # If you want to add the debugger...
 OBJS += debugger/Dbg.o debugger/Dbg_cmd.o
-CFLAGS += -I. -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
+CFLAGS += -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
 endif
 
 TARGETS += $(LIBTCL)
@@ -62,7 +63,7 @@ $(STATIC_LIBTCL): $(OBJS) build_extensions
 	-$(AR) r $@ extensions/*.o
 
 libtcl.so: $(OBJS) build_extensions
-	$(CC) -shared -o $@ $(SH_LDFLAGS) $(OBJS) $(SH_LDLIBS)
+	$(CC) -shared -o $@ $(SH_LDFLAGS) $(LDFLAGS) $(OBJS) $(SH_LDLIBS)
 
 # The dependency here is a bit overkill, but it's simple
 build_extensions: extensions/*/*
