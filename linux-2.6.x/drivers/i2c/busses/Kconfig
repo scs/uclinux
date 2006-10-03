@@ -34,9 +34,12 @@ config I2C_BFIN_GPIO_CYCLE_DELAY
 
 config I2C_BFIN_TWI
 	tristate "Blackfin TWI I2C support"
-	depends on I2C && ( BF534 || BF536 || BF537)
+	depends on I2C && (BF534 || BF536 || BF537)
 	help
-		This the TWI I2C device driver for blackfin 534/536/537.
+	  This the TWI I2C device driver for Blackfin 534/536/537.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-bfin-twi.
 
 config TWICLK_KHZ
 	int "TWI clock (kHZ)"
