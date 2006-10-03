@@ -12,16 +12,15 @@ config I2C_BFIN_GPIO
 	help
 	--
 
-menu'BFIN I2C SDA/SCL Selection'
+menu "BFIN I2C SDA/SCL Selection"
+	depends on I2C_BFIN_GPIO
 config BFIN_SDA
 	int "SDA is PF[0:15]"
-	depends on I2C_BFIN_GPIO
 	range 0 15
 	default 2
 
 config BFIN_SCL
 	int "SCL is PF[0:15]"
-	depends on I2C_BFIN_GPIO
 	range 0 15
 	default 3
 endmenu
