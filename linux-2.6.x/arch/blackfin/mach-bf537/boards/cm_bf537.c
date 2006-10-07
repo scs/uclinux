@@ -224,16 +224,16 @@ static struct resource isp1362_hcd_resources[] = {
 		.end = 0x20308000,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = 0x20308002,
-		.end = 0x20308002,
+		.start = 0x20308004,
+		.end = 0x20308004,
 		.flags = IORESOURCE_MEM,
 	},{
 		.start = IRQ_PROG_INTA,
 		.end = IRQ_PROG_INTA,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},{
-		.start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
-		.end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
+		.start = IRQ_PG15,
+		.end = IRQ_PG15,
 		.flags = IORESOURCE_IRQ,
 	},
 };

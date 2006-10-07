@@ -536,3 +536,16 @@ void do_irq(int vec, struct pt_regs *fp)
 	}
 	asm_do_IRQ(vec, fp);
 }
+
+void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
+{
+
+#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
+	printk(KERN_INFO
+	       "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
+	set_irq_type(irq_pfx, type);
+#else
+#  error "bfin_gpio_interrupt_setup not implemented without CONFIG_IRQCHIP_DEMUX_GPIO enabled"
+#endif
+
+}

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16.27
-# Thu Sep 21 20:13:46 2006
+# Sat Oct  7 20:04:42 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -245,7 +245,7 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_LARGE_ALLOCS=y
-# CONFIG_IRQCHIP_DEMUX_GPIO is not set
+CONFIG_IRQCHIP_DEMUX_GPIO=y
 CONFIG_BFIN_DMA_5XX=y
 # CONFIG_DMA_UNCACHED_2M is not set
 CONFIG_DMA_UNCACHED_1M=y
@@ -502,6 +502,7 @@ CONFIG_MTD_UCLINUX=y
 # CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
+# CONFIG_BLK_DEV_UB is not set
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
@@ -512,7 +513,35 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 #
 # ATA/ATAPI/MFM/RLL support
 #
-# CONFIG_IDE is not set
+CONFIG_IDE=m
+CONFIG_BLK_DEV_IDE=m
+
+#
+# Please see Documentation/ide.txt for help/info on IDE drives
+#
+# CONFIG_BLK_DEV_IDE_SATA is not set
+CONFIG_BLK_DEV_IDEDISK=m
+# CONFIG_IDEDISK_MULTI_MODE is not set
+# CONFIG_BLK_DEV_IDECD is not set
+# CONFIG_BLK_DEV_IDETAPE is not set
+# CONFIG_BLK_DEV_IDEFLOPPY is not set
+# CONFIG_IDE_TASK_IOCTL is not set
+
+#
+# IDE chipset support/bugfixes
+#
+CONFIG_IDE_GENERIC=m
+CONFIG_IDE_BFIN=y
+CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0=y
+# CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1 is not set
+CONFIG_BFIN_IDE_BASE=0x2400C000
+CONFIG_BFIN_IDE_ALT=0x2400D018
+CONFIG_BFIN_IDE_IRQ_PFX=46
+CONFIG_BFIN_IDE_GAP=4
+# CONFIG_IDE_ARM is not set
+# CONFIG_BLK_DEV_IDEDMA is not set
+# CONFIG_IDEDMA_AUTO is not set
+# CONFIG_BLK_DEV_HD is not set
 
 #
 # SCSI device support
@@ -615,6 +644,7 @@ CONFIG_SMC91X=y
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
+# CONFIG_BF5xx_TIMERS is not set
 # CONFIG_BF5xx_PPI is not set
 # CONFIG_BFIN_SPORT is not set
 # CONFIG_BFIN_TIMER_LATENCY is not set
@@ -726,10 +756,100 @@ CONFIG_HWMON=y
 #
 CONFIG_USB_ARCH_HAS_HCD=y
 # CONFIG_USB_ARCH_HAS_OHCI is not set
-# CONFIG_USB is not set
+CONFIG_USB=m
+CONFIG_USB_DEBUG=y
+
+#
+# Miscellaneous USB options
+#
+# CONFIG_USB_DEVICEFS is not set
+# CONFIG_USB_BANDWIDTH is not set
+# CONFIG_USB_DYNAMIC_MINORS is not set
+# CONFIG_USB_OTG is not set
+
+#
+# USB Host Controller Drivers
+#
+# CONFIG_USB_ISP116X_HCD is not set
+CONFIG_USB_ISP1362_HCD=m
+# CONFIG_USB_SL811_HCD is not set
+
+#
+# USB Device Class drivers
+#
+# CONFIG_USB_ACM is not set
+# CONFIG_USB_PRINTER is not set
 
 #
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
+#
+
+#
+# may also be needed; see USB_STORAGE Help for more information
+#
+# CONFIG_USB_STORAGE is not set
+# CONFIG_USB_LIBUSUAL is not set
+
+#
+# USB Input Devices
+#
+# CONFIG_USB_HID is not set
+
+#
+# USB HID Boot Protocol drivers
+#
+
+#
+# USB Imaging devices
+#
+# CONFIG_USB_MDC800 is not set
+
+#
+# USB Multimedia devices
+#
+# CONFIG_USB_DABUSB is not set
+
+#
+# Video4Linux support is needed for USB Multimedia device support
+#
+
+#
+# USB Network Adapters
+#
+# CONFIG_USB_CATC is not set
+# CONFIG_USB_KAWETH is not set
+# CONFIG_USB_PEGASUS is not set
+CONFIG_USB_RTL8150=m
+# CONFIG_USB_USBNET is not set
+CONFIG_USB_MON=y
+
+#
+# USB port drivers
+#
+
+#
+# USB Serial Converter support
+#
+# CONFIG_USB_SERIAL is not set
+
+#
+# USB Miscellaneous drivers
+#
+# CONFIG_USB_EMI62 is not set
+# CONFIG_USB_EMI26 is not set
+# CONFIG_USB_AUERSWALD is not set
+# CONFIG_USB_RIO500 is not set
+# CONFIG_USB_LEGOTOWER is not set
+# CONFIG_USB_LCD is not set
+# CONFIG_USB_LED is not set
+# CONFIG_USB_CYTHERM is not set
+# CONFIG_USB_PHIDGETKIT is not set
+# CONFIG_USB_PHIDGETSERVO is not set
+# CONFIG_USB_IDMOUSE is not set
+# CONFIG_USB_LD is not set
+
+#
+# USB DSL modem support
 #
 
 #
@@ -876,6 +996,7 @@ CONFIG_CPLB_INFO=y
 CONFIG_SECURITY=y
 # CONFIG_SECURITY_NETWORK is not set
 CONFIG_SECURITY_CAPABILITIES=y
+# CONFIG_SECURITY_ROOTPLUG is not set
 # CONFIG_SECURITY_SECLVL is not set
 
 #
