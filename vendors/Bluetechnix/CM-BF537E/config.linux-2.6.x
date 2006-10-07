@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16.27
-# Thu Sep 28 19:17:21 2006
+# Sat Oct  7 23:10:32 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -216,7 +216,7 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_LARGE_ALLOCS=y
-# CONFIG_IRQCHIP_DEMUX_GPIO is not set
+CONFIG_IRQCHIP_DEMUX_GPIO=y
 CONFIG_BFIN_DMA_5XX=y
 # CONFIG_DMA_UNCACHED_2M is not set
 CONFIG_DMA_UNCACHED_1M=y
@@ -237,12 +237,7 @@ CONFIG_L1_MAX_PIECE=16
 #
 # Clock Settings
 #
-CONFIG_BFIN_KERNEL_CLOCK=y
-CONFIG_VCO_MULT=20
-CONFIG_CCLK_DIV=1
-CONFIG_SCLK_DIV=4
-# CONFIG_CLKIN_HALF is not set
-# CONFIG_PLL_BYPASS is not set
+# CONFIG_BFIN_KERNEL_CLOCK is not set
 
 #
 # Asynchonous Memory Configuration
