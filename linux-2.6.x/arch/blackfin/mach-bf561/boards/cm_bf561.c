@@ -219,20 +219,20 @@ static struct platform_device smc91x_device = {
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
 static struct resource isp1362_hcd_resources[] = {
 	{
-		.start = 0x28000000,
-		.end = 0x20308000,
+		.start = 0x24008000,
+		.end = 0x24008000,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = 0x28000002,
-		.end = 0x28000002,
+		.start = 0x24008004,
+		.end = 0x24008004,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = IRQ_PROG_INTA,
-		.end = IRQ_PROG_INTA,
+		.start = IRQ_PF47,
+		.end = IRQ_PF47,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},{
-		.start = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
-		.end = IRQ_PF0 + CONFIG_USB_ISP1362_BFIN_GPIO,
+		.start = IRQ_PF47,
+		.end = IRQ_PF47,
 		.flags = IORESOURCE_IRQ,
 	},
 };
