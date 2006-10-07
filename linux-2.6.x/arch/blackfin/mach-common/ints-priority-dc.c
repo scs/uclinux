@@ -545,7 +545,7 @@ void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 	       "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
 	set_irq_type(irq_pfx, type);
 #else
-#  error "bfin_gpio_interrupt_setup not implemented without CONFIG_IRQCHIP_DEMUX_GPIO enabled"
+  panic("bfin_gpio_interrupt_setup not implemented without CONFIG_IRQCHIP_DEMUX_GPIO enabled\n");
 #endif
 
 }
