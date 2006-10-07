@@ -534,6 +534,9 @@ config VCO_MULT
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
 	default "20" if BFIN537_STAMP
+	default "22" if BFIN533_BLUETECHNIX_CM
+	default "20" if BFIN537_BLUETECHNIX_CM
+	default "20" if BFIN561_BLUETECHNIX_CM
 	default "20" if BFIN561_EZKIT
 
 config CCLK_DIV
@@ -542,6 +545,9 @@ config CCLK_DIV
 	default 1 if BFIN533_EZKIT
 	default 1 if BFIN533_STAMP
 	default 1 if BFIN537_STAMP
+	default 1 if BFIN533_BLUETECHNIX_CM
+	default 1 if BFIN537_BLUETECHNIX_CM
+	default 1 if BFIN561_BLUETECHNIX_CM
 	default 1 if BFIN561_EZKIT
 
 config SCLK_DIV
@@ -550,6 +556,9 @@ config SCLK_DIV
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
 	default 4 if BFIN537_STAMP
+	default 5 if BFIN533_BLUETECHNIX_CM
+	default 4 if BFIN537_BLUETECHNIX_CM
+	default 4 if BFIN561_BLUETECHNIX_CM
 	default 5 if BFIN561_EZKIT
 
 config CLKIN_HALF
