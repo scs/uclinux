@@ -203,8 +203,8 @@ static struct resource smc91x_resources[] = {
 		 *  denotes the flag pin and is used directly if
 		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
 		 */
-		.start = IRQ_PF0,
-		.end = IRQ_PF0,
+		.start = IRQ_PF14,
+		.end = IRQ_PF14,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 		},
 };
@@ -228,8 +228,8 @@ static struct resource isp1362_hcd_resources[] = {
 		.end = 0x20308004,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = IRQ_PROG_INTA,
-		.end = IRQ_PROG_INTA,
+		.start = IRQ_PG15,
+		.end = IRQ_PG15,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},{
 		.start = IRQ_PG15,

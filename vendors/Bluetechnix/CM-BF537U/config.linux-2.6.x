@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.16.27
-# Mon Sep 18 16:36:22 2006
+# Sat Oct  7 23:01:15 2006
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -107,6 +107,7 @@ CONFIG_BFIN_SINGLE_CORE=y
 # CONFIG_BFIN537_STAMP is not set
 # CONFIG_BFIN533_BLUETECHNIX_CM is not set
 CONFIG_BFIN537_BLUETECHNIX_CM=y
+# CONFIG_BFIN561_BLUETECHNIX_CM is not set
 # CONFIG_BFIN561_EZKIT is not set
 # CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC16M16A2TG_75=y
@@ -170,7 +171,7 @@ CONFIG_IRQ_WATCH=13
 #
 # Board Setup
 #
-CONFIG_CLKIN_HZ=25000000
+CONFIG_CLKIN_HZ=30000000
 CONFIG_MEM_SIZE=32
 CONFIG_MEM_ADD_WIDTH=9
 CONFIG_BOOT_LOAD=0x1000
@@ -215,7 +216,7 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_LARGE_ALLOCS=y
-# CONFIG_IRQCHIP_DEMUX_GPIO is not set
+CONFIG_IRQCHIP_DEMUX_GPIO=y
 CONFIG_BFIN_DMA_5XX=y
 # CONFIG_DMA_UNCACHED_2M is not set
 CONFIG_DMA_UNCACHED_1M=y
@@ -258,7 +259,7 @@ CONFIG_C_AMBEN_ALL=y
 #
 CONFIG_BANK_0=0x7BB0
 CONFIG_BANK_1=0x7BB0
-CONFIG_BANK_2=0x7BB0
+CONFIG_BANK_2=0xFFC3
 CONFIG_BANK_3=0xFFC3
 
 #
@@ -473,7 +474,6 @@ CONFIG_MTD_UCLINUX=y
 # CONFIG_BLK_DEV_COW_COMMON is not set
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
-# CONFIG_BLK_DEV_UB is not set
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
@@ -485,6 +485,8 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # ATA/ATAPI/MFM/RLL support
 #
 # CONFIG_IDE is not set
+# CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE0 is not set
+# CONFIG_BFIN_IDE_ADDRESS_MAPPING_MODE1 is not set
 
 #
 # SCSI device support
@@ -529,11 +531,8 @@ CONFIG_NETDEVICES=y
 #
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
-# CONFIG_SMC91X is not set
-CONFIG_BFIN_MAC=y
-CONFIG_BFIN_MAC_USE_L1=y
-CONFIG_BFIN_TX_DESC_NUM=10
-CONFIG_BFIN_RX_DESC_NUM=20
+CONFIG_SMC91X=y
+# CONFIG_BFIN_MAC is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -591,6 +590,7 @@ CONFIG_BFIN_RX_DESC_NUM=20
 # CONFIG_SPI_ADC_BF533 is not set
 # CONFIG_BF533_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
+# CONFIG_BF5xx_TIMERS is not set
 # CONFIG_BF5xx_PPI is not set
 CONFIG_BFIN_SPORT=y
 # CONFIG_BFIN_TIMER_LATENCY is not set
@@ -703,107 +703,32 @@ CONFIG_HWMON=y
 #
 CONFIG_USB_ARCH_HAS_HCD=y
 # CONFIG_USB_ARCH_HAS_OHCI is not set
-CONFIG_USB=m
-# CONFIG_USB_DEBUG is not set
-
-#
-# Miscellaneous USB options
-#
-# CONFIG_USB_DEVICEFS is not set
-# CONFIG_USB_BANDWIDTH is not set
-# CONFIG_USB_DYNAMIC_MINORS is not set
-# CONFIG_USB_OTG is not set
-
-#
-# USB Host Controller Drivers
-#
-# CONFIG_USB_ISP116X_HCD is not set
-CONFIG_USB_ISP1362_HCD=m
-CONFIG_USB_ISP1362_BFIN_GPIO=3
-# CONFIG_USB_SL811_HCD is not set
-
-#
-# USB Device Class drivers
-#
-# CONFIG_USB_ACM is not set
-# CONFIG_USB_PRINTER is not set
+# CONFIG_USB is not set
 
 #
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
 #
 
 #
-# may also be needed; see USB_STORAGE Help for more information
-#
-# CONFIG_USB_STORAGE is not set
-# CONFIG_USB_LIBUSUAL is not set
-
-#
-# USB Input Devices
-#
-# CONFIG_USB_HID is not set
-
-#
-# USB HID Boot Protocol drivers
-#
-
-#
-# USB Imaging devices
-#
-# CONFIG_USB_MDC800 is not set
-
-#
-# USB Multimedia devices
-#
-# CONFIG_USB_DABUSB is not set
-
-#
-# Video4Linux support is needed for USB Multimedia device support
-#
-
-#
-# USB Network Adapters
-#
-# CONFIG_USB_CATC is not set
-# CONFIG_USB_KAWETH is not set
-# CONFIG_USB_PEGASUS is not set
-# CONFIG_USB_RTL8150 is not set
-# CONFIG_USB_USBNET is not set
-CONFIG_USB_MON=y
-
-#
-# USB port drivers
-#
-
-#
-# USB Serial Converter support
-#
-# CONFIG_USB_SERIAL is not set
-
-#
-# USB Miscellaneous drivers
-#
-# CONFIG_USB_EMI62 is not set
-# CONFIG_USB_EMI26 is not set
-# CONFIG_USB_AUERSWALD is not set
-# CONFIG_USB_RIO500 is not set
-# CONFIG_USB_LEGOTOWER is not set
-# CONFIG_USB_LCD is not set
-# CONFIG_USB_LED is not set
-# CONFIG_USB_CYTHERM is not set
-# CONFIG_USB_PHIDGETKIT is not set
-# CONFIG_USB_PHIDGETSERVO is not set
-# CONFIG_USB_IDMOUSE is not set
-# CONFIG_USB_LD is not set
-
-#
-# USB DSL modem support
-#
-
-#
 # USB Gadget Support
 #
-# CONFIG_USB_GADGET is not set
+CONFIG_USB_GADGET=y
+# CONFIG_USB_GADGET_DEBUG_FILES is not set
+CONFIG_USB_GADGET_SELECTED=y
+CONFIG_USB_GADGET_NET2272=y
+CONFIG_USB_NET2272=y
+# CONFIG_USB_GADGET_NET2280 is not set
+# CONFIG_USB_GADGET_PXA2XX is not set
+# CONFIG_USB_GADGET_GOKU is not set
+# CONFIG_USB_GADGET_LH7A40X is not set
+# CONFIG_USB_GADGET_OMAP is not set
+# CONFIG_USB_GADGET_DUMMY_HCD is not set
+CONFIG_USB_GADGET_DUALSPEED=y
+# CONFIG_USB_ZERO is not set
+# CONFIG_USB_ETH is not set
+# CONFIG_USB_GADGETFS is not set
+# CONFIG_USB_FILE_STORAGE is not set
+# CONFIG_USB_G_SERIAL is not set
 
 #
 # MMC/SD Card support
@@ -943,7 +868,6 @@ CONFIG_CPLB_INFO=y
 CONFIG_SECURITY=y
 # CONFIG_SECURITY_NETWORK is not set
 CONFIG_SECURITY_CAPABILITIES=y
-# CONFIG_SECURITY_ROOTPLUG is not set
 # CONFIG_SECURITY_SECLVL is not set
 
 #
