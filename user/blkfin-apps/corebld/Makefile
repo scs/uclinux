@@ -1,5 +1,7 @@
 obj-m := dualcore_test.o
 
+CPPFLAGS += -D__ASSEMBLY__
+
 EXEC = corebld
 OBJS = corebld.o
 NOLIB_FLAGS = -nostartfiles -nostdlib -nodefaultlibs
@@ -7,10 +9,10 @@ NOLIB_FLAGS = -nostartfiles -nostdlib -nodefaultlibs
 all: $(EXEC) coreb coreb_get_testarg
 
 coreb.o:
-	$(CC) $(NOLIB_FLAGS) -c -I ../../../uClibc/include coreb.S -o coreb.o
+	$(CC) $(CPPFLAGS) $(NOLIB_FLAGS) -c -I ../../../uClibc/include coreb.S -o coreb.o
 
 coreb_get_testarg.o:
-	$(CC) $(NOLIB_FLAGS) -c -I ../../../uClibc/include coreb_get_testarg.S -o coreb_get_testarg.o
+	$(CC) $(CPPFLAGS) $(NOLIB_FLAGS) -c -I ../../../uClibc/include coreb_get_testarg.S -o coreb_get_testarg.o
 
 coreb: coreb.o coreb.lds
 	$(LD) $(NOLIB_FLAGS) -N -M -T coreb.lds coreb.o -o coreb > coreb.map
