@@ -378,10 +378,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* if the address that we are about to return to is not valid, set it
 	 * to a valid address, if we have a current application or panic
 	 */
-	if (!fp->pc <= physical_mem_end
+	if (!(fp->pc <= physical_mem_end
 #if L1_CODE_LENGTH != 0
-	    || (fp->pc >= L1_CODE_START &&
-	        fp->pc <= (L1_CODE_START + L1_CODE_LENGTH))
+	      || (fp->pc >= L1_CODE_START &&
+		  fp->pc <= (L1_CODE_START + L1_CODE_LENGTH)))
 #endif
 	) {
 		if (current->mm) {
