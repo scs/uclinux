@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -54,7 +55,7 @@ static void put_region(char *dst, const char *src, size_t count)
 		return;
 	}
 
-	if (ret = ioctl(f, 1, &index))
+	if ((ret = ioctl(f, 1, &index)) != 0)
 		printf("ioctl return %d\n", ret);
 	if (seek)
 		if ((ret = lseek(f, seek, SEEK_SET)) < 0)
@@ -62,13 +63,13 @@ static void put_region(char *dst, const char *src, size_t count)
 	if (write(f, src, count) != count)
 		printf("write failed!\n");
 	close(f);
-	printf("wrote %d bytes to 0x%08lx\n", count, (unsigned long)dst);
+	printf("wrote %zi bytes to 0x%p\n", count, dst);
 }
 
 #define COMPILER_VDSP	0
 #define COMPILER_GCC	1
 
-int elf_load(const char* buf)
+int elf_load(const char *buf)
 {
 	Elf32_Ehdr *ehdr = (Elf32_Ehdr*)buf;
 	int compiler;
@@ -102,7 +103,7 @@ int elf_load(const char* buf)
 			     && (shdr->sh_flags & 0x408000) == 0x8000)
 			    || (compiler == COMPILER_GCC
 				&& (shdr->sh_flags & 0x0003) == 0x0003)) {
-				printf("Write %d bytes to 0x%08lx\n", size, addr);
+				printf("Write %zi bytes to 0x%p\n", size, (void*)addr);
 				put_region((char*)addr, buf + shdr->sh_offset, size);
 			}
 		}
@@ -110,9 +111,9 @@ int elf_load(const char* buf)
 	return 0;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-	FILE* f;
+	FILE *f;
 	struct stat stat;
 	char *buf;
 
@@ -131,12 +132,12 @@ int main(int argc, char* argv[])
 	}
 
 	if ((buf = malloc(stat.st_size)) == NULL) {
-		printf("Unable to allocate %d bytes.\n", stat.st_size);
+		printf("Unable to allocate %li bytes.\n", (unsigned long)stat.st_size);
 		return 0;
 	}
 
 	if (fread(buf, 1, stat.st_size, f) != stat.st_size) {
-		printf("Unable to read %d bytes from %s\n", stat.st_size, argv[1]);
+		printf("Unable to read %li bytes from %s\n", (unsigned long)stat.st_size, argv[1]);
 		return 0;
 	}
 
@@ -149,4 +150,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
