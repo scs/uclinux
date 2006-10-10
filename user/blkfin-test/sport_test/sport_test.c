@@ -23,7 +23,7 @@
 int transmit = 1;
 int omode = O_RDWR;
 int sport = 0;
-int count = 10 * 2 * 8000; /* Only recored 10 second */
+int count = 10 * 2 * 8000; /* Only record 10 second */
 
 /* Definitions for Microsoft WAVE format */
 #define RIFF		0x46464952
@@ -204,7 +204,7 @@ int main (int argc, char *argv[])
 	config.word_len = 16;
 	config.dma_enabled = 1;
 
-	/* Write control data to ad73311's control register by write operation*/
+	/* Configure sport controller by ioctl */
 	if (ioctl (sport, SPORT_IOC_CONFIG, &config) < 0) {
 		fprintf(stderr, "failed to config sport\n");
 		free(buffer);
@@ -212,6 +212,7 @@ int main (int argc, char *argv[])
 		close(fd);
 		return -1;
 	}
+	/* Write control data to ad73311's control register by write operation*/
 	if (write (sport, (char*)ctrl_regs, 12) < 0) {
 		perror("Failed write ctrl regs\n");
 		free(buffer);
