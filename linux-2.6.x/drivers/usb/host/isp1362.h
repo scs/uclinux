@@ -17,6 +17,7 @@
 
 #define USE_32BIT		1
 
+
 // These options are mutually eclusive
 #define USE_PLATFORM_DELAY	1
 #define USE_NDELAY		0
@@ -28,6 +29,7 @@
  * specific.
  */
 #define MAX_ROOT_PORTS		2
+#define DUMMY_DELAY_ACCESS do{} while(0)
 
 // insert platform specific definitions for other machines here
 //#elif defined(CONFIG_ARCH_)
@@ -38,6 +40,32 @@
 #define MAX_ROOT_PORTS		2
 #define USE_PLATFORM_DELAY	0
 #define USE_NDELAY		1
+
+#define DUMMY_DELAY_ACCESS bfin_read16(ASYNC_BANK0_BASE)
+
+#undef insw
+#undef outsw
+
+#define insw  delayed_insw
+#define outsw  delayed_outsw
+
+static inline void delayed_outsw(unsigned int addr, void *buf, int len)
+{
+  unsigned short *bp = (unsigned short *) buf;
+  while (len--){
+    DUMMY_DELAY_ACCESS;
+    outw(*bp++, addr);
+  }
+}
+
+static inline void delayed_insw(unsigned int addr, void *buf, int len)
+{
+  unsigned short *bp = (unsigned short *) buf;
+  while (len--){
+    DUMMY_DELAY_ACCESS;
+    *bp++ = inw(addr);
+  }
+}
 
 #else
 
@@ -51,7 +79,10 @@
 #define USE_PLATFORM_DELAY	0
 #define USE_NDELAY		0
 
+#define DUMMY_DELAY_ACCESS do{} while(0)
+
 #endif
+
 
 /* ------------------------------------------------------------------------- */
 
@@ -667,13 +698,16 @@ static void isp1362_write_addr(struct isp1362_hcd *isp1362_hcd, isp1362_reg_t re
 	//_BUG_ON((reg & ISP1362_REG_WRITE_OFFSET) && !(reg & REG_ACCESS_W));
 	REG_ACCESS_TEST(reg);
 	_BUG_ON(!irqs_disabled());
+	DUMMY_DELAY_ACCESS;
 	writew(ISP1362_REG_NO(reg), isp1362_hcd->addr_reg);
+	DUMMY_DELAY_ACCESS;
 	isp1362_delay(isp1362_hcd, 1);
 }
 
 static void isp1362_write_data16(struct isp1362_hcd *isp1362_hcd, u16 val)
 {
 	_BUG_ON(!irqs_disabled());
+	DUMMY_DELAY_ACCESS;
 	writew(val, isp1362_hcd->data_reg);
 }
 
@@ -682,6 +716,7 @@ static u16 isp1362_read_data16(struct isp1362_hcd *isp1362_hcd)
 	u16 val;
 
 	_BUG_ON(!irqs_disabled());
+	DUMMY_DELAY_ACCESS;
 	val = readw(isp1362_hcd->data_reg);
 
 	return val;
@@ -691,9 +726,12 @@ static void isp1362_write_data32(struct isp1362_hcd *isp1362_hcd, u32 val)
 {
 	_BUG_ON(!irqs_disabled());
 #if USE_32BIT
+	DUMMY_DELAY_ACCESS;
 	writel(val, isp1362_hcd->data_reg);
 #else
+	DUMMY_DELAY_ACCESS;
 	writew((u16)val, isp1362_hcd->data_reg);
+	DUMMY_DELAY_ACCESS;
 	writew(val >> 16, isp1362_hcd->data_reg);
 #endif
 }
@@ -704,9 +742,12 @@ static u32 isp1362_read_data32(struct isp1362_hcd *isp1362_hcd)
 
 	_BUG_ON(!irqs_disabled());
 #if USE_32BIT
+	DUMMY_DELAY_ACCESS;
 	val = readl(isp1362_hcd->data_reg);
 #else
+	DUMMY_DELAY_ACCESS;
 	val = (u32)readw(isp1362_hcd->data_reg);
+	DUMMY_DELAY_ACCESS;
 	val |= (u32)readw(isp1362_hcd->data_reg) << 16;
 #endif
 	return val;
@@ -749,6 +790,7 @@ static void isp1362_read_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 le
 
 	BUG_ON(len & ~1);
 	if (len > 0) {
+	 DUMMY_DELAY_ACCESS;
 		data = isp1362_read_data16(isp1362_hcd);
 		RDBG("%s: Reading trailing byte %02x to mem @ %08x\n", __FUNCTION__,
 		     (u8)data, (u32)dp);
@@ -796,6 +838,7 @@ static void isp1362_write_fifo(struct isp1362_hcd *isp1362_hcd, void *buf, u16 l
 		data = (u16)*dp;
 		RDBG("%s: Sending trailing byte %02x from mem @ %08x\n", __FUNCTION__,
 			data, (u32)dp);
+	  DUMMY_DELAY_ACCESS;
 		isp1362_write_data16(isp1362_hcd, data);
 	}
 }
