@@ -14,6 +14,13 @@
  *  - SL811S (or HS in slave mode) has four A+B sets, at 00, 10, 20, 30
  */
 
+
+#ifdef CONFIG_BFIN
+  #define DUMMY_DELAY_ACCESS bfin_read16(ASYNC_BANK0_BASE);
+#else
+  #define DUMMY_DELAY_ACCESS do{} while(0)
+#endif
+
 #define SL811_EP_A(base)	((base) + 0)
 #define SL811_EP_B(base)	((base) + 8)
 
@@ -196,13 +203,17 @@ struct sl811h_ep {
 
 static inline u8 sl811_read(struct sl811 *sl811, int reg)
 {
+	DUMMY_DELAY_ACCESS;
 	writeb(reg, sl811->addr_reg);
+	DUMMY_DELAY_ACCESS;
 	return readb(sl811->data_reg);
 }
 
 static inline void sl811_write(struct sl811 *sl811, int reg, u8 val)
 {
+	DUMMY_DELAY_ACCESS;
 	writeb(reg, sl811->addr_reg);
+	DUMMY_DELAY_ACCESS;
 	writeb(val, sl811->data_reg);
 }
 
@@ -215,11 +226,12 @@ sl811_write_buf(struct sl811 *sl811, int addr, const void *buf, size_t count)
 	if (!count)
 		return;
 	writeb(addr, sl811->addr_reg);
-
+	DUMMY_DELAY_ACCESS;
 	data = buf;
 	data_reg = sl811->data_reg;
 	do {
 		writeb(*data++, data_reg);
+	  DUMMY_DELAY_ACCESS;
 	} while (--count);
 }
 
@@ -232,11 +244,12 @@ sl811_read_buf(struct sl811 *sl811, int addr, void *buf, size_t count)
 	if (!count)
 		return;
 	writeb(addr, sl811->addr_reg);
-
+	DUMMY_DELAY_ACCESS;
 	data = buf;
 	data_reg = sl811->data_reg;
 	do {
 		*data++ = readb(data_reg);
+		DUMMY_DELAY_ACCESS;
 	} while (--count);
 }
 
