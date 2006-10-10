@@ -24,4 +24,5 @@ dir_$(CONFIG_USER_SYSVIPC_TEST)             += blkfin-test/sysv_ipc_test
 dir_$(CONFIG_EVENT_TEST)                    += blkfin-test/event_test
 dir_$(CONFIG_AD9960_TEST)                   += blkfin-test/ad9960_test
 dir_$(CONFIG_FILE_OPERATION_TEST)           += blkfin-test/file_operation-test
+dir_$(CONFIG_USER_BLACKFIN_SPORT)	    += blkfin-test/sport_test
 dir_y                                       += blkfin-apps
