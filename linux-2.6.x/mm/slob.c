@@ -211,6 +211,8 @@ void *kmalloc(size_t size, gfp_t gfp)
 	slob_t *m;
 	bigblock_t *bb;
 	unsigned long flags;
+	struct page *page;
+	int i;
 
 	if (size < PAGE_SIZE - SLOB_UNIT) {
 		m = slob_alloc(size + SLOB_UNIT, gfp, 0);
