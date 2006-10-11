@@ -18,9 +18,30 @@ if { $argc < 1 } {
    exit
 } 
 
-if { $argc >= 2 } {
+#
+# wt_wb = 1, write back mode
+# wt_wb = 2, write through mode
+#
+# slab_slob = 1, enable slab
+# slab_slob = 2, enable slob 
+#
+# np2 = 0, slob with np2
+# np2 = 1, slob with p2
+#
+
+if { $argc == 4 } {
    set uclinux_path [lindex $argv 1]
+   set wt_wb [lindex $argv 2]
+   set slab_slob [lindex $argv 3]
    send_log "\n#### uclinux_path is $uclinux_path\n"
+} else {
+   if { $argc == 5 } {
+      set uclinux_path [lindex $argv 1]
+      set wt_wb [lindex $argv 2]
+      set slab_slob [lindex $argv 3]
+      set np2 [lindex $argv 4]
+      send_log "\n#### uclinux_path is $uclinux_path\n"
+   }
 }
 
 proc step { message } {
@@ -63,6 +84,65 @@ while 1 {
       }
    }
 }
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+#tee "Begin the interactive process of configuration"
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re ".*Write through \\\(BLKFIN_WT\\\).*choice\\\[1-2\\\]:.*" {
+         send "$wt_wb\r"
+      }
+
+      -re "Use full SLAB allocator \\\(SLAB\\\).*\\\[././.]" {
+         if { $slab_slob == 1 } {
+            send "y\r"
+         }
+         if { $slab_slob == 2 } {
+            send "n\r"
+         }
+      }
+
+      -re "Use non-power of 2 allocator \\\(NP2_ALLOC\\\).*\\\[././.]" {
+         if { $np2 == 0 } {
+            send "y\r"
+         }
+         if { $np2 == 1 } {
+            send "n\r"
+         }
+      }
+
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+
+
 
 step "Make"
 
