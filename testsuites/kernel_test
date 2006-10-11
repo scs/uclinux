@@ -1230,52 +1230,60 @@ fi
 if [ $ltp_test -eq 1 ] ; then
   echo "Testing LTP..."
 
-  rm -rf $KERNEL_PATH/*
-  cd $KERNEL_PATH
-  echo "change dir to $KERNEL_PATH"
-  cp -a  $KERNEL_PATH_BAK/*  .
+  ltp_args=( [0]="1 1" [1]="1 2 0" [2]="1 2 1" [3]="2 1" [4]="2 2 0" [5]="2 2 1" )
+  ltp_suf=(wb_slab wb_slob_np2 wb_slob_p2 wt_slab wt_slob_np2 wt_slob_p2)
 
-  cd $KERNEL_SCRIPTS/ltp
-  echo "change dir to $KERNEL_SCRIPTS/ltp"
-  ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE > /dev/null 2>&1
-  echo "build_ltp_kernel.exp done"
-  sleep 30
-  ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
-  echo "ltp_auto_test.exp done"
-  ./ltp_compare_results_all.sh config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new >> ltp_test_log
-  ./ltp_decide_standard.pl config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new
-  if [ $? ] ; then
-    echo "ltp test fail"
-    echo "LTP Test ............[FAIL]" >> ltp_test_log
-  else
-    echo "ltp test pass"
-    echo "LTP Test ............[FAIL]" >> ltp_test_log
-  fi
-
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp
-  echo "ltp copy linux.ltp done"
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp
-  echo "ltp copy config.ltp done"
-  cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG
-  echo "ltp copy build_ltp_kernel_log done"
-  cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log
-  echo "ltp copy summary done"
-  cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log
-  echo "ltp copy detailed done"
-  cp $KERNEL_SCRIPTS/ltp/build_ltp_log $THIS_LOG/.
-  cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG/.
-  echo "copy log files done"
- 
-  sleep 30
+  for i in 0 1 2 3 4 5
+  do
+    rm -rf $KERNEL_PATH/*
+    cd $KERNEL_PATH
+    echo "change dir to $KERNEL_PATH"
+    cp -a  $KERNEL_PATH_BAK/*  .
   
- 
-  if [ $reset_board -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp   >/dev/null  2>&1       
-   sleep 10
-  fi
+    cd $KERNEL_SCRIPTS/ltp
+    echo "change dir to $KERNEL_SCRIPTS/ltp"
+    ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE ${ltp_args[i]}> /dev/null 2>&1
+    echo "build_ltp_kernel.exp done"
+    sleep 30
+    ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
+    echo "ltp_auto_test.exp done"
+    ./ltp_compare_results_all.sh config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new >> ltp_test_log
+    ./ltp_decide_standard.pl config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new
+    if [ $? ] ; then
+      echo "ltp test fail"
+      echo "LTP Test ............[FAIL]" >> ltp_test_log
+    else
+      echo "ltp test pass"
+      echo "LTP Test ............[FAIL]" >> ltp_test_log
+    fi
+  
+    cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp_${ltp_suf[i]}
+    echo "ltp copy linux.ltp done"
+    cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp_${ltp_suf[i]}
+    echo "ltp copy config.ltp done"
+    cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
+    echo "ltp copy build_ltp_kernel_log done"
+    cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log_${ltp_suf[i]}
+    echo "ltp copy summary done"
+    cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log_${ltp_suf[i]}
+    echo "ltp copy detailed done"
+    cp $KERNEL_SCRIPTS/ltp/build_ltp_log $THIS_LOG/build_ltp_log_${ltp_suf[i]}
+    cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG/ltp_test_log_${ltp_suf[i]}
+    echo "copy log files done"
+   
+    sleep 30
+    
+   
+    if [ $reset_board -eq 1  ] ; then
+     cd $KERNEL_SCRIPTS
+     ./reset_board.exp   >/dev/null  2>&1       
+     sleep 10
+    fi
+
+done
 
 fi
+
 
 
   ##############################################################################################
