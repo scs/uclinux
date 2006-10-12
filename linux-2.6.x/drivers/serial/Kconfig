@@ -1003,13 +1003,13 @@ config BFIN_UART0_CTSRTS
 	bool "CTS and RTS setting for UART0"
 	depends on BFIN_UART_CTSRTS
 
-config BFIN_UART0_CTSRTS_PORT
-	string "UART0 GPIO port for CTS and RTS"
+config BFIN_UART0_CTS_PORT
+	string "UART0 GPIO port for CTS"
 	default 'G' if (BF534||BF536||BF537)
 	default 'F' if (BF531||BF532||BF533)
 	depends on BFIN_UART0_CTSRTS
 	help
-	  This is GPIO port used by CTS and RTS of UART0.
+	  This is GPIO port used by CTS of UART0.
 	  On BF531,532,533, only 'F' is supported.
 	  On BF534,536,537, 'F', 'G' and 'H' are supported.
 
@@ -1019,6 +1019,16 @@ config BFIN_UART0_CTS
 	default 7
 	help
 	  This is the UART0 CTS bit number in the select GPIO port.
+
+config BFIN_UART0_RTS_PORT
+	string "UART0 GPIO port for RTS"
+	default 'G' if (BF534||BF536||BF537)
+	default 'F' if (BF531||BF532||BF533)
+	depends on BFIN_UART0_CTSRTS
+	help
+	  This is GPIO port used by RTS of UART0.
+	  On BF531,532,533, only 'F' is supported.
+	  On BF534,536,537, 'F', 'G' and 'H' are supported.
 
 config BFIN_UART0_RTS
 	int "UART0 RTS control bit in GPIO port"
@@ -1031,12 +1041,12 @@ config BFIN_UART1_CTSRTS
 	bool "CTS and RTS setting for UART1"
 	depends on (BFIN_UART_CTSRTS && (BF534||BF536||BF537))
 
-config BFIN_UART1_CTSRTS_PORT
-	string "UART1 GPIO port for CTS and RTS"
+config BFIN_UART1_CTS_PORT
+	string "UART1 GPIO port for CTS"
 	default 'G'
 	depends on BFIN_UART1_CTSRTS
 	help
-	  This is GPIO port used by CTS and RTS of UART1.
+	  This is GPIO port used by CTS of UART1.
 	  'F', 'G' and 'H' are supported.
 
 config BFIN_UART1_CTS
@@ -1045,6 +1055,14 @@ config BFIN_UART1_CTS
 	depends on BFIN_UART1_CTSRTS
 	help
 	  This is the UART1 CTS bit number in the select GPIO port.
+
+config BFIN_UART1_RTS_PORT
+	string "UART1 GPIO port for RTS"
+	default 'G'
+	depends on BFIN_UART1_CTSRTS
+	help
+	  This is GPIO port used by RTS of UART1.
+	  'F', 'G' and 'H' are supported.
 
 config BFIN_UART1_RTS
 	int "UART1 RTS control bit in GPIO port"
