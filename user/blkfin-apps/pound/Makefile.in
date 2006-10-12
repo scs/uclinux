@@ -52,8 +52,17 @@ install:	all
 		[ -d @mandir@/man8 ] || mkdir @mandir@/man8
 		@INSTALL@ -o bin -g bin -m 644 pound.8 @mandir@/man8/pound.8
 
+romfs:
+		$(ROMFSINST) /bin/pound
+		test -d $(ROMFSDIR)/etc/pound || mkdir $(ROMFSDIR)/etc/pound
+		cp ./mycert.pem $(ROMFSDIR)/etc/pound
+		test -d $(ROMFSDIR)/usr/local \
+		|| (mkdir $(ROMFSDIR)/usr/local && mkdir $(ROMFSDIR)/usr/local/etc)
+		cp ./pound.cfg $(ROMFSDIR)/usr/local/etc
+		cp ./index.html $(ROMFSDIR)/home/httpd
+
 clean:
-		rm -f pound $(OBJS)
+		rm -f pound $(OBJS) Makefile
 
 uninstall:
 		-rm -f @sbindir@/pound @mandir@/man8/pound.8 @mandir@/cat8/pound.8
