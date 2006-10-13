@@ -476,7 +476,7 @@ static void __init generate_cpl_tables(void)
 {
 
 	u16 i, j, process;
-	u32 a_start, a_end, as, ae;
+	u32 a_start, a_end, as, ae, as_1m;
 
 	struct cplb_tab *t_i = NULL;
 	struct cplb_tab *t_d = NULL;
@@ -526,6 +526,20 @@ static void __init generate_cpl_tables(void)
 	for (i = ZERO_P; i <= L2_MEM; i++) {
 
 		if (cplb_data[i].valid) {
+
+			as_1m = cplb_data[i].start % SIZE_1M;
+
+		/* We need to make sure all sections are properly 1M aligned
+		However between Kernel Memory and the Kernel mtd section, depending on the
+		rootfs size, there can be overlapping memory areas. */    
+	
+			if(as_1m)
+				if (i == SDRAM_RAM_MTD)
+				  cplb_data[i].start = (cplb_data[i].start 
+						& (-2*SIZE_1M)) + SIZE_1M;
+				else
+				  printk(KERN_WARNING "Unaligned Start of %s at 0x%X\n",
+						cplb_data[i].name, cplb_data[i].start);
 
 			as = cplb_data[i].start % SIZE_4M;
 			ae = cplb_data[i].end % SIZE_4M;
