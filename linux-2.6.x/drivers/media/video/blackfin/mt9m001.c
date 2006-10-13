@@ -105,9 +105,6 @@
 #define   ON  1
 #define   OFF 0
 
-#undef UCAMDEBUG
-#undef GPIODEBUG
-
 #define NO_TRIGGER  16
 
 #define MT9M001
@@ -139,12 +136,15 @@
 # define DMA_WDSIZE_16      	WDSIZE_16
 #endif
 
+struct uCam_device_t;
+
 static unsigned int global_gain = 127;
 static unsigned int debug = 0;
 static unsigned int perfnum = 0;
-struct i2c_client *i2c_global_client;
+struct i2c_client *i2c_global_client = NULL; /* just needed for proc ... */
 struct mt9m001_data {
 	struct i2c_client client;
+	struct uCam_device_t *uCam_dev;
 	unsigned char reg[128];
 	int input;
 	int enable;
@@ -153,7 +153,7 @@ struct mt9m001_data {
 	int hue;
 	int sat;
 };
-static const char mt9m001_name[] = "mt9m001";
+static const char sensor_name[] = "mt9m001";
 struct i2c_adapter *adapter;
 static u16 normal_i2c[] = {
 	I2C_MT9M001 >> 1,
@@ -163,7 +163,8 @@ static u16 normal_i2c[] = {
 I2C_CLIENT_INSMOD;
 static struct i2c_driver mt9m001_driver;
 
-typedef struct PPI_Device_t {
+struct ppi_device_t {
+	struct uCam_device_t *uCam_dev;
 	int opened;
 	int nonblock;
 	unsigned short irqnum;
@@ -178,7 +179,7 @@ typedef struct PPI_Device_t {
 	unsigned short ppi_trigger_gpio;
 	struct fasync_struct *fasyc;
 	wait_queue_head_t* rx_avail;
-} ppi_device_t;
+};
 
 struct uCam_buffer {
 	unsigned char *data;
@@ -204,7 +205,8 @@ enum {
 struct uCam_device_t {
 	int frame_count;
 	struct video_device *videodev;
-	ppi_device_t *ppidev;
+	struct ppi_device_t *ppidev;
+	struct i2c_client *client;
 	int user;
 	char name[32];
 	int width;
@@ -229,26 +231,18 @@ static inline unsigned int cycles(void)
 	return ret;
 }
 
-void ucam_reg_reset(ppi_device_t *pdev)
+void ucam_reg_reset(struct ppi_device_t *pdev)
 {
-	u16 status;
 	pr_debug("ucam_reg_reset:\n");
 
-	/*
-	 * BF537/6/4 PPI_STATUS is Write to Clear
-	 */
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-	bfin_write_PPI_STATUS(0xFFFF);
-	status = bfin_read_PPI_STATUS();
-#endif
-
+	bfin_clear_PPI_STATUS();
 	bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
 	bfin_write_PPI_DELAY(pdev->ppi_delay);
 	bfin_write_PPI_COUNT(pdev->pixel_per_line - 1);
 	bfin_write_PPI_FRAME(pdev->lines_per_frame);
 }
 
-static size_t ppi2dma(ppi_device_t *ppidev, char *buf, size_t count)
+static size_t ppi2dma(struct ppi_device_t *ppidev, char *buf, size_t count)
 {
 	int ierr;
 
@@ -257,8 +251,8 @@ static size_t ppi2dma(ppi_device_t *ppidev, char *buf, size_t count)
 	if (count <= 0)
 		return 0;
 
-	pr_debug("ppi2dma: reading %d bytes (%dx%d) into [0x%p]\n",
-	       (int) count, uCam_dev->width, uCam_dev->height, buf);
+	pr_debug("ppi2dma: reading %zi bytes (%dx%d) into [0x%p]\n",
+	         count, ppidev->uCam_dev->width, ppidev->uCam_dev->height, buf);
 
 	set_dma_start_addr(CH_PPI, (u_long)buf);
 
@@ -283,7 +277,7 @@ static size_t ppi2dma(ppi_device_t *ppidev, char *buf, size_t count)
 
 	disable_dma(CH_PPI);
 
-	pr_debug("ppi2dma: done read in %d bytes for [0x%x-0x%x]\n", (int) count, (int) buf, (int) (buf+count));
+	pr_debug("ppi2dma: done read in %zi bytes for [0x%p-0x%p]\n", count, buf, (buf + count));
 
 	return count;
 }
@@ -292,7 +286,8 @@ static irqreturn_t ppifcd_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	size_t count=0;
 	struct uCam_buffer *tmp_buf;
-	ppi_device_t *pdev = (ppi_device_t*)dev_id;
+	struct ppi_device_t *pdev = (struct ppi_device_t*)dev_id;
+	struct uCam_device_t *uCam_dev = pdev->uCam_dev;
 	BUG_ON(dev_id == NULL);
 
 	/*  Acknowledge DMA Interrupt  */
@@ -333,23 +328,13 @@ static irqreturn_t ppifcd_irq(int irq, void *dev_id, struct pt_regs *regs)
 
 static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 {
-	ppi_device_t *pdev = (ppi_device_t*)dev_id;
-	u16 status;
+	struct ppi_device_t *pdev = (struct ppi_device_t*)dev_id;
 	BUG_ON(dev_id == NULL);
 
-	status = bfin_read_PPI_STATUS();
+	pr_debug("-->ppifcd_irq_error: PPI Status = 0x%X\n", bfin_read_PPI_STATUS());
+	bfin_clear_PPI_STATUS();
 
-	/* BF537/6/4 PPI_STATUS is Write to Clear */
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
-	bfin_write_PPI_STATUS(0xFFFF);
-#endif
-
-	pr_debug("-->ppifcd_irq_error: PPI Status = 0x%X \n", status);
-
-	/* disable ppi */
 	bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
-
-	pr_debug("-->ppifcd_irq_error: buf [0x%p]\n", uCam_dev->dma_buf->data);
 
 	return IRQ_HANDLED;
 }
@@ -357,12 +342,12 @@ static irqreturn_t ppifcd_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 
 static int ppi_fasync(int fd, struct file *filp, int on)
 {
-	ppi_device_t *pdev = uCam_dev->ppidev;
+	struct ppi_device_t *pdev = uCam_dev->ppidev;
 	return fasync_helper(fd, filp, on, &(pdev->fasyc));
 }
 
 static inline int uCam_i2c_read(struct i2c_client *client, unsigned char offset,
-	unsigned short *data, unsigned int len)
+	u16 *data, unsigned int len)
 {
 	u8 buf[2];
 
@@ -387,7 +372,61 @@ static inline int uCam_i2c_write(struct i2c_client *client, unsigned char offset
 	buf[2] = data & 0xFF;
 
 	i2c_master_send(client, buf, 3);
+
 	return 0;
+}
+
+static int mt9m001_init_v4l(struct mt9m001_data *data)
+{
+	int err, i;
+
+	pr_debug("Registering uCam device\n");
+
+	err = -ENOMEM;
+	uCam_dev = kmalloc(sizeof(struct uCam_device_t), GFP_KERNEL);
+	if (uCam_dev == NULL)
+		goto error_out;
+	uCam_dev->ppidev = kmalloc(sizeof(struct ppi_device_t), GFP_KERNEL);
+	if (uCam_dev->ppidev == NULL)
+		goto error_out_dev;
+	uCam_dev->videodev = kmalloc(sizeof(struct video_device), GFP_KERNEL);
+	if (uCam_dev->videodev == NULL)
+		goto error_out_ppi;
+
+	pr_debug("  Configuring PPIFCD\n");
+	ucam_reg_reset(uCam_dev->ppidev);
+	uCam_dev->ppidev->opened = 0;
+	uCam_dev->ppidev->uCam_dev = uCam_dev;
+
+	pr_debug("  Configuring Video4Linux driver\n");
+	for (i=0; i<uCAM_NUM_BUFS; i++)
+		init_waitqueue_head(&uCam_dev->buffer[i].wq);
+
+	memcpy(uCam_dev->videodev, &uCam_template, sizeof(uCam_template));
+	uCam_dev->frame_count = 0;
+	err = video_register_device(uCam_dev->videodev, VFL_TYPE_GRABBER, 0);
+	if (err) {
+		printk(KERN_NOTICE "Unable to register Video4Linux driver for %s\n",
+		       uCam_dev->videodev->name);
+		goto error_out_video;
+	}
+
+	uCam_dev->client = &data->client;
+	uCam_dev->lock = SPIN_LOCK_UNLOCKED;
+	data->uCam_dev = uCam_dev;
+
+	printk(KERN_INFO "%s: V4L driver %s now ready\n", sensor_name, uCam_dev->videodev->name);
+
+	return 0;
+
+error_out_video:
+	kfree(uCam_dev->videodev);
+error_out_ppi:
+	kfree(uCam_dev->ppidev);
+error_out_dev:
+	kfree(uCam_dev);
+error_out:
+	return err;
 }
 
 static int mt9m001_detect_client(struct i2c_adapter *adapter, int address, int kind)
@@ -397,7 +436,7 @@ static int mt9m001_detect_client(struct i2c_adapter *adapter, int address, int k
 	struct mt9m001_data *data;
 	u16 tmp = 0;
 
-	printk(KERN_INFO "    detecting mt9m001 client on address 0x%x\n", address << 1);
+	printk(KERN_INFO "%s: detecting client on address 0x%x\n", sensor_name, address << 1);
 
 	if (address != normal_i2c[0] && address != normal_i2c[1])
 		return -ENODEV;
@@ -408,7 +447,7 @@ static int mt9m001_detect_client(struct i2c_adapter *adapter, int address, int k
 	data = kzalloc(sizeof(struct mt9m001_data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
-	/*data->input = 0;*/
+	data->input = 0;
 	data->enable = 1;
 
 	i2c_global_client = new_client = &data->client;
@@ -416,21 +455,33 @@ static int mt9m001_detect_client(struct i2c_adapter *adapter, int address, int k
 	new_client->addr = address;
 	new_client->adapter = adapter;
 	new_client->driver = &mt9m001_driver;
-	strcpy(new_client->name, mt9m001_name);
+	strcpy(new_client->name, sensor_name);
 
 	err = i2c_attach_client(new_client);
 	if (err)
 		goto error_out;
 
-	pr_debug("    Calling first i2c_read...\n");
 	uCam_i2c_read(new_client, 0x00, &tmp, 1);
-	pr_debug("    detected I2C client (id = %04x)\n", tmp);
+	pr_debug("%s: detected I2C client (id = %04x)\n", sensor_name, tmp);
+
+	uCam_i2c_write(new_client, 0x35, global_gain);
+	uCam_i2c_read(new_client, 0x35, &tmp, 1);
+	pr_debug("%s: set global gain set to %d (requested %d)\n", sensor_name, tmp, global_gain);
+
+	/* Read mode 2 reg (0x20) bit 15 set to read from bottom to top or'd with default */
+	uCam_i2c_write(new_client, 0x20, 0x8000|0x1104);
+	/* Turn on Snapshot mode (set bit 8 high), 0x1e default is 0x8000 */
+	uCam_i2c_write(new_client, 0x1E, 0x8000);
+
+	err = mt9m001_init_v4l(data);
+	if (err)
+		goto error_out;
 
 	return 0;
 
 error_out:
 	kfree(data);
-	printk(KERN_ERR "%s: init error 0x%x\n", mt9m001_name, err);
+	printk(KERN_ERR "%s: init error 0x%x\n", sensor_name, err);
 	return err;
 }
 
@@ -438,19 +489,27 @@ static int mt9m001_attach_adapter(struct i2c_adapter *adapter)
 {
 	int i;
 	BUG_ON(adapter == NULL);
-	pr_debug(KERN_INFO "    starting probe for adapter %s (0x%x)\n", adapter->name, adapter->id);
+	pr_debug("%s: starting probe for adapter %s (0x%x)\n", sensor_name, adapter->name, adapter->id);
 	i = i2c_probe(adapter, &addr_data, &mt9m001_detect_client);
 	return i;
 }
 
 static int mt9m001_detach_client(struct i2c_client *client)
 {
+	struct mt9m001_data *data;
 	int err;
 
 	if ((err = i2c_detach_client(client)))
 		return err;
 
-	kfree(i2c_get_clientdata(client));
+	data = i2c_get_clientdata(client);
+
+	video_unregister_device(data->uCam_dev->videodev);
+	kfree(data->uCam_dev->videodev);
+	kfree(data->uCam_dev->ppidev);
+	kfree(data->uCam_dev);
+
+	kfree(data);
 
 	return 0;
 }
@@ -518,11 +577,8 @@ static int mt9m001_proc_read(char *buf, char **start, off_t offset, int count, i
 
 	for (i = 0; i < sizeof(i2c_regs)/sizeof(*i2c_regs); ++i) {
 		uCam_i2c_read(i2c_global_client, i2c_regs[i].regnum , &tmp, 1);
-		len += sprintf(&buf[len], "Reg 0x%02x: = 0x%04x %s",
+		len += sprintf(&buf[len], "Reg 0x%02x: = 0x%04x %-40s",
 		       i2c_regs[i].regnum, tmp, i2c_regs[i].name);
-		while (len % 45 != 0) {
-			len += sprintf(&buf[len]," ");
-		}
 		if (!((i+1) % 2))
 			len += sprintf(&buf[len],"\n");
 	}
@@ -537,7 +593,7 @@ static int mt9m001_proc_write(struct file *file, const char *buf, unsigned long 
 {
 	int reg=0, val=0, i;
 	sscanf(buf, "%i %i", &reg, &val);
-	for (i = 0; i < 26; i++) {
+	for (i = 0; i < sizeof(i2c_regs)/sizeof(*i2c_regs); ++i) {
 		if (i2c_regs[i].regnum == reg) {
 			printk("writing register 0x%02x (%s) with 0x%04x\n", reg, i2c_regs[i].name, val);
 			uCam_i2c_write(i2c_global_client, reg, val);
@@ -1074,9 +1130,9 @@ static int v4l_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 			pr_debug("VIDIOCGMBUF called (%ld)\n",jiffies*1000/HZ);
 			memset(vm, 0, sizeof(struct video_mbuf));
 			uCam_dev->size = uCam_dev->width * uCam_dev->height;
-			pr_debug("  capture %d byte, %dx%d (WxH) frame\n",
-			        (int) uCam_dev->size,
-			        uCam_dev->width, uCam_dev->height);
+			pr_debug("  capture %zi byte, %dx%d (WxH) frame\n",
+			         uCam_dev->size,
+			         uCam_dev->width, uCam_dev->height);
 
 			vm->frames = uCAM_NUM_BUFS;
 			vm->size = uCam_dev->size;
@@ -1119,14 +1175,14 @@ static int v4l_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 					return -EINVAL;
 			}
 
-			uCam_i2c_write(i2c_global_client, 0x01, Hoff);
-			uCam_i2c_write(i2c_global_client, 0x02, Woff);
+			uCam_i2c_write(uCam_dev->client, 0x01, Hoff);
+			uCam_i2c_write(uCam_dev->client, 0x02, Woff);
 
 			if (uCam_dev->height != vm->height || uCam_dev->width != vm->width) {
 				uCam_dev->height = vm->height;
 				uCam_dev->width = vm->width;
-				uCam_i2c_write(i2c_global_client, 0x03, uCam_dev->height-1);
-				uCam_i2c_write(i2c_global_client, 0x04, uCam_dev->width-1);
+				uCam_i2c_write(uCam_dev->client, 0x03, uCam_dev->height-1);
+				uCam_i2c_write(uCam_dev->client, 0x04, uCam_dev->width-1);
 				uCam_dev->ppidev->pixel_per_line  = uCam_dev->width-1;
 				uCam_dev->ppidev->lines_per_frame = uCam_dev->height-1;
 
@@ -1152,9 +1208,9 @@ static int v4l_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 				       uCam_dev->ppidev->lines_per_frame);
 			}
 			uCam_dev->size = uCam_dev->width * uCam_dev->height;
-			pr_debug("  capture %d byte, %dx%d (WxH) frame\n",
-			        (int) uCam_dev->size,
-			        uCam_dev->width, uCam_dev->height);
+			pr_debug("  capture %zi byte, %dx%d (WxH) frame\n",
+			         uCam_dev->size,
+			         uCam_dev->width, uCam_dev->height);
 
 			uCam_dev->buffer[i].state = FRAME_READY;
 
@@ -1223,11 +1279,11 @@ static int v4l_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, u
 				if (perfnum) {
 					uCam_dev->buffer[i].ecyc = cycles();
 					uCam_dev->buffer[i].etime = jiffies;
-					printk("  frame %d(0x%X): %-8d cycles, %ld msec\n",
-					      uCam_dev->frame_count,
-					      (int) uCam_dev->ready_buf->data,
-					      uCam_dev->buffer[i].ecyc - uCam_dev->buffer[i].scyc,
-					      (uCam_dev->buffer[i].etime - uCam_dev->buffer[i].stime)*1000/HZ);
+					printk("  frame %d(0x%p): %-8d cycles, %ld msec\n",
+					       uCam_dev->frame_count,
+					       uCam_dev->ready_buf->data,
+					       uCam_dev->buffer[i].ecyc - uCam_dev->buffer[i].scyc,
+					       (uCam_dev->buffer[i].etime - uCam_dev->buffer[i].stime)*1000/HZ);
 				}
 				break;
 			}
@@ -1287,7 +1343,7 @@ static void v4l_release(struct video_device *vdev)
 	kfree(vdev);
 }
 
-static int uCam_open(struct inode *inode, struct file  *filp)
+static int uCam_open(struct inode *inode, struct file *filp)
 {
 	pr_debug("uCam_open called\n");
 
@@ -1308,12 +1364,13 @@ static int uCam_open(struct inode *inode, struct file  *filp)
 
 	pr_debug("uCam_open:\n");
 
+	/* FIXME: use a proper mutex here */
 	if (uCam_dev->ppidev->opened) {
 		printk("  ppi opened already (%d users)\n", uCam_dev->user);
 		return -EMFILE;
 	}
 
-	memset(uCam_dev->ppidev, 0, sizeof(ppi_device_t));
+	memset(uCam_dev->ppidev, 0, sizeof(struct ppi_device_t));
 
 	uCam_dev->ppidev->opened = 1;
 	pr_debug("uCam open setting PPI done\n");
@@ -1329,14 +1386,19 @@ static int uCam_open(struct inode *inode, struct file  *filp)
 	uCam_dev->ppidev->rx_avail = &uCam_waitqueue;
 	uCam_dev->ppidev->irqnum = IRQ_PPI;
 	uCam_dev->ppidev->nonblock = 1;
+	uCam_dev->ppidev->uCam_dev = uCam_dev;
 
-	if (request_dma(CH_PPI, "BF533_PPI_DMA") < 0) {
-		panic("  Unable to attach BlackFin PPI DMA channel\n");
+	if (request_dma(CH_PPI, "PPI_DMA") < 0) {
+		printk(KERN_ERR "%s: Unable to attach PPI DMA channel\n", sensor_name);
 		return -EFAULT;
-	} else {
-		set_dma_callback(CH_PPI, (void*)ppifcd_irq, uCam_dev->ppidev);
+	} else
+		set_dma_callback(CH_PPI, ppifcd_irq, uCam_dev->ppidev);
+
+	if (request_irq(IRQ_PPI_ERROR, ppifcd_irq_error, SA_INTERRUPT, "PPI ERROR", uCam_dev->ppidev)) {
+		printk(KERN_ERR "%s: Unable to attach PPI error IRQ\n", sensor_name);
+		free_dma(CH_PPI);
+		return -EFAULT;
 	}
-	request_irq(IRQ_PPI_ERROR,(void *) ppifcd_irq_error,SA_INTERRUPT,"PPI ERROR",uCam_dev->ppidev);
 
 #if (defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534))
 	bfin_write_PORTG_FER(0x00FF);
@@ -1379,16 +1441,16 @@ static ssize_t uCam_read(struct file *filp, char *buf, size_t count, loff_t *pos
 	ucam_reg_reset(uCam_dev->ppidev);
 	__builtin_bfin_ssync();
 
-	pr_debug("Frame %d reading %d bytes %dx%d starting at (%d,%d) from pos (start at %d) ...  ",
-	         uCam_dev->frame_count, (int) count,
+	pr_debug("Frame %d reading %zi bytes %dx%d starting at (%d,%d) from pos (start at 0x%p) ...  ",
+	         uCam_dev->frame_count, count,
 	         uCam_dev->width, uCam_dev->height,
 	         Hoff, Woff,
-	         (int)pos);
+	         pos);
 	pr_debug("ppi_count and ppi_frame are %d,%d\n", bfin_read_PPI_COUNT(), bfin_read_PPI_FRAME());
 
-	count = ppi2dma(uCam_dev->ppidev, uCam_dev->buffer[0].data, count);
+	res = ppi2dma(uCam_dev->ppidev, uCam_dev->buffer[0].data, count);
 
-	pr_debug("done (read %d/%d bytes)\n", (int)res, (int)count);
+	pr_debug("done (read %zi/%zi bytes)\n", res, count);
 	uCam_dev->frame_count++;
 
 	gpio_set(uCAM_TRIGGER, SET_FLAG_VAL, OFF);
@@ -1409,13 +1471,13 @@ static int uCam_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_start = uCam_dev->ready_buf->data;
 	vma->vm_end = vma->vm_start + (uCam_dev->width * uCam_dev->height);
 
-	pr_debug("uCam_mmap: vm mapped to [0x%p-0x%p]\n", vma->vm_start, vma->vm_end);
+	pr_debug("uCam_mmap: vm mapped to [0x%p-0x%p]\n", (void*)vma->vm_start, (void*)vma->vm_end);
 	return 0;
 }
 
 static int uCam_close(struct inode *inode, struct file *filp)
 {
-	ppi_device_t *pdev = uCam_dev->ppidev;
+	struct ppi_device_t *pdev = uCam_dev->ppidev;
 	pr_debug("uCam_close called\n");
 
 	ucam_reg_reset(pdev);
@@ -1436,8 +1498,8 @@ static struct file_operations uCam_fops = {
 	.open         = uCam_open,
 	.release      = uCam_close,
 	.ioctl        = uCam_ioctl,
-	.compat_ioctl = (void *) v4l_ioctl,
-	.llseek       = (void *) no_llseek,
+	.compat_ioctl = (void*) v4l_ioctl,
+	.llseek       = no_llseek,
 	.read         = uCam_read,
 	.mmap         = uCam_mmap,
 };
@@ -1453,96 +1515,29 @@ static struct video_device uCam_template = {
 	.minor    = 0,
 };
 
-static void uCam_unregister_device(void)
-{
-	printk("Uninititializing device\n");
-	video_unregister_device(uCam_dev->videodev);
-	remove_proc_entry("uCam", &proc_root);
-	kfree(uCam_dev->videodev);
-	kfree(uCam_dev->ppidev);
-	kfree(uCam_dev);
-	gpio_set(uCAM_STANDBY, SET_FLAG_VAL, ON);
-}
-
-static int uCam_register_device(void)
-{
-	int err,i;
-	u16 tmp=0;
-
-	pr_debug("Registering uCam device\n");
-
-	uCam_dev = kmalloc(sizeof(struct uCam_device_t), GFP_KERNEL);
-	BUG_ON(uCam_dev == NULL);
-	uCam_dev->ppidev = kmalloc(sizeof(ppi_device_t), GFP_KERNEL);
-	BUG_ON(uCam_dev->ppidev == NULL);
-	uCam_dev->videodev = kmalloc(sizeof(struct video_device), GFP_KERNEL);
-	BUG_ON(uCam_dev->videodev == NULL);
-
-	pr_debug("  Configuring PPIFCD\n");
-	ucam_reg_reset(uCam_dev->ppidev);
-	uCam_dev->ppidev->opened = 0;
-
-	pr_debug("  Configuring I2C\n");
-	err = i2c_add_driver(&mt9m001_driver);
-	if (err) {
-		printk(KERN_WARNING "%s: could not add i2c driver: %i\n", mt9m001_name, err);
-		return err;
-	}
-
-	if (mt9m001_proc_init())
-		printk(KERN_WARNING "Could not create proc entry\n");
-
-	pr_debug("  Configuring Video4Linux driver\n");
-	for (i=0; i<uCAM_NUM_BUFS; i++)
-		init_waitqueue_head(&uCam_dev->buffer[i].wq);
-
-	memcpy(uCam_dev->videodev, &uCam_template, sizeof(uCam_template));
-	uCam_dev->frame_count = 0;
-	err = video_register_device(uCam_dev->videodev, VFL_TYPE_GRABBER, 0);
-	if (err < 0) {
-		printk(KERN_NOTICE "Unable to register Video4Linux driver for %s\n",
-		       uCam_dev->videodev->name);
-		return -1;
-	}
-	pr_debug("Registered Video4Linux driver for %s, minor num: %d\n",
-	        uCam_dev->videodev->name,
-	        uCam_dev->videodev->minor);
-
-	uCam_i2c_write(i2c_global_client, 0x35, global_gain);
-	uCam_i2c_read(i2c_global_client, 0x35, &tmp, 1);
-	pr_debug("Global gain set to %d\n", (int) tmp);
-
-	/* Read mode 2 reg (0x20) bit 15 set to read from bottom to top or'd with default */
-	uCam_i2c_write(i2c_global_client, 0x20, 0x8000|0x1104);
-	/* Turn on Snapshot mode (set bit 8 high), 0x1e default is 0x8000 */
-	uCam_i2c_write(i2c_global_client, 0x1E, 0x8000);
-
-	return 0;
-}
-
 static __exit void mt9m001_exit(void)
 {
 	int err;
 
 	if ((err = i2c_del_driver(&mt9m001_driver))) {
-		printk(KERN_WARNING "%s: could not del i2c driver: %i\n", mt9m001_name, err);
+		printk(KERN_WARNING "%s: could not del i2c driver: %i\n", sensor_name, err);
 		return;
 	}
 
-	uCam_unregister_device();
+	remove_proc_entry("uCam", &proc_root);
+
+	gpio_set(uCAM_STANDBY, SET_FLAG_VAL, ON);
 }
 
-static __init int mt9m001_init(void)
+static __init void mt9m001_init_cam_gpios(void)
 {
-	int err;
-
 	pr_debug("Initializing camera\n");
 	gpio_set(uCAM_LEDS, SET_FIO_DIR, OUTPUT);
 	gpio_set(uCAM_LEDS, SET_FIO_POLAR, 0);
 	gpio_set(uCAM_LEDS, SET_FIO_EDGE,  0);
 	gpio_set(uCAM_LEDS, SET_FIO_BOTH,  0);
 	gpio_set(uCAM_LEDS, SET_FIO_INEN,  0);
-	/* debug of PF: sensor says hello. */
+	/* this will flash the LEDs to say hello */
 	gpio_set(uCAM_LEDS, SET_FLAG_VAL, ON);
 	mdelay(1);
 	gpio_set(uCAM_LEDS, SET_FLAG_VAL, OFF);
@@ -1560,21 +1555,29 @@ static __init int mt9m001_init(void)
 	gpio_set(uCAM_STANDBY, SET_FIO_BOTH,  0);
 	gpio_set(uCAM_STANDBY, SET_FIO_INEN,  0);
 	gpio_set(uCAM_STANDBY, SET_FLAG_VAL, OFF);
+}
+
+static __init int mt9m001_init(void)
+{
+	int err;
+
+	mt9m001_init_cam_gpios();
 
 	if (global_gain > 127) {
-		printk(KERN_WARNING "%s: global gain was above 127; resetting to max of 127\n", mt9m001_name);
+		printk(KERN_WARNING "%s: global gain was above 127; resetting to max of 127\n", sensor_name);
 		global_gain = 127;
 	}
 
-	/* allocate mem, register V4L dev, add I2C driver */
-	err = uCam_register_device();
+	err = i2c_add_driver(&mt9m001_driver);
 	if (err) {
-		printk("  Failed to register V4L2 driver for Micron camera (%d),\n", err);
+		printk(KERN_WARNING "%s: could not add i2c driver: %i\n", sensor_name, err);
 		return err;
 	}
 
-	uCam_dev->lock = SPIN_LOCK_UNLOCKED;
-	printk("%s: Micron Camera i2c/ppi driver ready\n", mt9m001_name);
+	if (mt9m001_proc_init())
+		printk(KERN_WARNING "Could not create proc entry\n");
+
+	printk(KERN_INFO "%s: micron i2c driver ready\n", sensor_name);
 
 	return 0;
 }
