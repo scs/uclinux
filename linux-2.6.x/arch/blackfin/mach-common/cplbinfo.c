@@ -181,8 +181,8 @@ static int cplbinfo_write_proc(struct file *file, const char __user *buffer,
 			       unsigned long count, void *data)
 {
 	printk(KERN_INFO "Reset the CPLB swap in/out counts.\n");
-	memset(ipdt_swapcount_table, 0, 100 * sizeof(unsigned long));
-	memset(dpdt_swapcount_table, 0, 120 * sizeof(unsigned long));
+	memset(ipdt_swapcount_table, 0, MAX_SWITCH_I_CPLBS * sizeof(unsigned long));
+	memset(dpdt_swapcount_table, 0, MAX_SWITCH_D_CPLBS * sizeof(unsigned long));
 
 	return count;
 }

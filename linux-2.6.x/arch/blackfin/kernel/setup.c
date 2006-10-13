@@ -475,7 +475,7 @@ fill_cplbtab(struct cplb_tab *table,
 static void __init generate_cpl_tables(void)
 {
 
-	u16 i, j;
+	u16 i, j, process;
 	u32 a_start, a_end, as, ae;
 
 	struct cplb_tab *t_i = NULL;
@@ -544,18 +544,23 @@ static void __init generate_cpl_tables(void)
 					if (cplb_data[i].attr & INITIAL_T) {
 						t_i = &cplb.init_i;
 						t_d = &cplb.init_d;
-					}
+						process = 1;					
+					} else
+						process = 0;						
 					break;
 				case SWITCH_T:
 					if (cplb_data[i].attr & SWITCH_T) {
 						t_i = &cplb.switch_i;
 						t_d = &cplb.switch_d;
-					}
+						process = 1;					
+					} else
+						process = 0;	
 					break;
 				default:
 					break;
 				}
 
+	if (process) {
 				if (cplb_data[i].attr & I_CPLB) {
 
 					if (cplb_data[i].psize) {
@@ -619,7 +624,7 @@ static void __init generate_cpl_tables(void)
 					}
 
 				}
-
+			}
 			}
 
 		}
