@@ -498,8 +498,8 @@ static void __init generate_cpl_tables(void)
 	cplb.switch_d.tab = dpdt_table;
 
 	cplb_data[SDRAM_KERN].end = memory_end;
-	cplb_data[SDRAM_RAM_MTD].start = memory_mtd_start;
 
+	cplb_data[SDRAM_RAM_MTD].start = memory_mtd_start;
 	cplb_data[SDRAM_RAM_MTD].end = memory_mtd_start + mtd_size;
 	cplb_data[SDRAM_RAM_MTD].valid = mtd_size > 0;
 
@@ -557,6 +557,7 @@ static void __init generate_cpl_tables(void)
 						process = 0;	
 					break;
 				default:
+						process = 0;
 					break;
 				}
 
