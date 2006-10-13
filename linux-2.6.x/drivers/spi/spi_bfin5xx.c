@@ -858,7 +858,10 @@ static int setup(struct spi_device *spi)
 			pr_debug("Unable to request BlackFin SPI DMA channel\n");
 			return -ENODEV;
 		}
-		set_dma_callback(CH_SPI, (void *)dma_irq_handler, drv_data);
+		if (set_dma_callback(CH_SPI, (void *)dma_irq_handler, drv_data) < 0) {
+			pr_debug("Unable to set dma callback\n");
+			return -EPERM;
+		}
 		dma_disable_irq(CH_SPI);
 		dma_requested = 1;
 	}
