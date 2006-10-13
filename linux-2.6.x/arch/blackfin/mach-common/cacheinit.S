@@ -37,7 +37,6 @@
 
 #include <linux/linkage.h>
 #include <asm/blackfin.h>
-#include <asm/cplbtab.h>
 
 .text
 

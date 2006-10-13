@@ -43,6 +43,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
+#include <asm/cplbinit.h>
 
 #ifdef CONFIG_CONSOLE
 struct consw *conswitchp;
@@ -251,14 +252,29 @@ void __init setup_arch(char **cmdline_p)
 
 # if defined(CONFIG_CRAMFS)
 	if (*((unsigned long *)(mtd_phys)) == CRAMFS_MAGIC)
-		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)) );
+		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)));
 # endif
 #if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-#endif
+
+#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+	/* Due to a Hardware Anomaly we need to limit the size of usable
+	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
+	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
+	 */
+#if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
+	if (memory_end >= 56 * 1024 * 1024)
+		memory_end = 56 * 1024 * 1024;
+#else
+	if (memory_end >= 60 * 1024 * 1024)
+		memory_end = 60 * 1024 * 1024;
+#endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
+#endif				/* ANOMALY_05000263 */
+
+#endif				/* CONFIG_ROMFS_FS */
 
 	memory_end -= mtd_size;
 
@@ -266,10 +282,10 @@ void __init setup_arch(char **cmdline_p)
 	dma_memcpy((char *)memory_end, __bss_stop, mtd_size);
 
 	_ramstart = mtd_phys;
-#endif
+#endif				/* CONFIG_MTD_UCLINUX */
 
 	memory_mtd_start = memory_end;
-	_ebss = memory_mtd_start;       /* define _ebss for compatible */
+	_ebss = memory_mtd_start;	/* define _ebss for compatible */
 	memory_start = PAGE_ALIGN(_ramstart);
 
 #if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
@@ -279,14 +295,14 @@ void __init setup_arch(char **cmdline_p)
 	 */
 
 #if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
-	 if (memory_end >= 56 * 1024 * 1024)
+	if (memory_end >= 56 * 1024 * 1024)
 		memory_end = 56 * 1024 * 1024;
 #else
 	if (memory_end >= 60 * 1024 * 1024)
 		memory_end = 60 * 1024 * 1024;
-#endif
+#endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
 
-#endif
+#endif				/* ANOMALY_05000263 */
 
 	init_mm.start_code = (unsigned long)_stext;
 	init_mm.end_code = (unsigned long)_etext;
@@ -407,10 +423,18 @@ static int __init topology_init(void)
 subsys_initcall(topology_init);
 
 #if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
+u16 lock_kernel_check(u32 start, u32 end)
+{
+	if ((start <= (u32) _stext && end >= (u32) __bss_stop)
+	    || (start >= (u32) _stext && end <= (u32) __bss_stop))
+		return IN_KERNEL;
+	return 0;
+}
+
 static unsigned short __init
-fill_cpl_tables(unsigned long *table, unsigned short pos,
-		unsigned long start, unsigned long end,
-		unsigned long block_size, unsigned long CPLB_data)
+fill_cplbtab(struct cplb_tab *table,
+	     unsigned long start, unsigned long end,
+	     unsigned long block_size, unsigned long cplb_data)
 {
 	int i;
 
@@ -430,336 +454,183 @@ fill_cpl_tables(unsigned long *table, unsigned short pos,
 		break;
 	}
 
-	CPLB_data = (CPLB_data & ~(3 << 16)) | (i << 16);
+	cplb_data = (cplb_data & ~(3 << 16)) | (i << 16);
 
-	while (start < end) {
-		table[pos++] = start;
-		table[pos++] = CPLB_data;
+	while ((start < end) && (table->pos < table->size)) {
+
+		table->tab[table->pos++] = start;
+
+		if (lock_kernel_check(start, start + block_size) == IN_KERNEL)
+			table->tab[table->pos++] =
+			    cplb_data | CPLB_LOCK | CPLB_DIRTY;
+		else
+			table->tab[table->pos++] = cplb_data;
+
 		start += block_size;
 	}
-	return pos;
+	return 0;
 }
 #endif
 
 static void __init generate_cpl_tables(void)
 {
-#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
-	unsigned long pos, unalign_ram_tmp, physical_mem_aligned_end;
 
-	unalign_ram_tmp = ((_ramend / 1024 / 1024) % 4) * 1024 * 1024;
-	if (unalign_ram_tmp == 0)
-		physical_mem_aligned_end = _ramend;
+	u16 i, j;
+	u32 a_start, a_end, as, ae;
+
+	struct cplb_tab *t_i = NULL;
+	struct cplb_tab *t_d = NULL;
+	struct s_cplb cplb;
+
+	cplb.init_i.size = MAX_CPLBS;
+	cplb.init_d.size = MAX_CPLBS;
+	cplb.switch_i.size = MAX_SWITCH_I_CPLBS;
+	cplb.switch_d.size = MAX_SWITCH_D_CPLBS;
+
+	cplb.init_i.pos = 0;
+	cplb.init_d.pos = 0;
+	cplb.switch_i.pos = 0;
+	cplb.switch_d.pos = 0;
+
+	cplb.init_i.tab = icplb_table;
+	cplb.init_d.tab = dcplb_table;
+	cplb.switch_i.tab = ipdt_table;
+	cplb.switch_d.tab = dpdt_table;
+
+	cplb_data[SDRAM_KERN].end = memory_end;
+	cplb_data[SDRAM_RAM_MTD].start = memory_mtd_start;
+
+	cplb_data[SDRAM_RAM_MTD].end = memory_mtd_start + mtd_size;
+	cplb_data[SDRAM_RAM_MTD].valid = mtd_size > 0;
+
+#if defined(CONFIG_ROMFS_FS)
+	cplb_data[SDRAM_RAM_MTD].attr |= I_CPLB;
+#endif
+
+	cplb_data[SDRAM_DMAZ].start = _ramend - DMA_UNCACHED_REGION;
+	cplb_data[SDRAM_DMAZ].end = _ramend;
+
+	cplb_data[RES_MEM].start = _ramend;
+	cplb_data[RES_MEM].end = physical_mem_end;
+
+	if (reserved_mem_dcache_on)
+		cplb_data[RES_MEM].d_conf = SDRAM_DGENERIC;
 	else
-		physical_mem_aligned_end =
-		    (SIZE_4M - unalign_ram_tmp) + _ramend;
+		cplb_data[RES_MEM].d_conf = SDRAM_DNON_CHBL;
+
+	if (reserved_mem_icache_on)
+		cplb_data[RES_MEM].i_conf = SDRAM_IGENERIC;
+	else
+		cplb_data[RES_MEM].i_conf = SDRAM_INON_CHBL;
+
+	for (i = ZERO_P; i <= L2_MEM; i++) {
+
+		if (cplb_data[i].valid) {
+
+			as = cplb_data[i].start % SIZE_4M;
+			ae = cplb_data[i].end % SIZE_4M;
+
+			if (as)
+				a_start = cplb_data[i].start + (SIZE_4M - (as));
+			else
+				a_start = cplb_data[i].start;
+
+			a_end = cplb_data[i].end - ae;
+
+			for (j = INITIAL_T; j <= SWITCH_T; j++) {
+
+				switch (j) {
+				case INITIAL_T:
+					if (cplb_data[i].attr & INITIAL_T) {
+						t_i = &cplb.init_i;
+						t_d = &cplb.init_d;
+					}
+					break;
+				case SWITCH_T:
+					if (cplb_data[i].attr & SWITCH_T) {
+						t_i = &cplb.switch_i;
+						t_d = &cplb.switch_d;
+					}
+					break;
+				default:
+					break;
+				}
+
+				if (cplb_data[i].attr & I_CPLB) {
+
+					if (cplb_data[i].psize) {
+						fill_cplbtab(t_i,
+							     cplb_data[i].start,
+							     cplb_data[i].end,
+							     cplb_data[i].psize,
+							     cplb_data[i].i_conf);
+					} else {
+						/*icplb_table */
+#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+						if (i == SDRAM_KERN) {
+							fill_cplbtab(t_i,
+								     cplb_data[i].start,
+								     cplb_data[i].end,
+								     SIZE_4M,
+								     cplb_data[i].i_conf);
+						} else
 #endif
+						{
+							fill_cplbtab(t_i,
+								     cplb_data[i].start,
+								     a_start,
+								     SIZE_1M,
+								     cplb_data[i].i_conf);
+							fill_cplbtab(t_i,
+								     a_start,
+								     a_end,
+								     SIZE_4M,
+								     cplb_data[i].i_conf);
+							fill_cplbtab(t_i, a_end,
+								     cplb_data[i].end,
+								     SIZE_1M,
+								     cplb_data[i].i_conf);
+						}
+					}
 
-#ifdef CONFIG_BLKFIN_DCACHE
+				}
+				if (cplb_data[i].attr & D_CPLB) {
 
-/* Generarte initial DCPLB table */
-	pos = 0;
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, 0x0, SIZE_4K, SIZE_4K,
-			    SDRAM_OOPS);
-#endif
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, 0x0, SIZE_4M, SIZE_4M,
-			    SDRAM_DKERNEL);
-#if defined(CONFIG_BF561)
-# if defined(CONFIG_BFIN561_EZKIT)
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + 0x800000,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + 0x400000,
-			    SIZE_4M, SDRAM_EBIU);
-# endif
-#else
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-	pos =
-	    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_1M, _ramend,
-			    SIZE_1M, SDRAM_DNON_CHBL);
+					if (cplb_data[i].psize) {
+						fill_cplbtab(t_d,
+							     cplb_data[i].start,
+							     cplb_data[i].end,
+							     cplb_data[i].psize,
+							     cplb_data[i].d_conf);
+					} else {
+/*dcplb_table*/
+						fill_cplbtab(t_d,
+							     cplb_data[i].start,
+							     a_start, SIZE_1M,
+							     cplb_data[i].d_conf);
+						fill_cplbtab(t_d, a_start,
+							     a_end, SIZE_4M,
+							     cplb_data[i].d_conf);
+						fill_cplbtab(t_d, a_end,
+							     cplb_data[i].end,
+							     SIZE_1M,
+							     cplb_data[i].d_conf);
 
-	if (unalign_ram_tmp == 0) {
-		pos =
-		    fill_cpl_tables(dcplb_table, pos, _ramend - SIZE_4M,
-				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
-		pos =
-		    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-				    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-					_ramend - SIZE_4M), SIZE_4M,
-				    SDRAM_DGENERIC);
-	} else {
-		pos =
-		    fill_cpl_tables(dcplb_table, pos, _ramend - unalign_ram_tmp,
-				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
-		pos =
-		    fill_cpl_tables(dcplb_table, pos, SIZE_4M,
-				    min((SIZE_4M + (16 - pos / 2) * SIZE_4M),
-					_ramend - unalign_ram_tmp), SIZE_4M,
-				    SDRAM_DGENERIC);
-	}
+					}
 
-	if (physical_mem_end > _ramend) {
-		if (reserved_mem_dcache_on) {
-			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_DGENERIC);
-			pos =
-			    fill_cpl_tables(dcplb_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_DGENERIC);
-		} else {
-			pos = fill_cpl_tables(dcplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_DNON_CHBL);
-			pos =
-			    fill_cpl_tables(dcplb_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_DNON_CHBL);
+				}
+
+			}
+
 		}
 	}
 
-	while (pos < 32)
-		dcplb_table[pos++] = 0;
+/* close tables */
+	cplb.init_i.tab[cplb.init_i.pos] = -1;
+	cplb.init_d.tab[cplb.init_d.pos] = -1;
+	cplb.switch_i.tab[cplb.switch_i.pos] = -1;
+	cplb.switch_d.tab[cplb.switch_d.pos] = -1;
 
-	*(dcplb_table + pos) = -1;
-
-/* Generarte DCPLB switch table */
-	pos = 0;
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, 0x0, SIZE_4M, SIZE_4M,
-			    SDRAM_DKERNEL);
-
-	if (unalign_ram_tmp == 0) {
-		pos =
-		    fill_cpl_tables(dpdt_table, pos, SIZE_4M, _ramend - SIZE_4M,
-				    SIZE_4M, SDRAM_DGENERIC);
-		pos =
-		    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_4M,
-				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
-	} else {
-		pos =
-		    fill_cpl_tables(dpdt_table, pos, SIZE_4M,
-				    _ramend - unalign_ram_tmp, SIZE_4M,
-				    SDRAM_DGENERIC);
-		pos =
-		    fill_cpl_tables(dpdt_table, pos, _ramend - unalign_ram_tmp,
-				    _ramend - SIZE_1M, SIZE_1M, SDRAM_DGENERIC);
-	}
-/*TODO: Make mtd none cachable in L1 */
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, _ramend - SIZE_1M, _ramend,
-			    SIZE_1M, SDRAM_DNON_CHBL);
-
-	if (physical_mem_end > _ramend) {
-		if (reserved_mem_dcache_on) {
-			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_DGENERIC);
-			pos =
-			    fill_cpl_tables(dpdt_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_DGENERIC);
-		} else {
-			pos = fill_cpl_tables(dpdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_DNON_CHBL);
-			pos =
-			    fill_cpl_tables(dpdt_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_DNON_CHBL);
-		}
-	}
-
-#if defined(CONFIG_BF561)
-# if defined(CONFIG_BFIN561_EZKIT) || defined(CONFIG_BFIN561_BLUETECHNIX_CM)
-# if defined(CONFIG_BFIN561_EZKIT)
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + 0x800000,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + 0x400000,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-#if defined(CONFIG_BFIN561_BLUETECHNIX_CM)
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + SIZE_4M,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK1_BASE,
-			    ASYNC_BANK1_BASE + SIZE_4M,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK2_BASE,
-			    ASYNC_BANK2_BASE + SIZE_4M,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-# else
-#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
-# endif
-#else
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, L1_DATA_A_START,
-			    L1_DATA_B_START + L1_DATA_B_LENGTH, SIZE_4M,
-			    L1_DMEMORY);
-
-#if defined(CONFIG_BF561)
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, L2_SRAM,
-			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
-#endif
-#if defined(CONFIG_BF561)
-	pos =
-	    fill_cpl_tables(dpdt_table, pos, L2_SRAM,
-			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
-#endif
-	*(dpdt_table + pos) = -1;
-#endif
-
-#ifdef CONFIG_BLKFIN_CACHE
-
-/* Generarte initial ICPLB table */
-	pos = 0;
-	pos =
-	    fill_cpl_tables(icplb_table, pos, L1_CODE_START,
-			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
-#ifdef CONFIG_DEBUG_HUNT_FOR_ZERO
-	pos =
-	    fill_cpl_tables(icplb_table, pos, 0x0, SIZE_4K, SIZE_4K,
-			    SDRAM_OOPS);
-#endif
-	pos =
-	    fill_cpl_tables(icplb_table, pos, 0x0, SIZE_4M, SIZE_4M,
-			    SDRAM_IKERNEL);
-	pos =
-	    fill_cpl_tables(icplb_table, pos, SIZE_4M,
-			    min(SIZE_4M + (16 - pos / 2) * SIZE_4M,
-				_ramend - unalign_ram_tmp), SIZE_4M,
-			    SDRAM_IGENERIC);
-	pos =
-	    fill_cpl_tables(icplb_table, pos, _ramend - unalign_ram_tmp, _ramend,
-			    SIZE_1M, SDRAM_IGENERIC);
-
-	if (physical_mem_end > _ramend) {
-		if (reserved_mem_icache_on) {
-			pos = fill_cpl_tables(icplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_IGENERIC);
-			pos =
-			    fill_cpl_tables(icplb_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_IGENERIC);
-		} else {
-			pos = fill_cpl_tables(icplb_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_INON_CHBL);
-			pos =
-			    fill_cpl_tables(icplb_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_INON_CHBL);
-		}
-	}
-
-	while (pos < 32)
-		icplb_table[pos++] = 0;
-
-	*(icplb_table + pos) = -1;
-
-/* Generarte ICPLB switch table */
-	pos = 0;
-
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, 0x0, SIZE_4M, SIZE_4M,
-			    SDRAM_IKERNEL);
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, SIZE_4M, _ramend - unalign_ram_tmp,
-			    SIZE_4M, SDRAM_IGENERIC);
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, _ramend - unalign_ram_tmp, _ramend,
-			    SIZE_1M, SDRAM_IGENERIC);
-
-	if (physical_mem_end > _ramend) {
-		if (reserved_mem_icache_on) {
-			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_IGENERIC);
-			pos =
-			    fill_cpl_tables(ipdt_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_IGENERIC);
-		} else {
-			pos = fill_cpl_tables(ipdt_table, pos, _ramend,
-					      physical_mem_aligned_end, SIZE_1M,
-					      SDRAM_INON_CHBL);
-			pos =
-			    fill_cpl_tables(ipdt_table, pos,
-					    physical_mem_aligned_end,
-					    physical_mem_end, SIZE_4M,
-					    SDRAM_INON_CHBL);
-		}
-	}
-
-#if defined(CONFIG_BF561)
-# if defined(CONFIG_BFIN561_EZKIT) || defined(CONFIG_BFIN561_BLUETECHNIX_CM)
-# if defined(CONFIG_BFIN561_EZKIT)
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + 0x800000,
-			    SIZE_4M, SDRAM_EBIU);
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK3_BASE,
-			    ASYNC_BANK3_BASE + 0x400000,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-#if defined(CONFIG_BFIN561_BLUETECHNIX_CM)
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK0_BASE + SIZE_4M,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-# else
-#  error "Check the CPLB entries for your BF561 platform in arch/blackfin/kernel/setup.c"
-# endif
-#else
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, ASYNC_BANK0_BASE,
-			    ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE,
-			    SIZE_4M, SDRAM_EBIU);
-#endif
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, L1_CODE_START,
-			    L1_CODE_START + SIZE_1M, SIZE_1M, L1_IMEMORY);
-#if defined(CONFIG_BF561)
-	pos =
-	    fill_cpl_tables(ipdt_table, pos, L2_SRAM,
-			    L2_SRAM_END, SIZE_1M, L2_MEMORY);
-#endif
-	*(ipdt_table + pos) = -1;
-#endif
-	return;
 }
 
 static inline u_long get_vco(void)

@@ -271,22 +271,47 @@
 
 #define ANOMALY_05000158_WORKAROUND		0x200
 #ifdef CONFIG_BLKFIN_WB		/*Write Back Policy */
-#define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_DIRTY \
+#define SDRAM_DGENERIC   (CPLB_L1_CHBL /*| CPLB_DIRTY */\
 			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
 #else				/*Write Through */
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_WT | CPLB_L1_AOW \
 			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
 #endif
-#define SDRAM_DKERNEL    (SDRAM_DGENERIC | CPLB_LOCK)
 
-#define L1_DMEMORY       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
-#define SDRAM_DNON_CHBL  (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
-#define SDRAM_EBIU       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
-#define SDRAM_OOPS  	 (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK)
+
+/* set write-through bit to avoid 1st write exceptions */
+#define L1_DMEMORY       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_WT)
+#define SDRAM_DNON_CHBL  (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_WT)
+#define SDRAM_EBIU       (CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_WT)
+#define SDRAM_OOPS  	 (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_WT)
 
 #define SIZE_1K 0x00000400	/* 1K */
 #define SIZE_4K 0x00001000	/* 4K */
 #define SIZE_1M 0x00100000	/* 1M */
 #define SIZE_4M 0x00400000	/* 4M */
+
+#define MAX_CPLBS (16 * 2)
+
+/*
+* Number of required data CPLB switchtable entries 
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 16 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Data Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+* 1 for ASYNC Memory
+*/
+
+
+#define MAX_SWITCH_D_CPLBS (((CONFIG_MEM_SIZE / 4) + 16 + 1 + 1 + 1) * 2)
+
+/*
+* Number of required instruction CPLB switchtable entries 
+* MEMSIZE / 4 (we mostly install 4M page size CPLBs
+* approx 12 for smaller 1MB page size CPLBs for allignment purposes
+* 1 for L1 Instruction Memory
+* 1 for CONFIG_DEBUG_HUNT_FOR_ZERO
+*/
+
+#define MAX_SWITCH_I_CPLBS (((CONFIG_MEM_SIZE / 4) + 12 + 1 + 1) * 2)
 
 #endif				/* __MACH_BF533_H__  */
