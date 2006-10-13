@@ -85,7 +85,6 @@
 #define  I2C_DRIVERID_UCAM  81  /* experimental (next avail. in i2c-id.h) */
 
 #define  I2C_MT9M001 0xBA       /* Add I2C device ID for the Micron Moudule here */
-#define  I2C_NAME(x) (x)->name
 
 #define SET_FIO_DIR		1   /* Set the Peripheral Flag Direction Register */
 #define   OUTPUT 1
@@ -143,7 +142,9 @@
 static unsigned int global_gain = 127;
 static unsigned int debug = 0;
 static unsigned int perfnum = 0;
-struct smbus_ucam {
+struct i2c_client *i2c_global_client;
+struct mt9m001_data {
+	struct i2c_client client;
 	unsigned char reg[128];
 	int input;
 	int enable;
@@ -152,28 +153,15 @@ struct smbus_ucam {
 	int hue;
 	int sat;
 };
-static char smbus_ucam_name[] = "smbus_ucam";
-struct i2c_client *i2c_global_client;
+static const char mt9m001_name[] = "mt9m001";
 struct i2c_adapter *adapter;
 static u16 normal_i2c[] = {
 	I2C_MT9M001 >> 1,
 	(I2C_MT9M001 >> 1) + 1,
 	I2C_CLIENT_END
 };
-static u16 probe[2] = {
-	I2C_CLIENT_END,
-	I2C_CLIENT_END
-};
-static u16 ignore[2] = {
-	I2C_CLIENT_END,
-	I2C_CLIENT_END
-};
-static struct i2c_client_address_data addr_data = {
-	.normal_i2c = normal_i2c,
-	.probe = probe,
-	.ignore = ignore,
-};
-static struct i2c_driver i2c_driver_smbus_ucam;
+I2C_CLIENT_INSMOD;
+static struct i2c_driver mt9m001_driver;
 
 typedef struct PPI_Device_t {
 	int opened;
@@ -217,7 +205,6 @@ struct uCam_device_t {
 	int frame_count;
 	struct video_device *videodev;
 	ppi_device_t *ppidev;
-	u8 initialized;
 	int user;
 	char name[32];
 	int width;
@@ -225,7 +212,6 @@ struct uCam_device_t {
 	size_t size;
 	struct timeval *stv;
 	struct timeval *etv;
-	int useI2C;
 	struct uCam_buffer buffer[uCAM_NUM_BUFS];
 	struct uCam_buffer *next_buf;
 	struct uCam_buffer *dma_buf;
@@ -235,40 +221,6 @@ struct uCam_device_t {
 static struct video_device uCam_template;
 struct uCam_device_t *uCam_dev;
 static DECLARE_WAIT_QUEUE_HEAD(uCam_waitqueue);
-
-struct i2c_registers {
-	int regnum;
-	char name[50];
-};
-
-struct i2c_registers i2c_regs[30] = {
-	{0x00, "Chip Version" },             /*  0  */
-	{0x01, "Row Start" },
-	{0x02, "Column Start" },
-	{0x03, "Row Size (Window Height)" },
-	{0x04, "Col Size (Window Width)" },
-	{0x05, "Horizontal Blanking" },
-	{0x06, "Vertical Blanking" },
-	{0x07, "Output Control" },
-	{0x09, "Shutter Width" },
-	{0x0B, "Restart" },
-	{0x0C, "Shutter Delay" },            /*  10  */
-	{0x0D, "Reset" },
-	{0x1E, "Read Options 1" },
-	{0x20, "Read Options 2" },
-	{0x2B, "Even Row, Even Column" },
-	{0x2C, "Odd Row, Even Column" },
-	{0x2D, "Even Row, Odd Column" },
-	{0x2E, "Odd Row, Odd Column" },
-	{0x35, "Global Gain" },
-	{0x5F, "Cal Threshold" },
-	{0x60, "Even Row, Even Column" },   /*  20  */
-	{0x61, "Odd Row, Odd Column" },
-	{0x62, "Cal Ctrl" },
-	{0x63, "Even Row, Odd Column" },
-	{0x64, "Odd Row, Even Column" },
-	{0xF1, "Chip Enable" },
-};
 
 static inline unsigned int cycles(void)
 {
@@ -299,7 +251,9 @@ void ucam_reg_reset(ppi_device_t *pdev)
 static size_t ppi2dma(ppi_device_t *ppidev, char *buf, size_t count)
 {
 	int ierr;
+
 	ppidev->done = 0;
+
 	if (count <= 0)
 		return 0;
 
@@ -412,8 +366,6 @@ static inline int uCam_i2c_read(struct i2c_client *client, unsigned char offset,
 {
 	u8 buf[2];
 
-	if (uCam_dev->useI2C == 0)
-		return -1;
 	BUG_ON(client == NULL);
 
 	i2c_smbus_write_byte(client, offset);
@@ -428,8 +380,6 @@ static inline int uCam_i2c_write(struct i2c_client *client, unsigned char offset
 {
 	u8 buf[3];
 
-	if (uCam_dev->useI2C == 0)
-		return -1;
 	BUG_ON(client == NULL);
 
 	buf[0] = offset;
@@ -440,127 +390,133 @@ static inline int uCam_i2c_write(struct i2c_client *client, unsigned char offset
 	return 0;
 }
 
-static int smbus_ucam_detect_client(struct i2c_adapter *adapter, int address, int kind)
+static int mt9m001_detect_client(struct i2c_adapter *adapter, int address, int kind)
 {
-	int i;
-	struct i2c_client *client;
-	struct smbus_ucam *encoder;
-	char *dname;
-	u16 tmp=0;
+	int err;
+	struct i2c_client *new_client;
+	struct mt9m001_data *data;
+	u16 tmp = 0;
 
-	printk(KERN_INFO "    detecting smbus_ucam client on address 0x%x\n", address << 1);
+	printk(KERN_INFO "    detecting mt9m001 client on address 0x%x\n", address << 1);
 
-	if (!i2c_check_functionality (adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		printk("    The I2C adapter does not support needed features\n");
+	if (address != normal_i2c[0] && address != normal_i2c[1])
+		return -ENODEV;
+
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
-	}
 
-	client = kmalloc (sizeof (struct i2c_client), GFP_KERNEL);
-	if (client == 0)
+	data = kzalloc(sizeof(struct mt9m001_data), GFP_KERNEL);
+	if (data == NULL)
 		return -ENOMEM;
-	memset (client, 0, sizeof (struct i2c_client));
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_smbus_ucam;
-	if (client->addr == normal_i2c[0] || client->addr == normal_i2c[1]) {
-		dname = smbus_ucam_name;
-	} else {
-		printk("Alert!\n");
-		kfree (client);
-		return 0;
-	}
+	/*data->input = 0;*/
+	data->enable = 1;
 
-	strlcpy(I2C_NAME (client), dname, sizeof(I2C_NAME (client)));
-	encoder = kmalloc (sizeof (struct smbus_ucam), GFP_KERNEL);
-	BUG_ON(encoder == NULL);
-	if (encoder == NULL) {
-		kfree (client);
-		return -ENOMEM;
-	}
-	memset (encoder, 0, sizeof (struct smbus_ucam));
-	encoder->input = 0;
-	encoder->enable = 1;
-	i2c_set_clientdata (client, encoder);
+	i2c_global_client = new_client = &data->client;
+	i2c_set_clientdata(new_client, data);
+	new_client->addr = address;
+	new_client->adapter = adapter;
+	new_client->driver = &mt9m001_driver;
+	strcpy(new_client->name, mt9m001_name);
 
-	i = i2c_attach_client (client);
+	err = i2c_attach_client(new_client);
+	if (err)
+		goto error_out;
 
-	if (i) {
-		printk("Freeing client and encoder!\n");
-		kfree (client);
-		kfree (encoder);
-		return i;
-	}
-	if (i < 0) {
-		printk(KERN_ERR "%s_attach: init error 0x%x\n",
-		       I2C_NAME (client), i);
-	}
-
-	i2c_global_client = client;
-	if (client == NULL) {
-		printk(KERN_ERR  "unable to attach i2c device\n");
-		/* return -1; */
-	}
 	pr_debug("    Calling first i2c_read...\n");
-	uCam_i2c_read(client, 0x00, &tmp, 1);
+	uCam_i2c_read(new_client, 0x00, &tmp, 1);
 	pr_debug("    detected I2C client (id = %04x)\n", tmp);
 
 	return 0;
+
+error_out:
+	kfree(data);
+	printk(KERN_ERR "%s: init error 0x%x\n", mt9m001_name, err);
+	return err;
 }
 
-static int smbus_ucam_attach_adapter(struct i2c_adapter *adapter)
+static int mt9m001_attach_adapter(struct i2c_adapter *adapter)
 {
 	int i;
-	BUG_ON(adapter==NULL);
-	pr_debug(KERN_INFO "    starting probe for adapter %s (0x%x)\n",
-	         I2C_NAME (adapter), adapter->id);
-	i = i2c_probe (adapter, &addr_data, &smbus_ucam_detect_client);
+	BUG_ON(adapter == NULL);
+	pr_debug(KERN_INFO "    starting probe for adapter %s (0x%x)\n", adapter->name, adapter->id);
+	i = i2c_probe(adapter, &addr_data, &mt9m001_detect_client);
 	return i;
 }
 
-static int smbus_ucam_detach_client(struct i2c_client *client)
+static int mt9m001_detach_client(struct i2c_client *client)
 {
 	int err;
-	struct smbus_ucam *encoder = i2c_get_clientdata (client);
-	err = i2c_detach_client (client);
-	if (err) {
+
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
-	kfree (encoder);
-	kfree (client);
+
+	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
-static int smbus_ucam_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int mt9m001_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
-	switch (cmd)
-	{
-		/* as yet unimplemented */
-		default:
-			return -EINVAL;
-	}
-	return 0;
+	/* as yet unimplemented */
+	return -EINVAL;
 }
 
-static struct i2c_driver i2c_driver_smbus_ucam = {
-	.driver = { .name = "smbus_ucam", },
+static struct i2c_driver mt9m001_driver = {
+	.driver = {
+		.name = "mt9m001",
+	},
 	.id = I2C_DRIVERID_UCAM,
-	.attach_adapter = smbus_ucam_attach_adapter,
-	.detach_client  = smbus_ucam_detach_client,
-	.command = smbus_ucam_command,
+	.attach_adapter = mt9m001_attach_adapter,
+	.detach_client  = mt9m001_detach_client,
+	.command = mt9m001_command,
 };
 
 
 /*
- *  FIXME We should not be putting random things into proc - this is a NO-NO
+ * FIXME: We should not be putting random things into proc - this is a NO-NO
  */
+#if 1
+struct i2c_registers {
+	int regnum;
+	char name[50];
+};
 
-static int uCam_proc_read(char *buf, char **start, off_t offset, int count, int *eof, void *data)
+struct i2c_registers i2c_regs[] = {
+	{0x00, "Chip Version" },             /*  0  */
+	{0x01, "Row Start" },
+	{0x02, "Column Start" },
+	{0x03, "Row Size (Window Height)" },
+	{0x04, "Col Size (Window Width)" },
+	{0x05, "Horizontal Blanking" },
+	{0x06, "Vertical Blanking" },
+	{0x07, "Output Control" },
+	{0x09, "Shutter Width" },
+	{0x0B, "Restart" },
+	{0x0C, "Shutter Delay" },            /*  10  */
+	{0x0D, "Reset" },
+	{0x1E, "Read Options 1" },
+	{0x20, "Read Options 2" },
+	{0x2B, "Even Row, Even Column" },
+	{0x2C, "Odd Row, Even Column" },
+	{0x2D, "Even Row, Odd Column" },
+	{0x2E, "Odd Row, Odd Column" },
+	{0x35, "Global Gain" },
+	{0x5F, "Cal Threshold" },
+	{0x60, "Even Row, Even Column" },   /*  20  */
+	{0x61, "Odd Row, Odd Column" },
+	{0x62, "Cal Ctrl" },
+	{0x63, "Even Row, Odd Column" },
+	{0x64, "Odd Row, Even Column" },
+	{0xF1, "Chip Enable" },
+};
+
+static int mt9m001_proc_read(char *buf, char **start, off_t offset, int count, int *eof, void *data)
 {
 	int i;
-	u16 tmp=0;
+	u16 tmp = 0;
 	int len = 0;
 
-	for (i = 0; i < 26; ++i) {
+	for (i = 0; i < sizeof(i2c_regs)/sizeof(*i2c_regs); ++i) {
 		uCam_i2c_read(i2c_global_client, i2c_regs[i].regnum , &tmp, 1);
 		len += sprintf(&buf[len], "Reg 0x%02x: = 0x%04x %s",
 		       i2c_regs[i].regnum, tmp, i2c_regs[i].name);
@@ -570,15 +526,14 @@ static int uCam_proc_read(char *buf, char **start, off_t offset, int count, int 
 		if (!((i+1) % 2))
 			len += sprintf(&buf[len],"\n");
 	}
-	if (i % 2) {
+	if (i % 2)
 		len += sprintf(&buf[len],"\n");
-	}
 
 	*eof = 1;
 	return len;
 }
 
-static int uCam_proc_write(struct file *file, const char *buf, unsigned long count, void *data)
+static int mt9m001_proc_write(struct file *file, const char *buf, unsigned long count, void *data)
 {
 	int reg=0, val=0, i;
 	sscanf(buf, "%i %i", &reg, &val);
@@ -591,6 +546,20 @@ static int uCam_proc_write(struct file *file, const char *buf, unsigned long cou
 	}
 	return count;
 }
+
+static int mt9m001_proc_init(void)
+{
+	struct proc_dir_entry *ptr;
+	pr_debug("  Configuring proc\n");
+	ptr = create_proc_entry("uCam", S_IFREG | S_IRUGO, NULL);
+	if (!ptr)
+		return -1;
+	ptr->owner = THIS_MODULE;
+	ptr->read_proc =  mt9m001_proc_read;
+	ptr->write_proc = mt9m001_proc_write;
+	return 0;
+}
+#endif /* DEBUG PROC FILE */
 
 
 static int gpio_set(int flag, int cmd, int state)
@@ -1328,10 +1297,6 @@ static int uCam_open(struct inode *inode, struct file  *filp)
 		printk("  ...specified video device not found!\n");
 		return -ENODEV;
 	}
-	if (uCam_dev->initialized != 1) {
-		printk("  ...specified video device not initialized!\n");
-		return -ENODEV;
-	}
 
 	/*  Turn FS3 frame synch off  */
 	gpio_set(uCAM_FS3, SET_FIO_DIR, OUTPUT);
@@ -1385,7 +1350,7 @@ static int uCam_open(struct inode *inode, struct file  *filp)
 	return 0;
 }
 
-static ssize_t uCam_read(struct file *filp, char        *buf, size_t      count, loff_t      *pos)
+static ssize_t uCam_read(struct file *filp, char *buf, size_t count, loff_t *pos)
 {
 	int Hoff = 12;
 	int Woff = 20;
@@ -1403,7 +1368,7 @@ static ssize_t uCam_read(struct file *filp, char        *buf, size_t      count,
 	 * 0x04 10:0 window width  (num cols-1) (default 0x04FF, 1279)
 	 * set start X,Y & W,H in Camera via I2C
 	 */
-	if (uCam_dev->height == 512 && uCam_dev->width==640) {
+	if (uCam_dev->height == 512 && uCam_dev->width == 640) {
 		Hoff += 320;
 		Woff += 256;
 	}
@@ -1490,24 +1455,21 @@ static struct video_device uCam_template = {
 
 static void uCam_unregister_device(void)
 {
-	uCam_dev->lock = SPIN_LOCK_UNLOCKED;
-	if (uCam_dev->initialized) {
-		printk("Uninititializing device\n");
-		video_unregister_device(uCam_dev->videodev);
-		remove_proc_entry("uCam", &proc_root);
-		i2c_del_driver(&i2c_driver_smbus_ucam);
-		kfree(uCam_dev->videodev);
-		kfree(uCam_dev->ppidev);
-		kfree(uCam_dev);
-	}
+	printk("Uninititializing device\n");
+	video_unregister_device(uCam_dev->videodev);
+	remove_proc_entry("uCam", &proc_root);
+	kfree(uCam_dev->videodev);
+	kfree(uCam_dev->ppidev);
+	kfree(uCam_dev);
 	gpio_set(uCAM_STANDBY, SET_FLAG_VAL, ON);
 }
 
 static int uCam_register_device(void)
 {
 	int err,i;
-	struct proc_dir_entry *ptr=NULL;
 	u16 tmp=0;
+
+	pr_debug("Registering uCam device\n");
 
 	uCam_dev = kmalloc(sizeof(struct uCam_device_t), GFP_KERNEL);
 	BUG_ON(uCam_dev == NULL);
@@ -1521,20 +1483,14 @@ static int uCam_register_device(void)
 	uCam_dev->ppidev->opened = 0;
 
 	pr_debug("  Configuring I2C\n");
-	err = i2c_add_driver(&i2c_driver_smbus_ucam);
-	if (err || i2c_global_client == NULL) {
-		printk("    I2C could not add driver!\n");
-		uCam_dev->useI2C = 0;
-	} else uCam_dev->useI2C = 1;
-
-	pr_debug("  Configuring proc\n");
-	ptr = create_proc_entry("uCam", S_IFREG | S_IRUGO, NULL);
-	if (!ptr) {
-		printk("Couldn't make proc\n");
+	err = i2c_add_driver(&mt9m001_driver);
+	if (err) {
+		printk(KERN_WARNING "%s: could not add i2c driver: %i\n", mt9m001_name, err);
+		return err;
 	}
-	ptr->owner = THIS_MODULE;
-	ptr->read_proc =  uCam_proc_read;
-	ptr->write_proc = uCam_proc_write;
+
+	if (mt9m001_proc_init())
+		printk(KERN_WARNING "Could not create proc entry\n");
 
 	pr_debug("  Configuring Video4Linux driver\n");
 	for (i=0; i<uCAM_NUM_BUFS; i++)
@@ -1544,18 +1500,17 @@ static int uCam_register_device(void)
 	uCam_dev->frame_count = 0;
 	err = video_register_device(uCam_dev->videodev, VFL_TYPE_GRABBER, 0);
 	if (err < 0) {
-		printk("Unable to register Video4Linux driver for %s\n",
-		        uCam_dev->videodev->name);
+		printk(KERN_NOTICE "Unable to register Video4Linux driver for %s\n",
+		       uCam_dev->videodev->name);
 		return -1;
 	}
-	printk("Registered Video4Linux driver for %s, minor num: %d\n",
+	pr_debug("Registered Video4Linux driver for %s, minor num: %d\n",
 	        uCam_dev->videodev->name,
 	        uCam_dev->videodev->minor);
-	uCam_dev->initialized = 1 ;
 
 	uCam_i2c_write(i2c_global_client, 0x35, global_gain);
 	uCam_i2c_read(i2c_global_client, 0x35, &tmp, 1);
-	printk("Global gain set to %d\n", (int) tmp);
+	pr_debug("Global gain set to %d\n", (int) tmp);
 
 	/* Read mode 2 reg (0x20) bit 15 set to read from bottom to top or'd with default */
 	uCam_i2c_write(i2c_global_client, 0x20, 0x8000|0x1104);
@@ -1565,17 +1520,19 @@ static int uCam_register_device(void)
 	return 0;
 }
 
-static __exit void uCam_uninit(void)
+static __exit void mt9m001_exit(void)
 {
-	if (!uCam_dev->initialized) {
-		printk("Micron Camera module not loaded\n");
-	} else {
-		printk("Unloading Micron Camera module\n");
-		uCam_unregister_device();
+	int err;
+
+	if ((err = i2c_del_driver(&mt9m001_driver))) {
+		printk(KERN_WARNING "%s: could not del i2c driver: %i\n", mt9m001_name, err);
+		return;
 	}
+
+	uCam_unregister_device();
 }
 
-static __init int uCam_init(void)
+static __init int mt9m001_init(void)
 {
 	int err;
 
@@ -1605,19 +1562,19 @@ static __init int uCam_init(void)
 	gpio_set(uCAM_STANDBY, SET_FLAG_VAL, OFF);
 
 	if (global_gain > 127) {
-		printk("Micron Camera global gain was above 127. Using 127.\n");
+		printk(KERN_WARNING "%s: global gain was above 127; resetting to max of 127\n", mt9m001_name);
 		global_gain = 127;
 	}
 
-	pr_debug("Registering uCam device\n");
 	/* allocate mem, register V4L dev, add I2C driver */
 	err = uCam_register_device();
-	if (err < 0) {
+	if (err) {
 		printk("  Failed to register V4L2 driver for Micron camera (%d),\n", err);
+		return err;
 	}
 
 	uCam_dev->lock = SPIN_LOCK_UNLOCKED;
-	printk("Micron Camera ready\n");
+	printk("%s: Micron Camera i2c/ppi driver ready\n", mt9m001_name);
 
 	return 0;
 }
@@ -1629,5 +1586,5 @@ module_param(global_gain, int, 0);
 module_param(perfnum, int, 0);
 module_param(debug, int, 0);
 
-module_init(uCam_init);
-module_exit(uCam_uninit);
+module_init(mt9m001_init);
+module_exit(mt9m001_exit);
