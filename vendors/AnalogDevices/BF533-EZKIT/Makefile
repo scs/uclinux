@@ -13,7 +13,7 @@ MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
 MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
 MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
-# Blocks must be a multiple of 256
+# Blocks must be a multiple of 1024
 BLOCKS   = 8192
 INODES   = 1024
 
