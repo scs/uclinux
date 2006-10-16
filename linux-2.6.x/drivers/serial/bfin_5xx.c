@@ -163,14 +163,32 @@ static void
 bfin_serial_rx_chars(struct bfin_serial_port *uart, struct pt_regs *regs)
 {
 	struct tty_struct *tty = uart->port.info->tty;
-	unsigned int status=0, ch, flg;
+	unsigned int status, ch, flg;
 
-	ch = UART_GET_CHAR(uart);
-	uart->port.icount.rx++;
-	flg = TTY_NORMAL;
+	status = UART_GET_LSR(uart);
+ 	ch = UART_GET_CHAR(uart);
+ 	uart->port.icount.rx++;
+
+	if (status & BI) {
+		uart->port.icount.brk++;
+		if (uart_handle_break(&uart->port))
+			goto ignore_char;
+		flg = TTY_BREAK;
+	} else if (status & PE) {
+		flg = TTY_PARITY;
+		uart->port.icount.parity++;
+	} else if (status & OE) {
+		flg = TTY_OVERRUN;
+		uart->port.icount.overrun++;
+	} else if (status & FE) {
+		flg = TTY_FRAME;
+		uart->port.icount.frame++;
+	} else
+		flg = TTY_NORMAL;
+
 	if (uart_handle_sysrq_char(&uart->port, ch, regs))
 		goto ignore_char;
-	uart_insert_char(&uart->port, status, 1, ch, flg);
+	uart_insert_char(&uart->port, status, 2, ch, flg);
 
 ignore_char:
 	tty_flip_buffer_push(tty);
@@ -290,14 +308,32 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 static void bfin_serial_dma_rx_chars(struct bfin_serial_port * uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
-	int i, flg, status = 0;
-
+	int i, flg, status;
+        
+	status = UART_GET_LSR(uart);
 	uart->port.icount.rx += CIRC_CNT(uart->rx_dma_buf.head, uart->rx_dma_buf.tail, UART_XMIT_SIZE);;
-	flg = TTY_NORMAL;
+
+        if (status & BI) {
+                uart->port.icount.brk++;
+                if (uart_handle_break(&uart->port))
+                        goto dma_ignore_char;
+                flg = TTY_BREAK;
+        } else if (status & PE) {
+                flg = TTY_PARITY;
+                uart->port.icount.parity++;
+        } else if (status & OE) {
+                flg = TTY_OVERRUN;
+                uart->port.icount.overrun++;
+        } else if (status & FE) {
+                flg = TTY_FRAME;
+                uart->port.icount.frame++;
+        } else
+                flg = TTY_NORMAL;
+
 	for (i = uart->rx_dma_buf.head; i < uart->rx_dma_buf.tail; i++) {
 		if (uart_handle_sysrq_char(&uart->port, uart->rx_dma_buf.buf[i], NULL))
 			goto dma_ignore_char;
-		uart_insert_char(&uart->port, status, 1, uart->rx_dma_buf.buf[i], flg);
+		uart_insert_char(&uart->port, status, 2, uart->rx_dma_buf.buf[i], flg);
 	}
 dma_ignore_char:
 	tty_flip_buffer_push(tty);
