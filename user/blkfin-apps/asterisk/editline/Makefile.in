@@ -74,7 +74,7 @@ test : $(TEST)
 
 depend:
 
-install : install_hdr install_lib install_man
+install :
 
 install_hdr :
 	@for i in $(HDR_DIRS) ; do \
