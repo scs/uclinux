@@ -872,7 +872,7 @@ static void spi_mmc_clean(void)
 	mmc_info_t* pdev;
 	pdev = Devices;
 	
-#ifdef CONFIG_BFIN
+#if defined(CONFIG_BFIN) && defined(CONFIG_SPI_MMC_CARD_DETECT)
 	free_irq(IRQ_PROG_INTA, pdev);
 #endif
 	// releasae disks and deallocate device array
