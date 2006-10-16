@@ -474,6 +474,13 @@ while 1 {
 		send_log "$TITLE ............\[FAIL\]\n"
 		exit
 	}
+
+	"No such file or directory" {
+		send_log "\nCase $case_num ...FAIL\n"
+		send_log "$TITLE ............\[FAIL\]\n"
+		exit
+	}
+
 	timeout {
 		set mtd_results $TEST_PASS
 		send_log "\nCase $case_num ...PASS\n"
