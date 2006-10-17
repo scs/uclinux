@@ -68,7 +68,7 @@
 #/dev/loop	b	640	0	0	7	0	0	1	-
 /dev/ptmx	c	666	0	0	5	2	0	0	-
 /dev/ttyS0	c	755	0	0	4	64	0	0	-
-/dev/ttyS1	c	755	0	0	4	65	0	0	-
+#/dev/ttyS1	c	755	0	0	4	65	0	0	-
 /dev/ttyUSB c	664	0	0	188	0	0	1	1
 /dev/psaux	c	640	0	0	10	1	0	0	-
 /dev/rtc	c	640	0	0	10	135	0	0	-
@@ -98,7 +98,7 @@
 #/dev/ubda	b	640	0	0	98	1	1	1	15
 #/dev/adi_usb	c	664	0	0	221	0	0	0	-
 /dev/i2c-0	c	664	0	0	89	0	0	0	-
-/dev/rtc	c	664	0	0	10	135	0	0	-
+#/dev/rtc	c	664	0	0	10	135	0	0	-
 /dev/spi	c	664	0	0	252	0	0	0	-
 /dev/pf		c	664	0	0	253	0	0	1	16
 /dev/input/event c	664	0	0	13	64	0	1	1
@@ -106,8 +106,8 @@
 /dev/ppi	c	664	0	0	241	0	0	1	1
 #/dev/sport	c	664	0	0	251	0	0	1	-
 /dev/time	c	664	0	0	10	101	0	0	-
-/dev/lcd	c	664	0	0	60	0	0	0	-
-/dev/ad9960	c	664	0	0	240	0	0	0	-
+#/dev/lcd	c	664	0	0	60	0	0	0	-
+#/dev/ad9960	c	664	0	0	240	0	0	0	-
 /dev/watchdog	c	664	0	0	10	130	0	0	-
 /dev/mmc	b	660	0	0	36	0	0	0	-
 /dev/mmc	b	660	0	0	36	1	1	1	4

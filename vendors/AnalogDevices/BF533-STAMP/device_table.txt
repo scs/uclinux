@@ -107,7 +107,7 @@
 /dev/ppi	c	664	0	0	241	0	0	1	1
 #/dev/sport	c	664	0	0	251	0	0	1	-
 /dev/time	c	664	0	0	10	101	0	0	-
-#/dev/lcd	c	664	0	0	60	0	0	0	-
+/dev/lcd	c	664	0	0	60	0	0	0	-
 #/dev/ad9960	c	664	0	0	240	0	0	0	-
 /dev/watchdog	c	664	0	0	10	130	0	0	-
 /dev/mmc	b	660	0	0	36	0	0	0	-
