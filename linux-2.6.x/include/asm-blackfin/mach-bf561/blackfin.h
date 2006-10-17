@@ -1,8 +1,4 @@
 /*
- * Common header file for blackfin family of processors.
- *
- */
-/*
  * File:         include/asm-blackfin/mach-bf561/blackfin.h
  * Based on:
  * Author:
@@ -51,4 +47,5 @@
 #define bfin_write_FIO_DIR(val) bfin_write_FIO0_DIR(val)
 #define bfin_read_FIO_INEN() bfin_read_FIO0_INEN()
 #define bfin_write_FIO_INEN(val) bfin_write_FIO0_INEN(val)
+
 #endif				/* _MACH_BLACKFIN_H_ */

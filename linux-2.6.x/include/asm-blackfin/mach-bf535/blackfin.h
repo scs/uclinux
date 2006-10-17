@@ -1,4 +1,3 @@
-
 /*
  * File:         include/asm-blackfin/mach-bf535/blackfin.h
  * Based on:
