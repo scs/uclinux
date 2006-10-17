@@ -221,7 +221,7 @@ char *_dl_find_hash_mod(const char *name, struct dyn_elf *rpnt,
 			*tpntp = weak_tpnt;
 		return DL_FIND_HASH_VALUE (weak_tpnt, type_class, weak_sym);
 	}
-	if (*tpntp)
+	if (tpntp)
 		*tpntp = NULL;
 	return NULL;
 }
