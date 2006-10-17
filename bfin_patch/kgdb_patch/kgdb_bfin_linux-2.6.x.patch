@@ -1171,15 +1171,6 @@ diff -urN linux-2.6.x.old/drivers/net/kgdb_eth.c linux-2.6.x/drivers/net/kgdb_et
 +	return 0;
 +}
 +module_init(init_kgdboe);
-diff -urN linux-2.6.x.old/drivers/serial/CVS/Entries linux-2.6.x/drivers/serial/CVS/Entries
---- linux-2.6.x.old/drivers/serial/CVS/Entries	2006-10-17 14:16:08.909733488 +0800
-+++ linux-2.6.x/drivers/serial/CVS/Entries	2006-10-17 14:15:53.999000264 +0800
-@@ -69,4 +69,4 @@
- /vr41xx_siu.c/1.2/Wed Mar 22 08:04:49 2006//Tbranch_R06R2
- D/cpm_uart////
- D/jsm////
--/bfin_serial_5xx.c/1.79.2.2/Tue Oct 17 06:16:08 2006//Tbranch_R06R2
-+/bfin_serial_5xx.c/1.79.2.2/Tue Oct 17 06:15:53 2006//Tbranch_R06R2
 diff -urN linux-2.6.x.old/drivers/serial/Kconfig linux-2.6.x/drivers/serial/Kconfig
 --- linux-2.6.x.old/drivers/serial/Kconfig	2006-10-17 14:12:26.027616720 +0800
 +++ linux-2.6.x/drivers/serial/Kconfig	2006-10-17 14:16:28.577743496 +0800
