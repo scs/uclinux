@@ -33,13 +33,11 @@
 
 #include <asm/cplb.h>
 
-extern void flush_instruction_cache(void);
 extern void blackfin_icache_dcache_flush_range(unsigned int, unsigned int);
 extern void blackfin_icache_flush_range(unsigned int, unsigned int);
 extern void blackfin_dcache_flush_range(unsigned int, unsigned int);
 extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
 extern void blackfin_dflush_page(void *);
-extern void flush_data_cache(void);
 
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
@@ -89,15 +87,5 @@ do { memcpy(dst, src, len); \
 # define flush_dcache_range(start,end)		do { } while (0)
 # define flush_dcache_page(page)			do { } while (0)
 #endif
-
-static inline void flush_cache_all(void)
-{
-#ifdef CONFIG_BLKFIN_CACHE
-	flush_instruction_cache();
-#endif
-#ifdef CONFIG_BLKFIN_DCACHE
-	flush_data_cache();
-#endif
-}
 
 #endif				/* _BLACKFIN_CACHEFLUSH_H */

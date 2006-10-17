@@ -384,7 +384,7 @@ ENTRY(_cplb_mgr)
 
 	I1.L = (DCPLB_DATA0 & 0xFFFF);
 	I1.H = (DCPLB_DATA0 >> 16);
-	P1 = 3;
+	P1 = 2;
 	P2 = 16;
 	I2.L = _dcplb_preference;
 	I2.H = _dcplb_preference;
@@ -461,28 +461,9 @@ ENTRY(_cplb_mgr)
 	LC0 = R2;
 
 	/* There's a suitable victim in [P0-4] (because we've
-	 * advanced already). If it's a valid dirty write-back
-	 * CPLB, we need to flush the pending writes first.
+	 * advanced already). 
 	 */
 
-	CC = BITTST(R1, 0);	/* Is it valid?*/
-	IF !CC JUMP .LDdoverwrite;/* nope.*/
-	CC = BITTST(R1, 7);	/* Is it dirty?*/
-	IF !CC JUMP .LDdoverwrite (BP);	/* Nope.*/
-	CC = BITTST(R1, 14);	/* Is it Write-Through?*/
-	IF CC JUMP .LDdoverwrite;	/* Yep*/
-
-	/* This is a dirty page, so we need to flush all writes
-	 * that are pending on the page.
-	 */
-
-	/* Retrieve the page start address*/
-	R0 = [P0 - 0x104];
-	[--sp] = rets;
-	[--sp] = p0;
-	CALL _dcplb_flush;	/* R0==CPLB addr, R1==CPLB data*/
-	p0 = [sp++];
-	rets = [sp++];
 .LDdoverwrite:
 
 	/* [P0-4] is a suitable victim CPLB, so we want to
@@ -619,5 +600,4 @@ _page_size_table:
 .align 4;
 _dcplb_preference:
 .byte4	0x00000001;	/* valid bit */
-.byte4	0x00000082;	/* dirty+lock bits */
 .byte4	0x00000002;	/* lock bit */

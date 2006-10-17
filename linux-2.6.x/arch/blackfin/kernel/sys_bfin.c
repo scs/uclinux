@@ -226,10 +226,16 @@ sys_ipc(uint call, int first, int second, int third, void *ptr, long fifth)
 }
 
 /* sys_cacheflush -- flush (part of) the processor cache.  */
-asmlinkage int
-sys_cacheflush(unsigned long addr, int scope, int cache, unsigned long len)
+asmlinkage int sys_cacheflush(unsigned long addr,
+	unsigned long bytes, unsigned int cache)
 {
-	flush_cache_all();
+	if (bytes == 0)
+		return 0;
+	if (!access_ok(VERIFY_WRITE, (void __user *) addr, bytes))
+		return -EFAULT;
+
+	flush_icache_range(addr, addr + bytes);
+
 	return 0;
 }
 
