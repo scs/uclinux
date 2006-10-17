@@ -25,6 +25,7 @@
 #include <linux/console.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
+#include <linux/sysrq.h>
 
 #include <asm/uaccess.h>
 #include <asm/blackfin.h>
@@ -648,44 +649,68 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 {
 	struct uart_registers *uart_regs = &(info->regs);
 	struct tty_struct *tty = info->tty;
-	unsigned char ch = 0, flag = 0;
-	unsigned short status = 0;
-#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
-	static int in_break=0;
-#endif
+	unsigned char ch, flag;
+	unsigned short status;
+	/* {-#,filtering dups} {0,no break} {1,last char was break} {2,two breaks} */
+	static int break_status = 0;
+
+	static unsigned long break_timeout;
+
 	FUNC_ENTER();
 
 #ifdef CONFIG_BFIN_UART_CTSRTS
 	bfin_setsignal(info, 0);
 #endif
-	/*
-	 * This do { } while() loop will get ALL chars out of Rx FIFO
-	 */
+
+	ACCESS_PORT_IER(uart_regs);
 	while ((status=bfin_read16(uart_regs->rpUART_LSR)) & DR) {
-		ACCESS_PORT_IER(uart_regs);
 		ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
 
-		if (!tty) {
+		if (!tty)
 			goto clear_and_exit;
-		}
 
+		/* we have to rate limit the break as BF533/BF561 have quirks
+		 * in the UART where it will assert DR/BI while it is receiving
+		 * the bits for a break rather than just once after the break
+		 * is transmitted.
+		 */
 #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
-		if (in_break) {
-			if(ch!=0) {
+		if (break_status < 0) {
+			if (ch != 0) {
 				ch = (unsigned char)bfin_read16(uart_regs->rpUART_RBR);
-				in_break = 0;
+				break_status *= -1;
 			}
 			goto clear_and_exit;
-		}
+		} else
+#endif
+#ifdef CONFIG_MAGIC_SYSRQ
+		if (break_status == 1) {
+			break_status = 0;
+			if (status & BI) {
+				break_status = 2;
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+				break_status *= -1;
+#endif
+			} else if (ch && time_before(jiffies, break_timeout)) {
+				handle_sysrq(ch, regs, NULL);
+				goto clear_and_exit;
+			}
+		} else
+			break_status = 0;
 #endif
 
 		flag = TTY_NORMAL;
 		if (status & BI) {
 			flag = TTY_BREAK;
 			status_handle(info, status);
+			if (break_status == 0) {
+				break_timeout = jiffies + HZ * 5;
+				break_status = 1;
 #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
-			in_break = 1;
+				break_status *= -1;
 #endif
+			} else if (break_status > 0)
+				break_status = 0;
 		} else if (status & PE) {
 			flag = TTY_PARITY;
 			status_handle(info, status);
