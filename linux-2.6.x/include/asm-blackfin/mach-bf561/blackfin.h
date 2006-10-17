@@ -32,6 +32,8 @@
 #ifndef _MACH_BLACKFIN_H_
 #define _MACH_BLACKFIN_H_
 
+#define BF561_FAMILY
+
 #include "bf561.h"
 #include "mem_map.h"
 #include "defBF561.h"
