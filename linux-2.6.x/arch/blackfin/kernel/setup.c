@@ -254,27 +254,27 @@ void __init setup_arch(char **cmdline_p)
 	if (*((unsigned long *)(mtd_phys)) == CRAMFS_MAGIC)
 		mtd_size = PAGE_ALIGN(*((unsigned long *)(mtd_phys + 0x4)));
 # endif
-#if defined(CONFIG_ROMFS_FS)
+
+# if defined(CONFIG_ROMFS_FS)
 	if (((unsigned long *)mtd_phys)[0] == ROMSB_WORD0
 	    && ((unsigned long *)mtd_phys)[1] == ROMSB_WORD1)
 		mtd_size =
 		    PAGE_ALIGN(be32_to_cpu(((unsigned long *)mtd_phys)[2]));
-
-#if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
+# if (defined(CONFIG_BLKFIN_CACHE) && defined(ANOMALY_05000263))
 	/* Due to a Hardware Anomaly we need to limit the size of usable
 	 * instruction memory to max 60MB, 56 if HUNT_FOR_ZERO is on
 	 * 05000263 - Hardware loop corrupted when taking an ICPLB exception
 	 */
-#if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
+#  if (defined(CONFIG_DEBUG_HUNT_FOR_ZERO))
 	if (memory_end >= 56 * 1024 * 1024)
 		memory_end = 56 * 1024 * 1024;
-#else
+#  else
 	if (memory_end >= 60 * 1024 * 1024)
 		memory_end = 60 * 1024 * 1024;
-#endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
-#endif				/* ANOMALY_05000263 */
-
-#endif				/* CONFIG_ROMFS_FS */
+#  endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
+	printk(KERN_NOTICE "Warning: limiting memory to %liMB due to hardware anomaly 05000263\n", memory_end >> 20);
+# endif				/* ANOMALY_05000263 */
+# endif				/* CONFIG_ROMFS_FS */
 
 	memory_end -= mtd_size;
 
