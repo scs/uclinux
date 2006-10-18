@@ -470,6 +470,19 @@ fill_cplbtab(struct cplb_tab *table,
 	}
 	return 0;
 }
+
+static unsigned short __init
+close_cplbtab(struct cplb_tab *table)
+{
+
+	while (table->pos < table->size) {
+
+		table->tab[table->pos++] = 0;
+		table->tab[table->pos++] = 0; /* !CPLB_VALID */
+	}
+	return 0;
+}
+
 #endif
 
 static void __init generate_cpl_tables(void)
@@ -654,6 +667,10 @@ static void __init generate_cpl_tables(void)
 	}
 
 /* close tables */
+
+	close_cplbtab(&cplb.init_i);
+	close_cplbtab(&cplb.init_d);
+
 	cplb.init_i.tab[cplb.init_i.pos] = -1;
 	cplb.init_d.tab[cplb.init_d.pos] = -1;
 	cplb.switch_i.tab[cplb.switch_i.pos] = -1;
