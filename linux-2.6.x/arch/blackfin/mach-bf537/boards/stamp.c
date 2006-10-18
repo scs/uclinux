@@ -360,14 +360,22 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 #if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 2,
-		.bus_num = 1,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-	},
+{
+.modalias = "spi_mmc_dummy",
+.max_speed_hz = 2,
+.bus_num = 1,
+.chip_select = 7,
+.platform_data = NULL,
+.controller_data = &spi_mmc_chip_info,
+},
+{
+.modalias = "spi_mmc",
+.max_speed_hz = 2,
+.bus_num = 1,
+.chip_select = CONFIG_SPI_MMC_CS_CHAN,
+.platform_data = NULL,
+.controller_data = &spi_mmc_chip_info,
+},
 #endif
 };
 
