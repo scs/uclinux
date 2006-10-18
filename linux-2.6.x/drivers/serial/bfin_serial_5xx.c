@@ -653,8 +653,9 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 	unsigned short status;
 	/* {-#,filtering dups} {0,no break} {1,last char was break} {2,two breaks} */
 	static int break_status = 0;
-
+#ifdef CONFIG_MAGIC_SYSRQ
 	static unsigned long break_timeout;
+#endif
 
 	FUNC_ENTER();
 
@@ -704,10 +705,13 @@ static void receive_chars(struct bfin_serial *info, struct pt_regs *regs)
 			flag = TTY_BREAK;
 			status_handle(info, status);
 			if (break_status == 0) {
-				break_timeout = jiffies + HZ * 5;
 				break_status = 1;
 #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
 				break_status *= -1;
+#endif
+#ifdef CONFIG_MAGIC_SYSRQ
+				break_timeout = jiffies + HZ * 5;
+				goto clear_and_exit;
 #endif
 			} else if (break_status > 0)
 				break_status = 0;
