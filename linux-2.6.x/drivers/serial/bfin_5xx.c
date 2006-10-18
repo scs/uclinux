@@ -164,12 +164,28 @@ bfin_serial_rx_chars(struct bfin_serial_port *uart, struct pt_regs *regs)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status, ch, flg;
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+	static int in_break = 0;
+#endif
 
 	status = UART_GET_LSR(uart);
  	ch = UART_GET_CHAR(uart);
  	uart->port.icount.rx++;
 
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+	if (in_break) {
+		if (ch != 0) {
+			in_break = 0;
+			ch = UART_GET_CHAR(uart);
+		}
+		return;
+	}
+#endif
+
 	if (status & BI) {
+#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+		in_break = 1;
+#endif
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
