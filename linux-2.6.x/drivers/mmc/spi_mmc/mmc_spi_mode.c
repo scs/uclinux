@@ -6,7 +6,7 @@
 *
 * FILE mmc_spi_mode.c
 *
-* PROGRAMMER: Hans Eklund (Rubico AB)
+* PROGRAMMER: Hans Eklund (hans [at] rubico [dot] se) (Rubico AB)
 *
 * DATE OF CREATION: April, 2006.
 *
@@ -39,18 +39,17 @@
 #include "mmc_spi_mode.h"
 #include <linux/kernel.h>	/* for printk() only*/
 #include <linux/poll.h>
+#include <linux/delay.h>
 
-//#define DEBUG_MMC_SPI_MODE
-#define DEBUG_MMC_SPI_STATUS
 //#define USE_MULT_BLOCK_READS
 
-#ifdef DEBUG_MMC_SPI_MODE
+#ifdef CONFIG_SPI_MMC_DEBUG_MODE
 #define DPRINTK(x...)   printk("%lu, %s(): %d ", jiffies, __PRETTY_FUNCTION__, __LINE__);printk(x);
 #else
 #define DPRINTK(x...)   do { } while (0)
 #endif
 
-#ifdef DEBUG_MMC_SPI_STATUS
+#ifdef CONFIG_SPI_MMC_DEBUG_MODE
 #define DPRINT_STAT(x...)   printk("%s(): %d ", __PRETTY_FUNCTION__, __LINE__);printk(x);
 #else
 #define DPRINT_STAT(x...)   do { } while (0)
@@ -62,6 +61,7 @@ static unsigned char Null_Word[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
 static short read_mmc_reg(struct mmc_spi_dev *pdev, short csd);
 static unsigned char mmc_wait_response(struct mmc_spi_dev *pdev, unsigned int timeout);
 
+static int init_mode = 1;
 
 /**********************************************************************\
 *
@@ -128,11 +128,11 @@ short mmc_spi_get_card(struct mmc_spi_dev *pdev)
 	//memset(pdev->raw_cid, 0, 18);
 	//memset(pdev->raw_csd, 0, 18);
 	
-	if(read_mmc_reg(pdev, 0)) {
+	if(read_mmc_reg(pdev, 1)) {
 		DPRINTK("CSD register read failed.\n");
 		return 1;
 	}
-	if(read_mmc_reg(pdev, 1)) {
+	if(read_mmc_reg(pdev, 0)) {
 		DPRINTK("CID register read failed.\n");
 		return 1;
 	}
@@ -143,7 +143,6 @@ short mmc_spi_get_card(struct mmc_spi_dev *pdev)
 	return 0;
 }
 
-
 static short send_cmd_and_wait(struct mmc_spi_dev *pdev, 
 			       unsigned char command, 
 			       unsigned int argument, 
@@ -151,6 +150,7 @@ static short send_cmd_and_wait(struct mmc_spi_dev *pdev,
 			       unsigned int timeout)
 {
 	unsigned short resp=0xff;
+	unsigned short rval=0;
 	
 	// Build command string
 	mmc_cmd[0] = 0x40 + command;
@@ -160,17 +160,58 @@ static short send_cmd_and_wait(struct mmc_spi_dev *pdev,
 	mmc_cmd[4] = (unsigned char)(argument & 0xff);
 	mmc_cmd[5] = 0x95;	// CRC form CMD0 actually, but valid for all since SPI dont care
 
-	if(pdev->write(Null_Word, SD_PRE_CMD_ZEROS, pdev->priv_data)<0) {
-		DPRINTK("sending SD_PRE_CMD_ZEROS failed\n");
-		return ERR_SPI_TIMEOUT;
+	if(init_mode || pdev->sd) {
+		// Send a few zeros since SDs may be sleeping
+		if(pdev->write(Null_Word, SD_PRE_CMD_ZEROS, pdev->priv_data)<0) {
+			DPRINTK("sending SD_PRE_CMD_ZEROS failed\n");
+			rval = ERR_SPI_TIMEOUT;
+			goto out;
+		}
 	}
 	if(pdev->write(mmc_cmd, 6, pdev->priv_data) < 0) {
 		DPRINTK("sending command %d failed\n", command);
-		return ERR_SPI_TIMEOUT;
+		rval = ERR_SPI_TIMEOUT;
+		goto out;
 	}
 	if((resp=mmc_wait_response(pdev, timeout)) != cmd_resp) {
-		DPRINTK("unexpected response to command %d, wanted 0x%x, got 0x%x)\n", command, cmd_resp, resp);
-		return ERR_MMC_TIMEOUT;
+		// Will only be active during init, seems to be needed by some SDs.
+		udelay(1000);
+		DPRINTK("unexpected response to command %d, wanted 0x%x, got 0x%x)\n", command, cmd_resp, resp);		
+		rval =  ERR_MMC_TIMEOUT;
+		goto out;
+	}
+
+	out:
+	// send 8 clocks for SD cards
+	if(pdev->sd) {
+		//mmc_spi_dummy_clocks(pdev, SD_CLK_CNTRL);
+	}
+
+	return rval;
+}
+
+static short mmc_spi_error_handler(struct mmc_spi_dev *pdev, short rval)
+{
+	switch(rval) {
+		case ERR_SPI_TIMEOUT:
+			DPRINTK("ERR_SPI_TIMEOUT\n");
+			return RVAL_CRITICAL;
+		case ERR_MMC_TIMEOUT:
+			DPRINTK("ERR_MMC_TIMEOUT\n");
+			return RVAL_ERROR;
+		case ERR_MMC_PROG_TIMEOUT:
+		case ERR_UNKNOWN_TOK:
+		case DR_CRC_ERROR:
+		case DR_WRITE_ERROR:
+		default:
+			if(rval) {
+				if(mmc_spi_read_status(pdev)) {
+					return RVAL_ERROR;
+				}
+			} else {
+				// NOTE: could use status to determine what to do more accurately
+				return RVAL_OK;
+			}
 	}
 	return 0;
 }
@@ -183,29 +224,40 @@ static short read_mmc_reg(struct mmc_spi_dev *pdev, short csd)
 {
 	unsigned char resp=0xff;
 	unsigned char* buf;
+	unsigned short rval = 0;
 	
 	if(csd) {
-		if(send_cmd_and_wait(pdev, SEND_CSD, 0, R1_OK, MMC_COMMAND_TIMEOUT)) {
-			return 1;
+		if((rval=send_cmd_and_wait(pdev, SEND_CSD, 0, R1_OK, MMC_COMMAND_TIMEOUT))) {
+			goto out; 
 		}
 		buf = pdev->raw_csd;
 	} else {
-		if(send_cmd_and_wait(pdev, SEND_CID, 0, R1_OK, MMC_COMMAND_TIMEOUT)) {
-			return 1;
+		if((rval=send_cmd_and_wait(pdev, SEND_CID, 0, R1_OK, MMC_COMMAND_TIMEOUT))) {
+			goto out;
 		}
 		buf = pdev->raw_cid;
 	}
-			
-	// start block token
+
+	// start block token 
 	if((resp=mmc_wait_response(pdev, MMC_COMMAND_TIMEOUT)) != SBT_S_BLOCK_READ) {
         	DPRINTK("mmc did not send 0xFE(got 0x%x)\n",resp);
-		return ERR_SPI_TIMEOUT;
+		rval = resp;
+		goto out;
         }
         if(pdev->read(buf, 18, pdev->priv_data) < 18) {
                 DPRINTK("reading 18 bytes of data failed\n");
-		return ERR_SPI_TIMEOUT;
+		rval = ERR_SPI_TIMEOUT;
+		goto out;
         }
-	return 0;
+	out:
+	// send clocks for SD cards
+	if(pdev->sd)
+		mmc_spi_dummy_clocks(pdev, SD_CLK_CNTRL);
+
+	// check for errors, but dont change rval
+	mmc_spi_error_handler(pdev, rval);
+
+	return rval;
 }
 
 short mmc_spi_read_status(struct mmc_spi_dev *pdev)
@@ -236,7 +288,8 @@ short mmc_spi_read_status(struct mmc_spi_dev *pdev)
 	r2 = b2 + (b1 << 8);
 	
 	if(r2) {
-		DPRINT_STAT("r2: 0x%04x\n", r2);
+		DPRINT_STAT("STATUS r2: 0x%04x\n", r2);
+		mdelay(10);
 	}
 	return r2;
 	
@@ -327,7 +380,7 @@ short mmc_spi_read_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsig
 	// Poll for start block token
         if((resp=mmc_wait_response(pdev, MMC_COMMAND_TIMEOUT)) != SBT_S_BLOCK_READ) {
         	DPRINTK("mmc did not send 0xFE(got 0x%x)\n",resp);
-		rval= resp;
+		rval = resp;
 		goto out;
 
         }
@@ -337,26 +390,13 @@ short mmc_spi_read_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsig
 		rval= ERR_SPI_TIMEOUT;
 		goto out;
 	}
+	// send 8 clocks for SD cards
+	if(pdev->sd)
+		mmc_spi_dummy_clocks(pdev, SD_CLK_CNTRL);
+
 	//  TODO: read CRC
 	out:;
-	switch(rval) {
-		case ERR_SPI_TIMEOUT:
-			DPRINTK("ERR_SPI_TIMEOUT\n");
-			return RVAL_CRITICAL;
-		case ERR_MMC_TIMEOUT:
-			DPRINTK("ERR_MMC_TIMEOUT\n");
-			return RVAL_ERROR;	
-		case ERR_UNKNOWN_TOK:
-		case DR_CRC_ERROR:
-		case DR_WRITE_ERROR:
-		default:
-			if(mmc_spi_read_status(pdev)) {
-				return RVAL_ERROR;
-			} else {
-				// NOTE: could use status to determine what to do better
-				return RVAL_OK;
-			}
-	}
+	return mmc_spi_error_handler(pdev, rval);
 }
 
 // Not implemented on Blackfin since DMA reads are a bit troublesome(512 bytes
@@ -382,7 +422,7 @@ short mmc_spi_read_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, 
 		// Poll for start block token
 		if((resp=mmc_wait_response(pdev, MMC_COMMAND_TIMEOUT)) != SBT_M_BLOCK_READ) {
 			DPRINTK("mmc did not send 0xFE(got 0x%x)\n",resp);
-			rval= 1;	
+			rval= resp;	
 			goto out;
 		}
 		// Read data	
@@ -392,14 +432,17 @@ short mmc_spi_read_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, 
 			goto out;
 		}
 	}
+	// send 8 clocks for SD cards
+	if(pdev->sd)
+		mmc_spi_dummy_clocks(pdev, SD_CLK_CNTRL);
+
 	rval = 0;
 	out:
 	// send stop command
 	rval=send_cmd_and_wait(pdev, STOP_TRANSMISSION, address, R1_OK, MMC_COMMAND_TIMEOUT))) {
-	if(rval) {
-		mmc_spi_read_status(pdev);
-	}
-	return rval;
+
+	return mmc_spi_error_handler(pdev, rval);
+
 }
 #endif
 
@@ -431,12 +474,12 @@ short mmc_spi_write_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsi
 		goto out;
 
         }
+
         // wait for data response token
 	if((resp = (mmc_wait_response(pdev, MMC_COMMAND_TIMEOUT) & DR_MASK)) != DR_ACCEPTED) {
-                DPRINTK("mmc did not send data_response_token(got R1=0x%x)\n",resp);
+		DPRINTK("mmc did not send DR_ACCEPTED token(got R1=0x%x)\n",resp);
 		rval = ERR_MMC_TIMEOUT;
 		goto out;
-
         }
 	pdev->reset_time(MMC_PROG_TIMEOUT);
 	while(1) {
@@ -448,7 +491,7 @@ short mmc_spi_write_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsi
 			goto out;
 		}
 		if(pdev->elapsed_time()) {
-			rval = ERR_MMC_TIMEOUT;
+			rval = ERR_MMC_PROG_TIMEOUT;
 			goto out;
 		}
 		switch(resp & DR_MASK) {
@@ -468,31 +511,19 @@ short mmc_spi_write_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsi
 				goto out;
 		}
 	}
+	// send 8 clocks for SD cards
+	if(pdev->sd)
+		mmc_spi_dummy_clocks(pdev, SD_CLK_CNTRL);
+
 	out:;
-	switch(rval) {
-		case ERR_SPI_TIMEOUT:
-			DPRINTK("ERR_SPI_TIMEOUT\n");
-			return RVAL_CRITICAL;
-		case ERR_MMC_TIMEOUT:
-			DPRINTK("ERR_MMC_TIMEOUT\n");
-			return RVAL_ERROR;	
-		case ERR_UNKNOWN_TOK:
-		case DR_CRC_ERROR:
-		case DR_WRITE_ERROR:
-		default:
-			if(mmc_spi_read_status(pdev)) {
-				return RVAL_ERROR;
-			} else {
-				// NOTE: could use status to determine what to do better
-				return RVAL_OK;
-			}
-	}
+	return mmc_spi_error_handler(pdev, rval);
 }
 
 short mmc_spi_write_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsigned int address, int nblocks)
 {
 	unsigned short rval = 0;
 	unsigned char resp=0xff;
+	unsigned char resp_last=0xff;
 	//static unsigned char resp_buf[BUSY_BLOCK_LEN];
 	unsigned int tc=0;
 	int i=0;
@@ -522,11 +553,15 @@ short mmc_spi_write_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf,
 		}
         	// wait for data response token
 		if((resp = (mmc_wait_response(pdev, MMC_COMMAND_TIMEOUT) & DR_MASK)) != DR_ACCEPTED) {
-			DPRINTK("mmc did not send correct DR token(got R1=0x%x)\n",resp);
-			rval= ERR_MMC_TIMEOUT;
+			DPRINTK("mmc did not send DR_ACCEPTED token(got R1=0x%x)\n",resp);
+			rval = ERR_MMC_TIMEOUT;
 			goto stop;
 
 		}
+		// send 8 clocks for SD cards
+		if(pdev->sd)
+			mmc_spi_dummy_clocks(pdev, 2*SD_CLK_CNTRL);
+
 	        // wait on busy/error token while MMC is programming new data
 		tc=0;
 		pdev->reset_time(MMC_PROG_TIMEOUT);
@@ -580,41 +615,44 @@ short mmc_spi_write_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf,
 			rval= ERR_SPI_TIMEOUT;
 			goto out;
 		}
-		// Exit when response goes high again
-		if(resp == 0xff) {
-			//DPRINTK("Got final MBW busy wait done after %d reads...\n", tc);
-			goto out;
-		}
+		tc++;
 		if(pdev->elapsed_time()) {
 			rval = ERR_MMC_TIMEOUT;
 			goto out;
 		}
+		// Exit when card raises the data line(busy to done token transition)
+		if(resp == 0xFF && resp_last==0x00) {
+			DPRINTK("Got final MBW busy wait done after %d reads...\n", tc);
+			goto out;
+		}
+		resp_last=resp;
 	}
 	out:
-	switch(rval) {
-		case ERR_SPI_TIMEOUT:
-			return RVAL_CRITICAL;
-		case ERR_MMC_TIMEOUT:
-			return RVAL_ERROR;	
-		case ERR_UNKNOWN_TOK:
-		case DR_CRC_ERROR:
-		case DR_WRITE_ERROR:
-		default:
-			if(mmc_spi_read_status(pdev)) {
-				return RVAL_ERROR;
-			} else {
-				// NOTE: could use status to determine what to do better
-				return RVAL_OK;
-			}
-	}
+	return mmc_spi_error_handler(pdev, rval);
 }
 
+short mmc_spi_dummy_clocks(struct mmc_spi_dev *pdev, unsigned short nbytes)
+{
+	int i;
+
+	pdev->force_cs_high = 1;
+        for(i=0; i<nbytes; i++) {
+                if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
+			pdev->force_cs_high = 0;
+                        return 1;
+                }
+        }
+	pdev->force_cs_high = 0;
+
+	return 0;
+}
 short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 {
         unsigned short cntr=0;
-	//unsigned char resp=0;
-        int i=0;
 
+	// for making init process beeing silent
+	init_mode = 1;
+	/*
 	unsigned char wa[8] = {0xaa, 0x11,0xaa, 0x11,0xaa, 0x11,0xaa, 0x11};
 	unsigned char rb[8] = {0xaa, 0x11,0xaa, 0x11,0xaa, 0x11,0xaa, 0x11};
 
@@ -624,20 +662,27 @@ short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 		pdev->read(rb, 1, pdev->priv_data);
 		//DPRINTK("rb: 0x%02x\n", rb[0]);
 	}
+	*/
 
-        // Send 80 zeros to make card wake up
-        for(i=0; i<8; i++) {
-                if(pdev->write(Null_Word, 10, pdev->priv_data)<0) {
-                        return 1;
-                }
-        }
-	
+	// 10 bytes(80 cycles) with CS de-asserted
+	mmc_spi_dummy_clocks(pdev, 10);
+
 	if(send_cmd_and_wait(pdev, GO_IDLE_STATE, 0, R1_IDLE_STATE, MMC_INIT_TIMEOUT)) {
 		return 1;
 	}
 
+       	// Send One Byte Delay
+	if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
+        	return 1;
+	}
+			
 	// Look for SD card
 	for(cntr=0; cntr< 60; cntr++) {
+        	// Send One Byte Delay
+                if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
+                        return 1;
+                }
+
 		if(send_cmd_and_wait(pdev, APP_CMD, 0, R1_OK, MMC_INIT_TIMEOUT) == 0) {
 			goto next;
 		}
@@ -647,22 +692,20 @@ short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 		next:
 		if(send_cmd_and_wait(pdev, SD_SEND_OP_COND, 0, R1_OK, MMC_INIT_TIMEOUT) == 0) {
  			// Send One Byte Delay and return
-			if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
+			if(pdev->write(Null_Word, 4, pdev->priv_data)<0) {
 				return 1;
 			}
 			pdev->sd = 1;
+			init_mode = 0;
+			//udelay(300);
 			DPRINTK("SD card found!\n");
 			return 0;
 		}
 	}
-			
+
 	// poll card by sending CMD1 and wait for card initialization complete
         //DPRINTK("Looking for MMC card...\n");
         for(cntr=0; cntr< 60; cntr++ ) {
-        	// Send One Byte Delay
-                if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
-                        return 1;
-                }
                 // Send CMD1
 		if(send_cmd_and_wait(pdev, SEND_OP_COND, 0, R1_OK, MMC_INIT_TIMEOUT) == 0) {
  			// Send One Byte Delay and return
@@ -670,9 +713,14 @@ short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 				return 1;
 			}
 			pdev->sd = 0;
+			init_mode = 0;
 			DPRINTK("MMC card found!\n");
 			return 0;
 		}
+        	// Send One Byte Delay
+                if(pdev->write(Null_Word, 1, pdev->priv_data)<0) {
+                        return 1;
+                }
 	}
         return 1;
 }

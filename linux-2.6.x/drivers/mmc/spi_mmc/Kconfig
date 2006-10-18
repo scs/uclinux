@@ -3,7 +3,7 @@
 #
 
 config SPI_MMC
-    tristate "MMC/SD for SPI support (EXPERIMENTAL)"
+	tristate "MMC/SD for SPI support (EXPERIMENTAL)"
         depends on EXPERIMENTAL && SPI
         default n
         ---help---
@@ -23,13 +23,14 @@ config SPI_MMC_CS_CHAN
 	Set the Chip Select signal to use for the MMC/SD card.
 
 config SPI_MMC_CARD_DETECT
-	bool "MMC/SD Card detect support"
+	bool "MMC/SD Card detect support (EXPERIMENTAL)"
 	depends on SPI_MMC && BFIN
-	default "y"
+	default "n"
 	help
 	Supported platforms can make use of card detect signal to sense insertion
 	and removal of card. Hotplug events could be generated for userspace to
-	take action, such as mounting partitions.
+	take action, such as mounting partitions. Debug mode is not available
+	with card detection.
 
 config SPI_MMC_CARD_DETECT_PFLAG
 	int "Card detect PFx number"
@@ -37,4 +38,12 @@ config SPI_MMC_CARD_DETECT_PFLAG
 	default "5"
 	help
 	Which PFx number to use for card detection.
+
+config SPI_MMC_DEBUG_MODE
+	bool "Print debug text on errors"
+	depends on SPI_MMC && !SPI_MMC_CARD_DETECT
+	default n
+	---help---
+	Will print verobse debug data during MMC/SD errors of any kind. Note that
+	during card initialization errors are normal.
 #endmenu

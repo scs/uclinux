@@ -1,12 +1,17 @@
+// For developing, set this. Can be set from Kconfig.
+#ifndef CONFIG_SPI_MMC_DEBUG_MODE
+//#define CONFIG_SPI_MMC_DEBUG_MODE
+#endif
 
 enum {
-	MMC_INIT_TIMEOUT 	= 5,	// msec, Timeout when polling for R1_OK at init of MMC/SDs
-	MMC_COMMAND_TIMEOUT	= 50,	// msec, Time to wait for command responses
-	MMC_PROG_TIMEOUT	= 1000,	// msec, Programming busy time to wait
+	MMC_INIT_TIMEOUT 	= 100,	// msec, Timeout when polling for R1_OK at init of MMC/SDs
+	MMC_COMMAND_TIMEOUT	= 100,	// msec, Time to wait for command responses
+	MMC_PROG_TIMEOUT	= 800,	// msec, Programming busy time to wait
 	BUSY_BLOCK_LEN 		= 1,	// Busy response blockwise(w. DMA preferably, size
 	BUSY_BLOCK_LEN_SHORT	= 16,	// Short version, multiple block waits are much faster
 	MMC_SECTOR_SIZE		= 512,	// Size of MMC sectors, this should actually be fetched from
 	SD_PRE_CMD_ZEROS	= 4,	// Send so many zeros if in SD mode(wake up from pos. sleep)
+	SD_CLK_CNTRL		= 2,
 
 // Card command classes
 	/* could be implemented to ensure compability */
@@ -14,7 +19,8 @@ enum {
 // Internal error codes
 	ERR_SPI_TIMEOUT		= 0xF1,
 	ERR_MMC_TIMEOUT		= 0xF2,
-	ERR_UNKNOWN_TOK		= 0xF3,
+	ERR_MMC_PROG_TIMEOUT 	= 0xF3,
+	ERR_UNKNOWN_TOK		= 0xF4,
 
 // return values from functions
 	RVAL_OK			= 0,
@@ -131,10 +137,12 @@ struct mmc_spi_dev {
 	struct cid_str 	cid;
 	struct csd_str 	csd;
 	int		sd;		/* set if SD card found */
+	unsigned short	force_cs_high;
 };
 
 short mmc_spi_get_card(struct mmc_spi_dev *pdev);
 short mmc_spi_read_status(struct mmc_spi_dev *pdev);
+short mmc_spi_dummy_clocks(struct mmc_spi_dev *pdev, unsigned short nbytes);
 short mmc_spi_read_mmc_block(struct mmc_spi_dev *pdev, unsigned char *buf, unsigned int address);
 short mmc_spi_read_mult_mmc_block(struct mmc_spi_dev *pdev, unsigned char* buf, unsigned int address, int nblocks);
 short mmc_spi_write_mmc_block(struct mmc_spi_dev *pdev, unsigned char *buf, unsigned int address);
