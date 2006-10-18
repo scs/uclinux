@@ -101,8 +101,10 @@ void myfprintf(FILE * fp, char * format, ... ) {
 
 int myfprintfCloseAndOpenLogFile() {
         if(myfprintf_stdLogMode) {
-                while(fclose(myfprintf_out)<0 && errno==EINTR);
-                while(fclose(myfprintf_err)<0 && errno==EINTR);
+                if(myfprintf_out)
+                  while(fclose(myfprintf_out)<0 && errno==EINTR);
+                if(myfprintf_err)
+                  while(fclose(myfprintf_err)<0 && errno==EINTR);
                 while((myfprintf_out = fopen(myfprintf_outFilename,"a+"))==NULL
                                 && errno==EINTR);
                 if(!myfprintf_out) {
