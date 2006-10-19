@@ -36,12 +36,18 @@
 #include <asm/uaccess.h>
 #include <asm/blackfin.h>
 #include <asm/irq.h>
+#include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/interrupt.h>
 
 MODULE_AUTHOR("Michele d'Amico <michele.damico@fitre.it>");
 MODULE_DESCRIPTION("PFButton input driver");
 MODULE_LICENSE("GPL");
+
+static int debounce_t = 40;
+
+module_param(debounce_t, int, 0);
+MODULE_PARM_DESC(debounce_t, "Switch debounce time in ms");
 
 #define PF_MASK(_val) (0x1<<_val)
 
@@ -298,6 +304,8 @@ static inline short read_state(struct bf53xPFbuttons *bf53xPFbuttons)
 {
 	short val;
 
+	mdelay(debounce_t);
+
 	pr_debug("bf53xPFbuttons_read_state\n");
 	val = (bfin_read_FIO_FLAG_D() & PF_BUTTONS_MASK);
 
@@ -398,7 +406,7 @@ static int inline bf53xPFbuttons_init_IRQ(struct bf53xPFbuttons *bf53xPFbuttons,
 		if (mask & 0x1) {
 			set_irq_type(IRQ_PF0 + i, IRQT_BOTHEDGE);
 			pr_debug("bf53xPFbuttons_init_IRQ PF%d configured\n", i);
-			if (request_irq(IRQ_PF0 + i, bf53xPFbuttons_irq_handler, SA_INTERRUPT, "bf53xPFbuttons", bf53xPFbuttons)) {
+			if (request_irq(IRQ_PF0 + i, bf53xPFbuttons_irq_handler, 0, "bf53xPFbuttons", bf53xPFbuttons)) {
 			    /* Rollback */
 			    printk(KERN_WARNING "bf53xPFbuttons: IRQ %d is not free. Roolback to the previos configuration\n", IRQ_PF0 + i);
 			    bf53xPFbuttons_remove_IRQ(bf53xPFbuttons,i_mask & ~mask);
