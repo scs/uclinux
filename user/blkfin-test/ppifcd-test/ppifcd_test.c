@@ -247,7 +247,7 @@ long getoffset(void)
 {
 int i;
 struct timeval t, o;
-long delta;
+long delta = 0;
 
 
     for(i=0; i < AVERAGE ; i++ )
