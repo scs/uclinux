@@ -1,5 +1,14 @@
+/* File: bfin_sram.h
+ *
+ * Some kernel system calls to allow userspace to easily work
+ * with L1 and DMA memory operations.
+ */
+
 #ifndef BFIN_SRAM_H
 #define BFIN_SRAM_H
+
+/* need size_t defines */
+#include <sys/types.h>
 
 #define L1_INST_SRAM            0x00000001
 #define L1_DATA_A_SRAM          0x00000002
