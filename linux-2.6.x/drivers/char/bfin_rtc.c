@@ -593,6 +593,8 @@ static unsigned int rtc_poll(struct file *file, poll_table * wait)
 {
 	unsigned long l;
 
+	poll_wait(file, &rtc_wait, wait);
+
 	spin_lock_irq(&rtc_lock);
 	l = rtc_irq_data;
 	spin_unlock_irq(&rtc_lock);
