@@ -14,7 +14,7 @@
 #include <string.h>
 
 #if !(DOS_TURBOC | DOS_QUICKC | _MINIX | VXWORKS)
-static int
+int
 abs(int n)
 {
 	return n >= 0? n: -n;
