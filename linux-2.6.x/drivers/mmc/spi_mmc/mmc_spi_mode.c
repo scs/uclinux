@@ -192,6 +192,26 @@ static short send_cmd_and_wait(struct mmc_spi_dev *pdev,
 
 static short mmc_spi_error_handler(struct mmc_spi_dev *pdev, short rval)
 {
+	// Handle log index, wrap if necessary
+	static int i;
+	static int j=1;
+	static unsigned short status;
+
+	// If error, log and check status.
+	if(rval) {
+		i++; j++;
+		i = i % LOG_LEN;
+		j = j % LOG_LEN;		
+
+		// zero out oldest to separate new/old values
+		pdev->error_log[j] = 0;
+		pdev->status_log[j] = 0;
+
+		pdev->error_log[i] = rval;	
+		pdev->errors++;
+		status = mmc_spi_read_status(pdev);
+		pdev->status_log[i] =  status;
+	}
 	switch(rval) {
 		case ERR_SPI_TIMEOUT:
 			DPRINTK("ERR_SPI_TIMEOUT\n");
@@ -204,10 +224,8 @@ static short mmc_spi_error_handler(struct mmc_spi_dev *pdev, short rval)
 		case DR_CRC_ERROR:
 		case DR_WRITE_ERROR:
 		default:
-			if(rval) {
-				if(mmc_spi_read_status(pdev)) {
-					return RVAL_ERROR;
-				}
+			if(status) {
+				return RVAL_ERROR;
 			} else {
 				// NOTE: could use status to determine what to do more accurately
 				return RVAL_OK;
@@ -664,6 +682,9 @@ short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 	}
 	*/
 
+	// save length of log for external usage
+	pdev->log_len = LOG_LEN;
+
 	// 10 bytes(80 cycles) with CS de-asserted
 	mmc_spi_dummy_clocks(pdev, 10);
 
@@ -728,9 +749,9 @@ short mmc_spi_init_card(struct mmc_spi_dev *pdev)
 static unsigned char mmc_wait_response(struct mmc_spi_dev *pdev, unsigned int timeout)
 {
         unsigned char card_resp = 0xFF;
-	
+	unsigned int n=0;
 	// reset time and set to timeout ms
-	pdev->reset_time(timeout);
+	//pdev->reset_time(timeout);
 	while(1) {
 		if(pdev->read(&card_resp, 1, pdev->priv_data) < 0) {
 			DPRINTK("error: mmc_wait_response read error\n");
@@ -739,26 +760,15 @@ static unsigned char mmc_wait_response(struct mmc_spi_dev *pdev, unsigned int ti
 		if(card_resp != 0xFF) {
  			return card_resp;
 		}
-		if(pdev->elapsed_time()) {
+		// NOTE: "timeout" in seconds may not be a good idea after all
+		//	(by doing pdev->elapsed_time() )
+		//	 wait for a specific amount of polls for now.
+		if((n++ >= MMC_COMMAND_MAXPOLLS)) {
 			// timeout
 			DPRINTK("hey! timed out\n");
 			return ERR_MMC_TIMEOUT;
 		}
 	}
-	/*
-	for(tc=0; tc<timeout; tc++) {
-                if(pdev->read(&card_resp, 1, pdev->priv_data) < 0) {
-                        DPRINTK("error: mmc_wait_response read error\n");
-                        return 0xFF;
-                }
-                if(card_resp != 0xFF) {
-                        //DPRINTK("CMD0: Got response from MMC as: 0x%x after %d bytes read\n", card_resp, tc);
-                        return card_resp;
-                }
-        }
-        DPRINTK("error: mmc_wait_response timeout\n");
-        return 0xFF;
-	*/
 }
 
 

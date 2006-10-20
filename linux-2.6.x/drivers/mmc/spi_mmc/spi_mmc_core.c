@@ -42,6 +42,8 @@
 *	- If a media is removed and umount is performed. end_request will
 *	  scream a bit. Could be nicer done probably.
 *
+* Oct,	2006 -	Fixed timeout issue in mmc_spi_mode.c. Added primitive error log
+*		to /proc/spi_mmc.
 * Oct,  2006 -	Improved support for SD cards. Simpler request processing for now
 *		Fall back to single block writes if multiple writes fails. Added
 *		low level performance monitor to /proc/spi_mmc. Minor
@@ -682,8 +684,12 @@ static int spi_mmc_dev_init(mmc_info_t* pdev)
 		// force read of partition table
 		bdev = bdget_disk(pdev->gd, 0);
 		bdev->bd_invalidated = 1;
-		// clear perf_info struct
+		// clear perf_info struct and error information
 		memset(&pdev->pi, 0, sizeof(struct perf_info));
+		memset(pdev->msd.error_log, 0, sizeof(pdev->msd.error_log));
+		memset(pdev->msd.status_log, 0, sizeof(pdev->msd.status_log));
+		pdev->msd.errors = 0;
+		
 		// assume that it works
 		pdev->pi.mbw_works=1;
 	}
@@ -885,6 +891,7 @@ int spi_mmc_read_proc(char *buf, char **start, off_t offset, int count, int *eof
 {
 	mmc_info_t *pdev = Devices;
 	int len = 0;
+	int idx = 0;
 	unsigned int spi_speed_khz=0;
 	unsigned int sclk=0;
 	
@@ -900,7 +907,18 @@ int spi_mmc_read_proc(char *buf, char **start, off_t offset, int count, int *eof
 	len += sprintf(buf+len, "Driver author: %s\n", __DRIVER_AUTHOR);
 	len += sprintf(buf+len, "SPI CLK: %d KHz\n", spi_speed_khz);
 	len += sprintf(buf+len, "SPI CS : %d\n", CONFIG_SPI_MMC_CS_CHAN);
-	
+
+	len += sprintf(buf+len, "Error/Status log[0xNEW, 0x0000, 0xOLDEST]. Total: %d\n", pdev->msd.errors);
+	len += sprintf(buf+len, "E: ");
+	for(idx=0; idx < pdev->msd.log_len; idx++) {
+		len += sprintf(buf+len, " 0x%04x", pdev->msd.error_log[idx]);
+	}
+	len += sprintf(buf+len, "\nS: ");
+	for(idx=0; idx < pdev->msd.log_len; idx++) {
+		len += sprintf(buf+len, " 0x%04x", pdev->msd.status_log[idx]);
+	}
+
+	len += sprintf(buf+len, "\n");
 	if(!pdev->card_in_bay) {
 		len += sprintf(buf+len, "No MMC/SD card found.\n");
 		goto out;

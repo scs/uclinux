@@ -45,5 +45,6 @@ config SPI_MMC_DEBUG_MODE
 	default n
 	---help---
 	Will print verobse debug data during MMC/SD errors of any kind. Note that
-	during card initialization errors are normal.
+	during card initialization errors are normal. Also note that a small debug
+	log can be found in /proc/spi_mmc entry.
 #endmenu
