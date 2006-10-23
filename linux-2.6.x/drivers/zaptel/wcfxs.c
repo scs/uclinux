@@ -35,11 +35,18 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
+#include <linux/workqueue.h>
 #include "proslic.h"
 #include "wcfxs.h"
-#include "bfsi.h"
-#include "bfsi.c"
 
+#define BFIN_SPI_FRAMEWORK	1
+#ifdef BFIN_SPI_FRAMEWORK
+#include "bfsi-spi-framework.h"
+#include "bfsi-spi-framework.c"
+#else
+#include "bfsi.c"
+#include "bfsi.h"
+#endif
 
 #define STANDALONE_ZAPATA 1
 /*
@@ -250,11 +257,12 @@ static struct fxo_mode {
 
 /* ------------------------ Blackfin -------------------------*/
 
+#ifndef BFIN_SPI_FRAMEWORK
 #define SPI_BAUDS   4 /* 12.5 MHz for 100MHz system clock */
-
 #define __write_8bits(X, Y) bfsi_spi_write_8_bits(Y)
 #define __read_8bits(X) bfsi_spi_read_8_bits()
 #define __reset_spi(X) do {} while(0)
+#endif
 
 /* ------------------------ Blackfin -------------------------*/
 
@@ -289,6 +297,7 @@ struct calregs {
 	unsigned char vals[NUM_CAL_REGS];
 };
 
+#define POLL_PERIOD_TIME 	32		
 struct wcfxs {
 	int   irq;
 	char *variety;
@@ -305,6 +314,8 @@ struct wcfxs {
 	int cards;
 	int cardflag;		/* Bit-map of present cards */
 	spinlock_t lock;
+	struct workqueue_struct *workqueue;
+	struct work_struct check_status;
 
 	/* FXO Stuff */
 	union {
@@ -387,6 +398,7 @@ static struct wcfxs *devs;
 
 static int loopback = 0;
 static int reg5, reg12, loop_i, line_v;
+static int poll_timer = 0;
 
 #ifdef TMP_DR
 static int internalclock = 0;
@@ -754,7 +766,7 @@ static inline unsigned char __read_8bits(struct wcfxs *wc)
 #endif
 
 /* we have only one card at the moment */
-
+#ifndef BFIN_SPI_FRAMEWORK
 static inline void __wcfxs_setcard(struct wcfxs *wc, int card)
 {
 	if (wc->curcard != card) {
@@ -827,6 +839,7 @@ static unsigned char wcfxs_getreg(struct wcfxs *wc, int card, unsigned char reg)
 	return res;
 }
 
+
 static int __wait_access(struct wcfxs *wc, int card)
 {
     unsigned char data;
@@ -868,7 +881,7 @@ static int wcfxs_proslic_setreg_indirect(struct wcfxs *wc, int card, unsigned ch
 {
 	unsigned long flags;
 	int res = -1;
-	/* Translate 3215 addresses */
+	/* Translate 3215 addresses */ 
 	if (wc->flags[card] & FLAG_3215) {
 		address = translate_3215(address);
 		if (address == 255)
@@ -913,6 +926,7 @@ static int wcfxs_proslic_getreg_indirect(struct wcfxs *wc, int card, unsigned ch
 		printk(p);
 	return res;
 }
+#endif
 
 static int wcfxs_proslic_init_indirect_regs(struct wcfxs *wc, int card)
 {
@@ -992,7 +1006,7 @@ static inline void wcfxs_voicedaa_check_hook(struct wcfxs *wc, int card)
 	if (!wc->mod.fxo.offhook[card]) {
 		res = wcfxs_getreg(wc, card, 5);
 		if ((res & 0x60) && wc->mod.fxo.battery[card]) {
-			wc->mod.fxo.ringdebounce[card] += (ZT_CHUNKSIZE * 4);
+			wc->mod.fxo.ringdebounce[card] += (ZT_CHUNKSIZE * 4)* POLL_PERIOD_TIME;
 			if (wc->mod.fxo.ringdebounce[card] >= ZT_CHUNKSIZE * 64) {
 				if (!wc->mod.fxo.wasringing[card]) {
 					wc->mod.fxo.wasringing[card] = 1;
@@ -1003,7 +1017,7 @@ static inline void wcfxs_voicedaa_check_hook(struct wcfxs *wc, int card)
 				wc->mod.fxo.ringdebounce[card] = ZT_CHUNKSIZE * 64;
 			}
 		} else {
-			wc->mod.fxo.ringdebounce[card] -= ZT_CHUNKSIZE;
+			wc->mod.fxo.ringdebounce[card] -= ZT_CHUNKSIZE * POLL_PERIOD_TIME;
 			if (wc->mod.fxo.ringdebounce[card] <= 0) {
 				if (wc->mod.fxo.wasringing[card]) {
 					wc->mod.fxo.wasringing[card] =0;
@@ -1125,7 +1139,9 @@ static inline void wcfxs_proslic_check_hook(struct wcfxs *wc, int card)
 #endif
 	} else {
 		if (wc->mod.fxs.debounce[card] > 0) {
-			wc->mod.fxs.debounce[card]-= 4 * ZT_CHUNKSIZE;
+			wc->mod.fxs.debounce[card]-= 4 * ZT_CHUNKSIZE * POLL_PERIOD_TIME;
+			if(wc->mod.fxs.debounce[card]<0) 
+				wc->mod.fxs.debounce[card]=0;
 #if 0
 			printk("Sustaining hook %d, %d\n", hook, wc->mod.fxs.debounce[card]);
 #endif
@@ -1257,19 +1273,16 @@ static void wcfxs_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 #endif
 
-/* handles regular interrupt processing, called every time we get a DMA
-   interrupt which is every 1ms with ZT_CHUNKSIZE == 8 */
-
-void regular_interrupt_processing(u8 *read_samples, u8 *write_samples) {
-  struct wcfxs *wc = devs;
-
+static void check_status(void *data)
+{
+	struct wcfxs *wc = data;
 	int x;
-
+	
 	wc->intcount++;
 	x = wc->intcount % 4;
 
 	/* check hook switch (FXS) and ringing (FXO) */
-
+//printk("in check_status, x=%x,wc->card=%x,wc->cardflag=%x\n",x,wc->cards,wc->cardflag);
 	if ((x < wc->cards) && (wc->cardflag & (1 << x))) {
 		if (wc->modtype[x] == MOD_TYPE_FXS) {
 			wcfxs_proslic_check_hook(wc, x);
@@ -1281,7 +1294,7 @@ void regular_interrupt_processing(u8 *read_samples, u8 *write_samples) {
 		}
 	}
 
-	if (!(wc->intcount % 10000)) {
+	if (!(wc->intcount % 200)) {  //the formerly 10000 has been changed to 10000/50 = 200
 		/* Accept an alarm once per 10 seconds */
 		for (x=0;x<4;x++) 
 			if (wc->modtype[x] == MOD_TYPE_FXS) {
@@ -1290,10 +1303,52 @@ void regular_interrupt_processing(u8 *read_samples, u8 *write_samples) {
 			}
 	}
 
+}
+
+/* handles regular interrupt processing, called every time we get a DMA
+   interrupt which is every 1ms with ZT_CHUNKSIZE == 8 */
+void regular_interrupt_processing(u8 *read_samples, u8 *write_samples) {
+  struct wcfxs *wc = devs;
+
+/*
+	int x;
+
+	wc->intcount++;
+	x = wc->intcount % 4;
+
+	// check hook switch (FXS) and ringing (FXO) 
+
+	if ((x < wc->cards) && (wc->cardflag & (1 << x))) {
+		if (wc->modtype[x] == MOD_TYPE_FXS) {
+			wcfxs_proslic_check_hook(wc, x);
+			if (!(wc->intcount & 0xfc))
+				wcfxs_proslic_recheck_sanity(wc, x);
+		} else if (wc->modtype[x] == MOD_TYPE_FXO) {
+			// ring detection, despite name 
+			wcfxs_voicedaa_check_hook(wc, x); 
+		}
+	}
+
+	if (!(wc->intcount % 10000)) {
+		// Accept an alarm once per 10 seconds 
+		for (x=0;x<4;x++) 
+			if (wc->modtype[x] == MOD_TYPE_FXS) {
+				if (wc->mod.fxs.palarms[x])
+					wc->mod.fxs.palarms[x]--;
+			}
+	}
+
+*/	
 	/* handle speech samples */
 
 	wcfxs_transmitprep(wc, write_samples);
 	wcfxs_receiveprep(wc, read_samples);
+	poll_timer ++;
+	if(poll_timer >= POLL_PERIOD_TIME ){
+		poll_timer = 0;
+		/* activate work queue for hook check and ringing */
+		queue_work(wc->workqueue, &wc->check_status);
+	}
 }
 
 static int wcfxs_voicedaa_insane(struct wcfxs *wc, int card)
@@ -2131,8 +2186,13 @@ static int wcfxs_hardware_init(struct wcfxs *wc)
 	/* Hardware stuff */
 	unsigned char x;
 
+#ifdef BFIN_SPI_FRAMEWORK
+	bfsi_reset();
+	bfsi_spi_init(wc);
+#else
 	bfsi_spi_init(SPI_BAUDS);
-        create_proc_read_entry("wcfxs", 0, NULL, wcfxs_proc_read, NULL);
+#endif
+	create_proc_read_entry("wcfxs", 0, NULL, wcfxs_proc_read, NULL);
 
 	#ifdef DR_OLD
 	init_sport0();
@@ -2151,15 +2211,16 @@ static int wcfxs_hardware_init(struct wcfxs *wc)
 	#endif
 
 	bfsi_sport_init(regular_interrupt_processing, ZT_CHUNKSIZE, debug);
+#ifndef BFIN_SPI_FRAMEWORK
 	bfsi_reset();
-
+	
 	#ifdef DAISY
 	/* put 3210 in daisy chain mode */
 	bfsi_spi_set_cs(0);
 	__write_8bits(wc, 0x00); /* reg 0 write */
 	__write_8bits(wc, 0x80); /* value to write (set bit 7) */
 	#endif
-
+#endif	
 	/* configure daughter cards */
 
 	for (x=0;x<wc->cards;x++) {
@@ -2202,7 +2263,6 @@ printk("FXO detect..... card=%d\n",x);
 				printk("Module %d: Not installed\n", x);
 		}
 	}
-
 	/* Return error if nothing initialized okay. */
 	if (!wc->cardflag && !timingonly) {
 		disable_sport0();
@@ -2247,6 +2307,10 @@ static int wcfxs_init_one(struct wcfxs_desc *d)
 		wc->pos = x;
 		wc->variety = d->name;
 		wc->irq = IRQ_SPORT0_RX;
+		/* initilize the workqueue*/
+		INIT_WORK(&wc->check_status,check_status,wc);
+		wc->workqueue = create_singlethread_workqueue(d->name);
+
 		devs = wc;
 		for (y=0;y<NUM_CARDS;y++)
 			wc->flags[y] = d->flags;
@@ -2283,6 +2347,7 @@ static void wcfxs_release(struct wcfxs *wc)
 	if (init_ok) {
 		free_irq(wc->irq, NULL);
 		zt_unregister(&wc->span);
+		destroy_workqueue(wc->workqueue);
 		kfree(wc);
 	}
         remove_proc_entry("wcfxs", NULL);
