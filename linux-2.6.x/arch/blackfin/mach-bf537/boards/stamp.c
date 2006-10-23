@@ -311,6 +311,15 @@ static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_PBX)
+static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
+	.ctl_reg	= 0x1c04,
+	.enable_dma	= 0,
+	.bits_per_word	= 8,
+	.cs_change_per_word = 1,
+};
+#endif
+
 /* Notice: for blackfin, the speed_hz is the value of register
  * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
@@ -359,7 +368,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &ad9960_spi_chip_info,
 	},
 #endif
-	#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
+#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
 	{
 		.modalias = "spi_mmc_dummy",
 		.max_speed_hz = 2,
@@ -376,6 +385,23 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data = NULL,
 		.controller_data = &spi_mmc_chip_info,
 },
+#endif
+#if defined(CONFIG_PBX)
+	{
+		.modalias	= "fxs-spi",
+		.max_speed_hz	= 4,
+		.bus_num	= 1,
+		.chip_select	= 3,
+		.controller_data= &spi_si3xxx_chip_info,
+	},
+
+	{
+		.modalias	= "fxo-spi",
+		.max_speed_hz	= 4,
+		.bus_num	= 1,
+		.chip_select	= 2,
+		.controller_data= &spi_si3xxx_chip_info,
+	},
 #endif
 };
 
