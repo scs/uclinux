@@ -604,6 +604,7 @@ static int sport_config_rx_dummy(struct bf53x_sport *sport, size_t size)
 	if (desc == NULL)
 		return -ENOMEM;
 
+	memset(desc, 0, 2 * sizeof(*desc));
 	sport->dummy_rx_desc = desc;
 
 	desc->next_desc_addr = (unsigned long)(desc + 1);
@@ -638,6 +639,7 @@ static int sport_config_tx_dummy(struct bf53x_sport *sport, size_t size)
 	if (!desc)
 		return -ENOMEM;
 
+	memset(desc, 0, 2 * sizeof(*desc));
 	sport->dummy_tx_desc = desc;
 
 	desc->next_desc_addr = (unsigned long)(desc + 1);
@@ -899,6 +901,7 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 		goto __init_err4;
  	}
 
+	memset(sport->dummy_buf, 0, DUMMY_BUF_LEN);
  	sport_config_rx_dummy(sport, DUMMY_BUF_LEN/2);
 	sport_config_tx_dummy(sport, DUMMY_BUF_LEN/2);
 
