@@ -61,26 +61,6 @@
 #define PRINTK(args...)
 #endif
 
-/* 
-   I found these macros from the bfin5xx_spi.c driver by Luke Yang 
-   useful - thanks Luke :-) 
-*/
-
-#define DEFINE_SPI_REG(reg, off) \
-static inline u16 read_##reg(void) \
-            { return *(volatile unsigned short*)(SPI0_REGBASE + off); } \
-static inline void write_##reg(u16 v) \
-            {*(volatile unsigned short*)(SPI0_REGBASE + off) = v;\
-             __builtin_bfin_ssync();}
-
-DEFINE_SPI_REG(CTRL, 0x00)
-DEFINE_SPI_REG(FLAG, 0x04)
-DEFINE_SPI_REG(STAT, 0x08)
-DEFINE_SPI_REG(TDBR, 0x0C)
-DEFINE_SPI_REG(RDBR, 0x10)
-DEFINE_SPI_REG(BAUD, 0x14)
-DEFINE_SPI_REG(SHAW, 0x18)
-
 /* constants for isr cycle averaging */
 
 #define TC    1024 /* time constant    */
