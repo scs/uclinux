@@ -298,12 +298,24 @@ static void bfin_disable_ppi(void)
 
 static inline int adv7393_write(struct i2c_client *client, u8 reg, u8 value)
 {
-	return i2c_smbus_write_byte_data(client, reg, value);
+   if (client) {
+       return i2c_smbus_write_byte_data(client, reg, value);
+    } else {
+      printk(KERN_ERR "adv7393_read failed - check I2C Support\n");
+      return(-1);
+    }
+
 }
 
 static inline int adv7393_read(struct i2c_client *client, u8 reg)
 {
+
+   if (client) {
 	return i2c_smbus_read_byte_data(client, reg);
+    } else {
+      printk(KERN_ERR "adv7393_read failed - check I2C Support\n");
+      return(-1);
+    }
 }
 
 static int
@@ -323,8 +335,7 @@ adv7393_write_block(struct i2c_client *client,
 }
 
 /*
- * Generic i2c probe
- * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
+ * Generic i2c probe * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 static u16 normal_i2c[] = { I2C_ADV7393 >> 1, (I2C_ADV7393 >> 1) + 1,
 	I2C_CLIENT_END
