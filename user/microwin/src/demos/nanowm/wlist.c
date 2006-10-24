@@ -13,7 +13,7 @@
 
 #include "nanowm.h"
 
-static win *windows = NULL;
+win *windows = NULL;
 
 /*
  * Find the windowlist entry for the specified window ID and return a pointer
