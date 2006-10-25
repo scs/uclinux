@@ -273,12 +273,23 @@ static void bfin_disable_dma(void)
 
 static void bfin_config_ppi(struct adv7393fb_device *fbdev)
 {
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
+#if defined(BF537_FAMILY)
 	bfin_write_PORTG_FER(0xFFFF);	/* PPI[15:0]    */
 	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x8300);	/* PF.15 PPI_CLK FS1 FS2 */
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~0x0E00);
 #endif
 
+#if defined(BF533_FAMILY)
+	bfin_write_FIO_INEN(bfin_read_FIO_INEN() & ~(1 << 3));
+	bfin_write_FIO_DIR(bfin_read_FIO_DIR() |  (1 << 3));
+	bfin_write_FIO_FLAG_C(1 << 3);
+#endif
+
+#if defined(ANOMALY_05000183)
+	bfin_write_TIMER2_CONFIG(WDTH_CAP);
+	bfin_write_TIMER_ENABLE(TIMEN2);
+#endif
+	
 	bfin_write_PPI_CONTROL(0x381E);
 	bfin_write_PPI_FRAME(fbdev->modes[mode].tot_lines);
 	bfin_write_PPI_COUNT(fbdev->modes[mode].xres +
@@ -680,10 +691,11 @@ static int bfin_adv7393_fb_open(struct fb_info *info, int user)
 
 	dma_desc_list(fbdev, BUILD);
 	enable_irq(IRQ_PPI_ERROR);
+	adv7393_mode(BLANK_OFF);
 	bfin_config_ppi(fbdev);
 	bfin_config_dma(fbdev);
 	bfin_enable_ppi();
-	adv7393_mode(BLANK_OFF);
+
 
 	return 0;
 }
