@@ -230,6 +230,35 @@
 
 #ifndef __ASSEMBLY__
 
+void set_gpio_dir(unsigned short, unsigned short);
+void set_gpio_inen(unsigned short, unsigned short);
+void set_gpio_polar(unsigned short, unsigned short);
+void set_gpio_edge(unsigned short, unsigned short);
+void set_gpio_both(unsigned short, unsigned short);
+void set_gpio_data(unsigned short, unsigned short);
+void set_gpio_maska(unsigned short, unsigned short);
+void set_gpio_maskb(unsigned short, unsigned short);
+void set_gpio_toggle(unsigned short);
+unsigned short get_gpio_dir(unsigned short);
+unsigned short get_gpio_inen(unsigned short);
+unsigned short get_gpio_polar(unsigned short);
+unsigned short get_gpio_edge(unsigned short);
+unsigned short get_gpio_both(unsigned short);
+unsigned short get_gpio_maska(unsigned short);
+unsigned short get_gpio_maskb(unsigned short);
+unsigned short get_gpio_data(unsigned short);
+unsigned short get_gpiop_dir(unsigned short);
+unsigned short get_gpiop_inen(unsigned short);
+unsigned short get_gpiop_polar(unsigned short);
+unsigned short get_gpiop_edge(unsigned short);
+unsigned short get_gpiop_both(unsigned short);
+unsigned short get_gpiop_maska(unsigned short);
+unsigned short get_gpiop_maskb(unsigned short);
+unsigned short get_gpiop_data(unsigned short);
+int request_gpio(unsigned short, unsigned short);
+void free_gpio(unsigned short);
+
+
 #pragma pack(2)
 struct gpio_port_t {
 	unsigned short data;
