@@ -805,10 +805,6 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 		goto __init_err1;
 	}
 
-	init_waitqueue_head(&sport->wqh_rx);
-	sport->wait_dummy_rx = 0;
-	sport->bck_desc_rx_p = NULL;
-
 	if (set_dma_callback(dma_rx, rx_handler, sport) != 0) {
 		printk(KERN_ERR "Failed to request RX irq %d\n", dma_rx);
 		goto __init_err2;
@@ -818,10 +814,6 @@ struct bf53x_sport *bf53x_sport_init(int sport_num,
 		printk(KERN_ERR "Failed to request TX dma %d\n", dma_tx);
 		goto __init_err2;
 	}
-
-	init_waitqueue_head(&sport->wqh_tx);
-	sport->wait_dummy_tx = 0;
-	sport->bck_desc_tx_p = NULL;
 
 	if (set_dma_callback(dma_tx, tx_handler, sport) != 0) {
 		printk(KERN_ERR "Failed to request TX irq %d\n", dma_tx);
