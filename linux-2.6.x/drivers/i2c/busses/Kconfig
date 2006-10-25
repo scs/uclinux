@@ -15,14 +15,18 @@ config I2C_BFIN_GPIO
 menu "BFIN I2C SDA/SCL Selection"
 	depends on I2C_BFIN_GPIO
 config BFIN_SDA
-	int "SDA is PF[0:15]"
-	range 0 15
-	default 2
+	int "SDA is GPIO Number"
+	range 0 15 if (BF533 || BF532 || BF531) 
+	range 0 47 if (BF534 || BF536 || BF537)
+	range 0 47 if BF561
+	default 2 if (BF533 || BF532 || BF531) 
 
 config BFIN_SCL
-	int "SCL is PF[0:15]"
-	range 0 15
-	default 3
+	int "SCL is GPIO Number"
+	range 0 15 if (BF533 || BF532 || BF531) 
+	range 0 47 if (BF534 || BF536 || BF537)
+	range 0 47 if BF561
+	default 3 
 endmenu
 
 config I2C_BFIN_GPIO_CYCLE_DELAY
