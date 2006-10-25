@@ -111,17 +111,6 @@ struct bf53x_sport {
 	unsigned int tcr2;
 	int tx_tdm_count;
 
-	wait_queue_head_t wqh_rx;
-	wait_queue_head_t wqh_tx;
-	
-	unsigned int wait_dummy_rx:1;
-	unsigned int wait_dummy_tx:1;
-
-	struct dmasg_t bck_desc_rx;
-	struct dmasg_t *bck_desc_rx_p;
-	struct dmasg_t bck_desc_tx;
-	struct dmasg_t *bck_desc_tx_p;
-
 	void (*rx_callback)(void *data);
 	void (*tx_callback)(void *data);
 	void (*err_callback)(void *data);

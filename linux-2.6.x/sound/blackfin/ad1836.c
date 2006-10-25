@@ -1036,6 +1036,7 @@ static int snd_ad1836_playback_prepare(snd_pcm_substream_t *substream)
 #endif
 
 	snd_printk_marker();
+	printk(KERN_ERR "play pre\n");
 	snd_printd(KERN_INFO "%s channels:%d, period_bytes:0x%zx, periods:%d\n",
 			__FUNCTION__, runtime->channels,
 			frames_to_bytes(runtime, runtime->period_size),
@@ -1089,6 +1090,7 @@ static int snd_ad1836_playback_trigger(snd_pcm_substream_t *substream, int cmd)
 #endif
 
 	snd_printk_marker();
+	printk(KERN_ERR "play trig %s\n", cmd?"Start":"Stop");
 
 	spin_lock(&chip->ad1836_lock);
 	switch (cmd) {
