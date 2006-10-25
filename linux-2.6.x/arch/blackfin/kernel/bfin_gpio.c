@@ -117,7 +117,7 @@
 
 
 #ifdef BF533_FAMILY
-static unsigned short *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) FIO_FLAG_D,
 };
 #endif
@@ -137,7 +137,7 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 #endif
 
 #ifdef BF561_FAMILY
-static unsigned short *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) FIO0_FLAG_D,
 	(struct gpio_port_t *) FIO1_FLAG_D,
 	(struct gpio_port_t *) FIO2_FLAG_D,
