@@ -536,9 +536,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 				printk("X\n");
 			printk("%04x ", x);
 		}
-	} else {
-		printk("Can't look at the [PC] now - sorry\n");
-	}
+	} else
+		printk("Cannot look at the [PC] for it is in unreadable L1 SRAM - sorry\n");
 
 	printk("\n\n");
 
