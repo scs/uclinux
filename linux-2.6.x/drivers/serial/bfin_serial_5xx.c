@@ -1202,9 +1202,8 @@ static void rs_flush_chars(struct tty_struct *tty)
 		return;
 
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-	local_bh_disable();
-	dma_transmit_chars(info);
-	local_bh_enable();
+	info->event |= 1 << RS_EVENT_WRITE;
+	schedule_work(&info->tqueue);
 #else
 	/* Send char */
 	if (bfin_read16(regs->rpUART_LSR) & TEMT) {
@@ -1258,9 +1257,8 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	if (info->xmit_cnt>0 && !tty->stopped && !tty->hw_stopped) {
 #ifdef CONFIG_SERIAL_BLACKFIN_DMA
-		local_bh_disable();
-		dma_transmit_chars(info);
-		local_bh_enable();
+		info->event |= 1 << RS_EVENT_WRITE;
+		schedule_work(&info->tqueue);
 #else
 		/* Enable transmitter */
 		if (wait_complete)
