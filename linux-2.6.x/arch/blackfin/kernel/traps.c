@@ -67,16 +67,15 @@ static int printk_address(unsigned long address)
 	char namebuf[128];
 
 	/* look up the address and see if we are in kernel space */
-	symname =
-	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
 
 	if (symname) {
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
 		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
-			      (void*)address, delim, modname, delim, symname,
-			      (unsigned long)offset);
+		              (void*)address, delim, modname, delim, symname,
+		              (unsigned long)offset);
 
 	} else {
 		/* looks like we're off in user-land, so let's walk all the
@@ -97,29 +96,19 @@ static int printk_address(unsigned long address)
 			while (vml) {
 				struct vm_area_struct *vma = vml->vma;
 
-				if ((address >= vma->vm_start)
-				    && (address < vma->vm_end)) {
+				if (address >= vma->vm_start && address < vma->vm_end) {
 					char *name = p->comm;
 					struct file *file = vma->vm_file;
 					if (file) {
 						char _tmpbuf[256];
-						name =
-						    d_path(file->f_dentry,
-							   file->f_vfsmnt,
-							   _tmpbuf,
-							   sizeof(_tmpbuf));
+						name = d_path(file->f_dentry, file->f_vfsmnt, _tmpbuf, sizeof(_tmpbuf));
 					}
 
 					write_unlock_irq(&tasklist_lock);
 					return printk("<0x%p> [ %s + 0x%lx ]",
-						      (void*)address,
-						      name,
-						      (unsigned
-						       long)((address -
-							      vma->vm_start) +
-							     (vma->
-							      vm_pgoff <<
-							      PAGE_SHIFT)));
+					              (void*)address,
+					              name,
+					              (unsigned long)((address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT)));
 				}
 
 				vml = vml->next;
@@ -380,15 +369,15 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	 */
 	if (!(fp->pc <= physical_mem_end
 #if L1_CODE_LENGTH != 0
-	      || (fp->pc >= L1_CODE_START &&
-		  fp->pc <= (L1_CODE_START + L1_CODE_LENGTH)))
+	    || (fp->pc >= L1_CODE_START &&
+	        fp->pc <= (L1_CODE_START + L1_CODE_LENGTH))
 #endif
-	) {
+	)) {
 		if (current->mm) {
 			fp->pc = current->mm->start_code;
 		} else {
 			printk(KERN_EMERG "I can't return to memory that doesn't exist - bad things happen\n");
-			panic("Help- I have fallen and can't get up\n");
+			panic("Help - I've fallen and can't get up\n");
 		}
 	}
 
@@ -459,8 +448,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		 * down the cause of the crash will be able to figure
 		 * out the call path that was taken.
 		 */
-		if (addr >= (unsigned long)&_start
-		    && addr <= (unsigned long)_etext) {
+		if (addr >= (unsigned long)&_start && addr <= (unsigned long)_etext) {
 			printk(KERN_EMERG "       ");
 			printk_address(addr);
 			printk("\n");
@@ -489,8 +477,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk("\nCURRENT PROCESS:\n\n");
 		printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	} else {
-		printk
-		    ("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
+		printk("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
 	}
 
 	if (current->mm) {
@@ -506,15 +493,14 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	}
 
 	printk("return address: 0x%p; contents of [PC-16...PC+8]:\n", retaddr);
-	if (retaddr != 0
+	if (retaddr != 0 && retaddr <= (void*)physical_mem_end
 #if L1_CODE_LENGTH != 0
 	    /* FIXME: Copy the code out of L1 Instruction SRAM through dma
 	       memcpy.  */
 	    && !(retaddr >= (void*)L1_CODE_START
-		 && retaddr < (void*)(L1_CODE_START + L1_CODE_LENGTH))
+	         && retaddr < (void*)(L1_CODE_START + L1_CODE_LENGTH))
 #endif
-		&& retaddr <= (void*)physical_mem_end
-	    ) {
+	) {
 		int i;
 		unsigned short x;
 		for (i = -16; i < 8; i++) {
@@ -594,7 +580,6 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 
 void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 {
-
 	switch (cplb_panic) {
 	case CPLB_NO_UNLOCKED:
 		printk(KERN_EMERG "All CPLBs are locked\n");
