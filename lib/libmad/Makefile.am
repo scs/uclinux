@@ -21,13 +21,11 @@
 
 ## Process this file with automake to produce Makefile.in
 
-AUTOMAKE_OPTIONS = foreign 1.6
-
 SUBDIRS =		
-#DIST_SUBDIRS =		msvc++
+DIST_SUBDIRS =		msvc++
 
-noinst_LTLIBRARIES =	libmad.la
-noinst_HEADERS =	mad.h
+lib_LTLIBRARIES =	libmad.la
+include_HEADERS =	mad.h
 
 EXTRA_PROGRAMS =	minimad
 
@@ -103,7 +101,7 @@ version_age =		2
 
 version_info =		$(version_current):$(version_revision):$(version_age)
 
-#libmad_la_LDFLAGS =	-version-info $(version_info)
+libmad_la_LDFLAGS =	-version-info $(version_info)
 
 mad.h: config.status config.h Makefile.am  \
 		$(srcdir)/COPYRIGHT $(srcdir)/mad.h.sed $(exported_headers)

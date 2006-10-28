@@ -60,7 +60,7 @@ fi
 
 dnl Support for libtool.
 
-AC_DISABLE_SHARED
+dnl AC_DISABLE_SHARED
 dnl AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
@@ -428,6 +428,6 @@ test -n "$profile"  && CFLAGS="$CFLAGS $profile" LDFLAGS="$LDFLAGS $profile"
 dnl LTLIBOBJS=`echo "$LIBOBJS" | sed -e 's/\.o/.lo/g'`
 dnl AC_SUBST(LTLIBOBJS)
 
-AC_CONFIG_FILES([Makefile \
+AC_CONFIG_FILES([Makefile msvc++/Makefile  \
 	libmad.list])
 AC_OUTPUT
