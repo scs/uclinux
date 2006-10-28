@@ -11,8 +11,8 @@ all:
 	cd ../;
 
 clean:
-	make -C bluez-libs-2.25 clean
-	make -C bluez-utils-2.25 clean
+	-make -C bluez-libs-2.25 clean
+	-make -C bluez-utils-2.25 clean
 	rm -rf lib-output
 	rm -rf bluez-output
 
