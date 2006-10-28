@@ -156,7 +156,7 @@ mostlyclean:
 		rm -f *.o DEADJOE config.new *~ *.orig lib/*.o
 
 clean: mostlyclean
-		rm -f $(PROGS)
+		rm -f $(PROGS) *.gdb version.h
 		@for i in $(SUBDIRS); do (cd $$i && $(MAKE) clean) ; done
 		@cd po && $(MAKE) clean
 

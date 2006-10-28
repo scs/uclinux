@@ -15,7 +15,7 @@ romfs:
 	$(ROMFSINST) /bin/$(EXEC)
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
+	-rm -f $(EXEC) *.elf *.gdb *.o version.h clean.h .version
 
 .version:
 	@if [ ! -f .version ]; then \
