@@ -2,7 +2,7 @@ all: build/Makefile
 	$(MAKE) -C build -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 build/Makefile:
-	touch *
+	touch * */*
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
@@ -15,14 +15,8 @@ build/Makefile:
 		--with-alsa-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/lib \
 		--with-alsa-inc-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/include
 
-distclean:
+clean:
 	rm -rf build DESTDIR
-
-clean %::
-	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
-
-clean::
-	rm -rf DESTDIR
 
 romfs:
 	for bin in `cd DESTDIR ; ls usr/bin/* usr/sbin/*` ; do \
