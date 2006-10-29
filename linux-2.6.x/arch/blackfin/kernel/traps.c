@@ -408,6 +408,41 @@ void dump_bfin_trace_buffer(void)
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
+/* stolen from linux-2.6.19+ */
+#ifdef print_ip_sym
+# error time to delete this macro
+#endif
+#define print_ip_sym(ip) \
+	do { \
+		printk("[<%08lx>]", ip); \
+		print_symbol(" %s\n", ip); \
+	} while (0)
+static void show_trace(struct task_struct *tsk, unsigned long *sp)
+{
+	unsigned long addr;
+
+	printk("\nCall Trace:");
+#ifdef CONFIG_KALLSYMS
+	printk("\n");
+#endif
+
+	while (!kstack_end(sp)) {
+		addr = *sp++;
+		/*
+		 * If the address is either in the text segment of the
+		 * kernel, or in the region which contains vmalloc'ed
+		 * memory, it *may* be the address of a calling
+		 * routine; if so, print it so that someone tracing
+		 * down the cause of the crash will be able to figure
+		 * out the call path that was taken.
+		 */
+		if (kernel_text_address(addr))
+			print_ip_sym(addr);
+	}
+
+	printk("\n");
+}
+
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
 	unsigned long *endstack, addr;
@@ -436,26 +471,7 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 		printk(" %08lx", *stack++);
 	}
 
-	printk("\n" KERN_EMERG "Call Trace:\n");
-	i = 0;
-	while (stack + 1 <= endstack) {
-		addr = *stack++;
-		/*
-		 * If the address is either in the text segment of the
-		 * kernel, or in the region which contains vmalloc'ed
-		 * memory, it *may* be the address of a calling
-		 * routine; if so, print it so that someone tracing
-		 * down the cause of the crash will be able to figure
-		 * out the call path that was taken.
-		 */
-		if (addr >= (unsigned long)&_start && addr <= (unsigned long)_etext) {
-			printk(KERN_EMERG "       ");
-			printk_address(addr);
-			printk("\n");
-			i++;
-		}
-	}
-	printk(KERN_EMERG "\n");
+	show_trace(task, stack);
 }
 
 void dump_stack(void)
@@ -472,7 +488,6 @@ EXPORT_SYMBOL(dump_stack);
 
 void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 {
-
 	if (current->pid) {
 		printk("\nCURRENT PROCESS:\n\n");
 		printk("COMM=%s PID=%d\n", current->comm, current->pid);
