@@ -133,6 +133,8 @@ LinphoneCoreVTable linphonec_vtable = {
 	text_received:linphonec_text_received
 };
 
+static pid_t main_thread_pid=0;
+
 /***************************************************************************
  *
  * Linphone core callbacks
@@ -276,6 +278,8 @@ main (int argc, char *argv[])
 
 	if (! linphonec_init(argc, argv) ) exit(EXIT_FAILURE);
 
+	main_thread_pid = getpid();
+
 	linphonec_main_loop (&linphonec, sipAddr);
 
 	linphonec_finish(EXIT_SUCCESS);
@@ -377,6 +381,10 @@ linphonec_init(int argc, char **argv)
 void
 linphonec_finish(int exit_status)
 {
+
+	if (getpid() != main_thread_pid)
+		return;
+
 	printf("Terminating...\n");
 
 	/* Terminate any pending call */
