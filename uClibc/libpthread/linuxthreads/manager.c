@@ -40,7 +40,7 @@
 #include "semaphore.h"
 #include "debug.h" /* PDEBUG, added by StS */
 
-#ifdef bfin
+#ifdef __BFIN__
 #include <asm/l1layout.h>
 #endif
 
@@ -133,7 +133,7 @@ int __attribute__((no_stack_limit)) __pthread_manager(void *arg)
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(&__pthread_manager_thread, 1);
 #endif
-#ifdef bfin
+#ifdef __BFIN__
   L1_SCRATCH_TASK_INFO->stack_start = __pthread_manager_thread_bos;
   L1_SCRATCH_TASK_INFO->lowest_sp = __pthread_manager_thread_tos;
 #endif
@@ -266,7 +266,7 @@ int __attribute__((no_stack_limit)) __pthread_manager_event(void *arg)
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(&__pthread_manager_thread, 1);
 #endif
-#ifdef bfin
+#ifdef __BFIN__
   L1_SCRATCH_TASK_INFO->stack_start = __pthread_manager_thread_bos;
   L1_SCRATCH_TASK_INFO->lowest_sp = __pthread_manager_thread_tos;
 #endif
@@ -291,7 +291,7 @@ pthread_start_thread(void *arg)
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(self, self->p_nr);
 #endif
-#ifdef bfin
+#ifdef __BFIN__
   L1_SCRATCH_TASK_INFO->stack_start = __pthread_handles[self->p_nr].h_bottom;
   L1_SCRATCH_TASK_INFO->lowest_sp = arg;
 #endif
@@ -341,7 +341,7 @@ pthread_start_thread_event(void *arg)
 #ifdef INIT_THREAD_SELF
   INIT_THREAD_SELF(self, self->p_nr);
 #endif
-#ifdef bfin
+#ifdef __BFIN__
   L1_SCRATCH_TASK_INFO->stack_start = __pthread_handles[self->p_nr].h_bottom;
   L1_SCRATCH_TASK_INFO->lowest_sp = arg;
 #endif
