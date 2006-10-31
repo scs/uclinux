@@ -1260,13 +1260,13 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		info->event |= 1 << RS_EVENT_WRITE;
 		schedule_work(&info->tqueue);
 #else
+		long flag=0;
+		local_irq_save(flag);
 		/* Enable transmitter */
 		if (wait_complete)
 			while (!(bfin_read16(regs->rpUART_LSR) & TEMT))
 				SSYNC;
 		if (bfin_read16(regs->rpUART_LSR) & TEMT) {
-			long flag=0;
-			local_irq_save(flag);
 			ACCESS_PORT_IER(regs);	/* Change access to IER & data port */
 			bfin_write16(regs->rpUART_IER, bfin_read16(regs->rpUART_IER)|ETBEI);
 			SSYNC;
@@ -1277,8 +1277,8 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 				    info->xmit_tail & (SERIAL_XMIT_SIZE - 1);
 				info->xmit_cnt--;
 			}
-			local_irq_restore(flag);
 		}
+		local_irq_restore(flag);
 #endif
 	}
 
