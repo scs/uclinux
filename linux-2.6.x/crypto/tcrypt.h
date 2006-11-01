@@ -26,42 +26,48 @@
 #define MAX_IVLEN		32
 
 struct hash_testvec {
+	/* only used with keyed hash algorithms */
+	char key[128] __attribute__ ((__aligned__(4)));
 	char plaintext[128];
-	unsigned char psize;
 	char digest[MAX_DIGEST_SIZE];
-	unsigned char np;
 	unsigned char tap[MAX_TAP];
-	char key[128]; /* only used with keyed hash algorithms */
+	unsigned char psize;
+	unsigned char np;
 	unsigned char ksize;
 };
 
 struct hmac_testvec {
 	char key[128];
-	unsigned char ksize;
 	char plaintext[128];
-	unsigned char psize;
 	char digest[MAX_DIGEST_SIZE];
-	unsigned char np;
 	unsigned char tap[MAX_TAP];
+	unsigned char ksize;
+	unsigned char psize;
+	unsigned char np;
 };
 
 struct cipher_testvec {
-	unsigned char fail;
-	unsigned char wk; /* weak key flag */
-	char key[MAX_KEYLEN];
-	unsigned char klen;
+	char key[MAX_KEYLEN] __attribute__ ((__aligned__(4)));
 	char iv[MAX_IVLEN];
 	char input[48];
-	unsigned char ilen;
 	char result[48];
-	unsigned char rlen;
-	int np;
 	unsigned char tap[MAX_TAP];
+	int np;
+	unsigned char fail;
+	unsigned char wk; /* weak key flag */
+	unsigned char klen;
+	unsigned char ilen;
+	unsigned char rlen;
 };
 
 struct cipher_speed {
 	unsigned char klen;
 	unsigned int blen;
+};
+
+struct digest_speed {
+	unsigned int blen;	/* buffer length */
+	unsigned int plen;	/* per-update length */
 };
 
 /*
@@ -2972,6 +2978,37 @@ static struct cipher_speed des_speed_template[] = {
 
 	/* End marker */
 	{  .klen = 0, .blen = 0, }
+};
+
+/*
+ * Digest speed tests
+ */
+static struct digest_speed generic_digest_speed_template[] = {
+	{ .blen = 16, 	.plen = 16, },
+	{ .blen = 64,	.plen = 16, },
+	{ .blen = 64,	.plen = 64, },
+	{ .blen = 256,	.plen = 16, },
+	{ .blen = 256,	.plen = 64, },
+	{ .blen = 256,	.plen = 256, },
+	{ .blen = 1024,	.plen = 16, },
+	{ .blen = 1024,	.plen = 256, },
+	{ .blen = 1024,	.plen = 1024, },
+	{ .blen = 2048,	.plen = 16, },
+	{ .blen = 2048,	.plen = 256, },
+	{ .blen = 2048,	.plen = 1024, },
+	{ .blen = 2048,	.plen = 2048, },
+	{ .blen = 4096,	.plen = 16, },
+	{ .blen = 4096,	.plen = 256, },
+	{ .blen = 4096,	.plen = 1024, },
+	{ .blen = 4096,	.plen = 4096, },
+	{ .blen = 8192,	.plen = 16, },
+	{ .blen = 8192,	.plen = 256, },
+	{ .blen = 8192,	.plen = 1024, },
+	{ .blen = 8192,	.plen = 4096, },
+	{ .blen = 8192,	.plen = 8192, },
+
+	/* End marker */
+	{  .blen = 0,	.plen = 0, }
 };
 
 #endif	/* _CRYPTO_TCRYPT_H */
