@@ -6,17 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	devfs
-When:	July 2005
-Files:	fs/devfs/*, include/linux/devfs_fs*.h and assorted devfs
-	function calls throughout the kernel tree
-Why:	It has been unmaintained for a number of years, has unfixable
-	races, contains a naming policy within the kernel that is
-	against the LSB, and can be replaced by using udev.
-Who:	Greg Kroah-Hartman <greg@kroah.com>
-
----------------------------
-
 What:	RAW driver (CONFIG_RAW_DRIVER)
 When:	December 2005
 Why:	declared obsolete since kernel 2.6.3
@@ -25,34 +14,29 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	drivers depending on OBSOLETE_OSS_DRIVER
-When:	January 2006
+What:	drivers that were depending on OBSOLETE_OSS_DRIVER
+        (config options already removed)
+When:	before 2.6.19
 Why:	OSS drivers with ALSA replacements
 Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	RCU API moves to EXPORT_SYMBOL_GPL
-When:	April 2006
-Files:	include/linux/rcupdate.h, kernel/rcupdate.c
-Why:	Outside of Linux, the only implementations of anything even
-	vaguely resembling RCU that I am aware of are in DYNIX/ptx,
-	VM/XA, Tornado, and K42.  I do not expect anyone to port binary
-	drivers or kernel modules from any of these, since the first two
-	are owned by IBM and the last two are open-source research OSes.
-	So these will move to GPL after a grace period to allow
-	people, who might be using implementations that I am not aware
-	of, to adjust to this upcoming change.
-Who:	Paul E. McKenney <paulmck@us.ibm.com>
-
----------------------------
-
 What:	raw1394: requests of type RAW1394_REQ_ISO_SEND, RAW1394_REQ_ISO_LISTEN
-When:	November 2005
+When:	November 2006
 Why:	Deprecated in favour of the new ioctl-based rawiso interface, which is
 	more efficient.  You should really be using libraw1394 for raw1394
 	access anyway.
-Who:	Jody McIntyre <scjody@steamballoon.com>
+Who:	Jody McIntyre <scjody@modernduck.com>
+
+---------------------------
+
+What:	sbp2: module parameter "force_inquiry_hack"
+When:	July 2006
+Why:	Superceded by parameter "workarounds". Both parameters are meant to be
+	used ad-hoc and for single devices only, i.e. not in modprobe.conf,
+	therefore the impact of this feature replacement should be low.
+Who:	Stefan Richter <stefanr@s5r6.in-berlin.de>
 
 ---------------------------
 
@@ -68,22 +52,6 @@ Why:	V4L1 AP1 was replaced by V4L2 API. during migration from 2.4 to 2.6
 	communicate with video decoders. This should also be improved to allow
 	V4L2 calls being translated into compatible internal ioctls.
 Who:	Mauro Carvalho Chehab <mchehab@brturbo.com.br>
-
----------------------------
-
-What:	remove EXPORT_SYMBOL(panic_timeout)
-When:	April 2006
-Files:	kernel/panic.c
-Why:	No modular usage in the kernel.
-Who:	Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
-What:	remove EXPORT_SYMBOL(insert_resource)
-When:	April 2006
-Files:	kernel/resource.c
-Why:	No modular usage in the kernel.
-Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -116,9 +84,13 @@ Who:	Harald Welte <laforge@netfilter.org>
 
 ---------------------------
 
-What:	EXPORT_SYMBOL(lookup_hash)
-When:	January 2006
-Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
+What:	remove EXPORT_SYMBOL(kernel_thread)
+When:	August 2006
+Files:	arch/*/kernel/*_ksyms.c
+Why:	kernel_thread is a low-level implementation detail.  Drivers should
+        use the <linux/kthread.h> API instead which shields them from
+	implementation details and provides a higherlevel interface that
+	prevents bugs and code duplication
 Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
@@ -141,20 +113,17 @@ Who:	NeilBrown <neilb@suse.de>
 
 ---------------------------
 
-What:	au1x00_uart driver
-When:	January 2006
-Why:	The 8250 serial driver now has the ability to deal with the differences
-	between the standard 8250 family of UARTs and their slightly strange
-	brother on Alchemy SOCs.  The loss of features is not considered an
-	issue.
-Who:	Ralf Baechle <ralf@linux-mips.org>
+What:   eepro100 network driver
+When:   January 2007
+Why:    replaced by the e100 driver
+Who:    Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
-What:	Legacy /proc/pci interface (PCI_LEGACY_PROC)
-When:	March 2006
-Why:	deprecated since 2.5.53 in favor of lspci(8)
-Who:	Adrian Bunk <bunk@stusta.de>
+What:  drivers depending on OSS_OBSOLETE_DRIVER
+When:  options in 2.6.20, code in 2.6.22
+Why:   OSS drivers with ALSA replacements
+Who:   Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
@@ -162,6 +131,18 @@ What:	pci_module_init(driver)
 When:	January 2007
 Why:	Is replaced by pci_register_driver(pci_driver).
 Who:	Richard Knutsson <ricknu-0@student.ltu.se> and Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	Usage of invalid timevals in setitimer
+When:	March 2007
+Why:	POSIX requires to validate timevals in the setitimer call. This
+	was never done by Linux. The invalid (e.g. negative timevals) were
+	silently converted to more or less random timeouts and intervals.
+	Until the removal a per boot limited number of warnings is printed
+	and the timevals are sanitized.
+
+Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
@@ -174,6 +155,16 @@ Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
 
+What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
+	(temporary transition config option provided until then)
+	The transition config option will also be removed at the same time.
+When:	before 2.6.19
+Why:	Unused symbols are both increasing the size of the kernel binary
+	and are often a sign of "wrong API"
+Who:	Arjan van de Ven <arjan@linux.intel.com>
+
+---------------------------
+
 What:	mount/umount uevents
 When:	February 2007
 Why:	These events are not correct, and do not properly let userspace know
@@ -183,9 +174,123 @@ Who:	Greg Kroah-Hartman <gregkh@suse.de>
 
 ---------------------------
 
-What:	Support for NEC DDB5074 and DDB5476 evaluation boards.
-When:	June 2006
-Why:	Board specific code doesn't build anymore since ~2.6.0 and no
-	users have complained indicating there is no more need for these
-	boards.  This should really be considered a last call.
+What:	USB driver API moves to EXPORT_SYMBOL_GPL
+When:	Febuary 2008
+Files:	include/linux/usb.h, drivers/usb/core/driver.c
+Why:	The USB subsystem has changed a lot over time, and it has been
+	possible to create userspace USB drivers using usbfs/libusb/gadgetfs
+	that operate as fast as the USB bus allows.  Because of this, the USB
+	subsystem will not be allowing closed source kernel drivers to
+	register with it, after this grace period is over.  If anyone needs
+	any help in converting their closed source drivers over to use the
+	userspace filesystems, please contact the
+	linux-usb-devel@lists.sourceforge.net mailing list, and the developers
+	there will be glad to help you out.
+Who:	Greg Kroah-Hartman <gregkh@suse.de>
+
+---------------------------
+
+What:	find_trylock_page
+When:	January 2007
+Why:	The interface no longer has any callers left in the kernel. It
+	is an odd interface (compared with other find_*_page functions), in
+	that it does not take a refcount to the page, only the page lock.
+	It should be replaced with find_get_page or find_lock_page if possible.
+	This feature removal can be reevaluated if users of the interface
+	cannot cleanly use something else.
+Who:	Nick Piggin <npiggin@suse.de>
+
+---------------------------
+
+What:	Support for the MIPS EV96100 evaluation board
+When:	September 2006
+Why:	Does no longer build since at least November 15, 2003, apparently
+	no userbase left.
 Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the Momentum / PMC-Sierra Jaguar ATX evaluation board
+When:	September 2006
+Why:	Does no longer build since quite some time, and was never popular,
+	due to the platform being replaced by successor models.  Apparently
+	no user base left.  It also is one of the last users of
+	WANT_PAGE_VIRTUAL.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the Momentum Ocelot, Ocelot 3, Ocelot C and Ocelot G
+When:	September 2006
+Why:	Some do no longer build and apparently there is no user base left
+	for these platforms.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for MIPS Technologies' Altas and SEAD evaluation board
+When:	September 2006
+Why:	Some do no longer build and apparently there is no user base left
+	for these platforms.  Hardware out of production since several years.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Support for the IT8172-based platforms, ITE 8172G and Globespan IVR
+When:	September 2006
+Why:	Code does no longer build since at least 2.6.0,  apparently there is
+	no user base left for these platforms.  Hardware out of production
+	since several years and hardly a trace of the manufacturer left on
+	the net.
+Who:	Ralf Baechle <ralf@linux-mips.org>
+
+---------------------------
+
+What:	Interrupt only SA_* flags
+When:	Januar 2007
+Why:	The interrupt related SA_* flags are replaced by IRQF_* to move them
+	out of the signal namespace.
+
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+---------------------------
+
+What:	i2c-ite and i2c-algo-ite drivers
+When:	September 2006
+Why:	These drivers never compiled since they were added to the kernel
+	tree 5 years ago. This feature removal can be reevaluated if
+	someone shows interest in the drivers, fixes them and takes over
+	maintenance.
+	http://marc.theaimsgroup.com/?l=linux-mips&m=115040510817448
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	Bridge netfilter deferred IPv4/IPv6 output hook calling
+When:	January 2007
+Why:	The deferred output hooks are a layering violation causing unusual
+	and broken behaviour on bridge devices. Examples of things they
+	break include QoS classifation using the MARK or CLASSIFY targets,
+	the IPsec policy match and connection tracking with VLANs on a
+	bridge. Their only use is to enable bridge output port filtering
+	within iptables with the physdev match, which can also be done by
+	combining iptables and ebtables using netfilter marks. Until it
+	will get removed the hook deferral is disabled by default and is
+	only enabled when needed.
+
+Who:	Patrick McHardy <kaber@trash.net>
+
+---------------------------
+
+What:	frame diverter
+When:	November 2006
+Why:	The frame diverter is included in most distribution kernels, but is
+	broken. It does not correctly handle many things:
+	- IPV6
+	- non-linear skb's
+	- network device RCU on removal
+	- input frames not correctly checked for protocol errors
+	It also adds allocation overhead even if not enabled.
+	It is not clear if anyone is still using it.
+Who:	Stephen Hemminger <shemminger@osdl.org>
+

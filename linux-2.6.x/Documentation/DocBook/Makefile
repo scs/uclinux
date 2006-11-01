@@ -2,15 +2,16 @@
 # This makefile is used to generate the kernel documentation,
 # primarily based on in-line comments in various source files.
 # See Documentation/kernel-doc-nano-HOWTO.txt for instruction in how
-# to ducument the SRC - and how to read it.
+# to document the SRC - and how to read it.
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
 DOCBOOKS := wanbook.xml z8530book.xml mcabook.xml videobook.xml \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    procfs-guide.xml writing_usb_driver.xml \
-	    sis900.xml kernel-api.xml journal-api.xml lsm.xml usb.xml \
-	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml
+	    kernel-api.xml journal-api.xml lsm.xml usb.xml \
+	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
+	    genericirq.xml
 
 ###
 # The build process is as follows (targets):
@@ -28,7 +29,7 @@ PS_METHOD	= $(prefer-db2x)
 
 ###
 # The targets that may be used.
-.PHONY:	xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs
+PHONY += xmldocs sgmldocs psdocs pdfdocs htmldocs mandocs installmandocs
 
 BOOKS := $(addprefix $(obj)/,$(DOCBOOKS))
 xmldocs: $(BOOKS)
@@ -211,3 +212,9 @@ clean-dirs := $(patsubst %.xml,%,$(DOCBOOKS))
 
 #man put files in man subdir - traverse down
 subdir- := man/
+
+
+# Declare the contents of the .PHONY variable as phony.  We keep that
+# information in a variable se we can use it in if_changed and friends.
+
+.PHONY: $(PHONY)

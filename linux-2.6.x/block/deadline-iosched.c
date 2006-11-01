@@ -8,7 +8,6 @@
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/bio.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -30,8 +29,7 @@ static const int deadline_hash_shift = 5;
 #define DL_HASH_FN(sec)		(hash_long(DL_HASH_BLOCK((sec)), deadline_hash_shift))
 #define DL_HASH_ENTRIES		(1 << deadline_hash_shift)
 #define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define list_entry_hash(ptr)	list_entry((ptr), struct deadline_rq, hash)
-#define ON_HASH(drq)		(drq)->on_hash
+#define ON_HASH(drq)		(!hlist_unhashed(&(drq)->hash))
 
 struct deadline_data {
 	/*
@@ -48,7 +46,7 @@ struct deadline_data {
 	 * next in sort order. read, write or both are NULL
 	 */
 	struct deadline_rq *next_drq[2];
-	struct list_head *hash;		/* request hash */
+	struct hlist_head *hash;	/* request hash */
 	unsigned int batching;		/* number of sequential requests made */
 	sector_t last_sector;		/* head position */
 	unsigned int starved;		/* times reads have starved writes */
@@ -79,8 +77,7 @@ struct deadline_rq {
 	/*
 	 * request hash, key is the ending offset (for back merge lookup)
 	 */
-	struct list_head hash;
-	char on_hash;
+	struct hlist_node hash;
 
 	/*
 	 * expire fifo
@@ -100,8 +97,7 @@ static kmem_cache_t *drq_pool;
  */
 static inline void __deadline_del_drq_hash(struct deadline_rq *drq)
 {
-	drq->on_hash = 0;
-	list_del_init(&drq->hash);
+	hlist_del_init(&drq->hash);
 }
 
 static inline void deadline_del_drq_hash(struct deadline_rq *drq)
@@ -117,8 +113,7 @@ deadline_add_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
 
 	BUG_ON(ON_HASH(drq));
 
-	drq->on_hash = 1;
-	list_add(&drq->hash, &dd->hash[DL_HASH_FN(rq_hash_key(rq))]);
+	hlist_add_head(&drq->hash, &dd->hash[DL_HASH_FN(rq_hash_key(rq))]);
 }
 
 /*
@@ -128,26 +123,24 @@ static inline void
 deadline_hot_drq_hash(struct deadline_data *dd, struct deadline_rq *drq)
 {
 	struct request *rq = drq->request;
-	struct list_head *head = &dd->hash[DL_HASH_FN(rq_hash_key(rq))];
+	struct hlist_head *head = &dd->hash[DL_HASH_FN(rq_hash_key(rq))];
 
-	if (ON_HASH(drq) && drq->hash.prev != head) {
-		list_del(&drq->hash);
-		list_add(&drq->hash, head);
+	if (ON_HASH(drq) && &drq->hash != head->first) {
+		hlist_del(&drq->hash);
+		hlist_add_head(&drq->hash, head);
 	}
 }
 
 static struct request *
 deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
 {
-	struct list_head *hash_list = &dd->hash[DL_HASH_FN(offset)];
-	struct list_head *entry, *next = hash_list->next;
+	struct hlist_head *hash_list = &dd->hash[DL_HASH_FN(offset)];
+	struct hlist_node *entry, *next;
+	struct deadline_rq *drq;
 
-	while ((entry = next) != hash_list) {
-		struct deadline_rq *drq = list_entry_hash(entry);
+	hlist_for_each_entry_safe(drq, entry, next, hash_list, hash) {
 		struct request *__rq = drq->request;
 
-		next = entry->next;
-		
 		BUG_ON(!ON_HASH(drq));
 
 		if (!rq_mergeable(__rq)) {
@@ -165,10 +158,6 @@ deadline_find_drq_hash(struct deadline_data *dd, sector_t offset)
 /*
  * rb tree support functions
  */
-#define RB_NONE		(2)
-#define RB_EMPTY(root)	((root)->rb_node == NULL)
-#define ON_RB(node)	((node)->rb_color != RB_NONE)
-#define RB_CLEAR(node)	((node)->rb_color = RB_NONE)
 #define rb_entry_drq(node)	rb_entry((node), struct deadline_rq, rb_node)
 #define DRQ_RB_ROOT(dd, drq)	(&(dd)->sort_list[rq_data_dir((drq)->request)])
 #define rq_rb_key(rq)		(rq)->sector
@@ -227,9 +216,9 @@ deadline_del_drq_rb(struct deadline_data *dd, struct deadline_rq *drq)
 			dd->next_drq[data_dir] = rb_entry_drq(rbnext);
 	}
 
-	BUG_ON(!ON_RB(&drq->rb_node));
+	BUG_ON(!RB_EMPTY_NODE(&drq->rb_node));
 	rb_erase(&drq->rb_node, DRQ_RB_ROOT(dd, drq));
-	RB_CLEAR(&drq->rb_node);
+	RB_CLEAR_NODE(&drq->rb_node);
 }
 
 static struct request *
@@ -503,7 +492,7 @@ static int deadline_dispatch_requests(request_queue_t *q, int force)
 	 */
 
 	if (reads) {
-		BUG_ON(RB_EMPTY(&dd->sort_list[READ]));
+		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[READ]));
 
 		if (writes && (dd->starved++ >= dd->writes_starved))
 			goto dispatch_writes;
@@ -519,7 +508,7 @@ static int deadline_dispatch_requests(request_queue_t *q, int force)
 
 	if (writes) {
 dispatch_writes:
-		BUG_ON(RB_EMPTY(&dd->sort_list[WRITE]));
+		BUG_ON(RB_EMPTY_ROOT(&dd->sort_list[WRITE]));
 
 		dd->starved = 0;
 
@@ -613,24 +602,24 @@ static void deadline_exit_queue(elevator_t *e)
  * initialize elevator private data (deadline_data), and alloc a drq for
  * each request on the free lists
  */
-static int deadline_init_queue(request_queue_t *q, elevator_t *e)
+static void *deadline_init_queue(request_queue_t *q, elevator_t *e)
 {
 	struct deadline_data *dd;
 	int i;
 
 	if (!drq_pool)
-		return -ENOMEM;
+		return NULL;
 
 	dd = kmalloc_node(sizeof(*dd), GFP_KERNEL, q->node);
 	if (!dd)
-		return -ENOMEM;
+		return NULL;
 	memset(dd, 0, sizeof(*dd));
 
-	dd->hash = kmalloc_node(sizeof(struct list_head)*DL_HASH_ENTRIES,
+	dd->hash = kmalloc_node(sizeof(struct hlist_head)*DL_HASH_ENTRIES,
 				GFP_KERNEL, q->node);
 	if (!dd->hash) {
 		kfree(dd);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	dd->drq_pool = mempool_create_node(BLKDEV_MIN_RQ, mempool_alloc_slab,
@@ -638,11 +627,11 @@ static int deadline_init_queue(request_queue_t *q, elevator_t *e)
 	if (!dd->drq_pool) {
 		kfree(dd->hash);
 		kfree(dd);
-		return -ENOMEM;
+		return NULL;
 	}
 
 	for (i = 0; i < DL_HASH_ENTRIES; i++)
-		INIT_LIST_HEAD(&dd->hash[i]);
+		INIT_HLIST_HEAD(&dd->hash[i]);
 
 	INIT_LIST_HEAD(&dd->fifo_list[READ]);
 	INIT_LIST_HEAD(&dd->fifo_list[WRITE]);
@@ -653,8 +642,7 @@ static int deadline_init_queue(request_queue_t *q, elevator_t *e)
 	dd->writes_starved = writes_starved;
 	dd->front_merges = 1;
 	dd->fifo_batch = fifo_batch;
-	e->elevator_data = dd;
-	return 0;
+	return dd;
 }
 
 static void deadline_put_request(request_queue_t *q, struct request *rq)
@@ -676,11 +664,10 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 	drq = mempool_alloc(dd->drq_pool, gfp_mask);
 	if (drq) {
 		memset(drq, 0, sizeof(*drq));
-		RB_CLEAR(&drq->rb_node);
+		RB_CLEAR_NODE(&drq->rb_node);
 		drq->request = rq;
 
-		INIT_LIST_HEAD(&drq->hash);
-		drq->on_hash = 0;
+		INIT_HLIST_NODE(&drq->hash);
 
 		INIT_LIST_HEAD(&drq->fifo);
 
@@ -694,11 +681,6 @@ deadline_set_request(request_queue_t *q, struct request *rq, struct bio *bio,
 /*
  * sysfs parts below
  */
-struct deadline_fs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct deadline_data *, char *);
-	ssize_t (*store)(struct deadline_data *, const char *, size_t);
-};
 
 static ssize_t
 deadline_var_show(int var, char *page)
@@ -716,23 +698,25 @@ deadline_var_store(int *var, const char *page, size_t count)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
-static ssize_t __FUNC(struct deadline_data *dd, char *page)		\
+static ssize_t __FUNC(elevator_t *e, char *page)			\
 {									\
-	int __data = __VAR;					\
+	struct deadline_data *dd = e->elevator_data;			\
+	int __data = __VAR;						\
 	if (__CONV)							\
 		__data = jiffies_to_msecs(__data);			\
 	return deadline_var_show(__data, (page));			\
 }
-SHOW_FUNCTION(deadline_readexpire_show, dd->fifo_expire[READ], 1);
-SHOW_FUNCTION(deadline_writeexpire_show, dd->fifo_expire[WRITE], 1);
-SHOW_FUNCTION(deadline_writesstarved_show, dd->writes_starved, 0);
-SHOW_FUNCTION(deadline_frontmerges_show, dd->front_merges, 0);
-SHOW_FUNCTION(deadline_fifobatch_show, dd->fifo_batch, 0);
+SHOW_FUNCTION(deadline_read_expire_show, dd->fifo_expire[READ], 1);
+SHOW_FUNCTION(deadline_write_expire_show, dd->fifo_expire[WRITE], 1);
+SHOW_FUNCTION(deadline_writes_starved_show, dd->writes_starved, 0);
+SHOW_FUNCTION(deadline_front_merges_show, dd->front_merges, 0);
+SHOW_FUNCTION(deadline_fifo_batch_show, dd->fifo_batch, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
-static ssize_t __FUNC(struct deadline_data *dd, const char *page, size_t count)	\
+static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
 {									\
+	struct deadline_data *dd = e->elevator_data;			\
 	int __data;							\
 	int ret = deadline_var_store(&__data, (page), count);		\
 	if (__data < (MIN))						\
@@ -745,83 +729,24 @@ static ssize_t __FUNC(struct deadline_data *dd, const char *page, size_t count)	
 		*(__PTR) = __data;					\
 	return ret;							\
 }
-STORE_FUNCTION(deadline_readexpire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
-STORE_FUNCTION(deadline_writeexpire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
-STORE_FUNCTION(deadline_writesstarved_store, &dd->writes_starved, INT_MIN, INT_MAX, 0);
-STORE_FUNCTION(deadline_frontmerges_store, &dd->front_merges, 0, 1, 0);
-STORE_FUNCTION(deadline_fifobatch_store, &dd->fifo_batch, 0, INT_MAX, 0);
+STORE_FUNCTION(deadline_read_expire_store, &dd->fifo_expire[READ], 0, INT_MAX, 1);
+STORE_FUNCTION(deadline_write_expire_store, &dd->fifo_expire[WRITE], 0, INT_MAX, 1);
+STORE_FUNCTION(deadline_writes_starved_store, &dd->writes_starved, INT_MIN, INT_MAX, 0);
+STORE_FUNCTION(deadline_front_merges_store, &dd->front_merges, 0, 1, 0);
+STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
 #undef STORE_FUNCTION
 
-static struct deadline_fs_entry deadline_readexpire_entry = {
-	.attr = {.name = "read_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_readexpire_show,
-	.store = deadline_readexpire_store,
-};
-static struct deadline_fs_entry deadline_writeexpire_entry = {
-	.attr = {.name = "write_expire", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_writeexpire_show,
-	.store = deadline_writeexpire_store,
-};
-static struct deadline_fs_entry deadline_writesstarved_entry = {
-	.attr = {.name = "writes_starved", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_writesstarved_show,
-	.store = deadline_writesstarved_store,
-};
-static struct deadline_fs_entry deadline_frontmerges_entry = {
-	.attr = {.name = "front_merges", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_frontmerges_show,
-	.store = deadline_frontmerges_store,
-};
-static struct deadline_fs_entry deadline_fifobatch_entry = {
-	.attr = {.name = "fifo_batch", .mode = S_IRUGO | S_IWUSR },
-	.show = deadline_fifobatch_show,
-	.store = deadline_fifobatch_store,
-};
+#define DD_ATTR(name) \
+	__ATTR(name, S_IRUGO|S_IWUSR, deadline_##name##_show, \
+				      deadline_##name##_store)
 
-static struct attribute *default_attrs[] = {
-	&deadline_readexpire_entry.attr,
-	&deadline_writeexpire_entry.attr,
-	&deadline_writesstarved_entry.attr,
-	&deadline_frontmerges_entry.attr,
-	&deadline_fifobatch_entry.attr,
-	NULL,
-};
-
-#define to_deadline(atr) container_of((atr), struct deadline_fs_entry, attr)
-
-static ssize_t
-deadline_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct deadline_fs_entry *entry = to_deadline(attr);
-
-	if (!entry->show)
-		return -EIO;
-
-	return entry->show(e->elevator_data, page);
-}
-
-static ssize_t
-deadline_attr_store(struct kobject *kobj, struct attribute *attr,
-		    const char *page, size_t length)
-{
-	elevator_t *e = container_of(kobj, elevator_t, kobj);
-	struct deadline_fs_entry *entry = to_deadline(attr);
-
-	if (!entry->store)
-		return -EIO;
-
-	return entry->store(e->elevator_data, page, length);
-}
-
-static struct sysfs_ops deadline_sysfs_ops = {
-	.show	= deadline_attr_show,
-	.store	= deadline_attr_store,
-};
-
-static struct kobj_type deadline_ktype = {
-	.sysfs_ops	= &deadline_sysfs_ops,
-	.default_attrs	= default_attrs,
+static struct elv_fs_entry deadline_attrs[] = {
+	DD_ATTR(read_expire),
+	DD_ATTR(write_expire),
+	DD_ATTR(writes_starved),
+	DD_ATTR(front_merges),
+	DD_ATTR(fifo_batch),
+	__ATTR_NULL
 };
 
 static struct elevator_type iosched_deadline = {
@@ -840,7 +765,7 @@ static struct elevator_type iosched_deadline = {
 		.elevator_exit_fn =		deadline_exit_queue,
 	},
 
-	.elevator_ktype = &deadline_ktype,
+	.elevator_attrs = deadline_attrs,
 	.elevator_name = "deadline",
 	.elevator_owner = THIS_MODULE,
 };

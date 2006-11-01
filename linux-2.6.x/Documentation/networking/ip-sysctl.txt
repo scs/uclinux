@@ -102,9 +102,15 @@ inet_peer_gc_maxtime - INTEGER
 TCP variables: 
 
 tcp_abc - INTEGER
-	Controls Appropriate Byte Count defined in RFC3465. If set to
-	0 then does congestion avoid once per ack. 1 is conservative
-	value, and 2 is more agressive.
+	Controls Appropriate Byte Count (ABC) defined in RFC3465.
+	ABC is a way of increasing congestion window (cwnd) more slowly
+	in response to partial acknowledgments.
+	Possible values are:
+		0 increase cwnd once per acknowledgment (no ABC)
+		1 increase cwnd once per acknowledgment of full sized segment
+		2 allow increase cwnd by two if acknowledgment is
+		  of two segments to compensate for delayed acknowledgments.
+	Default: 0 (off)
 
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
@@ -294,15 +300,15 @@ tcp_rmem - vector of 3 INTEGERs: min, default, max
 	Default: 87380*2 bytes.
 
 tcp_mem - vector of 3 INTEGERs: min, pressure, max
-	low: below this number of pages TCP is not bothered about its
+	min: below this number of pages TCP is not bothered about its
 	memory appetite.
 
 	pressure: when amount of memory allocated by TCP exceeds this number
 	of pages, TCP moderates its memory consumption and enters memory
 	pressure mode, which is exited when memory consumption falls
-	under "low".
+	under "min".
 
-	high: number of pages allowed for queueing by all TCP sockets.
+	max: number of pages allowed for queueing by all TCP sockets.
 
 	Defaults are calculated at boot time from amount of available
 	memory.
@@ -354,6 +360,20 @@ somaxconn - INTEGER
 	Limit of socket listen() backlog, known in userspace as SOMAXCONN.
 	Defaults to 128.  See also tcp_max_syn_backlog for additional tuning
 	for TCP sockets.
+
+tcp_workaround_signed_windows - BOOLEAN
+	If set, assume no receipt of a window scaling option means the
+	remote TCP is broken and treats the window as a signed quantity.
+	If unset, assume the remote TCP is not broken even if we do
+	not receive a window scaling option from them.
+	Default: 0
+
+tcp_slow_start_after_idle - BOOLEAN
+	If set, provide RFC2861 behavior and time out the congestion
+	window after an idle period.  An idle period is defined at
+	the current RTO.  If unset, the congestion window will not
+	be timed out after an idle period.
+	Default: 1
 
 IP Variables:
 
@@ -619,6 +639,11 @@ arp_ignore - INTEGER
 	The max value from conf/{all,interface}/arp_ignore is used
 	when ARP request is received on the {interface}
 
+arp_accept - BOOLEAN
+	Define behavior when gratuitous arp replies are received:
+	0 - drop gratuitous arp frames
+	1 - accept gratuitous arp frames
+
 app_solicit - INTEGER
 	The maximum number of probes to send to the user space ARP daemon
 	via netlink before dropping back to multicast probes (see
@@ -717,6 +742,33 @@ accept_ra - BOOLEAN
 	Functional default: enabled if local forwarding is disabled.
 			    disabled if local forwarding is enabled.
 
+accept_ra_defrtr - BOOLEAN
+	Learn default router in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+accept_ra_pinfo - BOOLEAN
+	Learn Prefix Inforamtion in Router Advertisement.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
+accept_ra_rt_info_max_plen - INTEGER
+	Maximum prefix length of Route Information in RA.
+
+	Route Information w/ prefix larger than or equal to this
+	variable shall be ignored.
+
+	Functional default: 0 if accept_ra_rtr_pref is enabled.
+			    -1 if accept_ra_rtr_pref is disabled.
+
+accept_ra_rtr_pref - BOOLEAN
+	Accept Router Preference in RA.
+
+	Functional default: enabled if accept_ra is enabled.
+			    disabled if accept_ra is disabled.
+
 accept_redirects - BOOLEAN
 	Accept Redirects.
 
@@ -727,8 +779,8 @@ autoconf - BOOLEAN
 	Autoconfigure addresses using Prefix Information in Router 
 	Advertisements.
 
-	Functional default: enabled if accept_ra is enabled.
-			    disabled if accept_ra is disabled.
+	Functional default: enabled if accept_ra_pinfo is enabled.
+			    disabled if accept_ra_pinfo is disabled.
 
 dad_transmits - INTEGER
 	The amount of Duplicate Address Detection probes to send.
@@ -770,6 +822,12 @@ hop_limit - INTEGER
 mtu - INTEGER
 	Default Maximum Transfer Unit
 	Default: 1280 (IPv6 required minimum)
+
+router_probe_interval - INTEGER
+	Minimum interval (in seconds) between Router Probing described
+	in RFC4191.
+
+	Default: 60
 
 router_solicitation_delay - INTEGER
 	Number of seconds to wait after interface is brought up

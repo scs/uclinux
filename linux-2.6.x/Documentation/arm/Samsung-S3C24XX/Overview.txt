@@ -7,8 +7,12 @@ Introduction
 ------------
 
   The Samsung S3C24XX range of ARM9 System-on-Chip CPUs are supported
-  by the 's3c2410' architecture of ARM Linux. Currently the S3C2410 and
-  the S3C2440 are supported CPUs.
+  by the 's3c2410' architecture of ARM Linux. Currently the S3C2410,
+  S3C2440 and S3C2442 devices are supported.
+
+  Support for the S3C2400 series is in progress.
+
+  Support for the S3C2412 and S3C2413 CPUs is being merged.
 
 
 Configuration
@@ -32,13 +36,27 @@ Machines
     A general purpose development board, see EB2410ITX.txt for further
     details
 
+  Simtec Electronics IM2440D20 (Osiris)
+
+    CPU Module from Simtec Electronics, with a S3C2440A CPU, nand flash
+    and a PCMCIA controller.
+
   Samsung SMDK2410
 
     Samsung's own development board, geared for PDA work.
 
+  Samsung/Aiji SMDK2412
+
+    The S3C2412 version of the SMDK2440.
+
+  Samsung/Aiji SMDK2413
+
+    The S3C2412 version of the SMDK2440.
+
   Samsung/Meritech SMDK2440
 
-    The S3C2440 compatible version of the SMDK2440
+    The S3C2440 compatible version of the SMDK2440, which has the
+    option of an S3C2440 or S3C2442 CPU module.
 
   Thorcom VR1000
 
@@ -85,6 +103,26 @@ Adding New Machines
   mailing list information.
 
 
+I2C
+---
+
+  The hardware I2C core in the CPU is supported in single master
+  mode, and can be configured via platform data.
+
+
+RTC
+---
+
+  Support for the onboard RTC unit, including alarm function.
+
+
+Watchdog
+--------
+
+  The onchip watchdog is available via the standard watchdog
+  interface.
+
+
 NAND
 ----
 
@@ -119,6 +157,15 @@ Clock Management
   The core provides the interface defined in the header file
   include/asm-arm/hardware/clock.h, to allow control over the
   various clock units
+
+
+Suspend to RAM
+--------------
+
+  For boards that provide support for suspend to RAM, the
+  system can be placed into low power suspend.
+
+  See Suspend.txt for more information.
 
 
 Platform Data
@@ -158,6 +205,7 @@ Platform Data
 	exported outside arch/arm/mach-s3c2410/, or exported to
 	modules via EXPORT_SYMBOL() and related functions.
 
+
 Port Contributors
 -----------------
 
@@ -174,22 +222,7 @@ Port Contributors
   Lucas Correia Villa Real (S3C2400 port)
 
 
-Document Changes
-----------------
-
-  05 Sep 2004 - BJD - Added Document Changes section
-  05 Sep 2004 - BJD - Added Klaus Fetscher to list of contributors
-  25 Oct 2004 - BJD - Added Dimitry Andric to list of contributors
-  25 Oct 2004 - BJD - Updated the MTD from the 2.6.9 merge
-  21 Jan 2005 - BJD - Added rx3715, added Shannon to contributors
-  10 Feb 2005 - BJD - Added Guillaume Gourat to contributors
-  02 Mar 2005 - BJD - Added SMDK2440 to list of machines
-  06 Mar 2005 - BJD - Added Christer Weinigel
-  08 Mar 2005 - BJD - Added LCVR to list of people, updated introduction
-  08 Mar 2005 - BJD - Added section on adding machines
-  09 Sep 2005 - BJD - Added section on platform data
-
 Document Author
 ---------------
 
-Ben Dooks, (c) 2004-2005 Simtec Electronics
+Ben Dooks, (c) 2004-2005,2006 Simtec Electronics

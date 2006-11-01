@@ -1,4 +1,4 @@
-February 2003             Kernel Parameters                     v2.5.59
+                          Kernel Parameters
                           ~~~~~~~~~~~~~~~~~
 
 The following is a consolidated list of the kernel parameters as implemented
@@ -17,9 +17,17 @@ are specified on the kernel command line with the module name plus
 
 	usbcore.blinkenlights=1
 
-The text in square brackets at the beginning of the description states the
-restrictions on the kernel for the said kernel parameter to be valid. The
-restrictions referred to are that the relevant option is valid if:
+This document may not be entirely up to date and comprehensive. The command
+"modinfo -p ${modulename}" shows a current list of all parameters of a loadable
+module. Loadable modules, after being loaded into the running kernel, also
+reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
+parameters may be changed at runtime by the command
+"echo -n ${value} > /sys/module/${modulename}/parameters/${parm}".
+
+The parameters listed below are only valid if certain kernel build options were
+enabled and if respective hardware is present. The text in square brackets at
+the beginning of each description states the restrictions within which a
+parameter is applicable:
 
 	ACPI	ACPI support is enabled.
 	ALSA	ALSA sound support is enabled.
@@ -27,7 +35,6 @@ restrictions referred to are that the relevant option is valid if:
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	CD	Appropriate CD support is enabled.
-	DEVFS	devfs support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -49,9 +56,11 @@ restrictions referred to are that the relevant option is valid if:
 	MCA	MCA bus support is enabled.
 	MDA	MDA console support is enabled.
 	MOUSE	Appropriate mouse support is enabled.
+	MSI	Message Signaled Interrupts (PCI).
 	MTD	MTD support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
+	GENERIC_TIME The generic timeofday code is enabled.
 	NFS	Appropriate NFS support is enabled.
 	OSS	OSS sound support is enabled.
 	PARIDE	The ParIDE subsystem is enabled.
@@ -138,6 +147,9 @@ running once the system is up.
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
+	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
+			Format: To spoof as Windows 98: ="Microsoft Windows"
+
 	acpi_osi=	[HW,ACPI] empty param disables _OSI
 
 	acpi_serialize	[HW,ACPI] force serialization of AML methods
@@ -166,6 +178,11 @@ running once the system is up.
 			Allow consolidated generic hotkey driver to
 			override platform specific driver.
 			See also Documentation/acpi-hotkey.txt.
+
+	acpi_pm_good	[IA-32,X86-64]
+			Override the pmtimer bug detection: force the kernel
+			to assume that this machine's pmtimer latches its value
+			and always returns good values.
 
 	enable_timer_pin_1 [i386,x86-64]
 			Enable PIN 1 of APIC timer
@@ -329,10 +346,11 @@ running once the system is up.
 			Value can be changed at runtime via
 				/selinux/checkreqprot.
 
- 	clock=		[BUGS=IA-32,HW] gettimeofday timesource override.
-			Forces specified timesource (if avaliable) to be used
-			when calculating gettimeofday(). If specicified
-			timesource is not avalible, it defaults to PIT.
+	clock=		[BUGS=IA-32, HW] gettimeofday clocksource override.
+			[Deprecated]
+			Forces specified clocksource (if avaliable) to be used
+			when calculating gettimeofday(). If specified
+			clocksource is not avalible, it defaults to PIT.
 			Format: { pit | tsc | cyclone | pmtmr }
 
 	disable_8254_timer
@@ -366,12 +384,17 @@ running once the system is up.
 		tty<n>	Use the virtual console device <n>.
 
 		ttyS<n>[,options]
+		ttyUSB0[,options]
 			Use the specified serial port.  The options are of
-			the form "bbbbpn", where "bbbb" is the baud rate,
-			"p" is parity ("n", "o", or "e"), and "n" is bits.
-			Default is "9600n8".
+			the form "bbbbpnf", where "bbbb" is the baud rate,
+			"p" is parity ("n", "o", or "e"), "n" is number of
+			bits, and "f" is flow control ("r" for RTS or
+			omit it).  Default is "9600n8".
 
-			See also Documentation/serial-console.txt.
+			See Documentation/serial-console.txt for more
+			information.  See
+			Documentation/networking/netconsole.txt for an
+			alternative.
 
 		uart,io,<addr>[,options]
 		uart,mmio,<addr>[,options]
@@ -412,12 +435,18 @@ running once the system is up.
 
 	debug		[KNL] Enable kernel debugging (events log level).
 
+	debug_locks_verbose=
+			[KNL] verbose self-tests
+			Format=<0|1>
+			Print debugging info while doing the locking API
+			self-tests.
+			We default to 0 (no extra messages), setting it to
+			1 will print _a lot_ more information - normally
+			only useful to kernel developers.
+
 	decnet=		[HW,NET]
 			Format: <area>[,<node>]
 			See also Documentation/networking/decnet.txt.
-
-	devfs=		[DEVFS]
-			See Documentation/filesystems/devfs/boot-options.
 
 	dhash_entries=	[KNL]
 			Set number of hash buckets for dentry cache.
@@ -667,6 +696,12 @@ running once the system is up.
 
 	ips=		[HW,SCSI] Adaptec / IBM ServeRAID controller
 			See header of drivers/scsi/ips.c.
+
+	ports=		[IP_VS_FTP] IPVS ftp helper module
+			Default is 21.
+			Up to 8 (IP_VS_APP_MAX_PORTS) ports
+			may be specified.
+			Format: <port>,<port>....
 
 	irqfixup	[HW]
 			When an interrupt is not handled search all handlers
@@ -1000,6 +1035,8 @@ running once the system is up.
 
 	nocache		[ARM]
 
+	nodelayacct	[KNL] Disable per-task delay accounting
+
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
 	noexec		[IA-64]
@@ -1008,7 +1045,9 @@ running once the system is up.
 			noexec=on: enable non-executable mappings (default)
 			noexec=off: disable nn-executable mappings
 
-	nofxsr		[BUGS=IA-32]
+	nofxsr		[BUGS=IA-32] Disables x86 floating point extended
+			register save and restore. The kernel will only save
+			legacy floating-point registers on task switch.
 
 	nohlt		[BUGS=ARM]
 
@@ -1038,9 +1077,9 @@ running once the system is up.
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 
-	nomce		[IA-32] Machine Check Exception
-
 	nomca		[IA-64] Disable machine check abort handling
+
+	nomce		[IA-32] Machine Check Exception
 
 	noresidual	[PPC] Don't use residual data on PReP machines.
 
@@ -1052,6 +1091,8 @@ running once the system is up.
 			reader made by F.H. Papenmeier (Germany).
 
 	nosbagart	[IA-64]
+
+	nosep		[BUGS=IA-32] Disables x86 SYSENTER/SYSEXIT support.
 
 	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel.
 
@@ -1122,6 +1163,11 @@ running once the system is up.
 	pas16=		[HW,SCSI]
 			See header of drivers/scsi/pas16.c.
 
+	pause_on_oops=
+			Halt all CPUs after the first oops has been printed for
+			the specified number of seconds.  This is to be used if
+			your oopses keep scrolling off the screen.
+
 	pcbit=		[HW,ISDN]
 
 	pcd.		[PARIDE]
@@ -1143,6 +1189,9 @@ running once the system is up.
 				Mechanism 2.
 		nommconf	[IA-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
+		nomsi		[MSI] If the PCI_MSI kernel config parameter is
+				enabled, this kernel boot option can be used to
+				disable the use of MSI interrupts system-wide.
 		nosort		[IA-32] Don't sort PCI devices according to
 				order given by the PCI BIOS. This sorting is
 				done to get a device order compatible with
@@ -1376,6 +1425,15 @@ running once the system is up.
 			If enabled at boot time, /selinux/disable can be used
 			later to disable prior to initial policy load.
 
+	selinux_compat_net =
+			[SELINUX] Set initial selinux_compat_net flag value.
+                        Format: { "0" | "1" }
+                        0 -- use new secmark-based packet controls
+                        1 -- use legacy packet controls
+                        Default value is 0 (preferred).
+                        Value can be changed at runtime via
+                        /selinux/compat_net.
+
 	serialnumber	[BUGS=IA-32]
 
 	sg_def_reserved_size=	[SCSI]
@@ -1579,6 +1637,10 @@ running once the system is up.
 
 	time		Show timing data prefixed to each printk message line
 
+	clocksource=	[GENERIC_TIME] Override the default clocksource
+			Override the default clocksource and use the clocksource
+			with the name specified.
+
 	tipar.timeout=	[HW,PPT]
 			Set communications timeout in tenths of a second
 			(default 15).
@@ -1620,6 +1682,10 @@ running once the system is up.
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 
+	vdso=		[IA-32]
+			vdso=1: enable VDSO (default)
+			vdso=0: disable VDSO mapping
+
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
 
@@ -1636,9 +1702,14 @@ running once the system is up.
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
 
-	vmhalt=		[KNL,S390]
+	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
+			Format: <command>
 
-	vmpoff=		[KNL,S390]
+	vmpanic=	[KNL,S390] Perform z/VM CP command after kernel panic.
+			Format: <command>
+
+	vmpoff=		[KNL,S390] Perform z/VM CP command after power off.
+			Format: <command>
 
 	waveartist=	[HW,OSS]
 			Format: <io>,<irq>,<dma>,<dma2>
@@ -1664,20 +1735,6 @@ running once the system is up.
 
 
 ______________________________________________________________________
-Changelog:
-
-2000-06-??	Mr. Unknown
-	The last known update (for 2.4.0) - the changelog was not kept before.
-
-2002-11-24	Petr Baudis <pasky@ucw.cz>
-		Randy Dunlap <randy.dunlap@verizon.net>
-	Update for 2.5.49, description for most of the options introduced,
-	references to other documentation (C files, READMEs, ..), added S390,
-	PPC, SPARC, MTD, ALSA and OSS category. Minor corrections and
-	reformatting.
-
-2005-10-19	Randy Dunlap <rdunlap@xenotime.net>
-	Lots of typos, whitespace, some reformatting.
 
 TODO:
 
