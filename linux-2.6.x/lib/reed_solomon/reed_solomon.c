@@ -44,16 +44,16 @@
 #include <linux/module.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <asm/semaphore.h>
 
 /* This list holds all currently allocated rs control structures */
 static LIST_HEAD (rslist);
 /* Protection for the list */
-static DECLARE_MUTEX(rslistlock);
+static DEFINE_MUTEX(rslistlock);
 
 /**
  * rs_init - Initialize a Reed-Solomon codec
- *
  * @symsize:	symbol size, bits (1-8)
  * @gfpoly:	Field generator polynomial coefficients
  * @fcr:	first root of RS code generator polynomial, index form
@@ -61,7 +61,7 @@ static DECLARE_MUTEX(rslistlock);
  * @nroots:	RS code generator polynomial degree (number of roots)
  *
  * Allocate a control structure and the polynom arrays for faster
- * en/decoding. Fill the arrays according to the given parameters
+ * en/decoding. Fill the arrays according to the given parameters.
  */
 static struct rs_control *rs_init(int symsize, int gfpoly, int fcr,
 				   int prim, int nroots)
@@ -154,14 +154,13 @@ errrs:
 
 
 /**
- *  free_rs - Free the rs control structure, if its not longer used
- *
+ *  free_rs - Free the rs control structure, if it is no longer used
  *  @rs:	the control structure which is not longer used by the
  *		caller
  */
 void free_rs(struct rs_control *rs)
 {
-	down(&rslistlock);
+	mutex_lock(&rslistlock);
 	rs->users--;
 	if(!rs->users) {
 		list_del(&rs->list);
@@ -170,12 +169,11 @@ void free_rs(struct rs_control *rs)
 		kfree(rs->genpoly);
 		kfree(rs);
 	}
-	up(&rslistlock);
+	mutex_unlock(&rslistlock);
 }
 
 /**
  * init_rs - Find a matching or allocate a new rs control structure
- *
  *  @symsize:	the symbol size (number of bits)
  *  @gfpoly:	the extended Galois field generator polynomial coefficients,
  *		with the 0th coefficient in the low order bit. The polynomial
@@ -201,7 +199,7 @@ struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
 	if (nroots < 0 || nroots >= (1<<symsize))
 		return NULL;
 
-	down(&rslistlock);
+	mutex_lock(&rslistlock);
 
 	/* Walk through the list and look for a matching entry */
 	list_for_each(tmp, &rslist) {
@@ -228,14 +226,13 @@ struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
 		list_add(&rs->list, &rslist);
 	}
 out:
-	up(&rslistlock);
+	mutex_unlock(&rslistlock);
 	return rs;
 }
 
 #ifdef CONFIG_REED_SOLOMON_ENC8
 /**
  *  encode_rs8 - Calculate the parity for data values (8bit data width)
- *
  *  @rs:	the rs control structure
  *  @data:	data field of a given type
  *  @len:	data length
@@ -257,7 +254,6 @@ EXPORT_SYMBOL_GPL(encode_rs8);
 #ifdef CONFIG_REED_SOLOMON_DEC8
 /**
  *  decode_rs8 - Decode codeword (8bit data width)
- *
  *  @rs:	the rs control structure
  *  @data:	data field of a given type
  *  @par:	received parity data field
@@ -284,7 +280,6 @@ EXPORT_SYMBOL_GPL(decode_rs8);
 #ifdef CONFIG_REED_SOLOMON_ENC16
 /**
  *  encode_rs16 - Calculate the parity for data values (16bit data width)
- *
  *  @rs:	the rs control structure
  *  @data:	data field of a given type
  *  @len:	data length
@@ -304,7 +299,6 @@ EXPORT_SYMBOL_GPL(encode_rs16);
 #ifdef CONFIG_REED_SOLOMON_DEC16
 /**
  *  decode_rs16 - Decode codeword (16bit data width)
- *
  *  @rs:	the rs control structure
  *  @data:	data field of a given type
  *  @par:	received parity data field

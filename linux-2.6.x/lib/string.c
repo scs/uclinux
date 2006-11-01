@@ -301,6 +301,36 @@ char *strnchr(const char *s, size_t count, int c)
 EXPORT_SYMBOL(strnchr);
 #endif
 
+/**
+ * strstrip - Removes leading and trailing whitespace from @s.
+ * @s: The string to be stripped.
+ *
+ * Note that the first trailing whitespace is replaced with a %NUL-terminator
+ * in the given string @s. Returns a pointer to the first non-whitespace
+ * character in @s.
+ */
+char *strstrip(char *s)
+{
+	size_t size;
+	char *end;
+
+	size = strlen(s);
+
+	if (!size)
+		return s;
+
+	end = s + size - 1;
+	while (end != s && isspace(*end))
+		end--;
+	*(end + 1) = '\0';
+
+	while (*s && isspace(*s))
+		s++;
+
+	return s;
+}
+EXPORT_SYMBOL(strstrip);
+
 #ifndef __HAVE_ARCH_STRLEN
 /**
  * strlen - Find the length of a string
@@ -362,6 +392,7 @@ size_t strspn(const char *s, const char *accept)
 EXPORT_SYMBOL(strspn);
 #endif
 
+#ifndef __HAVE_ARCH_STRCSPN
 /**
  * strcspn - Calculate the length of the initial substring of @s which does
  * 	not contain letters in @reject
@@ -384,6 +415,7 @@ size_t strcspn(const char *s, const char *reject)
 	return count;
 }
 EXPORT_SYMBOL(strcspn);
+#endif
 
 #ifndef __HAVE_ARCH_STRPBRK
 /**
@@ -468,7 +500,7 @@ EXPORT_SYMBOL(memset);
 void *memcpy(void *dest, const void *src, size_t count)
 {
 	char *tmp = dest;
-	char *s = src;
+	const char *s = src;
 
 	while (count--)
 		*tmp++ = *s++;
