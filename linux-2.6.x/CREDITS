@@ -24,6 +24,11 @@ S: C. Negri 6, bl. D3
 S: Iasi 6600
 S: Romania
 
+N: Mark Adler
+E: madler@alumni.caltech.edu
+W: http://alumnus.caltech.edu/~madler/
+D: zlib decompression
+
 N: Monalisa Agrawal
 E: magrawal@nortelnetworks.com
 D: Basic Interphase 5575 driver with UBR and ABR support.
@@ -523,11 +528,11 @@ S: Oxford
 S: United Kingdom
 
 N: Luiz Fernando N. Capitulino
-E: lcapitulino@terra.com.br
-E: lcapitulino@prefeitura.sp.gov.br
-W: http://www.telecentros.sp.gov.br
-D: Little fixes and a lot of janitorial work
-S: E-GOV Telecentros SP
+E: lcapitulino@mandriva.com.br
+E: lcapitulino@gmail.com
+W: http://www.cpu.eti.br
+D: misc kernel hacking
+S: Mandriva
 S: Brazil
 
 N: Remy Card
@@ -1127,8 +1132,10 @@ S: Carnegie, Pennsylvania 15106-4304
 S: USA
 
 N: Philip Gladstone
-E: philip@raptor.com
+E: philip@gladstonefamily.net
 D: Kernel / timekeeping stuff
+S: Carlisle, MA 01741
+S: USA
   
 N: Jan-Benedict Glaw
 E: jbglaw@lug-owl.de
@@ -1192,15 +1199,9 @@ S: Brecksville, OH  44141-1334
 S: USA
 
 N: Tristan Greaves
-E: Tristan.Greaves@icl.com
-E: tmg296@ecs.soton.ac.uk
-W: http://www.ecs.soton.ac.uk/~tmg296
+E: tristan@extricate.org
+W: http://www.extricate.org/
 D: Miscellaneous ipv4 sysctl patches
-S: 15 Little Mead
-S: Denmead
-S: Hampshire
-S: PO7 6HS
-S: United Kingdom
 
 N: Michael A. Griffith
 E: grif@cs.ucr.edu
@@ -1577,12 +1578,8 @@ S: 160 00 Praha 6
 S: Czech Republic
 
 N: Niels Kristian Bech Jensen
-E: nkbj@image.dk
-W: http://www.image.dk/~nkbj
+E: nkbj1970@hotmail.com
 D: Miscellaneous kernel updates and fixes.
-S: Dr. Holsts Vej 34, lejl. 164
-S: DK-8230 Åbyhøj
-S: Denmark
 
 N: Michael K. Johnson
 E: johnsonm@redhat.com
@@ -2007,13 +2004,14 @@ S: University of Stuttgart, Germany and
 S: Ecole Nationale Superieure des Telecommunications, Paris
 
 N: Jamie Lokier
-E: jamie@imbolc.ucc.ie
+E: jamie@shareable.org
+W: http://www.shareable.org/
 D: Reboot-through-BIOS for broken 486 motherboards
-D: Some parport fixes
-S: 11 Goodson Walk
-S: Marston
+D: Parport fixes, futex improvements
+D: First instruction of x86 sysenter path :)
+S: 51 Sunningwell Road
 S: Oxford
-S: OX3 0HX
+S: OX1 4SZ
 S: United Kingdom
 
 N: Mark Lord
@@ -2211,7 +2209,7 @@ S: (address available on request)
 S: USA
 
 N: Ian McDonald
-E: iam4@cs.waikato.ac.nz
+E: ian.mcdonald@jandi.co.nz
 E: imcdnzl@gmail.com
 W: http://wand.net.nz/~iam4
 W: http://imcdnzl.blogspot.com
@@ -2813,6 +2811,8 @@ E: luca.risolia@studio.unibo.it
 P: 1024D/FCE635A4 88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4
 D: V4L driver for W996[87]CF JPEG USB Dual Mode Camera Chips
 D: V4L2 driver for SN9C10x PC Camera Controllers
+D: V4L2 driver for ET61X151 and ET61X251 PC Camera Controllers
+D: V4L2 driver for ZC0301 Image Processor and Control Chip
 S: Via Liberta' 41/A
 S: Osio Sotto, 24046, Bergamo
 S: Italy
@@ -3242,14 +3242,9 @@ S: 12725 SW Millikan Way, Suite 400
 S: Beaverton, Oregon 97005
 S: USA
 
-N: Marcelo W. Tosatti
-E: marcelo.tosatti@cyclades.com
-D: Miscellaneous kernel hacker
+N: Marcelo Tosatti
+E: marcelo@kvack.org
 D: v2.4 kernel maintainer
-D: Current pc300/cyclades maintainer
-S: Cyclades Corporation
-S: Av Cristovao Colombo, 462. Floresta.
-S: Porto Alegre
 S: Brazil
 
 N: Stefan Traby
@@ -3377,7 +3372,7 @@ S: Germany
 
 N: Geert Uytterhoeven
 E: geert@linux-m68k.org
-W: http://home.tvd.be/cr26864/
+W: http://users.telenet.be/geertu/
 P: 1024/862678A6 C51D 361C 0BD1 4C90 B275  C553 6EEA 11BA 8626 78A6
 D: m68k/Amiga and PPC/CHRP Longtrail coordinator
 D: Frame buffer device and XF68_FBDev maintainer
@@ -3387,8 +3382,8 @@ D: Amiga Buddha and Catweasel chipset IDE
 D: Atari Falcon chipset IDE
 D: Amiga Gayle chipset IDE
 D: mipsel NEC DDB Vrc-5074
-S: Emiel Vlieberghlaan 2A/21
-S: B-3010 Kessel-Lo
+S: Haterbeekstraat 55B
+S: B-3200 Aarschot
 S: Belgium
 
 N: Chris Vance
@@ -3406,10 +3401,10 @@ S: Czech Republic
 
 N: Thibaut Varene
 E: T-Bone@parisc-linux.org
-W: http://www.parisc-linux.org/
+W: http://www.parisc-linux.org/~varenet/
 P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
 D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
-D: Some bits in an ARM port, S1D13XXX FB driver, random patches here and there
+D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
 S: Paris, France
 
@@ -3738,10 +3733,11 @@ D: Mylex DAC960 PCI RAID driver
 D: Miscellaneous kernel fixes
 
 N: Alessandro Zummo
-E: azummo@ita.flashnet.it
-W: http://freepage.logicom.it/azummo/
+E: a.zummo@towertech.it
 D: CMI8330 support is sb_card.c
 D: ISAPnP fixes in sb_card.c
+D: ZyXEL omni.net lcd plus driver
+D: RTC subsystem
 S: Italy
 
 N: Marc Zyngier
