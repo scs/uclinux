@@ -26,7 +26,6 @@
  *   2. Emulating a reasonable SO_PEERSEC across machines
  *   3. Testing addition of sk_policy's with security context via setsockopt
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -132,10 +131,7 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp, struct xfrm_us
 		goto out;
 
 	/*
-	 * Does the subject have permission to set security or permission to
-	 * do the relabel?
-	 * Must be permitted to relabel from default socket type (process type)
-	 * to specified context
+	 * Does the subject have permission to set security context?
 	 */
 	rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
 			  SECCLASS_ASSOCIATION,
@@ -201,6 +197,23 @@ void selinux_xfrm_policy_free(struct xfrm_policy *xp)
 }
 
 /*
+ * LSM hook implementation that authorizes deletion of labeled policies.
+ */
+int selinux_xfrm_policy_delete(struct xfrm_policy *xp)
+{
+	struct task_security_struct *tsec = current->security;
+	struct xfrm_sec_ctx *ctx = xp->security;
+	int rc = 0;
+
+	if (ctx)
+		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
+				  SECCLASS_ASSOCIATION,
+				  ASSOCIATION__SETCONTEXT, NULL);
+
+	return rc;
+}
+
+/*
  * LSM hook implementation that allocs and transfers sec_ctx spec to
  * xfrm_state.
  */
@@ -225,6 +238,91 @@ void selinux_xfrm_state_free(struct xfrm_state *x)
 }
 
 /*
+ * SELinux internal function to retrieve the context of a connected
+ * (sk->sk_state == TCP_ESTABLISHED) TCP socket based on its security
+ * association used to connect to the remote socket.
+ *
+ * Retrieve via getsockopt SO_PEERSEC.
+ */
+u32 selinux_socket_getpeer_stream(struct sock *sk)
+{
+	struct dst_entry *dst, *dst_test;
+	u32 peer_sid = SECSID_NULL;
+
+	if (sk->sk_state != TCP_ESTABLISHED)
+		goto out;
+
+	dst = sk_dst_get(sk);
+	if (!dst)
+		goto out;
+
+ 	for (dst_test = dst; dst_test != 0;
+      	     dst_test = dst_test->child) {
+		struct xfrm_state *x = dst_test->xfrm;
+
+ 		if (x && selinux_authorizable_xfrm(x)) {
+	 	 	struct xfrm_sec_ctx *ctx = x->security;
+			peer_sid = ctx->ctx_sid;
+			break;
+		}
+	}
+	dst_release(dst);
+
+out:
+	return peer_sid;
+}
+
+/*
+ * SELinux internal function to retrieve the context of a UDP packet
+ * based on its security association used to connect to the remote socket.
+ *
+ * Retrieve via setsockopt IP_PASSSEC and recvmsg with control message
+ * type SCM_SECURITY.
+ */
+u32 selinux_socket_getpeer_dgram(struct sk_buff *skb)
+{
+	struct sec_path *sp;
+
+	if (skb == NULL)
+		return SECSID_NULL;
+
+	if (skb->sk->sk_protocol != IPPROTO_UDP)
+		return SECSID_NULL;
+
+	sp = skb->sp;
+	if (sp) {
+		int i;
+
+		for (i = sp->len-1; i >= 0; i--) {
+			struct xfrm_state *x = sp->xvec[i];
+			if (selinux_authorizable_xfrm(x)) {
+				struct xfrm_sec_ctx *ctx = x->security;
+				return ctx->ctx_sid;
+			}
+		}
+	}
+
+	return SECSID_NULL;
+}
+
+ /*
+  * LSM hook implementation that authorizes deletion of labeled SAs.
+  */
+int selinux_xfrm_state_delete(struct xfrm_state *x)
+{
+	struct task_security_struct *tsec = current->security;
+	struct xfrm_sec_ctx *ctx = x->security;
+	int rc = 0;
+
+	if (ctx)
+		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
+				  SECCLASS_ASSOCIATION,
+				  ASSOCIATION__SETCONTEXT, NULL);
+
+	return rc;
+}
+
+/*
  * LSM hook that controls access to unlabelled packets.  If
  * a xfrm_state is authorizable (defined by macro) then it was
  * already authorized by the IPSec process.  If not, then
@@ -246,7 +344,7 @@ int selinux_xfrm_sock_rcv_skb(u32 isec_sid, struct sk_buff *skb)
 		 *  Only need to verify the existence of an authorizable sp.
 		 */
 		for (i = 0; i < sp->len; i++) {
-			struct xfrm_state *x = sp->x[i].xvec;
+			struct xfrm_state *x = sp->xvec[i];
 
 			if (x && selinux_authorizable_xfrm(x))
 				goto accept;
@@ -288,18 +386,12 @@ int selinux_xfrm_postroute_last(u32 isec_sid, struct sk_buff *skb)
 			struct xfrm_state *x = dst_test->xfrm;
 
 			if (x && selinux_authorizable_xfrm(x))
-				goto accept;
+				goto out;
 		}
 	}
 
 	rc = avc_has_perm(isec_sid, SECINITSID_UNLABELED, SECCLASS_ASSOCIATION,
 			  ASSOCIATION__SENDTO, NULL);
-	if (rc)
-		goto drop;
-
-accept:
-	return NF_ACCEPT;
-
-drop:
-	return NF_DROP;
+out:
+	return rc;
 }

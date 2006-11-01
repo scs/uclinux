@@ -8,7 +8,6 @@
  */
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -33,9 +32,9 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 
 EXPORT_SYMBOL(cap_netlink_send);
 
-int cap_netlink_recv(struct sk_buff *skb)
+int cap_netlink_recv(struct sk_buff *skb, int cap)
 {
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN))
+	if (!cap_raised(NETLINK_CB(skb).eff_cap, cap))
 		return -EPERM;
 	return 0;
 }
@@ -60,8 +59,8 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 int cap_ptrace (struct task_struct *parent, struct task_struct *child)
 {
 	/* Derived from arch/i386/kernel/ptrace.c:sys_ptrace. */
-	if (!cap_issubset (child->cap_permitted, current->cap_permitted) &&
-	    !capable(CAP_SYS_PTRACE))
+	if (!cap_issubset(child->cap_permitted, parent->cap_permitted) &&
+	    !__capable(parent, CAP_SYS_PTRACE))
 		return -EPERM;
 	return 0;
 }

@@ -5,7 +5,6 @@
  *  Swap reorganised 29.12.95, Stephen Tweedie
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/mman.h>
@@ -45,7 +44,7 @@ static const char Unused_offset[] = "Unused swap offset entry ";
 
 struct swap_list_t swap_list = {-1, -1};
 
-struct swap_info_struct swap_info[MAX_SWAPFILES];
+static struct swap_info_struct swap_info[MAX_SWAPFILES];
 
 static DEFINE_MUTEX(swapon_mutex);
 
@@ -116,7 +115,7 @@ static inline unsigned long scan_swap_map(struct swap_info_struct *si)
 				last_in_cluster = offset + SWAPFILE_CLUSTER;
 			else if (offset == last_in_cluster) {
 				spin_lock(&swap_lock);
-				si->cluster_next = offset-SWAPFILE_CLUSTER-1;
+				si->cluster_next = offset-SWAPFILE_CLUSTER+1;
 				goto cluster;
 			}
 			if (unlikely(--latency_ration < 0)) {
@@ -395,20 +394,29 @@ void free_swap_and_cache(swp_entry_t entry)
 	struct swap_info_struct * p;
 	struct page *page = NULL;
 
+	if (is_migration_entry(entry))
+		return;
+
 	p = swap_info_get(entry);
 	if (p) {
-		if (swap_entry_free(p, swp_offset(entry)) == 1)
-			page = find_trylock_page(&swapper_space, entry.val);
+		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+			page = find_get_page(&swapper_space, entry.val);
+			if (page && unlikely(TestSetPageLocked(page))) {
+				page_cache_release(page);
+				page = NULL;
+			}
+		}
 		spin_unlock(&swap_lock);
 	}
 	if (page) {
 		int one_user;
 
 		BUG_ON(PagePrivate(page));
-		page_cache_get(page);
 		one_user = (page_count(page) == 2);
 		/* Only cache user (+us), or swap space full? Free it! */
-		if (!PageWriteback(page) && (one_user || vm_swap_full())) {
+		/* Also recheck PageSwapCache after page is locked (above) */
+		if (PageSwapCache(page) && !PageWriteback(page) &&
+					(one_user || vm_swap_full())) {
 			delete_from_swap_cache(page);
 			SetPageDirty(page);
 		}
@@ -416,6 +424,62 @@ void free_swap_and_cache(swp_entry_t entry)
 		page_cache_release(page);
 	}
 }
+
+#ifdef CONFIG_SOFTWARE_SUSPEND
+/*
+ * Find the swap type that corresponds to given device (if any)
+ *
+ * This is needed for software suspend and is done in such a way that inode
+ * aliasing is allowed.
+ */
+int swap_type_of(dev_t device)
+{
+	int i;
+
+	spin_lock(&swap_lock);
+	for (i = 0; i < nr_swapfiles; i++) {
+		struct inode *inode;
+
+		if (!(swap_info[i].flags & SWP_WRITEOK))
+			continue;
+
+		if (!device) {
+			spin_unlock(&swap_lock);
+			return i;
+		}
+		inode = swap_info[i].swap_file->f_dentry->d_inode;
+		if (S_ISBLK(inode->i_mode) &&
+		    device == MKDEV(imajor(inode), iminor(inode))) {
+			spin_unlock(&swap_lock);
+			return i;
+		}
+	}
+	spin_unlock(&swap_lock);
+	return -ENODEV;
+}
+
+/*
+ * Return either the total number of swap pages of given type, or the number
+ * of free pages of that type (depending on @free)
+ *
+ * This is needed for software suspend
+ */
+unsigned int count_swap_pages(int type, int free)
+{
+	unsigned int n = 0;
+
+	if (type < nr_swapfiles) {
+		spin_lock(&swap_lock);
+		if (swap_info[type].flags & SWP_WRITEOK) {
+			n = swap_info[type].pages;
+			if (free)
+				n -= swap_info[type].inuse_pages;
+		}
+		spin_unlock(&swap_lock);
+	}
+	return n;
+}
+#endif
 
 /*
  * No need to decide whether this PTE shares the swap entry with others,
@@ -554,15 +618,6 @@ static int unuse_mm(struct mm_struct *mm,
 	return 0;
 }
 
-#ifdef CONFIG_MIGRATION
-int remove_vma_swap(struct vm_area_struct *vma, struct page *page)
-{
-	swp_entry_t entry = { .val = page_private(page) };
-
-	return unuse_vma(vma, entry, page);
-}
-#endif
-
 /*
  * Scan swap_map from current position to next entry still in use.
  * Recycle to start on reaching the end, returning 0 when empty.
@@ -655,7 +710,6 @@ static int try_to_unuse(unsigned int type)
 		 */
 		swap_map = &si->swap_map[i];
 		entry = swp_entry(type, i);
-again:
 		page = read_swap_cache_async(entry, NULL, 0);
 		if (!page) {
 			/*
@@ -690,12 +744,6 @@ again:
 		wait_on_page_locked(page);
 		wait_on_page_writeback(page);
 		lock_page(page);
-		if (!PageSwapCache(page)) {
-			/* Page migration has occured */
-			unlock_page(page);
-			page_cache_release(page);
-			goto again;
-		}
 		wait_on_page_writeback(page);
 
 		/*
@@ -724,10 +772,8 @@ again:
 			while (*swap_map > 1 && !retval &&
 					(p = p->next) != &start_mm->mmlist) {
 				mm = list_entry(p, struct mm_struct, mmlist);
-				if (atomic_inc_return(&mm->mm_users) == 1) {
-					atomic_dec(&mm->mm_users);
+				if (!atomic_inc_not_zero(&mm->mm_users))
 					continue;
-				}
 				spin_unlock(&mmlist_lock);
 				mmput(prev_mm);
 				prev_mm = mm;
@@ -1346,19 +1392,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		if (!(p->flags & SWP_USED))
 			break;
 	error = -EPERM;
-	/*
-	 * Test if adding another swap device is possible. There are
-	 * two limiting factors: 1) the number of bits for the swap
-	 * type swp_entry_t definition and 2) the number of bits for
-	 * the swap type in the swap ptes as defined by the different
-	 * architectures. To honor both limitations a swap entry
-	 * with swap offset 0 and swap type ~0UL is created, encoded
-	 * to a swap pte, decoded to a swp_entry_t again and finally
-	 * the swap type part is extracted. This will mask all bits
-	 * from the initial ~0UL that can't be encoded in either the
-	 * swp_entry_t or the architecture definition of a swap pte.
-	 */
-	if (type > swp_type(pte_to_swp_entry(swp_entry_to_pte(swp_entry(~0UL,0))))) {
+	if (type >= MAX_SWAPFILES) {
 		spin_unlock(&swap_lock);
 		goto out;
 	}
@@ -1443,8 +1477,7 @@ asmlinkage long sys_swapon(const char __user * specialfile, int swap_flags)
 		error = -EINVAL;
 		goto bad_swap;
 	}
-	page = read_cache_page(mapping, 0,
-			(filler_t *)mapping->a_ops->readpage, swap_file);
+	page = read_mapping_page(mapping, 0, swap_file);
 	if (IS_ERR(page)) {
 		error = PTR_ERR(page);
 		goto bad_swap;
@@ -1647,6 +1680,9 @@ int swap_duplicate(swp_entry_t entry)
 	struct swap_info_struct * p;
 	unsigned long offset, type;
 	int result = 0;
+
+	if (is_migration_entry(entry))
+		return 1;
 
 	type = swp_type(entry);
 	if (type >= nr_swapfiles)

@@ -15,7 +15,6 @@
 #undef DEBUG
 
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mman.h>
@@ -191,7 +190,7 @@ static int dummy_sb_kern_mount (struct super_block *sb, void *data)
 	return 0;
 }
 
-static int dummy_sb_statfs (struct super_block *sb)
+static int dummy_sb_statfs (struct dentry *dentry)
 {
 	return 0;
 }
@@ -378,7 +377,7 @@ static int dummy_inode_removexattr (struct dentry *dentry, char *name)
 	return 0;
 }
 
-static int dummy_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static int dummy_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	return -EOPNOTSUPP;
 }
@@ -391,6 +390,11 @@ static int dummy_inode_setsecurity(struct inode *inode, const char *name, const 
 static int dummy_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
 {
 	return 0;
+}
+
+static const char *dummy_inode_xattr_getsuffix(void)
+{
+	return NULL;
 }
 
 static int dummy_file_permission (struct file *file, int mask)
@@ -501,12 +505,25 @@ static int dummy_task_getsid (struct task_struct *p)
 	return 0;
 }
 
+static void dummy_task_getsecid (struct task_struct *p, u32 *secid)
+{ }
+
 static int dummy_task_setgroups (struct group_info *group_info)
 {
 	return 0;
 }
 
 static int dummy_task_setnice (struct task_struct *p, int nice)
+{
+	return 0;
+}
+
+static int dummy_task_setioprio (struct task_struct *p, int ioprio)
+{
+	return 0;
+}
+
+static int dummy_task_getioprio (struct task_struct *p)
 {
 	return 0;
 }
@@ -527,13 +544,18 @@ static int dummy_task_getscheduler (struct task_struct *p)
 	return 0;
 }
 
+static int dummy_task_movememory (struct task_struct *p)
+{
+	return 0;
+}
+
 static int dummy_task_wait (struct task_struct *p)
 {
 	return 0;
 }
 
 static int dummy_task_kill (struct task_struct *p, struct siginfo *info,
-			    int sig)
+			    int sig, u32 secid)
 {
 	return 0;
 }
@@ -660,9 +682,9 @@ static int dummy_netlink_send (struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int dummy_netlink_recv (struct sk_buff *skb)
+static int dummy_netlink_recv (struct sk_buff *skb, int cap)
 {
-	if (!cap_raised (NETLINK_CB (skb).eff_cap, CAP_NET_ADMIN))
+	if (!cap_raised (NETLINK_CB (skb).eff_cap, cap))
 		return -EPERM;
 	return 0;
 }
@@ -763,8 +785,13 @@ static int dummy_socket_sock_rcv_skb (struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-static int dummy_socket_getpeersec(struct socket *sock, char __user *optval,
-				   int __user *optlen, unsigned len)
+static int dummy_socket_getpeersec_stream(struct socket *sock, char __user *optval,
+					  int __user *optlen, unsigned len)
+{
+	return -ENOPROTOOPT;
+}
+
+static int dummy_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	return -ENOPROTOOPT;
 }
@@ -799,6 +826,11 @@ static void dummy_xfrm_policy_free_security(struct xfrm_policy *xp)
 {
 }
 
+static int dummy_xfrm_policy_delete_security(struct xfrm_policy *xp)
+{
+	return 0;
+}
+
 static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_user_sec_ctx *sec_ctx)
 {
 	return 0;
@@ -806,6 +838,11 @@ static int dummy_xfrm_state_alloc_security(struct xfrm_state *x, struct xfrm_use
 
 static void dummy_xfrm_state_free_security(struct xfrm_state *x)
 {
+}
+
+static int dummy_xfrm_state_delete_security(struct xfrm_state *x)
+{
+	return 0;
 }
 
 static int dummy_xfrm_policy_lookup(struct xfrm_policy *xp, u32 sk_sid, u8 dir)
@@ -838,8 +875,18 @@ static int dummy_setprocattr(struct task_struct *p, char *name, void *value, siz
 	return -EINVAL;
 }
 
+static int dummy_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+{
+	return -EOPNOTSUPP;
+}
+
+static void dummy_release_secctx(char *secdata, u32 seclen)
+{
+}
+
 #ifdef CONFIG_KEYS
-static inline int dummy_key_alloc(struct key *key)
+static inline int dummy_key_alloc(struct key *key, struct task_struct *ctx,
+				  unsigned long flags)
 {
 	return 0;
 }
@@ -925,6 +972,7 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, inode_getxattr);
 	set_to_dummy_if_null(ops, inode_listxattr);
 	set_to_dummy_if_null(ops, inode_removexattr);
+	set_to_dummy_if_null(ops, inode_xattr_getsuffix);
 	set_to_dummy_if_null(ops, inode_getsecurity);
 	set_to_dummy_if_null(ops, inode_setsecurity);
 	set_to_dummy_if_null(ops, inode_listsecurity);
@@ -948,11 +996,15 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, task_setpgid);
 	set_to_dummy_if_null(ops, task_getpgid);
 	set_to_dummy_if_null(ops, task_getsid);
+	set_to_dummy_if_null(ops, task_getsecid);
 	set_to_dummy_if_null(ops, task_setgroups);
 	set_to_dummy_if_null(ops, task_setnice);
+	set_to_dummy_if_null(ops, task_setioprio);
+	set_to_dummy_if_null(ops, task_getioprio);
 	set_to_dummy_if_null(ops, task_setrlimit);
 	set_to_dummy_if_null(ops, task_setscheduler);
 	set_to_dummy_if_null(ops, task_getscheduler);
+	set_to_dummy_if_null(ops, task_movememory);
 	set_to_dummy_if_null(ops, task_wait);
 	set_to_dummy_if_null(ops, task_kill);
 	set_to_dummy_if_null(ops, task_prctl);
@@ -984,6 +1036,8 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, d_instantiate);
  	set_to_dummy_if_null(ops, getprocattr);
  	set_to_dummy_if_null(ops, setprocattr);
+ 	set_to_dummy_if_null(ops, secid_to_secctx);
+ 	set_to_dummy_if_null(ops, release_secctx);
 #ifdef CONFIG_SECURITY_NETWORK
 	set_to_dummy_if_null(ops, unix_stream_connect);
 	set_to_dummy_if_null(ops, unix_may_send);
@@ -1002,7 +1056,8 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, socket_getsockopt);
 	set_to_dummy_if_null(ops, socket_shutdown);
 	set_to_dummy_if_null(ops, socket_sock_rcv_skb);
-	set_to_dummy_if_null(ops, socket_getpeersec);
+	set_to_dummy_if_null(ops, socket_getpeersec_stream);
+	set_to_dummy_if_null(ops, socket_getpeersec_dgram);
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
 	set_to_dummy_if_null(ops, sk_getsid);
@@ -1011,8 +1066,10 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, xfrm_policy_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_policy_clone_security);
 	set_to_dummy_if_null(ops, xfrm_policy_free_security);
+	set_to_dummy_if_null(ops, xfrm_policy_delete_security);
 	set_to_dummy_if_null(ops, xfrm_state_alloc_security);
 	set_to_dummy_if_null(ops, xfrm_state_free_security);
+	set_to_dummy_if_null(ops, xfrm_state_delete_security);
 	set_to_dummy_if_null(ops, xfrm_policy_lookup);
 #endif	/* CONFIG_SECURITY_NETWORK_XFRM */
 #ifdef CONFIG_KEYS

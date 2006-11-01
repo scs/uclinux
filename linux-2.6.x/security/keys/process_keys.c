@@ -16,11 +16,12 @@
 #include <linux/keyctl.h>
 #include <linux/fs.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
 /* session keyring create vs join semaphore */
-static DECLARE_MUTEX(key_session_sem);
+static DEFINE_MUTEX(key_session_mutex);
 
 /* the root user's tracking struct */
 struct key_user root_key_user = {
@@ -66,7 +67,8 @@ struct key root_session_keyring = {
 /*
  * allocate the keyrings to be associated with a UID
  */
-int alloc_uid_keyring(struct user_struct *user)
+int alloc_uid_keyring(struct user_struct *user,
+		      struct task_struct *ctx)
 {
 	struct key *uid_keyring, *session_keyring;
 	char buf[20];
@@ -75,7 +77,8 @@ int alloc_uid_keyring(struct user_struct *user)
 	/* concoct a default session keyring */
 	sprintf(buf, "_uid_ses.%u", user->uid);
 
-	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, 0, NULL);
+	session_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
+					KEY_ALLOC_IN_QUOTA, NULL);
 	if (IS_ERR(session_keyring)) {
 		ret = PTR_ERR(session_keyring);
 		goto error;
@@ -85,8 +88,8 @@ int alloc_uid_keyring(struct user_struct *user)
 	 * keyring */
 	sprintf(buf, "_uid.%u", user->uid);
 
-	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, 0,
-				    session_keyring);
+	uid_keyring = keyring_alloc(buf, user->uid, (gid_t) -1, ctx,
+				    KEY_ALLOC_IN_QUOTA, session_keyring);
 	if (IS_ERR(uid_keyring)) {
 		key_put(session_keyring);
 		ret = PTR_ERR(uid_keyring);
@@ -142,7 +145,8 @@ int install_thread_keyring(struct task_struct *tsk)
 
 	sprintf(buf, "_tid.%u", tsk->pid);
 
-	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
+	keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+				KEY_ALLOC_QUOTA_OVERRUN, NULL);
 	if (IS_ERR(keyring)) {
 		ret = PTR_ERR(keyring);
 		goto error;
@@ -167,27 +171,29 @@ error:
  */
 int install_process_keyring(struct task_struct *tsk)
 {
-	unsigned long flags;
 	struct key *keyring;
 	char buf[20];
 	int ret;
 
+	might_sleep();
+
 	if (!tsk->signal->process_keyring) {
 		sprintf(buf, "_pid.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+					KEY_ALLOC_QUOTA_OVERRUN, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error;
 		}
 
 		/* attach keyring */
-		spin_lock_irqsave(&tsk->sighand->siglock, flags);
+		spin_lock_irq(&tsk->sighand->siglock);
 		if (!tsk->signal->process_keyring) {
 			tsk->signal->process_keyring = keyring;
 			keyring = NULL;
 		}
-		spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+		spin_unlock_irq(&tsk->sighand->siglock);
 
 		key_put(keyring);
 	}
@@ -209,35 +215,40 @@ static int install_session_keyring(struct task_struct *tsk,
 	unsigned long flags;
 	struct key *old;
 	char buf[20];
-	int ret;
+
+	might_sleep();
 
 	/* create an empty session keyring */
 	if (!keyring) {
 		sprintf(buf, "_ses.%u", tsk->tgid);
 
-		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, 1, NULL);
-		if (IS_ERR(keyring)) {
-			ret = PTR_ERR(keyring);
-			goto error;
-		}
+		flags = KEY_ALLOC_QUOTA_OVERRUN;
+		if (tsk->signal->session_keyring)
+			flags = KEY_ALLOC_IN_QUOTA;
+
+		keyring = keyring_alloc(buf, tsk->uid, tsk->gid, tsk,
+					flags, NULL);
+		if (IS_ERR(keyring))
+			return PTR_ERR(keyring);
 	}
 	else {
 		atomic_inc(&keyring->usage);
 	}
 
 	/* install the keyring */
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	old = rcu_dereference(tsk->signal->session_keyring);
+	spin_lock_irq(&tsk->sighand->siglock);
+	old = tsk->signal->session_keyring;
 	rcu_assign_pointer(tsk->signal->session_keyring, keyring);
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+	spin_unlock_irq(&tsk->sighand->siglock);
 
-	ret = 0;
+	/* we're using RCU on the pointer, but there's no point synchronising
+	 * on it if it didn't previously point to anything */
+	if (old) {
+		synchronize_rcu();
+		key_put(old);
+	}
 
-	/* we're using RCU on the pointer */
-	synchronize_rcu();
-	key_put(old);
-error:
-	return ret;
+	return 0;
 
 } /* end install_session_keyring() */
 
@@ -310,7 +321,6 @@ void exit_keys(struct task_struct *tsk)
  */
 int exec_keys(struct task_struct *tsk)
 {
-	unsigned long flags;
 	struct key *old;
 
 	/* newly exec'd tasks don't get a thread keyring */
@@ -322,10 +332,10 @@ int exec_keys(struct task_struct *tsk)
 	key_put(old);
 
 	/* discard the process keyring from a newly exec'd task */
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
+	spin_lock_irq(&tsk->sighand->siglock);
 	old = tsk->signal->process_keyring;
 	tsk->signal->process_keyring = NULL;
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+	spin_unlock_irq(&tsk->sighand->siglock);
 
 	key_put(old);
 
@@ -389,6 +399,8 @@ key_ref_t search_process_keyrings(struct key_type *type,
 {
 	struct request_key_auth *rka;
 	key_ref_t key_ref, ret, err;
+
+	might_sleep();
 
 	/* we want to return -EAGAIN or -ENOKEY if any of the keyrings were
 	 * searchable, but we failed to find a key or we found a negative key;
@@ -495,27 +507,35 @@ key_ref_t search_process_keyrings(struct key_type *type,
 	 */
 	if (context->request_key_auth &&
 	    context == current &&
-	    type != &key_type_request_key_auth &&
-	    key_validate(context->request_key_auth) == 0
+	    type != &key_type_request_key_auth
 	    ) {
-		rka = context->request_key_auth->payload.data;
+		/* defend against the auth key being revoked */
+		down_read(&context->request_key_auth->sem);
 
-		key_ref = search_process_keyrings(type, description, match,
-						  rka->context);
+		if (key_validate(context->request_key_auth) == 0) {
+			rka = context->request_key_auth->payload.data;
 
-		if (!IS_ERR(key_ref))
-			goto found;
+			key_ref = search_process_keyrings(type, description,
+							  match, rka->context);
 
-		switch (PTR_ERR(key_ref)) {
-		case -EAGAIN: /* no key */
-			if (ret)
+			up_read(&context->request_key_auth->sem);
+
+			if (!IS_ERR(key_ref))
+				goto found;
+
+			switch (PTR_ERR(key_ref)) {
+			case -EAGAIN: /* no key */
+				if (ret)
+					break;
+			case -ENOKEY: /* negative key */
+				ret = key_ref;
 				break;
-		case -ENOKEY: /* negative key */
-			ret = key_ref;
-			break;
-		default:
-			err = key_ref;
-			break;
+			default:
+				err = key_ref;
+				break;
+			}
+		} else {
+			up_read(&context->request_key_auth->sem);
 		}
 	}
 
@@ -711,13 +731,14 @@ long join_session_keyring(const char *name)
 	}
 
 	/* allow the user to join or create a named keyring */
-	down(&key_session_sem);
+	mutex_lock(&key_session_mutex);
 
 	/* look for an existing keyring of this name */
 	keyring = find_keyring_by_name(name, 0);
 	if (PTR_ERR(keyring) == -ENOKEY) {
 		/* not found - try and create a new one */
-		keyring = keyring_alloc(name, tsk->uid, tsk->gid, 0, NULL);
+		keyring = keyring_alloc(name, tsk->uid, tsk->gid, tsk,
+					KEY_ALLOC_IN_QUOTA, NULL);
 		if (IS_ERR(keyring)) {
 			ret = PTR_ERR(keyring);
 			goto error2;
@@ -737,7 +758,7 @@ long join_session_keyring(const char *name)
 	key_put(keyring);
 
 error2:
-	up(&key_session_sem);
+	mutex_unlock(&key_session_mutex);
 error:
 	return ret;
 

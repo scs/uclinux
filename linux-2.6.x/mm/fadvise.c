@@ -15,6 +15,7 @@
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/fadvise.h>
+#include <linux/writeback.h>
 #include <linux/syscalls.h>
 
 #include <asm/unistd.h>
@@ -28,7 +29,7 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 	struct file *file = fget(fd);
 	struct address_space *mapping;
 	struct backing_dev_info *bdi;
-	loff_t endbyte;
+	loff_t endbyte;			/* inclusive */
 	pgoff_t start_index;
 	pgoff_t end_index;
 	unsigned long nrpages;
@@ -56,6 +57,8 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 	endbyte = offset + len;
 	if (!len || endbyte < len)
 		endbyte = -1;
+	else
+		endbyte--;		/* inclusive */
 
 	bdi = mapping->backing_dev_info;
 
@@ -70,7 +73,6 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		file->f_ra.ra_pages = bdi->ra_pages * 2;
 		break;
 	case POSIX_FADV_WILLNEED:
-	case POSIX_FADV_NOREUSE:
 		if (!mapping->a_ops->readpage) {
 			ret = -EINVAL;
 			break;
@@ -78,7 +80,7 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 
 		/* First and last PARTIAL page! */
 		start_index = offset >> PAGE_CACHE_SHIFT;
-		end_index = (endbyte-1) >> PAGE_CACHE_SHIFT;
+		end_index = endbyte >> PAGE_CACHE_SHIFT;
 
 		/* Careful about overflow on the "+1" */
 		nrpages = end_index - start_index + 1;
@@ -91,16 +93,19 @@ asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice)
 		if (ret > 0)
 			ret = 0;
 		break;
+	case POSIX_FADV_NOREUSE:
+		break;
 	case POSIX_FADV_DONTNEED:
 		if (!bdi_write_congested(mapping->backing_dev_info))
 			filemap_flush(mapping);
 
 		/* First and last FULL page! */
-		start_index = (offset + (PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
+		start_index = (offset+(PAGE_CACHE_SIZE-1)) >> PAGE_CACHE_SHIFT;
 		end_index = (endbyte >> PAGE_CACHE_SHIFT);
 
-		if (end_index > start_index)
-			invalidate_mapping_pages(mapping, start_index, end_index-1);
+		if (end_index >= start_index)
+			invalidate_mapping_pages(mapping, start_index,
+						end_index);
 		break;
 	default:
 		ret = -EINVAL;

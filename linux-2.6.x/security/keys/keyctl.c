@@ -17,9 +17,32 @@
 #include <linux/keyctl.h>
 #include <linux/fs.h>
 #include <linux/capability.h>
+#include <linux/string.h>
 #include <linux/err.h>
 #include <asm/uaccess.h>
 #include "internal.h"
+
+static int key_get_type_from_user(char *type,
+				  const char __user *_type,
+				  unsigned len)
+{
+	int ret;
+
+	ret = strncpy_from_user(type, _type, len);
+
+	if (ret < 0)
+		return -EFAULT;
+
+	if (ret == 0 || ret >= len)
+		return -EINVAL;
+
+	if (type[0] == '.')
+		return -EPERM;
+
+	type[len - 1] = '\0';
+
+	return 0;
+}
 
 /*****************************************************************************/
 /*
@@ -38,40 +61,22 @@ asmlinkage long sys_add_key(const char __user *_type,
 	key_ref_t keyring_ref, key_ref;
 	char type[32], *description;
 	void *payload;
-	long dlen, ret;
+	long ret;
 
 	ret = -EINVAL;
 	if (plen > 32767)
 		goto error;
 
 	/* draw all the data into kernel space */
-	ret = strncpy_from_user(type, _type, sizeof(type) - 1);
+	ret = key_get_type_from_user(type, _type, sizeof(type));
 	if (ret < 0)
 		goto error;
-	type[31] = '\0';
 
-	ret = -EPERM;
-	if (type[0] == '.')
+	description = strndup_user(_description, PAGE_SIZE);
+	if (IS_ERR(description)) {
+		ret = PTR_ERR(description);
 		goto error;
-
-	ret = -EFAULT;
-	dlen = strnlen_user(_description, PAGE_SIZE - 1);
-	if (dlen <= 0)
-		goto error;
-
-	ret = -EINVAL;
-	if (dlen > PAGE_SIZE - 1)
-		goto error;
-
-	ret = -ENOMEM;
-	description = kmalloc(dlen + 1, GFP_KERNEL);
-	if (!description)
-		goto error;
-	description[dlen] = '\0';
-
-	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen) != 0)
-		goto error2;
+	}
 
 	/* pull the payload in if one was supplied */
 	payload = NULL;
@@ -97,7 +102,7 @@ asmlinkage long sys_add_key(const char __user *_type,
 	/* create or update the requested key and add it to the target
 	 * keyring */
 	key_ref = key_create_or_update(keyring_ref, type, description,
-				       payload, plen, 0);
+				       payload, plen, KEY_ALLOC_IN_QUOTA);
 	if (!IS_ERR(key_ref)) {
 		ret = key_ref_to_ptr(key_ref)->serial;
 		key_ref_put(key_ref);
@@ -136,59 +141,28 @@ asmlinkage long sys_request_key(const char __user *_type,
 	struct key *key;
 	key_ref_t dest_ref;
 	char type[32], *description, *callout_info;
-	long dlen, ret;
+	long ret;
 
 	/* pull the type into kernel space */
-	ret = strncpy_from_user(type, _type, sizeof(type) - 1);
+	ret = key_get_type_from_user(type, _type, sizeof(type));
 	if (ret < 0)
-		goto error;
-	type[31] = '\0';
-
-	ret = -EPERM;
-	if (type[0] == '.')
 		goto error;
 
 	/* pull the description into kernel space */
-	ret = -EFAULT;
-	dlen = strnlen_user(_description, PAGE_SIZE - 1);
-	if (dlen <= 0)
+	description = strndup_user(_description, PAGE_SIZE);
+	if (IS_ERR(description)) {
+		ret = PTR_ERR(description);
 		goto error;
-
-	ret = -EINVAL;
-	if (dlen > PAGE_SIZE - 1)
-		goto error;
-
-	ret = -ENOMEM;
-	description = kmalloc(dlen + 1, GFP_KERNEL);
-	if (!description)
-		goto error;
-	description[dlen] = '\0';
-
-	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen) != 0)
-		goto error2;
+	}
 
 	/* pull the callout info into kernel space */
 	callout_info = NULL;
 	if (_callout_info) {
-		ret = -EFAULT;
-		dlen = strnlen_user(_callout_info, PAGE_SIZE - 1);
-		if (dlen <= 0)
+		callout_info = strndup_user(_callout_info, PAGE_SIZE);
+		if (IS_ERR(callout_info)) {
+			ret = PTR_ERR(callout_info);
 			goto error2;
-
-		ret = -EINVAL;
-		if (dlen > PAGE_SIZE - 1)
-			goto error2;
-
-		ret = -ENOMEM;
-		callout_info = kmalloc(dlen + 1, GFP_KERNEL);
-		if (!callout_info)
-			goto error2;
-		callout_info[dlen] = '\0';
-
-		ret = -EFAULT;
-		if (copy_from_user(callout_info, _callout_info, dlen) != 0)
-			goto error3;
+		}
 	}
 
 	/* get the destination keyring if specified */
@@ -209,8 +183,9 @@ asmlinkage long sys_request_key(const char __user *_type,
 	}
 
 	/* do the search */
-	key = request_key_and_link(ktype, description, callout_info,
-				   key_ref_to_ptr(dest_ref));
+	key = request_key_and_link(ktype, description, callout_info, NULL,
+				   key_ref_to_ptr(dest_ref),
+				   KEY_ALLOC_IN_QUOTA);
 	if (IS_ERR(key)) {
 		ret = PTR_ERR(key);
 		goto error5;
@@ -264,36 +239,21 @@ long keyctl_get_keyring_ID(key_serial_t id, int create)
 long keyctl_join_session_keyring(const char __user *_name)
 {
 	char *name;
-	long nlen, ret;
+	long ret;
 
 	/* fetch the name from userspace */
 	name = NULL;
 	if (_name) {
-		ret = -EFAULT;
-		nlen = strnlen_user(_name, PAGE_SIZE - 1);
-		if (nlen <= 0)
+		name = strndup_user(_name, PAGE_SIZE);
+		if (IS_ERR(name)) {
+			ret = PTR_ERR(name);
 			goto error;
-
-		ret = -EINVAL;
-		if (nlen > PAGE_SIZE - 1)
-			goto error;
-
-		ret = -ENOMEM;
-		name = kmalloc(nlen + 1, GFP_KERNEL);
-		if (!name)
-			goto error;
-		name[nlen] = '\0';
-
-		ret = -EFAULT;
-		if (copy_from_user(name, _name, nlen) != 0)
-			goto error2;
+		}
 	}
 
 	/* join the session */
 	ret = join_session_keyring(name);
 
- error2:
-	kfree(name);
  error:
 	return ret;
 
@@ -566,32 +526,18 @@ long keyctl_keyring_search(key_serial_t ringid,
 	struct key_type *ktype;
 	key_ref_t keyring_ref, key_ref, dest_ref;
 	char type[32], *description;
-	long dlen, ret;
+	long ret;
 
 	/* pull the type and description into kernel space */
-	ret = strncpy_from_user(type, _type, sizeof(type) - 1);
+	ret = key_get_type_from_user(type, _type, sizeof(type));
 	if (ret < 0)
 		goto error;
-	type[31] = '\0';
 
-	ret = -EFAULT;
-	dlen = strnlen_user(_description, PAGE_SIZE - 1);
-	if (dlen <= 0)
+	description = strndup_user(_description, PAGE_SIZE);
+	if (IS_ERR(description)) {
+		ret = PTR_ERR(description);
 		goto error;
-
-	ret = -EINVAL;
-	if (dlen > PAGE_SIZE - 1)
-		goto error;
-
-	ret = -ENOMEM;
-	description = kmalloc(dlen + 1, GFP_KERNEL);
-	if (!description)
-		goto error;
-	description[dlen] = '\0';
-
-	ret = -EFAULT;
-	if (copy_from_user(description, _description, dlen) != 0)
-		goto error2;
+	}
 
 	/* get the keyring at which to begin the search */
 	keyring_ref = lookup_user_key(NULL, ringid, 0, 0, KEY_SEARCH);
@@ -727,6 +673,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
  */
 long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 {
+	struct key_user *newowner, *zapowner = NULL;
 	struct key *key;
 	key_ref_t key_ref;
 	long ret;
@@ -750,19 +697,50 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	if (!capable(CAP_SYS_ADMIN)) {
 		/* only the sysadmin can chown a key to some other UID */
 		if (uid != (uid_t) -1 && key->uid != uid)
-			goto no_access;
+			goto error_put;
 
 		/* only the sysadmin can set the key's GID to a group other
 		 * than one of those that the current process subscribes to */
 		if (gid != (gid_t) -1 && gid != key->gid && !in_group_p(gid))
-			goto no_access;
+			goto error_put;
 	}
 
-	/* change the UID (have to update the quotas) */
+	/* change the UID */
 	if (uid != (uid_t) -1 && uid != key->uid) {
-		/* don't support UID changing yet */
-		ret = -EOPNOTSUPP;
-		goto no_access;
+		ret = -ENOMEM;
+		newowner = key_user_lookup(uid);
+		if (!newowner)
+			goto error_put;
+
+		/* transfer the quota burden to the new user */
+		if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
+			spin_lock(&newowner->lock);
+			if (newowner->qnkeys + 1 >= KEYQUOTA_MAX_KEYS ||
+			    newowner->qnbytes + key->quotalen >=
+			    KEYQUOTA_MAX_BYTES)
+				goto quota_overrun;
+
+			newowner->qnkeys++;
+			newowner->qnbytes += key->quotalen;
+			spin_unlock(&newowner->lock);
+
+			spin_lock(&key->user->lock);
+			key->user->qnkeys--;
+			key->user->qnbytes -= key->quotalen;
+			spin_unlock(&key->user->lock);
+		}
+
+		atomic_dec(&key->user->nkeys);
+		atomic_inc(&newowner->nkeys);
+
+		if (test_bit(KEY_FLAG_INSTANTIATED, &key->flags)) {
+			atomic_dec(&key->user->nikeys);
+			atomic_inc(&newowner->nikeys);
+		}
+
+		zapowner = key->user;
+		key->user = newowner;
+		key->uid = uid;
 	}
 
 	/* change the GID */
@@ -771,11 +749,19 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 
 	ret = 0;
 
- no_access:
+error_put:
 	up_write(&key->sem);
 	key_put(key);
- error:
+	if (zapowner)
+		key_user_put(zapowner);
+error:
 	return ret;
+
+quota_overrun:
+	spin_unlock(&newowner->lock);
+	zapowner = newowner;
+	ret = -EDQUOT;
+	goto error_put;
 
 } /* end keyctl_chown_key() */
 

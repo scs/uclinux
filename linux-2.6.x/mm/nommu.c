@@ -111,7 +111,7 @@ unsigned int kobjsize(const void *objp)
 
 	/*if (!objp || !((page = virt_to_page(objp)))) 
 	Temporary fix for BUG[#1233]  memory allocated using dma_alloc_coherent, 
-	triggers BUG, when mmap’ed in user space. 
+	triggers BUG, when mmapÂ’ed in user space. 
 	A permanent fix for this problem is tracked in TASK[T436] -MH*/
 	
 	if (!objp || !((page = virt_to_page(objp))) || (unsigned long)objp >= memory_end)
@@ -168,7 +168,7 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 	/*
 	 * kmalloc doesn't like __GFP_HIGHMEM for some reason
 	 */
-	return kmalloc(size, gfp_mask & ~__GFP_HIGHMEM);
+	return kmalloc(size, (gfp_mask | __GFP_COMP) & ~__GFP_HIGHMEM);
 }
 
 struct page * vmalloc_to_page(void *addr)
@@ -588,9 +588,6 @@ static unsigned long determine_vm_flags(struct file *file,
 	if ((flags & MAP_PRIVATE) && (current->ptrace & PT_PTRACED))
 		vm_flags &= ~VM_MAYSHARE;
 
-	if (flags & MAP_UNINITIALIZE)
-		vm_flags |= VM_UNINITIALIZE;
-
 	return vm_flags;
 }
 
@@ -641,7 +638,7 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 	 * - note that this may not return a page-aligned address if the object
 	 *   we're allocating is smaller than a page
 	 */
-	base = kmalloc(len, GFP_KERNEL);
+	base = kmalloc(len, GFP_KERNEL|__GFP_COMP);
 	if (!base)
 		goto enomem;
 
@@ -677,8 +674,7 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 
 	} else {
 		/* if it's an anonymous mapping, then just clear it */
-		if (!(vma->vm_flags & VM_UNINITIALIZE))
-			memset(base, 0, len);
+		memset(base, 0, len);
 	}
 
 	return 0;
@@ -1150,7 +1146,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	if (sysctl_overcommit_memory == OVERCOMMIT_GUESS) {
 		unsigned long n;
 
-		free = get_page_cache_size();
+		free = global_page_state(NR_FILE_PAGES);
 		free += nr_swap_pages;
 
 		/*
@@ -1175,14 +1171,26 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 		 * only call if we're about to fail.
 		 */
 		n = nr_free_pages();
+
+		/*
+		 * Leave reserved pages. The pages are not for anonymous pages.
+		 */
+		if (n <= totalreserve_pages)
+			goto error;
+		else
+			n -= totalreserve_pages;
+
+		/*
+		 * Leave the last 3% for root
+		 */
 		if (!cap_sys_admin)
 			n -= n / 32;
 		free += n;
 
 		if (free > pages)
 			return 0;
-		vm_unacct_memory(pages);
-		return -ENOMEM;
+
+		goto error;
 	}
 
 	allowed = totalram_pages * sysctl_overcommit_ratio / 100;
@@ -1203,7 +1211,7 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	 */
 	if (atomic_read(&vm_committed_space) < (long)allowed)
 		return 0;
-
+error:
 	vm_unacct_memory(pages);
 
 	return -ENOMEM;
