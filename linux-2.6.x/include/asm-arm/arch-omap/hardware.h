@@ -37,7 +37,6 @@
 #define __ASM_ARCH_OMAP_HARDWARE_H
 
 #include <asm/sizes.h>
-#include <linux/config.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
 #include <asm/arch/cpu.h>
@@ -298,6 +297,10 @@
 #include "board-perseus2.h"
 #endif
 
+#ifdef CONFIG_MACH_OMAP_FSAMPLE
+#include "board-fsample.h"
+#endif
+
 #ifdef CONFIG_MACH_OMAP_H3
 #include "board-h3.h"
 #endif
@@ -306,16 +309,16 @@
 #include "board-h4.h"
 #endif
 
+#ifdef CONFIG_MACH_OMAP_APOLLON
+#include "board-apollon.h"
+#endif
+
 #ifdef CONFIG_MACH_OMAP_OSK
 #include "board-osk.h"
 #endif
 
 #ifdef CONFIG_MACH_VOICEBLUE
 #include "board-voiceblue.h"
-#endif
-
-#ifdef CONFIG_MACH_NETSTAR
-#include "board-netstar.h"
 #endif
 
 #endif /* !__ASSEMBLER__ */

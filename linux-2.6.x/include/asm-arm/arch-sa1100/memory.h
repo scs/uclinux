@@ -7,7 +7,6 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#include <linux/config.h>
 #include <asm/sizes.h>
 
 /*
@@ -90,5 +89,12 @@ void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 	(((unsigned long)(addr) & 0x07ffffff) >> PAGE_SHIFT)
 
 #endif
+
+/*
+ * Cache flushing area - SA1100 zero bank
+ */
+#define FLUSH_BASE_PHYS		0xe0000000
+#define FLUSH_BASE		0xf5000000
+#define FLUSH_BASE_MINICACHE	0xf5100000
 
 #endif

@@ -3,7 +3,6 @@
 
 #include <asm-generic/4level-fixup.h>
 
-#include <linux/config.h>
 #include <asm/setup.h>
 
 typedef pte_t *pte_addr_t;

@@ -1,7 +1,7 @@
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
 
-#include <asm/system.h>
+#include <asm/system.h>	/* local_irq_XXX() */
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for

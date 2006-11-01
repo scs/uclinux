@@ -8,11 +8,10 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All rights reserved.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.  All rights reserved.
  */
 
 
-#include <linux/config.h>
 #include <asm/sal.h>
 #include <asm/sn/sn_cpuid.h>
 #include <asm/sn/arch.h>
@@ -85,6 +84,8 @@
 
 #define  SN_SAL_GET_PROM_FEATURE_SET		   0x02000065
 #define  SN_SAL_SET_OS_FEATURE_SET		   0x02000066
+#define  SN_SAL_INJECT_ERROR			   0x02000067
+#define  SN_SAL_SET_CPU_NUMBER			   0x02000068
 
 /*
  * Service-specific constants
@@ -159,7 +160,7 @@
 static inline u32
 sn_sal_rev(void)
 {
-	struct ia64_sal_systab *systab = efi.sal_systab;
+	struct ia64_sal_systab *systab = __va(efi.sal_systab);
 
 	return (u32)(systab->sal_b_rev_major << 8 | systab->sal_b_rev_minor);
 }
@@ -345,7 +346,7 @@ ia64_sn_plat_set_error_handling_features(void)
 	ret_stuff.v1 = 0;
 	ret_stuff.v2 = 0;
 	SAL_CALL_REENTRANT(ret_stuff, SN_SAL_SET_ERROR_HANDLING_FEATURES,
-		(SAL_ERR_FEAT_MCA_SLV_TO_OS_INIT_SLV | SAL_ERR_FEAT_LOG_SBES),
+		SAL_ERR_FEAT_LOG_SBES,
 		0, 0, 0, 0, 0, 0);
 
 	return ret_stuff.status;
@@ -705,14 +706,9 @@ static inline int
 sn_change_memprotect(u64 paddr, u64 len, u64 perms, u64 *nasid_array)
 {
 	struct ia64_sal_retval ret_stuff;
-	int cnodeid;
-	unsigned long irq_flags;
 
-	cnodeid = nasid_to_cnodeid(get_node_number(paddr));
-	local_irq_save(irq_flags);
 	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_MEMPROTECT, paddr, len,
 				(u64)nasid_array, perms, 0, 0, 0);
-	local_irq_restore(irq_flags);
 	return ret_stuff.status;
 }
 #define SN_MEMPROT_ACCESS_CLASS_0		0x14a080
@@ -907,18 +903,22 @@ ia64_sn_sysctl_tio_clock_reset(nasid_t nasid)
 /*
  * Get the associated ioboard type for a given nasid.
  */
-static inline int
-ia64_sn_sysctl_ioboard_get(nasid_t nasid)
+static inline s64
+ia64_sn_sysctl_ioboard_get(nasid_t nasid, u16 *ioboard)
 {
-        struct ia64_sal_retval rv;
-        SAL_CALL_REENTRANT(rv, SN_SAL_SYSCTL_OP, SAL_SYSCTL_OP_IOBOARD,
-                        nasid, 0, 0, 0, 0, 0);
-        if (rv.v0 != 0)
-                return (int)rv.v0;
-        if (rv.v1 != 0)
-                return (int)rv.v1;
+	struct ia64_sal_retval isrv;
+	SAL_CALL_REENTRANT(isrv, SN_SAL_SYSCTL_OP, SAL_SYSCTL_OP_IOBOARD,
+			   nasid, 0, 0, 0, 0, 0);
+	if (isrv.v0 != 0) {
+		*ioboard = isrv.v0;
+		return isrv.status;
+	}
+	if (isrv.v1 != 0) {
+		*ioboard = isrv.v1;
+		return isrv.status;
+	}
 
-        return 0;
+	return isrv.status;
 }
 
 /**
@@ -1037,7 +1037,7 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 
 /***** BEGIN HACK - temp til old proms no longer supported ********/
 	if (ret_stuff.status == SALRET_NOT_IMPLEMENTED) {
-		int nasid = get_sapicid() & 0xfff;;
+		int nasid = get_sapicid() & 0xfff;
 #define SH_SHUB_ID_NODES_PER_BIT_MASK 0x001f000000000000UL
 #define SH_SHUB_ID_NODES_PER_BIT_SHFT 48
 		if (shubtype) *shubtype = 0;
@@ -1136,4 +1136,22 @@ ia64_sn_set_os_feature(int feature)
 	return rv.status;
 }
 
+static inline int
+sn_inject_error(u64 paddr, u64 *data, u64 *ecc)
+{
+	struct ia64_sal_retval ret_stuff;
+
+	ia64_sal_oemcall_nolock(&ret_stuff, SN_SAL_INJECT_ERROR, paddr, (u64)data,
+				(u64)ecc, 0, 0, 0, 0);
+	return ret_stuff.status;
+}
+
+static inline int
+ia64_sn_set_cpu_number(int cpu)
+{
+	struct ia64_sal_retval rv;
+
+	SAL_CALL_NOLOCK(rv, SN_SAL_SET_CPU_NUMBER, cpu, 0, 0, 0, 0, 0, 0);
+	return rv.status;
+}
 #endif /* _ASM_IA64_SN_SN_SAL_H */

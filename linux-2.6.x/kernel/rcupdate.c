@@ -47,18 +47,19 @@
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/cpu.h>
+#include <linux/mutex.h>
 
 /* Definition for rcupdate control block. */
-struct rcu_ctrlblk rcu_ctrlblk = {
+static struct rcu_ctrlblk rcu_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(&rcu_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
-struct rcu_ctrlblk rcu_bh_ctrlblk = {
+static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 	.cur = -300,
 	.completed = -300,
-	.lock = SPIN_LOCK_UNLOCKED,
+	.lock = __SPIN_LOCK_UNLOCKED(&rcu_bh_ctrlblk.lock),
 	.cpumask = CPU_MASK_NONE,
 };
 
@@ -75,7 +76,7 @@ static int rsinterval = 1000;
 #endif
 
 static atomic_t rcu_barrier_cpu_count;
-static struct semaphore rcu_barrier_sema;
+static DEFINE_MUTEX(rcu_barrier_mutex);
 static struct completion rcu_barrier_completion;
 
 #ifdef CONFIG_SMP
@@ -181,6 +182,15 @@ long rcu_batches_completed(void)
 	return rcu_ctrlblk.completed;
 }
 
+/*
+ * Return the number of RCU batches processed thus far.  Useful
+ * for debug and statistics.
+ */
+long rcu_batches_completed_bh(void)
+{
+	return rcu_bh_ctrlblk.completed;
+}
+
 static void rcu_barrier_callback(struct rcu_head *notused)
 {
 	if (atomic_dec_and_test(&rcu_barrier_cpu_count))
@@ -207,13 +217,13 @@ static void rcu_barrier_func(void *notused)
 void rcu_barrier(void)
 {
 	BUG_ON(in_interrupt());
-	/* Take cpucontrol semaphore to protect against CPU hotplug */
-	down(&rcu_barrier_sema);
+	/* Take cpucontrol mutex to protect against CPU hotplug */
+	mutex_lock(&rcu_barrier_mutex);
 	init_completion(&rcu_barrier_completion);
 	atomic_set(&rcu_barrier_cpu_count, 0);
 	on_each_cpu(rcu_barrier_func, NULL, 0, 1);
 	wait_for_completion(&rcu_barrier_completion);
-	up(&rcu_barrier_sema);
+	mutex_unlock(&rcu_barrier_mutex);
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
@@ -231,12 +241,16 @@ static void rcu_do_batch(struct rcu_data *rdp)
 		next = rdp->donelist = list->next;
 		list->func(list);
 		list = next;
-		rdp->qlen--;
 		if (++count >= rdp->blimit)
 			break;
 	}
+
+	local_irq_disable();
+	rdp->qlen -= count;
+	local_irq_enable();
 	if (rdp->blimit == INT_MAX && rdp->qlen <= qlowmark)
 		rdp->blimit = blimit;
+
 	if (!rdp->donelist)
 		rdp->donetail = &rdp->donelist;
 	else
@@ -415,8 +429,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		rdp->curtail = &rdp->curlist;
 	}
 
-	local_irq_disable();
 	if (rdp->nxtlist && !rdp->curlist) {
+		local_irq_disable();
 		rdp->curlist = rdp->nxtlist;
 		rdp->curtail = rdp->nxttail;
 		rdp->nxtlist = NULL;
@@ -441,9 +455,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 			rcu_start_batch(rcp);
 			spin_unlock(&rcp->lock);
 		}
-	} else {
-		local_irq_enable();
 	}
+
 	rcu_check_quiescent_state(rcp, rdp);
 	if (rdp->donelist)
 		rcu_do_batch(rdp);
@@ -479,10 +492,29 @@ static int __rcu_pending(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 	return 0;
 }
 
+/*
+ * Check to see if there is any immediate RCU-related work to be done
+ * by the current CPU, returning 1 if so.  This function is part of the
+ * RCU implementation; it is -not- an exported member of the RCU API.
+ */
 int rcu_pending(int cpu)
 {
 	return __rcu_pending(&rcu_ctrlblk, &per_cpu(rcu_data, cpu)) ||
 		__rcu_pending(&rcu_bh_ctrlblk, &per_cpu(rcu_bh_data, cpu));
+}
+
+/*
+ * Check to see if any future RCU-related work will need to be done
+ * by the current CPU, even if none need be done immediately, returning
+ * 1 if so.  This function is part of the RCU implementation; it is -not-
+ * an exported member of the RCU API.
+ */
+int rcu_needs_cpu(int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
+	struct rcu_data *rdp_bh = &per_cpu(rcu_bh_data, cpu);
+
+	return (!!rdp->curlist || !!rdp_bh->curlist || rcu_pending(cpu));
 }
 
 void rcu_check_callbacks(int cpu, int user)
@@ -520,7 +552,7 @@ static void __devinit rcu_online_cpu(int cpu)
 	tasklet_init(&per_cpu(rcu_tasklet, cpu), rcu_process_callbacks, 0UL);
 }
 
-static int __devinit rcu_cpu_notify(struct notifier_block *self, 
+static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
@@ -537,7 +569,7 @@ static int __devinit rcu_cpu_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata rcu_nb = {
+static struct notifier_block __cpuinitdata rcu_nb = {
 	.notifier_call	= rcu_cpu_notify,
 };
 
@@ -549,7 +581,6 @@ static struct notifier_block __devinitdata rcu_nb = {
  */
 void __init rcu_init(void)
 {
-	sema_init(&rcu_barrier_sema, 1);
 	rcu_cpu_notify(&rcu_nb, CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	/* Register notifier for non-boot CPUs */
@@ -594,14 +625,6 @@ void synchronize_rcu(void)
 	wait_for_completion(&rcu.completion);
 }
 
-/*
- * Deprecated, use synchronize_rcu() or synchronize_sched() instead.
- */
-void synchronize_kernel(void)
-{
-	synchronize_rcu();
-}
-
 module_param(blimit, int, 0);
 module_param(qhimark, int, 0);
 module_param(qlowmark, int, 0);
@@ -609,7 +632,7 @@ module_param(qlowmark, int, 0);
 module_param(rsinterval, int, 0);
 #endif
 EXPORT_SYMBOL_GPL(rcu_batches_completed);
-EXPORT_SYMBOL(call_rcu);  /* WARNING: GPL-only in April 2006. */
-EXPORT_SYMBOL(call_rcu_bh);  /* WARNING: GPL-only in April 2006. */
+EXPORT_SYMBOL_GPL(rcu_batches_completed_bh);
+EXPORT_SYMBOL_GPL(call_rcu);
+EXPORT_SYMBOL_GPL(call_rcu_bh);
 EXPORT_SYMBOL_GPL(synchronize_rcu);
-EXPORT_SYMBOL(synchronize_kernel);  /* WARNING: GPL-only in April 2006. */

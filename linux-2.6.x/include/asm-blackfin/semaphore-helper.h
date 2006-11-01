@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <asm/errno.h>
 
 /*

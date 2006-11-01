@@ -1,7 +1,6 @@
 #ifndef _ASM_IA64_CACHE_H
 #define _ASM_IA64_CACHE_H
 
-#include <linux/config.h>
 
 /*
  * Copyright (C) 1998-2000 Hewlett-Packard Co
@@ -24,5 +23,7 @@
 # define SMP_CACHE_SHIFT	3
 # define SMP_CACHE_BYTES	(1 << 3)
 #endif
+
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
 #endif /* _ASM_IA64_CACHE_H */

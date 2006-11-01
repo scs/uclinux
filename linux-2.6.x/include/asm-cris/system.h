@@ -8,7 +8,6 @@
  */
 
 extern struct task_struct *resume(struct task_struct *prev, struct task_struct *next, int);
-#define prepare_to_switch()     do { } while(0)
 #define switch_to(prev,next,last) last = resume(prev,next, \
 					 (int)&((struct task_struct *)0)->thread)
 
@@ -18,7 +17,6 @@ extern struct task_struct *resume(struct task_struct *prev, struct task_struct *
 #define wmb() mb()
 #define read_barrier_depends() do { } while(0)
 #define set_mb(var, value)  do { var = value; mb(); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()        mb()
@@ -70,5 +68,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 }
 
 #define arch_align_stack(x) (x)
+
+void default_idle(void);
 
 #endif

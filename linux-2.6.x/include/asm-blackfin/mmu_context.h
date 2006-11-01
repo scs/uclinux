@@ -32,7 +32,6 @@
 #ifndef __BLACKFIN_MMU_CONTEXT_H__
 #define __BLACKFIN_MMU_CONTEXT_H__
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

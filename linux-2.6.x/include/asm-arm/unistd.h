@@ -13,8 +13,6 @@
 #ifndef __ASM_ARM_UNISTD_H
 #define __ASM_ARM_UNISTD_H
 
-#include <linux/linkage.h>
-
 #define __NR_OABI_SYSCALL_BASE	0x900000
 
 #if defined(__thumb__) || defined(__ARM_EABI__)
@@ -308,8 +306,6 @@
 #define __NR_mq_notify			(__NR_SYSCALL_BASE+278)
 #define __NR_mq_getsetattr		(__NR_SYSCALL_BASE+279)
 #define __NR_waitid			(__NR_SYSCALL_BASE+280)
-
-#if defined(__ARM_EABI__)  /* reserve these for un-muxing socketcall */
 #define __NR_socket			(__NR_SYSCALL_BASE+281)
 #define __NR_bind			(__NR_SYSCALL_BASE+282)
 #define __NR_connect			(__NR_SYSCALL_BASE+283)
@@ -327,9 +323,6 @@
 #define __NR_getsockopt			(__NR_SYSCALL_BASE+295)
 #define __NR_sendmsg			(__NR_SYSCALL_BASE+296)
 #define __NR_recvmsg			(__NR_SYSCALL_BASE+297)
-#endif
-
-#if defined(__ARM_EABI__)  /* reserve these for un-muxing ipc */
 #define __NR_semop			(__NR_SYSCALL_BASE+298)
 #define __NR_semget			(__NR_SYSCALL_BASE+299)
 #define __NR_semctl			(__NR_SYSCALL_BASE+300)
@@ -341,16 +334,10 @@
 #define __NR_shmdt			(__NR_SYSCALL_BASE+306)
 #define __NR_shmget			(__NR_SYSCALL_BASE+307)
 #define __NR_shmctl			(__NR_SYSCALL_BASE+308)
-#endif
-
 #define __NR_add_key			(__NR_SYSCALL_BASE+309)
 #define __NR_request_key		(__NR_SYSCALL_BASE+310)
 #define __NR_keyctl			(__NR_SYSCALL_BASE+311)
-
-#if defined(__ARM_EABI__)  /* reserved for un-muxing ipc */
 #define __NR_semtimedop			(__NR_SYSCALL_BASE+312)
-#endif
-
 #define __NR_vserver			(__NR_SYSCALL_BASE+313)
 #define __NR_ioprio_set			(__NR_SYSCALL_BASE+314)
 #define __NR_ioprio_get			(__NR_SYSCALL_BASE+315)
@@ -370,6 +357,27 @@
 #define __ARM_NR_usr26			(__ARM_NR_BASE+3)
 #define __ARM_NR_usr32			(__ARM_NR_BASE+4)
 #define __ARM_NR_set_tls		(__ARM_NR_BASE+5)
+
+/*
+ * The following syscalls are obsolete and no longer available for EABI.
+ */
+#if defined(__ARM_EABI__) && !defined(__KERNEL__)
+#undef __NR_time
+#undef __NR_umount
+#undef __NR_stime
+#undef __NR_alarm
+#undef __NR_utime
+#undef __NR_getrlimit
+#undef __NR_select
+#undef __NR_readdir
+#undef __NR_mmap
+#undef __NR_socketcall
+#undef __NR_syscall
+#undef __NR_ipc
+#endif
+
+#ifdef __KERNEL__
+#include <linux/linkage.h>
 
 #define __sys2(x) #x
 #define __sys1(x) __sys2(x)
@@ -403,7 +411,8 @@ type name(void) {							\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST() );						\
+	: __SYS_REG_LIST()						\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -417,7 +426,8 @@ type name(type1 arg1) { 						\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0) ) );				\
+	: __SYS_REG_LIST( "0" (__r0) )					\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -432,7 +442,8 @@ type name(type1 arg1,type2 arg2) {					\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1) ) );			\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1) )			\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -449,7 +460,8 @@ type name(type1 arg1,type2 arg2,type3 arg3) {				\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2) ) );	\
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2) )		\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -467,7 +479,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4) {		\
   __asm__ __volatile__ (						\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
-	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2), "r" (__r3) ) ); \
+	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2), "r" (__r3) ) \
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -487,7 +500,8 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5) {	\
   __syscall(name)							\
 	: "=r" (__res_r0)						\
 	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
-			  "r" (__r3), "r" (__r4) ) );			\
+			  "r" (__r3), "r" (__r4) )			\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
@@ -507,12 +521,12 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
   __syscall(name)							\
 	: "=r" (__res_r0)						\
 	: __SYS_REG_LIST( "0" (__r0), "r" (__r1), "r" (__r2),		\
-			  "r" (__r3), "r" (__r4), "r" (__r5) ) );	\
+			  "r" (__r3), "r" (__r4), "r" (__r5) )		\
+	: "memory" );							\
   __res = __res_r0;							\
   __syscall_return(type,__res);						\
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_STAT64
 #define __ARCH_WANT_SYS_GETHOSTNAME
@@ -532,7 +546,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_SOCKETCALL
-#endif
 #endif
 
 #ifdef __KERNEL_SYSCALLS__
@@ -557,7 +570,7 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -567,4 +580,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_ARM_UNISTD_H */

@@ -38,7 +38,6 @@
 
 #include <linux/kernel.h>
 #include <asm/mach/dma.h>
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <asm/blackfin.h>

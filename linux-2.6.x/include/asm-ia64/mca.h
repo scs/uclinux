@@ -69,14 +69,16 @@ typedef struct ia64_mc_info_s {
  */
 
 struct ia64_sal_os_state {
-	/* SAL to OS, must be at offset 0 */
+
+	/* SAL to OS */
 	u64			os_gp;			/* GP of the os registered with the SAL, physical */
 	u64			pal_proc;		/* PAL_PROC entry point, physical */
 	u64			sal_proc;		/* SAL_PROC entry point, physical */
 	u64			rv_rc;			/* MCA - Rendezvous state, INIT - reason code */
 	u64			proc_state_param;	/* from R18 */
 	u64			monarch;		/* 1 for a monarch event, 0 for a slave */
-	/* common, must follow SAL to OS */
+
+	/* common */
 	u64			sal_ra;			/* Return address in SAL, physical */
 	u64			sal_gp;			/* GP of the SAL - physical */
 	pal_min_state_area_t	*pal_min_state;		/* from R17.  physical in asm, virtual in C */
@@ -98,7 +100,8 @@ struct ia64_sal_os_state {
 	u64			iipa;
 	u64			iim;
 	u64			iha;
-	/* OS to SAL, must follow common */
+
+	/* OS to SAL */
 	u64			os_status;		/* OS status to SAL, enum below */
 	u64			context;		/* 0 if return to same context
 							   1 if return to new context */
@@ -131,6 +134,8 @@ struct ia64_mca_cpu {
 /* Array of physical addresses of each CPU's MCA area.  */
 extern unsigned long __per_cpu_mca[NR_CPUS];
 
+extern int cpe_vector;
+extern int ia64_cpe_irq;
 extern void ia64_mca_init(void);
 extern void ia64_mca_cpu_init(void *);
 extern void ia64_os_mca_dispatch(void);
@@ -145,6 +150,11 @@ extern void ia64_mca_cmc_vector_setup(void);
 extern int  ia64_reg_MCA_extension(int (*fn)(void *, struct ia64_sal_os_state *));
 extern void ia64_unreg_MCA_extension(void);
 extern u64 ia64_get_rnat(u64 *);
+
+struct ia64_mca_notify_die {
+	struct ia64_sal_os_state *sos;
+	int *monarch_cpu;
+};
 
 #else	/* __ASSEMBLY__ */
 

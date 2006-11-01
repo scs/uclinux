@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/kthread.h>
 #include <linux/rcupdate.h>
+#include <linux/smp.h>
 
 #include <asm/irq.h>
 /*
@@ -61,6 +62,137 @@ static inline void wakeup_softirqd(void)
 }
 
 /*
+ * This one is for softirq.c-internal use,
+ * where hardirqs are disabled legitimately:
+ */
+#ifdef CONFIG_TRACE_IRQFLAGS
+static void __local_bh_disable(unsigned long ip)
+{
+	unsigned long flags;
+
+	WARN_ON_ONCE(in_irq());
+
+	raw_local_irq_save(flags);
+	add_preempt_count(SOFTIRQ_OFFSET);
+	/*
+	 * Were softirqs turned off above:
+	 */
+	if (softirq_count() == SOFTIRQ_OFFSET)
+		trace_softirqs_off(ip);
+	raw_local_irq_restore(flags);
+}
+#else /* !CONFIG_TRACE_IRQFLAGS */
+static inline void __local_bh_disable(unsigned long ip)
+{
+	add_preempt_count(SOFTIRQ_OFFSET);
+	barrier();
+}
+#endif /* CONFIG_TRACE_IRQFLAGS */
+
+void local_bh_disable(void)
+{
+	__local_bh_disable((unsigned long)__builtin_return_address(0));
+}
+
+EXPORT_SYMBOL(local_bh_disable);
+
+void __local_bh_enable(void)
+{
+	WARN_ON_ONCE(in_irq());
+
+	/*
+	 * softirqs should never be enabled by __local_bh_enable(),
+	 * it always nests inside local_bh_enable() sections:
+	 */
+	WARN_ON_ONCE(softirq_count() == SOFTIRQ_OFFSET);
+
+	sub_preempt_count(SOFTIRQ_OFFSET);
+}
+EXPORT_SYMBOL_GPL(__local_bh_enable);
+
+/*
+ * Special-case - softirqs can safely be enabled in
+ * cond_resched_softirq(), or by __do_softirq(),
+ * without processing still-pending softirqs:
+ */
+void _local_bh_enable(void)
+{
+	WARN_ON_ONCE(in_irq());
+	WARN_ON_ONCE(!irqs_disabled());
+
+	if (softirq_count() == SOFTIRQ_OFFSET)
+		trace_softirqs_on((unsigned long)__builtin_return_address(0));
+	sub_preempt_count(SOFTIRQ_OFFSET);
+}
+
+EXPORT_SYMBOL(_local_bh_enable);
+
+void local_bh_enable(void)
+{
+#ifdef CONFIG_TRACE_IRQFLAGS
+	unsigned long flags;
+
+	WARN_ON_ONCE(in_irq());
+#endif
+	WARN_ON_ONCE(irqs_disabled());
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	local_irq_save(flags);
+#endif
+	/*
+	 * Are softirqs going to be turned on now:
+	 */
+	if (softirq_count() == SOFTIRQ_OFFSET)
+		trace_softirqs_on((unsigned long)__builtin_return_address(0));
+	/*
+	 * Keep preemption disabled until we are done with
+	 * softirq processing:
+ 	 */
+ 	sub_preempt_count(SOFTIRQ_OFFSET - 1);
+
+	if (unlikely(!in_interrupt() && local_softirq_pending()))
+		do_softirq();
+
+	dec_preempt_count();
+#ifdef CONFIG_TRACE_IRQFLAGS
+	local_irq_restore(flags);
+#endif
+	preempt_check_resched();
+}
+EXPORT_SYMBOL(local_bh_enable);
+
+void local_bh_enable_ip(unsigned long ip)
+{
+#ifdef CONFIG_TRACE_IRQFLAGS
+	unsigned long flags;
+
+	WARN_ON_ONCE(in_irq());
+
+	local_irq_save(flags);
+#endif
+	/*
+	 * Are softirqs going to be turned on now:
+	 */
+	if (softirq_count() == SOFTIRQ_OFFSET)
+		trace_softirqs_on(ip);
+	/*
+	 * Keep preemption disabled until we are done with
+	 * softirq processing:
+ 	 */
+ 	sub_preempt_count(SOFTIRQ_OFFSET - 1);
+
+	if (unlikely(!in_interrupt() && local_softirq_pending()))
+		do_softirq();
+
+	dec_preempt_count();
+#ifdef CONFIG_TRACE_IRQFLAGS
+	local_irq_restore(flags);
+#endif
+	preempt_check_resched();
+}
+EXPORT_SYMBOL(local_bh_enable_ip);
+
+/*
  * We restart softirq processing MAX_SOFTIRQ_RESTART times,
  * and we fall back to softirqd after that.
  *
@@ -79,8 +211,11 @@ asmlinkage void __do_softirq(void)
 	int cpu;
 
 	pending = local_softirq_pending();
+	account_system_vtime(current);
 
-	local_bh_disable();
+	__local_bh_disable((unsigned long)__builtin_return_address(0));
+	trace_softirq_enter();
+
 	cpu = smp_processor_id();
 restart:
 	/* Reset the pending bitmask before enabling irqs */
@@ -108,7 +243,10 @@ restart:
 	if (pending)
 		wakeup_softirqd();
 
-	__local_bh_enable();
+	trace_softirq_exit();
+
+	account_system_vtime(current);
+	_local_bh_enable();
 }
 
 #ifndef __ARCH_HAS_DO_SOFTIRQ
@@ -135,23 +273,6 @@ EXPORT_SYMBOL(do_softirq);
 
 #endif
 
-void local_bh_enable(void)
-{
-	WARN_ON(irqs_disabled());
-	/*
-	 * Keep preemption disabled until we are done with
-	 * softirq processing:
- 	 */
- 	sub_preempt_count(SOFTIRQ_OFFSET - 1);
-
-	if (unlikely(!in_interrupt() && local_softirq_pending()))
-		do_softirq();
-
-	dec_preempt_count();
-	preempt_check_resched();
-}
-EXPORT_SYMBOL(local_bh_enable);
-
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
 # define invoke_softirq()	__do_softirq()
 #else
@@ -164,6 +285,7 @@ EXPORT_SYMBOL(local_bh_enable);
 void irq_exit(void)
 {
 	account_system_vtime(current);
+	trace_hardirq_exit();
 	sub_preempt_count(IRQ_EXIT_OFFSET);
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
@@ -206,8 +328,6 @@ void open_softirq(int nr, void (*action)(struct softirq_action*), void *data)
 	softirq_vec[nr].data = data;
 	softirq_vec[nr].action = action;
 }
-
-EXPORT_SYMBOL(open_softirq);
 
 /* Tasklets */
 struct tasklet_head
@@ -445,7 +565,7 @@ static void takeover_tasklets(unsigned int cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static int __devinit cpu_callback(struct notifier_block *nfb,
+static int __cpuinit cpu_callback(struct notifier_block *nfb,
 				  unsigned long action,
 				  void *hcpu)
 {
@@ -469,6 +589,8 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
+		if (!per_cpu(ksoftirqd, hotcpu))
+			break;
 		/* Unbind so it can run.  Fall thru. */
 		kthread_bind(per_cpu(ksoftirqd, hotcpu),
 			     any_online_cpu(cpu_online_map));
@@ -483,7 +605,7 @@ static int __devinit cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __devinitdata cpu_nfb = {
+static struct notifier_block __cpuinitdata cpu_nfb = {
 	.notifier_call = cpu_callback
 };
 
@@ -495,3 +617,22 @@ __init int spawn_ksoftirqd(void)
 	register_cpu_notifier(&cpu_nfb);
 	return 0;
 }
+
+#ifdef CONFIG_SMP
+/*
+ * Call a function on all processors
+ */
+int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait)
+{
+	int ret = 0;
+
+	preempt_disable();
+	ret = smp_call_function(func, info, retry, wait);
+	local_irq_disable();
+	func(info);
+	local_irq_enable();
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL(on_each_cpu);
+#endif

@@ -20,7 +20,7 @@
 
 /*
  * These are data structures found in platform_device.dev.platform_data,
- * and describing board-specfic data needed by drivers.  For example,
+ * and describing board-specific data needed by drivers.  For example,
  * which pin is used for a given GPIO role.
  *
  * In 2.6, drivers should strongly avoid board-specific knowledge so
@@ -31,12 +31,9 @@
 #ifndef __ASM_ARCH_BOARD_H
 #define __ASM_ARCH_BOARD_H
 
- /* Clocks */
-extern unsigned long at91_master_clock;
-
- /* Serial Port */
-extern int at91_serial_map[AT91_NR_UART];
-extern int at91_console_port;
+#include <linux/mtd/partitions.h>
+#include <linux/device.h>
+#include <linux/spi/spi.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -76,5 +73,42 @@ struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
+
+ /* NAND / SmartMedia */
+struct at91_nand_data {
+	u8		enable_pin;	/* chip enable */
+	u8		det_pin;	/* card detect */
+	u8		rdy_pin;	/* ready/busy */
+	u8		ale;		/* address line number connected to ALE */
+	u8		cle;		/* address line number connected to CLE */
+        struct mtd_partition* (*partition_info)(int, int*);
+};
+extern void __init at91_add_device_nand(struct at91_nand_data *data);
+
+ /* I2C*/
+extern void __init at91_add_device_i2c(void);
+
+ /* SPI */
+extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
+
+ /* Serial */
+struct at91_uart_config {
+	unsigned short	console_tty;	/* tty number of serial console */
+	unsigned short	nr_tty;		/* number of serial tty's */
+	short		tty_map[];	/* map UART to tty number */
+};
+extern struct platform_device *at91_default_console_device;
+extern void __init at91_init_serial(struct at91_uart_config *config);
+
+struct at91_uart_data {
+	short		use_dma_tx;	/* use transmit DMA? */
+	short		use_dma_rx;	/* use receive DMA? */
+};
+extern void __init at91_add_device_serial(void);
+
+ /* LEDs */
+extern u8 at91_leds_cpu;
+extern u8 at91_leds_timer;
+extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 
 #endif

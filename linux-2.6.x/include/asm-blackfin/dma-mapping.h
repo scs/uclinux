@@ -1,7 +1,6 @@
 #ifndef _BLACKFIN_DMA_MAPPING_H
 #define _BLACKFIN_DMA_MAPPING_H
 
-#include <linux/config.h>
 #include <asm/scatterlist.h>
 
 void dma_alloc_init(unsigned long start, unsigned long end);

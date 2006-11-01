@@ -9,7 +9,12 @@
 /*
  * User space memory access functions
  */
+#include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/string.h>
+
+#include <asm/segment.h>
+
 #define get_ds()        (KERNEL_DS)
 #define get_fs()        (current_thread_info()->addr_limit)
 

@@ -13,7 +13,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 
 /*
  * Work out if we need multiple CPU support
@@ -138,6 +137,14 @@
 #   define CPU_NAME cpu_xscale
 #  endif
 # endif
+# ifdef CONFIG_CPU_XSC3
+#  ifdef CPU_NAME
+#   undef  MULTI_CPU
+#   define MULTI_CPU
+#  else
+#   define CPU_NAME cpu_xsc3
+#  endif
+# endif
 # ifdef CONFIG_CPU_V6
 #  ifdef CPU_NAME
 #   undef  MULTI_CPU
@@ -158,6 +165,8 @@
 
 #include <asm/memory.h>
 
+#ifdef CONFIG_MMU
+
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
 
 #define cpu_get_pgd()	\
@@ -168,6 +177,8 @@
 		pg &= ~0x3fff;				\
 		(pgd_t *)phys_to_virt(pg);		\
 	})
+
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

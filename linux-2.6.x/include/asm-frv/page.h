@@ -3,7 +3,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <asm/virtconvert.h>
 #include <asm/mem-layout.h>
 #include <asm/sections.h>
@@ -57,13 +56,9 @@ extern unsigned long min_low_pfn;
 extern unsigned long max_pfn;
 
 #ifdef CONFIG_MMU
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long) ((page) - mem_map))
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
-
 #else
-#define pfn_to_page(pfn)	(&mem_map[(pfn) - (PAGE_OFFSET >> PAGE_SHIFT)])
-#define page_to_pfn(page)	((PAGE_OFFSET >> PAGE_SHIFT) + (unsigned long) ((page) - mem_map))
+#define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
 #define pfn_valid(pfn)		((pfn) >= min_low_pfn && (pfn) < max_low_pfn)
 
 #endif
@@ -87,6 +82,7 @@ extern unsigned long max_pfn;
 #define WANT_PAGE_VIRTUAL	1
 #endif
 
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
 #endif /* _ASM_PAGE_H */

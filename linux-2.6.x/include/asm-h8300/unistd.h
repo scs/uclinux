@@ -285,12 +285,14 @@
 #define __NR_mq_timedreceive	(__NR_mq_open+3)
 #define __NR_mq_notify		(__NR_mq_open+4)
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
-#define __NR_sys_kexec_load	283
+#define __NR_kexec_load		283
 #define __NR_waitid		284
 /* #define __NR_sys_setaltroot	285 */
 #define __NR_add_key		286
 #define __NR_request_key	287
 #define __NR_keyctl		288
+
+#ifdef __KERNEL__
 
 #define NR_syscalls 289
 
@@ -460,7 +462,6 @@ type name(atype a, btype b, ctype c, dtype d, etype e, ftype f)	\
   __syscall_return(type, __res);			\
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_OLD_STAT
@@ -483,7 +484,6 @@ type name(atype a, btype b, ctype c, dtype d, etype e, ftype f)	\
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
@@ -534,7 +534,7 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -543,4 +543,5 @@ asmlinkage long sys_rt_sigaction(int sig,
   asm (".weak\t_" #name "\n"				\
        ".set\t_" #name ",_sys_ni_syscall");
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_H8300_UNISTD_H_ */

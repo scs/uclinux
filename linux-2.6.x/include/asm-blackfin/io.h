@@ -6,7 +6,6 @@
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 #endif
-#include <linux/config.h>
 #include <linux/compiler.h>
 
 /*

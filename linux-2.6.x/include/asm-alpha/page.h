@@ -1,15 +1,14 @@
 #ifndef _ALPHA_PAGE_H
 #define _ALPHA_PAGE_H
 
-#include <linux/config.h>
+#ifdef __KERNEL__
+
 #include <asm/pal.h>
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	13
 #define PAGE_SIZE	(1UL << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
-
-#ifdef __KERNEL__
 
 #ifndef __ASSEMBLY__
 
@@ -85,8 +84,6 @@ typedef unsigned long pgprot_t;
 #define __pa(x)			((unsigned long) (x) - PAGE_OFFSET)
 #define __va(x)			((void *)((unsigned long) (x) + PAGE_OFFSET))
 #ifndef CONFIG_DISCONTIGMEM
-#define pfn_to_page(pfn)	(mem_map + (pfn))
-#define page_to_pfn(page)	((unsigned long)((page) - mem_map))
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
@@ -96,8 +93,8 @@ typedef unsigned long pgprot_t;
 #define VM_DATA_DEFAULT_FLAGS		(VM_READ | VM_WRITE | VM_EXEC | \
 					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#endif /* __KERNEL__ */
-
+#include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
+#endif /* __KERNEL__ */
 #endif /* _ALPHA_PAGE_H */

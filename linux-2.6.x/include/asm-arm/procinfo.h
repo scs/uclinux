@@ -29,7 +29,8 @@ struct processor;
 struct proc_info_list {
 	unsigned int		cpu_val;
 	unsigned int		cpu_mask;
-	unsigned long		__cpu_mmu_flags;	/* used by head.S */
+	unsigned long		__cpu_mm_mmu_flags;	/* used by head.S */
+	unsigned long		__cpu_io_mmu_flags;	/* used by head.S */
 	unsigned long		__cpu_flush;		/* used by head.S */
 	const char		*arch_name;
 	const char		*elf_name;
@@ -45,8 +46,6 @@ extern unsigned int elf_hwcap;
 
 #endif	/* __ASSEMBLY__ */
 
-#define PROC_INFO_SZ	48
-
 #define HWCAP_SWP	1
 #define HWCAP_HALF	2
 #define HWCAP_THUMB	4
@@ -56,5 +55,6 @@ extern unsigned int elf_hwcap;
 #define HWCAP_VFP	64
 #define HWCAP_EDSP	128
 #define HWCAP_JAVA	256
+#define HWCAP_IWMMXT	512
 
 #endif

@@ -23,6 +23,11 @@
 #define PENALTY_FOR_NODE_WITH_CPUS 255
 
 /*
+ * Distance above which we begin to use zone reclaim
+ */
+#define RECLAIM_DISTANCE 15
+
+/*
  * Returns the number of the node containing CPU 'cpu'
  */
 #define cpu_to_node(cpu) (int)(cpu_to_node_map[cpu])
@@ -107,6 +112,7 @@ void build_cpu_to_node_map(void);
 #define topology_core_id(cpu)			(cpu_data(cpu)->core_id)
 #define topology_core_siblings(cpu)		(cpu_core_map[cpu])
 #define topology_thread_siblings(cpu)		(cpu_sibling_map[cpu])
+#define smt_capable() 				(smp_num_siblings > 1)
 #endif
 
 #include <asm-generic/topology.h>

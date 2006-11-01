@@ -3,8 +3,8 @@
  *	       Hans-Peter Nilsson (hp@axis.com)
  *
  * $Log$
- * Revision 1.5  2006/03/22 07:43:33  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/01 05:28:46  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.8  2001/10/29 13:01:48  bjornw
  * Removed unused variable tmp2 in strnlen_user

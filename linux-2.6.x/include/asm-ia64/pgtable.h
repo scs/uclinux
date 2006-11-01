@@ -12,7 +12,6 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <linux/config.h>
 
 #include <asm/mman.h>
 #include <asm/page.h>
@@ -314,24 +313,22 @@ ia64_phys_addr_valid (unsigned long addr)
 #define pte_mkyoung(pte)	(__pte(pte_val(pte) | _PAGE_A))
 #define pte_mkclean(pte)	(__pte(pte_val(pte) & ~_PAGE_D))
 #define pte_mkdirty(pte)	(__pte(pte_val(pte) | _PAGE_D))
-#define pte_mkhuge(pte)		(__pte(pte_val(pte) | _PAGE_P))
+#define pte_mkhuge(pte)		(__pte(pte_val(pte)))
 
 /*
- * Macro to a page protection value as "uncacheable".  Note that "protection" is really a
- * misnomer here as the protection value contains the memory attribute bits, dirty bits,
- * and various other bits as well.
+ * Make page protection values cacheable, uncacheable, or write-
+ * combining.  Note that "protection" is really a misnomer here as the
+ * protection value contains the memory attribute bits, dirty bits, and
+ * various other bits as well.
  */
+#define pgprot_cacheable(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WB)
 #define pgprot_noncached(prot)		__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_UC)
-
-/*
- * Macro to make mark a page protection value as "write-combining".
- * Note that "protection" is really a misnomer here as the protection
- * value contains the memory attribute bits, dirty bits, and various
- * other bits as well.  Accesses through a write-combining translation
- * works bypasses the caches, but does allow for consecutive writes to
- * be combined into single (but larger) write transactions.
- */
 #define pgprot_writecombine(prot)	__pgprot((pgprot_val(prot) & ~_PAGE_MA_MASK) | _PAGE_MA_WC)
+
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+#define __HAVE_PHYS_MEM_ACCESS_PROT
 
 static inline unsigned long
 pgd_index (unsigned long address)
@@ -505,9 +502,6 @@ extern struct page *zero_page_memmap_ptr;
 #define HUGETLB_PGDIR_SHIFT	(HPAGE_SHIFT + 2*(PAGE_SHIFT-3))
 #define HUGETLB_PGDIR_SIZE	(__IA64_UL(1) << HUGETLB_PGDIR_SHIFT)
 #define HUGETLB_PGDIR_MASK	(~(HUGETLB_PGDIR_SIZE-1))
-struct mmu_gather;
-void hugetlb_free_pgd_range(struct mmu_gather **tlb, unsigned long addr,
-		unsigned long end, unsigned long floor, unsigned long ceiling);
 #endif
 
 /*

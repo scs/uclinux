@@ -1,7 +1,6 @@
 #ifndef __BFIN_ENTRY_H
 #define __BFIN_ENTRY_H
 
-#include <linux/config.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 

@@ -17,7 +17,6 @@
 #ifndef _BFIN_IRQ_H_
 #define _BFIN_IRQ_H_
 
-#include <linux/config.h>
 #include <asm/mach/irq.h>
 #include <asm/ptrace.h>
 
@@ -54,10 +53,9 @@
  *                                                      01/11/97 - Jes
  */
 
-extern int sys_request_irq(unsigned int,
-			   int (*)(int, void *, struct pt_regs *),
-			   unsigned long, const char *, void *);
-extern void sys_free_irq(unsigned int, void *);
+extern void sys_free_irq(unsigned int irq, void *dev_id);
+
+extern void ack_bad_irq(unsigned int irq);
 
 static __inline__ int irq_canonicalize(int irq)
 {
@@ -65,11 +63,7 @@ static __inline__ int irq_canonicalize(int irq)
 }
 
 /* count of spurious interrupts */
-extern unsigned int num_spurious;
-void enable_irq(unsigned int irq);
-void disable_irq(unsigned int irq);
-
-#define disable_irq_nosync(x)	disable_irq(x)
+/* extern volatile unsigned int num_spurious; */
 
 #ifndef NO_IRQ
 #define NO_IRQ ((unsigned int)(-1))
@@ -87,7 +81,5 @@ void disable_irq(unsigned int irq);
 #define IRQT_LOW	(__IRQT_LOWLVL)
 #define IRQT_HIGH	(__IRQT_HIGHLVL)
 #define IRQT_PROBE	(1 << 4)
-
-int set_irq_type(unsigned int irq, unsigned int type);
 
 #endif				/* _BFIN_IRQ_H_ */

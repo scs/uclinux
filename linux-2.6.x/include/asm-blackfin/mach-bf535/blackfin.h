@@ -32,8 +32,6 @@
 #ifndef _MACH_BLACKFIN_H_
 #define _MACH_BLACKFIN_H_
 
-#define BF535_FAMILY
-
 #include "bf535.h"
 #include "mem_map.h"
 #include "defBF535.h"

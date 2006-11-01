@@ -1,7 +1,6 @@
 #ifndef __ASM_IO_APIC_H
 #define __ASM_IO_APIC_H
 
-#include <linux/config.h>
 #include <asm/types.h>
 #include <asm/mpspec.h>
 
@@ -200,6 +199,7 @@ extern int io_apic_get_unique_id (int ioapic, int apic_id);
 extern int io_apic_get_version (int ioapic);
 extern int io_apic_get_redir_entries (int ioapic);
 extern int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int active_high_low);
+extern int timer_uses_ioapic_pin_0;
 #endif /* CONFIG_ACPI */
 
 extern int (*ioapic_renumber_irq)(int ioapic, int irq);
