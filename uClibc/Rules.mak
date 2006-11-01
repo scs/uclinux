@@ -23,6 +23,12 @@
 # All normal configuration options live in the file named ".config".
 # Don't mess with this file unless you know what you are doing.
 
+ifndef ROOTDIR
+ROOTDIR=$(PWD)/..
+endif
+ifndef LINUXDIR
+LINUXDIR=linux-2.6.x
+endif
 
 #--------------------------------------------------------
 # If you are running a cross compiler, you will want to set 'CROSS'
