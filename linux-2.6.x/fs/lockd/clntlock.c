@@ -44,32 +44,25 @@ static LIST_HEAD(nlm_blocked);
 /*
  * Queue up a lock for blocking so that the GRANTED request can see it
  */
-int nlmclnt_prepare_block(struct nlm_rqst *req, struct nlm_host *host, struct file_lock *fl)
+struct nlm_wait *nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl)
 {
 	struct nlm_wait *block;
 
-	BUG_ON(req->a_block != NULL);
 	block = kmalloc(sizeof(*block), GFP_KERNEL);
-	if (block == NULL)
-		return -ENOMEM;
-	block->b_host = host;
-	block->b_lock = fl;
-	init_waitqueue_head(&block->b_wait);
-	block->b_status = NLM_LCK_BLOCKED;
-
-	list_add(&block->b_list, &nlm_blocked);
-	req->a_block = block;
-
-	return 0;
+	if (block != NULL) {
+		block->b_host = host;
+		block->b_lock = fl;
+		init_waitqueue_head(&block->b_wait);
+		block->b_status = NLM_LCK_BLOCKED;
+		list_add(&block->b_list, &nlm_blocked);
+	}
+	return block;
 }
 
-void nlmclnt_finish_block(struct nlm_rqst *req)
+void nlmclnt_finish_block(struct nlm_wait *block)
 {
-	struct nlm_wait *block = req->a_block;
-
 	if (block == NULL)
 		return;
-	req->a_block = NULL;
 	list_del(&block->b_list);
 	kfree(block);
 }
@@ -77,15 +70,14 @@ void nlmclnt_finish_block(struct nlm_rqst *req)
 /*
  * Block on a lock
  */
-long nlmclnt_block(struct nlm_rqst *req, long timeout)
+int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 {
-	struct nlm_wait	*block = req->a_block;
 	long ret;
 
 	/* A borken server might ask us to block even if we didn't
 	 * request it. Just say no!
 	 */
-	if (!req->a_args.block)
+	if (block == NULL)
 		return -EAGAIN;
 
 	/* Go to sleep waiting for GRANT callback. Some servers seem
@@ -99,13 +91,10 @@ long nlmclnt_block(struct nlm_rqst *req, long timeout)
 	ret = wait_event_interruptible_timeout(block->b_wait,
 			block->b_status != NLM_LCK_BLOCKED,
 			timeout);
-
-	if (block->b_status != NLM_LCK_BLOCKED) {
-		req->a_res.status = block->b_status;
-		block->b_status = NLM_LCK_BLOCKED;
-	}
-
-	return ret;
+	if (ret < 0)
+		return -ERESTARTSYS;
+	req->a_res.status = block->b_status;
+	return 0;
 }
 
 /*
@@ -125,7 +114,15 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
 	list_for_each_entry(block, &nlm_blocked, b_list) {
 		struct file_lock *fl_blocked = block->b_lock;
 
-		if (!nlm_compare_locks(fl_blocked, fl))
+		if (fl_blocked->fl_start != fl->fl_start)
+			continue;
+		if (fl_blocked->fl_end != fl->fl_end)
+			continue;
+		/*
+		 * Careful! The NLM server will return the 32-bit "pid" that
+		 * we put on the wire: in this case the lockowner "pid".
+		 */
+		if (fl_blocked->fl_u.nfs_fl.owner->pid != lock->svid)
 			continue;
 		if (!nlm_cmp_addr(&block->b_host->h_addr, addr))
 			continue;
@@ -147,47 +144,30 @@ u32 nlmclnt_grant(const struct sockaddr_in *addr, const struct nlm_lock *lock)
  */
 
 /*
- * Mark the locks for reclaiming.
- * FIXME: In 2.5 we don't want to iterate through any global file_lock_list.
- *        Maintain NLM lock reclaiming lists in the nlm_host instead.
- */
-static
-void nlmclnt_mark_reclaim(struct nlm_host *host)
-{
-	struct file_lock *fl;
-	struct inode *inode;
-	struct list_head *tmp;
-
-	list_for_each(tmp, &file_lock_list) {
-		fl = list_entry(tmp, struct file_lock, fl_link);
-
-		inode = fl->fl_file->f_dentry->d_inode;
-		if (inode->i_sb->s_magic != NFS_SUPER_MAGIC)
-			continue;
-		if (fl->fl_u.nfs_fl.owner == NULL)
-			continue;
-		if (fl->fl_u.nfs_fl.owner->host != host)
-			continue;
-		if (!(fl->fl_u.nfs_fl.flags & NFS_LCK_GRANTED))
-			continue;
-		fl->fl_u.nfs_fl.flags |= NFS_LCK_RECLAIM;
-	}
-}
-
-/*
  * Someone has sent us an SM_NOTIFY. Ensure we bind to the new port number,
  * that we mark locks for reclaiming, and that we bump the pseudo NSM state.
  */
-static inline
-void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
+static void nlmclnt_prepare_reclaim(struct nlm_host *host)
 {
+	down_write(&host->h_rwsem);
 	host->h_monitored = 0;
-	host->h_nsmstate = newstate;
 	host->h_state++;
 	host->h_nextrebind = 0;
 	nlm_rebind_host(host);
-	nlmclnt_mark_reclaim(host);
+
+	/*
+	 * Mark the locks for reclaiming.
+	 */
+	list_splice_init(&host->h_granted, &host->h_reclaim);
+
 	dprintk("NLM: reclaiming locks for host %s", host->h_name);
+}
+
+static void nlmclnt_finish_reclaim(struct nlm_host *host)
+{
+	host->h_reclaiming = 0;
+	up_write(&host->h_rwsem);
+	dprintk("NLM: done reclaiming locks for host %s", host->h_name);
 }
 
 /*
@@ -197,12 +177,10 @@ void nlmclnt_prepare_reclaim(struct nlm_host *host, u32 newstate)
 void
 nlmclnt_recovery(struct nlm_host *host, u32 newstate)
 {
-	if (host->h_reclaiming++) {
-		if (host->h_nsmstate == newstate)
-			return;
-		nlmclnt_prepare_reclaim(host, newstate);
-	} else {
-		nlmclnt_prepare_reclaim(host, newstate);
+	if (host->h_nsmstate == newstate)
+		return;
+	host->h_nsmstate = newstate;
+	if (!host->h_reclaiming++) {
 		nlm_get_host(host);
 		__module_get(THIS_MODULE);
 		if (kernel_thread(reclaimer, host, CLONE_KERNEL) < 0)
@@ -215,9 +193,8 @@ reclaimer(void *ptr)
 {
 	struct nlm_host	  *host = (struct nlm_host *) ptr;
 	struct nlm_wait	  *block;
-	struct list_head *tmp;
-	struct file_lock *fl;
-	struct inode *inode;
+	struct file_lock *fl, *next;
+	u32 nsmstate;
 
 	daemonize("%s-reclaim", host->h_name);
 	allow_signal(SIGKILL);
@@ -227,29 +204,25 @@ reclaimer(void *ptr)
 	lock_kernel();
 	lockd_up();
 
+	nlmclnt_prepare_reclaim(host);
 	/* First, reclaim all locks that have been marked. */
 restart:
-	list_for_each(tmp, &file_lock_list) {
-		fl = list_entry(tmp, struct file_lock, fl_link);
+	nsmstate = host->h_nsmstate;
+	list_for_each_entry_safe(fl, next, &host->h_reclaim, fl_u.nfs_fl.list) {
+		list_del_init(&fl->fl_u.nfs_fl.list);
 
-		inode = fl->fl_file->f_dentry->d_inode;
-		if (inode->i_sb->s_magic != NFS_SUPER_MAGIC)
-			continue;
-		if (fl->fl_u.nfs_fl.owner == NULL)
-			continue;
-		if (fl->fl_u.nfs_fl.owner->host != host)
-			continue;
-		if (!(fl->fl_u.nfs_fl.flags & NFS_LCK_RECLAIM))
-			continue;
-
-		fl->fl_u.nfs_fl.flags &= ~NFS_LCK_RECLAIM;
-		nlmclnt_reclaim(host, fl);
 		if (signalled())
-			break;
-		goto restart;
+			continue;
+		if (nlmclnt_reclaim(host, fl) != 0)
+			continue;
+		list_add_tail(&fl->fl_u.nfs_fl.list, &host->h_granted);
+		if (host->h_nsmstate != nsmstate) {
+			/* Argh! The server rebooted again! */
+			list_splice_init(&host->h_granted, &host->h_reclaim);
+			goto restart;
+		}
 	}
-
-	host->h_reclaiming = 0;
+	nlmclnt_finish_reclaim(host);
 
 	/* Now, wake up all processes that sleep on a blocked lock */
 	list_for_each_entry(block, &nlm_blocked, b_list) {

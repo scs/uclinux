@@ -9,7 +9,6 @@
  *
  *  Common directory handling for ADFS
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/adfs_fs.h>
@@ -196,7 +195,7 @@ out:
 	return ret;
 }
 
-struct file_operations adfs_dir_operations = {
+const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= adfs_readdir,
 	.fsync		= file_fsync,

@@ -36,7 +36,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -60,7 +59,7 @@ struct omap_irq_bank {
 	unsigned long wake_enable;
 };
 
-static unsigned int irq_bank_count = 0;
+static unsigned int irq_bank_count;
 static struct omap_irq_bank *irq_banks;
 
 static inline unsigned int irq_bank_readl(int bank, int offset)
@@ -142,34 +141,35 @@ static void omap_irq_set_cfg(int irq, int fiq, int priority, int trigger)
 
 #ifdef CONFIG_ARCH_OMAP730
 static struct omap_irq_bank omap730_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3f8e22f },
-	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xfdb9c1f2 },
+	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3f8e22f },
+	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb9c1f2 },
 	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0x800040f3 },
 };
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_irq_bank omap1510_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3febfff },
-	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xffbfffed },
+	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3febfff },
+	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xffbfffed },
 };
 static struct omap_irq_bank omap310_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3faefc3 },
-	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0x65b3c061 },
+	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3faefc3 },
+	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0x65b3c061 },
 };
 #endif
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 
 static struct omap_irq_bank omap1610_irq_banks[] = {
-	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3fefe8f },
-	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xfdb7c1fd },
+	{ .base_reg = OMAP_IH1_BASE,		.trigger_map = 0xb3fefe8f },
+	{ .base_reg = OMAP_IH2_BASE,		.trigger_map = 0xfdb7c1fd },
 	{ .base_reg = OMAP_IH2_BASE + 0x100,	.trigger_map = 0xffffb7ff },
 	{ .base_reg = OMAP_IH2_BASE + 0x200,	.trigger_map = 0xffffffff },
 };
 #endif
 
-static struct irqchip omap_irq_chip = {
+static struct irq_chip omap_irq_chip = {
+	.name		= "MPU",
 	.ack		= omap_mask_ack_irq,
 	.mask		= omap_mask_irq,
 	.unmask		= omap_unmask_irq,

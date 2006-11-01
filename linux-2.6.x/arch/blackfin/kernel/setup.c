@@ -411,12 +411,12 @@ static struct cpu cpu[1];
 #endif
 static int __init topology_init(void)
 {
-#if defined(CONFIG_BF561)
-	register_cpu(&cpu[0], 0, NULL);
-	register_cpu(&cpu[1], 1, NULL);
+#if defined (CONFIG_BF561)
+	register_cpu(&cpu[0], 0);
+	register_cpu(&cpu[1], 1);
 	return 0;
 #else
-	return register_cpu(cpu, 0, NULL);
+	return register_cpu(cpu, 0);
 #endif
 }
 

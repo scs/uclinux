@@ -32,7 +32,6 @@
 #define VMLINUX_SYMBOL(_sym_) _##_sym_
 
 #include <asm-generic/vmlinux.lds.h>
-#include <linux/config.h>
 #include <asm/mem_map.h>
 
 
@@ -82,6 +81,22 @@ SECTIONS
 		*(__ksymtab_gpl)
 		___stop___ksymtab_gpl = .;
 
+		/* Kernel symbol table: Normal unused symbols */		\
+		___start___ksymtab_unused = .;
+		*(__ksymtab_unused)
+		___stop___ksymtab_unused = .;
+
+		/* Kernel symbol table: GPL-only unused symbols */
+		___start___ksymtab_unused_gpl = .;
+		*(__ksymtab_unused_gpl)
+		___stop___ksymtab_unused_gpl = .;
+
+
+		/* Kernel symbol table: GPL-future symbols */
+		___start___ksymtab_gpl_future = .;
+		*(__ksymtab_gpl_future)
+		___stop___ksymtab_gpl_future = .;
+
 		/* Kernel symbol table: Normal symbols */
 		___start___kcrctab = .;
 		*(__kcrctab)
@@ -91,6 +106,11 @@ SECTIONS
 		___start___kcrctab_gpl = .;
 		*(__kcrctab_gpl)
 		___stop___kcrctab_gpl = .;
+
+		/* Kernel symbol table: GPL-future symbols */
+		___start___kcrctab_gpl_future = .;
+		*(__kcrctab_gpl_future)
+		___stop___kcrctab_gpl_future = .;
 
 		/* Kernel symbol table: strings */
 		*(__ksymtab_strings)

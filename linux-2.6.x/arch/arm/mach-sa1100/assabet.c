@@ -9,7 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -26,6 +25,7 @@
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/page.h>
+#include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 

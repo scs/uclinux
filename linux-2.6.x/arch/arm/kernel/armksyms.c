@@ -100,32 +100,22 @@ EXPORT_SYMBOL(__raw_writesl);
 #endif
 
 	/* string / mem functions */
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(__memzero);
 
 	/* user mem (segment) */
-EXPORT_SYMBOL(__arch_copy_from_user);
-EXPORT_SYMBOL(__arch_copy_to_user);
-EXPORT_SYMBOL(__arch_clear_user);
-EXPORT_SYMBOL(__arch_strnlen_user);
-EXPORT_SYMBOL(__arch_strncpy_from_user);
+EXPORT_SYMBOL(__strnlen_user);
+EXPORT_SYMBOL(__strncpy_from_user);
+
+#ifdef CONFIG_MMU
+EXPORT_SYMBOL(__copy_from_user);
+EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(__clear_user);
 
 EXPORT_SYMBOL(__get_user_1);
 EXPORT_SYMBOL(__get_user_2);
@@ -135,6 +125,7 @@ EXPORT_SYMBOL(__put_user_1);
 EXPORT_SYMBOL(__put_user_2);
 EXPORT_SYMBOL(__put_user_4);
 EXPORT_SYMBOL(__put_user_8);
+#endif
 
 	/* crypto hash */
 EXPORT_SYMBOL(sha_transform);
@@ -190,8 +181,6 @@ EXPORT_SYMBOL(_find_next_bit_be);
 
 	/* syscalls */
 EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_read);
 EXPORT_SYMBOL(sys_lseek);
-EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_wait4);

@@ -371,8 +371,7 @@ void __devinit pcibios_sort(void)
 			list_for_each(ln, &pci_devices) {
 				d = pci_dev_g(ln);
 				if (d->bus->number == bus && d->devfn == devfn) {
-					list_del(&d->global_list);
-					list_add_tail(&d->global_list, &sorted_devices);
+					list_move_tail(&d->global_list, &sorted_devices);
 					if (d == dev)
 						found = 1;
 					break;
@@ -390,8 +389,7 @@ void __devinit pcibios_sort(void)
 		if (!found) {
 			printk(KERN_WARNING "PCI: Device %s not found by BIOS\n",
 				pci_name(dev));
-			list_del(&dev->global_list);
-			list_add_tail(&dev->global_list, &sorted_devices);
+			list_move_tail(&dev->global_list, &sorted_devices);
 		}
 	}
 	list_splice(&sorted_devices, &pci_devices);
@@ -476,14 +474,12 @@ int pcibios_set_irq_routing(struct pci_dev *dev, int pin, int irq)
 }
 EXPORT_SYMBOL(pcibios_set_irq_routing);
 
-static int __init pci_pcbios_init(void)
+void __init pci_pcbios_init(void)
 {
 	if ((pci_probe & PCI_PROBE_BIOS) 
 		&& ((raw_pci_ops = pci_find_bios()))) {
 		pci_probe |= PCI_BIOS_SORT;
 		pci_bios_present = 1;
 	}
-	return 0;
 }
 
-arch_initcall(pci_pcbios_init);

@@ -10,7 +10,6 @@
  * [This document is available from Microsoft at:
  *    http://www.microsoft.com/hwdev/busbios/amp_12.htm]
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/timer.h>
@@ -357,10 +356,8 @@ static int apm_open(struct inode * inode, struct file * filp)
 {
 	struct apm_user *as;
 
-	as = (struct apm_user *)kmalloc(sizeof(*as), GFP_KERNEL);
+	as = (struct apm_user *)kzalloc(sizeof(*as), GFP_KERNEL);
 	if (as) {
-		memset(as, 0, sizeof(*as));
-
 		/*
 		 * XXX - this is a tiny bit broken, when we consider BSD
 		 * process accounting. If the device is opened by root, we

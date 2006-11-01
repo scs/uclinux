@@ -34,7 +34,6 @@
 *		Rusty Russell	:	Hacked into shape for new "hotplug" boot process. */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 
@@ -52,6 +51,7 @@
 #include <asm/tlbflush.h>
 #include <asm/desc.h>
 #include <asm/arch_hooks.h>
+#include <asm/nmi.h>
 
 #include <mach_apic.h>
 #include <mach_wakecpu.h>
@@ -66,11 +66,8 @@ int smp_num_siblings = 1;
 EXPORT_SYMBOL(smp_num_siblings);
 #endif
 
-/* Package ID of each logical CPU */
-int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-
-/* Core ID of each logical CPU */
-int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
+/* Last level cache ID of each logical CPU */
+int cpu_llc_id[NR_CPUS] __cpuinitdata = {[0 ... NR_CPUS-1] = BAD_APICID};
 
 /* representing HT siblings of each logical CPU */
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
@@ -215,14 +212,20 @@ valid_k7:
  * then we print a warning if not, and always resync.
  */
 
-static atomic_t tsc_start_flag = ATOMIC_INIT(0);
-static atomic_t tsc_count_start = ATOMIC_INIT(0);
-static atomic_t tsc_count_stop = ATOMIC_INIT(0);
-static unsigned long long tsc_values[NR_CPUS];
+static struct {
+	atomic_t start_flag;
+	atomic_t count_start;
+	atomic_t count_stop;
+	unsigned long long values[NR_CPUS];
+} tsc __initdata = {
+	.start_flag = ATOMIC_INIT(0),
+	.count_start = ATOMIC_INIT(0),
+	.count_stop = ATOMIC_INIT(0),
+};
 
 #define NR_LOOPS 5
 
-static void __init synchronize_tsc_bp (void)
+static void __init synchronize_tsc_bp(void)
 {
 	int i;
 	unsigned long long t0;
@@ -236,7 +239,7 @@ static void __init synchronize_tsc_bp (void)
 	/* convert from kcyc/sec to cyc/usec */
 	one_usec = cpu_khz / 1000;
 
-	atomic_set(&tsc_start_flag, 1);
+	atomic_set(&tsc.start_flag, 1);
 	wmb();
 
 	/*
@@ -253,16 +256,16 @@ static void __init synchronize_tsc_bp (void)
 		/*
 		 * all APs synchronize but they loop on '== num_cpus'
 		 */
-		while (atomic_read(&tsc_count_start) != num_booting_cpus()-1)
-			mb();
-		atomic_set(&tsc_count_stop, 0);
+		while (atomic_read(&tsc.count_start) != num_booting_cpus()-1)
+			cpu_relax();
+		atomic_set(&tsc.count_stop, 0);
 		wmb();
 		/*
 		 * this lets the APs save their current TSC:
 		 */
-		atomic_inc(&tsc_count_start);
+		atomic_inc(&tsc.count_start);
 
-		rdtscll(tsc_values[smp_processor_id()]);
+		rdtscll(tsc.values[smp_processor_id()]);
 		/*
 		 * We clear the TSC in the last loop:
 		 */
@@ -272,54 +275,54 @@ static void __init synchronize_tsc_bp (void)
 		/*
 		 * Wait for all APs to leave the synchronization point:
 		 */
-		while (atomic_read(&tsc_count_stop) != num_booting_cpus()-1)
-			mb();
-		atomic_set(&tsc_count_start, 0);
+		while (atomic_read(&tsc.count_stop) != num_booting_cpus()-1)
+			cpu_relax();
+		atomic_set(&tsc.count_start, 0);
 		wmb();
-		atomic_inc(&tsc_count_stop);
+		atomic_inc(&tsc.count_stop);
 	}
 
 	sum = 0;
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_isset(i, cpu_callout_map)) {
-			t0 = tsc_values[i];
+			t0 = tsc.values[i];
 			sum += t0;
 		}
 	}
 	avg = sum;
 	do_div(avg, num_booting_cpus());
 
-	sum = 0;
 	for (i = 0; i < NR_CPUS; i++) {
 		if (!cpu_isset(i, cpu_callout_map))
 			continue;
-		delta = tsc_values[i] - avg;
+		delta = tsc.values[i] - avg;
 		if (delta < 0)
 			delta = -delta;
 		/*
 		 * We report bigger than 2 microseconds clock differences.
 		 */
 		if (delta > 2*one_usec) {
-			long realdelta;
+			long long realdelta;
+
 			if (!buggy) {
 				buggy = 1;
 				printk("\n");
 			}
 			realdelta = delta;
 			do_div(realdelta, one_usec);
-			if (tsc_values[i] < avg)
+			if (tsc.values[i] < avg)
 				realdelta = -realdelta;
 
-			printk(KERN_INFO "CPU#%d had %ld usecs TSC skew, fixed it up.\n", i, realdelta);
+			if (realdelta)
+				printk(KERN_INFO "CPU#%d had %Ld usecs TSC "
+					"skew, fixed it up.\n", i, realdelta);
 		}
-
-		sum += delta;
 	}
 	if (!buggy)
 		printk("passed.\n");
 }
 
-static void __init synchronize_tsc_ap (void)
+static void __init synchronize_tsc_ap(void)
 {
 	int i;
 
@@ -328,19 +331,21 @@ static void __init synchronize_tsc_ap (void)
 	 * this gets called, so we first wait for the BP to
 	 * finish SMP initialization:
 	 */
-	while (!atomic_read(&tsc_start_flag)) mb();
+	while (!atomic_read(&tsc.start_flag))
+		cpu_relax();
 
 	for (i = 0; i < NR_LOOPS; i++) {
-		atomic_inc(&tsc_count_start);
-		while (atomic_read(&tsc_count_start) != num_booting_cpus())
-			mb();
+		atomic_inc(&tsc.count_start);
+		while (atomic_read(&tsc.count_start) != num_booting_cpus())
+			cpu_relax();
 
-		rdtscll(tsc_values[smp_processor_id()]);
+		rdtscll(tsc.values[smp_processor_id()]);
 		if (i == NR_LOOPS-1)
 			write_tsc(0, 0);
 
-		atomic_inc(&tsc_count_stop);
-		while (atomic_read(&tsc_count_stop) != num_booting_cpus()) mb();
+		atomic_inc(&tsc.count_stop);
+		while (atomic_read(&tsc.count_stop) != num_booting_cpus())
+			cpu_relax();
 	}
 }
 #undef NR_LOOPS
@@ -440,6 +445,20 @@ static void __devinit smp_callin(void)
 
 static int cpucount;
 
+/* maps the cpu to the sched domain representing multi-core */
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	struct cpuinfo_x86 *c = cpu_data + cpu;
+	/*
+	 * For perf, we return last level cache shared map.
+	 * And for power savings, we return cpu_core_map
+	 */
+	if (sched_mc_power_savings || sched_smt_power_savings)
+		return cpu_core_map[cpu];
+	else
+		return c->llc_shared_map;
+}
+
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
@@ -453,17 +472,21 @@ set_cpu_sibling_map(int cpu)
 
 	if (smp_num_siblings > 1) {
 		for_each_cpu_mask(i, cpu_sibling_setup_map) {
-			if (phys_proc_id[cpu] == phys_proc_id[i] &&
-			    cpu_core_id[cpu] == cpu_core_id[i]) {
+			if (c[cpu].phys_proc_id == c[i].phys_proc_id &&
+			    c[cpu].cpu_core_id == c[i].cpu_core_id) {
 				cpu_set(i, cpu_sibling_map[cpu]);
 				cpu_set(cpu, cpu_sibling_map[i]);
 				cpu_set(i, cpu_core_map[cpu]);
 				cpu_set(cpu, cpu_core_map[i]);
+				cpu_set(i, c[cpu].llc_shared_map);
+				cpu_set(cpu, c[i].llc_shared_map);
 			}
 		}
 	} else {
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 	}
+
+	cpu_set(cpu, c[cpu].llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
 		cpu_core_map[cpu] = cpu_sibling_map[cpu];
@@ -472,7 +495,12 @@ set_cpu_sibling_map(int cpu)
 	}
 
 	for_each_cpu_mask(i, cpu_sibling_setup_map) {
-		if (phys_proc_id[cpu] == phys_proc_id[i]) {
+		if (cpu_llc_id[cpu] != BAD_APICID &&
+		    cpu_llc_id[cpu] == cpu_llc_id[i]) {
+			cpu_set(i, c[cpu].llc_shared_map);
+			cpu_set(cpu, c[i].llc_shared_map);
+		}
+		if (c[cpu].phys_proc_id == c[i].phys_proc_id) {
 			cpu_set(i, cpu_core_map[cpu]);
 			cpu_set(cpu, cpu_core_map[i]);
 			/*
@@ -899,6 +927,7 @@ static int __devinit do_boot_cpu(int apicid, int cpu)
 	unsigned short nmi_high = 0, nmi_low = 0;
 
 	++cpucount;
+	alternatives_smp_switch(1);
 
 	/*
 	 * We can't use kernel_thread since we must avoid to
@@ -1002,7 +1031,6 @@ void cpu_exit_clear(void)
 
 	cpu_clear(cpu, cpu_callout_map);
 	cpu_clear(cpu, cpu_callin_map);
-	cpu_clear(cpu, cpu_present_map);
 
 	cpu_clear(cpu, smp_commenced_mask);
 	unmap_cpu_to_logical_apicid(cpu);
@@ -1014,35 +1042,37 @@ struct warm_boot_cpu_info {
 	int cpu;
 };
 
-static void __devinit do_warm_boot_cpu(void *p)
+static void __cpuinit do_warm_boot_cpu(void *p)
 {
 	struct warm_boot_cpu_info *info = p;
 	do_boot_cpu(info->apicid, info->cpu);
 	complete(info->complete);
 }
 
-int __devinit smp_prepare_cpu(int cpu)
+static int __cpuinit __smp_prepare_cpu(int cpu)
 {
 	DECLARE_COMPLETION(done);
 	struct warm_boot_cpu_info info;
 	struct work_struct task;
 	int	apicid, ret;
-
-	lock_cpu_hotplug();
-
-	/*
-	 * On x86, CPU0 is never offlined.  Trying to bring up an
-	 * already-booted CPU will hang.  So check for that case.
-	 */
-	if (cpu_online(cpu)) {
-		ret = -EINVAL;
-		goto exit;
-	}
+	struct Xgt_desc_struct *cpu_gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
 
 	apicid = x86_cpu_to_apicid[cpu];
 	if (apicid == BAD_APICID) {
 		ret = -ENODEV;
 		goto exit;
+	}
+
+	/*
+	 * the CPU isn't initialized at boot time, allocate gdt table here.
+	 * cpu_init will initialize it
+	 */
+	if (!cpu_gdt_descr->address) {
+		cpu_gdt_descr->address = get_zeroed_page(GFP_KERNEL);
+		if (!cpu_gdt_descr->address)
+			printk(KERN_CRIT "CPU%d failed to allocate GDT\n", cpu);
+			ret = -ENOMEM;
+			goto exit;
 	}
 
 	info.complete = &done;
@@ -1063,7 +1093,6 @@ int __devinit smp_prepare_cpu(int cpu)
 	zap_low_mappings();
 	ret = 0;
 exit:
-	unlock_cpu_hotplug();
 	return ret;
 }
 #endif
@@ -1323,8 +1352,8 @@ remove_siblinginfo(int cpu)
 		cpu_clear(cpu, cpu_sibling_map[sibling]);
 	cpus_clear(cpu_sibling_map[cpu]);
 	cpus_clear(cpu_core_map[cpu]);
-	phys_proc_id[cpu] = BAD_APICID;
-	cpu_core_id[cpu] = BAD_APICID;
+	c[cpu].phys_proc_id = 0;
+	c[cpu].cpu_core_id = 0;
 	cpu_clear(cpu, cpu_sibling_setup_map);
 }
 
@@ -1368,6 +1397,8 @@ void __cpu_die(unsigned int cpu)
 		/* They ack this in play_dead by setting CPU_DEAD */
 		if (per_cpu(cpu_state, cpu) == CPU_DEAD) {
 			printk ("CPU %d is now offline\n", cpu);
+			if (1 == num_online_cpus())
+				alternatives_smp_switch(0);
 			return;
 		}
 		msleep(100);
@@ -1389,6 +1420,22 @@ void __cpu_die(unsigned int cpu)
 
 int __devinit __cpu_up(unsigned int cpu)
 {
+#ifdef CONFIG_HOTPLUG_CPU
+	int ret=0;
+
+	/*
+	 * We do warm boot only on cpus that had booted earlier
+	 * Otherwise cold boot is all handled from smp_boot_cpus().
+	 * cpu_callin_map is set during AP kickstart process. Its reset
+	 * when a cpu is taken offline from cpu_exit_clear().
+	 */
+	if (!cpu_isset(cpu, cpu_callin_map))
+		ret = __smp_prepare_cpu(cpu);
+
+	if (ret)
+		return -EIO;
+#endif
+
 	/* In case one didn't come up */
 	if (!cpu_isset(cpu, cpu_callin_map)) {
 		printk(KERN_DEBUG "skipping cpu%d, didn't come online\n", cpu);
@@ -1401,7 +1448,7 @@ int __devinit __cpu_up(unsigned int cpu)
 	/* Unleash the CPU! */
 	cpu_set(cpu, smp_commenced_mask);
 	while (!cpu_isset(cpu, cpu_online_map))
-		mb();
+		cpu_relax();
 	return 0;
 }
 

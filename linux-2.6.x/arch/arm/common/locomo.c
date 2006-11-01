@@ -15,7 +15,6 @@
  * Based on sa1111.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -60,7 +59,7 @@ struct locomo {
 	unsigned long phys;
 	unsigned int irq;
 	spinlock_t lock;
-	void *base;
+	void __iomem *base;
 };
 
 struct locomo_dev_info {
@@ -162,7 +161,7 @@ static void locomo_handler(unsigned int irq, struct irqdesc *desc,
 {
 	int req, i;
 	struct irqdesc *d;
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 
 	/* Acknowledge the parent IRQ */
 	desc->chip->ack(irq);
@@ -189,7 +188,7 @@ static void locomo_ack_irq(unsigned int irq)
 
 static void locomo_mask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_ICR);
 	r &= ~(0x0010 << (irq - LOCOMO_IRQ_START));
@@ -198,14 +197,15 @@ static void locomo_mask_irq(unsigned int irq)
 
 static void locomo_unmask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_ICR);
 	r |= (0x0010 << (irq - LOCOMO_IRQ_START));
 	locomo_writel(r, mapbase + LOCOMO_ICR);
 }
 
-static struct irqchip locomo_chip = {
+static struct irq_chip locomo_chip = {
+	.name	= "LOCOMO",
 	.ack	= locomo_ack_irq,
 	.mask	= locomo_mask_irq,
 	.unmask	= locomo_unmask_irq,
@@ -215,7 +215,7 @@ static void locomo_key_handler(unsigned int irq, struct irqdesc *desc,
 			    struct pt_regs *regs)
 {
 	struct irqdesc *d;
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 
 	if (locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC) & 0x0001) {
 		d = irq_desc + LOCOMO_IRQ_KEY_START;
@@ -225,7 +225,7 @@ static void locomo_key_handler(unsigned int irq, struct irqdesc *desc,
 
 static void locomo_key_ack_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
 	r &= ~(0x0100 << (irq - LOCOMO_IRQ_KEY_START));
@@ -234,7 +234,7 @@ static void locomo_key_ack_irq(unsigned int irq)
 
 static void locomo_key_mask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
 	r &= ~(0x0010 << (irq - LOCOMO_IRQ_KEY_START));
@@ -243,14 +243,15 @@ static void locomo_key_mask_irq(unsigned int irq)
 
 static void locomo_key_unmask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
 	r |= (0x0010 << (irq - LOCOMO_IRQ_KEY_START));
 	locomo_writel(r, mapbase + LOCOMO_KEYBOARD + LOCOMO_KIC);
 }
 
-static struct irqchip locomo_key_chip = {
+static struct irq_chip locomo_key_chip = {
+	.name	= "LOCOMO-key",
 	.ack	= locomo_key_ack_irq,
 	.mask	= locomo_key_mask_irq,
 	.unmask	= locomo_key_unmask_irq,
@@ -261,7 +262,7 @@ static void locomo_gpio_handler(unsigned int irq, struct irqdesc *desc,
 {
 	int req, i;
 	struct irqdesc *d;
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 
 	req = 	locomo_readl(mapbase + LOCOMO_GIR) &
 		locomo_readl(mapbase + LOCOMO_GPD) &
@@ -280,7 +281,7 @@ static void locomo_gpio_handler(unsigned int irq, struct irqdesc *desc,
 
 static void locomo_gpio_ack_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_GWE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_GPIO_START));
@@ -297,7 +298,7 @@ static void locomo_gpio_ack_irq(unsigned int irq)
 
 static void locomo_gpio_mask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_GIE);
 	r &= ~(0x0001 << (irq - LOCOMO_IRQ_GPIO_START));
@@ -306,14 +307,15 @@ static void locomo_gpio_mask_irq(unsigned int irq)
 
 static void locomo_gpio_unmask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_GIE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_GPIO_START));
 	locomo_writel(r, mapbase + LOCOMO_GIE);
 }
 
-static struct irqchip locomo_gpio_chip = {
+static struct irq_chip locomo_gpio_chip = {
+	.name	= "LOCOMO-gpio",
 	.ack	= locomo_gpio_ack_irq,
 	.mask	= locomo_gpio_mask_irq,
 	.unmask	= locomo_gpio_unmask_irq,
@@ -323,7 +325,7 @@ static void locomo_lt_handler(unsigned int irq, struct irqdesc *desc,
 			   struct pt_regs *regs)
 {
 	struct irqdesc *d;
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 
 	if (locomo_readl(mapbase + LOCOMO_LTINT) & 0x0001) {
 		d = irq_desc + LOCOMO_IRQ_LT_START;
@@ -333,7 +335,7 @@ static void locomo_lt_handler(unsigned int irq, struct irqdesc *desc,
 
 static void locomo_lt_ack_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_LTINT);
 	r &= ~(0x0100 << (irq - LOCOMO_IRQ_LT_START));
@@ -342,7 +344,7 @@ static void locomo_lt_ack_irq(unsigned int irq)
 
 static void locomo_lt_mask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_LTINT);
 	r &= ~(0x0010 << (irq - LOCOMO_IRQ_LT_START));
@@ -351,14 +353,15 @@ static void locomo_lt_mask_irq(unsigned int irq)
 
 static void locomo_lt_unmask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_LTINT);
 	r |= (0x0010 << (irq - LOCOMO_IRQ_LT_START));
 	locomo_writel(r, mapbase + LOCOMO_LTINT);
 }
 
-static struct irqchip locomo_lt_chip = {
+static struct irq_chip locomo_lt_chip = {
+	.name	= "LOCOMO-lt",
 	.ack	= locomo_lt_ack_irq,
 	.mask	= locomo_lt_mask_irq,
 	.unmask	= locomo_lt_unmask_irq,
@@ -369,7 +372,7 @@ static void locomo_spi_handler(unsigned int irq, struct irqdesc *desc,
 {
 	int req, i;
 	struct irqdesc *d;
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 
 	req = locomo_readl(mapbase + LOCOMO_SPIIR) & 0x000F;
 	if (req) {
@@ -386,7 +389,7 @@ static void locomo_spi_handler(unsigned int irq, struct irqdesc *desc,
 
 static void locomo_spi_ack_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_SPIWE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_SPI_START));
@@ -403,7 +406,7 @@ static void locomo_spi_ack_irq(unsigned int irq)
 
 static void locomo_spi_mask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_SPIIE);
 	r &= ~(0x0001 << (irq - LOCOMO_IRQ_SPI_START));
@@ -412,14 +415,15 @@ static void locomo_spi_mask_irq(unsigned int irq)
 
 static void locomo_spi_unmask_irq(unsigned int irq)
 {
-	void *mapbase = get_irq_chipdata(irq);
+	void __iomem *mapbase = get_irq_chipdata(irq);
 	unsigned int r;
 	r = locomo_readl(mapbase + LOCOMO_SPIIE);
 	r |= (0x0001 << (irq - LOCOMO_IRQ_SPI_START));
 	locomo_writel(r, mapbase + LOCOMO_SPIIE);
 }
 
-static struct irqchip locomo_spi_chip = {
+static struct irq_chip locomo_spi_chip = {
+	.name	= "LOCOMO-spi",
 	.ack	= locomo_spi_ack_irq,
 	.mask	= locomo_spi_mask_irq,
 	.unmask	= locomo_spi_unmask_irq,
@@ -428,7 +432,7 @@ static struct irqchip locomo_spi_chip = {
 static void locomo_setup_irq(struct locomo *lchip)
 {
 	int irq;
-	void *irqbase = lchip->base;
+	void __iomem *irqbase = lchip->base;
 
 	/*
 	 * Install handler for IRQ_LOCOMO_HW.
@@ -501,14 +505,13 @@ locomo_init_one_child(struct locomo *lchip, struct locomo_dev_info *info)
 	struct locomo_dev *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct locomo_dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct locomo_dev), GFP_KERNEL);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset(dev, 0, sizeof(struct locomo_dev));
 
-	strncpy(dev->dev.bus_id,info->name,sizeof(dev->dev.bus_id));
+	strncpy(dev->dev.bus_id, info->name, sizeof(dev->dev.bus_id));
 	/*
 	 * If the parent device has a DMA mask associated with it,
 	 * propagate it down to the children.
@@ -630,21 +633,6 @@ static int locomo_resume(struct platform_device *dev)
 #endif
 
 
-#define LCM_ALC_EN	0x8000
-
-void frontlight_set(struct locomo *lchip, int duty, int vr, int bpwf)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&lchip->lock, flags);
-	locomo_writel(bpwf, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
-	udelay(100);
-	locomo_writel(duty, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALD);
-	locomo_writel(bpwf | LCM_ALC_EN, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
-	spin_unlock_irqrestore(&lchip->lock, flags);
-}
-
-
 /**
  *	locomo_probe - probe for a single LoCoMo chip.
  *	@phys_addr: physical address of device.
@@ -664,11 +652,9 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	unsigned long r;
 	int i, ret = -ENODEV;
 
-	lchip = kmalloc(sizeof(struct locomo), GFP_KERNEL);
+	lchip = kzalloc(sizeof(struct locomo), GFP_KERNEL);
 	if (!lchip)
 		return -ENOMEM;
-
-	memset(lchip, 0, sizeof(struct locomo));
 
 	spin_lock_init(&lchip->lock);
 
@@ -701,13 +687,9 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 			, lchip->base + LOCOMO_GPD);
 	locomo_writel(0, lchip->base + LOCOMO_GIE);
 
-	/* FrontLight */
+	/* Frontlight */
 	locomo_writel(0, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
 	locomo_writel(0, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALD);
-
-	/* Same constants can be used for collie and poodle
-	   (depending on CONFIG options in original sharp code)? */
-	frontlight_set(lchip, 163, 0, 148);
 
 	/* Longtime timer */
 	locomo_writel(0, lchip->base + LOCOMO_LTINT);
@@ -752,7 +734,6 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 
 	for (i = 0; i < ARRAY_SIZE(locomo_devices); i++)
 		locomo_init_one_child(lchip, &locomo_devices[i]);
-
 	return 0;
 
  out:
@@ -788,6 +769,8 @@ static int locomo_probe(struct platform_device *dev)
 	if (!mem)
 		return -EINVAL;
 	irq = platform_get_irq(dev, 0);
+	if (irq < 0)
+		return -ENXIO;
 
 	return __locomo_probe(&dev->dev, mem, irq);
 }
@@ -1060,6 +1043,30 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_LOW_SETUP_TIME);	/* 1000 nsec */
 	udelay(DAC_SCL_LOW_HOLD_TIME);	/* 4.7 usec */
 
+	spin_unlock_irqrestore(&lchip->lock, flags);
+}
+
+/*
+ *	Frontlight control
+ */
+
+static struct locomo *locomo_chip_driver(struct locomo_dev *ldev);
+
+void locomo_frontlight_set(struct locomo_dev *dev, int duty, int vr, int bpwf)
+{
+	unsigned long flags;
+	struct locomo *lchip = locomo_chip_driver(dev);
+
+	if (vr)
+		locomo_gpio_write(dev, LOCOMO_GPIO_FL_VR, 1);
+	else
+		locomo_gpio_write(dev, LOCOMO_GPIO_FL_VR, 0);
+
+	spin_lock_irqsave(&lchip->lock, flags);
+	locomo_writel(bpwf, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
+	udelay(100);
+	locomo_writel(duty, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALD);
+	locomo_writel(bpwf | LOCOMO_ALC_EN, lchip->base + LOCOMO_FRONTLIGHT + LOCOMO_ALS);
 	spin_unlock_irqrestore(&lchip->lock, flags);
 }
 

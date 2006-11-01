@@ -5,7 +5,6 @@
  * modules.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/user.h>
@@ -15,6 +14,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/pci.h>
+#include <linux/screen_info.h>
 #include <linux/tty.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -53,10 +53,6 @@ extern void __divqu (void);
 extern void __remqu (void);
 
 EXPORT_SYMBOL(alpha_mv);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
-EXPORT_SYMBOL(disable_irq_nosync);
-EXPORT_SYMBOL(probe_irq_mask);
 EXPORT_SYMBOL(screen_info);
 EXPORT_SYMBOL(perf_irq);
 EXPORT_SYMBOL(callback_getenv);
@@ -68,20 +64,13 @@ EXPORT_SYMBOL(alpha_using_srm);
 
 /* platform dependent support */
 EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strstr);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(__memcpy);
 EXPORT_SYMBOL(__memset);
 EXPORT_SYMBOL(__memsetw);
@@ -123,11 +112,9 @@ EXPORT_SYMBOL(alpha_write_fp_reg_s);
 
 /* In-kernel system calls.  */
 EXPORT_SYMBOL(kernel_thread);
-EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_dup);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_write);
-EXPORT_SYMBOL(sys_read);
 EXPORT_SYMBOL(sys_lseek);
 EXPORT_SYMBOL(execve);
 EXPORT_SYMBOL(sys_setsid);
@@ -183,7 +170,6 @@ EXPORT_SYMBOL(smp_num_cpus);
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_call_function_on_cpu);
 EXPORT_SYMBOL(_atomic_dec_and_lock);
-EXPORT_SYMBOL(cpu_present_mask);
 #endif /* CONFIG_SMP */
 
 /*
@@ -215,8 +201,6 @@ EXPORT_SYMBOL(__remqu);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memchr);
-
-EXPORT_SYMBOL(get_wchan);
 
 #ifdef CONFIG_ALPHA_IRONGATE
 EXPORT_SYMBOL(irongate_ioremap);

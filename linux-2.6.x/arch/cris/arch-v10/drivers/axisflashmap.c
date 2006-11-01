@@ -11,8 +11,8 @@
  * partition split defined below.
  *
  * $Log$
- * Revision 1.6  2006/03/22 06:14:52  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/01 04:48:44  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.11  2004/11/15 10:27:14  starvik
  * Corrected typo (Thanks to Milton Miller <miltonm@bga.com>).
@@ -141,7 +141,6 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 

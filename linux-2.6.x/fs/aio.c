@@ -122,10 +122,9 @@ static int aio_setup_ring(struct kioctx *ctx)
 	info->nr = 0;
 	info->ring_pages = info->internal_pages;
 	if (nr_pages > AIO_RING_PAGES) {
-		info->ring_pages = kmalloc(sizeof(struct page *) * nr_pages, GFP_KERNEL);
+		info->ring_pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
 		if (!info->ring_pages)
 			return -ENOMEM;
-		memset(info->ring_pages, 0, sizeof(struct page *) * nr_pages);
 	}
 
 	info->mmap_size = nr_pages * PAGE_SIZE;
@@ -642,7 +641,7 @@ static inline int __queue_kicked_iocb(struct kiocb *iocb)
  *	invoked both for initial i/o submission and
  *	subsequent retries via the aio_kick_handler.
  *	Expects to be invoked with iocb->ki_ctx->lock
- *	already held. The lock is released and reaquired
+ *	already held. The lock is released and reacquired
  *	as needed during processing.
  *
  * Calls the iocb retry method (already setup for the
@@ -778,11 +777,11 @@ out:
 static int __aio_run_iocbs(struct kioctx *ctx)
 {
 	struct kiocb *iocb;
-	LIST_HEAD(run_list);
+	struct list_head run_list;
 
 	assert_spin_locked(&ctx->ctx_lock);
 
-	list_splice_init(&ctx->run_list, &run_list);
+	list_replace_init(&ctx->run_list, &run_list);
 	while (!list_empty(&run_list)) {
 		iocb = list_entry(run_list.next, struct kiocb,
 			ki_run_list);

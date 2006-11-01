@@ -23,7 +23,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -61,9 +60,6 @@ int ocpi_enable(void)
 
 	if (!cpu_is_omap16xx())
 		return -ENODEV;
-
-	/* Make sure there's clock for OCPI */
-	clk_enable(ocpi_ck);
 
 	/* Enable access for OHCI in OCPI */
 	val = omap_readl(OCPI_PROT);

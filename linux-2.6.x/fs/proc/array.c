@@ -52,7 +52,6 @@
  *			 :  base.c too.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/time.h>
@@ -75,6 +74,7 @@
 #include <linux/times.h>
 #include <linux/cpuset.h>
 #include <linux/rcupdate.h>
+#include <linux/delayacct.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -330,7 +330,6 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	unsigned long  min_flt = 0,  maj_flt = 0;
 	cputime_t cutime, cstime, utime, stime;
 	unsigned long rsslim = 0;
-	DEFINE_KTIME(it_real_value);
 	struct task_struct *t;
 	char tcomm[sizeof(task->comm)];
 
@@ -386,7 +385,6 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 			utime = cputime_add(utime, task->signal->utime);
 			stime = cputime_add(stime, task->signal->stime);
 		}
-		it_real_value = task->signal->real_timer.expires;
 	}
 	ppid = pid_alive(task) ? task->group_leader->real_parent->tgid : 0;
 	read_unlock(&tasklist_lock);
@@ -413,8 +411,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 	start_time = nsec_to_clock_t(start_time);
 
 	res = sprintf(buffer,"%d (%s) %c %d %d %d %d %d %lu %lu \
-%lu %lu %lu %lu %lu %ld %ld %ld %ld %d %ld %llu %lu %ld %lu %lu %lu %lu %lu \
-%lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu\n",
+%lu %lu %lu %lu %lu %ld %ld %ld %ld %d 0 %llu %lu %ld %lu %lu %lu %lu %lu \
+%lu %lu %lu %lu %lu %lu %lu %lu %d %d %lu %lu %llu\n",
 		task->pid,
 		tcomm,
 		state,
@@ -435,7 +433,6 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		priority,
 		nice,
 		num_threads,
-		(long) ktime_to_clock_t(it_real_value),
 		start_time,
 		vsize,
 		mm ? get_mm_rss(mm) : 0,
@@ -459,7 +456,8 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		task->exit_signal,
 		task_cpu(task),
 		task->rt_priority,
-		task->policy);
+		task->policy,
+		(unsigned long long)delayacct_blkio_ticks(task));
 	if(mm)
 		mmput(mm);
 	return res;

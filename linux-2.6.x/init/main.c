@@ -11,11 +11,9 @@
 
 #define __KERNEL_SYSCALLS__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/string.h>
@@ -43,10 +41,16 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/efi.h>
+#include <linux/taskstats_kern.h>
+#include <linux/delayacct.h>
 #include <linux/unistd.h>
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
+#include <linux/unwind.h>
+#include <linux/buffer_head.h>
+#include <linux/debug_locks.h>
+#include <linux/lockdep.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -79,7 +83,6 @@ extern void mca_init(void);
 extern void sbus_init(void);
 extern void sysctl_init(void);
 extern void signals_init(void);
-extern void buffer_init(void);
 extern void pidhash_init(void);
 extern void pidmap_init(void);
 extern void prio_tree_init(void);
@@ -306,8 +309,6 @@ static int __init rdinit_setup(char *str)
 }
 __setup("rdinit=", rdinit_setup);
 
-extern void setup_arch(char **);
-
 #ifndef CONFIG_SMP
 
 #ifdef CONFIG_X86_LOCAL_APIC
@@ -325,7 +326,7 @@ static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 #else
 
 #ifdef __GENERIC_PER_CPU
-unsigned long __per_cpu_offset[NR_CPUS];
+unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 
 EXPORT_SYMBOL(__per_cpu_offset);
 
@@ -333,6 +334,7 @@ static void __init setup_per_cpu_areas(void)
 {
 	unsigned long size, i;
 	char *ptr;
+	unsigned long nr_possible_cpus = num_possible_cpus();
 
 	/* Copy section for each CPU (we discard the original) */
 	size = ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES);
@@ -340,12 +342,12 @@ static void __init setup_per_cpu_areas(void)
 	if (size < PERCPU_ENOUGH_ROOM)
 		size = PERCPU_ENOUGH_ROOM;
 #endif
+	ptr = alloc_bootmem(size * nr_possible_cpus);
 
-	ptr = alloc_bootmem(size * NR_CPUS);
-
-	for (i = 0; i < NR_CPUS; i++, ptr += size) {
+	for_each_possible_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		ptr += size;
 	}
 }
 #endif /* !__GENERIC_PER_CPU */
@@ -438,26 +440,48 @@ void __init parse_early_param(void)
  *	Activate the first processor.
  */
 
+static void __init boot_cpu_init(void)
+{
+	int cpu = smp_processor_id();
+	/* Mark the boot cpu "present", "online" etc for SMP and UP case */
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_present_map);
+	cpu_set(cpu, cpu_possible_map);
+}
+
+void __init __attribute__((weak)) smp_setup_processor_id(void)
+{
+}
+
 asmlinkage void __init start_kernel(void)
 {
 	char * command_line;
 	extern struct kernel_param __start___param[], __stop___param[];
+
+	smp_setup_processor_id();
+
+	/*
+	 * Need to run as early as possible, to initialize the
+	 * lockdep hash:
+	 */
+	lockdep_init();
+
+	local_irq_disable();
+	early_boot_irqs_off();
+	early_init_irq_lock_class();
+
 /*
  * Interrupts are still disabled. Do necessary setups, then
  * enable them
  */
 	lock_kernel();
+	boot_cpu_init();
 	page_address_init();
 	printk(KERN_NOTICE);
 	printk(linux_banner);
 	setup_arch(&command_line);
 	setup_per_cpu_areas();
-
-	/*
-	 * Mark the boot cpu "online" so that it can call console drivers in
-	 * printk() and can access its per-cpu storage.
-	 */
-	smp_prepare_boot_cpu();
+	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
 
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
@@ -478,6 +502,7 @@ asmlinkage void __init start_kernel(void)
 		   __stop___param - __start___param,
 		   &unknown_bootoption);
 	sort_main_extable();
+	unwind_init();
 	trap_init();
 	rcu_init();
 	init_IRQ();
@@ -485,7 +510,13 @@ asmlinkage void __init start_kernel(void)
 	init_timers();
 	hrtimers_init();
 	softirq_init();
+	timekeeping_init();
 	time_init();
+	profile_init();
+	if (!irqs_disabled())
+		printk("start_kernel(): bug: interrupts were enabled early\n");
+	early_boot_irqs_on();
+	local_irq_enable();
 
 	/*
 	 * HACK ALERT! This is early. We're enabling the console before
@@ -495,8 +526,16 @@ asmlinkage void __init start_kernel(void)
 	console_init();
 	if (panic_later)
 		panic(panic_later, panic_param);
-	profile_init();
-	local_irq_enable();
+
+	lockdep_info();
+
+	/*
+	 * Need to run this when irqs are enabled, because it wants
+	 * to self-test [hard/soft]-irqs on/off lock inversion bugs
+	 * too:
+	 */
+	locking_selftest();
+
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start && !initrd_below_start_ok &&
 			initrd_start < min_low_pfn << PAGE_SHIFT) {
@@ -537,6 +576,8 @@ asmlinkage void __init start_kernel(void)
 	proc_root_init();
 #endif
 	cpuset_init();
+	taskstats_init_early();
+	delayacct_init();
 
 	check_bugs();
 
@@ -565,17 +606,23 @@ static void __init do_initcalls(void)
 	int count = preempt_count();
 
 	for (call = __initcall_start; call < __initcall_end; call++) {
-		char *msg;
+		char *msg = NULL;
+		char msgbuf[40];
+		int result;
 
 		if (initcall_debug) {
-			printk(KERN_DEBUG "Calling initcall 0x%p", *call);
-			print_fn_descriptor_symbol(": %s()", (unsigned long) *call);
+			printk("Calling initcall 0x%p", *call);
+			print_fn_descriptor_symbol(": %s()",
+					(unsigned long) *call);
 			printk("\n");
 		}
 
-		(*call)();
+		result = (*call)();
 
-		msg = NULL;
+		if (result && result != -ENODEV && initcall_debug) {
+			sprintf(msgbuf, "error code %d", result);
+			msg = msgbuf;
+		}
 		if (preempt_count() != count) {
 			msg = "preemption imbalance";
 			preempt_count() = count;
@@ -585,8 +632,10 @@ static void __init do_initcalls(void)
 			local_irq_enable();
 		}
 		if (msg) {
-			printk(KERN_WARNING "error in initcall at 0x%p: "
-				"returned with %s\n", *call, msg);
+			printk(KERN_WARNING "initcall at 0x%p", *call);
+			print_fn_descriptor_symbol(": %s()",
+					(unsigned long) *call);
+			printk(": returned with %s\n", msg);
 		}
 	}
 
@@ -633,24 +682,6 @@ static void run_init_process(char *init_filename)
 	execve(init_filename, argv_init, envp_init);
 }
 
-static inline void fixup_cpu_present_map(void)
-{
-#ifdef CONFIG_SMP
-	int i;
-
-	/*
-	 * If arch is not hotplug ready and did not populate
-	 * cpu_present_map, just make cpu_present_map same as cpu_possible_map
-	 * for other cpu bringup code to function as normal. e.g smp_init() etc.
-	 */
-	if (cpus_empty(cpu_present_map)) {
-		for_each_cpu(i) {
-			cpu_set(i, cpu_present_map);
-		}
-	}
-#endif
-}
-
 static int init(void * unused)
 {
 	lock_kernel();
@@ -672,7 +703,6 @@ static int init(void * unused)
 
 	do_pre_smp_initcalls();
 
-	fixup_cpu_present_map();
 	smp_init();
 	sched_init_smp();
 

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 
@@ -29,7 +28,7 @@ extern int trap_init_f00f_bug(void);
 struct movsl_mask movsl_mask __read_mostly;
 #endif
 
-void __devinit early_intel_workaround(struct cpuinfo_x86 *c)
+void __cpuinit early_intel_workaround(struct cpuinfo_x86 *c)
 {
 	if (c->x86_vendor != X86_VENDOR_INTEL)
 		return;
@@ -44,7 +43,7 @@ void __devinit early_intel_workaround(struct cpuinfo_x86 *c)
  *	This is called before we do cpu ident work
  */
  
-int __devinit ppro_with_ram_bug(void)
+int __cpuinit ppro_with_ram_bug(void)
 {
 	/* Uses data from early_cpu_detect now */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
@@ -62,7 +61,7 @@ int __devinit ppro_with_ram_bug(void)
  * P4 Xeon errata 037 workaround.
  * Hardware prefetcher may cause stale data to be loaded into the cache.
  */
-static void __devinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
+static void __cpuinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
 {
 	unsigned long lo, hi;
 
@@ -81,7 +80,7 @@ static void __devinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __devinit num_cpu_cores(struct cpuinfo_x86 *c)
+static int __cpuinit num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -96,7 +95,7 @@ static int __devinit num_cpu_cores(struct cpuinfo_x86 *c)
 		return 1;
 }
 
-static void __devinit init_intel(struct cpuinfo_x86 *c)
+static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
 	char *p = NULL;
@@ -122,6 +121,12 @@ static void __devinit init_intel(struct cpuinfo_x86 *c)
 
 	select_idle_routine(c);
 	l2 = init_intel_cacheinfo(c);
+	if (c->cpuid_level > 9 ) {
+		unsigned eax = cpuid_eax(10);
+		/* Check for version and the number of counters */
+		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
+			set_bit(X86_FEATURE_ARCH_PERFMON, c->x86_capability);
+	}
 
 	/* SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until model 3 mask 3 */
 	if ((c->x86<<8 | c->x86_model<<4 | c->x86_mask) < 0x633)
@@ -205,7 +210,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)
 	return size;
 }
 
-static struct cpu_dev intel_cpu_dev __devinitdata = {
+static struct cpu_dev intel_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Intel",
 	.c_ident 	= { "GenuineIntel" },
 	.c_models = {

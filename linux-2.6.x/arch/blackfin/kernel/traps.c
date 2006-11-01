@@ -67,15 +67,16 @@ static int printk_address(unsigned long address)
 	char namebuf[128];
 
 	/* look up the address and see if we are in kernel space */
-	symname = kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
+	symname =
+	    kallsyms_lookup(address, &symsize, &offset, &modname, namebuf);
 
 	if (symname) {
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
 		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
-		              (void*)address, delim, modname, delim, symname,
-		              (unsigned long)offset);
+			      (void*)address, delim, modname, delim, symname,
+			      (unsigned long)offset);
 
 	} else {
 		/* looks like we're off in user-land, so let's walk all the
@@ -96,19 +97,29 @@ static int printk_address(unsigned long address)
 			while (vml) {
 				struct vm_area_struct *vma = vml->vma;
 
-				if (address >= vma->vm_start && address < vma->vm_end) {
+				if ((address >= vma->vm_start)
+				    && (address < vma->vm_end)) {
 					char *name = p->comm;
 					struct file *file = vma->vm_file;
 					if (file) {
 						char _tmpbuf[256];
-						name = d_path(file->f_dentry, file->f_vfsmnt, _tmpbuf, sizeof(_tmpbuf));
+						name =
+						    d_path(file->f_dentry,
+							   file->f_vfsmnt,
+							   _tmpbuf,
+							   sizeof(_tmpbuf));
 					}
 
 					write_unlock_irq(&tasklist_lock);
 					return printk("<0x%p> [ %s + 0x%lx ]",
-					              (void*)address,
-					              name,
-					              (unsigned long)((address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT)));
+						      (void*)address,
+						      name,
+						      (unsigned
+						       long)((address -
+							      vma->vm_start) +
+							     (vma->
+							      vm_pgoff <<
+							      PAGE_SHIFT)));
 				}
 
 				vml = vml->next;
@@ -408,15 +419,6 @@ void dump_bfin_trace_buffer(void)
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
-/* stolen from linux-2.6.19+ */
-#ifdef print_ip_sym
-# error time to delete this macro
-#endif
-#define print_ip_sym(ip) \
-	do { \
-		printk("[<%08lx>]", ip); \
-		print_symbol(" %s\n", ip); \
-	} while (0)
 static void show_trace(struct task_struct *tsk, unsigned long *sp)
 {
 	unsigned long addr;
@@ -492,7 +494,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk("\nCURRENT PROCESS:\n\n");
 		printk("COMM=%s PID=%d\n", current->comm, current->pid);
 	} else {
-		printk("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
+		printk
+		    ("\nNo Valid pid - Either things are really messed up, or you are in the kernel\n");
 	}
 
 	if (current->mm) {

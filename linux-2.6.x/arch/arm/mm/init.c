@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
@@ -19,14 +18,12 @@
 #include <linux/initrd.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
 #include <asm/setup.h>
+#include <asm/sizes.h>
 #include <asm/tlb.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-
-#define TABLE_SIZE	(2 * PTRS_PER_PTE * sizeof(pte_t))
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -456,14 +453,14 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 #ifdef FLUSH_BASE
 	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS);
 	map.virtual = FLUSH_BASE;
-	map.length = PGDIR_SIZE;
+	map.length = SZ_1M;
 	map.type = MT_CACHECLEAN;
 	create_mapping(&map);
 #endif
 #ifdef FLUSH_BASE_MINICACHE
-	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS + PGDIR_SIZE);
+	map.pfn = __phys_to_pfn(FLUSH_BASE_PHYS + SZ_1M);
 	map.virtual = FLUSH_BASE_MINICACHE;
-	map.length = PGDIR_SIZE;
+	map.length = SZ_1M;
 	map.type = MT_MINICLEAN;
 	create_mapping(&map);
 #endif
@@ -531,7 +528,7 @@ static inline void free_area(unsigned long addr, unsigned long end, char *s)
 	for (; addr < end; addr += PAGE_SIZE) {
 		struct page *page = virt_to_page(addr);
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		free_page(addr);
 		totalram_pages++;
 	}

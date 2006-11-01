@@ -9,8 +9,8 @@
  *             Johan Adolfsson  (read/set directions, write, port G)
  *
  * $Log$
- * Revision 1.6  2006/03/22 06:14:52  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/01 04:48:46  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.17  2005/06/19 17:06:46  starvik
  * Merge of Linux 2.6.12.
@@ -138,7 +138,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -439,7 +438,7 @@ static int
 gpio_open(struct inode *inode, struct file *filp)
 {
 	struct gpio_private *priv;
-	int p = MINOR(inode->i_rdev);
+	int p = iminor(inode);
 
 	if (p > GPIO_MINOR_LAST)
 		return -EINVAL;
@@ -941,11 +940,11 @@ gpio_init(void)
 	 * in some tests.
 	 */  
 	if (request_irq(TIMER0_IRQ_NBR, gpio_poll_timer_interrupt,
-			SA_SHIRQ | SA_INTERRUPT,"gpio poll", NULL)) {
+			IRQF_SHARED | IRQF_DISABLED,"gpio poll", NULL)) {
 		printk(KERN_CRIT "err: timer0 irq for gpio\n");
 	}
 	if (request_irq(PA_IRQ_NBR, gpio_pa_interrupt,
-			SA_SHIRQ | SA_INTERRUPT,"gpio PA", NULL)) {
+			IRQF_SHARED | IRQF_DISABLED,"gpio PA", NULL)) {
 		printk(KERN_CRIT "err: PA irq for gpio\n");
 	}
 	

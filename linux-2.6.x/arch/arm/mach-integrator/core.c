@@ -13,9 +13,12 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
+#include <linux/termios.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/serial.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -27,6 +30,8 @@
 #include <asm/mach/time.h>
 
 #include "common.h"
+
+static struct amba_pl010_data integrator_uart_data;
 
 static struct amba_device rtc_device = {
 	.dev		= {
@@ -44,6 +49,7 @@ static struct amba_device rtc_device = {
 static struct amba_device uart0_device = {
 	.dev		= {
 		.bus_id	= "mb:16",
+		.platform_data = &integrator_uart_data,
 	},
 	.res		= {
 		.start	= INTEGRATOR_UART0_BASE,
@@ -57,6 +63,7 @@ static struct amba_device uart0_device = {
 static struct amba_device uart1_device = {
 	.dev		= {
 		.bus_id	= "mb:17",
+		.platform_data = &integrator_uart_data,
 	},
 	.res		= {
 		.start	= INTEGRATOR_UART1_BASE,
@@ -114,6 +121,46 @@ static int __init integrator_init(void)
 }
 
 arch_initcall(integrator_init);
+
+/*
+ * On the Integrator platform, the port RTS and DTR are provided by
+ * bits in the following SC_CTRLS register bits:
+ *        RTS  DTR
+ *  UART0  7    6
+ *  UART1  5    4
+ */
+#define SC_CTRLC	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLC_OFFSET)
+#define SC_CTRLS	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLS_OFFSET)
+
+static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
+{
+	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
+
+	if (dev == &uart0_device) {
+		rts_mask = 1 << 4;
+		dtr_mask = 1 << 5;
+	} else {
+		rts_mask = 1 << 6;
+		dtr_mask = 1 << 7;
+	}
+
+	if (mctrl & TIOCM_RTS)
+		ctrlc |= rts_mask;
+	else
+		ctrls |= rts_mask;
+
+	if (mctrl & TIOCM_DTR)
+		ctrlc |= dtr_mask;
+	else
+		ctrls |= dtr_mask;
+
+	__raw_writel(ctrls, SC_CTRLS);
+	__raw_writel(ctrlc, SC_CTRLC);
+}
+
+static struct amba_pl010_data integrator_uart_data = {
+	.set_mctrl = integrator_uart_set_mctrl,
+};
 
 #define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_BASE) + INTEGRATOR_HDR_CTRL_OFFSET
 
@@ -235,7 +282,7 @@ integrator_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction integrator_timer_irq = {
 	.name		= "Integrator Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= integrator_timer_interrupt,
 };
 

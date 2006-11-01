@@ -12,7 +12,6 @@
  * - We disable half multipliers if ACPI is used on A0 stepping CPUs.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -199,8 +198,8 @@ static int get_ranges (unsigned char *pst)
 		powernow_table[j].index |= (vid << 8); /* upper 8 bits */
 
 		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
-			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
-			 fid_codes[fid] % 10, speed/1000, vid,	
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
+			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
 	}
@@ -368,8 +367,8 @@ static int powernow_acpi_init(void)
 		}
 
 		dprintk ("   FID: 0x%x (%d.%dx [%dMHz])  "
-			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10, 
-			 fid_codes[fid] % 10, speed/1000, vid,	
+			 "VID: 0x%x (%d.%03dV)\n", fid, fid_codes[fid] / 10,
+			 fid_codes[fid] % 10, speed/1000, vid,
 			 mobile_vid_table[vid]/1000,
 			 mobile_vid_table[vid]%1000);
 
@@ -452,23 +451,23 @@ static int powernow_decode_bios (int maxfid, int startvid)
 
 			pst = (struct pst_s *) p;
 
-			for (i = 0 ; i <psb->numpst; i++) {
+			for (j=0; j<psb->numpst; j++) {
 				pst = (struct pst_s *) p;
 				number_scales = pst->numpstates;
 
 				if ((etuple == pst->cpuid) && check_fsb(pst->fsbspeed) &&
 				    (maxfid==pst->maxfid) && (startvid==pst->startvid))
 				{
-					dprintk ("PST:%d (@%p)\n", i, pst);
-					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n", 
+					dprintk ("PST:%d (@%p)\n", j, pst);
+					dprintk (" cpuid: 0x%x  fsb: %d  maxFID: 0x%x  startvid: 0x%x\n",
 						 pst->cpuid, pst->fsbspeed, pst->maxfid, pst->startvid);
 
 					ret = get_ranges ((char *) pst + sizeof (struct pst_s));
 					return ret;
-
 				} else {
+					unsigned int k;
 					p = (char *) pst + sizeof (struct pst_s);
-					for (j=0 ; j < number_scales; j++)
+					for (k=0; k<number_scales; k++)
 						p+=2;
 				}
 			}
@@ -581,10 +580,7 @@ static int __init powernow_cpu_init (struct cpufreq_policy *policy)
 
 	rdmsrl (MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 
-	/* recalibrate cpu_khz */
-	result = recalibrate_cpu_khz();
-	if (result)
-		return result;
+	recalibrate_cpu_khz();
 
 	fsb = (10 * cpu_khz) / fid_codes[fidvidstatus.bits.CFID];
 	if (!fsb) {

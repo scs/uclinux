@@ -8,8 +8,8 @@
  *  Authors:   Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.6  2006/03/22 06:14:57  magicyang
- *  update kernel to 2.6.16
+ *  Revision 1.7  2006/11/01 04:49:07  magicyang
+ *  update kernel to 2.6.18
  *
  *  Revision 1.21  2005/03/04 08:16:17  starvik
  *  Merge of Linux 2.6.11.
@@ -119,6 +119,7 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
+#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/fs_struct.h>
@@ -196,8 +197,6 @@ EXPORT_SYMBOL(enable_hlt);
  * The following aren't currently used.
  */
 void (*pm_idle)(void);
-
-extern void default_idle(void);
 
 /*
  * The idle thread. There's no useful work to be

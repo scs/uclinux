@@ -2,7 +2,6 @@
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -18,7 +17,7 @@ static int reiserfs_readdir(struct file *, void *, filldir_t);
 static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
 			      int datasync);
 
-struct file_operations reiserfs_dir_operations = {
+const struct file_operations reiserfs_dir_operations = {
 	.read = generic_read_dir,
 	.readdir = reiserfs_readdir,
 	.fsync = reiserfs_dir_fsync,

@@ -38,6 +38,7 @@
 #include <linux/pm.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/pm.h>
 #include <linux/interrupt.h>
 
 #include <asm/io.h>
@@ -579,7 +580,7 @@ static irqreturn_t  omap_wakeup_interrupt(int  irq, void *  dev,
 
 static struct irqaction omap_wakeup_irq = {
 	.name		= "peripheral wakeup",
-	.flags		= SA_INTERRUPT,
+	.flags		= IRQF_DISABLED,
 	.handler	= omap_wakeup_interrupt
 };
 

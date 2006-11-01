@@ -38,7 +38,7 @@
 #include <linux/module.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
-#include <asm/irqchip.h>
+#include <linux/irq.h>
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 
@@ -52,7 +52,7 @@
 unsigned long irq_flags = 0;
 
 /* The number of spurious interrupts */
-unsigned int num_spurious;
+volatile unsigned int num_spurious;
 
 struct ivgx {
 	/* irq number for request_irq, available in mach-bf561/irq.h */
@@ -103,7 +103,10 @@ static void __init search_IAR(void)
 
 		for (irqn = 0; irqn < NR_PERI_INTS; irqn++) {
 			int iar_shift = (irqn & 7) * 4;
-			if (ivg == (0xf & bfin_read32((unsigned long *)SICA_IAR0 + (irqn >> 3)) >> iar_shift)) {
+			if (ivg ==
+			    (0xf &
+			     bfin_read32((unsigned long *)SICA_IAR0 +
+					 (irqn >> 3)) >> iar_shift)) {
 				ivg_table[irq_pos].irqno = IVG7 + irqn;
 				ivg_table[irq_pos].isrflag0 =
 				    (irqn < 32 ? (1 << irqn) : 0);
@@ -175,13 +178,13 @@ static void bf561_internal_unmask_irq(unsigned int irq)
 	__builtin_bfin_ssync();
 }
 
-static struct irqchip bf561_core_irqchip = {
+static struct irq_chip bf561_core_irqchip = {
 	.ack = ack_noop,
 	.mask = bf561_core_mask_irq,
 	.unmask = bf561_core_unmask_irq,
 };
 
-static struct irqchip bf561_internal_irqchip = {
+static struct irq_chip bf561_internal_irqchip = {
 	.ack = ack_noop,
 	.mask = bf561_internal_mask_irq,
 	.unmask = bf561_internal_unmask_irq,
@@ -355,13 +358,13 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 	__builtin_bfin_ssync();
 
 	if (type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
-		set_irq_handler(irq, do_edge_IRQ);
+		set_irq_handler(irq, handle_edge_irq);
 	else
-		set_irq_handler(irq, do_level_IRQ);
+		set_irq_handler(irq, handle_level_irq);
 
 	return 0;
 }
-static struct irqchip bf561_gpio_irqchip = {
+static struct irq_chip bf561_gpio_irqchip = {
 	.ack = bf561_gpio_ack_irq,
 	.mask = bf561_gpio_mask_irq,
 	.unmask = bf561_gpio_unmask_irq,
@@ -369,7 +372,7 @@ static struct irqchip bf561_gpio_irqchip = {
 };
 
 static void bf561_demux_gpio_irq(unsigned int intb_irq,
-				 struct irqdesc *intb_desc,
+				 struct irq_desc *intb_desc,
 				 struct pt_regs *regs)
 {
 	int loop = 0;
@@ -378,12 +381,14 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF0;
 			int flag_d = bfin_read_FIO0_FLAG_D();
-			int mask = flag_d & (gpio_enabled[0] & bfin_read_FIO0_MASKB_D());
+			int mask =
+			    flag_d & (gpio_enabled[0] &
+				      bfin_read_FIO0_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
-					struct irqdesc *desc = irq_desc + irq;
-					desc->handle(irq, desc, regs);
+					struct irq_desc *desc = irq_desc + irq;
+					desc->handle_irq(irq, desc, regs);
 				}
 				irq++;
 				mask >>= 1;
@@ -393,12 +398,14 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF16;
 			int flag_d = bfin_read_FIO1_FLAG_D();
-			int mask = flag_d & (gpio_enabled[1] & bfin_read_FIO1_MASKB_D());
+			int mask =
+			    flag_d & (gpio_enabled[1] &
+				      bfin_read_FIO1_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
-					struct irqdesc *desc = irq_desc + irq;
-					desc->handle(irq, desc, regs);
+					struct irq_desc *desc = irq_desc + irq;
+					desc->handle_irq(irq, desc, regs);
 				}
 				irq++;
 				mask >>= 1;
@@ -408,12 +415,14 @@ static void bf561_demux_gpio_irq(unsigned int intb_irq,
 		do {
 			int irq = IRQ_PF32;
 			int flag_d = bfin_read_FIO2_FLAG_D();
-			int mask = flag_d & (gpio_enabled[2] & bfin_read_FIO2_MASKB_D());
+			int mask =
+			    flag_d & (gpio_enabled[2] &
+				      bfin_read_FIO2_MASKB_D());
 			loop = mask;
 			do {
 				if (mask & 1) {
-					struct irqdesc *desc = irq_desc + irq;
-					desc->handle(irq, desc, regs);
+					struct irq_desc *desc = irq_desc + irq;
+					desc->handle_irq(irq, desc, regs);
 				}
 				irq++;
 				mask >>= 1;
@@ -467,8 +476,7 @@ int __init init_arch_irq(void)
 		if ((irq != IRQ_PROG0_INTB) &&
 		    (irq != IRQ_PROG1_INTB) && (irq != IRQ_PROG2_INTB)) {
 #endif
-			set_irq_handler(irq, do_simple_IRQ);
-			set_irq_flags(irq, IRQF_VALID);
+			set_irq_handler(irq, handle_simple_irq);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 		} else {
 			set_irq_chained_handler(irq, bf561_demux_gpio_irq);
@@ -481,8 +489,7 @@ int __init init_arch_irq(void)
 	for (irq = IRQ_PF0; irq <= IRQ_PF47; irq++) {
 		set_irq_chip(irq, &bf561_gpio_irqchip);
 		/* if configured as edge, then will be changed to do_edge_IRQ */
-		set_irq_handler(irq, do_level_IRQ);
-		set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
+		set_irq_chained_handler(irq, handle_level_irq);
 	}
 #endif
 	bfin_write_IMASK(0);
@@ -535,17 +542,4 @@ void do_irq(int vec, struct pt_regs *fp)
 		vec = ivg->irqno;
 	}
 	asm_do_IRQ(vec, fp);
-}
-
-void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
-{
-
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-	printk(KERN_INFO
-	       "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
-	set_irq_type(irq_pfx, type);
-#else
-  panic("bfin_gpio_interrupt_setup not implemented without CONFIG_IRQCHIP_DEMUX_GPIO enabled\n");
-#endif
-
 }

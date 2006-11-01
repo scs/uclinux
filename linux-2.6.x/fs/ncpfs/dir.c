@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <linux/time.h>
 #include <linux/errno.h>
@@ -49,7 +48,7 @@ extern int ncp_symlink(struct inode *, struct dentry *, const char *);
 #define ncp_symlink NULL
 #endif
 		      
-struct file_operations ncp_dir_operations =
+const struct file_operations ncp_dir_operations =
 {
 	.read		= generic_read_dir,
 	.readdir	= ncp_readdir,

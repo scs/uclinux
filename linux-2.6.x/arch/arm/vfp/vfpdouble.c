@@ -195,9 +195,9 @@ u32 vfp_double_normaliseround(int dd, struct vfp_double *vd, u32 fpscr, u32 exce
 		s64 d = vfp_double_pack(vd);
 		pr_debug("VFP: %s: d(d%d)=%016llx exceptions=%08x\n", func,
 			 dd, d, exceptions);
-		vfp_put_double(dd, d);
+		vfp_put_double(d, dd);
 	}
-	return exceptions & ~VFP_NAN_FLAG;
+	return exceptions;
 }
 
 /*
@@ -250,19 +250,19 @@ vfp_propagate_nan(struct vfp_double *vdd, struct vfp_double *vdn,
  */
 static u32 vfp_double_fabs(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_double_packed_abs(vfp_get_double(dm)));
+	vfp_put_double(vfp_double_packed_abs(vfp_get_double(dm)), dd);
 	return 0;
 }
 
 static u32 vfp_double_fcpy(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_get_double(dm));
+	vfp_put_double(vfp_get_double(dm), dd);
 	return 0;
 }
 
 static u32 vfp_double_fneg(int dd, int unused, int dm, u32 fpscr)
 {
-	vfp_put_double(dd, vfp_double_packed_negate(vfp_get_double(dm)));
+	vfp_put_double(vfp_double_packed_negate(vfp_get_double(dm)), dd);
 	return 0;
 }
 
@@ -287,7 +287,7 @@ static u32 vfp_double_fsqrt(int dd, int unused, int dm, u32 fpscr)
 			vdp = &vfp_double_default_qnan;
 			ret = FPSCR_IOC;
 		}
-		vfp_put_double(dd, vfp_double_pack(vdp));
+		vfp_put_double(vfp_double_pack(vdp), dd);
 		return ret;
 	}
 
@@ -465,7 +465,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	 */
 	if (tm & (VFP_INFINITY|VFP_NAN)) {
 		vsd.exponent = 255;
-		if (tm & VFP_NAN)
+		if (tm == VFP_QNAN)
 			vsd.significand |= VFP_SINGLE_SIGNIFICAND_QNAN;
 		goto pack_nan;
 	} else if (tm & VFP_ZERO)
@@ -476,7 +476,7 @@ static u32 vfp_double_fcvts(int sd, int unused, int dm, u32 fpscr)
 	return vfp_single_normaliseround(sd, &vsd, fpscr, exceptions, "fcvts");
 
  pack_nan:
-	vfp_put_float(sd, vfp_single_pack(&vsd));
+	vfp_put_float(vfp_single_pack(&vsd), sd);
 	return exceptions;
 }
 
@@ -573,7 +573,7 @@ static u32 vfp_double_ftoui(int sd, int unused, int dm, u32 fpscr)
 
 	pr_debug("VFP: ftoui: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, d);
+	vfp_put_float(d, sd);
 
 	return exceptions;
 }
@@ -588,6 +588,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	struct vfp_double vdm;
 	u32 d, exceptions = 0;
 	int rmode = fpscr & FPSCR_RMODE_MASK;
+	int tm;
 
 	vfp_double_unpack(&vdm, vfp_get_double(dm));
 	vfp_double_dump("VDM", &vdm);
@@ -595,10 +596,14 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 	/*
 	 * Do we have denormalised number?
 	 */
-	if (vfp_double_type(&vdm) & VFP_DENORMAL)
+	tm = vfp_double_type(&vdm);
+	if (tm & VFP_DENORMAL)
 		exceptions |= FPSCR_IDC;
 
-	if (vdm.exponent >= 1023 + 32) {
+	if (tm & VFP_NAN) {
+		d = 0;
+		exceptions |= FPSCR_IOC;
+	} else if (vdm.exponent >= 1023 + 32) {
 		d = 0x7fffffff;
 		if (vdm.sign)
 			d = ~d;
@@ -643,7 +648,7 @@ static u32 vfp_double_ftosi(int sd, int unused, int dm, u32 fpscr)
 
 	pr_debug("VFP: ftosi: d(s%d)=%08x exceptions=%08x\n", sd, d, exceptions);
 
-	vfp_put_float(sd, (s32)d);
+	vfp_put_float((s32)d, sd);
 
 	return exceptions;
 }
@@ -1079,7 +1084,7 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
  vdn_nan:
 	exceptions = vfp_propagate_nan(&vdd, &vdn, &vdm, fpscr);
  pack:
-	vfp_put_double(dd, vfp_double_pack(&vdd));
+	vfp_put_double(vfp_double_pack(&vdd), dd);
 	return exceptions;
 
  vdm_nan:
@@ -1099,7 +1104,7 @@ static u32 vfp_double_fdiv(int dd, int dn, int dm, u32 fpscr)
 	goto pack;
 
  invalid:
-	vfp_put_double(dd, vfp_double_pack(&vfp_double_default_qnan));
+	vfp_put_double(vfp_double_pack(&vfp_double_default_qnan), dd);
 	return FPSCR_IOC;
 }
 
@@ -1122,9 +1127,9 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 {
 	u32 op = inst & FOP_MASK;
 	u32 exceptions = 0;
-	unsigned int dd = vfp_get_sd(inst);
-	unsigned int dn = vfp_get_sn(inst);
-	unsigned int dm = vfp_get_sm(inst);
+	unsigned int dest;
+	unsigned int dn = vfp_get_dn(inst);
+	unsigned int dm = vfp_get_dm(inst);
 	unsigned int vecitr, veclen, vecstride;
 	u32 (*fop)(int, int, s32, u32);
 
@@ -1132,36 +1137,46 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	vecstride = (1 + ((fpscr & FPSCR_STRIDE_MASK) == FPSCR_STRIDE_MASK)) * 2;
 
 	/*
+	 * fcvtds takes an sN register number as destination, not dN.
+	 * It also always operates on scalars.
+	 */
+	if ((inst & FEXT_MASK) == FEXT_FCVT) {
+		veclen = 0;
+		dest = vfp_get_sd(inst);
+	} else
+		dest = vfp_get_dd(inst);
+
+	/*
 	 * If destination bank is zero, vector length is always '1'.
 	 * ARM DDI0100F C5.1.3, C5.3.2.
 	 */
-	if (FREG_BANK(dd) == 0)
+	if (FREG_BANK(dest) == 0)
 		veclen = 0;
 
 	pr_debug("VFP: vecstride=%u veclen=%u\n", vecstride,
 		 (veclen >> FPSCR_LENGTH_BIT) + 1);
 
-	fop = (op == FOP_EXT) ? fop_extfns[dn] : fop_fns[FOP_TO_IDX(op)];
+	fop = (op == FOP_EXT) ? fop_extfns[FEXT_TO_IDX(inst)] : fop_fns[FOP_TO_IDX(op)];
 	if (!fop)
 		goto invalid;
 
 	for (vecitr = 0; vecitr <= veclen; vecitr += 1 << FPSCR_LENGTH_BIT) {
 		u32 except;
 
-		if (op == FOP_EXT)
-			pr_debug("VFP: itr%d (d%u.%u) = op[%u] (d%u.%u)\n",
+		if (op == FOP_EXT && (inst & FEXT_MASK) == FEXT_FCVT)
+			pr_debug("VFP: itr%d (s%u) = op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1, dn,
-				 dm >> 1, dm & 1);
+				 dest, dn, dm);
+		else if (op == FOP_EXT)
+			pr_debug("VFP: itr%d (d%u) = op[%u] (d%u)\n",
+				 vecitr >> FPSCR_LENGTH_BIT,
+				 dest, dn, dm);
 		else
-			pr_debug("VFP: itr%d (d%u.%u) = (d%u.%u) op[%u] (d%u.%u)\n",
+			pr_debug("VFP: itr%d (d%u) = (d%u) op[%u] (d%u)\n",
 				 vecitr >> FPSCR_LENGTH_BIT,
-				 dd >> 1, dd & 1,
-				 dn >> 1, dn & 1,
-				 FOP_TO_IDX(op),
-				 dm >> 1, dm & 1);
+				 dest, dn, FOP_TO_IDX(op), dm);
 
-		except = fop(dd, dn, dm, fpscr);
+		except = fop(dest, dn, dm, fpscr);
 		pr_debug("VFP: itr%d: exceptions=%08x\n",
 			 vecitr >> FPSCR_LENGTH_BIT, except);
 
@@ -1179,7 +1194,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		 * we encounter an exception.  We continue.
 		 */
 
-		dd = FREG_BANK(dd) + ((FREG_IDX(dd) + vecstride) & 6);
+		dest = FREG_BANK(dest) + ((FREG_IDX(dest) + vecstride) & 6);
 		dn = FREG_BANK(dn) + ((FREG_IDX(dn) + vecstride) & 6);
 		if (FREG_BANK(dm) != 0)
 			dm = FREG_BANK(dm) + ((FREG_IDX(dm) + vecstride) & 6);

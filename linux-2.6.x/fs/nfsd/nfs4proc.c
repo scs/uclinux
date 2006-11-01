@@ -288,8 +288,6 @@ nfsd4_putrootfh(struct svc_rqst *rqstp, struct svc_fh *current_fh)
 	fh_put(current_fh);
 	status = exp_pseudoroot(rqstp->rq_client, current_fh,
 			      &rqstp->rq_chandle);
-	if (!status)
-		status = nfserrno(nfsd_setuser(rqstp, current_fh->fh_export));
 	return status;
 }
 
@@ -723,6 +721,12 @@ nfsd4_proc_null(struct svc_rqst *rqstp, void *argp, void *resp)
 	return nfs_ok;
 }
 
+static inline void nfsd4_increment_op_stats(u32 opnum)
+{
+	if (opnum >= FIRST_NFS4_OP && opnum <= LAST_NFS4_OP)
+		nfsdstats.nfs4_opcount[opnum]++;
+}
+
 
 /*
  * COMPOUND call.
@@ -932,6 +936,8 @@ encode_op:
 		/* XXX Ugh, we need to get rid of this kind of special case: */
 		if (op->opnum == OP_READ && op->u.read.rd_filp)
 			fput(op->u.read.rd_filp);
+
+		nfsd4_increment_op_stats(op->opnum);
 	}
 
 out:

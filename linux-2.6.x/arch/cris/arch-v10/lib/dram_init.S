@@ -11,8 +11,8 @@
  * Authors:  Mikael Starvik (starvik@axis.com)	
  * 
  * $Log$
- * Revision 1.6  2006/03/22 06:14:53  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/01 04:48:57  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.4  2003/09/22 09:21:59  starvik
  * Decompresser is linked to 0x407xxxxx and sdram commands are at 0x000xxxxx
@@ -73,7 +73,6 @@
  * uses this code.
  */
 
-#include <linux/config.h>
 
 	;; WARNING! The registers r8 and r9 are used as parameters carrying
 	;; information from the decompressor (if the kernel was compressed). 

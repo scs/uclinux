@@ -169,7 +169,7 @@ extern int hfs_cat_move(u32, struct inode *, struct qstr *,
 extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, struct qstr *);
 
 /* dir.c */
-extern struct file_operations hfs_dir_operations;
+extern const struct file_operations hfs_dir_operations;
 extern struct inode_operations hfs_dir_inode_operations;
 
 /* extent.c */
@@ -182,8 +182,8 @@ extern void hfs_file_truncate(struct inode *);
 extern int hfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 /* inode.c */
-extern struct address_space_operations hfs_aops;
-extern struct address_space_operations hfs_btree_aops;
+extern const struct address_space_operations hfs_aops;
+extern const struct address_space_operations hfs_btree_aops;
 
 extern struct inode *hfs_new_inode(struct inode *, struct qstr *, int);
 extern void hfs_inode_write_fork(struct inode *, struct hfs_extent *, __be32 *, __be32 *);

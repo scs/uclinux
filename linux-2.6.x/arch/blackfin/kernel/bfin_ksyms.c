@@ -35,24 +35,15 @@
 #include <asm/cacheflush.h>
 #include <asm/uaccess.h>
 
-
 /* platform dependent support */
 
 EXPORT_SYMBOL(__ioremap);
-EXPORT_SYMBOL(dump_thread);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strstr);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strncmp);
+EXPORT_SYMBOL(dump_thread);
 
 EXPORT_SYMBOL(ip_fast_csum);
 
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 EXPORT_SYMBOL(kernel_thread);
 
 EXPORT_SYMBOL(__up);
@@ -60,11 +51,7 @@ EXPORT_SYMBOL(__down);
 EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(__down_interruptible);
 
-EXPORT_SYMBOL(memory_start);
-EXPORT_SYMBOL(memory_end);
 EXPORT_SYMBOL(is_in_rom);
-
-EXPORT_SYMBOL(dump_stack);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);
@@ -77,7 +64,6 @@ EXPORT_SYMBOL(csum_partial_copy);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(get_wchan);

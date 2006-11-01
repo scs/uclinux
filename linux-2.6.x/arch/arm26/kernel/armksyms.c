@@ -8,7 +8,6 @@
  * published by the Free Software Foundation.
  */
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/user.h>
 #include <linux/string.h>
@@ -152,7 +151,6 @@ EXPORT_SYMBOL(strncmp);
 EXPORT_SYMBOL(strchr);
 EXPORT_SYMBOL(strlen);
 EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strpbrk);
 EXPORT_SYMBOL(strrchr);
 EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(memset);
@@ -211,8 +209,6 @@ EXPORT_SYMBOL(sys_lseek);
 EXPORT_SYMBOL(sys_open);
 EXPORT_SYMBOL(sys_exit);
 EXPORT_SYMBOL(sys_wait4);
-
-EXPORT_SYMBOL(get_wchan);
 
 #ifdef CONFIG_PREEMPT
 EXPORT_SYMBOL(kernel_flag);

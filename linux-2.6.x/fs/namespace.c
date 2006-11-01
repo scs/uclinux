@@ -8,7 +8,6 @@
  * Heavily rewritten.
  */
 
-#include <linux/config.h>
 #include <linux/syscalls.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -43,9 +42,9 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
 
 static int event;
 
-static struct list_head *mount_hashtable;
+static struct list_head *mount_hashtable __read_mostly;
 static int hash_mask __read_mostly, hash_bits __read_mostly;
-static kmem_cache_t *mnt_cache;
+static kmem_cache_t *mnt_cache __read_mostly;
 static struct rw_semaphore namespace_sem;
 
 /* /sys/fs */
@@ -85,6 +84,15 @@ struct vfsmount *alloc_vfsmnt(const char *name)
 	}
 	return mnt;
 }
+
+int simple_set_mnt(struct vfsmount *mnt, struct super_block *sb)
+{
+	mnt->mnt_sb = sb;
+	mnt->mnt_root = dget(sb->s_root);
+	return 0;
+}
+
+EXPORT_SYMBOL(simple_set_mnt);
 
 void free_vfsmnt(struct vfsmount *mnt)
 {
@@ -399,6 +407,44 @@ struct seq_operations mounts_op = {
 	.show	= show_vfsmnt
 };
 
+static int show_vfsstat(struct seq_file *m, void *v)
+{
+	struct vfsmount *mnt = v;
+	int err = 0;
+
+	/* device */
+	if (mnt->mnt_devname) {
+		seq_puts(m, "device ");
+		mangle(m, mnt->mnt_devname);
+	} else
+		seq_puts(m, "no device");
+
+	/* mount point */
+	seq_puts(m, " mounted on ");
+	seq_path(m, mnt, mnt->mnt_root, " \t\n\\");
+	seq_putc(m, ' ');
+
+	/* file system type */
+	seq_puts(m, "with fstype ");
+	mangle(m, mnt->mnt_sb->s_type->name);
+
+	/* optional statistics */
+	if (mnt->mnt_sb->s_op->show_stats) {
+		seq_putc(m, ' ');
+		err = mnt->mnt_sb->s_op->show_stats(m, mnt);
+	}
+
+	seq_putc(m, '\n');
+	return err;
+}
+
+struct seq_operations mountstats_op = {
+	.start	= m_start,
+	.next	= m_next,
+	.stop	= m_stop,
+	.show	= show_vfsstat,
+};
+
 /**
  * may_umount_tree - check if a mount tree is busy
  * @mnt: root of mount tree
@@ -421,9 +467,9 @@ int may_umount_tree(struct vfsmount *mnt)
 	spin_unlock(&vfsmount_lock);
 
 	if (actual_refs > minimum_refs)
-		return -EBUSY;
+		return 0;
 
-	return 0;
+	return 1;
 }
 
 EXPORT_SYMBOL(may_umount_tree);
@@ -443,10 +489,10 @@ EXPORT_SYMBOL(may_umount_tree);
  */
 int may_umount(struct vfsmount *mnt)
 {
-	int ret = 0;
+	int ret = 1;
 	spin_lock(&vfsmount_lock);
 	if (propagate_mount_busy(mnt, 2))
-		ret = -EBUSY;
+		ret = 0;
 	spin_unlock(&vfsmount_lock);
 	return ret;
 }
@@ -479,10 +525,8 @@ void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
 	struct vfsmount *p;
 
-	for (p = mnt; p; p = next_mnt(p, mnt)) {
-		list_del(&p->mnt_hash);
-		list_add(&p->mnt_hash, kill);
-	}
+	for (p = mnt; p; p = next_mnt(p, mnt))
+		list_move(&p->mnt_hash, kill);
 
 	if (propagate)
 		propagate_umount(kill);
@@ -538,8 +582,8 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 */
 
 	lock_kernel();
-	if ((flags & MNT_FORCE) && sb->s_op->umount_begin)
-		sb->s_op->umount_begin(sb);
+	if (sb->s_op->umount_begin)
+		sb->s_op->umount_begin(mnt, flags);
 	unlock_kernel();
 
 	/*
@@ -1125,13 +1169,46 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts,
 }
 
 /*
+ * go through the vfsmounts we've just consigned to the graveyard to
+ * - check that they're still dead
+ * - delete the vfsmount from the appropriate namespace under lock
+ * - dispose of the corpse
+ */
+static void expire_mount_list(struct list_head *graveyard, struct list_head *mounts)
+{
+	struct namespace *namespace;
+	struct vfsmount *mnt;
+
+	while (!list_empty(graveyard)) {
+		LIST_HEAD(umounts);
+		mnt = list_entry(graveyard->next, struct vfsmount, mnt_expire);
+		list_del_init(&mnt->mnt_expire);
+
+		/* don't do anything if the namespace is dead - all the
+		 * vfsmounts from it are going away anyway */
+		namespace = mnt->mnt_namespace;
+		if (!namespace || !namespace->root)
+			continue;
+		get_namespace(namespace);
+
+		spin_unlock(&vfsmount_lock);
+		down_write(&namespace_sem);
+		expire_mount(mnt, mounts, &umounts);
+		up_write(&namespace_sem);
+		release_mounts(&umounts);
+		mntput(mnt);
+		put_namespace(namespace);
+		spin_lock(&vfsmount_lock);
+	}
+}
+
+/*
  * process a list of expirable mountpoints with the intent of discarding any
  * mountpoints that aren't in use and haven't been touched since last we came
  * here
  */
 void mark_mounts_for_expiry(struct list_head *mounts)
 {
-	struct namespace *namespace;
 	struct vfsmount *mnt, *next;
 	LIST_HEAD(graveyard);
 
@@ -1155,38 +1232,79 @@ void mark_mounts_for_expiry(struct list_head *mounts)
 		list_move(&mnt->mnt_expire, &graveyard);
 	}
 
-	/*
-	 * go through the vfsmounts we've just consigned to the graveyard to
-	 * - check that they're still dead
-	 * - delete the vfsmount from the appropriate namespace under lock
-	 * - dispose of the corpse
-	 */
-	while (!list_empty(&graveyard)) {
-		LIST_HEAD(umounts);
-		mnt = list_entry(graveyard.next, struct vfsmount, mnt_expire);
-		list_del_init(&mnt->mnt_expire);
-
-		/* don't do anything if the namespace is dead - all the
-		 * vfsmounts from it are going away anyway */
-		namespace = mnt->mnt_namespace;
-		if (!namespace || !namespace->root)
-			continue;
-		get_namespace(namespace);
-
-		spin_unlock(&vfsmount_lock);
-		down_write(&namespace_sem);
-		expire_mount(mnt, mounts, &umounts);
-		up_write(&namespace_sem);
-		release_mounts(&umounts);
-		mntput(mnt);
-		put_namespace(namespace);
-		spin_lock(&vfsmount_lock);
-	}
+	expire_mount_list(&graveyard, mounts);
 
 	spin_unlock(&vfsmount_lock);
 }
 
 EXPORT_SYMBOL_GPL(mark_mounts_for_expiry);
+
+/*
+ * Ripoff of 'select_parent()'
+ *
+ * search the list of submounts for a given mountpoint, and move any
+ * shrinkable submounts to the 'graveyard' list.
+ */
+static int select_submounts(struct vfsmount *parent, struct list_head *graveyard)
+{
+	struct vfsmount *this_parent = parent;
+	struct list_head *next;
+	int found = 0;
+
+repeat:
+	next = this_parent->mnt_mounts.next;
+resume:
+	while (next != &this_parent->mnt_mounts) {
+		struct list_head *tmp = next;
+		struct vfsmount *mnt = list_entry(tmp, struct vfsmount, mnt_child);
+
+		next = tmp->next;
+		if (!(mnt->mnt_flags & MNT_SHRINKABLE))
+			continue;
+		/*
+		 * Descend a level if the d_mounts list is non-empty.
+		 */
+		if (!list_empty(&mnt->mnt_mounts)) {
+			this_parent = mnt;
+			goto repeat;
+		}
+
+		if (!propagate_mount_busy(mnt, 1)) {
+			mntget(mnt);
+			list_move_tail(&mnt->mnt_expire, graveyard);
+			found++;
+		}
+	}
+	/*
+	 * All done at this level ... ascend and resume the search
+	 */
+	if (this_parent != parent) {
+		next = this_parent->mnt_child.next;
+		this_parent = this_parent->mnt_parent;
+		goto resume;
+	}
+	return found;
+}
+
+/*
+ * process a list of expirable mountpoints with the intent of discarding any
+ * submounts of a specific parent mountpoint
+ */
+void shrink_submounts(struct vfsmount *mountpoint, struct list_head *mounts)
+{
+	LIST_HEAD(graveyard);
+	int found;
+
+	spin_lock(&vfsmount_lock);
+
+	/* extract submounts of 'mountpoint' from the expiration list */
+	while ((found = select_submounts(mountpoint, &graveyard)) != 0)
+		expire_mount_list(&graveyard, mounts);
+
+	spin_unlock(&vfsmount_lock);
+}
+
+EXPORT_SYMBOL_GPL(shrink_submounts);
 
 /*
  * Some copy_from_user() implementations do not return the exact number of

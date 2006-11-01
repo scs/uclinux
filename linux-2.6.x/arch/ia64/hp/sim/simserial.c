@@ -16,7 +16,6 @@
  * 07/30/02 D. Mosberger	Replace sti()/cli() with explicit spinlocks & local irq masking
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -46,13 +45,8 @@
 #define KEYBOARD_INTR	3	/* must match with simulator! */
 
 #define NR_PORTS	1	/* only one port for now */
-#define SERIAL_INLINE	1
 
-#ifdef SERIAL_INLINE
-#define _INLINE_ inline
-#endif
-
-#define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? SA_SHIRQ : SA_INTERRUPT)
+#define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED : IRQF_DISABLED)
 
 #define SSC_GETCHAR	21
 
@@ -237,7 +231,7 @@ static void rs_put_char(struct tty_struct *tty, unsigned char ch)
 	local_irq_restore(flags);
 }
 
-static _INLINE_ void transmit_chars(struct async_struct *info, int *intr_done)
+static void transmit_chars(struct async_struct *info, int *intr_done)
 {
 	int count;
 	unsigned long flags;

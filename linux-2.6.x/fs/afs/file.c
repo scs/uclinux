@@ -28,14 +28,14 @@ static int afs_file_release(struct inode *inode, struct file *file);
 #endif
 
 static int afs_file_readpage(struct file *file, struct page *page);
-static int afs_file_invalidatepage(struct page *page, unsigned long offset);
+static void afs_file_invalidatepage(struct page *page, unsigned long offset);
 static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
 struct inode_operations afs_file_inode_operations = {
 	.getattr	= afs_inode_getattr,
 };
 
-struct address_space_operations afs_fs_aops = {
+const struct address_space_operations afs_fs_aops = {
 	.readpage	= afs_file_readpage,
 	.sync_page	= block_sync_page,
 	.set_page_dirty	= __set_page_dirty_nobuffers,
@@ -212,7 +212,7 @@ int afs_cache_get_page_cookie(struct page *page,
 /*
  * invalidate part or all of a page
  */
-static int afs_file_invalidatepage(struct page *page, unsigned long offset)
+static void afs_file_invalidatepage(struct page *page, unsigned long offset)
 {
 	int ret = 1;
 
@@ -238,11 +238,11 @@ static int afs_file_invalidatepage(struct page *page, unsigned long offset)
 			if (!PageWriteback(page))
 				ret = page->mapping->a_ops->releasepage(page,
 									0);
+			/* possibly should BUG_ON(!ret); - neilb */
 		}
 	}
 
 	_leave(" = %d", ret);
-	return ret;
 } /* end afs_file_invalidatepage() */
 
 /*****************************************************************************/

@@ -9,7 +9,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/sunrpc/clnt.h>
@@ -85,6 +84,9 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 	atomic_set(&req->wb_complete, 0);
 	req->wb_index	= page->index;
 	page_cache_get(page);
+	BUG_ON(PagePrivate(page));
+	BUG_ON(!PageLocked(page));
+	BUG_ON(page->mapping->host != inode);
 	req->wb_offset  = offset;
 	req->wb_pgbase	= offset;
 	req->wb_bytes   = count;
@@ -132,9 +134,11 @@ void nfs_clear_page_writeback(struct nfs_page *req)
 {
 	struct nfs_inode *nfsi = NFS_I(req->wb_context->dentry->d_inode);
 
-	spin_lock(&nfsi->req_lock);
-	radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
-	spin_unlock(&nfsi->req_lock);
+	if (req->wb_page != NULL) {
+		spin_lock(&nfsi->req_lock);
+		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_WRITEBACK);
+		spin_unlock(&nfsi->req_lock);
+	}
 	nfs_unlock_request(req);
 }
 
@@ -147,8 +151,9 @@ void nfs_clear_page_writeback(struct nfs_page *req)
  */
 void nfs_clear_request(struct nfs_page *req)
 {
-	if (req->wb_page) {
-		page_cache_release(req->wb_page);
+	struct page *page = req->wb_page;
+	if (page != NULL) {
+		page_cache_release(page);
 		req->wb_page = NULL;
 	}
 }
@@ -309,6 +314,7 @@ nfs_scan_lock_dirty(struct nfs_inode *nfsi, struct list_head *dst,
 						req->wb_index, NFS_PAGE_TAG_DIRTY);
 				nfs_list_remove_request(req);
 				nfs_list_add_request(req, dst);
+				dec_zone_page_state(req->wb_page, NR_FILE_DIRTY);
 				res++;
 			}
 		}
@@ -319,6 +325,7 @@ out:
 
 /**
  * nfs_scan_list - Scan a list for matching requests
+ * @nfsi: NFS inode
  * @head: One of the NFS inode request lists
  * @dst: Destination list
  * @idx_start: lower bound of page->index to scan
@@ -330,14 +337,15 @@ out:
  * The requests are *not* checked to ensure that they form a contiguous set.
  * You must be holding the inode's req_lock when calling this function
  */
-int
-nfs_scan_list(struct list_head *head, struct list_head *dst,
-	      unsigned long idx_start, unsigned int npages)
+int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *head,
+		struct list_head *dst, unsigned long idx_start,
+		unsigned int npages)
 {
-	struct list_head	*pos, *tmp;
-	struct nfs_page		*req;
-	unsigned long		idx_end;
-	int			res;
+	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
+	struct nfs_page *req;
+	unsigned long idx_end;
+	int found, i;
+	int res;
 
 	res = 0;
 	if (npages == 0)
@@ -345,25 +353,32 @@ nfs_scan_list(struct list_head *head, struct list_head *dst,
 	else
 		idx_end = idx_start + npages - 1;
 
-	list_for_each_safe(pos, tmp, head) {
-
-		req = nfs_list_entry(pos);
-
-		if (req->wb_index < idx_start)
-			continue;
-		if (req->wb_index > idx_end)
+	for (;;) {
+		found = radix_tree_gang_lookup(&nfsi->nfs_page_tree,
+				(void **)&pgvec[0], idx_start,
+				NFS_SCAN_MAXENTRIES);
+		if (found <= 0)
 			break;
+		for (i = 0; i < found; i++) {
+			req = pgvec[i];
+			if (req->wb_index > idx_end)
+				goto out;
+			idx_start = req->wb_index + 1;
+			if (req->wb_list_head != head)
+				continue;
+			if (nfs_set_page_writeback_locked(req)) {
+				nfs_list_remove_request(req);
+				nfs_list_add_request(req, dst);
+				res++;
+			}
+		}
 
-		if (!nfs_set_page_writeback_locked(req))
-			continue;
-		nfs_list_remove_request(req);
-		nfs_list_add_request(req, dst);
-		res++;
 	}
+out:
 	return res;
 }
 
-int nfs_init_nfspagecache(void)
+int __init nfs_init_nfspagecache(void)
 {
 	nfs_page_cachep = kmem_cache_create("nfs_page",
 					    sizeof(struct nfs_page),

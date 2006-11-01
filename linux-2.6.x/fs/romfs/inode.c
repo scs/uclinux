@@ -179,12 +179,12 @@ outnobh:
 /* That's simple too. */
 
 static int
-romfs_statfs(struct super_block *sb, struct kstatfs *buf)
+romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	buf->f_type = ROMFS_MAGIC;
 	buf->f_bsize = ROMBSIZE;
 	buf->f_bfree = buf->f_bavail = buf->f_ffree;
-	buf->f_blocks = (romfs_maxsize(sb)+ROMBSIZE-1)>>ROMBSBITS;
+	buf->f_blocks = (romfs_maxsize(dentry->d_sb)+ROMBSIZE-1)>>ROMBSBITS;
 	buf->f_namelen = ROMFS_MAXFN;
 	return 0;
 }
@@ -459,11 +459,11 @@ err_out:
 
 /* Mapping from our types to the kernel */
 
-static struct address_space_operations romfs_aops = {
+static const struct address_space_operations romfs_aops = {
 	.readpage = romfs_readpage
 };
 
-static struct file_operations romfs_dir_operations = {
+static const struct file_operations romfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= romfs_readdir,
 };
@@ -579,7 +579,8 @@ static int init_inodecache(void)
 {
 	romfs_inode_cachep = kmem_cache_create("romfs_inode_cache",
 					     sizeof(struct romfs_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (romfs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -606,10 +607,11 @@ static struct super_operations romfs_ops = {
 	.remount_fs	= romfs_remount,
 };
 
-static struct super_block *romfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int romfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, romfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, romfs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type romfs_fs_type = {

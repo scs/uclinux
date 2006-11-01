@@ -27,9 +27,6 @@
  * derived from linux/arch/arm/mach-s3c2410/mach-bast.c, written by
  * Ben Dooks <ben@simtec.co.uk>
  *
- * 10-Mar-2005 LCVR  Changed S3C2410_VA to S3C24XX_VA
- * 20-Sep-2005 BJD  Added static to non-exported items
- *
  ***********************************************************************/
 
 #include <linux/kernel.h>
@@ -54,6 +51,8 @@
 #include "devs.h"
 #include "cpu.h"
 
+#include "common-smdk.h"
+
 static struct map_desc smdk2410_iodesc[] __initdata = {
   /* nothing here yet */
 };
@@ -62,7 +61,7 @@ static struct map_desc smdk2410_iodesc[] __initdata = {
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
 #define UFCON S3C2410_UFCON_RXTRIG8 | S3C2410_UFCON_FIFOMODE
 
-static struct s3c2410_uartcfg smdk2410_uartcfgs[] = {
+static struct s3c2410_uartcfg smdk2410_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
@@ -107,11 +106,6 @@ static void __init smdk2410_map_io(void)
 	s3c24xx_set_board(&smdk2410_board);
 }
 
-static void __init smdk2410_init_irq(void)
-{
-	s3c24xx_init_irq();
-}
-
 MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switch
 				    * to SMDK2410 */
 	/* Maintainer: Jonas Dietsche */
@@ -119,7 +113,8 @@ MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switc
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= smdk2410_map_io,
-	.init_irq	= smdk2410_init_irq,
+	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= smdk_machine_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END
 

@@ -62,9 +62,7 @@ int cifs_removexattr(struct dentry * direntry, const char * ea_name)
 	cifs_sb = CIFS_SB(sb);
 	pTcon = cifs_sb->tcon;
                                                                                      
-	down(&sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
-	up(&sb->s_vfs_rename_sem);
 	if(full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -116,9 +114,7 @@ int cifs_setxattr(struct dentry * direntry, const char * ea_name,
 	cifs_sb = CIFS_SB(sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
-	up(&sb->s_vfs_rename_sem);
 	if(full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -223,9 +219,7 @@ ssize_t cifs_getxattr(struct dentry * direntry, const char * ea_name,
 	cifs_sb = CIFS_SB(sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(direntry);
-	up(&sb->s_vfs_rename_sem);
 	if(full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
@@ -336,14 +330,16 @@ ssize_t cifs_listxattr(struct dentry * direntry, char * data, size_t buf_size)
 	sb = direntry->d_inode->i_sb;
 	if(sb == NULL)
 		return -EIO;
-	xid = GetXid();
 
 	cifs_sb = CIFS_SB(sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&sb->s_vfs_rename_sem);
+	if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
+		return -EOPNOTSUPP;
+
+	xid = GetXid();
+
 	full_path = build_path_from_dentry(direntry);
-	up(&sb->s_vfs_rename_sem);
 	if(full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;

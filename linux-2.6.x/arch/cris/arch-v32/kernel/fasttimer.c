@@ -5,8 +5,8 @@
  * This may be useful in other OS than Linux so use 2 space indentation...
  *
  * $Log$
- * Revision 1.1  2006/03/22 06:14:55  magicyang
- * update kernel to 2.6.16
+ * Revision 1.2  2006/11/01 04:49:04  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.11  2005/01/04 11:15:46  starvik
  * Don't share timer IRQ.
@@ -123,7 +123,6 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #include <asm/arch/hwregs/reg_map.h>
@@ -985,7 +984,7 @@ void fast_timer_init(void)
     proc_register_dynamic(&proc_root, &fasttimer_proc_entry);
 #endif
 #endif /* PROC_FS */
-    if(request_irq(TIMER_INTR_VECT, timer_trig_interrupt, SA_INTERRUPT,
+    if(request_irq(TIMER_INTR_VECT, timer_trig_interrupt, IRQF_DISABLED,
                    "fast timer int", NULL))
     {
       printk("err: timer1 irq\n");

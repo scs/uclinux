@@ -24,6 +24,8 @@
 #include <linux/coda_psdev.h>
 #include <linux/coda_proc.h>
 
+#include "coda_int.h"
+
 /* if CODA_STORE fails with EOPNOTSUPP, venus clearly doesn't support
  * CODA_STORE/CODA_RELEASE and we fall back on using the CODA_CLOSE upcall */
 static int use_coda_close;
@@ -134,10 +136,8 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	coda_vfs_stat.open++;
 
 	cfi = kmalloc(sizeof(struct coda_file_info), GFP_KERNEL);
-	if (!cfi) {
-		unlock_kernel();
+	if (!cfi)
 		return -ENOMEM;
-	}
 
 	lock_kernel();
 
@@ -162,7 +162,7 @@ int coda_open(struct inode *coda_inode, struct file *coda_file)
 	return 0;
 }
 
-int coda_flush(struct file *coda_file)
+int coda_flush(struct file *coda_file, fl_owner_t id)
 {
 	unsigned short flags = coda_file->f_flags & ~O_EXCL;
 	unsigned short coda_flags = coda_flags_to_cflags(flags);
@@ -286,7 +286,7 @@ int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 	return err;
 }
 
-struct file_operations coda_file_operations = {
+const struct file_operations coda_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= coda_file_read,
 	.write		= coda_file_write,

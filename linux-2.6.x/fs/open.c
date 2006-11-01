@@ -27,21 +27,22 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/rcupdate.h>
+#include <linux/audit.h>
 
 #include <asm/unistd.h>
 
-int vfs_statfs(struct super_block *sb, struct kstatfs *buf)
+int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int retval = -ENODEV;
 
-	if (sb) {
+	if (dentry) {
 		retval = -ENOSYS;
-		if (sb->s_op->statfs) {
+		if (dentry->d_sb->s_op->statfs) {
 			memset(buf, 0, sizeof(*buf));
-			retval = security_sb_statfs(sb);
+			retval = security_sb_statfs(dentry);
 			if (retval)
 				return retval;
-			retval = sb->s_op->statfs(sb, buf);
+			retval = dentry->d_sb->s_op->statfs(dentry, buf);
 			if (retval == 0 && buf->f_frsize == 0)
 				buf->f_frsize = buf->f_bsize;
 		}
@@ -51,12 +52,12 @@ int vfs_statfs(struct super_block *sb, struct kstatfs *buf)
 
 EXPORT_SYMBOL(vfs_statfs);
 
-static int vfs_statfs_native(struct super_block *sb, struct statfs *buf)
+static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(sb, &st);
+	retval = vfs_statfs(dentry, &st);
 	if (retval)
 		return retval;
 
@@ -94,12 +95,12 @@ static int vfs_statfs_native(struct super_block *sb, struct statfs *buf)
 	return 0;
 }
 
-static int vfs_statfs64(struct super_block *sb, struct statfs64 *buf)
+static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(sb, &st);
+	retval = vfs_statfs(dentry, &st);
 	if (retval)
 		return retval;
 
@@ -129,7 +130,7 @@ asmlinkage long sys_statfs(const char __user * path, struct statfs __user * buf)
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct statfs tmp;
-		error = vfs_statfs_native(nd.dentry->d_inode->i_sb, &tmp);
+		error = vfs_statfs_native(nd.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_release(&nd);
@@ -148,7 +149,7 @@ asmlinkage long sys_statfs64(const char __user *path, size_t sz, struct statfs64
 	error = user_path_walk(path, &nd);
 	if (!error) {
 		struct statfs64 tmp;
-		error = vfs_statfs64(nd.dentry->d_inode->i_sb, &tmp);
+		error = vfs_statfs64(nd.dentry, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_release(&nd);
@@ -167,7 +168,7 @@ asmlinkage long sys_fstatfs(unsigned int fd, struct statfs __user * buf)
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs_native(file->f_dentry->d_inode->i_sb, &tmp);
+	error = vfs_statfs_native(file->f_dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -188,7 +189,7 @@ asmlinkage long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs64(file->f_dentry->d_inode->i_sb, &tmp);
+	error = vfs_statfs64(file->f_dentry, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -321,7 +322,7 @@ static long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = do_truncate(dentry, length, 0, file);
+		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, file);
 out_putf:
 	fput(file);
 out:
@@ -632,6 +633,8 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
 
+	audit_inode(NULL, inode);
+
 	err = -EROFS;
 	if (IS_RDONLY(inode))
 		goto out_putf;
@@ -781,7 +784,10 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 
 	file = fget(fd);
 	if (file) {
-		error = chown_common(file->f_dentry, user, group);
+		struct dentry * dentry;
+		dentry = file->f_dentry;
+		audit_inode(NULL, dentry->d_inode);
+		error = chown_common(dentry, user, group);
 		fput(file);
 	}
 	return error;
@@ -896,6 +902,10 @@ EXPORT_SYMBOL(filp_open);
  * a fully instantiated struct file to the caller.
  * This function is meant to be called from within a filesystem's
  * lookup method.
+ * Beware of calling it for non-regular files! Those ->open methods might block
+ * (e.g. in fifo_open), leaving you with parent locked (and in case of fifo,
+ * leading to a deadlock, as nobody can open that fifo anymore, because
+ * another process to open fifo will block on locked parent when doing lookup).
  * Note that in case of error, nd->intent.open.file is destroyed, but the
  * path information remains valid.
  * If the open callback is set to NULL, then the standard f_op->open()
@@ -979,7 +989,7 @@ repeat:
 	fdt = files_fdtable(files);
  	fd = find_next_zero_bit(fdt->open_fds->fds_bits,
 				fdt->max_fdset,
-				fdt->next_fd);
+				files->next_fd);
 
 	/*
 	 * N.B. For clone tasks sharing a files structure, this test
@@ -1004,7 +1014,7 @@ repeat:
 
 	FD_SET(fd, fdt->open_fds);
 	FD_CLR(fd, fdt->close_on_exec);
-	fdt->next_fd = fd + 1;
+	files->next_fd = fd + 1;
 #if 1
 	/* Sanity check */
 	if (fdt->fd[fd] != NULL) {
@@ -1025,8 +1035,8 @@ static void __put_unused_fd(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	__FD_CLR(fd, fdt->open_fds);
-	if (fd < fdt->next_fd)
-		fdt->next_fd = fd;
+	if (fd < files->next_fd)
+		files->next_fd = fd;
 }
 
 void fastcall put_unused_fd(unsigned int fd)
@@ -1114,7 +1124,6 @@ asmlinkage long sys_openat(int dfd, const char __user *filename, int flags,
 	prevent_tail_call(ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sys_openat);
 
 #ifndef __alpha__
 
@@ -1143,7 +1152,7 @@ int filp_close(struct file *filp, fl_owner_t id)
 	}
 
 	if (filp->f_op && filp->f_op->flush)
-		retval = filp->f_op->flush(filp);
+		retval = filp->f_op->flush(filp, id);
 
 	dnotify_flush(filp, id);
 	locks_remove_posix(filp, id);

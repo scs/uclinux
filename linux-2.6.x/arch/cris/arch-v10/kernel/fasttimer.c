@@ -5,8 +5,8 @@
  * This may be useful in other OS than Linux so use 2 space indentation...
  *
  * $Log$
- * Revision 1.6  2006/03/22 06:14:52  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/01 04:48:50  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.9  2005/03/04 08:16:16  starvik
  * Merge of Linux 2.6.11.
@@ -114,7 +114,6 @@
 #include <asm/delay.h>
 #include <asm/rtc.h>
 
-#include <linux/config.h>
 
 #include <asm/arch/svinto.h>
 #include <asm/fasttimer.h>

@@ -4,7 +4,6 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
@@ -261,7 +260,7 @@ asmlinkage long sys_newlstat(char __user *filename, struct stat __user *statbuf)
 	return error;
 }
 
-#ifndef __ARCH_WANT_STAT64
+#if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
 asmlinkage long sys_newfstatat(int dfd, char __user *filename,
 				struct stat __user *statbuf, int flag)
 {

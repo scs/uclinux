@@ -172,8 +172,10 @@ static void nfs3_cache_acls(struct inode *inode, struct posix_acl *acl,
 		inode->i_ino, acl, dfacl);
 	spin_lock(&inode->i_lock);
 	__nfs3_forget_cached_acls(NFS_I(inode));
-	nfsi->acl_access = posix_acl_dup(acl);
-	nfsi->acl_default = posix_acl_dup(dfacl);
+	if (!IS_ERR(acl))
+		nfsi->acl_access = posix_acl_dup(acl);
+	if (!IS_ERR(dfacl))
+		nfsi->acl_default = posix_acl_dup(dfacl);
 	spin_unlock(&inode->i_lock);
 }
 
@@ -189,6 +191,10 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 	};
 	struct nfs3_getaclres res = {
 		.fattr =	&fattr,
+	};
+	struct rpc_message msg = {
+		.rpc_argp	= &args,
+		.rpc_resp	= &res,
 	};
 	struct posix_acl *acl;
 	int status, count;
@@ -218,8 +224,8 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 		return NULL;
 
 	dprintk("NFS call getacl\n");
-	status = rpc_call(server->client_acl, ACLPROC3_GETACL,
-			  &args, &res, 0);
+	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_GETACL];
+	status = rpc_call_sync(server->client_acl, &msg, 0);
 	dprintk("NFS reply getacl: %d\n", status);
 
 	/* pages may have been allocated at the xdr layer. */
@@ -250,7 +256,9 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 			res.acl_access = NULL;
 		}
 	}
-	nfs3_cache_acls(inode, res.acl_access, res.acl_default);
+	nfs3_cache_acls(inode,
+		(res.mask & NFS_ACL)   ? res.acl_access  : ERR_PTR(-EINVAL),
+		(res.mask & NFS_DFACL) ? res.acl_default : ERR_PTR(-EINVAL));
 
 	switch(type) {
 		case ACL_TYPE_ACCESS:
@@ -286,6 +294,10 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		.acl_access = acl,
 		.pages = pages,
 	};
+	struct rpc_message msg = {
+		.rpc_argp	= &args,
+		.rpc_resp	= &fattr,
+	};
 	int status, count;
 
 	status = -EOPNOTSUPP;
@@ -306,8 +318,8 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 
 	dprintk("NFS call setacl\n");
 	nfs_begin_data_update(inode);
-	status = rpc_call(server->client_acl, ACLPROC3_SETACL,
-			  &args, &fattr, 0);
+	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_SETACL];
+	status = rpc_call_sync(server->client_acl, &msg, 0);
 	spin_lock(&inode->i_lock);
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ACCESS;
 	spin_unlock(&inode->i_lock);
@@ -321,6 +333,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	switch (status) {
 		case 0:
 			status = nfs_refresh_inode(inode, &fattr);
+			nfs3_cache_acls(inode, acl, dfacl);
 			break;
 		case -EPFNOSUPPORT:
 		case -EPROTONOSUPPORT:

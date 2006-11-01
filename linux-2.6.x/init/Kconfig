@@ -1,3 +1,11 @@
+config DEFCONFIG_LIST
+	string
+	option defconfig_list
+	default "/lib/modules/$UNAME_RELEASE/.config"
+	default "/etc/kernel-config"
+	default "/boot/config-$UNAME_RELEASE"
+	default "arch/$ARCH/defconfig"
+
 menu "Code maturity level options"
 
 config EXPERIMENTAL
@@ -46,8 +54,8 @@ config LOCK_KERNEL
 
 config INIT_ENV_ARG_LIMIT
 	int
-	default 32 if !USERMODE
-	default 128 if USERMODE
+	default 32 if !UML
+	default 128 if UML
 	help
 	  Maximum of each of the number of arguments and environment
 	  variables passed to init from the kernel command line.
@@ -150,21 +158,29 @@ config BSD_PROCESS_ACCT_V3
 	  for processing it. A preliminary version of these tools is available
 	  at <http://www.physik3.uni-rostock.de/tim/kernel/utils/acct/>.
 
-config SYSCTL
-	bool "Sysctl support"
-	---help---
-	  The sysctl interface provides a means of dynamically changing
-	  certain kernel parameters and variables on the fly without requiring
-	  a recompile of the kernel or reboot of the system.  The primary
-	  interface consists of a system call, but if you say Y to "/proc
-	  file system support", a tree of modifiable sysctl entries will be
-	  generated beneath the /proc/sys directory. They are explained in the
-	  files in <file:Documentation/sysctl/>.  Note that enabling this
-	  option will enlarge the kernel by at least 8 KB.
+config TASKSTATS
+	bool "Export task/process statistics through netlink (EXPERIMENTAL)"
+	depends on NET
+	default n
+	help
+	  Export selected statistics for tasks/processes through the
+	  generic netlink interface. Unlike BSD process accounting, the
+	  statistics are available during the lifetime of tasks/processes as
+	  responses to commands. Like BSD accounting, they are sent to user
+	  space on task exit.
 
-	  As it is generally a good thing, you should say Y here unless
-	  building a kernel for install/rescue disks or your system is very
-	  limited in memory.
+	  Say N if unsure.
+
+config TASK_DELAY_ACCT
+	bool "Enable per-task delay accounting (EXPERIMENTAL)"
+	depends on TASKSTATS
+	help
+	  Collect information on time spent by a task waiting for system
+	  resources like cpu, synchronous block I/O completion and swapping
+	  in pages. Such statistics can help in setting a task's priorities
+	  relative to other tasks for cpu, io, rss limits etc.
+
+	  Say N if unsure.
 
 config AUDIT
 	bool "Auditing support"
@@ -182,7 +198,8 @@ config AUDITSYSCALL
 	help
 	  Enable low-overhead system-call auditing infrastructure that
 	  can be used independently or with another kernel subsystem,
-	  such as SELinux.
+	  such as SELinux.  To use audit's filesystem watch feature, please
+	  ensure that INOTIFY is configured.
 
 config IKCONFIG
 	bool "Kernel .config support"
@@ -214,24 +231,18 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config RELAY
+	bool "Kernel->user space relay support (formerly relayfs)"
+	help
+	  This option enables support for relay interface support in
+	  certain file systems (such as debugfs).
+	  It is designed to provide an efficient mechanism for tools and
+	  facilities to relay large amounts of data from kernel space to
+	  user space.
+
+	  If unsure, say N.
+
 source "usr/Kconfig"
-
-config UID16
-	bool "Enable 16-bit UID system calls" if EMBEDDED
-	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION) || BFIN
-	default y
-	help
-	  This enables the legacy 16-bit UID syscall wrappers.
-
-config VM86
-	depends X86
-	default y
-	bool "Enable VM86 support" if EMBEDDED
-	help
-          This option is required by programs like DOSEMU to run 16-bit legacy
-	  code on X86 processors. It also may be needed by software like
-          XFree86 to initialize some video cards via BIOS. Disabling this
-          option saves about 6k.
 
 config CC_OPTIMIZE_FOR_SIZE
 	bool "Optimize for size (Look out for broken compilers!)"
@@ -253,6 +264,30 @@ menuconfig EMBEDDED
           to be disabled or tweaked. This is for specialized
           environments which can tolerate a "non-standard" kernel.
           Only use this if you really know what you are doing.
+
+config UID16
+	bool "Enable 16-bit UID system calls" if EMBEDDED
+	depends on ARM || CRIS || FRV || H8300 || X86_32 || M68K || (S390 && !64BIT) || SUPERH || SPARC32 || (SPARC64 && SPARC32_COMPAT) || UML || (X86_64 && IA32_EMULATION) || BFIN
+	default y
+	help
+	  This enables the legacy 16-bit UID syscall wrappers.
+
+config SYSCTL
+	bool "Sysctl support" if EMBEDDED
+	default y
+	---help---
+	  The sysctl interface provides a means of dynamically changing
+	  certain kernel parameters and variables on the fly without requiring
+	  a recompile of the kernel or reboot of the system.  The primary
+	  interface consists of a system call, but if you say Y to "/proc
+	  file system support", a tree of modifiable sysctl entries will be
+	  generated beneath the /proc/sys directory. They are explained in the
+	  files in <file:Documentation/sysctl/>.  Note that enabling this
+	  option will enlarge the kernel by at least 8 KB.
+
+	  As it is generally a good thing, you should say Y here unless
+	  building a kernel for install/rescue disks or your system is very
+	  limited in memory.
 
 config KALLSYMS
 	 bool "Load all symbols for debugging/kksymoops" if EMBEDDED
@@ -331,6 +366,7 @@ config BASE_FULL
 config FUTEX
 	bool "Enable futex support" if EMBEDDED
 	default y
+	select RT_MUTEXES
 	help
 	  Disabling this option will cause the kernel to be built without
 	  support for "fast userspace mutexes".  The resulting kernel may not
@@ -354,43 +390,6 @@ config SHMEM
 	  option replaces shmem and tmpfs with the much simpler ramfs code,
 	  which may be appropriate on small systems without swap.
 
-config CC_ALIGN_FUNCTIONS
-	int "Function alignment" if EMBEDDED
-	default 0
-	help
-	  Align the start of functions to the next power-of-two greater than n,
-	  skipping up to n bytes.  For instance, 32 aligns functions
-	  to the next 32-byte boundary, but 24 would align to the next
-	  32-byte boundary only if this can be done by skipping 23 bytes or less.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_LABELS
-	int "Label alignment" if EMBEDDED
-	default 0
-	help
-	  Align all branch targets to a power-of-two boundary, skipping
-	  up to n bytes like ALIGN_FUNCTIONS.  This option can easily
-	  make code slower, because it must insert dummy operations for
-	  when the branch target is reached in the usual flow of the code.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_LOOPS
-	int "Loop alignment" if EMBEDDED
-	default 0
-	help
-	  Align loops to a power-of-two boundary, skipping up to n bytes.
-	  Zero means use compiler's default.
-
-config CC_ALIGN_JUMPS
-	int "Jump alignment" if EMBEDDED
-	default 0
-	help
-	  Align branch targets to a power-of-two boundary, for branch
-	  targets where the targets can only be reached by jumping,
-	  skipping up to n bytes like ALIGN_FUNCTIONS.  In this case,
-	  no dummy operations need be executed.
-	  Zero means use compiler's default.
-
 config SLAB
 	default y
 	bool "Use full SLAB allocator" if EMBEDDED
@@ -407,7 +406,21 @@ config NP2_ALLOC
 	help
 	  Uses the experimental non power of 2 allocator.  Use with care.
 
+
+config VM_EVENT_COUNTERS
+	default y
+	bool "Enable VM event counters for /proc/vmstat" if EMBEDDED
+	help
+	  VM event counters are only needed to for event counts to be
+	  shown. They have no function for the kernel itself. This
+	  option allows the disabling of the VM event counters.
+	  /proc/vmstat will only show page counts.
+
 endmenu		# General setup
+
+config RT_MUTEXES
+	boolean
+	select PLIST
 
 config TINY_SHMEM
 	default !SHMEM
@@ -421,9 +434,6 @@ config BASE_SMALL
 config SLOB
 	default !SLAB
 	bool
-
-config OBSOLETE_INTERMODULE
-	tristate
 
 menu "Loadable module support"
 
@@ -465,15 +475,6 @@ config MODULE_FORCE_UNLOAD
 	  without waiting for anyone to stop using it (using the -f option to
 	  rmmod).  This is mainly for kernel developers and desperate users.
 	  If unsure, say N.
-
-config OBSOLETE_MODPARM
-	bool
-	default y
-	depends on MODULES
-	help
-	  You need this option to use module parameters on modules which
-	  have not been converted to the new module parameter system yet.
-	  If unsure, say Y.
 
 config MODVERSIONS
 	bool "Module versioning support"

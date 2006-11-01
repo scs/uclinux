@@ -7,7 +7,6 @@
 #include <linux/elfcore.h>
 #include <linux/in6.h>
 #include <linux/interrupt.h>
-#include <linux/config.h>
 
 #include <asm/setup.h>
 #include <asm/pgalloc.h>
@@ -53,8 +52,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memmove);
-
-EXPORT_SYMBOL(get_wchan);
 
 /*
  * libgcc functions - functions that are used internally by the

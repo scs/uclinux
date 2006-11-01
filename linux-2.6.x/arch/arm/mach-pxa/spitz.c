@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
+#include <linux/pm.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -27,13 +28,13 @@
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+#include <asm/system.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
 #include <asm/arch/pxa-regs.h>
-#include <asm/arch/irq.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/ohci.h>
@@ -221,6 +222,8 @@ struct corgissp_machinfo spitz_ssp_machinfo = {
  * Spitz Backlight Device
  */
 static struct corgibl_machinfo spitz_bl_machinfo = {
+	.default_intensity = 0x1f,
+	.limit_mask = 0x0b,
 	.max_intensity = 0x2f,
 };
 
@@ -241,6 +244,14 @@ static struct platform_device spitzkbd_device = {
 	.id		= -1,
 };
 
+
+/*
+ * Spitz LEDs
+ */
+static struct platform_device spitzled_device = {
+	.name		= "spitz-led",
+	.id		= -1,
+};
 
 /*
  * Spitz Touch Screen Device
@@ -297,7 +308,7 @@ static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(in
 	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
-			  SA_INTERRUPT | SA_TRIGGER_RISING | SA_TRIGGER_FALLING,
+			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
 	if (err) {
 		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
@@ -362,6 +373,7 @@ static int spitz_ohci_init(struct device *dev)
 static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
+	.power_budget	= 150,
 };
 
 
@@ -419,10 +431,34 @@ static struct platform_device *devices[] __initdata = {
 	&spitzkbd_device,
 	&spitzts_device,
 	&spitzbl_device,
+	&spitzled_device,
 };
+
+static void spitz_poweroff(void)
+{
+	RCSR = RCSR_HWR | RCSR_WDR | RCSR_SMR | RCSR_GPR;
+
+	pxa_gpio_mode(SPITZ_GPIO_ON_RESET | GPIO_OUT);
+	GPSR(SPITZ_GPIO_ON_RESET) = GPIO_bit(SPITZ_GPIO_ON_RESET);
+
+	mdelay(1000);
+	arm_machine_restart('h');
+}
+
+static void spitz_restart(char mode)
+{
+	/* Bootloader magic for a reboot */
+	if((MSC0 & 0xffff0000) == 0x7ff00000)
+		MSC0 = (MSC0 & 0xffff) | 0x7ee00000;
+
+	spitz_poweroff();
+}
 
 static void __init common_init(void)
 {
+	pm_power_off = spitz_poweroff;
+	arm_pm_restart = spitz_restart;
+
 	PMCR = 0x00;
 
 	/* setup sleep mode values */
@@ -467,6 +503,8 @@ struct platform_device akitaioexp_device = {
 	.name		= "akita-ioexp",
 	.id		= -1,
 };
+
+EXPORT_SYMBOL_GPL(akitaioexp_device);
 
 static void __init akita_init(void)
 {

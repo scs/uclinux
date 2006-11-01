@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -48,12 +47,9 @@
 #include <linux/coda_psdev.h>
 #include <linux/coda_proc.h>
 
-#define upc_free(r) kfree(r)
+#include "coda_int.h"
 
-/* 
- * Coda stuff
- */
-extern struct file_system_type coda_fs_type;
+#define upc_free(r) kfree(r)
 
 /* statistics */
 int           coda_hard;         /* allows signals during upcalls */
@@ -262,7 +258,7 @@ static ssize_t coda_psdev_read(struct file * file, char __user * buf,
 	/* If request was not a signal, enqueue and don't free */
 	if (!(req->uc_flags & REQ_ASYNC)) {
 		req->uc_flags |= REQ_READ;
-		list_add(&(req->uc_chain), vcp->vc_processing.prev);
+		list_add_tail(&(req->uc_chain), &vcp->vc_processing);
 		goto out;
 	}
 
@@ -345,7 +341,7 @@ static int coda_psdev_release(struct inode * inode, struct file * file)
 }
 
 
-static struct file_operations coda_psdev_fops = {
+static const struct file_operations coda_psdev_fops = {
 	.owner		= THIS_MODULE,
 	.read		= coda_psdev_read,
 	.write		= coda_psdev_write,
@@ -368,22 +364,12 @@ static int init_coda_psdev(void)
 		err = PTR_ERR(coda_psdev_class);
 		goto out_chrdev;
 	}		
-	devfs_mk_dir ("coda");
-	for (i = 0; i < MAX_CODADEVS; i++) {
+	for (i = 0; i < MAX_CODADEVS; i++)
 		class_device_create(coda_psdev_class, NULL,
 				MKDEV(CODA_PSDEV_MAJOR,i), NULL, "cfs%d", i);
-		err = devfs_mk_cdev(MKDEV(CODA_PSDEV_MAJOR, i),
-				S_IFCHR|S_IRUSR|S_IWUSR, "coda/%d", i);
-		if (err)
-			goto out_class;
-	}
 	coda_sysctl_init();
 	goto out;
 
-out_class:
-	for (i = 0; i < MAX_CODADEVS; i++) 
-		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
-	class_destroy(coda_psdev_class);
 out_chrdev:
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 out:
@@ -394,8 +380,6 @@ out:
 MODULE_AUTHOR("Peter J. Braam <braam@cs.cmu.edu>");
 MODULE_LICENSE("GPL");
 
-extern int coda_init_inodecache(void);
-extern void coda_destroy_inodecache(void);
 static int __init init_coda(void)
 {
 	int status;
@@ -424,12 +408,9 @@ static int __init init_coda(void)
 	}
 	return 0;
 out:
-	for (i = 0; i < MAX_CODADEVS; i++) {
+	for (i = 0; i < MAX_CODADEVS; i++)
 		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
-		devfs_remove("coda/%d", i);
-	}
 	class_destroy(coda_psdev_class);
-	devfs_remove("coda");
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
 out1:
@@ -446,12 +427,9 @@ static void __exit exit_coda(void)
         if ( err != 0 ) {
                 printk("coda: failed to unregister filesystem\n");
         }
-	for (i = 0; i < MAX_CODADEVS; i++) {
+	for (i = 0; i < MAX_CODADEVS; i++)
 		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
-		devfs_remove("coda/%d", i);
-	}
 	class_destroy(coda_psdev_class);
-	devfs_remove("coda");
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
 	coda_destroy_inodecache();

@@ -86,21 +86,19 @@ int cifs_dir_notify(struct file * file, unsigned long arg)
 	cifs_sb = CIFS_SB(file->f_dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
-	down(&file->f_dentry->d_sb->s_vfs_rename_sem);
 	full_path = build_path_from_dentry(file->f_dentry);
-	up(&file->f_dentry->d_sb->s_vfs_rename_sem);
 
 	if(full_path == NULL) {
 		rc = -ENOMEM;
 	} else {
-		cERROR(1,("cifs dir notify on file %s with arg 0x%lx",full_path,arg)); /* BB removeme BB */
+		cFYI(1,("dir notify on file %s Arg 0x%lx",full_path,arg));
 		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, 
 			GENERIC_READ | SYNCHRONIZE, 0 /* create options */,
 			&netfid, &oplock,NULL, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 		/* BB fixme - add this handle to a notify handle list */
 		if(rc) {
-			cERROR(1,("Could not open directory for notify"));  /* BB remove BB */
+			cFYI(1,("Could not open directory for notify"));
 		} else {
 			filter = convert_to_cifs_notify_flags(arg);
 			if(filter != 0) {

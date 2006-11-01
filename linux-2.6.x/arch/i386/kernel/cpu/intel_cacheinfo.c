@@ -4,6 +4,7 @@
  *      Changes:
  *      Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
  *		Ashok Raj <ashok.raj@intel.com>: Work with CPU hotplug infrastructure.
+ *	Andi Kleen		: CPUID4 emulation on AMD.
  */
 
 #include <linux/init.h>
@@ -130,25 +131,111 @@ struct _cpuid4_info {
 	cpumask_t shared_cpu_map;
 };
 
-static unsigned short			num_cache_leaves;
+unsigned short			num_cache_leaves;
+
+/* AMD doesn't have CPUID4. Emulate it here to report the same
+   information to the user.  This makes some assumptions about the machine:
+   No L3, L2 not shared, no SMT etc. that is currently true on AMD CPUs.
+
+   In theory the TLBs could be reported as fake type (they are in "dummy").
+   Maybe later */
+union l1_cache {
+	struct {
+		unsigned line_size : 8;
+		unsigned lines_per_tag : 8;
+		unsigned assoc : 8;
+		unsigned size_in_kb : 8;
+	};
+	unsigned val;
+};
+
+union l2_cache {
+	struct {
+		unsigned line_size : 8;
+		unsigned lines_per_tag : 4;
+		unsigned assoc : 4;
+		unsigned size_in_kb : 16;
+	};
+	unsigned val;
+};
+
+static const unsigned short assocs[] = {
+	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
+	[8] = 16,
+	[0xf] = 0xffff // ??
+	};
+static const unsigned char levels[] = { 1, 1, 2 };
+static const unsigned char types[] = { 1, 2, 3 };
+
+static void __cpuinit amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
+		       union _cpuid4_leaf_ebx *ebx,
+		       union _cpuid4_leaf_ecx *ecx)
+{
+	unsigned dummy;
+	unsigned line_size, lines_per_tag, assoc, size_in_kb;
+	union l1_cache l1i, l1d;
+	union l2_cache l2;
+
+	eax->full = 0;
+	ebx->full = 0;
+	ecx->full = 0;
+
+	cpuid(0x80000005, &dummy, &dummy, &l1d.val, &l1i.val);
+	cpuid(0x80000006, &dummy, &dummy, &l2.val, &dummy);
+
+	if (leaf > 2 || !l1d.val || !l1i.val || !l2.val)
+		return;
+
+	eax->split.is_self_initializing = 1;
+	eax->split.type = types[leaf];
+	eax->split.level = levels[leaf];
+	eax->split.num_threads_sharing = 0;
+	eax->split.num_cores_on_die = current_cpu_data.x86_max_cores - 1;
+
+	if (leaf <= 1) {
+		union l1_cache *l1 = leaf == 0 ? &l1d : &l1i;
+		assoc = l1->assoc;
+		line_size = l1->line_size;
+		lines_per_tag = l1->lines_per_tag;
+		size_in_kb = l1->size_in_kb;
+	} else {
+		assoc = l2.assoc;
+		line_size = l2.line_size;
+		lines_per_tag = l2.lines_per_tag;
+		/* cpu_data has errata corrections for K7 applied */
+		size_in_kb = current_cpu_data.x86_cache_size;
+	}
+
+	if (assoc == 0xf)
+		eax->split.is_fully_associative = 1;
+	ebx->split.coherency_line_size = line_size - 1;
+	ebx->split.ways_of_associativity = assocs[assoc] - 1;
+	ebx->split.physical_line_partition = lines_per_tag - 1;
+	ecx->split.number_of_sets = (size_in_kb * 1024) / line_size /
+		(ebx->split.ways_of_associativity + 1) - 1;
+}
 
 static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {
-	unsigned int		eax, ebx, ecx, edx;
-	union _cpuid4_leaf_eax	cache_eax;
+	union _cpuid4_leaf_eax 	eax;
+	union _cpuid4_leaf_ebx 	ebx;
+	union _cpuid4_leaf_ecx 	ecx;
+	unsigned		edx;
 
-	cpuid_count(4, index, &eax, &ebx, &ecx, &edx);
-	cache_eax.full = eax;
-	if (cache_eax.split.type == CACHE_TYPE_NULL)
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		amd_cpuid4(index, &eax, &ebx, &ecx);
+	else
+		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full,  &edx);
+	if (eax.split.type == CACHE_TYPE_NULL)
 		return -EIO; /* better error ? */
 
-	this_leaf->eax.full = eax;
-	this_leaf->ebx.full = ebx;
-	this_leaf->ecx.full = ecx;
-	this_leaf->size = (this_leaf->ecx.split.number_of_sets + 1) *
-		(this_leaf->ebx.split.coherency_line_size + 1) *
-		(this_leaf->ebx.split.physical_line_partition + 1) *
-		(this_leaf->ebx.split.ways_of_associativity + 1);
+	this_leaf->eax = eax;
+	this_leaf->ebx = ebx;
+	this_leaf->ecx = ecx;
+	this_leaf->size = (ecx.split.number_of_sets + 1) *
+		(ebx.split.coherency_line_size + 1) *
+		(ebx.split.physical_line_partition + 1) *
+		(ebx.split.ways_of_associativity + 1);
 	return 0;
 }
 
@@ -173,8 +260,12 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; /* Cache sizes */
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
 	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
+	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
+#ifdef CONFIG_X86_HT
+	unsigned int cpu = (c == &boot_cpu_data) ? 0 : (c - cpu_data);
+#endif
 
-	if (c->cpuid_level > 4) {
+	if (c->cpuid_level > 3) {
 		static int is_initialized;
 
 		if (is_initialized == 0) {
@@ -205,9 +296,15 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 					break;
 				    case 2:
 					new_l2 = this_leaf.size/1024;
+					num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+					index_msb = get_count_order(num_threads_sharing);
+					l2_id = c->apicid >> index_msb;
 					break;
 				    case 3:
 					new_l3 = this_leaf.size/1024;
+					num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+					index_msb = get_count_order(num_threads_sharing);
+					l3_id = c->apicid >> index_msb;
 					break;
 				    default:
 					break;
@@ -215,11 +312,19 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 			}
 		}
 	}
-	if (c->cpuid_level > 1) {
+	/*
+	 * Don't use cpuid2 if cpuid4 is supported. For P4, we use cpuid2 for
+	 * trace cache
+	 */
+	if ((num_cache_leaves == 0 || c->x86 == 15) && c->cpuid_level > 1) {
 		/* supports eax=2  call */
 		int i, j, n;
 		int regs[4];
 		unsigned char *dp = (unsigned char *)regs;
+		int only_trace = 0;
+
+		if (num_cache_leaves != 0 && c->x86 == 15)
+			only_trace = 1;
 
 		/* Number of times to iterate */
 		n = cpuid_eax(2) & 0xFF;
@@ -241,6 +346,8 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 				while (cache_table[k].descriptor != 0)
 				{
 					if (cache_table[k].descriptor == des) {
+						if (only_trace && cache_table[k].cache_type != LVL_TRACE)
+							break;
 						switch (cache_table[k].cache_type) {
 						case LVL_1_INST:
 							l1i += cache_table[k].size;
@@ -266,34 +373,45 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 				}
 			}
 		}
-
-		if (new_l1d)
-			l1d = new_l1d;
-
-		if (new_l1i)
-			l1i = new_l1i;
-
-		if (new_l2)
-			l2 = new_l2;
-
-		if (new_l3)
-			l3 = new_l3;
-
-		if ( trace )
-			printk (KERN_INFO "CPU: Trace cache: %dK uops", trace);
-		else if ( l1i )
-			printk (KERN_INFO "CPU: L1 I cache: %dK", l1i);
-		if ( l1d )
-			printk(", L1 D cache: %dK\n", l1d);
-		else
-			printk("\n");
-		if ( l2 )
-			printk(KERN_INFO "CPU: L2 cache: %dK\n", l2);
-		if ( l3 )
-			printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
-
-		c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 	}
+
+	if (new_l1d)
+		l1d = new_l1d;
+
+	if (new_l1i)
+		l1i = new_l1i;
+
+	if (new_l2) {
+		l2 = new_l2;
+#ifdef CONFIG_X86_HT
+		cpu_llc_id[cpu] = l2_id;
+#endif
+	}
+
+	if (new_l3) {
+		l3 = new_l3;
+#ifdef CONFIG_X86_HT
+		cpu_llc_id[cpu] = l3_id;
+#endif
+	}
+
+	if (trace)
+		printk (KERN_INFO "CPU: Trace cache: %dK uops", trace);
+	else if ( l1i )
+		printk (KERN_INFO "CPU: L1 I cache: %dK", l1i);
+
+	if (l1d)
+		printk(", L1 D cache: %dK\n", l1d);
+	else
+		printk("\n");
+
+	if (l2)
+		printk(KERN_INFO "CPU: L2 cache: %dK\n", l2);
+
+	if (l3)
+		printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
+
+	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 
 	return l2;
 }
@@ -330,7 +448,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		}
 	}
 }
-static void __devinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
+static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf, *sibling_leaf;
 	int sibling;
@@ -629,7 +747,7 @@ static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cacheinfo_cpu_notifier =
+static struct notifier_block __cpuinitdata cacheinfo_cpu_notifier =
 {
     .notifier_call = cacheinfo_cpu_callback,
 };
@@ -641,7 +759,7 @@ static int __cpuinit cache_sysfs_init(void)
 	if (num_cache_leaves == 0)
 		return 0;
 
-	register_cpu_notifier(&cacheinfo_cpu_notifier);
+	register_hotcpu_notifier(&cacheinfo_cpu_notifier);
 
 	for_each_online_cpu(i) {
 		cacheinfo_cpu_callback(&cacheinfo_cpu_notifier, CPU_ONLINE,

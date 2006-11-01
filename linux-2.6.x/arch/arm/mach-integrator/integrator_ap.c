@@ -161,7 +161,8 @@ static void sc_unmask_irq(unsigned int irq)
 	writel(1 << irq, VA_IC_BASE + IRQ_ENABLE_SET);
 }
 
-static struct irqchip sc_chip = {
+static struct irq_chip sc_chip = {
+	.name	= "SC",
 	.ack	= sc_mask_irq,
 	.mask	= sc_mask_irq,
 	.unmask = sc_unmask_irq,
@@ -319,11 +320,9 @@ static void __init ap_init(void)
 		if ((sc_dec & (16 << i)) == 0)
 			continue;
 
-		lmdev = kmalloc(sizeof(struct lm_device), GFP_KERNEL);
+		lmdev = kzalloc(sizeof(struct lm_device), GFP_KERNEL);
 		if (!lmdev)
 			continue;
-
-		memset(lmdev, 0, sizeof(struct lm_device));
 
 		lmdev->resource.start = 0xc0000000 + 0x10000000 * i;
 		lmdev->resource.end = lmdev->resource.start + 0x0fffffff;

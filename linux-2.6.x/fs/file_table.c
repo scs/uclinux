@@ -5,7 +5,6 @@
  *  Copyright (C) 1997 David S. Miller (davem@caip.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/file.h>
@@ -88,6 +87,7 @@ int proc_nr_files(ctl_table *table, int write, struct file *filp,
  */
 struct file *get_empty_filp(void)
 {
+	struct task_struct *tsk;
 	static int old_max;
 	struct file * f;
 
@@ -112,13 +112,14 @@ struct file *get_empty_filp(void)
 	if (security_file_alloc(f))
 		goto fail_sec;
 
-	eventpoll_init_file(f);
-	atomic_set(&f->f_count, 1);
-	f->f_uid = current->fsuid;
-	f->f_gid = current->fsgid;
-	rwlock_init(&f->f_owner.lock);
-	/* f->f_version: 0 */
+	tsk = current;
 	INIT_LIST_HEAD(&f->f_u.fu_list);
+	atomic_set(&f->f_count, 1);
+	rwlock_init(&f->f_owner.lock);
+	f->f_uid = tsk->fsuid;
+	f->f_gid = tsk->fsgid;
+	eventpoll_init_file(f);
+	/* f->f_version: 0 */
 	return f;
 
 over:
@@ -298,5 +299,5 @@ void __init files_init(unsigned long mempages)
 	if (files_stat.max_files < NR_FILE)
 		files_stat.max_files = NR_FILE;
 	files_defer_init();
-	percpu_counter_init(&nr_files);
+	percpu_counter_init(&nr_files, 0);
 } 

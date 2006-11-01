@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/thread_info.h>
@@ -64,13 +63,13 @@ void mcheck_init(struct cpuinfo_x86 *c)
 static int __init mcheck_disable(char *str)
 {
 	mce_disabled = 1;
-	return 0;
+	return 1;
 }
 
 static int __init mcheck_enable(char *str)
 {
 	mce_disabled = -1;
-	return 0;
+	return 1;
 }
 
 __setup("nomce", mcheck_disable);

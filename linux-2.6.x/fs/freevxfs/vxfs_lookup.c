@@ -56,7 +56,7 @@ struct inode_operations vxfs_dir_inode_ops = {
 	.lookup =		vxfs_lookup,
 };
 
-struct file_operations vxfs_dir_operations = {
+const struct file_operations vxfs_dir_operations = {
 	.readdir =		vxfs_readdir,
 };
 
@@ -245,6 +245,8 @@ vxfs_readdir(struct file *fp, void *retp, filldir_t filler)
 	u_long			bsize = sbp->s_blocksize;
 	u_long			page, npages, block, pblocks, nblocks, offset;
 	loff_t			pos;
+
+	lock_kernel();
 
 	switch ((long)fp->f_pos) {
 	case 0:

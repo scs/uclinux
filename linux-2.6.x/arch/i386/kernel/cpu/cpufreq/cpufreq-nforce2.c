@@ -1,5 +1,5 @@
 /*
- * (C) 2004  Sebastian Witt <se.witt@gmx.net>
+ * (C) 2004-2006  Sebastian Witt <se.witt@gmx.net>
  *
  *  Licensed under the terms of the GNU GPL License version 2.
  *  Based upon reverse engineered information
@@ -39,7 +39,7 @@ static struct pci_dev *nforce2_chipset_dev;
 static int fid = 0;
 
 /* min_fsb, max_fsb:
- * minimum and maximum FSB (= FSB at boot time) 
+ * minimum and maximum FSB (= FSB at boot time)
  */
 static int min_fsb = 0;
 static int max_fsb = 0;
@@ -57,10 +57,10 @@ MODULE_PARM_DESC(min_fsb,
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "cpufreq-nforce2", msg)
 
-/*
+/**
  * nforce2_calc_fsb - calculate FSB
  * @pll: PLL value
- * 
+ *
  *   Calculates FSB from PLL value
  */
 static int nforce2_calc_fsb(int pll)
@@ -76,10 +76,10 @@ static int nforce2_calc_fsb(int pll)
 	return 0;
 }
 
-/*
+/**
  * nforce2_calc_pll - calculate PLL value
  * @fsb: FSB
- * 
+ *
  *   Calculate PLL value for given FSB
  */
 static int nforce2_calc_pll(unsigned int fsb)
@@ -90,7 +90,7 @@ static int nforce2_calc_pll(unsigned int fsb)
 
 	/* Try to calculate multiplier and divider up to 4 times */
 	while (((mul == 0) || (div == 0)) && (tried <= 3)) {
-		for (xdiv = 1; xdiv <= 0x80; xdiv++)
+		for (xdiv = 2; xdiv <= 0x80; xdiv++)
 			for (xmul = 1; xmul <= 0xfe; xmul++)
 				if (nforce2_calc_fsb(NFORCE2_PLL(xmul, xdiv)) ==
 				    fsb + tried) {
@@ -106,10 +106,10 @@ static int nforce2_calc_pll(unsigned int fsb)
 	return NFORCE2_PLL(mul, div);
 }
 
-/*
+/**
  * nforce2_write_pll - write PLL value to chipset
  * @pll: PLL value
- * 
+ *
  *   Writes new FSB PLL value to chipset
  */
 static void nforce2_write_pll(int pll)
@@ -117,19 +117,16 @@ static void nforce2_write_pll(int pll)
 	int temp;
 
 	/* Set the pll addr. to 0x00 */
-	temp = 0x00;
-	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, temp);
+	pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLADR, 0);
 
 	/* Now write the value in all 64 registers */
-	for (temp = 0; temp <= 0x3f; temp++) {
-		pci_write_config_dword(nforce2_chipset_dev, 
-                                       NFORCE2_PLLREG, pll);
-	}
+	for (temp = 0; temp <= 0x3f; temp++)
+		pci_write_config_dword(nforce2_chipset_dev, NFORCE2_PLLREG, pll);
 
 	return;
 }
 
-/*
+/**
  * nforce2_fsb_read - Read FSB
  *
  *   Read FSB from chipset
@@ -140,39 +137,32 @@ static unsigned int nforce2_fsb_read(int bootfsb)
 	struct pci_dev *nforce2_sub5;
 	u32 fsb, temp = 0;
 
-	
 	/* Get chipset boot FSB from subdevice 5 (FSB at boot-time) */
 	nforce2_sub5 = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
-                                      0x01EF,
-                                      PCI_ANY_ID,
-                                      PCI_ANY_ID,
-                                      NULL);
-	
+						0x01EF,PCI_ANY_ID,PCI_ANY_ID,NULL);
 	if (!nforce2_sub5)
 		return 0;
 
 	pci_read_config_dword(nforce2_sub5, NFORCE2_BOOTFSB, &fsb);
 	fsb /= 1000000;
-	
+
 	/* Check if PLL register is already set */
-	pci_read_config_byte(nforce2_chipset_dev, 
-                             NFORCE2_PLLENABLE, (u8 *)&temp);
-	
+	pci_read_config_byte(nforce2_chipset_dev,NFORCE2_PLLENABLE, (u8 *)&temp);
+
 	if(bootfsb || !temp)
 		return fsb;
 		
 	/* Use PLL register FSB value */
-	pci_read_config_dword(nforce2_chipset_dev, 
-                              NFORCE2_PLLREG, &temp);
+	pci_read_config_dword(nforce2_chipset_dev,NFORCE2_PLLREG, &temp);
 	fsb = nforce2_calc_fsb(temp);
 
 	return fsb;
 }
 
-/*
+/**
  * nforce2_set_fsb - set new FSB
  * @fsb: New FSB
- * 
+ *
  *   Sets new FSB
  */
 static int nforce2_set_fsb(unsigned int fsb)
@@ -186,7 +176,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 		printk(KERN_ERR "cpufreq: FSB %d is out of range!\n", fsb);
 		return -EINVAL;
 	}
-	
+
 	tfsb = nforce2_fsb_read(0);
 	if (!tfsb) {
 		printk(KERN_ERR "cpufreq: Error while reading the FSB\n");
@@ -194,8 +184,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 	}
 
 	/* First write? Then set actual value */
-	pci_read_config_byte(nforce2_chipset_dev, 
-                             NFORCE2_PLLENABLE, (u8 *)&temp);
+	pci_read_config_byte(nforce2_chipset_dev,NFORCE2_PLLENABLE, (u8 *)&temp);
 	if (!temp) {
 		pll = nforce2_calc_pll(tfsb);
 
@@ -223,7 +212,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 		/* Calculate the PLL reg. value */
 		if ((pll = nforce2_calc_pll(tfsb)) == -1)
 			return -EINVAL;
-		
+
 		nforce2_write_pll(pll);
 #ifdef NFORCE2_DELAY
 		mdelay(NFORCE2_DELAY);
@@ -239,7 +228,7 @@ static int nforce2_set_fsb(unsigned int fsb)
 /**
  * nforce2_get - get the CPU frequency
  * @cpu: CPU number
- * 
+ *
  * Returns the CPU frequency
  */
 static unsigned int nforce2_get(unsigned int cpu)
@@ -276,7 +265,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 	if (freqs.old == freqs.new)
 		return 0;
 
-	dprintk(KERN_INFO "cpufreq: Old CPU frequency %d kHz, new %d kHz\n",
+	dprintk("Old CPU frequency %d kHz, new %d kHz\n",
 	       freqs.old, freqs.new);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
@@ -288,7 +277,7 @@ static int nforce2_target(struct cpufreq_policy *policy,
 		printk(KERN_ERR "cpufreq: Changing FSB to %d failed\n",
                        target_fsb);
 	else
-		dprintk(KERN_INFO "cpufreq: Changed FSB successfully to %d\n",
+		dprintk("Changed FSB successfully to %d\n",
                        target_fsb);
 
 	/* Enable IRQs */
@@ -354,10 +343,10 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 
 	printk(KERN_INFO "cpufreq: FSB currently at %i MHz, FID %d.%d\n", fsb,
 	       fid / 10, fid % 10);
-	
+
 	/* Set maximum FSB to FSB at boot time */
 	max_fsb = nforce2_fsb_read(1);
-	
+
 	if(!max_fsb)
 		return -EIO;
 
@@ -398,17 +387,15 @@ static struct cpufreq_driver nforce2_driver = {
  * nforce2_detect_chipset - detect the Southbridge which contains FSB PLL logic
  *
  * Detects nForce2 A2 and C1 stepping
- * 
+ *
  */
 static unsigned int nforce2_detect_chipset(void)
 {
 	u8 revision;
 
 	nforce2_chipset_dev = pci_get_subsys(PCI_VENDOR_ID_NVIDIA,
-                                             PCI_DEVICE_ID_NVIDIA_NFORCE2,
-                                             PCI_ANY_ID,
-                                             PCI_ANY_ID,
-                                             NULL);
+					PCI_DEVICE_ID_NVIDIA_NFORCE2,
+					PCI_ANY_ID, PCI_ANY_ID, NULL);
 
 	if (nforce2_chipset_dev == NULL)
 		return -ENODEV;

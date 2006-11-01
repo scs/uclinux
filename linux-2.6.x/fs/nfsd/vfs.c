@@ -16,7 +16,6 @@
  * Zerocpy NFS support (C) 2002 Hirokazu Takahashi <taka@valinux.co.jp>
  */
 
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/time.h>
 #include <linux/errno.h>
@@ -371,7 +370,6 @@ out_nfserr:
 static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
 {
 	ssize_t buflen;
-	int error;
 
 	buflen = vfs_getxattr(dentry, key, NULL, 0);
 	if (buflen <= 0)
@@ -381,10 +379,7 @@ static ssize_t nfsd_getxattr(struct dentry *dentry, char *key, void **buf)
 	if (!*buf)
 		return -ENOMEM;
 
-	error = vfs_getxattr(dentry, key, *buf, buflen);
-	if (error < 0)
-		return error;
-	return buflen;
+	return vfs_getxattr(dentry, key, *buf, buflen);
 }
 #endif
 
@@ -677,7 +672,10 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		goto out_nfserr;
 
 	if (access & MAY_WRITE) {
-		flags = O_WRONLY|O_LARGEFILE;
+		if (access & MAY_READ)
+			flags = O_RDWR|O_LARGEFILE;
+		else
+			flags = O_WRONLY|O_LARGEFILE;
 
 		DQUOT_INIT(inode);
 	}
@@ -706,7 +704,7 @@ nfsd_close(struct file *filp)
  * after it.
  */
 static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
-			      struct file_operations *fop)
+			      const struct file_operations *fop)
 {
 	struct inode *inode = dp->d_inode;
 	int (*fsync) (struct file *, struct dentry *, int);
@@ -838,7 +836,7 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (ra && ra->p_set)
 		file->f_ra = ra->p_ra;
 
-	if (file->f_op->sendfile) {
+	if (file->f_op->sendfile && rqstp->rq_sendfile_ok) {
 		svc_pushback_unused_pages(rqstp);
 		err = file->f_op->sendfile(file, &offset, *count,
 						 nfsd_read_actor, rqstp);
@@ -1521,14 +1519,15 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 			err = nfserrno(err);
 	}
 
-	fh_unlock(ffhp);
 	dput(dnew);
+out_unlock:
+	fh_unlock(ffhp);
 out:
 	return err;
 
 out_nfserr:
 	err = nfserrno(err);
-	goto out;
+	goto out_unlock;
 }
 
 /*
@@ -1557,7 +1556,7 @@ nfsd_rename(struct svc_rqst *rqstp, struct svc_fh *ffhp, char *fname, int flen,
 	tdir = tdentry->d_inode;
 
 	err = (rqstp->rq_vers == 2) ? nfserr_acces : nfserr_xdev;
-	if (fdir->i_sb != tdir->i_sb)
+	if (ffhp->fh_export != tfhp->fh_export)
 		goto out;
 
 	err = nfserr_perm;
@@ -1741,7 +1740,7 @@ int
 nfsd_statfs(struct svc_rqst *rqstp, struct svc_fh *fhp, struct kstatfs *stat)
 {
 	int err = fh_verify(rqstp, fhp, 0, MAY_NOP);
-	if (!err && vfs_statfs(fhp->fh_dentry->d_inode->i_sb,stat))
+	if (!err && vfs_statfs(fhp->fh_dentry,stat))
 		err = nfserr_io;
 	return err;
 }
@@ -1926,11 +1925,10 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 		value = kmalloc(size, GFP_KERNEL);
 		if (!value)
 			return -ENOMEM;
-		size = posix_acl_to_xattr(acl, value, size);
-		if (size < 0) {
-			error = size;
+		error = posix_acl_to_xattr(acl, value, size);
+		if (error < 0)
 			goto getout;
-		}
+		size = error;
 	} else
 		size = 0;
 

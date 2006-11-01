@@ -29,6 +29,26 @@ config SEMAPHORE_SLEEPERS
 	bool
 	default y
 
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+        bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
 config UCLINUX
 	bool
 	default y

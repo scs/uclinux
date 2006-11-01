@@ -14,12 +14,12 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/bitops.h>
@@ -211,7 +211,8 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* clear timer 1 */
 	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);
 
-	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
+	while ((signed long)(next_jiffy_time - *missing_jiffy_timer_csr)
+							>= ticks_per_jiffy) {
 		timer_tick(regs);
 		next_jiffy_time -= ticks_per_jiffy;
 	}
@@ -223,7 +224,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction ixp2000_timer_irq = {
 	.name		= "IXP2000 Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= ixp2000_timer_interrupt,
 };
 
@@ -288,8 +289,6 @@ void gpio_line_config(int line, int direction)
 
 	local_irq_save(flags);
 	if (direction == GPIO_OUT) {
-		irq_desc[line + IRQ_IXP2000_GPIO0].valid = 0;
-
 		/* if it's an output, it ain't an interrupt anymore */
 		GPIO_IRQ_falling_edge &= ~(1 << line);
 		GPIO_IRQ_rising_edge &= ~(1 << line);
@@ -303,6 +302,7 @@ void gpio_line_config(int line, int direction)
 	}
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(gpio_line_config);
 
 
 /*************************************************************************
@@ -350,11 +350,6 @@ static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
 	else
 		GPIO_IRQ_level_high &= ~(1 << line);
 	update_gpio_int_csrs();
-
-	/*
-	 * Finally, mark the corresponding IRQ as valid.
-	 */
-	irq_desc[irq].valid = 1;
 
 	return 0;
 }
@@ -414,7 +409,7 @@ static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  str
 	for(i = 31; i >= 0; i--) {
 		if(status & (1 << i)) {
 			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
-			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+			desc_handle_irq(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
 		}
 	}
 }
@@ -506,14 +501,10 @@ void __init ixp2000_init_irq(void)
 	}
 	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
-	/*
-	 * GPIO IRQs are invalid until someone sets the interrupt mode
-	 * by calling set_irq_type().
-	 */
 	for (irq = IRQ_IXP2000_GPIO0; irq <= IRQ_IXP2000_GPIO7; irq++) {
 		set_irq_chip(irq, &ixp2000_GPIO_irq_chip);
 		set_irq_handler(irq, do_level_IRQ);
-		set_irq_flags(irq, 0);
+		set_irq_flags(irq, IRQF_VALID);
 	}
 	set_irq_chained_handler(IRQ_IXP2000_GPIO, ixp2000_GPIO_irq_handler);
 

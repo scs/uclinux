@@ -72,6 +72,16 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	/* show my rpc info */
 	svc_seq_show(seq, &nfsd_svcstats);
 
+#ifdef CONFIG_NFSD_V4
+	/* Show count for individual nfsv4 operations */
+	/* Writing operation numbers 0 1 2 also for maintaining uniformity */
+	seq_printf(seq,"proc4ops %u", LAST_NFS4_OP + 1);
+	for (i = 0; i <= LAST_NFS4_OP; i++)
+		seq_printf(seq, " %u", nfsdstats.nfs4_opcount[i]);
+
+	seq_putc(seq, '\n');
+#endif
+
 	return 0;
 }
 
@@ -80,7 +90,7 @@ static int nfsd_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, nfsd_proc_show, NULL);
 }
 
-static struct file_operations nfsd_proc_fops = {
+static const struct file_operations nfsd_proc_fops = {
 	.owner = THIS_MODULE,
 	.open = nfsd_proc_open,
 	.read  = seq_read,

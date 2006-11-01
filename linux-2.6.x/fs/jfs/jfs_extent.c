@@ -94,7 +94,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 	txBeginAnon(ip->i_sb);
 
 	/* Avoid race with jfs_commit_inode() */
-	down(&JFS_IP(ip)->commit_sem);
+	mutex_lock(&JFS_IP(ip)->commit_mutex);
 
 	/* validate extent length */
 	if (xlen > MAXXLEN)
@@ -126,7 +126,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 
 	/* allocate the disk blocks for the extent.  initially, extBalloc()
 	 * will try to allocate disk blocks for the requested size (xlen). 
-	 * if this fails (xlen contigious free blocks not avaliable), it'll
+	 * if this fails (xlen contiguous free blocks not avaliable), it'll
 	 * try to allocate a smaller number of blocks (producing a smaller
 	 * extent), with this smaller number of blocks consisting of the
 	 * requested number of blocks rounded down to the next smaller
@@ -136,14 +136,14 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 	 */
 	nxlen = xlen;
 	if ((rc = extBalloc(ip, hint ? hint : INOHINT(ip), &nxlen, &nxaddr))) {
-		up(&JFS_IP(ip)->commit_sem);
+		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return (rc);
 	}
 
 	/* Allocate blocks to quota. */
 	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
-		up(&JFS_IP(ip)->commit_sem);
+		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
 	}
 
@@ -165,7 +165,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 	if (rc) {
 		dbFree(ip, nxaddr, nxlen);
 		DQUOT_FREE_BLOCK(ip, nxlen);
-		up(&JFS_IP(ip)->commit_sem);
+		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return (rc);
 	}
 
@@ -177,7 +177,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, boolean_t abnr)
 
 	mark_inode_dirty(ip);
 
-	up(&JFS_IP(ip)->commit_sem);
+	mutex_unlock(&JFS_IP(ip)->commit_mutex);
 	/*
 	 * COMMIT_SyncList flags an anonymous tlock on page that is on
 	 * sync list.
@@ -222,7 +222,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, boolean_t abnr)
 	/* This blocks if we are low on resources */
 	txBeginAnon(ip->i_sb);
 
-	down(&JFS_IP(ip)->commit_sem);
+	mutex_lock(&JFS_IP(ip)->commit_mutex);
 	/* validate extent length */
 	if (nxlen > MAXXLEN)
 		nxlen = MAXXLEN;
@@ -258,7 +258,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, boolean_t abnr)
 	/* Allocat blocks to quota. */
 	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
-		up(&JFS_IP(ip)->commit_sem);
+		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
 	}
 
@@ -338,7 +338,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, boolean_t abnr)
 
 	mark_inode_dirty(ip);
 exit:
-	up(&JFS_IP(ip)->commit_sem);
+	mutex_unlock(&JFS_IP(ip)->commit_mutex);
 	return (rc);
 }
 #endif			/* _NOTYET */
@@ -439,12 +439,12 @@ int extRecord(struct inode *ip, xad_t * xp)
 
 	txBeginAnon(ip->i_sb);
 
-	down(&JFS_IP(ip)->commit_sem);
+	mutex_lock(&JFS_IP(ip)->commit_mutex);
 
 	/* update the extent */
 	rc = xtUpdate(0, ip, xp);
 
-	up(&JFS_IP(ip)->commit_sem);
+	mutex_unlock(&JFS_IP(ip)->commit_mutex);
 	return rc;
 }
 
@@ -493,7 +493,7 @@ int extFill(struct inode *ip, xad_t * xp)
  *
  *		initially, we will try to allocate disk blocks for the
  *		requested size (nblocks).  if this fails (nblocks 
- *		contigious free blocks not avaliable), we'll try to allocate
+ *		contiguous free blocks not avaliable), we'll try to allocate
  *		a smaller number of blocks (producing a smaller extent), with
  *		this smaller number of blocks consisting of the requested
  *		number of blocks rounded down to the next smaller power of 2
@@ -529,7 +529,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
 
 	/* get the number of blocks to initially attempt to allocate.
 	 * we'll first try the number of blocks requested unless this
-	 * number is greater than the maximum number of contigious free
+	 * number is greater than the maximum number of contiguous free
 	 * blocks in the map. in that case, we'll start off with the 
 	 * maximum free.
 	 */
@@ -586,7 +586,7 @@ extBalloc(struct inode *ip, s64 hint, s64 * nblocks, s64 * blkno)
  *		in place.  if this fails, we'll try to move the extent
  *		to a new set of blocks. if moving the extent, we initially
  *		will try to allocate disk blocks for the requested size
- *		(nnew).  if this fails 	(nnew contigious free blocks not
+ *		(nnew).  if this fails 	(new contiguous free blocks not
  *		avaliable), we'll try  to allocate a smaller number of
  *		blocks (producing a smaller extent), with this smaller
  *		number of blocks consisting of the requested number of

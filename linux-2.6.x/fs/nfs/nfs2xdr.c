@@ -23,11 +23,10 @@
 #include <linux/nfs.h>
 #include <linux/nfs2.h>
 #include <linux/nfs_fs.h>
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_XDR
 /* #define NFS_PARANOIA 1 */
-
-extern int			nfs_stat_to_errno(int stat);
 
 /* Mapping from NFS error code to "errno" error code. */
 #define errno_NFSERR_IO		EIO
@@ -131,7 +130,8 @@ xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
 	fattr->du.nfs2.blocksize = ntohl(*p++);
 	rdev = ntohl(*p++);
 	fattr->du.nfs2.blocks = ntohl(*p++);
-	fattr->fsid_u.nfs3 = ntohl(*p++);
+	fattr->fsid.major = ntohl(*p++);
+	fattr->fsid.minor = 0;
 	fattr->fileid = ntohl(*p++);
 	p = xdr_decode_time(p, &fattr->atime);
 	p = xdr_decode_time(p, &fattr->mtime);
@@ -682,7 +682,9 @@ nfs_stat_to_errno(int stat)
 	.p_encode   =  (kxdrproc_t) nfs_xdr_##argtype,			\
 	.p_decode   =  (kxdrproc_t) nfs_xdr_##restype,			\
 	.p_bufsiz   =  MAX(NFS_##argtype##_sz,NFS_##restype##_sz) << 2,	\
-	.p_timer    =  timer						\
+	.p_timer    =  timer,						\
+	.p_statidx  =  NFSPROC_##proc,					\
+	.p_name     =  #proc,						\
 	}
 struct rpc_procinfo	nfs_procedures[] = {
     PROC(GETATTR,	fhandle,	attrstat, 1),
@@ -704,6 +706,6 @@ struct rpc_procinfo	nfs_procedures[] = {
 
 struct rpc_version		nfs_version2 = {
 	.number			= 2,
-	.nrprocs		= sizeof(nfs_procedures)/sizeof(nfs_procedures[0]),
+	.nrprocs		= ARRAY_SIZE(nfs_procedures),
 	.procs			= nfs_procedures
 };

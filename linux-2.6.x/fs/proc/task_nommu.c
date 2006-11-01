@@ -107,7 +107,7 @@ int proc_exe_link(struct inode *inode, struct dentry **dentry, struct vfsmount *
 {
 	struct vm_list_struct *vml;
 	struct vm_area_struct *vma;
-	struct task_struct *task = proc_task(inode);
+	struct task_struct *task = get_proc_task(inode);
 	struct mm_struct *mm = get_task_mm(task);
 	int result = -ENOENT;
 
@@ -137,134 +137,47 @@ out:
 	return result;
 }
 
-static void pad_len_spaces(struct seq_file *m, int len)
-{
-	len = 25 + sizeof(void*) * 6 - len;
-	if (len < 1)
-		len = 1;
-	seq_printf(m, "%*c", len, ' ');
-}
-
+/*
+ * Albert D. Cahalan suggested to fake entries for the traditional
+ * sections here.  This might be worth investigating.
+ */
 static int show_map(struct seq_file *m, void *v)
 {
-	struct vm_list_struct *vml = v;
-	struct vm_area_struct *vma = vml->vma;
-	struct task_struct *task = m->private;
-	struct mm_struct *mm = get_task_mm(task);
-	struct file *file = vma->vm_file;
-	int flags = vma->vm_flags;
-	unsigned long ino = 0;
-	dev_t dev = 0;
-	int len;
-
-	if (file) {
-		struct inode *inode = vma->vm_file->f_dentry->d_inode;
-		dev = inode->i_sb->s_dev;
-		ino = inode->i_ino;
-	}
-
-	seq_printf(m, "%08lx-%08lx %c%c%c%c %08lx %02x:%02x %lu %n",
-			vma->vm_start,
-			vma->vm_end,
-			flags & VM_READ ? 'r' : '-',
-			flags & VM_WRITE ? 'w' : '-',
-			flags & VM_EXEC ? 'x' : '-',
-			flags & VM_MAYSHARE ? 's' : 'p',
-			vma->vm_pgoff << PAGE_SHIFT,
-			MAJOR(dev), MINOR(dev), ino, &len);
-
-	/*
-	 * Print the dentry name for named mappings, and a
-	 * special [heap] marker for the heap:
-	 */
-	if (file) {
-		pad_len_spaces(m, len);
-		seq_path(m, file->f_vfsmnt, file->f_dentry, "\n");
-	} else {
-		if (mm) {
-			if (vma->vm_start <= mm->start_brk &&
-						vma->vm_end >= mm->brk) {
-				pad_len_spaces(m, len);
-				seq_puts(m, "[heap]");
-			} else {
-				if (vma->vm_start <= mm->start_stack &&
-					vma->vm_end >= mm->start_stack) {
-
-					pad_len_spaces(m, len);
-					seq_puts(m, "[stack]");
-				}
-			}
-		} else {
-			pad_len_spaces(m, len);
-			seq_puts(m, "[vdso]");
-		}
-	}
-	seq_putc(m, '\n');
-
 	return 0;
 }
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
-	struct task_struct *task = m->private;
-	struct mm_struct *mm;
-	struct vm_list_struct *vml;
-	loff_t l = *pos;
-
-	mm = get_task_mm(task);
-	if (!mm)
-		return NULL;
-
-	down_read(&mm->mmap_sem);
-
-	/*
-	 * Check the vml index is within the range and do
-	 * sequential scan until m_index.
-	 */
-	vml = NULL;
-	if ((unsigned long)l < mm->map_count) {
-		vml = mm->context.vmlist;
-		while (l-- && vml)
-			vml = vml->next;
-	}
-
-	if (vml)
-		return vml;
-
-	/* End of vmls has been reached */
-	up_read(&mm->mmap_sem);
-	mmput(mm);
-
 	return NULL;
 }
 static void m_stop(struct seq_file *m, void *v)
 {
-	struct task_struct *task = m->private;
-	struct mm_struct *mm;
-
-	if (!v)
-		return;
-
-	mm = get_task_mm(task);
-	if (!mm)
-		return;
-
-	up_read(&mm->mmap_sem);
-	mmput(mm);
 }
 static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 {
-	struct vm_list_struct *vml = v;
-
-	(*pos)++;
-	if (vml && vml->next)
-		return vml->next;
-
-	m_stop(m, vml);
 	return NULL;
 }
-struct seq_operations proc_pid_maps_op = {
+static struct seq_operations proc_pid_maps_op = {
 	.start	= m_start,
 	.next	= m_next,
 	.stop	= m_stop,
 	.show	= show_map
 };
+
+static int maps_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	ret = seq_open(file, &proc_pid_maps_op);
+	if (!ret) {
+		struct seq_file *m = file->private_data;
+		m->private = NULL;
+	}
+	return ret;
+}
+
+struct file_operations proc_maps_operations = {
+	.open		= maps_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+

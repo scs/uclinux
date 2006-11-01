@@ -7,8 +7,8 @@
  *  Authors:  Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.6  2006/03/22 06:14:57  magicyang
- *  update kernel to 2.6.16
+ *  Revision 1.7  2006/11/01 04:49:08  magicyang
+ *  update kernel to 2.6.18
  *
  *  Revision 1.11  2004/05/28 09:28:56  starvik
  *  Calculation of loops_per_usec moved because initalization order has changed
@@ -219,7 +219,7 @@ free_initmem(void)
         addr = (unsigned long)(&__init_begin);
         for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
                 ClearPageReserved(virt_to_page(addr));
-                set_page_count(virt_to_page(addr), 1);
+                init_page_count(virt_to_page(addr));
                 free_page(addr);
                 totalram_pages++;
         }

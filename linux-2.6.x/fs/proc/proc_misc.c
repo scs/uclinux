@@ -26,7 +26,6 @@
 #include <linux/mman.h>
 #include <linux/proc_fs.h>
 #include <linux/ioport.h>
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
@@ -120,7 +119,6 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 {
 	struct sysinfo i;
 	int len;
-	struct page_state ps;
 	unsigned long inactive;
 	unsigned long active;
 	unsigned long free;
@@ -129,7 +127,6 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 	struct vmalloc_info vmi;
 	long cached;
 
-	get_page_state(&ps);
 	get_zone_counts(&active, &inactive, &free);
 
 /*
@@ -142,7 +139,8 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 	allowed = ((totalram_pages - hugetlb_total_pages())
 		* sysctl_overcommit_ratio / 100) + total_swap_pages;
 
-	cached = get_page_cache_size() - total_swapcache_pages - i.bufferram;
+	cached = global_page_state(NR_FILE_PAGES) -
+			total_swapcache_pages - i.bufferram;
 	if (cached < 0)
 		cached = 0;
 
@@ -167,11 +165,14 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		"SwapFree:     %8lu kB\n"
 		"Dirty:        %8lu kB\n"
 		"Writeback:    %8lu kB\n"
+		"AnonPages:    %8lu kB\n"
 		"Mapped:       %8lu kB\n"
 		"Slab:         %8lu kB\n"
+		"PageTables:   %8lu kB\n"
+		"NFS_Unstable: %8lu kB\n"
+		"Bounce:       %8lu kB\n"
 		"CommitLimit:  %8lu kB\n"
 		"Committed_AS: %8lu kB\n"
-		"PageTables:   %8lu kB\n"
 		"VmallocTotal: %8lu kB\n"
 		"VmallocUsed:  %8lu kB\n"
 		"VmallocChunk: %8lu kB\n",
@@ -188,13 +189,16 @@ static int meminfo_read_proc(char *page, char **start, off_t off,
 		K(i.freeram-i.freehigh),
 		K(i.totalswap),
 		K(i.freeswap),
-		K(ps.nr_dirty),
-		K(ps.nr_writeback),
-		K(ps.nr_mapped),
-		K(ps.nr_slab),
+		K(global_page_state(NR_FILE_DIRTY)),
+		K(global_page_state(NR_WRITEBACK)),
+		K(global_page_state(NR_ANON_PAGES)),
+		K(global_page_state(NR_FILE_MAPPED)),
+		K(global_page_state(NR_SLAB)),
+		K(global_page_state(NR_PAGETABLE)),
+		K(global_page_state(NR_UNSTABLE_NFS)),
+		K(global_page_state(NR_BOUNCE)),
 		K(allowed),
 		K(committed),
-		K(ps.nr_page_table_pages),
 		(unsigned long)VMALLOC_TOTAL >> 10,
 		vmi.used >> 10,
 		vmi.largest_chunk >> 10
@@ -394,6 +398,40 @@ static struct file_operations proc_slabinfo_operations = {
 	.llseek		= seq_lseek,
 	.release	= seq_release,
 };
+
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+extern struct seq_operations slabstats_op;
+static int slabstats_open(struct inode *inode, struct file *file)
+{
+	unsigned long *n = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	int ret = -ENOMEM;
+	if (n) {
+		ret = seq_open(file, &slabstats_op);
+		if (!ret) {
+			struct seq_file *m = file->private_data;
+			*n = PAGE_SIZE / (2 * sizeof(unsigned long));
+			m->private = n;
+			n = NULL;
+		}
+		kfree(n);
+	}
+	return ret;
+}
+
+static int slabstats_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *m = file->private_data;
+	kfree(m->private);
+	return seq_release(inode, file);
+}
+
+static struct file_operations proc_slabstats_operations = {
+	.open		= slabstats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= slabstats_release,
+};
+#endif
 #endif
 
 static int show_stat(struct seq_file *p, void *v)
@@ -409,7 +447,7 @@ static int show_stat(struct seq_file *p, void *v)
 	if (wall_to_monotonic.tv_nsec)
 		--jif;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int j;
 
 		user = cputime64_add(user, kstat_cpu(i).cpustat.user);
@@ -606,7 +644,7 @@ static struct file_operations proc_sysrq_trigger_operations = {
 
 struct proc_dir_entry *proc_root_kcore;
 
-void create_seq_entry(char *name, mode_t mode, struct file_operations *f)
+void create_seq_entry(char *name, mode_t mode, const struct file_operations *f)
 {
 	struct proc_dir_entry *entry;
 	entry = create_proc_entry(name, mode, NULL);
@@ -653,6 +691,9 @@ void __init proc_misc_init(void)
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
 #ifdef CONFIG_SLAB
 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
+#ifdef CONFIG_DEBUG_SLAB_LEAK
+	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);
+#endif
 #endif
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("vmstat",S_IRUGO, &proc_vmstat_file_operations);

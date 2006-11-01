@@ -49,7 +49,7 @@
 
 #include "buffer_head_io.h"
 
-spinlock_t trans_inc_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(trans_inc_lock);
 
 static int ocfs2_force_read_journal(struct inode *inode);
 static int ocfs2_recover_node(struct ocfs2_super *osb,
@@ -117,7 +117,7 @@ struct ocfs2_journal_handle *ocfs2_alloc_handle(struct ocfs2_super *osb)
 {
 	struct ocfs2_journal_handle *retval = NULL;
 
-	retval = kcalloc(1, sizeof(*retval), GFP_KERNEL);
+	retval = kcalloc(1, sizeof(*retval), GFP_NOFS);
 	if (!retval) {
 		mlog(ML_ERROR, "Failed to allocate memory for journal "
 		     "handle!\n");
@@ -222,8 +222,7 @@ void ocfs2_handle_add_inode(struct ocfs2_journal_handle *handle,
 	BUG_ON(!list_empty(&OCFS2_I(inode)->ip_handle_list));
 
 	OCFS2_I(inode)->ip_handle = handle;
-	list_del(&(OCFS2_I(inode)->ip_handle_list));
-	list_add_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
+	list_move_tail(&(OCFS2_I(inode)->ip_handle_list), &(handle->inode_list));
 }
 
 static void ocfs2_handle_unlock_inodes(struct ocfs2_journal_handle *handle)
@@ -377,7 +376,7 @@ int ocfs2_journal_access(struct ocfs2_journal_handle *handle,
 	BUG_ON(!bh);
 	BUG_ON(!(handle->flags & OCFS2_HANDLE_STARTED));
 
-	mlog_entry("bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %hu\n",
+	mlog_entry("bh->b_blocknr=%llu, type=%d (\"%s\"), bh->b_size = %zu\n",
 		   (unsigned long long)bh->b_blocknr, type,
 		   (type == OCFS2_JOURNAL_ACCESS_CREATE) ?
 		   "OCFS2_JOURNAL_ACCESS_CREATE" :
@@ -503,8 +502,8 @@ static void ocfs2_handle_cleanup_locks(struct ocfs2_journal *journal,
 		ocfs2_meta_unlock(inode, 1);
 		if (atomic_read(&inode->i_count) == 1)
 			mlog(ML_ERROR,
-			     "Inode %"MLFu64", I'm doing a last iput for!",
-			     OCFS2_I(inode)->ip_blkno);
+			     "Inode %llu, I'm doing a last iput for!",
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno);
 		iput(inode);
 		kmem_cache_free(ocfs2_lock_cache, lock);
 	}
@@ -582,7 +581,8 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	}
 
 	mlog(0, "inode->i_size = %lld\n", inode->i_size);
-	mlog(0, "inode->i_blocks = %lu\n", inode->i_blocks);
+	mlog(0, "inode->i_blocks = %llu\n",
+			(unsigned long long)inode->i_blocks);
 	mlog(0, "inode->ip_clusters = %u\n", OCFS2_I(inode)->ip_clusters);
 
 	/* call the kernels journal init function now */
@@ -640,8 +640,9 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 		/* This is called from startup/shutdown which will
 		 * handle the errors in a specific manner, so no need
 		 * to call ocfs2_error() here. */
-		mlog(ML_ERROR, "Journal dinode %"MLFu64"  has invalid "
-		     "signature: %.*s", fe->i_blkno, 7, fe->i_signature);
+		mlog(ML_ERROR, "Journal dinode %llu  has invalid "
+		     "signature: %.*s", (unsigned long long)fe->i_blkno, 7,
+		     fe->i_signature);
 		status = -EIO;
 		goto out;
 	}
@@ -783,8 +784,7 @@ int ocfs2_journal_load(struct ocfs2_journal *journal)
 	}
 
 	/* Launch the commit thread */
-	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt-%d",
-				       osb->osb_id);
+	osb->commit_task = kthread_run(ocfs2_commit_thread, osb, "ocfs2cmt");
 	if (IS_ERR(osb->commit_task)) {
 		status = PTR_ERR(osb->commit_task);
 		osb->commit_task = NULL;
@@ -849,8 +849,9 @@ static int ocfs2_force_read_journal(struct inode *inode)
 
 	memset(bhs, 0, sizeof(struct buffer_head *) * CONCURRENT_JOURNAL_FILL);
 
-	mlog(0, "Force reading %lu blocks\n",
-	     (inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9)));
+	mlog(0, "Force reading %llu blocks\n",
+		(unsigned long long)(inode->i_blocks >>
+			(inode->i_sb->s_blocksize_bits - 9)));
 
 	v_blkno = 0;
 	while (v_blkno <
@@ -867,9 +868,11 @@ static int ocfs2_force_read_journal(struct inode *inode)
 		if (p_blocks > CONCURRENT_JOURNAL_FILL)
 			p_blocks = CONCURRENT_JOURNAL_FILL;
 
+		/* We are reading journal data which should not
+		 * be put in the uptodate cache */
 		status = ocfs2_read_blocks(OCFS2_SB(inode->i_sb),
 					   p_blkno, p_blocks, bhs, 0,
-					   inode);
+					   NULL);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -934,8 +937,8 @@ void ocfs2_complete_recovery(void *data)
 
 		la_dinode = item->lri_la_dinode;
 		if (la_dinode) {
-			mlog(0, "Clean up local alloc %"MLFu64"\n",
-			     la_dinode->i_blkno);
+			mlog(0, "Clean up local alloc %llu\n",
+			     (unsigned long long)la_dinode->i_blkno);
 
 			ret = ocfs2_complete_local_alloc_recovery(osb,
 								  la_dinode);
@@ -947,8 +950,8 @@ void ocfs2_complete_recovery(void *data)
 
 		tl_dinode = item->lri_tl_dinode;
 		if (tl_dinode) {
-			mlog(0, "Clean up truncate log %"MLFu64"\n",
-			     tl_dinode->i_blkno);
+			mlog(0, "Clean up truncate log %llu\n",
+			     (unsigned long long)tl_dinode->i_blkno);
 
 			ret = ocfs2_complete_truncate_log_recovery(osb,
 								   tl_dinode);
@@ -979,7 +982,7 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 {
 	struct ocfs2_la_recovery_item *item;
 
-	item = kmalloc(sizeof(struct ocfs2_la_recovery_item), GFP_KERNEL);
+	item = kmalloc(sizeof(struct ocfs2_la_recovery_item), GFP_NOFS);
 	if (!item) {
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
@@ -1114,7 +1117,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 		goto out;
 
 	osb->recovery_thread_task =  kthread_run(__ocfs2_recovery_thread, osb,
-						 "ocfs2rec-%d", osb->osb_id);
+						 "ocfs2rec");
 	if (IS_ERR(osb->recovery_thread_task)) {
 		mlog_errno((int)PTR_ERR(osb->recovery_thread_task));
 		osb->recovery_thread_task = NULL;
@@ -1473,11 +1476,11 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			if (de->file_type > OCFS2_FT_MAX) {
 				mlog(ML_ERROR,
 				     "block %llu contains invalid de: "
-				     "inode = %"MLFu64", rec_len = %u, "
+				     "inode = %llu, rec_len = %u, "
 				     "name_len = %u, file_type = %u, "
 				     "name='%.*s'\n",
 				     (unsigned long long)bh->b_blocknr,
-				     le64_to_cpu(de->inode),
+				     (unsigned long long)le64_to_cpu(de->inode),
 				     le16_to_cpu(de->rec_len),
 				     de->name_len,
 				     de->file_type,
@@ -1494,8 +1497,8 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			if (IS_ERR(iter))
 				continue;
 
-			mlog(0, "queue orphan %"MLFu64"\n",
-			     OCFS2_I(iter)->ip_blkno);
+			mlog(0, "queue orphan %llu\n",
+			     (unsigned long long)OCFS2_I(iter)->ip_blkno);
 			/* No locking is required for the next_orphan
 			 * queue as there is only ever a single
 			 * process doing orphan recovery. */
@@ -1588,7 +1591,7 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 
 	while (inode) {
 		oi = OCFS2_I(inode);
-		mlog(0, "iput orphan %"MLFu64"\n", oi->ip_blkno);
+		mlog(0, "iput orphan %llu\n", (unsigned long long)oi->ip_blkno);
 
 		iter = oi->ip_next_orphan;
 

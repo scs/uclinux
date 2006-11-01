@@ -35,7 +35,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
-#include <asm/irqchip.h>
 
 #include <asm/dma.h>
 #include <asm/cacheflush.h>

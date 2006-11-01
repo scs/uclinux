@@ -18,8 +18,8 @@
 *! Jul 21 1999  Bjorn Wesen     eLinux port
 *!
 *! $Log$
-*! Revision 1.6  2006/03/22 06:14:52  magicyang
-*! update kernel to 2.6.16
+*! Revision 1.7  2006/11/01 04:48:52  magicyang
+*! update kernel to 2.6.18
 *!
 *! Revision 1.6  2005/01/14 10:12:17  starvik
 *! KGDB on separate port.

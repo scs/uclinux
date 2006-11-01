@@ -35,6 +35,7 @@ extern unsigned int pcibios_max_latency;
 
 void pcibios_resource_survey(void);
 int pcibios_enable_resources(struct pci_dev *, int);
+void pcibios_disable_resources(struct pci_dev *);
 
 /* pci-pc.c */
 
@@ -80,4 +81,7 @@ extern int pci_conf1_write(unsigned int seg, unsigned int bus,
 extern int pci_conf1_read(unsigned int seg, unsigned int bus,
 			  unsigned int devfn, int reg, int len, u32 *value);
 
-
+extern void pci_direct_init(void);
+extern void pci_pcbios_init(void);
+extern void pci_mmcfg_init(void);
+extern void pcibios_sort(void);

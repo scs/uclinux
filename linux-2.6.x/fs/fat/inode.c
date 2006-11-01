@@ -101,11 +101,11 @@ static int __fat_get_blocks(struct inode *inode, sector_t iblock,
 }
 
 static int fat_get_blocks(struct inode *inode, sector_t iblock,
-			  unsigned long max_blocks,
 			  struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
 	int err;
+	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 
 	err = __fat_get_blocks(inode, iblock, &max_blocks, bh_result, create);
 	if (err)
@@ -196,7 +196,7 @@ static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, fat_get_block);
 }
 
-static struct address_space_operations fat_aops = {
+static const struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
 	.readpages	= fat_readpages,
 	.writepage	= fat_writepage,
@@ -518,7 +518,8 @@ static int __init fat_init_inodecache(void)
 {
 	fat_inode_cachep = kmem_cache_create("fat_inode_cache",
 					     sizeof(struct msdos_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (fat_inode_cachep == NULL)
 		return -ENOMEM;
@@ -538,18 +539,18 @@ static int fat_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static int fat_statfs(struct super_block *sb, struct kstatfs *buf)
+static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct msdos_sb_info *sbi = MSDOS_SB(sb);
+	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
 
 	/* If the count of free cluster is still unknown, counts it here. */
 	if (sbi->free_clusters == -1) {
-		int err = fat_count_free_clusters(sb);
+		int err = fat_count_free_clusters(dentry->d_sb);
 		if (err)
 			return err;
 	}
 
-	buf->f_type = sb->s_magic;
+	buf->f_type = dentry->d_sb->s_magic;
 	buf->f_bsize = sbi->cluster_size;
 	buf->f_blocks = sbi->max_cluster - FAT_START_ENT;
 	buf->f_bfree = sbi->free_clusters;
@@ -1101,7 +1102,7 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 			return -EINVAL;
 		}
 	}
-	/* UTF8 doesn't provide FAT semantics */
+	/* UTF-8 doesn't provide FAT semantics */
 	if (!strcmp(opts->iocharset, "utf8")) {
 		printk(KERN_ERR "FAT: utf8 is not a recommended IO charset"
 		       " for FAT filesystems, filesystem will be case sensitive!\n");
@@ -1433,9 +1434,6 @@ out_fail:
 }
 
 EXPORT_SYMBOL_GPL(fat_fill_super);
-
-int __init fat_cache_init(void);
-void fat_cache_destroy(void);
 
 static int __init init_fat_fs(void)
 {

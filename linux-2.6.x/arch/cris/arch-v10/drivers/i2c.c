@@ -12,8 +12,8 @@
 *!                                 don't use PB_I2C if DS1302 uses same bits,
 *!                                 use PB.
 *! $Log$
-*! Revision 1.6  2006/03/22 06:14:52  magicyang
-*! update kernel to 2.6.16
+*! Revision 1.7  2006/11/01 04:48:46  magicyang
+*! update kernel to 2.6.18
 *!
 *! Revision 1.13  2005/03/07 13:13:07  starvik
 *! Added spinlocks to protect states etc
@@ -99,7 +99,6 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/config.h>
 
 #include <asm/etraxi2c.h>
 

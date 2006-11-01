@@ -22,7 +22,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>
@@ -31,6 +30,7 @@
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
+#include <linux/pfn.h>
 
 #include <asm/e820.h>
 #include <asm/setup.h>
@@ -42,7 +42,7 @@ EXPORT_SYMBOL(node_data);
 bootmem_data_t node0_bdata;
 
 /*
- * numa interface - we expect the numa architecture specfic code to have
+ * numa interface - we expect the numa architecture specific code to have
  *                  populated the following initialisation.
  *
  * 1) node_online_map  - the map of all nodes configured (online) in the system
@@ -352,17 +352,6 @@ void __init zone_sizes_init(void)
 {
 	int nid;
 
-	/*
-	 * Insert nodes into pgdat_list backward so they appear in order.
-	 * Clobber node 0's links and NULL out pgdat_list before starting.
-	 */
-	pgdat_list = NULL;
-	for (nid = MAX_NUMNODES - 1; nid >= 0; nid--) {
-		if (!node_online(nid))
-			continue;
-		NODE_DATA(nid)->pgdat_next = pgdat_list;
-		pgdat_list = NODE_DATA(nid);
-	}
 
 	for_each_online_node(nid) {
 		unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};

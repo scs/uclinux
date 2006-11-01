@@ -2,9 +2,15 @@
 # Makefile for the linux arm-specific parts of the memory manager.
 #
 
-obj-y				:= consistent.o extable.o fault-armv.o \
-				   fault.o flush.o init.o ioremap.o mmap.o \
+obj-y				:= consistent.o extable.o fault.o init.o \
+				   iomap.o
+
+obj-$(CONFIG_MMU)		+= fault-armv.o flush.o ioremap.o mmap.o \
 				   mm-armv.o
+
+ifneq ($(CONFIG_MMU),y)
+obj-y				+= nommu.o
+endif
 
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 
@@ -30,6 +36,7 @@ obj-$(CONFIG_CPU_COPY_V4WB)	+= copypage-v4wb.o
 obj-$(CONFIG_CPU_COPY_V6)	+= copypage-v6.o mmu.o
 obj-$(CONFIG_CPU_SA1100)	+= copypage-v4mc.o
 obj-$(CONFIG_CPU_XSCALE)	+= copypage-xscale.o
+obj-$(CONFIG_CPU_XSC3)		+= copypage-xsc3.o
 
 obj-$(CONFIG_CPU_TLB_V3)	+= tlb-v3.o
 obj-$(CONFIG_CPU_TLB_V4WT)	+= tlb-v4.o
@@ -51,4 +58,5 @@ obj-$(CONFIG_CPU_ARM1026)	+= proc-arm1026.o
 obj-$(CONFIG_CPU_SA110)		+= proc-sa110.o
 obj-$(CONFIG_CPU_SA1100)	+= proc-sa1100.o
 obj-$(CONFIG_CPU_XSCALE)	+= proc-xscale.o
+obj-$(CONFIG_CPU_XSC3)		+= proc-xsc3.o
 obj-$(CONFIG_CPU_V6)		+= proc-v6.o

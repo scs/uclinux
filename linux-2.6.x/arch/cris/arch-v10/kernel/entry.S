@@ -7,8 +7,8 @@
  *  Authors:	Bjorn Wesen (bjornw@axis.com)
  *
  *  $Log$
- *  Revision 1.6  2006/03/22 06:14:52  magicyang
- *  update kernel to 2.6.16
+ *  Revision 1.7  2006/11/01 04:48:50  magicyang
+ *  update kernel to 2.6.18
  *
  *  Revision 1.28  2005/06/20 05:06:30  starvik
  *  Remove unnecessary diff to kernel.org tree
@@ -266,7 +266,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/linkage.h>
 #include <linux/sys.h>
 #include <asm/unistd.h>

@@ -34,7 +34,6 @@
 **		        from within kupdate, it will ignore the immediate flag
 */
 
-#include <linux/config.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -834,8 +833,7 @@ static int write_ordered_buffers(spinlock_t * lock,
 		get_bh(bh);
 		if (test_set_buffer_locked(bh)) {
 			if (!buffer_dirty(bh)) {
-				list_del_init(&jh->list);
-				list_add(&jh->list, &tmp);
+				list_move(&jh->list, &tmp);
 				goto loop_next;
 			}
 			spin_unlock(lock);
@@ -855,8 +853,7 @@ static int write_ordered_buffers(spinlock_t * lock,
 			ret = -EIO;
 		}
 		if (buffer_dirty(bh)) {
-			list_del_init(&jh->list);
-			list_add(&jh->list, &tmp);
+			list_move(&jh->list, &tmp);
 			add_to_chunk(&chunk, bh, lock, write_ordered_chunk);
 		} else {
 			reiserfs_free_jh(bh);
@@ -2227,6 +2224,9 @@ static int journal_read_transaction(struct super_block *p_s_sb,
 	journal->j_start = cur_dblock - SB_ONDISK_JOURNAL_1st_BLOCK(p_s_sb);
 	journal->j_last_flush_trans_id = trans_id;
 	journal->j_trans_id = trans_id + 1;
+	/* check for trans_id overflow */
+	if (journal->j_trans_id == 0)
+		journal->j_trans_id = 10;
 	brelse(c_bh);
 	brelse(d_bh);
 	kfree(log_blocks);
@@ -2450,6 +2450,9 @@ static int journal_read(struct super_block *p_s_sb)
 		journal->j_start = le32_to_cpu(jh->j_first_unflushed_offset);
 		journal->j_trans_id =
 		    le32_to_cpu(jh->j_last_flush_trans_id) + 1;
+		/* check for trans_id overflow */
+		if (journal->j_trans_id == 0)
+			journal->j_trans_id = 10;
 		journal->j_last_flush_trans_id =
 		    le32_to_cpu(jh->j_last_flush_trans_id);
 		journal->j_mount_id = le32_to_cpu(jh->j_mount_id) + 1;
@@ -3873,8 +3876,8 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	int cur_write_start = 0;	/* start index of current log write */
 	int old_start;
 	int i;
-	int flush = flags & FLUSH_ALL;
-	int wait_on_commit = flags & WAIT;
+	int flush;
+	int wait_on_commit;
 	struct reiserfs_journal_list *jl, *temp_jl;
 	struct list_head *entry, *safe;
 	unsigned long jindex;
@@ -3883,6 +3886,13 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(th->t_refcount > 1);
 	BUG_ON(!th->t_trans_id);
+
+	/* protect flush_older_commits from doing mistakes if the
+           transaction ID counter gets overflowed.  */
+	if (th->t_trans_id == ~0UL)
+		flags |= FLUSH_ALL | COMMIT_NOW | WAIT;
+	flush = flags & FLUSH_ALL;
+	wait_on_commit = flags & WAIT;
 
 	put_fs_excl();
 	current->journal_info = th->t_handle_save;
@@ -4105,7 +4115,9 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 	journal->j_first = NULL;
 	journal->j_len = 0;
 	journal->j_trans_start_time = 0;
-	journal->j_trans_id++;
+	/* check for trans_id overflow */
+	if (++journal->j_trans_id == 0)
+		journal->j_trans_id = 10;
 	journal->j_current_jl->j_trans_id = journal->j_trans_id;
 	journal->j_must_wait = 0;
 	journal->j_len_alloc = 0;

@@ -10,14 +10,14 @@
  * This file handles the architecture-dependent parts of initialization
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 #include <asm/pgtable.h>
 #include <linux/seq_file.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/utsname.h>
+#include <linux/pfn.h>
 
 #include <asm/setup.h>
 
@@ -87,10 +87,6 @@ setup_arch(char **cmdline_p)
 	init_mm.end_code =   (unsigned long) &_etext;
 	init_mm.end_data =   (unsigned long) &_edata;
 	init_mm.brk =        (unsigned long) &_end;
-
-#define PFN_UP(x)       (((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)     ((x) >> PAGE_SHIFT)
-#define PFN_PHYS(x)     ((x) << PAGE_SHIFT)
 
 	/* min_low_pfn points to the start of DRAM, start_pfn points
 	 * to the first DRAM pages after the kernel, and max_low_pfn

@@ -8,7 +8,6 @@
  * Copyright (C) 1995, 1996, 1997 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/time.h>
@@ -72,7 +71,7 @@ static struct svc_version *	nfsd_acl_version[] = {
 };
 
 #define NFSD_ACL_MINVERS            2
-#define NFSD_ACL_NRVERS		(sizeof(nfsd_acl_version)/sizeof(nfsd_acl_version[0]))
+#define NFSD_ACL_NRVERS		ARRAY_SIZE(nfsd_acl_version)
 static struct svc_version *nfsd_acl_versions[NFSD_ACL_NRVERS];
 
 static struct svc_program	nfsd_acl_program = {
@@ -101,7 +100,7 @@ static struct svc_version *	nfsd_version[] = {
 };
 
 #define NFSD_MINVERS    	2
-#define NFSD_NRVERS		(sizeof(nfsd_version)/sizeof(nfsd_version[0]))
+#define NFSD_NRVERS		ARRAY_SIZE(nfsd_version)
 static struct svc_version *nfsd_versions[NFSD_NRVERS];
 
 struct svc_program		nfsd_program = {

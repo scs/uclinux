@@ -13,7 +13,6 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -91,7 +90,7 @@ static void ixp4xx_config_irq(unsigned irq, enum ixp4xx_irq_type type);
 /*
  * IRQ -> GPIO mapping table
  */
-static int irq2gpio[32] = {
+static signed char irq2gpio[32] = {
 	-1, -1, -1, -1, -1, -1,  0,  1,
 	-1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1,  2,  3,  4,  5,  6,
@@ -152,6 +151,9 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 
 	/* Set the new style */
 	*int_reg |= (int_style << (line * IXP4XX_GPIO_STYLE_SIZE));
+
+	/* Configure the line as an input */
+	gpio_line_config(line, IXP4XX_GPIO_IN);
 
 	return 0;
 }
@@ -273,7 +275,7 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 	/*
 	 * Catch up with the real idea of time
 	 */
-	while ((*IXP4XX_OSTS - last_jiffy_time) > LATCH) {
+	while ((signed long)(*IXP4XX_OSTS - last_jiffy_time) >= LATCH) {
 		timer_tick(regs);
 		last_jiffy_time += LATCH;
 	}
@@ -285,7 +287,7 @@ static irqreturn_t ixp4xx_timer_interrupt(int irq, void *dev_id, struct pt_regs 
 
 static struct irqaction ixp4xx_timer_irq = {
 	.name		= "IXP4xx Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= ixp4xx_timer_interrupt,
 };
 

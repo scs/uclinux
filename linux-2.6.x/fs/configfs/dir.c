@@ -211,7 +211,7 @@ static void remove_dir(struct dentry * d)
 	struct configfs_dirent * sd;
 
 	sd = d->d_fsdata;
- 	list_del_init(&sd->s_sibling);
+	list_del_init(&sd->s_sibling);
 	configfs_put(sd);
 	if (d->d_inode)
 		simple_rmdir(parent->d_inode,d);
@@ -330,7 +330,7 @@ static int configfs_detach_prep(struct dentry *dentry)
 
 			ret = configfs_detach_prep(sd->s_dentry);
 			if (!ret)
-			       	continue;
+				continue;
 		} else
 			ret = -ENOTEMPTY;
 
@@ -504,14 +504,16 @@ static int populate_groups(struct config_group *group)
 	int ret = 0;
 	int i;
 
-	if (group && group->default_groups) {
-		/* FYI, we're faking mkdir here
+	if (group->default_groups) {
+		/*
+		 * FYI, we're faking mkdir here
 		 * I'm not sure we need this semaphore, as we're called
 		 * from our parent's mkdir.  That holds our parent's
 		 * i_mutex, so afaik lookup cannot continue through our
 		 * parent to find us, let alone mess with our tree.
 		 * That said, taking our i_mutex is closer to mkdir
-		 * emulation, and shouldn't hurt. */
+		 * emulation, and shouldn't hurt.
+		 */
 		mutex_lock(&dentry->d_inode->i_mutex);
 
 		for (i = 0; group->default_groups[i]; i++) {
@@ -546,20 +548,34 @@ static void unlink_obj(struct config_item *item)
 
 		item->ci_group = NULL;
 		item->ci_parent = NULL;
+
+		/* Drop the reference for ci_entry */
 		config_item_put(item);
 
+		/* Drop the reference for ci_parent */
 		config_group_put(group);
 	}
 }
 
 static void link_obj(struct config_item *parent_item, struct config_item *item)
 {
-	/* Parent seems redundant with group, but it makes certain
-	 * traversals much nicer. */
+	/*
+	 * Parent seems redundant with group, but it makes certain
+	 * traversals much nicer.
+	 */
 	item->ci_parent = parent_item;
+
+	/*
+	 * We hold a reference on the parent for the child's ci_parent
+	 * link.
+	 */
 	item->ci_group = config_group_get(to_config_group(parent_item));
 	list_add_tail(&item->ci_entry, &item->ci_group->cg_children);
 
+	/*
+	 * We hold a reference on the child for ci_entry on the parent's
+	 * cg_children
+	 */
 	config_item_get(item);
 }
 
@@ -684,6 +700,10 @@ static void client_drop_item(struct config_item *parent_item,
 	type = parent_item->ci_type;
 	BUG_ON(!type);
 
+	/*
+	 * If ->drop_item() exists, it is responsible for the
+	 * config_item_put().
+	 */
 	if (type->ct_group_ops && type->ct_group_ops->drop_item)
 		type->ct_group_ops->drop_item(to_config_group(parent_item),
 						item);
@@ -694,23 +714,28 @@ static void client_drop_item(struct config_item *parent_item,
 
 static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 {
-	int ret;
+	int ret, module_got = 0;
 	struct config_group *group;
 	struct config_item *item;
 	struct config_item *parent_item;
 	struct configfs_subsystem *subsys;
 	struct configfs_dirent *sd;
 	struct config_item_type *type;
-	struct module *owner;
+	struct module *owner = NULL;
 	char *name;
 
-	if (dentry->d_parent == configfs_sb->s_root)
-		return -EPERM;
+	if (dentry->d_parent == configfs_sb->s_root) {
+		ret = -EPERM;
+		goto out;
+	}
 
 	sd = dentry->d_parent->d_fsdata;
-	if (!(sd->s_type & CONFIGFS_USET_DIR))
-		return -EPERM;
+	if (!(sd->s_type & CONFIGFS_USET_DIR)) {
+		ret = -EPERM;
+		goto out;
+	}
 
+	/* Get a working ref for the duration of this function */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	type = parent_item->ci_type;
 	subsys = to_config_group(parent_item)->cg_subsys;
@@ -719,15 +744,16 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (!type || !type->ct_group_ops ||
 	    (!type->ct_group_ops->make_group &&
 	     !type->ct_group_ops->make_item)) {
-		config_item_put(parent_item);
-		return -EPERM;  /* What lack-of-mkdir returns */
+		ret = -EPERM;  /* Lack-of-mkdir returns -EPERM */
+		goto out_put;
 	}
 
 	name = kmalloc(dentry->d_name.len + 1, GFP_KERNEL);
 	if (!name) {
-		config_item_put(parent_item);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out_put;
 	}
+
 	snprintf(name, dentry->d_name.len + 1, "%s", dentry->d_name.name);
 
 	down(&subsys->su_sem);
@@ -748,40 +774,67 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	kfree(name);
 	if (!item) {
-		config_item_put(parent_item);
-		return -ENOMEM;
+		/*
+		 * If item == NULL, then link_obj() was never called.
+		 * There are no extra references to clean up.
+		 */
+		ret = -ENOMEM;
+		goto out_put;
 	}
 
-	ret = -EINVAL;
+	/*
+	 * link_obj() has been called (via link_group() for groups).
+	 * From here on out, errors must clean that up.
+	 */
+
 	type = item->ci_type;
-	if (type) {
-		owner = type->ct_owner;
-		if (try_module_get(owner)) {
-			if (group) {
-				ret = configfs_attach_group(parent_item,
-							    item,
-							    dentry);
-			} else {
-				ret = configfs_attach_item(parent_item,
-							   item,
-							   dentry);
-			}
-
-			if (ret) {
-				down(&subsys->su_sem);
-				if (group)
-					unlink_group(group);
-				else
-					unlink_obj(item);
-				client_drop_item(parent_item, item);
-				up(&subsys->su_sem);
-
-				config_item_put(parent_item);
-				module_put(owner);
-			}
-		}
+	if (!type) {
+		ret = -EINVAL;
+		goto out_unlink;
 	}
 
+	owner = type->ct_owner;
+	if (!try_module_get(owner)) {
+		ret = -EINVAL;
+		goto out_unlink;
+	}
+
+	/*
+	 * I hate doing it this way, but if there is
+	 * an error,  module_put() probably should
+	 * happen after any cleanup.
+	 */
+	module_got = 1;
+
+	if (group)
+		ret = configfs_attach_group(parent_item, item, dentry);
+	else
+		ret = configfs_attach_item(parent_item, item, dentry);
+
+out_unlink:
+	if (ret) {
+		/* Tear down everything we built up */
+		down(&subsys->su_sem);
+		if (group)
+			unlink_group(group);
+		else
+			unlink_obj(item);
+		client_drop_item(parent_item, item);
+		up(&subsys->su_sem);
+
+		if (module_got)
+			module_put(owner);
+	}
+
+out_put:
+	/*
+	 * link_obj()/link_group() took a reference from child->parent,
+	 * so the parent is safely pinned.  We can drop our working
+	 * reference.
+	 */
+	config_item_put(parent_item);
+
+out:
 	return ret;
 }
 
@@ -801,6 +854,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DEFAULT)
 		return -EPERM;
 
+	/* Get a working ref until we have the child */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	subsys = to_config_group(parent_item)->cg_subsys;
 	BUG_ON(!subsys);
@@ -817,6 +871,7 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 		return ret;
 	}
 
+	/* Get a working ref for the duration of this function */
 	item = configfs_get_config_item(dentry);
 
 	/* Drop reference from above, item already holds one. */
@@ -876,7 +931,7 @@ int configfs_rename_dir(struct config_item * item, const char *new_name)
 
 	new_dentry = lookup_one_len(new_name, parent, strlen(new_name));
 	if (!IS_ERR(new_dentry)) {
-  		if (!new_dentry->d_inode) {
+		if (!new_dentry->d_inode) {
 			error = config_item_set_name(item, "%s", new_name);
 			if (!error) {
 				d_add(new_dentry, NULL);
@@ -954,8 +1009,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 			/* fallthrough */
 		default:
 			if (filp->f_pos == 2) {
-				list_del(q);
-				list_add(q, &parent_sd->s_children);
+				list_move(q, &parent_sd->s_children);
 			}
 			for (p=q->next; p!= &parent_sd->s_children; p=p->next) {
 				struct configfs_dirent *next;
@@ -978,8 +1032,7 @@ static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir
 						 dt_type(next)) < 0)
 					return 0;
 
-				list_del(q);
-				list_add(q, p);
+				list_move(q, p);
 				p = q;
 				filp->f_pos++;
 			}
@@ -1027,7 +1080,7 @@ static loff_t configfs_dir_lseek(struct file * file, loff_t offset, int origin)
 	return offset;
 }
 
-struct file_operations configfs_dir_operations = {
+const struct file_operations configfs_dir_operations = {
 	.open		= configfs_dir_open,
 	.release	= configfs_dir_close,
 	.llseek		= configfs_dir_lseek,

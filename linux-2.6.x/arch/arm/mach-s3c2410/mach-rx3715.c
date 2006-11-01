@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * Modifications:
- *	16-Sep-2004 BJD  Copied from mach-h1940.c
- *	25-Oct-2004 BJD  Updates for 2.6.10-rc1
- *	10-Jan-2005 BJD  Removed include of s3c2410.h s3c2440.h
- *	14-Jan-2005 BJD  Added new clock init
- *	10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
- *	14-Mar-2005 BJD  Fixed __iomem warnings
- *	20-Sep-2005 BJD  Added static to non-exported items
- *	31-Oct-2005 BJD  Added LCD setup for framebuffer
 */
 
 #include <linux/kernel.h>
@@ -31,6 +22,11 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/nand_ecc.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -46,6 +42,7 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-lcd.h>
 
+#include <asm/arch/nand.h>
 #include <asm/arch/fb.h>
 
 #include "clock.h"
@@ -170,12 +167,39 @@ static struct s3c2410fb_mach_info rx3715_lcdcfg __initdata = {
 	},
 };
 
+static struct mtd_partition rx3715_nand_part[] = {
+	[0] = {
+		.name		= "Whole Flash",
+		.offset		= 0,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= MTD_WRITEABLE,
+	}
+};
+
+static struct s3c2410_nand_set rx3715_nand_sets[] = {
+	[0] = {
+		.name		= "Internal",
+		.nr_chips	= 1,
+		.nr_partitions	= ARRAY_SIZE(rx3715_nand_part),
+		.partitions	= rx3715_nand_part,
+	},
+};
+
+static struct s3c2410_platform_nand rx3715_nand_info = {
+	.tacls		= 25,
+	.twrph0		= 50,
+	.twrph1		= 15,
+	.nr_sets	= ARRAY_SIZE(rx3715_nand_sets),
+	.sets		= rx3715_nand_sets,
+};
+
 static struct platform_device *rx3715_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
 	&s3c_device_iis,
+	&s3c_device_nand,
 };
 
 static struct s3c24xx_board rx3715_board __initdata = {
@@ -185,6 +209,8 @@ static struct s3c24xx_board rx3715_board __initdata = {
 
 static void __init rx3715_map_io(void)
 {
+	s3c_device_nand.dev.platform_data = &rx3715_nand_info;
+
 	s3c24xx_init_io(rx3715_iodesc, ARRAY_SIZE(rx3715_iodesc));
 	s3c24xx_init_clocks(16934000);
 	s3c24xx_init_uarts(rx3715_uartcfgs, ARRAY_SIZE(rx3715_uartcfgs));

@@ -18,11 +18,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 
@@ -138,9 +138,15 @@ s3c2410_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 static struct irqaction s3c2410_timer_irq = {
 	.name		= "S3C2410 Timer Tick",
-	.flags		= SA_INTERRUPT | SA_TIMER,
+	.flags		= IRQF_DISABLED | IRQF_TIMER,
 	.handler	= s3c2410_timer_interrupt,
 };
+
+#define use_tclk1_12() ( \
+	machine_is_bast()	|| \
+	machine_is_vr1000()	|| \
+	machine_is_anubis()	|| \
+	machine_is_osiris() )
 
 /*
  * Set up timer interrupt, and return the current time in seconds.
@@ -165,7 +171,7 @@ static void s3c2410_timer_setup (void)
 
 	/* configure the system for whichever machine is in use */
 
-	if (machine_is_bast() || machine_is_vr1000() || machine_is_anubis()) {
+	if (use_tclk1_12()) {
 		/* timer is at 12MHz, scaler is 1 */
 		timer_usec_ticks = timer_mask_usec_ticks(1, 12000000);
 		tcnt = 12000000 / HZ;

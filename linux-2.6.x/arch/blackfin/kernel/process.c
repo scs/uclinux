@@ -174,6 +174,13 @@ void show_regs(struct pt_regs *regs)
 		printk("USP: %08lx\n", rdusp());
 }
 
+/* Fill in the fpu structure for a core dump.  */
+
+int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpregs)
+{
+	return 1;
+}
+
 /*
  * This gets run with P1 containing the
  * function to call, and R1 containing

@@ -99,7 +99,7 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,hpfs_get_block);
 }
-struct address_space_operations hpfs_aops = {
+const struct address_space_operations hpfs_aops = {
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
 	.sync_page = block_sync_page,
@@ -119,7 +119,7 @@ static ssize_t hpfs_file_write(struct file *file, const char __user *buf,
 	return retval;
 }
 
-struct file_operations hpfs_file_ops =
+const struct file_operations hpfs_file_ops =
 {
 	.llseek		= generic_file_llseek,
 	.read		= generic_file_read,

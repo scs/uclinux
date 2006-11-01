@@ -15,7 +15,6 @@
 #error "The userspace support got too messy and was removed. Update your mkfs.jffs2"
 #endif
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -33,13 +32,14 @@
 	*/
 #define STREAM_END_SPACE 12
 
-static DECLARE_MUTEX(deflate_sem);
-static DECLARE_MUTEX(inflate_sem);
+static DEFINE_MUTEX(deflate_mutex);
+static DEFINE_MUTEX(inflate_mutex);
 static z_stream inf_strm, def_strm;
 
 #ifdef __KERNEL__ /* Linux-only */
 #include <linux/vmalloc.h>
 #include <linux/init.h>
+#include <linux/mutex.h>
 
 static int __init alloc_workspaces(void)
 {
@@ -79,11 +79,11 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	if (*dstlen <= STREAM_END_SPACE)
 		return -1;
 
-	down(&deflate_sem);
+	mutex_lock(&deflate_mutex);
 
 	if (Z_OK != zlib_deflateInit(&def_strm, 3)) {
 		printk(KERN_WARNING "deflateInit failed\n");
-		up(&deflate_sem);
+		mutex_unlock(&deflate_mutex);
 		return -1;
 	}
 
@@ -104,7 +104,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 		if (ret != Z_OK) {
 			D1(printk(KERN_DEBUG "deflate in loop returned %d\n", ret));
 			zlib_deflateEnd(&def_strm);
-			up(&deflate_sem);
+			mutex_unlock(&deflate_mutex);
 			return -1;
 		}
 	}
@@ -133,7 +133,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 	*sourcelen = def_strm.total_in;
 	ret = 0;
  out:
-	up(&deflate_sem);
+	mutex_unlock(&deflate_mutex);
 	return ret;
 }
 
@@ -145,7 +145,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	int ret;
 	int wbits = MAX_WBITS;
 
-	down(&inflate_sem);
+	mutex_lock(&inflate_mutex);
 
 	inf_strm.next_in = data_in;
 	inf_strm.avail_in = srclen;
@@ -173,7 +173,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 
 	if (Z_OK != zlib_inflateInit2(&inf_strm, wbits)) {
 		printk(KERN_WARNING "inflateInit failed\n");
-		up(&inflate_sem);
+		mutex_unlock(&inflate_mutex);
 		return 1;
 	}
 
@@ -183,7 +183,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 		printk(KERN_NOTICE "inflate returned %d\n", ret);
 	}
 	zlib_inflateEnd(&inf_strm);
-	up(&inflate_sem);
+	mutex_unlock(&inflate_mutex);
         return 0;
 }
 

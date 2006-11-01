@@ -138,6 +138,9 @@ extern void ext2_set_inode_flags(struct inode *inode);
 extern int ext2_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
 
+/* namei.c */
+struct dentry *ext2_get_parent(struct dentry *child);
+
 /* super.c */
 extern void ext2_error (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
@@ -151,17 +154,17 @@ extern void ext2_write_super (struct super_block *);
  */
 
 /* dir.c */
-extern struct file_operations ext2_dir_operations;
+extern const struct file_operations ext2_dir_operations;
 
 /* file.c */
 extern struct inode_operations ext2_file_inode_operations;
-extern struct file_operations ext2_file_operations;
-extern struct file_operations ext2_xip_file_operations;
+extern const struct file_operations ext2_file_operations;
+extern const struct file_operations ext2_xip_file_operations;
 
 /* inode.c */
-extern struct address_space_operations ext2_aops;
-extern struct address_space_operations ext2_aops_xip;
-extern struct address_space_operations ext2_nobh_aops;
+extern const struct address_space_operations ext2_aops;
+extern const struct address_space_operations ext2_aops_xip;
+extern const struct address_space_operations ext2_nobh_aops;
 
 /* namei.c */
 extern struct inode_operations ext2_dir_inode_operations;

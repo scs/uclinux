@@ -21,7 +21,6 @@
  *
  */
 #include <linux/compat.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/highuid.h>
 #include <linux/init.h>
@@ -30,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/syscalls.h>
 
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "util.h"

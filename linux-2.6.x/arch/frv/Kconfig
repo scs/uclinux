@@ -17,6 +17,10 @@ config GENERIC_FIND_NEXT_BIT
 	bool
 	default y
 
+config GENERIC_HWEIGHT
+	bool
+	default y
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default n
@@ -24,6 +28,10 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_HARDIRQS
 	bool
 	default n
+
+config GENERIC_TIME
+	bool
+	default y
 
 config TIME_LOW_RES
 	bool

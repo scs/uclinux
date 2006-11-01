@@ -1099,26 +1099,38 @@ static BOOL check_mft_mirror(ntfs_volume *vol)
 			kmirr = page_address(mirr_page);
 			++index;
 		}
-		/* Make sure the record is ok. */
-		if (ntfs_is_baad_recordp((le32*)kmft)) {
-			ntfs_error(sb, "Incomplete multi sector transfer "
-					"detected in mft record %i.", i);
+		/* Do not check the record if it is not in use. */
+		if (((MFT_RECORD*)kmft)->flags & MFT_RECORD_IN_USE) {
+			/* Make sure the record is ok. */
+			if (ntfs_is_baad_recordp((le32*)kmft)) {
+				ntfs_error(sb, "Incomplete multi sector "
+						"transfer detected in mft "
+						"record %i.", i);
 mm_unmap_out:
-			ntfs_unmap_page(mirr_page);
+				ntfs_unmap_page(mirr_page);
 mft_unmap_out:
-			ntfs_unmap_page(mft_page);
-			return FALSE;
+				ntfs_unmap_page(mft_page);
+				return FALSE;
+			}
 		}
-		if (ntfs_is_baad_recordp((le32*)kmirr)) {
-			ntfs_error(sb, "Incomplete multi sector transfer "
-					"detected in mft mirror record %i.", i);
-			goto mm_unmap_out;
+		/* Do not check the mirror record if it is not in use. */
+		if (((MFT_RECORD*)kmirr)->flags & MFT_RECORD_IN_USE) {
+			if (ntfs_is_baad_recordp((le32*)kmirr)) {
+				ntfs_error(sb, "Incomplete multi sector "
+						"transfer detected in mft "
+						"mirror record %i.", i);
+				goto mm_unmap_out;
+			}
 		}
 		/* Get the amount of data in the current record. */
 		bytes = le32_to_cpu(((MFT_RECORD*)kmft)->bytes_in_use);
-		if (!bytes || bytes > vol->mft_record_size) {
+		if (bytes < sizeof(MFT_RECORD_OLD) ||
+				bytes > vol->mft_record_size ||
+				ntfs_is_baad_recordp((le32*)kmft)) {
 			bytes = le32_to_cpu(((MFT_RECORD*)kmirr)->bytes_in_use);
-			if (!bytes || bytes > vol->mft_record_size)
+			if (bytes < sizeof(MFT_RECORD_OLD) ||
+					bytes > vol->mft_record_size ||
+					ntfs_is_baad_recordp((le32*)kmirr))
 				bytes = vol->mft_record_size;
 		}
 		/* Compare the two records. */
@@ -1665,11 +1677,11 @@ read_partial_upcase_page:
 	ntfs_debug("Read %llu bytes from $UpCase (expected %zu bytes).",
 			i_size, 64 * 1024 * sizeof(ntfschar));
 	iput(ino);
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (!default_upcase) {
 		ntfs_debug("Using volume specified $UpCase since default is "
 				"not present.");
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		return TRUE;
 	}
 	max = default_upcase_len;
@@ -1683,12 +1695,12 @@ read_partial_upcase_page:
 		vol->upcase = default_upcase;
 		vol->upcase_len = max;
 		ntfs_nr_upcase_users++;
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		ntfs_debug("Volume specified $UpCase matches default. Using "
 				"default.");
 		return TRUE;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	ntfs_debug("Using volume specified $UpCase since it does not match "
 			"the default.");
 	return TRUE;
@@ -1697,20 +1709,28 @@ iput_upcase_failed:
 	ntfs_free(vol->upcase);
 	vol->upcase = NULL;
 upcase_failed:
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (default_upcase) {
 		vol->upcase = default_upcase;
 		vol->upcase_len = default_upcase_len;
 		ntfs_nr_upcase_users++;
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		ntfs_error(sb, "Failed to load $UpCase from the volume. Using "
 				"default.");
 		return TRUE;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	ntfs_error(sb, "Failed to initialize upcase table.");
 	return FALSE;
 }
+
+/*
+ * The lcn and mft bitmap inodes are NTFS-internal inodes with
+ * their own special locking rules:
+ */
+static struct lock_class_key
+	lcnbmp_runlist_lock_key, lcnbmp_mrec_lock_key,
+	mftbmp_runlist_lock_key, mftbmp_mrec_lock_key;
 
 /**
  * load_system_files - open the system files using normal functions
@@ -1768,6 +1788,10 @@ static BOOL load_system_files(ntfs_volume *vol)
 		ntfs_error(sb, "Failed to load $MFT/$BITMAP attribute.");
 		goto iput_mirr_err_out;
 	}
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->runlist.lock,
+			   &mftbmp_runlist_lock_key);
+	lockdep_set_class(&NTFS_I(vol->mftbmp_ino)->mrec_lock,
+			   &mftbmp_mrec_lock_key);
 	/* Read upcase table and setup @vol->upcase and @vol->upcase_len. */
 	if (!load_and_init_upcase(vol))
 		goto iput_mftbmp_err_out;
@@ -1790,6 +1814,11 @@ static BOOL load_system_files(ntfs_volume *vol)
 			iput(vol->lcnbmp_ino);
 		goto bitmap_failed;
 	}
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->runlist.lock,
+			   &lcnbmp_runlist_lock_key);
+	lockdep_set_class(&NTFS_I(vol->lcnbmp_ino)->mrec_lock,
+			   &lcnbmp_mrec_lock_key);
+
 	NInoSetSparseDisabled(NTFS_I(vol->lcnbmp_ino));
 	if ((vol->nr_clusters + 7) >> 3 > i_size_read(vol->lcnbmp_ino)) {
 		iput(vol->lcnbmp_ino);
@@ -2183,12 +2212,12 @@ iput_attrdef_err_out:
 iput_upcase_err_out:
 #endif /* NTFS_RW */
 	vol->upcase_len = 0;
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -2393,7 +2422,7 @@ static void ntfs_put_super(struct super_block *sb)
 	 * Destroy the global default upcase table if necessary.  Also decrease
 	 * the number of upcase users if we are a user.
 	 */
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
@@ -2404,7 +2433,7 @@ static void ntfs_put_super(struct super_block *sb)
 	}
 	if (vol->cluster_size <= 4096 && !--ntfs_nr_compression_users)
 		free_compression_buffers();
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -2589,10 +2618,10 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 
 /**
  * ntfs_statfs - return information about mounted NTFS volume
- * @sb:		super block of mounted volume
+ * @dentry:	dentry from mounted volume
  * @sfs:	statfs structure in which to return the information
  *
- * Return information about the mounted NTFS volume @sb in the statfs structure
+ * Return information about the mounted NTFS volume @dentry in the statfs structure
  * pointed to by @sfs (this is initialized with zeros before ntfs_statfs is
  * called). We interpret the values to be correct of the moment in time at
  * which we are called. Most values are variable otherwise and this isn't just
@@ -2605,8 +2634,9 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
  *
  * Return 0 on success or -errno on error.
  */
-static int ntfs_statfs(struct super_block *sb, struct kstatfs *sfs)
+static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 {
+	struct super_block *sb = dentry->d_sb;
 	s64 size;
 	ntfs_volume *vol = NTFS_SB(sb);
 	ntfs_inode *mft_ni = NTFS_I(vol->mft_ino);
@@ -2730,6 +2760,17 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	struct inode *tmp_ino;
 	int blocksize, result;
 
+	/*
+	 * We do a pretty difficult piece of bootstrap by reading the
+	 * MFT (and other metadata) from disk into memory. We'll only
+	 * release this metadata during umount, so the locking patterns
+	 * observed during bootstrap do not count. So turn off the
+	 * observation of locking patterns (strictly for this context
+	 * only) while mounting NTFS. [The validator is still active
+	 * otherwise, even for this context: it will for example record
+	 * lock class registrations.]
+	 */
+	lockdep_off();
 	ntfs_debug("Entering.");
 #ifndef NTFS_RW
 	sb->s_flags |= MS_RDONLY;
@@ -2741,6 +2782,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		if (!silent)
 			ntfs_error(sb, "Allocation of NTFS volume structure "
 					"failed. Aborting mount...");
+		lockdep_on();
 		return -ENOMEM;
 	}
 	/* Initialize ntfs_volume structure. */
@@ -2878,7 +2920,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(sb, "Failed to load essential metadata.");
 		goto iput_tmp_ino_err_out_now;
 	}
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	/*
 	 * The current mount is a compression user if the cluster size is
 	 * less than or equal 4kiB.
@@ -2889,7 +2931,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 			ntfs_error(NULL, "Failed to allocate buffers "
 					"for compression engine.");
 			ntfs_nr_compression_users--;
-			up(&ntfs_lock);
+			mutex_unlock(&ntfs_lock);
 			goto iput_tmp_ino_err_out_now;
 		}
 	}
@@ -2901,7 +2943,7 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 	if (!default_upcase)
 		default_upcase = generate_default_upcase();
 	ntfs_nr_upcase_users++;
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	/*
 	 * From now on, ignore @silent parameter. If we fail below this line,
 	 * it will be due to a corrupt fs or a system error, so we report it.
@@ -2919,14 +2961,15 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		atomic_inc(&vol->root_ino->i_count);
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
-		down(&ntfs_lock);
+		mutex_lock(&ntfs_lock);
 		if (!--ntfs_nr_upcase_users && default_upcase) {
 			ntfs_free(default_upcase);
 			default_upcase = NULL;
 		}
-		up(&ntfs_lock);
+		mutex_unlock(&ntfs_lock);
 		sb->s_export_op = &ntfs_export_ops;
 		lock_kernel();
+		lockdep_on();
 		return 0;
 	}
 	ntfs_error(sb, "Failed to allocate root directory.");
@@ -2992,12 +3035,12 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		vol->attrdef = NULL;
 	}
 	vol->upcase_len = 0;
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (vol->upcase == default_upcase) {
 		ntfs_nr_upcase_users--;
 		vol->upcase = NULL;
 	}
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 	if (vol->upcase) {
 		ntfs_free(vol->upcase);
 		vol->upcase = NULL;
@@ -3012,14 +3055,14 @@ unl_upcase_iput_tmp_ino_err_out_now:
 	 * Decrease the number of upcase users and destroy the global default
 	 * upcase table if necessary.
 	 */
-	down(&ntfs_lock);
+	mutex_lock(&ntfs_lock);
 	if (!--ntfs_nr_upcase_users && default_upcase) {
 		ntfs_free(default_upcase);
 		default_upcase = NULL;
 	}
 	if (vol->cluster_size <= 4096 && !--ntfs_nr_compression_users)
 		free_compression_buffers();
-	up(&ntfs_lock);
+	mutex_unlock(&ntfs_lock);
 iput_tmp_ino_err_out_now:
 	iput(tmp_ino);
 	if (vol->mft_ino && vol->mft_ino != tmp_ino)
@@ -3046,6 +3089,7 @@ err_out_now:
 	sb->s_fs_info = NULL;
 	kfree(vol);
 	ntfs_debug("Failed, returning -EINVAL.");
+	lockdep_on();
 	return -EINVAL;
 }
 
@@ -3078,13 +3122,14 @@ static void ntfs_big_inode_init_once(void *foo, struct kmem_cache *cachep,
 struct kmem_cache *ntfs_attr_ctx_cache;
 struct kmem_cache *ntfs_index_ctx_cache;
 
-/* Driver wide semaphore. */
-DECLARE_MUTEX(ntfs_lock);
+/* Driver wide mutex. */
+DEFINE_MUTEX(ntfs_lock);
 
-static struct super_block *ntfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int ntfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, ntfs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type ntfs_fs_type = {
@@ -3151,7 +3196,7 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_inode_cache = kmem_cache_create(ntfs_inode_cache_name,
 			sizeof(ntfs_inode), 0,
-			SLAB_RECLAIM_ACCOUNT, NULL, NULL);
+			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL, NULL);
 	if (!ntfs_inode_cache) {
 		printk(KERN_CRIT "NTFS: Failed to create %s!\n",
 				ntfs_inode_cache_name);
@@ -3160,7 +3205,7 @@ static int __init init_ntfs_fs(void)
 
 	ntfs_big_inode_cache = kmem_cache_create(ntfs_big_inode_cache_name,
 			sizeof(big_ntfs_inode), 0,
-			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
 			ntfs_big_inode_init_once, NULL);
 	if (!ntfs_big_inode_cache) {
 		printk(KERN_CRIT "NTFS: Failed to create %s!\n",
@@ -3234,7 +3279,7 @@ static void __exit exit_ntfs_fs(void)
 }
 
 MODULE_AUTHOR("Anton Altaparmakov <aia21@cantab.net>");
-MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2005 Anton Altaparmakov");
+MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2006 Anton Altaparmakov");
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG

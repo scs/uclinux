@@ -116,7 +116,7 @@ static int dlmfs_file_open(struct inode *inode,
 	 * doesn't make sense for LVB writes. */
 	file->f_flags &= ~O_APPEND;
 
-	fp = kmalloc(sizeof(*fp), GFP_KERNEL);
+	fp = kmalloc(sizeof(*fp), GFP_NOFS);
 	if (!fp) {
 		status = -ENOMEM;
 		goto bail;
@@ -196,7 +196,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	else
 		readlen = count - *ppos;
 
-	lvb_buf = kmalloc(readlen, GFP_KERNEL);
+	lvb_buf = kmalloc(readlen, GFP_NOFS);
 	if (!lvb_buf)
 		return -ENOMEM;
 
@@ -240,7 +240,7 @@ static ssize_t dlmfs_file_write(struct file *filp,
 	else
 		writelen = count - *ppos;
 
-	lvb_buf = kmalloc(writelen, GFP_KERNEL);
+	lvb_buf = kmalloc(writelen, GFP_NOFS);
 	if (!lvb_buf)
 		return -ENOMEM;
 
@@ -574,10 +574,10 @@ static struct inode_operations dlmfs_file_inode_operations = {
 	.getattr	= simple_getattr,
 };
 
-static struct super_block *dlmfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int dlmfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super);
+	return get_sb_nodev(fs_type, flags, data, dlmfs_fill_super, mnt);
 }
 
 static struct file_system_type dlmfs_fs_type = {
@@ -596,7 +596,8 @@ static int __init init_dlmfs_fs(void)
 
 	dlmfs_inode_cache = kmem_cache_create("dlmfs_inode_cache",
 				sizeof(struct dlmfs_inode_private),
-				0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+				0, (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+					SLAB_MEM_SPREAD),
 				dlmfs_init_once, NULL);
 	if (!dlmfs_inode_cache)
 		return -ENOMEM;

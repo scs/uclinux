@@ -7,8 +7,8 @@
  * Authors:	Bjorn Wesen (bjornw@axis.com)
  * 
  * $Log$
- * Revision 1.6  2006/03/22 06:14:52  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/01 04:48:51  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.10  2005/06/20 05:12:54  starvik
  * Remove unnecessary diff to kernel.org tree
@@ -186,7 +186,6 @@
  *
  */
 	
-#include <linux/config.h>
 #define ASSEMBLER_MACROS_ONLY
 /* The IO_* macros use the ## token concatenation operator, so
    -traditional must not be used when assembling this file.  */

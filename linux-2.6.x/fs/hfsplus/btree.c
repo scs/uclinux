@@ -38,7 +38,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 		goto free_tree;
 
 	mapping = tree->inode->i_mapping;
-	page = read_cache_page(mapping, 0, (filler_t *)mapping->a_ops->readpage, NULL);
+	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
 		goto free_tree;
 
@@ -269,8 +269,7 @@ void hfs_bmap_free(struct hfs_bnode *node)
 	u8 *data, byte, m;
 
 	dprint(DBG_BNODE_MOD, "btree_free_node: %u\n", node->this);
-	if (!node->this)
-		BUG();
+	BUG_ON(!node->this);
 	tree = node->tree;
 	nidx = node->this;
 	node = hfs_bnode_find(tree, 0);

@@ -11,7 +11,6 @@
  *	2004  Paul Serice - NFS Export Operations
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 
@@ -56,7 +55,7 @@ static void isofs_put_super(struct super_block *sb)
 }
 
 static void isofs_read_inode(struct inode *);
-static int isofs_statfs (struct super_block *, struct kstatfs *);
+static int isofs_statfs (struct dentry *, struct kstatfs *);
 
 static kmem_cache_t *isofs_inode_cachep;
 
@@ -87,7 +86,8 @@ static int init_inodecache(void)
 {
 	isofs_inode_cachep = kmem_cache_create("isofs_inode_cache",
 					     sizeof(struct iso_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (isofs_inode_cachep == NULL)
 		return -ENOMEM;
@@ -900,8 +900,10 @@ out_freesbi:
 	return -EINVAL;
 }
 
-static int isofs_statfs (struct super_block *sb, struct kstatfs *buf)
+static int isofs_statfs (struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = ISOFS_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = (ISOFS_SB(sb)->s_nzones
@@ -1051,7 +1053,7 @@ static sector_t _isofs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping,block,isofs_get_block);
 }
 
-static struct address_space_operations isofs_aops = {
+static const struct address_space_operations isofs_aops = {
 	.readpage = isofs_readpage,
 	.sync_page = block_sync_page,
 	.bmap = _isofs_bmap
@@ -1398,10 +1400,11 @@ struct inode *isofs_iget(struct super_block *sb,
 	return inode;
 }
 
-static struct super_block *isofs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int isofs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, isofs_fill_super,
+			   mnt);
 }
 
 static struct file_system_type iso9660_fs_type = {

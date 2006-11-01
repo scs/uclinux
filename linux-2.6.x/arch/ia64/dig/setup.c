@@ -8,14 +8,13 @@
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  * Copyright (C) 1999 Vijay Chander <vijay@engr.sgi.com>
  */
-#include <linux/config.h>
 
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/string.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/console.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
@@ -68,9 +67,4 @@ dig_setup (char **cmdline_p)
 	screen_info.orig_video_mode = 3;	/* XXX fake */
 	screen_info.orig_video_isVGA = 1;	/* XXX fake */
 	screen_info.orig_video_ega_bx = 3;	/* XXX fake */
-}
-
-void __init
-dig_irq_init (void)
-{
 }
