@@ -46,6 +46,27 @@
 /* ignore error from controls - for debugging */
 /* #define IGNORE_CTL_ERROR */
 
+/*
+ * Sound Blaster remote control configuration
+ *
+ * format of remote control data:
+ * Extigy:       xx 00
+ * Audigy 2 NX:  06 80 xx 00 00 00
+ * Live! 24-bit: 06 80 xx yy 22 83
+ */
+static const struct rc_config {
+	u32 usb_id;
+	u8  offset;
+	u8  length;
+	u8  packet_length;
+	u8  mute_mixer_id;
+	u32 mute_code;
+} rc_configs[] = {
+	{ USB_ID(0x041e, 0x3000), 0, 1, 2,  18, 0x0013 }, /* Extigy       */
+	{ USB_ID(0x041e, 0x3020), 2, 1, 6,  18, 0x0013 }, /* Audigy 2 NX  */
+	{ USB_ID(0x041e, 0x3040), 2, 2, 6,  2,  0x6e91 }, /* Live! 24-bit */
+};
+
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	unsigned int ctrlif;
@@ -55,11 +76,7 @@ struct usb_mixer_interface {
 	struct usb_mixer_elem_info **id_elems; /* array[256], indexed by unit id */
 
 	/* Sound Blaster remote control stuff */
-	enum {
-		RC_NONE,
-		RC_EXTIGY,
-		RC_AUDIGY2NX,
-	} rc_type;
+	const struct rc_config *rc_cfg;
 	unsigned long rc_hwdep_open;
 	u32 rc_code;
 	wait_queue_head_t rc_waitq;
@@ -306,8 +323,8 @@ static int get_relative_value(struct usb_mixer_elem_info *cval, int val)
 		cval->res = 1;
 	if (val < cval->min)
 		return 0;
-	else if (val > cval->max)
-		return (cval->max - cval->min) / cval->res;
+	else if (val >= cval->max)
+		return (cval->max - cval->min + cval->res - 1) / cval->res;
 	else
 		return (val - cval->min) / cval->res;
 }
@@ -434,7 +451,6 @@ static int add_control_to_empty(struct mixer_build *state, struct snd_kcontrol *
 		kctl->id.index++;
 	if ((err = snd_ctl_add(state->chip->card, kctl)) < 0) {
 		snd_printd(KERN_ERR "cannot add control (err = %d)\n", err);
-		snd_ctl_free_one(kctl);
 		return err;
 	}
 	cval->elem_id = &kctl->id;
@@ -671,6 +687,36 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 		}
 		if (cval->res == 0)
 			cval->res = 1;
+
+		/* Additional checks for the proper resolution
+		 *
+		 * Some devices report smaller resolutions than actually
+		 * reacting.  They don't return errors but simply clip
+		 * to the lower aligned value.
+		 */
+		if (cval->min + cval->res < cval->max) {
+			int last_valid_res = cval->res;
+			int saved, test, check;
+			get_cur_mix_value(cval, minchn, &saved);
+			for (;;) {
+				test = saved;
+				if (test < cval->max)
+					test += cval->res;
+				else
+					test -= cval->res;
+				if (test < cval->min || test > cval->max ||
+				    set_cur_mix_value(cval, minchn, test) ||
+				    get_cur_mix_value(cval, minchn, &check)) {
+					cval->res = last_valid_res;
+					break;
+				}
+				if (test == check)
+					break;
+				cval->res *= 2;
+			}
+			set_cur_mix_value(cval, minchn, saved);
+		}
+
 		cval->initialized = 1;
 	}
 	return 0;
@@ -696,7 +742,8 @@ static int mixer_ctl_feature_info(struct snd_kcontrol *kcontrol, struct snd_ctl_
 		if (! cval->initialized)
 			get_min_max(cval,  0);
 		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = (cval->max - cval->min) / cval->res;
+		uinfo->value.integer.max =
+			(cval->max - cval->min + cval->res - 1) / cval->res;
 	}
 	return 0;
 }
@@ -1469,6 +1516,7 @@ static int parse_audio_selector_unit(struct mixer_build *state, int unitid, unsi
 	kctl = snd_ctl_new1(&mixer_selectunit_ctl, cval);
 	if (! kctl) {
 		snd_printk(KERN_ERR "cannot malloc kcontrol\n");
+		kfree(namelist);
 		kfree(cval);
 		return -ENOMEM;
 	}
@@ -1616,7 +1664,7 @@ static void snd_usb_mixer_notify_id(struct usb_mixer_interface *mixer,
 static void snd_usb_mixer_memory_change(struct usb_mixer_interface *mixer,
 					int unitid)
 {
-	if (mixer->rc_type == RC_NONE)
+	if (!mixer->rc_cfg)
 		return;
 	/* unit ids specific to Extigy/Audigy 2 NX: */
 	switch (unitid) {
@@ -1701,20 +1749,19 @@ static void snd_usb_soundblaster_remote_complete(struct urb *urb,
 						 struct pt_regs *regs)
 {
 	struct usb_mixer_interface *mixer = urb->context;
-	/*
-	 * format of remote control data:
-	 * Extigy:	xx 00
-	 * Audigy 2 NX:	06 80 xx 00 00 00
-	 */
-	int offset = mixer->rc_type == RC_EXTIGY ? 0 : 2;
+	const struct rc_config *rc = mixer->rc_cfg;
 	u32 code;
 
-	if (urb->status < 0 || urb->actual_length <= offset)
+	if (urb->status < 0 || urb->actual_length < rc->packet_length)
 		return;
-	code = mixer->rc_buffer[offset];
+
+	code = mixer->rc_buffer[rc->offset];
+	if (rc->length == 2)
+		code |= mixer->rc_buffer[rc->offset + 1] << 8;
+
 	/* the Mute button actually changes the mixer control */
-	if (code == 13)
-		snd_usb_mixer_notify_id(mixer, 18);
+	if (code == rc->mute_code)
+		snd_usb_mixer_notify_id(mixer, rc->mute_mixer_id);
 	mixer->rc_code = code;
 	wmb();
 	wake_up(&mixer->rc_waitq);
@@ -1770,21 +1817,17 @@ static unsigned int snd_usb_sbrc_hwdep_poll(struct snd_hwdep *hw, struct file *f
 static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_hwdep *hwdep;
-	int err, len;
+	int err, len, i;
 
-	switch (mixer->chip->usb_id) {
-	case USB_ID(0x041e, 0x3000):
-		mixer->rc_type = RC_EXTIGY;
-		len = 2;
-		break;
-	case USB_ID(0x041e, 0x3020):
-		mixer->rc_type = RC_AUDIGY2NX;
-		len = 6;
-		break;
-	default:
+	for (i = 0; i < ARRAY_SIZE(rc_configs); ++i)
+		if (rc_configs[i].usb_id == mixer->chip->usb_id)
+			break;
+	if (i >= ARRAY_SIZE(rc_configs))
 		return 0;
-	}
+	mixer->rc_cfg = &rc_configs[i];
 
+	len = mixer->rc_cfg->packet_length;
+	
 	init_waitqueue_head(&mixer->rc_waitq);
 	err = snd_hwdep_new(mixer->chip->card, "SB remote control", 0, &hwdep);
 	if (err < 0)
@@ -1967,7 +2010,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 		if ((err = snd_audigy2nx_controls_create(mixer)) < 0)
 			goto _error;
 		if (!snd_card_proc_new(chip->card, "audigy2nx", &entry))
-			snd_info_set_text_ops(entry, mixer, 1024,
+			snd_info_set_text_ops(entry, mixer,
 					      snd_audigy2nx_proc_read);
 	}
 

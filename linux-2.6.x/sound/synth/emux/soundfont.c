@@ -79,7 +79,7 @@ static void
 lock_preset(struct snd_sf_list *sflist)
 {
 	unsigned long flags;
-	down(&sflist->presets_mutex);
+	mutex_lock(&sflist->presets_mutex);
 	spin_lock_irqsave(&sflist->lock, flags);
 	sflist->presets_locked = 1;
 	spin_unlock_irqrestore(&sflist->lock, flags);
@@ -96,7 +96,7 @@ unlock_preset(struct snd_sf_list *sflist)
 	spin_lock_irqsave(&sflist->lock, flags);
 	sflist->presets_locked = 0;
 	spin_unlock_irqrestore(&sflist->lock, flags);
-	up(&sflist->presets_mutex);
+	mutex_unlock(&sflist->presets_mutex);
 }
 
 
@@ -195,7 +195,7 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 		break;
 	case SNDRV_SFNT_REMOVE_INFO:
 		/* patch must be opened */
-		if (sflist->currsf) {
+		if (!sflist->currsf) {
 			snd_printk("soundfont: remove_info: patch not opened\n");
 			rc = -EINVAL;
 		} else {
@@ -810,6 +810,9 @@ snd_sf_linear_to_log(unsigned int amount, int offset, int ratio)
 	return v;
 }
 
+EXPORT_SYMBOL(snd_sf_linear_to_log);
+
+
 #define OFFSET_MSEC		653117		/* base = 1000 */
 #define OFFSET_ABSCENT		851781		/* base = 8176 */
 #define OFFSET_SAMPLERATE	1011119		/* base = 44100 */
@@ -1390,7 +1393,7 @@ snd_sf_new(struct snd_sf_callback *callback, struct snd_util_memhdr *hdr)
 	if ((sflist = kzalloc(sizeof(*sflist), GFP_KERNEL)) == NULL)
 		return NULL;
 
-	init_MUTEX(&sflist->presets_mutex);
+	mutex_init(&sflist->presets_mutex);
 	spin_lock_init(&sflist->lock);
 	sflist->memhdr = hdr;
 
@@ -1485,4 +1488,3 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 	unlock_preset(sflist);
 	return 0;
 }
-

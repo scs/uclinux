@@ -44,7 +44,7 @@ MODULE_SUPPORTED_DEVICE("{{Brooktree,Bt878},"
 static int index[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -2}; /* Exclude the first card */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int digital_rate[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = 0 }; /* digital input rate */
+static int digital_rate[SNDRV_CARDS];	/* digital input rate */
 static int load_all;	/* allow to load the non-whitelisted cards */
 
 module_param_array(index, int, NULL, 0444);
@@ -747,7 +747,7 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 	snd_bt87x_writel(chip, REG_INT_MASK, 0);
 	snd_bt87x_writel(chip, REG_INT_STAT, MY_INTERRUPTS);
 
-	if (request_irq(pci->irq, snd_bt87x_interrupt, SA_INTERRUPT | SA_SHIRQ,
+	if (request_irq(pci->irq, snd_bt87x_interrupt, IRQF_DISABLED | IRQF_SHARED,
 			"Bt87x audio", chip)) {
 		snd_bt87x_free(chip);
 		snd_printk(KERN_ERR "cannot grab irq\n");
@@ -781,6 +781,10 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, 0x0070, 0x13eb, 32000),
 	/* Viewcast Osprey 200 */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x0070, 0xff01, 44100),
+	/* Leadtek Winfast tv 2000xp delux */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x107d, 0x6606, 32000),
+	/* Voodoo TV 200 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, 32000),
 	/* AVerMedia Studio No. 103, 203, ...? */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
 	{ }
@@ -793,12 +797,15 @@ static struct {
 	unsigned short subvendor, subdevice;
 } blacklist[] __devinitdata = {
 	{0x0071, 0x0101}, /* Nebula Electronics DigiTV */
+	{0x11bd, 0x001c}, /* Pinnacle PCTV Sat */
 	{0x11bd, 0x0026}, /* Pinnacle PCTV SAT CI */
 	{0x1461, 0x0761}, /* AVermedia AverTV DVB-T */
 	{0x1461, 0x0771}, /* AVermedia DVB-T 771 */
 	{0x1822, 0x0001}, /* Twinhan VisionPlus DVB-T */
+	{0x18ac, 0xd500}, /* DVICO FusionHDTV 5 Lite */
 	{0x18ac, 0xdb10}, /* DVICO FusionHDTV DVB-T Lite */
 	{0x270f, 0xfc00}, /* Chaintech Digitop DST-1000 DVB-S */
+	{0x7063, 0x2000}, /* pcHDTV HD-2000 TV */
 };
 
 static struct pci_driver driver;
@@ -816,13 +823,13 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	for (i = 0; i < ARRAY_SIZE(blacklist); ++i)
 		if (blacklist[i].subvendor == pci->subsystem_vendor &&
 		    blacklist[i].subdevice == pci->subsystem_device) {
-			snd_printdd(KERN_INFO "card %#04x:%#04x has no audio\n",
-				    pci->subsystem_vendor, pci->subsystem_device);
+			snd_printdd(KERN_INFO "card %#04x-%#04x:%#04x has no audio\n",
+				    pci->device, pci->subsystem_vendor, pci->subsystem_device);
 			return -EBUSY;
 		}
 
-	snd_printk(KERN_INFO "unknown card %#04x:%#04x, using default rate 32000\n",
-		   pci->subsystem_vendor, pci->subsystem_device);
+	snd_printk(KERN_INFO "unknown card %#04x-%#04x:%#04x, using default rate 32000\n",
+	           pci->device, pci->subsystem_vendor, pci->subsystem_device);
 	snd_printk(KERN_DEBUG "please mail id, board name, and, "
 		   "if it works, the correct digital_rate option to "
 		   "<alsa-devel@lists.sf.net>\n");
@@ -881,8 +888,9 @@ static int __devinit snd_bt87x_probe(struct pci_dev *pci,
 
 	strcpy(card->driver, "Bt87x");
 	sprintf(card->shortname, "Brooktree Bt%x", pci->device);
-	sprintf(card->longname, "%s at %#lx, irq %i",
-		card->shortname, pci_resource_start(pci, 0), chip->irq);
+	sprintf(card->longname, "%s at %#llx, irq %i",
+		card->shortname, (unsigned long long)pci_resource_start(pci, 0),
+		chip->irq);
 	strcpy(card->mixername, "Bt87x");
 
 	err = snd_card_register(card);
@@ -906,7 +914,7 @@ static void __devexit snd_bt87x_remove(struct pci_dev *pci)
 
 /* default entries for all Bt87x cards - it's not exported */
 /* driver_data is set to 0 to call detection */
-static struct pci_device_id snd_bt87x_default_ids[] = {
+static struct pci_device_id snd_bt87x_default_ids[] __devinitdata = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, 0),
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, 0),
 	{ }

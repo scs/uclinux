@@ -1748,11 +1748,10 @@ static int __devinit snd_ad1836_proc_create(struct snd_ad1836 *ad1836)
 
 	err = snd_card_proc_new(ad1836->card, "registers", &proc_entry);
 	if (err) goto __proc_err;
-	snd_info_set_text_ops(proc_entry, ad1836, 1024,
+	snd_info_set_text_ops(proc_entry, ad1836,
 				snd_ad1836_proc_registers_read);
 
 	proc_entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
-	proc_entry->c.text.write_size = 8;
 	proc_entry->c.text.write = snd_ad1836_proc_registers_write;
 
 	return 0;

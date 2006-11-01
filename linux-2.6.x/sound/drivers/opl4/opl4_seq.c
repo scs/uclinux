@@ -62,10 +62,10 @@ static int snd_opl4_seq_use(void *private_data, struct snd_seq_port_subscribe *i
 	struct snd_opl4 *opl4 = private_data;
 	int err;
 
-	down(&opl4->access_mutex);
+	mutex_lock(&opl4->access_mutex);
 
 	if (opl4->used) {
-		up(&opl4->access_mutex);
+		mutex_unlock(&opl4->access_mutex);
 		return -EBUSY;
 	}
 	opl4->used++;
@@ -73,12 +73,12 @@ static int snd_opl4_seq_use(void *private_data, struct snd_seq_port_subscribe *i
 	if (info->sender.client != SNDRV_SEQ_CLIENT_SYSTEM) {
 		err = snd_opl4_seq_use_inc(opl4);
 		if (err < 0) {
-			up(&opl4->access_mutex);
+			mutex_unlock(&opl4->access_mutex);
 			return err;
 		}
 	}
 
-	up(&opl4->access_mutex);
+	mutex_unlock(&opl4->access_mutex);
 
 	snd_opl4_synth_reset(opl4);
 	return 0;
@@ -90,9 +90,9 @@ static int snd_opl4_seq_unuse(void *private_data, struct snd_seq_port_subscribe 
 
 	snd_opl4_synth_shutdown(opl4);
 
-	down(&opl4->access_mutex);
+	mutex_lock(&opl4->access_mutex);
 	opl4->used--;
-	up(&opl4->access_mutex);
+	mutex_unlock(&opl4->access_mutex);
 
 	if (info->sender.client != SNDRV_SEQ_CLIENT_SYSTEM)
 		snd_opl4_seq_use_dec(opl4);
@@ -164,7 +164,9 @@ static int snd_opl4_seq_new_device(struct snd_seq_device *dev)
 						      SNDRV_SEQ_PORT_CAP_WRITE |
 						      SNDRV_SEQ_PORT_CAP_SUBS_WRITE,
 						      SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC |
-						      SNDRV_SEQ_PORT_TYPE_MIDI_GM,
+						      SNDRV_SEQ_PORT_TYPE_MIDI_GM |
+						      SNDRV_SEQ_PORT_TYPE_HARDWARE |
+						      SNDRV_SEQ_PORT_TYPE_SYNTHESIZER,
 						      16, 24,
 						      "OPL4 Wavetable Port");
 	if (opl4->chset->port < 0) {

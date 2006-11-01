@@ -70,6 +70,7 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/moduleparam.h>
+#include <linux/dma-mapping.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
@@ -688,8 +689,8 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 		return err;
 	}
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
-	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
-	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
+	if (pci_set_dma_mask(pci, DMA_24BIT_MASK) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_24BIT_MASK) < 0) {
 		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
@@ -745,8 +746,8 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 		card->shortname, chip->alt_port, chip->irq);
 
 	if ((err = snd_mpu401_uart_new( card, 0, MPU401_HW_ALS4000,
-				        gcr+0x30, 1, pci->irq, 0,
-				        &chip->rmidi)) < 0) {
+				        gcr+0x30, MPU401_INFO_INTEGRATED,
+					pci->irq, 0, &chip->rmidi)) < 0) {
 		printk(KERN_ERR "als4000: no MPU-401 device at 0x%lx?\n", gcr+0x30);
 		goto out_err;
 	}

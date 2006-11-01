@@ -138,7 +138,7 @@ int snd_sb_csp_new(struct snd_sb *chip, int device, struct snd_hwdep ** rhwdep)
 	p->ops.csp_stop = snd_sb_csp_stop;
 	p->ops.csp_qsound_transfer = snd_sb_csp_qsound_transfer;
 
-	init_MUTEX(&p->access_mutex);
+	mutex_init(&p->access_mutex);
 	sprintf(hw->name, "CSP v%d.%d", (version >> 4), (version & 0x0f));
 	hw->iface = SNDRV_HWDEP_IFACE_SB16CSP;
 	hw->private_data = p;
@@ -265,13 +265,13 @@ static int snd_sb_csp_release(struct snd_hwdep * hw, struct file *file)
  */
 static int snd_sb_csp_use(struct snd_sb_csp * p)
 {
-	down(&p->access_mutex);
+	mutex_lock(&p->access_mutex);
 	if (p->used) {
-		up(&p->access_mutex);
+		mutex_unlock(&p->access_mutex);
 		return -EAGAIN;
 	}
 	p->used++;
-	up(&p->access_mutex);
+	mutex_unlock(&p->access_mutex);
 
 	return 0;
 
@@ -282,9 +282,9 @@ static int snd_sb_csp_use(struct snd_sb_csp * p)
  */
 static int snd_sb_csp_unuse(struct snd_sb_csp * p)
 {
-	down(&p->access_mutex);
+	mutex_lock(&p->access_mutex);
 	p->used--;
-	up(&p->access_mutex);
+	mutex_unlock(&p->access_mutex);
 
 	return 0;
 }
@@ -1101,7 +1101,7 @@ static int init_proc_entry(struct snd_sb_csp * p, int device)
 	struct snd_info_entry *entry;
 	sprintf(name, "cspD%d", device);
 	if (! snd_card_proc_new(p->chip->card, name, &entry))
-		snd_info_set_text_ops(entry, p, 1024, info_read);
+		snd_info_set_text_ops(entry, p, info_read);
 	return 0;
 }
 

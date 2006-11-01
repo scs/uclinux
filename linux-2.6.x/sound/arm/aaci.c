@@ -73,7 +73,7 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned 
 	if (ac97->num >= 4)
 		return;
 
-	down(&aaci->ac97_sem);
+	mutex_lock(&aaci->ac97_sem);
 
 	aaci_ac97_select_codec(aaci, ac97);
 
@@ -91,7 +91,7 @@ static void aaci_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned 
 		v = readl(aaci->base + AACI_SLFR);
 	} while (v & (SLFR_1TXB|SLFR_2TXB));
 
-	up(&aaci->ac97_sem);
+	mutex_unlock(&aaci->ac97_sem);
 }
 
 /*
@@ -105,7 +105,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	if (ac97->num >= 4)
 		return ~0;
 
-	down(&aaci->ac97_sem);
+	mutex_lock(&aaci->ac97_sem);
 
 	aaci_ac97_select_codec(aaci, ac97);
 
@@ -145,7 +145,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		v = ~0;
 	}
 
-	up(&aaci->ac97_sem);
+	mutex_unlock(&aaci->ac97_sem);
 	return v;
 }
 
@@ -360,7 +360,7 @@ static int aaci_pcm_open(struct aaci *aaci, struct snd_pcm_substream *substream,
 	if (ret)
 		goto out;
 
-	ret = request_irq(aaci->dev->irq[0], aaci_irq, SA_SHIRQ|SA_INTERRUPT,
+	ret = request_irq(aaci->dev->irq[0], aaci_irq, IRQF_SHARED|IRQF_DISABLED,
 			  DRIVER_NAME, aaci);
 	if (ret)
 		goto out;
@@ -779,11 +779,12 @@ static struct aaci * __devinit aaci_init_card(struct amba_device *dev)
 	strlcpy(card->driver, DRIVER_NAME, sizeof(card->driver));
 	strlcpy(card->shortname, "ARM AC'97 Interface", sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
-		 "%s at 0x%08lx, irq %d",
-		 card->shortname, dev->res.start, dev->irq[0]);
+		 "%s at 0x%016llx, irq %d",
+		 card->shortname, (unsigned long long)dev->res.start,
+		 dev->irq[0]);
 
 	aaci = card->private_data;
-	init_MUTEX(&aaci->ac97_sem);
+	mutex_init(&aaci->ac97_sem);
 	spin_lock_init(&aaci->lock);
 	aaci->card = card;
 	aaci->dev = dev;

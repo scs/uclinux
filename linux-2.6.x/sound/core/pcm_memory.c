@@ -100,8 +100,10 @@ static void snd_pcm_lib_preallocate_dma_free(struct snd_pcm_substream *substream
 int snd_pcm_lib_preallocate_free(struct snd_pcm_substream *substream)
 {
 	snd_pcm_lib_preallocate_dma_free(substream);
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 	snd_info_unregister(substream->proc_prealloc_entry);
 	substream->proc_prealloc_entry = NULL;
+#endif
 	return 0;
 }
 
@@ -124,7 +126,9 @@ int snd_pcm_lib_preallocate_free_for_all(struct snd_pcm *pcm)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
+EXPORT_SYMBOL(snd_pcm_lib_preallocate_free_for_all);
+
+#ifdef CONFIG_SND_VERBOSE_PROCFS
 /*
  * read callback for prealloc proc file
  *
@@ -189,9 +193,7 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 	struct snd_info_entry *entry;
 
 	if ((entry = snd_info_create_card_entry(substream->pcm->card, "prealloc", substream->proc_root)) != NULL) {
-		entry->c.text.read_size = 64;
 		entry->c.text.read = snd_pcm_lib_preallocate_proc_read;
-		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_pcm_lib_preallocate_proc_write;
 		entry->mode |= S_IWUSR;
 		entry->private_data = substream;
@@ -203,9 +205,9 @@ static inline void preallocate_info_init(struct snd_pcm_substream *substream)
 	substream->proc_prealloc_entry = entry;
 }
 
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_VERBOSE_PROCFS */
 #define preallocate_info_init(s)
-#endif
+#endif /* CONFIG_SND_VERBOSE_PROCFS */
 
 /*
  * pre-allocate the buffer and create a proc file for the substream
@@ -251,6 +253,8 @@ int snd_pcm_lib_preallocate_pages(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_preallocate_pages1(substream, size, max);
 }
 
+EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages);
+
 /**
  * snd_pcm_lib_preallocate_pages_for_all - pre-allocation for continous memory type (all substreams)
  * @pcm: the pcm instance
@@ -278,6 +282,8 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 	return 0;
 }
 
+EXPORT_SYMBOL(snd_pcm_lib_preallocate_pages_for_all);
+
 /**
  * snd_pcm_sgbuf_ops_page - get the page struct at the given offset
  * @substream: the pcm substream instance
@@ -295,6 +301,8 @@ struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigne
 		return NULL;
 	return sgbuf->page_table[idx];
 }
+
+EXPORT_SYMBOL(snd_pcm_sgbuf_ops_page);
 
 /**
  * snd_pcm_lib_malloc_pages - allocate the DMA buffer
@@ -347,6 +355,8 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	return 1;			/* area was changed */
 }
 
+EXPORT_SYMBOL(snd_pcm_lib_malloc_pages);
+
 /**
  * snd_pcm_lib_free_pages - release the allocated DMA buffer.
  * @substream: the substream to release the DMA buffer
@@ -372,3 +382,5 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 	snd_pcm_set_runtime_buffer(substream, NULL);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_pcm_lib_free_pages);

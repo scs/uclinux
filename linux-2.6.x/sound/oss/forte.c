@@ -43,6 +43,7 @@
 #include <linux/interrupt.h>
 
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -185,7 +186,7 @@ struct forte_chip {
 	unsigned long		iobase;
 	int			irq;
 
-	struct semaphore	open_sem; 	/* Device access */
+	struct mutex		open_mutex; 	/* Device access */
 	spinlock_t		lock;		/* State */
 
 	spinlock_t		ac97_lock;
@@ -1242,13 +1243,13 @@ forte_dsp_open (struct inode *inode, struct file *file)
 	struct forte_chip *chip = forte; /* FIXME: HACK FROM HELL! */
 
 	if (file->f_flags & O_NONBLOCK) {
-		if (down_trylock (&chip->open_sem)) {
+		if (!mutex_trylock(&chip->open_mutex)) {
 			DPRINTK ("%s: returning -EAGAIN\n", __FUNCTION__);
 			return -EAGAIN;
 		}
 	}
 	else {
-		if (down_interruptible (&chip->open_sem)) {
+		if (mutex_lock_interruptible(&chip->open_mutex)) {
 			DPRINTK ("%s: returning -ERESTARTSYS\n", __FUNCTION__);
 			return -ERESTARTSYS;
 		}
@@ -1302,7 +1303,7 @@ forte_dsp_release (struct inode *inode, struct file *file)
 		spin_unlock_irq (&chip->lock);
 	}
 
-	up (&chip->open_sem);
+	mutex_unlock(&chip->open_mutex);
 
 	return ret;
 }
@@ -2011,7 +2012,7 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	memset (chip, 0, sizeof (struct forte_chip));
 	chip->pci_dev = pci_dev;
 
-	init_MUTEX(&chip->open_sem);
+	mutex_init(&chip->open_mutex);
 	spin_lock_init (&chip->lock);
 	spin_lock_init (&chip->ac97_lock);
 
@@ -2025,7 +2026,7 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	chip->iobase = pci_resource_start (pci_dev, 0);
 	chip->irq = pci_dev->irq;
 
-	if (request_irq (chip->irq, forte_interrupt, SA_SHIRQ, DRIVER_NAME,
+	if (request_irq (chip->irq, forte_interrupt, IRQF_SHARED, DRIVER_NAME,
 			 chip)) {
 		printk (KERN_WARNING PFX "Unable to reserve IRQ");
 		ret = -EIO;
@@ -2034,8 +2035,9 @@ forte_probe (struct pci_dev *pci_dev, const struct pci_device_id *pci_id)
 	
 	pci_set_drvdata (pci_dev, chip);
 
-	printk (KERN_INFO PFX "FM801 chip found at 0x%04lX-0x%04lX IRQ %u\n", 
-		chip->iobase, pci_resource_end (pci_dev, 0), chip->irq);
+	printk (KERN_INFO PFX "FM801 chip found at 0x%04lX-0x%16llX IRQ %u\n",
+		chip->iobase, (unsigned long long)pci_resource_end (pci_dev, 0),
+		chip->irq);
 
 	/* Power it up */
 	if ((ret = forte_chip_init (chip)) == 0)

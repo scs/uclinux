@@ -151,14 +151,18 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	// check PCI availability (DMA).
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	if (pci_set_dma_mask(pci, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pci, DMA_32BIT_MASK) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK) < 0) {
 		printk(KERN_ERR "error to set DMA mask\n");
+		pci_disable_device(pci);
 		return -ENXIO;
 	}
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
-	if (chip == NULL)
+	if (chip == NULL) {
+		pci_disable_device(pci);
 		return -ENOMEM;
+	}
 
 	chip->card = card;
 
@@ -193,7 +197,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	}
 
 	if ((err = request_irq(pci->irq, vortex_interrupt,
-	                       SA_INTERRUPT | SA_SHIRQ, CARD_NAME_SHORT,
+	                       IRQF_DISABLED | IRQF_SHARED, CARD_NAME_SHORT,
 	                       chip)) != 0) {
 		printk(KERN_ERR "cannot grab irq\n");
 		goto irq_out;
@@ -207,6 +211,8 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		goto alloc_out;
 	}
+
+	snd_card_set_dev(card, &pci->dev);
 
 	*rchip = chip;
 
@@ -255,6 +261,13 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		return err;
 	}
 	snd_vortex_workaround(pci, pcifix[dev]);
+
+	// Card details needed in snd_vortex_midi
+	strcpy(card->driver, CARD_NAME_SHORT);
+	sprintf(card->shortname, "Aureal Vortex %s", CARD_NAME_SHORT);
+	sprintf(card->longname, "%s at 0x%lx irq %i",
+		card->shortname, chip->io, chip->irq);
+
 	// (4) Alloc components.
 	// ADB pcm.
 	if ((err = snd_vortex_new_pcm(chip, VORTEX_PCM_ADB, NR_ADB)) < 0) {
@@ -317,11 +330,6 @@ snd_vortex_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 #endif
 
 	// (5)
-	strcpy(card->driver, CARD_NAME_SHORT);
-	strcpy(card->shortname, CARD_NAME_SHORT);
-	sprintf(card->longname, "%s at 0x%lx irq %i",
-		card->shortname, chip->io, chip->irq);
-
 	if ((err = pci_read_config_word(pci, PCI_DEVICE_ID,
 				  &(chip->device))) < 0) {
 		snd_card_free(card);

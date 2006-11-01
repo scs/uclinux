@@ -47,7 +47,7 @@
 static multisound_dev_t		*devs[MSND_MAX_DEVS];
 static int			num_devs;
 
-int __init msnd_register(multisound_dev_t *dev)
+int msnd_register(multisound_dev_t *dev)
 {
 	int i;
 
@@ -95,10 +95,8 @@ void msnd_fifo_init(msnd_fifo *f)
 
 void msnd_fifo_free(msnd_fifo *f)
 {
-	if (f->data) {
-		vfree(f->data);
-		f->data = NULL;
-	}
+	vfree(f->data);
+	f->data = NULL;
 }
 
 int msnd_fifo_alloc(msnd_fifo *f, size_t n)

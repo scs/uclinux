@@ -29,6 +29,7 @@
 #include <sound/ak4xxx-adda.h>
 #include <sound/ak4114.h>
 #include <sound/pcm.h>
+#include <sound/mpu401.h>
 
 
 /*
@@ -325,6 +326,7 @@ struct snd_ice1712 {
 
 	unsigned int pro_volumes[20];
 	unsigned int omni: 1;		/* Delta Omni I/O */
+	unsigned int dxr_enable: 1;	/* Terratec DXR enable for DMX6FIRE */
 	unsigned int vt1724: 1;
 	unsigned int vt1720: 1;
 	unsigned int has_spdif: 1;	/* VT1720/4 - has SPDIF I/O */
@@ -334,7 +336,7 @@ struct snd_ice1712 {
 	unsigned int num_total_adcs;	/* total ADCs */
 	unsigned int cur_rate;		/* current rate */
 
-	struct semaphore open_mutex;
+	struct mutex open_mutex;
 	struct snd_pcm_substream *pcm_reserved[4];
 	struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
 
@@ -342,7 +344,7 @@ struct snd_ice1712 {
 	struct snd_akm4xxx *akm;
 	struct snd_ice1712_spdif spdif;
 
-	struct semaphore i2c_mutex;	/* I2C mutex for ICE1724 registers */
+	struct mutex i2c_mutex;	/* I2C mutex for ICE1724 registers */
 	struct snd_i2c_bus *i2c;		/* I2C bus */
 	struct snd_i2c_device *cs8427;	/* CS8427 I2C device */
 	unsigned int cs8427_timeout;	/* CS8427 reset timeout in HZ/100 */
@@ -360,7 +362,7 @@ struct snd_ice1712 {
 		void (*set_pro_rate)(struct snd_ice1712 *ice, unsigned int rate);
 		void (*i2s_mclk_changed)(struct snd_ice1712 *ice);
 	} gpio;
-	struct semaphore gpio_mutex;
+	struct mutex gpio_mutex;
 
 	/* other board-specific data */
 	union {
@@ -372,6 +374,7 @@ struct snd_ice1712 {
 			unsigned int cs8415_mux;
 			unsigned short master[2];
 			unsigned short vol[8];
+			unsigned char pca9554_out;
 		} aureon;
 		/* AC97 register cache for Phase28 */
 		struct phase28_spec {
@@ -423,7 +426,7 @@ static inline unsigned int snd_ice1712_gpio_read(struct snd_ice1712 *ice)
  */
 static inline void snd_ice1712_save_gpio_status(struct snd_ice1712 *ice)
 {
-	down(&ice->gpio_mutex);
+	mutex_lock(&ice->gpio_mutex);
 	ice->gpio.saved[0] = ice->gpio.direction;
 	ice->gpio.saved[1] = ice->gpio.write_mask;
 }
@@ -434,7 +437,7 @@ static inline void snd_ice1712_restore_gpio_status(struct snd_ice1712 *ice)
 	ice->gpio.set_mask(ice, ice->gpio.saved[1]);
 	ice->gpio.direction = ice->gpio.saved[0];
 	ice->gpio.write_mask = ice->gpio.saved[1];
-	up(&ice->gpio_mutex);
+	mutex_unlock(&ice->gpio_mutex);
 }
 
 /* for bit controls */
@@ -493,6 +496,10 @@ struct snd_ice1712_card_info {
 	int (*chip_init)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
 	unsigned int no_mpu401: 1;
+	unsigned int mpu401_1_info_flags;
+	unsigned int mpu401_2_info_flags;
+	const char *mpu401_1_name;
+	const char *mpu401_2_name;
 	unsigned int eeprom_size;
 	unsigned char *eeprom_data;
 };

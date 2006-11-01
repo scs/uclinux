@@ -50,7 +50,7 @@ static int ics2115_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;    /* 2,9,11,12,15 */
 static long fm_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	    /* PnP setup */
 static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	    /* 0,1,3,5,6,7 */
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	    /* 0,1,3,5,6,7 */
-static int use_cs4232_midi[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0}; 
+static int use_cs4232_midi[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for WaveFront soundcard.");
@@ -467,7 +467,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		return -EBUSY;
 	}
 	if (request_irq(ics2115_irq[dev], snd_wavefront_ics2115_interrupt,
-			SA_INTERRUPT, "ICS2115", acard)) {
+			IRQF_DISABLED, "ICS2115", acard)) {
 		snd_printk(KERN_ERR "unable to use ICS2115 IRQ %d\n", ics2115_irq[dev]);
 		return -EBUSY;
 	}
@@ -497,7 +497,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 		if ((err = snd_mpu401_uart_new(card, midi_dev, MPU401_HW_CS4232,
 					       cs4232_mpu_port[dev], 0,
 					       cs4232_mpu_irq[dev],
-					       SA_INTERRUPT,
+					       IRQF_DISABLED,
 					       NULL)) < 0) {
 			snd_printk (KERN_ERR "can't allocate CS4232 MPU-401 device\n");
 			return err;
@@ -589,7 +589,7 @@ snd_wavefront_probe (struct snd_card *card, int dev)
 	return snd_card_register(card);
 }	
 
-static int __init snd_wavefront_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_wavefront_nonpnp_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	struct snd_card *card;
@@ -637,6 +637,7 @@ static struct platform_driver snd_wavefront_driver = {
 
 
 #ifdef CONFIG_PNP
+static unsigned int __devinitdata wavefront_pnp_devices;
 
 static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
                                               const struct pnp_card_device_id *pid)
@@ -670,6 +671,7 @@ static int __devinit snd_wavefront_pnp_detect(struct pnp_card_link *pcard,
 
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
+	wavefront_pnp_devices++;
 	return 0;
 }
 
@@ -710,27 +712,31 @@ static int __init alsa_card_wavefront_init(void)
 	if ((err = platform_driver_register(&snd_wavefront_driver)) < 0)
 		return err;
 
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
+		if (! enable[i])
+			continue;
 #ifdef CONFIG_PNP
 		if (isapnp[i])
 			continue;
 #endif
 		device = platform_device_register_simple(WAVEFRONT_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			err = PTR_ERR(device);
-			goto errout;
+		if (IS_ERR(device))
+			continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
 		}
 		platform_devices[i] = device;
 		cards++;
 	}
 
 #ifdef CONFIG_PNP
-	i = pnp_register_card_driver(&wavefront_pnpc_driver);
-	if (i >= 0) {
+	err = pnp_register_card_driver(&wavefront_pnpc_driver);
+	if (!err) {
 		pnp_registered = 1;
-		cards += i;
+		cards += wavefront_pnp_devices;
 	}
 #endif
 
@@ -738,14 +744,10 @@ static int __init alsa_card_wavefront_init(void)
 #ifdef MODULE
 		printk (KERN_ERR "No WaveFront cards found or devices busy\n");
 #endif
-		err = -ENODEV;
-		goto errout;
+		snd_wavefront_unregister_all();
+		return -ENODEV;
 	}
 	return 0;
-
- errout:
-	snd_wavefront_unregister_all();
-	return err;
 }
 
 static void __exit alsa_card_wavefront_exit(void)

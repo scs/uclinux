@@ -70,9 +70,9 @@ static int dma1[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3,5,6,7 */
 static int dma2[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0,1,3,5,6,7 */
 static int joystick_dac[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 29};
 				/* 0 to 31, (0.59V-4.52V or 0.389V-2.98V) */
-static int midi[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int midi[SNDRV_CARDS];
 static int pcm_channels[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
-static int effect[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int effect[SNDRV_CARDS];
 
 #ifdef SNDRV_STB
 #define PFX "interwave-stb: "
@@ -611,10 +611,10 @@ static int __devinit snd_interwave_pnp(int dev, struct snd_interwave *iwcard,
 	if (dma2[dev] >= 0)
 		dma2[dev] = pnp_dma(pdev, 1);
 	irq[dev] = pnp_irq(pdev, 0);
-	snd_printdd("isapnp IW: sb port=0x%lx, gf1 port=0x%lx, codec port=0x%lx\n",
-				pnp_port_start(pdev, 0),
-				pnp_port_start(pdev, 1),
-				pnp_port_start(pdev, 2));
+	snd_printdd("isapnp IW: sb port=0x%llx, gf1 port=0x%llx, codec port=0x%llx\n",
+			(unsigned long long)pnp_port_start(pdev, 0),
+			(unsigned long long)pnp_port_start(pdev, 1),
+			(unsigned long long)pnp_port_start(pdev, 2));
 	snd_printdd("isapnp IW: dma1=%i, dma2=%i, irq=%i\n", dma1[dev], dma2[dev], irq[dev]);
 #ifdef SNDRV_STB
 	/* Tone Control initialization */
@@ -706,7 +706,7 @@ static int __devinit snd_interwave_probe(struct snd_card *card, int dev)
 	if ((err = snd_gus_initialize(gus)) < 0)
 		return err;
 
-	if (request_irq(xirq, snd_interwave_interrupt, SA_INTERRUPT,
+	if (request_irq(xirq, snd_interwave_interrupt, IRQF_DISABLED,
 			"InterWave", iwcard)) {
 		snd_printk(KERN_ERR PFX "unable to grab IRQ %d\n", xirq);
 		return -EBUSY;
@@ -791,7 +791,7 @@ static int __devinit snd_interwave_probe(struct snd_card *card, int dev)
 	return 0;
 }
 
-static int __init snd_interwave_nonpnp_probe1(int dev, struct platform_device *devptr)
+static int __devinit snd_interwave_nonpnp_probe1(int dev, struct platform_device *devptr)
 {
 	struct snd_card *card;
 	int err;
@@ -809,7 +809,7 @@ static int __init snd_interwave_nonpnp_probe1(int dev, struct platform_device *d
 	return 0;
 }
 
-static int __init snd_interwave_nonpnp_probe(struct platform_device *pdev)
+static int __devinit snd_interwave_nonpnp_probe(struct platform_device *pdev)
 {
 	int dev = pdev->id;
 	int err;
@@ -867,6 +867,7 @@ static struct platform_driver snd_interwave_driver = {
 };
 
 #ifdef CONFIG_PNP
+static unsigned int __devinitdata interwave_pnp_devices;
 
 static int __devinit snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 					      const struct pnp_card_device_id *pid)
@@ -897,6 +898,7 @@ static int __devinit snd_interwave_pnp_detect(struct pnp_card_link *pcard,
 	}
 	pnp_set_card_drvdata(pcard, card);
 	dev++;
+	interwave_pnp_devices++;
 	return 0;
 }
 
@@ -935,41 +937,41 @@ static int __init alsa_card_interwave_init(void)
 	if ((err = platform_driver_register(&snd_interwave_driver)) < 0)
 		return err;
 
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
+		if (! enable[i])
+			continue;
 #ifdef CONFIG_PNP
 		if (isapnp[i])
 			continue;
 #endif
 		device = platform_device_register_simple(INTERWAVE_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			err = PTR_ERR(device);
-			goto errout;
+		if (IS_ERR(device))
+			continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
 		}
 		platform_devices[i] = device;
 		cards++;
 	}
 
 	/* ISA PnP cards */
-	i = pnp_register_card_driver(&interwave_pnpc_driver);
-	if (i >= 0) {
+	err = pnp_register_card_driver(&interwave_pnpc_driver);
+	if (!err) {
 		pnp_registered = 1;
-		cards += i;
+		cards += interwave_pnp_devices;;
 	}
 
 	if (!cards) {
 #ifdef MODULE
 		printk(KERN_ERR "InterWave soundcard not found or device busy\n");
 #endif
-		err = -ENODEV;
-		goto errout;
+		snd_interwave_unregister_all();
+		return -ENODEV;
 	}
 	return 0;
-
- errout:
-	snd_interwave_unregister_all();
-	return err;
 }
 
 static void __exit alsa_card_interwave_exit(void)

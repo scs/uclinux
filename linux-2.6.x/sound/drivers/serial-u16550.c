@@ -789,12 +789,13 @@ static int __init snd_uart16550_create(struct snd_card *card,
 
 	if ((err = snd_uart16550_detect(uart)) <= 0) {
 		printk(KERN_ERR "no UART detected at 0x%lx\n", iobase);
+		snd_uart16550_free(uart);
 		return -ENODEV;
 	}
 
 	if (irq >= 0 && irq != SNDRV_AUTO_IRQ) {
 		if (request_irq(irq, snd_uart16550_interrupt,
-				SA_INTERRUPT, "Serial MIDI", (void *) uart)) {
+				IRQF_DISABLED, "Serial MIDI", (void *) uart)) {
 			snd_printk("irq %d busy. Using Polling.\n", irq);
 		} else {
 			uart->irq = irq;
@@ -989,13 +990,17 @@ static int __init alsa_card_serial_init(void)
 		return err;
 
 	cards = 0;
-	for (i = 0; i < SNDRV_CARDS && enable[i]; i++) {
+	for (i = 0; i < SNDRV_CARDS; i++) {
 		struct platform_device *device;
+		if (! enable[i])
+			continue;
 		device = platform_device_register_simple(SND_SERIAL_DRIVER,
 							 i, NULL, 0);
-		if (IS_ERR(device)) {
-			err = PTR_ERR(device);
-			goto errout;
+		if (IS_ERR(device))
+			continue;
+		if (!platform_get_drvdata(device)) {
+			platform_device_unregister(device);
+			continue;
 		}
 		devices[i] = device;
 		cards++;
@@ -1004,14 +1009,10 @@ static int __init alsa_card_serial_init(void)
 #ifdef MODULE
 		printk(KERN_ERR "serial midi soundcard not found or device busy\n");
 #endif
-		err = -ENODEV;
-		goto errout;
+		snd_serial_unregister_all();
+		return -ENODEV;
 	}
 	return 0;
-
- errout:
-	snd_serial_unregister_all();
-	return err;
 }
 
 static void __exit alsa_card_serial_exit(void)

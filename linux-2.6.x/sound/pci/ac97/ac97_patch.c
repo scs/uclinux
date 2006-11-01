@@ -27,6 +27,8 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
@@ -55,12 +57,12 @@ static int ac97_update_bits_page(struct snd_ac97 *ac97, unsigned short reg, unsi
 	unsigned short page_save;
 	int ret;
 
-	down(&ac97->page_mutex);
+	mutex_lock(&ac97->page_mutex);
 	page_save = snd_ac97_read(ac97, AC97_INT_PAGING) & AC97_PAGE_MASK;
 	snd_ac97_update_bits(ac97, AC97_INT_PAGING, AC97_PAGE_MASK, page);
 	ret = snd_ac97_update_bits(ac97, reg, mask, value);
 	snd_ac97_update_bits(ac97, AC97_INT_PAGING, AC97_PAGE_MASK, page_save);
-	up(&ac97->page_mutex); /* unlock paging */
+	mutex_unlock(&ac97->page_mutex); /* unlock paging */
 	return ret;
 }
 
@@ -462,6 +464,10 @@ int patch_wolfson05(struct snd_ac97 * ac97)
 {
 	/* WM9705, WM9710 */
 	ac97->build_ops = &patch_wolfson_wm9705_ops;
+#ifdef CONFIG_TOUCHSCREEN_WM9705
+	/* WM9705 touchscreen uses AUX and VIDEO for touch */
+	ac97->flags |=3D AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
+#endif
 	return 0;
 }
 
@@ -897,12 +903,12 @@ static int snd_ac97_stac9708_put_bias(struct snd_kcontrol *kcontrol, struct snd_
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	int err;
 
-	down(&ac97->page_mutex);
+	mutex_lock(&ac97->page_mutex);
 	snd_ac97_write(ac97, AC97_SIGMATEL_BIAS1, 0xabba);
 	err = snd_ac97_update_bits(ac97, AC97_SIGMATEL_BIAS2, 0x0010,
 				   (ucontrol->value.integer.value[0] & 1) << 4);
 	snd_ac97_write(ac97, AC97_SIGMATEL_BIAS1, 0);
-	up(&ac97->page_mutex);
+	mutex_unlock(&ac97->page_mutex);
 	return err;
 }
 
@@ -1365,6 +1371,13 @@ static void ad18xx_resume(struct snd_ac97 *ac97)
 
 	snd_ac97_restore_iec958(ac97);
 }
+
+static void ad1888_resume(struct snd_ac97 *ac97)
+{
+	ad18xx_resume(ac97);
+	snd_ac97_write_cache(ac97, AC97_CODEC_CLASS_REV, 0x8080);
+}
+
 #endif
 
 int patch_ad1819(struct snd_ac97 * ac97)
@@ -1625,6 +1638,7 @@ static const struct snd_kcontrol_new snd_ac97_ad1981x_jack_sense[] = {
  * (SS vendor << 16 | device)
  */
 static unsigned int ad1981_jacks_blacklist[] = {
+	0x10140537, /* Thinkpad T41p */
 	0x10140554, /* Thinkpad T42p/R50p */
 	0 /* end */
 };
@@ -1810,6 +1824,8 @@ static const struct snd_kcontrol_new snd_ac97_ad1888_controls[] = {
 		.get = snd_ac97_ad1888_lohpsel_get,
 		.put = snd_ac97_ad1888_lohpsel_put
 	},
+	AC97_SINGLE("V_REFOUT Enable", AC97_AD_MISC, 2, 1, 1),
+	AC97_SINGLE("High Pass Filter Enable", AC97_AD_TEST2, 12, 1, 1),
 	AC97_SINGLE("Spread Front to Surround and Center/LFE", AC97_AD_MISC, 7, 1, 0),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -1837,7 +1853,7 @@ static struct snd_ac97_build_ops patch_ad1888_build_ops = {
 	.build_post_spdif = patch_ad198x_post_spdif,
 	.build_specific = patch_ad1888_specific,
 #ifdef CONFIG_PM
-	.resume = ad18xx_resume,
+	.resume = ad1888_resume,
 #endif
 	.update_jacks = ad1888_update_jacks,
 };
@@ -2046,7 +2062,10 @@ int patch_alc650(struct snd_ac97 * ac97)
 	/* Enable SPDIF-IN only on Rev.E and above */
 	val = snd_ac97_read(ac97, AC97_ALC650_CLOCK);
 	/* SPDIF IN with pin 47 */
-	if (ac97->spec.dev_flags)
+	if (ac97->spec.dev_flags &&
+	    /* ASUS A6KM requires EAPD */
+	    ! (ac97->subsystem_vendor == 0x1043 &&
+	       ac97->subsystem_device == 0x1103))
 		val |= 0x03; /* enable */
 	else
 		val &= ~0x03; /* disable */
@@ -2821,5 +2840,35 @@ int mpatch_si3036(struct snd_ac97 * ac97)
 	ac97->build_ops = &patch_si3036_ops;
 	snd_ac97_write_cache(ac97, 0x5c, 0xf210 );
 	snd_ac97_write_cache(ac97, 0x68, 0);
+	return 0;
+}
+
+/*
+ * LM 4550 Codec
+ *
+ * We use a static resolution table since LM4550 codec cannot be
+ * properly autoprobed to determine the resolution via
+ * check_volume_resolution().
+ */
+
+static struct snd_ac97_res_table lm4550_restbl[] = {
+	{ AC97_MASTER, 0x1f1f },
+	{ AC97_HEADPHONE, 0x1f1f },
+	{ AC97_MASTER_MONO, 0x001f },
+	{ AC97_PC_BEEP, 0x001f },	/* LSB is ignored */
+	{ AC97_PHONE, 0x001f },
+	{ AC97_MIC, 0x001f },
+	{ AC97_LINE, 0x1f1f },
+	{ AC97_CD, 0x1f1f },
+	{ AC97_VIDEO, 0x1f1f },
+	{ AC97_AUX, 0x1f1f },
+	{ AC97_PCM, 0x1f1f },
+	{ AC97_REC_GAIN, 0x0f0f },
+	{ } /* terminator */
+};
+
+int patch_lm4550(struct snd_ac97 *ac97)
+{
+	ac97->res_table = lm4550_restbl;
 	return 0;
 }

@@ -30,13 +30,6 @@
 #define USB_SUBCLASS_MIDI_STREAMING	0x03
 #define USB_SUBCLASS_VENDOR_SPEC	0xff
 
-#define CS_AUDIO_UNDEFINED		0x20
-#define CS_AUDIO_DEVICE			0x21
-#define CS_AUDIO_CONFIGURATION		0x22
-#define CS_AUDIO_STRING			0x23
-#define CS_AUDIO_INTERFACE		0x24
-#define CS_AUDIO_ENDPOINT		0x25
-
 #define HEADER				0x01
 #define INPUT_TERMINAL			0x02
 #define OUTPUT_TERMINAL			0x03
@@ -161,7 +154,7 @@ enum quirk_type {
 	QUIRK_MIDI_NOVATION,
 	QUIRK_MIDI_RAW,
 	QUIRK_MIDI_EMAGIC,
-	QUIRK_MIDI_MIDITECH,
+	QUIRK_MIDI_CME,
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UA700_UA25,
@@ -209,7 +202,7 @@ struct snd_usb_midi_endpoint_info {
 /* for QUIRK_MIDI_EMAGIC, data points to a snd_usb_midi_endpoint_info
  * structure (out_cables and in_cables only) */
 
-/* for QUIRK_MIDI_MIDITECH, data is NULL */
+/* for QUIRK_MIDI_CME, data is NULL */
 
 /*
  */

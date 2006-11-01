@@ -167,7 +167,7 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 			return;		/* ignored */
 		}
 		if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, 0, 0) < 0)
+			if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
 				return;
 			vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 		}
@@ -186,7 +186,7 @@ static void snd_virmidi_output_trigger(struct snd_rawmidi_substream *substream, 
 				pbuf += res;
 				count -= res;
 				if (vmidi->event.type != SNDRV_SEQ_EVENT_NONE) {
-					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, 0, 0) < 0)
+					if (snd_seq_kernel_client_dispatch(vmidi->client, &vmidi->event, in_atomic(), 0) < 0)
 						return;
 					vmidi->event.type = SNDRV_SEQ_EVENT_NONE;
 				}
@@ -390,7 +390,9 @@ static int snd_virmidi_dev_attach_seq(struct snd_virmidi_dev *rdev)
 	pinfo->capability |= SNDRV_SEQ_PORT_CAP_WRITE | SNDRV_SEQ_PORT_CAP_SYNC_WRITE | SNDRV_SEQ_PORT_CAP_SUBS_WRITE;
 	pinfo->capability |= SNDRV_SEQ_PORT_CAP_READ | SNDRV_SEQ_PORT_CAP_SYNC_READ | SNDRV_SEQ_PORT_CAP_SUBS_READ;
 	pinfo->capability |= SNDRV_SEQ_PORT_CAP_DUPLEX;
-	pinfo->type = SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC;
+	pinfo->type = SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC
+		| SNDRV_SEQ_PORT_TYPE_SOFTWARE
+		| SNDRV_SEQ_PORT_TYPE_PORT;
 	pinfo->midi_channels = 16;
 	memset(&pcallbacks, 0, sizeof(pcallbacks));
 	pcallbacks.owner = THIS_MODULE;

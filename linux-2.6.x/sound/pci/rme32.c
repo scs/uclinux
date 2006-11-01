@@ -313,7 +313,7 @@ static int snd_rme32_capture_copy(struct snd_pcm_substream *substream, int chann
 }
 
 /*
- * SPDIF I/O capabilites (half-duplex mode)
+ * SPDIF I/O capabilities (half-duplex mode)
  */
 static struct snd_pcm_hardware snd_rme32_spdif_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP_IOMEM |
@@ -339,7 +339,7 @@ static struct snd_pcm_hardware snd_rme32_spdif_info = {
 };
 
 /*
- * ADAT I/O capabilites (half-duplex mode)
+ * ADAT I/O capabilities (half-duplex mode)
  */
 static struct snd_pcm_hardware snd_rme32_adat_info =
 {
@@ -364,7 +364,7 @@ static struct snd_pcm_hardware snd_rme32_adat_info =
 };
 
 /*
- * SPDIF I/O capabilites (full-duplex mode)
+ * SPDIF I/O capabilities (full-duplex mode)
  */
 static struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
 	.info =		(SNDRV_PCM_INFO_MMAP |
@@ -390,7 +390,7 @@ static struct snd_pcm_hardware snd_rme32_spdif_fd_info = {
 };
 
 /*
- * ADAT I/O capabilites (full-duplex mode)
+ * ADAT I/O capabilities (full-duplex mode)
  */
 static struct snd_pcm_hardware snd_rme32_adat_fd_info =
 {
@@ -1368,17 +1368,17 @@ static int __devinit snd_rme32_create(struct rme32 * rme32)
 		return err;
 	rme32->port = pci_resource_start(rme32->pci, 0);
 
-	if (request_irq(pci->irq, snd_rme32_interrupt, SA_INTERRUPT | SA_SHIRQ, "RME32", (void *) rme32)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
-		return -EBUSY;
-	}
-	rme32->irq = pci->irq;
-
 	if ((rme32->iobase = ioremap_nocache(rme32->port, RME32_IO_SIZE)) == 0) {
 		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n",
 			   rme32->port, rme32->port + RME32_IO_SIZE - 1);
 		return -ENOMEM;
 	}
+
+	if (request_irq(pci->irq, snd_rme32_interrupt, IRQF_DISABLED | IRQF_SHARED, "RME32", (void *) rme32)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		return -EBUSY;
+	}
+	rme32->irq = pci->irq;
 
 	/* read the card's revision number */
 	pci_read_config_byte(pci, 8, &rme32->rev);
@@ -1578,7 +1578,7 @@ static void __devinit snd_rme32_proc_init(struct rme32 * rme32)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(rme32->card, "rme32", &entry))
-		snd_info_set_text_ops(entry, rme32, 1024, snd_rme32_proc_read);
+		snd_info_set_text_ops(entry, rme32, snd_rme32_proc_read);
 }
 
 /*

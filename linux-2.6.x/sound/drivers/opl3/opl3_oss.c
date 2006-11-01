@@ -100,12 +100,15 @@ static int snd_opl3_oss_create_port(struct snd_opl3 * opl3)
 							  SNDRV_SEQ_PORT_CAP_WRITE,
 							  SNDRV_SEQ_PORT_TYPE_MIDI_GENERIC |
 							  SNDRV_SEQ_PORT_TYPE_MIDI_GM |
-							  SNDRV_SEQ_PORT_TYPE_SYNTH,
+							  SNDRV_SEQ_PORT_TYPE_HARDWARE |
+							  SNDRV_SEQ_PORT_TYPE_SYNTHESIZER,
 							  voices, voices,
 							  name);
 	if (opl3->oss_chset->port < 0) {
+		int port;
+		port = opl3->oss_chset->port;
 		snd_midi_channel_free_set(opl3->oss_chset);
-		return opl3->oss_chset->port;
+		return port;
 	}
 	return 0;
 }
@@ -136,10 +139,10 @@ void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name)
 	arg->oper = oss_callback;
 	arg->private_data = opl3;
 
-	snd_opl3_oss_create_port(opl3);
-
-	/* register to OSS synth table */
-	snd_device_register(opl3->card, dev);
+	if (snd_opl3_oss_create_port(opl3)) {
+		/* register to OSS synth table */
+		snd_device_register(opl3->card, dev);
+	}
 }
 
 /* unregister */

@@ -179,7 +179,7 @@ int snd_gus_create(struct snd_card *card,
 		snd_gus_free(gus);
 		return -EBUSY;
 	}
-	if (irq >= 0 && request_irq(irq, snd_gus_interrupt, SA_INTERRUPT, "GUS GF1", (void *) gus)) {
+	if (irq >= 0 && request_irq(irq, snd_gus_interrupt, IRQF_DISABLED, "GUS GF1", (void *) gus)) {
 		snd_printk(KERN_ERR "gus: can't grab irq %d\n", irq);
 		snd_gus_free(gus);
 		return -EBUSY;
@@ -225,7 +225,7 @@ int snd_gus_create(struct snd_card *card,
 	spin_lock_init(&gus->dma_lock);
 	spin_lock_init(&gus->pcm_volume_level_lock);
 	spin_lock_init(&gus->uart_cmd_lock);
-	init_MUTEX(&gus->dma_mutex);
+	mutex_init(&gus->dma_mutex);
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, gus, &ops)) < 0) {
 		snd_gus_free(gus);
 		return err;

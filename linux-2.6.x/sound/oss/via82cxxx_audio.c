@@ -18,12 +18,12 @@
 #define VIA_VERSION	"1.9.1-ac4-2.5"
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
+#include <linux/poison.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -38,7 +38,8 @@
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
+
 #include "sound_config.h"
 #include "dev_table.h"
 #include "mpu401.h"
@@ -307,12 +308,12 @@ struct via_info {
 	unsigned sixchannel: 1;	/* 8233/35 with 6 channel support */
 	unsigned volume: 1;
 
-	int locked_rate : 1;
+	unsigned locked_rate : 1;
 	
 	int mixer_vol;		/* 8233/35 volume  - not yet implemented */
 
-	struct semaphore syscall_sem;
-	struct semaphore open_sem;
+	struct mutex syscall_mutex;
+	struct mutex open_mutex;
 
 	/* The 8233/8235 have 4 DX audio channels, two record and
 	   one six channel out. We bind ch_in to DX 1, ch_out to multichannel
@@ -505,10 +506,10 @@ static inline int via_syscall_down (struct via_info *card, int nonblock)
 	nonblock = 0;
 
 	if (nonblock) {
-		if (down_trylock (&card->syscall_sem))
+		if (!mutex_trylock(&card->syscall_mutex))
 			return -EAGAIN;
 	} else {
-		if (down_interruptible (&card->syscall_sem))
+		if (mutex_lock_interruptible(&card->syscall_mutex))
 			return -ERESTARTSYS;
 	}
 
@@ -1609,7 +1610,7 @@ static int via_mixer_ioctl (struct inode *inode, struct file *file, unsigned int
 #endif
 	rc = codec->mixer_ioctl(codec, cmd, arg);
 
-	up (&card->syscall_sem);
+	mutex_unlock(&card->syscall_mutex);
 
 out:
 	DPRINTK ("EXIT, returning %d\n", rc);
@@ -2012,7 +2013,7 @@ static int via_interrupt_init (struct via_info *card)
 			tmp8 |= VIA_CR48_FM_TRAP_TO_NMI;
 			pci_write_config_byte (card->pdev, VIA_FM_NMI_CTRL, tmp8);
 		}
-		if (request_irq (card->pdev->irq, via_interrupt, SA_SHIRQ, VIA_MODULE_NAME, card)) {
+		if (request_irq (card->pdev->irq, via_interrupt, IRQF_SHARED, VIA_MODULE_NAME, card)) {
 			printk (KERN_ERR PFX "unable to obtain IRQ %d, aborting\n",
 				card->pdev->irq);
 			DPRINTK ("EXIT, returning -EBUSY\n");
@@ -2021,7 +2022,7 @@ static int via_interrupt_init (struct via_info *card)
 	}
 	else 
 	{
-		if (request_irq (card->pdev->irq, via_new_interrupt, SA_SHIRQ, VIA_MODULE_NAME, card)) {
+		if (request_irq (card->pdev->irq, via_new_interrupt, IRQF_SHARED, VIA_MODULE_NAME, card)) {
 			printk (KERN_ERR PFX "unable to obtain IRQ %d, aborting\n",
 				card->pdev->irq);
 			DPRINTK ("EXIT, returning -EBUSY\n");
@@ -2228,7 +2229,7 @@ static int via_dsp_mmap(struct file *file, struct vm_area_struct *vma)
 	if (wr)
 		card->ch_out.is_mapped = 1;
 
-	up (&card->syscall_sem);
+	mutex_unlock(&card->syscall_mutex);
 	rc = 0;
 
 out:
@@ -2256,7 +2257,7 @@ handle_one_block:
 	/* Thomas Sailer:
 	 * But also to ourselves, release semaphore if we do so */
 	if (need_resched()) {
-		up(&card->syscall_sem);
+		mutex_unlock(&card->syscall_mutex);
 		schedule ();
 		ret = via_syscall_down (card, nonblock);
 		if (ret)
@@ -2286,7 +2287,7 @@ handle_one_block:
 			break;
 		}
 
-		up(&card->syscall_sem);
+		mutex_unlock(&card->syscall_mutex);
 
 		DPRINTK ("Sleeping on block %d\n", n);
 		schedule();
@@ -2402,7 +2403,7 @@ static ssize_t via_dsp_read(struct file *file, char __user *buffer, size_t count
 	rc = via_dsp_do_read (card, buffer, count, nonblock);
 
 out_up:
-	up (&card->syscall_sem);
+	mutex_unlock(&card->syscall_mutex);
 out:
 	DPRINTK ("EXIT, returning %ld\n",(long) rc);
 	return rc;
@@ -2426,7 +2427,7 @@ handle_one_block:
 	/* Thomas Sailer:
 	 * But also to ourselves, release semaphore if we do so */
 	if (need_resched()) {
-		up(&card->syscall_sem);
+		mutex_unlock(&card->syscall_mutex);
 		schedule ();
 		ret = via_syscall_down (card, nonblock);
 		if (ret)
@@ -2456,7 +2457,7 @@ handle_one_block:
 			break;
 		}
 
-		up(&card->syscall_sem);
+		mutex_unlock(&card->syscall_mutex);
 
 		DPRINTK ("Sleeping on page %d, tmp==%d, ir==%d\n", n, tmp, chan->is_record);
 		schedule();
@@ -2585,7 +2586,7 @@ static ssize_t via_dsp_write(struct file *file, const char __user *buffer, size_
 	rc = via_dsp_do_write (card, buffer, count, nonblock);
 
 out_up:
-	up (&card->syscall_sem);
+	mutex_unlock(&card->syscall_mutex);
 out:
 	DPRINTK ("EXIT, returning %ld\n",(long) rc);
 	return rc;
@@ -2634,7 +2635,7 @@ static unsigned int via_dsp_poll(struct file *file, struct poll_table_struct *wa
  *	Sleeps until all playback has been flushed to the audio
  *	hardware.
  *
- *	Locking: inside card->syscall_sem
+ *	Locking: inside card->syscall_mutex
  */
 
 static int via_dsp_drain_playback (struct via_info *card,
@@ -2692,7 +2693,7 @@ static int via_dsp_drain_playback (struct via_info *card,
 			printk (KERN_ERR "sleeping but not active\n");
 #endif
 
-		up(&card->syscall_sem);
+		mutex_unlock(&card->syscall_mutex);
 
 		DPRINTK ("sleeping, nbufs=%d\n", atomic_read (&chan->n_frags));
 		schedule();
@@ -2748,7 +2749,7 @@ out:
  *
  *	Handles SNDCTL_DSP_GETISPACE and SNDCTL_DSP_GETOSPACE.
  *
- *	Locking: inside card->syscall_sem
+ *	Locking: inside card->syscall_mutex
  */
 
 static int via_dsp_ioctl_space (struct via_info *card,
@@ -2793,7 +2794,7 @@ static int via_dsp_ioctl_space (struct via_info *card,
  *
  *	Handles SNDCTL_DSP_GETIPTR and SNDCTL_DSP_GETOPTR.
  *
- *	Locking: inside card->syscall_sem
+ *	Locking: inside card->syscall_mutex
  */
 
 static int via_dsp_ioctl_ptr (struct via_info *card,
@@ -3221,7 +3222,7 @@ static int via_dsp_ioctl (struct inode *inode, struct file *file,
 		break;
 	}
 
-	up (&card->syscall_sem);
+	mutex_unlock(&card->syscall_mutex);
 	DPRINTK ("EXIT, returning %d\n", rc);
 	return rc;
 }
@@ -3264,12 +3265,12 @@ static int via_dsp_open (struct inode *inode, struct file *file)
 
 match:
 	if (nonblock) {
-		if (down_trylock (&card->open_sem)) {
+		if (!mutex_trylock(&card->open_mutex)) {
 			DPRINTK ("EXIT, returning -EAGAIN\n");
 			return -EAGAIN;
 		}
 	} else {
-		if (down_interruptible (&card->open_sem)) {
+		if (mutex_lock_interruptible(&card->open_mutex)) {
 			DPRINTK ("EXIT, returning -ERESTARTSYS\n");
 			return -ERESTARTSYS;
 		}
@@ -3355,8 +3356,8 @@ static int via_dsp_release(struct inode *inode, struct file *file)
 		via_chan_buffer_free (card, &card->ch_in);
 	}
 
-	up (&card->syscall_sem);
-	up (&card->open_sem);
+	mutex_unlock(&card->syscall_mutex);
+	mutex_unlock(&card->open_mutex);
 
 	DPRINTK ("EXIT, returning 0\n");
 	return 0;
@@ -3414,8 +3415,8 @@ static int __devinit via_init_one (struct pci_dev *pdev, const struct pci_device
 	card->card_num = via_num_cards++;
 	spin_lock_init (&card->lock);
 	spin_lock_init (&card->ac97_lock);
-	init_MUTEX (&card->syscall_sem);
-	init_MUTEX (&card->open_sem);
+	mutex_init(&card->syscall_mutex);
+	mutex_init(&card->open_mutex);
 
 	/* we must init these now, in case the intr handler needs them */
 	via_chan_init_defaults (card, &card->ch_out);
@@ -3521,7 +3522,7 @@ err_out_have_mixer:
 
 err_out_kfree:
 #ifndef VIA_NDEBUG
-	memset (card, 0xAB, sizeof (*card)); /* poison memory */
+	memset (card, OSS_POISON_FREE, sizeof (*card)); /* poison memory */
 #endif
 	kfree (card);
 
@@ -3558,7 +3559,7 @@ static void __devexit via_remove_one (struct pci_dev *pdev)
 	via_ac97_cleanup (card);
 
 #ifndef VIA_NDEBUG
-	memset (card, 0xAB, sizeof (*card)); /* poison memory */
+	memset (card, OSS_POISON_FREE, sizeof (*card)); /* poison memory */
 #endif
 	kfree (card);
 

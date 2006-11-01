@@ -53,12 +53,14 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
+
 #include <sound/core.h>
 #include <sound/cs8427.h>
 #include <sound/info.h>
-#include <sound/mpu401.h>
 #include <sound/initval.h>
 
 #include <sound/asoundef.h>
@@ -82,10 +84,11 @@ MODULE_SUPPORTED_DEVICE("{"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;		/* Enable this card */
+static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card */
 static char *model[SNDRV_CARDS];
-static int omni[SNDRV_CARDS];	/* Delta44 & 66 Omni I/O support */
+static int omni[SNDRV_CARDS];				/* Delta44 & 66 Omni I/O support */
 static int cs8427_timeout[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = 500}; /* CS8427 S/PDIF transciever reset timeout value in msec */
+static int dxr_enable[SNDRV_CARDS];			/* DXR enable for DMX6FIRE */
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for ICE1712 soundcard.");
@@ -99,6 +102,8 @@ module_param_array(cs8427_timeout, int, NULL, 0444);
 MODULE_PARM_DESC(cs8427_timeout, "Define reset timeout for cs8427 chip in msec resolution.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
+module_param_array(dxr_enable, int, NULL, 0444);
+MODULE_PARM_DESC(dxr_enable, "Enable DXR support for Terratec DMX6FIRE.");
 
 
 static struct pci_device_id snd_ice1712_ids[] = {
@@ -316,7 +321,6 @@ static void snd_ice1712_set_gpio_data(struct snd_ice1712 *ice, unsigned int val)
 	inb(ICEREG(ice, DATA)); /* dummy read for pci-posting */
 }
 
-
 /*
  *
  * CS8427 interface
@@ -396,6 +400,20 @@ int __devinit snd_ice1712_init_cs8427(struct snd_ice1712 *ice, int addr)
 	return 0;
 }
 
+static void snd_ice1712_set_input_clock_source(struct snd_ice1712 *ice, int spdif_is_master)
+{
+        /* change CS8427 clock source too */
+        if (ice->cs8427)
+                snd_ice1712_cs8427_set_input_clock(ice, spdif_is_master);
+	/* notify ak4524 chip as well */
+	if (spdif_is_master) {
+		unsigned int i;
+		for (i = 0; i < ice->akm_codecs; i++) {
+			if (ice->akm[i].ops.set_rate_val)
+				ice->akm[i].ops.set_rate_val(&ice->akm[i], 0);
+		}
+	}
+}
 
 /*
  *  Interrupt handler
@@ -1567,6 +1585,9 @@ static void snd_ice1712_proc_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "  CAPTURE          : 0x%08x\n", inl(ICEMT(ice, ROUTE_CAPTURE)));
 	snd_iprintf(buffer, "  SPDOUT           : 0x%04x\n", (unsigned)inw(ICEMT(ice, ROUTE_SPDOUT)));
 	snd_iprintf(buffer, "  RATE             : 0x%02x\n", (unsigned)inb(ICEMT(ice, RATE)));
+	snd_iprintf(buffer, "  GPIO_DATA        : 0x%02x\n", (unsigned)snd_ice1712_get_gpio_data(ice));
+        snd_iprintf(buffer, "  GPIO_WRITE_MASK  : 0x%02x\n", (unsigned)snd_ice1712_read(ice, ICE1712_IREG_GPIO_WRITE_MASK));
+	snd_iprintf(buffer, "  GPIO_DIRECTION   : 0x%02x\n", (unsigned)snd_ice1712_read(ice, ICE1712_IREG_GPIO_DIRECTION));
 }
 
 static void __devinit snd_ice1712_proc_init(struct snd_ice1712 * ice)
@@ -1574,7 +1595,7 @@ static void __devinit snd_ice1712_proc_init(struct snd_ice1712 * ice)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(ice->card, "ice1712", &entry))
-		snd_info_set_text_ops(entry, ice, 1024, snd_ice1712_proc_read);
+		snd_info_set_text_ops(entry, ice, snd_ice1712_proc_read);
 }
 
 /*
@@ -1856,20 +1877,8 @@ static int snd_ice1712_pro_internal_clock_put(struct snd_kcontrol *kcontrol,
 	spin_unlock_irq(&ice->reg_lock);
 
 	if ((oval & ICE1712_SPDIF_MASTER) !=
-	    (inb(ICEMT(ice, RATE)) & ICE1712_SPDIF_MASTER)) {
-		/* change CS8427 clock source too */
-		if (ice->cs8427) {
-			snd_ice1712_cs8427_set_input_clock(ice, is_spdif_master(ice));
-		}
-		/* notify ak4524 chip as well */
-		if (is_spdif_master(ice)) {
-			unsigned int i;
-			for (i = 0; i < ice->akm_codecs; i++) {
-				if (ice->akm[i].ops.set_rate_val)
-					ice->akm[i].ops.set_rate_val(&ice->akm[i], 0);
-			}
-		}
-	}
+	    (inb(ICEMT(ice, RATE)) & ICE1712_SPDIF_MASTER))
+	        snd_ice1712_set_input_clock_source(ice, is_spdif_master(ice));
 
 	return change;
 }
@@ -2388,6 +2397,13 @@ static int __devinit snd_ice1712_chip_init(struct snd_ice1712 *ice)
 	udelay(200);
 	outb(ICE1712_NATIVE, ICEREG(ice, CONTROL));
 	udelay(200);
+	if (ice->eeprom.subvendor == ICE1712_SUBDEVICE_DMX6FIRE &&
+	    !ice->dxr_enable)
+		/*  Set eeprom value to limit active ADCs and DACs to 6;
+		 *  Also disable AC97 as no hardware in standard 6fire card/box
+		 *  Note: DXR extensions are not currently supported
+		 */
+		ice->eeprom.data[ICE_EEP1_CODEC] = 0x3a;
 	pci_write_config_byte(ice->pci, 0x60, ice->eeprom.data[ICE_EEP1_CODEC]);
 	pci_write_config_byte(ice->pci, 0x61, ice->eeprom.data[ICE_EEP1_ACLINK]);
 	pci_write_config_byte(ice->pci, 0x62, ice->eeprom.data[ICE_EEP1_I2SID]);
@@ -2524,6 +2540,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 					const char *modelname,
 					int omni,
 					int cs8427_timeout,
+					int dxr_enable,
 					struct snd_ice1712 ** r_ice1712)
 {
 	struct snd_ice1712 *ice;
@@ -2538,8 +2555,8 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
-	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
-	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
+	if (pci_set_dma_mask(pci, DMA_28BIT_MASK) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_28BIT_MASK) < 0) {
 		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
@@ -2556,10 +2573,11 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	else if (cs8427_timeout > 1000)
 		cs8427_timeout = 1000;
 	ice->cs8427_timeout = cs8427_timeout;
+	ice->dxr_enable = dxr_enable;
 	spin_lock_init(&ice->reg_lock);
-	init_MUTEX(&ice->gpio_mutex);
-	init_MUTEX(&ice->i2c_mutex);
-	init_MUTEX(&ice->open_mutex);
+	mutex_init(&ice->gpio_mutex);
+	mutex_init(&ice->i2c_mutex);
+	mutex_init(&ice->open_mutex);
 	ice->gpio.set_mask = snd_ice1712_set_gpio_mask;
 	ice->gpio.set_dir = snd_ice1712_set_gpio_dir;
 	ice->gpio.set_data = snd_ice1712_set_gpio_data;
@@ -2588,7 +2606,7 @@ static int __devinit snd_ice1712_create(struct snd_card *card,
 	ice->dmapath_port = pci_resource_start(pci, 2);
 	ice->profi_port = pci_resource_start(pci, 3);
 
-	if (request_irq(pci->irq, snd_ice1712_interrupt, SA_INTERRUPT|SA_SHIRQ,
+	if (request_irq(pci->irq, snd_ice1712_interrupt, IRQF_DISABLED|IRQF_SHARED,
 			"ICE1712", ice)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ice1712_free(ice);
@@ -2658,7 +2676,8 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 	strcpy(card->shortname, "ICEnsemble ICE1712");
 	
 	if ((err = snd_ice1712_create(card, pci, model[dev], omni[dev],
-				      cs8427_timeout[dev], &ice)) < 0) {
+				      cs8427_timeout[dev], dxr_enable[dev],
+				      &ice)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2718,22 +2737,41 @@ static int __devinit snd_ice1712_probe(struct pci_dev *pci,
 
 	if (! c->no_mpu401) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_ICE1712,
-					       ICEREG(ice, MPU1_CTRL), 1,
+					       ICEREG(ice, MPU1_CTRL),
+					       (c->mpu401_1_info_flags |
+						MPU401_INFO_INTEGRATED),
 					       ice->irq, 0,
 					       &ice->rmidi[0])) < 0) {
 			snd_card_free(card);
 			return err;
 		}
+		if (c->mpu401_1_name)
+			/*  Prefered name available in card_info */
+			snprintf(ice->rmidi[0]->name,
+				 sizeof(ice->rmidi[0]->name),
+				 "%s %d", c->mpu401_1_name, card->number);
 
-		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401)
+		if (ice->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_2xMPU401) {
+			/*  2nd port used  */
 			if ((err = snd_mpu401_uart_new(card, 1, MPU401_HW_ICE1712,
-						       ICEREG(ice, MPU2_CTRL), 1,
+						       ICEREG(ice, MPU2_CTRL),
+						       (c->mpu401_2_info_flags |
+							MPU401_INFO_INTEGRATED),
 						       ice->irq, 0,
 						       &ice->rmidi[1])) < 0) {
 				snd_card_free(card);
 				return err;
 			}
+			if (c->mpu401_2_name)
+				/*  Prefered name available in card_info */
+				snprintf(ice->rmidi[1]->name,
+					 sizeof(ice->rmidi[1]->name),
+					 "%s %d", c->mpu401_2_name,
+					 card->number);
+		}
 	}
+
+	snd_ice1712_set_input_clock_source(ice, 0);
 
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, ice->port, ice->irq);

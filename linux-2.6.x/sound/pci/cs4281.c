@@ -1046,7 +1046,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 		snd_cs4281_pokeBA0(chip, regL, volL);
 		change = 1;
 	}
-	if (ucontrol->value.integer.value[0] != volL) {
+	if (ucontrol->value.integer.value[1] != volR) {
 		volR = CS_VOL_MASK - (ucontrol->value.integer.value[1] & CS_VOL_MASK);
 		snd_cs4281_pokeBA0(chip, regR, volR);
 		change = 1;
@@ -1184,7 +1184,7 @@ static void __devinit snd_cs4281_proc_init(struct cs4281 * chip)
 	struct snd_info_entry *entry;
 
 	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, 1024, snd_cs4281_proc_read);
+		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;
@@ -1379,14 +1379,6 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 	chip->ba0_addr = pci_resource_start(pci, 0);
 	chip->ba1_addr = pci_resource_start(pci, 1);
 
-	if (request_irq(pci->irq, snd_cs4281_interrupt, SA_INTERRUPT|SA_SHIRQ,
-			"CS4281", chip)) {
-		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
-		snd_cs4281_free(chip);
-		return -ENOMEM;
-	}
-	chip->irq = pci->irq;
-
 	chip->ba0 = ioremap_nocache(chip->ba0_addr, pci_resource_len(pci, 0));
 	chip->ba1 = ioremap_nocache(chip->ba1_addr, pci_resource_len(pci, 1));
 	if (!chip->ba0 || !chip->ba1) {
@@ -1394,6 +1386,14 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 		return -ENOMEM;
 	}
 	
+	if (request_irq(pci->irq, snd_cs4281_interrupt, IRQF_DISABLED|IRQF_SHARED,
+			"CS4281", chip)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		snd_cs4281_free(chip);
+		return -ENOMEM;
+	}
+	chip->irq = pci->irq;
+
 	tmp = snd_cs4281_chip_init(chip);
 	if (tmp) {
 		snd_cs4281_free(chip);
@@ -1416,7 +1416,7 @@ static int __devinit snd_cs4281_create(struct snd_card *card,
 static int snd_cs4281_chip_init(struct cs4281 *chip)
 {
 	unsigned int tmp;
-	int timeout;
+	unsigned long end_time;
 	int retry_count = 2;
 
 	/* Having EPPMC.FPDN=1 prevent proper chip initialisation */
@@ -1496,7 +1496,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 	/*
 	 * Wait for the DLL ready signal from the clock logic.
 	 */
-	timeout = 100;
+	end_time = jiffies + HZ;
 	do {
 		/*
 		 *  Read the AC97 status register to see if we've seen a CODEC
@@ -1504,8 +1504,8 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 		 */
 		if (snd_cs4281_peekBA0(chip, BA0_CLKCR1) & BA0_CLKCR1_DLLRDY)
 			goto __ok0;
-		msleep(1);
-	} while (timeout-- > 0);
+		schedule_timeout_uninterruptible(1);
+	} while (time_after_eq(end_time, jiffies));
 
 	snd_printk(KERN_ERR "DLLRDY not seen\n");
 	return -EIO;
@@ -1522,7 +1522,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 	/*
 	 * Wait for the codec ready signal from the AC97 codec.
 	 */
-	timeout = 100;
+	end_time = jiffies + HZ;
 	do {
 		/*
 		 *  Read the AC97 status register to see if we've seen a CODEC
@@ -1530,20 +1530,20 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 		 */
 		if (snd_cs4281_peekBA0(chip, BA0_ACSTS) & BA0_ACSTS_CRDY)
 			goto __ok1;
-		msleep(1);
-	} while (timeout-- > 0);
+		schedule_timeout_uninterruptible(1);
+	} while (time_after_eq(end_time, jiffies));
 
 	snd_printk(KERN_ERR "never read codec ready from AC'97 (0x%x)\n", snd_cs4281_peekBA0(chip, BA0_ACSTS));
 	return -EIO;
 
       __ok1:
 	if (chip->dual_codec) {
-		timeout = 100;
+		end_time = jiffies + HZ;
 		do {
 			if (snd_cs4281_peekBA0(chip, BA0_ACSTS2) & BA0_ACSTS_CRDY)
 				goto __codec2_ok;
-			msleep(1);
-		} while (timeout-- > 0);
+			schedule_timeout_uninterruptible(1);
+		} while (time_after_eq(end_time, jiffies));
 		snd_printk(KERN_INFO "secondary codec doesn't respond. disable it...\n");
 		chip->dual_codec = 0;
 	__codec2_ok: ;
@@ -1561,7 +1561,7 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 	 *  the codec is pumping ADC data across the AC-link.
 	 */
 
-	timeout = 100;
+	end_time = jiffies + HZ;
 	do {
 		/*
 		 *  Read the input slot valid register and see if input slots 3
@@ -1569,8 +1569,8 @@ static int snd_cs4281_chip_init(struct cs4281 *chip)
 		 */
                 if ((snd_cs4281_peekBA0(chip, BA0_ACISV) & (BA0_ACISV_SLV(3) | BA0_ACISV_SLV(4))) == (BA0_ACISV_SLV(3) | BA0_ACISV_SLV(4)))
                         goto __ok2;
-		msleep(1);
-	} while (timeout-- > 0);
+		schedule_timeout_uninterruptible(1);
+	} while (time_after_eq(end_time, jiffies));
 
 	if (--retry_count > 0)
 		goto __retry;

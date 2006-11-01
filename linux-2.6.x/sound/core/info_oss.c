@@ -28,6 +28,7 @@
 #include <sound/info.h>
 #include <sound/version.h>
 #include <linux/utsname.h>
+#include <linux/mutex.h>
 
 #if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
 
@@ -35,7 +36,7 @@
  *  OSS compatible part
  */
 
-static DECLARE_MUTEX(strings);
+static DEFINE_MUTEX(strings);
 static char *snd_sndstat_strings[SNDRV_CARDS][SNDRV_OSS_INFO_DEV_COUNT];
 static struct snd_info_entry *snd_sndstat_proc_entry;
 
@@ -45,7 +46,7 @@ int snd_oss_info_register(int dev, int num, char *string)
 
 	snd_assert(dev >= 0 && dev < SNDRV_OSS_INFO_DEV_COUNT, return -ENXIO);
 	snd_assert(num >= 0 && num < SNDRV_CARDS, return -ENXIO);
-	down(&strings);
+	mutex_lock(&strings);
 	if (string == NULL) {
 		if ((x = snd_sndstat_strings[num][dev]) != NULL) {
 			kfree(x);
@@ -54,14 +55,16 @@ int snd_oss_info_register(int dev, int num, char *string)
 	} else {
 		x = kstrdup(string, GFP_KERNEL);
 		if (x == NULL) {
-			up(&strings);
+			mutex_unlock(&strings);
 			return -ENOMEM;
 		}
 	}
 	snd_sndstat_strings[num][dev] = x;
-	up(&strings);
+	mutex_unlock(&strings);
 	return 0;
 }
+
+EXPORT_SYMBOL(snd_oss_info_register);
 
 extern void snd_card_info_read_oss(struct snd_info_buffer *buffer);
 
@@ -71,7 +74,7 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 	char *str;
 
 	snd_iprintf(buf, "\n%s:", id);
-	down(&strings);
+	mutex_lock(&strings);
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
 		str = snd_sndstat_strings[idx][dev];
 		if (str) {
@@ -82,7 +85,7 @@ static int snd_sndstat_show_strings(struct snd_info_buffer *buf, char *id, int d
 			snd_iprintf(buf, "%i: %s\n", idx, str);
 		}
 	}
-	up(&strings);
+	mutex_unlock(&strings);
 	if (ok < 0)
 		snd_iprintf(buf, " NOT ENABLED IN CONFIG\n");
 	return ok;
@@ -116,7 +119,6 @@ int snd_info_minor_register(void)
 
 	memset(snd_sndstat_strings, 0, sizeof(snd_sndstat_strings));
 	if ((entry = snd_info_create_module_entry(THIS_MODULE, "sndstat", snd_oss_root)) != NULL) {
-		entry->c.text.read_size = 2048;
 		entry->c.text.read = snd_sndstat_proc_read;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
