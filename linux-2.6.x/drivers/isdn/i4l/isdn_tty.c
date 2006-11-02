@@ -11,7 +11,6 @@
  */
 #undef ISDN_TTY_STAT_DEBUG
 
-#include <linux/config.h>
 #include <linux/isdn.h>
 #include <linux/delay.h>
 #include "isdn_common.h"
@@ -82,7 +81,7 @@ isdn_tty_try_read(modem_info * info, struct sk_buff *skb)
 						int l = skb->len;
 						unsigned char *dp = skb->data;
 						while (--l) {
-							if (*skb->data == DLE)
+							if (*dp == DLE)
 								tty_insert_flip_char(tty, DLE, 0);
 							tty_insert_flip_char(tty, *dp++, 0);
 						}
@@ -1890,14 +1889,13 @@ isdn_tty_modem_init(void)
 	if (!m->tty_modem)
 		return -ENOMEM;
 	m->tty_modem->name = "ttyI";
-	m->tty_modem->devfs_name = "isdn/ttyI";
 	m->tty_modem->major = ISDN_TTY_MAJOR;
 	m->tty_modem->minor_start = 0;
 	m->tty_modem->type = TTY_DRIVER_TYPE_SERIAL;
 	m->tty_modem->subtype = SERIAL_TYPE_NORMAL;
 	m->tty_modem->init_termios = tty_std_termios;
 	m->tty_modem->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	m->tty_modem->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	m->tty_modem->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	m->tty_modem->driver_name = "isdn_tty";
 	tty_set_operations(m->tty_modem, &modem_ops);
 	retval = tty_register_driver(m->tty_modem);
@@ -2345,12 +2343,15 @@ isdn_tty_at_cout(char *msg, modem_info * info)
 	u_long flags;
 	struct sk_buff *skb = NULL;
 	char *sp = NULL;
-	int l = strlen(msg);
+	int l;
 
 	if (!msg) {
 		printk(KERN_WARNING "isdn_tty: Null-Message in isdn_tty_at_cout\n");
 		return;
 	}
+
+	l = strlen(msg);
+
 	spin_lock_irqsave(&info->readlock, flags);
 	tty = info->tty;
 	if ((info->flags & ISDN_ASYNC_CLOSING) || (!tty)) {
@@ -2877,7 +2878,7 @@ isdn_tty_cmd_ATand(char **p, modem_info * info)
 			p[0]++;
 			i = 0;
 			while (*p[0] && (strchr("0123456789,-*[]?;", *p[0])) &&
-			       (i < ISDN_LMSNLEN))
+			       (i < ISDN_LMSNLEN - 1))
 				m->lmsn[i++] = *p[0]++;
 			m->lmsn[i] = '\0';
 			break;

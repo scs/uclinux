@@ -10,7 +10,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -41,8 +40,8 @@ hysdn_card *card_root = NULL;	/* pointer to first card */
 /* the last entry contains all 0              */
 /**********************************************/
 static struct {
-	word subid;		/* PCI sub id */
-	uchar cardtyp;		/* card type assigned */
+	unsigned short subid;		/* PCI sub id */
+	unsigned char cardtyp;		/* card type assigned */
 } pci_subid_map[] = {
 
 	{

@@ -28,7 +28,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/input.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -103,9 +102,8 @@ static struct input_handle *power_connect(struct input_handler *handler,
 {
 	struct input_handle *handle;
 
-	if (!(handle = kmalloc(sizeof(struct input_handle), GFP_KERNEL)))
+	if (!(handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL)))
 		return NULL;
-	memset(handle, 0, sizeof(struct input_handle));
 
 	handle->dev = dev;
 	handle->handler = handler;

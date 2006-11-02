@@ -1,7 +1,7 @@
 /*
  * drivers/input/serio/gscps2.c
  *
- * Copyright (c) 2004 Helge Deller <deller@gmx.de>
+ * Copyright (c) 2004-2006 Helge Deller <deller@gmx.de>
  * Copyright (c) 2002 Laurent Canet <canetl@esiee.fr>
  * Copyright (c) 2002 Thibaut Varene <varenet@parisc-linux.org>
  *
@@ -22,7 +22,6 @@
  *                 was usable/enabled ?)
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/serio.h>
@@ -354,7 +353,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	memset(serio, 0, sizeof(struct serio));
 	ps2port->port = serio;
 	ps2port->padev = dev;
-	ps2port->addr = ioremap(hpa, GSC_STATUS + 4);
+	ps2port->addr = ioremap_nocache(hpa, GSC_STATUS + 4);
 	spin_lock_init(&ps2port->lock);
 
 	gscps2_reset(ps2port);
@@ -371,7 +370,7 @@ static int __init gscps2_probe(struct parisc_device *dev)
 	serio->dev.parent	= &dev->dev;
 
 	ret = -EBUSY;
-	if (request_irq(dev->irq, gscps2_interrupt, SA_SHIRQ, ps2port->port->name, ps2port))
+	if (request_irq(dev->irq, gscps2_interrupt, IRQF_SHARED, ps2port->port->name, ps2port))
 		goto fail_miserably;
 
 	if (ps2port->id != GSC_ID_KEYBOARD && ps2port->id != GSC_ID_MOUSE) {

@@ -7,7 +7,7 @@
  *
  * stuff needed to support the Linux X.25 PLP code on top of devices that
  * can provide a lab_b service using the concap_proto mechanism.
- * This module supports a network interface wich provides lapb_sematics
+ * This module supports a network interface which provides lapb_sematics
  * -- as defined in Documentation/networking/x25-iface.txt -- to
  * the upper layer and assumes that the lower layer provides a reliable
  * data link service by means of the concap_device_ops callbacks.
@@ -208,7 +208,7 @@ static int isdn_x25iface_receive(struct concap_proto *cprot, struct sk_buff *skb
  */
 static int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 {
-	struct sk_buff * skb = dev_alloc_skb(1);
+	struct sk_buff * skb;
 	enum wan_states *state_p 
 	  = &( ( (ix25_pdata_t*) (cprot->proto_data) ) -> state);
 	IX25DEBUG( "isdn_x25iface_connect_ind %s \n"
@@ -220,6 +220,8 @@ static int isdn_x25iface_connect_ind(struct concap_proto *cprot)
 		return -1;
 	}
 	*state_p = WAN_CONNECTED;
+
+	skb = dev_alloc_skb(1);
 	if( skb ){
 		*( skb_put(skb, 1) ) = 0x01;
 		skb->protocol = x25_type_trans(skb, cprot->net_dev);

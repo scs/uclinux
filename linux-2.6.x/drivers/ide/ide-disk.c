@@ -37,7 +37,7 @@
  * Version 1.15		convert all calls to ide_raw_taskfile
  *				since args will return register content.
  * Version 1.16		added suspend-resume-checkpower
- * Version 1.17		do flush on standy, do flush on ATA < ATA6
+ * Version 1.17		do flush on standby, do flush on ATA < ATA6
  *			fix wcache setup.
  */
 
@@ -47,7 +47,6 @@
 
 //#define DEBUG
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -60,6 +59,8 @@
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
+#include <linux/leds.h>
 
 #define _IDE_DISK
 
@@ -78,7 +79,7 @@ struct ide_disk_obj {
 	struct kref	kref;
 };
 
-static DECLARE_MUTEX(idedisk_ref_sem);
+static DEFINE_MUTEX(idedisk_ref_mutex);
 
 #define to_ide_disk(obj) container_of(obj, struct ide_disk_obj, kref)
 
@@ -89,11 +90,11 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 {
 	struct ide_disk_obj *idkp = NULL;
 
-	down(&idedisk_ref_sem);
+	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
 	if (idkp)
 		kref_get(&idkp->kref);
-	up(&idedisk_ref_sem);
+	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
 }
 
@@ -101,9 +102,9 @@ static void ide_disk_release(struct kref *);
 
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
-	down(&idedisk_ref_sem);
+	mutex_lock(&idedisk_ref_mutex);
 	kref_put(&idkp->kref, ide_disk_release);
-	up(&idedisk_ref_sem);
+	mutex_unlock(&idedisk_ref_mutex);
 }
 
 /*
@@ -315,6 +316,8 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
 		ide_end_request(drive, 0, 0);
 		return ide_stopped;
 	}
+
+	ledtrig_ide_activity();
 
 	pr_debug("%s: %sing: block=%llu, sectors=%lu, buffer=0x%08lx\n",
 		 drive->name, rq_data_dir(rq) == READ ? "read" : "writ",
@@ -773,7 +776,7 @@ static void update_ordered(ide_drive_t *drive)
 		 * not available so we don't need to recheck that.
 		 */
 		capacity = idedisk_capacity(drive);
-		barrier = ide_id_has_flush_cache(id) &&
+		barrier = ide_id_has_flush_cache(id) && !drive->noflush &&
 			(drive->addressing == 0 || capacity <= (1ULL << 28) ||
 			 ide_id_has_flush_cache_ext(id));
 
@@ -977,8 +980,6 @@ static void idedisk_setup (ide_drive_t *drive)
 		ide_dma_verbose(drive);
 	printk("\n");
 
-	drive->no_io_32bit = id->dword_io ? 1 : 0;
-
 	/* write cache enabled? */
 	if ((id->csfo & 1) || (id->cfs_enable_1 & (1 << 5)))
 		drive->wcache = 1;
@@ -1016,7 +1017,6 @@ static void ide_disk_release(struct kref *kref)
 	struct gendisk *g = idkp->disk;
 
 	drive->driver_data = NULL;
-	drive->devfs_name[0] = '\0';
 	g->private_data = NULL;
 	put_disk(g);
 	kfree(idkp);
@@ -1220,7 +1220,6 @@ static int ide_disk_probe(ide_drive_t *drive)
 		drive->attach = 1;
 
 	g->minors = 1 << PARTN_BITS;
-	strcpy(g->devfs_name, drive->devfs_name);
 	g->driverfs_dev = &drive->gendev;
 	g->flags = drive->removable ? GENHD_FL_REMOVABLE : 0;
 	set_capacity(g, idedisk_capacity(drive));

@@ -18,7 +18,6 @@
  *  configuration of all PCI IDE interfaces present in a system.  
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -580,7 +579,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 	int port;
 	int at_least_one_hwif_enabled = 0;
 	ide_hwif_t *hwif, *mate = NULL;
-	static int secondpdc = 0;
 	u8 tmp;
 
 	index->all = 0xf0f0;
@@ -592,21 +590,9 @@ void ide_pci_setup_ports(struct pci_dev *dev, ide_pci_device_t *d, int pciirq, a
 	for (port = 0; port <= 1; ++port) {
 		ide_pci_enablebit_t *e = &(d->enablebits[port]);
 	
-		/* 
-		 * If this is a Promise FakeRaid controller,
-		 * the 2nd controller will be marked as 
-		 * disabled while it is actually there and enabled
-		 * by the bios for raid purposes. 
-		 * Skip the normal "is it enabled" test for those.
-		 */
-		if ((d->flags & IDEPCI_FLAG_FORCE_PDC) &&
-		    (secondpdc++==1) && (port==1))
-			goto controller_ok;
-			
 		if (e->reg && (pci_read_config_byte(dev, e->reg, &tmp) ||
 		    (tmp & e->mask) != e->val))
 			continue;	/* port not enabled */
-controller_ok:
 
 		if (d->channels	<= port)
 			break;
@@ -707,13 +693,8 @@ static int do_ide_setup_pci_device(struct pci_dev *dev, ide_pci_device_t *d,
 				goto out;
 		}
 		if (noisy)
-#ifdef __sparc__
-			printk(KERN_INFO "%s: 100%% native mode on irq %s\n",
-			       d->name, __irq_itoa(pciirq));
-#else
 			printk(KERN_INFO "%s: 100%% native mode on irq %d\n",
 				d->name, pciirq);
-#endif
 	}
 
 	/* FIXME: silent failure can happen */

@@ -254,26 +254,26 @@ config JOYSTICK_JOYDUMP
 	  module will be called joydump.
 
 config JOYSTICK_AD7142
-        tristate "Analog Devices AD7142 Joystick support"
-        depends on BFIN && I2C 
-        help
-          Say Y here if you want to support an AD7142 joystick 
+         tristate "Analog Devices AD7142 Joystick support"
+         depends on BFIN && I2C
+         help
+           Say Y here if you want to support an AD7142 joystick
 
 config BFIN_JOYSTICK_IRQ
-        int "IRQ"
-        depends on (BFIN && JOYSTICK_AD7142)
-        default "34" if BFIN537_STAMP
-        default "26" if BFIN533_STAMP
-        help
-          KEYPAD use IRQ no IRQ_PROG_INTA.
+         int "IRQ"
+         depends on (BFIN && JOYSTICK_AD7142)
+         default "34" if BFIN537_STAMP
+         default "26" if BFIN533_STAMP
+         help
+           KEYPAD use IRQ no IRQ_PROG_INTA.
 
-config BFIN_JOYSTICK_IRQ_PFX
-        int "GPIO for Interrupt"
-        depends on (BFIN && JOYSTICK_AD7142)
-        range 0 15
-        default "5" if BFIN537_STAMP
-        default "6" if BFIN533_STAMP
-        help
-          Choose an GPIO as Keypad interrupt.[0..15]
+ config BFIN_JOYSTICK_IRQ_PFX
+         int "GPIO for Interrupt"
+         depends on (BFIN && JOYSTICK_AD7142)
+         range 0 15
+         default "5" if BFIN537_STAMP
+         default "6" if BFIN533_STAMP
+         help
+           Choose an GPIO as Keypad interrupt.[0..15]
 
 endif

@@ -52,7 +52,7 @@ struct sbp2_command_orb {
 	u32 data_descriptor_lo;
 	u32 misc;
 	u8 cdb[12];
-};
+} __attribute__((packed));
 
 #define SBP2_LOGIN_REQUEST		0x0
 #define SBP2_QUERY_LOGINS_REQUEST	0x1
@@ -80,7 +80,7 @@ struct sbp2_login_orb {
 	u32 passwd_resp_lengths;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define RESPONSE_GET_LOGIN_ID(value)            (value & 0xffff)
 #define RESPONSE_GET_LENGTH(value)              ((value >> 16) & 0xffff)
@@ -91,7 +91,7 @@ struct sbp2_login_response {
 	u32 command_block_agent_hi;
 	u32 command_block_agent_lo;
 	u32 reconnect_hold;
-};
+} __attribute__((packed));
 
 #define ORB_SET_LOGIN_ID(value)                 (value & 0xffff)
 
@@ -106,7 +106,7 @@ struct sbp2_query_logins_orb {
 	u32 reserved_resp_length;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define RESPONSE_GET_MAX_LOGINS(value)          (value & 0xffff)
 #define RESPONSE_GET_ACTIVE_LOGINS(value)       ((RESPONSE_GET_LENGTH(value) - 4) / 12)
@@ -116,7 +116,7 @@ struct sbp2_query_logins_response {
 	u32 misc_IDs;
 	u32 initiator_misc_hi;
 	u32 initiator_misc_lo;
-};
+} __attribute__((packed));
 
 struct sbp2_reconnect_orb {
 	u32 reserved1;
@@ -127,7 +127,7 @@ struct sbp2_reconnect_orb {
 	u32 reserved5;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 struct sbp2_logout_orb {
 	u32 reserved1;
@@ -138,7 +138,7 @@ struct sbp2_logout_orb {
 	u32 reserved5;
 	u32 status_fifo_hi;
 	u32 status_fifo_lo;
-};
+} __attribute__((packed));
 
 #define PAGE_TABLE_SET_SEGMENT_BASE_HI(value)   (value & 0xffff)
 #define PAGE_TABLE_SET_SEGMENT_LENGTH(value)    ((value & 0xffff) << 16)
@@ -146,7 +146,7 @@ struct sbp2_logout_orb {
 struct sbp2_unrestricted_page_table {
 	u32 length_segment_base_hi;
 	u32 segment_base_lo;
-};
+} __attribute__((packed));
 
 #define RESP_STATUS_REQUEST_COMPLETE		0x0
 #define RESP_STATUS_TRANSPORT_FAILURE		0x1
@@ -191,7 +191,7 @@ struct sbp2_status_block {
 	u32 ORB_offset_hi_misc;
 	u32 ORB_offset_lo;
 	u8 command_set_dependent[24];
-};
+} __attribute__((packed));
 
 /*
  * Miscellaneous SBP2 related config rom defines
@@ -227,17 +227,19 @@ struct sbp2_status_block {
 #define SBP2_SW_VERSION_ENTRY					0x00010483
 
 /*
- * Other misc defines
- */
-#define SBP2_128KB_BROKEN_FIRMWARE				0xa0b800
-
-/*
  * SCSI specific stuff
  */
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_MAX_SECTORS		255	/* Max sectors supported */
 #define SBP2_MAX_CMDS			8	/* This should be safe */
+
+/* Flags for detected oddities and brokeness */
+#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
+#define SBP2_WORKAROUND_INQUIRY_36	0x2
+#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
+#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
+#define SBP2_WORKAROUND_OVERRIDE	0x100
 
 /* This is the two dma types we use for cmd_dma below */
 enum cmd_dma_types {
@@ -267,10 +269,6 @@ struct sbp2_command_info {
 	int dma_dir;
 
 };
-
-/* A list of flags for detected oddities and brokeness. */
-#define SBP2_BREAKAGE_128K_MAX_TRANSFER		0x1
-#define SBP2_BREAKAGE_INQUIRY_HACK		0x2
 
 struct sbp2scsi_host_info;
 
@@ -345,7 +343,7 @@ struct scsi_id_instance_data {
 	struct Scsi_Host *scsi_host;
 
 	/* Device specific workarounds/brokeness */
-	u32 workarounds;
+	unsigned workarounds;
 };
 
 /* Sbp2 host data structure (one per IEEE1394 host) */
@@ -397,9 +395,8 @@ static int sbp2_link_orb_command(struct scsi_id_instance_data *scsi_id,
 static int sbp2_send_command(struct scsi_id_instance_data *scsi_id,
 			     struct scsi_cmnd *SCpnt,
 			     void (*done)(struct scsi_cmnd *));
-static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status, unchar *sense_data);
-static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
-				     struct scsi_cmnd *SCpnt);
+static unsigned int sbp2_status_to_sense_data(unchar *sbp2_status,
+					      unchar *sense_data);
 static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 				      struct unit_directory *ud);
 static int sbp2_set_busy_timeout(struct scsi_id_instance_data *scsi_id);

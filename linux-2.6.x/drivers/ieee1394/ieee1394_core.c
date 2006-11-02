@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/string.h>
@@ -33,6 +32,7 @@
 #include <linux/kdev_t.h>
 #include <linux/skbuff.h>
 #include <linux/suspend.h>
+#include <linux/kthread.h>
 
 #include <asm/byteorder.h>
 #include <asm/semaphore.h>
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(disable_nodemgr, "Disable nodemgr functionality.");
 
 /* Disable Isochronous Resource Manager functionality */
 int hpsb_disable_irm = 0;
-module_param_named(disable_irm, hpsb_disable_irm, bool, 0);
+module_param_named(disable_irm, hpsb_disable_irm, bool, 0444);
 MODULE_PARM_DESC(disable_irm,
 		 "Disable Isochronous Resource Manager functionality.");
 
@@ -285,9 +285,9 @@ static int check_selfids(struct hpsb_host *host)
 
 static void build_speed_map(struct hpsb_host *host, int nodecount)
 {
-	u8 speedcap[nodecount];
 	u8 cldcnt[nodecount];
 	u8 *map = host->speed_map;
+	u8 *speedcap = host->speed;
 	struct selfid *sid;
 	struct ext_selfid *esid;
 	int i, j, n;
@@ -354,6 +354,11 @@ static void build_speed_map(struct hpsb_host *host, int nodecount)
 			}
 		}
 	}
+
+	/* assume maximum speed for 1394b PHYs, nodemgr will correct it */
+	for (n = 0; n < nodecount; n++)
+		if (speedcap[n] == 3)
+			speedcap[n] = IEEE1394_SPEED_MAX;
 }
 
 
@@ -554,11 +559,10 @@ int hpsb_send_packet(struct hpsb_packet *packet)
 		return 0;
 	}
 
-	if (packet->type == hpsb_async && packet->node_id != ALL_NODES) {
+	if (packet->type == hpsb_async &&
+	    NODEID_TO_NODE(packet->node_id) != ALL_NODES)
 		packet->speed_code =
-			host->speed_map[NODEID_TO_NODE(host->node_id) * 64
-				       + NODEID_TO_NODE(packet->node_id)];
-	}
+			host->speed[NODEID_TO_NODE(packet->node_id)];
 
 	dump_packet("send packet", packet->header, packet->header_size, packet->speed_code);
 
@@ -997,11 +1001,8 @@ void abort_timedouts(unsigned long __opaque)
  * packets that have a "complete" function are sent here. This way, the
  * completion is run out of kernel context, and doesn't block the rest of
  * the stack. */
-static int khpsbpkt_pid = -1, khpsbpkt_kill;
-static DECLARE_COMPLETION(khpsbpkt_complete);
+static struct task_struct *khpsbpkt_thread;
 static struct sk_buff_head hpsbpkt_queue;
-static DECLARE_MUTEX_LOCKED(khpsbpkt_sig);
-
 
 static void queue_packet_complete(struct hpsb_packet *packet)
 {
@@ -1011,9 +1012,7 @@ static void queue_packet_complete(struct hpsb_packet *packet)
 	}
 	if (packet->complete_routine != NULL) {
 		skb_queue_tail(&hpsbpkt_queue, packet->skb);
-
-		/* Signal the kernel thread to handle this */
-		up(&khpsbpkt_sig);
+		wake_up_process(khpsbpkt_thread);
 	}
 	return;
 }
@@ -1025,19 +1024,9 @@ static int hpsbpkt_thread(void *__hi)
 	void (*complete_routine)(void*);
 	void *complete_data;
 
-	daemonize("khpsbpkt");
-
 	current->flags |= PF_NOFREEZE;
 
-	while (1) {
-		if (down_interruptible(&khpsbpkt_sig)) {
-			printk("khpsbpkt: received unexpected signal?!\n" );
-			break;
-		}
-
-		if (khpsbpkt_kill)
-			break;
-
+	while (!kthread_should_stop()) {
 		while ((skb = skb_dequeue(&hpsbpkt_queue)) != NULL) {
 			packet = (struct hpsb_packet *)skb->data;
 
@@ -1048,9 +1037,13 @@ static int hpsbpkt_thread(void *__hi)
 
 			complete_routine(complete_data);
 		}
-	}
 
-	complete_and_exit(&khpsbpkt_complete, 0);
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!skb_peek(&hpsbpkt_queue))
+			schedule();
+		__set_current_state(TASK_RUNNING);
+	}
+	return 0;
 }
 
 static int __init ieee1394_init(void)
@@ -1065,10 +1058,10 @@ static int __init ieee1394_init(void)
 		HPSB_ERR("Some features may not be available\n");
 	}
 
-	khpsbpkt_pid = kernel_thread(hpsbpkt_thread, NULL, CLONE_KERNEL);
-	if (khpsbpkt_pid < 0) {
+	khpsbpkt_thread = kthread_run(hpsbpkt_thread, NULL, "khpsbpkt");
+	if (IS_ERR(khpsbpkt_thread)) {
 		HPSB_ERR("Failed to start hpsbpkt thread!\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(khpsbpkt_thread);
 		goto exit_cleanup_config_roms;
 	}
 
@@ -1078,17 +1071,10 @@ static int __init ieee1394_init(void)
 		goto exit_release_kernel_thread;
 	}
 
-	/* actually this is a non-fatal error */
-	ret = devfs_mk_dir("ieee1394");
-	if (ret < 0) {
-		HPSB_ERR("unable to make devfs dir for device major %d!\n", IEEE1394_MAJOR);
-		goto release_chrdev;
-	}
-
 	ret = bus_register(&ieee1394_bus_type);
 	if (ret < 0) {
 		HPSB_INFO("bus register failed");
-		goto release_devfs;
+		goto release_chrdev;
 	}
 
 	for (i = 0; fw_bus_attrs[i]; i++) {
@@ -1099,7 +1085,7 @@ static int __init ieee1394_init(void)
 						fw_bus_attrs[i--]);
 			}
 			bus_unregister(&ieee1394_bus_type);
-			goto release_devfs;
+			goto release_chrdev;
 		}
 	}
 
@@ -1152,15 +1138,10 @@ release_all_bus:
 	for (i = 0; fw_bus_attrs[i]; i++)
 		bus_remove_file(&ieee1394_bus_type, fw_bus_attrs[i]);
 	bus_unregister(&ieee1394_bus_type);
-release_devfs:
-	devfs_remove("ieee1394");
 release_chrdev:
 	unregister_chrdev_region(IEEE1394_CORE_DEV, 256);
 exit_release_kernel_thread:
-	if (khpsbpkt_pid >= 0) {
-		kill_proc(khpsbpkt_pid, SIGTERM, 1);
-		wait_for_completion(&khpsbpkt_complete);
-	}
+	kthread_stop(khpsbpkt_thread);
 exit_cleanup_config_roms:
 	hpsb_cleanup_config_roms();
 	return ret;
@@ -1181,17 +1162,11 @@ static void __exit ieee1394_cleanup(void)
 		bus_remove_file(&ieee1394_bus_type, fw_bus_attrs[i]);
 	bus_unregister(&ieee1394_bus_type);
 
-	if (khpsbpkt_pid >= 0) {
-		khpsbpkt_kill = 1;
-		mb();
-		up(&khpsbpkt_sig);
-		wait_for_completion(&khpsbpkt_complete);
-	}
+	kthread_stop(khpsbpkt_thread);
 
 	hpsb_cleanup_config_roms();
 
 	unregister_chrdev_region(IEEE1394_CORE_DEV, 256);
-	devfs_remove("ieee1394");
 }
 
 module_init(ieee1394_init);

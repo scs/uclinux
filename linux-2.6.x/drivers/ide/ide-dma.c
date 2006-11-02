@@ -74,7 +74,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -175,7 +174,7 @@ ide_startstop_t ide_dma_intr (ide_drive_t *drive)
 			if (rq->rq_disk) {
 				ide_driver_t *drv;
 
-				drv = *(ide_driver_t **)rq->rq_disk->private_data;;
+				drv = *(ide_driver_t **)rq->rq_disk->private_data;
 				drv->end_request(drive, 1, rq->nr_sectors);
 			} else
 				ide_end_request(drive, 1, rq->nr_sectors);
@@ -206,8 +205,7 @@ int ide_build_sglist(ide_drive_t *drive, struct request *rq)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct scatterlist *sg = hwif->sg_table;
 
-	if ((rq->flags & REQ_DRIVE_TASKFILE) && rq->nr_sectors > 256)
-		BUG();
+	BUG_ON((rq->flags & REQ_DRIVE_TASKFILE) && rq->nr_sectors > 256);
 
 	ide_map_sg(drive, rq);
 
@@ -752,7 +750,7 @@ void ide_dma_verbose(ide_drive_t *drive)
 			goto bug_dma_off;
 		printk(", DMA");
 	} else if (id->field_valid & 1) {
-		printk(", BUG");
+		goto bug_dma_off;
 	}
 	return;
 bug_dma_off:
@@ -947,8 +945,7 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 	}
 	printk("\n");
 
-	if (!(hwif->dma_master))
-		BUG();
+	BUG_ON(!hwif->dma_master);
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

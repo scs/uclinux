@@ -38,6 +38,7 @@
 #include <linux/init.h>
 #include <linux/parport.h>
 #include <linux/input.h>
+#include <linux/mutex.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Atari, Amstrad, Commodore, Amiga, Sega, etc. joystick driver");
@@ -111,7 +112,7 @@ struct db9 {
 	struct pardevice *pd;
 	int mode;
 	int used;
-	struct semaphore sem;
+	struct mutex mutex;
 	char phys[DB9_MAX_DEVICES][32];
 };
 
@@ -525,7 +526,7 @@ static int db9_open(struct input_dev *dev)
 	struct parport *port = db9->pd->port;
 	int err;
 
-	err = down_interruptible(&db9->sem);
+	err = mutex_lock_interruptible(&db9->mutex);
 	if (err)
 		return err;
 
@@ -539,7 +540,7 @@ static int db9_open(struct input_dev *dev)
 		mod_timer(&db9->timer, jiffies + DB9_REFRESH_TIME);
 	}
 
-	up(&db9->sem);
+	mutex_unlock(&db9->mutex);
 	return 0;
 }
 
@@ -548,14 +549,14 @@ static void db9_close(struct input_dev *dev)
 	struct db9 *db9 = dev->private;
 	struct parport *port = db9->pd->port;
 
-	down(&db9->sem);
+	mutex_lock(&db9->mutex);
 	if (!--db9->used) {
 		del_timer_sync(&db9->timer);
 		parport_write_control(port, 0x00);
 		parport_data_forward(port);
 		parport_release(db9->pd);
 	}
-	up(&db9->sem);
+	mutex_unlock(&db9->mutex);
 }
 
 static struct db9 __init *db9_probe(int parport, int mode)
@@ -583,7 +584,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		goto err_out;
 	}
 
-	if (db9_mode[mode].bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
+	if (db9_mode->bidirectional && !(pp->modes & PARPORT_MODE_TRISTATE)) {
 		printk(KERN_ERR "db9.c: specified parport is not bidirectional\n");
 		err = -EINVAL;
 		goto err_put_pp;
@@ -603,7 +604,7 @@ static struct db9 __init *db9_probe(int parport, int mode)
 		goto err_unreg_pardev;
 	}
 
-	init_MUTEX(&db9->sem);
+	mutex_init(&db9->mutex);
 	db9->pd = pd;
 	db9->mode = mode;
 	init_timer(&db9->timer);
@@ -619,7 +620,8 @@ static struct db9 __init *db9_probe(int parport, int mode)
 			goto err_unreg_devs;
 		}
 
-		sprintf(db9->phys[i], "%s/input%d", db9->pd->port->name, i);
+		snprintf(db9->phys[i], sizeof(db9->phys[i]),
+			 "%s/input%d", db9->pd->port->name, i);
 
 		input_dev->name = db9_mode->name;
 		input_dev->phys = db9->phys[i];

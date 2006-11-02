@@ -28,7 +28,6 @@
  * ENOTTY for unsupported ioctl request
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -42,7 +41,6 @@
 #include <linux/poll.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
@@ -332,7 +330,7 @@ alloc_dma_iso_ctx(struct ti_ohci *ohci, int type, int num_desc,
 
         spin_lock_init(&d->lock);
 
-	PRINT(KERN_INFO, ohci->host->id, "Iso %s DMA: %d buffers "
+	DBGMSG(ohci->host->id, "Iso %s DMA: %d buffers "
 	      "of size %d allocated for a frame size %d, each with %d prgs",
 	      (type == OHCI_ISO_RECEIVE) ? "receive" : "transmit",
 	      d->num_desc - 1, d->buf_size, d->frame_size, d->nb_cmd);
@@ -760,7 +758,7 @@ static int __video1394_ioctl(struct file *file,
 		} else {
 			mask = (u64)0x1<<v.channel;
 		}
-		PRINT(KERN_INFO, ohci->host->id, "mask: %08X%08X usage: %08X%08X\n",
+		DBGMSG(ohci->host->id, "mask: %08X%08X usage: %08X%08X\n",
 			(u32)(mask>>32),(u32)(mask&0xffffffff),
 			(u32)(ohci->ISO_channel_usage>>32),
 			(u32)(ohci->ISO_channel_usage&0xffffffff));
@@ -806,7 +804,7 @@ static int __video1394_ioctl(struct file *file,
 			v.buf_size = d->buf_size;
 			list_add_tail(&d->link, &ctx->context_list);
 
-			PRINT(KERN_INFO, ohci->host->id,
+			DBGMSG(ohci->host->id,
 			      "iso context %d listen on channel %d",
 			      d->ctx, v.channel);
 		}
@@ -829,7 +827,7 @@ static int __video1394_ioctl(struct file *file,
 
 			list_add_tail(&d->link, &ctx->context_list);
 
-			PRINT(KERN_INFO, ohci->host->id,
+			DBGMSG(ohci->host->id,
 			      "Iso context %d talk on channel %d", d->ctx,
 			      v.channel);
 		}
@@ -874,7 +872,7 @@ static int __video1394_ioctl(struct file *file,
 			d = find_ctx(&ctx->context_list, OHCI_ISO_TRANSMIT, channel);
 
 		if (d == NULL) return -ESRCH;
-		PRINT(KERN_INFO, ohci->host->id, "Iso context %d "
+		DBGMSG(ohci->host->id, "Iso context %d "
 		      "stop talking on channel %d", d->ctx, channel);
 		free_dma_iso_ctx(d);
 
@@ -936,7 +934,7 @@ static int __video1394_ioctl(struct file *file,
 		else {
 			/* Wake up dma context if necessary */
 			if (!(reg_read(ohci, d->ctrlSet) & 0x400)) {
-				PRINT(KERN_INFO, ohci->host->id,
+				DBGMSG(ohci->host->id,
 				      "Waking up iso dma ctx=%d", d->ctx);
 				reg_write(ohci, d->ctrlSet, 0x1000);
 			}
@@ -1107,7 +1105,7 @@ static int __video1394_ioctl(struct file *file,
 		else {
 			/* Wake up dma context if necessary */
 			if (!(reg_read(ohci, d->ctrlSet) & 0x400)) {
-				PRINT(KERN_INFO, ohci->host->id,
+				DBGMSG(ohci->host->id,
 				      "Waking up iso transmit dma ctx=%d",
 				      d->ctx);
 				put_timestamp(ohci, d, d->last_buffer);
@@ -1233,7 +1231,7 @@ static int video1394_release(struct inode *inode, struct file *file)
 			      "is not being used", d->channel);
 		else
 			ohci->ISO_channel_usage &= ~mask;
-		PRINT(KERN_INFO, ohci->host->id, "On release: Iso %s context "
+		DBGMSG(ohci->host->id, "On release: Iso %s context "
 		      "%d stop listening on channel %d",
 		      d->type == OHCI_ISO_RECEIVE ? "receive" : "transmit",
 		      d->ctx, d->channel);
@@ -1322,9 +1320,6 @@ static void video1394_add_host (struct hpsb_host *host)
 	class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	minor), 
 		NULL, "%s-%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
-	devfs_mk_cdev(MKDEV(IEEE1394_MAJOR, minor),
-		       S_IFCHR | S_IRUSR | S_IWUSR,
-		       "%s/%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
 }
 
 
@@ -1332,12 +1327,9 @@ static void video1394_remove_host (struct hpsb_host *host)
 {
 	struct ti_ohci *ohci = hpsb_get_hostinfo(&video1394_highlevel, host);
 
-	if (ohci) {
+	if (ohci)
 		class_device_destroy(hpsb_protocol_class, MKDEV(IEEE1394_MAJOR,
 			IEEE1394_MINOR_BLOCK_VIDEO1394 * 16 + ohci->host->id));
-		devfs_remove("%s/%d", VIDEO1394_DRIVER_NAME, ohci->host->id);
-	}
-	
 	return;
 }
 
@@ -1478,12 +1470,8 @@ static long video1394_compat_ioctl(struct file *f, unsigned cmd, unsigned long a
 static void __exit video1394_exit_module (void)
 {
 	hpsb_unregister_protocol(&video1394_driver);
-
 	hpsb_unregister_highlevel(&video1394_highlevel);
-
-	devfs_remove(VIDEO1394_DRIVER_NAME);
 	cdev_del(&video1394_cdev);
-
 	PRINT_G(KERN_INFO, "Removed " VIDEO1394_DRIVER_NAME " module");
 }
 
@@ -1500,15 +1488,12 @@ static int __init video1394_init_module (void)
 		return ret;
         }
 
-	devfs_mk_dir(VIDEO1394_DRIVER_NAME);
-
 	hpsb_register_highlevel(&video1394_highlevel);
 
 	ret = hpsb_register_protocol(&video1394_driver);
 	if (ret) {
 		PRINT_G(KERN_ERR, "video1394: failed to register protocol");
 		hpsb_unregister_highlevel(&video1394_highlevel);
-		devfs_remove(VIDEO1394_DRIVER_NAME);
 		cdev_del(&video1394_cdev);
 		return ret;
 	}

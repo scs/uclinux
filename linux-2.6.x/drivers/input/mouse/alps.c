@@ -100,8 +100,8 @@ static void alps_process_packet(struct psmouse *psmouse, struct pt_regs *regs)
 	}
 
 	if (priv->i->flags & ALPS_OLDPROTO) {
-		left = packet[2] & 0x08;
-		right = packet[2] & 0x10;
+		left = packet[2] & 0x10;
+		right = packet[2] & 0x08;
 		middle = 0;
 		x = packet[1] | ((packet[0] & 0x07) << 7);
 		y = packet[4] | ((packet[3] & 0x07) << 7);
@@ -470,7 +470,7 @@ int alps_init(struct psmouse *psmouse)
 		dev1->keybit[LONG(BTN_BACK)] |= BIT(BTN_BACK);
 	}
 
-	sprintf(priv->phys, "%s/input1", psmouse->ps2dev.serio->phys);
+	snprintf(priv->phys, sizeof(priv->phys), "%s/input1", psmouse->ps2dev.serio->phys);
 	dev2->phys = priv->phys;
 	dev2->name = (priv->i->flags & ALPS_DUALPOINT) ? "DualPoint Stick" : "PS/2 Mouse";
 	dev2->id.bustype = BUS_I8042;
