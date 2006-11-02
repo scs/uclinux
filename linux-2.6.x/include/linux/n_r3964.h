@@ -13,8 +13,8 @@
  * L. Haag
  *
  * $Log$
- * Revision 1.5  2006/03/23 05:54:07  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/02 10:31:08  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.4  2005/12/21 19:54:24  Kurt Huwig <kurt huwig de>
  * Fixed HZ usage on 2.6 kernels

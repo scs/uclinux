@@ -69,6 +69,7 @@ struct mmc_data {
 	unsigned int		timeout_ns;	/* data timeout (in ns, max 80ms) */
 	unsigned int		timeout_clks;	/* data timeout (in clocks) */
 	unsigned int		blksz_bits;	/* data block size */
+	unsigned int		blksz;		/* data block size */
 	unsigned int		blocks;		/* number of blocks */
 	unsigned int		error;		/* data error */
 	unsigned int		flags;
@@ -103,6 +104,8 @@ extern int mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
 extern int mmc_wait_for_app_cmd(struct mmc_host *, unsigned int,
 	struct mmc_command *, int);
+
+extern void mmc_set_data_timeout(struct mmc_data *, const struct mmc_card *, int);
 
 extern int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card);
 

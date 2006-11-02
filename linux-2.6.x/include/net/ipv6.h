@@ -104,7 +104,6 @@ struct frag_hdr {
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <net/sock.h>
 
 /* sysctls */
@@ -230,7 +229,7 @@ extern int 			ip6_ra_control(struct sock *sk, int sel,
 					       void (*destructor)(struct sock *));
 
 
-extern int			ipv6_parse_hopopts(struct sk_buff *skb, int);
+extern int			ipv6_parse_hopopts(struct sk_buff *skb);
 
 extern struct ipv6_txoptions *  ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt);
 extern struct ipv6_txoptions *	ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
@@ -280,6 +279,18 @@ static inline int ipv6_addr_src_scope(const struct in6_addr *addr)
 static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
 {
 	return memcmp((const void *) a1, (const void *) a2, sizeof(struct in6_addr));
+}
+
+static inline int
+ipv6_masked_addr_cmp(const struct in6_addr *a1, const struct in6_addr *m,
+		     const struct in6_addr *a2)
+{
+	unsigned int i;
+
+	for (i = 0; i < 4; i++)
+		if ((a1->s6_addr32[i] ^ a2->s6_addr32[i]) & m->s6_addr32[i])
+			return 1;
+	return 0;
 }
 
 static inline void ipv6_addr_copy(struct in6_addr *a1, const struct in6_addr *a2)
@@ -457,6 +468,9 @@ extern void			ip6_flush_pending_frames(struct sock *sk);
 extern int			ip6_dst_lookup(struct sock *sk,
 					       struct dst_entry **dst,
 					       struct flowi *fl);
+extern int			ip6_sk_dst_lookup(struct sock *sk,
+						  struct dst_entry **dst,
+						  struct flowi *fl);
 
 /*
  *	skb processing functions
@@ -507,6 +521,16 @@ extern int			ipv6_setsockopt(struct sock *sk, int level,
 extern int			ipv6_getsockopt(struct sock *sk, int level, 
 						int optname,
 						char __user *optval, 
+						int __user *optlen);
+extern int			compat_ipv6_setsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
+						int optlen);
+extern int			compat_ipv6_getsockopt(struct sock *sk,
+						int level,
+						int optname,
+						char __user *optval,
 						int __user *optlen);
 
 extern void			ipv6_packet_init(void);

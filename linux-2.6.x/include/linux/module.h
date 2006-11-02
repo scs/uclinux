@@ -6,7 +6,6 @@
  * Rewritten by Richard Henderson <rth@tamu.edu> Dec 1996
  * Rewritten again by Rusty Russell, 2002
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
@@ -106,6 +105,8 @@ extern struct module __this_module;
  *	"GPL and additional rights"	[GNU Public License v2 rights and more]
  *	"Dual BSD/GPL"			[GNU Public License v2
  *					 or BSD license choice]
+ *	"Dual MIT/GPL"			[GNU Public License v2
+ *					 or MIT license choice]
  *	"Dual MPL/GPL"			[GNU Public License v2
  *					 or Mozilla license choice]
  *
@@ -183,6 +184,7 @@ void *__symbol_get_gpl(const char *symbol);
 
 /* For every exported symbol, place a struct in the __ksymtab section */
 #define __EXPORT_SYMBOL(sym, sec)				\
+	extern typeof(sym) sym;					\
 	__CRC_SYMBOL(sym, sec)					\
 	static const char __kstrtab_##sym[]			\
 	__attribute__((section("__ksymtab_strings")))		\
@@ -197,6 +199,18 @@ void *__symbol_get_gpl(const char *symbol);
 
 #define EXPORT_SYMBOL_GPL(sym)					\
 	__EXPORT_SYMBOL(sym, "_gpl")
+
+#define EXPORT_SYMBOL_GPL_FUTURE(sym)				\
+	__EXPORT_SYMBOL(sym, "_gpl_future")
+
+
+#ifdef CONFIG_UNUSED_SYMBOLS
+#define EXPORT_UNUSED_SYMBOL(sym) __EXPORT_SYMBOL(sym, "_unused")
+#define EXPORT_UNUSED_SYMBOL_GPL(sym) __EXPORT_SYMBOL(sym, "_unused_gpl")
+#else
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
+#endif
 
 #endif
 
@@ -242,6 +256,7 @@ struct module
 	/* Sysfs stuff. */
 	struct module_kobject mkobj;
 	struct module_param_attrs *param_attrs;
+	struct module_attribute *modinfo_attrs;
 	const char *version;
 	const char *srcversion;
 
@@ -254,6 +269,20 @@ struct module
 	const struct kernel_symbol *gpl_syms;
 	unsigned int num_gpl_syms;
 	const unsigned long *gpl_crcs;
+
+	/* unused exported symbols. */
+	const struct kernel_symbol *unused_syms;
+	unsigned int num_unused_syms;
+	const unsigned long *unused_crcs;
+	/* GPL-only, unused exported symbols. */
+	const struct kernel_symbol *unused_gpl_syms;
+	unsigned int num_unused_gpl_syms;
+	const unsigned long *unused_gpl_crcs;
+
+	/* symbols that will be GPL-only in the near future. */
+	const struct kernel_symbol *gpl_future_syms;
+	unsigned int num_gpl_future_syms;
+	const unsigned long *gpl_future_crcs;
 
 	/* Exception table */
 	unsigned int num_exentries;
@@ -273,6 +302,9 @@ struct module
 
 	/* The size of the executable code in each section.  */
 	unsigned long init_text_size, core_text_size;
+
+	/* The handle returned from unwind_add_table. */
+	void *unwind_info;
 
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
@@ -326,13 +358,12 @@ static inline int module_is_live(struct module *mod)
 /* Is this address in a module? (second is with no locks, for oops) */
 struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
+int is_module_address(unsigned long addr);
 
 /* Returns module and fills in value, defined and namebuf, or NULL if
    symnum out of range. */
-struct module *module_get_kallsym(unsigned int symnum,
-				  unsigned long *value,
-				  char *type,
-				  char namebuf[128]);
+struct module *module_get_kallsym(unsigned int symnum, unsigned long *value,
+				char *type, char *name, size_t namelen);
 
 /* Look for this name: can be of form module:name. */
 unsigned long module_kallsyms_lookup_name(const char *name);
@@ -441,6 +472,9 @@ void module_remove_driver(struct device_driver *);
 #else /* !CONFIG_MODULES... */
 #define EXPORT_SYMBOL(sym)
 #define EXPORT_SYMBOL_GPL(sym)
+#define EXPORT_SYMBOL_GPL_FUTURE(sym)
+#define EXPORT_UNUSED_SYMBOL(sym)
+#define EXPORT_UNUSED_SYMBOL_GPL(sym)
 
 /* Given an address, look for it in the exception tables. */
 static inline const struct exception_table_entry *
@@ -459,6 +493,11 @@ static inline struct module *module_text_address(unsigned long addr)
 static inline struct module *__module_text_address(unsigned long addr)
 {
 	return NULL;
+}
+
+static inline int is_module_address(unsigned long addr)
+{
+	return 0;
 }
 
 /* Get/put a kernel symbol (calls should be symmetric) */
@@ -494,8 +533,8 @@ static inline const char *module_address_lookup(unsigned long addr,
 
 static inline struct module *module_get_kallsym(unsigned int symnum,
 						unsigned long *value,
-						char *type,
-						char namebuf[128])
+						char *type, char *name,
+						size_t namelen)
 {
 	return NULL;
 }
@@ -544,34 +583,6 @@ static inline void module_remove_driver(struct device_driver *driver)
 
 /* BELOW HERE ALL THESE ARE OBSOLETE AND WILL VANISH */
 
-struct obsolete_modparm {
-	char name[64];
-	char type[64-sizeof(void *)];
-	void *addr;
-};
-
-static inline void MODULE_PARM_(void) { }
-#ifdef MODULE
-/* DEPRECATED: Do not use. */
-#define MODULE_PARM(var,type)						    \
-extern struct obsolete_modparm __parm_##var \
-__attribute__((section("__obsparm"))); \
-struct obsolete_modparm __parm_##var = \
-{ __stringify(var), type, &MODULE_PARM_ }; \
-__MODULE_PARM_TYPE(var, type);
-#else
-#define MODULE_PARM(var,type) static void __attribute__((__unused__)) *__parm_##var = &MODULE_PARM_;
-#endif
-
 #define __MODULE_STRING(x) __stringify(x)
-
-/* Use symbol_get and symbol_put instead.  You'll thank me. */
-#define HAVE_INTER_MODULE
-extern void __deprecated inter_module_register(const char *,
-		struct module *, const void *);
-extern void __deprecated inter_module_unregister(const char *);
-extern const void * __deprecated inter_module_get_request(const char *,
-		const char *);
-extern void __deprecated inter_module_put(const char *);
 
 #endif /* _LINUX_MODULE_H */

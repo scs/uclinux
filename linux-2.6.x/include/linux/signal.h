@@ -1,36 +1,12 @@
 #ifndef _LINUX_SIGNAL_H
 #define _LINUX_SIGNAL_H
 
-#include <linux/list.h>
-#include <linux/spinlock.h>
 #include <asm/signal.h>
 #include <asm/siginfo.h>
 
 #ifdef __KERNEL__
-
-/*
- * These values of sa_flags are used only by the kernel as part of the
- * irq handling routines.
- *
- * SA_INTERRUPT is also used by the irq handling routines.
- * SA_SHIRQ is for shared interrupt support on PCI and EISA.
- */
-#define SA_PROBE		SA_ONESHOT
-#define SA_SAMPLE_RANDOM	SA_RESTART
-#define SA_SHIRQ		0x04000000
-/*
- * As above, these correspond to the IORESOURCE_IRQ_* defines in
- * linux/ioport.h to select the interrupt line behaviour.  When
- * requesting an interrupt without specifying a SA_TRIGGER, the
- * setting should be assumed to be "as already configured", which
- * may be as per machine or firmware initialisation.
- */
-#define SA_TRIGGER_LOW		0x00000008
-#define SA_TRIGGER_HIGH		0x00000004
-#define SA_TRIGGER_FALLING	0x00000002
-#define SA_TRIGGER_RISING	0x00000001
-#define SA_TRIGGER_MASK	(SA_TRIGGER_HIGH|SA_TRIGGER_LOW|\
-				 SA_TRIGGER_RISING|SA_TRIGGER_FALLING)
+#include <linux/list.h>
+#include <linux/spinlock.h>
 
 /*
  * Real Time signals may be queued.
@@ -248,6 +224,8 @@ static inline void init_sigpending(struct sigpending *sig)
 	sigemptyset(&sig->signal);
 	INIT_LIST_HEAD(&sig->list);
 }
+
+extern void flush_sigqueue(struct sigpending *queue);
 
 /* Test if 'sig' is valid signal. Use this instead of testing _NSIG directly */
 static inline int valid_signal(unsigned long sig)

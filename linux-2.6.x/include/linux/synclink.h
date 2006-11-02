@@ -97,6 +97,8 @@
 #define HDLC_TXIDLE_ALT_MARK_SPACE	4
 #define HDLC_TXIDLE_SPACE		5
 #define HDLC_TXIDLE_MARK		6
+#define HDLC_TXIDLE_CUSTOM_8            0x10000000
+#define HDLC_TXIDLE_CUSTOM_16           0x20000000
 
 #define HDLC_ENCODING_NRZ			0
 #define HDLC_ENCODING_NRZB			1
@@ -170,6 +172,7 @@ typedef struct _MGSL_PARAMS
 #define SYNCLINK_GT_DEVICE_ID 0x0070
 #define SYNCLINK_GT4_DEVICE_ID 0x0080
 #define SYNCLINK_AC_DEVICE_ID  0x0090
+#define SYNCLINK_GT2_DEVICE_ID 0x00A0
 #define MGSL_MAX_SERIAL_NUMBER 30
 
 /*
@@ -221,6 +224,12 @@ struct mgsl_icount {
 	__u32	rxidle;
 };
 
+struct gpio_desc {
+	__u32 state;
+	__u32 smask;
+	__u32 dir;
+	__u32 dmask;
+};
 
 #define DEBUG_LEVEL_DATA	1
 #define DEBUG_LEVEL_ERROR 	2
@@ -276,5 +285,8 @@ struct mgsl_icount {
 #define MGSL_IOCLOOPTXDONE	_IO(MGSL_MAGIC_IOC,9)
 #define MGSL_IOCSIF		_IO(MGSL_MAGIC_IOC,10)
 #define MGSL_IOCGIF		_IO(MGSL_MAGIC_IOC,11)
+#define MGSL_IOCSGPIO		_IOW(MGSL_MAGIC_IOC,16,struct gpio_desc)
+#define MGSL_IOCGGPIO		_IOR(MGSL_MAGIC_IOC,17,struct gpio_desc)
+#define MGSL_IOCWAITGPIO	_IOWR(MGSL_MAGIC_IOC,18,struct gpio_desc)
 
 #endif /* _SYNCLINK_H_ */

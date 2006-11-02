@@ -20,7 +20,6 @@
 #ifndef SCSI_TRANSPORT_SPI_H
 #define SCSI_TRANSPORT_SPI_H
 
-#include <linux/config.h>
 #include <linux/transport_class.h>
 #include <linux/mutex.h>
 
@@ -148,5 +147,9 @@ void spi_schedule_dv_device(struct scsi_device *);
 void spi_dv_device(struct scsi_device *);
 void spi_display_xfer_agreement(struct scsi_target *);
 int spi_print_msg(const unsigned char *);
+int spi_populate_width_msg(unsigned char *msg, int width);
+int spi_populate_sync_msg(unsigned char *msg, int period, int offset);
+int spi_populate_ppr_msg(unsigned char *msg, int period, int offset, int width,
+		int options);
 
 #endif /* SCSI_TRANSPORT_SPI_H */

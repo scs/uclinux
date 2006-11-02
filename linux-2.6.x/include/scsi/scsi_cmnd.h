@@ -9,7 +9,6 @@
 struct request;
 struct scatterlist;
 struct scsi_device;
-struct scsi_request;
 
 
 /* embedded in scsi_cmnd */
@@ -29,13 +28,8 @@ struct scsi_pointer {
 };
 
 struct scsi_cmnd {
-	int     sc_magic;
-
 	struct scsi_device *device;
-	struct scsi_request *sc_request;
-
 	struct list_head list;  /* scsi_cmnd participates in queue lists */
-
 	struct list_head eh_entry; /* entry for the host eh_cmd_q */
 	int eh_eflags;		/* Used by error handlr */
 	void (*done) (struct scsi_cmnd *);	/* Mid-level done function */
@@ -64,9 +58,7 @@ struct scsi_cmnd {
 	int timeout_per_command;
 
 	unsigned char cmd_len;
-	unsigned char old_cmd_len;
 	enum dma_data_direction sc_data_direction;
-	enum dma_data_direction sc_old_data_direction;
 
 	/* These elements define the operation we are about to perform */
 #define MAX_COMMAND_SIZE	16
@@ -77,18 +69,11 @@ struct scsi_cmnd {
 	void *request_buffer;		/* Actual requested buffer */
 
 	/* These elements define the operation we ultimately want to perform */
-	unsigned char data_cmnd[MAX_COMMAND_SIZE];
-	unsigned short old_use_sg;	/* We save  use_sg here when requesting
-					 * sense info */
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
 	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
-	unsigned bufflen;	/* Size of data buffer */
-	void *buffer;		/* Data buffer */
 
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
-	unsigned old_underflow;	/* save underflow here when reusing the
-				 * command for error handling */
 
 	unsigned transfersize;	/* How much we are guaranteed to
 				   transfer with each SCSI transfer
@@ -104,10 +89,10 @@ struct scsi_cmnd {
 				   	   working on */
 
 #define SCSI_SENSE_BUFFERSIZE 	96
-	unsigned char sense_buffer[SCSI_SENSE_BUFFERSIZE];		/* obtained by REQUEST SENSE
-						 * when CHECK CONDITION is
-						 * received on original command 
-						 * (auto-sense) */
+	unsigned char sense_buffer[SCSI_SENSE_BUFFERSIZE];
+				/* obtained by REQUEST SENSE when
+				 * CHECK CONDITION is received on original
+				 * command (auto-sense) */
 
 	/* Low-level done function - can be used by low-level driver to point
 	 *        to completion function.  Not used by mid/upper level code. */
@@ -120,12 +105,12 @@ struct scsi_cmnd {
 	struct scsi_pointer SCp;	/* Scratchpad used by some host adapters */
 
 	unsigned char *host_scribble;	/* The host adapter is allowed to
-					   * call scsi_malloc and get some memory
-					   * and hang it here.     The host adapter
-					   * is also expected to call scsi_free
-					   * to release this memory.  (The memory
-					   * obtained by scsi_malloc is guaranteed
-					   * to be at an address < 16Mb). */
+					 * call scsi_malloc and get some memory
+					 * and hang it here.  The host adapter
+					 * is also expected to call scsi_free
+					 * to release this memory.  (The memory
+					 * obtained by scsi_malloc is guaranteed
+					 * to be at an address < 16Mb). */
 
 	int result;		/* Status code from lower level driver */
 
@@ -149,7 +134,12 @@ struct scsi_cmnd {
 
 extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);
 extern void scsi_put_command(struct scsi_cmnd *);
-extern void scsi_io_completion(struct scsi_cmnd *, unsigned int, unsigned int);
+extern void scsi_io_completion(struct scsi_cmnd *, unsigned int);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
+extern void scsi_req_abort_cmd(struct scsi_cmnd *cmd);
+
+extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
+				 size_t *offset, size_t *len);
+extern void scsi_kunmap_atomic_sg(void *virt);
 
 #endif /* _SCSI_SCSI_CMND_H */

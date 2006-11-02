@@ -3,7 +3,7 @@
  * Copyright (c) 2004 Infinicon Corporation.  All rights reserved.
  * Copyright (c) 2004 Intel Corporation.  All rights reserved.
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
- * Copyright (c) 2004 Voltaire Corporation.  All rights reserved.
+ * Copyright (c) 2004-2006 Voltaire Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -55,6 +55,10 @@
 #define IB_MGMT_CLASS_DEVICE_MGMT		0x06
 #define IB_MGMT_CLASS_CM			0x07
 #define IB_MGMT_CLASS_SNMP			0x08
+#define IB_MGMT_CLASS_DEVICE_ADM		0x10
+#define IB_MGMT_CLASS_BOOT_MGMT			0x11
+#define IB_MGMT_CLASS_BIS			0x12
+#define IB_MGMT_CLASS_CONG_MGMT			0x21
 #define IB_MGMT_CLASS_VENDOR_RANGE2_START	0x30
 #define IB_MGMT_CLASS_VENDOR_RANGE2_END		0x4F
 
@@ -71,6 +75,7 @@
 #define IB_MGMT_METHOD_TRAP_REPRESS		0x07
 
 #define IB_MGMT_METHOD_RESP			0x80
+#define IB_BM_ATTR_MOD_RESP			cpu_to_be32(1)
 
 #define IB_MGMT_MAX_METHODS			128
 
@@ -117,6 +122,8 @@ enum {
 	IB_MGMT_VENDOR_DATA = 216,
 	IB_MGMT_SA_HDR = 56,
 	IB_MGMT_SA_DATA = 200,
+	IB_MGMT_DEVICE_HDR = 64,
+	IB_MGMT_DEVICE_DATA = 192,
 };
 
 struct ib_mad_hdr {
@@ -208,15 +215,23 @@ struct ib_class_port_info
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
  * @next: A pointer used to chain together MADs for posting.
- * @mad: References an allocated MAD data buffer.
+ * @mad: References an allocated MAD data buffer for MADs that do not have
+ *   RMPP active.  For MADs using RMPP, references the common and management
+ *   class specific headers.
  * @mad_agent: MAD agent that allocated the buffer.
  * @ah: The address handle to use when sending the MAD.
  * @context: User-controlled context fields.
+ * @hdr_len: Indicates the size of the data header of the MAD.  This length
+ *   includes the common MAD, RMPP, and class specific headers.
+ * @data_len: Indicates the total size of user-transferred data.
+ * @seg_count: The number of RMPP segments allocated for this send.
+ * @seg_size: Size of each RMPP segment.
  * @timeout_ms: Time to wait for a response.
  * @retries: Number of times to retry a request for a response.
  *
  * Users are responsible for initializing the MAD buffer itself, with the
- * exception of specifying the payload length field in any RMPP MAD.
+ * exception of any RMPP header.  Additional segment buffer space allocated
+ * beyond data_len is padding.
  */
 struct ib_mad_send_buf {
 	struct ib_mad_send_buf	*next;
@@ -224,9 +239,19 @@ struct ib_mad_send_buf {
 	struct ib_mad_agent	*mad_agent;
 	struct ib_ah		*ah;
 	void			*context[2];
+	int			hdr_len;
+	int			data_len;
+	int			seg_count;
+	int			seg_size;
 	int			timeout_ms;
 	int			retries;
 };
+
+/**
+ * ib_response_mad - Returns if the specified MAD has been generated in
+ *   response to a sent request or trap.
+ */
+int ib_response_mad(struct ib_mad *mad);
 
 /**
  * ib_get_rmpp_resptime - Returns the RMPP response time.
@@ -299,7 +324,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * @mad_recv_wc: Received work completion information on the received MAD.
  *
  * MADs received in response to a send request operation will be handed to
- * the user after the send operation completes.  All data buffers given
+ * the user before the send operation completes.  All data buffers given
  * to registered agents through this routine are owned by the receiving
  * client, except for snooping agents.  Clients snooping MADs should not
  * modify the data referenced by @mad_recv_wc.
@@ -485,17 +510,6 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
 int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		     struct ib_mad_send_buf **bad_send_buf);
 
-/**
- * ib_coalesce_recv_mad - Coalesces received MAD data into a single buffer.
- * @mad_recv_wc: Work completion information for a received MAD.
- * @buf: User-provided data buffer to receive the coalesced buffers.  The
- *   referenced buffer should be at least the size of the mad_len specified
- *   by @mad_recv_wc.
- *
- * This call copies a chain of received MAD segments into a single data buffer,
- * removing duplicated headers.
- */
-void ib_coalesce_recv_mad(struct ib_mad_recv_wc *mad_recv_wc, void *buf);
 
 /**
  * ib_free_recv_mad - Returns data buffers used to receive a MAD.
@@ -590,15 +604,45 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  * with an initialized work request structure.  Users may modify the returned
  * MAD data buffer before posting the send.
  *
- * The returned data buffer will be cleared.  Users are responsible for
- * initializing the common MAD and any class specific headers.  If @rmpp_active
- * is set, the RMPP header will be initialized for sending.
+ * The returned MAD header, class specific headers, and any padding will be
+ * cleared.  Users are responsible for initializing the common MAD header,
+ * any class specific header, and MAD data area.
+ * If @rmpp_active is set, the RMPP header will be initialized for sending.
  */
 struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    u32 remote_qpn, u16 pkey_index,
 					    int rmpp_active,
 					    int hdr_len, int data_len,
 					    gfp_t gfp_mask);
+
+/**
+ * ib_is_mad_class_rmpp - returns whether given management class
+ * supports RMPP.
+ * @mgmt_class: management class
+ *
+ * This routine returns whether the management class supports RMPP.
+ */
+int ib_is_mad_class_rmpp(u8 mgmt_class);
+
+/**
+ * ib_get_mad_data_offset - returns the data offset for a given
+ * management class.
+ * @mgmt_class: management class
+ *
+ * This routine returns the data offset in the MAD for the management
+ * class requested.
+ */
+int ib_get_mad_data_offset(u8 mgmt_class);
+
+/**
+ * ib_get_rmpp_segment - returns the data buffer for a given RMPP segment.
+ * @send_buf: Previously allocated send data buffer.
+ * @seg_num: number of segment to return
+ *
+ * This routine returns a pointer to the data buffer of an RMPP MAD.
+ * Users must provide synchronization to @send_buf around this call.
+ */
+void *ib_get_rmpp_segment(struct ib_mad_send_buf *send_buf, int seg_num);
 
 /**
  * ib_free_send_mad - Returns data buffers used to send a MAD.

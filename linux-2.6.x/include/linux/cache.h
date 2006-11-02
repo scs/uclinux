@@ -2,7 +2,6 @@
 #define __LINUX_CACHE_H
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <asm/cache.h>
 
 #ifndef L1_CACHE_ALIGN
@@ -13,9 +12,7 @@
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 #endif
 
-#if defined(CONFIG_X86) || defined(CONFIG_SPARC64) || defined(CONFIG_IA64) || defined(CONFIG_PARISC)
-#define __read_mostly __attribute__((__section__(".data.read_mostly")))
-#else
+#ifndef __read_mostly
 #define __read_mostly
 #endif
 

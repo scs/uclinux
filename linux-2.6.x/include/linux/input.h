@@ -15,6 +15,7 @@
 #else
 #include <sys/time.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <asm/types.h>
 #endif
 
@@ -56,6 +57,8 @@ struct input_absinfo {
 
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
+#define EVIOCGREP		_IOR('E', 0x03, int[2])			/* get repeat settings */
+#define EVIOCSREP		_IOW('E', 0x03, int[2])			/* set repeat settings */
 #define EVIOCGKEYCODE		_IOR('E', 0x04, int[2])			/* get keycode */
 #define EVIOCSKEYCODE		_IOW('E', 0x04, int[2])			/* set keycode */
 
@@ -229,7 +232,8 @@ struct input_absinfo {
 #define KEY_PAUSE		119
 
 #define KEY_KPCOMMA		121
-#define KEY_HANGUEL		122
+#define KEY_HANGEUL		122
+#define KEY_HANGUEL		KEY_HANGEUL
 #define KEY_HANJA		123
 #define KEY_YEN			124
 #define KEY_LEFTMETA		125
@@ -343,6 +347,8 @@ struct input_absinfo {
 #define KEY_SAVE		234
 #define KEY_DOCUMENTS		235
 
+#define KEY_BATTERY		236
+
 #define KEY_UNKNOWN		240
 
 #define BTN_MISC		0x100
@@ -419,7 +425,7 @@ struct input_absinfo {
 #define BTN_GEAR_UP		0x151
 
 #define KEY_OK			0x160
-#define KEY_SELECT 		0x161
+#define KEY_SELECT		0x161
 #define KEY_GOTO		0x162
 #define KEY_CLEAR		0x163
 #define KEY_POWER2		0x164
@@ -510,6 +516,15 @@ struct input_absinfo {
 #define KEY_FN_S		0x1e3
 #define KEY_FN_B		0x1e4
 
+#define KEY_BRL_DOT1		0x1f1
+#define KEY_BRL_DOT2		0x1f2
+#define KEY_BRL_DOT3		0x1f3
+#define KEY_BRL_DOT4		0x1f4
+#define KEY_BRL_DOT5		0x1f5
+#define KEY_BRL_DOT6		0x1f6
+#define KEY_BRL_DOT7		0x1f7
+#define KEY_BRL_DOT8		0x1f8
+
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
 #define KEY_MAX			0x1ff
@@ -566,14 +581,9 @@ struct input_absinfo {
  * Switch events
  */
 
-#define SW_0			0x00
-#define SW_1			0x01
-#define SW_2			0x02
-#define SW_3			0x03
-#define SW_4			0x04
-#define SW_5			0x05
-#define SW_6			0x06
-#define SW_7			0x07
+#define SW_LID			0x00  /* set = lid shut */
+#define SW_TABLET_MODE		0x01  /* set = tablet mode */
+#define SW_HEADPHONE_INSERT	0x02  /* set = inserted */
 #define SW_MAX			0x0f
 
 /*
@@ -883,7 +893,6 @@ struct input_dev {
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);
-	int (*accept)(struct input_dev *dev, struct file *file);
 	int (*flush)(struct input_dev *dev, struct file *file);
 	int (*event)(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 	int (*upload_effect)(struct input_dev *dev, struct ff_effect *effect);
@@ -891,7 +900,7 @@ struct input_dev {
 
 	struct input_handle *grab;
 
-	struct semaphore sem;	/* serializes open and close operations */
+	struct mutex mutex;	/* serializes open and close operations */
 	unsigned int users;
 
 	struct class_device cdev;
@@ -951,6 +960,26 @@ struct input_dev {
 
 struct input_handle;
 
+/**
+ * struct input_handler - implements one of interfaces for input devices
+ * @private: driver-specific data
+ * @event: event handler
+ * @connect: called when attaching a handler to an input device
+ * @disconnect: disconnects a handler from input device
+ * @start: starts handler for given handle. This function is called by
+ *	input core right after connect() method and also when a process
+ *	that "grabbed" a device releases it
+ * @fops: file operations this driver implements
+ * @minor: beginning of range of 32 minors for devices this driver
+ *	can provide
+ * @name: name of the handler, to be shown in /proc/bus/input/handlers
+ * @id_table: pointer to a table of input_device_ids this driver can
+ *	handle
+ * @blacklist: prointer to a table of input_device_ids this driver should
+ *	ignore even if they match @id_table
+ * @h_list: list of input handles associated with the handler
+ * @node: for placing the driver onto input_handler_list
+ */
 struct input_handler {
 
 	void *private;
@@ -958,8 +987,9 @@ struct input_handler {
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	struct input_handle* (*connect)(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
+	void (*start)(struct input_handle *handle);
 
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	int minor;
 	char *name;
 
@@ -996,11 +1026,7 @@ static inline void init_input_dev(struct input_dev *dev)
 }
 
 struct input_dev *input_allocate_device(void);
-
-static inline void input_free_device(struct input_dev *dev)
-{
-	kfree(dev);
-}
+void input_free_device(struct input_dev *dev);
 
 static inline struct input_dev *input_get_device(struct input_dev *dev)
 {
@@ -1024,10 +1050,10 @@ void input_release_device(struct input_handle *);
 int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
-int input_accept_process(struct input_handle *handle, struct file *file);
 int input_flush_device(struct input_handle* handle, struct file* file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
+void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 
 static inline void input_report_key(struct input_dev *dev, unsigned int code, int value)
 {

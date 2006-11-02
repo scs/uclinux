@@ -17,8 +17,6 @@
 #ifndef LINUX_PCI_H
 #define LINUX_PCI_H
 
-#include <linux/mod_devicetable.h>
-
 /* Include the pci register defines */
 #include <linux/pci_regs.h>
 
@@ -46,8 +44,9 @@
 
 #ifdef __KERNEL__
 
+#include <linux/mod_devicetable.h>
+
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>
@@ -93,6 +92,17 @@ enum pci_channel_state {
 
 	/* PCI card is dead */
 	pci_channel_io_perm_failure = (__force pci_channel_state_t) 3,
+};
+
+typedef unsigned short __bitwise pci_bus_flags_t;
+enum pci_bus_flags {
+	PCI_BUS_FLAGS_NO_MSI = (__force pci_bus_flags_t) 1,
+};
+
+struct pci_cap_saved_state {
+	struct hlist_node next;
+	char cap_nr;
+	u32 data[0];
 };
 
 /*
@@ -151,9 +161,14 @@ struct pci_dev {
 	unsigned int	is_enabled:1;	/* pci_enable_device has been called */
 	unsigned int	is_busmaster:1; /* device is busmaster */
 	unsigned int	no_msi:1;	/* device may not use msi */
+	unsigned int	no_d1d2:1;   /* only allow d0 or d3 */
 	unsigned int	block_ucfg_access:1;	/* userspace config space access is blocked */
+	unsigned int	broken_parity_status:1;	/* Device generates false positive parity */
+	unsigned int 	msi_enabled:1;
+	unsigned int	msix_enabled:1;
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
+	struct hlist_head saved_cap_space;
 	struct bin_attribute *rom_attr; /* attribute descriptor for sysfs ROM entry */
 	int rom_attr_enabled;		/* has display of the rom attribute been enabled? */
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
@@ -163,6 +178,30 @@ struct pci_dev {
 #define pci_dev_b(n) list_entry(n, struct pci_dev, bus_list)
 #define	to_pci_dev(n) container_of(n, struct pci_dev, dev)
 #define for_each_pci_dev(d) while ((d = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, d)) != NULL)
+
+static inline struct pci_cap_saved_state *pci_find_saved_cap(
+	struct pci_dev *pci_dev,char cap)
+{
+	struct pci_cap_saved_state *tmp;
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(tmp, pos, &pci_dev->saved_cap_space, next) {
+		if (tmp->cap_nr == cap)
+			return tmp;
+	}
+	return NULL;
+}
+
+static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
+	struct pci_cap_saved_state *new_cap)
+{
+	hlist_add_head(&new_cap->next, &pci_dev->saved_cap_space);
+}
+
+static inline void pci_remove_saved_cap(struct pci_cap_saved_state *cap)
+{
+	hlist_del(&cap->next);
+}
 
 /*
  *  For PCI devices, the region numbers are assigned this way:
@@ -203,7 +242,7 @@ struct pci_bus {
 	char		name[48];
 
 	unsigned short  bridge_ctl;	/* manage NO_ISA/FBB/et al behaviors */
-	unsigned short  pad2;
+	pci_bus_flags_t bus_flags;	/* Inherited by child busses */
 	struct device		*bridge;
 	struct class_device	class_dev;
 	struct bin_attribute	*legacy_io; /* legacy I/O for this bus */
@@ -366,8 +405,8 @@ int pcibios_enable_device(struct pci_dev *, int mask);
 char *pcibios_setup (char *str);
 
 /* Used only when drivers/pci/setup.c is used */
-void pcibios_align_resource(void *, struct resource *,
-			    unsigned long, unsigned long);
+void pcibios_align_resource(void *, struct resource *, resource_size_t,
+				resource_size_t);
 void pcibios_update_irq(struct pci_dev *, int irq);
 
 /* Generic PCI functions used internally */
@@ -406,6 +445,7 @@ struct pci_dev *pci_find_device_reverse (unsigned int vendor, unsigned int devic
 struct pci_dev *pci_find_slot (unsigned int bus, unsigned int devfn);
 int pci_find_capability (struct pci_dev *dev, int cap);
 int pci_find_next_capability (struct pci_dev *dev, u8 pos, int cap);
+int pci_find_ext_capability (struct pci_dev *dev, int cap);
 struct pci_bus * pci_find_next_bus(const struct pci_bus *from);
 
 struct pci_dev *pci_get_device (unsigned int vendor, unsigned int device, struct pci_dev *from);
@@ -460,6 +500,7 @@ int pci_set_dma_mask(struct pci_dev *dev, u64 mask);
 int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask);
 void pci_update_resource(struct pci_dev *dev, struct resource *res, int resno);
 int pci_assign_resource(struct pci_dev *dev, int i);
+int pci_assign_resource_fixed(struct pci_dev *dev, int i);
 void pci_restore_bars(struct pci_dev *dev);
 
 /* ROM control related routines */
@@ -485,17 +526,17 @@ void pdev_sort_resources(struct pci_dev *, struct resource_list *);
 void pci_fixup_irqs(u8 (*)(struct pci_dev *, u8 *),
 		    int (*)(struct pci_dev *, u8, u8));
 #define HAVE_PCI_REQ_REGIONS	2
-int pci_request_regions(struct pci_dev *, char *);
+int pci_request_regions(struct pci_dev *, const char *);
 void pci_release_regions(struct pci_dev *);
-int pci_request_region(struct pci_dev *, int, char *);
+int pci_request_region(struct pci_dev *, int, const char *);
 void pci_release_region(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
 int pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
-			   unsigned long size, unsigned long align,
-			   unsigned long min, unsigned int type_mask,
+			   resource_size_t size, resource_size_t align,
+			   resource_size_t min, unsigned int type_mask,
 			   void (*alignf)(void *, struct resource *,
-					  unsigned long, unsigned long),
+					  resource_size_t, resource_size_t),
 			   void *alignf_data);
 void pci_enable_bridges(struct pci_bus *bus);
 
@@ -516,6 +557,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
 		  void *userdata);
 int pci_cfg_space_size(struct pci_dev *dev);
+unsigned char pci_bus_max_busnr(struct pci_bus* bus);
 
 /* kmem_cache style wrapper around pci_alloc_consistent() */
 
@@ -625,6 +667,7 @@ static inline int pci_register_driver(struct pci_driver *drv) { return 0;}
 static inline void pci_unregister_driver(struct pci_driver *drv) { }
 static inline int pci_find_capability (struct pci_dev *dev, int cap) {return 0; }
 static inline int pci_find_next_capability (struct pci_dev *dev, u8 post, int cap) { return 0; }
+static inline int pci_find_ext_capability (struct pci_dev *dev, int cap) {return 0; }
 static inline const struct pci_device_id *pci_match_device(const struct pci_device_id *ids, const struct pci_dev *dev) { return NULL; }
 
 /* Power management related routines */
@@ -688,7 +731,8 @@ static inline char *pci_name(struct pci_dev *pdev)
  */
 #ifndef HAVE_ARCH_PCI_RESOURCE_TO_USER
 static inline void pci_resource_to_user(const struct pci_dev *dev, int bar,
-                const struct resource *rsrc, u64 *start, u64 *end)
+                const struct resource *rsrc, resource_size_t *start,
+		resource_size_t *end)
 {
 	*start = rsrc->start;
 	*end = rsrc->end;

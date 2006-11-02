@@ -1704,6 +1704,7 @@ struct snd_cs46xx {
 	int acpi_port;
 	struct snd_kcontrol *eapd_switch; /* for amplifier hack */
 	int accept_valid;	/* accept mmap valid (for OSS) */
+	int in_suspend;
 
 	struct gameport *gameport;
 
@@ -1711,7 +1712,7 @@ struct snd_cs46xx {
 	int current_gpio;
 #endif
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-	struct semaphore spos_mutex;
+	struct mutex spos_mutex;
 
 	struct dsp_spos_instance * dsp_spos_instance;
 

@@ -67,8 +67,8 @@
 /* Parisc type numbers. */
 #define PORT_MUX	48
 
-/* Atmel AT91RM9200 SoC */
-#define PORT_AT91RM9200 49
+/* Atmel AT91xxx SoC */
+#define PORT_AT91	49
 
 /* Macintosh Zilog type numbers */
 #define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
@@ -127,12 +127,17 @@
 /* Hilscher netx */
 #define PORT_NETX	71
 
+/* SUN4V Hypervisor Console */
+#define PORT_SUNHV	72
+
+#define PORT_S3C2412	73
+
 /* Blackfin bf5xx */
-#define PORT_BFIN	72
+#define PORT_BFIN	74
+
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/interrupt.h>
 #include <linux/circ_buf.h>
@@ -214,16 +219,18 @@ struct uart_port {
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
 	unsigned int		irq;			/* irq number */
 	unsigned int		uartclk;		/* base uart clock */
-	unsigned char		fifosize;		/* tx fifo size */
+	unsigned int		fifosize;		/* tx fifo size */
 	unsigned char		x_char;			/* xon/xoff char */
 	unsigned char		regshift;		/* reg offset shift */
 	unsigned char		iotype;			/* io access style */
+	unsigned char		unused1;
 
 #define UPIO_PORT		(0)
 #define UPIO_HUB6		(1)
 #define UPIO_MEM		(2)
 #define UPIO_MEM32		(3)
 #define UPIO_AU			(4)			/* Au1x00 type IO */
+#define UPIO_TSI		(5)			/* Tsi108/109 type IO */
 
 	unsigned int		read_status_mask;	/* driver specific */
 	unsigned int		ignore_status_mask;	/* driver specific */
@@ -254,6 +261,7 @@ struct uart_port {
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
+#define UPF_DEAD		((__force upf_t) (1 << 30))
 #define UPF_IOREMAP		((__force upf_t) (1 << 31))
 
 #define UPF_CHANGE_MASK		((__force upf_t) (0x17fff))
@@ -333,7 +341,6 @@ struct uart_driver {
 	struct module		*owner;
 	const char		*driver_name;
 	const char		*dev_name;
-	const char		*devfs_name;
 	int			 major;
 	int			 minor;
 	int			 nr;
@@ -369,6 +376,9 @@ void uart_parse_options(char *options, int *baud, int *parity, int *bits,
 int uart_set_options(struct uart_port *port, struct console *co, int baud,
 		     int parity, int bits, int flow);
 struct tty_driver *uart_console_device(struct console *co, int *index);
+void uart_console_write(struct uart_port *port, const char *s,
+			unsigned int count,
+			void (*putchar)(struct uart_port *, int));
 
 /*
  * Port/driver registration/removal

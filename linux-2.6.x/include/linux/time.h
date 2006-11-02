@@ -28,10 +28,13 @@ struct timezone {
 #ifdef __KERNEL__
 
 /* Parameters used to convert the timespec values: */
-#define MSEC_PER_SEC		1000L
-#define USEC_PER_SEC		1000000L
-#define NSEC_PER_SEC		1000000000L
-#define NSEC_PER_USEC		1000L
+#define MSEC_PER_SEC	1000L
+#define USEC_PER_MSEC	1000L
+#define NSEC_PER_USEC	1000L
+#define NSEC_PER_MSEC	1000000L
+#define USEC_PER_SEC	1000000L
+#define NSEC_PER_SEC	1000000000L
+#define FSEC_PER_SEC	1000000000000000L
 
 static inline int timespec_equal(struct timespec *a, struct timespec *b)
 {
@@ -68,20 +71,28 @@ extern unsigned long mktime(const unsigned int year, const unsigned int mon,
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
 
 /*
+ * sub = lhs - rhs, in normalized form
+ */
+static inline struct timespec timespec_sub(struct timespec lhs,
+						struct timespec rhs)
+{
+	struct timespec ts_delta;
+	set_normalized_timespec(&ts_delta, lhs.tv_sec - rhs.tv_sec,
+				lhs.tv_nsec - rhs.tv_nsec);
+	return ts_delta;
+}
+
+/*
  * Returns true if the timespec is norm, false if denorm:
  */
 #define timespec_valid(ts) \
 	(((ts)->tv_sec >= 0) && (((unsigned long) (ts)->tv_nsec) < NSEC_PER_SEC))
 
-/*
- * 64-bit nanosec type. Large enough to span 292+ years in nanosecond
- * resolution. Ought to be enough for a while.
- */
-typedef s64 nsec_t;
-
 extern struct timespec xtime;
 extern struct timespec wall_to_monotonic;
 extern seqlock_t xtime_lock;
+
+void timekeeping_init(void);
 
 static inline unsigned long get_seconds(void)
 {
@@ -101,10 +112,12 @@ extern long do_utimes(int dfd, char __user *filename, struct timeval *times);
 struct itimerval;
 extern int do_setitimer(int which, struct itimerval *value,
 			struct itimerval *ovalue);
+extern unsigned int alarm_setitimer(unsigned int seconds);
 extern int do_getitimer(int which, struct itimerval *value);
 extern void getnstimeofday(struct timespec *tv);
 
 extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
+extern int timekeeping_is_continuous(void);
 
 /**
  * timespec_to_ns - Convert timespec to nanoseconds
@@ -113,9 +126,9 @@ extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
  * Returns the scalar nanosecond representation of the timespec
  * parameter.
  */
-static inline nsec_t timespec_to_ns(const struct timespec *ts)
+static inline s64 timespec_to_ns(const struct timespec *ts)
 {
-	return ((nsec_t) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
+	return ((s64) ts->tv_sec * NSEC_PER_SEC) + ts->tv_nsec;
 }
 
 /**
@@ -125,9 +138,9 @@ static inline nsec_t timespec_to_ns(const struct timespec *ts)
  * Returns the scalar nanosecond representation of the timeval
  * parameter.
  */
-static inline nsec_t timeval_to_ns(const struct timeval *tv)
+static inline s64 timeval_to_ns(const struct timeval *tv)
 {
-	return ((nsec_t) tv->tv_sec * NSEC_PER_SEC) +
+	return ((s64) tv->tv_sec * NSEC_PER_SEC) +
 		tv->tv_usec * NSEC_PER_USEC;
 }
 
@@ -137,7 +150,7 @@ static inline nsec_t timeval_to_ns(const struct timeval *tv)
  *
  * Returns the timespec representation of the nsec parameter.
  */
-extern struct timespec ns_to_timespec(const nsec_t nsec);
+extern struct timespec ns_to_timespec(const s64 nsec);
 
 /**
  * ns_to_timeval - Convert nanoseconds to timeval
@@ -145,8 +158,22 @@ extern struct timespec ns_to_timespec(const nsec_t nsec);
  *
  * Returns the timeval representation of the nsec parameter.
  */
-extern struct timeval ns_to_timeval(const nsec_t nsec);
+extern struct timeval ns_to_timeval(const s64 nsec);
 
+/**
+ * timespec_add_ns - Adds nanoseconds to a timespec
+ * @a:		pointer to timespec to be incremented
+ * @ns:		unsigned nanoseconds value to be added
+ */
+static inline void timespec_add_ns(struct timespec *a, u64 ns)
+{
+	ns += a->tv_nsec;
+	while(unlikely(ns >= NSEC_PER_SEC)) {
+		ns -= NSEC_PER_SEC;
+		a->tv_sec++;
+	}
+	a->tv_nsec = ns;
+}
 #endif /* __KERNEL__ */
 
 #define NFDBITS			__NFDBITS

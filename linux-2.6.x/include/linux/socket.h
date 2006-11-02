@@ -18,8 +18,6 @@ struct __kernel_sockaddr_storage {
 
 #if defined(__KERNEL__) || !defined(__GLIBC__) || (__GLIBC__ < 2)
 
-#include <linux/config.h>		/* for CONFIG_COMPAT */
-#include <linux/linkage.h>
 #include <asm/socket.h>			/* arch-dependent defines	*/
 #include <linux/sockios.h>		/* the SIOCxxx I/O controls	*/
 #include <linux/uio.h>			/* iovec support		*/
@@ -150,6 +148,7 @@ __KINLINE struct cmsghdr * cmsg_nxthdr (struct msghdr *__msg, struct cmsghdr *__
 
 #define	SCM_RIGHTS	0x01		/* rw: access rights (array of int) */
 #define SCM_CREDENTIALS 0x02		/* rw: struct ucred		*/
+#define SCM_SECURITY	0x03		/* rw: security label		*/
 
 struct ucred {
 	__u32	pid;

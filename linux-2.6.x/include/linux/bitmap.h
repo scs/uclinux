@@ -24,6 +24,9 @@
  * The available bitmap operations and their rough meaning in the
  * case that the bitmap is a single unsigned long are thus:
  *
+ * Note that nbits should be always a compile time evaluable constant.
+ * Otherwise many inlines will generate horrible code.
+ *
  * bitmap_zero(dst, nbits)			*dst = 0UL
  * bitmap_fill(dst, nbits)			*dst = ~0UL
  * bitmap_copy(dst, src, nbits)			*dst = *src
@@ -46,6 +49,9 @@
  * bitmap_parse(ubuf, ulen, dst, nbits)		Parse bitmap dst from user buf
  * bitmap_scnlistprintf(buf, len, src, nbits)	Print bitmap src as list to buf
  * bitmap_parselist(buf, dst, nbits)		Parse bitmap dst from list
+ * bitmap_find_free_region(bitmap, bits, order)	Find and allocate bit region
+ * bitmap_release_region(bitmap, pos, order)	Free specified bit region
+ * bitmap_allocate_region(bitmap, pos, order)	Allocate specified bit region
  */
 
 /*
@@ -241,6 +247,8 @@ static inline int bitmap_full(const unsigned long *src, int nbits)
 
 static inline int bitmap_weight(const unsigned long *src, int nbits)
 {
+	if (nbits <= BITS_PER_LONG)
+		return hweight_long(*src & BITMAP_LAST_WORD_MASK(nbits));
 	return __bitmap_weight(src, nbits);
 }
 

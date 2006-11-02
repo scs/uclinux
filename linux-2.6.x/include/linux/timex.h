@@ -53,12 +53,10 @@
 #ifndef _LINUX_TIMEX_H
 #define _LINUX_TIMEX_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
 
 #include <asm/param.h>
-#include <asm/timex.h>
 
 /*
  * SHIFT_KG and SHIFT_KF establish the damping of the PLL and are chosen
@@ -97,36 +95,9 @@
 
 #define MAXPHASE 512000L        /* max phase error (us) */
 #define MAXFREQ (512L << SHIFT_USEC)  /* max frequency error (ppm) */
-#define MAXTIME (200L << PPS_AVG) /* max PPS error (jitter) (200 us) */
 #define MINSEC 16L              /* min interval between updates (s) */
 #define MAXSEC 1200L            /* max interval between updates (s) */
 #define	NTP_PHASE_LIMIT	(MAXPHASE << 5)	/* beyond max. dispersion */
-
-/*
- * The following defines are used only if a pulse-per-second (PPS)
- * signal is available and connected via a modem control lead, such as
- * produced by the optional ppsclock feature incorporated in the Sun
- * asynch driver. They establish the design parameters of the frequency-
- * lock loop used to discipline the CPU clock oscillator to the PPS
- * signal.
- *
- * PPS_AVG is the averaging factor for the frequency loop, as well as
- * the time and frequency dispersion.
- *
- * PPS_SHIFT and PPS_SHIFTMAX specify the minimum and maximum
- * calibration intervals, respectively, in seconds as a power of two.
- *
- * PPS_VALID is the maximum interval before the PPS signal is considered
- * invalid and protocol updates used directly instead.
- *
- * MAXGLITCH is the maximum interval before a time offset of more than
- * MAXTIME is believed.
- */
-#define PPS_AVG 2		/* pps averaging constant (shift) */
-#define PPS_SHIFT 2		/* min interval duration (s) (shift) */
-#define PPS_SHIFTMAX 8		/* max interval duration (s) (shift) */
-#define PPS_VALID 120		/* pps signal watchdog max (s) */
-#define MAXGLITCH 30		/* pps signal glitch max (s) */
 
 /*
  * syscall interface - used (mainly by NTP daemon)
@@ -219,6 +190,8 @@ struct timex {
 #define TIME_BAD	TIME_ERROR /* bw compat */
 
 #ifdef __KERNEL__
+#include <asm/timex.h>
+
 /*
  * kernel variables
  * Note: maximum error = NTP synch distance = dispersion + delay / 2;
@@ -245,20 +218,6 @@ extern long time_reftime;	/* time at last adjustment (s) */
 
 extern long time_adjust;	/* The amount of adjtime left */
 extern long time_next_adjust;	/* Value for time_adjust at next tick */
-
-/* interface variables pps->timer interrupt */
-extern long pps_offset;		/* pps time offset (us) */
-extern long pps_jitter;		/* time dispersion (jitter) (us) */
-extern long pps_freq;		/* frequency offset (scaled ppm) */
-extern long pps_stabil;		/* frequency dispersion (scaled ppm) */
-extern long pps_valid;		/* pps signal watchdog counter */
-
-/* interface variables pps->adjtimex */
-extern int pps_shift;		/* interval duration (s) (shift) */
-extern long pps_jitcnt;		/* jitter limit exceeded */
-extern long pps_calcnt;		/* calibration intervals */
-extern long pps_errcnt;		/* calibration errors */
-extern long pps_stbcnt;		/* stability limit exceeded */
 
 /**
  * ntp_clear - Clears the NTP state variables
@@ -345,8 +304,12 @@ time_interpolator_reset(void)
 
 #endif /* !CONFIG_TIME_INTERPOLATION */
 
+#define TICK_LENGTH_SHIFT	32
+
 /* Returns how long ticks are at present, in ns / 2^(SHIFT_SCALE-10). */
 extern u64 current_tick_length(void);
+
+extern int do_adjtimex(struct timex *);
 
 #endif /* KERNEL */
 

@@ -140,25 +140,10 @@ struct scsi_host_template {
 	 *
 	 * Status: REQUIRED	(at least one of them)
 	 */
-	int (* eh_strategy_handler)(struct Scsi_Host *);
 	int (* eh_abort_handler)(struct scsi_cmnd *);
 	int (* eh_device_reset_handler)(struct scsi_cmnd *);
 	int (* eh_bus_reset_handler)(struct scsi_cmnd *);
 	int (* eh_host_reset_handler)(struct scsi_cmnd *);
-
-	/*
-	 * This is an optional routine to notify the host that the scsi
-	 * timer just fired.  The returns tell the timer routine what to
-	 * do about this:
-	 *
-	 * EH_HANDLED:		I fixed the error, please complete the command
-	 * EH_RESET_TIMER:	I need more time, reset the timer and
-	 *			begin counting again
-	 * EH_NOT_HANDLED	Begin normal error recovery
-	 *
-	 * Status: OPTIONAL
-	 */
-	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
 
 	/*
 	 * Before the mid layer attempts to scan for a new device where none
@@ -300,7 +285,7 @@ struct scsi_host_template {
 	 * suspend support
 	 */
 	int (*resume)(struct scsi_device *);
-	int (*suspend)(struct scsi_device *);
+	int (*suspend)(struct scsi_device *, pm_message_t state);
 
 	/*
 	 * Name of proc directory
@@ -487,6 +472,7 @@ struct Scsi_Host {
 	 */
 	unsigned int host_busy;		   /* commands actually active on low-level */
 	unsigned int host_failed;	   /* commands that failed. */
+	unsigned int host_eh_scheduled;    /* EH scheduled without command */
     
 	unsigned short host_no;  /* Used for IOCTL_GET_IDLUN, /proc/scsi et al. */
 	int resetting; /* if set, it means that last_reset is a valid value */
@@ -555,6 +541,9 @@ struct Scsi_Host {
 	 * ordered write support
 	 */
 	unsigned ordered_tag:1;
+
+	/* task mgmt function in progress */
+	unsigned tmf_in_progress:1;
 
 	/*
 	 * Optional work queue to be utilized by the transport
@@ -633,7 +622,8 @@ static inline int scsi_host_in_recovery(struct Scsi_Host *shost)
 {
 	return shost->shost_state == SHOST_RECOVERY ||
 		shost->shost_state == SHOST_CANCEL_RECOVERY ||
-		shost->shost_state == SHOST_DEL_RECOVERY;
+		shost->shost_state == SHOST_DEL_RECOVERY ||
+		shost->tmf_in_progress;
 }
 
 extern int scsi_queue_work(struct Scsi_Host *, struct work_struct *);

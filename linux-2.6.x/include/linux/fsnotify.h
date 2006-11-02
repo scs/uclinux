@@ -15,6 +15,26 @@
 
 #include <linux/dnotify.h>
 #include <linux/inotify.h>
+#include <linux/audit.h>
+
+/*
+ * fsnotify_d_instantiate - instantiate a dentry for inode
+ * Called with dcache_lock held.
+ */
+static inline void fsnotify_d_instantiate(struct dentry *entry,
+						struct inode *inode)
+{
+	inotify_d_instantiate(entry, inode);
+}
+
+/*
+ * fsnotify_d_move - entry has been moved
+ * Called with dcache_lock and entry->d_lock held.
+ */
+static inline void fsnotify_d_move(struct dentry *entry)
+{
+	inotify_d_move(entry);
+}
 
 /*
  * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
@@ -34,17 +54,20 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 
 	if (isdir)
 		isdir = IN_ISDIR;
-	inotify_inode_queue_event(old_dir, IN_MOVED_FROM|isdir,cookie,old_name);
-	inotify_inode_queue_event(new_dir, IN_MOVED_TO|isdir, cookie, new_name);
+	inotify_inode_queue_event(old_dir, IN_MOVED_FROM|isdir,cookie,old_name,
+				  source);
+	inotify_inode_queue_event(new_dir, IN_MOVED_TO|isdir, cookie, new_name,
+				  source);
 
 	if (target) {
-		inotify_inode_queue_event(target, IN_DELETE_SELF, 0, NULL);
+		inotify_inode_queue_event(target, IN_DELETE_SELF, 0, NULL, NULL);
 		inotify_inode_is_dead(target);
 	}
 
 	if (source) {
-		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL);
+		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL, NULL);
 	}
+	audit_inode_child(new_name, source, new_dir);
 }
 
 /*
@@ -63,26 +86,30 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
  */
 static inline void fsnotify_inoderemove(struct inode *inode)
 {
-	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL);
+	inotify_inode_queue_event(inode, IN_DELETE_SELF, 0, NULL, NULL);
 	inotify_inode_is_dead(inode);
 }
 
 /*
  * fsnotify_create - 'name' was linked in
  */
-static inline void fsnotify_create(struct inode *inode, const char *name)
+static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
 	inode_dir_notify(inode, DN_CREATE);
-	inotify_inode_queue_event(inode, IN_CREATE, 0, name);
+	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name,
+				  dentry->d_inode);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode);
 }
 
 /*
  * fsnotify_mkdir - directory 'name' was created
  */
-static inline void fsnotify_mkdir(struct inode *inode, const char *name)
+static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 {
 	inode_dir_notify(inode, DN_CREATE);
-	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, name);
+	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, 
+				  dentry->d_name.name, dentry->d_inode);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode);
 }
 
 /*
@@ -98,7 +125,7 @@ static inline void fsnotify_access(struct dentry *dentry)
 
 	dnotify_parent(dentry, DN_ACCESS);
 	inotify_dentry_parent_queue_event(dentry, mask, 0, dentry->d_name.name);
-	inotify_inode_queue_event(inode, mask, 0, NULL);
+	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 }
 
 /*
@@ -114,7 +141,7 @@ static inline void fsnotify_modify(struct dentry *dentry)
 
 	dnotify_parent(dentry, DN_MODIFY);
 	inotify_dentry_parent_queue_event(dentry, mask, 0, dentry->d_name.name);
-	inotify_inode_queue_event(inode, mask, 0, NULL);
+	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 }
 
 /*
@@ -129,7 +156,7 @@ static inline void fsnotify_open(struct dentry *dentry)
 		mask |= IN_ISDIR;
 
 	inotify_dentry_parent_queue_event(dentry, mask, 0, dentry->d_name.name);
-	inotify_inode_queue_event(inode, mask, 0, NULL);	
+	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 }
 
 /*
@@ -147,7 +174,7 @@ static inline void fsnotify_close(struct file *file)
 		mask |= IN_ISDIR;
 
 	inotify_dentry_parent_queue_event(dentry, mask, 0, name);
-	inotify_inode_queue_event(inode, mask, 0, NULL);
+	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 }
 
 /*
@@ -162,7 +189,7 @@ static inline void fsnotify_xattr(struct dentry *dentry)
 		mask |= IN_ISDIR;
 
 	inotify_dentry_parent_queue_event(dentry, mask, 0, dentry->d_name.name);
-	inotify_inode_queue_event(inode, mask, 0, NULL);
+	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 }
 
 /*
@@ -209,7 +236,7 @@ static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 	if (in_mask) {
 		if (S_ISDIR(inode->i_mode))
 			in_mask |= IN_ISDIR;
-		inotify_inode_queue_event(inode, in_mask, 0, NULL);
+		inotify_inode_queue_event(inode, in_mask, 0, NULL, NULL);
 		inotify_dentry_parent_queue_event(dentry, in_mask, 0,
 						  dentry->d_name.name);
 	}

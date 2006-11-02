@@ -1,7 +1,6 @@
 #ifndef __LINUX_PM_LEGACY_H__
 #define __LINUX_PM_LEGACY_H__
 
-#include <linux/config.h>
 
 #ifdef CONFIG_PM_LEGACY
 
@@ -14,16 +13,6 @@ extern int pm_active;
  */
 struct pm_dev __deprecated *
 pm_register(pm_dev_t type, unsigned long id, pm_callback callback);
-
-/*
- * Unregister a device with power management
- */
-void __deprecated pm_unregister(struct pm_dev *dev);
-
-/*
- * Unregister all devices with matching callback
- */
-void __deprecated pm_unregister_all(pm_callback callback);
 
 /*
  * Send a request to all devices
@@ -40,10 +29,6 @@ static inline struct pm_dev *pm_register(pm_dev_t type,
 {
 	return NULL;
 }
-
-static inline void pm_unregister(struct pm_dev *dev) {}
-
-static inline void pm_unregister_all(pm_callback callback) {}
 
 static inline int pm_send_all(pm_request_t rqst, void *data)
 {

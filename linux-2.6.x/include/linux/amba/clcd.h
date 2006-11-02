@@ -9,7 +9,6 @@
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
  */
-#include <linux/config.h>
 #include <linux/fb.h>
 
 /*
@@ -54,6 +53,7 @@
 #define CNTL_LCDBPP4		(2 << 1)
 #define CNTL_LCDBPP8		(3 << 1)
 #define CNTL_LCDBPP16		(4 << 1)
+#define CNTL_LCDBPP16_565	(6 << 1)
 #define CNTL_LCDBPP24		(5 << 1)
 #define CNTL_LCDBW		(1 << 4)
 #define CNTL_LCDTFT		(1 << 5)
@@ -209,7 +209,16 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 		val |= CNTL_LCDBPP8;
 		break;
 	case 16:
-		val |= CNTL_LCDBPP16;
+		/*
+		 * PL110 cannot choose between 5551 and 565 modes in
+		 * its control register
+		 */
+		if ((fb->dev->periphid & 0x000fffff) == 0x00041110)
+			val |= CNTL_LCDBPP16;
+		else if (fb->fb.var.green.length == 5)
+			val |= CNTL_LCDBPP16;
+		else
+			val |= CNTL_LCDBPP16_565;
 		break;
 	case 32:
 		val |= CNTL_LCDBPP24;

@@ -1,13 +1,10 @@
 #ifndef _LINUX_NUMA_H
 #define _LINUX_NUMA_H
 
-#include <linux/config.h>
 
-#ifndef CONFIG_FLATMEM
-#include <asm/numnodes.h>
-#endif
-
-#ifndef NODES_SHIFT
+#ifdef CONFIG_NODES_SHIFT
+#define NODES_SHIFT     CONFIG_NODES_SHIFT
+#else
 #define NODES_SHIFT     0
 #endif
 

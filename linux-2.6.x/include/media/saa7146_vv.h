@@ -2,7 +2,7 @@
 #define __SAA7146_VV__
 
 #include <linux/videodev.h>
-
+#include <media/v4l2-common.h>
 #include <media/saa7146.h>
 #include <media/video-buf.h>
 
@@ -197,7 +197,8 @@ void saa7146_buffer_finish(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, 
 void saa7146_buffer_next(struct saa7146_dev *dev, struct saa7146_dmaqueue *q,int vbi);
 int saa7146_buffer_queue(struct saa7146_dev *dev, struct saa7146_dmaqueue *q, struct saa7146_buf *buf);
 void saa7146_buffer_timeout(unsigned long data);
-void saa7146_dma_free(struct saa7146_dev *dev,struct saa7146_buf *buf);
+void saa7146_dma_free(struct saa7146_dev* dev,struct videobuf_queue *q,
+						struct saa7146_buf *buf);
 
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv);
 int saa7146_vv_release(struct saa7146_dev* dev);

@@ -1,7 +1,6 @@
 #ifndef _LINUX_SWAP_H
 #define _LINUX_SWAP_H
 
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/linkage.h>
 #include <linux/mmzone.h>
@@ -29,7 +28,14 @@ static inline int current_is_kswapd(void)
  * the type/offset into the pte as 5/27 as well.
  */
 #define MAX_SWAPFILES_SHIFT	5
+#ifndef CONFIG_MIGRATION
 #define MAX_SWAPFILES		(1 << MAX_SWAPFILES_SHIFT)
+#else
+/* Use last two entries for page migration swap entries */
+#define MAX_SWAPFILES		((1 << MAX_SWAPFILES_SHIFT)-2)
+#define SWP_MIGRATION_READ	MAX_SWAPFILES
+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + 1)
+#endif
 
 /*
  * Magic header for a swap area. The first part of the union is
@@ -49,12 +55,14 @@ union swap_header {
 		char magic[10];			/* SWAP-SPACE or SWAPSPACE2 */
 	} magic;
 	struct {
-		char	     bootbits[1024];	/* Space for disklabel etc. */
-		unsigned int version;
-		unsigned int last_page;
-		unsigned int nr_badpages;
-		unsigned int padding[125];
-		unsigned int badpages[1];
+		char		bootbits[1024];	/* Space for disklabel etc. */
+		__u32		version;
+		__u32		last_page;
+		__u32		nr_badpages;
+		unsigned char	sws_uuid[16];
+		unsigned char	sws_volume[16];
+		__u32		padding[117];
+		__u32		badpages[1];
 	} info;
 };
 
@@ -155,6 +163,7 @@ extern void swapin_readahead(swp_entry_t, unsigned long, struct vm_area_struct *
 /* linux/mm/page_alloc.c */
 extern unsigned long totalram_pages;
 extern unsigned long totalhigh_pages;
+extern unsigned long totalreserve_pages;
 extern long nr_swap_pages;
 extern unsigned int nr_free_pages(void);
 extern unsigned int nr_free_pages_pgdat(pg_data_t *pgdat);
@@ -172,13 +181,15 @@ extern int rotate_reclaimable_page(struct page *page);
 extern void swap_setup(void);
 
 /* linux/mm/vmscan.c */
-extern int try_to_free_pages(struct zone **, gfp_t);
-extern int shrink_all_memory(int);
+extern unsigned long try_to_free_pages(struct zone **, gfp_t);
+extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
+extern int remove_mapping(struct address_space *mapping, struct page *page);
+extern long vm_total_pages;
 
 #ifdef CONFIG_NUMA
 extern int zone_reclaim_mode;
-extern int zone_reclaim_interval;
+extern int sysctl_min_unmapped_ratio;
 extern int zone_reclaim(struct zone *, gfp_t, unsigned int);
 #else
 #define zone_reclaim_mode 0
@@ -188,24 +199,7 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 }
 #endif
 
-#ifdef CONFIG_MIGRATION
-extern int isolate_lru_page(struct page *p);
-extern int putback_lru_pages(struct list_head *l);
-extern int migrate_page(struct page *, struct page *);
-extern void migrate_page_copy(struct page *, struct page *);
-extern int migrate_page_remove_references(struct page *, struct page *, int);
-extern int migrate_pages(struct list_head *l, struct list_head *t,
-		struct list_head *moved, struct list_head *failed);
-extern int fail_migrate_page(struct page *, struct page *);
-#else
-static inline int isolate_lru_page(struct page *p) { return -ENOSYS; }
-static inline int putback_lru_pages(struct list_head *l) { return 0; }
-static inline int migrate_pages(struct list_head *l, struct list_head *t,
-	struct list_head *moved, struct list_head *failed) { return -ENOSYS; }
-/* Possible settings for the migrate_page() method in address_operations */
-#define migrate_page NULL
-#define fail_migrate_page NULL
-#endif
+extern int kswapd_run(int nid);
 
 #ifdef CONFIG_MMU
 /* linux/mm/shmem.c */
@@ -238,14 +232,15 @@ extern struct page * read_swap_cache_async(swp_entry_t, struct vm_area_struct *v
 /* linux/mm/swapfile.c */
 extern long total_swap_pages;
 extern unsigned int nr_swapfiles;
-extern struct swap_info_struct swap_info[];
 extern void si_swapinfo(struct sysinfo *);
 extern swp_entry_t get_swap_page(void);
-extern swp_entry_t get_swap_page_of_type(int type);
+extern swp_entry_t get_swap_page_of_type(int);
 extern int swap_duplicate(swp_entry_t);
 extern int valid_swaphandles(swp_entry_t, unsigned long *);
 extern void swap_free(swp_entry_t);
 extern void free_swap_and_cache(swp_entry_t);
+extern int swap_type_of(dev_t);
+extern unsigned int count_swap_pages(int, int);
 extern sector_t map_swap_page(struct swap_info_struct *, pgoff_t);
 extern struct swap_info_struct *get_swap_info_struct(unsigned);
 extern int can_share_swap_page(struct page *);
@@ -253,7 +248,6 @@ extern int remove_exclusive_swap_page(struct page *);
 struct backing_dev_info;
 
 extern spinlock_t swap_lock;
-extern int remove_vma_swap(struct vm_area_struct *vma, struct page *page);
 
 /* linux/mm/thrash.c */
 extern struct mm_struct * swap_token_mm;
@@ -291,18 +285,60 @@ static inline void disable_swap_token(void)
 #define free_pages_and_swap_cache(pages, nr) \
 	release_pages((pages), (nr), 0);
 
-#define show_swap_cache_info()			/*NOTHING*/
-#define free_swap_and_cache(swp)		/*NOTHING*/
-#define swap_duplicate(swp)			/*NOTHING*/
-#define swap_free(swp)				/*NOTHING*/
-#define read_swap_cache_async(swp,vma,addr)	NULL
-#define lookup_swap_cache(swp)			NULL
-#define valid_swaphandles(swp, off)		0
-#define can_share_swap_page(p)			0
-#define move_to_swap_cache(p, swp)		1
-#define move_from_swap_cache(p, i, m)		1
-#define __delete_from_swap_cache(p)		/*NOTHING*/
-#define delete_from_swap_cache(p)		/*NOTHING*/
+static inline void show_swap_cache_info(void)
+{
+}
+
+static inline void free_swap_and_cache(swp_entry_t swp)
+{
+}
+
+static inline int swap_duplicate(swp_entry_t swp)
+{
+	return 0;
+}
+
+static inline void swap_free(swp_entry_t swp)
+{
+}
+
+static inline struct page *read_swap_cache_async(swp_entry_t swp,
+			struct vm_area_struct *vma, unsigned long addr)
+{
+	return NULL;
+}
+
+static inline struct page *lookup_swap_cache(swp_entry_t swp)
+{
+	return NULL;
+}
+
+static inline int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
+{
+	return 0;
+}
+
+#define can_share_swap_page(p)			(page_mapcount(p) == 1)
+
+static inline int move_to_swap_cache(struct page *page, swp_entry_t entry)
+{
+	return 1;
+}
+
+static inline int move_from_swap_cache(struct page *page, unsigned long index,
+					struct address_space *mapping)
+{
+	return 1;
+}
+
+static inline void __delete_from_swap_cache(struct page *page)
+{
+}
+
+static inline void delete_from_swap_cache(struct page *page)
+{
+}
+
 #define swap_token_default_timeout		0
 
 static inline int remove_exclusive_swap_page(struct page *p)

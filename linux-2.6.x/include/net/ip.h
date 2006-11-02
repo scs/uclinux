@@ -22,7 +22,6 @@
 #ifndef _IP_H
 #define _IP_H
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/in.h>
@@ -147,7 +146,6 @@ void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *ar
 struct ipv4_config
 {
 	int	log_martians;
-	int	autoconfig;
 	int	no_pmtu_disc;
 };
 
@@ -357,6 +355,10 @@ extern void	ip_cmsg_recv(struct msghdr *msg, struct sk_buff *skb);
 extern int	ip_cmsg_send(struct msghdr *msg, struct ipcm_cookie *ipc);
 extern int	ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, int optlen);
 extern int	ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval, int __user *optlen);
+extern int	compat_ip_setsockopt(struct sock *sk, int level,
+			int optname, char __user *optval, int optlen);
+extern int	compat_ip_getsockopt(struct sock *sk, int level,
+			int optname, char __user *optval, int __user *optlen);
 extern int	ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(struct sock *));
 
 extern int 	ip_recv_error(struct sock *sk, struct msghdr *msg, int len);

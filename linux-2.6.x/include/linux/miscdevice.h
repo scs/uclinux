@@ -36,11 +36,10 @@ struct class_device;
 struct miscdevice  {
 	int minor;
 	const char *name;
-	struct file_operations *fops;
+	const struct file_operations *fops;
 	struct list_head list;
 	struct device *dev;
 	struct class_device *class;
-	char devfs_name[64];
 };
 
 extern int misc_register(struct miscdevice * misc);

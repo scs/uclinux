@@ -11,7 +11,6 @@
 #ifndef _DEVICE_H_
 #define _DEVICE_H_
 
-#include <linux/config.h>
 #include <linux/ioport.h>
 #include <linux/kobject.h>
 #include <linux/klist.h>
@@ -60,11 +59,6 @@ extern int bus_register(struct bus_type * bus);
 extern void bus_unregister(struct bus_type * bus);
 
 extern void bus_rescan_devices(struct bus_type * bus);
-
-extern struct bus_type * get_bus(struct bus_type * bus);
-extern void put_bus(struct bus_type * bus);
-
-extern struct bus_type * find_bus(char * name);
 
 /* iterator helpers for buses */
 
@@ -148,6 +142,7 @@ struct class {
 
 	struct subsystem	subsys;
 	struct list_head	children;
+	struct list_head	devices;
 	struct list_head	interfaces;
 	struct semaphore	sem;	/* locks both the children and interfaces lists */
 
@@ -163,9 +158,6 @@ struct class {
 
 extern int class_register(struct class *);
 extern void class_unregister(struct class *);
-
-extern struct class * class_get(struct class *);
-extern void class_put(struct class *);
 
 
 struct class_attribute {
@@ -200,6 +192,7 @@ extern int class_device_create_file(struct class_device *,
  * @node: for internal use by the driver core only.
  * @kobj: for internal use by the driver core only.
  * @devt_attr: for internal use by the driver core only.
+ * @groups: optional additional groups to be created
  * @dev: if set, a symlink to the struct device is created in the sysfs
  * directory for this struct class device.
  * @class_data: pointer to whatever you want to store here for this struct
@@ -228,6 +221,7 @@ struct class_device {
 	struct device		* dev;		/* not necessary, but nice to have */
 	void			* class_data;	/* class-specific data */
 	struct class_device	*parent;	/* parent of this child device, if there is one */
+	struct attribute_group  ** groups;	/* optional groups */
 
 	void	(*release)(struct class_device *dev);
 	int	(*uevent)(struct class_device *dev, char **envp,
@@ -312,6 +306,7 @@ struct device {
 	struct kobject kobj;
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 	struct device_attribute uevent_attr;
+	struct device_attribute *devt_attr;
 
 	struct semaphore	sem;	/* semaphore to synchronize calls to
 					 * its driver.
@@ -338,6 +333,11 @@ struct device {
 
 	struct dma_coherent_mem	*dma_mem; /* internal for coherent mem
 					     override */
+
+	/* class_device migration path */
+	struct list_head	node;
+	struct class		*class;		/* optional*/
+	dev_t			devt;		/* dev_t, creates the sysfs "dev" */
 
 	void	(*release)(struct device * dev);
 };
@@ -378,7 +378,15 @@ extern void device_bind_driver(struct device * dev);
 extern void device_release_driver(struct device * dev);
 extern int  device_attach(struct device * dev);
 extern void driver_attach(struct device_driver * drv);
+extern void device_reprobe(struct device *dev);
 
+/*
+ * Easy functions for dynamically creating devices on the fly
+ */
+extern struct device *device_create(struct class *cls, struct device *parent,
+				    dev_t devt, char *fmt, ...)
+				    __attribute__((format(printf,4,5)));
+extern void device_destroy(struct class *cls, dev_t devt);
 
 /*
  * Platform "fixup" functions - allow the platform to have their say
@@ -399,7 +407,7 @@ extern struct device * get_device(struct device * dev);
 extern void put_device(struct device * dev);
 
 
-/* drivers/base/power.c */
+/* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);
 
 
@@ -408,8 +416,9 @@ extern int firmware_register(struct subsystem *);
 extern void firmware_unregister(struct subsystem *);
 
 /* debugging and troubleshooting/diagnostic helpers. */
+extern const char *dev_driver_string(struct device *dev);
 #define dev_printk(level, dev, format, arg...)	\
-	printk(level "%s %s: " format , (dev)->driver ? (dev)->driver->name : "" , (dev)->bus_id , ## arg)
+	printk(level "%s %s: " format , dev_driver_string(dev) , (dev)->bus_id , ## arg)
 
 #ifdef DEBUG
 #define dev_dbg(dev, format, arg...)		\
@@ -424,6 +433,8 @@ extern void firmware_unregister(struct subsystem *);
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #define dev_warn(dev, format, arg...)		\
 	dev_printk(KERN_WARNING , dev , format , ## arg)
+#define dev_notice(dev, format, arg...)		\
+	dev_printk(KERN_NOTICE , dev , format , ## arg)
 
 /* Create alias, so I can be autoloaded. */
 #define MODULE_ALIAS_CHARDEV(major,minor) \

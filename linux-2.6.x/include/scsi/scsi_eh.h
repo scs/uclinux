@@ -3,7 +3,6 @@
 
 struct scsi_cmnd;
 struct scsi_device;
-struct scsi_request;
 struct Scsi_Host;
 
 /*
@@ -35,12 +34,13 @@ static inline int scsi_sense_valid(struct scsi_sense_hdr *sshdr)
 }
 
 
+extern void scsi_eh_finish_cmd(struct scsi_cmnd *scmd,
+			       struct list_head *done_q);
+extern void scsi_eh_flush_done_q(struct list_head *done_q);
 extern void scsi_report_bus_reset(struct Scsi_Host *, int);
 extern void scsi_report_device_reset(struct Scsi_Host *, int, int);
 extern int scsi_block_when_processing_errors(struct scsi_device *);
 extern int scsi_normalize_sense(const u8 *sense_buffer, int sb_len,
-		struct scsi_sense_hdr *sshdr);
-extern int scsi_request_normalize_sense(struct scsi_request *sreq,
 		struct scsi_sense_hdr *sshdr);
 extern int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
 		struct scsi_sense_hdr *sshdr);

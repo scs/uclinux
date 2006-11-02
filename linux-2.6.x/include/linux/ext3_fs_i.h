@@ -19,10 +19,19 @@
 #include <linux/rwsem.h>
 #include <linux/rbtree.h>
 #include <linux/seqlock.h>
+#include <linux/mutex.h>
+
+/* data type for block offset of block group */
+typedef int ext3_grpblk_t;
+
+/* data type for filesystem-wide blocks number */
+typedef unsigned long ext3_fsblk_t;
+
+#define E3FSBLK "%lu"
 
 struct ext3_reserve_window {
-	__u32			_rsv_start;	/* First byte reserved */
-	__u32			_rsv_end;	/* Last byte reserved or 0 */
+	ext3_fsblk_t	_rsv_start;	/* First byte reserved */
+	ext3_fsblk_t	_rsv_end;	/* Last byte reserved or 0 */
 };
 
 struct ext3_reserve_window_node {
@@ -49,7 +58,7 @@ struct ext3_block_alloc_info {
 	 * allocated to this file.  This give us the goal (target) for the next
 	 * allocation when we detect linearly ascending requests.
 	 */
-	__u32                   last_alloc_physical_block;
+	ext3_fsblk_t		last_alloc_physical_block;
 };
 
 #define rsv_start rsv_window._rsv_start
@@ -66,7 +75,7 @@ struct ext3_inode_info {
 	__u8	i_frag_no;
 	__u8	i_frag_size;
 #endif
-	__u32	i_file_acl;
+	ext3_fsblk_t	i_file_acl;
 	__u32	i_dir_acl;
 	__u32	i_dtime;
 
@@ -122,16 +131,16 @@ struct ext3_inode_info {
 	__u16 i_extra_isize;
 
 	/*
-	 * truncate_sem is for serialising ext3_truncate() against
+	 * truncate_mutex is for serialising ext3_truncate() against
 	 * ext3_getblock().  In the 2.4 ext2 design, great chunks of inode's
 	 * data tree are chopped off during truncate. We can't do that in
 	 * ext3 because whenever we perform intermediate commits during
 	 * truncate, the inode and all the metadata blocks *must* be in a
 	 * consistent state which allows truncation of the orphans to restart
 	 * during recovery.  Hence we must fix the get_block-vs-truncate race
-	 * by other means, so we have truncate_sem.
+	 * by other means, so we have truncate_mutex.
 	 */
-	struct semaphore truncate_sem;
+	struct mutex truncate_mutex;
 	struct inode vfs_inode;
 };
 

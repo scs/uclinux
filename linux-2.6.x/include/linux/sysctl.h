@@ -55,7 +55,7 @@ enum
 	CTL_KERN=1,		/* General kernel info and control */
 	CTL_VM=2,		/* VM management */
 	CTL_NET=3,		/* Networking */
-	CTL_PROC=4,		/* Process info */
+	/* was CTL_PROC */
 	CTL_FS=5,		/* Filesystems */
 	CTL_DEBUG=6,		/* Debugging */
 	CTL_DEV=7,		/* Devices */
@@ -148,7 +148,10 @@ enum
 	KERN_SPIN_RETRY=70,	/* int: number of spinlock retries */
 	KERN_ACPI_VIDEO_FLAGS=71, /* int: flags for setting up video after ACPI sleep */
 	KERN_IA64_UNALIGNED=72, /* int: ia64 unaligned userland trap enable */
+	KERN_COMPAT_LOG=73,	/* int: print compat layer  messages */
+	KERN_MAX_LOCK_DEPTH=74,
 };
+
 
 
 /* CTL_VM names: */
@@ -185,7 +188,9 @@ enum
 	VM_DROP_PAGECACHE=29,	/* int: nuke lots of pagecache */
 	VM_PERCPU_PAGELIST_FRACTION=30,/* int: fraction of pages in each percpu_pagelist */
 	VM_ZONE_RECLAIM_MODE=31, /* reclaim local zone memory before going off node */
-	VM_ZONE_RECLAIM_INTERVAL=32, /* time period to wait after reclaim failure */
+	VM_MIN_UNMAPPED=32,	/* Set min percent of unmapped pages */
+	VM_PANIC_ON_OOM=33,	/* panic at out-of-memory */
+	VM_VDSO_ENABLED=34,	/* map VDSO into new processes? */
 };
 
 
@@ -211,6 +216,7 @@ enum
 	NET_SCTP=17,
 	NET_LLC=18,
 	NET_NETFILTER=19,
+	NET_DCCP=20,
 };
 
 /* /proc/sys/kernel/random */
@@ -261,6 +267,8 @@ enum
 	NET_CORE_DEV_WEIGHT=17,
 	NET_CORE_SOMAXCONN=18,
 	NET_CORE_BUDGET=19,
+	NET_CORE_AEVENT_ETIME=20,
+	NET_CORE_AEVENT_RSEQTH=21,
 };
 
 /* /proc/sys/net/ethernet */
@@ -310,6 +318,7 @@ enum
 	NET_NF_CONNTRACK_FRAG6_TIMEOUT=29,
 	NET_NF_CONNTRACK_FRAG6_LOW_THRESH=30,
 	NET_NF_CONNTRACK_FRAG6_HIGH_THRESH=31,
+	NET_NF_CONNTRACK_CHECKSUM=32,
 };
 
 /* /proc/sys/net/ipv4 */
@@ -397,6 +406,11 @@ enum
 	NET_TCP_CONG_CONTROL=110,
 	NET_TCP_ABC=111,
 	NET_IPV4_IPFRAG_MAX_DIST=112,
+ 	NET_TCP_MTU_PROBING=113,
+	NET_TCP_BASE_MSS=114,
+	NET_IPV4_TCP_WORKAROUND_SIGNED_WINDOWS=115,
+	NET_TCP_DMA_COPYBREAK=116,
+	NET_TCP_SLOW_START_AFTER_IDLE=117,
 };
 
 enum {
@@ -451,6 +465,7 @@ enum
 	NET_IPV4_CONF_ARP_ANNOUNCE=18,
 	NET_IPV4_CONF_ARP_IGNORE=19,
 	NET_IPV4_CONF_PROMOTE_SECONDARIES=20,
+	NET_IPV4_CONF_ARP_ACCEPT=21,
 	__NET_IPV4_CONF_MAX
 };
 
@@ -484,6 +499,7 @@ enum
  	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_RECD=25,
  	NET_IPV4_NF_CONNTRACK_SCTP_TIMEOUT_SHUTDOWN_ACK_SENT=26,
 	NET_IPV4_NF_CONNTRACK_COUNT=27,
+	NET_IPV4_NF_CONNTRACK_CHECKSUM=28,
 };
  
 /* /proc/sys/net/ipv6 */
@@ -531,6 +547,11 @@ enum {
 	NET_IPV6_MAX_DESYNC_FACTOR=15,
 	NET_IPV6_MAX_ADDRESSES=16,
 	NET_IPV6_FORCE_MLD_VERSION=17,
+	NET_IPV6_ACCEPT_RA_DEFRTR=18,
+	NET_IPV6_ACCEPT_RA_PINFO=19,
+	NET_IPV6_ACCEPT_RA_RTR_PREF=20,
+	NET_IPV6_RTR_PROBE_INTERVAL=21,
+	NET_IPV6_ACCEPT_RA_RT_INFO_MAX_PLEN=22,
 	__NET_IPV6_MAX
 };
 
@@ -560,6 +581,21 @@ enum {
 	NET_NEIGH_RETRANS_TIME_MS=17,
 	NET_NEIGH_REACHABLE_TIME_MS=18,
 	__NET_NEIGH_MAX
+};
+
+/* /proc/sys/net/dccp */
+enum {
+	NET_DCCP_DEFAULT=1,
+};
+
+/* /proc/sys/net/dccp/default */
+enum {
+	NET_DCCP_DEFAULT_SEQ_WINDOW  = 1,
+	NET_DCCP_DEFAULT_RX_CCID     = 2,
+	NET_DCCP_DEFAULT_TX_CCID     = 3,
+	NET_DCCP_DEFAULT_ACK_RATIO   = 4,
+	NET_DCCP_DEFAULT_SEND_ACKVEC = 5,
+	NET_DCCP_DEFAULT_SEND_NDP    = 6,
 };
 
 /* /proc/sys/net/ipx */
@@ -734,8 +770,6 @@ enum {
 	NET_BRIDGE_NF_CALL_IP6TABLES = 3,
 	NET_BRIDGE_NF_FILTER_VLAN_TAGGED = 4,
 };
-
-/* CTL_PROC names: */
 
 /* CTL_FS names: */
 enum

@@ -1,7 +1,6 @@
 #ifndef _LINUX_KERNEL_STAT_H
 #define _LINUX_KERNEL_STAT_H
 
-#include <linux/config.h>
 #include <asm/irq.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
@@ -46,7 +45,7 @@ static inline int kstat_irqs(int irq)
 {
 	int cpu, sum = 0;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		sum += kstat_cpu(cpu).irqs[irq];
 
 	return sum;

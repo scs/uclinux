@@ -265,6 +265,7 @@
 
 /* specific - Analog Devices */
 #define AC97_AD_TEST		0x5a	/* test register */
+#define AC97_AD_TEST2		0x5c	/* undocumented test register 2 */
 #define AC97_AD_CODEC_CFG	0x70	/* codec configuration */
 #define AC97_AD_JACK_SPDIF	0x72	/* Jack Sense & S/PDIF */
 #define AC97_AD_SERIAL_CFG	0x74	/* Serial Configuration */
@@ -378,6 +379,7 @@
 #define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
 #define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
 #define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
+#define AC97_HAS_NO_AUX		(1<<18) /* no standard AC97 AUX volume and mute */
 
 /* rates indexes */
 #define AC97_RATES_FRONT_DAC	0
@@ -433,6 +435,12 @@ struct snd_ac97_bus {
 	struct snd_info_entry *proc;
 };
 
+/* static resolution table */
+struct snd_ac97_res_table {
+	unsigned short reg;	/* register */
+	unsigned short bits;	/* resolution bitmask */
+};
+
 struct snd_ac97_template {
 	void *private_data;
 	void (*private_free) (struct snd_ac97 *ac97);
@@ -440,8 +448,7 @@ struct snd_ac97_template {
 	unsigned short num;	/* number of codec: 0 = primary, 1 = secondary */
 	unsigned short addr;	/* physical address of codec [0-3] */
 	unsigned int scaps;	/* driver capabilities */
-	unsigned int limited_regs; /* allow limited registers only */
-	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
+	const struct snd_ac97_res_table *res_table;	/* static resolution */
 };
 
 struct snd_ac97 {
@@ -456,20 +463,20 @@ struct snd_ac97 {
 	struct snd_info_entry *proc_regs;
 	unsigned short subsystem_vendor;
 	unsigned short subsystem_device;
-	struct semaphore reg_mutex;
-	struct semaphore page_mutex;	/* mutex for AD18xx multi-codecs and paging (2.3) */
+	struct mutex reg_mutex;
+	struct mutex page_mutex;	/* mutex for AD18xx multi-codecs and paging (2.3) */
 	unsigned short num;	/* number of codec: 0 = primary, 1 = secondary */
 	unsigned short addr;	/* physical address of codec [0-3] */
 	unsigned int id;	/* identification of codec */
 	unsigned short caps;	/* capabilities (register 0) */
 	unsigned short ext_id;	/* extended feature identification (register 28) */
 	unsigned short ext_mid;	/* extended modem ID (register 3C) */
+	const struct snd_ac97_res_table *res_table;	/* static resolution */
 	unsigned int scaps;	/* driver capabilities */
 	unsigned int flags;	/* specific code */
 	unsigned int rates[6];	/* see AC97_RATES_* defines */
 	unsigned int spdif_status;
 	unsigned short regs[0x80]; /* register cache */
-	unsigned int limited_regs; /* allow limited registers only */
 	DECLARE_BITMAP(reg_accessed, 0x80); /* bit flags */
 	union {			/* vendor specific code */
 		struct {

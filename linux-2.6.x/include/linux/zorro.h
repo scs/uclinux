@@ -11,8 +11,6 @@
 #ifndef _LINUX_ZORRO_H
 #define _LINUX_ZORRO_H
 
-#ifndef __ASSEMBLY__
-
 #include <linux/device.h>
 
 
@@ -111,45 +109,6 @@ struct ConfigDev {
     struct ConfigDev	*cd_NextCD;	/* linked list of drivers to config */
     __u32		cd_Unused[4];	/* for whatever the driver wants */
 } __attribute__ ((packed));
-
-#else /* __ASSEMBLY__ */
-
-LN_Succ		= 0
-LN_Pred		= LN_Succ+4
-LN_Type		= LN_Pred+4
-LN_Pri		= LN_Type+1
-LN_Name		= LN_Pri+1
-LN_sizeof	= LN_Name+4
-
-ER_Type		= 0
-ER_Product	= ER_Type+1
-ER_Flags	= ER_Product+1
-ER_Reserved03	= ER_Flags+1
-ER_Manufacturer	= ER_Reserved03+1
-ER_SerialNumber	= ER_Manufacturer+2
-ER_InitDiagVec	= ER_SerialNumber+4
-ER_Reserved0c	= ER_InitDiagVec+2
-ER_Reserved0d	= ER_Reserved0c+1
-ER_Reserved0e	= ER_Reserved0d+1
-ER_Reserved0f	= ER_Reserved0e+1
-ER_sizeof	= ER_Reserved0f+1
-
-CD_Node		= 0
-CD_Flags	= CD_Node+LN_sizeof
-CD_Pad		= CD_Flags+1
-CD_Rom		= CD_Pad+1
-CD_BoardAddr	= CD_Rom+ER_sizeof
-CD_BoardSize	= CD_BoardAddr+4
-CD_SlotAddr	= CD_BoardSize+4
-CD_SlotSize	= CD_SlotAddr+2
-CD_Driver	= CD_SlotSize+2
-CD_NextCD	= CD_Driver+4
-CD_Unused	= CD_NextCD+4
-CD_sizeof	= CD_Unused+(4*4)
-
-#endif /* __ASSEMBLY__ */
-
-#ifndef __ASSEMBLY__
 
 #define ZORRO_NUM_AUTO		16
 
@@ -271,39 +230,6 @@ static inline void zorro_set_drvdata (struct zorro_dev *z, void *data)
 }
 
 
-/*
- * A helper function which helps ensure correct zorro_driver
- * setup and cleanup for commonly-encountered hotplug/modular cases
- *
- * This MUST stay in a header, as it checks for -DMODULE
- */
-static inline int zorro_module_init(struct zorro_driver *drv)
-{
-	int rc = zorro_register_driver(drv);
-
-	if (rc > 0)
-		return 0;
-
-	/* iff CONFIG_HOTPLUG and built into kernel, we should
-	 * leave the driver around for future hotplug events.
-	 * For the module case, a hotplug daemon of some sort
-	 * should load a module in response to an insert event. */
-#if defined(CONFIG_HOTPLUG) && !defined(MODULE)
-	if (rc == 0)
-		return 0;
-#else
-	if (rc == 0)
-		rc = -ENODEV;
-#endif
-
-	/* if we get here, we need to clean up Zorro driver instance
-	 * and return some sort of error */
-	zorro_unregister_driver(drv);
-
-	return rc;
-}
-
-
     /*
      *  Bitmask indicating portions of available Zorro II RAM that are unused
      *  by the system. Every bit represents a 64K chunk, for a maximum of 8MB
@@ -323,7 +249,6 @@ extern DECLARE_BITMAP(zorro_unused_z2ram, 128);
 #define Z2RAM_CHUNKSHIFT	(16)
 
 
-#endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */
 
 #endif /* _LINUX_ZORRO_H */

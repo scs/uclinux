@@ -23,7 +23,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <asm/atomic.h>
 
@@ -188,6 +187,8 @@ extern void device_power_up(void);
 extern void device_resume(void);
 
 #ifdef CONFIG_PM
+extern suspend_disk_method_t pm_disk_mode;
+
 extern int device_suspend(pm_message_t state);
 
 #define device_set_wakeup_enable(dev,val) \
@@ -197,6 +198,12 @@ extern int device_suspend(pm_message_t state);
 
 extern int dpm_runtime_suspend(struct device *, pm_message_t);
 extern void dpm_runtime_resume(struct device *);
+extern void __suspend_report_result(const char *function, void *fn, int ret);
+
+#define suspend_report_result(fn, ret)					\
+	do {								\
+		__suspend_report_result(__FUNCTION__, fn, ret);		\
+	} while (0)
 
 #else /* !CONFIG_PM */
 
@@ -215,8 +222,9 @@ static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
 
 static inline void dpm_runtime_resume(struct device * dev)
 {
-
 }
+
+#define suspend_report_result(fn, ret) do { } while (0)
 
 #endif
 

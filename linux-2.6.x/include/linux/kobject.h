@@ -24,6 +24,7 @@
 #include <linux/rwsem.h>
 #include <linux/kref.h>
 #include <linux/kernel.h>
+#include <linux/wait.h>
 #include <asm/atomic.h>
 
 #define KOBJ_NAME_LEN			20
@@ -56,6 +57,7 @@ struct kobject {
 	struct kset		* kset;
 	struct kobj_type	* ktype;
 	struct dentry		* dentry;
+	wait_queue_head_t	poll;
 };
 
 extern int kobject_set_name(struct kobject *, const char *, ...)
@@ -79,6 +81,8 @@ extern void kobject_unregister(struct kobject *);
 
 extern struct kobject * kobject_get(struct kobject *);
 extern void kobject_put(struct kobject *);
+
+extern struct kobject *kobject_add_dir(struct kobject *, const char *);
 
 extern char * kobject_get_path(struct kobject *, gfp_t);
 
@@ -186,6 +190,8 @@ struct subsystem _varname##_subsys = { \
 
 /* The global /sys/kernel/ subsystem for people to chain off of */
 extern struct subsystem kernel_subsys;
+/* The global /sys/hypervisor/ subsystem  */
+extern struct subsystem hypervisor_subsys;
 
 /**
  * Helpers for setting the kset of registered objects.
@@ -253,9 +259,8 @@ struct subsys_attribute {
 };
 
 extern int subsys_create_file(struct subsystem * , struct subsys_attribute *);
-extern void subsys_remove_file(struct subsystem * , struct subsys_attribute *);
 
-#if defined(CONFIG_HOTPLUG) & defined(CONFIG_NET)
+#if defined(CONFIG_HOTPLUG)
 void kobject_uevent(struct kobject *kobj, enum kobject_action action);
 
 int add_uevent_var(char **envp, int num_envp, int *cur_index,

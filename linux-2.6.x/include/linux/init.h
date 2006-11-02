@@ -1,7 +1,6 @@
 #ifndef _LINUX_INIT_H
 #define _LINUX_INIT_H
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 
 /* These macros are used to mark some functions or 
@@ -69,6 +68,10 @@ extern initcall_t __security_initcall_start[], __security_initcall_end[];
 
 /* Defined in init/main.c */
 extern char saved_command_line[];
+
+/* used by init/main.c */
+extern void setup_arch(char **);
+
 #endif
   
 #ifndef MODULE
@@ -241,7 +244,8 @@ void __init parse_early_param(void);
 #define __cpuexitdata	__exitdata
 #endif
 
-#ifdef CONFIG_MEMORY_HOTPLUG
+#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
+	|| defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
 #define __meminit
 #define __meminitdata
 #define __memexit

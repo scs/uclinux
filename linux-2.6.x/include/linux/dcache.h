@@ -114,6 +114,18 @@ struct dentry {
 	unsigned char d_iname[DNAME_INLINE_LEN_MIN];	/* small names */
 };
 
+/*
+ * dentry->d_lock spinlock nesting subclasses:
+ *
+ * 0: normal
+ * 1: nested
+ */
+enum dentry_d_lock_class
+{
+	DENTRY_D_LOCK_NORMAL, /* implicitly used by plain spin_lock() APIs. */
+	DENTRY_D_LOCK_NESTED
+};
+
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, struct nameidata *);
 	int (*d_hash) (struct dentry *, struct qstr *);
@@ -161,6 +173,8 @@ d_iput:		no		no		no       yes
 
 #define DCACHE_REFERENCED	0x0008  /* Recently used, don't discard. */
 #define DCACHE_UNHASHED		0x0010	
+
+#define DCACHE_INOTIFY_PARENT_WATCHED	0x0020 /* Parent inode is watched */
 
 extern spinlock_t dcache_lock;
 
@@ -215,7 +229,6 @@ extern struct dentry * d_alloc_anon(struct inode *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 extern void shrink_dcache_sb(struct super_block *);
 extern void shrink_dcache_parent(struct dentry *);
-extern void shrink_dcache_anon(struct hlist_head *);
 extern int d_invalidate(struct dentry *);
 
 /* only used at mount-time */
@@ -273,6 +286,7 @@ extern void d_move(struct dentry *, struct dentry *);
 /* appendix may either be NULL or be used for transname suffixes */
 extern struct dentry * d_lookup(struct dentry *, struct qstr *);
 extern struct dentry * __d_lookup(struct dentry *, struct qstr *);
+extern struct dentry * d_hash_and_lookup(struct dentry *, struct qstr *);
 
 /* validate "insecure" dentry pointer */
 extern int d_validate(struct dentry *, struct dentry *);
