@@ -26,7 +26,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -66,9 +65,9 @@
 #define EXT_INTC1_REQ1 5 /* IP 5 */
 #define MIPS_TIMER_IP  7 /* IP 7 */
 
-extern asmlinkage void au1000_IRQ(void);
 extern void set_debug_traps(void);
 extern irq_cpustat_t irq_stat [NR_CPUS];
+extern void mips_timer_interrupt(struct pt_regs *regs);
 
 static void setup_local_irq(unsigned int irq, int type, int int_req);
 static unsigned int startup_irq(unsigned int irq);
@@ -252,7 +251,7 @@ void restore_local_and_enable(int controller, unsigned long mask)
 }
 
 
-static struct hw_interrupt_type rise_edge_irq_type = {
+static struct irq_chip rise_edge_irq_type = {
 	.typename = "Au1000 Rise Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -262,7 +261,7 @@ static struct hw_interrupt_type rise_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type fall_edge_irq_type = {
+static struct irq_chip fall_edge_irq_type = {
 	.typename = "Au1000 Fall Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -272,7 +271,7 @@ static struct hw_interrupt_type fall_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type either_edge_irq_type = {
+static struct irq_chip either_edge_irq_type = {
 	.typename = "Au1000 Rise or Fall Edge",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -282,7 +281,7 @@ static struct hw_interrupt_type either_edge_irq_type = {
 	.end = end_irq,
 };
 
-static struct hw_interrupt_type level_irq_type = {
+static struct irq_chip level_irq_type = {
 	.typename = "Au1000 Level",
 	.startup = startup_irq,
 	.shutdown = shutdown_irq,
@@ -310,7 +309,7 @@ void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_reg
 	 * can avoid it.  --cgray
 	*/
 	action.dev_id = handler;
-	action.flags = SA_INTERRUPT;
+	action.flags = IRQF_DISABLED;
 	cpus_clear(action.mask);
 	action.name = "Au1xxx TOY";
 	action.handler = handler;
@@ -333,31 +332,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &rise_edge_irq_type;
+				irq_desc[irq_nr].chip = &rise_edge_irq_type;
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].handler = &fall_edge_irq_type;
+				irq_desc[irq_nr].chip = &fall_edge_irq_type;
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &either_edge_irq_type;
+				irq_desc[irq_nr].chip = &either_edge_irq_type;
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1CLR);
 				au_writel(1<<(irq_nr-32), IC1_CFG0SET);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG2SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG1SET);
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<(irq_nr-32), IC1_CFG0CLR);
@@ -385,31 +384,31 @@ static void setup_local_irq(unsigned int irq_nr, int type, int int_req)
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &rise_edge_irq_type;
+				irq_desc[irq_nr].chip = &rise_edge_irq_type;
 				break;
 			case INTC_INT_FALL_EDGE: /* 0:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].handler = &fall_edge_irq_type;
+				irq_desc[irq_nr].chip = &fall_edge_irq_type;
 				break;
 			case INTC_INT_RISE_AND_FALL_EDGE: /* 0:1:1 */
 				au_writel(1<<irq_nr, IC0_CFG2CLR);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &either_edge_irq_type;
+				irq_desc[irq_nr].chip = &either_edge_irq_type;
 				break;
 			case INTC_INT_HIGH_LEVEL: /* 1:0:1 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1CLR);
 				au_writel(1<<irq_nr, IC0_CFG0SET);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_LOW_LEVEL: /* 1:1:0 */
 				au_writel(1<<irq_nr, IC0_CFG2SET);
 				au_writel(1<<irq_nr, IC0_CFG1SET);
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
-				irq_desc[irq_nr].handler = &level_irq_type;
+				irq_desc[irq_nr].chip = &level_irq_type;
 				break;
 			case INTC_INT_DISABLED: /* 0:0:0 */
 				au_writel(1<<irq_nr, IC0_CFG0CLR);
@@ -446,7 +445,6 @@ void __init arch_init_irq(void)
 	extern int au1xxx_ic0_nr_irqs;
 
 	cp0_status = read_c0_status();
-	set_except_vector(0, au1000_IRQ);
 
 	/* Initialize interrupt controllers to a safe state.
 	*/
@@ -586,13 +584,13 @@ void intc1_req1_irqdispatch(struct pt_regs *regs)
  * au_sleep function in power.c.....maybe I should just pm_register()
  * them instead?
  */
-static uint	sleep_intctl_config0[2];
-static uint	sleep_intctl_config1[2];
-static uint	sleep_intctl_config2[2];
-static uint	sleep_intctl_src[2];
-static uint	sleep_intctl_assign[2];
-static uint	sleep_intctl_wake[2];
-static uint	sleep_intctl_mask[2];
+static unsigned int	sleep_intctl_config0[2];
+static unsigned int	sleep_intctl_config1[2];
+static unsigned int	sleep_intctl_config2[2];
+static unsigned int	sleep_intctl_src[2];
+static unsigned int	sleep_intctl_assign[2];
+static unsigned int	sleep_intctl_wake[2];
+static unsigned int	sleep_intctl_mask[2];
 
 void
 save_au1xxx_intctl(void)
@@ -661,3 +659,21 @@ restore_au1xxx_intctl(void)
 	au_writel(sleep_intctl_mask[0], IC0_MASKSET); au_sync();
 }
 #endif /* CONFIG_PM */
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
+
+	if (pending & CAUSEF_IP7)
+		mips_timer_interrupt(regs);
+	else if (pending & CAUSEF_IP2)
+		intc0_req0_irqdispatch(regs);
+	else if (pending & CAUSEF_IP3)
+		intc0_req1_irqdispatch(regs);
+	else if (pending & CAUSEF_IP4)
+		intc1_req0_irqdispatch(regs);
+	else if (pending  & CAUSEF_IP5)
+		intc1_req1_irqdispatch(regs);
+	else
+		spurious_interrupt(regs);
+}

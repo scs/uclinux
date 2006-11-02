@@ -8,7 +8,6 @@
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/signal.h>
@@ -25,6 +24,7 @@
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/proc_fs.h>
+#include <linux/pfn.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
@@ -54,7 +54,8 @@ unsigned long empty_zero_page, zero_page_mask;
  */
 unsigned long setup_zero_pages(void)
 {
-	unsigned long order, size;
+	unsigned int order;
+	unsigned long size;
 	struct page *page;
 
 	if (cpu_has_vce)
@@ -67,9 +68,9 @@ unsigned long setup_zero_pages(void)
 		panic("Oh boy, that early out of memory?");
 
 	page = virt_to_page(empty_zero_page);
+	split_page(page, order);
 	while (page < virt_to_page(empty_zero_page + (PAGE_SIZE << order))) {
 		SetPageReserved(page);
-		set_page_count(page, 1);
 		page++;
 	}
 
@@ -138,10 +139,36 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 extern void pagetable_init(void);
 
+static int __init page_is_ram(unsigned long pagenr)
+{
+	int i;
+
+	for (i = 0; i < boot_mem_map.nr_map; i++) {
+		unsigned long addr, end;
+
+		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
+			/* not usable memory */
+			continue;
+
+		addr = PFN_UP(boot_mem_map.map[i].addr);
+		end = PFN_DOWN(boot_mem_map.map[i].addr +
+			       boot_mem_map.map[i].size);
+
+		if (pagenr >= addr && pagenr < end)
+			return 1;
+	}
+
+	return 0;
+}
+
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+	unsigned long zones_size[] = { [0 ... MAX_NR_ZONES - 1] = 0 };
 	unsigned long max_dma, high, low;
+#ifndef CONFIG_FLATMEM
+	unsigned long zholes_size[] = { [0 ... MAX_NR_ZONES - 1] = 0 };
+	unsigned long i, j, pfn;
+#endif
 
 	pagetable_init();
 
@@ -173,32 +200,16 @@ void __init paging_init(void)
 		zones_size[ZONE_HIGHMEM] = high - low;
 #endif
 
+#ifdef CONFIG_FLATMEM
 	free_area_init(zones_size);
-}
-
-#define PFN_UP(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
-#define PFN_DOWN(x)	((x) >> PAGE_SHIFT)
-
-static inline int page_is_ram(unsigned long pagenr)
-{
-	int i;
-
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		unsigned long addr, end;
-
-		if (boot_mem_map.map[i].type != BOOT_MEM_RAM)
-			/* not usable memory */
-			continue;
-
-		addr = PFN_UP(boot_mem_map.map[i].addr);
-		end = PFN_DOWN(boot_mem_map.map[i].addr +
-			       boot_mem_map.map[i].size);
-
-		if (pagenr >= addr && pagenr < end)
-			return 1;
-	}
-
-	return 0;
+#else
+	pfn = 0;
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		for (j = 0; j < zones_size[i]; j++, pfn++)
+			if (!page_is_ram(pfn))
+				zholes_size[i]++;
+	free_area_init_node(0, NODE_DATA(0), zones_size, 0, zholes_size);
+#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
@@ -215,9 +226,9 @@ void __init mem_init(void)
 #ifdef CONFIG_DISCONTIGMEM
 #error "CONFIG_HIGHMEM and CONFIG_DISCONTIGMEM dont work together yet"
 #endif
-	max_mapnr = num_physpages = highend_pfn;
+	max_mapnr = highend_pfn;
 #else
-	max_mapnr = num_physpages = max_low_pfn;
+	max_mapnr = max_low_pfn;
 #endif
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
@@ -228,9 +239,10 @@ void __init mem_init(void)
 	for (tmp = 0; tmp < max_low_pfn; tmp++)
 		if (page_is_ram(tmp)) {
 			ram++;
-			if (PageReserved(mem_map+tmp))
+			if (PageReserved(pfn_to_page(tmp)))
 				reservedpages++;
 		}
+	num_physpages = ram;
 
 #ifdef CONFIG_HIGHMEM
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
@@ -244,11 +256,12 @@ void __init mem_init(void)
 #ifdef CONFIG_LIMITED_DMA
 		set_page_address(page, lowmem_page_address(page));
 #endif
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;
 	}
 	totalram_pages += totalhigh_pages;
+	num_physpages += totalhigh_pages;
 #endif
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
@@ -277,6 +290,20 @@ void __init mem_init(void)
 }
 #endif /* !CONFIG_NEED_MULTIPLE_NODES */
 
+void free_init_pages(char *what, unsigned long begin, unsigned long end)
+{
+	unsigned long addr;
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE) {
+		ClearPageReserved(virt_to_page(addr));
+		init_page_count(virt_to_page(addr));
+		memset((void *)addr, 0xcc, PAGE_SIZE);
+		free_page(addr);
+		totalram_pages++;
+	}
+	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+}
+
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
@@ -285,16 +312,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	start = (unsigned long)phys_to_virt(CPHYSADDR(start));
 	end = (unsigned long)phys_to_virt(CPHYSADDR(end));
 #endif
-	if (start < end)
-		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
-		       (end - start) >> 10);
-
-	for (; start < end; start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
-		free_page(start);
-		totalram_pages++;
-	}
+	free_init_pages("initrd memory", start, end);
 }
 #endif
 
@@ -302,24 +320,17 @@ extern unsigned long prom_free_prom_memory(void);
 
 void free_initmem(void)
 {
-	unsigned long addr, page, freed;
+	unsigned long start, end, freed;
 
 	freed = prom_free_prom_memory();
+	if (freed)
+		printk(KERN_INFO "Freeing firmware memory: %ldk freed\n",freed);
 
-	addr = (unsigned long) &__init_begin;
-	while (addr < (unsigned long) &__init_end) {
+	start = (unsigned long)(&__init_begin);
+	end = (unsigned long)(&__init_end);
 #ifdef CONFIG_64BIT
-		page = PAGE_OFFSET | CPHYSADDR(addr);
-#else
-		page = addr;
+	start = PAGE_OFFSET | CPHYSADDR(start);
+	end = PAGE_OFFSET | CPHYSADDR(end);
 #endif
-		ClearPageReserved(virt_to_page(page));
-		set_page_count(virt_to_page(page), 1);
-		free_page(page);
-		totalram_pages++;
-		freed += PAGE_SIZE;
-		addr += PAGE_SIZE;
-	}
-	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
-	       freed >> 10);
+	free_init_pages("unused kernel memory", start, end);
 }

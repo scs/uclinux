@@ -8,7 +8,6 @@
  * Moved 8/20/1999 Sam Creasey
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -203,7 +202,7 @@ void __init paging_init(void)
 {
 	int chunk;
 	unsigned long mem_avail = 0;
-	unsigned long zones_size[3] = { 0, };
+	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
 
 #ifdef DEBUG
 	{
@@ -257,12 +256,12 @@ void __init paging_init(void)
 #ifdef DEBUG
 	printk ("before free_area_init\n");
 #endif
-	zones_size[0] = (mach_max_dma_address < (unsigned long)high_memory ?
-			 (mach_max_dma_address+1) : (unsigned long)high_memory);
-	zones_size[1] = (unsigned long)high_memory - zones_size[0];
+	zones_size[ZONE_DMA] = (mach_max_dma_address < (unsigned long)high_memory ?
+				(mach_max_dma_address+1) : (unsigned long)high_memory);
+	zones_size[ZONE_NORMAL] = (unsigned long)high_memory - zones_size[0];
 
-	zones_size[0] = (zones_size[0] - PAGE_OFFSET) >> PAGE_SHIFT;
-	zones_size[1] >>= PAGE_SHIFT;
+	zones_size[ZONE_DMA] = (zones_size[ZONE_DMA] - PAGE_OFFSET) >> PAGE_SHIFT;
+	zones_size[ZONE_NORMAL] >>= PAGE_SHIFT;
 
 	free_area_init(zones_size);
 }
@@ -276,7 +275,7 @@ void free_initmem(void)
 	addr = (unsigned long)&__init_begin;
 	for (; addr < (unsigned long)&__init_end; addr += PAGE_SIZE) {
 		virt_to_page(addr)->flags &= ~(1 << PG_reserved);
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		totalram_pages++;
 	}

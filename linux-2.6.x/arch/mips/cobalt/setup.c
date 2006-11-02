@@ -9,7 +9,6 @@
  * Copyright (C) 2001, 2002, 2003 by Liam Davies (ldavies@agile.tv)
  *
  */
-#include <linux/config.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -31,6 +30,7 @@
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
 extern void cobalt_machine_power_off(void);
+extern void cobalt_early_console(void);
 
 int cobalt_board_id;
 
@@ -49,7 +49,7 @@ const char *get_system_type(void)
 	return "MIPS Cobalt";
 }
 
-static void __init cobalt_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* Load timer value for 1KHz (TCLK is 50MHz) */
 	GALILEO_OUTL(50*1000*1000 / 1000, GT_TC0_OFS);
@@ -67,19 +67,46 @@ static void __init cobalt_timer_setup(struct irqaction *irq)
 extern struct pci_ops gt64111_pci_ops;
 
 static struct resource cobalt_mem_resource = {
-	"PCI memory", GT64111_MEM_BASE, GT64111_MEM_END, IORESOURCE_MEM
+	.start	= GT64111_MEM_BASE,
+	.end	= GT64111_MEM_END,
+	.name	= "PCI memory",
+	.flags	= IORESOURCE_MEM
 };
 
 static struct resource cobalt_io_resource = {
-	"PCI I/O", 0x1000, 0xffff, IORESOURCE_IO
+	.start	= 0x1000,
+	.end	= 0xffff,
+	.name	= "PCI I/O",
+	.flags	= IORESOURCE_IO
 };
 
 static struct resource cobalt_io_resources[] = {
-	{ "dma1", 0x00, 0x1f, IORESOURCE_BUSY },
-	{ "timer", 0x40, 0x5f, IORESOURCE_BUSY },
-	{ "keyboard", 0x60, 0x6f, IORESOURCE_BUSY },
-	{ "dma page reg", 0x80, 0x8f, IORESOURCE_BUSY },
-	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
+	{
+		.start	= 0x00,
+		.end	= 0x1f,
+		.name	= "dma1",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x40,
+		.end	= 0x5f,
+		.name	= "timer",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x60,
+		.end	= 0x6f,
+		.name	= "keyboard",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0x80,
+		.end	= 0x8f,
+		.name	= "dma page reg",
+		.flags	= IORESOURCE_BUSY
+	}, {
+		.start	= 0xc0,
+		.end	= 0xdf,
+		.name	= "dma2",
+		.flags	= IORESOURCE_BUSY
+	},
 };
 
 #define COBALT_IO_RESOURCES (sizeof(cobalt_io_resources)/sizeof(struct resource))
@@ -92,7 +119,7 @@ static struct pci_controller cobalt_pci_controller = {
 	.io_offset	= 0 - GT64111_IO_BASE
 };
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	static struct uart_port uart;
 	unsigned int devfn = PCI_DEVFN(COBALT_PCICONF_VIA, 0);
@@ -102,20 +129,10 @@ void __init plat_setup(void)
 	_machine_halt = cobalt_machine_halt;
 	pm_power_off = cobalt_machine_power_off;
 
-	board_timer_setup = cobalt_timer_setup;
-
         set_io_port_base(CKSEG1ADDR(GT64111_IO_BASE));
 
 	/* I/O port resource must include UART and LCD/buttons */
 	ioport_resource.end = 0x0fffffff;
-
-	/*
-	 * This is a prom style console. We just poke at the
-	 *  UART to make it talk.
-	 * Only use this console if you really screw up and can't
-	 *  get to the stage of setting up a real serial console.
-	 */
-	/*ns16550_setup_console();*/
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < COBALT_IO_RESOURCES; i++)
@@ -135,6 +152,10 @@ void __init plat_setup(void)
 
 #ifdef CONFIG_SERIAL_8250
 	if (cobalt_board_id > COBALT_BRD_ID_RAQ1) {
+
+#ifdef CONFIG_EARLY_PRINTK
+		cobalt_early_console();
+#endif
 
 		uart.line	= 0;
 		uart.type	= PORT_UNKNOWN;

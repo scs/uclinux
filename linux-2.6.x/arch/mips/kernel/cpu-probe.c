@@ -11,7 +11,6 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -121,6 +120,7 @@ static inline void check_wait(void)
 	case CPU_24K:
 	case CPU_25KF:
 	case CPU_34K:
+	case CPU_74K:
  	case CPU_PR4450:
 		cpu_wait = r4k_wait;
 		printk(" available.\n");
@@ -291,7 +291,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 		 * for documentation.  Commented out because it shares
 		 * it's c0_prid id number with the TX3900.
 		 */
- 		c->cputype = CPU_R4650;
+		c->cputype = CPU_R4650;
 	 	c->isa_level = MIPS_CPU_ISA_III;
 		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_LLSC;
 	        c->tlbsize = 48;
@@ -432,6 +432,15 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c)
 		             MIPS_CPU_LLSC;
 		c->tlbsize = 64;
 		break;
+	case PRID_IMP_R14000:
+		c->cputype = CPU_R14000;
+		c->isa_level = MIPS_CPU_ISA_IV;
+		c->options = MIPS_CPU_TLB | MIPS_CPU_4K_CACHE | MIPS_CPU_4KEX |
+		             MIPS_CPU_FPU | MIPS_CPU_32FPR |
+			     MIPS_CPU_COUNTER | MIPS_CPU_WATCH |
+		             MIPS_CPU_LLSC;
+		c->tlbsize = 64;
+		break;
 	}
 }
 
@@ -450,7 +459,7 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 	isa = (config0 & MIPS_CONF_AT) >> 13;
 	switch (isa) {
 	case 0:
-		switch ((config0 >> 10) & 7) {
+		switch ((config0 & MIPS_CONF_AR) >> 10) {
 		case 0:
 			c->isa_level = MIPS_CPU_ISA_M32R1;
 			break;
@@ -462,7 +471,7 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 		}
 		break;
 	case 2:
-		switch ((config0 >> 10) & 7) {
+		switch ((config0 & MIPS_CONF_AR) >> 10) {
 		case 0:
 			c->isa_level = MIPS_CPU_ISA_M64R1;
 			break;
@@ -539,7 +548,7 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 	return config3 & MIPS_CONF_M;
 }
 
-static inline void decode_configs(struct cpuinfo_mips *c)
+static void __init decode_configs(struct cpuinfo_mips *c)
 {
 	/* MIPS32 or MIPS64 compliant CPU.  */
 	c->options = MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE | MIPS_CPU_COUNTER |
@@ -587,11 +596,12 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		break;
 	case PRID_IMP_25KF:
 		c->cputype = CPU_25KF;
-		/* Probe for L2 cache */
-		c->scache.flags &= ~MIPS_CACHE_NOT_PRESENT;
 		break;
 	case PRID_IMP_34K:
 		c->cputype = CPU_34K;
+		break;
+	case PRID_IMP_74K:
+		c->cputype = CPU_74K;
 		break;
 	}
 }
@@ -604,7 +614,7 @@ static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
 	case PRID_IMP_AU1_REV2:
 		switch ((c->processor_id >> 24) & 0xff) {
 		case 0:
- 			c->cputype = CPU_AU1000;
+			c->cputype = CPU_AU1000;
 			break;
 		case 1:
 			c->cputype = CPU_AU1500;
@@ -642,7 +652,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
 		/* FPU in pass1 is known to have issues. */
-		if ((c->processor_id & 0xff) < 0x20)
+		if ((c->processor_id & 0xff) < 0x02)
 			c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 		break;
 	case PRID_IMP_SB1A:
@@ -705,7 +715,7 @@ __init void cpu_probe(void)
 		break;
  	case PRID_COMP_PHILIPS:
 		cpu_probe_philips(c);
- 		break;
+		break;
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}

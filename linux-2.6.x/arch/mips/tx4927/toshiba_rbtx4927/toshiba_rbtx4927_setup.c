@@ -42,7 +42,6 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -1036,8 +1035,8 @@ toshiba_rbtx4927_time_init(void)
 
 #ifdef CONFIG_RTC_DS1742
 
-	rtc_get_time = rtc_ds1742_get_time;
-	rtc_set_time = rtc_ds1742_set_time;
+	rtc_mips_get_time = rtc_ds1742_get_time;
+	rtc_mips_set_time = rtc_ds1742_set_time;
 
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT,
 				       ":rtc_ds1742_init()-\n");

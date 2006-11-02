@@ -8,11 +8,12 @@
  * Copyright (C) 2001 MIPS Technologies, Inc.
  * Copyright (C) 2002 Maciej W. Rozycki
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/asm.h>
+#include <asm/asmmacro.h>
 #include <asm/cacheops.h>
+#include <asm/irqflags.h>
 #include <asm/regdef.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
@@ -122,6 +123,21 @@ handle_vcei:
 	.set	pop
 	END(except_vec3_r4000)
 
+	__FINIT
+
+	.align  5
+NESTED(handle_int, PT_SIZE, sp)
+	SAVE_ALL
+	CLI
+	TRACE_IRQS_OFF
+
+	PTR_LA	ra, ret_from_irq
+	move	a0, sp
+	j	plat_irq_dispatch
+	END(handle_int)
+
+	__INIT
+
 /*
  * Special interrupt vector for MIPS64 ISA & embedded MIPS processors.
  * This is a dedicated interrupt exception vector which reduces the
@@ -157,6 +173,15 @@ NESTED(except_vec_vi, 0, sp)
 	SAVE_AT
 	.set	push
 	.set	noreorder
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * To keep from blindly blocking *all* interrupts
+	 * during service by SMTC kernel, we also want to
+	 * pass the IM value to be cleared.
+	 */
+EXPORT(except_vec_vi_mori)
+	ori	a0, $0, 0
+#endif /* CONFIG_MIPS_MT_SMTC */
 EXPORT(except_vec_vi_lui)
 	lui	v0, 0		/* Patched */
 	j	except_vec_vi_handler
@@ -173,7 +198,27 @@ EXPORT(except_vec_vi_end)
 NESTED(except_vec_vi_handler, 0, sp)
 	SAVE_TEMP
 	SAVE_STATIC
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 * SMTC has an interesting problem that interrupts are level-triggered,
+	 * and the CLI macro will clear EXL, potentially causing a duplicate
+	 * interrupt service invocation. So we need to clear the associated
+	 * IM bit of Status prior to doing CLI, and restore it after the
+	 * service routine has been invoked - we must assume that the
+	 * service routine will have cleared the state, and any active
+	 * level represents a new or otherwised unserviced event...
+	 */
+	mfc0	t1, CP0_STATUS
+	and	t0, a0, t1
+	mfc0	t2, CP0_TCCONTEXT
+	or	t0, t0, t2
+	mtc0	t0, CP0_TCCONTEXT
+	xor	t1, t1, t0
+	mtc0	t1, CP0_STATUS
+	_ehb
+#endif /* CONFIG_MIPS_MT_SMTC */
 	CLI
+	TRACE_IRQS_OFF
 	move	a0, sp
 	jalr	v0
 	j	ret_from_irq
@@ -246,11 +291,13 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.endm
 
 	.macro	__build_clear_sti
+	TRACE_IRQS_ON
 	STI
 	.endm
 
 	.macro	__build_clear_cli
 	CLI
+	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_fpe
@@ -258,6 +305,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	li	a2, ~(0x3f << 12)
 	and	a2, a1
 	ctc1	a2, fcr31
+	TRACE_IRQS_ON
 	STI
 	.endm
 
@@ -323,7 +371,7 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 	BUILD_HANDLER watch watch sti verbose		/* #23 */
 	BUILD_HANDLER mcheck mcheck cli verbose		/* #24 */
-	BUILD_HANDLER mt mt sti verbose			/* #25 */
+	BUILD_HANDLER mt mt sti silent			/* #25 */
 	BUILD_HANDLER dsp dsp sti silent		/* #26 */
 	BUILD_HANDLER reserved reserved sti verbose	/* others */
 

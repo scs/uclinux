@@ -51,7 +51,7 @@ static unsigned int startup_8259A_irq(unsigned int irq)
 	return 0; /* never anything pending */
 }
 
-static struct hw_interrupt_type i8259A_irq_type = {
+static struct irq_chip i8259A_irq_type = {
 	.typename = "XT-PIC",
 	.startup = startup_8259A_irq,
 	.shutdown = shutdown_8259A_irq,
@@ -120,7 +120,7 @@ int i8259A_irq_pending(unsigned int irq)
 void make_8259A_irq(unsigned int irq)
 {
 	disable_irq_nosync(irq);
-	irq_desc[irq].handler = &i8259A_irq_type;
+	irq_desc[irq].chip = &i8259A_irq_type;
 	enable_irq(irq);
 }
 
@@ -187,6 +187,10 @@ handle_real_irq:
 		outb(cached_21,0x21);
 		outb(0x60+irq,0x20);	/* 'Specific EOI' to master */
 	}
+#ifdef CONFIG_MIPS_MT_SMTC
+        if (irq_hwmask[irq] & ST0_IM)
+        	set_c0_status(irq_hwmask[irq] & ST0_IM);
+#endif /* CONFIG_MIPS_MT_SMTC */
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 	return;
 
@@ -298,11 +302,11 @@ static struct irqaction irq2 = {
 };
 
 static struct resource pic1_io_resource = {
-	"pic1", 0x20, 0x3f, IORESOURCE_BUSY
+	.name = "pic1", .start = 0x20, .end = 0x3f, .flags = IORESOURCE_BUSY
 };
 
 static struct resource pic2_io_resource = {
-	"pic2", 0xa0, 0xbf, IORESOURCE_BUSY
+	.name = "pic2", .start = 0xa0, .end = 0xbf, .flags = IORESOURCE_BUSY
 };
 
 /*
@@ -323,7 +327,7 @@ void __init init_i8259_irqs (void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = NULL;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &i8259A_irq_type;
+		irq_desc[i].chip = &i8259A_irq_type;
 	}
 
 	setup_irq(2, &irq2);

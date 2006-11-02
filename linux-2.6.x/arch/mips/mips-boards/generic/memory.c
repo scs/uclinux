@@ -18,14 +18,15 @@
  * PROM library functions for acquiring/using memory descriptors given to
  * us from the YAMON.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/pfn.h>
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
+#include <asm/sections.h>
 
 #include <asm/mips-boards/prom.h>
 
@@ -46,11 +47,8 @@ static char *mtypes[3] = {
 };
 #endif
 
-/* References to section boundaries */
-extern char _end;
-
-#define PFN_ALIGN(x)    (((unsigned long)(x) + (PAGE_SIZE - 1)) & PAGE_MASK)
-
+/* determined physical memory size, not overridden by command line args  */
+unsigned long physical_memsize = 0L;
 
 struct prom_pmemblock * __init prom_getmdesc(void)
 {
@@ -58,28 +56,36 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 	unsigned int memsize;
 	char cmdline[CL_SIZE], *ptr;
 
-	/* Check the command line first for a memsize directive */
+	/* otherwise look in the environment */
+	memsize_str = prom_getenv("memsize");
+	if (!memsize_str) {
+		prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
+		physical_memsize = 0x02000000;
+	} else {
+#ifdef DEBUG
+		prom_printf("prom_memsize = %s\n", memsize_str);
+#endif
+		physical_memsize = simple_strtol(memsize_str, NULL, 0);
+	}
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	/* SOC-it swaps, or perhaps doesn't swap, when DMA'ing the last
+	   word of physical memory */
+	physical_memsize -= PAGE_SIZE;
+#endif
+
+	/* Check the command line for a memsize directive that overrides
+	   the physical/default amount */
 	strcpy(cmdline, arcs_cmdline);
 	ptr = strstr(cmdline, "memsize=");
 	if (ptr && (ptr != cmdline) && (*(ptr - 1) != ' '))
 		ptr = strstr(ptr, " memsize=");
 
-	if (ptr) {
+	if (ptr)
 		memsize = memparse(ptr + 8, &ptr);
-	}
-	else {
-		/* otherwise look in the environment */
-		memsize_str = prom_getenv("memsize");
-		if (!memsize_str) {
-			prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
-			memsize = 0x02000000;
-		} else {
-#ifdef DEBUG
-			prom_printf("prom_memsize = %s\n", memsize_str);
-#endif
-			memsize = simple_strtol(memsize_str, NULL, 0);
-		}
-	}
+	else
+		memsize = physical_memsize;
+
 	memset(mdesc, 0, sizeof(mdesc));
 
 	mdesc[0].type = yamon_dontuse;
@@ -109,7 +115,7 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 
 	mdesc[3].type = yamon_dontuse;
 	mdesc[3].base = 0x00100000;
-	mdesc[3].size = CPHYSADDR(PFN_ALIGN(&_end)) - mdesc[3].base;
+	mdesc[3].size = CPHYSADDR(PFN_ALIGN((unsigned long)&_end)) - mdesc[3].base;
 
 	mdesc[4].type = yamon_free;
 	mdesc[4].base = CPHYSADDR(PFN_ALIGN(&_end));
@@ -174,7 +180,7 @@ unsigned long __init prom_free_prom_memory(void)
 		while (addr < boot_mem_map.map[i].addr
 			      + boot_mem_map.map[i].size) {
 			ClearPageReserved(virt_to_page(__va(addr)));
-			set_page_count(virt_to_page(__va(addr)), 1);
+			init_page_count(virt_to_page(__va(addr)));
 			free_page((unsigned long)__va(addr));
 			addr += PAGE_SIZE;
 			freed += PAGE_SIZE;

@@ -11,7 +11,6 @@
  *
  * Support for TX4938 in 2.6 - Manish Lachwani (mlachwani@mvista.com)
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
@@ -664,7 +663,10 @@ static struct resource rbtx4938_fpga_resource;
 
 static char pcode_str[8];
 static struct resource tx4938_reg_resource = {
-	pcode_str, TX4938_REG_BASE, TX4938_REG_BASE+TX4938_REG_SIZE, IORESOURCE_MEM
+	.start	= TX4938_REG_BASE,
+	.end	= TX4938_REG_BASE + TX4938_REG_SIZE,
+	.name	= pcode_str,
+	.flags	= IORESOURCE_MEM
 };
 
 void __init tx4938_board_setup(void)
@@ -684,7 +686,7 @@ void __init tx4938_board_setup(void)
 	for (i = 0; i < 8; i++) {
 		if (!(tx4938_ebuscptr->cr[i] & 0x8))
 			continue;	/* disabled */
- 		rbtx4938_ce_base[i] = (unsigned long)TX4938_EBUSC_BA(i);
+		rbtx4938_ce_base[i] = (unsigned long)TX4938_EBUSC_BA(i);
 		txboard_add_phys_region(rbtx4938_ce_base[i], TX4938_EBUSC_SIZE(i));
 	}
 

@@ -15,7 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -70,7 +69,7 @@ extern char sb1250_duart_present[];
 #endif
 #endif
 
-static struct hw_interrupt_type sb1250_irq_type = {
+static struct irq_chip sb1250_irq_type = {
 	.typename = "SB1250-IMR",
 	.startup = startup_sb1250_irq,
 	.shutdown = shutdown_sb1250_irq,
@@ -121,7 +120,7 @@ static void sb1250_set_affinity(unsigned int irq, cpumask_t mask)
 {
 	int i = 0, old_cpu, cpu, int_on;
 	u64 cur_ints;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 
 	i = first_cpu(mask);
@@ -162,10 +161,6 @@ static void sb1250_set_affinity(unsigned int irq, cpumask_t mask)
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
 #endif
-
-
-/* Defined in arch/mips/sibyte/sb1250/irq_handler.S */
-extern void sb1250_irq_handler(void);
 
 /*****************************************************************************/
 
@@ -250,10 +245,10 @@ void __init init_sb1250_irqs(void)
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
 		if (i < SB1250_NR_IRQS) {
-			irq_desc[i].handler = &sb1250_irq_type;
+			irq_desc[i].chip = &sb1250_irq_type;
 			sb1250_irq_owner[i] = 0;
 		} else {
-			irq_desc[i].handler = &no_irq_type;
+			irq_desc[i].chip = &no_irq_chip;
 		}
 	}
 }
@@ -276,7 +271,7 @@ static struct irqaction sb1250_dummy_action = {
 
 int sb1250_steal_irq(int irq)
 {
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_desc + irq;
 	unsigned long flags;
 	int retval = 0;
 
@@ -379,7 +374,6 @@ void __init arch_init_irq(void)
 #endif
 	/* Enable necessary IPs, disable the rest */
 	change_c0_status(ST0_IM, imask);
-	set_except_vector(0, sb1250_irq_handler);
 
 #ifdef CONFIG_KGDB
 	if (kgdb_flag) {
@@ -409,7 +403,7 @@ void __init arch_init_irq(void)
 #define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 #define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
 
-void sb1250_kgdb_interrupt(struct pt_regs *regs)
+static void sb1250_kgdb_interrupt(struct pt_regs *regs)
 {
 	/*
 	 * Clear break-change status (allow some time for the remote
@@ -424,3 +418,78 @@ void sb1250_kgdb_interrupt(struct pt_regs *regs)
 }
 
 #endif 	/* CONFIG_KGDB */
+
+static inline int dclz(unsigned long long x)
+{
+	int lz;
+
+	__asm__ (
+	"	.set	push						\n"
+	"	.set	mips64						\n"
+	"	dclz	%0, %1						\n"
+	"	.set	pop						\n"
+	: "=r" (lz)
+	: "r" (x));
+
+	return lz;
+}
+
+extern void sb1250_timer_interrupt(struct pt_regs *regs);
+extern void sb1250_mailbox_interrupt(struct pt_regs *regs);
+extern void sb1250_kgdb_interrupt(struct pt_regs *regs);
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending;
+
+#ifdef CONFIG_SIBYTE_SB1250_PROF
+	/* Set compare to count to silence count/compare timer interrupts */
+	write_c0_compare(read_c0_count());
+#endif
+
+	/*
+	 * What a pain. We have to be really careful saving the upper 32 bits
+	 * of any * register across function calls if we don't want them
+	 * trashed--since were running in -o32, the calling routing never saves
+	 * the full 64 bits of a register across a function call.  Being the
+	 * interrupt handler, we're guaranteed that interrupts are disabled
+	 * during this code so we don't have to worry about random interrupts
+	 * blasting the high 32 bits.
+	 */
+
+	pending = read_c0_cause();
+
+#ifdef CONFIG_SIBYTE_SB1250_PROF
+	if (pending & CAUSEF_IP7) /* Cpu performance counter interrupt */
+		sbprof_cpu_intr(exception_epc(regs));
+	else
+#endif
+
+	if (pending & CAUSEF_IP4)
+		sb1250_timer_interrupt(regs);
+
+#ifdef CONFIG_SMP
+	else if (pending & CAUSEF_IP3)
+		sb1250_mailbox_interrupt(regs);
+#endif
+
+#ifdef CONFIG_KGDB
+	else if (pending & CAUSEF_IP6)			/* KGDB (uart 1) */
+		sb1250_kgdb_interrupt(regs);
+#endif
+
+	else if (pending & CAUSEF_IP2) {
+		unsigned long long mask;
+
+		/*
+		 * Default...we've hit an IP[2] interrupt, which means we've
+		 * got to check the 1250 interrupt registers to figure out what
+		 * to do.  Need to detect which CPU we're on, now that
+		 * smp_affinity is supported.
+		 */
+		mask = __raw_readq(IOADDR(A_IMR_REGISTER(smp_processor_id(),
+		                              R_IMR_INTERRUPT_STATUS_BASE)));
+		if (mask)
+			do_IRQ(63 - dclz(mask), regs);
+	}
+}

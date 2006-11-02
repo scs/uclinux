@@ -23,7 +23,6 @@
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/sched.h>
@@ -37,8 +36,6 @@
 #include <asm/gdb-stub.h>
 #include <int.h>
 #include <uart.h>
-
-extern asmlinkage void cp0_irqdispatch(void);
 
 static DEFINE_SPINLOCK(irq_lock);
 
@@ -55,7 +52,7 @@ static char gic_prio[PNX8550_INT_GIC_TOTINT] = {
 	1			//  70
 };
 
-void hw0_irqdispatch(int irq, struct pt_regs *regs)
+static void hw0_irqdispatch(int irq, struct pt_regs *regs)
 {
 	/* find out which interrupt */
 	irq = PNX8550_GIC_VECTOR_0 >> 3;
@@ -68,7 +65,7 @@ void hw0_irqdispatch(int irq, struct pt_regs *regs)
 }
 
 
-void timer_irqdispatch(int irq, struct pt_regs *regs)
+static void timer_irqdispatch(int irq, struct pt_regs *regs)
 {
 	irq = (0x01c0 & read_c0_config7()) >> 6;
 
@@ -86,6 +83,20 @@ void timer_irqdispatch(int irq, struct pt_regs *regs)
 	if (irq & 0x4) {
 		do_IRQ(PNX8550_INT_TIMER3, regs);
 	}
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause();
+
+	if (pending & STATUSF_IP2)
+		do_IRQ(2, regs);
+	else if (pending & STATUSF_IP7) {
+		if (read_c0_config7() & 0x01c0)
+			timer_irqdispatch(7, regs);
+	}
+
+	spurious_interrupt(regs);
 }
 
 static inline void modify_cp0_intmask(unsigned clr_mask, unsigned set_mask)
@@ -196,7 +207,7 @@ static void end_irq(unsigned int irq)
 	}
 }
 
-static struct hw_interrupt_type level_irq_type = {
+static struct irq_chip level_irq_type = {
 	.typename =	"PNX Level IRQ",
 	.startup =	startup_irq,
 	.shutdown =	shutdown_irq,
@@ -208,13 +219,13 @@ static struct hw_interrupt_type level_irq_type = {
 
 static struct irqaction gic_action = {
 	.handler =	no_action,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"GIC",
 };
 
 static struct irqaction timer_action = {
 	.handler =	no_action,
-	.flags =	SA_INTERRUPT,
+	.flags =	IRQF_DISABLED,
 	.name =		"Timer",
 };
 
@@ -223,11 +234,8 @@ void __init arch_init_irq(void)
 	int i;
 	int configPR;
 
-	/* init of cp0 interrupts */
-	set_except_vector(0, cp0_irqdispatch);
-
 	for (i = 0; i < PNX8550_INT_CP0_TOTINT; i++) {
-		irq_desc[i].handler = &level_irq_type;
+		irq_desc[i].chip = &level_irq_type;
 		pnx8550_ack(i);	/* mask the irq just in case  */
 	}
 
@@ -251,7 +259,7 @@ void __init arch_init_irq(void)
 		if (gic_int_line == (PNX8550_INT_GPIO0 - PNX8550_INT_GIC_MIN)) {
 			/* PCI INT through gpio 8, which is setup in
 			 * pnx8550_setup.c and routed to GPIO
- 			 * Interrupt Level 0 (GPIO Connection 58).
+			 * Interrupt Level 0 (GPIO Connection 58).
 			 * Set it active low. */
 
 			PNX8550_GIC_REQ(gic_int_line) = 0x1E020000;
@@ -264,7 +272,7 @@ void __init arch_init_irq(void)
 		/* mask/priority is still 0 so we will not get any
 		 * interrupts until it is unmasked */
 
-		irq_desc[i].handler = &level_irq_type;
+		irq_desc[i].chip = &level_irq_type;
 	}
 
 	/* Priority level 0 */
@@ -273,12 +281,12 @@ void __init arch_init_irq(void)
 	/* Set int vector table address */
 	PNX8550_GIC_VECTOR_0 = PNX8550_GIC_VECTOR_1 = 0;
 
-	irq_desc[MIPS_CPU_GIC_IRQ].handler = &level_irq_type;
+	irq_desc[MIPS_CPU_GIC_IRQ].chip = &level_irq_type;
 	setup_irq(MIPS_CPU_GIC_IRQ, &gic_action);
 
 	/* init of Timer interrupts */
 	for (i = PNX8550_INT_TIMER_MIN; i <= PNX8550_INT_TIMER_MAX; i++) {
-		irq_desc[i].handler = &level_irq_type;
+		irq_desc[i].chip = &level_irq_type;
 	}
 
 	/* Stop Timer 1-3 */
@@ -286,7 +294,7 @@ void __init arch_init_irq(void)
 	configPR |= 0x00000038;
 	write_c0_config7(configPR);
 
-	irq_desc[MIPS_CPU_TIMER_IRQ].handler = &level_irq_type;
+	irq_desc[MIPS_CPU_TIMER_IRQ].chip = &level_irq_type;
 	setup_irq(MIPS_CPU_TIMER_IRQ, &timer_action);
 }
 

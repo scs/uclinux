@@ -30,7 +30,6 @@
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -174,7 +173,7 @@ int request_au1000_dma(int dev_id, const char *dev_str,
 		return -EINVAL;
 #else
  	if (dev_id < 0 || dev_id >= DMA_NUM_DEV)
- 		return -EINVAL;
+		return -EINVAL;
 #endif
 
 	for (i = 0; i < NUM_AU1000_DMA_CHANNELS; i++) {

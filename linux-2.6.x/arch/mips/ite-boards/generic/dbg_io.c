@@ -1,5 +1,4 @@
 
-#include <linux/config.h>
 
 #ifdef CONFIG_KGDB
 
@@ -72,7 +71,7 @@ void debugInit(uint32 baud, uint8 data, uint8 parity, uint8 stop)
 	/* disable interrupts */
 	UART16550_WRITE(OFS_INTR_ENABLE, 0);
 
-	/* set up buad rate */
+	/* set up baud rate */
 	{
 		uint32 divisor;
 

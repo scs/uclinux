@@ -22,7 +22,6 @@
  *
  * Lasat specific setup.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -116,12 +115,9 @@ static void lasat_time_init(void)
 	mips_hpt_frequency = lasat_board_info.li_cpu_hz / 2;
 }
 
-static void lasat_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
-
-	write_c0_compare(
-		read_c0_count() +
-		mips_hpt_frequency / HZ);
+	write_c0_compare( read_c0_count() + mips_hpt_frequency / HZ);
 	change_c0_status(ST0_IM, IE_IRQ0 | IE_IRQ5);
 }
 
@@ -155,7 +151,7 @@ void __init serial_init(void)
 }
 #endif
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	int i;
 	lasat_misc  = &lasat_misc_info[mips_machtype];
@@ -165,17 +161,17 @@ void __init plat_setup(void)
 
 	/* Set up panic notifier */
 	for (i = 0; i < sizeof(lasat_panic_block) / sizeof(struct notifier_block); i++)
-		notifier_chain_register(&panic_notifier_list, &lasat_panic_block[i]);
+		atomic_notifier_chain_register(&panic_notifier_list,
+				&lasat_panic_block[i]);
 
 	lasat_reboot_setup();
 
 	board_time_init = lasat_time_init;
-	board_timer_setup = lasat_timer_setup;
 
 #ifdef CONFIG_DS1603
 	ds1603 = &ds_defs[mips_machtype];
-	rtc_get_time = ds1603_read;
-	rtc_set_time = ds1603_set;
+	rtc_mips_get_time = ds1603_read;
+	rtc_mips_set_time = ds1603_set;
 #endif
 
 #ifdef DYNAMIC_SERIAL_INIT

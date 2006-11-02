@@ -39,7 +39,6 @@
  *  with this program; if not, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/bcd.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -213,7 +212,7 @@ int m48t37y_set_time(unsigned long sec)
 	return 0;
 }
 
-void momenco_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(8, irq);
 }
@@ -227,10 +226,9 @@ void momenco_time_init(void)
 	wire_stupidity_into_tlb();
 
 	mips_hpt_frequency = cpu_clock / 2;
-	board_timer_setup = momenco_timer_setup;
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 }
 
 static struct resource mv_pci_io_mem0_resource = {
@@ -359,7 +357,7 @@ static __init int __init ja_pci_init(void)
 
 arch_initcall(ja_pci_init);
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned int tmpword;
 
@@ -370,8 +368,8 @@ void __init plat_setup(void)
 	pm_power_off = momenco_jaguar_power_off;
 
 	/*
-	 * initrd_start = (ulong)jaguar_initrd_start;
-	 * initrd_end = (ulong)jaguar_initrd_start + (ulong)jaguar_initrd_size;
+	 * initrd_start = (unsigned long)jaguar_initrd_start;
+	 * initrd_end = (unsigned long)jaguar_initrd_start + (ulong)jaguar_initrd_size;
 	 * initrd_below_start_ok = 1;
 	 */
 
@@ -381,24 +379,24 @@ void __init plat_setup(void)
 	 * shut down ethernet ports, just to be sure our memory doesn't get
 	 * corrupted by random ethernet traffic.
 	 */
-	MV_WRITE(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(0), 0xff << 8);
-	MV_WRITE(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(1), 0xff << 8);
-	MV_WRITE(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(2), 0xff << 8);
-	MV_WRITE(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(0), 0xff << 8);
-	MV_WRITE(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(1), 0xff << 8);
-	MV_WRITE(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(2), 0xff << 8);
-	while (MV_READ(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(0)) & 0xff);
-	while (MV_READ(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(1)) & 0xff);
-	while (MV_READ(MV64340_ETH_RECEIVE_QUEUE_COMMAND_REG(2)) & 0xff);
-	while (MV_READ(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(0)) & 0xff);
-	while (MV_READ(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(1)) & 0xff);
-	while (MV_READ(MV64340_ETH_TRANSMIT_QUEUE_COMMAND_REG(2)) & 0xff);
-	MV_WRITE(MV64340_ETH_PORT_SERIAL_CONTROL_REG(0),
-	         MV_READ(MV64340_ETH_PORT_SERIAL_CONTROL_REG(0)) & ~1);
-	MV_WRITE(MV64340_ETH_PORT_SERIAL_CONTROL_REG(1),
-	         MV_READ(MV64340_ETH_PORT_SERIAL_CONTROL_REG(1)) & ~1);
-	MV_WRITE(MV64340_ETH_PORT_SERIAL_CONTROL_REG(2),
-	         MV_READ(MV64340_ETH_PORT_SERIAL_CONTROL_REG(2)) & ~1);
+	MV_WRITE(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(0), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(1), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(2), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(0), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(1), 0xff << 8);
+	MV_WRITE(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(2), 0xff << 8);
+	while (MV_READ(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(0)) & 0xff);
+	while (MV_READ(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(1)) & 0xff);
+	while (MV_READ(MV643XX_ETH_RECEIVE_QUEUE_COMMAND_REG(2)) & 0xff);
+	while (MV_READ(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(0)) & 0xff);
+	while (MV_READ(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(1)) & 0xff);
+	while (MV_READ(MV643XX_ETH_TRANSMIT_QUEUE_COMMAND_REG(2)) & 0xff);
+	MV_WRITE(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(0),
+	         MV_READ(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(0)) & ~1);
+	MV_WRITE(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(1),
+	         MV_READ(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(1)) & ~1);
+	MV_WRITE(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(2),
+	         MV_READ(MV643XX_ETH_PORT_SERIAL_CONTROL_REG(2)) & ~1);
 
 	/* Turn off the Bit-Error LED */
 	JAGUAR_FPGA_WRITE(0x80, CLR);
@@ -461,7 +459,7 @@ void __init plat_setup(void)
 	  unsigned int tbControl;
 	  tbControl =
 	    0 << 26 |  /* post trigger delay 0 */
-	    	    0x2 << 16 |		/* sequential trace mode */
+		    0x2 << 16 |		/* sequential trace mode */
 	    //	    0x0 << 16 |		/* non-sequential trace mode */
 	    //	    0xf << 4 |		/* watchpoints disabled */
 	    2 << 2 |		/* armed */

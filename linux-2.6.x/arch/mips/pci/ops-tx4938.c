@@ -34,16 +34,16 @@ struct resource pci_mem_resource = {
 };
 
 struct resource tx4938_pcic1_pci_io_resource = {
-       	.name	= "PCI1 IO",
-       	.start	= 0,
-       	.end	= 0,
-       	.flags	= IORESOURCE_IO
+	.name	= "PCI1 IO",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_IO
 };
 struct resource tx4938_pcic1_pci_mem_resource = {
-       	.name	= "PCI1 mem",
-       	.start	= 0,
-       	.end	= 0,
-       	.flags	= IORESOURCE_MEM
+	.name	= "PCI1 mem",
+	.start	= 0,
+	.end	= 0,
+	.flags	= IORESOURCE_MEM
 };
 
 static int mkaddr(int bus, int dev_fn, int where, int *flagsp)
@@ -106,7 +106,7 @@ static int tx4938_pcibios_read_config(struct pci_bus *bus, unsigned int devfn,
 
 	switch (size) {
 	case 1:
-		*val = *(volatile u8 *) ((ulong) & tx4938_pcicptr->g2pcfgdata |
+		*val = *(volatile u8 *) ((unsigned long) & tx4938_pcicptr->g2pcfgdata |
 #ifdef __BIG_ENDIAN
 			      ((where & 3) ^ 3));
 #else
@@ -114,7 +114,7 @@ static int tx4938_pcibios_read_config(struct pci_bus *bus, unsigned int devfn,
 #endif
 		break;
 	case 2:
-		*val = *(volatile u16 *) ((ulong) & tx4938_pcicptr->g2pcfgdata |
+		*val = *(volatile u16 *) ((unsigned long) & tx4938_pcicptr->g2pcfgdata |
 #ifdef __BIG_ENDIAN
 				((where & 3) ^ 2));
 #else
@@ -154,7 +154,7 @@ static int tx4938_pcibios_write_config(struct pci_bus *bus, unsigned int devfn, 
 
 	switch (size) {
 	case 1:
-		*(volatile u8 *) ((ulong) & tx4938_pcicptr->g2pcfgdata |
+		*(volatile u8 *) ((unsigned long) & tx4938_pcicptr->g2pcfgdata |
 #ifdef __BIG_ENDIAN
 			  ((where & 3) ^ 3)) = val;
 #else
@@ -162,7 +162,7 @@ static int tx4938_pcibios_write_config(struct pci_bus *bus, unsigned int devfn, 
 #endif
 		break;
 	case 2:
-		*(volatile u16 *) ((ulong) & tx4938_pcicptr->g2pcfgdata |
+		*(volatile u16 *) ((unsigned long) & tx4938_pcicptr->g2pcfgdata |
 #ifdef __BIG_ENDIAN
 			((where & 0x3) ^ 0x2)) = val;
 #else

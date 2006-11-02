@@ -11,7 +11,6 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -65,9 +64,9 @@ static int null_rtc_set_time(unsigned long sec)
 	return 0;
 }
 
-unsigned long (*rtc_get_time)(void) = null_rtc_get_time;
-int (*rtc_set_time)(unsigned long) = null_rtc_set_time;
-int (*rtc_set_mmss)(unsigned long);
+unsigned long (*rtc_mips_get_time)(void) = null_rtc_get_time;
+int (*rtc_mips_set_time)(unsigned long) = null_rtc_set_time;
+int (*rtc_mips_set_mmss)(unsigned long);
 
 
 /* usecs per counter cycle, shifted to left by 32 bits */
@@ -116,8 +115,7 @@ static void c0_timer_ack(void)
 	write_c0_compare(expirelo);
 
 	/* Check to see if we have missed any timer interrupts.  */
-	count = read_c0_count();
-	if ((count - expirelo) < 0x7fffffff) {
+	while (((count = read_c0_count()) - expirelo) < 0x7fffffff) {
 		/* missed_timer_count++; */
 		expirelo = count + cycles_per_jiffy;
 		write_c0_compare(expirelo);
@@ -440,14 +438,14 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	/*
 	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. rtc_set_time() has to be
+	 * CMOS clock accordingly every ~11 minutes. rtc_mips_set_time() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
 	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_set_mmss(xtime.tv_sec) == 0) {
+		if (rtc_mips_set_mmss(xtime.tv_sec) == 0) {
 			last_rtc_update = xtime.tv_sec;
 		} else {
 			/* do it again in 60 s */
@@ -565,23 +563,22 @@ asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs)
  *      b) (optional) calibrate and set the mips_hpt_frequency
  *	    (only needed if you intended to use fixed_rate_gettimeoffset
  *	     or use cpu counter as timer interrupt source)
- * 2) setup xtime based on rtc_get_time().
+ * 2) setup xtime based on rtc_mips_get_time().
  * 3) choose a appropriate gettimeoffset routine.
  * 4) calculate a couple of cached variables for later usage
- * 5) board_timer_setup() -
+ * 5) plat_timer_setup() -
  *	a) (optional) over-write any choices made above by time_init().
  *	b) machine specific code should setup the timer irqaction.
  *	c) enable the timer interrupt
  */
 
 void (*board_time_init)(void);
-void (*board_timer_setup)(struct irqaction *irq);
 
 unsigned int mips_hpt_frequency;
 
 static struct irqaction timer_irqaction = {
 	.handler = timer_interrupt,
-	.flags = SA_INTERRUPT,
+	.flags = IRQF_DISABLED,
 	.name = "timer",
 };
 
@@ -633,10 +630,10 @@ void __init time_init(void)
 	if (board_time_init)
 		board_time_init();
 
-	if (!rtc_set_mmss)
-		rtc_set_mmss = rtc_set_time;
+	if (!rtc_mips_set_mmss)
+		rtc_mips_set_mmss = rtc_mips_set_time;
 
-	xtime.tv_sec = rtc_get_time();
+	xtime.tv_sec = rtc_mips_get_time();
 	xtime.tv_nsec = 0;
 
 	set_normalized_timespec(&wall_to_monotonic,
@@ -720,7 +717,7 @@ void __init time_init(void)
 	 * to be NULL function so that we are sure the high-level code
 	 * is not invoked accidentally.
 	 */
-	board_timer_setup(&timer_irqaction);
+	plat_timer_setup(&timer_irqaction);
 }
 
 #define FEBRUARY		2
@@ -772,8 +769,8 @@ void to_tm(unsigned long tim, struct rtc_time *tm)
 
 EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL(to_tm);
-EXPORT_SYMBOL(rtc_set_time);
-EXPORT_SYMBOL(rtc_get_time);
+EXPORT_SYMBOL(rtc_mips_set_time);
+EXPORT_SYMBOL(rtc_mips_get_time);
 
 unsigned long long sched_clock(void)
 {

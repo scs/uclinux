@@ -7,10 +7,10 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
+#include <asm/irqflags.h>
 #include <asm/mipsregs.h>
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
@@ -33,6 +33,7 @@ NESTED(handle_sysn32, PT_SIZE, sp)
 #ifndef CONFIG_MIPS32_O32
 	.set	noat
 	SAVE_SOME
+	TRACE_IRQS_ON
 	STI
 	.set	at
 #endif
@@ -273,7 +274,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_pivot_root
 	PTR	sys32_sysctl
 	PTR	sys_prctl
-	PTR	sys32_adjtimex
+	PTR	compat_sys_adjtimex
 	PTR	compat_sys_setrlimit		/* 6155 */
 	PTR	sys_chroot
 	PTR	sys_sync
@@ -386,3 +387,8 @@ EXPORT(sysn32_call_table)
 	PTR	sys_pselect6
 	PTR	sys_ppoll			/* 6265 */
 	PTR	sys_unshare
+	PTR	sys_splice
+	PTR	sys_sync_file_range
+	PTR	sys_tee
+	PTR	sys_vmsplice			/* 6271 */
+	PTR	sys_move_pages

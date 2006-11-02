@@ -23,7 +23,6 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
@@ -147,7 +146,7 @@ static DEFINE_SPINLOCK(tx4927_cp0_lock);
 static DEFINE_SPINLOCK(tx4927_pic_lock);
 
 #define TX4927_CP0_NAME "TX4927-CP0"
-static struct hw_interrupt_type tx4927_irq_cp0_type = {
+static struct irq_chip tx4927_irq_cp0_type = {
 	.typename	= TX4927_CP0_NAME,
 	.startup	= tx4927_irq_cp0_startup,
 	.shutdown	= tx4927_irq_cp0_shutdown,
@@ -159,7 +158,7 @@ static struct hw_interrupt_type tx4927_irq_cp0_type = {
 };
 
 #define TX4927_PIC_NAME "TX4927-PIC"
-static struct hw_interrupt_type tx4927_irq_pic_type = {
+static struct irq_chip tx4927_irq_pic_type = {
 	.typename	= TX4927_PIC_NAME,
 	.startup	= tx4927_irq_pic_startup,
 	.shutdown	= tx4927_irq_pic_shutdown,
@@ -227,7 +226,7 @@ static void __init tx4927_irq_cp0_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 1;
-		irq_desc[i].handler = &tx4927_irq_cp0_type;
+		irq_desc[i].chip = &tx4927_irq_cp0_type;
 	}
 
 	return;
@@ -435,7 +434,7 @@ static void __init tx4927_irq_pic_init(void)
 		irq_desc[i].status = IRQ_DISABLED;
 		irq_desc[i].action = 0;
 		irq_desc[i].depth = 2;
-		irq_desc[i].handler = &tx4927_irq_pic_type;
+		irq_desc[i].chip = &tx4927_irq_pic_type;
 	}
 
 	setup_irq(TX4927_IRQ_NEST_PIC_ON_CP0, &tx4927_irq_pic_action);
@@ -525,8 +524,6 @@ static void tx4927_irq_pic_end(unsigned int irq)
  */
 void __init tx4927_irq_init(void)
 {
-	extern asmlinkage void tx4927_irq_handler(void);
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "-\n");
 
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "=Calling tx4927_irq_cp0_init()\n");
@@ -535,16 +532,12 @@ void __init tx4927_irq_init(void)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "=Calling tx4927_irq_pic_init()\n");
 	tx4927_irq_pic_init();
 
-	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT,
-			   "=Calling set_except_vector(tx4927_irq_handler)\n");
-	set_except_vector(0, tx4927_irq_handler);
-
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_INIT, "+\n");
 
 	return;
 }
 
-int tx4927_irq_nested(void)
+static int tx4927_irq_nested(void)
 {
 	int sw_irq = 0;
 	u32 level2;
@@ -581,4 +574,26 @@ int tx4927_irq_nested(void)
 	TX4927_IRQ_DPRINTK(TX4927_IRQ_NEST1, "+\n");
 
 	return (sw_irq);
+}
+
+asmlinkage void plat_irq_dispatch(struct pt_regs *regs)
+{
+	unsigned int pending = read_c0_status() & read_c0_cause();
+
+	if (pending & STATUSF_IP7)			/* cpu timer */
+		do_IRQ(TX4927_IRQ_CPU_TIMER, regs);
+	else if (pending & STATUSF_IP2) {		/* tx4927 pic */
+		unsigned int irq = tx4927_irq_nested();
+
+		if (unlikely(irq == 0)) {
+			spurious_interrupt(regs);
+			return;
+		}
+		do_IRQ(irq, regs);
+	} else if (pending & STATUSF_IP0)		/* user line 0 */
+		do_IRQ(TX4927_IRQ_USER0, regs);
+	else if (pending & STATUSF_IP1)			/* user line 1 */
+		do_IRQ(TX4927_IRQ_USER1, regs);
+	else
+		spurious_interrupt(regs);
 }

@@ -18,7 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-#include <linux/config.h>
 #include <linux/init.h>
 
 #include <asm/asm.h>
@@ -528,6 +527,7 @@ void sb1_cache_init(void)
 	flush_cache_page = sb1_flush_cache_page;
 
 	flush_cache_sigtramp = sb1_flush_cache_sigtramp;
+	local_flush_data_cache_page = (void *) sb1_nop;
 	flush_data_cache_page = (void *) sb1_nop;
 
 	/* Full flush */

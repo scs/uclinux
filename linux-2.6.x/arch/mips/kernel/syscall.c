@@ -7,7 +7,6 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
-#include <linux/config.h>
 #include <linux/a.out.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -162,7 +161,10 @@ asmlinkage unsigned long
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
           unsigned long flags, unsigned long fd, unsigned long pgoff)
 {
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
+	if (pgoff & (~PAGE_MASK >> 12))
+		return -EINVAL;
+
+	return do_mmap2(addr, len, prot, flags, fd, pgoff >> (PAGE_SHIFT-12));
 }
 
 save_static_function(sys_fork);
@@ -273,31 +275,9 @@ void sys_set_thread_area(unsigned long addr)
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 {
-	int	tmp, len;
-	char	__user *name;
+	int	tmp;
 
 	switch(cmd) {
-	case SETNAME: {
-		char nodename[__NEW_UTS_LEN + 1];
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		name = (char __user *) arg1;
-
-		len = strncpy_from_user(nodename, name, __NEW_UTS_LEN);
-		if (len < 0)
-			return -EFAULT;
-
-		down_write(&uts_sem);
-		strncpy(system_utsname.nodename, nodename, len);
-		nodename[__NEW_UTS_LEN] = '\0';
-		strlcpy(system_utsname.nodename, nodename,
-		        sizeof(system_utsname.nodename));
-		up_write(&uts_sem);
-		return 0;
-	}
-
 	case MIPS_ATOMIC_SET:
 		printk(KERN_CRIT "How did I get here?\n");
 		return -EINVAL;
@@ -310,9 +290,6 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
 	case FLUSH_CACHE:
 		__flush_cache_all();
 		return 0;
-
-	case MIPS_RDNVRAM:
-		return -EIO;
 	}
 
 	return -EINVAL;
@@ -323,7 +300,7 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc (uint call, int first, int second,
+asmlinkage int sys_ipc (unsigned int call, int first, int second,
 			unsigned long third, void __user *ptr, long fifth)
 {
 	int version, ret;
@@ -345,7 +322,7 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 		union semun fourth;
 		if (!ptr)
 			return -EINVAL;
-		if (get_user(fourth.__pad, (void *__user *) ptr))
+		if (get_user(fourth.__pad, (void __user *__user *) ptr))
 			return -EFAULT;
 		return sys_semctl (first, second, third, fourth);
 	}
@@ -381,18 +358,18 @@ asmlinkage int sys_ipc (uint call, int first, int second,
 	case SHMAT:
 		switch (version) {
 		default: {
-			ulong raddr;
+			unsigned long raddr;
 			ret = do_shmat (first, (char __user *) ptr, second,
 					&raddr);
 			if (ret)
 				return ret;
-			return put_user (raddr, (ulong __user *) third);
+			return put_user (raddr, (unsigned long __user *) third);
 		}
 		case 1:	/* iBCS2 emulator entry point */
 			if (!segment_eq(get_fs(), get_ds()))
 				return -EINVAL;
 			return do_shmat (first, (char __user *) ptr, second,
-					 (ulong *) third);
+					 (unsigned long *) third);
 		}
 	case SHMDT:
 		return sys_shmdt ((char __user *)ptr);

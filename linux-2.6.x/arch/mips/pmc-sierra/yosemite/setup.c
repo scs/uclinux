@@ -133,14 +133,13 @@ int m48t37y_set_time(unsigned long sec)
 	return 0;
 }
 
-void yosemite_timer_setup(struct irqaction *irq)
+void __init plat_timer_setup(struct irqaction *irq)
 {
 	setup_irq(7, irq);
 }
 
 void yosemite_time_init(void)
 {
-	board_timer_setup = yosemite_timer_setup;
 	mips_hpt_frequency = cpu_clock / 2;
 mips_hpt_frequency = 33000000 * 3 * 5;
 }
@@ -198,8 +197,8 @@ static void __init py_rtc_setup(void)
 	if (!m48t37_base)
 		printk(KERN_ERR "Mapping the RTC failed\n");
 
-	rtc_get_time = m48t37y_get_time;
-	rtc_set_time = m48t37y_set_time;
+	rtc_mips_get_time = m48t37y_get_time;
+	rtc_mips_set_time = m48t37y_set_time;
 
 	write_seqlock(&xtime_lock);
 	xtime.tv_sec = m48t37y_get_time();
@@ -218,7 +217,7 @@ static void __init py_late_time_init(void)
 	py_rtc_setup();
 }
 
-void __init plat_setup(void)
+void __init plat_mem_setup(void)
 {
 	board_time_init = yosemite_time_init;
 	late_time_init = py_late_time_init;

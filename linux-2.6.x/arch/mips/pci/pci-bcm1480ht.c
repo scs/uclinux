@@ -31,7 +31,6 @@
  * problem.
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -95,7 +94,7 @@ static int bcm1480ht_can_access(struct pci_bus *bus, int devfn)
 
 	if (bus->number == 0) {
 		devno = PCI_SLOT(devfn);
- 		if (bcm1480ht_bus_status & PCI_DEVICE_MODE)
+		if (bcm1480ht_bus_status & PCI_DEVICE_MODE)
 			return 0;
 	}
 	return 1;
