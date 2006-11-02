@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/gen550_kgdb.c
- *
  * Generic 16550 kgdb support intended to be useful on a variety
  * of platforms.  To enable this support, it is necessary to set
  * the CONFIG_GEN550 option.  Any virtual mapping of the serial
@@ -17,7 +15,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 

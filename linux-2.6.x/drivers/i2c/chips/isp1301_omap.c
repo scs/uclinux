@@ -21,7 +21,6 @@
 #undef	DEBUG
 #undef	VERBOSE
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -909,7 +908,7 @@ static int otg_bind(struct isp1301 *isp)
 
 	if (otg_dev)
 		status = request_irq(otg_dev->resource[1].start, omap_otg_irq,
-				SA_INTERRUPT, DRIVER_NAME, isp);
+				IRQF_DISABLED, DRIVER_NAME, isp);
 	else
 		status = -ENODEV;
 
@@ -1579,7 +1578,7 @@ fail1:
 	}
 
 	status = request_irq(isp->irq, isp1301_irq,
-			SA_SAMPLE_RANDOM, DRIVER_NAME, isp);
+			IRQF_SAMPLE_RANDOM, DRIVER_NAME, isp);
 	if (status < 0) {
 		dev_dbg(&i2c->dev, "can't get IRQ %d, err %d\n",
 				isp->irq, status);
@@ -1635,8 +1634,6 @@ static struct i2c_driver isp1301_driver = {
 	.driver = {
 		.name	= "isp1301_omap",
 	},
-	.id		= 1301,		/* FIXME "official", i2c-ids.h */
-	.class		= I2C_CLASS_HWMON,
 	.attach_adapter	= isp1301_scan_bus,
 	.detach_client	= isp1301_detach_client,
 };

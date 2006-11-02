@@ -7,7 +7,6 @@
  *  Copyright (C) 2000 Anton Blanchard (anton@samba.org)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -31,6 +30,7 @@
 #include <asm/vaddrs.h>
 #include <asm/pgalloc.h>	/* bug in asm-generic/tlb.h: check_pgt_cache */
 #include <asm/tlb.h>
+#include <asm/prom.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -349,6 +349,7 @@ void __init paging_init(void)
 	protection_map[14] = PAGE_SHARED;
 	protection_map[15] = PAGE_SHARED;
 	btfixup();
+	prom_build_devicetree();
 	device_scan();
 }
 
@@ -383,7 +384,7 @@ void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 		struct page *page = pfn_to_page(tmp);
 
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 		totalhigh_pages++;
 	}
@@ -480,7 +481,7 @@ void free_initmem (void)
 		p = virt_to_page(addr);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		totalram_pages++;
 		num_physpages++;
@@ -497,7 +498,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		struct page *p = virt_to_page(start);
 
 		ClearPageReserved(p);
-		set_page_count(p, 1);
+		init_page_count(p);
 		__free_page(p);
 		num_physpages++;
 	}

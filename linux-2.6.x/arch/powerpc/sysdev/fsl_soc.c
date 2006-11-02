@@ -9,7 +9,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -40,7 +39,7 @@ phys_addr_t get_immrbase(void)
 		return immrbase;
 
 	soc = of_find_node_by_type(NULL, "soc");
-	if (soc != 0) {
+	if (soc) {
 		unsigned int size;
 		void *prop = get_property(soc, "reg", &size);
 		immrbase = of_translate_address(soc, prop);
@@ -49,21 +48,20 @@ phys_addr_t get_immrbase(void)
 
 	return immrbase;
 }
+
 EXPORT_SYMBOL(get_immrbase);
 
-static const char * gfar_tx_intr = "tx";
-static const char * gfar_rx_intr = "rx";
-static const char * gfar_err_intr = "error";
-
-static int __init gfar_of_init(void)
+static int __init gfar_mdio_of_init(void)
 {
 	struct device_node *np;
 	unsigned int i;
-	struct platform_device *mdio_dev, *gfar_dev;
+	struct platform_device *mdio_dev;
 	struct resource res;
 	int ret;
 
-	for (np = NULL, i = 0; (np = of_find_compatible_node(np, "mdio", "gianfar")) != NULL; i++) {
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "mdio", "gianfar")) != NULL;
+	     i++) {
 		int k;
 		struct device_node *child = NULL;
 		struct gianfar_mdio_data mdio_data;
@@ -73,30 +71,56 @@ static int __init gfar_of_init(void)
 
 		ret = of_address_to_resource(np, 0, &res);
 		if (ret)
-			goto mdio_err;
+			goto err;
 
-		mdio_dev = platform_device_register_simple("fsl-gianfar_mdio", res.start, &res, 1);
+		mdio_dev =
+		    platform_device_register_simple("fsl-gianfar_mdio",
+						    res.start, &res, 1);
 		if (IS_ERR(mdio_dev)) {
 			ret = PTR_ERR(mdio_dev);
-			goto mdio_err;
+			goto err;
 		}
 
 		for (k = 0; k < 32; k++)
 			mdio_data.irq[k] = -1;
 
 		while ((child = of_get_next_child(np, child)) != NULL) {
-			if (child->n_intrs) {
-				u32 *id = (u32 *) get_property(child, "reg", NULL);
-				mdio_data.irq[*id] = child->intrs[0].line;
-			}
+			u32 *id = get_property(child, "reg", NULL);
+			mdio_data.irq[*id] = irq_of_parse_and_map(child, 0);
 		}
 
-		ret = platform_device_add_data(mdio_dev, &mdio_data, sizeof(struct gianfar_mdio_data));
+		ret =
+		    platform_device_add_data(mdio_dev, &mdio_data,
+					     sizeof(struct gianfar_mdio_data));
 		if (ret)
-			goto mdio_unreg;
+			goto unreg;
 	}
 
-	for (np = NULL, i = 0; (np = of_find_compatible_node(np, "network", "gianfar")) != NULL; i++) {
+	return 0;
+
+unreg:
+	platform_device_unregister(mdio_dev);
+err:
+	return ret;
+}
+
+arch_initcall(gfar_mdio_of_init);
+
+static const char *gfar_tx_intr = "tx";
+static const char *gfar_rx_intr = "rx";
+static const char *gfar_err_intr = "error";
+
+static int __init gfar_of_init(void)
+{
+	struct device_node *np;
+	unsigned int i;
+	struct platform_device *gfar_dev;
+	struct resource res;
+	int ret;
+
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "network", "gianfar")) != NULL;
+	     i++) {
 		struct resource r[4];
 		struct device_node *phy, *mdio;
 		struct gianfar_platform_data gfar_data;
@@ -104,16 +128,16 @@ static int __init gfar_of_init(void)
 		char *model;
 		void *mac_addr;
 		phandle *ph;
+		int n_res = 1;
 
 		memset(r, 0, sizeof(r));
 		memset(&gfar_data, 0, sizeof(gfar_data));
 
 		ret = of_address_to_resource(np, 0, &r[0]);
 		if (ret)
-			goto gfar_err;
+			goto err;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		model = get_property(np, "model", NULL);
@@ -123,48 +147,58 @@ static int __init gfar_of_init(void)
 			r[1].name = gfar_tx_intr;
 
 			r[2].name = gfar_rx_intr;
-			r[2].start = np->intrs[1].line;
-			r[2].end = np->intrs[1].line;
+			r[2].start = r[2].end = irq_of_parse_and_map(np, 1);
 			r[2].flags = IORESOURCE_IRQ;
 
 			r[3].name = gfar_err_intr;
-			r[3].start = np->intrs[2].line;
-			r[3].end = np->intrs[2].line;
+			r[3].start = r[3].end = irq_of_parse_and_map(np, 2);
 			r[3].flags = IORESOURCE_IRQ;
+
+			n_res += 2;
 		}
 
-		gfar_dev = platform_device_register_simple("fsl-gianfar", i, &r[0], np->n_intrs + 1);
+		gfar_dev =
+		    platform_device_register_simple("fsl-gianfar", i, &r[0],
+						    n_res + 1);
 
 		if (IS_ERR(gfar_dev)) {
 			ret = PTR_ERR(gfar_dev);
-			goto gfar_err;
+			goto err;
 		}
 
-		mac_addr = get_property(np, "address", NULL);
-		memcpy(gfar_data.mac_addr, mac_addr, 6);
+		mac_addr = get_property(np, "local-mac-address", NULL);
+		if (mac_addr == NULL)
+			mac_addr = get_property(np, "mac-address", NULL);
+		if (mac_addr == NULL) {
+			/* Obsolete */
+			mac_addr = get_property(np, "address", NULL);
+		}
+
+		if (mac_addr)
+			memcpy(gfar_data.mac_addr, mac_addr, 6);
 
 		if (model && !strcasecmp(model, "TSEC"))
 			gfar_data.device_flags =
-				FSL_GIANFAR_DEV_HAS_GIGABIT |
-				FSL_GIANFAR_DEV_HAS_COALESCE |
-				FSL_GIANFAR_DEV_HAS_RMON |
-				FSL_GIANFAR_DEV_HAS_MULTI_INTR;
+			    FSL_GIANFAR_DEV_HAS_GIGABIT |
+			    FSL_GIANFAR_DEV_HAS_COALESCE |
+			    FSL_GIANFAR_DEV_HAS_RMON |
+			    FSL_GIANFAR_DEV_HAS_MULTI_INTR;
 		if (model && !strcasecmp(model, "eTSEC"))
 			gfar_data.device_flags =
-				FSL_GIANFAR_DEV_HAS_GIGABIT |
-				FSL_GIANFAR_DEV_HAS_COALESCE |
-				FSL_GIANFAR_DEV_HAS_RMON |
-				FSL_GIANFAR_DEV_HAS_MULTI_INTR |
-				FSL_GIANFAR_DEV_HAS_CSUM |
-				FSL_GIANFAR_DEV_HAS_VLAN |
-				FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
+			    FSL_GIANFAR_DEV_HAS_GIGABIT |
+			    FSL_GIANFAR_DEV_HAS_COALESCE |
+			    FSL_GIANFAR_DEV_HAS_RMON |
+			    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
+			    FSL_GIANFAR_DEV_HAS_CSUM |
+			    FSL_GIANFAR_DEV_HAS_VLAN |
+			    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
 
 		ph = (phandle *) get_property(np, "phy-handle", NULL);
 		phy = of_find_node_by_phandle(*ph);
 
 		if (phy == NULL) {
 			ret = -ENODEV;
-			goto gfar_unreg;
+			goto unreg;
 		}
 
 		mdio = of_get_parent(phy);
@@ -174,7 +208,7 @@ static int __init gfar_of_init(void)
 		if (ret) {
 			of_node_put(phy);
 			of_node_put(mdio);
-			goto gfar_unreg;
+			goto unreg;
 		}
 
 		gfar_data.phy_id = *id;
@@ -183,23 +217,22 @@ static int __init gfar_of_init(void)
 		of_node_put(phy);
 		of_node_put(mdio);
 
-		ret = platform_device_add_data(gfar_dev, &gfar_data, sizeof(struct gianfar_platform_data));
+		ret =
+		    platform_device_add_data(gfar_dev, &gfar_data,
+					     sizeof(struct
+						    gianfar_platform_data));
 		if (ret)
-			goto gfar_unreg;
+			goto unreg;
 	}
 
 	return 0;
 
-mdio_unreg:
-	platform_device_unregister(mdio_dev);
-mdio_err:
-	return ret;
-
-gfar_unreg:
+unreg:
 	platform_device_unregister(gfar_dev);
-gfar_err:
+err:
 	return ret;
 }
+
 arch_initcall(gfar_of_init);
 
 static int __init fsl_i2c_of_init(void)
@@ -209,26 +242,27 @@ static int __init fsl_i2c_of_init(void)
 	struct platform_device *i2c_dev;
 	int ret;
 
-	for (np = NULL, i = 0; (np = of_find_compatible_node(np, "i2c", "fsl-i2c")) != NULL; i++) {
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "i2c", "fsl-i2c")) != NULL;
+	     i++) {
 		struct resource r[2];
 		struct fsl_i2c_platform_data i2c_data;
-		unsigned char * flags = NULL;
+		unsigned char *flags = NULL;
 
 		memset(&r, 0, sizeof(r));
 		memset(&i2c_data, 0, sizeof(i2c_data));
 
 		ret = of_address_to_resource(np, 0, &r[0]);
 		if (ret)
-			goto i2c_err;
+			goto err;
 
-		r[1].start = np->intrs[0].line;
-		r[1].end = np->intrs[0].line;
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
 		r[1].flags = IORESOURCE_IRQ;
 
 		i2c_dev = platform_device_register_simple("fsl-i2c", i, r, 2);
 		if (IS_ERR(i2c_dev)) {
 			ret = PTR_ERR(i2c_dev);
-			goto i2c_err;
+			goto err;
 		}
 
 		i2c_data.device_flags = 0;
@@ -240,18 +274,22 @@ static int __init fsl_i2c_of_init(void)
 		if (flags)
 			i2c_data.device_flags |= FSL_I2C_DEV_CLOCK_5200;
 
-		ret = platform_device_add_data(i2c_dev, &i2c_data, sizeof(struct fsl_i2c_platform_data));
+		ret =
+		    platform_device_add_data(i2c_dev, &i2c_data,
+					     sizeof(struct
+						    fsl_i2c_platform_data));
 		if (ret)
-			goto i2c_unreg;
+			goto unreg;
 	}
 
 	return 0;
 
-i2c_unreg:
+unreg:
 	platform_device_unregister(i2c_dev);
-i2c_err:
+err:
 	return ret;
 }
+
 arch_initcall(fsl_i2c_of_init);
 
 #ifdef CONFIG_PPC_83xx
@@ -267,51 +305,176 @@ static int __init mpc83xx_wdt_init(void)
 
 	if (!np) {
 		ret = -ENODEV;
-		goto mpc83xx_wdt_nodev;
+		goto nodev;
 	}
 
 	soc = of_find_node_by_type(NULL, "soc");
 
 	if (!soc) {
 		ret = -ENODEV;
-		goto mpc83xx_wdt_nosoc;
+		goto nosoc;
 	}
 
 	freq = (unsigned int *)get_property(soc, "bus-frequency", NULL);
 	if (!freq) {
 		ret = -ENODEV;
-		goto mpc83xx_wdt_err;
+		goto err;
 	}
 
 	memset(&r, 0, sizeof(r));
 
 	ret = of_address_to_resource(np, 0, &r);
 	if (ret)
-		goto mpc83xx_wdt_err;
+		goto err;
 
 	dev = platform_device_register_simple("mpc83xx_wdt", 0, &r, 1);
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
-		goto mpc83xx_wdt_err;
+		goto err;
 	}
 
 	ret = platform_device_add_data(dev, freq, sizeof(int));
 	if (ret)
-		goto mpc83xx_wdt_unreg;
+		goto unreg;
 
 	of_node_put(soc);
 	of_node_put(np);
 
 	return 0;
 
-mpc83xx_wdt_unreg:
+unreg:
 	platform_device_unregister(dev);
-mpc83xx_wdt_err:
+err:
 	of_node_put(soc);
-mpc83xx_wdt_nosoc:
+nosoc:
 	of_node_put(np);
-mpc83xx_wdt_nodev:
+nodev:
 	return ret;
 }
+
 arch_initcall(mpc83xx_wdt_init);
 #endif
+
+static enum fsl_usb2_phy_modes determine_usb_phy(char * phy_type)
+{
+	if (!phy_type)
+		return FSL_USB2_PHY_NONE;
+	if (!strcasecmp(phy_type, "ulpi"))
+		return FSL_USB2_PHY_ULPI;
+	if (!strcasecmp(phy_type, "utmi"))
+		return FSL_USB2_PHY_UTMI;
+	if (!strcasecmp(phy_type, "utmi_wide"))
+		return FSL_USB2_PHY_UTMI_WIDE;
+	if (!strcasecmp(phy_type, "serial"))
+		return FSL_USB2_PHY_SERIAL;
+
+	return FSL_USB2_PHY_NONE;
+}
+
+static int __init fsl_usb_of_init(void)
+{
+	struct device_node *np;
+	unsigned int i;
+	struct platform_device *usb_dev_mph = NULL, *usb_dev_dr = NULL;
+	int ret;
+
+	for (np = NULL, i = 0;
+	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL;
+	     i++) {
+		struct resource r[2];
+		struct fsl_usb2_platform_data usb_data;
+		unsigned char *prop = NULL;
+
+		memset(&r, 0, sizeof(r));
+		memset(&usb_data, 0, sizeof(usb_data));
+
+		ret = of_address_to_resource(np, 0, &r[0]);
+		if (ret)
+			goto err;
+
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
+		r[1].flags = IORESOURCE_IRQ;
+
+		usb_dev_mph =
+		    platform_device_register_simple("fsl-ehci", i, r, 2);
+		if (IS_ERR(usb_dev_mph)) {
+			ret = PTR_ERR(usb_dev_mph);
+			goto err;
+		}
+
+		usb_dev_mph->dev.coherent_dma_mask = 0xffffffffUL;
+		usb_dev_mph->dev.dma_mask = &usb_dev_mph->dev.coherent_dma_mask;
+
+		usb_data.operating_mode = FSL_USB2_MPH_HOST;
+
+		prop = get_property(np, "port0", NULL);
+		if (prop)
+			usb_data.port_enables |= FSL_USB2_PORT0_ENABLED;
+
+		prop = get_property(np, "port1", NULL);
+		if (prop)
+			usb_data.port_enables |= FSL_USB2_PORT1_ENABLED;
+
+		prop = get_property(np, "phy_type", NULL);
+		usb_data.phy_mode = determine_usb_phy(prop);
+
+		ret =
+		    platform_device_add_data(usb_dev_mph, &usb_data,
+					     sizeof(struct
+						    fsl_usb2_platform_data));
+		if (ret)
+			goto unreg_mph;
+	}
+
+	for (np = NULL;
+	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL;
+	     i++) {
+		struct resource r[2];
+		struct fsl_usb2_platform_data usb_data;
+		unsigned char *prop = NULL;
+
+		memset(&r, 0, sizeof(r));
+		memset(&usb_data, 0, sizeof(usb_data));
+
+		ret = of_address_to_resource(np, 0, &r[0]);
+		if (ret)
+			goto unreg_mph;
+
+		r[1].start = r[1].end = irq_of_parse_and_map(np, 0);
+		r[1].flags = IORESOURCE_IRQ;
+
+		usb_dev_dr =
+		    platform_device_register_simple("fsl-ehci", i, r, 2);
+		if (IS_ERR(usb_dev_dr)) {
+			ret = PTR_ERR(usb_dev_dr);
+			goto err;
+		}
+
+		usb_dev_dr->dev.coherent_dma_mask = 0xffffffffUL;
+		usb_dev_dr->dev.dma_mask = &usb_dev_dr->dev.coherent_dma_mask;
+
+		usb_data.operating_mode = FSL_USB2_DR_HOST;
+
+		prop = get_property(np, "phy_type", NULL);
+		usb_data.phy_mode = determine_usb_phy(prop);
+
+		ret =
+		    platform_device_add_data(usb_dev_dr, &usb_data,
+					     sizeof(struct
+						    fsl_usb2_platform_data));
+		if (ret)
+			goto unreg_dr;
+	}
+	return 0;
+
+unreg_dr:
+	if (usb_dev_dr)
+		platform_device_unregister(usb_dev_dr);
+unreg_mph:
+	if (usb_dev_mph)
+		platform_device_unregister(usb_dev_mph);
+err:
+	return ret;
+}
+
+arch_initcall(fsl_usb_of_init);

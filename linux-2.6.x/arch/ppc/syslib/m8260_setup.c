@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/syslib/m8260_setup.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
  *  Modified by Cort Dougan (cort@cs.nmt.edu)
@@ -8,7 +6,6 @@
  *  Further modified for generic 8xx and 8260 by Dan.
  */
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

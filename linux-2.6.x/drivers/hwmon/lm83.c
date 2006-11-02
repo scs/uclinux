@@ -12,6 +12,10 @@
  * Since the datasheet omits to give the chip stepping code, I give it
  * here: 0x03 (at register 0xff).
  *
+ * Also supports the LM82 temp sensor, which is basically a stripped down
+ * model of the LM83.  Datasheet is here:
+ * http://www.national.com/pf/LM/LM82.html
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -35,6 +39,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
+#include <linux/mutex.h>
 
 /*
  * Addresses to scan
@@ -51,7 +56,7 @@ static unsigned short normal_i2c[] = { 0x18, 0x19, 0x1a,
  * Insmod parameters
  */
 
-I2C_CLIENT_INSMOD_1(lm83);
+I2C_CLIENT_INSMOD_2(lm83, lm82);
 
 /*
  * The LM83 registers
@@ -139,7 +144,7 @@ static struct i2c_driver lm83_driver = {
 struct lm83_data {
 	struct i2c_client client;
 	struct class_device *class_dev;
-	struct semaphore update_lock;
+	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
@@ -171,11 +176,11 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	long val = simple_strtol(buf, NULL, 10);
 	int nr = attr->index;
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 	data->temp[nr] = TEMP_TO_REG(val);
 	i2c_smbus_write_byte_data(client, LM83_REG_W_HIGH[nr - 4],
 				  data->temp[nr]);
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 	return count;
 }
 
@@ -282,6 +287,9 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 		if (man_id == 0x01) { /* National Semiconductor */
 			if (chip_id == 0x03) {
 				kind = lm83;
+			} else
+			if (chip_id == 0x01) {
+				kind = lm82;
 			}
 		}
 
@@ -295,12 +303,15 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	if (kind == lm83) {
 		name = "lm83";
+	} else
+	if (kind == lm82) {
+		name = "lm82";
 	}
 
 	/* We can fill in the remaining client fields */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);
 	data->valid = 0;
-	init_MUTEX(&data->update_lock);
+	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
 	if ((err = i2c_attach_client(new_client)))
@@ -318,31 +329,45 @@ static int lm83_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_detach;
 	}
 
+	/*
+	 * The LM82 can only monitor one external diode which is
+	 * at the same register as the LM83 temp3 entry - so we
+	 * declare 1 and 3 common, and then 2 and 4 only for the LM83.
+	 */
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_input.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_input.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_input.dev_attr);
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_max.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_max.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_max.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_max.dev_attr);
+
 	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp1_crit.dev_attr);
 	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp2_crit.dev_attr);
-	device_create_file(&new_client->dev,
 			   &sensor_dev_attr_temp3_crit.dev_attr);
-	device_create_file(&new_client->dev,
-			   &sensor_dev_attr_temp4_crit.dev_attr);
+
 	device_create_file(&new_client->dev, &dev_attr_alarms);
+
+	if (kind == lm83) {
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_input.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_input.dev_attr);
+
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_max.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_max.dev_attr);
+
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp2_crit.dev_attr);
+		device_create_file(&new_client->dev,
+				   &sensor_dev_attr_temp4_crit.dev_attr);
+	}
 
 	return 0;
 
@@ -373,7 +398,7 @@ static struct lm83_data *lm83_update_device(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm83_data *data = i2c_get_clientdata(client);
 
-	down(&data->update_lock);
+	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int nr;
@@ -393,7 +418,7 @@ static struct lm83_data *lm83_update_device(struct device *dev)
 		data->valid = 1;
 	}
 
-	up(&data->update_lock);
+	mutex_unlock(&data->update_lock);
 
 	return data;
 }

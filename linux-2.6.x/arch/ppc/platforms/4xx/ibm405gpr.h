@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm405gpr.h
- *
  * Author: Armin Kuster <akuster@mvista.com>
  *
  * 2002 (c) MontaVista, Software, Inc.  This file is licensed under
@@ -13,7 +11,6 @@
 #ifndef __ASM_IBM405GPR_H__
 #define __ASM_IBM405GPR_H__
 
-#include <linux/config.h>
 
 /* ibm405.h at bottom of this file */
 

@@ -26,6 +26,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -39,6 +40,9 @@
 #include <asm/io.h>
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
+#include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
@@ -141,6 +145,21 @@ void __iomem *sbus_ioremap(struct resource *phyres, unsigned long offset,
 	    phyres->start + offset, size, name);
 }
 
+void __iomem *of_ioremap(struct resource *res, unsigned long offset,
+			 unsigned long size, char *name)
+{
+	return _sparc_alloc_io(res->flags & 0xF,
+			       res->start + offset,
+			       size, name);
+}
+EXPORT_SYMBOL(of_ioremap);
+
+void of_iounmap(void __iomem *base, unsigned long size)
+{
+	iounmap(base);
+}
+EXPORT_SYMBOL(of_iounmap);
+
 /*
  */
 void sbus_iounmap(volatile void __iomem *addr, unsigned long size)
@@ -206,7 +225,7 @@ _sparc_ioremap(struct resource *res, u32 bus, u32 pa, int sz)
 	pa &= PAGE_MASK;
 	sparc_mapiorange(bus, pa, res->start, res->end - res->start + 1);
 
-	return (void __iomem *) (res->start + offset);
+	return (void __iomem *)(unsigned long)(res->start + offset);
 }
 
 /*
@@ -217,15 +236,59 @@ static void _sparc_free_io(struct resource *res)
 	unsigned long plen;
 
 	plen = res->end - res->start + 1;
-	if ((plen & (PAGE_SIZE-1)) != 0) BUG();
+	BUG_ON((plen & (PAGE_SIZE-1)) != 0);
 	sparc_unmapiorange(res->start, plen);
 	release_resource(res);
 }
 
 #ifdef CONFIG_SBUS
 
-void sbus_set_sbus64(struct sbus_dev *sdev, int x) {
+void sbus_set_sbus64(struct sbus_dev *sdev, int x)
+{
 	printk("sbus_set_sbus64: unsupported\n");
+}
+
+extern unsigned int sun4d_build_irq(struct sbus_dev *sdev, int irq);
+void __init sbus_fill_device_irq(struct sbus_dev *sdev)
+{
+	struct linux_prom_irqs irqs[PROMINTR_MAX];
+	int len;
+
+	len = prom_getproperty(sdev->prom_node, "intr",
+			       (char *)irqs, sizeof(irqs));
+	if (len != -1) {
+		sdev->num_irqs = len / 8;
+		if (sdev->num_irqs == 0) {
+			sdev->irqs[0] = 0;
+		} else if (sparc_cpu_model == sun4d) {
+			for (len = 0; len < sdev->num_irqs; len++)
+				sdev->irqs[len] =
+					sun4d_build_irq(sdev, irqs[len].pri);
+		} else {
+			for (len = 0; len < sdev->num_irqs; len++)
+				sdev->irqs[len] = irqs[len].pri;
+		}
+	} else {
+		int interrupts[PROMINTR_MAX];
+
+		/* No "intr" node found-- check for "interrupts" node.
+		 * This node contains SBus interrupt levels, not IPLs
+		 * as in "intr", and no vector values.  We convert
+		 * SBus interrupt levels to PILs (platform specific).
+		 */
+		len = prom_getproperty(sdev->prom_node, "interrupts",
+				       (char *)interrupts, sizeof(interrupts));
+		if (len == -1) {
+			sdev->irqs[0] = 0;
+			sdev->num_irqs = 0;
+		} else {
+			sdev->num_irqs = len / sizeof(int);
+			for (len = 0; len < sdev->num_irqs; len++) {
+				sdev->irqs[len] =
+					sbint_to_irq(sdev, interrupts[len]);
+			}
+		}
+	} 
 }
 
 /*
@@ -274,7 +337,12 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	if (mmu_map_dma_area(dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
-	return (void *)res->start;
+	/* Set the resource name, if known. */
+	if (sdev) {
+		res->name = sdev->prom_name;
+	}
+
+	return (void *)(unsigned long)res->start;
 
 err_noiommu:
 	release_resource(res);
@@ -409,6 +477,89 @@ void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev, struct scatterlist *sg, 
 {
 	printk("sbus_dma_sync_sg_for_device: not implemented yet\n");
 }
+
+/* Support code for sbus_init().  */
+/*
+ * XXX This functions appears to be a distorted version of
+ * prom_sbus_ranges_init(), with all sun4d stuff cut away.
+ * Ask DaveM what is going on here, how is sun4d supposed to work... XXX
+ */
+/* added back sun4d patch from Thomas Bogendoerfer - should be OK (crn) */
+void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
+{
+	int parent_node = pn->node;
+
+	if (sparc_cpu_model == sun4d) {
+		struct linux_prom_ranges iounit_ranges[PROMREG_MAX];
+		int num_iounit_ranges, len;
+
+		len = prom_getproperty(parent_node, "ranges",
+				       (char *) iounit_ranges,
+				       sizeof (iounit_ranges));
+		if (len != -1) {
+			num_iounit_ranges =
+				(len / sizeof(struct linux_prom_ranges));
+			prom_adjust_ranges(sbus->sbus_ranges,
+					   sbus->num_sbus_ranges,
+					   iounit_ranges, num_iounit_ranges);
+		}
+	}
+}
+
+void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
+{
+	struct device_node *parent = dp->parent;
+
+	if (sparc_cpu_model != sun4d &&
+	    parent != NULL &&
+	    !strcmp(parent->name, "iommu")) {
+		extern void iommu_init(int iommu_node, struct sbus_bus *sbus);
+
+		iommu_init(parent->node, sbus);
+	}
+
+	if (sparc_cpu_model == sun4d) {
+		extern void iounit_init(int sbi_node, int iounit_node,
+					struct sbus_bus *sbus);
+
+		iounit_init(dp->node, parent->node, sbus);
+	}
+}
+
+void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
+{
+	if (sparc_cpu_model == sun4d) {
+		struct device_node *parent = dp->parent;
+
+		sbus->devid = of_getintprop_default(parent, "device-id", 0);
+		sbus->board = of_getintprop_default(parent, "board#", 0);
+	}
+}
+
+int __init sbus_arch_preinit(void)
+{
+	extern void register_proc_sparc_ioport(void);
+
+	register_proc_sparc_ioport();
+
+#ifdef CONFIG_SUN4
+	{
+		extern void sun4_dvma_init(void);
+		sun4_dvma_init();
+	}
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+void __init sbus_arch_postinit(void)
+{
+	if (sparc_cpu_model == sun4d) {
+		extern void sun4d_init_sbi_irq(void);
+		sun4d_init_sbi_irq();
+	}
+}
 #endif /* CONFIG_SBUS */
 
 #ifdef CONFIG_PCI
@@ -512,8 +663,7 @@ void pci_free_consistent(struct pci_dev *pdev, size_t n, void *p, dma_addr_t ba)
 dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size,
     int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	/* IIep is write-through, not flushing. */
 	return virt_to_phys(ptr);
 }
@@ -528,8 +678,7 @@ dma_addr_t pci_map_single(struct pci_dev *hwdev, void *ptr, size_t size,
 void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t ba, size_t size,
     int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		mmu_inval_dma_area((unsigned long)phys_to_virt(ba),
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
@@ -542,8 +691,7 @@ void pci_unmap_single(struct pci_dev *hwdev, dma_addr_t ba, size_t size,
 dma_addr_t pci_map_page(struct pci_dev *hwdev, struct page *page,
 			unsigned long offset, size_t size, int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	/* IIep is write-through, not flushing. */
 	return page_to_phys(page) + offset;
 }
@@ -551,8 +699,7 @@ dma_addr_t pci_map_page(struct pci_dev *hwdev, struct page *page,
 void pci_unmap_page(struct pci_dev *hwdev,
 			dma_addr_t dma_address, size_t size, int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	/* mmu_inval_dma_area XXX */
 }
 
@@ -576,11 +723,10 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
 {
 	int n;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	/* IIep is write-through, not flushing. */
 	for (n = 0; n < nents; n++) {
-		if (page_address(sg->page) == NULL) BUG();
+		BUG_ON(page_address(sg->page) == NULL);
 		sg->dvma_address = virt_to_phys(page_address(sg->page));
 		sg->dvma_length = sg->length;
 		sg++;
@@ -597,11 +743,10 @@ void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
 {
 	int n;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for (n = 0; n < nents; n++) {
-			if (page_address(sg->page) == NULL) BUG();
+			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
@@ -622,8 +767,7 @@ void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg, int nents,
  */
 void pci_dma_sync_single_for_cpu(struct pci_dev *hwdev, dma_addr_t ba, size_t size, int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		mmu_inval_dma_area((unsigned long)phys_to_virt(ba),
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
@@ -632,8 +776,7 @@ void pci_dma_sync_single_for_cpu(struct pci_dev *hwdev, dma_addr_t ba, size_t si
 
 void pci_dma_sync_single_for_device(struct pci_dev *hwdev, dma_addr_t ba, size_t size, int direction)
 {
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		mmu_inval_dma_area((unsigned long)phys_to_virt(ba),
 		    (size + PAGE_SIZE-1) & PAGE_MASK);
@@ -650,11 +793,10 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sg, int 
 {
 	int n;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for (n = 0; n < nents; n++) {
-			if (page_address(sg->page) == NULL) BUG();
+			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
@@ -667,11 +809,10 @@ void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sg, i
 {
 	int n;
 
-	if (direction == PCI_DMA_NONE)
-		BUG();
+	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for (n = 0; n < nents; n++) {
-			if (page_address(sg->page) == NULL) BUG();
+			BUG_ON(page_address(sg->page) == NULL);
 			mmu_inval_dma_area(
 			    (unsigned long) page_address(sg->page),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
@@ -695,7 +836,9 @@ _sparc_io_get_info(char *buf, char **start, off_t fpos, int length, int *eof,
 		if (p + 32 >= e)	/* Better than nothing */
 			break;
 		if ((nm = r->name) == 0) nm = "???";
-		p += sprintf(p, "%08lx-%08lx: %s\n", r->start, r->end, nm);
+		p += sprintf(p, "%016llx-%016llx: %s\n",
+				(unsigned long long)r->start,
+				(unsigned long long)r->end, nm);
 	}
 
 	return p-buf;

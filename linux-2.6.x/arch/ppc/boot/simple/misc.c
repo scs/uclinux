@@ -1,6 +1,4 @@
 /*
- * arch/ppc/simple/misc.c
- *
  * Misc. bootloader code for many machines.  This assumes you have are using
  * a 6xx/7xx/74xx CPU in your machine.  This assumes the chunk of memory
  * below 8MB is free.  Finally, it assumes you have a NS16550-style uart for
@@ -17,7 +15,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/string.h>
 
 #include <asm/page.h>

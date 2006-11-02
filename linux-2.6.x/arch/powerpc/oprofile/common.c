@@ -22,6 +22,7 @@
 #include <asm/pmc.h>
 #include <asm/cputable.h>
 #include <asm/oprofile_impl.h>
+#include <asm/firmware.h>
 
 static struct op_powerpc_model *model;
 
@@ -93,7 +94,7 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 
 	for (i = 0; i < model->num_counters; ++i) {
 		struct dentry *dir;
-		char buf[3];
+		char buf[4];
 
 		snprintf(buf, sizeof buf, "%d", i);
 		dir = oprofilefs_mkdir(sb, root, buf);
@@ -117,18 +118,10 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 
 	oprofilefs_create_ulong(sb, root, "enable_kernel", &sys.enable_kernel);
 	oprofilefs_create_ulong(sb, root, "enable_user", &sys.enable_user);
-#ifdef CONFIG_PPC64
-	oprofilefs_create_ulong(sb, root, "backtrace_spinlocks",
-				&sys.backtrace_spinlocks);
-#endif
 
 	/* Default to tracing both kernel and user */
 	sys.enable_kernel = 1;
 	sys.enable_user = 1;
-#ifdef CONFIG_PPC64
-	/* Turn on backtracing through spinlocks by default */
-	sys.backtrace_spinlocks = 1;
-#endif
 
 	return 0;
 }
@@ -136,6 +129,9 @@ static int op_powerpc_create_files(struct super_block *sb, struct dentry *root)
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type)
+		return -ENODEV;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		return -ENODEV;
 
 	switch (cur_cpu_spec->oprofile_type) {
@@ -168,8 +164,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	ops->shutdown = op_powerpc_shutdown;
 	ops->start = op_powerpc_start;
 	ops->stop = op_powerpc_stop;
+	ops->backtrace = op_powerpc_backtrace;
 
-	printk(KERN_INFO "oprofile: using %s performance monitoring.\n",
+	printk(KERN_DEBUG "oprofile: using %s performance monitoring.\n",
 	       ops->cpu_type);
 
 	return 0;

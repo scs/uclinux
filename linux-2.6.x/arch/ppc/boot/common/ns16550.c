@@ -2,12 +2,14 @@
  * COM1 NS16550 support
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <asm/serial.h>
 
+#if defined(CONFIG_XILINX_VIRTEX)
+#include <platforms/4xx/xparameters/xparameters.h>
+#endif
 #include "nonstdio.h"
 #include "serial.h"
 

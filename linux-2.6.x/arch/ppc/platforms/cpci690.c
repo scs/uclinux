@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/cpci690.c
- *
  * Board setup routines for the Force CPCI690 board.
  *
  * Author: Mark A. Greer <mgreer@mvista.com>
@@ -10,7 +8,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
@@ -290,7 +287,7 @@ cpci690_fixup_mpsc_pdata(struct platform_device *pdev)
 	pdata->brg_clk_freq = cpci690_get_bus_freq();
 }
 
-static int __init
+static int
 cpci690_platform_notify(struct device *dev)
 {
 	static struct {

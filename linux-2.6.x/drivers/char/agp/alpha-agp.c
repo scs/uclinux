@@ -23,8 +23,9 @@ static struct page *alpha_core_agp_vm_nopage(struct vm_area_struct *vma,
 	dma_addr = address - vma->vm_start + agp->aperture.bus_base;
 	pa = agp->ops->translate(agp, dma_addr);
 
-	if (pa == (unsigned long)-EINVAL) return NULL;	/* no translation */
-	
+	if (pa == (unsigned long)-EINVAL)
+		return NULL;	/* no translation */
+
 	/*
 	 * Get the page, inc the use count, and return it
 	 */
@@ -44,12 +45,6 @@ struct vm_operations_struct alpha_core_agp_vm_ops = {
 	.nopage = alpha_core_agp_vm_nopage,
 };
 
-
-static int alpha_core_agp_nop(void)
-{
-	/* just return success */
-	return 0;
-}
 
 static int alpha_core_agp_fetch_size(void)
 {
@@ -89,7 +84,7 @@ static void alpha_core_agp_enable(struct agp_bridge_data *bridge, u32 mode)
 	agp_device_command(agp->mode.lw, 0);
 }
 
-static int alpha_core_agp_insert_memory(struct agp_memory *mem, off_t pg_start, 
+static int alpha_core_agp_insert_memory(struct agp_memory *mem, off_t pg_start,
 					int type)
 {
 	alpha_agp_info *agp = agp_bridge->dev_private_data;
@@ -98,7 +93,8 @@ static int alpha_core_agp_insert_memory(struct agp_memory *mem, off_t pg_start,
 
 	temp = agp_bridge->current_size;
 	num_entries = A_SIZE_FIX(temp)->num_entries;
-	if ((pg_start + mem->page_count) > num_entries) return -EINVAL;
+	if ((pg_start + mem->page_count) > num_entries)
+		return -EINVAL;
 
 	status = agp->ops->bind(agp, pg_start, mem);
 	mb();
@@ -107,7 +103,7 @@ static int alpha_core_agp_insert_memory(struct agp_memory *mem, off_t pg_start,
 	return status;
 }
 
-static int alpha_core_agp_remove_memory(struct agp_memory *mem, off_t pg_start, 
+static int alpha_core_agp_remove_memory(struct agp_memory *mem, off_t pg_start,
 					int type)
 {
 	alpha_agp_info *agp = agp_bridge->dev_private_data;
@@ -118,6 +114,11 @@ static int alpha_core_agp_remove_memory(struct agp_memory *mem, off_t pg_start,
 	return status;
 }
 
+static int alpha_core_agp_create_free_gatt_table(struct agp_bridge_data *a)
+{
+	return 0;
+}
+
 struct agp_bridge_driver alpha_core_agp_driver = {
 	.owner			= THIS_MODULE,
 	.aperture_sizes		= alpha_core_agp_sizes,
@@ -125,7 +126,7 @@ struct agp_bridge_driver alpha_core_agp_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.cant_use_aperture	= 1,
 	.masks			= NULL,
-	
+
 	.fetch_size		= alpha_core_agp_fetch_size,
 	.configure		= alpha_core_agp_configure,
 	.agp_enable		= alpha_core_agp_enable,
@@ -133,8 +134,8 @@ struct agp_bridge_driver alpha_core_agp_driver = {
 	.tlb_flush		= alpha_core_agp_tlbflush,
 	.mask_memory		= agp_generic_mask_memory,
 	.cache_flush		= global_cache_flush,
-	.create_gatt_table	= alpha_core_agp_nop,
-	.free_gatt_table	= alpha_core_agp_nop,
+	.create_gatt_table	= alpha_core_agp_create_free_gatt_table,
+	.free_gatt_table	= alpha_core_agp_create_free_gatt_table,
 	.insert_memory		= alpha_core_agp_insert_memory,
 	.remove_memory		= alpha_core_agp_remove_memory,
 	.alloc_by_type		= agp_generic_alloc_by_type,

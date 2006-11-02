@@ -14,7 +14,6 @@
  */
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -29,6 +28,8 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
+#include <linux/mutex.h>
+#include <linux/memory_hotplug.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -46,10 +47,15 @@
 #include <asm/cputable.h>
 #include <asm/ppc-pci.h>
 #include <asm/irq.h>
+#include <asm/spu.h>
+#include <asm/spu_priv1.h>
+#include <asm/udbg.h>
 
 #include "interrupt.h"
 #include "iommu.h"
+#include "cbe_regs.h"
 #include "pervasive.h"
+#include "ras.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -69,86 +75,36 @@ static void cell_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
-#ifdef CONFIG_SPARSEMEM
-static int __init find_spu_node_id(struct device_node *spe)
-{
-	unsigned int *id;
-#ifdef CONFIG_NUMA
-	struct device_node *cpu;
-	cpu = spe->parent->parent;
-	id = (unsigned int *)get_property(cpu, "node-id", NULL);
-#else
-	id = NULL;
-#endif
-	return id ? *id : 0;
-}
-
-static void __init cell_spuprop_present(struct device_node *spe,
-				       const char *prop, int early)
-{
-	struct address_prop {
-		unsigned long address;
-		unsigned int len;
-	} __attribute__((packed)) *p;
-	int proplen;
-
-	unsigned long start_pfn, end_pfn, pfn;
-	int node_id;
-
-	p = (void*)get_property(spe, prop, &proplen);
-	WARN_ON(proplen != sizeof (*p));
-
-	node_id = find_spu_node_id(spe);
-
-	start_pfn = p->address >> PAGE_SHIFT;
-	end_pfn = (p->address + p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-
-	/* We need to call memory_present *before* the call to sparse_init,
-	   but we can initialize the page structs only *after* that call.
-	   Thus, we're being called twice. */
-	if (early)
-		memory_present(node_id, start_pfn, end_pfn);
-	else {
-		/* As the pages backing SPU LS and I/O are outside the range
-		   of regular memory, their page structs were not initialized
-		   by free_area_init. Do it here instead. */
-		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-			struct page *page = pfn_to_page(pfn);
-			set_page_links(page, ZONE_DMA, node_id, pfn);
-			set_page_count(page, 1);
-			reset_page_mapcount(page);
-			SetPageReserved(page);
-			INIT_LIST_HEAD(&page->lru);
-		}
-	}
-}
-
-static void __init cell_spumem_init(int early)
-{
-	struct device_node *node;
-	for (node = of_find_node_by_type(NULL, "spe");
-			node; node = of_find_node_by_type(node, "spe")) {
-		cell_spuprop_present(node, "local-store", early);
-		cell_spuprop_present(node, "problem", early);
-		cell_spuprop_present(node, "priv1", early);
-		cell_spuprop_present(node, "priv2", early);
-	}
-}
-#else
-static void __init cell_spumem_init(int early)
-{
-}
-#endif
-
 static void cell_progress(char *s, unsigned short hex)
 {
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
+static void __init cell_pcibios_fixup(void)
+{
+	struct pci_dev *dev = NULL;
+
+	for_each_pci_dev(dev)
+		pci_read_irq_line(dev);
+}
+
+static void __init cell_init_irq(void)
+{
+	iic_init_IRQ();
+	spider_init_IRQ();
+}
+
 static void __init cell_setup_arch(void)
 {
-	ppc_md.init_IRQ       = iic_init_IRQ;
-	ppc_md.get_irq        = iic_get_irq;
+#ifdef CONFIG_SPU_BASE
+	spu_priv1_ops         = &spu_priv1_mmio_ops;
+#endif
+
+	cbe_regs_init();
+
+#ifdef CONFIG_CBE_RAS
+	cbe_ras_init();
+#endif
 
 #ifdef CONFIG_SMP
 	smp_init_cell();
@@ -165,15 +121,12 @@ static void __init cell_setup_arch(void)
 	/* Find and initialize PCI host bridges */
 	init_pci_config_tokens();
 	find_and_init_phbs();
-	spider_init_IRQ();
-	cell_pervasive_init();
+	cbe_pervasive_init();
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
 
 	mmio_nvram_init();
-
-	cell_spumem_init(0);
 }
 
 /*
@@ -183,22 +136,25 @@ static void __init cell_init_early(void)
 {
 	DBG(" -> cell_init_early()\n");
 
-	hpte_init_native();
-
 	cell_init_iommu();
-
-	ppc64_interrupt_controller = IC_CELL_PIC;
-
-	cell_spumem_init(1);
 
 	DBG(" <- cell_init_early()\n");
 }
 
 
-static int __init cell_probe(int platform)
+static int __init cell_probe(void)
 {
-	if (platform != PLATFORM_CELL)
+	unsigned long root = of_get_flat_dt_root();
+
+	if (!of_flat_dt_is_compatible(root, "IBM,CBEA") &&
+	    !of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
 		return 0;
+
+#ifdef CONFIG_UDBG_RTAS_CONSOLE
+	udbg_init_rtas_console();
+#endif
+
+	hpte_init_native();
 
 	return 1;
 }
@@ -212,7 +168,8 @@ static int cell_check_legacy_ioport(unsigned int baseport)
 	return -ENODEV;
 }
 
-struct machdep_calls __initdata cell_md = {
+define_machine(cell) {
+	.name			= "Cell",
 	.probe			= cell_probe,
 	.setup_arch		= cell_setup_arch,
 	.init_early		= cell_init_early,
@@ -226,6 +183,8 @@ struct machdep_calls __initdata cell_md = {
 	.calibrate_decr		= generic_calibrate_decr,
 	.check_legacy_ioport	= cell_check_legacy_ioport,
 	.progress		= cell_progress,
+	.init_IRQ       	= cell_init_irq,
+	.pcibios_fixup		= cell_pcibios_fixup,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,

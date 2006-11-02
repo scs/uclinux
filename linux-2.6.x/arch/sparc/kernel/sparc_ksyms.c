@@ -9,7 +9,6 @@
 #define EXPORT_SYMTAB_STROPS
 #define PROMLIB_INTERNAL
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -136,10 +135,6 @@ EXPORT_PER_CPU_SYMBOL(__cpu_data);
 /* IRQ implementation. */
 EXPORT_SYMBOL(synchronize_irq);
 
-/* Misc SMP information */
-EXPORT_SYMBOL(__cpu_number_map);
-EXPORT_SYMBOL(__cpu_logical_map);
-
 /* CPU online map and active count. */
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(phys_cpu_present_map);
@@ -167,7 +162,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(__hard_smp_processor_id));
 #endif
 EXPORT_SYMBOL(BTFIXUP_CALL(enable_irq));
 EXPORT_SYMBOL(BTFIXUP_CALL(disable_irq));
-EXPORT_SYMBOL(BTFIXUP_CALL(__irq_itoa));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_unlockarea));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_lockarea));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_sgl));
@@ -243,7 +237,6 @@ EXPORT_SYMBOL(prom_node_has_property);
 EXPORT_SYMBOL(prom_setprop);
 EXPORT_SYMBOL(saved_command_line);
 EXPORT_SYMBOL(prom_apply_obio_ranges);
-EXPORT_SYMBOL(prom_getname);
 EXPORT_SYMBOL(prom_feval);
 EXPORT_SYMBOL(prom_getbool);
 EXPORT_SYMBOL(prom_getstring);
@@ -255,20 +248,9 @@ EXPORT_SYMBOL(__prom_getchild);
 EXPORT_SYMBOL(__prom_getsibling);
 
 /* sparc library symbols */
-EXPORT_SYMBOL(memchr);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(strncmp);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
 EXPORT_SYMBOL(page_kernel);
 
 /* Special internal versions of library functions. */
@@ -322,6 +304,3 @@ EXPORT_SYMBOL(do_BUG);
 
 /* Sun Power Management Idle Handler */
 EXPORT_SYMBOL(pm_idle);
-
-/* Binfmt_misc needs this */
-EXPORT_SYMBOL(sys_close);

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ibm440gp_common.c
- *
  * PPC440GP system library
  *
  * Matt Porter <mporter@mvista.com>
@@ -15,7 +13,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/reg.h>
 #include <asm/ibm44x.h>

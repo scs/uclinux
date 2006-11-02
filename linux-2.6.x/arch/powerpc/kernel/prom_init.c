@@ -16,7 +16,6 @@
 #undef DEBUG_PROM
 
 #include <stdarg.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -180,22 +179,25 @@ static unsigned long __initdata prom_tce_alloc_start;
 static unsigned long __initdata prom_tce_alloc_end;
 #endif
 
+/* Platforms codes are now obsolete in the kernel. Now only used within this
+ * file and ultimately gone too. Feel free to change them if you need, they
+ * are not shared with anything outside of this file anymore
+ */
+#define PLATFORM_PSERIES	0x0100
+#define PLATFORM_PSERIES_LPAR	0x0101
+#define PLATFORM_LPAR		0x0001
+#define PLATFORM_POWERMAC	0x0400
+#define PLATFORM_GENERIC	0x0500
+
 static int __initdata of_platform;
 
 static char __initdata prom_cmd_line[COMMAND_LINE_SIZE];
-
-static unsigned long __initdata prom_memory_limit;
 
 static unsigned long __initdata alloc_top;
 static unsigned long __initdata alloc_top_high;
 static unsigned long __initdata alloc_bottom;
 static unsigned long __initdata rmo_top;
 static unsigned long __initdata ram_top;
-
-#ifdef CONFIG_KEXEC
-static unsigned long __initdata prom_crashk_base;
-static unsigned long __initdata prom_crashk_size;
-#endif
 
 static struct mem_map_entry __initdata mem_reserve_map[MEM_RESERVE_MAP_SIZE];
 static int __initdata mem_reserve_cnt;
@@ -397,6 +399,11 @@ static void __init __attribute__((noreturn)) prom_panic(const char *reason)
 	reason = PTRRELOC(reason);
 #endif
 	prom_print(reason);
+	/* Do not call exit because it clears the screen on pmac
+	 * it also causes some sort of double-fault on early pmacs */
+	if (RELOC(of_platform) == PLATFORM_POWERMAC)
+		asm("trap\n");
+
 	/* ToDo: should put up an SRC here on p/iSeries */
 	call_prom("exit", 0, 0);
 
@@ -550,7 +557,9 @@ unsigned long prom_memparse(const char *ptr, const char **retptr)
 static void __init early_cmdline_parse(void)
 {
 	struct prom_t *_prom = &RELOC(prom);
+#ifdef CONFIG_PPC64
 	const char *opt;
+#endif
 	char *p;
 	int l = 0;
 
@@ -559,7 +568,7 @@ static void __init early_cmdline_parse(void)
 	if ((long)_prom->chosen > 0)
 		l = prom_getprop(_prom->chosen, "bootargs", p, COMMAND_LINE_SIZE-1);
 #ifdef CONFIG_CMDLINE
-	if (l == 0) /* dbl check */
+	if (l <= 0 || p[0] == '\0') /* dbl check */
 		strlcpy(RELOC(prom_cmd_line),
 			RELOC(CONFIG_CMDLINE), sizeof(prom_cmd_line));
 #endif /* CONFIG_CMDLINE */
@@ -578,53 +587,100 @@ static void __init early_cmdline_parse(void)
 			RELOC(iommu_force_on) = 1;
 	}
 #endif
-
-	opt = strstr(RELOC(prom_cmd_line), RELOC("mem="));
-	if (opt) {
-		opt += 4;
-		RELOC(prom_memory_limit) = prom_memparse(opt, (const char **)&opt);
-#ifdef CONFIG_PPC64
-		/* Align to 16 MB == size of ppc64 large page */
-		RELOC(prom_memory_limit) = ALIGN(RELOC(prom_memory_limit), 0x1000000);
-#endif
-	}
-
-#ifdef CONFIG_KEXEC
-	/*
-	 * crashkernel=size@addr specifies the location to reserve for
-	 * crash kernel.
-	 */
-	opt = strstr(RELOC(prom_cmd_line), RELOC("crashkernel="));
-	if (opt) {
-		opt += 12;
-		RELOC(prom_crashk_size) = 
-			prom_memparse(opt, (const char **)&opt);
-
-		if (ALIGN(RELOC(prom_crashk_size), 0x1000000) !=
-			RELOC(prom_crashk_size)) {
-			prom_printf("Warning: crashkernel size is not "
-					"aligned to 16MB\n");
-		}
-
-		/*
-		 * At present, the crash kernel always run at 32MB.
-		 * Just ignore whatever user passed.
-		 */
-		RELOC(prom_crashk_base) = 0x2000000;
-		if (*opt == '@') {
-			prom_printf("Warning: PPC64 kdump kernel always runs "
-					"at 32 MB\n");
-		}
-	}
-#endif
 }
 
 #ifdef CONFIG_PPC_PSERIES
 /*
- * To tell the firmware what our capabilities are, we have to pass
- * it a fake 32-bit ELF header containing a couple of PT_NOTE sections
- * that contain structures that contain the actual values.
+ * There are two methods for telling firmware what our capabilities are.
+ * Newer machines have an "ibm,client-architecture-support" method on the
+ * root node.  For older machines, we have to call the "process-elf-header"
+ * method in the /packages/elf-loader node, passing it a fake 32-bit
+ * ELF header containing a couple of PT_NOTE sections that contain
+ * structures that contain various information.
  */
+
+/*
+ * New method - extensible architecture description vector.
+ *
+ * Because the description vector contains a mix of byte and word
+ * values, we declare it as an unsigned char array, and use this
+ * macro to put word values in.
+ */
+#define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
+		((x) >> 8) & 0xff, (x) & 0xff
+
+/* Option vector bits - generic bits in byte 1 */
+#define OV_IGNORE		0x80	/* ignore this vector */
+#define OV_CESSATION_POLICY	0x40	/* halt if unsupported option present*/
+
+/* Option vector 1: processor architectures supported */
+#define OV1_PPC_2_00		0x80	/* set if we support PowerPC 2.00 */
+#define OV1_PPC_2_01		0x40	/* set if we support PowerPC 2.01 */
+#define OV1_PPC_2_02		0x20	/* set if we support PowerPC 2.02 */
+#define OV1_PPC_2_03		0x10	/* set if we support PowerPC 2.03 */
+#define OV1_PPC_2_04		0x08	/* set if we support PowerPC 2.04 */
+#define OV1_PPC_2_05		0x04	/* set if we support PowerPC 2.05 */
+
+/* Option vector 2: Open Firmware options supported */
+#define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
+
+/* Option vector 3: processor options supported */
+#define OV3_FP			0x80	/* floating point */
+#define OV3_VMX			0x40	/* VMX/Altivec */
+
+/* Option vector 5: PAPR/OF options supported */
+#define OV5_LPAR		0x80	/* logical partitioning supported */
+#define OV5_SPLPAR		0x40	/* shared-processor LPAR supported */
+/* ibm,dynamic-reconfiguration-memory property supported */
+#define OV5_DRCONF_MEMORY	0x20
+#define OV5_LARGE_PAGES		0x10	/* large pages supported */
+
+/*
+ * The architecture vector has an array of PVR mask/value pairs,
+ * followed by # option vectors - 1, followed by the option vectors.
+ */
+static unsigned char ibm_architecture_vec[] = {
+	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
+	W(0xffff0000), W(0x003e0000),	/* POWER6 */
+	W(0xfffffffe), W(0x0f000001),	/* all 2.04-compliant and earlier */
+	5 - 1,				/* 5 option vectors */
+
+	/* option vector 1: processor architectures supported */
+	3 - 2,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV1_PPC_2_00 | OV1_PPC_2_01 | OV1_PPC_2_02 | OV1_PPC_2_03 |
+	OV1_PPC_2_04 | OV1_PPC_2_05,
+
+	/* option vector 2: Open Firmware options supported */
+	34 - 2,				/* length */
+	OV2_REAL_MODE,
+	0, 0,
+	W(0xffffffff),			/* real_base */
+	W(0xffffffff),			/* real_size */
+	W(0xffffffff),			/* virt_base */
+	W(0xffffffff),			/* virt_size */
+	W(0xffffffff),			/* load_base */
+	W(64),				/* 128MB min RMA */
+	W(0xffffffff),			/* full client load */
+	0,				/* min RMA percentage of total RAM */
+	48,				/* max log_2(hash table size) */
+
+	/* option vector 3: processor options supported */
+	3 - 2,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV3_FP | OV3_VMX,
+
+	/* option vector 4: IBM PAPR implementation */
+	2 - 2,				/* length */
+	0,				/* don't halt */
+
+	/* option vector 5: PAPR/OF options */
+	3 - 2,				/* length */
+	0,				/* don't ignore, don't halt */
+	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES,
+};
+
+/* Old method - ELF header with PT_NOTE sections */
 static struct fake_elf {
 	Elf32_Ehdr	elfhdr;
 	Elf32_Phdr	phdr[2];
@@ -713,8 +769,27 @@ static struct fake_elf {
 
 static void __init prom_send_capabilities(void)
 {
-	ihandle elfloader;
+	ihandle elfloader, root;
+	prom_arg_t ret;
 
+	root = call_prom("open", 1, 1, ADDR("/"));
+	if (root != 0) {
+		/* try calling the ibm,client-architecture-support method */
+		if (call_prom_ret("call-method", 3, 2, &ret,
+				  ADDR("ibm,client-architecture-support"),
+				  root,
+				  ADDR(ibm_architecture_vec)) == 0) {
+			/* the call exists... */
+			if (ret)
+				prom_printf("WARNING: ibm,client-architecture"
+					    "-support call FAILED!\n");
+			call_prom("close", 1, 0, root);
+			return;
+		}
+		call_prom("close", 1, 0, root);
+	}
+
+	/* no ibm,client-architecture-support call, try the old way */
 	elfloader = call_prom("open", 1, 1, ADDR("/packages/elf-loader"));
 	if (elfloader == 0) {
 		prom_printf("couldn't open /packages/elf-loader\n");
@@ -914,7 +989,7 @@ static void reserve_mem(u64 base, u64 size)
 }
 
 /*
- * Initialize memory allocation mecanism, parse "memory" nodes and
+ * Initialize memory allocation mechanism, parse "memory" nodes and
  * obtain that way the top of memory and RMO to setup out local allocator
  */
 static void __init prom_init_mem(void)
@@ -996,29 +1071,6 @@ static void __init prom_init_mem(void)
 	}
 
 	/*
-	 * If prom_memory_limit is set we reduce the upper limits *except* for
-	 * alloc_top_high. This must be the real top of RAM so we can put
-	 * TCE's up there.
-	 */
-
-	RELOC(alloc_top_high) = RELOC(ram_top);
-
-	if (RELOC(prom_memory_limit)) {
-		if (RELOC(prom_memory_limit) <= RELOC(alloc_bottom)) {
-			prom_printf("Ignoring mem=%x <= alloc_bottom.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else if (RELOC(prom_memory_limit) >= RELOC(ram_top)) {
-			prom_printf("Ignoring mem=%x >= ram_top.\n",
-				RELOC(prom_memory_limit));
-			RELOC(prom_memory_limit) = 0;
-		} else {
-			RELOC(ram_top) = RELOC(prom_memory_limit);
-			RELOC(rmo_top) = min(RELOC(rmo_top), RELOC(prom_memory_limit));
-		}
-	}
-
-	/*
 	 * Setup our top alloc point, that is top of RMO or top of
 	 * segment 0 when running non-LPAR.
 	 * Some RS64 machines have buggy firmware where claims up at
@@ -1030,20 +1082,14 @@ static void __init prom_init_mem(void)
 		RELOC(rmo_top) = RELOC(ram_top);
 	RELOC(rmo_top) = min(0x30000000ul, RELOC(rmo_top));
 	RELOC(alloc_top) = RELOC(rmo_top);
+	RELOC(alloc_top_high) = RELOC(ram_top);
 
 	prom_printf("memory layout at init:\n");
-	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
 	prom_printf("  alloc_bottom : %x\n", RELOC(alloc_bottom));
 	prom_printf("  alloc_top    : %x\n", RELOC(alloc_top));
 	prom_printf("  alloc_top_hi : %x\n", RELOC(alloc_top_high));
 	prom_printf("  rmo_top      : %x\n", RELOC(rmo_top));
 	prom_printf("  ram_top      : %x\n", RELOC(ram_top));
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_printf("  crashk_base  : %x\n",  RELOC(prom_crashk_base));
-		prom_printf("  crashk_size  : %x\n", RELOC(prom_crashk_size));
-	}
-#endif
 }
 
 
@@ -1229,16 +1275,10 @@ static void __init prom_initialize_tce_table(void)
 
 	reserve_mem(local_alloc_bottom, local_alloc_top - local_alloc_bottom);
 
-	if (RELOC(prom_memory_limit)) {
-		/*
-		 * We align the start to a 16MB boundary so we can map
-		 * the TCE area using large pages if possible.
-		 * The end should be the top of RAM so no need to align it.
-		 */
-		RELOC(prom_tce_alloc_start) = _ALIGN_DOWN(local_alloc_bottom,
-							  0x1000000);
-		RELOC(prom_tce_alloc_end) = local_alloc_top;
-	}
+	/* These are only really needed if there is a memory limit in
+	 * effect, but we don't know so export them always. */
+	RELOC(prom_tce_alloc_start) = local_alloc_bottom;
+	RELOC(prom_tce_alloc_end) = local_alloc_top;
 
 	/* Flag the first invalid entry */
 	prom_debug("ending prom_initialize_tce_table\n");
@@ -1487,7 +1527,10 @@ static int __init prom_find_machine_type(void)
 	int len, i = 0;
 #ifdef CONFIG_PPC64
 	phandle rtas;
+	int x;
 #endif
+
+	/* Look for a PowerMac */
 	len = prom_getprop(_prom->root, "compatible",
 			   compat, sizeof(compat)-1);
 	if (len > 0) {
@@ -1501,27 +1544,43 @@ static int __init prom_find_machine_type(void)
 			    strstr(p, RELOC("MacRISC")))
 				return PLATFORM_POWERMAC;
 #ifdef CONFIG_PPC64
-			if (strstr(p, RELOC("Momentum,Maple")))
-				return PLATFORM_MAPLE;
-			if (strstr(p, RELOC("IBM,CPB")))
-				return PLATFORM_CELL;
-#endif
+			/* We must make sure we don't detect the IBM Cell
+			 * blades as pSeries due to some firmware issues,
+			 * so we do it here.
+			 */
+			if (strstr(p, RELOC("IBM,CBEA")) ||
+			    strstr(p, RELOC("IBM,CPBW-1.0")))
+				return PLATFORM_GENERIC;
+#endif /* CONFIG_PPC64 */
 			i += sl + 1;
 		}
 	}
 #ifdef CONFIG_PPC64
+	/* If not a mac, try to figure out if it's an IBM pSeries or any other
+	 * PAPR compliant platform. We assume it is if :
+	 *  - /device_type is "chrp" (please, do NOT use that for future
+	 *    non-IBM designs !
+	 *  - it has /rtas
+	 */
+	len = prom_getprop(_prom->root, "device_type",
+			   compat, sizeof(compat)-1);
+	if (len <= 0)
+		return PLATFORM_GENERIC;
+	if (strcmp(compat, RELOC("chrp")))
+		return PLATFORM_GENERIC;
+
 	/* Default to pSeries. We need to know if we are running LPAR */
 	rtas = call_prom("finddevice", 1, 1, ADDR("/rtas"));
-	if (PHANDLE_VALID(rtas)) {
-		int x = prom_getproplen(rtas, "ibm,hypertas-functions");
-		if (x != PROM_ERROR) {
-			prom_printf("Hypertas detected, assuming LPAR !\n");
-			return PLATFORM_PSERIES_LPAR;
-		}
+	if (!PHANDLE_VALID(rtas))
+		return PLATFORM_GENERIC;
+	x = prom_getproplen(rtas, "ibm,hypertas-functions");
+	if (x != PROM_ERROR) {
+		prom_printf("Hypertas detected, assuming LPAR !\n");
+		return PLATFORM_PSERIES_LPAR;
 	}
 	return PLATFORM_PSERIES;
 #else
-	return PLATFORM_CHRP;
+	return PLATFORM_GENERIC;
 #endif
 }
 
@@ -1902,11 +1961,7 @@ static void __init flatten_device_tree(void)
 	/* Version 16 is not backward compatible */
 	hdr->last_comp_version = 0x10;
 
-	/* Reserve the whole thing and copy the reserve map in, we
-	 * also bump mem_reserve_cnt to cause further reservations to
-	 * fail since it's too late.
-	 */
-	reserve_mem(RELOC(dt_header_start), hdr->totalsize);
+	/* Copy the reserve map in */
 	memcpy(rsvmap, RELOC(mem_reserve_map), sizeof(mem_reserve_map));
 
 #ifdef DEBUG_PROM
@@ -1919,6 +1974,9 @@ static void __init flatten_device_tree(void)
 				    RELOC(mem_reserve_map)[i].size);
 	}
 #endif
+	/* Bump mem_reserve_cnt to cause further reservations to fail
+	 * since it's too late.
+	 */
 	RELOC(mem_reserve_cnt) = MEM_RESERVE_MAP_SIZE;
 
 	prom_printf("Device tree strings 0x%x -> 0x%x\n",
@@ -1928,10 +1986,88 @@ static void __init flatten_device_tree(void)
 
 }
 
-
-static void __init fixup_device_tree(void)
+#ifdef CONFIG_PPC_MAPLE
+/* PIBS Version 1.05.0000 04/26/2005 has an incorrect /ht/isa/ranges property.
+ * The values are bad, and it doesn't even have the right number of cells. */
+static void __init fixup_device_tree_maple(void)
 {
+	phandle isa;
+	u32 rloc = 0x01002000; /* IO space; PCI device = 4 */
+	u32 isa_ranges[6];
+	char *name;
+
+	name = "/ht@0/isa@4";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa)) {
+		name = "/ht@0/isa@6";
+		isa = call_prom("finddevice", 1, 1, ADDR(name));
+		rloc = 0x01003000; /* IO space; PCI device = 6 */
+	}
+	if (!PHANDLE_VALID(isa))
+		return;
+
+	if (prom_getproplen(isa, "ranges") != 12)
+		return;
+	if (prom_getprop(isa, "ranges", isa_ranges, sizeof(isa_ranges))
+		== PROM_ERROR)
+		return;
+
+	if (isa_ranges[0] != 0x1 ||
+		isa_ranges[1] != 0xf4000000 ||
+		isa_ranges[2] != 0x00010000)
+		return;
+
+	prom_printf("Fixing up bogus ISA range on Maple/Apache...\n");
+
+	isa_ranges[0] = 0x1;
+	isa_ranges[1] = 0x0;
+	isa_ranges[2] = rloc;
+	isa_ranges[3] = 0x0;
+	isa_ranges[4] = 0x0;
+	isa_ranges[5] = 0x00010000;
+	prom_setprop(isa, name, "ranges",
+			isa_ranges, sizeof(isa_ranges));
+}
+#else
+#define fixup_device_tree_maple()
+#endif
+
+#ifdef CONFIG_PPC_CHRP
+/* Pegasos lacks the "ranges" property in the isa node */
+static void __init fixup_device_tree_chrp(void)
+{
+	phandle isa;
+	u32 isa_ranges[6];
+	char *name;
+	int rc;
+
+	name = "/pci@80000000/isa@c";
+	isa = call_prom("finddevice", 1, 1, ADDR(name));
+	if (!PHANDLE_VALID(isa))
+		return;
+
+	rc = prom_getproplen(isa, "ranges");
+	if (rc != 0 && rc != PROM_ERROR)
+		return;
+
+	prom_printf("Fixing up missing ISA range on Pegasos...\n");
+
+	isa_ranges[0] = 0x1;
+	isa_ranges[1] = 0x0;
+	isa_ranges[2] = 0x01006000;
+	isa_ranges[3] = 0x0;
+	isa_ranges[4] = 0x0;
+	isa_ranges[5] = 0x00010000;
+	prom_setprop(isa, name, "ranges",
+			isa_ranges, sizeof(isa_ranges));
+}
+#else
+#define fixup_device_tree_chrp()
+#endif
+
 #if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
+static void __init fixup_device_tree_pmac(void)
+{
 	phandle u3, i2c, mpic;
 	u32 u3_rev;
 	u32 interrupts[2];
@@ -1968,9 +2104,17 @@ static void __init fixup_device_tree(void)
 	parent = (u32)mpic;
 	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupt-parent",
 		     &parent, sizeof(parent));
-#endif
 }
+#else
+#define fixup_device_tree_pmac()
+#endif
 
+static void __init fixup_device_tree(void)
+{
+	fixup_device_tree_maple();
+	fixup_device_tree_chrp();
+	fixup_device_tree_pmac();
+}
 
 static void __init prom_find_boot_cpu(void)
 {
@@ -2029,7 +2173,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 {	
        	struct prom_t *_prom;
 	unsigned long hdr;
-	u32 getprop_rval;
 	unsigned long offset = reloc_offset();
 
 #ifdef CONFIG_PPC32
@@ -2060,6 +2203,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_stdout();
 
+	/*
+	 * Get default machine type. At this point, we do not differentiate
+	 * between pSeries SMP and pSeries LPAR
+	 */
+	RELOC(of_platform) = prom_find_machine_type();
+
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
@@ -2068,15 +2217,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Check for an initrd
 	 */
 	prom_check_initrd(r3, r4);
-
-	/*
-	 * Get default machine type. At this point, we do not differentiate
-	 * between pSeries SMP and pSeries LPAR
-	 */
-	RELOC(of_platform) = prom_find_machine_type();
-	getprop_rval = RELOC(of_platform);
-	prom_setprop(_prom->chosen, "/chosen", "linux,platform",
-		     &getprop_rval, sizeof(getprop_rval));
 
 #ifdef CONFIG_PPC_PSERIES
 	/*
@@ -2103,10 +2243,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_mem();
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base))
-		reserve_mem(RELOC(prom_crashk_base), RELOC(prom_crashk_size));
-#endif
 	/*
 	 * Determine which cpu is actually running right _now_
 	 */
@@ -2140,10 +2276,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * Fill in some infos for use by the kernel later on
 	 */
-	if (RELOC(prom_memory_limit))
-		prom_setprop(_prom->chosen, "/chosen", "linux,memory-limit",
-			     &RELOC(prom_memory_limit),
-			     sizeof(prom_memory_limit));
 #ifdef CONFIG_PPC64
 	if (RELOC(ppc64_iommu_off))
 		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-off",
@@ -2163,16 +2295,6 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	}
 #endif
 
-#ifdef CONFIG_KEXEC
-	if (RELOC(prom_crashk_base)) {
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-base",
-			PTRRELOC(&prom_crashk_base),
-			sizeof(RELOC(prom_crashk_base)));
-		prom_setprop(_prom->chosen, "/chosen", "linux,crashkernel-size",
-			PTRRELOC(&prom_crashk_size),
-			sizeof(RELOC(prom_crashk_size)));
-	}
-#endif
 	/*
 	 * Fixup any known bugs in the device-tree
 	 */

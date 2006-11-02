@@ -10,7 +10,6 @@
  */
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
-#include <linux/config.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
 
@@ -18,7 +17,7 @@ extern char system_call_common[];
 
 #ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
-#define MSR_MASK	0xffffffff87c0ffff
+#define MSR_MASK	0xffffffff87c0ffffUL
 #else
 #define MSR_MASK	0x87c0ffff
 #endif

@@ -24,7 +24,6 @@
  * 21-08-02: Converted to input API, major cleanup. (Vojtech Pavlik)
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
@@ -39,6 +38,7 @@
 #include <linux/vt_kern.h>
 #include <linux/sysrq.h>
 #include <linux/input.h>
+#include <linux/reboot.h>
 
 static void kbd_disconnect(struct input_handle *handle);
 extern void ctrl_alt_del(void);
@@ -74,7 +74,7 @@ void compute_shiftstate(void);
 	k_self,		k_fn,		k_spec,		k_pad,\
 	k_dead,		k_cons,		k_cur,		k_shift,\
 	k_meta,		k_ascii,	k_lock,		k_lowercase,\
-	k_slock,	k_dead2,	k_ignore,	k_ignore
+	k_slock,	k_dead2,	k_brl,		k_ignore
 
 typedef void (k_handler_fn)(struct vc_data *vc, unsigned char value,
 			    char up_flag, struct pt_regs *regs);
@@ -100,14 +100,13 @@ static fn_handler_fn *fn_handler[] = { FN_HANDLERS };
 const int max_vals[] = {
 	255, ARRAY_SIZE(func_table) - 1, ARRAY_SIZE(fn_handler) - 1, NR_PAD - 1,
 	NR_DEAD - 1, 255, 3, NR_SHIFT - 1, 255, NR_ASCII - 1, NR_LOCK - 1,
-	255, NR_LOCK - 1, 255
+	255, NR_LOCK - 1, 255, NR_BRL - 1
 };
 
 const int NR_TYPES = ARRAY_SIZE(max_vals);
 
 struct kbd_struct kbd_table[MAX_NR_CONSOLES];
 static struct kbd_struct *kbd = kbd_table;
-static struct kbd_struct kbd0;
 
 int spawnpid, spawnsig;
 
@@ -126,7 +125,7 @@ static unsigned long key_down[NBITS(KEY_MAX)];		/* keyboard key bitmap */
 static unsigned char shift_down[NR_SHIFT];		/* shift state counters.. */
 static int dead_key_next;
 static int npadch = -1;					/* -1 or number assembled on pad */
-static unsigned char diacr;
+static unsigned int diacr;
 static char rep;					/* flag telling character repeat */
 
 static unsigned char ledstate = 0xff;			/* undefined */
@@ -150,6 +149,7 @@ unsigned char kbd_sysrq_xlate[KEY_MAX + 1] =
         "230\177\000\000\213\214\000\000\000\000\000\000\000\000\000\000" /* 0x50 - 0x5f */
         "\r\000/";                                      /* 0x60 - 0x6f */
 static int sysrq_down;
+static int sysrq_alt_use;
 #endif
 static int sysrq_alt;
 
@@ -222,13 +222,13 @@ static void kd_nosound(unsigned long ignored)
 {
 	struct list_head *node;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		if (test_bit(EV_SND, handle->dev->evbit)) {
 			if (test_bit(SND_TONE, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_TONE, 0);
+				input_inject_event(handle, EV_SND, SND_TONE, 0);
 			if (test_bit(SND_BELL, handle->dev->sndbit))
-				input_event(handle->dev, EV_SND, SND_BELL, 0);
+				input_inject_event(handle, EV_SND, SND_BELL, 0);
 		}
 	}
 }
@@ -246,11 +246,11 @@ void kd_mksound(unsigned int hz, unsigned int ticks)
 			struct input_handle *handle = to_handle_h(node);
 			if (test_bit(EV_SND, handle->dev->evbit)) {
 				if (test_bit(SND_TONE, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_TONE, hz);
+					input_inject_event(handle, EV_SND, SND_TONE, hz);
 					break;
 				}
 				if (test_bit(SND_BELL, handle->dev->sndbit)) {
-					input_event(handle->dev, EV_SND, SND_BELL, 1);
+					input_inject_event(handle, EV_SND, SND_BELL, 1);
 					break;
 				}
 			}
@@ -271,15 +271,15 @@ int kbd_rate(struct kbd_repeat *rep)
 	unsigned int d = 0;
 	unsigned int p = 0;
 
-	list_for_each(node,&kbd_handler.h_list) {
+	list_for_each(node, &kbd_handler.h_list) {
 		struct input_handle *handle = to_handle_h(node);
 		struct input_dev *dev = handle->dev;
 
 		if (test_bit(EV_REP, dev->evbit)) {
 			if (rep->delay > 0)
-				input_event(dev, EV_REP, REP_DELAY, rep->delay);
+				input_inject_event(handle, EV_REP, REP_DELAY, rep->delay);
 			if (rep->period > 0)
-				input_event(dev, EV_REP, REP_PERIOD, rep->period);
+				input_inject_event(handle, EV_REP, REP_PERIOD, rep->period);
 			d = dev->rep[REP_DELAY];
 			p = dev->rep[REP_PERIOD];
 		}
@@ -394,22 +394,30 @@ void compute_shiftstate(void)
  * Otherwise, conclude that DIACR was not combining after all,
  * queue it and return CH.
  */
-static unsigned char handle_diacr(struct vc_data *vc, unsigned char ch)
+static unsigned int handle_diacr(struct vc_data *vc, unsigned int ch)
 {
-	int d = diacr;
+	unsigned int d = diacr;
 	unsigned int i;
 
 	diacr = 0;
 
-	for (i = 0; i < accent_table_size; i++) {
-		if (accent_table[i].diacr == d && accent_table[i].base == ch)
-			return accent_table[i].result;
+	if ((d & ~0xff) == BRL_UC_ROW) {
+		if ((ch & ~0xff) == BRL_UC_ROW)
+			return d | ch;
+	} else {
+		for (i = 0; i < accent_table_size; i++)
+			if (accent_table[i].diacr == d && accent_table[i].base == ch)
+				return accent_table[i].result;
 	}
 
-	if (ch == ' ' || ch == d)
+	if (ch == ' ' || ch == (BRL_UC_ROW|0) || ch == d)
 		return d;
 
-	put_queue(vc, d);
+	if (kbd->kbdmode == VC_UNICODE)
+		to_utf8(vc, d);
+	else if (d < 0x100)
+		put_queue(vc, d);
+
 	return ch;
 }
 
@@ -419,7 +427,10 @@ static unsigned char handle_diacr(struct vc_data *vc, unsigned char ch)
 static void fn_enter(struct vc_data *vc, struct pt_regs *regs)
 {
 	if (diacr) {
-		put_queue(vc, diacr);
+		if (kbd->kbdmode == VC_UNICODE)
+			to_utf8(vc, diacr);
+		else if (diacr < 0x100)
+			put_queue(vc, diacr);
 		diacr = 0;
 	}
 	put_queue(vc, 13);
@@ -615,7 +626,7 @@ static void k_lowercase(struct vc_data *vc, unsigned char value, char up_flag, s
 	printk(KERN_ERR "keyboard.c: k_lowercase was called - impossible\n");
 }
 
-static void k_self(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag, struct pt_regs *regs)
 {
 	if (up_flag)
 		return;		/* no action, if this is a key release */
@@ -628,7 +639,10 @@ static void k_self(struct vc_data *vc, unsigned char value, char up_flag, struct
 		diacr = value;
 		return;
 	}
-	put_queue(vc, value);
+	if (kbd->kbdmode == VC_UNICODE)
+		to_utf8(vc, value);
+	else if (value < 0x100)
+		put_queue(vc, value);
 }
 
 /*
@@ -636,11 +650,21 @@ static void k_self(struct vc_data *vc, unsigned char value, char up_flag, struct
  * dead keys modifying the same character. Very useful
  * for Vietnamese.
  */
-static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+static void k_deadunicode(struct vc_data *vc, unsigned int value, char up_flag, struct pt_regs *regs)
 {
 	if (up_flag)
 		return;
 	diacr = (diacr ? handle_diacr(vc, value) : value);
+}
+
+static void k_self(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+{
+	k_unicode(vc, value, up_flag, regs);
+}
+
+static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+{
+	k_deadunicode(vc, value, up_flag, regs);
 }
 
 /*
@@ -648,9 +672,9 @@ static void k_dead2(struct vc_data *vc, unsigned char value, char up_flag, struc
  */
 static void k_dead(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
 {
-	static unsigned char ret_diacr[NR_DEAD] = {'`', '\'', '^', '~', '"', ',' };
+	static const unsigned char ret_diacr[NR_DEAD] = {'`', '\'', '^', '~', '"', ',' };
 	value = ret_diacr[value];
-	k_dead2(vc, value, up_flag, regs);
+	k_deadunicode(vc, value, up_flag, regs);
 }
 
 static void k_cons(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
@@ -685,8 +709,8 @@ static void k_cur(struct vc_data *vc, unsigned char value, char up_flag, struct 
 
 static void k_pad(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
 {
-	static const char *pad_chars = "0123456789+-*/\015,.?()#";
-	static const char *app_map = "pqrstuvwxylSRQMnnmPQS";
+	static const char pad_chars[] = "0123456789+-*/\015,.?()#";
+	static const char app_map[] = "pqrstuvwxylSRQMnnmPQS";
 
 	if (up_flag)
 		return;		/* no action, if this is a key release */
@@ -835,6 +859,80 @@ static void k_slock(struct vc_data *vc, unsigned char value, char up_flag, struc
 	}
 }
 
+/* by default, 300ms interval for combination release */
+static unsigned brl_timeout = 300;
+MODULE_PARM_DESC(brl_timeout, "Braille keys release delay in ms (0 for commit on first key release)");
+module_param(brl_timeout, uint, 0644);
+
+static unsigned brl_nbchords = 1;
+MODULE_PARM_DESC(brl_nbchords, "Number of chords that produce a braille pattern (0 for dead chords)");
+module_param(brl_nbchords, uint, 0644);
+
+static void k_brlcommit(struct vc_data *vc, unsigned int pattern, char up_flag, struct pt_regs *regs)
+{
+	static unsigned long chords;
+	static unsigned committed;
+
+	if (!brl_nbchords)
+		k_deadunicode(vc, BRL_UC_ROW | pattern, up_flag, regs);
+	else {
+		committed |= pattern;
+		chords++;
+		if (chords == brl_nbchords) {
+			k_unicode(vc, BRL_UC_ROW | committed, up_flag, regs);
+			chords = 0;
+			committed = 0;
+		}
+	}
+}
+
+static void k_brl(struct vc_data *vc, unsigned char value, char up_flag, struct pt_regs *regs)
+{
+	static unsigned pressed,committing;
+	static unsigned long releasestart;
+
+	if (kbd->kbdmode != VC_UNICODE) {
+		if (!up_flag)
+			printk("keyboard mode must be unicode for braille patterns\n");
+		return;
+	}
+
+	if (!value) {
+		k_unicode(vc, BRL_UC_ROW, up_flag, regs);
+		return;
+	}
+
+	if (value > 8)
+		return;
+
+	if (up_flag) {
+		if (brl_timeout) {
+			if (!committing ||
+			    jiffies - releasestart > (brl_timeout * HZ) / 1000) {
+				committing = pressed;
+				releasestart = jiffies;
+			}
+			pressed &= ~(1 << (value - 1));
+			if (!pressed) {
+				if (committing) {
+					k_brlcommit(vc, committing, 0, regs);
+					committing = 0;
+				}
+			}
+		} else {
+			if (committing) {
+				k_brlcommit(vc, committing, 0, regs);
+				committing = 0;
+			}
+			pressed &= ~(1 << (value - 1));
+		}
+	} else {
+		pressed |= 1 << (value - 1);
+		if (!brl_timeout)
+			committing = pressed;
+	}
+}
+
 /*
  * The leds display either (i) the status of NumLock, CapsLock, ScrollLock,
  * or (ii) whatever pattern of lights people want to show using KDSETLED,
@@ -889,7 +987,7 @@ static inline unsigned char getleds(void)
  * interrupt routines for this thing allows us to easily mask
  * this when we don't want any of the above to happen.
  * This allows for easy and efficient race-condition prevention
- * for kbd_refresh_leds => input_event(dev, EV_LED, ...) => ...
+ * for kbd_start => input_inject_event(dev, EV_LED, ...) => ...
  */
 
 static void kbd_bh(unsigned long dummy)
@@ -899,11 +997,11 @@ static void kbd_bh(unsigned long dummy)
 
 	if (leds != ledstate) {
 		list_for_each(node, &kbd_handler.h_list) {
-			struct input_handle * handle = to_handle_h(node);
-			input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-			input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-			input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-			input_sync(handle->dev);
+			struct input_handle *handle = to_handle_h(node);
+			input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+			input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+			input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+			input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
 		}
 	}
 
@@ -911,23 +1009,6 @@ static void kbd_bh(unsigned long dummy)
 }
 
 DECLARE_TASKLET_DISABLED(keyboard_tasklet, kbd_bh, 0);
-
-/*
- * This allows a newly plugged keyboard to pick the LED state.
- */
-static void kbd_refresh_leds(struct input_handle *handle)
-{
-	unsigned char leds = ledstate;
-
-	tasklet_disable(&keyboard_tasklet);
-	if (leds != 0xff) {
-		input_event(handle->dev, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_event(handle->dev, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_event(handle->dev, EV_LED, LED_CAPSL,   !!(leds & 0x04));
-		input_sync(handle->dev);
-	}
-	tasklet_enable(&keyboard_tasklet);
-}
 
 #if defined(CONFIG_X86) || defined(CONFIG_IA64) || defined(CONFIG_ALPHA) ||\
     defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) ||\
@@ -937,14 +1018,14 @@ static void kbd_refresh_leds(struct input_handle *handle)
 #define HW_RAW(dev) (test_bit(EV_MSC, dev->evbit) && test_bit(MSC_RAW, dev->mscbit) &&\
 			((dev)->id.bustype == BUS_I8042) && ((dev)->id.vendor == 0x0001) && ((dev)->id.product == 0x0001))
 
-static unsigned short x86_keycodes[256] =
+static const unsigned short x86_keycodes[256] =
 	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
 	 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 	 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
 	 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
 	 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
 	 80, 81, 82, 83, 84,118, 86, 87, 88,115,120,119,121,112,123, 92,
-	284,285,309,298,312, 91,327,328,329,331,333,335,336,337,338,339,
+	284,285,309,  0,312, 91,327,328,329,331,333,335,336,337,338,339,
 	367,288,302,304,350, 89,334,326,267,126,268,269,125,347,348,349,
 	360,261,262,263,268,376,100,101,321,316,373,286,289,102,351,355,
 	103,104,105,275,287,279,306,106,274,107,294,364,358,363,362,361,
@@ -966,36 +1047,55 @@ extern void sun_do_break(void);
 static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 		       unsigned char up_flag)
 {
-	if (keycode > 255 || !x86_keycodes[keycode])
-		return -1;
+	int code;
 
 	switch (keycode) {
 		case KEY_PAUSE:
 			put_queue(vc, 0xe1);
 			put_queue(vc, 0x1d | up_flag);
 			put_queue(vc, 0x45 | up_flag);
-			return 0;
-		case KEY_HANGUEL:
-			if (!up_flag) put_queue(vc, 0xf1);
-			return 0;
+			break;
+
+		case KEY_HANGEUL:
+			if (!up_flag)
+				put_queue(vc, 0xf2);
+			break;
+
 		case KEY_HANJA:
-			if (!up_flag) put_queue(vc, 0xf2);
-			return 0;
-	}
+			if (!up_flag)
+				put_queue(vc, 0xf1);
+			break;
 
-	if (keycode == KEY_SYSRQ && sysrq_alt) {
-		put_queue(vc, 0x54 | up_flag);
-		return 0;
-	}
+		case KEY_SYSRQ:
+			/*
+			 * Real AT keyboards (that's what we're trying
+			 * to emulate here emit 0xe0 0x2a 0xe0 0x37 when
+			 * pressing PrtSc/SysRq alone, but simply 0x54
+			 * when pressing Alt+PrtSc/SysRq.
+			 */
+			if (sysrq_alt) {
+				put_queue(vc, 0x54 | up_flag);
+			} else {
+				put_queue(vc, 0xe0);
+				put_queue(vc, 0x2a | up_flag);
+				put_queue(vc, 0xe0);
+				put_queue(vc, 0x37 | up_flag);
+			}
+			break;
 
-	if (x86_keycodes[keycode] & 0x100)
-		put_queue(vc, 0xe0);
+		default:
+			if (keycode > 255)
+				return -1;
 
-	put_queue(vc, (x86_keycodes[keycode] & 0x7f) | up_flag);
+			code = x86_keycodes[keycode];
+			if (!code)
+				return -1;
 
-	if (keycode == KEY_SYSRQ) {
-		put_queue(vc, 0xe0);
-		put_queue(vc, 0x37 | up_flag);
+			if (code & 0x100)
+				put_queue(vc, 0xe0);
+			put_queue(vc, (code & 0x7f) | up_flag);
+
+			break;
 	}
 
 	return 0;
@@ -1044,7 +1144,7 @@ static void kbd_keycode(unsigned int keycode, int down,
 	kbd = kbd_table + fg_console;
 
 	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
-		sysrq_alt = down;
+		sysrq_alt = down ? keycode : 0;
 #ifdef CONFIG_SPARC
 	if (keycode == KEY_STOP)
 		sparc_l1_a_state = down;
@@ -1064,9 +1164,14 @@ static void kbd_keycode(unsigned int keycode, int down,
 
 #ifdef CONFIG_MAGIC_SYSRQ	       /* Handle the SysRq Hack */
 	if (keycode == KEY_SYSRQ && (sysrq_down || (down == 1 && sysrq_alt))) {
-		sysrq_down = down;
+		if (!sysrq_down) {
+			sysrq_down = down;
+			sysrq_alt_use = sysrq_alt;
+		}
 		return;
 	}
+	if (sysrq_down && !down && keycode == sysrq_alt_use)
+		sysrq_down = 0;
 	if (sysrq_down && down && !rep) {
 		handle_sysrq(kbd_sysrq_xlate[keycode], regs, tty);
 		return;
@@ -1125,9 +1230,13 @@ static void kbd_keycode(unsigned int keycode, int down,
 	}
 
 	if (keycode > NR_KEYS)
-		return;
+		if (keycode >= KEY_BRL_DOT1 && keycode <= KEY_BRL_DOT8)
+			keysym = K(KT_BRL, keycode - KEY_BRL_DOT1 + 1);
+		else
+			return;
+	else
+		keysym = key_map[keycode];
 
-	keysym = key_map[keycode];
 	type = KTYP(keysym);
 
 	if (type < 0xf0) {
@@ -1188,16 +1297,15 @@ static struct input_handle *kbd_connect(struct input_handler *handler,
 	if (i == BTN_MISC && !test_bit(EV_SND, dev->evbit))
 		return NULL;
 
-	if (!(handle = kmalloc(sizeof(struct input_handle), GFP_KERNEL)))
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
 		return NULL;
-	memset(handle, 0, sizeof(struct input_handle));
 
 	handle->dev = dev;
 	handle->handler = handler;
 	handle->name = "kbd";
 
 	input_open_device(handle);
-	kbd_refresh_leds(handle);
 
 	return handle;
 }
@@ -1206,6 +1314,24 @@ static void kbd_disconnect(struct input_handle *handle)
 {
 	input_close_device(handle);
 	kfree(handle);
+}
+
+/*
+ * Start keyboard handler on the new keyboard by refreshing LED state to
+ * match the rest of the system.
+ */
+static void kbd_start(struct input_handle *handle)
+{
+	unsigned char leds = ledstate;
+
+	tasklet_disable(&keyboard_tasklet);
+	if (leds != 0xff) {
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
+	}
+	tasklet_enable(&keyboard_tasklet);
 }
 
 static struct input_device_id kbd_ids[] = {
@@ -1228,6 +1354,7 @@ static struct input_handler kbd_handler = {
 	.event		= kbd_event,
 	.connect	= kbd_connect,
 	.disconnect	= kbd_disconnect,
+	.start		= kbd_start,
 	.name		= "kbd",
 	.id_table	= kbd_ids,
 };
@@ -1236,15 +1363,15 @@ int __init kbd_init(void)
 {
 	int i;
 
-        kbd0.ledflagstate = kbd0.default_ledflagstate = KBD_DEFLEDS;
-        kbd0.ledmode = LED_SHOW_FLAGS;
-        kbd0.lockstate = KBD_DEFLOCK;
-        kbd0.slockstate = 0;
-        kbd0.modeflags = KBD_DEFMODE;
-        kbd0.kbdmode = VC_XLATE;
-
-        for (i = 0 ; i < MAX_NR_CONSOLES ; i++)
-                kbd_table[i] = kbd0;
+        for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		kbd_table[i].ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].default_ledflagstate = KBD_DEFLEDS;
+		kbd_table[i].ledmode = LED_SHOW_FLAGS;
+		kbd_table[i].lockstate = KBD_DEFLOCK;
+		kbd_table[i].slockstate = 0;
+		kbd_table[i].modeflags = KBD_DEFMODE;
+		kbd_table[i].kbdmode = VC_XLATE;
+	}
 
 	input_register_handler(&kbd_handler);
 

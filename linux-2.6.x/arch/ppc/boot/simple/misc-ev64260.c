@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-ev64260.c
- *
  * Host bridge init code for the Marvell/Galileo EV-64260-BP evaluation board
  * with a GT64260 onboard.
  *
@@ -12,7 +10,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/reg.h>
 #include <asm/io.h>

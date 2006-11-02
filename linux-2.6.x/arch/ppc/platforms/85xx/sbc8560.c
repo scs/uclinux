@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/sbc8560.c
- * 
  * Wind River SBC8560 board specific routines
  * 
  * Maintainer: Kumar Gala
@@ -13,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -167,6 +167,23 @@ config HW_CONSOLE
 	depends on VT && !S390 && !UML
 	default y
 
+config VT_HW_CONSOLE_BINDING
+       bool "Support for binding and unbinding console drivers"
+       depends on HW_CONSOLE
+       default n
+       ---help---
+         The virtual terminal is the device that interacts with the physical
+         terminal through console drivers. On these systems, at least one
+         console driver is loaded. In other configurations, additional console
+         drivers may be enabled, such as the framebuffer console. If more than
+         1 console driver is enabled, setting this to 'y' will allow you to
+         select the console driver that will serve as the backend for the
+         virtual terminals.
+
+	 See <file:Documentation/console/console.txt> for more
+	 information. For framebuffer console users, please refer to
+	 <file:Documentation/fb/fbcon.txt>.
+
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
 	---help---
@@ -396,7 +413,7 @@ config SX
 
 config RIO
 	tristate "Specialix RIO system support"
-	depends on SERIAL_NONSTANDARD && BROKEN_ON_SMP && !64BIT
+	depends on SERIAL_NONSTANDARD
 	help
 	  This is a driver for the Specialix RIO, a smart serial card which
 	  drives an outboard box that can support up to 128 ports.  Product
@@ -666,13 +683,30 @@ config TIPAR
 
 	  If unsure, say N.
 
+config HVC_DRIVER
+	bool
+	help
+	  Users of pSeries machines that want to utilize the hvc console front-end
+	  module for their backend console driver should select this option.
+	  It will automatically be selected if one of the back-end console drivers
+	  is selected.
+
+
 config HVC_CONSOLE
 	bool "pSeries Hypervisor Virtual Console support"
 	depends on PPC_PSERIES
+	select HVC_DRIVER
 	help
 	  pSeries machines when partitioned support a hypervisor virtual
 	  console. This driver allows each pSeries partition to have a console
 	  which is accessed via the HMC.
+
+config HVC_RTAS
+	bool "IBM RTAS Console support"
+	depends on PPC_RTAS
+	select HVC_DRIVER
+	help
+	  IBM Console device driver which makes use of RTAS
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
@@ -760,20 +794,7 @@ config NWFLASH
 
 	  If you're not sure, say N.
 
-config HW_RANDOM
-	tristate "Intel/AMD/VIA HW Random Number Generator support"
-	depends on (X86 || IA64) && PCI
-	---help---
-	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on Intel i8xx-based motherboards,
-	  AMD 76x-based motherboards, and Via Nehemiah CPUs.
-
-	  Provides a character driver, used to read() entropy data.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hw_random.
-
-	  If unsure, say N.
+source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
@@ -803,7 +824,7 @@ config NVRAM
 
 config RTC
 	tristate "Enhanced Real Time Clock Support"
-	depends on !PPC32 && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV
+	depends on !PPC && !PARISC && !IA64 && !M68K && (!SPARC || PCI) && !FRV && !ARM
 	---help---
 	  If you say Y here and create a character special file /dev/rtc with
 	  major number 10 and minor number 135 using mknod ("man mknod"), you
@@ -909,10 +930,6 @@ config S3C2410_RTC
 	  Samsung S3C2410. This can provide periodic interrupt rates
 	  from 1Hz to 64Hz for user programs, and wakeup from Alarm.
 
-config RTC_VR41XX
-	tristate "NEC VR4100 series Real Time Clock Support"
-	depends on CPU_VR41XX
-
 config COBALT_LCD
 	bool "Support for Cobalt LCD"
 	depends on MIPS_COBALT
@@ -973,6 +990,7 @@ config SONYPI
 config TANBAC_TB0219
 	tristate "TANBAC TB0219 base board support"
 	depends TANBAC_TB022X
+	select GPIO_VR41XX
 
 menu "Ftape, the floppy tape device driver"
 
@@ -1042,11 +1060,35 @@ config MWAVE
 config SCx200_GPIO
 	tristate "NatSemi SCx200 GPIO Support"
 	depends on SCx200
+	select NSC_GPIO
 	help
 	  Give userspace access to the GPIO pins on the National
 	  Semiconductor SCx200 processors.
 
 	  If compiled as a module, it will be called scx200_gpio.
+
+config PC8736x_GPIO
+	tristate "NatSemi PC8736x GPIO Support"
+	depends on X86
+	default SCx200_GPIO	# mostly N
+	select NSC_GPIO		# needed for support routines
+	help
+	  Give userspace access to the GPIO pins on the National
+	  Semiconductor PC-8736x (x=[03456]) SuperIO chip.  The chip
+	  has multiple functional units, inc several managed by
+	  hwmon/pc87360 driver.  Tested with PC-87366
+
+	  If compiled as a module, it will be called pc8736x_gpio.
+
+config NSC_GPIO
+	tristate "NatSemi Base GPIO Support"
+	depends on X86_32
+	# selected by SCx200_GPIO and PC8736x_GPIO
+	# what about 2 selectors differing: m != y
+	help
+	  Common support used (and needed) by scx200_gpio and
+	  pc8736x_gpio drivers.  If those drivers are built as
+	  modules, this one will be too, named nsc_gpio
 
 config CS5535_GPIO
 	tristate "AMD CS5535/CS5536 GPIO (Geode Companion Device)"

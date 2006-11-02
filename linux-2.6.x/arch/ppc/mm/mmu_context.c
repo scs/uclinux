@@ -2,7 +2,7 @@
  * This file contains the routines for handling the MMU on those
  * PowerPC implementations where the MMU substantially follows the
  * architecture specification.  This includes the 6xx, 7xx, 7xxx,
- * 8260, and POWER3 implementations but excludes the 8xx and 4xx.
+ * 8260, and 83xx implementations but excludes the 8xx and 4xx.
  *  -- paulus
  *
  *  Derived from arch/ppc/mm/init.c:
@@ -23,14 +23,13 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/init.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 
-mm_context_t next_mmu_context;
+unsigned long next_mmu_context;
 unsigned long context_map[LAST_CONTEXT / BITS_PER_LONG + 1];
 #ifdef FEW_CONTEXTS
 atomic_t nr_free_contexts;

@@ -11,6 +11,7 @@
 #include <linux/unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include "ptrace_user.h"
 #include "os.h"
 #include "user.h"
@@ -20,6 +21,7 @@
 #include "kern_util.h"
 #include "longjmp.h"
 #include "skas_ptrace.h"
+#include "kern_constants.h"
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -187,6 +189,55 @@ int os_unmap_memory(void *addr, int len)
         return(0);
 }
 
+#ifndef MADV_REMOVE
+#define MADV_REMOVE KERNEL_MADV_REMOVE
+#endif
+
+int os_drop_memory(void *addr, int length)
+{
+	int err;
+
+	err = madvise(addr, length, MADV_REMOVE);
+	if(err < 0)
+		err = -errno;
+	return err;
+}
+
+int can_drop_memory(void)
+{
+	void *addr;
+	int fd, ok = 0;
+
+	printk("Checking host MADV_REMOVE support...");
+	fd = create_mem_file(UM_KERN_PAGE_SIZE);
+	if(fd < 0){
+		printk("Creating test memory file failed, err = %d\n", -fd);
+		goto out;
+	}
+
+	addr = mmap64(NULL, UM_KERN_PAGE_SIZE, PROT_READ | PROT_WRITE,
+		      MAP_SHARED, fd, 0);
+	if(addr == MAP_FAILED){
+		printk("Mapping test memory file failed, err = %d\n", -errno);
+		goto out_close;
+	}
+
+	if(madvise(addr, UM_KERN_PAGE_SIZE, MADV_REMOVE) != 0){
+		printk("MADV_REMOVE failed, err = %d\n", -errno);
+		goto out_unmap;
+	}
+
+	printk("OK\n");
+	ok = 1;
+
+out_unmap:
+	munmap(addr, UM_KERN_PAGE_SIZE);
+out_close:
+	close(fd);
+out:
+	return ok;
+}
+
 void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 {
 	int flags = 0, pages;
@@ -199,36 +250,35 @@ void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int))
 	if(usr1_handler) set_handler(SIGUSR1, usr1_handler, flags, -1);
 }
 
-void init_new_thread_signals(int altstack)
+void init_new_thread_signals(void)
 {
-	int flags = altstack ? SA_ONSTACK : 0;
-
-	set_handler(SIGSEGV, (__sighandler_t) sig_handler, flags,
+	set_handler(SIGSEGV, (__sighandler_t) sig_handler, SA_ONSTACK,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
-	set_handler(SIGTRAP, (__sighandler_t) sig_handler, flags,
+	set_handler(SIGTRAP, (__sighandler_t) sig_handler, SA_ONSTACK,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
-	set_handler(SIGFPE, (__sighandler_t) sig_handler, flags,
+	set_handler(SIGFPE, (__sighandler_t) sig_handler, SA_ONSTACK,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
-	set_handler(SIGILL, (__sighandler_t) sig_handler, flags,
+	set_handler(SIGILL, (__sighandler_t) sig_handler, SA_ONSTACK,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
-	set_handler(SIGBUS, (__sighandler_t) sig_handler, flags,
+	set_handler(SIGBUS, (__sighandler_t) sig_handler, SA_ONSTACK,
 		    SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
 	set_handler(SIGUSR2, (__sighandler_t) sig_handler,
-		    flags, SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM, -1);
+		    SA_ONSTACK, SIGUSR1, SIGIO, SIGWINCH, SIGALRM, SIGVTALRM,
+		    -1);
 	signal(SIGHUP, SIG_IGN);
 
-	init_irq_signals(altstack);
+	init_irq_signals(1);
 }
 
 int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr)
 {
-	sigjmp_buf buf;
-	int n, enable;
+	jmp_buf buf;
+	int n;
 
 	*jmp_ptr = &buf;
-	n = UML_SIGSETJMP(&buf, enable);
+	n = UML_SETJMP(&buf);
 	if(n != 0)
-		return(n);
+		return n;
 	(*fn)(arg);
-	return(0);
+	return 0;
 }

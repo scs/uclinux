@@ -11,7 +11,6 @@
  * Written by Miles Bader <miles@gnu.org>
  */
 
-#include <linux/config.h>
 
 #define VMLINUX_SYMBOL(_sym_) _##_sym_
 #include <asm-generic/vmlinux.lds.h>
@@ -64,6 +63,10 @@
 		___start___ksymtab_gpl = .;				      \
 			*(__ksymtab_gpl)				      \
 		___stop___ksymtab_gpl = .;				      \
+		/* Kernel symbol table: GPL-future symbols */		      \
+		___start___ksymtab_gpl_future = .;			      \
+			*(__ksymtab_gpl_future)				      \
+		___stop___ksymtab_gpl_future = .;			      \
 		/* Kernel symbol table: strings */			      \
 			*(__ksymtab_strings)				      \
 		/* Kernel symbol table: Normal symbols */		      \
@@ -74,6 +77,10 @@
 		___start___kcrctab_gpl = .;				      \
 			*(__kcrctab_gpl)				      \
 		___stop___kcrctab_gpl = .;				      \
+		/* Kernel symbol table: GPL-future symbols */		      \
+		___start___kcrctab_gpl_future = .;			      \
+			*(__kcrctab_gpl_future)				      \
+		___stop___kcrctab_gpl_future = .;			      \
 		/* Built-in module parameters */			      \
 		. = ALIGN (4) ;						      \
 		___start___param = .;					      \

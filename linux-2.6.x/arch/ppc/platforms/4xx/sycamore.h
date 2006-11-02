@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/sycamore.h
- *
  * Sycamore board definitions
  *
  * Copyright (c) 2005 DENX Software Engineering
@@ -21,7 +19,6 @@
 #ifndef __ASM_SYCAMORE_H__
 #define __ASM_SYCAMORE_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm405gpr.h>
 #include <asm/ppcboot.h>
 

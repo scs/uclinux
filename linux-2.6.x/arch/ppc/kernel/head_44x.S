@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/head_44x.S
- *
  * Kernel execution entry point code.
  *
  *    Copyright (c) 1995-1996 Gary Thomas <gdt@linuxppc.org>
@@ -30,7 +28,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/syslib/ppc85xx_setup.c
- *
  * MPC85XX common board code
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -13,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -237,7 +234,7 @@ mpc85xx_setup_pci2(struct pci_controller *hose)
 	   (__ilog2(MPC85XX_PCI2_UPPER_MEM - MPC85XX_PCI2_LOWER_MEM + 1) - 1);
 
 	/* Setup outbound IO windows @ MPC85XX_PCI2_IO_BASE */
-	pci->potar2 = (MPC85XX_PCI2_LOWER_IO >> 12) & 0x000fffff;;
+	pci->potar2 = (MPC85XX_PCI2_LOWER_IO >> 12) & 0x000fffff;
 	pci->potear2 = 0x00000000;
 	pci->powbar2 = (MPC85XX_PCI2_IO_BASE >> 12) & 0x000fffff;
 	/* Enable, IO R/W */

@@ -50,7 +50,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/sched.h>
@@ -63,7 +62,6 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/smp_lock.h>
 #include <linux/swap.h>
 #include <linux/slab.h>
@@ -210,7 +208,7 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
-	struct address_space_operations *aops = mapping->a_ops;
+	const struct address_space_operations *aops = mapping->a_ops;
 	pgoff_t index;
 	unsigned offset, bv_offs;
 	int len, ret;
@@ -784,7 +782,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	error = -EINVAL;
 	if (S_ISREG(inode->i_mode) || S_ISBLK(inode->i_mode)) {
-		struct address_space_operations *aops = mapping->a_ops;
+		const struct address_space_operations *aops = mapping->a_ops;
 		/*
 		 * If we can't read - sorry. If we only can't write - well,
 		 * it's going to be read-only.
@@ -818,7 +816,7 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 	lo->lo_device = bdev;
 	lo->lo_flags = lo_flags;
 	lo->lo_backing_file = file;
-	lo->transfer = NULL;
+	lo->transfer = transfer_none;
 	lo->ioctl = NULL;
 	lo->lo_sizelimit = 0;
 	lo->old_gfp_mask = mapping_gfp_mask(mapping);
@@ -839,7 +837,9 @@ static int loop_set_fd(struct loop_device *lo, struct file *lo_file,
 
 	set_blocksize(bdev, lo_blocksize);
 
-	kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	error = kernel_thread(loop_thread, lo, CLONE_KERNEL);
+	if (error < 0)
+		goto out_putf;
 	wait_for_completion(&lo->lo_done);
 	return 0;
 
@@ -1144,7 +1144,7 @@ static int lo_ioctl(struct inode * inode, struct file * file,
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 	int err;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	switch (cmd) {
 	case LOOP_SET_FD:
 		err = loop_set_fd(lo, file, inode->i_bdev, arg);
@@ -1170,7 +1170,7 @@ static int lo_ioctl(struct inode * inode, struct file * file,
 	default:
 		err = lo->ioctl ? lo->ioctl(lo, cmd, arg) : -EINVAL;
 	}
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 	return err;
 }
 
@@ -1178,9 +1178,9 @@ static int lo_open(struct inode *inode, struct file *file)
 {
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	lo->lo_refcnt++;
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 
 	return 0;
 }
@@ -1189,9 +1189,9 @@ static int lo_release(struct inode *inode, struct file *file)
 {
 	struct loop_device *lo = inode->i_bdev->bd_disk->private_data;
 
-	down(&lo->lo_ctl_mutex);
+	mutex_lock(&lo->lo_ctl_mutex);
 	--lo->lo_refcnt;
-	up(&lo->lo_ctl_mutex);
+	mutex_unlock(&lo->lo_ctl_mutex);
 
 	return 0;
 }
@@ -1233,12 +1233,12 @@ int loop_unregister_transfer(int number)
 	xfer_funcs[n] = NULL;
 
 	for (lo = &loop_dev[0]; lo < &loop_dev[max_loop]; lo++) {
-		down(&lo->lo_ctl_mutex);
+		mutex_lock(&lo->lo_ctl_mutex);
 
 		if (lo->lo_encryption == xfer)
 			loop_release_xfer(lo);
 
-		up(&lo->lo_ctl_mutex);
+		mutex_unlock(&lo->lo_ctl_mutex);
 	}
 
 	return 0;
@@ -1275,8 +1275,6 @@ static int __init loop_init(void)
 			goto out_mem3;
 	}
 
-	devfs_mk_dir("loop");
-
 	for (i = 0; i < max_loop; i++) {
 		struct loop_device *lo = &loop_dev[i];
 		struct gendisk *disk = disks[i];
@@ -1285,7 +1283,7 @@ static int __init loop_init(void)
 		lo->lo_queue = blk_alloc_queue(GFP_KERNEL);
 		if (!lo->lo_queue)
 			goto out_mem4;
-		init_MUTEX(&lo->lo_ctl_mutex);
+		mutex_init(&lo->lo_ctl_mutex);
 		init_completion(&lo->lo_done);
 		init_completion(&lo->lo_bh_done);
 		lo->lo_number = i;
@@ -1294,7 +1292,6 @@ static int __init loop_init(void)
 		disk->first_minor = i;
 		disk->fops = &lo_fops;
 		sprintf(disk->disk_name, "loop%d", i);
-		sprintf(disk->devfs_name, "loop/%d", i);
 		disk->private_data = lo;
 		disk->queue = lo->lo_queue;
 	}
@@ -1307,8 +1304,7 @@ static int __init loop_init(void)
 
 out_mem4:
 	while (i--)
-		blk_put_queue(loop_dev[i].lo_queue);
-	devfs_remove("loop");
+		blk_cleanup_queue(loop_dev[i].lo_queue);
 	i = max_loop;
 out_mem3:
 	while (i--)
@@ -1328,10 +1324,9 @@ static void loop_exit(void)
 
 	for (i = 0; i < max_loop; i++) {
 		del_gendisk(disks[i]);
-		blk_put_queue(loop_dev[i].lo_queue);
+		blk_cleanup_queue(loop_dev[i].lo_queue);
 		put_disk(disks[i]);
 	}
-	devfs_remove("loop");
 	if (unregister_blkdev(LOOP_MAJOR, "loop"))
 		printk(KERN_WARNING "loop: cannot unregister blkdev\n");
 

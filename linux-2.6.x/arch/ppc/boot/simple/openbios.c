@@ -1,6 +1,4 @@
 /*
- * arch/ppc/boot/simple/openbios.c
- *
  * Copyright (c) 2005 DENX Software Engineering
  * Stefan Roese <sr@denx.de>
  *
@@ -14,7 +12,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/config.h>
 #include <linux/string.h>
 #include <asm/ppcboot.h>
 #include <asm/ibm4xx.h>

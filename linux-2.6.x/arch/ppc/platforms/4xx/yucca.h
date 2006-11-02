@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/yucca.h
- *
  * Yucca board definitions
  *
  * Roland Dreier <rolandd@cisco.com> (based on luan.h by Matt Porter)
@@ -19,7 +17,6 @@
 #ifndef __ASM_YUCCA_H__
 #define __ASM_YUCCA_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ppc440spe.h>
 
 /* F/W TLB mapping used in bootloader glue to reset EMAC */

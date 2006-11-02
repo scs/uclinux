@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/head.S
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -23,7 +21,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/threads.h>
 #include <asm/reg.h>
 #include <asm/page.h>
@@ -87,34 +84,6 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-#ifdef CONFIG_PPC_ISERIES
-	/*
-	 * At offset 0x20, there is a pointer to iSeries LPAR data.
-	 * This is required by the hypervisor
-	 */
-	. = 0x20
-	.llong hvReleaseData-KERNELBASE
-
-	/*
-	 * At offset 0x28 and 0x30 are offsets to the mschunks_map
-	 * array (used by the iSeries LPAR debugger to do translation
-	 * between physical addresses and absolute addresses) and
-	 * to the pidhash table (also used by the debugger)
-	 */
-	.llong mschunks_map-KERNELBASE
-	.llong 0	/* pidhash-KERNELBASE SFRXXX */
-
-	/* Offset 0x38 - Pointer to start of embedded System.map */
-	.globl	embedded_sysmap_start
-embedded_sysmap_start:
-	.llong	0
-	/* Offset 0x40 - Pointer to end of embedded System.map */
-	.globl	embedded_sysmap_end
-embedded_sysmap_end:
-	.llong	0
-
-#endif /* CONFIG_PPC_ISERIES */
-
 	/* Secondary processors spin on this value until it goes to 1. */
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
@@ -125,6 +94,15 @@ __secondary_hold_spinloop:
 	.globl	__secondary_hold_acknowledge
 __secondary_hold_acknowledge:
 	.llong	0x0
+
+#ifdef CONFIG_PPC_ISERIES
+	/*
+	 * At offset 0x20, there is a pointer to iSeries LPAR data.
+	 * This is required by the hypervisor
+	 */
+	. = 0x20
+	.llong hvReleaseData-KERNELBASE
+#endif /* CONFIG_PPC_ISERIES */
 
 	. = 0x60
 /*
@@ -213,6 +191,37 @@ exception_marker:
 	ori	reg,reg,(label)@l;	/* virt addr of handler ... */
 #endif
 
+/*
+ * Equal to EXCEPTION_PROLOG_PSERIES, except that it forces 64bit mode.
+ * The firmware calls the registered system_reset_fwnmi and
+ * machine_check_fwnmi handlers in 32bit mode if the cpu happens to run
+ * a 32bit application at the time of the event.
+ * This firmware bug is present on POWER4 and JS20.
+ */
+#define EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(area, label)		\
+	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
+	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
+	std	r10,area+EX_R10(r13);					\
+	std	r11,area+EX_R11(r13);					\
+	std	r12,area+EX_R12(r13);					\
+	mfspr	r9,SPRN_SPRG1;						\
+	std	r9,area+EX_R13(r13);					\
+	mfcr	r9;							\
+	clrrdi	r12,r13,32;		/* get high part of &label */	\
+	mfmsr	r10;							\
+	/* force 64bit mode */						\
+	li	r11,5;			/* MSR_SF_LG|MSR_ISF_LG */	\
+	rldimi	r10,r11,61,0;		/* insert into top 3 bits */	\
+	/* done 64bit mode */						\
+	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
+	LOAD_HANDLER(r12,label)						\
+	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
+	mtspr	SPRN_SRR0,r12;						\
+	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
+	mtspr	SPRN_SRR1,r10;						\
+	rfid;								\
+	b	.	/* prevent speculative execution */
+
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
 	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
@@ -279,6 +288,7 @@ exception_marker:
 	std	r10,0(r1);		/* make stack chain pointer	*/ \
 	std	r0,GPR0(r1);		/* save r0 in stackframe	*/ \
 	std	r10,GPR1(r1);		/* save r1 in stackframe	*/ \
+	ACCOUNT_CPU_USER_ENTRY(r9, r10);				   \
 	std	r2,GPR2(r1);		/* save r2 in stackframe	*/ \
 	SAVE_4GPRS(3, r1);		/* save r3 - r6 in stackframe	*/ \
 	SAVE_2GPRS(7, r1);		/* save r7, r8 in stackframe	*/ \
@@ -316,6 +326,21 @@ label##_pSeries:					\
 	HMT_MEDIUM;					\
 	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+
+#define HSTD_EXCEPTION_PSERIES(n, label)		\
+	. = n;						\
+	.globl label##_pSeries;				\
+label##_pSeries:					\
+	HMT_MEDIUM;					\
+	mtspr	SPRN_SPRG1,r20;		/* save r20 */	\
+	mfspr	r20,SPRN_HSRR0;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR0,r20;				\
+	mfspr	r20,SPRN_HSRR1;		/* copy HSRR0 to SRR0 */ \
+	mtspr	SPRN_SRR1,r20;				\
+	mfspr	r20,SPRN_SPRG1;		/* restore r20 */ \
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
+
 
 #define STD_EXCEPTION_ISERIES(n, label, area)		\
 	.globl label##_iSeries;				\
@@ -377,16 +402,52 @@ label##_common:						\
 	bl	hdlr;					\
 	b	.ret_from_except
 
+/*
+ * Like STD_EXCEPTION_COMMON, but for exceptions that can occur
+ * in the idle task and therefore need the special idle handling.
+ */
+#define STD_EXCEPTION_COMMON_IDLE(trap, label, hdlr)	\
+	.align	7;					\
+	.globl label##_common;				\
+label##_common:						\
+	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
+	FINISH_NAP;					\
+	DISABLE_INTS;					\
+	bl	.save_nvgprs;				\
+	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
+	bl	hdlr;					\
+	b	.ret_from_except
+
 #define STD_EXCEPTION_COMMON_LITE(trap, label, hdlr)	\
 	.align	7;					\
 	.globl label##_common;				\
 label##_common:						\
 	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
+	FINISH_NAP;					\
 	DISABLE_INTS;					\
 	bl	.ppc64_runlatch_on;			\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
 	bl	hdlr;					\
 	b	.ret_from_except_lite
+
+/*
+ * When the idle code in power4_idle puts the CPU into NAP mode,
+ * it has to do so in a loop, and relies on the external interrupt
+ * and decrementer interrupt entry code to get it out of the loop.
+ * It sets the _TLF_NAPPING bit in current_thread_info()->local_flags
+ * to signal that it is in the loop and needs help to get out.
+ */
+#ifdef CONFIG_PPC_970_NAP
+#define FINISH_NAP				\
+BEGIN_FTR_SECTION				\
+	clrrdi	r11,r1,THREAD_SHIFT;		\
+	ld	r9,TI_LOCAL_FLAGS(r11);		\
+	andi.	r10,r9,_TLF_NAPPING;		\
+	bnel	power4_fixup_nap;		\
+END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
+#else
+#define FINISH_NAP
+#endif
 
 /*
  * Start of pSeries system interrupt routines
@@ -509,8 +570,17 @@ system_call_pSeries:
 
 	STD_EXCEPTION_PSERIES(0xf20, altivec_unavailable)
 
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1200, cbe_system_error)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1300, instruction_breakpoint)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1600, cbe_maintenance)
+#endif /* CONFIG_CBE_RAS */
 	STD_EXCEPTION_PSERIES(0x1700, altivec_assist)
+#ifdef CONFIG_CBE_RAS
+	HSTD_EXCEPTION_PSERIES(0x1800, cbe_thermal)
+#endif /* CONFIG_CBE_RAS */
 
 	. = 0x3000
 
@@ -565,14 +635,14 @@ slb_miss_user_pseries:
 system_reset_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
+	EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(PACA_EXGEN, system_reset_common)
 
 	.globl machine_check_fwnmi
       .align 7
 machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(PACA_EXMC, machine_check_common)
 
 #ifdef CONFIG_PPC_ISERIES
 /***  ISeries-LPAR interrupt handlers ***/
@@ -773,6 +843,7 @@ hardware_interrupt_iSeries_masked:
 	.globl machine_check_common
 machine_check_common:
 	EXCEPTION_PROLOG_COMMON(0x200, PACA_EXMC)
+	FINISH_NAP
 	DISABLE_INTS
 	bl	.save_nvgprs
 	addi	r3,r1,STACK_FRAME_OVERHEAD
@@ -784,13 +855,18 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
-	STD_EXCEPTION_COMMON(0xf00, performance_monitor, .performance_monitor_exception)
+	STD_EXCEPTION_COMMON_IDLE(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 #ifdef CONFIG_ALTIVEC
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .altivec_assist_exception)
 #else
 	STD_EXCEPTION_COMMON(0x1700, altivec_assist, .unknown_exception)
 #endif
+#ifdef CONFIG_CBE_RAS
+	STD_EXCEPTION_COMMON(0x1200, cbe_system_error, .cbe_system_error_exception)
+	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, .cbe_maintenance_exception)
+	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
+#endif /* CONFIG_CBE_RAS */
 
 /*
  * Here we have detected that the kernel stack pointer is bad.
@@ -846,6 +922,14 @@ fast_exception_return:
 	ld	r11,_NIP(r1)
 	andi.	r3,r12,MSR_RI		/* check if RI is set */
 	beq-	unrecov_fer
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	andi.	r3,r12,MSR_PR
+	beq	2f
+	ACCOUNT_CPU_USER_EXIT(r3, r4)
+2:
+#endif
+
 	ld	r3,_CCR(r1)
 	ld	r4,_LINK(r1)
 	ld	r5,_CTR(r1)
@@ -1027,12 +1111,22 @@ unrecov_slb:
 	.globl hardware_interrupt_entry
 hardware_interrupt_common:
 	EXCEPTION_PROLOG_COMMON(0x500, PACA_EXGEN)
+	FINISH_NAP
 hardware_interrupt_entry:
 	DISABLE_INTS
 	bl	.ppc64_runlatch_on
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_IRQ
 	b	.ret_from_except_lite
+
+#ifdef CONFIG_PPC_970_NAP
+power4_fixup_nap:
+	andc	r9,r9,r10
+	std	r9,TI_LOCAL_FLAGS(r11)
+	ld	r10,_LINK(r1)		/* make idle task do the */
+	std	r10,_NIP(r1)		/* equivalent of a blr */
+	blr
+#endif
 
 	.align	7
 	.globl alignment_common
@@ -1519,9 +1613,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Setup some critical 970 SPRs before switching MMU off */
 	bl	.__970_cpu_preinit
 
-	/* cpu # */
-	li	r24,0
-
 	/* Switch off MMU if not already */
 	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
 	add	r4,r4,r30
@@ -1537,7 +1628,11 @@ _STATIC(__boot_from_prom)
 	mr	r28,r6
 	mr	r27,r7
 
-	/* Align the stack to 16-byte boundary for broken yaboot */
+	/*
+	 * Align the stack to 16-byte boundary
+	 * Depending on the size and layout of the ELF sections in the initial
+	 * boot binary, the stack pointer will be unalignet on PowerMac
+	 */
 	rldicr	r1,r1,0,59
 
 	/* Make sure we are running in 64 bits mode */
@@ -1596,6 +1691,9 @@ _STATIC(__after_prom_start)
 					/*   i.e. where we are running	 */
 					/*	the source addr		 */
 
+	cmpdi	r4,0			/* In some cases the loader may  */
+	beq	.start_here_multiplatform /* have already put us at zero */
+					/* so we can skip the copy.      */
 	LOAD_REG_IMMEDIATE(r5,copy_to_here) /* # bytes of memory to copy */
 	sub	r5,r5,r27
 
@@ -1840,21 +1938,6 @@ _STATIC(start_here_multiplatform)
 	bl	.__save_cpu_setup
 	sync
 
-	/* Setup a valid physical PACA pointer in SPRG3 for early_setup
-	 * note that boot_cpuid can always be 0 nowadays since there is
-	 * nowhere it can be initialized differently before we reach this
-	 * code
-	 */
-	LOAD_REG_IMMEDIATE(r27, boot_cpuid)
-	add	r27,r27,r26
-	lwz	r27,0(r27)
-
-	LOAD_REG_IMMEDIATE(r24, paca) 	/* Get base vaddr of paca array	 */
-	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	add	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRN_SPRG3,r13
-	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
@@ -1889,14 +1972,6 @@ _STATIC(start_here_common)
 	 */
 	li	r3,0
 	bl	.do_cpu_ftr_fixups
-
-	LOAD_REG_IMMEDIATE(r26, boot_cpuid)
-	lwz	r26,0(r26)
-
-	LOAD_REG_IMMEDIATE(r24, paca)	/* Get base vaddr of paca array  */
-	mulli	r13,r26,PACA_SIZE	/* Calculate vaddr of right paca */
-	add	r13,r13,r24		/* for this processor.		 */
-	mtspr	SPRN_SPRG3,r13
 
 	/* ptr to current */
 	LOAD_REG_IMMEDIATE(r4, init_task)

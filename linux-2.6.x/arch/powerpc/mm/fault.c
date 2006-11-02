@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/mm/fault.c
- *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
  *
@@ -17,7 +15,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -41,6 +38,40 @@
 #include <asm/tlbflush.h>
 #include <asm/kdebug.h>
 #include <asm/siginfo.h>
+
+#ifdef CONFIG_KPROBES
+ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+
+/* Hook to register for page fault notifications */
+int register_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
+}
+
+int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
+}
+
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
+	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
+}
+#else
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	return NOTIFY_DONE;
+}
+#endif
 
 /*
  * Check whether the instruction at regs->nip is a store using
@@ -144,7 +175,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	is_write = error_code & ESR_DST;
 #endif /* CONFIG_4xx || CONFIG_BOOKE */
 
-	if (notify_die(DIE_PAGE_FAULT, "page_fault", regs, error_code,
+	if (notify_page_fault(DIE_PAGE_FAULT, "page_fault", regs, error_code,
 				11, SIGSEGV) == NOTIFY_STOP)
 		return 0;
 
@@ -179,15 +210,15 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
-	 * kernel and should generate an OOPS.  Unfortunatly, in the case of an
-	 * erroneous fault occuring in a code path which already holds mmap_sem
+	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
+	 * erroneous fault occurring in a code path which already holds mmap_sem
 	 * we will deadlock attempting to validate the fault against the
 	 * address space.  Luckily the kernel only validly references user
 	 * space from well defined areas of code, which are listed in the
 	 * exceptions table.
 	 *
 	 * As the vast majority of faults will be valid we will only perform
-	 * the source reference check when there is a possibilty of a deadlock.
+	 * the source reference check when there is a possibility of a deadlock.
 	 * Attempt to lock the address space, if we cannot we then validate the
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
@@ -269,25 +300,29 @@ good_area:
 #endif
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
 		pte_t *ptep;
+		pmd_t *pmdp;
 
 		/* Since 4xx/Book-E supports per-page execute permission,
 		 * we lazily flush dcache to icache. */
 		ptep = NULL;
-		if (get_pteptr(mm, address, &ptep) && pte_present(*ptep)) {
-			struct page *page = pte_page(*ptep);
+		if (get_pteptr(mm, address, &ptep, &pmdp)) {
+			spinlock_t *ptl = pte_lockptr(mm, pmdp);
+			spin_lock(ptl);
+			if (pte_present(*ptep)) {
+				struct page *page = pte_page(*ptep);
 
-			if (! test_bit(PG_arch_1, &page->flags)) {
-				flush_dcache_icache_page(page);
-				set_bit(PG_arch_1, &page->flags);
+				if (!test_bit(PG_arch_1, &page->flags)) {
+					flush_dcache_icache_page(page);
+					set_bit(PG_arch_1, &page->flags);
+				}
+				pte_update(ptep, 0, _PAGE_HWEXEC);
+				_tlbie(address);
+				pte_unmap_unlock(ptep, ptl);
+				up_read(&mm->mmap_sem);
+				return 0;
 			}
-			pte_update(ptep, 0, _PAGE_HWEXEC);
-			_tlbie(address);
-			pte_unmap(ptep);
-			up_read(&mm->mmap_sem);
-			return 0;
+			pte_unmap_unlock(ptep, ptl);
 		}
-		if (ptep != NULL)
-			pte_unmap(ptep);
 #endif
 	/* a write */
 	} else if (is_write) {

@@ -781,7 +781,7 @@ static int agpioc_acquire_wrap(struct agp_file_private *priv)
 	if (agp_fe.current_controller != NULL)
 		return -EBUSY;
 
-	if(!agp_bridge)
+	if (!agp_bridge)
 		return -ENODEV;
 
         if (atomic_read(&agp_bridge->agp_in_use))
@@ -1059,7 +1059,7 @@ ioctl_out:
 	return ret_val;
 }
 
-static struct file_operations agp_fops =
+static const struct file_operations agp_fops =
 {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,

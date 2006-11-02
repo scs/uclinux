@@ -7,39 +7,9 @@
  * Copyright 1997-2000 Pavel Machek <pavel@ucw.cz>
  * Parts copyright 2001 Steven Whitehouse <steve@chygwyn.com>
  *
- * (part of code stolen from loop.c)
+ * This file is released under GPLv2 or later.
  *
- * 97-3-25 compiled 0-th version, not yet tested it 
- *   (it did not work, BTW) (later that day) HEY! it works!
- *   (bit later) hmm, not that much... 2:00am next day:
- *   yes, it works, but it gives something like 50kB/sec
- * 97-4-01 complete rewrite to make it possible for many requests at 
- *   once to be processed
- * 97-4-11 Making protocol independent of endianity etc.
- * 97-9-13 Cosmetic changes
- * 98-5-13 Attempt to make 64-bit-clean on 64-bit machines
- * 99-1-11 Attempt to make 64-bit-clean on 32-bit machines <ankry@mif.pg.gda.pl>
- * 01-2-27 Fix to store proper blockcount for kernel (calculated using
- *   BLOCK_SIZE_BITS, not device blocksize) <aga@permonline.ru>
- * 01-3-11 Make nbd work with new Linux block layer code. It now supports
- *   plugging like all the other block devices. Also added in MSG_MORE to
- *   reduce number of partial TCP segments sent. <steve@chygwyn.com>
- * 01-12-6 Fix deadlock condition by making queue locks independent of
- *   the transmit lock. <steve@chygwyn.com>
- * 02-10-11 Allow hung xmit to be aborted via SIGKILL & various fixes.
- *   <Paul.Clements@SteelEye.com> <James.Bottomley@SteelEye.com>
- * 03-06-22 Make nbd work with new linux 2.5 block layer design. This fixes
- *   memory corruption from module removal and possible memory corruption
- *   from sending/receiving disk data. <ldl@aros.net>
- * 03-06-23 Cosmetic changes. <ldl@aros.net>
- * 03-06-23 Enhance diagnostics support. <ldl@aros.net>
- * 03-06-24 Remove unneeded blksize_bits field from nbd_device struct.
- *   <ldl@aros.net>
- * 03-06-24 Cleanup PARANOIA usage & code. <ldl@aros.net>
- * 04-02-19 Remove PARANOIA, plus various cleanups (Paul Clements)
- * possible FIXME: make set_sock / set_blksize / set_size / do_it one syscall
- * why not: would need access_ok and friends, would share yet another
- *          structure with userland
+ * (part of code stolen from loop.c)
  */
 
 #include <linux/major.h>
@@ -58,8 +28,6 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <net/sock.h>
-
-#include <linux/devfs_fs_kernel.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -82,9 +50,9 @@
 #define DBG_RX          0x0200
 #define DBG_TX          0x0400
 static unsigned int debugflags;
-static unsigned int nbds_max = 16;
 #endif /* NDEBUG */
 
+static unsigned int nbds_max = 16;
 static struct nbd_device nbd_dev[MAX_NBD];
 
 /*
@@ -332,6 +300,15 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 				lo->disk->disk_name, result);
 		goto harderror;
 	}
+
+	if (ntohl(reply.magic) != NBD_REPLY_MAGIC) {
+		printk(KERN_ERR "%s: Wrong magic (0x%lx)\n",
+				lo->disk->disk_name,
+				(unsigned long)ntohl(reply.magic));
+		result = -EPROTO;
+		goto harderror;
+	}
+
 	req = nbd_find_request(lo, reply.handle);
 	if (unlikely(IS_ERR(req))) {
 		result = PTR_ERR(req);
@@ -344,13 +321,6 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		goto harderror;
 	}
 
-	if (ntohl(reply.magic) != NBD_REPLY_MAGIC) {
-		printk(KERN_ERR "%s: Wrong magic (0x%lx)\n",
-				lo->disk->disk_name,
-				(unsigned long)ntohl(reply.magic));
-		result = -EPROTO;
-		goto harderror;
-	}
 	if (ntohl(reply.error)) {
 		printk(KERN_ERR "%s: Other side returned error (%d)\n",
 				lo->disk->disk_name, ntohl(reply.error));
@@ -371,7 +341,8 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 					printk(KERN_ERR "%s: Receive data failed (result %d)\n",
 							lo->disk->disk_name,
 							result);
-					goto harderror;
+					req->errors++;
+					return req;
 				}
 				dprintk(DBG_RX, "%s: request %p: got %d bytes data\n",
 					lo->disk->disk_name, req, bvec->bv_len);
@@ -459,9 +430,9 @@ static void do_nbd_request(request_queue_t * q)
 		req->errors = 0;
 		spin_unlock_irq(q->queue_lock);
 
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		if (unlikely(!lo->sock)) {
-			up(&lo->tx_lock);
+			mutex_unlock(&lo->tx_lock);
 			printk(KERN_ERR "%s: Attempted send on closed socket\n",
 			       lo->disk->disk_name);
 			req->errors++;
@@ -484,7 +455,7 @@ static void do_nbd_request(request_queue_t * q)
 		}
 
 		lo->active_req = NULL;
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		wake_up_all(&lo->active_wq);
 
 		spin_lock_irq(q->queue_lock);
@@ -534,9 +505,9 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
  
 	case NBD_CLEAR_SOCK:
 		error = 0;
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		lo->sock = NULL;
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
@@ -590,7 +561,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 		 * FIXME: This code is duplicated from sys_shutdown, but
 		 * there should be a more generic interface rather than
 		 * calling socket ops directly here */
-		down(&lo->tx_lock);
+		mutex_lock(&lo->tx_lock);
 		if (lo->sock) {
 			printk(KERN_WARNING "%s: shutting down socket\n",
 				lo->disk->disk_name);
@@ -598,7 +569,7 @@ static int nbd_ioctl(struct inode *inode, struct file *file,
 				SEND_SHUTDOWN|RCV_SHUTDOWN);
 			lo->sock = NULL;
 		}
-		up(&lo->tx_lock);
+		mutex_unlock(&lo->tx_lock);
 		file = lo->file;
 		lo->file = NULL;
 		nbd_clear_que(lo);
@@ -639,10 +610,7 @@ static int __init nbd_init(void)
 	int err = -ENOMEM;
 	int i;
 
-	if (sizeof(struct nbd_request) != 28) {
-		printk(KERN_CRIT "nbd: sizeof nbd_request needs to be 28 in order to work!\n" );
-		return -EIO;
-	}
+	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
 
 	if (nbds_max > MAX_NBD) {
 		printk(KERN_CRIT "nbd: cannot allocate more than %u nbds; %u requested.\n", MAX_NBD,
@@ -675,7 +643,6 @@ static int __init nbd_init(void)
 	printk(KERN_INFO "nbd: registered device at major %d\n", NBD_MAJOR);
 	dprintk(DBG_INIT, "nbd: debugflags=0x%x\n", debugflags);
 
-	devfs_mk_dir("nbd");
 	for (i = 0; i < nbds_max; i++) {
 		struct gendisk *disk = nbd_dev[i].disk;
 		nbd_dev[i].file = NULL;
@@ -683,7 +650,7 @@ static int __init nbd_init(void)
 		nbd_dev[i].flags = 0;
 		spin_lock_init(&nbd_dev[i].queue_lock);
 		INIT_LIST_HEAD(&nbd_dev[i].queue_head);
-		init_MUTEX(&nbd_dev[i].tx_lock);
+		mutex_init(&nbd_dev[i].tx_lock);
 		init_waitqueue_head(&nbd_dev[i].active_wq);
 		nbd_dev[i].blksize = 1024;
 		nbd_dev[i].bytesize = 0x7ffffc00ULL << 10; /* 2TB */
@@ -693,7 +660,6 @@ static int __init nbd_init(void)
 		disk->private_data = &nbd_dev[i];
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		sprintf(disk->disk_name, "nbd%d", i);
-		sprintf(disk->devfs_name, "nbd/%d", i);
 		set_capacity(disk, 0x7ffffc00ULL << 1); /* 2 TB */
 		add_disk(disk);
 	}
@@ -719,7 +685,6 @@ static void __exit nbd_cleanup(void)
 			put_disk(disk);
 		}
 	}
-	devfs_remove("nbd");
 	unregister_blkdev(NBD_MAJOR, "nbd");
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }

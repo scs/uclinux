@@ -35,6 +35,8 @@ void switch_to_skas(void *prev, void *next)
 	switch_threads(&from->thread.mode.skas.switch_buf,
 		       to->thread.mode.skas.switch_buf);
 
+	arch_switch_to_skas(current->thread.prev_sched, current);
+
 	if(current->pid == 0)
 		switch_timers(1);
 }
@@ -89,10 +91,17 @@ void fork_handler(int sig)
 		panic("blech");
 
 	schedule_tail(current->thread.prev_sched);
+
+	/* XXX: if interrupt_end() calls schedule, this call to
+	 * arch_switch_to_skas isn't needed. We could want to apply this to
+	 * improve performance. -bb */
+	arch_switch_to_skas(current->thread.prev_sched, current);
+
 	current->thread.prev_sched = NULL;
 
 /* Handle any immediate reschedules or signals */
 	interrupt_end();
+
 	userspace(&current->thread.regs.regs);
 }
 
@@ -109,6 +118,8 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 		if(sp != 0) REGS_SP(p->thread.regs.regs.skas.regs) = sp;
 
 		handler = fork_handler;
+
+		arch_copy_thread(&current->thread.arch, &p->thread.arch);
 	}
 	else {
 		init_thread_registers(&p->thread.regs.regs);
@@ -166,7 +177,7 @@ int start_uml_skas(void)
 	if(proc_mm)
 		userspace_pid[0] = start_userspace(0);
 
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 
 	init_task.thread.request.u.thread.proc = start_kernel_proc;
 	init_task.thread.request.u.thread.arg = NULL;

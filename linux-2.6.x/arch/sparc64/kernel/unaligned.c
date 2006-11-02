@@ -20,6 +20,7 @@
 #include <linux/smp.h>
 #include <linux/smp_lock.h>
 #include <linux/bitops.h>
+#include <linux/kallsyms.h>
 #include <asm/fpumacro.h>
 
 /* #define DEBUG_MNA */
@@ -277,13 +278,23 @@ static void kernel_mna_trap_fault(void)
 	regs->tstate |= (ASI_AIUS << 24UL);
 }
 
-asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn, unsigned long sfar, unsigned long sfsr)
+asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 {
+	static unsigned long count, last_time;
 	enum direction dir = decode_direction(insn);
 	int size = decode_access_size(insn);
 
 	current_thread_info()->kern_una_regs = regs;
 	current_thread_info()->kern_una_insn = insn;
+
+	if (jiffies - last_time > 5 * HZ)
+		count = 0;
+	if (count < 5) {
+		last_time = jiffies;
+		count++;
+		printk("Kernel unaligned access at TPC[%lx] ", regs->tpc);
+		print_symbol("%s\n", regs->tpc);
+	}
 
 	if (!ok_for_kernel(insn) || dir == both) {
 		printk("Unsupported unaligned load/store trap for kernel "
@@ -405,6 +416,9 @@ extern void do_privact(struct pt_regs *regs);
 extern void spitfire_data_access_exception(struct pt_regs *regs,
 					   unsigned long sfsr,
 					   unsigned long sfar);
+extern void sun4v_data_access_exception(struct pt_regs *regs,
+					unsigned long addr,
+					unsigned long type_ctx);
 
 int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 {
@@ -447,14 +461,20 @@ int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 				break;
 			}
 		default:
-			spitfire_data_access_exception(regs, 0, addr);
+			if (tlb_type == hypervisor)
+				sun4v_data_access_exception(regs, addr, 0);
+			else
+				spitfire_data_access_exception(regs, 0, addr);
 			return 1;
 		}
 		if (put_user (first >> 32, (u32 __user *)addr) ||
 		    __put_user ((u32)first, (u32 __user *)(addr + 4)) ||
 		    __put_user (second >> 32, (u32 __user *)(addr + 8)) ||
 		    __put_user ((u32)second, (u32 __user *)(addr + 12))) {
-		    	spitfire_data_access_exception(regs, 0, addr);
+			if (tlb_type == hypervisor)
+				sun4v_data_access_exception(regs, addr, 0);
+			else
+				spitfire_data_access_exception(regs, 0, addr);
 		    	return 1;
 		}
 	} else {
@@ -467,7 +487,10 @@ int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 			do_privact(regs);
 			return 1;
 		} else if (asi > ASI_SNFL) {
-			spitfire_data_access_exception(regs, 0, addr);
+			if (tlb_type == hypervisor)
+				sun4v_data_access_exception(regs, addr, 0);
+			else
+				spitfire_data_access_exception(regs, 0, addr);
 			return 1;
 		}
 		switch (insn & 0x180000) {
@@ -484,7 +507,10 @@ int handle_ldf_stq(u32 insn, struct pt_regs *regs)
 				err |= __get_user (data[i], (u32 __user *)(addr + 4*i));
 		}
 		if (err && !(asi & 0x2 /* NF */)) {
-			spitfire_data_access_exception(regs, 0, addr);
+			if (tlb_type == hypervisor)
+				sun4v_data_access_exception(regs, addr, 0);
+			else
+				spitfire_data_access_exception(regs, 0, addr);
 			return 1;
 		}
 		if (asi & 0x8) /* Little */ {
@@ -548,7 +574,7 @@ void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 	u32 insn;
 	u32 first, second;
 	u64 value;
-	u8 asi, freg;
+	u8 freg;
 	int flag;
 	struct fpustate *f = FPUSTATE;
 
@@ -557,7 +583,7 @@ void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 	if (test_thread_flag(TIF_32BIT))
 		pc = (u32)pc;
 	if (get_user(insn, (u32 __user *) pc) != -EFAULT) {
-		asi = sfsr >> 16;
+		int asi = decode_asi(insn, regs);
 		if ((asi > ASI_SNFL) ||
 		    (asi < ASI_P))
 			goto daex;
@@ -587,7 +613,11 @@ void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 		*(u64 *)(f->regs + freg) = value;
 		current_thread_info()->fpsaved[0] |= flag;
 	} else {
-daex:		spitfire_data_access_exception(regs, sfsr, sfar);
+daex:
+		if (tlb_type == hypervisor)
+			sun4v_data_access_exception(regs, sfar, sfsr);
+		else
+			spitfire_data_access_exception(regs, sfsr, sfar);
 		return;
 	}
 	advance(regs);
@@ -600,7 +630,7 @@ void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 	unsigned long tstate = regs->tstate;
 	u32 insn;
 	u64 value;
-	u8 asi, freg;
+	u8 freg;
 	int flag;
 	struct fpustate *f = FPUSTATE;
 
@@ -609,8 +639,8 @@ void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 	if (test_thread_flag(TIF_32BIT))
 		pc = (u32)pc;
 	if (get_user(insn, (u32 __user *) pc) != -EFAULT) {
+		int asi = decode_asi(insn, regs);
 		freg = ((insn >> 25) & 0x1e) | ((insn >> 20) & 0x20);
-		asi = sfsr >> 16;
 		value = 0;
 		flag = (freg < 32) ? FPRS_DL : FPRS_DU;
 		if ((asi > ASI_SNFL) ||
@@ -631,7 +661,11 @@ void handle_stdfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 		    __put_user ((u32)value, (u32 __user *)(sfar + 4)))
 			goto daex;
 	} else {
-daex:		spitfire_data_access_exception(regs, sfsr, sfar);
+daex:
+		if (tlb_type == hypervisor)
+			sun4v_data_access_exception(regs, sfar, sfsr);
+		else
+			spitfire_data_access_exception(regs, sfsr, sfar);
 		return;
 	}
 	advance(regs);

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ocotea.h
- *
  * Ocotea board definitions
  *
  * Matt Porter <mporter@kernel.crashing.org>
@@ -18,7 +16,6 @@
 #ifndef __ASM_OCOTEA_H__
 #define __ASM_OCOTEA_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm440gx.h>
 
 /* F/W TLB mapping used in bootloader glue to reset EMAC */

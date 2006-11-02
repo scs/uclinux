@@ -1,10 +1,8 @@
 /*
- * arch/ppc/kernel/ibm440gx_common.c
- *
  * PPC440GX system library
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- * Copyright (c) 2003, 2004 Zultys Technologies
+ * Copyright (c) 2003 - 2006 Zultys Technologies
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -12,7 +10,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <asm/ibm44x.h>
@@ -152,7 +149,7 @@ void __init ibm440gx_l2c_enable(void){
 	unsigned long flags;
 
 	/* Install error handler */
-	if (request_irq(87, l2c_error_handler, SA_INTERRUPT, "L2C", 0) < 0){
+	if (request_irq(87, l2c_error_handler, IRQF_DISABLED, "L2C", 0) < 0){
 		printk(KERN_ERR "Cannot install L2C error handler, cache is not enabled\n");
 		return;
 	}
@@ -284,3 +281,14 @@ int ibm440gx_show_cpuinfo(struct seq_file *m){
 	return 0;
 }
 
+void __init ibm440gx_platform_init(unsigned long r3, unsigned long r4,
+				   unsigned long r5, unsigned long r6,
+				   unsigned long r7)
+{
+	/* Erratum 440_43 workaround, disable L1 cache parity checking */
+	if (!strcmp(cur_cpu_spec->cpu_name, "440GX Rev. C") ||
+	    !strcmp(cur_cpu_spec->cpu_name, "440GX Rev. F"))
+		mtspr(SPRN_CCR1, mfspr(SPRN_CCR1) | CCR1_DPC);
+
+	ibm44x_platform_init(r3, r4, r5, r6, r7);
+}

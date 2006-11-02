@@ -49,7 +49,6 @@
 #include <asm/iseries/vio.h>
 
 #define VIOCD_DEVICE			"iseries/vcd"
-#define VIOCD_DEVICE_DEVFS		"iseries/vcd"
 
 #define VIOCD_VERS "1.06"
 
@@ -627,7 +626,7 @@ static struct cdrom_device_ops viocd_dops = {
 	.media_changed = viocd_media_changed,
 	.lock_door = viocd_lock_door,
 	.generic_packet = viocd_packet,
-	.capability = CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK | CDC_SELECT_SPEED | CDC_SELECT_DISC | CDC_MULTI_SESSION | CDC_MCN | CDC_MEDIA_CHANGED | CDC_PLAY_AUDIO | CDC_RESET | CDC_IOCTLS | CDC_DRIVE_STATUS | CDC_GENERIC_PACKET | CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R | CDC_DVD_RAM | CDC_RAM
+	.capability = CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK | CDC_SELECT_SPEED | CDC_SELECT_DISC | CDC_MULTI_SESSION | CDC_MCN | CDC_MEDIA_CHANGED | CDC_PLAY_AUDIO | CDC_RESET | CDC_DRIVE_STATUS | CDC_GENERIC_PACKET | CDC_CD_R | CDC_CD_RW | CDC_DVD | CDC_DVD_R | CDC_DVD_RAM | CDC_RAM
 };
 
 static int __init find_capability(const char *type)
@@ -688,8 +687,6 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	gendisk->first_minor = deviceno;
 	strncpy(gendisk->disk_name, c->name,
 			sizeof(gendisk->disk_name));
-	snprintf(gendisk->devfs_name, sizeof(gendisk->devfs_name),
-			VIOCD_DEVICE_DEVFS "%d", deviceno);
 	blk_queue_max_hw_segments(q, 1);
 	blk_queue_max_phys_segments(q, 1);
 	blk_queue_max_sectors(q, 4096 / 512);
@@ -731,7 +728,7 @@ static int viocd_remove(struct vio_dev *vdev)
  * support.
  */
 static struct vio_device_id viocd_device_table[] __devinitdata = {
-	{ "viocd", "" },
+	{ "block", "IBM,iSeries-viocd" },
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, viocd_device_table);

@@ -141,7 +141,6 @@ static int (*drives[4])[6] = {&drive0, &drive1, &drive2, &drive3};
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mtio.h>
@@ -943,7 +942,8 @@ static ssize_t pt_write(struct file *filp, const char __user *buf, size_t count,
 
 static int __init pt_init(void)
 {
-	int unit, err = 0;
+	int unit;
+	int err;
 
 	if (disable) {
 		err = -1;
@@ -955,46 +955,30 @@ static int __init pt_init(void)
 		goto out;
 	}
 
-	if (register_chrdev(major, name, &pt_fops)) {
+	err = register_chrdev(major, name, &pt_fops);
+	if (err < 0) {
 		printk("pt_init: unable to get major number %d\n", major);
 		for (unit = 0; unit < PT_UNITS; unit++)
 			if (pt[unit].present)
 				pi_release(pt[unit].pi);
-		err = -1;
 		goto out;
 	}
+	major = err;
 	pt_class = class_create(THIS_MODULE, "pt");
 	if (IS_ERR(pt_class)) {
 		err = PTR_ERR(pt_class);
 		goto out_chrdev;
 	}
 
-	devfs_mk_dir("pt");
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
 			class_device_create(pt_class, NULL, MKDEV(major, unit),
 					NULL, "pt%d", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit),
-				      S_IFCHR | S_IRUSR | S_IWUSR,
-				      "pt/%d", unit);
-			if (err) {
-				class_device_destroy(pt_class, MKDEV(major, unit));
-				goto out_class;
-			}
 			class_device_create(pt_class, NULL, MKDEV(major, unit + 128),
 					NULL, "pt%dn", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit + 128),
-				      S_IFCHR | S_IRUSR | S_IWUSR,
-				      "pt/%dn", unit);
-			if (err) {
-				class_device_destroy(pt_class, MKDEV(major, unit + 128));
-				goto out_class;
-			}
 		}
 	goto out;
 
-out_class:
-	class_destroy(pt_class);
 out_chrdev:
 	unregister_chrdev(major, "pt");
 out:
@@ -1007,12 +991,9 @@ static void __exit pt_exit(void)
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
 			class_device_destroy(pt_class, MKDEV(major, unit));
-			devfs_remove("pt/%d", unit);
 			class_device_destroy(pt_class, MKDEV(major, unit + 128));
-			devfs_remove("pt/%dn", unit);
 		}
 	class_destroy(pt_class);
-	devfs_remove("pt");
 	unregister_chrdev(major, name);
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present)

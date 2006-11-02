@@ -28,7 +28,6 @@
 #include <linux/tty.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
@@ -37,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -47,6 +47,7 @@
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/sections.h>
 
 /*
  * Machine setup..
@@ -66,11 +67,6 @@ unsigned long __initdata zholes_size[MAX_NR_ZONES];
 static unsigned long __initdata memory_end;
 
 /*
- * Setup options
- */
-extern int _text,_etext, _edata, _end;
-
-/*
  * This is set up by the setup-routine at boot-time
  * for S390 need to find out, what we have to setup
  * using address 0x10400 ...
@@ -78,19 +74,13 @@ extern int _text,_etext, _edata, _end;
 
 #include <asm/setup.h>
 
-static char command_line[COMMAND_LINE_SIZE] = { 0, };
-
 static struct resource code_resource = {
 	.name  = "Kernel code",
-	.start = (unsigned long) &_text,
-	.end = (unsigned long) &_etext - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
 static struct resource data_resource = {
 	.name = "Kernel data",
-	.start = (unsigned long) &_etext,
-	.end = (unsigned long) &_edata - 1,
 	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
 };
 
@@ -125,6 +115,7 @@ void __devinit cpu_init (void)
  */
 char vmhalt_cmd[128] = "";
 char vmpoff_cmd[128] = "";
+char vmpanic_cmd[128] = "";
 
 static inline void strncpy_skip_quote(char *dst, char *src, int n)
 {
@@ -155,6 +146,38 @@ static int __init vmpoff_setup(char *str)
 }
 
 __setup("vmpoff=", vmpoff_setup);
+
+static int vmpanic_notify(struct notifier_block *self, unsigned long event,
+			  void *data)
+{
+	if (MACHINE_IS_VM && strlen(vmpanic_cmd) > 0)
+		cpcmd(vmpanic_cmd, NULL, 0, NULL);
+
+	return NOTIFY_OK;
+}
+
+#define PANIC_PRI_VMPANIC	0
+
+static struct notifier_block vmpanic_nb = {
+	.notifier_call = vmpanic_notify,
+	.priority = PANIC_PRI_VMPANIC
+};
+
+static int __init vmpanic_setup(char *str)
+{
+	static int register_done __initdata = 0;
+
+	strncpy_skip_quote(vmpanic_cmd, str, 127);
+	vmpanic_cmd[127] = 0;
+	if (!register_done) {
+		register_done = 1;
+		atomic_notifier_chain_register(&panic_notifier_list,
+					       &vmpanic_nb);
+	}
+	return 1;
+}
+
+__setup("vmpanic=", vmpanic_setup);
 
 /*
  * condev= and conmode= setup parameter.
@@ -299,19 +322,34 @@ void (*_machine_power_off)(void) = do_machine_power_off_nonsmp;
 
 void machine_restart(char *command)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_restart(command);
 }
 
 void machine_halt(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_halt();
 }
 
 void machine_power_off(void)
 {
-	console_unblank();
+	if (!in_interrupt() || oops_in_progress)
+		/*
+		 * Only unblank the console if we are called in enabled
+		 * context or a bust_spinlocks cleared the way for us.
+		 */
+		console_unblank();
 	_machine_power_off();
 }
 
@@ -335,63 +373,38 @@ add_memory_hole(unsigned long start, unsigned long end)
 	}
 }
 
-static void __init
-parse_cmdline_early(char **cmdline_p)
+static int __init early_parse_mem(char *p)
 {
-	char c = ' ', cn, *to = command_line, *from = COMMAND_LINE;
+	memory_end = memparse(p, &p);
+	return 0;
+}
+early_param("mem", early_parse_mem);
+
+/*
+ * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
+ */
+static int __init early_parse_ipldelay(char *p)
+{
 	unsigned long delay = 0;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	memcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
-	saved_command_line[COMMAND_LINE_SIZE-1] = '\0';
+	delay = simple_strtoul(p, &p, 0);
 
-	for (;;) {
-		/*
-		 * "mem=XXX[kKmM]" sets memsize
-		 */
-		if (c == ' ' && strncmp(from, "mem=", 4) == 0) {
-			memory_end = simple_strtoul(from+4, &from, 0);
-			if ( *from == 'K' || *from == 'k' ) {
-				memory_end = memory_end << 10;
-				from++;
-			} else if ( *from == 'M' || *from == 'm' ) {
-				memory_end = memory_end << 20;
-				from++;
-			}
-		}
-		/*
-		 * "ipldelay=XXX[sm]" sets ipl delay in seconds or minutes
-		 */
-		if (c == ' ' && strncmp(from, "ipldelay=", 9) == 0) {
-			delay = simple_strtoul(from+9, &from, 0);
-			if (*from == 's' || *from == 'S') {
-				delay = delay*1000000;
-				from++;
-			} else if (*from == 'm' || *from == 'M') {
-				delay = delay*60*1000000;
-				from++;
-			}
-			/* now wait for the requested amount of time */
-			udelay(delay);
-		}
-		cn = *(from++);
-		if (!cn)
-			break;
-		if (cn == '\n')
-			cn = ' ';  /* replace newlines with space */
-		if (cn == 0x0d)
-			cn = ' ';  /* replace 0x0d with space */
-		if (cn == ' ' && c == ' ')
-			continue;  /* remove additional spaces */
-		c = cn;
-		if (to - command_line >= COMMAND_LINE_SIZE)
-			break;
-		*(to++) = c;
+	switch (*p) {
+	case 's':
+	case 'S':
+		delay *= 1000000;
+		break;
+	case 'm':
+	case 'M':
+		delay *= 60 * 1000000;
 	}
-	if (c == ' ' && to > command_line) to--;
-	*to = '\0';
-	*cmdline_p = command_line;
+
+	/* now wait for the requested amount of time */
+	udelay(delay);
+
+	return 0;
 }
+early_param("ipldelay", early_parse_ipldelay);
 
 static void __init
 setup_lowcore(void)
@@ -448,6 +461,11 @@ setup_resources(void)
 {
 	struct resource *res;
 	int i;
+
+	code_resource.start = (unsigned long) &_text;
+	code_resource.end = (unsigned long) &_etext - 1;
+	data_resource.start = (unsigned long) &_etext;
+	data_resource.end = (unsigned long) &_edata - 1;
 
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
 		res = alloc_bootmem_low(sizeof(struct resource));
@@ -580,9 +598,26 @@ setup_arch(char **cmdline_p)
 	       "We are running native (64 bit mode)\n");
 #endif /* CONFIG_64BIT */
 
+	/* Save unparsed command line copy for /proc/cmdline */
+	strlcpy(saved_command_line, COMMAND_LINE, COMMAND_LINE_SIZE);
+
+	*cmdline_p = COMMAND_LINE;
+	*(*cmdline_p + COMMAND_LINE_SIZE - 1) = '\0';
+
         ROOT_DEV = Root_RAM0;
+
+	init_mm.start_code = PAGE_OFFSET;
+	init_mm.end_code = (unsigned long) &_etext;
+	init_mm.end_data = (unsigned long) &_edata;
+	init_mm.brk = (unsigned long) &_end;
+
+	memory_end = memory_size;
+
+	parse_early_param();
+
 #ifndef CONFIG_64BIT
-	memory_end = memory_size & ~0x400000UL;  /* align memory end to 4MB */
+	memory_end &= ~0x400000UL;
+
         /*
          * We need some free virtual space to be able to do vmalloc.
          * On a machine with 2GB memory we make sure that we have at
@@ -591,16 +626,8 @@ setup_arch(char **cmdline_p)
         if (memory_end > 1920*1024*1024)
                 memory_end = 1920*1024*1024;
 #else /* CONFIG_64BIT */
-	memory_end = memory_size & ~0x200000UL;  /* detected in head.s */
+	memory_end &= ~0x200000UL;
 #endif /* CONFIG_64BIT */
-
-	init_mm.start_code = PAGE_OFFSET;
-	init_mm.end_code = (unsigned long) &_etext;
-	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) &_end;
-
-	parse_cmdline_early(cmdline_p);
-	parse_early_param();
 
 	setup_memory();
 	setup_resources();
@@ -850,31 +877,57 @@ static struct bin_attribute ipl_scp_data_attr = {
 
 static decl_subsys(ipl, NULL, NULL);
 
+static int ipl_register_fcp_files(void)
+{
+	int rc;
+
+	rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+				&ipl_fcp_attr_group);
+	if (rc)
+		goto out;
+	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+				   &ipl_parameter_attr);
+	if (rc)
+		goto out_ipl_parm;
+	rc = sysfs_create_bin_file(&ipl_subsys.kset.kobj,
+				   &ipl_scp_data_attr);
+	if (!rc)
+		goto out;
+
+	sysfs_remove_bin_file(&ipl_subsys.kset.kobj, &ipl_parameter_attr);
+
+out_ipl_parm:
+	sysfs_remove_group(&ipl_subsys.kset.kobj, &ipl_fcp_attr_group);
+out:
+	return rc;
+}
+
 static int __init
 ipl_device_sysfs_register(void) {
 	int rc;
 
 	rc = firmware_register(&ipl_subsys);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (get_ipl_type()) {
 	case ipl_type_ccw:
-		sysfs_create_group(&ipl_subsys.kset.kobj, &ipl_ccw_attr_group);
+		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+					&ipl_ccw_attr_group);
 		break;
 	case ipl_type_fcp:
-		sysfs_create_group(&ipl_subsys.kset.kobj, &ipl_fcp_attr_group);
-		sysfs_create_bin_file(&ipl_subsys.kset.kobj,
-				      &ipl_parameter_attr);
-		sysfs_create_bin_file(&ipl_subsys.kset.kobj,
-				      &ipl_scp_data_attr);
+		rc = ipl_register_fcp_files();
 		break;
 	default:
-		sysfs_create_group(&ipl_subsys.kset.kobj,
-				   &ipl_unknown_attr_group);
+		rc = sysfs_create_group(&ipl_subsys.kset.kobj,
+					&ipl_unknown_attr_group);
 		break;
 	}
-	return 0;
+
+	if (rc)
+		firmware_unregister(&ipl_subsys);
+out:
+	return rc;
 }
 
 __initcall(ipl_device_sysfs_register);

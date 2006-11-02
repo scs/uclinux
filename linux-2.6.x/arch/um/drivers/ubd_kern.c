@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -25,7 +25,6 @@
 #include "linux/blkdev.h"
 #include "linux/hdreg.h"
 #include "linux/init.h"
-#include "linux/devfs_fs_kernel.h"
 #include "linux/cdrom.h"
 #include "linux/proc_fs.h"
 #include "linux/ctype.h"
@@ -71,7 +70,7 @@ struct io_thread_req {
 	int error;
 };
 
-extern int open_ubd_file(char *file, struct openflags *openflags,
+extern int open_ubd_file(char *file, struct openflags *openflags, int shared,
 			 char **backing_file_out, int *bitmap_offset_out,
 			 unsigned long *bitmap_len_out, int *data_offset_out,
 			 int *create_cow_out);
@@ -137,7 +136,7 @@ static int fake_major = MAJOR_NR;
 
 static struct gendisk *ubd_gendisk[MAX_DEV];
 static struct gendisk *fake_gendisk[MAX_DEV];
- 
+
 #ifdef CONFIG_BLK_DEV_UBD_SYNC
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 1, .c = 0, \
 					 .cl = 1 })
@@ -168,6 +167,7 @@ struct ubd {
 	__u64 size;
 	struct openflags boot_openflags;
 	struct openflags openflags;
+	int shared;
 	int no_cow;
 	struct cow cow;
 	struct platform_device pdev;
@@ -189,6 +189,7 @@ struct ubd {
 	.boot_openflags =	OPEN_FLAGS, \
 	.openflags =		OPEN_FLAGS, \
         .no_cow =               0, \
+	.shared =		0, \
         .cow =			DEFAULT_COW, \
 }
 
@@ -305,7 +306,7 @@ static int ubd_setup_common(char *str, int *index_out)
 		}
 		major = simple_strtoul(str, &end, 0);
 		if((*end != '\0') || (end == str)){
-			printk(KERN_ERR 
+			printk(KERN_ERR
 			       "ubd_setup : didn't parse major number\n");
 			return(1);
 		}
@@ -316,7 +317,7 @@ static int ubd_setup_common(char *str, int *index_out)
  			printk(KERN_ERR "Can't assign a fake major twice\n");
  			goto out1;
  		}
- 
+
  		fake_major = major;
 
 		printk(KERN_INFO "Setting extra ubd major number to %d\n",
@@ -351,7 +352,7 @@ static int ubd_setup_common(char *str, int *index_out)
 	if (index_out)
 		*index_out = n;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < sizeof("rscd="); i++) {
 		switch (*str) {
 		case 'r':
 			flags.w = 0;
@@ -362,11 +363,14 @@ static int ubd_setup_common(char *str, int *index_out)
 		case 'd':
 			dev->no_cow = 1;
 			break;
+		case 'c':
+			dev->shared = 1;
+			break;
 		case '=':
 			str++;
 			goto break_loop;
 		default:
-			printk(KERN_ERR "ubd_setup : Expected '=' or flag letter (r,s or d)\n");
+			printk(KERN_ERR "ubd_setup : Expected '=' or flag letter (r, s, c, or d)\n");
 			goto out;
 		}
 		str++;
@@ -515,7 +519,7 @@ static void ubd_handler(void)
 		spin_unlock(&ubd_io_lock);
 		return;
 	}
-        
+
 	ubd_finish(rq, req.error);
 	reactivate_fd(thread_fd, UBD_IRQ);	
 	do_ubd_request(ubd_queue);
@@ -532,7 +536,7 @@ static int io_pid = -1;
 
 void kill_io_thread(void)
 {
-	if(io_pid != -1) 
+	if(io_pid != -1)
 		os_kill_process(io_pid, 1);
 }
 
@@ -567,14 +571,15 @@ static int ubd_open_dev(struct ubd *dev)
 	create_cow = 0;
 	create_ptr = (dev->cow.file != NULL) ? &create_cow : NULL;
 	back_ptr = dev->no_cow ? NULL : &dev->cow.file;
-	dev->fd = open_ubd_file(dev->file, &dev->openflags, back_ptr,
-				&dev->cow.bitmap_offset, &dev->cow.bitmap_len, 
-				&dev->cow.data_offset, create_ptr);
+	dev->fd = open_ubd_file(dev->file, &dev->openflags, dev->shared,
+				back_ptr, &dev->cow.bitmap_offset,
+				&dev->cow.bitmap_len, &dev->cow.data_offset,
+				create_ptr);
 
 	if((dev->fd == -ENOENT) && create_cow){
-		dev->fd = create_cow_file(dev->file, dev->cow.file, 
+		dev->fd = create_cow_file(dev->file, dev->cow.file,
 					  dev->openflags, 1 << 9, PAGE_SIZE,
-					  &dev->cow.bitmap_offset, 
+					  &dev->cow.bitmap_offset,
 					  &dev->cow.bitmap_len,
 					  &dev->cow.data_offset);
 		if(dev->fd >= 0){
@@ -598,16 +603,16 @@ static int ubd_open_dev(struct ubd *dev)
 		}
 		flush_tlb_kernel_vm();
 
-		err = read_cow_bitmap(dev->fd, dev->cow.bitmap, 
-				      dev->cow.bitmap_offset, 
+		err = read_cow_bitmap(dev->fd, dev->cow.bitmap,
+				      dev->cow.bitmap_offset,
 				      dev->cow.bitmap_len);
 		if(err < 0)
 			goto error;
 
 		flags = dev->openflags;
 		flags.w = 0;
-		err = open_ubd_file(dev->cow.file, &flags, NULL, NULL, NULL, 
-				    NULL, NULL);
+		err = open_ubd_file(dev->cow.file, &flags, dev->shared, NULL,
+				    NULL, NULL, NULL, NULL);
 		if(err < 0) goto error;
 		dev->cow.fd = err;
 	}
@@ -622,8 +627,6 @@ static int ubd_new_disk(int major, u64 size, int unit,
 			
 {
 	struct gendisk *disk;
-	char from[sizeof("ubd/nnnnn\0")], to[sizeof("discnnnnn/disc\0")];
-	int err;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
 	if(disk == NULL)
@@ -633,20 +636,10 @@ static int ubd_new_disk(int major, u64 size, int unit,
 	disk->first_minor = unit << UBD_SHIFT;
 	disk->fops = &ubd_blops;
 	set_capacity(disk, size / 512);
-	if(major == MAJOR_NR){
+	if(major == MAJOR_NR)
 		sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-		sprintf(disk->devfs_name, "ubd/disc%d", unit);
-		sprintf(from, "ubd/%d", unit);
-		sprintf(to, "disc%d/disc", unit);
-		err = devfs_mk_symlink(from, to);
-		if(err)
-			printk("ubd_new_disk failed to make link from %s to "
-			       "%s, error = %d\n", from, to, err);
-	}
-	else {
+	else
 		sprintf(disk->disk_name, "ubd_fake%d", unit);
-		sprintf(disk->devfs_name, "ubd_fake/disc%d", unit);
-	}
 
 	/* sysfs register (not for ide fake devices) */
 	if (major == MAJOR_NR) {
@@ -685,11 +678,11 @@ static int ubd_add(int n)
 	dev->size = ROUND_BLOCK(dev->size);
 
 	err = ubd_new_disk(MAJOR_NR, dev->size, n, &ubd_gendisk[n]);
-	if(err) 
+	if(err)
 		goto out_close;
- 
+
 	if(fake_major != MAJOR_NR)
-		ubd_new_disk(fake_major, dev->size, n, 
+		ubd_new_disk(fake_major, dev->size, n,
 			     &fake_gendisk[n]);
 
 	/* perhaps this should also be under the "if (fake_major)" above */
@@ -835,7 +828,6 @@ int ubd_init(void)
 {
         int i;
 
-	devfs_mk_dir("ubd");
 	if (register_blkdev(MAJOR_NR, "ubd"))
 		return -1;
 
@@ -849,12 +841,11 @@ int ubd_init(void)
 		char name[sizeof("ubd_nnn\0")];
 
 		snprintf(name, sizeof(name), "ubd_%d", fake_major);
-		devfs_mk_dir(name);
 		if (register_blkdev(fake_major, "ubd"))
 			return -1;
 	}
 	platform_driver_register(&ubd_driver);
-	for (i = 0; i < MAX_DEV; i++) 
+	for (i = 0; i < MAX_DEV; i++)
 		ubd_add(i);
 	return 0;
 }
@@ -872,20 +863,20 @@ int ubd_driver_init(void){
 		 * enough. So use anyway the io thread. */
 	}
 	stack = alloc_stack(0, 0);
-	io_pid = start_io_thread(stack + PAGE_SIZE - sizeof(void *), 
+	io_pid = start_io_thread(stack + PAGE_SIZE - sizeof(void *),
 				 &thread_fd);
 	if(io_pid < 0){
-		printk(KERN_ERR 
+		printk(KERN_ERR
 		       "ubd : Failed to start I/O thread (errno = %d) - "
 		       "falling back to synchronous I/O\n", -io_pid);
 		io_pid = -1;
 		return(0);
 	}
-	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr, 
-			     SA_INTERRUPT, "ubd", ubd_dev);
+	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
+			     IRQF_DISABLED, "ubd", ubd_dev);
 	if(err != 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
-	return(err);
+	return 0;
 }
 
 device_initcall(ubd_driver_init);
@@ -978,7 +969,7 @@ static void cowify_req(struct io_thread_req *req, unsigned long *bitmap,
 	if(req->op == UBD_READ) {
 		for(i = 0; i < req->length >> 9; i++){
 			if(ubd_test_bit(sector + i, (unsigned char *) bitmap))
-				ubd_set_bit(i, (unsigned char *) 
+				ubd_set_bit(i, (unsigned char *)
 					    &req->sector_mask);
                 }
 	}
@@ -999,7 +990,7 @@ static int prepare_request(struct request *req, struct io_thread_req *io_req)
 
 	/* This should be impossible now */
 	if((rq_data_dir(req) == WRITE) && !dev->openflags.w){
-		printk("Write attempted on readonly ubd device %s\n", 
+		printk("Write attempted on readonly ubd device %s\n",
 		       disk->disk_name);
 		end_request(req, 0);
 		return(1);
@@ -1182,7 +1173,7 @@ int read_cow_bitmap(int fd, void *buf, int offset, int len)
 	return(0);
 }
 
-int open_ubd_file(char *file, struct openflags *openflags,
+int open_ubd_file(char *file, struct openflags *openflags, int shared,
 		  char **backing_file_out, int *bitmap_offset_out,
 		  unsigned long *bitmap_len_out, int *data_offset_out,
 		  int *create_cow_out)
@@ -1206,13 +1197,17 @@ int open_ubd_file(char *file, struct openflags *openflags,
 			return fd;
         }
 
-	err = os_lock_file(fd, openflags->w);
-	if(err < 0){
-		printk("Failed to lock '%s', err = %d\n", file, -err);
-		goto out_close;
+	if(shared)
+		printk("Not locking \"%s\" on the host\n", file);
+	else {
+		err = os_lock_file(fd, openflags->w);
+		if(err < 0){
+			printk("Failed to lock '%s', err = %d\n", file, -err);
+			goto out_close;
+		}
 	}
 
-	/* Succesful return case! */
+	/* Successful return case! */
 	if(backing_file_out == NULL)
 		return(fd);
 
@@ -1260,7 +1255,7 @@ int create_cow_file(char *cow_file, char *backing_file, struct openflags flags,
 	int err, fd;
 
 	flags.c = 1;
-	fd = open_ubd_file(cow_file, &flags, NULL, NULL, NULL, NULL, NULL);
+	fd = open_ubd_file(cow_file, &flags, 0, NULL, NULL, NULL, NULL, NULL);
 	if(fd < 0){
 		err = fd;
 		printk("Open of COW file '%s' failed, errno = %d\n", cow_file,

@@ -1,12 +1,9 @@
 /*
- * arch/ppc/boot/simple/misc-prep.c
- *
  * Maintainer: Tom Rini <trini@kernel.crashing.org>
  *
  * In the past: Gary Thomas, Cort Dougan <cort@cs.nmt.edu>
  */
 
-#include <linux/config.h>
 #include <linux/pci_ids.h>
 #include <linux/types.h>
 #include <asm/residual.h>

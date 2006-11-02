@@ -15,7 +15,6 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
@@ -76,17 +75,17 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 /*
  * Need to know about CPUs going idle?
  */
-static struct notifier_block *idle_chain;
+static ATOMIC_NOTIFIER_HEAD(idle_chain);
 
 int register_idle_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&idle_chain, nb);
+	return atomic_notifier_chain_register(&idle_chain, nb);
 }
 EXPORT_SYMBOL(register_idle_notifier);
 
 int unregister_idle_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&idle_chain, nb);
+	return atomic_notifier_chain_unregister(&idle_chain, nb);
 }
 EXPORT_SYMBOL(unregister_idle_notifier);
 
@@ -95,7 +94,7 @@ void do_monitor_call(struct pt_regs *regs, long interruption_code)
 	/* disable monitor call class 0 */
 	__ctl_clear_bit(8, 15);
 
-	notifier_call_chain(&idle_chain, CPU_NOT_IDLE,
+	atomic_notifier_call_chain(&idle_chain, CPU_NOT_IDLE,
 			    (void *)(long) smp_processor_id());
 }
 
@@ -103,7 +102,7 @@ extern void s390_handle_mcck(void);
 /*
  * The idle loop on a S390...
  */
-void default_idle(void)
+static void default_idle(void)
 {
 	int cpu, rc;
 
@@ -116,7 +115,8 @@ void default_idle(void)
 		return;
 	}
 
-	rc = notifier_call_chain(&idle_chain, CPU_IDLE, (void *)(long) cpu);
+	rc = atomic_notifier_call_chain(&idle_chain,
+			CPU_IDLE, (void *)(long) cpu);
 	if (rc != NOTIFY_OK && rc != NOTIFY_DONE)
 		BUG();
 	if (rc != NOTIFY_OK) {
@@ -142,6 +142,7 @@ void default_idle(void)
 		return;
 	}
 
+	trace_hardirqs_on();
 	/* Wait for external, I/O or machine check interrupt. */
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_WAIT |
 			PSW_MASK_IO | PSW_MASK_EXT);
@@ -171,7 +172,7 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!(regs->psw.mask & PSW_MASK_PSTATE))
-		show_trace(0,(unsigned long *) regs->gprs[15]);
+		show_trace(NULL, (unsigned long *) regs->gprs[15]);
 }
 
 extern void kernel_thread_starter(void);

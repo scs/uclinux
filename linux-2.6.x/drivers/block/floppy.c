@@ -170,15 +170,16 @@ static int print_unex = 1;
 #include <linux/mm.h>
 #include <linux/bio.h>
 #include <linux/string.h>
+#include <linux/jiffies.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/mc146818rtc.h>	/* CMOS defines */
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/platform_device.h>
 #include <linux/buffer_head.h>	/* for invalidate_buffers() */
+#include <linux/mutex.h>
 
 /*
  * PS/2 floppies have much slower step rates than regular floppies.
@@ -222,7 +223,6 @@ static struct completion device_release;
 static unsigned short virtual_dma_port = 0x3f0;
 irqreturn_t floppy_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static int set_dor(int fdc, char mask, char data);
-static void register_devfs_entries(int drive) __init;
 
 #define K_64	0x10000		/* 64KB */
 
@@ -413,7 +413,7 @@ static struct floppy_write_errors write_errors[N_DRIVE];
 static struct timer_list motor_off_timer[N_DRIVE];
 static struct gendisk *disks[N_DRIVE];
 static struct block_device *opened_bdev[N_DRIVE];
-static DECLARE_MUTEX(open_lock);
+static DEFINE_MUTEX(open_lock);
 static struct floppy_raw_cmd *raw_cmd, default_raw_cmd;
 
 /*
@@ -734,7 +734,7 @@ static int disk_change(int drive)
 {
 	int fdc = FDC(drive);
 #ifdef FLOPPY_SANITY_CHECK
-	if (jiffies - UDRS->select_date < UDP->select_delay)
+	if (time_before(jiffies, UDRS->select_date + UDP->select_delay))
 		DPRINT("WARNING disk change called early\n");
 	if (!(FDCS->dor & (0x10 << UNIT(drive))) ||
 	    (FDCS->dor & 3) != UNIT(drive) || fdc != FDC(drive)) {
@@ -814,15 +814,6 @@ static int set_dor(int fdc, char mask, char data)
 			UDRS->select_date = jiffies;
 		}
 	}
-	/*
-	 *      We should propagate failures to grab the resources back
-	 *      nicely from here. Actually we ought to rewrite the fd
-	 *      driver some day too.
-	 */
-	if (newdor & FLOPPY_MOTOR_MASK)
-		floppy_grab_irq_and_dma();
-	if (olddor & FLOPPY_MOTOR_MASK)
-		floppy_release_irq_and_dma();
 	return olddor;
 }
 
@@ -880,8 +871,6 @@ static int _lock_fdc(int drive, int interruptible, int line)
 		       line);
 		return -1;
 	}
-	if (floppy_grab_irq_and_dma() == -1)
-		return -EBUSY;
 
 	if (test_and_set_bit(0, &fdc_busy)) {
 		DECLARE_WAITQUEUE(wait, current);
@@ -903,6 +892,8 @@ static int _lock_fdc(int drive, int interruptible, int line)
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&fdc_wait, &wait);
+
+		flush_scheduled_work();
 	}
 	command_status = FD_COMMAND_NONE;
 
@@ -936,7 +927,6 @@ static inline void unlock_fdc(void)
 	if (elv_next_request(floppy_queue))
 		do_fd_request(floppy_queue);
 	spin_unlock_irqrestore(&floppy_lock, flags);
-	floppy_release_irq_and_dma();
 	wake_up(&fdc_wait);
 }
 
@@ -1062,7 +1052,7 @@ static int fd_wait_for_completion(unsigned long delay, timeout_fn function)
 		return 1;
 	}
 
-	if ((signed)(jiffies - delay) < 0) {
+	if (time_before(jiffies, delay)) {
 		del_timer(&fd_timer);
 		fd_timer.function = function;
 		fd_timer.expires = delay;
@@ -1522,7 +1512,7 @@ static void setup_rw_floppy(void)
 		 * again just before spinup completion. Beware that
 		 * after scandrives, we must again wait for selection.
 		 */
-		if ((signed)(ready_date - jiffies) > DP->select_delay) {
+		if (time_after(ready_date, jiffies + DP->select_delay)) {
 			ready_date -= DP->select_delay;
 			function = (timeout_fn) floppy_start;
 		} else
@@ -3333,7 +3323,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 	if (type) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		down(&open_lock);
+		mutex_lock(&open_lock);
 		LOCK_FDC(drive, 1);
 		floppy_type[type] = *g;
 		floppy_type[type].name = "user format";
@@ -3347,7 +3337,7 @@ static inline int set_geometry(unsigned int cmd, struct floppy_struct *g,
 				continue;
 			__invalidate_device(bdev);
 		}
-		up(&open_lock);
+		mutex_unlock(&open_lock);
 	} else {
 		int oldStretch;
 		LOCK_FDC(drive, 1);
@@ -3662,7 +3652,6 @@ static void __init config_types(void)
 				first = 0;
 			}
 			printk("%s fd%d is %s", prepend, drive, name);
-			register_devfs_entries(drive);
 		}
 		*UDP = *params;
 	}
@@ -3674,7 +3663,7 @@ static int floppy_release(struct inode *inode, struct file *filp)
 {
 	int drive = (long)inode->i_bdev->bd_disk->private_data;
 
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	if (UDRS->fd_ref < 0)
 		UDRS->fd_ref = 0;
 	else if (!UDRS->fd_ref--) {
@@ -3683,8 +3672,8 @@ static int floppy_release(struct inode *inode, struct file *filp)
 	}
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
-	floppy_release_irq_and_dma();
-	up(&open_lock);
+	mutex_unlock(&open_lock);
+
 	return 0;
 }
 
@@ -3702,7 +3691,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	char *tmp;
 
 	filp->private_data = (void *)0;
-	down(&open_lock);
+	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
 	if (opened_bdev[drive] && opened_bdev[drive] != inode->i_bdev)
 		goto out2;
@@ -3713,9 +3702,6 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	}
 
 	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
-		goto out2;
-
-	if (floppy_grab_irq_and_dma())
 		goto out2;
 
 	if (filp->f_flags & O_EXCL)
@@ -3785,7 +3771,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		if ((filp->f_mode & 2) && !(UTESTF(FD_DISK_WRITABLE)))
 			goto out;
 	}
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 	return 0;
 out:
 	if (UDRS->fd_ref < 0)
@@ -3794,9 +3780,8 @@ out:
 		UDRS->fd_ref--;
 	if (!UDRS->fd_ref)
 		opened_bdev[drive] = NULL;
-	floppy_release_irq_and_dma();
 out2:
-	up(&open_lock);
+	mutex_unlock(&open_lock);
 	return res;
 }
 
@@ -3810,15 +3795,10 @@ static int check_floppy_change(struct gendisk *disk)
 	if (UTESTF(FD_DISK_CHANGED) || UTESTF(FD_VERIFY))
 		return 1;
 
-	if (UDP->checkfreq < (int)(jiffies - UDRS->last_checked)) {
-		if (floppy_grab_irq_and_dma()) {
-			return 1;
-		}
-
+	if (time_after(jiffies, UDRS->last_checked + UDP->checkfreq)) {
 		lock_fdc(drive, 0);
 		poll_drive(0, 0);
 		process_fd_request();
-		floppy_release_irq_and_dma();
 	}
 
 	if (UTESTF(FD_DISK_CHANGED) ||
@@ -3940,37 +3920,6 @@ static struct block_device_operations floppy_fops = {
 	.media_changed	= check_floppy_change,
 	.revalidate_disk = floppy_revalidate,
 };
-static char *table[] = {
-	"", "d360", "h1200", "u360", "u720", "h360", "h720",
-	"u1440", "u2880", "CompaQ", "h1440", "u1680", "h410",
-	"u820", "h1476", "u1722", "h420", "u830", "h1494", "u1743",
-	"h880", "u1040", "u1120", "h1600", "u1760", "u1920",
-	"u3200", "u3520", "u3840", "u1840", "u800", "u1600",
-	NULL
-};
-static int t360[] = { 1, 0 },
-	t1200[] = { 2, 5, 6, 10, 12, 14, 16, 18, 20, 23, 0 },
-	t3in[] = { 8, 9, 26, 27, 28, 7, 11, 15, 19, 24, 25, 29, 31, 3, 4, 13,
-			17, 21, 22, 30, 0 };
-static int *table_sup[] =
-    { NULL, t360, t1200, t3in + 5 + 8, t3in + 5, t3in, t3in };
-
-static void __init register_devfs_entries(int drive)
-{
-	int base_minor = (drive < 4) ? drive : (124 + drive);
-
-	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
-		int i = 0;
-		do {
-			int minor = base_minor + (table_sup[UDP->cmos][i] << 2);
-
-			devfs_mk_bdev(MKDEV(FLOPPY_MAJOR, minor),
-				      S_IFBLK | S_IRUSR | S_IWUSR | S_IRGRP |
-				      S_IWGRP, "floppy/%d%s", drive,
-				      table[table_sup[UDP->cmos][i]]);
-		} while (table_sup[UDP->cmos][i++]);
-	}
-}
 
 /*
  * Floppy Driver initialization
@@ -4228,6 +4177,11 @@ static int __init floppy_init(void)
 	int i, unit, drive;
 	int err, dr;
 
+#if defined(CONFIG_PPC_MERGE)
+	if (check_legacy_ioport(FDC1))
+		return -ENODEV;
+#endif
+
 	raw_cmd = NULL;
 
 	for (dr = 0; dr < N_DRIVE; dr++) {
@@ -4247,11 +4201,9 @@ static int __init floppy_init(void)
 		motor_off_timer[dr].function = motor_off_callback;
 	}
 
-	devfs_mk_dir("floppy");
-
 	err = register_blkdev(FLOPPY_MAJOR, "fd");
 	if (err)
-		goto out_devfs_remove;
+		goto out_put_disk;
 
 	floppy_queue = blk_init_queue(do_fd_request, &floppy_lock);
 	if (!floppy_queue) {
@@ -4287,13 +4239,6 @@ static int __init floppy_init(void)
 	}
 
 	use_virtual_dma = can_use_virtual_dma & 1;
-#if defined(CONFIG_PPC64)
-	if (check_legacy_ioport(FDC1)) {
-		del_timer(&fd_timeout);
-		err = -ENODEV;
-		goto out_unreg_region;
-	}
-#endif
 	fdc_state[0].address = FDC1;
 	if (fdc_state[0].address == -1) {
 		del_timer(&fd_timeout);
@@ -4368,7 +4313,6 @@ static int __init floppy_init(void)
 	fdc = 0;
 	del_timer(&fd_timeout);
 	current_drive = 0;
-	floppy_release_irq_and_dma();
 	initialising = 0;
 	if (have_no_fdc) {
 		DPRINT("no floppy controllers found\n");
@@ -4410,8 +4354,6 @@ out_unreg_region:
 	blk_cleanup_queue(floppy_queue);
 out_unreg_blkdev:
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
-out_devfs_remove:
-	devfs_remove("floppy");
 out_put_disk:
 	while (dr--) {
 		del_timer(&motor_off_timer[dr]);
@@ -4432,6 +4374,13 @@ static int floppy_grab_irq_and_dma(void)
 		return 0;
 	}
 	spin_unlock_irqrestore(&floppy_usage_lock, flags);
+
+	/*
+	 * We might have scheduled a free_irq(), wait it to
+	 * drain first:
+	 */
+	flush_scheduled_work();
+
 	if (fd_request_irq()) {
 		DPRINT("Unable to grab IRQ%d for the floppy driver\n",
 		       FLOPPY_IRQ);
@@ -4565,19 +4514,6 @@ static void floppy_release_irq_and_dma(void)
 
 static char *floppy;
 
-static void unregister_devfs_entries(int drive)
-{
-	int i;
-
-	if (UDP->cmos < ARRAY_SIZE(default_drive_params)) {
-		i = 0;
-		do {
-			devfs_remove("floppy/%d%s", drive,
-				     table[table_sup[UDP->cmos][i]]);
-		} while (table_sup[UDP->cmos][i++]);
-	}
-}
-
 static void __init parse_floppy_cfg_string(char *cfg)
 {
 	char *ptr;
@@ -4593,7 +4529,7 @@ static void __init parse_floppy_cfg_string(char *cfg)
 	}
 }
 
-int init_module(void)
+int __init init_module(void)
 {
 	if (floppy)
 		parse_floppy_cfg_string(floppy);
@@ -4614,13 +4550,11 @@ void cleanup_module(void)
 		if ((allowed_drive_mask & (1 << drive)) &&
 		    fdc_state[FDC(drive)].version != FDC_NONE) {
 			del_gendisk(disks[drive]);
-			unregister_devfs_entries(drive);
 			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
 			platform_device_unregister(&floppy_device[drive]);
 		}
 		put_disk(disks[drive]);
 	}
-	devfs_remove("floppy");
 
 	del_timer_sync(&fd_timeout);
 	del_timer_sync(&fd_timer);

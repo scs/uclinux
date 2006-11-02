@@ -271,7 +271,7 @@ static int mwave_ioctl(struct inode *inode, struct file *file,
 				ipcnum,
 				pDrvData->IPCs[ipcnum].usIntCount);
 	
-			if (ipcnum > ARRAY_SIZE(pDrvData->IPCs)) {
+			if (ipcnum >= ARRAY_SIZE(pDrvData->IPCs)) {
 				PRINTK_ERROR(KERN_ERR_MWAVE
 						"mwavedd::mwave_ioctl:"
 						" IOCTL_MW_REGISTER_IPC:"
@@ -454,7 +454,7 @@ static int register_serial_portandirq(unsigned int port, int irq)
 }
 
 
-static struct file_operations mwave_fops = {
+static const struct file_operations mwave_fops = {
 	.owner		= THIS_MODULE,
 	.read		= mwave_read,
 	.write		= mwave_write,

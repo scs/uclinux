@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/powerpmc250.c
- *
  * Board setup routines for Force PowerPMC-250 Processor PMC
  *
  * Author: Troy Benjegerdes <tbenjegerdes@mvista.com>
@@ -13,7 +11,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

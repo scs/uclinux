@@ -24,13 +24,11 @@
 #include "init.h"
 #include "kern_constants.h"
 
-extern char __binary_start;
-
 /* Changed during early boot */
 unsigned long *empty_zero_page = NULL;
 unsigned long *empty_bad_page = NULL;
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
-unsigned long highmem;
+unsigned long long highmem;
 int kmalloc_ok = 0;
 
 static unsigned long brk_end;
@@ -57,7 +55,7 @@ static void setup_highmem(unsigned long highmem_start,
 	for(i = 0; i < highmem_len >> PAGE_SHIFT; i++){
 		page = &mem_map[highmem_pfn + i];
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		__free_page(page);
 	}
 }
@@ -65,8 +63,6 @@ static void setup_highmem(unsigned long highmem_start,
 
 void mem_init(void)
 {
-	unsigned long start;
-
 	max_low_pfn = (high_physmem - uml_physmem) >> PAGE_SHIFT;
 
         /* clear the zero-page */
@@ -80,13 +76,6 @@ void mem_init(void)
 	initial_thread_cb(map_cb, NULL);
 	free_bootmem(__pa(brk_end), uml_reserved - brk_end);
 	uml_reserved = brk_end;
-
-	/* Fill in any hole at the start of the binary */
-	start = (unsigned long) &__binary_start & PAGE_MASK;
-	if(uml_physmem != start){
-		map_memory(uml_physmem, __pa(uml_physmem), start - uml_physmem,
-			   1, 1, 0);
-	}
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages = free_all_bootmem();
@@ -296,7 +285,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 			(end - start) >> 10);
 	for (; start < end; start += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(start));
-		set_page_count(virt_to_page(start), 1);
+		init_page_count(virt_to_page(start));
 		free_page(start);
 		totalram_pages++;
 	}

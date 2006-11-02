@@ -1,5 +1,4 @@
 /*
- * arch/ppc/boot/simple/misc-ev64360.c
  * Copyright (C) 2005 Lee Nicks <allinux@gmail.com>
  *
  * Based on arch/ppc/boot/simple/misc-katana.c from:
@@ -20,7 +19,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <asm/io.h>
 #include <asm/mv64x60_defs.h>

@@ -29,18 +29,6 @@
 	.level		1.1
 #endif
 
-#ifndef CONFIG_64BIT
-	.macro fixup_branch,lbl
-	b	    \lbl
-	.endm
-#else
-	.macro fixup_branch,lbl
-	ldil	    L%\lbl, %r1
-	ldo	    R%\lbl(%r1), %r1
-	bv,n        %r0(%r1)
-	.endm
-#endif
-
 	.text
 
 	.import syscall_exit,code
@@ -55,7 +43,7 @@
 	 * pointers.
 	 */
 
-	.align 4096
+	.align ASM_PAGE_SIZE
 linux_gateway_page:
 
         /* ADDRESS 0x00 to 0xb0 = 176 bytes / 4 bytes per insn = 44 insns */
@@ -541,7 +529,7 @@ cas_nocontend:
 # endif
 /* ENABLE_LWS_DEBUG */
 
-	ldcw	0(%sr2,%r20), %r28			/* Try to acquire the lock */
+	LDCW	0(%sr2,%r20), %r28			/* Try to acquire the lock */
 	cmpb,<>,n	%r0, %r28, cas_action		/* Did we get it? */
 cas_wouldblock:
 	ldo	2(%r0), %r28				/* 2nd case */
@@ -632,7 +620,7 @@ cas_action:
 end_compare_and_swap:
 
 	/* Make sure nothing else is placed on this page */
-	.align 4096
+	.align ASM_PAGE_SIZE
 	.export end_linux_gateway_page
 end_linux_gateway_page:
 
@@ -652,7 +640,7 @@ end_linux_gateway_page:
 
 	.section .rodata,"a"
 
-	.align 4096
+	.align ASM_PAGE_SIZE
 	/* Light-weight-syscall table */
 	/* Start of lws table. */
 	.export lws_table
@@ -662,14 +650,14 @@ lws_table:
 	LWS_ENTRY(compare_and_swap64)	/* 1 - ELF64 Atomic compare and swap */
 	/* End of lws table */
 
-	.align 4096
+	.align ASM_PAGE_SIZE
 	.export sys_call_table
 .Lsys_call_table:
 sys_call_table:
 #include "syscall_table.S"
 
 #ifdef CONFIG_64BIT
-	.align 4096
+	.align ASM_PAGE_SIZE
 	.export sys_call_table64
 .Lsys_call_table64:
 sys_call_table64:

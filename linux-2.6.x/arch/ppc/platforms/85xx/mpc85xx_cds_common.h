@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/mpc85xx_cds_common.h
- *
  * MPC85xx CDS board definitions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -17,7 +15,6 @@
 #ifndef __MACH_MPC85XX_CDS_H__
 #define __MACH_MPC85XX_CDS_H__
 
-#include <linux/config.h>
 #include <linux/serial.h>
 #include <asm/ppcboot.h>
 #include <linux/initrd.h>

@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -311,7 +310,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* Backup CPU 0 state */
 	__save_cpu_setup();
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		if (cpu == smp_processor_id())
 			continue;
 		/* create a process for the processor */

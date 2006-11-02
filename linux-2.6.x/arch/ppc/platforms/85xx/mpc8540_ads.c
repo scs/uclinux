@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/mpc8540_ads.c
- *
  * MPC8540ADS board specific routines
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -13,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

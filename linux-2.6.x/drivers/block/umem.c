@@ -35,7 +35,6 @@
  */
 
 //#define DEBUG /* uncomment if you want debugging info (pr_debug) */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/bio.h>
@@ -50,6 +49,7 @@
 #include <linux/timer.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/fcntl.h>        /* O_ACCMODE */
 #include <linux/hdreg.h>  /* HDIO_GETGEO */
@@ -881,8 +881,8 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	printk(KERN_INFO "Micro Memory(tm) controller #%d found at %02x:%02x (PCI Mem Module (Battery Backup))\n",
 	       card->card_number, dev->bus->number, dev->devfn);
 
-	if (pci_set_dma_mask(dev, 0xffffffffffffffffLL) &&
-	    pci_set_dma_mask(dev, 0xffffffffLL)) {
+	if (pci_set_dma_mask(dev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
 		printk(KERN_WARNING "MM%d: NO suitable DMA found\n",num_cards);
 		return  -ENOMEM;
 	}
@@ -1040,7 +1040,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	card->win_size = data;
 
 
-	if (request_irq(dev->irq, mm_interrupt, SA_SHIRQ, "pci-umem", card)) {
+	if (request_irq(dev->irq, mm_interrupt, IRQF_SHARED, "pci-umem", card)) {
 		printk(KERN_ERR "MM%d: Unable to allocate IRQ\n", card->card_number);
 		ret = -ENODEV;
 
@@ -1131,7 +1131,7 @@ static void mm_pci_remove(struct pci_dev *dev)
 		pci_free_consistent(card->dev, PAGE_SIZE*2,
 				    card->mm_pages[1].desc,
 				    card->mm_pages[1].page_dma);
-	blk_put_queue(card->queue);
+	blk_cleanup_queue(card->queue);
 }
 
 static const struct pci_device_id mm_pci_ids[] = { {
@@ -1191,7 +1191,6 @@ static int __init mm_init(void)
 	for (i = 0; i < num_cards; i++) {
 		struct gendisk *disk = mm_gendisk[i];
 		sprintf(disk->disk_name, "umem%c", 'a'+i);
-		sprintf(disk->devfs_name, "umem/card%d", i);
 		spin_lock_init(&cards[i].lock);
 		disk->major = major_nr;
 		disk->first_minor  = i << MM_SHIFT;

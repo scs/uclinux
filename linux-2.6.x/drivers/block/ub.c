@@ -8,20 +8,15 @@
  * and is not licensed separately. See file COPYING for details.
  *
  * TODO (sorted by decreasing priority)
- *  -- Kill first_open (Al Viro fixed the block layer now)
  *  -- set readonly flag for CDs, set removable flag for CF readers
  *  -- do inquiry and verify we got a disk and not a tape (for LUN mismatch)
- *  -- special case some senses, e.g. 3a/0 -> no media present, reduce retries
  *  -- verify the 13 conditions and do bulk resets
- *  -- kill last_pipe and simply do two-state clearing on both pipes
  *  -- highmem
  *  -- move top_sense and work_bcs into separate allocations (if they survive)
  *     for cache purists and esoteric architectures.
  *  -- Allocate structure for LUN 0 before the first ub_sync_tur, avoid NULL. ?
  *  -- prune comments, they are too volumnous
- *  -- Exterminate P3 printks
  *  -- Resove XXX's
- *  -- Redo "benh's retries", perhaps have spin-up code to handle them. V:D=?
  *  -- CLEAR, CLR2STS, CLRRS seem to be ripe for refactoring.
  */
 #include <linux/kernel.h>
@@ -29,12 +24,10 @@
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
 #include <linux/blkdev.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/timer.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
-#define DEVFS_NAME DRV_NAME
 
 #define UB_MAJOR 180
 
@@ -196,24 +189,11 @@ enum ub_scsi_cmd_state {
 	UB_CMDST_DONE			/* Final state */
 };
 
-static char *ub_scsi_cmd_stname[] = {
-	".  ",
-	"Cmd",
-	"dat",
-	"c2s",
-	"sts",
-	"clr",
-	"crs",
-	"Sen",
-	"fin"
-};
-
 struct ub_scsi_cmd {
 	unsigned char cdb[UB_MAX_CDB_SIZE];
 	unsigned char cdb_len;
 
 	unsigned char dir;		/* 0 - none, 1 - read, 3 - write. */
-	unsigned char trace_index;
 	enum ub_scsi_cmd_state state;
 	unsigned int tag;
 	struct ub_scsi_cmd *next;
@@ -247,28 +227,6 @@ struct ub_capacity {
 	unsigned long nsec;		/* Linux size - 512 byte sectors */
 	unsigned int bsize;		/* Linux hardsect_size */
 	unsigned int bshift;		/* Shift between 512 and hard sects */
-};
-
-/*
- * The SCSI command tracing structure.
- */
-
-#define SCMD_ST_HIST_SZ   8
-#define SCMD_TRACE_SZ    63		/* Less than 4KB of 61-byte lines */
-
-struct ub_scsi_cmd_trace {
-	int hcur;
-	unsigned int tag;
-	unsigned int req_size, act_size;
-	unsigned char op;
-	unsigned char dir;
-	unsigned char key, asc, ascq;
-	char st_hst[SCMD_ST_HIST_SZ];	
-};
-
-struct ub_scsi_trace {
-	int cur;
-	struct ub_scsi_cmd_trace vec[SCMD_TRACE_SZ];
 };
 
 /*
@@ -334,7 +292,6 @@ struct ub_lun {
 	int changed;			/* Media was changed */
 	int removable;
 	int readonly;
-	int first_open;			/* Kludge. See ub_bd_open. */
 
 	struct ub_request urq;
 
@@ -390,7 +347,6 @@ struct ub_dev {
 	wait_queue_head_t reset_wait;
 
 	int sg_stat[6];
-	struct ub_scsi_trace tr;
 };
 
 /*
@@ -458,137 +414,6 @@ static spinlock_t ub_qlockv[UB_QLOCK_NUM];
 static int ub_qlock_next = 0;
 
 static DEFINE_SPINLOCK(ub_lock);	/* Locks globals and ->openc */
-
-/*
- * The SCSI command tracing procedures.
- */
-
-static void ub_cmdtr_new(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
-{
-	int n;
-	struct ub_scsi_cmd_trace *t;
-
-	if ((n = sc->tr.cur + 1) == SCMD_TRACE_SZ) n = 0;
-	t = &sc->tr.vec[n];
-
-	memset(t, 0, sizeof(struct ub_scsi_cmd_trace));
-	t->tag = cmd->tag;
-	t->op = cmd->cdb[0];
-	t->dir = cmd->dir;
-	t->req_size = cmd->len;
-	t->st_hst[0] = cmd->state;
-
-	sc->tr.cur = n;
-	cmd->trace_index = n;
-}
-
-static void ub_cmdtr_state(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
-{
-	int n;
-	struct ub_scsi_cmd_trace *t;
-
-	t = &sc->tr.vec[cmd->trace_index];
-	if (t->tag == cmd->tag) {
-		if ((n = t->hcur + 1) == SCMD_ST_HIST_SZ) n = 0;
-		t->st_hst[n] = cmd->state;
-		t->hcur = n;
-	}
-}
-
-static void ub_cmdtr_act_len(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
-{
-	struct ub_scsi_cmd_trace *t;
-
-	t = &sc->tr.vec[cmd->trace_index];
-	if (t->tag == cmd->tag)
-		t->act_size = cmd->act_len;
-}
-
-static void ub_cmdtr_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
-    unsigned char *sense)
-{
-	struct ub_scsi_cmd_trace *t;
-
-	t = &sc->tr.vec[cmd->trace_index];
-	if (t->tag == cmd->tag) {
-		t->key = sense[2] & 0x0F;
-		t->asc = sense[12];
-		t->ascq = sense[13];
-	}
-}
-
-static ssize_t ub_diag_show(struct device *dev, struct device_attribute *attr,
-    char *page)
-{
-	struct usb_interface *intf;
-	struct ub_dev *sc;
-	struct list_head *p;
-	struct ub_lun *lun;
-	int cnt;
-	unsigned long flags;
-	int nc, nh;
-	int i, j;
-	struct ub_scsi_cmd_trace *t;
-
-	intf = to_usb_interface(dev);
-	sc = usb_get_intfdata(intf);
-	if (sc == NULL)
-		return 0;
-
-	cnt = 0;
-	spin_lock_irqsave(sc->lock, flags);
-
-	cnt += sprintf(page + cnt,
-	    "poison %d reset %d\n",
-	    atomic_read(&sc->poison), sc->reset);
-	cnt += sprintf(page + cnt,
-	    "qlen %d qmax %d\n",
-	    sc->cmd_queue.qlen, sc->cmd_queue.qmax);
-	cnt += sprintf(page + cnt,
-	    "sg %d %d %d %d %d .. %d\n",
-	    sc->sg_stat[0],
-	    sc->sg_stat[1],
-	    sc->sg_stat[2],
-	    sc->sg_stat[3],
-	    sc->sg_stat[4],
-	    sc->sg_stat[5]);
-
-	list_for_each (p, &sc->luns) {
-		lun = list_entry(p, struct ub_lun, link);
-		cnt += sprintf(page + cnt,
-		    "lun %u changed %d removable %d readonly %d\n",
-		    lun->num, lun->changed, lun->removable, lun->readonly);
-	}
-
-	if ((nc = sc->tr.cur + 1) == SCMD_TRACE_SZ) nc = 0;
-	for (j = 0; j < SCMD_TRACE_SZ; j++) {
-		t = &sc->tr.vec[nc];
-
-		cnt += sprintf(page + cnt, "%08x %02x", t->tag, t->op);
-		if (t->op == REQUEST_SENSE) {
-			cnt += sprintf(page + cnt, " [sense %x %02x %02x]",
-					t->key, t->asc, t->ascq);
-		} else {
-			cnt += sprintf(page + cnt, " %c", UB_DIR_CHAR(t->dir));
-			cnt += sprintf(page + cnt, " [%5d %5d]",
-					t->req_size, t->act_size);
-		}
-		if ((nh = t->hcur + 1) == SCMD_ST_HIST_SZ) nh = 0;
-		for (i = 0; i < SCMD_ST_HIST_SZ; i++) {
-			cnt += sprintf(page + cnt, " %s",
-					ub_scsi_cmd_stname[(int)t->st_hst[nh]]);
-			if (++nh == SCMD_ST_HIST_SZ) nh = 0;
-		}
-		cnt += sprintf(page + cnt, "\n");
-
-		if (++nc == SCMD_TRACE_SZ) nc = 0;
-	}
-
-	spin_unlock_irqrestore(sc->lock, flags);
-	return cnt;
-}
-
-static DEVICE_ATTR(diag, S_IRUGO, ub_diag_show, NULL); /* N.B. World readable */
 
 /*
  * The id allocator.
@@ -837,8 +662,9 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	 */
 	n_elem = blk_rq_map_sg(lun->disk->queue, rq, &urq->sgv[0]);
 	if (n_elem < 0) {
+		/* Impossible, because blk_rq_map_sg should not hit ENOMEM. */
 		printk(KERN_INFO "%s: failed request map (%d)\n",
-		    lun->name, n_elem); /* P3 */
+		    lun->name, n_elem);
 		goto drop;
 	}
 	if (n_elem > UB_MAX_REQ_SG) {	/* Paranoia */
@@ -992,7 +818,9 @@ static int ub_rw_cmd_retry(struct ub_dev *sc, struct ub_lun *lun,
 	if (urq->current_try >= 3)
 		return -EIO;
 	urq->current_try++;
-	/* P3 */ printk("%s: dir %c len/act %d/%d "
+
+	/* Remove this if anyone complains of flooding. */
+	printk(KERN_DEBUG "%s: dir %c len/act %d/%d "
 	    "[sense %x %02x %02x] retry %d\n",
 	    sc->name, UB_DIR_CHAR(cmd->dir), cmd->len, cmd->act_len,
 	    cmd->key, cmd->asc, cmd->ascq, urq->current_try);
@@ -1095,7 +923,6 @@ static int ub_scsi_cmd_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	add_timer(&sc->work_timer);
 
 	cmd->state = UB_CMDST_CMD;
-	ub_cmdtr_state(sc, cmd);
 	return 0;
 }
 
@@ -1148,12 +975,10 @@ static void ub_scsi_dispatch(struct ub_dev *sc)
 			ub_cmdq_pop(sc);
 			(*cmd->done)(sc, cmd);
 		} else if (cmd->state == UB_CMDST_INIT) {
-			ub_cmdtr_new(sc, cmd);
 			if ((rc = ub_scsi_cmd_start(sc, cmd)) == 0)
 				break;
 			cmd->error = rc;
 			cmd->state = UB_CMDST_DONE;
-			ub_cmdtr_state(sc, cmd);
 		} else {
 			if (!ub_is_completed(&sc->work_done))
 				break;
@@ -1250,7 +1075,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				return;
 			}
 			cmd->state = UB_CMDST_CLEAR;
-			ub_cmdtr_state(sc, cmd);
 			return;
 		case -ESHUTDOWN:	/* unplug */
 		case -EILSEQ:		/* unplug timeout on uhci */
@@ -1282,7 +1106,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 				return;
 			}
 			cmd->state = UB_CMDST_CLR2STS;
-			ub_cmdtr_state(sc, cmd);
 			return;
 		}
 		if (urb->status == -EOVERFLOW) {
@@ -1307,7 +1130,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			if (urb->status != 0 ||
 			    len != cmd->sgv[cmd->current_sg].length) {
 				cmd->act_len += len;
-				ub_cmdtr_act_len(sc, cmd);
 
 				cmd->error = -EIO;
 				ub_state_stat(sc, cmd);
@@ -1334,7 +1156,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		}
 
 		cmd->act_len += urb->actual_length;
-		ub_cmdtr_act_len(sc, cmd);
 
 		if (++cmd->current_sg < cmd->nsg) {
 			ub_data_start(sc, cmd);
@@ -1360,7 +1181,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			cmd->error = -EIO;		/* A cheap trick... */
 
 			cmd->state = UB_CMDST_CLRRS;
-			ub_cmdtr_state(sc, cmd);
 			return;
 		}
 
@@ -1417,8 +1237,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			 * to check. But it's not all right if the device
 			 * counts disagree with our counts.
 			 */
-			/* P3 */ printk("%s: resid %d len %d act %d\n",
-			    sc->name, len, cmd->len, cmd->act_len);
 			goto Bad_End;
 		}
 
@@ -1429,7 +1247,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			ub_state_sense(sc, cmd);
 			return;
 		case US_BULK_STAT_PHASE:
-			/* P3 */ printk("%s: status PHASE\n", sc->name);
 			goto Bad_End;
 		default:
 			printk(KERN_INFO "%s: unknown CSW status 0x%x\n",
@@ -1444,7 +1261,6 @@ static void ub_scsi_urb_compl(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 			return;
 		}
 		cmd->state = UB_CMDST_DONE;
-		ub_cmdtr_state(sc, cmd);
 		ub_cmdq_pop(sc);
 		(*cmd->done)(sc, cmd);
 
@@ -1499,7 +1315,6 @@ static void ub_data_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	add_timer(&sc->work_timer);
 
 	cmd->state = UB_CMDST_DATA;
-	ub_cmdtr_state(sc, cmd);
 }
 
 /*
@@ -1511,7 +1326,6 @@ static void ub_state_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd, int rc)
 
 	cmd->error = rc;
 	cmd->state = UB_CMDST_DONE;
-	ub_cmdtr_state(sc, cmd);
 	ub_cmdq_pop(sc);
 	(*cmd->done)(sc, cmd);
 }
@@ -1557,7 +1371,6 @@ static void ub_state_stat(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	cmd->stat_count = 0;
 	cmd->state = UB_CMDST_STAT;
-	ub_cmdtr_state(sc, cmd);
 }
 
 /*
@@ -1576,7 +1389,6 @@ static void ub_state_stat_counted(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 		return;
 
 	cmd->state = UB_CMDST_STAT;
-	ub_cmdtr_state(sc, cmd);
 }
 
 /*
@@ -1614,7 +1426,6 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	scmd->tag = sc->tagcnt++;
 
 	cmd->state = UB_CMDST_SENSE;
-	ub_cmdtr_state(sc, cmd);
 
 	ub_cmdq_insert(sc, scmd);
 	return;
@@ -1671,11 +1482,6 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 	struct ub_scsi_cmd *cmd;
 
 	/*
-	 * Ignoring scmd->act_len, because the buffer was pre-zeroed.
-	 */
-	ub_cmdtr_sense(sc, scmd, sense);
-
-	/*
 	 * Find the command which triggered the unit attention or a check,
 	 * save the sense into it, and advance its state machine.
 	 */
@@ -1696,6 +1502,9 @@ static void ub_top_sense_done(struct ub_dev *sc, struct ub_scsi_cmd *scmd)
 		return;
 	}
 
+	/*
+	 * Ignoring scmd->act_len, because the buffer was pre-zeroed.
+	 */
 	cmd->key = sense[2] & 0x0F;
 	cmd->asc = sense[12];
 	cmd->ascq = sense[13];
@@ -1752,16 +1561,14 @@ static void ub_reset_task(void *arg)
 	}
 
 	if (atomic_read(&sc->poison)) {
-		printk(KERN_NOTICE "%s: Not resetting disconnected device\n",
-		    sc->name); /* P3 This floods. Remove soon. XXX */
+		;
 	} else if ((sc->reset & 1) == 0) {
 		ub_sync_reset(sc);
 		msleep(700);	/* usb-storage sleeps 6s (!) */
 		ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
 		ub_probe_clear_stall(sc, sc->send_bulk_pipe);
 	} else if (sc->dev->actconfig->desc.bNumInterfaces != 1) {
-		printk(KERN_NOTICE "%s: Not resetting multi-interface device\n",
-		    sc->name); /* P3 This floods. Remove soon. XXX */
+		;
 	} else {
 		if ((lkr = usb_lock_device_for_reset(sc->dev, sc->intf)) < 0) {
 			printk(KERN_NOTICE
@@ -1835,14 +1642,10 @@ static void ub_revalidate(struct ub_dev *sc, struct ub_lun *lun)
 static int ub_bd_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
-	struct ub_lun *lun;
-	struct ub_dev *sc;
+	struct ub_lun *lun = disk->private_data;
+	struct ub_dev *sc = lun->udev;
 	unsigned long flags;
 	int rc;
-
-	if ((lun = disk->private_data) == NULL)
-		return -ENXIO;
-	sc = lun->udev;
 
 	spin_lock_irqsave(&ub_lock, flags);
 	if (atomic_read(&sc->poison)) {
@@ -1851,26 +1654,6 @@ static int ub_bd_open(struct inode *inode, struct file *filp)
 	}
 	sc->openc++;
 	spin_unlock_irqrestore(&ub_lock, flags);
-
-	/*
-	 * This is a workaround for a specific problem in our block layer.
-	 * In 2.6.9, register_disk duplicates the code from rescan_partitions.
-	 * However, if we do add_disk with a device which persistently reports
-	 * a changed media, add_disk calls register_disk, which does do_open,
-	 * which will call rescan_paritions for changed media. After that,
-	 * register_disk attempts to do it all again and causes double kobject
-	 * registration and a eventually an oops on module removal.
-	 *
-	 * The bottom line is, Al Viro says that we should not allow
-	 * bdev->bd_invalidated to be set when doing add_disk no matter what.
-	 */
-	if (lun->first_open) {
-		lun->first_open = 0;
-		if (lun->changed) {
-			rc = -ENOMEDIUM;
-			goto err_open;
-		}
-	}
 
 	if (lun->removable || lun->readonly)
 		check_disk_change(inode->i_bdev);
@@ -2010,9 +1793,8 @@ static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun)
 	init_completion(&compl);
 
 	rc = -ENOMEM;
-	if ((cmd = kmalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
+	if ((cmd = kzalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(cmd, 0, ALLOC_SIZE);
 
 	cmd->cdb[0] = TEST_UNIT_READY;
 	cmd->cdb_len = 6;
@@ -2028,10 +1810,8 @@ static int ub_sync_tur(struct ub_dev *sc, struct ub_lun *lun)
 	rc = ub_submit_scsi(sc, cmd);
 	spin_unlock_irqrestore(sc->lock, flags);
 
-	if (rc != 0) {
-		printk("ub: testing ready: submit error (%d)\n", rc); /* P3 */
+	if (rc != 0)
 		goto err_submit;
-	}
 
 	wait_for_completion(&compl);
 
@@ -2065,9 +1845,8 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	init_completion(&compl);
 
 	rc = -ENOMEM;
-	if ((cmd = kmalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
+	if ((cmd = kzalloc(ALLOC_SIZE, GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(cmd, 0, ALLOC_SIZE);
 	p = (char *)cmd + sizeof(struct ub_scsi_cmd);
 
 	cmd->cdb[0] = 0x25;
@@ -2090,20 +1869,16 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	rc = ub_submit_scsi(sc, cmd);
 	spin_unlock_irqrestore(sc->lock, flags);
 
-	if (rc != 0) {
-		printk("ub: reading capacity: submit error (%d)\n", rc); /* P3 */
+	if (rc != 0)
 		goto err_submit;
-	}
 
 	wait_for_completion(&compl);
 
 	if (cmd->error != 0) {
-		printk("ub: reading capacity: error %d\n", cmd->error); /* P3 */
 		rc = -EIO;
 		goto err_read;
 	}
 	if (cmd->act_len != 8) {
-		printk("ub: reading capacity: size %d\n", cmd->act_len); /* P3 */
 		rc = -EIO;
 		goto err_read;
 	}
@@ -2117,7 +1892,6 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	case 2048:	shift = 2;	break;
 	case 4096:	shift = 3;	break;
 	default:
-		printk("ub: Bad sector size %u\n", bsize); /* P3 */
 		rc = -EDOM;
 		goto err_inv_bsize;
 	}
@@ -2229,17 +2003,8 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 	sc->work_urb.error_count = 0;
 	sc->work_urb.status = 0;
 
-	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
-		if (rc == -EPIPE) {
-			printk("%s: Stall submitting GetMaxLUN, using 1 LUN\n",
-			     sc->name); /* P3 */
-		} else {
-			printk(KERN_NOTICE
-			     "%s: Unable to submit GetMaxLUN (%d)\n",
-			     sc->name, rc);
-		}
+	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0)
 		goto err_submit;
-	}
 
 	init_timer(&timer);
 	timer.function = ub_probe_timeout;
@@ -2252,21 +2017,10 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 	del_timer_sync(&timer);
 	usb_kill_urb(&sc->work_urb);
 
-	if ((rc = sc->work_urb.status) < 0) {
-		if (rc == -EPIPE) {
-			printk("%s: Stall at GetMaxLUN, using 1 LUN\n",
-			     sc->name); /* P3 */
-		} else {
-			printk(KERN_NOTICE
-			     "%s: Error at GetMaxLUN (%d)\n",
-			     sc->name, rc);
-		}
+	if ((rc = sc->work_urb.status) < 0)
 		goto err_io;
-	}
 
 	if (sc->work_urb.actual_length != 1) {
-		printk("%s: GetMaxLUN returned %d bytes\n", sc->name,
-		    sc->work_urb.actual_length); /* P3 */
 		nluns = 0;
 	} else {
 		if ((nluns = *p) == 55) {
@@ -2277,8 +2031,6 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 			if (nluns > UB_MAX_LUNS)
 				nluns = UB_MAX_LUNS;
 		}
-		printk("%s: GetMaxLUN returned %d, using %d LUNs\n", sc->name,
-		    *p, nluns); /* P3 */
 	}
 
 	kfree(p);
@@ -2408,9 +2160,8 @@ static int ub_probe(struct usb_interface *intf,
 		return -ENXIO;
 
 	rc = -ENOMEM;
-	if ((sc = kmalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
+	if ((sc = kzalloc(sizeof(struct ub_dev), GFP_KERNEL)) == NULL)
 		goto err_core;
-	memset(sc, 0, sizeof(struct ub_dev));
 	sc->lock = ub_next_lock();
 	INIT_LIST_HEAD(&sc->luns);
 	usb_init_urb(&sc->work_urb);
@@ -2446,9 +2197,6 @@ static int ub_probe(struct usb_interface *intf,
 	if (ub_get_pipes(sc, sc->dev, intf) != 0)
 		goto err_dev_desc;
 
-	if (device_create_file(&sc->intf->dev, &dev_attr_diag) != 0)
-		goto err_diag;
-
 	/*
 	 * At this point, all USB initialization is done, do upper layer.
 	 * We really hate halfway initialized structures, so from the
@@ -2480,7 +2228,7 @@ static int ub_probe(struct usb_interface *intf,
 	 * has to succeed, so we clear checks with an additional one here.
 	 * In any case it's not our business how revaliadation is implemented.
 	 */
-	for (i = 0; i < 3; i++) {	/* Retries for benh's key */
+	for (i = 0; i < 3; i++) {  /* Retries for the schwag key from KS'04 */
 		if ((rc = ub_sync_tur(sc, NULL)) <= 0) break;
 		if (rc != 0x6) break;
 		msleep(10);
@@ -2488,19 +2236,8 @@ static int ub_probe(struct usb_interface *intf,
 
 	nluns = 1;
 	for (i = 0; i < 3; i++) {
-		if ((rc = ub_sync_getmaxlun(sc)) < 0) {
-			/* 
-			 * This segment is taken from usb-storage. They say
-			 * that ZIP-100 needs this, but my own ZIP-100 works
-			 * fine without this.
-			 * Still, it does not seem to hurt anything.
-			 */
-			if (rc == -EPIPE) {
-				ub_probe_clear_stall(sc, sc->recv_bulk_pipe);
-				ub_probe_clear_stall(sc, sc->send_bulk_pipe);
-			}
+		if ((rc = ub_sync_getmaxlun(sc)) < 0)
 			break;
-		}
 		if (rc != 0) {
 			nluns = rc;
 			break;
@@ -2513,8 +2250,6 @@ static int ub_probe(struct usb_interface *intf,
 	}
 	return 0;
 
-	/* device_remove_file(&sc->intf->dev, &dev_attr_diag); */
-err_diag:
 err_dev_desc:
 	usb_set_intfdata(intf, NULL);
 	usb_put_intf(sc->intf);
@@ -2532,9 +2267,8 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	int rc;
 
 	rc = -ENOMEM;
-	if ((lun = kmalloc(sizeof(struct ub_lun), GFP_KERNEL)) == NULL)
+	if ((lun = kzalloc(sizeof(struct ub_lun), GFP_KERNEL)) == NULL)
 		goto err_alloc;
-	memset(lun, 0, sizeof(struct ub_lun));
 	lun->num = lnum;
 
 	rc = -ENOSR;
@@ -2542,23 +2276,19 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 		goto err_id;
 
 	lun->udev = sc;
-	list_add(&lun->link, &sc->luns);
 
 	snprintf(lun->name, 16, DRV_NAME "%c(%d.%d.%d)",
 	    lun->id + 'a', sc->dev->bus->busnum, sc->dev->devnum, lun->num);
 
 	lun->removable = 1;		/* XXX Query this from the device */
 	lun->changed = 1;		/* ub_revalidate clears only */
-	lun->first_open = 1;
 	ub_revalidate(sc, lun);
 
 	rc = -ENOMEM;
 	if ((disk = alloc_disk(UB_PARTS_PER_LUN)) == NULL)
 		goto err_diskalloc;
 
-	lun->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "%c", lun->id + 'a');
-	sprintf(disk->devfs_name, DEVFS_NAME "/%c", lun->id + 'a');
 	disk->major = UB_MAJOR;
 	disk->first_minor = lun->id * UB_PARTS_PER_LUN;
 	disk->fops = &ub_bd_fops;
@@ -2578,7 +2308,9 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	blk_queue_max_sectors(q, UB_MAX_SECTORS);
 	blk_queue_hardsect_size(q, lun->capacity.bsize);
 
+	lun->disk = disk;
 	q->queuedata = lun;
+	list_add(&lun->link, &sc->luns);
 
 	set_capacity(disk, lun->capacity.nsec);
 	if (lun->removable)
@@ -2591,7 +2323,6 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 err_blkqinit:
 	put_disk(disk);
 err_diskalloc:
-	list_del(&lun->link);
 	ub_id_put(lun->id);
 err_id:
 	kfree(lun);
@@ -2604,7 +2335,6 @@ static void ub_disconnect(struct usb_interface *intf)
 	struct ub_dev *sc = usb_get_intfdata(intf);
 	struct list_head *p;
 	struct ub_lun *lun;
-	struct gendisk *disk;
 	unsigned long flags;
 
 	/*
@@ -2644,7 +2374,6 @@ static void ub_disconnect(struct usb_interface *intf)
 		while ((cmd = ub_cmdq_peek(sc)) != NULL) {
 			cmd->error = -ENOTCONN;
 			cmd->state = UB_CMDST_DONE;
-			ub_cmdtr_state(sc, cmd);
 			ub_cmdq_pop(sc);
 			(*cmd->done)(sc, cmd);
 			cnt++;
@@ -2661,9 +2390,7 @@ static void ub_disconnect(struct usb_interface *intf)
 	 */
 	list_for_each (p, &sc->luns) {
 		lun = list_entry(p, struct ub_lun, link);
-		disk = lun->disk;
-		if (disk->flags & GENHD_FL_UP)
-			del_gendisk(disk);
+		del_gendisk(lun->disk);
 		/*
 		 * I wish I could do:
 		 *    set_bit(QUEUE_FLAG_DEAD, &q->queue_flags);
@@ -2695,7 +2422,6 @@ static void ub_disconnect(struct usb_interface *intf)
 	 * and no URBs left in transit.
 	 */
 
-	device_remove_file(&sc->intf->dev, &dev_attr_diag);
 	ub_put(sc);
 }
 
@@ -2716,7 +2442,6 @@ static int __init ub_init(void)
 
 	if ((rc = register_blkdev(UB_MAJOR, DRV_NAME)) != 0)
 		goto err_regblkdev;
-	devfs_mk_dir(DEVFS_NAME);
 
 	if ((rc = usb_register(&ub_driver)) != 0)
 		goto err_register;
@@ -2725,7 +2450,6 @@ static int __init ub_init(void)
 	return 0;
 
 err_register:
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 err_regblkdev:
 	return rc;
@@ -2735,7 +2459,6 @@ static void __exit ub_exit(void)
 {
 	usb_deregister(&ub_driver);
 
-	devfs_remove(DEVFS_NAME);
 	unregister_blkdev(UB_MAJOR, DRV_NAME);
 	usb_usual_clear_present(USB_US_TYPE_UB);
 }

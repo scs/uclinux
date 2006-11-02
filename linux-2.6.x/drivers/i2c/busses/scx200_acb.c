@@ -1,27 +1,26 @@
-/*  linux/drivers/i2c/scx200_acb.c 
-
+/*
     Copyright (c) 2001,2002 Christer Weinigel <wingel@nano-system.com>
 
     National Semiconductor SCx200 ACCESS.bus support
-    
+    Also supports the AMD CS5535 and AMD CS5536
+
     Based on i2c-keywest.c which is:
         Copyright (c) 2001 Benjamin Herrenschmidt <benh@kernel.crashing.org>
         Copyright (c) 2000 Philip Edelbrock <phil@stimpy.netroedge.com>
-    
+
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
     published by the Free Software Foundation; either version 2 of the
     License, or (at your option) any later version.
-   
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
     General Public License for more details.
-   
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
 */
 
 #include <linux/module.h>
@@ -32,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 
 #include <linux/scx200.h>
@@ -47,16 +47,7 @@ static int base[MAX_DEVICES] = { 0x820, 0x840 };
 module_param_array(base, int, NULL, 0);
 MODULE_PARM_DESC(base, "Base addresses for the ACCESS.bus controllers");
 
-#ifdef DEBUG
-#define DBG(x...) printk(KERN_DEBUG NAME ": " x)
-#else
-#define DBG(x...)
-#endif
-
-/* The hardware supports interrupt driven mode too, but I haven't
-   implemented that. */
-#define POLLED_MODE 1
-#define POLL_TIMEOUT (HZ)
+#define POLL_TIMEOUT	(HZ/5)
 
 enum scx200_acb_state {
 	state_idle,
@@ -79,12 +70,11 @@ static const char *scx200_acb_state_name[] = {
 };
 
 /* Physical interface */
-struct scx200_acb_iface
-{
+struct scx200_acb_iface {
 	struct scx200_acb_iface *next;
 	struct i2c_adapter adapter;
 	unsigned base;
-	struct semaphore sem;
+	struct mutex mutex;
 
 	/* State machine data */
 	enum scx200_acb_state state;
@@ -94,13 +84,17 @@ struct scx200_acb_iface
 	u8 *ptr;
 	char needs_reset;
 	unsigned len;
+
+	/* PCI device info */
+	struct pci_dev *pdev;
+	int bar;
 };
 
 /* Register Definitions */
 #define ACBSDA		(iface->base + 0)
 #define ACBST		(iface->base + 1)
 #define    ACBST_SDAST		0x40 /* SDA Status */
-#define    ACBST_BER		0x20 
+#define    ACBST_BER		0x20
 #define    ACBST_NEGACK		0x10 /* Negative Acknowledge */
 #define    ACBST_STASTR		0x08 /* Stall After Start */
 #define    ACBST_MASTER		0x02
@@ -109,9 +103,9 @@ struct scx200_acb_iface
 #define ACBCTL1		(iface->base + 3)
 #define    ACBCTL1_STASTRE	0x80
 #define    ACBCTL1_NMINTE	0x40
-#define	   ACBCTL1_ACK		0x10
-#define	   ACBCTL1_STOP		0x02
-#define	   ACBCTL1_START	0x01
+#define    ACBCTL1_ACK		0x10
+#define    ACBCTL1_STOP		0x02
+#define    ACBCTL1_START	0x01
 #define ACBADDR		(iface->base + 4)
 #define ACBCTL2		(iface->base + 5)
 #define    ACBCTL2_ENABLE	0x01
@@ -122,8 +116,8 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 {
 	const char *errmsg;
 
-	DBG("state %s, status = 0x%02x\n", 
-	    scx200_acb_state_name[iface->state], status);
+	dev_dbg(&iface->adapter.dev, "state %s, status = 0x%02x\n",
+		scx200_acb_state_name[iface->state], status);
 
 	if (status & ACBST_BER) {
 		errmsg = "bus error";
@@ -133,8 +127,20 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 		errmsg = "not master";
 		goto error;
 	}
-	if (status & ACBST_NEGACK)
-		goto negack;
+	if (status & ACBST_NEGACK) {
+		dev_dbg(&iface->adapter.dev, "negative ack in state %s\n",
+			scx200_acb_state_name[iface->state]);
+
+		iface->state = state_idle;
+		iface->result = -ENXIO;
+
+		outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
+		outb(ACBST_STASTR | ACBST_NEGACK, ACBST);
+
+		/* Reset the status register */
+		outb(0, ACBST);
+		return;
+	}
 
 	switch (iface->state) {
 	case state_idle:
@@ -160,10 +166,10 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	case state_repeat_start:
 		outb(inb(ACBCTL1) | ACBCTL1_START, ACBCTL1);
 		/* fallthrough */
-		
+
 	case state_quick:
 		if (iface->address_byte & 1) {
-			if (iface->len == 1) 
+			if (iface->len == 1)
 				outb(inb(ACBCTL1) | ACBCTL1_ACK, ACBCTL1);
 			else
 				outb(inb(ACBCTL1) & ~ACBCTL1_ACK, ACBCTL1);
@@ -178,20 +184,20 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 		break;
 
 	case state_read:
-		/* Set ACK if receiving the last byte */
-		if (iface->len == 1)
+		/* Set ACK if _next_ byte will be the last one */
+		if (iface->len == 2)
 			outb(inb(ACBCTL1) | ACBCTL1_ACK, ACBCTL1);
 		else
 			outb(inb(ACBCTL1) & ~ACBCTL1_ACK, ACBCTL1);
 
-		*iface->ptr++ = inb(ACBSDA);
-		--iface->len;
-
-		if (iface->len == 0) {
+		if (iface->len == 1) {
 			iface->result = 0;
 			iface->state = state_idle;
 			outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
 		}
+
+		*iface->ptr++ = inb(ACBSDA);
+		--iface->len;
 
 		break;
 
@@ -202,24 +208,13 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 			outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
 			break;
 		}
-		
+
 		outb(*iface->ptr++, ACBSDA);
 		--iface->len;
-		
+
 		break;
 	}
 
-	return;
-
- negack:
-	DBG("negative acknowledge in state %s\n", 
-	    scx200_acb_state_name[iface->state]);
-
-	iface->state = state_idle;
-	iface->result = -ENXIO;
-
-	outb(inb(ACBCTL1) | ACBCTL1_STOP, ACBCTL1);
-	outb(ACBST_STASTR | ACBST_NEGACK, ACBST);
 	return;
 
  error:
@@ -231,8 +226,28 @@ static void scx200_acb_machine(struct scx200_acb_iface *iface, u8 status)
 	iface->needs_reset = 1;
 }
 
-static void scx200_acb_timeout(struct scx200_acb_iface *iface) 
+static void scx200_acb_poll(struct scx200_acb_iface *iface)
 {
+	u8 status;
+	unsigned long timeout;
+
+	timeout = jiffies + POLL_TIMEOUT;
+	while (1) {
+		status = inb(ACBST);
+
+		/* Reset the status register to avoid the hang */
+		outb(0, ACBST);
+
+		if ((status & (ACBST_SDAST|ACBST_BER|ACBST_NEGACK)) != 0) {
+			scx200_acb_machine(iface, status);
+			return;
+		}
+		if (time_after(jiffies, timeout))
+			break;
+		cpu_relax();
+		cond_resched();
+	}
+
 	dev_err(&iface->adapter.dev, "timeout in state %s\n",
 		scx200_acb_state_name[iface->state]);
 
@@ -241,30 +256,10 @@ static void scx200_acb_timeout(struct scx200_acb_iface *iface)
 	iface->needs_reset = 1;
 }
 
-#ifdef POLLED_MODE
-static void scx200_acb_poll(struct scx200_acb_iface *iface)
-{
-	u8 status = 0;
-	unsigned long timeout;
-
-	timeout = jiffies + POLL_TIMEOUT;
-	while (time_before(jiffies, timeout)) {
-		status = inb(ACBST);
-		if ((status & (ACBST_SDAST|ACBST_BER|ACBST_NEGACK)) != 0) {
-			scx200_acb_machine(iface, status);
-			return;
-		}
-		msleep(10);
-	}
-
-	scx200_acb_timeout(iface);
-}
-#endif /* POLLED_MODE */
-
 static void scx200_acb_reset(struct scx200_acb_iface *iface)
 {
 	/* Disable the ACCESS.bus device and Configure the SCL
-           frequency: 16 clock cycles */
+	   frequency: 16 clock cycles */
 	outb(0x70, ACBCTL2);
 	/* Polling mode */
 	outb(0, ACBCTL1);
@@ -283,9 +278,9 @@ static void scx200_acb_reset(struct scx200_acb_iface *iface)
 }
 
 static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
-				u16 address, unsigned short flags,	
-				char rw, u8 command, int size, 
-				union i2c_smbus_data *data)
+				 u16 address, unsigned short flags,
+				 char rw, u8 command, int size,
+				 union i2c_smbus_data *data)
 {
 	struct scx200_acb_iface *iface = i2c_get_adapdata(adapter);
 	int len;
@@ -295,53 +290,51 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
-	    	len = 0;
-	    	buffer = NULL;
-	    	break;
+		len = 0;
+		buffer = NULL;
+		break;
+
 	case I2C_SMBUS_BYTE:
-		if (rw == I2C_SMBUS_READ) {
-			len = 1;
-			buffer = &data->byte;
-		} else {
-			len = 1;
-			buffer = &command;
-		}
-	    	break;
+		len = 1;
+		buffer = rw ? &data->byte : &command;
+		break;
+
 	case I2C_SMBUS_BYTE_DATA:
-	    	len = 1;
-	    	buffer = &data->byte;
-	    	break;
+		len = 1;
+		buffer = &data->byte;
+		break;
+
 	case I2C_SMBUS_WORD_DATA:
 		len = 2;
-	    	cur_word = cpu_to_le16(data->word);
-	    	buffer = (u8 *)&cur_word;
+		cur_word = cpu_to_le16(data->word);
+		buffer = (u8 *)&cur_word;
 		break;
-	case I2C_SMBUS_BLOCK_DATA:
-	    	len = data->block[0];
-	    	buffer = &data->block[1];
+
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		if (rw == I2C_SMBUS_READ)
+			data->block[0] = I2C_SMBUS_BLOCK_MAX; /* For now */
+		len = data->block[0];
+		if (len == 0 || len > I2C_SMBUS_BLOCK_MAX)
+			return -EINVAL;
+		buffer = &data->block[1];
 		break;
+
 	default:
-	    	return -EINVAL;
-	}
-
-	DBG("size=%d, address=0x%x, command=0x%x, len=%d, read=%d\n",
-	    size, address, command, len, rw == I2C_SMBUS_READ);
-
-	if (!len && rw == I2C_SMBUS_READ) {
-		dev_warn(&adapter->dev, "zero length read\n");
 		return -EINVAL;
 	}
 
-	if (len && !buffer) {
-		dev_warn(&adapter->dev, "nonzero length but no buffer\n");
-		return -EFAULT;
+	dev_dbg(&adapter->dev,
+		"size=%d, address=0x%x, command=0x%x, len=%d, read=%d\n",
+		size, address, command, len, rw);
+
+	if (!len && rw == I2C_SMBUS_READ) {
+		dev_dbg(&adapter->dev, "zero length read\n");
+		return -EINVAL;
 	}
 
-	down(&iface->sem);
+	mutex_lock(&iface->mutex);
 
-	iface->address_byte = address<<1;
-	if (rw == I2C_SMBUS_READ)
-		iface->address_byte |= 1;
+	iface->address_byte = (address << 1) | rw;
 	iface->command = command;
 	iface->ptr = buffer;
 	iface->len = len;
@@ -355,25 +348,21 @@ static s32 scx200_acb_smbus_xfer(struct i2c_adapter *adapter,
 	else
 		iface->state = state_address;
 
-#ifdef POLLED_MODE
 	while (iface->state != state_idle)
 		scx200_acb_poll(iface);
-#else /* POLLED_MODE */
-#error Interrupt driven mode not implemented
-#endif /* POLLED_MODE */	
 
 	if (iface->needs_reset)
 		scx200_acb_reset(iface);
 
 	rc = iface->result;
 
-	up(&iface->sem);
+	mutex_unlock(&iface->mutex);
 
 	if (rc == 0 && size == I2C_SMBUS_WORD_DATA && rw == I2C_SMBUS_READ)
-	    	data->word = le16_to_cpu(cur_word);
+		data->word = le16_to_cpu(cur_word);
 
 #ifdef DEBUG
-	DBG(": transfer done, result: %d", rc);
+	dev_dbg(&adapter->dev, "transfer done, result: %d", rc);
 	if (buffer) {
 		int i;
 		printk(" data:");
@@ -390,7 +379,7 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
-	       I2C_FUNC_SMBUS_BLOCK_DATA;
+	       I2C_FUNC_SMBUS_I2C_BLOCK;
 }
 
 /* For now, we only handle combined mode (smbus) */
@@ -400,17 +389,18 @@ static struct i2c_algorithm scx200_acb_algorithm = {
 };
 
 static struct scx200_acb_iface *scx200_acb_list;
+static DECLARE_MUTEX(scx200_acb_list_mutex);
 
-static int scx200_acb_probe(struct scx200_acb_iface *iface)
+static __init int scx200_acb_probe(struct scx200_acb_iface *iface)
 {
 	u8 val;
 
 	/* Disable the ACCESS.bus device and Configure the SCL
-           frequency: 16 clock cycles */
+	   frequency: 16 clock cycles */
 	outb(0x70, ACBCTL2);
 
 	if (inb(ACBCTL2) != 0x70) {
-		DBG("ACBCTL2 readback failed\n");
+		pr_debug(NAME ": ACBCTL2 readback failed\n");
 		return -ENXIO;
 	}
 
@@ -418,7 +408,8 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if (val) {
-		DBG("disabled, but ACBCTL1=0x%02x\n", val);
+		pr_debug(NAME ": disabled, but ACBCTL1=0x%02x\n",
+			val);
 		return -ENXIO;
 	}
 
@@ -428,96 +419,209 @@ static int scx200_acb_probe(struct scx200_acb_iface *iface)
 
 	val = inb(ACBCTL1);
 	if ((val & ACBCTL1_NMINTE) != ACBCTL1_NMINTE) {
-		DBG("enabled, but NMINTE won't be set, ACBCTL1=0x%02x\n", val);
+		pr_debug(NAME ": enabled, but NMINTE won't be set, "
+			 "ACBCTL1=0x%02x\n", val);
 		return -ENXIO;
 	}
 
 	return 0;
 }
 
-static int  __init scx200_acb_create(int base, int index)
+static __init struct scx200_acb_iface *scx200_create_iface(const char *text,
+		int index)
 {
 	struct scx200_acb_iface *iface;
 	struct i2c_adapter *adapter;
-	int rc = 0;
 
 	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
 		printk(KERN_ERR NAME ": can't allocate memory\n");
-		rc = -ENOMEM;
-		goto errout;
+		return NULL;
 	}
 
 	adapter = &iface->adapter;
 	i2c_set_adapdata(adapter, iface);
-	snprintf(adapter->name, I2C_NAME_SIZE, "SCx200 ACB%d", index);
+	snprintf(adapter->name, I2C_NAME_SIZE, "%s ACB%d", text, index);
 	adapter->owner = THIS_MODULE;
 	adapter->id = I2C_HW_SMBUS_SCX200;
 	adapter->algo = &scx200_acb_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 
-	init_MUTEX(&iface->sem);
+	mutex_init(&iface->mutex);
 
-	if (!request_region(base, 8, adapter->name)) {
-		dev_err(&adapter->dev, "can't allocate io 0x%x-0x%x\n",
-			base, base + 8-1);
-		rc = -EBUSY;
-		goto errout;
-	}
-	iface->base = base;
+	return iface;
+}
+
+static int __init scx200_acb_create(struct scx200_acb_iface *iface)
+{
+	struct i2c_adapter *adapter;
+	int rc;
+
+	adapter = &iface->adapter;
 
 	rc = scx200_acb_probe(iface);
 	if (rc) {
-		dev_warn(&adapter->dev, "probe failed\n");
-		goto errout;
+		printk(KERN_WARNING NAME ": probe failed\n");
+		return rc;
 	}
 
 	scx200_acb_reset(iface);
 
 	if (i2c_add_adapter(adapter) < 0) {
-		dev_err(&adapter->dev, "failed to register\n");
-		rc = -ENODEV;
-		goto errout;
+		printk(KERN_ERR NAME ": failed to register\n");
+		return -ENODEV;
 	}
 
-	lock_kernel();
+	down(&scx200_acb_list_mutex);
 	iface->next = scx200_acb_list;
 	scx200_acb_list = iface;
-	unlock_kernel();
+	up(&scx200_acb_list_mutex);
 
 	return 0;
+}
 
- errout:
-	if (iface) {
-		if (iface->base)
-			release_region(iface->base, 8);
-		kfree(iface);
+static __init int scx200_create_pci(const char *text, struct pci_dev *pdev,
+		int bar)
+{
+	struct scx200_acb_iface *iface;
+	int rc;
+
+	iface = scx200_create_iface(text, 0);
+
+	if (iface == NULL)
+		return -ENOMEM;
+
+	iface->pdev = pdev;
+	iface->bar = bar;
+
+	pci_enable_device_bars(iface->pdev, 1 << iface->bar);
+
+	rc = pci_request_region(iface->pdev, iface->bar, iface->adapter.name);
+
+	if (rc != 0) {
+		printk(KERN_ERR NAME ": can't allocate PCI BAR %d\n",
+				iface->bar);
+		goto errout_free;
 	}
+
+	iface->base = pci_resource_start(iface->pdev, iface->bar);
+	rc = scx200_acb_create(iface);
+
+	if (rc == 0)
+		return 0;
+
+	pci_release_region(iface->pdev, iface->bar);
+	pci_dev_put(iface->pdev);
+ errout_free:
+	kfree(iface);
 	return rc;
 }
 
-static struct pci_device_id scx200[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE) },
-	{ },
+static int __init scx200_create_isa(const char *text, unsigned long base,
+		int index)
+{
+	struct scx200_acb_iface *iface;
+	int rc;
+
+	iface = scx200_create_iface(text, index);
+
+	if (iface == NULL)
+		return -ENOMEM;
+
+	if (request_region(base, 8, iface->adapter.name) == 0) {
+		printk(KERN_ERR NAME ": can't allocate io 0x%lx-0x%lx\n",
+		       base, base + 8 - 1);
+		rc = -EBUSY;
+		goto errout_free;
+	}
+
+	iface->base = base;
+	rc = scx200_acb_create(iface);
+
+	if (rc == 0)
+		return 0;
+
+	release_region(base, 8);
+ errout_free:
+	kfree(iface);
+	return rc;
+}
+
+/* Driver data is an index into the scx200_data array that indicates
+ * the name and the BAR where the I/O address resource is located.  ISA
+ * devices are flagged with a bar value of -1 */
+
+static struct pci_device_id scx200_pci[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE),
+	  .driver_data = 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_ISA),
+	  .driver_data = 1 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA),
+	  .driver_data = 2 }
 };
+
+static struct {
+	const char *name;
+	int bar;
+} scx200_data[] = {
+	{ "SCx200", -1 },
+	{ "CS5535",  0 },
+	{ "CS5536",  0 }
+};
+
+static __init int scx200_scan_pci(void)
+{
+	int data, dev;
+	int rc = -ENODEV;
+	struct pci_dev *pdev;
+
+	for(dev = 0; dev < ARRAY_SIZE(scx200_pci); dev++) {
+		pdev = pci_get_device(scx200_pci[dev].vendor,
+				scx200_pci[dev].device, NULL);
+
+		if (pdev == NULL)
+			continue;
+
+		data = scx200_pci[dev].driver_data;
+
+		/* if .bar is greater or equal to zero, this is a
+		 * PCI device - otherwise, we assume
+		   that the ports are ISA based
+		*/
+
+		if (scx200_data[data].bar >= 0)
+			rc = scx200_create_pci(scx200_data[data].name, pdev,
+					scx200_data[data].bar);
+		else {
+			int i;
+
+			for (i = 0; i < MAX_DEVICES; ++i) {
+				if (base[i] == 0)
+					continue;
+
+				rc = scx200_create_isa(scx200_data[data].name,
+						base[i],
+						i);
+			}
+		}
+
+		break;
+	}
+
+	return rc;
+}
 
 static int __init scx200_acb_init(void)
 {
-	int i;
 	int rc;
 
 	pr_debug(NAME ": NatSemi SCx200 ACCESS.bus Driver\n");
 
-	/* Verify that this really is a SCx200 processor */
-	if (pci_dev_present(scx200) == 0)
-		return -ENODEV;
+	rc = scx200_scan_pci();
 
-	rc = -ENXIO;
-	for (i = 0; i < MAX_DEVICES; ++i) {
-		if (base[i] > 0)
-			rc = scx200_acb_create(base[i], i);
-	}
+	/* If at least one bus was created, init must succeed */
 	if (scx200_acb_list)
 		return 0;
 	return rc;
@@ -526,26 +630,26 @@ static int __init scx200_acb_init(void)
 static void __exit scx200_acb_cleanup(void)
 {
 	struct scx200_acb_iface *iface;
-	lock_kernel();
+
+	down(&scx200_acb_list_mutex);
 	while ((iface = scx200_acb_list) != NULL) {
 		scx200_acb_list = iface->next;
-		unlock_kernel();
+		up(&scx200_acb_list_mutex);
 
 		i2c_del_adapter(&iface->adapter);
-		release_region(iface->base, 8);
+
+		if (iface->pdev) {
+			pci_release_region(iface->pdev, iface->bar);
+			pci_dev_put(iface->pdev);
+		}
+		else
+			release_region(iface->base, 8);
+
 		kfree(iface);
-		lock_kernel();
+		down(&scx200_acb_list_mutex);
 	}
-	unlock_kernel();
+	up(&scx200_acb_list_mutex);
 }
 
 module_init(scx200_acb_init);
 module_exit(scx200_acb_cleanup);
-
-/*
-    Local variables:
-        compile-command: "make -k -C ../.. SUBDIRS=drivers/i2c modules"
-        c-basic-offset: 8
-    End:
-*/
-

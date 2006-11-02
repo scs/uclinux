@@ -67,32 +67,53 @@ err:
 	return err;
 }
 
-static int actually_do_remove(char *dir)
+/*
+ * Unlinks the files contained in @dir and then removes @dir.
+ * Doesn't handle directory trees, so it's not like rm -rf, but almost such. We
+ * ignore ENOENT errors for anything (they happen, strangely enough - possibly due
+ * to races between multiple dying UML threads).
+ */
+static int remove_files_and_dir(char *dir)
 {
 	DIR *directory;
 	struct dirent *ent;
 	int len;
 	char file[256];
+	int ret;
 
 	directory = opendir(dir);
-	if(directory == NULL)
-		return -errno;
+	if (directory == NULL) {
+		if (errno != ENOENT)
+			return -errno;
+		else
+			return 0;
+	}
 
-	while((ent = readdir(directory)) != NULL){
-		if(!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
+	while ((ent = readdir(directory)) != NULL) {
+		if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, ".."))
 			continue;
 		len = strlen(dir) + sizeof("/") + strlen(ent->d_name) + 1;
-		if(len > sizeof(file))
-			return -E2BIG;
+		if (len > sizeof(file)) {
+			ret = -E2BIG;
+			goto out;
+		}
 
 		sprintf(file, "%s/%s", dir, ent->d_name);
-		if(unlink(file) < 0)
-			return -errno;
+		if (unlink(file) < 0 && errno != ENOENT) {
+			ret = -errno;
+			goto out;
+		}
 	}
-	if(rmdir(dir) < 0)
-		return -errno;
 
-	return 0;
+	if (rmdir(dir) < 0 && errno != ENOENT) {
+		ret = -errno;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	closedir(directory);
+	return ret;
 }
 
 /* This says that there isn't already a user of the specified directory even if
@@ -103,9 +124,10 @@ static int actually_do_remove(char *dir)
  * 	something other than UML sticking stuff in the directory
  *	this boot racing with a shutdown of the other UML
  * In any of these cases, the directory isn't useful for anything else.
+ *
+ * Boolean return: 1 if in use, 0 otherwise.
  */
-
-static int not_dead_yet(char *dir)
+static inline int is_umdir_used(char *dir)
 {
 	char file[strlen(uml_dir) + UMID_LEN + sizeof("/pid\0")];
 	char pid[sizeof("nnnnn\0")], *end;
@@ -113,16 +135,17 @@ static int not_dead_yet(char *dir)
 
 	n = snprintf(file, sizeof(file), "%s/pid", dir);
 	if(n >= sizeof(file)){
-		printk("not_dead_yet - pid filename too long\n");
+		printk("is_umdir_used - pid filename too long\n");
 		err = -E2BIG;
 		goto out;
 	}
 
 	dead = 0;
 	fd = open(file, O_RDONLY);
-	if(fd < 0){
+	if(fd < 0) {
+		fd = -errno;
 		if(fd != -ENOENT){
-			printk("not_dead_yet : couldn't open pid file '%s', "
+			printk("is_umdir_used : couldn't open pid file '%s', "
 			       "err = %d\n", file, -fd);
 		}
 		goto out;
@@ -130,33 +153,52 @@ static int not_dead_yet(char *dir)
 
 	err = 0;
 	n = read(fd, pid, sizeof(pid));
-	if(n <= 0){
-		printk("not_dead_yet : couldn't read pid file '%s', "
-		       "err = %d\n", file, -n);
+	if(n < 0){
+		printk("is_umdir_used : couldn't read pid file '%s', "
+		       "err = %d\n", file, errno);
+		goto out_close;
+	} else if(n == 0){
+		printk("is_umdir_used : couldn't read pid file '%s', "
+		       "0-byte read\n", file);
 		goto out_close;
 	}
 
 	p = strtoul(pid, &end, 0);
 	if(end == pid){
-		printk("not_dead_yet : couldn't parse pid file '%s', "
+		printk("is_umdir_used : couldn't parse pid file '%s', "
 		       "errno = %d\n", file, errno);
 		goto out_close;
 	}
 
-	if((kill(p, 0) == 0) || (errno != ESRCH))
+	if((kill(p, 0) == 0) || (errno != ESRCH)){
+		printk("umid \"%s\" is already in use by pid %d\n", umid, p);
 		return 1;
+	}
 
-	err = actually_do_remove(dir);
-	if(err)
-		printk("not_dead_yet - actually_do_remove failed with "
-		       "err = %d\n", err);
-
-	return err;
-
- out_close:
+out_close:
 	close(fd);
- out:
+out:
 	return 0;
+}
+
+/*
+ * Try to remove the directory @dir unless it's in use.
+ * Precondition: @dir exists.
+ * Returns 0 for success, < 0 for failure in removal or if the directory is in
+ * use.
+ */
+static int umdir_take_if_dead(char *dir)
+{
+	int ret;
+	if (is_umdir_used(dir))
+		return -EEXIST;
+
+	ret = remove_files_and_dir(dir);
+	if (ret) {
+		printk("is_umdir_used - remove_files_and_dir failed with "
+		       "err = %d\n", ret);
+	}
+	return ret;
 }
 
 static void __init create_pid_file(void)
@@ -171,14 +213,14 @@ static void __init create_pid_file(void)
 	fd = open(file, O_RDWR | O_CREAT | O_EXCL, 0644);
 	if(fd < 0){
 		printk("Open of machine pid file \"%s\" failed: %s\n",
-		       file, strerror(-fd));
+		       file, strerror(errno));
 		return;
 	}
 
 	snprintf(pid, sizeof(pid), "%d\n", getpid());
 	n = write(fd, pid, strlen(pid));
 	if(n != strlen(pid))
-		printk("Write of pid file failed - err = %d\n", -n);
+		printk("Write of pid file failed - err = %d\n", errno);
 
 	close(fd);
 }
@@ -234,33 +276,40 @@ int __init make_umid(void)
 	err = mkdir(tmp, 0777);
 	if(err < 0){
 		err = -errno;
-		if(errno != EEXIST)
+		if(err != -EEXIST)
 			goto err;
 
-		if(not_dead_yet(tmp) < 0)
+		if (umdir_take_if_dead(tmp) < 0)
 			goto err;
 
 		err = mkdir(tmp, 0777);
 	}
-	if(err < 0){
-		printk("Failed to create '%s' - err = %d\n", umid, err);
-		goto err_rmdir;
+	if(err){
+		err = -errno;
+		printk("Failed to create '%s' - err = %d\n", umid, -errno);
+		goto err;
 	}
 
 	umid_setup = 1;
 
 	create_pid_file();
 
-	return 0;
-
- err_rmdir:
-	rmdir(tmp);
+	err = 0;
  err:
 	return err;
 }
 
 static int __init make_umid_init(void)
 {
+	if(!make_umid())
+		return 0;
+
+	/* If initializing with the given umid failed, then try again with
+	 * a random one.
+	 */
+	printk("Failed to initialize umid \"%s\", trying with a random umid\n",
+	       umid);
+	*umid = '\0';
 	make_umid();
 
 	return 0;
@@ -326,9 +375,9 @@ static void remove_umid_dir(void)
 	char dir[strlen(uml_dir) + UMID_LEN + 1], err;
 
 	sprintf(dir, "%s%s", uml_dir, umid);
-	err = actually_do_remove(dir);
+	err = remove_files_and_dir(dir);
 	if(err)
-		printf("remove_umid_dir - actually_do_remove failed with "
+		printf("remove_umid_dir - remove_files_and_dir failed with "
 		       "err = %d\n", err);
 }
 

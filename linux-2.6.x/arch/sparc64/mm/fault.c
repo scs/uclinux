@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
+#include <linux/kallsyms.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -29,6 +30,41 @@
 #include <asm/lsu.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>
+#include <asm/mmu_context.h>
+
+#ifdef CONFIG_KPROBES
+ATOMIC_NOTIFIER_HEAD(notify_page_fault_chain);
+
+/* Hook to register for page fault notifications */
+int register_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&notify_page_fault_chain, nb);
+}
+
+int unregister_page_fault_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&notify_page_fault_chain, nb);
+}
+
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
+	return atomic_notifier_call_chain(&notify_page_fault_chain, val, &args);
+}
+#else
+static inline int notify_page_fault(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
+{
+	return NOTIFY_DONE;
+}
+#endif
 
 /*
  * To debug kernel to catch accesses to certain virtual/physical addresses.
@@ -91,12 +127,15 @@ static void __kprobes unhandled_fault(unsigned long address,
 	die_if_kernel("Oops", regs);
 }
 
-static void bad_kernel_pc(struct pt_regs *regs)
+static void bad_kernel_pc(struct pt_regs *regs, unsigned long vaddr)
 {
 	unsigned long *ksp;
 
 	printk(KERN_CRIT "OOPS: Bogus kernel PC [%016lx] in fault handler\n",
 	       regs->tpc);
+	printk(KERN_CRIT "OOPS: RPC [%016lx]\n", regs->u_regs[15]);
+	print_symbol("RPC: <%s>\n", regs->u_regs[15]);
+	printk(KERN_CRIT "OOPS: Fault was to vaddr[%lx]\n", vaddr);
 	__asm__("mov %%sp, %0" : "=r" (ksp));
 	show_stack(current, ksp);
 	unhandled_fault(regs->tpc, current, regs);
@@ -137,7 +176,7 @@ static unsigned int get_user_insn(unsigned long tpc)
 	if (!pte_present(pte))
 		goto out;
 
-	pa  = (pte_val(pte) & _PAGE_PADDR);
+	pa  = (pte_pfn(pte) << PAGE_SHIFT);
 	pa += (tpc & ~PAGE_MASK);
 
 	/* Use phys bypass so we don't pollute dtlb/dcache. */
@@ -257,11 +296,11 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	struct vm_area_struct *vma;
 	unsigned int insn = 0;
 	int si_code, fault_code;
-	unsigned long address;
+	unsigned long address, mm_rss;
 
 	fault_code = get_thread_fault_code();
 
-	if (notify_die(DIE_PAGE_FAULT, "page_fault", regs,
+	if (notify_page_fault(DIE_PAGE_FAULT, "page_fault", regs,
 		       fault_code, 0, SIGSEGV) == NOTIFY_STOP)
 		return;
 
@@ -280,7 +319,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		    (tpc >= MODULES_VADDR && tpc < MODULES_END)) {
 			/* Valid, no problems... */
 		} else {
-			bad_kernel_pc(regs);
+			bad_kernel_pc(regs, address);
 			return;
 		}
 	}
@@ -325,8 +364,12 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		insn = get_fault_insn(regs, 0);
 		if (!insn)
 			goto continue_fault;
+		/* All loads, stores and atomics have bits 30 and 31 both set
+		 * in the instruction.  Bit 21 is set in all stores, but we
+		 * have to avoid prefetches which also have bit 21 set.
+		 */
 		if ((insn & 0xc0200000) == 0xc0200000 &&
-		    (insn & 0x1780000) != 0x1680000) {
+		    (insn & 0x01780000) != 0x01680000) {
 			/* Don't bother updating thread struct value,
 			 * because update_mmu_cache only cares which tlb
 			 * the access came from.
@@ -406,6 +449,20 @@ good_area:
 	}
 
 	up_read(&mm->mmap_sem);
+
+	mm_rss = get_mm_rss(mm);
+#ifdef CONFIG_HUGETLB_PAGE
+	mm_rss -= (mm->context.huge_pte_count * (HPAGE_SIZE / PAGE_SIZE));
+#endif
+	if (unlikely(mm_rss >
+		     mm->context.tsb_block[MM_TSB_BASE].tsb_rss_limit))
+		tsb_grow(mm, MM_TSB_BASE, mm_rss);
+#ifdef CONFIG_HUGETLB_PAGE
+	mm_rss = mm->context.huge_pte_count;
+	if (unlikely(mm_rss >
+		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit))
+		tsb_grow(mm, MM_TSB_HUGE, mm_rss);
+#endif
 	return;
 
 	/*

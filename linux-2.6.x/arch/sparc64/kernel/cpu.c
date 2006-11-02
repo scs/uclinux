@@ -4,7 +4,6 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -13,6 +12,7 @@
 #include <asm/system.h>
 #include <asm/fpumacro.h>
 #include <asm/cpudata.h>
+#include <asm/spitfire.h>
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
 
@@ -71,6 +71,12 @@ void __init cpu_probe(void)
 	unsigned long ver, fpu_vers, manuf, impl, fprs;
 	int i;
 	
+	if (tlb_type == hypervisor) {
+		sparc_cpu_type = "UltraSparc T1 (Niagara)";
+		sparc_fpu_type = "UltraSparc T1 integrated FPU";
+		return;
+	}
+
 	fprs = fprs_read();
 	fprs_write(FPRS_FEF);
 	__asm__ __volatile__ ("rdpr %%ver, %0; stx %%fsr, [%1]"

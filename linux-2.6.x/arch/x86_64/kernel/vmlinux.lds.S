@@ -6,7 +6,6 @@
 
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/page.h>
-#include <linux/config.h>
 
 #undef i386	/* in case the preprocessor is a 32bit one */
 
@@ -20,6 +19,12 @@ SECTIONS
   phys_startup_64 = startup_64 - LOAD_OFFSET;
   _text = .;			/* Text and read-only data */
   .text :  AT(ADDR(.text) - LOAD_OFFSET) {
+	/* First the code that has to be first for bootstrapping */
+	*(.bootstrap.text)
+	/* Then all the functions that are "hot" in profiles, to group them
+           onto the same hugetlb entry */
+	#include "functionlist"
+	/* Then the rest */
 	*(.text)
 	SCHED_TEXT
 	LOCK_TEXT
@@ -38,6 +43,15 @@ SECTIONS
   __stop___ex_table = .;
 
   RODATA
+
+#ifdef CONFIG_STACK_UNWIND
+  . = ALIGN(8);
+  .eh_frame : AT(ADDR(.eh_frame) - LOAD_OFFSET) {
+	__start_unwind = .;
+  	*(.eh_frame)
+	__end_unwind = .;
+  }
+#endif
 
 				/* Data */
   .data : AT(ADDR(.data) - LOAD_OFFSET) {
@@ -59,7 +73,7 @@ SECTIONS
   .data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
 	*(.data.cacheline_aligned)
   }
-  . = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+  . = ALIGN(CONFIG_X86_INTERNODE_CACHE_BYTES);
   .data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
   	*(.data.read_mostly)
   }
@@ -124,6 +138,26 @@ SECTIONS
   .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
 	*(.data.page_aligned)
   }
+
+  /* might get freed after init */
+  . = ALIGN(4096);
+  __smp_alt_begin = .;
+  __smp_alt_instructions = .;
+  .smp_altinstructions : AT(ADDR(.smp_altinstructions) - LOAD_OFFSET) {
+	*(.smp_altinstructions)
+  }
+  __smp_alt_instructions_end = .;
+  . = ALIGN(8);
+  __smp_locks = .;
+  .smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
+	*(.smp_locks)
+  }
+  __smp_locks_end = .;
+  .smp_altinstr_replacement : AT(ADDR(.smp_altinstr_replacement) - LOAD_OFFSET) {
+	*(.smp_altinstr_replacement)
+  }
+  . = ALIGN(4096);
+  __smp_alt_end = .;
 
   . = ALIGN(4096);		/* Init code and data */
   __init_begin = .;

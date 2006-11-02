@@ -14,7 +14,6 @@
  * This file handles the architecture-dependent parts of hardware exceptions
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -32,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/kprobes.h>
 #include <linux/kexec.h>
+#include <linux/backlight.h>
 
 #include <asm/kdebug.h>
 #include <asm/pgtable.h>
@@ -51,6 +51,7 @@
 #include <asm/firmware.h>
 #include <asm/processor.h>
 #endif
+#include <asm/kexec.h>
 
 #ifdef CONFIG_PPC64	/* XXX */
 #define _IO_BASE	pci_io_base
@@ -74,19 +75,19 @@ EXPORT_SYMBOL(__debugger_dabr_match);
 EXPORT_SYMBOL(__debugger_fault_handler);
 #endif
 
-struct notifier_block *powerpc_die_chain;
-static DEFINE_SPINLOCK(die_notifier_lock);
+ATOMIC_NOTIFIER_HEAD(powerpc_die_chain);
 
 int register_die_notifier(struct notifier_block *nb)
 {
-	int err = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&powerpc_die_chain, nb);
-	spin_unlock_irqrestore(&die_notifier_lock, flags);
-	return err;
+	return atomic_notifier_chain_register(&powerpc_die_chain, nb);
 }
+EXPORT_SYMBOL(register_die_notifier);
+
+int unregister_die_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&powerpc_die_chain, nb);
+}
+EXPORT_SYMBOL(unregister_die_notifier);
 
 /*
  * Trap & Exception support
@@ -96,8 +97,7 @@ static DEFINE_SPINLOCK(die_lock);
 
 int die(const char *str, struct pt_regs *regs, long err)
 {
-	static int die_counter, crash_dump_start = 0;
-	int nl = 0;
+	static int die_counter;
 
 	if (debugger(regs))
 		return 1;
@@ -106,83 +106,50 @@ int die(const char *str, struct pt_regs *regs, long err)
 	spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 #ifdef CONFIG_PMAC_BACKLIGHT
-	if (_machine == _MACH_Pmac) {
-		set_backlight_enable(1);
-		set_backlight_level(BACKLIGHT_MAX);
+	mutex_lock(&pmac_backlight_mutex);
+	if (machine_is(powermac) && pmac_backlight) {
+		struct backlight_properties *props;
+
+		down(&pmac_backlight->sem);
+		props = pmac_backlight->props;
+		props->brightness = props->max_brightness;
+		props->power = FB_BLANK_UNBLANK;
+		props->update_status(pmac_backlight);
+		up(&pmac_backlight->sem);
 	}
+	mutex_unlock(&pmac_backlight_mutex);
 #endif
 	printk("Oops: %s, sig: %ld [#%d]\n", str, err, ++die_counter);
 #ifdef CONFIG_PREEMPT
 	printk("PREEMPT ");
-	nl = 1;
 #endif
 #ifdef CONFIG_SMP
 	printk("SMP NR_CPUS=%d ", NR_CPUS);
-	nl = 1;
 #endif
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	printk("DEBUG_PAGEALLOC ");
-	nl = 1;
 #endif
 #ifdef CONFIG_NUMA
 	printk("NUMA ");
-	nl = 1;
 #endif
-#ifdef CONFIG_PPC64
-	switch (_machine) {
-	case PLATFORM_PSERIES:
-		printk("PSERIES ");
-		nl = 1;
-		break;
-	case PLATFORM_PSERIES_LPAR:
-		printk("PSERIES LPAR ");
-		nl = 1;
-		break;
-	case PLATFORM_ISERIES_LPAR:
-		printk("ISERIES LPAR ");
-		nl = 1;
-		break;
-	case PLATFORM_POWERMAC:
-		printk("POWERMAC ");
-		nl = 1;
-		break;
-	case PLATFORM_CELL:
-		printk("CELL ");
-		nl = 1;
-		break;
-	}
-#endif
-	if (nl)
-		printk("\n");
+	printk("%s\n", ppc_md.name ? "" : ppc_md.name);
+
 	print_modules();
 	show_regs(regs);
 	bust_spinlocks(0);
-
-	if (!crash_dump_start && kexec_should_crash(current)) {
-		crash_dump_start = 1;
-		spin_unlock_irq(&die_lock);
-		crash_kexec(regs);
-		/* NOTREACHED */
-	}
 	spin_unlock_irq(&die_lock);
-	if (crash_dump_start)
-		/*
-		 * Only for soft-reset: Other CPUs will be responded to an IPI
-		 * sent by first kexec CPU.
-		 */
-		for(;;)
-			;
+
+	if (kexec_should_crash(current) ||
+		kexec_sr_activated(smp_processor_id()))
+		crash_kexec(regs);
+	crash_kexec_secondary(regs);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 
-	if (panic_on_oops) {
-#ifdef CONFIG_PPC64
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
-#endif
+	if (panic_on_oops)
 		panic("Fatal exception");
-	}
+
 	do_exit(err);
 
 	return 0;
@@ -235,7 +202,24 @@ void system_reset_exception(struct pt_regs *regs)
 			return;
 	}
 
+#ifdef CONFIG_KEXEC
+	cpu_set(smp_processor_id(), cpus_in_sr);
+#endif
+
 	die("System Reset", regs, SIGABRT);
+
+	/*
+	 * Some CPUs when released from the debugger will execute this path.
+	 * These CPUs entered the debugger via a soft-reset. If the CPU was
+	 * hung before entering the debugger it will return to the hung
+	 * state when exiting this function.  This causes a problem in
+	 * kdump since the hung CPU(s) will not respond to the IPI sent
+	 * from kdump. To prevent the problem we call crash_kexec_secondary()
+	 * here. If a kdump had not been initiated or we exit the debugger
+	 * with the "exit and recover" command (x) crash_kexec_secondary()
+	 * will return after 5ms and the CPU returns to its previous state.
+	 */
+	crash_kexec_secondary(regs);
 
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
@@ -257,7 +241,7 @@ void system_reset_exception(struct pt_regs *regs)
  */
 static inline int check_io_access(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC_PMAC
+#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
 	unsigned long msr = regs->msr;
 	const struct exception_table_entry *entry;
 	unsigned int *nip = (unsigned int *)regs->nip;
@@ -290,7 +274,7 @@ static inline int check_io_access(struct pt_regs *regs)
 			return 1;
 		}
 	}
-#endif /* CONFIG_PPC_PMAC */
+#endif /* CONFIG_PPC_PMAC && CONFIG_PPC32 */
 	return 0;
 }
 
@@ -337,8 +321,8 @@ platform_machine_check(struct pt_regs *regs)
 
 void machine_check_exception(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC64
 	int recover = 0;
+	unsigned long reason = get_mc_reason(regs);
 
 	/* See if any machine dependent calls */
 	if (ppc_md.machine_check_exception)
@@ -346,8 +330,6 @@ void machine_check_exception(struct pt_regs *regs)
 
 	if (recover)
 		return;
-#else
-	unsigned long reason = get_mc_reason(regs);
 
 	if (user_mode(regs)) {
 		regs->msr |= MSR_RI;
@@ -491,7 +473,6 @@ void machine_check_exception(struct pt_regs *regs)
 	 * additional info, e.g. bus error registers.
 	 */
 	platform_machine_check(regs);
-#endif /* CONFIG_PPC64 */
 
 	if (debugger_fault_handler(regs))
 		return;
@@ -604,14 +585,14 @@ static void parse_fpe(struct pt_regs *regs)
 #define INST_MFSPR_PVR_MASK	0xfc1fffff
 
 #define INST_DCBA		0x7c0005ec
-#define INST_DCBA_MASK		0x7c0007fe
+#define INST_DCBA_MASK		0xfc0007fe
 
 #define INST_MCRXR		0x7c000400
-#define INST_MCRXR_MASK		0x7c0007fe
+#define INST_MCRXR_MASK		0xfc0007fe
 
 #define INST_STRING		0x7c00042a
-#define INST_STRING_MASK	0x7c0007fe
-#define INST_STRING_GEN_MASK	0x7c00067e
+#define INST_STRING_MASK	0xfc0007fe
+#define INST_STRING_GEN_MASK	0xfc00067e
 #define INST_LSWI		0x7c0004aa
 #define INST_LSWX		0x7c00042a
 #define INST_STSWI		0x7c0005aa
@@ -690,7 +671,7 @@ static int emulate_instruction(struct pt_regs *regs)
 	u32 instword;
 	u32 rd;
 
-	if (!user_mode(regs))
+	if (!user_mode(regs) || (regs->msr & MSR_LE))
 		return -EINVAL;
 	CHECK_FULL_REGS(regs);
 
@@ -837,9 +818,11 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 
 void alignment_exception(struct pt_regs *regs)
 {
-	int fixed;
+	int fixed = 0;
 
-	fixed = fix_alignment(regs);
+	/* we don't implement logging of alignment exceptions */
+	if (!(current->thread.align_ctl & PR_UNALIGN_SIGBUS))
+		fixed = fix_alignment(regs);
 
 	if (fixed == 1) {
 		regs->nip += 4;	/* skip over emulated instruction */

@@ -33,11 +33,6 @@
  *	82801E   (C-ICH)  : document number 273599-001, 273645-002,
  *	82801EB  (ICH5)   : document number 252516-001, 252517-003,
  *	82801ER  (ICH5R)  : document number 252516-001, 252517-003,
- *	82801FB  (ICH6)   : document number 301473-002, 301474-007,
- *	82801FR  (ICH6R)  : document number 301473-002, 301474-007,
- *	82801FBM (ICH6-M) : document number 301473-002, 301474-007,
- *	82801FW  (ICH6W)  : document number 301473-001, 301474-007,
- *	82801FRW (ICH6RW) : document number 301473-001, 301474-007
  *
  *  20000710 Nils Faerber
  *	Initial Version 0.01
@@ -66,6 +61,10 @@
  *  20050807 Wim Van Sebroeck <wim@iguana.be>
  *	0.08 Make sure that the watchdog is only "armed" when started.
  *	     (Kernel Bug 4251)
+ *  20060416 Wim Van Sebroeck <wim@iguana.be>
+ *	0.09 Remove support for the ICH6, ICH6R, ICH6-M, ICH6W and ICH6RW and
+ *	     ICH7 chipsets. (See Kernel Bug 6031 - other code will support these
+ *	     chipsets)
  */
 
 /*
@@ -90,7 +89,7 @@
 #include "i8xx_tco.h"
 
 /* Module and version information */
-#define TCO_VERSION "0.08"
+#define TCO_VERSION "0.09"
 #define TCO_MODULE_NAME "i8xx TCO timer"
 #define TCO_DRIVER_NAME   TCO_MODULE_NAME ", v" TCO_VERSION
 #define PFX TCO_MODULE_NAME ": "
@@ -206,6 +205,23 @@ static int tco_timer_set_heartbeat (int t)
 	return 0;
 }
 
+static int tco_timer_get_timeleft (int *time_left)
+{
+	unsigned char val;
+
+	spin_lock(&tco_lock);
+
+	/* read the TCO Timer */
+	val = inb (TCO1_RLD);
+	val &= 0x3f;
+
+	spin_unlock(&tco_lock);
+
+	*time_left = (int)((val * 6) / 10);
+
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -273,6 +289,7 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 {
 	int new_options, retval = -EINVAL;
 	int new_heartbeat;
+	int time_left;
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
@@ -321,7 +338,7 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 				return -EFAULT;
 
 			if (tco_timer_set_heartbeat(new_heartbeat))
-			    return -EINVAL;
+				return -EINVAL;
 
 			tco_timer_keepalive ();
 			/* Fall */
@@ -329,6 +346,14 @@ static int i8xx_tco_ioctl (struct inode *inode, struct file *file,
 
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, p);
+
+		case WDIOC_GETTIMELEFT:
+		{
+			if (tco_timer_get_timeleft(&time_left))
+				return -EINVAL;
+
+			return put_user(time_left, p);
+		}
 
 		default:
 			return -ENOIOCTLCMD;
@@ -353,7 +378,7 @@ static int i8xx_tco_notify_sys (struct notifier_block *this, unsigned long code,
  *	Kernel Interfaces
  */
 
-static struct file_operations i8xx_tco_fops = {
+static const struct file_operations i8xx_tco_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	i8xx_tco_write,
@@ -391,11 +416,6 @@ static struct pci_device_id i8xx_tco_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12,	PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801E_0,	PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0,	PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_0,	PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1,	PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_2,	PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,	PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,	PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_1,	PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, },			/* End of list */
 };

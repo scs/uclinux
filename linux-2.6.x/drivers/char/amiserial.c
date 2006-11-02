@@ -31,7 +31,6 @@
  * 		ever possible.
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 
 #undef SERIAL_PARANOIA_CHECK
@@ -46,8 +45,6 @@
 
 /* Sanity checks */
 
-#define SERIAL_INLINE
-  
 #if defined(MODULE) && defined(SERIAL_DEBUG_MCOUNT)
 #define DBG_CNT(s) printk("(%s): [%x] refc=%d, serc=%d, ttyc=%d -> %s\n", \
  tty->name, (info->flags), serial_driver->refcount,info->count,tty->count,s)
@@ -94,10 +91,6 @@ static char *serial_version = "4.30";
 
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
-
-#ifdef SERIAL_INLINE
-#define _INLINE_ inline
-#endif
 
 #define custom amiga_custom
 static char *serial_name = "Amiga-builtin serial driver";
@@ -253,14 +246,14 @@ static void rs_start(struct tty_struct *tty)
  * This routine is used by the interrupt handler to schedule
  * processing in the software interrupt portion of the driver.
  */
-static _INLINE_ void rs_sched_event(struct async_struct *info,
-				  int event)
+static void rs_sched_event(struct async_struct *info,
+			   int event)
 {
 	info->event |= 1 << event;
 	tasklet_schedule(&info->tlet);
 }
 
-static _INLINE_ void receive_chars(struct async_struct *info)
+static void receive_chars(struct async_struct *info)
 {
         int status;
 	int serdatr;
@@ -349,7 +342,7 @@ out:
 	return;
 }
 
-static _INLINE_ void transmit_chars(struct async_struct *info)
+static void transmit_chars(struct async_struct *info)
 {
 	custom.intreq = IF_TBE;
 	mb();
@@ -389,7 +382,7 @@ static _INLINE_ void transmit_chars(struct async_struct *info)
 	}
 }
 
-static _INLINE_ void check_modem_status(struct async_struct *info)
+static void check_modem_status(struct async_struct *info)
 {
 	unsigned char status = ciab.pra & (SER_DCD | SER_CTS | SER_DSR);
 	unsigned char dstatus;
@@ -1959,7 +1952,7 @@ done:
  * number, and identifies which options were configured into this
  * driver.
  */
-static _INLINE_ void show_serial_version(void)
+static void show_serial_version(void)
 {
  	printk(KERN_INFO "%s version %s\n", serial_name, serial_version);
 }
@@ -2058,7 +2051,7 @@ static int __init rs_init(void)
 
 	/* set ISRs, and then disable the rx interrupts */
 	request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
-	request_irq(IRQ_AMIGA_RBF, ser_rx_int, SA_INTERRUPT, "serial RX", state);
+	request_irq(IRQ_AMIGA_RBF, ser_rx_int, IRQF_DISABLED, "serial RX", state);
 
 	/* turn off Rx and Tx interrupts */
 	custom.intena = IF_RBF | IF_TBE;

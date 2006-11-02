@@ -10,7 +10,6 @@
 #define EXPORT_SYMTAB_STROPS
 #define PROMLIB_INTERNAL
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -95,9 +94,6 @@ extern int __ashrdi3(int, int);
 
 extern int dump_fpu (struct pt_regs * regs, elf_fpregset_t * fpregs);
 
-extern unsigned long phys_base;
-extern unsigned long pfn_base;
-
 extern unsigned int sys_call_table[];
 
 extern void xor_vis_2(unsigned long, unsigned long *, unsigned long *);
@@ -107,6 +103,14 @@ extern void xor_vis_4(unsigned long, unsigned long *, unsigned long *,
 		      unsigned long *, unsigned long *);
 extern void xor_vis_5(unsigned long, unsigned long *, unsigned long *,
 		      unsigned long *, unsigned long *, unsigned long *);
+
+extern void xor_niagara_2(unsigned long, unsigned long *, unsigned long *);
+extern void xor_niagara_3(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *);
+extern void xor_niagara_4(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *, unsigned long *);
+extern void xor_niagara_5(unsigned long, unsigned long *, unsigned long *,
+			  unsigned long *, unsigned long *, unsigned long *);
 
 /* Per-CPU information table */
 EXPORT_PER_CPU_SYMBOL(__cpu_data);
@@ -120,20 +124,17 @@ EXPORT_SYMBOL(__write_lock);
 EXPORT_SYMBOL(__write_unlock);
 EXPORT_SYMBOL(__write_trylock);
 
-/* Hard IRQ locking */
-EXPORT_SYMBOL(synchronize_irq);
-
-#if defined(CONFIG_MCOUNT)
-extern void _mcount(void);
-EXPORT_SYMBOL(_mcount);
-#endif
-
 /* CPU online map and active count.  */
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(phys_cpu_present_map);
 
 EXPORT_SYMBOL(smp_call_function);
 #endif /* CONFIG_SMP */
+
+#if defined(CONFIG_MCOUNT)
+extern void _mcount(void);
+EXPORT_SYMBOL(_mcount);
+#endif
 
 EXPORT_SYMBOL(sparc64_get_clock_tick);
 
@@ -169,15 +170,6 @@ EXPORT_SYMBOL(test_and_change_bit);
 EXPORT_SYMBOL(set_bit);
 EXPORT_SYMBOL(clear_bit);
 EXPORT_SYMBOL(change_bit);
-
-/* Bit searching */
-EXPORT_SYMBOL(find_next_bit);
-EXPORT_SYMBOL(find_next_zero_bit);
-EXPORT_SYMBOL(find_next_zero_le_bit);
-
-EXPORT_SYMBOL(ivector_table);
-EXPORT_SYMBOL(enable_irq);
-EXPORT_SYMBOL(disable_irq);
 
 EXPORT_SYMBOL(__flushw_user);
 
@@ -221,7 +213,7 @@ EXPORT_SYMBOL(insl);
 EXPORT_SYMBOL(ebus_chain);
 EXPORT_SYMBOL(isa_chain);
 EXPORT_SYMBOL(pci_memspace_mask);
-EXPORT_SYMBOL(__pci_alloc_consistent);
+EXPORT_SYMBOL(pci_alloc_consistent);
 EXPORT_SYMBOL(pci_free_consistent);
 EXPORT_SYMBOL(pci_map_single);
 EXPORT_SYMBOL(pci_unmap_single);
@@ -241,10 +233,6 @@ EXPORT_SYMBOL(verify_compat_iovec);
 #endif
 
 EXPORT_SYMBOL(dump_fpu);
-EXPORT_SYMBOL(pte_alloc_one_kernel);
-#ifndef CONFIG_SMP
-EXPORT_SYMBOL(pgt_quicklists);
-#endif
 EXPORT_SYMBOL(put_fs_struct);
 
 /* math-emu wants this */
@@ -266,7 +254,6 @@ EXPORT_SYMBOL(prom_getproperty);
 EXPORT_SYMBOL(prom_node_has_property);
 EXPORT_SYMBOL(prom_setprop);
 EXPORT_SYMBOL(saved_command_line);
-EXPORT_SYMBOL(prom_getname);
 EXPORT_SYMBOL(prom_finddevice);
 EXPORT_SYMBOL(prom_feval);
 EXPORT_SYMBOL(prom_getbool);
@@ -278,18 +265,8 @@ EXPORT_SYMBOL(__prom_getsibling);
 
 /* sparc library symbols */
 EXPORT_SYMBOL(strlen);
-EXPORT_SYMBOL(strnlen);
 EXPORT_SYMBOL(__strlen_user);
 EXPORT_SYMBOL(__strnlen_user);
-EXPORT_SYMBOL(strcpy);
-EXPORT_SYMBOL(strncpy);
-EXPORT_SYMBOL(strcat);
-EXPORT_SYMBOL(strncat);
-EXPORT_SYMBOL(strcmp);
-EXPORT_SYMBOL(strchr);
-EXPORT_SYMBOL(strrchr);
-EXPORT_SYMBOL(strpbrk);
-EXPORT_SYMBOL(strstr);
 
 #ifdef CONFIG_SOLARIS_EMUL_MODULE
 EXPORT_SYMBOL(linux_sparc_syscall);
@@ -311,7 +288,6 @@ EXPORT_SYMBOL(svr4_getcontext);
 EXPORT_SYMBOL(svr4_setcontext);
 EXPORT_SYMBOL(compat_sys_ioctl);
 EXPORT_SYMBOL(sparc32_open);
-EXPORT_SYMBOL(sys_close);
 #endif
 
 /* Special internal versions of library functions. */
@@ -323,7 +299,6 @@ EXPORT_SYMBOL(__memscan_zero);
 EXPORT_SYMBOL(__memscan_generic);
 EXPORT_SYMBOL(__memcmp);
 EXPORT_SYMBOL(__memset);
-EXPORT_SYMBOL(memchr);
 
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_nocheck);
@@ -339,14 +314,10 @@ EXPORT_SYMBOL(copy_to_user_fixup);
 EXPORT_SYMBOL(copy_from_user_fixup);
 EXPORT_SYMBOL(copy_in_user_fixup);
 EXPORT_SYMBOL(__strncpy_from_user);
-EXPORT_SYMBOL(__bzero_noasi);
+EXPORT_SYMBOL(__clear_user);
 
 /* Various address conversion macros use this. */
-EXPORT_SYMBOL(phys_base);
-EXPORT_SYMBOL(pfn_base);
 EXPORT_SYMBOL(sparc64_valid_addr_bitmap);
-EXPORT_SYMBOL(page_to_pfn);
-EXPORT_SYMBOL(pfn_to_page);
 
 /* No version information on this, heavily used in inline asm,
  * and will always be 'void __ret_efault(void)'.
@@ -391,5 +362,10 @@ EXPORT_SYMBOL(xor_vis_2);
 EXPORT_SYMBOL(xor_vis_3);
 EXPORT_SYMBOL(xor_vis_4);
 EXPORT_SYMBOL(xor_vis_5);
+
+EXPORT_SYMBOL(xor_niagara_2);
+EXPORT_SYMBOL(xor_niagara_3);
+EXPORT_SYMBOL(xor_niagara_4);
+EXPORT_SYMBOL(xor_niagara_5);
 
 EXPORT_SYMBOL(prom_palette);

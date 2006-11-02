@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/stx8560_gp3.h
- *
  * STx GP3 board definitions
  *
  * Dan Malek (dan@embeddededge.com)
@@ -19,7 +17,6 @@
 #ifndef __MACH_STX_GP3_H
 #define __MACH_STX_GP3_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ppcboot.h>
 

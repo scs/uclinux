@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/sandpoint_setup.c
- *
  * Board setup routines for the Motorola SPS Sandpoint Test Platform.
  *
  * Author: Mark A. Greer
@@ -62,7 +60,6 @@
  * found, we can hopefully stop hardcoding 32MB of RAM.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -17,7 +17,6 @@
 struct line_driver {
 	char *name;
 	char *device_name;
-	char *devfs_name;
 	short major;
 	short minor_start;
 	short type;
@@ -58,23 +57,17 @@ struct line {
 };
 
 #define LINE_INIT(str, d) \
-	{ init_str :	str, \
-	  init_pri :	INIT_STATIC, \
-	  valid :	1, \
-	  throttled :	0, \
-	  lock :	SPIN_LOCK_UNLOCKED, \
-	  buffer :	NULL, \
-	  head :	NULL, \
-	  tail :	NULL, \
-	  sigio :	0, \
-	  driver :	d, \
-	  have_irq :	0 }
+	{ .init_str =	str, \
+	  .init_pri =	INIT_STATIC, \
+	  .valid =	1, \
+	  .lock =	SPIN_LOCK_UNLOCKED, \
+	  .driver =	d }
 
 struct lines {
 	int num;
 };
 
-#define LINES_INIT(n) {  num :		n }
+#define LINES_INIT(n) {  .num =	n }
 
 extern void line_close(struct tty_struct *tty, struct file * filp);
 extern int line_open(struct line *lines, struct tty_struct *tty);

@@ -26,7 +26,6 @@
 
 #undef DEBUG
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -43,6 +42,7 @@
 #include <asm/mmu_context.h>
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
+#include <asm/spu_priv1.h>
 #include "spufs.h"
 
 #define SPU_MIN_TIMESLICE 	(100 * HZ / 1000)
@@ -180,6 +180,7 @@ static inline void bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->ibox_callback = spufs_ibox_callback;
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
+	spu->mfc_callback = spufs_mfc_callback;
 	mb();
 	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
@@ -197,6 +198,7 @@ static inline void unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->ibox_callback = NULL;
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
+	spu->mfc_callback = NULL;
 	spu->mm = NULL;
 	spu->pid = 0;
 	spu->prio = MAX_PRIO;
@@ -361,7 +363,7 @@ int spu_activate(struct spu_context *ctx, u64 flags)
 	 * We're likely to wait for interrupts on the same
 	 * CPU that we are now on, so send them here.
 	 */
-	spu_irq_setaffinity(spu, raw_smp_processor_id());
+	spu_cpu_affinity_set(spu, raw_smp_processor_id());
 	put_active_spu(spu);
 	return 0;
 }

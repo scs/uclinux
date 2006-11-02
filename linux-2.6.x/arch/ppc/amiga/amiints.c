@@ -1,5 +1,5 @@
 /*
- * arch/ppc/amiga/amiints.c -- Amiga Linux interrupt handling code
+ * Amiga Linux interrupt handling code
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -35,7 +35,6 @@
  *           /Jes
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>

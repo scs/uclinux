@@ -13,7 +13,10 @@
 #include <asm/thread_info.h>	
 #include <asm/segment.h>
 #include <asm/vsyscall32.h>
+#include <asm/irqflags.h>
 #include <linux/linkage.h>
+
+#define IA32_NR_syscalls ((ia32_syscall_end - ia32_sys_call_table)/8)
 
 	.macro IA32_ARG_FIXUP noebp=0
 	movl	%edi,%r8d
@@ -73,6 +76,10 @@ ENTRY(ia32_sysenter_target)
 	swapgs
 	movq	%gs:pda_kernelstack, %rsp
 	addq	$(PDA_STACKOFFSET),%rsp	
+	/*
+	 * No need to follow this irqs on/off section: the syscall
+	 * disabled irqs, here we enable it straight after entry:
+	 */
 	sti	
  	movl	%ebp,%ebp		/* zero extension */
 	pushq	$__USER32_DS
@@ -96,7 +103,7 @@ ENTRY(ia32_sysenter_target)
 	pushq	%rax
 	CFI_ADJUST_CFA_OFFSET 8
 	cld
-	SAVE_ARGS 0,0,1
+	SAVE_ARGS 0,0,0
  	/* no need to do an access_ok check here because rbp has been
  	   32bit zero extended */ 
 1:	movl	(%rbp),%r9d
@@ -109,13 +116,14 @@ ENTRY(ia32_sysenter_target)
 	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
 sysenter_do_call:	
-	cmpl	$(IA32_NR_syscalls),%eax
-	jae	ia32_badsys
+	cmpl	$(IA32_NR_syscalls-1),%eax
+	ja	ia32_badsys
 	IA32_ARG_FIXUP 1
 	call	*ia32_sys_call_table(,%rax,8)
 	movq	%rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
 	cli
+	TRACE_IRQS_OFF
 	testl	$_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
 	jnz	int_ret_from_sys_call
 	andl    $~TS_COMPAT,threadinfo_status(%r10)
@@ -130,6 +138,7 @@ sysenter_do_call:
 	CFI_REGISTER rsp,rcx
 	movl	$VSYSCALL32_SYSEXIT,%edx	/* User %eip */
 	CFI_REGISTER rip,rdx
+	TRACE_IRQS_ON
 	swapgs
 	sti		/* sti only takes effect after the next instruction */
 	/* sysexit */
@@ -153,6 +162,7 @@ sysenter_tracesys:
 	.previous
 	jmp	sysenter_do_call
 	CFI_ENDPROC
+ENDPROC(ia32_sysenter_target)
 
 /*
  * 32bit SYSCALL instruction entry.
@@ -176,13 +186,17 @@ sysenter_tracesys:
  */ 	
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
-	CFI_DEF_CFA	rsp,0
+	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	swapgs
 	movl	%esp,%r8d
 	CFI_REGISTER	rsp,r8
 	movq	%gs:pda_kernelstack,%rsp
+	/*
+	 * No need to follow this irqs on/off section: the syscall
+	 * disabled irqs and here we enable it straight after entry:
+	 */
 	sti
 	SAVE_ARGS 8,1,1
 	movl 	%eax,%eax	/* zero extension */
@@ -210,13 +224,14 @@ ENTRY(ia32_cstar_target)
 	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
-	cmpl $IA32_NR_syscalls,%eax
-	jae  ia32_badsys
+	cmpl $IA32_NR_syscalls-1,%eax
+	ja  ia32_badsys
 	IA32_ARG_FIXUP 1
 	call *ia32_sys_call_table(,%rax,8)
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	GET_THREAD_INFO(%r10)
 	cli
+	TRACE_IRQS_OFF
 	testl $_TIF_ALLWORK_MASK,threadinfo_flags(%r10)
 	jnz  int_ret_from_sys_call
 	andl $~TS_COMPAT,threadinfo_status(%r10)
@@ -225,6 +240,7 @@ cstar_do_call:
 	CFI_REGISTER rip,rcx
 	movl EFLAGS-ARGOFFSET(%rsp),%r11d	
 	/*CFI_REGISTER rflags,r11*/
+	TRACE_IRQS_ON
 	movl RSP-ARGOFFSET(%rsp),%esp
 	CFI_RESTORE rsp
 	swapgs
@@ -247,6 +263,7 @@ cstar_tracesys:
 	.quad 1b,ia32_badarg
 	.previous
 	jmp cstar_do_call
+END(ia32_cstar_target)
 				
 ia32_badarg:
 	movq $-EFAULT,%rax
@@ -282,7 +299,11 @@ ENTRY(ia32_syscall)
 	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
 	/*CFI_REL_OFFSET	cs,CS-RIP*/
 	CFI_REL_OFFSET	rip,RIP-RIP
-	swapgs	
+	swapgs
+	/*
+	 * No need to follow this irqs on/off section: the syscall
+	 * disabled irqs and here we enable it straight after entry:
+	 */
 	sti
 	movl %eax,%eax
 	pushq %rax
@@ -296,8 +317,8 @@ ENTRY(ia32_syscall)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
 	jnz ia32_tracesys
 ia32_do_syscall:	
-	cmpl $(IA32_NR_syscalls),%eax
-	jae  ia32_badsys
+	cmpl $(IA32_NR_syscalls-1),%eax
+	ja  ia32_badsys
 	IA32_ARG_FIXUP
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
@@ -312,15 +333,12 @@ ia32_tracesys:
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	jmp ia32_do_syscall
+END(ia32_syscall)
 
 ia32_badsys:
 	movq $0,ORIG_RAX-ARGOFFSET(%rsp)
 	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
 	jmp int_ret_from_sys_call
-
-ni_syscall:
-	movq %rax,%rdi
-	jmp  sys32_ni_syscall			
 
 quiet_ni_syscall:
 	movq $-ENOSYS,%rax
@@ -368,10 +386,10 @@ ENTRY(ia32_ptregs_common)
 	RESTORE_REST
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC
+END(ia32_ptregs_common)
 
 	.section .rodata,"a"
 	.align 8
-	.globl ia32_sys_call_table
 ia32_sys_call_table:
 	.quad sys_restart_syscall
 	.quad sys_exit
@@ -501,7 +519,7 @@ ia32_sys_call_table:
 	.quad sys_setdomainname
 	.quad sys_uname
 	.quad sys_modify_ldt
-	.quad sys32_adjtimex
+	.quad compat_sys_adjtimex
 	.quad sys32_mprotect		/* 125 */
 	.quad compat_sys_sigprocmask
 	.quad quiet_ni_syscall		/* create_module */
@@ -685,10 +703,14 @@ ia32_sys_call_table:
 	.quad sys_readlinkat		/* 305 */
 	.quad sys_fchmodat
 	.quad sys_faccessat
-	.quad sys_ni_syscall		/* pselect6 for now */
-	.quad sys_ni_syscall		/* ppoll for now */
+	.quad quiet_ni_syscall		/* pselect6 for now */
+	.quad quiet_ni_syscall		/* ppoll for now */
 	.quad sys_unshare		/* 310 */
+	.quad compat_sys_set_robust_list
+	.quad compat_sys_get_robust_list
+	.quad sys_splice
+	.quad sys_sync_file_range
+	.quad sys_tee
+	.quad compat_sys_vmsplice
+	.quad compat_sys_move_pages
 ia32_syscall_end:		
-	.rept IA32_NR_syscalls-(ia32_syscall_end-ia32_sys_call_table)/8
-		.quad ni_syscall
-	.endr

@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platform/85xx/sbc85xx.c
- * 
  * WindRiver PowerQUICC III SBC85xx board common routines
  *
  * Copyright 2002, 2003 Motorola Inc.
@@ -12,7 +10,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

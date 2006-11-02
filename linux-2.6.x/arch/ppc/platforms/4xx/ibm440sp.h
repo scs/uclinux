@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440sp.h
- *
  * PPC440SP definitions
  *
  * Matt Porter <mporter@kernel.crashing.org>
@@ -17,7 +15,6 @@
 #ifndef __PPC_PLATFORMS_IBM440SP_H
 #define __PPC_PLATFORMS_IBM440SP_H
 
-#include <linux/config.h>
 
 #include <asm/ibm44x.h>
 

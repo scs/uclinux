@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/ppc4xx_sgdma.c
- *
  * IBM PPC4xx DMA engine scatter/gather library
  *
  * Copyright 2002-2003 MontaVista Software Inc.
@@ -21,7 +19,6 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>

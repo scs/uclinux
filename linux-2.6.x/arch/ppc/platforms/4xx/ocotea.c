@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ocotea.c
- *
  * Ocotea board specific routines
  *
  * Matt Porter <mporter@kernel.crashing.org>
@@ -13,7 +11,6 @@
  * option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -333,7 +330,7 @@ static void __init ocotea_init(void)
 void __init platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7)
 {
-	ibm44x_platform_init(r3, r4, r5, r6, r7);
+	ibm440gx_platform_init(r3, r4, r5, r6, r7);
 
 	ppc_md.setup_arch = ocotea_setup_arch;
 	ppc_md.show_cpuinfo = ocotea_show_cpuinfo;

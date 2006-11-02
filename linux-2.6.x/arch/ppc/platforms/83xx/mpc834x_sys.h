@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/83xx/mpc834x_sys.h
- *
  * MPC834X SYS common board definitions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -17,7 +15,6 @@
 #ifndef __MACH_MPC83XX_SYS_H__
 #define __MACH_MPC83XX_SYS_H__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <syslib/ppc83xx_setup.h>
 #include <asm/ppcboot.h>
@@ -25,7 +22,7 @@
 #define VIRT_IMMRBAR		((uint)0xfe000000)
 
 #define BCSR_PHYS_ADDR		((uint)0xf8000000)
-#define BCSR_SIZE		((uint)(128 * 1024))
+#define BCSR_SIZE		((uint)(32 * 1024))
 
 #define BCSR_MISC_REG2_OFF	0x07
 #define BCSR_MISC_REG2_PORESET	0x01

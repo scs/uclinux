@@ -1,6 +1,4 @@
 /*
- *  linux/arch/ppc64/kernel/vdso.c
- *
  *    Copyright (C) 2004 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
  *
@@ -10,7 +8,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -35,6 +32,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
+#include <asm/firmware.h>
 #include <asm/vdso.h>
 #include <asm/vdso_datapage.h>
 
@@ -224,6 +222,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	struct vm_area_struct *vma;
 	unsigned long vdso_pages;
 	unsigned long vdso_base;
+	int rc;
 
 #ifdef CONFIG_PPC64
 	if (test_thread_flag(TIF_32BIT)) {
@@ -238,20 +237,13 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	vdso_base = VDSO32_MBASE;
 #endif
 
-	current->thread.vdso_base = 0;
+	current->mm->context.vdso_base = 0;
 
 	/* vDSO has a problem and was disabled, just don't "enable" it for the
 	 * process
 	 */
 	if (vdso_pages == 0)
 		return 0;
-
-	vma = kmem_cache_alloc(vm_area_cachep, SLAB_KERNEL);
-	if (vma == NULL)
-		return -ENOMEM;
-
-	memset(vma, 0, sizeof(*vma));
-
 	/* Add a page to the vdso size for the data page */
 	vdso_pages ++;
 
@@ -260,17 +252,23 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	 * at vdso_base which is the "natural" base for it, but we might fail
 	 * and end up putting it elsewhere.
 	 */
+	down_write(&mm->mmap_sem);
 	vdso_base = get_unmapped_area(NULL, vdso_base,
 				      vdso_pages << PAGE_SHIFT, 0, 0);
-	if (vdso_base & ~PAGE_MASK) {
-		kmem_cache_free(vm_area_cachep, vma);
-		return (int)vdso_base;
+	if (IS_ERR_VALUE(vdso_base)) {
+		rc = vdso_base;
+		goto fail_mmapsem;
 	}
 
-	current->thread.vdso_base = vdso_base;
 
+	/* Allocate a VMA structure and fill it up */
+	vma = kmem_cache_zalloc(vm_area_cachep, SLAB_KERNEL);
+	if (vma == NULL) {
+		rc = -ENOMEM;
+		goto fail_mmapsem;
+	}
 	vma->vm_mm = mm;
-	vma->vm_start = current->thread.vdso_base;
+	vma->vm_start = vdso_base;
 	vma->vm_end = vma->vm_start + (vdso_pages << PAGE_SHIFT);
 
 	/*
@@ -283,22 +281,37 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	 * It's fine to use that for setting breakpoints in the vDSO code
 	 * pages though
 	 */
-	vma->vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+	vma->vm_flags = VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC;
 	vma->vm_flags |= mm->def_flags;
 	vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
 	vma->vm_ops = &vdso_vmops;
 
-	down_write(&mm->mmap_sem);
-	if (insert_vm_struct(mm, vma)) {
-		up_write(&mm->mmap_sem);
-		kmem_cache_free(vm_area_cachep, vma);
-		return -ENOMEM;
-	}
+	/* Insert new VMA */
+	rc = insert_vm_struct(mm, vma);
+	if (rc)
+		goto fail_vma;
+
+	/* Put vDSO base into mm struct and account for memory usage */
+	current->mm->context.vdso_base = vdso_base;
 	mm->total_vm += (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	up_write(&mm->mmap_sem);
-
 	return 0;
+
+ fail_vma:
+	kmem_cache_free(vm_area_cachep, vma);
+ fail_mmapsem:
+	up_write(&mm->mmap_sem);
+	return rc;
 }
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	if (vma->vm_mm && vma->vm_start == vma->vm_mm->context.vdso_base)
+		return "[vdso]";
+	return NULL;
+}
+
+
 
 static void * __init find_section32(Elf32_Ehdr *ehdr, const char *secname,
 				  unsigned long *size)
@@ -669,7 +682,13 @@ void __init vdso_init(void)
 	vdso_data->version.major = SYSTEMCFG_MAJOR;
 	vdso_data->version.minor = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
-	vdso_data->platform = _machine;
+	/*
+	 * Fake the old platform number for pSeries and iSeries and add
+	 * in LPAR bit if necessary
+	 */
+	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
+	if (firmware_has_feature(FW_FEATURE_LPAR))
+		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = lmb_phys_mem_size();
 	vdso_data->dcache_size = ppc64_caches.dsize;
 	vdso_data->dcache_line_size = ppc64_caches.dline_size;

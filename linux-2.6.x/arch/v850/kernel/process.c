@@ -11,7 +11,6 @@
  * Written by Miles Bader <miles@gnu.org>
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -37,7 +36,7 @@ extern void ret_from_fork (void);
 
 
 /* The idle loop.  */
-void default_idle (void)
+static void default_idle (void)
 {
 	while (! need_resched ())
 		asm ("halt; nop; nop; nop; nop; nop" ::: "cc");

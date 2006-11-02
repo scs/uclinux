@@ -18,7 +18,6 @@
  * keyword - value pairs that specify the configuration of the partition.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -37,7 +36,7 @@
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>
 
-#define MODULE_VERS "1.6"
+#define MODULE_VERS "1.7"
 #define MODULE_NAME "lparcfg"
 
 /* #define LPARCFG_DEBUG */
@@ -45,60 +44,41 @@
 static struct proc_dir_entry *proc_ppc64_lparcfg;
 #define LPARCFG_BUFF_SIZE 4096
 
-#ifdef CONFIG_PPC_ISERIES
-
 /*
- * For iSeries legacy systems, the PPA purr function is available from the
- * emulated_time_base field in the paca.
+ * Track sum of all purrs across all processors. This is used to further
+ * calculate usage values by different applications
  */
 static unsigned long get_purr(void)
 {
 	unsigned long sum_purr = 0;
 	int cpu;
 
-	for_each_cpu(cpu) {
-		sum_purr += lppaca[cpu].emulated_time_base;
+	for_each_possible_cpu(cpu) {
+		if (firmware_has_feature(FW_FEATURE_ISERIES))
+			sum_purr += lppaca[cpu].emulated_time_base;
+		else {
+			struct cpu_usage *cu;
 
-#ifdef PURR_DEBUG
-		printk(KERN_INFO "get_purr for cpu (%d) has value (%ld) \n",
-			cpu, lppaca[cpu].emulated_time_base);
-#endif
+			cu = &per_cpu(cpu_usage_array, cpu);
+			sum_purr += cu->current_tb;
+		}
 	}
 	return sum_purr;
 }
 
-#define lparcfg_write NULL
+#ifdef CONFIG_PPC_ISERIES
 
 /*
  * Methods used to fetch LPAR data when running on an iSeries platform.
  */
-static int lparcfg_data(struct seq_file *m, void *v)
+static int iseries_lparcfg_data(struct seq_file *m, void *v)
 {
-	unsigned long pool_id, lp_index;
+	unsigned long pool_id;
 	int shared, entitled_capacity, max_entitled_capacity;
 	int processors, max_processors;
 	unsigned long purr = get_purr();
 
-	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
-
 	shared = (int)(get_lppaca()->shared_proc);
-	seq_printf(m, "serial_number=%c%c%c%c%c%c%c\n",
-		   e2a(xItExtVpdPanel.mfgID[2]),
-		   e2a(xItExtVpdPanel.mfgID[3]),
-		   e2a(xItExtVpdPanel.systemSerial[1]),
-		   e2a(xItExtVpdPanel.systemSerial[2]),
-		   e2a(xItExtVpdPanel.systemSerial[3]),
-		   e2a(xItExtVpdPanel.systemSerial[4]),
-		   e2a(xItExtVpdPanel.systemSerial[5]));
-
-	seq_printf(m, "system_type=%c%c%c%c\n",
-		   e2a(xItExtVpdPanel.machineType[0]),
-		   e2a(xItExtVpdPanel.machineType[1]),
-		   e2a(xItExtVpdPanel.machineType[2]),
-		   e2a(xItExtVpdPanel.machineType[3]));
-
-	lp_index = HvLpConfig_getLpIndex();
-	seq_printf(m, "partition_id=%d\n", (int)lp_index);
 
 	seq_printf(m, "system_active_processors=%d\n",
 		   (int)HvLpConfig_getSystemPhysicalProcessors());
@@ -137,6 +117,14 @@ static int lparcfg_data(struct seq_file *m, void *v)
 
 	return 0;
 }
+
+#else				/* CONFIG_PPC_ISERIES */
+
+static int iseries_lparcfg_data(struct seq_file *m, void *v)
+{
+	return 0;
+}
+
 #endif				/* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_PPC_PSERIES
@@ -149,17 +137,17 @@ static void log_plpar_hcall_return(unsigned long rc, char *tag)
 	if (rc == 0)		/* success, return */
 		return;
 /* check for null tag ? */
-	if (rc == H_Hardware)
+	if (rc == H_HARDWARE)
 		printk(KERN_INFO
 		       "plpar-hcall (%s) failed with hardware fault\n", tag);
-	else if (rc == H_Function)
+	else if (rc == H_FUNCTION)
 		printk(KERN_INFO
 		       "plpar-hcall (%s) failed; function not allowed\n", tag);
-	else if (rc == H_Authority)
+	else if (rc == H_AUTHORITY)
 		printk(KERN_INFO
-		       "plpar-hcall (%s) failed; not authorized to this function\n",
-		       tag);
-	else if (rc == H_Parameter)
+		       "plpar-hcall (%s) failed; not authorized to this"
+		       " function\n", tag);
+	else if (rc == H_PARAMETER)
 		printk(KERN_INFO "plpar-hcall (%s) failed; Bad parameter(s)\n",
 		       tag);
 	else
@@ -209,24 +197,8 @@ static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 	unsigned long dummy;
 	rc = plpar_hcall(H_PIC, 0, 0, 0, 0, pool_idle_time, num_procs, &dummy);
 
-	if (rc != H_Authority)
+	if (rc != H_AUTHORITY)
 		log_plpar_hcall_return(rc, "H_PIC");
-}
-
-/* Track sum of all purrs across all processors. This is used to further */
-/* calculate usage values by different applications                       */
-
-static unsigned long get_purr(void)
-{
-	unsigned long sum_purr = 0;
-	int cpu;
-	struct cpu_usage *cu;
-
-	for_each_cpu(cpu) {
-		cu = &per_cpu(cpu_usage_array, cpu);
-		sum_purr += cu->current_tb;
-	}
-	return sum_purr;
 }
 
 #define SPLPAR_CHARACTERISTICS_TOKEN 20
@@ -242,7 +214,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 {
 	int call_status;
 
-	char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
+	unsigned char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 	if (!local_buffer) {
 		printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
 		       __FILE__, __FUNCTION__, __LINE__);
@@ -254,7 +226,8 @@ static void parse_system_parameter_string(struct seq_file *m)
 	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
 				NULL,
 				SPLPAR_CHARACTERISTICS_TOKEN,
-				__pa(rtas_data_buf));
+				__pa(rtas_data_buf),
+				RTAS_DATA_BUF_SIZE);
 	memcpy(local_buffer, rtas_data_buf, SPLPAR_MAXLENGTH);
 	spin_unlock(&rtas_data_buf_lock);
 
@@ -275,7 +248,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 #ifdef LPARCFG_DEBUG
 		printk(KERN_INFO "success calling get-system-parameter \n");
 #endif
-		splpar_strlen = local_buffer[0] * 16 + local_buffer[1];
+		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
 		local_buffer += 2;	/* step over strlen value */
 
 		memset(workbuffer, 0, SPLPAR_MAXLENGTH);
@@ -332,34 +305,12 @@ static int lparcfg_count_active_processors(void)
 	return count;
 }
 
-static int lparcfg_data(struct seq_file *m, void *v)
+static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
 	int partition_active_processors;
-	struct device_node *rootdn;
-	const char *model = "";
-	const char *system_id = "";
-	unsigned int *lp_index_ptr, lp_index = 0;
 	struct device_node *rtas_node;
 	int *lrdrp = NULL;
-
-	rootdn = find_path_device("/");
-	if (rootdn) {
-		model = get_property(rootdn, "model", NULL);
-		system_id = get_property(rootdn, "system-id", NULL);
-		lp_index_ptr = (unsigned int *)
-		    get_property(rootdn, "ibm,partition-no", NULL);
-		if (lp_index_ptr)
-			lp_index = *lp_index_ptr;
-	}
-
-	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
-
-	seq_printf(m, "serial_number=%s\n", system_id);
-
-	seq_printf(m, "system_type=%s\n", model);
-
-	seq_printf(m, "partition_id=%d\n", (int)lp_index);
 
 	rtas_node = find_path_device("/rtas");
 	if (rtas_node)
@@ -520,22 +471,22 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 
 	current_weight = (resource >> 5 * 8) & 0xFF;
 
-	pr_debug("%s: current_entitled = %lu, current_weight = %lu\n",
+	pr_debug("%s: current_entitled = %lu, current_weight = %u\n",
 		 __FUNCTION__, current_entitled, current_weight);
 
-	pr_debug("%s: new_entitled = %lu, new_weight = %lu\n",
+	pr_debug("%s: new_entitled = %lu, new_weight = %u\n",
 		 __FUNCTION__, *new_entitled_ptr, *new_weight_ptr);
 
 	retval = plpar_hcall_norets(H_SET_PPP, *new_entitled_ptr,
 				    *new_weight_ptr);
 
-	if (retval == H_Success || retval == H_Constrained) {
+	if (retval == H_SUCCESS || retval == H_CONSTRAINED) {
 		retval = count;
-	} else if (retval == H_Busy) {
+	} else if (retval == H_BUSY) {
 		retval = -EBUSY;
-	} else if (retval == H_Hardware) {
+	} else if (retval == H_HARDWARE) {
 		retval = -EIO;
-	} else if (retval == H_Parameter) {
+	} else if (retval == H_PARAMETER) {
 		retval = -EINVAL;
 	} else {
 		printk(KERN_WARNING "%s: received unknown hv return code %ld",
@@ -548,7 +499,60 @@ out:
 	return retval;
 }
 
+#else				/* CONFIG_PPC_PSERIES */
+
+static int pseries_lparcfg_data(struct seq_file *m, void *v)
+{
+	return 0;
+}
+
+static ssize_t lparcfg_write(struct file *file, const char __user * buf,
+			     size_t count, loff_t * off)
+{
+	return count;
+}
+
 #endif				/* CONFIG_PPC_PSERIES */
+
+static int lparcfg_data(struct seq_file *m, void *v)
+{
+	struct device_node *rootdn;
+	const char *model = "";
+	const char *system_id = "";
+	const char *tmp;
+	unsigned int *lp_index_ptr, lp_index = 0;
+
+	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
+
+	rootdn = find_path_device("/");
+	if (rootdn) {
+		tmp = get_property(rootdn, "model", NULL);
+		if (tmp) {
+			model = tmp;
+			/* Skip "IBM," - see platforms/iseries/dt.c */
+			if (firmware_has_feature(FW_FEATURE_ISERIES))
+				model += 4;
+		}
+		tmp = get_property(rootdn, "system-id", NULL);
+		if (tmp) {
+			system_id = tmp;
+			/* Skip "IBM," - see platforms/iseries/dt.c */
+			if (firmware_has_feature(FW_FEATURE_ISERIES))
+				system_id += 4;
+		}
+		lp_index_ptr = (unsigned int *)
+			get_property(rootdn, "ibm,partition-no", NULL);
+		if (lp_index_ptr)
+			lp_index = *lp_index_ptr;
+	}
+	seq_printf(m, "serial_number=%s\n", system_id);
+	seq_printf(m, "system_type=%s\n", model);
+	seq_printf(m, "partition_id=%d\n", (int)lp_index);
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return iseries_lparcfg_data(m, v);
+	return pseries_lparcfg_data(m, v);
+}
 
 static int lparcfg_open(struct inode *inode, struct file *file)
 {
@@ -568,7 +572,8 @@ int __init lparcfg_init(void)
 	mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
+	if (firmware_has_feature(FW_FEATURE_SPLPAR) &&
+			!firmware_has_feature(FW_FEATURE_ISERIES)) {
 		lparcfg_fops.write = lparcfg_write;
 		mode |= S_IWUSR;
 	}

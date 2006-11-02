@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/kernel/process.c
- *
  *  Derived from "arch/i386/kernel/process.c"
  *    Copyright (C) 1995  Linus Torvalds
  *
@@ -16,7 +14,6 @@
  *  2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -37,7 +34,6 @@
 #include <linux/mqueue.h>
 #include <linux/hardirq.h>
 #include <linux/utsname.h>
-#include <linux/kprobes.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -47,9 +43,10 @@
 #include <asm/mmu.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/time.h>
+#include <asm/syscalls.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
-#include <asm/time.h>
 #endif
 
 extern unsigned long _get_SP(void);
@@ -330,6 +327,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif
 
 	local_irq_save(flags);
+
+	account_system_vtime(current);
+	account_process_vtime(current);
+	calculate_steal_time();
+
 	last = _switch(old_thread, new_thread);
 
 	local_irq_restore(flags);
@@ -360,7 +362,11 @@ static void show_instructions(struct pt_regs *regs)
 		if (!(i % 8))
 			printk("\n");
 
-		if (BAD_PC(pc) || __get_user(instr, (unsigned int *)pc)) {
+		/* We use __get_user here *only* to avoid an OOPS on a
+		 * bad address because the pc *should* only be a
+		 * kernel address.
+		 */
+		if (BAD_PC(pc) || __get_user(instr, (unsigned int __user *)pc)) {
 			printk("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
@@ -457,7 +463,6 @@ void show_regs(struct pt_regs * regs)
 
 void exit_thread(void)
 {
-	kprobe_flush_task(current);
 	discard_lazy_cpu_state();
 }
 
@@ -702,6 +707,61 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 	return put_user(val, (unsigned int __user *) adr);
 }
 
+int set_endian(struct task_struct *tsk, unsigned int val)
+{
+	struct pt_regs *regs = tsk->thread.regs;
+
+	if ((val == PR_ENDIAN_LITTLE && !cpu_has_feature(CPU_FTR_REAL_LE)) ||
+	    (val == PR_ENDIAN_PPC_LITTLE && !cpu_has_feature(CPU_FTR_PPC_LE)))
+		return -EINVAL;
+
+	if (regs == NULL)
+		return -EINVAL;
+
+	if (val == PR_ENDIAN_BIG)
+		regs->msr &= ~MSR_LE;
+	else if (val == PR_ENDIAN_LITTLE || val == PR_ENDIAN_PPC_LITTLE)
+		regs->msr |= MSR_LE;
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+int get_endian(struct task_struct *tsk, unsigned long adr)
+{
+	struct pt_regs *regs = tsk->thread.regs;
+	unsigned int val;
+
+	if (!cpu_has_feature(CPU_FTR_PPC_LE) &&
+	    !cpu_has_feature(CPU_FTR_REAL_LE))
+		return -EINVAL;
+
+	if (regs == NULL)
+		return -EINVAL;
+
+	if (regs->msr & MSR_LE) {
+		if (cpu_has_feature(CPU_FTR_REAL_LE))
+			val = PR_ENDIAN_LITTLE;
+		else
+			val = PR_ENDIAN_PPC_LITTLE;
+	} else
+		val = PR_ENDIAN_BIG;
+
+	return put_user(val, (unsigned int __user *)adr);
+}
+
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	tsk->thread.align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	return put_user(tsk->thread.align_ctl, (unsigned int __user *)adr);
+}
+
 #define TRUNC_PTR(x)	((typeof(x))(((unsigned long)(x)) & 0xffffffff))
 
 int sys_clone(unsigned long clone_flags, unsigned long usp,
@@ -764,7 +824,7 @@ out:
 	return error;
 }
 
-static int validate_sp(unsigned long sp, struct task_struct *p,
+int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)
 {
 	unsigned long stack_page = (unsigned long)task_stack_page(p);
@@ -802,6 +862,8 @@ static int validate_sp(unsigned long sp, struct task_struct *p,
 #define FRAME_MARKER	2
 #endif
 
+EXPORT_SYMBOL(validate_sp);
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
@@ -826,7 +888,6 @@ unsigned long get_wchan(struct task_struct *p)
 	} while (count++ < 16);
 	return 0;
 }
-EXPORT_SYMBOL(get_wchan);
 
 static int kstack_depth_to_print = 64;
 

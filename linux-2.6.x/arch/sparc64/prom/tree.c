@@ -51,7 +51,7 @@ prom_getparent(int node)
 __inline__ int
 __prom_getsibling(int node)
 {
-	return p1275_cmd ("peer", P1275_INOUT(1, 1), node);
+	return p1275_cmd(prom_peer_name, P1275_INOUT(1, 1), node);
 }
 
 __inline__ int
@@ -59,9 +59,12 @@ prom_getsibling(int node)
 {
 	int sibnode;
 
-	if(node == -1) return 0;
+	if (node == -1)
+		return 0;
 	sibnode = __prom_getsibling(node);
-	if(sibnode == -1) return 0;
+	if (sibnode == -1)
+		return 0;
+
 	return sibnode;
 }
 
@@ -187,91 +190,6 @@ prom_searchsiblings(int node_start, const char *nodename)
 		if(strcmp(nodename, promlib_buf)==0) return thisnode;
 	}
 
-	return 0;
-}
-
-/* Gets name in the {name@x,yyyyy|name (if no reg)} form */
-int 
-prom_getname (int node, char *buffer, int len)
-{
-	int i, sbus = 0;
-	int pci = 0, ebus = 0, ide = 0;
-	struct linux_prom_registers *reg;
-	struct linux_prom64_registers reg64[PROMREG_MAX];
-	
-	for (sbus = prom_getparent (node); sbus; sbus = prom_getparent (sbus)) {
-		i = prom_getproperty (sbus, "name", buffer, len);
-		if (i > 0) {
-			buffer [i] = 0;
-			if (!strcmp (buffer, "sbus"))
-				goto getit;
-		}
-	}
-	if ((pci = prom_getparent (node))) {
-		i = prom_getproperty (pci, "name", buffer, len);
-		if (i > 0) {
-			buffer [i] = 0;
-			if (!strcmp (buffer, "pci"))
-				goto getit;
-		}
-		pci = 0;
-	}
-	if ((ebus = prom_getparent (node))) {
-		i = prom_getproperty (ebus, "name", buffer, len);
-		if (i > 0) {
-			buffer[i] = 0;
-			if (!strcmp (buffer, "ebus"))
-				goto getit;
-		}
-		ebus = 0;
-	}
-	if ((ide = prom_getparent (node))) {
-		i = prom_getproperty (ide, "name", buffer, len);
-		if (i > 0) {
-			buffer [i] = 0;
-			if (!strcmp (buffer, "ide"))
-				goto getit;
-		}
-		ide = 0;
-	}
-getit:
-	i = prom_getproperty (node, "name", buffer, len);
-	if (i <= 0) {
-		buffer [0] = 0;
-		return -1;
-	}
-	buffer [i] = 0;
-	len -= i;
-	i = prom_getproperty (node, "reg", (char *)reg64, sizeof (reg64));
-	if (i <= 0) return 0;
-	if (len < 16) return -1;
-	buffer = strchr (buffer, 0);
-	if (sbus) {
-		reg = (struct linux_prom_registers *)reg64;
-		sprintf (buffer, "@%x,%x", reg[0].which_io, (uint)reg[0].phys_addr);
-	} else if (pci) {
-		int dev, fn;
-		reg = (struct linux_prom_registers *)reg64;
-		fn = (reg[0].which_io >> 8) & 0x07;
-		dev = (reg[0].which_io >> 11) & 0x1f;
-		if (fn)
-			sprintf (buffer, "@%x,%x", dev, fn);
-		else
-			sprintf (buffer, "@%x", dev);
-	} else if (ebus) {
-		reg = (struct linux_prom_registers *)reg64;
-		sprintf (buffer, "@%x,%x", reg[0].which_io, reg[0].phys_addr);
-	} else if (ide) {
-		reg = (struct linux_prom_registers *)reg64;
-		sprintf (buffer, "@%x,%x", reg[0].which_io, reg[0].phys_addr);
-	} else if (i == 4) {	/* Happens on 8042's children on Ultra/PCI. */
-		reg = (struct linux_prom_registers *)reg64;
-		sprintf (buffer, "@%x", reg[0].which_io);
-	} else {
-		sprintf (buffer, "@%x,%x",
-			 (unsigned int)(reg64[0].phys_addr >> 36),
-			 (unsigned int)(reg64[0].phys_addr));
-	}
 	return 0;
 }
 

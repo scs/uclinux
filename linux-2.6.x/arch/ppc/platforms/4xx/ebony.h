@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/ebony.h
- *
  * Ebony board definitions
  *
  * Matt Porter <mporter@mvista.com>
@@ -17,7 +15,6 @@
 #ifndef __ASM_EBONY_H__
 #define __ASM_EBONY_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm440gp.h>
 
 /* F/W TLB mapping used in bootloader glue to reset EMAC */

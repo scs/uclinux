@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/setup.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
  *  Modified by Cort Dougan (cort@cs.nmt.edu)
@@ -13,7 +11,6 @@
  * bootup setup stuff..
  */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -26,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/a.out.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/major.h>
 #include <linux/interrupt.h>
 #include <linux/reboot.h>
@@ -738,7 +735,7 @@ ibm_statusled_progress(char *s, unsigned short hex)
 		hex = 0xfff;
 		if (!notifier_installed) {
 			++notifier_installed;
-			notifier_chain_register(&panic_notifier_list,
+			atomic_notifier_chain_register(&panic_notifier_list,
 						&ibm_statusled_block);
 		}
 	}
@@ -1069,15 +1066,13 @@ prep_map_io(void)
 static int __init
 prep_request_io(void)
 {
-	if (_machine == _MACH_prep) {
 #ifdef CONFIG_NVRAM
-		request_region(PREP_NVRAM_AS0, 0x8, "nvram");
+	request_region(PREP_NVRAM_AS0, 0x8, "nvram");
 #endif
-		request_region(0x00,0x20,"dma1");
-		request_region(0x40,0x20,"timer");
-		request_region(0x80,0x10,"dma page reg");
-		request_region(0xc0,0x20,"dma2");
-	}
+	request_region(0x00,0x20,"dma1");
+	request_region(0x40,0x20,"timer");
+	request_region(0x80,0x10,"dma page reg");
+	request_region(0xc0,0x20,"dma2");
 
 	return 0;
 }

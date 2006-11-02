@@ -9,7 +9,6 @@
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -30,21 +29,22 @@
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
 #include <linux/profile.h>
+#include <linux/miscdevice.h>
+#include <linux/rtc.h>
 
 #include <asm/oplib.h>
 #include <asm/mostek.h>
 #include <asm/timer.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
-#include <asm/fhc.h>
-#include <asm/pbm.h>
-#include <asm/ebus.h>
-#include <asm/isa.h>
+#include <asm/prom.h>
+#include <asm/of_device.h>
 #include <asm/starfire.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
+#include <asm/uaccess.h>
+#include <asm/prom.h>
 
 DEFINE_SPINLOCK(mostek_lock);
 DEFINE_SPINLOCK(rtc_lock);
@@ -193,16 +193,22 @@ struct sparc64_tick_ops *tick_ops __read_mostly = &tick_operations;
 
 static void stick_init_tick(unsigned long offset)
 {
-	tick_disable_protection();
+	/* Writes to the %tick and %stick register are not
+	 * allowed on sun4v.  The Hypervisor controls that
+	 * bit, per-strand.
+	 */
+	if (tlb_type != hypervisor) {
+		tick_disable_protection();
 
-	/* Let the user get at STICK too. */
-	__asm__ __volatile__(
-	"	rd	%%asr24, %%g2\n"
-	"	andn	%%g2, %0, %%g2\n"
-	"	wr	%%g2, 0, %%asr24"
-	: /* no outputs */
-	: "r" (TICK_PRIV_BIT)
-	: "g1", "g2");
+		/* Let the user get at STICK too. */
+		__asm__ __volatile__(
+		"	rd	%%asr24, %%g2\n"
+		"	andn	%%g2, %0, %%g2\n"
+		"	wr	%%g2, 0, %%asr24"
+		: /* no outputs */
+		: "r" (TICK_PRIV_BIT)
+		: "g1", "g2");
+	}
 
 	__asm__ __volatile__(
 	"	rd	%%asr24, %%g1\n"
@@ -448,7 +454,7 @@ static inline void timer_check_rtc(void)
 	}
 }
 
-static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 {
 	unsigned long ticks, compare, pstate;
 
@@ -632,23 +638,8 @@ static void __init set_system_time(void)
 		mon = MSTK_REG_MONTH(mregs);
 		year = MSTK_CVT_YEAR( MSTK_REG_YEAR(mregs) );
 	} else {
-		int i;
-
 		/* Dallas 12887 RTC chip. */
 
-		/* Stolen from arch/i386/kernel/time.c, see there for
-		 * credits and descriptive comments.
-		 */
-		for (i = 0; i < 1000000; i++) {
-			if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP)
-				break;
-			udelay(10);
-		}
-		for (i = 0; i < 1000000; i++) {
-			if (!(CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
-				break;
-			udelay(10);
-		}
 		do {
 			sec  = CMOS_READ(RTC_SECONDS);
 			min  = CMOS_READ(RTC_MINUTES);
@@ -657,6 +648,7 @@ static void __init set_system_time(void)
 			mon  = CMOS_READ(RTC_MONTH);
 			year = CMOS_READ(RTC_YEAR);
 		} while (sec != CMOS_READ(RTC_SECONDS));
+
 		if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
 			BCD_TO_BIN(sec);
 			BCD_TO_BIN(min);
@@ -683,215 +675,140 @@ static void __init set_system_time(void)
 	}
 }
 
-void __init clock_probe(void)
+/* davem suggests we keep this within the 4M locked kernel image */
+static u32 starfire_get_time(void)
 {
-	struct linux_prom_registers clk_reg[2];
-	char model[128];
-	int node, busnd = -1, err;
-	unsigned long flags;
-	struct linux_central *cbus;
-#ifdef CONFIG_PCI
-	struct linux_ebus *ebus = NULL;
-	struct sparc_isa_bridge *isa_br = NULL;
-#endif
-	static int invoked;
+	static char obp_gettod[32];
+	static u32 unix_tod;
 
-	if (invoked)
-		return;
-	invoked = 1;
+	sprintf(obp_gettod, "h# %08x unix-gettod",
+		(unsigned int) (long) &unix_tod);
+	prom_feval(obp_gettod);
 
+	return unix_tod;
+}
 
-	if (this_is_starfire) {
-		/* davem suggests we keep this within the 4M locked kernel image */
-		static char obp_gettod[256];
-		static u32 unix_tod;
+static int starfire_set_time(u32 val)
+{
+	/* Do nothing, time is set using the service processor
+	 * console on this platform.
+	 */
+	return 0;
+}
 
-		sprintf(obp_gettod, "h# %08x unix-gettod",
-			(unsigned int) (long) &unix_tod);
-		prom_feval(obp_gettod);
-		xtime.tv_sec = unix_tod;
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return;
+static u32 hypervisor_get_time(void)
+{
+	register unsigned long func asm("%o5");
+	register unsigned long arg0 asm("%o0");
+	register unsigned long arg1 asm("%o1");
+	int retries = 10000;
+
+retry:
+	func = HV_FAST_TOD_GET;
+	arg0 = 0;
+	arg1 = 0;
+	__asm__ __volatile__("ta	%6"
+			     : "=&r" (func), "=&r" (arg0), "=&r" (arg1)
+			     : "0" (func), "1" (arg0), "2" (arg1),
+			       "i" (HV_FAST_TRAP));
+	if (arg0 == HV_EOK)
+		return arg1;
+	if (arg0 == HV_EWOULDBLOCK) {
+		if (--retries > 0) {
+			udelay(100);
+			goto retry;
+		}
+		printk(KERN_WARNING "SUN4V: tod_get() timed out.\n");
+		return 0;
 	}
+	printk(KERN_WARNING "SUN4V: tod_get() not supported.\n");
+	return 0;
+}
+
+static int hypervisor_set_time(u32 secs)
+{
+	register unsigned long func asm("%o5");
+	register unsigned long arg0 asm("%o0");
+	int retries = 10000;
+
+retry:
+	func = HV_FAST_TOD_SET;
+	arg0 = secs;
+	__asm__ __volatile__("ta	%4"
+			     : "=&r" (func), "=&r" (arg0)
+			     : "0" (func), "1" (arg0),
+			       "i" (HV_FAST_TRAP));
+	if (arg0 == HV_EOK)
+		return 0;
+	if (arg0 == HV_EWOULDBLOCK) {
+		if (--retries > 0) {
+			udelay(100);
+			goto retry;
+		}
+		printk(KERN_WARNING "SUN4V: tod_set() timed out.\n");
+		return -EAGAIN;
+	}
+	printk(KERN_WARNING "SUN4V: tod_set() not supported.\n");
+	return -EOPNOTSUPP;
+}
+
+static int __init clock_model_matches(char *model)
+{
+	if (strcmp(model, "mk48t02") &&
+	    strcmp(model, "mk48t08") &&
+	    strcmp(model, "mk48t59") &&
+	    strcmp(model, "m5819") &&
+	    strcmp(model, "m5819p") &&
+	    strcmp(model, "m5823") &&
+	    strcmp(model, "ds1287"))
+		return 0;
+
+	return 1;
+}
+
+static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
+{
+	struct device_node *dp = op->node;
+	char *model = of_get_property(dp, "model", NULL);
+	unsigned long size, flags;
+	void __iomem *regs;
+
+	if (!model || !clock_model_matches(model))
+		return -ENODEV;
+
+	/* On an Enterprise system there can be multiple mostek clocks.
+	 * We should only match the one that is on the central FHC bus.
+	 */
+	if (!strcmp(dp->parent->name, "fhc") &&
+	    strcmp(dp->parent->parent->name, "central") != 0)
+		return -ENODEV;
+
+	size = (op->resource[0].end - op->resource[0].start) + 1;
+	regs = of_ioremap(&op->resource[0], 0, size, "clock");
+	if (!regs)
+		return -ENOMEM;
+
+#ifdef CONFIG_PCI
+	if (!strcmp(model, "ds1287") ||
+	    !strcmp(model, "m5819") ||
+	    !strcmp(model, "m5819p") ||
+	    !strcmp(model, "m5823")) {
+		ds1287_regs = (unsigned long) regs;
+	} else
+#endif
+	if (model[5] == '0' && model[6] == '2') {
+		mstk48t02_regs = regs;
+	} else if(model[5] == '0' && model[6] == '8') {
+		mstk48t08_regs = regs;
+		mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
+	} else {
+		mstk48t59_regs = regs;
+		mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
+	}
+
+	printk(KERN_INFO "%s: Clock regs at %p\n", dp->full_name, regs);
 
 	local_irq_save(flags);
-
-	cbus = central_bus;
-	if (cbus != NULL)
-		busnd = central_bus->child->prom_node;
-
-	/* Check FHC Central then EBUSs then ISA bridges then SBUSs.
-	 * That way we handle the presence of multiple properly.
-	 *
-	 * As a special case, machines with Central must provide the
-	 * timer chip there.
-	 */
-#ifdef CONFIG_PCI
-	if (ebus_chain != NULL) {
-		ebus = ebus_chain;
-		if (busnd == -1)
-			busnd = ebus->prom_node;
-	}
-	if (isa_chain != NULL) {
-		isa_br = isa_chain;
-		if (busnd == -1)
-			busnd = isa_br->prom_node;
-	}
-#endif
-	if (sbus_root != NULL && busnd == -1)
-		busnd = sbus_root->prom_node;
-
-	if (busnd == -1) {
-		prom_printf("clock_probe: problem, cannot find bus to search.\n");
-		prom_halt();
-	}
-
-	node = prom_getchild(busnd);
-
-	while (1) {
-		if (!node)
-			model[0] = 0;
-		else
-			prom_getstring(node, "model", model, sizeof(model));
-		if (strcmp(model, "mk48t02") &&
-		    strcmp(model, "mk48t08") &&
-		    strcmp(model, "mk48t59") &&
-		    strcmp(model, "m5819") &&
-		    strcmp(model, "m5819p") &&
-		    strcmp(model, "m5823") &&
-		    strcmp(model, "ds1287")) {
-			if (cbus != NULL) {
-				prom_printf("clock_probe: Central bus lacks timer chip.\n");
-				prom_halt();
-			}
-
-		   	if (node != 0)
-				node = prom_getsibling(node);
-#ifdef CONFIG_PCI
-			while ((node == 0) && ebus != NULL) {
-				ebus = ebus->next;
-				if (ebus != NULL) {
-					busnd = ebus->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-			while ((node == 0) && isa_br != NULL) {
-				isa_br = isa_br->next;
-				if (isa_br != NULL) {
-					busnd = isa_br->prom_node;
-					node = prom_getchild(busnd);
-				}
-			}
-#endif
-			if (node == 0) {
-				prom_printf("clock_probe: Cannot find timer chip\n");
-				prom_halt();
-			}
-			continue;
-		}
-
-		err = prom_getproperty(node, "reg", (char *)clk_reg,
-				       sizeof(clk_reg));
-		if(err == -1) {
-			prom_printf("clock_probe: Cannot get Mostek reg property\n");
-			prom_halt();
-		}
-
-		if (cbus != NULL) {
-			apply_fhc_ranges(central_bus->child, clk_reg, 1);
-			apply_central_ranges(central_bus, clk_reg, 1);
-		}
-#ifdef CONFIG_PCI
-		else if (ebus != NULL) {
-			struct linux_ebus_device *edev;
-
-			for_each_ebusdev(edev, ebus)
-				if (edev->prom_node == node)
-					break;
-			if (edev == NULL) {
-				if (isa_chain != NULL)
-					goto try_isa_clock;
-				prom_printf("%s: Mostek not probed by EBUS\n",
-					    __FUNCTION__);
-				prom_halt();
-			}
-
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = edev->resource[0].start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					edev->resource[0].start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-		else if (isa_br != NULL) {
-			struct sparc_isa_device *isadev;
-
-try_isa_clock:
-			for_each_isadev(isadev, isa_br)
-				if (isadev->prom_node == node)
-					break;
-			if (isadev == NULL) {
-				prom_printf("%s: Mostek not probed by ISA\n");
-				prom_halt();
-			}
-			if (!strcmp(model, "ds1287") ||
-			    !strcmp(model, "m5819") ||
-			    !strcmp(model, "m5819p") ||
-			    !strcmp(model, "m5823")) {
-				ds1287_regs = isadev->resource.start;
-			} else {
-				mstk48t59_regs = (void __iomem *)
-					isadev->resource.start;
-				mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-			}
-			break;
-		}
-#endif
-		else {
-			if (sbus_root->num_sbus_ranges) {
-				int nranges = sbus_root->num_sbus_ranges;
-				int rngc;
-
-				for (rngc = 0; rngc < nranges; rngc++)
-					if (clk_reg[0].which_io ==
-					    sbus_root->sbus_ranges[rngc].ot_child_space)
-						break;
-				if (rngc == nranges) {
-					prom_printf("clock_probe: Cannot find ranges for "
-						    "clock regs.\n");
-					prom_halt();
-				}
-				clk_reg[0].which_io =
-					sbus_root->sbus_ranges[rngc].ot_parent_space;
-				clk_reg[0].phys_addr +=
-					sbus_root->sbus_ranges[rngc].ot_parent_base;
-			}
-		}
-
-		if(model[5] == '0' && model[6] == '2') {
-			mstk48t02_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-		} else if(model[5] == '0' && model[6] == '8') {
-			mstk48t08_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t08_regs + MOSTEK_48T08_48T02;
-		} else {
-			mstk48t59_regs = (void __iomem *)
-				(((u64)clk_reg[0].phys_addr) |
-				 (((u64)clk_reg[0].which_io)<<32UL));
-			mstk48t02_regs = mstk48t59_regs + MOSTEK_48T59_48T02;
-		}
-		break;
-	}
 
 	if (mstk48t02_regs != NULL) {
 		/* Report a low battery voltage condition. */
@@ -906,17 +823,63 @@ try_isa_clock:
 	set_system_time();
 	
 	local_irq_restore(flags);
+
+	return 0;
 }
+
+static struct of_device_id clock_match[] = {
+	{
+		.name = "eeprom",
+	},
+	{
+		.name = "rtc",
+	},
+	{},
+};
+
+static struct of_platform_driver clock_driver = {
+	.name		= "clock",
+	.match_table	= clock_match,
+	.probe		= clock_probe,
+};
+
+static int __init clock_init(void)
+{
+	if (this_is_starfire) {
+		xtime.tv_sec = starfire_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+	if (tlb_type == hypervisor) {
+		xtime.tv_sec = hypervisor_get_time();
+		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+		set_normalized_timespec(&wall_to_monotonic,
+		                        -xtime.tv_sec, -xtime.tv_nsec);
+		return 0;
+	}
+
+	return of_register_driver(&clock_driver, &of_bus_type);
+}
+
+/* Must be after subsys_initcall() so that busses are probed.  Must
+ * be before device_initcall() because things like the RTC driver
+ * need to see the clock registers.
+ */
+fs_initcall(clock_init);
 
 /* This is gets the master TICK_INT timer going. */
 static unsigned long sparc64_init_timers(void)
 {
+	struct device_node *dp;
+	struct property *prop;
 	unsigned long clock;
-	int node;
 #ifdef CONFIG_SMP
 	extern void smp_tick_init(void);
 #endif
 
+	dp = of_find_node_by_path("/");
 	if (tlb_type == spitfire) {
 		unsigned long ver, manuf, impl;
 
@@ -927,18 +890,17 @@ static unsigned long sparc64_init_timers(void)
 		if (manuf == 0x17 && impl == 0x13) {
 			/* Hummingbird, aka Ultra-IIe */
 			tick_ops = &hbtick_operations;
-			node = prom_root_node;
-			clock = prom_getint(node, "stick-frequency");
+			prop = of_find_property(dp, "stick-frequency", NULL);
 		} else {
 			tick_ops = &tick_operations;
-			cpu_find_by_instance(0, &node, NULL);
-			clock = prom_getint(node, "clock-frequency");
+			cpu_find_by_instance(0, &dp, NULL);
+			prop = of_find_property(dp, "clock-frequency", NULL);
 		}
 	} else {
 		tick_ops = &stick_operations;
-		node = prom_root_node;
-		clock = prom_getint(node, "stick-frequency");
+		prop = of_find_property(dp, "stick-frequency", NULL);
 	}
+	clock = *(unsigned int *) prop->value;
 	timer_tick_offset = clock / HZ;
 
 #ifdef CONFIG_SMP
@@ -948,19 +910,9 @@ static unsigned long sparc64_init_timers(void)
 	return clock;
 }
 
-static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_regs *))
+static void sparc64_start_timers(void)
 {
 	unsigned long pstate;
-	int err;
-
-	/* Register IRQ handler. */
-	err = request_irq(build_irq(0, 0, 0UL, 0UL), cfunc, 0,
-			  "timer", NULL);
-
-	if (err) {
-		prom_printf("Serious problem, cannot register TICK_INT\n");
-		prom_halt();
-	}
 
 	/* Guarantee that the following sequences execute
 	 * uninterrupted.
@@ -976,16 +928,13 @@ static void sparc64_start_timers(irqreturn_t (*cfunc)(int, void *, struct pt_reg
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
 			     : /* no outputs */
 			     : "r" (pstate));
-
-	local_irq_enable();
 }
 
 struct freq_table {
-	unsigned long udelay_val_ref;
 	unsigned long clock_tick_ref;
 	unsigned int ref_freq;
 };
-static DEFINE_PER_CPU(struct freq_table, sparc64_freq_table) = { 0, 0, 0 };
+static DEFINE_PER_CPU(struct freq_table, sparc64_freq_table) = { 0, 0 };
 
 unsigned long sparc64_get_clock_tick(unsigned int cpu)
 {
@@ -1007,16 +956,11 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 
 	if (!ft->ref_freq) {
 		ft->ref_freq = freq->old;
-		ft->udelay_val_ref = cpu_data(cpu).udelay_val;
 		ft->clock_tick_ref = cpu_data(cpu).clock_tick;
 	}
 	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
 	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new) ||
 	    (val == CPUFREQ_RESUMECHANGE)) {
-		cpu_data(cpu).udelay_val =
-			cpufreq_scale(ft->udelay_val_ref,
-				      ft->ref_freq,
-				      freq->new);
 		cpu_data(cpu).clock_tick =
 			cpufreq_scale(ft->clock_tick_ref,
 				      ft->ref_freq,
@@ -1050,7 +994,7 @@ void __init time_init(void)
 	/* Now that the interpolator is registered, it is
 	 * safe to start the timer ticking.
 	 */
-	sparc64_start_timers(timer_interrupt);
+	sparc64_start_timers();
 
 	timer_ticks_per_nsec_quotient =
 		(((NSEC_PER_SEC << SPARC64_NSEC_PER_CYC_SHIFT) +
@@ -1179,3 +1123,246 @@ static int set_rtc_mmss(unsigned long nowtime)
 		return retval;
 	}
 }
+
+#define RTC_IS_OPEN		0x01	/* means /dev/rtc is in use	*/
+static unsigned char mini_rtc_status;	/* bitmapped status byte.	*/
+
+/* months start at 0 now */
+static unsigned char days_in_mo[] =
+{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+#define FEBRUARY	2
+#define	STARTOFTIME	1970
+#define SECDAY		86400L
+#define SECYR		(SECDAY * 365)
+#define	leapyear(year)		((year) % 4 == 0 && \
+				 ((year) % 100 != 0 || (year) % 400 == 0))
+#define	days_in_year(a) 	(leapyear(a) ? 366 : 365)
+#define	days_in_month(a) 	(month_days[(a) - 1])
+
+static int month_days[12] = {
+	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+};
+
+/*
+ * This only works for the Gregorian calendar - i.e. after 1752 (in the UK)
+ */
+static void GregorianDay(struct rtc_time * tm)
+{
+	int leapsToDate;
+	int lastYear;
+	int day;
+	int MonthOffset[] = { 0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334 };
+
+	lastYear = tm->tm_year - 1;
+
+	/*
+	 * Number of leap corrections to apply up to end of last year
+	 */
+	leapsToDate = lastYear / 4 - lastYear / 100 + lastYear / 400;
+
+	/*
+	 * This year is a leap year if it is divisible by 4 except when it is
+	 * divisible by 100 unless it is divisible by 400
+	 *
+	 * e.g. 1904 was a leap year, 1900 was not, 1996 is, and 2000 was
+	 */
+	day = tm->tm_mon > 2 && leapyear(tm->tm_year);
+
+	day += lastYear*365 + leapsToDate + MonthOffset[tm->tm_mon-1] +
+		   tm->tm_mday;
+
+	tm->tm_wday = day % 7;
+}
+
+static void to_tm(int tim, struct rtc_time *tm)
+{
+	register int    i;
+	register long   hms, day;
+
+	day = tim / SECDAY;
+	hms = tim % SECDAY;
+
+	/* Hours, minutes, seconds are easy */
+	tm->tm_hour = hms / 3600;
+	tm->tm_min = (hms % 3600) / 60;
+	tm->tm_sec = (hms % 3600) % 60;
+
+	/* Number of years in days */
+	for (i = STARTOFTIME; day >= days_in_year(i); i++)
+		day -= days_in_year(i);
+	tm->tm_year = i;
+
+	/* Number of months in days left */
+	if (leapyear(tm->tm_year))
+		days_in_month(FEBRUARY) = 29;
+	for (i = 1; day >= days_in_month(i); i++)
+		day -= days_in_month(i);
+	days_in_month(FEBRUARY) = 28;
+	tm->tm_mon = i;
+
+	/* Days are what is left over (+1) from all that. */
+	tm->tm_mday = day + 1;
+
+	/*
+	 * Determine the day of week
+	 */
+	GregorianDay(tm);
+}
+
+/* Both Starfire and SUN4V give us seconds since Jan 1st, 1970,
+ * aka Unix time.  So we have to convert to/from rtc_time.
+ */
+static inline void mini_get_rtc_time(struct rtc_time *time)
+{
+	unsigned long flags;
+	u32 seconds;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	seconds = 0;
+	if (this_is_starfire)
+		seconds = starfire_get_time();
+	else if (tlb_type == hypervisor)
+		seconds = hypervisor_get_time();
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	to_tm(seconds, time);
+	time->tm_year -= 1900;
+	time->tm_mon -= 1;
+}
+
+static inline int mini_set_rtc_time(struct rtc_time *time)
+{
+	u32 seconds = mktime(time->tm_year + 1900, time->tm_mon + 1,
+			     time->tm_mday, time->tm_hour,
+			     time->tm_min, time->tm_sec);
+	unsigned long flags;
+	int err;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	err = -ENODEV;
+	if (this_is_starfire)
+		err = starfire_set_time(seconds);
+	else  if (tlb_type == hypervisor)
+		err = hypervisor_set_time(seconds);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	return err;
+}
+
+static int mini_rtc_ioctl(struct inode *inode, struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	struct rtc_time wtime;
+	void __user *argp = (void __user *)arg;
+
+	switch (cmd) {
+
+	case RTC_PLL_GET:
+		return -EINVAL;
+
+	case RTC_PLL_SET:
+		return -EINVAL;
+
+	case RTC_UIE_OFF:	/* disable ints from RTC updates.	*/
+		return 0;
+
+	case RTC_UIE_ON:	/* enable ints for RTC updates.	*/
+	        return -EINVAL;
+
+	case RTC_RD_TIME:	/* Read the time/date from RTC	*/
+		/* this doesn't get week-day, who cares */
+		memset(&wtime, 0, sizeof(wtime));
+		mini_get_rtc_time(&wtime);
+
+		return copy_to_user(argp, &wtime, sizeof(wtime)) ? -EFAULT : 0;
+
+	case RTC_SET_TIME:	/* Set the RTC */
+	    {
+		int year;
+		unsigned char leap_yr;
+
+		if (!capable(CAP_SYS_TIME))
+			return -EACCES;
+
+		if (copy_from_user(&wtime, argp, sizeof(wtime)))
+			return -EFAULT;
+
+		year = wtime.tm_year + 1900;
+		leap_yr = ((!(year % 4) && (year % 100)) ||
+			   !(year % 400));
+
+		if ((wtime.tm_mon < 0 || wtime.tm_mon > 11) || (wtime.tm_mday < 1))
+			return -EINVAL;
+
+		if (wtime.tm_mday < 0 || wtime.tm_mday >
+		    (days_in_mo[wtime.tm_mon] + ((wtime.tm_mon == 1) && leap_yr)))
+			return -EINVAL;
+
+		if (wtime.tm_hour < 0 || wtime.tm_hour >= 24 ||
+		    wtime.tm_min < 0 || wtime.tm_min >= 60 ||
+		    wtime.tm_sec < 0 || wtime.tm_sec >= 60)
+			return -EINVAL;
+
+		return mini_set_rtc_time(&wtime);
+	    }
+	}
+
+	return -EINVAL;
+}
+
+static int mini_rtc_open(struct inode *inode, struct file *file)
+{
+	if (mini_rtc_status & RTC_IS_OPEN)
+		return -EBUSY;
+
+	mini_rtc_status |= RTC_IS_OPEN;
+
+	return 0;
+}
+
+static int mini_rtc_release(struct inode *inode, struct file *file)
+{
+	mini_rtc_status &= ~RTC_IS_OPEN;
+	return 0;
+}
+
+
+static struct file_operations mini_rtc_fops = {
+	.owner		= THIS_MODULE,
+	.ioctl		= mini_rtc_ioctl,
+	.open		= mini_rtc_open,
+	.release	= mini_rtc_release,
+};
+
+static struct miscdevice rtc_mini_dev =
+{
+	.minor		= RTC_MINOR,
+	.name		= "rtc",
+	.fops		= &mini_rtc_fops,
+};
+
+static int __init rtc_mini_init(void)
+{
+	int retval;
+
+	if (tlb_type != hypervisor && !this_is_starfire)
+		return -ENODEV;
+
+	printk(KERN_INFO "Mini RTC Driver\n");
+
+	retval = misc_register(&rtc_mini_dev);
+	if (retval < 0)
+		return retval;
+
+	return 0;
+}
+
+static void __exit rtc_mini_exit(void)
+{
+	misc_deregister(&rtc_mini_dev);
+}
+
+
+module_init(rtc_mini_init);
+module_exit(rtc_mini_exit);

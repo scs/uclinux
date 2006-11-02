@@ -647,7 +647,7 @@ static inline void i2c_pxa_start_message(struct pxa_i2c *i2c)
 }
 
 /*
- * We are protected by the adapter bus semaphore.
+ * We are protected by the adapter bus mutex.
  */
 static int i2c_pxa_do_xfer(struct pxa_i2c *i2c, struct i2c_msg *msg, int num)
 {
@@ -968,7 +968,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 #endif
 
 	pxa_set_cken(CKEN14_I2C, 1);
-	ret = request_irq(IRQ_I2C, i2c_pxa_handler, SA_INTERRUPT,
+	ret = request_irq(IRQ_I2C, i2c_pxa_handler, IRQF_DISABLED,
 			  "pxa2xx-i2c", i2c);
 	if (ret)
 		goto out;

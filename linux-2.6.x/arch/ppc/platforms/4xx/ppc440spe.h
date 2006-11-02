@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/4xx/ibm440spe.h
- *
  * PPC440SPe definitions
  *
  * Roland Dreier <rolandd@cisco.com>
@@ -19,7 +17,6 @@
 #ifndef __PPC_PLATFORMS_PPC440SPE_H
 #define __PPC_PLATFORMS_PPC440SPE_H
 
-#include <linux/config.h>
 
 #include <asm/ibm44x.h>
 

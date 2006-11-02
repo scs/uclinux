@@ -625,7 +625,7 @@ static inline int rc_setup_board(struct riscom_board * bp)
 	if (bp->flags & RC_BOARD_ACTIVE) 
 		return 0;
 	
-	error = request_irq(bp->irq, rc_interrupt, SA_INTERRUPT,
+	error = request_irq(bp->irq, rc_interrupt, IRQF_DISABLED,
 			    "RISCom/8", NULL);
 	if (error) 
 		return error;
@@ -1634,7 +1634,6 @@ static inline int rc_init_drivers(void)
 	memset(IRQ_to_board, 0, sizeof(IRQ_to_board));
 	riscom_driver->owner = THIS_MODULE;
 	riscom_driver->name = "ttyL";
-	riscom_driver->devfs_name = "tts/L";
 	riscom_driver->major = RISCOM8_NORMAL_MAJOR;
 	riscom_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	riscom_driver->subtype = SERIAL_TYPE_NORMAL;
@@ -1743,10 +1742,10 @@ static int iobase;
 static int iobase1;
 static int iobase2;
 static int iobase3;
-MODULE_PARM(iobase, "i");
-MODULE_PARM(iobase1, "i");
-MODULE_PARM(iobase2, "i");
-MODULE_PARM(iobase3, "i");
+module_param(iobase, int, 0);
+module_param(iobase1, int, 0);
+module_param(iobase2, int, 0);
+module_param(iobase3, int, 0);
 
 MODULE_LICENSE("GPL");
 #endif /* MODULE */

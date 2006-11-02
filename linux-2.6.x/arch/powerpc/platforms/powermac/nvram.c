@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/platforms/pmac_nvram.c
- *
  *  Copyright (C) 2002 Benjamin Herrenschmidt (benh@kernel.crashing.org)
  *
  *  This program is free software; you can redistribute it and/or
@@ -10,7 +8,6 @@
  *
  *  Todo: - add support for the OF persistent properties
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
@@ -31,6 +28,8 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/nvram.h>
+
+#include "pmac.h"
 
 #define DEBUG
 
@@ -76,15 +75,12 @@ struct core99_header {
  * Read and write the non-volatile RAM on PowerMacs and CHRP machines.
  */
 static int nvram_naddrs;
-static volatile unsigned char *nvram_data;
+static volatile unsigned char __iomem *nvram_data;
 static int is_core_99;
 static int core99_bank = 0;
 static int nvram_partitions[3];
 // XXX Turn that into a sem
 static DEFINE_SPINLOCK(nv_lock);
-
-extern int pmac_newworld;
-extern int system_running;
 
 static int (*core99_write_bank)(int bank, u8* datas);
 static int (*core99_erase_bank)(int bank);
@@ -150,7 +146,7 @@ static ssize_t core99_nvram_size(void)
 }
 
 #ifdef CONFIG_PPC32
-static volatile unsigned char *nvram_addr;
+static volatile unsigned char __iomem *nvram_addr;
 static int nvram_mult;
 
 static unsigned char direct_nvram_read_byte(int addr)
@@ -287,7 +283,7 @@ static int sm_erase_bank(int bank)
 	int stat, i;
 	unsigned long timeout;
 
-	u8* base = (u8 *)nvram_data + core99_bank*NVRAM_SIZE;
+	u8 __iomem *base = (u8 __iomem *)nvram_data + core99_bank*NVRAM_SIZE;
 
        	DBG("nvram: Sharp/Micron Erasing bank %d...\n", bank);
 
@@ -319,7 +315,7 @@ static int sm_write_bank(int bank, u8* datas)
 	int i, stat = 0;
 	unsigned long timeout;
 
-	u8* base = (u8 *)nvram_data + core99_bank*NVRAM_SIZE;
+	u8 __iomem *base = (u8 __iomem *)nvram_data + core99_bank*NVRAM_SIZE;
 
        	DBG("nvram: Sharp/Micron Writing bank %d...\n", bank);
 
@@ -354,7 +350,7 @@ static int amd_erase_bank(int bank)
 	int i, stat = 0;
 	unsigned long timeout;
 
-	u8* base = (u8 *)nvram_data + core99_bank*NVRAM_SIZE;
+	u8 __iomem *base = (u8 __iomem *)nvram_data + core99_bank*NVRAM_SIZE;
 
        	DBG("nvram: AMD Erasing bank %d...\n", bank);
 
@@ -401,7 +397,7 @@ static int amd_write_bank(int bank, u8* datas)
 	int i, stat = 0;
 	unsigned long timeout;
 
-	u8* base = (u8 *)nvram_data + core99_bank*NVRAM_SIZE;
+	u8 __iomem *base = (u8 __iomem *)nvram_data + core99_bank*NVRAM_SIZE;
 
        	DBG("nvram: AMD Writing bank %d...\n", bank);
 
@@ -599,7 +595,7 @@ int __init pmac_nvram_init(void)
 	}
 
 #ifdef CONFIG_PPC32
-	if (_machine == _MACH_chrp && nvram_naddrs == 1) {
+	if (machine_is(chrp) && nvram_naddrs == 1) {
 		nvram_data = ioremap(r1.start, s1);
 		nvram_mult = 1;
 		ppc_md.nvram_read_val	= direct_nvram_read_byte;

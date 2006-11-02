@@ -34,6 +34,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config AUDIT_ARCH
+	bool
+	default y
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
@@ -85,6 +89,10 @@ source "init/Kconfig"
 config SYSVIPC_COMPAT
 	bool
 	depends on COMPAT && SYSVIPC
+	default y
+
+config GENERIC_HARDIRQS
+	bool
 	default y
 
 menu "General machine setup"
@@ -162,6 +170,14 @@ config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
 
+config GENERIC_FIND_NEXT_BIT
+	bool
+	default y
+
+config GENERIC_HWEIGHT
+	bool
+	default y if !ULTRA_HAS_POPULATION_COUNT
+
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -175,16 +191,28 @@ config HUGETLB_PAGE_SIZE_4MB
 	bool "4MB"
 
 config HUGETLB_PAGE_SIZE_512K
-	depends on !SPARC64_PAGE_SIZE_4MB
+	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB
 	bool "512K"
 
 config HUGETLB_PAGE_SIZE_64K
-	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB
+	depends on !SPARC64_PAGE_SIZE_4MB && !SPARC64_PAGE_SIZE_512KB && !SPARC64_PAGE_SIZE_64KB
 	bool "64K"
 
 endchoice
 
 endmenu
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+
+config LARGE_ALLOCS
+	def_bool y
 
 source "mm/Kconfig"
 
@@ -310,7 +338,7 @@ config COMPAT
 	default y
 
 config BINFMT_ELF32
-	tristate "Kernel support for 32-bit ELF binaries"
+	bool "Kernel support for 32-bit ELF binaries"
 	depends on SPARC32_COMPAT
 	help
 	  This allows you to run 32-bit Linux/ELF binaries on your Ultra.
@@ -349,6 +377,15 @@ config SOLARIS_EMUL
 	  module will be called solaris.
 
 endmenu
+
+config SCHED_SMT
+	bool "SMT (Hyperthreading) scheduler support"
+	depends on SMP
+	default y
+	help
+	  SMT scheduler support improves the CPU scheduler's decision making
+	  when dealing with UltraSPARC cpus at a cost of slightly increased
+	  overhead in some places. If unsure say N here.
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"

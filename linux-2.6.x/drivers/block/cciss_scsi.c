@@ -578,7 +578,7 @@ complete_scsi_command( CommandList_struct *cp, int timeout, __u32 tag)
 
 	if (cmd->use_sg) {
 		pci_unmap_sg(ctlr->pdev,
-			cmd->buffer, cmd->use_sg,
+			cmd->request_buffer, cmd->use_sg,
 				cmd->sc_data_direction); 
 	}
 	else if (cmd->request_bufflen) {
@@ -1027,12 +1027,11 @@ cciss_update_non_disk_devices(int cntl_num, int hostno)
 	int i;
 
 	c = (ctlr_info_t *) hba[cntl_num];	
-	ld_buff = kmalloc(reportlunsize, GFP_KERNEL);
+	ld_buff = kzalloc(reportlunsize, GFP_KERNEL);
 	if (ld_buff == NULL) {
 		printk(KERN_ERR "cciss: out of memory\n");
 		return;
 	}
-	memset(ld_buff, 0, reportlunsize);
 	inq_buff = kmalloc(OBDR_TAPE_INQ_SIZE, GFP_KERNEL);
         if (inq_buff == NULL) {
                 printk(KERN_ERR "cciss: out of memory\n");
@@ -1211,7 +1210,7 @@ cciss_scatter_gather(struct pci_dev *pdev,
 		struct scsi_cmnd *cmd)
 {
 	unsigned int use_sg, nsegs=0, len;
-	struct scatterlist *scatter = (struct scatterlist *) cmd->buffer;
+	struct scatterlist *scatter = (struct scatterlist *) cmd->request_buffer;
 	__u64 addr64;
 
 	/* is it just one virtual address? */	
@@ -1233,7 +1232,7 @@ cciss_scatter_gather(struct pci_dev *pdev,
 	} /* else, must be a list of virtual addresses.... */
 	else if (cmd->use_sg <= MAXSGENTRIES) {	/* not too many addrs? */
 
-		use_sg = pci_map_sg(pdev, cmd->buffer, cmd->use_sg, 
+		use_sg = pci_map_sg(pdev, cmd->request_buffer, cmd->use_sg,
 			cmd->sc_data_direction);
 
 		for (nsegs=0; nsegs < use_sg; nsegs++) {
@@ -1316,7 +1315,7 @@ cciss_scsi_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd 
 
 	cp->Request.Timeout = 0;
 	memset(cp->Request.CDB, 0, sizeof(cp->Request.CDB));
-	if (cmd->cmd_len > sizeof(cp->Request.CDB)) BUG();
+	BUG_ON(cmd->cmd_len > sizeof(cp->Request.CDB));
 	cp->Request.CDBLen = cmd->cmd_len;
 	memcpy(cp->Request.CDB, cmd->cmnd, cmd->cmd_len);
 	cp->Request.Type.Type = TYPE_CMD;

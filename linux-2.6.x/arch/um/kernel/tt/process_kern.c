@@ -51,6 +51,13 @@ void switch_to_tt(void *prev, void *next)
 
 	c = 0;
 
+	/* Notice that here we "up" the semaphore on which "to" is waiting, and
+	 * below (the read) we wait on this semaphore (which is implemented by
+	 * switch_pipe) and go sleeping. Thus, after that, we have resumed in
+	 * "to", and can't use any more the value of "from" (which is outdated),
+	 * nor the value in "to" (since it was the task which stole us the CPU,
+	 * which we don't care about). */
+
 	err = os_write_file(to->thread.mode.tt.switch_pipe[1], &c, sizeof(c));
 	if(err != sizeof(c))
 		panic("write of switch_pipe failed, err = %d", -err);
@@ -77,7 +84,7 @@ void switch_to_tt(void *prev, void *next)
 	change_sig(SIGALRM, alrm);
 	change_sig(SIGPROF, prof);
 
-	arch_switch();
+	arch_switch_to_tt(prev_sched, current);
 
 	flush_tlb_all();
 	local_irq_restore(flags);
@@ -112,7 +119,7 @@ void suspend_new_thread(int fd)
 		panic("read failed in suspend_new_thread, err = %d", -err);
 }
 
-void schedule_tail(task_t *prev);
+void schedule_tail(struct task_struct *prev);
 
 static void new_thread_handler(int sig)
 {
@@ -135,13 +142,12 @@ static void new_thread_handler(int sig)
 		schedule_tail(current->thread.prev_sched);
 	current->thread.prev_sched = NULL;
 
-	init_new_thread_signals(1);
+	init_new_thread_signals();
 	enable_timer();
 	free_page(current->thread.temp_stack);
 	set_cmdline("(kernel thread)");
 
 	change_sig(SIGUSR1, 1);
-	change_sig(SIGVTALRM, 1);
 	change_sig(SIGPROF, 1);
 	local_irq_enable();
 	if(!run_kernel_thread(fn, arg, &current->thread.exec_buf))

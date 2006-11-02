@@ -47,16 +47,16 @@ static struct kset_uevent_ops memory_uevent_ops = {
 	.uevent		= memory_uevent,
 };
 
-static struct notifier_block *memory_chain;
+static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
 int register_memory_notifier(struct notifier_block *nb)
 {
-        return notifier_chain_register(&memory_chain, nb);
+        return blocking_notifier_chain_register(&memory_chain, nb);
 }
 
 void unregister_memory_notifier(struct notifier_block *nb)
 {
-        notifier_chain_unregister(&memory_chain, nb);
+        blocking_notifier_chain_unregister(&memory_chain, nb);
 }
 
 /*
@@ -140,7 +140,7 @@ static ssize_t show_mem_state(struct sys_device *dev, char *buf)
 
 static inline int memory_notify(unsigned long val, void *v)
 {
-	return notifier_call_chain(&memory_chain, val, v);
+	return blocking_notifier_call_chain(&memory_chain, val, v);
 }
 
 /*
@@ -306,11 +306,13 @@ static ssize_t
 memory_probe_store(struct class *class, const char *buf, size_t count)
 {
 	u64 phys_addr;
+	int nid;
 	int ret;
 
 	phys_addr = simple_strtoull(buf, NULL, 0);
 
-	ret = add_memory(phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
+	nid = memory_add_physaddr_to_nid(phys_addr);
+	ret = add_memory(nid, phys_addr, PAGES_PER_SECTION << PAGE_SHIFT);
 
 	if (ret)
 		count = ret;

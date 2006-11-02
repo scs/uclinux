@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/mpc8555_cds.h
- *
  * MPC8555CDS board definitions
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -17,7 +15,6 @@
 #ifndef __MACH_MPC8555CDS_H__
 #define __MACH_MPC8555CDS_H__
 
-#include <linux/config.h>
 #include <syslib/ppc85xx_setup.h>
 #include <platforms/85xx/mpc85xx_cds_common.h>
 

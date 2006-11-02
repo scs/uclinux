@@ -58,7 +58,7 @@ struct elf_phdr;
 
 #define USE_ELF_CORE_DUMP 1
 
-/* Overwrite elfcore.h */ 
+/* Override elfcore.h */ 
 #define _LINUX_ELFCORE_H 1
 typedef unsigned int elf_greg_t;
 
@@ -73,39 +73,44 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
  * Dumping its extra ELF program headers includes all the other information
  * a debugger needs to easily find how the vsyscall DSO was being used.
  */
-#define ELF_CORE_EXTRA_PHDRS		(VSYSCALL32_EHDR->e_phnum)
+#define ELF_CORE_EXTRA_PHDRS	(find_vma(current->mm, VSYSCALL32_BASE) ?     \
+    (VSYSCALL32_EHDR->e_phnum) : 0)
 #define ELF_CORE_WRITE_EXTRA_PHDRS					      \
 do {									      \
-	const struct elf32_phdr *const vsyscall_phdrs =			      \
-		(const struct elf32_phdr *) (VSYSCALL32_BASE		      \
-					   + VSYSCALL32_EHDR->e_phoff);	      \
-	int i;								      \
-	Elf32_Off ofs = 0;						      \
-	for (i = 0; i < VSYSCALL32_EHDR->e_phnum; ++i) {		      \
-		struct elf32_phdr phdr = vsyscall_phdrs[i];		      \
-		if (phdr.p_type == PT_LOAD) {				      \
-			BUG_ON(ofs != 0);				      \
-			ofs = phdr.p_offset = offset;			      \
-			phdr.p_memsz = PAGE_ALIGN(phdr.p_memsz);	      \
-			phdr.p_filesz = phdr.p_memsz;			      \
-			offset += phdr.p_filesz;			      \
+	if (find_vma(current->mm, VSYSCALL32_BASE)) { 			      \
+		const struct elf32_phdr *const vsyscall_phdrs =		      \
+			(const struct elf32_phdr *) (VSYSCALL32_BASE	      \
+						   + VSYSCALL32_EHDR->e_phoff);\
+		int i;							      \
+		Elf32_Off ofs = 0;					      \
+		for (i = 0; i < VSYSCALL32_EHDR->e_phnum; ++i) {	      \
+			struct elf32_phdr phdr = vsyscall_phdrs[i];	      \
+			if (phdr.p_type == PT_LOAD) {			      \
+				BUG_ON(ofs != 0);			      \
+				ofs = phdr.p_offset = offset;		      \
+				phdr.p_memsz = PAGE_ALIGN(phdr.p_memsz);      \
+				phdr.p_filesz = phdr.p_memsz;		      \
+				offset += phdr.p_filesz;		      \
+			}						      \
+			else						      \
+				phdr.p_offset += ofs;			      \
+			phdr.p_paddr = 0; /* match other core phdrs */	      \
+			DUMP_WRITE(&phdr, sizeof(phdr));		      \
 		}							      \
-		else							      \
-			phdr.p_offset += ofs;				      \
-		phdr.p_paddr = 0; /* match other core phdrs */		      \
-		DUMP_WRITE(&phdr, sizeof(phdr));			      \
 	}								      \
 } while (0)
 #define ELF_CORE_WRITE_EXTRA_DATA					      \
 do {									      \
-	const struct elf32_phdr *const vsyscall_phdrs =			      \
-		(const struct elf32_phdr *) (VSYSCALL32_BASE		      \
-					   + VSYSCALL32_EHDR->e_phoff);	      \
-	int i;								      \
-	for (i = 0; i < VSYSCALL32_EHDR->e_phnum; ++i) {		      \
-		if (vsyscall_phdrs[i].p_type == PT_LOAD)		      \
-			DUMP_WRITE((void *) (u64) vsyscall_phdrs[i].p_vaddr,	      \
-				   PAGE_ALIGN(vsyscall_phdrs[i].p_memsz));    \
+	if (find_vma(current->mm, VSYSCALL32_BASE)) { 			      \
+		const struct elf32_phdr *const vsyscall_phdrs =		      \
+			(const struct elf32_phdr *) (VSYSCALL32_BASE	      \
+						   + VSYSCALL32_EHDR->e_phoff);      \
+		int i;							      \
+		for (i = 0; i < VSYSCALL32_EHDR->e_phnum; ++i) {	      \
+			if (vsyscall_phdrs[i].p_type == PT_LOAD)	      \
+				DUMP_WRITE((void *) (u64) vsyscall_phdrs[i].p_vaddr,\
+				    PAGE_ALIGN(vsyscall_phdrs[i].p_memsz));   \
+		}							      \
 	}								      \
 } while (0)
 
@@ -182,7 +187,7 @@ struct elf_prpsinfo
 #define user user32
 
 #define __ASM_X86_64_ELF_H 1
-#define elf_read_implies_exec(ex, have_pt_gnu_stack)	(!(have_pt_gnu_stack))
+#define elf_read_implies_exec(ex, executable_stack)     (executable_stack != EXSTACK_DISABLE_X)
 //#include <asm/ia32.h>
 #include <linux/elf.h>
 
@@ -339,7 +344,7 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 	struct mm_struct *mm = current->mm;
 	int i, ret;
 
-	stack_base = IA32_STACK_TOP - MAX_ARG_PAGES * PAGE_SIZE;
+	stack_base = stack_top - MAX_ARG_PAGES * PAGE_SIZE;
 	mm->arg_start = bprm->p + stack_base;
 
 	bprm->p += stack_base;
@@ -357,7 +362,7 @@ int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
 	{
 		mpnt->vm_mm = mm;
 		mpnt->vm_start = PAGE_MASK & (unsigned long) bprm->p;
-		mpnt->vm_end = IA32_STACK_TOP;
+		mpnt->vm_end = stack_top;
 		if (executable_stack == EXSTACK_ENABLE_X)
 			mpnt->vm_flags = VM_STACK_FLAGS |  VM_EXEC;
 		else if (executable_stack == EXSTACK_DISABLE_X)

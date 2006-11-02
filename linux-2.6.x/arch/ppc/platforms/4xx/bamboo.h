@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/bamboo.h
- *
  * Bamboo board definitions
  *
  * Wade Farnsworth <wfarnsworth@mvista.com>
@@ -17,7 +15,6 @@
 #ifndef __ASM_BAMBOO_H__
 #define __ASM_BAMBOO_H__
 
-#include <linux/config.h>
 #include <platforms/4xx/ibm440ep.h>
 
 /* F/W TLB mapping used in bootloader glue to reset EMAC */

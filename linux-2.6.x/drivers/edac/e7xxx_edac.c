@@ -11,9 +11,9 @@
  *	http://www.anime.net/~goemon/linux-ecc/
  *
  * Contributors:
- * 	Eric Biederman (Linux Networx)
- * 	Tom Zimmerman (Linux Networx)
- * 	Jim Garlick (Lawrence Livermore National Labs)
+ *	Eric Biederman (Linux Networx)
+ *	Tom Zimmerman (Linux Networx)
+ *	Jim Garlick (Lawrence Livermore National Labs)
  *	Dave Peterson (Lawrence Livermore National Labs)
  *	That One Guy (Some other place)
  *	Wang Zhenyu (intel.com)
@@ -22,8 +22,6 @@
  *
  */
 
-
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -31,6 +29,14 @@
 #include <linux/slab.h>
 #include "edac_mc.h"
 
+#define	E7XXX_REVISION " Ver: 2.0.1 " __DATE__
+#define	EDAC_MOD_STR	"e7xxx_edac"
+
+#define e7xxx_printk(level, fmt, arg...) \
+	edac_printk(level, "e7xxx", fmt, ##arg)
+
+#define e7xxx_mc_printk(mci, level, fmt, arg...) \
+	edac_mc_chipset_printk(mci, level, "e7xxx", fmt, ##arg)
 
 #ifndef PCI_DEVICE_ID_INTEL_7205_0
 #define PCI_DEVICE_ID_INTEL_7205_0	0x255d
@@ -64,10 +70,8 @@
 #define PCI_DEVICE_ID_INTEL_7505_1_ERR	0x2551
 #endif				/* PCI_DEVICE_ID_INTEL_7505_1_ERR */
 
-
 #define E7XXX_NR_CSROWS		8	/* number of csrows */
 #define E7XXX_NR_DIMMS		8	/* FIXME - is this correct? */
-
 
 /* E7XXX register addresses - device 0 function 0 */
 #define E7XXX_DRB		0x60	/* DRAM row boundary register (8b) */
@@ -118,7 +122,6 @@ enum e7xxx_chips {
 	E7205,
 };
 
-
 struct e7xxx_pvt {
 	struct pci_dev *bridge_ck;
 	u32 tolm;
@@ -127,12 +130,10 @@ struct e7xxx_pvt {
 	const struct e7xxx_dev_info *dev_info;
 };
 
-
 struct e7xxx_dev_info {
 	u16 err_dev;
 	const char *ctl_name;
 };
-
 
 struct e7xxx_error_info {
 	u8 dram_ferr;
@@ -144,107 +145,109 @@ struct e7xxx_error_info {
 
 static const struct e7xxx_dev_info e7xxx_devs[] = {
 	[E7500] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7500_1_ERR,
-		   .ctl_name = "E7500"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7500_1_ERR,
+		.ctl_name = "E7500"
+	},
 	[E7501] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7501_1_ERR,
-		   .ctl_name = "E7501"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7501_1_ERR,
+		.ctl_name = "E7501"
+	},
 	[E7505] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7505_1_ERR,
-		   .ctl_name = "E7505"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7505_1_ERR,
+		.ctl_name = "E7505"
+	},
 	[E7205] = {
-		   .err_dev = PCI_DEVICE_ID_INTEL_7205_1_ERR,
-		   .ctl_name = "E7205"},
+		.err_dev = PCI_DEVICE_ID_INTEL_7205_1_ERR,
+		.ctl_name = "E7205"
+	},
 };
-
 
 /* FIXME - is this valid for both SECDED and S4ECD4ED? */
 static inline int e7xxx_find_channel(u16 syndrome)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	if ((syndrome & 0xff00) == 0)
 		return 0;
+
 	if ((syndrome & 0x00ff) == 0)
 		return 1;
+
 	if ((syndrome & 0xf000) == 0 || (syndrome & 0x0f00) == 0)
 		return 0;
+
 	return 1;
 }
 
-
-static unsigned long
-ctl_page_to_phys(struct mem_ctl_info *mci, unsigned long page)
+static unsigned long ctl_page_to_phys(struct mem_ctl_info *mci,
+		unsigned long page)
 {
 	u32 remap;
 	struct e7xxx_pvt *pvt = (struct e7xxx_pvt *) mci->pvt_info;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 
 	if ((page < pvt->tolm) ||
-	    ((page >= 0x100000) && (page < pvt->remapbase)))
+			((page >= 0x100000) && (page < pvt->remapbase)))
 		return page;
+
 	remap = (page - pvt->tolm) + pvt->remapbase;
+
 	if (remap < pvt->remaplimit)
 		return remap;
-	printk(KERN_ERR "Invalid page %lx - out of range\n", page);
+
+	e7xxx_printk(KERN_ERR, "Invalid page %lx - out of range\n", page);
 	return pvt->tolm - 1;
 }
 
-
-static void process_ce(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
+static void process_ce(struct mem_ctl_info *mci,
+		struct e7xxx_error_info *info)
 {
 	u32 error_1b, page;
 	u16 syndrome;
 	int row;
 	int channel;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
-
+	debugf3("%s()\n", __func__);
 	/* read the error address */
 	error_1b = info->dram_celog_add;
 	/* FIXME - should use PAGE_SHIFT */
-	page = error_1b >> 6;	/* convert the address to 4k page */
+	page = error_1b >> 6;  /* convert the address to 4k page */
 	/* read the syndrome */
 	syndrome = info->dram_celog_syndrome;
 	/* FIXME - check for -1 */
 	row = edac_mc_find_csrow_by_page(mci, page);
 	/* convert syndrome to channel */
 	channel = e7xxx_find_channel(syndrome);
-	edac_mc_handle_ce(mci, page, 0, syndrome, row, channel,
-			       "e7xxx CE");
+	edac_mc_handle_ce(mci, page, 0, syndrome, row, channel, "e7xxx CE");
 }
-
 
 static void process_ce_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	edac_mc_handle_ce_no_info(mci, "e7xxx CE log register overflow");
 }
 
-
-static void process_ue(struct mem_ctl_info *mci, struct e7xxx_error_info *info)
+static void process_ue(struct mem_ctl_info *mci,
+		struct e7xxx_error_info *info)
 {
 	u32 error_2b, block_page;
 	int row;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
-
+	debugf3("%s()\n", __func__);
 	/* read the error address */
 	error_2b = info->dram_uelog_add;
 	/* FIXME - should use PAGE_SHIFT */
-	block_page = error_2b >> 6;	/* convert to 4k address */
+	block_page = error_2b >> 6;  /* convert to 4k address */
 	row = edac_mc_find_csrow_by_page(mci, block_page);
 	edac_mc_handle_ue(mci, block_page, 0, row, "e7xxx UE");
 }
 
-
 static void process_ue_no_info(struct mem_ctl_info *mci)
 {
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	edac_mc_handle_ue_no_info(mci, "e7xxx UE log register overflow");
 }
-
 
 static void e7xxx_get_error_info (struct mem_ctl_info *mci,
 		struct e7xxx_error_info *info)
@@ -253,30 +256,28 @@ static void e7xxx_get_error_info (struct mem_ctl_info *mci,
 
 	pvt = (struct e7xxx_pvt *) mci->pvt_info;
 	pci_read_config_byte(pvt->bridge_ck, E7XXX_DRAM_FERR,
-	    &info->dram_ferr);
+			&info->dram_ferr);
 	pci_read_config_byte(pvt->bridge_ck, E7XXX_DRAM_NERR,
-	    &info->dram_nerr);
+			&info->dram_nerr);
 
 	if ((info->dram_ferr & 1) || (info->dram_nerr & 1)) {
 		pci_read_config_dword(pvt->bridge_ck, E7XXX_DRAM_CELOG_ADD,
-		    &info->dram_celog_add);
+				&info->dram_celog_add);
 		pci_read_config_word(pvt->bridge_ck,
-		    E7XXX_DRAM_CELOG_SYNDROME, &info->dram_celog_syndrome);
+				E7XXX_DRAM_CELOG_SYNDROME,
+				&info->dram_celog_syndrome);
 	}
 
 	if ((info->dram_ferr & 2) || (info->dram_nerr & 2))
 		pci_read_config_dword(pvt->bridge_ck, E7XXX_DRAM_UELOG_ADD,
-		    &info->dram_uelog_add);
+				&info->dram_uelog_add);
 
 	if (info->dram_ferr & 3)
-		pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_FERR, 0x03,
-		    0x03);
+		pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_FERR, 0x03, 0x03);
 
 	if (info->dram_nerr & 3)
-		pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_NERR, 0x03,
-		    0x03);
+		pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_NERR, 0x03, 0x03);
 }
-
 
 static int e7xxx_process_error_info (struct mem_ctl_info *mci,
 		struct e7xxx_error_info *info, int handle_errors)
@@ -325,101 +326,61 @@ static int e7xxx_process_error_info (struct mem_ctl_info *mci,
 	return error_found;
 }
 
-
 static void e7xxx_check(struct mem_ctl_info *mci)
 {
 	struct e7xxx_error_info info;
 
-	debugf3("MC: " __FILE__ ": %s()\n", __func__);
+	debugf3("%s()\n", __func__);
 	e7xxx_get_error_info(mci, &info);
 	e7xxx_process_error_info(mci, &info, 1);
 }
 
-
-static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
+/* Return 1 if dual channel mode is active.  Else return 0. */
+static inline int dual_channel_active(u32 drc, int dev_idx)
 {
-	int rc = -ENODEV;
-	int index;
-	u16 pci_data;
-	struct mem_ctl_info *mci = NULL;
-	struct e7xxx_pvt *pvt = NULL;
-	u32 drc;
-	int drc_chan = 1;	/* Number of channels 0=1chan,1=2chan */
-	int drc_drbg = 1;	/* DRB granularity 0=32mb,1=64mb */
-	int drc_ddim;		/* DRAM Data Integrity Mode 0=none,2=edac */
-	u32 dra;
-	unsigned long last_cumul_size;
+	return (dev_idx == E7501) ? ((drc >> 22) & 0x1) : 1;
+}
 
 
-	debugf0("MC: " __FILE__ ": %s(): mci\n", __func__);
-
-	/* need to find out the number of channels */
-	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
+/* Return DRB granularity (0=32mb, 1=64mb). */
+static inline int drb_granularity(u32 drc, int dev_idx)
+{
 	/* only e7501 can be single channel */
-	if (dev_idx == E7501) {
-		drc_chan = ((drc >> 22) & 0x1);
-		drc_drbg = (drc >> 18) & 0x3;
-	}
-	drc_ddim = (drc >> 20) & 0x3;
+	return (dev_idx == E7501) ? ((drc >> 18) & 0x3) : 1;
+}
 
-	mci = edac_mc_alloc(sizeof(*pvt), E7XXX_NR_CSROWS, drc_chan + 1);
 
-	if (mci == NULL) {
-		rc = -ENOMEM;
-		goto fail;
-	}
+static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
+		int dev_idx, u32 drc)
+{
+	unsigned long last_cumul_size;
+	int index;
+	u8 value;
+	u32 dra, cumul_size;
+	int drc_chan, drc_drbg, drc_ddim, mem_dev;
+	struct csrow_info *csrow;
 
-	debugf3("MC: " __FILE__ ": %s(): init mci\n", __func__);
-
-	mci->mtype_cap = MEM_FLAG_RDDR;
-	mci->edac_ctl_cap =
-	    EDAC_FLAG_NONE | EDAC_FLAG_SECDED | EDAC_FLAG_S4ECD4ED;
-	/* FIXME - what if different memory types are in different csrows? */
-	mci->mod_name = BS_MOD_STR;
-	mci->mod_ver = "$Revision$";
-	mci->pdev = pdev;
-
-	debugf3("MC: " __FILE__ ": %s(): init pvt\n", __func__);
-	pvt = (struct e7xxx_pvt *) mci->pvt_info;
-	pvt->dev_info = &e7xxx_devs[dev_idx];
-	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
-					 pvt->dev_info->err_dev,
-					 pvt->bridge_ck);
-	if (!pvt->bridge_ck) {
-		printk(KERN_ERR
-		       "MC: error reporting device not found:"
-		       "vendor %x device 0x%x (broken BIOS?)\n",
-		       PCI_VENDOR_ID_INTEL, e7xxx_devs[dev_idx].err_dev);
-		goto fail;
-	}
-
-	debugf3("MC: " __FILE__ ": %s(): more mci init\n", __func__);
-	mci->ctl_name = pvt->dev_info->ctl_name;
-
-	mci->edac_check = e7xxx_check;
-	mci->ctl_page_to_phys = ctl_page_to_phys;
-
-	/* find out the device types */
 	pci_read_config_dword(pdev, E7XXX_DRA, &dra);
+	drc_chan = dual_channel_active(drc, dev_idx);
+	drc_drbg = drb_granularity(drc, dev_idx);
+	drc_ddim = (drc >> 20) & 0x3;
+	last_cumul_size = 0;
 
-	/*
-	 * The dram row boundary (DRB) reg values are boundary address
+	/* The dram row boundary (DRB) reg values are boundary address
 	 * for each DRAM row with a granularity of 32 or 64MB (single/dual
 	 * channel operation).  DRB regs are cumulative; therefore DRB7 will
 	 * contain the total memory contained in all eight rows.
 	 */
-	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
-		u8 value;
-		u32 cumul_size;
+	for (index = 0; index < mci->nr_csrows; index++) {
 		/* mem_dev 0=x8, 1=x4 */
-		int mem_dev = (dra >> (index * 4 + 3)) & 0x1;
-		struct csrow_info *csrow = &mci->csrows[index];
+		mem_dev = (dra >> (index * 4 + 3)) & 0x1;
+		csrow = &mci->csrows[index];
 
-		pci_read_config_byte(mci->pdev, E7XXX_DRB + index, &value);
+		pci_read_config_byte(pdev, E7XXX_DRB + index, &value);
 		/* convert a 64 or 32 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
-		debugf3("MC: " __FILE__ ": %s(): (%d) cumul_size 0x%x\n",
-			__func__, index, cumul_size);
+		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+			cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -446,102 +407,151 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 		} else
 			csrow->edac_mode = EDAC_NONE;
 	}
+}
 
+static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
+{
+	u16 pci_data;
+	struct mem_ctl_info *mci = NULL;
+	struct e7xxx_pvt *pvt = NULL;
+	u32 drc;
+	int drc_chan;
+	struct e7xxx_error_info discard;
+
+	debugf0("%s(): mci\n", __func__);
+	pci_read_config_dword(pdev, E7XXX_DRC, &drc);
+
+	drc_chan = dual_channel_active(drc, dev_idx);
+	mci = edac_mc_alloc(sizeof(*pvt), E7XXX_NR_CSROWS, drc_chan + 1);
+
+	if (mci == NULL)
+		return -ENOMEM;
+
+	debugf3("%s(): init mci\n", __func__);
+	mci->mtype_cap = MEM_FLAG_RDDR;
+	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED |
+			EDAC_FLAG_S4ECD4ED;
+	/* FIXME - what if different memory types are in different csrows? */
+	mci->mod_name = EDAC_MOD_STR;
+	mci->mod_ver = E7XXX_REVISION;
+	mci->dev = &pdev->dev;
+	debugf3("%s(): init pvt\n", __func__);
+	pvt = (struct e7xxx_pvt *) mci->pvt_info;
+	pvt->dev_info = &e7xxx_devs[dev_idx];
+	pvt->bridge_ck = pci_get_device(PCI_VENDOR_ID_INTEL,
+					pvt->dev_info->err_dev,
+					pvt->bridge_ck);
+
+	if (!pvt->bridge_ck) {
+		e7xxx_printk(KERN_ERR, "error reporting device not found:"
+			"vendor %x device 0x%x (broken BIOS?)\n",
+			PCI_VENDOR_ID_INTEL, e7xxx_devs[dev_idx].err_dev);
+		goto fail0;
+	}
+
+	debugf3("%s(): more mci init\n", __func__);
+	mci->ctl_name = pvt->dev_info->ctl_name;
+	mci->edac_check = e7xxx_check;
+	mci->ctl_page_to_phys = ctl_page_to_phys;
+	e7xxx_init_csrows(mci, pdev, dev_idx, drc);
 	mci->edac_cap |= EDAC_FLAG_NONE;
-
-	debugf3("MC: " __FILE__ ": %s(): tolm, remapbase, remaplimit\n",
-		__func__);
+	debugf3("%s(): tolm, remapbase, remaplimit\n", __func__);
 	/* load the top of low memory, remap base, and remap limit vars */
-	pci_read_config_word(mci->pdev, E7XXX_TOLM, &pci_data);
+	pci_read_config_word(pdev, E7XXX_TOLM, &pci_data);
 	pvt->tolm = ((u32) pci_data) << 4;
-	pci_read_config_word(mci->pdev, E7XXX_REMAPBASE, &pci_data);
+	pci_read_config_word(pdev, E7XXX_REMAPBASE, &pci_data);
 	pvt->remapbase = ((u32) pci_data) << 14;
-	pci_read_config_word(mci->pdev, E7XXX_REMAPLIMIT, &pci_data);
+	pci_read_config_word(pdev, E7XXX_REMAPLIMIT, &pci_data);
 	pvt->remaplimit = ((u32) pci_data) << 14;
-	printk("tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
-	       pvt->remapbase, pvt->remaplimit);
+	e7xxx_printk(KERN_INFO,
+		"tolm = %x, remapbase = %x, remaplimit = %x\n", pvt->tolm,
+		pvt->remapbase, pvt->remaplimit);
 
 	/* clear any pending errors, or initial state bits */
-	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_FERR, 0x03, 0x03);
-	pci_write_bits8(pvt->bridge_ck, E7XXX_DRAM_NERR, 0x03, 0x03);
+	e7xxx_get_error_info(mci, &discard);
 
-	if (edac_mc_add_mc(mci) != 0) {
-		debugf3("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n",
-			__func__);
-		goto fail;
+	/* Here we assume that we will never see multiple instances of this
+	 * type of memory controller.  The ID is therefore hardcoded to 0.
+	 */
+	if (edac_mc_add_mc(mci,0)) {
+		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		goto fail1;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: " __FILE__ ": %s(): success\n", __func__);
+	debugf3("%s(): success\n", __func__);
 	return 0;
 
-fail:
-	if (mci != NULL) {
-		if(pvt != NULL && pvt->bridge_ck)
-			pci_dev_put(pvt->bridge_ck);
-		edac_mc_free(mci);
-	}
+fail1:
+	pci_dev_put(pvt->bridge_ck);
 
-	return rc;
+fail0:
+	edac_mc_free(mci);
+
+	return -ENODEV;
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit
-e7xxx_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit e7xxx_init_one(struct pci_dev *pdev,
+		const struct pci_device_id *ent)
 {
-	debugf0("MC: " __FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
 	/* wake up and enable device */
 	return pci_enable_device(pdev) ?
-	    -EIO : e7xxx_probe1(pdev, ent->driver_data);
+		-EIO : e7xxx_probe1(pdev, ent->driver_data);
 }
-
 
 static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct e7xxx_pvt *pvt;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("%s()\n", __func__);
 
-	if (((mci = edac_mc_find_mci_by_pdev(pdev)) != 0) &&
-	    edac_mc_del_mc(mci)) {
-		pvt = (struct e7xxx_pvt *) mci->pvt_info;
-		pci_dev_put(pvt->bridge_ck);
-		edac_mc_free(mci);
-	}
+	if ((mci = edac_mc_del_mc(&pdev->dev)) == NULL)
+		return;
+
+	pvt = (struct e7xxx_pvt *) mci->pvt_info;
+	pci_dev_put(pvt->bridge_ck);
+	edac_mc_free(mci);
 }
 
-
 static const struct pci_device_id e7xxx_pci_tbl[] __devinitdata = {
-	{PCI_VEND_DEV(INTEL, 7205_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7205},
-	{PCI_VEND_DEV(INTEL, 7500_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7500},
-	{PCI_VEND_DEV(INTEL, 7501_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7501},
-	{PCI_VEND_DEV(INTEL, 7505_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-	 E7505},
-	{0,}			/* 0 terminated list. */
+	{
+		PCI_VEND_DEV(INTEL, 7205_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7205
+	},
+	{
+		PCI_VEND_DEV(INTEL, 7500_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7500
+	},
+	{
+		PCI_VEND_DEV(INTEL, 7501_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7501
+	},
+	{
+		PCI_VEND_DEV(INTEL, 7505_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		E7505
+	},
+	{
+		0,
+	}	/* 0 terminated list. */
 };
 
 MODULE_DEVICE_TABLE(pci, e7xxx_pci_tbl);
 
-
 static struct pci_driver e7xxx_driver = {
-	.name = BS_MOD_STR,
+	.name = EDAC_MOD_STR,
 	.probe = e7xxx_init_one,
 	.remove = __devexit_p(e7xxx_remove_one),
 	.id_table = e7xxx_pci_tbl,
 };
 
-
 static int __init e7xxx_init(void)
 {
 	return pci_register_driver(&e7xxx_driver);
 }
-
 
 static void __exit e7xxx_exit(void)
 {
@@ -551,8 +561,7 @@ static void __exit e7xxx_exit(void)
 module_init(e7xxx_init);
 module_exit(e7xxx_exit);
 
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Linux Networx (http://lnxi.com) Thayne Harbaugh et al\n"
-	      "Based on.work by Dan Hollis et al");
+	"Based on.work by Dan Hollis et al");
 MODULE_DESCRIPTION("MC support for Intel e7xxx memory controllers");

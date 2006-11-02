@@ -187,7 +187,6 @@ History:
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/cdrom.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -218,12 +217,12 @@ static int cm206_base = CM206_BASE;
 static int cm206_irq = CM206_IRQ;
 #ifdef MODULE
 static int cm206[2] = { 0, 0 };	/* for compatible `insmod' parameter passing */
+module_param_array(cm206, int, NULL, 0);	/* base,irq or irq,base */
 #endif
 
-MODULE_PARM(cm206_base, "i");	/* base */
-MODULE_PARM(cm206_irq, "i");	/* irq */
-MODULE_PARM(cm206, "1-2i");	/* base,irq or irq,base */
-MODULE_PARM(auto_probe, "i");	/* auto probe base and irq */
+module_param(cm206_base, int, 0);	/* base */
+module_param(cm206_irq, int, 0);	/* irq */
+module_param(auto_probe, bool, 0);	/* auto probe base and irq */
 MODULE_LICENSE("GPL");
 
 #define POLLOOP 100		/* milliseconds */
@@ -915,7 +914,7 @@ static void seek(int lba)
 	cd->dsb = wait_dsb();
 }
 
-uch bcdbin(unsigned char bcd)
+static uch bcdbin(unsigned char bcd)
 {				/* stolen from mcd.c! */
 	return (bcd >> 4) * 10 + (bcd & 0xf);
 }
@@ -1157,32 +1156,6 @@ static int cm206_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
 	}
 }
 
-/* Ioctl. These ioctls are specific to the cm206 driver. I have made
-   some driver statistics accessible through ioctl calls.
- */
-
-static int cm206_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
-		       unsigned long arg)
-{
-	switch (cmd) {
-#ifdef STATISTICS
-	case CM206CTL_GET_STAT:
-		if (arg >= NR_STATS)
-			return -EINVAL;
-		else
-			return cd->stats[arg];
-	case CM206CTL_GET_LAST_STAT:
-		if (arg >= NR_STATS)
-			return -EINVAL;
-		else
-			return cd->last_stat[arg];
-#endif
-	default:
-		debug(("Unknown ioctl call 0x%x\n", cmd));
-		return -EINVAL;
-	}
-}
-
 static int cm206_media_changed(struct cdrom_device_info *cdi, int disc_nr)
 {
 	if (cd != NULL) {
@@ -1321,11 +1294,10 @@ static struct cdrom_device_ops cm206_dops = {
 	.get_mcn		= cm206_get_upc,
 	.reset			= cm206_reset,
 	.audio_ioctl		= cm206_audio_ioctl,
-	.dev_ioctl		= cm206_ioctl,
 	.capability		= CDC_CLOSE_TRAY | CDC_OPEN_TRAY | CDC_LOCK |
 				  CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_MCN | CDC_PLAY_AUDIO | CDC_SELECT_SPEED |
-				  CDC_IOCTLS | CDC_DRIVE_STATUS,
+				  CDC_DRIVE_STATUS,
 	.n_minors		= 1,
 };
 
@@ -1350,6 +1322,21 @@ static int cm206_block_release(struct inode *inode, struct file *file)
 static int cm206_block_ioctl(struct inode *inode, struct file *file,
 				unsigned cmd, unsigned long arg)
 {
+	switch (cmd) {
+#ifdef STATISTICS
+	case CM206CTL_GET_STAT:
+		if (arg >= NR_STATS)
+			return -EINVAL;
+		return cd->stats[arg];
+	case CM206CTL_GET_LAST_STAT:
+		if (arg >= NR_STATS)
+			return -EINVAL;
+		return cd->last_stat[arg];
+#endif
+	default:
+		break;
+	}
+
 	return cdrom_ioctl(file, &cm206_info, inode, cmd, arg);
 }
 
@@ -1545,7 +1532,7 @@ static void __init parse_options(void)
 	}
 }
 
-static int __cm206_init(void)
+static int __init __cm206_init(void)
 {
 	parse_options();
 #if !defined(AUTO_PROBE_MODULE)
@@ -1606,8 +1593,3 @@ __setup("cm206=", cm206_setup);
 #endif				/* !MODULE */
 MODULE_ALIAS_BLOCKDEV_MAJOR(CM206_CDROM_MAJOR);
 
-/*
- * Local variables:
- * compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/include -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -pipe -fno-strength-reduce -m486 -DMODULE -DMODVERSIONS -include /usr/src/linux/include/linux/modversions.h  -c -o cm206.o cm206.c"
- * End:
- */

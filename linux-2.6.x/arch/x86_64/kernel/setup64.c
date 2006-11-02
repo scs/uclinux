@@ -3,9 +3,7 @@
  * Copyright (C) 1995  Linus Torvalds
  * Copyright 2001, 2002, 2003 SuSE Labs / Andi Kleen.
  * See setup.c for older changelog.
- * $Id$
  */ 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -31,13 +29,15 @@ char x86_boot_params[BOOT_PARAM_SIZE] __initdata = {0,};
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 struct x8664_pda *_cpu_pda[NR_CPUS] __read_mostly;
+EXPORT_SYMBOL(_cpu_pda);
 struct x8664_pda boot_cpu_pda[NR_CPUS] __cacheline_aligned;
 
-struct desc_ptr idt_descr = { 256 * 16, (unsigned long) idt_table }; 
+struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
 unsigned long __supported_pte_mask __read_mostly = ~0UL;
+EXPORT_SYMBOL(__supported_pte_mask);
 static int do_not_nx __cpuinitdata = 0;
 
 /* noexec=on|off
@@ -55,11 +55,11 @@ int __init nonx_setup(char *str)
 		do_not_nx = 1;
 		__supported_pte_mask &= ~_PAGE_NX;
         }
-	return 0;
+	return 1;
 } 
 __setup("noexec=", nonx_setup);	/* parsed early actually */
 
-int force_personality32 = READ_IMPLIES_EXEC;
+int force_personality32 = 0; 
 
 /* noexec32=on|off
 Control non executable heap for 32bit processes.
@@ -74,7 +74,7 @@ static int __init nonx32_setup(char *str)
 		force_personality32 &= ~READ_IMPLIES_EXEC;
 	else if (!strcmp(str, "off"))
 		force_personality32 |= READ_IMPLIES_EXEC;
-	return 0;
+	return 1;
 }
 __setup("noexec32=", nonx32_setup);
 
@@ -189,6 +189,7 @@ void __cpuinit cpu_init (void)
 {
 	int cpu = stack_smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct orig_ist *orig_ist = &per_cpu(orig_ist, cpu);
 	unsigned long v; 
 	char *estacks = NULL; 
 	struct task_struct *me;
@@ -248,7 +249,7 @@ void __cpuinit cpu_init (void)
 		switch (v + 1) {
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
 		case DEBUG_STACK:
-			cpu_pda[cpu].debugstack = (unsigned long)estacks;
+			cpu_pda(cpu)->debugstack = (unsigned long)estacks;
 			estacks += DEBUG_STKSZ;
 			break;
 #endif
@@ -256,7 +257,7 @@ void __cpuinit cpu_init (void)
 			estacks += EXCEPTION_STKSZ;
 			break;
 		}
-		t->ist[v] = (unsigned long)estacks;
+		orig_ist->ist[v] = t->ist[v] = (unsigned long)estacks;
 	}
 
 	t->io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
@@ -281,12 +282,12 @@ void __cpuinit cpu_init (void)
 	 * Clear all 6 debug registers:
 	 */
 
-	set_debug(0UL, 0);
-	set_debug(0UL, 1);
-	set_debug(0UL, 2);
-	set_debug(0UL, 3);
-	set_debug(0UL, 6);
-	set_debug(0UL, 7);
+	set_debugreg(0UL, 0);
+	set_debugreg(0UL, 1);
+	set_debugreg(0UL, 2);
+	set_debugreg(0UL, 3);
+	set_debugreg(0UL, 6);
+	set_debugreg(0UL, 7);
 
 	fpu_init(); 
 }

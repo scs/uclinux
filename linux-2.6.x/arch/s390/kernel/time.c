@@ -12,7 +12,6 @@
  *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -249,18 +248,19 @@ static inline void stop_hz_timer(void)
 	unsigned long flags;
 	unsigned long seq, next;
 	__u64 timer, todval;
+	int cpu = smp_processor_id();
 
 	if (sysctl_hz_timer != 0)
 		return;
 
-	cpu_set(smp_processor_id(), nohz_cpu_mask);
+	cpu_set(cpu, nohz_cpu_mask);
 
 	/*
 	 * Leave the clock comparator set up for the next timer
 	 * tick if either rcu or a softirq is pending.
 	 */
-	if (rcu_pending(smp_processor_id()) || local_softirq_pending()) {
-		cpu_clear(smp_processor_id(), nohz_cpu_mask);
+	if (rcu_needs_cpu(cpu) || local_softirq_pending()) {
+		cpu_clear(cpu, nohz_cpu_mask);
 		return;
 	}
 
@@ -271,7 +271,7 @@ static inline void stop_hz_timer(void)
 	next = next_timer_interrupt();
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		timer = (__u64)(next - jiffies) + jiffies_64;
+		timer = ((__u64) next) - ((__u64) jiffies) + jiffies_64;
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
 	todval = -1ULL;
 	/* Be careful about overflows. */
@@ -379,7 +379,7 @@ void __init time_init(void)
                                 -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* request the clock comparator external interrupt */
-        if (register_early_external_interrupt(0x1004, 0,
+	if (register_early_external_interrupt(0x1004, NULL,
 					      &ext_int_info_cc) != 0)
                 panic("Couldn't request external interrupt 0x1004");
 

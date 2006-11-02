@@ -10,6 +10,7 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <linux/smp.h>
+#include <asm/firmware.h>
 #include <asm/ptrace.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -23,35 +24,17 @@
 static unsigned long reset_value[OP_MAX_COUNTER];
 
 static int oprofile_running;
-static int mmcra_has_sihv;
 
 /* mmcr values are set in power4_reg_setup, used in power4_cpu_setup */
 static u32 mmcr0_val;
 static u64 mmcr1_val;
-static u32 mmcra_val;
-
-/*
- * Since we do not have an NMI, backtracing through spinlocks is
- * only a best guess. In light of this, allow it to be disabled at
- * runtime.
- */
-static int backtrace_spinlocks;
+static u64 mmcra_val;
 
 static void power4_reg_setup(struct op_counter_config *ctr,
 			     struct op_system_config *sys,
 			     int num_ctrs)
 {
 	int i;
-
-	/*
-	 * SIHV / SIPR bits are only implemented on POWER4+ (GQ) and above.
-	 * However we disable it on all POWER4 until we verify it works
-	 * (I was seeing some strange behaviour last time I tried).
-	 *
-	 * It has been verified to work on POWER5 so we enable it there.
-	 */
-	if (cpu_has_feature(CPU_FTR_MMCRA_SIHV))
-		mmcra_has_sihv = 1;
 
 	/*
 	 * The performance counter event settings are given in the mmcr0,
@@ -61,8 +44,6 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 	mmcr0_val = sys->mmcr0;
 	mmcr1_val = sys->mmcr1;
 	mmcra_val = sys->mmcra;
-
-	backtrace_spinlocks = sys->backtrace_spinlocks;
 
 	for (i = 0; i < cur_cpu_spec->num_pmcs; ++i)
 		reset_value[i] = 0x80000000UL - ctr[i].count;
@@ -196,25 +177,6 @@ static void __attribute_used__ kernel_unknown_bucket(void)
 {
 }
 
-static unsigned long check_spinlock_pc(struct pt_regs *regs,
-				       unsigned long profile_pc)
-{
-	unsigned long pc = instruction_pointer(regs);
-
-	/*
-	 * If both the SIAR (sampled instruction) and the perfmon exception
-	 * occurred in a spinlock region then we account the sample to the
-	 * calling function. This isnt 100% correct, we really need soft
-	 * IRQ disable so we always get the perfmon exception at the
-	 * point at which the SIAR is set.
-	 */
-	if (backtrace_spinlocks && in_lock_functions(pc) &&
-			in_lock_functions(profile_pc))
-		return regs->link;
-	else
-		return profile_pc;
-}
-
 /*
  * On GQ and newer the MMCRA stores the HV and PR bits at the time
  * the SIAR was sampled. We use that to work out if the SIAR was sampled in
@@ -226,18 +188,19 @@ static unsigned long get_pc(struct pt_regs *regs)
 	unsigned long mmcra;
 
 	/* Cant do much about it */
-	if (!mmcra_has_sihv)
-		return check_spinlock_pc(regs, pc);
+	if (!cur_cpu_spec->oprofile_mmcra_sihv)
+		return pc;
 
 	mmcra = mfspr(SPRN_MMCRA);
 
 	/* Were we in the hypervisor? */
-	if (platform_is_lpar() && (mmcra & MMCRA_SIHV))
+	if (firmware_has_feature(FW_FEATURE_LPAR) &&
+	    (mmcra & cur_cpu_spec->oprofile_mmcra_sihv))
 		/* function descriptor madness */
 		return *((unsigned long *)hypervisor_bucket);
 
 	/* We were in userspace, nothing to do */
-	if (mmcra & MMCRA_SIPR)
+	if (mmcra & cur_cpu_spec->oprofile_mmcra_sipr)
 		return pc;
 
 #ifdef CONFIG_PPC_RTAS
@@ -256,18 +219,17 @@ static unsigned long get_pc(struct pt_regs *regs)
 		/* function descriptor madness */
 		return *((unsigned long *)kernel_unknown_bucket);
 
-	return check_spinlock_pc(regs, pc);
+	return pc;
 }
 
-static int get_kernel(unsigned long pc)
+static int get_kernel(unsigned long pc, unsigned long mmcra)
 {
 	int is_kernel;
 
-	if (!mmcra_has_sihv) {
+	if (!cur_cpu_spec->oprofile_mmcra_sihv) {
 		is_kernel = is_kernel_addr(pc);
 	} else {
-		unsigned long mmcra = mfspr(SPRN_MMCRA);
-		is_kernel = ((mmcra & MMCRA_SIPR) == 0);
+		is_kernel = ((mmcra & cur_cpu_spec->oprofile_mmcra_sipr) == 0);
 	}
 
 	return is_kernel;
@@ -281,9 +243,12 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	int val;
 	int i;
 	unsigned int mmcr0;
+	unsigned long mmcra;
+
+	mmcra = mfspr(SPRN_MMCRA);
 
 	pc = get_pc(regs);
-	is_kernel = get_kernel(pc);
+	is_kernel = get_kernel(pc, mmcra);
 
 	/* set the PMM bit (see comment below) */
 	mtmsrd(mfmsr() | MSR_PMM);
@@ -292,7 +257,7 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 		val = ctr_read(i);
 		if (val < 0) {
 			if (oprofile_running && ctr[i].enabled) {
-				oprofile_add_pc(pc, is_kernel, i);
+				oprofile_add_ext_sample(pc, regs, i, is_kernel);
 				ctr_write(i, reset_value[i]);
 			} else {
 				ctr_write(i, 0);
@@ -310,6 +275,10 @@ static void power4_handle_interrupt(struct pt_regs *regs,
 	 * all the time
 	 */
 	mmcr0 &= ~MMCR0_PMAO;
+
+	/* Clear the appropriate bits in the MMCRA */
+	mmcra &= ~cur_cpu_spec->oprofile_mmcra_clear;
+	mtspr(SPRN_MMCRA, mmcra);
 
 	/*
 	 * now clear the freeze bit, counting will not start until we

@@ -64,6 +64,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
+#include <linux/interrupt.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -1850,6 +1851,7 @@ static int __init amiga_floppy_setup (char *str)
 		return 0;
 	printk (KERN_INFO "amiflop: Setting default df0 to %x\n", n);
 	fd_def_df0 = n;
+	return 1;
 }
 
 __setup("floppy=", amiga_floppy_setup);

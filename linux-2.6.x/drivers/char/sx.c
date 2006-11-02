@@ -33,8 +33,8 @@
  *
  * Revision history:
  * $Log$
- * Revision 1.5  2006/03/22 06:44:45  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/02 08:29:24  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.33  2000/03/09 10:00:00  pvdl,wolff
  * - Fixed module and port counting
@@ -413,7 +413,7 @@ static struct real_driver sx_real_driver = {
  *
  */
 
-static struct file_operations sx_fw_fops = {
+static const struct file_operations sx_fw_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= sx_fw_ioctl,
 };
@@ -1996,7 +1996,7 @@ static int sx_init_board (struct sx_board *board)
 		if(board->irq > 0) {
 			/* fixed irq, probably PCI */
 			if(sx_irqmask & (1 << board->irq)) { /* may we use this irq? */
-				if(request_irq(board->irq, sx_interrupt, SA_SHIRQ | SA_INTERRUPT, "sx", board)) {
+				if(request_irq(board->irq, sx_interrupt, IRQF_SHARED | IRQF_DISABLED, "sx", board)) {
 					printk(KERN_ERR "sx: Cannot allocate irq %d.\n", board->irq);
 					board->irq = 0;
 				}
@@ -2008,7 +2008,7 @@ static int sx_init_board (struct sx_board *board)
 			int irqmask = sx_irqmask & (IS_SX_BOARD(board) ? SX_ISA_IRQ_MASK : SI2_ISA_IRQ_MASK);
 			for(irqnr = 15; irqnr > 0; irqnr--)
 				if(irqmask & (1 << irqnr))
-					if(! request_irq(irqnr, sx_interrupt, SA_SHIRQ | SA_INTERRUPT, "sx", board))
+					if(! request_irq(irqnr, sx_interrupt, IRQF_SHARED | IRQF_DISABLED, "sx", board))
 						break;
 			if(! irqnr)
 				printk(KERN_ERR "sx: Cannot allocate IRQ.\n");
@@ -2321,9 +2321,9 @@ static int sx_init_portstructs (int nboards, int nports)
 			port->board = board;
 			port->gs.rd = &sx_real_driver;
 #ifdef NEW_WRITE_LOCKING
-			port->gs.port_write_sem = MUTEX;
+			port->gs.port_write_mutex = MUTEX;
 #endif
-			port->gs.driver_lock = SPIN_LOCK_UNLOCKED;
+			spin_lock_init(&port->gs.driver_lock);
 			/*
 			 * Initializing wait queue
 			 */

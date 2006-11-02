@@ -156,7 +156,6 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mtio.h>
@@ -643,7 +642,8 @@ static ssize_t pg_read(struct file *filp, char __user *buf, size_t count, loff_t
 
 static int __init pg_init(void)
 {
-	int unit, err = 0;
+	int unit;
+	int err;
 
 	if (disable){
 		err = -1;
@@ -657,40 +657,31 @@ static int __init pg_init(void)
 		goto out;
 	}
 
-	if (register_chrdev(major, name, &pg_fops)) {
+	err = register_chrdev(major, name, &pg_fops);
+	if (err < 0) {
 		printk("pg_init: unable to get major number %d\n", major);
 		for (unit = 0; unit < PG_UNITS; unit++) {
 			struct pg *dev = &devices[unit];
 			if (dev->present)
 				pi_release(dev->pi);
 		}
-		err = -1;
 		goto out;
 	}
+	major = err;	/* In case the user specified `major=0' (dynamic) */
 	pg_class = class_create(THIS_MODULE, "pg");
 	if (IS_ERR(pg_class)) {
 		err = PTR_ERR(pg_class);
 		goto out_chrdev;
 	}
-	devfs_mk_dir("pg");
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
-		if (dev->present) {
+		if (dev->present)
 			class_device_create(pg_class, NULL, MKDEV(major, unit),
 					NULL, "pg%u", unit);
-			err = devfs_mk_cdev(MKDEV(major, unit),
-				      S_IFCHR | S_IRUSR | S_IWUSR, "pg/%u",
-				      unit);
-			if (err) 
-				goto out_class;
-		}
 	}
 	err = 0;
 	goto out;
 
-out_class:
-	class_device_destroy(pg_class, MKDEV(major, unit));
-	class_destroy(pg_class);
 out_chrdev:
 	unregister_chrdev(major, "pg");
 out:
@@ -703,13 +694,10 @@ static void __exit pg_exit(void)
 
 	for (unit = 0; unit < PG_UNITS; unit++) {
 		struct pg *dev = &devices[unit];
-		if (dev->present) {
+		if (dev->present)
 			class_device_destroy(pg_class, MKDEV(major, unit));
-			devfs_remove("pg/%u", unit);
-		}
 	}
 	class_destroy(pg_class);
-	devfs_remove("pg");
 	unregister_chrdev(major, name);
 
 	for (unit = 0; unit < PG_UNITS; unit++) {

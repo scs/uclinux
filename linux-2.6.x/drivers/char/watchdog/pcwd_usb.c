@@ -24,7 +24,6 @@
  *	http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -42,6 +41,7 @@
 #include <linux/completion.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+#include <linux/mutex.h>
 
 
 #ifdef CONFIG_USB_DEBUG
@@ -143,7 +143,7 @@ struct usb_pcwd_private {
 static struct usb_pcwd_private *usb_pcwd_device;
 
 /* prevent races between open() and disconnect() */
-static DECLARE_MUTEX (disconnect_sem);
+static DEFINE_MUTEX(disconnect_mutex);
 
 /* local function prototypes */
 static int usb_pcwd_probe	(struct usb_interface *interface, const struct usb_device_id *id);
@@ -316,6 +316,19 @@ static int usb_pcwd_get_temperature(struct usb_pcwd_private *usb_pcwd, int *temp
 	return 0;
 }
 
+static int usb_pcwd_get_timeleft(struct usb_pcwd_private *usb_pcwd, int *time_left)
+{
+	unsigned char msb, lsb;
+
+	/* Read the time that's left before rebooting */
+	/* Note: if the board is not yet armed then we will read 0xFFFF */
+	usb_pcwd_send_command(usb_pcwd, CMD_READ_WATCHDOG_TIMEOUT, &msb, &lsb);
+
+	*time_left = (msb << 8) + lsb;
+
+	return 0;
+}
+
 /*
  *	/dev/watchdog handling
  */
@@ -421,6 +434,16 @@ static int usb_pcwd_ioctl(struct inode *inode, struct file *file,
 		case WDIOC_GETTIMEOUT:
 			return put_user(heartbeat, p);
 
+		case WDIOC_GETTIMELEFT:
+		{
+			int time_left;
+
+			if (usb_pcwd_get_timeleft(usb_pcwd_device, &time_left))
+				return -EFAULT;
+
+			return put_user(time_left, p);
+		}
+
 		default:
 			return -ENOIOCTLCMD;
 	}
@@ -500,7 +523,7 @@ static int usb_pcwd_notify_sys(struct notifier_block *this, unsigned long code, 
  *	Kernel Interfaces
  */
 
-static struct file_operations usb_pcwd_fops = {
+static const struct file_operations usb_pcwd_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.write =	usb_pcwd_write,
@@ -515,7 +538,7 @@ static struct miscdevice usb_pcwd_miscdev = {
 	.fops =		&usb_pcwd_fops,
 };
 
-static struct file_operations usb_pcwd_temperature_fops = {
+static const struct file_operations usb_pcwd_temperature_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.read =		usb_pcwd_temperature_read,
@@ -704,7 +727,8 @@ err_out_misc_deregister:
 err_out_unregister_reboot:
 	unregister_reboot_notifier(&usb_pcwd_notifier);
 error:
-	usb_pcwd_delete (usb_pcwd);
+	if (usb_pcwd)
+		usb_pcwd_delete(usb_pcwd);
 	usb_pcwd_device = NULL;
 	return retval;
 }
@@ -723,7 +747,7 @@ static void usb_pcwd_disconnect(struct usb_interface *interface)
 	struct usb_pcwd_private *usb_pcwd;
 
 	/* prevent races with open() */
-	down (&disconnect_sem);
+	mutex_lock(&disconnect_mutex);
 
 	usb_pcwd = usb_get_intfdata (interface);
 	usb_set_intfdata (interface, NULL);
@@ -749,7 +773,7 @@ static void usb_pcwd_disconnect(struct usb_interface *interface)
 
 	cards_found--;
 
-	up (&disconnect_sem);
+	mutex_unlock(&disconnect_mutex);
 
 	printk(KERN_INFO PFX "USB PC Watchdog disconnected\n");
 }

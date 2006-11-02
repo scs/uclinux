@@ -1,6 +1,4 @@
 /*
- *  arch/ppc/4xx_io/serial_sicc.c
- *
  *  Driver for IBM STB3xxx SICC serial port
  *
  *  Based on drivers/char/serial_amba.c, by ARM Ltd.
@@ -30,7 +28,6 @@
  * is compatible with normal ttyS* devices.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1639,9 +1636,8 @@ static struct SICC_info *siccuart_get(int line)
     state->count++;
     if (state->info)
         return state->info;
-    info = kmalloc(sizeof(struct SICC_info), GFP_KERNEL);
+    info = kzalloc(sizeof(struct SICC_info), GFP_KERNEL);
     if (info) {
-        memset(info, 0, sizeof(struct SICC_info));
         init_waitqueue_head(&info->open_wait);
         init_waitqueue_head(&info->close_wait);
         init_waitqueue_head(&info->delta_msr_wait);
@@ -1761,7 +1757,7 @@ int __init siccuart_init(void)
     siccnormal_driver->subtype = SERIAL_TYPE_NORMAL;
     siccnormal_driver->init_termios = tty_std_termios;
     siccnormal_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-    siccnormal_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+    siccnormal_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
     tty_set_operations(siccnormal_driver, &sicc_ops);
 
     if (tty_register_driver(siccnormal_driver))

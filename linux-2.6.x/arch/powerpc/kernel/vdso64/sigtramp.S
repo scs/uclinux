@@ -10,7 +10,6 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/unistd.h>
@@ -263,7 +262,7 @@ V_FUNCTION_END(__kernel_sigtramp_rt64)
 .Lcie_start:
 	.long 0			/* CIE ID */
 	.byte 1			/* Version number */
-	.string "zR"		/* NUL-terminated augmentation string */
+	.string "zRS"		/* NUL-terminated augmentation string */
 	.uleb128 4		/* Code alignment factor */
 	.sleb128 -8		/* Data alignment factor */
 	.byte 67		/* Return address register column, ap */

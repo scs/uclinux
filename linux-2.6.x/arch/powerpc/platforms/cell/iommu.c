@@ -289,7 +289,7 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 	ioc_base = iommu->mapped_base;
 	ioc_mmio_base = iommu->mapped_mmio_base;
 
-	for (real_address = 0, io_address = 0;
+	for (real_address = 0, io_address = map_start;
 	     io_address <= map_start + map_size;
 	     real_address += io_page_size, io_address += io_page_size) {
 		ioste = get_iost_entry(fake_iopt, io_address, io_page_size);
@@ -302,7 +302,7 @@ static void cell_do_map_iommu(struct cell_iommu *iommu,
 		set_iopt_cache(ioc_mmio_base,
 			get_ioc_hash_1way(ioste, io_address),
 			get_ioc_tag(ioste, io_address),
-			get_iopt_entry(real_address-map_start, ioid, IOPT_PROT_RW));
+			get_iopt_entry(real_address, ioid, IOPT_PROT_RW));
 	}
 }
 
@@ -344,8 +344,8 @@ static int cell_map_iommu_hardcoded(int num_nodes)
 
 	/* node 0 */
 	iommu = &cell_iommus[0];
-	iommu->mapped_base = __ioremap(0x20000511000, 0x1000, _PAGE_NO_CACHE);
-	iommu->mapped_mmio_base = __ioremap(0x20000510000, 0x1000, _PAGE_NO_CACHE);
+	iommu->mapped_base = ioremap(0x20000511000, 0x1000);
+	iommu->mapped_mmio_base = ioremap(0x20000510000, 0x1000);
 
 	enable_mapping(iommu->mapped_base, iommu->mapped_mmio_base);
 
@@ -357,8 +357,8 @@ static int cell_map_iommu_hardcoded(int num_nodes)
 
 	/* node 1 */
 	iommu = &cell_iommus[1];
-	iommu->mapped_base = __ioremap(0x30000511000, 0x1000, _PAGE_NO_CACHE);
-	iommu->mapped_mmio_base = __ioremap(0x30000510000, 0x1000, _PAGE_NO_CACHE);
+	iommu->mapped_base = ioremap(0x30000511000, 0x1000);
+	iommu->mapped_mmio_base = ioremap(0x30000510000, 0x1000);
 
 	enable_mapping(iommu->mapped_base, iommu->mapped_mmio_base);
 
@@ -407,8 +407,8 @@ static int cell_map_iommu(void)
 		iommu->base = *base;
 		iommu->mmio_base = *mmio_base;
 
-		iommu->mapped_base = __ioremap(*base, 0x1000, _PAGE_NO_CACHE);
-		iommu->mapped_mmio_base = __ioremap(*mmio_base, 0x1000, _PAGE_NO_CACHE);
+		iommu->mapped_base = ioremap(*base, 0x1000);
+		iommu->mapped_mmio_base = ioremap(*mmio_base, 0x1000);
 
 		enable_mapping(iommu->mapped_base,
 			       iommu->mapped_mmio_base);
@@ -473,6 +473,16 @@ static int cell_dma_supported(struct device *dev, u64 mask)
 	return mask < 0x100000000ull;
 }
 
+static struct dma_mapping_ops cell_iommu_ops = {
+	.alloc_coherent = cell_alloc_coherent,
+	.free_coherent = cell_free_coherent,
+	.map_single = cell_map_single,
+	.unmap_single = cell_unmap_single,
+	.map_sg = cell_map_sg,
+	.unmap_sg = cell_unmap_sg,
+	.dma_supported = cell_dma_supported,
+};
+
 void cell_init_iommu(void)
 {
 	int setup_bus = 0;
@@ -498,11 +508,5 @@ void cell_init_iommu(void)
 		}
 	}
 
-	pci_dma_ops.alloc_coherent = cell_alloc_coherent;
-	pci_dma_ops.free_coherent = cell_free_coherent;
-	pci_dma_ops.map_single = cell_map_single;
-	pci_dma_ops.unmap_single = cell_unmap_single;
-	pci_dma_ops.map_sg = cell_map_sg;
-	pci_dma_ops.unmap_sg = cell_unmap_sg;
-	pci_dma_ops.dma_supported = cell_dma_supported;
+	pci_dma_ops = cell_iommu_ops;
 }

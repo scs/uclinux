@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/pplus.c
- *
  * Board and PCI setup routines for MCG PowerPlus
  *
  * Author: Randy Vinson <rvinson@mvista.com>
@@ -15,7 +13,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>

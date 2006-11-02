@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/85xx/tqm85xx.h
- *
  * TQM85xx (40/41/55/60) board definitions
  *
  * Copyright (c) 2005 DENX Software Engineering
@@ -16,7 +14,6 @@
 #ifndef __MACH_TQM85XX_H
 #define __MACH_TQM85XX_H
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <asm/ppcboot.h>
 

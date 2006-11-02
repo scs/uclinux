@@ -160,7 +160,7 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 	case IOC_NVRAM_GET_OFFSET: {
 		int part, offset;
 
-		if (_machine != PLATFORM_POWERMAC)
+		if (!machine_is(powermac))
 			return -EINVAL;
 		if (copy_from_user(&part, (void __user*)arg, sizeof(part)) != 0)
 			return -EFAULT;
@@ -174,8 +174,9 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 #endif /* CONFIG_PPC_PMAC */
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
 }
 
 struct file_operations nvram_fops = {
@@ -203,7 +204,7 @@ static void nvram_print_partitions(char * label)
 	printk(KERN_WARNING "indx\t\tsig\tchks\tlen\tname\n");
 	list_for_each(p, &nvram_part->partition) {
 		tmp_part = list_entry(p, struct nvram_partition, partition);
-		printk(KERN_WARNING "%d    \t%02x\t%02x\t%d\t%s\n",
+		printk(KERN_WARNING "%4d    \t%02x\t%02x\t%d\t%s\n",
 		       tmp_part->index, tmp_part->header.signature,
 		       tmp_part->header.checksum, tmp_part->header.length,
 		       tmp_part->header.name);
@@ -443,7 +444,7 @@ static int nvram_setup_partition(void)
 	 * in our nvram, as Apple defined partitions use pretty much
 	 * all of the space
 	 */
-	if (_machine == PLATFORM_POWERMAC)
+	if (machine_is(powermac))
 		return -ENOSPC;
 
 	/* see if we have an OS partition that meets our needs.

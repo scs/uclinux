@@ -2,7 +2,6 @@
  * Common prep/pmac/chrp boot and setup code.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -50,13 +49,8 @@
 #include <asm/kgdb.h>
 #endif
 
-extern void platform_init(void);
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
-extern void ppc6xx_idle(void);
-extern void power4_idle(void);
-
-boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
 int boot_cpuid;
@@ -70,10 +64,6 @@ unsigned int DMA_MODE_WRITE;
 int have_of = 1;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-extern void prep_init(void);
-extern void pmac_init(void);
-extern void chrp_init(void);
-
 dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
@@ -84,9 +74,6 @@ unsigned long SYSRQ_KEY = 0x54;
 #ifdef CONFIG_VGA_CONSOLE
 unsigned long vgacon_remap_base;
 #endif
-
-struct machdep_calls ppc_md;
-EXPORT_SYMBOL(ppc_md);
 
 /*
  * These are used in binfmt_elf.c to put aux entries on the stack
@@ -111,7 +98,7 @@ unsigned long __init early_init(unsigned long dt_ptr)
 
 	/* First zero the BSS -- use memset_io, some platforms don't have
 	 * caches on yet */
-	memset_io(PTRRELOC(&__bss_start), 0, _end - __bss_start);
+	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0, _end - __bss_start);
 
 	/*
 	 * Identify the CPU type and fix up code sections
@@ -123,48 +110,6 @@ unsigned long __init early_init(unsigned long dt_ptr)
 	return KERNELBASE + offset;
 }
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
-/*
- * The PPC_MULTIPLATFORM version of platform_init...
- */
-void __init platform_init(void)
-{
-	/* if we didn't get any bootinfo telling us what we are... */
-	if (_machine == 0) {
-		/* prep boot loader tells us if we're prep or not */
-		if ( *(unsigned long *)(KERNELBASE) == (0xdeadc0de) )
-			_machine = _MACH_prep;
-	}
-
-#ifdef CONFIG_PPC_PREP
-	/* not much more to do here, if prep */
-	if (_machine == _MACH_prep) {
-		prep_init();
-		return;
-	}
-#endif
-
-#ifdef CONFIG_ADB
-	if (strstr(cmd_line, "adb_sync")) {
-		extern int __adb_probe_sync;
-		__adb_probe_sync = 1;
-	}
-#endif /* CONFIG_ADB */
-
-	switch (_machine) {
-#ifdef CONFIG_PPC_PMAC
-	case _MACH_Pmac:
-		pmac_init();
-		break;
-#endif
-#ifdef CONFIG_PPC_CHRP
-	case _MACH_chrp:
-		chrp_init();
-		break;
-#endif
-	}
-}
-#endif
 
 /*
  * Find out what kind of machine we're on and save any data we need
@@ -184,17 +129,12 @@ void __init machine_init(unsigned long dt_ptr, unsigned long phys)
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
 
-	/* Check default command line */
-#ifdef CONFIG_CMDLINE
-	if (cmd_line[0] == 0)
-		strlcpy(cmd_line, CONFIG_CMDLINE, sizeof(cmd_line));
-#endif /* CONFIG_CMDLINE */
-
-	/* Base init based on machine type */
-	platform_init();
+	probe_machine();
 
 #ifdef CONFIG_6xx
-	ppc_md.power_save = ppc6xx_idle;
+	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
+	    cpu_has_feature(CPU_FTR_CAN_NAP))
+		ppc_md.power_save = ppc6xx_idle;
 #endif
 
 	if (ppc_md.progress)
@@ -272,9 +212,8 @@ int __init ppc_init(void)
 	if ( ppc_md.progress ) ppc_md.progress("             ", 0xffff);
 
 	/* register CPU devices */
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i))
-			register_cpu(&cpu_devices[i], i, NULL);
+	for_each_possible_cpu(i)
+		register_cpu(&cpu_devices[i], i);
 
 	/* call platform init */
 	if (ppc_md.init != NULL) {
@@ -288,7 +227,7 @@ arch_initcall(ppc_init);
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
-	extern void do_init_bootmem(void);
+	*cmdline_p = cmd_line;
 
 	/* so udelay does something sensible, assume <= 1000 bogomips */
 	loops_per_jiffy = 500000000 / HZ;
@@ -300,7 +239,6 @@ void __init setup_arch(char **cmdline_p)
 		ppc_md.init_early();
 
 	find_legacy_serial_ports();
-	finish_device_tree();
 
 	smp_setup_cpu_maps();
 
@@ -338,26 +276,20 @@ void __init setup_arch(char **cmdline_p)
 	/* reboot on panic */
 	panic_timeout = 180;
 
+	if (ppc_md.panic)
+		setup_panic();
+
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = klimit;
 
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-	*cmdline_p = cmd_line;
-
-	parse_early_param();
+	if (do_early_xmon)
+		debugger(NULL);
 
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	if ( ppc_md.progress ) ppc_md.progress("setup_arch: bootmem", 0x3eab);
-
-#ifdef CONFIG_PPC_OCP
-	/* Initialize OCP device list */
-	ocp_early_init();
-	if ( ppc_md.progress ) ppc_md.progress("ocp: exit", 0x3eab);
-#endif
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
@@ -367,7 +299,4 @@ void __init setup_arch(char **cmdline_p)
 	if ( ppc_md.progress ) ppc_md.progress("arch: exit", 0x3eab);
 
 	paging_init();
-
-	/* this is for modules since _machine can be a define -- Cort */
-	ppc_md.ppc_machine = _machine;
 }

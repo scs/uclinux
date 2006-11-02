@@ -1,8 +1,6 @@
 #define m68k_debug_device debug_device
 
 /*
- *  arch/ppc/amiga/config.c
- *
  *  Copyright (C) 1993 Hamish Macdonald
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -14,7 +12,6 @@
  * Miscellaneous Amiga stuff
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

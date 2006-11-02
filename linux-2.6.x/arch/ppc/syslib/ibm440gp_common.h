@@ -1,6 +1,4 @@
 /*
- * arch/ppc/kernel/ibm440gp_common.h
- *
  * PPC440GP system library
  *
  * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
@@ -18,7 +16,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <syslib/ibm44x_common.h>
 

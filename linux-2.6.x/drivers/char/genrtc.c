@@ -43,7 +43,6 @@
 #define RTC_VERSION	"1.07"
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
@@ -200,13 +199,13 @@ static ssize_t gen_rtc_read(struct file *file, char __user *buf,
 	/* first test allows optimizer to nuke this case for 32-bit machines */
 	if (sizeof (int) != sizeof (long) && count == sizeof (unsigned int)) {
 		unsigned int uidata = data;
-		retval = put_user(uidata, (unsigned long __user *)buf);
+		retval = put_user(uidata, (unsigned int __user *)buf) ?:
+			sizeof(unsigned int);
 	}
 	else {
-		retval = put_user(data, (unsigned long __user *)buf);
+		retval = put_user(data, (unsigned long __user *)buf) ?:
+			sizeof(unsigned long);
 	}
-	if (!retval)
-		retval = sizeof(unsigned long);
  out:
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&gen_rtc_wait, &wait);
@@ -483,7 +482,7 @@ static inline int gen_rtc_proc_init(void) { return 0; }
  *	The various file operations we support.
  */
 
-static struct file_operations gen_rtc_fops = {
+static const struct file_operations gen_rtc_fops = {
 	.owner		= THIS_MODULE,
 #ifdef CONFIG_GEN_RTC_X
 	.read		= gen_rtc_read,

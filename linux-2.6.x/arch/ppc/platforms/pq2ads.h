@@ -9,9 +9,12 @@
 #ifndef __MACH_ADS8260_DEFS
 #define __MACH_ADS8260_DEFS
 
-#include <linux/config.h>
 
 #include <asm/ppcboot.h>
+
+#if defined(CONFIG_ADS8272)
+#define BOARD_CHIP_NAME "8272"
+#endif
 
 /* Memory map is configured by the PROM startup.
  * We just map a few things we need.  The CSR is actually 4 byte-wide

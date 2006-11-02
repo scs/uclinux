@@ -46,7 +46,6 @@
 //#define DBGRBUF(info) dump_rbufs(info)
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/errno.h>
@@ -101,6 +100,7 @@ MODULE_LICENSE("GPL");
 
 static struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
+	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT2_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT4_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_AC_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{0,}, /* terminate list */
@@ -188,6 +188,20 @@ static void hdlcdev_exit(struct slgt_info *info);
 #define SLGT_REG_SIZE  256
 
 /*
+ * conditional wait facility
+ */
+struct cond_wait {
+	struct cond_wait *next;
+	wait_queue_head_t q;
+	wait_queue_t wait;
+	unsigned int data;
+};
+static void init_cond_wait(struct cond_wait *w, unsigned int data);
+static void add_cond_wait(struct cond_wait **head, struct cond_wait *w);
+static void remove_cond_wait(struct cond_wait **head, struct cond_wait *w);
+static void flush_cond_wait(struct cond_wait **head);
+
+/*
  * DMA buffer descriptor and access macros
  */
 struct slgt_desc
@@ -268,6 +282,9 @@ struct slgt_info {
 	wait_queue_head_t	event_wait_q;
 	struct timer_list	tx_timer;
 	struct timer_list	rx_timer;
+
+	unsigned int            gpio_present;
+	struct cond_wait        *gpio_wait_q;
 
 	spinlock_t lock;	/* spinlock for synchronizing with ISR */
 
@@ -374,11 +391,16 @@ static MGSL_PARAMS default_params = {
 #define DESC_LIST_SIZE 4096
 
 #define MASK_PARITY  BIT1
-#define MASK_FRAMING BIT2
-#define MASK_BREAK   BIT3
+#define MASK_FRAMING BIT0
+#define MASK_BREAK   BIT14
 #define MASK_OVERRUN BIT4
 
 #define GSR   0x00 /* global status */
+#define JCR   0x04 /* JTAG control */
+#define IODR  0x08 /* GPIO direction */
+#define IOER  0x0c /* GPIO interrupt enable */
+#define IOVR  0x10 /* GPIO value */
+#define IOSR  0x14 /* GPIO interrupt status */
 #define TDR   0x80 /* tx data */
 #define RDR   0x80 /* rx data */
 #define TCR   0x82 /* tx control */
@@ -503,6 +525,9 @@ static int  tiocmset(struct tty_struct *tty, struct file *file,
 static void set_break(struct tty_struct *tty, int break_state);
 static int  get_interface(struct slgt_info *info, int __user *if_mode);
 static int  set_interface(struct slgt_info *info, int if_mode);
+static int  set_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
+static int  get_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
+static int  wait_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
 
 /*
  * driver functions
@@ -845,7 +870,7 @@ static int write(struct tty_struct *tty,
 		goto cleanup;
 	DBGINFO(("%s write count=%d\n", info->device_name, count));
 
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		goto cleanup;
 
 	if (count > info->max_frame_size) {
@@ -899,7 +924,7 @@ static void put_char(struct tty_struct *tty, unsigned char ch)
 	if (sanity_check(info, tty->name, "put_char"))
 		return;
 	DBGINFO(("%s put_char(%d)\n", info->device_name, ch));
-	if (!tty || !info->tx_buf)
+	if (!info->tx_buf)
 		return;
 	spin_lock_irqsave(&info->lock,flags);
 	if (!info->tx_active && (info->tx_count < info->max_frame_size))
@@ -1112,6 +1137,12 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		return get_interface(info, argp);
 	case MGSL_IOCSIF:
 		return set_interface(info,(int)arg);
+	case MGSL_IOCSGPIO:
+		return set_gpio(info, argp);
+	case MGSL_IOCGGPIO:
+		return get_gpio(info, argp);
+	case MGSL_IOCWAITGPIO:
+		return wait_gpio(info, argp);
 	case TIOCGICOUNT:
 		spin_lock_irqsave(&info->lock,flags);
 		cnow = info->icount;
@@ -1365,7 +1396,7 @@ static int hdlcdev_attach(struct net_device *dev, unsigned short encoding,
 	}
 
 	info->params.encoding = new_encoding;
-	info->params.crc_type = new_crctype;;
+	info->params.crc_type = new_crctype;
 
 	/* if network interface up, reprogram hardware */
 	if (info->netcount)
@@ -1466,8 +1497,10 @@ static int hdlcdev_open(struct net_device *dev)
 	spin_lock_irqsave(&info->lock, flags);
 	get_signals(info);
 	spin_unlock_irqrestore(&info->lock, flags);
-	hdlc_set_carrier(info->signals & SerialSignal_DCD, dev);
-
+	if (info->signals & SerialSignal_DCD)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
 	return 0;
 }
 
@@ -1762,26 +1795,22 @@ static void rx_async(struct slgt_info *info)
 		DBGDATA(info, p, count, "rx");
 
 		for(i=0 ; i < count; i+=2, p+=2) {
-			if (tty && chars) {
-				tty_flip_buffer_push(tty);
-				chars = 0;
-			}
 			ch = *p;
 			icount->rx++;
 
 			stat = 0;
 
-			if ((status = *(p+1) & (BIT9 + BIT8))) {
-				if (status & BIT9)
+			if ((status = *(p+1) & (BIT1 + BIT0))) {
+				if (status & BIT1)
 					icount->parity++;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					icount->frame++;
 				/* discard char if tty control flags say so */
 				if (status & info->ignore_status_mask)
 					continue;
-				if (status & BIT9)
+				if (status & BIT1)
 					stat = TTY_PARITY;
-				else if (status & BIT8)
+				else if (status & BIT0)
 					stat = TTY_FRAME;
 			}
 			if (tty) {
@@ -1970,8 +1999,12 @@ static void dcd_change(struct slgt_info *info)
 		info->input_signal_events.dcd_down++;
 	}
 #ifdef CONFIG_HDLC
-	if (info->netcount)
-		hdlc_set_carrier(info->signals & SerialSignal_DCD, info->netdev);
+	if (info->netcount) {
+		if (info->signals & SerialSignal_DCD)
+			netif_carrier_on(info->netdev);
+		else
+			netif_carrier_off(info->netdev);
+	}
 #endif
 	wake_up_interruptible(&info->status_event_wait_q);
 	wake_up_interruptible(&info->event_wait_q);
@@ -2158,6 +2191,24 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 	}
 }
 
+static void isr_gpio(struct slgt_info *info, unsigned int changed, unsigned int state)
+{
+	struct cond_wait *w, *prev;
+
+	/* wake processes waiting for specific transitions */
+	for (w = info->gpio_wait_q, prev = NULL ; w != NULL ; w = w->next) {
+		if (w->data & changed) {
+			w->data = state;
+			wake_up_interruptible(&w->q);
+			if (prev != NULL)
+				prev->next = w->next;
+			else
+				info->gpio_wait_q = w->next;
+		} else
+			prev = w;
+	}
+}
+
 /* interrupt service routine
  *
  * 	irq	interrupt number
@@ -2190,6 +2241,22 @@ static irqreturn_t slgt_interrupt(int irq, void *dev_id, struct pt_regs * regs)
 				isr_rdma(info->port_array[i]);
 			if (gsr & (BIT17 << (i*2)))
 				isr_tdma(info->port_array[i]);
+		}
+	}
+
+	if (info->gpio_present) {
+		unsigned int state;
+		unsigned int changed;
+		while ((changed = rd_reg32(info, IOSR)) != 0) {
+			DBGISR(("%s iosr=%08x\n", info->device_name, changed));
+			/* read latched state of GPIO signals */
+			state = rd_reg32(info, IOVR);
+			/* clear pending GPIO interrupt bits */
+			wr_reg32(info, IOSR, changed);
+			for (i=0 ; i < info->port_count ; i++) {
+				if (info->port_array[i] != NULL)
+					isr_gpio(info->port_array[i], changed, state);
+			}
 		}
 	}
 
@@ -2275,6 +2342,8 @@ static void shutdown(struct slgt_info *info)
  		info->signals &= ~(SerialSignal_DTR + SerialSignal_RTS);
 		set_signals(info);
 	}
+
+	flush_cond_wait(&info->gpio_wait_q);
 
 	spin_unlock_irqrestore(&info->lock,flags);
 
@@ -2452,7 +2521,8 @@ static int set_txidle(struct slgt_info *info, int idle_mode)
 	DBGINFO(("%s set_txidle(%d)\n", info->device_name, idle_mode));
 	spin_lock_irqsave(&info->lock,flags);
 	info->idle_mode = idle_mode;
-	tx_set_idle(info);
+	if (info->params.mode != MGSL_MODE_ASYNC)
+		tx_set_idle(info);
 	spin_unlock_irqrestore(&info->lock,flags);
 	return 0;
 }
@@ -2650,6 +2720,175 @@ static int set_interface(struct slgt_info *info, int if_mode)
 	return 0;
 }
 
+/*
+ * set general purpose IO pin state and direction
+ *
+ * user_gpio fields:
+ * state   each bit indicates a pin state
+ * smask   set bit indicates pin state to set
+ * dir     each bit indicates a pin direction (0=input, 1=output)
+ * dmask   set bit indicates pin direction to set
+ */
+static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+ 	unsigned long flags;
+	struct gpio_desc gpio;
+	__u32 data;
+
+	if (!info->gpio_present)
+		return -EINVAL;
+	if (copy_from_user(&gpio, user_gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s set_gpio state=%08x smask=%08x dir=%08x dmask=%08x\n",
+		 info->device_name, gpio.state, gpio.smask,
+		 gpio.dir, gpio.dmask));
+
+	spin_lock_irqsave(&info->lock,flags);
+	if (gpio.dmask) {
+		data = rd_reg32(info, IODR);
+		data |= gpio.dmask & gpio.dir;
+		data &= ~(gpio.dmask & ~gpio.dir);
+		wr_reg32(info, IODR, data);
+	}
+	if (gpio.smask) {
+		data = rd_reg32(info, IOVR);
+		data |= gpio.smask & gpio.state;
+		data &= ~(gpio.smask & ~gpio.state);
+		wr_reg32(info, IOVR, data);
+	}
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	return 0;
+}
+
+/*
+ * get general purpose IO pin state and direction
+ */
+static int get_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+	struct gpio_desc gpio;
+	if (!info->gpio_present)
+		return -EINVAL;
+	gpio.state = rd_reg32(info, IOVR);
+	gpio.smask = 0xffffffff;
+	gpio.dir   = rd_reg32(info, IODR);
+	gpio.dmask = 0xffffffff;
+	if (copy_to_user(user_gpio, &gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s get_gpio state=%08x dir=%08x\n",
+		 info->device_name, gpio.state, gpio.dir));
+	return 0;
+}
+
+/*
+ * conditional wait facility
+ */
+static void init_cond_wait(struct cond_wait *w, unsigned int data)
+{
+	init_waitqueue_head(&w->q);
+	init_waitqueue_entry(&w->wait, current);
+	w->data = data;
+}
+
+static void add_cond_wait(struct cond_wait **head, struct cond_wait *w)
+{
+	set_current_state(TASK_INTERRUPTIBLE);
+	add_wait_queue(&w->q, &w->wait);
+	w->next = *head;
+	*head = w;
+}
+
+static void remove_cond_wait(struct cond_wait **head, struct cond_wait *cw)
+{
+	struct cond_wait *w, *prev;
+	remove_wait_queue(&cw->q, &cw->wait);
+	set_current_state(TASK_RUNNING);
+	for (w = *head, prev = NULL ; w != NULL ; prev = w, w = w->next) {
+		if (w == cw) {
+			if (prev != NULL)
+				prev->next = w->next;
+			else
+				*head = w->next;
+			break;
+		}
+	}
+}
+
+static void flush_cond_wait(struct cond_wait **head)
+{
+	while (*head != NULL) {
+		wake_up_interruptible(&(*head)->q);
+		*head = (*head)->next;
+	}
+}
+
+/*
+ * wait for general purpose I/O pin(s) to enter specified state
+ *
+ * user_gpio fields:
+ * state - bit indicates target pin state
+ * smask - set bit indicates watched pin
+ *
+ * The wait ends when at least one watched pin enters the specified
+ * state. When 0 (no error) is returned, user_gpio->state is set to the
+ * state of all GPIO pins when the wait ends.
+ *
+ * Note: Each pin may be a dedicated input, dedicated output, or
+ * configurable input/output. The number and configuration of pins
+ * varies with the specific adapter model. Only input pins (dedicated
+ * or configured) can be monitored with this function.
+ */
+static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
+{
+ 	unsigned long flags;
+	int rc = 0;
+	struct gpio_desc gpio;
+	struct cond_wait wait;
+	u32 state;
+
+	if (!info->gpio_present)
+		return -EINVAL;
+	if (copy_from_user(&gpio, user_gpio, sizeof(gpio)))
+		return -EFAULT;
+	DBGINFO(("%s wait_gpio() state=%08x smask=%08x\n",
+		 info->device_name, gpio.state, gpio.smask));
+	/* ignore output pins identified by set IODR bit */
+	if ((gpio.smask &= ~rd_reg32(info, IODR)) == 0)
+		return -EINVAL;
+	init_cond_wait(&wait, gpio.smask);
+
+	spin_lock_irqsave(&info->lock, flags);
+	/* enable interrupts for watched pins */
+	wr_reg32(info, IOER, rd_reg32(info, IOER) | gpio.smask);
+	/* get current pin states */
+	state = rd_reg32(info, IOVR);
+
+	if (gpio.smask & ~(state ^ gpio.state)) {
+		/* already in target state */
+		gpio.state = state;
+	} else {
+		/* wait for target state */
+		add_cond_wait(&info->gpio_wait_q, &wait);
+		spin_unlock_irqrestore(&info->lock, flags);
+		schedule();
+		if (signal_pending(current))
+			rc = -ERESTARTSYS;
+		else
+			gpio.state = wait.data;
+		spin_lock_irqsave(&info->lock, flags);
+		remove_cond_wait(&info->gpio_wait_q, &wait);
+	}
+
+	/* disable all GPIO interrupts if no waiting processes */
+	if (info->gpio_wait_q == NULL)
+		wr_reg32(info, IOER, 0);
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	if ((rc == 0) && copy_to_user(user_gpio, &gpio, sizeof(gpio)))
+		rc = -EFAULT;
+	return rc;
+}
+
 static int modem_input_wait(struct slgt_info *info,int arg)
 {
  	unsigned long flags;
@@ -2844,7 +3083,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 
 static int alloc_tmp_rbuf(struct slgt_info *info)
 {
-	info->tmp_rbuf = kmalloc(info->max_frame_size, GFP_KERNEL);
+	info->tmp_rbuf = kmalloc(info->max_frame_size + 5, GFP_KERNEL);
 	if (info->tmp_rbuf == NULL)
 		return -ENOMEM;
 	return 0;
@@ -3044,6 +3283,9 @@ static void add_device(struct slgt_info *info)
 	case SYNCLINK_GT_DEVICE_ID:
 		devstr = "GT";
 		break;
+	case SYNCLINK_GT2_DEVICE_ID:
+		devstr = "GT2";
+		break;
 	case SYNCLINK_GT4_DEVICE_ID:
 		devstr = "GT4";
 		break;
@@ -3107,7 +3349,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->phys_reg_addr = pci_resource_start(pdev,0);
 
 		info->bus_type = MGSL_BUS_TYPE_PCI;
-		info->irq_flags = SA_SHIRQ;
+		info->irq_flags = IRQF_SHARED;
 
 		info->init_error = -1; /* assume error, set to 0 on successful init */
 	}
@@ -3121,7 +3363,9 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 	int i;
 	int port_count = 1;
 
-	if (pdev->device == SYNCLINK_GT4_DEVICE_ID)
+	if (pdev->device == SYNCLINK_GT2_DEVICE_ID)
+		port_count = 2;
+	else if (pdev->device == SYNCLINK_GT4_DEVICE_ID)
 		port_count = 4;
 
 	/* allocate device instances for all ports */
@@ -3166,8 +3410,10 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 		} else {
 			port_array[0]->irq_requested = 1;
 			adapter_test(port_array[0]);
-			for (i=1 ; i < port_count ; i++)
+			for (i=1 ; i < port_count ; i++) {
 				port_array[i]->init_error = port_array[0]->init_error;
+				port_array[i]->gpio_present = port_array[0]->gpio_present;
+			}
 		}
 	}
 }
@@ -3706,8 +3952,6 @@ static void async_mode(struct slgt_info *info)
 
 	msc_set_vcr(info);
 
-	tx_set_idle(info);
-
 	/* SCR (serial control)
 	 *
 	 * 15  1=tx req on FIFO half empty
@@ -3778,7 +4022,7 @@ static void hdlc_mode(struct slgt_info *info)
 	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: val |= BIT12 + BIT11 + BIT10; break;
 	}
 
-	switch (info->params.crc_type)
+	switch (info->params.crc_type & HDLC_CRC_MASK)
 	{
 	case HDLC_CRC_16_CCITT: val |= BIT9; break;
 	case HDLC_CRC_32_CCITT: val |= BIT9 + BIT8; break;
@@ -3839,7 +4083,7 @@ static void hdlc_mode(struct slgt_info *info)
 	case HDLC_ENCODING_DIFF_BIPHASE_LEVEL: val |= BIT12 + BIT11 + BIT10; break;
 	}
 
-	switch (info->params.crc_type)
+	switch (info->params.crc_type & HDLC_CRC_MASK)
 	{
 	case HDLC_CRC_16_CCITT: val |= BIT9; break;
 	case HDLC_CRC_32_CCITT: val |= BIT9 + BIT8; break;
@@ -3941,17 +4185,38 @@ static void hdlc_mode(struct slgt_info *info)
  */
 static void tx_set_idle(struct slgt_info *info)
 {
-	unsigned char val = 0xff;
+	unsigned char val;
+	unsigned short tcr;
 
-	switch(info->idle_mode)
-	{
-	case HDLC_TXIDLE_FLAGS:          val = 0x7e; break;
-	case HDLC_TXIDLE_ALT_ZEROS_ONES: val = 0xaa; break;
-	case HDLC_TXIDLE_ZEROS:          val = 0x00; break;
-	case HDLC_TXIDLE_ONES:           val = 0xff; break;
-	case HDLC_TXIDLE_ALT_MARK_SPACE: val = 0xaa; break;
-	case HDLC_TXIDLE_SPACE:          val = 0x00; break;
-	case HDLC_TXIDLE_MARK:           val = 0xff; break;
+	/* if preamble enabled (tcr[6] == 1) then tx idle size = 8 bits
+	 * else tcr[5:4] = tx idle size: 00 = 8 bits, 01 = 16 bits
+	 */
+	tcr = rd_reg16(info, TCR);
+	if (info->idle_mode & HDLC_TXIDLE_CUSTOM_16) {
+		/* disable preamble, set idle size to 16 bits */
+		tcr = (tcr & ~(BIT6 + BIT5)) | BIT4;
+		/* MSB of 16 bit idle specified in tx preamble register (TPR) */
+		wr_reg8(info, TPR, (unsigned char)((info->idle_mode >> 8) & 0xff));
+	} else if (!(tcr & BIT6)) {
+		/* preamble is disabled, set idle size to 8 bits */
+		tcr &= ~(BIT5 + BIT4);
+	}
+	wr_reg16(info, TCR, tcr);
+
+	if (info->idle_mode & (HDLC_TXIDLE_CUSTOM_8 | HDLC_TXIDLE_CUSTOM_16)) {
+		/* LSB of custom tx idle specified in tx idle register */
+		val = (unsigned char)(info->idle_mode & 0xff);
+	} else {
+		/* standard 8 bit idle patterns */
+		switch(info->idle_mode)
+		{
+		case HDLC_TXIDLE_FLAGS:          val = 0x7e; break;
+		case HDLC_TXIDLE_ALT_ZEROS_ONES:
+		case HDLC_TXIDLE_ALT_MARK_SPACE: val = 0xaa; break;
+		case HDLC_TXIDLE_ZEROS:
+		case HDLC_TXIDLE_SPACE:          val = 0x00; break;
+		default:                         val = 0xff;
+		}
 	}
 
 	wr_reg8(info, TIR, val);
@@ -4079,6 +4344,12 @@ static int rx_get_frame(struct slgt_info *info)
 	unsigned long flags;
 	struct tty_struct *tty = info->tty;
 	unsigned char addr_field = 0xff;
+	unsigned int crc_size = 0;
+
+	switch (info->params.crc_type & HDLC_CRC_MASK) {
+	case HDLC_CRC_16_CCITT: crc_size = 2; break;
+	case HDLC_CRC_32_CCITT: crc_size = 4; break;
+	}
 
 check_again:
 
@@ -4123,7 +4394,7 @@ check_again:
 	status = desc_status(info->rbufs[end]);
 
 	/* ignore CRC bit if not using CRC (bit is undefined) */
-	if (info->params.crc_type == HDLC_CRC_NONE)
+	if ((info->params.crc_type & HDLC_CRC_MASK) == HDLC_CRC_NONE)
 		status &= ~BIT1;
 
 	if (framesize == 0 ||
@@ -4132,34 +4403,34 @@ check_again:
 		goto check_again;
 	}
 
-	if (framesize < 2 || status & (BIT1+BIT0)) {
-		if (framesize < 2 || (status & BIT0))
-			info->icount.rxshort++;
-		else
-			info->icount.rxcrc++;
+	if (framesize < (2 + crc_size) || status & BIT0) {
+		info->icount.rxshort++;
 		framesize = 0;
+	} else if (status & BIT1) {
+		info->icount.rxcrc++;
+		if (!(info->params.crc_type & HDLC_CRC_RETURN_EX))
+			framesize = 0;
+	}
 
 #ifdef CONFIG_HDLC
-		{
-			struct net_device_stats *stats = hdlc_stats(info->netdev);
-			stats->rx_errors++;
-			stats->rx_frame_errors++;
-		}
-#endif
-	} else {
-		/* adjust frame size for CRC, if any */
-		if (info->params.crc_type == HDLC_CRC_16_CCITT)
-			framesize -= 2;
-		else if (info->params.crc_type == HDLC_CRC_32_CCITT)
-			framesize -= 4;
+	if (framesize == 0) {
+		struct net_device_stats *stats = hdlc_stats(info->netdev);
+		stats->rx_errors++;
+		stats->rx_frame_errors++;
 	}
+#endif
 
 	DBGBH(("%s rx frame status=%04X size=%d\n",
 		info->device_name, status, framesize));
 	DBGDATA(info, info->rbufs[start].buf, min_t(int, framesize, DMABUFSIZE), "rx");
 
 	if (framesize) {
-		if (framesize > info->max_frame_size)
+		if (!(info->params.crc_type & HDLC_CRC_RETURN_EX)) {
+			framesize -= crc_size;
+			crc_size = 0;
+		}
+
+		if (framesize > info->max_frame_size + crc_size)
 			info->icount.rxlong++;
 		else {
 			/* copy dma buffer(s) to contiguous temp buffer */
@@ -4177,6 +4448,11 @@ check_again:
 				copy_count -= partial_count;
 				if (++i == info->rbuf_count)
 					i = 0;
+			}
+
+			if (info->params.crc_type & HDLC_CRC_RETURN_EX) {
+				*p = (status & BIT1) ? RX_CRC_ERROR : RX_OK;
+				framesize++;
 			}
 
 #ifdef CONFIG_HDLC
@@ -4301,7 +4577,7 @@ static int register_test(struct slgt_info *info)
 			break;
 		}
 	}
-
+	info->gpio_present = (rd_reg32(info, JCR) & BIT5) ? 1 : 0;
 	info->init_error = rc ? 0 : DiagStatus_AddressFailure;
 	return rc;
 }
@@ -4437,13 +4713,13 @@ static int loopback_test(struct slgt_info *info)
 static int adapter_test(struct slgt_info *info)
 {
 	DBGINFO(("testing %s\n", info->device_name));
-	if ((info->init_error = register_test(info)) < 0) {
+	if (register_test(info) < 0) {
 		printk("register test failure %s addr=%08X\n",
 			info->device_name, info->phys_reg_addr);
-	} else if ((info->init_error = irq_test(info)) < 0) {
+	} else if (irq_test(info) < 0) {
 		printk("IRQ test failure %s IRQ=%d\n",
 			info->device_name, info->irq_level);
-	} else if ((info->init_error = loopback_test(info)) < 0) {
+	} else if (loopback_test(info) < 0) {
 		printk("loopback test failure %s\n", info->device_name);
 	}
 	return info->init_error;

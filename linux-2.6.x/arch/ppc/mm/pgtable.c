@@ -20,7 +20,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -39,7 +38,7 @@ unsigned long ioremap_base;
 unsigned long ioremap_bot;
 int io_bat_index;
 
-#if defined(CONFIG_6xx) || defined(CONFIG_POWER3)
+#if defined(CONFIG_6xx)
 #define HAVE_BATS	1
 #endif
 
@@ -368,7 +367,7 @@ void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
  * the PTE pointer is unmodified if PTE is not found.
  */
 int
-get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
+get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 {
         pgd_t	*pgd;
         pmd_t	*pmd;
@@ -383,6 +382,8 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep)
                         if (pte) {
 				retval = 1;
 				*ptep = pte;
+				if (pmdp)
+					*pmdp = pmd;
 				/* XXX caller needs to do pte_unmap, yuck */
                         }
                 }
@@ -420,7 +421,7 @@ unsigned long iopa(unsigned long addr)
 		mm = &init_mm;
 
 	pa = 0;
-	if (get_pteptr(mm, addr, &pte)) {
+	if (get_pteptr(mm, addr, &pte, NULL)) {
 		pa = (pte_val(*pte) & PAGE_MASK) | (addr & ~PAGE_MASK);
 		pte_unmap(pte);
 	}

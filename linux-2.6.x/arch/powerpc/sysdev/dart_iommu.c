@@ -27,7 +27,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -49,6 +48,7 @@
 
 #include "dart.h"
 
+extern int iommu_is_off;
 extern int iommu_force_on;
 
 /* Physical base address and size of the DART table */
@@ -100,8 +100,8 @@ retry:
 	if (l == (1L << limit)) {
 		if (limit < 4) {
 			limit++;
-		        reg = DART_IN(DART_CNTL);
-		        reg &= ~inv_bit;
+			reg = DART_IN(DART_CNTL);
+			reg &= ~inv_bit;
 			DART_OUT(DART_CNTL, reg);
 			goto retry;
 		} else
@@ -110,11 +110,40 @@ retry:
 	}
 }
 
+static inline void dart_tlb_invalidate_one(unsigned long bus_rpn)
+{
+	unsigned int reg;
+	unsigned int l, limit;
+
+	reg = DART_CNTL_U4_ENABLE | DART_CNTL_U4_IONE |
+		(bus_rpn & DART_CNTL_U4_IONE_MASK);
+	DART_OUT(DART_CNTL, reg);
+
+	limit = 0;
+wait_more:
+	l = 0;
+	while ((DART_IN(DART_CNTL) & DART_CNTL_U4_IONE) && l < (1L << limit)) {
+		rmb();
+		l++;
+	}
+
+	if (l == (1L << limit)) {
+		if (limit < 4) {
+			limit++;
+			goto wait_more;
+		} else
+			panic("DART: TLB did not flush after waiting a long "
+			      "time. Buggy U4 ?");
+	}
+}
+
 static void dart_flush(struct iommu_table *tbl)
 {
-	if (dart_dirty)
+	mb();
+	if (dart_dirty) {
 		dart_tlb_invalidate_all();
-	dart_dirty = 0;
+		dart_dirty = 0;
+	}
 }
 
 static void dart_build(struct iommu_table *tbl, long index,
@@ -123,6 +152,7 @@ static void dart_build(struct iommu_table *tbl, long index,
 {
 	unsigned int *dp;
 	unsigned int rpn;
+	long l;
 
 	DBG("dart: build at: %lx, %lx, addr: %x\n", index, npages, uaddr);
 
@@ -134,7 +164,8 @@ static void dart_build(struct iommu_table *tbl, long index,
 	/* On U3, all memory is contigous, so we can move this
 	 * out of the loop.
 	 */
-	while (npages--) {
+	l = npages;
+	while (l--) {
 		rpn = virt_to_abs(uaddr) >> DART_PAGE_SHIFT;
 
 		*(dp++) = DARTMAP_VALID | (rpn & DARTMAP_RPNMASK);
@@ -142,7 +173,18 @@ static void dart_build(struct iommu_table *tbl, long index,
 		uaddr += DART_PAGE_SIZE;
 	}
 
-	dart_dirty = 1;
+	/* make sure all updates have reached memory */
+	mb();
+	in_be32((unsigned __iomem *)dp);
+	mb();
+
+	if (dart_is_u4) {
+		rpn = index;
+		while (npages--)
+			dart_tlb_invalidate_one(rpn++);
+	} else {
+		dart_dirty = 1;
+	}
 }
 
 
@@ -194,8 +236,6 @@ static int dart_init(struct device_node *dart_node)
 	 * prefetching into invalid pages and corrupting data
 	 */
 	tmp = lmb_alloc(DART_PAGE_SIZE, DART_PAGE_SIZE);
-	if (!tmp)
-		panic("DART: Cannot allocate spare page!");
 	dart_emptyval = DARTMAP_VALID | ((tmp >> DART_PAGE_SHIFT) &
 					 DARTMAP_RPNMASK);
 
@@ -247,7 +287,7 @@ static void iommu_table_dart_setup(void)
 	iommu_table_dart.it_base = (unsigned long)dart_vbase;
 	iommu_table_dart.it_index = 0;
 	iommu_table_dart.it_blocksize = 1;
-	iommu_init_table(&iommu_table_dart);
+	iommu_init_table(&iommu_table_dart, -1);
 
 	/* Reserve the last page of the DART to avoid possible prefetch
 	 * past the DART mapped area
@@ -331,10 +371,17 @@ void iommu_init_early_dart(void)
 
 void __init alloc_dart_table(void)
 {
-	/* Only reserve DART space if machine has more than 2GB of RAM
+	/* Only reserve DART space if machine has more than 1GB of RAM
 	 * or if requested with iommu=on on cmdline.
+	 *
+	 * 1GB of RAM is picked as limit because some default devices
+	 * (i.e. Airport Extreme) have 30 bit address range limits.
 	 */
-	if (lmb_end_of_DRAM() <= 0x80000000ull && !iommu_force_on)
+
+	if (iommu_is_off)
+		return;
+
+	if (!iommu_force_on && lmb_end_of_DRAM() <= 0x40000000ull)
 		return;
 
 	/* 512 pages (2MB) is max DART tablesize. */

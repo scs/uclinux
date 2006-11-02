@@ -24,8 +24,8 @@
  * This version does not support shared irq's.
  *
  * $Log$
- * Revision 1.5  2006/03/22 06:44:45  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/02 08:29:07  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.36.1.4  1995/03/29  06:14:14  bentson
  * disambiguate between Cyclom-16Y and Cyclom-32Ye;
@@ -47,7 +47,6 @@
  * - replace bottom half handler with task queue handler
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -2238,7 +2237,6 @@ scrn[1] = '\0';
     /* Initialize the tty_driver structure */
     
     cy_serial_driver->owner = THIS_MODULE;
-    cy_serial_driver->devfs_name = "tts/";
     cy_serial_driver->name = "ttyS";
     cy_serial_driver->major = TTY_MAJOR;
     cy_serial_driver->minor_start = 64;

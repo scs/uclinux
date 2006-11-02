@@ -1,6 +1,4 @@
 /*
- * arch/ppc/platforms/mvme5100.c
- *
  * Board setup routines for the Motorola MVME5100.
  *
  * Author: Matt Porter <mporter@mvista.com>
@@ -11,7 +9,6 @@
  * or implied.
  */
 
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

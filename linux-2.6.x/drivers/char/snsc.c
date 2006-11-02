@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2004, 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
 /*
@@ -77,7 +77,7 @@ scdrv_open(struct inode *inode, struct file *file)
 	scd = container_of(inode->i_cdev, struct sysctl_data_s, scd_cdev);
 
 	/* allocate memory for subchannel data */
-	sd = kmalloc(sizeof (struct subch_data_s), GFP_KERNEL);
+	sd = kzalloc(sizeof (struct subch_data_s), GFP_KERNEL);
 	if (sd == NULL) {
 		printk("%s: couldn't allocate subchannel data\n",
 		       __FUNCTION__);
@@ -85,7 +85,6 @@ scdrv_open(struct inode *inode, struct file *file)
 	}
 
 	/* initialize subch_data_s fields */
-	memset(sd, 0, sizeof (struct subch_data_s));
 	sd->sd_nasid = scd->scd_nasid;
 	sd->sd_subch = ia64_sn_irtr_open(scd->scd_nasid);
 
@@ -106,7 +105,7 @@ scdrv_open(struct inode *inode, struct file *file)
 
 	/* hook this subchannel up to the system controller interrupt */
 	rv = request_irq(SGI_UART_VECTOR, scdrv_interrupt,
-			 SA_SHIRQ | SA_INTERRUPT,
+			 IRQF_SHARED | IRQF_DISABLED,
 			 SYSCTL_BASENAME, sd);
 	if (rv) {
 		ia64_sn_irtr_close(sd->sd_nasid, sd->sd_subch);
@@ -348,7 +347,7 @@ scdrv_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
-static struct file_operations scdrv_fops = {
+static const struct file_operations scdrv_fops = {
 	.owner =	THIS_MODULE,
 	.read =		scdrv_read,
 	.write =	scdrv_write,
@@ -375,7 +374,12 @@ scdrv_init(void)
 	struct sysctl_data_s *scd;
 	void *salbuf;
 	dev_t first_dev, dev;
-	nasid_t event_nasid = ia64_sn_get_console_nasid();
+	nasid_t event_nasid;
+
+	if (!ia64_platform_is("sn2"))
+		return -ENODEV;
+
+	event_nasid = ia64_sn_get_console_nasid();
 
 	if (alloc_chrdev_region(&first_dev, 0, num_cnodes,
 				SYSCTL_BASENAME) < 0) {
@@ -395,7 +399,7 @@ scdrv_init(void)
 				geo_slab(geoid));
 
 			/* allocate sysctl device data */
-			scd = kmalloc(sizeof (struct sysctl_data_s),
+			scd = kzalloc(sizeof (struct sysctl_data_s),
 				      GFP_KERNEL);
 			if (!scd) {
 				printk("%s: failed to allocate device info"
@@ -403,7 +407,6 @@ scdrv_init(void)
 				       SYSCTL_BASENAME, devname);
 				continue;
 			}
-			memset(scd, 0, sizeof (struct sysctl_data_s));
 
 			/* initialize sysctl device data fields */
 			scd->scd_nasid = cnodeid_to_nasid(cnode);

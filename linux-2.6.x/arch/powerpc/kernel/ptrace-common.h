@@ -1,6 +1,4 @@
 /*
- *  linux/arch/ppc64/kernel/ptrace-common.h
- *
  *    Copyright (c) 2002 Stephen Rothwell, IBM Coproration
  *    Extracted from ptrace.c and ptrace32.c
  *
@@ -12,7 +10,6 @@
 #ifndef _PPC64_PTRACE_COMMON_H
 #define _PPC64_PTRACE_COMMON_H
 
-#include <linux/config.h>
 #include <asm/system.h>
 
 /*

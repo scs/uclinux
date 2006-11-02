@@ -160,13 +160,13 @@ IBM_HANDLE(cmos, root, "\\UCMS",	/* R50, R50e, R50p, R51, T4x, X31, X40 */
 	   "\\CMOS",		/* A3x, G4x, R32, T23, T30, X22-24, X30 */
 	   "\\CMS",		/* R40, R40e */
     );				/* all others */
-
+#ifdef CONFIG_ACPI_IBM_DOCK
 IBM_HANDLE(dock, root, "\\_SB.GDCK",	/* X30, X31, X40 */
 	   "\\_SB.PCI0.DOCK",	/* 600e/x,770e,770x,A2xm/p,T20-22,X20-21 */
 	   "\\_SB.PCI0.PCI1.DOCK",	/* all others */
 	   "\\_SB.PCI.ISA.SLCE",	/* 570 */
     );				/* A21e,G4x,R30,R31,R32,R40,R40e,R50e */
-
+#endif
 IBM_HANDLE(bay, root, "\\_SB.PCI.IDE.SECN.MAST",	/* 570 */
 	   "\\_SB.PCI0.IDE0.IDES.IDSM",	/* 600e/x, 770e, 770x */
 	   "\\_SB.PCI0.IDE0.SCND.MSTR",	/* all others */
@@ -567,6 +567,69 @@ static int bluetooth_write(char *buf)
 	return 0;
 }
 
+static int wan_supported;
+
+static int wan_init(void)
+{
+	wan_supported = hkey_handle &&
+	    acpi_evalf(hkey_handle, NULL, "GWAN", "qv");
+
+	return 0;
+}
+
+static int wan_status(void)
+{
+	int status;
+
+	if (!wan_supported ||
+	    !acpi_evalf(hkey_handle, &status, "GWAN", "d"))
+		status = 0;
+
+	return status;
+}
+
+static int wan_read(char *p)
+{
+	int len = 0;
+	int status = wan_status();
+
+	if (!wan_supported)
+		len += sprintf(p + len, "status:\t\tnot supported\n");
+	else if (!(status & 1))
+		len += sprintf(p + len, "status:\t\tnot installed\n");
+	else {
+		len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 1));
+		len += sprintf(p + len, "commands:\tenable, disable\n");
+	}
+
+	return len;
+}
+
+static int wan_write(char *buf)
+{
+	int status = wan_status();
+	char *cmd;
+	int do_cmd = 0;
+
+	if (!wan_supported)
+		return -ENODEV;
+
+	while ((cmd = next_cmd(&buf))) {
+		if (strlencmp(cmd, "enable") == 0) {
+			status |= 2;
+		} else if (strlencmp(cmd, "disable") == 0) {
+			status &= ~2;
+		} else
+			return -EINVAL;
+		do_cmd = 1;
+	}
+
+	if (do_cmd && !acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
+		return -EIO;
+
+	return 0;
+}
+
 static int video_supported;
 static int video_orig_autosw;
 
@@ -844,7 +907,7 @@ static int _sta(acpi_handle handle)
 
 	return status;
 }
-
+#ifdef CONFIG_ACPI_IBM_DOCK
 #define dock_docked() (_sta(dock_handle) & 1)
 
 static int dock_read(char *p)
@@ -907,6 +970,7 @@ static void dock_notify(struct ibm_struct *ibm, u32 event)
 		acpi_bus_generate_event(ibm->device, event, 0);	/* unknown */
 	}
 }
+#endif
 
 static int bay_status_supported;
 static int bay_status2_supported;
@@ -1562,6 +1626,13 @@ static struct ibm_struct ibms[] = {
 	 .write = bluetooth_write,
 	 },
 	{
+	 .name = "wan",
+	 .init = wan_init,
+	 .read = wan_read,
+	 .write = wan_write,
+	 .experimental = 1,
+	 },
+	{
 	 .name = "video",
 	 .init = video_init,
 	 .read = video_read,
@@ -1574,6 +1645,7 @@ static struct ibm_struct ibms[] = {
 	 .read = light_read,
 	 .write = light_write,
 	 },
+#ifdef CONFIG_ACPI_IBM_DOCK
 	{
 	 .name = "dock",
 	 .read = dock_read,
@@ -1589,6 +1661,7 @@ static struct ibm_struct ibms[] = {
 	 .handle = &pci_handle,
 	 .type = ACPI_SYSTEM_NOTIFY,
 	 },
+#endif
 	{
 	 .name = "bay",
 	 .init = bay_init,
@@ -1880,7 +1953,9 @@ IBM_PARAM(hotkey);
 IBM_PARAM(bluetooth);
 IBM_PARAM(video);
 IBM_PARAM(light);
+#ifdef CONFIG_ACPI_IBM_DOCK
 IBM_PARAM(dock);
+#endif
 IBM_PARAM(bay);
 IBM_PARAM(cmos);
 IBM_PARAM(led);
@@ -1927,7 +2002,9 @@ static int __init acpi_ibm_init(void)
 	IBM_HANDLE_INIT(hkey);
 	IBM_HANDLE_INIT(lght);
 	IBM_HANDLE_INIT(cmos);
+#ifdef CONFIG_ACPI_IBM_DOCK
 	IBM_HANDLE_INIT(dock);
+#endif
 	IBM_HANDLE_INIT(pci);
 	IBM_HANDLE_INIT(bay);
 	if (bay_handle)

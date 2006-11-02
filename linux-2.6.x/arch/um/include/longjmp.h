@@ -4,12 +4,12 @@
 #include <setjmp.h>
 #include "os.h"
 
-#define UML_SIGLONGJMP(buf, val) do { \
+#define UML_LONGJMP(buf, val) do { \
 	longjmp(*buf, val);	\
 } while(0)
 
-#define UML_SIGSETJMP(buf, enable) ({ \
-	int n; \
+#define UML_SETJMP(buf) ({ \
+	int n, enable;	   \
 	enable = get_signals(); \
 	n = setjmp(*buf); \
 	if(n != 0) \

@@ -97,6 +97,7 @@
 #define PARAM_VESAPM_OFF	0x30
 #define PARAM_LFB_PAGES		0x32
 #define PARAM_VESA_ATTRIB	0x34
+#define PARAM_CAPABILITIES	0x36
 
 /* Define DO_STORE according to CONFIG_VIDEO_RETAIN */
 #ifdef CONFIG_VIDEO_RETAIN
@@ -232,6 +233,10 @@ mopar_gr:
 	xorl	%eax, %eax
 	movw	18(%di), %ax
 	movl	%eax, %fs:(PARAM_LFB_SIZE)
+
+# store mode capabilities
+	movl 10(%di), %eax
+	movl %eax, %fs:(PARAM_CAPABILITIES)
 
 # switching the DAC to 8-bit is for <= 8 bpp only
 	movw	%fs:(PARAM_LFB_DEPTH), %ax
@@ -1924,6 +1929,7 @@ skip10:	movb	%ah, %al
 	ret
 
 store_edid:
+#ifdef CONFIG_FIRMWARE_EDID
 	pushw	%es				# just save all registers
 	pushw	%ax
 	pushw	%bx
@@ -1941,6 +1947,22 @@ store_edid:
 	rep
 	stosl
 
+	pushw   %es				# save ES
+	xorw    %di, %di                        # Report Capability
+	pushw   %di
+	popw    %es                             # ES:DI must be 0:0
+	movw	$0x4f15, %ax
+	xorw	%bx, %bx
+	xorw	%cx, %cx
+	int	$0x10
+	popw    %es                             # restore ES
+
+	cmpb    $0x00, %ah                      # call successful
+	jne     no_edid
+
+	cmpb    $0x4f, %al                      # function supported
+	jne     no_edid
+
 	movw	$0x4f15, %ax                    # do VBE/DDC
 	movw	$0x01, %bx
 	movw	$0x00, %cx
@@ -1948,12 +1970,14 @@ store_edid:
 	movw	$0x140, %di
 	int	$0x10
 
+no_edid:
 	popw	%di				# restore all registers
 	popw	%dx
 	popw	%cx
 	popw	%bx
 	popw	%ax
 	popw	%es
+#endif
 	ret
 
 # VIDEO_SELECT-only variables

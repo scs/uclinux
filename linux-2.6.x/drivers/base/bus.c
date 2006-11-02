@@ -8,7 +8,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -130,7 +129,7 @@ static struct kobj_type ktype_bus = {
 
 };
 
-decl_subsys(bus, &ktype_bus, NULL);
+static decl_subsys(bus, &ktype_bus, NULL);
 
 
 #ifdef CONFIG_HOTPLUG
@@ -188,6 +187,11 @@ static ssize_t driver_bind(struct device_driver *drv,
 		up(&dev->sem);
 		if (dev->parent)
 			up(&dev->parent->sem);
+
+		if (err > 0) 		/* success */
+			err = count;
+		else if (err == 0)	/* driver didn't accept device */
+			err = -ENODEV;
 	}
 	put_device(dev);
 	put_bus(bus);
@@ -357,8 +361,7 @@ static void device_remove_attrs(struct bus_type * bus, struct device * dev)
  *	@dev:	device being added
  *
  *	- Add the device to its bus's list of devices.
- *	- Try to attach to driver.
- *	- Create link to device's physical location.
+ *	- Create link to device's bus.
  */
 int bus_add_device(struct device * dev)
 {
@@ -367,15 +370,30 @@ int bus_add_device(struct device * dev)
 
 	if (bus) {
 		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
-		device_attach(dev);
-		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
 		error = device_add_attrs(bus, dev);
 		if (!error) {
 			sysfs_create_link(&bus->devices.kobj, &dev->kobj, dev->bus_id);
+			sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "subsystem");
 			sysfs_create_link(&dev->kobj, &dev->bus->subsys.kset.kobj, "bus");
 		}
 	}
 	return error;
+}
+
+/**
+ *	bus_attach_device - add device to bus
+ *	@dev:	device tried to attach to a driver
+ *
+ *	- Try to attach to driver.
+ */
+void bus_attach_device(struct device * dev)
+{
+	struct bus_type * bus = dev->bus;
+
+	if (bus) {
+		device_attach(dev);
+		klist_add_tail(&dev->knode_bus, &bus->klist_devices);
+	}
 }
 
 /**
@@ -390,6 +408,7 @@ int bus_add_device(struct device * dev)
 void bus_remove_device(struct device * dev)
 {
 	if (dev->bus) {
+		sysfs_remove_link(&dev->kobj, "subsystem");
 		sysfs_remove_link(&dev->kobj, "bus");
 		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
@@ -536,6 +555,28 @@ void bus_rescan_devices(struct bus_type * bus)
 	bus_for_each_dev(bus, NULL, NULL, bus_rescan_devices_helper);
 }
 
+/**
+ * device_reprobe - remove driver for a device and probe for a new driver
+ * @dev: the device to reprobe
+ *
+ * This function detaches the attached driver (if any) for the given
+ * device and restarts the driver probing process.  It is intended
+ * to use if probing criteria changed during a devices lifetime and
+ * driver attachment should change accordingly.
+ */
+void device_reprobe(struct device *dev)
+{
+	if (dev->driver) {
+		if (dev->parent)        /* Needed for USB */
+			down(&dev->parent->sem);
+		device_release_driver(dev);
+		if (dev->parent)
+			up(&dev->parent->sem);
+	}
+
+	bus_rescan_devices_helper(dev, NULL);
+}
+EXPORT_SYMBOL_GPL(device_reprobe);
 
 struct bus_type * get_bus(struct bus_type * bus)
 {
@@ -557,12 +598,13 @@ void put_bus(struct bus_type * bus)
  *
  *	Note that kset_find_obj increments bus' reference count.
  */
-
+#if 0
 struct bus_type * find_bus(char * name)
 {
 	struct kobject * k = kset_find_obj(&bus_subsys.kset, name);
 	return k ? to_bus(k) : NULL;
 }
+#endif  /*  0  */
 
 
 /**
@@ -705,14 +747,9 @@ EXPORT_SYMBOL_GPL(bus_for_each_dev);
 EXPORT_SYMBOL_GPL(bus_find_device);
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
 
-EXPORT_SYMBOL_GPL(bus_add_device);
-EXPORT_SYMBOL_GPL(bus_remove_device);
 EXPORT_SYMBOL_GPL(bus_register);
 EXPORT_SYMBOL_GPL(bus_unregister);
 EXPORT_SYMBOL_GPL(bus_rescan_devices);
-EXPORT_SYMBOL_GPL(get_bus);
-EXPORT_SYMBOL_GPL(put_bus);
-EXPORT_SYMBOL_GPL(find_bus);
 
 EXPORT_SYMBOL_GPL(bus_create_file);
 EXPORT_SYMBOL_GPL(bus_remove_file);

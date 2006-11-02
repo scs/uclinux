@@ -75,7 +75,7 @@ static inline void leave_mm(int cpu)
 {
 	if (read_pda(mmu_state) == TLBSTATE_OK)
 		BUG();
-	clear_bit(cpu, &read_pda(active_mm)->cpu_vm_mask);
+	cpu_clear(cpu, read_pda(active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
 
@@ -85,7 +85,7 @@ static inline void leave_mm(int cpu)
  * [cpu0: the cpu that switches]
  * 1) switch_mm() either 1a) or 1b)
  * 1a) thread switch to a different mm
- * 1a1) clear_bit(cpu, &old_mm->cpu_vm_mask);
+ * 1a1) cpu_clear(cpu, old_mm->cpu_vm_mask);
  * 	Stop ipi delivery for the old mm. This is not synchronized with
  * 	the other cpus, but smp_invalidate_interrupt ignore flush ipis
  * 	for the wrong mm, and in the worst case we perform a superfluous
@@ -95,7 +95,7 @@ static inline void leave_mm(int cpu)
  *	was in lazy tlb mode.
  * 1a3) update cpu active_mm
  * 	Now cpu0 accepts tlb flushes for the new mm.
- * 1a4) set_bit(cpu, &new_mm->cpu_vm_mask);
+ * 1a4) cpu_set(cpu, new_mm->cpu_vm_mask);
  * 	Now the other cpus will send tlb flush ipis.
  * 1a4) change cr3.
  * 1b) thread switch without mm change
@@ -135,10 +135,10 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 
 	cpu = smp_processor_id();
 	/*
-	 * orig_rax contains the interrupt vector - 256.
+	 * orig_rax contains the negated interrupt vector.
 	 * Use that to determine where the sender put the data.
 	 */
-	sender = regs->orig_rax + 256 - INVALIDATE_TLB_VECTOR_START;
+	sender = ~regs->orig_rax - INVALIDATE_TLB_VECTOR_START;
 	f = &per_cpu(flush_state, sender);
 
 	if (!cpu_isset(cpu, f->flush_cpumask))
@@ -203,7 +203,7 @@ int __cpuinit init_smp_flush(void)
 {
 	int i;
 	for_each_cpu_mask(i, cpu_possible_map) {
-		spin_lock_init(&per_cpu(flush_state.tlbstate_lock, i));
+		spin_lock_init(&per_cpu(flush_state, i).tlbstate_lock);
 	}
 	return 0;
 }
@@ -224,6 +224,7 @@ void flush_tlb_current_task(void)
 		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_current_task);
 
 void flush_tlb_mm (struct mm_struct * mm)
 {
@@ -244,6 +245,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_mm);
 
 void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 {
@@ -266,6 +268,7 @@ void flush_tlb_page(struct vm_area_struct * vma, unsigned long va)
 
 	preempt_enable();
 }
+EXPORT_SYMBOL(flush_tlb_page);
 
 static void do_flush_tlb_all(void* info)
 {
@@ -443,6 +446,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	spin_unlock(&call_lock);
 	return 0;
 }
+EXPORT_SYMBOL(smp_call_function);
 
 void smp_stop_cpu(void)
 {
@@ -460,7 +464,7 @@ static void smp_really_stop_cpu(void *dummy)
 {
 	smp_stop_cpu(); 
 	for (;;) 
-		asm("hlt"); 
+		halt();
 } 
 
 void smp_send_stop(void)
@@ -470,7 +474,7 @@ void smp_send_stop(void)
 		return;
 	/* Don't deadlock on the call lock in panic */
 	if (!spin_trylock(&call_lock)) {
-		/* ignore locking because we have paniced anyways */
+		/* ignore locking because we have panicked anyways */
 		nolock = 1;
 	}
 	__smp_call_function(smp_really_stop_cpu, NULL, 0, 0);
@@ -520,13 +524,13 @@ asmlinkage void smp_call_function_interrupt(void)
 
 int safe_smp_processor_id(void)
 {
-	int apicid, i;
+	unsigned apicid, i;
 
 	if (disable_apic)
 		return 0;
 
 	apicid = hard_smp_processor_id();
-	if (x86_cpu_to_apicid[apicid] == apicid)
+	if (apicid < NR_CPUS && x86_cpu_to_apicid[apicid] == apicid)
 		return apicid;
 
 	for (i = 0; i < NR_CPUS; ++i) {

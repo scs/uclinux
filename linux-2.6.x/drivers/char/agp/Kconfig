@@ -1,7 +1,7 @@
 config AGP
-	tristate "/dev/agpgart (AGP Support)" if !GART_IOMMU
+	tristate "/dev/agpgart (AGP Support)"
 	depends on ALPHA || IA64 || PPC || X86
-	default y if GART_IOMMU
+	depends on PCI
 	---help---
 	  AGP (Accelerated Graphics Port) is a bus system mainly used to
 	  connect graphics cards to the rest of the system.
@@ -56,9 +56,9 @@ config AGP_AMD
 	  X on AMD Irongate, 761, and 762 chipsets.
 
 config AGP_AMD64
-	tristate "AMD Opteron/Athlon64 on-CPU GART support" if !GART_IOMMU
+	tristate "AMD Opteron/Athlon64 on-CPU GART support" if !IOMMU
 	depends on AGP && X86
-	default y if GART_IOMMU
+	default y if IOMMU
 	help
 	  This option gives you AGP support for the GLX component of
 	  X using the on-CPU northbridge of the AMD Athlon64/Opteron CPUs.
@@ -86,7 +86,7 @@ config AGP_NVIDIA
 
 config AGP_SIS
 	tristate "SiS chipset support"
-	depends on AGP && X86_32
+	depends on AGP
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on Silicon Integrated Systems [SiS] chipsets.
@@ -98,12 +98,12 @@ config AGP_SWORKS
 	tristate "Serverworks LE/HE chipset support"
 	depends on AGP && X86_32
 	help
-	  Say Y here to support the Serverworks AGP card.  See 
+	  Say Y here to support the Serverworks AGP card.  See
 	  <http://www.serverworks.com/> for product descriptions and images.
 
 config AGP_VIA
 	tristate "VIA chipset support"
-	depends on AGP && X86_32
+	depends on AGP
 	help
 	  This option gives you AGP support for the GLX component of
 	  X on VIA MVP3/Apollo Pro chipsets.
