@@ -6,7 +6,6 @@
  *
  * Copyright (C) 1996 Mike Shaver (shaver@zeroknowledge.com)
  */
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 #include <linux/spinlock.h>
@@ -18,14 +17,14 @@ static int min_backoff[1],		max_backoff[] = {2};
 static int min_conmode[1],		max_conmode[] = {2};
 static int min_window[] = {1},		max_window[] = {7};
 static int min_ewindow[] = {1},		max_ewindow[] = {63};
-static int min_t1[] = {1},		max_t1[] = {30 * HZ};
-static int min_t2[] = {1},		max_t2[] = {20 * HZ};
-static int min_t3[1],   		max_t3[] = {3600 * HZ};
-static int min_idle[1],  		max_idle[] = {65535 * HZ};
+static int min_t1[] = {1},		max_t1[] = {30000};
+static int min_t2[] = {1},		max_t2[] = {20000};
+static int min_t3[1],			max_t3[] = {3600000};
+static int min_idle[1],			max_idle[] = {65535000};
 static int min_n2[] = {1},		max_n2[] = {31};
 static int min_paclen[] = {1},		max_paclen[] = {512};
 static int min_proto[1],		max_proto[] = { AX25_PROTO_MAX };
-static int min_ds_timeout[1],   	max_ds_timeout[] = {65535 * HZ};
+static int min_ds_timeout[1],		max_ds_timeout[] = {65535000};
 
 static struct ctl_table_header *ax25_table_header;
 
@@ -204,12 +203,10 @@ void ax25_register_sysctl(void)
 	for (ax25_table_size = sizeof(ctl_table), ax25_dev = ax25_dev_list; ax25_dev != NULL; ax25_dev = ax25_dev->next)
 		ax25_table_size += sizeof(ctl_table);
 
-	if ((ax25_table = kmalloc(ax25_table_size, GFP_ATOMIC)) == NULL) {
+	if ((ax25_table = kzalloc(ax25_table_size, GFP_ATOMIC)) == NULL) {
 		spin_unlock_bh(&ax25_dev_lock);
 		return;
 	}
-
-	memset(ax25_table, 0x00, ax25_table_size);
 
 	for (n = 0, ax25_dev = ax25_dev_list; ax25_dev != NULL; ax25_dev = ax25_dev->next) {
 		ctl_table *child = kmalloc(sizeof(ax25_param_table), GFP_ATOMIC);

@@ -13,7 +13,6 @@
  * Copyright (C) Hans Alblas PE1AYX (hans@esrac.ele.tue.nl)
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  */
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -146,7 +145,7 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 	ax25_cb *s;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if ((s->iamdigi && !digi) || (!s->iamdigi && digi))
 			continue;
@@ -155,12 +154,12 @@ struct sock *ax25_find_listener(ax25_address *addr, int digi,
 			/* If device is null we match any device */
 			if (s->ax25_dev == NULL || s->ax25_dev->dev == dev) {
 				sock_hold(s->sk);
-				spin_unlock_bh(&ax25_list_lock);
+				spin_unlock(&ax25_list_lock);
 				return s->sk;
 			}
 		}
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	return NULL;
 }
@@ -175,7 +174,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 	ax25_cb *s;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if (s->sk && !ax25cmp(&s->source_addr, my_addr) &&
 		    !ax25cmp(&s->dest_addr, dest_addr) &&
@@ -186,7 +185,7 @@ struct sock *ax25_get_socket(ax25_address *my_addr, ax25_address *dest_addr,
 		}
 	}
 
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	return sk;
 }
@@ -228,13 +227,15 @@ ax25_cb *ax25_find_cb(ax25_address *src_addr, ax25_address *dest_addr,
 	return NULL;
 }
 
+EXPORT_SYMBOL(ax25_find_cb);
+
 void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 {
 	ax25_cb *s;
 	struct sk_buff *copy;
 	struct hlist_node *node;
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(s, node, &ax25_list) {
 		if (s->sk != NULL && ax25cmp(&s->source_addr, addr) == 0 &&
 		    s->sk->sk_type == SOCK_RAW &&
@@ -247,7 +248,7 @@ void ax25_send_to_raw(ax25_address *addr, struct sk_buff *skb, int proto)
 				kfree_skb(copy);
 		}
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 }
 
 /*
@@ -424,6 +425,26 @@ static int ax25_ctl_ioctl(const unsigned int cmd, void __user *arg)
 	return 0;
 }
 
+static void ax25_fillin_cb_from_dev(ax25_cb *ax25, ax25_dev *ax25_dev)
+{
+	ax25->rtt     = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]) / 2;
+	ax25->t1      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]);
+	ax25->t2      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T2]);
+	ax25->t3      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T3]);
+	ax25->n2      = ax25_dev->values[AX25_VALUES_N2];
+	ax25->paclen  = ax25_dev->values[AX25_VALUES_PACLEN];
+	ax25->idle    = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_IDLE]);
+	ax25->backoff = ax25_dev->values[AX25_VALUES_BACKOFF];
+
+	if (ax25_dev->values[AX25_VALUES_AXDEFMODE]) {
+		ax25->modulus = AX25_EMODULUS;
+		ax25->window  = ax25_dev->values[AX25_VALUES_EWINDOW];
+	} else {
+		ax25->modulus = AX25_MODULUS;
+		ax25->window  = ax25_dev->values[AX25_VALUES_WINDOW];
+	}
+}
+
 /*
  *	Fill in a created AX.25 created control block with the default
  *	values for a particular device.
@@ -433,39 +454,28 @@ void ax25_fillin_cb(ax25_cb *ax25, ax25_dev *ax25_dev)
 	ax25->ax25_dev = ax25_dev;
 
 	if (ax25->ax25_dev != NULL) {
-		ax25->rtt     = ax25_dev->values[AX25_VALUES_T1] / 2;
-		ax25->t1      = ax25_dev->values[AX25_VALUES_T1];
-		ax25->t2      = ax25_dev->values[AX25_VALUES_T2];
-		ax25->t3      = ax25_dev->values[AX25_VALUES_T3];
-		ax25->n2      = ax25_dev->values[AX25_VALUES_N2];
-		ax25->paclen  = ax25_dev->values[AX25_VALUES_PACLEN];
-		ax25->idle    = ax25_dev->values[AX25_VALUES_IDLE];
-		ax25->backoff = ax25_dev->values[AX25_VALUES_BACKOFF];
+		ax25_fillin_cb_from_dev(ax25, ax25_dev);
+		return;
+	}
 
-		if (ax25_dev->values[AX25_VALUES_AXDEFMODE]) {
-			ax25->modulus = AX25_EMODULUS;
-			ax25->window  = ax25_dev->values[AX25_VALUES_EWINDOW];
-		} else {
-			ax25->modulus = AX25_MODULUS;
-			ax25->window  = ax25_dev->values[AX25_VALUES_WINDOW];
-		}
+	/*
+	 * No device, use kernel / AX.25 spec default values
+	 */
+	ax25->rtt     = msecs_to_jiffies(AX25_DEF_T1) / 2;
+	ax25->t1      = msecs_to_jiffies(AX25_DEF_T1);
+	ax25->t2      = msecs_to_jiffies(AX25_DEF_T2);
+	ax25->t3      = msecs_to_jiffies(AX25_DEF_T3);
+	ax25->n2      = AX25_DEF_N2;
+	ax25->paclen  = AX25_DEF_PACLEN;
+	ax25->idle    = msecs_to_jiffies(AX25_DEF_IDLE);
+	ax25->backoff = AX25_DEF_BACKOFF;
+
+	if (AX25_DEF_AXDEFMODE) {
+		ax25->modulus = AX25_EMODULUS;
+		ax25->window  = AX25_DEF_EWINDOW;
 	} else {
-		ax25->rtt     = AX25_DEF_T1 / 2;
-		ax25->t1      = AX25_DEF_T1;
-		ax25->t2      = AX25_DEF_T2;
-		ax25->t3      = AX25_DEF_T3;
-		ax25->n2      = AX25_DEF_N2;
-		ax25->paclen  = AX25_DEF_PACLEN;
-		ax25->idle    = AX25_DEF_IDLE;
-		ax25->backoff = AX25_DEF_BACKOFF;
-
-		if (AX25_DEF_AXDEFMODE) {
-			ax25->modulus = AX25_EMODULUS;
-			ax25->window  = AX25_DEF_EWINDOW;
-		} else {
-			ax25->modulus = AX25_MODULUS;
-			ax25->window  = AX25_DEF_WINDOW;
-		}
+		ax25->modulus = AX25_MODULUS;
+		ax25->window  = AX25_DEF_WINDOW;
 	}
 }
 
@@ -476,10 +486,9 @@ ax25_cb *ax25_create_cb(void)
 {
 	ax25_cb *ax25;
 
-	if ((ax25 = kmalloc(sizeof(*ax25), GFP_ATOMIC)) == NULL)
+	if ((ax25 = kzalloc(sizeof(*ax25), GFP_ATOMIC)) == NULL)
 		return NULL;
 
-	memset(ax25, 0x00, sizeof(*ax25));
 	atomic_set(&ax25->refcount, 1);
 
 	skb_queue_head_init(&ax25->write_queue);
@@ -1978,24 +1987,6 @@ static struct packet_type ax25_packet_type = {
 static struct notifier_block ax25_dev_notifier = {
 	.notifier_call =ax25_device_event,
 };
-
-EXPORT_SYMBOL(ax25_hard_header);
-EXPORT_SYMBOL(ax25_rebuild_header);
-EXPORT_SYMBOL(ax25_findbyuid);
-EXPORT_SYMBOL(ax25_find_cb);
-EXPORT_SYMBOL(ax25_linkfail_register);
-EXPORT_SYMBOL(ax25_linkfail_release);
-EXPORT_SYMBOL(ax25_listen_register);
-EXPORT_SYMBOL(ax25_listen_release);
-EXPORT_SYMBOL(ax25_protocol_register);
-EXPORT_SYMBOL(ax25_protocol_release);
-EXPORT_SYMBOL(ax25_send_frame);
-EXPORT_SYMBOL(ax25_uid_policy);
-EXPORT_SYMBOL(ax25cmp);
-EXPORT_SYMBOL(ax2asc);
-EXPORT_SYMBOL(asc2ax);
-EXPORT_SYMBOL(null_ax25_address);
-EXPORT_SYMBOL(ax25_display_timer);
 
 static int __init ax25_init(void)
 {

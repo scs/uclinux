@@ -12,12 +12,12 @@
  * Copyright (C) Frederic Rible F1OAT (frible@teaser.fr)
  * Copyright (C) 2002 Ralf Baechle DO1GRB (ralf@gnu.org)
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -136,6 +136,8 @@ unsigned long ax25_display_timer(struct timer_list *timer)
 
 	return timer->expires - jiffies;
 }
+
+EXPORT_SYMBOL(ax25_display_timer);
 
 static void ax25_heartbeat_expiry(unsigned long param)
 {

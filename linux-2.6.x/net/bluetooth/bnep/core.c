@@ -29,7 +29,6 @@
  * $Id$
  */ 
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -532,8 +531,8 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	dev = alloc_netdev(sizeof(struct bnep_session),
 			   (*req->device) ? req->device : "bnep%d",
 			   bnep_net_setup);
-	if (!dev) 
-		return ENOMEM;
+	if (!dev)
+		return -ENOMEM;
 
 
 	down_write(&bnep_session_sem);

@@ -29,7 +29,7 @@
 
 #define BR_PORT_DEBOUNCE (HZ/10)
 
-#define BR_VERSION	"2.1"
+#define BR_VERSION	"2.2"
 
 typedef struct bridge_id bridge_id;
 typedef struct mac_addr mac_addr;
@@ -109,6 +109,7 @@ struct net_bridge
 	unsigned long			bridge_hello_time;
 	unsigned long			bridge_forward_delay;
 
+	u8				group_addr[ETH_ALEN];
 	u16				root_port;
 	unsigned char			stp_enabled;
 	unsigned char			topology_change;
@@ -122,7 +123,7 @@ struct net_bridge
 };
 
 extern struct notifier_block br_device_notifier;
-extern const unsigned char bridge_ula[6];
+extern const u8 br_group_address[ETH_ALEN];
 
 /* called under bridge lock */
 static inline int br_is_root_bridge(const struct net_bridge *br)
@@ -191,8 +192,13 @@ extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern int br_ioctl_deviceless_stub(unsigned int cmd, void __user *arg);
 
 /* br_netfilter.c */
+#ifdef CONFIG_BRIDGE_NETFILTER
 extern int br_netfilter_init(void);
 extern void br_netfilter_fini(void);
+#else
+#define br_netfilter_init()	(0)
+#define br_netfilter_fini()	do { } while(0)
+#endif
 
 /* br_stp.c */
 extern void br_log_state(const struct net_bridge_port *p);
@@ -217,7 +223,8 @@ extern void br_stp_set_path_cost(struct net_bridge_port *p,
 extern ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 
 /* br_stp_bpdu.c */
-extern int br_stp_handle_bpdu(struct sk_buff *skb);
+extern int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
+		      struct packet_type *pt, struct net_device *orig_dev);
 
 /* br_stp_timer.c */
 extern void br_stp_timer_init(struct net_bridge *br);
@@ -229,6 +236,11 @@ extern struct net_bridge_fdb_entry *(*br_fdb_get_hook)(struct net_bridge *br,
 						       unsigned char *addr);
 extern void (*br_fdb_put_hook)(struct net_bridge_fdb_entry *ent);
 
+
+/* br_netlink.c */
+extern void br_netlink_init(void);
+extern void br_netlink_fini(void);
+extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */

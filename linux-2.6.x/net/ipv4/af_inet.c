@@ -68,6 +68,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -788,45 +789,53 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 }
 
 const struct proto_ops inet_stream_ops = {
-	.family =	PF_INET,
-	.owner =	THIS_MODULE,
-	.release =	inet_release,
-	.bind =		inet_bind,
-	.connect =	inet_stream_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	inet_accept,
-	.getname =	inet_getname,
-	.poll =		tcp_poll,
-	.ioctl =	inet_ioctl,
-	.listen =	inet_listen,
-	.shutdown =	inet_shutdown,
-	.setsockopt =	sock_common_setsockopt,
-	.getsockopt =	sock_common_getsockopt,
-	.sendmsg =	inet_sendmsg,
-	.recvmsg =	sock_common_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	tcp_sendpage
+	.family		   = PF_INET,
+	.owner		   = THIS_MODULE,
+	.release	   = inet_release,
+	.bind		   = inet_bind,
+	.connect	   = inet_stream_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = inet_accept,
+	.getname	   = inet_getname,
+	.poll		   = tcp_poll,
+	.ioctl		   = inet_ioctl,
+	.listen		   = inet_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = tcp_sendpage,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
+#endif
 };
 
 const struct proto_ops inet_dgram_ops = {
-	.family =	PF_INET,
-	.owner =	THIS_MODULE,
-	.release =	inet_release,
-	.bind =		inet_bind,
-	.connect =	inet_dgram_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
-	.getname =	inet_getname,
-	.poll =		udp_poll,
-	.ioctl =	inet_ioctl,
-	.listen =	sock_no_listen,
-	.shutdown =	inet_shutdown,
-	.setsockopt =	sock_common_setsockopt,
-	.getsockopt =	sock_common_getsockopt,
-	.sendmsg =	inet_sendmsg,
-	.recvmsg =	sock_common_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	inet_sendpage,
+	.family		   = PF_INET,
+	.owner		   = THIS_MODULE,
+	.release	   = inet_release,
+	.bind		   = inet_bind,
+	.connect	   = inet_dgram_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = sock_no_accept,
+	.getname	   = inet_getname,
+	.poll		   = udp_poll,
+	.ioctl		   = inet_ioctl,
+	.listen		   = sock_no_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = inet_sendpage,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
+#endif
 };
 
 /*
@@ -834,24 +843,28 @@ const struct proto_ops inet_dgram_ops = {
  * udp_poll
  */
 static const struct proto_ops inet_sockraw_ops = {
-	.family =	PF_INET,
-	.owner =	THIS_MODULE,
-	.release =	inet_release,
-	.bind =		inet_bind,
-	.connect =	inet_dgram_connect,
-	.socketpair =	sock_no_socketpair,
-	.accept =	sock_no_accept,
-	.getname =	inet_getname,
-	.poll =		datagram_poll,
-	.ioctl =	inet_ioctl,
-	.listen =	sock_no_listen,
-	.shutdown =	inet_shutdown,
-	.setsockopt =	sock_common_setsockopt,
-	.getsockopt =	sock_common_getsockopt,
-	.sendmsg =	inet_sendmsg,
-	.recvmsg =	sock_common_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	inet_sendpage,
+	.family		   = PF_INET,
+	.owner		   = THIS_MODULE,
+	.release	   = inet_release,
+	.bind		   = inet_bind,
+	.connect	   = inet_dgram_connect,
+	.socketpair	   = sock_no_socketpair,
+	.accept		   = sock_no_accept,
+	.getname	   = inet_getname,
+	.poll		   = datagram_poll,
+	.ioctl		   = inet_ioctl,
+	.listen		   = sock_no_listen,
+	.shutdown	   = inet_shutdown,
+	.setsockopt	   = sock_common_setsockopt,
+	.getsockopt	   = sock_common_getsockopt,
+	.sendmsg	   = inet_sendmsg,
+	.recvmsg	   = sock_common_recvmsg,
+	.mmap		   = sock_no_mmap,
+	.sendpage	   = inet_sendpage,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_sock_common_setsockopt,
+	.compat_getsockopt = compat_sock_common_getsockopt,
+#endif
 };
 
 static struct net_proto_family inet_family_ops = {
@@ -1084,6 +1097,96 @@ int inet_sk_rebuild_header(struct sock *sk)
 
 EXPORT_SYMBOL(inet_sk_rebuild_header);
 
+static int inet_gso_send_check(struct sk_buff *skb)
+{
+	struct iphdr *iph;
+	struct net_protocol *ops;
+	int proto;
+	int ihl;
+	int err = -EINVAL;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+		goto out;
+
+	iph = skb->nh.iph;
+	ihl = iph->ihl * 4;
+	if (ihl < sizeof(*iph))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, ihl)))
+		goto out;
+
+	skb->h.raw = __skb_pull(skb, ihl);
+	iph = skb->nh.iph;
+	proto = iph->protocol & (MAX_INET_PROTOS - 1);
+	err = -EPROTONOSUPPORT;
+
+	rcu_read_lock();
+	ops = rcu_dereference(inet_protos[proto]);
+	if (likely(ops && ops->gso_send_check))
+		err = ops->gso_send_check(skb);
+	rcu_read_unlock();
+
+out:
+	return err;
+}
+
+static struct sk_buff *inet_gso_segment(struct sk_buff *skb, int features)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct iphdr *iph;
+	struct net_protocol *ops;
+	int proto;
+	int ihl;
+	int id;
+
+	if (unlikely(skb_shinfo(skb)->gso_type &
+		     ~(SKB_GSO_TCPV4 |
+		       SKB_GSO_UDP |
+		       SKB_GSO_DODGY |
+		       SKB_GSO_TCP_ECN |
+		       0)))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+		goto out;
+
+	iph = skb->nh.iph;
+	ihl = iph->ihl * 4;
+	if (ihl < sizeof(*iph))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, ihl)))
+		goto out;
+
+	skb->h.raw = __skb_pull(skb, ihl);
+	iph = skb->nh.iph;
+	id = ntohs(iph->id);
+	proto = iph->protocol & (MAX_INET_PROTOS - 1);
+	segs = ERR_PTR(-EPROTONOSUPPORT);
+
+	rcu_read_lock();
+	ops = rcu_dereference(inet_protos[proto]);
+	if (likely(ops && ops->gso_segment))
+		segs = ops->gso_segment(skb, features);
+	rcu_read_unlock();
+
+	if (!segs || unlikely(IS_ERR(segs)))
+		goto out;
+
+	skb = segs;
+	do {
+		iph = skb->nh.iph;
+		iph->id = htons(id++);
+		iph->tot_len = htons(skb->len - skb->mac_len);
+		iph->check = 0;
+		iph->check = ip_fast_csum(skb->nh.raw, iph->ihl);
+	} while ((skb = skb->next));
+
+out:
+	return segs;
+}
+
 #ifdef CONFIG_IP_MULTICAST
 static struct net_protocol igmp_protocol = {
 	.handler =	igmp_rcv,
@@ -1093,6 +1196,8 @@ static struct net_protocol igmp_protocol = {
 static struct net_protocol tcp_protocol = {
 	.handler =	tcp_v4_rcv,
 	.err_handler =	tcp_v4_err,
+	.gso_send_check = tcp_v4_gso_send_check,
+	.gso_segment =	tcp_tso_segment,
 	.no_policy =	1,
 };
 
@@ -1138,6 +1243,8 @@ static int ipv4_proc_init(void);
 static struct packet_type ip_packet_type = {
 	.type = __constant_htons(ETH_P_IP),
 	.func = ip_rcv,
+	.gso_send_check = inet_gso_send_check,
+	.gso_segment = inet_gso_segment,
 };
 
 static int __init inet_init(void)
@@ -1245,7 +1352,7 @@ out_unregister_udp_proto:
 	goto out;
 }
 
-module_init(inet_init);
+fs_initcall(inet_init);
 
 /* ------------------------------------------------------------------------ */
 

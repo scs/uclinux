@@ -210,7 +210,8 @@ static struct net_device *new_bridge_dev(const char *name)
 
 	br->bridge_id.prio[0] = 0x80;
 	br->bridge_id.prio[1] = 0x00;
-	memset(br->bridge_id.addr, 0, ETH_ALEN);
+
+	memcpy(br->group_addr, br_group_address, ETH_ALEN);
 
 	br->feature_mask = dev->features;
 	br->stp_enabled = 0;
@@ -237,12 +238,11 @@ static int find_portno(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long *inuse;
 
-	inuse = kmalloc(BITS_TO_LONGS(BR_MAX_PORTS)*sizeof(unsigned long),
+	inuse = kcalloc(BITS_TO_LONGS(BR_MAX_PORTS), sizeof(unsigned long),
 			GFP_KERNEL);
 	if (!inuse)
 		return -ENOMEM;
 
-	memset(inuse, 0, BITS_TO_LONGS(BR_MAX_PORTS)*sizeof(unsigned long));
 	set_bit(0, inuse);	/* zero is reserved */
 	list_for_each_entry(p, &br->port_list, list) {
 		set_bit(p->port_no, inuse);
@@ -264,11 +264,10 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	if (index < 0)
 		return ERR_PTR(index);
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	memset(p, 0, sizeof(*p));
 	p->br = br;
 	dev_hold(dev);
 	p->dev = dev;
@@ -301,34 +300,22 @@ int br_add_bridge(const char *name)
 	rtnl_lock();
 	if (strchr(dev->name, '%')) {
 		ret = dev_alloc_name(dev, dev->name);
-		if (ret < 0)
-			goto err1;
+		if (ret < 0) {
+			free_netdev(dev);
+			goto out;
+		}
 	}
 
 	ret = register_netdevice(dev);
 	if (ret)
-		goto err2;
-
-	/* network device kobject is not setup until
-	 * after rtnl_unlock does it's hotplug magic.
-	 * so hold reference to avoid race.
-	 */
-	dev_hold(dev);
-	rtnl_unlock();
+		goto out;
 
 	ret = br_sysfs_addbr(dev);
-	dev_put(dev);
-
-	if (ret) 
-		unregister_netdev(dev);
+	if (ret)
+		unregister_netdevice(dev);
  out:
-	return ret;
-
- err2:
-	free_netdev(dev);
- err1:
 	rtnl_unlock();
-	goto out;
+	return ret;
 }
 
 int br_del_bridge(const char *name)
@@ -385,17 +372,33 @@ void br_features_recompute(struct net_bridge *br)
 	struct net_bridge_port *p;
 	unsigned long features, checksum;
 
-	features = br->feature_mask &~ NETIF_F_IP_CSUM;
-	checksum = br->feature_mask & NETIF_F_IP_CSUM;
+	checksum = br->feature_mask & NETIF_F_ALL_CSUM ? NETIF_F_NO_CSUM : 0;
+	features = br->feature_mask & ~NETIF_F_ALL_CSUM;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (!(p->dev->features 
-		      & (NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)))
+		unsigned long feature = p->dev->features;
+
+		if (checksum & NETIF_F_NO_CSUM && !(feature & NETIF_F_NO_CSUM))
+			checksum ^= NETIF_F_NO_CSUM | NETIF_F_HW_CSUM;
+		if (checksum & NETIF_F_HW_CSUM && !(feature & NETIF_F_HW_CSUM))
+			checksum ^= NETIF_F_HW_CSUM | NETIF_F_IP_CSUM;
+		if (!(feature & NETIF_F_IP_CSUM))
 			checksum = 0;
-		features &= p->dev->features;
+
+		if (feature & NETIF_F_GSO)
+			feature |= NETIF_F_GSO_SOFTWARE;
+		feature |= NETIF_F_GSO;
+
+		features &= feature;
 	}
 
-	br->dev->features = features | checksum | NETIF_F_LLTX;
+	if (!(checksum & NETIF_F_ALL_CSUM))
+		features &= ~NETIF_F_SG;
+	if (!(features & NETIF_F_SG))
+		features &= ~NETIF_F_GSO_MASK;
+
+	br->dev->features = features | checksum | NETIF_F_LLTX |
+			    NETIF_F_GSO_ROBUST;
 }
 
 /* called with RTNL */

@@ -61,7 +61,8 @@ void ax25_ds_set_timer(ax25_dev *ax25_dev)
 		return;
 
 	del_timer(&ax25_dev->dama.slave_timer);
-	ax25_dev->dama.slave_timeout = ax25_dev->values[AX25_VALUES_DS_TIMEOUT] / 10;
+	ax25_dev->dama.slave_timeout =
+		msecs_to_jiffies(ax25_dev->values[AX25_VALUES_DS_TIMEOUT]) / 10;
 	ax25_ds_add_timer(ax25_dev);
 }
 
@@ -84,7 +85,7 @@ static void ax25_ds_timeout(unsigned long arg)
 		return;
 	}
 
-	spin_lock_bh(&ax25_list_lock);
+	spin_lock(&ax25_list_lock);
 	ax25_for_each(ax25, node, &ax25_list) {
 		if (ax25->ax25_dev != ax25_dev || !(ax25->condition & AX25_COND_DAMA_MODE))
 			continue;
@@ -92,7 +93,7 @@ static void ax25_ds_timeout(unsigned long arg)
 		ax25_send_control(ax25, AX25_DISC, AX25_POLLON, AX25_COMMAND);
 		ax25_disconnect(ax25, ETIMEDOUT);
 	}
-	spin_unlock_bh(&ax25_list_lock);
+	spin_unlock(&ax25_list_lock);
 
 	ax25_dev_dama_off(ax25_dev);
 }

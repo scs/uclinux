@@ -64,7 +64,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/jiffies.h>
@@ -730,7 +729,6 @@ out_err:
 static void icmp_redirect(struct sk_buff *skb)
 {
 	struct iphdr *iph;
-	unsigned long ip;
 
 	if (skb->len < sizeof(struct iphdr))
 		goto out_err;
@@ -742,7 +740,6 @@ static void icmp_redirect(struct sk_buff *skb)
 		goto out;
 
 	iph = (struct iphdr *)skb->data;
-	ip = iph->daddr;
 
 	switch (skb->h.icmph->code & 7) {
 	case ICMP_REDIR_NET:
@@ -752,8 +749,9 @@ static void icmp_redirect(struct sk_buff *skb)
 		 */
 	case ICMP_REDIR_HOST:
 	case ICMP_REDIR_HOSTTOS:
-		ip_rt_redirect(skb->nh.iph->saddr, ip, skb->h.icmph->un.gateway,
-			       iph->saddr, iph->tos, skb->dev);
+		ip_rt_redirect(skb->nh.iph->saddr, iph->daddr,
+			       skb->h.icmph->un.gateway,
+			       iph->saddr, skb->dev);
 		break;
   	}
 out:
@@ -1107,7 +1105,7 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_sock *inet;
 	int i;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		int err;
 
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,

@@ -47,7 +47,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/spinlock.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
@@ -114,6 +113,11 @@ static void ulog_send(unsigned int nlgroupnum)
 	if (timer_pending(&ub->timer)) {
 		DEBUGP("ipt_ULOG: ulog_send: timer was pending, deleting\n");
 		del_timer(&ub->timer);
+	}
+
+	if (!ub->skb) {
+		DEBUGP("ipt_ULOG: ulog_send: nothing to send\n");
+		return;
 	}
 
 	/* last nlmsg needs NLMSG_DONE */
@@ -303,6 +307,7 @@ static unsigned int ipt_ulog_target(struct sk_buff **pskb,
 				    const struct net_device *in,
 				    const struct net_device *out,
 				    unsigned int hooknum,
+				    const struct xt_target *target,
 				    const void *targinfo, void *userinfo)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
@@ -339,46 +344,41 @@ static void ipt_logfn(unsigned int pf,
 
 static int ipt_ulog_checkentry(const char *tablename,
 			       const void *e,
+			       const struct xt_target *target,
 			       void *targinfo,
 			       unsigned int targinfosize,
 			       unsigned int hookmask)
 {
 	struct ipt_ulog_info *loginfo = (struct ipt_ulog_info *) targinfo;
 
-	if (targinfosize != IPT_ALIGN(sizeof(struct ipt_ulog_info))) {
-		DEBUGP("ipt_ULOG: targinfosize %u != 0\n", targinfosize);
-		return 0;
-	}
-
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		DEBUGP("ipt_ULOG: prefix term %i\n",
 		       loginfo->prefix[sizeof(loginfo->prefix) - 1]);
 		return 0;
 	}
-
 	if (loginfo->qthreshold > ULOG_MAX_QLEN) {
 		DEBUGP("ipt_ULOG: queue threshold %i > MAX_QLEN\n",
 			loginfo->qthreshold);
 		return 0;
 	}
-
 	return 1;
 }
 
 static struct ipt_target ipt_ulog_reg = {
 	.name		= "ULOG",
 	.target		= ipt_ulog_target,
+	.targetsize	= sizeof(struct ipt_ulog_info),
 	.checkentry	= ipt_ulog_checkentry,
 	.me		= THIS_MODULE,
 };
 
 static struct nf_logger ipt_ulog_logger = {
 	.name		= "ipt_ULOG",
-	.logfn		= &ipt_logfn,
+	.logfn		= ipt_logfn,
 	.me		= THIS_MODULE,
 };
 
-static int __init init(void)
+static int __init ipt_ulog_init(void)
 {
 	int i;
 
@@ -411,7 +411,7 @@ static int __init init(void)
 	return 0;
 }
 
-static void __exit fini(void)
+static void __exit ipt_ulog_fini(void)
 {
 	ulog_buff_t *ub;
 	int i;
@@ -439,5 +439,5 @@ static void __exit fini(void)
 
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_ulog_init);
+module_exit(ipt_ulog_fini);

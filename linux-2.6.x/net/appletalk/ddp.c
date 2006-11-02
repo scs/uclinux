@@ -51,7 +51,6 @@
  * 
  */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/if_arp.h>
@@ -228,12 +227,11 @@ static void atif_drop_device(struct net_device *dev)
 static struct atalk_iface *atif_add_device(struct net_device *dev,
 					   struct atalk_addr *sa)
 {
-	struct atalk_iface *iface = kmalloc(sizeof(*iface), GFP_KERNEL);
+	struct atalk_iface *iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 
 	if (!iface)
 		goto out;
 
-	memset(iface, 0, sizeof(*iface));
 	dev_hold(dev);
 	iface->dev = dev;
 	dev->atalk_ptr = iface;
@@ -560,12 +558,11 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 	}
 
 	if (!rt) {
-		rt = kmalloc(sizeof(*rt), GFP_ATOMIC);
+		rt = kzalloc(sizeof(*rt), GFP_ATOMIC);
 
 		retval = -ENOBUFS;
 		if (!rt)
 			goto out_unlock;
-		memset(rt, 0, sizeof(*rt));
 
 		rt->next = atalk_routes;
 		atalk_routes = rt;
@@ -1819,6 +1816,22 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
+
+#ifdef CONFIG_COMPAT
+static int atalk_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * All Appletalk ioctls except SIOCATALKDIFADDR are standard.  And
+	 * SIOCATALKDIFADDR is handled by upper layer as well, so there is
+	 * nothing to do.  Eventually SIOCATALKDIFADDR should be moved
+	 * here so there is no generic SIOCPROTOPRIVATE translation in the
+	 * system.
+	 */
+	return -ENOIOCTLCMD;
+}
+#endif
+
+
 static struct net_proto_family atalk_family_ops = {
 	.family		= PF_APPLETALK,
 	.create		= atalk_create,
@@ -1836,6 +1849,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(atalk_dgram_ops) = {
 	.getname	= atalk_getname,
 	.poll		= datagram_poll,
 	.ioctl		= atalk_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= atalk_compat_ioctl,
+#endif
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown,
 	.setsockopt	= sock_no_setsockopt,

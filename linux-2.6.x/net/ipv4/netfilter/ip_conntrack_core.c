@@ -17,7 +17,6 @@
  *	- export ip_conntrack[_expect]_{find_get,put} functions
  * */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/icmp.h>
 #include <linux/ip.h>
@@ -77,11 +76,11 @@ unsigned int ip_ct_log_invalid;
 static LIST_HEAD(unconfirmed);
 static int ip_conntrack_vmalloc;
 
-static unsigned int ip_conntrack_next_id = 1;
-static unsigned int ip_conntrack_expect_next_id = 1;
+static unsigned int ip_conntrack_next_id;
+static unsigned int ip_conntrack_expect_next_id;
 #ifdef CONFIG_IP_NF_CONNTRACK_EVENTS
-struct notifier_block *ip_conntrack_chain;
-struct notifier_block *ip_conntrack_expect_chain;
+ATOMIC_NOTIFIER_HEAD(ip_conntrack_chain);
+ATOMIC_NOTIFIER_HEAD(ip_conntrack_expect_chain);
 
 DEFINE_PER_CPU(struct ip_conntrack_ecache, ip_conntrack_ecache);
 
@@ -92,7 +91,7 @@ __ip_ct_deliver_cached_events(struct ip_conntrack_ecache *ecache)
 {
 	DEBUGP("ecache: delivering events for %p\n", ecache->ct);
 	if (is_confirmed(ecache->ct) && !is_dying(ecache->ct) && ecache->events)
-		notifier_call_chain(&ip_conntrack_chain, ecache->events,
+		atomic_notifier_call_chain(&ip_conntrack_chain, ecache->events,
 				    ecache->ct);
 	ecache->events = 0;
 	ip_conntrack_put(ecache->ct);
@@ -133,7 +132,7 @@ static void ip_ct_event_cache_flush(void)
 	struct ip_conntrack_ecache *ecache;
 	int cpu;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		ecache = &per_cpu(ip_conntrack_ecache, cpu);
 		if (ecache->ct)
 			ip_conntrack_put(ecache->ct);
@@ -724,6 +723,9 @@ init_conntrack(struct ip_conntrack_tuple *tuple,
 		/* this is ugly, but there is no other place where to put it */
 		conntrack->nat.masq_index = exp->master->nat.masq_index;
 #endif
+#ifdef CONFIG_IP_NF_CONNTRACK_SECMARK
+		conntrack->secmark = exp->master->secmark;
+#endif
 		nf_conntrack_get(&conntrack->master->ct_general);
 		CONNTRACK_STAT_INC(expect_new);
 	} else {
@@ -1129,6 +1131,12 @@ void __ip_ct_refresh_acct(struct ip_conntrack *ct,
 	IP_NF_ASSERT(skb);
 
 	write_lock_bh(&ip_conntrack_lock);
+
+	/* Only update if this is not a fixed timeout */
+	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status)) {
+		write_unlock_bh(&ip_conntrack_lock);
+		return;
+	}
 
 	/* If not in hash table, timer will not be active yet */
 	if (!is_confirmed(ct)) {

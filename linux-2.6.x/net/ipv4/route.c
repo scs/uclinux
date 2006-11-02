@@ -55,6 +55,8 @@
  *	Robert Olsson		:	Added rt_cache statistics
  *	Arnaldo C. Melo		:	Convert proc stuff to seq_file
  *	Eric Dumazet		:	hashed spinlocks and rt_check_expire() fixes.
+ * 	Ilia Sotnikov		:	Ignore TOS on PMTUD and Redirect
+ * 	Ilia Sotnikov		:	Removed TOS from hash calculations
  *
  *		This program is free software; you can redistribute it and/or
  *		modify it under the terms of the GNU General Public License
@@ -62,7 +64,6 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -103,6 +104,7 @@
 #include <net/icmp.h>
 #include <net/xfrm.h>
 #include <net/ip_mp_alg.h>
+#include <net/netevent.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -204,21 +206,27 @@ __u8 ip_tos2prio[16] = {
 struct rt_hash_bucket {
 	struct rtable	*chain;
 };
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK)
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_SPINLOCK) || \
+	defined(CONFIG_PROVE_LOCKING)
 /*
  * Instead of using one spinlock for each rt_hash_bucket, we use a table of spinlocks
  * The size of this table is a power of two and depends on the number of CPUS.
+ * (on lockdep we have a quite big spinlock_t, so keep the size down there)
  */
-#if NR_CPUS >= 32
-#define RT_HASH_LOCK_SZ	4096
-#elif NR_CPUS >= 16
-#define RT_HASH_LOCK_SZ	2048
-#elif NR_CPUS >= 8
-#define RT_HASH_LOCK_SZ	1024
-#elif NR_CPUS >= 4
-#define RT_HASH_LOCK_SZ	512
+#ifdef CONFIG_LOCKDEP
+# define RT_HASH_LOCK_SZ	256
 #else
-#define RT_HASH_LOCK_SZ	256
+# if NR_CPUS >= 32
+#  define RT_HASH_LOCK_SZ	4096
+# elif NR_CPUS >= 16
+#  define RT_HASH_LOCK_SZ	2048
+# elif NR_CPUS >= 8
+#  define RT_HASH_LOCK_SZ	1024
+# elif NR_CPUS >= 4
+#  define RT_HASH_LOCK_SZ	512
+# else
+#  define RT_HASH_LOCK_SZ	256
+# endif
 #endif
 
 static spinlock_t	*rt_hash_locks;
@@ -242,14 +250,14 @@ static unsigned int		rt_hash_rnd;
 
 static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
 #define RT_CACHE_STAT_INC(field) \
-	(per_cpu(rt_cache_stat, raw_smp_processor_id()).field++)
+	(__raw_get_cpu_var(rt_cache_stat).field++)
 
 static int rt_intern_hash(unsigned hash, struct rtable *rth,
 				struct rtable **res);
 
-static unsigned int rt_hash_code(u32 daddr, u32 saddr, u8 tos)
+static unsigned int rt_hash_code(u32 daddr, u32 saddr)
 {
-	return (jhash_3words(daddr, saddr, (u32) tos, rt_hash_rnd)
+	return (jhash_2words(daddr, saddr, rt_hash_rnd)
 		& rt_hash_mask);
 }
 
@@ -1111,15 +1119,14 @@ static void rt_del(unsigned hash, struct rtable *rt)
 }
 
 void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
-		    u32 saddr, u8 tos, struct net_device *dev)
+		    u32 saddr, struct net_device *dev)
 {
 	int i, k;
 	struct in_device *in_dev = in_dev_get(dev);
 	struct rtable *rth, **rthp;
 	u32  skeys[2] = { saddr, 0 };
 	int  ikeys[2] = { dev->ifindex, 0 };
-
-	tos &= IPTOS_RT_MASK;
+	struct netevent_redirect netevent;
 
 	if (!in_dev)
 		return;
@@ -1141,8 +1148,7 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 	for (i = 0; i < 2; i++) {
 		for (k = 0; k < 2; k++) {
 			unsigned hash = rt_hash_code(daddr,
-						     skeys[i] ^ (ikeys[k] << 5),
-						     tos);
+						     skeys[i] ^ (ikeys[k] << 5));
 
 			rthp=&rt_hash_table[hash].chain;
 
@@ -1152,7 +1158,6 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 
 				if (rth->fl.fl4_dst != daddr ||
 				    rth->fl.fl4_src != skeys[i] ||
-				    rth->fl.fl4_tos != tos ||
 				    rth->fl.oif != ikeys[k] ||
 				    rth->fl.iif != 0) {
 					rthp = &rth->u.rt_next;
@@ -1213,6 +1218,11 @@ void ip_rt_redirect(u32 old_gw, u32 daddr, u32 new_gw,
 					rt_drop(rt);
 					goto do_next;
 				}
+				
+				netevent.old = &rth->u.dst;
+				netevent.new = &rt->u.dst;
+				call_netevent_notifiers(NETEVENT_REDIRECT, 
+						        &netevent);
 
 				rt_del(hash, rth);
 				if (!rt_intern_hash(hash, rt, &rt))
@@ -1232,10 +1242,9 @@ reject_redirect:
 	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
 		printk(KERN_INFO "Redirect from %u.%u.%u.%u on %s about "
 			"%u.%u.%u.%u ignored.\n"
-			"  Advised path = %u.%u.%u.%u -> %u.%u.%u.%u, "
-			"tos %02x\n",
+			"  Advised path = %u.%u.%u.%u -> %u.%u.%u.%u\n",
 		       NIPQUAD(old_gw), dev->name, NIPQUAD(new_gw),
-		       NIPQUAD(saddr), NIPQUAD(daddr), tos);
+		       NIPQUAD(saddr), NIPQUAD(daddr));
 #endif
 	in_dev_put(in_dev);
 }
@@ -1253,8 +1262,7 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
 			   rt->u.dst.expires) {
 			unsigned hash = rt_hash_code(rt->fl.fl4_dst,
 						     rt->fl.fl4_src ^
-							(rt->fl.oif << 5),
-						     rt->fl.fl4_tos);
+							(rt->fl.oif << 5));
 #if RT_CACHE_DEBUG >= 1
 			printk(KERN_DEBUG "ip_rt_advice: redirect to "
 					  "%u.%u.%u.%u/%02x dropped\n",
@@ -1391,14 +1399,13 @@ unsigned short ip_rt_frag_needed(struct iphdr *iph, unsigned short new_mtu)
 	struct rtable *rth;
 	u32  skeys[2] = { iph->saddr, 0, };
 	u32  daddr = iph->daddr;
-	u8   tos = iph->tos & IPTOS_RT_MASK;
 	unsigned short est_mtu = 0;
 
 	if (ipv4_config.no_pmtu_disc)
 		return 0;
 
 	for (i = 0; i < 2; i++) {
-		unsigned hash = rt_hash_code(daddr, skeys[i], tos);
+		unsigned hash = rt_hash_code(daddr, skeys[i]);
 
 		rcu_read_lock();
 		for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
@@ -1407,7 +1414,6 @@ unsigned short ip_rt_frag_needed(struct iphdr *iph, unsigned short new_mtu)
 			    rth->fl.fl4_src == skeys[i] &&
 			    rth->rt_dst  == daddr &&
 			    rth->rt_src  == iph->saddr &&
-			    rth->fl.fl4_tos == tos &&
 			    rth->fl.iif == 0 &&
 			    !(dst_metric_locked(&rth->u.dst, RTAX_MTU))) {
 				unsigned short mtu = new_mtu;
@@ -1453,6 +1459,7 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 		}
 		dst->metrics[RTAX_MTU-1] = mtu;
 		dst_set_expires(dst, ip_rt_mtu_expires);
+		call_netevent_notifiers(NETEVENT_PMTU_UPDATE, dst);
 	}
 }
 
@@ -1658,7 +1665,7 @@ static int ip_route_input_mc(struct sk_buff *skb, u32 daddr, u32 saddr,
 	RT_CACHE_STAT_INC(in_slow_mc);
 
 	in_dev_put(in_dev);
-	hash = rt_hash_code(daddr, saddr ^ (dev->ifindex << 5), tos);
+	hash = rt_hash_code(daddr, saddr ^ (dev->ifindex << 5));
 	return rt_intern_hash(hash, rth, (struct rtable**) &skb->dst);
 
 e_nobufs:
@@ -1823,7 +1830,7 @@ static inline int ip_mkroute_input_def(struct sk_buff *skb,
 		return err;
 
 	/* put it into the cache */
-	hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5), tos);
+	hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5));
 	return rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);	
 }
 
@@ -1864,7 +1871,7 @@ static inline int ip_mkroute_input(struct sk_buff *skb,
 			return err;
 
 		/* put it into the cache */
-		hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5), tos);
+		hash = rt_hash_code(daddr, saddr ^ (fl->iif << 5));
 		err = rt_intern_hash(hash, rth, &rtres);
 		if (err)
 			return err;
@@ -2041,7 +2048,7 @@ local_input:
 		rth->rt_flags 	&= ~RTCF_LOCAL;
 	}
 	rth->rt_type	= res.type;
-	hash = rt_hash_code(daddr, saddr ^ (fl.iif << 5), tos);
+	hash = rt_hash_code(daddr, saddr ^ (fl.iif << 5));
 	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
 	goto done;
 
@@ -2088,7 +2095,7 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
 	int iif = dev->ifindex;
 
 	tos &= IPTOS_RT_MASK;
-	hash = rt_hash_code(daddr, saddr ^ (iif << 5), tos);
+	hash = rt_hash_code(daddr, saddr ^ (iif << 5));
 
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
@@ -2286,10 +2293,8 @@ static inline int ip_mkroute_output_def(struct rtable **rp,
 	int err = __mkroute_output(&rth, res, fl, oldflp, dev_out, flags);
 	unsigned hash;
 	if (err == 0) {
-		u32 tos = RT_FL_TOS(oldflp);
-
 		hash = rt_hash_code(oldflp->fl4_dst, 
-				    oldflp->fl4_src ^ (oldflp->oif << 5), tos);
+				    oldflp->fl4_src ^ (oldflp->oif << 5));
 		err = rt_intern_hash(hash, rth, rp);
 	}
 	
@@ -2304,7 +2309,6 @@ static inline int ip_mkroute_output(struct rtable** rp,
 				    unsigned flags)
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH_CACHED
-	u32 tos = RT_FL_TOS(oldflp);
 	unsigned char hop;
 	unsigned hash;
 	int err = -EINVAL;
@@ -2334,7 +2338,7 @@ static inline int ip_mkroute_output(struct rtable** rp,
 
 			hash = rt_hash_code(oldflp->fl4_dst, 
 					    oldflp->fl4_src ^
-					    (oldflp->oif << 5), tos);
+					    (oldflp->oif << 5));
 			err = rt_intern_hash(hash, rth, rp);
 
 			/* forward hop information to multipath impl. */
@@ -2563,7 +2567,7 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	unsigned hash;
 	struct rtable *rth;
 
-	hash = rt_hash_code(flp->fl4_dst, flp->fl4_src ^ (flp->oif << 5), flp->fl4_tos);
+	hash = rt_hash_code(flp->fl4_dst, flp->fl4_src ^ (flp->oif << 5));
 
 	rcu_read_lock_bh();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
@@ -3095,7 +3099,7 @@ static int ip_rt_acct_read(char *buffer, char **start, off_t offset,
 		memcpy(dst, src, length);
 
 		/* Add the other cpus in, one int at a time */
-		for_each_cpu(i) {
+		for_each_possible_cpu(i) {
 			unsigned int j;
 
 			src = ((u32 *) IP_RT_ACCT_CPU(i)) + offset;
@@ -3153,7 +3157,7 @@ int __init ip_rt_init(void)
 					rhash_entries,
 					(num_physpages >= 128 * 1024) ?
 					15 : 17,
-					HASH_HIGHMEM,
+					0,
 					&rt_hash_log,
 					&rt_hash_mask,
 					0);

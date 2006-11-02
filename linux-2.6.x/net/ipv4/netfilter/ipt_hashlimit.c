@@ -28,9 +28,6 @@
 #include <linux/jhash.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/tcp.h>
-#include <linux/udp.h>
-#include <linux/sctp.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/list.h>
@@ -40,6 +37,7 @@
 
 /* FIXME: this is just for IP_NF_ASSERRT */
 #include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/mutex.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -82,6 +80,7 @@ struct ipt_hashlimit_htable {
 	/* used internally */
 	spinlock_t lock;		/* lock for list_head */
 	u_int32_t rnd;			/* random seed for hash */
+	int rnd_initialized;
 	struct timer_list timer;	/* timer for gc */
 	atomic_t count;			/* number entries in table */
 
@@ -92,7 +91,7 @@ struct ipt_hashlimit_htable {
 };
 
 static DEFINE_SPINLOCK(hashlimit_lock);	/* protects htables list */
-static DECLARE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
+static DEFINE_MUTEX(hlimit_mutex);	/* additional checkentry protection */
 static HLIST_HEAD(hashlimit_htables);
 static kmem_cache_t *hashlimit_cachep __read_mostly;
 
@@ -136,8 +135,10 @@ __dsthash_alloc_init(struct ipt_hashlimit_htable *ht, struct dsthash_dst *dst)
 
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
-	if (!ht->rnd)
+	if (!ht->rnd_initialized) {
 		get_random_bytes(&ht->rnd, 4);
+		ht->rnd_initialized = 1;
+	}
 
 	if (ht->cfg.max &&
 	    atomic_read(&ht->count) >= ht->cfg.max) {
@@ -216,7 +217,7 @@ static int htable_create(struct ipt_hashlimit_info *minfo)
 
 	atomic_set(&hinfo->count, 0);
 	atomic_set(&hinfo->use, 1);
-	hinfo->rnd = 0;
+	hinfo->rnd_initialized = 0;
 	spin_lock_init(&hinfo->lock);
 	hinfo->pde = create_proc_entry(minfo->name, 0, hashlimit_procdir);
 	if (!hinfo->pde) {
@@ -380,53 +381,11 @@ static inline void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 		dh->rateinfo.credit = dh->rateinfo.credit_cap;
 }
 
-static inline int get_ports(const struct sk_buff *skb, int offset, 
-			    u16 ports[2])
-{
-	union {
-		struct tcphdr th;
-		struct udphdr uh;
-		sctp_sctphdr_t sctph;
-	} hdr_u, *ptr_u;
-
-	/* Must not be a fragment. */
-	if (offset)
-		return 1;
-
-	/* Must be big enough to read ports (both UDP and TCP have
-	   them at the start). */
-	ptr_u = skb_header_pointer(skb, skb->nh.iph->ihl*4, 8, &hdr_u); 
-	if (!ptr_u)
-		return 1;
-
-	switch (skb->nh.iph->protocol) {
-		case IPPROTO_TCP:
-			ports[0] = ptr_u->th.source;
-			ports[1] = ptr_u->th.dest;
-			break;
-		case IPPROTO_UDP:
-			ports[0] = ptr_u->uh.source;
-			ports[1] = ptr_u->uh.dest;
-			break;
-		case IPPROTO_SCTP:
-			ports[0] = ptr_u->sctph.source;
-			ports[1] = ptr_u->sctph.dest;
-			break;
-		default:
-			/* all other protocols don't supprot per-port hash
-			 * buckets */
-			ports[0] = ports[1] = 0;
-			break;
-	}
-
-	return 0;
-}
-
-
 static int
 hashlimit_match(const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
+		const struct xt_match *match,
 		const void *matchinfo,
 		int offset,
 		unsigned int protoff,
@@ -447,8 +406,22 @@ hashlimit_match(const struct sk_buff *skb,
 		dst.src_ip = skb->nh.iph->saddr;
 	if (hinfo->cfg.mode & IPT_HASHLIMIT_HASH_DPT
 	    ||hinfo->cfg.mode & IPT_HASHLIMIT_HASH_SPT) {
-		u_int16_t ports[2];
-		if (get_ports(skb, offset, ports)) {
+		u_int16_t _ports[2], *ports;
+
+		switch (skb->nh.iph->protocol) {
+		case IPPROTO_TCP:
+		case IPPROTO_UDP:
+		case IPPROTO_SCTP:
+		case IPPROTO_DCCP:
+			ports = skb_header_pointer(skb, skb->nh.iph->ihl*4,
+						   sizeof(_ports), &_ports);
+			break;
+		default:
+			_ports[0] = _ports[1] = 0;
+			ports = _ports;
+			break;
+		}
+		if (!ports) {
 			/* We've been asked to examine this packet, and we
 		 	  can't.  Hence, no choice but to drop. */
 			*hotdrop = 1;
@@ -481,15 +454,12 @@ hashlimit_match(const struct sk_buff *skb,
 		dh->rateinfo.credit_cap = user2credits(hinfo->cfg.avg * 
 							hinfo->cfg.burst);
 		dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
-
-		spin_unlock_bh(&hinfo->lock);
-		return 1;
+	} else {
+		/* update expiration timeout */
+		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
+		rateinfo_recalc(dh, now);
 	}
 
-	/* update expiration timeout */
-	dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
-
-	rateinfo_recalc(dh, now);
 	if (dh->rateinfo.credit >= dh->rateinfo.cost) {
 		/* We're underlimit. */
 		dh->rateinfo.credit -= dh->rateinfo.cost;
@@ -506,14 +476,12 @@ hashlimit_match(const struct sk_buff *skb,
 static int
 hashlimit_checkentry(const char *tablename,
 		     const void *inf,
+		     const struct xt_match *match,
 		     void *matchinfo,
 		     unsigned int matchsize,
 		     unsigned int hook_mask)
 {
 	struct ipt_hashlimit_info *r = matchinfo;
-
-	if (matchsize != IPT_ALIGN(sizeof(struct ipt_hashlimit_info)))
-		return 0;
 
 	/* Check for overflow. */
 	if (r->cfg.burst == 0
@@ -537,19 +505,22 @@ hashlimit_checkentry(const char *tablename,
 	if (!r->cfg.expire)
 		return 0;
 
+	if (r->name[sizeof(r->name) - 1] != '\0')
+		return 0;
+
 	/* This is the best we've got: We cannot release and re-grab lock,
 	 * since checkentry() is called before ip_tables.c grabs ipt_mutex.  
 	 * We also cannot grab the hashtable spinlock, since htable_create will 
 	 * call vmalloc, and that can sleep.  And we cannot just re-search
 	 * the list of htable's in htable_create(), since then we would
 	 * create duplicate proc files. -HW */
-	down(&hlimit_mutex);
+	mutex_lock(&hlimit_mutex);
 	r->hinfo = htable_find_get(r->name);
 	if (!r->hinfo && (htable_create(r) != 0)) {
-		up(&hlimit_mutex);
+		mutex_unlock(&hlimit_mutex);
 		return 0;
 	}
-	up(&hlimit_mutex);
+	mutex_unlock(&hlimit_mutex);
 
 	/* Ugly hack: For SMP, we only want to use one set */
 	r->u.master = r;
@@ -558,19 +529,21 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(void *matchinfo, unsigned int matchsize)
+hashlimit_destroy(const struct xt_match *match, void *matchinfo,
+		  unsigned int matchsize)
 {
-	struct ipt_hashlimit_info *r = (struct ipt_hashlimit_info *) matchinfo;
+	struct ipt_hashlimit_info *r = matchinfo;
 
 	htable_put(r->hinfo);
 }
 
-static struct ipt_match ipt_hashlimit = { 
-	.name = "hashlimit", 
-	.match = hashlimit_match, 
-	.checkentry = hashlimit_checkentry, 
-	.destroy = hashlimit_destroy,
-	.me = THIS_MODULE 
+static struct ipt_match ipt_hashlimit = {
+	.name		= "hashlimit",
+	.match		= hashlimit_match,
+	.matchsize	= sizeof(struct ipt_hashlimit_info),
+	.checkentry	= hashlimit_checkentry,
+	.destroy	= hashlimit_destroy,
+	.me		= THIS_MODULE
 };
 
 /* PROC stuff */
@@ -717,15 +690,15 @@ cleanup_nothing:
 	
 }
 
-static int __init init(void)
+static int __init ipt_hashlimit_init(void)
 {
 	return init_or_fini(0);
 }
 
-static void __exit fini(void)
+static void __exit ipt_hashlimit_fini(void)
 {
 	init_or_fini(1);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ipt_hashlimit_init);
+module_exit(ipt_hashlimit_fini);

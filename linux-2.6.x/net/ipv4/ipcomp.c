@@ -13,7 +13,6 @@
  *   - Compression stats.
  *   - Adaptive compression.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <asm/scatterlist.h>
 #include <asm/semaphore.h>
@@ -24,6 +23,7 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
+#include <linux/mutex.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/icmp.h>
@@ -36,7 +36,7 @@ struct ipcomp_tfms {
 	int users;
 };
 
-static DECLARE_MUTEX(ipcomp_resource_sem);
+static DEFINE_MUTEX(ipcomp_resource_mutex);
 static void **ipcomp_scratches;
 static int ipcomp_scratch_users;
 static LIST_HEAD(ipcomp_tfms_list);
@@ -44,7 +44,6 @@ static LIST_HEAD(ipcomp_tfms_list);
 static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err, plen, dlen;
-	struct iphdr *iph;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
 	struct crypto_tfm *tfm;
@@ -71,46 +70,31 @@ static int ipcomp_decompress(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		goto out;
 		
-	skb_put(skb, dlen - plen);
+	skb->truesize += dlen - plen;
+	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
-	iph = skb->nh.iph;
-	iph->tot_len = htons(dlen + iph->ihl * 4);
 out:	
 	put_cpu();
 	return err;
 }
 
-static int ipcomp_input(struct xfrm_state *x,
-                        struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	u8 nexthdr;
-	int err = 0;
+	int err = -ENOMEM;
 	struct iphdr *iph;
-	union {
-		struct iphdr	iph;
-		char 		buf[60];
-	} tmp_iph;
+	struct ip_comp_hdr *ipch;
 
-
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-	    skb_linearize(skb, GFP_ATOMIC) != 0) {
-	    	err = -ENOMEM;
+	if (skb_linearize_cow(skb))
 	    	goto out;
-	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */	
 	iph = skb->nh.iph;
-	memcpy(&tmp_iph, iph, iph->ihl * 4);
-	nexthdr = *(u8 *)skb->data;
-	skb_pull(skb, sizeof(struct ip_comp_hdr));
-	skb->nh.raw += sizeof(struct ip_comp_hdr);
-	memcpy(skb->nh.raw, &tmp_iph, tmp_iph.iph.ihl * 4);
-	iph = skb->nh.iph;
-	iph->tot_len = htons(ntohs(iph->tot_len) - sizeof(struct ip_comp_hdr));
-	iph->protocol = nexthdr;
-	skb->h.raw = skb->data;
+	ipch = (void *)skb->data;
+	iph->protocol = ipch->nexthdr;
+	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
 
 out:	
@@ -171,10 +155,8 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 	}
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-	    skb_linearize(skb, GFP_ATOMIC) != 0) {
+	if (skb_linearize_cow(skb))
 		goto out_ok;
-	}
 	
 	err = ipcomp_compress(x, skb);
 	iph = skb->nh.iph;
@@ -210,7 +192,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 	    skb->h.icmph->code != ICMP_FRAG_NEEDED)
 		return;
 
-	spi = ntohl(ntohs(ipch->cpi));
+	spi = htonl(ntohs(ipch->cpi));
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr,
 	                      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
@@ -253,7 +235,7 @@ error:
 }
 
 /*
- * Must be protected by xfrm_cfg_sem.  State and tunnel user references are
+ * Must be protected by xfrm_cfg_mutex.  State and tunnel user references are
  * always incremented on success.
  */
 static int ipcomp_tunnel_attach(struct xfrm_state *x)
@@ -290,11 +272,8 @@ static void ipcomp_free_scratches(void)
 	if (!scratches)
 		return;
 
-	for_each_cpu(i) {
-		void *scratch = *per_cpu_ptr(scratches, i);
-		if (scratch)
-			vfree(scratch);
-	}
+	for_each_possible_cpu(i)
+		vfree(*per_cpu_ptr(scratches, i));
 
 	free_percpu(scratches);
 }
@@ -313,7 +292,7 @@ static void **ipcomp_alloc_scratches(void)
 
 	ipcomp_scratches = scratches;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		void *scratch = vmalloc(IPCOMP_SCRATCH_SIZE);
 		if (!scratch)
 			return NULL;
@@ -344,7 +323,7 @@ static void ipcomp_free_tfms(struct crypto_tfm **tfms)
 	if (!tfms)
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
 		crypto_free_tfm(tfm);
 	}
@@ -384,7 +363,7 @@ static struct crypto_tfm **ipcomp_alloc_tfms(const char *alg_name)
 	if (!tfms)
 		goto error;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = crypto_alloc_tfm(alg_name, 0);
 		if (!tfm)
 			goto error;
@@ -411,9 +390,9 @@ static void ipcomp_destroy(struct xfrm_state *x)
 	if (!ipcd)
 		return;
 	xfrm_state_delete_tunnel(x);
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 	ipcomp_free_data(ipcd);
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 	kfree(ipcd);
 }
 
@@ -431,23 +410,22 @@ static int ipcomp_init_state(struct xfrm_state *x)
 		goto out;
 
 	err = -ENOMEM;
-	ipcd = kmalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
 
-	memset(ipcd, 0, sizeof(*ipcd));
 	x->props.header_len = 0;
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct iphdr);
 
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 	if (!ipcomp_alloc_scratches())
 		goto error;
 
 	ipcd->tfms = ipcomp_alloc_tfms(x->calg->alg_name);
 	if (!ipcd->tfms)
 		goto error;
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 
 	if (x->props.mode) {
 		err = ipcomp_tunnel_attach(x);
@@ -464,10 +442,10 @@ out:
 	return err;
 
 error_tunnel:
-	down(&ipcomp_resource_sem);
+	mutex_lock(&ipcomp_resource_mutex);
 error:
 	ipcomp_free_data(ipcd);
-	up(&ipcomp_resource_sem);
+	mutex_unlock(&ipcomp_resource_mutex);
 	kfree(ipcd);
 	goto out;
 }

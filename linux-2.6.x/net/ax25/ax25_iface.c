@@ -6,12 +6,12 @@
  *
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/timer.h>
@@ -66,28 +66,30 @@ int ax25_protocol_register(unsigned int pid,
 	protocol->pid  = pid;
 	protocol->func = func;
 
-	write_lock(&protocol_list_lock);
+	write_lock_bh(&protocol_list_lock);
 	protocol->next = protocol_list;
 	protocol_list  = protocol;
-	write_unlock(&protocol_list_lock);
+	write_unlock_bh(&protocol_list_lock);
 
 	return 1;
 }
+
+EXPORT_SYMBOL(ax25_protocol_register);
 
 void ax25_protocol_release(unsigned int pid)
 {
 	struct protocol_struct *s, *protocol;
 
-	write_lock(&protocol_list_lock);
+	write_lock_bh(&protocol_list_lock);
 	protocol = protocol_list;
 	if (protocol == NULL) {
-		write_unlock(&protocol_list_lock);
+		write_unlock_bh(&protocol_list_lock);
 		return;
 	}
 
 	if (protocol->pid == pid) {
 		protocol_list = protocol->next;
-		write_unlock(&protocol_list_lock);
+		write_unlock_bh(&protocol_list_lock);
 		kfree(protocol);
 		return;
 	}
@@ -96,15 +98,17 @@ void ax25_protocol_release(unsigned int pid)
 		if (protocol->next->pid == pid) {
 			s = protocol->next;
 			protocol->next = protocol->next->next;
-			write_unlock(&protocol_list_lock);
+			write_unlock_bh(&protocol_list_lock);
 			kfree(s);
 			return;
 		}
 
 		protocol = protocol->next;
 	}
-	write_unlock(&protocol_list_lock);
+	write_unlock_bh(&protocol_list_lock);
 }
+
+EXPORT_SYMBOL(ax25_protocol_release);
 
 int ax25_linkfail_register(void (*func)(ax25_cb *, int))
 {
@@ -122,6 +126,8 @@ int ax25_linkfail_register(void (*func)(ax25_cb *, int))
 
 	return 1;
 }
+
+EXPORT_SYMBOL(ax25_linkfail_register);
 
 void ax25_linkfail_release(void (*func)(ax25_cb *, int))
 {
@@ -155,6 +161,8 @@ void ax25_linkfail_release(void (*func)(ax25_cb *, int))
 	spin_unlock_bh(&linkfail_lock);
 }
 
+EXPORT_SYMBOL(ax25_linkfail_release);
+
 int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
 {
 	struct listen_struct *listen;
@@ -175,6 +183,8 @@ int ax25_listen_register(ax25_address *callsign, struct net_device *dev)
 
 	return 1;
 }
+
+EXPORT_SYMBOL(ax25_listen_register);
 
 void ax25_listen_release(ax25_address *callsign, struct net_device *dev)
 {
@@ -207,6 +217,8 @@ void ax25_listen_release(ax25_address *callsign, struct net_device *dev)
 	}
 	spin_unlock_bh(&listen_lock);
 }
+
+EXPORT_SYMBOL(ax25_listen_release);
 
 int (*ax25_protocol_function(unsigned int pid))(struct sk_buff *, ax25_cb *)
 {
@@ -254,13 +266,13 @@ int ax25_protocol_is_registered(unsigned int pid)
 	struct protocol_struct *protocol;
 	int res = 0;
 
-	read_lock(&protocol_list_lock);
+	read_lock_bh(&protocol_list_lock);
 	for (protocol = protocol_list; protocol != NULL; protocol = protocol->next)
 		if (protocol->pid == pid) {
 			res = 1;
 			break;
 		}
-	read_unlock(&protocol_list_lock);
+	read_unlock_bh(&protocol_list_lock);
 
 	return res;
 }

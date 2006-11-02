@@ -1,13 +1,13 @@
 /*
  *  net/dccp/ccids/ccid3.h
  *
- *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
  *
  *  An implementation of the DCCP protocol
  *
  *  This code has been developed by the University of Waikato WAND
  *  research group. For further information please see http://www.wand.net.nz/
- *  or e-mail Ian McDonald - iam4@cs.waikato.ac.nz
+ *  or e-mail Ian McDonald - ian.mcdonald@jandi.co.nz
  *
  *  This code also uses code from Lulea University, rereleased as GPL by its
  *  authors:
@@ -36,11 +36,11 @@
 #ifndef _DCCP_CCID3_H_
 #define _DCCP_CCID3_H_
 
-#include <linux/config.h>
 #include <linux/list.h>
 #include <linux/time.h>
 #include <linux/types.h>
 #include <linux/tfrc.h>
+#include "../ccid.h"
 
 #define TFRC_MIN_PACKET_SIZE	   16
 #define TFRC_STD_PACKET_SIZE	  256
@@ -120,9 +120,10 @@ struct ccid3_hc_rx_sock {
 #define ccid3hcrx_x_recv	ccid3hcrx_tfrc.tfrcrx_x_recv
 #define ccid3hcrx_rtt		ccid3hcrx_tfrc.tfrcrx_rtt
 #define ccid3hcrx_p		ccid3hcrx_tfrc.tfrcrx_p
-  	u64			ccid3hcrx_seqno_last_counter:48,
+  	u64			ccid3hcrx_seqno_nonloss:48,
+				ccid3hcrx_ccval_nonloss:4,
 				ccid3hcrx_state:8,
-				ccid3hcrx_last_counter:4;
+				ccid3hcrx_ccval_last_counter:4;
   	u32			ccid3hcrx_bytes_recv;
   	struct timeval		ccid3hcrx_tstamp_last_feedback;
   	struct timeval		ccid3hcrx_tstamp_last_ack;
@@ -135,12 +136,12 @@ struct ccid3_hc_rx_sock {
 
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 {
-    return dccp_sk(sk)->dccps_hc_tx_ccid_private;
+    return ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
 }
 
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
-    return dccp_sk(sk)->dccps_hc_rx_ccid_private;
+    return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
 }
 
 #endif /* _DCCP_CCID3_H_ */

@@ -121,7 +121,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
-#include <linux/config.h>
 
 #include <linux/net.h>
 #include <linux/socket.h>
@@ -337,7 +336,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
-	if (likely(skb->dst == NULL)) {
+	if (skb->dst == NULL) {
 		int err = ip_route_input(skb, iph->daddr, iph->saddr, iph->tos,
 					 skb->dev);
 		if (unlikely(err)) {
@@ -428,6 +427,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 		IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
 		goto drop;
 	}
+
+	/* Remove any debris in the socket control block */
+	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 
 	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
 		       ip_rcv_finish);

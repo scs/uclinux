@@ -107,7 +107,7 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 	if (nlh->nlmsg_len < sizeof(*nlh) || skb->len < nlh->nlmsg_len)
 		return;
 
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN))
+	if (security_netlink_recv(skb, CAP_NET_ADMIN))
 		RCV_SKB_FAIL(-EPERM);
 
 	/* Eventually we might send routing messages too */
@@ -133,7 +133,7 @@ static struct nf_hook_ops dnrmg_ops = {
 	.priority	= NF_DN_PRI_DNRTMSG,
 };
 
-static int __init init(void)
+static int __init dn_rtmsg_init(void)
 {
 	int rv = 0;
 
@@ -152,7 +152,7 @@ static int __init init(void)
 	return rv;
 }
 
-static void __exit fini(void)
+static void __exit dn_rtmsg_fini(void)
 {
 	nf_unregister_hook(&dnrmg_ops);
 	sock_release(dnrmg->sk_socket);
@@ -164,6 +164,6 @@ MODULE_AUTHOR("Steven Whitehouse <steve@chygwyn.com>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_DNRTMSG);
 
-module_init(init);
-module_exit(fini);
+module_init(dn_rtmsg_init);
+module_exit(dn_rtmsg_fini);
 

@@ -5,8 +5,8 @@
  * Added /proc/sys/net directories for each protocol family. [MS]
  *
  * $Log$
- * Revision 1.5  2006/03/22 02:42:32  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/02 06:00:59  magicyang
+ * update kernel to 2.6.18
  *
  * Revision 1.2  1996/05/08  20:24:40  shaver
  * Added bits for NET_BRIDGE and the NET_IPV4_ARP stuff and
@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 
@@ -40,14 +39,6 @@ struct ctl_table net_table[] = {
 		.mode		= 0555,
 		.child		= core_table,
 	},
-#ifdef CONFIG_NET
-	{
-		.ctl_name	= NET_ETHER,
-		.procname	= "ethernet",
-		.mode		= 0555,
-		.child		= ether_table,
-	},
-#endif
 #ifdef CONFIG_INET
 	{
 		.ctl_name	= NET_IPV4,

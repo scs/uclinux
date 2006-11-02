@@ -3,7 +3,6 @@
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kmod.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
@@ -451,12 +450,12 @@ int vcc_connect(struct socket *sock, int itf, short vpi, int vci)
 		dev = try_then_request_module(atm_dev_lookup(itf), "atm-device-%d", itf);
 	} else {
 		dev = NULL;
-		down(&atm_dev_mutex);
+		mutex_lock(&atm_dev_mutex);
 		if (!list_empty(&atm_devs)) {
 			dev = list_entry(atm_devs.next, struct atm_dev, dev_list);
 			atm_dev_hold(dev);
 		}
-		up(&atm_dev_mutex);
+		mutex_unlock(&atm_dev_mutex);
 	}
 	if (!dev)
 		return -ENODEV;
@@ -791,8 +790,14 @@ static int __init atm_init(void)
 		printk(KERN_ERR "atm_proc_init() failed with %d\n",error);
 		goto out_atmsvc_exit;
 	}
+        if ((error = atm_sysfs_init()) < 0) {
+		printk(KERN_ERR "atm_sysfs_init() failed with %d\n",error);
+		goto out_atmproc_exit;
+	}
 out:
 	return error;
+out_atmproc_exit:
+	atm_proc_exit();
 out_atmsvc_exit:
 	atmsvc_exit();
 out_atmpvc_exit:
@@ -805,6 +810,7 @@ out_unregister_vcc_proto:
 static void __exit atm_exit(void)
 {
 	atm_proc_exit();
+	atm_sysfs_exit();
 	atmsvc_exit();
 	atmpvc_exit();
 	proto_unregister(&vcc_proto);

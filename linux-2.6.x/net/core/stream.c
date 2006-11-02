@@ -176,6 +176,7 @@ void sk_stream_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
+	skb_truesize_check(skb);
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
 	sk->sk_forward_alloc += skb->truesize;
 }
@@ -195,15 +196,13 @@ EXPORT_SYMBOL(sk_stream_error);
 
 void __sk_stream_mem_reclaim(struct sock *sk)
 {
-	if (sk->sk_forward_alloc >= SK_STREAM_MEM_QUANTUM) {
-		atomic_sub(sk->sk_forward_alloc / SK_STREAM_MEM_QUANTUM,
-			   sk->sk_prot->memory_allocated);
-		sk->sk_forward_alloc &= SK_STREAM_MEM_QUANTUM - 1;
-		if (*sk->sk_prot->memory_pressure &&
-		    (atomic_read(sk->sk_prot->memory_allocated) <
-		     sk->sk_prot->sysctl_mem[0]))
-			*sk->sk_prot->memory_pressure = 0;
-	}
+	atomic_sub(sk->sk_forward_alloc / SK_STREAM_MEM_QUANTUM,
+		   sk->sk_prot->memory_allocated);
+	sk->sk_forward_alloc &= SK_STREAM_MEM_QUANTUM - 1;
+	if (*sk->sk_prot->memory_pressure &&
+	    (atomic_read(sk->sk_prot->memory_allocated) <
+	     sk->sk_prot->sysctl_mem[0]))
+		*sk->sk_prot->memory_pressure = 0;
 }
 
 EXPORT_SYMBOL(__sk_stream_mem_reclaim);

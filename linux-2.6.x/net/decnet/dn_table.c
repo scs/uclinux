@@ -12,7 +12,6 @@
  * Changes:
  *
  */
-#include <linux/config.h>
 #include <linux/string.h>
 #include <linux/net.h>
 #include <linux/socket.h>
@@ -46,7 +45,7 @@ struct dn_zone
 	u32			dz_hashmask;
 #define DZ_HASHMASK(dz)	((dz)->dz_hashmask)
 	int			dz_order;
-	u16			dz_mask;
+	__le16			dz_mask;
 #define DZ_MASK(dz)	((dz)->dz_mask)
 };
 
@@ -84,14 +83,14 @@ static int dn_fib_hash_zombies;
 
 static inline dn_fib_idx_t dn_hash(dn_fib_key_t key, struct dn_zone *dz)
 {
-	u16 h = ntohs(key.datum)>>(16 - dz->dz_order);
+	u16 h = dn_ntohs(key.datum)>>(16 - dz->dz_order);
 	h ^= (h >> 10);
 	h ^= (h >> 6);
 	h &= DZ_HASHMASK(dz);
 	return *(dn_fib_idx_t *)&h;
 }
 
-static inline dn_fib_key_t dz_key(u16 dst, struct dn_zone *dz)
+static inline dn_fib_key_t dz_key(__le16 dst, struct dn_zone *dz)
 {
 	dn_fib_key_t k;
 	k.datum = dst & DZ_MASK(dz);
@@ -159,12 +158,10 @@ static void dn_rehash_zone(struct dn_zone *dz)
 			break;
 	}
 
-	ht = kmalloc(new_divisor*sizeof(struct dn_fib_node*), GFP_KERNEL);
-
+	ht = kcalloc(new_divisor, sizeof(struct dn_fib_node*), GFP_KERNEL);
 	if (ht == NULL)
 		return;
 
-	memset(ht, 0, new_divisor*sizeof(struct dn_fib_node *));
 	write_lock_bh(&dn_fib_tables_lock);
 	old_ht = dz->dz_hash;
 	dz->dz_hash = ht;
@@ -185,11 +182,10 @@ static void dn_free_node(struct dn_fib_node *f)
 static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 {
 	int i;
-	struct dn_zone *dz = kmalloc(sizeof(struct dn_zone), GFP_KERNEL);
+	struct dn_zone *dz = kzalloc(sizeof(struct dn_zone), GFP_KERNEL);
 	if (!dz)
 		return NULL;
 
-	memset(dz, 0, sizeof(struct dn_zone));
 	if (z) {
 		dz->dz_divisor = 16;
 		dz->dz_hashmask = 0x0F;
@@ -198,14 +194,12 @@ static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 		dz->dz_hashmask = 0;
 	}
 
-	dz->dz_hash = kmalloc(dz->dz_divisor*sizeof(struct dn_fib_node *), GFP_KERNEL);
-
+	dz->dz_hash = kcalloc(dz->dz_divisor, sizeof(struct dn_fib_node *), GFP_KERNEL);
 	if (!dz->dz_hash) {
 		kfree(dz);
 		return NULL;
 	}
 
-	memset(dz->dz_hash, 0, dz->dz_divisor*sizeof(struct dn_fib_node*));
 	dz->dz_order = z;
 	dz->dz_mask = dnet_make_mask(z);
 
@@ -250,7 +244,7 @@ static int dn_fib_nh_match(struct rtmsg *r, struct nlmsghdr *nlh, struct dn_kern
 
 	for_nexthops(fi) {
 		int attrlen = nhlen - sizeof(struct rtnexthop);
-		dn_address gw;
+		__le16 gw;
 
 		if (attrlen < 0 || (nhlen -= nhp->rtnh_len) < 0)
 			return -EINVAL;
@@ -457,7 +451,7 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 	dz_key_0(key);
 	if (rta->rta_dst) {
-		dn_address dst;
+		__le16 dst;
 		memcpy(&dst, rta->rta_dst, 2);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;
@@ -593,7 +587,7 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 	dz_key_0(key);
 	if (rta->rta_dst) {
-		dn_address dst;
+		__le16 dst;
 		memcpy(&dst, rta->rta_dst, 2);
 		if (dst & ~DZ_MASK(dz))
 			return -EINVAL;

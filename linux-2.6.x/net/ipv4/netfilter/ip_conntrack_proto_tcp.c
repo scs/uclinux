@@ -19,7 +19,6 @@
  * version 2.2
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -870,11 +869,8 @@ static int tcp_error(struct sk_buff *skb,
 	 * and moreover root might send raw packets.
 	 */
 	/* FIXME: Source route IP option packets --RR */
-	if (hooknum == NF_IP_PRE_ROUTING
-	    && skb->ip_summed != CHECKSUM_UNNECESSARY
-	    && csum_tcpudp_magic(iph->saddr, iph->daddr, tcplen, IPPROTO_TCP,
-			         skb->ip_summed == CHECKSUM_HW ? skb->csum
-			      	 : skb_checksum(skb, iph->ihl*4, tcplen, 0))) {
+	if (ip_conntrack_checksum && hooknum == NF_IP_PRE_ROUTING &&
+	    nf_ip_checksum(skb, hooknum, iph->ihl * 4, IPPROTO_TCP)) {
 		if (LOG_INVALID(IPPROTO_TCP))
 			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 				  "ip_ct_tcp: bad TCP checksum ");

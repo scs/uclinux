@@ -209,7 +209,7 @@ int ip_options_echo(struct ip_options * dopt, struct sk_buff * skb)
 
 void ip_options_fragment(struct sk_buff * skb) 
 {
-	unsigned char * optptr = skb->nh.raw;
+	unsigned char * optptr = skb->nh.raw + sizeof(struct iphdr);
 	struct ip_options * opt = &(IPCB(skb)->opt);
 	int  l = opt->optlen;
 	int  optlen;
@@ -256,7 +256,6 @@ int ip_options_compile(struct ip_options * opt, struct sk_buff * skb)
 
 	if (!opt) {
 		opt = &(IPCB(skb)->opt);
-		memset(opt, 0, sizeof(struct ip_options));
 		iph = skb->nh.raw;
 		opt->optlen = ((struct iphdr *)iph)->ihl*4 - sizeof(struct iphdr);
 		optptr = iph + sizeof(struct iphdr);

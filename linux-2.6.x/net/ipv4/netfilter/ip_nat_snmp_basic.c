@@ -43,7 +43,6 @@
  * 2000-08-06: Convert to new helper API (Harald Welte).
  *
  */
-#include <linux/config.h>
 #include <linux/in.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -250,6 +249,7 @@ static unsigned char asn1_header_decode(struct asn1_ctx *ctx,
 	if (!asn1_id_decode(ctx, cls, con, tag))
 		return 0;
 		
+	def = len = 0;
 	if (!asn1_length_decode(ctx, &def, &len))
 		return 0;
 		
@@ -669,7 +669,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 	unsigned char *eoc, *end, *p;
 	unsigned long *lp, *id;
 	unsigned long ul;
-	long  l;
+	long l;
 	
 	*obj = NULL;
 	id = NULL;
@@ -699,11 +699,13 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 		return 0;
 	}
 	
+	type = 0;
 	if (!snmp_tag_cls2syntax(tag, cls, &type)) {
 		kfree(id);
 		return 0;
 	}
 	
+	l = 0;
 	switch (type) {
 		case SNMP_INTEGER:
 			len = sizeof(long);
@@ -765,6 +767,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 			len *= sizeof(unsigned long);
 			*obj = kmalloc(sizeof(struct snmp_object) + len, GFP_ATOMIC);
 			if (*obj == NULL) {
+				kfree(lp);
 				kfree(id);
 				if (net_ratelimit())
 					printk("OOM in bsalg (%d)\n", __LINE__);
@@ -1252,9 +1255,9 @@ static int help(struct sk_buff **pskb,
 	struct udphdr *udph = (struct udphdr *)((u_int32_t *)iph + iph->ihl);
 
 	/* SNMP replies and originating SNMP traps get mangled */
-	if (udph->source == ntohs(SNMP_PORT) && dir != IP_CT_DIR_REPLY)
+	if (udph->source == htons(SNMP_PORT) && dir != IP_CT_DIR_REPLY)
 		return NF_ACCEPT;
-	if (udph->dest == ntohs(SNMP_TRAP_PORT) && dir != IP_CT_DIR_ORIGINAL)
+	if (udph->dest == htons(SNMP_TRAP_PORT) && dir != IP_CT_DIR_ORIGINAL)
 		return NF_ACCEPT;
 
 	/* No NAT? */
@@ -1320,7 +1323,7 @@ static struct ip_conntrack_helper snmp_trap_helper = {
  *
  *****************************************************************************/
  
-static int __init init(void)
+static int __init ip_nat_snmp_basic_init(void)
 {
 	int ret = 0;
 
@@ -1335,13 +1338,13 @@ static int __init init(void)
 	return ret;
 }
 
-static void __exit fini(void)
+static void __exit ip_nat_snmp_basic_fini(void)
 {
 	ip_conntrack_helper_unregister(&snmp_helper);
 	ip_conntrack_helper_unregister(&snmp_trap_helper);
 }
 
-module_init(init);
-module_exit(fini);
+module_init(ip_nat_snmp_basic_init);
+module_exit(ip_nat_snmp_basic_fini);
 
-module_param(debug, bool, 0600);
+module_param(debug, int, 0600);

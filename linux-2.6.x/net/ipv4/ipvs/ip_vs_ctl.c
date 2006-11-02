@@ -34,6 +34,7 @@
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/mutex.h>
 
 #include <net/ip.h>
 #include <net/route.h>
@@ -44,7 +45,7 @@
 #include <net/ip_vs.h>
 
 /* semaphore for IPVS sockopts. And, [gs]etsockopt may sleep. */
-static DECLARE_MUTEX(__ip_vs_mutex);
+static DEFINE_MUTEX(__ip_vs_mutex);
 
 /* lock for service table */
 static DEFINE_RWLOCK(__ip_vs_svc_lock);
@@ -734,12 +735,11 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest,
 	if (atype != RTN_LOCAL && atype != RTN_UNICAST)
 		return -EINVAL;
 
-	dest = kmalloc(sizeof(struct ip_vs_dest), GFP_ATOMIC);
+	dest = kzalloc(sizeof(struct ip_vs_dest), GFP_ATOMIC);
 	if (dest == NULL) {
 		IP_VS_ERR("ip_vs_new_dest: kmalloc failed.\n");
 		return -ENOMEM;
 	}
-	memset(dest, 0, sizeof(struct ip_vs_dest));
 
 	dest->protocol = svc->protocol;
 	dest->vaddr = svc->addr;
@@ -1049,14 +1049,12 @@ ip_vs_add_service(struct ip_vs_service_user *u, struct ip_vs_service **svc_p)
 		goto out_mod_dec;
 	}
 
-	svc = (struct ip_vs_service *)
-		kmalloc(sizeof(struct ip_vs_service), GFP_ATOMIC);
+	svc = kzalloc(sizeof(struct ip_vs_service), GFP_ATOMIC);
 	if (svc == NULL) {
 		IP_VS_DBG(1, "ip_vs_add_service: kmalloc failed.\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}
-	memset(svc, 0, sizeof(struct ip_vs_service));
 
 	/* I'm the first user of the service */
 	atomic_set(&svc->usecnt, 1);
@@ -1796,7 +1794,7 @@ static int ip_vs_info_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct ip_vs_iter *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct ip_vs_iter *s = kzalloc(sizeof(*s), GFP_KERNEL);
 
 	if (!s)
 		goto out;
@@ -1807,7 +1805,6 @@ static int ip_vs_info_open(struct inode *inode, struct file *file)
 
 	seq	     = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:
@@ -1950,7 +1947,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	/* increase the module use count */
 	ip_vs_use_count_inc();
 
-	if (down_interruptible(&__ip_vs_mutex)) {
+	if (mutex_lock_interruptible(&__ip_vs_mutex)) {
 		ret = -ERESTARTSYS;
 		goto out_dec;
 	}
@@ -2041,7 +2038,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 		ip_vs_service_put(svc);
 
   out_unlock:
-	up(&__ip_vs_mutex);
+	mutex_unlock(&__ip_vs_mutex);
   out_dec:
 	/* decrease the module use count */
 	ip_vs_use_count_dec();
@@ -2211,7 +2208,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	if (copy_from_user(arg, user, get_arglen[GET_CMDID(cmd)]) != 0)
 		return -EFAULT;
 
-	if (down_interruptible(&__ip_vs_mutex))
+	if (mutex_lock_interruptible(&__ip_vs_mutex))
 		return -ERESTARTSYS;
 
 	switch (cmd) {
@@ -2330,7 +2327,7 @@ do_ip_vs_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	}
 
   out:
-	up(&__ip_vs_mutex);
+	mutex_unlock(&__ip_vs_mutex);
 	return ret;
 }
 

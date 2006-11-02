@@ -27,6 +27,7 @@ static struct net_device_stats *br_dev_get_stats(struct net_device *dev)
 	return &br->statistics;
 }
 
+/* net device transmit always called with no BH (preempt_disabled) */
 int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -39,7 +40,6 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb->mac.raw = skb->data;
 	skb_pull(skb, ETH_HLEN);
 
-	rcu_read_lock();
 	if (dest[0] & 1) 
 		br_flood_deliver(br, skb, 0);
 	else if ((dst = __br_fdb_get(br, dest)) != NULL)
@@ -47,7 +47,6 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		br_flood_deliver(br, skb, 0);
 
-	rcu_read_unlock();
 	return 0;
 }
 
@@ -146,9 +145,9 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 	struct net_bridge *br = netdev_priv(dev);
 
 	if (data)
-		br->feature_mask |= NETIF_F_IP_CSUM;
+		br->feature_mask |= NETIF_F_NO_CSUM;
 	else
-		br->feature_mask &= ~NETIF_F_IP_CSUM;
+		br->feature_mask &= ~NETIF_F_ALL_CSUM;
 
 	br_features_recompute(br);
 	return 0;
@@ -185,6 +184,6 @@ void br_dev_setup(struct net_device *dev)
 	dev->set_mac_address = br_set_mac_address;
 	dev->priv_flags = IFF_EBRIDGE;
 
- 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST
- 		| NETIF_F_HIGHDMA | NETIF_F_TSO | NETIF_F_IP_CSUM;
+ 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+ 			NETIF_F_TSO | NETIF_F_NO_CSUM | NETIF_F_GSO_ROBUST;
 }
