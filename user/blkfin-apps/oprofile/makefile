@@ -1,7 +1,7 @@
 
-LO_CFLAGS=  -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/.libs/  $(BINUTILS_FLAG) 
+LO_CFLAGS=  -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/build/.libs/  $(BINUTILS_FLAG) 
 
-LO_CXXFLAGS= -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/.libs  $(BINUTILS_FLAG)
+LO_CXXFLAGS= -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/build/.libs  $(BINUTILS_FLAG)
 
 LO_LDFLAGS= -Wl,-elf2flt
 

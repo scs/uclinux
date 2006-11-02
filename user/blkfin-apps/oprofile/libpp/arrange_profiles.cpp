@@ -46,7 +46,7 @@ int numeric_compare(string const & lhs, string const & rhs)
 	return 1;
 }
 
-} // anonymous namespace
+}
 
 
 // global to fix some C++ obscure corner case.
@@ -89,6 +89,8 @@ struct axis_t {
 	{ "cpu", "specify cpu: or --merge cpu" },
 };
 
+} // anonymous namespace
+
 
 bool profile_classes::matches(profile_classes const & classes)
 {
@@ -128,6 +130,7 @@ bool profile_classes::matches(profile_classes const & classes)
 	return true;
 }
 
+namespace {
 
 /// We have more than one axis of classification, tell the user.
 void report_error(profile_classes const & classes, axis_types newaxis)
