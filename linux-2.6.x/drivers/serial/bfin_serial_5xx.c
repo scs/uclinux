@@ -1229,6 +1229,7 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	struct bfin_serial *info = (struct bfin_serial *)tty->driver_data;
 #ifndef CONFIG_SERIAL_BLACKFIN_DMA
 	struct uart_registers *regs = &(info->regs);
+	long flag=0;
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "rs_write"))
@@ -1240,6 +1241,9 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	if (info->xmit_cnt == 0)
 		wait_complete = 1;
 
+#ifndef CONFIG_SERIAL_BLACKFIN_DMA
+	local_irq_save(flag);
+#endif
 	while (1) {
 		c = MIN(count, MIN(SERIAL_XMIT_SIZE - info->xmit_cnt - 1,
 				   SERIAL_XMIT_SIZE - info->xmit_head));
@@ -1260,8 +1264,6 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		info->event |= 1 << RS_EVENT_WRITE;
 		schedule_work(&info->tqueue);
 #else
-		long flag=0;
-		local_irq_save(flag);
 		/* Enable transmitter */
 		if (wait_complete)
 			while (!(bfin_read16(regs->rpUART_LSR) & TEMT))
@@ -1278,9 +1280,11 @@ static int rs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 				info->xmit_cnt--;
 			}
 		}
-		local_irq_restore(flag);
 #endif
 	}
+#ifndef CONFIG_SERIAL_BLACKFIN_DMA
+	local_irq_restore(flag);
+#endif
 
 	return total;
 }
