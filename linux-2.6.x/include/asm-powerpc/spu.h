@@ -24,9 +24,8 @@
 #define _SPU_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
-#include <linux/kref.h>
 #include <linux/workqueue.h>
+#include <linux/sysdev.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
@@ -110,18 +109,20 @@ struct spu {
 	char *name;
 	unsigned long local_store_phys;
 	u8 *local_store;
+	unsigned long problem_phys;
 	struct spu_problem __iomem *problem;
 	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
 	struct list_head sched_list;
 	int number;
+	int nid;
+	unsigned int irqs[3];
 	u32 isrc;
 	u32 node;
 	u64 flags;
 	u64 dar;
 	u64 dsisr;
-	struct kref kref;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
@@ -133,14 +134,16 @@ struct spu {
 	int class_0_pending;
 	spinlock_t register_lock;
 
-	u32 stop_code;
 	void (* wbox_callback)(struct spu *spu);
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
+	void (* mfc_callback)(struct spu *spu);
 
 	char irq_c0[8];
 	char irq_c1[8];
 	char irq_c2[8];
+
+	struct sys_device sysdev;
 };
 
 struct spu *spu_alloc(void);
@@ -149,6 +152,14 @@ int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
+/* system callbacks from the SPU */
+struct spu_syscall_block {
+	u64 nr_ret;
+	u64 parm[6];
+};
+extern long spu_sys_callback(struct spu_syscall_block *s);
+
+/* syscalls implemented in spufs */
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
 					unsigned int flags, mode_t mode);
@@ -169,29 +180,6 @@ static inline void unregister_spu_syscalls(struct spufs_calls *calls)
 {
 }
 #endif /* MODULE */
-
-
-/* access to priv1 registers */
-void spu_int_mask_and(struct spu *spu, int class, u64 mask);
-void spu_int_mask_or(struct spu *spu, int class, u64 mask);
-void spu_int_mask_set(struct spu *spu, int class, u64 mask);
-u64 spu_int_mask_get(struct spu *spu, int class);
-void spu_int_stat_clear(struct spu *spu, int class, u64 stat);
-u64 spu_int_stat_get(struct spu *spu, int class);
-void spu_int_route_set(struct spu *spu, u64 route);
-u64 spu_mfc_dar_get(struct spu *spu);
-u64 spu_mfc_dsisr_get(struct spu *spu);
-void spu_mfc_dsisr_set(struct spu *spu, u64 dsisr);
-void spu_mfc_sdr_set(struct spu *spu, u64 sdr);
-void spu_mfc_sr1_set(struct spu *spu, u64 sr1);
-u64 spu_mfc_sr1_get(struct spu *spu);
-void spu_mfc_tclass_id_set(struct spu *spu, u64 tclass_id);
-u64 spu_mfc_tclass_id_get(struct spu *spu);
-void spu_tlb_invalidate(struct spu *spu);
-void spu_resource_allocation_groupID_set(struct spu *spu, u64 id);
-u64 spu_resource_allocation_groupID_get(struct spu *spu);
-void spu_resource_allocation_enable_set(struct spu *spu, u64 enable);
-u64 spu_resource_allocation_enable_get(struct spu *spu);
 
 
 /*
@@ -398,7 +386,6 @@ struct spu_priv1 {
 #define SPU_GET_VERSION_BITS(vr)	(vr & SPU_VERSION_BITS) >> 16
 #define SPU_GET_REVISION_BITS(vr)	(vr & SPU_REVISION_BITS)
 	u8  pad_0x28_0x100[0x100 - 0x28];			/* 0x28 */
-
 
 	/* Interrupt Area */
 	u64 int_mask_RW[3];					/* 0x100 */

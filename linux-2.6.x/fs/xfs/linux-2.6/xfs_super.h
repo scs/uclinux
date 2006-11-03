@@ -98,11 +98,6 @@ extern void xfs_qm_exit(void);
 				XFS_DMAPI_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 
-#define LINVFS_GET_VFS(s) \
-	(vfs_t *)((s)->s_fs_info)
-#define LINVFS_SET_VFS(s, vfsp) \
-	((s)->s_fs_info = vfsp)
-
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_buftarg;
@@ -110,7 +105,7 @@ struct block_device;
 
 extern __uint64_t xfs_max_file_offset(unsigned int);
 
-extern void xfs_initialize_vnode(bhv_desc_t *, vnode_t *, bhv_desc_t *, int);
+extern void xfs_initialize_vnode(bhv_desc_t *, bhv_vnode_t *, bhv_desc_t *, int);
 
 extern void xfs_flush_inode(struct xfs_inode *);
 extern void xfs_flush_device(struct xfs_inode *);
@@ -120,6 +115,6 @@ extern int  xfs_blkdev_get(struct xfs_mount *, const char *,
 extern void xfs_blkdev_put(struct block_device *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
-extern struct export_operations linvfs_export_ops;
+extern struct export_operations xfs_export_operations;
 
 #endif	/* __XFS_SUPER_H__ */

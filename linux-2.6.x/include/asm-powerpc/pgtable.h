@@ -12,7 +12,6 @@
  */
 
 #ifndef __ASSEMBLY__
-#include <linux/config.h>
 #include <linux/stddef.h>
 #include <asm/processor.h>		/* For TASK_SIZE */
 #include <asm/mmu.h>
@@ -47,8 +46,8 @@ struct mm_struct;
 /*
  * Define the address range of the vmalloc VM area.
  */
-#define VMALLOC_START (0xD000000000000000ul)
-#define VMALLOC_SIZE  (0x80000000000UL)
+#define VMALLOC_START ASM_CONST(0xD000000000000000)
+#define VMALLOC_SIZE  ASM_CONST(0x80000000000)
 #define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
@@ -188,9 +187,13 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 #define pte_pfn(x)		((unsigned long)((pte_val(x)>>PTE_RPN_SHIFT)))
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
+#define PMD_BAD_BITS		(PTE_TABLE_SIZE-1)
+#define PUD_BAD_BITS		(PMD_TABLE_SIZE-1)
+
 #define pmd_set(pmdp, pmdval) 	(pmd_val(*(pmdp)) = (pmdval))
 #define pmd_none(pmd)		(!pmd_val(pmd))
-#define	pmd_bad(pmd)		(pmd_val(pmd) == 0)
+#define	pmd_bad(pmd)		(!is_kernel_addr(pmd_val(pmd)) \
+				 || (pmd_val(pmd) & PMD_BAD_BITS))
 #define	pmd_present(pmd)	(pmd_val(pmd) != 0)
 #define	pmd_clear(pmdp)		(pmd_val(*(pmdp)) = 0)
 #define pmd_page_kernel(pmd)	(pmd_val(pmd) & ~PMD_MASKED_BITS)
@@ -198,7 +201,8 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
 
 #define pud_set(pudp, pudval)	(pud_val(*(pudp)) = (pudval))
 #define pud_none(pud)		(!pud_val(pud))
-#define pud_bad(pud)		((pud_val(pud)) == 0)
+#define	pud_bad(pud)		(!is_kernel_addr(pud_val(pud)) \
+				 || (pud_val(pud) & PUD_BAD_BITS))
 #define pud_present(pud)	(pud_val(pud) != 0)
 #define pud_clear(pudp)		(pud_val(*(pudp)) = 0)
 #define pud_page(pud)		(pud_val(pud) & ~PUD_MASKED_BITS)
@@ -408,12 +412,6 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		flush_tlb_pending();
 	}
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-
-#ifdef CONFIG_PPC_64K_PAGES
-	if (mmu_virtual_psize != MMU_PAGE_64K)
-		pte = __pte(pte_val(pte) | _PAGE_COMBO);
-#endif /* CONFIG_PPC_64K_PAGES */
-
 	*ptep = pte;
 }
 
@@ -467,11 +465,6 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 extern pgd_t swapper_pg_dir[];
 
 extern void paging_init(void);
-
-#ifdef CONFIG_HUGETLB_PAGE
-#define hugetlb_free_pgd_range(tlb, addr, end, floor, ceiling) \
-	free_pgd_range(tlb, addr, end, floor, ceiling)
-#endif
 
 /*
  * This gets called at the end of handling a page fault, when

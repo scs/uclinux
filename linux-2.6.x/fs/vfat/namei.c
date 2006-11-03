@@ -185,24 +185,6 @@ static int vfat_valid_longname(const unsigned char *name, unsigned int len)
 		return -EINVAL;
 	if (len >= 256)
 		return -ENAMETOOLONG;
-
-	/* MS-DOS "device special files" */
-	if (len == 3 || (len > 3 && name[3] == '.')) {	/* basename == 3 */
-		if (!strnicmp(name, "aux", 3) ||
-		    !strnicmp(name, "con", 3) ||
-		    !strnicmp(name, "nul", 3) ||
-		    !strnicmp(name, "prn", 3))
-			return -EINVAL;
-	}
-	if (len == 4 || (len > 4 && name[4] == '.')) {	/* basename == 4 */
-		/* "com1", "com2", ... */
-		if ('1' <= name[3] && name[3] <= '9') {
-			if (!strnicmp(name, "com", 3) ||
-			    !strnicmp(name, "lpt", 3))
-				return -EINVAL;
-		}
-	}
-
 	return 0;
 }
 
@@ -1041,11 +1023,12 @@ static int vfat_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct super_block *vfat_get_sb(struct file_system_type *fs_type,
-				       int flags, const char *dev_name,
-				       void *data)
+static int vfat_get_sb(struct file_system_type *fs_type,
+		       int flags, const char *dev_name,
+		       void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, vfat_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, vfat_fill_super,
+			   mnt);
 }
 
 static struct file_system_type vfat_fs_type = {

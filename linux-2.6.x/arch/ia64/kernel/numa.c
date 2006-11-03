@@ -19,13 +19,12 @@
  * Copyright (C) 2004 Silicon Graphics, Inc.
  *   Jesse Barnes <jbarnes@sgi.com>
  */
-#include <linux/config.h>
 #include <linux/topology.h>
 #include <linux/module.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
 
-u8 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
+u16 cpu_to_node_map[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_to_node_map);
 
 cpumask_t node_to_cpu_mask[MAX_NUMNODES] __cacheline_aligned;

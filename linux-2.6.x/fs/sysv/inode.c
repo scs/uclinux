@@ -85,8 +85,9 @@ static void sysv_put_super(struct super_block *sb)
 	kfree(sbi);
 }
 
-static int sysv_statfs(struct super_block *sb, struct kstatfs *buf)
+static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 
 	buf->f_type = sb->s_magic;
@@ -342,7 +343,7 @@ int __init sysv_init_icache(void)
 {
 	sysv_inode_cachep = kmem_cache_create("sysv_inode_cache",
 			sizeof(struct sysv_inode_info), 0,
-			SLAB_RECLAIM_ACCOUNT,
+			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
 			init_once, NULL);
 	if (!sysv_inode_cachep)
 		return -ENOMEM;

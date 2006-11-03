@@ -14,7 +14,6 @@
 #ifndef __ASM_IBM4XX_H__
 #define __ASM_IBM4XX_H__
 
-#include <linux/config.h>
 #include <asm/types.h>
 
 #ifdef CONFIG_40x
@@ -49,6 +48,10 @@
 
 #if defined(CONFIG_XILINX_ML300)
 #include <platforms/4xx/xilinx_ml300.h>
+#endif
+
+#if defined(CONFIG_XILINX_ML403)
+#include <platforms/4xx/xilinx_ml403.h>
 #endif
 
 #ifndef __ASSEMBLY__

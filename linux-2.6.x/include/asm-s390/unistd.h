@@ -296,8 +296,14 @@
 #define __NR_pselect6		301
 #define __NR_ppoll		302
 #define __NR_unshare		303
+#define __NR_set_robust_list	304
+#define __NR_get_robust_list	305
+#define __NR_splice		306
+#define __NR_sync_file_range	307
+#define __NR_tee		308
+#define __NR_vmsplice		309
 
-#define NR_syscalls 304
+#define NR_syscalls 310
 
 /* 
  * There are some system calls that are not present on 64 bit, some
@@ -386,11 +392,11 @@
 
 #endif
 
-/* user-visible error numbers are in the range -1 - -122: see <asm-s390/errno.h> */
+#ifdef __KERNEL__
 
 #define __syscall_return(type, res)			     \
 do {							     \
-	if ((unsigned long)(res) >= (unsigned long)(-125)) { \
+	if ((unsigned long)(res) >= (unsigned long)(-4095)) {\
 		errno = -(res);				     \
 		res = -1;				     \
 	}						     \
@@ -540,7 +546,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4,    \
 	__syscall_return(type,__res);			     \
 }
 
-#ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR
 #define __ARCH_WANT_SYS_ALARM
@@ -567,11 +572,9 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4,    \
 #   define __ARCH_WANT_COMPAT_SYS_TIME
 #   define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 # endif
-#endif
 
 #ifdef __KERNEL_SYSCALLS__
 
-#include <linux/config.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <asm/ptrace.h>
@@ -619,7 +622,7 @@ asmlinkage long sys_rt_sigaction(int sig,
 				struct sigaction __user *oact,
 				size_t sigsetsize);
 
-#endif
+#endif /* __KERNEL_SYSCALLS__ */
 
 /*
  * "Conditional" syscalls
@@ -629,4 +632,5 @@ asmlinkage long sys_rt_sigaction(int sig,
  */
 #define cond_syscall(x) asm(".weak\t" #x "\n\t.set\t" #x ",sys_ni_syscall")
 
+#endif /* __KERNEL__ */
 #endif /* _ASM_S390_UNISTD_H_ */

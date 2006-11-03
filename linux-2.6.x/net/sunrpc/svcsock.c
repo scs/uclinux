@@ -1296,13 +1296,13 @@ svc_send(struct svc_rqst *rqstp)
 		xb->page_len +
 		xb->tail[0].iov_len;
 
-	/* Grab svsk->sk_sem to serialize outgoing data. */
-	down(&svsk->sk_sem);
+	/* Grab svsk->sk_mutex to serialize outgoing data. */
+	mutex_lock(&svsk->sk_mutex);
 	if (test_bit(SK_DEAD, &svsk->sk_flags))
 		len = -ENOTCONN;
 	else
 		len = svsk->sk_sendto(rqstp);
-	up(&svsk->sk_sem);
+	mutex_unlock(&svsk->sk_mutex);
 	svc_sock_release(rqstp);
 
 	if (len == -ECONNREFUSED || len == -ENOTCONN || len == -EAGAIN)
@@ -1322,11 +1322,10 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	struct sock	*inet;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
-	if (!(svsk = kmalloc(sizeof(*svsk), GFP_KERNEL))) {
+	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
 		*errp = -ENOMEM;
 		return NULL;
 	}
-	memset(svsk, 0, sizeof(*svsk));
 
 	inet = sock->sk;
 
@@ -1351,7 +1350,7 @@ svc_setup_socket(struct svc_serv *serv, struct socket *sock,
 	svsk->sk_lastrecv = get_seconds();
 	INIT_LIST_HEAD(&svsk->sk_deferred);
 	INIT_LIST_HEAD(&svsk->sk_ready);
-	sema_init(&svsk->sk_sem, 1);
+	mutex_init(&svsk->sk_mutex);
 
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)

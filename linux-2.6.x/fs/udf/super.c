@@ -40,7 +40,6 @@
 
 #include "udfdecl.h"    
 
-#include <linux/config.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -91,13 +90,13 @@ static void udf_load_partdesc(struct super_block *, struct buffer_head *);
 static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
-static int udf_statfs(struct super_block *, struct kstatfs *);
+static int udf_statfs(struct dentry *, struct kstatfs *);
 
 /* UDF filesystem type */
-static struct super_block *udf_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int udf_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, udf_fill_super);
+	return get_sb_bdev(fs_type, flags, dev_name, data, udf_fill_super, mnt);
 }
 
 static struct file_system_type udf_fstype = {
@@ -116,6 +115,13 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	ei = (struct udf_inode_info *)kmem_cache_alloc(udf_inode_cachep, SLAB_KERNEL);
 	if (!ei)
 		return NULL;
+
+	ei->i_unique = 0;
+	ei->i_lenExtents = 0;
+	ei->i_next_alloc_block = 0;
+	ei->i_next_alloc_goal = 0;
+	ei->i_strat4096 = 0;
+
 	return &ei->vfs_inode;
 }
 
@@ -140,7 +146,8 @@ static int init_inodecache(void)
 {
 	udf_inode_cachep = kmem_cache_create("udf_inode_cache",
 					     sizeof(struct udf_inode_info),
-					     0, SLAB_RECLAIM_ACCOUNT,
+					     0, (SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
 					     init_once, NULL);
 	if (udf_inode_cachep == NULL)
 		return -ENOMEM;
@@ -660,8 +667,7 @@ udf_find_anchor(struct super_block *sb)
 		 *     lastblock
 		 *  however, if the disc isn't closed, it could be 512 */
 
-		for (i=0; (!lastblock && i<sizeof(last)/sizeof(int)); i++)
-		{
+		for (i = 0; !lastblock && i < ARRAY_SIZE(last); i++) {
 			if (last[i] < 0 || !(bh = sb_bread(sb, last[i])))
 			{
 				ident = location = 0;
@@ -672,7 +678,7 @@ udf_find_anchor(struct super_block *sb)
 				location = le32_to_cpu(((tag *)bh->b_data)->tagLocation);
 				udf_release_data(bh);
 			}
-	
+
 			if (ident == TAG_IDENT_AVDP)
 			{
 				if (location == last[i] - UDF_SB_SESSION(sb))
@@ -753,8 +759,7 @@ udf_find_anchor(struct super_block *sb)
 		}
 	}
 
-	for (i=0; i<sizeof(UDF_SB_ANCHOR(sb))/sizeof(int); i++)
-	{
+	for (i = 0; i < ARRAY_SIZE(UDF_SB_ANCHOR(sb)); i++) {
 		if (UDF_SB_ANCHOR(sb)[i])
 		{
 			if (!(bh = udf_read_tagged(sb,
@@ -1313,8 +1318,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 	if (!sb)
 		return 1;
 
-	for (i=0; i<sizeof(UDF_SB_ANCHOR(sb))/sizeof(int); i++)
-	{
+	for (i = 0; i < ARRAY_SIZE(UDF_SB_ANCHOR(sb)); i++) {
 		if (UDF_SB_ANCHOR(sb)[i] && (bh = udf_read_tagged(sb,
 			UDF_SB_ANCHOR(sb)[i], UDF_SB_ANCHOR(sb)[i], &ident)))
 		{
@@ -1325,7 +1329,7 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 			main_e = le32_to_cpu( anchor->mainVolDescSeqExt.extLength );
 			main_e = main_e >> sb->s_blocksize_bits;
 			main_e += main_s;
-	
+
 			/* Locate the reserve sequence */
 			reserve_s = le32_to_cpu(anchor->reserveVolDescSeqExt.extLocation);
 			reserve_e = le32_to_cpu(anchor->reserveVolDescSeqExt.extLength);
@@ -1344,12 +1348,10 @@ udf_load_partition(struct super_block *sb, kernel_lb_addr *fileset)
 		}
 	}
 
-	if (i == sizeof(UDF_SB_ANCHOR(sb))/sizeof(int))
-	{
+	if (i == ARRAY_SIZE(UDF_SB_ANCHOR(sb))) {
 		udf_debug("No Anchor block found\n");
 		return 1;
-	}
-	else
+	} else
 		udf_debug("Using anchor in block %d\n", UDF_SB_ANCHOR(sb)[i]);
 
 	for (i=0; i<UDF_SB_NUMPARTS(sb); i++)
@@ -1515,7 +1517,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_fs_info = sbi;
 	memset(UDF_SB(sb), 0x00, sizeof(struct udf_sb_info));
 
-	init_MUTEX(&sbi->s_alloc_sem);
+	mutex_init(&sbi->s_alloc_mutex);
 
 	if (!udf_parse_options((char *)options, &uopt))
 		goto error_out;
@@ -1657,7 +1659,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		iput(inode);
 		goto error_out;
 	}
-	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	sb->s_maxbytes = 1<<30;
 	return 0;
 
 error_out:
@@ -1783,8 +1785,10 @@ udf_put_super(struct super_block *sb)
  *	Written, tested, and released.
  */
 static int
-udf_statfs(struct super_block *sb, struct kstatfs *buf)
+udf_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	struct super_block *sb = dentry->d_sb;
+
 	buf->f_type = UDF_SUPER_MAGIC;
 	buf->f_bsize = sb->s_blocksize;
 	buf->f_blocks = UDF_SB_PARTLEN(sb, UDF_SB_PARTITION(sb));

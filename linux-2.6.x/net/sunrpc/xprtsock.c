@@ -382,6 +382,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* If we've sent the entire packet, immediately
 		 * reset the count of bytes sent. */
 		req->rq_bytes_sent += status;
+		task->tk_bytes_sent += status;
 		if (likely(req->rq_bytes_sent >= req->rq_slen)) {
 			req->rq_bytes_sent = 0;
 			return 0;
@@ -410,6 +411,33 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	}
 
 	return status;
+}
+
+/**
+ * xs_tcp_release_xprt - clean up after a tcp transmission
+ * @xprt: transport
+ * @task: rpc task
+ *
+ * This cleans up if an error causes us to abort the transmission of a request.
+ * In this case, the socket may need to be reset in order to avoid confusing
+ * the server.
+ */
+static void xs_tcp_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
+{
+	struct rpc_rqst *req;
+
+	if (task != xprt->snd_task)
+		return;
+	if (task == NULL)
+		goto out_release;
+	req = task->tk_rqstp;
+	if (req->rq_bytes_sent == 0)
+		goto out_release;
+	if (req->rq_bytes_sent == req->rq_snd_buf.len)
+		goto out_release;
+	set_bit(XPRT_CLOSE_WAIT, &task->tk_xprt->state);
+out_release:
+	xprt_release_xprt(xprt, task);
 }
 
 /**
@@ -929,6 +957,13 @@ static void xs_udp_timer(struct rpc_task *task)
 	xprt_adjust_cwnd(task, -ETIMEDOUT);
 }
 
+static unsigned short xs_get_random_port(void)
+{
+	unsigned short range = xprt_max_resvport - xprt_min_resvport;
+	unsigned short rand = (unsigned short) net_random() % range;
+	return rand + xprt_min_resvport;
+}
+
 /**
  * xs_set_port - reset the port number in the remote endpoint address
  * @xprt: generic transport
@@ -1114,6 +1149,8 @@ static void xs_tcp_connect_worker(void *args)
 	}
 
 	/* Tell the socket layer to start connecting... */
+	xprt->stat.connect_count++;
+	xprt->stat.connect_start = jiffies;
 	status = sock->ops->connect(sock, (struct sockaddr *) &xprt->addr,
 			sizeof(xprt->addr), O_NONBLOCK);
 	dprintk("RPC: %p  connect status %d connected %d sock state %d\n",
@@ -1177,6 +1214,50 @@ static void xs_connect(struct rpc_task *task)
 	}
 }
 
+/**
+ * xs_udp_print_stats - display UDP socket-specifc stats
+ * @xprt: rpc_xprt struct containing statistics
+ * @seq: output file
+ *
+ */
+static void xs_udp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
+{
+	seq_printf(seq, "\txprt:\tudp %u %lu %lu %lu %lu %Lu %Lu\n",
+			xprt->port,
+			xprt->stat.bind_count,
+			xprt->stat.sends,
+			xprt->stat.recvs,
+			xprt->stat.bad_xids,
+			xprt->stat.req_u,
+			xprt->stat.bklog_u);
+}
+
+/**
+ * xs_tcp_print_stats - display TCP socket-specifc stats
+ * @xprt: rpc_xprt struct containing statistics
+ * @seq: output file
+ *
+ */
+static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
+{
+	long idle_time = 0;
+
+	if (xprt_connected(xprt))
+		idle_time = (long)(jiffies - xprt->last_used) / HZ;
+
+	seq_printf(seq, "\txprt:\ttcp %u %lu %lu %lu %ld %lu %lu %lu %Lu %Lu\n",
+			xprt->port,
+			xprt->stat.bind_count,
+			xprt->stat.connect_count,
+			xprt->stat.connect_time,
+			idle_time,
+			xprt->stat.sends,
+			xprt->stat.recvs,
+			xprt->stat.bad_xids,
+			xprt->stat.req_u,
+			xprt->stat.bklog_u);
+}
+
 static struct rpc_xprt_ops xs_udp_ops = {
 	.set_buffer_size	= xs_udp_set_buffer_size,
 	.reserve_xprt		= xprt_reserve_xprt_cong,
@@ -1191,11 +1272,12 @@ static struct rpc_xprt_ops xs_udp_ops = {
 	.release_request	= xprt_release_rqst_cong,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
+	.print_stats		= xs_udp_print_stats,
 };
 
 static struct rpc_xprt_ops xs_tcp_ops = {
 	.reserve_xprt		= xprt_reserve_xprt,
-	.release_xprt		= xprt_release_xprt,
+	.release_xprt		= xs_tcp_release_xprt,
 	.set_port		= xs_set_port,
 	.connect		= xs_connect,
 	.buf_alloc		= rpc_malloc,
@@ -1204,6 +1286,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
 	.close			= xs_close,
 	.destroy		= xs_destroy,
+	.print_stats		= xs_tcp_print_stats,
 };
 
 /**
@@ -1220,13 +1303,12 @@ int xs_setup_udp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->max_reqs = xprt_udp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kmalloc(slot_table_size, GFP_KERNEL);
+	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
 	if (xprt->slot == NULL)
 		return -ENOMEM;
-	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_UDP;
-	xprt->port = xprt_max_resvport;
+	xprt->port = xs_get_random_port();
 	xprt->tsh_size = 0;
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	/* XXX: header size can vary due to auth type, IPv6, etc. */
@@ -1262,13 +1344,12 @@ int xs_setup_tcp(struct rpc_xprt *xprt, struct rpc_timeout *to)
 
 	xprt->max_reqs = xprt_tcp_slot_table_entries;
 	slot_table_size = xprt->max_reqs * sizeof(xprt->slot[0]);
-	xprt->slot = kmalloc(slot_table_size, GFP_KERNEL);
+	xprt->slot = kzalloc(slot_table_size, GFP_KERNEL);
 	if (xprt->slot == NULL)
 		return -ENOMEM;
-	memset(xprt->slot, 0, slot_table_size);
 
 	xprt->prot = IPPROTO_TCP;
-	xprt->port = xprt_max_resvport;
+	xprt->port = xs_get_random_port();
 	xprt->tsh_size = sizeof(rpc_fraghdr) / sizeof(u32);
 	xprt->resvport = capable(CAP_NET_BIND_SERVICE) ? 1 : 0;
 	xprt->max_payload = RPC_MAX_FRAGMENT_SIZE;

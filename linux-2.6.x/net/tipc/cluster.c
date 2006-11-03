@@ -44,11 +44,11 @@
 #include "msg.h"
 #include "bearer.h"
 
-void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf, 
-			 u32 lower, u32 upper);
-struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
+static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
+				u32 lower, u32 upper);
+static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest);
 
-struct node **tipc_local_nodes = 0;
+struct node **tipc_local_nodes = NULL;
 struct node_map tipc_cltr_bcast_nodes = {0,{0,}};
 u32 tipc_highest_allowed_slave = 0;
 
@@ -57,43 +57,43 @@ struct cluster *tipc_cltr_create(u32 addr)
 	struct _zone *z_ptr;
 	struct cluster *c_ptr;
 	int max_nodes; 
-	int alloc;
 
-	c_ptr = (struct cluster *)kmalloc(sizeof(*c_ptr), GFP_ATOMIC);
-	if (c_ptr == NULL)
-		return 0;
-	memset(c_ptr, 0, sizeof(*c_ptr));
+	c_ptr = kzalloc(sizeof(*c_ptr), GFP_ATOMIC);
+	if (c_ptr == NULL) {
+		warn("Cluster creation failure, no memory\n");
+		return NULL;
+	}
 
 	c_ptr->addr = tipc_addr(tipc_zone(addr), tipc_cluster(addr), 0);
 	if (in_own_cluster(addr))
 		max_nodes = LOWEST_SLAVE + tipc_max_slaves;
 	else
 		max_nodes = tipc_max_nodes + 1;
-	alloc = sizeof(void *) * (max_nodes + 1);
-	c_ptr->nodes = (struct node **)kmalloc(alloc, GFP_ATOMIC);
+
+	c_ptr->nodes = kcalloc(max_nodes + 1, sizeof(void*), GFP_ATOMIC);
 	if (c_ptr->nodes == NULL) {
+		warn("Cluster creation failure, no memory for node area\n");
 		kfree(c_ptr);
-		return 0;
+		return NULL;
 	}
-	memset(c_ptr->nodes, 0, alloc);  
+
 	if (in_own_cluster(addr))
 		tipc_local_nodes = c_ptr->nodes;
 	c_ptr->highest_slave = LOWEST_SLAVE - 1;
 	c_ptr->highest_node = 0;
 	
 	z_ptr = tipc_zone_find(tipc_zone(addr));
-	if (z_ptr == NULL) {
+	if (!z_ptr) {
 		z_ptr = tipc_zone_create(addr);
 	}
-	if (z_ptr != NULL) {
-		tipc_zone_attach_cluster(z_ptr, c_ptr);
-		c_ptr->owner = z_ptr;
-	}
-	else {
+	if (!z_ptr) {
+		kfree(c_ptr->nodes);
 		kfree(c_ptr);
-		c_ptr = 0;
+		return NULL;
 	}
 
+	tipc_zone_attach_cluster(z_ptr, c_ptr);
+	c_ptr->owner = z_ptr;
 	return c_ptr;
 }
 
@@ -204,7 +204,7 @@ struct node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector)
 
 	assert(!in_own_cluster(c_ptr->addr));
 	if (!c_ptr->highest_node)
-		return 0;
+		return NULL;
 
 	/* Start entry must be random */
 	while (mask > c_ptr->highest_node) {
@@ -222,14 +222,14 @@ struct node *tipc_cltr_select_node(struct cluster *c_ptr, u32 selector)
 		if (tipc_node_has_active_links(c_ptr->nodes[n_num]))
 			return c_ptr->nodes[n_num];
 	}
-	return 0;
+	return NULL;
 }
 
 /*
  *    Routing table management: See description in node.c
  */
 
-struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
+static struct sk_buff *tipc_cltr_prepare_routing_msg(u32 data_size, u32 dest)
 {
 	u32 size = INT_H_SIZE + data_size;
 	struct sk_buff *buf = buf_acquire(size);
@@ -495,7 +495,7 @@ void tipc_cltr_remove_as_router(struct cluster *c_ptr, u32 router)
  * tipc_cltr_multicast - multicast message to local nodes 
  */
 
-void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf, 
+static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 			 u32 lower, u32 upper)
 {
 	struct sk_buff *buf_copy;

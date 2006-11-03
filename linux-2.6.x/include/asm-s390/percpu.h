@@ -40,16 +40,17 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
     __typeof__(type) per_cpu__##name
 
 #define __get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
+#define __raw_get_cpu_var(var) __reloc_hide(var,S390_lowcore.percpu_offset)
 #define per_cpu(var,cpu) __reloc_hide(var,__per_cpu_offset[cpu])
+#define per_cpu_offset(x) (__per_cpu_offset[x])
 
 /* A macro to avoid #include hell... */
 #define percpu_modcopy(pcpudst, src, size)			\
 do {								\
 	unsigned int __i;					\
-	for (__i = 0; __i < NR_CPUS; __i++)			\
-		if (cpu_possible(__i))				\
-			memcpy((pcpudst)+__per_cpu_offset[__i],	\
-			       (src), (size));			\
+	for_each_possible_cpu(__i)				\
+		memcpy((pcpudst)+__per_cpu_offset[__i],		\
+		       (src), (size));				\
 } while (0)
 
 #else /* ! SMP */
@@ -58,6 +59,7 @@ do {								\
     __typeof__(type) per_cpu__##name
 
 #define __get_cpu_var(var) __reloc_hide(var,0)
+#define __raw_get_cpu_var(var) __reloc_hide(var,0)
 #define per_cpu(var,cpu) __reloc_hide(var,0)
 
 #endif /* SMP */

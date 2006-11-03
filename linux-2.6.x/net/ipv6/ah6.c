@@ -24,7 +24,6 @@
  * 	This file is derived from net/ipv4/ah.c.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/ah.h>
@@ -213,6 +212,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(++x->replay.oseq);
+	xfrm_aevent_doreplay(x);
 	ahp->icv(ahp, skb, ah->auth_data);
 
 	err = 0;
@@ -228,7 +228,7 @@ error:
 	return err;
 }
 
-static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	/*
 	 * Before process AH
@@ -291,7 +291,7 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 
 		memcpy(auth_data, ah->auth_data, ahp->icv_trunc_len);
 		memset(ah->auth_data, 0, ahp->icv_trunc_len);
-		skb_push(skb, skb->data - skb->nh.raw);
+		skb_push(skb, hdr_len);
 		ahp->icv(ahp, skb, ah->auth_data);
 		if (memcmp(ah->auth_data, auth_data, ahp->icv_trunc_len)) {
 			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
@@ -300,12 +300,8 @@ static int ah6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 		}
 	}
 
-	skb->nh.raw = skb_pull(skb, ah_hlen);
-	memcpy(skb->nh.raw, tmp_hdr, hdr_len);
-	skb->nh.ipv6h->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
-	skb_pull(skb, hdr_len);
-	skb->h.raw = skb->data;
-
+	skb->h.raw = memcpy(skb->nh.raw += ah_hlen, tmp_hdr, hdr_len);
+	__skb_pull(skb, ah_hlen + hdr_len);
 
 	kfree(tmp_hdr);
 
@@ -353,11 +349,9 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (x->encap)
 		goto error;
 
-	ahp = kmalloc(sizeof(*ahp), GFP_KERNEL);
+	ahp = kzalloc(sizeof(*ahp), GFP_KERNEL);
 	if (ahp == NULL)
 		return -ENOMEM;
-
-	memset(ahp, 0, sizeof(*ahp));
 
 	ahp->key = x->aalg->alg_key;
 	ahp->key_len = (x->aalg->alg_key_len+7)/8;

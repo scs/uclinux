@@ -17,7 +17,6 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -38,7 +37,7 @@ static int fold_prot_inuse(struct proto *proto)
 	int res = 0;
 	int cpu;
 
-	for_each_cpu(cpu)
+	for_each_possible_cpu(cpu)
 		res += proto->stats[cpu].inuse;
 
 	return res;
@@ -140,7 +139,7 @@ fold_field(void *mib[], int offt)
         unsigned long res = 0;
         int i;
  
-        for_each_cpu(i) {
+        for_each_possible_cpu(i) {
                 res += *(((unsigned long *)per_cpu_ptr(mib[0], i)) + offt);
                 res += *(((unsigned long *)per_cpu_ptr(mib[1], i)) + offt);
         }

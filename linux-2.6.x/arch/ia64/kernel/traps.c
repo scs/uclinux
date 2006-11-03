@@ -7,7 +7,6 @@
  * 05/12/00 grao <goutham.rao@intel.com> : added isr in siginfo for SIGFPE
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -30,19 +29,19 @@ extern spinlock_t timerlist_lock;
 fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
 
-struct notifier_block *ia64die_chain;
+ATOMIC_NOTIFIER_HEAD(ia64die_chain);
 
 int
 register_die_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_register(&ia64die_chain, nb);
+	return atomic_notifier_chain_register(&ia64die_chain, nb);
 }
 EXPORT_SYMBOL_GPL(register_die_notifier);
 
 int
 unregister_die_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&ia64die_chain, nb);
+	return atomic_notifier_chain_unregister(&ia64die_chain, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_die_notifier);
 
@@ -118,11 +117,8 @@ die (const char *str, struct pt_regs *regs, long err)
 	die.lock_owner = -1;
 	spin_unlock_irq(&die.lock);
 
-	if (panic_on_oops) {
-		printk(KERN_EMERG "Fatal exception: panic in 5 seconds\n");
-		ssleep(5);
+	if (panic_on_oops)
 		panic("Fatal exception");
-	}
 
   	do_exit(SIGSEGV);
 }

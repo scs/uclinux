@@ -6,7 +6,6 @@
 #include "osta_udf.h"
 
 #include <linux/fs.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/udf_fs_i.h>
 #include <linux/udf_fs_sb.h>
@@ -44,12 +43,12 @@ struct buffer_head;
 struct super_block;
 
 extern struct inode_operations udf_dir_inode_operations;
-extern struct file_operations udf_dir_operations;
+extern const struct file_operations udf_dir_operations;
 extern struct inode_operations udf_file_inode_operations;
-extern struct file_operations udf_file_operations;
-extern struct address_space_operations udf_aops;
-extern struct address_space_operations udf_adinicb_aops;
-extern struct address_space_operations udf_symlink_aops;
+extern const struct file_operations udf_file_operations;
+extern const struct address_space_operations udf_aops;
+extern const struct address_space_operations udf_adinicb_aops;
+extern const struct address_space_operations udf_symlink_aops;
 
 struct udf_fileident_bh
 {

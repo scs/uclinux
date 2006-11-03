@@ -338,8 +338,6 @@ typedef void (*xfs_trans_callback_t)(struct xfs_trans *, void *);
 typedef struct xfs_trans {
 	unsigned int		t_magic;	/* magic number */
 	xfs_log_callback_t	t_logcb;	/* log callback struct */
-	struct xfs_trans	*t_forw;	/* async list pointers */
-	struct xfs_trans	*t_back;	/* async list pointers */
 	unsigned int		t_type;		/* transaction type */
 	unsigned int		t_log_res;	/* amt of log space resvd */
 	unsigned int		t_log_count;	/* count for perm log res */
@@ -354,7 +352,7 @@ typedef struct xfs_trans {
 	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of
 						 * transaction. */
 	struct xfs_mount	*t_mountp;	/* ptr to fs mount struct */
-	struct xfs_dquot_acct   *t_dqinfo;	/* accting info for dquots */
+	struct xfs_dquot_acct   *t_dqinfo;	/* acctg info for dquots */
 	xfs_trans_callback_t	t_callback;	/* transaction callback */
 	void			*t_callarg;	/* callback arg */
 	unsigned int		t_flags;	/* misc flags */
@@ -364,9 +362,11 @@ typedef struct xfs_trans {
 	long			t_res_fdblocks_delta; /* on-disk only chg */
 	long			t_frextents_delta;/* superblock freextents chg*/
 	long			t_res_frextents_delta; /* on-disk only chg */
+#ifdef DEBUG
 	long			t_ag_freeblks_delta; /* debugging counter */
 	long			t_ag_flist_delta; /* debugging counter */
 	long			t_ag_btree_delta; /* debugging counter */
+#endif
 	long			t_dblocks_delta;/* superblock dblocks change */
 	long			t_agcount_delta;/* superblock agcount change */
 	long			t_imaxpct_delta;/* superblock imaxpct change */
@@ -380,7 +380,7 @@ typedef struct xfs_trans {
 	xfs_trans_header_t	t_header;	/* header for in-log trans */
 	unsigned int		t_busy_free;	/* busy descs free */
 	xfs_log_busy_chunk_t	t_busy;		/* busy/async free blocks */
-        xfs_pflags_t            t_pflags;       /* saved pflags state */
+	unsigned long		t_pflags;	/* saved process flags state */
 } xfs_trans_t;
 
 #endif	/* __KERNEL__ */
@@ -805,12 +805,9 @@ typedef struct xfs_trans {
 	((mp)->m_sb.sb_inodesize + \
 	 (mp)->m_sb.sb_sectsize * 2 + \
 	 (mp)->m_dirblksize + \
-	 (XFS_DIR_IS_V1(mp) ? 0 : \
-	    XFS_FSB_TO_B(mp, (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1))) + \
+	 XFS_FSB_TO_B(mp, (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1)) + \
 	 XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	 (128 * (4 + \
-		 (XFS_DIR_IS_V1(mp) ? 0 : \
-			 XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1) + \
+	 (128 * (4 + (XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1) + \
 		 XFS_ALLOCFREE_LOG_COUNT(mp, 1))))
 
 #define	XFS_ADDAFORK_LOG_RES(mp)	((mp)->m_reservations.tr_addafork)

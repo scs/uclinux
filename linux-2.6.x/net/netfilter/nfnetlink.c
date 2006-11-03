@@ -14,7 +14,6 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -191,6 +190,12 @@ nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
         return 0;
 }
 
+int nfnetlink_has_listeners(unsigned int group)
+{
+	return netlink_has_listeners(nfnl, group);
+}
+EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
+
 int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
 	gfp_t allocation = in_interrupt() ? GFP_ATOMIC : GFP_KERNEL;
@@ -223,7 +228,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb,
 		 NFNL_SUBSYS_ID(nlh->nlmsg_type),
 		 NFNL_MSG_TYPE(nlh->nlmsg_type));
 
-	if (!cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+	if (security_netlink_recv(skb, CAP_NET_ADMIN)) {
 		DEBUGP("missing CAP_NET_ADMIN\n");
 		*errp = -EPERM;
 		return -1;

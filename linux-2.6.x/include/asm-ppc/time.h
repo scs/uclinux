@@ -9,7 +9,6 @@
 #ifndef __ASM_TIME_H__
 #define __ASM_TIME_H__
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/rtc.h>
 #include <linux/threads.h>
@@ -153,5 +152,10 @@ extern __inline__ unsigned binary_tbl(void) {
 ({unsigned z; asm ("mulhwu %0,%1,%2" : "=r" (z) : "r" (x), "r" (y)); z;})
 
 unsigned mulhwu_scale_factor(unsigned, unsigned);
+
+#define account_process_vtime(tsk)		do { } while (0)
+#define calculate_steal_time()			do { } while (0)
+#define snapshot_timebases()			do { } while (0)
+
 #endif /* __ASM_TIME_H__ */
 #endif /* __KERNEL__ */

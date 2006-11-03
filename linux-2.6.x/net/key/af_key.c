@@ -14,7 +14,6 @@
  *		Derek Atkins <derek@ihtfp.com>
  */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -1454,21 +1453,23 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	if (x == NULL)
 		return -ESRCH;
 
+	if ((err = security_xfrm_state_delete(x)))
+		goto out;
+
 	if (xfrm_state_kern(x)) {
-		xfrm_state_put(x);
-		return -EPERM;
+		err = -EPERM;
+		goto out;
 	}
 	
 	err = xfrm_state_delete(x);
-	if (err < 0) {
-		xfrm_state_put(x);
-		return err;
-	}
+	if (err < 0)
+		goto out;
 
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
+out:
 	xfrm_state_put(x);
 
 	return err;
@@ -2274,11 +2275,14 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 
 	err = 0;
 
+	if ((err = security_xfrm_policy_delete(xp)))
+		goto out;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_DELPOLICY;
 	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 
+out:
 	xfrm_pol_put(xp);
 	return err;
 }
@@ -2651,6 +2655,8 @@ static int pfkey_send_notify(struct xfrm_state *x, struct km_event *c)
 		return key_notify_sa(x, c);
 	case XFRM_MSG_FLUSHSA:
 		return key_notify_sa_flush(c);
+	case XFRM_MSG_NEWAE: /* not yet supported */
+		break;
 	default:
 		printk("pfkey: Unknown SA event %d\n", c->event);
 		break;
@@ -3078,9 +3084,9 @@ static int pfkey_sendmsg(struct kiocb *kiocb,
 	if (!hdr)
 		goto out;
 
-	down(&xfrm_cfg_sem);
+	mutex_lock(&xfrm_cfg_mutex);
 	err = pfkey_process(sk, skb, hdr);
-	up(&xfrm_cfg_sem);
+	mutex_unlock(&xfrm_cfg_mutex);
 
 out:
 	if (err && hdr && pfkey_error(hdr, err, sk) == 0)

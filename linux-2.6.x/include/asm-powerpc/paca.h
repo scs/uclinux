@@ -16,7 +16,6 @@
 #define _ASM_POWERPC_PACA_H
 #ifdef __KERNEL__
 
-#include	<linux/config.h>
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
 #include	<asm/mmu.h>
@@ -54,7 +53,7 @@ struct paca_struct {
 #endif /* CONFIG_PPC_ISERIES */
 
 	/*
-	 * MAGIC: the spinlock functions in arch/ppc64/lib/locks.c
+	 * MAGIC: the spinlock functions in arch/powerpc/lib/locks.c 
 	 * load lock_token and paca_index with a single lwz
 	 * instruction.  They must travel together and be properly
 	 * aligned.
@@ -79,11 +78,9 @@ struct paca_struct {
 	u64 exmc[10];		/* used for machine checks */
 	u64 exslb[10];		/* used for SLB/segment table misses
  				 * on the linear mapping */
-#ifdef CONFIG_PPC_64K_PAGES
-	pgd_t *pgdir;
-#endif /* CONFIG_PPC_64K_PAGES */
 
 	mm_context_t context;
+	u16 vmalloc_sllp;
 	u16 slb_cache[SLB_CACHE_ENTRIES];
 	u16 slb_cache_ptr;
 
@@ -96,9 +93,17 @@ struct paca_struct {
 	u64 saved_r1;			/* r1 save for RTAS calls */
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u8 proc_enabled;		/* irq soft-enable flag */
+	u8 io_sync;			/* writel() needs spin_unlock sync */
+
+	/* Stuff for accurate time accounting */
+	u64 user_time;			/* accumulated usermode TB ticks */
+	u64 system_time;		/* accumulated system TB ticks */
+	u64 startpurr;			/* PURR/TB value snapshot */
 };
 
 extern struct paca_struct paca[];
+
+void setup_boot_paca(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */

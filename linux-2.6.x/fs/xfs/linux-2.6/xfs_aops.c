@@ -21,7 +21,6 @@
 #include "xfs_inum.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_trans.h"
 #include "xfs_dmapi.h"
@@ -29,7 +28,6 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -43,7 +41,29 @@
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
 
-STATIC void xfs_count_page_state(struct page *, int *, int *, int *);
+STATIC void
+xfs_count_page_state(
+	struct page		*page,
+	int			*delalloc,
+	int			*unmapped,
+	int			*unwritten)
+{
+	struct buffer_head	*bh, *head;
+
+	*delalloc = *unmapped = *unwritten = 0;
+
+	bh = head = page_buffers(page);
+	do {
+		if (buffer_uptodate(bh) && !buffer_mapped(bh))
+			(*unmapped) = 1;
+		else if (buffer_unwritten(bh) && !buffer_delay(bh))
+			clear_buffer_unwritten(bh);
+		else if (buffer_unwritten(bh))
+			(*unwritten) = 1;
+		else if (buffer_delay(bh))
+			(*delalloc) = 1;
+	} while ((bh = bh->b_this_page) != head);
+}
 
 #if defined(XFS_RW_TRACE)
 void
@@ -54,7 +74,7 @@ xfs_page_trace(
 	int		mask)
 {
 	xfs_inode_t	*ip;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 	loff_t		isize = i_size_read(inode);
 	loff_t		offset = page_offset(page);
 	int		delalloc = -1, unmapped = -1, unwritten = -1;
@@ -81,7 +101,7 @@ xfs_page_trace(
 		(void *)((unsigned long)delalloc),
 		(void *)((unsigned long)unmapped),
 		(void *)((unsigned long)unwritten),
-		(void *)NULL,
+		(void *)((unsigned long)current_pid()),
 		(void *)NULL);
 }
 #else
@@ -114,9 +134,10 @@ xfs_destroy_ioend(
 
 	for (bh = ioend->io_buffer_head; bh; bh = next) {
 		next = bh->b_private;
-		bh->b_end_io(bh, ioend->io_uptodate);
+		bh->b_end_io(bh, !ioend->io_error);
 	}
-
+	if (unlikely(ioend->io_error))
+		vn_ioerror(ioend->io_vnode, ioend->io_error, __FILE__,__LINE__);
 	vn_iowake(ioend->io_vnode);
 	mempool_free(ioend, xfs_ioend_pool);
 }
@@ -158,13 +179,12 @@ xfs_end_bio_unwritten(
 	void			*data)
 {
 	xfs_ioend_t		*ioend = data;
-	vnode_t			*vp = ioend->io_vnode;
+	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
-	int			error;
 
-	if (ioend->io_uptodate)
-		VOP_BMAP(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL, error);
+	if (likely(!ioend->io_error))
+		bhv_vop_bmap(vp, offset, size, BMAPI_UNWRITTEN, NULL, NULL);
 	xfs_destroy_ioend(ioend);
 }
 
@@ -189,10 +209,10 @@ xfs_alloc_ioend(
 	 * all the I/O from calling the completion routine too early.
 	 */
 	atomic_set(&ioend->io_remaining, 1);
-	ioend->io_uptodate = 1; /* cleared if any I/O fails */
+	ioend->io_error = 0;
 	ioend->io_list = NULL;
 	ioend->io_type = type;
-	ioend->io_vnode = LINVFS_GET_VP(inode);
+	ioend->io_vnode = vn_from_inode(inode);
 	ioend->io_buffer_head = NULL;
 	ioend->io_buffer_tail = NULL;
 	atomic_inc(&ioend->io_vnode->v_iocount);
@@ -217,10 +237,10 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
+	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error, nmaps = 1;
 
-	VOP_BMAP(vp, offset, count, flags, mapp, &nmaps, error);
+	error = bhv_vop_bmap(vp, offset, count, flags, mapp, &nmaps);
 	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
 		VMODIFY(vp);
 	return -error;
@@ -249,16 +269,14 @@ xfs_end_bio(
 	if (bio->bi_size)
 		return 1;
 
-	ASSERT(ioend);
 	ASSERT(atomic_read(&bio->bi_cnt) >= 1);
+	ioend->io_error = test_bit(BIO_UPTODATE, &bio->bi_flags) ? 0 : error;
 
 	/* Toss bio and pass work off to an xfsdatad thread */
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
-		ioend->io_uptodate = 0;
 	bio->bi_private = NULL;
 	bio->bi_end_io = NULL;
-
 	bio_put(bio);
+
 	xfs_finish_ioend(ioend);
 	return 0;
 }
@@ -350,7 +368,7 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  * assumes that all buffers on the page are started at the same time.
  *
  * The fix is two passes across the ioend list - one to start writeback on the
- * bufferheads, and then the second one submit them for I/O.
+ * buffer_heads, and then submit them for I/O on the second pass.
  */
 STATIC void
 xfs_submit_ioend(
@@ -462,28 +480,37 @@ xfs_add_to_ioend(
 }
 
 STATIC void
+xfs_map_buffer(
+	struct buffer_head	*bh,
+	xfs_iomap_t		*mp,
+	xfs_off_t		offset,
+	uint			block_bits)
+{
+	sector_t		bn;
+
+	ASSERT(mp->iomap_bn != IOMAP_DADDR_NULL);
+
+	bn = (mp->iomap_bn >> (block_bits - BBSHIFT)) +
+	      ((offset - mp->iomap_offset) >> block_bits);
+
+	ASSERT(bn || (mp->iomap_flags & IOMAP_REALTIME));
+
+	bh->b_blocknr = bn;
+	set_buffer_mapped(bh);
+}
+
+STATIC void
 xfs_map_at_offset(
 	struct buffer_head	*bh,
 	loff_t			offset,
 	int			block_bits,
 	xfs_iomap_t		*iomapp)
 {
-	xfs_daddr_t		bn;
-	int			sector_shift;
-
 	ASSERT(!(iomapp->iomap_flags & IOMAP_HOLE));
 	ASSERT(!(iomapp->iomap_flags & IOMAP_DELAY));
-	ASSERT(iomapp->iomap_bn != IOMAP_DADDR_NULL);
-
-	sector_shift = block_bits - BBSHIFT;
-	bn = (iomapp->iomap_bn >> sector_shift) +
-	      ((offset - iomapp->iomap_offset) >> block_bits);
-
-	ASSERT(bn || (iomapp->iomap_flags & IOMAP_REALTIME));
-	ASSERT((bn << sector_shift) >= iomapp->iomap_bn);
 
 	lock_buffer(bh);
-	bh->b_blocknr = bn;
+	xfs_map_buffer(bh, iomapp, offset, block_bits);
 	bh->b_bdev = iomapp->iomap_target->bt_bdev;
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
@@ -668,7 +695,7 @@ xfs_convert_page(
 
 	/*
 	 * page_dirty is initially a count of buffers on the page before
-	 * EOF and is decrememted as we move each into a cleanable state.
+	 * EOF and is decremented as we move each into a cleanable state.
 	 *
 	 * Derivation:
 	 *
@@ -811,7 +838,7 @@ xfs_cluster_write(
  * page if possible.
  * The bh->b_state's cannot know if any of the blocks or which block for
  * that matter are dirty due to mmap writes, and therefore bh uptodate is
- * only vaild if the page itself isn't completely uptodate.  Some layers
+ * only valid if the page itself isn't completely uptodate.  Some layers
  * may clear the page dirty flag prior to calling write page, under the
  * assumption the entire page will be written out; by not writing out the
  * whole page the page can be reused before all valid dirty data is
@@ -839,12 +866,14 @@ xfs_page_state_convert(
 	pgoff_t                 end_index, last_index, tlast;
 	ssize_t			size, len;
 	int			flags, err, iomap_valid = 0, uptodate = 1;
-	int			page_dirty, count = 0, trylock_flag = 0;
+	int			page_dirty, count = 0;
+	int			trylock = 0;
 	int			all_bh = unmapped;
 
-	/* wait for other IO threads? */
-	if (startio && (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking))
-		trylock_flag |= BMAPI_TRYLOCK;
+	if (startio) {
+		if (wbc->sync_mode == WB_SYNC_NONE && wbc->nonblocking)
+			trylock |= BMAPI_TRYLOCK;
+	}
 
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
@@ -861,7 +890,7 @@ xfs_page_state_convert(
 
 	/*
 	 * page_dirty is initially a count of buffers on the page before
-	 * EOF and is decrememted as we move each into a cleanable state.
+	 * EOF and is decremented as we move each into a cleanable state.
 	 *
 	 * Derivation:
 	 *
@@ -925,15 +954,13 @@ xfs_page_state_convert(
 
 			if (buffer_unwritten(bh)) {
 				type = IOMAP_UNWRITTEN;
-				flags = BMAPI_WRITE|BMAPI_IGNSTATE;
+				flags = BMAPI_WRITE | BMAPI_IGNSTATE;
 			} else if (buffer_delay(bh)) {
 				type = IOMAP_DELAY;
-				flags = BMAPI_ALLOCATE;
-				if (!startio)
-					flags |= trylock_flag;
+				flags = BMAPI_ALLOCATE | trylock;
 			} else {
 				type = IOMAP_NEW;
-				flags = BMAPI_WRITE|BMAPI_MMAP;
+				flags = BMAPI_WRITE | BMAPI_MMAP;
 			}
 
 			if (!iomap_valid) {
@@ -1040,250 +1067,6 @@ error:
 	return err;
 }
 
-STATIC int
-__linvfs_get_block(
-	struct inode		*inode,
-	sector_t		iblock,
-	unsigned long		blocks,
-	struct buffer_head	*bh_result,
-	int			create,
-	int			direct,
-	bmapi_flags_t		flags)
-{
-	vnode_t			*vp = LINVFS_GET_VP(inode);
-	xfs_iomap_t		iomap;
-	xfs_off_t		offset;
-	ssize_t			size;
-	int			retpbbm = 1;
-	int			error;
-
-	offset = (xfs_off_t)iblock << inode->i_blkbits;
-	if (blocks)
-		size = (ssize_t) min_t(xfs_off_t, LONG_MAX,
-					(xfs_off_t)blocks << inode->i_blkbits);
-	else
-		size = 1 << inode->i_blkbits;
-
-	VOP_BMAP(vp, offset, size,
-		create ? flags : BMAPI_READ, &iomap, &retpbbm, error);
-	if (error)
-		return -error;
-
-	if (retpbbm == 0)
-		return 0;
-
-	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
-		xfs_daddr_t	bn;
-		xfs_off_t	delta;
-
-		/* For unwritten extents do not report a disk address on
-		 * the read case (treat as if we're reading into a hole).
-		 */
-		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN)) {
-			delta = offset - iomap.iomap_offset;
-			delta >>= inode->i_blkbits;
-
-			bn = iomap.iomap_bn >> (inode->i_blkbits - BBSHIFT);
-			bn += delta;
-			BUG_ON(!bn && !(iomap.iomap_flags & IOMAP_REALTIME));
-			bh_result->b_blocknr = bn;
-			set_buffer_mapped(bh_result);
-		}
-		if (create && (iomap.iomap_flags & IOMAP_UNWRITTEN)) {
-			if (direct)
-				bh_result->b_private = inode;
-			set_buffer_unwritten(bh_result);
-			set_buffer_delay(bh_result);
-		}
-	}
-
-	/* If this is a realtime file, data might be on a new device */
-	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
-
-	/* If we previously allocated a block out beyond eof and
-	 * we are now coming back to use it then we will need to
-	 * flag it as new even if it has a disk address.
-	 */
-	if (create &&
-	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
-	     (offset >= i_size_read(inode)) || (iomap.iomap_flags & IOMAP_NEW)))
-		set_buffer_new(bh_result);
-
-	if (iomap.iomap_flags & IOMAP_DELAY) {
-		BUG_ON(direct);
-		if (create) {
-			set_buffer_uptodate(bh_result);
-			set_buffer_mapped(bh_result);
-			set_buffer_delay(bh_result);
-		}
-	}
-
-	if (blocks) {
-		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
-		offset = min_t(xfs_off_t,
-				iomap.iomap_bsize - iomap.iomap_delta,
-				(xfs_off_t)blocks << inode->i_blkbits);
-		bh_result->b_size = (u32) min_t(xfs_off_t, UINT_MAX, offset);
-	}
-
-	return 0;
-}
-
-int
-linvfs_get_block(
-	struct inode		*inode,
-	sector_t		iblock,
-	struct buffer_head	*bh_result,
-	int			create)
-{
-	return __linvfs_get_block(inode, iblock, 0, bh_result,
-					create, 0, BMAPI_WRITE);
-}
-
-STATIC int
-linvfs_get_blocks_direct(
-	struct inode		*inode,
-	sector_t		iblock,
-	unsigned long		max_blocks,
-	struct buffer_head	*bh_result,
-	int			create)
-{
-	return __linvfs_get_block(inode, iblock, max_blocks, bh_result,
-					create, 1, BMAPI_WRITE|BMAPI_DIRECT);
-}
-
-STATIC void
-linvfs_end_io_direct(
-	struct kiocb	*iocb,
-	loff_t		offset,
-	ssize_t		size,
-	void		*private)
-{
-	xfs_ioend_t	*ioend = iocb->private;
-
-	/*
-	 * Non-NULL private data means we need to issue a transaction to
-	 * convert a range from unwritten to written extents.  This needs
-	 * to happen from process contect but aio+dio I/O completion
-	 * happens from irq context so we need to defer it to a workqueue.
-	 * This is not nessecary for synchronous direct I/O, but we do
-	 * it anyway to keep the code uniform and simpler.
-	 *
-	 * The core direct I/O code might be changed to always call the
-	 * completion handler in the future, in which case all this can
-	 * go away.
-	 */
-	if (private && size > 0) {
-		ioend->io_offset = offset;
-		ioend->io_size = size;
-		xfs_finish_ioend(ioend);
-	} else {
-		ASSERT(size >= 0);
-		xfs_destroy_ioend(ioend);
-	}
-
-	/*
-	 * blockdev_direct_IO can return an error even afer the I/O
-	 * completion handler was called.  Thus we need to protect
-	 * against double-freeing.
-	 */
-	iocb->private = NULL;
-}
-
-STATIC ssize_t
-linvfs_direct_IO(
-	int			rw,
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	loff_t			offset,
-	unsigned long		nr_segs)
-{
-	struct file	*file = iocb->ki_filp;
-	struct inode	*inode = file->f_mapping->host;
-	vnode_t		*vp = LINVFS_GET_VP(inode);
-	xfs_iomap_t	iomap;
-	int		maps = 1;
-	int		error;
-	ssize_t		ret;
-
-	VOP_BMAP(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps, error);
-	if (error)
-		return -error;
-
-	iocb->private = xfs_alloc_ioend(inode, IOMAP_UNWRITTEN);
-
-	ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
-		iomap.iomap_target->bt_bdev,
-		iov, offset, nr_segs,
-		linvfs_get_blocks_direct,
-		linvfs_end_io_direct);
-
-	if (unlikely(ret <= 0 && iocb->private))
-		xfs_destroy_ioend(iocb->private);
-	return ret;
-}
-
-
-STATIC sector_t
-linvfs_bmap(
-	struct address_space	*mapping,
-	sector_t		block)
-{
-	struct inode		*inode = (struct inode *)mapping->host;
-	vnode_t			*vp = LINVFS_GET_VP(inode);
-	int			error;
-
-	vn_trace_entry(vp, "linvfs_bmap", (inst_t *)__return_address);
-
-	VOP_RWLOCK(vp, VRWLOCK_READ);
-	VOP_FLUSH_PAGES(vp, (xfs_off_t)0, -1, 0, FI_REMAPF, error);
-	VOP_RWUNLOCK(vp, VRWLOCK_READ);
-	return generic_block_bmap(mapping, block, linvfs_get_block);
-}
-
-STATIC int
-linvfs_readpage(
-	struct file		*unused,
-	struct page		*page)
-{
-	return mpage_readpage(page, linvfs_get_block);
-}
-
-STATIC int
-linvfs_readpages(
-	struct file		*unused,
-	struct address_space	*mapping,
-	struct list_head	*pages,
-	unsigned		nr_pages)
-{
-	return mpage_readpages(mapping, pages, nr_pages, linvfs_get_block);
-}
-
-STATIC void
-xfs_count_page_state(
-	struct page		*page,
-	int			*delalloc,
-	int			*unmapped,
-	int			*unwritten)
-{
-	struct buffer_head	*bh, *head;
-
-	*delalloc = *unmapped = *unwritten = 0;
-
-	bh = head = page_buffers(page);
-	do {
-		if (buffer_uptodate(bh) && !buffer_mapped(bh))
-			(*unmapped) = 1;
-		else if (buffer_unwritten(bh) && !buffer_delay(bh))
-			clear_buffer_unwritten(bh);
-		else if (buffer_unwritten(bh))
-			(*unwritten) = 1;
-		else if (buffer_delay(bh))
-			(*delalloc) = 1;
-	} while ((bh = bh->b_this_page) != head);
-}
-
-
 /*
  * writepage: Called from one of two places:
  *
@@ -1305,7 +1088,7 @@ xfs_count_page_state(
  */
 
 STATIC int
-linvfs_writepage(
+xfs_vm_writepage(
 	struct page		*page,
 	struct writeback_control *wbc)
 {
@@ -1340,7 +1123,7 @@ linvfs_writepage(
 	 * then mark the page dirty again and leave the page
 	 * as is.
 	 */
-	if (PFLAGS_TEST_FSTRANS() && need_trans)
+	if (current_test_flags(PF_FSTRANS) && need_trans)
 		goto out_fail;
 
 	/*
@@ -1372,13 +1155,15 @@ out_unlock:
 }
 
 STATIC int
-linvfs_invalidate_page(
-	struct page		*page,
-	unsigned long		offset)
+xfs_vm_writepages(
+	struct address_space	*mapping,
+	struct writeback_control *wbc)
 {
-	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
-			page->mapping->host, page, offset);
-	return block_invalidatepage(page, offset);
+	struct bhv_vnode	*vp = vn_from_inode(mapping->host);
+
+	if (VN_TRUNC(vp))
+		VUNTRUNCATE(vp);
+	return generic_writepages(mapping, wbc);
 }
 
 /*
@@ -1401,7 +1186,7 @@ linvfs_invalidate_page(
  *    free them and we should come back later via writepage.
  */
 STATIC int
-linvfs_release_page(
+xfs_vm_releasepage(
 	struct page		*page,
 	gfp_t			gfp_mask)
 {
@@ -1414,6 +1199,9 @@ linvfs_release_page(
 
 	xfs_page_trace(XFS_RELEASEPAGE_ENTER, inode, page, gfp_mask);
 
+	if (!page_has_buffers(page))
+		return 0;
+
 	xfs_count_page_state(page, &delalloc, &unmapped, &unwritten);
 	if (!delalloc && !unwritten)
 		goto free_buffers;
@@ -1424,7 +1212,7 @@ linvfs_release_page(
 	/* If we are already inside a transaction or the thread cannot
 	 * do I/O, we cannot release this page.
 	 */
-	if (PFLAGS_TEST_FSTRANS())
+	if (current_test_flags(PF_FSTRANS))
 		return 0;
 
 	/*
@@ -1443,25 +1231,248 @@ free_buffers:
 }
 
 STATIC int
-linvfs_prepare_write(
+__xfs_get_blocks(
+	struct inode		*inode,
+	sector_t		iblock,
+	struct buffer_head	*bh_result,
+	int			create,
+	int			direct,
+	bmapi_flags_t		flags)
+{
+	bhv_vnode_t		*vp = vn_from_inode(inode);
+	xfs_iomap_t		iomap;
+	xfs_off_t		offset;
+	ssize_t			size;
+	int			niomap = 1;
+	int			error;
+
+	offset = (xfs_off_t)iblock << inode->i_blkbits;
+	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
+	size = bh_result->b_size;
+	error = bhv_vop_bmap(vp, offset, size,
+			     create ? flags : BMAPI_READ, &iomap, &niomap);
+	if (error)
+		return -error;
+	if (niomap == 0)
+		return 0;
+
+	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
+		/*
+		 * For unwritten extents do not report a disk address on
+		 * the read case (treat as if we're reading into a hole).
+		 */
+		if (create || !(iomap.iomap_flags & IOMAP_UNWRITTEN)) {
+			xfs_map_buffer(bh_result, &iomap, offset,
+				       inode->i_blkbits);
+		}
+		if (create && (iomap.iomap_flags & IOMAP_UNWRITTEN)) {
+			if (direct)
+				bh_result->b_private = inode;
+			set_buffer_unwritten(bh_result);
+			set_buffer_delay(bh_result);
+		}
+	}
+
+	/*
+	 * If this is a realtime file, data may be on a different device.
+	 * to that pointed to from the buffer_head b_bdev currently.
+	 */
+	bh_result->b_bdev = iomap.iomap_target->bt_bdev;
+
+	/*
+	 * If we previously allocated a block out beyond eof and we are
+	 * now coming back to use it then we will need to flag it as new
+	 * even if it has a disk address.
+	 */
+	if (create &&
+	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
+	     (offset >= i_size_read(inode)) || (iomap.iomap_flags & IOMAP_NEW)))
+		set_buffer_new(bh_result);
+
+	if (iomap.iomap_flags & IOMAP_DELAY) {
+		BUG_ON(direct);
+		if (create) {
+			set_buffer_uptodate(bh_result);
+			set_buffer_mapped(bh_result);
+			set_buffer_delay(bh_result);
+		}
+	}
+
+	if (direct || size > (1 << inode->i_blkbits)) {
+		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
+		offset = min_t(xfs_off_t,
+				iomap.iomap_bsize - iomap.iomap_delta, size);
+		bh_result->b_size = (ssize_t)min_t(xfs_off_t, LONG_MAX, offset);
+	}
+
+	return 0;
+}
+
+int
+xfs_get_blocks(
+	struct inode		*inode,
+	sector_t		iblock,
+	struct buffer_head	*bh_result,
+	int			create)
+{
+	return __xfs_get_blocks(inode, iblock,
+				bh_result, create, 0, BMAPI_WRITE);
+}
+
+STATIC int
+xfs_get_blocks_direct(
+	struct inode		*inode,
+	sector_t		iblock,
+	struct buffer_head	*bh_result,
+	int			create)
+{
+	return __xfs_get_blocks(inode, iblock,
+				bh_result, create, 1, BMAPI_WRITE|BMAPI_DIRECT);
+}
+
+STATIC void
+xfs_end_io_direct(
+	struct kiocb	*iocb,
+	loff_t		offset,
+	ssize_t		size,
+	void		*private)
+{
+	xfs_ioend_t	*ioend = iocb->private;
+
+	/*
+	 * Non-NULL private data means we need to issue a transaction to
+	 * convert a range from unwritten to written extents.  This needs
+	 * to happen from process context but aio+dio I/O completion
+	 * happens from irq context so we need to defer it to a workqueue.
+	 * This is not necessary for synchronous direct I/O, but we do
+	 * it anyway to keep the code uniform and simpler.
+	 *
+	 * The core direct I/O code might be changed to always call the
+	 * completion handler in the future, in which case all this can
+	 * go away.
+	 */
+	if (private && size > 0) {
+		ioend->io_offset = offset;
+		ioend->io_size = size;
+		xfs_finish_ioend(ioend);
+	} else {
+		ASSERT(size >= 0);
+		xfs_destroy_ioend(ioend);
+	}
+
+	/*
+	 * blockdev_direct_IO can return an error even after the I/O
+	 * completion handler was called.  Thus we need to protect
+	 * against double-freeing.
+	 */
+	iocb->private = NULL;
+}
+
+STATIC ssize_t
+xfs_vm_direct_IO(
+	int			rw,
+	struct kiocb		*iocb,
+	const struct iovec	*iov,
+	loff_t			offset,
+	unsigned long		nr_segs)
+{
+	struct file	*file = iocb->ki_filp;
+	struct inode	*inode = file->f_mapping->host;
+	bhv_vnode_t	*vp = vn_from_inode(inode);
+	xfs_iomap_t	iomap;
+	int		maps = 1;
+	int		error;
+	ssize_t		ret;
+
+	error = bhv_vop_bmap(vp, offset, 0, BMAPI_DEVICE, &iomap, &maps);
+	if (error)
+		return -error;
+
+	iocb->private = xfs_alloc_ioend(inode, IOMAP_UNWRITTEN);
+
+	if (rw == WRITE) {
+		ret = blockdev_direct_IO_own_locking(rw, iocb, inode,
+			iomap.iomap_target->bt_bdev,
+			iov, offset, nr_segs,
+			xfs_get_blocks_direct,
+			xfs_end_io_direct);
+	} else {
+		ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
+			iomap.iomap_target->bt_bdev,
+			iov, offset, nr_segs,
+			xfs_get_blocks_direct,
+			xfs_end_io_direct);
+	}
+
+	if (unlikely(ret <= 0 && iocb->private))
+		xfs_destroy_ioend(iocb->private);
+	return ret;
+}
+
+STATIC int
+xfs_vm_prepare_write(
 	struct file		*file,
 	struct page		*page,
 	unsigned int		from,
 	unsigned int		to)
 {
-	return block_prepare_write(page, from, to, linvfs_get_block);
+	return block_prepare_write(page, from, to, xfs_get_blocks);
 }
 
-struct address_space_operations linvfs_aops = {
-	.readpage		= linvfs_readpage,
-	.readpages		= linvfs_readpages,
-	.writepage		= linvfs_writepage,
+STATIC sector_t
+xfs_vm_bmap(
+	struct address_space	*mapping,
+	sector_t		block)
+{
+	struct inode		*inode = (struct inode *)mapping->host;
+	bhv_vnode_t		*vp = vn_from_inode(inode);
+
+	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
+	bhv_vop_rwlock(vp, VRWLOCK_READ);
+	bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
+	bhv_vop_rwunlock(vp, VRWLOCK_READ);
+	return generic_block_bmap(mapping, block, xfs_get_blocks);
+}
+
+STATIC int
+xfs_vm_readpage(
+	struct file		*unused,
+	struct page		*page)
+{
+	return mpage_readpage(page, xfs_get_blocks);
+}
+
+STATIC int
+xfs_vm_readpages(
+	struct file		*unused,
+	struct address_space	*mapping,
+	struct list_head	*pages,
+	unsigned		nr_pages)
+{
+	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
+}
+
+STATIC void
+xfs_vm_invalidatepage(
+	struct page		*page,
+	unsigned long		offset)
+{
+	xfs_page_trace(XFS_INVALIDPAGE_ENTER,
+			page->mapping->host, page, offset);
+	block_invalidatepage(page, offset);
+}
+
+const struct address_space_operations xfs_address_space_operations = {
+	.readpage		= xfs_vm_readpage,
+	.readpages		= xfs_vm_readpages,
+	.writepage		= xfs_vm_writepage,
+	.writepages		= xfs_vm_writepages,
 	.sync_page		= block_sync_page,
-	.releasepage		= linvfs_release_page,
-	.invalidatepage		= linvfs_invalidate_page,
-	.prepare_write		= linvfs_prepare_write,
+	.releasepage		= xfs_vm_releasepage,
+	.invalidatepage		= xfs_vm_invalidatepage,
+	.prepare_write		= xfs_vm_prepare_write,
 	.commit_write		= generic_commit_write,
-	.bmap			= linvfs_bmap,
-	.direct_IO		= linvfs_direct_IO,
+	.bmap			= xfs_vm_bmap,
+	.direct_IO		= xfs_vm_direct_IO,
 	.migratepage		= buffer_migrate_page,
 };

@@ -1,4 +1,8 @@
+<<<<<<< namei.h
 /* $Id$
+=======
+/* $Id$
+>>>>>>> 1.6
  * linux/include/asm-i386/namei.h
  *
  * Included from linux/fs/namei.c

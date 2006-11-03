@@ -39,6 +39,7 @@
 #define			APIC_SPIV_FOCUS_DISABLED	(1<<9)
 #define			APIC_SPIV_APIC_ENABLED		(1<<8)
 #define		APIC_ISR	0x100
+#define		APIC_ISR_NR	0x8	/* Number of 32 bit ISR registers. */
 #define		APIC_TMR	0x180
 #define 	APIC_IRR	0x200
 #define 	APIC_ESR	0x280
@@ -135,8 +136,6 @@
  * errata which cannot take 8-bit reads and writes, only 32-bit ones ...
  */
 #define u32 unsigned int
-
-#define lapic ((volatile struct local_apic *)APIC_BASE)
 
 struct local_apic {
 

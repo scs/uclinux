@@ -14,7 +14,6 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -313,8 +312,8 @@ static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 #ifdef CONFIG_SMP
 	hlist_for_each_entry(fq, n, &nf_ct_frag6_hash[hash], list) {
 		if (fq->id == fq_in->id && 
-		    !ipv6_addr_cmp(&fq_in->saddr, &fq->saddr) &&
-		    !ipv6_addr_cmp(&fq_in->daddr, &fq->daddr)) {
+		    ipv6_addr_equal(&fq_in->saddr, &fq->saddr) &&
+		    ipv6_addr_equal(&fq_in->daddr, &fq->daddr)) {
 			atomic_inc(&fq->refcnt);
 			write_unlock(&nf_ct_frag6_lock);
 			fq_in->last_in |= COMPLETE;
@@ -376,8 +375,8 @@ fq_find(u32 id, struct in6_addr *src, struct in6_addr *dst)
 	read_lock(&nf_ct_frag6_lock);
 	hlist_for_each_entry(fq, n, &nf_ct_frag6_hash[hash], list) {
 		if (fq->id == id && 
-		    !ipv6_addr_cmp(src, &fq->saddr) &&
-		    !ipv6_addr_cmp(dst, &fq->daddr)) {
+		    ipv6_addr_equal(src, &fq->saddr) &&
+		    ipv6_addr_equal(dst, &fq->daddr)) {
 			atomic_inc(&fq->refcnt);
 			read_unlock(&nf_ct_frag6_lock);
 			return fq;
@@ -456,13 +455,9 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 		DEBUGP("queue: message is too short.\n");
 		goto err;
 	}
-	if (end-offset < skb->len) {
-		if (pskb_trim(skb, end - offset)) {
-			DEBUGP("Can't trim\n");
-			goto err;
-		}
-		if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-			skb->ip_summed = CHECKSUM_NONE;
+	if (pskb_trim_rcsum(skb, end - offset)) {
+		DEBUGP("Can't trim\n");
+		goto err;
 	}
 
 	/* Find out which fragments are in front and at the back of us

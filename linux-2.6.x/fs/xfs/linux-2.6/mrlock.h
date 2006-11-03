@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -28,7 +28,7 @@ typedef struct {
 } mrlock_t;
 
 #define mrinit(mrp, name)	\
-	( (mrp)->mr_writer = 0, init_rwsem(&(mrp)->mr_lock) )
+	do { (mrp)->mr_writer = 0; init_rwsem(&(mrp)->mr_lock); } while (0)
 #define mrlock_init(mrp, t,n,s)	mrinit(mrp, n)
 #define mrfree(mrp)		do { } while (0)
 #define mraccess(mrp)		mraccessf(mrp, 0)
@@ -79,7 +79,7 @@ static inline void mrdemote(mrlock_t *mrp)
  * Debug-only routine, without some platform-specific asm code, we can
  * now only answer requests regarding whether we hold the lock for write
  * (reader state is outside our visibility, we only track writer state).
- * Note: means !ismrlocked would give false positivies, so don't do that.
+ * Note: means !ismrlocked would give false positives, so don't do that.
  */
 static inline int ismrlocked(mrlock_t *mrp, int type)
 {

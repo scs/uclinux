@@ -41,7 +41,7 @@
 #define MAX_STRING 512
 
 static char print_string[MAX_STRING];
-static spinlock_t print_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(print_lock);
 
 static struct print_buf cons_buf = { NULL, 0, NULL, NULL };
 struct print_buf *TIPC_CONS = &cons_buf;
@@ -81,7 +81,7 @@ void tipc_printbuf_init(struct print_buf *pb, char *raw, u32 sz)
 
 	pb->crs = pb->buf = raw;
 	pb->size = sz;
-	pb->next = 0;
+	pb->next = NULL;
 	pb->buf[0] = 0;
 	pb->buf[sz-1] = ~0;
 }
@@ -216,7 +216,7 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
                         }
                 }
 		pb_next = pb->next;
-		pb->next = 0;
+		pb->next = NULL;
 		pb = pb_next;
 	}
 	spin_unlock_bh(&print_lock);

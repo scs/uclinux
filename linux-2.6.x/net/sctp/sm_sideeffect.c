@@ -430,7 +430,11 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	/* The check for association's overall error counter exceeding the
 	 * threshold is done in the state function.
 	 */
-	asoc->overall_error_count++;
+	/* When probing UNCONFIRMED addresses, the association overall
+	 * error count is NOT incremented
+	 */
+	if (transport->state != SCTP_UNCONFIRMED)
+		asoc->overall_error_count++;
 
 	if (transport->state != SCTP_INACTIVE &&
 	    (transport->error_count++ >= transport->pathmaxrxt)) {
@@ -497,10 +501,6 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
-
-	/* Set sk_err to ECONNRESET on a 1-1 style socket. */
-	if (!sctp_style(asoc->base.sk, UDP))
-		asoc->base.sk->sk_err = ECONNRESET; 
 
 	/* SEND_FAILED sent later when cleaning up the association. */
 	asoc->outqueue.error = error;
@@ -614,7 +614,7 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	/* Mark the destination transport address as active if it is not so
 	 * marked.
 	 */
-	if (t->state == SCTP_INACTIVE)
+	if ((t->state == SCTP_INACTIVE) || (t->state == SCTP_UNCONFIRMED))
 		sctp_assoc_control_transport(asoc, t, SCTP_TRANSPORT_UP,
 					     SCTP_HEARTBEAT_SUCCESS);
 
@@ -624,6 +624,10 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	 */
 	hbinfo = (sctp_sender_hb_info_t *) chunk->skb->data;
 	sctp_transport_update_rto(t, (jiffies - hbinfo->sent_at));
+
+	/* Update the heartbeat timer.  */
+	if (!mod_timer(&t->hb_timer, sctp_transport_timeout(t)))
+		sctp_transport_hold(t);
 }
 
 /* Helper function to do a transport reset at the expiry of the hearbeat
@@ -836,6 +840,15 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 	}
 
 	return;
+}
+
+/* Helper function to set sk_err on a 1-1 style socket. */
+static void sctp_cmd_set_sk_err(struct sctp_association *asoc, int error)
+{
+	struct sock *sk = asoc->base.sk;
+
+	if (!sctp_style(sk, UDP))
+		sk->sk_err = error;
 }
 
 /* These three macros allow us to pull the debugging code out of the
@@ -1457,6 +1470,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			error = sctp_outq_uncork(&asoc->outqueue);
 			local_cork = 0;
 			asoc->peer.retran_path = t;
+			break;
+		case SCTP_CMD_SET_SK_ERR:
+			sctp_cmd_set_sk_err(asoc, cmd->obj.error);
 			break;
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",

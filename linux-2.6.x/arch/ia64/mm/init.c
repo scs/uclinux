@@ -4,7 +4,6 @@
  * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 
@@ -109,6 +108,7 @@ lazy_mmu_prot_update (pte_t pte)
 {
 	unsigned long addr;
 	struct page *page;
+	unsigned long order;
 
 	if (!pte_exec(pte))
 		return;				/* not an executable page... */
@@ -119,7 +119,12 @@ lazy_mmu_prot_update (pte_t pte)
 	if (test_bit(PG_arch_1, &page->flags))
 		return;				/* i-cache is already coherent with d-cache */
 
-	flush_icache_range(addr, addr + PAGE_SIZE);
+	if (PageCompound(page)) {
+		order = (unsigned long) (page[1].lru.prev);
+		flush_icache_range(addr, addr + (1UL << order << PAGE_SHIFT));
+	}
+	else
+		flush_icache_range(addr, addr + PAGE_SIZE);
 	set_bit(PG_arch_1, &page->flags);	/* mark page as clean */
 }
 
@@ -197,7 +202,7 @@ free_initmem (void)
 	eaddr = (unsigned long) ia64_imva(__init_end);
 	while (addr < eaddr) {
 		ClearPageReserved(virt_to_page(addr));
-		set_page_count(virt_to_page(addr), 1);
+		init_page_count(virt_to_page(addr));
 		free_page(addr);
 		++totalram_pages;
 		addr += PAGE_SIZE;
@@ -206,7 +211,7 @@ free_initmem (void)
 	       (__init_end - __init_begin) >> 10);
 }
 
-void
+void __init
 free_initrd_mem (unsigned long start, unsigned long end)
 {
 	struct page *page;
@@ -252,7 +257,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 			continue;
 		page = virt_to_page(start);
 		ClearPageReserved(page);
-		set_page_count(page, 1);
+		init_page_count(page);
 		free_page(start);
 		++totalram_pages;
 	}
@@ -261,7 +266,7 @@ free_initrd_mem (unsigned long start, unsigned long end)
 /*
  * This installs a clean page in the kernel's page table.
  */
-struct page *
+static struct page * __init
 put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 {
 	pgd_t *pgd;
@@ -294,7 +299,7 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	return page;
 }
 
-static void
+static void __init
 setup_gate (void)
 {
 	struct page *page;
@@ -410,8 +415,63 @@ ia64_mmu_init (void *my_cpu_data)
 }
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
+int vmemmap_find_next_valid_pfn(int node, int i)
+{
+	unsigned long end_address, hole_next_pfn;
+	unsigned long stop_address;
+	pg_data_t *pgdat = NODE_DATA(node);
 
-int
+	end_address = (unsigned long) &vmem_map[pgdat->node_start_pfn + i];
+	end_address = PAGE_ALIGN(end_address);
+
+	stop_address = (unsigned long) &vmem_map[
+		pgdat->node_start_pfn + pgdat->node_spanned_pages];
+
+	do {
+		pgd_t *pgd;
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+
+		pgd = pgd_offset_k(end_address);
+		if (pgd_none(*pgd)) {
+			end_address += PGDIR_SIZE;
+			continue;
+		}
+
+		pud = pud_offset(pgd, end_address);
+		if (pud_none(*pud)) {
+			end_address += PUD_SIZE;
+			continue;
+		}
+
+		pmd = pmd_offset(pud, end_address);
+		if (pmd_none(*pmd)) {
+			end_address += PMD_SIZE;
+			continue;
+		}
+
+		pte = pte_offset_kernel(pmd, end_address);
+retry_pte:
+		if (pte_none(*pte)) {
+			end_address += PAGE_SIZE;
+			pte++;
+			if ((end_address < stop_address) &&
+			    (end_address != ALIGN(end_address, 1UL << PMD_SHIFT)))
+				goto retry_pte;
+			continue;
+		}
+		/* Found next valid vmem_map page */
+		break;
+	} while (end_address < stop_address);
+
+	end_address = min(end_address, stop_address);
+	end_address = end_address - (unsigned long) vmem_map + sizeof(struct page) - 1;
+	hole_next_pfn = end_address / sizeof(struct page);
+	return hole_next_pfn - pgdat->node_start_pfn;
+}
+
+int __init
 create_mem_map_page_table (u64 start, u64 end, void *arg)
 {
 	unsigned long address, start_page, end_page;
@@ -519,7 +579,7 @@ ia64_pfn_valid (unsigned long pfn)
 }
 EXPORT_SYMBOL(ia64_pfn_valid);
 
-int
+int __init
 find_largest_hole (u64 start, u64 end, void *arg)
 {
 	u64 *max_gap = arg;
@@ -535,7 +595,7 @@ find_largest_hole (u64 start, u64 end, void *arg)
 }
 #endif /* CONFIG_VIRTUAL_MEM_MAP */
 
-static int
+static int __init
 count_reserved_pages (u64 start, u64 end, void *arg)
 {
 	unsigned long num_reserved = 0;
@@ -556,7 +616,7 @@ count_reserved_pages (u64 start, u64 end, void *arg)
  * purposes.
  */
 
-static int nolwsys;
+static int nolwsys __initdata;
 
 static int __init
 nolwsys_setup (char *s)
@@ -567,7 +627,7 @@ nolwsys_setup (char *s)
 
 __setup("nolwsys", nolwsys_setup);
 
-void
+void __init
 mem_init (void)
 {
 	long reserved_pages, codesize, datasize, initsize;
@@ -600,7 +660,7 @@ mem_init (void)
 	kclist_add(&kcore_vmem, (void *)VMALLOC_START, VMALLOC_END-VMALLOC_START);
 	kclist_add(&kcore_kernel, _stext, _end - _stext);
 
-	for_each_pgdat(pgdat)
+	for_each_online_pgdat(pgdat)
 		if (pgdat->bdata->node_bootmem_map)
 			totalram_pages += free_all_bootmem_node(pgdat);
 
@@ -640,13 +700,13 @@ mem_init (void)
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
-	set_page_count(page, 1);
+	init_page_count(page);
 	__free_page(page);
 	totalram_pages++;
 	num_physpages++;
 }
 
-int add_memory(u64 start, u64 size)
+int arch_add_memory(int nid, u64 start, u64 size)
 {
 	pg_data_t *pgdat;
 	struct zone *zone;
@@ -654,7 +714,7 @@ int add_memory(u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
-	pgdat = NODE_DATA(0);
+	pgdat = NODE_DATA(nid);
 
 	zone = pgdat->node_zones + ZONE_NORMAL;
 	ret = __add_pages(zone, start_pfn, nr_pages);
@@ -670,4 +730,5 @@ int remove_memory(u64 start, u64 size)
 {
 	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(remove_memory);
 #endif

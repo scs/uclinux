@@ -273,7 +273,7 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return pte_val(pte) & _PAGE_RW; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
-static inline int pte_huge(pte_t pte)		{ return (pte_val(pte) & __LARGE_PTE) == __LARGE_PTE; }
+static inline int pte_huge(pte_t pte)		{ return pte_val(pte) & _PAGE_PSE; }
 
 static inline pte_t pte_rdprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
 static inline pte_t pte_exprotect(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) & ~_PAGE_USER)); return pte; }
@@ -285,7 +285,7 @@ static inline pte_t pte_mkexec(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _
 static inline pte_t pte_mkdirty(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_DIRTY)); return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED)); return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_RW)); return pte; }
-static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | __LARGE_PTE)); return pte; }
+static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_PSE)); return pte; }
 
 struct vm_area_struct;
 
@@ -293,19 +293,19 @@ static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned
 {
 	if (!pte_dirty(*ptep))
 		return 0;
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, ptep);
+	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte);
 }
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	if (!pte_young(*ptep))
 		return 0;
-	return test_and_clear_bit(_PAGE_BIT_ACCESSED, ptep);
+	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte);
 }
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	clear_bit(_PAGE_BIT_RW, ptep);
+	clear_bit(_PAGE_BIT_RW, &ptep->pte);
 }
 
 /*
@@ -337,13 +337,7 @@ static inline int pmd_large(pmd_t pte) {
 /* to find an entry in a page-table-directory. */
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 #define pud_offset(pgd, address) ((pud_t *) pgd_page(*(pgd)) + pud_index(address))
-#define pud_offset_k(pgd, addr) pud_offset(pgd, addr)
 #define pud_present(pud) (pud_val(pud) & _PAGE_PRESENT)
-
-static inline pud_t *__pud_offset_k(pud_t *pud, unsigned long address)
-{ 
-	return pud + pud_index(address);
-} 
 
 /* PMD  - Level 2 access */
 #define pmd_page_kernel(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))
@@ -419,6 +413,10 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
+
+extern spinlock_t pgd_lock;
+extern struct page *pgd_list;
+void vmalloc_sync_all(void);
 
 #endif /* !__ASSEMBLY__ */
 

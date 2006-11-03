@@ -39,7 +39,7 @@
  * behaviors is synchronized with operations-in-progress (oip's) so that
  * the oip's always see a consistent view of the chain.
  *
- * The term "interpostion" is used to refer to the act of inserting
+ * The term "interposition" is used to refer to the act of inserting
  * a behavior such that it interposes on (i.e., is inserted in front
  * of) a particular other behavior.  A key example of this is when a
  * system implementing distributed single system image wishes to
@@ -51,7 +51,7 @@
  *
  * Behavior synchronization is logic which is necessary under certain
  * circumstances that there is no conflict between ongoing operations
- * traversing the behavior chain and those dunamically modifying the
+ * traversing the behavior chain and those dynamically modifying the
  * behavior chain.  Because behavior synchronization adds extra overhead
  * to virtual operation invocation, we want to restrict, as much as
  * we can, the requirement for this extra code, to those situations
@@ -78,15 +78,12 @@
  *
  */
 
-struct bhv_head_lock;
-
 /*
  * Behavior head.  Head of the chain of behaviors.
  * Contained within each virtualized object data structure.
  */
 typedef struct bhv_head {
 	struct bhv_desc *bh_first;	/* first behavior in chain */
-	struct bhv_head_lock *bh_lockp;	/* pointer to lock info struct */
 } bhv_head_t;
 
 /*

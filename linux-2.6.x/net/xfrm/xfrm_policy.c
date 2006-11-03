@@ -13,7 +13,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
@@ -26,8 +25,8 @@
 #include <net/xfrm.h>
 #include <net/ip.h>
 
-DECLARE_MUTEX(xfrm_cfg_sem);
-EXPORT_SYMBOL(xfrm_cfg_sem);
+DEFINE_MUTEX(xfrm_cfg_mutex);
+EXPORT_SYMBOL(xfrm_cfg_mutex);
 
 static DEFINE_RWLOCK(xfrm_policy_lock);
 
@@ -46,45 +45,43 @@ static DEFINE_SPINLOCK(xfrm_policy_gc_lock);
 
 static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
+static struct xfrm_policy_afinfo *xfrm_policy_lock_afinfo(unsigned int family);
+static void xfrm_policy_unlock_afinfo(struct xfrm_policy_afinfo *afinfo);
 
 int xfrm_register_type(struct xfrm_type *type, unsigned short family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	struct xfrm_type_map *typemap;
+	struct xfrm_policy_afinfo *afinfo = xfrm_policy_lock_afinfo(family);
+	struct xfrm_type **typemap;
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
-	if (likely(typemap->map[type->proto] == NULL))
-		typemap->map[type->proto] = type;
+	if (likely(typemap[type->proto] == NULL))
+		typemap[type->proto] = type;
 	else
 		err = -EEXIST;
-	write_unlock(&typemap->lock);
-	xfrm_policy_put_afinfo(afinfo);
+	xfrm_policy_unlock_afinfo(afinfo);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_register_type);
 
 int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	struct xfrm_type_map *typemap;
+	struct xfrm_policy_afinfo *afinfo = xfrm_policy_lock_afinfo(family);
+	struct xfrm_type **typemap;
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
 	typemap = afinfo->type_map;
 
-	write_lock(&typemap->lock);
-	if (unlikely(typemap->map[type->proto] != type))
+	if (unlikely(typemap[type->proto] != type))
 		err = -ENOENT;
 	else
-		typemap->map[type->proto] = NULL;
-	write_unlock(&typemap->lock);
-	xfrm_policy_put_afinfo(afinfo);
+		typemap[type->proto] = NULL;
+	xfrm_policy_unlock_afinfo(afinfo);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_unregister_type);
@@ -92,7 +89,7 @@ EXPORT_SYMBOL(xfrm_unregister_type);
 struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
 {
 	struct xfrm_policy_afinfo *afinfo;
-	struct xfrm_type_map *typemap;
+	struct xfrm_type **typemap;
 	struct xfrm_type *type;
 	int modload_attempted = 0;
 
@@ -102,11 +99,9 @@ retry:
 		return NULL;
 	typemap = afinfo->type_map;
 
-	read_lock(&typemap->lock);
-	type = typemap->map[proto];
+	type = typemap[proto];
 	if (unlikely(type && !try_module_get(type->owner)))
 		type = NULL;
-	read_unlock(&typemap->lock);
 	if (!type && !modload_attempted) {
 		xfrm_policy_put_afinfo(afinfo);
 		request_module("xfrm-type-%d-%d",
@@ -140,6 +135,89 @@ EXPORT_SYMBOL(xfrm_dst_lookup);
 void xfrm_put_type(struct xfrm_type *type)
 {
 	module_put(type->owner);
+}
+
+int xfrm_register_mode(struct xfrm_mode *mode, int family)
+{
+	struct xfrm_policy_afinfo *afinfo;
+	struct xfrm_mode **modemap;
+	int err;
+
+	if (unlikely(mode->encap >= XFRM_MODE_MAX))
+		return -EINVAL;
+
+	afinfo = xfrm_policy_lock_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+
+	err = -EEXIST;
+	modemap = afinfo->mode_map;
+	if (likely(modemap[mode->encap] == NULL)) {
+		modemap[mode->encap] = mode;
+		err = 0;
+	}
+
+	xfrm_policy_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_register_mode);
+
+int xfrm_unregister_mode(struct xfrm_mode *mode, int family)
+{
+	struct xfrm_policy_afinfo *afinfo;
+	struct xfrm_mode **modemap;
+	int err;
+
+	if (unlikely(mode->encap >= XFRM_MODE_MAX))
+		return -EINVAL;
+
+	afinfo = xfrm_policy_lock_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return -EAFNOSUPPORT;
+
+	err = -ENOENT;
+	modemap = afinfo->mode_map;
+	if (likely(modemap[mode->encap] == mode)) {
+		modemap[mode->encap] = NULL;
+		err = 0;
+	}
+
+	xfrm_policy_unlock_afinfo(afinfo);
+	return err;
+}
+EXPORT_SYMBOL(xfrm_unregister_mode);
+
+struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family)
+{
+	struct xfrm_policy_afinfo *afinfo;
+	struct xfrm_mode *mode;
+	int modload_attempted = 0;
+
+	if (unlikely(encap >= XFRM_MODE_MAX))
+		return NULL;
+
+retry:
+	afinfo = xfrm_policy_get_afinfo(family);
+	if (unlikely(afinfo == NULL))
+		return NULL;
+
+	mode = afinfo->mode_map[encap];
+	if (unlikely(mode && !try_module_get(mode->owner)))
+		mode = NULL;
+	if (!mode && !modload_attempted) {
+		xfrm_policy_put_afinfo(afinfo);
+		request_module("xfrm-mode-%d-%d", family, encap);
+		modload_attempted = 1;
+		goto retry;
+	}
+
+	xfrm_policy_put_afinfo(afinfo);
+	return mode;
+}
+
+void xfrm_put_mode(struct xfrm_mode *mode)
+{
+	module_put(mode->owner);
 }
 
 static inline unsigned long make_jiffies(long secs)
@@ -203,7 +281,7 @@ static void xfrm_policy_timer(unsigned long data)
 	}
 
 	if (warn)
-		km_policy_expired(xp, dir, 0);
+		km_policy_expired(xp, dir, 0, 0);
 	if (next != LONG_MAX &&
 	    !mod_timer(&xp->timer, jiffies + make_jiffies(next)))
 		xfrm_pol_hold(xp);
@@ -216,7 +294,7 @@ out:
 expired:
 	read_unlock(&xp->lock);
 	if (!xfrm_policy_delete(xp, dir))
-		km_policy_expired(xp, dir, 1);
+		km_policy_expired(xp, dir, 1, 0);
 	xfrm_pol_put(xp);
 }
 
@@ -229,10 +307,9 @@ struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 
-	policy = kmalloc(sizeof(struct xfrm_policy), gfp);
+	policy = kzalloc(sizeof(struct xfrm_policy), gfp);
 
 	if (policy) {
-		memset(policy, 0, sizeof(struct xfrm_policy));
 		atomic_set(&policy->refcnt, 1);
 		rwlock_init(&policy->lock);
 		init_timer(&policy->timer);
@@ -621,6 +698,7 @@ int xfrm_policy_delete(struct xfrm_policy *pol, int dir)
 	}
 	return -ENOENT;
 }
+EXPORT_SYMBOL(xfrm_policy_delete);
 
 int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol)
 {
@@ -942,9 +1020,9 @@ xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
 	} else
 		start = -1;
 	for (; idx < sp->len; idx++) {
-		if (xfrm_state_ok(tmpl, sp->x[idx].xvec, family))
+		if (xfrm_state_ok(tmpl, sp->xvec[idx], family))
 			return ++idx;
-		if (sp->x[idx].xvec->props.mode)
+		if (sp->xvec[idx]->props.mode)
 			break;
 	}
 	return start;
@@ -967,7 +1045,7 @@ EXPORT_SYMBOL(xfrm_decode_session);
 static inline int secpath_has_tunnel(struct sec_path *sp, int k)
 {
 	for (; k < sp->len; k++) {
-		if (sp->x[k].xvec->props.mode)
+		if (sp->xvec[k]->props.mode)
 			return 1;
 	}
 
@@ -993,8 +1071,8 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 		int i;
 
 		for (i=skb->sp->len-1; i>=0; i--) {
-			struct sec_decap_state *xvec = &(skb->sp->x[i]);
-			if (!xfrm_selector_match(&xvec->xvec->sel, &fl, family))
+			struct xfrm_state *x = skb->sp->xvec[i];
+			if (!xfrm_selector_match(&x->sel, &fl, family))
 				return 0;
 		}
 	}
@@ -1056,12 +1134,33 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 }
 EXPORT_SYMBOL(__xfrm_route_forward);
 
+/* Optimize later using cookies and generation ids. */
+
 static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 {
-	/* If it is marked obsolete, which is how we even get here,
-	 * then we have purged it from the policy bundle list and we
-	 * did that for a good reason.
+	/* Code (such as __xfrm4_bundle_create()) sets dst->obsolete
+	 * to "-1" to force all XFRM destinations to get validated by
+	 * dst_ops->check on every use.  We do this because when a
+	 * normal route referenced by an XFRM dst is obsoleted we do
+	 * not go looking around for all parent referencing XFRM dsts
+	 * so that we can invalidate them.  It is just too much work.
+	 * Instead we make the checks here on every use.  For example:
+	 *
+	 *	XFRM dst A --> IPv4 dst X
+	 *
+	 * X is the "xdst->route" of A (X is also the "dst->path" of A
+	 * in this example).  If X is marked obsolete, "A" will not
+	 * notice.  That's what we are validating here via the
+	 * stale_bundle() check.
+	 *
+	 * When a policy's bundle is pruned, we dst_free() the XFRM
+	 * dst which causes it's ->obsolete field to be set to a
+	 * positive non-zero integer.  If an XFRM dst has been pruned
+	 * like this, we want to force a new route lookup.
 	 */
+	if (dst->obsolete < 0 && !stale_bundle(dst))
+		return dst;
+
 	return NULL;
 }
 
@@ -1250,7 +1349,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (unlikely(xfrm_policy_afinfo[afinfo->family] != NULL))
 		err = -ENOBUFS;
 	else {
@@ -1267,7 +1366,7 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = __xfrm_garbage_collect;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_register_afinfo);
@@ -1279,7 +1378,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 		return -EINVAL;
 	if (unlikely(afinfo->family >= NPROTO))
 		return -EAFNOSUPPORT;
-	write_lock(&xfrm_policy_afinfo_lock);
+	write_lock_bh(&xfrm_policy_afinfo_lock);
 	if (likely(xfrm_policy_afinfo[afinfo->family] != NULL)) {
 		if (unlikely(xfrm_policy_afinfo[afinfo->family] != afinfo))
 			err = -EINVAL;
@@ -1293,7 +1392,7 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			afinfo->garbage_collect = NULL;
 		}
 	}
-	write_unlock(&xfrm_policy_afinfo_lock);
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 	return err;
 }
 EXPORT_SYMBOL(xfrm_policy_unregister_afinfo);
@@ -1305,17 +1404,31 @@ static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family)
 		return NULL;
 	read_lock(&xfrm_policy_afinfo_lock);
 	afinfo = xfrm_policy_afinfo[family];
-	if (likely(afinfo != NULL))
-		read_lock(&afinfo->lock);
-	read_unlock(&xfrm_policy_afinfo_lock);
+	if (unlikely(!afinfo))
+		read_unlock(&xfrm_policy_afinfo_lock);
 	return afinfo;
 }
 
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
-	if (unlikely(afinfo == NULL))
-		return;
-	read_unlock(&afinfo->lock);
+	read_unlock(&xfrm_policy_afinfo_lock);
+}
+
+static struct xfrm_policy_afinfo *xfrm_policy_lock_afinfo(unsigned int family)
+{
+	struct xfrm_policy_afinfo *afinfo;
+	if (unlikely(family >= NPROTO))
+		return NULL;
+	write_lock_bh(&xfrm_policy_afinfo_lock);
+	afinfo = xfrm_policy_afinfo[family];
+	if (unlikely(!afinfo))
+		write_unlock_bh(&xfrm_policy_afinfo_lock);
+	return afinfo;
+}
+
+static void xfrm_policy_unlock_afinfo(struct xfrm_policy_afinfo *afinfo)
+{
+	write_unlock_bh(&xfrm_policy_afinfo_lock);
 }
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)

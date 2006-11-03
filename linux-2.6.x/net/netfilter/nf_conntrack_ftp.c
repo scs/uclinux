@@ -15,7 +15,6 @@
  * Derived from net/ipv4/netfilter/ip_conntrack_ftp.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/netfilter.h>
@@ -67,37 +66,48 @@ static int try_epsv_response(const char *, size_t, struct nf_conntrack_man *,
 			     char);
 
 static struct ftp_search {
-	enum ip_conntrack_dir dir;
 	const char *pattern;
 	size_t plen;
 	char skip;
 	char term;
 	enum ip_ct_ftp_type ftptype;
 	int (*getnum)(const char *, size_t, struct nf_conntrack_man *, char);
-} search[] = {
-	{
-		IP_CT_DIR_ORIGINAL,
-		"PORT", sizeof("PORT") - 1, ' ', '\r',
-		IP_CT_FTP_PORT,
-		try_rfc959,
+} search[IP_CT_DIR_MAX][2] = {
+	[IP_CT_DIR_ORIGINAL] = {
+		{
+			.pattern	= "PORT",
+			.plen		= sizeof("PORT") - 1,
+			.skip		= ' ',
+			.term		= '\r',
+			.ftptype	= IP_CT_FTP_PORT,
+			.getnum		= try_rfc959,
+		},
+		{
+			.pattern	= "EPRT",
+			.plen		= sizeof("EPRT") - 1,
+			.skip		= ' ',
+			.term		= '\r',
+			.ftptype	= IP_CT_FTP_EPRT,
+			.getnum		= try_eprt,
+		},
 	},
-	{
-		IP_CT_DIR_REPLY,
-		"227 ", sizeof("227 ") - 1, '(', ')',
-		IP_CT_FTP_PASV,
-		try_rfc959,
-	},
-	{
-		IP_CT_DIR_ORIGINAL,
-		"EPRT", sizeof("EPRT") - 1, ' ', '\r',
-		IP_CT_FTP_EPRT,
-		try_eprt,
-	},
-	{
-		IP_CT_DIR_REPLY,
-		"229 ", sizeof("229 ") - 1, '(', ')',
-		IP_CT_FTP_EPSV,
-		try_epsv_response,
+	[IP_CT_DIR_REPLY] = {
+		{
+			.pattern	= "227 ",
+			.plen		= sizeof("227 ") - 1,
+			.skip		= '(',
+			.term		= ')',
+			.ftptype	= IP_CT_FTP_PASV,
+			.getnum		= try_rfc959,
+		},
+		{
+			.pattern	= "229 ",
+			.plen		= sizeof("229 ") - 1,
+			.skip		= '(',
+			.term		= ')',
+			.ftptype	= IP_CT_FTP_EPSV,
+			.getnum		= try_epsv_response,
+		},
 	},
 };
 
@@ -440,7 +450,7 @@ static int help(struct sk_buff **pskb,
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
 	unsigned int matchlen, matchoff;
-	struct ip_ct_ftp_master *ct_ftp_info = &ct->help->ct_ftp_info;
+	struct ip_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_man cmd = {};
 
@@ -492,17 +502,15 @@ static int help(struct sk_buff **pskb,
 	memcpy(cmd.u3.all, &ct->tuplehash[dir].tuple.src.u3.all,
 	       sizeof(cmd.u3.all));
 
-	for (i = 0; i < ARRAY_SIZE(search); i++) {
-		if (search[i].dir != dir) continue;
-
+	for (i = 0; i < ARRAY_SIZE(search[dir]); i++) {
 		found = find_pattern(fb_ptr, datalen,
-				     search[i].pattern,
-				     search[i].plen,
-				     search[i].skip,
-				     search[i].term,
+				     search[dir][i].pattern,
+				     search[dir][i].plen,
+				     search[dir][i].skip,
+				     search[dir][i].term,
 				     &matchoff, &matchlen,
 				     &cmd,
-				     search[i].getnum);
+				     search[dir][i].getnum);
 		if (found) break;
 	}
 	if (found == -1) {
@@ -512,7 +520,7 @@ static int help(struct sk_buff **pskb,
 		   this case. */
 		if (net_ratelimit())
 			printk("conntrack_ftp: partial %s %u+%u\n",
-			       search[i].pattern,
+			       search[dir][i].pattern,
 			       ntohl(th->seq), datalen);
 		ret = NF_DROP;
 		goto out;
@@ -597,7 +605,7 @@ static int help(struct sk_buff **pskb,
 	/* Now, NAT might want to mangle the packet, and register the
 	 * (possibly changed) expectation itself. */
 	if (nf_nat_ftp_hook)
-		ret = nf_nat_ftp_hook(pskb, ctinfo, search[i].ftptype,
+		ret = nf_nat_ftp_hook(pskb, ctinfo, search[dir][i].ftptype,
 				      matchoff, matchlen, exp, &seq);
 	else {
 		/* Can't expect this?  Best to drop packet now. */
@@ -624,7 +632,7 @@ static struct nf_conntrack_helper ftp[MAX_PORTS][2];
 static char ftp_names[MAX_PORTS][2][sizeof("ftp-65535")];
 
 /* don't make this __exit, since it's called from __init ! */
-static void fini(void)
+static void nf_conntrack_ftp_fini(void)
 {
 	int i, j;
 	for (i = 0; i < ports_c; i++) {
@@ -642,7 +650,7 @@ static void fini(void)
 	kfree(ftp_buffer);
 }
 
-static int __init init(void)
+static int __init nf_conntrack_ftp_init(void)
 {
 	int i, j = -1, ret = 0;
 	char *tmpname;
@@ -683,7 +691,7 @@ static int __init init(void)
 				printk("nf_ct_ftp: failed to register helper "
 				       " for pf: %d port: %d\n",
 					ftp[i][j].tuple.src.l3num, ports[i]);
-				fini();
+				nf_conntrack_ftp_fini();
 				return ret;
 			}
 		}
@@ -692,5 +700,5 @@ static int __init init(void)
 	return 0;
 }
 
-module_init(init);
-module_exit(fini);
+module_init(nf_conntrack_ftp_init);
+module_exit(nf_conntrack_ftp_fini);

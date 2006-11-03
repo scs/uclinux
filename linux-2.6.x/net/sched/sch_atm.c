@@ -3,7 +3,6 @@
 /* Written 1998-2000 by Werner Almesberger, EPFL ICA */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/string.h>
@@ -638,6 +637,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	    sch,p,flow,skb,tcm);
 	if (!find_flow(p,flow)) return -EINVAL;
 	tcm->tcm_handle = flow->classid;
+	tcm->tcm_info = flow->q->handle;
 	rta = (struct rtattr *) b;
 	RTA_PUT(skb,TCA_OPTIONS,0,NULL);
 	RTA_PUT(skb,TCA_ATM_HDR,flow->hdr_len,flow->hdr);

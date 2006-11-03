@@ -14,13 +14,13 @@
 #define __POWERPC_TIME_H
 
 #ifdef __KERNEL__
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/percpu.h>
 
 #include <asm/processor.h>
-#ifdef CONFIG_PPC64
+#ifdef CONFIG_PPC_ISERIES
 #include <asm/paca.h>
+#include <asm/firmware.h>
 #include <asm/iseries/hv_call.h>
 #endif
 
@@ -30,10 +30,6 @@ extern unsigned long tb_ticks_per_usec;
 extern unsigned long tb_ticks_per_sec;
 extern u64 tb_to_xs;
 extern unsigned      tb_to_us;
-extern unsigned long tb_last_stamp;
-extern u64 tb_last_jiffy;
-
-DECLARE_PER_CPU(unsigned long, last_jiffy);
 
 struct rtc_time;
 extern void to_tm(int tim, struct rtc_time * tm);
@@ -41,6 +37,7 @@ extern time_t last_rtc_update;
 
 extern void generic_calibrate_decr(void);
 extern void wakeup_decrementer(void);
+extern void snapshot_timebase(void);
 
 /* Some sane defaults: 125 MHz timebase, 1GHz processor */
 extern unsigned long ppc_proc_freq;
@@ -177,7 +174,8 @@ static inline void set_dec(int val)
 #ifdef CONFIG_PPC_ISERIES
 	int cur_dec;
 
-	if (get_lppaca()->shared_proc) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
+			get_lppaca()->shared_proc) {
 		get_lppaca()->virtual_decr = val;
 		cur_dec = get_dec();
 		if (cur_dec > val)
@@ -220,6 +218,20 @@ struct cpu_usage {
 };
 
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+extern void account_process_vtime(struct task_struct *tsk);
+#else
+#define account_process_vtime(tsk)		do { } while (0)
+#endif
+
+#if defined(CONFIG_VIRT_CPU_ACCOUNTING) && defined(CONFIG_PPC_SPLPAR)
+extern void calculate_steal_time(void);
+extern void snapshot_timebases(void);
+#else
+#define calculate_steal_time()			do { } while (0)
+#define snapshot_timebases()			do { } while (0)
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __PPC64_TIME_H */

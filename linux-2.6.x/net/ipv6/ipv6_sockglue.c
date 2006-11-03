@@ -27,7 +27,6 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -58,9 +57,113 @@
 
 DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
 
+static struct inet6_protocol *ipv6_gso_pull_exthdrs(struct sk_buff *skb,
+						    int proto)
+{
+	struct inet6_protocol *ops = NULL;
+
+	for (;;) {
+		struct ipv6_opt_hdr *opth;
+		int len;
+
+		if (proto != NEXTHDR_HOP) {
+			ops = rcu_dereference(inet6_protos[proto]);
+
+			if (unlikely(!ops))
+				break;
+
+			if (!(ops->flags & INET6_PROTO_GSO_EXTHDR))
+				break;
+		}
+
+		if (unlikely(!pskb_may_pull(skb, 8)))
+			break;
+
+		opth = (void *)skb->data;
+		len = opth->hdrlen * 8 + 8;
+
+		if (unlikely(!pskb_may_pull(skb, len)))
+			break;
+
+		proto = opth->nexthdr;
+		__skb_pull(skb, len);
+	}
+
+	return ops;
+}
+
+static int ipv6_gso_send_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *ipv6h;
+	struct inet6_protocol *ops;
+	int err = -EINVAL;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
+		goto out;
+
+	ipv6h = skb->nh.ipv6h;
+	__skb_pull(skb, sizeof(*ipv6h));
+	err = -EPROTONOSUPPORT;
+
+	rcu_read_lock();
+	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
+	if (likely(ops && ops->gso_send_check)) {
+		skb->h.raw = skb->data;
+		err = ops->gso_send_check(skb);
+	}
+	rcu_read_unlock();
+
+out:
+	return err;
+}
+
+static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb, int features)
+{
+	struct sk_buff *segs = ERR_PTR(-EINVAL);
+	struct ipv6hdr *ipv6h;
+	struct inet6_protocol *ops;
+
+	if (unlikely(skb_shinfo(skb)->gso_type &
+		     ~(SKB_GSO_UDP |
+		       SKB_GSO_DODGY |
+		       SKB_GSO_TCP_ECN |
+		       SKB_GSO_TCPV6 |
+		       0)))
+		goto out;
+
+	if (unlikely(!pskb_may_pull(skb, sizeof(*ipv6h))))
+		goto out;
+
+	ipv6h = skb->nh.ipv6h;
+	__skb_pull(skb, sizeof(*ipv6h));
+	segs = ERR_PTR(-EPROTONOSUPPORT);
+
+	rcu_read_lock();
+	ops = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
+	if (likely(ops && ops->gso_segment)) {
+		skb->h.raw = skb->data;
+		segs = ops->gso_segment(skb, features);
+	}
+	rcu_read_unlock();
+
+	if (unlikely(IS_ERR(segs)))
+		goto out;
+
+	for (skb = segs; skb; skb = skb->next) {
+		ipv6h = skb->nh.ipv6h;
+		ipv6h->payload_len = htons(skb->len - skb->mac_len -
+					   sizeof(*ipv6h));
+	}
+
+out:
+	return segs;
+}
+
 static struct packet_type ipv6_packet_type = {
 	.type = __constant_htons(ETH_P_IPV6), 
 	.func = ipv6_rcv,
+	.gso_send_check = ipv6_gso_send_check,
+	.gso_segment = ipv6_gso_segment,
 };
 
 struct ip6_ra_chain *ip6_ra_chain;
@@ -109,18 +212,12 @@ int ip6_ra_control(struct sock *sk, int sel, void (*destructor)(struct sock *))
 	return 0;
 }
 
-int ipv6_setsockopt(struct sock *sk, int level, int optname,
+static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int val, valbool;
 	int retv = -ENOPROTOOPT;
-
-	if (level == SOL_IP && sk->sk_type != SOCK_RAW)
-		return udp_prot.setsockopt(sk, level, optname, optval, optlen);
-
-	if(level!=SOL_IPV6)
-		goto out;
 
 	if (optval == NULL)
 		val=0;
@@ -265,7 +362,7 @@ int ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_TCLASS:
-		if (val < 0 || val > 0xff)
+		if (val < -1 || val > 0xff)
 			goto e_inval;
 		np->tclass = val;
 		retv = 0;
@@ -613,23 +710,74 @@ done:
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;
 
-#ifdef CONFIG_NETFILTER
-	default:
-		retv = nf_setsockopt(sk, PF_INET6, optname, optval, 
-					    optlen);
-		break;
-#endif
-
 	}
 	release_sock(sk);
 
-out:
 	return retv;
 
 e_inval:
 	release_sock(sk);
 	return -EINVAL;
 }
+
+int ipv6_setsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int optlen)
+{
+	int err;
+
+	if (level == SOL_IP && sk->sk_type != SOCK_RAW)
+		return udp_prot.setsockopt(sk, level, optname, optval, optlen);
+
+	if (level != SOL_IPV6)
+		return -ENOPROTOOPT;
+
+	err = do_ipv6_setsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IPV6_IPSEC_POLICY &&
+			optname != IPV6_XFRM_POLICY) {
+		lock_sock(sk);
+		err = nf_setsockopt(sk, PF_INET6, optname, optval,
+				optlen);
+		release_sock(sk);
+	}
+#endif
+	return err;
+}
+
+
+#ifdef CONFIG_COMPAT
+int compat_ipv6_setsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, int optlen)
+{
+	int err;
+
+	if (level == SOL_IP && sk->sk_type != SOCK_RAW) {
+		if (udp_prot.compat_setsockopt != NULL)
+			return udp_prot.compat_setsockopt(sk, level, optname,
+							  optval, optlen);
+		return udp_prot.setsockopt(sk, level, optname, optval, optlen);
+	}
+
+	if (level != SOL_IPV6)
+		return -ENOPROTOOPT;
+
+	err = do_ipv6_setsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IPV6_IPSEC_POLICY &&
+	    optname != IPV6_XFRM_POLICY) {
+		lock_sock(sk);
+		err = compat_nf_setsockopt(sk, PF_INET6, optname,
+					   optval, optlen);
+		release_sock(sk);
+	}
+#endif
+	return err;
+}
+
+EXPORT_SYMBOL(compat_ipv6_setsockopt);
+#endif
 
 static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_opt_hdr *hdr,
 				  char __user *optval, int len)
@@ -642,17 +790,13 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_opt_hdr *hdr,
 	return len;
 }
 
-int ipv6_getsockopt(struct sock *sk, int level, int optname,
+static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	int len;
 	int val;
 
-	if (level == SOL_IP && sk->sk_type != SOCK_RAW)
-		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
-	if(level!=SOL_IPV6)
-		return -ENOPROTOOPT;
 	if (get_user(len, optlen))
 		return -EFAULT;
 	switch (optname) {
@@ -803,6 +947,8 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	case IPV6_TCLASS:
 		val = np->tclass;
+		if (val < 0)
+			val = 0;
 		break;
 
 	case IPV6_RECVTCLASS:
@@ -842,17 +988,7 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	default:
-#ifdef CONFIG_NETFILTER
-		lock_sock(sk);
-		val = nf_getsockopt(sk, PF_INET6, optname, optval, 
-				    &len);
-		release_sock(sk);
-		if (val >= 0)
-			val = put_user(len, optlen);
-		return val;
-#else
 		return -EINVAL;
-#endif
 	}
 	len = min_t(unsigned int, sizeof(int), len);
 	if(put_user(len, optlen))
@@ -861,6 +997,78 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 		return -EFAULT;
 	return 0;
 }
+
+int ipv6_getsockopt(struct sock *sk, int level, int optname,
+		    char __user *optval, int __user *optlen)
+{
+	int err;
+
+	if (level == SOL_IP && sk->sk_type != SOCK_RAW)
+		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
+
+	if(level != SOL_IPV6)
+		return -ENOPROTOOPT;
+
+	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible EINVALs except default case */
+	if (err == -EINVAL && optname != IPV6_ADDRFORM &&
+			optname != MCAST_MSFILTER) {
+		int len;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		lock_sock(sk);
+		err = nf_getsockopt(sk, PF_INET6, optname, optval,
+				&len);
+		release_sock(sk);
+		if (err >= 0)
+			err = put_user(len, optlen);
+	}
+#endif
+	return err;
+}
+
+#ifdef CONFIG_COMPAT
+int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
+			   char __user *optval, int __user *optlen)
+{
+	int err;
+
+	if (level == SOL_IP && sk->sk_type != SOCK_RAW) {
+		if (udp_prot.compat_getsockopt != NULL)
+			return udp_prot.compat_getsockopt(sk, level, optname,
+							  optval, optlen);
+		return udp_prot.getsockopt(sk, level, optname, optval, optlen);
+	}
+
+	if (level != SOL_IPV6)
+		return -ENOPROTOOPT;
+
+	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
+#ifdef CONFIG_NETFILTER
+	/* we need to exclude all possible EINVALs except default case */
+	if (err == -EINVAL && optname != IPV6_ADDRFORM &&
+			optname != MCAST_MSFILTER) {
+		int len;
+
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		lock_sock(sk);
+		err = compat_nf_getsockopt(sk, PF_INET6,
+					   optname, optval, &len);
+		release_sock(sk);
+		if (err >= 0)
+			err = put_user(len, optlen);
+	}
+#endif
+	return err;
+}
+
+EXPORT_SYMBOL(compat_ipv6_getsockopt);
+#endif
 
 void __init ipv6_packet_init(void)
 {

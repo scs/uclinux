@@ -26,7 +26,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
@@ -270,9 +269,8 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	ipv6_addr_copy(&np->saddr, saddr);
 	inet->rcv_saddr = LOOPBACK4_IPV6;
 
-	ip6_dst_store(sk, dst, NULL);
-	sk->sk_route_caps = dst->dev->features &
-		~(NETIF_F_IP_CSUM | NETIF_F_TSO);
+	sk->sk_gso_type = SKB_GSO_TCPV6;
+	__ip6_dst_store(sk, dst, NULL);
 
 	icsk->icsk_ext_hdr_len = 0;
 	if (np->opt)
@@ -429,7 +427,6 @@ static void tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	case TCP_SYN_RECV:  /* Cannot happen.
 			       It can, it SYNs are crossed. --ANK */ 
 		if (!sock_owned_by_user(sk)) {
-			TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 			sk->sk_err = err;
 			sk->sk_error_report(sk);		/* Wake people up to see the error (see connect in sock.c) */
 
@@ -554,6 +551,24 @@ static void tcp_v6_send_check(struct sock *sk, int len, struct sk_buff *skb)
 	}
 }
 
+static int tcp_v6_gso_send_check(struct sk_buff *skb)
+{
+	struct ipv6hdr *ipv6h;
+	struct tcphdr *th;
+
+	if (!pskb_may_pull(skb, sizeof(*th)))
+		return -EINVAL;
+
+	ipv6h = skb->nh.ipv6h;
+	th = skb->h.th;
+
+	th->check = 0;
+	th->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
+				     IPPROTO_TCP, 0);
+	skb->csum = offsetof(struct tcphdr, check);
+	skb->ip_summed = CHECKSUM_HW;
+	return 0;
+}
 
 static void tcp_v6_send_reset(struct sk_buff *skb)
 {
@@ -815,7 +830,6 @@ drop:
 	if (req)
 		reqsk_free(req);
 
-	TCP_INC_STATS_BH(TCP_MIB_ATTEMPTFAILS);
 	return 0; /* don't send reset */
 }
 
@@ -930,9 +944,8 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	 * comment in that function for the gory details. -acme
 	 */
 
-	ip6_dst_store(newsk, dst, NULL);
-	newsk->sk_route_caps = dst->dev->features &
-		~(NETIF_F_IP_CSUM | NETIF_F_TSO);
+	newsk->sk_gso_type = SKB_GSO_TCPV6;
+	__ip6_dst_store(newsk, dst, NULL);
 
 	newtcp6sk = (struct tcp6_sock *)newsk;
 	inet_sk(newsk)->pinet6 = &newtcp6sk->inet6;
@@ -987,6 +1000,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		inet_csk(newsk)->icsk_ext_hdr_len = (newnp->opt->opt_nflen +
 						     newnp->opt->opt_flen);
 
+	tcp_mtup_init(newsk);
 	tcp_sync_mss(newsk, dst_mtu(dst));
 	newtp->advmss = dst_metric(dst, RTAX_ADVMSS);
 	tcp_initialize_rcv_mss(newsk);
@@ -1217,8 +1231,16 @@ process:
 	bh_lock_sock(sk);
 	ret = 0;
 	if (!sock_owned_by_user(sk)) {
-		if (!tcp_prequeue(sk, skb))
-			ret = tcp_v6_do_rcv(sk, skb);
+#ifdef CONFIG_NET_DMA
+                struct tcp_sock *tp = tcp_sk(sk);
+                if (tp->ucopy.dma_chan)
+                        ret = tcp_v6_do_rcv(sk, skb);
+                else
+#endif
+		{
+			if (!tcp_prequeue(sk, skb))
+				ret = tcp_v6_do_rcv(sk, skb);
+		}
 	} else
 		sk_add_backlog(sk, skb);
 	bh_unlock_sock(sk);
@@ -1297,18 +1319,21 @@ static int tcp_v6_remember_stamp(struct sock *sk)
 }
 
 static struct inet_connection_sock_af_ops ipv6_specific = {
-	.queue_xmit	=	inet6_csk_xmit,
-	.send_check	=	tcp_v6_send_check,
-	.rebuild_header	=	inet6_sk_rebuild_header,
-	.conn_request	=	tcp_v6_conn_request,
-	.syn_recv_sock	=	tcp_v6_syn_recv_sock,
-	.remember_stamp	=	tcp_v6_remember_stamp,
-	.net_header_len	=	sizeof(struct ipv6hdr),
-
-	.setsockopt	=	ipv6_setsockopt,
-	.getsockopt	=	ipv6_getsockopt,
-	.addr2sockaddr	=	inet6_csk_addr2sockaddr,
-	.sockaddr_len	=	sizeof(struct sockaddr_in6)
+	.queue_xmit	   = inet6_csk_xmit,
+	.send_check	   = tcp_v6_send_check,
+	.rebuild_header	   = inet6_sk_rebuild_header,
+	.conn_request	   = tcp_v6_conn_request,
+	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
+	.remember_stamp	   = tcp_v6_remember_stamp,
+	.net_header_len	   = sizeof(struct ipv6hdr),
+	.setsockopt	   = ipv6_setsockopt,
+	.getsockopt	   = ipv6_getsockopt,
+	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in6),
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_ipv6_setsockopt,
+	.compat_getsockopt = compat_ipv6_getsockopt,
+#endif
 };
 
 /*
@@ -1316,21 +1341,22 @@ static struct inet_connection_sock_af_ops ipv6_specific = {
  */
 
 static struct inet_connection_sock_af_ops ipv6_mapped = {
-	.queue_xmit	=	ip_queue_xmit,
-	.send_check	=	tcp_v4_send_check,
-	.rebuild_header	=	inet_sk_rebuild_header,
-	.conn_request	=	tcp_v6_conn_request,
-	.syn_recv_sock	=	tcp_v6_syn_recv_sock,
-	.remember_stamp	=	tcp_v4_remember_stamp,
-	.net_header_len	=	sizeof(struct iphdr),
-
-	.setsockopt	=	ipv6_setsockopt,
-	.getsockopt	=	ipv6_getsockopt,
-	.addr2sockaddr	=	inet6_csk_addr2sockaddr,
-	.sockaddr_len	=	sizeof(struct sockaddr_in6)
+	.queue_xmit	   = ip_queue_xmit,
+	.send_check	   = tcp_v4_send_check,
+	.rebuild_header	   = inet_sk_rebuild_header,
+	.conn_request	   = tcp_v6_conn_request,
+	.syn_recv_sock	   = tcp_v6_syn_recv_sock,
+	.remember_stamp	   = tcp_v4_remember_stamp,
+	.net_header_len	   = sizeof(struct iphdr),
+	.setsockopt	   = ipv6_setsockopt,
+	.getsockopt	   = ipv6_getsockopt,
+	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
+	.sockaddr_len	   = sizeof(struct sockaddr_in6),
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt = compat_ipv6_setsockopt,
+	.compat_getsockopt = compat_ipv6_getsockopt,
+#endif
 };
-
-
 
 /* NOTE: A lot of things set to zero explicitly by call to
  *       sk_alloc() so need not be done here.
@@ -1456,7 +1482,8 @@ static void get_tcp6_sock(struct seq_file *seq, struct sock *sp, int i)
 		   dest->s6_addr32[0], dest->s6_addr32[1],
 		   dest->s6_addr32[2], dest->s6_addr32[3], destp,
 		   sp->sk_state, 
-		   tp->write_seq-tp->snd_una, tp->rcv_nxt-tp->copied_seq,
+		   tp->write_seq-tp->snd_una,
+		   (sp->sk_state == TCP_LISTEN) ? sp->sk_ack_backlog : (tp->rcv_nxt - tp->copied_seq),
 		   timer_active,
 		   jiffies_to_clock_t(timer_expires - jiffies),
 		   icsk->icsk_retransmits,
@@ -1583,11 +1610,17 @@ struct proto tcpv6_prot = {
 	.obj_size		= sizeof(struct tcp6_sock),
 	.twsk_prot		= &tcp6_timewait_sock_ops,
 	.rsk_prot		= &tcp6_request_sock_ops,
+#ifdef CONFIG_COMPAT
+	.compat_setsockopt	= compat_tcp_setsockopt,
+	.compat_getsockopt	= compat_tcp_getsockopt,
+#endif
 };
 
 static struct inet6_protocol tcpv6_protocol = {
 	.handler	=	tcp_v6_rcv,
 	.err_handler	=	tcp_v6_err,
+	.gso_send_check	=	tcp_v6_gso_send_check,
+	.gso_segment	=	tcp_tso_segment,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
@@ -1604,21 +1637,12 @@ static struct inet_protosw tcpv6_protosw = {
 
 void __init tcpv6_init(void)
 {
-	int err;
-
 	/* register inet6 protocol */
 	if (inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP) < 0)
 		printk(KERN_ERR "tcpv6_init: Could not register protocol\n");
 	inet6_register_protosw(&tcpv6_protosw);
 
-	err = sock_create_kern(PF_INET6, SOCK_RAW, IPPROTO_TCP, &tcp6_socket);
-	if (err < 0)
+	if (inet_csk_ctl_sock_create(&tcp6_socket, PF_INET6, SOCK_RAW,
+				     IPPROTO_TCP) < 0)
 		panic("Failed to create the TCPv6 control socket.\n");
-	tcp6_socket->sk->sk_allocation = GFP_ATOMIC;
-
-	/* Unhash it so that IP input processing does not even
-	 * see it, we do not wish this socket to see incoming
-	 * packets.
-	 */
-	tcp6_socket->sk->sk_prot->unhash(tcp6_socket->sk);
 }

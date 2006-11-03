@@ -632,7 +632,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start,
 
 /*
  * $Log$
- * Revision 1.6  2006/11/01 04:46:08  magicyang
+ * Revision 1.7  2006/11/03 05:25:54  magicyang
  * update kernel to 2.6.18
  *
  * Revision 1.1.8.2  2001/07/15 17:08:42  god

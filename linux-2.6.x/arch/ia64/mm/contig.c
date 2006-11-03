@@ -14,7 +14,6 @@
  * Routines used by ia64 machines with contiguous (or virtually contiguous)
  * memory.
  */
-#include <linux/config.h>
 #include <linux/bootmem.h>
 #include <linux/efi.h>
 #include <linux/mm.h>
@@ -28,6 +27,7 @@
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 static unsigned long num_dma_physpages;
+static unsigned long max_gap;
 #endif
 
 /**
@@ -46,9 +46,15 @@ show_mem (void)
 
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	i = max_mapnr;
-	while (i-- > 0) {
-		if (!pfn_valid(i))
+	for (i = 0; i < max_mapnr; i++) {
+		if (!pfn_valid(i)) {
+#ifdef CONFIG_VIRTUAL_MEM_MAP
+			if (max_gap < LARGE_GAP)
+				continue;
+			i = vmemmap_find_next_valid_pfn(0, i) - 1;
+#endif
 			continue;
+		}
 		total++;
 		if (PageReserved(mem_map+i))
 			reserved++;
@@ -97,7 +103,7 @@ find_max_pfn (unsigned long start, unsigned long end, void *arg)
  * Find a place to put the bootmap and return its starting address in
  * bootmap_start.  This address must be page-aligned.
  */
-int
+static int __init
 find_bootmap_location (unsigned long start, unsigned long end, void *arg)
 {
 	unsigned long needed = *(unsigned long *)arg;
@@ -141,7 +147,7 @@ find_bootmap_location (unsigned long start, unsigned long end, void *arg)
  * Walk the EFI memory map and find usable memory for the system, taking
  * into account reserved areas.
  */
-void
+void __init
 find_memory (void)
 {
 	unsigned long bootmap_size;
@@ -176,18 +182,20 @@ find_memory (void)
  *
  * Allocate and setup per-cpu data areas.
  */
-void *
+void * __cpuinit
 per_cpu_init (void)
 {
 	void *cpu_data;
 	int cpu;
+	static int first_time=1;
 
 	/*
 	 * get_free_pages() cannot be used before cpu_init() done.  BSP
 	 * allocates "NR_CPUS" pages for all CPUs to avoid that AP calls
 	 * get_zeroed_page().
 	 */
-	if (smp_processor_id() == 0) {
+	if (first_time) {
+		first_time=0;
 		cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * NR_CPUS,
 					   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
@@ -226,14 +234,13 @@ count_dma_pages (u64 start, u64 end, void *arg)
  * Set up the page tables.
  */
 
-void
+void __init
 paging_init (void)
 {
 	unsigned long max_dma;
 	unsigned long zones_size[MAX_NR_ZONES];
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 	unsigned long zholes_size[MAX_NR_ZONES];
-	unsigned long max_gap;
 #endif
 
 	/* initialize mem_map[] */
@@ -265,7 +272,6 @@ paging_init (void)
 		}
 	}
 
-	max_gap = 0;
 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
 	if (max_gap < LARGE_GAP) {
 		vmem_map = (struct page *) 0;
@@ -276,7 +282,8 @@ paging_init (void)
 
 		/* allocate virtual_mem_map */
 
-		map_size = PAGE_ALIGN(max_low_pfn * sizeof(struct page));
+		map_size = PAGE_ALIGN(ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) *
+			sizeof(struct page));
 		vmalloc_end -= map_size;
 		vmem_map = (struct page *) vmalloc_end;
 		efi_memmap_walk(create_mem_map_page_table, NULL);

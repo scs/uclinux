@@ -36,19 +36,15 @@ struct zone;
  * level in the Btree, and to identify which type of block this is.
  */
 #define XFS_DA_NODE_MAGIC	0xfebe	/* magic number: non-leaf blocks */
-#define XFS_DIR_LEAF_MAGIC	0xfeeb	/* magic number: directory leaf blks */
 #define XFS_ATTR_LEAF_MAGIC	0xfbee	/* magic number: attribute leaf blks */
 #define	XFS_DIR2_LEAF1_MAGIC	0xd2f1	/* magic number: v2 dirlf single blks */
 #define	XFS_DIR2_LEAFN_MAGIC	0xd2ff	/* magic number: v2 dirlf multi blks */
 
-#define	XFS_DIRX_LEAF_MAGIC(mp)	\
-	(XFS_DIR_IS_V1(mp) ? XFS_DIR_LEAF_MAGIC : XFS_DIR2_LEAFN_MAGIC)
-
 typedef struct xfs_da_blkinfo {
-	xfs_dablk_t forw;			/* previous block in list */
-	xfs_dablk_t back;			/* following block in list */
-	__uint16_t magic;			/* validity check on block */
-	__uint16_t pad;				/* unused */
+	__be32		forw;			/* previous block in list */
+	__be32		back;			/* following block in list */
+	__be16		magic;			/* validity check on block */
+	__be16		pad;			/* unused */
 } xfs_da_blkinfo_t;
 
 /*
@@ -65,12 +61,12 @@ typedef struct xfs_da_blkinfo {
 typedef struct xfs_da_intnode {
 	struct xfs_da_node_hdr {	/* constant-structure header block */
 		xfs_da_blkinfo_t info;	/* block type, links, etc. */
-		__uint16_t count;	/* count of active entries */
-		__uint16_t level;	/* level above leaves (leaf == 0) */
+		__be16	count;		/* count of active entries */
+		__be16	level;		/* level above leaves (leaf == 0) */
 	} hdr;
 	struct xfs_da_node_entry {
-		xfs_dahash_t hashval;	/* hash value for this descendant */
-		xfs_dablk_t before;	/* Btree block before this key */
+		__be32	hashval;	/* hash value for this descendant */
+		__be32	before;		/* Btree block before this key */
 	} btree[1];			/* variable sized array of keys */
 } xfs_da_intnode_t;
 typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;

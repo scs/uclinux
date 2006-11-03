@@ -5,7 +5,6 @@
 #ifndef __ARCH_PARISC_CACHE_H
 #define __ARCH_PARISC_CACHE_H
 
-#include <linux/config.h>
 
 /*
  * PA 2.0 processors have 64-byte cachelines; PA 1.1 processors have
@@ -29,6 +28,8 @@
 
 #define SMP_CACHE_BYTES L1_CACHE_BYTES
 
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
 extern void flush_data_cache_local(void *);  /* flushes local data-cache only */
 extern void flush_instruction_cache_local(void *); /* flushes local code-cache only */
 #ifdef CONFIG_SMP
@@ -46,7 +47,7 @@ extern void flush_user_icache_range_asm(unsigned long, unsigned long);
 extern void flush_kernel_icache_range_asm(unsigned long, unsigned long);
 extern void flush_user_dcache_range_asm(unsigned long, unsigned long);
 extern void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
-extern void flush_kernel_dcache_page(void *);
+extern void flush_kernel_dcache_page_asm(void *);
 extern void flush_kernel_icache_page(void *);
 extern void disable_sr_hashing(void);   /* turns off space register hashing */
 extern void disable_sr_hashing_asm(int); /* low level support for above */

@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -272,7 +270,7 @@ xfs_trans_log_inode(
 	 * This is to coordinate with the xfs_iflush() and xfs_iflush_done()
 	 * routines in the eventual clearing of the ilf_fields bits.
 	 * See the big comment in xfs_iflush() for an explanation of
-	 * this coorination mechanism.
+	 * this coordination mechanism.
 	 */
 	flags |= ip->i_itemp->ili_last_fields;
 	ip->i_itemp->ili_format.ilf_fields |= flags;

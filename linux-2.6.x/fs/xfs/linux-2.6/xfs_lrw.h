@@ -18,8 +18,8 @@
 #ifndef __XFS_LRW_H__
 #define __XFS_LRW_H__
 
-struct vnode;
 struct bhv_desc;
+struct bhv_vnode;
 struct xfs_mount;
 struct xfs_iocore;
 struct xfs_inode;
@@ -49,7 +49,7 @@ struct xfs_iomap;
 #define	XFS_CTRUNC4		14
 #define	XFS_CTRUNC5		15
 #define	XFS_CTRUNC6		16
-#define	XFS_BUNMAPI		17
+#define	XFS_BUNMAP		17
 #define	XFS_INVAL_CACHED	18
 #define	XFS_DIORD_ENTER		19
 #define	XFS_DIOWR_ENTER		20
@@ -60,6 +60,8 @@ struct xfs_iomap;
 #define	XFS_IOMAP_ALLOC_ENTER	25
 #define	XFS_IOMAP_ALLOC_MAP	26
 #define	XFS_IOMAP_UNWRITTEN	27
+#define XFS_SPLICE_READ_ENTER	28
+#define XFS_SPLICE_WRITE_ENTER	29
 extern void xfs_rw_enter_trace(int, struct xfs_iocore *,
 				void *, size_t, loff_t, int);
 extern void xfs_inval_cached_trace(struct xfs_iocore *,
@@ -78,8 +80,9 @@ extern int xfs_bmap(struct bhv_desc *, xfs_off_t, ssize_t, int,
 			struct xfs_iomap *, int *);
 extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
+extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct vnode *, struct xfs_iocore *, xfs_off_t,
+extern int xfs_zero_eof(struct bhv_vnode *, struct xfs_iocore *, xfs_off_t,
 				xfs_fsize_t, xfs_fsize_t);
 extern ssize_t xfs_read(struct bhv_desc *, struct kiocb *,
 				const struct iovec *, unsigned int,
@@ -90,7 +93,11 @@ extern ssize_t xfs_write(struct bhv_desc *, struct kiocb *,
 extern ssize_t xfs_sendfile(struct bhv_desc *, struct file *,
 				loff_t *, int, size_t, read_actor_t,
 				void *, struct cred *);
-
-extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
+extern ssize_t xfs_splice_read(struct bhv_desc *, struct file *, loff_t *,
+				struct pipe_inode_info *, size_t, int, int,
+				struct cred *);
+extern ssize_t xfs_splice_write(struct bhv_desc *, struct pipe_inode_info *,
+				struct file *, loff_t *, size_t, int, int,
+				struct cred *);
 
 #endif	/* __XFS_LRW_H__ */

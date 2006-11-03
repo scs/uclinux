@@ -21,7 +21,6 @@
 #define _PPC64_EEH_H
 #ifdef __KERNEL__
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/string.h>
@@ -60,22 +59,8 @@ void __init pci_addr_cache_build(void);
  * device (including config space i/o).  Call eeh_add_device_late
  * to finish the eeh setup for this device.
  */
-void eeh_add_device_early(struct device_node *);
-void eeh_add_device_late(struct pci_dev *dev);
 void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_tree_late(struct pci_bus *);
-
-/**
- * eeh_remove_device - undo EEH setup for the indicated pci device
- * @dev: pci device to be removed
- *
- * This routine should be called when a device is removed from
- * a running system (e.g. by hotplug or dlpar).  It unregisters
- * the PCI device from the EEH subsystem.  I/O errors affecting
- * this device will no longer be detected after this call; thus,
- * i/o errors affecting this slot may leave this device unusable.
- */
-void eeh_remove_device(struct pci_dev *);
 
 /**
  * eeh_remove_device_recursive - undo EEH for device & children.
@@ -115,12 +100,6 @@ static inline int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *d
 }
 
 static inline void pci_addr_cache_build(void) { }
-
-static inline void eeh_add_device_early(struct device_node *dn) { }
-
-static inline void eeh_add_device_late(struct pci_dev *dev) { }
-
-static inline void eeh_remove_device(struct pci_dev *dev) { }
 
 static inline void eeh_add_device_tree_early(struct device_node *dn) { }
 
@@ -226,6 +205,7 @@ static inline void eeh_memset_io(volatile void __iomem *addr, int c,
 	lc |= lc << 8;
 	lc |= lc << 16;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && !EEH_CHECK_ALIGN(p, 4)) {
 		*((volatile u8 *)p) = c;
 		p++;
@@ -250,6 +230,7 @@ static inline void eeh_memcpy_fromio(void *dest, const volatile void __iomem *sr
 	void *destsave = dest;
 	unsigned long nsave = n;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && (!EEH_CHECK_ALIGN(vsrc, 4) || !EEH_CHECK_ALIGN(dest, 4))) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
 		__asm__ __volatile__ ("eieio" : : : "memory");
@@ -287,6 +268,7 @@ static inline void eeh_memcpy_toio(volatile void __iomem *dest, const void *src,
 {
 	void *vdest = (void __force *) dest;
 
+	__asm__ __volatile__ ("sync" : : : "memory");
 	while(n && (!EEH_CHECK_ALIGN(vdest, 4) || !EEH_CHECK_ALIGN(src, 4))) {
 		*((volatile u8 *)vdest) = *((u8 *)src);
 		src++;
@@ -313,8 +295,6 @@ static inline void eeh_memcpy_toio(volatile void __iomem *dest, const void *src,
 static inline u8 eeh_inb(unsigned long port)
 {
 	u8 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_8((u8 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u8))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -323,15 +303,12 @@ static inline u8 eeh_inb(unsigned long port)
 
 static inline void eeh_outb(u8 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_8((u8 __iomem *)(port+pci_io_base), val);
+	out_8((u8 __iomem *)(port+pci_io_base), val);
 }
 
 static inline u16 eeh_inw(unsigned long port)
 {
 	u16 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_le16((u16 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u16))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -340,15 +317,12 @@ static inline u16 eeh_inw(unsigned long port)
 
 static inline void eeh_outw(u16 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_le16((u16 __iomem *)(port+pci_io_base), val);
+	out_le16((u16 __iomem *)(port+pci_io_base), val);
 }
 
 static inline u32 eeh_inl(unsigned long port)
 {
 	u32 val;
-	if (!_IO_IS_VALID(port))
-		return ~0;
 	val = in_le32((u32 __iomem *)(port+pci_io_base));
 	if (EEH_POSSIBLE_ERROR(val, u32))
 		return eeh_check_failure((void __iomem *)(port), val);
@@ -357,8 +331,7 @@ static inline u32 eeh_inl(unsigned long port)
 
 static inline void eeh_outl(u32 val, unsigned long port)
 {
-	if (_IO_IS_VALID(port))
-		out_le32((u32 __iomem *)(port+pci_io_base), val);
+	out_le32((u32 __iomem *)(port+pci_io_base), val);
 }
 
 /* in-string eeh macros */

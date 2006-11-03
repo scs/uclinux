@@ -28,7 +28,6 @@
  *	See net/ipx/ChangeLog.
  */
 
-#include <linux/config.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/if_arp.h>
@@ -944,9 +943,9 @@ out:
 	return rc;
 }
 
-static int ipx_map_frame_type(unsigned char type)
+static __be16 ipx_map_frame_type(unsigned char type)
 {
-	int rc = 0;
+	__be16 rc = 0;
 
 	switch (type) {
 	case IPX_FRAME_ETHERII:	rc = htons(ETH_P_IPX);		break;
@@ -1643,13 +1642,17 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		goto out;
 
-	ipx		= ipx_hdr(skb);
-	ipx_pktsize	= ntohs(ipx->ipx_pktsize);
+	if (!pskb_may_pull(skb, sizeof(struct ipxhdr)))
+		goto drop;
+
+	ipx_pktsize = ntohs(ipx_hdr(skb)->ipx_pktsize);
 	
 	/* Too small or invalid header? */
-	if (ipx_pktsize < sizeof(struct ipxhdr) || ipx_pktsize > skb->len)
+	if (ipx_pktsize < sizeof(struct ipxhdr) ||
+	    !pskb_may_pull(skb, ipx_pktsize))
 		goto drop;
                         
+	ipx = ipx_hdr(skb);
 	if (ipx->ipx_checksum != IPX_NO_CHECKSUM &&
 	   ipx->ipx_checksum != ipx_cksum(ipx, ipx_pktsize))
 		goto drop;
@@ -1892,6 +1895,29 @@ static int ipx_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return rc;
 }
 
+
+#ifdef CONFIG_COMPAT
+static int ipx_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * These 4 commands use same structure on 32bit and 64bit.  Rest of IPX
+	 * commands is handled by generic ioctl code.  As these commands are
+	 * SIOCPROTOPRIVATE..SIOCPROTOPRIVATE+3, they cannot be handled by generic
+	 * code.
+	 */
+	switch (cmd) {
+	case SIOCAIPXITFCRT:
+	case SIOCAIPXPRISLT:
+	case SIOCIPXCFGDATA:
+	case SIOCIPXNCPCONN:
+		return ipx_ioctl(sock, cmd, arg);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#endif
+
+
 /*
  * Socket family declarations
  */
@@ -1913,6 +1939,9 @@ static const struct proto_ops SOCKOPS_WRAPPED(ipx_dgram_ops) = {
 	.getname	= ipx_getname,
 	.poll		= datagram_poll,
 	.ioctl		= ipx_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ipx_compat_ioctl,
+#endif
 	.listen		= sock_no_listen,
 	.shutdown	= sock_no_shutdown, /* FIXME: support shutdown */
 	.setsockopt	= ipx_setsockopt,

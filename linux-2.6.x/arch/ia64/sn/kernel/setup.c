@@ -3,17 +3,16 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1999,2001-2005 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1999,2001-2006 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/string.h>
-#include <linux/tty.h>
+#include <linux/screen_info.h>
 #include <linux/console.h>
 #include <linux/timex.h>
 #include <linux/sched.h>
@@ -139,7 +138,7 @@ static int __init pxm_to_nasid(int pxm)
 	int i;
 	int nid;
 
-	nid = pxm_to_nid_map[pxm];
+	nid = pxm_to_node(pxm);
 	for (i = 0; i < num_node_memblks; i++) {
 		if (node_memblk[i].nid == nid) {
 			return NASID_GET(node_memblk[i].start_paddr);
@@ -327,9 +326,10 @@ sn_scan_pcdp(void)
 	struct pcdp_interface_pci if_pci;
 	extern struct efi efi;
 
-	pcdp = efi.hcdp;
-	if (! pcdp)
+	if (efi.hcdp == EFI_INVALID_TABLE_ADDR)
 		return;		/* no hcdp/pcdp table */
+
+	pcdp = __va(efi.hcdp);
 
 	if (pcdp->rev < 3)
 		return;		/* only support PCDP (rev >= 3) */
@@ -457,7 +457,7 @@ void __init sn_setup(char **cmdline_p)
 	 * support here so we don't have to listen to failed keyboard probe
 	 * messages.
 	 */
-	if (version <= 0x0209 && acpi_kbd_controller_present) {
+	if (is_shub1() && version <= 0x0209 && acpi_kbd_controller_present) {
 		printk(KERN_INFO "Disabling legacy keyboard support as prom "
 		       "is too old and doesn't provide FADT\n");
 		acpi_kbd_controller_present = 0;
@@ -498,6 +498,7 @@ void __init sn_setup(char **cmdline_p)
 	 * for sn.
 	 */
 	pm_power_off = ia64_sn_power_down;
+	current->thread.flags |= IA64_THREAD_MIGRATION;
 }
 
 /**
@@ -564,7 +565,7 @@ static void __init sn_init_pdas(char **cmdline_p)
  * Also sets up a few fields in the nodepda.  Also known as
  * platform_cpu_init() by the ia64 machvec code.
  */
-void __init sn_cpu_init(void)
+void __cpuinit sn_cpu_init(void)
 {
 	int cpuid;
 	int cpuphyid;
@@ -575,7 +576,8 @@ void __init sn_cpu_init(void)
 	int i;
 	static int wars_have_been_checked;
 
-	if (smp_processor_id() == 0 && IS_MEDUSA()) {
+	cpuid = smp_processor_id();
+	if (cpuid == 0 && IS_MEDUSA()) {
 		if (ia64_sn_is_fake_prom())
 			sn_prom_type = 2;
 		else
@@ -595,6 +597,12 @@ void __init sn_cpu_init(void)
 	sn_hub_info->as_shift = sn_hub_info->nasid_shift - 2;
 
 	/*
+	 * Don't check status. The SAL call is not supported on all PROMs
+	 * but a failure is harmless.
+	 */
+	(void) ia64_sn_set_cpu_number(cpuid);
+
+	/*
 	 * The boot cpu makes this call again after platform initialization is
 	 * complete.
 	 */
@@ -605,7 +613,6 @@ void __init sn_cpu_init(void)
 		if (ia64_sn_get_prom_feature_set(i, &sn_prom_features[i]) != 0)
 			break;
 
-	cpuid = smp_processor_id();
 	cpuphyid = get_sapicid();
 
 	if (ia64_sn_get_sapic_info(cpuphyid, &nasid, &subnode, &slice))
@@ -660,7 +667,8 @@ void __init sn_cpu_init(void)
 			SH2_PIO_WRITE_STATUS_1, SH2_PIO_WRITE_STATUS_3};
 		u64 *pio;
 		pio = is_shub1() ? pio1 : pio2;
-		pda->pio_write_status_addr = (volatile unsigned long *) LOCAL_MMR_ADDR(pio[slice]);
+		pda->pio_write_status_addr =
+		   (volatile unsigned long *)GLOBAL_MMR_ADDR(nasid, pio[slice]);
 		pda->pio_write_status_val = is_shub1() ? SH_PIO_WRITE_STATUS_PENDING_WRITE_COUNT_MASK : 0;
 	}
 
@@ -701,7 +709,7 @@ void __init build_cnode_tables(void)
 	 * cnode == node for all C & M bricks.
 	 */
 	for_each_online_node(node) {
-		nasid = pxm_to_nasid(nid_to_pxm_map[node]);
+		nasid = pxm_to_nasid(node_to_pxm(node));
 		sn_cnodeid_to_nasid[node] = nasid;
 		physical_node_map[nasid] = node;
 	}

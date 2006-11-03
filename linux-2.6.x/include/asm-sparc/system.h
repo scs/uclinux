@@ -1,10 +1,8 @@
 /* $Id$ */
-#include <linux/config.h>
 
 #ifndef __SPARC_SYSTEM_H
 #define __SPARC_SYSTEM_H
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/threads.h>	/* NR_CPUS */
 #include <linux/thread_info.h>
@@ -201,7 +199,6 @@ static inline unsigned long getipl(void)
 #define wmb()	mb()
 #define read_barrier_depends()	do { } while(0)
 #define set_mb(__var, __value)  do { __var = __value; mb(); } while(0)
-#define set_wmb(__var, __value) set_mb(__var, __value)
 #define smp_mb()	__asm__ __volatile__("":::"memory")
 #define smp_rmb()	__asm__ __volatile__("":::"memory")
 #define smp_wmb()	__asm__ __volatile__("":::"memory")

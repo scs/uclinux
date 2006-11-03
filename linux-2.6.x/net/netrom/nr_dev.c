@@ -6,7 +6,6 @@
  *
  * Copyright Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/kernel.h>
@@ -185,7 +184,6 @@ static struct net_device_stats *nr_get_stats(struct net_device *dev)
 
 void nr_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->mtu		= NR_MAX_PACKET_SIZE;
 	dev->hard_start_xmit	= nr_xmit;
 	dev->open		= nr_open;

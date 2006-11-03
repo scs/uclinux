@@ -17,11 +17,13 @@ extern kmem_cache_t *pgtable_cache[];
 #define PTE_CACHE_NUM	0
 #define PMD_CACHE_NUM	1
 #define PGD_CACHE_NUM	2
+#define HUGEPTE_CACHE_NUM 3
 #else
 #define PTE_CACHE_NUM	0
 #define PMD_CACHE_NUM	1
 #define PUD_CACHE_NUM	1
 #define PGD_CACHE_NUM	0
+#define HUGEPTE_CACHE_NUM 2
 #endif
 
 /*
@@ -115,7 +117,7 @@ static inline void pte_free(struct page *ptepage)
 	pte_free_kernel(page_address(ptepage));
 }
 
-#define PGF_CACHENUM_MASK	0xf
+#define PGF_CACHENUM_MASK	0x3
 
 typedef struct pgtable_free {
 	unsigned long val;

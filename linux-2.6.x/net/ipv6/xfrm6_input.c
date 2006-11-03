@@ -13,27 +13,14 @@
 #include <linux/string.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
-#include <net/dsfield.h>
-#include <net/inet_ecn.h>
-#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
-static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
+int xfrm6_rcv_spi(struct sk_buff *skb, u32 spi)
 {
-	struct ipv6hdr *outer_iph = skb->nh.ipv6h;
-	struct ipv6hdr *inner_iph = skb->h.ipv6h;
-
-	if (INET_ECN_is_ce(ipv6_get_dsfield(outer_iph)))
-		IP6_ECN_set_ce(inner_iph);
-}
-
-int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
-{
-	struct sk_buff *skb = *pskb;
 	int err;
 	u32 seq;
-	struct sec_decap_state xfrm_vec[XFRM_MAX_DEPTH];
+	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
 	int xfrm_nr = 0;
 	int decaps = 0;
@@ -66,7 +53,7 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 		if (xfrm_state_check_expire(x))
 			goto drop_unlock;
 
-		nexthdr = x->type->input(x, &(xfrm_vec[xfrm_nr].decap), skb);
+		nexthdr = x->type->input(x, skb);
 		if (nexthdr <= 0)
 			goto drop_unlock;
 
@@ -80,23 +67,12 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 
 		spin_unlock(&x->lock);
 
-		xfrm_vec[xfrm_nr++].xvec = x;
+		xfrm_vec[xfrm_nr++] = x;
+
+		if (x->mode->input(x, skb))
+			goto drop;
 
 		if (x->props.mode) { /* XXX */
-			if (nexthdr != IPPROTO_IPV6)
-				goto drop;
-			if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
-				goto drop;
-			if (skb_cloned(skb) &&
-			    pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
-				goto drop;
-			if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-				ipv6_copy_dscp(skb->nh.ipv6h, skb->h.ipv6h);
-			if (!(x->props.flags & XFRM_STATE_NOECN))
-				ipip6_ecn_decapsulate(skb);
-			skb->mac.raw = memmove(skb->data - skb->mac_len,
-					       skb->mac.raw, skb->mac_len);
-			skb->nh.raw = skb->data;
 			decaps = 1;
 			break;
 		}
@@ -119,7 +95,8 @@ int xfrm6_rcv_spi(struct sk_buff **pskb, u32 spi)
 	if (xfrm_nr + skb->sp->len > XFRM_MAX_DEPTH)
 		goto drop;
 
-	memcpy(skb->sp->x+skb->sp->len, xfrm_vec, xfrm_nr*sizeof(struct sec_decap_state));
+	memcpy(skb->sp->xvec + skb->sp->len, xfrm_vec,
+	       xfrm_nr * sizeof(xfrm_vec[0]));
 	skb->sp->len += xfrm_nr;
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -150,7 +127,7 @@ drop_unlock:
 	xfrm_state_put(x);
 drop:
 	while (--xfrm_nr >= 0)
-		xfrm_state_put(xfrm_vec[xfrm_nr].xvec);
+		xfrm_state_put(xfrm_vec[xfrm_nr]);
 	kfree_skb(skb);
 	return -1;
 }
@@ -159,5 +136,5 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 
 int xfrm6_rcv(struct sk_buff **pskb)
 {
-	return xfrm6_rcv_spi(pskb, 0);
+	return xfrm6_rcv_spi(*pskb, 0);
 }

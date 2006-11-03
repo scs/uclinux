@@ -24,7 +24,6 @@
  * 	This file is derived from net/ipv4/esp.c
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
@@ -94,6 +93,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	esph->spi = x->id.spi;
 	esph->seq_no = htonl(++x->replay.oseq);
+	xfrm_aevent_doreplay(x);
 
 	if (esp->conf.ivlen)
 		crypto_cipher_set_iv(tfm, esp->conf.ivec, crypto_tfm_alg_ivsize(tfm));
@@ -129,7 +129,7 @@ error:
 	return err;
 }
 
-static int esp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *iph;
 	struct ipv6_esp_hdr *esph;
@@ -141,25 +141,17 @@ static int esp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, stru
 
 	int hdr_len = skb->h.raw - skb->nh.raw;
 	int nfrags;
-	unsigned char *tmp_hdr = NULL;
 	int ret = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6_esp_hdr))) {
 		ret = -EINVAL;
-		goto out_nofree;
+		goto out;
 	}
 
 	if (elen <= 0 || (elen & (blksize-1))) {
 		ret = -EINVAL;
-		goto out_nofree;
+		goto out;
 	}
-
-	tmp_hdr = kmalloc(hdr_len, GFP_ATOMIC);
-	if (!tmp_hdr) {
-		ret = -ENOMEM;
-		goto out_nofree;
-	}
-	memcpy(tmp_hdr, skb->nh.raw, hdr_len);
 
 	/* If integrity check is required, do this. */
         if (esp->auth.icv_full_len) {
@@ -221,16 +213,12 @@ static int esp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, stru
 		/* ... check padding bits here. Silly. :-) */ 
 
 		pskb_trim(skb, skb->len - alen - padlen - 2);
-		skb->h.raw = skb_pull(skb, sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen);
-		skb->nh.raw += sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen;
-		memcpy(skb->nh.raw, tmp_hdr, hdr_len);
-		skb->nh.ipv6h->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 		ret = nexthdr[1];
 	}
 
+	skb->h.raw = __skb_pull(skb, sizeof(*esph) + esp->conf.ivlen) - hdr_len;
+
 out:
-	kfree(tmp_hdr);
-out_nofree:
 	return ret;
 }
 
@@ -304,11 +292,9 @@ static int esp6_init_state(struct xfrm_state *x)
 	if (x->encap)
 		goto error;
 
-	esp = kmalloc(sizeof(*esp), GFP_KERNEL);
+	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
 	if (esp == NULL)
 		return -ENOMEM;
-
-	memset(esp, 0, sizeof(*esp));
 
 	if (x->aalg) {
 		struct xfrm_algo_desc *aalg_desc;

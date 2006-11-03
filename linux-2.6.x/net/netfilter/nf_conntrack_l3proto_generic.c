@@ -15,7 +15,6 @@
  *	Yasuyuki Kozakai @USAGI	<yasuyuki.kozakai@toshiba.co.jp>
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
@@ -94,5 +93,4 @@ struct nf_conntrack_l3proto nf_conntrack_generic_l3proto = {
 	.print_conntrack = generic_print_conntrack,
 	.prepare	 = generic_prepare,
 	.get_features	 = generic_get_features,
-	.me		 = THIS_MODULE,
 };

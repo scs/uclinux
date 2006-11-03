@@ -11,7 +11,7 @@
 #ifndef _ASM_PROCESSOR_H
 #define _ASM_PROCESSOR_H
 
-#include <linux/config.h>
+#include <linux/cpumask.h>
 #include <linux/threads.h>
 
 #include <asm/cachectl.h>
@@ -70,11 +70,6 @@ extern unsigned int vced_count, vcei_count;
 
 typedef __u64 fpureg_t;
 
-struct mips_fpu_hard_struct {
-	fpureg_t	fpr[NUM_FPU_REGS];
-	unsigned int	fcr31;
-};
-
 /*
  * It would be nice to add some more fields for emulator statistics, but there
  * are a number of fixed offsets in offset.h and elsewhere that would have to
@@ -82,18 +77,13 @@ struct mips_fpu_hard_struct {
  * the FPU emulator for now.  See asm-mips/fpu_emulator.h.
  */
 
-struct mips_fpu_soft_struct {
+struct mips_fpu_struct {
 	fpureg_t	fpr[NUM_FPU_REGS];
 	unsigned int	fcr31;
 };
 
-union mips_fpu_union {
-        struct mips_fpu_hard_struct hard;
-        struct mips_fpu_soft_struct soft;
-};
-
 #define INIT_FPU { \
-	{{0,},} \
+	{0,} \
 }
 
 #define NUM_DSP_REGS   6
@@ -106,6 +96,10 @@ struct mips_dsp_state {
 };
 
 #define INIT_DSP {{0,},}
+
+#define INIT_CPUMASK { \
+	{0,} \
+}
 
 typedef struct {
 	unsigned long seg;
@@ -128,7 +122,13 @@ struct thread_struct {
 	unsigned long cp0_status;
 
 	/* Saved fpu/fpu emulator stuff. */
-	union mips_fpu_union fpu;
+	struct mips_fpu_struct fpu;
+#ifdef CONFIG_MIPS_MT_FPAFF
+	/* Emulated instruction count */
+	unsigned long emulated_fp;
+	/* Saved per-thread scheduler affinity mask */
+	cpumask_t user_cpus_allowed;
+#endif /* CONFIG_MIPS_MT_FPAFF */
 
 	/* Saved state of the DSP ASE, if available. */
 	struct mips_dsp_state dsp;
@@ -142,6 +142,7 @@ struct thread_struct {
 #define MF_LOGADE	2		/* Log address errors to syslog */
 #define MF_32BIT_REGS	4		/* also implies 16/32 fprs */
 #define MF_32BIT_ADDR	8		/* 32-bit address space (o32/n32) */
+#define MF_FPUBOUND	0x10		/* thread bound to FPU-full CPU set */
 	unsigned long mflags;
 	unsigned long irix_trampoline;  /* Wheee... */
 	unsigned long irix_oldctx;
@@ -152,6 +153,12 @@ struct thread_struct {
 #define MF_O32		(MF_32BIT_REGS | MF_32BIT_ADDR)
 #define MF_N32		MF_32BIT_ADDR
 #define MF_N64		0
+
+#ifdef CONFIG_MIPS_MT_FPAFF
+#define FPAFF_INIT 0, INIT_CPUMASK,
+#else
+#define FPAFF_INIT
+#endif /* CONFIG_MIPS_MT_FPAFF */
 
 #define INIT_THREAD  { \
         /* \
@@ -167,6 +174,10 @@ struct thread_struct {
 	 * saved fpu/fpu emulator stuff \
 	 */ \
 	INIT_FPU, \
+	/* \
+	 * fpu affinity state (null if not FPAFF) \
+	 */ \
+	FPAFF_INIT \
 	/* \
 	 * saved dsp/dsp emulator stuff \
 	 */ \

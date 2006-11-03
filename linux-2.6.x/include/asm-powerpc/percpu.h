@@ -14,6 +14,7 @@
 
 #define __per_cpu_offset(cpu) (paca[cpu].data_offset)
 #define __my_cpu_offset() get_paca()->data_offset
+#define per_cpu_offset(x) (__per_cpu_offset(x))
 
 /* Separate out the type, so (int[3], foo) works. */
 #define DEFINE_PER_CPU(type, name) \
@@ -22,15 +23,15 @@
 /* var is in discarded region: offset to particular copy we want */
 #define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))
 #define __get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
+#define __raw_get_cpu_var(var) (*RELOC_HIDE(&per_cpu__##var, __my_cpu_offset()))
 
 /* A macro to avoid #include hell... */
 #define percpu_modcopy(pcpudst, src, size)			\
 do {								\
 	unsigned int __i;					\
-	for (__i = 0; __i < NR_CPUS; __i++)			\
-		if (cpu_possible(__i))				\
-			memcpy((pcpudst)+__per_cpu_offset(__i),	\
-			       (src), (size));			\
+	for_each_possible_cpu(__i)				\
+		memcpy((pcpudst)+__per_cpu_offset(__i),		\
+		       (src), (size));				\
 } while (0)
 
 extern void setup_per_cpu_areas(void);
@@ -42,6 +43,7 @@ extern void setup_per_cpu_areas(void);
 
 #define per_cpu(var, cpu)			(*((void)(cpu), &per_cpu__##var))
 #define __get_cpu_var(var)			per_cpu__##var
+#define __raw_get_cpu_var(var)			per_cpu__##var
 
 #endif	/* SMP */
 

@@ -1,7 +1,6 @@
 #ifndef __ASM_PARISC_PCI_H
 #define __ASM_PARISC_PCI_H
 
-#include <linux/config.h>
 #include <asm/scatterlist.h>
 
 
@@ -287,6 +286,11 @@ pcibios_select_root(struct pci_dev *pdev, struct resource *res)
 
 static inline void pcibios_add_platform_entries(struct pci_dev *dev)
 {
+}
+
+static inline void pcibios_penalize_isa_irq(int irq, int active)
+{
+	/* We don't need to penalize isa irq's */
 }
 
 #endif /* __ASM_PARISC_PCI_H */

@@ -229,7 +229,7 @@ typedef union hubii_ilcsr_u {
                         icsr_llp_en:	 1,	/* LLP enable bit */
                  	icsr_rsvd2:	 1,     /* reserver */
                         icsr_wrm_reset:	 1,	/* Warm reset bit */
-    			icsr_rsvd1:	 2,	/* Data ready offset */
+			icsr_rsvd1:	 2,	/* Data ready offset */
                         icsr_null_to:	 6;	/* Null timeout   */
 
         } icsr_fields_s;
@@ -274,9 +274,9 @@ typedef union io_perf_sel {
 	u64 perf_sel_reg;
 	struct {
 		u64 	perf_rsvd  : 48,
-		        perf_icct  :  8,
-		        perf_ippr1 :  4,
-  		        perf_ippr0 :  4;
+			perf_icct  :  8,
+		 	perf_ippr1 :  4,
+			perf_ippr0 :  4;
 	} perf_sel_bits;
 } io_perf_sel_t;
 
@@ -287,8 +287,8 @@ typedef union io_perf_cnt {
 	u64	perf_cnt;
 	struct {
 		u64	perf_rsvd1 : 32,
-  			        perf_rsvd2 : 12,
-  			        perf_cnt   : 20;
+			perf_rsvd2 : 12,
+			perf_cnt   : 20;
 	} perf_cnt_bits;
 } io_perf_cnt_t;
 
@@ -485,22 +485,6 @@ typedef union h1_icrba_u {
 /* XXX - Is this still right?  Check the spec. */
 #define ICRBN_A_CERR_SHFT	54
 #define ICRBN_A_ERR_MASK	0x3ff
-
-#if 0	/* Disabled, this causes namespace polution and break allmodconfig */
-/*
- * Easy access macros.
- */
-#define	a_error		icrba_fields_s.error
-#define	a_ecode		icrba_fields_s.ecode
-#define	a_lnetuce	icrba_fields_s.lnetuce
-#define	a_mark		icrba_fields_s.mark
-#define	a_xerr		icrba_fields_s.xerr
-#define	a_sidn		icrba_fields_s.sidn
-#define	a_tnum		icrba_fields_s.tnum
-#define	a_addr		icrba_fields_s.addr
-#define	a_valid		icrba_fields_s.valid
-#define	a_iow		icrba_fields_s.iow
-#endif
 
 #endif /* !__ASSEMBLY__ */
 

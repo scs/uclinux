@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -511,7 +509,7 @@ STATIC void
 xfs_alloc_trace_busy(
 	char		*name,		/* function tag string */
 	char		*str,		/* additional string */
-	xfs_mount_t	*mp,		/* file system mount poing */
+	xfs_mount_t	*mp,		/* file system mount point */
 	xfs_agnumber_t	agno,		/* allocation group number */
 	xfs_agblock_t	agbno,		/* a.g. relative block number */
 	xfs_extlen_t	len,		/* length of extent */
@@ -1837,40 +1835,47 @@ xfs_alloc_fix_freelist(
 				&agbp)))
 			return error;
 		if (!pag->pagf_init) {
+			ASSERT(flags & XFS_ALLOC_FLAG_TRYLOCK);
+			ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 			args->agbp = NULL;
 			return 0;
 		}
 	} else
 		agbp = NULL;
 
-	/* If this is a metadata prefered pag and we are user data
+	/*
+	 * If this is a metadata preferred pag and we are user data
 	 * then try somewhere else if we are not being asked to
 	 * try harder at this point
 	 */
-	if (pag->pagf_metadata && args->userdata && flags) {
+	if (pag->pagf_metadata && args->userdata &&
+	    (flags & XFS_ALLOC_FLAG_TRYLOCK)) {
+		ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 		args->agbp = NULL;
 		return 0;
 	}
 
-	need = XFS_MIN_FREELIST_PAG(pag, mp);
-	delta = need > pag->pagf_flcount ? need - pag->pagf_flcount : 0;
-	/*
-	 * If it looks like there isn't a long enough extent, or enough
-	 * total blocks, reject it.
-	 */
-	longest = (pag->pagf_longest > delta) ?
-		(pag->pagf_longest - delta) :
-		(pag->pagf_flcount > 0 || pag->pagf_longest > 0);
-	if (args->minlen + args->alignment + args->minalignslop - 1 > longest ||
-	    (args->minleft &&
-	     (int)(pag->pagf_freeblks + pag->pagf_flcount -
-		   need - args->total) <
-	     (int)args->minleft)) {
-		if (agbp)
-			xfs_trans_brelse(tp, agbp);
-		args->agbp = NULL;
-		return 0;
+	if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
+		need = XFS_MIN_FREELIST_PAG(pag, mp);
+		delta = need > pag->pagf_flcount ? need - pag->pagf_flcount : 0;
+		/*
+		 * If it looks like there isn't a long enough extent, or enough
+		 * total blocks, reject it.
+		 */
+		longest = (pag->pagf_longest > delta) ?
+			(pag->pagf_longest - delta) :
+			(pag->pagf_flcount > 0 || pag->pagf_longest > 0);
+		if ((args->minlen + args->alignment + args->minalignslop - 1) >
+				longest ||
+		    ((int)(pag->pagf_freeblks + pag->pagf_flcount -
+			   need - args->total) < (int)args->minleft)) {
+			if (agbp)
+				xfs_trans_brelse(tp, agbp);
+			args->agbp = NULL;
+			return 0;
+		}
 	}
+
 	/*
 	 * Get the a.g. freespace buffer.
 	 * Can fail if we're not blocking on locks, and it's held.
@@ -1880,6 +1885,8 @@ xfs_alloc_fix_freelist(
 				&agbp)))
 			return error;
 		if (agbp == NULL) {
+			ASSERT(flags & XFS_ALLOC_FLAG_TRYLOCK);
+			ASSERT(!(flags & XFS_ALLOC_FLAG_FREEING));
 			args->agbp = NULL;
 			return 0;
 		}
@@ -1889,22 +1896,24 @@ xfs_alloc_fix_freelist(
 	 */
 	agf = XFS_BUF_TO_AGF(agbp);
 	need = XFS_MIN_FREELIST(agf, mp);
-	delta = need > be32_to_cpu(agf->agf_flcount) ?
-		(need - be32_to_cpu(agf->agf_flcount)) : 0;
 	/*
 	 * If there isn't enough total or single-extent, reject it.
 	 */
-	longest = be32_to_cpu(agf->agf_longest);
-	longest = (longest > delta) ? (longest - delta) :
-		(be32_to_cpu(agf->agf_flcount) > 0 || longest > 0);
-	if (args->minlen + args->alignment + args->minalignslop - 1 > longest ||
-	     (args->minleft &&
-		(int)(be32_to_cpu(agf->agf_freeblks) +
-		   be32_to_cpu(agf->agf_flcount) - need - args->total) <
-	     (int)args->minleft)) {
-		xfs_trans_brelse(tp, agbp);
-		args->agbp = NULL;
-		return 0;
+	if (!(flags & XFS_ALLOC_FLAG_FREEING)) {
+		delta = need > be32_to_cpu(agf->agf_flcount) ?
+			(need - be32_to_cpu(agf->agf_flcount)) : 0;
+		longest = be32_to_cpu(agf->agf_longest);
+		longest = (longest > delta) ? (longest - delta) :
+			(be32_to_cpu(agf->agf_flcount) > 0 || longest > 0);
+		if ((args->minlen + args->alignment + args->minalignslop - 1) >
+				longest ||
+		    ((int)(be32_to_cpu(agf->agf_freeblks) +
+		     be32_to_cpu(agf->agf_flcount) - need - args->total) <
+				(int)args->minleft)) {
+			xfs_trans_brelse(tp, agbp);
+			args->agbp = NULL;
+			return 0;
+		}
 	}
 	/*
 	 * Make the freelist shorter if it's too long.
@@ -1942,15 +1951,22 @@ xfs_alloc_fix_freelist(
 		/*
 		 * Allocate as many blocks as possible at once.
 		 */
-		if ((error = xfs_alloc_ag_vextent(&targs)))
+		if ((error = xfs_alloc_ag_vextent(&targs))) {
+			xfs_trans_brelse(tp, agflbp);
 			return error;
+		}
 		/*
 		 * Stop if we run out.  Won't happen if callers are obeying
 		 * the restrictions correctly.  Can happen for free calls
 		 * on a completely full ag.
 		 */
-		if (targs.agbno == NULLAGBLOCK)
-			break;
+		if (targs.agbno == NULLAGBLOCK) {
+			if (flags & XFS_ALLOC_FLAG_FREEING)
+				break;
+			xfs_trans_brelse(tp, agflbp);
+			args->agbp = NULL;
+			return 0;
+		}
 		/*
 		 * Put each allocated block on the list.
 		 */
@@ -1960,6 +1976,7 @@ xfs_alloc_fix_freelist(
 				return error;
 		}
 	}
+	xfs_trans_brelse(tp, agflbp);
 	args->agbp = agbp;
 	return 0;
 }
@@ -2357,8 +2374,19 @@ xfs_alloc_vextent(
 			if (args->agno == sagno &&
 			    type == XFS_ALLOCTYPE_START_BNO)
 				args->type = XFS_ALLOCTYPE_THIS_AG;
-			if (++(args->agno) == mp->m_sb.sb_agcount)
-				args->agno = 0;
+			/*
+			* For the first allocation, we can try any AG to get
+			* space.  However, if we already have allocated a
+			* block, we don't want to try AGs whose number is below
+			* sagno. Otherwise, we may end up with out-of-order
+			* locking of AGF, which might cause deadlock.
+			*/
+			if (++(args->agno) == mp->m_sb.sb_agcount) {
+				if (args->firstblock != NULLFSBLOCK)
+					args->agno = sagno;
+				else
+					args->agno = 0;
+			}
 			/*
 			 * Reached the starting a.g., must either be done
 			 * or switch to non-trylock mode.
@@ -2424,31 +2452,26 @@ xfs_free_extent(
 	xfs_fsblock_t	bno,	/* starting block number of extent */
 	xfs_extlen_t	len)	/* length of extent */
 {
-#ifdef DEBUG
-	xfs_agf_t	*agf;	/* a.g. freespace header */
-#endif
-	xfs_alloc_arg_t	args;	/* allocation argument structure */
+	xfs_alloc_arg_t	args;
 	int		error;
 
 	ASSERT(len != 0);
+	memset(&args, 0, sizeof(xfs_alloc_arg_t));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
 	args.agno = XFS_FSB_TO_AGNO(args.mp, bno);
 	ASSERT(args.agno < args.mp->m_sb.sb_agcount);
 	args.agbno = XFS_FSB_TO_AGBNO(args.mp, bno);
-	args.alignment = 1;
-	args.minlen = args.minleft = args.minalignslop = 0;
 	down_read(&args.mp->m_peraglock);
 	args.pag = &args.mp->m_perag[args.agno];
-	if ((error = xfs_alloc_fix_freelist(&args, 0)))
+	if ((error = xfs_alloc_fix_freelist(&args, XFS_ALLOC_FLAG_FREEING)))
 		goto error0;
 #ifdef DEBUG
 	ASSERT(args.agbp != NULL);
-	agf = XFS_BUF_TO_AGF(args.agbp);
-	ASSERT(args.agbno + len <= be32_to_cpu(agf->agf_length));
+	ASSERT((args.agbno + len) <=
+		be32_to_cpu(XFS_BUF_TO_AGF(args.agbp)->agf_length));
 #endif
-	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno,
-		len, 0);
+	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno, len, 0);
 error0:
 	up_read(&args.mp->m_peraglock);
 	return error;
@@ -2458,7 +2481,7 @@ error0:
 /*
  * AG Busy list management
  * The busy list contains block ranges that have been freed but whose
- * transacations have not yet hit disk.  If any block listed in a busy
+ * transactions have not yet hit disk.  If any block listed in a busy
  * list is reused, the transaction that freed it must be forced to disk
  * before continuing to use the block.
  *

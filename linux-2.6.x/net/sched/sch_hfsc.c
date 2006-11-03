@@ -50,7 +50,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -974,10 +973,10 @@ hfsc_adjust_levels(struct hfsc_class *cl)
 	do {
 		level = 0;
 		list_for_each_entry(p, &cl->children, siblings) {
-			if (p->level > level)
-				level = p->level;
+			if (p->level >= level)
+				level = p->level + 1;
 		}
-		cl->level = level + 1;
+		cl->level = level;
 	} while ((cl = cl->cl_parent) != NULL);
 }
 
@@ -1124,10 +1123,9 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (rsc == NULL && fsc == NULL)
 		return -EINVAL;
 
-	cl = kmalloc(sizeof(struct hfsc_class), GFP_KERNEL);
+	cl = kzalloc(sizeof(struct hfsc_class), GFP_KERNEL);
 	if (cl == NULL)
 		return -ENOBUFS;
-	memset(cl, 0, sizeof(struct hfsc_class));
 
 	if (rsc != NULL)
 		hfsc_change_rsc(cl, rsc, 0);

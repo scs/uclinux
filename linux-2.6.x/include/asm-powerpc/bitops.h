@@ -65,8 +65,8 @@ static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -82,8 +82,8 @@ static __inline__ void clear_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -99,8 +99,8 @@ static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 	PPC405_ERR77(0,%3)
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r"(old), "=m"(*p)
-	: "r"(mask), "r"(p), "m"(*p)
+	: "=&r" (old), "+m" (*p)
+	: "r" (mask), "r" (p)
 	: "cc" );
 }
 
@@ -179,77 +179,12 @@ static __inline__ void set_bits(unsigned long mask, unsigned long *addr)
 	"or	%0,%0,%2\n"
 	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
-	: "=&r" (old), "=m" (*addr)
-	: "r" (mask), "r" (addr), "m" (*addr)
+	: "=&r" (old), "+m" (*addr)
+	: "r" (mask), "r" (addr)
 	: "cc");
 }
 
-/* Non-atomic versions */
-static __inline__ int test_bit(unsigned long nr,
-			       __const__ volatile unsigned long *addr)
-{
-	return 1UL & (addr[BITOP_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
-}
-
-static __inline__ void __set_bit(unsigned long nr,
-				 volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-
-	*p  |= mask;
-}
-
-static __inline__ void __clear_bit(unsigned long nr,
-				   volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-
-	*p &= ~mask;
-}
-
-static __inline__ void __change_bit(unsigned long nr,
-				    volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-
-	*p ^= mask;
-}
-
-static __inline__ int __test_and_set_bit(unsigned long nr,
-					 volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-	unsigned long old = *p;
-
-	*p = old | mask;
-	return (old & mask) != 0;
-}
-
-static __inline__ int __test_and_clear_bit(unsigned long nr,
-					   volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-	unsigned long old = *p;
-
-	*p = old & ~mask;
-	return (old & mask) != 0;
-}
-
-static __inline__ int __test_and_change_bit(unsigned long nr,
-					    volatile unsigned long *addr)
-{
-	unsigned long mask = BITOP_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
-	unsigned long old = *p;
-
-	*p = old ^ mask;
-	return (old & mask) != 0;
-}
+#include <asm-generic/bitops/non-atomic.h>
 
 /*
  * Return the zero-based bit position (LE, not IBM bit numbering) of
@@ -310,16 +245,9 @@ static __inline__ int fls(unsigned int x)
 	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (x));
 	return 32 - lz;
 }
-#define fls64(x)   generic_fls64(x)
+#include <asm-generic/bitops/fls64.h>
 
-/*
- * hweightN: returns the hamming weight (i.e. the number
- * of bits set) of a N-bit word
- */
-#define hweight64(x) generic_hweight64(x)
-#define hweight32(x) generic_hweight32(x)
-#define hweight16(x) generic_hweight16(x)
-#define hweight8(x) generic_hweight8(x)
+#include <asm-generic/bitops/hweight.h>
 
 #define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
 unsigned long find_next_zero_bit(const unsigned long *addr,
@@ -360,8 +288,8 @@ static __inline__ int test_le_bit(unsigned long nr,
 #define __test_and_clear_le_bit(nr, addr) \
 	__test_and_clear_bit((nr) ^ BITOP_LE_SWIZZLE, (addr))
 
-#define find_first_zero_le_bit(addr, size) find_next_zero_le_bit((addr), (size), 0)
-unsigned long find_next_zero_le_bit(const unsigned long *addr,
+#define find_first_zero_le_bit(addr, size) generic_find_next_zero_le_bit((addr), (size), 0)
+unsigned long generic_find_next_zero_le_bit(const unsigned long *addr,
 				    unsigned long size, unsigned long offset);
 
 /* Bitmap functions for the ext2 filesystem */
@@ -381,7 +309,7 @@ unsigned long find_next_zero_le_bit(const unsigned long *addr,
 #define ext2_find_first_zero_bit(addr, size) \
 	find_first_zero_le_bit((unsigned long*)addr, size)
 #define ext2_find_next_zero_bit(addr, size, off) \
-	find_next_zero_le_bit((unsigned long*)addr, size, off)
+	generic_find_next_zero_le_bit((unsigned long*)addr, size, off)
 
 /* Bitmap functions for the minix filesystem.  */
 
@@ -397,32 +325,7 @@ unsigned long find_next_zero_le_bit(const unsigned long *addr,
 #define minix_find_first_zero_bit(addr,size) \
 	find_first_zero_le_bit((unsigned long *)addr, size)
 
-/*
- * Every architecture must define this function. It's the fastest
- * way of searching a 140-bit bitmap where the first 100 bits are
- * unlikely to be set. It's guaranteed that at least one of the 140
- * bits is cleared.
- */
-static inline int sched_find_first_bit(const unsigned long *b)
-{
-#ifdef CONFIG_PPC64
-	if (unlikely(b[0]))
-		return __ffs(b[0]);
-	if (unlikely(b[1]))
-		return __ffs(b[1]) + 64;
-	return __ffs(b[2]) + 128;
-#else
-	if (unlikely(b[0]))
-		return __ffs(b[0]);
-	if (unlikely(b[1]))
-		return __ffs(b[1]) + 32;
-	if (unlikely(b[2]))
-		return __ffs(b[2]) + 64;
-	if (b[3])
-		return __ffs(b[3]) + 96;
-	return __ffs(b[4]) + 128;
-#endif
-}
+#include <asm-generic/bitops/sched.h>
 
 #endif /* __KERNEL__ */
 

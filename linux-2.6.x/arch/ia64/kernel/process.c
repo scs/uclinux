@@ -9,7 +9,6 @@
  *	      Add notify_die() hooks.
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
-#include <linux/config.h>
 
 #include <linux/cpu.h>
 #include <linux/pm.h>
@@ -30,7 +29,6 @@
 #include <linux/efi.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/kprobes.h>
 
 #include <asm/cpu.h>
 #include <asm/delay.h>
@@ -273,9 +271,9 @@ cpu_idle (void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		if (can_do_pal_halt)
-			clear_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status &= ~TS_POLLING;
 		else
-			set_thread_flag(TIF_POLLING_NRFLAG);
+			current_thread_info()->status |= TS_POLLING;
 
 		if (!need_resched()) {
 			void (*idle)(void);
@@ -737,13 +735,6 @@ flush_thread (void)
 void
 exit_thread (void)
 {
-
-	/*
-	 * Remove function-return probe instances associated with this task
-	 * and put them back on the free list. Do not insert an exit probe for
-	 * this function, it will be disabled by kprobe_flush_task if you do.
-	 */
-	kprobe_flush_task(current);
 
 	ia64_drop_fpu(current);
 #ifdef CONFIG_PERFMON

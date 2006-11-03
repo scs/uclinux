@@ -30,7 +30,6 @@
  *  The decompression of IP datagram MUST be done after the reassembly, 
  *  AH/ESP processing.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
@@ -50,6 +49,7 @@
 #include <net/protocol.h>
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
+#include <linux/mutex.h>
 
 struct ipcomp6_tfms {
 	struct list_head list;
@@ -57,45 +57,32 @@ struct ipcomp6_tfms {
 	int users;
 };
 
-static DECLARE_MUTEX(ipcomp6_resource_sem);
+static DEFINE_MUTEX(ipcomp6_resource_mutex);
 static void **ipcomp6_scratches;
 static int ipcomp6_scratch_users;
 static LIST_HEAD(ipcomp6_tfms_list);
 
-static int ipcomp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struct sk_buff *skb)
+static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int err = 0;
-	u8 nexthdr = 0;
-	int hdr_len = skb->h.raw - skb->nh.raw;
-	unsigned char *tmp_hdr = NULL;
+	int err = -ENOMEM;
 	struct ipv6hdr *iph;
+	struct ipv6_comp_hdr *ipch;
 	int plen, dlen;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
 	struct crypto_tfm *tfm;
 	int cpu;
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-		skb_linearize(skb, GFP_ATOMIC) != 0) {
-		err = -ENOMEM;
+	if (skb_linearize_cow(skb))
 		goto out;
-	}
 
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */
 	iph = skb->nh.ipv6h;
-	tmp_hdr = kmalloc(hdr_len, GFP_ATOMIC);
-	if (!tmp_hdr)
-		goto out;
-	memcpy(tmp_hdr, iph, hdr_len);
-	nexthdr = *(u8 *)skb->data;
-	skb_pull(skb, sizeof(struct ipv6_comp_hdr)); 
-	skb->nh.raw += sizeof(struct ipv6_comp_hdr);
-	memcpy(skb->nh.raw, tmp_hdr, hdr_len);
-	iph = skb->nh.ipv6h;
-	iph->payload_len = htons(ntohs(iph->payload_len) - sizeof(struct ipv6_comp_hdr));
-	skb->h.raw = skb->data;
+	ipch = (void *)skb->data;
+	skb->h.raw = skb->nh.raw + sizeof(*ipch);
+	__skb_pull(skb, sizeof(*ipch));
 
 	/* decompression */
 	plen = skb->len;
@@ -122,20 +109,14 @@ static int ipcomp6_input(struct xfrm_state *x, struct xfrm_decap_state *decap, s
 		goto out_put_cpu;
 	}
 
-	skb_put(skb, dlen - plen);
+	skb->truesize += dlen - plen;
+	__skb_put(skb, dlen - plen);
 	memcpy(skb->data, scratch, dlen);
+	err = ipch->nexthdr;
 
-	iph = skb->nh.ipv6h;
-	iph->payload_len = htons(skb->len);
-	
 out_put_cpu:
 	put_cpu();
 out:
-	kfree(tmp_hdr);
-	if (err)
-		goto error_out;
-	return nexthdr;
-error_out:
 	return err;
 }
 
@@ -158,10 +139,8 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 	}
 
-	if ((skb_is_nonlinear(skb) || skb_cloned(skb)) &&
-		skb_linearize(skb, GFP_ATOMIC) != 0) {
+	if (skb_linearize_cow(skb))
 		goto out_ok;
-	}
 
 	/* compression */
 	plen = skb->len - hdr_len;
@@ -207,7 +186,7 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (type != ICMPV6_DEST_UNREACH && type != ICMPV6_PKT_TOOBIG)
 		return;
 
-	spi = ntohl(ntohs(ipcomph->cpi));
+	spi = htonl(ntohs(ipcomph->cpi));
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, spi, IPPROTO_COMP, AF_INET6);
 	if (!x)
 		return;
@@ -227,6 +206,9 @@ static struct xfrm_state *ipcomp6_tunnel_create(struct xfrm_state *x)
 
 	t->id.proto = IPPROTO_IPV6;
 	t->id.spi = xfrm6_tunnel_alloc_spi((xfrm_address_t *)&x->props.saddr);
+	if (!t->id.spi)
+		goto error;
+
 	memcpy(t->id.daddr.a6, x->id.daddr.a6, sizeof(struct in6_addr));
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET6;
@@ -242,7 +224,9 @@ out:
 	return t;
 
 error:
+	t->km.state = XFRM_STATE_DEAD;
 	xfrm_state_put(t);
+	t = NULL;
 	goto out;
 }
 
@@ -284,10 +268,10 @@ static void ipcomp6_free_scratches(void)
 	if (!scratches)
 		return;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		void *scratch = *per_cpu_ptr(scratches, i);
-		if (scratch)
-			vfree(scratch);
+
+		vfree(scratch);
 	}
 
 	free_percpu(scratches);
@@ -307,7 +291,7 @@ static void **ipcomp6_alloc_scratches(void)
 
 	ipcomp6_scratches = scratches;
 
-	for_each_cpu(i) {
+	for_each_possible_cpu(i) {
 		void *scratch = vmalloc(IPCOMP_SCRATCH_SIZE);
 		if (!scratch)
 			return NULL;
@@ -338,7 +322,7 @@ static void ipcomp6_free_tfms(struct crypto_tfm **tfms)
 	if (!tfms)
 		return;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
 		crypto_free_tfm(tfm);
 	}
@@ -378,7 +362,7 @@ static struct crypto_tfm **ipcomp6_alloc_tfms(const char *alg_name)
 	if (!tfms)
 		goto error;
 
-	for_each_cpu(cpu) {
+	for_each_possible_cpu(cpu) {
 		struct crypto_tfm *tfm = crypto_alloc_tfm(alg_name, 0);
 		if (!tfm)
 			goto error;
@@ -405,9 +389,9 @@ static void ipcomp6_destroy(struct xfrm_state *x)
 	if (!ipcd)
 		return;
 	xfrm_state_delete_tunnel(x);
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 	ipcomp6_free_data(ipcd);
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 	kfree(ipcd);
 
 	xfrm6_tunnel_free_spi((xfrm_address_t *)&x->props.saddr);
@@ -427,23 +411,22 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 		goto out;
 
 	err = -ENOMEM;
-	ipcd = kmalloc(sizeof(*ipcd), GFP_KERNEL);
+	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
 
-	memset(ipcd, 0, sizeof(*ipcd));
 	x->props.header_len = 0;
 	if (x->props.mode)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 	if (!ipcomp6_alloc_scratches())
 		goto error;
 
 	ipcd->tfms = ipcomp6_alloc_tfms(x->calg->alg_name);
 	if (!ipcd->tfms)
 		goto error;
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 
 	if (x->props.mode) {
 		err = ipcomp6_tunnel_attach(x);
@@ -459,10 +442,10 @@ static int ipcomp6_init_state(struct xfrm_state *x)
 out:
 	return err;
 error_tunnel:
-	down(&ipcomp6_resource_sem);
+	mutex_lock(&ipcomp6_resource_mutex);
 error:
 	ipcomp6_free_data(ipcd);
-	up(&ipcomp6_resource_sem);
+	mutex_unlock(&ipcomp6_resource_mutex);
 	kfree(ipcd);
 
 	goto out;

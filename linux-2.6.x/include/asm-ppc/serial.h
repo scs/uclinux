@@ -6,7 +6,6 @@
 #ifndef __ASM_SERIAL_H__
 #define __ASM_SERIAL_H__
 
-#include <linux/config.h>
 
 #if defined(CONFIG_EV64260)
 #include <platforms/ev64260.h>
@@ -41,14 +40,9 @@
 #else
 
 /*
- * XXX Assume for now it has PC-style ISA serial ports.
- * This is true for PReP and CHRP at least.
+ * XXX Assume it has PC-style ISA serial ports - true for PReP at least.
  */
 #include <asm/pc_serial.h>
-
-#if defined(CONFIG_MAC_SERIAL)
-#define SERIAL_DEV_OFFSET	((_machine == _MACH_prep || _machine == _MACH_chrp) ? 0 : 2)
-#endif
 
 #endif /* !CONFIG_GEMINI and others */
 #endif /* __ASM_SERIAL_H__ */

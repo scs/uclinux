@@ -95,7 +95,7 @@ static int udf_adinicb_commit_write(struct file *file, struct page *page, unsign
 	return 0;
 }
 
-struct address_space_operations udf_adinicb_aops = {
+const struct address_space_operations udf_adinicb_aops = {
 	.readpage		= udf_adinicb_readpage,
 	.writepage		= udf_adinicb_writepage,
 	.sync_page		= block_sync_page,
@@ -248,7 +248,7 @@ static int udf_release_file(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-struct file_operations udf_file_operations = {
+const struct file_operations udf_file_operations = {
 	.read			= generic_file_read,
 	.ioctl			= udf_ioctl,
 	.open			= generic_file_open,

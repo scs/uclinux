@@ -26,14 +26,14 @@ extern spinlock_t rtc_lock;
 
 /*
  * RTC ops.  By default, they point to no-RTC functions.
- *	rtc_get_time - mktime(year, mon, day, hour, min, sec) in seconds.
- *	rtc_set_time - reverse the above translation and set time to RTC.
- *	rtc_set_mmss - similar to rtc_set_time, but only min and sec need
+ *	rtc_mips_get_time - mktime(year, mon, day, hour, min, sec) in seconds.
+ *	rtc_mips_set_time - reverse the above translation and set time to RTC.
+ *	rtc_mips_set_mmss - similar to rtc_set_time, but only min and sec need
  *			to be set.  Used by RTC sync-up.
  */
-extern unsigned long (*rtc_get_time)(void);
-extern int (*rtc_set_time)(unsigned long);
-extern int (*rtc_set_mmss)(unsigned long);
+extern unsigned long (*rtc_mips_get_time)(void);
+extern int (*rtc_mips_set_time)(unsigned long);
+extern int (*rtc_mips_set_mmss)(unsigned long);
 
 /*
  * Timer interrupt functions.
@@ -83,11 +83,11 @@ extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
 /*
  * board specific routines required by time_init().
  * board_time_init is defaulted to NULL and can remain so.
- * board_timer_setup must be setup properly in machine setup routine.
+ * plat_timer_setup must be setup properly in machine setup routine.
  */
 struct irqaction;
 extern void (*board_time_init)(void);
-extern void (*board_timer_setup)(struct irqaction *irq);
+extern void plat_timer_setup(struct irqaction *irq);
 
 /*
  * mips_hpt_frequency - must be set if you intend to use an R4k-compatible

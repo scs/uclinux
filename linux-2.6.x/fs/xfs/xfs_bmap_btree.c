@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -1569,12 +1567,11 @@ xfs_bmbt_split(
 	lbno = XFS_DADDR_TO_FSB(args.mp, XFS_BUF_ADDR(lbp));
 	left = XFS_BUF_TO_BMBT_BLOCK(lbp);
 	args.fsbno = cur->bc_private.b.firstblock;
+	args.firstblock = args.fsbno;
 	if (args.fsbno == NULLFSBLOCK) {
 		args.fsbno = lbno;
 		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else if (cur->bc_private.b.flist->xbf_low)
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
-	else
+	} else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.mod = args.minleft = args.alignment = args.total = args.isfl =
 		args.userdata = args.minalignslop = 0;
@@ -2356,6 +2353,7 @@ xfs_bmbt_newroot(
 		args.userdata = args.minalignslop = 0;
 	args.minlen = args.maxlen = args.prod = 1;
 	args.wasdel = cur->bc_private.b.flags & XFS_BTCUR_BPRV_WASDEL;
+	args.firstblock = args.fsbno;
 	if (args.fsbno == NULLFSBLOCK) {
 #ifdef DEBUG
 		if ((error = xfs_btree_check_lptr(cur, INT_GET(*pp, ARCH_CONVERT), level))) {
@@ -2365,9 +2363,7 @@ xfs_bmbt_newroot(
 #endif
 		args.fsbno = INT_GET(*pp, ARCH_CONVERT);
 		args.type = XFS_ALLOCTYPE_START_BNO;
-	} else if (args.wasdel)
-		args.type = XFS_ALLOCTYPE_FIRST_AG;
-	else
+	} else
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	if ((error = xfs_alloc_vextent(&args))) {
 		XFS_BMBT_TRACE_CURSOR(cur, ERROR);
@@ -2754,7 +2750,7 @@ xfs_bmbt_update(
 }
 
 /*
- * Check an extent list, which has just been read, for
+ * Check extent records, which have just been read, for
  * any bit in the extent flag field. ASSERT on debug
  * kernels, as this condition should not occur.
  * Return an error condition (1) if any flags found,
@@ -2763,10 +2759,14 @@ xfs_bmbt_update(
 
 int
 xfs_check_nostate_extents(
-	xfs_bmbt_rec_t		*ep,
+	xfs_ifork_t		*ifp,
+	xfs_extnum_t		idx,
 	xfs_extnum_t		num)
 {
-	for (; num > 0; num--, ep++) {
+	xfs_bmbt_rec_t		*ep;
+
+	for (; num > 0; num--, idx++) {
+		ep = xfs_iext_get_ext(ifp, idx);
 		if ((ep->l0 >>
 		     (64 - BMBT_EXNTFLAG_BITLEN)) != 0) {
 			ASSERT(0);

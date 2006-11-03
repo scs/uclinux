@@ -16,7 +16,7 @@
 
 extern struct super_block * sysfs_sb;
 
-static struct address_space_operations sysfs_aops = {
+static const struct address_space_operations sysfs_aops = {
 	.readpage	= simple_readpage,
 	.prepare_write	= simple_prepare_write,
 	.commit_write	= simple_commit_write
@@ -54,11 +54,10 @@ int sysfs_setattr(struct dentry * dentry, struct iattr * iattr)
 
 	if (!sd_iattr) {
 		/* setting attributes for the first time, allocate now */
-		sd_iattr = kmalloc(sizeof(struct iattr), GFP_KERNEL);
+		sd_iattr = kzalloc(sizeof(struct iattr), GFP_KERNEL);
 		if (!sd_iattr)
 			return -ENOMEM;
 		/* assign default attributes */
-		memset(sd_iattr, 0, sizeof(struct iattr));
 		sd_iattr->ia_mode = sd->s_mode;
 		sd_iattr->ia_uid = 0;
 		sd_iattr->ia_gid = 0;
@@ -110,6 +109,17 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
+
+/*
+ * sysfs has a different i_mutex lock order behavior for i_mutex than other
+ * filesystems; sysfs i_mutex is called in many places with subsystem locks
+ * held. At the same time, many of the VFS locking rules do not apply to
+ * sysfs at all (cross directory rename for example). To untangle this mess
+ * (which gives false positives in lockdep), we're giving sysfs inodes their
+ * own class for i_mutex.
+ */
+static struct lock_class_key sysfs_inode_imutex_key;
+
 struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 {
 	struct inode * inode = new_inode(sysfs_sb);
@@ -119,6 +129,7 @@ struct inode * sysfs_new_inode(mode_t mode, struct sysfs_dirent * sd)
 		inode->i_mapping->a_ops = &sysfs_aops;
 		inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
 		inode->i_op = &sysfs_inode_operations;
+		lockdep_set_class(&inode->i_mutex, &sysfs_inode_imutex_key);
 
 		if (sd->s_iattr) {
 			/* sysfs_dirent has non-default attributes
@@ -176,8 +187,7 @@ const unsigned char * sysfs_get_name(struct sysfs_dirent *sd)
 	struct bin_attribute * bin_attr;
 	struct sysfs_symlink  * sl;
 
-	if (!sd || !sd->s_element)
-		BUG();
+	BUG_ON(!sd || !sd->s_element);
 
 	switch (sd->s_type) {
 		case SYSFS_DIR:

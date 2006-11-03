@@ -24,14 +24,12 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
@@ -186,7 +184,7 @@ xfs_ihash_promote(
  */
 STATIC int
 xfs_iget_core(
-	vnode_t		*vp,
+	bhv_vnode_t	*vp,
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
@@ -198,7 +196,7 @@ xfs_iget_core(
 	xfs_ihash_t	*ih;
 	xfs_inode_t	*ip;
 	xfs_inode_t	*iq;
-	vnode_t		*inode_vp;
+	bhv_vnode_t	*inode_vp;
 	ulong		version;
 	int		error;
 	/* REFERENCED */
@@ -258,7 +256,7 @@ again:
 				goto finish_inode;
 
 			} else if (vp != inode_vp) {
-				struct inode *inode = LINVFS_GET_IP(inode_vp);
+				struct inode *inode = vn_to_inode(inode_vp);
 
 				/* The inode is being torn down, pause and
 				 * try again.
@@ -421,7 +419,10 @@ finish_inode:
 			ip->i_chash = chlnew;
 			chlnew->chl_ip = ip;
 			chlnew->chl_blkno = ip->i_blkno;
+			if (ch->ch_list)
+				ch->ch_list->chl_prev = chlnew;
 			chlnew->chl_next = ch->ch_list;
+			chlnew->chl_prev = NULL;
 			ch->ch_list = chlnew;
 			chlnew = NULL;
 		}
@@ -465,7 +466,7 @@ finish_inode:
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	VFS_INIT_VNODE(XFS_MTOVFS(mp), vp, XFS_ITOBHV(ip), 1);
+	bhv_vfs_init_vnode(XFS_MTOVFS(mp), vp, XFS_ITOBHV(ip), 1);
 
 	return 0;
 }
@@ -486,7 +487,7 @@ xfs_iget(
 	xfs_daddr_t	bno)
 {
 	struct inode	*inode;
-	vnode_t		*vp = NULL;
+	bhv_vnode_t	*vp = NULL;
 	int		error;
 
 	XFS_STATS_INC(xs_ig_attempts);
@@ -495,7 +496,7 @@ retry:
 	if ((inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino))) {
 		xfs_inode_t	*ip;
 
-		vp = LINVFS_GET_VP(inode);
+		vp = vn_from_inode(inode);
 		if (inode->i_state & I_NEW) {
 			vn_initialize(inode);
 			error = xfs_iget_core(vp, mp, tp, ino, flags,
@@ -509,7 +510,7 @@ retry:
 		} else {
 			/*
 			 * If the inode is not fully constructed due to
-			 * filehandle mistmatches wait for the inode to go
+			 * filehandle mismatches wait for the inode to go
 			 * away and try again.
 			 *
 			 * iget_locked will call __wait_on_freeing_inode
@@ -540,7 +541,7 @@ retry:
 void
 xfs_inode_lock_init(
 	xfs_inode_t	*ip,
-	vnode_t		*vp)
+	bhv_vnode_t	*vp)
 {
 	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
 		     "xfsino", (long)vp->v_number);
@@ -600,12 +601,10 @@ void
 xfs_iput(xfs_inode_t	*ip,
 	 uint		lock_flags)
 {
-	vnode_t	*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
 	vn_trace_entry(vp, "xfs_iput", (inst_t *)__return_address);
-
 	xfs_iunlock(ip, lock_flags);
-
 	VN_RELE(vp);
 }
 
@@ -616,8 +615,8 @@ void
 xfs_iput_new(xfs_inode_t	*ip,
 	     uint		lock_flags)
 {
-	vnode_t		*vp = XFS_ITOV(ip);
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	struct inode	*inode = vn_to_inode(vp);
 
 	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
 
@@ -642,7 +641,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 void
 xfs_ireclaim(xfs_inode_t *ip)
 {
-	vnode_t		*vp;
+	bhv_vnode_t	*vp;
 
 	/*
 	 * Remove from old hash list and mount list.
@@ -723,23 +722,15 @@ xfs_iextract(
 		ASSERT(ip->i_cnext == ip && ip->i_cprev == ip);
 		ASSERT(ip->i_chash != NULL);
 		chm=NULL;
-		for (chl = ch->ch_list; chl != NULL; chl = chl->chl_next) {
-			if (chl->chl_blkno == ip->i_blkno) {
-				if (chm == NULL) {
-					/* first item on the list */
-					ch->ch_list = chl->chl_next;
-				} else {
-					chm->chl_next = chl->chl_next;
-				}
-				kmem_zone_free(xfs_chashlist_zone, chl);
-				break;
-			} else {
-				ASSERT(chl->chl_ip != ip);
-				chm = chl;
-			}
-		}
-		ASSERT_ALWAYS(chl != NULL);
-       } else {
+		chl = ip->i_chash;
+		if (chl->chl_prev)
+			chl->chl_prev->chl_next = chl->chl_next;
+		else
+			ch->ch_list = chl->chl_next;
+		if (chl->chl_next)
+			chl->chl_next->chl_prev = chl->chl_prev;
+		kmem_zone_free(xfs_chashlist_zone, chl);
+	} else {
 		/* delete one inode from a non-empty list */
 		iq = ip->i_cnext;
 		iq->i_cprev = ip->i_cprev;
@@ -1038,6 +1029,6 @@ xfs_iflock_nowait(xfs_inode_t *ip)
 void
 xfs_ifunlock(xfs_inode_t *ip)
 {
-	ASSERT(valusema(&(ip->i_flock)) <= 0);
+	ASSERT(issemalocked(&(ip->i_flock)));
 	vsema(&(ip->i_flock));
 }

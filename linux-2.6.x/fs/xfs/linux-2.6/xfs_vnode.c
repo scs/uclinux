@@ -39,7 +39,7 @@ vn_init(void)
 
 void
 vn_iowait(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	wait_queue_head_t *wq = vptosync(vp);
 
@@ -48,17 +48,33 @@ vn_iowait(
 
 void
 vn_iowake(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	if (atomic_dec_and_test(&vp->v_iocount))
 		wake_up(vptosync(vp));
 }
 
-struct vnode *
+/*
+ * Volume managers supporting multiple paths can send back ENODEV when the
+ * final path disappears.  In this case continuing to fill the page cache
+ * with dirty data which cannot be written out is evil, so prevent that.
+ */
+void
+vn_ioerror(
+	bhv_vnode_t	*vp,
+	int		error,
+	char		*f,
+	int		l)
+{
+	if (unlikely(error == -ENODEV))
+		bhv_vfs_force_shutdown(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
+}
+
+bhv_vnode_t *
 vn_initialize(
 	struct inode	*inode)
 {
-	struct vnode	*vp = LINVFS_GET_VP(inode);
+	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	XFS_STATS_INC(vn_active);
 	XFS_STATS_INC(vn_alloc);
@@ -83,7 +99,7 @@ vn_initialize(
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
 #endif	/* XFS_VNODE_TRACE */
 
-	vn_trace_exit(vp, "vn_initialize", (inst_t *)__return_address);
+	vn_trace_exit(vp, __FUNCTION__, (inst_t *)__return_address);
 	return vp;
 }
 
@@ -94,10 +110,10 @@ vn_initialize(
  */
 void
 vn_revalidate_core(
-	struct vnode	*vp,
-	vattr_t		*vap)
+	bhv_vnode_t	*vp,
+	bhv_vattr_t	*vap)
 {
-	struct inode	*inode = LINVFS_GET_IP(vp);
+	struct inode	*inode = vn_to_inode(vp);
 
 	inode->i_mode	    = vap->va_mode;
 	inode->i_nlink	    = vap->va_nlink;
@@ -129,37 +145,44 @@ vn_revalidate_core(
  * Revalidate the Linux inode from the vnode.
  */
 int
-vn_revalidate(
-	struct vnode	*vp)
+__vn_revalidate(
+	bhv_vnode_t	*vp,
+	bhv_vattr_t	*vattr)
 {
-	vattr_t		va;
 	int		error;
 
-	vn_trace_entry(vp, "vn_revalidate", (inst_t *)__return_address);
-	ASSERT(vp->v_fbhv != NULL);
-
-	va.va_mask = XFS_AT_STAT|XFS_AT_XFLAGS;
-	VOP_GETATTR(vp, &va, 0, NULL, error);
-	if (!error) {
-		vn_revalidate_core(vp, &va);
+	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
+	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
+	error = bhv_vop_getattr(vp, vattr, 0, NULL);
+	if (likely(!error)) {
+		vn_revalidate_core(vp, vattr);
 		VUNMODIFY(vp);
 	}
 	return -error;
 }
 
+int
+vn_revalidate(
+	bhv_vnode_t	*vp)
+{
+	bhv_vattr_t	vattr;
+
+	return __vn_revalidate(vp, &vattr);
+}
+
 /*
  * Add a reference to a referenced vnode.
  */
-struct vnode *
+bhv_vnode_t *
 vn_hold(
-	struct vnode	*vp)
+	bhv_vnode_t	*vp)
 {
 	struct inode	*inode;
 
 	XFS_STATS_INC(vn_hold);
 
 	VN_LOCK(vp);
-	inode = igrab(LINVFS_GET_IP(vp));
+	inode = igrab(vn_to_inode(vp));
 	ASSERT(inode);
 	VN_UNLOCK(vp, 0);
 
@@ -185,31 +208,31 @@ vn_hold(
  * Vnode tracing code.
  */
 void
-vn_trace_entry(vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_entry(bhv_vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_exit(bhv_vnode_t *vp, const char *func, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_EXIT, func, 0, ra);
 }
 
 void
-vn_trace_hold(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_hold(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_HOLD, file, line, ra);
 }
 
 void
-vn_trace_ref(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_ref(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_REF, file, line, ra);
 }
 
 void
-vn_trace_rele(vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_rele(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
 {
 	KTRACE_ENTER(vp, VNODE_KTRACE_RELE, file, line, ra);
 }

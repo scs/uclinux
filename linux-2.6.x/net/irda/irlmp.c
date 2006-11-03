@@ -18,13 +18,12 @@
  *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
  *
- *     Neither Dag Brattli nor University of Troms admit liability nor
+ *     Neither Dag Brattli nor University of Tromsø admit liability nor
  *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
  *
  ********************************************************************/
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -43,6 +42,7 @@
 #include <net/irda/iriap.h>
 #include <net/irda/irlmp.h>
 #include <net/irda/irlmp_frame.h>
+
 #include <asm/unaligned.h>
 
 static __u8 irlmp_find_free_slsap(void);
@@ -78,10 +78,9 @@ int __init irlmp_init(void)
 {
 	IRDA_DEBUG(1, "%s()\n", __FUNCTION__);
 	/* Initialize the irlmp structure. */
-	irlmp = kmalloc( sizeof(struct irlmp_cb), GFP_KERNEL);
+	irlmp = kzalloc( sizeof(struct irlmp_cb), GFP_KERNEL);
 	if (irlmp == NULL)
 		return -ENOMEM;
-	memset(irlmp, 0, sizeof(struct irlmp_cb));
 
 	irlmp->magic = LMP_MAGIC;
 
@@ -160,12 +159,11 @@ struct lsap_cb *irlmp_open_lsap(__u8 slsap_sel, notify_t *notify, __u8 pid)
 		return NULL;
 
 	/* Allocate new instance of a LSAP connection */
-	self = kmalloc(sizeof(struct lsap_cb), GFP_ATOMIC);
+	self = kzalloc(sizeof(struct lsap_cb), GFP_ATOMIC);
 	if (self == NULL) {
 		IRDA_ERROR("%s: can't allocate memory\n", __FUNCTION__);
 		return NULL;
 	}
-	memset(self, 0, sizeof(struct lsap_cb));
 
 	self->magic = LMP_LSAP_MAGIC;
 	self->slsap_sel = slsap_sel;
@@ -288,12 +286,11 @@ void irlmp_register_link(struct irlap_cb *irlap, __u32 saddr, notify_t *notify)
 	/*
 	 *  Allocate new instance of a LSAP connection
 	 */
-	lap = kmalloc(sizeof(struct lap_cb), GFP_KERNEL);
+	lap = kzalloc(sizeof(struct lap_cb), GFP_KERNEL);
 	if (lap == NULL) {
 		IRDA_ERROR("%s: unable to kmalloc\n", __FUNCTION__);
 		return;
 	}
-	memset(lap, 0, sizeof(struct lap_cb));
 
 	lap->irlap = irlap;
 	lap->magic = LMP_LAP_MAGIC;
@@ -395,7 +392,7 @@ int irlmp_connect_request(struct lsap_cb *self, __u8 dlsap_sel,
 
 	/* Any userdata? */
 	if (tx_skb == NULL) {
-		tx_skb = dev_alloc_skb(64);
+		tx_skb = alloc_skb(64, GFP_ATOMIC);
 		if (!tx_skb)
 			return -ENOMEM;
 
@@ -1063,7 +1060,7 @@ void irlmp_discovery_expiry(discinfo_t *expiries, int number)
 		for(i = 0; i < number; i++) {
 			/* Check if we should notify client */
 			if ((client->expir_callback) &&
-			    (client->hint_mask.word & get_unaligned(expiries[i].hints)
+			    (client->hint_mask.word & u16ho(expiries[i].hints)
 			     & 0x7f7f) )
 				client->expir_callback(&(expiries[i]),
 						       EXPIRY_TIMEOUT,
@@ -1083,13 +1080,11 @@ void irlmp_discovery_expiry(discinfo_t *expiries, int number)
  */
 discovery_t *irlmp_get_discovery_response(void)
 {
-	__u16 *data_hintsp;
 	IRDA_DEBUG(4, "%s()\n", __FUNCTION__);
 
 	IRDA_ASSERT(irlmp != NULL, return NULL;);
 
-	data_hintsp = (__u16 *) irlmp->discovery_rsp.data.hints;
-	put_unaligned(irlmp->hints.word, data_hintsp);
+	u16ho(irlmp->discovery_rsp.data.hints) = irlmp->hints.word;
 
 	/*
 	 *  Set character set for device name (we use ASCII), and

@@ -38,7 +38,6 @@
  * Table is based upon EAS2.6 (Oct 1999)
  */
 
-#include <linux/config.h>
 
 #include <asm/asmmacro.h>
 #include <asm/break.h>
@@ -865,6 +864,7 @@ ENTRY(interrupt)
 	;;
 	SAVE_REST
 	;;
+	MCA_RECOVER_RANGE(interrupt)
 	alloc r14=ar.pfs,0,0,2,0 // must be first in an insn group
 	mov out0=cr.ivr		// pass cr.ivr as first arg
 	add out1=16,sp		// pass pointer to pt_regs as second arg

@@ -17,7 +17,6 @@
 #ifndef __ASM_MPC83xx_H__
 #define __ASM_MPC83xx_H__
 
-#include <linux/config.h>
 #include <asm/mmu.h>
 
 #ifdef CONFIG_83xx
@@ -108,6 +107,7 @@ enum ppc_sys_devices {
 	MPC83xx_USB2_DR,
 	MPC83xx_USB2_MPH,
 	MPC83xx_MDIO,
+	NUM_PPC_SYS_DEVS,
 };
 
 #endif /* CONFIG_83xx */
