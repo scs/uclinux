@@ -20,6 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/cfi.h>
 #include <linux/reboot.h>
+#include <linux/kdev_t.h>
+#include <linux/root_dev.h>
 #include <asm/io.h>
 
 /****************************************************************************/
@@ -128,8 +130,7 @@ static struct mtd_partition nettel_amd_partitions[] = {
 	}
 };
 
-#define NUM_AMD_PARTITIONS \
-	(sizeof(nettel_amd_partitions)/sizeof(nettel_amd_partitions[0]))
+#define NUM_AMD_PARTITIONS ARRAY_SIZE(nettel_amd_partitions)
 
 /****************************************************************************/
 
@@ -189,7 +190,7 @@ int nettel_eraseconfig(void)
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&wait_q, &wait);
 
-		ret = MTD_ERASE(mtd, &nettel_erase);
+		ret = mtd->erase(mtd, &nettel_erase);
 		if (ret) {
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&wait_q, &wait);

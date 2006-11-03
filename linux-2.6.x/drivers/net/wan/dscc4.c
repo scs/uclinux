@@ -105,6 +105,7 @@
 #include <linux/delay.h>
 #include <net/syncppp.h>
 #include <linux/hdlc.h>
+#include <linux/mutex.h>
 
 /* Version */
 static const char version[] = "$Id$ for Linux\n";
@@ -112,7 +113,7 @@ static int debug;
 static int quartz;
 
 #ifdef CONFIG_DSCC4_PCI_RST
-static DECLARE_MUTEX(dscc4_sem);
+static DEFINE_MUTEX(dscc4_mutex);
 static u32 dscc4_pci_config_store[16];
 #endif
 
@@ -731,15 +732,15 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 	ioaddr = ioremap(pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0));
 	if (!ioaddr) {
-		printk(KERN_ERR "%s: cannot remap MMIO region %lx @ %lx\n",
-			DRV_NAME, pci_resource_len(pdev, 0),
-			pci_resource_start(pdev, 0));
+		printk(KERN_ERR "%s: cannot remap MMIO region %llx @ %llx\n",
+			DRV_NAME, (unsigned long long)pci_resource_len(pdev, 0),
+			(unsigned long long)pci_resource_start(pdev, 0));
 		rc = -EIO;
 		goto err_free_mmio_regions_2;
 	}
-	printk(KERN_DEBUG "Siemens DSCC4, MMIO at %#lx (regs), %#lx (lbi), IRQ %d\n",
-	        pci_resource_start(pdev, 0),
-	        pci_resource_start(pdev, 1), pdev->irq);
+	printk(KERN_DEBUG "Siemens DSCC4, MMIO at %#llx (regs), %#llx (lbi), IRQ %d\n",
+	        (unsigned long long)pci_resource_start(pdev, 0),
+	        (unsigned long long)pci_resource_start(pdev, 1), pdev->irq);
 
 	/* Cf errata DS5 p.2 */
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0xf8);
@@ -751,7 +752,7 @@ static int __devinit dscc4_init_one(struct pci_dev *pdev,
 
 	priv = pci_get_drvdata(pdev);
 
-	rc = request_irq(pdev->irq, dscc4_irq, SA_SHIRQ, DRV_NAME, priv->root);
+	rc = request_irq(pdev->irq, dscc4_irq, IRQF_SHARED, DRV_NAME, priv->root);
 	if (rc < 0) {
 		printk(KERN_WARNING "%s: IRQ %d busy\n", DRV_NAME, pdev->irq);
 		goto err_release_4;
@@ -1018,7 +1019,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 {
 	int i;
 
-	down(&dscc4_sem);
+	mutex_lock(&dscc4_mutex);
 	for (i = 0; i < 16; i++)
 		pci_read_config_dword(pdev, i << 2, dscc4_pci_config_store + i);
 
@@ -1039,7 +1040,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 
 	for (i = 0; i < 16; i++)
 		pci_write_config_dword(pdev, i << 2, dscc4_pci_config_store[i]);
-	up(&dscc4_sem);
+	mutex_unlock(&dscc4_mutex);
 }
 #else
 #define dscc4_pci_reset(pdev,ioaddr)	do {} while (0)

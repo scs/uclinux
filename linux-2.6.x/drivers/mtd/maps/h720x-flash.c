@@ -8,7 +8,6 @@
  *     2003 Thomas Gleixner <tglx@linutronix.de>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -59,7 +58,7 @@ static struct mtd_partition h720x_partitions[] = {
         }
 };
 
-#define NUM_PARTITIONS  (sizeof(h720x_partitions)/sizeof(h720x_partitions[0]))
+#define NUM_PARTITIONS ARRAY_SIZE(h720x_partitions)
 
 static int                   nr_mtd_parts;
 static struct mtd_partition *mtd_parts;

@@ -13,7 +13,6 @@
  * option) any later version.
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
@@ -60,8 +59,10 @@ int mdiobus_register(struct mii_bus *bus)
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		struct phy_device *phydev;
 
-		if (bus->phy_mask & (1 << i))
+		if (bus->phy_mask & (1 << i)) {
+			bus->phy_map[i] = NULL;
 			continue;
+		}
 
 		phydev = get_phy_device(bus, i);
 
@@ -158,6 +159,7 @@ struct bus_type mdio_bus_type = {
 	.suspend	= mdio_bus_suspend,
 	.resume		= mdio_bus_resume,
 };
+EXPORT_SYMBOL(mdio_bus_type);
 
 int __init mdio_bus_init(void)
 {

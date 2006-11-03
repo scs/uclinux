@@ -130,7 +130,7 @@ static struct file_operations ulong_ro_fops = {
 
 
 static struct dentry * __oprofilefs_create_file(struct super_block * sb,
-	struct dentry * root, char const * name, struct file_operations * fops,
+	struct dentry * root, char const * name, const struct file_operations * fops,
 	int perm)
 {
 	struct dentry * dentry;
@@ -203,7 +203,7 @@ int oprofilefs_create_ro_atomic(struct super_block * sb, struct dentry * root,
 
  
 int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops)
+	char const * name, const struct file_operations * fops)
 {
 	if (!__oprofilefs_create_file(sb, root, name, fops, 0644))
 		return -EFAULT;
@@ -212,7 +212,7 @@ int oprofilefs_create_file(struct super_block * sb, struct dentry * root,
 
 
 int oprofilefs_create_file_perm(struct super_block * sb, struct dentry * root,
-	char const * name, struct file_operations * fops, int perm)
+	char const * name, const struct file_operations * fops, int perm)
 {
 	if (!__oprofilefs_create_file(sb, root, name, fops, perm))
 		return -EFAULT;
@@ -272,10 +272,10 @@ static int oprofilefs_fill_super(struct super_block * sb, void * data, int silen
 }
 
 
-static struct super_block *oprofilefs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int oprofilefs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	return get_sb_single(fs_type, flags, data, oprofilefs_fill_super);
+	return get_sb_single(fs_type, flags, data, oprofilefs_fill_super, mnt);
 }
 
 

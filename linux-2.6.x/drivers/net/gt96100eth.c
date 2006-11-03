@@ -114,8 +114,8 @@ static int max_interrupt_work = 32;
 
 static char mac0[18] = "00.02.03.04.05.06";
 static char mac1[18] = "00.01.02.03.04.05";
-MODULE_PARM(mac0, "c18");
-MODULE_PARM(mac1, "c18");
+module_param_string(mac0, mac0, 18, 0);
+module_param_string(mac1, mac0, 18, 0);
 MODULE_PARM_DESC(mac0, "MAC address for GT96100 ethernet port 0");
 MODULE_PARM_DESC(mac1, "MAC address for GT96100 ethernet port 1");
 
@@ -699,7 +699,6 @@ static int __init gt96100_probe1(struct pci_dev *pci, int port_num)
 	memset(gp, 0, sizeof(*gp)); // clear it
 
 	gp->port_num = port_num;
-	gp->io_size = GT96100_ETH_IO_SIZE;
 	gp->port_offset = port_num * GT96100_ETH_IO_SIZE;
 	gp->phy_addr = phy_addr;
 	gp->chip_rev = chip_rev;
@@ -1030,7 +1029,7 @@ gt96100_open(struct net_device *dev)
 	}
 
 	if ((retval = request_irq(dev->irq, &gt96100_interrupt,
-				  SA_SHIRQ, dev->name, dev))) {
+				  IRQF_SHARED, dev->name, dev))) {
 		err("unable to get IRQ %d\n", dev->irq);
 		return retval;
 	}
@@ -1531,7 +1530,7 @@ static void gt96100_cleanup_module(void)
 				+ sizeof(gt96100_td_t) * TX_RING_SIZE,
 				gp->rx_ring);
 			free_netdev(gtif->dev);
-			release_region(gtif->iobase, gp->io_size);
+			release_region(gtif->iobase, GT96100_ETH_IO_SIZE);
 		}
 	}
 }

@@ -4,7 +4,6 @@
  * driver patches from Reyk Floeter <reyk@vantronix.net> and
  * Andy Warner <andyw@pobox.com> */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/if.h>
@@ -307,7 +306,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
-		return -EIO;
+		goto err_out_free;
 
 	phymem = pci_resource_start(pdev, 0);
 
@@ -338,7 +337,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (request_irq(dev->irq, prism2_interrupt, SA_SHIRQ, dev->name,
+	if (request_irq(dev->irq, prism2_interrupt, IRQF_SHARED, dev->name,
 			dev)) {
 		printk(KERN_WARNING "%s: request_irq failed\n", dev->name);
 		goto fail;
@@ -368,6 +367,8 @@ static int prism2_pci_probe(struct pci_dev *pdev,
  err_out_disable:
 	pci_disable_device(pdev);
 	prism2_free_local_data(dev);
+
+ err_out_free:
 	kfree(hw_priv);
 
 	return -ENODEV;

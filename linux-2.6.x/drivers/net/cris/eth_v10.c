@@ -7,8 +7,8 @@
  * The outline of this driver comes from skeleton.c.
  *
  * $Log$
- * Revision 1.2  2006/03/23 06:49:55  magicyang
- * update kernel to 2.6.16
+ * Revision 1.3  2006/11/03 05:24:37  magicyang
+ *  update kernel to 2.6.18
  *
  * Revision 1.31  2004/10/18 14:49:03  starvik
  * Use RX interrupt as random source
@@ -221,7 +221,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #include <linux/module.h>
 
@@ -675,7 +674,7 @@ e100_open(struct net_device *dev)
 	/* allocate the irq corresponding to the receiving DMA */
 
 	if (request_irq(NETWORK_DMA_RX_IRQ_NBR, e100rxtx_interrupt,
-			SA_SAMPLE_RANDOM, cardname, (void *)dev)) {
+			IRQF_SAMPLE_RANDOM, cardname, (void *)dev)) {
 		goto grace_exit0;
 	}
 

@@ -66,7 +66,6 @@ static const char version[] =
 #endif
 
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -229,15 +228,12 @@ struct smc_local {
 
 	spinlock_t lock;
 
-#ifdef SMC_CAN_USE_DATACS
-	u32	__iomem *datacs;
-#endif
-
 #ifdef SMC_USE_PXA_DMA
 	/* DMA needs the physical address of the chip */
 	u_long physaddr;
 #endif
 	void __iomem *base;
+	void __iomem *datacs;
 };
 
 #if SMC_DEBUG > 0
@@ -434,12 +430,12 @@ static void smc_reset(struct net_device *dev)
 	DBG(2, "%s: %s\n", dev->name, __FUNCTION__);
 
 	/* Disable all interrupts, block TX tasklet */
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 	SMC_SELECT_BANK(2);
 	SMC_SET_INT_MASK(0);
 	pending_skb = lp->pending_tx_skb;
 	lp->pending_tx_skb = NULL;
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 
 	/* free any pending tx skb */
 	if (pending_skb) {
@@ -561,12 +557,12 @@ static void smc_shutdown(struct net_device *dev)
 	DBG(2, "%s: %s\n", CARDNAME, __FUNCTION__);
 
 	/* no more interrupts for me */
-	spin_lock(&lp->lock);
+	spin_lock_irq(&lp->lock);
 	SMC_SELECT_BANK(2);
 	SMC_SET_INT_MASK(0);
 	pending_skb = lp->pending_tx_skb;
 	lp->pending_tx_skb = NULL;
-	spin_unlock(&lp->lock);
+	spin_unlock_irq(&lp->lock);
 	if (pending_skb)
 		dev_kfree_skb(pending_skb);
 
@@ -2225,9 +2221,8 @@ static int smc_enable_device(struct platform_device *pdev)
 	 * Set the appropriate byte/word mode.
 	 */
 	ecsr = readb(addr + (ECSR << SMC_IO_SHIFT)) & ~ECSR_IOIS8;
-#ifndef SMC_CAN_USE_16BIT
-	ecsr |= ECSR_IOIS8;
-#endif
+	if (!SMC_CAN_USE_16BIT)
+		ecsr |= ECSR_IOIS8;
 	writeb(ecsr, addr + (ECSR << SMC_IO_SHIFT));
 	local_irq_restore(flags);
 
@@ -2264,40 +2259,39 @@ static void smc_release_attrib(struct platform_device *pdev)
 		release_mem_region(res->start, ATTRIB_SIZE);
 }
 
-#ifdef SMC_CAN_USE_DATACS
-static void smc_request_datacs(struct platform_device *pdev, struct net_device *ndev)
+static inline void smc_request_datacs(struct platform_device *pdev, struct net_device *ndev)
 {
-	struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-data32");
-	struct smc_local *lp = netdev_priv(ndev);
+	if (SMC_CAN_USE_DATACS) {
+		struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-data32");
+		struct smc_local *lp = netdev_priv(ndev);
 
-	if (!res)
-		return;
+		if (!res)
+			return;
 
-	if(!request_mem_region(res->start, SMC_DATA_EXTENT, CARDNAME)) {
-		printk(KERN_INFO "%s: failed to request datacs memory region.\n", CARDNAME);
-		return;
+		if(!request_mem_region(res->start, SMC_DATA_EXTENT, CARDNAME)) {
+			printk(KERN_INFO "%s: failed to request datacs memory region.\n", CARDNAME);
+			return;
+		}
+
+		lp->datacs = ioremap(res->start, SMC_DATA_EXTENT);
 	}
-
-	lp->datacs = ioremap(res->start, SMC_DATA_EXTENT);
 }
 
 static void smc_release_datacs(struct platform_device *pdev, struct net_device *ndev)
 {
-	struct smc_local *lp = netdev_priv(ndev);
-	struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-data32");
+	if (SMC_CAN_USE_DATACS) {
+		struct smc_local *lp = netdev_priv(ndev);
+		struct resource * res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "smc91x-data32");
 
-	if (lp->datacs)
-		iounmap(lp->datacs);
+		if (lp->datacs)
+			iounmap(lp->datacs);
 
-	lp->datacs = NULL;
+		lp->datacs = NULL;
 
-	if (res)
-		release_mem_region(res->start, SMC_DATA_EXTENT);
+		if (res)
+			release_mem_region(res->start, SMC_DATA_EXTENT);
+	}
 }
-#else
-static void smc_request_datacs(struct platform_device *pdev, struct net_device *ndev) {}
-static void smc_release_datacs(struct platform_device *pdev, struct net_device *ndev) {}
-#endif
 
 /*
  * smc_init(void)
@@ -2346,6 +2340,10 @@ static int smc_drv_probe(struct platform_device *pdev)
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
+	if (ndev->irq < 0) {
+		ret = -ENODEV;
+		goto out_free_netdev;
+	}
 
 	ret = smc_request_attrib(pdev);
 	if (ret)

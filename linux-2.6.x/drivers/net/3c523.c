@@ -105,6 +105,7 @@
 #include <linux/mca-legacy.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -288,7 +289,7 @@ static int elmc_open(struct net_device *dev)
 
 	elmc_id_attn586();	/* disable interrupts */
 
-	ret = request_irq(dev->irq, &elmc_interrupt, SA_SHIRQ | SA_SAMPLE_RANDOM,
+	ret = request_irq(dev->irq, &elmc_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM,
 			  dev->name, dev);
 	if (ret) {
 		printk(KERN_ERR "%s: couldn't get irq %d\n", dev->name, dev->irq);
@@ -658,7 +659,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;		/* warning: only active with interrupts on !! */
 	while (!(cfg_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100)
+		if (time_after(jiffies, s + 30*HZ/100))
 			break;
 	}
 
@@ -684,7 +685,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;
 	while (!(ias_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100)
+		if (time_after(jiffies, s + 30*HZ/100))
 			break;
 	}
 
@@ -709,7 +710,7 @@ static int init586(struct net_device *dev)
 
 	s = jiffies;
 	while (!(tdr_cmd->cmd_status & STAT_COMPL)) {
-		if (jiffies - s > 30*HZ/100) {
+		if (time_after(jiffies, s + 30*HZ/100)) {
 			printk(KERN_WARNING "%s: %d Problems while running the TDR.\n", dev->name, __LINE__);
 			result = 1;
 			break;
@@ -798,7 +799,7 @@ static int init586(struct net_device *dev)
 			elmc_id_attn586();
 			s = jiffies;
 			while (!(mc_cmd->cmd_status & STAT_COMPL)) {
-				if (jiffies - s > 30*HZ/100)
+				if (time_after(jiffies, s + 30*HZ/100))
 					break;
 			}
 			if (!(mc_cmd->cmd_status & STAT_COMPL)) {
@@ -1276,7 +1277,7 @@ MODULE_PARM_DESC(io, "EtherLink/MC I/O base address(es)");
 MODULE_PARM_DESC(irq, "EtherLink/MC IRQ number(s)");
 MODULE_LICENSE("GPL");
 
-int init_module(void)
+int __init init_module(void)
 {
 	int this_dev,found = 0;
 

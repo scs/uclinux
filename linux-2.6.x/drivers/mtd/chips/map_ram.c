@@ -74,7 +74,8 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	mtd->read = mapram_read;
 	mtd->write = mapram_write;
 	mtd->sync = mapram_nop;
-	mtd->flags = MTD_CAP_RAM | MTD_VOLATILE;
+	mtd->flags = MTD_CAP_RAM;
+	mtd->writesize = 1;
 	mtd->get_unmapped_area = mapram_unmapped_area;
 
 	mtd->erasesize = PAGE_SIZE;
@@ -84,7 +85,6 @@ static struct mtd_info *map_ram_probe(struct map_info *map)
 	__module_get(THIS_MODULE);
 	return mtd;
 }
-
 
 /*
  * Allow NOMMU mmap() to directly map the device (if not NULL)

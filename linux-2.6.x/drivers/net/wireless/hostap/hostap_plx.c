@@ -7,7 +7,6 @@
  */
 
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/if.h>
@@ -67,10 +66,12 @@ static struct pci_device_id prism2_plx_id_table[] __devinitdata = {
 	PLXDEV(0x10b7, 0x7770, "3Com AirConnect PCI 777A"),
 	PLXDEV(0x111a, 0x1023, "Siemens SpeedStream SS1023"),
 	PLXDEV(0x126c, 0x8030, "Nortel emobility"),
+	PLXDEV(0x1562, 0x0001, "Symbol LA-4123"),
 	PLXDEV(0x1385, 0x4100, "Netgear MA301"),
 	PLXDEV(0x15e8, 0x0130, "National Datacomm NCP130 (PLX9052)"),
 	PLXDEV(0x15e8, 0x0131, "National Datacomm NCP130 (TMD7160)"),
 	PLXDEV(0x1638, 0x1100, "Eumitcom WL11000"),
+	PLXDEV(0x16ab, 0x1100, "Global Sun Tech GL24110P"),
 	PLXDEV(0x16ab, 0x1101, "Global Sun Tech GL24110P (?)"),
 	PLXDEV(0x16ab, 0x1102, "Linksys WPC11 with WDT11"),
 	PLXDEV(0x16ab, 0x1103, "Longshine 8031"),
@@ -368,7 +369,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 
 		switch (cis[pos]) {
 		case CISTPL_CONFIG:
-			if (cis[pos + 1] < 1)
+			if (cis[pos + 1] < 2)
 				goto cis_error;
 			rmsz = (cis[pos + 2] & 0x3c) >> 2;
 			rasz = cis[pos + 2] & 0x03;
@@ -390,7 +391,7 @@ static int prism2_plx_check_cis(void __iomem *attr_mem, int attr_len,
 			break;
 
 		case CISTPL_MANFID:
-			if (cis[pos + 1] < 4)
+			if (cis[pos + 1] < 5)
 				goto cis_error;
 			manfid1 = cis[pos + 2] + (cis[pos + 3] << 8);
 			manfid2 = cis[pos + 4] + (cis[pos + 5] << 8);
@@ -452,7 +453,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	memset(hw_priv, 0, sizeof(*hw_priv));
 
 	if (pci_enable_device(pdev))
-		return -EIO;
+		goto err_out_free;
 
 	/* National Datacomm NCP130 based on TMD7160, not PLX9052. */
 	tmd7160 = (pdev->vendor == 0x15e8) && (pdev->device == 0x0131);
@@ -551,7 +552,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (request_irq(dev->irq, prism2_interrupt, SA_SHIRQ, dev->name,
+	if (request_irq(dev->irq, prism2_interrupt, IRQF_SHARED, dev->name,
 			dev)) {
 		printk(KERN_WARNING "%s: request_irq failed\n", dev->name);
 		goto fail;
@@ -567,9 +568,6 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	prism2_free_local_data(dev);
-	kfree(hw_priv);
-
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
 
@@ -577,6 +575,10 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 		iounmap(attr_mem);
 
 	pci_disable_device(pdev);
+	prism2_free_local_data(dev);
+
+ err_out_free:
+	kfree(hw_priv);
 
 	return -ENODEV;
 }

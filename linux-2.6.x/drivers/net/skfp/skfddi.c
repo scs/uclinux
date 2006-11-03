@@ -67,7 +67,7 @@
 /* each new release!!! */
 #define VERSION		"2.07"
 
-static const char *boot_msg = 
+static const char * const boot_msg = 
 	"SysKonnect FDDI PCI Adapter driver v" VERSION " for\n"
 	"  SK-55xx/SK-58xx adapters (SK-NET FDDI-FP/UP/LP)";
 
@@ -497,7 +497,7 @@ static int skfp_open(struct net_device *dev)
 
 	PRINTK(KERN_INFO "entering skfp_open\n");
 	/* Register IRQ - support shared interrupts by passing device ptr */
-	err = request_irq(dev->irq, (void *) skfp_interrupt, SA_SHIRQ,
+	err = request_irq(dev->irq, (void *) skfp_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (err)
 		return err;

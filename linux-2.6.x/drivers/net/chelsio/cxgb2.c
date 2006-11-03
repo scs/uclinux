@@ -37,7 +37,6 @@
  ****************************************************************************/
 
 #include "common.h"
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -124,7 +123,7 @@ MODULE_LICENSE("GPL");
 
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
-MODULE_PARM(dflt_msg_enable, "i");
+module_param(dflt_msg_enable, int, 0);
 MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T1 message enable bitmap");
 
 
@@ -219,7 +218,7 @@ static int cxgb_up(struct adapter *adapter)
 
 	t1_interrupts_clear(adapter);
 	if ((err = request_irq(adapter->pdev->irq,
-			       t1_select_intr_handler(adapter), SA_SHIRQ,
+			       t1_select_intr_handler(adapter), IRQF_SHARED,
 			       adapter->name, adapter))) {
 		goto out_err;
 	}

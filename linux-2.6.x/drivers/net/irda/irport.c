@@ -386,7 +386,7 @@ static int __irport_change_speed(struct irda_task *task)
 	/* Locking notes : this function may be called from irq context with
 	 * spinlock, via irport_write_wakeup(), or from non-interrupt without
 	 * spinlock (from the task timer). Yuck !
-	 * This is ugly, and unsafe is the spinlock is not already aquired.
+	 * This is ugly, and unsafe is the spinlock is not already acquired.
 	 * This will be fixed when irda-task get rewritten.
 	 * Jean II */
 	if (!spin_is_locked(&self->lock)) {
@@ -1118,9 +1118,9 @@ static void __exit irport_cleanup(void)
  	}
 }
 
-MODULE_PARM(io, "1-4i");
+module_param_array(io, int, NULL, 0);
 MODULE_PARM_DESC(io, "Base I/O addresses");
-MODULE_PARM(irq, "1-4i");
+module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(irq, "IRQ lines");
 
 MODULE_AUTHOR("Dag Brattli <dagb@cs.uit.no>");

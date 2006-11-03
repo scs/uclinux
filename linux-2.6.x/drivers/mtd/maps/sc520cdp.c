@@ -25,7 +25,6 @@
  * For details see http://www.amd.com/products/epd/desiging/evalboards/18.elansc520/520_cdp_brief/index.html
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -107,7 +106,7 @@ static struct map_info sc520cdp_map[] = {
 	},
 };
 
-#define NUM_FLASH_BANKS	(sizeof(sc520cdp_map)/sizeof(struct map_info))
+#define NUM_FLASH_BANKS	ARRAY_SIZE(sc520cdp_map)
 
 static struct mtd_info *mymtd[NUM_FLASH_BANKS];
 static struct mtd_info *merged_mtd;

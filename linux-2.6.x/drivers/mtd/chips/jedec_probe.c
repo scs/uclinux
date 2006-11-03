@@ -8,7 +8,6 @@
    Occasionally maintained by Thayne Harbaugh tharbaugh at lnxi dot com
 */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -34,6 +33,7 @@
 #define MANUFACTURER_MACRONIX	0x00C2
 #define MANUFACTURER_NEC	0x0010
 #define MANUFACTURER_PMC	0x009D
+#define MANUFACTURER_SHARP	0x00b0
 #define MANUFACTURER_SST	0x00BF
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
@@ -111,6 +111,7 @@
 #define MX29LV040C	0x004F
 #define MX29LV160T	0x22C4
 #define MX29LV160B	0x2249
+#define MX29F040	0x00A4
 #define MX29F016	0x00AD
 #define MX29F002T	0x00B0
 #define MX29F004T	0x0045
@@ -123,6 +124,9 @@
 #define PM49FL002	0x006D
 #define PM49FL004	0x006E
 #define PM49FL008	0x006A
+
+/* Sharp */
+#define LH28F640BF	0x00b0
 
 /* ST - www.st.com */
 #define M29W800DT	0x00D7
@@ -1169,6 +1173,19 @@ static const struct amd_flash_info jedec_table[] = {
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_MACRONIX,
+		.dev_id		= MX29F040,
+		.name		= "Macronix MX29F040",
+		.uaddr		= {
+			[0] = MTD_UADDR_0x0555_0x02AA /* x8 */
+		},
+		.DevSize	= SIZE_512KiB,
+		.CmdSet		= P_ID_AMD_STD,
+		.NumEraseRegions= 1,
+		.regions	= {
+			ERASEINFO(0x10000,8),
+		}
+        }, {
+		.mfr_id		= MANUFACTURER_MACRONIX,
 		.dev_id		= MX29F016,
 		.name		= "Macronix MX29F016",
 		.uaddr		= {
@@ -1266,6 +1283,19 @@ static const struct amd_flash_info jedec_table[] = {
 		.NumEraseRegions= 1,
 		.regions	= {
 			ERASEINFO( 0x01000, 256 )
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_SHARP,
+		.dev_id		= LH28F640BF,
+		.name		= "LH28F640BF",
+		.uaddr		= {
+			[0] = MTD_UADDR_UNNECESSARY,    /* x8 */
+		},
+		.DevSize	= SIZE_4MiB,
+		.CmdSet         = P_ID_INTEL_STD,
+		.NumEraseRegions= 1,
+		.regions        = {
+			ERASEINFO(0x40000,16),
 		}
         }, {
 		.mfr_id		= MANUFACTURER_SST,
@@ -2035,7 +2065,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		DEBUG(MTD_DEBUG_LEVEL3,
 		      "Search for id:(%02x %02x) interleave(%d) type(%d)\n",
 			cfi->mfr, cfi->id, cfi_interleave(cfi), cfi->device_type);
-		for (i=0; i<sizeof(jedec_table)/sizeof(jedec_table[0]); i++) {
+		for (i = 0; i < ARRAY_SIZE(jedec_table); i++) {
 			if ( jedec_match( base, map, cfi, &jedec_table[i] ) ) {
 				DEBUG( MTD_DEBUG_LEVEL3,
 				       "MTD %s(): matched device 0x%x,0x%x unlock_addrs: 0x%.4x 0x%.4x\n",

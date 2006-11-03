@@ -9,14 +9,13 @@
  * (at your option) any later version.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
-#include <asm/arch/uengine.h>
+#include <asm/hardware/uengine.h>
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include "ixp2400_rx.ucode"
@@ -236,7 +235,7 @@ static int ixpdev_open(struct net_device *dev)
 
 	if (!nds_open++) {
 		err = request_irq(IRQ_IXP2000_THDA0, ixpdev_interrupt,
-					SA_SHIRQ, "ixp2000_eth", nds);
+					IRQF_SHARED, "ixp2000_eth", nds);
 		if (err) {
 			nds_open--;
 			return err;
@@ -299,10 +298,7 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	int i;
 	int err;
 
-	if (RX_BUF_COUNT > 192 || TX_BUF_COUNT > 192) {
-		static void __too_many_rx_or_tx_buffers(void);
-		__too_many_rx_or_tx_buffers();
-	}
+	BUILD_BUG_ON(RX_BUF_COUNT > 192 || TX_BUF_COUNT > 192);
 
 	printk(KERN_INFO "IXP2000 MSF ethernet driver %s\n", DRV_MODULE_VERSION);
 

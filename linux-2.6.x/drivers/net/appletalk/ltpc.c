@@ -62,8 +62,8 @@
 /***
  *
  * $Log$
- * Revision 1.5  2006/03/23 06:49:53  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/03 05:23:43  magicyang
+ *  update kernel to 2.6.18
  *
  * Revision 1.1.2.1  2000/03/01 05:35:07  jgarzik
  * at and tr cleanup

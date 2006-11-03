@@ -18,6 +18,9 @@ gianfar_driver-objs := gianfar.o \
 		gianfar_mii.o \
 		gianfar_sysfs.o
 
+obj-$(CONFIG_UCC_GETH) += ucc_geth_driver.o
+ucc_geth_driver-objs := ucc_geth.o ucc_geth_phy.o
+
 #
 # link order important here
 #
@@ -58,8 +61,8 @@ obj-$(CONFIG_STNIC) += stnic.o 8390.o
 obj-$(CONFIG_FEALNX) += fealnx.o
 obj-$(CONFIG_TIGON3) += tg3.o
 obj-$(CONFIG_BNX2) += bnx2.o
-spidernet-y += spider_net.o spider_net_ethtool.o sungem_phy.o
-obj-$(CONFIG_SPIDER_NET) += spidernet.o
+spidernet-y += spider_net.o spider_net_ethtool.o
+obj-$(CONFIG_SPIDER_NET) += spidernet.o sungem_phy.o
 obj-$(CONFIG_TC35815) += tc35815.o
 obj-$(CONFIG_SKGE) += skge.o
 obj-$(CONFIG_SKY2) += sky2.o
@@ -187,12 +190,15 @@ obj-$(CONFIG_MACSONIC) += macsonic.o
 obj-$(CONFIG_MACMACE) += macmace.o
 obj-$(CONFIG_MAC89x0) += mac89x0.o
 obj-$(CONFIG_TUN) += tun.o
+obj-$(CONFIG_NET_NETX) += netx-eth.o
 obj-$(CONFIG_DL2K) += dl2k.o
 obj-$(CONFIG_R8169) += r8169.o
 obj-$(CONFIG_AMD8111_ETH) += amd8111e.o
 obj-$(CONFIG_IBMVETH) += ibmveth.o
 obj-$(CONFIG_S2IO) += s2io.o
+obj-$(CONFIG_MYRI10GE) += myri10ge/
 obj-$(CONFIG_SMC91X) += smc91x.o
+obj-$(CONFIG_SMC911X) += smc911x.o
 obj-$(CONFIG_BFIN_MAC) += bfin_mac.o
 obj-$(CONFIG_DM9000) += dm9000.o
 obj-$(CONFIG_FEC_8XX) += fec_8xx/

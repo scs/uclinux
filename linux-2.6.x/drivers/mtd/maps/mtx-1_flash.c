@@ -4,11 +4,10 @@
  * $Id$
  *
  * (C) 2005 Bruno Randolf <bruno.randolf@4g-systems.biz>
- * (C) 2005 Jörn Engel <joern@wohnheim.fh-wedel.de>
+ * (C) 2005 JÃ¶rn Engel <joern@wohnheim.fh-wedel.de>
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>

@@ -97,7 +97,6 @@ struct amd_flash_private {
 	int interleave;
 	int numchips;
 	unsigned long chipshift;
-//	const char *im_name;
 	struct flchip chips[0];
 };
 
@@ -130,12 +129,6 @@ static struct mtd_chip_driver amd_flash_chipdrv = {
 	.name = "amd_flash",
 	.module = THIS_MODULE
 };
-
-
-
-static const char im_name[] = "amd_flash";
-
-
 
 static inline __u32 wide_read(struct map_info *map, __u32 addr)
 {
@@ -664,7 +657,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	printk("%s: Probing for AMD compatible flash...\n", map->name);
 
 	if ((table_pos[0] = probe_new_chip(mtd, 0, NULL, &temp, table,
-					   sizeof(table)/sizeof(table[0])))
+					   ARRAY_SIZE(table)))
 	    == -1) {
 		printk(KERN_WARNING
 		       "%s: Found no AMD compatible device at location zero\n",
@@ -696,7 +689,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	     base += (1 << temp.chipshift)) {
 	     	int numchips = temp.numchips;
 		table_pos[numchips] = probe_new_chip(mtd, base, chips,
-			&temp, table, sizeof(table)/sizeof(table[0]));
+			&temp, table, ARRAY_SIZE(table));
 	}
 
 	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info) *
@@ -737,6 +730,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 		offset += dev_size;
 	}
 	mtd->type = MTD_NORFLASH;
+	mtd->writesize = 1;
 	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->name = map->name;
 	mtd->erase = amd_flash_erase;

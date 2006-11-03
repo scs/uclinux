@@ -18,7 +18,6 @@
  * Both parts are JEDEC compatible.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -66,7 +65,7 @@ static struct map_info sbc8240_map[2] = {
 	}
 };
 
-#define NUM_FLASH_BANKS	(sizeof(sbc8240_map) / sizeof(struct map_info))
+#define NUM_FLASH_BANKS	ARRAY_SIZE(sbc8240_map)
 
 /*
  * The following defines the partition layout of SBC8240 boards.
@@ -124,8 +123,6 @@ static struct mtd_partition sbc8240_fs_partitions [] = {
 		.size =	0x00010000,			/*  4 * 16KiB		*/
 	}
 };
-
-#define NB_OF(x) (sizeof (x) / sizeof (x[0]))
 
 /* trivial struct to describe partition information */
 struct mtd_part_def
@@ -190,10 +187,10 @@ int __init init_sbc8240_mtd (void)
 #ifdef CONFIG_MTD_PARTITIONS
 	sbc8240_part_banks[0].mtd_part   = sbc8240_uboot_partitions;
 	sbc8240_part_banks[0].type       = "static image";
-	sbc8240_part_banks[0].nums       = NB_OF(sbc8240_uboot_partitions);
+	sbc8240_part_banks[0].nums       = ARRAY_SIZE(sbc8240_uboot_partitions);
 	sbc8240_part_banks[1].mtd_part   = sbc8240_fs_partitions;
 	sbc8240_part_banks[1].type       = "static file system";
-	sbc8240_part_banks[1].nums       = NB_OF(sbc8240_fs_partitions);
+	sbc8240_part_banks[1].nums       = ARRAY_SIZE(sbc8240_fs_partitions);
 
 	for (i = 0; i < NUM_FLASH_BANKS; i++) {
 

@@ -123,7 +123,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 		goto err_out_trdev;
 	}
 		
-	ret = request_irq(pdev->irq, tms380tr_interrupt, SA_SHIRQ,
+	ret = request_irq(pdev->irq, tms380tr_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret)
 		goto err_out_region;
@@ -438,8 +438,7 @@ static void __devexit abyss_detach (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 	unregister_netdev(dev);
 	release_region(dev->base_addr-0x10, ABYSS_IO_EXTENT);
 	free_irq(dev->irq, dev);

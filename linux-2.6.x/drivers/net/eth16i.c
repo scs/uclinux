@@ -161,6 +161,7 @@ static char *version =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <asm/system.h>		  
 #include <asm/io.h>		  
@@ -754,7 +755,7 @@ static void eth16i_set_port(int ioaddr, int porttype)
 
 static int eth16i_send_probe_packet(int ioaddr, unsigned char *b, int l)
 {
-	int starttime;
+	unsigned long starttime;
 
 	outb(0xff, ioaddr + TX_STATUS_REG);
 
@@ -765,7 +766,7 @@ static int eth16i_send_probe_packet(int ioaddr, unsigned char *b, int l)
 	outb(TX_START | 1, ioaddr + TRANSMIT_START_REG); 
 
 	while( (inb(ioaddr + TX_STATUS_REG) & 0x80) == 0) {
-		if( (jiffies - starttime) > TX_TIMEOUT) {
+		if( time_after(jiffies, starttime + TX_TIMEOUT)) {
 			return -1;
 		}
 	}
@@ -775,18 +776,18 @@ static int eth16i_send_probe_packet(int ioaddr, unsigned char *b, int l)
 
 static int eth16i_receive_probe_packet(int ioaddr)
 {
-	int starttime;
+	unsigned long starttime;
 
 	starttime = jiffies;
 
 	while((inb(ioaddr + TX_STATUS_REG) & 0x20) == 0) {
-		if( (jiffies - starttime) > TX_TIMEOUT) {
+		if( time_after(jiffies, starttime + TX_TIMEOUT)) {
 
 			if(eth16i_debug > 1)
 				printk(KERN_DEBUG "Timeout occurred waiting transmit packet received\n");
 			starttime = jiffies;
 			while((inb(ioaddr + RX_STATUS_REG) & 0x80) == 0) {
-				if( (jiffies - starttime) > TX_TIMEOUT) {
+				if( time_after(jiffies, starttime + TX_TIMEOUT)) {
 					if(eth16i_debug > 1)
 						printk(KERN_DEBUG "Timeout occurred waiting receive packet\n");
 					return -1;
@@ -1063,8 +1064,7 @@ static int eth16i_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	if (length < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
+		if (skb_padto(skb, ETH_ZLEN))
 			return 0;
 		length = ETH_ZLEN;
 	}
@@ -1434,7 +1434,7 @@ MODULE_PARM_DESC(mediatype, "eth16i media type of interface(s) (bnc,tp,dix,auto,
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "eth16i debug level (0-6)");
 
-int init_module(void)
+int __init init_module(void)
 {
 	int this_dev, found = 0;
 	struct net_device *dev;

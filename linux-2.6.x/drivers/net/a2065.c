@@ -48,7 +48,6 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/zorro.h>
@@ -496,7 +495,7 @@ static int lance_open (struct net_device *dev)
 	ll->rdp = LE_C0_STOP;
 
 	/* Install the Interrupt handler */
-	ret = request_irq(IRQ_AMIGA_PORTS, lance_interrupt, SA_SHIRQ,
+	ret = request_irq(IRQ_AMIGA_PORTS, lance_interrupt, IRQF_SHARED,
 			  dev->name, dev);
 	if (ret) return ret;
 
@@ -573,8 +572,7 @@ static int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
 	
 	if (len < ETH_ZLEN) {
 		len = ETH_ZLEN;
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
+		if (skb_padto(skb, ETH_ZLEN))
 			return 0;
 	}
 
@@ -829,7 +827,7 @@ static void __devexit a2065_remove_one(struct zorro_dev *z)
 
 static int __init a2065_init_module(void)
 {
-	return zorro_module_init(&a2065_driver);
+	return zorro_register_driver(&a2065_driver);
 }
 
 static void __exit a2065_cleanup_module(void)

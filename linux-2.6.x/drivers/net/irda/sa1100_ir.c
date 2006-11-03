@@ -18,7 +18,6 @@
  *	power_leve:level	- set the transmitter power level
  *	tx_lpm:0|1		- set transmit low power mode
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -695,8 +694,7 @@ static int sa1100_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 * We must not be transmitting...
 		 */
-		if (si->txskb)
-			BUG();
+		BUG_ON(si->txskb);
 
 		netif_stop_queue(dev);
 

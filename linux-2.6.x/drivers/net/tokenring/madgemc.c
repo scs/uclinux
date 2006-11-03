@@ -311,7 +311,7 @@ static int __devinit madgemc_probe(struct device *device)
 	 */ 
 	outb(0, dev->base_addr + MC_CONTROL_REG0); /* sanity */
 	madgemc_setsifsel(dev, 1);
-	if (request_irq(dev->irq, madgemc_interrupt, SA_SHIRQ,
+	if (request_irq(dev->irq, madgemc_interrupt, IRQF_SHARED,
 		       "madgemc", dev)) {
 		ret = -EBUSY;
 		goto getout3;
@@ -735,8 +735,7 @@ static int __devexit madgemc_remove(struct device *device)
 	struct net_local *tp;
         struct card_info *card;
 
-	if (!dev)
-		BUG();
+	BUG_ON(!dev);
 
 	tp = dev->priv;
 	card = tp->tmspriv;

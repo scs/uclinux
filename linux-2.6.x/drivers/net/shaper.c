@@ -69,7 +69,6 @@
  *				 2000/03 Andi Kleen
  */
  
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fcntl.h>
@@ -83,6 +82,7 @@
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/if_shaper.h>
+#include <linux/jiffies.h>
 
 #include <net/dst.h>
 #include <net/arp.h>
@@ -168,7 +168,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/*
 		 *	Queue over time. Spill packet.
 		 */
-		if(SHAPERCB(skb)->shapeclock-jiffies > SHAPER_LATENCY) {
+		if(time_after(SHAPERCB(skb)->shapeclock,jiffies + SHAPER_LATENCY)) {
 			dev_kfree_skb(skb);
 			shaper->stats.tx_dropped++;
 		} else

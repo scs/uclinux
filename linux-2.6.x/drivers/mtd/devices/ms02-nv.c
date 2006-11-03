@@ -219,12 +219,13 @@ static int __init ms02nv_init_one(ulong addr)
 	mp->uaddr = phys_to_virt(fixaddr);
 
 	mtd->type = MTD_RAM;
-	mtd->flags = MTD_CAP_RAM | MTD_XIP;
+	mtd->flags = MTD_CAP_RAM;
 	mtd->size = fixsize;
 	mtd->name = (char *)ms02nv_name;
 	mtd->owner = THIS_MODULE;
 	mtd->read = ms02nv_read;
 	mtd->write = ms02nv_write;
+	mtd->writesize = 1;
 
 	ret = -EIO;
 	if (add_mtd_device(mtd)) {
@@ -308,7 +309,7 @@ static int __init ms02nv_init(void)
 		break;
 	}
 
-	for (i = 0; i < (sizeof(ms02nv_addrs) / sizeof(*ms02nv_addrs)); i++)
+	for (i = 0; i < ARRAY_SIZE(ms02nv_addrs); i++)
 		if (!ms02nv_init_one(ms02nv_addrs[i] << stride))
 			count++;
 

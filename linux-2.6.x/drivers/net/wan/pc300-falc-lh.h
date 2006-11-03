@@ -11,8 +11,8 @@
  *	2 of the License, or (at your option) any later version.
  *
  * $Log$
- * Revision 1.5  2006/03/23 08:34:01  magicyang
- * update kernel to 2.6.16
+ * Revision 1.6  2006/11/03 05:29:54  magicyang
+ *  update kernel to 2.6.18
  *
  * Revision 3.1  2001/06/15 12:41:10  regina
  * upping major version number

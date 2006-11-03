@@ -46,6 +46,7 @@ static const char version[] =
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
+#include <linux/jiffies.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -395,8 +396,7 @@ static int seeq8005_send_packet(struct sk_buff *skb, struct net_device *dev)
 	unsigned char *buf;
 
 	if (length < ETH_ZLEN) {
-		skb = skb_padto(skb, ETH_ZLEN);
-		if (skb == NULL)
+		if (skb_padto(skb, ETH_ZLEN))
 			return 0;
 		length = ETH_ZLEN;
 	}
@@ -699,7 +699,7 @@ static void hardware_send_packet(struct net_device * dev, char *buf, int length)
 	int ioaddr = dev->base_addr;
 	int status = inw(SEEQ_STATUS);
 	int transmit_ptr = 0;
-	int tmp;
+	unsigned long tmp;
 
 	if (net_debug>4) {
 		printk("%s: send 0x%04x\n",dev->name,length);
@@ -724,7 +724,7 @@ static void hardware_send_packet(struct net_device * dev, char *buf, int length)
 	
 	/* drain FIFO */
 	tmp = jiffies;
-	while ( (((status=inw(SEEQ_STATUS)) & SEEQSTAT_FIFO_EMPTY) == 0) && (jiffies - tmp < HZ))
+	while ( (((status=inw(SEEQ_STATUS)) & SEEQSTAT_FIFO_EMPTY) == 0) && time_before(jiffies, tmp + HZ))
 		mb();
 	
 	/* doit ! */
@@ -742,7 +742,7 @@ module_param(irq, int, 0);
 MODULE_PARM_DESC(io, "SEEQ 8005 I/O base address");
 MODULE_PARM_DESC(irq, "SEEQ 8005 IRQ number");
 
-int init_module(void)
+int __init init_module(void)
 {
 	dev_seeq = seeq8005_probe(-1);
 	if (IS_ERR(dev_seeq))

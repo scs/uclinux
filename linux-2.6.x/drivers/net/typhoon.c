@@ -134,7 +134,7 @@ static const int multicast_filter_limit = 32;
 #include "typhoon.h"
 #include "typhoon-firmware.h"
 
-static char version[] __devinitdata =
+static const char version[] __devinitdata =
     "typhoon.c: version " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>");
@@ -178,7 +178,7 @@ enum typhoon_cards {
 };
 
 /* directly indexed by enum typhoon_cards, above */
-static struct typhoon_card_info typhoon_card_info[] __devinitdata = {
+static const struct typhoon_card_info typhoon_card_info[] __devinitdata = {
 	{ "3Com Typhoon (3C990-TX)",
 		TYPHOON_CRYPTO_NONE},
 	{ "3Com Typhoon (3CR990-TX-95)",
@@ -208,7 +208,7 @@ static struct typhoon_card_info typhoon_card_info[] __devinitdata = {
 };
 
 /* Notes on the new subsystem numbering scheme:
- * bits 0-1 indicate crypto capabilites: (0) variable, (1) DES, or (2) 3DES
+ * bits 0-1 indicate crypto capabilities: (0) variable, (1) DES, or (2) 3DES
  * bit 4 indicates if this card has secured firmware (we don't support it)
  * bit 8 indicates if this is a (0) copper or (1) fiber card
  * bits 12-16 indicate card type: (0) client and (1) server
@@ -340,7 +340,7 @@ enum state_values {
 #endif
 
 #if defined(NETIF_F_TSO)
-#define skb_tso_size(x)		(skb_shinfo(x)->tso_size)
+#define skb_tso_size(x)		(skb_shinfo(x)->gso_size)
 #define TSO_NUM_DESCRIPTORS	2
 #define TSO_OFFLOAD_ON		TYPHOON_OFFLOAD_TCP_SEGMENT
 #else
@@ -788,7 +788,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* we have two rings to choose from, but we only use txLo for now
 	 * If we start using the Hi ring as well, we'll need to update
 	 * typhoon_stop_runtime(), typhoon_interrupt(), typhoon_num_free_tx(),
-	 * and TXHI_ENTIRES to match, as well as update the TSO code below
+	 * and TXHI_ENTRIES to match, as well as update the TSO code below
 	 * to get the right DMA address
 	 */
 	txRing = &tp->txLoRing;
@@ -805,7 +805,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	 * If problems develop with TSO, check this first.
 	 */
 	numDesc = skb_shinfo(skb)->nr_frags + 1;
-	if(skb_tso_size(skb))
+	if (skb_is_gso(skb))
 		numDesc++;
 
 	/* When checking for free space in the ring, we need to also
@@ -845,7 +845,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 				TYPHOON_TX_PF_VLAN_TAG_SHIFT);
 	}
 
-	if(skb_tso_size(skb)) {
+	if (skb_is_gso(skb)) {
 		first_txd->processFlags |= TYPHOON_TX_PF_TCP_SEGMENT;
 		first_txd->numDesc++;
 
@@ -2131,7 +2131,7 @@ typhoon_open(struct net_device *dev)
 		goto out_sleep;
 	}
 
-	err = request_irq(dev->irq, &typhoon_interrupt, SA_SHIRQ,
+	err = request_irq(dev->irq, &typhoon_interrupt, IRQF_SHARED,
 				dev->name, dev);
 	if(err < 0)
 		goto out_sleep;
@@ -2568,9 +2568,10 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: %s at %s 0x%lx, ",
+	printk(KERN_INFO "%s: %s at %s 0x%llx, ",
 	       dev->name, typhoon_card_info[card_id].name,
-	       use_mmio ? "MMIO" : "IO", pci_resource_start(pdev, use_mmio));
+	       use_mmio ? "MMIO" : "IO",
+	       (unsigned long long)pci_resource_start(pdev, use_mmio));
 	for(i = 0; i < 5; i++)
 		printk("%2.2x:", dev->dev_addr[i]);
 	printk("%2.2x\n", dev->dev_addr[i]);

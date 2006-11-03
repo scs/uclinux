@@ -326,7 +326,7 @@ MODULE_PARM_DESC(dma, "LANCE/PCnet ISA DMA channel (ignored for some devices)");
 MODULE_PARM_DESC(irq, "LANCE/PCnet IRQ number (ignored for some devices)");
 MODULE_PARM_DESC(lance_debug, "LANCE/PCnet debug level (0-7)");
 
-int init_module(void)
+int __init init_module(void)
 {
 	struct net_device *dev;
 	int this_dev, found = 0;
@@ -464,20 +464,25 @@ static int __init lance_probe1(struct net_device *dev, int ioaddr, int irq, int 
 	static int did_version;			/* Already printed version info. */
 	unsigned long flags;
 	int err = -ENOMEM;
+	void __iomem *bios;
 
 	/* First we look for special cases.
 	   Check for HP's on-board ethernet by looking for 'HP' in the BIOS.
 	   There are two HP versions, check the BIOS for the configuration port.
 	   This method provided by L. Julliard, Laurent_Julliard@grenoble.hp.com.
 	   */
-	if (isa_readw(0x000f0102) == 0x5048)  {
+	bios = ioremap(0xf00f0, 0x14);
+	if (!bios)
+		return -ENOMEM;
+	if (readw(bios + 0x12) == 0x5048)  {
 		static const short ioaddr_table[] = { 0x300, 0x320, 0x340, 0x360};
-		int hp_port = (isa_readl(0x000f00f1) & 1)  ? 0x499 : 0x99;
+		int hp_port = (readl(bios + 1) & 1)  ? 0x499 : 0x99;
 		/* We can have boards other than the built-in!  Verify this is on-board. */
 		if ((inb(hp_port) & 0xc0) == 0x80
 			&& ioaddr_table[inb(hp_port) & 3] == ioaddr)
 			hp_builtin = hp_port;
 	}
+	iounmap(bios);
 	/* We also recognize the HP Vectra on-board here, but check below. */
 	hpJ2405A = (inb(ioaddr) == 0x08 && inb(ioaddr+1) == 0x00
 				&& inb(ioaddr+2) == 0x09);
@@ -963,8 +968,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* The old LANCE chips doesn't automatically pad buffers to min. size. */
 	if (chip_table[lp->chip_version].flags & LANCE_MUST_PAD) {
 		if (skb->len < ETH_ZLEN) {
-			skb = skb_padto(skb, ETH_ZLEN);
-			if (skb == NULL)
+			if (skb_padto(skb, ETH_ZLEN))
 				goto out;
 			lp->tx_ring[entry].length = -ETH_ZLEN;
 		}

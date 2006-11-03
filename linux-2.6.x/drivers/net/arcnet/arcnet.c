@@ -44,7 +44,6 @@
 #define VERSION "arcnet: v3.93 BETA 2000/04/29 - by Avery Pennarun et al.\n"
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -52,6 +51,7 @@
 #include <net/arp.h>
 #include <linux/init.h>
 #include <linux/arcdevice.h>
+#include <linux/jiffies.h>
 
 /* "do nothing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,
@@ -61,6 +61,7 @@ static int null_build_header(struct sk_buff *skb, struct net_device *dev,
 static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 			   int length, int bufnum);
 
+static void arcnet_rx(struct net_device *dev, int bufnum);
 
 /*
  * one ArcProto per possible proto ID.  None of the elements of
@@ -71,7 +72,7 @@ static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
  struct ArcProto *arc_proto_map[256], *arc_proto_default,
    *arc_bcast_proto, *arc_raw_proto;
 
-struct ArcProto arc_proto_null =
+static struct ArcProto arc_proto_null =
 {
 	.suffix		= '?',
 	.mtu		= XMTU,
@@ -90,7 +91,6 @@ EXPORT_SYMBOL(arc_proto_map);
 EXPORT_SYMBOL(arc_proto_default);
 EXPORT_SYMBOL(arc_bcast_proto);
 EXPORT_SYMBOL(arc_raw_proto);
-EXPORT_SYMBOL(arc_proto_null);
 EXPORT_SYMBOL(arcnet_unregister_proto);
 EXPORT_SYMBOL(arcnet_debug);
 EXPORT_SYMBOL(alloc_arcdev);
@@ -118,7 +118,7 @@ static int __init arcnet_init(void)
 
 	arcnet_debug = debug;
 
-	printk(VERSION);
+	printk("arcnet loaded.\n");
 
 #ifdef ALPHA_WARNING
 	BUGLVL(D_EXTRA) {
@@ -178,8 +178,8 @@ EXPORT_SYMBOL(arcnet_dump_skb);
  * Dump the contents of an ARCnet buffer
  */
 #if (ARCNET_DEBUG_MAX & (D_RX | D_TX))
-void arcnet_dump_packet(struct net_device *dev, int bufnum, char *desc,
-			int take_arcnet_lock)
+static void arcnet_dump_packet(struct net_device *dev, int bufnum,
+			       char *desc, int take_arcnet_lock)
 {
 	struct arcnet_local *lp = dev->priv;
 	int i, length;
@@ -208,7 +208,10 @@ void arcnet_dump_packet(struct net_device *dev, int bufnum, char *desc,
 
 }
 
-EXPORT_SYMBOL(arcnet_dump_packet);
+#else
+
+#define arcnet_dump_packet(dev, bufnum, desc,take_arcnet_lock) do { } while (0)
+
 #endif
 
 
@@ -733,7 +736,7 @@ static void arcnet_timeout(struct net_device *dev)
 	
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	if (jiffies - lp->last_timeout > 10*HZ) {
+	if (time_after(jiffies, lp->last_timeout + 10*HZ)) {
 		BUGMSG(D_EXTRA, "tx timed out%s (status=%Xh, intmask=%Xh, dest=%02Xh)\n",
 		       msg, status, lp->intmask, lp->lasttrans_dest);
 		lp->last_timeout = jiffies;
@@ -761,8 +764,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	BUGMSG(D_DURING, "in arcnet_interrupt\n");
 	
 	lp = dev->priv;
-	if (!lp)
-		BUG();
+	BUG_ON(!lp);
 		
 	spin_lock(&lp->lock);
 
@@ -996,7 +998,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
  * This is a generic packet receiver that calls arcnet??_rx depending on the
  * protocol ID found.
  */
-void arcnet_rx(struct net_device *dev, int bufnum)
+static void arcnet_rx(struct net_device *dev, int bufnum)
 {
 	struct arcnet_local *lp = dev->priv;
 	struct archdr pkt;

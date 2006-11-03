@@ -12,7 +12,6 @@
  * kind, whether express or implied.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -118,6 +117,8 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	/* Fill out IRQ field */
 	fep->interrupt = platform_get_irq_byname(pdev, "interrupt");
+	if (fep->interrupt < 0)
+		return -EINVAL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "regs");
 	fep->scc.sccp = (void *)r->start;
@@ -368,7 +369,7 @@ static void restart(struct net_device *dev)
 	W16(sccp, scc_psmr, SCC_PSMR_ENCRC | SCC_PSMR_NIB22);
 
 	/* Set full duplex mode if needed */
-	if (fep->duplex)
+	if (fep->phydev->duplex)
 		S16(sccp, scc_psmr, SCC_PSMR_LPB | SCC_PSMR_FDE);
 
 	S32(sccp, scc_gsmrl, SCC_GSMRL_ENR | SCC_GSMRL_ENT);
@@ -498,6 +499,8 @@ static void tx_restart(struct net_device *dev)
 
 	scc_cr_cmd(fep, CPM_CR_RESTART_TX);
 }
+
+
 
 /*************************************************************************/
 

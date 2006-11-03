@@ -81,7 +81,6 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 /************************************************************************/
 /* Header files								*/
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -112,7 +111,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/time.h>
-
+#include <linux/jiffies.h>
 
 /************************************************************************/
 /* Useful structures and definitions					*/
@@ -468,6 +467,7 @@ static int arp_query(unsigned char *haddr, u32 paddr,
 		     struct net_device *dev)
 {
 	struct neighbour *neighbor_entry;
+	int ret = 0;
 
 	neighbor_entry = neigh_lookup(&arp_tbl, &paddr, dev);
 
@@ -475,10 +475,11 @@ static int arp_query(unsigned char *haddr, u32 paddr,
 		neighbor_entry->used = jiffies;
 		if (neighbor_entry->nud_state & NUD_VALID) {
 			memcpy(haddr, neighbor_entry->ha, dev->addr_len);
-			return 1;
+			ret = 1;
 		}
+		neigh_release(neighbor_entry);
 	}
-	return 0;
+	return ret;
 }
 
 static void DumpData(char *msg, struct strip *strip_info, __u8 * ptr,
@@ -1569,7 +1570,7 @@ static int strip_xmit(struct sk_buff *skb, struct net_device *dev)
 	del_timer(&strip_info->idle_timer);
 
 
-	if (jiffies - strip_info->pps_timer > HZ) {
+	if (time_after(jiffies, strip_info->pps_timer + HZ)) {
 		unsigned long t = jiffies - strip_info->pps_timer;
 		unsigned long rx_pps_count = (strip_info->rx_pps_count * HZ * 8 + t / 2) / t;
 		unsigned long tx_pps_count = (strip_info->tx_pps_count * HZ * 8 + t / 2) / t;

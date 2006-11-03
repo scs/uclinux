@@ -130,14 +130,12 @@ typedef	struct s_vpd_key {
 #ifndef VPD_DO_IO
 #define VPD_OUT8(pAC,IoC,Addr,Val)	(void)SkPciWriteCfgByte(pAC,Addr,Val)
 #define VPD_OUT16(pAC,IoC,Addr,Val)	(void)SkPciWriteCfgWord(pAC,Addr,Val)
-#define VPD_OUT32(pAC,IoC,Addr,Val)	(void)SkPciWriteCfgDWord(pAC,Addr,Val)
 #define VPD_IN8(pAC,IoC,Addr,pVal)	(void)SkPciReadCfgByte(pAC,Addr,pVal)
 #define VPD_IN16(pAC,IoC,Addr,pVal)	(void)SkPciReadCfgWord(pAC,Addr,pVal)
 #define VPD_IN32(pAC,IoC,Addr,pVal)	(void)SkPciReadCfgDWord(pAC,Addr,pVal)
 #else	/* VPD_DO_IO */
 #define VPD_OUT8(pAC,IoC,Addr,Val)	SK_OUT8(IoC,PCI_C(Addr),Val)
 #define VPD_OUT16(pAC,IoC,Addr,Val)	SK_OUT16(IoC,PCI_C(Addr),Val)
-#define VPD_OUT32(pAC,IoC,Addr,Val)	SK_OUT32(IoC,PCI_C(Addr),Val)
 #define VPD_IN8(pAC,IoC,Addr,pVal)	SK_IN8(IoC,PCI_C(Addr),pVal)
 #define VPD_IN16(pAC,IoC,Addr,pVal)	SK_IN16(IoC,PCI_C(Addr),pVal)
 #define VPD_IN32(pAC,IoC,Addr,pVal)	SK_IN32(IoC,PCI_C(Addr),pVal)
@@ -154,12 +152,6 @@ typedef	struct s_vpd_key {
 			SkPciWriteCfgWord(pAC,Addr,Val);	\
 		else						\
 			SK_OUT16(pAC,PCI_C(Addr),Val);		\
-		}
-#define VPD_OUT32(pAC,Ioc,Addr,Val) {			\
-		if ((pAC)->DgT.DgUseCfgCycle)			\
-			SkPciWriteCfgDWord(pAC,Addr,Val);	\
-		else						\
-			SK_OUT32(pAC,PCI_C(Addr),Val); 		\
 		}
 #define VPD_IN8(pAC,Ioc,Addr,pVal) {			\
 		if ((pAC)->DgT.DgUseCfgCycle) 			\
@@ -190,14 +182,6 @@ extern SK_U32	VpdReadDWord(
 	SK_IOC		IoC,
 	int			addr);
 #endif	/* SKDIAG */
-
-extern int	VpdSetupPara(
-	SK_AC		*pAC,
-	const char	*key,
-	const char	*buf,
-	int			len,
-	int			type,
-	int			op);
 
 extern SK_VPD_STATUS	*VpdStat(
 	SK_AC		*pAC,
@@ -235,11 +219,6 @@ extern int	VpdUpdate(
 	SK_AC		*pAC,
 	SK_IOC		IoC);
 
-extern void	VpdErrLog(
-	SK_AC		*pAC,
-	SK_IOC		IoC,
-	char		*msg);
-
 #ifdef	SKDIAG
 extern int	VpdReadBlock(
 	SK_AC		*pAC,
@@ -257,7 +236,6 @@ extern int	VpdWriteBlock(
 #endif	/* SKDIAG */
 #else	/* SK_KR_PROTO */
 extern SK_U32	VpdReadDWord();
-extern int	VpdSetupPara();
 extern SK_VPD_STATUS	*VpdStat();
 extern int	VpdKeys();
 extern int	VpdRead();
@@ -265,7 +243,6 @@ extern SK_BOOL	VpdMayWrite();
 extern int	VpdWrite();
 extern int	VpdDelete();
 extern int	VpdUpdate();
-extern void	VpdErrLog();
 #endif	/* SK_KR_PROTO */
 
 #endif	/* __INC_SKVPD_H_ */

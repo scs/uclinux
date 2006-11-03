@@ -7,7 +7,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -33,12 +32,8 @@
 
 #define DRIVER_NAME "mmci-pl18x"
 
-#ifdef CONFIG_MMC_DEBUG
 #define DBG(host,fmt,args...)	\
 	pr_debug("%s: %s: " fmt, mmc_hostname(host->mmc), __func__ , args)
-#else
-#define DBG(host,fmt,args...)	do { } while (0)
-#endif
 
 static unsigned int fmax = 515633;
 
@@ -406,9 +401,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct mmci_host *host = mmc_priv(mmc);
 	u32 clk = 0, pwr = 0;
 
-	DBG(host, "clock %uHz busmode %u powermode %u Vdd %u\n",
-	    ios->clock, ios->bus_mode, ios->power_mode, ios->vdd);
-
 	if (ios->clock) {
 		if (ios->clock >= host->mclk) {
 			clk = MCI_CLK_BYPASS;
@@ -539,11 +531,11 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	writel(0, host->base + MMCIMASK1);
 	writel(0xfff, host->base + MMCICLEAR);
 
-	ret = request_irq(dev->irq[0], mmci_irq, SA_SHIRQ, DRIVER_NAME " (cmd)", host);
+	ret = request_irq(dev->irq[0], mmci_irq, IRQF_SHARED, DRIVER_NAME " (cmd)", host);
 	if (ret)
 		goto unmap;
 
-	ret = request_irq(dev->irq[1], mmci_pio_irq, SA_SHIRQ, DRIVER_NAME " (pio)", host);
+	ret = request_irq(dev->irq[1], mmci_pio_irq, IRQF_SHARED, DRIVER_NAME " (pio)", host);
 	if (ret)
 		goto irq0_free;
 
@@ -553,9 +545,9 @@ static int mmci_probe(struct amba_device *dev, void *id)
 
 	mmc_add_host(mmc);
 
-	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%08lx irq %d,%d\n",
+	printk(KERN_INFO "%s: MMCI rev %x cfg %02x at 0x%016llx irq %d,%d\n",
 		mmc_hostname(mmc), amba_rev(dev), amba_config(dev),
-		dev->res.start, dev->irq[0], dev->irq[1]);
+		(unsigned long long)dev->res.start, dev->irq[0], dev->irq[1]);
 
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;

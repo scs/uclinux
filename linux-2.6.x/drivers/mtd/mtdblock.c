@@ -7,7 +7,6 @@
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */
 
-#include <linux/config.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -19,11 +18,13 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/blktrans.h>
+#include <linux/mutex.h>
+
 
 static struct mtdblk_dev {
 	struct mtd_info *mtd;
 	int count;
-	struct semaphore cache_sem;
+	struct mutex cache_mutex;
 	unsigned char *cache_data;
 	unsigned long cache_offset;
 	unsigned int cache_size;
@@ -69,7 +70,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	set_current_state(TASK_INTERRUPTIBLE);
 	add_wait_queue(&wait_q, &wait);
 
-	ret = MTD_ERASE(mtd, &erase);
+	ret = mtd->erase(mtd, &erase);
 	if (ret) {
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&wait_q, &wait);
@@ -86,7 +87,7 @@ static int erase_write (struct mtd_info *mtd, unsigned long pos,
 	 * Next, writhe data to flash.
 	 */
 
-	ret = MTD_WRITE (mtd, pos, len, &retlen, buf);
+	ret = mtd->write(mtd, pos, len, &retlen, buf);
 	if (ret)
 		return ret;
 	if (retlen != len)
@@ -136,7 +137,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 		mtd->name, pos, len);
 
 	if (!sect_size)
-		return MTD_WRITE (mtd, pos, len, &retlen, buf);
+		return mtd->write(mtd, pos, len, &retlen, buf);
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;
@@ -168,7 +169,8 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 			    mtdblk->cache_offset != sect_start) {
 				/* fill the cache with the current sector */
 				mtdblk->cache_state = STATE_EMPTY;
-				ret = MTD_READ(mtd, sect_start, sect_size, &retlen, mtdblk->cache_data);
+				ret = mtd->read(mtd, sect_start, sect_size,
+						&retlen, mtdblk->cache_data);
 				if (ret)
 					return ret;
 				if (retlen != sect_size)
@@ -205,7 +207,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 			mtd->name, pos, len);
 
 	if (!sect_size)
-		return MTD_READ (mtd, pos, len, &retlen, buf);
+		return mtd->read(mtd, pos, len, &retlen, buf);
 
 	while (len > 0) {
 		unsigned long sect_start = (pos/sect_size)*sect_size;
@@ -224,7 +226,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 		    mtdblk->cache_offset == sect_start) {
 			memcpy (buf, mtdblk->cache_data + offset, size);
 		} else {
-			ret = MTD_READ (mtd, pos, size, &retlen, buf);
+			ret = mtd->read(mtd, pos, size, &retlen, buf);
 			if (ret)
 				return ret;
 			if (retlen != size)
@@ -284,10 +286,9 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	mtdblk->count = 1;
 	mtdblk->mtd = mtd;
 
-	init_MUTEX (&mtdblk->cache_sem);
+	mutex_init(&mtdblk->cache_mutex);
 	mtdblk->cache_state = STATE_EMPTY;
-	if ((mtdblk->mtd->flags & MTD_CAP_RAM) != MTD_CAP_RAM &&
-	    mtdblk->mtd->erasesize) {
+	if ( !(mtdblk->mtd->flags & MTD_NO_ERASE) && mtdblk->mtd->erasesize) {
 		mtdblk->cache_size = mtdblk->mtd->erasesize;
 		mtdblk->cache_data = NULL;
 	}
@@ -306,9 +307,9 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 
    	DEBUG(MTD_DEBUG_LEVEL1, "mtdblock_release\n");
 
-	down(&mtdblk->cache_sem);
+	mutex_lock(&mtdblk->cache_mutex);
 	write_cached_data(mtdblk);
-	up(&mtdblk->cache_sem);
+	mutex_unlock(&mtdblk->cache_mutex);
 
 	if (!--mtdblk->count) {
 		/* It was the last usage. Free the device */
@@ -327,9 +328,9 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 {
 	struct mtdblk_dev *mtdblk = mtdblks[dev->devnum];
 
-	down(&mtdblk->cache_sem);
+	mutex_lock(&mtdblk->cache_mutex);
 	write_cached_data(mtdblk);
-	up(&mtdblk->cache_sem);
+	mutex_unlock(&mtdblk->cache_mutex);
 
 	if (mtdblk->mtd->sync)
 		mtdblk->mtd->sync(mtdblk->mtd);

@@ -5,7 +5,6 @@
  * Copyright (C) 1996 Paul Mackerras.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -243,12 +242,12 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 	rc = request_irq(mp->tx_dma_intr, mace_txdma_intr, 0, "MACE-txdma", dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[1].line);
+		printk(KERN_ERR "MACE: can't get irq %d\n", mp->tx_dma_intr);
 		goto err_free_irq;
 	}
 	rc = request_irq(mp->rx_dma_intr, mace_rxdma_intr, 0, "MACE-rxdma", dev);
 	if (rc) {
-		printk(KERN_ERR "MACE: can't get irq %d\n", mace->intrs[2].line);
+		printk(KERN_ERR "MACE: can't get irq %d\n", mp->rx_dma_intr);
 		goto err_free_tx_irq;
 	}
 
@@ -1042,7 +1041,7 @@ static void __exit mace_cleanup(void)
 
 MODULE_AUTHOR("Paul Mackerras");
 MODULE_DESCRIPTION("PowerMac MACE driver.");
-MODULE_PARM(port_aaui, "i");
+module_param(port_aaui, int, 0);
 MODULE_PARM_DESC(port_aaui, "MACE uses AAUI port (0-1)");
 MODULE_LICENSE("GPL");
 

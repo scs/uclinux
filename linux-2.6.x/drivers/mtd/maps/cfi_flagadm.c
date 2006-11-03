@@ -1,5 +1,5 @@
 /*
- *  Copyright © 2001 Flaga hf. Medical Devices, Kári Davíðsson <kd@flaga.is>
+ *  Copyright Â© 2001 Flaga hf. Medical Devices, KÃ¡ri DavÃ­Ã°sson <kd@flaga.is>
  *
  *  $Id$
  *
@@ -86,7 +86,7 @@ struct mtd_partition flagadm_parts[] = {
 	}
 };
 
-#define PARTITION_COUNT (sizeof(flagadm_parts)/sizeof(struct mtd_partition))
+#define PARTITION_COUNT ARRAY_SIZE(flagadm_parts)
 
 static struct mtd_info *mymtd;
 
@@ -135,5 +135,5 @@ module_exit(cleanup_flagadm);
 
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kári Davíðsson <kd@flaga.is>");
+MODULE_AUTHOR("KÃ¡ri DavÃ­Ã°sson <kd@flaga.is>");
 MODULE_DESCRIPTION("MTD map driver for Flaga digital module");

@@ -27,7 +27,7 @@
 		rx_align support: enables rx DMA without causing unaligned accesses.
 */
 
-static const char *version =
+static const char * const version =
 "eepro100.c:v1.09j-t 9/29/99 Donald Becker http://www.scyld.com/network/eepro100.html\n"
 "eepro100.c: $Revision$ 2000/11/17 Modified by Andrey V. Savochkin <saw@saw.sw.com.sg> and others\n";
 
@@ -87,7 +87,6 @@ static int options[] = {-1, -1, -1, -1, -1, -1, -1, -1};
 /* Size of an pre-allocated Rx buffer: <Ethernet MTU> + slack.*/
 #define PKT_BUF_SZ		1536
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -278,11 +277,6 @@ having to sign an Intel NDA when I'm helping Intel sell their own product!
 
 static int speedo_found1(struct pci_dev *pdev, void __iomem *ioaddr, int fnd_cnt, int acpi_idle_state);
 
-enum pci_flags_bit {
-	PCI_USES_IO=1, PCI_USES_MEM=2, PCI_USES_MASTER=4,
-	PCI_ADDR0=0x10<<0, PCI_ADDR1=0x10<<1, PCI_ADDR2=0x10<<2, PCI_ADDR3=0x10<<3,
-};
-
 /* Offsets to the various registers.
    All accesses need not be longword aligned. */
 enum speedo_offsets {
@@ -469,7 +463,7 @@ static const char i82558_config_cmd[CONFIG_DATA_SIZE] = {
 	0x31, 0x05, };
 
 /* PHY media interface chips. */
-static const char *phys[] = {
+static const char * const phys[] = {
 	"None", "i82553-A/B", "i82553-C", "i82503",
 	"DP83840", "80c240", "80c24", "i82555",
 	"unknown-8", "unknown-9", "DP83840A", "unknown-11",
@@ -561,12 +555,12 @@ static int __devinit eepro100_init_one (struct pci_dev *pdev,
 
 	if (!request_region(pci_resource_start(pdev, 1),
 			pci_resource_len(pdev, 1), "eepro100")) {
-		printk (KERN_ERR "eepro100: cannot reserve I/O ports\n");
+		dev_err(&pdev->dev, "eepro100: cannot reserve I/O ports\n");
 		goto err_out_none;
 	}
 	if (!request_mem_region(pci_resource_start(pdev, 0),
 			pci_resource_len(pdev, 0), "eepro100")) {
-		printk (KERN_ERR "eepro100: cannot reserve MMIO region\n");
+		dev_err(&pdev->dev, "eepro100: cannot reserve MMIO region\n");
 		goto err_out_free_pio_region;
 	}
 
@@ -579,7 +573,7 @@ static int __devinit eepro100_init_one (struct pci_dev *pdev,
 
 	ioaddr = pci_iomap(pdev, pci_bar, 0);
 	if (!ioaddr) {
-		printk (KERN_ERR "eepro100: cannot remap IO\n");
+		dev_err(&pdev->dev, "eepro100: cannot remap IO\n");
 		goto err_out_free_mmio_region;
 	}
 
@@ -983,7 +977,7 @@ speedo_open(struct net_device *dev)
 	sp->in_interrupt = 0;
 
 	/* .. we can safely take handler calls during init. */
-	retval = request_irq(dev->irq, &speedo_interrupt, SA_SHIRQ, dev->name, dev);
+	retval = request_irq(dev->irq, &speedo_interrupt, IRQF_SHARED, dev->name, dev);
 	if (retval) {
 		return retval;
 	}
