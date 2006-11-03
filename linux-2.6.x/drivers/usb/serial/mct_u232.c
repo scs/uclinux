@@ -64,7 +64,6 @@
  *   (via linux-usb-devel).
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -76,7 +75,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "mct_u232.h"
 
 /*
@@ -348,10 +347,9 @@ static int mct_u232_startup (struct usb_serial *serial)
 	struct mct_u232_private *priv;
 	struct usb_serial_port *port, *rport;
 
-	priv = kmalloc(sizeof(struct mct_u232_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct mct_u232_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	memset(priv, 0, sizeof(struct mct_u232_private));
 	spin_lock_init(&priv->lock);
 	usb_set_serial_port_data(serial->port[0], priv);
 

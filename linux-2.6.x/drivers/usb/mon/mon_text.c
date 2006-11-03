@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/time.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 
 #include "usb_mon.h"
@@ -25,10 +26,13 @@
 
 /*
  * This limit exists to prevent OOMs when the user process stops reading.
+ * If usbmon were available to unprivileged processes, it might be open
+ * to a local DoS. But we have to keep to root in order to prevent
+ * password sniffing from HID devices.
  */
-#define EVENT_MAX  25
+#define EVENT_MAX  (2*PAGE_SIZE / sizeof(struct mon_event_text))
 
-#define PRINTF_DFL  130
+#define PRINTF_DFL  160
 
 struct mon_event_text {
 	struct list_head e_link;
@@ -54,13 +58,12 @@ struct mon_reader_text {
 	wait_queue_head_t wait;
 	int printf_size;
 	char *printf_buf;
-	struct semaphore printf_lock;
+	struct mutex printf_lock;
 
 	char slab_name[SLAB_NAME_SZ];
 };
 
 static void mon_text_ctor(void *, kmem_cache_t *, unsigned long);
-static void mon_text_dtor(void *, kmem_cache_t *, unsigned long);
 
 /*
  * mon_text_submit
@@ -110,7 +113,7 @@ static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
 	 * number of corner cases, but it seems that the following is
 	 * more or less safe.
 	 *
-	 * We do not even try to look transfer_buffer, because it can
+	 * We do not even try to look at transfer_buffer, because it can
 	 * contain non-NULL garbage in case the upper level promised to
 	 * set DMA for the HCD.
 	 */
@@ -178,6 +181,32 @@ static void mon_text_complete(void *data, struct urb *urb)
 	mon_text_event(rp, urb, 'C');
 }
 
+static void mon_text_error(void *data, struct urb *urb, int error)
+{
+	struct mon_reader_text *rp = data;
+	struct mon_event_text *ep;
+
+	if (rp->nevents >= EVENT_MAX ||
+	    (ep = kmem_cache_alloc(rp->e_slab, SLAB_ATOMIC)) == NULL) {
+		rp->r.m_bus->cnt_text_lost++;
+		return;
+	}
+
+	ep->type = 'E';
+	ep->pipe = urb->pipe;
+	ep->id = (unsigned long) urb;
+	ep->tstamp = 0;
+	ep->length = 0;
+	ep->status = error;
+
+	ep->setup_flag = '-';
+	ep->data_flag = 'E';
+
+	rp->nevents++;
+	list_add_tail(&ep->e_link, &rp->e_list);
+	wake_up(&rp->wait);
+}
+
 /*
  * Fetch next event from the circular buffer.
  */
@@ -208,19 +237,18 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	struct mon_reader_text *rp;
 	int rc;
 
-	down(&mon_lock);
+	mutex_lock(&mon_lock);
 	mbus = inode->u.generic_ip;
 	ubus = mbus->u_bus;
 
-	rp = kmalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
+	rp = kzalloc(sizeof(struct mon_reader_text), GFP_KERNEL);
 	if (rp == NULL) {
 		rc = -ENOMEM;
 		goto err_alloc;
 	}
-	memset(rp, 0, sizeof(struct mon_reader_text));
 	INIT_LIST_HEAD(&rp->e_list);
 	init_waitqueue_head(&rp->wait);
-	init_MUTEX(&rp->printf_lock);
+	mutex_init(&rp->printf_lock);
 
 	rp->printf_size = PRINTF_DFL;
 	rp->printf_buf = kmalloc(rp->printf_size, GFP_KERNEL);
@@ -232,13 +260,14 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	rp->r.m_bus = mbus;
 	rp->r.r_data = rp;
 	rp->r.rnf_submit = mon_text_submit;
+	rp->r.rnf_error = mon_text_error;
 	rp->r.rnf_complete = mon_text_complete;
 
 	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon%dt_%lx", ubus->busnum,
 	    (long)rp);
 	rp->e_slab = kmem_cache_create(rp->slab_name,
 	    sizeof(struct mon_event_text), sizeof(long), 0,
-	    mon_text_ctor, mon_text_dtor);
+	    mon_text_ctor, NULL);
 	if (rp->e_slab == NULL) {
 		rc = -ENOMEM;
 		goto err_slab;
@@ -247,7 +276,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	mon_reader_add(mbus, &rp->r);
 
 	file->private_data = rp;
-	up(&mon_lock);
+	mutex_unlock(&mon_lock);
 	return 0;
 
 // err_busy:
@@ -257,7 +286,7 @@ err_slab:
 err_alloc_pr:
 	kfree(rp);
 err_alloc:
-	up(&mon_lock);
+	mutex_unlock(&mon_lock);
 	return rc;
 }
 
@@ -301,7 +330,7 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&rp->wait, &waita);
 
-	down(&rp->printf_lock);
+	mutex_lock(&rp->printf_lock);
 	cnt = 0;
 	pbuf = rp->printf_buf;
 	limit = rp->printf_size;
@@ -358,7 +387,7 @@ static ssize_t mon_text_read(struct file *file, char __user *buf,
 
 	if (copy_to_user(buf, rp->printf_buf, cnt))
 		cnt = -EFAULT;
-	up(&rp->printf_lock);
+	mutex_unlock(&rp->printf_lock);
 	kmem_cache_free(rp->e_slab, ep);
 	return cnt;
 }
@@ -371,12 +400,12 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	struct list_head *p;
 	struct mon_event_text *ep;
 
-	down(&mon_lock);
+	mutex_lock(&mon_lock);
 	mbus = inode->u.generic_ip;
 
 	if (mbus->nreaders <= 0) {
 		printk(KERN_ERR TAG ": consistency error on close\n");
-		up(&mon_lock);
+		mutex_unlock(&mon_lock);
 		return 0;
 	}
 	mon_reader_del(mbus, &rp->r);
@@ -402,7 +431,7 @@ static int mon_text_release(struct inode *inode, struct file *file)
 	kfree(rp->printf_buf);
 	kfree(rp);
 
-	up(&mon_lock);
+	mutex_unlock(&mon_lock);
 	return 0;
 }
 
@@ -429,7 +458,3 @@ static void mon_text_ctor(void *mem, kmem_cache_t *slab, unsigned long sflags)
 	memset(mem, 0xe5, sizeof(struct mon_event_text));
 }
 
-static void mon_text_dtor(void *mem, kmem_cache_t *slab, unsigned long sflags)
-{
-	;
-}

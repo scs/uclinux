@@ -46,6 +46,9 @@
 #include <linux/i2c.h>
 #include <linux/videotext.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
+#include <linux/mutex.h>
+
 #include "saa5246a.h"
 
 MODULE_AUTHOR("Michael Geng <linux@MichaelGeng.de>");
@@ -57,7 +60,7 @@ struct saa5246a_device
 	u8     pgbuf[NUM_DAUS][VTX_VIRTUALSIZE];
 	int    is_searching[NUM_DAUS];
 	struct i2c_client *client;
-	struct semaphore lock;
+	struct mutex lock;
 };
 
 static struct video_device saa_template;	/* Declared near bottom */
@@ -90,7 +93,7 @@ static int saa5246a_attach(struct i2c_adapter *adap, int addr, int kind)
 		return -ENOMEM;
 	}
 	strlcpy(client->name, IF_NAME, I2C_NAME_SIZE);
-	init_MUTEX(&t->lock);
+	mutex_init(&t->lock);
 
 	/*
 	 *	Now create a video4linux device
@@ -719,9 +722,9 @@ static int saa5246a_ioctl(struct inode *inode, struct file *file,
 	int err;
 
 	cmd = vtx_fix_command(cmd);
-	down(&t->lock);
+	mutex_lock(&t->lock);
 	err = video_usercopy(inode, file, cmd, arg, do_saa5246a_ioctl);
-	up(&t->lock);
+	mutex_unlock(&t->lock);
 	return err;
 }
 

@@ -1,4 +1,3 @@
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -381,16 +380,26 @@ alloc_sglist (int nents, int max, int vary)
 
 	for (i = 0; i < nents; i++) {
 		char		*buf;
+		unsigned	j;
 
-		buf = kmalloc (size, SLAB_KERNEL);
+		buf = kzalloc (size, SLAB_KERNEL);
 		if (!buf) {
 			free_sglist (sg, i);
 			return NULL;
 		}
-		memset (buf, 0, size);
 
 		/* kmalloc pages are always physically contiguous! */
 		sg_init_one(&sg[i], buf, size);
+
+		switch (pattern) {
+		case 0:
+			/* already zeroed */
+			break;
+		case 1:
+			for (j = 0; j < size; j++)
+				*buf++ = (u8) (j % 63);
+			break;
+		}
 
 		if (vary) {
 			size += vary;
@@ -425,6 +434,8 @@ static int perform_sglist (
 			break;
 		usb_sg_wait (req);
 		retval = req->status;
+
+		/* FIXME check resulting data pattern */
 
 		/* FIXME if endpoint halted, clear halt (and log) */
 	}
@@ -790,7 +801,9 @@ error:
 
 				if (u == urb || !u->dev)
 					continue;
+				spin_unlock(&ctx->lock);
 				status = usb_unlink_urb (u);
+				spin_lock(&ctx->lock);
 				switch (status) {
 				case -EINPROGRESS:
 				case -EBUSY:
@@ -842,10 +855,9 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 	 * as with bulk/intr sglists, sglen is the queue depth; it also
 	 * controls which subtests run (more tests than sglen) or rerun.
 	 */
-	urb = kmalloc (param->sglen * sizeof (struct urb *), SLAB_KERNEL);
+	urb = kcalloc(param->sglen, sizeof(struct urb *), SLAB_KERNEL);
 	if (!urb)
 		return -ENOMEM;
-	memset (urb, 0, param->sglen * sizeof (struct urb *));
 	for (i = 0; i < param->sglen; i++) {
 		int			pipe = usb_rcvctrlpipe (udev, 0);
 		unsigned		len;
@@ -1230,11 +1242,12 @@ done:
 static int ctrl_out (struct usbtest_dev *dev,
 		unsigned count, unsigned length, unsigned vary)
 {
-	unsigned		i, j, len, retval;
+	unsigned		i, j, len;
+	int			retval;
 	u8			*buf;
 	char			*what = "?";
 	struct usb_device	*udev;
-	
+
 	if (length < 1 || length > 0xffff || vary >= length)
 		return -EINVAL;
 
@@ -1324,7 +1337,9 @@ struct iso_context {
 	unsigned		pending;
 	spinlock_t		lock;
 	struct completion	done;
+	int			submit_error;
 	unsigned long		errors;
+	unsigned long		packet_count;
 	struct usbtest_dev	*dev;
 };
 
@@ -1335,10 +1350,14 @@ static void iso_callback (struct urb *urb, struct pt_regs *regs)
 	spin_lock(&ctx->lock);
 	ctx->count--;
 
+	ctx->packet_count += urb->number_of_packets;
 	if (urb->error_count > 0)
 		ctx->errors += urb->error_count;
+	else if (urb->status != 0)
+		ctx->errors += urb->number_of_packets;
 
-	if (urb->status == 0 && ctx->count > (ctx->pending - 1)) {
+	if (urb->status == 0 && ctx->count > (ctx->pending - 1)
+			&& !ctx->submit_error) {
 		int status = usb_submit_urb (urb, GFP_ATOMIC);
 		switch (status) {
 		case 0:
@@ -1349,6 +1368,8 @@ static void iso_callback (struct urb *urb, struct pt_regs *regs)
 					status);
 			/* FALLTHROUGH */
 		case -ENODEV:			/* disconnected */
+		case -ESHUTDOWN:		/* endpoint disabled */
+			ctx->submit_error = 1;
 			break;
 		}
 	}
@@ -1358,8 +1379,8 @@ static void iso_callback (struct urb *urb, struct pt_regs *regs)
 	if (ctx->pending == 0) {
 		if (ctx->errors)
 			dev_dbg (&ctx->dev->intf->dev,
-				"iso test, %lu errors\n",
-				ctx->errors);
+				"iso test, %lu errors out of %lu\n",
+				ctx->errors, ctx->packet_count);
 		complete (&ctx->done);
 	}
 done:
@@ -1420,15 +1441,14 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 	struct usb_device	*udev;
 	unsigned		i;
 	unsigned long		packets = 0;
-	int			status;
+	int			status = 0;
 	struct urb		*urbs[10];	/* FIXME no limit */
 
 	if (param->sglen > 10)
 		return -EDOM;
 
+	memset(&context, 0, sizeof context);
 	context.count = param->iterations * param->sglen;
-	context.pending = param->sglen;
-	context.errors = 0;
 	context.dev = dev;
 	init_completion (&context.done);
 	spin_lock_init (&context.lock);
@@ -1460,6 +1480,7 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 
 	spin_lock_irq (&context.lock);
 	for (i = 0; i < param->sglen; i++) {
+		++context.pending;
 		status = usb_submit_urb (urbs [i], SLAB_ATOMIC);
 		if (status < 0) {
 			ERROR (dev, "submit iso[%d], error %d\n", i, status);
@@ -1470,12 +1491,26 @@ test_iso_queue (struct usbtest_dev *dev, struct usbtest_param *param,
 
 			simple_free_urb (urbs [i]);
 			context.pending--;
+			context.submit_error = 1;
+			break;
 		}
 	}
 	spin_unlock_irq (&context.lock);
 
 	wait_for_completion (&context.done);
-	return 0;
+
+	/*
+	 * Isochronous transfers are expected to fail sometimes.  As an
+	 * arbitrary limit, we will report an error if any submissions
+	 * fail or if the transfer failure rate is > 10%.
+	 */
+	if (status != 0)
+		;
+	else if (context.submit_error)
+		status = -EACCES;
+	else if (context.errors > context.packet_count / 10)
+		status = -EIO;
+	return status;
 
 fail:
 	for (i = 0; i < param->sglen; i++) {
@@ -1865,10 +1900,9 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 	}
 #endif
 
-	dev = kmalloc (sizeof *dev, SLAB_KERNEL);
+	dev = kzalloc(sizeof(*dev), SLAB_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	memset (dev, 0, sizeof *dev);
 	info = (struct usbtest_info *) id->driver_info;
 	dev->info = info;
 	init_MUTEX (&dev->sem);

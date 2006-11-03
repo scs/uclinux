@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -45,88 +44,16 @@
 #include <asm/uaccess.h>
 
 #include <linux/usb_ch9.h>
-#include <linux/usb_cdc.h>
+#include <linux/usb/cdc.h>
 #include <linux/usb_gadget.h>
 
 #include "gadget_chips.h"
 
 
-/* Wait Cond */
-
-#define __wait_cond_interruptible(wq, condition, lock, flags, ret)	\
-do {									\
-	wait_queue_t __wait;						\
-	init_waitqueue_entry(&__wait, current);				\
-									\
-	add_wait_queue(&wq, &__wait);					\
-	for (;;) {							\
-		set_current_state(TASK_INTERRUPTIBLE);			\
-		if (condition)						\
-			break;						\
-		if (!signal_pending(current)) {				\
-			spin_unlock_irqrestore(lock, flags);		\
-			schedule();					\
-			spin_lock_irqsave(lock, flags);			\
-			continue;					\
-		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
-	}								\
-	current->state = TASK_RUNNING;					\
-	remove_wait_queue(&wq, &__wait);				\
-} while (0)
-	
-#define wait_cond_interruptible(wq, condition, lock, flags)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__wait_cond_interruptible(wq, condition, lock, flags,	\
-						__ret);			\
-	__ret;								\
-})
-
-#define __wait_cond_interruptible_timeout(wq, condition, lock, flags, 	\
-						timeout, ret)		\
-do {									\
-	signed long __timeout = timeout;				\
-	wait_queue_t __wait;						\
-	init_waitqueue_entry(&__wait, current);				\
-									\
-	add_wait_queue(&wq, &__wait);					\
-	for (;;) {							\
-		set_current_state(TASK_INTERRUPTIBLE);			\
-		if (__timeout == 0)					\
-			break;						\
-		if (condition)						\
-			break;						\
-		if (!signal_pending(current)) {				\
-			spin_unlock_irqrestore(lock, flags);		\
-			__timeout = schedule_timeout(__timeout);	\
-			spin_lock_irqsave(lock, flags);			\
-			continue;					\
-		}							\
-		ret = -ERESTARTSYS;					\
-		break;							\
-	}								\
-	current->state = TASK_RUNNING;					\
-	remove_wait_queue(&wq, &__wait);				\
-} while (0)
-	
-#define wait_cond_interruptible_timeout(wq, condition, lock, flags,	\
-						timeout)		\
-({									\
-	int __ret = 0;							\
-	if (!(condition))						\
-		__wait_cond_interruptible_timeout(wq, condition, lock,	\
-						flags, timeout, __ret);	\
-	__ret;								\
-})
-
-
 /* Defines */
 
-#define GS_VERSION_STR			"v2.0"
-#define GS_VERSION_NUM			0x0200
+#define GS_VERSION_STR			"v2.2"
+#define GS_VERSION_NUM			0x0202
 
 #define GS_LONG_NAME			"Gadget Serial"
 #define GS_SHORT_NAME			"g_serial"
@@ -369,7 +296,7 @@ static struct usb_gadget_driver gs_gadget_driver = {
 #endif /* CONFIG_USB_GADGET_DUALSPEED */
 	.function =		GS_LONG_NAME,
 	.bind =			gs_bind,
-	.unbind =		gs_unbind,
+	.unbind =		__exit_p(gs_unbind),
 	.setup =		gs_setup,
 	.disconnect =		gs_disconnect,
 	.driver = {
@@ -660,12 +587,11 @@ static int __init gs_module_init(void)
 	gs_tty_driver->owner = THIS_MODULE;
 	gs_tty_driver->driver_name = GS_SHORT_NAME;
 	gs_tty_driver->name = "ttygs";
-	gs_tty_driver->devfs_name = "usb/ttygs/";
 	gs_tty_driver->major = GS_MAJOR;
 	gs_tty_driver->minor_start = GS_MINOR_START;
 	gs_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	gs_tty_driver->subtype = SERIAL_TYPE_NORMAL;
-	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	gs_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	gs_tty_driver->init_termios = tty_std_termios;
 	gs_tty_driver->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
 	tty_set_operations(gs_tty_driver, &gs_tty_ops);
@@ -843,9 +769,19 @@ exit_unlock_dev:
 /*
  * gs_close
  */
+
+#define GS_WRITE_FINISHED_EVENT_SAFELY(p)			\
+({								\
+	int cond;						\
+								\
+	spin_lock_irq(&(p)->port_lock);				\
+	cond = !(p)->port_dev || !gs_buf_data_avail((p)->port_write_buf); \
+	spin_unlock_irq(&(p)->port_lock);			\
+	cond;							\
+})
+
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
-	unsigned long flags;
 	struct gs_port *port = tty->driver_data;
 	struct semaphore *sem;
 
@@ -859,7 +795,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	sem = &gs_open_close_sem[port->port_num];
 	down(sem);
 
-	spin_lock_irqsave(&port->port_lock, flags);
+	spin_lock_irq(&port->port_lock);
 
 	if (port->port_open_count == 0) {
 		printk(KERN_ERR
@@ -887,12 +823,11 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	/* wait for write buffer to drain, or */
 	/* at most GS_CLOSE_TIMEOUT seconds */
 	if (gs_buf_data_avail(port->port_write_buf) > 0) {
-		spin_unlock_irqrestore(&port->port_lock, flags);
-		wait_cond_interruptible_timeout(port->port_write_wait,
-		port->port_dev == NULL
-		|| gs_buf_data_avail(port->port_write_buf) == 0,
-		&port->port_lock, flags, GS_CLOSE_TIMEOUT * HZ);
-		spin_lock_irqsave(&port->port_lock, flags);
+		spin_unlock_irq(&port->port_lock);
+		wait_event_interruptible_timeout(port->port_write_wait,
+					GS_WRITE_FINISHED_EVENT_SAFELY(port),
+					GS_CLOSE_TIMEOUT * HZ);
+		spin_lock_irq(&port->port_lock);
 	}
 
 	/* free disconnected port on final close */
@@ -912,7 +847,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		port->port_num, tty, file);
 
 exit:
-	spin_unlock_irqrestore(&port->port_lock, flags);
+	spin_unlock_irq(&port->port_lock);
 	up(sem);
 }
 
@@ -1413,7 +1348,7 @@ requeue:
  * Called on module load.  Allocates and initializes the device
  * structure and a control request.
  */
-static int gs_bind(struct usb_gadget *gadget)
+static int __init gs_bind(struct usb_gadget *gadget)
 {
 	int ret;
 	struct usb_ep *ep;
@@ -1538,7 +1473,7 @@ autoconf_fail:
  * Called on module unload.  Frees the control request and device
  * structure.
  */
-static void gs_unbind(struct usb_gadget *gadget)
+static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 {
 	struct gs_dev *dev = get_gadget_data(gadget);
 
@@ -2178,10 +2113,9 @@ static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
 		return -EIO;
 
 	for (i=0; i<GS_NUM_PORTS; i++) {
-		if ((port=(struct gs_port *)kmalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
+		if ((port=kzalloc(sizeof(struct gs_port), kmalloc_flags)) == NULL)
 			return -ENOMEM;
 
-		memset(port, 0, sizeof(struct gs_port));
 		port->port_dev = dev;
 		port->port_num = i;
 		port->port_line_coding.dwDTERate = cpu_to_le32(GS_DEFAULT_DTE_RATE);

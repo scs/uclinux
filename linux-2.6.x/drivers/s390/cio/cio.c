@@ -11,7 +11,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -67,7 +66,7 @@ cio_debug_init (void)
 		goto out_unregister;
 	debug_register_view (cio_debug_msg_id, &debug_sprintf_view);
 	debug_set_level (cio_debug_msg_id, 2);
-	cio_debug_trace_id = debug_register ("cio_trace", 16, 4, 8);
+	cio_debug_trace_id = debug_register ("cio_trace", 16, 4, 16);
 	if (!cio_debug_trace_id)
 		goto out_unregister;
 	debug_register_view (cio_debug_trace_id, &debug_hex_ascii_view);
@@ -148,7 +147,7 @@ cio_tpi(void)
 		sch->driver->irq(&sch->dev);
 	spin_unlock(&sch->lock);
 	irq_exit ();
-	__local_bh_enable();
+	_local_bh_enable();
 	return 1;
 }
 
@@ -520,6 +519,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	memset(sch, 0, sizeof(struct subchannel));
 
 	spin_lock_init(&sch->lock);
+	mutex_init(&sch->reg_mutex);
 
 	/* Set a name for the subchannel */
 	snprintf (sch->dev.bus_id, BUS_ID_SIZE, "0.%x.%04x", schid.ssid,
@@ -798,7 +798,7 @@ struct subchannel *
 cio_get_console_subchannel(void)
 {
 	if (!console_subchannel_in_use)
-		return 0;
+		return NULL;
 	return &console_subchannel;
 }
 
@@ -876,5 +876,6 @@ void
 reipl(unsigned long devno)
 {
 	clear_all_subchannels();
+	cio_reset_channel_paths();
 	do_reipl(devno);
 }

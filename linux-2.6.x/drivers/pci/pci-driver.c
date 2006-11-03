@@ -53,11 +53,10 @@ store_new_id(struct device_driver *driver, const char *buf, size_t count)
 	if (fields < 0)
 		return -EINVAL;
 
-	dynid = kmalloc(sizeof(*dynid), GFP_KERNEL);
+	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
 	if (!dynid)
 		return -ENOMEM;
 
-	memset(dynid, 0, sizeof(*dynid));
 	INIT_LIST_HEAD(&dynid->node);
 	dynid->id.vendor = vendor;
 	dynid->id.device = device;
@@ -140,9 +139,8 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
 /**
  * pci_match_device - Tell if a PCI device structure has a matching
  *                    PCI device id structure
- * @ids: array of PCI device id structures to search in
- * @dev: the PCI device structure to match against
  * @drv: the PCI driver to match against
+ * @dev: the PCI device structure to match against
  *
  * Used by a driver to check whether a PCI device present in the
  * system is in its list of supported devices.  Returns the matching
@@ -272,10 +270,12 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 	struct pci_driver * drv = pci_dev->driver;
 	int i = 0;
 
-	if (drv && drv->suspend)
+	if (drv && drv->suspend) {
 		i = drv->suspend(pci_dev, state);
-	else
+		suspend_report_result(drv->suspend, i);
+	} else {
 		pci_save_state(pci_dev);
+	}
 	return i;
 }
 
@@ -284,9 +284,9 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
  * Default resume method for devices that have no driver provided resume,
  * or not even a driver at all.
  */
-static void pci_default_resume(struct pci_dev *pci_dev)
+static int pci_default_resume(struct pci_dev *pci_dev)
 {
-	int retval;
+	int retval = 0;
 
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
@@ -296,18 +296,21 @@ static void pci_default_resume(struct pci_dev *pci_dev)
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
+
+	return retval;
 }
 
 static int pci_device_resume(struct device * dev)
 {
+	int error;
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 
 	if (drv && drv->resume)
-		drv->resume(pci_dev);
+		error = drv->resume(pci_dev);
 	else
-		pci_default_resume(pci_dev);
-	return 0;
+		error = pci_default_resume(pci_dev);
+	return error;
 }
 
 static void pci_device_shutdown(struct device *dev)
@@ -380,14 +383,6 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 	/* initialize common driver fields */
 	drv->driver.name = drv->name;
 	drv->driver.bus = &pci_bus_type;
-	/* FIXME, once all of the existing PCI drivers have been fixed to set
-	 * the pci shutdown function, this test can go away. */
-	if (!drv->driver.shutdown)
-		drv->driver.shutdown = pci_device_shutdown;
-	else
-		printk(KERN_WARNING "Warning: PCI driver %s has a struct "
-			"device_driver shutdown method, please update!\n",
-			drv->name);
 	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
@@ -514,6 +509,7 @@ struct bus_type pci_bus_type = {
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
 	.suspend	= pci_device_suspend,
+	.shutdown	= pci_device_shutdown,
 	.resume		= pci_device_resume,
 	.dev_attrs	= pci_dev_attrs,
 };

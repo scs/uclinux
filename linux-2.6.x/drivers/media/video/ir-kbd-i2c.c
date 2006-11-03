@@ -44,50 +44,16 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 
-/* Mark Phalan <phalanm@o2.ie> */
-static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
-	[  0 ] = KEY_KP0,
-	[  1 ] = KEY_KP1,
-	[  2 ] = KEY_KP2,
-	[  3 ] = KEY_KP3,
-	[  4 ] = KEY_KP4,
-	[  5 ] = KEY_KP5,
-	[  6 ] = KEY_KP6,
-	[  7 ] = KEY_KP7,
-	[  8 ] = KEY_KP8,
-	[  9 ] = KEY_KP9,
-
-	[ 18 ] = KEY_POWER,
-	[ 16 ] = KEY_MUTE,
-	[ 31 ] = KEY_VOLUMEDOWN,
-	[ 27 ] = KEY_VOLUMEUP,
-	[ 26 ] = KEY_CHANNELUP,
-	[ 30 ] = KEY_CHANNELDOWN,
-	[ 14 ] = KEY_PAGEUP,
-	[ 29 ] = KEY_PAGEDOWN,
-	[ 19 ] = KEY_SOUND,
-
-	[ 24 ] = KEY_KPPLUSMINUS,	/* CH +/- */
-	[ 22 ] = KEY_SUBTITLE,		/* CC */
-	[ 13 ] = KEY_TEXT,		/* TTX */
-	[ 11 ] = KEY_TV,		/* AIR/CBL */
-	[ 17 ] = KEY_PC,		/* PC/TV */
-	[ 23 ] = KEY_OK,		/* CH RTN */
-	[ 25 ] = KEY_MODE, 		/* FUNC */
-	[ 12 ] = KEY_SEARCH, 		/* AUTOSCAN */
-
-	/* Not sure what to do with these ones! */
-	[ 15 ] = KEY_SELECT, 		/* SOURCE */
-	[ 10 ] = KEY_KPPLUS,		/* +100 */
-	[ 20 ] = KEY_KPEQUAL,		/* SYNC */
-	[ 28 ] = KEY_MEDIA,             /* PC/TV */
-};
-
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */
 
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
+
+static int hauppauge = 0;
+module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
+MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
+
 
 #define DEVNAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
@@ -184,12 +150,11 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-/* The new pinnacle PCTV remote (with the colored buttons)
+/* Common (grey or coloured) pinnacle PCTV remote handling
  *
- * Ricardo Cerqueira <v4l@cerqueira.org>
  */
-
-int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
+			    int parity_offset, int marker, int code_modulo)
 {
 	unsigned char b[4];
 	unsigned int start = 0,parity = 0,code = 0;
@@ -201,9 +166,9 @@ int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	for (start = 0; start<4; start++) {
-		if (b[start] == 0x80) {
-			code=b[(start+3)%4];
-			parity=b[(start+2)%4];
+		if (b[start] == marker) {
+			code=b[(start+parity_offset+1)%4];
+			parity=b[(start+parity_offset)%4];
 		}
 	}
 
@@ -215,16 +180,14 @@ int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (ir->old == parity)
 		return 0;
 
-
 	ir->old = parity;
 
-	/* Reduce code value to fit inside IR_KEYTAB_SIZE
-	 *
-	 * this is the only value that results in 42 unique
-	 * codes < 128
-	 */
+	/* drop special codes when a key is held down a long time for the grey controller
+	   In this case, the second bit of the code is asserted */
+	if (marker == 0xfe && (code & 0x40))
+		return 0;
 
-	code %= 0x88;
+	code %= code_modulo;
 
 	*ir_raw = code;
 	*ir_key = code;
@@ -234,7 +197,40 @@ int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-EXPORT_SYMBOL_GPL(get_key_pinnacle);
+/* The grey pinnacle PCTV remote
+ *
+ *  There are one issue with this remote:
+ *   - I2c packet does not change when the same key is pressed quickly. The workaround
+ *     is to hold down each key for about half a second, so that another code is generated
+ *     in the i2c packet, and the function can distinguish key presses.
+ *
+ * Sylvain Pasche <sylvain.pasche@gmail.com>
+ */
+int get_key_pinnacle_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+
+	return get_key_pinnacle(ir, ir_key, ir_raw, 1, 0xfe, 0xff);
+}
+
+EXPORT_SYMBOL_GPL(get_key_pinnacle_grey);
+
+
+/* The new pinnacle PCTV remote (with the colored buttons)
+ *
+ * Ricardo Cerqueira <v4l@cerqueira.org>
+ */
+int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	/* code_modulo parameter (0x88) is used to reduce code value to fit inside IR_KEYTAB_SIZE
+	 *
+	 * this is the only value that results in 42 unique
+	 * codes < 128
+	 */
+
+	return get_key_pinnacle(ir, ir_key, ir_raw, 2, 0x80, 0x88);
+}
+
+EXPORT_SYMBOL_GPL(get_key_pinnacle_color);
 
 /* ----------------------------------------------------------------------- */
 
@@ -336,7 +332,11 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		name        = "Hauppauge";
 		ir->get_key = get_key_haup;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = ir_codes_rc5_tv;
+		if (hauppauge == 1) {
+			ir_codes    = ir_codes_hauppauge_new;
+		} else {
+			ir_codes    = ir_codes_rc5_tv;
+		}
 		break;
 	case 0x30:
 		name        = "KNC One";
@@ -439,6 +439,9 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
+		probe = probe_bttv;
+		break;
+	case I2C_HW_B_CX2341X:
 		probe = probe_bttv;
 		break;
 	case I2C_HW_SAA7134:

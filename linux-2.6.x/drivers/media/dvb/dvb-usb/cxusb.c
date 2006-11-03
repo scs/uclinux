@@ -27,8 +27,10 @@
 
 #include "cx22702.h"
 #include "lgdt330x.h"
+#include "lg_h06xf.h"
 #include "mt352.h"
 #include "mt352_priv.h"
+#include "zl10353.h"
 
 /* debug */
 int dvb_usb_cxusb_debug;
@@ -77,22 +79,23 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
 
-	if (down_interruptible(&d->i2c_sem) < 0)
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than two i2c messages at a time is not handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 
-		switch (msg[i].addr) {
-			case 0x63:
-				cxusb_gpio_tuner(d,0);
-				break;
-			default:
-				cxusb_gpio_tuner(d,1);
-				break;
-		}
+		if (d->udev->descriptor.idVendor == USB_VID_MEDION)
+			switch (msg[i].addr) {
+				case 0x63:
+					cxusb_gpio_tuner(d,0);
+					break;
+				default:
+					cxusb_gpio_tuner(d,1);
+					break;
+			}
 
 		/* read request */
 		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
@@ -108,7 +111,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 				break;
 
 			if (ibuf[0] != 0x08)
-				deb_info("i2c read could have been failed\n");
+				deb_i2c("i2c read may have failed\n");
 
 			memcpy(msg[i+1].buf,&ibuf[1],msg[i+1].len);
 
@@ -122,11 +125,11 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 			if (cxusb_ctrl_msg(d,CMD_I2C_WRITE, obuf, 2+msg[i].len, &ibuf,1) < 0)
 				break;
 			if (ibuf != 0x08)
-				deb_info("i2c write could have been failed\n");
+				deb_i2c("i2c write may have failed\n");
 		}
 	}
 
-	up(&d->i2c_sem);
+	mutex_unlock(&d->i2c_mutex);
 	return i;
 }
 
@@ -241,6 +244,45 @@ static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 	{ 0xfe, 0x4e, KEY_POWER },
 };
 
+static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
+	{ 0xfc, 0x02, KEY_SETUP },       /* Profile */
+	{ 0xfc, 0x43, KEY_POWER2 },
+	{ 0xfc, 0x06, KEY_EPG },
+	{ 0xfc, 0x5a, KEY_BACK },
+	{ 0xfc, 0x05, KEY_MENU },
+	{ 0xfc, 0x47, KEY_INFO },
+	{ 0xfc, 0x01, KEY_TAB },
+	{ 0xfc, 0x42, KEY_PREVIOUSSONG },/* Replay */
+	{ 0xfc, 0x49, KEY_VOLUMEUP },
+	{ 0xfc, 0x09, KEY_VOLUMEDOWN },
+	{ 0xfc, 0x54, KEY_CHANNELUP },
+	{ 0xfc, 0x0b, KEY_CHANNELDOWN },
+	{ 0xfc, 0x16, KEY_CAMERA },
+	{ 0xfc, 0x40, KEY_TUNER },	/* ATV/DTV */
+	{ 0xfc, 0x45, KEY_OPEN },
+	{ 0xfc, 0x19, KEY_1 },
+	{ 0xfc, 0x18, KEY_2 },
+	{ 0xfc, 0x1b, KEY_3 },
+	{ 0xfc, 0x1a, KEY_4 },
+	{ 0xfc, 0x58, KEY_5 },
+	{ 0xfc, 0x59, KEY_6 },
+	{ 0xfc, 0x15, KEY_7 },
+	{ 0xfc, 0x14, KEY_8 },
+	{ 0xfc, 0x17, KEY_9 },
+	{ 0xfc, 0x44, KEY_ANGLE },	/* Aspect */
+	{ 0xfc, 0x55, KEY_0 },
+	{ 0xfc, 0x07, KEY_ZOOM },
+	{ 0xfc, 0x0a, KEY_REWIND },
+	{ 0xfc, 0x08, KEY_PLAYPAUSE },
+	{ 0xfc, 0x4b, KEY_FASTFORWARD },
+	{ 0xfc, 0x5b, KEY_MUTE },
+	{ 0xfc, 0x04, KEY_STOP },
+	{ 0xfc, 0x56, KEY_RECORD },
+	{ 0xfc, 0x57, KEY_POWER },
+	{ 0xfc, 0x41, KEY_UNKNOWN },    /* INPUT */
+	{ 0xfc, 0x00, KEY_UNKNOWN },    /* HD */
+};
+
 static int cxusb_dee1601_demod_init(struct dvb_frontend* fe)
 {
 	static u8 clock_config []  = { CLOCK_CTL,  0x38, 0x28 };
@@ -282,32 +324,37 @@ static int cxusb_mt352_demod_init(struct dvb_frontend* fe)
 	return 0;
 }
 
+static int cxusb_lgh064f_tuner_set_params(struct dvb_frontend *fe,
+					  struct dvb_frontend_parameters *fep)
+{
+	struct dvb_usb_device *d = fe->dvb->priv;
+	return lg_h06xf_pll_set(fe, &d->i2c_adap, fep);
+}
+
 static struct cx22702_config cxusb_cx22702_config = {
 	.demod_address = 0x63,
 
 	.output_mode = CX22702_PARALLEL_OUTPUT,
-
-	.pll_init = dvb_usb_pll_init_i2c,
-	.pll_set  = dvb_usb_pll_set_i2c,
 };
 
 static struct lgdt330x_config cxusb_lgdt3303_config = {
 	.demod_address = 0x0e,
 	.demod_chip    = LGDT3303,
-	.pll_set       = dvb_usb_pll_set_i2c,
 };
 
 static struct mt352_config cxusb_dee1601_config = {
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_dee1601_demod_init,
-	.pll_set       = dvb_usb_pll_set,
 };
 
-struct mt352_config cxusb_mt352_config = {
+static struct zl10353_config cxusb_zl10353_dee1601_config = {
+	.demod_address = 0x0f,
+};
+
+static struct mt352_config cxusb_mt352_config = {
 	/* used in both lgz201 and th7579 */
 	.demod_address = 0x0f,
 	.demod_init    = cxusb_mt352_demod_init,
-	.pll_set       = dvb_usb_pll_set,
 };
 
 /* Callbacks for DVB USB */
@@ -317,17 +364,10 @@ static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_device *d)
 	d->pll_addr = 0x61;
 	memcpy(d->pll_init, bpll, 4);
 	d->pll_desc = &dvb_pll_fmd1216me;
-	return 0;
-}
 
-static int cxusb_lgh064f_tuner_attach(struct dvb_usb_device *d)
-{
-	u8 bpll[4] = { 0x00, 0x00, 0x18, 0x50 };
-	/* bpll[2] : unset bit 3, set bits 4&5
-	   bpll[3] : 0x50 - digital, 0x20 - analog */
-	d->pll_addr = 0x61;
-	memcpy(d->pll_init, bpll, 4);
-	d->pll_desc = &dvb_pll_tdvs_tua6034;
+	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+
 	return 0;
 }
 
@@ -335,6 +375,7 @@ static int cxusb_dee1601_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -342,6 +383,7 @@ static int cxusb_lgz201_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x61;
 	d->pll_desc = &dvb_pll_lg_z201;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
 	return 0;
 }
 
@@ -349,6 +391,13 @@ static int cxusb_dtt7579_tuner_attach(struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_thomson_dtt7579;
+	d->fe->ops.tuner_ops.calc_regs = dvb_usb_tuner_calc_regs;
+	return 0;
+}
+
+static int cxusb_lgdt3303_tuner_attach(struct dvb_usb_device *d)
+{
+	d->fe->ops.tuner_ops.set_params = cxusb_lgh064f_tuner_set_params;
 	return 0;
 }
 
@@ -399,7 +448,8 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_device *d)
 
 	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, NULL, 0);
 
-	if ((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL)
+	if (((d->fe = mt352_attach(&cxusb_dee1601_config, &d->i2c_adap)) != NULL) ||
+	    ((d->fe = zl10353_attach(&cxusb_zl10353_dee1601_config, &d->i2c_adap)) != NULL))
 		return 0;
 
 	return -EIO;
@@ -419,7 +469,6 @@ static int bluebird_patch_dvico_firmware_download(struct usb_device *udev, const
 	if (fw->data[BLUEBIRD_01_ID_OFFSET] == (USB_VID_DVICO & 0xff) &&
 	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
 
-		/* FIXME: are we allowed to change the fw-data ? */
 		fw->data[BLUEBIRD_01_ID_OFFSET + 2] = udev->descriptor.idProduct + 1;
 		fw->data[BLUEBIRD_01_ID_OFFSET + 3] = udev->descriptor.idProduct >> 8;
 
@@ -516,9 +565,14 @@ static struct dvb_usb_properties cxusb_bluebird_lgh064f_properties = {
 	.streaming_ctrl   = cxusb_streaming_ctrl,
 	.power_ctrl       = cxusb_bluebird_power_ctrl,
 	.frontend_attach  = cxusb_lgdt3303_frontend_attach,
-	.tuner_attach     = cxusb_lgh064f_tuner_attach,
+	.tuner_attach     = cxusb_lgdt3303_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
@@ -609,6 +663,11 @@ static struct dvb_usb_properties cxusb_bluebird_lgz201_properties = {
 
 	.i2c_algo         = &cxusb_i2c_algo,
 
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
+
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
 	.urb = {
@@ -648,6 +707,11 @@ static struct dvb_usb_properties cxusb_bluebird_dtt7579_properties = {
 	.tuner_attach     = cxusb_dtt7579_tuner_attach,
 
 	.i2c_algo         = &cxusb_i2c_algo,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */

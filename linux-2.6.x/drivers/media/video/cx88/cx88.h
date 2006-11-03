@@ -25,17 +25,19 @@
 #include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 
+#include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/audiochip.h>
 #include <media/video-buf.h>
+#include <media/cx2341x.h>
 #include <media/video-buf-dvb.h>
 
 #include "btcx-risc.h"
 #include "cx88-reg.h"
 
 #include <linux/version.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,5)
+#include <linux/mutex.h>
+#define CX88_VERSION_CODE KERNEL_VERSION(0,0,6)
 
 #ifndef TRUE
 # define TRUE (1==1)
@@ -62,7 +64,7 @@
 /* need "shadow" registers for some write-only ones ... */
 #define SHADOW_AUD_VOL_CTL           1
 #define SHADOW_AUD_BAL_CTL           2
-#define SHADOW_MAX                   2
+#define SHADOW_MAX                   3
 
 /* FM Radio deemphasis type */
 enum cx88_deemph_type {
@@ -187,6 +189,14 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DNTV_LIVE_DVB_T_PRO     42
 #define CX88_BOARD_KWORLD_DVB_T_CX22702    43
 #define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL 44
+#define CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT 45
+#define CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID 46
+#define CX88_BOARD_PCHDTV_HD5500           47
+#define CX88_BOARD_KWORLD_MCE200_DELUXE    48
+#define CX88_BOARD_PIXELVIEW_PLAYTV_P7000  49
+#define CX88_BOARD_NPGTECH_REALTV_TOP10FM  50
+#define CX88_BOARD_WINFAST_DTV2000H        51
+#define CX88_BOARD_GENIATECH_DVBS          52
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -294,6 +304,7 @@ struct cx88_core {
 	/* config info -- dvb */
 	struct dvb_pll_desc        *pll_desc;
 	unsigned int               pll_addr;
+	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
 
 	/* state info */
 	struct task_struct         *kthread;
@@ -308,8 +319,7 @@ struct cx88_core {
 	/* IR remote control state */
 	struct cx88_IR             *ir;
 
-	struct semaphore           lock;
-
+	struct mutex               lock;
 	/* various v4l controls */
 	u32                        freq;
 
@@ -390,14 +400,6 @@ struct cx8802_suspend_state {
 	int                        disabled;
 };
 
-/* TODO: move this to struct v4l2_mpeg_compression ? */
-struct blackbird_dnr {
-	u32                       mode;
-	u32                       type;
-	u32                       spatial;
-	u32                       temporal;
-};
-
 struct cx8802_dev {
 	struct cx88_core           *core;
 	spinlock_t                 slock;
@@ -431,8 +433,7 @@ struct cx8802_dev {
 	unsigned char              ts_gen_cntrl;
 
 	/* mpeg params */
-	struct v4l2_mpeg_compression params;
-	struct blackbird_dnr       dnr_params;
+	struct cx2341x_mpeg_params params;
 };
 
 /* ----------------------------------------------------------- */
@@ -483,7 +484,7 @@ extern int
 cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		  u32 reg, u32 mask, u32 value);
 extern void
-cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf);
+cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf);
 
 extern void cx88_risc_disasm(struct cx88_core *core,
 			     struct btcx_riscmem *risc);
@@ -563,7 +564,6 @@ void cx88_newstation(struct cx88_core *core);
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t);
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual);
 int cx88_audio_thread(void *data);
-int cx88_detect_nicam(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-input.c                                                */
@@ -575,8 +575,8 @@ void cx88_ir_irq(struct cx88_core *core);
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
-			enum v4l2_field field);
+int cx8802_buf_prepare(struct videobuf_queue *q,struct cx8802_dev *dev,
+			struct cx88_buffer *buf, enum v4l2_field field);
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
 
@@ -591,16 +591,8 @@ int cx8802_resume_common(struct pci_dev *pci_dev);
 extern int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 				struct cx88_core *core, unsigned int cmd,
 				void *arg, v4l2_kioctl driver_ioctl);
-
-/* ----------------------------------------------------------- */
-/* cx88-blackbird.c                                            */
-extern int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
-				unsigned int cmd, void *arg);
-extern unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
-void blackbird_set_params(struct cx8802_dev *dev,
-				struct v4l2_mpeg_compression *params);
-void blackbird_set_dnr_params(struct cx8802_dev *dev,
-				struct blackbird_dnr* dnr_params);
+extern const u32 cx88_user_ctrls[];
+extern int cx8800_ctrl_query(struct v4l2_queryctrl *qctrl);
 
 /*
  * Local variables:

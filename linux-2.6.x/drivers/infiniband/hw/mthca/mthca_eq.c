@@ -497,7 +497,7 @@ static int __devinit mthca_create_eq(struct mthca_dev *dev,
 
 	eq->dev  = dev;
 	eq->nent = roundup_pow_of_two(max(nent, 2));
- 	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
+	npages = ALIGN(eq->nent * MTHCA_EQ_ENTRY_SIZE, PAGE_SIZE) / PAGE_SIZE;
 
 	eq->page_list = kmalloc(npages * sizeof *eq->page_list,
 				GFP_KERNEL);
@@ -695,10 +695,6 @@ static void mthca_unmap_reg(struct mthca_dev *dev, unsigned long offset,
 
 static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 {
-	unsigned long mthca_base;
-
-	mthca_base = pci_resource_start(dev->pdev, 0);
-
 	if (mthca_is_memfree(dev)) {
 		/*
 		 * We assume that the EQ arm and EQ set CI registers
@@ -765,7 +761,7 @@ static int __devinit mthca_map_eq_regs(struct mthca_dev *dev)
 
 }
 
-static void __devexit mthca_unmap_eq_regs(struct mthca_dev *dev)
+static void mthca_unmap_eq_regs(struct mthca_dev *dev)
 {
 	if (mthca_is_memfree(dev)) {
 		mthca_unmap_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
@@ -821,11 +817,11 @@ int __devinit mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 	return ret;
 }
 
-void __devexit mthca_unmap_eq_icm(struct mthca_dev *dev)
+void mthca_unmap_eq_icm(struct mthca_dev *dev)
 {
 	u8 status;
 
-	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, PAGE_SIZE / 4096, &status);
+	mthca_UNMAP_ICM(dev, dev->eq_table.icm_virt, 1, &status);
 	pci_unmap_page(dev->pdev, dev->eq_table.icm_dma, PAGE_SIZE,
 		       PCI_DMA_BIDIRECTIONAL);
 	__free_page(dev->eq_table.icm_page);
@@ -904,7 +900,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 				  mthca_is_memfree(dev) ?
 				  mthca_arbel_interrupt :
 				  mthca_tavor_interrupt,
-				  SA_SHIRQ, DRV_NAME, dev);
+				  IRQF_SHARED, DRV_NAME, dev);
 		if (err)
 			goto err_out_cmd;
 		dev->eq_table.have_irq = 1;
@@ -928,7 +924,7 @@ int __devinit mthca_init_eq_table(struct mthca_dev *dev)
 		mthca_warn(dev, "MAP_EQ for cmd EQ %d returned status 0x%02x\n",
 			   dev->eq_table.eq[MTHCA_EQ_CMD].eqn, status);
 
-	for (i = 0; i < MTHCA_EQ_CMD; ++i)
+	for (i = 0; i < MTHCA_NUM_EQ; ++i)
 		if (mthca_is_memfree(dev))
 			arbel_eq_req_not(dev, dev->eq_table.eq[i].eqn_mask);
 		else
@@ -954,7 +950,7 @@ err_out_free:
 	return err;
 }
 
-void __devexit mthca_cleanup_eq_table(struct mthca_dev *dev)
+void mthca_cleanup_eq_table(struct mthca_dev *dev)
 {
 	u8 status;
 	int i;

@@ -500,7 +500,7 @@ static int __devinit vrc4173_cardu_probe(struct pci_dev *dev,
 		return -ENOMEM;
 	}
 
-	if (request_irq(dev->irq, cardu_interrupt, SA_SHIRQ, socket->name, socket) < 0) {
+	if (request_irq(dev->irq, cardu_interrupt, IRQF_SHARED, socket->name, socket) < 0) {
 		pcmcia_unregister_socket(socket->pcmcia_socket);
 		socket->pcmcia_socket = NULL;
 		iounmap(socket->base);
@@ -516,7 +516,7 @@ static int __devinit vrc4173_cardu_probe(struct pci_dev *dev,
 static int __devinit vrc4173_cardu_setup(char *options)
 {
 	if (options == NULL || *options == '\0')
-		return 0;
+		return 1;
 
 	if (strncmp(options, "cardu1:", 7) == 0) {
 		options += 7;
@@ -527,9 +527,9 @@ static int __devinit vrc4173_cardu_setup(char *options)
 			}
 
 			if (*options != ',')
-				return 0;
+				return 1;
 		} else
-			return 0;
+			return 1;
 	}
 
 	if (strncmp(options, "cardu2:", 7) == 0) {
@@ -538,7 +538,7 @@ static int __devinit vrc4173_cardu_setup(char *options)
 			cardu_sockets[CARDU2].noprobe = 1;
 	}
 
-	return 0;
+	return 1;
 }
 
 __setup("vrc4173_cardu=", vrc4173_cardu_setup);

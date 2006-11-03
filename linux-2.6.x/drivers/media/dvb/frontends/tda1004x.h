@@ -35,7 +35,8 @@ enum tda10046_agc {
 	TDA10046_AGC_DEFAULT,		/* original configuration */
 	TDA10046_AGC_IFO_AUTO_NEG,	/* IF AGC only, automatic, negtive */
 	TDA10046_AGC_IFO_AUTO_POS,	/* IF AGC only, automatic, positive */
-	TDA10046_AGC_TDA827X,	    /* IF AGC only, special setup for tda827x */
+	TDA10046_AGC_TDA827X,		/* IF AGC only, special setup for tda827x */
+	TDA10046_AGC_TDA827X_GPL,	/* same as above, but GPIOs 0 */
 };
 
 enum tda10046_if {
@@ -64,11 +65,6 @@ struct tda1004x_config
 
 	/* AGC configuration */
 	enum tda10046_agc agc_config;
-
-	/* PLL maintenance */
-	int (*pll_init)(struct dvb_frontend* fe);
-	void (*pll_sleep)(struct dvb_frontend* fe);
-	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params);
 
 	/* request firmware for device */
 	/* set this to NULL if the card has a firmware EEPROM */

@@ -31,7 +31,6 @@
 #undef	VERBOSE
 #undef	PACKET_TRACE
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -46,7 +45,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
-#include <linux/usb_sl811.h>
+#include <linux/usb/sl811.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -1686,9 +1685,13 @@ sl811h_probe(struct platform_device *dev)
 		if (!addr || !data)
 			return -ENODEV;
 		ioaddr = 1;
-
-		addr_reg = (void __iomem *) addr->start;
-		data_reg = (void __iomem *) data->start;
+		/*
+		 * NOTE: 64-bit resource->start is getting truncated
+		 * to avoid compiler warning, assuming that ->start
+		 * is always 32-bit for this case
+		 */
+		addr_reg = (void __iomem *) (unsigned long) addr->start;
+		data_reg = (void __iomem *) (unsigned long) data->start;
 	} else {
 		addr_reg = ioremap(addr->start, 1);
 		if (addr_reg == NULL) {
@@ -1748,13 +1751,14 @@ sl811h_probe(struct platform_device *dev)
 	 * was on a system with single edge triggering, so most sorts of
 	 * triggering arrangement should work.
 	 */
-#ifdef CONFIG_BFIN
-#include <asm/blackfin.h>
-	bfin_gpio_interrupt_setup(irq, platform_get_irq(dev, 1), IRQT_HIGH);
-#endif
-	retval = usb_add_hcd(hcd, irq, SA_INTERRUPT | SA_SHIRQ);
++ #ifdef CONFIG_BFIN
++ #include <asm/blackfin.h>
++ 	bfin_gpio_interrupt_setup(irq, platform_get_irq(dev, 1), IRQT_HIGH);
++ #endif
+	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
+
 	create_debug_file(sl811);
 	return retval;
 

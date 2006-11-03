@@ -31,12 +31,22 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 
 /*
  * USB HID (Human Interface Device) interface class code
  */
 
 #define USB_INTERFACE_CLASS_HID		3
+
+/*
+ * USB HID interface subclass and protocol codes
+ */
+
+#define USB_INTERFACE_SUBCLASS_BOOT	1
+#define USB_INTERFACE_PROTOCOL_KEYBOARD	1
+#define USB_INTERFACE_PROTOCOL_MOUSE	2
 
 /*
  * HID class requests
@@ -245,10 +255,11 @@ struct hid_item {
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_7		0x00000080
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_5		0x00000100
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_ON		0x00000200
-#define HID_QUIRK_2WHEEL_POWERMOUSE		0x00000400
+#define HID_QUIRK_MIGHTYMOUSE			0x00000400
 #define HID_QUIRK_CYMOTION			0x00000800
 #define HID_QUIRK_POWERBOOK_HAS_FN		0x00001000
 #define HID_QUIRK_POWERBOOK_FN_ON		0x00002000
+#define HID_QUIRK_INVERT_HWHEEL			0x00004000
 
 /*
  * This is the global environment of the parser. This information is
@@ -370,6 +381,9 @@ struct hid_control_fifo {
 
 #define HID_CTRL_RUNNING	1
 #define HID_OUT_RUNNING		2
+#define HID_IN_RUNNING		3
+#define HID_RESET_PENDING	4
+#define HID_SUSPENDED		5
 
 struct hid_input {
 	struct list_head list;
@@ -393,12 +407,17 @@ struct hid_device {							/* device report descriptor */
 	int ifnum;							/* USB interface number */
 
 	unsigned long iofl;						/* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
+	struct timer_list io_retry;					/* Retry timer */
+	unsigned long stop_retry;					/* Time to give up, in jiffies */
+	unsigned int retry_delay;					/* Delay length in ms */
+	struct work_struct reset_work;					/* Task context for resets */
 
 	unsigned int bufsize;						/* URB buffer size */
 
 	struct urb *urbin;						/* Input URB */
 	char *inbuf;							/* Input buffer */
 	dma_addr_t inbuf_dma;						/* Input buffer dma */
+	spinlock_t inlock;						/* Input fifo spinlock */
 
 	struct urb *urbctrl;						/* Control URB */
 	struct usb_ctrlrequest *cr;					/* Control request struct */
@@ -523,3 +542,8 @@ static inline int hid_ff_event(struct hid_device *hid, struct input_dev *input,
 		return hid->ff_event(hid, input, type, code, value);
 	return -ENOSYS;
 }
+
+int hid_lgff_init(struct hid_device* hid);
+int hid_tmff_init(struct hid_device* hid);
+int hid_pid_init(struct hid_device* hid);
+

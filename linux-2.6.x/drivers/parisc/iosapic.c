@@ -619,7 +619,7 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 
 static struct vector_info *iosapic_get_vector(unsigned int irq)
 {
-	return irq_desc[irq].handler_data;
+	return irq_desc[irq].chip_data;
 }
 
 static void iosapic_disable_irq(unsigned int irq)
@@ -879,7 +879,7 @@ void *iosapic_register(unsigned long hpa)
 		return NULL;
 	}
 
-	isi->addr = ioremap(hpa, 4096);
+	isi->addr = ioremap_nocache(hpa, 4096);
 	isi->isi_hpa = hpa;
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;

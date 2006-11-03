@@ -86,8 +86,8 @@ struct vmlogrdr_priv_t {
  */
 static int vmlogrdr_open(struct inode *, struct file *);
 static int vmlogrdr_release(struct inode *, struct file *);
-static ssize_t vmlogrdr_read (struct file *filp, char *data, size_t count,
-			       loff_t * ppos);
+static ssize_t vmlogrdr_read (struct file *filp, char __user *data,
+			      size_t count, loff_t * ppos);
 
 static struct file_operations vmlogrdr_fops = {
 	.owner   = THIS_MODULE,
@@ -515,7 +515,7 @@ vmlogrdr_receive_data(struct vmlogrdr_priv_t *priv) {
 
 
 static ssize_t
-vmlogrdr_read (struct file *filp, char *data, size_t count, loff_t * ppos)
+vmlogrdr_read(struct file *filp, char __user *data, size_t count, loff_t * ppos)
 {
 	int rc;
 	struct vmlogrdr_priv_t * priv = filp->private_data;
@@ -759,9 +759,8 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 	struct device *dev;
 	int ret;
 
-	dev = kmalloc(sizeof(struct device), GFP_KERNEL);
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
 	if (dev) {
-		memset(dev, 0, sizeof(struct device));
 		snprintf(dev->bus_id, BUS_ID_SIZE, "%s",
 			 priv->internal_name);
 		dev->bus = &iucv_bus;

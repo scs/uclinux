@@ -19,9 +19,11 @@
 #include "cio_debug.h"
 #include "ioasm.h"
 #include "chsc.h"
+#include "device.h"
 
 int need_rescan = 0;
 int css_init_done = 0;
+static int need_reprobe = 0;
 static int max_ssid = 0;
 
 struct channel_subsystem *css[__MAX_CSSID + 1];
@@ -106,6 +108,24 @@ css_subchannel_release(struct device *dev)
 
 extern int css_get_ssd_info(struct subchannel *sch);
 
+
+int css_sch_device_register(struct subchannel *sch)
+{
+	int ret;
+
+	mutex_lock(&sch->reg_mutex);
+	ret = device_register(&sch->dev);
+	mutex_unlock(&sch->reg_mutex);
+	return ret;
+}
+
+void css_sch_device_unregister(struct subchannel *sch)
+{
+	mutex_lock(&sch->reg_mutex);
+	device_unregister(&sch->dev);
+	mutex_unlock(&sch->reg_mutex);
+}
+
 static int
 css_register_subchannel(struct subchannel *sch)
 {
@@ -117,7 +137,7 @@ css_register_subchannel(struct subchannel *sch)
 	sch->dev.release = &css_subchannel_release;
 	
 	/* make it known to the system */
-	ret = device_register(&sch->dev);
+	ret = css_sch_device_register(sch);
 	if (ret)
 		printk (KERN_WARNING "%s: could not register %s\n",
 			__func__, sch->dev.bus_id);
@@ -248,7 +268,7 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		 * The device will be killed automatically.
 		 */
 		cio_disable_subchannel(sch);
-		device_unregister(&sch->dev);
+		css_sch_device_unregister(sch);
 		/* Reset intparm to zeroes. */
 		sch->schib.pmcw.intparm = 0;
 		cio_modify(sch);
@@ -262,7 +282,7 @@ css_evaluate_subchannel(struct subchannel_id schid, int slow)
 		 * away in any case.
 		 */
 		if (!disc) {
-			device_unregister(&sch->dev);
+			css_sch_device_unregister(sch);
 			/* Reset intparm to zeroes. */
 			sch->schib.pmcw.intparm = 0;
 			cio_modify(sch);
@@ -338,6 +358,67 @@ css_trigger_slow_path(void)
 typedef void (*workfunc)(void *);
 DECLARE_WORK(slow_path_work, (workfunc)css_trigger_slow_path, NULL);
 struct workqueue_struct *slow_path_wq;
+
+/* Reprobe subchannel if unregistered. */
+static int reprobe_subchannel(struct subchannel_id schid, void *data)
+{
+	struct subchannel *sch;
+	int ret;
+
+	CIO_DEBUG(KERN_INFO, 6, "cio: reprobe 0.%x.%04x\n",
+		  schid.ssid, schid.sch_no);
+	if (need_reprobe)
+		return -EAGAIN;
+
+	sch = get_subchannel_by_schid(schid);
+	if (sch) {
+		/* Already known. */
+		put_device(&sch->dev);
+		return 0;
+	}
+
+	ret = css_probe_device(schid);
+	switch (ret) {
+	case 0:
+		break;
+	case -ENXIO:
+	case -ENOMEM:
+		/* These should abort looping */
+		break;
+	default:
+		ret = 0;
+	}
+
+	return ret;
+}
+
+/* Work function used to reprobe all unregistered subchannels. */
+static void reprobe_all(void *data)
+{
+	int ret;
+
+	CIO_MSG_EVENT(2, "reprobe start\n");
+
+	need_reprobe = 0;
+	/* Make sure initial subchannel scan is done. */
+	wait_event(ccw_device_init_wq,
+		   atomic_read(&ccw_device_init_count) == 0);
+	ret = for_each_subchannel(reprobe_subchannel, NULL);
+
+	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
+		      need_reprobe);
+}
+
+DECLARE_WORK(css_reprobe_work, reprobe_all, NULL);
+
+/* Schedule reprobing of all unregistered subchannels. */
+void css_schedule_reprobe(void)
+{
+	need_reprobe = 1;
+	queue_work(ccw_device_work, &css_reprobe_work);
+}
+
+EXPORT_SYMBOL_GPL(css_schedule_reprobe);
 
 /*
  * Rescan for new devices. FIXME: This is slow.
@@ -452,8 +533,42 @@ channel_subsystem_release(struct device *dev)
 	struct channel_subsystem *css;
 
 	css = to_css(dev);
+	mutex_destroy(&css->mutex);
 	kfree(css);
 }
+
+static ssize_t
+css_cm_enable_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	struct channel_subsystem *css = to_css(dev);
+
+	if (!css)
+		return 0;
+	return sprintf(buf, "%x\n", css->cm_enabled);
+}
+
+static ssize_t
+css_cm_enable_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	struct channel_subsystem *css = to_css(dev);
+	int ret;
+
+	switch (buf[0]) {
+	case '0':
+		ret = css->cm_enabled ? chsc_secm(css, 0) : 0;
+		break;
+	case '1':
+		ret = css->cm_enabled ? 0 : chsc_secm(css, 1);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+	return ret < 0 ? ret : count;
+}
+
+static DEVICE_ATTR(cm_enable, 0644, css_cm_enable_show, css_cm_enable_store);
 
 static inline void __init
 setup_css(int nr)
@@ -461,6 +576,7 @@ setup_css(int nr)
 	u32 tod_high;
 
 	memset(css[nr], 0, sizeof(struct channel_subsystem));
+	mutex_init(&css[nr]->mutex);
 	css[nr]->valid = 1;
 	css[nr]->cssid = nr;
 	sprintf(css[nr]->device.bus_id, "css%x", nr);
@@ -507,6 +623,13 @@ init_channel_subsystem (void)
 		ret = device_register(&css[i]->device);
 		if (ret)
 			goto out_free;
+		if (css_characteristics_avail &&
+		    css_chsc_characteristics.secm) {
+			ret = device_create_file(&css[i]->device,
+						 &dev_attr_cm_enable);
+			if (ret)
+				goto out_device;
+		}
 	}
 	css_init_done = 1;
 
@@ -514,11 +637,16 @@ init_channel_subsystem (void)
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_device:
+	device_unregister(&css[i]->device);
 out_free:
 	kfree(css[i]);
 out_unregister:
 	while (i > 0) {
 		i--;
+		if (css_characteristics_avail && css_chsc_characteristics.secm)
+			device_remove_file(&css[i]->device,
+					   &dev_attr_cm_enable);
 		device_unregister(&css[i]->device);
 	}
 out_bus:
@@ -589,10 +717,9 @@ css_enqueue_subchannel_slow(struct subchannel_id schid)
 	struct slow_subchannel *new_slow_sch;
 	unsigned long flags;
 
-	new_slow_sch = kmalloc(sizeof(struct slow_subchannel), GFP_ATOMIC);
+	new_slow_sch = kzalloc(sizeof(struct slow_subchannel), GFP_ATOMIC);
 	if (!new_slow_sch)
 		return -ENOMEM;
-	memset(new_slow_sch, 0, sizeof(struct slow_subchannel));
 	new_slow_sch->schid = schid;
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	list_add_tail(&new_slow_sch->slow_list, &slow_subchannels_head);

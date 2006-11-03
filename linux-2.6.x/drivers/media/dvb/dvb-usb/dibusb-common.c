@@ -128,7 +128,7 @@ static int dibusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
 
-	if (down_interruptible(&d->i2c_sem) < 0)
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
 	if (num > 2)
@@ -146,7 +146,7 @@ static int dibusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 				break;
 	}
 
-	up(&d->i2c_sem);
+	mutex_unlock(&d->i2c_mutex);
 	return i;
 }
 
@@ -173,11 +173,10 @@ int dibusb_dib3000mc_frontend_attach(struct dvb_usb_device *d)
 	struct dib3000_config demod_cfg;
 	struct dibusb_state *st = d->priv;
 
-	demod_cfg.pll_set = dvb_usb_pll_set_i2c;
-	demod_cfg.pll_init = dvb_usb_pll_init_i2c;
-
 	for (demod_cfg.demod_address = 0x8; demod_cfg.demod_address < 0xd; demod_cfg.demod_address++)
 		if ((d->fe = dib3000mc_attach(&demod_cfg,&d->i2c_adap,&st->ops)) != NULL) {
+			d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+			d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
 			d->tuner_pass_ctrl = st->ops.tuner_pass_ctrl;
 			return 0;
 		}
@@ -190,6 +189,10 @@ int dibusb_dib3000mc_tuner_attach (struct dvb_usb_device *d)
 {
 	d->pll_addr = 0x60;
 	d->pll_desc = &dvb_pll_env57h1xd5;
+
+	d->fe->ops.tuner_ops.init = dvb_usb_tuner_init_i2c;
+	d->fe->ops.tuner_ops.set_params = dvb_usb_tuner_set_params_i2c;
+
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);

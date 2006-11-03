@@ -33,8 +33,8 @@
 *   - 05 Jan 96: Geert: integration into the current source tree
 *   - 01 Aug 98: Alan: Merge in code from cvision.c and cvision_core.c
 * $Log$
-* Revision 1.7  2006/03/23 07:55:19  magicyang
-* update kernel to 2.6.16
+* Revision 1.8  2006/11/03 05:55:37  magicyang
+* update to kernel 2.6.18
 *
 * Revision 1.6  1998/09/11 04:54:58  abair
 * Update for 2.1.120 change in include file location.
@@ -84,7 +84,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/zorro.h>

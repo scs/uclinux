@@ -8,13 +8,13 @@
  *  (and others)
  */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include "pci-quirks.h"
 
 
 #define UHCI_USBLEGSUP		0xc0		/* legacy support */
@@ -167,8 +167,6 @@ static int __devinit mmio_resource_enabled(struct pci_dev *pdev, int idx)
 static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
-	int wait_time;
-	u32 control;
 
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
@@ -179,9 +177,10 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 
 /* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
 #ifndef __hppa__
-	control = readl(base + OHCI_CONTROL);
+{
+	u32 control = readl(base + OHCI_CONTROL);
 	if (control & OHCI_CTRL_IR) {
-		wait_time = 500; /* arbitrary; 5 seconds */
+		int wait_time = 500; /* arbitrary; 5 seconds */
 		writel(OHCI_INTR_OC, base + OHCI_INTRENABLE);
 		writel(OHCI_OCR, base + OHCI_CMDSTATUS);
 		while (wait_time > 0 &&
@@ -198,6 +197,7 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 		/* reset controller, preserving RWC */
 		writel(control & OHCI_CTRL_RWC, base + OHCI_CONTROL);
 	}
+}
 #endif
 
 	/*

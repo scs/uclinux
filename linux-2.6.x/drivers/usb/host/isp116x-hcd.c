@@ -63,7 +63,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/usb.h>
-#include <linux/usb_isp116x.h>
+#include <linux/usb/isp116x.h>
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
@@ -724,7 +724,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		ep = hep->hcpriv;
 	else {
 		INIT_LIST_HEAD(&ep->schedule);
-		ep->udev = usb_get_dev(udev);
+		ep->udev = udev;
 		ep->epnum = epnum;
 		ep->maxpacket = usb_maxpacket(udev, urb->pipe, is_out);
 		usb_settoggle(udev, epnum, is_out, 0);
@@ -781,7 +781,7 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		if (ep->branch < PERIODIC_SIZE)
 			break;
 
-		ret = ep->branch = balance(isp116x, ep->period, ep->load);
+		ep->branch = ret = balance(isp116x, ep->period, ep->load);
 		if (ret < 0)
 			goto fail;
 		ret = 0;
@@ -891,7 +891,6 @@ static void isp116x_endpoint_disable(struct usb_hcd *hcd,
 	if (!list_empty(&hep->urb_list))
 		WARN("ep %p not empty?\n", ep);
 
-	usb_put_dev(ep->udev);
 	kfree(ep);
 	hep->hcpriv = NULL;
 }
@@ -1049,14 +1048,14 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 		break;
 	case GetHubStatus:
 		DBG("GetHubStatus\n");
-		put_unaligned (0, (__le32 *) buf);
+		*(__le32 *) buf = 0;
 		break;
 	case GetPortStatus:
 		DBG("GetPortStatus\n");
 		if (!wIndex || wIndex > ports)
 			goto error;
 		tmp = isp116x->rhport[--wIndex];
-		put_unaligned (cpu_to_le32(tmp), (__le32 *) buf);
+		*(__le32 *) buf = cpu_to_le32(tmp);
 		DBG("GetPortStatus: port[%d]  %08x\n", wIndex + 1, tmp);
 		break;
 	case ClearPortFeature:
@@ -1553,7 +1552,7 @@ static struct hc_driver isp116x_hc_driver = {
 
 /*----------------------------------------------------------------*/
 
-static int __init_or_module isp116x_remove(struct platform_device *pdev)
+static int isp116x_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct isp116x *isp116x;
@@ -1654,7 +1653,7 @@ static int __init isp116x_probe(struct platform_device *pdev)
 		goto err6;
 	}
 
-	ret = usb_add_hcd(hcd, irq, SA_INTERRUPT);
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (ret)
 		goto err6;
 

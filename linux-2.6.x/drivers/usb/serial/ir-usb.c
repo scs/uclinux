@@ -46,7 +46,6 @@
  *	initial version released.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -58,7 +57,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 
 /*
  * Version Information
@@ -184,10 +183,9 @@ static struct irda_class_desc *irda_usb_find_class_desc(struct usb_device *dev, 
 	struct irda_class_desc *desc;
 	int ret;
 		
-	desc = kmalloc(sizeof (struct irda_class_desc), GFP_KERNEL);
+	desc = kzalloc(sizeof (struct irda_class_desc), GFP_KERNEL);
 	if (desc == NULL) 
 		return NULL;
-	memset(desc, 0, sizeof(struct irda_class_desc));
 	
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev,0),
 			IU_REQ_GET_CLASS_DESC,
@@ -409,7 +407,7 @@ static void ir_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		urb->actual_length,
 		urb->transfer_buffer);
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
@@ -454,8 +452,7 @@ static void ir_read_bulk_callback (struct urb *urb, struct pt_regs *regs)
 			tty = port->tty;
 
 			/*
-			 *	FIXME: must not do this in IRQ context,
-			 *	must honour TTY_DONT_FLIP
+			 *	FIXME: must not do this in IRQ context
 			 */
 			tty->ldisc.receive_buf(
 				tty,

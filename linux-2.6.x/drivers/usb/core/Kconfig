@@ -31,9 +31,6 @@ config USB_DEVICEFS
 	  For the format of the various /proc/bus/usb/ files, please read
 	  <file:Documentation/usb/proc_usb_info.txt>.
 
-	  Please note that this code is completely unrelated to devfs, the
-	  "/dev file system support".
-
 	  Most users want to say Y here.
 
 config USB_BANDWIDTH
@@ -99,4 +96,11 @@ config USB_OTG_WHITELIST
 	  normal Linux-USB hosts do (other than the warning), and is
 	  convenient for many stages of product development.
 
+config USB_OTG_BLACKLIST_HUB
+	bool "Disable external hubs"
+	depends on USB_OTG
+	help
+	  If you say Y here, then Linux will refuse to enumerate
+	  external hubs.  OTG hosts are allowed to reduce hardware
+	  and software costs by not supporting external hubs.
 

@@ -73,14 +73,14 @@ static struct HAUPPAUGE_TUNER_FMT
 }
 hauppauge_tuner_fmt[] =
 {
-	{ V4L2_STD_UNKNOWN," UNKNOWN" },
-	{ V4L2_STD_UNKNOWN," FM" },
-	{ V4L2_STD_PAL_BG, " PAL(B/G)" },
-	{ V4L2_STD_NTSC_M, " NTSC(M)" },
-	{ V4L2_STD_PAL_I,  " PAL(I)" },
-	{ V4L2_STD_SECAM_L," SECAM(L/L')" },
-	{ V4L2_STD_PAL_DK, " PAL(D/D1/K)" },
-	{ V4L2_STD_ATSC,   " ATSC/DVB Digital" },
+	{ V4L2_STD_UNKNOWN,                   " UNKNOWN" },
+	{ V4L2_STD_UNKNOWN,                   " FM" },
+	{ V4L2_STD_B|V4L2_STD_GH,             " PAL(B/G)" },
+	{ V4L2_STD_MN,                        " NTSC(M)" },
+	{ V4L2_STD_PAL_I,                     " PAL(I)" },
+	{ V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC, " SECAM(L/L')" },
+	{ V4L2_STD_DK,                        " PAL(D/D1/K)" },
+	{ V4L2_STD_ATSC,                      " ATSC/DVB Digital" },
 };
 
 /* This is the full list of possible tuners. Many thanks to Hauppauge for
@@ -200,7 +200,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "Philips FQ1286A MK4"},
 	{ TUNER_ABSENT,        "Philips FQ1216ME MK5"},
 	{ TUNER_ABSENT,        "Philips FQ1236 MK5"},
-	{ TUNER_ABSENT,        "Samsung TCPG_6121P30A"},
+	{ TUNER_SAMSUNG_TCPG_6121P30A, "Samsung TCPG 6121P30A"},
 	{ TUNER_TCL_2002MB,    "TCL 2002MB_3H"},
 	{ TUNER_ABSENT,        "TCL 2002MI_3H"},
 	{ TUNER_TCL_2002N,     "TCL 2002N 5H"},
@@ -218,8 +218,8 @@ hauppauge_tuner[] =
 	/* 110-119 */
 	{ TUNER_ABSENT,        "Thompson DTT75105"},
 	{ TUNER_ABSENT,        "Conexant_CX24109"},
-	{ TUNER_ABSENT,        "TCL M2523_5N_E"},
-	{ TUNER_ABSENT,        "TCL M2523_3DB_E"},
+	{ TUNER_TCL_2002N,     "TCL M2523_5N_E"},
+	{ TUNER_TCL_2002MB,    "TCL M2523_3DB_E"},
 	{ TUNER_ABSENT,        "Philips 8275A"},
 	{ TUNER_ABSENT,        "Microtune MT2060"},
 	{ TUNER_ABSENT,        "Philips FM1236 MK5"},
@@ -248,32 +248,32 @@ audioIC[] =
 	{AUDIO_CHIP_MSP34XX,  "MSP3410D"},
 	{AUDIO_CHIP_MSP34XX,  "MSP3415"},
 	{AUDIO_CHIP_MSP34XX,  "MSP3430"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP3438"},
+	{AUDIO_CHIP_MSP34XX,  "MSP3438"},
 	{AUDIO_CHIP_UNKNOWN,  "CS5331"},
 	/* 10-14 */
 	{AUDIO_CHIP_MSP34XX,  "MSP3435"},
 	{AUDIO_CHIP_MSP34XX,  "MSP3440"},
 	{AUDIO_CHIP_MSP34XX,  "MSP3445"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP3411"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP3416"},
+	{AUDIO_CHIP_MSP34XX,  "MSP3411"},
+	{AUDIO_CHIP_MSP34XX,  "MSP3416"},
 	/* 15-19 */
 	{AUDIO_CHIP_MSP34XX,  "MSP3425"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP3451"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP3418"},
+	{AUDIO_CHIP_MSP34XX,  "MSP3451"},
+	{AUDIO_CHIP_MSP34XX,  "MSP3418"},
 	{AUDIO_CHIP_UNKNOWN,  "Type 0x12"},
 	{AUDIO_CHIP_UNKNOWN,  "OKI7716"},
 	/* 20-24 */
-	{AUDIO_CHIP_UNKNOWN,  "MSP4410"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4420"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4440"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4450"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4408"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4410"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4420"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4440"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4450"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4408"},
 	/* 25-29 */
-	{AUDIO_CHIP_UNKNOWN,  "MSP4418"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4428"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4448"},
-	{AUDIO_CHIP_UNKNOWN,  "MSP4458"},
-	{AUDIO_CHIP_UNKNOWN,  "Type 0x1d"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4418"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4428"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4448"},
+	{AUDIO_CHIP_MSP34XX,  "MSP4458"},
+	{AUDIO_CHIP_MSP34XX,  "Type 0x1d"},
 	/* 30-34 */
 	{AUDIO_CHIP_INTERNAL, "CX880"},
 	{AUDIO_CHIP_INTERNAL, "CX881"},
@@ -757,9 +757,9 @@ tveeprom_detect_client(struct i2c_adapter *adapter,
 static int
 tveeprom_attach_adapter (struct i2c_adapter *adapter)
 {
-	if (adapter->id != I2C_HW_B_BT848)
-		return 0;
-	return i2c_probe(adapter, &addr_data, tveeprom_detect_client);
+	if (adapter->class & I2C_CLASS_TV_ANALOG)
+		return i2c_probe(adapter, &addr_data, tveeprom_detect_client);
+	return 0;
 }
 
 static int

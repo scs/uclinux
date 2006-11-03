@@ -2,21 +2,22 @@
 # Makefile for the video capture/playback device drivers.
 #
 
-bttv-objs	:=	bttv-driver.o bttv-cards.o bttv-if.o \
-			bttv-risc.o bttv-vbi.o bttv-i2c.o bttv-gpio.o \
-			bttv-input.o
 zoran-objs      :=	zr36120.o zr36120_i2c.o zr36120_mem.o
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
 tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
-			mt20xx.o tda8290.o tea5767.o
+			mt20xx.o tda8290.o tea5767.o tda9887.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o v4l1-compat.o compat_ioctl32.o
+obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o
 
-obj-$(CONFIG_VIDEO_BT848) += bttv.o msp3400.o tvaudio.o \
-	tda7432.o tda9875.o ir-kbd-i2c.o
+ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
+  obj-$(CONFIG_VIDEO_DEV) += v4l1-compat.o
+endif
+
+obj-$(CONFIG_VIDEO_BT848) += bt8xx/
+obj-$(CONFIG_VIDEO_BT848) += tvaudio.o tda7432.o tda9875.o ir-kbd-i2c.o
 obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
 obj-$(CONFIG_VIDEO_ZR36120) += zoran.o
@@ -32,6 +33,7 @@ obj-$(CONFIG_VIDEO_ZORAN_DC30) += adv7175.o vpx3220.o zr36050.o \
 	zr36016.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33) += bt819.o bt856.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN_LML33R10) += saa7114.o adv7170.o zr36060.o
+obj-$(CONFIG_VIDEO_ZORAN_AVS6EYES) += bt866.o ks0127.o zr36060.o
 obj-$(CONFIG_VIDEO_ZORAN) += zr36067.o videocodec.o
 obj-$(CONFIG_BFIN_V4L2_DRIVER) +=bfin_v4l2_device.o bfin_v4l2_device_config.o bfin_v4l2_driver.o
 obj-$(CONFIG_VIDEO_BLACKFIN_MT9M001) += blackfin/
@@ -46,16 +48,22 @@ obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += ir-kbd-i2c.o saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
-obj-$(CONFIG_VIDEO_EM28XX) += saa711x.o tvp5150.o
-obj-$(CONFIG_VIDEO_AUDIO_DECODER) += wm8775.o cs53l32a.o
+obj-$(CONFIG_VIDEO_EM28XX) += tvp5150.o
+obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2/
+obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
+obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
+obj-$(CONFIG_VIDEO_TLV320AIC23B) += tlv320aic23b.o
+obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
+obj-$(CONFIG_VIDEO_WM8739) += wm8739.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
-obj-$(CONFIG_VIDEO_MXB) += saa7111.o tuner.o tda9840.o tea6415c.o tea6420.o mxb.o
+obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
+obj-$(CONFIG_VIDEO_MXB) += saa7111.o tda9840.o tea6415c.o tea6420.o mxb.o
 obj-$(CONFIG_VIDEO_HEXIUM_ORION) += hexium_orion.o
 obj-$(CONFIG_VIDEO_HEXIUM_GEMINI) += hexium_gemini.o
 obj-$(CONFIG_VIDEO_DPC) += saa7111.o dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
-obj-$(CONFIG_VIDEO_TUNER) += tuner.o tda9887.o
+obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 obj-$(CONFIG_VIDEO_BUF)   += video-buf.o
 obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
@@ -63,6 +71,31 @@ obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 
 obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
-obj-$(CONFIG_VIDEO_DECODER)     += saa7115.o cx25840/ saa7127.o
+obj-$(CONFIG_VIDEO_CX25840) += cx25840/
+obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
+obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
+obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
+obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
+obj-$(CONFIG_VIDEO_CX2341X) += cx2341x.o
 
-EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
+obj-$(CONFIG_USB_DABUSB)        += dabusb.o
+obj-$(CONFIG_USB_OV511)         += ov511.o
+obj-$(CONFIG_USB_SE401)         += se401.o
+obj-$(CONFIG_USB_STV680)        += stv680.o
+obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
+
+obj-$(CONFIG_USB_SN9C102)       += sn9c102/
+obj-$(CONFIG_USB_ET61X251)      += et61x251/
+obj-$(CONFIG_USB_PWC)           += pwc/
+obj-$(CONFIG_USB_ZC0301)        += zc0301/
+
+obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
+obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
+obj-$(CONFIG_USB_VICAM)         += usbvideo/
+obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
+
+obj-$(CONFIG_VIDEO_VIVI) += vivi.o
+
+EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
+extra-cflags-$(CONFIG_VIDEO_V4L1_COMPAT) += -DCONFIG_VIDEO_V4L1_COMPAT
+

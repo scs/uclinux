@@ -29,12 +29,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/init.h>
@@ -76,8 +74,8 @@
  *
  * Experiment with v_offset to find out which works best for you.
  */
-static u32 v_offset_default __initdata; /* For 32 MiB Aper size, 8 should be the default */
-static u32 voffset          __initdata = 0;
+static u32 v_offset_default __devinitdata; /* For 32 MiB Aper size, 8 should be the default */
+static u32 voffset          __devinitdata;
 
 static int i810fb_cursor(struct fb_info *info, struct fb_cursor *cursor);
 static int  __devinit i810fb_init_pci (struct pci_dev *dev,
@@ -2109,9 +2107,6 @@ static void i810fb_release_resource(struct fb_info *info,
 				   par->aperture.size);
 	if (par->res_flags & MMIO_REQ)
 		release_mem_region(par->mmio_start_phys, MMIO_SIZE);
-
-	if (par->res_flags & PCI_DEVICE_ENABLED)
-		pci_disable_device(par->dev);
 
 	framebuffer_release(info);
 

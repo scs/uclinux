@@ -37,23 +37,17 @@
 #ifndef _SISUSB_H_
 #define _SISUSB_H_
 
-#include <linux/version.h>
 #ifdef CONFIG_COMPAT
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,10)
-#include <linux/ioctl32.h>
-#define SISUSB_OLD_CONFIG_COMPAT
-#else
 #define SISUSB_NEW_CONFIG_COMPAT
 #endif
-#endif
+
+#include <linux/mutex.h>
 
 /* For older kernels, support for text consoles is by default
  * off. To ensable text console support, change the following:
  */
 #if 0
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13)
 #define CONFIG_USB_SISUSBVGA_CON
-#endif
 #endif
 
 /* Version Information */
@@ -68,11 +62,9 @@
 #define INCL_SISUSB_CON		1
 #endif
 
-#ifdef INCL_SISUSB_CON
 #include <linux/console.h>
 #include <linux/vt_kern.h>
 #include "sisusb_struct.h"
-#endif
 
 /* USB related */
 
@@ -124,7 +116,7 @@ struct sisusb_usb_data {
 	struct usb_interface *interface;
 	struct kref kref;
 	wait_queue_head_t wait_q;	/* for syncind and timeouts */
-	struct semaphore lock;		/* general race avoidance */
+	struct mutex lock;		/* general race avoidance */
 	unsigned int ifnum;		/* interface number of the USB device */
 	int minor;			/* minor (for logging clarity) */
 	int isopen;			/* !=0 if open */

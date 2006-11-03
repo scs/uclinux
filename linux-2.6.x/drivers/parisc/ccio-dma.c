@@ -31,7 +31,6 @@
 **        the coherency design originally worked out. Only PCX-W does.
 */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -1560,7 +1559,7 @@ static int ccio_probe(struct parisc_device *dev)
 	*ioc_p = ioc;
 
 	ioc->hw_path = dev->hw_path;
-	ioc->ioc_regs = ioremap(dev->hpa.start, 4096);
+	ioc->ioc_regs = ioremap_nocache(dev->hpa.start, 4096);
 	ccio_ioc_init(ioc);
 	ccio_init_resources(ioc);
 	hppa_dma_ops = &ccio_ops;

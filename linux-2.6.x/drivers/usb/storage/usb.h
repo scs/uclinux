@@ -49,6 +49,7 @@
 #include <linux/blkdev.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <scsi/scsi_host.h>
 
 struct us_data;
@@ -103,9 +104,9 @@ typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 struct us_data {
 	/* The device we're working with
 	 * It's important to note:
-	 *    (o) you must hold dev_semaphore to change pusb_dev
+	 *    (o) you must hold dev_mutex to change pusb_dev
 	 */
-	struct semaphore	dev_semaphore;	 /* protect pusb_dev */
+	struct mutex		dev_mutex;	 /* protect pusb_dev */
 	struct usb_device	*pusb_dev;	 /* this usb_device */
 	struct usb_interface	*pusb_intf;	 /* this interface */
 	struct us_unusual_dev   *unusual_dev;	 /* device-filter entry     */
@@ -159,10 +160,10 @@ struct us_data {
 };
 
 /* Convert between us_data and the corresponding Scsi_Host */
-static struct Scsi_Host inline *us_to_host(struct us_data *us) {
+static inline struct Scsi_Host *us_to_host(struct us_data *us) {
 	return container_of((void *) us, struct Scsi_Host, hostdata);
 }
-static struct us_data inline *host_to_us(struct Scsi_Host *host) {
+static inline struct us_data *host_to_us(struct Scsi_Host *host) {
 	return (struct us_data *) host->hostdata;
 }
 
@@ -174,9 +175,5 @@ extern void fill_inquiry_response(struct us_data *us,
  * single queue element srb for write access */
 #define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
 #define scsi_lock(host)		spin_lock_irq(host->host_lock)
-
-
-/* Vendor ID list for devices that require special handling */
-#define USB_VENDOR_ID_GENESYS		0x05e3	/* Genesys Logic */
 
 #endif

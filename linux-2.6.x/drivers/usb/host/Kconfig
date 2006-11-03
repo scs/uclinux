@@ -6,7 +6,7 @@ comment "USB Host Controller Drivers"
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
-	depends on USB && PCI
+	depends on USB && USB_ARCH_HAS_EHCI
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
@@ -47,12 +47,29 @@ config USB_EHCI_ROOT_HUB_TT
 	  controller is needed.  It's safe to say "y" even if your
 	  controller doesn't support this feature.
 
-	  This supports the EHCI implementation from TransDimension Inc.
+	  This supports the EHCI implementation that's originally
+	  from ARC, and has since changed hands a few times.
+
+config USB_EHCI_TT_NEWSCHED
+	bool "Improved Transaction Translator scheduling (EXPERIMENTAL)"
+	depends on USB_EHCI_HCD && EXPERIMENTAL
+	---help---
+	  This changes the periodic scheduling code to fill more of the low
+	  and full speed bandwidth available from the Transaction Translator
+	  (TT) in USB 2.0 hubs.  Without this, only one transfer will be
+	  issued in each microframe, significantly reducing the number of
+	  periodic low/fullspeed transfers possible.
+
+	  If you have multiple periodic low/fullspeed devices connected to a
+	  highspeed USB hub which is connected to a highspeed USB Host
+	  Controller, and some of those devices will not work correctly
+	  (possibly due to "ENOSPC" or "-28" errors), say Y.
+
+	  If unsure, say N.
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
 	depends on USB
-	default N
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -187,7 +204,6 @@ config USB_UHCI_HCD
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
 	depends on USB
-	default N
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
@@ -198,35 +214,17 @@ config USB_SL811_HCD
 	  module will be called sl811-hcd.
 	  
 config USB_SL811_BFIN_GPIO
-	int "PF pin for Interrupt"
-	depends on (BF537 && USB_SL811_HCD)
-	range 3 7
-	default 4
-	help
-      Choose an PF pin as isp1362's interrupt. This must corresponds to 
+        int "PF pin for Interrupt"
+        depends on (BF537 && USB_SL811_HCD)
+        range 3 7
+        default 4
+        help
+          Choose an PF pin as isp1362's interrupt. This must corresponds to 
 	  the JP3 on usb daughter card. The available value is from 3 to 7.
-
-
-config USB_SL811_BFIN_USE_VBUS
-	tristate "SL811HS use BUS POWER Enable Switching"
-	depends on (BF537 && USB_SL811_HCD)
-	default N
-	help
-	  Say Y if you want to use BUS POWER Enable Switching
-	 
-config USB_SL811_BFIN_GPIO_VBUS
-	int "PF pin for BUS POWER Enable"
-	depends on USB_SL811_BFIN_USE_VBUS
-	range 3 7
-	default 3
-	help
-	  Choose an PF pin as SL811 BUS POWER Enable. This must corresponds to 
-	  the JP7 on usb daughter card. The available value is from 3 to 7.
-
+							    
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"
 	depends on USB_SL811_HCD && PCMCIA
-	default N
 	help
 	  Wraps a PCMCIA driver around the SL811HS HCD, supporting the RATOC
 	  REX-CFU1U CF card (often used with PDAs).  If unsure, say N.

@@ -76,6 +76,30 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	dbg_hcs_params(ehci, "reset");
 	dbg_hcc_params(ehci, "reset");
 
+        /* ehci_init() causes memory for DMA transfers to be
+         * allocated.  Thus, any vendor-specific workarounds based on
+         * limiting the type of memory used for DMA transfers must
+         * happen before ehci_init() is called. */
+	switch (pdev->vendor) {
+	case PCI_VENDOR_ID_NVIDIA:
+		/* NVidia reports that certain chips don't handle
+		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
+		 * data buffer, and periodic schedule are normal.)
+		 */
+		switch (pdev->device) {
+		case 0x003c:	/* MCP04 */
+		case 0x005b:	/* CK804 */
+		case 0x00d8:	/* CK8 */
+		case 0x00e8:	/* CK8S */
+			if (pci_set_consistent_dma_mask(pdev,
+						DMA_31BIT_MASK) < 0)
+				ehci_warn(ehci, "can't enable NVidia "
+					"workaround for >2GB RAM\n");
+			break;
+		}
+		break;
+	}
+
 	/* cache this readonly data; minimize chip reads */
 	ehci->hcs_params = readl(&ehci->caps->hcs_params);
 
@@ -87,8 +111,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	retval = ehci_init(hcd);
 	if (retval)
 		return retval;
-
-	/* NOTE:  only the parts below this line are PCI-specific */
 
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_TDI:
@@ -106,19 +128,14 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
-		/* NVidia reports that certain chips don't handle
-		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
-		 * data buffer, and periodic schedule are normal.)
-		 */
 		switch (pdev->device) {
-		case 0x003c:	/* MCP04 */
-		case 0x005b:	/* CK804 */
-		case 0x00d8:	/* CK8 */
-		case 0x00e8:	/* CK8S */
-			if (pci_set_consistent_dma_mask(pdev,
-						DMA_31BIT_MASK) < 0)
-				ehci_warn(ehci, "can't enable NVidia "
-					"workaround for >2GB RAM\n");
+		/* Some NForce2 chips have problems with selective suspend;
+		 * fixed in newer silicon.
+		 */
+		case 0x0068:
+			pci_read_config_dword(pdev, PCI_REVISION_ID, &temp);
+			if ((temp & 0xff) < 0xa4)
+				ehci->no_selective_suspend = 1;
 			break;
 		}
 		break;
@@ -162,6 +179,21 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		if (port_wake & 0x0001)
 			device_init_wakeup(&pdev->dev, 1);
 	}
+
+#ifdef	CONFIG_USB_SUSPEND
+	/* REVISIT: the controller works fine for wakeup iff the root hub
+	 * itself is "globally" suspended, but usbcore currently doesn't
+	 * understand such things.
+	 *
+	 * System suspend currently expects to be able to suspend the entire
+	 * device tree, device-at-a-time.  If we failed selective suspend
+	 * reports, system suspend would fail; so the root hub code must claim
+	 * success.  That's lying to usbcore, and it matters for for runtime
+	 * PM scenarios with selective suspend and remote wakeup...
+	 */
+	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
+		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
+#endif
 
 	retval = ehci_pci_reinit(ehci, pdev);
 done:
@@ -327,7 +359,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 /* PCI driver selection metadata; PCI hotplugging uses this */
 static const struct pci_device_id pci_ids [] = { {
 	/* handle any USB 2.0 EHCI controller */
-	PCI_DEVICE_CLASS(((PCI_CLASS_SERIAL_USB << 8) | 0x20), ~0),
+	PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_USB_EHCI, ~0),
 	.driver_data =	(unsigned long) &ehci_pci_hc_driver,
 	},
 	{ /* end: all zeroes */ }
@@ -347,23 +379,3 @@ static struct pci_driver ehci_pci_driver = {
 	.resume =	usb_hcd_pci_resume,
 #endif
 };
-
-static int __init ehci_hcd_pci_init(void)
-{
-	if (usb_disabled())
-		return -ENODEV;
-
-	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
-		hcd_name,
-		sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
-		sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
-
-	return pci_register_driver(&ehci_pci_driver);
-}
-module_init(ehci_hcd_pci_init);
-
-static void __exit ehci_hcd_pci_cleanup(void)
-{
-	pci_unregister_driver(&ehci_pci_driver);
-}
-module_exit(ehci_hcd_pci_cleanup);

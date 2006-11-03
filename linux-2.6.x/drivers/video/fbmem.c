@@ -11,7 +11,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/compat.h>
@@ -24,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-#include <linux/tty.h>
+#include <linux/vt.h>
 #include <linux/init.h>
 #include <linux/linux_logo.h>
 #include <linux/proc_fs.h>
@@ -32,9 +31,7 @@
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>
 #endif
-#include <linux/devfs_fs_kernel.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/efi.h>
 
@@ -55,7 +52,6 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
-static struct notifier_block *fb_notifier_list;
 struct fb_info *registered_fb[FB_MAX];
 int num_registered_fb;
 
@@ -162,7 +158,6 @@ char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size
 }
 
 #ifdef CONFIG_LOGO
-#include <linux/linux_logo.h>
 
 static inline unsigned safe_shift(unsigned d, int n)
 {
@@ -336,11 +331,11 @@ static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 
 static void fb_rotate_logo_cw(const u8 *in, u8 *out, u32 width, u32 height)
 {
-	int i, j, w = width - 1;
+	int i, j, h = height - 1;
 
 	for (i = 0; i < height; i++)
 		for (j = 0; j < width; j++)
-			out[height * j + w - i] = *in++;
+				out[height * j + h - i] = *in++;
 }
 
 static void fb_rotate_logo_ccw(const u8 *in, u8 *out, u32 width, u32 height)
@@ -358,24 +353,24 @@ static void fb_rotate_logo(struct fb_info *info, u8 *dst,
 	u32 tmp;
 
 	if (rotate == FB_ROTATE_UD) {
-		image->dx = info->var.xres - image->width;
-		image->dy = info->var.yres - image->height;
 		fb_rotate_logo_ud(image->data, dst, image->width,
 				  image->height);
+		image->dx = info->var.xres - image->width;
+		image->dy = info->var.yres - image->height;
 	} else if (rotate == FB_ROTATE_CW) {
-		tmp = image->width;
-		image->width = image->height;
-		image->height = tmp;
-		image->dx = info->var.xres - image->height;
 		fb_rotate_logo_cw(image->data, dst, image->width,
 				  image->height);
-	} else if (rotate == FB_ROTATE_CCW) {
 		tmp = image->width;
 		image->width = image->height;
 		image->height = tmp;
-		image->dy = info->var.yres - image->width;
+		image->dx = info->var.xres - image->width;
+	} else if (rotate == FB_ROTATE_CCW) {
 		fb_rotate_logo_ccw(image->data, dst, image->width,
 				   image->height);
+		tmp = image->width;
+		image->width = image->height;
+		image->height = tmp;
+		image->dy = info->var.yres - image->height;
 	}
 
 	image->data = dst;
@@ -433,6 +428,11 @@ int fb_prepare_logo(struct fb_info *info, int rotate)
 			depth = info->var.red.length;
 		if (info->var.green.length < depth)
 			depth = info->var.green.length;
+	}
+
+	if (info->fix.visual == FB_VISUAL_STATIC_PSEUDOCOLOR && depth > 4) {
+		/* assume console colormap */
+		depth = 4;
 	}
 
 	if (depth >= 8) {
@@ -790,8 +790,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 		    event.info = info;
 		    event.data = &mode1;
-		    ret = notifier_call_chain(&fb_notifier_list,
-					      FB_EVENT_MODE_DELETE, &event);
+		    ret = fb_notifier_call_chain(FB_EVENT_MODE_DELETE, &event);
 		}
 
 		if (!ret)
@@ -836,8 +835,7 @@ fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var)
 
 				info->flags &= ~FBINFO_MISC_USEREVENT;
 				event.info = info;
-				notifier_call_chain(&fb_notifier_list, evnt,
-						    &event);
+				fb_notifier_call_chain(evnt, &event);
 			}
 		}
 	}
@@ -860,7 +858,7 @@ fb_blank(struct fb_info *info, int blank)
 
 		event.info = info;
 		event.data = &blank;
-		notifier_call_chain(&fb_notifier_list, FB_EVENT_BLANK, &event);
+		fb_notifier_call_chain(FB_EVENT_BLANK, &event);
 	}
 
  	return ret;
@@ -931,8 +929,7 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		con2fb.framebuffer = -1;
 		event.info = info;
 		event.data = &con2fb;
-		notifier_call_chain(&fb_notifier_list,
-				    FB_EVENT_GET_CONSOLE_MAP, &event);
+		fb_notifier_call_chain(FB_EVENT_GET_CONSOLE_MAP, &event);
 		return copy_to_user(argp, &con2fb,
 				    sizeof(con2fb)) ? -EFAULT : 0;
 	case FBIOPUT_CON2FBMAP:
@@ -950,9 +947,8 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		    return -EINVAL;
 		event.info = info;
 		event.data = &con2fb;
-		return notifier_call_chain(&fb_notifier_list,
-					   FB_EVENT_SET_CONSOLE_MAP,
-					   &event);
+		return fb_notifier_call_chain(FB_EVENT_SET_CONSOLE_MAP,
+					      &event);
 	case FBIOBLANK:
 		acquire_console_sem();
 		info->flags |= FBINFO_MISC_USEREVENT;
@@ -1175,11 +1171,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	vma->vm_pgoff = off >> PAGE_SHIFT;
 	/* This is an IO map - tell maydump to skip this VMA */
 	vma->vm_flags |= VM_IO | VM_RESERVED;
-#if defined(__sparc_v9__)
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;
-#else
 #if defined(__mc68000__)
 #if defined(CONFIG_SUN3)
 	pgprot_val(vma->vm_page_prot) |= SUN3_PAGE_NOCACHE;
@@ -1201,7 +1192,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 #elif defined(__i386__) || defined(__x86_64__)
 	if (boot_cpu_data.x86 > 3)
 		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-#elif defined(__mips__)
+#elif defined(__mips__) || defined(__sparc_v9__)
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #elif defined(__hppa__)
 	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;
@@ -1218,7 +1209,6 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
-#endif /* !__sparc_v9__ */
 	return 0;
 #endif /* !sparc32 */
 }
@@ -1278,8 +1268,8 @@ static struct file_operations fb_fops = {
 #endif
 };
 
-static struct class *fb_class;
-
+struct class *fb_class;
+EXPORT_SYMBOL(fb_class);
 /**
  *	register_framebuffer - registers a frame buffer device
  *	@fb_info: frame buffer info structure
@@ -1333,11 +1323,8 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_add_videomode(&mode, &fb_info->modelist);
 	registered_fb[i] = fb_info;
 
-	devfs_mk_cdev(MKDEV(FB_MAJOR, i),
-			S_IFCHR | S_IRUGO | S_IWUGO, "fb/%d", i);
 	event.info = fb_info;
-	notifier_call_chain(&fb_notifier_list,
-			    FB_EVENT_FB_REGISTERED, &event);
+	fb_notifier_call_chain(FB_EVENT_FB_REGISTERED, &event);
 	return 0;
 }
 
@@ -1355,39 +1342,24 @@ register_framebuffer(struct fb_info *fb_info)
 int
 unregister_framebuffer(struct fb_info *fb_info)
 {
+	struct fb_event event;
 	int i;
 
 	i = fb_info->node;
 	if (!registered_fb[i])
 		return -EINVAL;
-	devfs_remove("fb/%d", i);
 
-	if (fb_info->pixmap.addr && (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
+	if (fb_info->pixmap.addr &&
+	    (fb_info->pixmap.flags & FB_PIXMAP_DEFAULT))
 		kfree(fb_info->pixmap.addr);
 	fb_destroy_modelist(&fb_info->modelist);
 	registered_fb[i]=NULL;
 	num_registered_fb--;
 	fb_cleanup_class_device(fb_info);
 	class_device_destroy(fb_class, MKDEV(FB_MAJOR, i));
+	event.info = fb_info;
+	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 	return 0;
-}
-
-/**
- *	fb_register_client - register a client notifier
- *	@nb: notifier block to callback on events
- */
-int fb_register_client(struct notifier_block *nb)
-{
-	return notifier_chain_register(&fb_notifier_list, nb);
-}
-
-/**
- *	fb_unregister_client - unregister a client notifier
- *	@nb: notifier block to callback on events
- */
-int fb_unregister_client(struct notifier_block *nb)
-{
-	return notifier_chain_unregister(&fb_notifier_list, nb);
 }
 
 /**
@@ -1405,11 +1377,11 @@ void fb_set_suspend(struct fb_info *info, int state)
 
 	event.info = info;
 	if (state) {
-		notifier_call_chain(&fb_notifier_list, FB_EVENT_SUSPEND, &event);
+		fb_notifier_call_chain(FB_EVENT_SUSPEND, &event);
 		info->state = FBINFO_STATE_SUSPENDED;
 	} else {
 		info->state = FBINFO_STATE_RUNNING;
-		notifier_call_chain(&fb_notifier_list, FB_EVENT_RESUME, &event);
+		fb_notifier_call_chain(FB_EVENT_RESUME, &event);
 	}
 }
 
@@ -1427,7 +1399,6 @@ fbmem_init(void)
 {
 	create_proc_read_entry("fb", 0, NULL, fbmem_read_proc, NULL);
 
-	devfs_mk_dir("fb");
 	if (register_chrdev(FB_MAJOR,"fb",&fb_fops))
 		printk("unable to get major %d for fb devs\n", FB_MAJOR);
 
@@ -1481,35 +1452,11 @@ int fb_new_modelist(struct fb_info *info)
 
 	if (!list_empty(&info->modelist)) {
 		event.info = info;
-		err = notifier_call_chain(&fb_notifier_list,
-					   FB_EVENT_NEW_MODELIST,
-					   &event);
+		err = fb_notifier_call_chain(FB_EVENT_NEW_MODELIST, &event);
 	}
 
 	return err;
 }
-
-/**
- * fb_con_duit - user<->fbcon passthrough
- * @info: struct fb_info
- * @event: notification event to be passed to fbcon
- * @data: private data
- *
- * DESCRIPTION
- * This function is an fbcon-user event passing channel
- * which bypasses fbdev.  This is hopefully temporary
- * until a user interface for fbcon is created
- */
-int fb_con_duit(struct fb_info *info, int event, void *data)
-{
-	struct fb_event evnt;
-
-	evnt.info = info;
-	evnt.data = data;
-
-	return notifier_call_chain(&fb_notifier_list, event, &evnt);
-}
-EXPORT_SYMBOL(fb_con_duit);
 
 static char *video_options[FB_MAX];
 static int ofonly;
@@ -1597,7 +1544,7 @@ static int __init video_setup(char *options)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 __setup("video=", video_setup);
 #endif
@@ -1617,9 +1564,6 @@ EXPORT_SYMBOL(fb_blank);
 EXPORT_SYMBOL(fb_pan_display);
 EXPORT_SYMBOL(fb_get_buffer_offset);
 EXPORT_SYMBOL(fb_set_suspend);
-EXPORT_SYMBOL(fb_register_client);
-EXPORT_SYMBOL(fb_unregister_client);
 EXPORT_SYMBOL(fb_get_options);
-EXPORT_SYMBOL(fb_new_modelist);
 
 MODULE_LICENSE("GPL");

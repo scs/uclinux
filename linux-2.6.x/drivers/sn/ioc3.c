@@ -7,10 +7,10 @@
  *   Pat Gefre <pfg@sgi.com> - IOC3 serial port IRQ demuxer
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
@@ -25,7 +25,7 @@ static DECLARE_RWSEM(ioc3_devices_rwsem);
 
 static struct ioc3_submodule *ioc3_submodules[IOC3_MAX_SUBMODULES];
 static struct ioc3_submodule *ioc3_ethernet;
-static rwlock_t ioc3_submodules_lock = RW_LOCK_UNLOCKED;
+static DEFINE_RWLOCK(ioc3_submodules_lock);
 
 /* NIC probing code */
 
@@ -619,9 +619,9 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	pci_set_master(pdev);
 
 #ifdef USE_64BIT_DMA
-        ret = pci_set_dma_mask(pdev, 0xffffffffffffffffULL);
+        ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
         if (!ret) {
-                ret = pci_set_consistent_dma_mask(pdev, 0xffffffffffffffffULL);
+                ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
                 if (ret < 0) {
                         printk(KERN_WARNING "%s: Unable to obtain 64 bit DMA "
                                "for consistent allocations\n",
@@ -706,7 +706,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 		writel(~0, &idd->vma->eisr);
 
 		idd->dual_irq = 1;
-		if (!request_irq(pdev->irq, ioc3_intr_eth, SA_SHIRQ,
+		if (!request_irq(pdev->irq, ioc3_intr_eth, IRQF_SHARED,
 				 "ioc3-eth", (void *)idd)) {
 			idd->irq_eth = pdev->irq;
 		} else {
@@ -714,7 +714,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			       "%s : request_irq fails for IRQ 0x%x\n ",
 			       __FUNCTION__, pdev->irq);
 		}
-		if (!request_irq(pdev->irq+2, ioc3_intr_io, SA_SHIRQ,
+		if (!request_irq(pdev->irq+2, ioc3_intr_io, IRQF_SHARED,
 				 "ioc3-io", (void *)idd)) {
 			idd->irq_io = pdev->irq+2;
 		} else {
@@ -723,7 +723,7 @@ static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			       __FUNCTION__, pdev->irq+2);
 		}
 	} else {
-		if (!request_irq(pdev->irq, ioc3_intr_io, SA_SHIRQ,
+		if (!request_irq(pdev->irq, ioc3_intr_io, IRQF_SHARED,
 				 "ioc3", (void *)idd)) {
 			idd->irq_io = pdev->irq;
 		} else {

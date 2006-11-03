@@ -200,10 +200,8 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 
 	/* create a urb, and a buffer for it, and copy the data to the urb */
 	urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!urb) {
-		retval = -ENOMEM;
-		goto error;
-	}
+	if (!urb)
+		return -ENOMEM;
 	
 	buf = usb_buffer_alloc(dev->udev, count, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
@@ -270,12 +268,11 @@ static int lcd_probe(struct usb_interface *interface, const struct usb_device_id
 	int retval = -ENOMEM;
 
 	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		err("Out of memory");
 		goto error;
 	}
-	memset(dev, 0x00, sizeof(*dev));
 	kref_init(&dev->kref);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));

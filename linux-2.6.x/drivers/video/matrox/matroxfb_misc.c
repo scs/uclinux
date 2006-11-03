@@ -84,8 +84,6 @@
  *
  */
 
-/* make checkconfig does not check includes for this... */
-#include <linux/config.h>
 
 #include "matroxfb_misc.h"
 #include <linux/interrupt.h>

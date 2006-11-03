@@ -8,7 +8,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
@@ -590,7 +589,7 @@ static int pd6729_check_irq(int irq, int flags)
 	return 0;
 }
 
-static u_int __init pd6729_isa_scan(void)
+static u_int __devinit pd6729_isa_scan(void)
 {
 	u_int mask0, mask = 0;
 	int i;
@@ -643,7 +642,8 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 		goto err_out_free_mem;
 
 	printk(KERN_INFO "pd6729: Cirrus PD6729 PCI to PCMCIA Bridge "
-		"at 0x%lx on irq %d\n",	pci_resource_start(dev, 0), dev->irq);
+		"at 0x%llx on irq %d\n",
+		(unsigned long long)pci_resource_start(dev, 0), dev->irq);
  	/*
 	 * Since we have no memory BARs some firmware may not
 	 * have had PCI_COMMAND_MEMORY enabled, yet the device needs it.
@@ -689,7 +689,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, socket);
 	if (irq_mode == 1) {
 		/* Register the interrupt handler */
-		if ((ret = request_irq(dev->irq, pd6729_interrupt, SA_SHIRQ,
+		if ((ret = request_irq(dev->irq, pd6729_interrupt, IRQF_SHARED,
 							"pd6729", socket))) {
 			printk(KERN_ERR "pd6729: Failed to register irq %d, "
 							"aborting\n", dev->irq);

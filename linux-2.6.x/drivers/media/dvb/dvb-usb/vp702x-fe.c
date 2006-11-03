@@ -147,8 +147,9 @@ static int vp702x_fe_set_frontend(struct dvb_frontend* fe,
 	cmd[4] = (sr >> 4)  & 0xff;
 	cmd[5] = (sr << 4)  & 0xf0;
 
-	deb_fe("setting frontend to: %u -> %u (%x) LNB-based GHz, symbolrate: %d -> %Lu (%Lx)\n",
-			fep->frequency,freq,freq, fep->u.qpsk.symbol_rate, sr, sr);
+	deb_fe("setting frontend to: %u -> %u (%x) LNB-based GHz, symbolrate: %d -> %lu (%lx)\n",
+			fep->frequency,freq,freq, fep->u.qpsk.symbol_rate,
+			(unsigned long) sr, (unsigned long) sr);
 
 /*	if (fep->inversion == INVERSION_ON)
 		cmd[6] |= 0x80; */
@@ -286,17 +287,16 @@ struct dvb_frontend * vp702x_fe_attach(struct dvb_usb_device *d)
 		goto error;
 
 	s->d = d;
-	s->fe.ops = &vp702x_fe_ops;
+
+	memcpy(&s->fe.ops,&vp702x_fe_ops,sizeof(struct dvb_frontend_ops));
 	s->fe.demodulator_priv = s;
 
 	s->lnb_buf[1] = SET_LNB_POWER;
 	s->lnb_buf[3] = 0xff; /* 0=tone burst, 2=data burst, ff=off */
 
-	goto success;
+	return &s->fe;
 error:
 	return NULL;
-success:
-	return &s->fe;
 }
 
 

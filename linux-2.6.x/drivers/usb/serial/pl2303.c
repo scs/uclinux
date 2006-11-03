@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -28,7 +27,7 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
-#include "usb-serial.h"
+#include <linux/usb/serial.h>
 #include "pl2303.h"
 
 /*
@@ -53,6 +52,7 @@ struct pl2303_buf {
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_RSAQ2) },
+	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_DCU11) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_RSAQ3) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_PHAROS) },
 	{ USB_DEVICE(IODATA_VENDOR_ID, IODATA_PRODUCT_ID) },
@@ -61,6 +61,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(ELCOM_VENDOR_ID, ELCOM_PRODUCT_ID) },
 	{ USB_DEVICE(ELCOM_VENDOR_ID, ELCOM_PRODUCT_ID_UCSGT) },
 	{ USB_DEVICE(ITEGNO_VENDOR_ID, ITEGNO_PRODUCT_ID) },
+	{ USB_DEVICE(ITEGNO_VENDOR_ID, ITEGNO_PRODUCT_ID_2080) },
 	{ USB_DEVICE(MA620_VENDOR_ID, MA620_PRODUCT_ID) },
 	{ USB_DEVICE(RATOC_VENDOR_ID, RATOC_PRODUCT_ID) },
 	{ USB_DEVICE(TRIPP_VENDOR_ID, TRIPP_PRODUCT_ID) },
@@ -77,6 +78,9 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(CA_42_CA42_VENDOR_ID, CA_42_CA42_PRODUCT_ID) },
 	{ USB_DEVICE(SAGEM_VENDOR_ID, SAGEM_PRODUCT_ID) },
 	{ USB_DEVICE(LEADTEK_VENDOR_ID, LEADTEK_9531_PRODUCT_ID) },
+	{ USB_DEVICE(SPEEDDRAGON_VENDOR_ID, SPEEDDRAGON_PRODUCT_ID) },
+	{ USB_DEVICE(DATAPILOT_U2_VENDOR_ID, DATAPILOT_U2_PRODUCT_ID) },
+	{ USB_DEVICE(BELKIN_VENDOR_ID, BELKIN_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -218,10 +222,9 @@ static int pl2303_startup (struct usb_serial *serial)
 	dbg("device type: %d", type);
 
 	for (i = 0; i < serial->num_ports; ++i) {
-		priv = kmalloc (sizeof (struct pl2303_private), GFP_KERNEL);
+		priv = kzalloc(sizeof(struct pl2303_private), GFP_KERNEL);
 		if (!priv)
 			goto cleanup;
-		memset (priv, 0x00, sizeof (struct pl2303_private));
 		spin_lock_init(&priv->lock);
 		priv->buf = pl2303_buf_alloc(PL2303_BUF_SIZE);
 		if (priv->buf == NULL) {
@@ -312,7 +315,7 @@ static void pl2303_send(struct usb_serial_port *port)
 		// TODO: reschedule pl2303_send
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 static int pl2303_write_room(struct usb_serial_port *port)
@@ -383,12 +386,11 @@ static void pl2303_set_termios (struct usb_serial_port *port, struct termios *ol
 		}
 	}
 
-	buf = kmalloc (7, GFP_KERNEL);
+	buf = kzalloc (7, GFP_KERNEL);
 	if (!buf) {
 		dev_err(&port->dev, "%s - out of memory.\n", __FUNCTION__);
 		return;
 	}
-	memset (buf, 0x00, 0x07);
 	
 	i = usb_control_msg (serial->dev, usb_rcvctrlpipe (serial->dev, 0),
 			     GET_LINE_REQUEST, GET_LINE_REQUEST_TYPE,
@@ -599,7 +601,7 @@ static void pl2303_close (struct usb_serial_port *port, struct file *filp)
 	unsigned int c_cflag;
 	int bps;
 	long timeout;
-	wait_queue_t wait;						\
+	wait_queue_t wait;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -828,6 +830,7 @@ static void pl2303_update_line_status(struct usb_serial_port *port,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_status = data[status_idx];
 	spin_unlock_irqrestore(&priv->lock, flags);
+	wake_up_interruptible (&priv->delta_msr_wait);
 
 exit:
 	return;

@@ -115,7 +115,7 @@ qeth_dev_portno_store(struct device *dev, struct device_attribute *attr, const c
 		return -EPERM;
 
 	portno = simple_strtoul(buf, &tmp, 16);
-	if ((portno < 0) || (portno > MAX_PORTNO)){
+	if (portno > MAX_PORTNO){
 		PRINT_WARN("portno 0x%X is out of range\n", portno);
 		return -EINVAL;
 	}
@@ -743,6 +743,47 @@ static DEVICE_ATTR(layer2, 0644, qeth_dev_layer2_show,
 		   qeth_dev_layer2_store);
 
 static ssize_t
+qeth_dev_performance_stats_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct qeth_card *card = dev->driver_data;
+
+	if (!card)
+		return -EINVAL;
+
+	return sprintf(buf, "%i\n", card->options.performance_stats ? 1:0);
+}
+
+static ssize_t
+qeth_dev_performance_stats_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct qeth_card *card = dev->driver_data;
+	char *tmp;
+	int i;
+
+	if (!card)
+		return -EINVAL;
+
+	i = simple_strtoul(buf, &tmp, 16);
+	if ((i == 0) || (i == 1)) {
+		if (i == card->options.performance_stats)
+			return count;
+		card->options.performance_stats = i;
+		if (i == 0)
+			memset(&card->perf_stats, 0,
+				sizeof(struct qeth_perf_stats));
+		card->perf_stats.initial_rx_packets = card->stats.rx_packets;
+		card->perf_stats.initial_tx_packets = card->stats.tx_packets;
+	} else {
+		PRINT_WARN("performance_stats: write 0 or 1 to this file!\n");
+		return -EINVAL;
+	}
+	return count;
+}
+
+static DEVICE_ATTR(performance_stats, 0644, qeth_dev_performance_stats_show,
+		   qeth_dev_performance_stats_store);
+
+static ssize_t
 qeth_dev_large_send_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev->driver_data;
@@ -785,7 +826,7 @@ qeth_dev_large_send_store(struct device *dev, struct device_attribute *attr, con
 	}
 	if (card->options.large_send == type)
 		return count;
-	if ((rc = qeth_set_large_send(card, type)))	
+	if ((rc = qeth_set_large_send(card, type)))
 		return rc;
 	return count;
 }
@@ -928,6 +969,7 @@ static struct device_attribute * qeth_device_attrs[] = {
 	&dev_attr_canonical_macaddr,
 	&dev_attr_layer2,
 	&dev_attr_large_send,
+	&dev_attr_performance_stats,
 	NULL,
 };
 
@@ -1110,12 +1152,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 {
 	const char *start, *end;
 	char *tmp;
-	char buffer[49] = {0, };
+	char buffer[40] = {0, };
 
 	start = buf;
 	/* get address string */
 	end = strchr(start, '/');
-	if (!end || (end-start >= 49)){
+	if (!end || (end - start >= 40)){
 		PRINT_WARN("Invalid format for ipato_addx/delx. "
 			   "Use <ip addr>/<mask bits>\n");
 		return -EINVAL;
@@ -1127,7 +1169,12 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 	}
 	start = end + 1;
 	*mask_bits = simple_strtoul(start, &tmp, 10);
-
+	if (!strlen(start) ||
+	    (tmp == start) ||
+	    (*mask_bits > ((proto == QETH_PROT_IPV4) ? 32 : 128))) {
+		PRINT_WARN("Invalid mask bits for ipato_addx/delx !\n");
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1145,11 +1192,10 @@ qeth_dev_ipato_add_store(const char *buf, size_t count,
 	if ((rc = qeth_parse_ipatoe(buf, proto, addr, &mask_bits)))
 		return rc;
 
-	if (!(ipatoe = kmalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL))){
+	if (!(ipatoe = kzalloc(sizeof(struct qeth_ipato_entry), GFP_KERNEL))){
 		PRINT_WARN("No memory to allocate ipato entry\n");
 		return -ENOMEM;
 	}
-	memset(ipatoe, 0, sizeof(struct qeth_ipato_entry));
 	ipatoe->proto = proto;
 	memcpy(ipatoe->addr, addr, (proto == QETH_PROT_IPV4)? 4:16);
 	ipatoe->mask_bits = mask_bits;
@@ -1683,7 +1729,7 @@ qeth_create_device_attributes(struct device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return sysfs_create_group(&dev->kobj,
 					  &qeth_osn_device_attr_group);
-   	
+
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_attr_group)))
 		return ret;
 	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_ipato_group))){
@@ -1699,11 +1745,16 @@ qeth_create_device_attributes(struct device *dev)
 		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
-	}
-	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group)))
 		return ret;
-
-	return ret;
+	}
+	if ((ret = sysfs_create_group(&dev->kobj, &qeth_device_blkt_group))){
+		sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
+		sysfs_remove_group(&dev->kobj, &qeth_device_rxip_group);
+		return ret;
+	}
+	return 0;
 }
 
 void
@@ -1714,7 +1765,7 @@ qeth_remove_device_attributes(struct device *dev)
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return sysfs_remove_group(&dev->kobj,
 					  &qeth_osn_device_attr_group);
-		      
+
 	sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);
@@ -1756,7 +1807,7 @@ qeth_driver_group_store(struct device_driver *ddrv, const char *buf,
 }
 
 
-static DRIVER_ATTR(group, 0200, 0, qeth_driver_group_store);
+static DRIVER_ATTR(group, 0200, NULL, qeth_driver_group_store);
 
 static ssize_t
 qeth_driver_notifier_register_store(struct device_driver *ddrv, const char *buf,
@@ -1784,7 +1835,7 @@ qeth_driver_notifier_register_store(struct device_driver *ddrv, const char *buf,
 	return count;
 }
 
-static DRIVER_ATTR(notifier_register, 0200, 0,
+static DRIVER_ATTR(notifier_register, 0200, NULL,
 		   qeth_driver_notifier_register_store);
 
 int

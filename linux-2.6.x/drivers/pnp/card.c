@@ -5,7 +5,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/pnp.h>
@@ -47,7 +46,7 @@ static void card_remove(struct pnp_dev * dev)
 {
 	dev->card_link = NULL;
 }
- 
+
 static void card_remove_first(struct pnp_dev * dev)
 {
 	struct pnp_card_driver * drv = to_pnp_card_driver(dev->driver);
@@ -60,30 +59,34 @@ static void card_remove_first(struct pnp_dev * dev)
 	card_remove(dev);
 }
 
-static int card_probe(struct pnp_card * card, struct pnp_card_driver * drv)
+static int card_probe(struct pnp_card *card, struct pnp_card_driver *drv)
 {
-	const struct pnp_card_device_id *id = match_card(drv,card);
-	if (id) {
-		struct pnp_card_link * clink = pnp_alloc(sizeof(struct pnp_card_link));
-		if (!clink)
-			return 0;
-		clink->card = card;
-		clink->driver = drv;
-		clink->pm_state = PMSG_ON;
-		if (drv->probe) {
-			if (drv->probe(clink, id)>=0)
-				return 1;
-			else {
-				struct pnp_dev * dev;
-				card_for_each_dev(card, dev) {
-					if (dev->card_link == clink)
-						pnp_release_card_device(dev);
-				}
-				kfree(clink);
-			}
-		} else
-			return 1;
+	const struct pnp_card_device_id *id;
+	struct pnp_card_link *clink;
+	struct pnp_dev *dev;
+
+	if (!drv->probe)
+		return 0;
+	id = match_card(drv,card);
+	if (!id)
+		return 0;
+
+	clink = pnp_alloc(sizeof(*clink));
+	if (!clink)
+		return 0;
+	clink->card = card;
+	clink->driver = drv;
+	clink->pm_state = PMSG_ON;
+
+	if (drv->probe(clink, id) >= 0)
+		return 1;
+
+	/* Recovery */
+	card_for_each_dev(card, dev) {
+		if (dev->card_link == clink)
+			pnp_release_card_device(dev);
 	}
+	kfree(clink);
 	return 0;
 }
 
@@ -361,7 +364,7 @@ static int card_resume(struct pnp_dev *dev)
 
 int pnp_register_card_driver(struct pnp_card_driver * drv)
 {
-	int count;
+	int error;
 	struct list_head *pos, *temp;
 
 	drv->link.name = drv->name;
@@ -372,21 +375,19 @@ int pnp_register_card_driver(struct pnp_card_driver * drv)
 	drv->link.suspend = drv->suspend ? card_suspend : NULL;
 	drv->link.resume = drv->resume ? card_resume : NULL;
 
-	count = pnp_register_driver(&drv->link);
-	if (count < 0)
-		return count;
+	error = pnp_register_driver(&drv->link);
+	if (error < 0)
+		return error;
 
 	spin_lock(&pnp_lock);
 	list_add_tail(&drv->global_list, &pnp_card_drivers);
 	spin_unlock(&pnp_lock);
 
-	count = 0;
-
 	list_for_each_safe(pos,temp,&pnp_cards){
 		struct pnp_card *card = list_entry(pos, struct pnp_card, global_list);
-		count += card_probe(card,drv);
+		card_probe(card,drv);
 	}
-	return count;
+	return 0;
 }
 
 /**

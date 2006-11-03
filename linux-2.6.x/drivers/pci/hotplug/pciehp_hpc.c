@@ -38,7 +38,6 @@
 
 #include "../pci.h"
 #include "pciehp.h"
-
 #ifdef DEBUG
 #define DBG_K_TRACE_ENTRY      ((unsigned int)0x00000001)	/* On function entry */
 #define DBG_K_TRACE_EXIT       ((unsigned int)0x00000002)	/* On function exit */
@@ -1236,6 +1235,76 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.check_lnk_status		= hpc_check_lnk_status,
 };
 
+#ifdef CONFIG_ACPI
+int pciehp_acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev)
+{
+	acpi_status status;
+	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
+	struct pci_dev *pdev = dev;
+	struct pci_bus *parent;
+	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
+
+	/*
+	 * Per PCI firmware specification, we should run the ACPI _OSC
+	 * method to get control of hotplug hardware before using it.
+	 * If an _OSC is missing, we look for an OSHP to do the same thing.
+	 * To handle different BIOS behavior, we look for _OSC and OSHP
+	 * within the scope of the hotplug controller and its parents, upto
+	 * the host bridge under which this controller exists.
+	 */
+	while (!handle) {
+		/*
+		 * This hotplug controller was not listed in the ACPI name
+		 * space at all. Try to get acpi handle of parent pci bus.
+		 */
+		if (!pdev || !pdev->bus->parent)
+			break;
+		parent = pdev->bus->parent;
+		dbg("Could not find %s in acpi namespace, trying parent\n",
+				pci_name(pdev));
+		if (!parent->self)
+			/* Parent must be a host bridge */
+			handle = acpi_get_pci_rootbridge_handle(
+					pci_domain_nr(parent),
+					parent->number);
+		else
+			handle = DEVICE_ACPI_HANDLE(
+					&(parent->self->dev));
+		pdev = parent->self;
+	}
+
+	while (handle) {
+		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
+		dbg("Trying to get hotplug control for %s \n",
+			(char *)string.pointer);
+		status = pci_osc_control_set(handle,
+				OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
+		if (status == AE_NOT_FOUND)
+			status = acpi_run_oshp(handle);
+		if (ACPI_SUCCESS(status)) {
+			dbg("Gained control for hotplug HW for pci %s (%s)\n",
+				pci_name(dev), (char *)string.pointer);
+			kfree(string.pointer);
+			return 0;
+		}
+		if (acpi_root_bridge(handle))
+			break;
+		chandle = handle;
+		status = acpi_get_parent(chandle, &handle);
+		if (ACPI_FAILURE(status))
+			break;
+	}
+
+	err("Cannot get control of hotplug hardware for pci %s\n",
+			pci_name(dev));
+
+	kfree(string.pointer);
+	return -1;
+}
+#endif
+
+
+
 int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
@@ -1325,16 +1394,14 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 
 	for ( rc = 0; rc < DEVICE_COUNT_RESOURCE; rc++)
 		if (pci_resource_len(pdev, rc) > 0)
-			dbg("pci resource[%d] start=0x%lx(len=0x%lx)\n", rc,
-				pci_resource_start(pdev, rc), pci_resource_len(pdev, rc));
+			dbg("pci resource[%d] start=0x%llx(len=0x%llx)\n", rc,
+			    (unsigned long long)pci_resource_start(pdev, rc),
+			    (unsigned long long)pci_resource_len(pdev, rc));
 
 	info("HPC vendor_id %x device_id %x ss_vid %x ss_did %x\n", pdev->vendor, pdev->device, 
 		pdev->subsystem_vendor, pdev->subsystem_device);
 
-	if (pci_enable_device(pdev))
-		goto abort_free_ctlr;
-	
-	init_MUTEX(&ctrl->crit_sect);
+	mutex_init(&ctrl->crit_sect);
 	/* setup wait queue */
 	init_waitqueue_head(&ctrl->queue);
 
@@ -1387,7 +1454,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		start_int_poll_timer( php_ctlr, 10 );   /* start with 10 second delay */
 	} else {
 		/* Installs the interrupt handler */
-		rc = request_irq(php_ctlr->irq, pcie_isr, SA_SHIRQ, MY_NAME, (void *) ctrl);
+		rc = request_irq(php_ctlr->irq, pcie_isr, IRQF_SHARED, MY_NAME, (void *) ctrl);
 		dbg("%s: request_irq %d for hpc%d (returns %d)\n", __FUNCTION__, php_ctlr->irq, ctlr_seq_num, rc);
 		if (rc) {
 			err("Can't get irq %d for the hotplug controller\n", php_ctlr->irq);
@@ -1401,7 +1468,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_CTRL failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_free_irq;
 	}
 
 	intr_enable = intr_enable | PRSN_DETECT_ENABLE;
@@ -1427,19 +1494,19 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_CTRL failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_free_irq;
 	}
 	rc = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), slot_status);
 	if (rc) {
 		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_disable_intr;
 	}
 	
 	temp_word =  0x1F; /* Clear all events */
 	rc = hp_register_write_word(php_ctlr->pci_dev, SLOT_STATUS(ctrl->cap_base), temp_word);
 	if (rc) {
 		err("%s : hp_register_write_word SLOT_STATUS failed\n", __FUNCTION__);
-		goto abort_free_ctlr;
+		goto abort_disable_intr;
 	}
 	
 	if (pciehp_force) {
@@ -1448,7 +1515,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	} else {
 		rc = pciehp_get_hp_hw_control_from_firmware(ctrl->pci_dev);
 		if (rc)
-			goto abort_free_ctlr;
+			goto abort_disable_intr;
 	}
 
 	/*  Add this HPC instance into the HPC list */
@@ -1475,6 +1542,21 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 	return 0;
 
 	/* We end up here for the many possible ways to fail this API.  */
+abort_disable_intr:
+	rc = hp_register_read_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
+	if (!rc) {
+		temp_word &= ~(intr_enable | HP_INTR_ENABLE);
+		rc = hp_register_write_word(pdev, SLOT_CTRL(ctrl->cap_base), temp_word);
+	}
+	if (rc)
+		err("%s : disabling interrupts failed\n", __FUNCTION__);
+
+abort_free_irq:
+	if (pciehp_poll_mode)
+		del_timer_sync(&php_ctlr->int_poll_timer);
+	else
+		free_irq(php_ctlr->irq, ctrl);
+
 abort_free_ctlr:
 	pcie_cap_base = saved_cap_base;
 	kfree(php_ctlr);

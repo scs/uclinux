@@ -1,7 +1,7 @@
-/* 
+/*
  * File...........: linux/drivers/s390/block/dasd_eckd.h
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
- *                  Horst Hummel <Horst.Hummel@de.ibm.com> 
+ *		    Horst Hummel <Horst.Hummel@de.ibm.com>
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
@@ -29,6 +29,7 @@
 #define DASD_ECKD_CCW_PSF		 0x27
 #define DASD_ECKD_CCW_RSSD		 0x3e
 #define DASD_ECKD_CCW_LOCATE_RECORD	 0x47
+#define DASD_ECKD_CCW_SNSS		 0x54
 #define DASD_ECKD_CCW_DEFINE_EXTENT	 0x63
 #define DASD_ECKD_CCW_WRITE_MT		 0x85
 #define DASD_ECKD_CCW_READ_MT		 0x86
@@ -40,9 +41,10 @@
 #define DASD_ECKD_CCW_RESERVE		 0xB4
 
 /*
- *Perform Subsystem Function / Sub-Orders
+ * Perform Subsystem Function / Sub-Orders
  */
-#define PSF_ORDER_PRSSD			 0x18
+#define PSF_ORDER_PRSSD 0x18
+#define PSF_ORDER_SSC	0x1D
 
 /*****************************************************************************
  * SECTION: Type Definitions
@@ -154,7 +156,7 @@ struct dasd_eckd_characteristics {
 		unsigned char reserved2:4;
 		unsigned char reserved3:8;
 		unsigned char defect_wr:1;
-		unsigned char XRC_supported:1; 
+		unsigned char XRC_supported:1;
 		unsigned char reserved4:1;
 		unsigned char striping:1;
 		unsigned char reserved5:4;
@@ -227,26 +229,36 @@ struct dasd_eckd_confdata {
 		unsigned char HDA_manufacturer[3];
 		unsigned char HDA_location[2];
 		unsigned char HDA_seqno[12];
-		__u16 ID;
+		__u8 ID;
+		__u8 unit_addr;
 	} __attribute__ ((packed)) ned1;
-	struct {
+	union {
 		struct {
-			unsigned char identifier:2;
-			unsigned char token_id:1;
-			unsigned char sno_valid:1;
-			unsigned char subst_sno:1;
-			unsigned char recNED:1;
-			unsigned char emuNED:1;
-			unsigned char reserved:1;
-		} __attribute__ ((packed)) flags;
-		__u8 descriptor;
-		__u8 reserved[2];
-		unsigned char dev_type[6];
-		unsigned char dev_model[3];
-		unsigned char DASD_manufacturer[3];
-		unsigned char DASD_location[2];
-		unsigned char DASD_seqno[12];
-		__u16 ID;
+			struct {
+				unsigned char identifier:2;
+				unsigned char token_id:1;
+				unsigned char sno_valid:1;
+				unsigned char subst_sno:1;
+				unsigned char recNED:1;
+				unsigned char emuNED:1;
+				unsigned char reserved:1;
+			} __attribute__ ((packed)) flags;
+			__u8 descriptor;
+			__u8 reserved[2];
+			unsigned char dev_type[6];
+			unsigned char dev_model[3];
+			unsigned char DASD_manufacturer[3];
+			unsigned char DASD_location[2];
+			unsigned char DASD_seqno[12];
+			__u16 ID;
+		} __attribute__ ((packed)) ned;
+		struct {
+			unsigned char flags;            /* byte  0    */
+			unsigned char res2[7];          /* byte  1- 7 */
+			unsigned char sua_flags;	/* byte  8    */
+			__u8 base_unit_addr;            /* byte  9    */
+			unsigned char res3[22];	        /* byte 10-31 */
+		} __attribute__ ((packed)) sneq;
 	} __attribute__ ((packed)) ned2;
 	struct {
 		struct {
@@ -332,7 +344,7 @@ struct dasd_eckd_path {
 };
 
 /*
- * Perform Subsystem Function - Prepare for Read Subsystem Data	 
+ * Perform Subsystem Function - Prepare for Read Subsystem Data
  */
 struct dasd_psf_prssd_data {
 	unsigned char order;
@@ -341,5 +353,16 @@ struct dasd_psf_prssd_data {
 	unsigned char suborder;
 	unsigned char varies[9];
 } __attribute__ ((packed));
+
+/*
+ * Perform Subsystem Function - Set Subsystem Characteristics
+ */
+struct dasd_psf_ssc_data {
+	unsigned char order;
+	unsigned char flags;
+	unsigned char cu_type[4];
+	unsigned char suborder;
+	unsigned char reserved[59];
+} __attribute__((packed));
 
 #endif				/* DASD_ECKD_H */

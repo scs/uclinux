@@ -43,8 +43,8 @@
 
 /*
  * $Log$
- * Revision 1.6  2006/03/23 07:40:11  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/03 05:50:45  magicyang
+ * update to kernel 2.6.18
  *
  *
  * Revision 4.8  2003/07/09 19:39:00  Daniele Bellucci
@@ -5715,7 +5715,7 @@ static int ixj_daa_write(IXJ *j)
 	return 1;
 }
 
-int ixj_set_tone_off(unsigned short arg, IXJ *j)
+static int ixj_set_tone_off(unsigned short arg, IXJ *j)
 {
 	j->tone_off_time = arg;
 	if (ixj_WriteDSPCommand(0x6E05, j))		/* Set Tone Off Period */

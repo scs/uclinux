@@ -12,7 +12,6 @@
  * (C) 1999		David A. Hinds
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -61,7 +60,7 @@ struct socket_data {
 	unsigned int			rsrc_mem_probe;
 };
 
-static DECLARE_MUTEX(rsrc_sem);
+static DEFINE_MUTEX(rsrc_mutex);
 #define MEM_PROBE_LOW	(1 << 0)
 #define MEM_PROBE_HIGH	(1 << 1)
 
@@ -73,7 +72,7 @@ static DECLARE_MUTEX(rsrc_sem);
 ======================================================================*/
 
 static struct resource *
-make_resource(unsigned long b, unsigned long n, int flags, char *name)
+make_resource(resource_size_t b, resource_size_t n, int flags, char *name)
 {
 	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
@@ -87,8 +86,8 @@ make_resource(unsigned long b, unsigned long n, int flags, char *name)
 }
 
 static struct resource *
-claim_region(struct pcmcia_socket *s, unsigned long base, unsigned long size,
-	     int type, char *name)
+claim_region(struct pcmcia_socket *s, resource_size_t base,
+		resource_size_t size, int type, char *name)
 {
 	struct resource *res, *parent;
 
@@ -484,7 +483,7 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 
 
 /*
- * Locking note: Must be called with skt_sem held!
+ * Locking note: Must be called with skt_mutex held!
  */
 static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 {
@@ -495,7 +494,7 @@ static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 	if (!probe_mem)
 		return 0;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 
 	if (s->features & SS_CAP_PAGE_REGS)
 		probe_mask = MEM_PROBE_HIGH;
@@ -507,7 +506,7 @@ static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 			s_data->rsrc_mem_probe |= probe_mask;
 	}
 
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -520,10 +519,10 @@ struct pcmcia_align_data {
 
 static void
 pcmcia_common_align(void *align_data, struct resource *res,
-		    unsigned long size, unsigned long align)
+			resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
-	unsigned long start;
+	resource_size_t start;
 	/*
 	 * Ensure that we have the correct start address
 	 */
@@ -534,8 +533,8 @@ pcmcia_common_align(void *align_data, struct resource *res,
 }
 
 static void
-pcmcia_align(void *align_data, struct resource *res,
-	     unsigned long size, unsigned long align)
+pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
+		resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
 	struct resource_map *m;
@@ -585,7 +584,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 	struct socket_data *s_data = s->resource_data;
 	int ret = -ENOMEM;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	for (m = s_data->io_db.next; m != &s_data->io_db; m = m->next) {
 		unsigned long start = m->base;
 		unsigned long end = m->base + m->num - 1;
@@ -596,7 +595,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 		ret = adjust_resource(res, r_start, r_end - r_start + 1);
 		break;
 	}
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -630,7 +629,7 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	data.offset = base & data.mask;
 	data.map = &s_data->io_db;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 #ifdef CONFIG_PCI
 	if (s->cb_dev) {
 		ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num, 1,
@@ -639,7 +638,7 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 #endif
 		ret = allocate_resource(&ioport_resource, res, num, min, ~0UL,
 					1, pcmcia_align, &data);
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 
 	if (ret != 0) {
 		kfree(res);
@@ -672,7 +671,7 @@ static struct resource * nonstatic_find_mem_region(u_long base, u_long num,
 			min = 0x100000UL + base;
 		}
 
-		down(&rsrc_sem);
+		mutex_lock(&rsrc_mutex);
 #ifdef CONFIG_PCI
 		if (s->cb_dev) {
 			ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num,
@@ -682,7 +681,7 @@ static struct resource * nonstatic_find_mem_region(u_long base, u_long num,
 #endif
 			ret = allocate_resource(&iomem_resource, res, num, min,
 						max, 1, pcmcia_align, &data);
-		up(&rsrc_sem);
+		mutex_unlock(&rsrc_mutex);
 		if (ret == 0 || low)
 			break;
 		low = 1;
@@ -705,7 +704,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 	if (end < start)
 		return -EINVAL;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	switch (action) {
 	case ADD_MANAGED_RESOURCE:
 		ret = add_interval(&data->mem_db, start, size);
@@ -723,7 +722,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 	default:
 		ret = -EINVAL;
 	}
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -741,7 +740,7 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	if (end > IO_SPACE_LIMIT)
 		return -EINVAL;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	switch (action) {
 	case ADD_MANAGED_RESOURCE:
 		if (add_interval(&data->io_db, start, size) != 0) {
@@ -760,7 +759,7 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 		ret = -EINVAL;
 		break;
 	}
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -809,8 +808,10 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_IO) {
 			if (res == &ioport_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge I/O window: 0x%lx - 0x%lx\n",
-			       res->start, res->end);
+			printk(KERN_INFO "pcmcia: parent PCI bridge I/O "
+				"window: 0x%llx - 0x%llx\n",
+				(unsigned long long)res->start,
+				(unsigned long long)res->end);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -819,8 +820,10 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_MEM) {
 			if (res == &iomem_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge Memory window: 0x%lx - 0x%lx\n",
-			       res->start, res->end);
+			printk(KERN_INFO "pcmcia: parent PCI bridge Memory "
+				"window: 0x%llx - 0x%llx\n",
+				(unsigned long long)res->start,
+				(unsigned long long)res->end);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}
@@ -867,7 +870,7 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 	struct socket_data *data = s->resource_data;
 	struct resource_map *p, *q;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	for (p = data->mem_db.next; p != &data->mem_db; p = q) {
 		q = p->next;
 		kfree(p);
@@ -876,7 +879,7 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 		q = p->next;
 		kfree(p);
 	}
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 }
 
 
@@ -901,7 +904,7 @@ static ssize_t show_io_db(struct class_device *class_dev, char *buf)
 	struct resource_map *p;
 	ssize_t ret = 0;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	data = s->resource_data;
 
 	for (p = data->io_db.next; p != &data->io_db; p = p->next) {
@@ -913,7 +916,7 @@ static ssize_t show_io_db(struct class_device *class_dev, char *buf)
 				 ((unsigned long) p->base + p->num - 1));
 	}
 
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 	return (ret);
 }
 
@@ -953,7 +956,7 @@ static ssize_t show_mem_db(struct class_device *class_dev, char *buf)
 	struct resource_map *p;
 	ssize_t ret = 0;
 
-	down(&rsrc_sem);
+	mutex_lock(&rsrc_mutex);
 	data = s->resource_data;
 
 	for (p = data->mem_db.next; p != &data->mem_db; p = p->next) {
@@ -965,7 +968,7 @@ static ssize_t show_mem_db(struct class_device *class_dev, char *buf)
 				 ((unsigned long) p->base + p->num - 1));
 	}
 
-	up(&rsrc_sem);
+	mutex_unlock(&rsrc_mutex);
 	return (ret);
 }
 

@@ -19,7 +19,6 @@
 ** FIXME: add DMA hint support programming in both sba and lba modules.
 */
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
@@ -178,6 +177,11 @@ extern struct proc_dir_entry * proc_mckinley_root;
 #define ROPE6_CTL	0x230
 #define ROPE7_CTL	0x238
 
+#define IOC_ROPE0_CFG	0x500	/* pluto only */
+#define   IOC_ROPE_AO	  0x10	/* Allow "Relaxed Ordering" */
+
+
+
 #define HF_ENABLE	0x40
 
 
@@ -311,10 +315,10 @@ static int reserve_sba_gart = 1;
 **
 ** Superdome (in particular, REO) allows only 64-bit CSR accesses.
 */
-#define READ_REG32(addr)	 le32_to_cpu(__raw_readl(addr))
-#define READ_REG64(addr)	 le64_to_cpu(__raw_readq(addr))
-#define WRITE_REG32(val, addr) __raw_writel(cpu_to_le32(val), addr)
-#define WRITE_REG64(val, addr) __raw_writeq(cpu_to_le64(val), addr)
+#define READ_REG32(addr)	readl(addr)
+#define READ_REG64(addr)	readq(addr)
+#define WRITE_REG32(val, addr)	writel((val), (addr))
+#define WRITE_REG64(val, addr)	writeq((val), (addr))
 
 #ifdef CONFIG_64BIT
 #define READ_REG(addr)		READ_REG64(addr)
@@ -1422,7 +1426,7 @@ sba_ioc_init_pluto(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 	iov_order = get_order(iova_space_size >> (IOVP_SHIFT - PAGE_SHIFT));
 	ioc->pdir_size = (iova_space_size / IOVP_SIZE) * sizeof(u64);
 
-	DBG_INIT("%s() hpa 0x%lx IOV %dMB (%d bits)\n",
+	DBG_INIT("%s() hpa 0x%p IOV %dMB (%d bits)\n",
 		__FUNCTION__, ioc->ioc_hpa, iova_space_size >> 20,
 		iov_order + PAGE_SHIFT);
 
@@ -1642,9 +1646,9 @@ sba_ioc_init(struct parisc_device *sba, struct ioc *ioc, int ioc_num)
 **
 **************************************************************************/
 
-static void __iomem *ioc_remap(struct sba_device *sba_dev, int offset)
+static void __iomem *ioc_remap(struct sba_device *sba_dev, unsigned int offset)
 {
-	return ioremap(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
+	return ioremap_nocache(sba_dev->dev->hpa.start + offset, SBA_FUNC_SIZE);
 }
 
 static void sba_hw_init(struct sba_device *sba_dev)
@@ -1724,9 +1728,7 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 		sba_dev->chip_resv.start = PCI_F_EXTEND | 0xfef00000UL;
 		sba_dev->chip_resv.end   = PCI_F_EXTEND | (0xff000000UL - 1) ;
 		err = request_resource(&iomem_resource, &(sba_dev->chip_resv));
-		if (err < 0) {
-			BUG();
-		}
+		BUG_ON(err < 0);
 
 	} else if (IS_PLUTO(sba_dev->iodc)) {
 		int err;
@@ -1761,19 +1763,34 @@ printk("sba_hw_init(): mem_boot 0x%x 0x%x 0x%x 0x%x\n", PAGE0->mem_boot.hpa,
 
 	sba_dev->num_ioc = num_ioc;
 	for (i = 0; i < num_ioc; i++) {
-		/*
-		** Make sure the box crashes if we get any errors on a rope.
-		*/
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE0_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE1_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE2_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE3_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE4_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE5_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE6_CTL);
-		WRITE_REG(HF_ENABLE, sba_dev->ioc[i].ioc_hpa + ROPE7_CTL);
+		void __iomem *ioc_hpa = sba_dev->ioc[i].ioc_hpa;
+		unsigned int j;
 
-		/* flush out the writes */
+		for (j=0; j < sizeof(u64) * ROPES_PER_IOC; j+=sizeof(u64)) {
+
+			/*
+			 * Clear ROPE(N)_CONFIG AO bit.
+			 * Disables "NT Ordering" (~= !"Relaxed Ordering")
+			 * Overrides bit 1 in DMA Hint Sets.
+			 * Improves netperf UDP_STREAM by ~10% for bcm5701.
+			 */
+			if (IS_PLUTO(sba_dev->iodc)) {
+				void __iomem *rope_cfg;
+				unsigned long cfg_val;
+
+				rope_cfg = ioc_hpa + IOC_ROPE0_CFG + j;
+				cfg_val = READ_REG(rope_cfg);
+				cfg_val &= ~IOC_ROPE_AO;
+				WRITE_REG(cfg_val, rope_cfg);
+			}
+
+			/*
+			** Make sure the box crashes on rope errors.
+			*/
+			WRITE_REG(HF_ENABLE, ioc_hpa + ROPE0_CTL + j);
+		}
+
+		/* flush out the last writes */
 		READ_REG(sba_dev->ioc[i].ioc_hpa + ROPE7_CTL);
 
 		DBG_INIT("	ioc[%d] ROPE_CFG 0x%Lx  ROPE_DBG 0x%Lx\n",
@@ -1885,7 +1902,7 @@ sba_common_init(struct sba_device *sba_dev)
 	 * (bit #61, big endian), we have to flush and sync every time
 	 * IO-PDIR is changed in Ike/Astro.
 	 */
-	if (boot_cpu_data.pdc.capabilities & PDC_MODEL_IOPDIR_FDC) {
+	if (ioc_needs_fdc) {
 		printk(KERN_INFO MODULE_NAME " FDC/SYNC required.\n");
 	} else {
 		printk(KERN_INFO MODULE_NAME " IOC has cache coherent PDIR.\n");
@@ -2042,7 +2059,7 @@ sba_driver_callback(struct parisc_device *dev)
 	u32 func_class;
 	int i;
 	char *version;
-	void __iomem *sba_addr = ioremap(dev->hpa.start, SBA_FUNC_SIZE);
+	void __iomem *sba_addr = ioremap_nocache(dev->hpa.start, SBA_FUNC_SIZE);
 	struct proc_dir_entry *info_entry, *bitmap_entry, *root;
 
 	sba_dump_ranges(sba_addr);
@@ -2185,8 +2202,7 @@ void sba_directed_lmmio(struct parisc_device *pci_hba, struct resource *r)
 	int i;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	if ((t!=HPHW_IOA) && (t!=HPHW_BCPORT))
-		BUG();
+	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 
@@ -2228,8 +2244,7 @@ void sba_distributed_lmmio(struct parisc_device *pci_hba, struct resource *r )
 	int base, size;
 	int rope = (pci_hba->hw_path & (ROPES_PER_IOC-1));  /* rope # */
 
-	if ((t!=HPHW_IOA) && (t!=HPHW_BCPORT))
-		BUG();
+	BUG_ON((t!=HPHW_IOA) && (t!=HPHW_BCPORT));
 
 	r->start = r->end = 0;
 

@@ -25,13 +25,11 @@
 /* Guard accelerator accesses with spin_lock_irqsave... */
 #undef MATROXFB_USE_SPINLOCKS
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
@@ -672,6 +670,8 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 
 #define M_SEQ_INDEX	0x1FC4
 #define M_SEQ_DATA	0x1FC5
+#define     M_SEQ1		0x01
+#define        M_SEQ1_SCROFF		0x20
 
 #define M_MISC_REG_READ	0x1FCC
 

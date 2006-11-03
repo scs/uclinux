@@ -8,7 +8,6 @@
  *  License. See the file COPYING in the main directory of this archive for
  *  more details.
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -210,8 +209,7 @@ int i810_probe_i2c_connector(struct fb_info *info, u8 **out_edid, int conn)
 		}
 	}
 
-        if (out_edid)
-                *out_edid = edid;
+	*out_edid = edid;
 
         return (edid) ? 0 : 1;
 }

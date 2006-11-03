@@ -6,7 +6,6 @@
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  *               Cornelia Huck (cornelia.huck@de.ibm.com)
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -78,7 +77,8 @@ ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 		return -ENODEV;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
-	if (cdev->private->state == DEV_STATE_VERIFY) {
+	if (cdev->private->state == DEV_STATE_VERIFY ||
+	    cdev->private->state == DEV_STATE_CLEAR_VERIFY) {
 		/* Remember to fake irb when finished. */
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = 1;
@@ -263,6 +263,9 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 	/* Abuse intparm for error reporting. */
 	if (IS_ERR(irb))
 		cdev->private->intparm = -EIO;
+	else if (irb->scsw.cc == 1)
+		/* Retry for deferred condition code. */
+		cdev->private->intparm = -EAGAIN;
 	else if ((irb->scsw.dstat !=
 		  (DEV_STAT_CHN_END|DEV_STAT_DEV_END)) ||
 		 (irb->scsw.cstat != 0)) {
@@ -270,7 +273,8 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 		 * We didn't get channel end / device end. Check if path
 		 * verification has been started; we can retry after it has
 		 * finished. We also retry unit checks except for command reject
-		 * or intervention required.
+		 * or intervention required. Also check for long busy
+		 * conditions.
 		 */
 		 if (cdev->private->flags.doverify ||
 			 cdev->private->state == DEV_STATE_VERIFY)
@@ -279,6 +283,10 @@ ccw_device_wake_up(struct ccw_device *cdev, unsigned long ip, struct irb *irb)
 		     !(irb->ecw[0] &
 		       (SNS0_CMD_REJECT | SNS0_INTERVENTION_REQ)))
 			 cdev->private->intparm = -EAGAIN;
+		else if ((irb->scsw.dstat & DEV_STAT_ATTENTION) &&
+			 (irb->scsw.dstat & DEV_STAT_DEV_END) &&
+			 (irb->scsw.dstat & DEV_STAT_UNIT_EXCEP))
+			cdev->private->intparm = -EAGAIN;
 		 else
 			 cdev->private->intparm = -EIO;
 			 
@@ -359,10 +367,9 @@ read_dev_chars (struct ccw_device *cdev, void **buffer, int length)
 	CIO_TRACE_EVENT (4, "rddevch");
 	CIO_TRACE_EVENT (4, sch->dev.bus_id);
 
-	rdc_ccw = kmalloc(sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
+	rdc_ccw = kzalloc(sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (!rdc_ccw)
 		return -ENOMEM;
-	memset(rdc_ccw, 0, sizeof(struct ccw1));
 	rdc_ccw->cmd_code = CCW_CMD_RDC;
 	rdc_ccw->count = length;
 	rdc_ccw->flags = CCW_FLAG_SLI;
@@ -426,16 +433,14 @@ read_conf_data_lpm (struct ccw_device *cdev, void **buffer, int *length, __u8 lp
 	if (!ciw || ciw->cmd == 0)
 		return -EOPNOTSUPP;
 
-	rcd_ccw = kmalloc(sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
+	rcd_ccw = kzalloc(sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (!rcd_ccw)
 		return -ENOMEM;
-	memset(rcd_ccw, 0, sizeof(struct ccw1));
-	rcd_buf = kmalloc(ciw->count, GFP_KERNEL | GFP_DMA);
+	rcd_buf = kzalloc(ciw->count, GFP_KERNEL | GFP_DMA);
  	if (!rcd_buf) {
 		kfree(rcd_ccw);
 		return -ENOMEM;
 	}
- 	memset (rcd_buf, 0, ciw->count);
 	rcd_ccw->cmd_code = ciw->cmd;
 	rcd_ccw->cda = (__u32) __pa (rcd_buf);
 	rcd_ccw->count = ciw->count;

@@ -320,7 +320,6 @@ static inline int adv7393_write(struct i2c_client *client, u8 reg, u8 value)
 
 static inline int adv7393_read(struct i2c_client *client, u8 reg)
 {
-
    if (client) {
 	return i2c_smbus_read_byte_data(client, reg);
     } else {
@@ -695,7 +694,6 @@ static int bfin_adv7393_fb_open(struct fb_info *info, int user)
 	bfin_config_ppi(fbdev);
 	bfin_config_dma(fbdev);
 	bfin_enable_ppi();
-
 
 	return 0;
 }

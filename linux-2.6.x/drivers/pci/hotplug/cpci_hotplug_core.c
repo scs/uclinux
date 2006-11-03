@@ -25,7 +25,6 @@
  * Send feedback to <scottm@somanetworks.com>
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -248,22 +247,19 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 	 * with the pci_hotplug subsystem.
 	 */
 	for (i = first; i <= last; ++i) {
-		slot = kmalloc(sizeof (struct slot), GFP_KERNEL);
+		slot = kzalloc(sizeof (struct slot), GFP_KERNEL);
 		if (!slot)
 			goto error;
-		memset(slot, 0, sizeof (struct slot));
 
 		hotplug_slot =
-		    kmalloc(sizeof (struct hotplug_slot), GFP_KERNEL);
+			kzalloc(sizeof (struct hotplug_slot), GFP_KERNEL);
 		if (!hotplug_slot)
 			goto error_slot;
-		memset(hotplug_slot, 0, sizeof (struct hotplug_slot));
 		slot->hotplug_slot = hotplug_slot;
 
-		info = kmalloc(sizeof (struct hotplug_slot_info), GFP_KERNEL);
+		info = kzalloc(sizeof (struct hotplug_slot_info), GFP_KERNEL);
 		if (!info)
 			goto error_hpslot;
-		memset(info, 0, sizeof (struct hotplug_slot_info));
 		hotplug_slot->info = info;
 
 		name = kmalloc(SLOT_NAME_SIZE, GFP_KERNEL);
@@ -351,7 +347,7 @@ cpci_hp_intr(int irq, void *data, struct pt_regs *regs)
 	dbg("entered cpci_hp_intr");
 
 	/* Check to see if it was our interrupt */
-	if ((controller->irq_flags & SA_SHIRQ) &&
+	if ((controller->irq_flags & IRQF_SHARED) &&
 	    !controller->ops->check_irq(controller->dev_id)) {
 		dbg("exited cpci_hp_intr, not our interrupt");
 		return IRQ_NONE;

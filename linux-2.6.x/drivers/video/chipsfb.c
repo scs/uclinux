@@ -14,13 +14,11 @@
  *  more details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
@@ -148,9 +146,23 @@ static int chipsfb_set_par(struct fb_info *info)
 static int chipsfb_blank(int blank, struct fb_info *info)
 {
 #ifdef CONFIG_PMAC_BACKLIGHT
-	// used to disable backlight only for blank > 1, but it seems
-	// useful at blank = 1 too (saves battery, extends backlight life)
-	set_backlight_enable(!blank);
+	mutex_lock(&pmac_backlight_mutex);
+
+	if (pmac_backlight) {
+		/* used to disable backlight only for blank > 1, but it seems
+		 * useful at blank = 1 too (saves battery, extends backlight
+		 * life)
+	 	 */
+		down(&pmac_backlight->sem);
+		if (blank)
+			pmac_backlight->props->power = FB_BLANK_POWERDOWN;
+		else
+			pmac_backlight->props->power = FB_BLANK_UNBLANK;
+		pmac_backlight->props->update_status(pmac_backlight);
+		up(&pmac_backlight->sem);
+	}
+
+	mutex_unlock(&pmac_backlight_mutex);
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
 	return 1;	/* get fb_blank to set the colormap to all black */
@@ -177,8 +189,6 @@ struct chips_init_reg {
 	unsigned char addr;
 	unsigned char data;
 };
-
-#define N_ELTS(x)	(sizeof(x) / sizeof(x[0]))
 
 static struct chips_init_reg chips_init_sr[] = {
 	{ 0x00, 0x03 },
@@ -287,18 +297,18 @@ static void __init chips_hw_init(void)
 {
 	int i;
 
-	for (i = 0; i < N_ELTS(chips_init_xr); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_xr); ++i)
 		write_xr(chips_init_xr[i].addr, chips_init_xr[i].data);
 	outb(0x29, 0x3c2); /* set misc output reg */
-	for (i = 0; i < N_ELTS(chips_init_sr); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_sr); ++i)
 		write_sr(chips_init_sr[i].addr, chips_init_sr[i].data);
-	for (i = 0; i < N_ELTS(chips_init_gr); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_gr); ++i)
 		write_gr(chips_init_gr[i].addr, chips_init_gr[i].data);
-	for (i = 0; i < N_ELTS(chips_init_ar); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_ar); ++i)
 		write_ar(chips_init_ar[i].addr, chips_init_ar[i].data);
-	for (i = 0; i < N_ELTS(chips_init_cr); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_cr); ++i)
 		write_cr(chips_init_cr[i].addr, chips_init_cr[i].data);
-	for (i = 0; i < N_ELTS(chips_init_fr); ++i)
+	for (i = 0; i < ARRAY_SIZE(chips_init_fr); ++i)
 		write_fr(chips_init_fr[i].addr, chips_init_fr[i].data);
 }
 
@@ -403,7 +413,14 @@ chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* turn on the backlight */
-	set_backlight_enable(1);
+	mutex_lock(&pmac_backlight_mutex);
+	if (pmac_backlight) {
+		down(&pmac_backlight->sem);
+		pmac_backlight->props->power = FB_BLANK_UNBLANK;
+		pmac_backlight->props->update_status(pmac_backlight);
+		up(&pmac_backlight->sem);
+	}
+	mutex_unlock(&pmac_backlight_mutex);
 #endif /* CONFIG_PMAC_BACKLIGHT */
 
 #ifdef CONFIG_PPC

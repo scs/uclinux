@@ -30,7 +30,6 @@
 #ifndef _LINUX_TI113X_H
 #define _LINUX_TI113X_H
 
-#include <linux/config.h>
 
 /* Register definitions for TI 113X PCI-to-CardBus bridges */
 
@@ -648,6 +647,7 @@ static int ti12xx_2nd_slot_empty(struct yenta_socket *socket)
 		 */
 		break;
 
+	case PCI_DEVICE_ID_TI_XX12:
 	case PCI_DEVICE_ID_TI_X515:
 	case PCI_DEVICE_ID_TI_X420:
 	case PCI_DEVICE_ID_TI_X620:

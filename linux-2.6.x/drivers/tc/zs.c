@@ -39,7 +39,6 @@
  *     is shared with DSRS(DTE) at pin 23.
  */
 
-#include <linux/config.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -185,8 +184,6 @@ static struct tty_driver *serial_driver;
 
 #define RS_STROBE_TIME 10
 #define RS_ISR_PASS_LIMIT 256
-
-#define _INLINE_ inline
 
 static void probe_sccs(void);
 static void change_speed(struct dec_serial *info);
@@ -344,14 +341,13 @@ static inline void rs_recv_clear(struct dec_zschannel *zsc)
  * This routine is used by the interrupt handler to schedule
  * processing in the software interrupt portion of the driver.
  */
-static _INLINE_ void rs_sched_event(struct dec_serial *info, int event)
+static void rs_sched_event(struct dec_serial *info, int event)
 {
 	info->event |= 1 << event;
 	tasklet_schedule(&info->tlet);
 }
 
-static _INLINE_ void receive_chars(struct dec_serial *info,
-				   struct pt_regs *regs)
+static void receive_chars(struct dec_serial *info, struct pt_regs *regs)
 {
 	struct tty_struct *tty = info->tty;
 	unsigned char ch, stat, flag;
@@ -441,7 +437,7 @@ static void transmit_chars(struct dec_serial *info)
 		rs_sched_event(info, RS_EVENT_WRITE_WAKEUP);
 }
 
-static _INLINE_ void status_handle(struct dec_serial *info)
+static void status_handle(struct dec_serial *info)
 {
 	unsigned char stat;
 
@@ -1748,7 +1744,6 @@ int __init zs_init(void)
 	/* Not all of this is exactly right for us. */
 
 	serial_driver->owner = THIS_MODULE;
-	serial_driver->devfs_name = "tts/";
 	serial_driver->name = "ttyS";
 	serial_driver->major = TTY_MAJOR;
 	serial_driver->minor_start = 64;
@@ -1757,7 +1752,7 @@ int __init zs_init(void)
 	serial_driver->init_termios = tty_std_termios;
 	serial_driver->init_termios.c_cflag =
 		B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	serial_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	serial_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_set_operations(serial_driver, &serial_ops);
 
 	if (tty_register_driver(serial_driver))
@@ -1796,7 +1791,7 @@ int __init zs_init(void)
 		zs_soft[channel].clk_divisor = 16;
 		zs_soft[channel].zs_baud = get_zsbaud(&zs_soft[channel]);
 
-		if (request_irq(zs_soft[channel].irq, rs_interrupt, SA_SHIRQ,
+		if (request_irq(zs_soft[channel].irq, rs_interrupt, IRQF_SHARED,
 				"scc", &zs_soft[channel]))
 			printk(KERN_ERR "decserial: can't get irq %d\n",
 			       zs_soft[channel].irq);

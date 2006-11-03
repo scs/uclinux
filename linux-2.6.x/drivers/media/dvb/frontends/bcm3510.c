@@ -39,6 +39,7 @@
 #include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 
 #include "dvb_frontend.h"
 #include "bcm3510.h"
@@ -47,12 +48,11 @@
 struct bcm3510_state {
 
 	struct i2c_adapter* i2c;
-	struct dvb_frontend_ops ops;
 	const struct bcm3510_config* config;
 	struct dvb_frontend frontend;
 
 	/* demodulator private data */
-	struct semaphore hab_sem;
+	struct mutex hab_mutex;
 	u8 firmware_loaded:1;
 
 	unsigned long next_status_check;
@@ -213,7 +213,7 @@ static int bcm3510_do_hab_cmd(struct bcm3510_state *st, u8 cmd, u8 msgid, u8 *ob
 	dbufout(ob,olen+2,deb_hab);
 	deb_hab("\n");
 
-	if (down_interruptible(&st->hab_sem) < 0)
+	if (mutex_lock_interruptible(&st->hab_mutex) < 0)
 		return -EAGAIN;
 
 	if ((ret = bcm3510_hab_send_request(st, ob, olen+2)) < 0 ||
@@ -226,7 +226,7 @@ static int bcm3510_do_hab_cmd(struct bcm3510_state *st, u8 cmd, u8 msgid, u8 *ob
 
 	memcpy(ibuf,&ib[2],ilen);
 error:
-	up(&st->hab_sem);
+	mutex_unlock(&st->hab_mutex);
 	return ret;
 }
 
@@ -790,13 +790,12 @@ struct dvb_frontend* bcm3510_attach(const struct bcm3510_config *config,
 
 	state->config = config;
 	state->i2c = i2c;
-	memcpy(&state->ops, &bcm3510_ops, sizeof(struct dvb_frontend_ops));
 
 	/* create dvb_frontend */
-	state->frontend.ops = &state->ops;
+	memcpy(&state->frontend.ops, &bcm3510_ops, sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
-	sema_init(&state->hab_sem, 1);
+	mutex_init(&state->hab_mutex);
 
 	if ((ret = bcm3510_readB(state,0xe0,&v)) < 0)
 		goto error;

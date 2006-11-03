@@ -75,7 +75,6 @@
  *   - move reset into open to clean out spurious data
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -83,6 +82,7 @@
 #include <linux/module.h>
 #include <linux/smp_lock.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
@@ -256,7 +256,7 @@ static void tower_disconnect	(struct usb_interface *interface);
 
 
 /* prevent races between open() and disconnect */
-static DECLARE_MUTEX (disconnect_sem);
+static DEFINE_MUTEX (disconnect_mutex);
 
 /* file operations needed when we register this driver */
 static struct file_operations tower_fops = {
@@ -349,7 +349,7 @@ static int tower_open (struct inode *inode, struct file *file)
 	nonseekable_open(inode, file);
 	subminor = iminor(inode);
 
-	down (&disconnect_sem);
+	mutex_lock (&disconnect_mutex);
 
 	interface = usb_find_interface (&tower_driver, subminor);
 
@@ -427,7 +427,7 @@ unlock_exit:
 	up (&dev->sem);
 
 unlock_disconnect_exit:
-	up (&disconnect_sem);
+	mutex_unlock (&disconnect_mutex);
 
 	dbg(2, "%s: leave, return value %d ", __FUNCTION__, retval);
 
@@ -1005,7 +1005,7 @@ static void tower_disconnect (struct usb_interface *interface)
 
 	dbg(2, "%s: enter", __FUNCTION__);
 
-	down (&disconnect_sem);
+	mutex_lock (&disconnect_mutex);
 
 	dev = usb_get_intfdata (interface);
 	usb_set_intfdata (interface, NULL);
@@ -1027,7 +1027,7 @@ static void tower_disconnect (struct usb_interface *interface)
 		up (&dev->sem);
 	}
 
-	up (&disconnect_sem);
+	mutex_unlock (&disconnect_mutex);
 
 	info("LEGO USB Tower #%d now disconnected", (minor - LEGO_USB_TOWER_MINOR_BASE));
 

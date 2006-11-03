@@ -12,6 +12,8 @@
 #include <linux/bio.h>
 #include <linux/slab.h>
 
+#define DM_MSG_PREFIX "target"
+
 struct tt_internal {
 	struct target_type tt;
 
@@ -78,8 +80,7 @@ void dm_put_target_type(struct target_type *t)
 	if (--ti->use == 0)
 		module_put(ti->tt.module);
 
-	if (ti->use < 0)
-		BUG();
+	BUG_ON(ti->use < 0);
 	up_read(&_lock);
 
 	return;

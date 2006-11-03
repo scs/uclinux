@@ -1,4 +1,4 @@
-/* 
+/*
  * zoran - Iomega Buz driver
  *
  * Copyright (C) 1999 Rainer Johanni <Rainer@Johanni.de>
@@ -159,7 +159,7 @@ Private IOCTL to set up for displaying MJPEG
 #define BUZ_MAX_FRAME     256	/* Must be a power of 2 */
 #define BUZ_MASK_FRAME    255	/* Must be BUZ_MAX_FRAME-1 */
 
-#define BUZ_MAX_INPUT       8
+#define BUZ_MAX_INPUT       16
 
 #if VIDEO_MAX_FRAME <= 32
 #   define   V4L_MAX_FRAME   32
@@ -190,6 +190,9 @@ enum card_type {
 
 	/* Iomega */
 	BUZ,
+
+	/* AverMedia */
+	AVS6EYES,
 
 	/* total number of cards */
 	NUM_CARDS
@@ -264,7 +267,7 @@ struct zoran_v4l_settings {
 };
 
 /* whoops, this one is undeclared if !v4l2 */
-#ifndef HAVE_V4L2
+#ifndef CONFIG_VIDEO_V4L2
 struct v4l2_jpegcompression {
 	int quality;
 	int APPn;
@@ -379,6 +382,9 @@ struct card_info {
 	/* is the /GWS line conected? */
 	u8 gws_not_connected;
 
+	/* avs6eyes mux setting */
+	u8 input_mux;
+
 	void (*init) (struct zoran * zr);
 };
 
@@ -395,7 +401,7 @@ struct zoran {
 	struct videocodec *codec;	/* video codec */
 	struct videocodec *vfe;	/* video front end */
 
-	struct semaphore resource_lock;	/* prevent evil stuff */
+	struct mutex resource_lock;	/* prevent evil stuff */
 
 	u8 initialized;		/* flag if zoran has been correctly initalized */
 	int user;		/* number of current users */

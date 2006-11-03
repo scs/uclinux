@@ -29,6 +29,7 @@
  *    raid_disks
  *    near_copies (stored in low byte of layout)
  *    far_copies (stored in second byte of layout)
+ *    far_offset (stored in bit 16 of layout )
  *
  * The data to be stored is divided into chunks using chunksize.
  * Each device is divided into far_copies sections.
@@ -36,10 +37,14 @@
  * near_copies copies of each chunk is stored (each on a different drive).
  * The starting device for each section is offset near_copies from the starting
  * device of the previous section.
- * Thus there are (near_copies*far_copies) of each chunk, and each is on a different
+ * Thus they are (near_copies*far_copies) of each chunk, and each is on a different
  * drive.
  * near_copies and far_copies must be at least one, and their product is at most
  * raid_disks.
+ *
+ * If far_offset is true, then the far_copies are handled a bit differently.
+ * The copies are still in different stripes, but instead of be very far apart
+ * on disk, there are adjacent stripes.
  */
 
 /*
@@ -357,8 +362,7 @@ static int raid10_end_write_request(struct bio *bio, unsigned int bytes_done, in
  * With this layout, and block is never stored twice on the one device.
  *
  * raid10_find_phys finds the sector offset of a given virtual sector
- * on each device that it is on. If a block isn't on a device,
- * that entry in the array is set to MaxSector.
+ * on each device that it is on.
  *
  * raid10_find_virt does the reverse mapping, from a device and a
  * sector offset to a virtual address
@@ -381,6 +385,8 @@ static void raid10_find_phys(conf_t *conf, r10bio_t *r10bio)
 	chunk *= conf->near_copies;
 	stripe = chunk;
 	dev = sector_div(stripe, conf->raid_disks);
+	if (conf->far_offset)
+		stripe *= conf->far_copies;
 
 	sector += stripe << conf->chunk_shift;
 
@@ -414,16 +420,24 @@ static sector_t raid10_find_virt(conf_t *conf, sector_t sector, int dev)
 {
 	sector_t offset, chunk, vchunk;
 
-	while (sector > conf->stride) {
-		sector -= conf->stride;
-		if (dev < conf->near_copies)
-			dev += conf->raid_disks - conf->near_copies;
-		else
-			dev -= conf->near_copies;
-	}
-
 	offset = sector & conf->chunk_mask;
-	chunk = sector >> conf->chunk_shift;
+	if (conf->far_offset) {
+		int fc;
+		chunk = sector >> conf->chunk_shift;
+		fc = sector_div(chunk, conf->far_copies);
+		dev -= fc * conf->near_copies;
+		if (dev < 0)
+			dev += conf->raid_disks;
+	} else {
+		while (sector > conf->stride) {
+			sector -= conf->stride;
+			if (dev < conf->near_copies)
+				dev += conf->raid_disks - conf->near_copies;
+			else
+				dev -= conf->near_copies;
+		}
+		chunk = sector >> conf->chunk_shift;
+	}
 	vchunk = chunk * conf->raid_disks + dev;
 	sector_div(vchunk, conf->near_copies);
 	return (vchunk << conf->chunk_shift) + offset;
@@ -900,9 +914,12 @@ static void status(struct seq_file *seq, mddev_t *mddev)
 		seq_printf(seq, " %dK chunks", mddev->chunk_size/1024);
 	if (conf->near_copies > 1)
 		seq_printf(seq, " %d near-copies", conf->near_copies);
-	if (conf->far_copies > 1)
-		seq_printf(seq, " %d far-copies", conf->far_copies);
-
+	if (conf->far_copies > 1) {
+		if (conf->far_offset)
+			seq_printf(seq, " %d offset-copies", conf->far_copies);
+		else
+			seq_printf(seq, " %d far-copies", conf->far_copies);
+	}
 	seq_printf(seq, " [%d/%d] [", conf->raid_disks,
 						conf->working_disks);
 	for (i = 0; i < conf->raid_disks; i++)
@@ -1117,8 +1134,7 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 	for (i=0; i<conf->copies; i++)
 		if (r10_bio->devs[i].bio == bio)
 			break;
-	if (i == conf->copies)
-		BUG();
+	BUG_ON(i == conf->copies);
 	update_head_pos(i, r10_bio);
 	d = r10_bio->devs[i].devnum;
 
@@ -1408,36 +1424,45 @@ static void raid10d(mddev_t *mddev)
 				if (s > (PAGE_SIZE>>9))
 					s = PAGE_SIZE >> 9;
 
+				rcu_read_lock();
 				do {
 					int d = r10_bio->devs[sl].devnum;
-					rdev = conf->mirrors[d].rdev;
+					rdev = rcu_dereference(conf->mirrors[d].rdev);
 					if (rdev &&
-					    test_bit(In_sync, &rdev->flags) &&
-					    sync_page_io(rdev->bdev,
-							 r10_bio->devs[sl].addr +
-							 sect + rdev->data_offset,
-							 s<<9,
-							 conf->tmppage, READ))
-						success = 1;
-					else {
-						sl++;
-						if (sl == conf->copies)
-							sl = 0;
+					    test_bit(In_sync, &rdev->flags)) {
+						atomic_inc(&rdev->nr_pending);
+						rcu_read_unlock();
+						success = sync_page_io(rdev->bdev,
+								       r10_bio->devs[sl].addr +
+								       sect + rdev->data_offset,
+								       s<<9,
+								       conf->tmppage, READ);
+						rdev_dec_pending(rdev, mddev);
+						rcu_read_lock();
+						if (success)
+							break;
 					}
+					sl++;
+					if (sl == conf->copies)
+						sl = 0;
 				} while (!success && sl != r10_bio->read_slot);
+				rcu_read_unlock();
 
 				if (success) {
 					int start = sl;
 					/* write it back and re-read */
+					rcu_read_lock();
 					while (sl != r10_bio->read_slot) {
 						int d;
 						if (sl==0)
 							sl = conf->copies;
 						sl--;
 						d = r10_bio->devs[sl].devnum;
-						rdev = conf->mirrors[d].rdev;
+						rdev = rcu_dereference(conf->mirrors[d].rdev);
 						if (rdev &&
 						    test_bit(In_sync, &rdev->flags)) {
+							atomic_inc(&rdev->nr_pending);
+							rcu_read_unlock();
 							atomic_add(s, &rdev->corrected_errors);
 							if (sync_page_io(rdev->bdev,
 									 r10_bio->devs[sl].addr +
@@ -1445,6 +1470,8 @@ static void raid10d(mddev_t *mddev)
 									 s<<9, conf->tmppage, WRITE) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
+							rdev_dec_pending(rdev, mddev);
+							rcu_read_lock();
 						}
 					}
 					sl = start;
@@ -1454,17 +1481,26 @@ static void raid10d(mddev_t *mddev)
 							sl = conf->copies;
 						sl--;
 						d = r10_bio->devs[sl].devnum;
-						rdev = conf->mirrors[d].rdev;
+						rdev = rcu_dereference(conf->mirrors[d].rdev);
 						if (rdev &&
 						    test_bit(In_sync, &rdev->flags)) {
+							atomic_inc(&rdev->nr_pending);
+							rcu_read_unlock();
 							if (sync_page_io(rdev->bdev,
 									 r10_bio->devs[sl].addr +
 									 sect + rdev->data_offset,
 									 s<<9, conf->tmppage, READ) == 0)
 								/* Well, this device is dead */
 								md_error(mddev, rdev);
+							else
+								printk(KERN_INFO "raid10:%s: read error corrected (%d sectors at %llu on %s)\n",
+								       mdname(mddev), s, (unsigned long long)(sect+rdev->data_offset), bdevname(rdev->bdev, b));
+
+							rdev_dec_pending(rdev, mddev);
+							rcu_read_lock();
 						}
 					}
+					rcu_read_unlock();
 				} else {
 					/* Cannot read from anywhere -- bye bye array */
 					md_error(mddev, conf->mirrors[r10_bio->devs[r10_bio->read_slot].devnum].rdev);
@@ -1518,8 +1554,7 @@ static int init_resync(conf_t *conf)
 	int buffs;
 
 	buffs = RESYNC_WINDOW / RESYNC_BLOCK_SIZE;
-	if (conf->r10buf_pool)
-		BUG();
+	BUG_ON(conf->r10buf_pool);
 	conf->r10buf_pool = mempool_create(buffs, r10buf_pool_alloc, r10buf_pool_free, conf);
 	if (!conf->r10buf_pool)
 		return -ENOMEM;
@@ -1901,7 +1936,7 @@ static int run(mddev_t *mddev)
 	mirror_info_t *disk;
 	mdk_rdev_t *rdev;
 	struct list_head *tmp;
-	int nc, fc;
+	int nc, fc, fo;
 	sector_t stride, size;
 
 	if (mddev->chunk_size == 0) {
@@ -1911,8 +1946,9 @@ static int run(mddev_t *mddev)
 
 	nc = mddev->layout & 255;
 	fc = (mddev->layout >> 8) & 255;
+	fo = mddev->layout & (1<<16);
 	if ((nc*fc) <2 || (nc*fc) > mddev->raid_disks ||
-	    (mddev->layout >> 16)) {
+	    (mddev->layout >> 17)) {
 		printk(KERN_ERR "raid10: %s: unsupported raid10 layout: 0x%8x\n",
 		       mdname(mddev), mddev->layout);
 		goto out;
@@ -1944,12 +1980,16 @@ static int run(mddev_t *mddev)
 	conf->near_copies = nc;
 	conf->far_copies = fc;
 	conf->copies = nc*fc;
+	conf->far_offset = fo;
 	conf->chunk_mask = (sector_t)(mddev->chunk_size>>9)-1;
 	conf->chunk_shift = ffz(~mddev->chunk_size) - 9;
-	stride = mddev->size >> (conf->chunk_shift-1);
-	sector_div(stride, fc);
-	conf->stride = stride << conf->chunk_shift;
-
+	if (fo)
+		conf->stride = 1 << conf->chunk_shift;
+	else {
+		stride = mddev->size >> (conf->chunk_shift-1);
+		sector_div(stride, fc);
+		conf->stride = stride << conf->chunk_shift;
+	}
 	conf->r10bio_pool = mempool_create(NR_RAID10_BIOS, r10bio_pool_alloc,
 						r10bio_pool_free, conf);
 	if (!conf->r10bio_pool) {
@@ -2001,7 +2041,8 @@ static int run(mddev_t *mddev)
 
 		disk = conf->mirrors + i;
 
-		if (!disk->rdev) {
+		if (!disk->rdev ||
+		    !test_bit(In_sync, &rdev->flags)) {
 			disk->head_position = 0;
 			mddev->degraded++;
 		}
@@ -2023,7 +2064,13 @@ static int run(mddev_t *mddev)
 	/*
 	 * Ok, everything is just fine now
 	 */
-	size = conf->stride * conf->raid_disks;
+	if (conf->far_offset) {
+		size = mddev->size >> (conf->chunk_shift-1);
+		size *= conf->raid_disks;
+		size <<= conf->chunk_shift;
+		sector_div(size, conf->far_copies);
+	} else
+		size = conf->stride * conf->raid_disks;
 	sector_div(size, conf->near_copies);
 	mddev->array_size = size/2;
 	mddev->resync_max_sectors = size;
@@ -2036,7 +2083,7 @@ static int run(mddev_t *mddev)
 	 * maybe...
 	 */
 	{
-		int stripe = conf->raid_disks * mddev->chunk_size / PAGE_SIZE;
+		int stripe = conf->raid_disks * (mddev->chunk_size / PAGE_SIZE);
 		stripe /= conf->near_copies;
 		if (mddev->queue->backing_dev_info.ra_pages < 2* stripe)
 			mddev->queue->backing_dev_info.ra_pages = 2* stripe;

@@ -5,6 +5,7 @@
 **	(c) Copyright 1999 SuSE GmbH
 **	(c) Copyright 1999,2000 Hewlett-Packard Company
 **	(c) Copyright 2000 Grant Grundler
+**	(c) Copyright 2006 Helge Deller
 **
 **	This program is free software; you can redistribute it and/or modify
 **	it under the terms of the GNU General Public License as published by
@@ -42,7 +43,6 @@
 **       for PCI drivers devices which implement/use MMIO registers.
 */
 
-#include <linux/config.h>
 #include <linux/delay.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -298,7 +298,7 @@ struct pci_port_ops dino_port_ops = {
 
 static void dino_disable_irq(unsigned int irq)
 {
-	struct dino_device *dino_dev = irq_desc[irq].handler_data;
+	struct dino_device *dino_dev = irq_desc[irq].chip_data;
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 
 	DBG(KERN_WARNING "%s(0x%p, %d)\n", __FUNCTION__, dino_dev, irq);
@@ -310,7 +310,7 @@ static void dino_disable_irq(unsigned int irq)
 
 static void dino_enable_irq(unsigned int irq)
 {
-	struct dino_device *dino_dev = irq_desc[irq].handler_data;
+	struct dino_device *dino_dev = irq_desc[irq].chip_data;
 	int local_irq = gsc_find_local_irq(irq, dino_dev->global_irq, DINO_LOCAL_IRQS);
 	u32 tmp;
 
@@ -785,7 +785,7 @@ dino_bridge_init(struct dino_device *dino_dev, const char *name)
 		if((io_addr & (1 << i)) == 0)
 			continue;
 
-		start = (unsigned long)(signed int)(0xf0000000 | (i << 23));
+		start = F_EXTEND(0xf0000000UL) | (i << 23);
 		end = start + 8 * 1024 * 1024 - 1;
 
 		DBG("DINO RANGE %d is at 0x%lx-0x%lx\n", count,
@@ -996,7 +996,7 @@ static int __init dino_probe(struct parisc_device *dev)
 	}
 
 	dino_dev->hba.dev = dev;
-	dino_dev->hba.base_addr = ioremap(hpa, 4096);
+	dino_dev->hba.base_addr = ioremap_nocache(hpa, 4096);
 	dino_dev->hba.lmmio_space_offset = 0;	/* CPU addrs == bus addrs */
 	spin_lock_init(&dino_dev->dinosaur_pen);
 	dino_dev->hba.iommu = ccio_get_iommu(dev);

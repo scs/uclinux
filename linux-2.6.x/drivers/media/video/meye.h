@@ -36,7 +36,6 @@
 #define MEYE_DRIVER_VERSION __stringify(MEYE_DRIVER_MAJORVERSION) "." \
 			    __stringify(MEYE_DRIVER_MINORVERSION)
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kfifo.h>
@@ -260,6 +259,8 @@
 
 /* private API definitions */
 #include <linux/meye.h>
+#include <linux/mutex.h>
+
 
 /* Enable jpg software correction */
 #define MEYE_JPEG_CORRECTION	1
@@ -301,7 +302,7 @@ struct meye {
 					/* list of buffers */
 	struct meye_grab_buffer grab_buffer[MEYE_MAX_BUFNBRS];
 	int vma_use_count[MEYE_MAX_BUFNBRS]; /* mmap count */
-	struct semaphore lock;		/* semaphore for open/mmap... */
+	struct mutex lock;		/* mutex for open/mmap... */
 	struct kfifo *grabq;		/* queue for buffers to be grabbed */
 	spinlock_t grabq_lock;		/* lock protecting the queue */
 	struct kfifo *doneq;		/* queue for grabbed buffers */

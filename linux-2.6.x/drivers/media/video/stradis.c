@@ -1,4 +1,4 @@
-/* 
+/*
  * stradis.c - stradis 4:2:2 mpeg decoder driver
  *
  * Stradis 4:2:2 MPEG-2 Decoder Driver
@@ -42,6 +42,7 @@
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 
 #include "saa7146.h"
 #include "saa7146reg.h"
@@ -1191,9 +1192,9 @@ static void saa7146_set_winsize(struct saa7146 *saa)
 }
 
 /* clip_draw_rectangle(cm,x,y,w,h) -- handle clipping an area
- * bitmap is fixed width, 128 bytes (1024 pixels represented) 
- * arranged most-sigificant-bit-left in 32-bit words 
- * based on saa7146 clipping hardware, it swaps bytes if LE 
+ * bitmap is fixed width, 128 bytes (1024 pixels represented)
+ * arranged most-sigificant-bit-left in 32-bit words
+ * based on saa7146 clipping hardware, it swaps bytes if LE
  * much of this makes up for egcs brain damage -- so if you
  * are wondering "why did he do this?" it is because the C
  * was adjusted to generate the optimal asm output without
@@ -1259,7 +1260,7 @@ static void make_clip_tab(struct saa7146 *saa, struct video_clip *cr, int ncr)
 			clip_draw_rectangle(clipmap, cr[i].x, cr[i].y,
 				cr[i].width, cr[i].height);
 	}
-	/* clip against viewing window AND screen 
+	/* clip against viewing window AND screen
 	   so we do not have to rely on the user program
 	 */
 	clip_draw_rectangle(clipmap, (saa->win.x + width > saa->win.swidth) ?
@@ -1982,7 +1983,7 @@ static int __devinit configure_saa7146(struct pci_dev *pdev, int num)
 	memcpy(&saa->video_dev, &saa_template, sizeof(saa_template));
 	saawrite(0, SAA7146_IER);	/* turn off all interrupts */
 
-	retval = request_irq(saa->irq, saa7146_irq, SA_SHIRQ | SA_INTERRUPT,
+	retval = request_irq(saa->irq, saa7146_irq, IRQF_SHARED | IRQF_DISABLED,
 		"stradis", saa);
 	if (retval == -EINVAL)
 		dev_err(&pdev->dev, "%d: Bad irq number or handler\n", num);
@@ -2180,7 +2181,6 @@ static struct pci_device_id stradis_pci_tbl[] = {
 	{ 0 }
 };
 
-MODULE_DEVICE_TABLE(pci, stradis_pci_tbl);
 
 static struct pci_driver stradis_driver = {
 	.name = "stradis",
@@ -2189,7 +2189,7 @@ static struct pci_driver stradis_driver = {
 	.remove = __devexit_p(stradis_remove)
 };
 
-int __init stradis_init(void)
+static int __init stradis_init(void)
 {
 	int retval;
 
@@ -2202,7 +2202,7 @@ int __init stradis_init(void)
 	return retval;
 }
 
-void __exit stradis_exit(void)
+static void __exit stradis_exit(void)
 {
 	pci_unregister_driver(&stradis_driver);
 	printk(KERN_INFO "stradis: module cleanup complete\n");

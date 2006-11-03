@@ -32,12 +32,28 @@
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 
 
+/* www.canusb.com Lawicel CANUSB device */
+#define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
+
+/* AlphaMicro Components AMC-232USB01 device */
+#define FTDI_AMC232_PID 0xFF00 /* Product Id */
+
+/* ACT Solutions HomePro ZWave interface (http://www.act-solutions.com/HomePro.htm) */
+#define FTDI_ACTZWAVE_PID	0xF2D0
+
+
+/* www.starting-point-systems.com µChameleon device */
+#define FTDI_MICRO_CHAMELEON_PID	0xCAA0	/* Product Id */
+
 /* www.irtrans.de device */
 #define FTDI_IRTRANS_PID 0xFC60 /* Product Id */
 
 
 /* www.thoughttechnology.com/ TT-USB provide with procomp use ftdi_sio */
 #define FTDI_TTUSB_PID 0xFF20 /* Product Id */
+
+/* iPlus device */
+#define FTDI_IPLUS_PID 0xD070 /* Product Id */
 
 /* www.crystalfontz.com devices - thanx for providing free devices for evaluation ! */
 /* they use the ftdi chipset for the USB interface and the vendor id is the same */
@@ -146,6 +162,18 @@
 #define KOBIL_CONV_KAAN_PID	0x2021	/* KOBIL_Konverter for KAAN */
 
 /*
+ * Icom ID-1 digital transceiver
+ */
+
+#define ICOM_ID1_VID            0x0C26
+#define ICOM_ID1_PID            0x0004
+
+/*
+ * ASK.fr devices
+ */
+#define FTDI_ASK_RDR400_PID	0xC991	/* ASK RDR 400 series card reader */
+
+/*
  * DSS-20 Sync Station for Sony Ericsson P800
  */
  
@@ -159,6 +187,10 @@
 /* USB-UIRT - An infrared receiver and transmitter using the 8U232AM chip */
 /* http://home.earthlink.net/~jrhees/USBUIRT/index.htm */
 #define FTDI_USB_UIRT_PID	0xF850	/* Product Id */
+
+/* TNC-X USB-to-packet-radio adapter, versions prior to 3.0 (DLP module) */
+
+#define FTDI_TNC_X_PID		0xEBE0
 
 /*
  * ELV USB devices submitted by Christian Abt of ELV (www.elv.de).
@@ -391,6 +423,54 @@
  */
 #define FTDI_WESTREX_MODEL_777_PID	0xDC00	/* Model 777 */
 #define FTDI_WESTREX_MODEL_8900F_PID	0xDC01	/* Model 8900F */
+
+/*
+ * RR-CirKits LocoBuffer USB (http://www.rr-cirkits.com)
+ */
+#define FTDI_RRCIRKITS_LOCOBUFFER_PID	0xc7d0	/* LocoBuffer USB */
+
+/*
+ * Eclo (http://www.eclo.pt/) product IDs.
+ * PID 0xEA90 submitted by Martin Grill.
+ */
+#define FTDI_ECLO_COM_1WIRE_PID	0xEA90	/* COM to 1-Wire USB adaptor */
+
+/*
+ * Papouch products (http://www.papouch.com/)
+ * Submitted by Folkert van Heusden
+ */
+
+#define PAPOUCH_VID			0x5050	/* Vendor ID */
+#define PAPOUCH_TMU_PID			0x0400	/* TMU USB Thermometer */
+
+/*
+ * ACG Identification Technologies GmbH products (http://www.acg.de/).
+ * Submitted by anton -at- goto10 -dot- org.
+ */
+#define FTDI_ACG_HFDUAL_PID		0xDD20	/* HF Dual ISO Reader (RFID) */
+
+/*
+ * Yost Engineering, Inc. products (www.yostengineering.com).
+ * PID 0xE050 submitted by Aaron Prose.
+ */
+#define FTDI_YEI_SERVOCENTER31_PID	0xE050	/* YEI ServoCenter3.1 USB */
+
+/*
+ * ThorLabs USB motor drivers
+ */
+#define FTDI_THORLABS_PID		0xfaf0 /* ThorLabs USB motor drivers */
+
+/*
+ * Testo products (http://www.testo.com/)
+ * Submitted by Colin Leroy
+ */
+#define TESTO_VID			0x128D
+#define TESTO_USB_INTERFACE_PID		0x0001
+
+/*
+ * Gamma Scout (http://gamma-scout.com/). Submitted by rsc@runtux.com.
+ */
+#define FTDI_GAMMA_SCOUT_PID		0xD678	/* Gamma Scout online */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

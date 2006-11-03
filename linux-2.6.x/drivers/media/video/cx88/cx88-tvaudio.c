@@ -52,6 +52,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/delay.h>
+#include <linux/config.h>
 #include <linux/kthread.h>
 
 #include "cx88.h"
@@ -137,21 +138,28 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 {
 	u32 volume;
 
-#ifndef USING_CX88_ALSA
+#ifndef CONFIG_VIDEO_CX88_ALSA
 	/* restart dma; This avoids buzz in NICAM and is good in others  */
 	cx88_stop_audio_dma(core);
 #endif
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
-#ifndef USING_CX88_ALSA
+#ifndef CONFIG_VIDEO_CX88_ALSA
 	cx88_start_audio_dma(core);
 #endif
 
 	if (cx88_boards[core->board].blackbird) {
 		/* sets sound input from external adc */
-		if (core->board == CX88_BOARD_HAUPPAUGE_ROSLYN)
+		switch (core->board) {
+		case CX88_BOARD_HAUPPAUGE_ROSLYN:
+		case CX88_BOARD_KWORLD_MCE200_DELUXE:
+		case CX88_BOARD_KWORLD_HARDWARE_MPEG_TV_XPERT:
+		case CX88_BOARD_PIXELVIEW_PLAYTV_P7000:
+		case CX88_BOARD_ASUS_PVR_416:
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
-		else
+			break;
+		default:
 			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
+		}
 
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
@@ -718,7 +726,7 @@ static void set_audio_standard_FM(struct cx88_core *core,
 
 /* ----------------------------------------------------------- */
 
-int cx88_detect_nicam(struct cx88_core *core)
+static int cx88_detect_nicam(struct cx88_core *core)
 {
 	int i, j = 0;
 
@@ -885,6 +893,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 			set_audio_standard_BTSC(core, 1, EN_BTSC_FORCE_SAP);
 			break;
 		case V4L2_TUNER_MODE_STEREO:
+		case V4L2_TUNER_MODE_LANG1_LANG2:
 			set_audio_standard_BTSC(core, 0, EN_BTSC_FORCE_STEREO);
 			break;
 		}
@@ -905,6 +914,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 							 EN_NICAM_FORCE_MONO2);
 				break;
 			case V4L2_TUNER_MODE_STEREO:
+			case V4L2_TUNER_MODE_LANG1_LANG2:
 				set_audio_standard_NICAM(core,
 							 EN_NICAM_FORCE_STEREO);
 				break;
@@ -926,6 +936,7 @@ void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual)
 							      EN_A2_FORCE_MONO2);
 					break;
 				case V4L2_TUNER_MODE_STEREO:
+				case V4L2_TUNER_MODE_LANG1_LANG2:
 					set_audio_standard_A2(core,
 							      EN_A2_FORCE_STEREO);
 					break;

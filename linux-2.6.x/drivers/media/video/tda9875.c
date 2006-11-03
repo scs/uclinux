@@ -26,28 +26,27 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/videodev.h>
+#include <media/v4l2-common.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 
-#include "bttv.h"
-#include <media/audiochip.h>
+
+#include <media/i2c-addr.h>
 
 static int debug; /* insmod parameter */
 module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_LICENSE("GPL");
 
-
 /* Addresses to scan */
 static unsigned short normal_i2c[] =  {
-    I2C_TDA9875 >> 1,
+    I2C_ADDR_TDA9875 >> 1,
     I2C_CLIENT_END
 };
 I2C_CLIENT_INSMOD;
 
 /* This is a superset of the TDA9875 */
 struct tda9875 {
-	int mode;
 	int rvol, lvol;
 	int bass, treble;
 	struct i2c_client c;
@@ -165,7 +164,7 @@ static void do_tda9875_init(struct i2c_client *client)
 	struct tda9875 *t = i2c_get_clientdata(client);
 	dprintk("In tda9875_init\n");
 	tda9875_write(client, TDA9875_CFG, 0xd0 ); /*reg de config 0 (reset)*/
-    	tda9875_write(client, TDA9875_MSR, 0x03 );    /* Monitor 0b00000XXX*/
+	tda9875_write(client, TDA9875_MSR, 0x03 );    /* Monitor 0b00000XXX*/
 	tda9875_write(client, TDA9875_C1MSB, 0x00 );  /*Car1(FM) MSB XMHz*/
 	tda9875_write(client, TDA9875_C1MIB, 0x00 );  /*Car1(FM) MIB XMHz*/
 	tda9875_write(client, TDA9875_C1LSB, 0x00 );  /*Car1(FM) LSB XMHz*/
@@ -197,7 +196,6 @@ static void do_tda9875_init(struct i2c_client *client)
 
 	tda9875_write(client, TDA9875_MUT, 0xcc );   /* General mute  */
 
-	t->mode=AUDIO_UNMUTE;
 	t->lvol=t->rvol =0;  	/* 0dB */
 	t->bass=0; 			/* 0dB */
 	t->treble=0;  		/* 0dB */

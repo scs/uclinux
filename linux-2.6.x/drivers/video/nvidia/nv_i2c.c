@@ -10,7 +10,6 @@
  * for more details.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -218,8 +217,7 @@ int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 		}
 	}
 
-	if (out_edid)
-		*out_edid = edid;
+	*out_edid = edid;
 
 	return (edid) ? 0 : 1;
 }

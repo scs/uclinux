@@ -22,7 +22,6 @@
  * Send feedback to <lxie@us.ibm.com>
  *
  */
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -359,9 +358,6 @@ static int __init rpaphp_init(void)
 
 	while ((dn = of_find_node_by_type(dn, "pci")))
 		rpaphp_add_slot(dn);
-
-	if (!num_slots)
-		return -ENODEV;
 
 	return 0;
 }

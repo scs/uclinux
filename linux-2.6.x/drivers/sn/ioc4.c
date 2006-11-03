@@ -31,7 +31,7 @@
 #include <linux/ioc4.h>
 #include <linux/mmtimer.h>
 #include <linux/rtc.h>
-#include <linux/rwsem.h>
+#include <linux/mutex.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/clksupport.h>
 #include <asm/sn/shub_mmr.h>
@@ -54,11 +54,10 @@
  * Submodule management *
  ************************/
 
-static LIST_HEAD(ioc4_devices);
-static DECLARE_RWSEM(ioc4_devices_rwsem);
+static DEFINE_MUTEX(ioc4_mutex);
 
+static LIST_HEAD(ioc4_devices);
 static LIST_HEAD(ioc4_submodules);
-static DECLARE_RWSEM(ioc4_submodules_rwsem);
 
 /* Register an IOC4 submodule */
 int
@@ -66,15 +65,13 @@ ioc4_register_submodule(struct ioc4_submodule *is)
 {
 	struct ioc4_driver_data *idd;
 
-	down_write(&ioc4_submodules_rwsem);
+	mutex_lock(&ioc4_mutex);
 	list_add(&is->is_list, &ioc4_submodules);
-	up_write(&ioc4_submodules_rwsem);
 
 	/* Initialize submodule for each IOC4 */
 	if (!is->is_probe)
-		return 0;
+		goto out;
 
-	down_read(&ioc4_devices_rwsem);
 	list_for_each_entry(idd, &ioc4_devices, idd_list) {
 		if (is->is_probe(idd)) {
 			printk(KERN_WARNING
@@ -84,8 +81,8 @@ ioc4_register_submodule(struct ioc4_submodule *is)
 			       pci_name(idd->idd_pdev));
 		}
 	}
-	up_read(&ioc4_devices_rwsem);
-
+ out:
+	mutex_unlock(&ioc4_mutex);
 	return 0;
 }
 
@@ -95,15 +92,13 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
 {
 	struct ioc4_driver_data *idd;
 
-	down_write(&ioc4_submodules_rwsem);
+	mutex_lock(&ioc4_mutex);
 	list_del(&is->is_list);
-	up_write(&ioc4_submodules_rwsem);
 
 	/* Remove submodule for each IOC4 */
 	if (!is->is_remove)
-		return;
+		goto out;
 
-	down_read(&ioc4_devices_rwsem);
 	list_for_each_entry(idd, &ioc4_devices, idd_list) {
 		if (is->is_remove(idd)) {
 			printk(KERN_WARNING
@@ -113,7 +108,8 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
 			       pci_name(idd->idd_pdev));
 		}
 	}
-	up_read(&ioc4_devices_rwsem);
+ out:
+	mutex_unlock(&ioc4_mutex);
 }
 
 /*********************
@@ -164,9 +160,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	writel(0, &idd->idd_misc_regs->int_out.raw);
 	mmiowb();
 
-	printk(KERN_INFO
-	       "%s: Calibrating PCI bus speed "
-	       "for pci_dev %s ... ", __FUNCTION__, pci_name(idd->idd_pdev));
 	/* Set up square wave */
 	int_out.raw = 0;
 	int_out.fields.count = IOC4_CALIBRATE_COUNT;
@@ -210,11 +203,16 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	/* Bounds check the result. */
 	if (period > IOC4_CALIBRATE_LOW_LIMIT ||
 	    period < IOC4_CALIBRATE_HIGH_LIMIT) {
-		printk("failed. Assuming PCI clock ticks are %d ns.\n",
+		printk(KERN_INFO
+		       "IOC4 %s: Clock calibration failed.  Assuming"
+		       "PCI clock is %d ns.\n",
+		       pci_name(idd->idd_pdev),
 		       IOC4_CALIBRATE_DEFAULT / IOC4_EXTINT_COUNT_DIVISOR);
 		period = IOC4_CALIBRATE_DEFAULT;
 	} else {
-		printk("succeeded. PCI clock ticks are %ld ns.\n",
+		printk(KERN_DEBUG
+		       "IOC4 %s: PCI clock is %ld ns.\n",
+		       pci_name(idd->idd_pdev),
 		       period / IOC4_EXTINT_COUNT_DIVISOR);
 	}
 
@@ -224,6 +222,51 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	 * PCI clock period.
 	 */
 	idd->count_period = period;
+}
+
+/* There are three variants of IOC4 cards: IO9, IO10, and PCI-RT.
+ * Each brings out different combinations of IOC4 signals, thus.
+ * the IOC4 subdrivers need to know to which we're attached.
+ *
+ * We look for the presence of a SCSI (IO9) or SATA (IO10) controller
+ * on the same PCI bus at slot number 3 to differentiate IO9 from IO10.
+ * If neither is present, it's a PCI-RT.
+ */
+static unsigned int
+ioc4_variant(struct ioc4_driver_data *idd)
+{
+	struct pci_dev *pdev = NULL;
+	int found = 0;
+
+	/* IO9: Look for a QLogic ISP 12160 at the same bus and slot 3. */
+	do {
+		pdev = pci_get_device(PCI_VENDOR_ID_QLOGIC,
+				      PCI_DEVICE_ID_QLOGIC_ISP12160, pdev);
+		if (pdev &&
+		    idd->idd_pdev->bus->number == pdev->bus->number &&
+		    3 == PCI_SLOT(pdev->devfn))
+			found = 1;
+		pci_dev_put(pdev);
+	} while (pdev && !found);
+	if (NULL != pdev)
+		return IOC4_VARIANT_IO9;
+
+	/* IO10: Look for a Vitesse VSC 7174 at the same bus and slot 3. */
+	pdev = NULL;
+	do {
+		pdev = pci_get_device(PCI_VENDOR_ID_VITESSE,
+				      PCI_DEVICE_ID_VITESSE_VSC7174, pdev);
+		if (pdev &&
+		    idd->idd_pdev->bus->number == pdev->bus->number &&
+		    3 == PCI_SLOT(pdev->devfn))
+			found = 1;
+		pci_dev_put(pdev);
+	} while (pdev && !found);
+	if (NULL != pdev)
+		return IOC4_VARIANT_IO10;
+
+	/* PCI-RT: No SCSI/SATA controller will be present */
+	return IOC4_VARIANT_PCI_RT;
 }
 
 /* Adds a new instance of an IOC4 card */
@@ -290,6 +333,13 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 
 	/* Failsafe portion of per-IOC4 initialization */
 
+	/* Detect card variant */
+	idd->idd_variant = ioc4_variant(idd);
+	printk(KERN_INFO "IOC4 %s: %s card detected.\n", pci_name(pdev),
+	       idd->idd_variant == IOC4_VARIANT_IO9 ? "IO9" :
+	       idd->idd_variant == IOC4_VARIANT_PCI_RT ? "PCI-RT" :
+	       idd->idd_variant == IOC4_VARIANT_IO10 ? "IO10" : "unknown");
+
 	/* Initialize IOC4 */
 	pci_read_config_dword(idd->idd_pdev, PCI_COMMAND, &pcmd);
 	pci_write_config_dword(idd->idd_pdev, PCI_COMMAND,
@@ -312,12 +362,11 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	/* Track PCI-device specific data */
 	idd->idd_serial_data = NULL;
 	pci_set_drvdata(idd->idd_pdev, idd);
-	down_write(&ioc4_devices_rwsem);
+
+	mutex_lock(&ioc4_mutex);
 	list_add_tail(&idd->idd_list, &ioc4_devices);
-	up_write(&ioc4_devices_rwsem);
 
 	/* Add this IOC4 to all submodules */
-	down_read(&ioc4_submodules_rwsem);
 	list_for_each_entry(is, &ioc4_submodules, is_list) {
 		if (is->is_probe && is->is_probe(idd)) {
 			printk(KERN_WARNING
@@ -327,7 +376,7 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 			       pci_name(idd->idd_pdev));
 		}
 	}
-	up_read(&ioc4_submodules_rwsem);
+	mutex_unlock(&ioc4_mutex);
 
 	return 0;
 
@@ -351,7 +400,7 @@ ioc4_remove(struct pci_dev *pdev)
 	idd = pci_get_drvdata(pdev);
 
 	/* Remove this IOC4 from all submodules */
-	down_read(&ioc4_submodules_rwsem);
+	mutex_lock(&ioc4_mutex);
 	list_for_each_entry(is, &ioc4_submodules, is_list) {
 		if (is->is_remove && is->is_remove(idd)) {
 			printk(KERN_WARNING
@@ -361,7 +410,7 @@ ioc4_remove(struct pci_dev *pdev)
 			       pci_name(idd->idd_pdev));
 		}
 	}
-	up_read(&ioc4_submodules_rwsem);
+	mutex_unlock(&ioc4_mutex);
 
 	/* Release resources */
 	iounmap(idd->idd_misc_regs);
@@ -377,9 +426,9 @@ ioc4_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 
 	/* Remove and free driver data */
-	down_write(&ioc4_devices_rwsem);
+	mutex_lock(&ioc4_mutex);
 	list_del(&idd->idd_list);
-	up_write(&ioc4_devices_rwsem);
+	mutex_unlock(&ioc4_mutex);
 	kfree(idd);
 }
 
@@ -389,7 +438,7 @@ static struct pci_device_id ioc4_id_table[] = {
 	{0}
 };
 
-static struct pci_driver __devinitdata ioc4_driver = {
+static struct pci_driver ioc4_driver = {
 	.name = "IOC4",
 	.id_table = ioc4_id_table,
 	.probe = ioc4_probe,

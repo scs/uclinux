@@ -10,7 +10,6 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -839,8 +838,8 @@ static int __init media_bay_init(void)
 		media_bays[i].cd_index		= -1;
 #endif
 	}
-	if (_machine != _MACH_Pmac)
-		return -ENODEV;
+	if (!machine_is(powermac))
+		return 0;
 
 	macio_register_driver(&media_bay_driver);	
 

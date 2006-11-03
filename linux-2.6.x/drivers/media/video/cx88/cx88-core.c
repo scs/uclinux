@@ -146,9 +146,11 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		fields++;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords) */
-	instructions  = (bpl * lines * fields) / PAGE_SIZE + lines * fields;
-	instructions += 3 + 4;
+	   one write per scan line + syncs + jump (all 2 dwords).  Padding
+	   can cause next bpl to start close to a page border.  First DMA
+	   region may be smaller than PAGE_SIZE */
+	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
+	instructions += 2;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 
@@ -163,7 +165,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -176,9 +178,11 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	int rc;
 
 	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords) */
-	instructions  = (bpl * lines) / PAGE_SIZE + lines;
-	instructions += 3 + 4;
+	   one write per scan line + syncs + jump (all 2 dwords).  Here
+	   there is no padding and no sync.  First DMA region may be smaller
+	   than PAGE_SIZE */
+	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
+	instructions += 1;
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 		return rc;
 
@@ -188,7 +192,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) / 4 > risc->size);
+	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
 	return 0;
 }
 
@@ -213,14 +217,13 @@ int cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 }
 
 void
-cx88_free_buffer(struct pci_dev *pci, struct cx88_buffer *buf)
+cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 {
-	if (in_interrupt())
-		BUG();
+	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_pci_unmap(pci, &buf->vb.dma);
+	videobuf_dma_unmap(q, &buf->vb.dma);
 	videobuf_dma_free(&buf->vb.dma);
-	btcx_riscmem_free(pci, &buf->risc);
+	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 
@@ -674,7 +677,7 @@ static unsigned int inline norm_htotal(struct cx88_tvnorm *norm)
 
 static unsigned int inline norm_vbipack(struct cx88_tvnorm *norm)
 {
-	return (norm->id & V4L2_STD_625_50) ? 511 : 288;
+	return (norm->id & V4L2_STD_625_50) ? 511 : 400;
 }
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int height,
@@ -929,9 +932,9 @@ int cx88_set_tvnorm(struct cx88_core *core, struct cx88_tvnorm *norm)
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
 	cx_write(MO_HTOTAL, htotal);
 
-	// vbi stuff
-	cx_write(MO_VBI_PACKET, ((1 << 11) | /* (norm_vdelay(norm)   << 11) | */
-				 norm_vbipack(norm)));
+	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
+	// the effective vbi offset ~244 samples, the same as the Bt8x8
+	cx_write(MO_VBI_PACKET, (10<<11) | norm_vbipack(norm));
 
 	// this is needed as well to set all tvnorm parameter
 	cx88_set_scale(core, 320, 240, V4L2_FIELD_INTERLACED);
@@ -1028,8 +1031,8 @@ static int get_ressources(struct cx88_core *core, struct pci_dev *pci)
 			       pci_resource_len(pci,0),
 			       core->name))
 		return 0;
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%lx\n",
-	       core->name,pci_resource_start(pci,0));
+	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
+	       core->name,(unsigned long long)pci_resource_start(pci,0));
 	return -EBUSY;
 }
 
@@ -1061,7 +1064,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);
 	core->pci_irqmask = 0x00fc00;
-	init_MUTEX(&core->lock);
+	mutex_init(&core->lock);
 
 	core->nr = cx88_devcount++;
 	sprintf(core->name,"cx88[%d]",core->nr);
@@ -1178,8 +1181,6 @@ EXPORT_SYMBOL(cx88_set_scale);
 EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
-EXPORT_SYMBOL(cx88_start_audio_dma);
-EXPORT_SYMBOL(cx88_stop_audio_dma);
 
 /*
  * Local variables:

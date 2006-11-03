@@ -340,7 +340,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 	}
 	pcibios_register_hba(&eisa_dev.hba);
 
-	result = request_irq(dev->irq, eisa_irq, SA_SHIRQ, "EISA", &eisa_dev);
+	result = request_irq(dev->irq, eisa_irq, IRQF_SHARED, "EISA", &eisa_dev);
 	if (result) {
 		printk(KERN_ERR "EISA: request_irq failed!\n");
 		return result;
@@ -350,7 +350,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 	irq_desc[2].action = &irq2_action;
 	
 	for (i = 0; i < 16; i++) {
-		irq_desc[i].handler = &eisa_interrupt_type;
+		irq_desc[i].chip = &eisa_interrupt_type;
 	}
 	
 	EISA_bus = 1;
@@ -366,7 +366,7 @@ static int __devinit eisa_probe(struct parisc_device *dev)
 			eisa_dev.eeprom_addr = MIRAGE_EEPROM_BASE_ADDR;
 		}
 	}
-	eisa_eeprom_addr = ioremap(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
+	eisa_eeprom_addr = ioremap_nocache(eisa_dev.eeprom_addr, HPEE_MAX_LENGTH);
 	result = eisa_enumerator(eisa_dev.eeprom_addr, &eisa_dev.hba.io_space,
 			&eisa_dev.hba.lmmio_space);
 	init_eisa_pic();

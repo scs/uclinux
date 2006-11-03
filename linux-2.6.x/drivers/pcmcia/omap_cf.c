@@ -218,7 +218,7 @@ static int __init omap_cf_probe(struct device *dev)
 
 	/* either CFLASH.IREQ (INT_1610_CF) or some GPIO */
 	irq = platform_get_irq(pdev, 0);
-	if (!irq)
+	if (irq < 0)
 		return -EINVAL;
 
 	cf = kcalloc(1, sizeof *cf, GFP_KERNEL);
@@ -232,7 +232,7 @@ static int __init omap_cf_probe(struct device *dev)
 	dev_set_drvdata(dev, cf);
 
 	/* this primarily just shuts up irq handling noise */
-	status = request_irq(irq, omap_cf_irq, SA_SHIRQ,
+	status = request_irq(irq, omap_cf_irq, IRQF_SHARED,
 			driver_name, cf);
 	if (status < 0)
 		goto fail0;

@@ -3,7 +3,7 @@
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
 
   This program is free software; you can redistribute it and/or modify
@@ -42,91 +42,6 @@ MODULE_PARM_DESC(ir_debug,"enable debug messages [IR]");
 
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg)
-
-/* ---------------------------------------------------------------------- */
-
-static IR_KEYTAB_TYPE ir_codes_em_terratec[IR_KEYTAB_SIZE] = {
-	[ 0x01 ] = KEY_CHANNEL,
-	[ 0x02 ] = KEY_SELECT,
-	[ 0x03 ] = KEY_MUTE,
-	[ 0x04 ] = KEY_POWER,
-	[ 0x05 ] = KEY_KP1,
-	[ 0x06 ] = KEY_KP2,
-	[ 0x07 ] = KEY_KP3,
-	[ 0x08 ] = KEY_CHANNELUP,
-	[ 0x09 ] = KEY_KP4,
-	[ 0x0a ] = KEY_KP5,
-	[ 0x0b ] = KEY_KP6,
-	[ 0x0c ] = KEY_CHANNELDOWN,
-	[ 0x0d ] = KEY_KP7,
-	[ 0x0e ] = KEY_KP8,
-	[ 0x0f ] = KEY_KP9,
-	[ 0x10 ] = KEY_VOLUMEUP,
-	[ 0x11 ] = KEY_KP0,
-	[ 0x12 ] = KEY_MENU,
-	[ 0x13 ] = KEY_PRINT,
-	[ 0x14 ] = KEY_VOLUMEDOWN,
-	[ 0x16 ] = KEY_PAUSE,
-	[ 0x18 ] = KEY_RECORD,
-	[ 0x19 ] = KEY_REWIND,
-	[ 0x1a ] = KEY_PLAY,
-	[ 0x1b ] = KEY_FORWARD,
-	[ 0x1c ] = KEY_BACKSPACE,
-	[ 0x1e ] = KEY_STOP,
-	[ 0x40 ] = KEY_ZOOM,
-};
-
-static IR_KEYTAB_TYPE ir_codes_em_pinnacle_usb[IR_KEYTAB_SIZE] = {
-	[ 0x3a ] = KEY_KP0,
-	[ 0x31 ] = KEY_KP1,
-	[ 0x32 ] = KEY_KP2,
-	[ 0x33 ] = KEY_KP3,
-	[ 0x34 ] = KEY_KP4,
-	[ 0x35 ] = KEY_KP5,
-	[ 0x36 ] = KEY_KP6,
-	[ 0x37 ] = KEY_KP7,
-	[ 0x38 ] = KEY_KP8,
-	[ 0x39 ] = KEY_KP9,
-
-	[ 0x2f ] = KEY_POWER,
-
-	[ 0x2e ] = KEY_P,
-	[ 0x1f ] = KEY_L,
-	[ 0x2b ] = KEY_I,
-
-	[ 0x2d ] = KEY_ZOOM,
-	[ 0x1e ] = KEY_ZOOM,
-	[ 0x1b ] = KEY_VOLUMEUP,
-	[ 0x0f ] = KEY_VOLUMEDOWN,
-	[ 0x17 ] = KEY_CHANNELUP,
-	[ 0x1c ] = KEY_CHANNELDOWN,
-	[ 0x25 ] = KEY_INFO,
-
-	[ 0x3c ] = KEY_MUTE,
-
-	[ 0x3d ] = KEY_LEFT,
-	[ 0x3b ] = KEY_RIGHT,
-
-	[ 0x3f ] = KEY_UP,
-	[ 0x3e ] = KEY_DOWN,
-	[ 0x1a ] = KEY_PAUSE,
-
-	[ 0x1d ] = KEY_MENU,
-	[ 0x19 ] = KEY_PLAY,
-	[ 0x16 ] = KEY_REWIND,
-	[ 0x13 ] = KEY_FORWARD,
-	[ 0x15 ] = KEY_PAUSE,
-	[ 0x0e ] = KEY_REWIND,
-	[ 0x0d ] = KEY_PLAY,
-	[ 0x0b ] = KEY_STOP,
-	[ 0x07 ] = KEY_FORWARD,
-	[ 0x27 ] = KEY_RECORD,
-	[ 0x26 ] = KEY_TUNER,
-	[ 0x29 ] = KEY_TEXT,
-	[ 0x2a ] = KEY_MEDIA,
-	[ 0x18 ] = KEY_EPG,
-	[ 0x27 ] = KEY_RECORD,
-};
 
 /* ----------------------------------------------------------------------- */
 
@@ -190,7 +105,7 @@ static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pinnacle_usb(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[3];
 
@@ -233,8 +148,8 @@ void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Terratec)");
 		break;
 	case (EM2820_BOARD_PINNACLE_USB_2):
-		ir->ir_codes = ir_codes_em_pinnacle_usb;
-		ir->get_key = get_key_pinnacle_usb;
+		ir->ir_codes = ir_codes_pinnacle_grey;
+		ir->get_key = get_key_pinnacle_usb_grey;
 		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Pinnacle PCTV)");
 		break;
 	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):

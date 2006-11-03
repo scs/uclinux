@@ -41,10 +41,7 @@ struct w1_reg_num
 
 #include <linux/completion.h>
 #include <linux/device.h>
-
-#include <net/sock.h>
-
-#include <asm/semaphore.h>
+#include <linux/mutex.h>
 
 #include "w1_family.h"
 
@@ -52,7 +49,7 @@ struct w1_reg_num
 #define W1_SLAVE_DATA_SIZE	128
 
 #define W1_SEARCH		0xF0
-#define W1_CONDITIONAL_SEARCH	0xEC
+#define W1_ALARM_SEARCH		0xEC
 #define W1_CONVERT_TEMP		0x44
 #define W1_SKIP_ROM		0xCC
 #define W1_READ_SCRATCHPAD	0xBE
@@ -60,7 +57,7 @@ struct w1_reg_num
 #define W1_READ_PSUPPLY		0xB4
 #define W1_MATCH_ROM		0x55
 
-#define W1_SLAVE_ACTIVE		(1<<0)
+#define W1_SLAVE_ACTIVE		0
 
 struct w1_slave
 {
@@ -80,7 +77,7 @@ struct w1_slave
 	struct completion	released;
 };
 
-typedef void (* w1_slave_found_callback)(unsigned long, u64);
+typedef void (* w1_slave_found_callback)(void *, u64);
 
 
 /**
@@ -93,16 +90,16 @@ typedef void (* w1_slave_found_callback)(unsigned long, u64);
 struct w1_bus_master
 {
 	/** the first parameter in all the functions below */
-	unsigned long	data;
+	void		*data;
 
 	/**
 	 * Sample the line level
 	 * @return the level read (0 or 1)
 	 */
-	u8		(*read_bit)(unsigned long);
+	u8		(*read_bit)(void *);
 
 	/** Sets the line level */
-	void		(*write_bit)(unsigned long, u8);
+	void		(*write_bit)(void *, u8);
 
 	/**
 	 * touch_bit is the lowest-level function for devices that really
@@ -111,42 +108,42 @@ struct w1_bus_master
 	 * touch_bit(1) = write-1 / read cycle
 	 * @return the bit read (0 or 1)
 	 */
-	u8		(*touch_bit)(unsigned long, u8);
+	u8		(*touch_bit)(void *, u8);
 
 	/**
 	 * Reads a bytes. Same as 8 touch_bit(1) calls.
 	 * @return the byte read
 	 */
-	u8		(*read_byte)(unsigned long);
+	u8		(*read_byte)(void *);
 
 	/**
 	 * Writes a byte. Same as 8 touch_bit(x) calls.
 	 */
-	void		(*write_byte)(unsigned long, u8);
+	void		(*write_byte)(void *, u8);
 
 	/**
 	 * Same as a series of read_byte() calls
 	 * @return the number of bytes read
 	 */
-	u8		(*read_block)(unsigned long, u8 *, int);
+	u8		(*read_block)(void *, u8 *, int);
 
 	/** Same as a series of write_byte() calls */
-	void		(*write_block)(unsigned long, const u8 *, int);
+	void		(*write_block)(void *, const u8 *, int);
 
 	/**
 	 * Combines two reads and a smart write for ROM searches
 	 * @return bit0=Id bit1=comp_id bit2=dir_taken
 	 */
-	u8		(*triplet)(unsigned long, u8);
+	u8		(*triplet)(void *, u8);
 
 	/**
 	 * long write-0 with a read for the presence pulse detection
 	 * @return -1=Error, 0=Device present, 1=No device present
 	 */
-	u8		(*reset_bus)(unsigned long);
+	u8		(*reset_bus)(void *);
 
-	/** Really nice hardware can handles the ROM searches */
-	void		(*search)(unsigned long, w1_slave_found_callback);
+	/** Really nice hardware can handles the different types of ROM search */
+	void		(*search)(void *, u8, w1_slave_found_callback);
 };
 
 #define W1_MASTER_NEED_EXIT		0
@@ -172,21 +169,31 @@ struct w1_master
 
 	long			flags;
 
-	pid_t			kpid;
-	struct semaphore	mutex;
+	struct task_struct	*thread;
+	struct mutex		mutex;
 
 	struct device_driver	*driver;
 	struct device		dev;
-	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;
 
-	u32			seq, groups;
-	struct sock		*nls;
+	u32			seq;
 };
 
 int w1_create_master_attributes(struct w1_master *);
-void w1_search(struct w1_master *dev, w1_slave_found_callback cb);
+void w1_search(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
+void w1_search_devices(struct w1_master *dev, u8 search_type, w1_slave_found_callback cb);
+struct w1_slave *w1_search_slave(struct w1_reg_num *id);
+void w1_search_process(struct w1_master *dev, u8 search_type);
+struct w1_master *w1_search_master_id(u32 id);
+
+u8 w1_triplet(struct w1_master *dev, int bdir);
+void w1_write_8(struct w1_master *, u8);
+int w1_reset_bus(struct w1_master *);
+u8 w1_calc_crc8(u8 *, int);
+void w1_write_block(struct w1_master *, const u8 *, int);
+u8 w1_read_block(struct w1_master *, u8 *, int);
+int w1_reset_select_slave(struct w1_slave *sl);
 
 static inline struct w1_slave* dev_to_w1_slave(struct device *dev)
 {
@@ -202,6 +209,15 @@ static inline struct w1_master* dev_to_w1_master(struct device *dev)
 {
 	return container_of(dev, struct w1_master, dev);
 }
+
+extern struct device_driver w1_master_driver;
+extern struct device w1_master_device;
+extern int w1_max_slave_count;
+extern int w1_max_slave_ttl;
+extern struct list_head w1_masters;
+extern struct mutex w1_mlock;
+
+extern int w1_process(void *);
 
 #endif /* __KERNEL__ */
 

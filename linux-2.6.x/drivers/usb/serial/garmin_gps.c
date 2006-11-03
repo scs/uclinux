@@ -23,7 +23,6 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111 USA
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -36,14 +35,13 @@
 #include <linux/spinlock.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 
 /* the mode to be set when the port ist opened */
 static int initial_mode = 1;
 
 /* debug flag */
 static int debug = 0;
-
-#include "usb-serial.h"
 
 #define GARMIN_VENDOR_ID             0x091E
 
@@ -1012,7 +1010,7 @@ static void garmin_write_bulk_callback (struct urb *urb, struct pt_regs *regs)
 		garmin_data_p->flags |= CLEAR_HALT_REQUIRED;
 	}
 
-	schedule_work(&port->work);
+	usb_serial_port_softint(port);
 }
 
 
@@ -1422,12 +1420,11 @@ static int garmin_attach (struct usb_serial *serial)
 
 	dbg("%s", __FUNCTION__);
 
-	garmin_data_p = kmalloc (sizeof(struct garmin_data), GFP_KERNEL);
+	garmin_data_p = kzalloc(sizeof(struct garmin_data), GFP_KERNEL);
 	if (garmin_data_p == NULL) {
 		dev_err(&port->dev, "%s - Out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	memset (garmin_data_p, 0, sizeof(struct garmin_data));
 	init_timer(&garmin_data_p->timer);
 	spin_lock_init(&garmin_data_p->lock);
 	INIT_LIST_HEAD(&garmin_data_p->pktlist);

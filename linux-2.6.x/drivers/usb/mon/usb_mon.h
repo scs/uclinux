@@ -27,6 +27,7 @@ struct mon_bus {
 	struct kref ref;		/* Under mon_lock */
 
 	/* Stats */
+	unsigned int cnt_events;
 	unsigned int cnt_text_lost;
 };
 
@@ -39,6 +40,7 @@ struct mon_reader {
 	void *r_data;		/* Use container_of instead? */
 
 	void (*rnf_submit)(void *data, struct urb *urb);
+	void (*rnf_error)(void *data, struct urb *urb, int error);
 	void (*rnf_complete)(void *data, struct urb *urb);
 };
 
@@ -49,7 +51,7 @@ void mon_reader_del(struct mon_bus *mbus, struct mon_reader *r);
  */
 extern char mon_dmapeek(unsigned char *dst, dma_addr_t dma_addr, int len);
 
-extern struct semaphore mon_lock;
+extern struct mutex mon_lock;
 
 extern struct file_operations mon_fops_text;
 extern struct file_operations mon_fops_stat;

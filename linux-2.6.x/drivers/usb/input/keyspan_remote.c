@@ -11,16 +11,13 @@
  * and Keyspan, Inc the manufacturers of the Keyspan USB DMR product.
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/input.h>
-#include <linux/usb.h>
-#include <linux/usb_input.h>
+#include <linux/usb/input.h>
 
 #define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Michael Downey <downey@zymeta.com>"
@@ -297,6 +294,8 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			remote->data.bits_left -= 6;
 		} else {
 			err("%s - Error in message, invalid toggle.\n", __FUNCTION__);
+			remote->stage = 0;
+			return;
 		}
 
 		keyspan_load_tester(remote, 5);
