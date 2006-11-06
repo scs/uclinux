@@ -6,7 +6,6 @@
  * Created to pull SCSI mid layer sysfs routines into one file.
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -39,7 +38,7 @@ const char *scsi_device_state_name(enum scsi_device_state state)
 	int i;
 	char *name = NULL;
 
-	for (i = 0; i < sizeof(sdev_states)/sizeof(sdev_states[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sdev_states); i++) {
 		if (sdev_states[i].value == state) {
 			name = sdev_states[i].name;
 			break;
@@ -65,7 +64,7 @@ const char *scsi_host_state_name(enum scsi_host_state state)
 	int i;
 	char *name = NULL;
 
-	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(shost_states); i++) {
 		if (shost_states[i].value == state) {
 			name = shost_states[i].name;
 			break;
@@ -160,7 +159,7 @@ store_shost_state(struct class_device *class_dev, const char *buf, size_t count)
 	struct Scsi_Host *shost = class_to_shost(class_dev);
 	enum scsi_host_state state = 0;
 
-	for (i = 0; i < sizeof(shost_states)/sizeof(shost_states[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(shost_states); i++) {
 		const int len = strlen(shost_states[i].name);
 		if (strncmp(shost_states[i].name, buf, len) == 0 &&
 		   buf[len] == '\n') {
@@ -256,7 +255,9 @@ static void scsi_device_dev_release_usercontext(void *data)
 
 static void scsi_device_dev_release(struct device *dev)
 {
-	scsi_execute_in_process_context(scsi_device_dev_release_usercontext,	dev);
+	struct scsi_device *sdp = to_scsi_device(dev);
+	execute_in_process_context(scsi_device_dev_release_usercontext, dev,
+				   &sdp->ew);
 }
 
 static struct class sdev_class = {
@@ -284,7 +285,7 @@ static int scsi_bus_suspend(struct device * dev, pm_message_t state)
 		return err;
 
 	if (sht->suspend)
-		err = sht->suspend(sdev);
+		err = sht->suspend(sdev, state);
 
 	return err;
 }
@@ -464,7 +465,7 @@ store_state_field(struct device *dev, struct device_attribute *attr, const char 
 	struct scsi_device *sdev = to_scsi_device(dev);
 	enum scsi_device_state state = 0;
 
-	for (i = 0; i < sizeof(sdev_states)/sizeof(sdev_states[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(sdev_states); i++) {
 		const int len = strlen(sdev_states[i].name);
 		if (strncmp(sdev_states[i].name, buf, len) == 0 &&
 		   buf[len] == '\n') {

@@ -23,8 +23,8 @@
 
 /*
  * $Log$
- * Revision 1.6  2006/03/23 03:23:42  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/06 01:24:47  magicyang
+ * update to kernel 2.6.18
  *
  */
 

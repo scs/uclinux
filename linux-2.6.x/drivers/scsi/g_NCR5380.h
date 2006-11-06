@@ -27,15 +27,14 @@
 
 /*
  * $Log$
- * Revision 1.6  2006/03/23 03:23:43  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/06 01:24:59  magicyang
+ * update to kernel 2.6.18
  *
  */
 
 #ifndef GENERIC_NCR5380_H
 #define GENERIC_NCR5380_H
 
-#include <linux/config.h>
 
 #define GENERIC_NCR5380_PUBLIC_RELEASE 1
 
@@ -85,6 +84,15 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define NCR5380_read(reg) (inb(NCR5380_map_name + (reg)))
 #define NCR5380_write(reg, value) (outb((value), (NCR5380_map_name + (reg))))
 
+#define NCR5380_implementation_fields \
+    NCR5380_map_type NCR5380_map_name
+
+#define NCR5380_local_declare() \
+    register NCR5380_implementation_fields
+
+#define NCR5380_setup(instance) \
+    NCR5380_map_name = (NCR5380_map_type)((instance)->NCR5380_instance_name)
+
 #else 
 /* therefore CONFIG_SCSI_G_NCR5380_MEM */
 
@@ -98,18 +106,20 @@ static const char* generic_NCR5380_info(struct Scsi_Host *);
 #define NCR53C400_host_buffer 0x3900
 #define NCR5380_region_size 0x3a00
 
-#define NCR5380_read(reg) isa_readb(NCR5380_map_name + NCR53C400_mem_base + (reg))
-#define NCR5380_write(reg, value) isa_writeb(value, NCR5380_map_name + NCR53C400_mem_base + (reg))
-#endif
+#define NCR5380_read(reg) readb(iomem + NCR53C400_mem_base + (reg))
+#define NCR5380_write(reg, value) writeb(value, iomem + NCR53C400_mem_base + (reg))
 
 #define NCR5380_implementation_fields \
-    NCR5380_map_type NCR5380_map_name
+    NCR5380_map_type NCR5380_map_name; \
+    void __iomem *iomem;
 
 #define NCR5380_local_declare() \
-    register NCR5380_implementation_fields
+    register void __iomem *iomem
 
 #define NCR5380_setup(instance) \
-    NCR5380_map_name = (NCR5380_map_type)((instance)->NCR5380_instance_name)
+    iomem = (((struct NCR5380_hostdata *)(instance)->hostdata).iomem)
+
+#endif
 
 #define NCR5380_intr generic_NCR5380_intr
 #define NCR5380_queue_command generic_NCR5380_queue_command

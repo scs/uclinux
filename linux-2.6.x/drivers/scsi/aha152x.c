@@ -16,8 +16,8 @@
  * $Id$
  *
  * $Log$
- * Revision 1.6  2006/03/23 03:23:42  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/06 01:24:53  magicyang
+ * update to kernel 2.6.18
  *
  * Revision 2.7  2004/01/24 11:42:59  fischer
  * - gather code that is not used by PCMCIA at the end
@@ -554,6 +554,11 @@ struct aha152x_hostdata {
 struct aha152x_scdata {
 	Scsi_Cmnd *next;	/* next sc in queue */
 	struct semaphore *sem;	/* semaphore to block on */
+	unsigned char cmd_len;
+	unsigned char cmnd[MAX_COMMAND_SIZE];
+	unsigned short use_sg;
+	unsigned request_bufflen;
+	void *request_buffer;
 };
 
 
@@ -858,7 +863,7 @@ struct Scsi_Host *aha152x_probe_one(struct aha152x_setup *setup)
 	SETPORT(SIMODE0, 0);
 	SETPORT(SIMODE1, 0);
 
-	if( request_irq(shpnt->irq, swintr, SA_INTERRUPT|SA_SHIRQ, "aha152x", shpnt) ) {
+	if( request_irq(shpnt->irq, swintr, IRQF_DISABLED|IRQF_SHARED, "aha152x", shpnt) ) {
 		printk(KERN_ERR "aha152x%d: irq %d busy.\n", shpnt->host_no, shpnt->irq);
 		goto out_host_put;
 	}
@@ -892,7 +897,7 @@ struct Scsi_Host *aha152x_probe_one(struct aha152x_setup *setup)
 	SETPORT(SSTAT0, 0x7f);
 	SETPORT(SSTAT1, 0xef);
 
-	if ( request_irq(shpnt->irq, intr, SA_INTERRUPT|SA_SHIRQ, "aha152x", shpnt) ) {
+	if ( request_irq(shpnt->irq, intr, IRQF_DISABLED|IRQF_SHARED, "aha152x", shpnt) ) {
 		printk(KERN_ERR "aha152x%d: failed to reassign irq %d.\n", shpnt->host_no, shpnt->irq);
 		goto out_host_put;
 	}
@@ -1009,11 +1014,20 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct semaphore *sem, int p
 			return FAILED;
 		}
 	} else {
+		struct aha152x_scdata *sc;
+
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
 		if(SCpnt->host_scribble==0) {
 			printk(ERR_LEAD "allocation failed\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
+
+		sc = SCDATA(SCpnt);
+		memcpy(sc->cmnd, SCpnt->cmnd, sizeof(sc->cmnd));
+		sc->request_buffer  = SCpnt->request_buffer;
+		sc->request_bufflen = SCpnt->request_bufflen;
+		sc->use_sg          = SCpnt->use_sg;
+		sc->cmd_len         = SCpnt->cmd_len;
 	}
 
 	SCNEXT(SCpnt)		= NULL;
@@ -1168,6 +1182,10 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DECLARE_MUTEX_LOCKED(sem);
 	struct timer_list timer;
 	int ret, issued, disconnected;
+	unsigned char old_cmd_len = SCpnt->cmd_len;
+	unsigned short old_use_sg = SCpnt->use_sg;
+	void *old_buffer = SCpnt->request_buffer;
+	unsigned old_bufflen = SCpnt->request_bufflen;
 	unsigned long flags;
 
 #if defined(AHA152X_DEBUG)
@@ -1201,11 +1219,11 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	add_timer(&timer);
 	down(&sem);
 	del_timer(&timer);
-	
-	SCpnt->cmd_len         = SCpnt->old_cmd_len;
-	SCpnt->use_sg          = SCpnt->old_use_sg;
-  	SCpnt->request_buffer  = SCpnt->buffer;
-       	SCpnt->request_bufflen = SCpnt->bufflen;
+
+	SCpnt->cmd_len         = old_cmd_len;
+	SCpnt->use_sg          = old_use_sg;
+  	SCpnt->request_buffer  = old_buffer;
+       	SCpnt->request_bufflen = old_bufflen;
 
 	DO_LOCK(flags);
 
@@ -1568,6 +1586,9 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 		if(DONE_SC->SCp.phase & check_condition) {
+			struct scsi_cmnd *cmd = HOSTDATA(shpnt)->done_SC;
+			struct aha152x_scdata *sc = SCDATA(cmd);
+
 #if 0
 			if(HOSTDATA(shpnt)->debug & debug_eh) {
 				printk(ERR_LEAD "received sense: ", CMDINFO(DONE_SC));
@@ -1576,13 +1597,13 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 			/* restore old command */
-			memcpy((void *) DONE_SC->cmnd, (void *) DONE_SC->data_cmnd, sizeof(DONE_SC->data_cmnd));
-			DONE_SC->request_buffer  = DONE_SC->buffer;
-			DONE_SC->request_bufflen = DONE_SC->bufflen;
-			DONE_SC->use_sg          = DONE_SC->old_use_sg;
-			DONE_SC->cmd_len         = DONE_SC->old_cmd_len;
+			memcpy(cmd->cmnd, sc->cmnd, sizeof(sc->cmnd));
+			cmd->request_buffer  = sc->request_buffer;
+			cmd->request_bufflen = sc->request_bufflen;
+			cmd->use_sg          = sc->use_sg;
+			cmd->cmd_len         = sc->cmd_len;
 
-			DONE_SC->SCp.Status = 0x02;
+			cmd->SCp.Status = 0x02;
 
 			HOSTDATA(shpnt)->commands--;
 			if (!HOSTDATA(shpnt)->commands)
@@ -1719,12 +1740,7 @@ static void seldo_run(struct Scsi_Host *shpnt)
 		ADDMSGO(BUS_DEVICE_RESET);
 	} else if (SYNCNEG==0 && SYNCHRONOUS) {
     		CURRENT_SC->SCp.phase |= syncneg;
-		ADDMSGO(EXTENDED_MESSAGE);
-		ADDMSGO(3);
-		ADDMSGO(EXTENDED_SDTR);
-		ADDMSGO(50);		/* 200ns */
-		ADDMSGO(8);		/* 8 byte req/ack offset */
-
+		MSGOLEN += spi_populate_sync_msg(&MSGO(MSGOLEN), 50, 8);
 		SYNCNEG=1;		/* negotiation in progress */
 	}
 

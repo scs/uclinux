@@ -18,7 +18,6 @@
  * - retry arbitration if lost (unless higher levels do this for us)
  * - power down the chip when no device is detected
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -1269,7 +1268,7 @@ static void set_dma_cmds(struct mesh_state *ms, struct scsi_cmnd *cmd)
 		if (cmd->use_sg > 0) {
 			int nseg;
 			total = 0;
-			scl = (struct scatterlist *) cmd->buffer;
+			scl = (struct scatterlist *) cmd->request_buffer;
 			off = ms->data_ptr;
 			nseg = pci_map_sg(ms->pdev, scl, cmd->use_sg,
 					  cmd->sc_data_direction);
@@ -1748,7 +1747,7 @@ static int mesh_host_reset(struct scsi_cmnd *cmd)
 
 static void set_mesh_power(struct mesh_state *ms, int state)
 {
-	if (_machine != _MACH_Pmac)
+	if (!machine_is(powermac))
 		return;
 	if (state) {
 		pmac_call_feature(PMAC_FTR_MESH_ENABLE, macio_get_of_node(ms->mdev), 0, 1);

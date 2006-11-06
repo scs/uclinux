@@ -5,8 +5,8 @@
  * Header file for the adaptec 1542 driver for Linux
  *
  * $Log$
- * Revision 1.6  2006/03/23 03:23:43  magicyang
- * update kernel to 2.6.16
+ * Revision 1.7  2006/11/06 01:24:53  magicyang
+ * update to kernel 2.6.18
  *
  * Revision 1.1  1992/07/24  06:27:38  root
  * Initial revision

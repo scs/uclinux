@@ -26,7 +26,6 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 
 #include <linux/blkdev.h>
@@ -75,7 +74,7 @@ param_setup(char *str)
 		else if(!strncmp(pos, "id:", 3)) {
 			if(slot == -1) {
 				printk(KERN_WARNING "sim710: Must specify slot for id parameter\n");
-			} else if(slot > MAX_SLOTS) {
+			} else if(slot >= MAX_SLOTS) {
 				printk(KERN_WARNING "sim710: Illegal slot %d for id %d\n", slot, val);
 			} else {
 				id_array[slot] = val;
@@ -134,7 +133,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	host->this_id = scsi_id;
 	host->base = base_addr;
 	host->irq = irq;
-	if (request_irq(irq, NCR_700_intr, SA_SHIRQ, "sim710", host)) {
+	if (request_irq(irq, NCR_700_intr, IRQF_SHARED, "sim710", host)) {
 		printk(KERN_ERR "sim710: request_irq failed\n");
 		goto out_put_host;
 	}
@@ -146,7 +145,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
  out_put_host:
 	scsi_host_put(host);
  out_release:
-	release_region(host->base, 64);
+	release_region(base_addr, 64);
  out_free:
 	kfree(hostdata);
  out:

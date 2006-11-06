@@ -57,6 +57,7 @@ MODULE_DESCRIPTION("Adaptec I2O RAID Driver");
 #include <linux/reboot.h>
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
+#include <linux/dma-mapping.h>
 
 #include <linux/timer.h>
 #include <linux/string.h>
@@ -906,8 +907,8 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 	}
 
 	pci_set_master(pDev);
-	if (pci_set_dma_mask(pDev, 0xffffffffffffffffULL) &&
-	    pci_set_dma_mask(pDev, 0xffffffffULL))
+	if (pci_set_dma_mask(pDev, DMA_64BIT_MASK) &&
+	    pci_set_dma_mask(pDev, DMA_32BIT_MASK))
 		return -EINVAL;
 
 	base_addr0_phys = pci_resource_start(pDev,0);
@@ -1008,7 +1009,7 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 		printk(KERN_INFO"     BAR1 %p - size= %x\n",msg_addr_virt,hba_map1_area_size);
 	}
 
-	if (request_irq (pDev->irq, adpt_isr, SA_SHIRQ, pHba->name, pHba)) {
+	if (request_irq (pDev->irq, adpt_isr, IRQF_SHARED, pHba->name, pHba)) {
 		printk(KERN_ERR"%s: Couldn't register IRQ %d\n", pHba->name, pDev->irq);
 		adpt_i2o_delete_hba(pHba);
 		return -EINVAL;

@@ -112,7 +112,7 @@ lasi700_probe(struct parisc_device *dev)
 
 	hostdata->dev = &dev->dev;
 	dma_set_mask(&dev->dev, DMA_32BIT_MASK);
-	hostdata->base = ioremap(base, 0x100);
+	hostdata->base = ioremap_nocache(base, 0x100);
 	hostdata->differential = 0;
 
 	if (dev->id.sversion == LASI_700_SVERSION) {
@@ -131,7 +131,7 @@ lasi700_probe(struct parisc_device *dev)
 	host->this_id = 7;
 	host->base = base;
 	host->irq = dev->irq;
-	if(request_irq(dev->irq, NCR_700_intr, SA_SHIRQ, "lasi700", host)) {
+	if(request_irq(dev->irq, NCR_700_intr, IRQF_SHARED, "lasi700", host)) {
 		printk(KERN_ERR "lasi700: request_irq failed!\n");
 		goto out_put_host;
 	}

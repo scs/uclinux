@@ -6,11 +6,8 @@
  * (c) 1995,1996 Grant R. Guenther, grant@torque.net,
  * under the terms of the GNU General Public License.
  * 
- * Current Maintainer: David Campbell (Perth, Western Australia, GMT+0800)
- *                     campbell@torque.net
  */
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -18,6 +15,7 @@
 #include <linux/parport.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
@@ -726,7 +724,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 				retv--;
 
 			if (retv) {
-				if ((jiffies - dev->jstart) > (1 * HZ)) {
+				if (time_after(jiffies, dev->jstart + (1 * HZ))) {
 					printk
 					    ("ppa: Parallel port cable is unplugged!!\n");
 					ppa_fail(dev, DID_BUS_BUSY);
@@ -981,6 +979,12 @@ static int device_check(ppa_struct *dev)
 	return -ENODEV;
 }
 
+static int ppa_adjust_queue(struct scsi_device *device)
+{
+	blk_queue_bounce_limit(device->request_queue, BLK_BOUNCE_HIGH);
+	return 0;
+}
+
 static struct scsi_host_template ppa_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "ppa",
@@ -996,6 +1000,7 @@ static struct scsi_host_template ppa_template = {
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
+	.slave_alloc		= ppa_adjust_queue,
 };
 
 /***************************************************************************

@@ -7,7 +7,6 @@
 
 #define VERSION "0.25"
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -39,6 +38,7 @@
 MODULE_DESCRIPTION("device driver for scsi media changer devices");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_CHARDEV_MAJOR(SCSI_CHANGER_MAJOR);
 
 static int init = 1;
 module_param(init, int, 0444);
