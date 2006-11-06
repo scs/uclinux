@@ -22,7 +22,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
@@ -49,6 +48,12 @@
  * This is used to lock changes in serial line configuration.
  */
 static DEFINE_MUTEX(port_mutex);
+
+/*
+ * lockdep: port->lock is initialized in two places, but we
+ *          want only one lock-class:
+ */
+static struct lock_class_key port_lock_key;
 
 #define HIGH_BITS_OFFSET	((sizeof(long)-sizeof(int))*8)
 
@@ -691,7 +696,8 @@ static int uart_set_info(struct uart_state *state,
 		    (new_serial.baud_base != port->uartclk / 16) ||
 		    (close_delay != state->close_delay) ||
 		    (closing_wait != state->closing_wait) ||
-		    (new_serial.xmit_fifo_size != port->fifosize) ||
+		    (new_serial.xmit_fifo_size &&
+		     new_serial.xmit_fifo_size != port->fifosize) ||
 		    (((new_flags ^ old_flags) & ~UPF_USR_MASK) != 0))
 			goto exit;
 		port->flags = ((port->flags & ~UPF_USR_MASK) |
@@ -796,7 +802,8 @@ static int uart_set_info(struct uart_state *state,
 	port->custom_divisor   = new_serial.custom_divisor;
 	state->close_delay     = close_delay;
 	state->closing_wait    = closing_wait;
-	port->fifosize         = new_serial.xmit_fifo_size;
+	if (new_serial.xmit_fifo_size)
+		port->fifosize = new_serial.xmit_fifo_size;
 	if (state->info->tty)
 		state->info->tty->low_latency =
 			(port->flags & UPF_LOW_LATENCY) ? 1 : 0;
@@ -1500,20 +1507,18 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 static struct uart_state *uart_get(struct uart_driver *drv, int line)
 {
 	struct uart_state *state;
+	int ret = 0;
 
-	mutex_lock(&port_mutex);
 	state = drv->state + line;
 	if (mutex_lock_interruptible(&state->mutex)) {
-		state = ERR_PTR(-ERESTARTSYS);
-		goto out;
+		ret = -ERESTARTSYS;
+		goto err;
 	}
 
 	state->count++;
-	if (!state->port) {
-		state->count--;
-		mutex_unlock(&state->mutex);
-		state = ERR_PTR(-ENXIO);
-		goto out;
+	if (!state->port || state->port->flags & UPF_DEAD) {
+		ret = -ENXIO;
+		goto err_unlock;
 	}
 
 	if (!state->info) {
@@ -1531,15 +1536,17 @@ static struct uart_state *uart_get(struct uart_driver *drv, int line)
 			tasklet_init(&state->info->tlet, uart_tasklet_action,
 				     (unsigned long)state);
 		} else {
-			state->count--;
-			mutex_unlock(&state->mutex);
-			state = ERR_PTR(-ENOMEM);
+			ret = -ENOMEM;
+			goto err_unlock;
 		}
 	}
-
- out:
-	mutex_unlock(&port_mutex);
 	return state;
+
+ err_unlock:
+	state->count--;
+	mutex_unlock(&state->mutex);
+ err:
+	return ERR_PTR(ret);
 }
 
 /*
@@ -1755,6 +1762,27 @@ static int uart_read_proc(char *page, char **start, off_t off,
 
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 /*
+ *	uart_console_write - write a console message to a serial port
+ *	@port: the port to write the message
+ *	@s: array of characters
+ *	@count: number of characters in string to write
+ *	@write: function to write character to port
+ */
+void uart_console_write(struct uart_port *port, const char *s,
+			unsigned int count,
+			void (*putchar)(struct uart_port *, int))
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++, s++) {
+		if (*s == '\n')
+			putchar(port, '\r');
+		putchar(port, *s);
+	}
+}
+EXPORT_SYMBOL_GPL(uart_console_write);
+
+/*
  *	Check whether an invalid uart number has been specified, and
  *	if so, search for the first available port that does have
  *	console support.
@@ -1845,6 +1873,7 @@ uart_set_options(struct uart_port *port, struct console *co,
 	 * early.
 	 */
 	spin_lock_init(&port->lock);
+	lockdep_set_class(&port->lock, &port_lock_key);
 
 	memset(&termios, 0, sizeof(struct termios));
 
@@ -1886,9 +1915,12 @@ uart_set_options(struct uart_port *port, struct console *co,
 static void uart_change_pm(struct uart_state *state, int pm_state)
 {
 	struct uart_port *port = state->port;
-	if (port->ops->pm)
-		port->ops->pm(port, pm_state, state->pm_state);
-	state->pm_state = pm_state;
+
+	if (state->pm_state != pm_state) {
+		if (port->ops->pm)
+			port->ops->pm(port, pm_state, state->pm_state);
+		state->pm_state = pm_state;
+	}
 }
 
 int uart_suspend_port(struct uart_driver *drv, struct uart_port *port)
@@ -2004,6 +2036,7 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 	case UPIO_MEM:
 	case UPIO_MEM32:
 	case UPIO_AU:
+	case UPIO_TSI:
 		snprintf(address, sizeof(address),
 			 "MMIO 0x%lx", port->mapbase);
 		break;
@@ -2062,45 +2095,6 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		if (!uart_console(port))
 			uart_change_pm(state, 3);
 	}
-}
-
-/*
- * This reverses the effects of uart_configure_port, hanging up the
- * port before removal.
- */
-static void
-uart_unconfigure_port(struct uart_driver *drv, struct uart_state *state)
-{
-	struct uart_port *port = state->port;
-	struct uart_info *info = state->info;
-
-	if (info && info->tty)
-		tty_vhangup(info->tty);
-
-	mutex_lock(&state->mutex);
-
-	state->info = NULL;
-
-	/*
-	 * Free the port IO and memory resources, if any.
-	 */
-	if (port->type != PORT_UNKNOWN)
-		port->ops->release_port(port);
-
-	/*
-	 * Indicate that there isn't a port here anymore.
-	 */
-	port->type = PORT_UNKNOWN;
-
-	/*
-	 * Kill the tasklet, and free resources.
-	 */
-	if (info) {
-		tasklet_kill(&info->tlet);
-		kfree(info);
-	}
-
-	mutex_unlock(&state->mutex);
 }
 
 static struct tty_operations uart_ops = {
@@ -2168,7 +2162,6 @@ int uart_register_driver(struct uart_driver *drv)
 
 	normal->owner		= drv->owner;
 	normal->driver_name	= drv->driver_name;
-	normal->devfs_name	= drv->devfs_name;
 	normal->name		= drv->dev_name;
 	normal->major		= drv->major;
 	normal->minor_start	= drv->minor;
@@ -2176,7 +2169,7 @@ int uart_register_driver(struct uart_driver *drv)
 	normal->subtype		= SERIAL_TYPE_NORMAL;
 	normal->init_termios	= tty_std_termios;
 	normal->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	normal->flags		= TTY_DRIVER_REAL_RAW | TTY_DRIVER_NO_DEVFS;
+	normal->flags		= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	normal->driver_state    = drv;
 	tty_set_operations(normal, &uart_ops);
 
@@ -2249,6 +2242,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	state = drv->state + port->line;
 
 	mutex_lock(&port_mutex);
+	mutex_lock(&state->mutex);
 	if (state->port) {
 		ret = -EINVAL;
 		goto out;
@@ -2263,8 +2257,10 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	 * If this port is a console, then the spinlock is already
 	 * initialised.
 	 */
-	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED)))
+	if (!(uart_console(port) && (port->cons->flags & CON_ENABLED))) {
 		spin_lock_init(&port->lock);
+		lockdep_set_class(&port->lock, &port_lock_key);
+	}
 
 	uart_configure_port(drv, state, port);
 
@@ -2283,7 +2279,13 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 	    port->cons && !(port->cons->flags & CON_ENABLED))
 		register_console(port->cons);
 
+	/*
+	 * Ensure UPF_DEAD is not set.
+	 */
+	port->flags &= ~UPF_DEAD;
+
  out:
+	mutex_unlock(&state->mutex);
 	mutex_unlock(&port_mutex);
 
 	return ret;
@@ -2301,6 +2303,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *port)
 int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 {
 	struct uart_state *state = drv->state + port->line;
+	struct uart_info *info;
 
 	BUG_ON(in_interrupt());
 
@@ -2311,11 +2314,48 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *port)
 	mutex_lock(&port_mutex);
 
 	/*
-	 * Remove the devices from devfs
+	 * Mark the port "dead" - this prevents any opens from
+	 * succeeding while we shut down the port.
+	 */
+	mutex_lock(&state->mutex);
+	port->flags |= UPF_DEAD;
+	mutex_unlock(&state->mutex);
+
+	/*
+	 * Remove the devices from the tty layer
 	 */
 	tty_unregister_device(drv->tty_driver, port->line);
 
-	uart_unconfigure_port(drv, state);
+	info = state->info;
+	if (info && info->tty)
+		tty_vhangup(info->tty);
+
+	/*
+	 * All users of this port should now be disconnected from
+	 * this driver, and the port shut down.  We should be the
+	 * only thread fiddling with this port from now on.
+	 */
+	state->info = NULL;
+
+	/*
+	 * Free the port IO and memory resources, if any.
+	 */
+	if (port->type != PORT_UNKNOWN)
+		port->ops->release_port(port);
+
+	/*
+	 * Indicate that there isn't a port here anymore.
+	 */
+	port->type = PORT_UNKNOWN;
+
+	/*
+	 * Kill the tasklet, and free resources.
+	 */
+	if (info) {
+		tasklet_kill(&info->tlet);
+		kfree(info);
+	}
+
 	state->port = NULL;
 	mutex_unlock(&port_mutex);
 
@@ -2337,6 +2377,9 @@ int uart_match_port(struct uart_port *port1, struct uart_port *port2)
 		return (port1->iobase == port2->iobase) &&
 		       (port1->hub6   == port2->hub6);
 	case UPIO_MEM:
+	case UPIO_MEM32:
+	case UPIO_AU:
+	case UPIO_TSI:
 		return (port1->mapbase == port2->mapbase);
 	}
 	return 0;

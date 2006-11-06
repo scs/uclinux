@@ -27,7 +27,6 @@
  *
  */
 
-#include <linux/config.h>
 
 #if defined(CONFIG_SERIAL_LH7A40X_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -145,14 +144,15 @@ lh7a40xuart_rx_chars (struct uart_port* port)
 {
 	struct tty_struct* tty = port->info->tty;
 	int cbRxMax = 256;	/* (Gross) limit on receive */
-	unsigned int data, flag;/* Received data and status */
+	unsigned int data;	/* Received data and status */
+	unsigned int flag;
 
 	while (!(UR (port, UART_R_STATUS) & nRxRdy) && --cbRxMax) {
 		data = UR (port, UART_R_DATA);
 		flag = TTY_NORMAL;
 		++port->icount.rx;
 
-		if (unlikely(data & RxError)) {	/* Quick check, short-circuit */
+		if (unlikely(data & RxError)) {
 			if (data & RxBreak) {
 				data &= ~(RxFramingError | RxParityError);
 				++port->icount.brk;
@@ -303,7 +303,7 @@ static void lh7a40xuart_set_mctrl (struct uart_port* port, unsigned int mctrl)
 	/* Note, kernel appears to be setting DTR and RTS on console. */
 
 	/* *** FIXME: this deserves more work.  There's some work in
-               tracing all of the IO pins. */
+	       tracing all of the IO pins. */
 #if 0
 	if( port->mapbase == UART1_PHYS) {
 		gpioRegs_t *gpio = (gpioRegs_t *)IO_ADDRESS(GPIO_PHYS);
@@ -543,6 +543,12 @@ static struct uart_port_lh7a40x lh7a40x_ports[DEV_NR] = {
 #else
 # define LH7A40X_CONSOLE &lh7a40x_console
 
+static void lh7a40xuart_console_putchar(struct uart_port *port, int ch)
+{
+	while (UR(port, UART_R_STATUS) & nTxRdy)
+		;
+	UR(port, UART_R_DATA) = ch;
+}
 
 static void lh7a40xuart_console_write (struct console* co,
 				       const char* s,
@@ -556,16 +562,7 @@ static void lh7a40xuart_console_write (struct console* co,
 	UR (port, UART_R_INTEN) = 0;		/* Disable all interrupts */
 	BIT_SET (port, UART_R_CON, UARTEN | SIRDIS); /* Enable UART */
 
-	for (; count-- > 0; ++s) {
-		while (UR (port, UART_R_STATUS) & nTxRdy)
-			;
-		UR (port, UART_R_DATA) = *s;
-		if (*s == '\n') {
-			while ((UR (port, UART_R_STATUS) & TxBusy))
-				;
-			UR (port, UART_R_DATA) = '\r';
-		}
-	}
+	uart_console_write(port, s, count, lh7a40xuart_console_putchar);
 
 				/* Wait until all characters are sent */
 	while (UR (port, UART_R_STATUS) & TxBusy)
@@ -665,9 +662,13 @@ static int __init lh7a40xuart_init(void)
 	if (ret == 0) {
 		int i;
 
-		for (i = 0; i < DEV_NR; i++)
+		for (i = 0; i < DEV_NR; i++) {
+			/* UART3, when used, requires GPIO pin reallocation */
+			if (lh7a40x_ports[i].port.mapbase == UART3_PHYS)
+				GPIO_PINMUX |= 1<<3;
 			uart_add_one_port (&lh7a40x_reg,
 					   &lh7a40x_ports[i].port);
+		}
 	}
 	return ret;
 }

@@ -42,7 +42,6 @@
 #undef DEBUG_HARD
 #undef USE_CTRL_O_SYSRQ
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/tty.h>
 
@@ -101,7 +100,6 @@ static DEFINE_MUTEX(pmz_irq_mutex);
 static struct uart_driver pmz_uart_reg = {
 	.owner		=	THIS_MODULE,
 	.driver_name	=	"ttyS",
-	.devfs_name	=	"tts/",
 	.dev_name	=	"ttyS",
 	.major		=	TTY_MAJOR,
 };
@@ -936,7 +934,7 @@ static int pmz_startup(struct uart_port *port)
 	}	
 
 	pmz_get_port_A(uap)->flags |= PMACZILOG_FLAG_IS_IRQ_ON;
-	if (request_irq(uap->port.irq, pmz_interrupt, SA_SHIRQ, "PowerMac Zilog", uap)) {
+	if (request_irq(uap->port.irq, pmz_interrupt, IRQF_SHARED, "PowerMac Zilog", uap)) {
 		dev_err(&uap->dev->ofdev.dev,
 			"Unable to register zs interrupt handler.\n");
 		pmz_set_scc_power(uap, 0);
@@ -1445,8 +1443,8 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 			uap->flags &= ~PMACZILOG_FLAG_HAS_DMA;
 			goto no_dma;
 		}
-		uap->tx_dma_irq = np->intrs[1].line;
-		uap->rx_dma_irq = np->intrs[2].line;
+		uap->tx_dma_irq = irq_of_parse_and_map(np, 1);
+		uap->rx_dma_irq = irq_of_parse_and_map(np, 2);
 	}
 no_dma:
 
@@ -1493,7 +1491,7 @@ no_dma:
 	 * Init remaining bits of "port" structure
 	 */
 	uap->port.iotype = UPIO_MEM;
-	uap->port.irq = np->intrs[0].line;
+	uap->port.irq = irq_of_parse_and_map(np, 0);
 	uap->port.uartclk = ZS_CLOCK;
 	uap->port.fifosize = 1;
 	uap->port.ops = &pmz_pops;
@@ -1916,6 +1914,16 @@ static void __exit exit_pmz(void)
 
 #ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
 
+static void pmz_console_putchar(struct uart_port *port, int ch)
+{
+	struct uart_pmac_port *uap = (struct uart_pmac_port *)port;
+
+	/* Wait for the transmit buffer to empty. */
+	while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
+		udelay(5);
+	write_zsdata(uap, ch);
+}
+
 /*
  * Print a string to the serial port trying not to disturb
  * any possible real use of the port...
@@ -1924,7 +1932,6 @@ static void pmz_console_write(struct console *con, const char *s, unsigned int c
 {
 	struct uart_pmac_port *uap = &pmz_ports[con->index];
 	unsigned long flags;
-	int i;
 
 	if (ZS_IS_ASLEEP(uap))
 		return;
@@ -1934,17 +1941,7 @@ static void pmz_console_write(struct console *con, const char *s, unsigned int c
 	write_zsreg(uap, R1, uap->curregs[1] & ~TxINT_ENAB);
 	write_zsreg(uap, R5, uap->curregs[5] | TxENABLE | RTS | DTR);
 
-	for (i = 0; i < count; i++) {
-		/* Wait for the transmit buffer to empty. */
-		while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
-			udelay(5);
-		write_zsdata(uap, s[i]);
-		if (s[i] == 10) {
-			while ((read_zsreg(uap, R0) & Tx_BUF_EMP) == 0)
-				udelay(5);
-			write_zsdata(uap, R13);
-		}
-	}
+	uart_console_write(&uap->port, s, count, pmz_console_putchar);
 
 	/* Restore the values in the registers. */
 	write_zsreg(uap, R1, uap->curregs[1]);

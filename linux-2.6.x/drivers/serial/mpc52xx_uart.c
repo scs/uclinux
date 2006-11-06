@@ -40,11 +40,10 @@
  * and so on). So the PSC1 is mapped to /dev/ttyPSC0, PSC2 to /dev/ttyPSC1 and
  * so on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly
  * fpr the console code : without this 1:1 mapping, at early boot time, when we
- * are parsing the kernel args console=ttyPSC?, we wouldn't know wich PSC it
+ * are parsing the kernel args console=ttyPSC?, we wouldn't know which PSC it
  * will be mapped to.
  */
 
-#include <linux/config.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/tty.h>
@@ -191,7 +190,7 @@ mpc52xx_uart_startup(struct uart_port *port)
 
 	/* Request IRQ */
 	ret = request_irq(port->irq, mpc52xx_uart_int,
-		SA_INTERRUPT | SA_SAMPLE_RANDOM, "mpc52xx_psc_uart", port);
+		IRQF_DISABLED | IRQF_SAMPLE_RANDOM, "mpc52xx_psc_uart", port);
 	if (ret)
 		return ret;
 
@@ -603,15 +602,14 @@ mpc52xx_console_write(struct console *co, const char *s, unsigned int count)
 		udelay(1);
 
 	/* Write all the chars */
-	for ( i=0 ; i<count ; i++ ) {
-	
+	for (i = 0; i < count; i++, s++) {
+		/* Line return handling */
+		if (*s == '\n')
+			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
+		
 		/* Send the char */
 		out_8(&psc->mpc52xx_psc_buffer_8, *s);
 
-		/* Line return handling */
-		if ( *s++ == '\n' )
-			out_8(&psc->mpc52xx_psc_buffer_8, '\r');
-		
 		/* Wait the TX buffer to be empty */
 		j = 20000;	/* Maximum wait */	
 		while (!(in_be16(&psc->mpc52xx_psc_status) & 
@@ -694,7 +692,6 @@ static struct uart_driver mpc52xx_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "mpc52xx_psc_uart",
 	.dev_name	= "ttyPSC",
-	.devfs_name	= "ttyPSC",
 	.major		= SERIAL_PSC_MAJOR,
 	.minor		= SERIAL_PSC_MINOR,
 	.nr		= MPC52xx_PSC_MAXNUM,
@@ -729,8 +726,7 @@ mpc52xx_uart_probe(struct platform_device *dev)
 
 	spin_lock_init(&port->lock);
 	port->uartclk	= __res.bi_ipbfreq / 2; /* Look at CTLR doc */
-	port->fifosize	= 255; /* Should be 512 ! But it can't be */
-	                       /* stored in a unsigned char       */
+	port->fifosize	= 512;
 	port->iotype	= UPIO_MEM;
 	port->flags	= UPF_BOOT_AUTOCONF |
 			  ( uart_console(port) ? 0 : UPF_IOREMAP );

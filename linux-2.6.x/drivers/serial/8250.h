@@ -15,7 +15,6 @@
  *  $Id$
  */
 
-#include <linux/config.h>
 #include <linux/serial_8250.h>
 
 struct old_serial_port {

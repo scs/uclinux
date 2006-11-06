@@ -63,6 +63,33 @@ config SERIAL_8250_CONSOLE
 
 	  If unsure, say N.
 
+config SERIAL_8250_GSC
+	tristate
+	depends on SERIAL_8250 && GSC
+	default SERIAL_8250
+
+config SERIAL_8250_PCI
+	tristate "8250/16550 PCI device support" if EMBEDDED
+	depends on SERIAL_8250 && PCI
+	default SERIAL_8250
+	help
+	  This builds standard PCI serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+	  Saves about 9K.
+
+config SERIAL_8250_PNP
+	tristate "8250/16550 PNP device support" if EMBEDDED
+	depends on SERIAL_8250 && PNP
+	default SERIAL_8250
+	help
+	  This builds standard PNP serial support. You may be able to
+	  disable this feature if you only need legacy serial support.
+
+config SERIAL_8250_HP300
+	tristate
+	depends on SERIAL_8250 && HP300
+	default SERIAL_8250
+
 config SERIAL_8250_CS
 	tristate "8250/16550 PCMCIA device support"
 	depends on PCMCIA && SERIAL_8250
@@ -76,14 +103,6 @@ config SERIAL_8250_CS
 	  module will be called serial_cs.
 
 	  If unsure, say N.
-
-config SERIAL_8250_ACPI
-	bool "8250/16550 device discovery via ACPI namespace"
-	default y if IA64
-	depends on ACPI && SERIAL_8250
-	---help---
-	  If you wish to enable serial port discovery via the ACPI
-	  namespace, say Y here.  If unsure, say N.
 
 config SERIAL_8250_NR_UARTS
 	int "Maximum number of 8250/16550 serial ports"
@@ -281,21 +300,22 @@ config SERIAL_AMBA_PL011_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_AT91
-	bool "AT91RM9200 serial port support"
-	depends on ARM && ARCH_AT91RM9200
+	bool "AT91RM9200 / AT91SAM9261 serial port support"
+	depends on ARM && (ARCH_AT91RM9200 || ARCH_AT91SAM9261)
 	select SERIAL_CORE
 	help
-	  This enables the driver for the on-chip UARTs of the AT91RM9200
-	  processor.
+	  This enables the driver for the on-chip UARTs of the Atmel
+	  AT91RM9200 and AT91SAM926 processor.
 
 config SERIAL_AT91_CONSOLE
-	bool "Support for console on AT91RM9200 serial port"
+	bool "Support for console on AT91RM9200 / AT91SAM9261 serial port"
 	depends on SERIAL_AT91=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Say Y here if you wish to use a UART on the AT91RM9200 as the system
-	  console (the system console is the device which receives all kernel
-	  messages and warnings and which allows logins in single user mode).
+	  Say Y here if you wish to use a UART on the Atmel AT91RM9200 or
+	  AT91SAM9261 as the system console (the system console is the device
+	  which receives all kernel messages and warnings and which allows
+	  logins in single user mode).
 
 config SERIAL_AT91_TTYAT
 	bool "Install as device ttyAT0-4 instead of ttyS0-4"
@@ -334,21 +354,24 @@ config SERIAL_CLPS711X_CONSOLE
 	  kernel at boot time.)
 
 config SERIAL_S3C2410
-	tristate "Samsung S3C2410 Serial port support"
+	tristate "Samsung S3C2410/S3C2440/S3C2442/S3C2412 Serial port support"
 	depends on ARM && ARCH_S3C2410
 	select SERIAL_CORE
 	help
-	  Support for the on-chip UARTs on the Samsung S3C2410X CPU,
+	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
 	  provide all of these ports, depending on how the serial port
 	  pins are configured.
+
+	  Currently this driver supports the UARTS on the S3C2410, S3C2440,
+	  S3C2442, S3C2412 and S3C2413 CPUs.
 
 config SERIAL_S3C2410_CONSOLE
 	bool "Support for console on S3C2410 serial port"
 	depends on SERIAL_S3C2410=y
 	select SERIAL_CORE_CONSOLE
 	help
-	  Allow selection of the S3C2410 on-board serial ports for use as
+	  Allow selection of the S3C24XX on-board serial ports for use as
 	  an virtual console.
 
 	  Even if you say Y here, the currently visible virtual console
@@ -626,6 +649,13 @@ config SERIAL_SUNSAB_CONSOLE
 	  on your Sparc system as the console, you can do so by answering
 	  Y to this option.
 
+config SERIAL_SUNHV
+	bool "Sun4v Hypervisor Console support"
+	depends on SPARC64
+	help
+	  This driver supports the console device found on SUN4V Sparc
+	  systems.  Say Y if you want to be able to use this device.
+
 config SERIAL_IP22_ZILOG
 	tristate "IP22 Zilog8530 serial support"
 	depends on SGI_IP22
@@ -664,22 +694,6 @@ config SERIAL_SH_SCI_CONSOLE
 	bool "Support for console on SH SCI(F)"
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_AU1X00
-	bool "Enable Au1x00 UART Support"
-	depends on MIPS && SOC_AU1X00
-	select SERIAL_CORE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use serial ports, say Y.  Otherwise, say N.
-
-config SERIAL_AU1X00_CONSOLE
-	bool "Enable Au1x00 serial console"
-	depends on SERIAL_AU1X00
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have an Alchemy AU1X00 processor (MIPS based) and you want
-	  to use a console on a serial port, say Y.  Otherwise, say N.
 
 config SERIAL_CORE
 	tristate
@@ -864,6 +878,7 @@ config SERIAL_ICOM
 	tristate "IBM Multiport Serial Adapter"
 	depends on PCI && (PPC_ISERIES || PPC_PSERIES)
 	select SERIAL_CORE
+	select FW_LOADER
 	help
 	  This driver is for a family of multiport serial adapters
 	  including 2 port RVX, 2 port internal modem, 4 port internal
@@ -903,7 +918,7 @@ config SERIAL_M32R_PLDSIO
 
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
-	depends HAS_TXX9_SERIAL && BROKEN
+	depends HAS_TXX9_SERIAL
 	select SERIAL_CORE
 	default y
 
@@ -969,106 +984,23 @@ config SERIAL_SGI_IOC3
 	  If you have an SGI Altix with an IOC3 serial card,
 	  say Y or M.  Otherwise, say N.
 
-config SERIAL_BLACKFIN
-	bool "Blackfin Serial Driver"
-	depends on BFIN
-
-choice
-	prompt	"Mode"
-	depends on SERIAL_BLACKFIN
-	default SERIAL_BLACKFIN_DMA
-	---help---
-	  This driver supports the built-in serial ports of the Blackfin family of CPUs
-
-config SERIAL_BLACKFIN_DMA
-	bool "DMA on RX and TX"
-	depends on DMA_UNCACHED_1M
+config SERIAL_NETX
+	bool "NetX serial port support"
+	depends on ARM && ARCH_NETX
+	select SERIAL_CORE
 	help
-	  This driver works under DMA mode. If this option is selected, the blackfin simple dma driver is also enabled.
+	  If you have a machine based on a Hilscher NetX SoC you
+	  can enable its onboard serial port by enabling this option.
 
-config SERIAL_BLACKFIN_PIO
-	bool "PIO on RX and TX"
+          To compile this driver as a module, choose M here: the
+          module will be called netx-serial.
+
+config SERIAL_NETX_CONSOLE
+	bool "Console on NetX serial port"
+	depends on SERIAL_NETX
+	select SERIAL_CORE_CONSOLE
 	help
-	  This driver works under PIO mode.
-endchoice
-
-config BFIN_UART_CTSRTS
-	bool "Emulate hardware flow control"
-	depends on SERIAL_BLACKFIN
-	default n
-	help
-	  This option enable hardware flow control for blackfin UART.
-
-config BFIN_UART0_CTSRTS
-	bool "CTS and RTS setting for UART0"
-	depends on BFIN_UART_CTSRTS
-
-config BFIN_UART0_CTS_PORT
-	string "UART0 GPIO port for CTS"
-	default 'G' if (BF534||BF536||BF537)
-	default 'F' if (BF531||BF532||BF533)
-	depends on BFIN_UART0_CTSRTS
-	help
-	  This is GPIO port used by CTS of UART0.
-	  On BF531,532,533, only 'F' is supported.
-	  On BF534,536,537, 'F', 'G' and 'H' are supported.
-
-config BFIN_UART0_CTS
-	int "UART0 CTS control bit in GPIO port"
-	depends on BFIN_UART0_CTSRTS
-	default 7
-	help
-	  This is the UART0 CTS bit number in the select GPIO port.
-
-config BFIN_UART0_RTS_PORT
-	string "UART0 GPIO port for RTS"
-	default 'G' if (BF534||BF536||BF537)
-	default 'F' if (BF531||BF532||BF533)
-	depends on BFIN_UART0_CTSRTS
-	help
-	  This is GPIO port used by RTS of UART0.
-	  On BF531,532,533, only 'F' is supported.
-	  On BF534,536,537, 'F', 'G' and 'H' are supported.
-
-config BFIN_UART0_RTS
-	int "UART0 RTS control bit in GPIO port"
-	depends on BFIN_UART0_CTSRTS
-	default 6
-	help
-	  This is the UART0 RTS bit number in the select GPIO port.
-
-config BFIN_UART1_CTSRTS
-	bool "CTS and RTS setting for UART1"
-	depends on (BFIN_UART_CTSRTS && (BF534||BF536||BF537))
-
-config BFIN_UART1_CTS_PORT
-	string "UART1 GPIO port for CTS"
-	default 'G'
-	depends on BFIN_UART1_CTSRTS
-	help
-	  This is GPIO port used by CTS of UART1.
-	  'F', 'G' and 'H' are supported.
-
-config BFIN_UART1_CTS
-	int "UART1 CTS control bit in GPIO port"
-	default 5
-	depends on BFIN_UART1_CTSRTS
-	help
-	  This is the UART1 CTS bit number in the select GPIO port.
-
-config BFIN_UART1_RTS_PORT
-	string "UART1 GPIO port for RTS"
-	default 'G'
-	depends on BFIN_UART1_CTSRTS
-	help
-	  This is GPIO port used by RTS of UART1.
-	  'F', 'G' and 'H' are supported.
-
-config BFIN_UART1_RTS
-	int "UART1 RTS control bit in GPIO port"
-	default 4
-	depends on BFIN_UART1_CTSRTS
-	help
-	  This is the UART1 RTS bit number in the select GPIO port.
+	  If you have enabled the serial port on the Motorola IMX
+	  CPU you can make it the console by answering Y to this option.
 
 endmenu

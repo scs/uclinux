@@ -626,22 +626,22 @@ bfin_serial_verify_port(struct uart_port *port, struct serial_struct *ser)
 }
 
 static struct uart_ops bfin_serial_pops = {
-	.tx_empty      = bfin_serial_tx_empty,
-	.set_mctrl     = bfin_serial_set_mctrl,
-	.get_mctrl     = bfin_serial_get_mctrl,
-	.stop_tx       = bfin_serial_stop_tx,
-	.start_tx      = bfin_serial_start_tx,
-	.stop_rx       = bfin_serial_stop_rx,
-	.enable_ms     = bfin_serial_enable_ms,
-	.break_ctl     = bfin_serial_break_ctl,
-	.startup       = bfin_serial_startup,
-	.shutdown      = bfin_serial_shutdown,
-	.set_termios   = bfin_serial_set_termios,
-	.type          = bfin_serial_type,
-	.release_port  = bfin_serial_release_port,
-	.request_port  = bfin_serial_request_port,
-	.config_port   = bfin_serial_config_port,
-	.verify_port   = bfin_serial_verify_port,
+	.tx_empty	= bfin_serial_tx_empty,
+	.set_mctrl	= bfin_serial_set_mctrl,
+	.get_mctrl	= bfin_serial_get_mctrl,
+	.stop_tx	= bfin_serial_stop_tx,
+	.start_tx	= bfin_serial_start_tx,
+	.stop_rx	= bfin_serial_stop_rx,
+	.enable_ms	= bfin_serial_enable_ms,
+	.break_ctl	= bfin_serial_break_ctl,
+	.startup	= bfin_serial_startup,
+	.shutdown	= bfin_serial_shutdown,
+	.set_termios	= bfin_serial_set_termios,
+	.type		= bfin_serial_type,
+	.release_port	= bfin_serial_release_port,
+	.request_port	= bfin_serial_request_port,
+	.config_port	= bfin_serial_config_port,
+	.verify_port	= bfin_serial_verify_port,
 };
 
 static int bfin_serial_calc_baud(unsigned int uartclk)
@@ -829,13 +829,13 @@ bfin_serial_console_setup(struct console *co, char *options)
 
 static struct uart_driver bfin_serial_reg;
 static struct console bfin_serial_console = {
-	.name      = "ttyS",
-	.write     = bfin_serial_console_write,
-	.device    = uart_console_device,
-	.setup     = bfin_serial_console_setup,
-	.flags     = CON_PRINTBUFFER,
-	.index     = -1,
-	.data      = &bfin_serial_reg,
+	.name		= "ttyS",
+	.write		= bfin_serial_console_write,
+	.device		= uart_console_device,
+	.setup		= bfin_serial_console_setup,
+	.flags		= CON_PRINTBUFFER,
+	.index		= -1,
+	.data		= &bfin_serial_reg,
 };
 
 static int __init bfin_serial_rs_console_init(void)
@@ -852,14 +852,13 @@ console_initcall(bfin_serial_rs_console_init);
 #endif
 
 static struct uart_driver bfin_serial_reg = {
-	.owner         = THIS_MODULE,
-	.driver_name   = "bfin-uart",
-	.dev_name      = "ttyS",
-	.devfs_name    = "ttyS/",
-	.major         = SERIAL_BFIN_MAJOR,
-	.minor         = MINOR_START,
-	.nr            = NR_PORTS,
-	.cons          = BFIN_SERIAL_CONSOLE,
+	.owner			= THIS_MODULE,
+	.driver_name		= "bfin-uart",
+	.dev_name		= "ttyS",
+	.major			= SERIAL_BFIN_MAJOR,
+	.minor			= MINOR_START,
+	.nr			= NR_PORTS,
+	.cons			= BFIN_SERIAL_CONSOLE,
 };
 
 static int bfin_serial_suspend(struct platform_device *dev, pm_message_t state)
@@ -917,12 +916,12 @@ static int bfin_serial_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bfin_serial_driver = {
-	.probe     = bfin_serial_probe,
-	.remove    = bfin_serial_remove,
-	.suspend   = bfin_serial_suspend,
-	.resume    = bfin_serial_resume,
-	.driver    = {
-		.name = "bfin-uart",
+	.probe		= bfin_serial_probe,
+	.remove		= bfin_serial_remove,
+	.suspend	= bfin_serial_suspend,
+	.resume		= bfin_serial_resume,
+	.driver		= {
+		.name	= "bfin-uart",
 	},
 };
 
