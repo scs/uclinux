@@ -660,9 +660,8 @@ rsource (char *name, struct stat *statp)
 
       sprintf (buf, "%s/%s", name, dp->d_name);
       vect[0] = buf;
-      free (buf);
-
       source(1, vect);
+      free (buf);
     }
 
   closedir (dirp);
