@@ -31,8 +31,8 @@
 
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
+#include <linux/device.h>
 #include <linux/ioport.h>
-#include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <asm/dma.h>
 #include <asm/uaccess.h>
@@ -306,15 +306,9 @@ static struct miscdevice coreb_dev = {
 	&coreb_fops
 };
 
-static int coreb_read_status(char *page, char **start, off_t off, int count,
-			     int *eof, void *data)
+static ssize_t coreb_show_status(struct class_device * class, char * buf)
 {
-	int len = 0;
-
-	if (off)
-		return 0;
-
-	len += sprintf(page,
+	return sprintf(buf,
 		       "Base Address:\t0x%08lx\n"
 		       "Core B is %s\n"
 		       "SICA_SYSCR:\t%04x\n"
@@ -332,10 +326,9 @@ static int coreb_read_status(char *page, char **start, off_t off, int count,
 		       bfin_read_SICA_ISR1(), bfin_read_SICB_ISR0(),
 		       bfin_read_SICA_IMASK0(), bfin_read_SICB_IMASK0(),
 		       bfin_read_SICA_IMASK1(), bfin_read_SICB_IMASK1());
-	return len;
 }
 
-static struct proc_dir_entry *coreb_proc_entry = NULL;
+CLASS_DEVICE_ATTR(coreb_status, S_IRUGO, coreb_show_status, NULL);
 
 int __init bf561_coreb_init(void)
 {
@@ -369,15 +362,9 @@ int __init bf561_coreb_init(void)
 
 	misc_register(&coreb_dev);
 
-	printk(KERN_INFO "Core B: Initializing /proc\n");
-	coreb_proc_entry = create_proc_entry("coreb", 0, NULL);
-	if (coreb_proc_entry) {
-		coreb_proc_entry->owner = THIS_MODULE;
-		coreb_proc_entry->read_proc = coreb_read_status;
-	} else {
-		printk(KERN_ERR "Core B: Unable to register /proc/coreb\n");
+	if (class_device_create_file(coreb_dev.class, &class_device_attr_coreb_status))
 		goto release_dma_src;
-	}
+
 	printk(KERN_INFO "BF561 Core B driver %s initialized.\n", MODULE_VER);
 	return 0;
 
@@ -399,9 +386,7 @@ int __init bf561_coreb_init(void)
 
 void __exit bf561_coreb_exit(void)
 {
-	remove_proc_entry("coreb/status", coreb_proc_entry);
-	remove_proc_entry("coreb", NULL);
-
+	class_device_remove_file(coreb_dev.class, &class_device_attr_coreb_status);
 	misc_deregister(&coreb_dev);
 
 	release_mem_region(0xff610000, 0x4000);
