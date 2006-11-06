@@ -25,7 +25,7 @@ romfs:
 	$(ROMFSINST) /bin/$(EXEC)
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
+	-rm -f $(EXEC) *.elf *.gdb *.o ndso awg
 
 libhttpd.o: mime_encodings.h mime_types.h
 

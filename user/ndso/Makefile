@@ -1,28 +1,23 @@
-
 dir_y =
+dir_n =
+dir_  =
+
 dir_y += thttpd
 dir_y += gnuplot
 dir_$(CONFIG_USER_NDSO) += src_ndso
 dir_$(CONFIG_USER_AWG)  += src_awg
 
-ifdef CONFIG_USER_NDSO
-WEBFOLDER := web_ndso
-endif
-ifdef CONFIG_USER_AWG
-WEBFOLDER := web_awg
-endif
-
 all:
-	for i in $(dir_y) ; do  make -C $$i || exit $? ; done
+	for i in $(dir_y) ; do $(MAKE) -C $$i || exit $$? ; done
 
 romfs:
-	for i in $(dir_y) ; do  make -C $$i romfs || exit $? ; done
-	cp -Rf ./$(WEBFOLDER)/* $(ROMFSDIR)/home/httpd
-	chmod 666 $(ROMFSDIR)/home/httpd/*.htm
+	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done
+
+	$(ROMFSINST) -e CONFIG_USER_NDSO web_ndso /home/httpd/
+	$(ROMFSINST) -e CONFIG_USER_NDSO -s index.htm /home/httpd/index.html
+
+	$(ROMFSINST) -e CONFIG_USER_AWG web_awg /home/httpd/
+	$(ROMFSINST) -e CONFIG_USER_AWG -s index.htm /home/httpd/index.html
 
 clean:
-	for i in $(dir_y) ; do \
-		[ ! -d $$i ] || make -C $$i clean; \
-	done
-
-
+	for i in $(dir_y) $(dir_n) $(dir_) ; do $(MAKE) -C $$i $@ || exit $$? ; done
