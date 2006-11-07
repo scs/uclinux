@@ -1,0 +1,21 @@
+body {
+	margin: 0px;
+	padding: 0px;
+}
+
+img {
+	border: 0px;
+}
+
+a.button {
+	font-size: x-small;
+	border: 2px outset;
+	padding: 2px 6px 2px 6px;
+	color: black;
+	background-color: #e7e7e7;
+}
+
+fieldset {
+	padding: 2px;
+	font-size: smaller;
+}
