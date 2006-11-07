@@ -242,7 +242,7 @@ net_config_read (LinphoneCore *lc)
 
 void sound_config_read(LinphoneCore *lc)
 {
-	int tmp;
+	/* int tmp; */
 	const char *tmpbuf;
 	const char *devid;
 	const MSList *elem;
