@@ -61,30 +61,6 @@ static dma_addr_t dma_handle;             /* ? */
 
 static unsigned long current_brightness;  /* backlight */
 
-static void set_backlight(unsigned long val)
-{
-#ifndef NO_BL
-	unsigned long timer_freq, timer_val;
-	if (val < MIN_BRIGHENESS)
-		val = MIN_BRIGHENESS;
-	if (val > MAX_BRIGHENESS)
-		val = MAX_BRIGHENESS;
-
-	current_brightness = val;
-	timer_freq = val * 500/100;
-
-	bfin_write_TIMER_DISABLE(TIMDIS1);
-	__builtin_bfin_ssync();
-
-	timer_val = get_sclk() / timer_freq;
-	bfin_write_TIMER1_PERIOD(timer_val);
-	bfin_write_TIMER1_WIDTH (timer_val >> 1);
-	bfin_write_TIMER1_CONFIG(PWM_OUT|PULSE_HI|PERIOD_CNT);
-	bfin_write_TIMER_ENABLE(TIMEN1);
-	__builtin_bfin_ssync();
-#endif
-}
-
 /* AD5280 vcomm */
 static unsigned char vcomm_value = 150;
 
@@ -331,7 +307,6 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 	__builtin_bfin_ssync();
 
 	init_ports();
-	//set_backlight(60);
 
 	set_vcomm();
 	config_dma();
@@ -392,23 +367,6 @@ static struct fb_ops bfin_lq035_fb_ops = {
 	.fb_mmap		= direct_mmap,
 };
 
-
-static int bl_set_power(struct backlight_device *bd, int state)
-{
-	return 0;
-}
-
-static int bl_get_power(struct backlight_device *bd)
-{
-	return 0;
-}
-
-static int bl_set_brightness(struct backlight_device *bd, int intensity)
-{
-	set_backlight(intensity);
-	return 0;
-}
-
 static int bl_get_brightness(struct backlight_device *bd)
 {
 	return current_brightness;;
@@ -416,11 +374,8 @@ static int bl_get_brightness(struct backlight_device *bd)
 
 static struct backlight_properties bfin_lq035fb_bl = {
 	.owner			= THIS_MODULE,
-	.get_power		= bl_get_power,
-	.set_power		= bl_set_power,
 	.max_brightness	= MAX_BRIGHENESS,
 	.get_brightness	= bl_get_brightness,
-	.set_brightness	= bl_set_brightness,
 };
 
 
