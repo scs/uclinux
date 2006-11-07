@@ -34,11 +34,6 @@
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
 
-#ifndef CONFIG_VIDEO_V4L1_COMPAT
-#define VIDEO_MODE_PAL          0
-#define VIDEO_MODE_NTSC         1
-#endif
-
 struct rgb_t *rgb_buffer = 0 ;
 struct ycrcb_t *ycrcb_buffer = 0 ;
 unsigned char *rgb_l1;
@@ -87,11 +82,7 @@ static inline int adv7171_write (struct i2c_client *client,u8 reg,u8 value);
 static inline int adv7171_read (struct i2c_client *client,u8 reg);
 static int adv7171_write_block (struct i2c_client *client, const u8 *data,
                                 unsigned int len);
-static int adv7171_command (struct i2c_client *client,unsigned int cmd,
-                                void * arg);
 static char adv7171_name[] = "adv7171";
-
-static char *norms[] = { "PAL", "NTSC" };
 
 #define TR0MODE     0x00
 #define TR0RST      0x80
@@ -437,69 +428,6 @@ adv7171_write_block (struct i2c_client *client,
 	return ret;
 }
 
-static int
-adv7171_command (struct i2c_client *client,
-                 unsigned int       cmd,
-                 void *             arg)
-{
-	struct adv7171 *encoder = i2c_get_clientdata(client);
-
-	switch (cmd) {
-
-	case ENCODER_GET_CAPABILITIES:
-	{
-		struct video_encoder_capability *cap = arg;
-
-		cap->flags = VIDEO_ENCODER_PAL |
-		             VIDEO_ENCODER_NTSC;
-		cap->inputs = 2;
-		cap->outputs = 1;
-	}
-		break;
-
-	case ENCODER_SET_NORM:
-	{
-		int iarg = *(int *) arg;
-
-		printk(KERN_DEBUG "%s_command: set norm %d",
-			I2C_NAME(client), iarg);
-
-		switch (iarg) {
-
-		case VIDEO_MODE_NTSC:
-			adv7171_write_block(client, init_NTSC,
-			                    sizeof(init_NTSC));
-			if (encoder->input == 0)
-				adv7171_write(client, 0x02, 0x0e);
-			adv7171_write(client, 0x07, TR0MODE | TR0RST);
-			adv7171_write(client, 0x07, TR0MODE);
-			break;
-		case VIDEO_MODE_PAL:
-			adv7171_write_block(client, init_PAL,
-			                    sizeof(init_PAL));
-			if (encoder->input == 0)
-				adv7171_write(client, 0x02, 0x0e);
-			adv7171_write(client, 0x07, TR0MODE | TR0RST);
-			adv7171_write(client, 0x07, TR0MODE);
-			break;
-
-		default:
-			printk(KERN_ERR "%s: illegal norm: %d\n",
-			       I2C_NAME(client), iarg);
-			return -EINVAL;
-
-		}
-		printk(KERN_DEBUG "%s: switched to %s\n", I2C_NAME(client),
-		       norms[iarg]);
-		encoder->norm = iarg;
-	}
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 /*
  * Generic i2c probe
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
@@ -632,7 +560,6 @@ static struct i2c_driver i2c_driver_adv7171 = {
 	.id = I2C_DRIVERID_ADV7170,
 	.attach_adapter = adv7171_attach_adapter,
 	.detach_client = adv7171_detach_client,
-	.command = adv7171_command,
 };
 
 int __init bfin_ad7171_fb_init(void)
