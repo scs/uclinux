@@ -33,6 +33,12 @@
 #define BFIN_FB_YCRCB_LEN (YCBCR_WIDTH*YCBCR_HEIGHT)
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ IRQ_PPI
 #define CONFIG_VIDEO_BLACKFIN_PPI_IRQ_ERR IRQ_DMA_ERROR
+
+#ifndef CONFIG_VIDEO_V4L1_COMPAT
+#define VIDEO_MODE_PAL          0
+#define VIDEO_MODE_NTSC         1
+#endif
+
 struct rgb_t *rgb_buffer = 0 ;
 struct ycrcb_t *ycrcb_buffer = 0 ;
 unsigned char *rgb_l1;
