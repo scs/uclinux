@@ -266,7 +266,8 @@ void sound_config_read(LinphoneCore *lc)
 	
 	devid=lp_config_get_string(lc->config,"sound","capture_dev_id",NULL);
 	linphone_core_set_capture_device(lc,devid);
-	
+
+#if 0	
 	tmp=lp_config_get_int(lc->config,"sound","play_lev",80);
 	linphone_core_set_play_level(lc,tmp);
 	tmp=lp_config_get_int(lc->config,"sound","ring_lev",80);
@@ -275,6 +276,7 @@ void sound_config_read(LinphoneCore *lc)
 	linphone_core_set_rec_level(lc,tmp);
 	tmpbuf=lp_config_get_string(lc->config,"sound","source","m");
 	linphone_core_set_sound_source(lc,tmpbuf[0]);
+#endif
 	
 	tmpbuf=PACKAGE_SOUND_DIR "/" LOCAL_RING;
 	tmpbuf=lp_config_get_string(lc->config,"sound","local_ring",tmpbuf);
