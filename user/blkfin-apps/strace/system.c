@@ -1570,6 +1570,10 @@ struct tcb *tcp;
 #endif
 
 #ifdef LINUX
+/* linux-2.6.18+ has dropped this enum */
+#ifndef CTL_PROC
+# define CTL_PROC 4
+#endif
 static const struct xlat sysctl_root[] = {
 	{ CTL_KERN, "CTL_KERN" },
 	{ CTL_VM, "CTL_VM" },
