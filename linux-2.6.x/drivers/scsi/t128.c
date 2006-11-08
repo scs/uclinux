@@ -104,8 +104,8 @@
  
 /*
  * $Log$
- * Revision 1.6  2006/11/06 01:25:45  magicyang
- * update to kernel 2.6.18
+ * Revision 1.7  2006/11/08 06:50:20  magicyang
+ * commit some missing changes from 2.6.18 into cvs
  *
  */
 

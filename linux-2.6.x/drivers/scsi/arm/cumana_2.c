@@ -460,7 +460,7 @@ cumanascsi2_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto out_free;
 
 	ret = request_irq(ec->irq, cumanascsi_2_intr,
-			  SA_INTERRUPT, "cumanascsi2", info);
+			  IRQF_DISABLED, "cumanascsi2", info);
 	if (ret) {
 		printk("scsi%d: IRQ%d not free: %d\n",
 		       host->host_no, ec->irq, ret);
@@ -550,6 +550,6 @@ module_exit(cumanascsi2_exit);
 
 MODULE_AUTHOR("Russell King");
 MODULE_DESCRIPTION("Cumana SCSI-2 driver for Acorn machines");
-MODULE_PARM(term, "1-8i");
+module_param_array(term, int, NULL, 0);
 MODULE_PARM_DESC(term, "SCSI bus termination");
 MODULE_LICENSE("GPL");

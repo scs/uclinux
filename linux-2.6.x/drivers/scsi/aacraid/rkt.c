@@ -183,7 +183,7 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command,
 		/*
 		 *	Yield the processor in case we are slow 
 		 */
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
 	if (ok != 1) {
 		/*
@@ -343,7 +343,7 @@ static int aac_rkt_check_health(struct aac_dev *dev)
 		  NULL, NULL, NULL, NULL, NULL);
 		pci_free_consistent(dev->pdev, sizeof(struct POSTSTATUS),
 		  post, paddr);
-                if ((buffer[0] == '0') && (buffer[1] == 'x')) {
+                if ((buffer[0] == '0') && ((buffer[1] == 'x') || (buffer[1] == 'X'))) {
                         ret = (buffer[2] <= '9') ? (buffer[2] - '0') : (buffer[2] - 'A' + 10);
                         ret <<= 4;
                         ret += (buffer[3] <= '9') ? (buffer[3] - '0') : (buffer[3] - 'A' + 10);
@@ -444,16 +444,16 @@ int aac_rkt_init(struct aac_dev *dev)
 	 */
 	while (!(rkt_readl(dev, MUnit.OMRx[0]) & KERNEL_UP_AND_RUNNING))
 	{
-		if(time_after(jiffies, start+180*HZ))
+		if(time_after(jiffies, start+startup_timeout*HZ))
 		{
 			status = rkt_readl(dev, MUnit.OMRx[0]);
 			printk(KERN_ERR "%s%d: adapter kernel failed to start, init status = %lx.\n", 
 					dev->name, instance, status);
 			goto error_iounmap;
 		}
-		schedule_timeout_uninterruptible(1);
+		msleep(1);
 	}
-	if (request_irq(dev->scsi_host_ptr->irq, aac_rkt_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev)<0) 
+	if (request_irq(dev->scsi_host_ptr->irq, aac_rkt_intr, IRQF_SHARED|IRQF_DISABLED, "aacraid", (void *)dev)<0)
 	{
 		printk(KERN_ERR "%s%d: Interrupt unavailable.\n", name, instance);
 		goto error_iounmap;

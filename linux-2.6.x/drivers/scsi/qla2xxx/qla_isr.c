@@ -343,7 +343,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->isp_ops.fw_dump(ha, 1);
 
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 			if (mb[1] == 0 && mb[2] == 0) {
 				qla_printk(KERN_ERR, ha,
 				    "Unrecoverable Hardware Error: adapter "
@@ -395,10 +395,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		set_bit(REGISTER_FC4_NEEDED, &ha->dpc_flags);
 
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LIP_OCCURRED, NULL);
-
 		break;
 
 	case MBA_LOOP_UP:		/* Loop Up Event */
@@ -418,9 +414,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    link_speed);
 
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LOOP_UP, NULL);
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
@@ -439,9 +432,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		ha->link_data_rate = LDR_UNKNOWN;
 		if (ql2xfdmienable)
 			set_bit(REGISTER_FDMI_NEEDED, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LOOP_DOWN, NULL);
 		break;
 
 	case MBA_LIP_RESET:		/* LIP reset occurred */
@@ -460,10 +450,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		ha->operating_mode = LOOP;
 		ha->flags.management_server_logged_in = 0;
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_LIP_RESET, NULL);
-
 		break;
 
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
@@ -515,47 +501,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 	case MBA_PORT_UPDATE:		/* Port database update */
 		/*
-		 * If a single remote port just logged into (or logged out of)
-		 * us, create a new entry in our rscn fcports list and handle
-		 * the event like an RSCN.
-		 */
-		if (ql2xprocessrscn &&
-		    !IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA6312(ha) &&
-		    !IS_QLA6322(ha) && !IS_QLA24XX(ha) && !IS_QLA25XX(ha) &&
-		    ha->flags.init_done && mb[1] != 0xffff &&
-		    ((ha->operating_mode == P2P && mb[1] != 0) ||
-		    (ha->operating_mode != P2P && mb[1] !=
-			SNS_FIRST_LOOP_ID)) && (mb[2] == 6 || mb[2] == 7)) {
-			int rval;
-			fc_port_t *rscn_fcport;
-
-			/* Create new fcport for login. */
-			rscn_fcport = qla2x00_alloc_rscn_fcport(ha, GFP_ATOMIC);
-			if (rscn_fcport) {
-				DEBUG14(printk("scsi(%ld): Port Update -- "
-				    "creating RSCN fcport %p for %x/%x/%x.\n",
-				    ha->host_no, rscn_fcport, mb[1], mb[2],
-				    mb[3]));
-
-				rscn_fcport->loop_id = mb[1];
-				rscn_fcport->d_id.b24 = INVALID_PORT_ID;
-				atomic_set(&rscn_fcport->state,
-				    FCS_DEVICE_LOST);
-				list_add_tail(&rscn_fcport->list,
-				    &ha->rscn_fcports);
-
-				rval = qla2x00_handle_port_rscn(ha, 0,
-				    rscn_fcport, 1);
-				if (rval == QLA_SUCCESS)
-					break;
-			} else {
-				DEBUG14(printk("scsi(%ld): Port Update -- "
-				    "-- unable to allocate RSCN fcport "
-				    "login.\n", ha->host_no));
-			}
-		}
-
-		/*
 		 * If PORT UPDATE is global (recieved LIP_OCCURED/LIP_RESET
 		 * event etc. earlier indicating loop is down) then process
 		 * it.  Otherwise ignore it and Wait for RSCN to come in.
@@ -586,9 +531,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_PORT_UPDATE, NULL);
 		break;
 
 	case MBA_RSCN_UPDATE:		/* State Change Registration */
@@ -625,9 +567,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 
 		set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 		set_bit(RSCN_UPDATE, &ha->dpc_flags);
-
-		/* Update AEN queue. */
-		qla2x00_enqueue_aen(ha, MBA_RSCN_UPDATE, &mb[0]);
 		break;
 
 	/* case MBA_RIO_RESPONSE: */
@@ -638,7 +577,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    "scsi(%ld): [R|Z]IO update completion.\n",
 		    ha->host_no));
 
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 			qla24xx_process_response_queue(ha);
 		else
 			qla2x00_process_response_queue(ha);
@@ -647,6 +586,11 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 	case MBA_DISCARD_RND_FRAME:
 		DEBUG2(printk("scsi(%ld): Discard RND Frame -- %04x %04x "
 		    "%04x.\n", ha->host_no, mb[1], mb[2], mb[3]));
+		break;
+
+	case MBA_TRACE_NOTIFICATION:
+		DEBUG2(printk("scsi(%ld): Trace Notification -- %04x %04x.\n",
+		ha->host_no, mb[1], mb[2]));
 		break;
 	}
 }
@@ -753,25 +697,6 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 		case MS_IOCB_TYPE:
 			qla2x00_ms_entry(ha, (ms_iocb_entry_t *)pkt);
 			break;
-		case MBX_IOCB_TYPE:
-			if (!IS_QLA2100(ha) && !IS_QLA2200(ha) &&
-			    !IS_QLA6312(ha) && !IS_QLA6322(ha)) {
-				if (pkt->sys_define == SOURCE_ASYNC_IOCB) {
-					qla2x00_process_iodesc(ha,
-					    (struct mbx_entry *)pkt);
-				} else {
-					/* MBX IOCB Type Not Supported. */
-					DEBUG4(printk(KERN_WARNING
-					    "scsi(%ld): Received unknown MBX "
-					    "IOCB response pkt type=%x "
-					    "source=%x entry status=%x.\n",
-					    ha->host_no, pkt->entry_type,
-					    pkt->sys_define,
-					    pkt->entry_status));
-				}
-				break;
-			}
-			/* Fallthrough. */
 		default:
 			/* Type Not Supported. */
 			DEBUG4(printk(KERN_WARNING
@@ -805,12 +730,12 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	uint16_t	scsi_status;
 	uint8_t		lscsi_status;
 	int32_t		resid;
-	uint32_t	sense_len, rsp_info_len, resid_len;
+	uint32_t	sense_len, rsp_info_len, resid_len, fw_resid_len;
 	uint8_t		*rsp_info, *sense_data;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		comp_status = le16_to_cpu(sts24->comp_status);
 		scsi_status = le16_to_cpu(sts24->scsi_status) & SS_MASK;
 	} else {
@@ -838,16 +763,13 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		qla_printk(KERN_WARNING, ha, "Status Entry invalid handle.\n");
 
 		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active)
-			up(ha->dpc_wait);
-
+		qla2xxx_wake_dpc(ha);
 		return;
 	}
 	cp = sp->cmd;
 	if (cp == NULL) {
 		DEBUG2(printk("scsi(%ld): Command already returned back to OS "
-		    "pkt->handle=%d sp=%p sp->state:%d\n",
-		    ha->host_no, sts->handle, sp, sp->state));
+		    "pkt->handle=%d sp=%p.\n", ha->host_no, sts->handle, sp));
 		qla_printk(KERN_WARNING, ha,
 		    "Command is NULL: already returned to OS (sp=%p)\n", sp);
 
@@ -861,11 +783,12 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 	fcport = sp->fcport;
 
-	sense_len = rsp_info_len = resid_len = 0;
-	if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+	sense_len = rsp_info_len = resid_len = fw_resid_len = 0;
+	if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 		sense_len = le32_to_cpu(sts24->sense_len);
 		rsp_info_len = le32_to_cpu(sts24->rsp_data_len);
 		resid_len = le32_to_cpu(sts24->rsp_residual_count);
+		fw_resid_len = le32_to_cpu(sts24->residual_len);
 		rsp_info = sts24->data;
 		sense_data = sts24->data;
 		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
@@ -880,7 +803,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	/* Check for any FCP transport errors. */
 	if (scsi_status & SS_RESPONSE_INFO_LEN_VALID) {
 		/* Sense data lies beyond any FCP RESPONSE data. */
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 			sense_data += rsp_info_len;
 		if (rsp_info_len > 3 && rsp_info[3]) {
 			DEBUG2(printk("scsi(%ld:%d:%d:%d) FCP I/O protocol "
@@ -965,14 +888,21 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 	case CS_DATA_UNDERRUN:
 		resid = resid_len;
+		/* Use F/W calculated residual length. */
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
+			resid = fw_resid_len;
+
 		if (scsi_status & SS_RESIDUAL_UNDER) {
 			cp->resid = resid;
 			CMD_RESID_LEN(cp) = resid;
 		} else {
 			DEBUG2(printk(KERN_INFO
 			    "scsi(%ld:%d:%d) UNDERRUN status detected "
-			    "0x%x-0x%x.\n", ha->host_no, cp->device->id,
-			    cp->device->lun, comp_status, scsi_status));
+			    "0x%x-0x%x. resid=0x%x fw_resid=0x%x cdb=0x%x "
+			    "os_underflow=0x%x\n", ha->host_no,
+			    cp->device->id, cp->device->lun, comp_status,
+			    scsi_status, resid_len, resid, cp->cmnd[0],
+			    cp->underflow));
 
 		}
 
@@ -1119,7 +1049,7 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 	case CS_TIMEOUT:
 		cp->result = DID_BUS_BUSY << 16;
 
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha)) {
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha)) {
 			DEBUG2(printk(KERN_INFO
 			    "scsi(%ld:%d:%d:%d): TIMEOUT status detected "
 			    "0x%x-0x%x\n", ha->host_no, cp->device->channel,
@@ -1183,7 +1113,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *ha, sts_cont_entry_t *pkt)
 		cp = sp->cmd;
 		if (cp == NULL) {
 			DEBUG2(printk("%s(): Cmd already returned back to OS "
-			    "sp=%p sp->state:%d\n", __func__, sp, sp->state));
+			    "sp=%p.\n", __func__, sp));
 			qla_printk(KERN_INFO, ha,
 			    "cmd is NULL: already returned to OS (sp=%p)\n",
 			    sp);
@@ -1199,7 +1129,7 @@ qla2x00_status_cont_entry(scsi_qla_host_t *ha, sts_cont_entry_t *pkt)
 		}
 
 		/* Move sense data. */
-		if (IS_QLA24XX(ha) || IS_QLA25XX(ha))
+		if (IS_QLA24XX(ha) || IS_QLA54XX(ha))
 			host_to_fcp_swap(pkt->data, sizeof(pkt->data));
 		memcpy(sp->request_sense_ptr, pkt->data, sense_sz);
 		DEBUG5(qla2x00_dump_buffer(sp->request_sense_ptr, sense_sz));
@@ -1271,8 +1201,7 @@ qla2x00_error_entry(scsi_qla_host_t *ha, sts_entry_t *pkt)
 		    "Error entry - invalid handle\n");
 
 		set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
-		if (ha->dpc_wait && !ha->dpc_active)
-			up(ha->dpc_wait);
+		qla2xxx_wake_dpc(ha);
 	}
 }
 
@@ -1508,8 +1437,8 @@ qla24xx_ms_entry(scsi_qla_host_t *ha, struct ct_entry_24xx *pkt)
 	DEBUG3(printk("%s(%ld): pkt=%p pkthandle=%d.\n",
 	    __func__, ha->host_no, pkt, pkt->handle));
 
-	DEBUG9(printk("%s: ct pkt dump:\n", __func__);)
-	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx));)
+	DEBUG9(printk("%s: ct pkt dump:\n", __func__));
+	DEBUG9(qla2x00_dump_buffer((void *)pkt, sizeof(struct ct_entry_24xx)));
 
 	/* Validate handle. */
  	if (pkt->handle < MAX_OUTSTANDING_COMMANDS)

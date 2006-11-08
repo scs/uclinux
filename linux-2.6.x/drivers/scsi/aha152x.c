@@ -16,8 +16,8 @@
  * $Id$
  *
  * $Log$
- * Revision 1.7  2006/11/06 01:24:53  magicyang
- * update to kernel 2.6.18
+ * Revision 1.8  2006/11/08 06:50:07  magicyang
+ * commit some missing changes from 2.6.18 into cvs
  *
  * Revision 2.7  2004/01/24 11:42:59  fischer
  * - gather code that is not used by PCMCIA at the end

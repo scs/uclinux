@@ -68,8 +68,6 @@ struct scb_platform_data;
 #define FALSE 0
 #endif
 
-#define NUM_ELEMENTS(array) (sizeof(array) / sizeof(*array))
-
 #define ALL_CHANNELS '\0'
 #define ALL_TARGETS_MASK 0xFFFF
 #define INITIATOR_WILDCARD	(~0)
@@ -372,7 +370,7 @@ typedef enum {
 	AHD_CURRENT_SENSING   = 0x40000,
 	AHD_SCB_CONFIG_USED   = 0x80000,/* No SEEPROM but SCB had info. */
 	AHD_HP_BOARD	      = 0x100000,
-	AHD_RESET_POLL_ACTIVE = 0x200000,
+	AHD_BUS_RESET_ACTIVE  = 0x200000,
 	AHD_UPDATE_PEND_CMDS  = 0x400000,
 	AHD_RUNNING_QOUTFIFO  = 0x800000,
 	AHD_HAD_FIRST_SEL     = 0x1000000
@@ -589,7 +587,7 @@ typedef enum {
 	SCB_PACKETIZED		= 0x00800,
 	SCB_EXPECT_PPR_BUSFREE	= 0x01000,
 	SCB_PKT_SENSE		= 0x02000,
-	SCB_CMDPHASE_ABORT	= 0x04000,
+	SCB_EXTERNAL_RESET	= 0x04000,/* Device was reset externally */
 	SCB_ON_COL_LIST		= 0x08000,
 	SCB_SILENT		= 0x10000 /*
 					   * Be quiet about transmission type
@@ -1489,6 +1487,7 @@ typedef enum {
 } ahd_queue_alg;
 
 void			ahd_set_tags(struct ahd_softc *ahd,
+				     struct scsi_cmnd *cmd,
 				     struct ahd_devinfo *devinfo,
 				     ahd_queue_alg alg);
 

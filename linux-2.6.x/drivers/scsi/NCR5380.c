@@ -28,8 +28,8 @@
 
 /*
  * $Log$
- * Revision 1.7  2006/11/06 01:24:47  magicyang
- * update to kernel 2.6.18
+ * Revision 1.8  2006/11/08 06:50:05  magicyang
+ * commit some missing changes from 2.6.18 into cvs
  *
 
  * Revision 1.10 1998/9/2	Alan Cox

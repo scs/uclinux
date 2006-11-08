@@ -1089,7 +1089,6 @@ static int i2o_block_probe(struct device *dev)
 	gd = i2o_blk_dev->gd;
 	gd->first_minor = unit << 4;
 	sprintf(gd->disk_name, "i2o/hd%c", 'a' + unit);
-	sprintf(gd->devfs_name, "i2o/hd%c", 'a' + unit);
 	gd->driverfs_dev = &i2o_dev->device;
 
 	/* setup request queue */
@@ -1179,10 +1178,9 @@ static int __init i2o_block_init(void)
 		goto exit;
 	}
 
-	i2o_blk_req_pool.pool = mempool_create(I2O_BLOCK_REQ_MEMPOOL_SIZE,
-					       mempool_alloc_slab,
-					       mempool_free_slab,
-					       i2o_blk_req_pool.slab);
+	i2o_blk_req_pool.pool =
+		mempool_create_slab_pool(I2O_BLOCK_REQ_MEMPOOL_SIZE,
+					 i2o_blk_req_pool.slab);
 	if (!i2o_blk_req_pool.pool) {
 		osm_err("can't init request mempool\n");
 		rc = -ENOMEM;

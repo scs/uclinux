@@ -42,7 +42,6 @@
 #ifndef _AIC79XX_LINUX_H_
 #define _AIC79XX_LINUX_H_
 
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
@@ -94,7 +93,6 @@
 #endif
 
 /********************************** Misc Macros *******************************/
-#define	roundup(x, y)   ((((x)+((y)-1))/(y))*(y))
 #define	powerof2(x)	((((x)-1)&(x))==0)
 
 /************************* Forward Declarations *******************************/
@@ -263,7 +261,6 @@ typedef enum {
 	AHD_DEV_PERIODIC_OTAG	 = 0x40, /* Send OTAG to prevent starvation */
 } ahd_linux_dev_flags;
 
-struct ahd_linux_target;
 struct ahd_linux_device {
 	TAILQ_ENTRY(ahd_linux_device) links;
 
@@ -343,12 +340,6 @@ struct ahd_linux_device {
 #define AHD_OTAG_THRESH	500
 };
 
-struct ahd_linux_target {
-	struct scsi_device	 *sdev[AHD_NUM_LUNS];
-	struct ahd_transinfo	  last_tinfo;
-	struct ahd_softc	 *ahd;
-};
-
 /********************* Definitions Required by the Core ***********************/
 /*
  * Number of SG segments we require.  So long as the S/G segments for
@@ -381,15 +372,12 @@ struct ahd_platform_data {
 	struct scsi_target *starget[AHD_NUM_TARGETS]; 
 
 	spinlock_t		 spin_lock;
-	u_int			 qfrozen;
-	struct semaphore	 eh_sem;
+	struct completion	*eh_done;
 	struct Scsi_Host        *host;		/* pointer to scsi host */
 #define AHD_LINUX_NOIRQ	((uint32_t)~0)
 	uint32_t		 irq;		/* IRQ for this adapter */
 	uint32_t		 bios_address;
 	uint32_t		 mem_busaddr;	/* Mem Base Addr */
-#define	AHD_SCB_UP_EH_SEM 0x1
-	uint32_t		 flags;
 };
 
 /************************** OS Utility Wrappers *******************************/
@@ -868,18 +856,16 @@ ahd_freeze_scb(struct scb *scb)
         }
 }
 
-void	ahd_platform_set_tags(struct ahd_softc *ahd,
+void	ahd_platform_set_tags(struct ahd_softc *ahd, struct scsi_device *sdev,
 			      struct ahd_devinfo *devinfo, ahd_queue_alg);
 int	ahd_platform_abort_scbs(struct ahd_softc *ahd, int target,
 				char channel, int lun, u_int tag,
 				role_t role, uint32_t status);
 irqreturn_t
 	ahd_linux_isr(int irq, void *dev_id, struct pt_regs * regs);
-void	ahd_platform_flushwork(struct ahd_softc *ahd);
-int	ahd_softc_comp(struct ahd_softc *, struct ahd_softc *);
 void	ahd_done(struct ahd_softc*, struct scb*);
 void	ahd_send_async(struct ahd_softc *, char channel,
-		       u_int target, u_int lun, ac_code, void *);
+		       u_int target, u_int lun, ac_code);
 void	ahd_print_path(struct ahd_softc *, struct scb *);
 
 #ifdef CONFIG_PCI

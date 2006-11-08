@@ -353,7 +353,6 @@ MODULE_PARM_DESC(aic7xxx,
 "				periodically to prevent tag starvation.\n"
 "				This may be required by some older disk\n"
 "				drives or RAID arrays.\n"
-"	reverse_scan		Sort PCI devices highest Bus/Slot to lowest\n"
 "	tag_info:<tag_str>	Set per-target tag depth\n"
 "	global_tag_depth:<int>	Global tag depth for every target\n"
 "				on every bus\n"
@@ -373,7 +372,6 @@ static void ahc_linux_handle_scsi_status(struct ahc_softc *,
 					 struct scb *);
 static void ahc_linux_queue_cmd_complete(struct ahc_softc *ahc,
 					 struct scsi_cmnd *cmd);
-static void ahc_linux_sem_timeout(u_long arg);
 static void ahc_linux_freeze_simq(struct ahc_softc *ahc);
 static void ahc_linux_release_simq(struct ahc_softc *ahc);
 static int  ahc_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag);
@@ -887,7 +885,7 @@ ahc_linux_setup_tag_info_global(char *p)
 	tags = simple_strtoul(p + 1, NULL, 0) & 0xff;
 	printf("Setting Global Tags= %d\n", tags);
 
-	for (i = 0; i < NUM_ELEMENTS(aic7xxx_tag_info); i++) {
+	for (i = 0; i < ARRAY_SIZE(aic7xxx_tag_info); i++) {
 		for (j = 0; j < AHC_NUM_TARGETS; j++) {
 			aic7xxx_tag_info[i].tag_commands[j] = tags;
 		}
@@ -899,7 +897,7 @@ ahc_linux_setup_tag_info(u_long arg, int instance, int targ, int32_t value)
 {
 
 	if ((instance >= 0) && (targ >= 0)
-	 && (instance < NUM_ELEMENTS(aic7xxx_tag_info))
+	 && (instance < ARRAY_SIZE(aic7xxx_tag_info))
 	 && (targ < AHC_NUM_TARGETS)) {
 		aic7xxx_tag_info[instance].tag_commands[targ] = value & 0xff;
 		if (bootverbose)
@@ -1021,7 +1019,7 @@ aic7xxx_setup(char *s)
 	end = strchr(s, '\0');
 
 	/*
-	 * XXX ia64 gcc isn't smart enough to know that NUM_ELEMENTS
+	 * XXX ia64 gcc isn't smart enough to know that ARRAY_SIZE
 	 * will never be 0 in this case.
 	 */
 	n = 0;
@@ -1029,13 +1027,13 @@ aic7xxx_setup(char *s)
 	while ((p = strsep(&s, ",.")) != NULL) {
 		if (*p == '\0')
 			continue;
-		for (i = 0; i < NUM_ELEMENTS(options); i++) {
+		for (i = 0; i < ARRAY_SIZE(options); i++) {
 
 			n = strlen(options[i].name);
 			if (strncmp(options[i].name, p, n) == 0)
 				break;
 		}
-		if (i == NUM_ELEMENTS(options))
+		if (i == ARRAY_SIZE(options))
 			continue;
 
 		if (strncmp(p, "global_tag_depth", n) == 0) {
@@ -1193,7 +1191,6 @@ ahc_platform_alloc(struct ahc_softc *ahc, void *platform_arg)
 	memset(ahc->platform_data, 0, sizeof(struct ahc_platform_data));
 	ahc->platform_data->irq = AHC_LINUX_NOIRQ;
 	ahc_lockinit(ahc);
-	init_MUTEX_LOCKED(&ahc->platform_data->eh_sem);
 	ahc->seltime = (aic7xxx_seltime & 0x3) << 4;
 	ahc->seltime_b = (aic7xxx_seltime & 0x3) << 4;
 	if (aic7xxx_pci_parity == 0)
@@ -1362,7 +1359,7 @@ ahc_linux_user_tagdepth(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 
 	tags = 0;
 	if ((ahc->user_discenable & devinfo->target_mask) != 0) {
-		if (ahc->unit >= NUM_ELEMENTS(aic7xxx_tag_info)) {
+		if (ahc->unit >= ARRAY_SIZE(aic7xxx_tag_info)) {
 			if (warned_user == 0) {
 
 				printf(KERN_WARNING
@@ -1830,10 +1827,9 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		if (ahc_get_transaction_status(scb) == CAM_BDR_SENT
 		 || ahc_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			ahc_set_transaction_status(scb, CAM_CMD_TIMEOUT);
-		if ((ahc->platform_data->flags & AHC_UP_EH_SEMAPHORE) != 0) {
-			ahc->platform_data->flags &= ~AHC_UP_EH_SEMAPHORE;
-			up(&ahc->platform_data->eh_sem);
-		}
+
+		if (ahc->platform_data->eh_done)
+			complete(ahc->platform_data->eh_done);
 	}
 
 	ahc_free_scb(ahc, scb);
@@ -2037,22 +2033,6 @@ ahc_linux_queue_cmd_complete(struct ahc_softc *ahc, struct scsi_cmnd *cmd)
 	}
 
 	cmd->scsi_done(cmd);
-}
-
-static void
-ahc_linux_sem_timeout(u_long arg)
-{
-	struct	ahc_softc *ahc;
-	u_long	s;
-
-	ahc = (struct ahc_softc *)arg;
-
-	ahc_lock(ahc, &s);
-	if ((ahc->platform_data->flags & AHC_UP_EH_SEMAPHORE) != 0) {
-		ahc->platform_data->flags &= ~AHC_UP_EH_SEMAPHORE;
-		up(&ahc->platform_data->eh_sem);
-	}
-	ahc_unlock(ahc, &s);
 }
 
 static void
@@ -2355,25 +2335,21 @@ done:
 	if (paused)
 		ahc_unpause(ahc);
 	if (wait) {
-		struct timer_list timer;
-		int ret;
+		DECLARE_COMPLETION(done);
 
-		ahc->platform_data->flags |= AHC_UP_EH_SEMAPHORE;
+		ahc->platform_data->eh_done = &done;
 		ahc_unlock(ahc, &flags);
 
-		init_timer(&timer);
-		timer.data = (u_long)ahc;
-		timer.expires = jiffies + (5 * HZ);
-		timer.function = ahc_linux_sem_timeout;
-		add_timer(&timer);
 		printf("Recovery code sleeping\n");
-		down(&ahc->platform_data->eh_sem);
-		printf("Recovery code awake\n");
-        	ret = del_timer_sync(&timer);
-		if (ret == 0) {
+		if (!wait_for_completion_timeout(&done, 5 * HZ)) {
+			ahc_lock(ahc, &flags);
+			ahc->platform_data->eh_done = NULL;
+			ahc_unlock(ahc, &flags);
+
 			printf("Timer Expired\n");
 			retval = FAILED;
 		}
+		printf("Recovery code awake\n");
 	} else
 		ahc_unlock(ahc, &flags);
 	return (retval);
@@ -2560,6 +2536,22 @@ static void ahc_linux_set_iu(struct scsi_target *starget, int iu)
 }
 #endif
 
+static void ahc_linux_get_signalling(struct Scsi_Host *shost)
+{
+	struct ahc_softc *ahc = *(struct ahc_softc **)shost->hostdata;
+	u8 mode = ahc_inb(ahc, SBLKCTL);
+
+	if (mode & ENAB40)
+		spi_signalling(shost) = SPI_SIGNAL_LVD;
+	else if (mode & ENAB20)
+		spi_signalling(shost) = 
+			ahc->features & AHC_HVD ?
+			SPI_SIGNAL_HVD :
+			SPI_SIGNAL_SE;
+	else
+		spi_signalling(shost) = SPI_SIGNAL_UNKNOWN;
+}
+
 static struct spi_function_template ahc_linux_transport_functions = {
 	.set_offset	= ahc_linux_set_offset,
 	.show_offset	= 1,
@@ -2575,6 +2567,7 @@ static struct spi_function_template ahc_linux_transport_functions = {
 	.set_qas	= ahc_linux_set_qas,
 	.show_qas	= 1,
 #endif
+	.get_signalling	= ahc_linux_get_signalling,
 };
 
 

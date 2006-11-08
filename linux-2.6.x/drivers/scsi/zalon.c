@@ -88,7 +88,7 @@ zalon_probe(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	u32 zalon_vers;
 	int error = -ENODEV;
-	void __iomem *zalon = ioremap(dev->hpa.start, 4096);
+	void __iomem *zalon = ioremap_nocache(dev->hpa.start, 4096);
 	void __iomem *io_port = zalon + GSC_SCSI_ZALON_OFFSET;
 	static int unit = 0;
 	struct Scsi_Host *host;
@@ -136,7 +136,7 @@ zalon_probe(struct parisc_device *dev)
 	if (!host)
 		goto fail;
 
-	if (request_irq(dev->irq, ncr53c8xx_intr, SA_SHIRQ, "zalon", host)) {
+	if (request_irq(dev->irq, ncr53c8xx_intr, IRQF_SHARED, "zalon", host)) {
 		printk(KERN_ERR "%s: irq problem with %d, detaching\n ",
 			dev->dev.bus_id, dev->irq);
 		goto fail;

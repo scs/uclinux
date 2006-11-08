@@ -219,6 +219,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahc->flags |= AHC_39BIT_ADDRESSING;
 	} else {
 		if (dma_set_mask(dev, DMA_32BIT_MASK)) {
+			ahc_free(ahc);
 			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
                 	return (-ENODEV);
 		}
@@ -374,7 +375,7 @@ ahc_pci_map_int(struct ahc_softc *ahc)
 	int error;
 
 	error = request_irq(ahc->dev_softc->irq, ahc_linux_isr,
-			    SA_SHIRQ, "aic7xxx", ahc);
+			    IRQF_SHARED, "aic7xxx", ahc);
 	if (error == 0)
 		ahc->platform_data->irq = ahc->dev_softc->irq;
 	

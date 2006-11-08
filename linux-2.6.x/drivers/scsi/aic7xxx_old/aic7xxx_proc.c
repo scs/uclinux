@@ -29,7 +29,6 @@
  *  $Id$
  *-M*************************************************************************/
 
-#include <linux/config.h>
 
 #define	BLS	(&aic7xxx_buffer[size])
 #define HDRB \

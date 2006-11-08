@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mbox.c
- * Version	: v2.20.4.7 (Nov 14 2005)
+ * Version	: v2.20.4.9 (Jul 16 2006)
  *
  * Authors:
  * 	Atul Mukker		<Atul.Mukker@lsil.com>
@@ -714,12 +714,13 @@ megaraid_io_detach(adapter_t *adapter)
  * . Allocate memory required for all the commands
  * . Use internal library of FW routines, build up complete soft state
  */
-static int __init
+static int __devinit
 megaraid_init_mbox(adapter_t *adapter)
 {
 	struct pci_dev		*pdev;
 	mraid_device_t		*raid_dev;
 	int			i;
+	uint32_t		magic64;
 
 
 	adapter->ito	= MBOX_TIMEOUT;
@@ -767,7 +768,7 @@ megaraid_init_mbox(adapter_t *adapter)
 	//
 
 	// request IRQ and register the interrupt service routine
-	if (request_irq(adapter->irq, megaraid_isr, SA_SHIRQ, "megaraid",
+	if (request_irq(adapter->irq, megaraid_isr, IRQF_SHARED, "megaraid",
 		adapter)) {
 
 		con_log(CL_ANN, (KERN_WARNING
@@ -863,12 +864,33 @@ megaraid_init_mbox(adapter_t *adapter)
 
 	// Set the DMA mask to 64-bit. All supported controllers as capable of
 	// DMA in this range
-	if (pci_set_dma_mask(adapter->pdev, DMA_64BIT_MASK) != 0) {
+	pci_read_config_dword(adapter->pdev, PCI_CONF_AMISIG64, &magic64);
 
-		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: could not set DMA mask for 64-bit.\n"));
+	if (((magic64 == HBA_SIGNATURE_64_BIT) &&
+		((adapter->pdev->subsystem_device !=
+		PCI_SUBSYS_ID_MEGARAID_SATA_150_6) ||
+		(adapter->pdev->subsystem_device !=
+		PCI_SUBSYS_ID_MEGARAID_SATA_150_4))) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_VERDE) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_DOBSON) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_LSI_LOGIC &&
+		adapter->pdev->device == PCI_DEVICE_ID_LINDSAY) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_DELL &&
+		adapter->pdev->device == PCI_DEVICE_ID_PERC4_DI_EVERGLADES) ||
+		(adapter->pdev->vendor == PCI_VENDOR_ID_DELL &&
+		adapter->pdev->device == PCI_DEVICE_ID_PERC4E_DI_KOBUK)) {
+		if (pci_set_dma_mask(adapter->pdev, DMA_64BIT_MASK)) {
+			con_log(CL_ANN, (KERN_WARNING
+				"megaraid: DMA mask for 64-bit failed\n"));
 
-		goto out_free_sysfs_res;
+			if (pci_set_dma_mask (adapter->pdev, DMA_32BIT_MASK)) {
+				con_log(CL_ANN, (KERN_WARNING
+					"megaraid: 32-bit DMA mask failed\n"));
+				goto out_free_sysfs_res;
+			}
+		}
 	}
 
 	// setup tasklet for DPC
@@ -1622,6 +1644,14 @@ megaraid_mbox_build_cmd(adapter_t *adapter, struct scsi_cmnd *scp, int *busy)
 				rdev->last_disp |= (1L << SCP2CHANNEL(scp));
 			}
 
+			if (scp->cmnd[1] & MEGA_SCSI_INQ_EVPD) {
+				scp->sense_buffer[0] = 0x70;
+				scp->sense_buffer[2] = ILLEGAL_REQUEST;
+				scp->sense_buffer[12] = MEGA_INVALID_FIELD_IN_CDB;
+				scp->result = CHECK_CONDITION << 1;
+				return NULL;
+			}
+
 			/* Fall through */
 
 		case READ_CAPACITY:
@@ -2278,6 +2308,7 @@ megaraid_mbox_dpc(unsigned long devp)
 	unsigned long		flags;
 	uint8_t			c;
 	int			status;
+	uioc_t			*kioc;
 
 
 	if (!adapter) return;
@@ -2319,6 +2350,9 @@ megaraid_mbox_dpc(unsigned long devp)
 
 			// remove from local clist
 			list_del_init(&scb->list);
+
+			kioc			= (uioc_t *)scb->gp;
+			kioc->status		= 0;
 
 			megaraid_mbox_mm_done(adapter, scb);
 
@@ -2636,6 +2670,7 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	int		recovery_window;
 	int		recovering;
 	int		i;
+	uioc_t		*kioc;
 
 	adapter		= SCP2ADAPTER(scp);
 	raid_dev	= ADAP2RAIDDEV(adapter);
@@ -2655,32 +2690,51 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 	// Also, reset all the commands currently owned by the driver
 	spin_lock_irqsave(PENDING_LIST_LOCK(adapter), flags);
 	list_for_each_entry_safe(scb, tmp, &adapter->pend_list, list) {
-
 		list_del_init(&scb->list);	// from pending list
 
-		con_log(CL_ANN, (KERN_WARNING
-			"megaraid: %ld:%d[%d:%d], reset from pending list\n",
-				scp->serial_number, scb->sno,
-				scb->dev_channel, scb->dev_target));
+		if (scb->sno >= MBOX_MAX_SCSI_CMDS) {
+			con_log(CL_ANN, (KERN_WARNING
+			"megaraid: IOCTL packet with %d[%d:%d] being reset\n",
+			scb->sno, scb->dev_channel, scb->dev_target));
 
-		scp->result = (DID_RESET << 16);
-		scp->scsi_done(scp);
+			scb->status = -1;
 
-		megaraid_dealloc_scb(adapter, scb);
+			kioc			= (uioc_t *)scb->gp;
+			kioc->status		= -EFAULT;
+
+			megaraid_mbox_mm_done(adapter, scb);
+		} else {
+			if (scb->scp == scp) {	// Found command
+				con_log(CL_ANN, (KERN_WARNING
+					"megaraid: %ld:%d[%d:%d], reset from pending list\n",
+					scp->serial_number, scb->sno,
+					scb->dev_channel, scb->dev_target));
+			} else {
+				con_log(CL_ANN, (KERN_WARNING
+				"megaraid: IO packet with %d[%d:%d] being reset\n",
+				scb->sno, scb->dev_channel, scb->dev_target));
+			}
+
+			scb->scp->result = (DID_RESET << 16);
+			scb->scp->scsi_done(scb->scp);
+
+			megaraid_dealloc_scb(adapter, scb);
+		}
 	}
 	spin_unlock_irqrestore(PENDING_LIST_LOCK(adapter), flags);
 
 	if (adapter->outstanding_cmds) {
 		con_log(CL_ANN, (KERN_NOTICE
 			"megaraid: %d outstanding commands. Max wait %d sec\n",
-			adapter->outstanding_cmds, MBOX_RESET_WAIT));
+			adapter->outstanding_cmds,
+			(MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT)));
 	}
 
 	recovery_window = MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT;
 
 	recovering = adapter->outstanding_cmds;
 
-	for (i = 0; i < recovery_window && adapter->outstanding_cmds; i++) {
+	for (i = 0; i < recovery_window; i++) {
 
 		megaraid_ack_sequence(adapter);
 
@@ -2689,12 +2743,11 @@ megaraid_reset_handler(struct scsi_cmnd *scp)
 			con_log(CL_ANN, (
 			"megaraid mbox: Wait for %d commands to complete:%d\n",
 				adapter->outstanding_cmds,
-				MBOX_RESET_WAIT - i));
+				(MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT) - i));
 		}
 
 		// bailout if no recovery happended in reset time
-		if ((i == MBOX_RESET_WAIT) &&
-			(recovering == adapter->outstanding_cmds)) {
+		if (adapter->outstanding_cmds == 0) {
 			break;
 		}
 
@@ -2797,7 +2850,7 @@ mbox_post_sync_cmd(adapter_t *adapter, uint8_t raw_mbox[])
 	// available within 1 second, assume FW is initializing and wait
 	// for an extended amount of time
 	if (mbox->numstatus == 0xFF) {	// status not yet available
-		udelay(25);;
+		udelay(25);
 
 		for (i = 0; mbox->numstatus == 0xFF && i < 1000; i++) {
 			rmb();
@@ -2918,12 +2971,13 @@ mbox_post_sync_cmd_fast(adapter_t *adapter, uint8_t raw_mbox[])
 	wmb();
 	WRINDOOR(raid_dev, raid_dev->mbox_dma | 0x1);
 
-	for (i = 0; i < 0xFFFFF; i++) {
+	for (i = 0; i < MBOX_SYNC_WAIT_CNT; i++) {
 		if (mbox->numstatus != 0xFF) break;
 		rmb();
+		udelay(MBOX_SYNC_DELAY_200);
 	}
 
-	if (i == 0xFFFFF) {
+	if (i == MBOX_SYNC_WAIT_CNT) {
 		// We may need to re-calibrate the counter
 		con_log(CL_ANN, (KERN_CRIT
 			"megaraid: fast sync command timed out\n"));
@@ -3475,7 +3529,7 @@ megaraid_cmm_register(adapter_t *adapter)
 	adp.drvr_data		= (unsigned long)adapter;
 	adp.pdev		= adapter->pdev;
 	adp.issue_uioc		= megaraid_mbox_mm_handler;
-	adp.timeout		= 300;
+	adp.timeout		= MBOX_RESET_WAIT + MBOX_RESET_EXT_WAIT;
 	adp.max_kioc		= MBOX_MAX_USER_CMDS;
 
 	if ((rval = mraid_mm_register_adp(&adp)) != 0) {
@@ -3702,7 +3756,6 @@ megaraid_mbox_mm_done(adapter_t *adapter, scb_t *scb)
 	unsigned long		flags;
 
 	kioc			= (uioc_t *)scb->gp;
-	kioc->status		= 0;
 	mbox64			= (mbox64_t *)(unsigned long)kioc->cmdbuf;
 	mbox64->mbox32.status	= scb->status;
 	raw_mbox		= (uint8_t *)&mbox64->mbox32;

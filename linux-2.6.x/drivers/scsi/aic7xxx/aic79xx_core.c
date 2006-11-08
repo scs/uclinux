@@ -59,7 +59,7 @@ char *ahd_chip_names[] =
 	"aic7902",
 	"aic7901A"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahd_chip_names);
+static const u_int num_chip_names = ARRAY_SIZE(ahd_chip_names);
 
 /*
  * Hardware error codes.
@@ -77,7 +77,7 @@ static struct ahd_hard_error_entry ahd_hard_errors[] = {
 	{ MPARERR,	"Scratch or SCB Memory Parity Error" },
 	{ CIOPARERR,	"CIOBUS Parity Error" },
 };
-static const u_int num_errors = NUM_ELEMENTS(ahd_hard_errors);
+static const u_int num_errors = ARRAY_SIZE(ahd_hard_errors);
 
 static struct ahd_phase_table_entry ahd_phase_table[] =
 {
@@ -97,7 +97,7 @@ static struct ahd_phase_table_entry ahd_phase_table[] =
  * In most cases we only wish to itterate over real phases, so
  * exclude the last element from the count.
  */
-static const u_int num_phases = NUM_ELEMENTS(ahd_phase_table) - 1;
+static const u_int num_phases = ARRAY_SIZE(ahd_phase_table) - 1;
 
 /* Our Sequencer Program */
 #include "aic79xx_seq.h"
@@ -207,7 +207,6 @@ static void		ahd_add_scb_to_free_list(struct ahd_softc *ahd,
 static u_int		ahd_rem_wscb(struct ahd_softc *ahd, u_int scbid,
 				     u_int prev, u_int next, u_int tid);
 static void		ahd_reset_current_bus(struct ahd_softc *ahd);
-static ahd_callback_t	ahd_reset_poll;
 static ahd_callback_t	ahd_stat_timer;
 #ifdef AHD_DUMP_SEQ
 static void		ahd_dumpseq(struct ahd_softc *ahd);
@@ -978,9 +977,13 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 		break;
 	}
 	case INVALID_SEQINT:
-		printf("%s: Invalid Sequencer interrupt occurred.\n",
+		printf("%s: Invalid Sequencer interrupt occurred, "
+		       "resetting channel.\n",
 		       ahd_name(ahd));
-		ahd_dump_card_state(ahd);
+#ifdef AHD_DEBUG
+		if ((ahd_debug & AHD_SHOW_RECOVERY) != 0)
+			ahd_dump_card_state(ahd);
+#endif
 		ahd_reset_channel(ahd, 'A', /*Initiate Reset*/TRUE);
 		break;
 	case STATUS_OVERRUN:
@@ -1050,12 +1053,10 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			 * If a target takes us into the command phase
 			 * assume that it has been externally reset and
 			 * has thus lost our previous packetized negotiation
-			 * agreement.  Since we have not sent an identify
-			 * message and may not have fully qualified the
-			 * connection, we change our command to TUR, assert
-			 * ATN and ABORT the task when we go to message in
-			 * phase.  The OSM will see the REQUEUE_REQUEST
-			 * status and retry the command.
+			 * agreement.
+			 * Revert to async/narrow transfers until we
+			 * can renegotiate with the device and notify
+			 * the OSM about the reset.
 			 */
 			scbid = ahd_get_scbptr(ahd);
 			scb = ahd_lookup_scb(ahd, scbid);
@@ -1082,30 +1083,14 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
 					 /*offset*/0, /*ppr_options*/0,
 					 AHD_TRANS_ACTIVE, /*paused*/TRUE);
-			ahd_outb(ahd, SCB_CDB_STORE, 0);
-			ahd_outb(ahd, SCB_CDB_STORE+1, 0);
-			ahd_outb(ahd, SCB_CDB_STORE+2, 0);
-			ahd_outb(ahd, SCB_CDB_STORE+3, 0);
-			ahd_outb(ahd, SCB_CDB_STORE+4, 0);
-			ahd_outb(ahd, SCB_CDB_STORE+5, 0);
-			ahd_outb(ahd, SCB_CDB_LEN, 6);
-			scb->hscb->control &= ~(TAG_ENB|SCB_TAG_TYPE);
-			scb->hscb->control |= MK_MESSAGE;
-			ahd_outb(ahd, SCB_CONTROL, scb->hscb->control);
-			ahd_outb(ahd, MSG_OUT, HOST_MSG);
-			ahd_outb(ahd, SAVED_SCSIID, scb->hscb->scsiid);
-			/*
-			 * The lun is 0, regardless of the SCB's lun
-			 * as we have not sent an identify message.
-			 */
-			ahd_outb(ahd, SAVED_LUN, 0);
-			ahd_outb(ahd, SEQ_FLAGS, 0);
-			ahd_assert_atn(ahd);
-			scb->flags &= ~SCB_PACKETIZED;
-			scb->flags |= SCB_ABORT|SCB_CMDPHASE_ABORT;
+			scb->flags |= SCB_EXTERNAL_RESET;
 			ahd_freeze_devq(ahd, scb);
 			ahd_set_transaction_status(scb, CAM_REQUEUE_REQ);
 			ahd_freeze_scb(scb);
+
+			/* Notify XPT */
+			ahd_send_async(ahd, devinfo.channel, devinfo.target,
+				       CAM_LUN_WILDCARD, AC_SENT_BDR);
 
 			/*
 			 * Allow the sequencer to continue with
@@ -1530,6 +1515,18 @@ ahd_handle_scsiint(struct ahd_softc *ahd, u_int intstat)
 	lqistat1 = ahd_inb(ahd, LQISTAT1);
 	lqostat0 = ahd_inb(ahd, LQOSTAT0);
 	busfreetime = ahd_inb(ahd, SSTAT2) & BUSFREETIME;
+
+	/*
+	 * Ignore external resets after a bus reset.
+	 */
+	if (((status & SCSIRSTI) != 0) && (ahd->flags & AHD_BUS_RESET_ACTIVE))
+		return;
+
+	/*
+	 * Clear bus reset flag
+	 */
+	ahd->flags &= ~AHD_BUS_RESET_ACTIVE;
+
 	if ((status0 & (SELDI|SELDO)) != 0) {
 		u_int simode0;
 
@@ -2203,22 +2200,6 @@ ahd_handle_nonpkt_busfree(struct ahd_softc *ahd)
 			if (sent_msg == MSG_ABORT_TAG)
 				tag = SCB_GET_TAG(scb);
 
-			if ((scb->flags & SCB_CMDPHASE_ABORT) != 0) {
-				/*
-				 * This abort is in response to an
-				 * unexpected switch to command phase
-				 * for a packetized connection.  Since
-				 * the identify message was never sent,
-				 * "saved lun" is 0.  We really want to
-				 * abort only the SCB that encountered
-				 * this error, which could have a different
-				 * lun.  The SCB will be retried so the OS
-				 * will see the UA after renegotiating to
-				 * packetized.
-				 */
-				tag = SCB_GET_TAG(scb);
-				saved_lun = scb->hscb->lun;
-			}
 			found = ahd_abort_scbs(ahd, target, 'A', saved_lun,
 					       tag, ROLE_INITIATOR,
 					       CAM_REQ_ABORTED);
@@ -3081,7 +3062,7 @@ ahd_set_syncrate(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		tinfo->curr.ppr_options = ppr_options;
 
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG, NULL);
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			if (offset != 0) {
 				int options;
@@ -3203,7 +3184,7 @@ ahd_set_width(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 
 		tinfo->curr.width = width;
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG, NULL);
+			       CAM_LUN_WILDCARD, AC_TRANSFER_NEG);
 		if (bootverbose) {
 			printf("%s: target %d using %dbit transfers\n",
 			       ahd_name(ahd), devinfo->target,
@@ -3230,12 +3211,14 @@ ahd_set_width(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
  * Update the current state of tagged queuing for a given target.
  */
 void
-ahd_set_tags(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
-	     ahd_queue_alg alg)
+ahd_set_tags(struct ahd_softc *ahd, struct scsi_cmnd *cmd,
+	     struct ahd_devinfo *devinfo, ahd_queue_alg alg)
 {
-	ahd_platform_set_tags(ahd, devinfo, alg);
+	struct scsi_device *sdev = cmd->device;
+
+	ahd_platform_set_tags(ahd, sdev, devinfo, alg);
 	ahd_send_async(ahd, devinfo->channel, devinfo->target,
-		       devinfo->lun, AC_TRANSFER_NEG, &alg);
+		       devinfo->lun, AC_TRANSFER_NEG);
 }
 
 static void
@@ -3762,11 +3745,8 @@ ahd_construct_sdtr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 {
 	if (offset == 0)
 		period = AHD_ASYNC_XFER_PERIOD;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_SDTR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_SDTR;
-	ahd->msgout_buf[ahd->msgout_index++] = period;
-	ahd->msgout_buf[ahd->msgout_index++] = offset;
+	ahd->msgout_index += spi_populate_sync_msg(
+			ahd->msgout_buf + ahd->msgout_index, period, offset);
 	ahd->msgout_len += 5;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending SDTR period %x, offset %x\n",
@@ -3783,10 +3763,8 @@ static void
 ahd_construct_wdtr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		   u_int bus_width)
 {
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_WDTR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_WDTR;
-	ahd->msgout_buf[ahd->msgout_index++] = bus_width;
+	ahd->msgout_index += spi_populate_width_msg(
+			ahd->msgout_buf + ahd->msgout_index, bus_width);
 	ahd->msgout_len += 4;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending WDTR %x\n",
@@ -3813,14 +3791,9 @@ ahd_construct_ppr(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 		ppr_options |= MSG_EXT_PPR_PCOMP_EN;
 	if (offset == 0)
 		period = AHD_ASYNC_XFER_PERIOD;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXTENDED;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_PPR_LEN;
-	ahd->msgout_buf[ahd->msgout_index++] = MSG_EXT_PPR;
-	ahd->msgout_buf[ahd->msgout_index++] = period;
-	ahd->msgout_buf[ahd->msgout_index++] = 0;
-	ahd->msgout_buf[ahd->msgout_index++] = offset;
-	ahd->msgout_buf[ahd->msgout_index++] = bus_width;
-	ahd->msgout_buf[ahd->msgout_index++] = ppr_options;
+	ahd->msgout_index += spi_populate_ppr_msg(
+			ahd->msgout_buf + ahd->msgout_index, period, offset,
+			bus_width, ppr_options);
 	ahd->msgout_len += 8;
 	if (bootverbose) {
 		printf("(%s:%c:%d:%d): Sending PPR bus_width %x, period %x, "
@@ -4775,7 +4748,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			printf("(%s:%c:%d:%d): refuses tagged commands.  "
 			       "Performing non-tagged I/O\n", ahd_name(ahd),
 			       devinfo->channel, devinfo->target, devinfo->lun);
-			ahd_set_tags(ahd, devinfo, AHD_QUEUE_NONE);
+			ahd_set_tags(ahd, scb->io_ctx, devinfo, AHD_QUEUE_NONE);
 			mask = ~0x23;
 		} else {
 			printf("(%s:%c:%d:%d): refuses %s tagged commands.  "
@@ -4783,7 +4756,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 			       ahd_name(ahd), devinfo->channel, devinfo->target,
 			       devinfo->lun, tag_type == MSG_ORDERED_TASK
 			       ? "ordered" : "head of queue");
-			ahd_set_tags(ahd, devinfo, AHD_QUEUE_BASIC);
+			ahd_set_tags(ahd, scb->io_ctx, devinfo, AHD_QUEUE_BASIC);
 			mask = ~0x03;
 		}
 
@@ -5127,7 +5100,7 @@ ahd_handle_devreset(struct ahd_softc *ahd, struct ahd_devinfo *devinfo,
 	
 	if (status != CAM_SEL_TIMEOUT)
 		ahd_send_async(ahd, devinfo->channel, devinfo->target,
-			       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
+			       CAM_LUN_WILDCARD, AC_SENT_BDR);
 
 	if (message != NULL && bootverbose)
 		printf("%s: %s on %c:%d. %d SCBs aborted\n", ahd_name(ahd),
@@ -7094,7 +7067,6 @@ ahd_pause_and_flushwork(struct ahd_softc *ahd)
 
 	ahd_flush_qoutfifo(ahd);
 
-	ahd_platform_flushwork(ahd);
 	ahd->flags &= ~AHD_ALL_INTERRUPTS;
 }
 
@@ -7289,7 +7261,7 @@ ahd_qinfifo_count(struct ahd_softc *ahd)
 		return (wrap_qinfifonext - wrap_qinpos);
 	else
 		return (wrap_qinfifonext
-		      + NUM_ELEMENTS(ahd->qinfifo) - wrap_qinpos);
+		      + ARRAY_SIZE(ahd->qinfifo) - wrap_qinpos);
 }
 
 void
@@ -7317,7 +7289,7 @@ ahd_reset_cmds_pending(struct ahd_softc *ahd)
 	ahd->flags &= ~AHD_UPDATE_PEND_CMDS;
 }
 
-void
+static void
 ahd_done_with_status(struct ahd_softc *ahd, struct scb *scb, uint32_t status)
 {
 	cam_status ostat;
@@ -7854,6 +7826,17 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 	int	found;
 	u_int	fifo;
 	u_int	next_fifo;
+	uint8_t scsiseq;
+
+	/*
+	 * Check if the last bus reset is cleared
+	 */
+	if (ahd->flags & AHD_BUS_RESET_ACTIVE) {
+		printf("%s: bus reset still active\n",
+		       ahd_name(ahd));
+		return 0;
+	}
+	ahd->flags |= AHD_BUS_RESET_ACTIVE;
 
 	ahd->pending_device = NULL;
 
@@ -7867,6 +7850,12 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 	/* Make sure the sequencer is in a safe location. */
 	ahd_clear_critical_section(ahd);
 
+	/*
+	 * Run our command complete fifos to ensure that we perform
+	 * completion processing on any commands that 'completed'
+	 * before the reset occurred.
+	 */
+	ahd_run_qoutfifo(ahd);
 #ifdef AHD_TARGET_MODE
 	if ((ahd->flags & AHD_TARGETROLE) != 0) {
 		ahd_run_tqinfifo(ahd, /*paused*/TRUE);
@@ -7931,30 +7920,14 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 	ahd_clear_fifo(ahd, 1);
 
 	/*
-	 * Revert to async/narrow transfers until we renegotiate.
+	 * Reenable selections
 	 */
+	ahd_outb(ahd, SIMODE1, ahd_inb(ahd, SIMODE1) | ENSCSIRST);
+	scsiseq = ahd_inb(ahd, SCSISEQ_TEMPLATE);
+	ahd_outb(ahd, SCSISEQ1, scsiseq & (ENSELI|ENRSELI|ENAUTOATNP));
+
 	max_scsiid = (ahd->features & AHD_WIDE) ? 15 : 7;
-	for (target = 0; target <= max_scsiid; target++) {
-
-		if (ahd->enabled_targets[target] == NULL)
-			continue;
-		for (initiator = 0; initiator <= max_scsiid; initiator++) {
-			struct ahd_devinfo devinfo;
-
-			ahd_compile_devinfo(&devinfo, target, initiator,
-					    CAM_LUN_WILDCARD,
-					    'A', ROLE_UNKNOWN);
-			ahd_set_width(ahd, &devinfo, MSG_EXT_WDTR_BUS_8_BIT,
-				      AHD_TRANS_CUR, /*paused*/TRUE);
-			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
-					 /*offset*/0, /*ppr_options*/0,
-					 AHD_TRANS_CUR, /*paused*/TRUE);
-		}
-	}
-
 #ifdef AHD_TARGET_MODE
-	max_scsiid = (ahd->features & AHD_WIDE) ? 15 : 7;
-
 	/*
 	 * Send an immediate notify ccb to all target more peripheral
 	 * drivers affected by this action.
@@ -7981,52 +7954,32 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 #endif
 	/* Notify the XPT that a bus reset occurred */
 	ahd_send_async(ahd, devinfo.channel, CAM_TARGET_WILDCARD,
-		       CAM_LUN_WILDCARD, AC_BUS_RESET, NULL);
-	ahd_restart(ahd);
+		       CAM_LUN_WILDCARD, AC_BUS_RESET);
+
 	/*
-	 * Freeze the SIMQ until our poller can determine that
-	 * the bus reset has really gone away.  We set the initial
-	 * timer to 0 to have the check performed as soon as possible
-	 * from the timer context.
+	 * Revert to async/narrow transfers until we renegotiate.
 	 */
-	if ((ahd->flags & AHD_RESET_POLL_ACTIVE) == 0) {
-		ahd->flags |= AHD_RESET_POLL_ACTIVE;
-		ahd_freeze_simq(ahd);
-		ahd_timer_reset(&ahd->reset_timer, 0, ahd_reset_poll, ahd);
+	for (target = 0; target <= max_scsiid; target++) {
+
+		if (ahd->enabled_targets[target] == NULL)
+			continue;
+		for (initiator = 0; initiator <= max_scsiid; initiator++) {
+			struct ahd_devinfo devinfo;
+
+			ahd_compile_devinfo(&devinfo, target, initiator,
+					    CAM_LUN_WILDCARD,
+					    'A', ROLE_UNKNOWN);
+			ahd_set_width(ahd, &devinfo, MSG_EXT_WDTR_BUS_8_BIT,
+				      AHD_TRANS_CUR, /*paused*/TRUE);
+			ahd_set_syncrate(ahd, &devinfo, /*period*/0,
+					 /*offset*/0, /*ppr_options*/0,
+					 AHD_TRANS_CUR, /*paused*/TRUE);
+		}
 	}
+
+	ahd_restart(ahd);
+
 	return (found);
-}
-
-
-#define AHD_RESET_POLL_US 1000
-static void
-ahd_reset_poll(void *arg)
-{
-	struct	ahd_softc *ahd = arg;
-	u_int	scsiseq1;
-	u_long	s;
-	
-	ahd_lock(ahd, &s);
-	ahd_pause(ahd);
-	ahd_update_modes(ahd);
-	ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
-	ahd_outb(ahd, CLRSINT1, CLRSCSIRSTI);
-	if ((ahd_inb(ahd, SSTAT1) & SCSIRSTI) != 0) {
-		ahd_timer_reset(&ahd->reset_timer, AHD_RESET_POLL_US,
-				ahd_reset_poll, ahd);
-		ahd_unpause(ahd);
-		ahd_unlock(ahd, &s);
-		return;
-	}
-
-	/* Reset is now low.  Complete chip reinitialization. */
-	ahd_outb(ahd, SIMODE1, ahd_inb(ahd, SIMODE1) | ENSCSIRST);
-	scsiseq1 = ahd_inb(ahd, SCSISEQ_TEMPLATE);
-	ahd_outb(ahd, SCSISEQ1, scsiseq1 & (ENSELI|ENRSELI|ENAUTOATNP));
-	ahd_unpause(ahd);
-	ahd->flags &= ~AHD_RESET_POLL_ACTIVE;
-	ahd_unlock(ahd, &s);
-	ahd_release_simq(ahd);
 }
 
 /**************************** Statistics Processing ***************************/
@@ -8668,7 +8621,7 @@ ahd_check_patch(struct ahd_softc *ahd, struct patch **start_patch,
 	struct	patch *last_patch;
 	u_int	num_patches;
 
-	num_patches = sizeof(patches)/sizeof(struct patch);
+	num_patches = ARRAY_SIZE(patches);
 	last_patch = &patches[num_patches];
 	cur_patch = *start_patch;
 
@@ -9445,8 +9398,8 @@ ahd_find_tmode_devs(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb,
 	} else {
 		u_int max_id;
 
-		max_id = (ahd->features & AHD_WIDE) ? 15 : 7;
-		if (ccb->ccb_h.target_id > max_id)
+		max_id = (ahd->features & AHD_WIDE) ? 16 : 8;
+		if (ccb->ccb_h.target_id >= max_id)
 			return (CAM_TID_INVALID);
 
 		if (ccb->ccb_h.target_lun >= AHD_NUM_LUNS)

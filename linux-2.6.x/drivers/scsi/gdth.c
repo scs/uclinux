@@ -30,8 +30,8 @@
  * Linux kernel 2.4.x, 2.6.x supported                                  *
  *                                                                      *
  * $Log$
- * Revision 1.7  2006/11/06 01:24:59  magicyang
- * update to kernel 2.6.18
+ * Revision 1.8  2006/11/08 06:50:11  magicyang
+ * commit some missing changes from 2.6.18 into cvs
  *
  * Revision 1.74  2006/04/10 13:44:47  achim
  * Community changes for 2.6.x

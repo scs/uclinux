@@ -7,7 +7,6 @@
 #ifndef __QLA_FW_H
 #define __QLA_FW_H
 
-#define RISC_SADDRESS		0x100000
 #define MBS_CHECKSUM_ERROR	0x4010
 
 /*
@@ -142,7 +141,7 @@ struct nvram_24xx {
 	 * BIT 2  = Enable Memory Map BIOS
 	 * BIT 3  = Enable Selectable Boot
 	 * BIT 4  = Disable RISC code load
-	 * BIT 5  =
+	 * BIT 5  = Disable Serdes
 	 * BIT 6  =
 	 * BIT 7  =
 	 *
@@ -279,7 +278,7 @@ struct init_cb_24xx {
 	uint16_t response_q_length;
 	uint16_t request_q_length;
 
-	uint16_t link_down_timeout;		/* Milliseconds. */
+	uint16_t link_down_on_nos;		/* Milliseconds. */
 
 	uint16_t prio_request_q_length;
 
@@ -463,7 +462,7 @@ struct sts_entry_24xx {
 	uint16_t comp_status;		/* Completion status. */
 	uint16_t ox_id;			/* OX_ID used by the firmware. */
 
-	uint32_t residual_len;		/* Residual transfer length. */
+	uint32_t residual_len;		/* FW calc residual transfer length. */
 
 	uint16_t reserved_1;
 	uint16_t state_flags;		/* State flags. */
@@ -759,7 +758,7 @@ struct device_reg_24xx {
 #define FA_NVRAM_FUNC0_ADDR	0x80
 #define FA_NVRAM_FUNC1_ADDR	0x180
 
-#define FA_NVRAM_VPD_SIZE	0x80
+#define FA_NVRAM_VPD_SIZE	0x200
 #define FA_NVRAM_VPD0_ADDR	0x00
 #define FA_NVRAM_VPD1_ADDR	0x100
 					/*
