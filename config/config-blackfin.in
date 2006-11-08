@@ -82,6 +82,11 @@ bool    'jpegview'                      CONFIG_USER_JPEGVIEW
 if [ "$CONFIG_USER_JPEGVIEW" = "y" ]; then
 	define_bool CONFIG_LIB_LIBJPEG y
 fi
+bool    'pngview'                       CONFIG_USER_PNGVIEW
+if [ "$CONFIG_USER_PNGVIEW" = "y" ]; then
+	define_bool CONFIG_LIB_LIBPNG y
+	define_bool CONFIG_LIB_ZLIB y
+fi
 bool    'IRDA Tools (irattach)'         CONFIG_USER_IRATTACH
 bool    'ALSA utils'                    CONFIG_USER_ALSA_UTILS
 if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
