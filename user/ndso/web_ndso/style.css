@@ -14,3 +14,9 @@ a.button {
 	color: black;
 	background-color: #e7e7e7;
 }
+
+fieldset {
+	padding: 2px;
+	margin-bottom: 7px;
+	font-size: smaller;
+}
