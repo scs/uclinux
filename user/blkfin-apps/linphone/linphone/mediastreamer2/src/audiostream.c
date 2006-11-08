@@ -182,6 +182,11 @@ AudioStream * audio_stream_start_full(RtpProfile *profile, int locport, const ch
 	/* give the sound filters some properties */
 	ms_filter_call_method(stream->soundread,MS_FILTER_SET_SAMPLE_RATE,&pt->clock_rate);
 	ms_filter_call_method(stream->soundwrite,MS_FILTER_SET_SAMPLE_RATE,&pt->clock_rate);
+	if (outfile==NULL) {
+		int tmp = 1;
+
+		ms_filter_call_method(stream->soundwrite,MS_FILTER_SET_NCHANNELS, &tmp);
+	}
 	
 	/* give the encoder/decoder some parameters*/
 	ms_filter_call_method(stream->encoder,MS_FILTER_SET_SAMPLE_RATE,&pt->clock_rate);
