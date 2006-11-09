@@ -57,6 +57,20 @@
 
 static s_info sinfo;
 
+void display_on_framebuffer(s_info *info)
+{
+	if (!info->framebuffer)
+		return;
+
+	if (vfork() == 0) {
+		char img[256];
+		snprintf(img, sizeof(img), "/home/httpd/img%s.png", info->pREMOTE_ADDR);
+		execlp("pngview", "pngview", "-q", img, NULL);
+		printf("<br>Hmm, could not run pngview, that's odd ...<br>\n");
+		_exit(-1);
+	}
+}
+
 int
 main ()
 {
@@ -103,12 +117,14 @@ main ()
       system (info->pGNUPLOT);
       DoHTML (form_method, getvars, postvars, info);
       free (info->samples);
+      display_on_framebuffer(info);
       break;
 
     case REPLOT:
       MakeFileInit (form_method, getvars, postvars, info);
       system (info->pGNUPLOT);
       DoHTML (form_method, getvars, postvars, info);
+      display_on_framebuffer(info);
       break;
 
     case MULTIMETER:
@@ -437,7 +453,7 @@ ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
   info->smeasurements.mean = 0;
   info->sdisplay.fftexludezero = 0;
   info->sdisplay.fftscaled = 0;
-
+  info->framebuffer = 0;
 
 
   if (form_method == POST)
@@ -567,7 +583,11 @@ ParseRequest (int form_method, char **getvars, char **postvars, s_info * info)
 	  else if (strncmp (postvars[i], "B3", 2) == 0)
 	    {
 	      info->run = MULTIMETER;
-	    };
+	    }
+	  else if (strncmp (postvars[i], "FB", 2) == 0)
+	    {
+	      info->framebuffer = str2num (postvars[i + 1]);
+	    }
 
 	}
 

@@ -77,6 +77,7 @@ int make_file_init (int form_method, char **getvars, char **postvars);
 typedef	struct cgi_info
 {
 	unsigned int cmd;
+	unsigned int framebuffer;
 	unsigned int choice;
 	unsigned int unitfreq;
 	float unitamp;
@@ -153,7 +154,8 @@ for	(i=0; postvars[i]; i+= 2) {
 	if(strncmp(postvars[i],	"D1", 2) ==	0){	cgiinfo.dutycycle	= atof(postvars[i +	1]); } else
 	if(strncmp(postvars[i],	"B2", 2) ==	0){	cgiinfo.cmd	= RUN; } else
 	if(strncmp(postvars[i],	"B1", 2) ==	0){	cgiinfo.cmd	= CALC;	} else
-	if(strncmp(postvars[i],	"B3", 2) ==	0){	cgiinfo.cmd	= STOP; };
+	if(strncmp(postvars[i],	"B3", 2) ==	0){	cgiinfo.cmd	= STOP; } else
+	if(strncmp(postvars[i],	"FB", 2) ==	0){	cgiinfo.framebuffer = atof(postvars[i + 1]); }
 
 	}
 }
@@ -221,6 +223,18 @@ fd0 = open ("/dev/spi", O_RDWR);
  return;
 }
 
+void display_on_framebuffer(void)
+{
+	if (!cgiinfo.framebuffer)
+		return;
+
+	if (vfork() == 0) {
+		execlp("pngview", "pngview", "-q", "/home/httpd/img.png", NULL);
+		printf("<br>Hmm, could not run pngview, that's odd ...<br>\n");
+		_exit(-1);
+	}
+}
+
 void capture(int form_method, char **getvars, char **postvars)
 {
 
@@ -232,6 +246,8 @@ void capture(int form_method, char **getvars, char **postvars)
 	htmlFooter();
 	fflush(stdout);
 	cleanUp(form_method, getvars, postvars);
+
+	display_on_framebuffer();
 
   return;
 }
@@ -251,6 +267,8 @@ void display(int form_method, char **getvars, char **postvars)
 	fflush(stdout);
 
 	cleanUp(form_method, getvars, postvars);
+
+	display_on_framebuffer();
 
   return;
 }

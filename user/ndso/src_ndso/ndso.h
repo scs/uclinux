@@ -94,6 +94,7 @@ typedef struct
   time_set stime_s;
   unsigned short run;
   int fd0;
+  int framebuffer;
   FILE *pFile_samples;
   FILE *pFile_fsamples;
   FILE *pFile_init;
