@@ -490,11 +490,7 @@ adv7171_detect_client (struct i2c_adapter *adapter,
 		return -ENOMEM;
 	}
 	memset(encoder, 0, sizeof(struct adv7171));
-#ifdef CONFIG_NTSC
-	encoder->norm = VIDEO_MODE_NTSC;
-#else /* CONFIG_PAL */
-	encoder->norm = VIDEO_MODE_PAL;
-#endif
+
 	encoder->input = 0;
 	encoder->enable = 1;
 	i2c_set_clientdata(client, encoder);

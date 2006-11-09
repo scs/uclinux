@@ -86,7 +86,6 @@ struct ycrcb_t {
 struct adv7171 {
 	unsigned char reg[128];
 
-	int norm;
 	int input;
 	int enable;
 	int bright;
