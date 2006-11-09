@@ -42,7 +42,7 @@ unsigned long ImageWidth, ImageHeight;
 //#define RGB(r,g,b) ~((((b&0xf8)<<8)|((g&0xfc)<<3)|(r>>3)))
 #define RGB(r,g,b) ((((r&0xf8)<<8)|((g&0xfc)<<3)|(b>>3)))
 
-void put_scanline_someplace_noscale(unsigned char *buffer, int row_width, unsigned long row)
+void put_scanline_someplace_noscale(unsigned char **buffer, int row_width, unsigned long row)
 {
 	unsigned short *pD;
 	unsigned char *pS;
@@ -58,7 +58,7 @@ void put_scanline_someplace_noscale(unsigned char *buffer, int row_width, unsign
 		starty = (ScreenHeight - ImageHeight)/2;
 
 	pD = (unsigned short*)framebase + ((row+starty) * ScreenWidth);
-	pS = buffer;
+	pS = buffer[row+1];
 
 	while (startx--)
 		pD++;
@@ -76,7 +76,7 @@ void put_scanline_someplace_noscale(unsigned char *buffer, int row_width, unsign
 static unsigned long *ScaleTableX, *ScaleTableY;
 static int FixScale = 1;
 
-void put_scanline_someplace_scale(unsigned char *buffer, int row_width, unsigned long row)
+void put_scanline_someplace_scale(unsigned char **buffer, int row_width, unsigned long row)
 {
 	int i, y = -1;
 	unsigned char *pS;
@@ -92,21 +92,43 @@ void put_scanline_someplace_scale(unsigned char *buffer, int row_width, unsigned
 	}
 
 	if (y != -1) {
+		int k_init, k_fin;
+		k_init = (y == 0 ? ScaleTableY[y] : ScaleTableY[y-1]);
+		k_fin  = ScaleTableY[y];
+
 		if (ImageWidth < ScreenWidth)
 			startx = (ScreenWidth - ImageWidth)/2;
 		if (ImageHeight < ScreenHeight)
 			starty = (ScreenHeight - ImageHeight)/2;
 
-		pD = (unsigned short*)framebase + ((y+starty) * ScreenWidth);
-		while (startx--)
-			pD++;
+		pD = (unsigned short*)framebase + ((y+starty) * ScreenWidth) + startx;
 		for (i=0; i<ImageWidth; ++i) {
-			pS = buffer + (ScaleTableX[i]*3);
-			if (pS > (buffer+row_width))
-				break;
-			r = *pS++;
-			g = *pS++;
-			b = *pS;
+			/* handle scaling of the image ... rather than slicing out
+			 * rows/cols, let's do a cheesy interpolation
+			 */
+			int j, k;
+			unsigned long sum_r = 0, sum_g = 0, sum_b = 0, num_pixels;
+			for (j = ScaleTableX[i-1]; j < ScaleTableX[i]; ++j) {
+				for (k = k_init; k < k_fin; ++k) {
+					pS = buffer[k+1] + (j*3);
+					if (pS > (buffer[k+1]+row_width))
+						break;
+					sum_r += *pS++;
+					sum_g += *pS++;
+					sum_b += *pS;
+				}
+			}
+
+			j = (ScaleTableX[i] - ScaleTableX[i-1]);
+			k = (k_fin - k_init);
+			num_pixels = 1;
+			if (j > 0) num_pixels *= j;
+			if (k > 0) num_pixels *= k;
+			r = (sum_r / num_pixels);
+			g = (sum_g / num_pixels);
+			b = (sum_b / num_pixels);
+
+			/* output the final interpolated pixel */
 			// *pD++ = ((r<<7)&0x7c00) | ((g<<2)&0x03e0) | ((b>>3)&0x001f) | 0x8000;
 			*pD++   = RGB(r,g,b);
 		}
@@ -197,13 +219,18 @@ close_and_err:
 		return 0;
 	}
 
-printf("Half done with init ...\n");
-
 	png_init_io(png_ptr, infile);
 	png_set_sig_bytes(png_ptr, 8);
 	png_read_info(png_ptr, info_ptr);
 	png_get_IHDR(png_ptr, info_ptr, &width, &height,
 		&bit_depth, &color_type, NULL, NULL, NULL);
+
+	if (color_type == PNG_COLOR_TYPE_PALETTE)
+		png_set_expand(png_ptr);
+	if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
+		png_set_expand(png_ptr);
+	if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
+		png_set_expand(png_ptr);
 
 	row_stride = width * height;
 
@@ -240,9 +267,9 @@ printf("Half done with init ...\n");
 	for (i = 0; i < height; ++i) {
 		/* Assume put_scanline_someplace wants a pointer and sample count. */
 		if (FixScale)
-			put_scanline_someplace_scale(row_pointers[i], row_stride, i-1);
+			put_scanline_someplace_scale(row_pointers, row_stride, i-1);
 		else
-			put_scanline_someplace_noscale(row_pointers[i], row_stride, i-1);
+			put_scanline_someplace_noscale(row_pointers, row_stride, i-1);
 	}
 
 	if (FixScale)
@@ -254,16 +281,9 @@ printf("Half done with init ...\n");
 	free(row_pointers);
 	free(image_data);
 	fclose(infile);
-	
+
 	/* And we're done! */
 	return 1;
-}
-
-
-int fmain(int argc, char *argv[])
-{
-	printf("%i\n", read_png_file(argv[1]));
-	return 0;
 }
 
 int main(int argc, char *argv[])
@@ -271,16 +291,22 @@ int main(int argc, char *argv[])
 	int i, j;
 	int fd = -1;
 	int sec = 5;
-	
+
 	struct fb_var_screeninfo vi, initial_vi;
 
 	if (argc < 2) {
 		printf(
 			"Usage: pngview <-s[Seconds]> <-f|-o> file_1.png file_2.png ...\n"
 			"\t-s[Seconds] : Time to show this picture\n"
-			"\t-f : Fixed Scale \n"
+			"\t-q : quiet mode\n"
+			"\t-f : Fixed Scale\n"
 			"\t-o : None-Fixed Scale\n");
 		return -1;
+	}
+
+	if (getenv("TEST") != NULL) {
+		printf("ret: %i\n", read_png_file(argv[1]));
+		return 0;
 	}
 
 	fd = open("/dev/fb0", O_RDWR);
@@ -293,9 +319,6 @@ int main(int argc, char *argv[])
 	initial_vi.xoffset = initial_vi.yoffset = 0;
 
 	ioctl(fd, FBIOGET_VSCREENINFO, &vi);
-	printf("%d %d %d %d %d %d %d %d %d %d\n",
-		vi.xres, vi.yres, vi.xres_virtual, vi.yres_virtual, vi.xoffset,
-		vi.yoffset, vi.bits_per_pixel, vi.grayscale, vi.width, vi.height);
 
 	framebase = mmap(0, vi.xres * vi.yres * 2, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (framebase == MAP_FAILED) {
@@ -324,9 +347,15 @@ int main(int argc, char *argv[])
 				case 'S': case 's':
 					sec = atoi (argv[i]+2);
 					break;
+				case 'Q': case 'q':
+					fclose(stdout);
+					break;
 			}
 			continue;
 		}
+		printf("%d %d %d %d %d %d %d %d %d %d\n",
+			vi.xres, vi.yres, vi.xres_virtual, vi.yres_virtual, vi.xoffset,
+			vi.yoffset, vi.bits_per_pixel, vi.grayscale, vi.width, vi.height);
 		printf("read %s %s\n", argv[i], read_png_file(argv[i]) ? "OK" : "FAIL");
 		sleep(sec);
 	}
