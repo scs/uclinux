@@ -58,6 +58,10 @@
 #define YFREE(x)   kfree(x)
 #define YMALLOC_ALT(x) vmalloc(x)
 #define YFREE_ALT(x)   vfree(x)
+#define YMALLOC_DMA(x) YMALLOC(x)
+
+// KR - added for use in scan so processes aren't blocked indefinitely.
+#define YYIELD() schedule()
 
 #define YAFFS_ROOT_MODE				0666
 #define YAFFS_LOSTNFOUND_MODE		0666
@@ -148,6 +152,7 @@ extern unsigned yaffs_traceMask;
 #define YAFFS_TRACE_GC_DETAIL		0x00001000
 #define YAFFS_TRACE_SCAN_DEBUG		0x00002000
 #define YAFFS_TRACE_MTD			0x00004000
+#define YAFFS_TRACE_CHECKPOINT		0x00008000
 #define YAFFS_TRACE_ALWAYS		0x40000000
 #define YAFFS_TRACE_BUG			0x80000000
 
