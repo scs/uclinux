@@ -33,10 +33,12 @@ $(OBJS): %.o : %.c
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 shared: all
-	$(CC) $(LDFLAGS) -Wl,-soname=$(LIBRT_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBRT_SHARED_FULLNAME) -Wl,--whole-archive $(LIBRT) \
-		-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib $(LDADD_LIBFLOAT)
+	$(LD) $(LDFLAGS) -soname=$(LIBRT_SHARED).$(MAJOR_VERSION) \
+		-o $(LIBRT_SHARED_FULLNAME) \
+		$(TOPDIR)lib/crti.o $(LIBGCC_DIR)crtbeginS.o \
+		--whole-archive $(LIBRT) --no-whole-archive \
+		$(TOPDIR)libc/misc/internals/interp.o \
+		$(LIBS) $(LIBGCC) $(LIBGCC_DIR)crtendS.o $(TOPDIR)lib/crtn.o
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBRT_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBRT_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBRT_SHARED_FULLNAME) $(TOPDIR)lib

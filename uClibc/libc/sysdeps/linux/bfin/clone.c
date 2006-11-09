@@ -32,7 +32,9 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 			"fp = 0;"
 			"p1 = [p0];"
 			"p3 = [p0 + 4];"
+			"sp += -12;"
 			"call (p1);"	/* Call cloned function */
+			"sp += 12;"
 			"p0 = %6;"
 			"excpt 0;"	/* Call sys_exit */
 			"xxx: nop;"
@@ -51,7 +53,9 @@ clone (int (*fn)(void *arg), void *child_stack, int flags, void *arg)
 			"r0 = %4;"
 			"p0 = %5;"
 			"fp = 0;"
+			"sp += -12;"
 			"call (p0);"	/* Call cloned function */
+			"sp += 12;"
 			"p0 = %6;"
 			"excpt 0;"	/* Call sys_exit */
 			"xxx: nop;"

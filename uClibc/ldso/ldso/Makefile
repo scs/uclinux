@@ -45,10 +45,10 @@ XXFLAGS+=-DLDSO_ELFINTERP=\"$(TARGET_ARCH)/elfinterp.c\" -DUCLIBC_LDSO=\"ld-uCli
 # BEWARE!!! At least mips* will die if -O0 is used!!!
 XXFLAGS:=$(XXFLAGS:-O0=-O1)
 XXFLAGS+=-isystem $(shell $(CC) -print-file-name=include)
-LDFLAGS=$(CPU_LDFLAGS-y) -Wl,-z,now -Wl,-Bsymbolic -shared -Wl,--warn-common -Wl,--export-dynamic -Wl,--sort-common \
-	-Wl,-z,combreloc -Wl,--discard-locals -Wl,--discard-all -Wl,--no-undefined
+LDFLAGS=$(CPU_LDFLAGS-y) -z now -Bsymbolic -shared --warn-common --export-dynamic --sort-common \
+	-z combreloc --discard-locals --discard-all --no-undefined
 ifeq ($(UCLIBC_BUILD_RELRO),y)
-	LDFLAGS+=-Wl,-z,relro
+	LDFLAGS+=-z relro
 endif
 
 CSRC= ldso.c
@@ -78,8 +78,8 @@ XXFLAGS := $(XXFLAGS:-fomit-frame-pointer=)
 all: lib
 
 lib:: $(OBJS) $(DLINK_OBJS)
-	$(CC) $(LDFLAGS) -Wl,-e,__dl_boot -Wl,-soname=$(UCLIBC_LDSO) \
-		-o $(LDSO_FULLNAME) $(OBJS) -nostartfiles -nodefaultlibs $(LIBGCC);
+	$(LD) $(LDFLAGS) -e __dl_boot -soname=$(UCLIBC_LDSO) \
+		-o $(LDSO_FULLNAME) $(OBJS) $(LIBGCC);
 	$(INSTALL) -d $(TOPDIR)lib
 	$(INSTALL) -m 755 $(LDSO_FULLNAME) $(TOPDIR)lib
 	$(LN) -sf $(LDSO_FULLNAME) $(TOPDIR)lib/$(UCLIBC_LDSO)

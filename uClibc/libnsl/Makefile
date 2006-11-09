@@ -45,10 +45,12 @@ $(OBJS): %.o : %.c
 $(OBJ): Makefile
 
 shared: all
-	$(CC) $(LDFLAGS) -Wl,-soname=$(LIBNSL_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBNSL_SHARED_FULLNAME) -Wl,--whole-archive $(LIBNSL) \
-		-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib $(LDADD_LIBFLOAT)
+	$(LD) $(LDFLAGS) -soname=$(LIBNSL_SHARED).$(MAJOR_VERSION) \
+		-o $(LIBNSL_SHARED_FULLNAME) \
+		$(TOPDIR)lib/crti.o $(LIBGCC_DIR)crtbeginS.o \
+		--whole-archive $(LIBNSL) --no-whole-archive \
+		$(TOPDIR)libc/misc/internals/interp.o \
+		$(LIBS) $(LIBGCC) $(LIBGCC_DIR)crtendS.o $(TOPDIR)lib/crtn.o
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBNSL_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBNSL_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBNSL_SHARED_FULLNAME) $(TOPDIR)lib

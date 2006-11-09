@@ -78,10 +78,13 @@ libdl_pic.o: libdl.c $(TOPDIR)ldso/include/*.h
 $(OBJ): Makefile
 
 shared: $(LIBDL_PIC)
-	$(CC) $(LDFLAGS) -Wl,-soname=$(LIBDL_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBDL_SHARED_FULLNAME) -Wl,-fini,_dl_cleanup -Wl,--whole-archive $(LIBDL_PIC) \
-		-Wl,--no-whole-archive $(TOPDIR)/libc/misc/internals/interp.o \
-		-L$(TOPDIR)/lib $(LDADD_LIBFLOAT)
+	$(LD) $(LDFLAGS) -soname=$(LIBDL_SHARED).$(MAJOR_VERSION) \
+		-o $(LIBDL_SHARED_FULLNAME) -fini _dl_cleanup \
+		$(TOPDIR)lib/crti.o $(LIBGCC_DIR)crtbeginS.o \
+		--whole-archive $(LIBDL_PIC) --no-whole-archive \
+		$(TOPDIR)/libc/misc/internals/interp.o \
+		$(LIBS) $(LIBGCC) \
+		$(LIBGCC_DIR)crtendS.o $(TOPDIR)lib/crtn.o 
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBDL_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBDL_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBDL_SHARED_FULLNAME) $(TOPDIR)lib

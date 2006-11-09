@@ -78,6 +78,8 @@ UCLIBC_LDSO:=ld-uClibc.so.$(MAJOR_VERSION)
 LIBNAME:=libc.a
 LIBC:=$(TOPDIR)libc/$(LIBNAME)
 
+LIBS := -L$(TOPDIR)lib $(TOPDIR)lib/libc.so
+
 # Pull in the user's uClibc configuration
 ifeq ($(filter $(noconfig_targets),$(MAKECMDGOALS)),)
 -include $(TOPDIR).config
@@ -213,7 +215,7 @@ endif
 
 ifeq ($(strip $(TARGET_ARCH)),bfin)
 ifeq ($(strip $(TARGET_SUBARCH)),bfinfdpic)
-	CPU_LDFLAGS-y+=-mfdpic
+	CPU_LDFLAGS-y+=-melf32bfinfd -z text
 	CPU_CFLAGS-y+=-mfdpic -D__BFIN_FDPIC__
 	PICFLAG=-fPIC -DPIC
 	PIEFLAG=-fpie
@@ -279,10 +281,10 @@ ifeq ($(DODEBUG),y)
     #CFLAGS += -g3
     CFLAGS = $(XWARNINGS) -O0 -g3 $(CPU_CFLAGS) $(SSP_CFLAGS) \
 	-fno-builtin -nostdinc -D_LIBC -I$(TOPDIR)include -I.
-    LDFLAGS:= $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc
+    LDFLAGS:= $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
     STRIPTOOL:= true -Since_we_are_debugging
 else
-    LDFLAGS := $(CPU_LDFLAGS-y) -shared -Wl,--warn-common -Wl,--warn-once -Wl,-z,combreloc
+    LDFLAGS := $(CPU_LDFLAGS-y) -shared --warn-common --warn-once -z combreloc
 endif
 
 ifeq ($(UCLIBC_BUILD_RELRO),y)

@@ -220,6 +220,10 @@ ifeq ($(strip $(HAVE_SHARED)),y)
 		$(LN) -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)$$i.$(MAJOR_VERSION) \
 		$(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/$$i; \
 	done;
+#	if [ -e $(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/$(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)ld.so.1 ] ; then \
+#		$(LN) -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)ld.so.1 \
+#			$(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/ld.so.1; \
+#	fi;
 ifeq ($(strip $(PTHREADS_DEBUG_SUPPORT)),y)
 	ln -sf $(RUNTIME_PREFIX_LIB_FROM_DEVEL_PREFIX_LIB)libthread_db.so.1 \
 		$(PREFIX)$(DEVEL_PREFIX)lib/$(MULTILIB)/libthread_db.so

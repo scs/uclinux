@@ -53,10 +53,12 @@ $(MOBJ): $(MSRC)
 	$(STRIPTOOL) -x -R .note -R .comment $*.o
 
 shared: all
-	$(CC) $(LDFLAGS) -Wl,-soname=$(LIBINTL_SHARED).$(MAJOR_VERSION) \
-		-o $(LIBINTL_SHARED_FULLNAME) -Wl,--whole-archive $(LIBINTL) \
-		-Wl,--no-whole-archive $(TOPDIR)libc/misc/internals/interp.o \
-		-L$(TOPDIR)lib $(LDADD_LIBFLOAT)
+	$(LD) $(LDFLAGS) -soname=$(LIBINTL_SHARED).$(MAJOR_VERSION) \
+		-o $(LIBINTL_SHARED_FULLNAME) \
+		$(TOPDIR)lib/crti.o $(LIBGCC_DIR)crtbeginS.o \
+		--whole-archive $(LIBINTL) --no-whole-archive \
+		$(TOPDIR)libc/misc/internals/interp.o \
+		$(LIBS) $(LIBGCC) $(LIBGCC_DIR)crtendS.o $(TOPDIR)lib/crtn.o
 	$(INSTALL) -d $(TOPDIR)lib
 	$(RM) $(TOPDIR)lib/$(LIBINTL_SHARED_FULLNAME) $(TOPDIR)lib/$(LIBINTL_SHARED).$(MAJOR_VERSION)
 	$(INSTALL) -m 644 $(LIBINTL_SHARED_FULLNAME) $(TOPDIR)lib
