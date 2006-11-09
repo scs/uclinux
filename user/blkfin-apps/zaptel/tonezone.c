@@ -328,11 +328,8 @@ int tone_zone_play_tone(int fd, int tone)
 #if 1
 	printf("Playing tone %d (%s) on %d\n", tone, tone_zone_tone_name(tone), fd);
 #endif
-	printf("fd %d\n",fd);
 	if (fd > -1) {
-		printf("before ioctl...\n");
 		res = ioctl(fd, ZT_SENDTONE, &tone);
-		printf("after ioctl... res = %d\n", res);
 		if ((res < 0) && (errno == ENODATA)) {
 			ioctl(fd, ZT_GETTONEZONE, &zone);
 			z = tone_zone_find_by_num(zone);
