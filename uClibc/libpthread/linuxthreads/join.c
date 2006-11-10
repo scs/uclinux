@@ -28,6 +28,11 @@
 
 void pthread_exit(void * retval)
 {
+  __pthread_do_exit (retval, CURRENT_STACK_FRAME);
+}
+
+void __pthread_do_exit(void *retval, char *currentframe)
+{
   pthread_descr self = thread_self();
   pthread_descr joining;
   struct pthread_request request;
@@ -37,7 +42,7 @@ PDEBUG("self=%p, pid=%d\n", self, self->p_pid);
      contain cancellation points */
   THREAD_SETMEM(self, p_canceled, 0);
   /* Call cleanup functions and destroy the thread-specific data */
-  __pthread_perform_cleanup();
+  __pthread_perform_cleanup(currentframe);
   __pthread_destroy_specifics();
   /* Store return value */
   __pthread_lock(THREAD_GETMEM(self, p_lock), self);
@@ -154,7 +159,7 @@ PDEBUG("\n");
 
     if (already_canceled) {
       __pthread_set_own_extricate_if(self, 0); 
-      pthread_exit(PTHREAD_CANCELED);
+      __pthread_do_exit(PTHREAD_CANCELED, CURRENT_STACK_FRAME);
     }
 
 PDEBUG("before suspend\n");
@@ -167,7 +172,7 @@ PDEBUG("after suspend\n");
     if (THREAD_GETMEM(self, p_woken_by_cancel)
 	&& THREAD_GETMEM(self, p_cancelstate) == PTHREAD_CANCEL_ENABLE) {
       THREAD_SETMEM(self, p_woken_by_cancel, 0);
-      pthread_exit(PTHREAD_CANCELED);
+      __pthread_do_exit(PTHREAD_CANCELED, CURRENT_STACK_FRAME);
     }
     __pthread_lock(&handle->h_lock, self);
   }

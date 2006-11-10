@@ -454,8 +454,10 @@ static inline pthread_descr thread_self (void)
 
 /* Internal global functions */
 
+void __pthread_do_exit (void *retval, char *currentframe)
+     __attribute__ ((__noreturn__));
 void __pthread_destroy_specifics(void);
-void __pthread_perform_cleanup(void);
+void __pthread_perform_cleanup(char *currentframe);
 int __pthread_initialize_manager(void);
 void __pthread_message(char * fmt, ...);
 int __pthread_manager(void *reqfd);
