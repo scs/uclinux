@@ -3,7 +3,8 @@ OBJS = pngview.o
 
 CFLAGS   += -Wall
 CPPFLAGS += -I$(ROOTDIR)/lib/libpng -I$(ROOTDIR)/lib/zlib
-LDLIBS   += -L$(ROOTDIR)/lib/libpng -lpng
+LDFLAGS  += -L$(ROOTDIR)/lib/libpng -L$(ROOTDIR)/lib/zlib
+LDLIBS   += -lpng -lz -lm
 
 all: $(EXEC)
 
