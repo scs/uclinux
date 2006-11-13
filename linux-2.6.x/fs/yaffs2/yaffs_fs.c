@@ -79,8 +79,8 @@ extern const char *yaffs_guts_c_version;
 #include "yaffs_guts.h"
 
 unsigned yaffs_traceMask = YAFFS_TRACE_ALWAYS | 
-			   YAFFS_TRACE_BAD_BLOCKS | 
-			   YAFFS_TRACE_CHECKPOINT
+			   YAFFS_TRACE_BAD_BLOCKS 
+			   /* |  YAFFS_TRACE_CHECKPOINT */
 			   /* | 0xFFFFFFFF */; 
 
 #include <linux/mtd/mtd.h>
