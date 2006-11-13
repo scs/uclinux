@@ -267,11 +267,12 @@ sleep 5
 step "Start USB ethernet testing"
 
 step "enable eth1"
-set timeout 2
+set timeout 10
 send "dhcpcd eth1 &\r"
 while 1 {
    expect {
       -re "root:~>" {
+         send "\r"
          break
       }
       -re ".*failed" {
@@ -286,10 +287,13 @@ while 1 {
    }
 }
 
+sleep 5
+
+set timeout 10
 send "ifconfig eth1\r"
 while 1 {
    expect {
-      -re "inet addr.*" {
+      -re "inet addr:.*" {
          break
       }
       timeout {
