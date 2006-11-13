@@ -105,7 +105,7 @@ while 1 {
       }
 
       -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[.]" {
-         send "3\r"
+         send "4\r"
       }
 
       -re "USB RTL8150 based ethernet device support.*EXPERIMENTAL.*USB_RTL8150.*\\\[./././.]" {
