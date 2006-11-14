@@ -80,27 +80,51 @@ while 1 {
          send "y\r"
       }
 
-      -re "MicroWindows.*CONFIG_USER_MICROWIN.*\\\[././.]" {
+      -re "MicroWindows \\\(CONFIG_USER_MICROWIN\\\).*\\\[././.]" {
          send "y\r"
       }
 
-      -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.].*" {
+      -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.]" {
          send "y\r"
       }
 
-      -re "MicrowinDemo.*CONFIG_USER_MICROWIN_MICROWINDEMO.*\\\[././.]" {
+      -re "NanoX \\\(CONFIG_USER_MICROWIN_NANOX\\\).*\\\[././.]" {
          send "y\r"
       }
 
-      -re "Screeen PixType .Packed-8bit-Palette, Packed-32bit-8/8/8, Packed-24bit-8/8/8, Packed-16bit-5/6/5.*" {
-         send "Packed-16bit-5/6/5\r"
+      -re "Screeen PixType.*\\\[CONFIG_USER_MICROWIN_MWPF_TRUECOLOR0888\\\].*" {
+         send "Packed-8bit-Palette\r"
       }
 
-      -re "Serial Mouse.*CONFIG_USER_MICROWIN_SERMOUSE.*\\\[././.]" {
+      -re "MicrowinDemo \\\(CONFIG_USER_MICROWIN_MICROWINDEMO\\\).*\\\[././.]" {
          send "y\r"
       }
 
-      -re "No Keyboard.*CONFIG_USER_MICROWIN_NOKBD.*\\\[././.]" {
+      -re "NanoXDemo \\\(CONFIG_USER_MICROWIN_NANOXDEMO\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Frame Buffer Display \\\(CONFIG_USER_MICROWIN_FRAMEBUFFER\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "No Mouse \\\(CONFIG_USER_MICROWIN_NOMOUSE\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "No Keyboard \\\(CONFIG_USER_MICROWIN_NOKBD\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Nano-X \\\(CONFIG_USER_MICROWIN_BIN_NANO_X\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "NanoWM \\\(CONFIG_USER_MICROWIN_BIN_NANOWM\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "VIDEO test program \\\(CONFIG_USER_BLACKFIN_VIDEOTEST\\\).*\\\[././.]" {
          send "y\r"
       }
 
