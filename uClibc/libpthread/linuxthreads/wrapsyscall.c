@@ -218,3 +218,8 @@ CANCELABLE_SYSCALL (ssize_t, sendto, (int fd, const __ptr_t buf, size_t n,
 				      int flags, __CONST_SOCKADDR_ARG addr,
 				      socklen_t addr_len),
 		    (fd, buf, n, flags, addr, addr_len))
+
+/* select(2).  */
+CANCELABLE_SYSCALL (int, select, (int nfds, fd_set *readfds, fd_set *writefds,
+				  fd_set *exceptfds, struct timeval *timeout),
+		    (nfds, readfds, writefds, exceptfds, timeout))
