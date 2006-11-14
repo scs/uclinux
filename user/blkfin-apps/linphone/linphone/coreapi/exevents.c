@@ -269,6 +269,7 @@ int linphone_inc_new_call(LinphoneCore *lc, eXosip_event_t *ev)
 #else
 	lc->call=linphone_call_new_incoming(lc,from,ev->local_uri,cid,did);
 	ctx=lc->call->sdpctx;
+	eXosip_set_sdp_port(did, lc->rtp_conf.audio_rtp_port);
 	/* get the result of the negociation */
 	answer=sdp_context_get_answer(ctx,sdp_body);
 	status=sdp_context_get_status(ctx);

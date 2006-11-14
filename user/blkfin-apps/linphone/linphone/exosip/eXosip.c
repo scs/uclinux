@@ -1406,6 +1406,7 @@ int eXosip_answer_call_with_body(int jid, int status, const char *bodytype, cons
     }
   else if (status>199 && status<300)
     {
+	osip_negotiation_ctx_set_mycontext(jc->c_ctx, jc);
       i = eXosip_answer_invite_2xx_with_body(jc, jd, status,bodytype,body);
     }
   else if (status>300 && status<699)
@@ -1422,6 +1423,27 @@ int eXosip_answer_call_with_body(int jid, int status, const char *bodytype, cons
   if (i!=0)
     return -1;
   return 0;
+}
+
+int eXosip_set_sdp_port(int jid, int sdp_port)
+{
+	eXosip_dialog_t *jd = NULL;
+	eXosip_call_t *jc = NULL;
+	if (jid>0) {
+		eXosip_call_dialog_find(jid, &jc, &jd);
+	}
+	if (jd==NULL) {
+		OSIP_TRACE (osip_trace
+				(__FILE__, __LINE__, OSIP_ERROR, NULL,
+			"eXosip: No call here?\n"));
+		return -1;
+	}
+	if (sdp_port==NULL)
+		memset(jc->c_sdp_port, '\0', 10);
+	else
+		snprintf(jc->c_sdp_port, 9, "%d", sdp_port);
+
+	return 0;
 }
 
 int eXosip_set_redirection_address (int jid, char *contact)
