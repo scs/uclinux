@@ -927,6 +927,8 @@ int eXosip_initiate_call_with_body(osip_message_t *invite,const char *bodytype, 
   jc->external_reference = reference;
   ADD_ELEMENT(eXosip.j_calls, jc);
 
+  osip_negotiation_ctx_set_mycontext(jc->c_ctx, jc);
+
   eXosip_update(); /* fixed? */
   __eXosip_wakeup();
   return jc->c_id;

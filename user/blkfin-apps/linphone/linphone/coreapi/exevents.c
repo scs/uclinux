@@ -624,7 +624,7 @@ void linphone_call_proceeding(LinphoneCore *lc, int cid, int did){
 	}
 	lc->call->cid=cid;
 	lc->call->did=did;
-
+	eXosip_set_sdp_port(did, lc->rtp_conf.audio_rtp_port);
 }
 
 void linphone_call_ringing(LinphoneCore *lc, eXosip_event_t *ev){
