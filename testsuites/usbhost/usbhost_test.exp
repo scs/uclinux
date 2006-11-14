@@ -263,6 +263,24 @@ sleep 5
 
 step "Start USB host testing"
 
+sleep 10
+send "\r"
+while 1 {
+   expect {
+      -re "Vendor.*" {
+         sleep 2
+         send "\r"
+         break
+      }
+      timeout {
+         send "\r"
+         break
+      }
+   }
+}
+sleep 2
+send "\r"
+
 step "mount on usb flash disk"
 set timeout 2
 send "mount -t vfat /dev/sda1 /mnt\r"
@@ -290,6 +308,7 @@ while 1 {
 
 step "check mount result"
 send "mount\r"
+set timeout 5
 while 1 {
    expect {
       -re "/dev/sda1 on /mnt type vfat.*" {
@@ -312,25 +331,32 @@ while 1 {
       -re "teststring" {
          send_log "\ncatch file\n"
          send_user "\ncatch file\n"
+         send "\r"
+         break
       }
 
       timeout {
-
+         break
       }
    }
 }
 
 step "delete file"
 send "rm usbhost_testfile\r"
-send "ls /mnt\r"
+expect "root:>"
+send "\r"
+send "ls /mnt/usbhost_testfile\r"
+set timeout 2
 while 1 {
    expect {
-      -re "usbhost_testfile" {
-         send_log "\n$TITLE ............\[FAIL\]\n"
-         tquit "test fail, delete file failed"
+
+      -re ".*No such file or directory" {
+          break
       }
+
       timeout {
          break
+         tquit "test fail, delete file failed"
       }
    }
 }
