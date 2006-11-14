@@ -52,10 +52,9 @@ COMPLEX_C_SRC = \
    csub16.c     \
    polar.c      \
    polar16.c    \
-   cartesian16.c 
-
-# Must fix these later.
-COMPLEX_C_SRC = norm.c cartesian.c
+   cartesian16.c \
+   norm.c 	\
+   cartesian.c 
 
 COMPLEX_ASM_SRC = \
    cabfr16.asm    \
@@ -225,9 +224,8 @@ TRIG_16_M3RES_OBJS = $(TRIG_16_C_M3RES_OBJS) $(TRIG_16_ASM_M3RES_OBJS)
 TRIG_NSTDFLT_C_SRC = \
    alogf.c           \
    alog10f.c         \
-   rsqrt.c
-
-TRIG_NSTDFLT_C_SRC = cot.c
+   rsqrt.c	\
+   cot.c
 
 TRIG_NSTDFLT_ASM_SRC =
 
