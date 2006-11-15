@@ -359,6 +359,7 @@ static int np2_merge_pages(void)
 					    page->np2_size +
 					    page[page->np2_size].np2_size;
 					page[page->np2_size].np2_size = 0;
+					set_page_count(&page[page->np2_size], 1);
 					page->np2_size = nsize;
 					ignore = 0;
 					pfn--;	
@@ -651,7 +652,8 @@ static struct page *np2_get_pages(int size)
 				page->np2_size = -1;
 				spage = page + 1;
 				spage->np2_size = 1;
-				list_add(&spage->np2_list, &zone->np2_list);
+				__free_pages(spage, 0);
+//				list_add(&spage->np2_list, &zone->np2_list);
 			}
 		}
 		/* adjust count ... remember this is negative */
@@ -666,6 +668,7 @@ static struct page *np2_get_pages(int size)
       np2_spage:		/* single page allocation */
 	page->np2_size = -1;
 	list_del(&page->np2_list);
+	zone->free_pages += page->np2_size;
 	if (usespin1)
 		spin_unlock_irqrestore(&zone->lock, flags);
 	return page;
@@ -1547,7 +1550,7 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order, struct zonelist *zonelist)
 			PRINTK("NP2 unable to alloc size %d\n", size);
 			np2_show_pages(1, 0, 0);
 		} else {
-			//get_page(page);
+			get_page(page);
 			// PSW added these
 			//prep_new_page(page, order);
 			if (0 && (np2_num_allocs > 0) && (np2_num_allocs < 250)) {
