@@ -113,8 +113,8 @@
 #define CFG_SPI_MASTER      1
 #define CFG_SPI_SLAVE       0
 
-#define CFG_SPI_SENELAST    1
-#define CFG_SPI_SENDZERO    0
+#define CFG_SPI_SENELAST    0
+#define CFG_SPI_SENDZERO    1
 
 #define CFG_SPI_RCVFLUSH    1
 #define CFG_SPI_RCVDISCARD  0
