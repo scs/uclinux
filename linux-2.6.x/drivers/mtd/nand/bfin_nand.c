@@ -197,6 +197,7 @@ int __init bfin_nand_init (void)
 
 	/* Link the private data with the MTD structure */
 	bfin_mtd->priv = this;
+	bfin_mtd->owner = THIS_MODULE;
 	
 	/* Configure GPIO-BFIN_NAND_READY */
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
