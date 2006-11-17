@@ -43,6 +43,8 @@
 #include <asm/bfin5xx_spi.h>
 #include <linux/usb_sl811.h>
 
+#include <linux/spi/ad7877.h>
+
 /*
  * Name the Board for the /proc/cpuinfo
  */
@@ -320,6 +322,32 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 };
 #endif
 
+
+#if defined(CONFIG_TOUCHSCREEN_AD7877)
+static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
+//	.cs_change_per_word = 1,
+	.ctl_reg = 0x1000,
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_AD7877)
+static const struct ad7877_platform_data bfin_ad7877_ts_info = {
+	.model			= 7877,
+	.vref_delay_usecs	= 50,	/* internal, no capacitor */
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.pressure_max		= 1000,
+	.pressure_min		= 0,
+	.stopacq_polarity 	= 1,	    
+	.first_conversion_delay = 3,
+	.acquisition_time 	= 1,	    
+	.averaging 		= 1,		    
+	.pen_down_acc_interval 	= 3, 
+};
+#endif
+
 /* Notice: for blackfin, the speed_hz is the value of register
  * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
@@ -403,6 +431,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data= &spi_si3xxx_chip_info,
 	},
 #endif
+#if defined(CONFIG_TOUCHSCREEN_AD7877)
+{
+	.modalias		= "ad7877",
+	.platform_data		= &bfin_ad7877_ts_info,
+	.irq			= IRQ_PROG_INTA,
+	.max_speed_hz		= 4, /* max sample rate */
+	.bus_num	= 1,
+	.chip_select  = 1,
+	.controller_data = &spi_ad7877_chip_info,
+},
+#endif
+
 };
 
 /* SPI controller data */
@@ -446,6 +486,7 @@ static struct platform_device bfin_uart_device = {
 	.resource = bfin_uart_resources,
 };
 #endif
+
 
 static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
