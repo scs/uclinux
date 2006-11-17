@@ -434,21 +434,7 @@ void eXosip_get_localip_for(char *address_to_reach,char **loc){
 	}
 	freeaddrinfo(res0);
 	if (sock==-1){
-		int fd;
-		struct ifreq ifr;
-		struct sockaddr_in *ifaddr;
-
-		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-		memset(&ifr, 0, sizeof(struct ifreq));
-
-		/* Assume eth0 is the right interface for outgoing */
-		strcpy(ifr.ifr_name, "eth0");
-		ifr.ifr_addr.sa_family = AF_INET;
-		ioctl(fd, SIOCGIFADDR, &ifr);
-		ifaddr =(struct sockaddr_in *)&ifr.ifr_addr;
-		strcpy(*loc, inet_ntoa((ifaddr->sin_addr)));
-		
-		eXosip_trace(OSIP_WARNING,("Assume eth0: %s as outgoing interface\n", *loc));
+		eXosip_trace(OSIP_WARNING,("Could not find interface to reach %s\n",address_to_reach));
 
 		return;
 	}

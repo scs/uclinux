@@ -107,13 +107,16 @@ LinphoneCall * linphone_call_new_outgoing(struct _LinphoneCore *lc, const osip_f
 LinphoneCall * linphone_call_new_incoming(LinphoneCore *lc, const char *from, const char *to, int cid, int did)
 {
 	char localip[LINPHONE_IPADDR_SIZE];
+	osip_from_t *from_url=NULL;
 	LinphoneCall *call=ms_new0(LinphoneCall,1);
 	osip_from_t *me= linphone_core_get_primary_contact_parsed(lc);
 	call->dir=LinphoneCallIncoming;
 	call->cid=cid;
 	call->did=did;
 	call->core=lc;
-	linphone_core_get_local_ip(lc,NULL,localip);
+	osip_from_init(&from_url);
+	osip_from_parse(from_url, from);
+	linphone_core_get_local_ip(lc,from_url->url->host,localip);
 	call->sdpctx=sdp_handler_create_context(&linphone_sdphandler,localip,me->url->username);
 	linphone_call_init_common(call, osip_strdup(from), osip_strdup(to));
 	osip_from_free(me);
