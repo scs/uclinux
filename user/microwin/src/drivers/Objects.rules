@@ -166,6 +166,11 @@ CFLAGS += -DTOUCHSCREEN_ADS7846=1
 MW_CORE_OBJS += $(MW_DIR_OBJ)/drivers/mou_touchscreen.o
 endif
 
+ifeq ($(AD7877MOUSE), Y)
+CFLAGS += -DTOUCHSCREEN_AD7877=1
+MW_CORE_OBJS += $(MW_DIR_OBJ)/drivers/mou_touchscreen.o
+endif
+
 ifeq ($(IPAQMOUSE), Y)
 CFLAGS += -DTOUCHSCREEN_IPAQ=1
 MW_CORE_OBJS += $(MW_DIR_OBJ)/drivers/mou_touchscreen.o
