@@ -66,6 +66,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_PLL_STAT(val)             bfin_write16(PLL_STAT,val)
 #define bfin_read_PLL_LOCKCNT()              bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
+#define bfin_read_CHIPID()                   bfin_read32(CHIPID)
 
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF)							*/
 #define bfin_read_SWRST()                    bfin_read16(SWRST)

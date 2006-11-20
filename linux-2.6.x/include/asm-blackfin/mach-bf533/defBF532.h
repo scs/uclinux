@@ -67,6 +67,7 @@
 #define VR_CTL			 0xFFC00008	/* Voltage Regulator Control Register (16-bit) */
 #define PLL_STAT               0xFFC0000C	/* PLL Status register (16-bit) */
 #define PLL_LOCKCNT            0xFFC00010	/* PLL Lock Count register (16-bit) */
+#define CHIPID                 0xFFC00014       /* Chip ID Register */
 #define SWRST                  0xFFC00100	/* Software Reset Register (16-bit) */
 #define SYSCR                  0xFFC00104	/* System Configuration registe */
 
@@ -430,6 +431,11 @@
 #define	FULL_ON				0x0002	/* Processor In Full On Mode                                    */
 #define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
 #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
+
+/* CHIPID Masks */
+#define CHIPID_VERSION         0xF0000000
+#define CHIPID_FAMILY          0x0FFFF000
+#define CHIPID_MANUFACTURE     0x00000FFE
 
 /* SWRST Mask */
 #define SYSTEM_RESET           0x00000007	/* Initiates a system software reset */

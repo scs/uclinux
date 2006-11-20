@@ -51,6 +51,7 @@
 #define bfin_write_PLL_STAT(val)             bfin_write16(PLL_STAT,val)
 #define bfin_read_PLL_LOCKCNT()              bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
+#define bfin_read_CHIPID()                   bfin_read32(CHIPID)
 #define bfin_read_SWRST()                    bfin_read16(SWRST)
 #define bfin_write_SWRST(val)                bfin_write16(SWRST,val)
 #define bfin_read_SYSCR()                    bfin_read16(SYSCR)

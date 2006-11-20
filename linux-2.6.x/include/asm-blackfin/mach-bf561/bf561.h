@@ -326,9 +326,11 @@
 
 #ifdef CONFIG_BF561
 #define CPU "BF561"
+#define CPUID 0x027bb000
 #endif
 #ifndef CPU
 #define CPU "UNKNOWN"
+#define CPUID 0x0
 #endif
 
 #if (CONFIG_MEM_SIZE % 4)

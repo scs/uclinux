@@ -247,15 +247,19 @@
 
 #ifdef CONFIG_BF533
 #define CPU "BF533"
+#define CPUID 0x027a5000
 #endif
 #ifdef CONFIG_BF532
 #define CPU "BF532"
+#define CPUID 0x0275A000
 #endif
 #ifdef CONFIG_BF531
 #define CPU "BF531"
+#define CPUID 0x027a5000
 #endif
 #ifndef CPU
 #define	CPU "UNKNOWN"
+#define CPUID 0x0
 #endif
 
 #if (CONFIG_MEM_SIZE % 4)

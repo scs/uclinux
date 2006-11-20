@@ -51,6 +51,7 @@
 #define VR_CTL			        0xFFC00008	/* Voltage Regulator Control Register (16-bit) */
 #define PLL_STAT               0xFFC0000C	/* PLL Status register (16-bit) */
 #define PLL_LOCKCNT            0xFFC00010	/* PLL Lock Count register (16-bit) */
+#define CHIPID                 0xFFC00014       /* Chip ID Register */
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
 #define SICA_SWRST              0xFFC00100	/* Software Reset register */
@@ -849,8 +850,12 @@
 #define PDWN                   0x00000020	/* Put the PLL in a Deep Sleep state */
 #define BYPASS                 0x00000100	/* Bypass the PLL */
 
-/* PLL_DIV Masks */
+/* CHIPID Masks */
+#define CHIPID_VERSION         0xF0000000
+#define CHIPID_FAMILY          0x0FFFF000
+#define CHIPID_MANUFACTURE     0x00000FFE
 
+/* PLL_DIV Masks */
 #define SCLK_DIV(x)  (x)	/* SCLK = VCO / x */
 
 #define CCLK_DIV1              0x00000000	/* CCLK = VCO / 1 */

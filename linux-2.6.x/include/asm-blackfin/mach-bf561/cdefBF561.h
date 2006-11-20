@@ -75,6 +75,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_PLL_STAT(val)             bfin_write16(PLL_STAT,val)
 #define bfin_read_PLL_LOCKCNT()              bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)          bfin_write16(PLL_LOCKCNT,val)
+#define bfin_read_CHIPID()                   bfin_read32(CHIPID)
 
 /* System Reset and Interrupt Controller registers for core A (0xFFC0 0100-0xFFC0 01FF) */
 #define bfin_read_SICA_SWRST()               bfin_read16(SICA_SWRST)
