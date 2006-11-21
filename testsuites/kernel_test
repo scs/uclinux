@@ -1242,7 +1242,12 @@ if [ $ltp_test -eq 1 ] ; then
   
     cd $KERNEL_SCRIPTS/ltp
     echo "change dir to $KERNEL_SCRIPTS/ltp"
+
     ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE ${ltp_args[i]}> /dev/null 2>&1
+  if [ $? ] ; then
+    echo "ltp build kernel failed for $ltp_suf[i]"
+  else	
+    # do if build kernel succeed
     echo "build_ltp_kernel.exp done"
     sleep 30
     ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
@@ -1279,6 +1284,8 @@ if [ $ltp_test -eq 1 ] ; then
      ./reset_board.exp   >/dev/null  2>&1       
      sleep 10
     fi
+    # end, do if build kernel succeed
+  fi
 
 done
 
