@@ -109,7 +109,7 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align)
 
 			slob_free(cur, PAGE_SIZE);
 			spin_lock_irqsave(&slob_lock, flags);
-			SetPageSlab(virt_to_page(cur));
+			__SetPageSlab(virt_to_page(cur));
 			cur = slobfree;
 		}
 	}
@@ -231,7 +231,7 @@ void *kmalloc(size_t size, gfp_t gfp)
 		bb->next = bigblocks;
 		bigblocks = bb;
 		for (i = 0; i < (1 << bb->order); i++) {
-			SetPageSlab(page);
+			__SetPageSlab(page);
 			page++;
 		}
 		spin_unlock_irqrestore(&block_lock, flags);
@@ -263,7 +263,7 @@ void kfree(const void *block)
 				*last = bb->next;
 				spin_unlock_irqrestore(&block_lock, flags);
 				for (i = 0; i < (1 << bb->order); i++) {
-					ClearPageSlab(page);
+					__ClearPageSlab(page);
 					page++;
 				}
 				free_pages((unsigned long)block, bb->order);
