@@ -230,6 +230,38 @@ static int device_suspended(struct device *dev)
 	return dev->power.power_state.event != PM_EVENT_ON || ts->disabled;
 }
 
+static int ad7877_read(struct device *dev, u16 reg)
+{
+	struct spi_device	*spi = to_spi_device(dev);
+	struct ad7877		*ts = dev_get_drvdata(dev);
+	struct ser_req		*req = kzalloc(sizeof *req, SLAB_KERNEL);
+	int			status;
+
+	if (!req)
+		return -ENOMEM;
+
+	spi_message_init(&req->msg);
+
+
+	req->command = (u16) (AD7877_WRITEADD(AD7877_REG_CTRL1) | AD7877_READADD(reg));
+	req->xfer[0].tx_buf = &req->command;
+	req->xfer[0].len = 2;
+
+	req->xfer[1].rx_buf = &req->sample;
+	req->xfer[1].len = 2;
+
+	spi_message_add_tail(&req->xfer[0], &req->msg);
+	spi_message_add_tail(&req->xfer[1], &req->msg);
+
+	status = spi_sync(spi, &req->msg);
+
+	if (req->msg.status)
+		status = req->msg.status;
+
+	kfree(req);
+	return status ? status : req->sample;
+}
+
 static int ad7877_write(struct device *dev, u16 reg, u16 val)
 {
 	struct spi_device	*spi = to_spi_device(dev);
@@ -250,12 +282,7 @@ static int ad7877_write(struct device *dev, u16 reg, u16 val)
 
 	spi_message_add_tail(&req->xfer[0], &req->msg);
 
-
-	ts->irq_disabled = 1;
-	disable_irq(spi->irq);
 	status = spi_sync(spi, &req->msg);
-	ts->irq_disabled = 0;
-	enable_irq(spi->irq);
 
 	if (req->msg.status)
 		status = req->msg.status;
@@ -265,7 +292,7 @@ static int ad7877_write(struct device *dev, u16 reg, u16 val)
 	return status;
 }
 
-static int ad7877_read(struct device *dev, unsigned command)
+static int ad7877_read_adc(struct device *dev, unsigned command)
 {
 	struct spi_device	*spi = to_spi_device(dev);
 	struct ad7877		*ts = dev_get_drvdata(dev);
@@ -330,7 +357,7 @@ static int ad7877_read(struct device *dev, unsigned command)
 #define SHOW(name) static ssize_t \
 name ## _show(struct device *dev, struct device_attribute *attr, char *buf) \
 { \
-	ssize_t v = ad7877_read(dev, \
+	ssize_t v = ad7877_read_adc(dev, \
 			AD7877_READ_CHAN(name)); \
 	if (v < 0) \
 		return v; \
@@ -438,7 +465,7 @@ static void ad7877_rx(void *ads)
 		Rt *= x;
 		Rt *= ts->x_plate_ohms;
 		Rt /= z1;
-		Rt /= 4096;
+		Rt = (Rt + 2047) >> 12;
 	} else
 		Rt = 0;
 
@@ -616,6 +643,7 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	struct ad7877_platform_data	*pdata = spi->dev.platform_data;
 	struct spi_message		*m;
 	int				err;
+	u16				verify;
 
 
 	if (!spi->irq) {
@@ -668,7 +696,6 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	ts->averaging = pdata->averaging;
 	ts->pen_down_acc_interval = pdata->pen_down_acc_interval;
 
-
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", spi->dev.bus_id);
 
 	input_dev->name = "AD7877 Touchscreen";
@@ -680,7 +707,6 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	set_bit(ABS_X, input_dev->absbit);
 	set_bit(ABS_Y, input_dev->absbit);
 	set_bit(ABS_PRESSURE, input_dev->absbit);
-
 
 	input_set_abs_params(input_dev, ABS_X,
 			pdata->x_min ? : 0,
@@ -694,6 +720,15 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	ad7877_write((struct device *) spi, AD7877_REG_SEQ1, AD7877_MM_SEQUENCE);
+
+
+	verify = ad7877_read((struct device *) spi, AD7877_REG_SEQ1);
+						 
+	if (verify != AD7877_MM_SEQUENCE){
+		printk(KERN_ERR "%s: Failed to probe %s\n", spi->dev.bus_id, input_dev->name);
+		err = -ENODEV;
+		goto err_free_mem;
+	}
 
 	ts->cmd_crtl2 =  AD7877_WRITEADD(AD7877_REG_CTRL2) | AD7877_POL(ts->stopacq_polarity) |\
 			AD7877_AVG(ts->averaging) | AD7877_PM(1) |\
@@ -723,20 +758,12 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
-//	if (request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_FALLING, /* FIXME: Soon */
-	if (request_irq(spi->irq, ad7877_irq, 0, /*mh*/
+	if (request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_LOW, 
 			spi->dev.driver->name, ts)) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		err = -EBUSY;
 		goto err_free_mem;
 	}
-
-#ifdef	CONFIG_BFIN 
-	/* grr, board-specific init should stay out of drivers!! */
-	bfin_gpio_interrupt_setup(spi->irq, IRQ_PF6 , IRQT_LOW); /* FIXME: Soon */
-#endif
-
-	printk("%s: %d\n",__FUNCTION__,__LINE__);
 
 	dev_info(&spi->dev, "touchscreen, irq %d\n", spi->irq);
 
