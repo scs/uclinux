@@ -4346,12 +4346,12 @@ diff -Nur linux-2.6.x-orig/include/linux/sched.h linux-2.6.x/include/linux/sched
 --- linux-2.6.x-orig/include/linux/sched.h	2005-08-12 11:36:44.000000000 +0800
 +++ linux-2.6.x/include/linux/sched.h	2005-12-14 17:32:19.000000000 +0800
 @@ -871,6 +871,9 @@
- #endif
+ 
  	atomic_t fs_excl;	/* holding fs exclusive resources */
  	struct rcu_head rcu;
 +#ifdef CONFIG_DPM
 +	int     dpm_state; /* DPM operating state to use for this task */
 +#endif
- };
- 
- static inline pid_t process_group(struct task_struct *tsk)
+
+        /*
+         * cache last used pipe for splice
