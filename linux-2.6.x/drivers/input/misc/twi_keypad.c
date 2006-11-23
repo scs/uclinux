@@ -47,7 +47,6 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 
-
 MODULE_AUTHOR ("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION ("TWI Keypad input driver");
 MODULE_LICENSE ("GPL");
@@ -253,30 +252,14 @@ check_and_notify (void *arg)
   TWIKeypad->laststate = nextstate;
   input_sync (TWIKeypad->dev);
 
-  if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTA) {
-    bfin_write_FIO_MASKA_D(bfin_read_FIO_MASKA_D() | (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
-    __builtin_bfin_ssync();
-  }
-  else if (CONFIG_BFIN_TWIKEYPAD_IRQ == IRQ_PROG_INTB) {
-    bfin_write_FIO_MASKB_D(bfin_read_FIO_MASKB_D() | (1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
-    __builtin_bfin_ssync();
-  }
+  enable_irq(CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+
 }
-
-
 
 static irqreturn_t
 twi_keypad_irq_handler (int irq, void *dev_id, struct pt_regs *regs)
 {
-  if (irq == IRQ_PROG_INTA) {
-    bfin_write_FIO_MASKA_D(bfin_read_FIO_MASKA_D() & ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
-    __builtin_bfin_ssync();
-  }
-  else if (irq == IRQ_PROG_INTB) {
-    bfin_write_FIO_MASKB_D(bfin_read_FIO_MASKB_D() & ~(1 << CONFIG_BFIN_TWIKEYPAD_IRQ_PFX));
-    __builtin_bfin_ssync();
-  }
-
+  disable_irq(CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
   queue_work(twi_keypad_workqueue, &twi_keypad_work);
 
   DPRINTK ("twi_keypad_irq_handler \n");
@@ -329,17 +312,13 @@ twi_keypad_init (void)
 		goto fail;
 
 	if (request_irq
-	(CONFIG_BFIN_TWIKEYPAD_IRQ, twi_keypad_irq_handler, SA_INTERRUPT|SA_SHIRQ, "TWIKeypad",
-	twi_keypad_irq_handler))
-	{
-	printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", CONFIG_BFIN_TWIKEYPAD_IRQ);
-	return -EIO;
+	(CONFIG_BFIN_TWIKEYPAD_IRQ_PFX, twi_keypad_irq_handler, IRQF_TRIGGER_LOW, "TWIKeypad",
+	twi_keypad_irq_handler)) {
+		
+		printk (KERN_WARNING "TWIKeypad: IRQ %d is not free.\n", CONFIG_BFIN_TWIKEYPAD_IRQ_PFX);
+	  return -EIO;
 	}
 	
-	bfin_gpio_interrupt_setup (CONFIG_BFIN_TWIKEYPAD_IRQ,
-				IRQ_PF0 + CONFIG_BFIN_TWIKEYPAD_IRQ_PFX,
-				IRQT_LOW);
-
   TWIKeypad->dev = input_dev;
   TWIKeypad->btncode = twi_keypad_btncode;
 
@@ -354,7 +333,7 @@ twi_keypad_init (void)
     {
       set_bit (TWIKeypad->btncode[i], input_dev->keybit);
     }
-
+ 
   sprintf (TWIKeypad->name, "BF5xx TWIKeypad");
   sprintf (TWIKeypad->phys, "twikeypad/input0");
 
@@ -394,7 +373,7 @@ void __exit
 twi_keypad_exit (void)
 {
 
-  free_irq (CONFIG_BFIN_TWIKEYPAD_IRQ, twi_keypad_irq_handler);
+  free_irq (CONFIG_BFIN_TWIKEYPAD_IRQ_PFX, twi_keypad_irq_handler);
   i2c_del_driver (&pcf8574_kp_driver);
 
 }
