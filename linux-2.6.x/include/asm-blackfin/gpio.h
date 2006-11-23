@@ -85,6 +85,12 @@
 #ifndef __ARCH_BLACKFIN_GPIO_H__
 #define __ARCH_BLACKFIN_GPIO_H__
 
+//#include <asm/mach/gpio.h>
+
+#define gpio_bank(x) (x >> 4)
+#define gpio_bit(x)  (1<<(x & 0xF))
+#define gpio_sub_n(x) (x & 0xF)
+
 #define	GPIO_0	0
 #define	GPIO_1	1
 #define	GPIO_2	2
@@ -258,8 +264,6 @@ unsigned short get_gpiop_data(unsigned short);
 int request_gpio(unsigned short, unsigned short);
 void free_gpio(unsigned short);
 
-
-#pragma pack(2)
 struct gpio_port_t {
 	unsigned short data;
 	unsigned short dummy1;
@@ -295,7 +299,6 @@ struct gpio_port_t {
 	unsigned short dummy16;
 	unsigned short inen;
 };
-#pragma pack()
 
 #endif /* __ASSEMBLY__ */
 

@@ -99,9 +99,7 @@
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 
-#undef BFIN_gpioDEBUG
-
-#ifdef BFIN_gpioDEBUG
+#if 1
 #define assert(expr) do {} while(0)
 #else
 #define assert(expr) 						\
@@ -110,10 +108,6 @@
 	#expr, __FILE__,__FUNCTION__,__LINE__); 		\
 	}
 #endif
-
-#define gpio_bank(x) (x >> 4)
-#define gpio_bit(x)  (1<<(x & 0xFF))
-#define gpio_sub_n(x) (x & 0xFF)
 
 
 #ifdef BF533_FAMILY
@@ -143,7 +137,6 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) FIO2_FLAG_D,
 };
 #endif
-
 
 static unsigned short reserved_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
@@ -492,7 +485,6 @@ int request_gpio(unsigned short gpio,unsigned short opt)
 	if(opt & REQUEST_ALT_FUNCT) {
 	  port_setup(gpio, PERIPHERAL_USAGE);
 	} else { 
-	  default_gpio(gpio);
 	  port_setup(gpio, GPIO_USAGE);
 	  
 		if(opt & GPIO_INV_POLAR)
