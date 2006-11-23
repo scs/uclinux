@@ -288,14 +288,18 @@ static void u8_cs_chg_writer(struct driver_data *drv_data)
 	while (drv_data->tx < drv_data->tx_end) {
 		write_FLAG(chip->flag);
 		__builtin_bfin_ssync();
+
 		write_TDBR(*(u8 *)(drv_data->tx));
 		do {} while (read_STAT() & BIT_STAT_TXS);
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
-		write_FLAG(0xFF00);
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
 		if (chip->cs_chg_udelay)
 			udelay(chip->cs_chg_udelay);
 		++drv_data->tx;
 	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 static void u8_reader(struct driver_data *drv_data)
@@ -329,11 +333,14 @@ static void u8_cs_chg_reader(struct driver_data *drv_data)
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		*(u8 *)(drv_data->rx) = read_SHAW();
-		write_FLAG(0xFF00);
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
 		if (chip->cs_chg_udelay)
 			udelay(chip->cs_chg_udelay);
 		++drv_data->rx;
 	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 static void u8_duplex(struct driver_data *drv_data)
@@ -348,6 +355,29 @@ static void u8_duplex(struct driver_data *drv_data)
 		++drv_data->rx;
 		++drv_data->tx;
 	}
+}
+
+static void u8_cs_chg_duplex(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+
+	while (drv_data->rx < drv_data->rx_end) {
+		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
+
+		write_TDBR(*(u8 *)(drv_data->tx));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u8 *)(drv_data->rx) = read_RDBR();
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
+		++drv_data->rx;
+		++drv_data->tx;
+	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 static void u16_writer(struct driver_data *drv_data)
@@ -369,14 +399,19 @@ static void u16_cs_chg_writer(struct driver_data *drv_data)
 
 	while (drv_data->tx < drv_data->tx_end) {
 		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
+
 		write_TDBR(*(u16 *)(drv_data->tx));
 		do {} while ((read_STAT() & BIT_STAT_TXS));
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
-		write_FLAG(0xFF00);
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
 		if (chip->cs_chg_udelay)
 			udelay(chip->cs_chg_udelay);
 		drv_data->tx += 2;
 	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 static void u16_reader(struct driver_data *drv_data)
@@ -400,15 +435,20 @@ static void u16_cs_chg_reader(struct driver_data *drv_data)
 
 	while (drv_data->rx < drv_data->rx_end) {
 		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
+
 		read_RDBR();  /* kick off */
 		do {} while (!(read_STAT() & BIT_STAT_RXS));
 		do {} while (!(read_STAT() & BIT_STAT_SPIF));
 		*(u16 *)(drv_data->rx) = read_SHAW();
-		write_FLAG(0xFF00);
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
 		if (chip->cs_chg_udelay)
 			udelay(chip->cs_chg_udelay);
 		drv_data->rx += 2;
 	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 static void u16_duplex(struct driver_data *drv_data)
@@ -422,6 +462,29 @@ static void u16_duplex(struct driver_data *drv_data)
 		drv_data->rx += 2;
 		drv_data->tx += 2;
 	}
+}
+
+static void u16_cs_chg_duplex(struct driver_data *drv_data)
+{
+	struct chip_data *chip = drv_data->cur_chip;
+
+	while (drv_data->tx < drv_data->tx_end) {
+		write_FLAG(chip->flag);
+		__builtin_bfin_ssync();
+
+		write_TDBR(*(u16 *)(drv_data->tx));
+		do {} while (!(read_STAT() & BIT_STAT_SPIF));
+		do {} while (!(read_STAT() & BIT_STAT_RXS));
+		*(u16 *)(drv_data->rx) = read_RDBR();
+		write_FLAG(0xFF00|chip->flag);
+		__builtin_bfin_ssync();
+		if (chip->cs_chg_udelay)
+			udelay(chip->cs_chg_udelay);
+		drv_data->rx += 2;
+		drv_data->tx += 2;
+	}
+	write_FLAG(0xFF00);
+	__builtin_bfin_ssync();
 }
 
 /* test if ther is more transfer to be done */
@@ -885,14 +948,14 @@ static int setup(struct spi_device *spi)
 		chip->width = CFG_SPI_WORDSIZE8;
 		chip->read = chip->cs_change_per_word? u8_cs_chg_reader: u8_reader;
 		chip->write = chip->cs_change_per_word? u8_cs_chg_writer: u8_writer;
-		chip->duplex = u8_duplex;
+		chip->duplex = chip->cs_change_per_word? u8_cs_chg_duplex: u8_duplex;
 		pr_debug("8bit: chip->write is %p, u8_writer is %p\n", chip->write, u8_writer);
 	} else if (spi->bits_per_word <= 16) {
 		chip->n_bytes = 2;
 		chip->width = CFG_SPI_WORDSIZE16;
 		chip->read = chip->cs_change_per_word? u16_cs_chg_reader: u16_reader;
 		chip->write = chip->cs_change_per_word? u16_cs_chg_writer: u16_writer;
-		chip->duplex = u16_duplex;
+		chip->duplex = chip->cs_change_per_word? u16_cs_chg_duplex: u16_duplex;
 		pr_debug("16bit: chip->write is %p, u16_writer is %p\n", chip->write, u16_writer);
 	} else {
 		dev_err(&spi->dev, "invalid wordsize\n");
