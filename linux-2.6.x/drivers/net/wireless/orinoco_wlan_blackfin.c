@@ -67,16 +67,6 @@ static char dev_info[] = "orinoco_wlan_blackfin";
 #define WLAN_BLACKFIN_ATTR_ADDR		CONFIG_BFIN_CF_ATTR_ADDR
 #define WLAN_BLACKFIN_IO_ADDR		CONFIG_BFIN_CF_IO_ADDR
 
-#define BFIN_WLAN_IRQ_PFX   		(IRQ_PF0 + CONFIG_BFIN_CF_IRQ_PFX)
-
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
-#define WLAN_BLACKFIN_IRQ	BFIN_WLAN_IRQ_PFX		
-#else
-#define WLAN_BLACKFIN_IRQ	CONFIG_BFIN_CF_IRQ
-#endif
-
-#define WLAN_BLACKFIN_IRQ_VECTOR       (WLAN_BLACKFIN_IRQ)
-
 #define COR_OFFSET    (0x3e0)	/* COR attribute offset of Prism2 PC card */
 #define COR_VALUE     (COR_LEVEL_REQ | COR_FUNC_ENA) /* Enable PC card with interrupt in level trigger */
 
@@ -150,7 +140,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 	priv = dev->priv;
 	dev->base_addr = pccard_ioaddr;
 	SET_MODULE_OWNER(dev);
-	dev->irq = WLAN_BLACKFIN_IRQ_VECTOR;
+	dev->irq = CONFIG_BFIN_CF_IRQ_PFX;
 
 	printk(KERN_DEBUG
 	       "Detected Orinoco/Prism2 WLAN BLACKFIN device at irq:%d, io addr:0x%lx\n",
@@ -158,9 +148,7 @@ static int orinoco_wlan_blackfin_init_one(void)
 
 	hermes_struct_init(&(priv->hw), (void __iomem *)dev->base_addr, HERMES_16BIT_REGSPACING);
 
-	bfin_gpio_interrupt_setup(dev->irq, BFIN_WLAN_IRQ_PFX, IRQT_LOW);
-
- 	err = request_irq(dev->irq, orinoco_interrupt, SA_SHIRQ, dev_info, dev);
+ 	err = request_irq(dev->irq, orinoco_interrupt, IRQF_TRIGGER_LOW | SA_SHIRQ, dev_info, dev);
 
 	if (err) {
 		printk(KERN_ERR "orinoco_wlan_blackfin: Error allocating IRQ %d.\n", dev->irq);

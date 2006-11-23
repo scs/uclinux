@@ -476,22 +476,13 @@ config BFIN_CF_IO_ADDR
 	help
 	  CF PCMCIA like IO Memory Base Address
 
-config BFIN_CF_IRQ
-	int "CF/WLAN IRQ no"
-	depends on WLAN_BLACKFIN 
-	default "34" if BFIN537_STAMP
-	default "26" if BFIN533_STAMP
-	help
-	  CF use IRQ no IRQ_PROG_INTA
-	  This option is IGNORED if IRQCHIP_DEMUX_GPIO is selected
-
 config BFIN_CF_IRQ_PFX
 	int "CF/WLAN IRQ PFx no"
 	depends on WLAN_BLACKFIN 
-	range 0 15 
-	default "4" if BFIN537_STAMP
+	range 33 120 
+	default "54" if BFIN537_STAMP
 	help
-	  CF IRQ use PFx Range [0..15]
+	  CF IRQ use PFx Range [33..120]
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
