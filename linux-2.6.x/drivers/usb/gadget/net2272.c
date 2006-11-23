@@ -2563,14 +2563,12 @@ static int net2272_probe (struct device *_dev)
 	usb_reset (dev);
 	usb_reinit (dev);
 
-	if (request_irq (irq, net2272_irq, 0, driver_name, dev) != 0) {
+	if (request_irq (irq, net2272_irq, IRQF_TRIGGER_LOW , driver_name, dev) != 0) {
 		ERROR(dev, "request interrupt %d failed\n", irq);
 		retval = -EBUSY;
 		goto done;
 	}
-#ifdef CONFIG_BFIN
-	set_irq_type(irq, IRQT_LOW);
-#endif
+
 	dev->got_irq = 1;
 	dev->irq = irq;
 
