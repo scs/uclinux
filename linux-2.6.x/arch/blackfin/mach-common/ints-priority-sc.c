@@ -129,14 +129,14 @@ static void ack_noop(unsigned int irq)
 	/* Dummy function.  */
 }
 
-static void bf533_core_mask_irq(unsigned int irq)
+static void bf53x_core_mask_irq(unsigned int irq)
 {
 	irq_flags &= ~(1 << irq);
 	if (!irqs_disabled())
 		local_irq_enable();
 }
 
-static void bf533_core_unmask_irq(unsigned int irq)
+static void bf53x_core_unmask_irq(unsigned int irq)
 {
 	irq_flags |= 1 << irq;
 	/*
@@ -153,30 +153,30 @@ static void bf533_core_unmask_irq(unsigned int irq)
 	return;
 }
 
-static void bf533_internal_mask_irq(unsigned int irq)
+static void bf53x_internal_mask_irq(unsigned int irq)
 {
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
 			     ~(1 << (irq - (IRQ_CORETMR + 1))));
 	__builtin_bfin_ssync();
 }
 
-static void bf533_internal_unmask_irq(unsigned int irq)
+static void bf53x_internal_unmask_irq(unsigned int irq)
 {
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
 			     (1 << (irq - (IRQ_CORETMR + 1))));
 	__builtin_bfin_ssync();
 }
 
-static struct irq_chip bf533_core_irqchip = {
+static struct irq_chip bf53x_core_irqchip = {
 	.ack = ack_noop,
-	.mask = bf533_core_mask_irq,
-	.unmask = bf533_core_unmask_irq,
+	.mask = bf53x_core_mask_irq,
+	.unmask = bf53x_core_unmask_irq,
 };
 
-static struct irq_chip bf533_internal_irqchip = {
+static struct irq_chip bf53x_internal_irqchip = {
 	.ack = ack_noop,
-	.mask = bf533_internal_mask_irq,
-	.unmask = bf533_internal_unmask_irq,
+	.mask = bf53x_internal_mask_irq,
+	.unmask = bf53x_internal_unmask_irq,
 };
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
@@ -300,106 +300,73 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 
-# if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-static int gpiof_enabled;
-static int gpiof_edge_triggered;
-static int gpiog_enabled;
-static int gpiog_edge_triggered;
-static int gpioh_enabled;
-static int gpioh_edge_triggered;
+static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
+static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
 
-static void bf534_gpio_ack_irq(unsigned int irq)
+static void bf53x_gpio_ack_irq(unsigned int irq)
 {
-	int gpionr, mask;
-
-	if (irq < IRQ_PG0) {
-		gpionr = irq - IRQ_PF0;
-		mask = (1L << gpionr);
-		bfin_write_PORTFIO_CLEAR(mask);
-	} else if (irq < IRQ_PH0) {
-		gpionr = irq - IRQ_PG0;
-		mask = (1L << gpionr);
-		bfin_write_PORTGIO_CLEAR(mask);
-	} else {
-		gpionr = irq - IRQ_PH0;
-		mask = (1L << gpionr);
-		bfin_write_PORTHIO_CLEAR(mask);
+	u16 gpionr = irq - IRQ_PF0;
+	
+	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+		set_gpio_data(gpionr, 0);
+		__builtin_bfin_ssync();
 	}
+}
+
+static void bf53x_gpio_mask_ack_irq(unsigned int irq)
+{
+	u16 gpionr = irq - IRQ_PF0;
+
+	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+		set_gpio_data(gpionr, 0);
+		__builtin_bfin_ssync();
+	}
+
+	set_gpio_maska(gpionr, 0);
 	__builtin_bfin_ssync();
 }
 
-static void bf534_gpio_mask_irq(unsigned int irq)
+static void bf53x_gpio_mask_irq(unsigned int irq)
 {
-	int gpionr, mask;
-
-	/* NOTE: At preset for PORTF we will use MASKA
-	 **      for PORTG we will use MASKB and for PORTH ??
-	 */
-	if (irq < IRQ_PG0) {
-		gpionr = irq - IRQ_PF0;
-		mask = (1L << gpionr);
-		bfin_write_PORTFIO_CLEAR(mask);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_MASKA_CLEAR(mask);
-	} else if (irq < IRQ_PH0) {
-		gpionr = irq - IRQ_PG0;
-		mask = (1L << gpionr);
-		bfin_write_PORTGIO_CLEAR(mask);
-		__builtin_bfin_ssync();
-		bfin_write_PORTGIO_MASKB_CLEAR(mask);
-	} else {
-		gpionr = irq - IRQ_PH0;
-		mask = (1L << gpionr);
-		bfin_write_PORTHIO_CLEAR(mask);
-		__builtin_bfin_ssync();
-		/*bfin_write_PORTHIO_MASKA_CLEAR(mask);*/
-		/*bfin_write_PORTHIO_MASKB_CLEAR(mask);*/
-	}
+	set_gpio_maska(irq - IRQ_PF0, 0);
 	__builtin_bfin_ssync();
 }
 
-static void bf534_gpio_unmask_irq(unsigned int irq)
+static void bf53x_gpio_unmask_irq(unsigned int irq)
 {
-	int gpionr, mask;
-
-	/* NOTE: At preset for PORTF we will use MASKA
-	 **      for PORTG we will use MASKB and for PORTH ??
-	 */
-	if (irq < IRQ_PG0) {
-		gpionr = irq - IRQ_PF0;
-		mask = (1L << gpionr);
-		bfin_write_PORTFIO_MASKA_SET(mask);
-	} else if (irq < IRQ_PH0) {
-		gpionr = irq - IRQ_PG0;
-		mask = (1L << gpionr);
-		bfin_write_PORTGIO_MASKB_SET(mask);
-	} else {
-		gpionr = irq - IRQ_PH0;
-		mask = (1L << gpionr);
-		/*bfin_write_PORTHIO_MASKA_SET(mask);*/
-		/*bfin_write_PORTHIO_MASKB_SET(mask);*/
-	}
+	set_gpio_maska(irq - IRQ_PF0, 1);
 	__builtin_bfin_ssync();
 }
 
-static int bf534_gpio_irq_type(unsigned int irq, unsigned int type)
+static unsigned int bf53x_gpio_irq_startup(unsigned int irq)
 {
-	int gpionr, mask;
-	/* NOTE: At preset for PORTF we will use MASKA
-	 **      for PORTG we will use MASKB and for PORTH ??
-	 */
+	unsigned int ret;
 
-	if (irq < IRQ_PG0) {
-		gpionr = irq - IRQ_PF0;
-		mask = (1L << gpionr);
-		bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | mask);
-		__builtin_bfin_ssync();
+	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
+
+	bf53x_gpio_unmask_irq(irq);
+
+  return ret;
+
+}
+
+static void bf53x_gpio_irq_shutdown(unsigned int irq)
+{
+	bf53x_gpio_mask_irq(irq);
+	free_gpio(irq - IRQ_PF0);
+}
+
+static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
+{
+
+	u16 gpionr = irq - IRQ_PF0;
+
+		set_gpio_dir(gpionr, 0);
+		set_gpio_inen(gpionr, 1);
 
 		if (type == IRQT_PROBE) {
 			/* only probe unenabled GPIO interrupt lines */
-			if (gpiof_enabled & mask)
+			if (gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))
 				return 0;
 			type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 
@@ -407,129 +374,30 @@ static int bf534_gpio_irq_type(unsigned int irq, unsigned int type)
 
 		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 			    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-			gpiof_enabled |= mask;
+			
+			gpio_enabled[gpio_bank(gpionr)] |= gpio_bit(gpionr);
 		else
-			gpiof_enabled &= ~mask;
+			gpio_enabled[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
 
 		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-			gpiof_edge_triggered |= mask;
-			bfin_write_PORTFIO_EDGE(bfin_read_PORTFIO_EDGE() |
-						mask);
+			gpio_edge_triggered[gpio_bank(gpionr)] |= gpio_bit(gpionr);
+			set_gpio_edge(gpionr, 1);
 		} else {
-			bfin_write_PORTFIO_EDGE(bfin_read_PORTFIO_EDGE() &
-						~mask);
-			gpiof_edge_triggered &= ~mask;
+			set_gpio_edge(gpionr, 0);
+			gpio_edge_triggered[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
 		}
-		__builtin_bfin_ssync();
 
 		if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
 		    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-			bfin_write_PORTFIO_BOTH(bfin_read_PORTFIO_BOTH() |
-						mask);
+			set_gpio_both(gpionr, 1);
 		else
-			bfin_write_PORTFIO_BOTH(bfin_read_PORTFIO_BOTH() &
-						~mask);
-		__builtin_bfin_ssync();
+			set_gpio_both(gpionr, 0);
 	
-
 		if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW)))
-			bfin_write_PORTFIO_POLAR(bfin_read_PORTFIO_POLAR() | mask);	/* low or falling edge denoted by one */
+			set_gpio_polar(gpionr, 1);	/* low or falling edge denoted by one */
 		else
-			bfin_write_PORTFIO_POLAR(bfin_read_PORTFIO_POLAR() & ~mask);	/* high or rising edge denoted by zero */
+			set_gpio_polar(gpionr, 0);	/* high or rising edge denoted by zero */
 	
-	} else if (irq < IRQ_PH0) {
-		gpionr = irq - IRQ_PG0;
-		mask = (1L << gpionr);
-		bfin_write_PORTGIO_DIR(bfin_read_PORTGIO_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_PORTGIO_INEN(bfin_read_PORTGIO_INEN() | mask);
-		__builtin_bfin_ssync();
-
-		if (type == IRQT_PROBE) {
-			/* only probe unenabled GPIO interrupt lines */
-			if (gpiog_enabled & mask)
-				return 0;
-			type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-		}
-		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
-			    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-			gpiog_enabled |= mask;
-		else
-			gpiog_enabled &= ~mask;
-
-		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-			gpiog_edge_triggered |= mask;
-			bfin_write_PORTGIO_EDGE(bfin_read_PORTGIO_EDGE() |
-						mask);
-		} else {
-			bfin_write_PORTGIO_EDGE(bfin_read_PORTGIO_EDGE() &
-						~mask);
-			gpiog_edge_triggered &= ~mask;
-		}
-		__builtin_bfin_ssync();
-
-		if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-			bfin_write_PORTGIO_BOTH(bfin_read_PORTGIO_BOTH() |
-						mask);
-		else
-			bfin_write_PORTGIO_BOTH(bfin_read_PORTGIO_BOTH() &
-						~mask);
-		__builtin_bfin_ssync();
-
-		if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW))
-		    && ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-			!= (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
-			bfin_write_PORTGIO_POLAR(bfin_read_PORTGIO_POLAR() | mask);	/* low or falling edge denoted by one */
-		else
-			bfin_write_PORTGIO_POLAR(bfin_read_PORTGIO_POLAR() & ~mask);	/* high or rising edge denoted by zero */
-	} else {
-		gpionr = irq - IRQ_PH0;
-		mask = (1L << gpionr);
-		bfin_write_PORTHIO_DIR(bfin_read_PORTHIO_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_PORTHIO_INEN(bfin_read_PORTHIO_INEN() | mask);
-		__builtin_bfin_ssync();
-
-		if (type == IRQT_PROBE) {
-			/* only probe unenabled GPIO interrupt lines */
-			if (gpioh_enabled & mask)
-				return 0;
-			type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-		}
-		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
-			    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-			gpioh_enabled |= mask;
-		else
-			gpioh_enabled &= ~mask;
-
-		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-			gpioh_edge_triggered |= mask;
-			bfin_write_PORTHIO_EDGE(bfin_read_PORTHIO_EDGE() |
-						mask);
-		} else {
-			bfin_write_PORTHIO_EDGE(bfin_read_PORTHIO_EDGE() &
-						~mask);
-			gpioh_edge_triggered &= ~mask;
-		}
-		__builtin_bfin_ssync();
-
-		if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-			bfin_write_PORTHIO_BOTH(bfin_read_PORTHIO_BOTH() |
-						mask);
-		else
-			bfin_write_PORTHIO_BOTH(bfin_read_PORTHIO_BOTH() &
-						~mask);
-		__builtin_bfin_ssync();
-
-		if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW))
-		    && ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-			!= (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
-			bfin_write_PORTHIO_POLAR(bfin_read_PORTHIO_POLAR() | mask);	/* low or falling edge denoted by one */
-		else
-			bfin_write_PORTHIO_POLAR(bfin_read_PORTHIO_POLAR() & ~mask);	/* high or rising edge denoted by zero */
-	}
 	__builtin_bfin_ssync();
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
@@ -539,195 +407,48 @@ static int bf534_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	return 0;
 }
-static struct irq_chip bf534_gpio_irqchip = {
-	.ack = bf534_gpio_ack_irq,
-	.mask = bf534_gpio_mask_irq,
-	.unmask = bf534_gpio_unmask_irq,
-	.set_type = bf534_gpio_irq_type
+
+
+
+static struct irq_chip bf53x_gpio_irqchip = {
+	.ack = bf53x_gpio_ack_irq,
+	.mask = bf53x_gpio_mask_irq,
+	.mask_ack = bf53x_gpio_mask_ack_irq,
+	.unmask = bf53x_gpio_unmask_irq,
+	.set_type = bf53x_gpio_irq_type,
+	.startup = bf53x_gpio_irq_startup,
+	.shutdown = bf53x_gpio_irq_shutdown
 };
 
 static void bf534_demux_gpio_irq(unsigned int intb_irq,
 				 struct irq_desc *intb_desc,
 				 struct pt_regs *regs)
 {
-	int loop;
+	u16 i;
 
-	/* For PORT F */
-	loop = 0;
-	do {
-		int irq = IRQ_PF0;
-		int flag_d = bfin_read_PORTFIO();
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=16) {
+
+		int irq = IRQ_PF0 + i;
+		int flag_d = get_gpiop_data(i);
 		int mask =
-		    flag_d & (gpiof_enabled &
-			      bfin_read_PORTFIO_MASKA());
-		loop = mask;
-		do {
-			if (mask & 1) {
-				struct irq_desc *desc = irq_desc + irq;
-				desc->handle_irq(irq, desc, regs);
-			}
-			irq++;
-			mask >>= 1;
-		} while (mask);
-	} while (loop);
+		flag_d & (gpio_enabled[gpio_bank(i)] &
+			      get_gpiop_maska(i));
 
-	/* For PORT G */
-	loop = 0;
-	do {
-		int irq = IRQ_PG0;
-		int flag_d = bfin_read_PORTGIO();
-		int mask =
-		    flag_d & (gpiog_enabled &
-			      bfin_read_PORTGIO_MASKB_CLEAR());
-		loop = mask;
-		do {
-			if (mask & 1) {
-				struct irq_desc *desc = irq_desc + irq;
-				desc->handle_irq(irq, desc, regs);
-			}
-			irq++;
-			mask >>= 1;
-		} while (mask);
-	} while (loop);
-
-	/* For PORT H */
-	loop = 0;
-	do {
-		int irq = IRQ_PH0;
-		int flag_d = bfin_read_PORTHIO();
-		/*int mask = flag_d & (gpioh_enabled & bfin_read_PORTHIO_MASKA_CLEAR());*/
-		int mask =
-		    flag_d & (gpioh_enabled &
-			      bfin_read_PORTHIO_MASKB_CLEAR());
-		loop = mask;
-		do {
-			if (mask & 1) {
-				struct irq_desc *desc = irq_desc + irq;
-				desc->handle_irq(irq, desc, regs);
-			}
-			irq++;
-			mask >>= 1;
-		} while (mask);
-	} while (loop);
-}
-#else
-static int gpio_enabled;
-static int gpio_edge_triggered;
-
-static void bf533_gpio_ack_irq(unsigned int irq)
-{
-	int gpionr = irq - IRQ_PF0;
-	int mask = (1L << gpionr);
-	bfin_write_FIO_FLAG_C(mask);
-/*	if (gpio_edge_triggered & mask) {
-		* ack *
-	} else {
-		* ack and mask *
+		if(mask) {
+			
+			do {
+				if (mask & 1) {
+					struct irq_desc *desc = irq_desc + irq;
+					desc->handle_irq(irq, desc, regs);
+				}
+				irq++;
+				mask >>= 1;
+			} while (mask);
+		}
 	}
-*/
-	__builtin_bfin_ssync();
+
 }
 
-static void bf533_gpio_mask_irq(unsigned int irq)
-{
-	int gpionr = irq - IRQ_PF0;
-	int mask = (1L << gpionr);
-	bfin_write_FIO_FLAG_C(mask);
-	__builtin_bfin_ssync();
-	bfin_write_FIO_MASKB_C(mask);
-	__builtin_bfin_ssync();
-}
-
-static void bf533_gpio_unmask_irq(unsigned int irq)
-{
-	int gpionr = irq - IRQ_PF0;
-	int mask = (1L << gpionr);
-	bfin_write_FIO_MASKB_S(mask);
-}
-
-static int bf533_gpio_irq_type(unsigned int irq, unsigned int type)
-{
-	int gpionr = irq - IRQ_PF0;
-	int mask = (1L << gpionr);
-
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~mask);
-	__builtin_bfin_ssync();
-	bfin_write_FIO_INEN(bfin_read_FIO_INEN() | mask);
-	__builtin_bfin_ssync();
-
-	if (type == IRQT_PROBE) {
-		/* only probe unenabled GPIO interrupt lines */
-		if (gpio_enabled & mask)
-			return 0;
-		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-	}
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
-		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-		gpio_enabled |= mask;
-	else
-		gpio_enabled &= ~mask;
-
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
-		gpio_edge_triggered |= mask;
-		bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() | mask);
-	} else {
-		bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~mask);
-		gpio_edge_triggered &= ~mask;
-	}
-	__builtin_bfin_ssync();
-
-	if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-	    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() | mask);
-	else
-		bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() & ~mask);
-	__builtin_bfin_ssync();
-
-	if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW))
-	    && ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		!= (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)))
-		bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() | mask);	/* low or falling edge denoted by one */
-	else
-		bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~mask);	/* high or rising edge denoted by zero */
-	__builtin_bfin_ssync();
-
-	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
-		set_irq_handler(irq, handle_edge_irq);
-	else
-		set_irq_handler(irq, handle_level_irq);
-
-	return 0;
-}
-static struct irq_chip bf533_gpio_irqchip = {
-	.ack = bf533_gpio_ack_irq,
-	.mask = bf533_gpio_mask_irq,
-	.unmask = bf533_gpio_unmask_irq,
-	.set_type = bf533_gpio_irq_type
-};
-
-static void bf533_demux_gpio_irq(unsigned int intb_irq,
-				 struct irq_desc *intb_desc,
-				 struct pt_regs *regs)
-{
-	int loop = 0;
-
-	do {
-		int irq = IRQ_PF0;
-		int flag_d = bfin_read_FIO_FLAG_D();
-		int mask =
-		    flag_d & (gpio_enabled & bfin_read_FIO_MASKB_C());
-		loop = mask;
-		do {
-			if (mask & 1) {
-				struct irq_desc *desc = irq_desc + irq;
-				desc->handle_irq(irq, desc, regs);
-			}
-			irq++;
-			mask >>= 1;
-		} while (mask);
-	} while (loop);
-}
-#endif
 #endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
 
 /*
@@ -764,9 +485,9 @@ int __init init_arch_irq(void)
 
 	for (irq = 0; irq < SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
-			set_irq_chip(irq, &bf533_core_irqchip);
+			set_irq_chip(irq, &bf53x_core_irqchip);
 		else
-			set_irq_chip(irq, &bf533_internal_irqchip);
+			set_irq_chip(irq, &bf53x_internal_irqchip);
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 		if (irq != IRQ_GENERIC_ERROR) {
 #endif
@@ -777,20 +498,14 @@ int __init init_arch_irq(void)
 			    (irq != IRQ_PORTG_INTB) &&
 			    (irq != IRQ_PROG_INTB)) {
 #else
-			if (irq != IRQ_PROG_INTB) {
+			if (irq != IRQ_PROG_INTA) {
 #endif
 #endif
 				set_irq_handler(irq, handle_simple_irq);
-				//set_irq_flags(irq, IRQF_VALID);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 			} else {
-# if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
 				set_irq_chained_handler(irq,
 							bf534_demux_gpio_irq);
-#else
-				set_irq_chained_handler(irq,
-							bf533_demux_gpio_irq);
-#endif
 			}
 #endif
 
@@ -804,20 +519,14 @@ int __init init_arch_irq(void)
 	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++) {
 		set_irq_chip(irq, &bf537_generic_error_irqchip);
 		set_irq_handler(irq, handle_level_irq);
-		//set_irq_flags(irq, IRQF_VALID);
 	}
 #endif
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	for (irq = IRQ_PF0; irq < NR_IRQS; irq++) {
-# if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-		set_irq_chip(irq, &bf534_gpio_irqchip);
-#else
-		set_irq_chip(irq, &bf533_gpio_irqchip);
-#endif
+		set_irq_chip(irq, &bf53x_gpio_irqchip);
 		/* if configured as edge, then will be changed to do_edge_IRQ */
 		set_irq_handler(irq, handle_level_irq);
-		//set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	}
 #endif
 	bfin_write_IMASK(0);
@@ -871,6 +580,9 @@ void do_irq(int vec, struct pt_regs *fp)
 	}
 	asm_do_IRQ(vec, fp);
 }
+
+
+/*FIXME: This function will be removed soon*/ 
 
 void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
 {
