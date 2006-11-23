@@ -162,6 +162,7 @@ while 1 {
 
 if { $bfin_make_status == "failure" } {
    puts "ERROR: Error somewhere during make"
+   exit 1
 }    
      
 step "Copy linux"
@@ -173,3 +174,4 @@ exec cp images/linux  /tftpboot
 log_file
 
 send_user "\nKernel building for LTP test finishes!\n"
+exit 0
