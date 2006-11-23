@@ -65,10 +65,6 @@ static struct resource bfin_pcmcia_cf_resources[] = {
 		.end = 0x20311FFF,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = IRQ_PROG_INTA,
-		.end = IRQ_PROG_INTA,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
-	},{
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
