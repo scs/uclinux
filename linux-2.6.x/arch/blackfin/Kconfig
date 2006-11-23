@@ -61,6 +61,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config IRQCHIP_DEMUX_GPIO
+	bool
+	default y
+
 source "init/Kconfig"
 
 menu "Blackfin Processor Options"
@@ -449,13 +453,6 @@ config LARGE_ALLOCS
 	  memory sizes - upto 32MB. You may need this if your system has
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N.
-
-config IRQCHIP_DEMUX_GPIO
-	bool "Enable GPIO IRQ Demultiplexing"
-	depends on BLACKFIN
-	default n
-	help
-	  Demultiplex GPIO interrupt, enabling IRQ_PF0 through IRQ_PF15.
 
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
