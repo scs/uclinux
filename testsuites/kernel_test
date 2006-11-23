@@ -1245,7 +1245,7 @@ if [ $ltp_test -eq 1 ] ; then
 
     ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE ${ltp_args[i]}> /dev/null 2>&1
   if [ $? ] ; then
-    echo "ltp build kernel failed for $ltp_suf[i]"
+    echo "ltp build kernel failed for ${ltp_suf[i]}"
     cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
     echo "ltp copy build_ltp_kernel_log done"
   else	
