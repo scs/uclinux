@@ -1751,11 +1751,8 @@ sl811h_probe(struct platform_device *dev)
 	 * was on a system with single edge triggering, so most sorts of
 	 * triggering arrangement should work.
 	 */
-#ifdef CONFIG_BFIN
-#include <asm/blackfin.h>
-	bfin_gpio_interrupt_setup(irq, platform_get_irq(dev, 1), IRQT_HIGH);
-#endif
-	retval = usb_add_hcd(hcd, irq, IRQF_DISABLED | IRQF_SHARED);
+
+	retval = usb_add_hcd(hcd, irq, IRQF_TRIGGER_HIGH | IRQF_DISABLED | IRQF_SHARED);
 	if (retval != 0)
 		goto err6;
 

@@ -213,14 +213,15 @@ config USB_SL811_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called sl811-hcd.
 	  
-config USB_SL811_BFIN_GPIO
-        int "PF pin for Interrupt"
+config USB_SL811_BFIN_IRQ
+        int "GPIO IRQ pin for Interrupt"
         depends on (BF537 && USB_SL811_HCD)
-        range 3 7
-        default 4
+	range 50 97
+        default 54
         help
-          Choose an PF pin as isp1362's interrupt. This must corresponds to 
-	  the JP3 on usb daughter card. The available value is from 3 to 7.
+          Choose an PF pin as SL811's interrupt. This must corresponds to 
+	  the JP3 on usb daughter card. The available value is from 50 to 97.
+	  For more information look at include/asm-blackfin/mach-bfxxx/irq.h.
 							    
 config USB_SL811_CS
 	tristate "CF/PCMCIA support for SL811HS HCD"
