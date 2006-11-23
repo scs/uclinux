@@ -233,7 +233,6 @@ static int device_suspended(struct device *dev)
 static int ad7877_read(struct device *dev, u16 reg)
 {
 	struct spi_device	*spi = to_spi_device(dev);
-	struct ad7877		*ts = dev_get_drvdata(dev);
 	struct ser_req		*req = kzalloc(sizeof *req, SLAB_KERNEL);
 	int			status;
 
@@ -265,7 +264,6 @@ static int ad7877_read(struct device *dev, u16 reg)
 static int ad7877_write(struct device *dev, u16 reg, u16 val)
 {
 	struct spi_device	*spi = to_spi_device(dev);
-	struct ad7877		*ts = dev_get_drvdata(dev);
 	struct ser_req		*req = kzalloc(sizeof *req, SLAB_KERNEL);
 	int			status;
 
@@ -818,6 +816,8 @@ static int __devexit ad7877_remove(struct spi_device *spi)
 
 	ad7877_suspend(spi, PMSG_SUSPEND);
 
+	kthread_stop(ad7877_task);
+
 	device_remove_file(&spi->dev, &dev_attr_disable);
 	device_remove_file(&spi->dev, &dev_attr_dac);
 
@@ -831,8 +831,6 @@ static int __devexit ad7877_remove(struct spi_device *spi)
 
 
 	free_irq(ts->spi->irq, ts);
-	/* suspend left the IRQ disabled */
-	enable_irq(ts->spi->irq);
 
 	kfree(ts);
 
@@ -862,7 +860,6 @@ module_init(ad7877_init);
 static void __exit ad7877_exit(void)
 {
 	spi_unregister_driver(&ad7877_driver);
-	kthread_stop(ad7877_task);
 
 }
 module_exit(ad7877_exit);

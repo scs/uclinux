@@ -323,16 +323,14 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 #endif
 
 
-#if defined(CONFIG_TOUCHSCREEN_AD7877)
+#if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
 //	.cs_change_per_word = 1,
 	.ctl_reg = 0x1000,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
-#endif
 
-#if defined(CONFIG_TOUCHSCREEN_AD7877)
 static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.model			= 7877,
 	.vref_delay_usecs	= 50,	/* internal, no capacitor */
@@ -344,7 +342,7 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.first_conversion_delay = 3,
 	.acquisition_time 	= 1,	    
 	.averaging 		= 1,		    
-	.pen_down_acc_interval 	= 3, 
+	.pen_down_acc_interval 	= 0, 
 };
 #endif
 
@@ -431,11 +429,11 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data= &spi_si3xxx_chip_info,
 	},
 #endif
-#if defined(CONFIG_TOUCHSCREEN_AD7877)
+#if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 {
 	.modalias		= "ad7877",
 	.platform_data		= &bfin_ad7877_ts_info,
-	.irq			= IRQ_PROG_INTA,
+	.irq			= IRQ_PF6,
 	.max_speed_hz		= 4, /* max sample rate */
 	.bus_num	= 1,
 	.chip_select  = 1,
