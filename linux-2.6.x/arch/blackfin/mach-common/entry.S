@@ -740,6 +740,7 @@ ENTRY(_init_exception_buff)
 	p0.h = _out_ptr_excause;
 	p0.l = _out_ptr_excause;
 	[p0] = r0;
+	rts;
 
 /*
  * Put these in the kernel data section - that should always be covered by
