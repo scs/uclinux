@@ -327,7 +327,7 @@ static int ad7142_thread(void *nothing)
 		wait_event_interruptible(ad7142_wait, kthread_should_stop() || (intr_flag!=0));
 		ad7142_decode();
                 intr_flag = 0;
-                bfin_write_PORTGIO_MASKA(bfin_read_PORTGIO_MASKA() | PF5);
+  		enable_irq(CONFIG_BFIN_JOYSTICK_IRQ_PFX);
         } while (!kthread_should_stop());
         printk(KERN_DEBUG "ad7142: kthread exiting\n");
         return 0;
@@ -335,7 +335,7 @@ static int ad7142_thread(void *nothing)
 
 static irqreturn_t ad7142_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
-	bfin_write_PORTGIO_MASKA(bfin_read_PORTGIO_MASKA() & ~PF5);
+  	disable_irq(CONFIG_BFIN_JOYSTICK_IRQ_PFX);
 	intr_flag = 1;
 	wake_up_interruptible(&ad7142_wait);
 	return IRQ_HANDLED;
@@ -353,14 +353,14 @@ static int ad7142_open(struct input_dev *dev)
 	if ((*used)++)
 		return 0;
 
-	if (request_irq(CONFIG_BFIN_JOYSTICK_IRQ, ad7142_interrupt, 0, "ad7142_joy", ad7142_interrupt)) {
+	if (request_irq(CONFIG_BFIN_JOYSTICK_IRQ_PFX, ad7142_interrupt, \
+		IRQF_TRIGGER_LOW, "ad7142_joy", ad7142_interrupt)) {
 		(*used)--;
-		printk(KERN_ERR "ad7142.c: Can't allocate irq %d\n",CONFIG_BFIN_JOYSTICK_IRQ);
+		printk(KERN_ERR "ad7142.c: Can't allocate irq %d\n",CONFIG_BFIN_JOYSTICK_IRQ_PFX);
 		return -EBUSY;
 	}
-	bfin_gpio_interrupt_setup (CONFIG_BFIN_JOYSTICK_IRQ,
-                             IRQ_PF0 + CONFIG_BFIN_JOYSTICK_IRQ_PFX,
-                             IRQT_LOW);
+
+
 	ad7142_i2c_write(ad7142_client,STAGE0_CONNECTION,stage[0],8);
 	ad7142_i2c_write(ad7142_client,STAGE1_CONNECTION,stage[1],8);
 	ad7142_i2c_write(ad7142_client,STAGE2_CONNECTION,stage[2],8);
@@ -411,7 +411,7 @@ static void ad7142_close(struct input_dev *dev)
 	int *used = dev->private;
 
 	if (!--(*used))
-		free_irq(CONFIG_BFIN_JOYSTICK_IRQ, ad7142_interrupt);
+		free_irq(CONFIG_BFIN_JOYSTICK_IRQ_PFX, ad7142_interrupt);
 	kthread_stop(ad7142_task);
 }
 
