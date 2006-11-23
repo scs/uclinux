@@ -50,6 +50,7 @@ bool    'file operation test'           CONFIG_FILE_OPERATION_TEST
 bool    'common sport test'             CONFIG_USER_BLACKFIN_SPORT
 bool    'UPNP samples'                  CONFIG_USER_UPNP_SAMPLES
 bool    'DCPLB Replacement Test'        CONFIG_USER_BLACKFIN_DCPLB
+bool    'IRQ Schedule latency test' 	CONFIG_USER_BLACKFIN_LATENCYTEST
 if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_LIBUPNP y
 fi
