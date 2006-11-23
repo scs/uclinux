@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cisreg.h>
@@ -99,16 +100,6 @@ static void bfin_cf_timer(unsigned long _cf)
 
 	if (cf->active)
 		mod_timer(&cf->timer, jiffies + POLL_INTERVAL);
-}
-
-/* This irq handler prevents "irqNNN: nobody cared" messages as drivers
- * claim the card's IRQ.  It may also detect some card insertions, but
- * not removals; it can't always eliminate timer irqs.
- */
-static irqreturn_t bfin_cf_irq(int irq, void *_cf, struct pt_regs *r)
-{
-	bfin_cf_timer((unsigned long)_cf);
-	return IRQ_HANDLED;
 }
 
 static int bfin_cf_get_status(struct pcmcia_socket *s, u_int *sp)
@@ -210,8 +201,8 @@ static int __init bfin_cf_probe(struct device *dev)
 	struct platform_device	*pdev = to_platform_device(dev);
 	struct resource		*io_mem,*attr_mem;
 	int			irq;
-	unsigned short	irq_pfx,cd_pfx;
-	int			status;
+	unsigned short		cd_pfx;
+	int			status = 0;
 
 	printk(KERN_INFO "Blackfin CompactFlash/PCMCIA Socket Driver\n");
 
@@ -219,12 +210,8 @@ static int __init bfin_cf_probe(struct device *dev)
 	if (!irq)
 		return -EINVAL;
 
-	irq_pfx = platform_get_irq(pdev, 1);
-	if (irq_pfx > IRQ_PF15)
-		return -EINVAL;
-
-	cd_pfx = platform_get_irq(pdev, 2);
-	if (cd_pfx > 15)
+	cd_pfx = platform_get_irq(pdev, 1); /*Card Detect GPIO PIN*/
+	if (cd_pfx > MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
 
 
@@ -244,13 +231,10 @@ static int __init bfin_cf_probe(struct device *dev)
 	cf->pdev = pdev;
 	dev_set_drvdata(dev, cf);
 
-	/* this primarily just shuts up irq handling noise */
-	status = request_irq(irq, bfin_cf_irq, SA_SHIRQ,
-			driver_name, cf);
-	if (status < 0)
-		goto fail0;
 	cf->irq = irq;
 	cf->socket.pci_irq = irq;
+
+	set_irq_type(irq, IRQF_TRIGGER_LOW);
 
 	io_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	attr_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -261,14 +245,12 @@ static int __init bfin_cf_probe(struct device *dev)
 	cf->phys_cf_io = io_mem->start;
 	cf->phys_cf_attr = attr_mem->start;
 
-	bfin_gpio_interrupt_setup(irq, irq_pfx, IRQT_LOW);
-
 	/* pcmcia layer only remaps "real" memory */
 	cf->socket.io_offset = (unsigned long)
 			ioremap(cf->phys_cf_io, SZ_2K);
 
 	if (!cf->socket.io_offset)
-		goto fail1;
+		goto fail0;
 
 	pr_info("%s: on irq %d\n", driver_name, irq);
 
@@ -293,8 +275,7 @@ static int __init bfin_cf_probe(struct device *dev)
 fail2:
 	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(cf->phys_cf_io, SZ_8K);
-fail1:
-	free_irq(irq, cf);
+
 fail0:
 	kfree(cf);
 	return status;
@@ -309,7 +290,6 @@ static int __devexit bfin_cf_remove(struct device *dev)
 	del_timer_sync(&cf->timer);
 	iounmap((void __iomem *) cf->socket.io_offset);
 	release_mem_region(cf->phys_cf_io, SZ_8K);
-	free_irq(cf->irq, cf);
 	kfree(cf);
 	return 0;
 }
