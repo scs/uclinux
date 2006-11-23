@@ -383,7 +383,7 @@ int l1_data_B_sram_free(const void *addr)
 
 void *l1_inst_sram_alloc(size_t size)
 {
-#if L1_DATA_A_LENGTH != 0
+#if L1_CODE_LENGTH != 0
 	unsigned flags;
 	void *addr;
 
