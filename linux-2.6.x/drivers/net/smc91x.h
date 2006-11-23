@@ -56,6 +56,9 @@
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
 #elif defined(CONFIG_BFIN)
+
+#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH	
+
 # if defined (CONFIG_BFIN561_EZKIT)
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1

@@ -122,14 +122,6 @@ MODULE_PARM_DESC(irq, "IRQ number");
 
 #endif  /* CONFIG_ISA */
 
-#if defined(CONFIG_BFIN)
-/*
- *  irq_pfx comes from platform_device and tells us which flag pin is used
- *    IRQ_PF0 <= irq_pfx <= IRQ_PF15
- *  irq_pfx is used as the irq if CONFIG_IRQCHIP_DEMUX_GPIO is enabled.
- */
-static int irq_pfx;
-#endif /* CONFIG_BFIN */
 
 #ifndef SMC_NOWAIT
 # define SMC_NOWAIT		0
@@ -335,85 +327,11 @@ static void bfin_cpld_setup(void)
 #endif
 
 #if defined(CONFIG_BFIN)
-static void bfin_SMC_interrupt_setup(int irq)
+static void bfin_SMC_port_setup()
 {
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-	/* fix a floating input on the USB-LAN EZ-Extender */
 # if defined (CONFIG_BFIN561_EZKIT)
 	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
 # endif /* defined (CONFIG_BFIN561_EZKIT) */
-	printk("Blackfin SMC91x interrupt setup: DEMUX_GPIO irq %d\n", irq);
-	set_irq_type(irq, IRQT_HIGH);
-#else
-# if defined (CONFIG_BF561)
-	unsigned short flag;
-	unsigned short LAN_FIO_PATTERN;
-
-	if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
-		printk(CARDNAME "irq_pfx out of range: %d\n", irq_pfx);
-		return;
-	}
-
-	flag = irq_pfx - IRQ_PF0;
-	LAN_FIO_PATTERN = (1 << flag);
-
-	printk("Blackfin BF561 SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
-	if (irq == IRQ_PROG0_INTA || irq == IRQ_PROG0_INTB)
-	{
-		int ixab = (irq - IRQ_PROG0_INTA) * ((unsigned short *)FIO0_MASKB_D - (unsigned short *)FIO0_MASKA_D);
-
-		__builtin_bfin_csync();
-		bfin_write16((unsigned short *)FIO0_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
-
-		bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
-		bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() & ~LAN_FIO_PATTERN); /* by level (input) */
-		bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() & ~LAN_FIO_PATTERN);
-
-		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() & ~LAN_FIO_PATTERN); /* input */
-		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));	     /* fix a floating input */
-		bfin_write_FIO0_FLAG_C(LAN_FIO_PATTERN); /* clear output */
-		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() |  LAN_FIO_PATTERN); /* enable pin */
-
-		__builtin_bfin_ssync();
-		bfin_write16((unsigned short *)FIO0_MASKA_S + ixab, LAN_FIO_PATTERN); /* enable int */
-	}
-# else
-    unsigned short flag;
-    unsigned short LAN_FIO_PATTERN;
-
-    if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
-	printk(CARDNAME "irq_pfx out of range: %d\n", irq_pfx);
-	return;
-    }
-
-    flag = irq_pfx - IRQ_PF0;
-    LAN_FIO_PATTERN = (1 << flag);
-
-    printk("Blackfin SMC91x interrupt setup: flag PF%d, irq %d\n", flag, irq);
-  /* 26 = IRQ_PROG_INTA => FIO_MASKA
-     27 = IRQ_PROG_INTB => FIO_MASKB */
-  if (irq == IRQ_PROG_INTA/*26*/ ||
-      irq == IRQ_PROG_INTB/*27*/)
-    {
-	    int ixab = (irq - IRQ_PROG_INTA) * ((unsigned short *)FIO_MASKB_D - (unsigned short *)FIO_MASKA_D);
-
-      __builtin_bfin_csync();
-      bfin_write16((unsigned short *)FIO_MASKA_C + ixab, LAN_FIO_PATTERN); /* disable int */
-      __builtin_bfin_ssync();
-
-      bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~LAN_FIO_PATTERN); /* active high (input) */
-      bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~LAN_FIO_PATTERN); /* by level (input) */
-      bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() & ~LAN_FIO_PATTERN);
-
-      bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~LAN_FIO_PATTERN);   /* input */
-      bfin_write_FIO_FLAG_C(LAN_FIO_PATTERN);   /* clear output */
-      bfin_write_FIO_INEN(bfin_read_FIO_INEN() |  LAN_FIO_PATTERN);   /* enable pin */
-
-      __builtin_bfin_ssync();
-      bfin_write16((unsigned short *)FIO_MASKA_S + ixab, LAN_FIO_PATTERN);  /* enable int */
-    }
-# endif /* defined(CONFIG_BF561) */
-#endif /*CONFIG_IRQCHIP_DEMUX_GPIO*/
 }
 #endif
 
@@ -2119,7 +2037,7 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	}
 
 #ifdef CONFIG_BFIN
-	bfin_SMC_interrupt_setup(dev->irq);
+	bfin_SMC_port_setup();
 #endif
 
 	/* Grab the IRQ */
@@ -2363,18 +2281,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ndev);
 
-#if defined(CONFIG_BFIN)
-	/*
-	 *  We're using the second IRQ (index 1) in the platform resources
-	 *  to store the flag pin info.  The second IRQ is also the correct
-	 *  IRQ_PFx value to use if we have CONFIG_IRQCHIP_DEMUX_GPIO enabled.
-	 */
-	irq_pfx = platform_get_irq(pdev, 1);
-
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO)
-	ndev->irq = irq_pfx;
-#endif
-#endif
 
 	ret = smc_probe(ndev, addr);
 	if (ret != 0)
