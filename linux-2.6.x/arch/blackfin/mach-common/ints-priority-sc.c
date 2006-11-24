@@ -494,9 +494,11 @@ int __init init_arch_irq(void)
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 # if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-			if ((irq != IRQ_PROG_INTA) &&
-			    (irq != IRQ_PORTG_INTB) &&
-			    (irq != IRQ_PROG_INTB)) {
+			if ((irq != IRQ_PROG_INTA) /*PORT F & G MASK_A Interrupt*/
+#ifndef CONFIG_BFIN_MAC
+				&& (irq != IRQ_MAC_RX) /*PORT H MASK_A Interrupt*/
+#endif
+			    ) {
 #else
 			if (irq != IRQ_PROG_INTA) {
 #endif
