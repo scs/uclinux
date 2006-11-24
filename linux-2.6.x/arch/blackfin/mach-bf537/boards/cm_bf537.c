@@ -52,13 +52,13 @@ char *bfin_board_name = "Bluetechnix CM BF537";
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader",
-		.size = 0x00040000,
+		.size = 0x00020000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	},{
 		.name = "kernel",
-		.size = 0xc0000,
-		.offset = 0x40000
+		.size = 0xe0000,
+		.offset = 0x20000
 	},{
 		.name = "file system",
 		.size = 0x300000,
