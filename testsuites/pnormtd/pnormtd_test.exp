@@ -253,9 +253,10 @@ send -s "boote\r"
       expect {
 
          -re "Kernel panic" {
-            report "kernel panic detected... trying to recover from it"
-         #   recover
-            break
+            puts "kernel panic detected... trying to recover from it"
+            send_log "$TITLE ............\[FAIL\]\n"
+            exit
+
          }
 
          -re "Sash command shell.*/> " {
