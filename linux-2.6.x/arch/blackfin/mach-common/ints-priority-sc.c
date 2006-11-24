@@ -344,7 +344,8 @@ static unsigned int bf53x_gpio_irq_startup(unsigned int irq)
 
 	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
 
-	bf53x_gpio_unmask_irq(irq);
+	if (!ret)
+	  bf53x_gpio_unmask_irq(irq);
 
   return ret;
 
