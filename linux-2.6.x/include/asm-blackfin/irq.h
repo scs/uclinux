@@ -69,17 +69,4 @@ static __inline__ int irq_canonicalize(int irq)
 #define NO_IRQ ((unsigned int)(-1))
 #endif
 
-#define __IRQT_FALEDGE	(1 << 0)
-#define __IRQT_RISEDGE	(1 << 1)
-#define __IRQT_LOWLVL	(1 << 2)
-#define __IRQT_HIGHLVL	(1 << 3)
-
-#define IRQT_NOEDGE	(0)
-#define IRQT_RISING	(__IRQT_RISEDGE)
-#define IRQT_FALLING	(__IRQT_FALEDGE)
-#define IRQT_BOTHEDGE	(__IRQT_RISEDGE|__IRQT_FALEDGE)
-#define IRQT_LOW	(__IRQT_LOWLVL)
-#define IRQT_HIGH	(__IRQT_HIGHLVL)
-#define IRQT_PROBE	(1 << 4)
-
 #endif				/* _BFIN_IRQ_H_ */

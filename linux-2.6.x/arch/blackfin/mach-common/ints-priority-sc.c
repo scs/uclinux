@@ -365,7 +365,7 @@ static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
 		set_gpio_dir(gpionr, 0);
 		set_gpio_inen(gpionr, 1);
 
-		if (type == IRQT_PROBE) {
+		if (type == IRQ_TYPE_PROBE) {
 			/* only probe unenabled GPIO interrupt lines */
 			if (gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))
 				return 0;
@@ -583,78 +583,3 @@ void do_irq(int vec, struct pt_regs *fp)
 	}
 	asm_do_IRQ(vec, fp);
 }
-
-
-/*FIXME: This function will be removed soon*/ 
-
-void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type)
-{
-
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-	printk(KERN_INFO
-	       "Blackfin GPIO interrupt setup: DEMUX_GPIO irq %d\n", irq);
-	set_irq_type(irq_pfx, type);
-#else
-# if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	unsigned short portx_fer;
-# endif
-	unsigned short flag;
-	unsigned short FIO_PATTERN;
-
-	if (irq_pfx < IRQ_PF0 || irq_pfx > IRQ_PF15) {
-		printk(KERN_ERR "irq_pfx out of range: %d\n", irq_pfx);
-		return;
-	}
-
-	flag = irq_pfx - IRQ_PF0;
-	FIO_PATTERN = (1 << flag);
-
-#if defined(CONFIG_BF534)||defined(CONFIG_BF536)||defined(CONFIG_BF537)
-	portx_fer = bfin_read_PORT_FER();
-	bfin_write_PORT_FER(portx_fer & ~FIO_PATTERN);
-	__builtin_bfin_ssync();
-#endif
-
-	printk(KERN_INFO
-	       "Blackfin GPIO interrupt setup: flag PF%d, irq %d\n", flag,
-	       irq);
-
-	if (irq == IRQ_PROG_INTA || irq == IRQ_PROG_INTB) {
-		int ixab =
-		    (irq -
-		     IRQ_PROG_INTA) * ((unsigned short *) FIO_MASKB_D -
-				       (unsigned short *) FIO_MASKA_D);
-
-		__builtin_bfin_ssync();
-		bfin_write16((unsigned short *) FIO_MASKA_C + ixab, FIO_PATTERN);	/* disable int */
-		__builtin_bfin_ssync();
-
-		if (type == IRQT_HIGH || type == IRQT_RISING)
-			bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~FIO_PATTERN);	/* active high */
-		else
-			bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() | FIO_PATTERN);	/* active low  */
-
-		if (type == IRQT_HIGH || type == IRQT_LOW)
-			bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() & ~FIO_PATTERN);	/* by level (input) */
-		else
-			bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() | FIO_PATTERN);	/* by edge */
-
-		if (type == IRQT_BOTHEDGE)
-			bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() |
-					    FIO_PATTERN);
-		else
-			bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() &
-					    ~FIO_PATTERN);
-
-		bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~FIO_PATTERN);	/* input */
-		bfin_write_FIO_FLAG_C(FIO_PATTERN);	/* clear output */
-		bfin_write_FIO_INEN(bfin_read_FIO_INEN() | FIO_PATTERN);	/* enable pin */
-
-		__builtin_bfin_ssync();
-		bfin_write16((unsigned short *) FIO_MASKA_S + ixab, FIO_PATTERN);	/* enable int */
-	}
-#endif				/*CONFIG_IRQCHIP_DEMUX_GPIO */
-
-}
-
-EXPORT_SYMBOL(bfin_gpio_interrupt_setup);

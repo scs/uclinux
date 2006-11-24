@@ -256,7 +256,7 @@ static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 		set_gpio_dir(gpionr, 0);
 		set_gpio_inen(gpionr, 1);
 
-		if (type == IRQT_PROBE) {
+		if (type == IRQ_TYPE_PROBE) {
 			/* only probe unenabled GPIO interrupt lines */
 			if (gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))
 				return 0;
