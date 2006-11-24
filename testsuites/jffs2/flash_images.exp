@@ -180,7 +180,7 @@ send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
     
   
        set timeout 80
-       send -s "protect off 0x20040000 0x200fffff\r"
+       send -s "protect off 0x20020000 0x200fffff\r"
        while 1 {
     		expect {
     
@@ -204,7 +204,7 @@ send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
               
        set timeout 240	    
  	
-	send -s "erase 0x20040000 0x200fffff\r"
+	send -s "erase 0x20020000 0x200fffff\r"
 	while 1 {
 	    expect {
 	    
@@ -223,7 +223,7 @@ send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
 	
         set timeout 500
  	
-	send -s "cp.b 0x1000000 0x20040000 0xc0000\r"
+	send -s "cp.b 0x1000000 0x20020000 0xc0000\r"
 	while 1 {
 	    expect {
 	    
