@@ -201,14 +201,14 @@ static unsigned long bf5xx_max_flash_size = CONFIG_BFIN_FLASH_SIZE;
 static struct mtd_partition bf5xx_partitions[] = {
 	{
 		name: "Bootloader",
-		size: 0x40000,
-		//size: 0x3FFFF,
+		size: 0x20000,
+		//size: 0x1FFFF,
 		offset: 0,
 	},{
 		name: "Kernel",
-		size: 0xC0000,
-		//size: 0xBFFFF,
-		offset: 0x40000,
+		size: 0xE0000,
+		//size: 0xDFFFF,
+		offset: 0x20000,
 	},
 #ifdef CONFIG_BF537
 	{
