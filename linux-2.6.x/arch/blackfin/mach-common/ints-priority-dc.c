@@ -191,245 +191,165 @@ static struct irq_chip bf561_internal_irqchip = {
 };
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-static int gpio_enabled[3];
-static int gpio_edge_triggered[3];
+static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
+static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
 
 static void bf561_gpio_ack_irq(unsigned int irq)
 {
-	int gpionr = irq - IRQ_PF0;
-	int mask;
-	if (gpionr < 16) {
-		mask = (1L << gpionr);
-		bfin_write_FIO0_FLAG_C(mask);
-	} else if (gpionr < 32) {
-		mask = (1L << (gpionr - 16));
-		bfin_write_FIO1_FLAG_C(mask);
-	} else {
-		mask = (1L << (gpionr - 32));
-		bfin_write_FIO2_FLAG_C(mask);
+	u16 gpionr = irq - IRQ_PF0;
+	
+	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+		set_gpio_data(gpionr, 0);
+		__builtin_bfin_ssync();
 	}
-/*	if (gpio_edge_triggered & mask) {
-		* ack *
-	} else {
-		* ack and mask *
+}
+
+static void bf561_gpio_mask_ack_irq(unsigned int irq)
+{
+	u16 gpionr = irq - IRQ_PF0;
+
+	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+		set_gpio_data(gpionr, 0);
+		__builtin_bfin_ssync();
 	}
-*/
+
+	set_gpio_maska(gpionr, 0);
 	__builtin_bfin_ssync();
 }
 
 static void bf561_gpio_mask_irq(unsigned int irq)
 {
-	int gpionr = irq - IRQ_PF0;
-	int mask;
-	if (gpionr < 16) {
-		mask = (1L << gpionr);
-		bfin_write_FIO0_FLAG_C(mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO0_MASKB_C(mask);
-		__builtin_bfin_ssync();
-	} else if (gpionr < 32) {
-		mask = (1L << (gpionr - 16));
-		bfin_write_FIO1_FLAG_C(mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO1_MASKB_C(mask);
-		__builtin_bfin_ssync();
-	} else {
-		mask = (1L << (gpionr - 32));
-		bfin_write_FIO2_FLAG_C(mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO2_MASKB_C(mask);
-		__builtin_bfin_ssync();
-	}
+	set_gpio_maska(irq - IRQ_PF0, 0);
+	__builtin_bfin_ssync();
 }
 
 static void bf561_gpio_unmask_irq(unsigned int irq)
 {
-	int gpionr = irq - IRQ_PF0;
-	int mask;
-	if (gpionr < 16) {
-		mask = (1L << gpionr);
-		bfin_write_FIO0_MASKB_S(mask);
-	} else if (gpionr < 32) {
-		mask = (1L << (gpionr - 16));
-		bfin_write_FIO1_MASKB_S(mask);
-	} else {
-		mask = (1L << (gpionr - 32));
-		bfin_write_FIO2_MASKB_S(mask);
-	}
+	set_gpio_maska(irq - IRQ_PF0, 1);
+	__builtin_bfin_ssync();
+}
+
+static unsigned int bf561_gpio_irq_startup(unsigned int irq)
+{
+	unsigned int ret;
+
+	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
+
+	if (!ret)
+	  bf561_gpio_unmask_irq(irq);
+
+  return ret;
+
+}
+
+static void bf561_gpio_irq_shutdown(unsigned int irq)
+{
+	bf561_gpio_mask_irq(irq);
+	free_gpio(irq - IRQ_PF0);
 }
 
 static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)
 {
-	int gpionr = irq - IRQ_PF0;
-	int gpioidx = 0;
-	int mask = (1L << gpionr);
 
-	if (gpionr < 16) {
-		mask = (1L << gpionr);
-		bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO0_INEN(bfin_read_FIO0_INEN() | mask);
-		__builtin_bfin_ssync();
-		gpioidx = 0;
-	} else if (gpionr < 32) {
-		mask = (1L << (gpionr - 16));
-		bfin_write_FIO1_DIR(bfin_read_FIO1_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO1_INEN(bfin_read_FIO1_INEN() | mask);
-		__builtin_bfin_ssync();
-		gpioidx = 1;
-	} else {
-		mask = (1L << (gpionr - 32));
-		bfin_write_FIO2_DIR(bfin_read_FIO2_DIR() & ~mask);
-		__builtin_bfin_ssync();
-		bfin_write_FIO2_INEN(bfin_read_FIO2_INEN() | mask);
-		__builtin_bfin_ssync();
-		gpioidx = 2;
-	}
+	u16 gpionr = irq - IRQ_PF0;
 
-	if (type == IRQT_PROBE) {
-		/* only probe unenabled GPIO interrupt lines */
-		if (gpio_enabled[gpioidx] & mask)
-			return 0;
-		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
-	}
-	if (type & (__IRQT_RISEDGE | __IRQT_FALEDGE |
-		    __IRQT_HIGHLVL | __IRQT_LOWLVL))
-		gpio_enabled[gpioidx] |= mask;
-	else
-		gpio_enabled[gpioidx] &= ~mask;
+		set_gpio_dir(gpionr, 0);
+		set_gpio_inen(gpionr, 1);
 
-	if (type & (__IRQT_RISEDGE | __IRQT_FALEDGE)) {
-		gpio_edge_triggered[gpioidx] |= mask;
-		if (gpionr < 16)
-			bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() | mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_EDGE(bfin_read_FIO1_EDGE() | mask);
+		if (type == IRQT_PROBE) {
+			/* only probe unenabled GPIO interrupt lines */
+			if (gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))
+				return 0;
+			type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
+
+		}
+
+		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
+			    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+			
+			gpio_enabled[gpio_bank(gpionr)] |= gpio_bit(gpionr);
 		else
-			bfin_write_FIO2_EDGE(bfin_read_FIO2_EDGE() | mask);
-	} else {
-		if (gpionr < 16)
-			bfin_write_FIO0_EDGE(bfin_read_FIO0_EDGE() & ~mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_EDGE(bfin_read_FIO1_EDGE() & ~mask);
+			gpio_enabled[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
+
+		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+			gpio_edge_triggered[gpio_bank(gpionr)] |= gpio_bit(gpionr);
+			set_gpio_edge(gpionr, 1);
+		} else {
+			set_gpio_edge(gpionr, 0);
+			gpio_edge_triggered[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
+		}
+
+		if ((type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
+		    == (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
+			set_gpio_both(gpionr, 1);
 		else
-			bfin_write_FIO2_EDGE(bfin_read_FIO2_EDGE() & ~mask);
-		gpio_edge_triggered[gpioidx] &= ~mask;
-	}
+			set_gpio_both(gpionr, 0);
+	
+		if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW)))
+			set_gpio_polar(gpionr, 1);	/* low or falling edge denoted by one */
+		else
+			set_gpio_polar(gpionr, 0);	/* high or rising edge denoted by zero */
+	
 	__builtin_bfin_ssync();
 
-	if ((type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
-	    == (__IRQT_RISEDGE | __IRQT_FALEDGE)) {
-		if (gpionr < 16)
-			bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() | mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_BOTH(bfin_read_FIO1_BOTH() | mask);
-		else
-			bfin_write_FIO2_BOTH(bfin_read_FIO2_BOTH() | mask);
-	} else {
-		if (gpionr < 16)
-			bfin_write_FIO0_BOTH(bfin_read_FIO0_BOTH() & ~mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_BOTH(bfin_read_FIO1_BOTH() & ~mask);
-		else
-			bfin_write_FIO2_BOTH(bfin_read_FIO2_BOTH() & ~mask);
-	}
-	__builtin_bfin_ssync();
-
-	if ((type & (__IRQT_FALEDGE | __IRQT_LOWLVL))
-	    && ((type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
-		!= (__IRQT_RISEDGE | __IRQT_FALEDGE))) {
-		/* low or falling edge denoted by one */
-		if (gpionr < 16)
-			bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() | mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_POLAR(bfin_read_FIO1_POLAR() | mask);
-		else
-			bfin_write_FIO2_POLAR(bfin_read_FIO2_POLAR() | mask);
-	} else {
-		/* high or rising edge denoted by zero */
-		if (gpionr < 16)
-			bfin_write_FIO0_POLAR(bfin_read_FIO0_POLAR() & ~mask);
-		else if (gpionr < 32)
-			bfin_write_FIO1_POLAR(bfin_read_FIO1_POLAR() & ~mask);
-		else
-			bfin_write_FIO2_POLAR(bfin_read_FIO2_POLAR() & ~mask);
-	}
-	__builtin_bfin_ssync();
-
-	if (type & (__IRQT_RISEDGE | __IRQT_FALEDGE))
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
 		set_irq_handler(irq, handle_edge_irq);
 	else
 		set_irq_handler(irq, handle_level_irq);
 
 	return 0;
 }
+
 static struct irq_chip bf561_gpio_irqchip = {
 	.ack = bf561_gpio_ack_irq,
 	.mask = bf561_gpio_mask_irq,
+	.mask_ack = bf561_gpio_mask_ack_irq,
 	.unmask = bf561_gpio_unmask_irq,
-	.type = bf561_gpio_irq_type
+	.set_type = bf561_gpio_irq_type,
+	.startup = bf561_gpio_irq_startup,
+	.shutdown = bf561_gpio_irq_shutdown
 };
 
-static void bf561_demux_gpio_irq(unsigned int intb_irq,
+static void bf561_demux_gpio_irq(unsigned int inta_irq,
 				 struct irq_desc *intb_desc,
 				 struct pt_regs *regs)
 {
-	int loop = 0;
+	int irq, flag_d, mask;
+	u16 gpio;
 
-	if (intb_irq == IRQ_PROG0_INTB) {
-		do {
-			int irq = IRQ_PF0;
-			int flag_d = bfin_read_FIO0_FLAG_D();
-			int mask =
-			    flag_d & (gpio_enabled[0] &
-				      bfin_read_FIO0_MASKB_D());
-			loop = mask;
-			do {
-				if (mask & 1) {
-					struct irq_desc *desc = irq_desc + irq;
-					desc->handle_irq(irq, desc, regs);
-				}
-				irq++;
-				mask >>= 1;
-			} while (mask);
-		} while (loop);
-	} else if (intb_irq == IRQ_PROG1_INTB) {
-		do {
-			int irq = IRQ_PF16;
-			int flag_d = bfin_read_FIO1_FLAG_D();
-			int mask =
-			    flag_d & (gpio_enabled[1] &
-				      bfin_read_FIO1_MASKB_D());
-			loop = mask;
-			do {
-				if (mask & 1) {
-					struct irq_desc *desc = irq_desc + irq;
-					desc->handle_irq(irq, desc, regs);
-				}
-				irq++;
-				mask >>= 1;
-			} while (mask);
-		} while (loop);
-	} else {
-		do {
-			int irq = IRQ_PF32;
-			int flag_d = bfin_read_FIO2_FLAG_D();
-			int mask =
-			    flag_d & (gpio_enabled[2] &
-				      bfin_read_FIO2_MASKB_D());
-			loop = mask;
-			do {
-				if (mask & 1) {
-					struct irq_desc *desc = irq_desc + irq;
-					desc->handle_irq(irq, desc, regs);
-				}
-				irq++;
-				mask >>= 1;
-			} while (mask);
-		} while (loop);
+	switch (inta_irq) {
+	case IRQ_PROG0_INTA:
+		irq = IRQ_PF0;
+		break;
+	case IRQ_PROG1_INTA:
+		irq = IRQ_PF16;
+		break;
+	case IRQ_PROG2_INTA:
+		irq = IRQ_PF32;
+		break;
+	default:
+		dump_stack();
+		return;
 	}
+
+	gpio = irq - IRQ_PF0;
+
+		flag_d = get_gpiop_data(gpio);
+		mask = flag_d & (gpio_enabled[gpio_bank(gpio)] &
+			      get_gpiop_maska(gpio));
+			
+			do {
+				if (mask & 1) {
+					struct irq_desc *desc = irq_desc + irq;
+					desc->handle_irq(irq, desc, regs);
+				}
+				irq++;
+				mask >>= 1;
+			} while (mask);
+
+
 }
+
 #endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
 
 /*
@@ -473,8 +393,8 @@ int __init init_arch_irq(void)
 		else
 			set_irq_chip(irq, &bf561_internal_irqchip);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
-		if ((irq != IRQ_PROG0_INTB) &&
-		    (irq != IRQ_PROG1_INTB) && (irq != IRQ_PROG2_INTB)) {
+		if ((irq != IRQ_PROG0_INTA) &&
+		    (irq != IRQ_PROG1_INTA) && (irq != IRQ_PROG2_INTA)) {
 #endif
 			set_irq_handler(irq, handle_simple_irq);
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
@@ -489,7 +409,7 @@ int __init init_arch_irq(void)
 	for (irq = IRQ_PF0; irq <= IRQ_PF47; irq++) {
 		set_irq_chip(irq, &bf561_gpio_irqchip);
 		/* if configured as edge, then will be changed to do_edge_IRQ */
-		set_irq_chained_handler(irq, handle_level_irq);
+		set_irq_handler(irq, handle_level_irq);
 	}
 #endif
 	bfin_write_IMASK(0);
