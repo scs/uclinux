@@ -196,7 +196,7 @@ config BFIN537_BLUETECHNIX_CM
 	  CM-BF537 support for EVAL- and DEV-Board.
 
 config BFIN561_BLUETECHNIX_CM
-	bool "BF561-EZKIT"
+	bool "BF561-CM"
 	depends on (BF561)
 	help
 	  CM-BF561 support for EVAL- and DEV-Board.
