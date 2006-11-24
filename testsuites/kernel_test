@@ -1256,7 +1256,7 @@ if [ $ltp_test -eq 1 ] ; then
     echo "ltp_auto_test.exp done"
     ./ltp_compare_results_all.sh config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new >> ltp_test_log
     ./ltp_decide_standard.pl config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new
-    if [ $? ] ; then
+    if [ $? == 1 ] ; then
       echo "ltp test fail"
       echo "LTP Test ............[FAIL]" >> ltp_test_log
     else
