@@ -146,14 +146,6 @@ static struct resource smc91x_resources[] = {
 		.end = 0x20200300 + 16,
 		.flags = IORESOURCE_MEM,
 	},{
-		.start = IRQ_PROG_INTB,
-		.end = IRQ_PROG_INTB,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},{
-		/*
-		 *  denotes the flag pin and is used directly if
-		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
-		 */
 		.start = IRQ_PF0,
 		.end = IRQ_PF0,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -177,10 +169,6 @@ static struct resource isp1362_hcd_resources[] = {
 		.start = 0x20308004,
 		.end = 0x20308004,
 		.flags = IORESOURCE_MEM,
-	},{
-		.start = IRQ_PROG_INTA,
-		.end = IRQ_PROG_INTA,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},{
 		.start = IRQ_PF4,
 		.end = IRQ_PF4,
