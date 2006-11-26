@@ -1,4 +1,4 @@
-CONFOPTS = --with-pcap=linux --with-headers=$(ROOTDIR)/include
+CONFOPTS = --host=$(CONFIGURE_HOST) --with-pcap=linux --with-headers=$(ROOTDIR)/include
 ifdef CONFIG_IPV6
 CONFOPTS += --enable-ipv6
 endif
