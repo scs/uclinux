@@ -430,7 +430,6 @@ void bfsi_reset(void) {
                 PRINTK("Error: cannot set reset to PJ5\n");
         }
 #endif	
-
   /* 
      p24 3050 data sheet, allow 1ms for PLL lock, with
      less than 1ms (1000us) I found register 2 would have
@@ -772,6 +771,8 @@ static void enable_dma_sport0(void)
 	__builtin_bfin_ssync();
 #endif
 #if defined(CONFIG_BF537)
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE|PJCE(3)));
+	__builtin_bfin_ssync();
 	bfin_write_DMA4_CONFIG(bfin_read_DMA4_CONFIG() | DMAEN);
 	bfin_write_DMA3_CONFIG(bfin_read_DMA3_CONFIG() | DMAEN);
 	__builtin_bfin_ssync();
@@ -902,7 +903,6 @@ int bfsi_sport_init(
   int debug
 )
 {
-  
   if (debug) {
     create_proc_read_entry("bfsi", 0, NULL, bfsi_proc_read, NULL);
     bfsi_debug = debug;

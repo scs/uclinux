@@ -212,7 +212,8 @@ void bfsi_spi_set_cs(int card)
 	u16 flag;
 	
 	if(card<2) chip_select = fxs_cs;
-	else chip_select = fxo_cs;
+	else 
+		chip_select = fxo_cs;
 	chip_select_mask = 1<<chip_select;
 	flag = 0xff00 | chip_select_mask;
 	write_FLAG(flag);
@@ -249,13 +250,13 @@ void bfsi_spi_init(int baud)
 #if defined(CONFIG_J11_JUMPER)
 	fxs_cs = 8-CONFIG_J11_JUMPER;
 #else
-	fxs_cs = 8-7;
+	fxs_cs = 8-3;
 #endif
 	
 #if defined(CONFIG_J19_JUMPER)
 	fxo_cs = 8- CONFIG_J19_JUMPER;
 #else
-	fxo_cs = 8-6;
+	fxo_cs = 8-2;
 #endif
 	
 #if defined(CONFIG_J16_CONFIG)
@@ -274,7 +275,7 @@ void bfsi_spi_init(int baud)
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3c00);
 		__builtin_bfin_ssync();
 
-	} else if (cs == 2 || cs == 3) {
+	} else if (cs == 2 || cs == 3 ) {
 		PRINTK("set for chip select 2\n");
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJSE_SPI);
 		__builtin_bfin_ssync();
@@ -311,7 +312,7 @@ void bfsi_spi_init(int baud)
 		bfin_write_PORTF_FER(bfin_read_PORTF_FER() | 0x3c00);
 		__builtin_bfin_ssync();
 
-	} else if (cs == 2 || cs == 3) {
+	} else if (cs == 2 || cs == 3 ) {
 		PRINTK("set for chip select 2\n");
 		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PJSE_SPI);
 		__builtin_bfin_ssync();
@@ -757,6 +758,8 @@ static void enable_dma_sport0(void)
 	__builtin_bfin_ssync();
 #endif
 #if defined(CONFIG_BF537)
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE|PJCE(3)));
+	__builtin_bfin_ssync();
 	bfin_write_DMA4_CONFIG(bfin_read_DMA4_CONFIG() | DMAEN);
 	bfin_write_DMA3_CONFIG(bfin_read_DMA3_CONFIG() | DMAEN);
 	__builtin_bfin_ssync();
