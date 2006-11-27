@@ -428,18 +428,16 @@ static void bf534_demux_gpio_irq(unsigned int intb_irq,
 		int irq = IRQ_PF0 + i;
 		int flag_d = get_gpiop_data(i);
 		int mask =
-		flag_d & (gpio_enabled[gpio_bank(i)] &
+			flag_d & (gpio_enabled[gpio_bank(i)] &
 			      get_gpiop_maska(i));
 
-		if (mask) {
-			do {
-				if (mask & 1) {
-					struct irq_desc *desc = irq_desc + irq;
-					desc->handle_irq(irq, desc, regs);
-				}
-				irq++;
-				mask >>= 1;
-			} while (mask);
+		while (mask) {
+			if (mask & 1) {
+				struct irq_desc *desc = irq_desc + irq;
+				desc->handle_irq(irq, desc, regs);
+			}
+			irq++;
+			mask >>= 1;
 		}
 	}
 }
