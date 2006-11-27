@@ -34,3 +34,13 @@ set jffs2_rootfs_image   rootfs.jffs2
 set yaffs_rootfs_image   rootfs.yaffs
 set yaffs2_rootfs_image  rootfs.yaffs2
 
+
+proc step { message } {
+
+  global step_sequence_number
+
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
