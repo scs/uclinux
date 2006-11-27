@@ -274,11 +274,11 @@ expect "root:~>"
 send "modprobe hello\r" 
 while 1 {   
          expect {
-	  "Code test: code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[
-	   ]*Data bank A test: data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 1*\[
-	   ]*BSS  bank A test: bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0*\[
-	   ]*Data bank B test: data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 2*\[
-	   ]*BSS  bank B test: bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
+	  "code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[
+	   ]*data variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 1*\[
+	   ]*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0*\[
+	   ]*data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 2*\[
+	   ]*bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
 		send_log "\nCase $case_num ...PASS\n"
 		break
 	 }
