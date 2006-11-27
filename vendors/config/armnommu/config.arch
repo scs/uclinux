@@ -55,15 +55,15 @@ endif
 # ARCH = kernel,  TARGET_ARCH = uClibc
 
 MACHINE       = arm
-ifdef CONFIG_DEFAULTS_KERNEL_2_6
+ifneq ($(shell grep CONFIG_DEFAULTS_KERNEL_2_6=y $(ROOTDIR)/.config),)
 ARCH          = arm
 else
 ARCH          = armnommu
 endif
 ENDIAN        ?= little
-CROSS_COMPILE = arm-elf-
+CROSS_COMPILE = arm-linux-
 CROSS         = $(CROSS_COMPILE)
-CONFIGURE_HOST = arm-elf
+CONFIGURE_HOST = arm-linux
 
 CONFIG_UCLINUX=y
 
@@ -89,6 +89,15 @@ ifndef DISABLE_SHARED_LIBS
   endif
 endif
 
+# These can be used by configure.
+# Either configure $(CONFIGURE_OPTS)
+# or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+#
+TARGETARCH    := arm-linux
+HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
+CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+
+
 ############################################################################
 #
 # General purpose lib building rules,  uClibc.config uses these when
@@ -101,7 +110,7 @@ ifdef UCLINUX_BUILD_LIB
   else
 	CFLAGS  :=  $(if $(LOPT),$(LOPT),-O2) -g -fomit-frame-pointer
   endif
-	CFLAGS  += -pipe
+	CFLAGS  += -pipe -msoft-float
 	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
 	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
 
@@ -118,7 +127,7 @@ ifdef UCLINUX_BUILD_LIB
 
 	CFLAGS  += -Dlinux -D__linux__ -Dunix
 	CFLAGS  += -D__uClinux__
-	LDFLAGS += -Wl,-elf2flt
+	LDFLAGS += -Wl,-elf2flt -msoft-float
   ifndef DISABLE_MOVE_RODATA
   	LDFLAGS += -Wl,-move-rodata
   endif
@@ -150,7 +159,7 @@ ifdef UCLINUX_BUILD_USER
   else
 	CFLAGS  :=  $(if $(UOPT),$(UOPT),-O2) -g -fomit-frame-pointer
   endif
-	CFLAGS  += -pipe
+	CFLAGS  += -pipe -msoft-float
 	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
 	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
 
@@ -171,7 +180,7 @@ ifdef UCLINUX_BUILD_USER
 	CXXFLAGS = $(CFLAGS) -nostdinc++ -fno-exceptions
 	CXXSUP := 
 
-	LDFLAGS += -Wl,-elf2flt
+	LDFLAGS += -Wl,-elf2flt -msoft-float
   ifndef DISABLE_MOVE_RODATA
   	LDFLAGS += -Wl,-move-rodata
   endif
