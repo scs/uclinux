@@ -42,7 +42,7 @@
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 
-#if (defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534))
+#ifdef BF537_FAMILY
 # define BF537_GENERIC_ERROR_INT_DEMUX
 #else
 # undef BF537_GENERIC_ERROR_INT_DEMUX
@@ -300,14 +300,14 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 
-static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
-static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)]; 
+static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
 static void bf53x_gpio_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
-	
-	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+
+	if (gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
 		set_gpio_data(gpionr, 0);
 		__builtin_bfin_ssync();
 	}
@@ -317,7 +317,7 @@ static void bf53x_gpio_mask_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
-	if(gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
+	if (gpio_edge_triggered[gpio_bank(gpionr)] & gpio_bit(gpionr)) {
 		set_gpio_data(gpionr, 0);
 		__builtin_bfin_ssync();
 	}
@@ -345,10 +345,9 @@ static unsigned int bf53x_gpio_irq_startup(unsigned int irq)
 	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
 
 	if (!ret)
-	  bf53x_gpio_unmask_irq(irq);
+		bf53x_gpio_unmask_irq(irq);
 
-  return ret;
-
+	return ret;
 }
 
 static void bf53x_gpio_irq_shutdown(unsigned int irq)
@@ -359,7 +358,6 @@ static void bf53x_gpio_irq_shutdown(unsigned int irq)
 
 static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
 {
-
 	u16 gpionr = irq - IRQ_PF0;
 
 		set_gpio_dir(gpionr, 0);
@@ -375,7 +373,6 @@ static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
 
 		if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 			    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
-			
 			gpio_enabled[gpio_bank(gpionr)] |= gpio_bit(gpionr);
 		else
 			gpio_enabled[gpio_bank(gpionr)] &= ~gpio_bit(gpionr);
@@ -393,12 +390,12 @@ static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
 			set_gpio_both(gpionr, 1);
 		else
 			set_gpio_both(gpionr, 0);
-	
+
 		if ((type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_LEVEL_LOW)))
 			set_gpio_polar(gpionr, 1);	/* low or falling edge denoted by one */
 		else
 			set_gpio_polar(gpionr, 0);	/* high or rising edge denoted by zero */
-	
+
 	__builtin_bfin_ssync();
 
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING))
@@ -428,15 +425,13 @@ static void bf534_demux_gpio_irq(unsigned int intb_irq,
 	u16 i;
 
 	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=16) {
-
 		int irq = IRQ_PF0 + i;
 		int flag_d = get_gpiop_data(i);
 		int mask =
 		flag_d & (gpio_enabled[gpio_bank(i)] &
 			      get_gpiop_maska(i));
 
-		if(mask) {
-			
+		if (mask) {
 			do {
 				if (mask & 1) {
 					struct irq_desc *desc = irq_desc + irq;
@@ -447,7 +442,6 @@ static void bf534_demux_gpio_irq(unsigned int intb_irq,
 			} while (mask);
 		}
 	}
-
 }
 
 #endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
