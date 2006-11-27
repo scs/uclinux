@@ -183,7 +183,7 @@ while 1 {
 
 
 set timeout 5
-send -s "bootm 0x20040000\r"
+send -s "bootm 0x20020000\r"
 while 1 {
    expect {
       "Linux version" {
