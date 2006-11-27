@@ -152,7 +152,7 @@ if { $where_are_we == "uboot" } {
    }
 	
 expect ">"
-send -s "set bootargs root=/dev/mtdblock0 rw\r"
+send -s "set bootargs root=/dev/mtdblock0 rw mem=32M max_mem=64M \r"
 expect ">"
 send -s "save\r"
 expect ">"
