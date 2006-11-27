@@ -129,14 +129,14 @@ static void ack_noop(unsigned int irq)
 	/* Dummy function.  */
 }
 
-static void bf53x_core_mask_irq(unsigned int irq)
+static void bfin_core_mask_irq(unsigned int irq)
 {
 	irq_flags &= ~(1 << irq);
 	if (!irqs_disabled())
 		local_irq_enable();
 }
 
-static void bf53x_core_unmask_irq(unsigned int irq)
+static void bfin_core_unmask_irq(unsigned int irq)
 {
 	irq_flags |= 1 << irq;
 	/*
@@ -153,41 +153,41 @@ static void bf53x_core_unmask_irq(unsigned int irq)
 	return;
 }
 
-static void bf53x_internal_mask_irq(unsigned int irq)
+static void bfin_internal_mask_irq(unsigned int irq)
 {
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() &
 			     ~(1 << (irq - (IRQ_CORETMR + 1))));
 	__builtin_bfin_ssync();
 }
 
-static void bf53x_internal_unmask_irq(unsigned int irq)
+static void bfin_internal_unmask_irq(unsigned int irq)
 {
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() |
 			     (1 << (irq - (IRQ_CORETMR + 1))));
 	__builtin_bfin_ssync();
 }
 
-static struct irq_chip bf53x_core_irqchip = {
+static struct irq_chip bfin_core_irqchip = {
 	.ack = ack_noop,
-	.mask = bf53x_core_mask_irq,
-	.unmask = bf53x_core_unmask_irq,
+	.mask = bfin_core_mask_irq,
+	.unmask = bfin_core_unmask_irq,
 };
 
-static struct irq_chip bf53x_internal_irqchip = {
+static struct irq_chip bfin_internal_irqchip = {
 	.ack = ack_noop,
-	.mask = bf53x_internal_mask_irq,
-	.unmask = bf53x_internal_unmask_irq,
+	.mask = bfin_internal_mask_irq,
+	.unmask = bfin_internal_unmask_irq,
 };
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 static int error_int_mask;
 
-static void bf537_generic_error_ack_irq(unsigned int irq)
+static void bfin_generic_error_ack_irq(unsigned int irq)
 {
 
 }
 
-static void bf537_generic_error_mask_irq(unsigned int irq)
+static void bfin_generic_error_mask_irq(unsigned int irq)
 {
 	error_int_mask &= ~(1L << (irq - IRQ_PPI_ERROR));
 
@@ -202,7 +202,7 @@ static void bf537_generic_error_mask_irq(unsigned int irq)
 	}
 }
 
-static void bf537_generic_error_unmask_irq(unsigned int irq)
+static void bfin_generic_error_unmask_irq(unsigned int irq)
 {
 	local_irq_disable();
 	bfin_write_SIC_IMASK(bfin_read_SIC_IMASK() | 1 <<
@@ -213,13 +213,13 @@ static void bf537_generic_error_unmask_irq(unsigned int irq)
 	error_int_mask |= 1L << (irq - IRQ_PPI_ERROR);
 }
 
-static struct irq_chip bf537_generic_error_irqchip = {
-	.ack = bf537_generic_error_ack_irq,
-	.mask = bf537_generic_error_mask_irq,
-	.unmask = bf537_generic_error_unmask_irq,
+static struct irq_chip bfin_generic_error_irqchip = {
+	.ack = bfin_generic_error_ack_irq,
+	.mask = bfin_generic_error_mask_irq,
+	.unmask = bfin_generic_error_unmask_irq,
 };
 
-static void bf537_demux_error_irq(unsigned int int_err_irq,
+static void bfin_demux_error_irq(unsigned int int_err_irq,
 				  struct irq_desc *intb_desc,
 				  struct pt_regs *regs)
 {
@@ -303,7 +303,7 @@ static void bf537_demux_error_irq(unsigned int int_err_irq,
 static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
-static void bf53x_gpio_ack_irq(unsigned int irq)
+static void bfin_gpio_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
@@ -313,7 +313,7 @@ static void bf53x_gpio_ack_irq(unsigned int irq)
 	}
 }
 
-static void bf53x_gpio_mask_ack_irq(unsigned int irq)
+static void bfin_gpio_mask_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
@@ -326,37 +326,37 @@ static void bf53x_gpio_mask_ack_irq(unsigned int irq)
 	__builtin_bfin_ssync();
 }
 
-static void bf53x_gpio_mask_irq(unsigned int irq)
+static void bfin_gpio_mask_irq(unsigned int irq)
 {
 	set_gpio_maska(irq - IRQ_PF0, 0);
 	__builtin_bfin_ssync();
 }
 
-static void bf53x_gpio_unmask_irq(unsigned int irq)
+static void bfin_gpio_unmask_irq(unsigned int irq)
 {
 	set_gpio_maska(irq - IRQ_PF0, 1);
 	__builtin_bfin_ssync();
 }
 
-static unsigned int bf53x_gpio_irq_startup(unsigned int irq)
+static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
 
 	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
 
 	if (!ret)
-		bf53x_gpio_unmask_irq(irq);
+		bfin_gpio_unmask_irq(irq);
 
 	return ret;
 }
 
-static void bf53x_gpio_irq_shutdown(unsigned int irq)
+static void bfin_gpio_irq_shutdown(unsigned int irq)
 {
-	bf53x_gpio_mask_irq(irq);
+	bfin_gpio_mask_irq(irq);
 	free_gpio(irq - IRQ_PF0);
 }
 
-static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
+static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 	u16 gpionr = irq - IRQ_PF0;
 
@@ -408,17 +408,17 @@ static int bf53x_gpio_irq_type(unsigned int irq, unsigned int type)
 
 
 
-static struct irq_chip bf53x_gpio_irqchip = {
-	.ack = bf53x_gpio_ack_irq,
-	.mask = bf53x_gpio_mask_irq,
-	.mask_ack = bf53x_gpio_mask_ack_irq,
-	.unmask = bf53x_gpio_unmask_irq,
-	.set_type = bf53x_gpio_irq_type,
-	.startup = bf53x_gpio_irq_startup,
-	.shutdown = bf53x_gpio_irq_shutdown
+static struct irq_chip bfin_gpio_irqchip = {
+	.ack = bfin_gpio_ack_irq,
+	.mask = bfin_gpio_mask_irq,
+	.mask_ack = bfin_gpio_mask_ack_irq,
+	.unmask = bfin_gpio_unmask_irq,
+	.set_type = bfin_gpio_irq_type,
+	.startup = bfin_gpio_irq_startup,
+	.shutdown = bfin_gpio_irq_shutdown
 };
 
-static void bf534_demux_gpio_irq(unsigned int intb_irq,
+static void bfin_demux_gpio_irq(unsigned int intb_irq,
 				 struct irq_desc *intb_desc,
 				 struct pt_regs *regs)
 {
@@ -478,9 +478,9 @@ int __init init_arch_irq(void)
 
 	for (irq = 0; irq < SYS_IRQS; irq++) {
 		if (irq <= IRQ_CORETMR)
-			set_irq_chip(irq, &bf53x_core_irqchip);
+			set_irq_chip(irq, &bfin_core_irqchip);
 		else
-			set_irq_chip(irq, &bf53x_internal_irqchip);
+			set_irq_chip(irq, &bfin_internal_irqchip);
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 		if (irq != IRQ_GENERIC_ERROR) {
 #endif
@@ -496,26 +496,26 @@ int __init init_arch_irq(void)
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 			} else {
 				set_irq_chained_handler(irq,
-							bf534_demux_gpio_irq);
+							bfin_demux_gpio_irq);
 			}
 #endif
 
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 		} else {
-			set_irq_handler(irq, bf537_demux_error_irq);
+			set_irq_handler(irq, bfin_demux_error_irq);
 		}
 #endif
 	}
 #ifdef BF537_GENERIC_ERROR_INT_DEMUX
 	for (irq = IRQ_PPI_ERROR; irq <= IRQ_UART1_ERROR; irq++) {
-		set_irq_chip(irq, &bf537_generic_error_irqchip);
+		set_irq_chip(irq, &bfin_generic_error_irqchip);
 		set_irq_handler(irq, handle_level_irq);
 	}
 #endif
 
 #ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 	for (irq = IRQ_PF0; irq < NR_IRQS; irq++) {
-		set_irq_chip(irq, &bf53x_gpio_irqchip);
+		set_irq_chip(irq, &bfin_gpio_irqchip);
 		/* if configured as edge, then will be changed to do_edge_IRQ */
 		set_irq_handler(irq, handle_level_irq);
 	}
