@@ -349,6 +349,7 @@ static struct mtd_info* stm_flash_probe(struct map_info *map)
 	mtd->sync = stm_flash_sync;
 	mtd->suspend = stm_flash_suspend;
 	mtd->resume = stm_flash_resume;
+	mtd->writesize = 1;
 
 	private = kmalloc(sizeof(*private) + 
 			(sizeof(struct flchip) * temp.numchips), GFP_KERNEL);
