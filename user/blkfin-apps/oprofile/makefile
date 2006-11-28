@@ -1,26 +1,25 @@
+CFLAGS += -I$(ROOTDIR)/lib/popt
+CXXFLAGS += -I$(ROOTDIR)/lib/popt -fexceptions
+LDFLAGS += -L$(ROOTDIR)/lib/popt/build/.libs
 
-LO_CFLAGS=  -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/build/.libs/  $(BINUTILS_FLAG) 
+CONFOPTS = --with-kernel-support --prefix=/usr
 
-LO_CXXFLAGS= -I${ROOTDIR}/lib/popt -L${ROOTDIR}/lib/popt/build/.libs  $(BINUTILS_FLAG)
+all: build/Makefile
+	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
+	-$(STRIPTOOL) $$PWD/DESTDIR/usr/bin/*
 
-LO_LDFLAGS= -Wl,-elf2flt
-
-CONFIGURE_SETTINGS := --with-kernel-support --build=i386-pc-linux-gnu --host=bfin-uclinux --prefix=${ROMFSDIR}/usr
-
-
-silly_thingy: Makefile
-	make -f Makefile
-Makefile:
-	unset LDFLAGS CC CFLAGS && \
-			CFLAGS="$(LO_CFLAGS)" CXXFLAGS="$(LO_CXXFLAGS)" LDFLAGS="$(LO_LDFLAGS)" ./configure $(CONFIGURE_SETTINGS)
+build/Makefile: makefile
+	touch * */* */*/*
+	set -e ; \
+	rm -rf build ; \
+	mkdir build ; \
+	cd build ; \
+	../configure $(CONFIGURE_OPTS) $(CONFOPTS)
 
 romfs:
-	make -f Makefile install
-	cp ./bfin_opcontrol $(ROMFSDIR)/usr/bin
+	$(ROMFSINST) DESTDIR/usr/bin /usr/bin
+	$(ROMFSINST) DESTDIR/usr/share/oprofile /usr/share/oprofile
+	$(ROMFSINST) bfin_opcontrol /usr/bin
 
 clean:
-	make -f Makefile distclean
-%: Makefile
-	make -f Makefile $@
-
-
+	rm -rf build DESTDIR
