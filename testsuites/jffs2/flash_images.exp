@@ -164,11 +164,18 @@ set timeout 1200
 send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
     while 1 {
 	expect {
-	    
+	  	      
 	    "done" {
 		set tftp_flag SUCCESS
-		break
+#		break
 	    }
+	
+            -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
+ 
+                set image_size $expect_out(1,string)
+                send_user "Image size is $image_size\n"
+                break
+            }
 	    
 	    timeout {
 		send_user "ERROR: Uboot locked up during tftp\n"
@@ -223,7 +230,7 @@ send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
 	
         set timeout 500
  	
-	send -s "cp.b 0x1000000 0x20020000 0xc0000\r"
+	send -s "cp.b 0x1000000 0x20020000 0x$image_size\r"
 	while 1 {
 	    expect {
 	    
