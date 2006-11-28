@@ -1,5 +1,8 @@
 #!/usr/bin/expect
 
+# This file couldn't be indepently executed.
+# It is meant to be included into ***_test.exp scripts. 
+
 send_user "Try to figure out if we are in u-boot or the kernel"
 set where_are_we 0
 send "version\r"
@@ -64,7 +67,7 @@ while 1 {
 }
 	
 expect ">"
-send -s "set bootargs root=/dev/mtdblock0 rw\r"
+send -s "set bootargs $bootargs\r"
 expect ">"
 send -s "save\r"
 expect ">"
