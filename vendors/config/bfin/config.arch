@@ -4,14 +4,16 @@
 # Vendor specific settings
 #
 
-#CONSOLE_BAUD_RATE = 57600
+ifndef CONSOLE_BAUD_RATE
+CONSOLE_BAUD_RATE = 57600
+endif
 
 ############################################################################
 #
 # The makefiles need to know how to do things in different contexts
 # To save some pain we put it all here
 #
-# First settings we always want for all build
+# First settings we always want for all builds
 #
 
 # ARCH = kernel,  TARGET_ARCH = uClibc
@@ -22,6 +24,8 @@ ENDIAN         = little
 CROSS_COMPILE  = bfin-uclinux-
 CROSS          = $(CROSS_COMPILE)
 CONFIGURE_HOST = bfin-uclinux
+
+CONFIG_UCLINUX=y
 
 CC        = $(CROSS_COMPILE)gcc
 AS        = $(CROSS_COMPILE)as
@@ -36,12 +40,25 @@ STRIP     = $(STRIPTOOL)
 
 UCLINUX_BUILD_SET = 0		# have we set a special config below
 
+# Pull in common definitions
+include $(ROOTDIR)/vendors/config/common/config.arch
+
+ifndef DISABLE_SHARED_LIBS
   ifeq ($(CONFIG_BLACKFIN_USE_SHARED_FLAT),y)
 	BUILD_SHARED = 1
   endif
   ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
 	BUILD_FDPIC = 1
   endif
+endif
+
+# These can be used by configure.
+# Either configure $(CONFIGURE_OPTS)
+# or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+#
+TARGETARCH    := bfin-uclinux
+HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
+CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
 
 ############################################################################
 #
@@ -50,7 +67,6 @@ UCLINUX_BUILD_SET = 0		# have we set a special config below
 #
 
 ifdef UCLINUX_BUILD_LIB
-
   ifdef CONFIG_LIB_DEBUG
 	CFLAGS  :=  -O0 -g
 	STRIPTOOL = echo
@@ -58,11 +74,12 @@ ifdef UCLINUX_BUILD_LIB
   else
 	CFLAGS  :=  -O2
   endif
-	CFLAGS  += -fno-builtin 
+	CFLAGS  += -pipe
+	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
+	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
 	CFLAGS  += -mstack-check-l1
   endif
-	CFLAGS  += -DEMBED
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library 
   endif
@@ -71,11 +88,11 @@ ifdef UCLINUX_BUILD_LIB
 	LDFLAGS += -mfdpic
   endif
 	# don't want all the CFLAGS for uClibc/Config
-	ARCH_CFLAGS = $(CPUFLAGS) $(CFLAGS)
+	ARCH_CFLAGS := $(CPUFLAGS) $(CFLAGS)
 	CFLAGS  += -D__uClinux__
 
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
-	# the following is needed for uClinux-2.4
+
 	UCLINUX_BUILD_SET=1
 endif
 
@@ -88,54 +105,12 @@ ifdef UCLINUX_BUILD_USER
 
 	GCC_DIR = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
 
-	SLIBC        = -lc
-	SLIBM        = -lm
-	SLIBNET      = -lnet
-	SLIBDES      = -ldes
-	SLIBAES      = -laes
-	SLIBPCAP     = -lpcap
-	SLIBSSL      = -lssl
-	SLIBCRYPT   = -lcrypt
-	SLIBPTHREAD  = -lpthread
-
   ifdef BUILD_SHARED
 	FLAT_LIBC     := $(shell $(CC) -mid-shared-library -print-file-name=libc.gdb)
 	LIBC	      = -Wl,-R,$(FLAT_LIBC)
   else
 	LIBC          = $(SLIBC)
   endif
-	LIBM        = $(SLIBM)
-	LIBNET      = $(SLIBNET)
-	LIBDES      = $(SLIBDES)
-	LIBPCAP     = $(SLIBPCAP)
-	LIBSSL      = $(SLIBSSL)
-	LIBPTHREAD  = $(SLIBPTHREAD)
-	LIBCRYPT    = $(SLIBCRYPT)
-	LIBGCC      = -lgcc
-	LIBIBERTY   = -liberty
-	LIBIO       = -lio
-	LIBIOSTREAM = -liostream
-	LIBSTDCPP   = -lstdc++
-
-	LDPATH += \
-			-L$(ROOTDIR)/lib/libnet \
-			-L$(ROOTDIR)/lib/libdes \
-			-L$(ROOTDIR)/lib/libaes \
-			-L$(ROOTDIR)/lib/libpcap \
-			-L$(ROOTDIR)/lib/zlib \
-			-L$(ROOTDIR)/lib/libssl
-
-	INCLIBC =
-	INCLIBM =
-	INCNET  = -I$(ROOTDIR)/lib/libnet
-	INCDES  = -I$(ROOTDIR)/freeswan/libdes
-	INCAES  = -I$(ROOTDIR)/freeswan/libcrypto/libaes
-	INCGMP  = -I$(ROOTDIR)/lib/libgmp
-	INCPCAP = -I$(ROOTDIR)/lib/libpcap
-	INCSSL  = -I$(ROOTDIR)/lib/libssl/include
-	INCZ    = -I$(ROOTDIR)/lib/zlib
-	INCLINUX= -I$(ROOTDIR)/$(LINUXDIR)/include
-	INCDIST= -I$(ROOTDIR)
 
   ifdef CONFIG_USER_DEBUG
 	CFLAGS  :=  -O0 -g
@@ -158,7 +133,7 @@ ifdef UCLINUX_BUILD_USER
 	LDFLAGS = -Wl,-elf2flt
   endif
 	CXXFLAGS := $(CFLAGS) $(INCCXX) -fno-exceptions
-	CFLAGS  += $(INCDIST)
+	CFLAGS  += -I$(ROOTDIR)
 
 	LDLIBS   = $(LDPATH)
 
@@ -185,7 +160,9 @@ endif
 #
 
 ifeq ($(UCLINUX_BUILD_SET),1)
-	 EXTRA_CFLAGS := -Dlinux $(CPUFLAGS)
+	EXTRA_CFLAGS := $(CPUFLAGS)
+
+	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
 endif
 
 ############################################################################
