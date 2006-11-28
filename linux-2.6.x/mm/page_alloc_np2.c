@@ -635,18 +635,15 @@ static struct page *np2_get_pages(int size)
 				osize = page->np2_size;
 				page->np2_size = osize - ssize;
 				page = &page[osize - ssize];
-				page->np2_size = -ssize;
 			} else {	/* take from start of block */
 				osize = page->np2_size;
 				page[ssize].np2_size = osize - ssize;
-				page->np2_size = -ssize;
 			}
-			/* adjust count ... remember this is negative */
-			zone->free_pages -= page->np2_size;
-		} else {	/* exact match NOTE ... use size here */
-			page->np2_size = -ssize;
-			list_del(&page->np2_list);
-		}		/* end size adjust */
+			page->np2_size = ssize;
+			__free_pages(page, 0);
+		}
+		list_del(&page->np2_list);
+		page->np2_size = -ssize;
 		if (splitsingle) {
 			if ((size == 1) && (ssize == 2)) {
 				struct page *spage;
@@ -1047,7 +1044,6 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 {
 	if (order == 0) {
 		__ClearPageReserved(page);
-		set_page_count(page, 0);
 		if (use_np2) {
 			page->np2_size = -1;
 			__free_pages(page, 0);
@@ -1065,7 +1061,6 @@ void fastcall __init __free_pages_bootmem(struct page *page, unsigned int order)
 			if (loop + 1 < BITS_PER_LONG)
 				prefetchw(p + 1);
 			__ClearPageReserved(p);
-			set_page_count(p, 0);
 		}
 
 		if (use_np2) {
@@ -1553,9 +1548,8 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 			PRINTK("NP2 unable to alloc size %d\n", size);
 			np2_show_pages(1, 0, 0);
 		} else {
-			get_page(page);
 			// PSW added these
-			//prep_new_page(page, order);
+			prep_new_page(page, order, gfp_mask);
 			if (0 && (np2_num_allocs > 0) && (np2_num_allocs < 250)) {
 				PRINTK("(%3d) pfn %5d "
 				       "addr %p size %8x order %d count %d <%s>\n",
@@ -1574,11 +1568,6 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order,
 				       order, page_count(page)
 				    );
 			}
-			if (gfp_mask & __GFP_ZERO)
-				prep_zero_page(page, order, gfp_mask);
-
-			if (order && (gfp_mask & __GFP_COMP))
-				prep_compound_page(page, order);
 		}
 		return page;	/* np2 return */
 	}
@@ -1776,7 +1765,8 @@ fastcall void __free_pages(struct page *page, unsigned int order)
 	unsigned long flags;
 	int size = np2_get_size(order);
 
-	if (use_np2 || put_page_testzero(page)) {
+	if (use_np2) {
+		put_page_testzero(page);
 		/* manage np2 size */
 		np2_clear_page_size(page, size, order);
 		np2_num_frees++;
@@ -1787,6 +1777,8 @@ fastcall void __free_pages(struct page *page, unsigned int order)
 			if (page->np2_size > 0 /* 2 */ ) {
 				list_add(&page->np2_list, &zone->np2_list);
 			}
+			if (PageCompound(page))
+				destroy_compound_page(page, order);
 			spin_unlock_irqrestore(&zone->lock, flags);
 			return;
 		}
