@@ -1,0 +1,5 @@
+#!/usr/bin/expect
+
+set timeout 8
+cd $uclinux_path
+exec cp images/linux  /tftpboot

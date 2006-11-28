@@ -34,9 +34,11 @@ set jffs2_rootfs_image   rootfs.jffs2
 set yaffs_rootfs_image   rootfs.yaffs
 set yaffs2_rootfs_image  rootfs.yaffs2
 
+
 set bootargs_param0      "root=/dev/mtdblock0 rw" 
 set bootargs_param1      "root=/dev/mtdblock2 rw rootfstype=jffs2"
 set bootargs 		 $bootargs_param0
+
 
 set linux_version "not found"
 set gcc_version "not found"
@@ -50,6 +52,16 @@ set data_cache_boot_flag "not found"
 
 set CACHE_ENABLED           "enabled"
 set CACHE_DISABLED          "disabled"
+
+proc log_file_name { file_name } {
+    
+  return [ exec echo "$file_name" | sed "s/.exp/_log/g" ]
+}
+
+proc title { file_name } {
+    
+  return [ exec echo "$file_name" | sed "s/\\.\\/\\(\.\*\\)_\\(\.\*\\).exp/\\1 \\2/g" | tr 'a-z' 'A-Z' ]
+}
 
 set step_sequence_number    1
 

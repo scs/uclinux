@@ -1,0 +1,33 @@
+#!/usr/bin/expect
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+            
+             send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+	     break
+
+      }
+   }
+}

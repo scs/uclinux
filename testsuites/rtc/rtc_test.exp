@@ -1,12 +1,12 @@
 #!/usr/bin/expect
 
-log_file rtc_test_log
-
-send_user "Starting rtc_test.exp\n"
-
-set TITLE "RTC Test"
-
 source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
@@ -60,7 +60,7 @@ while 1 {
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n" 
 
-send_user "Ending rtc_test.exp\n"
+send_user "Ending $argv0\n"
 
 log_file
 
