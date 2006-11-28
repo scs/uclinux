@@ -85,8 +85,6 @@
 #ifndef __ARCH_BLACKFIN_GPIO_H__
 #define __ARCH_BLACKFIN_GPIO_H__
 
-//#include <asm/mach/gpio.h>
-
 #define gpio_bank(x) (x >> 4)
 #define gpio_bit(x)  (1<<(x & 0xF))
 #define gpio_sub_n(x) (x & 0xF)
@@ -141,28 +139,6 @@
 #define	GPIO_47	47
 
 
-#define GPIO_INV_POLAR		0x8
-#define GPIO_INPUT	 	0x4
-#define GPIO_OUTPUT		0x2
-	
-#define REQUEST_GPIO		0x0
-#define REQUEST_ALT_FUNCT	0x1
-
-#define GPIO_DIR_INPUT 0
-#define GPIO_DIR_OUTPUT 1
-
-#define GPIO_INPUT_DISABLE 0
-#define GPIO_INPUT_ENABLE 1
-
-#define GPIO_POLAR_AH_RE 0
-#define GPIO_POLAR_AL_FE 1
-
-#define GPIO_EDGE_LEVEL 0
-#define GPIO_EDGE_EDGE 1
-
-#define GPIO_BOTH_SE 0
-#define GPIO_BOTH_BE 1
-
 #define PERIPHERAL_USAGE 1
 #define GPIO_USAGE 0
  
@@ -175,6 +151,7 @@
 #define PORT_F 0
 #define PORT_G 1
 #define PORT_H 2
+#define PORT_J 3
 
 #define	GPIO_PF0	0 
 #define	GPIO_PF1	1 
@@ -236,6 +213,23 @@
 
 #ifndef __ASSEMBLY__
 
+/***********************************************************
+*
+* FUNCTIONS: Blackfin General Purpose Ports Access Functions
+*
+* INPUTS/OUTPUTS:
+* gpio - GPIO Number between 0 and MAX_BLACKFIN_GPIOS
+* 
+*
+* DESCRIPTION: These functions abstract direct register access
+*              to Blackfin processor General Purpose 
+*              Ports Regsiters 
+*              
+* CAUTION: These functions do not belong to the GPIO Driver API
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+
 void set_gpio_dir(unsigned short, unsigned short);
 void set_gpio_inen(unsigned short, unsigned short);
 void set_gpio_polar(unsigned short, unsigned short);
@@ -261,15 +255,13 @@ unsigned short get_gpiop_both(unsigned short);
 unsigned short get_gpiop_maska(unsigned short);
 unsigned short get_gpiop_maskb(unsigned short);
 unsigned short get_gpiop_data(unsigned short);
-int request_gpio(unsigned short, unsigned short);
-void free_gpio(unsigned short);
 
 struct gpio_port_t {
 	unsigned short data;
 	unsigned short dummy1;
-	unsigned short clear;
+	unsigned short data_clear;
 	unsigned short dummy2;
-	unsigned short set;
+	unsigned short data_set;
 	unsigned short dummy3;
 	unsigned short toggle;
 	unsigned short dummy4;
@@ -299,6 +291,34 @@ struct gpio_port_t {
 	unsigned short dummy16;
 	unsigned short inen;
 };
+
+
+/***********************************************************
+*
+* FUNCTIONS: Blackfin GPIO Driver 
+*
+* INPUTS/OUTPUTS:
+* gpio - GPIO Number between 0 and MAX_BLACKFIN_GPIOS
+* 
+*
+* DESCRIPTION: Blackfin GPIO Driver API
+*               
+* CAUTION: 
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+
+int gpio_request(unsigned short, const char *);
+void gpio_free(unsigned short);
+
+void gpio_set_value(unsigned short gpio, unsigned short arg);
+unsigned short gpio_get_value(unsigned short gpio);
+
+#define gpio_get_value(gpio) 		get_gpio_data(gpio)
+#define gpio_set_value(gpio, value)	set_gpio_data(gpio, value)
+
+void gpio_direction_input(unsigned short gpio);
+void gpio_direction_output(unsigned short gpio);
 
 #endif /* __ASSEMBLY__ */
 

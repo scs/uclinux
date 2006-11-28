@@ -29,8 +29,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-
-
 /*
 *  Number     BF537/6/4    BF561    BF533/2/1
 *
@@ -84,18 +82,8 @@
 *  GPIO_47      PH15        PF47
 */
 
-#include <linux/config.h>
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/ptrace.h>
-#include <linux/sysdev.h>
 #include <linux/err.h>
-#include <linux/clk.h>
-
-#include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 
@@ -141,7 +129,7 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 static unsigned short reserved_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
 
-int check_gpio(unsigned short gpio)
+inline int check_gpio(unsigned short gpio)
 {
 	if(gpio>MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
@@ -199,7 +187,7 @@ int __init bfin_gpio_init(void)
 		reserved_map[gpio_bank(i)] = 0;
 	}
 
-#ifdef CONFIG_BFIN_MAC
+# if defined(BF537_FAMILY) && (defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
 		reserved_map[PORT_H] = 0xFFFF;
 #endif
 
@@ -208,138 +196,64 @@ int __init bfin_gpio_init(void)
 
 arch_initcall(bfin_gpio_init);
 
-void set_gpio_dir(unsigned short gpio, unsigned short arg)
-{
 
-  unsigned long flags;
+/***********************************************************
+*
+* FUNCTIONS: Blackfin General Purpose Ports Access Functions
+*
+* INPUTS/OUTPUTS:
+* gpio - GPIO Number between 0 and MAX_BLACKFIN_GPIOS
+* 
+*
+* DESCRIPTION: These functions abstract direct register access
+*              to Blackfin processor General Purpose 
+*              Ports Regsiters 
+*              
+* CAUTION: These functions do not belong to the GPIO Driver API
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
 
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+/* Set a specific bit */
 
-  local_irq_save(flags);
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->dir &= ~gpio_bit(gpio);
-	}
+#define SET_GPIO(name) void \
+set_gpio_ ## name (unsigned short gpio, unsigned short arg) \
+{ \
+  unsigned long flags;\
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));\
+  local_irq_save(flags);\
+	if(arg) {\
+	  gpio_bankb[gpio_bank(gpio)]->name |= gpio_bit(gpio);\
+		} else {\
+	  gpio_bankb[gpio_bank(gpio)]->name &= ~gpio_bit(gpio);\
+	}\
+  local_irq_restore(flags);\
+} \
+EXPORT_SYMBOL(set_gpio_ ## name);
 
-  local_irq_restore(flags);
-
-
-}
-
-void set_gpio_inen(unsigned short gpio, unsigned short arg)
-{
-
-  unsigned long flags;
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-  local_irq_save(flags);
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->inen |= gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
-	}
-
-  local_irq_restore(flags);
-
-
-}
-
-void set_gpio_polar(unsigned short gpio, unsigned short arg)
-{
-
-  unsigned long flags;
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-  local_irq_save(flags);
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->polar |= gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->polar &= ~gpio_bit(gpio);
-	}
-
-  local_irq_restore(flags);
-
-}
-
-void set_gpio_edge(unsigned short gpio, unsigned short arg)
-{
-
-  unsigned long flags;
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-  local_irq_save(flags);
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->edge |= gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->edge &= ~gpio_bit(gpio);
-	}
-
-  local_irq_restore(flags);
-
-}
-
-void set_gpio_both(unsigned short gpio, unsigned short arg)
-{
-
-  unsigned long flags;
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-  local_irq_save(flags);
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->both |= gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->both &= ~gpio_bit(gpio);
-	}
-
-  local_irq_restore(flags);
-
-}
-
-void set_gpio_data(unsigned short gpio, unsigned short arg)
-{
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->set = gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->clear = gpio_bit(gpio);
-	}
-}
+SET_GPIO(dir)
+SET_GPIO(inen)
+SET_GPIO(polar)
+SET_GPIO(edge)
+SET_GPIO(both)
 
 
-void set_gpio_maska(unsigned short gpio, unsigned short arg)
-{
+#define SET_GPIO_SC(name) void \
+set_gpio_ ## name (unsigned short gpio, unsigned short arg) \
+{ \
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));\
+	if(arg) {\
+	  gpio_bankb[gpio_bank(gpio)]->name ## _set |= gpio_bit(gpio);\
+		} else {\
+	  gpio_bankb[gpio_bank(gpio)]->name ## _clear &= ~gpio_bit(gpio);\
+	}\
+} \
+EXPORT_SYMBOL(set_gpio_ ## name);
 
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+SET_GPIO_SC(data)
+SET_GPIO_SC(maska)
+SET_GPIO_SC(maskb)
 
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->maska_set = gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->maska_clear = gpio_bit(gpio);
-	}
-}
-
-void set_gpio_maskb(unsigned short gpio, unsigned short arg)
-{
-
-  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
-	if(arg) {
-	  gpio_bankb[gpio_bank(gpio)]->maskb_set = gpio_bit(gpio);
-		} else {
-	  gpio_bankb[gpio_bank(gpio)]->maskb_clear = gpio_bit(gpio);
-	}
-}
 
 void set_gpio_toggle(unsigned short gpio)
 {
@@ -349,120 +263,61 @@ void set_gpio_toggle(unsigned short gpio)
 	  gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
 
 }
+EXPORT_SYMBOL(set_gpio_toggle);
+
+/* Get a specific bit */
+
+#define GET_GPIO(name) unsigned short  \
+get_gpio_ ## name (unsigned short gpio) \
+{ \
+	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->name >> gpio_sub_n(gpio)));\
+} \
+EXPORT_SYMBOL(get_gpio_ ## name);
+
+GET_GPIO(dir)
+GET_GPIO(inen)
+GET_GPIO(polar)
+GET_GPIO(edge)
+GET_GPIO(both)
+GET_GPIO(maska)
+GET_GPIO(maskb)
+GET_GPIO(data)
+
+/*Get current PORT date (16-bit word)*/
+
+#define GET_GPIO_P(name) unsigned short  \
+get_gpiop_ ## name (unsigned short gpio) \
+{ \
+	return (gpio_bankb[gpio_bank(gpio)]->name);\
+} \
+EXPORT_SYMBOL(get_gpiop_ ## name);
+
+GET_GPIO_P(dir)
+GET_GPIO_P(inen)
+GET_GPIO_P(polar)
+GET_GPIO_P(edge)
+GET_GPIO_P(both)
+GET_GPIO_P(maska)
+GET_GPIO_P(maskb)
+GET_GPIO_P(data)
 
 
-unsigned short get_gpio_dir(unsigned short gpio)
-{
+/***********************************************************
+*
+* FUNCTIONS: Blackfin GPIO Driver 
+*
+* INPUTS/OUTPUTS:
+* gpio - GPIO Number between 0 and MAX_BLACKFIN_GPIOS
+* 
+*
+* DESCRIPTION: Blackfin GPIO Driver API
+*               
+* CAUTION: 
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
 
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->dir >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_inen(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->inen >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_polar(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->polar >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_edge(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->edge >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_both(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->both >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_maska(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->maska >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_maskb(unsigned short gpio)
-{
-
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->maskb >> gpio_sub_n(gpio)));
-
-}
-
-unsigned short get_gpio_data(unsigned short gpio)
-{
-	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->data >> gpio_sub_n(gpio)));
-
-}
-
-
-unsigned short get_gpiop_dir(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->dir);
-
-}
-
-unsigned short get_gpiop_inen(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->inen);
-
-}
-
-unsigned short get_gpiop_polar(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->polar);
-
-}
-
-unsigned short get_gpiop_edge(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->edge);
-
-}
-
-unsigned short get_gpiop_both(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->both);
-
-}
-
-unsigned short get_gpiop_maska(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->maska);
-
-}
-
-unsigned short get_gpiop_maskb(unsigned short gpio)
-{
-
-	return (gpio_bankb[gpio_bank(gpio)]->maskb);
-
-}
-
-unsigned short get_gpiop_data(unsigned short gpio)
-{
-	return (gpio_bankb[gpio_bank(gpio)]->data);
-
-}
-
-int request_gpio(unsigned short gpio,unsigned short opt)
+int gpio_request(unsigned short gpio, const char *label)
 {
 	unsigned long flags;
 
@@ -481,29 +336,15 @@ int request_gpio(unsigned short gpio,unsigned short opt)
 	reserved_map[gpio_bank(gpio)] |= gpio_bit(gpio);
 
 	local_irq_restore(flags);
-
-	if(opt & REQUEST_ALT_FUNCT) {
-	  port_setup(gpio, PERIPHERAL_USAGE);
-	} else { 
-	  port_setup(gpio, GPIO_USAGE);
+ 
+	port_setup(gpio, GPIO_USAGE);
 	  
-		if(opt & GPIO_INV_POLAR)
-		   set_gpio_polar(gpio, GPIO_POLAR_AL_FE);
-		  
-		if (opt & GPIO_INPUT) {
-			set_gpio_inen(gpio, GPIO_INPUT_ENABLE);
-		} else 
-		if (opt & GPIO_OUTPUT) {
-			set_gpio_dir(gpio, GPIO_DIR_OUTPUT);
-		}
-	}
-
   return 0;
 
 }
 
 
-void free_gpio(unsigned short gpio)
+void gpio_free(unsigned short gpio)
 {
 	unsigned long flags;
 
@@ -521,7 +362,6 @@ void free_gpio(unsigned short gpio)
 		return;
 	}
 
-	port_setup(gpio, GPIO_USAGE);
 	default_gpio(gpio);
 
 	reserved_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
@@ -530,32 +370,33 @@ void free_gpio(unsigned short gpio)
 
 }
 
-EXPORT_SYMBOL(request_gpio);
-EXPORT_SYMBOL(free_gpio);
 
-EXPORT_SYMBOL(set_gpio_dir);
-EXPORT_SYMBOL(set_gpio_inen);
-EXPORT_SYMBOL(set_gpio_polar);
-EXPORT_SYMBOL(set_gpio_edge);
-EXPORT_SYMBOL(set_gpio_both);
-EXPORT_SYMBOL(set_gpio_data);
-EXPORT_SYMBOL(set_gpio_toggle);
-EXPORT_SYMBOL(set_gpio_maska);
-EXPORT_SYMBOL(set_gpio_maskb);
-EXPORT_SYMBOL(get_gpio_dir);
-EXPORT_SYMBOL(get_gpio_inen);
-EXPORT_SYMBOL(get_gpio_polar);
-EXPORT_SYMBOL(get_gpio_edge);
-EXPORT_SYMBOL(get_gpio_both);
-EXPORT_SYMBOL(get_gpio_maska);
-EXPORT_SYMBOL(get_gpio_maskb);
-EXPORT_SYMBOL(get_gpio_data);
+void gpio_direction_input(unsigned short gpio)
+{
+  unsigned long flags;
 
-EXPORT_SYMBOL(get_gpiop_dir);
-EXPORT_SYMBOL(get_gpiop_inen);
-EXPORT_SYMBOL(get_gpiop_polar);
-EXPORT_SYMBOL(get_gpiop_edge);
-EXPORT_SYMBOL(get_gpiop_both);
-EXPORT_SYMBOL(get_gpiop_maska);
-EXPORT_SYMBOL(get_gpiop_maskb);
-EXPORT_SYMBOL(get_gpiop_data);
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+
+  local_irq_save(flags);
+	  gpio_bankb[gpio_bank(gpio)]->dir &= ~gpio_bit(gpio);
+	  gpio_bankb[gpio_bank(gpio)]->inen |= gpio_bit(gpio);
+  local_irq_restore(flags);
+}
+
+
+void gpio_direction_output(unsigned short gpio)
+{
+  unsigned long flags;
+
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+
+  local_irq_save(flags);
+	  gpio_bankb[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
+	  gpio_bankb[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
+  local_irq_restore(flags);
+}
+
+EXPORT_SYMBOL(gpio_request);
+EXPORT_SYMBOL(gpio_free);
+EXPORT_SYMBOL(gpio_direction_input);
+EXPORT_SYMBOL(gpio_direction_output);

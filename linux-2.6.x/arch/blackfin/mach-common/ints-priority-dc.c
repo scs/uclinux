@@ -233,7 +233,7 @@ static unsigned int bf561_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
 
-	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
+	ret = gpio_request(irq - IRQ_PF0, NULL);
 
 	if (!ret)
 	  bf561_gpio_unmask_irq(irq);
@@ -245,7 +245,7 @@ static unsigned int bf561_gpio_irq_startup(unsigned int irq)
 static void bf561_gpio_irq_shutdown(unsigned int irq)
 {
 	bf561_gpio_mask_irq(irq);
-	free_gpio(irq - IRQ_PF0);
+	gpio_free(irq - IRQ_PF0);
 }
 
 static int bf561_gpio_irq_type(unsigned int irq, unsigned int type)

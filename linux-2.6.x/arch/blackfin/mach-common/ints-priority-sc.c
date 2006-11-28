@@ -42,6 +42,7 @@
 #include <asm/traps.h>
 #include <asm/blackfin.h>
 
+
 #ifdef BF537_FAMILY
 # define BF537_GENERIC_ERROR_INT_DEMUX
 #else
@@ -342,7 +343,7 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
 
-	ret = request_gpio(irq - IRQ_PF0, REQUEST_GPIO);
+	ret = gpio_request(irq - IRQ_PF0, NULL);
 
 	if (!ret)
 		bfin_gpio_unmask_irq(irq);
@@ -353,7 +354,7 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 static void bfin_gpio_irq_shutdown(unsigned int irq)
 {
 	bfin_gpio_mask_irq(irq);
-	free_gpio(irq - IRQ_PF0);
+	gpio_free(irq - IRQ_PF0);
 }
 
 static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
