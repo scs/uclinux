@@ -34,6 +34,20 @@ set jffs2_rootfs_image   rootfs.jffs2
 set yaffs_rootfs_image   rootfs.yaffs
 set yaffs2_rootfs_image  rootfs.yaffs2
 
+set linux_version "not found"
+set gcc_version "not found"
+set map_text "not found"
+set map_data "not found"
+set map_bss "not found"
+set map_rootfs "not found"
+set map_stack "not found"
+set instruction_cache_boot_flag "not found"
+set data_cache_boot_flag "not found"
+
+set CACHE_ENABLED           "enabled"
+set CACHE_DISABLED          "disabled"
+
+set step_sequence_number    1
 
 proc step { message } {
 
