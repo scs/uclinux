@@ -30,30 +30,22 @@
 static void hhbf_setsda(void *data, int state)
 {
     if (state) {
-	set_gpio_dir(CONFIG_BFIN_SDA, GPIO_DIR_INPUT);
-	set_gpio_inen(CONFIG_BFIN_SDA, GPIO_INPUT_ENABLE);
+    	gpio_direction_input(CONFIG_BFIN_SDA);
 
     } else {
-
-	set_gpio_inen(CONFIG_BFIN_SDA, GPIO_INPUT_DISABLE);
-	set_gpio_dir(CONFIG_BFIN_SDA, GPIO_DIR_OUTPUT);
-	set_gpio_data(CONFIG_BFIN_SDA, 0);
-
+    	gpio_direction_output(CONFIG_BFIN_SDA);
+	gpio_set_value(CONFIG_BFIN_SDA, 0);
     }
 }
 
 static void hhbf_setscl(void *data, int state)
 {
-
-	set_gpio_data(CONFIG_BFIN_SCL, state);
-
+	gpio_set_value(CONFIG_BFIN_SCL, state);
 }
 
 static int hhbf_getsda(void *data)
 {
-
-      return (get_gpio_data(CONFIG_BFIN_SDA) != 0);
-
+      return (gpio_get_value(CONFIG_BFIN_SDA) != 0);
 }
 
 
@@ -76,31 +68,28 @@ static struct i2c_adapter hhbf_ops = {
 static int __init i2c_hhbf_init(void)
 {
 
-    if(request_gpio(CONFIG_BFIN_SCL, REQUEST_GPIO)) {
-    	printk(KERN_ERR "%s: request_gpio GPIO %d failed \n",__FUNCTION__, CONFIG_BFIN_SCL);
+    if(gpio_request(CONFIG_BFIN_SCL, NULL)) {
+    	printk(KERN_ERR "%s: gpio_request GPIO %d failed \n",__FUNCTION__, CONFIG_BFIN_SCL);
 	return -1;
 	}
 
-    if(request_gpio(CONFIG_BFIN_SDA, REQUEST_GPIO)) {
-    	printk(KERN_ERR "%s: request_gpio GPIO %d failed \n",__FUNCTION__, CONFIG_BFIN_SDA);
+    if(gpio_request(CONFIG_BFIN_SDA, NULL)) {
+    	printk(KERN_ERR "%s: gpio_request GPIO %d failed \n",__FUNCTION__, CONFIG_BFIN_SDA);
 	return -1;
 	}
 
 
-    set_gpio_dir(CONFIG_BFIN_SCL, GPIO_DIR_OUTPUT);
-//    set_gpio_polar(CONFIG_BFIN_SDA, GPIO_POLAR_AH_RE);    /*default*/
-//    set_gpio_edge(CONFIG_BFIN_SDA, GPIO_EDGE_LEVEL);	/*default*/ 
-    set_gpio_inen(CONFIG_BFIN_SDA, GPIO_INPUT_ENABLE);
-//    set_gpio_dir(CONFIG_BFIN_SDA, GPIO_DIR_INPUT);  /*default*/
-    set_gpio_data(CONFIG_BFIN_SCL, 1);    
+    gpio_direction_output(CONFIG_BFIN_SCL);
+    gpio_direction_input(CONFIG_BFIN_SDA);
+    gpio_set_value(CONFIG_BFIN_SCL, 1);    
 
     return i2c_bit_add_bus(&hhbf_ops);
 }
 
 static void __exit i2c_hhbf_exit(void)
 {
-    free_gpio(CONFIG_BFIN_SCL);
-    free_gpio(CONFIG_BFIN_SDA);    
+    gpio_free(CONFIG_BFIN_SCL);
+    gpio_free(CONFIG_BFIN_SDA);    
     i2c_bit_del_bus(&hhbf_ops);
 }
 
