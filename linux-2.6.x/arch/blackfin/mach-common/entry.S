@@ -945,7 +945,7 @@ ENTRY(_sys_call_table)
 	.long _sys_clone		/* 120 */
 	.long _sys_setdomainname
 	.long _sys_newuname
-	.long _sys_dma_memcpy
+	.long _sys_ni_syscall	/* old sys_modify_ldt */
 	.long _sys_adjtimex
 	.long _sys_ni_syscall	/* 125 */ /* sys_mprotect */
 	.long _sys_sigprocmask
@@ -1135,8 +1135,9 @@ ENTRY(_sys_call_table)
 	.long _sys_unshare	/* 310 */
 	.long _sys_sram_alloc
 	.long _sys_sram_free
+	.long _sys_dma_memcpy
 	.rept NR_syscalls-(.-_sys_call_table)/4
-		.long _sys_ni_syscall
+	.long _sys_ni_syscall
 	.endr
 _excpt_saved_imask:
 	.long 0;

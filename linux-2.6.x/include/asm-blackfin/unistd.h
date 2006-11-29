@@ -122,7 +122,7 @@
 #define __NR_clone		120
 #define __NR_setdomainname	121
 #define __NR_uname		122
-#define __NR_dma_memcpy		123
+				/* 123 was sys_sys_modify_ldt */
 #define __NR_adjtimex		124
 #define __NR_mprotect		125
 #define __NR_sigprocmask	126
@@ -311,6 +311,7 @@
 /* Blackfin private syscalls */
 #define __NR_sram_alloc		311
 #define __NR_sram_free		312
+#define __NR_dma_memcpy		313
 
 #define __NR_syscall		314
 #define NR_syscalls		__NR_syscall
