@@ -60,7 +60,7 @@ proc log_file_name { file_name } {
 
 proc title { file_name } {
     
-  return [ exec echo "$file_name" | sed "s/\\.\\/\\(\.\*\\)_\\(\.\*\\).exp/\\1 \\2/g" | tr 'a-z' 'A-Z' ]
+  return [ exec echo "$file_name" | sed "s/_/ /g" | sed "s/\\.\\/\\(\.\*\\).exp/\\1/g" | tr 'a-z' 'A-Z' ]
 }
 
 set step_sequence_number    1
