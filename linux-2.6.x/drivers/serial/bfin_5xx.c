@@ -94,13 +94,15 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
 static void bfin_serial_stop_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
+#ifdef CONFIG_SERIAL_BFIN_DMA
+        disable_dma(uart->tx_dma_channel);
+#else
 	unsigned short ier;
 
 	ier = UART_GET_IER(uart);
 	ier &= ~ETBEI;
 	UART_PUT_IER(uart, ier);
-#ifdef CONFIG_SERIAL_BFIN_DMA
-	disable_dma(uart->tx_dma_channel);
 #endif
 }
 
