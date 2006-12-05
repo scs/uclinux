@@ -19,8 +19,8 @@
 #define __NR_mknod		 14
 #define __NR_chmod		 15
 #define __NR_chown		 16
-#define __NR_dump		 17
-#define __NR_oldstat		 18
+				/* 17 __NR_break obsolete */
+				/* 18 __NR_oldstat obsolete */
 #define __NR_lseek		 19
 #define __NR_getpid		 20
 #define __NR_mount		 21
@@ -30,14 +30,14 @@
 #define __NR_stime		 25
 #define __NR_ptrace		 26
 #define __NR_alarm		 27
-#define __NR_oldfstat		 28
+				/* 28 __NR_oldfstat obsolete */
 #define __NR_pause		 29
 #define __NR_utime		 30
-#define __NR_stty		 31
-#define __NR_gtty		 32
+				/* 31 __NR_stty obsolete */
+				/* 32 __NR_gtty obsolete */
 #define __NR_access		 33
 #define __NR_nice		 34
-#define __NR_ftime		 35
+				/* 35 __NR_ftime obsolete */
 #define __NR_sync		 36
 #define __NR_kill		 37
 #define __NR_rename		 38
@@ -46,7 +46,7 @@
 #define __NR_dup		 41
 #define __NR_pipe		 42
 #define __NR_times		 43
-#define __NR_prof		 44
+				/* 44 __NR_prof obsolete */
 #define __NR_brk		 45
 #define __NR_setgid		 46
 #define __NR_getgid		 47
@@ -55,13 +55,13 @@
 #define __NR_getegid		 50
 #define __NR_acct		 51
 #define __NR_umount2		 52
-#define __NR_lock		 53
+				/* 53 __NR_lock obsolete */
 #define __NR_ioctl		 54
 #define __NR_fcntl		 55
-#define __NR_mpx		 56
+				/* 56 __NR_mpx obsolete */
 #define __NR_setpgid		 57
-#define __NR_ulimit		 58
-#define __NR_oldolduname	 59
+				/* 58 __NR_ulimit obsolete */
+				/* 59 __NR_oldolduname obsolete */
 #define __NR_umask		 60
 #define __NR_chroot		 61
 #define __NR_ustat		 62
@@ -78,18 +78,18 @@
 #define __NR_sigpending		 73
 #define __NR_sethostname	 74
 #define __NR_setrlimit		 75
-#define __NR_old_getrlimit	 76
+				/* 76 __NR_old_getrlimit obsolete */
 #define __NR_getrusage		 77
 #define __NR_gettimeofday	 78
 #define __NR_settimeofday	 79
 #define __NR_getgroups		 80
 #define __NR_setgroups		 81
-#define __NR_select		 82
+				/* 82 __NR_select */
 #define __NR_symlink		 83
-#define __NR_oldlstat		 84
+				/* 84 __NR_oldlstat obsolete */
 #define __NR_readlink		 85
 #define __NR_uselib		 86
-#define __NR_swapon		 87
+				/* 87 __NR_swapon obsolete */
 #define __NR_reboot		 88
 #define __NR_readdir		 89
 #define __NR_mmap		 90
@@ -100,10 +100,10 @@
 #define __NR_fchown		 95
 #define __NR_getpriority	 96
 #define __NR_setpriority	 97
-#define __NR_profil		 98
+				/* 98 __NR_profil obsolete */
 #define __NR_statfs		 99
 #define __NR_fstatfs		100
-#define __NR_ioperm		101
+				/* 101 __NR_ioperm */
 #define __NR_socketcall		102
 #define __NR_syslog		103
 #define __NR_setitimer		104
@@ -111,10 +111,13 @@
 #define __NR_stat		106
 #define __NR_lstat		107
 #define __NR_fstat		108
-#define __NR_olduname		109
+				/* 109 __NR_olduname obsolete */
+				/* 110 __NR_iopl obsolete */
 #define __NR_vhangup		111
+				/* 112 __NR_idle obsolete */
+				/* 113 __NR_vm86old */
 #define __NR_wait4		114
-#define __NR_swapoff		115
+				/* 115 __NR_swapoff obsolete */
 #define __NR_sysinfo		116
 #define __NR_ipc		117
 #define __NR_fsync		118
@@ -122,37 +125,37 @@
 #define __NR_clone		120
 #define __NR_setdomainname	121
 #define __NR_uname		122
-				/* 123 was sys_sys_modify_ldt */
+				/* 123 __NR_modify_ldt obsolete */
 #define __NR_adjtimex		124
-#define __NR_mprotect		125
+				/* 125 __NR_mprotect obsolete */
 #define __NR_sigprocmask	126
-#define __NR_create_module	127
+				/* 127 __NR_create_module obsolete */
 #define __NR_init_module	128
 #define __NR_delete_module	129
-#define __NR_get_kernel_syms	130
+				/* 130 __NR_get_kernel_syms obsolete */
 #define __NR_quotactl		131
 #define __NR_getpgid		132
 #define __NR_fchdir		133
 #define __NR_bdflush		134
 #define __NR_sysfs		135
 #define __NR_personality	136
-#define __NR_afs_syscall	137	/* Syscall for Andrew File System */
+				/* 137 __NR_afs_syscall */
 #define __NR_setfsuid		138
 #define __NR_setfsgid		139
 #define __NR__llseek		140
 #define __NR_getdents		141
 #define __NR__newselect		142
 #define __NR_flock		143
-#define __NR_msync		144
+				/* 144 __NR_msync obsolete */
 #define __NR_readv		145
 #define __NR_writev		146
 #define __NR_getsid		147
 #define __NR_fdatasync		148
 #define __NR__sysctl		149
-#define __NR_mlock		150
-#define __NR_munlock		151
-#define __NR_mlockall		152
-#define __NR_munlockall		153
+				/* 150 __NR_mlock */
+				/* 151 __NR_munlock */
+				/* 152 __NR_mlockall */
+				/* 153 __NR_munlockall */
 #define __NR_sched_setparam		154
 #define __NR_sched_getparam		155
 #define __NR_sched_setscheduler		156
@@ -162,12 +165,13 @@
 #define __NR_sched_get_priority_min	160
 #define __NR_sched_rr_get_interval	161
 #define __NR_nanosleep		162
-#define __NR_mremap		163
+				/* 163 __NR_mremap */
 #define __NR_setresuid		164
 #define __NR_getresuid		165
-#define __NR_query_module	167
+				/* 166 __NR_vm86 */
+				/* 167 __NR_query_module */
 #define __NR_poll		168
-#define __NR_nfsservctl		169
+				/* 169 __NR_nfsservctl */
 #define __NR_setresgid		170
 #define __NR_getresgid		171
 #define __NR_prctl		172
@@ -186,8 +190,8 @@
 #define __NR_capset		185
 #define __NR_sigaltstack	186
 #define __NR_sendfile		187
-#define __NR_getpmsg		188
-#define __NR_putpmsg		189
+				/* 188 __NR_getpmsg */
+				/* 189 __NR_putpmsg */
 #define __NR_vfork		190
 #define __NR_getrlimit		191
 #define __NR_mmap2		192
@@ -216,12 +220,14 @@
 #define __NR_setfsuid32		215
 #define __NR_setfsgid32		216
 #define __NR_pivot_root		217
-#define __NR_mincore		218
-#define __NR_madvise		219
+				/* 218 __NR_mincore */
+				/* 219 __NR_madvise */
 #define __NR_getdents64		220
 #define __NR_fcntl64		221
+				/* 222 reserved for TUX */
+				/* 223 reserved for TUX */
 #define __NR_gettid		224
-#define __NR_readahead		225
+				/* 225 __NR_readahead */
 #define __NR_setxattr		226
 #define __NR_lsetxattr		227
 #define __NR_fsetxattr		228
@@ -239,14 +245,15 @@
 #define __NR_futex		240
 #define __NR_sched_setaffinity	241
 #define __NR_sched_getaffinity	242
-#define __NR_set_thread_area	243
-#define __NR_get_thread_area	244
+				/* 243 __NR_set_thread_area */
+				/* 244 __NR_get_thread_area */
 #define __NR_io_setup		245
 #define __NR_io_destroy		246
 #define __NR_io_getevents	247
 #define __NR_io_submit		248
 #define __NR_io_cancel		249
-#define __NR_fadvise64		250
+				/* 250 __NR_alloc_hugepages */
+				/* 251 __NR_free_hugepages */
 #define __NR_exit_group		252
 #define __NR_lookup_dcookie     253
 #define __NR_bfin_spinlock      254
@@ -254,7 +261,7 @@
 #define __NR_epoll_create	255
 #define __NR_epoll_ctl		256
 #define __NR_epoll_wait		257
-#define __NR_remap_file_pages	258
+				/* 258 __NR_remap_file_pages */
 #define __NR_set_tid_address	259
 #define __NR_timer_create	260
 #define __NR_timer_settime	(__NR_timer_create+1)
@@ -270,17 +277,17 @@
 #define __NR_tgkill		271
 #define __NR_utimes		272
 #define __NR_fadvise64_64	273
-#define __NR_vserver		274
-#define __NR_mbind		275
-#define __NR_get_mempolicy	276
-#define __NR_set_mempolicy	277
+				/* 274 __NR_vserver */
+				/* 275 __NR_mbind */
+				/* 276 __NR_get_mempolicy */
+				/* 277 __NR_set_mempolicy */
 #define __NR_mq_open 		278
 #define __NR_mq_unlink		(__NR_mq_open+1)
 #define __NR_mq_timedsend	(__NR_mq_open+2)
 #define __NR_mq_timedreceive	(__NR_mq_open+3)
 #define __NR_mq_notify		(__NR_mq_open+4)
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
-#define __NR_sys_kexec_load	284
+				/* 284 __NR_sys_kexec_load */
 #define __NR_waitid		285
 #define __NR_add_key		286
 #define __NR_request_key	287
@@ -290,7 +297,7 @@
 #define __NR_inotify_init	291
 #define __NR_inotify_add_watch	292
 #define __NR_inotify_rm_watch	293
-#define __NR_migrate_pages	294
+				/* 294 __NR_migrate_pages */
 #define __NR_openat		295
 #define __NR_mkdirat		296
 #define __NR_mknodat		297

@@ -838,19 +838,19 @@ ENTRY(_sys_call_table)
 	.long _sys_time
 	.long _sys_mknod
 	.long _sys_chmod		/* 15 */
-	.long _sys_chown16
+	.long _sys_chown	/* chown16 */
 	.long _sys_ni_syscall	/* old break syscall holder */
-	.long _sys_stat
+	.long _sys_ni_syscall	/* old stat */
 	.long _sys_lseek
 	.long _sys_getpid	/* 20 */
 	.long _sys_mount
-	.long _sys_oldumount
-	.long _sys_setuid16
-	.long _sys_getuid16
+	.long _sys_umount
+	.long _sys_setuid
+	.long _sys_getuid
 	.long _sys_stime		/* 25 */
 	.long _sys_ptrace
 	.long _sys_alarm
-	.long _sys_fstat
+	.long _sys_ni_syscall	/* old fstat */
 	.long _sys_pause
 	.long _sys_utime		/* 30 */
 	.long _sys_ni_syscall	/* old stty syscall holder */
@@ -868,11 +868,11 @@ ENTRY(_sys_call_table)
 	.long _sys_times
 	.long _sys_ni_syscall	/* old prof syscall holder */
 	.long _sys_brk		/* 45 */
-	.long _sys_setgid16
-	.long _sys_getgid16
+	.long _sys_setgid
+	.long _sys_getgid
 	.long _sys_signal
-	.long _sys_geteuid16
-	.long _sys_getegid16	/* 50 */
+	.long _sys_geteuid	/* geteuid16 */
+	.long _sys_getegid	/* getegid16 */	/* 50 */
 	.long _sys_acct
 	.long _sys_umount	/* recycled never used phys() */
 	.long _sys_ni_syscall	/* old lock syscall holder */
@@ -881,7 +881,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* old mpx syscall holder */
 	.long _sys_setpgid
 	.long _sys_ni_syscall	/* old ulimit syscall holder */
-	.long _sys_ni_syscall
+	.long _sys_ni_syscall	/* old old uname */
 	.long _sys_umask		/* 60 */
 	.long _sys_chroot
 	.long _sys_ustat
@@ -892,21 +892,21 @@ ENTRY(_sys_call_table)
 	.long _sys_sigaction
 	.long _sys_sgetmask
 	.long _sys_ssetmask
-	.long _sys_setreuid16	/* 70 */
-	.long _sys_setregid16
+	.long _sys_setreuid	/* setreuid16 */	/* 70 */
+	.long _sys_setregid	/* setregid16 */
 	.long _sys_sigsuspend
 	.long _sys_sigpending
 	.long _sys_sethostname
 	.long _sys_setrlimit	/* 75 */
-	.long _sys_old_getrlimit
+	.long _sys_ni_syscall	/* old getrlimit */
 	.long _sys_getrusage
 	.long _sys_gettimeofday
 	.long _sys_settimeofday
-	.long _sys_getgroups16	/* 80 */
-	.long _sys_setgroups16
-	.long _old_select
+	.long _sys_getgroups	/* getgroups16 */	/* 80 */
+	.long _sys_setgroups	/* setgroups16 */
+	.long _sys_ni_syscall	/* old select */
 	.long _sys_symlink
-	.long _sys_lstat
+	.long _sys_ni_syscall	/* old lstat */
 	.long _sys_readlink	/* 85 */
 	.long _sys_uselib
 	.long _sys_ni_syscall	/* sys_swapon */
@@ -917,7 +917,7 @@ ENTRY(_sys_call_table)
 	.long _sys_truncate
 	.long _sys_ftruncate
 	.long _sys_fchmod
-	.long _sys_fchown16	/* 95 */
+	.long _sys_fchown	/* fchown16 */	/* 95 */
 	.long _sys_getpriority
 	.long _sys_setpriority
 	.long _sys_ni_syscall	/* old profil syscall holder */
@@ -931,7 +931,7 @@ ENTRY(_sys_call_table)
 	.long _sys_newstat
 	.long _sys_newlstat
 	.long _sys_newfstat
-	.long _sys_ni_syscall
+	.long _sys_ni_syscall	/* old uname */
 	.long _sys_ni_syscall	/* iopl for i386 */ /* 110 */
 	.long _sys_vhangup
 	.long _sys_ni_syscall	/* obsolete idle() syscall */
@@ -960,8 +960,8 @@ ENTRY(_sys_call_table)
 	.long _sys_sysfs		/* 135 */
 	.long _sys_personality
 	.long _sys_ni_syscall	/* for afs_syscall */
-	.long _sys_setfsuid16
-	.long _sys_setfsgid16
+	.long _sys_setfsuid	/* setfsuid16 */
+	.long _sys_setfsgid	/* setfsgid16 */
 	.long _sys_llseek	/* 140 */
 	.long _sys_getdents
 	.long _sys_select
@@ -986,14 +986,14 @@ ENTRY(_sys_call_table)
 	.long _sys_sched_rr_get_interval
 	.long _sys_nanosleep
 	.long _sys_ni_syscall	/* sys_mremap */
-	.long _sys_setresuid16
-	.long _sys_getresuid16	/* 165 */
+	.long _sys_setresuid	/* setresuid16 */
+	.long _sys_getresuid	/* getresuid16 */	/* 165 */
 	.long _sys_ni_syscall	/* for vm86 */
 	.long _sys_ni_syscall	/* old "query_module" */
 	.long _sys_poll
 	.long _sys_ni_syscall	/* sys_nfsservctl */
-	.long _sys_setresgid16	/* 170 */
-	.long _sys_getresgid16
+	.long _sys_setresgid	/* setresgid16 */	/* 170 */
+	.long _sys_getresgid	/* getresgid16 */
 	.long _sys_prctl
 	.long _sys_rt_sigreturn
 	.long _sys_rt_sigaction
@@ -1004,7 +1004,7 @@ ENTRY(_sys_call_table)
 	.long _sys_rt_sigsuspend
 	.long _sys_pread64	/* 180 */
 	.long _sys_pwrite64
-	.long _sys_lchown16
+	.long _sys_lchown	/* lchown16 */
 	.long _sys_getcwd
 	.long _sys_capget
 	.long _sys_capset	/* 185 */

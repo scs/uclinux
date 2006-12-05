@@ -38,6 +38,10 @@ CONFIG_SYSVIPC=y
 # CONFIG_IKCONFIG is not set
 # CONFIG_RELAY is not set
 CONFIG_INITRAMFS_SOURCE=""
+<<<<<<< config.linux-2.6.x
+# CONFIG_UID16 is not set
+=======
+>>>>>>> 1.41
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_EMBEDDED=y
 CONFIG_UID16=y
