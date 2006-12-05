@@ -491,49 +491,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
 #endif
 
-#ifdef __KERNEL_SYSCALLS__
-
-#define __NR__exit __NR_exit
-#if 0
-static inline _syscall0(int, pause)
-static inline _syscall0(int, sync)
-static inline _syscall0(pid_t, setsid)
-static inline _syscall3(int, write, int, fd, const char *, buf, off_t, count)
-static inline _syscall3(int, read, int, fd, char *, buf, off_t, count)
-static inline _syscall3(off_t, lseek, int, fd, off_t, offset, int, count)
-static inline _syscall1(int, dup, int, fd)
-/*static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp) */
-static inline _syscall3(int, open, const char *, file, int, flag, int, mode)
-static inline _syscall1(int, close, int, fd)
-static inline _syscall1(int, _exit, int, exitcode)
-static inline _syscall3(pid_t, waitpid, pid_t, pid, int *, wait_stat, int,
-			options)
-static inline _syscall1(int, delete_module, const char *, name)
-
-static inline pid_t wait(int *wait_stat)
-{
-	return waitpid(-1, wait_stat, 0);
-}
-#endif
-
-asmlinkage long execve(char *, char **, char **);
-
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-			  unsigned long prot, unsigned long flags,
-			  unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_execve(char *name, char **argv, char **envp);
-asmlinkage int sys_pipe(unsigned long *fildes);
-struct sigaction;
-asmlinkage long sys_rt_sigaction(int sig,
-				 const struct sigaction __user * act,
-				 struct sigaction __user * oact,
-				 size_t sigsetsize);
-
-asmlinkage void *sys_sram_alloc(size_t size, unsigned long flags);
-asmlinkage int sys_sram_free(const void *addr);
-asmlinkage void *sys_dma_memcpy(void *dest, const void *src, size_t len);
-
-#endif				/* __KERNEL_SYSCALLS__ */
 /*
  * "Conditional" syscalls
  *
