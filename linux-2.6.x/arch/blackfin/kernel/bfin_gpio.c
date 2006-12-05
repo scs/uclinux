@@ -245,7 +245,7 @@ set_gpio_ ## name (unsigned short gpio, unsigned short arg) \
 	if(arg) {\
 	  gpio_bankb[gpio_bank(gpio)]->name ## _set |= gpio_bit(gpio);\
 		} else {\
-	  gpio_bankb[gpio_bank(gpio)]->name ## _clear &= ~gpio_bit(gpio);\
+	  gpio_bankb[gpio_bank(gpio)]->name ## _clear |= gpio_bit(gpio);\
 	}\
 } \
 EXPORT_SYMBOL(set_gpio_ ## name);
