@@ -135,6 +135,8 @@
 /* Blackfin bf5xx */
 #define PORT_BFIN	74
 
+/* Blackfin SPORT */
+#define PORT_BFIN_SPORT	75
 
 #ifdef __KERNEL__
 
