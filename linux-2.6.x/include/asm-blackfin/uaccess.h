@@ -102,34 +102,36 @@ extern unsigned long search_exception_table(unsigned long);
  * use the right size if we just have the right pointer type.
  */
 
-#define put_user(x, ptr)				\
-({							\
-    int __pu_err = 0;					\
-    typeof(*(ptr)) __pu_val = (x);			\
-    switch (sizeof (*(ptr))) {				\
-    case 1:						\
-	__put_user_asm(__pu_val, ptr, B);		\
-	break;						\
-    case 2:						\
-	__put_user_asm(__pu_val, ptr, W);		\
-	break;						\
-    case 4:						\
-	__put_user_asm(__pu_val, ptr,  );		\
-	break;						\
-    case 8: { long __pu_vall, __pu_valh;		\
-         __pu_vall = ((long *)&__pu_val)[0]; \
-        __pu_valh = ((long *)&__pu_val)[1]; \
-	__put_user_asm(__pu_vall, ((long *)ptr)+0, );	\
-	__put_user_asm(__pu_valh, ((long *)ptr)+1, );	\
-    } break;						\
-    default:						\
-	__pu_err = __put_user_bad();			\
-	break;						\
-    }							\
-    __pu_err;						\
-})
+#define put_user(x,p)						\
+	({							\
+		int _err = 0;					\
+		typeof(*(p)) _x = (x);				\
+		typeof(*(p)) *_p = (p);				\
+		switch (sizeof (*(_p))) {			\
+		case 1:						\
+			__put_user_asm(_x, _p, B);		\
+			break;					\
+		case 2:						\
+			__put_user_asm(_x, _p, W);		\
+			break;					\
+		case 4:						\
+			__put_user_asm(_x, _p,  );		\
+			break;					\
+		case 8: {					\
+			long _xl, _xh;				\
+			_xl = ((long *)&_x)[0];			\
+			_xh = ((long *)&_x)[1];			\
+			__put_user_asm(_xl, ((long *)_p)+0, );	\
+			__put_user_asm(_xh, ((long *)_p)+1, );	\
+		} break;					\
+		default:					\
+			_err = __put_user_bad();		\
+			break;					\
+		}						\
+		_err;						\
+	})
 
-#define __put_user(x, ptr) put_user(x, ptr)
+#define __put_user(x,p) put_user(x,p)
 static inline int bad_user_access_length(void)
 {
 	panic("bad_user_access_length");
@@ -148,52 +150,54 @@ static inline int bad_user_access_length(void)
 
 #define __ptr(x) ((unsigned long *)(x))
 
-#define __put_user_asm(x,ptr,bhw)			\
+#define __put_user_asm(x,p,bhw)				\
 	__asm__ (#bhw"[%1] = %0;\n\t"			\
-		: /* no outputs */			\
-		:"d" (x),"a" (__ptr(ptr)) : "memory")
+		 : /* no outputs */			\
+		 :"d" (x),"a" (__ptr(p)) : "memory")
 
-#define get_user(x, ptr)				\
-({							\
-    int __gu_err = 0;					\
-    switch (sizeof(*(ptr))) {				\
-    case 1:						\
-	__get_user_asm(x, ptr, B,(Z));			\
-	break;						\
-    case 2:						\
-	__get_user_asm(x, ptr, W,(Z));			\
-	break;						\
-    case 4:						\
-	__get_user_asm(x, ptr,  , );			\
-	break;						\
-    case 8: { unsigned long __gu_vall, __gu_valh;	\
-	__get_user_asm(__gu_vall, ((unsigned long *)ptr)+0,  , );	\
-	__get_user_asm(__gu_valh, ((unsigned long *)ptr)+1,  , );	\
-        ((unsigned long *)&x)[0] = __gu_vall;		\
-        ((unsigned long *)&x)[1] = __gu_valh;		\
-    } break;						\
-    default:						\
-	x = 0;						\
-        printk(KERN_INFO "get_user_bad: %s:%d %s\n",    \
-	       __FILE__, __LINE__, __FUNCTION__);	\
-	__gu_err = __get_user_bad();			\
-	break;						\
-    }							\
-    __gu_err;						\
-})
+#define get_user(x,p)							\
+	({								\
+		int _err = 0;						\
+		typeof(*(p)) *_p = (p);					\
+		switch (sizeof(*(_p))) {				\
+		case 1:							\
+			__get_user_asm(x, _p, B,(Z));			\
+			break;						\
+		case 2:							\
+			__get_user_asm(x, _p, W,(Z));			\
+			break;						\
+		case 4:							\
+			__get_user_asm(x, _p,  , );			\
+			break;						\
+		case 8: {						\
+			unsigned long _xl, _xh;				\
+			__get_user_asm(_xl, ((unsigned long *)_p)+0,  , ); \
+			__get_user_asm(_xh, ((unsigned long *)_p)+1,  , ); \
+			((unsigned long *)&x)[0] = _xl;			\
+			((unsigned long *)&x)[1] = _xh;			\
+		} break;						\
+		default:						\
+			x = 0;						\
+			printk(KERN_INFO "get_user_bad: %s:%d %s\n",    \
+			       __FILE__, __LINE__, __FUNCTION__);	\
+			_err = __get_user_bad();			\
+			break;						\
+		}							\
+		_err;							\
+	})
 
-#define __get_user(x, ptr) get_user(x, ptr)
+#define __get_user(x,p) get_user(x,p)
 
 #define __get_user_bad() (bad_user_access_length(), (-EFAULT))
 
-#define __get_user_asm(x,ptr,bhw,option)		\
-{							\
-	unsigned long __gu_tmp;				\
-	__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"	\
-		 : "=d" (__gu_tmp)			\
-		 : "a" (__ptr(ptr)));			\
-	(x) = (__typeof__(*(ptr))) __gu_tmp;		\
-}
+#define __get_user_asm(x,p,bhw,option)				\
+	{							\
+		unsigned long _tmp;				\
+		__asm__ ("%0 =" #bhw "[%1]"#option";\n\t"	\
+			 : "=d" (_tmp)				\
+			 : "a" (__ptr(p)));			\
+		(x) = (__typeof__(*(p))) _tmp;			\
+	}
 
 #define __copy_from_user(to, from, n) copy_from_user(to, from, n)
 #define __copy_to_user(to, from, n) copy_to_user(to, from, n)
