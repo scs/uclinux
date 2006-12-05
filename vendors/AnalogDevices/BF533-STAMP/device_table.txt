@@ -71,6 +71,8 @@
 /dev/ttyS0	c	755	0	0	4	64	0	0	-
 #/dev/ttyS1	c	755	0	0	4	65	0	0	-
 #/dev/ttyUSB c	664	0	0	188	0	0	1	1
+/dev/ttySS0	c	664	0	0	204	84	0	0	-
+/dev/ttySS1	c	664	0	0	204	85	0	0	-
 /dev/psaux	c	640	0	0	10	1	0	0	-
 /dev/rtc	c	640	0	0	10	135	0	0	-
 /dev/dpmc	c	640	0	0	10	254	0	0	-
