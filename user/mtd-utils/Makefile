@@ -6,6 +6,7 @@ MY_CFLAGS = -Iinclude -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
 CFLAGS += -D__USE_BSD -I$(ROOTDIR)/lib/zlib -I.
+LDFLAGS += -L$(ROOTDIR)/lib/zlib
 
 TARGETS = ftl_format flash_erase flash_eraseall nanddump doc_loadbios \
 	mkfs.jffs ftl_check mkfs.jffs2 flash_lock flash_unlock flash_info \
