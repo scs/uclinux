@@ -64,8 +64,10 @@ static inline void translate_oob2spare(yaffs_Spare *spare, __u8 *oob)
 	spare->tagByte5 = oob[5] == 0xff ? 0xff : oob[5] & 0x3f;
 	spare->blockStatus = oob[5] & 0x80 ? 0xff : 'Y';
 	spare->pageStatus = oob[5] & 0x40 ? 0xff : 0;
+	spare->ecc1[0] = spare->ecc1[1] = spare->ecc1[2] = 0xff;
 	spare->tagByte6 = oob[6];
 	spare->tagByte7 = oob[7];
+	spare->ecc2[0] = spare->ecc2[1] = spare->ecc2[2] = 0xff;
 
 	nspare->eccres1 = nspare->eccres2 = 0; /* FIXME */
 }
