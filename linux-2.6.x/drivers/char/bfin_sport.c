@@ -34,6 +34,8 @@
  * some code to improve it, you are welcomed to post your patch on our website.
  */
 
+//#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -54,6 +56,7 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
+#include <asm/signal.h>
 
 int sport_major =   SPORT_MAJOR;
 int sport_minor =   0;
@@ -246,19 +249,23 @@ static irqreturn_t dma_rx_irq_handler(int irq, void *dev_id, struct pt_regs *reg
 static irqreturn_t dma_tx_irq_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct sport_dev *dev = dev_id;
-	unsigned short status ;
+	unsigned int status ;
 
 	pr_debug("%s enter\n", __FUNCTION__);
 	status = get_dma_curr_irqstat(dev->dma_tx_chan);
-	pr_debug("status:0x%04x\n", status);
 	while (status & DMA_RUN) {
 		status = get_dma_curr_irqstat(dev->dma_tx_chan);
 		pr_debug("status:0x%04x\n", status);
 	}
-	status = 0;
-	while (!(status & TUVF)) {
+	status = dev->regs->stat;
+	while (!(status & TXHRE)) {
+		pr_debug("%s status:%x\n", __FUNCTION__, status);
+		udelay(1);
 		status = dev->regs->stat;
 	}
+	/* Wait for the last byte sent out */
+	udelay(500);
+	pr_debug("%s status:%x\n", __FUNCTION__, status);
 
 	dev->regs->tcr1 &= ~TSPEN;
 	__builtin_bfin_ssync();
@@ -349,7 +356,25 @@ static irqreturn_t sport_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct sport_dev *dev = dev_id;
 
-	sport_tx_write(dev);
+	if (dev->tx_sent < dev->tx_len)
+		sport_tx_write(dev);
+
+	if (dev->tx_len != 0 && dev->tx_sent >= dev->tx_len && dev->config.int_clk) {
+		unsigned int stat;
+
+		stat = dev->regs->stat;
+		while (!(stat & TXHRE)) {
+			udelay(1);
+			pr_debug("%s:stat:%x\n", __FUNCTION__, stat);
+			stat = dev->regs->stat;
+		}
+		udelay(500);
+		dev->regs->tcr1 &= ~TSPEN;
+		__builtin_bfin_ssync();
+		pr_debug("%s:stat:%x\n", __FUNCTION__, stat);
+		dev->wait_con = 1;
+		wake_up(&dev->waitq);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -372,18 +397,22 @@ static irqreturn_t sport_err_handler(int irq, void *dev_id, struct pt_regs *regs
 		dev->regs->rcr1 &= ~RSPEN;
 		__builtin_bfin_ssync();
 
-		if (!dev->config.dma_enabled) {
+		if (!dev->config.dma_enabled && !dev->config.int_clk) {
 			if (status & TUVF) {
 				dev->wait_con = 1;
 				wake_up(&dev->waitq);
 			}
 		} else
-			printk(KERN_WARNING "sport status error:%s%s%s%s\n",
+		       printk(KERN_WARNING "sport %d status error:%s%s%s%s\n",
+					dev->sport_num,
 					status & TOVF ? " TOVF" : "",
 					status & TUVF ? " TUVF" : "",
 					status & ROVF ? " ROVF" : "",
 					status & RUVF ? " RUVF" : "");
 	}
+	/* Generate a signal to tell process this error */
+	if (dev->config.dma_enabled || dev->config.int_clk) 
+		send_sig(SIGABRT, dev->task, 1);
 
 	return IRQ_HANDLED;
 }
@@ -396,10 +425,19 @@ static int sport_open(struct inode *inode, struct file *filp)
 {
 	struct sport_dev *dev; /* device information */
 
+	pr_debug("%s enter\n", __FUNCTION__);
 	dev = container_of(inode->i_cdev, struct sport_dev, cdev);
 	filp->private_data = dev; /* for other methods */
 
 	memset(&dev->config, 0, sizeof(struct sport_config));
+
+	dev->rx_buf = NULL;
+	dev->rx_len = 0;
+	dev->rx_received = 0;
+	dev->tx_buf = NULL;
+	dev->tx_len = 0;
+	dev->tx_sent = 0;
+	dev->wait_con = 0;
 
 	if (request_irq(dev->tx_irq, sport_tx_handler, SA_SHIRQ, "sport_tx", dev) < 0) {
 		printk(KERN_ERR "Unable to request sport tx irq\n");
@@ -411,7 +449,7 @@ static int sport_open(struct inode *inode, struct file *filp)
 		goto fail;
 	}
 
-	if (request_irq(dev->sport_err_irq, sport_err_handler, 0, "sport_err_irq", dev) < 0) {
+	if (request_irq(dev->sport_err_irq, sport_err_handler, 0, "sport_err", dev) < 0) {
 		printk(KERN_ERR "Unable to request sport err irq\n");
 		goto fail;
 	}
@@ -426,6 +464,7 @@ static int sport_open(struct inode *inode, struct file *filp)
 		__builtin_bfin_ssync();
 	}
 #endif
+	dev->task = current;
 	return 0;
 
 fail:
@@ -439,7 +478,11 @@ static int sport_release(struct inode *inode, struct file *filp)
 {
 	struct sport_dev *dev;
 
+	pr_debug("%s enter\n", __FUNCTION__);
 	dev = container_of(inode->i_cdev, struct sport_dev, cdev);
+
+	dev->regs->tcr1 &= ~TSPEN;
+	dev->regs->rcr1 &= ~RSPEN;
 
 	if (dev->config.dma_enabled) {
 		free_dma(dev->dma_rx_chan);
@@ -465,6 +508,7 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
 
+	dev->wait_con = 0;
 	if (cfg->dma_enabled) {
 		int word_bytes = (cfg->word_len + 7) / 8;
 		uint16_t dma_config , xcount, ycount;
@@ -503,7 +547,12 @@ static ssize_t sport_read(struct file *filp, char __user *buf, size_t count,
 	dev->regs->rcr1 |= RSPEN;
 	__builtin_bfin_ssync();
 
-	wait_event_interruptible(dev->waitq, dev->wait_con);
+	if (wait_event_interruptible(dev->waitq, dev->wait_con) < 0) {
+		pr_debug("Receive a signal to interrupt\n");
+		dev->wait_con = 0;
+		up(&dev->sem);
+		return -ERESTARTSYS;
+	}
 	dev->wait_con = 0;
 
 	pr_debug("Complete called in dma rx irq handler\n");
@@ -518,8 +567,8 @@ static void dump_dma_regs(void)
 	struct dma_register_t *dma = (struct dma_register_t *)DMA4_NEXT_DESC_PTR;
 #endif
 
-	pr_debug(KERN_ERR " config:0x%04x, x_count:0x%04x,"
-			" x_modify:0x%04x\n", dma->cfg,
+	pr_debug("%s config:0x%04x, x_count:0x%04x,"
+			" x_modify:0x%04x\n", __FUNCTION__, dma->cfg,
 			dma->x_count, dma->x_modify);
 }
 
@@ -535,6 +584,7 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
 
+	dev->wait_con = 0;
 	/* Configure dma to start transfer */
 	if (cfg->dma_enabled) {
 		uint16_t dma_config, xcount, ycount;
@@ -574,8 +624,15 @@ static ssize_t sport_write(struct file *filp, const char __user *buf, size_t cou
 	dev->regs->tcr1 |= TSPEN;
 	__builtin_bfin_ssync();
 
-	wait_event_interruptible(dev->waitq, dev->wait_con );
+	pr_debug("wait for transfer finished\n");
+	if (wait_event_interruptible(dev->waitq, dev->wait_con ) < 0) {
+		pr_debug("Receive a signal to interrupt\n");
+		dev->wait_con = 0;
+		up(&dev->sem);
+		return -ERESTARTSYS;
+	}
 	dev->wait_con = 0;
+	pr_debug("waiting over\n");
 
 	/* Flush the data from cache to memory */
 	if (cfg->dma_enabled) {
