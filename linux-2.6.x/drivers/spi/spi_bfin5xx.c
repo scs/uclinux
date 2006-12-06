@@ -717,7 +717,7 @@ static void pump_transfers(unsigned long data)
 			write_CTRL(cr & ~BIT_CTL_ENABLE);
 
 			/* clear tx reg soformer data is not shifted out */
-			write_TDBR(0);
+			write_TDBR(0xFF);
 
 			set_dma_x_count(CH_SPI, drv_data->len);
 
@@ -728,7 +728,7 @@ static void pump_transfers(unsigned long data)
 			set_dma_start_addr(CH_SPI, (unsigned long)drv_data->rx);
 			enable_dma(CH_SPI);
 
-			cr |= CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14) | (CFG_SPI_SENDZERO << 2);
+			cr |= CFG_SPI_DMAREAD | (width << 8) | (CFG_SPI_ENABLE << 14);
 			/* set transfer mode, and enable SPI */
 			write_CTRL(cr);
 		} else if (drv_data->tx != NULL) {
@@ -777,7 +777,7 @@ static void pump_transfers(unsigned long data)
 		} else if (drv_data->rx != NULL) {        /* read only half duplex */
 
 			cr = (read_CTRL() & (~BIT_CTL_TIMOD));	/* cleare the TIMOD bits */
-			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14) | (CFG_SPI_SENDZERO << 2);
+			cr |= CFG_SPI_READ | (width << 8) | (CFG_SPI_ENABLE << 14);
 			pr_debug("IO read: cr is 0x%x\n", cr);
 
 			write_CTRL(cr);
