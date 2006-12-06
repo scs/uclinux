@@ -107,6 +107,10 @@ extern unsigned long search_exception_table(unsigned long);
 		int _err = 0;					\
 		typeof(*(p)) _x = (x);				\
 		typeof(*(p)) *_p = (p);				\
+		if (!access_ok(VERIFY_WRITE, _p, sizeof(*(_p)))) {\
+			_err = -EFAULT;				\
+		}						\
+		else {						\
 		switch (sizeof (*(_p))) {			\
 		case 1:						\
 			__put_user_asm(_x, _p, B);		\
@@ -127,6 +131,7 @@ extern unsigned long search_exception_table(unsigned long);
 		default:					\
 			_err = __put_user_bad();		\
 			break;					\
+		}						\
 		}						\
 		_err;						\
 	})
@@ -159,6 +164,10 @@ static inline int bad_user_access_length(void)
 	({								\
 		int _err = 0;						\
 		typeof(*(p)) *_p = (p);					\
+		if (!access_ok(VERIFY_READ, _p, sizeof(*(_p)))) {	\
+			_err = -EFAULT;					\
+		}							\
+		else {							\
 		switch (sizeof(*(_p))) {				\
 		case 1:							\
 			__get_user_asm(x, _p, B,(Z));			\
@@ -182,6 +191,7 @@ static inline int bad_user_access_length(void)
 			       __FILE__, __LINE__, __FUNCTION__);	\
 			_err = __get_user_bad();			\
 			break;						\
+		}							\
 		}							\
 		_err;							\
 	})
