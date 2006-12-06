@@ -142,9 +142,9 @@ MODULE_LICENSE("GPL");
 #endif
 
 #ifndef CONFIG_SPI_MMC_CARD_DETECT_PFLAG
-#define CARD_DETECT_PFLAG (1 << 5)
+#define CARD_DETECT_IRQ (IRQ_PF0 + 5)
 #else 
-#define CARD_DETECT_PFLAG (1 << CONFIG_SPI_MMC_CARD_DETECT_PFLAG)
+#define CARD_DETECT_IRQ (IRQ_PF0 + CONFIG_SPI_MMC_CARD_DETECT_PFLAG)
 #endif
 
 // some magic numbers for the spi mmc core
@@ -740,8 +740,6 @@ irqreturn_t spi_mmc_detect_irq_handler(int irq, void *dev_id, struct pt_regs *re
 	mmc_info_t* pdev;
 	pdev = (mmc_info_t*)dev_id;
 
-	// clear bit
-	bfin_write_FIO_FLAG_C(CARD_DETECT_PFLAG);
 	spi_mmc_delayed_revalidate(pdev, CARD_DETECT_INTERVAL);
     
 	// return
@@ -962,31 +960,10 @@ int spi_mmc_read_proc(char *buf, char **start, off_t offset, int count, int *eof
 #if defined(CONFIG_SPI_MMC_CARD_DETECT) && defined(CONFIG_BFIN)
 static void spi_mmc_bfin_cd_setup(mmc_info_t *pdev) 
 {
-#if !defined(CONFIG_BF533)
-	// enable PF5 as GPIO
-	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~CARD_DETECT_PFLAG);
-#endif
-	// set PF5 direction to INPUT
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~CARD_DETECT_PFLAG);
-
-	// set PF5 polar to active high
-	bfin_write_FIO_POLAR(bfin_read_FIO_POLAR() & ~CARD_DETECT_PFLAG);
-
-	// enable input drivers direction
-	bfin_write_FIO_INEN(bfin_read_FIO_INEN() | CARD_DETECT_PFLAG);
-	
-	// set edge sensitive
-	bfin_write_FIO_EDGE(bfin_read_FIO_EDGE() | CARD_DETECT_PFLAG);
-	
-	// set active on both edges
-	bfin_write_FIO_BOTH(bfin_read_FIO_BOTH() | CARD_DETECT_PFLAG);
-
 	// request interrupt handler for card detect signal
-	if (request_irq(IRQ_PROG_INTA, spi_mmc_detect_irq_handler, SA_INTERRUPT, SPI_MMC_DEVNAME, pdev)) {
+	if (request_irq(CARD_DETECT_IRQ, spi_mmc_detect_irq_handler, 
+		IRQF_TRIGGER_RISING|IRQF_TRIGGER_FALLING|IRQF_DISABLED, SPI_MMC_DEVNAME, pdev)) {
 		printk(KERN_WARNING "spi_mmc: IRQ %d is not free, No card detection.\n", IRQ_PROG_INTA);
-	} else {
-		// write to SET register to enable interrupt on PF5
-		bfin_write_FIO_MASKA_S(CARD_DETECT_PFLAG);
 	}
 }
 #endif
@@ -998,7 +975,7 @@ static void spi_mmc_clean(void)
 	
 #if defined(CONFIG_BFIN) && defined(CONFIG_SPI_MMC_CARD_DETECT)
 	del_timer(&pdev->revalidate_timer);
-	free_irq(IRQ_PROG_INTA, pdev);
+	free_irq(CARD_DETECT_IRQ, pdev);
 #endif
 	// releasae disks and deallocate device array
 	if (pdev->gd) {
