@@ -31,17 +31,18 @@
  * but this driver is implemented on Blackfin Processor.
  */
 
-/* After reset, there is a prelude of low level pulse when transmit data first time.
- * No addtional pulse in following transmit.
+/* After reset, there is a prelude of low level pulse when transmit data first
+ * time. No addtional pulse in following transmit.
  * According to document:
  * The SPORTs are ready to start transmitting or receiving data no later than
  * three serial clock cycles after they are enabled in the SPORTx_TCR1 or
  * SPORTx_RCR1 register. No serial clock cycles are lost from this point on.
  * The first internal frame sync will occur one frame sync delay after the
- * SPORTs are ready. External frame syncs can occur as soon as the SPORT is ready.
+ * SPORTs are ready. External frame syncs can occur as soon as the SPORT is
+ * ready.
  */
 
-#define DEBUG
+//#define DEBUG
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -56,10 +57,6 @@
 #include <asm/delay.h>
 
 #include "bfin_sport_uart.h"
-
-/*
- * Setup for console. Argument comes from the menuconfig
- */
 
 struct sport_uart_port {
 	struct uart_port	port;
@@ -86,7 +83,7 @@ static inline void tx_one_byte(struct sport_uart_port *up, unsigned int value)
 		:"=r"(value)
 		:"0"(value)
 		:"R2", "R3");
-//	pr_debug("%s value:%x\n", __FUNCTION__, value);
+	pr_debug("%s value:%x\n", __FUNCTION__, value);
 
 	SPORT_PUT_TX(up, value);
 }
@@ -125,8 +122,7 @@ static int sport_uart_setup(struct sport_uart_port *up, int sclk, int baud_rate)
 	int tclkdiv, tfsdiv, rclkdiv;
 
 	/* Set TCR1 and TCR2 */
-//	SPORT_PUT_TCR1(up, (LATFS | LTFS | ITFS | TFSR | TLSBIT | ITCLK));
-	SPORT_PUT_TCR1(up, (TCKFE | LTFS | ITFS | TFSR | TLSBIT | ITCLK));
+	SPORT_PUT_TCR1(up, (LTFS | ITFS | TFSR | TLSBIT | ITCLK));
 	SPORT_PUT_TCR2(up, 10);
 	pr_debug("%s TCR1:%x, TCR2:%x\n", __FUNCTION__, SPORT_GET_TCR1(up), SPORT_GET_TCR2(up));
 
@@ -136,8 +132,6 @@ static int sport_uart_setup(struct sport_uart_port *up, int sclk, int baud_rate)
 	pr_debug("%s RCR1:%x, RCR2:%x\n", __FUNCTION__, SPORT_GET_RCR1(up), SPORT_GET_RCR2(up));
 
 	tclkdiv = sclk/(2 * baud_rate) - 1;
-//	tfsdiv = 14;
-//	tfsdiv = 20;
 	tfsdiv = 12;
 	rclkdiv = sclk/(2 * baud_rate * 3) - 1;
 	SPORT_PUT_TCLKDIV(up, tclkdiv);
@@ -244,7 +238,7 @@ static int sport_startup(struct uart_port *port)
 	}
 #endif
 
-	sport_uart_setup(up, get_sclk(), up->port.uartclk);
+	sport_uart_setup(up, get_sclk(), port->uartclk);
 
 	/* Enable receive interrupt */
 	SPORT_PUT_RCR1(up, (SPORT_GET_RCR1(up) | RSPEN));
@@ -268,13 +262,6 @@ static void sport_uart_tx_chars(struct sport_uart_port *up)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		unsigned int stat;
-
-		stat = SPORT_GET_STAT(up);
-		while(!(stat & TXHRE)) {
-			udelay(1);
-			stat = SPORT_GET_STAT(up);
-		}
 		sport_stop_tx(&up->port);
 		return;
 	}
@@ -316,8 +303,21 @@ static void sport_set_mctrl(struct uart_port *port, unsigned int mctrl)
 static void sport_stop_tx(struct uart_port *port)
 {
 	struct sport_uart_port *up = (struct sport_uart_port *)port;
+	unsigned int stat;
 
 	pr_debug("%s enter\n", __FUNCTION__);
+
+	stat = SPORT_GET_STAT(up);
+	while(!(stat & TXHRE)) {
+		udelay(1);
+		stat = SPORT_GET_STAT(up);
+	}
+	/* Althoug the Hold register is empty, but last byte is still
+	 * not sent out yet. If buad rate is lower than default 57600,
+	 * it needs to delay longer. For example, if the baud rate is 
+	 * 9600, the delay is at least 2ms by experience */
+	udelay(500);
+
 	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) & ~TSPEN));
 	__builtin_bfin_ssync();
 
@@ -335,6 +335,7 @@ static void sport_start_tx(struct uart_port *port)
 	/* Enable transmit, then an interrupt will generated */
 	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) | TSPEN));
 	__builtin_bfin_ssync();
+	pr_debug("%s exit\n", __FUNCTION__);
 }
 
 static void sport_stop_rx(struct uart_port *port)
@@ -364,8 +365,7 @@ static void sport_shutdown(struct uart_port *port)
 	pr_debug("%s enter\n", __FUNCTION__);
 
 	/* Disable sport */
-//	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) & ~TSPEN));
-	SPORT_PUT_TCR1(up, 0);
+	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) & ~TSPEN));
 	SPORT_PUT_RCR1(up, (SPORT_GET_RCR1(up) & ~RSPEN));
 	__builtin_bfin_ssync();
 
@@ -377,7 +377,8 @@ static void sport_shutdown(struct uart_port *port)
 static void sport_set_termios(struct uart_port *port,
 		struct termios *termios, struct termios *old)
 {
-	pr_debug("%s enter\n", __FUNCTION__);
+	pr_debug("%s enter, c_cflag:%08lx\n", __FUNCTION__, termios->c_cflag);
+	uart_update_timeout(port, CS8 ,port->uartclk);
 }
 
 static const char *sport_type(struct uart_port *port)
@@ -445,7 +446,7 @@ static struct sport_uart_port sport_uart_ports[] = {
 			.mapbase	= SPORT0_TCR1,
 			.irq		= IRQ_SPORT0_RX,
 			.uartclk	= CONFIG_SPORT_BAUD_RATE,
-			.fifosize	= 64,
+			.fifosize	= 8,
 			.ops		= &sport_uart_ops,
 			.line		= 0,
 		},
@@ -461,7 +462,7 @@ static struct sport_uart_port sport_uart_ports[] = {
 			.mapbase	= SPORT1_TCR1,
 			.irq		= IRQ_SPORT1_RX,
 			.uartclk	= CONFIG_SPORT_BAUD_RATE,
-			.fifosize	= 64,
+			.fifosize	= 8,
 			.ops		= &sport_uart_ops,
 			.line		= 1,
 		},
