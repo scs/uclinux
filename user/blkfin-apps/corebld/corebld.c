@@ -47,6 +47,10 @@ static void put_region(char *dst, const char *src, size_t count)
 			index = 3;
 			seek = (unsigned long)dst & 0x7fff;
 		}
+		/* copy sdram code */
+	} else if (((unsigned long)dst >= 0x3C00000) &&
+		   ((unsigned long)dst <  0x4000000)) {
+		memcpy(dst, src, count);
 	} else {
 		printf("Cowardly refusing to load an incorrectly linked binary.\n"
 			"Please make sure the binary you are trying to load is linked for BF561 Core B.\n"
@@ -78,10 +82,10 @@ int elf_load(const char *buf)
 		printf("File is not an ELF file.\n");
 		return -1;
 	}
-
-	if (ehdr->e_type == 8 && ehdr->e_machine == 0x22)
+//	printf("e_type is 0x%x, e_flags is 0x%x,  e_machine is 0x%x\n",ehdr->e_type,ehdr->e_flags,ehdr->e_machine);
+	if (ehdr->e_flags == 4 && ehdr->e_machine == 0x6a)
 		compiler = COMPILER_VDSP;
-	else if (ehdr->e_type == 2 && ehdr->e_machine == 0x6a)
+	else if (ehdr->e_flags == 0 && ehdr->e_machine == 0x6a)
 		compiler = COMPILER_GCC;
 	else {
 		printf("File is not a Blackfin ELF file\n");
@@ -99,10 +103,9 @@ int elf_load(const char *buf)
 			unsigned long addr = shdr->sh_addr;
 			unsigned long size = shdr->sh_size;
 
-			if ((compiler == COMPILER_VDSP
-			     && (shdr->sh_flags & 0x408000) == 0x8000)
-			    || (compiler == COMPILER_GCC
-				&& (shdr->sh_flags & 0x0003) == 0x0003)) {
+//			printf("section %d:0x%x\n",i,shdr->sh_flags);
+			if ((compiler == COMPILER_VDSP && (shdr->sh_flags & 0x408000) == 0x8000)
+			    || (compiler == COMPILER_GCC && (shdr->sh_flags & 0x0003) == 0x0003)) {
 				printf("Write %zi bytes to 0x%p\n", size, (void*)addr);
 				put_region((char*)addr, buf + shdr->sh_offset, size);
 			}
@@ -116,18 +119,31 @@ int main(int argc, char *argv[])
 	FILE *f;
 	struct stat stat;
 	char *buf;
+	int coreb_start, coreb_file;
 
-	if (argc != 2) {
+	coreb_start = 1;  /* flag to decide if coreb will be started */
+	coreb_file = 0;
+
+	if ((argc < 2) || (argc > 3)) {
 		printf("Usage: %s filename\n", argv[0]);
 		return 0;
 	}
-	if ((f = fopen(argv[1], "r")) == NULL) {
-		printf("Unable to load %s\n", argv[1]);
+
+	if (argc == 3) {
+		if (strcmp(argv[1],"-s") == 0)
+			coreb_start = 0;
+		coreb_file = 2;
+	} else {
+		coreb_file = 1;
+	}
+
+	if ((f = fopen(argv[coreb_file], "r")) == NULL) {
+		printf("Unable to load %s\n", argv[coreb_file]);
 		return 0;
 	}
 
 	if (fstat(fileno(f), &stat) < 0) {
-		printf("Unable to stat %s\n", argv[1]);
+		printf("Unable to stat %s\n", argv[coreb_file]);
 		return 0;
 	}
 
@@ -137,13 +153,13 @@ int main(int argc, char *argv[])
 	}
 
 	if (fread(buf, 1, stat.st_size, f) != stat.st_size) {
-		printf("Unable to read %li bytes from %s\n", (unsigned long)stat.st_size, argv[1]);
+		printf("Unable to read %li bytes from %s\n", (unsigned long)stat.st_size, argv[coreb_file]);
 		return 0;
 	}
 
 	fclose(f);
 
-	if (!elf_load(buf))
+	if (!elf_load(buf) && coreb_start)
 		StartCoreB();
 
 	free(buf);
