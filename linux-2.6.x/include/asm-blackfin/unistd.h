@@ -127,7 +127,7 @@
 #define __NR_uname		122
 				/* 123 __NR_modify_ldt obsolete */
 #define __NR_adjtimex		124
-				/* 125 __NR_mprotect obsolete */
+#define __NR_mprotect		125
 #define __NR_sigprocmask	126
 				/* 127 __NR_create_module obsolete */
 #define __NR_init_module	128
