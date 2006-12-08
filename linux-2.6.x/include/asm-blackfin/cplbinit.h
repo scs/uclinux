@@ -86,6 +86,7 @@ struct s_cplb {
 	struct cplb_tab switch_d;
 };
 
+#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 static struct cplb_desc cplb_data[] = {
 	{
 		.start = 0,
@@ -184,3 +185,4 @@ static struct cplb_desc cplb_data[] = {
 		.name = "L2 Memory",
 	}
 };
+#endif

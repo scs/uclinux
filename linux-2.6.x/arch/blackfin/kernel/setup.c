@@ -73,11 +73,15 @@ EXPORT_SYMBOL(mtd_size);
 char command_line[COMMAND_LINE_SIZE];
 
 extern void init_leds(void);
+#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 static void generate_cpl_tables(void);
+#endif
 
 void __init bf53x_cache_init(void)
 {
+#if defined(CONFIG_BLKFIN_DCACHE) || defined(CONFIG_BLKFIN_CACHE)
 	generate_cpl_tables();
+#endif
 
 #ifdef CONFIG_BLKFIN_CACHE
 	bfin_icache_init();
@@ -483,8 +487,6 @@ close_cplbtab(struct cplb_tab *table)
 	return 0;
 }
 
-#endif
-
 static void __init generate_cpl_tables(void)
 {
 
@@ -677,6 +679,8 @@ static void __init generate_cpl_tables(void)
 	cplb.switch_d.tab[cplb.switch_d.pos] = -1;
 
 }
+
+#endif
 
 static inline u_long get_vco(void)
 {
