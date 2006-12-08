@@ -9,6 +9,11 @@
 
 #include "syscalls.h"
 #include <unistd.h>
+
+#ifdef __NR_mremap
+
 #include <sys/mman.h>
 _syscall4(__ptr_t, mremap, __ptr_t, old_address, size_t, old_size, size_t,
 		  new_size, int, may_move);
+
+#endif
