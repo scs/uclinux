@@ -380,7 +380,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "spi_mmc_dummy",
 		.max_speed_hz = 2,
 		.bus_num = 1,
-		.chip_select = 7,
+		.chip_select = 0,
 		.platform_data = NULL,
 		.controller_data = &spi_mmc_chip_info,
 	},
