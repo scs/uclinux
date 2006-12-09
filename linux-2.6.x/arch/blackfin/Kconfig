@@ -184,13 +184,13 @@ config BFIN537_STAMP
 	  BF537-STAMP board Support.
 
 config BFIN533_BLUETECHNIX_CM
-	bool "Bluetechnix CM-BF533 board support"
+	bool "Bluetechnix CM-BF533"
 	depends on (BF533)
 	help
 	  CM-BF533 support for EVAL- and DEV-Board.
 
 config BFIN537_BLUETECHNIX_CM
-	bool "Bluetechnix CM-BF537 board support"
+	bool "Bluetechnix CM-BF537"
 	depends on (BF537)
 	help
 	  CM-BF537 support for EVAL- and DEV-Board.
