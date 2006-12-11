@@ -9,20 +9,11 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device \[srcdir targetip serverip\]"
-   puts "   where tty-device is something like /dev/ttyS0"
-   puts ""
-   exit
-}
-
 step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 source ../reboot_kernel.exp
-
 
 step "Start $TITLE\r"
 

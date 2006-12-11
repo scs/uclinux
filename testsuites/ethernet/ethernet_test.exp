@@ -1,17 +1,10 @@
 #!/usr/bin/expect
 
 source ../kernel_config.exp
+source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
-
-set board_type [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-if { $argc < 1} {
-puts "Please input: board_type."
-exit
-}
 
 cd $uclinux_path/testsuites/ethernet/
 
@@ -21,7 +14,6 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
-
 step "Start testing."
 
 set case_num 0
@@ -30,7 +22,7 @@ incr case_num
 
 set timeout 8
 set flag 0
-send "ifconfig eth0 10.100.4.50\r" 
+send "ifconfig eth0 $targetip\r" 
 while 1 {
    sleep 3
    expect {
@@ -161,7 +153,7 @@ if { $board_type == "BF537-STAMP" } {
 
 }
 
-spawn ftp 10.100.4.50
+spawn ftp $targetip 
 while 1 {
     expect {
                 "Name" { }

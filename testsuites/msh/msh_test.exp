@@ -8,29 +8,6 @@ source ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
-set targetip 10.100.4.2
-set serverip 10.100.4.174
-
-set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 tty-device \[srcdir targetip serverip\]"
-   puts "   where tty-device is something like /dev/ttyS0"
-   puts ""
-   exit
-}
-# grab the user specified parameters.
-
-if { $argc >= 2} {
-   set srcdir             [lindex $argv 1]
-}
-
-if { $argc >= 3} {
-   set targetip           [lindex $argv 2]
-}
-if { $argc >= 4} {
-   set serverip           [lindex $argv 3]
-}
-
 
 step "Start kermit."
 source ../spawn_kermit.exp

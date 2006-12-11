@@ -11,18 +11,14 @@ set TITLE [title "$argv0"]
 
 set ircomm	"/dev/ircomm0"
 
-set argc [llength $argv]
-if { $argc < 3} {
-   puts "Usage:  irda_test <host-tty-dev> <host-irda-dev> <target-irda-dev>"
-   puts "   where dev is something like /dev/ttyS0"
+if { $argc < 2} {
+   puts "Usage:  irda_test <host-irda-dev> <target-irda-dev>"
    puts ""
    exit
 }
 # grab the user specified parameters.
-set host_ttydev             [lindex $argv 0]
-set host_irdadev	    [lindex $argv 1]
-set target_irdadev	    [lindex $argv 2]
-
+set host_irdadev	    [lindex $argv 0]
+set target_irdadev	    [lindex $argv 1]
 
 step "Start kermit."
 source ../spawn_kermit.exp

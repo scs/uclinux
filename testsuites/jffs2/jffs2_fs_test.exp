@@ -19,7 +19,7 @@ incr case_num
 
 set timeout 8
 set flag 0
-send "ifconfig eth0 10.100.4.50\r"
+send "ifconfig eth0 $targetip\r"
 while 1 {
    sleep 3
    expect {
@@ -99,7 +99,7 @@ while 1 {
                 exit
  }
 
-spawn ftp 10.100.4.50
+spawn ftp $targetip
 while 1 {
     expect {
                 "Name" { }

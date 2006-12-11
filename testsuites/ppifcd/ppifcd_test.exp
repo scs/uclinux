@@ -1,18 +1,9 @@
 #!/usr/bin/expect
 source ../kernel_config.exp
+source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
-
-
-
-set board_type [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-if { $argc < 1} {
-puts "Please input: board_type."
-exit
-}
 
 if { $board_type == "BF533-STAMP" } {
     	set board_num 533
@@ -20,22 +11,11 @@ if { $board_type == "BF533-STAMP" } {
 	set board_num 537        
 }
 
-
-
 step "Start kermit."
 source ../spawn_kermit.exp
 
-#step "Start up kermit on port $ttydev"
-# Now set up the kermit parameters.
-#  I want these all contained in this file to make it easier for users.
-#  This just builds up a list of commands which are sent to kermit.
-#
-   }
-}
-
 step "Reboot the kernel."
 source ../reboot_kernel.exp
-
 
 step "Start testing."
 
@@ -45,7 +25,7 @@ incr case_num
 
 set timeout 30
 
-send -s "ifconfig eth0 10.100.4.50\r"
+send -s "ifconfig eth0 $targetip\r"
 while 1 {
    sleep 3
    expect {
@@ -149,7 +129,7 @@ while 1 {
      }
 }
 
-spawn ftp 10.100.4.50
+spawn ftp $targetip
 while 1 {
     expect {
                 "Name" { }

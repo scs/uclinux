@@ -4,13 +4,11 @@ source ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-
 step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 source ../reboot_kernel.exp
-
 
 step "Starting test."
 set timeout 8

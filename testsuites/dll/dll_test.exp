@@ -8,15 +8,6 @@ send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
 
-
-set argc [llength $argv]
-if { $argc < 1 } {
-   send_user "\nAppend board_ip_addr\n"
-   exit
-}
-
-set ipaddr [lindex $argv 0]
-
 step "Spawn kermit"
 source ../spawn_kermit.exp
 

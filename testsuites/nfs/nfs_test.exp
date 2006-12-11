@@ -17,7 +17,7 @@ set case_num 0
 
 set timeout 8
 set flag 0
-send "ifconfig eth0 10.100.4.50\r" 
+send "ifconfig eth0 $targetip\r" 
 
 while 1 {
    sleep 3
@@ -38,7 +38,7 @@ send "ifconfig\r"
 while 1 {
 
    expect {
-      "10.100.4.50" {        
+      "$targetip" {        
          break
       }
 
@@ -73,7 +73,7 @@ expect "root:~>"
 
 incr case_num
 
-send -s "mount -o nolock,rsize=1024,wsize=1024 -t nfs 10.100.4.174:$uclinux_path/romfs /mnt\r" 
+send -s "mount -o nolock,rsize=1024,wsize=1024 -t nfs $serverip:$uclinux_path/romfs /mnt\r" 
 while 1 {
    expect {
        "root:~>" {

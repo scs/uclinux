@@ -9,67 +9,12 @@ set TITLE [title "$argv0"]
 step "Start kermit."
 source ../spawn_kermit.exp
 
-step "Reset the uboot."
-source ../reset_to_uboot.exp
+step "Reboot the kernel."
+set bootargs  $bootargs_param2
+source ../reboot_kernel.exp
 
 set TEST_PASS               "pass"
 set TEST_FAIL               "fail"
-
-expect ">"
-send -s "set bootargs root=/dev/mtdblock3 rw \r"
-expect ">" 
-send -s "save\r"
-expect ">"
-
-send -s "tftpboot 0x1000000 linux\r" 
-while 1 {
-   expect {
-      "#" {         
-         break
-      }
-
-      timeout {
-            send_log "Fail tftp. "          
-            break
-         }
-     }
-} 
-expect ">"
-send -s "boote\r" 
-
- set timeout 180
-   while 1 {
-      expect {
-
-         -re "Kernel panic" {
-            puts "kernel panic detected... trying to recover from it"
-            send_log "$TITLE ............\[FAIL\]\n"
-            exit
-
-         }
-
-         -re "Sash command shell.*/> " {
-            send_log "successful boot attempt"
-          #  incr successful_boots
-            break
-         }
-	 
-	  "root:~> " {
-            send_log "successful boot attempt"
-          #  incr successful_boots
-            break
-         }
-
-         timeout {
-            send_log "failed boot attempt"
-	    break
-         }
-      }
-   }
-
-sleep 5
-send "\r"
-expect "root:~>"
 
 step "MTD test"
 

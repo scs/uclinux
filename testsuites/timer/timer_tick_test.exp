@@ -20,8 +20,6 @@ exit
 step "Start kermit."
 source ../spawn_kermit.exp
 
-if 1 {
-
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 

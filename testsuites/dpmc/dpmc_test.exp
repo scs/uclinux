@@ -5,7 +5,6 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-
 set vco [lindex $argv 0]
 set sclk [lindex $argv 1]
 set voltage [lindex $argv 2]
@@ -22,10 +21,8 @@ exit
 step "Start kermit."
 source ../spawn_kermit.exp
 
-
 step "Reboot the kernel."
 source ../reboot_kernel.exp
-
 
 step "Starting test."
 

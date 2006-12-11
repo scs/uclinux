@@ -37,6 +37,8 @@ set HAVE_JFFS2_IMAGE     0
 
 set bootargs_param0      "root=/dev/mtdblock0 rw" 
 set bootargs_param1      "root=/dev/mtdblock2 rw rootfstype=jffs2"
+set bootargs_param2      "root=/dev/mtdblock3 rw"
+set bootargs_param3      "root=/dev/mtdblock0 rw mem=32M max_mem=64M"
 set bootargs 		 $bootargs_param0
 
 

@@ -14,7 +14,8 @@ source ../spawn_kermit.exp
 step "Reset the uboot."
 source ../reset_to_uboot.exp
 
-send -s "set bootargs root=/dev/mtdblock2 rw rootfstype=jffs2\r"
+set bootargs  $bootargs_param1
+send -s "set bootargs $bootargs\r"
 expect   ">" 
 send "save\r"
 expect   ">" 

@@ -9,20 +9,13 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-set PING_COUNT  19
+set PING_COUNT  1999
 
 # grab the user specified parameters.
 
 if { $argc >= 1} {
    set PING_COUNT           [lindex $argv 0]
 }
-if { $argc >= 2} {
-   set targetip            [lindex $argv 1]
-}
-if { $argc >= 3} {
-   set serverip            [lindex $argv 2]
-}
-
 
 step "Start kermit."
 source ../spawn_kermit.exp

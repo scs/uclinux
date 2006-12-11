@@ -8,27 +8,6 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-set targetip 10.100.4.2
-set serverip 10.100.4.174
-
-set argc [llength $argv]
-if { $argc < 2} {
-   puts "Usage:  $argv0 tty-device srcdir \[targetip serverip\]"
-   puts "   where tty-device is something like /dev/ttyS0"
-   puts ""
-   exit
-}
-# grab the user specified parameters.
-set srcdir             [lindex $argv 1]
-
-if { $argc >= 3} {
-   set targetip           [lindex $argv 2]
-}
-if { $argc >= 4} {
-   set serverip           [lindex $argv 3]
-}
-
-
 step "Start kermit."
 source ../spawn_kermit.exp
 
@@ -41,7 +20,7 @@ set timeout 10
 set case_num 0
 
 incr case_num
-spawn bfin-uclinux-gdb $srcdir/linux-2.6.x/vmlinux
+spawn bfin-uclinux-gdb $uclinux_path/linux-2.6.x/vmlinux
 set gdb_id $spawn_id
 while 1 {
       expect {

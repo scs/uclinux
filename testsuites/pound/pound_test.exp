@@ -28,9 +28,9 @@ sleep 3
       expect ":"
       send "i\r"
       sleep .5
-      send "serverip=10.100.4.50\r"
+      send "serverip=$targetip\r"
       sleep .5
-      send "url=https://10.100.4.50/test\r"
+      send "url=https://$targetip/test\r"
       sleep .5
       send ".\r"
       expect ":"
@@ -70,7 +70,7 @@ send "ls /usr/local/etc/pound.cfg\r"
 expect   "root:~>"
 
 set flag 0
-send "ifconfig eth0 10.100.4.50\r" 
+send "ifconfig eth0 $targetip\r" 
 while 1 {
    sleep 3
    expect {

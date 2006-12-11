@@ -8,7 +8,6 @@ set TITLE [title "$argv0"]
 set TEST_PASS pass
 set TEST_FAIL fail
 
-
 step "Start kermit."
 source ../spawn_kermit.exp
 
