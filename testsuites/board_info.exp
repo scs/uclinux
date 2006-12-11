@@ -1,0 +1,66 @@
+#!/usr/bin/expect
+
+set board_type              BF537-STAMP
+ 
+set board_type [lindex $argv 0]
+send_log "\n#### board_type is $board_type\n"
+
+if { $argc < 1} {
+puts "Please input: board_type."
+exit
+}
+
+if { $board_type == "BF537-STAMP" } {
+  set  cpu       BF537
+} elseif { $board_type == "BF533-STAMP" } {
+  set  cpu       BF533
+} elseif { $board_type == "BF533-EZKIT" } {
+  set  cpu       BF533
+} elseif { $board_type == "BF561-EZKIT" } {
+  set  cpu       BF561
+} else {
+  set  cpu       BF537
+}
+if { $argc >= 2} {
+  set  cpu  [lindex $argv 1]
+}
+  send_log "\n#### cpu is $cpu\n"
+
+
+set binary_format  flat
+set allocator      slab\(p2\)
+set icache         on
+set dcache         on
+set policy         write_through
+set uart_mode      dma
+
+
+if { $argc >= 3} {
+   set uclinux_path        [lindex $argv 2]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
+}
+if { $argc >= 4} {
+   set binary_format       [lindex $argv 3]
+   send_log "\n### binary_format is $binary_format\n"
+}
+if { $argc >= 5} {
+   set allocator           [lindex $argv 4]
+   send_log "\n#### allocator is $allocator\n"
+}
+if { $argc >= 6} {
+   set icache              [lindex $argv 5]
+   send_log "\n#### icache is $icache\n"
+}
+if { $argc >= 7} {
+   set dcache              [lindex $argv 6]
+   send_log "\n#### dcache is $dcache\n"
+}
+if { $argc >= 8} {
+   set policy              [lindex $argv 7]
+   send_log "\n### policy is $policy\n"
+}
+
+if { $argc >= 9} {
+   set uart_mode           [lindex $argv 8]
+   send_log "\n#### uart_mode is $uart_mode\n"
+}

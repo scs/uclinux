@@ -1,122 +1,18 @@
 #!/usr/bin/expect
-log_file build_policy_kernel_log
-send_user "Starting build_policy_kernel.exp\n"
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 
-set send_slow {1 .01}
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
 
-set board_type     [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-set cpu            [lindex $argv 1]
-send_log "\n#### cpu is $cpu\n"
-   
-if { $argc < 2} {
-puts "Please input: board_type, cpu."
-exit
-}
-
-set uclinux_path   /home/test/checkouts/kernel/uClinux-dist
-set binary_format  flat
-set allocator      slab\(p2\)
-set icache	   on 
-set dcache         on
-set policy         write_through
-set uart_mode      dma
-
-
-if { $argc >= 3} {
-   set uclinux_path        [lindex $argv 2]
-   send_log "\n#### uclinux_path is $uclinux_path\n"
-}
-if { $argc >= 4} {
-   set binary_format       [lindex $argv 3]
-   send_log "\n### binary_format is $binary_format\n"
-}
-if { $argc >= 5} {
-   set allocator           [lindex $argv 4]
-   send_log "\n#### allocator is $allocator\n"
-}
-if { $argc >= 6} {
-   set icache              [lindex $argv 5]
-   send_log "\n#### icache is $icache\n"
-}
-if { $argc >= 7} {
-   set dcache              [lindex $argv 6]
-   send_log "\n#### dcache is $dcache\n"
-}
-if { $argc >= 8} {
-   set policy              [lindex $argv 7]
-   send_log "\n### policy is $policy\n"
-}
-
-if { $argc >= 9} {
-   set uart_mode           [lindex $argv 8]
-   send_log "\n#### uart_mode is $uart_mode\n"
-}
-
-proc step { message } {
-
-  global step_sequence_number
-
-  puts "\n*******************************************************************"
-  puts "STEP $step_sequence_number: $message\n\n"
-  send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number
-}
-
-set step_sequence_number    1
-
+cd $uclinux_path/testsuites
 
 step "Make config."
 
-cd $uclinux_path
-set timeout 300
-spawn make config
+source  make_default_config.exp
 
-
-while 1 {
-   expect {
-
-       -re "Vendor.*AnalogDevices.*\\\[.*]" {
-
-             send "AnalogDevices\r"
-      }
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-             
-             send "$board_type\r"
-      }
-
-        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-
-             send "y\r"
-      }
-
-        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-
-             send "y\r"
-      }
-
-      "\\\(*) \\\[*]" {
-	     send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break 
-      }
-   }
-}
+# Following make specific configuration for this case.
 
 cd $uclinux_path
 set timeout 300
@@ -257,12 +153,12 @@ while 1 {
 		}
       }
       
-           -re "Blackfin Serial Driver.*SERIAL_BLACKFIN.*\\\[.*]" {
+           -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
 	  		
 			send "Y\r"		
       }
       
-           -re "Mode.*DMA on RX and TX.*SERIAL_BLACKFIN_DMA.*PIO on RX and TX.*SERIAL_BLACKFIN_PIO.*choice\\\[.*]" {
+           -re "Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
 		if { $uart_mode == "dma" } {
 			send "1\r"
 		} elseif { $uart_mode == "pio" } {
@@ -327,36 +223,21 @@ while 1 {
    }
 }
 
+cd $uclinux_path/testsuites
+
 step "Make"
 
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-	     "Entering directory" { }
-	     "Leaving directory" { set bfin_make_status success }
-	     "Error" {set bfin_make_status failure }
-	     "/bin/sh" { }
-	     eof { break }
-      }
-}
+source  make_kernel.exp
 
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-
-}
-
+cd $uclinux_path/testsuites
 
 step "Copy linux"
- 
-set timeout 8
-cd $uclinux_path
-exec cp images/linux  /tftpboot
 
+source   copy_image.exp
+ 
+
+send_user "Ending $argv0\n"
 log_file
  
-send_user "Ending build_policy_kernel.exp\n"
 
 

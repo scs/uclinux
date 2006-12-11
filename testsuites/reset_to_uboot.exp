@@ -1,0 +1,69 @@
+#!/usr/bin/expect
+
+# This file couldn't be indepently executed.
+# It is meant to be included into ***_test.exp scripts. 
+
+send_user "Try to figure out if we are in u-boot or the kernel"
+set where_are_we 0
+send "version\r"
+set timeout 20
+while 1 {
+	expect {
+	
+	"U-Boot" {
+		expect ">"
+		send_user "We are in u-boot\n"
+		set where_are_we "uboot"
+		break
+	}
+	
+	"Linux" {
+		expect ">"
+		send_user "We are in the kernel\n"
+		set where_are_we "kernel"
+		break
+	}
+	
+	timeout {
+		send_user "Can't tell if we are in u-boot or the kernel\n"
+		# If the first version command doesn't work, run it once again.
+		send "version\r"
+	}
+	}
+}
+
+if { $where_are_we == "uboot" } {
+    set timeout 50 
+    send "reset\r"   
+    send_user "sending reset\n"    
+} else {
+    if { $where_are_we == "kernel" } {
+	set timeout 60	
+	send "reboot\r"
+	send_user "sending reboot\n"	
+    } else {
+	# If we don't know where we are, hit control-C and enter
+	set timeout 10
+	expect "*"	
+	send_user "sending control-C\n"
+	send "\3"
+	sleep 1
+	send "\r"
+    }
+}
+
+while 1 {
+	expect {
+		"Hit any key " {
+			send "\r"
+			break
+		}
+	
+		timeout {
+			send_user "Fail to reboot the kernel.\n"
+			break
+		}
+	}
+}
+	
+expect ">"

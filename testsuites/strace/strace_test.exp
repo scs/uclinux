@@ -1,13 +1,13 @@
 #!/usr/bin/expect
+
 #
 #Test program to test strace.
 #
-log_file strace_test_log
-send_user "Starting strace_test.exp\n"
 
-set SERIAL_PORT_BAUD_RATE   "57600"
-set TITLE "Strace Test"
-set send_slow {1 .01}
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
 
 set argc [llength $argv]
 if { $argc < 1} {
@@ -16,200 +16,13 @@ if { $argc < 1} {
    puts ""
    exit
 }
-# grab the user specified parameters.
-set ttydev             [lindex $argv 0]
 
+step "Start kermit."
+source ../spawn_kermit.exp
 
-proc step { message } {
+step "Reboot the kernel."
+source ../reboot_kernel.exp
 
-  global step_sequence_number
-
-  puts "\n*******************************************************************"
-  puts "STEP $step_sequence_number: $message\n\n"
-  send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number
-}
-
-set step_sequence_number    1
-
-step "Start kermit"
-
-# Now set up the kermit parameters.
-#  I want these all contained in this file to make it easier for users.
-#  This just builds up a list of commands which are sent to kermit.
-#
-set kparams     [list "set line $ttydev\r"]
-lappend kparams "set speed 57600\r"
-lappend kparams "set carrier-watch off\r"
-lappend kparams "set handshake none\r"
-lappend kparams "set flow-control none\r"
-lappend kparams "robust\r"
-lappend kparams "set file type bin\r"
-lappend kparams "set file name lit\r"
-lappend kparams "set rec pack 1000\r"
-lappend kparams "set send pack 1000\r"
-lappend kparams "set window 5\r"
-lappend kparams "set escape 255\r"
-set nkparams [llength $kparams]
-
-set timeout 3
-spawn kermit
-# We need to save the id because resetting the board will overwrite it.
-set kermit_spawn_id $spawn_id
-
-while 1 {
-	expect {
-	        "Type ?" { }
-		"ermit>" { break }
-		"not found" {
-                   tee "ERROR: Failed to start up kermit"
-                   exit
-		}
-		timeout {
-                   tee "ERROR: Time out starting up kermit"
-                   exit
-		}
-	}
-}
-
-for {set i 0} {$i < $nkparams} {incr i} {
-    send -s [lindex $kparams $i]
-
-    while 1 {
-	  expect {
-		 "ermit>" { break }
-
-		 "\\?\[A-Z]" {
-                    tee "ERROR: Failed to set up kermit parameters"
-                    exit
-		 }
-
-		 timeout {
-                    tee "ERROR: Time out setting up kermit parameters"
-                    exit
-		 }
-	  }
-    }
-}
-
-send -s "connect\r"
-while 1 {
-	expect {
-		"ype the escape character*" {
-		     break  }
-		timeout {
-		     puts "\nERROR: Can't connect to serial port\n"
-		     exit }
-	}
-}
-#
-#  Ok, Kermit is running and connected to the board.
-#
-step "Restart the board."
-
-send_user "Try to figure out if we are in u-boot or the kernel"
-set where_are_we 0
-send "version\r"
-set timeout 20
-expect {
-
-    "U-Boot" {
-        send_user "We are in u-boot\n"
-        set where_are_we "uboot"
-    }
-
-    "Linux" {
-        send_user "We are in the kernel\n"
-        set where_are_we "kernel"
-    }
-
-    timeout {
-        send_user "Can't tell if we are in u-boot or the kernel\n"
-    }
-}
-
-if { $where_are_we == "uboot" } {
-    set timeout 50
-    expect ">"
-    send_user "sending reset\n"
-    send "reset\r"
-} else {
-    if { $where_are_we == "kernel" } {
-        set timeout 60
-        expect ">"
-        send_user "sending reboot\n"
-        send "reboot\r"
-    } else {
-        # If we don't know where we are, hit control-C and enter
-        set timeout 10
-        expect "*"
-        expect "*"
-        send_user "sending control-C\n"
-        send "\3"
-        sleep 1
-        send "\r"
-    }
-}
- while 1 {
-       expect {
-         "Hit any key " {
-             send "\r"
-         }
-
-         ">" {
-             send_user "successful reset attempt\n"
-             break
-         }
-
-         timeout {
-             send_user "failed reset attempt\n"
-             break
-         }
-      }
-   }
-
-send -s "set bootargs root=/dev/mtdblock0 rw\r"
-expect ">"
-send -s "save\r"
-expect ">"
-
-set timeout 2
-set flag 0
-send -s "tftpboot\r"
-while 1 {
-   expect {
-      "TFTP" {
-         set flag 1
-         set timeout 30
-      }
-      ">" {
-         break
-      }
-   }
-}
-if {$flag==0} {
-   puts "fail to communicate with uboot.\n"
-   exit
-}
-
-set timeout 1
-set flag 0
-send -s "bootelf\r"
-while 1 {
-   expect {
-      "Loading .text" {
-         set flag 1
-         set timeout 30
-      }
-      "> " {
-         break
-      }
-   }
-}
-if {$flag==0} {
-   puts "fail to communicate with uboot.\n"
-   exit
-}
 
 step "Start $TITLE\r"
 
@@ -271,6 +84,6 @@ expect {
 
 send_log "\n$TITLE ............\[PASS\]\n"
 
+send_user "Ending $argv0\n"
 log_file
 
-send_user "\nEnding strace_test.exp\n"

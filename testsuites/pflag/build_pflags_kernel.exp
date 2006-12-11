@@ -1,71 +1,19 @@
 #!/usr/bin/expect
-log_file build_pflags_kernel_log
-send_user "Starting build_pflags_kernel.exp\n"
 
 source  ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
 
 set set_config_file 1
 
-set board_type [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-if { $argc < 1} {
-puts "Please input: board_type."
-exit
-}
-
-if { $argc >= 2} {
-   set uclinux_path       [lindex $argv 1]
-   send_log "\n#### uclinux_path is $uclinux_path\n"
-}
-
-proc step { message } {
-
-  global step_sequence_number
-
-  puts "\n*******************************************************************"
-  puts "STEP $step_sequence_number: $message\n\n"
-  send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number
-}
-
-set step_sequence_number    1
-
+cd $uclinux_path/testsuites
 
 step "Make config."
 
-cd $uclinux_path
-set timeout 300
-spawn make config
+source  make_default_config.exp
 
-
-while 1 {
-   expect {
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-            
-             send "$board_type\r"
-      }
-
-      "\\\(*) \\\[*]" {
-             send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-
-
-      }
-   }
-}
+# Following make specific configuration for this case.
 
 if { $set_config_file == 1 } {
 
@@ -222,40 +170,20 @@ while 1 {
 }
 }
 
+cd $uclinux_path/testsuites
+
 step "Make"
 
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-	     "Entering directory" { }
-	     "Leaving directory" { set bfin_make_status success }
-	     "Error" {set bfin_make_status failure }
-	     "/bin/sh" { }
-	     eof { break }
-      }
-}
+source  make_kernel.exp
 
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-
-}
-
+cd $uclinux_path/testsuites
 
 step "Copy linux"
- 
-set timeout 8
-cd $uclinux_path
-exec cp images/linux  /tftpboot
 
-# Check the size, time, and date just to be sure.
-cd /tftpboot
-set dxe_confirmation [exec ls -l $dxe_filename]
+source   copy_image.exp
 
+send_user "Ending $argv0\n"
 log_file
  
-send_user "Ending build_pflags_kernel.exp\n"
 
 

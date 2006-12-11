@@ -2,154 +2,33 @@
 #
 #Test program to test reboot.
 #
-#Steps:
-#1.  Set up the tftp server on host. Set the root folder, such as "/tftpboot".
-#2.  Set up the uboot environment variables. such as serverip, ipaddress, filename, bootaddr, etc.
-#3.  Build the uclinux with default configuration.
-#3.1 "make menuconfig"
-#3.2 "make"
-#3.3 "cp linux-2.6.x/linux /tftpboot/uImage
-#4.  Hit the reset button on target board and start the test script.
-#4.1 "cd testsuites/reboot/"
-#4.2 "./test_reboot /dev/ttyS0"
-#
-log_file snormtd_reboot_test_log
-send_user "Starting snormtd_reboot_test.exp\n"
 
-set send_slow {1 .01}
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
 
-set SERIAL_PORT_BAUD_RATE   "57600"
-set TITLE "Snormtd Reboot Test"
 set count 30
 
 # grab the user specified parameters.
-set ttydev             /dev/ttyS0 
-
-set argc [llength $argv]
-if { $argc == 1 } {
-	set count             [lindex $argv 0]
+if { $argc >=1 } {
+        set count             [lindex $argv 0]
 }
 
-# Now set up the kermit parameters.
-#  I want these all contained in this file to make it easier for users.
-#  This just builds up a list of commands which are sent to kermit.
-#
-set kparams     [list "set line $ttydev\r"]
-lappend kparams "set speed $SERIAL_PORT_BAUD_RATE\r"
-lappend kparams "set carrier-watch off\r"
-lappend kparams "set handshake none\r"
-lappend kparams "set flow-control none\r"
-lappend kparams "robust\r"
-lappend kparams "set file type bin\r"
-lappend kparams "set file name lit\r"
-lappend kparams "set rec pack 1000\r"
-lappend kparams "set send pack 1000\r"
-lappend kparams "set window 5\r"
-set nkparams [llength $kparams]
+step "Start kermit."
+source ../spawn_kermit.exp
 
-set timeout 3
-spawn kermit
-# We need to save the id because resetting the board will overwrite it.
-set kermit_spawn_id $spawn_id
+step "Reset the uboot."
+source ../reset_to_uboot.exp
 
-while 1 {
-	expect {
-	        "Type ?" { }
-		"ermit>" { break }
-		"not found" {
-                   tee "ERROR: Failed to start up kermit"
-                   exit
-		}
-		timeout {
-                   tee "ERROR: Time out starting up kermit"
-                   exit
-		}
-	}
-}
-
-for {set i 0} {$i < $nkparams} {incr i} {
-    send -s [lindex $kparams $i]
-
-    while 1 {
-	  expect {
-		 "ermit>" { break }
-
-		 "\\?\[A-Z]" {
-                    tee "ERROR: Failed to set up kermit parameters"
-                    exit
-		 }
-
-		 timeout {
-                    tee "ERROR: Time out setting up kermit parameters"
-                    exit
-		 }
-	  }
-    }
-}
-
-send -s "connect\r"
-while 1 {
-	expect {
-		"ype the escape character*" {
-		     break  }
-		timeout {
-		     puts "\nERROR: Can't connect to serial port\n"
-		     exit }
-	}
-}
-#
-#  Ok, Kermit is running and connected to the board.
-#
-send_user "Try to figure out if we are in u-boot or the kernel"
-set where_are_we 0
-send "version\r"
-set timeout 20
-expect {
-
-    "U-Boot" {
-	send_user "We are in u-boot\n"
-	set where_are_we "uboot"
-    }
-
-    "Linux" {
-	send_user "We are in the kernel\n"
-	set where_are_we "kernel"
-    }
-
-    timeout {
-	send_user "Can't tell if we are in u-boot or the kernel\n"
-    }
-}
-
-if { $where_are_we == "uboot" } {
-    set timeout 50
-    expect ">"
-    send_user "sending reset\n"
-    send "reset\r"
-} else {
-    if { $where_are_we == "kernel" } {
-	set timeout 60
-	expect ">"
-	send_user "sending reboot\n"
-	send "reboot\r"
-    } else {
-	# If we don't know where we are, hit control-C and enter
-	set timeout 10
-	expect "*"
-	expect "*"
-	send_user "sending control-C\n"
-	send "\3"
-	sleep 1
-	send "\r"
-    }
-}
 
 send_log "*********************************\r"
 send_log "Start $TITLE\r"
 send_log "*********************************\r"
 
-for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
+send -s "reset\r"
 
+for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
 
 set timeout 5
 expect {

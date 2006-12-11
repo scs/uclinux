@@ -1,70 +1,17 @@
 #!/usr/bin/expect
-log_file build_wireless_network_kernel_log
-send_user "Starting build_wireless_network_kernel.exp\n"
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set dxe_filename linux
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
 
-set board_type [lindex $argv 0]
-send_log "\n#### board_type is $board_type\n"
-
-if { $argc < 1} {
-puts "Please input: board_type."
-exit
-}
-
-if { $argc >= 2} {
-   set uclinux_path       [lindex $argv 1]
-   send_log "\n#### uclinux_path is $uclinux_path\n"
-}
-
-proc step { message } {
-
-  global step_sequence_number
-
-  puts "\n*******************************************************************"
-  puts "STEP $step_sequence_number: $message\n\n"
-  send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number
-}
-
-set step_sequence_number    1
-
+cd $uclinux_path/testsuites
 
 step "Make config."
 
-cd $uclinux_path
-set timeout 300
-spawn make config
+source  make_default_config.exp
 
-while 1 {
-   expect {
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-             send "$board_type\r"
-      }
-
-      "\\\(*) \\\[*]" {
-	     send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break
-      }
-   }
-}
+# Following make specific configuration for this case.
 
 send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
 
@@ -183,26 +130,11 @@ while 1 {
    }
 }
 
+cd $uclinux_path/testsuites
+
 step "Make"
 
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-	     "Entering directory" { }
-	     "Leaving directory" { set bfin_make_status success }
-	     "Error" {set bfin_make_status failure }
-	     "/bin/sh" { }
-	     eof { break }
-      }
-}
-
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-
-}
+source  make_kernel.exp
 
 step "Config netserver ."
 
@@ -239,39 +171,21 @@ cd $uclinux_path
 exec cp testsuites/ethernet/netperf_script romfs
 exec cp  testsuites/ethernet/netperf_bfin  romfs/bin
 
-step "Make again"
 
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-             "Entering directory" { }
-             "Leaving directory" { set bfin_make_status success }
-             "Error" {set bfin_make_status failure }
-             "/bin/sh" { }
-             eof { break }
-      }
-}
+cd $uclinux_path/testsuites
 
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-      exit
-}
+step "Make again."
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
 
 step "Copy linux"
+
+source   copy_image.exp
  
-set timeout 8
-cd $uclinux_path
-exec cp images/linux  /tftpboot
-
-# Check the size, time, and date just to be sure.
-cd /tftpboot
-set dxe_confirmation [exec ls -l $dxe_filename]
-
+send_user "Ending $argv0\n"
 log_file
  
-send_user "Ending build_wireless_network_kernel.exp\n"
 
 

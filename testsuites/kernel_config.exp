@@ -33,7 +33,7 @@ set ext2_rootfs_image    rootfs.ext2
 set jffs2_rootfs_image   rootfs.jffs2
 set yaffs_rootfs_image   rootfs.yaffs
 set yaffs2_rootfs_image  rootfs.yaffs2
-
+set HAVE_JFFS2_IMAGE     0
 
 set bootargs_param0      "root=/dev/mtdblock0 rw" 
 set bootargs_param1      "root=/dev/mtdblock2 rw rootfstype=jffs2"

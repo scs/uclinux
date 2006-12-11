@@ -3,3 +3,9 @@
 set timeout 8
 cd $uclinux_path
 exec cp images/linux  /tftpboot
+
+if { $HAVE_JFFS2_IMAGE == "1" } {
+
+exec cp images/$compressed_kernel_only_image  /tftpboot
+exec cp images/$jffs2_rootfs_image  /tftpboot
+}
