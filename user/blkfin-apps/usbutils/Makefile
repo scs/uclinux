@@ -21,5 +21,5 @@ clean:
 	if [ -f Makefile ] ; then $(MAKE) -f Makefile $@ || exit $$? ; fi
 
 romfs:
-	$(ROMFSINST) build/lsusb /bin/
-	$(ROMFSINST) usb.ids /usr/share
+	$(ROMFSINST) -d build/lsusb /bin/lsusb
+	$(ROMFSINST) -d usb.ids /usr/share/usb.ids
