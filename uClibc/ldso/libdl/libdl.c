@@ -32,7 +32,7 @@
 
 #define _GNU_SOURCE
 
-#ifndef __LIBDL_SHARED__
+#ifndef SHARED
 #define _dl_malloc malloc
 #define _dl_free free
 #endif
@@ -43,7 +43,7 @@
 #include <string.h>
 
 
-#if defined (__LIBDL_SHARED__)
+#if defined (SHARED)
 
 #define WEAK __attribute__((weak))
 /* When libdl is loaded as a shared library, we need to load in
@@ -78,7 +78,7 @@ extern char *_dl_debug WEAK;
 #endif
 
 
-#else /* __LIBDL_SHARED__ */
+#else /* SHARED */
 
 /* When libdl is linked as a static library, we need to replace all
  * the symbols that otherwise would have been loaded in from ldso... */

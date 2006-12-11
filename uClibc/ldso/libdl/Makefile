@@ -38,7 +38,7 @@ XXFLAGS+=-DLIBDL
 XXFLAGS+=-isystem $(shell $(CC) -print-file-name=include)
 XXFLAGS_NOPIC:=$(XXFLAGS)
 ifeq ($(DOPIC),y)
-    XXFLAGS += $(PICFLAG) -D__LIBDL_SHARED__
+    XXFLAGS += $(PICFLAG) -DSHARED
 endif
 ifeq ($(strip $(SUPPORT_LD_DEBUG)),y)
 XXFLAGS+=-D__SUPPORT_LD_DEBUG__
