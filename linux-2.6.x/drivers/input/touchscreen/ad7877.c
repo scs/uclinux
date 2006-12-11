@@ -8,7 +8,7 @@
  * Author:	Michael Hennerich, Analog Devices Inc.
  *
  * Created:	Nov, 10th 2006
- * Description:	AD7877 based touchscreen and sensor driver
+ * Description:	AD7877 based touchscreen, sensor (ADCs), DAC and GPIO driver
  *
  * Rev:         $Id$
  *
@@ -132,8 +132,12 @@ enum {
 };
 
 
-/* DAC Register Default RANGE 0 to Vcc, Volatge Mode, DAC On*/
+/* DAC Register Default RANGE 0 to Vcc, Volatge Mode, DAC On */
 #define AD7877_DAC_CONF			0x1
+
+/* If gpio3 is set AUX3/GPIO3 acts as GPIO Output */
+#define AD7877_EXTW_GPIO_3_CONF		0x1C4
+#define AD7877_EXTW_GPIO_DATA		0x200
 
 /* Control REG 2 */
 #define AD7877_TMR(x)			((x & 0x3) << 0)
@@ -143,7 +147,6 @@ enum {
 #define AD7877_PM(x)			((x & 0x3) << 6)
 #define AD7877_ACQ(x)			((x & 0x3) << 8)
 #define AD7877_AVG(x)			((x & 0x3) << 10)
-
 
 /* Control REG 1 */
 #define	AD7877_SER			(1 << 11)	/* non-differential */
@@ -203,12 +206,16 @@ struct ad7877 {
 
 	unsigned		irq_disabled:1;	/* P: lock */
 	unsigned		disabled:1;
+	unsigned		gpio3:1;
+	unsigned		gpio4:1;
 
 };
 
 /*
  * Non-touchscreen sensors only use single-ended conversions.
  */
+
+static int gpio3 = 0;
 
 struct ser_req {
 	u16			ref_on;
@@ -430,6 +437,73 @@ static ssize_t ad7877_dac_store(struct device *dev,
 
 static DEVICE_ATTR(dac, 0664, ad7877_dac_show, ad7877_dac_store);
 
+static ssize_t ad7877_gpio3_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct ad7877	*ts = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", ts->gpio3);
+}
+
+static ssize_t ad7877_gpio3_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct ad7877 *ts = dev_get_drvdata(dev);
+	char *endp;
+	int i;
+
+	i = simple_strtoul(buf, &endp, 10);
+	spin_lock_irq(&ts->lock);
+
+	if (i) {
+		ts->gpio3=1;
+	} else {
+		ts->gpio3=0;
+	}
+
+	ad7877_write(dev, AD7877_REG_EXTWRITE, AD7877_EXTW_GPIO_DATA | (ts->gpio4 << 4) | (ts->gpio3 << 5));
+
+	spin_unlock_irq(&ts->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(gpio3, 0664, ad7877_gpio3_show, ad7877_gpio3_store);
+
+static ssize_t ad7877_gpio4_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct ad7877	*ts = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u\n", ts->gpio4);
+}
+
+static ssize_t ad7877_gpio4_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct ad7877 *ts = dev_get_drvdata(dev);
+	char *endp;
+	int i;
+
+	i = simple_strtoul(buf, &endp, 10);
+	spin_lock_irq(&ts->lock);
+
+	if (i) {
+		ts->gpio4=1;
+	} else {
+		ts->gpio4=0;
+	}
+
+	ad7877_write(dev, AD7877_REG_EXTWRITE, AD7877_EXTW_GPIO_DATA | (ts->gpio4 << 4) | (ts->gpio3 << 5));
+	spin_unlock_irq(&ts->lock);
+
+	return count;
+}
+
+static DEVICE_ATTR(gpio4, 0664, ad7877_gpio4_show, ad7877_gpio4_store);
+
 /*--------------------------------------------------------------------------*/
 
 /*
@@ -538,25 +612,26 @@ static int ad7877_thread(void *_ts)
         do {
 		wait_event_interruptible(ad7877_wait, kthread_should_stop() || (ts->intr_flag!=0));
 
-		status = spi_sync(ts->spi, &ts->msg);
-		if (status)
-			dev_err(&ts->spi->dev, "spi_sync --> %d\n", status);
-
-		ad7877_rx(ts);
-
-		spin_lock_irqsave(&ts->lock, flags);
-
-                ts->intr_flag = 0;
-		ts->pending = 0;
-
-		if (!device_suspended(&ts->spi->dev)) {
-			ts->irq_disabled = 0;
-			enable_irq(ts->spi->irq);
-			mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
-		}
-
-		spin_unlock_irqrestore(&ts->lock, flags);
-
+		if(ts->intr_flag) {
+			status = spi_sync(ts->spi, &ts->msg);
+			if (status)
+				dev_err(&ts->spi->dev, "spi_sync --> %d\n", status);
+	
+			ad7877_rx(ts);
+	
+			spin_lock_irqsave(&ts->lock, flags);
+	
+	                ts->intr_flag = 0;
+			ts->pending = 0;
+	
+			if (!device_suspended(&ts->spi->dev)) {
+				ts->irq_disabled = 0;
+				enable_irq(ts->spi->irq);
+				mod_timer(&ts->timer, jiffies + TS_PEN_UP_TIMEOUT);
+			}
+	
+			spin_unlock_irqrestore(&ts->lock, flags);
+	}
         	try_to_freeze();
         } while (!kthread_should_stop());
         printk(KERN_DEBUG "ad7877: ktsd kthread exiting\n");
@@ -721,12 +796,16 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 
 	verify = ad7877_read((struct device *) spi, AD7877_REG_SEQ1);
-						 
+
 	if (verify != AD7877_MM_SEQUENCE){
 		printk(KERN_ERR "%s: Failed to probe %s\n", spi->dev.bus_id, input_dev->name);
 		err = -ENODEV;
 		goto err_free_mem;
 	}
+
+	if(gpio3)
+		ad7877_write((struct device *) spi, AD7877_REG_EXTWRITE, AD7877_EXTW_GPIO_3_CONF);
+
 
 	ts->cmd_crtl2 =  AD7877_WRITEADD(AD7877_REG_CTRL2) | AD7877_POL(ts->stopacq_polarity) |\
 			AD7877_AVG(ts->averaging) | AD7877_PM(1) |\
@@ -756,7 +835,7 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
-	if (request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_LOW, 
+	if (request_irq(spi->irq, ad7877_irq, IRQF_TRIGGER_LOW,
 			spi->dev.driver->name, ts)) {
 		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
 		err = -EBUSY;
@@ -769,11 +848,16 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	device_create_file(&spi->dev, &dev_attr_temp2);
 	device_create_file(&spi->dev, &dev_attr_aux1);
 	device_create_file(&spi->dev, &dev_attr_aux2);
-	device_create_file(&spi->dev, &dev_attr_aux3);
 	device_create_file(&spi->dev, &dev_attr_bat1);
 	device_create_file(&spi->dev, &dev_attr_bat2);
 	device_create_file(&spi->dev, &dev_attr_disable);
 	device_create_file(&spi->dev, &dev_attr_dac);
+	device_create_file(&spi->dev, &dev_attr_gpio4);
+
+	if(gpio3)
+		device_create_file(&spi->dev, &dev_attr_gpio3);
+	else
+		device_create_file(&spi->dev, &dev_attr_aux3);
 
 	err = input_register_device(input_dev);
 	if (err)
@@ -796,10 +880,16 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 	device_remove_file(&spi->dev, &dev_attr_temp1);
 	device_remove_file(&spi->dev, &dev_attr_temp2);
 	device_remove_file(&spi->dev, &dev_attr_aux1);
-	device_remove_file(&spi->dev, &dev_attr_aux2);
 	device_remove_file(&spi->dev, &dev_attr_aux3);
 	device_remove_file(&spi->dev, &dev_attr_bat1);
 	device_remove_file(&spi->dev, &dev_attr_bat2);
+	device_remove_file(&spi->dev, &dev_attr_gpio4);
+
+	if(gpio3)
+		device_remove_file(&spi->dev, &dev_attr_gpio3);
+	else
+		device_remove_file(&spi->dev, &dev_attr_aux3);
+
 
 	free_irq(spi->irq, ts);
  err_free_mem:
@@ -820,15 +910,18 @@ static int __devexit ad7877_remove(struct spi_device *spi)
 
 	device_remove_file(&spi->dev, &dev_attr_disable);
 	device_remove_file(&spi->dev, &dev_attr_dac);
-
 	device_remove_file(&spi->dev, &dev_attr_temp1);
 	device_remove_file(&spi->dev, &dev_attr_temp2);
 	device_remove_file(&spi->dev, &dev_attr_aux1);
 	device_remove_file(&spi->dev, &dev_attr_aux2);
-	device_remove_file(&spi->dev, &dev_attr_aux3);
 	device_remove_file(&spi->dev, &dev_attr_bat1);
 	device_remove_file(&spi->dev, &dev_attr_bat2);
+	device_remove_file(&spi->dev, &dev_attr_gpio4);
 
+	if(gpio3)
+		device_remove_file(&spi->dev, &dev_attr_gpio3);
+	else
+		device_remove_file(&spi->dev, &dev_attr_aux3);
 
 	free_irq(ts->spi->irq, ts);
 
@@ -863,6 +956,10 @@ static void __exit ad7877_exit(void)
 
 }
 module_exit(ad7877_exit);
+
+module_param(gpio3, int, 0);
+MODULE_PARM_DESC(gpio3,
+	"If gpio3 is set to 1 AUX3 acts as GPIO3");
 
 MODULE_DESCRIPTION("ad7877 TouchScreen Driver");
 MODULE_LICENSE("GPL");
