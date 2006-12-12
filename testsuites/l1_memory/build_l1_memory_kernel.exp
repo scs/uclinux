@@ -9,7 +9,7 @@ step "Apply module_l1_memory config patch."
 
 cd $uclinux_path/linux-2.6.x/drivers/char
 
-exec patch -p1 < ../../../testsuites/l1_memory/module_l1_memory_patch
+exec patch -p1 < ../../../testsuites/l1_memory/l1_memory_patch
 
 sleep 10
 
