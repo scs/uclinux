@@ -136,17 +136,25 @@ static struct i2c_driver ad5280_driver = {
 };
 
 
+#define LCD_X_RES			240 /*Horizontal Resolution */
+#define LCD_Y_RES			320 /* Vertical Resolution */
+#define LCD_BBP				16  /* Bit Per Pixel */
+
 #define START_LINES          8              /* lines for field flyback or field blanking signal */
 #define U_LINES              (9)            /* number of undisplayed lines */
 
 #define FRAMES_PER_SEC       (60)
-#define	FREQ_PPI_CLK         (6*1024*1024)  /* PPI_CLK */
+
+#define	FREQ_PPI_CLK         (6*1000*1000)  /* PPI_CLK 6MHz */
 #define DCLKS_PER_FRAME      (FREQ_PPI_CLK/FRAMES_PER_SEC)
-#define DCLKS_PER_LINE       (DCLKS_PER_FRAME/(320+U_LINES))
+#define DCLKS_PER_LINE       (DCLKS_PER_FRAME/(LCD_Y_RES+U_LINES))
 
 #define PPI_CONFIG_VALUE     (PORT_DIR|XFR_TYPE|DLEN_16|POLS)
 #define PPI_DELAY_VALUE      (0)
 #define TIMER_CONFIG         (PWM_OUT|PERIOD_CNT|TIN_SEL|CLK_SEL)
+
+#define ACTIVE_VIDEO_MEM_OFFSET	(LCD_X_RES*START_LINES*(LCD_BBP/8)) /* Active Video Offset */
+#define ACTIVE_VIDEO_MEM_SIZE	(LCD_Y_RES*LCD_X_RES*(LCD_BBP/8))
 
 static void start_timers(void) /* CHECK with HW */
 {
@@ -186,7 +194,7 @@ static void config_timers(void) /* CHECKME */
 	/* SPS, timer 1 */
 	bfin_write_TIMER1_CONFIG(TIMER_CONFIG|PULSE_HI);
 	bfin_write_TIMER1_WIDTH(DCLKS_PER_LINE*2);
-	bfin_write_TIMER1_PERIOD((DCLKS_PER_LINE * (320+U_LINES)));
+	bfin_write_TIMER1_PERIOD((DCLKS_PER_LINE * (LCD_Y_RES+U_LINES)));
 	__builtin_bfin_ssync();
 
 	/* SP, timer 0 */
@@ -197,7 +205,7 @@ static void config_timers(void) /* CHECKME */
 
 	/* PS & CLS, timer 7 */
 	bfin_write_TIMER7_CONFIG(TIMER_CONFIG);
-	bfin_write_TIMER7_WIDTH (248);
+	bfin_write_TIMER7_WIDTH (LCD_X_RES + START_LINES);
 	bfin_write_TIMER7_PERIOD(DCLKS_PER_LINE);
 
 	__builtin_bfin_ssync();
@@ -216,7 +224,7 @@ static void config_timers(void) /* CHECKME */
 static void config_ppi(void)
 {
 	bfin_write_PPI_DELAY(PPI_DELAY_VALUE);
-	bfin_write_PPI_COUNT(240-1);
+	bfin_write_PPI_COUNT(LCD_X_RES-1);
 	/* 0x10 -> PORT_CFG -> 2 or 3 frame syncs */
 	bfin_write_PPI_CONTROL((PPI_CONFIG_VALUE|0x10) & (~POLS));
 }
@@ -230,11 +238,11 @@ static int config_dma(void)
 
 	set_dma_config(CH_PPI, set_bfin_dma_config(DIR_READ,DMA_FLOW_AUTO,INTR_DISABLE,DIMENSION_2D,DATA_SIZE_16));
 
-	set_dma_x_count(CH_PPI, 240);
-	set_dma_x_modify(CH_PPI, 2);
+	set_dma_x_count(CH_PPI, LCD_X_RES);
+	set_dma_x_modify(CH_PPI,LCD_BBP/8);
 
-	set_dma_y_count(CH_PPI, 320+U_LINES);
-	set_dma_y_modify(CH_PPI, 2);
+	set_dma_y_count(CH_PPI, LCD_Y_RES+U_LINES);
+	set_dma_y_modify(CH_PPI, LCD_BBP/8);
 	set_dma_start_addr(CH_PPI, ((unsigned long) fb_buffer));
 
 	return 0;
@@ -275,11 +283,11 @@ static void init_ports(void)
 static struct fb_info bfin_lq035_fb;
 
 static struct fb_var_screeninfo bfin_lq035_fb_defined = {
-	.xres			= 240,
-	.yres			= 320,
-	.xres_virtual	= 240,
-	.yres_virtual	= 320,
-	.bits_per_pixel	= 16,
+	.xres			= LCD_X_RES,
+	.yres			= LCD_Y_RES,
+	.xres_virtual	= LCD_X_RES,
+	.yres_virtual	= LCD_Y_RES,
+	.bits_per_pixel	= LCD_BBP,
 	.activate		= FB_ACTIVATE_TEST,
 	.height			= -1,
 	.width			= -1,
@@ -292,12 +300,12 @@ static struct fb_var_screeninfo bfin_lq035_fb_defined = {
 
 static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
 	.id 		= DRIVER_NAME,
-	.smem_len 	= 320*240*2,
+	.smem_len 	= ACTIVE_VIDEO_MEM_SIZE,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.xpanstep	= 0,
 	.ypanstep	= 0,
-	.line_length	= 240*2,
+	.line_length	= LCD_X_RES*(LCD_BBP/8),
 	.accel		= FB_ACCEL_NONE,
 };
 
@@ -346,8 +354,8 @@ static int bfin_lq035_fb_check_var(struct fb_var_screeninfo *var, struct fb_info
 
 static int direct_mmap(struct fb_info *info, struct vm_area_struct * vma)
 {
-	vma->vm_start = (unsigned long) (fb_buffer + 240*2*START_LINES);
-	vma->vm_end = vma->vm_start + 320*240*2;
+	vma->vm_start = (unsigned long) (fb_buffer + ACTIVE_VIDEO_MEM_OFFSET);
+	vma->vm_end = vma->vm_start + ACTIVE_VIDEO_MEM_SIZE;
 	/* For those who don't understand how mmap works, go read 
 	 *   Documentation/nommu-mmap.txt. 
 	 * For those that do, you will know that the VM_MAYSHARE flag 
@@ -427,17 +435,17 @@ static int __init bfin_lq035_fb_init(void)
 {
 	printk(KERN_INFO DRIVER_NAME ": FrameBuffer initializing...\n");
 
-	fb_buffer = dma_alloc_coherent(NULL, (320+U_LINES)*240*2, &dma_handle, GFP_KERNEL);
+	fb_buffer = dma_alloc_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), &dma_handle, GFP_KERNEL);
 
 	if (NULL == fb_buffer) {
 		printk(KERN_ERR DRIVER_NAME ": couldn't allocate dma buffer.\n");
 		return -ENOMEM;
 	}
 
-	memset(fb_buffer, 0xff, (320+U_LINES)*240*2);
+	memset(fb_buffer, 0xff, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8));
 
-	bfin_lq035_fb.screen_base = (void*)fb_buffer;
-	bfin_lq035_fb_fix.smem_start = (int)fb_buffer;
+	bfin_lq035_fb.screen_base = (void*)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
+	bfin_lq035_fb_fix.smem_start = (int)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
 
 	bfin_lq035_fb.fbops = &bfin_lq035_fb_ops;
 	bfin_lq035_fb.var = bfin_lq035_fb_defined;
@@ -448,7 +456,7 @@ static int __init bfin_lq035_fb_init(void)
 	if (register_framebuffer(&bfin_lq035_fb) < 0) {
 		printk(KERN_ERR DRIVER_NAME ": unable to register framebuffer.\n");
 
-		dma_free_coherent(NULL, (320+U_LINES)*240*2, fb_buffer, dma_handle);
+		dma_free_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), fb_buffer, dma_handle);
 		fb_buffer = NULL;
 		return -EINVAL;
 	}
@@ -464,7 +472,7 @@ static int __init bfin_lq035_fb_init(void)
 static void __exit bfin_lq035_fb_exit(void)
 {
 	if (fb_buffer != NULL)
-		dma_free_coherent(NULL, (320+U_LINES)*240*2, fb_buffer, dma_handle);
+		dma_free_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), fb_buffer, dma_handle);
 	unregister_framebuffer(&bfin_lq035_fb);
 	i2c_del_driver(&ad5280_driver);
 	printk(KERN_INFO DRIVER_NAME ": Unregister LCD driver.\n");
