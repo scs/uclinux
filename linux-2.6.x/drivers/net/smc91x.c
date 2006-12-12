@@ -88,11 +88,6 @@ static const char version[] =
 
 #include <asm/io.h>
 
-#if defined(CONFIG_BFIN)
-#include <asm/irq.h>
-#include <asm/dma.h>
-#endif /* CONFIG_BFIN */
-
 #include "smc91x.h"
 
 #ifdef CONFIG_ISA
@@ -312,28 +307,6 @@ static void PRINT_PKT(u_char *buf, int length)
 		}							\
 	}								\
 } while (0)
-
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-static void bfin_cpld_setup(void)
-{
-
-	__builtin_bfin_ssync();
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | CONFIG_ENET_FLASH_PIN);
-	__builtin_bfin_ssync();
-	bfin_write_FIO_FLAG_S(CONFIG_ENET_FLASH_PIN);
-	__builtin_bfin_ssync();
-
-}
-#endif
-
-#if defined(CONFIG_BFIN)
-static void bfin_SMC_port_setup()
-{
-# if defined (CONFIG_BFIN561_EZKIT)
-	bfin_write_FIO0_DIR(bfin_read_FIO0_DIR() | (1 << 12));
-# endif /* defined (CONFIG_BFIN561_EZKIT) */
-}
-#endif
 
 /*
  * this does a soft reset on the device
@@ -1945,14 +1918,6 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 	SMC_SELECT_BANK(1);
 	SMC_GET_MAC_ADDR(dev->dev_addr);
 
-#if defined(CONFIG_BFIN)
-	/* check if the mac already in reg is valid */
-	if (*(u32 *)(&dev->dev_addr[0]) == 0xFFFFFFFF) {
-		random_ether_addr(dev->dev_addr);
-		SMC_SET_MAC_ADDR(dev->dev_addr);
-	}
-#endif
-
 	/* now, reset the chip, and put it into a known state */
 	smc_reset(dev);
 
@@ -2035,10 +2000,6 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr)
 		lp->ctl_rfduplx = 1;
 		lp->ctl_rspeed = 100;
 	}
-
-#ifdef CONFIG_BFIN
-	bfin_SMC_port_setup();
-#endif
 
 	/* Grab the IRQ */
       	retval = request_irq(dev->irq, &smc_interrupt, SMC_IRQ_FLAGS, dev->name, dev);
@@ -2250,10 +2211,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 		goto out_release_io;
 	}
 	SET_MODULE_OWNER(ndev);
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
-	bfin_cpld_setup();
-#endif
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;

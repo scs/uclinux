@@ -72,8 +72,8 @@
 #define SMC_outw(v, a, r)   	writew(v, (a) + (r))
 #define SMC_inl(a, r)       	readl((a) + (r))
 #define SMC_outl(v, a, r)   	writel(v, (a) + (r))
-#define SMC_outsl(a, r, p, l)	outsl((unsigned long)((a) + (r)), p, l)
-#define SMC_insl(a, r, p, l) 	insl ((unsigned long)((a) + (r)), p, l)
+#define SMC_outsl(a, r, p, l)	outsl((unsigned long *)((a) + (r)), p, l)
+#define SMC_insl(a, r, p, l) 	insl ((unsigned long *)((a) + (r)), p, l)
 # else
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
@@ -85,9 +85,23 @@
 
 #define SMC_inw(a, r)       	readw((a) + (r))
 #define SMC_outw(v, a, r)   	writew(v, (a) + (r))
-#define SMC_outsw(a, r, p, l)	outsw((unsigned long)((a) + (r)), p, l)
-#define SMC_insw(a, r, p, l) 	insw ((unsigned long)((a) + (r)), p, l)
+#define SMC_outsw(a, r, p, l)	outsw((unsigned long *)((a) + (r)), p, l)
+#define SMC_insw(a, r, p, l) 	insw ((unsigned long *)((a) + (r)), p, l)
 # endif
+/* check if the mac in reg is valid */
+#define SMC_GET_MAC_ADDR(addr)					\
+	do {							\
+		unsigned int __v;				\
+		__v = SMC_inw( ioaddr, ADDR0_REG );		\
+		addr[0] = __v; addr[1] = __v >> 8;		\
+		__v = SMC_inw( ioaddr, ADDR1_REG );		\
+		addr[2] = __v; addr[3] = __v >> 8;		\
+		__v = SMC_inw( ioaddr, ADDR2_REG );		\
+		addr[4] = __v; addr[5] = __v >> 8;		\
+		if (*(u32 *)(&addr[0]) == 0xFFFFFFFF) {		\
+			random_ether_addr(addr);		\
+		}						\
+	} while (0)
 #elif defined(CONFIG_REDWOOD_5) || defined(CONFIG_REDWOOD_6)
 
 /* We can only do 16-bit reads and writes in the static memory space. */
