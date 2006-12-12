@@ -86,6 +86,7 @@
 #include <linux/err.h>
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
+#include <linux/irq.h>
 
 #if 1
 #define assert(expr) do {} while(0)
@@ -116,6 +117,7 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(unsigned short *) PORTG_FER,
 	(unsigned short *) PORTH_FER,
 };
+
 #endif
 
 #ifdef BF561_FAMILY
@@ -128,6 +130,24 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 
 static unsigned short reserved_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
+#ifdef CONFIG_PM
+static unsigned short wakeup_map[gpio_bank(MAX_BLACKFIN_GPIOS)];
+static unsigned char wakeup_flags_map[MAX_BLACKFIN_GPIOS];
+static struct gpio_port_s gpio_bank_saved[gpio_bank(MAX_BLACKFIN_GPIOS)];
+
+#ifdef BF533_FAMILY
+static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB};
+#endif
+
+#ifdef BF537_FAMILY
+static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX};
+#endif
+
+#ifdef BF561_FAMILY
+static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INTB, IRQ_PROG1_INTB, IRQ_PROG2_INTB};
+#endif
+
+#endif /* CONFIG_PM */
 
 inline int check_gpio(unsigned short gpio)
 {
@@ -183,7 +203,8 @@ int __init bfin_gpio_init(void)
 
 	printk(KERN_INFO "Blackfin GPIO Controller\n");
 
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=16) {
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE
+) {
 		reserved_map[gpio_bank(i)] = 0;
 	}
 
@@ -243,27 +264,91 @@ set_gpio_ ## name (unsigned short gpio, unsigned short arg) \
 { \
   assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));\
 	if(arg) {\
-	  gpio_bankb[gpio_bank(gpio)]->name ## _set |= gpio_bit(gpio);\
+	  gpio_bankb[gpio_bank(gpio)]->name ## _set = gpio_bit(gpio);\
 		} else {\
-	  gpio_bankb[gpio_bank(gpio)]->name ## _clear |= gpio_bit(gpio);\
+	  gpio_bankb[gpio_bank(gpio)]->name ## _clear = gpio_bit(gpio);\
 	}\
 } \
 EXPORT_SYMBOL(set_gpio_ ## name);
 
-SET_GPIO_SC(data)
+
 SET_GPIO_SC(maska)
 SET_GPIO_SC(maskb)
 
+#if defined(ANOMALY_05000311)
+void set_gpio_data (unsigned short gpio, unsigned short arg)
+{
+  unsigned long flags;
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+    local_irq_save(flags);
+	if(arg) {
+	  gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
+		} else {
+	  gpio_bankb[gpio_bank(gpio)]->data_clear = gpio_bit(gpio);
+	}
+      bfin_read_CHIPID(); 
+    local_irq_restore(flags);
+}
+EXPORT_SYMBOL(set_gpio_data);
+#else
+SET_GPIO_SC(data)
+#endif
 
+
+#if defined(ANOMALY_05000311)
 void set_gpio_toggle(unsigned short gpio)
 {
-
+  unsigned long flags;
   assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
-
+	local_irq_save(flags);
 	  gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
-
+	  bfin_read_CHIPID(); 
+	local_irq_restore(flags);
 }
+#else
+void set_gpio_toggle(unsigned short gpio)
+{
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+	  gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
+}
+#endif
 EXPORT_SYMBOL(set_gpio_toggle);
+
+
+/*Set current PORT date (16-bit word)*/
+
+#define SET_GPIO_P(name) void \
+set_gpiop_ ## name (unsigned short gpio, unsigned short arg) \
+{ \
+	gpio_bankb[gpio_bank(gpio)]->name = arg ;\
+} \
+EXPORT_SYMBOL(set_gpiop_ ## name);
+
+SET_GPIO_P(dir)
+SET_GPIO_P(inen)
+SET_GPIO_P(polar)
+SET_GPIO_P(edge)
+SET_GPIO_P(both)
+SET_GPIO_P(maska)
+SET_GPIO_P(maskb)
+
+
+#if defined(ANOMALY_05000311)
+void set_gpiop_data(unsigned short gpio, unsigned short arg)
+{
+  unsigned long flags;
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+	local_irq_save(flags);
+	  gpio_bankb[gpio_bank(gpio)]->data = arg;
+	  bfin_read_CHIPID(); 
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(set_gpiop_data);
+#else
+SET_GPIO_P(data)
+#endif
+
+
 
 /* Get a specific bit */
 
@@ -281,7 +366,24 @@ GET_GPIO(edge)
 GET_GPIO(both)
 GET_GPIO(maska)
 GET_GPIO(maskb)
+
+
+#if defined(ANOMALY_05000311)
+unsigned short get_gpio_data(unsigned short gpio)
+{
+  unsigned long flags;
+  unsigned short ret;
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+	local_irq_save(flags);
+	  ret = 0x01 & (gpio_bankb[gpio_bank(gpio)]->data >> gpio_sub_n(gpio));
+	  bfin_read_CHIPID(); 
+	local_irq_restore(flags);
+  return ret;
+}
+EXPORT_SYMBOL(get_gpio_data);
+#else
 GET_GPIO(data)
+#endif
 
 /*Get current PORT date (16-bit word)*/
 
@@ -299,8 +401,182 @@ GET_GPIO_P(edge)
 GET_GPIO_P(both)
 GET_GPIO_P(maska)
 GET_GPIO_P(maskb)
-GET_GPIO_P(data)
 
+#if defined(ANOMALY_05000311)
+unsigned short get_gpiop_data(unsigned short gpio)
+{
+  unsigned long flags;
+  unsigned short ret;
+  assert(reserved_map[gpio_bank(gpio)] & gpio_bit(gpio));
+	local_irq_save(flags);
+	  ret = gpio_bankb[gpio_bank(gpio)]->data;
+	  bfin_read_CHIPID(); 
+	local_irq_restore(flags);
+  return ret;
+}
+EXPORT_SYMBOL(get_gpiop_data);
+#else
+GET_GPIO_P(data)
+#endif
+
+#ifdef CONFIG_PM
+/***********************************************************
+*
+* FUNCTIONS: Blackfin PM Setup API 
+*
+* INPUTS/OUTPUTS:
+* gpio - GPIO Number between 0 and MAX_BLACKFIN_GPIOS
+* type - 
+*	PM_WAKE_RISING
+*	PM_WAKE_FALLING
+*	PM_WAKE_HIGH
+*	PM_WAKE_LOW
+*	PM_WAKE_BOTH_EDGES
+*
+* DESCRIPTION: Blackfin PM Driver API
+*               
+* CAUTION: 
+*************************************************************
+* MODIFICATION HISTORY :
+**************************************************************/
+int gpio_pm_wakeup_request(unsigned short gpio, unsigned char type)
+{
+	unsigned long flags;
+
+
+	if ((check_gpio(gpio) < 0) || !type)
+		return -EINVAL;
+
+	local_irq_save(flags);
+
+	wakeup_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+	wakeup_flags_map[gpio] = type;
+	local_irq_restore(flags);
+ 	  
+  return 0;
+
+}
+EXPORT_SYMBOL(gpio_pm_wakeup_request);
+
+void gpio_pm_wakeup_free(unsigned short gpio)
+{
+	unsigned long flags;
+
+	if (check_gpio(gpio) < 0)
+		return;
+
+	local_irq_save(flags);
+
+	wakeup_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(gpio_pm_wakeup_free);
+
+static int bfin_gpio_wakeup_type(unsigned short gpio, unsigned char type)
+{
+	port_setup(gpio, GPIO_USAGE);	
+	set_gpio_dir(gpio, 0);
+	set_gpio_inen(gpio, 1);
+
+		if (type & (PM_WAKE_RISING | PM_WAKE_FALLING)) {
+			set_gpio_edge(gpio, 1);
+		} else {
+			set_gpio_edge(gpio, 0);
+		}
+
+		if ((type & (PM_WAKE_BOTH_EDGES))
+		    == (PM_WAKE_BOTH_EDGES))
+			set_gpio_both(gpio, 1);
+		else
+			set_gpio_both(gpio, 0);
+
+		if ((type & (PM_WAKE_FALLING | PM_WAKE_LOW)))
+			set_gpio_polar(gpio, 1);
+		else
+			set_gpio_polar(gpio, 0);
+
+	__builtin_bfin_ssync();
+
+	return 0;
+}
+
+u32 gpio_pm_setup(void)
+{
+
+	u32 sic_iwr = 0;
+	u16 bank, mask, i, gpio;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE) {
+		mask = wakeup_map[gpio_bank(i)];	
+		bank = gpio_bank(i);		
+		
+		gpio_bank_saved[bank].maskb = gpio_bankb[bank]->maskb;
+		gpio_bankb[bank]->maskb = 0;
+		
+		if(mask) {
+#ifdef BF537_FAMILY
+			gpio_bank_saved[bank].fer   = *port_fer[bank];
+#endif
+			gpio_bank_saved[bank].inen  = gpio_bankb[bank]->inen;
+			gpio_bank_saved[bank].polar = gpio_bankb[bank]->polar;
+			gpio_bank_saved[bank].dir   = gpio_bankb[bank]->dir;
+			gpio_bank_saved[bank].edge  = gpio_bankb[bank]->edge;
+			gpio_bank_saved[bank].both  = gpio_bankb[bank]->both;	
+		
+		gpio = i;
+		
+		while (mask) {
+			if (mask & 1) {
+				bfin_gpio_wakeup_type(gpio, wakeup_flags_map[gpio]);
+				set_gpio_data(gpio, 0);/*Clear*/ 
+			}
+			gpio++;
+			mask >>= 1;
+		}
+		
+		  sic_iwr |= 1 << (sic_iwr_irqs[bank] - (IRQ_CORETMR + 1));
+		  gpio_bankb[bank]->maskb_set = wakeup_map[gpio_bank(i)];
+		}
+	
+	}
+
+	if(sic_iwr)
+		return sic_iwr;
+	else
+		return IWR_ENABLE_ALL;		
+
+}
+
+
+void gpio_pm_restore(void)
+{
+
+  u16 bank, mask, i;
+
+	for (i = 0; i < MAX_BLACKFIN_GPIOS; i+=GPIO_BANKSIZE) {
+		mask = wakeup_map[gpio_bank(i)];	
+		bank = gpio_bank(i);
+	
+		if(mask) {
+#ifdef BF537_FAMILY
+			*port_fer[bank]   	= gpio_bank_saved[bank].fer; 
+#endif
+			gpio_bankb[bank]->inen  = gpio_bank_saved[bank].inen; 
+			gpio_bankb[bank]->dir   = gpio_bank_saved[bank].dir; 
+			gpio_bankb[bank]->polar = gpio_bank_saved[bank].polar;
+			gpio_bankb[bank]->edge  = gpio_bank_saved[bank].edge; 
+			gpio_bankb[bank]->both  = gpio_bank_saved[bank].both; 	
+			
+		}
+	
+	  gpio_bankb[bank]->maskb = gpio_bank_saved[bank].maskb;	
+	
+	}
+	
+}
+
+#endif
 
 /***********************************************************
 *

@@ -89,6 +89,8 @@
 #define gpio_bit(x)  (1<<(x & 0xF))
 #define gpio_sub_n(x) (x & 0xF)
 
+#define GPIO_BANKSIZE 16
+
 #define	GPIO_0	0
 #define	GPIO_1	1
 #define	GPIO_2	2
@@ -239,6 +241,14 @@ void set_gpio_data(unsigned short, unsigned short);
 void set_gpio_maska(unsigned short, unsigned short);
 void set_gpio_maskb(unsigned short, unsigned short);
 void set_gpio_toggle(unsigned short);
+void set_gpiop_dir(unsigned short, unsigned short);
+void set_gpiop_inen(unsigned short, unsigned short);
+void set_gpiop_polar(unsigned short, unsigned short);
+void set_gpiop_edge(unsigned short, unsigned short);
+void set_gpiop_both(unsigned short, unsigned short);
+void set_gpiop_data(unsigned short, unsigned short);
+void set_gpiop_maska(unsigned short, unsigned short);
+void set_gpiop_maskb(unsigned short, unsigned short);
 unsigned short get_gpio_dir(unsigned short);
 unsigned short get_gpio_inen(unsigned short);
 unsigned short get_gpio_polar(unsigned short);
@@ -292,6 +302,40 @@ struct gpio_port_t {
 	unsigned short inen;
 };
 
+#ifdef CONFIG_PM
+#define PM_WAKE_RISING	0x1                                                
+#define PM_WAKE_FALLING	0x2                                                
+#define PM_WAKE_HIGH	0x4                                                
+#define PM_WAKE_LOW	0x8                                                
+#define PM_WAKE_BOTH_EDGES	(PM_WAKE_RISING | PM_WAKE_FALLING)
+
+int gpio_pm_wakeup_request(unsigned short gpio, unsigned char type);
+void gpio_pm_wakeup_free(unsigned short gpio);
+unsigned int gpio_pm_setup(void);
+void gpio_pm_restore(void);
+
+struct gpio_port_s {
+	unsigned short data;
+	unsigned short data_clear;
+	unsigned short data_set;
+	unsigned short toggle;
+	unsigned short maska;
+	unsigned short maska_clear;
+	unsigned short maska_set;
+	unsigned short maska_toggle;
+	unsigned short maskb;
+	unsigned short maskb_clear;
+	unsigned short maskb_set;
+	unsigned short maskb_toggle;
+	unsigned short dir;
+	unsigned short polar;
+	unsigned short edge;
+	unsigned short both;
+	unsigned short inen;
+
+	unsigned short fer;
+};
+#endif /*CONFIG_PM*/
 
 /***********************************************************
 *

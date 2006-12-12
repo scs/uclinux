@@ -713,6 +713,8 @@ config PM_WAKEUP_GPIO_BY_SIC_IWR
 	bool "Specify Wakeup Event by SIC_IWR value"
 config PM_WAKEUP_BY_GPIO
 	bool "Cause Wakeup Event by GPIO"
+config PM_WAKEUP_GPIO_API
+	bool "Configure Wakeup Event by PM GPIO API"
 
 endchoice
 
@@ -724,34 +726,9 @@ config PM_WAKEUP_SIC_IWR
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "Wakeup GPIO number"
-	range 0 15
+	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
 	default 2 if BFIN537_STAMP
-
-if (BF537 || BF534 || BF536) && PM_WAKEUP_BY_GPIO
-
-choice
-	prompt "Select BF537/6/4 PM Wakeup GPIO PORTx"
-	help
-
-config PM_WAKEUP_GPIO_PORT_F
-	bool "Wakeup GPIO PORT-F"
-	depends on (BF537 || BF536 || BF534)
-	help
-
-config PM_WAKEUP_GPIO_PORT_G
-	bool "Wakeup GPIO PORT-G"
-	depends on (BF537 || BF536 || BF534)
-	help
-
-config PM_WAKEUP_GPIO_PORT_H
-	bool "Wakeup GPIO PORT-H"
-	depends on (BF537 || BF536 || BF534)
-	help
-
-endchoice
-
-endif
 
 choice
 	prompt "GPIO Polarity"
@@ -761,6 +738,12 @@ config  PM_WAKEUP_GPIO_POLAR_H
 	bool "Active High"
 config  PM_WAKEUP_GPIO_POLAR_L
 	bool "Active Low"
+config  PM_WAKEUP_GPIO_POLAR_EDGE_F
+	bool "Falling EDGE"
+config  PM_WAKEUP_GPIO_POLAR_EDGE_R
+	bool "Rising EDGE"
+config  PM_WAKEUP_GPIO_POLAR_EDGE_B
+	bool "Both EDGE"
 endchoice
 
 endmenu
