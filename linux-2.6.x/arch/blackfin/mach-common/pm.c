@@ -1,5 +1,5 @@
 /*
- * File:         arch/blackfin/mach-bfin/pm.c
+ * File:         arch/blackfin/mach-common/pm.c
  * Based on:     arm/mach-omap/pm.c
  * Author:       Cliff Brake <cbrake@accelent.com> Copyright (c) 2001
  *
@@ -42,62 +42,61 @@
 #include <asm/dpmc.h>
 #include <asm/irq.h>
 
-#define SIC_IWR_VAL 1 << (IRQ_PROG_INTA - (IRQ_CORETMR + 1))
 
-void bf533_pm_suspend_standby_enter(void)
-{
-
-#if defined(CONFIG_PM_WAKEUP_BY_GPIO)
-	u16 inen, polar, dir, mask;
-	u16 pattern = 1 << CONFIG_PM_WAKEUP_GPIO_NUMBER;
-	u32 flags;
-
-	local_irq_save(flags);
-
-  /* save state */
-	inen = bfin_read_FIO_INEN();
-	polar = bfin_read_FIO_POLAR();
-	dir = bfin_read_FIO_DIR();
-	mask = bfin_read_FIO_MASKA_D();
-
-	bfin_write_FIO_MASKA_C(pattern);
-
-#if defined(CONFIG_PM_WAKEUP_GPIO_POLAR_H)
-	bfin_write_FIO_POLAR(polar & ~pattern);
-#else
-	bfin_write_FIO_POLAR(polar | pattern);
+#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_H
+#define WAKEUP_TYPE	PM_WAKE_HIGH
 #endif
 
-	bfin_write_FIO_DIR(dir & ~pattern);
-	bfin_write_FIO_INEN(inen | pattern);
-	bfin_write_FIO_MASKA_S(pattern);
+#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_L
+#define WAKEUP_TYPE	PM_WAKE_LOW
+#endif
 
-	sleep_deeper(SIC_IWR_VAL);
-	  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_F
+#define WAKEUP_TYPE	PM_WAKE_FALLING
+#endif
 
-  /* Restore original state */
+#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_R
+#define WAKEUP_TYPE	PM_WAKE_RISING
+#endif
 
-	bfin_write_FIO_INEN(inen);
-	bfin_write_FIO_POLAR(polar);
-	bfin_write_FIO_DIR(dir);
-	bfin_write_FIO_MASKA_D(mask);
+#ifdef CONFIG_PM_WAKEUP_GPIO_POLAR_EDGE_B
+#define WAKEUP_TYPE	PM_WAKE_BOTH_EDGES
+#endif
 
+void bfin_pm_suspend_standby_enter(void)
+{
+	u32 flags;
+
+#ifdef CONFIG_PM_WAKEUP_BY_GPIO
+	gpio_pm_wakeup_request(CONFIG_PM_WAKEUP_GPIO_NUMBER, WAKEUP_TYPE);
+#endif
+
+#if  defined(CONFIG_PM_WAKEUP_BY_GPIO) || defined(CONFIG_PM_WAKEUP_GPIO_API)
+	local_irq_save(flags);
+		
+		sleep_deeper(gpio_pm_setup()); /*Goto Sleep*/
+		
+		gpio_pm_restore();
+		
+		bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	
 	local_irq_restore(flags);
-#endif				/* CONFIG_PM_WAKEUP_BY_GPIO */
+#endif
 
 #if defined(CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR)
-  sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR);
-  bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR);
+	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
 #endif				/* CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR */
+
 }
 
 
 /*
- *	bf533_pm_prepare - Do preliminary suspend work.
+ *	bfin_pm_prepare - Do preliminary suspend work.
  *	@state:		suspend state we're entering.
  *
  */
-static int bf533_pm_prepare(suspend_state_t state)
+static int bfin_pm_prepare(suspend_state_t state)
 {
 	int error = 0;
 
@@ -118,15 +117,15 @@ static int bf533_pm_prepare(suspend_state_t state)
 }
 
 /*
- *	bf533_pm_enter - Actually enter a sleep state.
+ *	bfin_pm_enter - Actually enter a sleep state.
  *	@state:		State we're entering.
  *
  */
-static int bf533_pm_enter(suspend_state_t state)
+static int bfin_pm_enter(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-		bf533_pm_suspend_standby_enter();
+		bfin_pm_suspend_standby_enter();
 		break;
 	case PM_SUSPEND_MEM:
 		return -ENOTSUPP;
@@ -142,13 +141,13 @@ static int bf533_pm_enter(suspend_state_t state)
 }
 
 /*
- *	bf533_pm_finish - Finish up suspend sequence.
+ *	bfin_pm_finish - Finish up suspend sequence.
  *	@state:		State we're coming out of.
  *
  *	This is called after we wake back up (or if entering the sleep state
  *	failed).
  */
-static int bf533_pm_finish(suspend_state_t state)
+static int bfin_pm_finish(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
@@ -169,9 +168,9 @@ static int bf533_pm_finish(suspend_state_t state)
 
 struct pm_ops bfin_pm_ops = {
 	.pm_disk_mode = PM_DISK_FIRMWARE,
-	.prepare = bf533_pm_prepare,
-	.enter = bf533_pm_enter,
-	.finish = bf533_pm_finish,
+	.prepare = bfin_pm_prepare,
+	.enter = bfin_pm_enter,
+	.finish = bfin_pm_finish,
 };
 
 static int __init bfin_pm_init(void)
