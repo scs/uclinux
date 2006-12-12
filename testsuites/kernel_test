@@ -546,7 +546,7 @@ chmod +x *.exp  */*.exp
   cd  $KERNEL_SCRIPTS/serial
   ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
   sleep 30
-  ./serial_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./serial_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.serial
@@ -575,7 +575,7 @@ chmod +x *.exp  */*.exp
   cd  $KERNEL_SCRIPTS/serial
   ./build_serial_port_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
   sleep 30
-  ./serial_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./serial_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial_port
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.serial_port
@@ -639,7 +639,7 @@ chmod +x *.exp  */*.exp
   cd  $KERNEL_SCRIPTS/ramfs
   ./build_ramfs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
-  ./reboot_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./reboot_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.reboot
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.reboot
@@ -797,7 +797,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cd $KERNEL_SCRIPTS/pnormtd
   ./build_pnormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
-  ./pnormtd_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./pnormtd_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.pnormtd
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.pnormtd
@@ -832,7 +832,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   sleep 30
   ./flash_images.exp >/dev/null  2>&1
   sleep 30
-  ./jffs2_reboot_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./jffs2_reboot_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SCRIPTS/jffs2/build_jffs2_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/jffs2/flash_images_log $THIS_LOG
@@ -852,7 +852,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   echo  "Testing boot kernel-only uImage ..."
   
   cd $KERNEL_SCRIPTS/jffs2
-  ./boot_kernel_only_uimage.exp >/dev/null  2>&1
+  ./boot_kernel_only_uimage_test.exp >/dev/null  2>&1
   cp $KERNEL_SCRIPTS/jffs2/boot_kernel_only_uimage_log $THIS_LOG
 
   sleep 300
@@ -1005,7 +1005,7 @@ if [ $pnormtd_test -eq 1  ] ; then
   cd $KERNEL_SCRIPTS/dpm
   ./build_dpm_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
-  ./dpm_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./dpm_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpm
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dpm
@@ -1461,9 +1461,9 @@ fi
   cd $KERNEL_SCRIPTS/audio
   ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./one_channel_audio_test.exp  >/dev/null  2>&1
   sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./two_channel_audio_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1836   
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1836
@@ -1492,9 +1492,9 @@ fi
   
   ./build_ad73311_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
   sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./one_channel_audio_test.exp  >/dev/null  2>&1
   sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  ./two_channel_audio_test.exp  >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad73311
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad73311
@@ -1831,7 +1831,7 @@ if [ $yaffs_test -eq 1  ] ; then
   cd $KERNEL_SCRIPTS/yaffs
   ./build_yaffs_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
   sleep 30
-  ./yaffs_test.exp /dev/ttyS0  >/dev/null  2>&1
+  ./yaffs_test.exp   >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.yaffs
   cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.yaffs
