@@ -118,7 +118,7 @@ static inline void do_leds(void)
 
 static struct irqaction bfin_timer_irq = {
 	.name = "BFIN Timer Tick",
-	.flags = SA_INTERRUPT
+	.flags = IRQF_DISABLED
 };
 
 /*
