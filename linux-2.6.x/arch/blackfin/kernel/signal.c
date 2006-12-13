@@ -55,18 +55,6 @@ struct fdpic_func_descriptor {
 	unsigned long	GOT;
 };
 
-asmlinkage void do_signal(struct pt_regs *regs);
-
-struct sigframe {
-	char *pretcode;
-	int sig;
-	int code;
-	struct sigcontext *psc;
-	char retcode[8];
-	unsigned long extramask[_NSIG_WORDS - 1];
-	struct sigcontext sc;
-};
-
 struct rt_sigframe {
 	char *pretcode;
 	int sig;
@@ -76,131 +64,6 @@ struct rt_sigframe {
 	struct siginfo info;
 	struct ucontext uc;
 };
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- *
- */
-asmlinkage int sys_sigsuspend(old_sigset_t mask)
-{
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	current->saved_sigmask = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	set_thread_flag(TIF_RESTORE_SIGMASK);
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
-sys_sigaction(int sig, const struct old_sigaction *act,
-	      struct old_sigaction *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
-			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
-			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-	}
-
-	return ret;
-}
-
-asmlinkage int sys_sigaltstack(const stack_t * uss, stack_t * uoss)
-{
-	return do_sigaltstack(uss, uoss, rdusp());
-}
-
-/*
- * Do a signal return; undo the signal stack.
- *
- * Keep the return code on the stack quadword aligned!
- * That makes the cache flush below easier.
- */
-static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc, int *pr0)
-{
-	struct sigcontext context;
-	int err = 0;
-
-	/* get previous context */
-	if (copy_from_user(&context, usc, sizeof(context)))
-		goto badframe;
-	if (context.sc_pc == 0)
-		goto badframe;
-	/* restore passed registers */
-	regs->r0 = context.sc_r0;
-	regs->r1 = context.sc_r1;
-	regs->r2 = context.sc_r2;
-	regs->r3 = context.sc_r3;
-	regs->r4 = context.sc_r4;
-	regs->p0 = context.sc_p0;
-	regs->p1 = context.sc_p1;
-	regs->p2 = context.sc_p2;
-	regs->p3 = context.sc_p3;
-	regs->i0 = context.sc_i0;
-	regs->i1 = context.sc_i1;
-	regs->i2 = context.sc_i2;
-	regs->i3 = context.sc_i3;
-	regs->m0 = context.sc_m0;
-	regs->m1 = context.sc_m1;
-	regs->m2 = context.sc_m2;
-	regs->m3 = context.sc_m3;
-	regs->l0 = context.sc_l0;
-	regs->l1 = context.sc_l1;
-	regs->l2 = context.sc_l2;
-	regs->l3 = context.sc_l3;
-	regs->b0 = context.sc_b0;
-	regs->b1 = context.sc_b1;
-	regs->b2 = context.sc_b2;
-	regs->b3 = context.sc_b3;
-	regs->a0x = context.sc_a0x;
-	regs->a0w = context.sc_a0w;
-	regs->a1x = context.sc_a1x;
-	regs->a1w = context.sc_a1w;
-	regs->lc0 = context.sc_lc0;
-	regs->lc1 = context.sc_lc1;
-	regs->lt0 = context.sc_lt0;
-	regs->lt1 = context.sc_lt1;
-	regs->lb0 = context.sc_lb0;
-	regs->lb1 = context.sc_lb1;
-	regs->astat = context.sc_astat;
-	regs->seqstat = context.sc_seqstat;
-	regs->pc = context.sc_pc;
-	regs->retx = context.sc_retx;
-	regs->pc = context.sc_retx;
-	regs->rets = context.sc_rets;
-	regs->orig_p0 = -1;	/* disable syscall checks */
-	wrusp(context.sc_usp);
-
-	*pr0 = context.sc_r0;
-	return err;
-
-      badframe:
-	return 1;
-}
 
 static inline int
 rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
@@ -276,38 +139,6 @@ rt_restore_ucontext(struct pt_regs *regs, struct ucontext *uc, int *pr0)
 	return 1;
 }
 
-asmlinkage int do_sigreturn(unsigned long __unused)
-{
-	struct pt_regs *regs = (struct pt_regs *)__unused;
-	unsigned long usp = rdusp();
-	struct sigframe *frame = (struct sigframe *)(usp);
-	sigset_t set;
-	int r0;
-
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
-		goto badframe;
-	if (__get_user(set.sig[0], &frame->sc.sc_mask) ||
-	    (_NSIG_WORDS > 1 &&
-	     __copy_from_user(&set.sig[1], &frame->extramask,
-			      sizeof(frame->extramask))))
-
-		goto badframe;
-
-	sigdelsetmask(&set, ~_BLOCKABLE);
-	spin_lock_irq(&current->sighand->siglock);
-	current->blocked = set;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-	if (restore_sigcontext(regs, &frame->sc, &r0))
-		goto badframe;
-	return r0;
-
-      badframe:
-	force_sig(SIGSEGV, current);
-	return 0;
-}
-
 asmlinkage int do_rt_sigreturn(unsigned long __unused)
 {
 	struct pt_regs *regs = (struct pt_regs *)__unused;
@@ -334,59 +165,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
       badframe:
 	force_sig(SIGSEGV, current);
 	return 0;
-}
-
-static void
-setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
-		 unsigned long mask)
-{
-	sc->sc_mask = mask;
-	sc->sc_usp = rdusp();
-	sc->sc_r0 = regs->r0;
-	sc->sc_r1 = regs->r1;
-	sc->sc_r2 = regs->r2;
-	sc->sc_r3 = regs->r3;
-	sc->sc_r4 = regs->r4;
-	sc->sc_p0 = regs->p0;
-	sc->sc_p1 = regs->p1;
-	sc->sc_p2 = regs->p2;
-	sc->sc_p3 = regs->p3;
-	sc->sc_i0 = regs->i0;
-	sc->sc_i1 = regs->i1;
-	sc->sc_i2 = regs->i2;
-	sc->sc_i3 = regs->i3;
-	sc->sc_m0 = regs->m0;
-	sc->sc_m1 = regs->m1;
-	sc->sc_m2 = regs->m2;
-	sc->sc_m3 = regs->m3;
-	sc->sc_l0 = regs->l0;
-	sc->sc_l1 = regs->l1;
-	sc->sc_l2 = regs->l2;
-	sc->sc_l3 = regs->l3;
-	sc->sc_b0 = regs->b0;
-	sc->sc_b1 = regs->b1;
-	sc->sc_b2 = regs->b2;
-	sc->sc_b3 = regs->b3;
-	sc->sc_a0x = regs->a0x;
-	sc->sc_a0w = regs->a0w;
-	sc->sc_a1x = regs->a1x;
-	sc->sc_a1w = regs->a1w;
-	sc->sc_lc0 = regs->lc0;
-	sc->sc_lc1 = regs->lc1;
-	sc->sc_lt0 = regs->lt0;
-	sc->sc_lt1 = regs->lt1;
-	sc->sc_lb0 = regs->lb0;
-	sc->sc_lb1 = regs->lb1;
-	sc->sc_astat = regs->astat;
-	sc->sc_seqstat = regs->seqstat;
-	sc->sc_pc = regs->pc;
-	sc->sc_rets = regs->rets;
-
-	if (regs->seqstat)
-		sc->sc_retx = regs->retx;
-	else
-		sc->sc_retx = regs->pc;
-
 }
 
 static inline int rt_setup_ucontext(struct ucontext *uc, struct pt_regs *regs)
@@ -465,70 +243,6 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 			usp = current->sas_ss_sp + current->sas_ss_size;
 	}
 	return (void *)((usp - frame_size) & -8UL);
-}
-
-static int
-setup_frame(int sig, struct k_sigaction *ka,
-	    sigset_t * set, struct pt_regs *regs)
-{
-	struct sigframe *frame;
-	struct sigcontext context;
-	int err = 0;
-
-	frame = get_sigframe(ka, regs, sizeof(*frame));
-
-	err |= __put_user((current_thread_info()->exec_domain
-			   && current_thread_info()->exec_domain->signal_invmap
-			   && sig < 32
-			   ? current_thread_info()->exec_domain->
-			   signal_invmap[sig] : sig), &frame->sig);
-
-	err |= __put_user(&frame->sc, &frame->psc);
-
-	if (_NSIG_WORDS > 1)
-		err |= copy_to_user(frame->extramask, &set->sig[1],
-				    sizeof(frame->extramask));
-
-	setup_sigcontext(&context, regs, set->sig[0]);
-	err |= copy_to_user(&frame->sc, &context, sizeof(context));
-
-	/* Set up to return from userspace.  */
-	err |= __put_user(frame->retcode, &frame->pretcode);
-	err |= __put_user(0x28, &(frame->retcode[0]));
-	err |= __put_user(0xe1, &(frame->retcode[1]));
-	err |= __put_user(0x77, &(frame->retcode[2]));
-	err |= __put_user(0x00, &(frame->retcode[3]));
-	err |= __put_user(0xa0, &(frame->retcode[4]));
-	err |= __put_user(0x00, &(frame->retcode[5]));
-
-	if (err)
-		goto give_sigsegv;
-
-	push_cache((unsigned long)&frame->retcode, sizeof(frame->retcode));
-
-	/* Set up registers for signal handler */
-	wrusp((unsigned long)frame);
-	if (get_personality & FDPIC_FUNCPTRS) {
-		struct fdpic_func_descriptor __user *funcptr =
-			(struct fdpic_func_descriptor *) ka->sa.sa_handler;
-		__get_user(regs->pc, &funcptr->text);
-		__get_user(regs->p3, &funcptr->GOT);
-	} else
-		regs->pc = (unsigned long)ka->sa.sa_handler;
-	regs->rets = (unsigned long)(frame->retcode);
-	regs->r0 = frame->sig;
-	regs->l0 = regs->l1 = regs->l2 = regs->l3 = 0;
-
-	if (regs->seqstat)
-		regs->retx = (unsigned long)ka->sa.sa_handler;
-
-	return 0;
-
-      give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
-	return -EFAULT;
 }
 
 static int
@@ -643,10 +357,7 @@ handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 		handle_restart(regs, ka, 1);
 
 	/* set up the stack frame */
-	if (ka->sa.sa_flags & SA_SIGINFO)
-		ret = setup_rt_frame(sig, ka, info, oldset, regs);
-	else
-		ret = setup_frame(sig, ka, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
 	if (ka->sa.sa_flags & SA_ONESHOT)
 		ka->sa.sa_handler = SIG_DFL;

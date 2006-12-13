@@ -79,16 +79,6 @@ ENTRY(_sys_clone)
 	rets = [sp++];
 	rts;
 
-ENTRY(_sys_sigreturn)
-	r0 = sp;
-	r0 += 24;
-	[--sp] = rets;
-	SP += -12;
-	call _do_sigreturn;
-	SP += 12;
-	rets = [sp++];
-	rts;
-
 ENTRY(_sys_rt_sigreturn)
 	r0 = sp;
 	r0 += 24;

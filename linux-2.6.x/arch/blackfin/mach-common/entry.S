@@ -829,7 +829,7 @@ ENTRY(_sys_call_table)
 	.long _sys_write
 	.long _sys_open		/* 5 */
 	.long _sys_close
-	.long _sys_waitpid
+	.long _sys_ni_syscall	/* old waitpid */
 	.long _sys_creat
 	.long _sys_link
 	.long _sys_unlink	/* 10 */
@@ -841,7 +841,7 @@ ENTRY(_sys_call_table)
 	.long _sys_chown	/* chown16 */
 	.long _sys_ni_syscall	/* old break syscall holder */
 	.long _sys_ni_syscall	/* old stat */
-	.long _sys_lseek
+	.long _sys_ni_syscall	/* old lseek */
 	.long _sys_getpid	/* 20 */
 	.long _sys_mount
 	.long _sys_umount
@@ -870,7 +870,7 @@ ENTRY(_sys_call_table)
 	.long _sys_brk		/* 45 */
 	.long _sys_setgid
 	.long _sys_getgid
-	.long _sys_signal
+	.long _sys_ni_syscall	/* old sys_signal */
 	.long _sys_geteuid	/* geteuid16 */
 	.long _sys_getegid	/* getegid16 */	/* 50 */
 	.long _sys_acct
@@ -889,13 +889,13 @@ ENTRY(_sys_call_table)
 	.long _sys_getppid
 	.long _sys_getpgrp	/* 65 */
 	.long _sys_setsid
-	.long _sys_sigaction
+	.long _sys_ni_syscall	/* old sys_sigaction */
 	.long _sys_sgetmask
 	.long _sys_ssetmask
 	.long _sys_setreuid	/* setreuid16 */	/* 70 */
 	.long _sys_setregid	/* setregid16 */
-	.long _sys_sigsuspend
-	.long _sys_sigpending
+	.long _sys_ni_syscall	/* old sys_sigsuspend */
+	.long _sys_ni_syscall	/* old sys_sigpending */
 	.long _sys_sethostname
 	.long _sys_setrlimit	/* 75 */
 	.long _sys_ni_syscall	/* old getrlimit */
@@ -904,15 +904,15 @@ ENTRY(_sys_call_table)
 	.long _sys_settimeofday
 	.long _sys_getgroups	/* getgroups16 */	/* 80 */
 	.long _sys_setgroups	/* setgroups16 */
-	.long _sys_ni_syscall	/* old select */
+	.long _sys_pselect6
 	.long _sys_symlink
 	.long _sys_ni_syscall	/* old lstat */
 	.long _sys_readlink	/* 85 */
 	.long _sys_uselib
 	.long _sys_ni_syscall	/* sys_swapon */
 	.long _sys_reboot
-	.long _old_readdir
-	.long _sys_mmap		/* 90 */
+	.long _sys_ni_syscall	/* old_readdir */
+	.long _sys_mmap2	/* 90 */
 	.long _sys_munmap
 	.long _sys_truncate
 	.long _sys_ftruncate
@@ -941,14 +941,14 @@ ENTRY(_sys_call_table)
 	.long _sys_sysinfo
 	.long _sys_ipc
 	.long _sys_fsync
-	.long _sys_sigreturn
+	.long _sys_ni_syscall	/* old sys_sigreturn */
 	.long _sys_clone		/* 120 */
 	.long _sys_setdomainname
 	.long _sys_newuname
 	.long _sys_ni_syscall	/* old sys_modify_ldt */
 	.long _sys_adjtimex
 	.long _sys_ni_syscall	/* 125 */ /* sys_mprotect */
-	.long _sys_sigprocmask
+	.long _sys_ni_syscall	/* old sys_sigprocmask */
 	.long _sys_ni_syscall	/* old "creat_module" */
 	.long _sys_init_module
 	.long _sys_delete_module
@@ -957,14 +957,14 @@ ENTRY(_sys_call_table)
 	.long _sys_getpgid
 	.long _sys_fchdir
 	.long _sys_bdflush
-	.long _sys_sysfs		/* 135 */
+	.long _sys_ni_syscall	/* 135 */ /* sys_sysfs */
 	.long _sys_personality
 	.long _sys_ni_syscall	/* for afs_syscall */
 	.long _sys_setfsuid	/* setfsuid16 */
 	.long _sys_setfsgid	/* setfsgid16 */
 	.long _sys_llseek	/* 140 */
 	.long _sys_getdents
-	.long _sys_select
+	.long _sys_pselect6
 	.long _sys_flock
 	.long _sys_ni_syscall	/* sys_msync */
 	.long _sys_readv		/* 145 */
@@ -1008,7 +1008,7 @@ ENTRY(_sys_call_table)
 	.long _sys_getcwd
 	.long _sys_capget
 	.long _sys_capset	/* 185 */
-	.long _sys_sigaltstack
+	.long _sys_ni_syscall	/* old sys_sigaltstack */
 	.long _sys_sendfile
 	.long _sys_ni_syscall	/* streams1 */
 	.long _sys_ni_syscall	/* streams2 */
