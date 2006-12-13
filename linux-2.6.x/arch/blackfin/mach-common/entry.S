@@ -852,7 +852,7 @@ ENTRY(_sys_call_table)
 	.long _sys_alarm
 	.long _sys_ni_syscall	/* old fstat */
 	.long _sys_pause
-	.long _sys_utime		/* 30 */
+	.long _sys_ni_syscall	/* old utime */	/* 30 */
 	.long _sys_ni_syscall	/* old stty syscall holder */
 	.long _sys_ni_syscall	/* old gtty syscall holder */
 	.long _sys_access
