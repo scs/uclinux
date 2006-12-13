@@ -277,9 +277,9 @@ do
   
   echo  "Start testing ${AUTO_TESTCASE[$i]}..."
 
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
@@ -348,9 +348,9 @@ do
  if [ $timer -eq 1  ] ; then
   echo  "Testing timer..."
 
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
 
@@ -397,9 +397,9 @@ do
   
   echo  "Testing audio ad1836..."
   
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/audio
@@ -430,9 +430,9 @@ do
   
   echo  "Testing audio ad73311..."
   
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   
@@ -466,9 +466,9 @@ do
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
  # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
 
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/snormtd
@@ -525,9 +525,9 @@ if [ $ltp -eq 1 ] ; then
 
   for i in 0 1 2 3 4 5
   do
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
     cd $KERNEL_SCRIPTS/ltp
@@ -593,9 +593,9 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   
   echo  "Start testing ${MANUAL_TESTCASE[$i]}..."
 
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
@@ -631,9 +631,9 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   if [ $dpmc -eq 1  ] ; then
   echo  "Testing dpmc..."
   
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   
@@ -683,9 +683,9 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   if [ $serial_uart1 -eq 1  ] ; then
   echo  "Testing serial on uart1..."
        
-  rm -rf $KERNEL_PATH/linux-2.6.x/*
-  cd $KERNEL_PATH/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
+  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd  $KERNEL_SCRIPTS/serial
