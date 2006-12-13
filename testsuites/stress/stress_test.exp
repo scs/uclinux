@@ -56,7 +56,7 @@ while 1 {
    
    set timeout [expr $PING_COUNT * 1.5]
     
-   log_file stress_test_log
+   log_file [log_file_name "$argv0"]
    
    set spawn_id $kermit_spawn_id
    send -s "ping $serverip\r"

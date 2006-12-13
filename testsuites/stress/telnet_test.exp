@@ -1,0 +1,48 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+if { $argc >= 1} {
+   set targetip           [lindex $argv 0]
+}
+
+spawn /bin/sh
+
+while 1 {
+	send -s "telnet $targetip\r"
+	expect {
+		">" {  }
+		timeout { send_user "Failed inital telnet\n"
+			exit }
+	}
+	send -s "\r"
+	expect {
+	        ">" { }
+	        timeout { send_user "Failed first return\n"
+			exit }
+	}
+	send -s "ls\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+	send -s "dmesg\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+	send -s "cat /proc/slabinfo\r"
+        expect {
+                ">" { }
+                timeout { send_user "Failed first return\n"
+                        exit }
+        }
+
+	send -s "exit\r"
+        expect "$"
+}
+log_file

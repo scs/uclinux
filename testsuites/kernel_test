@@ -260,10 +260,14 @@ chmod +x *.exp  */*.exp
    sleep 10
   fi
   
-  echo  "mv kernel source back."
+  echo  "mv kernel source back to KERNEL_PATH_BAK."
   mv $KERNEL_PATH $KERNEL_PATH_BAK 
   mkdir -p $KERNEL_PATH
   
+  echo  "cp kernel source to KERNEL_PATH."
+  cd $KERNEL_PATH/
+  cp -a  $KERNEL_PATH_BAK/*  .
+    
   sleep 10
   fi
   
