@@ -1,8 +1,6 @@
 #!/bin/sh
 ########################################################################################################################
 ######### To run this script, please first set following uboot varibles properly on your target board  #################
-######### set  bootargs  bootfile linux                                                                #################
-######### set  bootargs  loadaddr 2000000                                                     	       #################
 ######### set  bootcmd   run tftpboot                                                                  #################
 ######### set  tftpboot  'tftp 0x2000000 linux;bootelf'                                                #################
 ######### set  ipaddr    10.100.4.50  (set your board ip here)                                         #################
@@ -153,7 +151,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
    
    AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="1"   [24]="1" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="0"   [11]="0"   [12]="0"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="1"   [24]="1" )      
    
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
    
@@ -161,8 +159,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
       
      timer=1
      ltp=1
-     audio_ad1836=1
-     audio_ad73311=1
+     audio_ad1836=0
+     audio_ad73311=0
      snormtd=1
      dpmc=1
      serial_uart1=1
@@ -177,7 +175,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
    
    AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="0"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
    
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
    
@@ -281,9 +279,9 @@ do
   
   echo  "Start testing ${AUTO_TESTCASE[$i]}..."
 
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
@@ -307,7 +305,7 @@ do
 	fi
 	
 	if [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
-	./ethernet_test.exp  $BOARD_TYPE >/dev/null  2>&1 
+	./ethernet_test.exp  $BOARD_TYPE in_buffer >/dev/null  2>&1 
 	else
 	./${AUTO_TESTCASE[$i]}_test.exp  $BOARD_TYPE >/dev/null  2>&1    
 	fi
@@ -358,28 +356,28 @@ do
  if [ $timer -eq 1  ] ; then
   echo  "Testing timer..."
 
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
 
   cd $KERNEL_SCRIPTS/timer
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 100  >/dev/null  2>&1
+  ./build_timer_kernel.exp $BOARD_TYPE  100  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 100 >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer100 
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer100
   
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 250  >/dev/null  2>&1
+  ./build_timer_kernel.exp $BOARD_TYPE  250  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 250 >/dev/null  2>&1
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer250
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer250
     
-  ./build_timer_kernel.exp $BOARD_TYPE $KERNEL_SOURCE 1000  >/dev/null  2>&1
+  ./build_timer_kernel.exp $BOARD_TYPE  1000  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 1000 >/dev/null  2>&1
   
@@ -407,13 +405,13 @@ do
   
   echo  "Testing audio ad1836..."
   
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/audio
-  ./build_ad1836_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
   sleep 30
@@ -440,13 +438,13 @@ do
   
   echo  "Testing audio ad73311..."
   
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   
-  ./build_ad73311_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
   sleep 30
@@ -476,13 +474,13 @@ do
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
  # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
 
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd $KERNEL_SCRIPTS/snormtd
-  ./build_snormtd_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_snormtd_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
   ./spi_flash_images.exp >/dev/null  2>&1
   sleep 30
@@ -504,7 +502,7 @@ do
   fi
 
   cd $KERNEL_SCRIPTS/snormtd
-  ./build_snormtd_mount_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1
+  ./build_snormtd_mount_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
   ./snormtd_test.exp >/dev/null  2>&1
 
@@ -535,9 +533,9 @@ if [ $ltp -eq 1 ] ; then
 
   for i in 0 1 2 3 4 5
   do
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
     cd $KERNEL_SCRIPTS/ltp
@@ -597,15 +595,15 @@ fi
   ###########################          MANUAL TEST          ######################################
   ################################################################################################
     
-for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+for i in 0 1 2 3 4 5 
   do
   if [ ${MANUAL_RUN_STATUS[$i]} -eq 1  ] ; then
   
   echo  "Start testing ${MANUAL_TESTCASE[$i]}..."
 
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
@@ -641,14 +639,13 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   if [ $dpmc -eq 1  ] ; then
   echo  "Testing dpmc..."
   
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
-  
   cd $KERNEL_SCRIPTS/dpmc
-  ./build_dpmc_kernel.exp $BOARD_TYPE $KERNEL_SOURCE  >/dev/null  2>&1  
+  ./build_dpmc_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
   sleep 30
   ./dpmc_test.exp 200000000 80000000 850 >/dev/null  2>&1
    
@@ -693,13 +690,13 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   if [ $serial_uart1 -eq 1  ] ; then
   echo  "Testing serial on uart1..."
        
-  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x/*
-  cd $KERNEL_PATH/uClinux-dist/linux-2.6.x/ 
-  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x/*  .
+  rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uClinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
   rm -rf $KERNEL_PATH/uClinux-dist/romfs/
   
   cd  $KERNEL_SCRIPTS/serial
-  ./build_serial_kernel.exp $BOARD_TYPE $KERNEL_SOURCE >/dev/null  2>&1
+  ./build_serial_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./serial_uart1_test.exp /dev/ttyS1 >/dev/null  2>&1
   

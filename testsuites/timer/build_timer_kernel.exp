@@ -6,13 +6,11 @@ send_user "Starting $argv0\n"
 
 set board_type         [lindex $argv 0]
 send_log "\n#### board_type is $board_type\n"
-set uclinux_path       [lindex $argv 1]
-send_log "\n#### uclinux_path is $uclinux_path\n"
-set timer_frequency    [lindex $argv 2]
+set timer_frequency    [lindex $argv 1]
 send_log "\n#### timer_frequency is $timer_frequency\n"
 
-if { $argc < 3} {
-puts "Please input: board_type,uclinux_path,timer_frequency(100, 250 or 1000Mhz)."
+if { $argc < 2} {
+puts "Please input: board_type,timer_frequency(100, 250 or 1000Mhz)."
 exit
 }
 

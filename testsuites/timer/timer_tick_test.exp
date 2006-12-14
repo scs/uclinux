@@ -11,6 +11,8 @@ set SLEEP_TIME 10
 
 set timer_frequency [lindex $argv 0]
 
+append TITLE " ($timer_frequency Mhz)"
+
 if { $argc < 1} {
 puts "Please input: timer_frequency."
 puts "100, 250 or 1000(Mhz)."
