@@ -305,7 +305,13 @@ do
 	  ./flash_images.exp >/dev/null  2>&1
 	  sleep 30 
 	fi
- 	./${AUTO_TESTCASE[$i]}_test.exp  $BOARD_TYPE >/dev/null  2>&1 
+	
+	if [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
+	./ethernet_test.exp  $BOARD_TYPE >/dev/null  2>&1 
+	else
+	./${AUTO_TESTCASE[$i]}_test.exp  $BOARD_TYPE >/dev/null  2>&1    
+	fi
+  
   fi
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.${AUTO_TESTCASE[$i]}

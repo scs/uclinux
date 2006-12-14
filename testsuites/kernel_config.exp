@@ -13,7 +13,8 @@ set baud_rate   "57600"
 
 set targetip 10.100.4.50
 set serverip 10.100.4.174
-
+set count  30
+set PING_COUNT  1999
 set password "blackfin"
 set send_slow {1 .1}
 
