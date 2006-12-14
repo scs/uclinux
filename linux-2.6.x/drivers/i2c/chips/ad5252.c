@@ -45,7 +45,6 @@ I2C_CLIENT_INSMOD_1(ad5252);
 
 /* Initial values */
 #define AD5252_INIT 128	/* Wiper in middle position */
-#define I2C_DRIVERID_AD5252 1051
 /* Each client has this additional data */
 struct ad5252_data {
 	struct i2c_client client;
