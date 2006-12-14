@@ -64,7 +64,9 @@ config BFIN_NAND_ALE
 config BFIN_NAND_READY
 	int "NAND Flash Ready Strobe PF[x]"
 	depends on MTD_NAND_BFIN
-	range 0 15
+	range 0 15 if (BF533 || BF532 || BF531) 
+	range 0 47 if (BF534 || BF536 || BF537)
+	range 0 47 if BF561
 	default 3
 	help
 	  NAND Flash Ready Strobe PF[x]

@@ -41,7 +41,6 @@
 #define BFIN_NAND_BASE		CONFIG_BFIN_NAND_BASE
 #define BFIN_NAND_CLE           (1<<CONFIG_BFIN_NAND_CLE)	/* Ax -> Command Enable */
 #define BFIN_NAND_ALE           (1<<CONFIG_BFIN_NAND_ALE)	/* Ax -> Address Enable */
-#define BFIN_NAND_READY		(1<<CONFIG_BFIN_NAND_READY)
 
 /*
  * MTD structure for NAND controller
@@ -168,8 +167,9 @@ static void bfin_hwcontrol(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 
 int bfin_device_ready(struct mtd_info *mtd)
 {
-	int ret = (bfin_read_FIO_FLAG_D() & BFIN_NAND_READY) ? 1 : 0 ;
-	return ret;
+
+	return gpio_get_value(CONFIG_BFIN_NAND_READY);
+
 }
 
 /*
@@ -200,12 +200,11 @@ int __init bfin_nand_init (void)
 	bfin_mtd->owner = THIS_MODULE;
 	
 	/* Configure GPIO-BFIN_NAND_READY */
-#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-	bfin_write_PORT_FER(bfin_read_PORT_FER() & ~BFIN_NAND_READY);
-#endif
-        bfin_write_FIO_DIR(bfin_read_FIO_DIR() & ~BFIN_NAND_READY);
-        bfin_write_FIO_INEN(bfin_read_FIO_INEN() | BFIN_NAND_READY);
-	__builtin_bfin_ssync();
+
+	if (gpio_request(CONFIG_BFIN_NAND_READY, NULL))
+		printk(KERN_ERR"Requesting NAND Ready GPIO %d faild\n",CONFIG_BFIN_NAND_READY);
+
+	gpio_direction_input(CONFIG_BFIN_NAND_READY);
 
 	p_nand = ioremap(BFIN_NAND_BASE, 0x1000);
 
@@ -252,6 +251,8 @@ module_init(bfin_nand_init);
 static void __exit bfin_cleanup (void)
 {
 	/* Release resources, unregister device */
+
+	gpio_free(CONFIG_BFIN_NAND_READY);
 	nand_release (bfin_mtd);
 
 	/* Free the MTD device structure */
