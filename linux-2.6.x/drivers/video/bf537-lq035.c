@@ -135,6 +135,84 @@ static struct i2c_driver ad5280_driver = {
 	.detach_client   = ad5280_detach_client,
 };
 
+#ifdef CONFIG_PNAV10
+#define MOD     GPIO_PH13
+
+#define bfin_write_TIMER_LP_CONFIG 	bfin_write_TIMER0_CONFIG
+#define bfin_write_TIMER_LP_WIDTH 	bfin_write_TIMER0_WIDTH
+#define bfin_write_TIMER_LP_PERIOD	bfin_write_TIMER0_PERIOD
+#define bfin_read_TIMER_LP_COUNTER	bfin_read_TIMER0_COUNTER
+#define TIMDIS_LP			TIMDIS0
+#define TIMEN_LP			TIMEN0
+
+#define bfin_write_TIMER_SPS_CONFIG 	bfin_write_TIMER1_CONFIG
+#define bfin_write_TIMER_SPS_WIDTH 	bfin_write_TIMER1_WIDTH
+#define bfin_write_TIMER_SPS_PERIOD	bfin_write_TIMER1_PERIOD
+#define TIMDIS_SPS			TIMDIS1
+#define TIMEN_SPS			TIMEN1
+
+#define bfin_write_TIMER_SP_CONFIG 	bfin_write_TIMER5_CONFIG
+#define bfin_write_TIMER_SP_WIDTH 	bfin_write_TIMER5_WIDTH
+#define bfin_write_TIMER_SP_PERIOD	bfin_write_TIMER5_PERIOD
+#define TIMDIS_SP			TIMDIS5
+#define TIMEN_SP			TIMEN5
+
+#define bfin_write_TIMER_PS_CLS_CONFIG 	bfin_write_TIMER2_CONFIG
+#define bfin_write_TIMER_PS_CLS_WIDTH 	bfin_write_TIMER2_WIDTH
+#define bfin_write_TIMER_PS_CLS_PERIOD	bfin_write_TIMER2_PERIOD
+#define TIMDIS_PS_CLS			TIMDIS2
+#define TIMEN_PS_CLS			TIMEN2
+
+#define bfin_write_TIMER_REV_CONFIG 	bfin_write_TIMER3_CONFIG
+#define bfin_write_TIMER_REV_WIDTH 	bfin_write_TIMER3_WIDTH
+#define bfin_write_TIMER_REV_PERIOD	bfin_write_TIMER3_PERIOD
+#define TIMDIS_REV			TIMDIS3
+#define TIMEN_REV			TIMEN3
+#define bfin_read_TIMER_REV_COUNTER	bfin_read_TIMER3_COUNTER
+
+#define	FREQ_PPI_CLK         (5*1024*1024)  /* PPI_CLK 5MHz */
+
+#else
+
+#define UD      GPIO_PF13	/* Up / Down */
+#define MOD     GPIO_PF10
+#define LBR     GPIO_PF14	/* Left Right */
+
+#define bfin_write_TIMER_LP_CONFIG 	bfin_write_TIMER6_CONFIG
+#define bfin_write_TIMER_LP_WIDTH 	bfin_write_TIMER6_WIDTH
+#define bfin_write_TIMER_LP_PERIOD	bfin_write_TIMER6_PERIOD
+#define bfin_read_TIMER_LP_COUNTER	bfin_read_TIMER6_COUNTER
+#define TIMDIS_LP			TIMDIS6
+#define TIMEN_LP			TIMEN6
+
+#define bfin_write_TIMER_SPS_CONFIG 	bfin_write_TIMER1_CONFIG
+#define bfin_write_TIMER_SPS_WIDTH 	bfin_write_TIMER1_WIDTH
+#define bfin_write_TIMER_SPS_PERIOD	bfin_write_TIMER1_PERIOD
+#define TIMDIS_SPS			TIMDIS1
+#define TIMEN_SPS			TIMEN1
+
+#define bfin_write_TIMER_SP_CONFIG 	bfin_write_TIMER0_CONFIG
+#define bfin_write_TIMER_SP_WIDTH 	bfin_write_TIMER0_WIDTH
+#define bfin_write_TIMER_SP_PERIOD	bfin_write_TIMER0_PERIOD
+#define TIMDIS_SP			TIMDIS0
+#define TIMEN_SP			TIMEN0
+
+#define bfin_write_TIMER_PS_CLS_CONFIG 	bfin_write_TIMER7_CONFIG
+#define bfin_write_TIMER_PS_CLS_WIDTH 	bfin_write_TIMER7_WIDTH
+#define bfin_write_TIMER_PS_CLS_PERIOD	bfin_write_TIMER7_PERIOD
+#define TIMDIS_PS_CLS			TIMDIS7
+#define TIMEN_PS_CLS			TIMEN7
+
+#define bfin_write_TIMER_REV_CONFIG 	bfin_write_TIMER5_CONFIG
+#define bfin_write_TIMER_REV_WIDTH 	bfin_write_TIMER5_WIDTH
+#define bfin_write_TIMER_REV_PERIOD	bfin_write_TIMER5_PERIOD
+#define TIMDIS_REV			TIMDIS5
+#define TIMEN_REV			TIMEN5
+#define bfin_read_TIMER_REV_COUNTER	bfin_read_TIMER5_COUNTER
+
+#define	FREQ_PPI_CLK         (6*1000*1000)  /* PPI_CLK 6MHz */
+
+#endif
 
 #define LCD_X_RES			240 /*Horizontal Resolution */
 #define LCD_Y_RES			320 /* Vertical Resolution */
@@ -145,7 +223,7 @@ static struct i2c_driver ad5280_driver = {
 
 #define FRAMES_PER_SEC       (60)
 
-#define	FREQ_PPI_CLK         (6*1000*1000)  /* PPI_CLK 6MHz */
+
 #define DCLKS_PER_FRAME      (FREQ_PPI_CLK/FRAMES_PER_SEC)
 #define DCLKS_PER_LINE       (DCLKS_PER_FRAME/(LCD_Y_RES+U_LINES))
 
@@ -162,17 +240,15 @@ static void start_timers(void) /* CHECK with HW */
 
 	local_irq_save(flags);
 
-	bfin_write_TIMER_ENABLE(TIMEN5);
+	bfin_write_TIMER_ENABLE(TIMEN_REV);
 	__builtin_bfin_ssync();
 
-	while (bfin_read_TIMER5_COUNTER() <= 11)
-		;
-	bfin_write_TIMER_ENABLE(TIMEN6);
+	while (bfin_read_TIMER_REV_COUNTER() <= 11);
+	bfin_write_TIMER_ENABLE(TIMEN_LP);
 	__builtin_bfin_ssync();
 
-	while (bfin_read_TIMER6_COUNTER() < 3)
-		;
-	bfin_write_TIMER_ENABLE(TIMEN0|TIMEN1|TIMEN7);
+	while (bfin_read_TIMER_LP_COUNTER() < 3);
+	bfin_write_TIMER_ENABLE(TIMEN_SP|TIMEN_SPS|TIMEN_PS_CLS);
 	__builtin_bfin_ssync();
 
 	local_irq_restore(flags);
@@ -181,41 +257,41 @@ static void start_timers(void) /* CHECK with HW */
 static void config_timers(void) /* CHECKME */
 {
 	/* Stop timers */
-	bfin_write_TIMER_DISABLE(TIMDIS0|TIMDIS1|TIMDIS5|TIMDIS6|TIMDIS7);
+	bfin_write_TIMER_DISABLE(TIMDIS_SP|TIMDIS_SPS|TIMDIS_REV|TIMDIS_LP|TIMDIS_PS_CLS);
 	__builtin_bfin_ssync();
 
 	/* LP, timer 6 */
-	bfin_write_TIMER6_CONFIG(TIMER_CONFIG|PULSE_HI);
-	bfin_write_TIMER6_WIDTH (1);
+	bfin_write_TIMER_LP_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER_LP_WIDTH (1);
 
-	bfin_write_TIMER6_PERIOD(DCLKS_PER_LINE);
+	bfin_write_TIMER_LP_PERIOD(DCLKS_PER_LINE);
 	__builtin_bfin_ssync();
 
 	/* SPS, timer 1 */
-	bfin_write_TIMER1_CONFIG(TIMER_CONFIG|PULSE_HI);
-	bfin_write_TIMER1_WIDTH(DCLKS_PER_LINE*2);
-	bfin_write_TIMER1_PERIOD((DCLKS_PER_LINE * (LCD_Y_RES+U_LINES)));
+	bfin_write_TIMER_SPS_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER_SPS_WIDTH(DCLKS_PER_LINE*2);
+	bfin_write_TIMER_SPS_PERIOD((DCLKS_PER_LINE * (LCD_Y_RES+U_LINES)));
 	__builtin_bfin_ssync();
 
 	/* SP, timer 0 */
-	bfin_write_TIMER0_CONFIG(TIMER_CONFIG|PULSE_HI);
-	bfin_write_TIMER0_WIDTH (1);
-	bfin_write_TIMER0_PERIOD(DCLKS_PER_LINE);
+	bfin_write_TIMER_SP_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER_SP_WIDTH (1);
+	bfin_write_TIMER_SP_PERIOD(DCLKS_PER_LINE);
 	__builtin_bfin_ssync();
 
 	/* PS & CLS, timer 7 */
-	bfin_write_TIMER7_CONFIG(TIMER_CONFIG);
-	bfin_write_TIMER7_WIDTH (LCD_X_RES + START_LINES);
-	bfin_write_TIMER7_PERIOD(DCLKS_PER_LINE);
+	bfin_write_TIMER_PS_CLS_CONFIG(TIMER_CONFIG);
+	bfin_write_TIMER_PS_CLS_WIDTH (LCD_X_RES + START_LINES);
+	bfin_write_TIMER_PS_CLS_PERIOD(DCLKS_PER_LINE);
 
 	__builtin_bfin_ssync();
 
 #ifdef NO_BL
 	/* REV, timer 5 */
-	bfin_write_TIMER5_CONFIG(TIMER_CONFIG|PULSE_HI);
+	bfin_write_TIMER_REV_CONFIG(TIMER_CONFIG|PULSE_HI);
 
-	bfin_write_TIMER5_WIDTH(DCLKS_PER_LINE);
-	bfin_write_TIMER5_PERIOD(DCLKS_PER_LINE*2);
+	bfin_write_TIMER_REV_WIDTH(DCLKS_PER_LINE);
+	bfin_write_TIMER_REV_PERIOD(DCLKS_PER_LINE*2);
 
 	__builtin_bfin_ssync();
 #endif
@@ -233,9 +309,6 @@ static int config_dma(void)
 {
 	assert(fb_buffer);
 
-	if (request_dma(CH_PPI, "BF533_PPI_DMA") < 0)
-		return -EFAULT;
-
 	set_dma_config(CH_PPI, set_bfin_dma_config(DIR_READ,DMA_FLOW_AUTO,INTR_DISABLE,DIMENSION_2D,DATA_SIZE_16));
 
 	set_dma_x_count(CH_PPI, LCD_X_RES);
@@ -251,30 +324,46 @@ static int config_dma(void)
 static void init_ports(void)
 {
 	/*
-		LCDPWR:  PF11
-		?REV:    PF12
 		UD:      PF13
 		MOD:     PF10
 		LBR:     PF14
 		PPI_CLK: PF15
 	*/
 
-	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() | (1U<<11)|(1U<<13)|(1U<<10)|(1U<<14) |(1U<<6));
-	bfin_write_PORTFIO_DIR(bfin_read_PORTFIO_DIR() & ~(1U<<15));
 
-	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | (1U<<15)|(1U<<8)|(1U<<9)|(1U<<7)|(1U<<4)|(1U<<2)|(1U<<3)|(1U<<6));
-	bfin_write_PORTF_FER(bfin_read_PORTF_FER() & ~((1U<<14)|(1U<<10)|(1U<<13)|(1U<<11)));
+#if (defined(UD) &&  defined(LBR))
+	if (gpio_request(UD, NULL))
+		printk(KERN_ERR"Requesting GPIO %d faild\n",UD);	
+	
+	if (gpio_request(LBR, NULL))
+		printk(KERN_ERR"Requesting GPIO %d faild\n",LBR);
+	
+	gpio_direction_output(UD);
+	gpio_direction_output(LBR);
 
-	// bfin_write_PORTFIO_CLEAR((1U<<11));
-	bfin_write_PORTFIO_SET((1U<<14)|(1U<<11));
-	bfin_write_PORTFIO_CLEAR((1U<<10)| (1U<<13));
+	gpio_set_value(UD,0);
+	gpio_set_value(LBR,1);
+#endif
+	
+	if (gpio_request(MOD, NULL))
+		printk(KERN_ERR"Requesting GPIO %d faild\n",MOD);
 
-	bfin_write_PORTFIO_INEN(bfin_read_PORTFIO_INEN() | (1U<<15));
+	gpio_direction_output(MOD);
+	gpio_set_value(MOD,1);
+
+#ifdef CONFIG_PNAV10
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | (1U<<15)|(1U<<8)|(1U<<9)|(1U<<4)|(1U<<6)|(1U<<7));
+
+	/* Enable PPI Data, TMR2, TMR5 */
+	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI|PFS4E_SPI|PFFE|PFS4E));
+#else
+	bfin_write_PORTF_FER(bfin_read_PORTF_FER() | (1U<<15)|(1U<<8)|(1U<<9)|(1U<<4)|(1U<<2)|(1U<<3));
 
 	/* Enable PPI Data, TMR2, TMR5 */
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PGTE_SPORT|PGRE_SPORT|PGSE_SPORT|PFFE_PPI|PFS6E_SPI|PFS4E_SPI));
 	/* Enable TMR6 TMR7 */
 	bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PFTE_TIMER);
+#endif
 
 	bfin_write_PORTG_FER(bfin_read_PORTG_FER() | 0xFFFF);
 	__builtin_bfin_ssync();
@@ -285,17 +374,20 @@ static struct fb_info bfin_lq035_fb;
 static struct fb_var_screeninfo bfin_lq035_fb_defined = {
 	.xres			= LCD_X_RES,
 	.yres			= LCD_Y_RES,
-	.xres_virtual	= LCD_X_RES,
-	.yres_virtual	= LCD_Y_RES,
-	.bits_per_pixel	= LCD_BBP,
+	.xres_virtual		= LCD_X_RES,
+	.yres_virtual		= LCD_Y_RES,
+	.bits_per_pixel		= LCD_BBP,
 	.activate		= FB_ACTIVATE_TEST,
 	.height			= -1,
 	.width			= -1,
-
-	.red			= {11,5, 0},
-	.green			= {6, 5, 0},
-	.blue			= {5, 0, 0},
-	.transp			= {0, 0, 0},
+	.red 			= {11, 5, 0},
+	.green			= {5, 6, 0},
+	.blue 			= {0, 5, 0},
+	.transp 		= {0, 0, 0},
+//	.red			= {11,5, 0},
+//	.green			= {6, 5, 0},
+//	.blue			= {5, 0, 0},
+//	.transp			= {0, 0, 0},
 };
 
 static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
@@ -313,9 +405,7 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 {
 	bfin_write_PPI_CONTROL(0);
 	__builtin_bfin_ssync();
-
-	init_ports();
-
+	
 	set_vcomm();
 	config_dma();
 	config_ppi();
@@ -328,28 +418,77 @@ static int bfin_lq035_fb_open(struct fb_info* info, int user)
 
 	config_timers();
 	start_timers();
-	bfin_write_PORTFIO_SET((1U<<10));
-	__builtin_bfin_ssync();
+//	gpio_set_value(MOD,1);
 
 	return 0;
 }
 
 static int bfin_lq035_fb_release(struct fb_info* info, int user)
 {
+
 	bfin_write_TIMER_ENABLE(0);
 	__builtin_bfin_ssync();
 
 	bfin_write_PPI_CONTROL(0);
 	__builtin_bfin_ssync();
 
-	free_dma(CH_PPI);
+	disable_dma(CH_PPI);
+	
+	return 0;
+}
+
+
+static int bfin_lq035_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+
+	if (var->bits_per_pixel != 16) {
+		pr_debug("%s: depth not supported: %u BPP\n", __FUNCTION__,
+			 var->bits_per_pixel);
+		return -EINVAL;
+	}
+
+	if (info->var.xres != var->xres || info->var.yres != var->yres ||
+	    info->var.xres_virtual != var->xres_virtual ||
+	    info->var.yres_virtual != var->yres_virtual) {
+		pr_debug("%s: Resolution not supported: X%u x Y%u \n",
+			 __FUNCTION__, var->xres, var->yres);
+		return -EINVAL;
+	}
+
+	/*
+	 *  Memory limit
+	 */
+
+	if ((info->fix.line_length * var->yres_virtual) > info->fix.smem_len) {
+		pr_debug("%s: Memory Limit requested yres_virtual = %u\n",
+			 __FUNCTION__, var->yres_virtual);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
 
-static int bfin_lq035_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+/* fb_rotate
+ * Rotate the display of this angle. This doesn't seems to be used by the core,
+ * but as our hardware supports it, so why not implementing it...
+ */
+void bfin_lq035_fb_rotate(struct fb_info *fbi, int angle)
 {
-	return -EINVAL;
+
+	pr_debug("%s: %p %d",__FUNCTION__, fbi, angle);
+#if (defined(UD) &&  defined(LBR))
+	switch (angle) {
+
+	case 180:
+		gpio_set_value(LBR,0);
+		gpio_set_value(UD,1);
+		break;
+	default:
+		gpio_set_value(LBR,1);
+		gpio_set_value(UD,0);
+		break;
+	}
+#endif
 }
 
 static int direct_mmap(struct fb_info *info, struct vm_area_struct * vma)
@@ -371,7 +510,8 @@ static struct fb_ops bfin_lq035_fb_ops = {
 	.owner 			= THIS_MODULE,
 	.fb_open		= bfin_lq035_fb_open,
 	.fb_release		= bfin_lq035_fb_release,
-	.fb_check_var	= bfin_lq035_fb_check_var,
+	.fb_check_var		= bfin_lq035_fb_check_var,
+	.fb_rotate		= bfin_lq035_fb_rotate,
 	.fb_mmap		= direct_mmap,
 };
 
@@ -435,6 +575,9 @@ static int __init bfin_lq035_fb_init(void)
 {
 	printk(KERN_INFO DRIVER_NAME ": FrameBuffer initializing...\n");
 
+	if (request_dma(CH_PPI, "BF533_PPI_DMA") < 0)
+		return -EFAULT;
+
 	fb_buffer = dma_alloc_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), &dma_handle, GFP_KERNEL);
 
 	if (NULL == fb_buffer) {
@@ -466,6 +609,8 @@ static int __init bfin_lq035_fb_init(void)
 	backlight_device_register("bf537-bl", NULL, &bfin_lq035fb_bl);
 	lcd_device_register(DRIVER_NAME, NULL, &lcd);
 
+	init_ports();
+
 	return 0;
 }
 
@@ -473,8 +618,19 @@ static void __exit bfin_lq035_fb_exit(void)
 {
 	if (fb_buffer != NULL)
 		dma_free_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), fb_buffer, dma_handle);
+	
+	free_dma(CH_PPI);
+	
 	unregister_framebuffer(&bfin_lq035_fb);
 	i2c_del_driver(&ad5280_driver);
+
+#if (defined(UD) &&  defined(LBR))
+	gpio_free(LBR);
+	gpio_free(UD);
+#endif
+
+	gpio_free(MOD);
+
 	printk(KERN_INFO DRIVER_NAME ": Unregister LCD driver.\n");
 }
 
