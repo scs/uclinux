@@ -841,7 +841,7 @@ ENTRY(_sys_call_table)
 	.long _sys_chown	/* chown16 */
 	.long _sys_ni_syscall	/* old break syscall holder */
 	.long _sys_ni_syscall	/* old stat */
-	.long _sys_ni_syscall	/* old lseek */
+	.long _sys_lseek
 	.long _sys_getpid	/* 20 */
 	.long _sys_mount
 	.long _sys_umount

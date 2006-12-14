@@ -21,7 +21,7 @@
 #define __NR_chown		 16
 				/* 17 __NR_break obsolete */
 				/* 18 __NR_oldstat obsolete */
-				/* 19 __NR_lseek obsolete*/
+#define __NR_lseek		 19
 #define __NR_getpid		 20
 #define __NR_mount		 21
 #define __NR_umount		 22
