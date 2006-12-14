@@ -10,6 +10,14 @@
 #include "syscalls.h"
 #include <unistd.h>
 
+#ifdef __NR_lseek
 #define __NR___libc_lseek __NR_lseek
 _syscall3(__off_t, __libc_lseek, int, fildes, __off_t, offset, int, whence);
+#else
+__off_t __libc_lseek(int fildes, __off_t offset, int whence)
+{
+	return lseek64(fildes, offset, whence);
+}
+#endif
+
 weak_alias(__libc_lseek, lseek);
