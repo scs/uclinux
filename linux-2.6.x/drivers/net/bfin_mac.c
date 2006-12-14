@@ -266,8 +266,11 @@ static void SetupPinMux(void)
 	// read it once
 	fer_val = bfin_read_PORTH_FER();
 
+#if defined(CONFIG_BFIN_MAC_RMII)
+	fer_val = 0xC373;
+#else
 	fer_val = 0xffff;
-
+#endif
 	// write it twice to the same value
 
 	bfin_write_PORTH_FER(fer_val);
@@ -679,6 +682,13 @@ static int bf537mac_enable(struct net_device *dev)
 	else
 		opmode |= DRO | DC | PSF;
 	opmode |= RE;
+
+#if defined(CONFIG_BFIN_MAC_RMII)
+	opmode |= RMII; /* For Now only 100MBit are supported */
+#ifdef CONFIG_BF_REV_0_2
+	opmode |= TE;
+#endif
+#endif
 	/* Turn on the EMAC rx */
 	bfin_write_EMAC_OPMODE(opmode);
 

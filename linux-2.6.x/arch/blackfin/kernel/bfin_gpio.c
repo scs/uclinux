@@ -209,7 +209,11 @@ int __init bfin_gpio_init(void)
 	}
 
 # if defined(BF537_FAMILY) && (defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
+#if defined(CONFIG_BFIN_MAC_RMII)
+		reserved_map[PORT_H] = 0xC373;
+#else
 		reserved_map[PORT_H] = 0xFFFF;
+#endif
 #endif
 
 	return 0;
