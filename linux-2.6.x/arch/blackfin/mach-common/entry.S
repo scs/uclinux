@@ -852,7 +852,7 @@ ENTRY(_sys_call_table)
 	.long _sys_alarm
 	.long _sys_ni_syscall	/* old fstat */
 	.long _sys_pause
-	.long _sys_ni_syscall	/* old utime */	/* 30 */
+	.long _sys_ni_syscall	/* old utime */ /* 30 */
 	.long _sys_ni_syscall	/* old stty syscall holder */
 	.long _sys_ni_syscall	/* old gtty syscall holder */
 	.long _sys_access
@@ -924,7 +924,7 @@ ENTRY(_sys_call_table)
 	.long _sys_statfs
 	.long _sys_fstatfs	/* 100 */
 	.long _sys_ni_syscall
-	.long _sys_socketcall
+	.long _sys_ni_syscall	/* old sys_socketcall */
 	.long _sys_syslog
 	.long _sys_setitimer
 	.long _sys_getitimer	/* 105 */
@@ -939,7 +939,7 @@ ENTRY(_sys_call_table)
 	.long _sys_wait4
 	.long _sys_ni_syscall	/* 115 */ /* sys_swapoff */
 	.long _sys_sysinfo
-	.long _sys_ipc
+	.long _sys_ni_syscall	/* old sys_ipc */
 	.long _sys_fsync
 	.long _sys_ni_syscall	/* old sys_sigreturn */
 	.long _sys_clone		/* 120 */
@@ -1136,6 +1136,34 @@ ENTRY(_sys_call_table)
 	.long _sys_sram_alloc
 	.long _sys_sram_free
 	.long _sys_dma_memcpy
+	.long _sys_accept
+	.long _sys_bind		/* 315 */
+	.long _sys_connect
+	.long _sys_getpeername
+	.long _sys_getsockname
+	.long _sys_getsockopt
+	.long _sys_listen	/* 320 */
+	.long _sys_recv
+	.long _sys_recvfrom
+	.long _sys_recvmsg
+	.long _sys_send
+	.long _sys_sendmsg	/* 325 */
+	.long _sys_sendto
+	.long _sys_setsockopt
+	.long _sys_shutdown
+	.long _sys_socket
+	.long _sys_socketpair	/* 330 */
+	.long _sys_semctl
+	.long _sys_semget
+	.long _sys_semop
+	.long _sys_msgctl
+	.long _sys_msgget	/* 335 */
+	.long _sys_msgrcv
+	.long _sys_msgsnd
+	.long _sys_shmat
+	.long _sys_shmctl
+	.long _sys_shmdt	/* 340 */
+	.long _sys_shmget
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr

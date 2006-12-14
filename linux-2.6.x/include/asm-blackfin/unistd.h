@@ -104,7 +104,7 @@
 #define __NR_statfs		 99
 #define __NR_fstatfs		100
 				/* 101 __NR_ioperm */
-#define __NR_socketcall		102
+				/* 102 __NR_socketcall obsolete */
 #define __NR_syslog		103
 #define __NR_setitimer		104
 #define __NR_getitimer		105
@@ -119,7 +119,7 @@
 #define __NR_wait4		114
 				/* 115 __NR_swapoff obsolete */
 #define __NR_sysinfo		116
-#define __NR_ipc		117
+				/* 117 __NR_ipc oboslete */
 #define __NR_fsync		118
 				/* 119 __NR_sigreturn obsolete */
 #define __NR_clone		120
@@ -320,7 +320,39 @@
 #define __NR_sram_free		312
 #define __NR_dma_memcpy		313
 
-#define __NR_syscall		314
+/* socket syscalls */
+#define __NR_accept		314
+#define __NR_bind		315
+#define __NR_connect		316
+#define __NR_getpeername	317
+#define __NR_getsockname	318
+#define __NR_getsockopt		319
+#define __NR_listen		310
+#define __NR_recv		321
+#define __NR_recvfrom		322
+#define __NR_recvmsg		323
+#define __NR_send		324
+#define __NR_sendmsg		325
+#define __NR_sendto		326
+#define __NR_setsockopt		327
+#define __NR_shutdown		328
+#define __NR_socket		329
+#define __NR_socketpair		330
+
+/* sysv ipc syscalls */
+#define __NR_semctl		331
+#define __NR_semget		332
+#define __NR_semop		333
+#define __NR_msgctl		334
+#define __NR_msgget		335
+#define __NR_msgrcv		336
+#define __NR_msgsnd		337
+#define __NR_shmat		338
+#define __NR_shmctl		339
+#define __NR_shmdt		340
+#define __NR_shmget		341
+
+#define __NR_syscall		342
 #define NR_syscalls		__NR_syscall
 
 #define __syscall_return(type, res)					\
@@ -473,7 +505,6 @@ type name(type1 arg1, type2 arg2, type3 arg3, type4 arg4, type5 arg5, type6 arg6
 #define __ARCH_WANT_SYS_PAUSE
 #define __ARCH_WANT_SYS_SGETMASK
 #define __ARCH_WANT_SYS_TIME
-#define __ARCH_WANT_SYS_SOCKETCALL
 #define __ARCH_WANT_SYS_FADVISE64
 #define __ARCH_WANT_SYS_GETPGRP
 #define __ARCH_WANT_SYS_LLSEEK
