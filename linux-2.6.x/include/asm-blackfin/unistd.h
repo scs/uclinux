@@ -327,7 +327,7 @@
 #define __NR_getpeername	317
 #define __NR_getsockname	318
 #define __NR_getsockopt		319
-#define __NR_listen		310
+#define __NR_listen		320
 #define __NR_recv		321
 #define __NR_recvfrom		322
 #define __NR_recvmsg		323
