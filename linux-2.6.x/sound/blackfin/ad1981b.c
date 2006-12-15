@@ -4,7 +4,7 @@
  * Author:       Luuk van Dijk, Bas Vermeulen <blackfin@buyways.nl>
  *
  * Created:
- * Description:  sound driver for ad1981 (ac97) on sport0/dma1 on bf53x
+ * Description:  sound driver for ad1981 (ac97) on sport0 on bf537/6/4
  *
  * Rev:          $Id$
  *
@@ -43,6 +43,8 @@
 #include <linux/soundcard.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
 #include <asm/irq.h>
@@ -64,8 +66,14 @@
  * the physical device is now a static variable in ac97_sport.c
  */
 
+
+#undef  IRQ_SPORT0
+
+//#undef IRQ_SPORT0_RX
+//#undef IRQ_SPORT0_TX
+
 #ifdef IRQ_SPORT0_RX
-static void ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
 	static int rx_ints_per_jiffie = 0;
@@ -96,11 +104,12 @@ static void ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
 		last_print = jiffies;
 	}
 #  endif
+	return IRQ_HANDLED;
 }
 #endif
 
 #ifdef IRQ_SPORT0_TX
-static void ad1981b_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ad1981b_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
 	static int tx_ints_per_jiffie = 0;
@@ -119,6 +128,7 @@ static void ad1981b_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 		last_print = jiffies;
 	}
 #  endif
+	return IRQ_HANDLED;
 }
 #endif
 
@@ -164,6 +174,7 @@ static void ad1981b_handler(int irq, void *dev_id, struct pt_regs *regs)
 			tx_ints_per_jiffie++;
 	}
 #endif
+	return IRQ_HANDLED;
 }
 #endif
 
@@ -212,7 +223,10 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 		case SOUND_MIXER_RECMASK:	/* Arg contains a bit for each supported recording source */
 		case SOUND_MIXER_STEREODEVS:	/* Mixer channels supporting stereo */
 		case SOUND_MIXER_CAPS:
-		default:	/* read a specific mixer */
+
+		/* read a specific mixer */
+		default:
+		break;
 		}		// switch
 
 		return put_user(val, (int *)arg);
@@ -225,6 +239,7 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 		switch (_IOC_NR(cmd)) {
 		case SOUND_MIXER_RECSRC:	/* Arg contains a bit for each recording source */
 		default:
+		break;
 		}		// switch
 
 	}
@@ -245,11 +260,11 @@ static int ad1981b_mixer_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_mixer_fops = {
-	owner   = THIS_MODULE,
-	llseek  = ad1981b_mixer_llseek,
-	ioctl   = ad1981b_mixer_ioctl,
-	open    = ad1981b_mixer_open,
-	release = ad1981b_mixer_release,
+	.owner   = THIS_MODULE,
+	.llseek  = ad1981b_mixer_llseek,
+	.ioctl   = ad1981b_mixer_ioctl,
+	.open    = ad1981b_mixer_open,
+	.release = ad1981b_mixer_release,
 };
 
 /*
@@ -272,8 +287,6 @@ static ssize_t ad1981b_read(struct file *file, char *buffer, size_t count,
 	size_t toread;
 	ssize_t ret = 0;
 
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
 
 	count &= ~3;
 
@@ -329,9 +342,6 @@ static ssize_t ad1981b_write(struct file *file, const char *buffer,
 	ssize_t ret = 0;
 	int towrite;
 
-	if (ppos != &file->f_pos)
-		return -ESPIPE;
-
 	count &= ~3;
 
 	while (count > 0) {
@@ -353,6 +363,7 @@ static ssize_t ad1981b_write(struct file *file, const char *buffer,
 				       "ad1981b: Timeout waiting to write audio.\n");
 			}
 
+
 			if (signal_pending(current)) {
 
 				ret = ret ? ret : -ERESTARTSYS;
@@ -366,6 +377,7 @@ static ssize_t ad1981b_write(struct file *file, const char *buffer,
 		count -= towrite;
 		buffer += towrite;
 		ret += towrite;
+
 
 	}
 
@@ -399,6 +411,8 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 {
 	audio_buf_info abinfo;
 	int val;
+
+printk("%s:%d: CMD = %x ARG = %x\n",__FUNCTION__, __LINE__,cmd,arg);
 
 	switch (cmd) {
 	case OSS_GETVERSION:
@@ -499,15 +513,15 @@ static int ad1981b_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_audio_fops = {
-	owner   = THIS_MODULE,
-	llseek  = ad1981b_llseek,
-	read    = ad1981b_read,
-	write   = ad1981b_write,
-	poll    = ad1981b_poll,
-	ioctl   = ad1981b_ioctl,
-	mmap    = ad1981b_mmap,
-	open    = ad1981b_open,
-	release = ad1981b_release,
+	.owner   = THIS_MODULE,
+	.llseek  = ad1981b_llseek,
+	.read    = ad1981b_read,
+	.write   = ad1981b_write,
+	.poll    = ad1981b_poll,
+	.ioctl   = ad1981b_ioctl,
+	.mmap    = ad1981b_mmap,
+	.open    = ad1981b_open,
+	.release = ad1981b_release,
 };
 
 /*
@@ -520,11 +534,24 @@ static int __init ad1981b_install(void)
 	dev_audio = register_sound_dsp(&ad1981b_audio_fops, -1);
 	dev_mixer = register_sound_mixer(&ad1981b_mixer_fops, -1);
 
+#if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	if (0) {
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PGTE|PGRE|PGSE);
+		
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
+		bfin_write_PORTG_FER(bfin_read_PORTG_FER() | 0xFF00);
+		/*    printk("sport: gfer=0x%x\n", bfin_read_PORTG_FER());*/
+	} else {
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE|PJCE(3)));
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
+	}
+#endif
+
 	printk(KERN_INFO "Astent AD1981B driver loading...\n");
 	ac97_sport_open(BUFFER_SIZE, FRAGMENT_SIZE);
 #if defined(IRQ_SPORT0)
 	if (request_irq
-	    (IRQ_SPORT0, &ad1981b_handler, SA_SHIRQ, "SPORT0 AC97 Codec",
+	    (IRQ_SPORT0, ad1981b_handler, 0, "SPORT0 AC97 Codec",
 	     NULL)) {
 		printk(KERN_ERR "ad1981b: unable to allocate irq %d.\n",
 		       IRQ_SPORT0);
@@ -540,7 +567,7 @@ static int __init ad1981b_install(void)
 #endif
 #if defined(IRQ_SPORT0_RX)
 	if (request_irq
-	    (IRQ_SPORT0_RX, &ad1981b_rx_handler, SA_SHIRQ, "SPORT0 RX", NULL)) {
+	    (IRQ_SPORT0_RX, ad1981b_rx_handler, SA_INTERRUPT, "SPORT0 RX", NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
 		       IRQ_SPORT0_RX);
 		unregister_sound_mixer(dev_mixer);
@@ -550,11 +577,10 @@ static int __init ad1981b_install(void)
 		return -ENODEV;
 	}
 	printk(KERN_INFO "- Enabling RX Interrupt (%d)\n", IRQ_SPORT0_RX);
-	enable_irq(IRQ_SPORT0_RX);
 #endif
 #if defined(IRQ_SPORT0_TX)
 	if (request_irq
-	    (IRQ_SPORT0_TX, &ad1981b_tx_handler, SA_SHIRQ, "SPORT0 TX", NULL)) {
+	    (IRQ_SPORT0_TX, ad1981b_tx_handler, SA_INTERRUPT, "SPORT0 TX", NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
 		       IRQ_SPORT0_TX);
 		unregister_sound_mixer(dev_mixer);
@@ -564,7 +590,6 @@ static int __init ad1981b_install(void)
 		return -ENODEV;
 	}
 	printk(KERN_INFO "- Enabling TX Interrupt (%d)\n", IRQ_SPORT0_TX);
-	enable_irq(IRQ_SPORT0_TX);
 #endif
 #if defined(AC97_DEMO)
 	printk(KERN_INFO "- Going into TalkThrough Mode\n");

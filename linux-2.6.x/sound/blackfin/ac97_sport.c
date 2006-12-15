@@ -59,13 +59,14 @@
 #include <linux/config.h>
 #include <asm/blackfin.h>
 #include <asm/dma.h>
+#include <linux/dma-mapping.h>
 #include "ac97_sport.h"
 
 #include "bf53x_structs.h"
 
 #define bzero(buf, size)	memset(buf, 0, size)
 
-#define  AC97_SPORT_DEBUG
+//#define  AC97_SPORT_DEBUG
 #undef  AC97_TALKTHROUGH_DIRECT
 
 /*
@@ -135,7 +136,7 @@ struct ac97_sport_dev_t
  */
 struct ac97_sport_dev_t dev;
 
-
+dma_addr_t addr;
 
 /*
  * setup sport and dma for communication with ac97 device
@@ -143,23 +144,22 @@ struct ac97_sport_dev_t dev;
 
 static void sport_init(void)
 {
-	SPORT0_MTCS0 = SPORT0_MRCS0 = 0x0000ffff;  /* Enable only first 16 transmit/receive channels */
-	SPORT0_MTCS1 = SPORT0_MRCS1 = 0x00000000;
-	SPORT0_MTCS2 = SPORT0_MRCS2 = 0x00000000;
-	SPORT0_MTCS3 = SPORT0_MRCS3 = 0x00000000;
+
+	SPORT0->MTCS0 = SPORT0->MRCS0 = 0x0000ffff;  /* Enable only first 16 transmit/receive channels */
+	SPORT0->MTCS1 = SPORT0->MRCS1 = 0x00000000;
+	SPORT0->MTCS2 = SPORT0->MRCS2 = 0x00000000;
+	SPORT0->MTCS3 = SPORT0->MRCS3 = 0x00000000;
 
 	/* frame size 16 words; enable Multichannel mode & dma packing,
 	 * frame delay = 1 bit */
-	SPORT0_MCMC1 = 0x1000; /* window size = (1+1) * 8 words */
-	SPORT0_MCMC2 = 0x1000 | MCMEN; /* frame delay = 1 bit, etc */
-
+	SPORT0->MCMC1 = 0x1000; /* window size = (1+1) * 8 words */
+	SPORT0->MCMC2 = 0x1000 | MCMEN; /* frame delay = 1 bit, etc */
 	/* generate sync every 16th word */
-	SPORT0_RFSDIV = SPORT0_TFSDIV = (16*16) - 1;
-
+	SPORT0->RFSDIV = SPORT0->TFSDIV = (16*16) - 1;
 	/* rx config: IRFS, SLEN=1111, tx config: slen=1111 */
-	SPORT0_RCR1 = IRFS;
-	SPORT0_TCR1 = ITFS;
-	SPORT0_RCR2 = SPORT0_TCR2 = 0x000f; /* wordlen = 0xf + 1 */
+	SPORT0->RCR1 = IRFS;
+	SPORT0->TCR1 = ITFS;
+	SPORT0->RCR2 = SPORT0->TCR2 = 0x000f; /* wordlen = 0xf + 1 */
 }
 
 // bufsize and fragsize in units of ac97 frames!
@@ -168,14 +168,21 @@ static void sport_init(void)
 #define BYTES_PER_FRAME (sizeof(struct ac97_frame))
 #define LOG_BYTES_PER_FRAME 5  /* this better be true: 2 << LOG_BYTES_PER_FRAME == BYTES_PER_FRAME */
 
+
+
 static void dma_init_xmit(void* data, size_t bufsize, size_t fragsize)
 {
 	int i, fragcount = bufsize/fragsize;  /* this better be an integer */
 
-	dev.tx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+#if L1_DATA_A_LENGTH != 0
+	dev.tx_desc = (struct dma_descriptor_block*)l1_data_A_sram_alloc(sizeof(struct dma_descriptor_block) * fragcount);
+#else
+	dev.tx_desc = dma_alloc_coherent(NULL,sizeof(struct dma_descriptor_block) * fragcount, &addr, 0);
+#endif
+//	dev.tx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
 	for (i = 0; i < fragcount; i++) {
-		dev.tx_desc[i].next = &dev.tx_desc[i+1];
-		dev.tx_desc[i].start_addr = data +
+		dev.tx_desc[i].next = (unsigned long)&dev.tx_desc[i+1];
+		dev.tx_desc[i].start_addr = (unsigned long)data +
 			(i * fragsize * BYTES_PER_FRAME);
 		dev.tx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.tx_desc[i].x_modify = sizeof(__u16);
@@ -183,15 +190,15 @@ static void dma_init_xmit(void* data, size_t bufsize, size_t fragsize)
 		dev.tx_desc[i].y_modify = sizeof(__u16);
 		/* Large descriptor mode, generate interrupt after each
 		 * outer loop (after each fragment) */
-		dev.tx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR |
-			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER |
-			DMA_2D | DMA_WDSIZE_16 | DMA_ENABLE);
+		dev.tx_desc[i].dma_config = (DMAFLOW_LARGE |
+			NDSIZE_9 | DI_EN |
+			DMA2D | WDSIZE_16 | DMAEN);
 	}
 	/* Close the circle */
-	dev.tx_desc[fragcount - 1].next = dev.tx_desc;
+	dev.tx_desc[fragcount - 1].next = (unsigned long)dev.tx_desc;
 
-	DMA2_NEXT_DESC_PTR = (unsigned long)dev.tx_desc;
-	DMA2_CONFIG = dev.tx_desc->dma_config;
+	DMA4->NEXT_DESC_PTR = dev.tx_desc;
+	DMA4->CONFIG = (unsigned long)dev.tx_desc->dma_config;
 }
 
 
@@ -199,10 +206,15 @@ static void dma_init_recv(void* data, size_t bufsize, size_t fragsize)
 {
 	int i, fragcount = bufsize/fragsize;  /* this better be an integer */
 
-	dev.rx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+#if L1_DATA_A_LENGTH != 0
+	dev.rx_desc = (struct dma_descriptor_block*)l1_data_A_sram_alloc(sizeof(struct dma_descriptor_block) * fragcount);
+#else
+	dev.rx_desc = dma_alloc_coherent(NULL,sizeof(struct dma_descriptor_block) * fragcount, &addr, 0);
+#endif
+//	dev.rx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
 	for (i = 0; i < fragcount; i++) {
-		dev.rx_desc[i].next = &dev.rx_desc[i+1];
-		dev.rx_desc[i].start_addr = data +
+		dev.rx_desc[i].next = (unsigned long)&dev.rx_desc[i+1];
+		dev.rx_desc[i].start_addr = (unsigned long)data +
 			(i * fragsize * BYTES_PER_FRAME);
 		dev.rx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.rx_desc[i].x_modify = sizeof(__u16);
@@ -210,25 +222,25 @@ static void dma_init_recv(void* data, size_t bufsize, size_t fragsize)
 		dev.rx_desc[i].y_modify = sizeof(__u16);
 		/* Large descriptor mode, generate interrupt after each
 		 * outer loop (after each fragment) */
-		dev.rx_desc[i].dma_config = (DMA_FLOW_DESCRIPTOR |
-			DMA_NDSIZE_9 | DMA_DI_ENABLE | DMA_DI_SEL_OUTER |
-			DMA_2D | DMA_WDSIZE_16 | DMA_WNR | DMA_ENABLE);
+		dev.rx_desc[i].dma_config = (DMAFLOW_LARGE |
+			NDSIZE_9 | DI_EN |
+			DMA2D | WDSIZE_16 | WNR | DMAEN);
 	}
 	/* Close the circle */
-	dev.rx_desc[fragcount - 1].next = dev.rx_desc;
+	dev.rx_desc[fragcount - 1].next = (unsigned long)dev.rx_desc;
 
-	DMA1_NEXT_DESC_PTR = (unsigned long)dev.rx_desc;
-	DMA1_CONFIG = dev.rx_desc->dma_config;
+	DMA3->NEXT_DESC_PTR = dev.rx_desc;
+	DMA3->CONFIG = dev.rx_desc->dma_config;
 }
 
 
 // 1 = enable, -1 = disable, other = don't change
 static void sport_enable(int tx, int rx)
 {
-	if (tx ==  1) SPORT0_TCR1 |=  TSPEN;
-	if (tx == -1) SPORT0_TCR1 &= ~TSPEN;
-	if (rx ==  1) SPORT0_RCR1 |=  RSPEN;
-	if (rx == -1) SPORT0_RCR1 &= ~RSPEN;
+	if (tx ==  1) SPORT0->TCR1 |=  TSPEN;
+	if (tx == -1) SPORT0->TCR1 &= ~TSPEN;
+	if (rx ==  1) SPORT0->RCR1 |=  RSPEN;
+	if (rx == -1) SPORT0->RCR1 &= ~RSPEN;
 	return;
 }
 
@@ -250,9 +262,10 @@ int ac97_sport_open(size_t bufsize, size_t fragsize)
 	dev.fragsize  = fragsize;
 	dev.fragcount = bufsize/fragsize;
 
-	dev.rxbuf = kmalloc(bufsize * sizeof(struct ac97_frame), GFP_KERNEL);
-	dev.txbuf = kmalloc(bufsize * sizeof(struct ac97_frame), GFP_KERNEL);
-	dev.cmd_count = kmalloc(dev.fragcount * sizeof(int), GFP_KERNEL);
+	dev.rxbuf = dma_alloc_coherent(NULL,bufsize * sizeof(struct ac97_frame), &addr, 0);
+	dev.txbuf = dma_alloc_coherent(NULL,bufsize * sizeof(struct ac97_frame), &addr, 0);
+	dev.cmd_count = dma_alloc_coherent(NULL,dev.fragcount * sizeof(int), &addr, 0);
+
 	dev.tx_desc = NULL;
 	dev.rx_desc = NULL;
 
@@ -305,11 +318,17 @@ void ac97_sport_close(void)
 {
 	sport_enable(-1,-1);
 
-	if (dev.rxbuf) kfree(dev.rxbuf);
-	if (dev.txbuf) kfree(dev.txbuf);
-	if (dev.cmd_count) kfree(dev.cmd_count);
-	if (dev.tx_desc) kfree(dev.tx_desc);
-	if (dev.rx_desc) kfree(dev.rx_desc);
+#if L1_DATA_A_LENGTH != 0
+	if (dev.tx_desc) l1_data_A_sram_free(dev.tx_desc);
+	if (dev.rx_desc) l1_data_A_sram_free(dev.rx_desc);
+#else
+	if (dev.tx_desc) dma_free_coherent(NULL,sizeof(struct dma_descriptor_block) * dev.fragcount, dev.tx_desc, 0);
+	if (dev.rx_desc) dma_free_coherent(NULL, sizeof(struct dma_descriptor_block) * dev.fragcount, dev.rx_desc, 0);
+#endif
+
+	if (dev.rxbuf) dma_free_coherent(NULL, dev.bufsize * sizeof(struct ac97_frame), dev.rxbuf, 0);
+	if (dev.txbuf) dma_free_coherent(NULL, dev.bufsize * sizeof(struct ac97_frame), dev.txbuf, 0);
+	if (dev.cmd_count) dma_free_coherent(NULL, dev.fragcount * sizeof(int), dev.cmd_count, 0); 
 
 	bzero(&dev, sizeof(dev));
 
@@ -339,12 +358,12 @@ void ac97_sport_set_talkthrough_mode(void)
 
 static int set_current_tx_fragment(void)
 {
-	return dev.tx_currfrag = (DMA2_CURR_ADDR - (unsigned long)dev.txbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
+	return dev.tx_currfrag = ((u32)(DMA4->CURR_ADDR) - (unsigned long)dev.txbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
 }
 
 static int set_current_rx_fragment(void)
 {
-	return dev.tx_currfrag = (DMA1_CURR_ADDR - (unsigned long)dev.rxbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
+	return dev.tx_currfrag = ((u32)(DMA3->CURR_ADDR) - (unsigned long)dev.rxbuf) / (sizeof(struct ac97_frame) * dev.fragsize);
 }
 
 static void incfrag(int *frg)
@@ -395,6 +414,9 @@ static void init_ac97(void)
 	ac97_sport_set_register(0x2a, 0x0001);  // set variable bitrate
 	ac97_sport_set_register(0x02, 0x0000);  // AC97_MASTER_VOLUME  unmute
 	ac97_sport_set_register(0x18, 0x0000);  // AC97_PCM_OUT_VOLUME unmute
+
+	ac97_sport_set_register(0x04, 0x0000);  // AC97_HP_OUT_VOLUME unmute
+
 	ac97_sport_set_register(0x1a, 0x0404);  // AC97_RECORD_SELECT  line-in
 	ac97_sport_set_register(0x1c, 0x0000);  // AC97_RECORD_GAIN,   unmute
 }
@@ -423,11 +445,8 @@ int ac97_sport_handle_rx(void)
 	int prevfrag, nowready;
 	struct ac97_frame* fragp;
 
-	if (!(DMA1_IRQ_STATUS & DMA_DONE))
-		return -EINPROGRESS;
-
-	/* XXX: Toggle led 6 */
-	(*((volatile unsigned short*)(0xffc0070c))) = (1 << 6);
+//	if (!(DMA3->IRQ_STATUS & DMA_DONE))
+//		return -EINPROGRESS;
 
 	prevfrag = set_current_rx_fragment();
 	decfrag(&prevfrag);
@@ -435,6 +454,7 @@ int ac97_sport_handle_rx(void)
 	fragp = dev.rxbuf + prevfrag*dev.fragsize;
 
 	nowready = fragp[0].ac97_tag & TAG_VALID;
+
 
 #if defined(AC97_SPORT_DEBUG)
 	if (nowready != dev.codec_ready)
@@ -448,7 +468,7 @@ int ac97_sport_handle_rx(void)
 
 	dev.rx_lastfrag = prevfrag; /* last fragment handled by irq */
 
-	DMA1_IRQ_STATUS = DMA_DONE;
+	DMA3->IRQ_STATUS = DMA_DONE;
 
 	return 0;
 }
@@ -459,11 +479,8 @@ int ac97_sport_handle_tx(void)
 {
 	int i;
 
-	if (!(DMA2_IRQ_STATUS & DMA_DONE))
+	if (!(DMA4->IRQ_STATUS & DMA_DONE))
 		return -EINPROGRESS;
-
-	/* XXX: Toggle led 5 */
-	(*((volatile unsigned short*)(0xffc0070c))) = (1 << 5);
 
 	if (dev.codec_ready) {
 
@@ -496,7 +513,7 @@ int ac97_sport_handle_tx(void)
 		wake_up(&dev.audio_out_wait);
 	} // codec ready
 
-	DMA2_IRQ_STATUS = DMA_DONE;
+	DMA4->IRQ_STATUS = DMA_DONE;
 
 	return 0;
 } // handle tx
@@ -551,7 +568,7 @@ int ac97_sport_get_register(int reg, __u16 *pval)
 
 static int rx_used(void)
 {
-	long bytes = (DMA1_CURR_ADDR - (unsigned long)(dev.rxbuf + dev.rx_tail));
+	long bytes = ((unsigned long)DMA3->CURR_ADDR - (unsigned long)(dev.rxbuf + dev.rx_tail));
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
 
 	if (frames < 0)
@@ -563,7 +580,7 @@ static int rx_used(void)
 
 static int tx_used(void)
 {
-	long bytes = ((unsigned long)(dev.txbuf+dev.tx_head) - DMA2_CURR_ADDR);
+	long bytes = ((unsigned long)(dev.txbuf+dev.tx_head) - (u32)(DMA4->CURR_ADDR));
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
 
 	if (frames<0)
@@ -648,7 +665,7 @@ ssize_t ac97_audio_read(uint8_t *pcmdata, size_t len)
 static void move_continuous_to_frames(struct ac97_frame *dest, const __u32 *src, size_t count)
 {
 	while (count--) {
-		// dest->ac97_tag |= TAG_VALID | TAG_PCM;
+		 dest->ac97_tag |= TAG_VALID | TAG_PCM; /* ?  mh */
 		(dest++)->ac97_pcm = *(src++);
 	}
 }

@@ -72,16 +72,14 @@ config SND_BLACKFIN_AD1836_5P1
 
 endchoice
 
-# NOTE: Only tested on BF535 and never forward ported/validated since, thus disabled.
-#
-#config SND_BLACKFIN_ADI1981B
-#	bool "1981b Audio support for BF53x"
-#	depends on BFIN
-#	select SND_PCM
-#	help
-#	  Select this if you have an 1981b connected to the SPORTx port
-#
-#	  If unsure, say N.
+config SND_BLACKFIN_AD1981B
+	tristate "AD1981B AC97 Audio support for BF537/6/4 (EXPERIMENTAL)"
+	depends on BF537 && EXPERIMENTAL
+	select SND_PCM
+	help
+	  Select this if you have an AD1981B connected to the SPORT0 port
+
+	  If unsure, say N.
 
 config SND_BLACKFIN_SPORT
 	int "Blackfin Audio SPORT port"
