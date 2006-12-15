@@ -338,6 +338,12 @@ do
 
   fi
   
+  if [ ${AUTO_TESTCASE[$i]} == "msh" ] ; then
+  rm -rf $KERNEL_PATH/uClinux-dist/user/busybox
+  cd $KERNEL_PATH/uClinux-dist/user 
+  cp -a  $KERNEL_PATH_BAK/uClinux-dist/user/busybox  .
+  fi
+  
   echo  "End testing ${AUTO_TESTCASE[$i]}..."
   sleep 10
   

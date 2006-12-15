@@ -108,7 +108,11 @@ while 1 {
             puts "successful boot attempt"          
             break
          }
-
+         
+	 -re "Welcome to.*#" {
+            puts "successful boot attempt"          
+            break
+         }
          -re "Linux version (.*) " {
             set linux_version $expect_out(1,string)
          }

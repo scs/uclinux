@@ -48,7 +48,7 @@ sleep 3
       send "wq\r"
       expect eof
 
-
+cd $uclinux_path/testsuites/pound
 
 step "Start kermit."
 source ../spawn_kermit.exp
