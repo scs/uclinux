@@ -29,10 +29,12 @@
 #include <sys/syscall.h>
 #include "libbb.h"
 
+#ifdef __NR_sysfs
 int sysfs( int option, unsigned int fs_index, char * buf)
 {
 	return(syscall(__NR_sysfs, option, fs_index, buf));
 }
+#endif
 
 int pivot_root(const char * new_root,const char * put_old)
 {

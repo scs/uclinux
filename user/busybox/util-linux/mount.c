@@ -91,8 +91,6 @@ extern int mount(__const char *__special_file, __const char *__dir,
 extern int umount(__const char *__special_file);
 extern int umount2(__const char *__special_file, int __flags);
 
-extern int sysfs(int option, unsigned int fs_index, char *buf);
-
 struct mount_options {
 	const char *name;
 	unsigned long and;
