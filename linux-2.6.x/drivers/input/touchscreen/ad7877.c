@@ -183,6 +183,7 @@ struct ad7877 {
 
 	u16			cmd_crtl1;
 	u16			cmd_crtl2;
+	u16			cmd_dummy;
 	u16			dac;
 
 	u8			stopacq_polarity;
@@ -814,10 +815,12 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	ad7877_write((struct device *) spi, AD7877_REG_CTRL2, ts->cmd_crtl2);
 
-	ts->cmd_crtl1 =  AD7877_WRITEADD(AD7877_REG_CTRL1) | AD7877_READADD(AD7877_REG_XPLUS) |\
+	ts->cmd_crtl1 =  AD7877_WRITEADD(AD7877_REG_CTRL1) | AD7877_READADD(AD7877_REG_XPLUS-1) |\
 			 AD7877_MODE_SEQ1 | AD7877_DFR;
 
 	ad7877_write((struct device *) spi, AD7877_REG_CTRL1, ts->cmd_crtl1);
+	
+	ts->cmd_dummy = 0;
 
 	m = &ts->msg;
 
@@ -828,10 +831,15 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 
 	spi_message_add_tail(&ts->xfer[0], m);
 
-	ts->xfer[1].rx_buf = &ts->conversion_data[AD7877_SEQ_YPOS];
-	ts->xfer[1].len = AD7877_NR_SENSE * sizeof(u16);
+	ts->xfer[1].tx_buf = &ts->cmd_dummy; /* Send ZERO */
+	ts->xfer[1].len = 2;
 
 	spi_message_add_tail(&ts->xfer[1], m);
+
+	ts->xfer[2].rx_buf = &ts->conversion_data[AD7877_SEQ_YPOS];
+	ts->xfer[2].len = AD7877_NR_SENSE * sizeof(u16);
+
+	spi_message_add_tail(&ts->xfer[2], m);
 
 	/* Request AD7877 /DAV GPIO interrupt */
 
