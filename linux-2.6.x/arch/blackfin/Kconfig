@@ -207,6 +207,12 @@ config BFIN561_EZKIT
 	help
 	  BF561-EZKIT-LITE board Support.
 
+config PNAV10
+	bool "PNAV 1.0 board"
+	depends on (BF537)
+	help
+	  PNAV 1.0 board Support.
+
 config GENERIC_BOARD
 	bool "Custom"
 	depends on (BF537 || BF536 \
@@ -234,7 +240,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config MEM_MT48LC32M8A2_75
 	bool
-	depends on (BFIN537_STAMP)
+	depends on (BFIN537_STAMP || PNAV10)
 	default y
 
 config MEM_MT48LC8M32B2B5_7
@@ -261,6 +267,7 @@ config CLKIN_HZ
 	default "27000000" if BFIN533_EZKIT
 	default "25000000" if BFIN537_STAMP
 	default "30000000" if BFIN561_EZKIT
+	default "24576000" if PNAV10
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
 
@@ -270,6 +277,7 @@ config MEM_SIZE
 	default  64 if BFIN537_STAMP
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
+	default  64 if PNAV10
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
@@ -277,6 +285,7 @@ config MEM_ADD_WIDTH
 	default  9 if BFIN561_EZKIT
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
+	default 10 if PNAV10
 
 config ENET_FLASH_PIN
 	int "PF port/pin used for flash and ethernet sharing"
