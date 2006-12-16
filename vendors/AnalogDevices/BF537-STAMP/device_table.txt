@@ -81,6 +81,7 @@
 /dev/can	c	666	0	0	91	0	0	1	1
 #/dev/coreb	c	640	0	0	10	229	0	0	-
 /dev/ircomm	c	666	0	0	161	0	0	1	2
+/dev/ts		c	666	0	0	13	128	0	0	0
 
 # Adjust permissions on some normal files
 #/etc/shadow	f	600	0	0	-	-	-	-	-
