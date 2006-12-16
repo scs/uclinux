@@ -434,6 +434,11 @@ void SetupSystemRegs(struct net_device *dev)
 		opmode = 0;
 		printk(KERN_INFO CARDNAME ": Network is set to half duplex\n");
 	}
+
+#if defined(CONFIG_BFIN_MAC_RMII)
+	opmode |= RMII; /* For Now only 100MBit are supported */
+#endif
+
 	bfin_write_EMAC_OPMODE(opmode);
 
 	//bfin_write_EMAC_MMC_CTL(RSTC | CROLL | MMCE);
