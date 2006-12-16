@@ -2014,7 +2014,6 @@ trace()
 	static int wait4_options = __WALL;
 #endif
 #endif /* LINUX */
-	printf("in %s\n",__FUNCTION__);
 	while (nprocs != 0) {
 		if (interactive)
 			sigprocmask(SIG_SETMASK, &empty_set, NULL);
