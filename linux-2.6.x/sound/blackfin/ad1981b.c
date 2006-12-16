@@ -412,8 +412,6 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 	audio_buf_info abinfo;
 	int val;
 
-printk("%s:%d: CMD = %x ARG = %x\n",__FUNCTION__, __LINE__,cmd,arg);
-
 	switch (cmd) {
 	case OSS_GETVERSION:
 		return put_user(SOUND_VERSION, (int *)arg);
@@ -562,7 +560,7 @@ static int __init ad1981b_install(void)
 		ac97_sport_close();
 		return -ENODEV;
 	}
-	printk(KERN_INFO "- Enabling IRQ %d\n", IRQ_SPORT0);
+	printk(KERN_DEBUG "- Enabling IRQ %d\n", IRQ_SPORT0);
 	enable_irq(IRQ_SPORT0);
 #endif
 #if defined(IRQ_SPORT0_RX)
@@ -576,7 +574,7 @@ static int __init ad1981b_install(void)
 		ac97_sport_close();
 		return -ENODEV;
 	}
-	printk(KERN_INFO "- Enabling RX Interrupt (%d)\n", IRQ_SPORT0_RX);
+	printk(KERN_DEBUG "- Enabling RX Interrupt (%d)\n", IRQ_SPORT0_RX);
 #endif
 #if defined(IRQ_SPORT0_TX)
 	if (request_irq
@@ -589,17 +587,17 @@ static int __init ad1981b_install(void)
 		ac97_sport_close();
 		return -ENODEV;
 	}
-	printk(KERN_INFO "- Enabling TX Interrupt (%d)\n", IRQ_SPORT0_TX);
+	printk(KERN_DEBUG "- Enabling TX Interrupt (%d)\n", IRQ_SPORT0_TX);
 #endif
 #if defined(AC97_DEMO)
 	printk(KERN_INFO "- Going into TalkThrough Mode\n");
 	/*  set to talktrougth testing mode: rxbuf = txbuf, and init mixer */
 	ac97_sport_set_talkthrough_mode();
 #endif
-	printk(KERN_INFO "- Initializing\n");
+	printk(KERN_DEBUG "- Initializing\n");
 	ac97_sport_start();
 
-	printk(KERN_INFO "Astent AD1981B driver succesfully loaded.\n");
+	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d), IRQ(%d)\n",IRQ_SPORT0_RX,IRQ_SPORT0_TX);
 
 	return 0;
 }
@@ -615,3 +613,6 @@ int __init init_ad1981b(void)
 }
 
 module_init(init_ad1981b);
+MODULE_AUTHOR("Luuk van Dijk & Bas Vermeulen <blackfin@mndmttr.nl>");
+MODULE_DESCRIPTION("BF537/AD1981B");
+MODULE_LICENSE("GPL");

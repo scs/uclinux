@@ -415,7 +415,7 @@ static void init_ac97(void)
 	ac97_sport_set_register(0x02, 0x0000);  // AC97_MASTER_VOLUME  unmute
 	ac97_sport_set_register(0x18, 0x0000);  // AC97_PCM_OUT_VOLUME unmute
 
-	ac97_sport_set_register(0x04, 0x0000);  // AC97_HP_OUT_VOLUME unmute
+	ac97_sport_set_register(0x04, 0x0404);  // AC97_HP_OUT_VOLUME unmute
 
 	ac97_sport_set_register(0x1a, 0x0404);  // AC97_RECORD_SELECT  line-in
 	ac97_sport_set_register(0x1c, 0x0000);  // AC97_RECORD_GAIN,   unmute
