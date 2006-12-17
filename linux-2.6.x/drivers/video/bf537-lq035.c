@@ -218,6 +218,11 @@ static struct i2c_driver ad5280_driver = {
 #define LCD_Y_RES			320 /* Vertical Resolution */
 #define LCD_BBP				16  /* Bit Per Pixel */
 
+/* the LCD and the DMA start counting differently;
+ * since one starts at 0 and the other starts at 1,
+ * we have a difference of 1 between START_LINES
+ * and U_LINES.
+ */
 #define START_LINES          8              /* lines for field flyback or field blanking signal */
 #define U_LINES              (9)            /* number of undisplayed lines */
 
