@@ -143,6 +143,5 @@ step "Copy linux"
 source   copy_image.exp
   
 
+send_user "Ending $argv0\n"
 log_file
-
-send_user "\nKernel building for bluetooth CF test finishes!\n"
