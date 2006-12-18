@@ -58,6 +58,27 @@
 
 static unsigned char* fb_buffer;          /* RGB Buffer */
 static dma_addr_t dma_handle;             /* ? */
+static unsigned long* dma_desc_table;
+
+#ifdef CONFIG_FB_BFIN_LANDSCAPE
+static int landscape = 1;
+#else
+static int landscape = 0;
+#endif
+
+#ifdef CONFIG_FB_BFIN_BGR
+static int bgr = 1;
+#else
+static int bgr = 0;
+#endif
+
+module_param(landscape, int, 0);
+MODULE_PARM_DESC(landscape,
+	"LANDSCAPE use 320x240 instead of Native 240x320 Resolution");
+
+module_param(bgr, int, 0);
+MODULE_PARM_DESC(bgr,
+	"BGR use 16-bit BGR-565 instead of RGB-565");
 
 static unsigned long current_brightness;  /* backlight */
 
@@ -216,6 +237,7 @@ static struct i2c_driver ad5280_driver = {
 
 #define LCD_X_RES			240 /*Horizontal Resolution */
 #define LCD_Y_RES			320 /* Vertical Resolution */
+
 #define LCD_BBP				16  /* Bit Per Pixel */
 
 /* the LCD and the DMA start counting differently;
@@ -224,10 +246,9 @@ static struct i2c_driver ad5280_driver = {
  * and U_LINES.
  */
 #define START_LINES          8              /* lines for field flyback or field blanking signal */
-#define U_LINES              (9)            /* number of undisplayed lines */
+#define U_LINES              (9)            /* number of undisplayed blankling lines */
 
 #define FRAMES_PER_SEC       (60)
-
 
 #define DCLKS_PER_FRAME      (FREQ_PPI_CLK/FRAMES_PER_SEC)
 #define DCLKS_PER_LINE       (DCLKS_PER_FRAME/(LCD_Y_RES+U_LINES))
@@ -312,16 +333,45 @@ static void config_ppi(void)
 
 static int config_dma(void)
 {
+	u32 i;
+
 	assert(fb_buffer);
 
-	set_dma_config(CH_PPI, set_bfin_dma_config(DIR_READ,DMA_FLOW_AUTO,INTR_DISABLE,DIMENSION_2D,DATA_SIZE_16));
+	if(landscape) {
 
-	set_dma_x_count(CH_PPI, LCD_X_RES);
-	set_dma_x_modify(CH_PPI,LCD_BBP/8);
+		for (i=0;i<U_LINES;i++)
+		{
+			//blanking lines point to first line of fb_buffer
+			dma_desc_table[2*i] = (unsigned long)&dma_desc_table[2*i+2];
+			dma_desc_table[2*i+1] = (unsigned long)fb_buffer;
+		}
 
-	set_dma_y_count(CH_PPI, LCD_Y_RES+U_LINES);
-	set_dma_y_modify(CH_PPI, LCD_BBP/8);
-	set_dma_start_addr(CH_PPI, ((unsigned long) fb_buffer));
+		for (i=U_LINES;i<U_LINES+LCD_Y_RES;i++)
+		{
+			// visible lines
+			dma_desc_table[2*i] = (unsigned long)&dma_desc_table[2*i+2];
+			dma_desc_table[2*i+1] = (unsigned long)fb_buffer + (LCD_Y_RES+U_LINES-1-i)*2;
+		}
+
+		//last descriptor points to first
+		dma_desc_table[2*(LCD_Y_RES+U_LINES-1)] = (unsigned long)&dma_desc_table[0];
+
+		set_dma_x_count(CH_PPI, LCD_X_RES);
+		set_dma_x_modify(CH_PPI, LCD_Y_RES*(LCD_BBP/8));
+		set_dma_y_count(CH_PPI, 0);
+		set_dma_y_modify(CH_PPI, 0);
+		set_dma_next_desc_addr(CH_PPI, (unsigned long)dma_desc_table[0]);
+		set_dma_config(CH_PPI, DMAFLOW_LARGE | NDSIZE_4 | WDSIZE_16);
+
+	} else {
+
+		set_dma_config(CH_PPI, set_bfin_dma_config(DIR_READ,DMA_FLOW_AUTO,INTR_DISABLE,DIMENSION_2D,DATA_SIZE_16));
+		set_dma_x_count(CH_PPI, LCD_X_RES);
+		set_dma_x_modify(CH_PPI,LCD_BBP/8);
+		set_dma_y_count(CH_PPI, LCD_Y_RES+U_LINES);
+		set_dma_y_modify(CH_PPI, LCD_BBP/8);
+		set_dma_start_addr(CH_PPI, ((unsigned long) fb_buffer));
+	}
 
 	return 0;
 }
@@ -338,18 +388,18 @@ static void init_ports(void)
 
 #if (defined(UD) &&  defined(LBR))
 	if (gpio_request(UD, NULL))
-		printk(KERN_ERR"Requesting GPIO %d faild\n",UD);	
-	
+		printk(KERN_ERR"Requesting GPIO %d faild\n",UD);
+
 	if (gpio_request(LBR, NULL))
 		printk(KERN_ERR"Requesting GPIO %d faild\n",LBR);
-	
+
 	gpio_direction_output(UD);
 	gpio_direction_output(LBR);
 
 	gpio_set_value(UD,0);
 	gpio_set_value(LBR,1);
 #endif
-	
+
 	if (gpio_request(MOD, NULL))
 		printk(KERN_ERR"Requesting GPIO %d faild\n",MOD);
 
@@ -377,22 +427,22 @@ static void init_ports(void)
 static struct fb_info bfin_lq035_fb;
 
 static struct fb_var_screeninfo bfin_lq035_fb_defined = {
-	.xres			= LCD_X_RES,
+	.bits_per_pixel		= LCD_BBP,
+	.activate		= FB_ACTIVATE_TEST,
+	.xres			= LCD_X_RES,	/*default portrait mode RGB*/
 	.yres			= LCD_Y_RES,
 	.xres_virtual		= LCD_X_RES,
 	.yres_virtual		= LCD_Y_RES,
-	.bits_per_pixel		= LCD_BBP,
-	.activate		= FB_ACTIVATE_TEST,
 	.height			= -1,
 	.width			= -1,
+	.left_margin 		= 0,
+	.right_margin 		= 0,
+	.upper_margin 		= 0,
+	.lower_margin 		= 0,
 	.red 			= {11, 5, 0},
 	.green			= {5, 6, 0},
 	.blue 			= {0, 5, 0},
 	.transp 		= {0, 0, 0},
-//	.red			= {11,5, 0},
-//	.green			= {6, 5, 0},
-//	.blue			= {5, 0, 0},
-//	.transp			= {0, 0, 0},
 };
 
 static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
@@ -406,11 +456,12 @@ static struct fb_fix_screeninfo bfin_lq035_fb_fix __initdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
+
 static int bfin_lq035_fb_open(struct fb_info* info, int user)
 {
 	bfin_write_PPI_CONTROL(0);
 	__builtin_bfin_ssync();
-	
+
 	set_vcomm();
 	config_dma();
 	config_ppi();
@@ -438,7 +489,7 @@ static int bfin_lq035_fb_release(struct fb_info* info, int user)
 	__builtin_bfin_ssync();
 
 	disable_dma(CH_PPI);
-	
+
 	return 0;
 }
 
@@ -498,11 +549,16 @@ void bfin_lq035_fb_rotate(struct fb_info *fbi, int angle)
 
 static int direct_mmap(struct fb_info *info, struct vm_area_struct * vma)
 {
-	vma->vm_start = (unsigned long) (fb_buffer + ACTIVE_VIDEO_MEM_OFFSET);
+	if(landscape) {
+		vma->vm_start = (unsigned long)fb_buffer;
+	} else {
+		vma->vm_start = (unsigned long) (fb_buffer + ACTIVE_VIDEO_MEM_OFFSET);
+	}
+
 	vma->vm_end = vma->vm_start + ACTIVE_VIDEO_MEM_SIZE;
-	/* For those who don't understand how mmap works, go read 
-	 *   Documentation/nommu-mmap.txt. 
-	 * For those that do, you will know that the VM_MAYSHARE flag 
+	/* For those who don't understand how mmap works, go read
+	 *   Documentation/nommu-mmap.txt.
+	 * For those that do, you will know that the VM_MAYSHARE flag
 	 * must be set in the vma->vm_flags structure on noMMU
 	 *   Other flags can be set, and are documented in
 	 *   include/linux/mm.h
@@ -590,10 +646,52 @@ static int __init bfin_lq035_fb_init(void)
 		return -ENOMEM;
 	}
 
+
+#if L1_DATA_A_LENGTH != 0
+	dma_desc_table = (unsigned long*)l1_data_A_sram_alloc(sizeof(unsigned long) * 2 * (LCD_Y_RES + U_LINES));
+#else
+	dma_desc_table = dma_alloc_coherent(NULL,sizeof(unsigned long) * 2 * (LCD_Y_RES + U_LINES), &dma_handle, 0);
+#endif
+
+	if (NULL == dma_desc_table) {
+		printk(KERN_ERR DRIVER_NAME ": couldn't allocate dma descriptor.\n");
+		dma_free_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), fb_buffer, dma_handle);
+		return -ENOMEM;
+	}
+
+
 	memset(fb_buffer, 0xff, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8));
 
-	bfin_lq035_fb.screen_base = (void*)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
-	bfin_lq035_fb_fix.smem_start = (int)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
+	if(landscape) {
+		bfin_lq035_fb_defined.xres			= LCD_Y_RES;
+		bfin_lq035_fb_defined.yres			= LCD_X_RES;
+		bfin_lq035_fb_defined.xres_virtual		= LCD_Y_RES;
+		bfin_lq035_fb_defined.yres_virtual		= LCD_X_RES;
+
+		bfin_lq035_fb_fix.line_length	= LCD_Y_RES*(LCD_BBP/8);
+
+		bfin_lq035_fb.screen_base = (void*)fb_buffer;
+		bfin_lq035_fb_fix.smem_start = (int)fb_buffer;
+
+	} else {
+
+		bfin_lq035_fb.screen_base = (void*)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
+		bfin_lq035_fb_fix.smem_start = (int)fb_buffer + ACTIVE_VIDEO_MEM_OFFSET;
+	}
+
+	if(bgr) {
+		bfin_lq035_fb_defined.red.offset 		= 0;
+		bfin_lq035_fb_defined.red.length 		= 5;
+		bfin_lq035_fb_defined.red.msb_right 		= 0;
+
+		bfin_lq035_fb_defined.green.offset 		= 5;
+		bfin_lq035_fb_defined.green.length 		= 6;
+		bfin_lq035_fb_defined.green.msb_right 		= 0;
+
+		bfin_lq035_fb_defined.blue.offset 		= 11;
+		bfin_lq035_fb_defined.blue.length 		= 5;
+		bfin_lq035_fb_defined.blue.msb_right 		= 0;
+	}
 
 	bfin_lq035_fb.fbops = &bfin_lq035_fb_ops;
 	bfin_lq035_fb.var = bfin_lq035_fb_defined;
@@ -623,9 +721,16 @@ static void __exit bfin_lq035_fb_exit(void)
 {
 	if (fb_buffer != NULL)
 		dma_free_coherent(NULL, (LCD_Y_RES+U_LINES)*LCD_X_RES*(LCD_BBP/8), fb_buffer, dma_handle);
-	
+
+
+#if L1_DATA_A_LENGTH != 0
+	if (dma_desc_table) l1_data_A_sram_free(dma_desc_table);
+#else
+	if (dma_desc_table) dma_free_coherent(NULL,sizeof(unsigned long) * 2 * (LCD_Y_RES + U_LINES), &dma_handle, 0);
+#endif
+
 	free_dma(CH_PPI);
-	
+
 	unregister_framebuffer(&bfin_lq035_fb);
 	i2c_del_driver(&ad5280_driver);
 

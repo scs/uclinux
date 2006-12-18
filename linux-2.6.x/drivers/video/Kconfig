@@ -579,6 +579,19 @@ config LQ035_SLAVE_ADDR
 	  Please setting the switch S1 properly accroding to the address.
 	  The default is 0x58.
 
+config FB_BFIN_LANDSCAPE
+	bool "Use Landscape 320x240 instead of Portrait 240x320"
+	depends on FB_BF537_LQ035
+	default n
+	help
+	 LANDSCAPE: use 320x240 instead of native 240x320 Resolution
+
+config FB_BFIN_BGR
+	bool "Use 16-bit BGR-565 instead of RGB-565"
+	depends on FB_BF537_LQ035
+	default n
+	help
+	 BGR use 16-bit BGR-565 instead of RGB-565
 
 config FB_STI
 	tristate "HP STI frame buffer device support"
