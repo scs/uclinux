@@ -57,7 +57,7 @@ typedef unsigned long long u64;
 /* Dma addresses are 32-bits wide.  */
 
 typedef u32 dma_addr_t;
-typedef u32 dma64_addr_t;
+typedef u64 dma64_addr_t;
 
 #endif				/* __ASSEMBLY__ */
 
