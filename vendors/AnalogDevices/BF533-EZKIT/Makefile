@@ -108,8 +108,8 @@ image:
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
-			ln -sf $(IMAGEDIR)/linux.$$FS $(IMAGEDIR)/linux ; \
-			ln -sf $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
+			ln -sf linux.$$FS $(IMAGEDIR)/linux ; \
+			ln -sf uImage.$$FS $(IMAGEDIR)/uImage ; \
 		fi; \
 	done
 #
