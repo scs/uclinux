@@ -1,0 +1,105 @@
+#!/usr/bin/expect
+
+# Main entrance
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start testing."
+
+set case_num 0
+
+# Build module
+incr case_num
+catch {exec make -C $uclinux_path/linux-2.6.x SUBDIRS=$uclinux_path/user/blkfin-apps/corebld modules}
+if [file exists $uclinux_path/user/blkfin-apps/corebld/dualcore_test.ko] {
+   send_user "\nKernel module build successful\n"
+   case_pass $case_num
+} else {
+   send_user "\nKernel module build failed\n"
+   case_fail $case_num
+}
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+send "ifconfig eth0 $targetip\r"
+sleep 5
+
+spawn rcp $uclinux_path/user/blkfin-apps/corebld/dualcore_test.ko root@$targetip:/.
+sleep 2
+
+set spawn_id $kermit_spawn_id
+
+
+incr case_num
+set timeout 2
+send "insmod dualcore_test.ko\r"
+while 1 {
+   expect {
+      -re "Dual core test module inserted: set testarg = \[1\]*" {
+         send_log "\nInserted dual core test module\n"
+         send_user "\nInserted coreb test module\n"
+         break
+      }
+      timeout {
+         send_log "\nInsert coreb test module timeout\n"
+         send_user "\nInsert coreb test module timeout\n"
+         break
+      }
+   }
+}
+
+send "lsmod\r"
+while 1 {
+   expect {
+      -re "dualcore_test" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+send "corebld /bin/coreb_get_testarg\r"
+while 1 {
+   expect {
+      "root:~>" {
+         send_user "\nexecuted application coreb_get_testarg on another core\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\nexecute application coreb_get_testarg on another core timeout\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+send "rmmod dualcore_test\r"
+while 1 {
+   expect {
+
+      -re "testarg = \[2\]*" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file
