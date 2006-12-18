@@ -5,6 +5,7 @@
 
 set user /home/test
 set uclinux_path $user/checkouts/kernel/uClinux-dist
+#set uclinux_path /uclinux/kernel/local/1218/uClinux-dist
 
 # environment settings
 
@@ -52,6 +53,7 @@ set map_rootfs "not found"
 set map_stack "not found"
 set instruction_cache_boot_flag "not found"
 set data_cache_boot_flag "not found"
+set TITLE "undefined"
 
 set CACHE_ENABLED           "enabled"
 set CACHE_DISABLED          "disabled"
@@ -76,4 +78,27 @@ proc step { message } {
   puts "STEP $step_sequence_number: $message\n\n"
   send_log "\n************** STEP $step_sequence_number: $message\n\n"
   incr step_sequence_number
+}
+
+
+proc case_pass { casenum } {
+  send_user "\nCase $casenum ...PASS\n"
+  send_log "\nCase $casenum ...PASS\n"
+}
+
+proc case_fail { casenum } {
+  global TITLE
+
+  send_user "\nCase $casenum ...FAIL\n"
+  send_log "\nCase $casenum ...FAIL\n"
+  send_user "\nTEST $TITLE FAIL\n"
+  send_log "$TITLE ............\[FAIL\]\n"
+  exit
+}
+
+proc all_pass {} {
+  global TITLE
+
+  send_user "\nTEST $TITLE PASS\n"
+  send_log "\n$TITLE ............\[PASS\]\n"
 }
