@@ -57,11 +57,19 @@ const static struct mtd_partition partition_info[] = {
 		.offset = 0,
 		.size = 0x400000,
 	},
+#ifdef CONFIG_PNAV10 /* 1G x 8 NAND Flash */
+	{
+		.name = "file system",
+		.offset = 0x400000,
+		.size = 0x3FC00000,
+	}
+#else
 	{
 		.name = "file system",
 		.offset = 0x400000,
 		.size = 0xC00000,
 	}
+#endif
 };
 
 /*
