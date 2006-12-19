@@ -13,6 +13,8 @@ MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
 MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
 MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
+LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
+
 # Blocks must be a multiple of 1024
 BLOCKS   = 8192
 INODES   = 1024
@@ -113,17 +115,8 @@ image:
 		fi; \
 	done
 #
-# if we are not attaching a rootfs, make a standalone image
+# grab the standalone kernel image
 #
-	set -e ; \
-	if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
-		$(CROSS_COMPILE)objcopy -O binary -S $(ROOTDIR)/$(LINUXDIR)/vmlinux \
-			$(IMAGEDIR)/vmlinux.bin; \
-		gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
-		$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-			-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel Only Image" \
-			-d $(IMAGEDIR)/vmlinux.bin.gz  $(IMAGEDIR)/vmImage; \
-		rm  $(IMAGEDIR)/vmlinux.bin.gz; \
-	fi
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 
 clean:
