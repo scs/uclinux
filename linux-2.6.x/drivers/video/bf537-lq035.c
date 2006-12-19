@@ -246,7 +246,7 @@ static struct i2c_driver ad5280_driver = {
  * and U_LINES.
  */
 #define START_LINES          8              /* lines for field flyback or field blanking signal */
-#define U_LINES              (9)            /* number of undisplayed blankling lines */
+#define U_LINES              (9)            /* number of undisplayed blanking lines */
 
 #define FRAMES_PER_SEC       (60)
 
