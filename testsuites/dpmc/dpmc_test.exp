@@ -14,8 +14,8 @@ send_log "\n#### sclk is $sclk\n"
 send_log "\n#### voltage is $voltage\n"
 
 if { $argc < 3} {
-puts "Please input: vco sclk voltage."
-exit
+   puts "Please input: vco sclk voltage."
+   exit
 }
 
 step "Start kermit."
@@ -31,21 +31,17 @@ set case_num 0
 incr case_num
 
 set timeout 8
-set flag 0
 
 send "cd /bin\r" 
 while 1 {
    expect {
       "bin" {
-         set flag 1
          break
       }
-
       timeout {
-                   
-            break
-         }
-     }
+         break
+      }
+   }
 }
 
 set timeout 500
@@ -55,49 +51,38 @@ send -s  "./dpmc_test\r"
 while 1 {
    expect {
       "open success" {
-         
          send_log "dpmc device opens.\n"
-	 send_log "\nCase $case_num ...PASS\n"
          break
       }
-
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
+         case_fail $case_num
+      }
+   }
 }
-
-incr case_num
 
 while 1 {
    expect {
       "Please select the VCO" {              
          break
       }
-
       timeout {
-            send_log "dpmc VCO fail. "
-            break
-         }
-     }
+         send_log "dpmc VCO fail. "
+         break
+      }
+   }
 }
 
 send -s  "$vco\r" 
 while 1 {
    expect {
       "is set to" {   
-         send_log "\nCase $case_num ...PASS\n"           
+         case_pass $case_num
          break
       }
-
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
+         case_fail $case_num
+      }
+   }
 }
 
 incr case_num
@@ -107,28 +92,24 @@ while 1 {
       "Please enter the value of sclk" {              
          break
       }
-
       timeout {
-            send_log "dpmc sclk fail. "
-            break
-         }
-     }
+         send_log "dpmc sclk fail. "
+         break
+      }
+   }
 }
 
 send -s  "$sclk\r" 
 while 1 {
    expect {
       "set to" {              
-         send_log "\nCase $case_num ...PASS\n"
+         case_pass $case_num
          break
       }
-
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
+         case_fail $case_num
+      }
+   }
 }
 
 incr case_num
@@ -138,19 +119,14 @@ while 1 {
       "select any of these choices for cclk" { 
          sleep 1   
 	 send -s  "1\r"       
-	 send_log "\nCase $case_num ...PASS\n"
+         case_pass $case_num
          break
       }
-
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
+         case_fail $case_num
+      }
+   }
 }
-
-###############################################################################################################
 
 incr case_num
 
@@ -160,35 +136,28 @@ while 1 {
       "select the voltage" {                   
          break
       }
-
       timeout {
-            send_log "dpmc volt fail. "
-            break
-         }
-     }
+         send_log "dpmc volt fail. "
+         break
+      }
+   }
 }
 
 send -s  "$voltage\r" 
 while 1 {
    expect {
       "set to" {             
-         send_log "\nCase $case_num ...PASS\n" 
+         case_pass $case_num
          break
       }
-
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
-	exit
-         }
-     }
+	 case_fail $case_fail
+      }
+   }
 }
 
-send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n"
+all_pass
 
 send_user "Ending $argv0\n"
+
 log_file
- 
-
-
