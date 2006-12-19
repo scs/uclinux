@@ -9,10 +9,8 @@
 
 CROSS_COMPILE    ?= bfin-uclinux-
 LDFLAGS_vmlinux  := -X
-LDFLAGS_BLOB     := --format binary -elf32-bfin
 OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
-export GZFLAGS
 
 CFLAGS_MODULE    += -mlong-calls
 KALLSYMS         += --symbol-prefix=_
@@ -69,3 +67,15 @@ CLEAN_FILES += \
 
 archprepare: include/asm-blackfin/.mach
 archclean:
+	$(Q)$(MAKE) $(clean)=$(boot)
+
+
+all: vmImage
+boot := arch/$(ARCH)/boot
+BOOT_TARGETS = vmImage
+.PHONY: $(BOOT_TARGETS)
+$(BOOT_TARGETS): vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+define archhelp
+  echo  '* vmImage         - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage)'
+endef
