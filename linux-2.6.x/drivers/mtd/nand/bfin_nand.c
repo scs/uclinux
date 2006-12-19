@@ -55,19 +55,19 @@ const static struct mtd_partition partition_info[] = {
 	{
 		.name = "linux kernel",
 		.offset = 0,
-		.size = 0x400000,
+		.size = 4 *1024*1024,
 	},
 #ifdef CONFIG_PNAV10 /* 1G x 8 NAND Flash */
 	{
 		.name = "file system",
-		.offset = 0x400000,
-		.size = 0x3FC00000,
+		.offset = 4 *1024*1024,
+		.size = (1024-4) *1024*1024,
 	}
 #else
 	{
 		.name = "file system",
-		.offset = 0x400000,
-		.size = 0xC00000,
+		.offset = 4 *1024*1024,
+		.size = (128-4) *1024*1024,
 	}
 #endif
 };
