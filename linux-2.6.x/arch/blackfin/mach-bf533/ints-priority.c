@@ -33,9 +33,6 @@
 #include <asm/blackfin.h>
 #include <asm/irq.h>
 
-void program_IAR(void);
-/*Program the IAR registers*/
-
 void program_IAR(void)
 {
 	/* Program the IAR0 Register with the configured priority */
@@ -65,5 +62,6 @@ void program_IAR(void)
 			    ((CONFIG_MEMDMA0 - 7) << MEMDMA0_POS) |
 			    ((CONFIG_MEMDMA1 - 7) << MEMDMA1_POS) |
 			    ((CONFIG_WDTIMER - 7) << WDTIMER_POS));
+
 	__builtin_bfin_ssync();
-};
+}

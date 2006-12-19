@@ -4,7 +4,7 @@
  * Author:       Michael Hennerich
  *
  * Created:
- * Description:
+ * Description:  Set up the interupt priorities
  *
  * Rev:          $Id$
  *
