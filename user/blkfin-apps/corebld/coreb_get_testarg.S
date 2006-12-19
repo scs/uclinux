@@ -6,6 +6,7 @@
 .text
 _start:
 start:
+	/* Enable CYCLES */
 	R0 = 0x32;
 	SYSCFG = R0;
 	SSYNC;
@@ -79,11 +80,14 @@ WAIT_HERE:
 
 .global _real_start;
 _real_start:
+	/* Enable interrupts */
 	[--sp] = reti;
+	r0 = [sp++];
 
+	/* Disable WatchDog */
 	p0.l = (WDOGB_CTL & 0xFFFF);
 	p0.h = (WDOGB_CTL >> 16);
-	r0 = ((0xad << 4) | 0x3)(z);
+	r0 = ((0xad << 4) | (0x3 << 1))(z);
 	w[p0] = r0;
 
 change_arg:
