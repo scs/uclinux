@@ -5,6 +5,6 @@
 obj-$(CONFIG_PBX)	+= zaptel.o
 obj-$(CONFIG_PBX)	+= wcfxs.o
 
-zaptel-objs := zaptel1.o crc-ccitt.o
+zaptel-objs := zaptel1.o
 
 
