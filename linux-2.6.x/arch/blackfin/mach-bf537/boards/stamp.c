@@ -323,7 +323,7 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.first_conversion_delay = 3,
 	.acquisition_time 	= 1,	    
 	.averaging 		= 1,		    
-	.pen_down_acc_interval 	= 0, 
+	.pen_down_acc_interval 	= 1, 
 };
 #endif
 
