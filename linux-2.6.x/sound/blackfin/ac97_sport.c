@@ -165,8 +165,7 @@ static void dma_init_xmit(void *data, size_t bufsize, size_t fragsize)
 	int i, fragcount = bufsize / fragsize;	/* this better be an integer */
 
 #if L1_DATA_A_LENGTH != 0
-	dev.tx_desc =
-	    (struct dma_descriptor_block *)
+	dev.tx_desc = (struct dma_descriptor_block *)
 	    l1_data_A_sram_alloc(sizeof(struct dma_descriptor_block) *
 				 fragcount);
 #else
@@ -175,10 +174,10 @@ static void dma_init_xmit(void *data, size_t bufsize, size_t fragsize)
 			       sizeof(struct dma_descriptor_block) * fragcount,
 			       &addr, 0);
 #endif
-//      dev.tx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+
 	for (i = 0; i < fragcount; i++) {
-		dev.tx_desc[i].next = (unsigned long) &dev.tx_desc[i + 1];
-		dev.tx_desc[i].start_addr = (unsigned long) data +
+		dev.tx_desc[i].next = (unsigned long)&dev.tx_desc[i + 1];
+		dev.tx_desc[i].start_addr = (unsigned long)data +
 		    (i * fragsize * BYTES_PER_FRAME);
 		dev.tx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.tx_desc[i].x_modify = sizeof(__u16);
@@ -191,10 +190,10 @@ static void dma_init_xmit(void *data, size_t bufsize, size_t fragsize)
 					     DMA2D | WDSIZE_16 | DMAEN);
 	}
 	/* Close the circle */
-	dev.tx_desc[fragcount - 1].next = (unsigned long) dev.tx_desc;
+	dev.tx_desc[fragcount - 1].next = (unsigned long)dev.tx_desc;
 
 	DMA4->NEXT_DESC_PTR = dev.tx_desc;
-	DMA4->CONFIG = (unsigned long) dev.tx_desc->dma_config;
+	DMA4->CONFIG = (unsigned long)dev.tx_desc->dma_config;
 }
 
 static void dma_init_recv(void *data, size_t bufsize, size_t fragsize)
@@ -202,8 +201,7 @@ static void dma_init_recv(void *data, size_t bufsize, size_t fragsize)
 	int i, fragcount = bufsize / fragsize;	/* this better be an integer */
 
 #if L1_DATA_A_LENGTH != 0
-	dev.rx_desc =
-	    (struct dma_descriptor_block *)
+	dev.rx_desc = (struct dma_descriptor_block *)
 	    l1_data_A_sram_alloc(sizeof(struct dma_descriptor_block) *
 				 fragcount);
 #else
@@ -212,10 +210,10 @@ static void dma_init_recv(void *data, size_t bufsize, size_t fragsize)
 			       sizeof(struct dma_descriptor_block) * fragcount,
 			       &addr, 0);
 #endif
-//      dev.rx_desc = kmalloc(sizeof(struct dma_descriptor_block) * fragcount, GFP_KERNEL);
+
 	for (i = 0; i < fragcount; i++) {
-		dev.rx_desc[i].next = (unsigned long) &dev.rx_desc[i + 1];
-		dev.rx_desc[i].start_addr = (unsigned long) data +
+		dev.rx_desc[i].next = (unsigned long)&dev.rx_desc[i + 1];
+		dev.rx_desc[i].start_addr = (unsigned long)data +
 		    (i * fragsize * BYTES_PER_FRAME);
 		dev.rx_desc[i].x_count = WORDS_PER_FRAME;
 		dev.rx_desc[i].x_modify = sizeof(__u16);
@@ -228,7 +226,7 @@ static void dma_init_recv(void *data, size_t bufsize, size_t fragsize)
 					     DMA2D | WDSIZE_16 | WNR | DMAEN);
 	}
 	/* Close the circle */
-	dev.rx_desc[fragcount - 1].next = (unsigned long) dev.rx_desc;
+	dev.rx_desc[fragcount - 1].next = (unsigned long)dev.rx_desc;
 
 	DMA3->NEXT_DESC_PTR = dev.rx_desc;
 	DMA3->CONFIG = dev.rx_desc->dma_config;
@@ -388,16 +386,16 @@ static int set_current_tx_fragment(void)
 {
 	return dev.tx_currfrag =
 	    ((u32) (DMA4->CURR_ADDR) -
-	     (unsigned long) dev.txbuf) / (sizeof(struct ac97_frame) *
-					   dev.fragsize);
+	     (unsigned long)dev.txbuf) / (sizeof(struct ac97_frame) *
+					  dev.fragsize);
 }
 
 static int set_current_rx_fragment(void)
 {
 	return dev.tx_currfrag =
 	    ((u32) (DMA3->CURR_ADDR) -
-	     (unsigned long) dev.rxbuf) / (sizeof(struct ac97_frame) *
-					   dev.fragsize);
+	     (unsigned long)dev.rxbuf) / (sizeof(struct ac97_frame) *
+					  dev.fragsize);
 }
 
 static void incfrag(int *frg)
@@ -587,8 +585,8 @@ int ac97_sport_get_register(int reg, __u16 * pval)
 static int rx_used(void)
 {
 	long bytes =
-	    ((unsigned long) DMA3->CURR_ADDR -
-	     (unsigned long) (dev.rxbuf + dev.rx_tail));
+	    ((unsigned long)DMA3->CURR_ADDR -
+	     (unsigned long)(dev.rxbuf + dev.rx_tail));
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
 
 	if (frames < 0)
@@ -600,7 +598,7 @@ static int rx_used(void)
 static int tx_used(void)
 {
 	long bytes =
-	    ((unsigned long) (dev.txbuf + dev.tx_head) -
+	    ((unsigned long)(dev.txbuf + dev.tx_head) -
 	     (u32) (DMA4->CURR_ADDR));
 	int frames = bytes >> LOG_BYTES_PER_FRAME;
 
@@ -643,7 +641,7 @@ static void move_frames_to_pcm16(short *dest, struct ac97_frame *src,
 {
 	while (count--) {
 		/* Left channel? */
-		*(dest++) = (short) (((src++)->ac97_pcm & 0xffff0000) >> 16);
+		*(dest++) = (short)(((src++)->ac97_pcm & 0xffff0000) >> 16);
 	}
 }
 

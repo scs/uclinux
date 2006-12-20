@@ -226,7 +226,7 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 	if (cmd == OSS_GETVERSION)
-		return put_user(SOUND_VERSION, (int *) arg);
+		return put_user(SOUND_VERSION, (int *)arg);
 
 	if (_IOC_TYPE(cmd) != 'M' || _IOC_SIZE(cmd) != sizeof(int))
 		return -EINVAL;
@@ -250,11 +250,11 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 			break;
 		}		// switch
 
-		return put_user(val, (int *) arg);
+		return put_user(val, (int *)arg);
 
 	} else {		// if _IOC_READ
 
-		if (get_user(val, (int *) arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 
 		switch (_IOC_NR(cmd)) {
@@ -432,14 +432,14 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case OSS_GETVERSION:
-		return put_user(SOUND_VERSION, (int *) arg);
+		return put_user(SOUND_VERSION, (int *)arg);
 	case SNDCTL_DSP_SYNC:
 		if (file->f_mode & FMODE_WRITE)
 
 	case SNDCTL_DSP_SETDUPLEX:
 			return 0;
 	case SNDCTL_DSP_GETCAPS:
-		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME, (int *) arg);
+		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME, (int *)arg);
 	case SNDCTL_DSP_RESET:
 		return 0;
 	case SNDCTL_DSP_SPEED:
@@ -447,7 +447,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		return 48000;
 #else
 		/* set sampling rate */
-		if (get_user(val, (int *) arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 
 		if (val >= 7000 && val <= 48000) {
@@ -459,7 +459,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		return 0;
 #endif
 	case SNDCTL_DSP_STEREO:
-		if (get_user(val, (int *) arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val >= 0) {
 			if (val > 1)
@@ -469,19 +469,19 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		return 0;
 	case SNDCTL_DSP_CHANNELS:
-		if (get_user(val, (int *) arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		if (val != 0) {
 			if (val > 2)
 				return -EINVAL;
 			ac97_set_channels(val);
 		}
-		return put_user(ac97_get_channels(), (int *) arg);
+		return put_user(ac97_get_channels(), (int *)arg);
 
 	case SNDCTL_DSP_GETFMTS:	// needed: only AFMT_S16_LE
-		return put_user(AFMT_S16_LE, (int *) arg);
+		return put_user(AFMT_S16_LE, (int *)arg);
 	case SNDCTL_DSP_SETFMT:	// needed: AFMT_S16_LE
-		return put_user(AFMT_S16_LE, (int *) arg);
+		return put_user(AFMT_S16_LE, (int *)arg);
 	case SNDCTL_DSP_POST:
 		return 0;
 	case SNDCTL_DSP_GETTRIGGER:
@@ -495,7 +495,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		abinfo.bytes = ac97_audio_write_max_bytes();
 		abinfo.fragstotal = BUFFER_SIZE / FRAGMENT_SIZE;
 		abinfo.fragments = abinfo.bytes / (FRAGMENT_SIZE << 2);
-		return copy_to_user((void *) arg, &abinfo, sizeof(abinfo)) ?
+		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ?
 		    -EFAULT : 0;
 	case SNDCTL_DSP_GETISPACE:
 		if (!(file->f_mode & FMODE_READ))
@@ -504,7 +504,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		abinfo.bytes = ac97_audio_read_min_bytes();
 		abinfo.fragstotal = BUFFER_SIZE / FRAGMENT_SIZE;
 		abinfo.fragments = abinfo.bytes / (FRAGMENT_SIZE << 2);
-		return copy_to_user((void *) arg, &abinfo, sizeof(abinfo)) ?
+		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ?
 		    -EFAULT : 0;
 	case SNDCTL_DSP_NONBLOCK:
 		file->f_flags |= O_NONBLOCK;
@@ -514,9 +514,9 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 	case SNDCTL_DSP_GETOPTR:
 		return -EINVAL;
 	case SNDCTL_DSP_GETBLKSIZE:
-		return put_user(FRAGMENT_SIZE << 2, (int *) arg);
+		return put_user(FRAGMENT_SIZE << 2, (int *)arg);
 	case SNDCTL_DSP_SETFRAGMENT:
-		if (get_user(val, (int *) arg))
+		if (get_user(val, (int *)arg))
 			return -EFAULT;
 		val = 1 << (val & 0xffff);
 		if (ac97_get_channels() == 1)
@@ -529,11 +529,11 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 	case SNDCTL_DSP_SUBDIVIDE:
 	case SOUND_PCM_READ_RATE:
-		return put_user(48000, (int *) arg);
+		return put_user(48000, (int *)arg);
 	case SOUND_PCM_READ_CHANNELS:
-		return put_user(ac97_get_channels(), (int *) arg);
+		return put_user(ac97_get_channels(), (int *)arg);
 	case SOUND_PCM_READ_BITS:
-		return put_user(16, (int *) arg);
+		return put_user(16, (int *)arg);
 	case SOUND_PCM_WRITE_FILTER:
 	case SNDCTL_DSP_SETSYNCRO:
 	case SOUND_PCM_READ_FILTER:
