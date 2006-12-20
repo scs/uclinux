@@ -45,6 +45,7 @@
 #include <linux/poll.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/proc_fs.h>
 #include <asm/ptrace.h>
 #include <asm/signal.h>
 #include <asm/irq.h>
@@ -60,19 +61,23 @@
 #undef AD1981B_DEBUG_DUMP_REGS	/* define this to dump the registers */
 #endif
 
+#define USE_FIXED_SAMPLERATE
+#define QUICK_HACK_PROC_VOLUME	/*Provide means of controlling the volume - until standart AC97 mixer is supported */
+
 #define BUFFER_SIZE	0x2000
 #define FRAGMENT_SIZE	0x0800
 /*
  * the physical device is now a static variable in ac97_sport.c
  */
 
+/* Use only one interrpt for RX and TX*/
+#define  IRQ_SPORT0 IRQ_SPORT0_RX
 
-#undef  IRQ_SPORT0
 
-//#undef IRQ_SPORT0_RX
-//#undef IRQ_SPORT0_TX
+#undef DEF_IRQ_SPORT0_RX
+#undef DEF_IRQ_SPORT0_TX
 
-#ifdef IRQ_SPORT0_RX
+#ifdef DEF_IRQ_SPORT0_RX
 static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
@@ -108,7 +113,7 @@ static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *reg
 }
 #endif
 
-#ifdef IRQ_SPORT0_TX
+#ifdef DEF_IRQ_SPORT0_TX
 static irqreturn_t ad1981b_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
@@ -177,6 +182,21 @@ static void ad1981b_handler(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 #endif
+
+static int ac97_sport_handle_irq(void)
+{
+
+	int irqstatus;
+
+		if (ac97_sport_handle_rx() == 0)
+		irqstatus |= 0x01;
+
+		if(ac97_sport_handle_tx() == 0)
+		irqstatus |= 0x02;
+	
+	return irqstatus;
+
+}
 
 /*
  * the kernel representation
@@ -424,12 +444,44 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME, (int *)arg);
 	case SNDCTL_DSP_RESET:
 		return 0;
-	case SNDCTL_DSP_SPEED:	// needed: 48000
+	case SNDCTL_DSP_SPEED:
+#ifdef USE_FIXED_SAMPLERATE
 		return 48000;
-	case SNDCTL_DSP_STEREO:
+#else
+		/* set sampling rate */
+		if (get_user(val, (int *)arg))
+			 return -EFAULT;
+
+
+		if (val >= 7000 && val <= 48000)
+		{
+			if (file->f_mode & FMODE_WRITE)
+				ac97_sport_set_register(0x2C, val);
+			if (file->f_mode & FMODE_READ)
+				ac97_sport_set_register(0x32, val);
+		}
 		return 0;
-	case SNDCTL_DSP_CHANNELS:	// needed: 2 ONLY stereo!!
-		return put_user(2, (int *)arg);
+#endif
+	case SNDCTL_DSP_STEREO:
+		if (get_user(val, (int *)arg))
+			 return -EFAULT;
+	  if (val >= 0) {
+		if (val > 1)
+			return -EINVAL;
+		ac97_set_channels(val+1);
+	  } else
+	  	return -EINVAL;	 
+		return 0;
+  	case SNDCTL_DSP_CHANNELS:
+	  if (get_user(val, (int*)arg)) 
+	  	return -EFAULT;
+	  if (val != 0) {
+		if (val > 2)
+			return -EINVAL;
+		ac97_set_channels(val);
+	  }
+	  return put_user(ac97_get_channels(), (int *)arg);
+
 	case SNDCTL_DSP_GETFMTS:	// needed: only AFMT_S16_LE
 		return put_user(AFMT_S16_LE, (int *)arg);
 	case SNDCTL_DSP_SETFMT:	// needed: AFMT_S16_LE
@@ -468,27 +520,29 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 	case SNDCTL_DSP_GETBLKSIZE:
 		return put_user(FRAGMENT_SIZE << 2, (int *)arg);
 	case SNDCTL_DSP_SETFRAGMENT:
-		if (get_user(val, (int *)arg))
-			return -EFAULT;
-		val = 1 << (val & 0xffff);
-		printk(KERN_INFO "ad1981b: Trying to set fragment size to %d\n",
-		       val);
-		if (val == FRAGMENT_SIZE << 2)
-			return 0;
-		else
-			return -EINVAL;
+		  if (get_user(val, (int *)arg))
+			  return -EFAULT;
+		  val = 1 << (val & 0xffff);
+		  if (ac97_get_channels() == 1)
+			val *= 2;
+		  printk(KERN_WARNING "ad1981b: Trying to set fragment size to %d\n", val);
+		  if (val == FRAGMENT_SIZE << 2)
+			  return 0;
+		  else
+			  return -EINVAL;
 	case SNDCTL_DSP_SUBDIVIDE:
 	case SOUND_PCM_READ_RATE:
 		return put_user(48000, (int *)arg);
 	case SOUND_PCM_READ_CHANNELS:
-		return put_user(2, (int *)arg);
+		return put_user(ac97_get_channels(), (int *)arg);
 	case SOUND_PCM_READ_BITS:
-		return put_user(16, (int *)arg);
+		 return put_user(16, (int *)arg);
 	case SOUND_PCM_WRITE_FILTER:
 	case SNDCTL_DSP_SETSYNCRO:
 	case SOUND_PCM_READ_FILTER:
-		return -EINVAL;
-	}
+	  return -EINVAL;
+  }
+
 
 	return -EINVAL;
 
@@ -522,12 +576,45 @@ static struct file_operations ad1981b_audio_fops = {
 	.release = ad1981b_release,
 };
 
+
+#ifdef QUICK_HACK_PROC_VOLUME
+static int ad1981_write_proc(struct file *file, const char __user * buffer,
+                           unsigned long count, void *data)
+{
+	s8 line[16];
+	u32 val=0;
+
+	if (count <= 16){
+		copy_from_user(line, buffer, count);
+		val = simple_strtoul(line, NULL, 0);
+	}
+
+		if (val >= 0 && val <= 32)
+		{
+			ac97_sport_set_register(0x18, val | (val << 8));  // AC97_PCM_OUT_VOLUME unmute
+			ac97_sport_set_register(0x04, val | (val << 8));  // AC97_HP_OUT_VOLUME unmute
+		}
+
+	return count;
+}
+
+
+static int ad1981_read_proc(char *page, char **start, off_t off,
+                         int count, int *eof, void *data)
+{
+	return -1;
+}
+#endif
+
 /*
  * module initialisation
  */
 
 static int __init ad1981b_install(void)
 {
+
+	struct proc_dir_entry *entry;
+
 	/* Install the audio device, register interrupts, etc */
 	dev_audio = register_sound_dsp(&ad1981b_audio_fops, -1);
 	dev_mixer = register_sound_mixer(&ad1981b_mixer_fops, -1);
@@ -545,11 +632,11 @@ static int __init ad1981b_install(void)
 	}
 #endif
 
-	printk(KERN_INFO "Astent AD1981B driver loading...\n");
+	printk(KERN_DEBUG "AD1981B AC97 OSS driver loading...\n");
 	ac97_sport_open(BUFFER_SIZE, FRAGMENT_SIZE);
 #if defined(IRQ_SPORT0)
 	if (request_irq
-	    (IRQ_SPORT0, ad1981b_handler, 0, "SPORT0 AC97 Codec",
+	    (IRQ_SPORT0, ad1981b_handler, IRQF_DISABLED , "SPORT0 AC97 Codec",
 	     NULL)) {
 		printk(KERN_ERR "ad1981b: unable to allocate irq %d.\n",
 		       IRQ_SPORT0);
@@ -561,33 +648,32 @@ static int __init ad1981b_install(void)
 		return -ENODEV;
 	}
 	printk(KERN_DEBUG "- Enabling IRQ %d\n", IRQ_SPORT0);
-	enable_irq(IRQ_SPORT0);
 #endif
-#if defined(IRQ_SPORT0_RX)
+#if defined(DEF_IRQ_SPORT0_RX)
 	if (request_irq
-	    (IRQ_SPORT0_RX, ad1981b_rx_handler, SA_INTERRUPT, "SPORT0 RX", NULL)) {
+	    (DEF_IRQ_SPORT0_RX, ad1981b_rx_handler, IRQF_DISABLED , "SPORT0 RX", NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
-		       IRQ_SPORT0_RX);
+		       DEF_IRQ_SPORT0_RX);
 		unregister_sound_mixer(dev_mixer);
 		unregister_sound_dsp(dev_audio);
 
 		ac97_sport_close();
 		return -ENODEV;
 	}
-	printk(KERN_DEBUG "- Enabling RX Interrupt (%d)\n", IRQ_SPORT0_RX);
+	printk(KERN_DEBUG "- Enabling RX Interrupt (%d)\n", DEF_IRQ_SPORT0_RX);
 #endif
-#if defined(IRQ_SPORT0_TX)
+#if defined(DEF_IRQ_SPORT0_TX)
 	if (request_irq
-	    (IRQ_SPORT0_TX, ad1981b_tx_handler, SA_INTERRUPT, "SPORT0 TX", NULL)) {
+	    (DEF_IRQ_SPORT0_TX, ad1981b_tx_handler, IRQF_DISABLED , "SPORT0 TX", NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
-		       IRQ_SPORT0_TX);
+		       DEF_IRQ_SPORT0_TX);
 		unregister_sound_mixer(dev_mixer);
 		unregister_sound_dsp(dev_audio);
 
 		ac97_sport_close();
 		return -ENODEV;
 	}
-	printk(KERN_DEBUG "- Enabling TX Interrupt (%d)\n", IRQ_SPORT0_TX);
+	printk(KERN_DEBUG "- Enabling TX Interrupt (%d)\n", DEF_IRQ_SPORT0_TX);
 #endif
 #if defined(AC97_DEMO)
 	printk(KERN_INFO "- Going into TalkThrough Mode\n");
@@ -597,7 +683,21 @@ static int __init ad1981b_install(void)
 	printk(KERN_DEBUG "- Initializing\n");
 	ac97_sport_start();
 
-	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d), IRQ(%d)\n",IRQ_SPORT0_RX,IRQ_SPORT0_TX);
+#ifdef DEF_IRQ_SPORT0_RX
+	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d), IRQ(%d)\n",DEF_IRQ_SPORT0_RX,DEF_IRQ_SPORT0_TX);
+#else
+	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d)\n",IRQ_SPORT0);
+#endif
+
+#ifdef QUICK_HACK_PROC_VOLUME
+	if ((entry = create_proc_entry("driver/ad1981_volume", 0, NULL)) == NULL) {
+		printk(KERN_ERR "%s: unable to create /proc entry\n", __FUNCTION__);
+	} else {
+		entry->read_proc = ad1981_read_proc;
+		entry->write_proc = ad1981_write_proc;
+		entry->data = NULL;
+	}
+#endif
 
 	return 0;
 }

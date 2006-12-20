@@ -106,6 +106,8 @@ ssize_t ac97_audio_write_max_bytes(void);
 int ac97_wait_for_audio_read_with_timeout(unsigned long timeout);
 int ac97_wait_for_audio_write_with_timeout(unsigned long timeout);
 
+int ac97_get_channels(void);
+void ac97_set_channels(int channels);
 
 wait_queue_head_t* ac97_get_read_waitqueue(void);
 wait_queue_head_t* ac97_get_write_waitqueue(void);

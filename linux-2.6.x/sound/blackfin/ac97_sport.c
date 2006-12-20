@@ -112,6 +112,7 @@ struct ac97_sport_dev_t
 
 	int codec_ready;        // we received frames with the 'valid' bit set
 	int codec_initialized;  // we sent the ac97 initialization
+	int stereo;
 
 	wait_queue_head_t audio_in_wait;
 	wait_queue_head_t audio_out_wait;
@@ -268,6 +269,7 @@ int ac97_sport_open(size_t bufsize, size_t fragsize)
 
 	dev.tx_desc = NULL;
 	dev.rx_desc = NULL;
+	dev.stereo = 1;
 
 	if (!dev.rxbuf || !dev.txbuf || !dev.cmd_count) {
 	  ac97_sport_close();
@@ -335,19 +337,27 @@ void ac97_sport_close(void)
 	return;
 }
 
+int ac97_get_channels(void) 
+{ 
+	return dev.stereo ? 2 : 1; 
+}
+
+void ac97_set_channels(int channels) 
+{ 
+	dev.stereo = channels == 2 ? 1 : 0;
+	printk(KERN_DEBUG "ad1981b: %s\n", dev.stereo ? "stereo" : "mono");
+}
 
 
 void ac97_sport_start(void)
 {
 	sport_enable(1,1);
 }
+
 void ac97_sport_stop(void)
 {
 	sport_enable(-1,-1);
 }
-
-
-
 
 // short circuit rx and tx audio, and set mixer for talkthrough mode
 
@@ -395,7 +405,7 @@ static void enqueue_cmd(__u16 addr, __u16 data)
 	nextwrite[dev.cmd_count[nextfrag]].ac97_tag  |= TAG_CMD;
 	++dev.cmd_count[nextfrag];
 #ifdef AC97_SPORT_DEBUG
-	printk(KERN_INFO "ac97_sport: Inserting %02x/%04x into fragment %d\n",
+	printk(KERN_DEBUG "ac97_sport: Inserting %02x/%04x into fragment %d\n",
 			addr >> 8, data, nextfrag);
 #endif
 }
@@ -411,7 +421,7 @@ static void init_ac97(void)
 	//	enqueue_cmd((i<<8)|0x8000, 0);
 
 	/* Initialize the AC97 */
-	ac97_sport_set_register(0x2a, 0x0001);  // set variable bitrate
+//	ac97_sport_set_register(0x2a, 0x0001);  // set variable bitrate
 	ac97_sport_set_register(0x02, 0x0000);  // AC97_MASTER_VOLUME  unmute
 	ac97_sport_set_register(0x18, 0x0000);  // AC97_PCM_OUT_VOLUME unmute
 
@@ -445,8 +455,8 @@ int ac97_sport_handle_rx(void)
 	int prevfrag, nowready;
 	struct ac97_frame* fragp;
 
-//	if (!(DMA3->IRQ_STATUS & DMA_DONE))
-//		return -EINPROGRESS;
+	if (!(DMA3->IRQ_STATUS & DMA_DONE))
+		return -EINPROGRESS;
 
 	prevfrag = set_current_rx_fragment();
 	decfrag(&prevfrag);
@@ -458,7 +468,7 @@ int ac97_sport_handle_rx(void)
 
 #if defined(AC97_SPORT_DEBUG)
 	if (nowready != dev.codec_ready)
-		printk(KERN_INFO "ac97_sport: Codec state changed to"
+		printk(KERN_DEBUG "ac97_sport: Codec state changed to"
 				" '%sready'\n", (nowready) ? "" : "not " );
 #endif
 	dev.codec_ready = nowready;
@@ -488,7 +498,7 @@ int ac97_sport_handle_tx(void)
 
 		if (!dev.codec_initialized) {
 #ifdef AC97_SPORT_DEBUG
-			printk(KERN_INFO "ac97_sport: Sending initialization commands.\n");
+			printk(KERN_DEBUG "ac97_sport: Sending initialization commands.\n");
 #endif
 			init_ac97();
 	}
@@ -590,8 +600,10 @@ static int tx_used(void)
 }
 
 /* note implicit in next few lines: 1 sample per frame */
-#define BYTES_PER_SAMPLE	sizeof(__u32)
+
+#define BYTES_PER_SAMPLE	(dev.stereo ? sizeof(__u32) : sizeof(__u16))
 #define LOG_BYTES_PER_SAMPLE	2
+
 ssize_t ac97_audio_read_min_bytes(void)
 {
 	return rx_used() * BYTES_PER_SAMPLE;
@@ -615,94 +627,172 @@ int tx_would_overflow(ssize_t bytes_to_write)
 }
 
 
-// mem2mem dma?  zero overhead loop?
-static void move_frames_to_continuous(__u32 *dest, struct ac97_frame *src, size_t count)
+static void move_frames_to_pcm16(short* dest, struct ac97_frame* src, size_t count)
 {
-	while(count--)
-		*(dest++) = (src++)->ac97_pcm;
+	while (count--)
+	{
+		/* Left channel? */
+		*(dest++) = (short)(((src++)->ac97_pcm & 0xffff0000) >> 16);
+	}
+}
+
+static void move_frames_to_pcm32(__u32* dest, struct ac97_frame* src, size_t count){
+
+  while(count--)
+    *(dest++) = (src++)->ac97_pcm;
+
 }
 
 
 /* check for overflow or underflow before calling this */
-/* stereo data means 1 uint_32 per sample (and we have 1 sample per frame */
-ssize_t ac97_sport_get_pcm_to_user(uint32_t *pcmdata, size_t /* sample_ */ count)
+ssize_t ac97_sport_get_pcm16_to_user(uint16_t* pcmdata, size_t count)
 {
 	int cnt = count;
 
-	if ((dev.rx_tail + count) >= dev.bufsize) {
+	while (count > 0)
+	{
+		size_t tomove;
 
-		count = dev.bufsize - dev.rx_tail;
+		tomove = count > dev.bufsize - dev.rx_tail ? dev.bufsize - dev.rx_tail : count;
 
- 		if (count) {
-			move_frames_to_continuous(pcmdata, dev.rxbuf+dev.rx_tail, count);
-			pcmdata += count;
+		if ( tomove > 0 )
+		{
+			move_frames_to_pcm16( pcmdata, dev.rxbuf + dev.rx_tail, tomove );
+			pcmdata += tomove;
+			dev.rx_tail += tomove;
+			count -= tomove;
 		}
-		count = cnt - count;
-		dev.rx_tail = 0;
-
+		if (dev.rx_tail >= dev.bufsize) dev.rx_tail = 0;
 	}
-
-	if (count) {
-		move_frames_to_continuous(pcmdata, dev.rxbuf+dev.rx_tail, count );
-		dev.rx_tail += count;
-	}
-
 	return cnt;
 }
 
-ssize_t ac97_audio_read(uint8_t *pcmdata, size_t len)
-{
-	int samples_to_read, samples_read, bytes_read = 0;
-
-	if (!rx_would_underflow(len)) {
-		samples_to_read = len >> LOG_BYTES_PER_SAMPLE;
-		samples_read = ac97_sport_get_pcm_to_user((uint32_t*)pcmdata, samples_to_read);
-		bytes_read = samples_read << LOG_BYTES_PER_SAMPLE;
-	}
-	return bytes_read;
-}
-
-static void move_continuous_to_frames(struct ac97_frame *dest, const __u32 *src, size_t count)
-{
-	while (count--) {
-		 dest->ac97_tag |= TAG_VALID | TAG_PCM; /* ?  mh */
-		(dest++)->ac97_pcm = *(src++);
-	}
-}
-
-/* check for overflow or underflow before calling this */
-ssize_t ac97_sport_put_pcm_from_user(const uint32_t *pcmdata, size_t count)
+/* stereo data means 1 uint_32 per sample (and we have 1 sample per frame */
+ssize_t ac97_sport_get_pcm32_to_user(uint32_t* pcmdata, size_t /* sample_ */ count )
 {
 	int cnt = count;
 
-	if ((dev.tx_head + count) >= dev.bufsize) {
+	while(count > 0)
+	{
+		size_t tomove;
+
+		tomove = count > dev.bufsize - dev.rx_tail ? dev.bufsize - dev.rx_tail : count;
+
+		if ( tomove > 0 )
+		{
+			move_frames_to_pcm32( pcmdata, dev.rxbuf + dev.rx_tail, tomove );
+			pcmdata += tomove;
+			dev.rx_tail += tomove;
+			count -= tomove;
+		}
+		if (dev.rx_tail >= dev.bufsize) dev.rx_tail = 0;
+	}
+	return cnt;
+}
+
+ssize_t ac97_audio_read(uint8_t* pcmdata, size_t len)
+{
+	int samples_to_read, samples_read, bytes_read = 0;
+
+	if (!rx_would_underflow(len))
+	{
+		if (dev.stereo) {
+			samples_to_read = len >> 2;
+			samples_read = ac97_sport_get_pcm32_to_user((uint32_t*)pcmdata, samples_to_read);
+			bytes_read = samples_read << 2;
+		} else {
+			samples_to_read = len >> 1;
+			samples_read = ac97_sport_get_pcm16_to_user((uint16_t*)pcmdata, samples_to_read);
+			bytes_read = samples_read << 1;
+		}
+	} 
+	return bytes_read;
+}
+
+static void move_pcm16_to_frames(struct ac97_frame* dest, const __u16* src, size_t count)
+{
+	while (count--) {
+		(dest++)->ac97_pcm = (*src << 16) | *src;
+		src++;
+	}
+}
+
+static void move_pcm32_to_frames(struct ac97_frame* dest, const __u32* src, size_t count)
+{
+	while(count--){
+	  // dest->ac97_tag |= TAG_VALID | TAG_PCM; /*mh*/
+	  (dest++)->ac97_pcm = *(src++);
+	}
+}
+
+ssize_t ac97_sport_put_pcm16_from_user( const uint16_t* pcmdata, size_t count )
+{
+	int cnt = count;
+
+	if( (dev.tx_head + count) >= dev.bufsize ){
+
 
 		count = dev.bufsize - dev.tx_head;
 
-		if (count) {
-			move_continuous_to_frames(dev.txbuf+dev.tx_head, pcmdata, count);
+		if(count){
+			move_pcm16_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
 			pcmdata += count;
 		}
 		count = cnt-count;
 		dev.tx_head = 0;
 	}
-
-	if (count) {
-		move_continuous_to_frames(dev.txbuf+dev.tx_head, pcmdata, count);
+	
+	if( count ){
+		move_pcm16_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
 		dev.tx_head += count;
-	}
 
+	}
+	
 	return cnt;
 }
 
-ssize_t ac97_audio_write(const uint8_t *pcmdata, size_t len)
+/* check for overflow or underflow before calling this */
+ssize_t ac97_sport_put_pcm32_from_user( const uint32_t* pcmdata, size_t count )
+{
+	int cnt = count;
+
+	if( (dev.tx_head + count) >= dev.bufsize ){
+
+		count = dev.bufsize - dev.tx_head;
+
+		if(count){
+			move_pcm32_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
+			pcmdata += count;
+		}
+		count = cnt-count;
+		dev.tx_head = 0;
+	}
+	
+	if( count ){
+		move_pcm32_to_frames( dev.txbuf+dev.tx_head, pcmdata, count ); 
+		dev.tx_head += count;
+
+	}
+	
+	return cnt;
+}
+
+ssize_t ac97_audio_write(const uint8_t* pcmdata, size_t len)
 {
 	int samples_to_write, samples_written, bytes_written = 0;
 
-	if (!tx_would_overflow(len)) {
-		samples_to_write = len >> LOG_BYTES_PER_SAMPLE;
-		samples_written = ac97_sport_put_pcm_from_user((uint32_t*)pcmdata, samples_to_write);
-		bytes_written = samples_written << LOG_BYTES_PER_SAMPLE;
+	if (!tx_would_overflow(len))
+	{
+		if (dev.stereo)
+		{
+			samples_to_write = len >> 2;
+			samples_written = ac97_sport_put_pcm32_from_user((uint32_t*)pcmdata, samples_to_write);
+			bytes_written = samples_written << 2;
+		} else {
+			samples_to_write = len >> 1;
+			samples_written = ac97_sport_put_pcm16_from_user((uint16_t*)pcmdata, samples_to_write);
+			bytes_written = samples_written << 1;
+		}
 	}
 	return bytes_written;
 }
@@ -710,8 +800,7 @@ ssize_t ac97_audio_write(const uint8_t *pcmdata, size_t len)
 void ac97_sport_silence(void)
 {
 	int i;
-	for (i=0; i<dev.bufsize; ++i)
-		dev.txbuf[i].ac97_pcm = 0;
+	for(i=0; i<dev.bufsize; ++i) dev.txbuf[i].ac97_pcm = 0;
 }
 
 
@@ -722,16 +811,17 @@ int ac97_wait_for_audio_read_with_timeout(unsigned long timeout)
 
 int ac97_wait_for_audio_write_with_timeout(unsigned long timeout)
 {
+
 	return interruptible_sleep_on_timeout(&dev.audio_out_wait, timeout);
 }
 
 
-wait_queue_head_t *ac97_get_read_waitqueue(void)
-{
-	return &dev.audio_in_wait;
+wait_queue_head_t* ac97_get_read_waitqueue(void)
+{ 
+	return &dev.audio_in_wait; 
 }
 
-wait_queue_head_t *ac97_get_write_waitqueue(void)
-{
-	return &dev.audio_out_wait;
+wait_queue_head_t* ac97_get_write_waitqueue(void)
+{ 
+	return &dev.audio_out_wait; 
 }
