@@ -65,7 +65,6 @@
  *
  */
 
-
 /*
  * since we can have only 1 device in the b533 I removed the dev argument
  * and made it a static variable in ac97_sport.c
@@ -75,7 +74,7 @@
 // struct ac97_sport_dev_t;
 
 // bufsize: in units of ac97 frames
-int  ac97_sport_open(size_t bufsize, size_t fragsize);
+int ac97_sport_open(size_t bufsize, size_t fragsize);
 
 void ac97_sport_set_talkthrough_mode(void);
 
@@ -85,20 +84,18 @@ void ac97_sport_close(void);
 int ac97_sport_handle_rx(void);
 int ac97_sport_handle_tx(void);
 
-
 // these functions return -EAGAIN if the cmdfifo is full or the cache is still dirty
 // and -EINVAL if reg not even and between 0 and 127
 // 0 means ok.
 
-int  ac97_sport_set_register(int reg, uint16_t val);
+int ac97_sport_set_register(int reg, uint16_t val);
 
-int  ac97_sport_get_register(int reg, uint16_t* pval);
-
+int ac97_sport_get_register(int reg, uint16_t * pval);
 
 //ssize_t ac97_sport_put_pcm_from_user(uint32_t* pcmdata, size_t len);
 //ssize_t ac97_sport_get_pcm_to_user(  uint32_t* pcmdata, size_t len);
-ssize_t ac97_audio_write(const uint8_t* pcmdata, size_t len);
-ssize_t ac97_audio_read(uint8_t* pcmdata, size_t len);
+ssize_t ac97_audio_write(const uint8_t * pcmdata, size_t len);
+ssize_t ac97_audio_read(uint8_t * pcmdata, size_t len);
 
 ssize_t ac97_audio_read_min_bytes(void);
 ssize_t ac97_audio_write_max_bytes(void);
@@ -109,8 +106,8 @@ int ac97_wait_for_audio_write_with_timeout(unsigned long timeout);
 int ac97_get_channels(void);
 void ac97_set_channels(int channels);
 
-wait_queue_head_t* ac97_get_read_waitqueue(void);
-wait_queue_head_t* ac97_get_write_waitqueue(void);
+wait_queue_head_t *ac97_get_read_waitqueue(void);
+wait_queue_head_t *ac97_get_write_waitqueue(void);
 
 void ac97_sport_silence(void);
 

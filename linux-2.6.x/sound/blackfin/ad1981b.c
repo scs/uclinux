@@ -73,12 +73,12 @@
 /* Use only one interrpt for RX and TX*/
 #define  IRQ_SPORT0 IRQ_SPORT0_RX
 
-
 #undef DEF_IRQ_SPORT0_RX
 #undef DEF_IRQ_SPORT0_TX
 
 #ifdef DEF_IRQ_SPORT0_RX
-static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
 	static int rx_ints_per_jiffie = 0;
@@ -114,7 +114,8 @@ static irqreturn_t ad1981b_rx_handler(int irq, void *dev_id, struct pt_regs *reg
 #endif
 
 #ifdef DEF_IRQ_SPORT0_TX
-static irqreturn_t ad1981b_tx_handler(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t ad1981b_tx_handler(int irq, void *dev_id,
+				      struct pt_regs *regs)
 {
 	static unsigned long last_print = 0;
 	static int tx_ints_per_jiffie = 0;
@@ -188,12 +189,12 @@ static int ac97_sport_handle_irq(void)
 
 	int irqstatus;
 
-		if (ac97_sport_handle_rx() == 0)
+	if (ac97_sport_handle_rx() == 0)
 		irqstatus |= 0x01;
 
-		if(ac97_sport_handle_tx() == 0)
+	if (ac97_sport_handle_tx() == 0)
 		irqstatus |= 0x02;
-	
+
 	return irqstatus;
 
 }
@@ -225,7 +226,7 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 	if (cmd == OSS_GETVERSION)
-		return put_user(SOUND_VERSION, (int *)arg);
+		return put_user(SOUND_VERSION, (int *) arg);
 
 	if (_IOC_TYPE(cmd) != 'M' || _IOC_SIZE(cmd) != sizeof(int))
 		return -EINVAL;
@@ -244,22 +245,22 @@ static int ad1981b_mixer_ioctl(struct inode *inode, struct file *file,
 		case SOUND_MIXER_STEREODEVS:	/* Mixer channels supporting stereo */
 		case SOUND_MIXER_CAPS:
 
-		/* read a specific mixer */
+			/* read a specific mixer */
 		default:
-		break;
+			break;
 		}		// switch
 
-		return put_user(val, (int *)arg);
+		return put_user(val, (int *) arg);
 
 	} else {		// if _IOC_READ
 
-		if (get_user(val, (int *)arg))
+		if (get_user(val, (int *) arg))
 			return -EFAULT;
 
 		switch (_IOC_NR(cmd)) {
 		case SOUND_MIXER_RECSRC:	/* Arg contains a bit for each recording source */
 		default:
-		break;
+			break;
 		}		// switch
 
 	}
@@ -280,10 +281,10 @@ static int ad1981b_mixer_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_mixer_fops = {
-	.owner   = THIS_MODULE,
-	.llseek  = ad1981b_mixer_llseek,
-	.ioctl   = ad1981b_mixer_ioctl,
-	.open    = ad1981b_mixer_open,
+	.owner = THIS_MODULE,
+	.llseek = ad1981b_mixer_llseek,
+	.ioctl = ad1981b_mixer_ioctl,
+	.open = ad1981b_mixer_open,
 	.release = ad1981b_mixer_release,
 };
 
@@ -306,7 +307,6 @@ static ssize_t ad1981b_read(struct file *file, char *buffer, size_t count,
 
 	size_t toread;
 	ssize_t ret = 0;
-
 
 	count &= ~3;
 
@@ -383,7 +383,6 @@ static ssize_t ad1981b_write(struct file *file, const char *buffer,
 				       "ad1981b: Timeout waiting to write audio.\n");
 			}
 
-
 			if (signal_pending(current)) {
 
 				ret = ret ? ret : -ERESTARTSYS;
@@ -397,7 +396,6 @@ static ssize_t ad1981b_write(struct file *file, const char *buffer,
 		count -= towrite;
 		buffer += towrite;
 		ret += towrite;
-
 
 	}
 
@@ -434,14 +432,14 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 
 	switch (cmd) {
 	case OSS_GETVERSION:
-		return put_user(SOUND_VERSION, (int *)arg);
+		return put_user(SOUND_VERSION, (int *) arg);
 	case SNDCTL_DSP_SYNC:
 		if (file->f_mode & FMODE_WRITE)
 
 	case SNDCTL_DSP_SETDUPLEX:
 			return 0;
 	case SNDCTL_DSP_GETCAPS:
-		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME, (int *)arg);
+		return put_user(DSP_CAP_DUPLEX | DSP_CAP_REALTIME, (int *) arg);
 	case SNDCTL_DSP_RESET:
 		return 0;
 	case SNDCTL_DSP_SPEED:
@@ -449,12 +447,10 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		return 48000;
 #else
 		/* set sampling rate */
-		if (get_user(val, (int *)arg))
-			 return -EFAULT;
+		if (get_user(val, (int *) arg))
+			return -EFAULT;
 
-
-		if (val >= 7000 && val <= 48000)
-		{
+		if (val >= 7000 && val <= 48000) {
 			if (file->f_mode & FMODE_WRITE)
 				ac97_sport_set_register(0x2C, val);
 			if (file->f_mode & FMODE_READ)
@@ -463,29 +459,29 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		return 0;
 #endif
 	case SNDCTL_DSP_STEREO:
-		if (get_user(val, (int *)arg))
-			 return -EFAULT;
-	  if (val >= 0) {
-		if (val > 1)
+		if (get_user(val, (int *) arg))
+			return -EFAULT;
+		if (val >= 0) {
+			if (val > 1)
+				return -EINVAL;
+			ac97_set_channels(val + 1);
+		} else
 			return -EINVAL;
-		ac97_set_channels(val+1);
-	  } else
-	  	return -EINVAL;	 
 		return 0;
-  	case SNDCTL_DSP_CHANNELS:
-	  if (get_user(val, (int*)arg)) 
-	  	return -EFAULT;
-	  if (val != 0) {
-		if (val > 2)
-			return -EINVAL;
-		ac97_set_channels(val);
-	  }
-	  return put_user(ac97_get_channels(), (int *)arg);
+	case SNDCTL_DSP_CHANNELS:
+		if (get_user(val, (int *) arg))
+			return -EFAULT;
+		if (val != 0) {
+			if (val > 2)
+				return -EINVAL;
+			ac97_set_channels(val);
+		}
+		return put_user(ac97_get_channels(), (int *) arg);
 
 	case SNDCTL_DSP_GETFMTS:	// needed: only AFMT_S16_LE
-		return put_user(AFMT_S16_LE, (int *)arg);
+		return put_user(AFMT_S16_LE, (int *) arg);
 	case SNDCTL_DSP_SETFMT:	// needed: AFMT_S16_LE
-		return put_user(AFMT_S16_LE, (int *)arg);
+		return put_user(AFMT_S16_LE, (int *) arg);
 	case SNDCTL_DSP_POST:
 		return 0;
 	case SNDCTL_DSP_GETTRIGGER:
@@ -499,7 +495,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		abinfo.bytes = ac97_audio_write_max_bytes();
 		abinfo.fragstotal = BUFFER_SIZE / FRAGMENT_SIZE;
 		abinfo.fragments = abinfo.bytes / (FRAGMENT_SIZE << 2);
-		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ?
+		return copy_to_user((void *) arg, &abinfo, sizeof(abinfo)) ?
 		    -EFAULT : 0;
 	case SNDCTL_DSP_GETISPACE:
 		if (!(file->f_mode & FMODE_READ))
@@ -508,7 +504,7 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 		abinfo.bytes = ac97_audio_read_min_bytes();
 		abinfo.fragstotal = BUFFER_SIZE / FRAGMENT_SIZE;
 		abinfo.fragments = abinfo.bytes / (FRAGMENT_SIZE << 2);
-		return copy_to_user((void *)arg, &abinfo, sizeof(abinfo)) ?
+		return copy_to_user((void *) arg, &abinfo, sizeof(abinfo)) ?
 		    -EFAULT : 0;
 	case SNDCTL_DSP_NONBLOCK:
 		file->f_flags |= O_NONBLOCK;
@@ -518,31 +514,31 @@ static int ad1981b_ioctl(struct inode *inode, struct file *file,
 	case SNDCTL_DSP_GETOPTR:
 		return -EINVAL;
 	case SNDCTL_DSP_GETBLKSIZE:
-		return put_user(FRAGMENT_SIZE << 2, (int *)arg);
+		return put_user(FRAGMENT_SIZE << 2, (int *) arg);
 	case SNDCTL_DSP_SETFRAGMENT:
-		  if (get_user(val, (int *)arg))
-			  return -EFAULT;
-		  val = 1 << (val & 0xffff);
-		  if (ac97_get_channels() == 1)
+		if (get_user(val, (int *) arg))
+			return -EFAULT;
+		val = 1 << (val & 0xffff);
+		if (ac97_get_channels() == 1)
 			val *= 2;
-		  printk(KERN_WARNING "ad1981b: Trying to set fragment size to %d\n", val);
-		  if (val == FRAGMENT_SIZE << 2)
-			  return 0;
-		  else
-			  return -EINVAL;
+		printk(KERN_WARNING
+		       "ad1981b: Trying to set fragment size to %d\n", val);
+		if (val == FRAGMENT_SIZE << 2)
+			return 0;
+		else
+			return -EINVAL;
 	case SNDCTL_DSP_SUBDIVIDE:
 	case SOUND_PCM_READ_RATE:
-		return put_user(48000, (int *)arg);
+		return put_user(48000, (int *) arg);
 	case SOUND_PCM_READ_CHANNELS:
-		return put_user(ac97_get_channels(), (int *)arg);
+		return put_user(ac97_get_channels(), (int *) arg);
 	case SOUND_PCM_READ_BITS:
-		 return put_user(16, (int *)arg);
+		return put_user(16, (int *) arg);
 	case SOUND_PCM_WRITE_FILTER:
 	case SNDCTL_DSP_SETSYNCRO:
 	case SOUND_PCM_READ_FILTER:
-	  return -EINVAL;
-  }
-
+		return -EINVAL;
+	}
 
 	return -EINVAL;
 
@@ -565,42 +561,39 @@ static int ad1981b_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ad1981b_audio_fops = {
-	.owner   = THIS_MODULE,
-	.llseek  = ad1981b_llseek,
-	.read    = ad1981b_read,
-	.write   = ad1981b_write,
-	.poll    = ad1981b_poll,
-	.ioctl   = ad1981b_ioctl,
-	.mmap    = ad1981b_mmap,
-	.open    = ad1981b_open,
+	.owner = THIS_MODULE,
+	.llseek = ad1981b_llseek,
+	.read = ad1981b_read,
+	.write = ad1981b_write,
+	.poll = ad1981b_poll,
+	.ioctl = ad1981b_ioctl,
+	.mmap = ad1981b_mmap,
+	.open = ad1981b_open,
 	.release = ad1981b_release,
 };
 
-
 #ifdef QUICK_HACK_PROC_VOLUME
 static int ad1981_write_proc(struct file *file, const char __user * buffer,
-                           unsigned long count, void *data)
+			     unsigned long count, void *data)
 {
 	s8 line[16];
-	u32 val=0;
+	u32 val = 0;
 
-	if (count <= 16){
+	if (count <= 16) {
 		copy_from_user(line, buffer, count);
 		val = simple_strtoul(line, NULL, 0);
 	}
 
-		if (val >= 0 && val <= 32)
-		{
-			ac97_sport_set_register(0x18, val | (val << 8));  // AC97_PCM_OUT_VOLUME unmute
-			ac97_sport_set_register(0x04, val | (val << 8));  // AC97_HP_OUT_VOLUME unmute
-		}
+	if (val >= 0 && val <= 32) {
+		ac97_sport_set_register(0x18, val | (val << 8));	// AC97_PCM_OUT_VOLUME unmute
+		ac97_sport_set_register(0x04, val | (val << 8));	// AC97_HP_OUT_VOLUME unmute
+	}
 
 	return count;
 }
 
-
 static int ad1981_read_proc(char *page, char **start, off_t off,
-                         int count, int *eof, void *data)
+			    int count, int *eof, void *data)
 {
 	return -1;
 }
@@ -621,14 +614,14 @@ static int __init ad1981b_install(void)
 
 #if defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
 	if (0) {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PGTE|PGRE|PGSE);
-		
-		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() | PGTE | PGRE | PGSE);
+
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX()); */
 		bfin_write_PORTG_FER(bfin_read_PORTG_FER() | 0xFF00);
-		/*    printk("sport: gfer=0x%x\n", bfin_read_PORTG_FER());*/
+		/*    printk("sport: gfer=0x%x\n", bfin_read_PORTG_FER()); */
 	} else {
-		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE|PJCE(3)));
-		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX());*/
+		bfin_write_PORT_MUX(bfin_read_PORT_MUX() & ~(PJSE | PJCE(3)));
+		/*    printk("sport: mux=0x%x\n", bfin_read_PORT_MUX()); */
 	}
 #endif
 
@@ -636,7 +629,7 @@ static int __init ad1981b_install(void)
 	ac97_sport_open(BUFFER_SIZE, FRAGMENT_SIZE);
 #if defined(IRQ_SPORT0)
 	if (request_irq
-	    (IRQ_SPORT0, ad1981b_handler, IRQF_DISABLED , "SPORT0 AC97 Codec",
+	    (IRQ_SPORT0, ad1981b_handler, IRQF_DISABLED, "SPORT0 AC97 Codec",
 	     NULL)) {
 		printk(KERN_ERR "ad1981b: unable to allocate irq %d.\n",
 		       IRQ_SPORT0);
@@ -651,7 +644,8 @@ static int __init ad1981b_install(void)
 #endif
 #if defined(DEF_IRQ_SPORT0_RX)
 	if (request_irq
-	    (DEF_IRQ_SPORT0_RX, ad1981b_rx_handler, IRQF_DISABLED , "SPORT0 RX", NULL)) {
+	    (DEF_IRQ_SPORT0_RX, ad1981b_rx_handler, IRQF_DISABLED, "SPORT0 RX",
+	     NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
 		       DEF_IRQ_SPORT0_RX);
 		unregister_sound_mixer(dev_mixer);
@@ -664,7 +658,8 @@ static int __init ad1981b_install(void)
 #endif
 #if defined(DEF_IRQ_SPORT0_TX)
 	if (request_irq
-	    (DEF_IRQ_SPORT0_TX, ad1981b_tx_handler, IRQF_DISABLED , "SPORT0 TX", NULL)) {
+	    (DEF_IRQ_SPORT0_TX, ad1981b_tx_handler, IRQF_DISABLED, "SPORT0 TX",
+	     NULL)) {
 		printk(KERN_ERR "ad1981b: Unable to allocate irq %d.\n",
 		       DEF_IRQ_SPORT0_TX);
 		unregister_sound_mixer(dev_mixer);
@@ -684,14 +679,19 @@ static int __init ad1981b_install(void)
 	ac97_sport_start();
 
 #ifdef DEF_IRQ_SPORT0_RX
-	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d), IRQ(%d)\n",DEF_IRQ_SPORT0_RX,DEF_IRQ_SPORT0_TX);
+	printk(KERN_INFO
+	       "AD1981B AC97 OSS driver succesfully loaded IRQ(%d), IRQ(%d)\n",
+	       DEF_IRQ_SPORT0_RX, DEF_IRQ_SPORT0_TX);
 #else
-	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d)\n",IRQ_SPORT0);
+	printk(KERN_INFO "AD1981B AC97 OSS driver succesfully loaded IRQ(%d)\n",
+	       IRQ_SPORT0);
 #endif
 
 #ifdef QUICK_HACK_PROC_VOLUME
-	if ((entry = create_proc_entry("driver/ad1981_volume", 0, NULL)) == NULL) {
-		printk(KERN_ERR "%s: unable to create /proc entry\n", __FUNCTION__);
+	if ((entry =
+	     create_proc_entry("driver/ad1981_volume", 0, NULL)) == NULL) {
+		printk(KERN_ERR "%s: unable to create /proc entry\n",
+		       __FUNCTION__);
 	} else {
 		entry->read_proc = ad1981_read_proc;
 		entry->write_proc = ad1981_write_proc;
