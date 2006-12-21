@@ -912,7 +912,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* sys_swapon */
 	.long _sys_reboot
 	.long _sys_ni_syscall	/* old_readdir */
-	.long _sys_mmap2	/* 90 */
+	.long _sys_ni_syscall	/* sys_mmap */	/* 90 */
 	.long _sys_munmap
 	.long _sys_truncate
 	.long _sys_ftruncate

@@ -95,22 +95,6 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	return do_mmap2(addr, len, prot, flags, fd, pgoff);
 }
 
-asmlinkage int sys_mmap(unsigned long addr, unsigned long len,
-			unsigned long prot, unsigned long flags,
-			unsigned long fd, unsigned long pgoff)
-{
-	int error = -EINVAL;
-
-	if (pgoff & ~PAGE_MASK)
-		goto out;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	error = do_mmap2(addr, len, prot, flags, fd, pgoff >> PAGE_SHIFT);
-out:
-	return error;
-}
-
 asmlinkage int sys_getpagesize(void)
 {
 	return PAGE_SIZE;

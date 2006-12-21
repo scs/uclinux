@@ -92,7 +92,7 @@
 				/* 87 __NR_swapon obsolete */
 #define __NR_reboot		 88
 				/* 89 __NR_readdir obsolete */
-#define __NR_mmap		 90
+				/* 90 __NR_mmap obsolete */
 #define __NR_munmap		 91
 #define __NR_truncate		 92
 #define __NR_ftruncate		 93
