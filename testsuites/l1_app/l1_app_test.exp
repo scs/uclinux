@@ -1,0 +1,202 @@
+#!/usr/bin/expect
+
+# Main entrance
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set case_num 0
+
+incr case_num
+set timeout 2
+step "Clean src directory\n"
+spawn make clean
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nMake clean failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nMake clean.\n"
+         send_user "\nMake clean.\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+step "Build test program\n"
+spawn make
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nBuild test program failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nBuild test program done\n"
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+set spawn_id $kermit_spawn_id
+
+send "ifconfig eth0 $targetip up\r"
+sleep 15
+
+set timeout 10
+step "Copy testcase to target board\n"
+spawn rcp libhelloworld.so root@$targetip:/lib/.
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy libhelloworld.so to target board failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy libhelloworld.so to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+spawn rcp libhelloworldcpp.so root@$targetip:/lib/.
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy libhelloworld.so to target board failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy libhelloworld.so to target board done\n"
+         send_user "\nCopy libhelloworld.so to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+spawn rcp test_helloworld root@$targetip:/.
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy test_helloworld to target board failed\n"
+         case_pass $case_num
+      }
+
+      eof {
+         send_log "\nCopy test_helloworld to target board done\n"
+         send_user "\nCopy test_helloworld to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+spawn rcp test_helloworld_stack root@$targetip:/.
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy test_helloworld_stack to target board failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy test_helloworld_stack to target board done\n"
+         send_user "\nCopy test_helloworld_stack to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+set spawn_id $kermit_spawn_id
+set timeout 2
+send "/test_helloworld\r"
+while 1 {
+   expect {
+
+      -re "FAIL" {
+         send_log "\nTest for data and instruction fail\n"
+         case_fail $case_num
+      }
+
+      eof {
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
+
+send "/test_helloworld_stack\r"
+while 1 {
+   expect {
+
+      -re "FAIL" {
+         send_log "\nTest for stack fail\n"
+         case_fail $case_num
+      }
+
+      eof {
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
+
+case_pass $case_num
+
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file
