@@ -8,14 +8,13 @@ send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
 
-set argc [llength $argv]
-if { $argc < 1} {
-   puts "Usage:  $argv0 ping_ipaddr"
-   puts ""
-   exit
-}
-# grab the user specified parameters.
-set ping_ipaddr             [lindex $argv 0]
+#set argc [llength $argv]
+#if { $argc < 1} {
+#   puts "Usage:  $argv0 ping_ipaddr"
+#   puts ""
+#   exit
+#}
+#set ping_ipaddr             [lindex $argv 0]
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
@@ -23,12 +22,10 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
-set test_flag	0
+set case_num 0
+step "Start testing."
 
-sleep 5
-
-step "Start Wireless Network testing"
-
+incr case_num
 step "Set key"
 set timeout 2
 send "iwconfig eth1 essid dlink key s:12345\r"
@@ -36,14 +33,12 @@ while 1 {
    expect {
       "root:~>" {
          send_log "\nSet key done\n"
-         send_user "\nSet key done\n"
+         case_pass $case_num
          break
       }
       timeout {
          send_log "\nSet key timeout\n"
-         send_user "\nSet key timeout\n"
-         incr test_flag
-         break
+         case_fail $case_num
       }
    }
 }
@@ -54,23 +49,15 @@ send "dhcpcd eth1 &\r"
 while 1 {
    expect {
 
-#      -re "\[0-9]*" {
-#         send_log "\nStart dhcpcd for eth1\n"
-#         send_user "\nStart dhcpcd for eth1\n"
-#         break
-#      }
-
       -re ".*Connected" {
          send_log "\nNetwork is connected\n"
-         send_user "\nNetwork is connected\n"
+         case_pass $case_num
          break
       }
 
       timeout {
          send_log "\nStart dhcpcd timeout\n"
-         send_user "\nStart dhcpcd timeout\n"
-         incr test_flag
-         break
+         case_fail $case_num
       }
    }
 }
@@ -90,9 +77,7 @@ while 1 {
 
       -re ".* ESSID:\"\".*" {
          send_log "\nNot reached WLAN\n"
-         send_user "\nNot reached WLAN\n"
-         incr test_flag
-         break
+         case_fail $case_num
       }
       timeout {
          break
@@ -110,15 +95,14 @@ send "ifconfig eth1\r"
 while 1 {
    expect {
       -re "inet addr:\[0-9].*" {
-         send_user "\nGet ipaddr for wireless link\n"
+         send_log "\nGet ipaddr for wireless link\n"
+         case_pass $case_num
          break
       }
 
       timeout {
          send_log "\nifconfig timeout\n"
-         send_user "\nifconfig timeout\n"
-         incr test_flag
-         break
+         case_fail $case_num
       }
    }
 }
@@ -131,24 +115,18 @@ while 1 {
    expect {
       -re ".* 0% packet loss.*" {
          send_log "\nping remote host\n"
-         send_user "\nping remote host\n"
+         case_pass $case_num
          break
       }
       timeout {
          send_log "\nping fail\n"
-         send_user "\nping fail\n"
-         incr test_flag
-         break
+         case_fail $case_num
       }
    }
 }
 
-if { $test_flag == 0 } {
-   send_log "\nWireless network test PASS\n"
-   send_user "\nWireless network test PASS\n"
-} else {
-   send_log "\nWireless network test FAIL\n"
-   send_user "\nWireless network test FAIL\n"
-}
+all_pass
 
-exit
+send_user "Ending $argv0\n"
+
+log_file
