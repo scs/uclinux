@@ -122,7 +122,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
+   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
    
    AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
    
@@ -149,7 +149,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
     
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
+   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
    
    AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="0"   [11]="0"   [12]="0"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="1"   [24]="1" )      
    
@@ -173,7 +173,7 @@ if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
+   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
    
    AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="0"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
    
@@ -197,7 +197,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cf_card" [24]="ide_cdrom")
+   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
    
    AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
    
@@ -282,18 +282,21 @@ do
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
   cd $KERNEL_SCRIPTS/jffs2
   elif [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
   cd $KERNEL_SCRIPTS/ethernet
+  elif [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
+  cd $KERNEL_SCRIPTS/ide
   else
   cd $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}    
   fi
   
   ./build_${AUTO_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  if [ $? -ne 0 ]
+  if [ ! -f $KERNEL_SOURCE/images/linux ]
   then
         echo "$0:   Error, failed."
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
@@ -319,6 +322,8 @@ do
   cp $KERNEL_SCRIPTS/jffs2/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
   cp $KERNEL_SCRIPTS/ethernet/*_log  $THIS_LOG
+  elif [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
+  cp $KERNEL_SCRIPTS/ide/*_log  $THIS_LOG
   else
   cp $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
@@ -365,7 +370,8 @@ do
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
 
   cd $KERNEL_SCRIPTS/timer
@@ -414,7 +420,8 @@ do
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   cd $KERNEL_SCRIPTS/audio
   ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
@@ -447,8 +454,8 @@ do
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
-  
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+   rm -rf romfs/ images/
   
   ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
@@ -483,7 +490,8 @@ do
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   cd $KERNEL_SCRIPTS/snormtd
   ./build_snormtd_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
@@ -542,7 +550,8 @@ if [ $ltp -eq 1 ] ; then
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
     cd $KERNEL_SCRIPTS/ltp
     echo "change dir to $KERNEL_SCRIPTS/ltp"
@@ -610,7 +619,8 @@ for i in 0 1 2 3 4 5
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
   cd $KERNEL_SCRIPTS/spiadc
@@ -619,7 +629,7 @@ for i in 0 1 2 3 4 5
   fi
   
   ./build_${MANUAL_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1  
-  if [ $? -ne 0 ]
+  if [ ! -f $KERNEL_SOURCE/images/linux ]
   then
         echo "$0:       Error, failed."
 	tail -50 ./build_${MANUAL_TESTCASE[$i]}_kernel_log
@@ -648,7 +658,8 @@ for i in 0 1 2 3 4 5
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   cd $KERNEL_SCRIPTS/dpmc
   ./build_dpmc_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
@@ -699,7 +710,8 @@ for i in 0 1 2 3 4 5
   rm -rf $KERNEL_PATH/uClinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uClinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uClinux-dist/linux-2.6.x  .
-  rm -rf $KERNEL_PATH/uClinux-dist/romfs/
+  cp $KERNEL_PATH_BAK/uClinux-dist/config/.config config 
+  rm -rf romfs/ images/
   
   cd  $KERNEL_SCRIPTS/serial
   ./build_serial_kernel.exp $BOARD_TYPE  >/dev/null  2>&1

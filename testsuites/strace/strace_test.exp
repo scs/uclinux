@@ -24,7 +24,7 @@ incr case_num
 send -s "strace date\r"
 while 1 {
 expect {
-        -re "in trace.*time" {
+        -re "ioctl.*time" {
                 expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break
@@ -42,7 +42,7 @@ incr case_num
 send -s "strace pwd\r"
 while 1 {
 expect {
-        -re "in trace.*getcwd" {
+        -re "ioctl.*getcwd" {
                 expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break
@@ -60,7 +60,7 @@ incr case_num
 send -s "strace ls /home\r"
 while 1 {
 expect {
-        -re "in trace.*lstat" {
+        -re "ioctl.*lstat" {
                 expect "exit(0)"
                 send_log "\rCase $case_num ...PASS\r"
                 break

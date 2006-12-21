@@ -23,7 +23,6 @@ while 1 {
    sleep 3
    expect {
       ">" {
-         set flag 1
          puts "ifconfig set success.\n"
          break
       }

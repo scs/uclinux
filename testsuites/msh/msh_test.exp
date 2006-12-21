@@ -17,6 +17,22 @@ source ../reboot_kernel.exp
 
 step "Start $TITLE\r"
 
+send "ifconfig eth0 $targetip\r"
+while 1 {
+   sleep 3
+   expect {
+      "#" {
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
 set timeout 10
 set case_num 0
 
