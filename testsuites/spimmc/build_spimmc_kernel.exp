@@ -123,6 +123,6 @@ step "Copy linux"
 
 source   copy_image.exp
 
-log_file
+send_user "Ending $argv0\n"
 
-send_user "\nKernel building for SPI MMC/SD test finishes!\n"
+log_file

@@ -1,0 +1,376 @@
+#!/usr/bin/expect
+
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Start testing."
+
+
+# Main entrance
+#set logfile		"~/spimmc_testlog"
+set case_num 0
+
+sleep 5
+
+step "Start SPI MMC/SD testing"
+
+set test_flag 0
+
+incr case_num
+step "Create mount directories for testing"
+send "mkdir /mnt/mmc\r"
+send "mkdir /mnt/mmc1\r"
+send "mkdir /mnt/mmc2\r"
+
+set timeout 2
+step "Check dmesg result"
+send "dmesg | grep MMC\r"
+while 1 {
+   expect {
+      -re ".*MMC\\\/SD card found.*" {
+         send_log "\nMMC/SD card found\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_log "\nMMC/SD card not found\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+step "Create dos fs"
+set timeout 2
+send "mkdosfs /dev/mmc\r"
+while 1 {
+   expect {
+      -re "No such device" {
+         send_log "\nNo /dev/mmc device\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
+
+incr case_num
+step "Mount dos fs on /mnt/mmc1"
+set timeout 2
+send "mount -t msdos /dev/mmc /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re ".*failed.*" {
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_log "\nmount dos fs done\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         break
+      }
+   }
+}
+
+incr case_num
+step "Umount dos fs from /mnt/mmc1"
+set timeout 2
+send "umount /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re "root:~>" {
+         send_log "\numount dos fs done\n"
+         case_pass $case_num
+         break
+      }
+      -re ".*busy" {
+         case_fail $case_num
+      }
+      timeout {
+         break
+      }
+   }
+} 
+
+incr case_num
+step "remove old partion"
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "p\r"
+set timeout 10
+while 1 {
+   expect {
+            -re "/dev/mmc1" {
+               send "d\r"
+               expect -re "Partition number.*"
+               send "1\r"
+               expect -re "Command.*"
+               send "w\r"
+               break
+            }
+            eof {
+               send "q\r"
+               break
+            }
+            timeout {
+               send "q\r"
+               break
+            }
+   }
+}
+
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "p\r"
+set timeout 10
+while 1 {
+   expect {
+            -re "/dev/mmc2" {
+               send "d\r"
+               expect -re "Partition number.*"
+               send "2\r"
+               expect -re "Command.*"
+               send "w\r"
+               expect -re "root:~>"
+               break
+            }
+            eof {
+               send "q\r"
+               break
+            }
+            timeout {
+               send "q\r"
+               break
+            }
+   }
+}
+
+
+set timeout 10
+send "fdisk /dev/mmc\r"
+expect -re "Command.*:"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "1\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "15000\r"
+expect -re "Command.*"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "2\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "\r"
+expect -re "Command.*"
+send "w\r"
+expect -re "root:~>"
+
+send_log "\ncreat 2 partitions done\n"
+send_user "\ncreat 2 partitions done\n"
+
+step "Start to try use mmc flash as rootfs"
+
+set timeout 90 
+send "mke2fs /dev/mmc1\r"
+expect -re "root:~>"
+set timeout 2
+send "mkdir /mnt/rootfs\r"
+send "mount -o sync /dev/mmc1 /mnt/rootfs\r"
+expect -re "root:~>"
+send "ifconfig eth0 192.168.1.2 up\r"
+expect -re "root:~>"
+sleep 5
+exec rcp runcp.sh 192.168.1.2:/.
+set timeout 300
+send "./runcp.sh\r"
+while 1 {
+   expect {
+      -re "copy rootfs done" {
+         send_log "\nfinish to copy rootfs to mmc card\n"
+         case_pass $case_num
+         break
+      }
+      eof {
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+set timeout 20
+send "umount /mnt/rootfs\r"
+while 1 {
+   expect {
+      -re "root:~>" {
+         send_user "\rumount /dev/mmc1 done\r"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\rumount timeout\r"
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+send "\r"
+
+send_user "umount /dev/mmc1 done"
+
+step "restart board"
+
+sleep 5
+send "reboot\r"
+set timeout 60
+while 1 {
+   expect {
+
+      "Hit any key " {
+         send "\r"
+         break
+      }
+
+#      ">" {
+#         send_user "successful reset attemp\n"
+#         break
+#      }
+
+      timeout {
+         send_user "failed reset attemp\n"
+         break
+      }
+   }
+}
+
+sleep 5
+
+set timeout 10
+send -s "setenv mmcargs setenv bootargs root=2401 rw\r"
+expect ">"
+send -s "setenv mmcboot \'tftpboot 0x1000000 linux; run mmcargs; run addip; bootelf\'\r"
+expect ">"
+send -s "save\r"
+while 1 {
+   expect {
+      ">" {
+         send_user "\nsave!!!\n"
+         break
+      }
+      timeout {
+         send_user "\nsave timeout!!!\n"
+         break
+      }
+   }
+}
+sleep 5
+
+set timeout 180
+send -s "run mmcboot\r"
+while 1 {
+   expect {
+
+      -re "Kernel panic" {
+         report "kernel panic detected... trying to recover from it"
+         break
+      }
+
+      -re "Sash command shell.*/> " {
+         puts "successful boot attempt"
+         break
+      }
+
+      "root:~> " {
+         puts "successful boot attempt"
+         break
+      }
+
+      -re "Linux version (.*) " {
+         set linux_version $expect_out(1,string)
+      }
+
+      # Look for gcc version N.N[.N[.N]]
+      -re "gcc version (\[0-9](\.\[0-9]+)+)" {
+         set gcc_version [lindex $expect_out(0,string) 2]
+      }
+
+      # Look for text followed by 1 or more spaces or tabs
+      # followed by = followed by 1 or more spaces or tabs
+      # followed by (0xNNNNNN-0xNNNNNN)
+      -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_text $expect_out(1,string)
+      }
+
+      -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_data $expect_out(1,string)
+      }
+
+      -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_bss $expect_out(1,string)
+      }
+
+      -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_rootfs $expect_out(1,string)
+      }
+
+      # Note that here we're looking for zero or 1 space. Doh!
+      -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_stack $expect_out(1,string)
+      }
+
+      -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
+         # set instruction_cache_boot_flag $CACHE_ENABLED
+      }
+
+      -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
+         # set instruction_cache_boot_flag $CACHE_DISABLED
+      }
+
+      -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
+         # set data_cache_boot_flag $CACHE_ENABLED
+      }
+
+      -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
+         #set data_cache_boot_flag $CACHE_DISABLED
+      }
+
+      timeout {
+         puts "failed boot attempt"
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file
