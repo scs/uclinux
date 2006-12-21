@@ -16,8 +16,11 @@ source ../reboot_kernel.exp
 
 sleep 5
 
+set case_num 0
+
 step "Start Sqlite testing"
 
+incr case_num
 set timeout 2
 send "sqlite3 wishlist.db < /usr/wishlist.sql\r"
 expect "root:~>"
@@ -30,16 +33,17 @@ send "sqlite_test \"foo\"\r"
 while 1 {
    expect {
       -re ".*foo <foo@test>.*" {
-         send_log "\n$TITLE ............\[PASS\]\n"
-         send_user "\n$TITLE ............\[PASS\]\n"
+         case_pass $case_num
          break
       }
       timeout {
-         send_log "\n$TITLE ............\[FAIL\]\n"
-         send_user "\n$TITLE ............\[FAIL\]\n"
-         break
+         case_fail $case_num
       }
    }
 }
 
-exit
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file
