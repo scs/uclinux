@@ -844,7 +844,7 @@ ENTRY(_sys_call_table)
 	.long _sys_lseek
 	.long _sys_getpid	/* 20 */
 	.long _sys_mount
-	.long _sys_umount
+	.long _sys_ni_syscall	/* old umount */
 	.long _sys_setuid
 	.long _sys_getuid
 	.long _sys_stime		/* 25 */

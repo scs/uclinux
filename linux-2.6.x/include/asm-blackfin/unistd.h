@@ -24,7 +24,7 @@
 #define __NR_lseek		 19
 #define __NR_getpid		 20
 #define __NR_mount		 21
-#define __NR_umount		 22
+				/* 22 __NR_umount obsolete */
 #define __NR_setuid		 23
 #define __NR_getuid		 24
 #define __NR_stime		 25
