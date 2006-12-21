@@ -75,6 +75,7 @@ step "Copy linux"
 
 source   copy_image.exp
   
-log_file
 
-send_user "\nKernel building for Oprofile test finishes!\n"
+send_user "Ending $argv0\n"
+
+log_file

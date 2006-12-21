@@ -82,14 +82,13 @@ while 1 {
              send "Y\r"
       }
       
-         -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
-             
-             send "Y\r"
+         -re "IrLAN protocol \\\(IRLAN\\\).*\\\[././.]" {
+             send "m\r"
       }
       
          -re "IrCOMM protocol.*IRCOMM.*\\\[.*]" {
              
-             send "Y\r"
+             send "m\r"
       }
        
 	 -re "Cache last LSAP.*IRDA_CACHE_LAST_LSAP.*\\\[.*]" {
@@ -97,9 +96,9 @@ while 1 {
              send "Y\r"
       }
       
-        -re "IrTTY (uses Linux serial driver).*IRTTY_SIR.*\\\[.*]" {
+        -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
              
-             send "Y\r"             
+             send "m\r"             
       }      
       
          -re "irattach.*USER_IRATTACH.*\\\[.*]" {
@@ -142,9 +141,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
-
-
-
-
-
- 
