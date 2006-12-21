@@ -84,7 +84,7 @@
 #define __NR_settimeofday	 79
 #define __NR_getgroups		 80
 #define __NR_setgroups		 81
-#define __NR_select		 82
+				/* 82 __NR_select obsolete */
 #define __NR_symlink		 83
 				/* 84 __NR_oldlstat obsolete */
 #define __NR_readlink		 85
@@ -144,7 +144,7 @@
 #define __NR_setfsgid		139
 #define __NR__llseek		140
 #define __NR_getdents		141
-#define __NR__newselect		142
+				/* 142 __NR__newselect obsolete */
 #define __NR_flock		143
 				/* 144 __NR_msync obsolete */
 #define __NR_readv		145
@@ -170,7 +170,7 @@
 #define __NR_getresuid		165
 				/* 166 __NR_vm86 */
 				/* 167 __NR_query_module */
-#define __NR_poll		168
+				/* 168 __NR_poll */
 				/* 169 __NR_nfsservctl */
 #define __NR_setresgid		170
 #define __NR_getresgid		171

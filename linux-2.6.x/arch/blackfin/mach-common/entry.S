@@ -904,7 +904,7 @@ ENTRY(_sys_call_table)
 	.long _sys_settimeofday
 	.long _sys_getgroups	/* getgroups16 */	/* 80 */
 	.long _sys_setgroups	/* setgroups16 */
-	.long _sys_pselect6
+	.long _sys_ni_syscall	/* old_select */
 	.long _sys_symlink
 	.long _sys_ni_syscall	/* old lstat */
 	.long _sys_readlink	/* 85 */
@@ -964,7 +964,7 @@ ENTRY(_sys_call_table)
 	.long _sys_setfsgid	/* setfsgid16 */
 	.long _sys_llseek	/* 140 */
 	.long _sys_getdents
-	.long _sys_pselect6
+	.long _sys_ni_syscall	/* sys_select */
 	.long _sys_flock
 	.long _sys_ni_syscall	/* sys_msync */
 	.long _sys_readv		/* 145 */
@@ -990,7 +990,7 @@ ENTRY(_sys_call_table)
 	.long _sys_getresuid	/* getresuid16 */	/* 165 */
 	.long _sys_ni_syscall	/* for vm86 */
 	.long _sys_ni_syscall	/* old "query_module" */
-	.long _sys_poll
+	.long _sys_ni_syscall	/* sys_poll */
 	.long _sys_ni_syscall	/* sys_nfsservctl */
 	.long _sys_setresgid	/* setresgid16 */	/* 170 */
 	.long _sys_getresgid	/* getresgid16 */

@@ -24,7 +24,7 @@
 
 /* Get the platform dependent bits of `poll'.  */
 #include <bits/poll.h>
-
+#include <bits/sigset.h>
 
 /* Type used for the number of file descriptors.  */
 typedef unsigned long int nfds_t;
@@ -46,6 +46,9 @@ __BEGIN_DECLS
    Returns the number of file descriptors with events, zero if timed out,
    or -1 for errors.  */
 extern int poll (struct pollfd *__fds, nfds_t __nfds, int __timeout) __THROW;
+
+extern int ppoll (struct pollfd *__fds, nfds_t __nfds, struct timespec *__timeout, 
+		const __sigset_t *__sigmask, unsigned long __sigsetsize) __THROW;
 
 __END_DECLS
 

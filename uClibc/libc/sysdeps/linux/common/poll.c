@@ -20,7 +20,25 @@
 #include "syscalls.h"
 #include <sys/poll.h>
 
-#ifdef __NR_poll
+#ifdef __NR_ppoll
+_syscall5(int, ppoll, struct pollfd *, fds, unsigned long int, nfds, 
+	struct timespec *, timeout, const sigset_t *, sigmask,
+        unsigned long, sigsetsize);
+
+inline int poll(struct pollfd *ufds, unsigned long int nfds, int timeout)
+{
+        int result;
+        struct timespec ts;
+
+        ts.tv_sec = timeout/1000;
+        ts.tv_nsec = timeout*1000*1000;
+
+        result = ppoll(ufds, nfds, &ts, 0, 0);
+
+        return result;
+}
+
+#elif defined(__NR_poll)
 
 _syscall3(int, poll, struct pollfd *, fds,
 	unsigned long int, nfds, int, timeout);
