@@ -59,13 +59,15 @@ static int page_size_table[4] = {
 static char page_size_string_table[][4] = { "1K", "4K", "1M", "4M" };
 
 static int cplb_find_entry(unsigned long *cplb_addr,
-			   unsigned long *cplb_data, unsigned long addr)
+			   unsigned long *cplb_data, unsigned long addr,
+			   unsigned long data)
 {
 	int ii;
 
 	for (ii = 0; ii < 16; ii++)
 		if (addr >= cplb_addr[ii] && addr < cplb_addr[ii] +
-		    page_size_table[(cplb_data[ii] & CPLB_BIT_PAGESIZE) >> 16])
+		    page_size_table[(cplb_data[ii] & CPLB_BIT_PAGESIZE) >> 16]
+			&& (cplb_data[ii] == data))
 			return ii;
 
 	return -1;
@@ -79,7 +81,7 @@ static char *cplb_print_entry(char *buf, int type)
 	unsigned long *p_ocount = dpdt_swapcount_table + 1;
 	unsigned long *cplb_addr = (unsigned long *)DCPLB_ADDR0;
 	unsigned long *cplb_data = (unsigned long *)DCPLB_DATA0;
-	int entry, used_cplb = 0;
+	int entry = 0, used_cplb = 0;
 
 	if (type == CPLB_I) {
 		buf += sprintf(buf, "Instrction CPLB entry:\n");
@@ -96,8 +98,8 @@ static char *cplb_print_entry(char *buf, int type)
 \tiCount\toCount\n");
 
 	while (*p_addr != 0xffffffff) {
-		entry = cplb_find_entry(cplb_addr, cplb_data, *p_addr);
-		if (entry >= 0 && *p_data == cplb_data[entry])
+		entry = cplb_find_entry(cplb_addr, cplb_data, *p_addr, *p_data);
+		if (entry >= 0)
 			used_cplb |= 1 << entry;
 
 		buf +=
