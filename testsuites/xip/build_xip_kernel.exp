@@ -1,0 +1,128 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for XIP test
+#
+source  ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set set_config_file 1
+
+cd $uclinux_path/testsuites
+step "Make default config."
+source  make_default_config.exp
+
+step "Make config"
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "ROM file system support \\\(ROMFS_FS\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "MTD-based ROM file system support \\\(ROMFS_MTD_FS\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Enable shared FLAT support \\\(BINFMT_SHARED_FLAT\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Binary format \\\(FLAT, Shared-FLAT, FDPIC\\\).*\\\[.*]" {
+         send "Shared-FLAT\r"
+      }
+
+      -re "\\\(.*\\\) \\\[.*]" {
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+step "Make"
+
+cd $uclinux_path
+spawn make
+set timeout 1200
+set bfin_make_status failure
+while 1 {
+   expect {
+      "Entering directory" { }
+      "Leaving directory" { set bfin_make_status success }
+      "Error" {set bfin_make_status failure }
+      "/bin/sh" { }
+      eof { break }
+   }
+}
+
+if { $bfin_make_status == "failure" } {
+   puts "ERROR: Error somewhere during make"
+}    
+     
+step "Copy linux"
+  
+set timeout 8
+cd $uclinux_path
+exec cp images/linux.romfs /tftpboot
+
+send_user "Ending $argv0\n"
+
+log_file
