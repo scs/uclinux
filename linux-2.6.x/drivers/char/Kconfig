@@ -109,6 +109,19 @@ config TWI_LCD_SLAVE_ADDR
 	default 34
 	---help---
 
+config AD5304
+	tristate "AD5304 chip support"
+	depends on SPI
+	default n
+	---help---
+	  Say Y here to add support for controlling AD5304/AD5314/AD5324
+	  chips over the SPI bus.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ad5304.
+
+	  If unsure, say N.
+
 config VT
 	bool "Virtual terminal" if EMBEDDED
 	select INPUT
