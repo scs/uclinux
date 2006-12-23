@@ -155,6 +155,14 @@ static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
+static struct bfin5xx_spi_chip ad5304_chip_info = {
+	.ctl_reg = 0x1000 | CPOL,
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
 /* Notice: for blackfin, the speed_hz is the value of register
  * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
@@ -207,6 +215,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num	= 1,
 		.chip_select	= 2,
 		.controller_data= &spi_si3xxx_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
+	{
+		.modalias = "ad5304_spi",
+		.max_speed_hz = 50,
+		.bus_num = 1,
+		.chip_select = 2,
+		.platform_data = NULL,
+		.controller_data = &ad5304_chip_info,
+		.mode = SPI_MODE_2,
 	},
 #endif
 };
