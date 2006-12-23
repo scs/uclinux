@@ -86,7 +86,7 @@ config BF53X_PFBUTTONS
 	  subsystem. Proc interface (read only) - /proc/driver/bf53xPFbuttons.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bf53xPFbuttons.
+	  module will be called bf53x_pfbuttons.
 
 config TWI_KEYPAD
 	tristate "TWI/I2C Keypad input device"
