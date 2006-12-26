@@ -522,7 +522,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		int i;
 		unsigned short x;
 		for (i = -16; i < 8; i++) {
-			get_user(x, (unsigned short *)retaddr + i);
+			if (get_user(x, (unsigned short *)retaddr + i))
+				break;
 #ifndef CONFIG_DEBUG_HWERR
 			/* If one of the last few instructions was a STI
 			 * it is likily that the error occured awhile ago
@@ -587,11 +588,13 @@ asmlinkage int sys_bfin_spinlock(int *spinlock)
 	int tmp;
 
 	local_irq_disable();
-	get_user(tmp, spinlock);
-	if (tmp)
-		ret = 1;
-	tmp = 1;
-	put_user(tmp, spinlock);
+	ret = get_user(tmp, spinlock);
+	if (ret == 0) {
+		if (tmp)
+			ret = 1;
+		tmp = 1;
+		put_user(tmp, spinlock);
+	}
 	local_irq_enable();
 	return ret;
 }
