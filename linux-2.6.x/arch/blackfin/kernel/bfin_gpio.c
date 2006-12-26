@@ -88,7 +88,7 @@
 #include <asm/gpio.h>
 #include <linux/irq.h>
 
-#ifdef DEBUG
+#ifndef DEBUG
 #define assert(expr) do {} while(0)
 #else
 #define assert(expr) 						\
