@@ -18,7 +18,6 @@ module:
 romfs:
 	$(ROMFSINST) /bin/corebld
 	$(ROMFSINST) /bin/coreb_get_testarg
-	$(ROMFSINST) -S ./test_module/dualcore_test.ko /lib/modules/dualcore_test.ko
 
 clean:
 	-rm -f corebld coreb *.map *.elf *.gdb *.o *.ko coreb_get_testarg
