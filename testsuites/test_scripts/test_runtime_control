@@ -1,0 +1,28 @@
+#!/bin/sh
+
+QUIT=2
+
+while [ $QUIT -gt 1 ]
+do
+
+test_pid=`ps aux | grep .exp | head -1 | awk '{print $2}'`
+test_command=`ps aux | grep .exp | head -1 | awk '{print $11}'`
+
+if test "$test_command" && [ $test_command == 'grep' ] ; then
+
+ # echo "No test script is running." 
+ sleep 1200 
+
+else
+
+ sleep 3600
+
+ test_name=`ps -p $test_pid | tail -1 | awk '{print $4}'`
+ if [ $test_name != 'CMD' ] ; then
+   echo "`date`. Process: $test_name, ID: $test_pid to be killed."
+   kill -9 $test_pid
+ fi
+
+fi
+
+done
