@@ -56,7 +56,7 @@ fi
 
   cd $KERNEL_SCRIPTS
   #./kernel_test  $BOARD_CONFIG $CPU $KERNEL_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG
-  ./kernel_test BF533-EZKIT-STD BF533-EZKIT /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma
+  ./kernel_test BF533-EZKIT-STD BF533-EZKIT /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma $THIS_LOG
 
   cp $KERNEL_SCRIPTS/kernel_test_log $THIS_LOG
 
