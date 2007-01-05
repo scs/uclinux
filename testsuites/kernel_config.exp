@@ -4,8 +4,8 @@
 # directory and file locations
 
 set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-#set uclinux_path /uclinux/kernel/local/1218/uClinux-dist
+set uclinux_path $user/checkouts/kernel/uclinux-dist
+#set uclinux_path /uclinux/kernel/local/1218/uclinux-dist
 
 # environment settings
 
