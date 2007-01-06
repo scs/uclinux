@@ -561,6 +561,7 @@ CONFIG_MTD_CFI_INTELEXT=y
 # CONFIG_MTD_CFI_STAA is not set
 CONFIG_MTD_CFI_UTIL=y
 # CONFIG_MTD_RAM is not set
+# CONFIG_MTD_EPCS is not set
 # CONFIG_MTD_ROM is not set
 # CONFIG_MTD_ABSENT is not set
 # CONFIG_MTD_OBSOLETE_CHIPS is not set
@@ -674,6 +675,8 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_MII is not set
 # CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_SMC91X is not set
+# CONFIG_OPEN_ETH is not set
+# CONFIG_MTIP1000_ETH is not set
 # CONFIG_DM9000 is not set
 # CONFIG_NE2000 is not set
 # CONFIG_NET_PCI is not set

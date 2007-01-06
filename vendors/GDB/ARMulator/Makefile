@@ -4,7 +4,6 @@
 
 ROMFSIMG = $(IMAGEDIR)/boot.rom
 
-
 ROMFS_DIRS = bin dev etc home lib mnt proc sbin usr var
 
 DEVICES = \
@@ -53,6 +52,7 @@ romfs:
 	$(ROMFSINST) ../../Generic/romfs/etc/services /etc/services
 	case "$(LINUXDIR)" in \
 	*2.4.*) ;; \
+	*2.6.*) ;; \
 	*) echo "ttyS0:linux:/bin/sh" >> $(ROMFSDIR)/etc/inittab ;; \
 	esac
 	$(ROMFSINST) /etc/motd

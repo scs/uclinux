@@ -6,7 +6,7 @@ FLOWTYPE = FPGA;
 ## Runtime.
 ## 
 ## Version: 4.1.1
-## $Header$
+## $Header: /cvs/sw/new-wave/vendors/Insight/XC2V1K_Microblaze/hardware/etc/fast_runtime.opt,v 1.1 2003/04/02 04:59:57 gerg Exp $
 ###############################################################
 #
 # Options for Translator

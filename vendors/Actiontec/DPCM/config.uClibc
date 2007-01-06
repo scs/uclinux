@@ -69,7 +69,7 @@ MALLOC=y
 # MALLOC_STANDARD is not set
 # MALLOC_GLIBC_COMPAT is not set
 # UCLIBC_DYNAMIC_ATEXIT is not set
-# COMPAT_ATEXIT is not set
+COMPAT_ATEXIT=y
 # HAS_SHADOW is not set
 # UNIX98PTY_ONLY is not set
 ASSUME_DEVPTS=y

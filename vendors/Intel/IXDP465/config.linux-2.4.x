@@ -136,6 +136,7 @@ CONFIG_MACH_IXDP465=y
 # CONFIG_MACH_SG640 is not set
 # CONFIG_MACH_ESS710 is not set
 # CONFIG_MACH_SG720 is not set
+# CONFIG_MACH_SGARMAUTO is not set
 # CONFIG_MACH_IVPN is not set
 # CONFIG_MACH_SE5100 is not set
 

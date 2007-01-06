@@ -55,7 +55,15 @@ romfs:
 	$(ROMFSINST) -s ../var/etc/ppp /etc/ppp
 	$(ROMFSINST) -s ../var/etc/resolv.conf /etc/resolv.conf
 	$(ROMFSINST) -s ../var/etc/sysconfig /etc/sysconfig
-	$(ROMFSINST) /linuxrc
+	touch $(ROMFSDIR)/etc/group
+	$(ROMFSINST) -p 755 /linuxrc
+	for i in scripts/*; do \
+		$(ROMFSINST) -p 755 $$i /bin/`basename $$i`; \
+	done
+	chmod 755 \
+	  $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/defaultconfig/ppp/ip-up \
+	  $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/defaultconfig/ppp/ip-down \
+	  $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/defaultconfig/sysconfig/*
 	tar czf $(ROMFSDIR)/etc/defaultconfig.tar.gz \
 	  -C $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/defaultconfig \
 	  .

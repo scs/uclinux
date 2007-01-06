@@ -1,0 +1,32 @@
+echo "/etc/rc processing ..."
+hostname SG710-Factory-PCI
+echo "Mounting Filesystems ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o size=2048k tmpfs /var
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
+echo "Setting system clock ..."
+hwclock --hctosys --utc
+echo "Loading network drivers."
+insmod crc32
+insmod mii
+insmod 8139cp
+ip link set eth0 name tmp
+ip link set eth1 name eth0
+ip link set tmp name eth1
+insmod ixp400
+insmod ixp425_npe
+rmmod ixp425_npe
+insmod ixp425_eth
+insmod e1000
+setmac -n 4
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+ifconfig lo 127.0.0.1
+dhcpcd -p -a -h - eth0 &
+echo "/etc/rc complete."

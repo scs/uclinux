@@ -25,7 +25,7 @@ dd if=/dev/zero of=ext3.img bs=512 count=$count
 rm -rf romfs.mnt ext3.mnt
 mkdir romfs.mnt ext3.mnt
 
-trap "umount romfs.mnt; umount ext3.mnt; sleep 1"
+trap "umount romfs.mnt; umount ext3.mnt; sleep 1" EXIT
 
 # Now mount it and copy in the contents of the romfs image
 mount -t romfs -o loop romfs.img romfs.mnt

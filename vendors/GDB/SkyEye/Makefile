@@ -3,8 +3,6 @@
 #
 
 ROMFSIMG = $(IMAGEDIR)/romfs.img
-IMAGE    = $(IMAGEDIR)/image.bin
-ELFIMAGE = $(IMAGEDIR)/image.elf
 
 
 ROMFS_DIRS = bin dev etc home lib mnt proc usr var
@@ -55,6 +53,7 @@ romfs:
 	$(ROMFSINST) ../../Generic/romfs/etc/services /etc/services
 	case "$(LINUXDIR)" in \
 	*2.4.*) ;; \
+	*2.6.*) ;; \
 	*) echo "ttyS0:linux:/bin/sh" >> $(ROMFSDIR)/etc/inittab ;; \
 	esac
 	$(ROMFSINST) /etc/motd
@@ -64,15 +63,5 @@ romfs:
 image:
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
-	$(CROSS_COMPILE)objcopy -O binary --remove-section=.romvec \
-			--remove-section=.text --remove-section=.ramvec \
-			--remove-section=.init \
-			--remove-section=.bss --remove-section=.eram \
-			$(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.data
-	$(CROSS_COMPILE)objcopy -O binary --remove-section=.ramvec \
-			--remove-section=.bss --remove-section=.data \
-			--remove-section=.eram \
-			--set-section-flags=.romvec=CONTENTS,ALLOC,LOAD,READONLY,CODE \
-			$(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.text
-	cat $(IMAGEDIR)/linux.text $(IMAGEDIR)/linux.data $(ROMFSIMG) > $(IMAGE)
+	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)
 

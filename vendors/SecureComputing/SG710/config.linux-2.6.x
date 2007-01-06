@@ -492,7 +492,7 @@ CONFIG_KLIPS_AH=y
 # CONFIG_KLIPS_ALG is not set
 # CONFIG_KLIPS_ENC_3DES is not set
 CONFIG_KLIPS_IPCOMP=y
-CONFIG_KLIPS_OCF=y
+# CONFIG_KLIPS_OCF is not set
 CONFIG_KLIPS_DEBUG=y
 # CONFIG_IEEE80211 is not set
 
@@ -550,6 +550,7 @@ CONFIG_MTD_CFI_I2=y
 # CONFIG_MTD_CFI_I4 is not set
 # CONFIG_MTD_CFI_I8 is not set
 # CONFIG_MTD_RAM is not set
+# CONFIG_MTD_EPCS is not set
 # CONFIG_MTD_ROM is not set
 # CONFIG_MTD_ABSENT is not set
 # CONFIG_MTD_OBSOLETE_CHIPS is not set
@@ -684,6 +685,8 @@ CONFIG_MII=m
 # CONFIG_NET_VENDOR_3COM is not set
 # CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_SMC91X is not set
+# CONFIG_OPEN_ETH is not set
+# CONFIG_MTIP1000_ETH is not set
 # CONFIG_DM9000 is not set
 
 #

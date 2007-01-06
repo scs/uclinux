@@ -5,7 +5,7 @@ mount -t ramfs none /var
 
 hostname dpcm
 
-mkdir /var/files /var/tmp /var/run /var/etc /var/lock
+mkdir /var/files /var/tmp /var/run /var/etc /var/lock /var/bin
 
 # Always extract the default configuration before the saved 
 # configuration (saved configuration files will overwrite, i.e. 

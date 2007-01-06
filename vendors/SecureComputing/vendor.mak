@@ -171,9 +171,22 @@ romfs.rc.static:
 
 # This is the new way. Generate it dynamically.
 romfs.rc:
-	[ ! -f rc-$(CONFIG_LANGUAGE) ] || ( echo "*** Error: Static rc-$(CONFIG_LANGUAGE) file exists, but trying to use dynamic rc file"; exit 1 )
-	[ ! -f rc ] || echo "*** Warning: Static rc file exists, but using dynamic rc file"
-	tclsh $(ROOTDIR)/prop/configdb/rcgen $(ROOTDIR) >$(ROMFSDIR)/etc/rc
+	echo
+	pwd
+	echo
+	echo rc-$(CONFIG_LANGUAGE)
+	echo
+	if [ -f $(ROOTDIR)/prop/configdb/rcgen ]; then \
+		[ ! -f rc-$(CONFIG_LANGUAGE) ] || ( echo "*** Error: Static rc-$(CONFIG_LANGUAGE) file exists, but trying to use dynamic rc file"; exit 1 ) ; \
+		[ ! -f rc ] || echo "*** Warning: Static rc file exists, but using dynamic rc file" ; \
+		tclsh $(ROOTDIR)/prop/configdb/rcgen $(ROOTDIR) >$(ROMFSDIR)/etc/rc ; \
+	else \
+		if [ -f rc-$(CONFIG_LANGUAGE) ]; then \
+			$(ROMFSINST) /etc/rc-$(CONFIG_LANGUAGE) /etc/rc; \
+		else \
+			$(ROMFSINST) /etc/rc; \
+		fi ; \
+	fi
 	[ ! -f filesystems ] || $(ROMFSINST) /etc/filesystems
 
 romfs.inittab:
