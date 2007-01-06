@@ -1,0 +1,11 @@
+conntrack (1.00beta1) unstable; urgency=low
+
+  * new upstream release
+
+ -- Harald Welte <laforge@netfilter.org>  Sat, 07 Jan 2006 15:55:51 +0100
+
+conntrack (0.99-0+pre1) unstable; urgency=low
+
+  * initial debian release
+
+ -- Max Kellermann <max@duempel.org>  Sun, 27 Nov 2005 18:17:30 +0100

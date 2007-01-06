@@ -1,0 +1,9 @@
+This Debian package was created by Max Kellermann <max@duempel.org>.
+
+The upstream sources were downloaded from:
+ http://ftp.netfilter.org/pub/conntrack/
+
+The GNU General Public License version 2 applies to the upstream
+sources.  On Debian systems, the complete text of the GNU General
+Public License version 2 can be found in the
+/usr/share/common-licenses/GPL-2 file.

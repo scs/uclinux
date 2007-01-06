@@ -1,0 +1,20 @@
+Source: conntrack
+Section: net
+Priority: optional
+Maintainer: Max Kellermann <max@duempel.org>
+Build-Depends: cdbs (>= 0.4), debhelper (>= 4.2), gcc (>= 3.4), libnfnetlink-dev (>= 0.0.13), libnetfilter-conntrack-dev (>= 0.0.28)
+Standards-Version: 3.6.2
+
+Package: conntrack
+Architecture: any
+Depends: ${shlibs:Depends}, libconntrack-extensions (= ${Source-Version})
+Description: Program to modify the conntrack tables
+ The userspace connection tracking table administration program.
+
+Package: libconntrack-extensions
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Program to modify the conntrack tables
+ The userspace connection tracking table administration program.
+ .
+ This package provides the protocol extensions.
