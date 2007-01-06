@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet_link_nit.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  libnet_nit.c - network interface tap routines

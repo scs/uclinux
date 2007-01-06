@@ -1,5 +1,5 @@
 # Time-stamp: <05/03/21 10:42:37 ptr>
-# $Id$
+# $Id: aCC.mak,v 1.1.2.1 2005/05/14 08:52:26 ptr Exp $
 
 
 #INCLUDES = -I$(SRCROOT)/include

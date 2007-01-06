@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: syn-flood.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  Poseidon++ (c) 1996, 1997, 1998, 1999, 2000 daemon9|route <route@infonexus.com>
  *  SYN flooder rewritten for no good reason.  Again as libnet test module.

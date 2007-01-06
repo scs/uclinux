@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/22 01:10:06 ptr>
-# $Id$
+# $Id: sysid.mak,v 1.1.2.7 2005/09/21 21:15:18 complement Exp $
 
 ifndef BUILD_DATE
 

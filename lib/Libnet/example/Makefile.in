@@ -1,5 +1,5 @@
 #
-#   $Id$
+#   $Id: Makefile.in,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 #   Libnet example code toplevel Makefile
 #   (c) 1998 - 2001  Mike D. Schiffman <mike@infonexus.com>

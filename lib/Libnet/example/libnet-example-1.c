@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet-example-1.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet example code
  *  example 1:  raw socket api / TCP packet

@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: icmp_mask.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  icmp.c - Build an ICMP_HOSTMASK packet at the link layer

@@ -1,5 +1,5 @@
 # -*- Makefile -*- Time-stamp: <03/10/12 20:35:49 ptr>
-# $Id$
+# $Id: gcc.mak,v 1.1.2.3 2005/09/26 19:34:19 dums Exp $
 
 SRCROOT := ..
 COMPILER_NAME := gcc

@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: hook.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  hook.c
  *  Panics OpenBSD 2.4 kernels.

@@ -4,7 +4,7 @@
 # Dated Updated:                        10 Dec 2000
 # Whom:                                 Mike D. Schiffman
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 
 #EXTRACT_SUFX=	.tgz

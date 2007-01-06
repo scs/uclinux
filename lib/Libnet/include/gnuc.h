@@ -1,4 +1,4 @@
-/* @(#) $Header$ (LBL) */
+/* @(#) $Header: /home/route/.CVS/Libnet-1.0.x/include/gnuc.h,v 1.1.1.1 2000/05/25 00:28:49 route Exp $ (LBL) */
 
 /* Define __P() macro, if necessary */
 #ifndef __P

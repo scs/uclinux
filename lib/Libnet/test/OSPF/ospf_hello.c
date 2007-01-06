@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: ospf_hello.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  ospf_hello.c - OSPF Hello packet builder

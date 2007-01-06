@@ -10,7 +10,7 @@
  * software for any purpose. It is provided "as is" without express or
  * implied warranty.
  *
- * $Id$
+ * $Id: limits_test.cpp,v 1.1.2.4 2005/04/28 19:08:38 dums Exp $
  */
 
 #include <limits>

@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: get_mac.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  get_mac.c - get the MAC address of a remote host

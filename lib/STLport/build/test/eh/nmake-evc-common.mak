@@ -1,5 +1,5 @@
 # -*- Makefile -*- Time-stamp: <04/03/31 08:14:15 ptr>
-# $Id$
+# $Id: nmake-evc-common.mak,v 1.1.2.1 2005/05/20 19:58:33 dums Exp $
 
 SRCROOT=../..
 STLPORT_DIR=../../..

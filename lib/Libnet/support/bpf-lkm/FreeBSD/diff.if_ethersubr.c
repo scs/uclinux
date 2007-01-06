@@ -1,5 +1,5 @@
 #
-#   $Id$
+#   $Id: diff.if_ethersubr.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 #   Libnet FreeBSD source etheraddr patch
 #   (c) 1999 Nicholas Brawn <nick@feralmonkey.org>

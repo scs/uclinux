@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: ping_of_death.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  pingofdeath.c - ICMP ping of death attack

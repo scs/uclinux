@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet_version.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  libnet_version.c - dummy version function to define version info

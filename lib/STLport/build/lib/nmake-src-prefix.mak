@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <03/10/26 15:42:12 ptr>
-# $Id$
+# $Id: nmake-src-prefix.mak,v 1.1.2.4 2005/04/16 14:39:06 dums Exp $
 
 ALLOBJS = $(ALLOBJS:../../src/=)
 ALLRESS = $(ALLRESS:../../src/=)

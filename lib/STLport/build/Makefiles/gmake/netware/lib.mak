@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <03/07/15 18:23:04 ptr>
-# $Id$
+# $Id: lib.mak,v 1.1.2.2 2005/05/07 05:55:41 ptr Exp $
 
 RELEASE_SUFFIX := r
 DBG_SUFFIX := d

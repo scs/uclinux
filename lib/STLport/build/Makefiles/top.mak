@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/09 21:56:22 ptr>
-# $Id$
+# $Id: top.mak,v 1.1.2.4 2005/09/19 19:55:47 dums Exp $
 
 .SUFFIXES:
 .SCCS_GET:

@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <04/05/01 00:34:42 ptr>
-# $Id$
+# $Id: evc-common.mak,v 1.1.2.1 2004/12/24 11:27:35 ptr Exp $
 
 # defines missing in this file: LDFLAGS_COMMON
 

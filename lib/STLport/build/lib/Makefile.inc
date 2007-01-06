@@ -1,5 +1,5 @@
 # -*- Makefile -*- Time-stamp: <05/05/16 22:07:32 ptr>
-# $Id$
+# $Id: Makefile.inc,v 1.1.2.2 2005/05/16 18:32:41 ptr Exp $
 
 LIBNAME = stlport
 MAJOR = 5

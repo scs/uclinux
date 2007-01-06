@@ -77,7 +77,7 @@
 
 /*
  *      @(#)nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$Id: nameser.h,v 1.2 2001/11/22 20:48:18 pauli Exp $
  */
 
 #ifndef _NAMESER_H_

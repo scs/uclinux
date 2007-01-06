@@ -13,7 +13,7 @@
  *
  */
 
-/* $Id$ */
+/* $Id: file_reporter.h,v 1.1.2.2 2005/01/22 13:01:06 dums Exp $ */
 
 #ifndef _CPPUNITMINIFILEREPORTERINTERFACE_H_
 #   define _CPPUNITMINIFILEREPORTERINTERFACE_H_

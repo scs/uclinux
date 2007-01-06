@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet-example-2.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet example code
  *  example 2:  link-layer api / ICMP hostmask packet

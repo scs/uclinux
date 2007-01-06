@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet-functions.h,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet-functions.h - Network routine library function prototype header file
  *

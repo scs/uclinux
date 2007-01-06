@@ -1,5 +1,5 @@
 # Time-stamp: <04/04/30 23:41:02 ptr>
-# $Id$
+# $Id: targetdirs.mak,v 1.1.2.1 2004/12/24 11:26:35 ptr Exp $
 
 !ifdef TARGET_PROC
 TARGET_NAME=$(COMPILER_NAME)-$(TARGET_PROC)

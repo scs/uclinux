@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet-example-3.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet example code
  *  example 2:  raw socket api / ICMP_ECHO packet(s) using an arena

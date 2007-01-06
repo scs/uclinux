@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/20 00:38:58 ptr>
-# $Id$
+# $Id: gcc.mak,v 1.1.2.16 2005/09/19 21:11:38 complement Exp $
 
 
 #INCLUDES = -I$(SRCROOT)/include

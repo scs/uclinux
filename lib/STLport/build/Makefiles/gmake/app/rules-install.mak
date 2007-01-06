@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <04/07/25 17:58:50 ptr>
-# $Id$
+# $Id: rules-install.mak,v 1.1.2.3 2005/11/01 07:16:44 complement Exp $
 
 install:	install-shared
 

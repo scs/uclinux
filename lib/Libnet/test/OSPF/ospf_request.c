@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: ospf_request.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  ospf_request.c - generic OSPF LSR packet builder

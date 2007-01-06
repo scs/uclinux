@@ -1,5 +1,5 @@
 # Time-stamp: <04/03/31 07:55:19 ptr>
-# $Id$
+# $Id: evc4.mak,v 1.1.2.7 2005/06/24 19:39:59 dums Exp $
 
 DEFS_COMMON = $(DEFS_COMMON) /D _WIN32_WCE=$(CEVERSION) /D UNDER_CE=$(CEVERSION) /D "UNICODE"
 

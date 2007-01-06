@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /home/route/.CVS/Libnet-1.0.x/include/bpf.h,v 1.1.1.1 2000/05/25 00:28:49 route Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION

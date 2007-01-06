@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: get_address.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  get_address.c - Retrieve the MAC and IP address of an interface

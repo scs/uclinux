@@ -1,5 +1,5 @@
 # Time-stamp: <03/10/27 18:22:08 ptr>
-# $Id$
+# $Id: targets.mak,v 1.1.2.3 2005/09/20 20:13:04 dums Exp $
 
 # if sources disposed in several dirs, calculate
 # appropriate rules; here is recursive call!

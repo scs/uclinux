@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/09 21:12:00 ptr>
-# $Id$
+# $Id: sys.mak,v 1.1.2.3 2005/09/11 06:27:35 complement Exp $
 
 INSTALL := /usr/bin/install
 

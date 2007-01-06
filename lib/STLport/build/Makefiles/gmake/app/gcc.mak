@@ -1,5 +1,5 @@
 # -*- Makefile -*- Time-stamp: <05/03/24 11:29:23 ptr>
-# $Id$
+# $Id: gcc.mak,v 1.1.2.4 2005/04/04 20:01:35 ptr Exp $
 
 ifndef NOT_USE_NOSTDLIB
 

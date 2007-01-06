@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet_link_dlpi.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  libnet_dlpi.c - dlpi routines

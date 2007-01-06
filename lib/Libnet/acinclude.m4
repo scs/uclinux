@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: acinclude.m4,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 dnl
 dnl Libnet specific autoconf macros
 dnl Copyright (c) 1998 - 2001 Mike D. Schiffman <mike@infonexus.com>

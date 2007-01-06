@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: poink.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  poink.c - NT/9x DOS attack
  *

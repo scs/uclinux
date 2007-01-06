@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet-macros.h,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet-macros.h - Network routine library macro header file
  *

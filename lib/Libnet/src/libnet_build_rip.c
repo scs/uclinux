@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet_build_rip.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  libnet_build_rip.c - RIP packet assembler

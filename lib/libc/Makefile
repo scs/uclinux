@@ -72,7 +72,7 @@ headers:
 
 .PHONY: romfs
 romfs:
-	@if [ "$(CONFIG_BINFMT_SHARED_FLAT)" ]; then \
+	@if [ "$(SHARED_TARGET)" ]; then \
 		[ -e $(ROMFSDIR)/lib ] || mkdir -p $(ROMFSDIR)/lib; \
 		$(ROMFSINST) $(SHARED_TARGET) /lib/lib$(LIBID).so; \
 	fi

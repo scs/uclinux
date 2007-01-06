@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#   $Id$
+#   $Id: libnet-config.in,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 #   Libnet 1.0 libnet-config compilation script
 #   (c) 1998 - 2001  Mike D. Schiffman <mike@infonexus.com>

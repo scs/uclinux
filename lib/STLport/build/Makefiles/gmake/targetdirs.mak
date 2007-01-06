@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/09 22:00:37 ptr>
-# $Id$
+# $Id: targetdirs.mak,v 1.1.2.5 2005/09/19 19:53:48 dums Exp $
 
 ifdef TARGET_OS
 TARGET_NAME := ${TARGET_OS}-

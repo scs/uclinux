@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: acconfig.h,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 dnl
 dnl Libnet autoconfiguration acconfig.h file
 dnl Copyright (c) 1998 - 2001 Mike D. Schiffman <mike@infonexus.com>

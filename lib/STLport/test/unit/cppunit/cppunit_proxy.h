@@ -13,7 +13,7 @@
  *
  */
 
-/* $Id$ */
+/* $Id: cppunit_proxy.h,v 1.1.2.3 2004/10/25 19:43:07 dums Exp $ */
 
 #ifndef _CPPUNITPROXYINTERFACE_H_
 # define _CPPUNITPROXYINTERFACE_H_

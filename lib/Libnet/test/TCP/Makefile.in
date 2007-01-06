@@ -1,5 +1,5 @@
 #
-#   $Id$
+#   $Id: Makefile.in,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 #   Libnet TCP testcode makefile
 #   (c) 1998, 1999, 2000 route|daemon9 <route@infonexus.com>

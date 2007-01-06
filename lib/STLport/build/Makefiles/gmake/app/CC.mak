@@ -1,5 +1,5 @@
 # -*- Makefile -*- Time-stamp: <04/08/23 23:07:09 ptr>
-# $Id$
+# $Id: CC.mak,v 1.1.2.1 2004/12/24 11:29:35 ptr Exp $
 
 #_USE_NOSTDLIB := 1
 

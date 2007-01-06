@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <04/03/03 15:34:48 ptr>
-# $Id$
+# $Id: clean.mak,v 1.1.2.2 2005/09/19 19:53:48 dums Exp $
 
 ifneq ($(OSNAME),windows)
 clobber::

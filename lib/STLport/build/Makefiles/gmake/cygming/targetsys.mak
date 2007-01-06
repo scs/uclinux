@@ -1,5 +1,5 @@
 # Time-stamp: <05/09/09 21:03:45 ptr>
-# $Id$
+# $Id: targetsys.mak,v 1.1.2.2 2005/09/19 19:53:48 dums Exp $
 
 ifndef CC
 @echo CC already defined : ${CC}

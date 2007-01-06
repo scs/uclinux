@@ -1,5 +1,5 @@
 # -*- makefile -*- Time-stamp: <05/03/02 18:39:22 ptr>
-# $Id$
+# $Id: rules-install-so.mak,v 1.1.2.1 2005/05/02 18:33:05 ptr Exp $
 
 INSTALL_TAGS ?= install-release-shared install-dbg-shared install-stldbg-shared
 

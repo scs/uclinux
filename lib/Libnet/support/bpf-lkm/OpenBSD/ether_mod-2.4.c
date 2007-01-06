@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: ether_mod-2.4.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  OpenBSD 2.4 ether_mod.c - lkm replacement for ether_output

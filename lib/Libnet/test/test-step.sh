@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#   $Id$
+#   $Id: test-step.sh,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
 #
 #   libnet
 #   Copyright (c) 1998 - 2001 Mike D. Schiffman <mike@infonexus.com>

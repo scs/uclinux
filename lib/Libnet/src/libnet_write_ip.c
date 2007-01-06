@@ -1,5 +1,5 @@
 /*
- *  $Id$
+ *  $Id: libnet_write_ip.c,v 1.1.1.1 2000/05/25 00:28:49 route Exp $
  *
  *  libnet
  *  libnet_write_ip.c - writes a prebuilt IP packet to the network
