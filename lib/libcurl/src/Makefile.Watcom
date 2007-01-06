@@ -2,7 +2,7 @@
 #  Watcom / OpenWatcom / Win32 makefile for cURL.
 #  G. Vanem <giva@bgnett.no>
 #
-# $Id$
+# $Id: Makefile.Watcom,v 1.4 2005/01/12 15:32:41 giva Exp $
 
 #
 # Set to 1 to use static lib.

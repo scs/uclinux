@@ -1,4 +1,4 @@
-/* $Id$                                                                     */
+/* $Id: curlmsg_vms.h,v 1.2 2005/02/11 21:17:23 curlvms Exp $                                                                     */
 /* CURLMSG_VMS.H                                                            */
 /* This defines the necessary bits to change CURLE_* error codes to VMS     */
 /* style error codes.  CURLMSG.H is built from CURLMSG.SDL which is built   */

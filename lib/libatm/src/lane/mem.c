@@ -1,7 +1,7 @@
 /*
  * Memory allocation unit
  *
- * $Id$
+ * $Id: mem.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 
@@ -34,7 +34,7 @@ static void mem_dump_all(void);
 static void mem_release(void);
 
 /* Data */
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: mem.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $";
 
 static MemList_t *memlist;
 

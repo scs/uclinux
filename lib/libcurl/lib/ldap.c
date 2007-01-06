@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: ldap.c,v 1.49 2005/03/11 05:28:07 danf Exp $
  ***************************************************************************/
 
 #include "setup.h"

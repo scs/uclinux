@@ -1,7 +1,7 @@
 /*
  * ATM connection wrapper
  *
- * $Id$
+ * $Id: connect.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 
@@ -95,7 +95,7 @@ extern Lecdb_t *leclist;
 
 LaneControl_t *control_packet;
 
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: connect.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $";
 
 static State_t
   /* CS_IDLE */

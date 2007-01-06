@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: connect.c,v 1.135 2005/05/14 21:15:36 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

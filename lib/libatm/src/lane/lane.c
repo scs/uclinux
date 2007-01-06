@@ -1,7 +1,7 @@
 /*
  * Lan Emulation Server
  *
- * $Id$
+ * $Id: lane.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 
@@ -35,7 +35,7 @@ static int dump_handler(const Event_t *event, void *funcdata);
 static int exit_handler(const Event_t *event, void *funcdata);
 
 /* Data */
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: lane.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $";
 const Unit_t main_unit = {
   "main",
   NULL,

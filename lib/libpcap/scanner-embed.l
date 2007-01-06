@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /cvs/sw/new-wave/lib/libpcap/scanner-embed.l,v 1.2 2005/09/16 04:50:47 philipc Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H

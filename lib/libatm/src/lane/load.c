@@ -1,7 +1,7 @@
 /*
  * Configuration file loader
  *
- * $Id$
+ * $Id: load.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 
@@ -64,7 +64,7 @@ static void load_vars(const char *filename);
 
 /* Data */
 #define BUFLEN 256
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: load.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $";
 
 static VarList_t *varlist;
 extern char *var_file;

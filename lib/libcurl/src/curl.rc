@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: curl.rc,v 1.2 2005/04/22 20:49:35 bagder Exp $
  ***************************************************************************/
 #include <winver.h>
 #include "version.h"

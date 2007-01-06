@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: util.h,v 1.1 2005/04/30 23:30:55 bagder Exp $
  ***************************************************************************/
 
 int ourerrno(void);

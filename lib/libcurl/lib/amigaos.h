@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: amigaos.h,v 1.4 2004/10/06 07:50:18 bagder Exp $
  ***************************************************************************/
 
 #ifndef LIBCURL_AMIGAOS_H

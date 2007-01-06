@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: util.c,v 1.3 2005/05/01 12:56:09 bagder Exp $
  ***************************************************************************/
 #include "setup.h" /* portability help from the lib directory */
 

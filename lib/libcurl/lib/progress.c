@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: progress.c,v 1.77 2004/11/26 14:33:14 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

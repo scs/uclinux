@@ -21,7 +21,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: ldap.h,v 1.13 2005/02/09 13:06:40 bagder Exp $
  ***************************************************************************/
 #ifndef CURL_DISABLE_LDAP
 CURLcode Curl_ldap(struct connectdata *conn, bool *done);

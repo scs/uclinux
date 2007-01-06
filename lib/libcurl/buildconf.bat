@@ -1,7 +1,7 @@
 @echo off
 REM set up a CVS tree to build when there's no autotools
-REM $Revision$
-REM $Date$
+REM $Revision: 1.2 $
+REM $Date: 2004/09/15 08:07:20 $
 
 REM create ca-bundle.h
 echo /* This file is generated automatically */ >lib\ca-bundle.h

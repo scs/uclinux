@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: hostip.h,v 1.43 2005/04/04 21:23:04 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

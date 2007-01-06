@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: timeval.h,v 1.20 2004/12/17 17:49:10 giva Exp $
  ***************************************************************************/
 
 /*

@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: base64.h,v 1.17 2005/03/31 07:02:03 bagder Exp $
  ***************************************************************************/
 size_t Curl_base64_encode(const char *input, size_t size, char **str);
 size_t Curl_base64_decode(const char *source, unsigned char **outptr);

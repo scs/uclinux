@@ -18,7 +18,7 @@
 # * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # * KIND, either express or implied.
 # *
-# * $Id$
+# * $Id: get_ver.awk,v 1.5 2004/07/11 17:59:07 gknauf Exp $
 # ***************************************************************************
 # awk script which fetches libcurl version number and string from input file
 # and writes them to STDOUT. Here you can get an awk version for Win32:

@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: writeout.c,v 1.27 2004/12/21 19:59:35 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

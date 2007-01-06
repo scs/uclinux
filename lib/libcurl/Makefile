@@ -18,7 +18,7 @@
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
 #
-# $Id$
+# $Id: Makefile.dist,v 1.31 2005/03/31 07:02:02 bagder Exp $
 ###########################################################################
 
 all:

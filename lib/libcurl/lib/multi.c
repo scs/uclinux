@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: multi.c,v 1.68 2005/03/08 22:21:59 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

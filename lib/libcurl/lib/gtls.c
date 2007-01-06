@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: gtls.c,v 1.7 2005/04/22 20:56:26 bagder Exp $
  ***************************************************************************/
 
 /*

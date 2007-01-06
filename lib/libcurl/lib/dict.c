@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: dict.c,v 1.39 2005/02/09 13:06:40 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

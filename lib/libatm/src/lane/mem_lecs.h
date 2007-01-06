@@ -2,7 +2,7 @@
  *
  * Memory handling funcs
  *
- * $Id$
+ * $Id: mem_lecs.h,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 

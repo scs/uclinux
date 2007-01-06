@@ -1,7 +1,7 @@
 /*
  * Timers and signals wrapper
  *
- * $Id$
+ * $Id: timers.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 
@@ -41,7 +41,7 @@ static void alarm_handler(int nsig);
 /* Data */
 #define TIMER_MAX 65535
 
-static const char *rcsid="$Id$";
+static const char *rcsid="$Id: timers.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $";
 
 const Unit_t timer_unit = {
   "timer",

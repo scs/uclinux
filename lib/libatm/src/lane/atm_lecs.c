@@ -1,7 +1,7 @@
  /*
  * ATM connection functions
  *
- * $Id$
+ * $Id: atm_lecs.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 

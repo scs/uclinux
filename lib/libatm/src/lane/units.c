@@ -1,7 +1,7 @@
 /*
  * Unitlist
  *
- * $Id$
+ * $Id: units.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 

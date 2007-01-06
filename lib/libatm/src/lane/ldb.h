@@ -2,7 +2,7 @@
  *
  * Configuration DB
  *
- * $Id$
+ * $Id: ldb.h,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 #ifndef LDB_H

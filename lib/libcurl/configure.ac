@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: configure.ac,v 1.149 2005/05/13 21:19:21 bagder Exp $
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)

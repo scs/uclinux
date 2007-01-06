@@ -1,5 +1,5 @@
 #############################################################
-# $Id$
+# $Id: Makefile.m32,v 1.32 2004/12/19 11:52:31 giva Exp $
 #
 ## Makefile for building libcurl.a with MingW32 (GCC-3.2) and
 ## optionally OpenSSL (0.9.7)

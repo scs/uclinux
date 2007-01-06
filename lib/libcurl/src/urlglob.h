@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: urlglob.h,v 1.16 2004/03/23 09:12:52 bagder Exp $
  ***************************************************************************/
 typedef enum {
   UPTSet=1,

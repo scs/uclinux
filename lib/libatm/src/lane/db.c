@@ -1,7 +1,7 @@
 /*
  * Database handling functions
  *
- * $Id$
+ * $Id: db.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 

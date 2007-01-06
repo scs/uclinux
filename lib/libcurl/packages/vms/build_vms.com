@@ -1,4 +1,4 @@
-$! $Id$
+$! $Id: build_vms.com,v 1.5 2005/04/08 05:06:31 curlvms Exp $
 $! BUILD_VMS.COM 
 $!
 $! I've taken the original build_vms.com, supplied by Nico Baggus, if

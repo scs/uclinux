@@ -1,7 +1,7 @@
 /*
  * Event handler
  *
- * $Id$
+ * $Id: events.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 
@@ -54,7 +54,7 @@ static void events_release(void);
 static void event_get_fds(fd_set *dest);
 
 /* Data */
-static const char *rcsid="$Id$";
+static const char *rcsid="$Id: events.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $";
 
 const Unit_t events_unit = {
   "events",

@@ -1,7 +1,7 @@
 /*
  * Debug packet dumper
  *
- * $Id$
+ * $Id: dump.h,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 #ifndef LANE_DUMP_H

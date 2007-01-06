@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: http_digest.c,v 1.24 2004/11/12 09:18:14 bagder Exp $
  ***************************************************************************/
 #include "setup.h"
 

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap1.h,v 1.2 2004/03/30 14:42:50 mcr Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h

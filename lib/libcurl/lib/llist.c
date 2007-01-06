@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: llist.c,v 1.16 2005/01/25 00:06:29 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

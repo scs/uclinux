@@ -1,4 +1,4 @@
-@(#) $Header$ (LBL)
+@(#) $Header: /tcpdump/master/libpcap/README,v 1.30 2004/10/12 02:02:28 guy Exp $ (LBL)
 
 LIBPCAP 0.9
 Now maintained by "The Tcpdump Group"

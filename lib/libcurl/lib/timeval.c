@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: timeval.c,v 1.24 2004/12/17 18:32:41 giva Exp $
  ***************************************************************************/
 
 #include "timeval.h"

@@ -3,7 +3,7 @@
 # The idea to this kind of setup info script was stolen from numerous
 # other packages, such as neon, libxml and gnome.
 #
-# $Id$
+# $Id: curl-config.in,v 1.21 2005/03/15 07:49:47 bagder Exp $
 #
 prefix=@prefix@
 exec_prefix=@exec_prefix@

@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: ftp.h,v 1.22 2005/02/09 13:06:40 bagder Exp $
  ***************************************************************************/
 
 #ifndef CURL_DISABLE_FTP

@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: cookie.c,v 1.69 2005/04/26 13:08:49 bagder Exp $
  ***************************************************************************/
 
 /***

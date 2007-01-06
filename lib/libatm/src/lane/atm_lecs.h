@@ -1,7 +1,7 @@
 /*
  * ATM connection 
  *
- * $Id$
+ * $Id: atm_lecs.h,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 #ifndef ATM_LECS_H

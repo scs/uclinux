@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * $Id$
+ * $Id: multi-single.c,v 1.5 2004/05/24 15:16:29 bagder Exp $
  *
  * This is a very simple example using the multi interface.
  */

@@ -19,7 +19,7 @@
 # files in the "cfg" directory, but then the make file
 # in \src would need to be changed.
 #
-# $Id$
+# $Id: Makefile.vc6,v 1.17 2004/01/13 08:57:01 bagder Exp $
 ##############################################################
 
 #

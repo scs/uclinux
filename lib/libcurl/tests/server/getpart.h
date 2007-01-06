@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: getpart.h,v 1.3 2004/11/29 12:10:09 bagder Exp $
  ***************************************************************************/
 const char *
 spitout(FILE *stream,

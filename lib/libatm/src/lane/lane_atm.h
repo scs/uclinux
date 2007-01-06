@@ -1,7 +1,7 @@
 /*
  * ATM connection 
  *
- * $Id$
+ * $Id: lane_atm.h,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 #ifndef ATM_H

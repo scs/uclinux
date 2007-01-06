@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: strtoofft.h,v 1.14 2004/12/17 18:33:09 giva Exp $
  ***************************************************************************/
 
 /*

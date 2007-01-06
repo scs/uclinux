@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: strtok.c,v 1.13 2004/01/29 13:56:45 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

@@ -98,7 +98,7 @@ done
 
 echo "ccmalloc: installation prefix: $PREFIX"
 echo "ccmalloc: valid C++ wrappers: $COMPILERS "
-echo 'ccmalloc: $Id$'
+echo 'ccmalloc: $Id: ccmalloc.in,v 1.9 2002/01/30 14:23:55 biere Exp $'
 
 if [ $foundcompiler = yes ]
 then

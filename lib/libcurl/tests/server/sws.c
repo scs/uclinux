@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: sws.c,v 1.69 2005/05/01 12:56:09 bagder Exp $
  ***************************************************************************/
 
 /* sws.c: simple (silly?) web server

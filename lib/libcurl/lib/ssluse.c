@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: ssluse.c,v 1.134 2005/04/13 06:52:03 bagder Exp $
  ***************************************************************************/
 
 /*

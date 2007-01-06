@@ -1,7 +1,7 @@
 /*
  * Event handler
  *
- * $Id$
+ * $Id: events.h,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 

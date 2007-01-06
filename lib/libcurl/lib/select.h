@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: select.h,v 1.3 2004/11/19 14:38:02 giva Exp $
  ***************************************************************************/
 
 #ifdef HAVE_SYS_POLL_H

@@ -21,7 +21,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: formdata.h,v 1.23 2004/06/14 08:51:43 bagder Exp $
  ***************************************************************************/
 
 enum formtype {

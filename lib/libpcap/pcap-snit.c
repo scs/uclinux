@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-snit.c,v 1.72.2.1 2005/05/03 18:54:38 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H

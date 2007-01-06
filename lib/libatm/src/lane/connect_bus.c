@@ -1,7 +1,7 @@
 /*
  * ATM connection wrapper
  *
- * $Id$
+ * $Id: connect_bus.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $
  *
  */
 
@@ -68,7 +68,7 @@ static Conn_t *connlist;
 unsigned char *data_packet;
 unsigned int data_packet_size;
 
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: connect_bus.c,v 1.2 2001/10/09 22:33:06 paulsch Exp $";
 
 static State_t
   /* CS_IDLE */

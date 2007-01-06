@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: telnet.c,v 1.73 2005/03/15 07:48:45 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

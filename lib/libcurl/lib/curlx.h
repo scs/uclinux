@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: curlx.h,v 1.2 2004/05/24 11:57:34 bagder Exp $
  ***************************************************************************/
 
 /*

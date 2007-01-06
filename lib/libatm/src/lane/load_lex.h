@@ -1,7 +1,7 @@
 /*
  * Configuration file loader, lex header
  *
- * $Id$
+ * $Id: load_lex.h,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 #ifndef __LOAD_LEX

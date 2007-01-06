@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: url.c,v 1.461 2005/05/14 06:00:40 giva Exp $
  ***************************************************************************/
 
 /* -- WIN32 approved -- */

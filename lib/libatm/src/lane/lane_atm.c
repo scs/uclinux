@@ -1,7 +1,7 @@
  /*
  * ATM connection functions
  *
- * $Id$
+ * $Id: lane_atm.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  *
  */
 
@@ -31,7 +31,7 @@ static void atm_init1(void);
 static void atm_dump(void);
 
 /* Static variables */
-static const char *rcsid="$Id$";
+static const char *rcsid="$Id: lane_atm.c,v 1.2 2001/10/09 22:33:07 paulsch Exp $";
 
 /* Data */
 #define QLEN 5

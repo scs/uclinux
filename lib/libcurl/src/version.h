@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: version.h,v 1.92 2004/03/24 07:27:58 bagder Exp $
  ***************************************************************************/
 
 #include <curl/curlver.h>

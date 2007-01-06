@@ -19,7 +19,7 @@
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
 #
-# $Id$
+# $Id: runtests.pl,v 1.187 2005/05/16 07:07:00 bagder Exp $
 ###########################################################################
 # These should be the only variables that might be needed to get edited:
 

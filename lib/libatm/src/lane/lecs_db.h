@@ -2,7 +2,7 @@
  * 
  * ELAN Configuration db load header
  *
- * $Id$
+ * $Id: lecs_db.h,v 1.2 2001/10/09 22:33:07 paulsch Exp $
  * 
  */
 #ifndef LECS_DB_H

@@ -45,7 +45,7 @@
 #endif
 
 #ifndef lint
-static char RCSid[] = "ttcp.c $Revision$";
+static char RCSid[] = "ttcp.c $Revision: 1.2 $";
 #endif
 
 /*#define CPU_USAGE*/	/* print out CPU usage numbers? */

@@ -19,7 +19,7 @@
 # This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
 # KIND, either express or implied.
 #
-# $Id$
+# $Id: testcurl.pl,v 1.32 2005/05/10 11:19:12 bagder Exp $
 ###########################################################################
 
 ###########################
@@ -67,7 +67,7 @@ use vars qw($name $email $desc $confopts $runtestopts $setupfile $mktarball
             $nocvsup $crosscompile);
 
 # version of this script
-$version='$Revision$';
+$version='$Revision: 1.32 $';
 $fixed=0;
 
 # Determine if we're running from CVS or a canned copy of curl,

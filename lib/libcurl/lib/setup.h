@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: setup.h,v 1.90 2005/05/07 13:57:07 bagder Exp $
  ***************************************************************************/
 
 #ifdef HTTP_ONLY

@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: nwlib.c,v 1.4 2004/06/10 21:20:15 gknauf Exp $
  ***************************************************************************/
 
 #include <errno.h>

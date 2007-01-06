@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: transfer.c,v 1.279 2005/05/10 23:02:37 bagder Exp $
  ***************************************************************************/
 
 #include "setup.h"

@@ -18,7 +18,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: mprintf.h,v 1.10 2004/11/11 08:03:43 bagder Exp $
  ***************************************************************************/
 
 #ifndef H_MPRINTF

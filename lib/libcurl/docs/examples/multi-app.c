@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * $Id$
+ * $Id: multi-app.c,v 1.6 2004/10/06 13:24:08 giva Exp $
  *
  * This is an example application source code using the multi interface.
  */

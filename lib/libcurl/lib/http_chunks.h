@@ -20,7 +20,7 @@
  * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
  * KIND, either express or implied.
  *
- * $Id$
+ * $Id: http_chunks.h,v 1.13 2005/03/31 07:02:03 bagder Exp $
  ***************************************************************************/
 /*
  * The longest possible hexadecimal number we support in a chunked transfer.

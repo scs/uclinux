@@ -5,7 +5,7 @@
  *                            | (__| |_| |  _ <| |___
  *                             \___|\___/|_| \_\_____|
  *
- * $Id$
+ * $Id: multi-post.c,v 1.2 2004/11/24 16:11:35 bagder Exp $
  *
  * This is an example application source code using the multi interface
  * to do a multipart formpost without "blocking".

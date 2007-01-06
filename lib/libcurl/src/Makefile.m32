@@ -1,5 +1,5 @@
 #############################################################
-# $Id$
+# $Id: Makefile.m32,v 1.18 2004/11/13 15:47:17 giva Exp $
 #
 ## Makefile for building curl.exe with MingW32 (GCC-3.2) and
 ## optionally OpenSSL (0.9.7)
