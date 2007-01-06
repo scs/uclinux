@@ -1,7 +1,7 @@
 /* pam_group module */
 
 /*
- * $Id$
+ * $Id: pam_group.c,v 1.18 2005/12/16 17:52:36 kukuk Exp $
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/7/6
  */

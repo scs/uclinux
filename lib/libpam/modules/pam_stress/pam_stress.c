@@ -1,6 +1,6 @@
 /* pam_stress module */
 
-/* $Id$
+/* $Id: pam_stress.c,v 1.10 2005/12/12 14:45:02 ldv Exp $
  *
  * created by Andrew Morgan <morgan@linux.kernel.org> 1996/3/12
  */

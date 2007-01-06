@@ -2,7 +2,7 @@
 
 <!--
 
- $Id$
+ $Id: pam_source.sgml,v 1.13 2004/09/28 13:48:46 kukuk Exp $
 
     Copyright (c) Andrew G. Morgan 1996-2002.  All rights reserved.
 
@@ -1161,6 +1161,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id$</tt>
+<tt>$Id: pam_source.sgml,v 1.13 2004/09/28 13:48:46 kukuk Exp $</tt>
 
 </article>

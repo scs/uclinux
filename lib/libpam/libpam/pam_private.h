@@ -1,7 +1,7 @@
 /*
  * pam_private.h
  *
- * $Id$
+ * $Id: pam_private.h,v 1.15 2006/01/13 20:59:48 kukuk Exp $
  *
  * This is the Linux-PAM Library Private Header. It contains things
  * internal to the Linux-PAM library. Things not needed by either an

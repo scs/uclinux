@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: pam_misc.h,v 1.5 2005/08/16 12:27:40 kukuk Exp $ */
 
 #ifndef __PAMMISC_H
 #define __PAMMISC_H

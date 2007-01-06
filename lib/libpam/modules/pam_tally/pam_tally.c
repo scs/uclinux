@@ -1,7 +1,7 @@
 /*
  * pam_tally.c
  *
- * $Id$
+ * $Id: pam_tally.c,v 1.22 2005/09/21 10:01:01 t8m Exp $
  */
 
 

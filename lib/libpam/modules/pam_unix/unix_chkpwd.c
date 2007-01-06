@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: unix_chkpwd.c,v 1.16 2005/11/24 17:15:31 ldv Exp $
  *
  * This program is designed to run setuid(root) or with sufficient
  * privilege to read all of the unix password databases. It is designed

@@ -2,7 +2,7 @@
 
 <!--
 
- $Id$
+ $Id: pam_appl.sgml,v 1.11 2005/12/14 09:53:06 kukuk Exp $
 
     Copyright (C) Andrew G. Morgan 1996-2001.  All rights reserved.
 
@@ -1659,7 +1659,7 @@ This document was written by Andrew G. Morgan
 <!-- insert credits here -->
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
- $Id$
+ $Id: pam_appl.sgml,v 1.11 2005/12/14 09:53:06 kukuk Exp $
   -->
 Chris Adams,
 Peter Allgeyer,
@@ -1772,6 +1772,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id$</tt>
+<tt>$Id: pam_appl.sgml,v 1.11 2005/12/14 09:53:06 kukuk Exp $</tt>
 
 </article>

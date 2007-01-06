@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_modutil_getgrnam.c,v 1.1 2005/09/21 10:00:58 t8m Exp $
  *
  * This function provides a thread safer version of getgrnam() for use
  * with PAM modules that care about this sort of thing.

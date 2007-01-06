@@ -4,7 +4,7 @@
  * Modified for pam_motd by Ben Collins <bcollins@debian.org>
  *
  * Based off of:
- * $Id$
+ * $Id: pam_motd.c,v 1.12 2005/10/04 11:35:18 ldv Exp $
  *
  * Written by Michael K. Johnson <johnsonm@redhat.com> 1996/10/24
  *

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_modutil_getlogin.c,v 1.2 2005/11/23 16:42:40 kukuk Exp $
  *
  * A central point for invoking getlogin(). Hopefully, this is a
  * little harder to spoof than all the other versions that are out

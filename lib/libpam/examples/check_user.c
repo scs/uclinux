@@ -1,5 +1,5 @@
 /*
-  $Id$
+  $Id: check_user.c,v 1.2 2000/12/04 19:02:33 baggins Exp $
   
   This program was contributed by Shane Watts <shane@icarus.bofh.asn.au>
   slight modifications by AGM.

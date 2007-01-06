@@ -1,7 +1,7 @@
 /* pam_item.c */
 
 /*
- * $Id$
+ * $Id: pam_item.c,v 1.12 2005/09/20 13:13:55 t8m Exp $
  */
 
 #include "pam_private.h"

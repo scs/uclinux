@@ -1,4 +1,4 @@
-# $Id$
+# $Id: README,v 1.1 2001/10/10 05:00:11 agmorgan Exp $
 #
 
 This module returns what its module arguments tell it to return. It

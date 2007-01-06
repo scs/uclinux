@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: blank.c,v 1.2 2000/12/04 19:02:33 baggins Exp $
  */
 
 /* Andrew Morgan (morgan@parc.power.net) -- a self contained `blank'

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: libpamc.h,v 1.2 2000/11/19 23:54:03 agmorgan Exp $
  *
  * Copyright (c) Andrew G. Morgan <morgan@ftp.kernel.org>
  *

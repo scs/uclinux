@@ -1,7 +1,7 @@
 /* pam_ftp module */
 
 /*
- * $Id$
+ * $Id: pam_ftp.c,v 1.10 2005/10/04 11:35:18 ldv Exp $
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  *

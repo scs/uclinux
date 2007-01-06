@@ -1,7 +1,7 @@
 
 #ifndef _PAM_USERSDB_H
 #define _PAM_USERSDB_H
-/* $Id$ */
+/* $Id: pam_userdb.h,v 1.4 2005/09/18 13:04:57 kukuk Exp $ */
    
 /* Header files */
 #include <security/pam_appl.h>

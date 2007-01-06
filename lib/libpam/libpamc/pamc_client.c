@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pamc_client.c,v 1.1.1.1 2000/06/20 22:11:25 agmorgan Exp $
  *
  * Copyright (c) Andrew G. Morgan <morgan@ftp.kernel.org>
  *

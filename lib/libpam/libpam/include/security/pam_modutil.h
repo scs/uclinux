@@ -2,7 +2,7 @@
 #define _SECURITY__PAM_MODUTIL_H
 
 /*
- * $Id$
+ * $Id: pam_modutil.h,v 1.1 2005/09/21 10:01:00 t8m Exp $
  *
  * This file is a list of handy libc wrappers that attempt to provide some
  * thread-safe and other convenient functionality to modules in a common form.

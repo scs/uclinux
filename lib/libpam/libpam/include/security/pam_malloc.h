@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_malloc.h,v 1.5 2005/10/04 22:56:17 vorlon Exp $
  */
 
 /*

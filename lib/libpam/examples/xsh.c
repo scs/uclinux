@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xsh.c,v 1.10 2005/08/16 12:27:39 kukuk Exp $
  */
 
 /* Andrew Morgan (morgan@kernel.org) -- an example application

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: support.h,v 1.12 2005/09/26 14:27:09 t8m Exp $
  */
 
 #ifndef _PAM_UNIX_SUPPORT_H

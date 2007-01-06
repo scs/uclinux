@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_unix_sess.c,v 1.8 2005/09/26 14:27:09 t8m Exp $
  *
  * Copyright Alexander O. Yuriev, 1996.  All rights reserved.
  * Copyright Jan Rêkorajski, 1999.  All rights reserved.

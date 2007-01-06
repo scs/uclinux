@@ -1,7 +1,7 @@
 /* pam_mail module */
 
 /*
- * $Id$
+ * $Id: pam_mail.c,v 1.17 2005/12/12 12:47:38 t8m Exp $
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  * $HOME additions by David Kinchlea <kinch@kinch.ark.com> 1997/1/7

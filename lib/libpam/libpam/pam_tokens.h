@@ -1,7 +1,7 @@
 /*
  * pam_tokens.h
  *
- * $Id$
+ * $Id: pam_tokens.h,v 1.3 2001/01/22 06:07:29 agmorgan Exp $
  *
  * This is a Linux-PAM Library Private Header file. It contains tokens
  * that are used when we parse the configuration file(s).

@@ -1,7 +1,7 @@
 /* pam_permit module */
 
 /*
- * $Id$
+ * $Id: pam_permit.c,v 1.4 2005/09/17 08:50:29 t8m Exp $
  *
  * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
  *

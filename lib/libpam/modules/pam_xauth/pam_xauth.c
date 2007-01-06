@@ -35,7 +35,7 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* "$Id$" */
+/* "$Id: pam_xauth.c,v 1.12 2005/11/23 16:42:40 kukuk Exp $" */
 
 #include "config.h"
 #include <sys/types.h>

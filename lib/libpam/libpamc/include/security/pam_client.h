@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_client.h,v 1.7 2005/05/20 14:58:58 kukuk Exp $
  *
  * Copyright (c) 1999 Andrew G. Morgan <morgan@linux.kernel.org>
  *

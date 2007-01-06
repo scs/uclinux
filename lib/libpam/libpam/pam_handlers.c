@@ -4,7 +4,7 @@
  * created by Marc Ewing.
  * Currently maintained by Andrew G. Morgan <morgan@kernel.org>
  *
- * $Id$
+ * $Id: pam_handlers.c,v 1.21 2005/11/18 08:57:01 kukuk Exp $
  *
  */
 

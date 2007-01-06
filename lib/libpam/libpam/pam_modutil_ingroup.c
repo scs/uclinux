@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_modutil_ingroup.c,v 1.1 2005/09/21 10:00:58 t8m Exp $
  *
  * This function provides common methods for checking if a user is in a
  * specified group.

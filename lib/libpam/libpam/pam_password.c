@@ -1,7 +1,7 @@
 /* pam_password.c - PAM Password Management */
 
 /*
- * $Id$
+ * $Id: pam_password.c,v 1.4 2006/01/12 10:06:49 t8m Exp $
  */
 
 /* #define DEBUG */

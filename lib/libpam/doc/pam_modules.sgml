@@ -2,7 +2,7 @@
 
 <!--
 
- $Id$
+ $Id: pam_modules.sgml,v 1.9 2002/05/10 06:00:12 agmorgan Exp $
 
     Copyright (c) Andrew G. Morgan 1996-2001.  All rights reserved.
 
@@ -1386,7 +1386,7 @@ This document was written by Andrew G. Morgan
 <!-- insert credits here -->
 <!--
  an sgml list of people to credit for their contributions to Linux-PAM
- $Id$
+ $Id: pam_modules.sgml,v 1.9 2002/05/10 06:00:12 agmorgan Exp $
   -->
 Chris Adams,
 Peter Allgeyer,
@@ -1500,6 +1500,6 @@ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 DAMAGE.
 
 <p>
-<tt>$Id$</tt>
+<tt>$Id: pam_modules.sgml,v 1.9 2002/05/10 06:00:12 agmorgan Exp $</tt>
 
 </article>

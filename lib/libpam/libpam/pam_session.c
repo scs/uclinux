@@ -1,7 +1,7 @@
 /* pam_session.c - PAM Session Management */
 
 /*
- * $Id$
+ * $Id: pam_session.c,v 1.5 2006/01/12 10:06:49 t8m Exp $
  */
 
 #include "pam_private.h"

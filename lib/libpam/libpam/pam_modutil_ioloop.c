@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_modutil_ioloop.c,v 1.1 2005/09/21 10:00:58 t8m Exp $
  *
  * These functions provides common methods for ensure a complete read or
  * write occurs. It handles EINTR and partial read/write returns.

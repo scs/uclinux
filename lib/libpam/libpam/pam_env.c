@@ -7,7 +7,7 @@
  * This file was written from a "hint" provided by the people at SUN.
  * and the X/Open XSSO draft of March 1997.
  *
- * $Id$
+ * $Id: pam_env.c,v 1.6 2005/09/04 20:32:25 kukuk Exp $
  */
 
 #include "pam_private.h"

@@ -4,7 +4,7 @@
  * Copyright (c) Andrew G. Morgan <morgan@kernel.org> 1996-9
  * All rights reserved.
  *
- * $Id$
+ * $Id: pam_delay.c,v 1.6 2003/07/13 20:01:44 vorlon Exp $
  *
  */
 

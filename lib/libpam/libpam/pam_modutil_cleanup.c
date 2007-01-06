@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_modutil_cleanup.c,v 1.1 2005/09/21 10:00:58 t8m Exp $
  *
  * This function provides a common pam_set_data() friendly version of free().
  */

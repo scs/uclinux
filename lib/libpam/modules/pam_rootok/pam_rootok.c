@@ -1,7 +1,7 @@
 /* pam_rootok module */
 
 /*
- * $Id$
+ * $Id: pam_rootok.c,v 1.7 2005/12/12 14:45:02 ldv Exp $
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  */

@@ -1,11 +1,11 @@
 /* 
- * $Id$
+ * $Id: pam_unix_acct.-c,v 1.2 2000/12/04 19:02:34 baggins Exp $
  *
  * See end of file for copyright information
  */
 
 static const char rcsid_acct[] =
-"$Id$\n"
+"$Id: pam_unix_acct.-c,v 1.2 2000/12/04 19:02:34 baggins Exp $\n"
 " - PAM_PWDB account management <gafton@redhat.com>";
 
 /* the shadow suite has accout managment.. */

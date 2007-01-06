@@ -1,7 +1,7 @@
 /* pam_misc.c -- This is random stuff */
 
 /*
- * $Id$
+ * $Id: pam_misc.c,v 1.5 2005/09/04 20:32:25 kukuk Exp $
  */
 
 #include "pam_private.h"

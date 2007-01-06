@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_unix_pwupd.-c,v 1.1.1.1 2000/06/20 22:11:51 agmorgan Exp $
  *
  * This file contains the routines to update the passwd databases.
  */

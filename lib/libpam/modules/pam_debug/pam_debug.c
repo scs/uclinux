@@ -1,7 +1,7 @@
 /* pam_permit module */
 
 /*
- * $Id$
+ * $Id: pam_debug.c,v 1.4 2005/09/01 13:59:20 kukuk Exp $
  *
  * Written by Andrew Morgan <morgan@kernel.org> 2001/02/04
  *

@@ -3,7 +3,7 @@
 /* Creator Marc Ewing
  * Maintained by AGM
  *
- * $Id$
+ * $Id: pam_start.c,v 1.8 2006/01/12 10:06:49 t8m Exp $
  *
  */
 

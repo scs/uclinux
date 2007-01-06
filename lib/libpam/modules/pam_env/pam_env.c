@@ -1,7 +1,7 @@
 /* pam_env module */
 
 /*
- * $Id$
+ * $Id: pam_env.c,v 1.13 2005/12/12 14:45:00 ldv Exp $
  *
  * Written by Dave Kinchlea <kinch@kinch.ark.com> 1997/01/31
  * Inspired by Andrew Morgan <morgan@kernel.org>, who also supplied the

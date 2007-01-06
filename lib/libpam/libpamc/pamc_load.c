@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pamc_load.c,v 1.1.1.1 2000/06/20 22:11:26 agmorgan Exp $
  *
  * Copyright (c) 1999 Andrew G. Morgan <morgan@ftp.kernel.org>
  *

@@ -1,7 +1,7 @@
 /*
  * <security/pam_modules.h>
  * 
- * $Id$
+ * $Id: pam_modules.h,v 1.7 2005/10/04 22:56:17 vorlon Exp $
  *
  */
 

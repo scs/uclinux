@@ -10,7 +10,7 @@
  * Created: 15-Jan-96 by TYT
  * Last modified: 1996/3/5 by AGM
  *
- * $Id$
+ * $Id: pam_appl.h,v 1.4 2005/09/19 15:58:29 t8m Exp $
  */
 
 #ifndef _SECURITY_PAM_APPL_H

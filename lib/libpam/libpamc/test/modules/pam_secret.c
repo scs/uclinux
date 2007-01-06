@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_secret.c,v 1.3 2004/09/14 14:22:39 kukuk Exp $
  *
  * Copyright (c) 1999 Andrew G. Morgan <morgan@linux.kernel.org>
  */

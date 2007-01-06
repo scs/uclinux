@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: help_env.c,v 1.4 2005/09/20 08:31:27 kukuk Exp $
  *
  * This file was written by Andrew G. Morgan <morgan@parc.power.net>
  *

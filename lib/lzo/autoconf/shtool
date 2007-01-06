@@ -3686,7 +3686,7 @@ version )
         vGNU="${name} ${triple} (${tim})"
         vWeb="${name}/${triple}"
         vSCCS="@(#)${name} ${triple} (${tim})"
-        vRCS="\$Id${name} ${triple} (${tim}) \$"
+        vRCS="\$Id: ${name} ${triple} (${tim}) \$"
 
         #   determine string out of filename
         #   (do NOT try to optimize this in any way because of portability)

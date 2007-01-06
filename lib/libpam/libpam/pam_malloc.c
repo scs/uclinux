@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pam_malloc.c,v 1.6 2005/08/16 12:27:39 kukuk Exp $
  */
 
 /*

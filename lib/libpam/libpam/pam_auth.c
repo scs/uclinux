@@ -1,7 +1,7 @@
 /*
  * pam_auth.c -- PAM authentication
  *
- * $Id$
+ * $Id: pam_auth.c,v 1.6 2006/01/12 10:06:49 t8m Exp $
  *
  */
 

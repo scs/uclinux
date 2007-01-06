@@ -3,7 +3,7 @@
 /*
  * Copyright (c) 1998, 2005 Andrew G. Morgan <morgan@kernel.org>
  *
- * $Id$
+ * $Id: pam_dispatch.c,v 1.10 2005/09/04 20:32:25 kukuk Exp $
  */
 
 #include "pam_private.h"

@@ -1,7 +1,7 @@
 /* pam_deny module */
 
 /*
- * $Id$
+ * $Id: pam_deny.c,v 1.4 2005/12/14 09:58:32 kukuk Exp $
  *
  * Written by Andrew Morgan <morgan@parc.power.net> 1996/3/11
  *

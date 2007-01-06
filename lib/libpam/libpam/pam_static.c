@@ -2,7 +2,7 @@
 
 /* created by Michael K. Johnson, johnsonm@redhat.com
  *
- * $Id$
+ * $Id: pam_static.c,v 1.3 2005/09/04 20:32:25 kukuk Exp $
  */
 
 /* This whole file is only used for PAM_STATIC */

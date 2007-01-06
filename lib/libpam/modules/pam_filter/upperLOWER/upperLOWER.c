@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: upperLOWER.c,v 1.9 2005/09/21 10:01:01 t8m Exp $
  *
  * This is a sample filter program, for use with pam_filter (a module
  * provided with Linux-PAM). This filter simply transposes upper and

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pamc_converse.c,v 1.5 2005/11/24 17:15:31 ldv Exp $
  *
  * Copyright (c) Andrew G. Morgan <morgan@ftp.kernel.org>
  *
