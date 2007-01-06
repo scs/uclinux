@@ -1,0 +1,236 @@
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "UDEV" "7" "August 2005" "udev" "udev"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+udev \- dynamic device management
+.SH "DESCRIPTION"
+.PP
+udev provides a dynamic device directory containing only the files for actually present devices. It creates or removes device node files in the
+\fI/dev\fR
+directory, or it renames network interfaces.
+.PP
+Usually udev runs as
+\fBudevd\fR(8)
+and receives uevents directly from the kernel if a device is added or removed form the system.
+.PP
+If udev receives a device event, it matches its configured rules against the available device attributes provided in sysfs to identify the device. Rules that match, may provide additional device information or specify a device node name and multiple symlink names and instruct udev to run additional programs as part of the device event handling.
+.SH "CONFIGURATION"
+.PP
+All udev configuration files are placed in
+\fI/etc/udev/*\fR. Every file consists of a set of lines of text. All empty lines or lines beginning with '#' will be ignored.
+.SS "Configuration file"
+.PP
+udev expects its main configuration file at
+\fI/etc/udev/udev.conf\fR. It consists of a set of variables allowing the user to override default udev values. The following variables can be set:
+.TP
+\fBudev_root\fR
+Specifies where to place the device nodes in the filesystem. The default value is
+\fI/dev\fR.
+.TP
+\fBudev_rules\fR
+The name of the udev rules file or directory to look for files with the suffix
+\fI.rules\fR. Multiple rule files are read in lexical order. The default value is
+\fI/etc/udev/rules.d\fR.
+.TP
+\fBudev_log\fR
+The logging priority. Valid values are the numerical syslog priorities or their textual representations:
+\fBerr\fR,
+\fBinfo\fR
+and
+\fBdebug\fR.
+.SS "Rules files"
+.PP
+The udev rules are read from the files located in the
+\fI/etc/udev/rules.d\fR
+directory or at the location specified value in the configuraton file. Every line in the rules file contains at least one key value pair. There are two kind of keys, match and assignement keys. If all match keys are matching against its value, the rule gets applied and the assign keys get the specified value assigned. A matching rule may specify the name of the device node, add a symlink pointing to the node, or run a specified program as part of the event handling. If no matching rule is found, the default device node name is used.
+.PP
+A rule may consists of a list of one or more key value pairs separated by a comma. Each key has a distinct operation, depending on the used operator. Valid operators are:
+.TP
+\fB==\fR
+Compare for equality.
+.TP
+\fB!=\fR
+Compare for non\-equality.
+.TP
+\fB=\fR
+Asign a value to a key. Keys that represent a list, are reset and only this single value is assigned.
+.TP
+\fB+=\fR
+Add the value to a key that holds a list of entries.
+.TP
+\fB:=\fR
+Assign a value to a key finally; disallow any later changes, which may be used to prevent changes by any later rules.
+.PP
+The following key names can be used to match against device properties:
+.TP
+\fBACTION\fR
+Match the name of the event action.
+.TP
+\fBKERNEL\fR
+Match the name of the device.
+.TP
+\fBDEVPATH\fR
+Match the devpath of the device.
+.TP
+\fBSUBSYSTEM\fR
+Match the subsystem of the device.
+.TP
+\fBBUS\fR
+Search the devpath upwards for a matching device subsystem name.
+.TP
+\fBDRIVER\fR
+Search the devpath upwards for a matching device driver name.
+.TP
+\fBID\fR
+Search the devpath upwards for a matching device name.
+.TP
+\fBSYSFS{\fR\fB\fIfilename\fR\fR\fB}\fR
+Search the devpath upwards for a device with matching sysfs attribute values. Up to five
+\fBSYSFS\fR
+keys can be specified per rule. All attributes must match on the same device. Trailing whitespace in the attribute values is ignored, if the specified match value does not contain trailing whitespace itself.
+.TP
+\fBENV{\fR\fB\fIkey\fR\fR\fB}\fR
+Match against the value of an environment variable. Up to five
+\fBENV\fR
+keys can be specified per rule. This key can also be used to export a variable to the environment.
+.TP
+\fBPROGRAM\fR
+Execute external program. The key is true, if the program returns without exit code zero. The whole event environment is available to the executed program. The program's output printed to stdout is available for the RESULT key.
+.TP
+\fBRESULT\fR
+Match the returned string of the last PROGRAM call. This key can be used in the same or in any later rule after a PROGRAM call.
+.PP
+Most of the fields support a shell style pattern matching. The following pattern characters are supported:
+.TP
+\fB*\fR
+Matches zero, or any number of characters.
+.TP
+\fB?\fR
+Matches any single character.
+.TP
+\fB[]\fR
+Matches any single character specified within the brackets. example, the pattern string 'tty[SR]' would match either 'ttyS' or 'ttyR'. Ranges are also supported within this match with the '\-' character. For example, to match on the range of all digits, the pattern [0\-9] would be used. If the first character following the '[' is a '!', any characters not enclosed are matched.
+.PP
+The following keys can get values assigned:
+.TP
+\fBNAME\fR
+The name of the node to be created, or the name the network interface should be renamed to. Only one rule can set the node name, all later rules with a NAME key will be ignored.
+.TP
+\fBSYMLINK\fR
+The name of a symlink targeting the node. Every matching rule can add this value to the list of symlinks to be created along with the device node. Multiple symlinks may be specified by separating the names by the space character.
+.TP
+\fBOWNER, GROUP, MODE\fR
+The permissions for the device node. Every specified value overwrites the compiled\-in default value.
+.TP
+\fBENV{\fR\fB\fIkey\fR\fR\fB}\fR
+Export a variable to the environment. This key can also be used to match against an environment variable.
+.TP
+\fBRUN\fR
+Add a program to the list of programs to be executed for a specific device. This can only be used for very short running tasks. Running an event process for a long period of time may block all further events for this or a dependent device. Long running tasks need to be immediately detached from the event process itself.
+.TP
+\fBLABEL\fR
+Named label where a GOTO can jump to.
+.TP
+\fBGOTO\fR
+Jumps to the next LABEL with a matching name
+.TP
+\fBIMPORT{\fR\fB\fItype\fR\fR\fB}\fR
+Import the printed result or the value of a file in environment key format into the event environment.
+\fBprogram\fR
+will execute an external program and read its output.
+\fBfile\fR
+will inport a text file. If no option is given, udev will determine it from the executable bit of of the file permissions.
+.TP
+\fBWAIT_FOR_SYSFS\fR
+Wait for the specified sysfs file of the device to be created. Can be used to fight against kernel sysfs timing issues.
+.TP
+\fBOPTIONS\fR
+\fBlast_rule\fR
+stops further rules application. No later rules will have any effect.
+\fBignore_device\fR
+will ignore this event completely.
+\fBignore_remove\fR
+will ignore any later remove event for this device. This may be useful as a workaround for broken device drivers.
+\fBall_partitions\fR
+will create device nodes for all available partitions of a block device. This may be useful for removable media.
+.PP
+The
+\fBNAME\fR,
+\fBSYMLINK\fR,
+\fBPROGRAM\fR,
+\fBOWNER\fR,
+\fBGROUP\fR
+and
+\fBRUN\fR
+fields support simple printf\-like string substitutions. The
+\fBRUN\fR
+format chars gets applied after all rules have been processed, right before the program is executed. It allows the use of the complete environment set by earlier matching rules. For all other fields, substitutions are applied while the individual rule is being processed. The available substitutions are:
+.TP
+\fB$kernel\fR, \fB%k\fR
+The kernel name for this device.
+.TP
+\fB$number\fR, \fB%n\fR
+The kernel number for this device. For example, 'sda3' has kernel number of '3'
+.TP
+\fB$devpath\fR, \fB%p\fR
+The devpath of the device.
+.TP
+\fB$id\fR, \fB%b\fR
+The name of the device matched while searching the devpath upwards for
+\fBBUS\fR,
+\fBID\fR\fBDRIVER\fR
+and
+\fBSYSFS\fR.
+.TP
+\fB$sysfs{\fR\fB\fIfile\fR\fR\fB}\fR, \fB%s{\fR\fB\fIfile\fR\fR\fB}\fR
+The value of a sysfs attribute found at the current or a parent device.
+.TP
+\fB$env{\fR\fB\fIkey\fR\fR\fB}\fR, \fB%E{\fR\fB\fIkey\fR\fR\fB}\fR
+The value of an environment variable.
+.TP
+\fB$major\fR, \fB%M\fR
+The kernel major number for the device.
+.TP
+\fB$minor\fR \fB%m\fR
+The kernel minor number for the device.
+.TP
+\fB$result\fR, \fB%c\fR
+The string returned by the external program requested with PROGRAM. A single part of the string, separated by a space character may be selected by specifying the part number as an attribute:
+\fB%c{N}\fR. If the number is followed by the '+' char this part plus all remaining parts of the result string are substituted:
+\fB%c{N+}\fR
+.TP
+\fB$parent\fR, \fB%P\fR
+The node name of the parent device.
+.TP
+\fB$root\fR, \fB%r\fR
+The udev_root value.
+.TP
+\fB$tempnode\fR, \fB%N\fR
+The name of a created temporary device node to provide access to the device from a external program before the real node is created.
+.TP
+\fB%%\fR
+The '%' character itself.
+.TP
+\fB$$\fR
+The '$' character itself.
+.PP
+The count of characters to be substituted may be limited by specifying the format length value. For example, '%3s{file}' will only insert the first three characters of the sysfs attribute
+.SH "AUTHOR"
+.PP
+Written by Greg Kroah\-Hartman
+<greg@kroah.com>
+and Kay Sievers
+<kay.sievers@vrfy.org>. With much help from Dan Stekloff
+<dsteklof@us.ibm.com>
+and many others.
+.SH "SEE ALSO"
+.PP
+\fBudevd\fR(8),
+\fBudevinfo\fR(8),
+\fBudevmonitor\fR(8)

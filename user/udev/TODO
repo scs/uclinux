@@ -1,0 +1,19 @@
+These things need to be done, or would be nice to have:
+
+  o Log the relationship of the kernel name and the persistent disk name
+    to syslog, so any error logged from the kernel can be associated with
+    any of the links at that time.
+
+These things are deprecated and scheduled for removal in a future
+udev version:
+
+  o remove broken %e enumeration
+    (simple enumerations can't work and should go)
+
+  o remove MODALIAS + $modalias
+    (ENV{MODALIAS}, $env{MODALIAS}, $sysfs{modalias} will do it)
+
+  o remove udevsend, udevstart and their man pages
+    (we rely on the kernel "uevent" triggers of kernel 2.6.15 and no longer
+     want to guess event properties from sysfs like udevstart is doing it)
+
