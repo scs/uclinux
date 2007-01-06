@@ -13,7 +13,7 @@
  * without express or implied warranty.
  */
 
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ares_free_string.c,v 1.1 2000/01/05 16:29:43 ghudson Exp $";
 
 #include <stdlib.h>
 #include "ares.h"

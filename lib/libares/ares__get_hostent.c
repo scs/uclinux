@@ -13,7 +13,7 @@
  * without express or implied warranty.
  */
 
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ares__get_hostent.c,v 1.3 2000/02/17 18:39:58 ghudson Exp $";
 
 #include <sys/types.h>
 #include <sys/socket.h>

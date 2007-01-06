@@ -30,7 +30,7 @@
  */
 
 static const char * const cvsid =
-	"$Id$";
+	"$Id: fanftest.c,v 1.5 2000/09/17 00:24:24 ian Exp $";
 
 #include <sys/types.h>
 #include <sys/time.h>

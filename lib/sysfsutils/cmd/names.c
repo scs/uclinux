@@ -1,5 +1,5 @@
 /*
- *	$Id$
+ *	$Id: names.c,v 1.2.2.1 2005/04/06 23:18:11 stekloff Exp $
  *
  *	The PCI Library -- ID to Name Translation
  *

@@ -31,7 +31,7 @@
  */
 
 static const char * const cvsid =
-	"$Id$";
+	"$Id: adnslogres.c,v 1.20 2000/09/17 14:09:02 ian Exp $";
 
 #include <sys/types.h>
 #include <sys/time.h>

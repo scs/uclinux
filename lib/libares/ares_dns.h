@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ares_dns.h,v 1.2 2000/02/17 18:38:16 ghudson Exp $ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *

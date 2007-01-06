@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ares_private.h,v 1.3 1998/09/22 01:46:11 ghudson Exp $ */
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
