@@ -1,2 +1,0 @@
-header-y += asm-generic/ linux/ scsi/ sound/ mtd/ rdma/ video/
-header-y += asm-$(ARCH)/ 
