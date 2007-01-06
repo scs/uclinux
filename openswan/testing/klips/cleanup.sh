@@ -2,7 +2,7 @@
 # use this script to undo effects of sourcing a "testparams.sh" into
 # your shell, when testing.
 #
-# $Id$
+# $Id: cleanup.sh,v 1.4 2002/04/24 07:36:13 mcr Exp $
 #
 unset SCRIPT
 unset REFCONSOLEOUTPUT 
@@ -13,10 +13,7 @@ unset REFPUBOUTPUT
 unset TCPDUMPARGS
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:30  vapier
-# merge from upstream uClinux
-#
+# $Log: cleanup.sh,v $
 # Revision 1.4  2002/04/24 07:36:13  mcr
 # Moved from ./klips/test/cleanup.sh,v
 #

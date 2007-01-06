@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: tf,v 1.4 2002/04/24 07:36:17 mcr Exp $
 #
 # This script is OBSOLETE -- rgb, May 6th, 1998
 # usage: ./addrt src srcmask dst dstmask edst spi
@@ -49,10 +49,7 @@ sleep 1
 # ../utils/setah 10.2.0.143 116 6 66306630663031326630663066303132
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:45:48  vapier
-# merge from upstream uClinux
-#
+# $Log: tf,v $
 # Revision 1.4  2002/04/24 07:36:17  mcr
 # Moved from ./klips/test/ji/tf,v
 #

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: dnskey.c,v 1.84 2004/11/30 16:34:08 mcr Exp $
  */
 
 #include <stdlib.h>

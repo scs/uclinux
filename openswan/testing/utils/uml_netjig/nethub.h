@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: nethub.h,v 1.7 2003/04/02 20:25:53 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *
@@ -197,10 +197,7 @@ extern int tcpdump_print;
 #endif /* _NETHUB_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 02:14:36  vapier
- * merge from upstream uClinux
- *
+ * $Log: nethub.h,v $
  * Revision 1.7  2003/04/02 20:25:53  mcr
  * 	quiet down uml_netjig unless -v or $NETJIGVERBOSE is set.
  *

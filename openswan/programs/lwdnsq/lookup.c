@@ -13,7 +13,7 @@
  * for more details.
  */
 
-char lookup_c_version[] = "@(#) RCSID $Id$";
+char lookup_c_version[] = "@(#) RCSID $Id: lookup.c,v 1.8 2004/12/02 06:16:19 mcr Exp $";
 
 
 #include <stdio.h>
@@ -643,10 +643,7 @@ void process_dns_reply(dnskey_glob *gs)
 }
 	
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:28:51  vapier
- * merge from upstream uClinux
- *
+ * $Log: lookup.c,v $
  * Revision 1.8  2004/12/02 06:16:19  mcr
  * 	fixed long standing bug with async resolver when there was
  * 	more than one outstanding request.

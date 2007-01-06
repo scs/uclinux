@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: functions.sh,v 1.124.2.2 2005/11/17 03:43:46 ken Exp $
 #
 
 preptest() {
@@ -1605,12 +1605,9 @@ umlXhost() {
 }
 
 #
-# $Id$
+# $Id: functions.sh,v 1.124.2.2 2005/11/17 03:43:46 ken Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: functions.sh,v $
 # Revision 1.124.2.2  2005/11/17 03:43:46  ken
 # Remove CVS commit errors
 #

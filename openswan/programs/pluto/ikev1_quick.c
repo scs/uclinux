@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ikev1_quick.c,v 1.3.2.3 2006/04/04 22:17:49 paul Exp $
  */
 
 #include <stdio.h>

@@ -1,5 +1,5 @@
 # /etc/ipsec.conf - Openswan IPsec configuration file
-# RCSID $Id$
+# RCSID $Id: ipsec.conf.in,v 1.15.2.2 2005/11/14 20:10:27 paul Exp $
 
 # This file:  @FINALEXAMPLECONFDIR@/ipsec.conf-sample
 #

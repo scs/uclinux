@@ -309,10 +309,7 @@ void lookup_aaaa(dnskey_glob *gs,
 
 	
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:28:51  vapier
- * merge from upstream uClinux
- *
+ * $Log: cmds.c,v $
  * Revision 1.13  2003/12/04 23:17:56  mcr
  * 	added "key4" command.
  *

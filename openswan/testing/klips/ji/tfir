@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: tfir,v 1.4 2002/04/24 07:36:17 mcr Exp $
 #
 # This script is OBSOLETE -- rgb, May 6th, 1998
 
@@ -26,10 +26,7 @@ sleep 1
 ../utils/setsa 10.2.0.143 116 ah md5 66306630663031326630663066303132
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:45:48  vapier
-# merge from upstream uClinux
-#
+# $Log: tfir,v $
 # Revision 1.4  2002/04/24 07:36:17  mcr
 # Moved from ./klips/test/ji/tfir,v
 #

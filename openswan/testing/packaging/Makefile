@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.6 2004/12/18 18:13:45 mcr Exp $
 
 OPENSWANSRCDIR?=$(shell cd .. && pwd)
 include $(OPENSWANSRCDIR)/Makefile.inc
@@ -43,10 +43,7 @@ mostlyclean: clean
 realclean: clean
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:46:54  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.6  2004/12/18 18:13:45  mcr
 # 	adjusted Makefiles so that ${OBJDIR} builds work.
 #

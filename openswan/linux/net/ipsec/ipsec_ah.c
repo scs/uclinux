@@ -13,7 +13,7 @@
  * for more details.
  */
 
-char ipsec_ah_c_version[] = "RCSID $Id$";
+char ipsec_ah_c_version[] = "RCSID $Id: ipsec_ah.c,v 1.12.2.1 2006/02/15 05:35:14 paul Exp $";
 #include <linux/config.h>
 #include <linux/version.h>
 
@@ -355,10 +355,7 @@ struct inet_protocol ah_protocol =
 #endif /* NET_26 */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_ah.c,v $
  * Revision 1.12.2.1  2006/02/15 05:35:14  paul
  * Patch by  David McCullough <davidm@snapgear.com>
  * If you setup a tunnel without ESP it doesn't work.  It used to work in

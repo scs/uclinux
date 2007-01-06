@@ -22,10 +22,7 @@ $INCLUDE K1.0.192.in-addr.arpa.+001+22846.key
 	IN      KEY     0x4200 4 1 AQNzGEFs18VKT00sA+4p+GUKn9C55PYuPQca6C+9Qhj0jfMdQnTRTDLeI+lp9TnidHH7fVpq+PkfiF2LHlZtDwMurLlwzbNOghlEYKfQ080WlOTTUAmOLhAzH28MF70q3hzq0m5fCaVZWtxcV+LfHWdxceCkjBUSaTFtR2W12urFCBz+SB3+OM33aeIbfHxmck2yzhJ8xyMods5kF3ek/RZlFvgN8VqBdcFVrZwTh0mXDCGN12HNFixL6FzQ1jQKerKBbjb0m/IPqugvpVPWVIUajUpLMEmi1FAXc1mFZE9x1SFuSr0NzYIu2ZaHfvsAZY5oN+I+R2oC67fUCjgxY+t7
 
 ;
-; $Log$
-; Revision 1.1  2006/08/05 01:30:35  vapier
-; merge from upstream uClinux
-;
+; $Log: db.1.0.192.in-addr.arpa.,v $
 ; Revision 1.9  2003/05/26 22:11:23  mcr
 ; 	both TXT/KEY records present.
 ;

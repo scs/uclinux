@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.5 2005/01/24 01:13:13 mcr Exp $
 
 OPENSWANSRCDIR=../../..
 include $(OPENSWANSRCDIR)/Makefile.inc
@@ -44,10 +44,7 @@ mostlyclean: clean
 realclean: clean
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:46:50  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.5  2005/01/24 01:13:13  mcr
 # 	make sure that OPENSWANLIB is setup for tests.
 #

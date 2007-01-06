@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_sha1.c,v 1.9 2004/04/06 02:49:26 mcr Exp $
  */
 
 /*
@@ -170,10 +170,7 @@ void SHA1Final(unsigned char digest[20], void *vcontext)
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_sha1.c,v $
  * Revision 1.9  2004/04/06 02:49:26  mcr
  * 	pullup of algo code from alg-branch.
  *

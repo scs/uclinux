@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pending.c,v 1.5 2005/03/27 20:18:13 mcr Exp $
  */
 
 #include <string.h>

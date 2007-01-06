@@ -13,7 +13,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Config.in.os2_2,v 1.1 2005/04/05 00:07:20 mcr Exp $
 
 comment 'IPsec options (Openswan)'
 
@@ -46,10 +46,7 @@ bool '   IPsec Debugging Option' CONFIG_KLIPS_DEBUG
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:17  vapier
-# merge from upstream uClinux
-#
+# $Log: Config.in.os2_2,v $
 # Revision 1.1  2005/04/05 00:07:20  mcr
 # 	configuration file renamed to not be present in 2.6.
 #

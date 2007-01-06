@@ -3,7 +3,7 @@
 # 
 # This program has a GPL compatible license.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.2 2004/12/18 18:13:43 mcr Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
@@ -14,10 +14,7 @@ EXTRA5PROC=${PROGRAM}.5
 include ${srcdir}../Makefile.program
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:29:44  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.2  2004/12/18 18:13:43  mcr
 # 	adjusted Makefiles so that ${OBJDIR} builds work.
 #

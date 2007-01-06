@@ -112,10 +112,7 @@ void ipsec_dmp_block(char *s, caddr_t bb, int len)
 		
 /*
  *
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_snprintf.c,v $
  * Revision 1.3  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

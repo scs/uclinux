@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: whack.c,v 1.144.4.3 2005/07/26 02:11:23 ken Exp $
  */
 
 #include <stdio.h>

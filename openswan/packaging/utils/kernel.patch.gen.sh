@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# RCSID $Id$
+# RCSID $Id: kernel.patch.gen.sh,v 1.6 2002/04/25 17:04:16 mcr Exp $
 
 patchdir=`pwd`
 kernelsrc=/usr/src/linux
@@ -32,16 +32,13 @@ rm -f /tmp/t
 # *with* path from source root
 #echo do diff -u $i $j '>' $patchdir/$l
 echo found $i
-echo "RCSID \$Id$" >$patchdir/$l
+echo "RCSID \$Id: kernel.patch.gen.sh,v 1.6 2002/04/25 17:04:16 mcr Exp $" >$patchdir/$l
 diff -u $i $j >>$patchdir/$l
 
 done
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:49  vapier
-# merge from upstream uClinux
-#
+# $Log: kernel.patch.gen.sh,v $
 # Revision 1.6  2002/04/25 17:04:16  mcr
 # 	resurrected kernel.patch.gen.sh
 #

@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_md5c.c,v 1.10 2005/04/15 01:25:57 mcr Exp $
  */
 
 /*
@@ -398,10 +398,7 @@ unsigned int len;
 #endif
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_md5c.c,v $
  * Revision 1.10  2005/04/15 01:25:57  mcr
  * 	minor fix to comments.
  *

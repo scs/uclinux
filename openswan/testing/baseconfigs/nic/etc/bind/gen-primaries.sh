@@ -49,10 +49,7 @@ done
 
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:32:21  vapier
-# merge from upstream uClinux
-#
+# $Log: gen-primaries.sh,v $
 # Revision 1.2  2002/11/28 04:59:57  mcr
 # 	generate list of zones for "nic" machine.
 #

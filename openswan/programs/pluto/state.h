@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: state.h,v 1.98.2.2 2005/07/26 02:11:23 ken Exp $
  */
 
 #include <sys/types.h>

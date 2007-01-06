@@ -57,10 +57,7 @@ present race conditions in regression testing.</para>
 &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Michael Richardson &lt;mcr@freeswan.org&gt;</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:29:01  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: pf_key.8.xml,v $
 <!--  Revision 1.1  2004/05/26 17:49:53  ken
 <!--  Import XML version
 <!-- -->

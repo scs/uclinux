@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: sysctl_net_ipsec.c,v 1.17 2004/07/10 19:11:18 mcr Exp $
  */
 
 /* -*- linux-c -*-
@@ -145,10 +145,7 @@ void ipsec_sysctl_unregister(void)
 #endif /* CONFIG_SYSCTL */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:18  vapier
- * merge from upstream uClinux
- *
+ * $Log: sysctl_net_ipsec.c,v $
  * Revision 1.17  2004/07/10 19:11:18  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *

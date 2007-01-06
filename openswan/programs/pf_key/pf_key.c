@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pf_key.c,v 1.18 2004/04/04 01:50:56 ken Exp $
  *
  */
 
@@ -300,10 +300,7 @@ main(int argc, char *argv[])
 }
 	
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:29:01  vapier
- * merge from upstream uClinux
- *
+ * $Log: pf_key.c,v $
  * Revision 1.18  2004/04/04 01:50:56  ken
  * Use openswan includes
  *

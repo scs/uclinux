@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_encap.h,v 1.19 2004/04/05 19:55:04 mcr Exp $
  */
 
 #ifndef _IPSEC_ENCAP_H_
@@ -55,10 +55,7 @@ struct sockaddr_encap
 #endif /* _IPSEC_ENCAP_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_encap.h,v $
  * Revision 1.19  2004/04/05 19:55:04  mcr
  * Moved from linux/include/freeswan/ipsec_encap.h,v
  *

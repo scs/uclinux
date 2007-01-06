@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id$
+# RCSID $Id: defconfig-cryptoapi,v 1.2 2005/05/10 19:24:36 mcr Exp $
 #
 
 #
@@ -53,10 +53,7 @@ CONFIG_KLIPS_DEBUG=n
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:47:27  vapier
-# merge from upstream uClinux
-#
+# $Log: defconfig-cryptoapi,v $
 # Revision 1.2  2005/05/10 19:24:36  mcr
 # 	config files for compiling cryptoapi module.
 #

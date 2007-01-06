@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id$
+# RCSID $Id: defconfig-noipcomp,v 1.1 2003/01/22 21:35:44 rgb Exp $
 #
 
 #
@@ -53,10 +53,7 @@ CONFIG_IPSEC_DEBUG=y
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:47:47  vapier
-# merge from upstream uClinux
-#
+# $Log: defconfig-noipcomp,v $
 # Revision 1.1  2003/01/22 21:35:44  rgb
 #
 # Added a file that contains the defaults for the kernel config, replacing

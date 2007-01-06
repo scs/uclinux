@@ -43,10 +43,7 @@ if [ -z "${NATTPATCH}" ]; then echo Your NATTPATCH= is not properly set; exit 1;
 if [ ! -d ${BASICROOT}/. ]; then echo Your BASICROOT= is not properly set; exit 1; fi
     
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: verify-uml.sh,v $
 # Revision 1.1  2005/07/14 01:37:56  mcr
 # 	script to check out umlsetup.sh and complain before
 # 	we get too far.

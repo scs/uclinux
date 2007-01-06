@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # 
-# $Id$
+# $Id: make-uml.sh,v 1.48 2005/07/14 01:35:54 mcr Exp $
 #
 
 # show me
@@ -195,10 +195,7 @@ cd $POOLSPACE && make $OPENSWANHOSTS
 
     
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: make-uml.sh,v $
 # Revision 1.48  2005/07/14 01:35:54  mcr
 # 	use USE_OBJDIR.
 #

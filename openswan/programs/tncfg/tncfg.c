@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char tncfg_c_version[] = "RCSID $Id$";
+char tncfg_c_version[] = "RCSID $Id: tncfg.c,v 1.33.2.1 2005/08/22 22:30:02 ken Exp $";
 
 
 #include <stdio.h>
@@ -274,10 +274,7 @@ main(int argc, char *argv[])
 }
 	
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:29:55  vapier
- * merge from upstream uClinux
- *
+ * $Log: tncfg.c,v $
  * Revision 1.33.2.1  2005/08/22 22:30:02  ken
  * Fix for GCC 4.0 warnings
  *

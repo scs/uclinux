@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_parse.c,v 1.65 2005/04/06 17:46:05 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parser.c.
  */
 
-char pfkey_v2_parse_c_version[] = "$Id$";
+char pfkey_v2_parse_c_version[] = "$Id: pfkey_v2_parse.c,v 1.65 2005/04/06 17:46:05 mcr Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -1593,10 +1593,7 @@ errlab:
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:18  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey_v2_parse.c,v $
  * Revision 1.65  2005/04/06 17:46:05  mcr
  * 	failure to recognize an extension is considered an error.
  * 	This could be a problem in the future, but we need some kind

@@ -19,7 +19,7 @@
  * for more details.
  */
 
-char ipsec_rcv_c_version[] = "RCSID $Id$";
+char ipsec_rcv_c_version[] = "RCSID $Id: ipsec_rcv.c,v 1.171.2.6 2005/12/07 06:07:04 paul Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -1974,10 +1974,7 @@ int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_rcv.c,v $
  * Revision 1.171.2.6  2005/12/07 06:07:04  paul
  * comment out KLIPS_DEC_USE in ipsec_rcv_decap. Likely an artifact from
  * refactoring. http://bugs.xelerance.com/view.php?id=454

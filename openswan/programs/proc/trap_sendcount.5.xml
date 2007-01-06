@@ -41,10 +41,7 @@ number of successful PF_ACQUIRE messages that were sent.</para>
 &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Michael C. Richardson &lt;mcr@freeswan.org&gt;</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:29:22  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: trap_sendcount.5.xml,v $
 <!--  Revision 1.1  2004/05/26 17:50:13  ken
 <!--  Import XML version
 <!-- -->

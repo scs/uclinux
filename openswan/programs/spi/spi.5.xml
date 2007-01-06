@@ -285,10 +285,7 @@ by Richard Guy Briggs.</para>
 start.  It would be better to display them in seconds before now for
 human readability.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:29:46  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: spi.5.xml,v $
 <!--  Revision 1.1  2004/05/26 17:50:59  ken
 <!--  Import XML version
 <!-- -->

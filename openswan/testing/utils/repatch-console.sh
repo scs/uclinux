@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: repatch-console.sh,v 1.2 2002/10/16 21:59:47 mcr Exp $
 #
 # use this script to update the console reference output from the last
 # run of tests, for a list of tests (directories) supplied on the
@@ -23,10 +23,7 @@ console_edit_func() {
 tests=`cat TESTLIST | sed -e '/^#/d' | while read type testname status; do echo $testname; done`
 foreach_ref_console console_edit_func $tests
 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: repatch-console.sh,v $
 # Revision 1.2  2002/10/16 21:59:47  mcr
 # 	changes to console output to accomodate 2.4.19-uml12.
 #

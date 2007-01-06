@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_kversion.h,v 1.15.2.7 2006/01/11 02:02:59 mcr Exp $
  */
 #define	_FREESWAN_KVERSIONS_H	/* seen it, no need to see it again */
 
@@ -242,10 +242,7 @@
 #endif /* _FREESWAN_KVERSIONS_H */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_kversion.h,v $
  * Revision 1.15.2.7  2006/01/11 02:02:59  mcr
  * updated patches and DEFAULT_TTL code to work
  *

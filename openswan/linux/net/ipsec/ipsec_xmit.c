@@ -19,7 +19,7 @@
  * for more details.
  */
 
-char ipsec_xmit_c_version[] = "RCSID $Id$";
+char ipsec_xmit_c_version[] = "RCSID $Id: ipsec_xmit.c,v 1.20.2.3 2005/11/29 21:52:57 ken Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -2015,10 +2015,7 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_xmit.c,v $
  * Revision 1.20.2.3  2005/11/29 21:52:57  ken
  * Fix for #518 MTU issues
  *

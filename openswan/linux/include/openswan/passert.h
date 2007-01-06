@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: passert.h,v 1.7 2004/10/21 18:44:42 mcr Exp $
  */
 
 #include "openswan.h"

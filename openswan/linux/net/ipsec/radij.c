@@ -1,4 +1,4 @@
-char radij_c_version[] = "RCSID $Id$";
+char radij_c_version[] = "RCSID $Id: radij.c,v 1.48 2005/04/29 05:10:22 mcr Exp $";
 
 /*
  * This file is defived from ${SRC}/sys/net/radix.c of BSD 4.4lite
@@ -1003,10 +1003,7 @@ radijcleanup(void)
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:18  vapier
- * merge from upstream uClinux
- *
+ * $Log: radij.c,v $
  * Revision 1.48  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

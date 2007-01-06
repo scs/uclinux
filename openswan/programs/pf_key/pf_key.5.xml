@@ -215,10 +215,7 @@ ipsec_spigrp(5), ipsec_klipsdebug(5), ipsec_tncfg(8), ipsec_version(5)</para>
 &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Richard Guy Briggs.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:29:01  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: pf_key.5.xml,v $
 <!--  Revision 1.1  2004/05/26 17:49:48  ken
 <!--  Import XML version
 <!-- -->

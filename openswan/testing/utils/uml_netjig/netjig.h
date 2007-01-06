@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: netjig.h,v 1.3 2002/07/17 03:59:46 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *
@@ -40,10 +40,7 @@ extern void finish_waitplay(struct netjig_state *ns);
 extern int cmdread(struct netjig_state *ns, char  *buf, int    len);
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 02:14:36  vapier
- * merge from upstream uClinux
- *
+ * $Log: netjig.h,v $
  * Revision 1.3  2002/07/17 03:59:46  mcr
  * 	debugged uml_switch - added "-name" option.
  *

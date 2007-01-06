@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 100,v 1.21 2002/04/24 07:36:14 mcr Exp $
 #
 
 net1=192.168.4.0
@@ -812,10 +812,7 @@ esac
 
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:43  vapier
-# merge from upstream uClinux
-#
+# $Log: 100,v $
 # Revision 1.21  2002/04/24 07:36:14  mcr
 # Moved from ./klips/test/110/100,v
 #

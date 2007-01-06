@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 110,v 1.16 2002/04/24 07:36:13 mcr Exp $
 #
 
 sg1=192.168.2.100
@@ -689,10 +689,7 @@ case "$1" in
 esac
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:33  vapier
-# merge from upstream uClinux
-#
+# $Log: 110,v $
 # Revision 1.16  2002/04/24 07:36:13  mcr
 # Moved from ./klips/test/100/110,v
 #

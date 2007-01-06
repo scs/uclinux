@@ -62,9 +62,7 @@ arp_tables: (C) 2002 David S. Miller
 NET4: Unix domain sockets 1.0/SMP for Linux NET4.0.
 VFS: Mounted root (hostfs filesystem).
 Mounted devfs on /dev
-
-INIT: version 2.78 booting
-
+INIT: version 2.78 booting
 Activating swap...
 Calculating module dependencies... depmod: Can't open /lib/modules/2.4.19-47um/modules.dep for writing
 done.

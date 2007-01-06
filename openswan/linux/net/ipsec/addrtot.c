@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: addrtot.c,v 1.22.2.1 2005/11/17 22:30:49 paul Exp $
  */
 
 #if defined(__KERNEL__) && defined(__HAVE_ARCH_STRSTR)
@@ -338,10 +338,7 @@ regress()
 #endif /* ADDRTOT_MAIN */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: addrtot.c,v $
  * Revision 1.22.2.1  2005/11/17 22:30:49  paul
  * pull up strstr fix from head.
  *
@@ -381,10 +378,7 @@ regress()
  * 	string!
  *
  * Revision 1.12  2003/12/30 06:42:48  mcr
- * 	added $Log$
- * 	added Revision 1.1  2006/08/05 01:27:17  vapier
- * 	added merge from upstream uClinux
- * 	added
+ * 	added $Log: addrtot.c,v $
  * 	added Revision 1.22.2.1  2005/11/17 22:30:49  paul
  * 	added pull up strstr fix from head.
  * 	added

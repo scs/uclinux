@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_rcv.h,v 1.28 2005/05/11 00:59:45 mcr Exp $
  */
 
 #ifndef IPSEC_RCV_H
@@ -191,10 +191,7 @@ extern int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type);
 #endif /* IPSEC_RCV_H */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_rcv.h,v $
  * Revision 1.28  2005/05/11 00:59:45  mcr
  * 	do not call debug routines if !defined KLIPS_DEBUG.
  *

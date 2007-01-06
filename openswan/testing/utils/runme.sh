@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: runme.sh,v 1.3 2004/05/28 02:07:02 mcr Exp $
 #
 # use this script to run a single test from within that test directory.
 # note that this assumes a "klipstest" type test.
@@ -22,10 +22,7 @@ fi
 perl ${OPENSWANSRCDIR}/testing/utils/regress-summarize-results.pl ${REGRESSRESULTS} notest
 
 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: runme.sh,v $
 # Revision 1.3  2004/05/28 02:07:02  mcr
 # 	update test case summary at end of manual run.
 #

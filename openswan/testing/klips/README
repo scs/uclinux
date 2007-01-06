@@ -1,5 +1,5 @@
 #
-# RCSID $Id$
+# RCSID $Id: README,v 1.6 2002/05/30 07:11:13 dhr Exp $
 #
 
 PREAMBLE
@@ -118,10 +118,7 @@ c) 	klipstest
 MORE TO COME.
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:30  vapier
-# merge from upstream uClinux
-#
+# $Log: README,v $
 # Revision 1.6  2002/05/30 07:11:13  dhr
 #
 # typo

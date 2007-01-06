@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_sa.h,v 1.23 2005/05/11 01:18:59 mcr Exp $
  *
  * This file derived from ipsec_xform.h on 2001/9/18 by mcr.
  *
@@ -255,10 +255,7 @@ enum ipsec_direction {
 #endif /* _IPSEC_SA_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_sa.h,v $
  * Revision 1.23  2005/05/11 01:18:59  mcr
  * 	do not change structure based upon options, to avoid
  * 	too many #ifdef.

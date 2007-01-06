@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_sha1.h,v 1.8 2004/04/05 19:55:07 mcr Exp $
  */
 
 /*
@@ -32,10 +32,7 @@ void SHA1Final(unsigned char digest[20], void *context);
 #endif /* _IPSEC_SHA1_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_sha1.h,v $
  * Revision 1.8  2004/04/05 19:55:07  mcr
  * Moved from linux/include/freeswan/ipsec_sha1.h,v
  *

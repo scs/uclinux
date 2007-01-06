@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_ipip.h,v 1.2 2004/04/05 19:55:05 mcr Exp $
  */
 
 #ifndef _IPSEC_IPIP_H_
@@ -27,10 +27,7 @@ extern struct xform_functions ipip_xform_funcs[];
 #endif /* _IPSEC_IPIP_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_ipip.h,v $
  * Revision 1.2  2004/04/05 19:55:05  mcr
  * Moved from linux/include/freeswan/ipsec_ipip.h,v
  *

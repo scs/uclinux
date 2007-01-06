@@ -13,14 +13,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_ext_process.c,v 1.20 2005/04/29 05:10:22 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_netlink.c.
  */
 
-char pfkey_v2_ext_process_c_version[] = "$Id$";
+char pfkey_v2_ext_process_c_version[] = "$Id: pfkey_v2_ext_process.c,v 1.20 2005/04/29 05:10:22 mcr Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -869,10 +869,7 @@ errlab:
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey_v2_ext_process.c,v $
  * Revision 1.20  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

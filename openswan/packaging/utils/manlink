@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id$
+# $Id: manlink,v 1.8 2002/09/17 20:17:16 sam Exp $
 #
 # make list of alternate names for manpages
 
@@ -49,10 +49,7 @@ do
 done
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:49  vapier
-# merge from upstream uClinux
-#
+# $Log: manlink,v $
 # Revision 1.8  2002/09/17 20:17:16  sam
 #
 # The "make doc" fix broke "make install" silently; some man page symlinks

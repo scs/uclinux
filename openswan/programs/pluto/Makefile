@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.189.2.3 2005/08/12 01:12:38 ken Exp $
 
 # All of the USE_ and HAVE_ variables are controlled from openswan/Makefile.inc
 

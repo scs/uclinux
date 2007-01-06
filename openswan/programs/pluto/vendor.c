@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: vendor.c,v 1.43.2.1 2005/07/26 02:05:10 ken Exp $
  */
 
 #include <stdlib.h>

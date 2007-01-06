@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: kernel.c,v 1.232.2.1 2005/10/21 02:50:46 ken Exp $
  */
 
 #include <stddef.h>

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: redocon.sh,v 1.10 2005/05/01 03:27:29 mcr Exp $
 #
 # use this script to run a single test from within that test directory.
 # note that this assumes a "klipstest" type test.
@@ -95,10 +95,7 @@ fi
 
 
 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: redocon.sh,v $
 # Revision 1.10  2005/05/01 03:27:29  mcr
 # 	check for appropriate files before trying to use them.
 #

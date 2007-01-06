@@ -158,10 +158,7 @@ ipsec_pf_key(5)</para>
 &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Richard Guy Briggs.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:29:55  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: tncfg.5.xml,v $
 <!--  Revision 1.1  2004/05/26 17:51:24  ken
 <!--  Import XML version
 <!-- -->

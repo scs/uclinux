@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: README.openswan-2,v 1.1 2003/12/10 01:07:49 mcr Exp $
 *
 
                ****************************************
@@ -105,10 +105,7 @@ at doc/src/umltesting.html. Automated testing via "make check" is available
 provided that the User-Mode-Linux patches are available.
 
 *
-* $Log$
-* Revision 1.1  2006/08/05 01:27:08  vapier
-* merge from upstream uClinux
-*
+* $Log: README.openswan-2,v $
 * Revision 1.1  2003/12/10 01:07:49  mcr
 * 	documentation for additions.
 *

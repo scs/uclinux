@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_xform.h,v 1.41 2004/07/10 19:08:41 mcr Exp $
  */
 
 #ifndef _IPSEC_XFORM_H_
@@ -165,10 +165,7 @@ extern void ipsec_dmp(char *s, caddr_t bb, int len);
 #endif /* _IPSEC_XFORM_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_xform.h,v $
  * Revision 1.41  2004/07/10 19:08:41  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *

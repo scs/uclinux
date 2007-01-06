@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id$
+# RCSID $Id: defconfig-nodebug,v 1.2 2005/05/12 03:10:53 mcr Exp $
 #
 
 #
@@ -53,10 +53,7 @@ CONFIG_KLIPS_DEBUG=n
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:47:32  vapier
-# merge from upstream uClinux
-#
+# $Log: defconfig-nodebug,v $
 # Revision 1.2  2005/05/12 03:10:53  mcr
 # 	adjusted settings for IPSEC->KLIPS change.
 #

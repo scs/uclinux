@@ -48,10 +48,7 @@ ipsec_pf_key(5)</para>
 by Hugh Redelmeier.</para>
 
 <!--
-$Log$
-Revision 1.1  2006/08/05 01:29:03  vapier
-merge from upstream uClinux
-
+$Log: pluto.8.xml,v $
 Revision 1.1.24.1  2005/07/25 19:26:34  ken
 Pullin fixes for NAT-T from HEAD
 Includes IMPAIR_JACOB_TWO_TWO impairment from HEAD

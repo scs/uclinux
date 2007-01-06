@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_life.c,v 1.13 2004/07/10 19:11:18 mcr Exp $
  *
  */
 
@@ -211,10 +211,7 @@ ipsec_lifetime_update_soft(struct ipsec_lifetime64 *lifetime,
 
 	
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_life.c,v $
  * Revision 1.13  2004/07/10 19:11:18  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *

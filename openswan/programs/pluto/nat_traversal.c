@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: nat_traversal.c,v 1.26.2.7 2006/04/04 22:05:07 ken Exp $
  */
 
 #ifdef NAT_TRAVERSAL
@@ -937,10 +937,7 @@ void process_pfkey_nat_t_new_mapping(
 #endif
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:29:03  vapier
- * merge from upstream uClinux
- *
+ * $Log: nat_traversal.c,v $
  * Revision 1.26.2.7  2006/04/04 22:05:07  ken
  * Fix NAT Detection when initiator is behind NAT
  *
@@ -1023,6 +1020,6 @@ void process_pfkey_nat_t_new_mapping(
  * 	added log info.
  *
  *
- * $Id$
+ * $Id: nat_traversal.c,v 1.26.2.7 2006/04/04 22:05:07 ken Exp $
  *
  */

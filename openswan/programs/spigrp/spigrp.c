@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spigrp_c_version[] = "RCSID $Id$";
+char spigrp_c_version[] = "RCSID $Id: spigrp.c,v 1.50.2.1 2005/08/18 14:04:51 ken Exp $";
 
 
 #include <sys/types.h>
@@ -491,10 +491,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:29:49  vapier
- * merge from upstream uClinux
- *
+ * $Log: spigrp.c,v $
  * Revision 1.50.2.1  2005/08/18 14:04:51  ken
  * Patch from mt@suse.de to avoid GCC warnings with system() calls
  *

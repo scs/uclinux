@@ -16,7 +16,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: async.c,v 1.7 2005/03/30 16:49:18 ken Exp $ */
 
 #include <config.h>
 

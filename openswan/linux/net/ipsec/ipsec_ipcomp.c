@@ -13,7 +13,7 @@
  * for more details.
  */
 
-char ipsec_ipcomp_c_version[] = "RCSID $Id$";
+char ipsec_ipcomp_c_version[] = "RCSID $Id: ipsec_ipcomp.c,v 1.5 2005/04/29 05:10:22 mcr Exp $";
 #include <linux/config.h>
 #include <linux/version.h>
 

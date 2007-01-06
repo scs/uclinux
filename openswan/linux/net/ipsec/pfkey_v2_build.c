@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_build.c,v 1.51 2004/10/03 01:26:36 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parser.c.
  */
 
-char pfkey_v2_build_c_version[] = "$Id$";
+char pfkey_v2_build_c_version[] = "$Id: pfkey_v2_build.c,v 1.51 2004/10/03 01:26:36 mcr Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -1421,10 +1421,7 @@ errlab:
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey_v2_build.c,v $
  * Revision 1.51  2004/10/03 01:26:36  mcr
  * 	fixes for gcc 3.4 compilation.
  *

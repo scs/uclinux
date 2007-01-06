@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_ipe4.h,v 1.6 2004/04/05 19:55:05 mcr Exp $
  */
 
 /* The packet header is an IP header! */
@@ -28,10 +28,7 @@ struct ipe4_xdata			/* transform table data */
  
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_ipe4.h,v $
  * Revision 1.6  2004/04/05 19:55:05  mcr
  * Moved from linux/include/freeswan/ipsec_ipe4.h,v
  *

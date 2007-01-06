@@ -18,7 +18,7 @@
  * Split out from ipsec_init.c version 1.70.
  */
 
-char ipsec_proc_c_version[] = "RCSID $Id$";
+char ipsec_proc_c_version[] = "RCSID $Id: ipsec_proc.c,v 1.39.2.2 2006/02/13 18:48:12 paul Exp $";
 
 
 #include <linux/config.h>
@@ -1019,10 +1019,7 @@ ipsec_proc_cleanup()
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_proc.c,v $
  * Revision 1.39.2.2  2006/02/13 18:48:12  paul
  * Fix by  Ankit Desai <ankit@elitecore.com> for module unloading.
  *

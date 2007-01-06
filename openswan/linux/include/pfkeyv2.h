@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: pfkeyv2.h,v 1.31 2005/04/14 01:14:54 mcr Exp $
  */
 
 /*
@@ -370,10 +370,7 @@ enum sadb_sastate {
 #endif /* __PFKEY_V2_H */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:11  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkeyv2.h,v $
  * Revision 1.31  2005/04/14 01:14:54  mcr
  * 	change sadb_state to an enum.
  *

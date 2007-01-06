@@ -14,7 +14,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile.fs2_6,v 1.8 2005/05/11 03:15:42 mcr Exp $
 #
 # Note! Dependencies are done automagically by 'make dep', which also
 # removes any old dependencies. DON'T put your own dependencies here
@@ -112,10 +112,7 @@ EXTRA_CFLAGS += -DIPCOMP_PREFIX
 EXTRA_CFLAGS += -Icrypto/ocf
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:17  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile.fs2_6,v $
 # Revision 1.8  2005/05/11 03:15:42  mcr
 # 	adjusted makefiles to sanely build modules properly.
 #

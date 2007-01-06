@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: version.h,v 1.1 2004/09/20 18:00:43 mcr Exp $ */
 
 #include <lwres/platform.h>
 

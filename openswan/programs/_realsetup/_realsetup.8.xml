@@ -32,10 +32,7 @@ system. It starts
 <para>Man page written for the Linux FreeS/WAN project &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Michael Richardson. Original program by Henry Spencer.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:28:10  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: _realsetup.8.xml,v $
 <!--  Revision 1.1  2004/05/26 17:48:19  ken
 <!--  Import XML version
 <!-- -->

@@ -69,12 +69,9 @@ fi
 
 )
 
-# $Id$
+# $Id: regress-nightly.sh,v 1.10 2003/11/21 23:07:03 mcr Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: regress-nightly.sh,v $
 # Revision 1.10  2003/11/21 23:07:03  mcr
 # 	updates for hulk builds of openswan.
 #

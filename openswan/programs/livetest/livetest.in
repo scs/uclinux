@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: livetest.in,v 1.2 2005/07/15 16:39:25 paul Exp $
 
 if test " `id -u`" != " 0"
 then
@@ -45,10 +45,7 @@ ipsec whack --delete --name olts-$leftid >> /tmp/ipsec.olts.local.log
 wget -o /dev/null -O /tmp/ipsec.olts.remote.log "http://192.168.0.1/olts/log.php?leftid=$leftid"
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:28:46  vapier
-# merge from upstream uClinux
-#
+# $Log: livetest.in,v $
 # Revision 1.2  2005/07/15 16:39:25  paul
 # changed 'head -x' to 'head -n x' since this is apparently functionality
 # that will be removed from the head command soon.

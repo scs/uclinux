@@ -15,7 +15,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile.fs2_4,v 1.9 2005/05/20 16:47:26 mcr Exp $
 #
 # Note! Dependencies are done automagically by 'make dep', which also
 # removes any old dependencies. DON'T put your own dependencies here
@@ -247,10 +247,7 @@ tar:
 		tar -cvf /dev/f1 .
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:17  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile.fs2_4,v $
 # Revision 1.9  2005/05/20 16:47:26  mcr
 # 	added missing routines for 2.4 compilation.
 #

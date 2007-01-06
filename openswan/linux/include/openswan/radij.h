@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: radij.h,v 1.13 2004/04/05 19:55:08 mcr Exp $
  */
 
 /*
@@ -202,10 +202,7 @@ extern int maj_keylen;
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: radij.h,v $
  * Revision 1.13  2004/04/05 19:55:08  mcr
  * Moved from linux/include/freeswan/radij.h,v
  *

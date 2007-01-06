@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_md5h.h,v 1.10 2004/09/08 17:21:35 ken Exp $
  */
 
 /*
@@ -83,10 +83,7 @@ void osMD5Final PROTO_LIST ((unsigned char [16], void *));
 #endif /* _IPSEC_MD5H_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_md5h.h,v $
  * Revision 1.10  2004/09/08 17:21:35  ken
  * Rename MD5* -> osMD5 functions to prevent clashes with other symbols exported by kernel modules (CIFS in 2.6 initiated this)
  *

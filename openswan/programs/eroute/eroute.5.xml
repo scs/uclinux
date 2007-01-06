@@ -329,10 +329,7 @@ ipsec_pf_key(5)</para>
 &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Richard Guy Briggs.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:28:31  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: eroute.5.xml,v $
 <!--  Revision 1.1  2004/05/26 17:48:56  ken
 <!--  Import XML version
 <!-- -->

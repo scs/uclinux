@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.3.6.1 2005/11/01 18:10:07 paul Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
@@ -22,10 +22,7 @@ CONFDFILES=no_oe.conf l2tp-cert.conf l2tp-cert-orgWIN2KXP.conf l2tp-psk.conf l2t
 include ${srcdir}../Makefile.program
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:28:33  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.3.6.1  2005/11/01 18:10:07  paul
 # dopted Jacco's L2TP example configuration files. I changed them slightly
 # from his versions to properly support nat-t and to avoid breaking rekey

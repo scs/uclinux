@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id$
+# $Id: 2host-test.tcl,v 1.22 2004/04/03 19:44:52 ken Exp $
 #
 
 if {! [info exists env(OPENSWANSRCDIR)]} {
@@ -279,10 +279,7 @@ expect {
 }
 
 # 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:28  vapier
-# merge from upstream uClinux
-#
+# $Log: 2host-test.tcl,v $
 # Revision 1.22  2004/04/03 19:44:52  ken
 # FREESWANSRCDIR -> OPENSWANSRCDIR (patch by folken)
 #

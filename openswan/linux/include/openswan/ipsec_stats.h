@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_stats.h,v 1.7 2005/04/14 01:17:45 mcr Exp $
  *
  */
 
@@ -36,10 +36,7 @@ struct ipsec_stats {
 #endif /* _IPSEC_STATS_H_ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_stats.h,v $
  * Revision 1.7  2005/04/14 01:17:45  mcr
  * 	add prototypes for snprintf.
  *

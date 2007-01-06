@@ -67,9 +67,7 @@ Initializing software serial port version 1
 VFS: Mounted root (hostfs filesystem).
 Mounted devfs on /dev
 line_ioctl: tty0: ioctl KDSIGACCEPT called
-
-INIT: version 2.78 booting
-
+INIT: version 2.78 booting
 Activating swap...
 Checking all file systems...
 Parallelizing fsck version 1.18 (11-Nov-1999)

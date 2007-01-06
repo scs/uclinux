@@ -135,12 +135,9 @@ print "Found ".&getdiskspace." free, continuing.\n";
 
 exit 0;  
 
-# $Id$
+# $Id: regress-cleanup.pl,v 1.6 2003/01/24 16:18:40 build Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: regress-cleanup.pl,v $
 # Revision 1.6  2003/01/24 16:18:40  build
 # 	remove directories by explicit path names.
 # 	added log of candidate directories

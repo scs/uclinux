@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char ipsec_mast_c_version[] = "RCSID $Id$";
+char ipsec_mast_c_version[] = "RCSID $Id: ipsec_mast.c,v 1.7 2005/04/29 05:10:22 mcr Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -1062,10 +1062,7 @@ ipsec_mast_cleanup_devices(void)
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_mast.c,v $
  * Revision 1.7  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

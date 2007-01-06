@@ -1,7 +1,7 @@
 #! /bin/sh 
 #
 # 
-# $Id$
+# $Id: uml-functions.sh,v 1.38 2005/07/14 01:35:54 mcr Exp $
 #
 
 setup_make() {
@@ -356,10 +356,7 @@ applypatches() {
 }
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: uml-functions.sh,v $
 # Revision 1.38  2005/07/14 01:35:54  mcr
 # 	use USE_OBJDIR.
 #

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: west,v 1.7 2002/04/24 07:36:12 mcr Exp $
 #
 
 
@@ -425,10 +425,7 @@ case "$1" in
 esac
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:33  vapier
-# merge from upstream uClinux
-#
+# $Log: west,v $
 # Revision 1.7  2002/04/24 07:36:12  mcr
 # Moved from ./klips/test/100/west,v
 #

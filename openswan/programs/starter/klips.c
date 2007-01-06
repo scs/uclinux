@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: klips.c,v 1.5 2004/01/21 01:35:29 mcr Exp $
  */
 
 #include <sys/types.h>

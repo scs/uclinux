@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_xform.c,v 1.65 2005/04/29 05:10:22 mcr Exp $
  */
 
 #include <linux/config.h>
@@ -63,10 +63,7 @@ int debug_xform = 0;
 #endif /* CONFIG_KLIPS_DEBUG */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_xform.c,v $
  * Revision 1.65  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

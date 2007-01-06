@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 103,v 1.4 2002/04/24 07:36:14 mcr Exp $
 #
 
 net1=192.168.4.0
@@ -63,10 +63,7 @@ echo
 cat /proc/net/ipsec-eroute
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:42:43  vapier
-# merge from upstream uClinux
-#
+# $Log: 103,v $
 # Revision 1.4  2002/04/24 07:36:14  mcr
 # Moved from ./klips/test/110/103,v
 #

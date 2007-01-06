@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: magellan,v 1.8 2002/04/24 07:36:18 mcr Exp $
 #
 
 hmask=255.255.255.255
@@ -380,10 +380,7 @@ case "$1" in
 esac
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:46:03  vapier
-# merge from upstream uClinux
-#
+# $Log: magellan,v $
 # Revision 1.8  2002/04/24 07:36:18  mcr
 # Moved from ./klips/test/west/magellan,v
 #

@@ -27,10 +27,7 @@ is an internal script used for parsing /etc/ipsec.conf into a canonical format.<
 <para>Man page written for the Linux FreeS/WAN project &lt;<ulink url='http://www.freeswan.org/'>http://www.freeswan.org/</ulink>&gt;
 by Michael Richardson. Program written by Henry Spencer.</para>
 
-<!--  $Log$
-<!--  Revision 1.1  2006/08/05 01:27:56  vapier
-<!--  merge from upstream uClinux
-<!--
+<!--  $Log: _confread.8.xml,v $
 <!--  Revision 1.1  2004/05/26 17:47:46  ken
 <!--  Import XML version
 <!-- -->

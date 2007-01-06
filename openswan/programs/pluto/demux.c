@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: demux.c,v 1.210.2.10 2005/10/06 00:57:26 paul Exp $
  */
 
 /* Ordering Constraints on Payloads

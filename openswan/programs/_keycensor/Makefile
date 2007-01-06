@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.5 2004/12/18 18:13:37 mcr Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
@@ -22,10 +22,7 @@ PROGRAMDIR=${LIBDIR}
 include ${srcdir}../Makefile.program
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:28:03  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.5  2004/12/18 18:13:37  mcr
 # 	adjusted Makefiles so that ${OBJDIR} builds work.
 #

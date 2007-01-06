@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_ah.h,v 1.26 2004/09/13 02:22:10 mcr Exp $
  */
 
 #include "ipsec_md5h.h"
@@ -52,10 +52,7 @@ extern int debug_ah;
 #endif /* __KERNEL__ */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_ah.h,v $
  * Revision 1.26  2004/09/13 02:22:10  mcr
  * 	#define inet_protocol if necessary.
  *

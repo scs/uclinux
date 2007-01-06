@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Kconfig,v 1.6 2005/05/18 20:55:27 mcr Exp $
 
 config KLIPS
 	tristate "Openswan IPsec (KLIPS26)"
@@ -131,10 +131,7 @@ endmenu
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:17  vapier
-# merge from upstream uClinux
-#
+# $Log: Kconfig,v $
 # Revision 1.6  2005/05/18 20:55:27  mcr
 # 	default cryptoapi to n.
 #

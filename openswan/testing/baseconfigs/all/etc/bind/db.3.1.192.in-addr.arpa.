@@ -29,10 +29,7 @@ $INCLUDE K3.1.192.in-addr.arpa.+001+39340.key
 254	IN	PTR	nic.uml.freeswan.org.
 
 ;
-; $Log$
-; Revision 1.1  2006/08/05 01:30:36  vapier
-; merge from upstream uClinux
-;
+; $Log: db.3.1.192.in-addr.arpa.,v $
 ; Revision 1.9  2003/06/02 05:33:48  mcr
 ; 	added .214 for myid-road-04
 ;

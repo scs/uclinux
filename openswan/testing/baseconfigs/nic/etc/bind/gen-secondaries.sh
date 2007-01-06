@@ -55,10 +55,7 @@ done
 
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:32:21  vapier
-# merge from upstream uClinux
-#
+# $Log: gen-secondaries.sh,v $
 # Revision 1.1  2002/10/24 05:35:46  mcr
 # 	file/script to generate secondary list.
 #

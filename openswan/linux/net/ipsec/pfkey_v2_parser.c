@@ -15,14 +15,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_parser.c,v 1.134 2005/05/11 01:48:20 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_netlink.c.
  */
 
-char pfkey_v2_parser_c_version[] = "$Id$";
+char pfkey_v2_parser_c_version[] = "$Id: pfkey_v2_parser.c,v 1.134 2005/05/11 01:48:20 mcr Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -2896,10 +2896,7 @@ pfkey_msg_interp(struct sock *sk, struct sadb_msg *pfkey_msg,
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:18  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey_v2_parser.c,v $
  * Revision 1.134  2005/05/11 01:48:20  mcr
  * 	removed "poor-man"s OOP in favour of proper C structures.
  *

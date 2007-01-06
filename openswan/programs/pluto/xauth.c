@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: xauth.c,v 1.41.4.3 2005/07/26 02:11:23 ken Exp $
  *
  * This code originally written by Colubris Networks, Inc.
  * Extraction of patch and porting to 1.99 codebases by Xelerance Corporation
@@ -2270,12 +2270,9 @@ xauth_inI1(struct msg_digest *md)
 
 
 /*
- * $Id$
+ * $Id: xauth.c,v 1.41.4.3 2005/07/26 02:11:23 ken Exp $
  *
- * $Log$
- * Revision 1.1  2006/08/05 01:29:03  vapier
- * merge from upstream uClinux
- *
+ * $Log: xauth.c,v $
  * Revision 1.41.4.3  2005/07/26 02:11:23  ken
  * Pullin from HEAD:
  * Split Aggressive mode into ikev1_aggr.c

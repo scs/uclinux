@@ -56,10 +56,7 @@ CBC_IMPL_BLK16(AES_cbc_encrypt, aes_context, u_int8_t *, aes_encrypt, aes_decryp
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:20  vapier
- * merge from upstream uClinux
- *
+ * $Log: aes_cbc.c,v $
  * Revision 1.2  2004/07/10 07:48:40  mcr
  * Moved from linux/crypto/ciphers/aes/aes_cbc.c,v
  *

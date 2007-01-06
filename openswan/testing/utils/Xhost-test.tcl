@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id$
+# $Id: Xhost-test.tcl,v 1.18 2005/02/11 01:31:19 mcr Exp $
 #
 
 if {! [info exists env(OPENSWANSRCDIR)]} {
@@ -287,10 +287,7 @@ expect {
 }
 
 # 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: Xhost-test.tcl,v $
 # Revision 1.18  2005/02/11 01:31:19  mcr
 # 	added a sleep to permit UMLs to finish and drain.
 #

@@ -13,7 +13,7 @@
 # NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
 # WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: Makefile,v 1.8 2004/12/18 18:13:34 mcr Exp $
 
 CINCLUDES =	-I${srcdir}/unix/include \
 		-I. -I./include -I${srcdir}/include 

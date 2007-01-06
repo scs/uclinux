@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey.h,v 1.49 2005/05/11 00:57:29 mcr Exp $
  */
 
 #ifndef __NET_IPSEC_PF_KEY_H
@@ -340,10 +340,7 @@ pfkey_v2_sadb_type_string(int sadb_type);
 #endif /* __NET_IPSEC_PF_KEY_H */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:11  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey.h,v $
  * Revision 1.49  2005/05/11 00:57:29  mcr
  * 	rename struct supported -> struct ipsec_alg_supported.
  * 	make pfkey.h more standalone.

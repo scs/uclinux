@@ -24,7 +24,7 @@
 # the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #
-# $Id$
+# $Id: send-pr.in,v 1.11 2005/04/17 23:04:46 paul Exp $
 #
 
 # The version of this send-pr.
@@ -606,10 +606,7 @@ fi
 xs=1; exit;
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:29:33  vapier
-# merge from upstream uClinux
-#
+# $Log: send-pr.in,v $
 # Revision 1.11  2005/04/17 23:04:46  paul
 # Another 'tr' removal
 #

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: net.japan.sh,v 1.2 2002/06/18 19:12:31 mcr Exp $
 #
 if [ -n "$UML_west_CTL" ]
 then

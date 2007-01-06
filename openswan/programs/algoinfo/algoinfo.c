@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spi_c_version[] = "RCSID $Id$";
+char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004/04/29 04:13:02 mcr Exp $";
 
 #include <asm/types.h>
 #include <sys/types.h>
@@ -1686,10 +1686,7 @@ main(int argc, char *argv[])
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:28:21  vapier
- * merge from upstream uClinux
- *
+ * $Log: algoinfo.c,v $
  * Revision 1.1  2004/04/29 04:13:02  mcr
  * 	diagnostic program for algorithm code.
  *

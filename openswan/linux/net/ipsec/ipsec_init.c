@@ -18,7 +18,7 @@
  *
  */
 
-char ipsec_init_c_version[] = "RCSID $Id$";
+char ipsec_init_c_version[] = "RCSID $Id: ipsec_init.c,v 1.104.2.1 2005/08/12 01:18:20 ken Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -401,10 +401,7 @@ cleanup_module(void)
 #endif /* MODULE */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_init.c,v $
  * Revision 1.104.2.1  2005/08/12 01:18:20  ken
  * Warn people who don't have NAT-T patch applied, but try and compile NAT-T code
  *

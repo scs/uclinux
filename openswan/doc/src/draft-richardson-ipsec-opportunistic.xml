@@ -1033,7 +1033,7 @@ The responder receives an invitation to create a keying channel from an initiato
 	machine
 
 
-$Id$
+$Id: draft-richardson-ipsec-opportunistic.xml,v 1.37 2005/01/20 21:39:27 mcr Exp $
 ]]></artwork>
 
 
@@ -2360,12 +2360,9 @@ The IETF takes no position regarding the validity or scope of any
 </back>
 </rfc>
 <!--
-  $Id$
+  $Id: draft-richardson-ipsec-opportunistic.xml,v 1.37 2005/01/20 21:39:27 mcr Exp $
 
-  $Log$
-  Revision 1.1  2006/08/05 01:26:39  vapier
-  merge from upstream uClinux
-
+  $Log: draft-richardson-ipsec-opportunistic.xml,v $
   Revision 1.37  2005/01/20 21:39:27  mcr
   	revision -17 of document
 

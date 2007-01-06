@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2.c,v 1.97.2.7 2006/04/04 11:34:19 ken Exp $
  */
 
 /*
@@ -1548,10 +1548,7 @@ void pfkey_proto_init(struct net_protocol *pro)
 #endif /* MODULE */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: pfkey_v2.c,v $
  * Revision 1.97.2.7  2006/04/04 11:34:19  ken
  * Backport SMP fixes + #ifdef cleanup from #public
  *

@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id$
+# RCSID $Id: defconfig,v 1.28 2005/05/11 03:15:42 mcr Exp $
 #
 
 #
@@ -63,10 +63,7 @@ CONFIG_IPSEC_NAT_TRAVERSAL=y
 
 #
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:17  vapier
-# merge from upstream uClinux
-#
+# $Log: defconfig,v $
 # Revision 1.28  2005/05/11 03:15:42  mcr
 # 	adjusted makefiles to sanely build modules properly.
 #

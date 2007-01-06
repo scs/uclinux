@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.8.2.1 2005/07/21 22:34:22 ken Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
@@ -23,10 +23,7 @@ include ${srcdir}../Makefile.program
 
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:28:16  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.8.2.1  2005/07/21 22:34:22  ken
 # Dump old posix _updown and use _updown.ip2.in all the time
 #

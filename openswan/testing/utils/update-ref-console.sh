@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: update-ref-console.sh,v 1.2 2002/10/10 16:09:59 mcr Exp $
 #
 # use this script to update the console reference output from the last
 # run of tests, for a list of tests (directories) supplied on the
@@ -21,10 +21,7 @@ console_copy_func() {
 
 foreach_ref_console console_copy_func $@
 
-# $Log$
-# Revision 1.1  2006/08/05 02:14:29  vapier
-# merge from upstream uClinux
-#
+# $Log: update-ref-console.sh,v $
 # Revision 1.2  2002/10/10 16:09:59  mcr
 # 	refactored update-ref-console to use new foreach_ref_console
 # 	function in functions.sh, added a simple way to invoke it,

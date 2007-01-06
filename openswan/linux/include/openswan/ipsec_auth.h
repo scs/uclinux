@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_auth.h,v 1.3 2004/04/06 02:49:08 mcr Exp $
  */
 
 #include "ipsec_md5h.h"
@@ -82,10 +82,7 @@ struct options;
 #endif /* IPSEC_AUTH_H */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:13  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_auth.h,v $
  * Revision 1.3  2004/04/06 02:49:08  mcr
  * 	pullup of algo code from alg-branch.
  *

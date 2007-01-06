@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: lex.c,v 1.3 2004/04/27 12:43:27 ken Exp $
  */
 
 #include <stdio.h>

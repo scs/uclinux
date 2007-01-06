@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_sa.c,v 1.30 2005/05/24 01:02:35 mcr Exp $
  *
  * This is the file formerly known as "ipsec_xform.h"
  *
@@ -1514,10 +1514,7 @@ int ipsec_sa_init(struct ipsec_sa *ipsp)
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_sa.c,v $
  * Revision 1.30  2005/05/24 01:02:35  mcr
  * 	some refactoring/simplification of situation where alg
  * 	is not found.

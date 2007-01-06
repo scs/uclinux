@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.9 2002/04/24 07:55:32 mcr Exp $
 #
 
 
@@ -85,10 +85,7 @@ checkprograms:
 programs: $(L_TARGET)
 
 #
-# $Log$
-# Revision 1.1  2006/08/05 01:27:15  vapier
-# merge from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.9  2002/04/24 07:55:32  mcr
 # 	#include patches and Makefiles for post-reorg compilation.
 #

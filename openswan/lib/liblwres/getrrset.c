@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: getrrset.c,v 1.4 2004/09/20 18:00:35 mcr Exp $ */
 
 #include <config.h>
 

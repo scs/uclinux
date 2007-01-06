@@ -18,7 +18,7 @@
  * for more details.
  */
 
-char ipsec_tunnel_c_version[] = "RCSID $Id$";
+char ipsec_tunnel_c_version[] = "RCSID $Id: ipsec_tunnel.c,v 1.232.2.4 2006/03/28 20:58:19 ken Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -1901,10 +1901,7 @@ ipsec_tunnel_cleanup_devices(void)
 }
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_tunnel.c,v $
  * Revision 1.232.2.4  2006/03/28 20:58:19  ken
  * Fix for KLIPS on 2.6.16 - need to include <net/arp.h> now
  *

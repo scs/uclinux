@@ -13,7 +13,7 @@
  * for more details.
  */
 
-char ipsec_esp_c_version[] = "RCSID $Id$";
+char ipsec_esp_c_version[] = "RCSID $Id: ipsec_esp.c,v 1.13 2005/05/21 03:19:57 mcr Exp $";
 #include <linux/config.h>
 #include <linux/version.h>
 
@@ -563,10 +563,7 @@ struct inet_protocol esp_protocol =
 
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 01:27:17  vapier
- * merge from upstream uClinux
- *
+ * $Log: ipsec_esp.c,v $
  * Revision 1.13  2005/05/21 03:19:57  mcr
  * 	hash ctx is not really that interesting most of the time.
  *

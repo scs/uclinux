@@ -1,7 +1,7 @@
 ;
 ; BIND reverse data file for 0.192.in-addr.arpa.
 ;
-; $Id$
+; $Id: db.0.192.in-addr.arpa.,v 1.5 2002/12/04 03:21:13 mcr Exp $
 ;
 $TTL	604800
 @	IN	SOA	0.192.in-addr.arpa. root.freeswan.org. (
@@ -36,10 +36,7 @@ $INCLUDE K0.192.in-addr.arpa.+001+62221.key
 
 
 ;
-; $Log$
-; Revision 1.1  2006/08/05 01:30:35  vapier
-; merge from upstream uClinux
-;
+; $Log: db.0.192.in-addr.arpa.,v $
 ; Revision 1.5  2002/12/04 03:21:13  mcr
 ; 	DNS zone files (with signed versions) for DNSSEC enabled testing root.
 ;
