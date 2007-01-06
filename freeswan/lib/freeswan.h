@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: freeswan.h,v 1.70 2002/03/26 00:50:03 henry Exp $
  */
 #define	_FREESWAN_H	/* seen it, no need to see it again */
 

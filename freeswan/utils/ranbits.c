@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ranbits.c,v 1.9 2002/03/08 00:46:57 henry Exp $
  */
 
 #include <sys/types.h>

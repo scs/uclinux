@@ -2002,9 +2002,6 @@ struct inet_protocol comp_protocol =
 
 /*
  * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
  * Revision 1.9.2.1  2003/06/30 05:04:07  matthewn
  * We need to set the physindev when we receive a packet via IPSec.
  *

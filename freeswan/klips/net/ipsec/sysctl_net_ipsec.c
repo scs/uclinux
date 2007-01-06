@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: sysctl_net_ipsec.c,v 1.13 2002/01/12 02:58:32 mcr Exp $
  */
 
 /* -*- linux-c -*-
@@ -145,10 +145,7 @@ void ipsec_sysctl_unregister(void)
 #endif /* CONFIG_SYSCTL */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:43  vapier
- * sync with upstream uClinux
- *
+ * $Log: sysctl_net_ipsec.c,v $
  * Revision 1.13  2002/01/12 02:58:32  mcr
  * 	first regression test causes acquire messages to be lost
  * 	100% of the time. This is to help testing of pluto.

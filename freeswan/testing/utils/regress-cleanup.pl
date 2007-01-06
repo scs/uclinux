@@ -109,12 +109,9 @@ if(&getdiskspace < $desiredspace) {
 
 exit 0;  
 
-# $Id$
+# $Id: regress-cleanup.pl,v 1.2 2002/01/11 20:43:02 mcr Exp $
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:48  vapier
-# sync with upstream uClinux
-#
+# $Log: regress-cleanup.pl,v $
 # Revision 1.2  2002/01/11 20:43:02  mcr
 # 	perl uses "elsif" - if was missing completely.
 #

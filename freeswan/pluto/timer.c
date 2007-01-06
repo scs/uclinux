@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: timer.c,v 1.71 2002/03/23 20:15:35 dhr Exp $
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: drivers.isdn.isdn_net.c,v 1.4 1999/09/17 17:48:35 rgb Exp $
 --- ./drivers/isdn/isdn_net.c.preipsec	Sun Jun 13 13:21:01 1999
 +++ ./drivers/isdn/isdn_net.c	Thu Sep 16 11:26:31 1999
 @@ -1133,6 +1133,12 @@

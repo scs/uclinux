@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char ipcomp_c_version[] = "RCSID $Id$";
+char ipcomp_c_version[] = "RCSID $Id: ipcomp.c,v 1.28 2002/01/29 17:17:54 mcr Exp $";
 
 /* SSS */
 

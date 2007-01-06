@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: demux.h,v 1.21 2002/03/09 01:26:22 dhr Exp $
  */
 
 struct state;	/* forward declaration of tag */

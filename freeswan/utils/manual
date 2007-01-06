@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: manual,v 1.79 2002/03/11 20:42:27 henry Exp $
 
 me='ipsec manual'
 usage="Usage:

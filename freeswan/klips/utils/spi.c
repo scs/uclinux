@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spi_c_version[] = "RCSID $Id$";
+char spi_c_version[] = "RCSID $Id: spi.c,v 1.84 2002/03/08 21:44:04 rgb Exp $";
 
 #include <asm/types.h>
 #include <sys/types.h>
@@ -1746,10 +1746,7 @@ main(int argc, char *argv[])
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:04  vapier
- * sync with upstream uClinux
- *
+ * $Log: spi.c,v $
  * Revision 1.84  2002/03/08 21:44:04  rgb
  * Update for all GNU-compliant --version strings.
  *

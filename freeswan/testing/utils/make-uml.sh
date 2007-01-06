@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # 
-# $Id$
+# $Id: make-uml.sh,v 1.14.2.1 2002/04/07 17:33:30 mcr Exp $
 #
 
 # show me
@@ -157,10 +157,7 @@ done
     
     
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:48  vapier
-# sync with upstream uClinux
-#
+# $Log: make-uml.sh,v $
 # Revision 1.14.2.1  2002/04/07 17:33:30  mcr
 #    fixes for make-uml desires for building static UML kernels
 #

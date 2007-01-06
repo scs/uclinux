@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: spdb.h,v 1.11 2000/09/15 09:09:28 dhr Exp $
  */
 
 /* database of SA properties */

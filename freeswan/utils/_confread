@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: _confread,v 1.47 2002/03/26 17:49:42 henry Exp $
 #
 # Extract configuration info from /etc/ipsec.conf, repackage as assignments
 # to shell variables or tab-delimited fields.  Success or failure is reported

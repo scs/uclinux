@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ttosubnet.c,v 1.5 2000/08/17 04:14:27 henry Exp $
  */
 #include "internal.h"
 #include "freeswan.h"

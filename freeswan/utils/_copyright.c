@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: _copyright.c,v 1.4 2001/11/22 04:15:56 henry Exp $
  */
 
 #include <sys/types.h>

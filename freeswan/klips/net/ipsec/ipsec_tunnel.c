@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char ipsec_tunnel_c_version[] = "RCSID $Id$";
+char ipsec_tunnel_c_version[] = "RCSID $Id: ipsec_tunnel.c,v 1.187 2002/03/23 19:55:17 rgb Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -3145,10 +3145,7 @@ ipsec_tunnel_cleanup_devices(void)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_tunnel.c,v $
  * Revision 1.187  2002/03/23 19:55:17  rgb
  * Fix for 2.2 local IKE fragmentation blackhole.  Still won't work if
  * iptraf or another pcap app is running.

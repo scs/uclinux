@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: net.west.sh,v 1.2 2001/10/08 22:22:40 mcr Exp $
 #
 
 if [ -n "$UML_private_CTL" ]

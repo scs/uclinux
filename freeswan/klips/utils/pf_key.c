@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pf_key.c,v 1.5 2002/03/08 21:44:04 rgb Exp $
  *
  */
 
@@ -220,10 +220,7 @@ main(int argc, char *argv[])
 }
 	
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:04  vapier
- * sync with upstream uClinux
- *
+ * $Log: pf_key.c,v $
  * Revision 1.5  2002/03/08 21:44:04  rgb
  * Update for all GNU-compliant --version strings.
  *

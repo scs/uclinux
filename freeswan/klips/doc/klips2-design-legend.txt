@@ -3,7 +3,7 @@
 #  klips2-design-legend.txt
 #	Richard Guy Briggs <rgb@conscoop.ottawa.on.ca>
 #
-#  RCSID $Id$
+#  RCSID $Id: klips2-design-legend.txt,v 1.7 2001/05/29 18:52:12 rgb Exp $
 #
 
 # This document is a legend of labels and acronyms on the diagram.  It

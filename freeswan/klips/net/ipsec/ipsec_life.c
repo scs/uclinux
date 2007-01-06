@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_life.c,v 1.4 2002/01/29 17:17:55 mcr Exp $
  *
  */
 
@@ -211,10 +211,7 @@ ipsec_lifetime_update_soft(struct ipsec_lifetime64 *lifetime,
 
 	
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_life.c,v $
  * Revision 1.4  2002/01/29 17:17:55  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h
  * 	otherwise, it seems that some option that is set in ipsec_param.h

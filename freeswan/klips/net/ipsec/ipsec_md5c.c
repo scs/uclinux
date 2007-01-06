@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_md5c.c,v 1.4 1999/12/13 13:59:12 rgb Exp $
  */
 
 /*
@@ -395,10 +395,7 @@ unsigned int len;
 #endif
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_md5c.c,v $
  * Revision 1.4  1999/12/13 13:59:12  rgb
  * Quick fix to argument size to Update bugs.
  *

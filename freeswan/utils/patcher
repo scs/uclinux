@@ -24,7 +24,7 @@
 # -v means verbose
 # -c means do "patching" by appending rather than by using patch(1)
 #
-# RCSID $Id$
+# RCSID $Id: patcher,v 1.13 2001/08/15 04:28:04 henry Exp $
 
 PATH=/bin:/usr/bin:/usr/local/bin:/sbin:/usr/sbin:/usr/local/sbin
 export PATH

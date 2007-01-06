@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.8 2002/04/02 04:08:22 mcr Exp $
 
 TOPDIR=../../..
 OBJS = uml_netjig.o

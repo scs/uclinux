@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: net.netsyms.c,v 1.1 1999/07/09 16:29:24 rgb Exp $
 --- ./net/netsyms.c.preipsec	Sat Apr 24 20:51:48 1999
 +++ ./net/netsyms.c	Fri Jul  9 11:16:36 1999
 @@ -183,6 +183,9 @@

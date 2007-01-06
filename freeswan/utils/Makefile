@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.106 2002/04/01 20:05:27 mcr Exp $
 
 
 

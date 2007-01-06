@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_eroute.h,v 1.2 2001/11/26 09:16:13 rgb Exp $
  *
  * derived from ipsec_encap.h 1.15 on 2001/9/18 by mcr.
  *
@@ -83,10 +83,7 @@ struct eroute
 #endif /* _IPSEC_EROUTE_H_ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_eroute.h,v $
  * Revision 1.2  2001/11/26 09:16:13  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
  *

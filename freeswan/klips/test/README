@@ -1,5 +1,5 @@
 #
-# RCSID $Id$
+# RCSID $Id: README,v 1.4 2002/02/20 07:25:35 rgb Exp $
 #
 
 PREAMBLE
@@ -118,10 +118,7 @@ c) 	klipstest
 MORE TO COME.
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:52  vapier
-# sync with upstream uClinux
-#
+# $Log: README,v $
 # Revision 1.4  2002/02/20 07:25:35  rgb
 # Corrected depluralized variable names.
 #

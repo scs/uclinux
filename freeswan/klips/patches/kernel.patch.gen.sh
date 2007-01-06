@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# RCSID $Id$
+# RCSID $Id: kernel.patch.gen.sh,v 1.4 1999/04/06 04:54:30 rgb Exp $
 
 patchdir=`pwd`
 kernelsrc=/usr/src/linux
@@ -32,16 +32,13 @@ rm -f /tmp/t
 # *with* path from source root
 #echo do diff -u $i $j '>' $patchdir/$l
 echo found $i
-echo "RCSID \$Id$" >$patchdir/$l
+echo "RCSID \$Id: kernel.patch.gen.sh,v 1.4 1999/04/06 04:54:30 rgb Exp $" >$patchdir/$l
 diff -u $i $j >>$patchdir/$l
 
 done
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:46  vapier
-# sync with upstream uClinux
-#
+# $Log: kernel.patch.gen.sh,v $
 # Revision 1.4  1999/04/06 04:54:30  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 # patch shell fixes.

@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.28 2002/01/30 00:17:05 mcr Exp $
 
 
 include ../../Makefile.inc
@@ -95,10 +95,7 @@ clean:
 checkprograms:
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:03  vapier
-# sync with upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.28  2002/01/30 00:17:05  mcr
 # 	replace -O2 with $(USERCOMPILE) in CFLAGS to match other Makefiles.
 #

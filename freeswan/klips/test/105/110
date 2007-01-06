@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 110,v 1.4 1999/04/06 04:54:33 rgb Exp $
 #
 #
 # These are setup examples for OpenBSD.  So far there are only transport
@@ -191,10 +191,7 @@ trespdessha1del)
 esac
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:57  vapier
-# sync with upstream uClinux
-#
+# $Log: 110,v $
 # Revision 1.4  1999/04/06 04:54:33  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 # patch shell fixes.

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: magellan,v 1.7 1999/04/06 04:54:36 rgb Exp $
 #
 
 hmask=255.255.255.255
@@ -380,10 +380,7 @@ case "$1" in
 esac
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:02  vapier
-# sync with upstream uClinux
-#
+# $Log: magellan,v $
 # Revision 1.7  1999/04/06 04:54:36  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 # patch shell fixes.

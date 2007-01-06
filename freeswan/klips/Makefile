@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.4 2001/12/05 07:22:23 rgb Exp $
 
 TOPDIR=..
 include $(TOPDIR)/Makefile.inc

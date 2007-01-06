@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_param.h,v 1.6 2002/01/29 02:11:42 mcr Exp $
  *
  */
 
@@ -108,10 +108,7 @@ extern int sysctl_ipsec_regress_pfkey_lossage;
 #endif
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_param.h,v $
  * Revision 1.6  2002/01/29 02:11:42  mcr
  * 	removal of kversions.h - sources that needed it now use ipsec_param.h.
  * 	updating of IPv6 structures to match latest in6.h version.

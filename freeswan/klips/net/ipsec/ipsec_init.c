@@ -18,7 +18,7 @@
  *
  */
 
-char ipsec_init_c_version[] = "RCSID $Id$";
+char ipsec_init_c_version[] = "RCSID $Id: ipsec_init.c,v 1.80 2002/03/24 07:34:08 rgb Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -283,10 +283,7 @@ cleanup_module(void)
 #endif /* MODULE */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_init.c,v $
  * Revision 1.80  2002/03/24 07:34:08  rgb
  * Sanity check for at least one of AH or ESP configured.
  *

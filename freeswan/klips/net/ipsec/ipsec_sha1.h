@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_sha1.h,v 1.5 1999/12/13 13:59:13 rgb Exp $
  */
 
 /*
@@ -32,10 +32,7 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX *context);
 #endif /* _IPSEC_SHA1_H_ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_sha1.h,v $
  * Revision 1.5  1999/12/13 13:59:13  rgb
  * Quick fix to argument size to Update bugs.
  *

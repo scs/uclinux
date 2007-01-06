@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_tunnel.h,v 1.23 2001/11/06 19:50:44 rgb Exp $
  */
 
 
@@ -127,10 +127,7 @@ extern int sysctl_ipsec_debug_verbose;
 #endif /* CONFIG_IPSEC_DEBUG */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_tunnel.h,v $
  * Revision 1.23  2001/11/06 19:50:44  rgb
  * Moved IP_SEND, ICMP_SEND, DEV_QUEUE_XMIT macros to ipsec_tunnel.h for
  * use also by pfkey_v2_parser.c

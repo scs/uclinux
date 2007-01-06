@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey.h,v 1.36 2002/01/20 20:34:49 mcr Exp $
  */
 
 #ifndef __NET_IPSEC_PF_KEY_H
@@ -267,10 +267,7 @@ pfkey_register_reply(int satype, struct sadb_msg *sadb_msg);
 #endif /* __NET_IPSEC_PF_KEY_H */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:13  vapier
- * sync with upstream uClinux
- *
+ * $Log: pfkey.h,v $
  * Revision 1.36  2002/01/20 20:34:49  mcr
  * 	added pfkey_v2_sadb_type_string to decode sadb_type to string.
  *

@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: showhostkey,v 1.12 2001/10/26 16:17:02 henry Exp $
 
 me="ipsec showhostkey"
 usage="Usage: $me [--file secrets] [--left] [--right] [--txt gateway] [--id id]"

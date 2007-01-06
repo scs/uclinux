@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: preshared.h,v 1.22 2002/03/22 04:13:53 dhr Exp $
  */
 
 #include <gmp.h>    /* GNU MP library */

@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: pfkeyv2.h,v 1.18 2001/11/06 19:47:47 rgb Exp $
  */
 
 /*
@@ -320,10 +320,7 @@ struct sadb_x_nat_t_port {
 #endif /* __PFKEY_V2_H */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:13  vapier
- * sync with upstream uClinux
- *
+ * $Log: pfkeyv2.h,v $
  * Revision 1.18  2001/11/06 19:47:47  rgb
  * Added packet parameter to lifetime and comb structures.
  *

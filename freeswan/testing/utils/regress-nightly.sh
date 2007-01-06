@@ -60,12 +60,9 @@ then
     echo WARNING $BUILDSPOOL/freeswan/testing/utils/regress-nightly.sh differs from $0.
 fi
 
-# $Id$
+# $Id: regress-nightly.sh,v 1.5 2002/02/12 04:09:46 mcr Exp $
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:48  vapier
-# sync with upstream uClinux
-#
+# $Log: regress-nightly.sh,v $
 # Revision 1.5  2002/02/12 04:09:46  mcr
 # 	redirect and save stdout and stderr.
 #

@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: ji_setup.txt,v 1.6 1999/04/06 04:54:23 rgb Exp $
 *
 
 [Here is JI's setup.  This document is OBSOLETE (rgb, May 6, 1998) but is
@@ -266,10 +266,7 @@ Destination      Gateway            Flags     Refs     Use  Interface
 
 
 *
-* $Log$
-* Revision 1.2  2006/07/31 02:43:33  vapier
-* sync with upstream uClinux
-*
+* $Log: ji_setup.txt,v $
 * Revision 1.6  1999/04/06 04:54:23  rgb
 * Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 * patch shell fixes.

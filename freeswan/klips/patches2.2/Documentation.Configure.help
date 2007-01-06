@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: Documentation.Configure.help,v 1.10 2002/01/28 20:03:12 mcr Exp $
 --- ./Documentation/Configure.help.preipsec	Sat Aug 28 02:16:15 1999
 +++ ./Documentation/Configure.help	Sat Aug 28 02:24:58 1999
 @@ -3530,6 +3530,59 @@

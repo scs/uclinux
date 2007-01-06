@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2.c,v 1.68 2002/03/08 01:15:17 mcr Exp $
  */
 
 /*
@@ -1768,10 +1768,7 @@ pfkey_proto_init(struct net_proto *pro)
 #endif /* MODULE */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: pfkey_v2.c,v $
  * Revision 1.68  2002/03/08 01:15:17  mcr
  * 	put some internal structure only debug messages behind
  * 	&& sysctl_ipsec_debug_verbose.

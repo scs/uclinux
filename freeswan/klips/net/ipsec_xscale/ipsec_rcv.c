@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char ipsec_rcv_c_version[] = "RCSID $Id$";
+char ipsec_rcv_c_version[] = "RCSID $Id: ipsec_rcv.c,v 1.2.2.1 2004/08/31 05:59:47 philipc Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -552,10 +552,30 @@ static void ipsec_rcv_next_transform (void *data)
     ipp = (struct iphdr *)skb->data;
     iphlen = ipp->ihl << 2;
     len  = skb->len;
+	ipaddr.s_addr = ipp->saddr;
+    addrtoa(ipaddr, 0, ipaddr_txt, sizeof(ipaddr_txt));
 
     switch(ipp->protocol) {
 #ifdef CONFIG_IPSEC_ESP
 	case IPPROTO_ESP:
+		espp = (struct esp *)(skb->data + iphlen);
+		replay = ntohl(espp->esp_rpl);
+		if (!ipsec_updatereplaywindow(tdbp, replay)) {
+		    spin_lock(&tdb_lock);
+		    tdbp->tdb_replaywin_errs += 1;
+		    delRcvDesc_from_salist(tdbp, pRcvDesc);
+		    spin_unlock(&tdb_lock);
+		    KLIPS_PRINT(debug_rcv & DB_RX_REPLAY,
+			    "klips_debug:ipsec_rcv: "
+			    "duplicate frame from %s, packet dropped\n",
+			    ipaddr_txt);
+		    if(pRcvDesc->stats) {
+			    (pRcvDesc->stats)->rx_dropped++;
+		    }
+		    goto rcvleave_cb;
+		}
+		replay = 0; /* reset */
+
 		next_header = skb->data[pRcvDesc->icv_offset - 1];
 		padlen = skb->data[pRcvDesc->icv_offset - 2];
 		esphlen = sizeof(struct esp);
@@ -655,6 +675,23 @@ static void ipsec_rcv_next_transform (void *data)
 		/* get AH header len */
 		ahhlen = (ahp->ah_hl << 2) +
 				  ((caddr_t)&(ahp->ah_rpl) - (caddr_t)ahp);
+		replay = ntohl(ahp->ah_rpl);
+		if (!ipsec_updatereplaywindow(tdbp, replay)) {
+		      spin_lock (&tdb_lock);
+		      tdbp->tdb_replaywin_errs += 1;
+		      delRcvDesc_from_salist(tdbp, pRcvDesc);
+		      spin_unlock(&tdb_lock);
+		      KLIPS_PRINT(debug_rcv & DB_RX_REPLAY,
+			      "klips_debug:ipsec_rcv: "
+			      "duplicate frame from %s, packet dropped\n",
+			      ipaddr_txt);
+		      if (pRcvDesc->stats) {
+			      (pRcvDesc->stats)->rx_dropped++;
+		      }
+		      goto rcvleave_cb;
+		}
+		replay = 0; /* reset */
+
 		next_header = ahp->ah_nh;
 
 		/* DIscard AH header */
@@ -1238,20 +1275,6 @@ static void ipsec_rcv_next_transform (void *data)
 	      KLIPS_PRINT(debug_rcv,
 		      "klips_debug:ipsec_rcv: "
 		      "replay window counter rolled, expiring SA.\n");
-	      if(pRcvDesc->stats) {
-		      (pRcvDesc->stats)->rx_dropped++;
-	      }
-	      goto rcvleave_cb;
-      }
-
-      if (!ipsec_updatereplaywindow(tdbp, replay)) {
-	      tdbp->tdb_replaywin_errs += 1;
-	      delRcvDesc_from_salist(tdbp, pRcvDesc);
-	      spin_unlock(&tdb_lock);
-	      KLIPS_PRINT(debug_rcv & DB_RX_REPLAY,
-		      "klips_debug:ipsec_rcv: "
-		      "duplicate frame from %s, packet dropped\n",
-		      ipaddr_txt);
 	      if(pRcvDesc->stats) {
 		      (pRcvDesc->stats)->rx_dropped++;
 	      }
@@ -2883,20 +2906,6 @@ ipsec_rcv(struct sk_buff *skb, struct device *dev, struct options *opt,
 	      goto rcvleave;
       }
 
-      if (!ipsec_updatereplaywindow(tdbp, replay)) {
-	      tdbp->tdb_replaywin_errs += 1;
-	      delRcvDesc_from_salist(tdbp, pRcvDesc);
-	      spin_unlock(&tdb_lock);
-	      KLIPS_PRINT(debug_rcv & DB_RX_REPLAY,
-		      "klips_debug:ipsec_rcv: "
-		      "duplicate frame from %s, packet dropped\n",
-		      ipaddr_txt);
-	      if(pRcvDesc->stats) {
-		      (pRcvDesc->stats)->rx_dropped++;
-	      }
-	      goto rcvleave;
-      }
-
 	spin_unlock(&tdb_lock);
 
       switch(tdbp->tdb_authalg) {
@@ -3694,10 +3703,7 @@ struct inet_protocol comp_protocol =
 #endif
 
 /*
- * $Log$
- * Revision 1.1  2006/07/31 02:43:45  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_rcv.c,v $
  * Revision 1.2.2.1  2004/08/31 05:59:47  philipc
  * The NAT traversal support was not releasing descriptors for IKE packets.
  * This happens even if NAT traversal is not being used.  Result was that

@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: satoa.c,v 1.12 2001/09/25 00:09:51 rgb Exp $
  */
 #include "internal.h"
 #include "freeswan.h"

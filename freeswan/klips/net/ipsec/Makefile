@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.39 2002/01/17 04:39:40 rgb Exp $
 #
 # Note! Dependencies are done automagically by 'make dep', which also
 # removes any old dependencies. DON'T put your own dependencies here
@@ -164,10 +164,7 @@ tar:
 		tar -cvf /dev/f1 .
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:39  vapier
-# sync with upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.39  2002/01/17 04:39:40  rgb
 # Take compile options from top level Makefile.inc
 #

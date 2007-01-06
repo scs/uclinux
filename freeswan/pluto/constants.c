@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: constants.c,v 1.60 2002/03/21 22:43:26 dhr Exp $
  */
 
 /*

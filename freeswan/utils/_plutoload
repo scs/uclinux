@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: _plutoload,v 1.2 2001/10/31 01:39:03 henry Exp $
 #
 # exit status is 13 for protocol violation, that of Pluto otherwise
 

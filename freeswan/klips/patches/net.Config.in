@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: net.Config.in,v 1.5 1999/09/17 17:48:36 rgb Exp $
 --- ./net/Config.in.preipsec	Mon Jul 13 16:47:40 1998
 +++ ./net/Config.in	Thu Sep 16 11:26:31 1999
 @@ -24,4 +24,8 @@

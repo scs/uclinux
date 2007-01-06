@@ -74,7 +74,7 @@ extern "C" {
 /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
  * %20 speed up (longs are 8 bytes, int's are 4). */
 #ifndef DES_LONG
-/* RCSID $Id$ */
+/* RCSID $Id: des.h,v 1.8 2001/11/26 09:23:53 rgb Exp $ */
 /* This conditional for FreeS/WAN project. */
 #ifdef __alpha
 #define DES_LONG unsigned int

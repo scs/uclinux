@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_md5h.h,v 1.6 1999/12/13 13:59:13 rgb Exp $
  */
 
 /*
@@ -83,10 +83,7 @@ void MD5Final PROTO_LIST ((unsigned char [16], MD5_CTX *));
 #endif /* _IPSEC_MD5H_H_ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_md5h.h,v $
  * Revision 1.6  1999/12/13 13:59:13  rgb
  * Quick fix to argument size to Update bugs.
  *

@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_sa.c,v 1.5 2002/01/29 17:17:56 mcr Exp $
  *
  * This is the file formerly known as "ipsec_xform.h"
  *
@@ -597,10 +597,7 @@ ipsec_sa_wipe(struct ipsec_sa *ips)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_sa.c,v $
  * Revision 1.5  2002/01/29 17:17:56  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h
  * 	otherwise, it seems that some option that is set in ipsec_param.h

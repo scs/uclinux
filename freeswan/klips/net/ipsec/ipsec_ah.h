@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_ah.h,v 1.16 2002/02/20 01:27:06 rgb Exp $
  */
 
 #include "ipsec_md5h.h"
@@ -100,10 +100,7 @@ extern int debug_ah;
 #endif /* __KERNEL__ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:40  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_ah.h,v $
  * Revision 1.16  2002/02/20 01:27:06  rgb
  * Ditched a pile of structs only used by the old Netlink interface.
  *

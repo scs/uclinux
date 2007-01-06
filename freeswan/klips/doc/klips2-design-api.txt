@@ -3,7 +3,7 @@
 #  klips2-design-api.txt
 #	Richard Guy Briggs <rgb@conscoop.ottawa.on.ca>
 #
-#  RCSID $Id$
+#  RCSID $Id: klips2-design-api.txt,v 1.21 2001/06/26 20:29:25 rgb Exp $
 #
 
 * Outline Commands cheat sheet (C-c C-s to see this)
@@ -2126,4 +2126,4 @@ struct holdinfo {
 
 * Version:
 
-	$Id$
+	$Id: klips2-design-api.txt,v 1.21 2001/06/26 20:29:25 rgb Exp $

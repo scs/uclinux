@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: radij.h,v 1.11 2001/09/20 15:33:00 rgb Exp $
  */
 
 /*
@@ -202,10 +202,7 @@ extern int maj_keylen;
 
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: radij.h,v $
  * Revision 1.11  2001/09/20 15:33:00  rgb
  * Min/max cleanup.
  *

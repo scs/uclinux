@@ -1,5 +1,5 @@
 # /etc/ipsec.conf - FreeS/WAN IPsec configuration file
-# RCSID $Id$
+# RCSID $Id: conf.proto,v 1.33.6.3 2002/04/12 15:24:07 mcr Exp $
 
 # More elaborate and more varied sample configurations can be found
 # in FreeS/WAN's doc/examples file, and in the HTML documentation.

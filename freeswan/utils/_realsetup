@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: _realsetup,v 1.7.2.2 2002/04/11 01:19:05 mcr Exp $
 
 me='ipsec setup'		# for messages
 

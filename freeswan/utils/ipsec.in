@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: ipsec.in,v 1.21 2002/03/26 17:49:43 henry Exp $
 
 # where the private directory and the config files are
 IPSEC_DIR=@IPSEC_DIR@

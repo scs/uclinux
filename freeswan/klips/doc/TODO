@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: TODO,v 1.75 2002/03/08 21:30:12 rgb Exp $
 *
 
 Bugs:
@@ -159,10 +159,7 @@ DHR?	Port to DNSSEC
 	SNMPv3
 
 *
-* $Log$
-* Revision 1.2  2006/07/31 02:43:33  vapier
-* sync with upstream uClinux
-*
+* $Log: TODO,v $
 * Revision 1.75  2002/03/08 21:30:12  rgb
 * Add note about pfkey update being able to simply change lifetimes of
 * mature SAs.

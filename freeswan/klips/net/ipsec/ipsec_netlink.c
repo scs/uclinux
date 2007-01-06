@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char ipsec_netlink_c_version[] = "RCSID $Id$";
+char ipsec_netlink_c_version[] = "RCSID $Id: ipsec_netlink.c,v 1.56 2002/01/29 17:17:55 mcr Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -401,10 +401,7 @@ ipsec_callback(struct sk_buff *skb)
 #endif
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_netlink.c,v $
  * Revision 1.56  2002/01/29 17:17:55  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h
  * 	otherwise, it seems that some option that is set in ipsec_param.h

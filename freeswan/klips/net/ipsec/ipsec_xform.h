@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_xform.h,v 1.35 2001/11/26 09:23:51 rgb Exp $
  */
 
 #ifndef _IPSEC_XFORM_H_
@@ -144,10 +144,7 @@ static inline const char *auth_name_id (unsigned id) {
 #endif /* _IPSEC_XFORM_H_ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_xform.h,v $
  * Revision 1.35  2001/11/26 09:23:51  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
  *

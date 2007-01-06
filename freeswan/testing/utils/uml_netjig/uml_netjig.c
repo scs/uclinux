@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: uml_netjig.c,v 1.8 2002/01/21 01:08:41 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *
@@ -512,7 +512,7 @@ void bind_sockets(struct nethub *nh)
 static void Usage(void)
 {
   fprintf(stderr, "Usage : uml_netjig \n"
-	  "Version $Revision$ \n\n"
+	  "Version $Revision: 1.8 $ \n\n"
       "\t--exitonempty (-e)          exit when no more packets to read\n"
       "\t--playpublic (-p) <file>    pcap(3) file to feed into public side\n"
       "\t--recordpublic (-r) <file>  pcap(3) file to write from public side\n"
@@ -985,10 +985,7 @@ int main(int argc, char **argv)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:51  vapier
- * sync with upstream uClinux
- *
+ * $Log: uml_netjig.c,v $
  * Revision 1.8  2002/01/21 01:08:41  mcr
  * 	do not die if -t option is provided, but tcpdump compiled out.
  *

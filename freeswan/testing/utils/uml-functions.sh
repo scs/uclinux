@@ -1,7 +1,7 @@
 #! /bin/sh 
 #
 # 
-# $Id$
+# $Id: uml-functions.sh,v 1.5 2002/04/04 00:19:02 mcr Exp $
 #
 
 setup_host() {
@@ -85,10 +85,7 @@ setup_host() {
 }
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:48  vapier
-# sync with upstream uClinux
-#
+# $Log: uml-functions.sh,v $
 # Revision 1.5  2002/04/04 00:19:02  mcr
 # 	when setting up root file systems, see if we built an ipsec.o
 # 	as part of the kernel build, and if so, copy it to /ipsec.o for

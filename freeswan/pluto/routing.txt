@@ -1,7 +1,7 @@
 Routing and Erouting in Pluto
 =============================
 
-RCSID $Id$
+RCSID $Id: routing.txt,v 1.4 2001/06/08 00:21:01 dhr Exp $
 
 This is meant as internal documentation for Pluto.  As such, it
 presumes some understanding of Pluto's code.

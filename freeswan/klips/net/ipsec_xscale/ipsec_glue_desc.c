@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
 
- RCSID $Id$
+ RCSID $Id: ipsec_glue_desc.c,v 1.0 2003/04/27 05:08:18 rgb Exp $
 
  */
  

@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_xform.c,v 1.59 2002/03/29 15:01:36 rgb Exp $
  */
 
 #include <linux/config.h>
@@ -105,10 +105,7 @@ ipsec_tdbinit(void)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_xform.c,v $
  * Revision 1.59  2002/03/29 15:01:36  rgb
  * Delete decommissioned code.
  *

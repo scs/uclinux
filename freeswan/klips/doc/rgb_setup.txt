@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: rgb_setup.txt,v 1.6 1999/04/06 04:54:24 rgb Exp $
 *
 
 This is an example of a network set up to test the FreeS/WAN KLIPS
@@ -420,10 +420,7 @@ Destination     Gateway         Genmask         Flags Metric Ref Use    Iface
 	rgb, February 22, 1999
 
 *
-* $Log$
-* Revision 1.2  2006/07/31 02:43:33  vapier
-* sync with upstream uClinux
-*
+* $Log: rgb_setup.txt,v $
 * Revision 1.6  1999/04/06 04:54:24  rgb
 * Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 * patch shell fixes.

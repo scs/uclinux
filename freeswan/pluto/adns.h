@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: adns.h,v 1.2 2002/03/09 01:26:19 dhr Exp $
  */
 
 /* The interface in RHL6.x and BIND distribution 8.2.2 are different,

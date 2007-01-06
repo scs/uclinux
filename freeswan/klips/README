@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: README,v 1.8 2000/11/06 05:42:58 rgb Exp $
 *
 
                ****************************************
@@ -160,10 +160,7 @@ rgb_setup.txt	RGB's sample setup.
 2. Please see doc/TODO for a list of some of the known bugs and problems.
 
 *
-* $Log$
-* Revision 1.2  2006/07/31 02:43:30  vapier
-* sync with upstream uClinux
-*
+* $Log: README,v $
 * Revision 1.8  2000/11/06 05:42:58  rgb
 * Updated file list (had not been done in 2 years?).
 *

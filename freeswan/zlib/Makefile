@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.7 2002/03/27 23:34:35 mcr Exp $
 #
 
 
@@ -82,10 +82,7 @@ checkprograms:
 programs: $(L_TARGET)
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:44:58  vapier
-# sync with upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.7  2002/03/27 23:34:35  mcr
 # 	added programs: target
 #

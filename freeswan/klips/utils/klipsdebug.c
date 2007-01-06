@@ -15,7 +15,7 @@
  * for more details.
  */
 
-char klipsdebug_c_version[] = "RCSID $Id$";
+char klipsdebug_c_version[] = "RCSID $Id: klipsdebug.c,v 1.45 2002/03/08 21:44:04 rgb Exp $";
 
 
 #include <sys/types.h>
@@ -415,10 +415,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:04  vapier
- * sync with upstream uClinux
- *
+ * $Log: klipsdebug.c,v $
  * Revision 1.45  2002/03/08 21:44:04  rgb
  * Update for all GNU-compliant --version strings.
  *

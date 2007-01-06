@@ -18,7 +18,7 @@
  * Split out from ipsec_init.c version 1.70.
  */
 
-char ipsec_proc_c_version[] = "RCSID $Id$";
+char ipsec_proc_c_version[] = "RCSID $Id: ipsec_proc.c,v 1.8 2002/01/29 17:17:55 mcr Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>
@@ -732,10 +732,7 @@ ipsec_proc_cleanup()
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_proc.c,v $
  * Revision 1.8  2002/01/29 17:17:55  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h
  * 	otherwise, it seems that some option that is set in ipsec_param.h

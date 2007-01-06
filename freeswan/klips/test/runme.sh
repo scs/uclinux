@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id$
+# $Id: runme.sh,v 1.3 2002/04/02 02:48:21 mcr Exp $
 #
 # use this script to run a single test from within that test directory.
 # note that this assumes a "klipstest" type test.
@@ -21,10 +21,7 @@ testtype=klipstest
 (cd .. && recordresults $testdir $testtype $stat)
 
  
-# $Log$
-# Revision 1.2  2006/07/31 02:43:52  vapier
-# sync with upstream uClinux
-#
+# $Log: runme.sh,v $
 # Revision 1.3  2002/04/02 02:48:21  mcr
 # *** empty log message ***
 #

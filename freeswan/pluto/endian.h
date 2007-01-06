@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: endian.h,v 1.5 1999/12/13 00:40:51 dhr Exp $
  */
 
 /* sets BYTE_ORDER, LITTLE_ENDIAN, and BIG_ENDIAN */

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_doi.h,v 1.27 2002/03/23 20:15:32 dhr Exp $
  */
 
 extern void echo_hdr(struct msg_digest *md, bool enc, u_int8_t np);

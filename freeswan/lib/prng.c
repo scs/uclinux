@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: prng.c,v 1.3 2002/03/26 00:50:04 henry Exp $
  */
 #include "internal.h"
 #include "freeswan.h"

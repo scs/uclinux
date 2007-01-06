@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: net.ipv4.af_inet.c,v 1.5 2000/06/30 19:59:12 rgb Exp $
 --- ./net/ipv4/af_inet.c.preipsec	Wed Apr 26 15:13:17 2000
 +++ ./net/ipv4/af_inet.c	Fri Jun 30 15:01:27 2000
 @@ -1019,6 +1019,17 @@

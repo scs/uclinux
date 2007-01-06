@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: gcryptfix.h,v 1.4 2000/05/20 19:43:55 dhr Exp $
  */
 
 #define DBG_CIPHER  1	/* some day we'll do this right */

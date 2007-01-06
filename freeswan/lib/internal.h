@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: internal.h,v 1.9 2000/08/08 02:34:15 henry Exp $
  */
 
 #ifndef ABITS

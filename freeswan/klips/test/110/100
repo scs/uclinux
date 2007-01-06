@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 100,v 1.20 1999/06/13 07:25:21 rgb Exp $
 #
 
 net1=192.168.4.0
@@ -812,10 +812,7 @@ esac
 
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:59  vapier
-# sync with upstream uClinux
-#
+# $Log: 100,v $
 # Revision 1.20  1999/06/13 07:25:21  rgb
 # Change spis to avoid collision between tests.
 #

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: defs.c,v 1.20 2002/03/09 20:45:37 dhr Exp $
  */
 
 #include <stdlib.h>

@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_rcv.h,v 1.14 2001/09/07 22:15:48 rgb Exp $
  */
 
 #define DB_RX_PKTRX	0x0001
@@ -62,10 +62,7 @@ extern int sysctl_ipsec_inbound_policy_check;
 #endif /* __KERNEL__ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_rcv.h,v $
  * Revision 1.14  2001/09/07 22:15:48  rgb
  * Fix for removal of transport layer protocol handler arg in 2.4.4.
  *

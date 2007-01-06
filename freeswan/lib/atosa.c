@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: atosa.c,v 1.11 2000/09/17 18:55:37 henry Exp $
  */
 #include "internal.h"
 #include "freeswan.h"

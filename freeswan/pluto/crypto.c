@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: crypto.c,v 1.22 2002/01/21 03:14:15 dhr Exp $
  */
 
 #include <stdio.h>

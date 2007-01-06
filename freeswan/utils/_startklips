@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: _startklips,v 1.6.2.1 2002/04/09 21:34:56 mcr Exp $
 
 me='ipsec _startklips'		# for messages
 

@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: Makefile,v 1.50 2002/03/27 23:08:24 mcr Exp $
 
 
 
@@ -74,7 +74,7 @@ install:
 	done
 
 $(LIB):	$(OBJS)
-	ar $(ARFLAGS) $(LIB) $(OBJS)
+	$(AR) $(ARFLAGS) $(LIB) $(OBJS)
 
 $(OBJS):	$(HDRS)
 
@@ -105,7 +105,7 @@ clean:
 # developer-only stuff
 l:
 	$(MAKE) $(LIB) ARFLAGS=crv CFLAGS=-O
-	ranlib $(LIB)
+	$(RANLIB) $(LIB)
 
 t:	$(LIB)
 	cp atosubnet.c try.c

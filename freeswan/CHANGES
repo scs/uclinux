@@ -1712,4 +1712,4 @@ Added a patch for the Linux kernel config utility help menus to explain
 what the IPSEC option is, where to find the standards and where to find
 the latest development.
 
-RCSID $Id$
+RCSID $Id: CHANGES,v 1.274.2.2 2002/04/12 15:48:47 mcr Exp $

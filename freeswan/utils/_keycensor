@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: _keycensor,v 1.8 2002/04/01 23:36:50 mcr Exp $
 
 usage="Usage: $0 [file ...]"
 me="ipsec _keycensor"

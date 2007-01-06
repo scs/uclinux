@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: kernel.h,v 1.26 2002/03/23 20:15:33 dhr Exp $
  */
 
 extern bool no_klips;	/* don't actually use KLIPS */

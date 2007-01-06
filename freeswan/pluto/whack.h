@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: whack.h,v 1.42 2002/03/09 01:26:30 dhr Exp $
  */
 
 #include <freeswan.h>

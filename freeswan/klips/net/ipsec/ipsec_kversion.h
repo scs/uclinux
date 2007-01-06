@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_kversion.h,v 1.2.2.1 2002/04/12 03:21:43 mcr Exp $
  */
 #define	_FREESWAN_KVERSIONS_H	/* seen it, no need to see it again */
 
@@ -165,10 +165,7 @@
 #endif /* _FREESWAN_KVERSIONS_H */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_kversion.h,v $
  * Revision 1.2.2.1  2002/04/12 03:21:43  mcr
  *    fixes for compilation on RH 7.1
  *

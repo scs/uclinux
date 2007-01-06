@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_radij.c,v 1.60 2002/02/19 23:59:45 rgb Exp $
  */
 
 #include <linux/config.h>
@@ -517,10 +517,7 @@ ipsec_rj_walker_delete(struct radij_node *rn, void *w0)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_radij.c,v $
  * Revision 1.60  2002/02/19 23:59:45  rgb
  * Removed redundant compiler directives.
  *

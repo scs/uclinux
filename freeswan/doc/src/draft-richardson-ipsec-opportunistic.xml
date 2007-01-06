@@ -2095,12 +2095,9 @@ clear SHOULD also be applied to datagrams arriving opportunistically.
 </back>
 </rfc>
 <!--
-  $Id$
+  $Id: draft-richardson-ipsec-opportunistic.xml,v 1.17 2002/03/12 21:23:55 mcr Exp $
 
-  $Log$
-  Revision 1.2  2006/07/31 02:43:12  vapier
-  sync with upstream uClinux
-
+  $Log: draft-richardson-ipsec-opportunistic.xml,v $
   Revision 1.17  2002/03/12 21:23:55  mcr
   	adjusted definition of default-free zone.
   	moved text on key rollover from format description to new

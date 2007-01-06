@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
 
- RCSID $Id$
+ RCSID $Id: ipcomp.h,v 1.9 2001/11/26 09:23:47 rgb Exp $
 
  */
 

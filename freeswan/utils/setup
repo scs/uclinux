@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id$
+# RCSID $Id: setup,v 1.110 2001/06/20 15:55:13 henry Exp $
 #
 # ipsec         init.d script for starting and stopping
 #               the IPsec security subsystem (KLIPS and Pluto).

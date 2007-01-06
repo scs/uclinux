@@ -1,4 +1,4 @@
-char radij_c_version[] = "RCSID $Id$";
+char radij_c_version[] = "RCSID $Id: radij.c,v 1.40 2002/01/29 17:17:58 mcr Exp $";
 
 /*
  * This file is defived from ${SRC}/sys/net/radix.c of BSD 4.4lite
@@ -992,10 +992,7 @@ radijcleanup(void)
 }
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: radij.c,v $
  * Revision 1.40  2002/01/29 17:17:58  mcr
  * 	moved include of ipsec_param.h to after include of linux/kernel.h
  * 	otherwise, it seems that some option that is set in ipsec_param.h

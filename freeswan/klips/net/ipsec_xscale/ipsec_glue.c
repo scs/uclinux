@@ -16,7 +16,7 @@
 
 /* To do: Note to myself try to compile these file first see to see if it's work */
 
-char ipsec_sa_glue_c_version[] = "RCSID $Id$";
+char ipsec_sa_glue_c_version[] = "RCSID $Id: ipsec_glue.c,v 1.1 2004/05/11 00:38:42 danield Exp $";
 
 #include <linux/config.h>
 #include <linux/version.h>

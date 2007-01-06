@@ -1,5 +1,5 @@
 /*
- * RCSID $Id$
+ * RCSID $Id: ipsec_sha1.c,v 1.5 1999/12/13 13:59:13 rgb Exp $
  */
 
 /*
@@ -166,10 +166,7 @@ unsigned char finalcount[8];
 
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_sha1.c,v $
  * Revision 1.5  1999/12/13 13:59:13  rgb
  * Quick fix to argument size to Update bugs.
  *

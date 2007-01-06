@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: log.c,v 1.46 2002/03/15 22:30:16 dhr Exp $
  */
 
 #include <stdio.h>

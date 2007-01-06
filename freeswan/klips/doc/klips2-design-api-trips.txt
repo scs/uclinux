@@ -3,7 +3,7 @@
 #  klips2-design-api-trips.txt
 #	Richard Guy Briggs <rgb@conscoop.ottawa.on.ca>
 #
-#  RCSID $Id$
+#  RCSID $Id: klips2-design-api-trips.txt,v 1.8 2001/05/30 08:00:14 rgb Exp $
 #
 
 # This document outlines various trips that are made through the

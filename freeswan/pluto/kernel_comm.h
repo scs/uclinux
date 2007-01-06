@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: kernel_comm.h,v 1.6 1999/12/13 00:40:54 dhr Exp $
  */
 
 extern void whack_handle(int kernelfd);

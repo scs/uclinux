@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id$
+# RCSID $Id: 103,v 1.2 1999/04/06 04:54:32 rgb Exp $
 #
 
 net1=192.168.3.0
@@ -59,10 +59,7 @@ echo
 cat /proc/net/ipsec-route
 
 #
-# $Log$
-# Revision 1.2  2006/07/31 02:43:54  vapier
-# sync with upstream uClinux
-#
+# $Log: 103,v $
 # Revision 1.2  1999/04/06 04:54:32  rgb
 # Fix/Add RCSID Id: and Log: bits to make PHMDs happy.  This includes
 # patch shell fixes.

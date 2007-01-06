@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: preshared.c,v 1.60 2002/03/22 23:38:28 dhr Exp $
  */
 
 #include <stdio.h>

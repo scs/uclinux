@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_netlink.h,v 1.31 2001/11/26 09:23:48 rgb Exp $
  */
 
 #include <linux/stddef.h>
@@ -204,10 +204,7 @@ extern int debug_netlink;
 #endif /* __KERNEL__ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:41  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_netlink.h,v $
  * Revision 1.31  2001/11/26 09:23:48  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
  *

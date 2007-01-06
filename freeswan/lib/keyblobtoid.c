@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: keyblobtoid.c,v 1.3 2002/03/25 23:23:08 henry Exp $
  */
 #include "internal.h"
 #include "freeswan.h"

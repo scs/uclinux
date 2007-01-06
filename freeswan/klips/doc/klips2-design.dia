@@ -2721,7 +2721,7 @@ Table#</string>
       <attribute name="text">
         <composite type="text">
           <attribute name="string">
-            <string>#Version: $Id$#</string>
+            <string>#Version: $Id: klips2-design.dia,v 1.7 2001/05/29 18:52:13 rgb Exp $#</string>
           </attribute>
           <attribute name="font">
             <font name="Courier"/>

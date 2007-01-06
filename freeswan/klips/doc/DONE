@@ -1,5 +1,5 @@
 *
-* RCSID $Id$
+* RCSID $Id: DONE,v 1.23 2001/12/15 05:52:45 rgb Exp $
 *
 
 Bugs as of 1.93:
@@ -218,10 +218,7 @@ Features for 2.0:
 	Have kernel config automatically configure IPIP with IPSEC?
 
 *
-* $Log$
-* Revision 1.2  2006/07/31 02:43:33  vapier
-* sync with upstream uClinux
-*
+* $Log: DONE,v $
 * Revision 1.23  2001/12/15 05:52:45  rgb
 * TODO/DONE review.
 *

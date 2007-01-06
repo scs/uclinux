@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: ipsec_proto.h,v 1.2 2001/11/26 09:16:15 rgb Exp $
  *
  */
 
@@ -107,10 +107,7 @@ extern int debug_spi;
 #endif /* _IPSEC_PROTO_H_ */
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:43:42  vapier
- * sync with upstream uClinux
- *
+ * $Log: ipsec_proto.h,v $
  * Revision 1.2  2001/11/26 09:16:15  rgb
  * Merge MCR's ipsec_sa, eroute, proc and struct lifetime changes.
  *

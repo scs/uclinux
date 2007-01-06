@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: include.linux.socket.h,v 1.1 1999/05/05 22:02:37 rgb Exp $
 --- ./include/linux/socket.h.preipsec	Thu Apr 29 23:19:06 1999
 +++ ./include/linux/socket.h	Thu Apr 29 23:23:58 1999
 @@ -158,7 +158,7 @@

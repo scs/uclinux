@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_ext_bits.c,v 1.13 2002/01/29 22:25:36 rgb Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parse.c.
  */
 
-char pfkey_v2_ext_bits_c_version[] = "$Id$";
+char pfkey_v2_ext_bits_c_version[] = "$Id: pfkey_v2_ext_bits.c,v 1.13 2002/01/29 22:25:36 rgb Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -734,10 +734,7 @@ unsigned int extensions_bitmaps[2/*in/out*/][2/*perm/req*/][SADB_MAX + 1/*ext*/]
 };
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:13  vapier
- * sync with upstream uClinux
- *
+ * $Log: pfkey_v2_ext_bits.c,v $
  * Revision 1.13  2002/01/29 22:25:36  rgb
  * Re-add ipsec_kversion.h to keep MALLOC happy.
  *

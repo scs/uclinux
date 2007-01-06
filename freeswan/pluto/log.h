@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: log.h,v 1.31 2002/03/15 22:30:17 dhr Exp $
  */
 
 #include <freeswan.h>

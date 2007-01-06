@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: pfkey_v2_debug.c,v 1.4 2002/01/29 22:25:36 rgb Exp $
  *
  */
 
@@ -133,10 +133,7 @@ pfkey_v2_sadb_type_string(int sadb_type)
 
 
 /*
- * $Log$
- * Revision 1.2  2006/07/31 02:44:13  vapier
- * sync with upstream uClinux
- *
+ * $Log: pfkey_v2_debug.c,v $
  * Revision 1.4  2002/01/29 22:25:36  rgb
  * Re-add ipsec_kversion.h to keep MALLOC happy.
  *

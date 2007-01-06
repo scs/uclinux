@@ -1,4 +1,4 @@
-RCSID $Id$
+RCSID $Id: net.Makefile,v 1.5 2001/11/07 02:17:56 rgb Exp $
 --- net/Makefile.preipsec	Mon Jun 11 22:15:27 2001
 +++ net/Makefile	Tue Nov  6 21:07:43 2001
 @@ -17,6 +17,7 @@

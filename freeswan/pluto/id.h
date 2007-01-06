@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id$
+ * RCSID $Id: id.h,v 1.16 2002/01/21 03:14:17 dhr Exp $
  */
 
 struct id {
