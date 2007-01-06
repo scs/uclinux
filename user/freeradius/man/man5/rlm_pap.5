@@ -1,0 +1,34 @@
+.TH rlm_pap 5 "3 February 2004" "" "FreeRADIUS Module"
+.SH NAME
+rlm_pap \- FreeRADIUS Module
+.SH DESCRIPTION
+The \fIrlm_pap\fP module provides PAP functionality.
+.PP
+PAP authentication works with passwords stored in clear-text
+format or in an encrypted ( via crypt() ) format.
+.PP
+The configuration item(s):
+.IP encryption_scheme
+The method used to encrypt the password.  Valid values are:
+.DS
+.br	
+	clear
+.br
+	crypt (DEFAULT)
+.br
+	md5
+.br
+	sha1
+.DE
+.SH SECTIONS
+.BR authenticate
+.PP
+.SH FILES
+.I /etc/raddb/radiusd.conf
+.PP
+.SH "SEE ALSO"
+.BR radiusd (8),
+.BR radiusd.conf (5)
+.SH AUTHOR
+Chris Parker, cparker@segv.org
+

@@ -1,0 +1,14 @@
+#
+# $Id: Makefile.in,v 1.1.10.1 2006/02/10 19:47:19 nbk Exp $
+#
+
+TARGET      = @targetname@
+SRCS        = rlm_sqlcounter.c
+HEADERS     =
+RLM_CFLAGS  = @sqlcounter_cflags@
+RLM_LIBS    = @sqlcounter_ldflags@
+RLM_INSTALL =
+
+include ../rules.mak
+
+$(LT_OBJS): $(HEADERS)

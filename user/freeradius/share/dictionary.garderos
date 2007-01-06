@@ -1,0 +1,21 @@
+# -*- text -*-
+#
+# dictionary.garderos
+#
+# Version: $Id: dictionary.garderos,v 1.2.2.1.2.1 2005/11/30 22:17:25 aland Exp $
+#
+#	For documentation on Garderos attributes, see:
+#
+#	http://www.garderos.com
+
+VENDOR		Garderos			16108
+
+#
+#    Standard attribute
+#
+BEGIN-VENDOR	Garderos
+
+ATTRIBUTE	Garderos-Location-Name			1	string
+ATTRIBUTE	Garderos-Service-Name			2	string
+
+END-VENDOR	Garderos

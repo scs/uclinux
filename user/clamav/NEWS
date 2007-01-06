@@ -1,0 +1,9 @@
+0.88
+----
+
+A possible heap overflow in the UPX code has been fixed. General improvements
+include better zip and mail processing, and support for a self-protection mode.
+The security of the UPX, FSG and Petite modules has been improved, too.
+
+--
+The ClamAV team (http://www.clamav.net/team.html)

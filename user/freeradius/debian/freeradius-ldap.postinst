@@ -1,0 +1,21 @@
+#! /bin/sh
+
+set -e
+
+case "$1" in
+  configure)
+	if command -v invoke-rc.d >/dev/null 2>&1; then
+		invoke-rc.d freeradius restart
+	else
+		/etc/init.d/freeradius restart
+	fi
+	;;
+  abort-upgrade)
+	;;
+  abort-remove)
+	;;
+  abort-deconfigure)
+	;;
+esac
+
+#DEBHELPER#
