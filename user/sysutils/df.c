@@ -9,22 +9,15 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include <linux/autoconf.h>
-
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/vfs.h>
-
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
-#include <dirent.h>
-#include <pwd.h>
-#include <grp.h>
 #include <time.h>
-#include <linux/major.h>
-#include <linux/types.h>
 #include <sys/time.h>
-#include <asm/param.h>
 #include <errno.h>
 
 int

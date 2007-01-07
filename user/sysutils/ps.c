@@ -10,13 +10,12 @@
  * (at your option) any later version.
  */
 
-#include <linux/autoconf.h>
-
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <pwd.h>
@@ -64,7 +63,6 @@ main(argc, argv)
 {
 	int i;
 	int h;
-	int max;
 	FILE * f;
 	DIR * d;
 	unsigned long bytes, sbytes;
@@ -73,7 +71,6 @@ main(argc, argv)
 	int l;
 	time_t time_now;
 	long uptime_secs;
-	float idle_secs;
 	float seconds, start, total_time;
 	int utime, stime, start_time;
 	int pcpu;
@@ -114,9 +111,9 @@ main(argc, argv)
 	
 	d = opendir("/proc");
 	if (!d)
-		return;
+		return 1;
 	
-	while (de = readdir(d)) {
+	while ((de = readdir(d)) != NULL) {
 	
 	
 		for(i=0;i<strlen(de->d_name);i++)

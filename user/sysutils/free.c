@@ -10,17 +10,9 @@
  * (at your option) any later version.
  */
 
-#include <linux/autoconf.h>
-
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
-#include <sys/types.h>
-
-#include <sys/stat.h>
-#include <dirent.h>
-#include <pwd.h>
-#include <grp.h>
-#include <time.h>
 
 char buf[256];
 

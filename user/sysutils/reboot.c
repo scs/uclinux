@@ -12,10 +12,10 @@
  * AUG/99 -- added delay option to reboot
  */
 
-#include <linux/autoconf.h>
-
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 

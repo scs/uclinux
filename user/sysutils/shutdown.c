@@ -10,8 +10,10 @@
  * (at your option) any later version.
  */
 
-#include <linux/autoconf.h>
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/types.h>
