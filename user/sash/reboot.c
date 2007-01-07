@@ -12,7 +12,6 @@
  * AUG/99 -- added delay option to reboot
  */
 
-#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 #include <stdlib.h>
