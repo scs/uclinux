@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ssu.h,v 1.11.206.3 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_SSU_H
 #define DNS_SSU_H 1

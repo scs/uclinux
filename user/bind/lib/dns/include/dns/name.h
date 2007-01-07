@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: name.h,v 1.95.2.3.2.11 2004/09/01 05:19:59 marka Exp $ */
 
 #ifndef DNS_NAME_H
 #define DNS_NAME_H 1

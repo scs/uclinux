@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: getservent.c,v 1.2.206.1 2004/03/09 08:33:36 marka Exp $";
 #endif
 
 /* Imports */

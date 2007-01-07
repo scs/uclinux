@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: keytable.c,v 1.26.12.3 2004/03/08 09:04:30 marka Exp $ */
 
 #include <config.h>
 

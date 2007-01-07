@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: testutil.h,v 1.1.1.1 2003/06/04 00:27:03 marka Exp $ */
 /*
  * Copyright (c) 2002 Japan Network Information Center.
  * All rights reserved.

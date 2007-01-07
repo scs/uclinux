@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: log.h,v 1.30.2.1.10.2 2004/03/06 08:13:57 marka Exp $ */
 
 /* Principal Authors: DCL */
 

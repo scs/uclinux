@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: zonetodb.c,v 1.12.4.2.8.4 2004/03/08 09:04:22 marka Exp $ */
 
 #include <stdlib.h>
 #include <string.h>

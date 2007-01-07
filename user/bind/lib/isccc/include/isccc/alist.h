@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: alist.h,v 1.2.206.1 2004/03/06 08:15:21 marka Exp $ */
 
 #ifndef ISCCC_ALIST_H
 #define ISCCC_ALIST_H 1

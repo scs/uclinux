@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: testsuite.h,v 1.4.206.1 2004/03/06 10:21:45 marka Exp $ */
 
 #define SUITENAME "net"
 

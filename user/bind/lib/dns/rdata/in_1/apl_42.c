@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: apl_42.c,v 1.4.200.8 2004/03/16 12:38:15 marka Exp $ */
 
 /* RFC 3123 */
 

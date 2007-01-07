@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 #
-# $Id$
+# $Id: gen-data-queryperf.py,v 1.1.10.1 2003/05/15 05:07:21 marka Exp $
 #
 # Contributed by Stephane Bortzmeyer <bortzmeyer@nic.fr>
 #

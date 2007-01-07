@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: misc.h,v 1.2.2.1.4.1 2004/03/09 08:33:31 marka Exp $
  */
 
 #ifndef _ISC_MISC_H

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: t_api.c,v 1.48.2.1.2.6 2004/08/28 06:25:27 marka Exp $ */
 
 #include <config.h>
 

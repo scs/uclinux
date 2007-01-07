@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: error.c,v 1.16.206.1 2004/03/06 08:14:28 marka Exp $ */
 
 #include <config.h>
 

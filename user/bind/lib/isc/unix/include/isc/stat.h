@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: stat.h,v 1.1.2.1.4.1 2004/03/06 08:15:05 marka Exp $ */
 
 #ifndef ISC_STAT_H
 #define ISC_STAT_H 1

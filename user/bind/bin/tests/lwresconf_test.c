@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: lwresconf_test.c,v 1.10.206.1 2004/03/06 10:21:38 marka Exp $ */
 
 #include <config.h>
 

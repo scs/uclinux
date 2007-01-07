@@ -18,7 +18,7 @@
 #ifndef IN_1_A_1_H
 #define IN_1_A_1_H 1
 
-/* $Id$ */
+/* $Id: a_1.h,v 1.23.206.1 2004/03/06 08:14:16 marka Exp $ */
 
 typedef struct dns_rdata_in_a {
 	dns_rdatacommon_t	common;

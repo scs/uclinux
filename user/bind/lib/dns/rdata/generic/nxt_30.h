@@ -18,7 +18,7 @@
 #ifndef GENERIC_NXT_30_H
 #define GENERIC_NXT_30_H 1
 
-/* $Id$ */
+/* $Id: nxt_30.h,v 1.18.12.3 2004/03/08 09:04:41 marka Exp $ */
 
 /* RFC 2535 */
 

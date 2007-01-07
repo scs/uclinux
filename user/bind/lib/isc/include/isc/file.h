@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: file.h,v 1.24.12.3 2004/03/08 09:04:51 marka Exp $ */
 
 #ifndef ISC_FILE_H
 #define ISC_FILE_H 1

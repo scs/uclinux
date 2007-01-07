@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dnssec-makekeyset.c,v 1.52.2.1.10.7 2004/08/28 06:25:27 marka Exp $ */
 
 #include <config.h>
 

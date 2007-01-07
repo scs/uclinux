@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rdatalist.c,v 1.25.2.2.2.2 2004/03/08 02:07:56 marka Exp $ */
 
 #include <config.h>
 

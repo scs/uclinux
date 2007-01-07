@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: log_test.c,v 1.23.206.1 2004/03/06 10:21:37 marka Exp $ */
 
 /* Principal Authors: DCL */
 

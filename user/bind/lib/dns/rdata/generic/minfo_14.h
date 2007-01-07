@@ -18,7 +18,7 @@
 #ifndef GENERIC_MINFO_14_H
 #define GENERIC_MINFO_14_H 1
 
-/* $Id$ */
+/* $Id: minfo_14.h,v 1.22.206.1 2004/03/06 08:14:08 marka Exp $ */
 
 typedef struct dns_rdata_minfo {
 	dns_rdatacommon_t	common;

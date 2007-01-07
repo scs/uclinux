@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: fsaccess.c,v 1.5.206.1 2004/03/06 08:14:29 marka Exp $ */
 
 /*
  * This file contains the OS-independent functionality of the API.

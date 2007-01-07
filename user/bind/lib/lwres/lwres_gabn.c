@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: lwres_gabn.c,v 1.27.12.3 2004/03/08 09:05:10 marka Exp $ */
 
 #include <config.h>
 

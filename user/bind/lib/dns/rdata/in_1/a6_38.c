@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: a6_38.c,v 1.46.2.1.2.5 2004/03/08 09:04:43 marka Exp $ */
 
 /* RFC2874 */
 

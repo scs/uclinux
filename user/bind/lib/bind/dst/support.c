@@ -1,4 +1,4 @@
-static const char rcsid[] = "$Header$";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/support.c,v 1.2.2.1 2001/11/02 22:25:29 gson Exp $";
 
 
 /*

@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: docbook2man-wrapper.sh.in,v 1.2.2.3.8.1 2004/03/06 13:16:20 marka Exp $
 
 case $# in
   3) ;;

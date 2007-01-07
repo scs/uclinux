@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dig.c,v 1.157.2.13.2.20 2004/06/23 04:19:40 marka Exp $ */
 
 #include <config.h>
 #include <stdlib.h>

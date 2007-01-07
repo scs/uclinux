@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ndc.conf-include,v 1.3.206.1 2004/03/06 10:21:39 marka Exp $ */
 
 key "another-key" {
         algorithm "al-gore-rhythm";

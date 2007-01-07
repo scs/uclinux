@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: db.h,v 1.67.12.8 2004/05/14 05:06:41 marka Exp $ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1

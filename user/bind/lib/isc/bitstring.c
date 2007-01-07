@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: bitstring.c,v 1.12.206.1 2004/03/06 08:14:27 marka Exp $ */
 
 #include <config.h>
 

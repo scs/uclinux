@@ -19,7 +19,7 @@
  */
 
 /*
- * $Id$
+ * $Id: ctl.h,v 1.1.2.2.4.1 2004/03/09 08:33:30 marka Exp $
  */
 
 #include <sys/types.h>

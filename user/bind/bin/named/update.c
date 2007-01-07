@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: update.c,v 1.88.2.5.2.23 2004/07/23 02:56:52 marka Exp $ */
 
 #include <config.h>
 

@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: tsig.c,v 1.112.2.3.8.4 2004/03/08 09:04:32 marka Exp $
  */
 
 #include <config.h>

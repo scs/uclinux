@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: serial.c,v 1.7.206.1 2004/03/06 08:14:35 marka Exp $ */
 #include <config.h>
 
 #include <isc/serial.h>

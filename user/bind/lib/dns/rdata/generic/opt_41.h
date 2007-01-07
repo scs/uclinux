@@ -18,7 +18,7 @@
 #ifndef GENERIC_OPT_41_H
 #define GENERIC_OPT_41_H 1
 
-/* $Id$ */
+/* $Id: opt_41.h,v 1.13.206.1 2004/03/06 08:14:10 marka Exp $ */
 
 /* RFC 2671 */
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rdataset.c,v 1.58.2.2.2.10 2004/03/08 09:04:31 marka Exp $ */
 
 #include <config.h>
 

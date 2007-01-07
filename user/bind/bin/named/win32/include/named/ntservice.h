@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ntservice.h,v 1.1.14.3 2004/03/08 04:04:22 marka Exp $ */
 
 #ifndef NTSERVICE_H
 #define NTSERVICE_H

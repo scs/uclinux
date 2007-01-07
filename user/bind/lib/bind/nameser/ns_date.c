@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ns_date.c,v 1.3.206.2 2004/03/16 12:34:16 marka Exp $";
 #endif
 
 /* Import. */

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: netaddr.c,v 1.18.12.9 2004/05/15 03:46:12 jinmei Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rp_17.c,v 1.35.12.4 2004/03/08 09:04:42 marka Exp $ */
 
 /* RFC 1183 */
 

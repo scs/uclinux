@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nsupdate.c,v 1.103.2.15.2.16 2004/06/17 01:00:38 sra Exp $ */
 
 #include <config.h>
 

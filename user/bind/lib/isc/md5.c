@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: md5.c,v 1.9.206.1 2004/03/06 08:14:32 marka Exp $ */
 
 /*
  * This code implements the MD5 message-digest algorithm.

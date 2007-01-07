@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: timedb.c,v 1.7.4.2.8.2 2004/03/08 09:04:23 marka Exp $ */
 
 /*
  * A simple database driver that enables the server to return the

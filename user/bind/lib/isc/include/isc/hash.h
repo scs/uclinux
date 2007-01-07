@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: hash.h,v 1.2.2.1.2.2 2004/03/06 08:14:41 marka Exp $ */
 
 #ifndef ISC_HASH_H
 #define ISC_HASH_H 1

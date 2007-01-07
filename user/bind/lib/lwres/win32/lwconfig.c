@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: lwconfig.c,v 1.1.222.3 2004/03/08 09:05:12 marka Exp $ */
 
 /*
  * We do this so that we may incorporate everything in the main routines

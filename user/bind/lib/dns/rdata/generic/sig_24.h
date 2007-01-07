@@ -18,7 +18,7 @@
 #ifndef GENERIC_SIG_24_H
 #define GENERIC_SIG_24_H 1
 
-/* $Id$ */
+/* $Id: sig_24.h,v 1.21.206.1 2004/03/06 08:14:12 marka Exp $ */
 
 /* RFC 2535 */
 

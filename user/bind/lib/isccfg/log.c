@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: log.c,v 1.2.2.1.10.3 2004/03/08 09:05:06 marka Exp $ */
 
 #include <config.h>
 

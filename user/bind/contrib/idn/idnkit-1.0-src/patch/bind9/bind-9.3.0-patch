@@ -132,7 +132,7 @@ Index: README.idnkit
 +mdnkit-bugs@nic.ad.jp and idn-cmt@nic.ad.jp, respectively.
 +
 +
-+; $Id$
++; $Id: bind-9.2.2-patch,v 1.1.1.1 2003/06/04 00:27:32 marka Exp $
 Index: config.h.in
 ===================================================================
 RCS file: /proj/cvs/prod/bind9/config.h.in,v
@@ -143,8 +143,8 @@ diff -U2 -r1.47.2.3.2.11 config.h.in
 @@ -17,5 +17,5 @@
   */
  
--/* $Id$ */
-+/* $Id$ */
+-/* $Id: config.h.in,v 1.47.2.3.2.11 2004/09/01 07:18:30 marka Exp $ */
++/* $Id: acconfig.h,v 1.35.2.4.2.8 2004/05/21 08:24:04 marka Exp $ */
  
  /***
 @@ -171,4 +171,7 @@
@@ -181,8 +181,8 @@ diff -U2 -r1.284.2.19.2.26 configure
 @@ -15,5 +15,5 @@
  # PERFORMANCE OF THIS SOFTWARE.
  #
--# $Id$
-+# $Id$
+-# $Id: configure,v 1.284.2.19.2.26 2004/09/01 07:18:30 marka Exp $
++# $Id: COPYRIGHT,v 1.6.2.2.8.2 2004/03/08 04:04:12 marka Exp $
  #
  # Portions Copyright (C) 1996-2001  Nominum, Inc.
 @@ -496,5 +496,5 @@

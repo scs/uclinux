@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: ssu.c,v 1.22.206.3 2004/03/08 09:04:32 marka Exp $
  * Principal Author: Brian Wellington
  */
 

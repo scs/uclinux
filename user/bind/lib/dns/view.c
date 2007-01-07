@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: view.c,v 1.103.2.5.2.14 2004/03/10 02:55:58 marka Exp $ */
 
 #include <config.h>
 

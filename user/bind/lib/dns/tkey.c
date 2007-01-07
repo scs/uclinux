@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: tkey.c,v 1.71.2.1.10.5 2004/06/11 00:30:54 marka Exp $
  */
 
 #include <config.h>

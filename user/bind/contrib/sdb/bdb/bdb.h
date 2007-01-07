@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: bdb.h,v 1.1.4.1 2002/07/02 04:45:36 marka Exp $ */
 
 #ifndef BDB_H
 #define BDB_H	1

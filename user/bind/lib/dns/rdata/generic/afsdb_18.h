@@ -18,7 +18,7 @@
 #ifndef GENERIC_AFSDB_18_H
 #define GENERIC_AFSDB_18_H 1
 
-/* $Id$ */
+/* $Id: afsdb_18.h,v 1.15.206.1 2004/03/06 08:14:03 marka Exp $ */
 
 /* RFC 1183 */
 

@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dnssec-signkey.c,v 1.50.2.2.2.7 2004/08/28 06:25:28 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: server.c,v 1.339.2.15.2.56 2004/06/18 04:39:48 marka Exp $ */
 
 #include <config.h>
 

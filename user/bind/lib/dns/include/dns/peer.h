@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: peer.h,v 1.16.2.1.10.3 2004/03/06 08:13:58 marka Exp $ */
 
 #ifndef DNS_PEER_H
 #define DNS_PEER_H 1

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: portlist.c,v 1.3.72.4 2004/03/16 05:50:21 marka Exp $ */
 
 #include <stdlib.h>
 

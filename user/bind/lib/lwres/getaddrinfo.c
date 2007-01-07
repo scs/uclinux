@@ -18,7 +18,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: getaddrinfo.c,v 1.41.206.1 2004/03/06 08:15:30 marka Exp $ */
 
 #include <config.h>
 

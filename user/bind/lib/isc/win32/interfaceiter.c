@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: interfaceiter.c,v 1.4.12.4 2004/03/08 09:04:59 marka Exp $ */
 
 /*
  * Note that this code will need to be revisited to support IPv6 Interfaces.

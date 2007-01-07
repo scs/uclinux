@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dnssec-signzone.c,v 1.139.2.2.4.16 2004/08/28 06:25:29 marka Exp $ */
 
 #include <config.h>
 

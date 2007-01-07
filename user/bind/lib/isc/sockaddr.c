@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: sockaddr.c,v 1.48.2.1.2.10 2004/05/15 03:46:12 jinmei Exp $ */
 
 #include <config.h>
 

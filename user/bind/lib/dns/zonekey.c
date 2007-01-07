@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: zonekey.c,v 1.3.206.3 2004/03/08 09:04:33 marka Exp $ */
 
 #include <config.h>
 

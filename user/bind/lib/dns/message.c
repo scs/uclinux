@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: message.c,v 1.194.2.10.2.17 2004/05/05 01:32:16 marka Exp $ */
 
 /***
  *** Imports

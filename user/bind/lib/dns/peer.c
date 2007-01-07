@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: peer.c,v 1.14.2.1.10.4 2004/03/06 08:13:41 marka Exp $ */
 
 #include <config.h>
 

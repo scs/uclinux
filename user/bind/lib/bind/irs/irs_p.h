@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id$
+ * $Id: irs_p.h,v 1.1.206.1 2004/03/09 08:33:37 marka Exp $
  */
 
 #ifndef _IRS_P_H_INCLUDED

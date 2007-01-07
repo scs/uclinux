@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: events.h,v 1.37.2.1.4.4 2004/03/08 09:04:36 marka Exp $ */
 
 #ifndef DNS_EVENTS_H
 #define DNS_EVENTS_H 1

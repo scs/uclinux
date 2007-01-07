@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: time.c,v 1.34.2.6.2.4 2004/03/06 08:15:03 marka Exp $ */
 
 #include <config.h>
 

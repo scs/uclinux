@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: check-tool.c,v 1.4.12.5 2004/03/08 04:04:13 marka Exp $ */
 
 #include <config.h>
 

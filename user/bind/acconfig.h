@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: acconfig.h,v 1.35.2.4.2.8 2004/05/21 08:24:04 marka Exp $ */
 
 /***
  *** This file is not to be included by any public header files, because

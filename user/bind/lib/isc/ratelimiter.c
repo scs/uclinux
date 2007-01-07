@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ratelimiter.c,v 1.18.14.4 2004/03/08 09:04:50 marka Exp $ */
 
 #include <config.h>
 

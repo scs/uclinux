@@ -18,7 +18,7 @@
 #ifndef GENERIC_ISDN_20_H
 #define GENERIC_ISDN_20_H 1
 
-/* $Id$ */
+/* $Id: isdn_20.h,v 1.13.206.1 2004/03/06 08:14:05 marka Exp $ */
 
 /* RFC 1183 */
 

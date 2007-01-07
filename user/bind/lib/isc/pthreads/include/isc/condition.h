@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: condition.h,v 1.21.206.1 2004/03/06 08:14:56 marka Exp $ */
 
 #ifndef ISC_CONDITION_H
 #define ISC_CONDITION_H 1

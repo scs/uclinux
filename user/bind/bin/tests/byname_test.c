@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: byname_test.c,v 1.25.206.1 2004/03/06 10:21:35 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley

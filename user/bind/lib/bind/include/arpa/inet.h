@@ -55,7 +55,7 @@
 
 /*
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
- *	$Id$
+ *	$Id: inet.h,v 1.1.206.1 2004/03/09 08:33:30 marka Exp $
  */
 
 #ifndef _INET_H_

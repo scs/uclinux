@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: buffer.c,v 1.36.12.2 2004/03/08 09:04:48 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: journal.c,v 1.77.2.1.10.8 2004/05/14 05:27:47 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: print.c,v 1.2.4.1 2004/08/28 06:25:25 marka Exp $ */
 
 #include <config.h>
 

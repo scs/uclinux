@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: serial_test.c,v 1.10.12.3 2004/03/06 10:21:40 marka Exp $ */
 
 #include <config.h>
 

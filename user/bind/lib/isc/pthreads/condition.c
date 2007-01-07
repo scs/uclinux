@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: condition.c,v 1.30.2.1.10.1 2004/03/06 08:14:53 marka Exp $ */
 
 #include <config.h>
 

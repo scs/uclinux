@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: adb.h,v 1.66.2.5.2.4 2004/03/06 08:13:50 marka Exp $ */
 
 #ifndef DNS_ADB_H
 #define DNS_ADB_H 1

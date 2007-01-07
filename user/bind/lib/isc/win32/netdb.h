@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: netdb.h,v 1.2.2.2.2.3 2004/03/11 01:02:38 marka Exp $ */
 
 #ifndef NETDB_H
 #define NETDB_H 1

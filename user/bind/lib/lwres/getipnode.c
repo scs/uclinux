@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: getipnode.c,v 1.30.2.4.2.4 2004/03/06 08:15:31 marka Exp $ */
 
 #include <config.h>
 

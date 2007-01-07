@@ -2,7 +2,7 @@ Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2001, 2003  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
-$Id$
+$Id: readme1st.txt,v 1.7.2.4.4.2 2004/08/19 05:10:41 marka Exp $
 
 	   Release of BIND 9.3 for Window NT/2000/XP/2003
 

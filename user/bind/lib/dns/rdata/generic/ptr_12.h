@@ -18,7 +18,7 @@
 #ifndef GENERIC_PTR_12_H
 #define GENERIC_PTR_12_H 1
 
-/* $Id$ */
+/* $Id: ptr_12.h,v 1.22.206.1 2004/03/06 08:14:11 marka Exp $ */
 
 typedef struct dns_rdata_ptr {
         dns_rdatacommon_t       common;

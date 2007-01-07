@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: writev.c,v 1.1.2.1 2003/06/27 03:51:35 marka Exp $";
 #endif
 
 #include "port_before.h"

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: control.c,v 1.7.2.2.2.10.4.1 2004/09/20 01:00:00 marka Exp $ */
 
 #include <config.h>
 

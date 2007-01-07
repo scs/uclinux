@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ncache.c,v 1.24.2.4.2.7 2004/03/08 02:07:54 marka Exp $ */
 
 #include <config.h>
 

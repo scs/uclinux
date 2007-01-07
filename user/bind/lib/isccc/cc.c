@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: cc.c,v 1.4.2.3.2.5 2004/08/28 06:25:23 marka Exp $ */
 
 #include <config.h>
 

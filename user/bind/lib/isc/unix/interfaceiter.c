@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: interfaceiter.c,v 1.22.2.1.10.14 2004/08/28 06:25:22 marka Exp $ */
 
 #include <config.h>
 

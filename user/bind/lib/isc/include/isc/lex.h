@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: lex.h,v 1.26.2.2.8.3 2004/03/08 09:04:51 marka Exp $ */
 
 #ifndef ISC_LEX_H
 #define ISC_LEX_H 1

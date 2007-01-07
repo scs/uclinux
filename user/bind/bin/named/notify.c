@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: notify.c,v 1.24.2.2.2.7 2004/08/28 06:25:30 marka Exp $ */
 
 #include <config.h>
 

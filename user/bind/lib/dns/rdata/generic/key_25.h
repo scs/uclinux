@@ -18,7 +18,7 @@
 #ifndef GENERIC_KEY_25_H
 #define GENERIC_KEY_25_H 1
 
-/* $Id$ */
+/* $Id: key_25.h,v 1.14.206.1 2004/03/06 08:14:06 marka Exp $ */
 
 /* RFC 2535 */
 

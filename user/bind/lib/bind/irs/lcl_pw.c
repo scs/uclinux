@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: lcl_pw.c,v 1.1.206.1 2004/03/09 08:33:38 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Extern */

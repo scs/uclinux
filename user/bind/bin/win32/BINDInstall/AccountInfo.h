@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: AccountInfo.h,v 1.3.226.3 2004/03/08 09:04:21 marka Exp $ */
 
 
 #define RTN_OK		0

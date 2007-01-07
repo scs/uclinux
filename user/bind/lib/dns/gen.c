@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: gen.c,v 1.65.2.5.2.6 2004/03/15 01:02:54 marka Exp $ */
 
 #include <config.h>
 

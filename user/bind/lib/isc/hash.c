@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: hash.c,v 1.2.2.4.2.1 2004/03/06 08:14:29 marka Exp $ */
 
 /*
  * Some portion of this code was derived from universal hash function

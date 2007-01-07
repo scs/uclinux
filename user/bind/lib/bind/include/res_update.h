@@ -16,7 +16,7 @@
  */
 
 /*
- *	$Id$
+ *	$Id: res_update.h,v 1.1.206.1 2004/03/09 08:33:29 marka Exp $
  */
 
 #ifndef __RES_UPDATE_H

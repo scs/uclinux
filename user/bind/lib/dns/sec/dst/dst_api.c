@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id$
+ * $Id: dst_api.c,v 1.88.2.3.2.15 2004/06/16 01:05:01 marka Exp $
  */
 
 #include <config.h>

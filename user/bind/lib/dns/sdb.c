@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: sdb.c,v 1.35.12.8 2004/07/22 04:01:58 marka Exp $ */
 
 #include <config.h>
 

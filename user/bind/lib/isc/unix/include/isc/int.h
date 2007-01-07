@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: int.h,v 1.11.206.1 2004/03/06 08:15:04 marka Exp $ */
 
 #ifndef ISC_INT_H
 #define ISC_INT_H 1

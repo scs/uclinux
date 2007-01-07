@@ -18,7 +18,7 @@
 #ifndef GENERIC_LOC_29_H
 #define GENERIC_LOC_29_H 1
 
-/* $Id$ */
+/* $Id: loc_29.h,v 1.14.206.1 2004/03/06 08:14:06 marka Exp $ */
 
 /* RFC 1876 */
 

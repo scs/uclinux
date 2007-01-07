@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: aclconf.c,v 1.27.12.3 2004/03/08 04:04:18 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: key.c,v 1.6.206.1 2004/03/06 08:14:22 marka Exp $ */
 
 #include <config.h>
 

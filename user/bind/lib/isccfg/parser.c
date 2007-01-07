@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: parser.c,v 1.70.2.20.2.18 2004/05/15 03:46:13 jinmei Exp $ */
 
 #include <config.h>
 

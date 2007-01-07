@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: namedconf.c,v 1.21.44.28 2004/06/04 02:33:01 marka Exp $ */
 
 #include <config.h>
 

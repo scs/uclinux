@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: lwdgabn.c,v 1.13.12.3 2004/03/08 04:04:19 marka Exp $ */
 
 #include <config.h>
 

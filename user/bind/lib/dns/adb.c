@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: adb.c,v 1.181.2.11.2.19 2004/09/01 05:19:57 marka Exp $ */
 
 /*
  * Implementation notes

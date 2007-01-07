@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rbtdb.h,v 1.13.206.1 2004/03/06 08:13:42 marka Exp $ */
 
 #ifndef DNS_RBTDB_H
 #define DNS_RBTDB_H 1

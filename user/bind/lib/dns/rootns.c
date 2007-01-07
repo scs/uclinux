@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rootns.c,v 1.20.2.3.2.5 2004/03/08 09:04:32 marka Exp $ */
 
 #include <config.h>
 

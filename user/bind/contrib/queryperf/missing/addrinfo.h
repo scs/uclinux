@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: addrinfo.h,v 1.2.4.2 2004/08/19 04:41:13 marka Exp $ */
 
 #ifndef HAVE_GETADDRINFO
 

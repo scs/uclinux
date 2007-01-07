@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: gen-win32.h,v 1.14.12.3 2004/03/08 09:04:30 marka Exp $ */
 
 /*
  * Principal Authors: Computer Systems Research Group at UC Berkeley

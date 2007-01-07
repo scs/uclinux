@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: forward.h,v 1.2.206.1 2004/03/06 08:13:56 marka Exp $ */
 
 #ifndef DNS_FORWARD_H
 #define DNS_FORWARD_H 1

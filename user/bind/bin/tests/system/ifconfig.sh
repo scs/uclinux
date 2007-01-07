@@ -15,7 +15,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id$
+# $Id: ifconfig.sh,v 1.35.2.8.2.5 2004/03/16 19:23:29 explorer Exp $
 
 #
 # Set up interface aliases for bind9 system tests.

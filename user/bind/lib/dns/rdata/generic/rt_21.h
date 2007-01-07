@@ -18,7 +18,7 @@
 #ifndef GENERIC_RT_21_H
 #define GENERIC_RT_21_H 1
 
-/* $Id$ */
+/* $Id: rt_21.h,v 1.16.206.1 2004/03/06 08:14:12 marka Exp $ */
 
 /* RFC 1183 */
 

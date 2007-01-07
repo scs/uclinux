@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: ev_streams.c,v 1.2.206.2 2004/03/17 00:29:51 marka Exp $";
 #endif
 
 #include "port_before.h"

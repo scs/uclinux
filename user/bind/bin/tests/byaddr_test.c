@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: byaddr_test.c,v 1.22.22.3 2004/03/08 04:04:24 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley

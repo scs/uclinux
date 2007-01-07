@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: result.h,v 1.57.2.2.8.5 2004/05/15 03:46:13 jinmei Exp $ */
 
 #ifndef ISC_RESULT_H
 #define ISC_RESULT_H 1

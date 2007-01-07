@@ -1,4 +1,4 @@
-# $Id$
+# $Id: idnconf.tcl,v 1.1.1.1 2003/06/04 00:27:42 marka Exp $
 #
 # idnconf.tcl - configure idn wrapper
 #

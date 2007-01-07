@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: getaddresses.c,v 1.13.126.5 2004/05/15 03:46:12 jinmei Exp $ */
 
 #include <config.h>
 #include <string.h>

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rcode.h,v 1.12.206.1 2004/03/06 08:13:59 marka Exp $ */
 
 #ifndef DNS_RCODE_H
 #define DNS_RCODE_H 1

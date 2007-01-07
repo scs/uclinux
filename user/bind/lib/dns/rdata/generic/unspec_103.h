@@ -18,7 +18,7 @@
 #ifndef GENERIC_UNSPEC_103_H
 #define GENERIC_UNSPEC_103_H 1
 
-/* $Id$ */
+/* $Id: unspec_103.h,v 1.12.206.1 2004/03/06 08:14:14 marka Exp $ */
 
 typedef struct dns_rdata_unspec_t {
 	dns_rdatacommon_t	common;

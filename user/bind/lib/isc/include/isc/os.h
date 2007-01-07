@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: os.h,v 1.5.206.1 2004/03/06 08:14:45 marka Exp $ */
 
 #ifndef ISC_OS_H
 #define ISC_OS_H 1

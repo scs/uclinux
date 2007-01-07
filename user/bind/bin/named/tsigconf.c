@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: tsigconf.c,v 1.21.208.4 2004/03/08 04:04:19 marka Exp $ */
 
 #include <config.h>
 

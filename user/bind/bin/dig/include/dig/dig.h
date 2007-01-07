@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dig.h,v 1.71.2.6.2.6 2004/06/19 02:30:12 sra Exp $ */
 
 #ifndef DIG_H
 #define DIG_H

@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: cc.h,v 1.3.206.1 2004/03/06 08:15:21 marka Exp $ */
 
 #ifndef ISCCC_CC_H
 #define ISCCC_CC_H 1

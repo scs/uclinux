@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: t_rbt.c,v 1.23.206.3 2004/03/08 21:06:24 marka Exp $ */
 
 #include <config.h>
 

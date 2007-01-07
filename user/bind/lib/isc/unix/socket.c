@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: socket.c,v 1.207.2.19.2.13 2004/07/01 04:51:15 marka Exp $ */
 
 #include <config.h>
 

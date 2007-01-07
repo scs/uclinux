@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: cfg_test.c,v 1.11.2.1.10.3 2004/03/08 04:04:24 marka Exp $ */
 
 #include <config.h>
 

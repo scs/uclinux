@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dighost.c,v 1.221.2.19.2.14 2004/06/30 23:57:52 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to

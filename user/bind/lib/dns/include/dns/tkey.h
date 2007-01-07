@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: tkey.h,v 1.18.206.1 2004/03/06 08:14:00 marka Exp $ */
 
 #ifndef DNS_TKEY_H
 #define DNS_TKEY_H 1

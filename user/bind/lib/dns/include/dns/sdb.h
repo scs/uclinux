@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: sdb.h,v 1.12.12.3 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_SDB_H
 #define DNS_SDB_H 1

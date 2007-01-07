@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: stdlib.h,v 1.1.32.2 2004/03/06 08:14:48 marka Exp $ */
 
 #ifndef ISC_STDLIB_H
 #define ISC_STDLIB_H 1

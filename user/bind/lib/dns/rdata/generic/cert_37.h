@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: cert_37.h,v 1.15.206.1 2004/03/06 08:14:03 marka Exp $ */
 
 /* RFC 2538 */
 #ifndef GENERIC_CERT_37_H

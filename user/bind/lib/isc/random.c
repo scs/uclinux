@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: random.c,v 1.15.74.5 2004/03/08 09:04:49 marka Exp $ */
 
 #include <config.h>
 

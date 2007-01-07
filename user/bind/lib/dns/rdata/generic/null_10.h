@@ -18,7 +18,7 @@
 #ifndef GENERIC_NULL_10_H
 #define GENERIC_NULL_10_H 1
 
-/* $Id$ */
+/* $Id: null_10.h,v 1.20.206.1 2004/03/06 08:14:09 marka Exp $ */
 
 typedef struct dns_rdata_null {
 	dns_rdatacommon_t	common;

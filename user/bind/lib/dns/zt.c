@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: zt.c,v 1.33.12.6 2004/03/08 21:06:28 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rwlock_test.c,v 1.20.206.2 2004/08/28 06:25:31 marka Exp $ */
 
 #include <config.h>
 

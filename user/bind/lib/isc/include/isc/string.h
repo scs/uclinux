@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: string.h,v 1.9.164.3 2004/03/06 08:14:49 marka Exp $ */
 
 #ifndef ISC_STRING_H
 #define ISC_STRING_H 1

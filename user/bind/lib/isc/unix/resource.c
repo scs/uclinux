@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: resource.c,v 1.11.206.1 2004/03/06 08:15:01 marka Exp $ */
 
 #include <config.h>
 

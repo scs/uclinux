@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dnssectool.c,v 1.31.2.3.2.4 2004/03/08 02:07:38 marka Exp $ */
 
 #include <config.h>
 

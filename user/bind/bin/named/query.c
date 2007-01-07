@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: query.c,v 1.198.2.13.4.30 2004/06/30 14:13:05 marka Exp $ */
 
 #include <config.h>
 

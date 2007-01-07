@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: file.c,v 1.38.12.8 2004/03/16 05:50:25 marka Exp $ */
 
 #include <config.h>
 

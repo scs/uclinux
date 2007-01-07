@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: diff.c,v 1.4.2.1.8.4 2004/03/08 02:07:52 marka Exp $ */
 
 #include <config.h>
 

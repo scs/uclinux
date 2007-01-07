@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: hex.c,v 1.8.2.2.8.3 2004/03/06 08:14:30 marka Exp $ */
 
 #include <config.h>
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: sym_test.c,v 1.22.12.3 2004/03/08 04:04:27 marka Exp $ */
 
 #include <config.h>
 

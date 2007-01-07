@@ -17,7 +17,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id$
+ * $Id: opensslrsa_link.c,v 1.12.2.4.2.8 2004/03/16 05:50:24 marka Exp $
  */
 #ifdef OPENSSL
 

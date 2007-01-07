@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: zoneconf.c,v 1.87.2.4.10.13 2004/04/20 14:12:09 marka Exp $ */
 
 #include <config.h>
 

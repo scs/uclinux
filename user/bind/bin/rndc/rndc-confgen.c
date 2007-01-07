@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rndc-confgen.c,v 1.9.2.6.2.4 2004/03/06 10:21:31 marka Exp $ */
 
 #include <config.h>
 

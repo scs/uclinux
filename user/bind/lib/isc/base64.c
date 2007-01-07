@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: base64.c,v 1.23.2.2.2.3 2004/03/06 08:14:27 marka Exp $ */
 
 #include <config.h>
 

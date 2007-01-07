@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ttl.c,v 1.21.12.5 2004/03/08 09:04:32 marka Exp $ */
 
 #include <config.h>
 

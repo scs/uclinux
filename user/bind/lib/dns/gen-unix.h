@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: gen-unix.h,v 1.12.12.3 2004/03/08 09:04:29 marka Exp $ */
 
 /*
  * This file is responsible for defining two operations that are not

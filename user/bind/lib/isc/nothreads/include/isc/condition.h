@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: condition.h,v 1.3.206.1 2004/03/06 08:14:52 marka Exp $ */
 
 /*
  * This provides a limited subset of the isc_condition_t

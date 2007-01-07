@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: once.h,v 1.6.206.1 2004/03/06 08:15:16 marka Exp $ */
 
 #ifndef ISC_ONCE_H
 #define ISC_ONCE_H 1

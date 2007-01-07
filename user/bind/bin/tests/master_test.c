@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: master_test.c,v 1.27.206.1 2004/03/06 10:21:38 marka Exp $ */
 
 #include <config.h>
 

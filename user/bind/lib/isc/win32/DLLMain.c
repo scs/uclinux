@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: DLLMain.c,v 1.3.2.1.10.1 2004/03/06 08:15:06 marka Exp $ */
 
 #include <windows.h>
 #include <stdio.h>

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: time.h,v 1.9.12.3 2004/03/08 09:04:39 marka Exp $ */
 
 #ifndef DNS_TIME_H
 #define DNS_TIME_H 1

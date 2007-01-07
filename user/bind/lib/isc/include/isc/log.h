@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: log.h,v 1.39.2.4.2.7 2004/04/10 04:31:40 marka Exp $ */
 
 #ifndef ISC_LOG_H
 #define ISC_LOG_H 1

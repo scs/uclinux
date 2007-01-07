@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: ipv6.c,v 1.4.2.2.2.4 2004/03/11 05:58:41 marka Exp $ */
 
 #include <isc/net.h>
 #include <isc/platform.h>

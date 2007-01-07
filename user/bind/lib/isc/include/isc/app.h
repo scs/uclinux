@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: app.h,v 1.1.206.1 2004/03/06 08:14:38 marka Exp $ */
 
 #ifndef ISC_APP_H
 #define ISC_APP_H 1

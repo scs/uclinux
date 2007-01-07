@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: nslookup.c,v 1.90.2.4.2.7 2004/08/18 23:25:58 marka Exp $ */
 
 #include <config.h>
 

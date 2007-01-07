@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: inter_test.c,v 1.8.206.2 2004/03/06 10:21:36 marka Exp $ */
 
 #include <config.h>
 

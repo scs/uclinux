@@ -16,7 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: alist.c,v 1.2.206.1 2004/03/06 08:15:18 marka Exp $ */
 
 #include <config.h>
 

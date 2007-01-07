@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: sshfp_44.c,v 1.1.8.3 2004/03/06 08:14:13 marka Exp $ */
 
 /* draft-ietf-secsh-dns-05.txt */
 

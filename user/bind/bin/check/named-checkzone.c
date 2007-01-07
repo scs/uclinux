@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: named-checkzone.c,v 1.13.2.3.8.9 2004/03/06 10:21:11 marka Exp $ */
 
 #include <config.h>
 

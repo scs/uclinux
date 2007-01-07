@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: os.h,v 1.4.206.1 2004/03/06 10:21:33 marka Exp $ */
 
 #ifndef RNDC_OS_H
 #define RNDC_OS_H 1

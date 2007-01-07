@@ -16,7 +16,7 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: dnssec-keygen.c,v 1.48.2.1.10.11 2004/06/11 01:17:34 marka Exp $ */
 
 #include <config.h>
 

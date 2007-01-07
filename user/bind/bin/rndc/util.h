@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: util.h,v 1.5.206.1 2004/03/06 10:21:32 marka Exp $ */
 
 #ifndef RNDC_UTIL_H
 #define RNDC_UTIL_H 1

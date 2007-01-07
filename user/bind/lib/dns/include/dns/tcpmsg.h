@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: tcpmsg.h,v 1.15.206.1 2004/03/06 08:14:00 marka Exp $ */
 
 #ifndef DNS_TCPMSG_H
 #define DNS_TCPMSG_H 1

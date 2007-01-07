@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: rcode.c,v 1.1.4.1 2004/03/12 10:31:25 marka Exp $ */
 
 #include <config.h>
 #include <ctype.h>
