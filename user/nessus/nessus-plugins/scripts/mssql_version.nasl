@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11217);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "Microsoft's SQL Version Query";
  script_name(english:name["english"]);
  

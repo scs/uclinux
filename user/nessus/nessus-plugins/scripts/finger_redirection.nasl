@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10073);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CAN-1999-0105", "CVE-1999-0106");
  name["english"] = "Finger redirection check";
  script_name(english:name["english"]);

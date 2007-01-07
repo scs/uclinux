@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10091);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "FTPGate traversal";
  name["francais"] = "FTPGate traversal";

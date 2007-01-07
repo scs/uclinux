@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10400);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CAN-1999-0562");
  
  name["english"] = "SMB accessible registry";

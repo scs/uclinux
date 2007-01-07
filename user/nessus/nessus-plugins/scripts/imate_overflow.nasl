@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10435);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1286);
  script_cve_id("CVE-2000-0507");
  name["english"] = "Imate HELO overflow";

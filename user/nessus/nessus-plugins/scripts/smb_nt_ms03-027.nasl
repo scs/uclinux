@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11792);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0351");
  
  name["english"] = "Buffer overrun in Windows Shell (821557)";

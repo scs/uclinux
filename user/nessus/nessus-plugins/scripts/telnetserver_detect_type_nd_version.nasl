@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10281);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "Detect Server type and version via Telnet";
  script_name(english:name["english"]);

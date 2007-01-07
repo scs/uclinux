@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10212);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(235, 614);
  script_cve_id("CVE-1999-0210", "CVE-1999-0704");
  name["english"] = "automountd service";

@@ -9,7 +9,7 @@ if(description)
  script_id(10563);
  script_cve_id("CAN-2000-1039");
  script_bugtraq_id(2022);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
 
  
  name["english"] =  "Incomplete TCP/IP packet vulnerability";

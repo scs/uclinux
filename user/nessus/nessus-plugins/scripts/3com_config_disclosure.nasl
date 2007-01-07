@@ -21,7 +21,7 @@ if(description)
 {
  script_id(11480);
  script_bugtraq_id(7176);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "3com RAS 1500 configuration disclosure";
  script_name(english:name["english"]);

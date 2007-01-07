@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10096);
  script_cve_id("CVE-1999-0180");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 
 
  name["english"] = "rsh with null username";

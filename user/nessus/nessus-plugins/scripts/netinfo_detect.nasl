@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11897);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "NetInfo daemon";
  

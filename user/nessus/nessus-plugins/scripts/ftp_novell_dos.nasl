@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11614);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7072);
  name["english"] = "Novell FTP DoS";
  script_name(english:name["english"]);

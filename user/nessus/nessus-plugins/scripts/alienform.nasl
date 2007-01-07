@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11027);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_cve_id("CAN-2002-0934");
  script_bugtraq_id(4983);
  name["english"] = "AlienForm CGI script";

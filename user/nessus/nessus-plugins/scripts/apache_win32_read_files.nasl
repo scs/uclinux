@@ -11,7 +11,7 @@ if(description)
  script_id(11210);
  script_cve_id("CAN-2003-0017");
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "Apache < 2.0.44 file reading on Win32";
 

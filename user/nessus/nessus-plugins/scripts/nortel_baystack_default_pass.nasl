@@ -8,7 +8,7 @@
 if(description)
 {
         script_id(11327);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.1 $");
         name["english"] = "Nortel Baystack switch password test";
         script_name(english:name["english"]);
 

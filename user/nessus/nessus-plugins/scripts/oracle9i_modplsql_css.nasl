@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10853);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  name["english"] = "Oracle 9iAS mod_plsql cross site scripting";
  name["francais"] = "Oracle 9iAS mod_plsql cross site scripting";
  script_name(english:name["english"], francais:name["francais"]);

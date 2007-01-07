@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11903);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "ping of death";
  script_name(english:name["english"]);

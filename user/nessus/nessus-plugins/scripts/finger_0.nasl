@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10069);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CAN-1999-0197");
  name["english"] = "Finger zero at host feature";
  script_name(english:name["english"]);

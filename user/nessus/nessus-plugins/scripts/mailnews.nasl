@@ -11,7 +11,7 @@ if(description)
  script_cve_id("CAN-2001-0271");
  script_bugtraq_id(2391);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "mailnews.cgi";
  name["francais"] = "mailnews.cgi";
  script_name(english:name["english"], francais:name["francais"]);

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11101);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(3392);
  script_cve_id("CVE-2001-1054");
  name["english"] = "PHPAdsNew code injection";

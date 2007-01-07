@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11177);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CAN-2002-1257","CAN-2002-1258","CAN-2002-1183","CAN-2002-0862");
 
  name["english"] = "Flaw in Microsoft VM Could Allow Code Execution (810030)";

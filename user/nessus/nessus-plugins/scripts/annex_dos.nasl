@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10017);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CAN-1999-1070");
  
  name["english"] = "Annex DoS";

@@ -30,7 +30,7 @@ Risk factor : Medium/Low";
 if(description)
 {
  script_id(11026);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.30 $");
 
  name["english"] = "Access Point detection";
  script_name(english:name["english"]);

@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10322);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Xitami Web Server buffer overflow";
  name["francais"] = "Dépassement de buffer dans le serveur web Xitami";

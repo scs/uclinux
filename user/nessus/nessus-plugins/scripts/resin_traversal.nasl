@@ -9,7 +9,7 @@ if(description)
  script_id(10656);
 script_cve_id("CAN-2001-0304");
  script_bugtraq_id(2384);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "Resin traversal";
  name["francais"] = "Resin traversal";

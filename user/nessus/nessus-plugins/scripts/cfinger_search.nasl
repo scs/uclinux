@@ -9,7 +9,7 @@ if(description)
  script_id(10038);
  script_cve_id("CVE-1999-0259");
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  name["english"] = "Cfinger's search.**@host feature";
  name["francais"] = "Cfinger's search.**@host feature";
  script_name(english:name["english"], francais:name["francais"]);

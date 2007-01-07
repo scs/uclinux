@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11281);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(6882);
  
  name["english"] = "cpanel remote command execution";

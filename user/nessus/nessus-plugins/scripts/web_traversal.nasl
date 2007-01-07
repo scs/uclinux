@@ -64,7 +64,7 @@
 if(description)
 {
  script_id(10297);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.29 $");
 
  name["english"] = "Web server traversal";
  name["francais"] = "Web server traversal";

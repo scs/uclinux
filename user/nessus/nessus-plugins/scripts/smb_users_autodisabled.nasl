@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10895);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Users information : automatically disabled accounts";
 
  script_name(english:name["english"]);

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10119);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_bugtraq_id(579);
  script_cve_id("CVE-1999-0867");
  name["english"] = "NT IIS Malformed HTTP Request Header DoS Vulnerability";

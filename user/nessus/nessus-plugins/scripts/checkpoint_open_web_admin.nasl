@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11518);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Checkpoint Firewall open Web adminstration";
  script_name(english:name["english"]);
  

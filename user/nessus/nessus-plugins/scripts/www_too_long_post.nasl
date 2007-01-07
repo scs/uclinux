@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10687);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "Too long POST command";
  script_name(english:name["english"]);

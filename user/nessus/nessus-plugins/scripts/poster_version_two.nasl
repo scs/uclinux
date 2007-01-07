@@ -12,7 +12,7 @@
 if (description)
 {
  script_id(11629);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"Poster version.two privilege escalation");
  desc["english"] = "

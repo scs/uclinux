@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10319);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-1999-0880");
  
  name["english"] = "wu-ftpd SITE NEWER vulnerability";

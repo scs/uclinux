@@ -10,7 +10,7 @@ if(description)
 {
  script_id(10640);
  script_cve_id("CVE-1999-0103");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Kerberos PingPong attack";
  name["francais"] = "Kerberos PingPong attack";
  script_name(english:name["english"], francais:name["francais"]);

@@ -6,7 +6,7 @@ if(description) {
  script_id(11895);
  script_cve_id("CAN-2002-0164", "CAN-2002-0158");
  script_bugtraq_id(4396);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "SCO OpenServer multiple vulnerabilities";
  script_name(english:name["english"]);
 

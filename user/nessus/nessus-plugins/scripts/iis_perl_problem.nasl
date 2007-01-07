@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10120);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(194);
  script_cve_id("CAN-1999-0450");
  name["english"] = "IIS perl.exe problem";

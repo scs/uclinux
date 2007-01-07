@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10449);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "SMB Registry : value of SFCDisable";
  name["francais"] = "Valeur de SFCDisable par SMB";

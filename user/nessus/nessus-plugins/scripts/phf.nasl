@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10176);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_bugtraq_id(629);
  script_cve_id("CVE-1999-0067");
  name["english"] = "phf";

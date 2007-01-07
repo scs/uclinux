@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10902);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Users in the Admin group";
 
  script_name(english:name["english"]);

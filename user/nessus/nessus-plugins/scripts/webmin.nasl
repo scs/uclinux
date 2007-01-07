@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10757);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Check for Webmin";
  name["francais"] = "Vérifie la présence de Webmin";
  script_name(english:name["english"], francais:name["francais"]);

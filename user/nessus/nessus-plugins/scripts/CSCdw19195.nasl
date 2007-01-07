@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10986);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CSCdw19195";
 

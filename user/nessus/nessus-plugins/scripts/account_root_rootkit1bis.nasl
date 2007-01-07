@@ -11,7 +11,7 @@ password = "D13hh[";
 if(description)
 {
  script_id(11262);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CVE-1999-0502");
  
  script_name(english:string("Default password (", password, ") for ", account));

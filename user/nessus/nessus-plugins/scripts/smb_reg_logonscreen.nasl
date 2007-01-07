@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11460);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "SMB Registry : Classic Logon Screen";
  

@@ -10,7 +10,7 @@ if(description)
 
  script_cve_id("CAN-2000-0176", "CVE-1999-0838");
  script_bugtraq_id(1016, 859);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  script_name(english:"Serv-U path disclosure");
  

@@ -7,7 +7,7 @@
 if (description)
 {
  script_id(11387);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_name(english:"L2TP detection");
  desc["english"] = "
 This host is running a L2TP server - it's probably a VPN endpoint.

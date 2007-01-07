@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10854);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_bugtraq_id(3727);
  script_cve_id("CAN-2001-1217");
  name["english"] = "Oracle 9iAS mod_plsql directory traversal";

@@ -74,7 +74,7 @@ static int connection_encaps;
 PlugExport int plugin_init(struct arglist * desc)
 {
 	plug_set_id(desc, 10332);
-	plug_set_version(desc, "$Revision$");
+	plug_set_version(desc, "$Revision: 1.19 $");
 	plug_set_cve_id(desc, "CAN-1999-0527");
  
 	plug_set_name(desc, FR_NAME, "francais");

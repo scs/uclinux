@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11072);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2001-1045");
  script_bugtraq_id(2995);
  name["english"] = "Basilix webmail dummy request vulnerability";

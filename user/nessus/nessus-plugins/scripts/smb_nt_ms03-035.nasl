@@ -9,7 +9,7 @@ if(description)
  script_cve_id("CAN-2003-0664", "CAN-1999-0354");
  script_bugtraq_id(8533);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Word Macros may run automatically";
 

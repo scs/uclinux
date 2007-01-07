@@ -9,7 +9,7 @@ if(description)
  script_id(11431);
  #No bugtraq_id found
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "XoloX is installed";
 

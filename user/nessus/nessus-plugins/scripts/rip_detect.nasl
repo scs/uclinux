@@ -46,7 +46,7 @@
 if(description)
 {
   script_id(11822);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.10 $");
 
   name["english"] = "RIP detection";
   script_name(english:name["english"]);

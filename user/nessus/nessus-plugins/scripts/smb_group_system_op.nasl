@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10903);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Users in the 'System Operator' group";
 
  script_name(english:name["english"]);

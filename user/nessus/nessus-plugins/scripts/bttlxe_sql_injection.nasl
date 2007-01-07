@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11548);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  script_cve_id("CAN-2003-0215");
 
  script_name(english:"bttlxeForum SQL injection");

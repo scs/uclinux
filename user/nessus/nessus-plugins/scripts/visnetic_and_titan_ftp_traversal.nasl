@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11679);
  script_bugtraq_id(7718);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "VisNetic and Titan FTP Server traversal";
 

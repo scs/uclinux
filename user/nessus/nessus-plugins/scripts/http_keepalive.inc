@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 # http_keepalive.inc
 # (C) Renaud Deraison
-# $Id$
+# $Id: http_keepalive.inc,v 1.26 2003/10/08 15:22:20 renaud Exp $
 #
 #
 # The only function which should be used by an external plugin is

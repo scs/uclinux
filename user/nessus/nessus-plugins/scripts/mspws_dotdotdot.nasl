@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10142);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0386");
  name["english"] = "MS Personal WebServer ...";
  name["francais"] = "MS Personal WebServer ...";

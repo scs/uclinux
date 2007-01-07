@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10353);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-1999-1529");
  script_bugtraq_id(787);
  name["english"] = "Interscan 3.32 SMTP Denial";

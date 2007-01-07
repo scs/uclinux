@@ -21,7 +21,7 @@ if(description)
 {
  script_id(11470);
  script_bugtraq_id(7190);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
 
  name["english"] = "WebChat XSS";

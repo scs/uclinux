@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11000); 
- script_version ("$Revision$");  
+ script_version ("$Revision: 1.3 $");  
  name["english"] = "MPEi/X Default Accounts";
 
  script_name(english:name["english"]);

@@ -1,6 +1,6 @@
 # -*- Fundamental -*-
 # smb_nt.inc 
-# $Revision$
+# $Revision: 1.48 $
 #
 
 

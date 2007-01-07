@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11149);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "HTTP login page";
  name["francais"] = "Page de connexion HTTP";

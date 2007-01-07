@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10287);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.36 $");
  name["english"] = "Traceroute";
  name["francais"] = "Traceroute";
  script_name(english:name["english"], francais:name["francais"]);

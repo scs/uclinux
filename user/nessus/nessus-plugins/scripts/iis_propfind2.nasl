@@ -10,7 +10,7 @@ if(description)
  script_id(10667);
  script_cve_id("CVE-2001-0151");
  script_bugtraq_id(2453);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "IIS 5.0 PROPFIND Vulnerability";
  script_name(english:name["english"]);

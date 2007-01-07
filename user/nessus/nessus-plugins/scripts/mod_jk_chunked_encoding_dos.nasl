@@ -9,7 +9,7 @@ if(description)
  script_id(11519);
 
  script_bugtraq_id(6320);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "mod_jk chunked encoding DoS";
 

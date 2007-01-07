@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10681);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(1787);
  script_cve_id("CVE-2000-0960");
  name["english"] = "Netscape Messenging Server User List";

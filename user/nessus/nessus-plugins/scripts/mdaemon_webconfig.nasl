@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10138);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(820);
  script_cve_id("CAN-1999-0844");
  name["english"] = "MDaemon Webconfig crash";

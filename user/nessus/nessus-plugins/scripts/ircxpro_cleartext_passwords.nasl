@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11696);
  script_bugtraq_id(7792);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  
  name["english"] = "IRCXPro Clear Text Passwords";

@@ -15,7 +15,7 @@
 if(description)
 {
 	script_id(11098);
-	script_version ("$Revision$");
+	script_version ("$Revision: 1.5 $");
 	script_cve_id("CAN-2002-0826");
 	script_bugtraq_id(5427);
 	name["english"] = "WS_FTP SITE CPWD Buffer Overflow";

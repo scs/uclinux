@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10088);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CAN-1999-0527");
  name["english"] = "Writeable FTP root";
  name["francais"] = "On peut écrire sur la racine du répertoire FTP";

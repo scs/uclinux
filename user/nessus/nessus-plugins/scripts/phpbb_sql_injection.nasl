@@ -8,7 +8,7 @@ if(description)
  script_id(11767);
  script_bugtraq_id(7979);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  name["english"] = "SQL injection in phpBB";
  script_name(english:name["english"]);
  

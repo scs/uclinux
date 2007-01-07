@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11688);
  script_bugtraq_id(7147);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "WF-Chat User Account Disclosure";
  script_name(english:name["english"]);
  

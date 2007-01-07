@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11180);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
   
  name["english"] = "DB4Web TCP relay";
  script_name(english:name["english"]);

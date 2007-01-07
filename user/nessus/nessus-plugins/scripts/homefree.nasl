@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10101);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(921);
  script_cve_id("CAN-2000-0054");
  name["english"] = "Home Free search.cgi directory traversal";

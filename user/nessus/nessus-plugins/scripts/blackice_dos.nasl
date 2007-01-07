@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10927);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(4025);
  script_cve_id("CVE-2002-0237");
  name["english"] = "BlackIce DoS (ping flood)";

@@ -9,7 +9,7 @@ if(description)
  script_id(10466);
 script_cve_id("CAN-2000-0648");
  script_bugtraq_id(1456);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  
  name["english"] = "WFTP RNTO DoS";
  name["francais"] = "Déni de service WFTP par la commande RNTO";

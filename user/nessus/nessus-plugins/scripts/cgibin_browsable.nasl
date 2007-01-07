@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10039);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  name["english"] = "/cgi-bin directory browsable ?";
  script_name(english:name["english"]);
  

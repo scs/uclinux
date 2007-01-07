@@ -9,7 +9,7 @@
 if (description)
 {
   script_id(10441);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
   name["english"] = "AFS client version";
   script_name(english:name["english"]);
 

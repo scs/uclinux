@@ -8,7 +8,7 @@ if(description)
 {
  
  script_id(10481);  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
 
  name["english"] = "Unpassworded MySQL";
  name["francais"] = "MySQL sans mot de passe";

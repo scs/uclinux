@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10042);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(2387);
  script_cve_id("CAN-1999-0261");
  name["english"] = "Chameleon SMTPd overflow";

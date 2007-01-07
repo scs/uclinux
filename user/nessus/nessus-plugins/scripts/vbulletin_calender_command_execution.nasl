@@ -3,7 +3,7 @@ if(description)
  script_id(11179);
  script_cve_id("CVE-2001-0475");
  script_bugtraq_id(2474);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  name["english"] = "vBulletin's Calender Command Execution Vulnerability";
  script_name(english:name["english"]);
  

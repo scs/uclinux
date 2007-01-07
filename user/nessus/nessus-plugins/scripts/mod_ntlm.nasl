@@ -16,7 +16,7 @@ if(description)
  script_id(11552); 
  script_bugtraq_id(7393, 7388);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "mod_ntlm overflow / format string bug";
  script_name(english:name["english"]);

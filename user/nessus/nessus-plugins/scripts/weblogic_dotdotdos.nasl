@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10697);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(2138);
  script_cve_id("CAN-2001-0098");
  name["english"] = "WebLogic Server DoS";

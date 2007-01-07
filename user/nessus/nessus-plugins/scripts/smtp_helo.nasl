@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10260);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CAN-1999-0098");
  name["english"] = "HELO overflow";
  name["francais"] = "Dépassement de HELO";

@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11818);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
 
  name["english"] = "The remote host is infected by msblast.exe";
 

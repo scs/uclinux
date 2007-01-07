@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10115);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-2000-0126");
  script_bugtraq_id(968);
  name["english"] = "idq.dll directory traversal";

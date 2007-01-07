@@ -10,7 +10,7 @@ if(description)
 {
  script_id(10492);
  script_cve_id("CAN-2000-0071");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(1065);
 
  name["english"] = "IIS IDA/IDQ Path Disclosure";

@@ -13,7 +13,7 @@ if(description)
  script_id(11060);
  script_cve_id("CAN-2002-0656", "CAN-2002-0655", "CAN-2002-0657", "CAN-2002-0659", "CVE-2001-1141");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0009");
- script_version("$Revision$");
+ script_version("$Revision: 1.18 $");
  script_bugtraq_id(5363);
  
  name["english"] = "OpenSSL overflow (generic test)";

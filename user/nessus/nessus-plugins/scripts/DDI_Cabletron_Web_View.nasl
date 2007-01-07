@@ -5,7 +5,7 @@
 if(description)
 {
 	script_id(10962);
-	script_version ("$Revision$");
+	script_version ("$Revision: 1.4 $");
  
  	name["english"] = "Cabletron Web View Administrative Access";
  	script_name(english:name["english"]);

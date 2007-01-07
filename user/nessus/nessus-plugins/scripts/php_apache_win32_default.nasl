@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10839);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_bugtraq_id(3786);
  name["english"] = "PHP.EXE / Apache Win32 Arbitrary File Reading Vulnerability";
  name["francais"] = "PHP.EXE / Apache Win32 Arbitrary File Reading Vulnerability";

@@ -10,7 +10,7 @@ if(description)
  script_id(10606);
  script_cve_id("CAN-2001-0200");
  script_bugtraq_id(2336);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "HSWeb document path";
  script_name(english:name["english"]);
  

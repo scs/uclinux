@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10894);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Obtains the lists of users groups";
 
  script_name(english:name["english"]);

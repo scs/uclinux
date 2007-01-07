@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11170);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2002-1272");
 
  name["english"] = "Alcatel OmniSwitch 7700/7800 switches backdoor";

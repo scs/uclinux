@@ -16,7 +16,7 @@ if(description)
  script_bugtraq_id(7184, 7185, 6714, 6713, 6712);
  script_cve_id("CAN-2003-0072", "CAN-2003-0082", "CAN-2003-0059", "CAN-2003-0060", "CAN-2002-0036");
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Kerberos 5 issues";
  script_name(english:name["english"]);
  

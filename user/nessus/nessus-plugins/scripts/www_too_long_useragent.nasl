@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(11069);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2001-0836");
  script_bugtraq_id(3443, 3449, 7054);
  name["english"] = "HTTP User-Agent overflow";

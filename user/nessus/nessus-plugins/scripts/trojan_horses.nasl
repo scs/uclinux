@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(11157);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  
  name["english"] = "Trojan horses";
  name["francais"] = "Chevaux de Troie";

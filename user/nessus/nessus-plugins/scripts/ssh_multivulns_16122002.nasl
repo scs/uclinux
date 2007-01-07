@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11195);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.3 $");
   script_cve_id("CAN-2002-1357", "CAN-2002-1358", "CAN-2002-1359", "CAN-2002-1360");
 
   name["english"] = "SSH Multiple Vulns";

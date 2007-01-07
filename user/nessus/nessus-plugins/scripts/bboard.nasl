@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10507);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(1459);
  script_cve_id("CAN-2000-0629");
  name["english"] = "Sun's Java Web Server remote command execution";

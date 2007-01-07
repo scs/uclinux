@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11166);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "KF Web Server /%00 bug";
  
  script_name(english:name["english"]);

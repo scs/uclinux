@@ -19,7 +19,7 @@ if(description)
 {
  script_id(11489);
  script_bugtraq_id(7213);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "myguestbk admin access";
 

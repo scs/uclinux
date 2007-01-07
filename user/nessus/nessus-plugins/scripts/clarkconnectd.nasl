@@ -16,7 +16,7 @@ if(description)
  script_id(11277);
  script_bugtraq_id(6934);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "clarkconnectd detection";
  script_name(english:name["english"]);
  

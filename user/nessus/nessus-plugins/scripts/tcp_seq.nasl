@@ -9,7 +9,7 @@ if(description)
  script_id(10443);
  script_cve_id("CVE-1999-0077");
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Predictable TCP sequence number";
 

@@ -10,7 +10,7 @@
 if (description)
 {
  script_id(11479);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_bugtraq_id(6021);
  
  script_name(english:"paFileDB XSS");

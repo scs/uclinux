@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11760);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(7933);
  
  name["english"] = "Pod.Board Forum_Details.PHP Cross Site Scripting";

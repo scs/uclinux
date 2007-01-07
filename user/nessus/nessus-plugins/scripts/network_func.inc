@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision$
+# $Revision: 1.3 $
 
 # test if address is on a LAN, reserved or not routable address
 

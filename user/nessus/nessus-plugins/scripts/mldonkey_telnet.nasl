@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(11124);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.7 $");
  
   script_name(english:"mldonkey telnet");
  

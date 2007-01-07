@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10963);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  name["english"] = "Compaq Web Based Management Agent Proxy Vulnerability";
  script_name(english:name["english"]);
 

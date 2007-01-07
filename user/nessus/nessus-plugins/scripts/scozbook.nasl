@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11502);
  script_bugtraq_id(7235, 7236);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
 
  name["english"] = "ScozBook flaws";

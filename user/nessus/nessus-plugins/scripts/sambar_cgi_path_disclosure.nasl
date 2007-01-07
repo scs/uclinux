@@ -15,7 +15,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_id(11775);
  script_name(english:"Sambar CGIs path disclosure");
  

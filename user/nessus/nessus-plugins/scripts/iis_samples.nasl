@@ -40,7 +40,7 @@ Facteur de risque : Elevé";
 if(description)
 {
  script_id(10370);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "IIS dangerous sample files";
  name["francais"] = "Fichiers d'exemples IIS dangereux";

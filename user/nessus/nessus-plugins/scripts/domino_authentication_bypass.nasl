@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(10953);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_bugtraq_id(4022);
 
  name["english"] = "Authentication bypassing in Lotus Domino";

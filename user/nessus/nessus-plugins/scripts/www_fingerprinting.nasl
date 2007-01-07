@@ -10,7 +10,7 @@
 
 if (description)
 {
-  script_version("$Revision$");
+  script_version("$Revision: 1.10 $");
   script_id(11525);
   name["english"] = "WWW fingerprinting";
   script_name(english:name["english"]);

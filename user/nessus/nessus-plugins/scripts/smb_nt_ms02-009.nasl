@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10926);
- script_version("$Revision$");
+ script_version("$Revision: 1.11 $");
  script_bugtraq_id(4158);
  script_cve_id("CVE-2002-0052");
  name["english"] = "IE VBScript Handling patch (Q318089)";

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10941);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "IPSEC IKE check";
  script_name(english:name["english"]);

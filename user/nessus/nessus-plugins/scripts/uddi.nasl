@@ -8,7 +8,7 @@
 if(description)
 {
     script_id(11140);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.10 $");
     name["english"] = "UDDI detection";
     script_name(english:name["english"]);
     desc["english"] = "

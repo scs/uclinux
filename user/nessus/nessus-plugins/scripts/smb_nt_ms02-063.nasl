@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11178);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  script_cve_id("CAN-2002-1214");
 
  name["english"] = "Unchecked Buffer in PPTP Implementation Could Enable DOS Attacks (Q329834)";

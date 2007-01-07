@@ -644,7 +644,7 @@ PlugExport int
 plugin_init(struct arglist * desc)
 {
 	plug_set_id(desc, 11219);
-	plug_set_version(desc, "$Revision$");
+	plug_set_version(desc, "$Revision: 1.9 $");
 
 
 

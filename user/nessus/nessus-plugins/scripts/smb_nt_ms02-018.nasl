@@ -11,7 +11,7 @@ if(description)
  	       "CAN-2002-0869", "CAN-2002-1182",
 	       "CAN-2002-1180", "CAN-2002-1181");
  script_bugtraq_id(4474);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
  name["english"] = "Cumulative Patch for Internet Information Services (Q327696)";
  
  script_name(english:name["english"]);

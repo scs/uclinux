@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$ */
+/* $Id: snprintf.c,v 1.1 2003/01/27 10:49:59 renaud Exp $ */
 
 #include <includes.h>
 #ifndef HAVE_SNPRINTF

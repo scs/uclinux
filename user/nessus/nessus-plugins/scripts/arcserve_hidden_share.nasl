@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11105);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(3343);
  script_cve_id("CAN-2001-0960");
  name["english"] = "ARCserve hidden share";

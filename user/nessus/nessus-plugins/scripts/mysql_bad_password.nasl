@@ -9,7 +9,7 @@ if(description)
  
  script_id(10343);  
  script_bugtraq_id(975);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0148");
  name["english"] = "MySQLs accepts any password";
  name["francais"] = "MySQLs accepte n'importe quel mot de passe";

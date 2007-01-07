@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10079);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.31 $");
  script_cve_id("CAN-1999-0497");
  script_name(english:"Anonymous FTP enabled");
 	     

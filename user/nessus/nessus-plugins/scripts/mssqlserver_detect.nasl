@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10144);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-0652");
  name["english"] = "Microsoft SQL TCP/IP listener is running";
  script_name(english:name["english"]);

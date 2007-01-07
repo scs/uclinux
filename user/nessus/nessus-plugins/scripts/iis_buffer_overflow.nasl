@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10116);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.28 $");
  script_bugtraq_id(307);
  script_cve_id("CVE-1999-0874");
  name["english"] = "IIS buffer overflow";

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10540);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "NSM format strings vulnerability";
  name["francais"] = "NSM format strings vulnerability";
  script_name(english:name["english"],

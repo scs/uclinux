@@ -12,7 +12,7 @@
 if (description)
 {
  script_id(11446);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(7144, 7141);
 
  script_name(english:"DCP-Portal Cross Site Scripting Bugs");

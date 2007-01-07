@@ -9,7 +9,7 @@ if(description)
  script_id(10768);
  script_cve_id("CVE-2001-0843");
  script_bugtraq_id(3354);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "DoSable squid proxy server";
  script_name(english:name["english"]);
  desc["english"] = "

@@ -18,7 +18,7 @@ if(description)
 {
  script_id(11073);
  script_cve_id("CAN-2001-1408");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "readmsg.php detection";
  script_name(english:name["english"]);

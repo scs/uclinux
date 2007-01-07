@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10719); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "MySQL Server version";
  script_name(english:name["english"]);
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10075);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-1051");
  script_bugtraq_id(799);
  name["english"] = "FormHandler.cgi";

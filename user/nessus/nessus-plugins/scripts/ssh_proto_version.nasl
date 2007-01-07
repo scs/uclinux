@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10881);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
 
  
  name["english"] = "SSH protocol versions supported";

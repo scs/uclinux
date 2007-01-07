@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10426);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-0589");
  name["english"] = "SMB Registry : permissions of Schedule";
  name["francais"] = "Vérification des permissions de Schedule";

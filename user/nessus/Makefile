@@ -26,10 +26,9 @@ romfs:
 nessus-libraries/config.status: Makefile
 	-$(MAKE) -C nessus-libraries distclean
 	cd nessus-libraries ; \
-	chmod 755 configure; \
 	CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
 			LIBS="$(patsubst %.o,,$(LDLIBS)) -lresolv" \
-		./configure --host=$(CROSS_COMPILE:-=) \
+		sh configure $(CONFIGURE_OPTS) \
 			--disable-fast-install --disable-shared	\
 			--cache-file config.cache \
 			--prefix=
@@ -43,12 +42,11 @@ nessus-libraries: nessus-libraries/config.status
 libnasl/config.status: Makefile
 	-$(MAKE) -C libnasl distclean
 	cd libnasl ; 						\
-	chmod 755 configure;					\
 	export LDFLAGS='-lc';					\
 	export PATH="../nessus-libraries:$$PATH";		\
 	CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" \
 			LIBS="$(patsubst %.o,,$(LDLIBS)) -lresolv" \
-		./configure --host=$(CROSS_COMPILE:-=) \
+		sh configure $(CONFIGURE_OPTS)  \
 			--disable-fast-install --disable-shared	\
 			--cache-file config.cache \
 			--prefix=

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11045);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(5200);
 
  script_name(english:"Passwordless Zaurus FTP server");

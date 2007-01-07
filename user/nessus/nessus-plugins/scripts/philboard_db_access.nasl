@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11682);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Philboard database access";
  script_name(english:name["english"]);

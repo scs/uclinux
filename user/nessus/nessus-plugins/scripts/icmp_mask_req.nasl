@@ -22,7 +22,7 @@ Risk factor : Low";
 if(description)
 {
  script_id(10113);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CAN-1999-0524");
  name["english"] = "icmp netmask request";
  name["francais"] = "requête icmp de masque de sous-réseau";

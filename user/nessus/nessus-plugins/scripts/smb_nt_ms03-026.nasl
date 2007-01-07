@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11790);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CAN-2003-0352");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0011");
  

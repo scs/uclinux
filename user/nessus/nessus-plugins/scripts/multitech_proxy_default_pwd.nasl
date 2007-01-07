@@ -12,7 +12,7 @@ if(description)
  script_bugtraq_id(7203);
  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "MultiTech Proxy Server Default Password";
 

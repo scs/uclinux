@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10169);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-0943");
  name["english"] = "OpenLink web config buffer overflow";
  name["francais"] = "Dépassement de buffer dans la config web de OpenLink";

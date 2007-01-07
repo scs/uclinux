@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11887);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0661");
  
  name["english"] = "Buffer Overflow in Windows Troubleshooter ActiveX Control (826232)";

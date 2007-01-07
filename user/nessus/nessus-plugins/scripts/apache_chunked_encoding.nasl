@@ -12,7 +12,7 @@ if(description)
  script_cve_id("CVE-2002-0392");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0008");
  script_bugtraq_id(5033);
- script_version("$Revision$");
+ script_version("$Revision: 1.26 $");
  
  name["english"] = "Apache chunked encoding";
 

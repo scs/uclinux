@@ -12,7 +12,7 @@ if(description)
  script_id(11317);
  script_cve_id("CAN-2002-1048");
  script_bugtraq_id(7001);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Discover HP JetDirect EWS Password via SNMP";
  

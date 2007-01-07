@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10891);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "X Display Manager Control Protocol (XDMCP)";
  script_name(english:name["english"]);
  

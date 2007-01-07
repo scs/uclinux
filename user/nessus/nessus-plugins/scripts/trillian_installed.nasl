@@ -11,7 +11,7 @@ if(description)
  script_bugtraq_id(5677, 5733, 5755, 5765, 5769, 5775, 5776, 5777, 5783);
  # no cve_id
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "Trillian is installed";
 

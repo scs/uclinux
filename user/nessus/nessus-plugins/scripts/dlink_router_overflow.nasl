@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11655);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "D-Link router overflow";
  

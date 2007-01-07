@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10707);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "McAfee myCIO detection";
  script_name(english:name["english"]);

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11777);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "SMB share hosting copyrighted material";
  script_name(english:name["english"]);

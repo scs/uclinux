@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11843);
  script_bugtraq_id(8655);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  
  name["english"] = "lsh overflow";

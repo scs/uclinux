@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10020);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CAN-1999-1228");
  name["english"] = "+ + + ATH0 modem hangup";
  name["francais"] = "Décrochage du modem par la séquence + + + ATH0";

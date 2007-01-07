@@ -11,7 +11,7 @@
 if(description)
 {
   script_id(10921);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.7 $");
  
   script_name(english:"RemotelyAnywhere SSH detection");
  

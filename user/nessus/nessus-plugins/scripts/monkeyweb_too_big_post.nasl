@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11544);
  script_cve_id("CAN-2003-0218");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "MonkeyWeb POST with too much data";
  script_name(english:name["english"]);

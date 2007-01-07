@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10226);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-1999-0625");
  name["english"] = "rquotad service";
  name["francais"] = "Service rquotad";

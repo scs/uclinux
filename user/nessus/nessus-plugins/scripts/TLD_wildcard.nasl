@@ -29,7 +29,7 @@
 if(description)
 {
  script_id(11840);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Exclude toplevel domain wildcard host";
  script_name(english:name["english"]);
 

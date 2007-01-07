@@ -24,7 +24,7 @@ if(description)
  script_bugtraq_id(6987, 6980);
 
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "axis2400 webcams";
  script_name(english:name["english"]);
  

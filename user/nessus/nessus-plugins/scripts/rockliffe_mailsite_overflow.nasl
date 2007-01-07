@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10421);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1244);
  script_cve_id("CVE-2000-0398");
  name["english"] = "Rockliffe's MailSite overflow";

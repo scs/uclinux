@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10728);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Determine if Bind 9 is running";
  script_name(english:name["english"]);
  

@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11163);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
   
  name["english"] = "msmmask.exe";
  script_name(english:name["english"]);

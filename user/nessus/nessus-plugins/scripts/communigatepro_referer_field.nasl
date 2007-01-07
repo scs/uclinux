@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11567);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "CommunigatePro Hijacking";
  script_name(english:name["english"]);
  

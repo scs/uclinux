@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10250);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "Sendmail redirection check";
  name["francais"] = "Vérification de la redirection de sendmail";

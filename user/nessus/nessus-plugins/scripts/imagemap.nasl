@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10122);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  script_bugtraq_id(739);
  script_cve_id("CVE-1999-0951");
  name["english"] = "imagemap.exe";

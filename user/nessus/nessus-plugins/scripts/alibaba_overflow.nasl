@@ -9,7 +9,7 @@ if(description)
  script_id(10012);
  script_cve_id("CAN-2000-0626");
  script_bugtraq_id(1482);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
 
  name["english"] = "Alibaba 2.0 buffer overflow";
  name["francais"] = "Dépassement de buffer dans Alibaba 2.0";

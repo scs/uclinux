@@ -3,7 +3,7 @@
 if(description)
 {
  script_id(11878);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0469");
  
  name["english"] = "Buffer Overrun In HTML Converter Could Allow Code Execution (823559)";

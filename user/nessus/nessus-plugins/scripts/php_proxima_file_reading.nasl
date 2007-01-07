@@ -12,7 +12,7 @@
 if (description)
 {
  script_id(11630);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"php-proxima file reading");
  desc["english"] = "

@@ -8,7 +8,7 @@
 if (description) {
    script_id(10828);
    script_cve_id("CVE-2001-0797");
-   script_version("$Revision$");
+   script_version("$Revision: 1.11 $");
  script_bugtraq_id(3681);
   name["english"] = "SysV /bin/login buffer overflow (rlogin)";
   script_name(english:name["english"]);

@@ -7,7 +7,7 @@
 if(description)
 {
     script_id(11879);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.4 $");
     name["english"] = "Compaq Web-based Management Login";
     script_name(english:name["english"]);
 

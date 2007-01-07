@@ -8,7 +8,7 @@
 if(description)
 {
 	script_id(10999);
-	script_version("$Revision$");
+	script_version("$Revision: 1.3 $");
 	name["english"] = "Linksys Router Default Password";
 	script_name(english:name["english"]);
 	desc["english"] = "

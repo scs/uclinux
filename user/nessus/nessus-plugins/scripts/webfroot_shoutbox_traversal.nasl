@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11680);
  script_bugtraq_id(7717);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Webfroot Shoutbox Directory Traversal";
  script_name(english:name["english"]);

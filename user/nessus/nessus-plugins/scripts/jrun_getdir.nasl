@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10814);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(3592);
  name["english"] = "Allaire JRun directory browsing vulnerability";
  script_name(english:name["english"]);

@@ -10,7 +10,7 @@ if(description)
  script_cve_id("CAN-2001-0188");
  script_bugtraq_id(2270);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "GoodTech ftpd DoS";
 

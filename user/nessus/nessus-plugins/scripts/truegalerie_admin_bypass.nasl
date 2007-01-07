@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11582);
  script_bugtraq_id(7427);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "TrueGalerie admin access";
 

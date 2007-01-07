@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11080);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_cve_id("CVE-2001-1075");
  script_bugtraq_id(2986);
  name["english"] = "poprelayd & sendmail authentication problem";

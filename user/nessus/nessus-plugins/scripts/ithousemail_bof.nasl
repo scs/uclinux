@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10455);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1285);
  script_cve_id("CVE-2000-0488");
  name["english"] = "Buffer Overrun in ITHouse Mail Server v1.04";

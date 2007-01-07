@@ -24,7 +24,7 @@ if(description)
  script_id(11714);
  script_bugtraq_id(4261);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "Non-Existant Page Physical Path Disclosure Vulnerability";
 
  script_name(english:name["english"]);

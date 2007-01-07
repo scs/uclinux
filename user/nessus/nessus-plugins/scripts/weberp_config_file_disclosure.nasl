@@ -7,7 +7,7 @@ if (description)
 {
  script_id(11639);
  script_bugtraq_id(6996);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"Web-ERP Configuration File Remote Access");
  desc["english"] = "

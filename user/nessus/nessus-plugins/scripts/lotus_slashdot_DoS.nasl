@@ -12,7 +12,7 @@ if (description)
   script_id(11718);
   script_bugtraq_id(3656);
   script_cve_id("CVE-2001-0954");
-  script_version("$Revision$");
+  script_version("$Revision: 1.2 $");
   name["english"] = "Lotus /./ database lock";
   script_name(english:name["english"]);
 

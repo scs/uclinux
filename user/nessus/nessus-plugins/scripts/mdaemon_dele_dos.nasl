@@ -9,7 +9,7 @@ if(description)
  script_id(11570);
  script_bugtraq_id(6053);
  script_cve_id("CAN-2002-1539");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  
  name["english"] = "MDaemon DELE DoS";

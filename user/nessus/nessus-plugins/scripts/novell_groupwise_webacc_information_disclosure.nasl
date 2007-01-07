@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10789); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(3436);
 
  name["english"] = "Novell Groupwise WebAcc Information Disclosure";

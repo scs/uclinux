@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10058);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(881);
  script_cve_id("CAN-2000-0021");
  name["english"] = "Domino HTTP server exposes the set up of the filesystem";

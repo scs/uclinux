@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision$
+# $Revision: 1.7 $
 
 function get_telnet_banner(port)
 {

@@ -371,7 +371,7 @@ PlugExport int plugin_init(struct arglist * desc)
  if(!is_shell_command_present(NMAP))
 	return -1;
  plug_set_id(desc, 10336);
- plug_set_version(desc, "$Revision$");
+ plug_set_version(desc, "$Revision: 1.102 $");
    
  update_nmap_version();
           

@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10803);
 script_cve_id("CAN-2001-0868");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Redhat Stronghold File System Disclosure";
  script_name(english:name["english"]);
 

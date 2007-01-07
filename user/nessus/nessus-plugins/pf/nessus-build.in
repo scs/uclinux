@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # nessus-build
-# $Id$
+# $Id: nessus-build.in,v 1.6 1999/11/27 09:59:27 renaud Exp $
 # 
 # Author : Renaud Deraison <deraison@cvs.nessus.org>
 #

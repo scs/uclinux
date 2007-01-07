@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11116);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CAN-2001-0478");
  script_bugtraq_id(2642);
  name["english"] = "phpMyAdmin arbitrary files reading";

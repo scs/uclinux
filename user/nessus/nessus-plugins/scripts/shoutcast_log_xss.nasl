@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11624); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "SHOUTcast Server logfiles XSS";
  script_name(english:name["english"]);

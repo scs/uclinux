@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11402);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "iPlanet Application Server Detection";
  script_name(english:name["english"]);

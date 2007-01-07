@@ -9,7 +9,7 @@ if(description)
  script_id(10046);
  script_cve_id("CVE-1999-0430");
  script_bugtraq_id(705);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
 
  name["english"] = "Cisco DoS";
  name["francais"] = "Déni de service Cisco";

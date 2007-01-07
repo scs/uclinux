@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11466);
  script_bugtraq_id(6648);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  desc["english"] = "
 The remote FTP server allows anybody to switch to the 

@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10717); 
 script_cve_id("CAN-2001-1304");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "SHOUTcast Server DoS detector vulnerability";
  script_name(english:name["english"]);

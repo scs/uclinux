@@ -13,7 +13,7 @@ if(description)
  script_id(11087);
  script_cve_id("CAN-2001-0714");
  script_bugtraq_id(3378);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Sendmail queue manipulation & destruction";
  name["francais"] = "Manipulation & destruction de la file d'attente de sendmail";

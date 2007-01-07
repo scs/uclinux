@@ -14,7 +14,7 @@ if(description)
  script_id(10937);
  script_cve_id("CAN-1999-1376", "CVE-2000-0226", "CVE-2002-0072");
  script_bugtraq_id(4479);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "IIS FrontPage ISAPI Denial of Service";
 

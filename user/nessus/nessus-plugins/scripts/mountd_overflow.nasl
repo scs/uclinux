@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11337);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CVE-1999-0002");
  
  name["english"] = "mountd overflow";

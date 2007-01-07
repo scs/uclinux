@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11876);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(8814);
  name["english"] = "gallery code injection (2)";
 

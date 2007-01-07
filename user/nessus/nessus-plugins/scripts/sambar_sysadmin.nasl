@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10416);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(2255);
  name["english"] = "Sambar /sysadmin directory 2";
  script_name(english:name["english"]);

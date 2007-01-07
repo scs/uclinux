@@ -16,7 +16,7 @@ Risk factor : Low/None";
 if(description)
 {
  script_id(10946);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "Gnutella servent detection";
  script_name(english:name["english"]);

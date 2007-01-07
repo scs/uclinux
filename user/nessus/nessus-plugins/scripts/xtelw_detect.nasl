@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(11120);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.4 $");
  
   script_name(english:"xtelw detection", francais:"detection de xtelw");
  

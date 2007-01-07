@@ -15,5 +15,5 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/pcap-pf.h,v 1.3 2003/02/06 20:28:09 renaud Exp $ (LBL)
  */

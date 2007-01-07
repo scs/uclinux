@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11490);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7212);
  
  name["english"] = "D-Link DSL Broadband Modem";

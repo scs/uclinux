@@ -24,7 +24,7 @@
 if(description)
 {
  script_id(11075);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_bugtraq_id(5384);
 
  name["english"] = "dwhttpd format string";

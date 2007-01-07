@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10123);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-1999-1557");
  script_bugtraq_id(502);
  name["english"] = "Imail's imap buffer overflow";

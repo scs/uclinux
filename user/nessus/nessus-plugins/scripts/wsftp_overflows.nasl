@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11094);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2001-1021");
  name["english"] = "WS FTP overflows";
  

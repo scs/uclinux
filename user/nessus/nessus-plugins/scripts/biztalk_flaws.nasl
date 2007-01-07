@@ -11,7 +11,7 @@ if (description)
  script_id(11638);
  script_cve_id("CAN-2003-0117", "CAN-2003-0118");
  script_bugtraq_id(7469, 7470);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"biztalk server flaws");
  desc["english"] = "

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10730);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Raptor FW version 6.5 detection";
 
  script_name(english:name["english"]);

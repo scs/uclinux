@@ -42,7 +42,7 @@ PlugExport int plugin_init(desc)
   if(!is_shell_command_present(NIKTO))
     	return -1;
   plug_set_id(desc, 10864);
-  plug_set_version(desc, "$Revision$");
+  plug_set_version(desc, "$Revision: 1.25 $");
    
   plug_set_name(desc, FR_NAME, "francais");
   plug_set_name(desc, EN_NAME, NULL);

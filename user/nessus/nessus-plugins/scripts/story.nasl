@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10817);
- script_version("$Revision$");
+ script_version("$Revision: 1.12 $");
  script_bugtraq_id(3028);
  script_cve_id("CVE-2001-0804");
  name["english"] = "Interactive Story Directory Traversal Vulnerability";

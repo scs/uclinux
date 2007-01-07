@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10045);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CVE-1999-0889");
  name["english"] = "Cisco 675 passwordless router";
  name["francais"] = "Cisco 675 sans mot de passe";

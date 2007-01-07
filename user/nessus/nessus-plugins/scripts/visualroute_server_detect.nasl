@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10744);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "VisualRoute Web Server Detection";
  script_name(english:name["english"]);

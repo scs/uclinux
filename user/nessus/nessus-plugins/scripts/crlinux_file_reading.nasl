@@ -9,7 +9,7 @@ if(description)
  script_id(11368);
  
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(7062);
  
  name["english"] = "Cross-Referencing Linux (lxr) file reading";

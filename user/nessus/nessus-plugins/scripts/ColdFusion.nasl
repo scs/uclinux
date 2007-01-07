@@ -12,7 +12,7 @@ if(description)
  
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10001);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CAN-1999-0455", "CAN-1999-0477");
  script_bugtraq_id(115);
  

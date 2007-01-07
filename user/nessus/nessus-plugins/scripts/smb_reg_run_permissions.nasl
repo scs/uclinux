@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10430);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CAN-1999-0589");
  name["english"] = "SMB Registry : permissions of keys that can lead to admin";
  name["francais"] = "SMB : Vérification des permissions de clés permettant de passer admin";

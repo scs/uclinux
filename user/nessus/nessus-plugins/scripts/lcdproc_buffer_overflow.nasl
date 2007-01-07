@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10378);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1131);
  script_cve_id("CAN-2000-0295");
  name["english"] = "LCDproc buffer overflow";

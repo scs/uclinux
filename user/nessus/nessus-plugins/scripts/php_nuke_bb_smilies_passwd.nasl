@@ -2,7 +2,7 @@ if (description)
 {
  script_id(10630);
  script_cve_id("CAN-2001-0320");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_name(english:"PHP-Nuke security vulnerability (bb_smilies.php)");
  desc["english"] = "
 The remote host seems to be vulnerable to a security problem in PHP-Nuke (bb_smilies.php). 

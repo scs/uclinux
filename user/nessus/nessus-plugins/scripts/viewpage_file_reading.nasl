@@ -7,7 +7,7 @@ if(description)
  script_id(11472); 
  script_bugtraq_id(7191);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "viewpage.php arbitrary file reading";
  script_name(english:name["english"]);

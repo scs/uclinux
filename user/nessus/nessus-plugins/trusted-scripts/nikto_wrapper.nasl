@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(20001);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Nikto";
  script_name(english:name["english"]);
  

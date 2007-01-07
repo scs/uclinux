@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10054);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(808);
  script_cve_id("CVE-2000-0165");
  name["english"] = "Delegate overflow";

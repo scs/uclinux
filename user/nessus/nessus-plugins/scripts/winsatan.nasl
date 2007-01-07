@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10316);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "WinSATAN";
  name["francais"] = "WinSATAN";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10369);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.29 $");
  script_bugtraq_id(1109);
  script_cve_id("CVE-2000-0260");
  name["english"] = "Microsoft Frontpage dvwssr.dll backdoor";

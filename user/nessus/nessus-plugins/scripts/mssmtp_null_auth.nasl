@@ -11,7 +11,7 @@ if(description)
  script_cve_id("CVE-2002-0054");
  script_bugtraq_id(4205);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "MS SMTP Authorization bypass";
 
  script_name(english:name["english"]);

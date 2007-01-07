@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10487);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-2000-0647");
  
  name["english"] = "WFTP 2.41 rc11 multiple DoS";

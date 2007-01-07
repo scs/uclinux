@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11741);
  script_bugtraq_id(7920);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "lednews XSS";
 

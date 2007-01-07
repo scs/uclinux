@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11220);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Netscape /.perf accessible";
  name["francais"] = "Netscape /.perf accessible";
  

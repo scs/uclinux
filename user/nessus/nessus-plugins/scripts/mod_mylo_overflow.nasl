@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11809);
  script_bugtraq_id(8287);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  
  name["english"] = "mod_mylo overflow";
 

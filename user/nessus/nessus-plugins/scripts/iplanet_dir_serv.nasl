@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10589);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1839);
  script_cve_id("CVE-2000-1075");
  name["english"] = "iPlanet Directory Server traversal";

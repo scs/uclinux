@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10134);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(2247);
  script_cve_id("CAN-1999-0431");
  name["english"] = "Linux 2.1.89 - 2.2.3 : 0 length fragment bug";

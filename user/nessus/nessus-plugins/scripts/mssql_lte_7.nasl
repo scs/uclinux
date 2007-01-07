@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11870);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  script_cve_id("CAN-2000-0199");
  script_bugtraq_id(1055);
  name["english"] = "Microsoft's SQL version less than or equal to 7";

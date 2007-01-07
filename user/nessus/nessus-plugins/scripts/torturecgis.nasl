@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(10672);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.32 $");
  
  name["english"] = "Unknown CGIs arguments torture";
  name["francais"] = "Unknown CGIs arguments torture";

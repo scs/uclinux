@@ -9,7 +9,7 @@ if(description)
  script_id(11330);
  script_bugtraq_id(1281);
  script_cve_id("CVE-2000-0402");
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "MS SQL7.0 Service Pack may leave passwords on system";
 

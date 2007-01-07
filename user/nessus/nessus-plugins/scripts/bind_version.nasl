@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10028);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  name["english"] = "Determine which version of BIND name daemon is running";
  script_name(english:name["english"]);
  

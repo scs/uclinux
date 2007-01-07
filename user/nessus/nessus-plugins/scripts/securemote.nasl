@@ -7,7 +7,7 @@ if(description)
 {
  script_name(english:"Checkpoint SecureRemote detection");
  script_id(10617);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
 desc["english"] = "
 The remote host seems to be a Checkpoint FW-1 running SecureRemote.

@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11062);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CAN-2002-1023");
  script_bugtraq_id(5187);
  name["english"] = "BadBlue invalid GET DoS";

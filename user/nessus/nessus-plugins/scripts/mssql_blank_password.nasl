@@ -10,7 +10,7 @@ if(description)
  script_id(10673);
  script_cve_id("CAN-2000-1209");
  script_bugtraq_id(1281);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "Microsoft's SQL Blank Password";
  script_name(english:name["english"]);
  

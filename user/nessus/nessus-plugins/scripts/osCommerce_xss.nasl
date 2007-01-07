@@ -13,7 +13,7 @@
 if (description)
 {
  script_id(11437);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(7156, 7151, 7153, 7158, 7155);
 
  script_name(english:"osCommerce Cross Site Scripting Bugs");

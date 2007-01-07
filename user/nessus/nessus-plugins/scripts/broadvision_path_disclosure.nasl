@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10686);
  script_cve_id("CAN-2001-0031");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(2088);
  name["english"] = "BroadVision Physical Path Disclosure Vulnerability";
 

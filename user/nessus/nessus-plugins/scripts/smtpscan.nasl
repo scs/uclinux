@@ -27,7 +27,7 @@ if(description)
 {
  script_name(english: "smtpscan");
  script_id(11421);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.61 $");
  
  desc["english"] = "
 smtpscan is a SMTP fingerprinting tool written by Julien Bordet

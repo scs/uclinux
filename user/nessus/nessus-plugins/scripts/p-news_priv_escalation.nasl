@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11669);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "p-news Admin Access";
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11348);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CVE-1999-1309");
  #NO bugtraq_id
 

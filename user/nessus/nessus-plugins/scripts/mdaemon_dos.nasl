@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(10137);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-0846");
  
  name["english"] = "MDaemon DoS";

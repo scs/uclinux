@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11754);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  
  name["english"] = "List of printers is available through CUPS";

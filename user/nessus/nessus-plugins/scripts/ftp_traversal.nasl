@@ -44,7 +44,7 @@ if(description)
  script_id(11112);
  script_cve_id("CVE-2001-0680", "CAN-2001-1335", "CAN-2001-0582");
  script_bugtraq_id(2618, 2786);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "Generic FTP traversal";
  

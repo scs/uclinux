@@ -10,7 +10,7 @@ if(description)
  script_id(10776); 
  script_cve_id("CAN-2001-1138");
  script_bugtraq_id(3304);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "Power Up Information Disclosure";
  script_name(english:name["english"]);

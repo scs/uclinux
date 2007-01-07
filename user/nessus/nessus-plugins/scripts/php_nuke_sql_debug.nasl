@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10856);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  script_bugtraq_id(3906);
  script_name(english:"PHP-Nuke sql_debug Information Disclosure");
  desc["english"] = "

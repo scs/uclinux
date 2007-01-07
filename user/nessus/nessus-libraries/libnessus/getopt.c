@@ -21,7 +21,7 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Modified for use with Nessus by <jordan@mjh.teddy-net.com>
-   $Id$ */
+   $Id: getopt.c,v 1.10 2001/10/16 18:48:55 renaud Exp $ */
 
 /* NOTE!!!  AIX requires this to be the first thing in the file.
    Do not put ANYTHING before it!  */

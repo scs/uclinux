@@ -2,7 +2,7 @@
 if(description)
 {
  script_id(10674);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "Microsoft's SQL UDP Info Query";
  script_name(english:name["english"]);
  

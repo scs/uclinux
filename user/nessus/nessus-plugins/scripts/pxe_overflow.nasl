@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11612);
  script_bugtraq_id(7129);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  
  name["english"] = "PXE server overflow";

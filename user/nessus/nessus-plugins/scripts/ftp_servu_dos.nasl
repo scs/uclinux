@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10089);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_bugtraq_id(269);
  script_cve_id("CVE-1999-0219");
  name["english"] = "FTP ServU CWD overflow";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10044);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Checkpoint FW-1 identification";
  name["francais"] = "Identification de FW-1 de Checkpoint";
  

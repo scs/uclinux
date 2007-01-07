@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10403);
- script_version ("$Revision$"); 
+ script_version ("$Revision: 1.9 $"); 
  script_bugtraq_id(1178);
  script_cve_id("CVE-2000-0381");
  name["english"] = "DBMan CGI server information leakage";

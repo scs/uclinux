@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11641);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "BadBlue Remote Administrative Interface Access";
  script_name(english:name["english"]);
  

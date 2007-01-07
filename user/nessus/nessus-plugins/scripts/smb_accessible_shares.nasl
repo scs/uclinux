@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10396);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.44 $");
  script_bugtraq_id(8026);
  script_cve_id("CAN-1999-0519", "CAN-1999-0520");
  name["english"] = "SMB shares access";

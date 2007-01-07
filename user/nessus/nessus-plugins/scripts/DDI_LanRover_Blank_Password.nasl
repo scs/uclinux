@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10998);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  
  name["english"] = "Shiva LanRover Blank Password";

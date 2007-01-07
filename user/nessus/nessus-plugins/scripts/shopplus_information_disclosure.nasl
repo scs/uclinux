@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10774); 
 script_cve_id("CAN-2001-0992");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "ShopPlus Arbitrary Command Execution";
  script_name(english:name["english"]);

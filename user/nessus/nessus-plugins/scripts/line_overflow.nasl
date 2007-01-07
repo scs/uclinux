@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11175);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "Too long line";
  name["francais"] = "Ligne trop longue";

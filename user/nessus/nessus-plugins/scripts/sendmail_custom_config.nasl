@@ -13,7 +13,7 @@ if(description)
  script_id(11086);
  script_cve_id("CAN-2001-0713");
  script_bugtraq_id(3377);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Sendmail custom configuration file";
  name["francais"] = "Fichier de configuration spécifique de sendmail";

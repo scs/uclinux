@@ -7,7 +7,7 @@ if(description)
 {
  script_id(10942);
  script_bugtraq_id(7276);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  name["english"] = "Check for a Citrix server";
  script_name(english:name["english"]);
 

@@ -8,7 +8,7 @@
 if(description)
 {
 	script_id(11203);
-	script_version("$Revision$");
+	script_version("$Revision: 1.1 $");
 	name["english"] = "Motorola Vanguard with No Password";
 	script_name(english:name["english"]);
  

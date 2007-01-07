@@ -11,7 +11,7 @@
 if(description)
 {
   script_id(10920);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.9 $");
  
   script_name(english:"RemotelyAnywhere WWW detection");
  

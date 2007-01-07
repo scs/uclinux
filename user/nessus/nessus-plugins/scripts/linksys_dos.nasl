@@ -7,7 +7,7 @@ if(description)
 {
   script_id(11891);
   script_bugtraq_id(8834);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.2 $");
 
   name["english"] = "LinkSys EtherFast Router Denial of Service Attack";
   script_name(english:name["english"]);

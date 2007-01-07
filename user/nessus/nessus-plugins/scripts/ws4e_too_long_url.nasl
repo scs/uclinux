@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11167);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Webserver4everyone too long URL";
  name["francais"] = "URL trop longue dans Webserver4everyone";

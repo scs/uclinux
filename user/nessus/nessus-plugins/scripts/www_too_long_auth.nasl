@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10515);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "Too long authorization";
  name["francais"] = "autorisation trop longue";

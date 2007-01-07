@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11509);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "GTcatalog password disclosure";
 

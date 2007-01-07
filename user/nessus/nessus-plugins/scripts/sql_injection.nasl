@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11139);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "wpoison (nasl version)";
  script_name(english:name["english"]);
  

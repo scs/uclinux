@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(11047);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_cve_id("CAN-2002-1052");
  script_bugtraq_id(5258);
  name["english"] = "Jigsaw webserver MS/DOS device DoS";

@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11275);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "GOsa code injection";
 

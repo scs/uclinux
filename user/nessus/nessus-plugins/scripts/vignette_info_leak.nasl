@@ -11,7 +11,7 @@ if(description)
 {
  script_id(11526);
  script_cve_id("CAN-2002-0385");
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "Vignette StoryServer Information Disclosure";
  script_name(english:name["english"]);

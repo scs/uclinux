@@ -10,7 +10,7 @@
 
 if(description) {
     script_id(10474);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
     script_cve_id("CVE-2000-0665");
  script_bugtraq_id(1478);
     name["english"] = "GAMSoft TelSrv 1.4/1.5 Overflow";

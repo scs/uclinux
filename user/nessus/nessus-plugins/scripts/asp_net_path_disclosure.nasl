@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10843);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "ASP.NET path disclosure";
 
  script_name(english:name["english"]);

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10465);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1469);
  script_cve_id("CVE-2000-0670");
  name["english"] = "CVSWeb 1.80 gives a shell to cvs committers";

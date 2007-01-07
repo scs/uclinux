@@ -3,7 +3,7 @@ if(description)
  script_id(10880);
  script_cve_id("CAN-2002-0308");
  script_bugtraq_id(4152);
- script_version("$Revision$");
+ script_version("$Revision: 1.10 $");
  name["english"] = "AdMentor Login Flaw";
  script_name(english:name["english"]);
  

@@ -8,7 +8,7 @@
 if(description)
 {
    script_id(10529);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
    name["english"] = "Nortel Networks  passwordless router (user level)";
    script_name(english:name["english"]);
  

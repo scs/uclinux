@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11485);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2002-1561");
  
  name["english"] = "Flaw in RPC Endpoint Mapper (MS03-010)";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10154);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(631);
  script_cve_id("CVE-1999-0751");
  name["english"] = "Netscape Enterprise 'Accept' buffer overflow";

@@ -11,7 +11,7 @@ if(description)
  script_id(11008);
  script_cve_id("CAN-2002-0249");
  script_bugtraq_id(4056);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "PHP4 Physical Path Disclosure Vulnerability";
  name["francais"] = "PHP4 Physical Path Disclosure Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

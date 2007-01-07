@@ -7,7 +7,7 @@ if(description)
  script_id(11541);
  script_cve_id("CAN-2003-0112");
  script_bugtraq_id(7370);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "Buffer overrun in NT kernel message handling";
 

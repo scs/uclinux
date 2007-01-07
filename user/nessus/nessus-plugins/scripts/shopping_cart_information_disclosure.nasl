@@ -10,7 +10,7 @@ if(description)
  script_id(10764); 
 script_cve_id("CAN-2001-0985");
  script_bugtraq_id(3308);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "Shopping Cart Arbitrary Command Execution (Hassan)";
  script_name(english:name["english"]);

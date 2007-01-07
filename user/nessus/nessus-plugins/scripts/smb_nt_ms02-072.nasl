@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11194);
  script_cve_id("CAN-2002-1327");
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Unchecked Buffer in XP Shell Could Enable System Compromise (329390)";
 

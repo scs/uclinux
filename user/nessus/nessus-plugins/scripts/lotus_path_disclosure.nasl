@@ -17,7 +17,7 @@ if(description)
  script_id(11009);
  script_cve_id("CAN-2002-0245");
  script_bugtraq_id(4049);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Lotus Domino Banner Information Disclosure Vulnerability";
  script_name(english:name["english"]);
  

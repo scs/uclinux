@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11153);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.40 $");
  
  name["english"] = "Identifies unknown services with 'HELP'";
  name["francais"] = "Identifie les services inconnus avec 'HELP'";

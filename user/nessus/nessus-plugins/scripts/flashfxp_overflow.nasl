@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11710);
  script_bugtraq_id(7857, 7859);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "FlashFXP Overflow";
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10454);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1403);
  script_cve_id("CAN-2000-0589");
  name["english"] = "sawmill password";

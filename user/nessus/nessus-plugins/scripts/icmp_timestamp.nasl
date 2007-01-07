@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10114);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CAN-1999-0524");
  name["english"] = "icmp timestamp request";
  name["francais"] = "requête icmp timestamp";

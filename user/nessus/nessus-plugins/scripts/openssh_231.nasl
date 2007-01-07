@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10608);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(2356);
  
  name["english"] = "OpenSSH 2.3.1 authentication bypass vulnerability";

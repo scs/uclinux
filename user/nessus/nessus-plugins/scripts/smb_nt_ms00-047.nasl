@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10482);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1514);
  script_cve_id("CVE-2000-0673");
  name["english"] =  "NetBIOS Name Server Protocol Spoofing patch";

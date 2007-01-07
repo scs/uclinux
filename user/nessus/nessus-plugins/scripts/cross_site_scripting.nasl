@@ -16,7 +16,7 @@ if (description)
 {
  script_id(10815);
  script_bugtraq_id(5305, 7353, 7344, 8037);
- script_version("$Revision$");
+ script_version("$Revision: 1.19 $");
  script_name(english:"Web Server Cross Site Scripting");
  desc["english"] = "
 The remote web server seems to be vulnerable to the Cross Site Scripting vulnerability (XSS). The vulnerability is caused

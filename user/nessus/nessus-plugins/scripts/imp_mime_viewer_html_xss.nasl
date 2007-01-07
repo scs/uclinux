@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11815);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "IMP_MIME_Viewer_html class XSS vulnerabilities";
  script_name(english:name["english"]);

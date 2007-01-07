@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11184);
  script_bugtraq_id(6297, 7480);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "vxworks ftpd buffer overflow Denial of Service";
  

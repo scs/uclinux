@@ -9,7 +9,7 @@ if(description)
  script_id(10805);
  script_cve_id("CAN-2001-0924");
  script_bugtraq_id(3575);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Informix traversal";
  name["francais"] = "Informix traversal";

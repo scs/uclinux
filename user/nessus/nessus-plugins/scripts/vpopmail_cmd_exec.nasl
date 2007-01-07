@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11397);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7063);
  name["english"] = "vpopmail.php command execution";
  script_name(english:name["english"]);

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10013);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_bugtraq_id(770);
  script_cve_id("CAN-1999-0885");
  name["english"] = "alibaba.pl";

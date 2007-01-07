@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11227);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  script_cve_id("CVE-2001-1371");
  script_bugtraq_id(4289);
  name["english"] = "Oracle 9iAS SOAP Default Configuration Vulnerability ";

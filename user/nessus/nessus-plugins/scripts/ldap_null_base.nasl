@@ -5,7 +5,7 @@
 if(description)
 {
   script_id(10722);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
   script_name(english:"LDAP allows null bases");
   desc["english"] = "
 Improperly configured LDAP servers will allow the directory BASE 

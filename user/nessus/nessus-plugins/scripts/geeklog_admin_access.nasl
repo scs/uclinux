@@ -12,7 +12,7 @@ if(description)
  script_cve_id("CAN-2002-0962", "CVE-2002-0096", "CVE-2002-0097");
  script_bugtraq_id(7742, 7744, 6601, 6602, 6603, 6604);
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "GeekLog SQL vulns";
  
  script_name(english:name["english"], francais:name["francais"]);

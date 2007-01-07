@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10233);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-1999-0615");
  name["english"] = "snmp service";
  name["francais"] = "Service snmp";

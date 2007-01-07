@@ -10,7 +10,7 @@ if(description)
  script_id(10739); 
  script_cve_id("CAN-1999-1020");
  script_bugtraq_id(484);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "Novell Web Server NDS Tree Browsing";
  script_name(english:name["english"]);

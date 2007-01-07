@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision$
+# $Revision: 1.32 $
 
 function register_service(port, proto)
 {

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10062);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(665);
  script_cve_id("CAN-1999-1533");
  name["english"] = "Eicon Diehl LAN ISDN modem DoS";

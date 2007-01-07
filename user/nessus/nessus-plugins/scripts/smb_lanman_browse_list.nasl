@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10397);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  name["english"] = "SMB LanMan Pipe Server browse listing";
  name["francais"] = "SMB LanMan Pipe Server browse listing";
  

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11320);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  
  name["english"] = "The remote BIND has dynamic updates enabled";
  

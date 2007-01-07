@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/pcap-linux.c,v 1.5 2003/03/07 00:57:40 renaud Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

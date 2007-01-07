@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11778);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Web Server hosting copyrighted material";
  script_name(english:name["english"]);
 

@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10915);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "Local users information : User has never logged on";
 
  script_name(english:name["english"]);

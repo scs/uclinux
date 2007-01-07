@@ -18,7 +18,7 @@ if(description)
  script_id(10560);
 script_cve_id("CVE-1999-0746");
  script_bugtraq_id(587);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  
  name["english"] = "SuSE's identd overflow";

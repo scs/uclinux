@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10061);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-1999-0103", "CAN-1999-0635");
  name["english"] = "Echo port open";
  name["francais"] = "Port echo ouvert";

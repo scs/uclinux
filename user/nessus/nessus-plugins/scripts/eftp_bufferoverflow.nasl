@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10928);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  script_bugtraq_id(3330);
  script_cve_id("CAN-2001-1112");
  name["english"] = "EFTP buffer overflow";

@@ -30,7 +30,7 @@ if(description)
 {
  script_id(11171);
  script_bugtraq_id(5664);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  
  name["english"] = "HTTP unfinished line denial";
  script_name(english:name["english"]);

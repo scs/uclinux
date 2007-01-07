@@ -10,7 +10,7 @@ if(description)
  script_id(10858);
  script_cve_id("CAN-2002-0012");
  script_bugtraq_id(4088);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "SNMP bad length field DoS (2)";
  script_name(english:name["english"]);

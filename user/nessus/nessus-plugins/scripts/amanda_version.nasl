@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10742); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "Amanda Index Server version";
  script_name(english:name["english"]);

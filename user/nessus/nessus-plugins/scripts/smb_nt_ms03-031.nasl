@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11804);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "Cumulative Patch for MS SQL Server (815495)";
  script_name(english:name["english"]);
  

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10433);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(1236);
  script_cve_id("CVE-2000-0305");
  name["english"] = "NT IP fragment reassembly patch not applied (jolt2)";

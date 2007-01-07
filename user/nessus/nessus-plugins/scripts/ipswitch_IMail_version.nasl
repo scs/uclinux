@@ -22,7 +22,7 @@
 if(description)
 {
  script_id(11271);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "IMail account hijack";
 

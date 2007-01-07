@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11899);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "nibindd is running";
  

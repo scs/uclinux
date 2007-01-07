@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11827);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CAN-2003-0562");
 
  name["english"] = "Netware Perl CGI overflow";

@@ -7,7 +7,7 @@ if(description)
  script_id(11900);
  script_cve_id("CAN-2003-0870");
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Opera web browser HREF overflow";
 

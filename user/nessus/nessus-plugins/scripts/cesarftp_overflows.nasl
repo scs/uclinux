@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(7950, 7946);
  script_cve_id("CAN-2001-0826");
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "CesarFTP multiple overflows";
  script_name(english:name["english"]);

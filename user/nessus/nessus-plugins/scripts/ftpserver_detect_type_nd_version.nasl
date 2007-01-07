@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10092);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  name["english"] = "FTP Server type and version";
  script_name(english:name["english"]);
  

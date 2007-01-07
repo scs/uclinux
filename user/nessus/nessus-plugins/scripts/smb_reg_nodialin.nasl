@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11458);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "SMB Registry : No dial in";
  

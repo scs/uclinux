@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10651);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "cfinger's version";
  name["francais"] = "version de cfinger";
  script_name(english:name["english"], francais:name["francais"]);

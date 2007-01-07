@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10936);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(4483);
  name["english"] = "IIS XSS via 404 error";
  name["francais"] = "IIS XSS via 404 error";

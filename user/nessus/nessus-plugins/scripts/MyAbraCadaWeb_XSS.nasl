@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11417);
  script_bugtraq_id(7126, 7127);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 
  script_name(english:"MyAbraCadaWeb Cross Site Scripting");
  desc["english"] = "

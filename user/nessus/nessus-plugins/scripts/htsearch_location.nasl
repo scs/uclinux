@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10385);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-2000-1191");
  name["english"] = "ht://Dig's htsearch reveals web server path";
  script_name(english:name["english"]);

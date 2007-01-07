@@ -9,7 +9,7 @@ if(description)
  script_id(10566);
  script_cve_id("CVE-2001-0021");
  script_bugtraq_id(2063);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "mmstdod.cgi";
  name["francais"] = "mmstdod.cgi";

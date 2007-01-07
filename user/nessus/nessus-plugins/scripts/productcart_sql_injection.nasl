@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11785);
  script_bugtraq_id(8103, 8105, 8108, 8112);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"ProductCart SQL Injection");
  desc["english"] = "

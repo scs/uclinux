@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11608);
  script_cve_id("CAN-2003-0217");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  
  name["english"] = "Neoteris IVE XSS";

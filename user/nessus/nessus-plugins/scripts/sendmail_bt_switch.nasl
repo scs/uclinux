@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10809);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Sendmail -bt option";
  name["francais"] = "Option -bt de sendmail";

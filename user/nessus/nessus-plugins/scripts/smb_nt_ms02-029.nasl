@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11029);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_bugtraq_id(4852);
  script_cve_id("CVE-2002-0366");
  name["english"] = "Windows RAS overflow (Q318138)";

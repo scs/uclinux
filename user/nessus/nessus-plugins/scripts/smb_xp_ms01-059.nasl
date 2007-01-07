@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10835);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_bugtraq_id(3723);
  script_cve_id("CVE-2001-0876");
  name["english"] = "Unchecked Buffer in XP upnp";

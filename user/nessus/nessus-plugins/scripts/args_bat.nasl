@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11465);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_cve_id("CAN-1999-1180");
  
  name["english"] = "args.bat";

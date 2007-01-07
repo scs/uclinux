@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10791);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Ultraseek Web Server Detect";
  script_name(english:name["english"]);

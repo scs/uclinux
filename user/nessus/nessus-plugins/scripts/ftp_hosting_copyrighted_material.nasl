@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11779);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  script_name(english:"FTP server hosting copyrighted material");
 	     

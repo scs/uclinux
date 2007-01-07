@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10406);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1190);
  script_cve_id("CVE-2000-0408");
  name["english"] = "IIS Malformed Extension Data in URL";

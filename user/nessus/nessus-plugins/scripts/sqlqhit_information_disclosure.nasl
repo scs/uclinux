@@ -10,7 +10,7 @@ if(description)
  script_id(10765);
 script_cve_id("CAN-2001-0986");
  script_bugtraq_id(3339);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
 name["english"] = "SQLQHit Directory Structure Disclosure";
  script_name(english:name["english"]);

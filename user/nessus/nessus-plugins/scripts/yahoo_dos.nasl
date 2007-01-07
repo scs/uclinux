@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10326);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CAN-2000-0047");
  
  name["english"] = "Yahoo Messenger Denial of Service attack";

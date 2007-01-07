@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11274);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "WihPhoto file reading";
 

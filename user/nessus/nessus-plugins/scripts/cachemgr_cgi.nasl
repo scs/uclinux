@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10034);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(2059);
  script_cve_id("CVE-1999-0710");
  name["english"] = "RedHat 6.0 cachemgr.cgi";

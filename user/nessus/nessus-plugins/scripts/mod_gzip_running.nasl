@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11685);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  name["english"] = "mod_gzip running";
  script_name(english:name["english"]);
 

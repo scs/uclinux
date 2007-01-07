@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/bpf_dump.c,v 1.1 2003/02/06 03:14:28 renaud Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H

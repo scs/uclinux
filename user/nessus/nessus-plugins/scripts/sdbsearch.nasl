@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10720); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2001-1130");
  
  name["english"] = "sdbsearch.cgi";

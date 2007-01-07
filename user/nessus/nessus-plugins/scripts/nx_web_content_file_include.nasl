@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11233);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(6500);
 
  name["english"] = "N/X Web Content Management code injection";

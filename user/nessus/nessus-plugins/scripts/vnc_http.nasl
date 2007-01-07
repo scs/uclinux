@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10758);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Check for VNC HTTP";
  name["francais"] = "Check for VNC HTPP";
  script_name(english:name["english"], francais:name["francais"]);

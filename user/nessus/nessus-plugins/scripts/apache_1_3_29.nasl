@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11915);
  script_cve_id("CAN-2003-0542");
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "Apache < 1.3.29";
 

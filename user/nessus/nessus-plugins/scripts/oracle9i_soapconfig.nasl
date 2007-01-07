@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11224);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  script_cve_id("CAN-2002-0568");
  script_bugtraq_id(4290);
  name["english"] = "Oracle 9iAS SOAP configuration file retrieval";

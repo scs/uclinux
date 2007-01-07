@@ -15,7 +15,7 @@ Risk factor : Critical";
 	
 
 	
-	script_version("$Revision$");
+	script_version("$Revision: 1.3 $");
 	script_name(english:"4553 Parasite Mothership Detect");
 	script_description(english:desc);
 	script_summary(english:"Detects the presence of 4553 parasite's mothership");

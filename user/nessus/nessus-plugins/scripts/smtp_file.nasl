@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10259);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  
  name["english"] = "Sendmail mailing to files";
  name["francais"] = "Sendmail envoye des mails aux fochiers";

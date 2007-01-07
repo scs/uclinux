@@ -5,7 +5,7 @@
 if (description)
 {
 	script_id(11563);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.3 $");
  	script_bugtraq_id(7453);
 	script_cve_id("CAN-2003-0222");
 	script_name(english: "Oracle LINK overflow");

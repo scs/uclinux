@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10939);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(4006);
  script_cve_id("CAN-2002-0224");
  name["english"] = "MSDTC denial of service by flooding with nul bytes";

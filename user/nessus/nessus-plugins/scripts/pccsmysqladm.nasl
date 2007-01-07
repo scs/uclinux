@@ -11,7 +11,7 @@ if(description)
  script_bugtraq_id(1557);
  script_name(english:name["english"]);
  script_id(10783);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-2000-0707");
  
  desc["english"] = "

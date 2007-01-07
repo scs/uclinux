@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(10575);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.17 $");
   script_bugtraq_id(4078);
   
   script_name(english:"Check for IIS .cnf file leakage");

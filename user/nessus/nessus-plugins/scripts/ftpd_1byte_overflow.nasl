@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11371);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(2124);
  script_cve_id("CVE-2001-0053");
  name["english"] = "BSD ftpd Single Byte Buffer Overflow";

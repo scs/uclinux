@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(10886);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_cve_id("CAN-2002-1221", "CAN-2002-1219", "CAN-2002-1220");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0011");
  script_bugtraq_id(6159, 6160, 6161);

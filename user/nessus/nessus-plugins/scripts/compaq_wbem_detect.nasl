@@ -26,7 +26,7 @@ Risk factor : Medium";
 if(description)
 {
  script_id(10746);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "Compaq WBEM Server Detection";
  script_name(english:name["english"]);

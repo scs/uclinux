@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11565);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = ".forward in FTP root";
  script_name(english:name["english"]);
  

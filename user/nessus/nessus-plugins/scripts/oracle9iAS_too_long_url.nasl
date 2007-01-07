@@ -17,7 +17,7 @@
 if(description)
 {
  script_id(11081);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(3443);
  script_cve_id("CVE-2001-0836");
  name["english"] = "Oracle9iAS too long URL";

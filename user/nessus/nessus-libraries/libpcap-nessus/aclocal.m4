@@ -1,4 +1,4 @@
-dnl @(#) $Header$ (LBL)
+dnl @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/aclocal.m4,v 1.4 2003/02/06 20:28:07 renaud Exp $ (LBL)
 dnl
 dnl Copyright (c) 1995, 1996, 1997, 1998
 dnl	The Regents of the University of California.  All rights reserved.

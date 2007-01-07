@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10129);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(616);
  script_cve_id("CVE-1999-0705","CVE-1999-0043","CVE-1999-0247");
  name["english"] = "INN version check";

@@ -89,7 +89,7 @@ if(description)
  script_id(10718); 
  script_cve_id("CAN-2001-0821");
  script_bugtraq_id(2889);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
 
  name["english"] = "DCShop exposes sensitive files";
  script_name(english:name["english"]);

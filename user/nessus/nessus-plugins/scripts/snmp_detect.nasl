@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10265);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  
  name["english"] = "An SNMP Agent is running";
  script_name(english:name["english"]);

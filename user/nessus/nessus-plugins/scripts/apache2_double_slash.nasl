@@ -4,7 +4,7 @@
 if(description)
 {
   script_id(11909);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(8898);
     script_name(english:"Apache2 double slash dir index");
   desc["english"] = "

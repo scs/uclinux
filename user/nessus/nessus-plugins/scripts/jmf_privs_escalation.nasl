@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11635);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
 
  name["english"] = "Java Media Framework (JMF) Vulnerability";
 

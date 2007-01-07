@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11583);
  script_bugtraq_id(7402);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Microsoft Shlwapi.dll Malformed HTML form tag DoS";
 

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11046);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_bugtraq_id(4575);
  name["english"] = "Apache Tomcat TroubleShooter Servlet Installed";
  name["francais"] = "Apache Tomcat TroubleShooter Servlet Installed";

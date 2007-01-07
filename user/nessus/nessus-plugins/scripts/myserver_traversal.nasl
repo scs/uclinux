@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11851);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  name["english"] = "myServer 0.4.3 Directory Traversal Vulnerability";
  script_name(english:name["english"]);

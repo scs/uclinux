@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11542);
  script_bugtraq_id(7380);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Web Wiz Forums database disclosure";
  script_name(english:name["english"]);

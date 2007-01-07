@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(10993);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.4 $");
     name["english"] = "IIS ASP.NET Application Trace Enabled";
     script_name(english:name["english"]);
 

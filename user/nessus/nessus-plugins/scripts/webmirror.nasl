@@ -43,7 +43,7 @@
 if(description)
 {
  script_id(10662);
- script_version("$Revision$");
+ script_version("$Revision: 1.79 $");
  
  name["english"] = "Web mirroring";
  name["francais"] = "Web mirroring";

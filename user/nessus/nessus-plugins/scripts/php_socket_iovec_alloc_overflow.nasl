@@ -18,7 +18,7 @@ if(description)
  script_bugtraq_id(7187, 7197, 7198, 7199, 7210, 7256, 7259);
  script_cve_id("CAN-2003-0172");
 
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  name["english"] = "php socket_iovec_alloc() integer overflow";
  
 

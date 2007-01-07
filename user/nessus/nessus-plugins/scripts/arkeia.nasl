@@ -9,7 +9,7 @@
 if(description)
 { 
  script_id(10018);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(661);
  script_cve_id("CAN-1999-1534");
  name["english"] = "Knox Arkeia buffer overflow";

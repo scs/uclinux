@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11759);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Cajun p13x DoS";
  script_name(english:name["english"]);

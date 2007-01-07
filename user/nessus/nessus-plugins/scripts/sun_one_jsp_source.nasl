@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11658);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "SunONE Application Server source disclosure";
  script_name(english:name["english"]);

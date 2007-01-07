@@ -9,7 +9,7 @@ if(description)
  script_id(10950);
  script_cve_id("CVE-2002-0573");
  script_bugtraq_id(4639);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "rpc.walld format string";
  script_name(english:name["english"]);

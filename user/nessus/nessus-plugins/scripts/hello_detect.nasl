@@ -8,7 +8,7 @@
 if(description)
 {
   script_id(11913);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.3 $");
 
   name["english"] = "DCN HELLO detection";
   script_name(english:name["english"]);

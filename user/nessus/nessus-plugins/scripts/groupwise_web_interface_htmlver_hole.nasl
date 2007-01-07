@@ -2,7 +2,7 @@ if(description)
 {
  script_id(10873);
  script_cve_id("CAN-2002-0341");
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  name["english"] = "GroupWise Web Interface 'HTMLVER' hole";
  script_name(english:name["english"]);
  

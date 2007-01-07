@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11801);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.1 $");
  
   name["english"] = "Format string on HTTP method name";
   name["francais"] = "Attaque 'format string' sur un nom de méthode HTTP";

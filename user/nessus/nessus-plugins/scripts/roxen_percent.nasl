@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10479);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1510);
  script_cve_id("CVE-2000-0671");
  name["english"] = "Roxen Server /%00/ bug";

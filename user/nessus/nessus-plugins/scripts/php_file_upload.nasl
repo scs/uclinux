@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10513);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1649);
  script_cve_id("CVE-2000-0860");
  name["english"] = "php file upload";

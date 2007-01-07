@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10498);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.23 $");
  
  name["english"] = "Test HTTP dangerous methods";
  name["francais"] = "Teste les méthodes HTTP dangereuses";

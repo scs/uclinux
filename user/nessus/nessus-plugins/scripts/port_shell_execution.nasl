@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10879);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
  name["english"] = "Shell Command Execution Vulnerability";
  script_name(english:name["english"]);
  

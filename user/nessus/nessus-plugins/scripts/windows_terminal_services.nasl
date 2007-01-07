@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10940);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(7258);
  script_cve_id("CAN-2001-0540");
 

@@ -14,7 +14,7 @@ if(description)
 {
  script_id(10661);
  script_cve_id("CVE-2001-0241");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  
  
  name["english"] = "IIS 5 .printer ISAPI filter applied";

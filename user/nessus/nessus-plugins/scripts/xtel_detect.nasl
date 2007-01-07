@@ -9,7 +9,7 @@
 if(description)
 {
   script_id(11121);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.3 $");
  
   script_name(english:"xtel detection", francais:"detection de xtel");
  

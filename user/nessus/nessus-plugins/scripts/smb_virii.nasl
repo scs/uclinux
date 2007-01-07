@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11329);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.20 $");
 
  name["english"] = "The remote host is infected by a virus";
 

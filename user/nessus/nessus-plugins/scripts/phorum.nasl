@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10593);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1985);
  name["english"] = "phorum's common.cgi";
  name["francais"] = "phorum's common.cgi";

@@ -16,7 +16,7 @@
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /* Modified for use with Nessus by <jordan@mjh.teddy-net.com>
-   $Id$ */
+   $Id: getopt.h,v 1.8 2001/10/15 17:57:50 renaud Exp $ */
 
 #ifndef _GETOPT_H
 #define _GETOPT_H 1

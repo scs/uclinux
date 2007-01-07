@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11699);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "URLScan Detection";
  script_name(english:name["english"]);

@@ -9,7 +9,7 @@ if(description)
  script_id(11427);
  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "LimeWire is installed";
 

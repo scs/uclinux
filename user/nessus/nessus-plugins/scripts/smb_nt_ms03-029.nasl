@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11802);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0525");
  
  name["english"] = "Flaw in Windows Function may allow DoS (823803)";

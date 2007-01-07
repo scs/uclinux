@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11273);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(6976, 7204);
  
  name["english"] = "Invision PowerBoard code injection";

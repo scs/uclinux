@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10083);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0082");
  name["english"] = "FTP CWD ~root";
  name["francais"] = "FTP CWD ~root";

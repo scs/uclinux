@@ -9,7 +9,7 @@ if(description)
  script_id(10358);
  script_cve_id("CAN-1999-1538");
  script_bugtraq_id(189);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "/iisadmin is world readable";
  name["francais"] = "/iisadmin est en lecture libre";

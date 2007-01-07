@@ -9,7 +9,7 @@ if(description)
  script_id(10476);
  script_cve_id("CAN-2000-0623");
  script_bugtraq_id(1492);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  
  name["english"] = "WebsitePro buffer overflow";

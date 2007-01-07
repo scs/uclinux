@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10372);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "/scripts/repost.asp";
  name["francais"] = "/script/repost.asp";

@@ -17,7 +17,7 @@
 if(description)
 {
   script_id(11906);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.1 $");
 
   name["english"] = "OSPF detection";
   script_name(english:name["english"]);

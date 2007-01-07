@@ -9,7 +9,7 @@ if(description)
  script_id(10644);
  script_cve_id("CVE-2001-0593");
  script_bugtraq_id(2512);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "anacondaclip CGI vulnerability";
  name["francais"] = "anacondaclip";
  script_name(english:name["english"], francais:name["francais"]);

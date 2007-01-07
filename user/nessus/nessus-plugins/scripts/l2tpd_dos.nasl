@@ -15,7 +15,7 @@ if (description)
 {
  script_id(11494);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_name(english:"l2tpd DoS");
  desc["english"] = "
 The remote host is running a version of l2tpd which can be disabled

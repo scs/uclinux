@@ -25,7 +25,7 @@
  * file, but you are not obligated to do so.  If you do not wish to
  * do so, delete this exception statement from your version.
  *
- * $Id$
+ * $Id: hosts.c,v 1.21 2003/07/01 21:03:51 renaud Exp $
  */
 
 #include <includes.h>

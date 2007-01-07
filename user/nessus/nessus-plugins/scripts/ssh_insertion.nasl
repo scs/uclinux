@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10268);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-1085");
  
  name["english"] = "SSH Insertion Attack";

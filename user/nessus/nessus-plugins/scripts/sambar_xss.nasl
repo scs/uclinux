@@ -12,7 +12,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_id(11492);
  script_bugtraq_id(7209);
  script_name(english:"Sambar XSS");

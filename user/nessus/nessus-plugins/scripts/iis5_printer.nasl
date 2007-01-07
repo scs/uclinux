@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10657);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(2674);
  script_cve_id("CVE-2001-0241");
  name["english"] = "NT IIS 5.0 Malformed HTTP Printer Request Header Buffer Overflow Vulnerability";

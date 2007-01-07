@@ -5,7 +5,7 @@
 if (description)
 {
  script_id(11621);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  script_name(english:"Snitz Forums Cmd execution");
  desc["english"] = "

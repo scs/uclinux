@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11545);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Xeneo Web Server 2.2.9.0 DoS";
  name["francais"] = "Xeneo Web Server 2.2.9.0 DoS";
  

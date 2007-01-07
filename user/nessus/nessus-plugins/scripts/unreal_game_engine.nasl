@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11228);
  script_bugtraq_id(6770, 6771, 6772, 6773, 6774, 6775);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "Unreal Engine flaws";
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10698);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(2513);
  name["english"] = "WebLogic Server /%00/ bug";
  name["francais"] = "WebLogic Server /%00/ bug";

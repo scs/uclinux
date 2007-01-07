@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10882);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  
  name["english"] = "SSH protocol version 1 enabled";

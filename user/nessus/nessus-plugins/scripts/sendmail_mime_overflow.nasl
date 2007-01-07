@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10588);
 script_cve_id("CVE-1999-0206");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Sendmail mime overflow";
  name["francais"] = "Dépassement de buffer dans sendmail";

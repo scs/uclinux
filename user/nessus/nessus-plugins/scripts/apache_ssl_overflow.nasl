@@ -10,7 +10,7 @@ if(description)
  script_id(10918);
  script_cve_id("CVE-2002-0082");
  script_bugtraq_id(4189);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  
  name["english"] = "Apache-SSL overflow";
 

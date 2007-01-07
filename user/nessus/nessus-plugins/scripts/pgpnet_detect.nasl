@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10175);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  
  name["english"] = "Detect presence of PGPNet server and its version";
  script_name(english:name["english"]);

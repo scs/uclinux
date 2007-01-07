@@ -1,7 +1,7 @@
 if(description)
 {
  script_id(10872);
- script_version("$Revision$");
+ script_version("$Revision: 1.11 $");
  script_bugtraq_id(3913);
  name["english"] = "BadBlue Directory Traversal Vulnerability";
  script_name(english:name["english"]);

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10074);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(576);
  script_cve_id("CVE-1999-0675");
  name["english"] = "Firewall/1 UDP port 0 DoS";

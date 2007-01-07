@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10405);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1174);
  script_cve_id("CAN-2000-0413");
  name["english"] = "shtml.exe reveals full path";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11422);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "Unconfigured web server";
  script_name(english:name["english"]);

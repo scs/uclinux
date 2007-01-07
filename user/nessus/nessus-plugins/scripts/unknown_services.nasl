@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11154);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "Unknown services banners";
  name["francais"] = "Bannières des services inconnus";

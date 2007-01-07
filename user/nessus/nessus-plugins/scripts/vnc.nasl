@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10342);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Check for VNC";
  name["francais"] = "Check for VNC";
  script_name(english:name["english"], francais:name["francais"]);

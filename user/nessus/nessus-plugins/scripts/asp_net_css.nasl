@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10844);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "ASP.NET Cross Site Scripting";
  script_cve_id("CAN-2003-0223");
  script_name(english:name["english"]);

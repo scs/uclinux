@@ -47,7 +47,7 @@
 if(description)
 {
  script_id(10264);
- script_version("$Revision$");
+ script_version("$Revision: 1.56 $");
  script_bugtraq_id(177, 7081, 7212, 7317);
  script_cve_id("CAN-1999-0517", "CAN-1999-0186", "CAN-1999-0254", "CAN-1999-0516");
  

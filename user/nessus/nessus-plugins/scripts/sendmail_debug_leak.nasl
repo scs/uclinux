@@ -13,7 +13,7 @@ if(description)
  script_id(11088);
  script_cve_id("CAN-2001-0715");
  script_bugtraq_id(3898);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Sendmail debug mode leak";
  name["francais"] = "Fuite d'information dans le mode debug de sendmail";

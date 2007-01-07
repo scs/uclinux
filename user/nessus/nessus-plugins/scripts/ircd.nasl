@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11156);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "IRC daemon identification";
  script_name(english:name["english"]);

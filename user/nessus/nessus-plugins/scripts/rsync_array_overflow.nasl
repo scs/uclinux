@@ -10,7 +10,7 @@ if (description)
  script_cve_id("CAN-2002-0048");
  script_bugtraq_id(3958);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_name(english:"rsync array overflow");
  desc["english"] = "
 The remote rsync server is vulnerable to an array index

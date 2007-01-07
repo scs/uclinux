@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11218);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Tomcat /status information disclosure";
  script_name(english:name["english"]);
  

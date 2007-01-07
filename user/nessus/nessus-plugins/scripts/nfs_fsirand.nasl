@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11353);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CVE-1999-0167");
  
  name["english"] = "NFS fsirand";

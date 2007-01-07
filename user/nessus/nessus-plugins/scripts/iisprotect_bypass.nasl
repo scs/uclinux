@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11663);
  script_bugtraq_id(7661);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "iiprotect bypass";
  script_name(english:name["english"]);

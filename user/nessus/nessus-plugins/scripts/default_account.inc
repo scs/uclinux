@@ -5,7 +5,7 @@
 # an account is valid
 #
 #
-# $Id$
+# $Id: default_account.inc,v 1.3 2003/03/13 00:15:28 renaud Exp $
 #
 
 

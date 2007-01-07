@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11634);
  script_bugtraq_id(7596);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_name(english:"Proxy Web Server Cross Site Scripting");
  desc["english"] = "
 The remote proxy (or web server) seems to be vulnerable to the Cross Site 

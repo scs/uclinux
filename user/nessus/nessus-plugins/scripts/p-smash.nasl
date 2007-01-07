@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11024);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "p-smash DoS (ICMP 9 flood)";
  name["francais"] = "Déni de service p-smash (inondation ICMP 9)";
  script_name(english:name["english"], francais:name["francais"]);

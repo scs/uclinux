@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10434);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1262);
  script_cve_id("CVE-2000-0404");
  name["english"] = "NT ResetBrowser frame & HostAnnouncement flood patc";

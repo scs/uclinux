@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10731); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "HealthD detection";
  script_name(english:name["english"]);

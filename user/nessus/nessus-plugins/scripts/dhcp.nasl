@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10663);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "DHCP server info gathering";
  name["francais"] = "Obtention d'informations auprès de DHCP";

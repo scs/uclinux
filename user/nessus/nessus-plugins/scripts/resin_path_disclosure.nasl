@@ -29,7 +29,7 @@ Risk factor : Low";
 if(description)
 {
  script_id(11048);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(5252);
  name["english"] = "Resin DOS device path disclosure";
 

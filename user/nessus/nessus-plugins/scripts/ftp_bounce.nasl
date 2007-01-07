@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10081);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0017");
  script_name(english:"FTP bounce check",
  	     francais:"Test FTP bounce");

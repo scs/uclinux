@@ -10,7 +10,7 @@ if(description)
  script_id(10706); 
  script_cve_id("CVE-2001-1144");
  script_bugtraq_id(3020);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "McAfee myCIO Directory Traversal";
  script_name(english:name["english"]);

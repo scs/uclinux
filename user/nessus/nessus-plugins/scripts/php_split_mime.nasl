@@ -11,7 +11,7 @@ if(description)
  script_id(10867);
  script_cve_id("CVE-2002-0081");
  script_bugtraq_id(4183);
- script_version("$Revision$");
+ script_version("$Revision: 1.14 $");
  
  name["english"] = "php POST file uploads";
 

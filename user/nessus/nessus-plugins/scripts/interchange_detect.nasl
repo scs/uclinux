@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(11128);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(5453);
 
  name["english"] = "redhat Interchange";

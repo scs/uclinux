@@ -9,7 +9,7 @@ if(description)
  script_id(11430);
  # No bugtraq_id found;
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "WinMX is installed";
 

@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(10577);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
 
   script_name(english:"Check for bdir.htr files");
   desc["english"] = "

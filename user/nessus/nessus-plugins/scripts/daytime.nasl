@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10052);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0103");
  name["english"] = "Daytime";
  name["francais"] = "Daytime";

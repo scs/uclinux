@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11196);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
   
  name["english"] = "Cyrus IMAP pre-login buffer overrun";
  script_name(english:name["english"]);

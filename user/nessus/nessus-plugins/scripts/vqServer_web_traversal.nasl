@@ -16,7 +16,7 @@ if(description)
  script_id(10355);
 script_cve_id("CVE-2000-0240");
  script_bugtraq_id(1067);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  name["english"] = "vqServer web traversal vulnerability";
  name["francais"] = "vqServer web traversal vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

@@ -9,7 +9,7 @@ if(description)
  script_id(11359);
  script_bugtraq_id(7051);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "UploadLite cgi";
 

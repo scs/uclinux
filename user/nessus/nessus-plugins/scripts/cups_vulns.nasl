@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11199);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  script_cve_id("CAN-2002-1383", "CAN-2002-1366", "CAN-2002-1367", 
  	       "CAN-2002-1368", "CAN-2002-1384", "CAN-2002-1369",
 	       "CAN-2002-1372");

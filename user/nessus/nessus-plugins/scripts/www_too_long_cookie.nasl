@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11077);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "HTTP Cookie overflow";
  script_name(english:name["english"]);
  

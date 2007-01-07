@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10670);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "PHP3 Physical Path Disclosure Vulnerability";
  name["francais"] = "PHP3 Physical Path Disclosure Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

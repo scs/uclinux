@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11733);
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Bugbear.B worm";
  name["francais"] = "Ver Bugbear.B";
 

@@ -3,7 +3,7 @@ if(description)
  script_id(10877);
  script_cve_id("CVE-1999-1005", "CVE-1999-1006");
  script_bugtraq_id(879);
- script_version("$Revision$");
+ script_version("$Revision: 1.10 $");
  name["english"] = "GroupWise Web Interface 'HELP' hole";
  script_name(english:name["english"]);
  

@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10785);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "SMB NativeLanMan";
  name["francais"] = "SMB NativeLanMan";
  

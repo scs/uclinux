@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11370);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_cve_id("CAN-1999-1376");
 
  name["english"] = "fpcount.exe overflow";

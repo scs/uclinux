@@ -9,7 +9,7 @@ if(description)
  script_id(10422);
  script_cve_id("CVE-2000-0446");
  script_bugtraq_id(1252);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  
  name["english"] = "MDBMS overflow";

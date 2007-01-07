@@ -15,7 +15,7 @@
 #		          any more (soc is a socket opened to the mount daemon)
 #
 #
-# $Id$
+# $Id: nfs_func.inc,v 1.5 2003/06/12 17:34:56 renaud Exp $
 
 function padsz(len)
 {

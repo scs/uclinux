@@ -19,7 +19,7 @@ if(description)
 		"CVE-2001-0508",
 		"CVE-2001-0500");
  script_bugtraq_id(2690, 3190, 3194, 3195);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "IIS ISAPI Overflow";
 

@@ -9,7 +9,7 @@ if(description)
  script_id(11321);
  script_cve_id("CAN-2002-1165");
  script_bugtraq_id(5845);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Sendmail 8.8.8 to 8.12.7 Double Pipe Access Validation Vulnerability";
  script_name(english:name["english"]);

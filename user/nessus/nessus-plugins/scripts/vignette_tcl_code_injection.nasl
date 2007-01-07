@@ -7,7 +7,7 @@ if(description)
  script_id(11749);
  script_bugtraq_id(7683, 7685, 7690, 7691, 7692);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  
  name["english"] = "Vignette StoryServer TCL code injection";
  script_name(english:name["english"]);

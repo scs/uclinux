@@ -13,7 +13,7 @@ if(description)
  script_id(11848);
  script_bugtraq_id(8677);
  script_cve_id("CAN-2003-0786", "CAN-2003-0787");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 
  
  name["english"] = "Portable SSH OpenSSH < 3.7.1p2";

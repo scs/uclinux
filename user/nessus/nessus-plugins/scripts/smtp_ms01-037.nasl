@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10703);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(2988);
  script_cve_id("CVE-2001-0504");
  name["english"] = "SMTP Authentication Error";

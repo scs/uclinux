@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11550);
  script_bugtraq_id(7401, 7404, 7405);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  
  script_name(english:"OpenBB SQL injection");
  desc["english"] = "

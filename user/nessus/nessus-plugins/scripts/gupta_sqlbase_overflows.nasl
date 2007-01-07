@@ -10,7 +10,7 @@ if(description)
  script_id(11363);
  script_bugtraq_id(6808);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "Gupta SQLBase EXECUTE buffer overflow";
 

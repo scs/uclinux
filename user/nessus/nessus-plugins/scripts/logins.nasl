@@ -34,7 +34,7 @@ default_snmp_community = "";
 if(description)
 {
  script_id(10870);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "Login configurations";
  name["francais"] = "Configuration des logins";
  

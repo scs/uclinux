@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10745); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "WorldClient for MDaemon Server Detection";
  script_name(english:name["english"]);

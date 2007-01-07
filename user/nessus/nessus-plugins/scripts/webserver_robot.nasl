@@ -27,7 +27,7 @@ Risk factor : Medium";
 if(description)
 {
  script_id(10302);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "robot(s).txt exists on the Web Server";
  script_name(english:name["english"]);

@@ -10,7 +10,7 @@ if(description)
  script_id(10860);
 script_cve_id("CVE-2000-1200");
  script_bugtraq_id(959);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "SMB use host SID to enumerate local users";
  name["francais"] = "Usage du SID de la machine pour obtenir les noms d'utilisateurs locaux";

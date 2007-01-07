@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10082);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "FTPd tells if a user exists";
  name["francais"] = "FTPd indique si un utilisateur existe";
  script_name(english:name["english"], francais:name["francais"]);

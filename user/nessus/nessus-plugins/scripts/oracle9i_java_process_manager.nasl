@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10851);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_cve_id("CAN-2002-0563");
  script_bugtraq_id(4293);
  name["english"] = "Oracle 9iAS Java Process Manager";

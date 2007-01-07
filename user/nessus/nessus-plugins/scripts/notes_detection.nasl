@@ -9,7 +9,7 @@
 if (description)
 {
  script_id(11410);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_name(english:"Notes detection");
  desc["english"] = "
 A Lotus Domino server is listening on this port

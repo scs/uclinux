@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11291);
  script_cve_id("CAN-2002-1092");
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
 
  name["english"] = "CSCdv66718";

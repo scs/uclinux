@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10820);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  name["english"] = "F5 Device Default Support Password";
  script_name(english:name["english"]);
 

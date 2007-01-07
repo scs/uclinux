@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(11115);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-2001-1234");
  script_bugtraq_id(3397);
  name["english"] = "gallery code injection";

@@ -6,7 +6,7 @@
 if (description)
 {
  script_id(11010);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_bugtraq_id(2401);
  script_name(english:"WebSphere Cross Site Scripting");
  desc["english"] = 

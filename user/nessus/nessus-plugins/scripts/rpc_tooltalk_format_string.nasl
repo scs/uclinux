@@ -9,7 +9,7 @@ if(description)
  script_id(10787);
  script_cve_id("CAN-2002-0677", "CVE-2001-0717", "CVE-2002-0679");
  script_bugtraq_id(3382);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "tooltalk format string";
 

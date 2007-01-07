@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10646);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "Lion worm";
  name["francais"] = "Lion worm";

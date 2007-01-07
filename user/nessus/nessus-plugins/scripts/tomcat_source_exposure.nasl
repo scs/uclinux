@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11176);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  name["english"] = "Tomcat 4.x JSP Source Exposure";
  script_name(english:name["english"]);
 

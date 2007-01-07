@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10712);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-1999-0607", "CAN-2000-1188");
  
  name["english"] = "quickstore traversal";

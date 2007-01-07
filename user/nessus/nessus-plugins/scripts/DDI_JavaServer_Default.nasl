@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10995);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "Sun JavaServer Default Admin Password";
  script_name(english:name["english"]);

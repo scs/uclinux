@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11530);
  script_bugtraq_id(6515);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "WinAMP3 buffer overflow";
 

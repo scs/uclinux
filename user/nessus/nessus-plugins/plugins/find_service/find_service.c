@@ -62,7 +62,7 @@ int plugin_init(desc)
  struct arglist * desc;
 { 
  plug_set_id(desc, 10330);
- plug_set_version(desc, "$Revision$");
+ plug_set_version(desc, "$Revision: 1.192 $");
  
  plug_set_name(desc, FR_NAME, "francais");
  plug_set_name(desc, EN_NAME, NULL);

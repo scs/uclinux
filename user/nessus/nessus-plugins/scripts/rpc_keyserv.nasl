@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10217);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "keyserv service";
  name["francais"] = "Service keyserv";

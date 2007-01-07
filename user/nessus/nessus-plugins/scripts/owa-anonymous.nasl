@@ -12,7 +12,7 @@ if(description)
  script_id(10781);
  script_cve_id("CVE-2001-0660");
  script_bugtraq_id(3301);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "Outlook Web anonymous access";
  script_name(english:name["english"]);

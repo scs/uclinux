@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10874);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_bugtraq_id(4172);
 
  name["english"] = "Rich Media E-Commerce Stores Sensitive Information Insecurely";

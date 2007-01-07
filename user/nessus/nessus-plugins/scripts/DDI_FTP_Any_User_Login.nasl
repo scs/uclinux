@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(10990);
-    script_version ("$Revision$"); 
+    script_version ("$Revision: 1.6 $"); 
     name["english"] = "FTP Service Allows Any Username";
     name["francais"] = "FTP Service Allows Any Username";
     script_name(english:name["english"], francais:name["francais"]);

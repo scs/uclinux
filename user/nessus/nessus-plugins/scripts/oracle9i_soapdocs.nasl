@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11223);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Oracle 9iAS access to SOAP documentation";
  script_name(english:name["english"]);

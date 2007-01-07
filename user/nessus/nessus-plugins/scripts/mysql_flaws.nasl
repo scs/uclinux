@@ -11,7 +11,7 @@ if(description)
  script_id(10626);  
  script_bugtraq_id(2380, 2522);
  script_cve_id("CVE-2000-0045", "CAN-2001-1275", "CVE-2001-0407");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "MySQL various flaws";
  name["francais"] = "MySQL various flaws";
  script_name(english:name["english"], francais:name["francais"]);

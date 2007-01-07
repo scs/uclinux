@@ -16,7 +16,7 @@ if(description)
  script_id(11667);
  script_cve_id("CVE-2002-0734");
  script_bugtraq_id(4673, 7738, 7782, 7783, 7786);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "b2 cafelog code injection";
 

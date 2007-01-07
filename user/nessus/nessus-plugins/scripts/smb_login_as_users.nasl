@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10404);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CAN-1999-0504", "CAN-1999-0506");
  name["english"] = "SMB log in as users";
  name["francais"] = "Login SMB avec les noms d'utilisateurs";

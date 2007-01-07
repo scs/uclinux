@@ -15,7 +15,7 @@
 if(description)
 {
   script_id(11780);
-  script_version("$Revision$");
+  script_version("$Revision: 1.5 $");
   script_bugtraq_id(6055, 6058, 5393);
 
   name["english"] = "mailreader.com directory traversal and arbitrary command execution";

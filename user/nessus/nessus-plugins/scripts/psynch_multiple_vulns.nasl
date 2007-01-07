@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11694);
  script_bugtraq_id(7740, 7745, 7747);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "P-Synch multiple issues";
  script_name(english:name["english"]);
 

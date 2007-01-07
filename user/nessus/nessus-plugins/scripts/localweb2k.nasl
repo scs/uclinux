@@ -7,7 +7,7 @@ if(description)
 	script_id(11005);
  	script_bugtraq_id( 2268, 4820, 7947 );
  	script_cve_id("CVE-2001-0189");
-	script_version("$Revision$");
+	script_version("$Revision: 1.8 $");
 	script_name(english:"LocalWeb2000 remote read");
 
     script_description(english:"

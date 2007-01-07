@@ -12,7 +12,7 @@ if(description)
  script_id(10700);
  script_cve_id("CVE-2001-0537");
  script_bugtraq_id(2936);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  
 
  name["english"] = "Cisco IOS HTTP Configuration Arbitrary Administrative Access";

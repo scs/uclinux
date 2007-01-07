@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10865);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
  script_cve_id("CAN-2002-0053");
  name["english"] = "Checks for MS HOTFIX for snmp buffer overruns";
  

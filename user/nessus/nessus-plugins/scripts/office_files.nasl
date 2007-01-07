@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11419);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Office files list";
  script_name(english:name["english"]);

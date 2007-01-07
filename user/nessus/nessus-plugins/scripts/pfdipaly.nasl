@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10174);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0270");
  name["english"] = "pfdispaly";
  name["francais"] = "pfdispaly";

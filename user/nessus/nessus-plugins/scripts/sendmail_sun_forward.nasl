@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11364);
  script_bugtraq_id(7033);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "Sendmail Forward File Privilege Escalation Vulnerability";
  script_name(english:name["english"]);

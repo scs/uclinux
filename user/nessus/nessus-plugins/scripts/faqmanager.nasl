@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10837);
  script_bugtraq_id(3810);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "FAQManager Arbitrary File Reading Vulnerability";
  name["francais"] = "FAQManager Arbitrary File Reading Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

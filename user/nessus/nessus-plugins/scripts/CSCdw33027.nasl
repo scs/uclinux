@@ -12,7 +12,7 @@ if(description)
  script_cve_id("CVE-2002-1024");
  script_bugtraq_id(5114);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "CSCdw33027";
 

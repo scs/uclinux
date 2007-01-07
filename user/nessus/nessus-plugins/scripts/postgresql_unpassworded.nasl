@@ -9,7 +9,7 @@ if(description)
 {
  
  script_id(10483);  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "Unpassworded PostgreSQL";
  name["francais"] = "PostgreSQL sans mot de passe";

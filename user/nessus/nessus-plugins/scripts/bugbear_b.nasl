@@ -14,7 +14,7 @@
 if (description)
 {
  script_id(11707);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"Bugbear.B web backdoor");
  desc["english"] = "

@@ -32,7 +32,7 @@
  * underestimated it, the current probably over-estimate it. 
  * You've been warned!
  *
- * $Id$
+ * $Id: nessus-mkrand.c,v 1.7 2002/03/09 20:10:30 renaud Exp $
  *
  */
 

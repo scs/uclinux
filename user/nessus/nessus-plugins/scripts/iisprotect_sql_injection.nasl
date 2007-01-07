@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11662);
  script_bugtraq_id(7675);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "iiprotect sql injection";
  script_name(english:name["english"]);

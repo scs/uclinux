@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11618);
  script_bugtraq_id(7487);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "Remote host replies to SYN+FIN";
  
  

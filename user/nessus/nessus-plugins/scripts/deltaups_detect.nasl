@@ -1,7 +1,7 @@
 if(description)
 {
  script_id(10876);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "Delta UPS Daemon Detection";
  script_name(english:name["english"]);
 

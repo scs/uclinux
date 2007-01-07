@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11766);
  script_bugtraq_id(7980, 7981);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "pmachine cross site scripting";
 

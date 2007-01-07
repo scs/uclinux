@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10261);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CAN-1999-0163");
  name["english"] = "Sendmail mailing to programs";
  name["francais"] = "Sendmail envoye des mails aux programmes";

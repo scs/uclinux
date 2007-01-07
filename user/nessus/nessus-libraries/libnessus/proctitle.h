@@ -4,7 +4,7 @@
  * Copyright 1988-2002, Patrick Powell, San Diego, CA
  *     papowell@lprng.com
  * See LICENSE for conditions of use.
- * $Id$
+ * $Id: proctitle.h,v 1.1 2002/12/14 12:34:42 renaud Exp $
  ***************************************************************************/
 
 

@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11644);
  script_bugtraq_id(7616);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  script_name(english:"ezPublish Directory Cross Site Scripting");
  desc["english"] = "

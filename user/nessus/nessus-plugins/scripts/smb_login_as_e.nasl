@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11839);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_cve_id("CAN-2003-0528");
  name["english"] = "Possible RPC Interface compromise";
   

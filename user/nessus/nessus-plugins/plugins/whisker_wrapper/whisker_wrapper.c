@@ -63,7 +63,7 @@ PlugExport int plugin_init(desc)
      && ! is_shell_command_present(WHISKER2))
     	return -1;
   plug_set_id(desc, 10845);
-  plug_set_version(desc, "$Revision$");
+  plug_set_version(desc, "$Revision: 1.21 $");
    
   plug_set_name(desc, FR_NAME, "francais");
   plug_set_name(desc, EN_NAME, NULL);

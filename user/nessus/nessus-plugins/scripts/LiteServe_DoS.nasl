@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11155);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "LiteServe URL Decoding DoS";
  name["francais"] = "Déni de service contre Webseal lors du décodage de l'URL";

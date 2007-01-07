@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10311);
 script_cve_id("CVE-1999-0494");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
 
  
  name["english"] = "Wingate POP3 USER overflow";

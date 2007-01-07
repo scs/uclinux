@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10057);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.25 $");
  
  name["english"] = "Lotus Domino ?open Vulnerability";
  name["francais"] = "Vulnérabilité ?open dans Lotus Domino";

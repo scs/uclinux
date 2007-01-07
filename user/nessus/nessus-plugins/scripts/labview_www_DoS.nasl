@@ -17,7 +17,7 @@
 if(description)
 {
  script_id(11063);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2002-0748");
  script_bugtraq_id(4577);
  name["english"] = "LabView web server DoS";

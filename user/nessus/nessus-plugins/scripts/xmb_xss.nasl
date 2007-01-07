@@ -7,7 +7,7 @@ if (description)
  script_id(11527);
  script_bugtraq_id(4944, 8013);
  script_cve_id("CAN-2002-0316", "CAN-2003-0375");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  script_name(english:"XMB Cross Site Scripting");
  desc["english"] = "

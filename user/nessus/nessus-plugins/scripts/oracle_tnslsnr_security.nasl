@@ -9,7 +9,7 @@
 if (description)
 {
 	script_id(10660);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.7 $");
 	script_name(english: "Oracle tnslsnr security");
 	script_description(english: 
 "The remote Oracle tnslsnr has no password assigned.

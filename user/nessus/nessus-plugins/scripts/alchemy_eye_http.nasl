@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10818);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  script_bugtraq_id(3599);
  script_cve_id("CAN-2001-0871");
  name["english"] = "Alchemy Eye HTTP Command Execution";

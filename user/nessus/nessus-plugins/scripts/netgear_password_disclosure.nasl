@@ -50,7 +50,7 @@
 if(description)
 {
  script_id(11514);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_bugtraq_id(7270, 7267);
  
  name["english"] = "Netgear ProSafe Router password disclosure";

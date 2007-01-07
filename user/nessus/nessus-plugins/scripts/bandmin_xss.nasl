@@ -13,7 +13,7 @@ if(description)
  script_id(11672);
  script_cve_id("CAN-2003-0416");
  script_bugtraq_id(7729);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  
  name["english"] = "Bandmin XSS";

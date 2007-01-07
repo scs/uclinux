@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11886);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0660");
  
  name["english"] = "Vulnerability in Authenticode Verification Could Allow Remote Code Execution (823182)";

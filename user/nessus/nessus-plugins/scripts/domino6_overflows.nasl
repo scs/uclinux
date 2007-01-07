@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11386);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(6870, 6871);
 
  name["english"] = "Lotus Domino 6.0 vulnerabilities";

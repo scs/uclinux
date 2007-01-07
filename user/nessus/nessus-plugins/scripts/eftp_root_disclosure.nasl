@@ -16,7 +16,7 @@
 if(description)
 {
   script_id(11093);
-  script_version("$Revision$");
+  script_version("$Revision: 1.5 $");
   script_cve_id("CAN-2001-1109");
   script_bugtraq_id(3333);
  name["english"] = "EFTP installation directory disclosure ";

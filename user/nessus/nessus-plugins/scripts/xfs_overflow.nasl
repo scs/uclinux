@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11188);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CAN-2002-1317");
  
  name["english"] = "X Font Service Buffer Overflow";

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10188);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "printenv";
  script_name(english:name["english"]);
  

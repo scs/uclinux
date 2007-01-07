@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11907);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.1 $");
 
   name["english"] = "BGP detection";
   script_name(english:name["english"]);

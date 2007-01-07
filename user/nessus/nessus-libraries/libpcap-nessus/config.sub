@@ -229,6 +229,11 @@ case $basic_machine in
 	m88110 | m680[12346]0 | m683?2 | m68360 | m5200 | z8k | v70 | h8500 | w65 | pj | pjl)
 		;;
 
+	nios2 | nios2-* | nios2 | nios2-*)
+		basic_machine=nios2-altera
+		os=-linux
+		;;
+
 	# We use `pc' rather than `unknown'
 	# because (1) that's what they normally are, and
 	# (2) the word "unknown" tends to confuse beginning users.

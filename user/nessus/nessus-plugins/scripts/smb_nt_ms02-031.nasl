@@ -11,7 +11,7 @@ if(description)
  script_cve_id("CVE-2002-0616", "CVE-2002-0617", "CVE-2002-0618", "CVE-2002-0619");
  script_bugtraq_id(4821);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "Cumulative patches for Excel and Word for Windows";
 

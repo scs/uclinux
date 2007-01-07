@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11119);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_cve_id("CAN-1999-0662");
  name["english"] = "SMB Registry : XP Service Pack version";
  name["francais"] = "Obtention du numéro du service pack de XP par SMB";

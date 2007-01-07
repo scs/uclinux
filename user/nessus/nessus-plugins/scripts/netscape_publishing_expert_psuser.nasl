@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10364);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-2000-1196");
  name["english"] = "netscape publishingXpert 2 PSUser problem";
  name["francais"] = "netscape publishingXpert 2 PSUser problem";

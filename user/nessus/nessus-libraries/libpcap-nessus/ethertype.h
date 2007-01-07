@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/ethertype.h,v 1.3 2003/02/06 20:28:07 renaud Exp $ (LBL)
  */
 
 /* Types missing from some systems */

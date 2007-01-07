@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10458);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CAN-1999-0630");
 
  name["english"] = "The messenger service is running";

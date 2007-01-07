@@ -6,7 +6,7 @@
 if(description)
 {
 	script_id(11208);
-	script_version("$Revision$");
+	script_version("$Revision: 1.5 $");
 	name["english"] = "Netscape Enterprise Default Administrative Password";
 	script_name(english:name["english"]);
 	desc["english"] = "

@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11284);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(6993, 6988, 6986, 6985, 6984, 6983, 6982);
  
  

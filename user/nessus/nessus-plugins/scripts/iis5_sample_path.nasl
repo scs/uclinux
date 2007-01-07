@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10573);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  name["english"] = "IIS 5.0 Sample App reveals physical path of web root";
  name["francais"] = "IIS 5.0 Sample App reveals physical path of web root";
  script_name(english:name["english"], francais:name["francais"]);

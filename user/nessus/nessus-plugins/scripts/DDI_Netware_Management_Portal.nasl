@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10826);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Unprotected Netware Management Portal";
  script_name(english:name["english"]);
 

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11488);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  
 

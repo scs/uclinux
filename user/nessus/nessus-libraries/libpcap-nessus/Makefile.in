@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header$ (LBL)
+# @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/Makefile.in,v 1.10 2003/04/04 08:42:09 renaud Exp $ (LBL)
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
 #

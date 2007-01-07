@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(3135, 4121, 4122, 5317, 6435, 6747);
  script_cve_id("CAN-2002-0314", "CAN-2002-0315");  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "Kazaa is installed";
 

@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11687);
  script_bugtraq_id(7776);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  desc["english"] = "
 The remote FTP server is vulnerable to a format string attack

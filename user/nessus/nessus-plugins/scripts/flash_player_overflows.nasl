@@ -15,7 +15,7 @@ if(description)
  script_id(11323);
  script_bugtraq_id(7005);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
 
  name["english"] = "Security issues in the remote version of FlashPlayer";
 

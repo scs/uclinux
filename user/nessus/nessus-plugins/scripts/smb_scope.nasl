@@ -3,7 +3,7 @@
 if(description)
 {
  script_id(10917);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  name["english"] = "SMB Scope";
 

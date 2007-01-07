@@ -7,7 +7,7 @@ if(description)
  script_id(11534);
  script_cve_id("CAN-2003-0110");
  script_bugtraq_id(7314);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "Microsoft ISA Server Winsock Proxy DoS (MS03-012)";
 

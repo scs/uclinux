@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11559);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  desc["english"] = "
 The remote host is a WSP100 802.11b Remote Sensor from 
 Network Chemistry.

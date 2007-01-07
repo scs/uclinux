@@ -7,7 +7,7 @@
 if(description)
 {
  	script_id(10883);
-	script_version("$Revision$");
+	script_version("$Revision: 1.10 $");
  script_bugtraq_id(4241);
 	script_cve_id("CVE-2002-0083");
  	name["english"] = "OpenSSH Channel Code Off by 1";

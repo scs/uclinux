@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10511);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1678);
  script_cve_id("CVE-2000-0883");
  name["english"] = "/perl directory browsable ?";

@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10386);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.50 $");
 
  name["english"] = "No 404 check";
  name["francais"] = "No 404 check";

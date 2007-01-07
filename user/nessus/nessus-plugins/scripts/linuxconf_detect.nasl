@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10135);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CAN-2000-0017"); 
  name["english"] = "LinuxConf grants network access";
  name["francais"] = "LinuxConf autorise les accès à distance";

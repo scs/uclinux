@@ -29,7 +29,7 @@ if(description)
 {
  script_id(11135);
  script_cve_id("CVE-2001-0154"); # For MS01-020 - should be changed later
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "Bugbear worm";
  name["francais"] = "Ver Bugbear";
 

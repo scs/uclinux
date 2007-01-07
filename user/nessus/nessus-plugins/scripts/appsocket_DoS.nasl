@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11090);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "AppSocket DoS";
  script_name(english:name["english"]);
  

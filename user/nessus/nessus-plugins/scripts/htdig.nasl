@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10105);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1026);
  script_cve_id("CVE-1999-0978", "CVE-2000-0208");
  name["english"] = "htdig";

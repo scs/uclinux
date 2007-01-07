@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11357);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-1999-0166");
  
  name["english"] = "NFS cd ..";

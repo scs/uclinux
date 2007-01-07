@@ -20,7 +20,7 @@
 if(description)
 {
  script_id(11133);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "Generic format string";
  name["francais"] = "Attaque 'format string' générique";

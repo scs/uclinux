@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10431);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "SMB Registry : missing winreg";
  name["francais"] = "winreg manque-t-il dans la base de registres ?";

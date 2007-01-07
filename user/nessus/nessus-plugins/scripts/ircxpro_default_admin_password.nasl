@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11697);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  
  name["english"] = "IRCXPro Default Admin password";

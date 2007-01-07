@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10676);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 script_name(english:"CheckPoint Firewall-1 Web Authentication Detection");
  script_description(english:"
 A Firewall-1 web server is running on this port and serves web authentication

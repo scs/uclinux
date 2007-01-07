@@ -52,7 +52,7 @@ if(description)
 	       "CAN-2003-0016", "CAN-2001-0602");
 
  script_bugtraq_id(2622, 2704, 3929, 1043, 2575);
- script_version("$Revision$");
+ script_version("$Revision: 1.18 $");
  script_name(english:"HTTP Windows 98 MS/DOS device names DOS");
  
  desc["english"] = "

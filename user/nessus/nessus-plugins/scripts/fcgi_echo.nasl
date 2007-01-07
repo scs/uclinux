@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10838);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "FastCGI Echo.exe Cross Site Scripting";
  name["francais"] = "FastCGI Echo.exe Cross Site Scripting";
  script_name(english:name["english"], francais:name["francais"]);

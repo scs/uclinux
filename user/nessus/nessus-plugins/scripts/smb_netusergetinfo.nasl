@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10892);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Obtains user information";
 
  script_name(english:name["english"]);

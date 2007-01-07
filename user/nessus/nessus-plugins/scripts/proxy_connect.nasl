@@ -8,7 +8,7 @@
 if(description)
 { 
  script_id(10192);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "Proxy accepts CONNECT requests";
  name["francais"] = "Le proxy accepte les requètes CONNECT";

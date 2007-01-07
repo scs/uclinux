@@ -7,7 +7,7 @@ if(description)
  script_id(11028);
  script_cve_id("CVE-2002-0364", "CAN-2002-0071", "CAN-2002-0364");
  script_bugtraq_id(4855);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "IIS .HTR overflow";
  name["francais"] = "IIS .HTR ISAPI overflow";
  script_name(english:name["english"], francais:name["francais"]);

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10139);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(823);
  script_cve_id("CAN-1999-0844");
  name["english"] = "MDaemon Worldclient crash";

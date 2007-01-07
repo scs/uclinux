@@ -13,7 +13,7 @@ if(description)
  	script_id(10823);
 	script_cve_id("CVE-2001-0872");
 	script_bugtraq_id(3614);
-	script_version("$Revision$");
+	script_version("$Revision: 1.8 $");
  	name["english"] = "OpenSSH UseLogin Environment Variables";
 	script_name(english:name["english"]);
  

@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10799);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(3518);
  name["english"] = "IBM-HTTP-Server View Code";
  script_name(english:name["english"]);

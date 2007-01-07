@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10849);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Oracle 9iAS DAD Admin interface";
  name["francais"] = "Oracle 9iAS DAD Admin interface";
  script_name(english:name["english"], francais:name["francais"]);

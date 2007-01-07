@@ -25,7 +25,7 @@
 if(description)
 {
  script_id(10456);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.23 $");
  
  name["english"] = "SMB enum services";
  name["francais"] = "SMB enum services";

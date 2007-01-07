@@ -17,7 +17,7 @@
 if(description)
 {
  script_id(10150);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.37 $");
  script_cve_id("CAN-1999-0621");
  
  name["english"] = "Using NetBIOS to retrieve information from a Windows host";

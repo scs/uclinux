@@ -14,7 +14,7 @@
 if(description)
 {
   script_id(11773);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.1 $");
  
   name["english"] = "Linksys Gozila CGI denial of service";
   script_name(english:name["english"]);

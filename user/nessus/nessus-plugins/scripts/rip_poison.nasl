@@ -14,7 +14,7 @@
 if(description)
 {
   script_id(11829);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.6 $");
 
   name["english"] = "RIP poisoning";
   script_name(english:name["english"]);

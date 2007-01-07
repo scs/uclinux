@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10309);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-1999-0291");
  
  name["english"] = "Passwordless Wingate installed";

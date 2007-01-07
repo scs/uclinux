@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10502);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Axis Camera Default Password";
  script_name(english:name["english"]);

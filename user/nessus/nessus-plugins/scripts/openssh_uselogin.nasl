@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10439);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1334);
  script_cve_id("CVE-2000-0525");
  name["english"] = "OpenSSH < 2.1.1 UseLogin feature";

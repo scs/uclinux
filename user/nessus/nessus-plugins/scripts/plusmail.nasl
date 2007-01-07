@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10181);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(2653);
  script_cve_id("CAN-2000-0074");
  name["english"] = "PlusMail vulnerability";

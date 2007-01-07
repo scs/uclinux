@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11044);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(5189);
  
  name["english"] = "ICECast FileSystem disclosure";

@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(10846);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  #script_cve_id("CVE-XXXX-YYYY");
  name["english"] = "SilverStream directory listing";
  script_name(english:name["english"]);

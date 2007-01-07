@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10146);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_bugtraq_id(806);
  script_cve_id("CAN-1999-1508");
  name["english"] = "Tektronix /ncl_items.html";

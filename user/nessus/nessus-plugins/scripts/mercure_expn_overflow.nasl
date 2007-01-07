@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10620);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(2412);
  
  name["english"] = "EXPN overflow";

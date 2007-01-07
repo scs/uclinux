@@ -9,7 +9,7 @@ if(description)
  script_id(10786);
  script_cve_id("CVE-2001-1162");
  script_bugtraq_id(2928);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Samba Remote Arbitrary File Creation";
 
  script_name(english:name["english"]);

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10379);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "LCDproc server detection";
  script_name(english:name["english"]);
  

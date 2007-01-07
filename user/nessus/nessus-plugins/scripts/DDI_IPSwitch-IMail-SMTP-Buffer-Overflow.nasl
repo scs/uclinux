@@ -13,7 +13,7 @@
 if(description)
 {
 	script_id(10994);
-	script_version ("$Revision$");
+	script_version ("$Revision: 1.4 $");
 	script_bugtraq_id(2651);
  
  	name["english"] = "IPSwitch IMail SMTP Buffer Overflow";

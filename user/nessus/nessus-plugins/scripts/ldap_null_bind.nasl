@@ -7,7 +7,7 @@ if(description)
   script_id(10723);
   script_cve_id("CVE-1999-0385");
  script_bugtraq_id(503);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.10 $");
   script_name(english:"LDAP allows anonymous binds");
   desc["english"] = "
 Improperly configured LDAP servers will allow any user to connect to 

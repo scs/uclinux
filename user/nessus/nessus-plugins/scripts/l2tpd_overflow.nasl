@@ -9,7 +9,7 @@ if (description)
  script_id(11388);
  script_cve_id("CVE-2002-0872", "CVE-2002-0873");
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_name(english:"l2tpd < 0.68 overflow");
  desc["english"] = "
 The remote host is running a version of l2tpd which is older or

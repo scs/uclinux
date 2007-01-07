@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(11824);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "phptonuke directory traversal";
 

@@ -7,7 +7,7 @@ if (description)
 {
   	script_id(11586);
 	script_bugtraq_id(7315);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.1 $");
 	script_name(english: "FileMakerPro Detection");
 	script_description(english:"
 The remote host is running a FileMakerPro server on this port.

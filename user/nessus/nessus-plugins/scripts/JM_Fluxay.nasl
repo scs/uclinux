@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11880);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 # script_cve_id("CAN-2003-00002");
  name["english"] = "Fluxay Sensor Detection";
  script_name(english:name["english"]);

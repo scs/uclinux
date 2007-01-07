@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10215);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "etherstatd service";
  name["francais"] = "Service etherstatd";

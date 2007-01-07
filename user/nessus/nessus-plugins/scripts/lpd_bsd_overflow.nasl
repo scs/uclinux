@@ -10,7 +10,7 @@
 if(description)
 {
    script_id(11406);
-   script_version ("$Revision$");
+   script_version ("$Revision: 1.2 $");
    script_bugtraq_id(3252);
    script_cve_id("CVE-2001-0670", "CAN-1999-0061");
    name["english"] = "Buffer overflow in BSD in.lpd";

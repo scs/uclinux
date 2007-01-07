@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10147);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "A Nessus Daemon is running";
  script_name(english:name["english"]);

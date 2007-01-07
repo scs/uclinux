@@ -12,7 +12,7 @@ if (description)
 {
  script_id(11615);
  script_bugtraq_id(7543, 7542);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  script_name(english:"ttforum multiple flaws");
  desc["english"] = "

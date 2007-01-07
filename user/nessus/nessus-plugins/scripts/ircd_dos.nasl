@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11797);
  script_bugtraq_id(8131);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "IRCd OperServ Raw Join DoS";
  script_name(english:name["english"]);

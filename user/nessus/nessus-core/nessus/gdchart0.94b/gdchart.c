@@ -1938,7 +1938,7 @@ out_graph( short		GIFWIDTH,		/* no check for a gif that's too small to fit */
 }
 
 
-/* $Id$
+/* $Id: gdchart.c,v 1.7 2003/05/21 16:30:47 renaud Exp $
  * local variables:
  * mode: c
  * tab-width: 4

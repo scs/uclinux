@@ -7,7 +7,7 @@ if(description)
 {
 
 script_id(11854);
-script_version ("$Revision$");
+script_version ("$Revision: 1.1 $");
 name["english"] = "FsSniffer Detection";
 script_name(english:name["english"]);
 

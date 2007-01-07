@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10359);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "ctss.idc check";
  name["francais"] = "verification de ctss.idc";

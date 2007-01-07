@@ -18,7 +18,7 @@ if(description)
 	       "CAN-2002-0645", "CAN-2002-0721");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0001");
  script_bugtraq_id(5310, 5311);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  name["english"] = "Microsoft's SQL Overflows";
  script_name(english:name["english"]);
  

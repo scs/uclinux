@@ -7,7 +7,7 @@
  if(description)
  {
 	 script_id(10989);
-       script_version ("$Revision$");
+       script_version ("$Revision: 1.6 $");
 	 name["english"] = "Nortel/Bay Networks default password";
 	 script_name(english:name["english"]);
  

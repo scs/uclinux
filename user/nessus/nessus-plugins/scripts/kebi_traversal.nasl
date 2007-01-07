@@ -9,7 +9,7 @@ if(description)
  
  script_bugtraq_id(7125);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Kebi Academy Directory Traversal";
  script_name(english:name["english"]);

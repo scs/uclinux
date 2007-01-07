@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10080);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CAN-1999-0452");
  script_name(english:"Linux FTP backdoor",
  	     francais:"Backdoor dans un serveur FTP sous Linux");

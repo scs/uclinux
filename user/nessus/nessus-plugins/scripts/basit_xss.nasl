@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11445);
  script_bugtraq_id(7139);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  script_name(english:"Basit cms Cross Site Scripting Bugs");
  desc["english"] = "

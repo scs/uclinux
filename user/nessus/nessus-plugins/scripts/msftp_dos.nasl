@@ -13,7 +13,7 @@ if(description)
  script_cve_id("CVE-2002-0073", "CVE-2002-0073");
  script_bugtraq_id(4482);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = string("MS FTPd DoS");
  

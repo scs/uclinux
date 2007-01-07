@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11345);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(7045);
 
  name["english"] = "SimpleBBS users disclosure";

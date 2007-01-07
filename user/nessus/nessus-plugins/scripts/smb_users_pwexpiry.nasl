@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10900);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Users information : Passwords never expires";
 
  script_name(english:name["english"]);

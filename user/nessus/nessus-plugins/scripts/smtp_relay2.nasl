@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11852);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Mail relaying (thorough test)";
  script_name(english:name["english"]);
  

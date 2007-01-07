@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10209);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CAN-1999-0648");
  name["english"] = "X25 service";
  name["francais"] = "Service X25";

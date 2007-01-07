@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11144);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  script_cve_id("CAN-2002-0699");
  name["english"] = "Flaw in Certificate Enrollment Control (Q323172)";
  

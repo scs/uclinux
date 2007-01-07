@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10160);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0063");
  script_bugtraq_id(938);
  name["english"] = "Nortel Contivity DoS";

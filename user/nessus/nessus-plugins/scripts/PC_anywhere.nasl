@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10006);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "PC Anywhere";
  name["francais"] = "PC Anywhere";
  script_name(english:name["english"], francais:name["francais"]);

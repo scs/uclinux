@@ -9,7 +9,7 @@ if(description)
  script_id(10609);
  script_cve_id("CAN-2001-0224");
  script_bugtraq_id(2374);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "empower cgi path";
  script_name(english:name["english"]);
 

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11226);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  script_cve_id("CVE-2001-1372");
  script_bugtraq_id(3341);
  name["english"] = "Oracle 9iAS default error information disclosure";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10559);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-2000-0841");
  script_bugtraq_id(1652);
  name["english"] = "XMail APOP Overflow";

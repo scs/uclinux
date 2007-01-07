@@ -10,7 +10,7 @@ if(description)
  script_id(10399);
 script_cve_id("CVE-2000-1200");
  script_bugtraq_id(959);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.42 $");
  
  name["english"] = "SMB use domain SID to enumerate users";
  name["francais"] = "Usage du SID du domaine pour obtenir les noms d'utilisateurs";

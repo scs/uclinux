@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10965);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(4810);
  
  name["english"] = "SSH 3 AllowedAuthentication";

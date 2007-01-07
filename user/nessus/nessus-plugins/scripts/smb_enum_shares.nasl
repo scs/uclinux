@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10395);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  name["english"] = "SMB shares enumeration";
  name["francais"] = "Enumeration des shares SMB";
  

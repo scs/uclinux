@@ -1,7 +1,7 @@
 if (description)
 {
  script_id(10780);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_name(english:"CGIEmail's Cross Site Scripting Vulnerability (cgicso)");
  desc["english"] = "
 The remote host seems to be vulnerable to a security problem in 

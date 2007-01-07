@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11758);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7535);
  
  name["english"] = "eLDAPo cleartext passwords";

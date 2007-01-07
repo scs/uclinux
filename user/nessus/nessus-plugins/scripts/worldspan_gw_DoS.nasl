@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11049);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CAN-2002-1029");
  script_bugtraq_id(5169);
  name["english"] = "Worldspan gateway DOS";

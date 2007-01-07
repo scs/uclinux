@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(10773); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(3325);
  name["english"] = "MacOS X Finder reveals contents of Apache Web files";
  script_name(english:name["english"]);

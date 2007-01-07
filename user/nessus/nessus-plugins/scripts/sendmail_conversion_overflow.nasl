@@ -9,7 +9,7 @@ if(description)
  script_id(11499);
  script_cve_id("CAN-2003-0161");
  script_bugtraq_id(7230);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  
  name["english"] = "Sendmail buffer overflow due to type conversion";
  script_name(english:name["english"]);

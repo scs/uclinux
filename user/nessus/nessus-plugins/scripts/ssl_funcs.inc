@@ -1,5 +1,5 @@
 # (C) 2003 Tenable Network Security
-# $Id$
+# $Id: ssl_funcs.inc,v 1.1 2003/10/10 21:43:25 renaud Exp $
 
 function client_hello (port, mlen, mtype, version, cspeclen, sessionidlen, challengelen, cipherspec, challenge) {
   # mlen = message length after this byte (1 byte) ... I don't expect user to fill this in...but, you never know ;-)

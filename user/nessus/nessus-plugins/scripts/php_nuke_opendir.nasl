@@ -9,7 +9,7 @@ if (description)
 {
  script_id(10655);
 script_cve_id("CVE-2001-0321");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_name(english:"PHP-Nuke' opendir");
  desc["english"] = "
 The remote host has the CGI 'opendir.php' installed. This

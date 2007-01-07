@@ -4,7 +4,7 @@
 if (description)
 {
  script_id(11753);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7952);
  
  script_name(english:"SquirrelMail's Multiple Flaws");

@@ -13,7 +13,7 @@ if(description)
  script_id(11326);
  script_cve_id("CAN-2002-0058", "CVE-2002-0078");
  script_bugtraq_id(4228, 4392);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "Cumulative VM update";
 

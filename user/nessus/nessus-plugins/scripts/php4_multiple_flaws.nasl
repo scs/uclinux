@@ -12,7 +12,7 @@ if(description)
  script_bugtraq_id(8693, 8696);
  script_cve_id("CAN-2003-0442");
 
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "php4 multiple flaws";
  
 

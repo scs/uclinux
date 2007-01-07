@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10387);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1154);
  script_cve_id("CVE-2000-0380"); 
  name["english"] = "cisco http DoS";

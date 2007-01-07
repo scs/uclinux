@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10050);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(895);
  script_cve_id("CVE-2000-0042");
  name["english"] = "CSM Mail server MTA 'HELO' denial";

@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11322);
  script_cve_id("CAN-2002-0643");
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "MS SQL Installation may leave passwords on system";
 

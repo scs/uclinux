@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11595);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  script_cve_id("CAN-2003-0228");
  
  name["english"] = "Windows Media Player Skin Download Overflow";

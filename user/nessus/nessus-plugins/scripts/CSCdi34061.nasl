@@ -13,7 +13,7 @@ if(description)
 {
  script_id(10973);
  script_cve_id("CVE-1999-0162");
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CSCdi34061";
 

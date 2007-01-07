@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11609);
  script_bugtraq_id(7192);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "mod_survey ENV tags SQL injection";
  script_name(english:name["english"]);
 

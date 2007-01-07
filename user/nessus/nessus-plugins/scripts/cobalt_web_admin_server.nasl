@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10793);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "Cobalt Web Administration Server Detection";
  script_name(english:name["english"]);

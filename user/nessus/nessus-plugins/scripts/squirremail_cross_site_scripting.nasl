@@ -9,7 +9,7 @@
 if (description)
 {
  script_id(11415);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2002-1276", "CAN-2002-1341");
  script_bugtraq_id(7019,6302);
  script_name(english:"SquirrelMail's Cross Site Scripting");

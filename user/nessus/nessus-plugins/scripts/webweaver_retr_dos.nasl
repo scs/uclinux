@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11584);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7425);
  
  name["english"] = "webweaver FTP DoS";

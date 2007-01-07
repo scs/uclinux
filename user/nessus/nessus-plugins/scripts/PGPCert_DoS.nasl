@@ -8,7 +8,7 @@
 if(description)
 {
   script_id(10442);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1343);
   script_cve_id("CAN-2000-0543");
   script_name(english:"NAI PGP Cert Server DoS");

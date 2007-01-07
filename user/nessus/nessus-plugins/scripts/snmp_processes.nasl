@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10550);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Obtain processes list via SNMP";
  name["francais"] = "Enumeration des processus par SNMP";

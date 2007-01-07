@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11739);
  script_bugtraq_id(7919);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "pmachine code injection";
 

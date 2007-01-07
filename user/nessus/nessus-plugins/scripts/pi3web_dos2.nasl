@@ -7,7 +7,7 @@ if(description)
  script_id(11695);
  script_cve_id("CAN-2003-0276");
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Pi3Web Webserver v2.0 Denial of Service";
 

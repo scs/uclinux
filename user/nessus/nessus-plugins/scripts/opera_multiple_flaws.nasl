@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(7056, 6962, 6811, 6814, 6754, 6755, 6756, 6757, 6759, 
  		   6218);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Multiple flaws in the Opera web browser";
 

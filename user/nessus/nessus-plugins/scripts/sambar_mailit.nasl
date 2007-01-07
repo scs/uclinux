@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10417);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Sambar /cgi-bin/mailit.pl installed ?";
  script_name(english:name["english"]);
  

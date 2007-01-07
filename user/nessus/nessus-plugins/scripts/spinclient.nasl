@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10393);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "spin_client.cgi buffer overrun";
  name["francais"] = "spin_client.cgi buffer overrun";

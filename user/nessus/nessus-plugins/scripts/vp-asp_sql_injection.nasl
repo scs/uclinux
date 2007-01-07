@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11786);
  script_bugtraq_id(4861); # New bid coming soon
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"VP-ASP SQL Injection");
  desc["english"] = "

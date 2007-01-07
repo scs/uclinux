@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11486);
  script_bugtraq_id(7122, 7124, 7130, 7131);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  
  name["english"] = "WebLogic management servlet";

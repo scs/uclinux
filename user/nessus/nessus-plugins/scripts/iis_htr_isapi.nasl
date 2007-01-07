@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10932);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_cve_id("CVE-2002-0071");
  script_bugtraq_id(4474);
  name["english"] = "IIS .HTR ISAPI filter applied";

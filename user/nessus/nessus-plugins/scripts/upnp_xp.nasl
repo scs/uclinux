@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10829);
- script_version("$Revision$");
+ script_version("$Revision: 1.12 $");
  script_bugtraq_id(3723);
  script_cve_id("CVE-2001-0876");
  name["english"] = "scan for UPNP hosts";

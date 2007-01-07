@@ -9,7 +9,7 @@ if(description)
  script_id(10558);
  script_cve_id("CVE-2000-1006");
  script_bugtraq_id(1869);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Exchange Malformed MIME header";
  name["francais"] = "En-tete MIME mal formée";
  script_name(english:name["english"],

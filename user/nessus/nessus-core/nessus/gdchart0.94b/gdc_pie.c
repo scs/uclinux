@@ -661,7 +661,7 @@ pie_gif( short			GIFWIDTH,
 	return;
 }
 
-/* $Id$
+/* $Id: gdc_pie.c,v 1.7 2003/05/21 16:05:37 renaud Exp $
  * local variables:
  * mode: c
  * tab-width: 4

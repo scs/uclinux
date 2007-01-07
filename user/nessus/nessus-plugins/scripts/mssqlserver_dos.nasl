@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10145);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(817);
  script_cve_id("CVE-1999-0999");
  name["english"] = "Microsoft's SQL TCP/IP denial of service";

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10969);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "Obtain Cisco type via SNMP";
  

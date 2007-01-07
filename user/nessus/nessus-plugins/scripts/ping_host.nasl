@@ -17,7 +17,7 @@ defportlist= "built-in";
 if(description)
 {
  script_id(10180);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.41 $");
  name["english"] = "Ping the remote host";
  name["francais"] = "Ping la machine distante";
  script_name(english:name["english"], francais:name["francais"]);

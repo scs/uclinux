@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Georges Dagousset <georges.dagousset@orange.fr>
-# $Revision$
+# $Revision: 1.4 $
 
 
 

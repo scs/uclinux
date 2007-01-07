@@ -7,7 +7,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_id(11522);
  script_name(english:"Linksys Router default password");
  

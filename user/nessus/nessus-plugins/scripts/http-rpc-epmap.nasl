@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10763);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "Detect the HTTP RPC endpoint mapper";
  script_name(english:name["english"]);
  

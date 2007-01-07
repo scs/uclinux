@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10625);
  script_cve_id("CAN-1999-1224");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  
  name["english"] = "IMAP4rev1 buffer overflow after logon";

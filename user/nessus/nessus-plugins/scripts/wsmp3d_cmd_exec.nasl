@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11645);
  script_cve_id("CAN-2003-0338");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  script_name(english:"wsmp3d command execution");
  desc["english"] = "

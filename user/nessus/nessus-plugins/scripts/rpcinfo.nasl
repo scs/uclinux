@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11111);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "rpcinfo -p";
  name["francais"] = "rpcinfo -p";
  script_name(english:name["english"], francais:name["francais"]);

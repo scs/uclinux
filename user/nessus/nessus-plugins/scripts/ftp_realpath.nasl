@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10087);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-0201");
  name["english"] = "FTP real path";
  name["francais"] = "Vrai chemin d'accès au répertoire FTP";

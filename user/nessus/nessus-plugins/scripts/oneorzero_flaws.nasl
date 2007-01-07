@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11643);
  script_bugtraq_id(7609, 7611);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"OneOrZero SQL injection");
  desc["english"] = "

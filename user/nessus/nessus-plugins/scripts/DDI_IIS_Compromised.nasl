@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(11003);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.23 $");
     name["english"] = "IIS Possible Compromise";
     name["francais"] = "IIS Possible Compromise";
     script_name(english:name["english"], francais:name["francais"]);

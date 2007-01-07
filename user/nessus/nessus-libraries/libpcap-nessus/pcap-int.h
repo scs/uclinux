@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/pcap-int.h,v 1.3 2003/02/06 20:28:08 renaud Exp $ (LBL)
  */
 
 #ifndef pcap_int_h

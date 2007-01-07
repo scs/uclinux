@@ -6,7 +6,7 @@
 
 if(description) {
     script_id(10462);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
     name["english"] = "Amanda client version";
     script_name(english:name["english"]);

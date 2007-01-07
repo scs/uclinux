@@ -4,7 +4,7 @@ dnl
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision$)dnl
+AC_REVISION($Revision: 1.49 $)dnl
 
 
 dnl Set up the main lines of the config script

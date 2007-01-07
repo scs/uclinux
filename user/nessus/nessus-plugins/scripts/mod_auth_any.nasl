@@ -20,7 +20,7 @@ if(description)
  script_id(11481);
  script_bugtraq_id(7448);
  script_cve_id("CAN-2003-0084");
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "mod_auth_any command execution";
 

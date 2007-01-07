@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10086);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-0075");
  name["english"] = "Ftp PASV on connect crashes the FTP server";
  name["francais"] = "Une commande PASV à la connexion d'un serveur FTP le plante";

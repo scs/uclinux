@@ -9,7 +9,7 @@ if(description)
  script_id(10669);
  script_cve_id("CAN-2001-0561");
  script_bugtraq_id(2705);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
  
  name["english"] = "A1Stats Traversal";
  name["francais"] = "A1Stats";

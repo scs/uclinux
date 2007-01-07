@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10705);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(3112);
  name["english"]  = "SimpleServer remote execution";
  name["francais"] = "SimpleServer execution de commandes a distance";

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10460);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(1455);
  script_cve_id("CVE-2000-0638");
  script_name(english:"bb-hostsvc.sh");

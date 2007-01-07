@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10207);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Roxen counter module";
  script_name(english:name["english"]);
  

@@ -3,7 +3,7 @@
 if (description)
 {
  script_id(10622);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_name(english:"PPTP detection and versioning");
  desc["english"] = "
 The remote host seems to be running a PPTP (VPN) service, this service

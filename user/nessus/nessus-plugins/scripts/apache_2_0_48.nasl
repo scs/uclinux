@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11853);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CVE-2002-0061", "CAN-2003-0789", "CAN-2003-0542");
  script_bugtraq_id(8926);
  name["english"] = "Apache < 2.0.48";

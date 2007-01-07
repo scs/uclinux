@@ -7,7 +7,7 @@
 if (description)
 {
  script_id(11611);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  script_name(english:"counter.php file overwrite");
  desc["english"] = "

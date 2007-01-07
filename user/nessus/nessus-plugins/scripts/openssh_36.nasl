@@ -10,7 +10,7 @@ if(description)
  script_id(11837);
  script_bugtraq_id(8628);
  script_cve_id("CAN-2003-0693", "CAN-2003-0695");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  
  name["english"] = "OpenSSH < 3.7.1";

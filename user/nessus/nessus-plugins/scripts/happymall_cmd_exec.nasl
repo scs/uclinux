@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11602);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CAN-2003-0243");
  
  name["english"] = "HappyMall Command Execution";

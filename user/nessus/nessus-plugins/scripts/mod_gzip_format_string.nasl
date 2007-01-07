@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11686);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "mod_gzip format string attack";
  script_name(english:name["english"]);
 

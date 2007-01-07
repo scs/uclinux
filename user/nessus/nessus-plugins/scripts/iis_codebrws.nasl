@@ -10,7 +10,7 @@ if(description)
 {
  script_id(10956);
  script_cve_id("CAN-1999-0739");
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "Codebrws.asp Source Disclosure Vulnerability";
  name["francais"] = "Codebrws.asp Source Disclosure Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

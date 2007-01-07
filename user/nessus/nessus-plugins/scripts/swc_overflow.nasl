@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10493);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "SWC Overflow";
  name["francais"] = "Dépassement de buffer dans SWC";

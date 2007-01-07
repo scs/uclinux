@@ -9,7 +9,7 @@ if(description)
  script_bugtraq_id(8385);
 
  
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  name["english"] = "StellarDocs Path Disclosure";
  script_name(english:name["english"]);
  

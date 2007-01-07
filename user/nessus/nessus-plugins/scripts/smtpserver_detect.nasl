@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10263);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.34 $");
  
  name["english"] = "SMTP Server type and version";
  script_name(english:name["english"]);

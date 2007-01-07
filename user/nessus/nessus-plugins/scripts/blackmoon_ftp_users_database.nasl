@@ -13,7 +13,7 @@ if(description)
  script_bugtraq_id(7646);
 
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "Blackmoon FTP stores passwords in cleartext";
 

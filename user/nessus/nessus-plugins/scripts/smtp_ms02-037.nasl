@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11053);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_bugtraq_id(5306);
  script_cve_id("CVE-2002-0698");
  name["english"] = "IMC SMTP EHLO Buffer Overrun";

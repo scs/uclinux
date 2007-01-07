@@ -14,7 +14,7 @@ if(description)
  script_id(10710);
  script_cve_id("CVE-2001-1303");
  script_bugtraq_id(3058);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
 desc["english"] = "
 The remote host seems to be a Checkpoint FireWall-1 running SecuRemote.

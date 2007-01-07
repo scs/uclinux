@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(11372);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(2552);
  script_cve_id("CAN-2001-0248");
  name["english"] = "HP-UX ftpd glob() Expansion STAT Buffer Overflow";

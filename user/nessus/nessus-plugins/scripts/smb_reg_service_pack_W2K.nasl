@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10531);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CAN-1999-0662");
  script_bugtraq_id(7930, 8090, 8128, 8154);
  name["english"] = "SMB Registry : Win2k Service Pack version";

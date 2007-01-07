@@ -10,7 +10,7 @@
 if (description)
 {
 	script_id(10658);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1853);
 	script_name(english: "Oracle tnslsnr version query");
 	script_description(english: 

@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11898);
  script_bugtraq_id(2953);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "Obtain /etc/passwd using NetInfo";
  

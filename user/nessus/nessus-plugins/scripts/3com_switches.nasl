@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(10747);
-    script_version("$Revision$");
+    script_version("$Revision: 1.8 $");
    name["english"] = "3Com Superstack II switch with default password";
    name["francais"] = "3Com Superstack II switch avec mot de passe defaut";
    script_name(english:name["english"]);

@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11692);
  script_bugtraq_id(7766);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "WebStores 2000 browse_item_details.asp SQL injection";
  script_name(english:name["english"]);
 

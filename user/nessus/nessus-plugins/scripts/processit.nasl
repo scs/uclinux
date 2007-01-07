@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10649);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "processit";
  script_name(english:name["english"]);
  

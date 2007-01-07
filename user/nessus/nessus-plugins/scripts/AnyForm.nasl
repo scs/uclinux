@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10277);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CVE-1999-0066");
  script_bugtraq_id(719);
  name["english"] = "AnyForm";

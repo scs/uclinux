@@ -9,7 +9,7 @@
 if (description)
 {
   	script_id(10666);
- 	script_version ("$Revision$");
+ 	script_version ("$Revision: 1.10 $");
 	script_name(english: "AppleShare IP Server status query");
 	script_description(english: 
 	string("This script determines if a host is running AppleShare IP file services.\n",

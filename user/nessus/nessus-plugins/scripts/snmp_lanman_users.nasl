@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10546);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  
  name["english"] = "Enumerate Lanman users via SNMP";
  name["francais"] = "Enumeration des utilisateurs Lanman par SNMP";

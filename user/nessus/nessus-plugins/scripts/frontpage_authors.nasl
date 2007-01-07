@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10078);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
 
  name["english"] = "Microsoft Frontpage 'authors' exploits";
  name["francais"] = "Exploits 'authors' Microsoft Frontpage"; 

@@ -1,4 +1,4 @@
-$Id$
+$Id: kb_entries.txt,v 1.1 2001/09/03 01:09:37 renaud Exp $
 (to be completed & improved)
 
 The following KB entry are declared :

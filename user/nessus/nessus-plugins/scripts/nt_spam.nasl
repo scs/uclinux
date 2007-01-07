@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10167);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CVE-1999-0819");
  name["english"] = "NTMail3 spam feature";
  name["francais"] = "NTMail3 spam feature";

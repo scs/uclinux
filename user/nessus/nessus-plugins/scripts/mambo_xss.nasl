@@ -14,7 +14,7 @@ if (description)
 {
  script_id(11441);
  script_bugtraq_id(7135);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  script_name(english:"Mambo Site Server 4.0.10 XSS");
  desc["english"] = "

@@ -3,7 +3,7 @@ if(description)
 {
  script_id(11894);
  script_bugtraq_id(8810);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "TinyWeb 1.9";
 

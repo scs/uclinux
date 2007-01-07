@@ -24,7 +24,7 @@ if(description)
   script_id(11715);
   script_bugtraq_id(3904);
   script_cve_id("CAN-2002-0133");
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.1 $");
   name["english"] = "Header overflow against HTTP proxy";
   script_name(english:name["english"]);
  

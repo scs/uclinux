@@ -25,7 +25,7 @@
  * file, but you are not obligated to do so.  If you do not wish to
  * do so, delete this exception statement from your version.
  *
- * $Id$
+ * $Id: nessusd.c,v 1.223 2003/07/04 20:55:55 renaud Exp $
  */
 
 #include <includes.h>

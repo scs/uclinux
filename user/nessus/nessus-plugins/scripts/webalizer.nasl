@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10816); 
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_bugtraq_id(3473);
  script_cve_id("CAN-2001-0835");
  name["english"] = "Webalizer Cross Site Scripting Vulnerability";

@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11821);
  script_bugtraq_id(8439);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Dropbear SSH server format string vulnerability";
  script_name(english:name["english"]);

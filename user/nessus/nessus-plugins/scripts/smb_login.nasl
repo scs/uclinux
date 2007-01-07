@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10394);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.54 $");
  script_bugtraq_id(490);
  script_cve_id("CAN-1999-0504", "CAN-1999-0506", "CVE-2000-0222", "CAN-1999-0505", "CAN-2002-1117");
  name["english"] = "SMB log in";

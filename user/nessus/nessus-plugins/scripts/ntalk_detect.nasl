@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10168);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-1999-0048");
  name["english"] = "Detect talkd server port and protocol version";
  script_name(english:name["english"], francais:name["francais"]);

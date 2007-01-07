@@ -9,7 +9,7 @@ if(description)
  script_id(10047);
  script_cve_id("CAN-1999-1521");
  script_bugtraq_id(633);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.23 $");
  
  name["english"] = "CMail's MAIL FROM overflow";
  name["francais"] = "Dépassement de buffer dans CMail suite à la commande MAIL FROM";

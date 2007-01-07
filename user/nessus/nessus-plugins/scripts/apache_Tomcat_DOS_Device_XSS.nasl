@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11042);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_bugtraq_id(5194);
  name["english"] = "Apache Tomcat DOS Device Name XSS";
  name["francais"] = "Apache Tomcat DOS Device Name XSS";

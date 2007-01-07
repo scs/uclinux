@@ -14,7 +14,7 @@ dnl --enable-unix-socket
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision$)dnl
+AC_REVISION($Revision: 1.117.2.2 $)dnl
 
 dnl version stuff -- jordan
 save_IFS="${IFS}"

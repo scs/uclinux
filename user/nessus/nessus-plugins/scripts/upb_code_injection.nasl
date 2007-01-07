@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11671);
  script_bugtraq_id(7678);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  
  name["english"] = "Ultimate PHP Board admin_ip.php code injection";

@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10107);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.47 $");
  
  name["english"] = "HTTP Server type and version";
  script_name(english:name["english"]);

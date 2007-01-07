@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11528);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CAN-2003-0111");
  
  name["english"] = "Flaw in Microsoft VM (816093)";

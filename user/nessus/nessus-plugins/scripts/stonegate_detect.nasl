@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11762);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "StoneGate client authentication detection";
  

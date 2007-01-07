@@ -13,7 +13,7 @@ if(description)
  script_id(10628);
  script_bugtraq_id(6557);
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "php IMAP overflow";
  name["francais"] = "php IMAP overflow";
  script_name(english:name["english"], francais:name["francais"]);

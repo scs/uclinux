@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10236);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "statmon service";
  name["francais"] = "Service statmon";

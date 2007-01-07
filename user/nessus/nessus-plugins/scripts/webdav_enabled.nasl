@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11424);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.3 $");
  
   
   name["english"] = "WebDAV enabled";

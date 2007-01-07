@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10925);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CAN-2001-0307");
  
  name["english"] = "Oracle Jserv Executes outside of doc_root";

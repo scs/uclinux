@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10496);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-2000-0825");
  script_bugtraq_id(2011);
  

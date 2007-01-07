@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10068);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-1999-0612");
  name["english"] = "Finger";
  script_name(english:name["english"]);

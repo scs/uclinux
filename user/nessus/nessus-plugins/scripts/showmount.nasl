@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10437);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-0554", "CAN-1999-0548");
  
  name["english"] = "NFS export";

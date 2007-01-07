@@ -309,7 +309,7 @@ plugin_init(desc)
  struct arglist * desc;
 {
  plug_set_id(desc, 10909); 
- plug_set_version(desc, "$Revision$");
+ plug_set_version(desc, "$Revision: 1.16 $");
  
  plug_set_cve_id(desc, "CAN-1999-0502");
  plug_set_cve_id(desc, "CAN-1999-0505");

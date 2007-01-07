@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11783);
  script_bugtraq_id(8038);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "Multiple IRC daemons format string attack";
  script_name(english:name["english"]);

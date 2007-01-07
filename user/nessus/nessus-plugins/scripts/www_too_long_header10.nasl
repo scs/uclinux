@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11127);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "HTTP 1.0 header overflow";
  script_name(english:name["english"]);
  

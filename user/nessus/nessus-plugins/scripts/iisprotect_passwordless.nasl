@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11661);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "Unpassworded iiprotect administrative interface";
  script_name(english:name["english"]);

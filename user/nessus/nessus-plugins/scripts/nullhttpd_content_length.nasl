@@ -21,7 +21,7 @@
 if(description)
 {
  script_id(11183);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "HTTP negative Content-Length buffer overflow";
  script_name(english:name["english"]);

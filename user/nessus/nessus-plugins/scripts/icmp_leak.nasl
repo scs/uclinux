@@ -20,7 +20,7 @@
 if(description)
 {
  script_id(11704);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "icmp leak";
  script_name(english:name["english"]);

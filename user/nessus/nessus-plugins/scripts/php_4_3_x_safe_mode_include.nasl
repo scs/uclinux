@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11807);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "php < 4.3.3";
  script_bugtraq_id(8201);
 

@@ -8,7 +8,7 @@ if(description)
  script_cve_id("CAN-2003-0346");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0024");
  script_bugtraq_id(7370);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "DirectX MIDI Overflow (819696)";
 

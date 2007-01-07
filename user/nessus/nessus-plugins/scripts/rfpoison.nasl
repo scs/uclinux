@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10204);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(754);
  script_cve_id("CVE-1999-0980");
  name["english"] = "rfpoison";

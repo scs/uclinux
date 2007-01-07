@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11813);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(8298);
  script_cve_id("CVE-2000-0344");
  name["english"] = "Linux 2.4 NFSv3 DoS";

@@ -27,7 +27,7 @@
 if(description)
 {
  script_id(11059);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  script_cve_id("CAN-2000-0203");
  script_bugtraq_id(1013);
  script_name(english:"Trend Micro OfficeScan Denial of service");

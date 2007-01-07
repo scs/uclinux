@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11238);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Anti Nessus defenses";
  name["francais"] = "Défenses anti Nessus";

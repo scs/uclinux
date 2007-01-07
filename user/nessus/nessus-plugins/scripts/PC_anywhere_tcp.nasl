@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10794);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.23 $");
  name["english"] = "PC Anywhere TCP";
  name["francais"] = "PC Anywhere TCP";
  script_name(english:name["english"], francais:name["francais"]);

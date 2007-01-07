@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10572);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "IIS 5.0 Sample App vulnerable to cross-site scripting attack";
  name["francais"] = "IIS 5.0 Sample App vulnerable to cross-site scripting attack";
  script_name(english:name["english"], francais:name["francais"]);

@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11064);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-2002-1021");
  script_bugtraq_id(5226);
  name["english"] = "BadBlue invalid null byte vulnerability";

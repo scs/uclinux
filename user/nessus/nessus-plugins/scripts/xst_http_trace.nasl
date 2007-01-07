@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11213);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "http TRACE XSS attack";
  script_name(english:name["english"]);
  

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10117);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(2218);
  script_cve_id("CAN-1999-0229");
  name["english"] = "IIS 'GET ../../'";

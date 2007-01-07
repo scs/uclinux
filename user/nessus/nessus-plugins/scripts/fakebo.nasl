@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10066);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "FakeBO buffer overflow";
  name["francais"] = "Dépassement de buffer dans FakeBO";

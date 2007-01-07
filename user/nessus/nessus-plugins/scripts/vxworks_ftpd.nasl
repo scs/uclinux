@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11185);
  script_bugtraq_id(6297);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  name["english"] = "vxworks ftpd buffer overflow";
  
  script_name(english:name["english"]);

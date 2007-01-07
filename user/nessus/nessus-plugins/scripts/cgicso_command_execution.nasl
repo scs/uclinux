@@ -8,7 +8,7 @@
 if (description)
 {
  script_id(10779);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_bugtraq_id(6141);
  script_name(english:"CGIEmail's CGICso (Send CSO via CGI) Command Execution Vulnerability");
  desc["english"] = "

@@ -134,7 +134,7 @@
 if(description)
 {
  script_id(11036);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(3027);
  name["english"] = "SMTP antivirus scanner DoS";
  script_name(english:name["english"]);

@@ -8,7 +8,7 @@ if(description)
 {
 	script_id(11207);
 	script_cve_id("CVE-1999-0256");
-	script_version("$Revision$");
+	script_version("$Revision: 1.2 $");
 	
 	name["english"] = "War FTP Daemon USER/PASS Overflow";
 	script_name(english:name["english"]);

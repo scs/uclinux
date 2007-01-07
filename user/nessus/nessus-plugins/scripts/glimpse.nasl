@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10095);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_bugtraq_id(2026);
  script_cve_id("CVE-1999-0147");
  name["english"] = "glimpse";

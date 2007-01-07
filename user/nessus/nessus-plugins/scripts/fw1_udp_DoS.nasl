@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11905);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(1419);
 
  name["english"] = "Checkpoint Firewall-1 UDP denial of service";

@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10007);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(167);
  script_cve_id("CAN-1999-0736");
  name["english"] = "ShowCode possible";

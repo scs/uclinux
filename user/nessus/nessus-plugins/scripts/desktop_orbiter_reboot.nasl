@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11713);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Desktop Orbiter Remote Reboot";
  script_name(english:name["english"]);
 

@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11751);
  script_bugtraq_id(7945);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
 
  name["english"] = "Dune Web Server Overflow";

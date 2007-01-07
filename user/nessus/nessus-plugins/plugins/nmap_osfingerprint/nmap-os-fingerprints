@@ -1,5 +1,5 @@
 # Nmap OS Fingerprint List. -*- mode: fundamental; -*-
-# $Id$ 
+# $Id: nmap-os-fingerprints,v 1.11 2003/10/01 14:17:38 renaud Exp $ 
 #
 # Contributions to this database are welcome.  If Nmap obtains a new
 # fingerprint (and test conditions are favorable), it will print out a

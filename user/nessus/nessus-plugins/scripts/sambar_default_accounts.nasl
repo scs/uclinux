@@ -7,7 +7,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_id(11493);
  script_name(english:"Sambar Default Accounts");
  

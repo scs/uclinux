@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10444); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1386);
  script_cve_id("CVE-2000-0540");
  name["english"] = "JRun's viewsource.jsp";

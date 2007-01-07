@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10568);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  
  
  name["english"] = "bftpd format string vulnerability";

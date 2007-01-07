@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11361);
  script_bugtraq_id(6926);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  name["english"] = "Mambo Site Server Cookie Validation";
  script_name(english:name["english"]);

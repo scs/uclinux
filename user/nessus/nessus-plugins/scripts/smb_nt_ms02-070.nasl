@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11215);
  script_cve_id("CAN-2002-1256");
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "Flaw in SMB Signing Could Enable Group Policy to be Modified (329170)";
 

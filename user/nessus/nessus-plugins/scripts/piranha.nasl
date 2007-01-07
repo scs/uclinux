@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10381);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1148);
  script_cve_id("CAN-2000-0248");
  name["english"] = "Piranha's RH6.2 default password";

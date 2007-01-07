@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11689);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Cisco IDS Device Manager Detection";
  script_name(english:name["english"]);

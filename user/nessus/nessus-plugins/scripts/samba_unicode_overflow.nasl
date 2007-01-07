@@ -10,7 +10,7 @@ if(description)
  script_id(11168);
  script_cve_id("CVE-1999-0182");
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "Samba Unicode Buffer Overflow";
 
  script_name(english:name["english"]);

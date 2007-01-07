@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10257);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(790);
  
  name["english"] = "SmartServer pop3 overflow";

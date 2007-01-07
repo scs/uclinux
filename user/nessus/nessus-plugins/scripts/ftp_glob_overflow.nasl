@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10648);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(2548);
  script_cve_id("CAN-2001-0247");
  name["english"] = "ftp 'glob' overflow";

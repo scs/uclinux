@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10284);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CAN-1999-1516");
  
  name["english"] = "TFS SMTP 3.2 MAIL FROM overflow";

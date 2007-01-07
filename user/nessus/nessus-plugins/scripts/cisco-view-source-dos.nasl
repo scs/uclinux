@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10682);
  script_cve_id("CVE-2000-0984");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1838);
  
  name["english"] = "CISCO view-source DoS";

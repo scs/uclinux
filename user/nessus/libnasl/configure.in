@@ -15,7 +15,7 @@ dnl --enable-syslog
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision$)dnl
+AC_REVISION($Revision: 1.63.2.1 $)dnl
 
 
 PWDD=`pwd`	

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10252);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CAN-1999-0509");
  
  name["english"] = "Shells in /cgi-bin";

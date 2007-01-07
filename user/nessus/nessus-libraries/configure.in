@@ -8,7 +8,7 @@ dnl
 dnl --enable-release
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision$)dnl
+AC_REVISION($Revision: 1.132.2.1 $)dnl
 
 
 PWDD=`pwd`	

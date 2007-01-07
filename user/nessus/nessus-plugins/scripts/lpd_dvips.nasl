@@ -9,7 +9,7 @@ if(description)
    script_id(11023);
    script_cve_id("CVE-2001-1002");
  script_bugtraq_id(3241);
-   script_version ("$Revision$");
+   script_version ("$Revision: 1.7 $");
    name["english"] = "lpd, dvips and remote command execution";
    script_name(english:name["english"]);
  

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10172);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-1061");
 
  name["english"] = "Passwordless HP LaserJet";

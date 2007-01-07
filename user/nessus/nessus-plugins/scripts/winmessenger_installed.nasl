@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(668, 4028, 4316, 4675, 4827);
  script_cve_id("CAN-1999-1484", "CAN-2002-0228", "CAN-2002-0472");  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Windows Messenger is installed";
 

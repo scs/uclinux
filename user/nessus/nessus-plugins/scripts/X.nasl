@@ -20,7 +20,7 @@
 if(description)
 {
   script_id(10407);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
   script_cve_id("CVE-1999-0526");
 
   name["english"] = "X Server";

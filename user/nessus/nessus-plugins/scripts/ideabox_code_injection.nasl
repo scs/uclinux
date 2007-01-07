@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11557);
  script_bugtraq_id(7488);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "ideabox code injection";
 

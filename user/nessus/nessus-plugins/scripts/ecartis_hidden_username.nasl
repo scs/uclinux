@@ -12,7 +12,7 @@ if(description)
  script_bugtraq_id(6971);
  script_cve_id("CAN-2003-0162");
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
 
  name["english"] = "Ecartis Username Spoofing";

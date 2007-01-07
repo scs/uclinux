@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11138);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_bugtraq_id(5817);
  name["english"] = "Citrix published applications";
  script_name(english:name["english"]);

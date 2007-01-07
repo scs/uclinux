@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10595);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CAN-1999-0532");
  name["english"] = "DNS AXFR"; 
  script_name(english:name["english"]);

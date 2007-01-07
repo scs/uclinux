@@ -16,7 +16,7 @@
  *  along with this library; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *  $Id$
+ *  $Id: harglists.c,v 1.36 2003/02/27 10:09:57 renaud Exp $
  *
  * Author: Jordan Hrycaj <jordan@mjh.teddy-net.com>
  *
@@ -518,7 +518,6 @@ do_harg_dump
 {
   hargwalk *w ;
   harg **R, *r ;
-  static void **harg_walk_next_ptr (hargwalk*);
 
   if(a == 0 || (w = harg_walk_init (a)) == 0) {
     do_printf ("-error; no such list!\n",0,0,0,0,0);

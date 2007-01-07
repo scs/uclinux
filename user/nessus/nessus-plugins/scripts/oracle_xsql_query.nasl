@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10613);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Oracle XSQL Sample Application Vulnerability";
  name["francais"] = "Oracle XSQL Sample Application Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);

@@ -14,7 +14,7 @@ if(description)
  script_id(11811);
  script_bugtraq_id(8315);
  script_cve_id("CAN-2003-0466");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  
  name["english"] = "wu-ftpd fb_realpath() off-by-one overflow";

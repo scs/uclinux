@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11562);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7477, 7575);
 
  name["english"] = "The ScriptLogic service is running";

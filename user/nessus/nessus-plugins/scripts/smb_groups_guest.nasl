@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10907);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Guest belongs to a group";
 
  script_name(english:name["english"]);

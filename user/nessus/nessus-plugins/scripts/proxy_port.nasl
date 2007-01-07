@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10193);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "Usable remote proxy on any port";
  name["francais"] = "Proxy distant utilisable sur n'importe quel port";

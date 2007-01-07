@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/lbl/os-solaris2.h,v 1.1.1.1 1999/06/12 13:02:33 renaud Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 5 */

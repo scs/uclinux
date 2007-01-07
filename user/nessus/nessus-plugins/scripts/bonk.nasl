@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10030);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CAN-1999-0258");
  name["english"] = "Bonk";
  name["francais"] = "Bonk";

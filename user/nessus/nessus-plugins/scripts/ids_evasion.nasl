@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10889);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.21 $");
 
  name["english"] = "NIDS evasion";
  name["francais"] = "Anti NIDS (détecteur d'intrusions)";

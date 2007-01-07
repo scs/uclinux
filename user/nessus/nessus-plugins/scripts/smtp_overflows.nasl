@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11772);
-  script_version("$Revision$");
+  script_version("$Revision: 1.3 $");
  
   name["english"] = "Generic SMTP overflows";
   script_name(english:name["english"]);

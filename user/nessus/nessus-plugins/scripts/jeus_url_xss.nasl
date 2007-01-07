@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11764);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(7969);
  
  name["english"] = "TMax Soft Jeus Cross Site Scripting";

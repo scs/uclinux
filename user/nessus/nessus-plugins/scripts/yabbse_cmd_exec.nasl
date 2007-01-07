@@ -7,7 +7,7 @@ if (description)
  script_id(11588);
  script_bugtraq_id(7399, 6674, 6663, 6591, 1921);
  script_cve_id("CAN-2000-1176");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  script_name(english:"YaBB SE command execution");
  desc["english"] = "

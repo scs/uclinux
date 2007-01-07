@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11885);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0659");
  
  name["english"] = "Buffer Overrun in the ListBox and in the ComboBox (824141)";

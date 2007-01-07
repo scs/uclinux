@@ -36,7 +36,7 @@ int plugin_init(desc)
 { 
  return -1; /* Currently broken */
  plug_set_id(desc, 11025);
- plug_set_version(desc, "$Revision$");
+ plug_set_version(desc, "$Revision: 1.9 $");
  plug_set_name(desc, EN_NAME, NULL);
  plug_set_category(desc, ACT_DENIAL);
  plug_set_family(desc, EN_FAMILY, NULL);

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10740); 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "SiteScope Web Managegment Server Detect";
  script_name(english:name["english"]);
 

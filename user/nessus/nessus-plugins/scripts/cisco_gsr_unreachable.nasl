@@ -14,7 +14,7 @@ if(description)
 	       "CVE-2001-0867");
  
  script_bugtraq_id(3534, 3535, 3536, 3537, 3538, 3539, 3540);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "GSR ICMP unreachable";
 

@@ -3,7 +3,7 @@
 if(description)
 {
  script_id(11356);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_cve_id("CVE-1999-0170", "CVE-1999-0211", "CAN-1999-0554");
  
  name["english"] = "Mountable NFS shares";

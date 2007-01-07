@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10488);
  script_cve_id("CVE-2000-0837");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  
  name["english"] = "FTP Serv-U 2.5e DoS";

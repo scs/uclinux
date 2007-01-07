@@ -21,7 +21,7 @@
 if(description)
 {
  script_id(11082);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(6281);
  name["english"] = "Boozt index.cgi overflow";
  script_name(english:name["english"]);

@@ -22,7 +22,7 @@
 if(description)
 {
  script_id(11085);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_bugtraq_id(84, 2715);
  name["english"] = "Personal Web Sharing overflow ";
  script_name(english:name["english"]);

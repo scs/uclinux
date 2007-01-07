@@ -10,7 +10,7 @@ if(description)
  script_cve_id("CAN-2003-0347");
  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "Visual Basic for Application Overflow";
 

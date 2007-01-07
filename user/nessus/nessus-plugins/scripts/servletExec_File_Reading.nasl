@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10959);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-2002-0893");
  script_bugtraq_id(4795);
  name["english"] = "ServletExec 4.1 ISAPI File Reading";

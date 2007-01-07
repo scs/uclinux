@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10109);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0026");
  name["english"] = "SCO i2odialogd buffer overrun";
  name["francais"] = "Dépassement de buffer dans i2odialogd de SCO";

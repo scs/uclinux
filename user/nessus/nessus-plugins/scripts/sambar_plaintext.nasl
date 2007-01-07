@@ -6,7 +6,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_id(11585);
  script_name(english:"Sambar Transmits Passwords in PlainText");
  

@@ -15,7 +15,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (Juniper)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/nlpid.h,v 1.1 2003/02/06 03:14:29 renaud Exp $ (Juniper)
  */
 
 /* Types missing from some systems */

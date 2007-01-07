@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10929);
- script_version("$Revision$");
+ script_version("$Revision: 1.11 $");
  script_name(english:"FTP Windows 98 MS/DOS device names DOS");
  
  desc["english"] = "

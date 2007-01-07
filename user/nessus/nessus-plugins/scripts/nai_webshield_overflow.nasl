@@ -6,7 +6,7 @@
 if(description)
 {
   script_id(10425);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1254);
   script_cve_id("CVE-2000-0447");
   name["english"] = "NAI Management Agent overflow";

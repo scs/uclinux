@@ -17,7 +17,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_id(11131);
  script_name(english:"Sambar web server DOS");
  script_bugtraq_id(3885);

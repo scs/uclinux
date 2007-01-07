@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11768);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7974);
  
  name["english"] = "proftpd mod_sql injection";

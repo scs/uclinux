@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10800);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "Obtain OS type via SNMP";
  

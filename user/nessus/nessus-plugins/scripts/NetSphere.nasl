@@ -12,7 +12,7 @@ if(description)
 
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10005);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-1999-0660");
  desc["english"] = "NetSphere is installed. 
 

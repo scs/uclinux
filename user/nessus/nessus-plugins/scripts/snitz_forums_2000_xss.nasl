@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11597);
  script_bugtraq_id(7381, 7922, 7925);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  script_name(english:"Snitz Forums 2000 Password Reset and XSS ");
  desc["english"] = "

@@ -12,7 +12,7 @@ if(description)
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0002");
  script_bugtraq_id(4485);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "IIS ASP ISAPI filter Overflow";
 

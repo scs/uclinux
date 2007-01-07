@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(2299, 4162, 4163, 4164, 4173, 4837, 4838, 5579, 6121);
  script_cve_id("CAN-2002-0320", "CAN-2002-0321", "CAN-2002-0031", "CVE-2002-0032", "CAN-2002-0322");  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "Yahoo!Messenger is installed";
 

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10737);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "Oracle Applications One-Hour Install Detect";
  script_name(english:name["english"]);

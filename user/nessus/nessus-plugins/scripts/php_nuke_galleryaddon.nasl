@@ -7,7 +7,7 @@ if (description)
 {
  script_id(10810);
  script_cve_id("CVE-2001-0900");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_name(english:"PHP-Nuke Gallery Add-on File View");
  desc["english"] = "
 The remote PHP-Nuke service has a version of the

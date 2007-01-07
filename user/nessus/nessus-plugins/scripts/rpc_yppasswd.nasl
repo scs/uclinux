@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10242);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "yppasswd service";
  name["francais"] = "Service yppasswd";

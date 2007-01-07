@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11543); 
  script_bugtraq_id(7375);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "mod_access_referer 1.0.2 NULL pointer dereference";
  script_name(english:name["english"]);

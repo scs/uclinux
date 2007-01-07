@@ -14,7 +14,7 @@ if (description)
  script_id(11449);
  script_bugtraq_id(7137, 7138);
  script_cve_id("CAN-2003-0310");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
 
  script_name(english:"ezPublish Cross Site Scripting Bugs");
  desc["english"] = "

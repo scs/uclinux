@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10516);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2000-0912");
  name["english"] = "multihtml cgi";
  name["francais"] = "cgi multihtml";

@@ -9,7 +9,7 @@ if(description)
  script_id(11014);
  script_cve_id("CVE-2002-0545");
  script_bugtraq_id(4461);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "Cisco Aironet Telnet DoS";
  script_name(english:name["english"]);

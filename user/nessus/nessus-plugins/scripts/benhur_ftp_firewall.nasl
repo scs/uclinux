@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11052);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_bugtraq_id(5279);
 
  name["english"] = "BenHur Firewall active FTP firewall leak";

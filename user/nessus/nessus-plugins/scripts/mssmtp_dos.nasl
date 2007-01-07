@@ -9,7 +9,7 @@ if(description)
  script_id(10885);
  script_cve_id("CVE-2002-0055");
  script_bugtraq_id(4204);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "MS SMTP DoS";
 
  script_name(english:name["english"]);

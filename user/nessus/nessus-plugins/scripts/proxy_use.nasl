@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10195);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  name["english"] = "Usable remote proxy";
  name["francais"] = "Proxy distant utilisable";
  script_name(english:name["english"],

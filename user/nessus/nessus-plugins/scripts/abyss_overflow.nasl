@@ -8,7 +8,7 @@ if(description)
  script_id(11784);
  script_bugtraq_id(8062, 8064);
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "Abyss httpd overflow";
  script_name(english:name["english"]);
  

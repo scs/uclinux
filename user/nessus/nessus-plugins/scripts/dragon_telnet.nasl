@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10451);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CAN-2000-0480");
  script_bugtraq_id(1352);
  name["english"] = "Dragon telnet overflow";

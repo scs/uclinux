@@ -31,7 +31,7 @@ Risk factor : Serious";
 if(description)
 {
  script_id(10751);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "Kazaa / Morpheus Client Detection";
  script_name(english:name["english"]);

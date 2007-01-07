@@ -9,7 +9,7 @@
 if(description)
 {
    script_id(11354);
-   script_version ("$Revision$");
+   script_version ("$Revision: 1.1 $");
    script_cve_id("CVE-1999-0299");
    name["english"] = "Buffer overflow in FreeBSD 2.x lpd";
   

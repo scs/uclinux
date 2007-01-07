@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11572);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  script_cve_id("CAN-2003-0235", "CAN-2003-0236", "CAN-2003-0237", "CAN-2003-0238", "CAN-2003-0239");
  script_bugtraq_id(7461, 7462, 7463, 7464, 7465, 7466);
  name["english"] = "Multiple ICQ Vulnerabilities";

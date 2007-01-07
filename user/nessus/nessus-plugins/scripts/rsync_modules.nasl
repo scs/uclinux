@@ -9,7 +9,7 @@ if (description)
  script_id(11389);
  
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_name(english:"rsync modules");
  desc["english"] = "
 This plugin extracts the rsync modules available on the remote

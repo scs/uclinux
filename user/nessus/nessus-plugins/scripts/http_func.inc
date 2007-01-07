@@ -2,7 +2,7 @@
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
 # get_http_port (C) Georges Dagousset
-# $Revision$
+# $Revision: 1.45 $
 
 #
 # That's for chunk-decoding

@@ -10,7 +10,7 @@ if(description)
  script_id(10807);
 script_cve_id("CAN-2000-0759");
  script_bugtraq_id(1531);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Jakarta Tomcat Path Disclosure";
 
  script_name(english:name["english"]);

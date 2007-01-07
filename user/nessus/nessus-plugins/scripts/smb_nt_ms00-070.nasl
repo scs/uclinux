@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10525);
  script_bugtraq_id(1743);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "LPC and LPC Ports Vulnerabilities patch";
  name["francais"] = "Patch pour les vulnerabilité LPC et LPC ports";
  

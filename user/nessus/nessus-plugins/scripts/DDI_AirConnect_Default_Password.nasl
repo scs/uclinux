@@ -7,7 +7,7 @@
 if(description)
 {
     script_id(10961);
-    script_version("$Revision$");
+    script_version("$Revision: 1.5 $");
     name["english"] = "AirConnect Default Password";
     script_name(english:name["english"]);
 

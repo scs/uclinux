@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11578);
  script_bugtraq_id(7450);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Opera remote heap corruption vulnerability";
 

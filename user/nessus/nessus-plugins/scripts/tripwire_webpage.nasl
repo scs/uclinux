@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10743);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "Tripwire for Webpages Detection";
  script_name(english:name["english"]);

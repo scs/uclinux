@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11319);
  script_bugtraq_id(6998);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "GTcatalog code injection";
 

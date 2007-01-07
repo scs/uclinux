@@ -7,7 +7,7 @@
 if(description)
 {
 	script_id(11600);
-	script_version("$Revision$");
+	script_version("$Revision: 1.1 $");
 	name["english"] = "NetCharts Server Default Password";
 	script_name(english:name["english"]);
 	desc["english"] = "

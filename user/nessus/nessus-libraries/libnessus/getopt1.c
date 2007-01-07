@@ -19,7 +19,7 @@ not, write to the Free Software Foundation, Inc., 675 Mass Ave,
 Cambridge, MA 02139, USA.  */
 
 /* Modified for use with Nessus by <jordan@mjh.teddy-net.com>
-   $Id$ */
+   $Id: getopt1.c,v 1.6 2001/10/24 15:42:52 renaud Exp $ */
 
 
 

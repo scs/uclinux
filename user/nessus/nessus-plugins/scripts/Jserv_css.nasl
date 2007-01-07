@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10957);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "JServ Cross Site Scripting";
  name["francais"] = "JServ Cross Site Scripting";
  script_name(english:name["english"], francais:name["francais"]);

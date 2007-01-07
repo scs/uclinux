@@ -22,7 +22,7 @@
 if(description)
 {
  script_id(10862);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Microsoft's SQL Server Brute Force";
  script_name(english:name["english"]);
  

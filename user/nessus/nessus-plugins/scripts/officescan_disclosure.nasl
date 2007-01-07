@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11074);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_bugtraq_id(3438);
  
  name["english"] = "OfficeScan configuration file disclosure";

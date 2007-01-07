@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(10735);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "Generic flood";
  name["francais"] = "Surcharge générique";

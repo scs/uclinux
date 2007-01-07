@@ -10,7 +10,7 @@
 if(description)
 {
     script_id(10997);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.8 $");
     script_bugtraq_id(3666);
     name["english"] = "JRun directory traversal";
     name["francais"] = "JRun directory traversal";

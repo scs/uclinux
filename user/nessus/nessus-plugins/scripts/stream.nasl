@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10271);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  # BID549 / CVE-1999-0770 = FW-1 saturation
  script_bugtraq_id(549);
  script_cve_id("CVE-1999-0770");

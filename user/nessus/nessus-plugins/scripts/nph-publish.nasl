@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10164);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-1999-1177", "CVE-2001-0400");
  
  name["english"] = "nph-publish.cgi";

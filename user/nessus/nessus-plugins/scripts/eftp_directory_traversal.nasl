@@ -10,7 +10,7 @@ if(description)
   script_id(10933);
   script_cve_id("CAN-2001-1109");
   script_bugtraq_id(3333);
-  script_version("$Revision$");
+  script_version("$Revision: 1.14 $");
  name["english"] = "EFTP tells if a given file exists";
  name["francais"] = "EFTP indique si un fichier existe";
  

@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11231);
  script_cve_id("CAN-2003-0004");
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "Unchecked Buffer in XP Redirector (Q810577)";
 

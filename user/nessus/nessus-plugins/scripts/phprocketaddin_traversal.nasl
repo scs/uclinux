@@ -13,7 +13,7 @@ if(description)
  script_id(10831); 
  script_cve_id("CAN-2001-1204");
  script_bugtraq_id(3751);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  name["english"] = "PHP Rocket Add-in File Traversal";
  script_name(english:name["english"]);
  

@@ -12,7 +12,7 @@ if(description)
  script_cve_id("CAN-2002-1357", "CAN-2002-1358", "CAN-2002-1359", "CAN-2002-1360");
  script_bugtraq_id(6397);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "CSCdz60229, CSCdy87221, CSCdu75477";
 

@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/pcap-dlpi.c,v 1.6 2003/02/06 20:28:08 renaud Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

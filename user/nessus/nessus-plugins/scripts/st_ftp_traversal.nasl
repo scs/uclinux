@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11677);
  script_bugtraq_id(7674);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "ST FTP traversal";
 

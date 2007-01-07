@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11549); 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "readfile.tcl";
  script_name(english:name["english"]);

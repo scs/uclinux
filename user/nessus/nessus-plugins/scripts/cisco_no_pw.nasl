@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10754);
  script_cve_id("CAN-1999-0508");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  
  
  name["english"] = "Cisco password not set";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10428);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.26 $");
  
  name["english"] = "SMB fully accessible registry";
  name["francais"] = "Base de registres completement accessible par SMB";

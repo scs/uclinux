@@ -15,7 +15,7 @@ if(description)
  script_cve_id("CVE-2000-0182");
  
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "HTTP header overflow";
  script_name(english:name["english"]);
  

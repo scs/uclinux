@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10060);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-1999-1178");
  name["english"] = "Dumpenv";
  name["francais"] = "Dumpenv";

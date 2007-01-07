@@ -26,7 +26,7 @@
 if(description)
 {
  script_id(10988);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  name["english"] = "Netware NDS Object Enumeration";
  script_name(english:name["english"]);
  

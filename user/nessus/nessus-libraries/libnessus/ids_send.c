@@ -1,7 +1,7 @@
 /* Nessuslib -- the Nessus Library
  * Copyright (C) 1998 - 2002 Renaud Deraison
  *
- * $Id$
+ * $Id: ids_send.c,v 1.26 2003/05/21 14:41:32 renaud Exp $
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public

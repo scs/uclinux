@@ -16,7 +16,7 @@ if(description)
  script_bugtraq_id(7332);
  script_cve_id("CAN-2003-0134");
 
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "Apache < 2.0.46 on OS/2";
 

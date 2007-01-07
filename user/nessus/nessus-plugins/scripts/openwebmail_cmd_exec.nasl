@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11416);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_bugtraq_id(6425, 6232);
  script_cve_id("CAN-2002-1385");
  name["english"] = "openwebmail command execution";

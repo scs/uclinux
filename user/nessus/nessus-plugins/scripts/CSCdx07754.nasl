@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11293);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
 
  name["english"] = "CSCdx07754, CSCdx24622, CSCdx24632";

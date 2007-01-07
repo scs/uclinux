@@ -3,7 +3,7 @@ if (description)
  script_id(10772);
  script_cve_id("CVE-2001-1032");
  script_bugtraq_id(3361);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_name(english:"PHP-Nuke copying files security vulnerability (admin.php)");
  desc["english"] = "
 The remote host seems to be vulnerable to a security problem in 

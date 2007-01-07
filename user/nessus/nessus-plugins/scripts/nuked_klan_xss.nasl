@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11447);
  script_bugtraq_id(6916, 6917);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  script_name(english:"Nuked-klan Cross Site Scripting Bugs");
  desc["english"] = "

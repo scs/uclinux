@@ -47,7 +47,7 @@
  *                                                                     *
  ***********************************************************************/
 
-/* $Id$ */
+/* $Id: main.c,v 1.5 2003/10/01 16:00:11 renaud Exp $ */
 
 #include "nmap.h"
 
@@ -72,7 +72,7 @@ plugin_init(struct arglist * desc)
 {
 	plug_set_id(desc, 11268);
 
-	plug_set_version(desc, "$Revision$");
+	plug_set_version(desc, "$Revision: 1.5 $");
 	plug_set_name(desc, EN_NAME, NULL);
 	plug_set_summary(desc, EN_SUMMARY, NULL);
 	plug_set_description(desc, EN_DESC, NULL);

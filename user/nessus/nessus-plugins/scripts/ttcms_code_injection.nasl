@@ -9,7 +9,7 @@ if(description)
  script_id(11636);
  script_bugtraq_id(7542, 7543, 7625);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "ttCMS code injection";
  
  script_name(english:name["english"], francais:name["francais"]);

@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11083);
  script_bugtraq_id(3476);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
   
  name["english"] = "ibillpm.pl";
  script_name(english:name["english"]);

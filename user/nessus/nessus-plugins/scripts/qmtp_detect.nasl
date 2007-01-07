@@ -8,7 +8,7 @@
 if(description)
 {
   script_id(11134);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.2 $");
  
   script_name(english:"QMTP");
  

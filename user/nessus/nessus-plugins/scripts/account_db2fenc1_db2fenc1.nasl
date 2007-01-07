@@ -11,7 +11,7 @@ password = "db2fenc1";
 if(description)
 {
  script_id(11860);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  script_cve_id("CAN-2001-0051");
  script_name(english:string("Default password (", password, ") for ", account));
 	     

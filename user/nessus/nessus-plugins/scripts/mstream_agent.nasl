@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10390);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-2000-0138");
  
  name["english"] = "mstream agent Detect";

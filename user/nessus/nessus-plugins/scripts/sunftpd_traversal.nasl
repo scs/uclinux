@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11374);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  #NO bugtraq_id
  script_cve_id("CAN-2001-0283");
  name["english"] = "SunFTP directory traversal";

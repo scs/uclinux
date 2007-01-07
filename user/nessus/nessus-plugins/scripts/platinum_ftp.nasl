@@ -17,7 +17,7 @@
 
 if(description){
  script_id(11200);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "Platinum FTP Server";
  

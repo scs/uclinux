@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10944);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_bugtraq_id(4426);
  script_cve_id("CVE-2002-0151");
  name["english"] = "MUP overlong request kernel overflow Patch (Q311967)";

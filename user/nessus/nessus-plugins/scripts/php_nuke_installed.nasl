@@ -15,7 +15,7 @@ if (description)
 		"CAN-2002-0483",
 		"CAN-2002-1242");
  script_bugtraq_id(6446,6465,6503,6750,6887,6890,7031,7060,7078,7079);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_name(english:"PHP-Nuke is installed on the remote host");
  desc["english"] = "
 The remote host is running a copy of PHP-Nuke.

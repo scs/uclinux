@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11711);
  script_bugtraq_id(7862);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
 
  name["english"] = "FTP Voyager Overflow";
 

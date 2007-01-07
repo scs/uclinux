@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11748);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CAN-1999-1072","CAN-2002-0749","CAN-2001-0135","CAN-2002-0955","CAN-2001-0562",
  		"CAN-2002-0346","CVE-2000-0923","CVE-2001-0123");
  

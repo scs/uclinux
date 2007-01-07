@@ -13,7 +13,7 @@ if(description)
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0010");
  script_bugtraq_id(8211);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CISCO IOS Interface blocked by IPv4 Packet";
 

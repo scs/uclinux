@@ -75,7 +75,7 @@ PlugExport int plugin_init(struct arglist *desc);
 PlugExport int plugin_init(struct arglist *desc)
 {
   plug_set_id(desc, 10338);
-  plug_set_version(desc, "$Revision$");
+  plug_set_version(desc, "$Revision: 1.11 $");
   plug_set_name(desc, NAME, NULL);
   plug_set_description(desc, FR_DESC, "francais");
   plug_set_description(desc, EN_DESC, NULL);

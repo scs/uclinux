@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10166);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CAN-1999-0546");
  name["english"] = "Windows NT ftp 'guest' account";
  name["francais"] = "Accompte 'guest' FTP de WindowsNT";

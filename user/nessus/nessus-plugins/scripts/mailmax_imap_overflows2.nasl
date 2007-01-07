@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11637);
  script_bugtraq_id(7327);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  
  name["english"] = "MailMax IMAP overflows (2)";

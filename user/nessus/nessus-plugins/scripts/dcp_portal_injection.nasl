@@ -11,7 +11,7 @@
 if (description)
 {
  script_id(11476);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(6525);
  
  script_name(english:"DCP-Portal Code Injection");

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10163);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_cve_id("CVE-2000-0152");
  name["english"] = "Novell Border Manager";
  name["francais"] = "Novell Border Manager";

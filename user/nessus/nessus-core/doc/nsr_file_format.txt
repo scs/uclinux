@@ -1,6 +1,6 @@
 
 DESCRIPTION OF THE NSR FILE FORMAT
-$Id$
+$Id: nsr_file_format.txt,v 1.1 2000/04/13 22:35:11 renaud Exp $
 
 The .nsr file format was designed to facilitate the export of Nessusd reports
 to other tools.

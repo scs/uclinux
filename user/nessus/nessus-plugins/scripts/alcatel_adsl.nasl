@@ -7,7 +7,7 @@
 if(description)
 {
    script_id(10530);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
    name["english"] = "Passwordless Alcatel ADSL Modem";
    name["francais"] = "Modem ADSL Alcatel sans mot de passe";
    script_name(english:name["english"]);

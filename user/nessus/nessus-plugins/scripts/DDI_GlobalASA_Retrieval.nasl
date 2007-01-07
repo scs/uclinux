@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(10991);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.4 $");
     name["english"] = "IIS Global.asa Retrieval";
     script_name(english:name["english"]);
 

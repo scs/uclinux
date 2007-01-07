@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10365);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1073);
  script_cve_id("CAN-2000-0242"); 
  name["english"] = "Windmail.exe allows any user to execute arbitrary commands";

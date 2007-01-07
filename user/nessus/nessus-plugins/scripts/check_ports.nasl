@@ -25,7 +25,7 @@
 if(description)
 {
  script_id(10919);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "Check open ports";
  name["francais"] = "Vérifie les ports ouverts";

@@ -7,7 +7,7 @@
 if(description)
 {
 	script_id(10500);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 	name["english"] = "Shiva Integrator Default Password";
 	script_name(english:name["english"]);
  

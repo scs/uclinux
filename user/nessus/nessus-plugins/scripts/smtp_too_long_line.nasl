@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11270);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  name["english"] = "SMTP too long line";
  script_name(english:name["english"]);
  

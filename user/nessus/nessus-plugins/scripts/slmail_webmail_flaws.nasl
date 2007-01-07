@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11596);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "SLMail WebMail overflows";
  script_name(english:name["english"]);
  

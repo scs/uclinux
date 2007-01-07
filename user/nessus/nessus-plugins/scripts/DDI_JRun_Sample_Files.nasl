@@ -9,7 +9,7 @@
 if(description)
 {
     script_id(10996);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.5 $");
     script_cve_id("CVE-2000-0539");
     script_bugtraq_id(1386);
     name["english"] = "JRun Sample Files";

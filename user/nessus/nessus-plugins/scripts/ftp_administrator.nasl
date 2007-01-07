@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11160);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_name(english:"Windows Administrator NULL FTP password");
 	     
 

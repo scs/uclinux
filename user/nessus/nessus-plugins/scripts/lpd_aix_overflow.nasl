@@ -8,7 +8,7 @@
 if(description)
 {
    script_id(11355);
-   script_version ("$Revision$");
+   script_version ("$Revision: 1.1 $");
    script_cve_id("CAN-2001-0671");
    name["english"] = "Buffer overflow in AIX lpd";
   

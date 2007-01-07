@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11538);
  script_bugtraq_id(7349, 7347);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  script_name(english:"ezPublish config disclosure");
  desc["english"] = "

@@ -2,7 +2,7 @@ if(description)
 {
  script_id(11805);
  script_bugtraq_id(8273);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  name["english"] = "e107 database dump";
  script_name(english:name["english"]);
  

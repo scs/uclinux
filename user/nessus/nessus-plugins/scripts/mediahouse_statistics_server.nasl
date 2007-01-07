@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10140);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.20 $");
  script_bugtraq_id(734);
  script_cve_id("CVE-1999-0931");
  name["english"] = "MediaHouse Statistic Server Buffer Overflow";

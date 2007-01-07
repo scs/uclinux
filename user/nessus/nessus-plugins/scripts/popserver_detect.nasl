@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10185);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "POP3 Server type and version";
  script_name(english:name["english"]);
  

@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11668);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "Webfroot shoutbox file inclusion";
 

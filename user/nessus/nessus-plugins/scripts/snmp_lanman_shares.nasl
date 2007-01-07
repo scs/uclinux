@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10548);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  script_cve_id ("CAN-1999-0499");
  name["english"] = "Enumerate Lanman shares via SNMP";
  name["francais"] = "Enumeration des shares Lanman par SNMP";

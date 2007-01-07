@@ -1,4 +1,4 @@
-/* @(#) $Header$ (LBL) */
+/* @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/lbl/gnuc.h,v 1.1.1.1 1999/06/12 13:02:33 renaud Exp $ (LBL) */
 
 /* Define __P() macro, if necessary */
 #ifndef __P

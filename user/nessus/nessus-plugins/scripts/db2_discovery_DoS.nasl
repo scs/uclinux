@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11896);
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "DB2 discovery service DOS";
  script_name(english:name["english"]);
  

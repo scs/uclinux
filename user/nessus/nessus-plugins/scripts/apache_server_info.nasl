@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10678);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "Apache /server-info accessible";
  name["francais"] = "Apache /server-info accessible";
  

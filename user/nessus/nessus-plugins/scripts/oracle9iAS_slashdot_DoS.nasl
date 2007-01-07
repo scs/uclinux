@@ -30,7 +30,7 @@
 if(description)
 {
  script_id(11076);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(3765);
  script_cve_id("CAN-2002-0386");
  name["english"] = "Oracle webcache admin interface DoS";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10286);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-1999-1457");
  
  name["english"] = "thttpd flaw";

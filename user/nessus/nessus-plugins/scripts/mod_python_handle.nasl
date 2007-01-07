@@ -9,7 +9,7 @@ if(description)
  script_id(10947);
  script_cve_id("CVE-2002-0185");
  script_bugtraq_id(4656);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "mod_python handle abuse";
 

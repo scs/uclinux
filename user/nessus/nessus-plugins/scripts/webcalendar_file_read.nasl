@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11794);
  script_bugtraq_id(8237);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "WebCalendar file reading";
 

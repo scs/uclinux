@@ -11,7 +11,7 @@ if (description)
  	script_id(10821);
 	script_cve_id("CAN-2001-0249", "CVE-2001-0550");
         script_bugtraq_id(2550, 3581);
-  	script_version("$Revision$");
+  	script_version("$Revision: 1.18 $");
  	name["english"] = "FTPD glob Heap Corruption";
 	script_name(english: name["english"]);
 

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10767);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Tests for Nimda Worm infected HTML files";
  name["francais"] = "Tests for Nimda Worm infected HTML files";
  script_name(english:name["english"], francais:name["francais"]);

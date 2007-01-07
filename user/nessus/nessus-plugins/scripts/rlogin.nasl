@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10205);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CAN-1999-0651");
  name["english"] = "rlogin";
  name["francais"] = "rlogin";

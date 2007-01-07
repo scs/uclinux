@@ -11,7 +11,7 @@ if(description)
  script_id(11380);
  script_bugtraq_id(6904);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "CSCdz39284, CSCdz41124";
 

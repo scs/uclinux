@@ -12,7 +12,7 @@ if(description)
  script_bugtraq_id(8458);
 
 
- script_version ("$Revision$");
+ script_version ("$Revision: 1.23 $");
  
  name["english"] = "Microsoft RPC Interface Buffer Overrun (KB824146)";
  script_name(english:name["english"]);

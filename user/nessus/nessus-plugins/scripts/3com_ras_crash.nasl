@@ -18,7 +18,7 @@ if(description)
 {
  script_id(11475);
  script_bugtraq_id(7175);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "3com RAS 1500 DoS";
  script_name(english:name["english"]);

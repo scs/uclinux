@@ -1,5 +1,5 @@
 # By John Lampe
-# $Id$
+# $Id: uddi.inc,v 1.2 2002/10/09 15:17:56 renaud Exp $
 
 function create_uddi_xml (ktype,path,key,name) 
 {

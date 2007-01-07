@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10561);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "cisco 675 http DoS";
  name["francais"] = "Déni de service Cisco 675 par http";

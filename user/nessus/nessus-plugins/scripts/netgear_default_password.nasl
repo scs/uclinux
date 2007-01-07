@@ -5,7 +5,7 @@
 if(description)
 {
 	script_id(11737);
-	script_version("$Revision$");
+	script_version("$Revision: 1.1 $");
 	name["english"] = "NetGear Router Default Password";
 	script_name(english:name["english"]);
 	desc["english"] = "

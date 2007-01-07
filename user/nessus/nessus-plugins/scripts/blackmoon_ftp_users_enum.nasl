@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11648);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  script_name(english:"BlackMoon FTP user disclosure");
 	     

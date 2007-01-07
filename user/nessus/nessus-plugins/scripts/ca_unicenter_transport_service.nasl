@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10033);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "CA Unicenter's Transport Service is running";
  script_name(english:name["english"]);

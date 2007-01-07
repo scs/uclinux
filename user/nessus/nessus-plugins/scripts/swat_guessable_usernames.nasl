@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10590);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CVE-2000-0938");
  
  

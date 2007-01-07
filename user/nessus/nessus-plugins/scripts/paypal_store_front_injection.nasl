@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11873);
  script_bugtraq_id(8791);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  name["english"] = "PayPal Store Front code injection";
 

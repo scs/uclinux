@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11318);
  script_cve_id("CAN-2002-0684");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  
  name["english"] = "BIND 9 overflow";

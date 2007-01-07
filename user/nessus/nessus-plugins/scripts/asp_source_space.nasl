@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11071);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CAN-2001-1248");
  script_bugtraq_id(2975);
  name["english"] = "ASP source using %20 trick";

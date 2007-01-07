@@ -10,7 +10,7 @@ if(description)
  script_cve_id("CAN-2002-1337", "CVE-2001-1349");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0002");
  script_bugtraq_id(6991);
- script_version("$Revision$");
+ script_version("$Revision: 1.15 $");
  
  name["english"] = "Sendmail remote header buffer overflow";
  script_name(english:name["english"]);

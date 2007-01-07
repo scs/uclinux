@@ -10,7 +10,7 @@
 if(description)
 {
     script_id(11141);
-    script_version ("$Revision$");
+    script_version ("$Revision: 1.4 $");
     name["english"] = "Crash SMC AP";
     script_name(english:name["english"]);
     desc["english"] = "

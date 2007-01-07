@@ -9,7 +9,7 @@ if(description)
  script_id(10923);
 script_cve_id("CVE-2002-0068");
  script_bugtraq_id(4148);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Squid overflows";
 
  script_name(english:name["english"]);

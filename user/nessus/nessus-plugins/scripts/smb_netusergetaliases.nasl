@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10893);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Obtains the lists of users aliases";
 
  script_name(english:name["english"]);

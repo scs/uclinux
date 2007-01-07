@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10592);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(2166);
  name["english"] = "webdriver";
  name["francais"] = "webdriver";

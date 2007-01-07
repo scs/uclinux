@@ -21,7 +21,7 @@ http://www.securiteam.com/cgi-bin/htsearch?config=htdigSecuriTeam&words=Formmail
 if(description)
 {
  script_id(10782);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-2001-0357");
 
  name["english"] = "Formmail Version Information Disclosure";

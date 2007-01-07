@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11102);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(3387);
  script_cve_id("CVE-2001-1048");
  name["english"] = "Awol code injection";

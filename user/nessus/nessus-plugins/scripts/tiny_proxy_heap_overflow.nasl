@@ -9,7 +9,7 @@ if(description)
  script_id(10596);
 script_cve_id("CVE-2001-0129");
  script_bugtraq_id(2217);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "Tinyproxy heap overflow";
  script_name(english:name["english"]);

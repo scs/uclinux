@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11844);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Kazaa P2P check";
  script_name(english:name["english"]);
  script_cve_id("CAN-2003-0397");

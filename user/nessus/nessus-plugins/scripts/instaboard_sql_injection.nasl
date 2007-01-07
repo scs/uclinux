@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11532);
  script_bugtraq_id(7338);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Instaboard SQL injection";
  script_name(english:name["english"]);

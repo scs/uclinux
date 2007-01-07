@@ -10,7 +10,7 @@ if(description)
  script_cve_id("CVE-2001-0436");
  script_bugtraq_id(2728);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "dcforum";
  name["francais"] = "dcforum";
  script_name(english:name["english"], francais:name["francais"]);

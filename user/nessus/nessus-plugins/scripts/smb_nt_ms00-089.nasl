@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10555);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1973);
  
  name["english"] =  "Domain account lockout vulnerability";

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10249);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.29 $");
  script_cve_id("CAN-1999-0531");
  
  name["english"] = "EXPN and VRFY commands";

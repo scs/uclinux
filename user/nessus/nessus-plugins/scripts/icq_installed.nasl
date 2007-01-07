@@ -12,7 +12,7 @@ if(description)
 # script_bugtraq_id(246, 132, 929, 1463, 1307, 2664, 3813, 4514, 5239, 5247, 3226, 5295);
  script_cve_id("CAN-1999-1418", "CAN-1999-1440", "CAN-2000-0046", "CAN-2000-0564", "CVE-2000-0552", "CAN-2001-0367", "CVE-2002-0028", "CAN-2001-1305");
  
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "ICQ is installed";
 

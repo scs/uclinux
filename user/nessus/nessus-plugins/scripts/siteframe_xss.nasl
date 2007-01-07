@@ -13,7 +13,7 @@ if (description)
 {
  script_id(11448);
  script_bugtraq_id(7140, 7143);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  script_name(english:"Siteframe Cross Site Scripting Bugs");
  desc["english"] = "

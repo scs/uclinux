@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10938);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_bugtraq_id(4335);
  script_cve_id("CVE-2002-0061");
  name["english"] = "Apache Remote Command Execution via .bat files";

@@ -13,7 +13,7 @@ if(description)
   
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10002);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0449");
  
  desc["english"] = "IIS comes with the sample site 'ExAir'. Unfortunately,

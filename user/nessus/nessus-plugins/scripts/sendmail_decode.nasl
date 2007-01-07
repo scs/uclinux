@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10248);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0096");
  
  name["english"] = "Sendmail 'decode' flaw";

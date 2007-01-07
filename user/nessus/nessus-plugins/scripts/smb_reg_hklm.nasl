@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10427);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CAN-1999-0589");
  name["english"] = "SMB Registry : permissions of HKLM";
  name["francais"] = "Vérification des permissions de HKLM";

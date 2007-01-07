@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10218);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "llockmgr service";
  name["francais"] = "Service llockmgr";

@@ -29,7 +29,7 @@
 if(description)
 {
  script_id(11065);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-2002-1061");
  script_bugtraq_id(5319);
  name["english"] = "HTTP method overflow";

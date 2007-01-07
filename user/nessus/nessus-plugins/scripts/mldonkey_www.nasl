@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(11125);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.5 $");
  
   script_name(english:"mldonkey www");
  

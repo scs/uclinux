@@ -11,7 +11,7 @@ if(description)
 {
  script_id(11690);
  script_bugtraq_id(7764);
- script_version("$Revision$");
+ script_version("$Revision: 1.1 $");
  
  name["english"] = "JBoss source disclosure";
  script_name(english:name["english"]);

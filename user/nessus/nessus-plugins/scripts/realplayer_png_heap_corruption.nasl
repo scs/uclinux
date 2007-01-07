@@ -10,7 +10,7 @@ if(description)
  script_bugtraq_id(7177);
  script_cve_id("CAN-2003-0141");  
  
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "RealPlayer PNG deflate heap corruption";
 

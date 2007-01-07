@@ -10,7 +10,7 @@ if(description)
  script_id(11365);
  script_cve_id("CAN-2002-0257");
  script_bugtraq_id(4069);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 
  name["english"] = "Auction Deluxe XSS";
  script_name(english:name["english"]);

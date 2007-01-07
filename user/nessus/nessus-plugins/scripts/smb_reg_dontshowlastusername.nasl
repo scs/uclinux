@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11459);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "SMB Registry : Do not show the last user name";
  

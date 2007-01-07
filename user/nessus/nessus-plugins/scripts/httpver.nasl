@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10582);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "HTTP version spoken";
  script_name(english:name["english"]);

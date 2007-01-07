@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10401);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CAN-1999-0662");
  name["english"] = "SMB Registry : NT4 Service Pack version";
  name["francais"] = "Obtention du numéro du service pack de NT4 par SMB";

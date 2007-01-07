@@ -27,7 +27,7 @@
 if(description)
 {
  script_id(11174);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  
  name["english"] = "HTTP negative Content-Length DoS";
  script_name(english:name["english"]);

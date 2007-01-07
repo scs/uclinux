@@ -10,7 +10,7 @@ if(description)
 {
  script_id(10578);
  script_cve_id("CAN-2001-0029");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(2099);
  
  name["english"] = "Oops buffer overflow";

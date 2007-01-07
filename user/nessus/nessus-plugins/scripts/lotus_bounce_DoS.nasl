@@ -16,7 +16,7 @@ if(description)
  script_bugtraq_id(3212);
  script_cve_id("CAN-2000-1203");
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Lotus Domino SMTP bounce DoS";
  script_name(english:name["english"]);
  

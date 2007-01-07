@@ -6,7 +6,7 @@
 if(description)
 {
 	script_id(11032);
-	script_version ("$Revision$");
+	script_version ("$Revision: 1.25 $");
  
  	name["english"] = "Directory Scanner";
  	script_name(english:name["english"]);

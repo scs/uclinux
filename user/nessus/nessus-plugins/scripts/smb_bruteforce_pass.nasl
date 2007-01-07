@@ -12,7 +12,7 @@ if(description)
  script_id(10524);
 script_cve_id("CVE-2000-0979");
  script_bugtraq_id(1780);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.28 $");
  
  name["english"] = "SMB Windows9x password verification vulnerability";
  name["francais"] = "SMB Windows9x password verification vulnerability";

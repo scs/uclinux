@@ -13,7 +13,7 @@
 if (description)
 {
  script_id(11646);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  script_name(english:"Turba Path Disclosure");
  desc["english"] = "

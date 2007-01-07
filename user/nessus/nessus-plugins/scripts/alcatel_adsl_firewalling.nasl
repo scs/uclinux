@@ -7,7 +7,7 @@
 if(description)
 {
    script_id(10760);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2568);
    name["english"] = "Alcatel ADSL modem with firewalling off";
    name["francais"] = "Modem ADSL Alcatel avec Firewalling off";

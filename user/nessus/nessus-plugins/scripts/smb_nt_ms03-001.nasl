@@ -8,7 +8,7 @@ if(description)
  script_id(11212);
  script_cve_id("CAN-2003-0003");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0007");
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "Unchecked buffer in Locate Service";
 

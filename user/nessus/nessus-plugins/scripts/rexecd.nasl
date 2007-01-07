@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10203);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CAN-1999-0618");
  name["english"] = "rexecd";
  script_name(english:name["english"]);

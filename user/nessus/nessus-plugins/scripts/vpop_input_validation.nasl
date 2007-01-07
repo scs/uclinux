@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10463);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1418);
  script_cve_id("CVE-2000-0583");
  name["english"] = "vpopmail input validation bug";

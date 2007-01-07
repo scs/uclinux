@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10788);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_bugtraq_id(3457);
  name["english"] = "Solaris finger disclosure";
  script_name(english:name["english"]);

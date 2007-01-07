@@ -9,7 +9,7 @@ if(description)
  script_id(10699);
  script_cve_id("CVE-2001-0341");
  script_bugtraq_id(2906);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "IIS FrontPage DoS II";
  script_name(english:name["english"]);

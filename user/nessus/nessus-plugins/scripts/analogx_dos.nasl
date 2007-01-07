@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10445);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1349);
  script_cve_id("CAN-2000-0473");
  name["english"] = "AnalogX denial of service by long CGI name";

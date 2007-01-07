@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10931);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  script_cve_id("CAN-2001-1289");
  script_bugtraq_id(3123);
  name["english"] = "Quake3 Arena 1.29 f/g DOS";

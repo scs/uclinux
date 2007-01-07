@@ -9,7 +9,7 @@ if(description)
  script_id(10600);
  script_cve_id("CVE-2001-0197");
  script_bugtraq_id(2264);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "ICECast Format String";
  script_name(english:name["english"]);

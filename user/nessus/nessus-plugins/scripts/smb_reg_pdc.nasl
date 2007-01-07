@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10413);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CAN-1999-0659");
  name["english"] = "SMB Registry : is the remote host a PDC/BDC";
  name["francais"] = "Base de registres: l'hote distant est-il un PDC/BDC ?";

@@ -15,7 +15,7 @@ if(description)
 {
 
 script_id(10949);
-script_version("$Revision$");
+script_version("$Revision: 1.7 $");
 script_bugtraq_id(2527);
 
 name["english"]="BEA WebLogic Scripts Server scripts Source Disclosure (2)";

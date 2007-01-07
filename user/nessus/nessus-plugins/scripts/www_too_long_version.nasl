@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11061);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "HTTP version number overflow";
  script_name(english:name["english"]);
  

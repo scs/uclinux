@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10484);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "Read any file thanks to ~nobody/";
  name["francais"] = "Read any file thanks to ~nobody/";

@@ -13,7 +13,7 @@ if(description)
  script_id(10830); 
  script_cve_id("CAN-2001-1209");
  script_bugtraq_id(3759);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
 
  name["english"] = "zml.cgi Directory Traversal";
  script_name(english:name["english"]);

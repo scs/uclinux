@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10262);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.28 $");
  script_bugtraq_id(8196); # qmail-smtpd-auth
  script_cve_id("CAN-1999-0512", "CAN-2002-1278", "CAN-2003-0285");
  name["english"] = "Mail relaying";

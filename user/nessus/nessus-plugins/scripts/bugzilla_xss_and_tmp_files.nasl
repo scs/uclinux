@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11553);
  script_bugtraq_id(7412);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
 
  name["english"] = "Bugzilla XSS and insecure temporary filenames";

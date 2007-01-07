@@ -5,7 +5,7 @@
 if (description)
 {
  script_id(11657);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 
  script_name(english:"Synchrologic User account information disclosure");
  desc["english"] = "

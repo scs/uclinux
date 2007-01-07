@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10036);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CAN-1999-0660");
  name["english"] = "CDK Detect";
  name["francais"] = "Detection de CDK";

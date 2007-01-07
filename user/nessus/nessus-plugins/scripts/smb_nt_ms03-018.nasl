@@ -7,7 +7,7 @@ if(description)
  script_cve_id("CAN-2003-0224", "CAN-2003-0225", "2003-0226");
  script_bugtraq_id(7731, 7735, 7733);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.3 $");
  name["english"] = "Cumulative Patch for Internet Information Services (Q11114)";
  
  script_name(english:name["english"]);

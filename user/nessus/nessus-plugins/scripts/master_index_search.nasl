@@ -9,7 +9,7 @@ if(description)
  script_id(10562);
  script_cve_id("CVE-2000-0924");
  script_bugtraq_id(1772);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "Master Index directory traversal vulnerability";
  name["francais"] = "Master Index directory traversal vulnerability";

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10085);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_bugtraq_id(271);
  script_cve_id("CVE-1999-0079");
  script_name(english:"Ftp PASV denial of service",

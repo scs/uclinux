@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10594);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-2001-0126");
  script_bugtraq_id(2295);
  name["english"] = "Oracle XSQL Stylesheet Vulnerability";

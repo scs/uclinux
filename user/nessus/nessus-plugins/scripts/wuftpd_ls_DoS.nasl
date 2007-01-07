@@ -15,7 +15,7 @@ if (description)
    script_xref(name: "zone-h", value: "3299");
  }
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "wu-ftpd ls -W memory exhaustion";
  script_name(english: name["english"]);
 

@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11091);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
  script_bugtraq_id(5480);
  script_cve_id("CVE-2002-0720");
  name["english"] = "Windows Network Manager Privilege Elevation (Q326886)";

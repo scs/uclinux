@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11148);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  script_cve_id("CAN-2002-0370", "CAN-2002-1139"); 
 
  name["english"] = "Unchecked Buffer in Decompression Functions(Q329048)";

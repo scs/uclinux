@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10213);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.18 $");
  script_bugtraq_id(428, 5356);
  script_cve_id("CVE-1999-0320", "CVE-1999-0696", "CVE-2002-0391");
  name["english"] = "cmsd service";

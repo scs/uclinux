@@ -10,7 +10,7 @@ if(description)
 {
  script_id(11591);
  script_bugtraq_id(7354);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "12Planet Chat Server ClearText Password";
  script_name(english:name["english"]);

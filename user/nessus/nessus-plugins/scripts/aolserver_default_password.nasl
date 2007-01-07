@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10753);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "AOLserver Default Password";
  script_name(english:name["english"]);

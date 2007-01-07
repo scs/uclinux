@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10090);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_bugtraq_id(2241);
  script_cve_id("CVE-1999-0080",
  	 	"CVE-1999-0955"  # If vulnerable to the flaw above, it's 

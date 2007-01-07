@@ -19,7 +19,7 @@ if(description)
  script_id(11398);
  script_cve_id("CAN-2003-0085", "CAN-2003-0086");
  script_bugtraq_id(7106, 7107);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "Samba Fragment Reassembly Overflow";
 

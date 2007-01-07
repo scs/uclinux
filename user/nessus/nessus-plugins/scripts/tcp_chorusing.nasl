@@ -9,7 +9,7 @@ if(description)
  script_id(10276);
 script_cve_id("CAN-1999-1201");
  script_bugtraq_id(225);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "TCP Chorusing";
  name["francais"] = "TCP Chorusing";

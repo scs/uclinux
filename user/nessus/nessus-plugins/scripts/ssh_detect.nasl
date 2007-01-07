@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10267);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  
  name["english"] = "SSH Server type and version";
  script_name(english:name["english"]);

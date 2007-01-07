@@ -166,7 +166,7 @@ PlugExport int plugin_init(struct arglist *desc);
 PlugExport int plugin_init(struct arglist *desc)
 {
   plug_set_id(desc, 10384);
-  plug_set_version(desc, "$Revision$");
+  plug_set_version(desc, "$Revision: 1.15 $");
   plug_set_cve_id(desc, "CVE-2000-0245");
   plug_set_bugtraq_id(desc, "1079");
 

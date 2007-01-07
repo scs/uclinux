@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10964);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  script_bugtraq_id(4287);
  script_cve_id("CVE-2002-0367");
  name["english"] = "Windows Debugger flaw can Lead to Elevated Privileges (Q320206)";

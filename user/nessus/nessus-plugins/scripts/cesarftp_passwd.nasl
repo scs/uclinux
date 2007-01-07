@@ -16,7 +16,7 @@ if(description)
  script_cve_id("CAN-2003-0329");
 
  
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CesarFTP stores passwords in cleartext";
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11603);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7323);
  
  name["english"] = "MacOS X Directory Service DoS";

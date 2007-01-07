@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10200);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CAN-1999-0271");
  
  name["english"] = "RealServer G2 buffer overrun";

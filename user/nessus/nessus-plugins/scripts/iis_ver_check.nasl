@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11874);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  name["english"] = "IIS Service Pack - 404";
  script_name(english:name["english"]);
  

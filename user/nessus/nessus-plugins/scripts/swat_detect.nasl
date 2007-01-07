@@ -15,7 +15,7 @@ if(description)
  script_id(10273);
 script_cve_id("CVE-2000-0935");
  script_bugtraq_id(1872);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  
  
  name["english"] = "Detect SWAT server port";

@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11147);
- script_version("$Revision$");
+ script_version("$Revision: 1.5 $");
  script_cve_id("CAN-2002-0693", "CAN-2002-0694"); 
 
  name["english"] = "Unchecked Buffer in Windows Help(Q323255)";

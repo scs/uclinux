@@ -1,4 +1,4 @@
-/* @(#) $Header$ (LBL) */
+/* @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/ppp.h,v 1.3 2003/02/06 20:28:09 renaud Exp $ (LBL) */
 /*
  * Point to Point Protocol (PPP) RFC1331
  *

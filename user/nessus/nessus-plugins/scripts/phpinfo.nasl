@@ -6,7 +6,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_id(11229);
  
  name["english"] = "phpinfo.php";

@@ -12,7 +12,7 @@ if(description)
  script_id(11698);
  script_bugtraq_id(7804);
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  name["english"] = "SQL injection in XPression Software";
  script_name(english:name["english"]);
  

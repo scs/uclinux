@@ -10,7 +10,7 @@ if(description)
  script_id(10694);
  script_cve_id("CAN-2001-0767");
  script_bugtraq_id(2789);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  script_name(english:"GuildFTPd Directory Traversal");
  
  desc = "

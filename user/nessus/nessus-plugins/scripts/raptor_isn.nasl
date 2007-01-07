@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11057);
  script_cve_id("CAN-2002-1463");
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Raptor Weak ISN";
  script_name(english:name["english"]);
 

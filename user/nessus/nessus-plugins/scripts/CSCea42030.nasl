@@ -11,7 +11,7 @@ if(description)
  script_id(11547);
  script_cve_id("CAN-2003-0216");
 
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "CSCea42030";
 

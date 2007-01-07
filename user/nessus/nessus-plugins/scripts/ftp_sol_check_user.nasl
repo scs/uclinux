@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10653);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2564);
  name["english"] = "Solaris FTPd tells if a user exists";
  name["francais"] = "Solaris FTPd indique si un utilisateur existe";

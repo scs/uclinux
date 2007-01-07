@@ -10,7 +10,7 @@ if(description)
   script_bugtraq_id(2070, 6828, 7200);
   script_cve_id("CVE-2001-0040", "CAN-2003-0098", "CAN-2003-0099");
   
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.4 $");
  
   script_name(english:"apcupsd overflows");
  

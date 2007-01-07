@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10153);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0269");
  name["english"] = "Netscape Server ?PageServices bug";
  name["francais"] = "Netscape Server ?PageServices bug";

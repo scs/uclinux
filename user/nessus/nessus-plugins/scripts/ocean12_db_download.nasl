@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11599);
  script_bugtraq_id(7328);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "Ocean12 Database Download";
  script_name(english:name["english"]);

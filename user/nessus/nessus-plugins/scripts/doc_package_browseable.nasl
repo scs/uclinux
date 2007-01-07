@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10518);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-1016");
  script_bugtraq_id(1707);
  name["english"] = "/doc/packages directory browsable ?";

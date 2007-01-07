@@ -41,7 +41,7 @@ PlugExport int plugin_init(desc)
   return -1;
 #else
   plug_set_id(desc, 10863);
-  plug_set_version(desc, "$Revision$");
+  plug_set_version(desc, "$Revision: 1.9 $");
  
   plug_set_name(desc, FR_NAME, "francais");
   plug_set_name(desc, EN_NAME, NULL);

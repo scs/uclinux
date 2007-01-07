@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11414);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
  
  name["english"] = "IMAP Banner";
  name["francais"] = "Banniere IMAP";

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/net/bpf.h,v 1.3 2003/02/06 20:28:10 renaud Exp $ (LBL)
  */
 
 #ifndef BPF_MAJOR_VERSION

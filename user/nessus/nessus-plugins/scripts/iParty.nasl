@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10111);
  script_cve_id("CAN-1999-1566");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "iParty";
  name["francais"] = "iParty";
  script_name(english:name["english"], francais:name["francais"]);

@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10896);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
  name["english"] = "Users information : Can't change password";
 
  script_name(english:name["english"]);

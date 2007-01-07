@@ -16,7 +16,7 @@ if (description) {
    script_id(10827);
    script_cve_id("CVE-2001-0797");
    if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0004");
-   script_version("$Revision$");
+   script_version("$Revision: 1.10 $");
  script_bugtraq_id(3681, 7481);
   name["english"] = "SysV /bin/login buffer overflow (telnet)";
   script_name(english:name["english"]);

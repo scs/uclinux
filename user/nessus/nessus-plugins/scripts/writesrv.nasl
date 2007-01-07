@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11222);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.3 $");
  
   name["english"] = "Writesrv";
   script_name(english:name["english"]);

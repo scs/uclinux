@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10675);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  script_name(english:"CheckPoint Firewall-1 Telnet Authentication Detection");
  script_description(english:"
 A Firewall-1 Client Authentication Server is running on this port.

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10051);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "A CVS pserver is running";
  script_name(english:name["english"]);
  

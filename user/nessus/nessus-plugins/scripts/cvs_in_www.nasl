@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10922);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "CVS/Entries";
  script_name(english:name["english"]);

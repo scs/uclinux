@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10077);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CAN-2000-0114");
  name["english"] = "Microsoft Frontpage exploits";
  name["francais"] = "Exploits Microsoft Frontpage";

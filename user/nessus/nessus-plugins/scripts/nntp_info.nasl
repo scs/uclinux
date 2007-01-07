@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11033);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.19 $");
  name["english"] = "Misc information on News server";
  script_name(english:name["english"]);
  

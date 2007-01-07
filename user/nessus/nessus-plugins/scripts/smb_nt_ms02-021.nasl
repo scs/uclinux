@@ -11,7 +11,7 @@ if(description)
  script_cve_id("CVE-2002-1056");
  script_bugtraq_id(4397);
  
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
 
  name["english"] = "Word can lead to Script execution on mail reply";
 

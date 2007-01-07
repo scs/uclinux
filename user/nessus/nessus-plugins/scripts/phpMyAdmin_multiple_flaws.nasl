@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11761);
  script_bugtraq_id(7965, 7964, 7963, 7962);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "phpMyAdmin multiple flaws";
 
  script_name(english:name["english"]);

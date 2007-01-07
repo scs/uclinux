@@ -15,7 +15,7 @@
 if(description)
 {
   script_id(11022);
-  script_version ("$Revision$");
+  script_version ("$Revision: 1.10 $");
  
   script_name(english:"eDonkey detection");
  

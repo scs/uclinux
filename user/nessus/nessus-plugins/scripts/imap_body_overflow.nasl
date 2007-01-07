@@ -9,7 +9,7 @@ if(description)
  script_id(10966);
  script_cve_id("CVE-2002-0379");
  script_bugtraq_id(4713);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  
  name["english"] = "IMAP4buffer overflow in the BODY command";

@@ -9,7 +9,7 @@ if(description)
  script_id(10520);
 script_cve_id("CVE-2000-1022");
  script_bugtraq_id(1698);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "PIX's smtp content filtering";
  name["francais"] = "filtre de contenu smtp PIX";
  script_name(english:name["english"],

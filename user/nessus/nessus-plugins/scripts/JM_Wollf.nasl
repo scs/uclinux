@@ -7,7 +7,7 @@ if(description)
 {
 
  script_id(11881);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.1 $");
 # script_cve_id("CAN-2003-00002");
  name["english"] = "Wollf backdoor detection";
  script_name(english:name["english"]);

@@ -9,7 +9,7 @@ if(description)
  script_id(10850);
  script_cve_id("CAN-2002-0562");
  script_bugtraq_id(4034);
- script_version("$Revision$");
+ script_version("$Revision: 1.6 $");
  name["english"] = "Oracle 9iAS Globals.jsa access";
  name["francais"] = "Oracle 9iAS Globals.jsa access";
  script_name(english:name["english"], francais:name["francais"]);

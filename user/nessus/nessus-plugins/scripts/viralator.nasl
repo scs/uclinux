@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11107);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CAN-2001-0849");
  name["english"] = "viralator";
  script_name(english:name["english"]);

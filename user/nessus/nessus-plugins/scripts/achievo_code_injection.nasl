@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11109);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.7 $");
  script_bugtraq_id(5552);
 
  name["english"] = "Achievo code injection";

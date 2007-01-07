@@ -6,7 +6,7 @@
  *
  *       Author: Jordan Hrycaj <jordan@mjh.teddy-net.com>
  *
- *    $Id$ 
+ *    $Id: hlst.c,v 1.33 2003/02/27 10:09:57 renaud Exp $ 
  *
  *   This library is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU Library General Public

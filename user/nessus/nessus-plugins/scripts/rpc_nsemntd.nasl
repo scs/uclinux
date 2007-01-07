@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10222);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "nsemntd service";
  name["francais"] = "Service nsemntd";

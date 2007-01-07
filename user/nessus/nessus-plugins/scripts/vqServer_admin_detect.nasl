@@ -13,7 +13,7 @@ if(description)
  script_id(10354);
  script_bugtraq_id(1610);
  script_cve_id("CVE-2000-0766");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "vqServer administrative port";
  name["francais"] = "Port administratif de vqServer";
  

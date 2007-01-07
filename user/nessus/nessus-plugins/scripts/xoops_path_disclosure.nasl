@@ -13,7 +13,7 @@ if(description)
  script_id(11439);
  script_bugtraq_id(3977, 3978, 3981, 5785, 6344, 6393);
  script_cve_id("CAN-2002-0216", "CAN-2002-0217");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
 
  
  name["english"] = "Xoops path disclosure";

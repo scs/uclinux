@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11765);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "scan for UPNP/Tcp hosts";
  script_name(english:name["english"]);

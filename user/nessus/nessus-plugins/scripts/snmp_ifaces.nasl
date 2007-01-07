@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10551);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Obtain network interfaces list via SNMP";
  name["francais"] = "Enumeration des interfaces réseau par SNMP";

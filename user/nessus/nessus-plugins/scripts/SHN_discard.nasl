@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11367);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CAN-1999-0636");
  name["english"] = "Discard port open";
  name["francais"] = "Port 'discard' ouvert";

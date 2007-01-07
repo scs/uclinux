@@ -16,7 +16,7 @@ if(description)
  script_cve_id("CAN-2003-0201", "CAN-2003-0196");
  script_bugtraq_id(7294);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
 
  name["english"] = "Samba trans2open buffer overflow";
 

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10225);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "rje mapper service";
  name["francais"] = "Service rje mapper";

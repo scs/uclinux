@@ -14,7 +14,7 @@ if(description)
 {
  script_id(11535);
  script_bugtraq_id(7336, 7335);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  
  
  name["english"] = "SheerDNS directory traversal";

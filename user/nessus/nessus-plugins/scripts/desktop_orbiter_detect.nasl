@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11691);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "Desktop Orbiter Server Detection";
  script_name(english:name["english"]);
 

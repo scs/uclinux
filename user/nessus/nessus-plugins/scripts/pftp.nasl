@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10508);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.5 $");
  
  
  name["english"] = "PFTP login check";

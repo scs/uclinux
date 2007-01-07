@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11660);
  script_bugtraq_id(7673);
- script_version("$Revision$");
+ script_version("$Revision: 1.2 $");
  
  name["english"] = "TextPortal Default Passwords";
  script_name(english:name["english"]);

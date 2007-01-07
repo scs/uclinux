@@ -16,7 +16,7 @@ if(description)
  script_cve_id("CAN-2002-0357");
  script_bugtraq_id(4939);
  
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
 
  
  name["english"] = "irix rpc.passwd overflow";

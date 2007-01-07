@@ -4,7 +4,7 @@
 
 if(description)
 {
- script_version ("$Revision$");
+ script_version ("$Revision: 1.4 $");
  script_id(11230);
  script_bugtraq_id(4785);
  name["english"] = "Stronghold Swish";

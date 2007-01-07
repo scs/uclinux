@@ -3,7 +3,7 @@
 if(description)
 {
  script_id(11358);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CVE-1999-0168");
  
  name["english"] = "The remote portmapper forwards NFS requests";

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10840);
- script_version("$Revision$");
+ script_version("$Revision: 1.14 $");
  script_bugtraq_id(3726);
  script_cve_id("CAN-2001-1216");
  name["english"] = "Oracle 9iAS mod_plsql Buffer Overflow";

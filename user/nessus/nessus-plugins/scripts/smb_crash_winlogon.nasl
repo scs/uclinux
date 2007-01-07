@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10414);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1331);
  script_cve_id("CVE-2000-0377");
  name["english"] = "WinLogon.exe DoS";

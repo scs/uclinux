@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10344);
- script_version ("$Revision$"); 
+ script_version ("$Revision: 1.9 $"); 
  
  name["english"] = "Detect the presence of Napster";
  name["francais"] = "Detection de la présence de Napster";

@@ -9,7 +9,7 @@ if(description)
  script_id(10954);
  script_cve_id("CVE-2002-0575", "CAN-2002-0575");
  script_bugtraq_id(4560);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "OpenSSH AFS/Kerberos ticket/token passing";
  script_name(english:name["english"]);

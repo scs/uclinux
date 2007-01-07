@@ -20,7 +20,7 @@ Risk factor : High";
 if (description) {
    script_id(11136);
    script_cve_id("CVE-2001-0797");
-   script_version("$Revision$");
+   script_version("$Revision: 1.2 $");
   script_bugtraq_id(3681);
   name["english"] = "/bin/login overflow exploitation";
   script_name(english:name["english"]);

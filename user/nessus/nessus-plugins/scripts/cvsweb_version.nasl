@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(10402);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "CVSWeb detection";
  name["francais"] = "Detection de CVSWeb";

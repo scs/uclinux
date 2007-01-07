@@ -9,7 +9,7 @@ if(description)
  script_id(10654);
  script_cve_id("CAN-2001-0419");
  script_bugtraq_id(2569);
- script_version ("$Revision$");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Oracle Application Server Overflow";
  script_name(english:name["english"]);

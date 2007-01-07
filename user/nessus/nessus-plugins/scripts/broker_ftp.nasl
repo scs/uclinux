@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10556);
  script_cve_id("CAN-2001-0450");
- script_version ("$Revision$");
+ script_version ("$Revision: 1.16 $");
  script_bugtraq_id(301);
  
  name["english"] = "Broker FTP files listing";
