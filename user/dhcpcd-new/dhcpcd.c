@@ -66,6 +66,10 @@ int		DoCheckSum	=	0;
 int		TestCase	=	0;
 int		Window		=	0;
 int		dhcpRequestMax = 5;
+int		FiniteLeaseOnly	=	0;
+#ifdef CONFIG_LEDMAN
+int		ledman_led	=	-1;
+#endif
 /*****************************************************************************/
 void print_version()
 {
@@ -77,12 +81,32 @@ Location: http://www.phystech.com/download/\n");
 }
 /*****************************************************************************/
 #ifdef CONFIG_LEDMAN
+void ledman_init(void)
+{
+  const char *p = IfName;
+
+  while ( *p && !isdigit(*p) )
+    p++;
+  if ( *p )
+    {
+      switch (atoi(p)) {
+	case 0:
+	  ledman_led = LEDMAN_LAN1_DHCP;
+	  break;
+	case 1:
+	  ledman_led = LEDMAN_LAN2_DHCP;
+	  break;
+	case 2:
+	  ledman_led = LEDMAN_LAN3_DHCP;
+	  break;
+      }
+    }
+}
+
 void ledman_off(void)
 {
-  if (strchr(IfName, '0'))
-	ledman_cmd(LEDMAN_CMD_ALT_OFF, LEDMAN_LAN1_DHCP);
-  else if (strchr(IfName, '1'))
-	ledman_cmd(LEDMAN_CMD_ALT_OFF, LEDMAN_LAN2_DHCP);
+  if ( ledman_led >= 0 )
+    ledman_cmd(LEDMAN_CMD_ALT_OFF, ledman_led);
 }
 #endif
 /*****************************************************************************/
@@ -246,6 +270,10 @@ prgs: switch ( argc[i][s] )
 	    s++;
 	    TestCase=1;
 	    goto prgs;
+	  case 'P':
+	    s++;
+	    FiniteLeaseOnly=1;
+	    goto prgs;
 	  case 'l':
 	    i++;
 	    if ( argc[i] )
@@ -257,7 +285,7 @@ prgs: switch ( argc[i][s] )
           default:
 usage:	    print_version();
 	    fprintf(stderr,
-"Usage: dhcpcd [-dknrBCDHRT] [-l leasetime] [-h (hostname|-)] [-t timeout]\n\
+"Usage: dhcpcd [-dknrBCDHPRT] [-l leasetime] [-h (hostname|-)] [-t timeout]\n\
        [-i vendorClassID] [-I ClientID] [-m dhcpRequests ] [-c filename] \n\
 	   [-s [ipaddr]] [-w windowsize] [interface]\n");
 	    exit(1);
@@ -279,6 +307,7 @@ usage:	    print_version();
   openlog(PROGRAM_NAME,LOG_PID|LOG_CONS,LOG_LOCAL0);
   signalSetup();
 #ifdef CONFIG_LEDMAN
+  ledman_init();
   atexit(ledman_off);
 #endif
   magic_cookie = htonl(MAGIC_COOKIE);

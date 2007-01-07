@@ -75,6 +75,11 @@ extern	int		DoCheckSum;
 extern	int		TestCase;
 extern  int		Window;
 extern	int		dhcpRequestMax;
+extern	int		FiniteLeaseOnly;
+#ifdef CONFIG_LEDMAN
+extern	int		ledman_led;
+#endif
+
 
 #ifdef ARPCHECK
 int arpCheck();
@@ -596,17 +601,6 @@ int dhcpConfig()
   char cmd[128];
 
   if ( TestCase ) return 0;
-#ifdef CONFIG_USER_IPROUTE2
-  /* Delete any existing addresses in this subnet, so that we are
-   * a primary address. */
-  memcpy(&p->sin_addr.s_addr,DhcpOptions.val[subnetMask],4);
-  for ( i=0;i<32;i++ )
-    if ( ntohl(p->sin_addr.s_addr) & (1<<i) )
-      break;
-  snprintf(cmd, sizeof(cmd), "ip address flush %s to %s/%d",
-		  IfName, inet_ntoa(DhcpIface.ciaddr), 32-i);
-  system(cmd);
-#endif
   memset(&ifr,0,sizeof(struct ifreq));
   memcpy(ifr.ifr_name,IfName,IfName_len);
   p->sin_family = AF_INET;
@@ -1073,10 +1067,8 @@ ntohl(*(unsigned int *)DhcpOptions.val[dhcpT2value]));
   }
 
 #ifdef CONFIG_LEDMAN
-  if (strchr(IfName, '0'))
-	  ledman_cmd(LEDMAN_CMD_ALT_OFF, LEDMAN_LAN1_DHCP);
-  else if (strchr(IfName, '1'))
-	  ledman_cmd(LEDMAN_CMD_ALT_OFF, LEDMAN_LAN2_DHCP);
+  if ( ledman_led >= 0 )
+    ledman_cmd(LEDMAN_CMD_ALT_OFF, ledman_led);
 #endif
   if ( Cfilename )
 #ifndef __uClinux__
@@ -1139,8 +1131,12 @@ ntohl(*(unsigned int *)DhcpOptions.val[dhcpT2value]));
     }
   if ( *(unsigned int *)DhcpOptions.val[dhcpIPaddrLeaseTime] == 0xffffffff )
     {
-      syslog(LOG_INFO,"infinite IP address lease time. Exiting\n");
-      exit(0);
+      if (FiniteLeaseOnly) {
+        DhcpOptions.val[dhcpIPaddrLeaseTime]--;
+      } else {
+        syslog(LOG_INFO,"infinite IP address lease time. Exiting\n");
+        exit(0);
+      }
     }
   return 0;
 }
@@ -1258,13 +1254,11 @@ void *dhcpStart()
   ip_id=time(NULL)&0xffff;
   srandom(ip_id);
 #ifdef CONFIG_LEDMAN
-  if (strchr(IfName, '0')) {
-    ledman_cmd(LEDMAN_CMD_ALT_ON, LEDMAN_LAN1_DHCP);
-    ledman_cmd(LEDMAN_CMD_FLASH | LEDMAN_CMD_ALTBIT, LEDMAN_LAN1_DHCP);
-  } else if (strchr(IfName, '1')) {
-    ledman_cmd(LEDMAN_CMD_ALT_ON, LEDMAN_LAN2_DHCP);
-    ledman_cmd(LEDMAN_CMD_FLASH | LEDMAN_CMD_ALTBIT, LEDMAN_LAN2_DHCP);
-  }
+  if ( ledman_led >= 0 )
+    {
+      ledman_cmd(LEDMAN_CMD_ALT_ON, ledman_led);
+      ledman_cmd(LEDMAN_CMD_FLASH | LEDMAN_CMD_ALTBIT, ledman_led);
+    }
 #endif
   return &dhcpInit;
 }
