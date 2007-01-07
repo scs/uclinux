@@ -10,6 +10,7 @@
 
 /*****************************************************************************/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -20,20 +21,23 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <linux/config.h>
 #include <linux/version.h>
-#ifdef CONFIG_MTD
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
-#include <mtd/mtd-user.h>
-#else 
-#include <linux/mtd/mtd.h>
-#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,18)
+# include <mtd/mtd-user.h>
+# define CONFIG_MTD
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
+# include <linux/config.h>
+# ifdef CONFIG_MTD
+#  include <mtd/mtd-user.h>
+# else 
+#  include <linux/mtd/mtd.h>
+# endif
 #else
-#include <linux/blkmem.h>
+# include <linux/blkmem.h>
 #endif
 #if defined(CONFIG_NFTL_RW) && !defined(NFTL_MAJOR)
- #define NFTL_MAJOR 93
- #include <sys/mount.h>
+# define NFTL_MAJOR 93
+# include <sys/mount.h>
 #endif
 #include <dirent.h>
 
