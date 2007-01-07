@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj_proc.c,v 1.15 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file  contains many  of the functions  that  are called by various ARJ
  * modules. Everything is OS-independent, all OS-dependent  procedures must be

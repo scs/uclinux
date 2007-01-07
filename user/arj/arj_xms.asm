@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: arj_xms.asm,v 1.1.1.1 2002/03/28 00:02:01 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* To make FILELIST.C less platform-dependent, its XMS routies are placed into
 ;* this file.

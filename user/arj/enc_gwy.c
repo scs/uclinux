@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: enc_gwy.c,v 1.1.1.1 2002/03/28 00:02:24 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Interface to compression procedures is located here. Any additional code is
  * to be placed here in the compression stubs.

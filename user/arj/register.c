@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: register.c,v 1.7 2004/04/21 07:04:10 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This optional utility writes registration data to ARJ.EXE (or not .EXE).
  *

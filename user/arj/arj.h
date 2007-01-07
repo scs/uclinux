@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj.h,v 1.4 2003/04/27 20:54:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file must be included FIRST in all modules. It defines the system-wide
  * equates and types, as well as it does some compiler-specific job.

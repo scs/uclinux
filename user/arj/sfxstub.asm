@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: sfxstub.asm,v 1.1.1.2 2002/03/28 00:03:24 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* This is a compact SFX startup stub file.
 ;*

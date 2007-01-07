@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: debug.c,v 1.1.1.1 2002/03/28 00:02:10 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Debug-related procedures are located here. In case of "clean" compile, this
  * file may be omitted.

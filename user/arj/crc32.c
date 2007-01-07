@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: crc32.c,v 1.1.1.1 2002/03/28 00:02:10 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file contains CRC32 calculation routines.
  *

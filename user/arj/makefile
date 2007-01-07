@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: makefile,v 1.11 2004/06/18 16:19:37 andrew_belov Exp $
 # ----------------------------------------------------------------------------
 # This file  is  intended  for building  ARJ on/for platforms where  the NMAKE
 # syntax is  supported. If you are  using a GCC/EMX build, refer to scripts in

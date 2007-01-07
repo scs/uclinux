@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj_file.c,v 1.9 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Various archive-management functions (mostly, file-related ones) are stored
  * here.

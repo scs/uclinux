@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: msgbind.c,v 1.6 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file creates the  message files  for all ARJ modules. It  is essential
  * that it does not make use of any  ARJ modules (MISC.C and so on) because it

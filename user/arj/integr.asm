@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: integr.asm,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* Data template for integrity check is stored in this  file. It must be first
 ;* in the linking chain in order to be accessible for the  check routine. This

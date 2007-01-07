@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: crc16tab.c,v 1.1.1.1 2002/03/28 00:02:10 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * A table for calculating CRC-16 is located here (referenced from RECOVERY.C)
  *

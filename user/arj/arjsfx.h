@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjsfx.h,v 1.1.1.1 2002/03/28 00:01:23 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * ARJSFX exported stubs are declared here.
  *

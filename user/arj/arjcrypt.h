@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjcrypt.h,v 1.1.1.1 2002/03/28 00:01:13 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * All defines regarding ARJCRYPT operations are stored in this file
  *

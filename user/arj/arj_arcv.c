@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj_arcv.c,v 1.15 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Archive management routines  are stored here (all these have  nothing to do
  * neither with commands nor with the "user" part).

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: filemode.c,v 1.1.1.1 2002/03/28 00:02:55 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module contains  nothing more than a set of "r", "rb", "rb+" and other
  * file access modes, to conserve space in DGROUP.

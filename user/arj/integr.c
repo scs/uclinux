@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: integr.c,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is a portable version of the integrity validation record.
  *

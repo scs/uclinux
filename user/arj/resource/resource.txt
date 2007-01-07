@@ -1,6 +1,6 @@
 /* Best viewed in -*- C -*- mode.
  *
- * $Id$
+ * $Id: resource.txt,v 1.14 2004/06/18 16:19:40 andrew_belov Exp $
  *
  * Common ARJ/ARJSFX[V|JR]/REARJ message section. Splits into C header/source
  * files after being processed with MSGBIND.

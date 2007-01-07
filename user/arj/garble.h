@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: garble.h,v 1.1.1.1 2002/03/28 00:02:55 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in GARBLE.C are declared here.
  *

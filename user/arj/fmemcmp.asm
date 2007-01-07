@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: fmemcmp.asm,v 1.2 2004/05/31 16:08:41 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* This file provides a far memory comparison routine.
 ;*

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: file_reg.h,v 1.1.1.1 2002/03/28 00:02:55 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in FILE_REG.C are declared here.
  *

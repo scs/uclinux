@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: decode.c,v 1.3 2003/04/12 16:15:59 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * The data decompression procedures are located in this module.
  *

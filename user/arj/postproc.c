@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: postproc.c,v 1.5 2003/06/22 11:12:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This  program  stores  the  CRC and  file  size of  ARJ.EXE  in it,  so  an
  * integrity check may be performed with ARJ i.

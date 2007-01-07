@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjdisp.c,v 1.5 2003/06/22 11:12:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is a sample graphical interface program.
  *

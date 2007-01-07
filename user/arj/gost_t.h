@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost_t.h,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file contains declarations of GOST seed/pattern storage areas.
  *

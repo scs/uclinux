@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ntstream.h,v 1.1 2003/01/25 15:10:04 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in NTSTREAM.C are declared here.
  *

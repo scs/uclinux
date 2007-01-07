@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjdata.c,v 1.6 2004/04/17 11:44:46 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * User-modifyable resource information. It must be kept binding-independent.
  *

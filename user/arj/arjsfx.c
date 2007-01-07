@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjsfx.c,v 1.6 2004/04/14 20:54:21 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * All SFX modules except ARJSFXJR result from this file.
  *

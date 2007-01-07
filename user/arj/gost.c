@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost.c,v 1.2 2003/04/27 20:54:42 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file  contains basic  GOST encryption-related initialization  data and
  * code.

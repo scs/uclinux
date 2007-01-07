@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: externs.h,v 1.5 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Each public variable  defined in EXTERNS.C is declared here, so all modules
  * that include this file will have access to all public variables.

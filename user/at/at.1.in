@@ -1,4 +1,4 @@
-.Id $Id$
+.Id $Id: at.1.in,v 1.7 1997/03/13 00:15:13 ig25 Exp $
 .TH AT 1 "Nov 1996" local "Linux Programmer's Manual"
 .SH NAME
 at, batch, atq, atrm \- queue, examine or delete jobs for later execution

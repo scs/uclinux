@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost40.c,v 1.3 2003/04/27 20:54:42 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file  contains  the routines that  provide 40-bit GOST encryption with
  * dependence on previously encrypted data.

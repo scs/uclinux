@@ -58,10 +58,10 @@
 //
 //	Hosting (target) system settings.
 //
-#define BLD_CPU							"i386"
-#define BLD_OS							"LINUX"
+#define BLD_CPU							""
+#define BLD_OS							"bld_cpu"
 #define BLD_UNIX						"1"
-#define MPR_CPU							MPR_CPU_IX86
+#define MPR_CPU							MPR_UNKNOWN
 
 //
 //	Installation directories

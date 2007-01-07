@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: det_x86.asm,v 1.1.1.1 2002/03/28 00:02:20 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* This code uses the  classic way  of determining what Intel x86 CPU is used.
 ;* The exact author is unknown.

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj_arcv.h,v 1.1.1.1 2002/03/28 00:01:38 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in ARJ_ARCV.C are declared here.
  *

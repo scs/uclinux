@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ext_hdr.c,v 1.1.1.1 2002/03/28 00:02:52 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Handy functions for dealing with extended headers.
  *

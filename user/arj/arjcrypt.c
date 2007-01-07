@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjcrypt.c,v 1.5 2003/06/22 11:12:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file is a small module that  performs stand-alone strong GOST 28147-89
  * encryption.

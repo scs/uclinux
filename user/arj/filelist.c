@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: filelist.c,v 1.4 2004/04/14 20:54:21 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * XMS routines and functions  for dealing  with file lists are located  here.
  * Note: the  current  caching algorithm  implies that  the filelist is  first

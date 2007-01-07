@@ -1,4 +1,4 @@
-$Id$
+$Id: debug.txt,v 1.2 2003/04/12 16:16:05 andrew_belov Exp $
 
 ARJ DEBUGGER'S GUIDE
 

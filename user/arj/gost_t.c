@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost_t.c,v 1.2 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Provides GOST seed/pattern storage space.
  *

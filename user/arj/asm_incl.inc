@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: asm_incl.inc,v 1.1.1.1 2002/03/28 00:02:01 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* Common setup for assembly-language modules of ARJ.
 ;*

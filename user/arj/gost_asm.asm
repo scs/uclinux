@@ -1,5 +1,5 @@
 ;*
-;* $Id$
+;* $Id: gost_asm.asm,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
 ;* ---------------------------------------------------------------------------
 ;* Optimized assembly language routines for 386+ are located in this module.
 ;*

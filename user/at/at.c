@@ -108,7 +108,7 @@ gid_t daemon_gid = (gid_t) - 3;
 
 /* File scope variables */
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: at.c,v 1.28 1997/05/26 08:31:34 ig25 Exp ig25 $";
 char *no_export[] =
 {
     "TERM", "DISPLAY", "_", "SHELLOPTS"

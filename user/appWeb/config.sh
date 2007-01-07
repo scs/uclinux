@@ -58,10 +58,10 @@ BLD_BUILD_OS=""
 #
 #	Hosting (target) system settings.
 #
-BLD_CPU="i386"
-BLD_OS="LINUX"
+BLD_CPU=""
+BLD_OS="bld_cpu"
 BLD_UNIX="1"
-MPR_CPU=MPR_CPU_IX86
+MPR_CPU=MPR_UNKNOWN
 
 #
 #	Installation directories

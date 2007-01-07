@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: uxspec.h,v 1.3 2003/07/15 16:35:18 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in UXSPEC.C are declared here.
  *

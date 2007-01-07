@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: misc.c,v 1.5 2004/05/31 16:08:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Various system-independent routines are kept here. This module is needed if
  * the ENVIRON.C is linked, since both of them cross-reference each other.

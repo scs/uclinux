@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: fardata.c,v 1.6 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file contains routines dealing with far data segment and CRC.
  *

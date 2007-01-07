@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ext_hdr.h,v 1.1.1.1 2002/03/28 00:02:52 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file is an interface to the extended header manager, EXT_HDR.C.
  *

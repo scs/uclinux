@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjsfxjr.c,v 1.8 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is the source for ARJSFXJR, the smallest SFX module.
  *

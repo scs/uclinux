@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj.c,v 1.12 2004/05/01 15:29:02 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is  the main file of the  ARJ project. The  routines in this file have
  * a wide variety of purposes, however, all archive-related procedures are NOT

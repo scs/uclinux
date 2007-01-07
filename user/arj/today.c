@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: today.c,v 1.3 2003/06/22 11:12:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * A utility to produce locale-dependent timestamps instead of __TIME__.
  *

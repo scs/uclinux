@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost.h,v 1.1.1.1 2002/03/28 00:02:55 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions and declarations of  data structures located in
  * GOST.C are stored here.

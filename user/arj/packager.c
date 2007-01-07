@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: packager.c,v 1.10 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * ARJ distribution packaging tool.
  *

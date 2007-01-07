@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: recovery.c,v 1.5 2003/05/03 22:18:48 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module contains a set of procedures to create and use special recovery
  * records (XRJ files) introduced with ARJ v 2.55.

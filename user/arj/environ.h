@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: environ.h,v 1.14 2004/05/31 16:08:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * All environment-specific declarations are held here.
  *

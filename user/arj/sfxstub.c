@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sfxstub.c,v 1.2 2003/06/22 11:12:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is a portable version of the SFX stub.
  *

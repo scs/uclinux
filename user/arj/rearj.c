@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rearj.c,v 1.10 2004/05/31 16:08:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This is the main file of the REARJ utility.
  *

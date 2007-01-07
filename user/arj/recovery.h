@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: recovery.h,v 1.1.1.2 2002/03/28 00:03:24 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in RECOVERY.C are declared here.
  *

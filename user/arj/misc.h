@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: misc.h,v 1.2 2004/02/20 23:18:59 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in MISC.C are declared here.
  *

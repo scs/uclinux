@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: scrnio.c,v 1.6 2004/01/25 11:31:40 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module provides basic screen output routines.
  *

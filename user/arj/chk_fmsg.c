@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: chk_fmsg.c,v 1.2 2003/02/07 17:21:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * The purpose of this module is to check the integrity of the message section
  * by comparing its CRC-32 with the stored value.

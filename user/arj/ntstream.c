@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ntstream.c,v 1.1 2003/01/25 15:10:03 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * A convenient interface to the NT backup stream functions (Backup*)
  *

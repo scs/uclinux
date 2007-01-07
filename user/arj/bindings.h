@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: bindings.h,v 1.2 2003/02/07 17:21:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file defines basic constants depending on the given SFX_LEVEL
  *

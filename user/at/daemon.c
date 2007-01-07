@@ -48,7 +48,7 @@
 #include "daemon.h"
 #include "privs.h"
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: daemon.c,v 1.9 1996/08/12 08:23:55 ig25 Exp $";
 
 int daemon_debug;
 

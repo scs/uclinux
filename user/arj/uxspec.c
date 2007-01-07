@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: uxspec.c,v 1.6 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module handles the UNIX special files and the owner IDs.
  *

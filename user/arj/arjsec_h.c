@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjsec_h.c,v 1.5 2003/05/07 18:55:51 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * The high-level ARJ-security envelope  verification routine is contained  in
  * this module.

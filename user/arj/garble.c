@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: garble.c,v 1.7 2004/02/21 22:53:35 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * All procedures dealing  with archive data encryption are stored  here. This
  * module also references additional routines in GOST40.C.

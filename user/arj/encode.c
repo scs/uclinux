@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: encode.c,v 1.7 2004/05/31 16:08:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * The data compression procedures are located in this module.
  *

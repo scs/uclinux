@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost40.h,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in GOST40.C are declared here.
  *

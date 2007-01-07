@@ -138,6 +138,10 @@ case $basic_machine in
 		| sparc)
 		basic_machine=$basic_machine-unknown
 		;;
+	nios2 | nios2-* | nios2 | nios2-*)
+		basic_machine=nios2-altera
+		os=-linux
+		;;
 	# Object if more than one company name word.
 	*-*-*)
 		echo Invalid configuration \`$1\': machine \`$basic_machine\' not recognized 1>&2

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjtypes.c,v 1.7 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module provides some multiplatform property types which cover both DOS
  * (as internally involved in ARJ) and UNIX requirements.

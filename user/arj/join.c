@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: join.c,v 1.3 2003/04/27 20:54:42 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This program writes overlay data to ARJ executables.
  *

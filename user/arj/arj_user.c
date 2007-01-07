@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arj_user.c,v 1.11 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * High-level routines that perform ARJ command processing are located in this
  * module. It may be partially inherited by ARJSFXV and ARJSFX.

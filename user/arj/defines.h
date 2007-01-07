@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: defines.h,v 1.8 2004/05/31 16:08:41 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Various macros, OS-independent types, and so on, are to be declared here.
  *

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjtypes.h,v 1.1.1.1 2002/03/28 00:01:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * OS-independent types are to be declared here.
  *

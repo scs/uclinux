@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: environ.c,v 1.23 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This module contains  platform-specific routines along with a  set of hacks
  * to implement the common functions of Borland compilers and their behavior.

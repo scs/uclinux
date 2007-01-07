@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: fardata.h,v 1.2 2003/02/07 17:21:12 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in FARDATA.C are declared here.
  *

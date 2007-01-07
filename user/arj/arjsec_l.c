@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: arjsec_l.c,v 1.3 2004/04/17 11:39:42 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Various low-level ARJ-security calculation  routines are  contained in this
  * module.

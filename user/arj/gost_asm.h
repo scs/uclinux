@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gost_asm.h,v 1.1.1.1 2002/03/28 00:03:01 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Interface to the assembly module, GOST_ASM.ASM
  *

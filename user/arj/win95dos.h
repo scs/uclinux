@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: win95dos.h,v 1.1.1.2 2002/03/28 00:03:28 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Windows 95 DOS gateway definitions. They must be included only if the DOS16
  * operating mode is used.

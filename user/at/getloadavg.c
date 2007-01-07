@@ -33,7 +33,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: getloadavg.c,v 1.4 1997/03/12 19:36:06 ig25 Exp $";
 
 #define PROC_DIR "/proc"
 

@@ -1,4 +1,4 @@
-$Id$ 
+$Id: compile.txt,v 1.7 2004/01/25 10:39:48 andrew_belov Exp $ 
 
 INTRODUCTION 
 

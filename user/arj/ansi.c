@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ansi.c,v 1.1.1.1 2002/03/27 23:25:18 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Routines to display ANSI  comments are  located here. Not all  routines are
  * supported - first of all, this restriction applies  to graphic commands. It

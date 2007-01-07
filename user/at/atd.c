@@ -98,7 +98,7 @@ gid_t daemon_gid = (gid_t) - 3;
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: atd.c,v 1.28 1997/05/06 08:31:09 ig25 Exp $";
 static double load_avg = LOADAVG_MX;
 static time_t now;
 unsigned int batch_interval;

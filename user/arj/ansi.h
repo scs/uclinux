@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ansi.h,v 1.1.1.1 2002/03/27 23:25:18 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in ANSI.C are declared here.
  *

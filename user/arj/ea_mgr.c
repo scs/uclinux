@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ea_mgr.c,v 1.4 2004/04/17 11:39:43 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file provides basic routines for handling extended attributes.
  *

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: externs.c,v 1.7 2004/06/18 16:19:37 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * All uninitialized  and initialized  variables that are  used by two or more
  * modules are defined here. Note that no separation is done for those used by

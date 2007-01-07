@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: encode.h,v 1.1.1.1 2002/03/28 00:02:24 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in ENCODE.C are declared here.
  *

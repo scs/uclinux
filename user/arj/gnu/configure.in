@@ -1,5 +1,5 @@
 dnl
-dnl $Id$
+dnl $Id: configure.in,v 1.14 2004/04/17 11:28:07 andrew_belov Exp $
 dnl --------------------------------------------------------------------------
 dnl This file performs setup of GNU-style makefiles.
 dnl

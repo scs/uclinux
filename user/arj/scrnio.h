@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: scrnio.h,v 1.5 2003/09/14 22:14:48 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in SCRNIO.C are declared here.
  *

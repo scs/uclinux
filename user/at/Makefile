@@ -1,5 +1,5 @@
 # Generated automatically from Makefile.in by configure.
-# $Id$
+# $Id: Makefile.in,v 1.63 1997/05/26 08:31:38 ig25 Exp ig25 $
 
 VERSION         = 3.1.7
 srcdir 		= .

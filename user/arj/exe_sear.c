@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: exe_sear.c,v 1.3 2003/10/16 10:32:46 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Routines that fetch overlay data are located in this file.
  *

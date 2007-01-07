@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: file_reg.c,v 1.2 2003/05/03 22:18:47 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * This file contains registration-related helper procedures.
  *

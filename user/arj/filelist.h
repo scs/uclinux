@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: filelist.h,v 1.2 2003/02/07 17:21:13 andrew_belov Exp $
  * ---------------------------------------------------------------------------
  * Prototypes of the functions located in FILELIST.C are declared here.
  *
