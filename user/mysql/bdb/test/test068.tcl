@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test068.tcl,v 11.11 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 68: Test of DB_BEFORE and DB_AFTER and partial puts.
 # Make sure DB_BEFORE and DB_AFTER work properly with partial puts,

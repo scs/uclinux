@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd009.tcl,v 1.13 2000/12/07 19:13:46 sue Exp $
 #
 # Recovery Test 9.
 # Test stability of record numbers across splits

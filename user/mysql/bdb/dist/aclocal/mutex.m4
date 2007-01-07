@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: mutex.m4,v 11.20 2000/12/20 22:16:56 bostic Exp $
 
 dnl Figure out mutexes for this compiler/architecture.
 AC_DEFUN(AM_DEFINE_MUTEXES, [

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: java_info.h,v 11.17 2000/07/31 20:28:30 dda Exp $
  */
 
 #ifndef _JAVA_INFO_H_

@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: rsrc002.tcl,v 11.11 2000/11/29 15:01:06 sue Exp $
 #
 # Recno backing file test #2: test of set_re_delim.
 #	Specify a backing file with colon-delimited records,

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test045.tcl,v 11.17 2000/10/19 23:15:22 ubell Exp $
 #
 # DB Test 45 Run the random db tester on the specified access method.
 # Options are:

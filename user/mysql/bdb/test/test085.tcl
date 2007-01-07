@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test085.tcl,v 1.4 2000/12/11 17:24:55 sue Exp $
 #
 # DB Test 85: Test of cursor behavior when a cursor is pointing to a deleted
 # btree key which then has duplicates added.

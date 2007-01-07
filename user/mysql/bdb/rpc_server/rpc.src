@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: rpc.src,v 1.30 2000/12/20 21:53:05 ubell Exp $
 # Syntax:
 # BEGIN	function_name  RPC #	{CODE | NOCLNTCODE | RETCODE | NOFUNC}
 #	CODE:	generate XDR and client code, return status

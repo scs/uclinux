@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test029.tcl,v 11.13 2000/08/25 14:21:55 sue Exp $
 #
 # DB Test 29 {method nentries}
 # Test the Btree and Record number renumbering.

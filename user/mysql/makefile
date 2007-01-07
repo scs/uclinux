@@ -1,31 +1,33 @@
-silly_first_rule_thingy: Makefile
-	make -f Makefile
 
-CONFIGURE_TARGET := $(strip $(subst -, ,$(CROSS)))
-CONFIGURE_TARGET := $(word 1,$(CONFIGURE_TARGET))-$(word 2,$(CONFIGURE_TARGET))
-CONFIGURE_SETTINGS := -C --prefix= --build=i386-redhat-linux		\
+CONFOPTS :=	-C --prefix=					\
 		--enable-dependency-tracking				\
-		--target=$(CONFIGURE_TARGET) --without-pthread		\
+		--with-named-thread-libs=-lpthread \
 		--without-readline --disable-shared			\
-		--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
 		--with-mysql=$(ROOTDIR)/lib/libmysqlclient		\
-		--with-named-z-libs==$(ROOTDIR)/lib/zlib
-
-#
-# we always have glibc2 style,  so force it so that uClibc works as well
-#
+		--with-pic
 MY_EXTRA_CFLAGS := -DHAVE_GETHOSTBYNAME_R_GLIBC2_STYLE=1
 
-Makefile:
-	unset LDFLAGS CC CFLAGS && \
-			CFLAGS="$(MY_EXTRA_CFLAGS)" ./configure $(CONFIGURE_SETTINGS)
 
-romfs:
-	-echo "nothing for roms"
+all: configured
+	$(MAKE) -f Makefile
+
+configured: makefile
+	@chmod u+x configure
+	@rm -f configured
+	sh ./configure $(CONFIGURE_OPTS) $(CONFOPTS)
+	@touch configured
 
 clean:
-	make -f Makefile distclean
+	-$(MAKE) -f Makefile clean
+	rm -f config.cache
+	rm -rf configured
+	rm -rf autom4te.cache config.cache config.h config.log config.status
+	rm -rf libtool stamp-h1
+	-(find . -name Makefile | xargs rm -f)
+	-(find . -name .deps | xargs rm -rf)
 
-%: Makefile
-	make -f Makefile $@
+romfs:
+	-echo "nothing for romfs"
 
+%:
+	$(MAKE) -f Makefile $@

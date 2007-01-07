@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_btrec.c,v 11.8 2000/05/22 15:17:03 sue Exp $
  */
 
 #include "db_config.h"

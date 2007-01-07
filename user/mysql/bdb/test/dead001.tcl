@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: dead001.tcl,v 11.17 2000/11/05 14:23:55 dda Exp $
 #
 # Deadlock Test 1.
 # We create various deadlock scenarios for different numbers of lockers

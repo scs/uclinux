@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: log.tcl,v 11.17 2000/11/30 20:09:19 dda Exp $
 #
 # Options are:
 # -dir <directory in which to store memp>

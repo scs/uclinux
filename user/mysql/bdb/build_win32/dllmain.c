@@ -5,7 +5,7 @@
  *
  *  dllmain.c
  *
- *  $Id$
+ *  $Id: dllmain.c,v 1.3 2000/10/26 21:58:48 bostic Exp $
  */
 
 #define	WIN32_LEAN_AND_MEAN

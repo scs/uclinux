@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd007.tcl,v 11.38 2000/12/20 21:39:23 krinsky Exp $
 #
 # Recovery Test 7.
 # This is a recovery test for create/delete of databases.  We have

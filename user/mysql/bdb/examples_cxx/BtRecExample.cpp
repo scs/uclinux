@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: BtRecExample.cpp,v 11.6 2000/02/19 20:57:59 bostic Exp $
  */
 
 #include "db_config.h"

@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test077.tcl,v 1.4 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 77: Test of DB_GET_RECNO [#1206].
 proc test077 { method { nkeys 1000 } { pagesize 512 } { tnum 77 } args } {

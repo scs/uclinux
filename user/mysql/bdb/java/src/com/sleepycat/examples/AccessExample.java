@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: AccessExample.java,v 11.5 2000/12/13 07:09:42 krinsky Exp $
  */
 
 package com.sleepycat.examples;

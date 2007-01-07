@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test070.tcl,v 11.18 2000/12/18 20:04:47 sue Exp $
 #
 # DB Test 70: Test of DB_CONSUME.
 # Fork off six processes, four consumers and two producers.

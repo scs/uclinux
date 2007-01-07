@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd014.tcl,v 1.9 2001/01/11 17:16:04 sue Exp $
 #
 # Recovery Test 14.
 # This is a recovery test for create/delete of queue extents. We have

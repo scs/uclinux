@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: txn.tcl,v 11.12 2000/12/31 19:26:23 bostic Exp $
 #
 # Options are:
 # -dir <directory in which to store memp>

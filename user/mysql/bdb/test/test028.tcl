@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test028.tcl,v 11.12 2000/08/25 14:21:55 sue Exp $
 #
 # Put after cursor delete test.
 proc test028 { method args } {

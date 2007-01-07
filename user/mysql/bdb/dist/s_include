@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_include,v 1.7 2000/07/13 18:38:46 bostic Exp $
 #
 # Build the automatically generated function prototype files.
 

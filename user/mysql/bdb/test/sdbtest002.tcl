@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdbtest002.tcl,v 11.19 2000/08/25 14:21:53 sue Exp $
 #
 # Sub DB All-Method Test 2
 # Make several subdb's of different access methods all in one DB.

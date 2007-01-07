@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd011.tcl,v 11.13 2000/12/06 17:09:54 sue Exp $
 #
 # Recovery Test 11.
 # Test recovery to a specific timestamp.

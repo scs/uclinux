@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: byteorder.tcl,v 11.7 2000/11/16 23:56:18 ubell Exp $
 #
 # Byte Order Test
 # Use existing tests and run with both byte orders.

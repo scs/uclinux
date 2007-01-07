@@ -1,4 +1,4 @@
-; $Id$
+; $Id: libdb.def,v 11.21 2001/01/04 15:07:33 dda Exp $
 
 DESCRIPTION	'Berkeley DB 3.2 Library'
 EXPORTS

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: mpoolscript.tcl,v 11.12 2000/05/05 15:23:47 sue Exp $
 #
 # Random multiple process mpool tester.
 # Usage: mpoolscript dir id numiters numfiles numpages sleepint

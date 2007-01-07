@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: mutex.tcl,v 11.18 2000/09/01 19:24:59 krinsky Exp $
 #
 # Exercise mutex functionality.
 # Options are:

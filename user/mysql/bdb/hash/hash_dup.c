@@ -38,7 +38,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: hash_dup.c,v 11.49 2000/12/21 21:54:35 margo Exp $";
 #endif /* not lint */
 
 /*

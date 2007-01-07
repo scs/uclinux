@@ -8335,7 +8335,11 @@ echo "${ECHO_T}\"int\"" >&6
 if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+echo "$as_me: error: assuming sprintf returns int" >&2;
+  cat >>confdefs.h <<\_ACEOF
+#define SPRINTF_RETURNS_INT 1
+_ACEOF
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -8376,7 +8380,11 @@ cat conftest.$ac_ext >&5
 if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+echo "$as_me: error: assuming sprintf returns int" >&2;
+  cat >>confdefs.h <<\_ACEOF
+#define SPRINTF_RETURNS_INT 1
+_ACEOF
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -11944,7 +11952,11 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+echo "$as_me: error: assuming zlib has compress" >&2;
+  cat >>confdefs.h <<\_ACEOF
+#define HAVE_COMPRESS 1
+_ACEOF
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -12201,8 +12213,9 @@ echo $ECHO_N "checking for atomic operations... $ECHO_C" >&6
   atom_ops=
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
-echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+echo "$as_me: error: cannot run test program while cross compiling" >&2;
+echo "$as_me: error: assuming no atomic operations" >&2;}
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -12244,7 +12257,7 @@ fi
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -12608,7 +12621,7 @@ echo "${ECHO_T}no" >&6
 if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -14031,8 +14044,12 @@ if test "${ac_cv_sys_restartable_syscalls+set}" = set; then
 else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
-echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+echo "$as_me: error: cannot run test program while cross compiling" >&2;
+echo "$as_me: error: assuming restartable system calls" >&2;}
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_RESTARTABLE_SYSCALLS 1
+_ACEOF
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -15015,7 +15032,10 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_CHAR 8
+_ACEOF
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -15395,7 +15415,7 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -15757,7 +15777,7 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -16125,7 +16145,7 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -16493,7 +16513,7 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"
@@ -17757,7 +17777,8 @@ else
   if test "$cross_compiling" = yes; then
   { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling" >&5
 echo "$as_me: error: cannot run test program while cross compiling" >&2;}
-   { (exit 1); exit 1; }; }
+   ac_cv_conv_longlong_to_float=yes
+   }
 else
   cat >conftest.$ac_ext <<_ACEOF
 #line $LINENO "configure"

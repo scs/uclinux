@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test071.tcl,v 11.6 2000/12/01 04:28:36 ubell Exp $
 #
 # DB Test 71: Test of DB_CONSUME.
 #	This is DB Test 70, with one consumer, one producers, and 10000 items.

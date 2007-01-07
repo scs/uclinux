@@ -4,7 +4,7 @@
  * Copyright (c) 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_server_int.h,v 1.13 2001/01/11 18:19:52 bostic Exp $
  */
 
 #ifndef _DB_SERVER_INT_H_

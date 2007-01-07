@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: dbscript.tcl,v 11.10 2000/04/21 18:36:21 krinsky Exp $
 #
 # Random db tester.
 # Usage: dbscript file numops min_del max_add key_avg data_avgdups

@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_win32,v 1.9 2000/09/20 15:29:54 bostic Exp $
 #
 # Build Windows/32 include files.
 

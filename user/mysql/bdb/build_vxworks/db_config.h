@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: db_config.h,v 1.4 2000/12/12 18:39:26 bostic Exp $
  */
 
 /* Define if building VxWorks */

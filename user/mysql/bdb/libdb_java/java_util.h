@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: java_util.h,v 11.22 2001/01/11 18:19:53 bostic Exp $
  */
 
 #ifndef _JAVA_UTIL_H_

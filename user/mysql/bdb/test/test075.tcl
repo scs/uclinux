@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test075.tcl,v 11.9 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 75 (replacement)
 # Test the DB->rename method.

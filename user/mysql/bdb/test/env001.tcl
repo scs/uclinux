@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: env001.tcl,v 11.21 2000/11/09 19:24:08 sue Exp $
 #
 # Test of env remove interface.
 proc env001 { } {

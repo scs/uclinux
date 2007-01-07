@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: rpc002.tcl,v 1.7 2000/10/27 13:23:56 sue Exp $
 #
 # RPC Test 2
 # Test invalid RPC functions and make sure we error them correctly

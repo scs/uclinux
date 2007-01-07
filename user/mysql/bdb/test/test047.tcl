@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test047.tcl,v 11.10 2000/08/25 14:21:56 sue Exp $
 #
 # DB Test 47: test of the SET_RANGE interface to DB->c_get.
 proc test047 { method args } {

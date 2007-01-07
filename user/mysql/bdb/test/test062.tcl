@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test062.tcl,v 11.13 2000/12/20 19:02:36 sue Exp $
 #
 # DB Test 62:  Test of partial puts onto duplicate pages.
 #	Insert the first 200 words into the dictionary 200 times each with

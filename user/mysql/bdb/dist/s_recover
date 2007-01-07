@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_recover,v 1.3 2000/03/30 05:24:36 krinsky Exp $
 #
 # Build the automatically generated logging/recovery files.
 

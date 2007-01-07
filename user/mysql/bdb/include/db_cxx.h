@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_cxx.h,v 11.44 2000/12/21 20:30:18 dda Exp $
  */
 
 #ifndef _DB_CXX_H_

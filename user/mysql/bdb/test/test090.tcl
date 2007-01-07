@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test090.tcl,v 11.4 2000/12/11 17:24:56 sue Exp $
 #
 # DB Test 90 {access method}
 # Check for functionality near the end of the queue.

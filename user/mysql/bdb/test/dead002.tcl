@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: dead002.tcl,v 11.15 2000/08/25 14:21:50 sue Exp $
 #
 # Deadlock Test 2.
 # Identical to Test 1 except that instead of running a standalone deadlock

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: BtRecExample.java,v 11.6 2000/02/19 20:58:02 bostic Exp $
  */
 
 package com.sleepycat.examples;

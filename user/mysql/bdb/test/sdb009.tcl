@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdb009.tcl,v 11.4 2000/08/25 14:21:53 sue Exp $
 #
 # Subdatabase Test 9 (replacement)
 # Test the DB->rename method.

@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test065.tcl,v 11.8 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 65: Test of DB->stat(DB_RECORDCOUNT)
 proc test065 { method args } {

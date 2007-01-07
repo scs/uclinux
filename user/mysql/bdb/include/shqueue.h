@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: shqueue.h,v 11.6 2000/11/14 20:20:28 bostic Exp $
  */
 #ifndef	_SYS_SHQUEUE_H_
 #define	_SYS_SHQUEUE_H_

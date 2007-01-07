@@ -4,7 +4,7 @@
  * Copyright (c) 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbTxnRecover.java,v 11.1 2000/06/29 18:08:17 dda Exp $
  */
 
 package com.sleepycat.db;

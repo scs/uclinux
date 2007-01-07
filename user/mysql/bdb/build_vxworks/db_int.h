@@ -5,7 +5,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: db_int.src,v 11.42 2001/01/11 17:49:17 krinsky Exp $
  */
 
 #ifndef _DB_INTERNAL_H_

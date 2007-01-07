@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test053.tcl,v 11.12 2000/12/11 17:24:55 sue Exp $
 #
 # Test53: test of the DB_REVSPLITOFF flag in the btree and
 # Btree-w-recnum methods

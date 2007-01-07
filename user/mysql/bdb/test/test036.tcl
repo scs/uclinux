@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test036.tcl,v 11.13 2000/08/25 14:21:55 sue Exp $
 #
 # DB Test 36 {access method}
 # Put nentries key/data pairs (from the dictionary) using a cursor

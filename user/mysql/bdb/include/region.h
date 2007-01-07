@@ -4,7 +4,7 @@
  * Copyright (c) 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: region.h,v 11.13 2000/11/15 19:25:37 sue Exp $
  */
 
 /*

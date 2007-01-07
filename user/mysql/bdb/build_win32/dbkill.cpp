@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: dbkill.cpp,v 11.4 2000/05/02 17:08:31 dda Exp $
  */
 /*
  * Kill -

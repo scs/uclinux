@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: txn.src,v 11.10 2001/01/02 00:58:33 margo Exp $
  */
 
 PREFIX	txn

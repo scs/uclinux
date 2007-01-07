@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: db_185.h,v 11.4 2000/02/14 02:59:54 bostic Exp $
  */
 
 #ifndef _DB_185_H_

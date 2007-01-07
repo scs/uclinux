@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test051.tcl,v 11.14 2000/08/25 14:21:57 sue Exp $
 #
 # Test51:
 #	Test of the fixed recno method.

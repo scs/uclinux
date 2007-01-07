@@ -4,7 +4,7 @@
  * Copyright (c) 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: debug.h,v 11.17 2000/07/07 15:50:36 bostic Exp $
  */
 
 #if defined(__cplusplus)

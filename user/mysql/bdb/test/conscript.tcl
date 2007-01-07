@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: conscript.tcl,v 11.12 2000/12/01 04:28:36 ubell Exp $
 #
 # Script for DB_CONSUME test (test070.tcl).
 # Usage: conscript dir file runtype nitems outputfile tnum args

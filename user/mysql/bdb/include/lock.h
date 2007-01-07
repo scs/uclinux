@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: lock.h,v 11.20 2000/12/12 17:43:56 bostic Exp $
  */
 
 #define	DB_LOCK_DEFAULT_N	1000	/* Default # of locks in region. */

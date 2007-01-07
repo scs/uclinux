@@ -7,7 +7,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: java_Dbc.c,v 11.10 2000/10/25 19:54:55 dda Exp $";
 #endif /* not lint */
 
 #include <jni.h>

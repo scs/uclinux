@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd003.tcl,v 11.22 2000/12/07 19:13:46 sue Exp $
 #
 # Recovery Test 3.
 # Test all the duplicate log messages and recovery operations.  We make

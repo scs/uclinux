@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test086.tcl,v 11.2 2000/08/25 14:21:58 sue Exp $
 
 # Test086: Cursor stability across btree splits w/ subtransaction abort [#2373].
 proc test086 { method args } {

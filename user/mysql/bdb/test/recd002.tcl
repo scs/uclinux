@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd002.tcl,v 11.22 2000/12/11 17:24:54 sue Exp $
 #
 # Recovery Test #2.  Verify that splits can be recovered.
 proc recd002 { method {select 0} args} {

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: lock003.tcl,v 11.16 2000/08/25 14:21:51 sue Exp $
 #
 # Exercise multi-process aspects of lock.  Generate a bunch of parallel
 # testers that try to randomly obtain locks.

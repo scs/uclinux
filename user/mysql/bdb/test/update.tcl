@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: update.tcl,v 11.9 2000/10/27 13:23:56 sue Exp $
 source ./include.tcl
 global update_dir
 set update_dir "$test_path/update_test"

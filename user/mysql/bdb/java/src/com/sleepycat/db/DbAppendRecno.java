@@ -4,7 +4,7 @@
  * Copyright (c) 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbAppendRecno.java,v 11.1 2000/07/31 20:28:30 dda Exp $
  */
 
 package com.sleepycat.db;

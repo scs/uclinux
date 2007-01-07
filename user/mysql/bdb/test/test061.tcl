@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test061.tcl,v 11.12 2000/10/27 13:23:56 sue Exp $
 #
 # Test061: Test of transaction abort and commit for in-memory databases.
 #	a) Put + abort: verify absence of data

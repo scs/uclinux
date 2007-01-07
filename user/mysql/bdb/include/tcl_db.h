@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: tcl_db.h,v 11.9 2000/12/12 17:43:56 bostic Exp $
  */
 
 #define	MSG_SIZE 100		/* Message size */

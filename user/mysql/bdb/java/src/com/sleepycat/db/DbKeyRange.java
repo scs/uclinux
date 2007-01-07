@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbKeyRange.java,v 1.1 2000/04/12 15:07:02 dda Exp $
  */
 
 package com.sleepycat.db;

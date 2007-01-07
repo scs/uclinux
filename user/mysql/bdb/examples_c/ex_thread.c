@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_thread.c,v 11.9 2000/05/31 15:10:04 bostic Exp $
  */
 
 #include "db_config.h"

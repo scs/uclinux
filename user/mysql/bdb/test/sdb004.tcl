@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdb004.tcl,v 11.14 2000/08/25 14:21:53 sue Exp $
 #
 # SubDB Test 4 {access method}
 # Create 1 db with many large subdbs.  Use the contents as subdb names.

@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: gen_rpc.awk,v 11.25 2001/01/02 20:04:55 sue Exp $
 # Awk script for generating client/server RPC code.
 #
 # This awk script generates most of the RPC routines for DB client/server

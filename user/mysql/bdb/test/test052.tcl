@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test052.tcl,v 11.10 2000/10/06 19:29:52 krinsky Exp $
 #
 # Test52
 # Renumbering recno test.

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test031.tcl,v 11.17 2000/11/06 19:31:55 sue Exp $
 #
 # DB Test 31 {access method}
 # Use the first 10,000 entries from the dictionary.

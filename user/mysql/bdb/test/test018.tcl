@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test018.tcl,v 11.3 2000/02/14 03:00:18 bostic Exp $
 #
 # DB Test 18 {access method}
 # Run duplicates with small page size so that we test off page duplicates.

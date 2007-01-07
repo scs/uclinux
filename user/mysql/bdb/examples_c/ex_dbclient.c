@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_dbclient.c,v 1.12 2000/10/26 14:13:05 bostic Exp $
  */
 
 #include "db_config.h"

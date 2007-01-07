@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_page.h,v 11.28 2000/12/06 19:55:45 ubell Exp $
  */
 
 #ifndef _DB_PAGE_H_

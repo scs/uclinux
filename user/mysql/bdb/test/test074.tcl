@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test074.tcl,v 11.10 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 74: Test of DB_NEXT_NODUP.
 proc test074 { method {dir -nextnodup} {pagesize 512} {nitems 100} {tnum 74} args } {

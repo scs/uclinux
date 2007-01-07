@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbQueueStat.java,v 11.5 2000/11/07 18:45:27 dda Exp $
  */
 
 package com.sleepycat.db;

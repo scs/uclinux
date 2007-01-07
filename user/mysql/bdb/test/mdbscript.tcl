@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: mdbscript.tcl,v 11.23 2000/10/09 02:26:11 krinsky Exp $
 #
 # Process script for the multi-process db tester.
 

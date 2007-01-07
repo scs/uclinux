@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: testparams.tcl,v 11.39 2001/01/11 17:29:42 sue Exp $
 
 set deadtests	 3
 set envtests	 8

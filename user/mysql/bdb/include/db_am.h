@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_am.h,v 11.21 2000/12/12 17:43:56 bostic Exp $
  */
 #ifndef _DB_AM_H_
 #define	_DB_AM_H_

@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: script,v 1.21 2001/01/19 18:13:16 bostic Exp $
 #
 # Build the distribution archives.
 #

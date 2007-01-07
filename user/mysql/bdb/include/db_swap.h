@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: db_swap.h,v 11.5 2000/03/28 16:14:36 bostic Exp $
  */
 
 #ifndef _DB_SWAP_H_

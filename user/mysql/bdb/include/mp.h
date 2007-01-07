@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: mp.h,v 11.16 2001/01/10 04:50:53 ubell Exp $
  */
 
 struct __bh;		typedef struct __bh BH;

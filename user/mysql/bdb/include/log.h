@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: log.h,v 11.19 2001/01/11 18:19:52 bostic Exp $
  */
 
 #ifndef _LOG_H_

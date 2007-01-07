@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test049.tcl,v 11.15 2000/08/25 14:21:56 sue Exp $
 #
 # Test 049: Test of each cursor routine with unitialized cursors
 proc test049 { method args } {

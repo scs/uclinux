@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test081.tcl,v 11.3 2000/03/01 15:13:59 krinsky Exp $
 #
 # Test 81.
 # Test off-page duplicates and overflow pages together with

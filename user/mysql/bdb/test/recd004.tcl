@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd004.tcl,v 11.21 2000/12/11 17:24:55 sue Exp $
 #
 # Recovery Test #4.
 # Verify that we work correctly when big keys get elevated.

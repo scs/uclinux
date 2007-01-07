@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: env008.tcl,v 11.2 2000/10/30 19:00:38 sue Exp $
 #
 # Test of env and subdirs.
 proc env008 { } {

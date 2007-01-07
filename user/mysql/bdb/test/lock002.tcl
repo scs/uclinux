@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: lock002.tcl,v 11.10 2000/08/25 14:21:51 sue Exp $
 #
 # Exercise basic multi-process aspects of lock.
 proc lock002 { {maxlocks 1000} {conflicts {0 0 0 0 0 1 0 1 1} } } {

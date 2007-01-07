@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: EnvExample.java,v 11.7 2000/09/25 13:16:51 dda Exp $
  */
 
 package com.sleepycat.examples;

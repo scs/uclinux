@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test072.tcl,v 11.13 2000/12/11 17:24:55 sue Exp $
 #
 # DB Test 72: Test of cursor stability when duplicates are moved off-page.
 proc test072 { method {pagesize 512} {ndups 20} {tnum 72} args } {

@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: txn.h,v 11.12 2001/01/02 17:23:39 margo Exp $
  */
 
 #ifndef	_TXN_H_

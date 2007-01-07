@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test050.tcl,v 11.15 2000/08/25 14:21:57 sue Exp $
 #
 # Test050: Overwrite test of small/big key/data with cursor checks for RECNO
 proc test050 { method args } {

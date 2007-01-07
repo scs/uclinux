@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test055.tcl,v 11.11 2000/08/25 14:21:57 sue Exp $
 #
 # Test055:
 # This test checks basic cursor operations.

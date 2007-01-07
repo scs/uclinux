@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbHashStat.java,v 11.6 2000/05/04 02:54:55 dda Exp $
  */
 
 package com.sleepycat.db;

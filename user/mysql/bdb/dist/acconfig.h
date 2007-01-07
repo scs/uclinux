@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: acconfig.h,v 11.29 2000/09/20 16:30:33 bostic Exp $
  */
 
 /* Define if you are building a version for running the test suite. */

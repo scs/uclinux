@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test004.tcl,v 11.15 2000/08/25 14:21:54 sue Exp $
 #
 # DB Test 4 {access method}
 # Check that cursor operations work.  Create a database.

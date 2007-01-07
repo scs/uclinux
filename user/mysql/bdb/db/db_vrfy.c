@@ -4,13 +4,13 @@
  * Copyright (c) 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_vrfy.c,v 1.53 2001/01/11 18:19:51 bostic Exp $
  */
 
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: db_vrfy.c,v 1.53 2001/01/11 18:19:51 bostic Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES

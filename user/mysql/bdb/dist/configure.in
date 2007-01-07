@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: configure.in,v 11.77 2001/01/18 19:05:25 bostic Exp $
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(../db/db.c)

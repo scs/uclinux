@@ -11,7 +11,7 @@
 static const char copyright[] =
     "Copyright (c) 1996-2000\nSleepycat Software Inc.  All rights reserved.\n";
 static const char revid[] =
-    "$Id$";
+    "$Id: db_archive.c,v 11.18 2001/01/18 18:36:56 bostic Exp $";
 #endif
 
 #ifndef NO_SYSTEM_INCLUDES

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: dead003.tcl,v 1.8 2000/08/25 14:21:50 sue Exp $
 #
 # Deadlock Test 3.
 # Test DB_LOCK_OLDEST and DB_LOCK_YOUNGEST

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: TpcbExample.java,v 11.9 2000/04/01 15:52:15 dda Exp $
  */
 
 package com.sleepycat.examples;

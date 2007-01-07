@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_rpc,v 11.6 2000/04/26 19:15:51 sue Exp $
 #
 # Build the automatically generated RPC files
 

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_access.c,v 11.7 2000/05/22 15:17:03 sue Exp $
  */
 
 #include "db_config.h"

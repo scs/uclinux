@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: mpool.tcl,v 11.34 2001/01/18 04:58:07 krinsky Exp $
 #
 # Options are:
 # -cachesize {gbytes bytes ncache}

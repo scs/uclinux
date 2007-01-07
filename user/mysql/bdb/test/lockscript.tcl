@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: lockscript.tcl,v 11.11 2000/03/24 19:53:39 krinsky Exp $
 #
 # Random lock tester.
 # Usage: lockscript dir numiters numobjs sleepint degree readratio

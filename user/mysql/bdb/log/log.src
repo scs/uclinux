@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: log.src,v 10.12 2000/02/17 20:24:10 bostic Exp $
  */
 
 PREFIX	log

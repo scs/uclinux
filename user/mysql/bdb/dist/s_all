@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_all,v 1.7 2000/12/22 15:35:32 bostic Exp $
 
 sh s_perm		# permissions.
 sh s_symlink		# symbolic links.

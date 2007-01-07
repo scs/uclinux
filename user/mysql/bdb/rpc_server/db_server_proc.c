@@ -9,7 +9,7 @@
 
 #ifdef HAVE_RPC
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: db_server_proc.c,v 1.48 2001/01/06 16:08:01 sue Exp $";
 #endif /* not lint */
 
 #ifndef NO_SYSTEM_INCLUDES

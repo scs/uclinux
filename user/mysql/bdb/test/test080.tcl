@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test080.tcl,v 11.7 2000/10/19 23:15:22 ubell Exp $
 #
 # DB Test 80 {access method}
 # Test of dbremove

@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: env003.tcl,v 11.12 2000/08/25 14:21:50 sue Exp $
 #
 # Env Test 003
 # Test DB_TMP_DIR and env name resolution

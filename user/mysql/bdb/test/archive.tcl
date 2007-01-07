@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: archive.tcl,v 11.14 2000/10/27 13:23:55 sue Exp $
 #
 # Options are:
 # -checkrec <checkpoint frequency"

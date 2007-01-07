@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test058.tcl,v 11.14 2000/08/25 14:21:57 sue Exp $
 #
 proc test058 { method args } {
 	source ./include.tcl

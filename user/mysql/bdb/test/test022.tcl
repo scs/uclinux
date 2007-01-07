@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test022.tcl,v 11.10 2000/08/25 14:21:55 sue Exp $
 #
 # Test022: Test of DB->get_byteswapped
 proc test022 { method args } {

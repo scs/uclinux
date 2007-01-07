@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: options.m4,v 11.10 2000/07/07 15:50:39 bostic Exp $
 
 dnl Process user-specified options.
 AC_DEFUN(AM_OPTIONS_SET, [

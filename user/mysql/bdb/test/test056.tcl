@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test056.tcl,v 11.13 2000/08/25 14:21:57 sue Exp $
 #
 # Test056
 # Check if deleting a key when a cursor is on a duplicate of that key works.

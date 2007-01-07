@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: types.m4,v 11.4 1999/12/04 19:18:28 bostic Exp $
 
 dnl Check for the standard shorthand types.
 AC_DEFUN(AM_SHORTHAND_TYPES, [dnl

@@ -8,7 +8,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: gen_client_ret.c,v 1.29 2000/12/31 19:26:23 bostic Exp $";
 #endif /* not lint */
 
 #ifdef HAVE_RPC

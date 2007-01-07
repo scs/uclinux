@@ -5,7 +5,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-# $Id$
+# $Id: gen_rec.awk,v 11.26 2001/01/08 21:06:46 bostic Exp $
 #
 
 # This awk script generates all the log, print, and read routines for the DB

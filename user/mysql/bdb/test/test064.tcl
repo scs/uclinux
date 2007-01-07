@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test064.tcl,v 11.8 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 64: Test of DB->get_type
 #	Create a database of type specified by method.

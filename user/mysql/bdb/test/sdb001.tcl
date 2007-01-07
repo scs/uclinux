@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdb001.tcl,v 11.12 2000/08/25 14:21:52 sue Exp $
 #
 # Sub DB Test 1 {access method}
 # Test non-subdb and subdb operations

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: cxx_int.h,v 11.13 2000/11/21 22:56:36 dda Exp $
  */
 
 #ifndef _CXX_INT_H_

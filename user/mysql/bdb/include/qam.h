@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: qam.h,v 11.26 2001/01/11 18:19:52 bostic Exp $
  */
 
 /*

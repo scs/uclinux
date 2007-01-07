@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: hash.h,v 11.19 2000/12/21 23:05:16 krinsky Exp $
  */
 
 /* Hash internal structure. */

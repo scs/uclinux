@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: LockExample.cpp,v 11.8 2001/01/04 14:23:30 dda Exp $
  */
 
 #include "db_config.h"

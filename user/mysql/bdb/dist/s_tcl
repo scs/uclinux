@@ -1,5 +1,5 @@
 #!/bin/sh -
-#	$Id$
+#	$Id: s_tcl,v 1.14 2000/11/09 19:24:07 sue Exp $
 #
 # Build the Tcl test files.
 

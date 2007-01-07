@@ -4,7 +4,7 @@
  * Copyright (c) 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: db_verify.h,v 1.18 2000/12/31 17:51:52 bostic Exp $
  */
 
 #ifndef _DB_VERIFY_H_

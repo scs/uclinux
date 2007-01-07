@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: ddscript.tcl,v 11.7 2000/05/08 19:26:37 sue Exp $
 #
 # Deadlock detector script tester.
 # Usage: ddscript dir test lockerid objid numprocs

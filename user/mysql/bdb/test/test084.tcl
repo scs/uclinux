@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test084.tcl,v 11.6 2000/12/11 17:24:55 sue Exp $
 #
 # Test 84.
 # Basic sanity test (test001) with large (64K) pages.

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test043.tcl,v 11.12 2000/08/25 14:21:56 sue Exp $
 #
 # DB Test 43 {method nentries}
 # Test the Record number implicit creation and renumbering options.

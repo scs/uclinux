@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test016.tcl,v 11.17 2000/08/25 14:21:54 sue Exp $
 #
 # DB Test 16 {access method}
 # Partial put test where partial puts make the record smaller.

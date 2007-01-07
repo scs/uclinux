@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdb003.tcl,v 11.17 2000/08/25 14:21:52 sue Exp $
 #
 # Sub DB Test 3 {access method}
 # Use the first 10,000 entries from the dictionary as subdbnames.

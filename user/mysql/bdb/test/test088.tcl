@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test088.tcl,v 11.4 2000/12/11 17:24:55 sue Exp $
 #
 # Test088: Cursor stability across btree splits with very deep trees. 
 # (Variant of test048, SR #2514.)

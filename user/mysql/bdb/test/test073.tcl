@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test073.tcl,v 11.17 2000/12/11 17:24:55 sue Exp $
 #
 # DB Test 73: Test of cursor stability on duplicate pages.
 # Does the following:

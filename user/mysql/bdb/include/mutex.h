@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: mutex.h,v 11.41 2000/12/22 19:28:15 bostic Exp $
  */
 
 /*

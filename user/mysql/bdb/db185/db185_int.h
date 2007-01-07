@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: db185_int.h,v 11.7 2001/01/22 22:22:46 krinsky Exp $
  */
 
 #ifndef _DB185_H_

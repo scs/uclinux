@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: mutexscript.tcl,v 11.12 2000/11/21 22:14:56 dda Exp $
 #
 # Random mutex tester.
 # Usage: mutexscript dir numiters mlocks sleepint degree

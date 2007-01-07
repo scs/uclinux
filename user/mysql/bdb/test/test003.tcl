@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test003.tcl,v 11.18 2000/08/25 14:21:54 sue Exp $
 #
 # DB Test 3 {access method}
 # Take the source files and dbtest executable and enter their names as the

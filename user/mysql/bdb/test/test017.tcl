@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test017.tcl,v 11.13 2000/12/11 17:42:18 sue Exp $
 #
 # DB Test 17 {access method}
 # Run duplicates with small page size so that we test off page duplicates.

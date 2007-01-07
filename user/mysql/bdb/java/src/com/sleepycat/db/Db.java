@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: Db.java,v 11.38 2000/12/31 19:26:22 bostic Exp $
  */
 
 package com.sleepycat.db;

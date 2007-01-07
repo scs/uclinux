@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: db_dispatch.h,v 11.17 2000/12/14 07:39:13 ubell Exp $
  */
 
 #ifndef _DB_DISPATCH_H_

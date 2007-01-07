@@ -9,7 +9,7 @@
 static char copyright[] =
     "Copyright (c) 1996-2000\nSleepycat Software Inc.  All rights reserved.\n";
 static char revid[] =
-    "$Id$";
+    "$Id: db_dump185.c,v 11.8 2001/01/10 17:26:21 bostic Exp $";
 #endif
 
 #include <sys/types.h>

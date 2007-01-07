@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test046.tcl,v 11.26 2000/08/25 14:21:56 sue Exp $
 #
 # DB Test 46: Overwrite test of small/big key/data with cursor checks.
 proc test046 { method args } {

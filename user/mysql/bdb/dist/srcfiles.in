@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: srcfiles.in,v 1.7 2000/11/30 18:42:21 dda Exp $
 #
 # This is an input file for the s_win32_dsp script.  It describes every
 # source files used by Windows, and lists those that aren't as well,

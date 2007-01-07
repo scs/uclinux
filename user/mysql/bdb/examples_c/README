@@ -1,4 +1,4 @@
-# $Id$
+# $Id: README,v 11.3 2000/12/13 06:32:29 krinsky Exp $
 
 ex_access.c	Using just the DB access methods.
 

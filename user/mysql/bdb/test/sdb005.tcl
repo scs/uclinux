@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: sdb005.tcl,v 11.12 2000/08/25 14:21:53 sue Exp $
 #
 # Test cursor operations between subdbs.
 #

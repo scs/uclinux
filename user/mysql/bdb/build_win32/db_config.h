@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: db_config.h,v 11.24 2000/12/12 18:39:26 bostic Exp $
  */
 
 /* Define to empty if the keyword does not work.  */

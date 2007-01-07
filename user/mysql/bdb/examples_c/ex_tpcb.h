@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_tpcb.h,v 11.4 2000/05/17 19:21:02 bostic Exp $
  */
 
 #ifndef _TPCB_H_

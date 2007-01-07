@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: tcl.m4,v 11.5 2000/06/27 13:21:28 bostic Exp $
 
 dnl The SC_* macros in this file are from the unix/tcl.m4 files in the Tcl
 dnl 8.3.0 distribution, with some minor changes.  For this reason, license

@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test083.tcl,v 11.6 2000/12/11 17:24:55 sue Exp $
 #
 # Test 83.
 # Test of DB->key_range

@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: recd005.tcl,v 11.27 2000/12/15 21:41:38 ubell Exp $
 #
 # Recovery Test 5.
 # Make sure that we can do catastrophic recovery even if we open

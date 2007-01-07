@@ -8,7 +8,7 @@
 #include "db_config.h"
 
 #ifndef lint
-static const char revid[] = "$Id$";
+static const char revid[] = "$Id: cxx_mpool.cpp,v 11.11 2000/09/21 15:05:45 dda Exp $";
 #endif /* not lint */
 
 #include <errno.h>

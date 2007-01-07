@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: AccessExample.cpp,v 11.7 2000/12/06 18:58:23 bostic Exp $
  */
 
 #include "db_config.h"

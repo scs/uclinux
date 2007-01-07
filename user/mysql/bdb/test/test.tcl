@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test.tcl,v 11.114 2001/01/09 21:28:52 sue Exp $
 
 source ./include.tcl
 

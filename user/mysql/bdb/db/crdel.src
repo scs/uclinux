@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: crdel.src,v 11.12 2000/12/12 17:41:48 bostic Exp $
  */
 
 PREFIX	crdel

@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: ex_lock.c,v 11.6 2001/01/04 14:23:29 dda Exp $
  */
 
 #include "db_config.h"

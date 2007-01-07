@@ -4,7 +4,7 @@
  * Copyright (c) 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: DbBtreePrefix.java,v 11.2 2000/07/04 20:53:19 dda Exp $
  */
 
 package com.sleepycat.db;

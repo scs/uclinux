@@ -1,4 +1,4 @@
-dnl $Id$
+dnl $Id: programs.m4,v 11.11 2000/03/30 21:20:50 bostic Exp $
 
 dnl Check for programs used in building/installation.
 AC_DEFUN(AM_PROGRAMS_SET, [

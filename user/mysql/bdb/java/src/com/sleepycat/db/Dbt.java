@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: Dbt.java,v 11.6 2000/06/16 03:34:01 dda Exp $
  */
 
 package com.sleepycat.db;

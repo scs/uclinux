@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: rpc001.tcl,v 11.23 2001/01/02 20:04:56 sue Exp $
 #
 # Test RPC specifics, primarily that unsupported functions return
 # errors and such.

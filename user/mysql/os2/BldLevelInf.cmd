@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: BldLevelInf.cmd,v 1.5 2001/01/26 21:33:13 phaller Exp $
  *
  * Adds a Description string to the given .def-file.
  * Fills in default values; like build time and host.

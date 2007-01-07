@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: join.tcl,v 11.17 2000/08/25 14:21:51 sue Exp $
 #
 # We'll test 2-way, 3-way, and 4-way joins and figure that if those work,
 # everything else does as well.  We'll create test databases called

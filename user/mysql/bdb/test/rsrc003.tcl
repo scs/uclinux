@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: rsrc003.tcl,v 11.1 2000/11/29 18:28:49 sue Exp $
 #
 # Recno backing file test.
 # Try different patterns of adding records and making sure that the

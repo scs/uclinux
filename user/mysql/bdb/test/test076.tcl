@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test076.tcl,v 1.7 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 76: Test creation of many small databases in an env
 proc test076 { method { ndbs 1000  } { tnum 76 } args } {

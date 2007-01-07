@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #       Sleepycat Software.  All rights reserved.
 #
-#       $Id$
+#       $Id: logtrack.tcl,v 11.6 2000/10/27 15:30:39 krinsky Exp $
 #
 # logtrack.tcl:  A collection of routines, formerly implemented in Perl
 # as log.pl, to track which log record types the test suite hits.

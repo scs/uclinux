@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test063.tcl,v 11.11 2000/08/25 14:21:58 sue Exp $
 #
 # DB Test 63:  Test that the DB_RDONLY flag is respected.
 #	Attempt to both DB->put and DBC->c_put into a database

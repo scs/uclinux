@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: java_locked.h,v 11.9 2000/10/25 19:54:55 dda Exp $
  */
 
 #ifndef _JAVA_LOCKED_H_

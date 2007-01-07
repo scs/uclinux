@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test009.tcl,v 11.4 2000/05/22 12:51:38 bostic Exp $
 #
 # DB Test 9 {access method}
 # Check that we reuse overflow pages.  Create database with lots of

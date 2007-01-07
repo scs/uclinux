@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test091.tcl,v 11.4 2000/12/01 04:28:36 ubell Exp $
 #
 # DB Test 91 {access method}
 # Check for CONSUME_WAIT functionality

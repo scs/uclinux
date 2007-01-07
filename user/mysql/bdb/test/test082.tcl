@@ -3,7 +3,7 @@
 # Copyright (c) 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test082.tcl,v 11.1 2000/04/30 05:05:26 krinsky Exp $
 #
 # Test 82.
 # Test of DB_PREV_NODUP

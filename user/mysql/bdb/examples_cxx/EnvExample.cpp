@@ -4,7 +4,7 @@
  * Copyright (c) 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- * $Id$
+ * $Id: EnvExample.cpp,v 11.12 2000/10/27 20:32:00 dda Exp $
  */
 
 #include "db_config.h"

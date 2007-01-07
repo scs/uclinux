@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: testutils.tcl,v 11.86 2001/01/18 23:21:14 krinsky Exp $
 #
 # Test system utilities
 #

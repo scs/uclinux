@@ -3,7 +3,7 @@
 # Copyright (c) 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test034.tcl,v 11.4 2000/02/14 03:00:19 bostic Exp $
 #
 # DB Test 34 {access method}
 # DB_GET_BOTH functionality with off-page duplicates.

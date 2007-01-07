@@ -3,7 +3,7 @@
 # Copyright (c) 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: env006.tcl,v 11.5 2000/10/27 13:23:55 sue Exp $
 #
 # Env Test 6
 # DB Utility Check

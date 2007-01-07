@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test057.tcl,v 11.17 2000/08/25 14:21:57 sue Exp $
 #
 # Test057:
 # Check if we handle the case where we delete a key with the cursor on it

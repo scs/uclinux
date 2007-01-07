@@ -1,4 +1,4 @@
-# $Id$
+# $Id: rectype.awk,v 11.3 2000/07/17 22:00:49 ubell Exp $
 #
 # Print out a range of the log
 # Command line should set RECTYPE to the a comma separated list

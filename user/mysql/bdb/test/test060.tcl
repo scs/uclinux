@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test060.tcl,v 11.6 2000/08/25 14:21:57 sue Exp $
 #
 # Test060: Test of the DB_EXCL flag to DB->open.
 #     1) Attempt to open and create a nonexistent database; verify success.

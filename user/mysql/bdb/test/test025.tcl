@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test025.tcl,v 11.11 2000/11/16 23:56:18 ubell Exp $
 #
 # DB Test 25 {method nentries}
 # Test the DB_APPEND flag.

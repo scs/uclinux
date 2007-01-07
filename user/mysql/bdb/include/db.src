@@ -4,7 +4,7 @@
  * Copyright (c) 1996, 1997, 1998, 1999, 2000
  *	Sleepycat Software.  All rights reserved.
  *
- *	$Id$
+ *	$Id: db.src,v 11.121 2001/01/10 15:43:08 sue Exp $
  */
 
 #ifndef _DB_H_

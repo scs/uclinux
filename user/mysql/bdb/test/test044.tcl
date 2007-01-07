@@ -3,7 +3,7 @@
 # Copyright (c) 1996, 1997, 1998, 1999, 2000
 #	Sleepycat Software.  All rights reserved.
 #
-#	$Id$
+#	$Id: test044.tcl,v 11.26 2000/10/27 13:23:56 sue Exp $
 #
 # DB Test 44 {access method}
 # System integration DB test: verify that locking, recovery, checkpoint,

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: btree.h,v 11.37 2001/01/17 17:09:52 bostic Exp $
  */
 
 /* Forward structure declarations. */
