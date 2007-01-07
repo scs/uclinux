@@ -383,9 +383,6 @@ lib/main.o: shared_main.c
 	$(CC) $(CFLAGS) $(ARCH_CFLAGS) -c -o $@ $<
 
 bogus $(SHARED_TARGET): lib/$(LIBNAME) lib/$(DUMMY_LIBNAME) lib/main.o Makefile
-ifneq ($(ROOTDIR),)
-	make -C $(ROOTDIR) relink
-endif
 	$(CC) -o $(SHARED_TARGET) $(ARCH_CFLAGS)				\
 			-mid-shared-library -mshared-library-id=0 -shared	\
 			-Wl,-elf2flt -nodefaultlibs -Wl,-shared-lib-id,${LIBID}	\
