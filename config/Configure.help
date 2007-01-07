@@ -654,12 +654,12 @@ CONFIG_BLACKFIN_USE_FLAT
   This option must match the choice made for the C library; when configuring
   uClibc, select the 'bfin' target.
 
-CONFIG_BLACKFIN_USE_SHARED_FLAT
+CONFIG_FMT_USE_SHARED_FLAT
   Build all libraries and applicaions with -mid-shared-library.
   This option must match the choice made for the C library; when configuring
   uClibc, select the 'bfin' target.
 
-CONFIG_BLACKFIN_USE_FDPIC
+CONFIG_FMT_USE_FDPIC_ELF
   Build all libraries and applicaions with -mfdpic to produce ELF binaries
   rather than the default flat binaries.  ELF binaries tend to be larger,
   but have more capabilities, such as support for dlopen.

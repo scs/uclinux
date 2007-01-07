@@ -44,11 +44,11 @@ UCLINUX_BUILD_SET = 0		# have we set a special config below
 include $(ROOTDIR)/vendors/config/common/config.arch
 
 ifndef DISABLE_SHARED_LIBS
-  ifeq ($(CONFIG_BLACKFIN_USE_SHARED_FLAT),y)
+  ifeq ($(CONFIG_FMT_USE_SHARED_FLAT),y)
 	BUILD_SHARED = 1
   endif
-  ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
-	BUILD_FDPIC = 1
+  ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	BUILD_FDPIC_ELF = 1
   endif
 endif
 
@@ -58,7 +58,7 @@ endif
 #
 TARGETARCH    := bfin-uclinux
 HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
-CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH) --prefix=/usr
 
 ############################################################################
 #
@@ -83,7 +83,7 @@ ifdef UCLINUX_BUILD_LIB
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library 
   endif
-  ifdef BUILD_FDPIC
+  ifdef BUILD_FDPIC_ELF
 	CFLAGS += -mfdpic
 	LDFLAGS += -mfdpic
   endif
@@ -126,7 +126,7 @@ ifdef UCLINUX_BUILD_USER
   ifdef BUILD_SHARED
 	CFLAGS  += -fpic -mid-shared-library -mshared-library-id=0
   endif
-  ifdef BUILD_FDPIC
+  ifdef BUILD_FDPIC_ELF
 	CFLAGS += -mfdpic
 	LDFLAGS = -mfdpic
   else

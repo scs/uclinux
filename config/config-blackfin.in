@@ -2,17 +2,17 @@ mainmenu_option next_comment
 comment "Blackfin build Options"
 
 choice 'Binary format' \
-	"FLAT          CONFIG_BLACKFIN_USE_FLAT \
-	 Shared-FLAT   CONFIG_BLACKFIN_USE_SHARED_FLAT \
-	 FDPIC         CONFIG_BLACKFIN_USE_FDPIC \
+	"FLAT          CONFIG_FMT_USE_FLAT \
+	 Shared-FLAT   CONFIG_FMT_USE_SHARED_FLAT \
+	 FDPIC         CONFIG_FMT_USE_FDPIC_ELF \
 	" FLAT
 
-if [ "$CONFIG_BLACKFIN_USE_FDPIC" = "y" ]; then
+if [ "$CONFIG_FMT_USE_FDPIC_ELF" = "y" ]; then
 	define_bool CONFIG_INSTALL_ELF_SHARED_LIBS y
 else
 	bool 'Install ELF shared libraries' CONFIG_INSTALL_ELF_SHARED_LIBS
 fi
-if [ "$CONFIG_BLACKFIN_USE_SHARED_FLAT" = "y" ]; then
+if [ "$CONFIG_FMT_USE_SHARED_FLAT" = "y" ]; then
 	define_bool CONFIG_INSTALL_FLAT_SHARED_LIBS y
 else
 	bool 'Install FLAT shared libraries' CONFIG_INSTALL_FLAT_SHARED_LIBS

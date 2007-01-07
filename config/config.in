@@ -114,23 +114,22 @@ bool 'Build STLport'		CONFIG_LIB_STLPORT
 dep_bool '  Build STLport as shared'	CONFIG_LIB_STLPORT_SHARED $CONFIG_LIB_STLPORT
 bool 'Build expat'		CONFIG_LIB_EXPAT_FORCE
 bool 'Build adns'		CONFIG_LIB_ADNS_FORCE
-bool 'Buile libares'		CONFIG_LIB_ARES_FORCE
+bool 'Build libares'		CONFIG_LIB_ARES_FORCE
 bool 'Build libcrypt_old'	CONFIG_LIB_LIBCRYPT_OLD_FORCE
+bool 'Build faad2'		CONFIG_LIB_FAAD2_FORCE
+bool 'Build flac'		CONFIG_LIB_FLAC_FORCE
+bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
+bool 'Build libao'	CONFIG_LIB_LIBAO_FORCE
+bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
+bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
+bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
+bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
 
 comment 'Library Configuration'
 bool 'Support time zones'	CONFIG_LIB_UC_LIBC_TIMEZONE
 if [ "$CONFIG_LIB_UC_LIBC_TIMEZONE" = "y" ]; then
 	bool '  Always load from file'	CONFIG_LIB_UC_LIBC_TZ_FROM_FILE
 fi
-
-bool 'Build faad2'		CONFIG_LIB_FAAD2_FORCE
-bool 'Build flac'		CONFIG_LIB_FLAC_FORCE
-bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
-bool 'Build libao-0.8.6'	CONFIG_LIB_LIBAO_FORCE
-bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
-bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
-bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
-bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
 
 endmenu
 
