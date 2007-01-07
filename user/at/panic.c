@@ -41,6 +41,7 @@
 /* Local headers */
 
 #include "panic.h"
+#include "privs.h"
 #include "at.h"
 
 /* File scope variables */
@@ -72,12 +73,15 @@ perr(const char *fmt,...)
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(buf, fmt, args);
+    vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
     perror(buf);
-    if (fcreated)
+    if (fcreated) {
+        PRIV_START
 	unlink(atfile);
+        PRIV_END
+    }
 
     exit(EXIT_FAILURE);
 }
@@ -88,7 +92,7 @@ usage(void)
 /* Print usage and exit.
  */
     fprintf(stderr, "Usage: at [-V] [-q x] [-f file] [-m] time\n"
-	    "       atq [-V] [-q x] [-v]\n"
+	    "       atq [-V] [-q x]\n"
 	    "       atrm [-V] [-q x] job ...\n"
 	    "       batch [-V] [-f file] [-m]\n");
     exit(EXIT_FAILURE);

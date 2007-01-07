@@ -72,7 +72,7 @@ perr(const char *fmt,...)
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(buf, fmt, args);
+    vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
     if (daemon_debug) {
@@ -90,7 +90,7 @@ pabort(const char *fmt,...)
     va_list args;
 
     va_start(args, fmt);
-    vsprintf(buf, fmt, args);
+    vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
     if (daemon_debug) {
@@ -127,6 +127,7 @@ daemon_setup()
 	}
     }
     old_umask = umask(S_IWGRP | S_IWOTH);
+    (void) setsid();
 
     PRIV_START
 

@@ -47,3 +47,13 @@ at 3.1.5:
 at 3.1.6:
 	Made 'noon', 'teatime' and 'midnight' work.
 	Reran autoheader so HP-UX compilation works.
+
+at 3.1.7:
+	Made parser case-independent by specifying -i to flex
+
+at 3.1.8:
+	Fixed spelling mistake in manpage
+	Created at_allow(5) and at_deny(5) manpages
+	Fixed bug where 'next monday' could be a synonym for today
+	Fixed spelling bug in parser (misspelled February)
+	Removed obsolete '-v' flag from atq

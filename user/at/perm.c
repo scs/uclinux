@@ -43,7 +43,13 @@
 
 /* Macros */
 
-#define MAXUSERID 10
+#if defined(DEBUG_PERM_C)
+#define ETCDIR "../test/etc"
+#undef PRIV_START
+#define PRIV_START while(0)
+#undef PRIV_END
+#define PRIV_END while(0)
+#endif
 
 /* Structures and unions */
 
@@ -54,66 +60,87 @@ static char rcsid[] = "$Id: perm.c,v 1.4 1997/03/12 19:36:06 ig25 Exp $";
 
 /* Function declarations */
 
-static int check_for_user(FILE * fp, const char *name);
+static int user_in_file(const char *path, const char *name);
 
 /* Local functions */
 
+/* 
+ */  
 static int 
-check_for_user(FILE * fp, const char *name)
+user_in_file(const char *path, const char *name)
 {
-    char *buffer;
-    size_t len;
-    int found = 0;
+  FILE *fp;
+  char buffer[256];
+  int found = 0;
+  int c = '\n';
 
-    len = strlen(name);
-    buffer = mymalloc(len + 2);
+  PRIV_START;
+    fp = fopen( path, "r");
+  PRIV_END;
 
-    while (fgets(buffer, len + 2, fp) != NULL) {
-	if ((strncmp(name, buffer, len) == 0) &&
-	    (buffer[len] == '\n')) {
-	    found = 1;
-	    break;
-	}
-    }
-    fclose(fp);
-    free(buffer);
-    return found;
+  if ( fp == NULL )
+    return -1;
+
+
+  while ( !found && fgets(buffer, sizeof(buffer), fp) != NULL) {
+    size_t llen = strlen(buffer);
+
+    c = buffer[llen-1];
+
+    if (c == '\n')
+      buffer[llen-1] = '\0';
+    while (c != '\n' && c != EOF)
+      c = fgetc(fp);
+    
+    found = (strcmp(buffer, name)==0);
+  }
+
+  fclose(fp);
+
+  if (c == EOF) {
+    fprintf(stderr, "%s: incomplete last line.\n", path);
+  }
+
+  return found;
 }
+
+
 /* Global functions */
-int 
+int
 check_permission()
 {
-    FILE *fp;
-    uid_t uid = geteuid();
-    struct passwd *pentry;
+  uid_t uid = geteuid();
+  struct passwd *pentry;
+  int    allow = 0, deny = 1;
 
-    if (uid == 0)
-	return 1;
+  if (uid == 0)
+    return 1;
 
-    if ((pentry = getpwuid(uid)) == NULL) {
-	perror("Cannot access user database");
-	exit(EXIT_FAILURE);
-    }
-    PRIV_START
+  if ((pentry = getpwuid(uid)) == NULL) {
+    perror("Cannot access user database");
+    exit(EXIT_FAILURE);
+  }
 
-	fp = fopen(ETCDIR "/at.allow", "r");
+  allow = user_in_file(ETCDIR "/at.allow", pentry->pw_name);
+  if (allow==0 || allow==1)
+    return allow;
 
-    PRIV_END
-
-    if (fp != NULL) {
-	return check_for_user(fp, pentry->pw_name);
-    } else {
-
-	PRIV_START
-
-	    fp = fopen(ETCDIR "/at.deny", "r");
-
-	PRIV_END
-
-	if (fp != NULL) {
-	    return !check_for_user(fp, pentry->pw_name);
-	}
-	perror("at.deny");
-    }
-    return 0;
+  /* There was an error while looking for pw_name in at.allow.
+   * Check at.deny only when at.allow doesn't exist.
+   */
+ 
+  deny = user_in_file(ETCDIR "/at.deny", pentry->pw_name);
+  return deny == 0;
 }
+
+
+#if defined(DEBUG_PERM_C)
+
+int
+main(int argc, char *argv[])
+{
+  printf("check_permission() ==> %d\n", check_permission());
+  return 0;
+}
+
+#endif

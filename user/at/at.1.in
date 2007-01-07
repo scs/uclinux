@@ -1,4 +1,4 @@
-.Id $Id: at.1.in,v 1.7 1997/03/13 00:15:13 ig25 Exp $
+.Id $Id: at.1.in,v 1.8 1997/09/28 20:00:25 ig25 Exp $
 .TH AT 1 "Nov 1996" local "Linux Programmer's Manual"
 .SH NAME
 at, batch, atq, atrm \- queue, examine or delete jobs for later execution
@@ -20,7 +20,6 @@ at, batch, atq, atrm \- queue, examine or delete jobs for later execution
 .RB [ -V ]
 .RB [ -q
 .IR queue ]
-.RB [ -v ]
 .br
 .B atrm
 .RB [ -V ]
@@ -48,10 +47,11 @@ executes commands at a specified time.
 .TP 8
 .BR atq
 lists the user's pending jobs, unless the user is the superuser; in that
-case, everybody's jobs are listed.
+case, everybody's jobs are listed.  The format of the output lines (one
+for each job) is: Job number, date, hour, job class.
 .TP 8
 .BR atrm
-deletes jobs.
+deletes jobs, identified by their job number.
 .TP 8
 .BR batch
 executes commands when system load levels permit; in other words, when the load average
@@ -117,7 +117,7 @@ and to run a job at 1am tomorrow, you would do
 .B at 1am tomorrow.
 .PP
 The exact definition of the time specification can be found in
-.IR @prefix@/doc/at/timespec .
+.IR @prefix@/share/doc/at/timespec .
 .PP
 For both
 .BR at " and " batch ,
@@ -225,10 +225,7 @@ Is an alias for
 .TP
 .TP
 .B \-v
-For
-.BR atq ,
-shows completed but not yet deleted jobs in the queue; otherwise
-shows the time the job will be executed.
+Shows the time the job will be executed.
 .P
 Times displayed will be in the format "1997-02-20 14:50" unless the
 environment variable
@@ -237,7 +234,7 @@ is set; then, it will be "Thu Feb 20 14:50:00 1996".
 .TP
 .B
 \-c
-cats the jobs listed on the command line to standart output.
+cats the jobs listed on the command line to standard output.
 .SH FILES
 .I @ATJBD@
 .br
@@ -251,7 +248,11 @@ cats the jobs listed on the command line to standart output.
 .br
 .I @ETCDIR@/at.deny
 .SH SEE ALSO
-cron(1), nice(1), sh(1), umask(2), atd(8)
+.BR cron (1),
+.BR nice (1),
+.BR sh (1),
+.BR umask (2),
+.BR atd (8).
 .SH BUGS
 The correct operation of
 .B batch
