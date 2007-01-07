@@ -114,7 +114,8 @@ CCFLAGS	= $(PROFILE_FLAGS) $(SYSTEM_FLAGS) $(LOCAL_DEFS) \
 	  $(DEFS) $(LOCAL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $(CFLAGS)
 CCFLAGS_FOR_BUILD = $(SYSTEM_FLAGS) $(LOCAL_DEFS) $(DEFS) $(INCLUDES)
 
-INCLUDES = -I. @RL_INCLUDE@ -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC) -I$(includedir)
+#INCLUDES = -I. @RL_INCLUDE@ -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC) -I$(includedir)
+INCLUDES = -I. @RL_INCLUDE@ -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC)
 
 GCC_LINT_FLAGS = -ansi -Wall -Wshadow -Wpointer-arith -Wcast-qual \
 		 -Wwrite-strings -Werror -Wstrict-prototypes \
@@ -130,7 +131,8 @@ dot = .
 LIBSUBDIR = lib
 LIBSRC = $(srcdir)/$(LIBSUBDIR)
 
-SUBDIR_INCLUDES = -I. @RL_INCLUDE@ -I$(topdir) -I$(topdir)/$(LIBSUBDIR) -I$(includedir)
+#SUBDIR_INCLUDES = -I. @RL_INCLUDE@ -I$(topdir) -I$(topdir)/$(LIBSUBDIR) -I$(includedir)
+SUBDIR_INCLUDES = -I. @RL_INCLUDE@ -I$(topdir) -I$(topdir)/$(LIBSUBDIR)
 
 # the bash library
 # the library is a mix of functions that the C library does not provide on

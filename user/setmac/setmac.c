@@ -26,6 +26,10 @@
 #define	MAXETHS		16
 #define	DEFAULTETHS	2
 
+#ifndef ETHPREFIX
+#define ETHPREFIX "eth"
+#endif
+
 /*
  *	Define the default flash device to use to get MAC addresses from.
  */
@@ -237,7 +241,7 @@ void setmac(int port, unsigned char *mac)
 	char eths[32];
 	char macs[32];
 
-	sprintf(eths, "eth%d", port);
+	sprintf(eths, "%s%d", ETHPREFIX, port);
 	sprintf(macs, "%02x:%02x:%02x:%02x:%02x:%02x",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
@@ -263,12 +267,13 @@ void setmac(int port, unsigned char *mac)
 
 void usage(int rc)
 {
-	printf("usage: setmac [-h?] [OPTION]...\n");
-	printf("\t-f <flash-device>\n");
-	printf("\t-m <mtd-name>\n");
-	printf("\t-n <num-eth-interfaces>\n");
-	printf("\t-o <offset>\n");
-	printf("\t-r <redboot-config-name>\n");
+	printf("usage: setmac [-hs?] [OPTION]...\n"
+		"\t-s\n"
+		"\t-f <flash-device>\n"
+		"\t-m <mtd-name>\n"
+		"\t-n <num-eth-interfaces>\n"
+		"\t-o <offset>\n"
+		"\t-r <redboot-config-name>\n");
 	exit(rc);
 }
 
@@ -276,18 +281,22 @@ void usage(int rc)
 
 int main(int argc, char *argv[])
 {
-	int i, c;
+	int i, p, c;
 	unsigned char mac[6];
 	char *flash = DEFAULTFLASH;
 	char *mtdname = NULL;
 	off_t macoffset = 0x24000;
 	char *redboot = NULL;
+	int swapmacs = 0;
 
-	while ((c = getopt(argc, argv, "f:h?m:n:o:r:")) > 0) {
+	while ((c = getopt(argc, argv, "h?sm:n:o:r:f:")) > 0) {
 		switch (c) {
 		case '?':
 		case 'h':
 			usage(0);
+		case 's':
+			swapmacs++;
+			break;
 		case 'f':
 			flash = optarg;
 			break;
@@ -323,7 +332,8 @@ int main(int argc, char *argv[])
 	}
 
 	for (i = 0; (i < numeths); i++) {
-		getmac(i, &mac[0]);
+		p = (swapmacs) ? (i^1) : i;
+		getmac(p, &mac[0]);
 		setmac(i, &mac[0]);
 	}
 

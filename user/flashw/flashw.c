@@ -23,9 +23,9 @@
 #include <linux/config.h>
 #include <linux/version.h>
 #ifdef CONFIG_MTD
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 #include <mtd/mtd-user.h>
-#else
+#else 
 #include <linux/mtd/mtd.h>
 #endif
 #else
@@ -281,24 +281,27 @@ int main(int argc, char *argv[])
 
 	} else if (optind < argc - 1) {
 
-		data_size = 0;
 		sp = buf;
 		for (pos = optind; (pos < (argc - 1)); pos++) {
+			if ((sp - buf) >= sizeof(buf))
+				continue;
+
 			if (binary) {
-				size = mkbinbuf(argv[pos], sp, strlen(argv[pos]));
+				sp += mkbinbuf(argv[pos], sp, strlen(argv[pos]));
 			} else {
-				size = strlen(argv[pos]);
-				strcpy(sp, argv[pos]);
-				sp[size++] = ' ';
-				sp[size] = '\0';
+				if (sp != buf)
+					*sp++ = ' ';
+				size = sizeof(buf) - (sp - buf);
+				strncpy(sp, argv[pos], size);
+				sp += strnlen(argv[pos], size);
 			}
-			data_size += size;
-			sp += size;
 		}
 
 		/* Put string terminator if not in binary mode */
 		if (!binary)
-			buf[data_size++] = '\0';
+			*sp++ = '\0';
+
+		data_size = sp - buf;
 		data_ptr = buf;
 	}
 

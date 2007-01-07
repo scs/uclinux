@@ -1,6 +1,6 @@
 #! /bin/sh
 # texi2dvi --- smartly produce DVI files from texinfo sources
-# $Id$
+# $Id: texi2dvi,v 0.8 1998/02/26 21:13:13 karl Exp $
 #
 # Copyright (C) 1992, 93, 94, 95, 96, 97, 98 Free Software Foundation, Inc.
 #
@@ -45,7 +45,7 @@
 progname=`echo "$0" | sed -e 's/[^\/]*\///g'`
 
 # This string is expanded by rcs automatically when this file is checked out.
-rcs_revision='$Revision$'
+rcs_revision='$Revision: 0.8 $'
 version=`set - $rcs_revision; echo $2`
 
 # To prevent hairy quoting and escaping later.

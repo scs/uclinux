@@ -37,6 +37,7 @@
 #include <sys/mount.h>
 #include <sys/termios.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <stdarg.h>
 
@@ -49,11 +50,11 @@
 #include "crypto.h"
 #endif
 #if defined(CONFIG_MTD) || defined(CONFIG_MTD_MODULES)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 #include <mtd/mtd-user.h>
 #define MTD_CHAR_MAJOR 90
 #define MTD_BLOCK_MAJOR 31
-#else
+#else 
 #include <linux/mtd/mtd.h>
 #endif
 #else
@@ -74,14 +75,11 @@
 #ifdef CONFIG_IDE
 #include <linux/hdreg.h>
 #endif
+#include <asm/byteorder.h>
 
 #include "netflash.h"
 #include "exit_codes.h"
 #include "versioning.h"
-
-#ifdef CONFIG_COBRA5272
-#include <ctype.h>
-#endif
 
 /****************************************************************************/
 
@@ -104,13 +102,14 @@
 #define SETSRC_OPTIONS
 #endif
 
-#define CMD_LINE_OPTIONS "bc:Cd:fFhiHjkKlno:pr:stuv?" DECOMPRESS_OPTIONS HMACMD5_OPTIONS SETSRC_OPTIONS
+#define CMD_LINE_OPTIONS "bc:Cd:fFhiHjkKlno:pr:sStuv?" DECOMPRESS_OPTIONS HMACMD5_OPTIONS SETSRC_OPTIONS
 
 #define PID_DIR "/var/run"
 #define DHCPCD_PID_FILE "dhcpcd-"
 
 #define CHECKSUM_LENGTH	4
 
+#define CONFIG_USER_NETFLASH_WATCHDOG 1
 /****************************************************************************/
 
 char *version = "2.1.4";
@@ -132,16 +131,21 @@ int _block_len = 8192;
 int dothrow = 0;		/* Check version info of image; no program */
 int dolock, dounlock;	/* do we lock/unlock segments as we go */
 int checkimage;			/* Compare with current flash contents; no program */
+#if CONFIG_USER_NETFLASH_WATCHDOG
+int watchdog = 1;		/* tickle watchdog while writing to flash */
+int watchdog_fd = -1;   /* ensure this is initalised to an invalid fd */
+#endif
 int preserveconfig;		/* Preserve special bits of flash such as config fs */
 int preserve = 0;		/* Preserve and portions of flash not written to */
 int offset = 0;			/* Offset to start writing at */
 int stop_early = 0;		/* stop at end of input data, do not write full dev. */
+int nostop_early = 0;	/* no stop at end of input data, do write full dev. */
 int dojffs2;			/* Write the jffs2 magic to unused segments */
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 int doinflate;			/* Decompress the image */
 #endif
 int docgi = 0;			/* Read options and data from stdin in mime multipart format */
-#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 char cgi_data[64];      /* CGI section name for the image part */
 char cgi_options[64];   /* CGI section name for the command line options part */
 extern size_t cgi_load(const char *data_name, const char *options_name, char options[64]);
@@ -172,7 +176,7 @@ static void exit_failed(int rc);
 /****************************************************************************/
 
 #define notice(a...) fprintf(stdout, "netflash: " a); fprintf(stdout, "\n"); fflush(stdout);
-#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 #define error(a...) fprintf(stdout, "netflash: " a); fprintf(stdout, "\n"); fflush(stdout);
 #else
 #define error(a...) fprintf(stderr, "netflash: " a); fprintf(stderr, "\n"); fflush(stderr);
@@ -182,10 +186,14 @@ static void exit_failed(int rc);
 
 void restartinit(void)
 {
-#ifndef CONFIG_USER_NETFLASH_WITH_CGI
+#if !defined(CONFIG_USER_NETFLASH_WITH_CGI) || defined(RECOVER_PROGRAM)
 	error("restarting init process...");
 #endif
 	kill(1, SIGCONT);
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+	close(watchdog_fd);
+	system("watchdog /dev/watchdog");
+#endif
 }
 
 
@@ -206,7 +214,6 @@ static void memcpy_withsum(void *dst, void *src, int len, unsigned int *sum)
 }
 #endif
 
-
 /*
  *	Note: This routine is more general than it currently needs to
  *	be since it handles out of order writes.
@@ -217,6 +224,8 @@ void add_data(unsigned long address, unsigned char * data, unsigned long len)
 	struct fileblock_t *fb;
 	struct fileblock_t *fbprev = NULL;
 	struct fileblock_t *fbnew;
+	static unsigned long total = 0;
+	static unsigned lastk = 0;
 
 	/*printf("add_data(%lx:%lx)\n", address, len);*/
 
@@ -240,14 +249,22 @@ void add_data(unsigned long address, unsigned char * data, unsigned long len)
 				address += l;
 				data += l;
 				len -= l;
+				total += l;
 				if (len == 0)
 					return;
 			}
 		}
 	
 		if (!docgi) {
-			printf("."); fflush(stdout);
+			if (total / 1024 != lastk) {
+				lastk = total / 1024;
+				printf("\r%dK", lastk); fflush(stdout);
+			}
 		}
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+		if (watchdog)
+			write(watchdog_fd, "\0", 1); 
+#endif
 
 		/* At this point:
 		 * fb = block following the range we are adding,
@@ -359,7 +376,7 @@ void remove_data(int length)
  */
 void chksum()
 {
-	unsigned char *sp, *ep;
+	unsigned char *sp = 0, *ep;
 	unsigned int file_checksum;
 	int i;
 	struct fileblock_t *fb;
@@ -378,6 +395,11 @@ void chksum()
 				sp = fb->data + (file_length - CHECKSUM_LENGTH - fb->pos);
 				break;
 			}
+		}
+
+		if (!fb) {
+			error("could not find fileblock containing checksum");
+			exit_failed(IMAGE_SHORT);
 		}
 		
 		ep = fb->data + fb->length;
@@ -526,7 +548,6 @@ static inline struct fileblock_t *put_block(struct fileblock_t *fb,
  */
 void check_crypto_signature(void) {
 	struct fileblock_t *fb;
-	int i;
   	RSA *pkey;
 	struct header hdr;
 	struct little_header lhdr;
@@ -634,7 +655,7 @@ void check_crypto_signature(void) {
 /* Read the decompressed size from the gzip format */
 int decompress_size()
 {
-    unsigned char *sp, *ep;
+    unsigned char *sp = 0, *ep;
     int	i, total, size;
     struct fileblock_t *fb;
 
@@ -649,15 +670,17 @@ int decompress_size()
 			}
 			total += fb->length;
 		}
-		
-		ep = fb->data + fb->length;
-		for (i = 0; i < 4; i++) {
-			if (sp >= ep) {
-				fb = fb->next;
-				sp = fb->data;
-				ep = sp + fb->length;
+
+		if (fb) {
+			ep = fb->data + fb->length;
+			for (i = 0; i < 4; i++) {
+				if (sp >= ep) {
+					fb = fb->next;
+					sp = fb->data;
+					ep = sp + fb->length;
+				}
+				size |= (*sp++) << (8*i);
 			}
-			size |= (*sp++) << (8*i);
 		}
     }
 
@@ -681,6 +704,7 @@ int decompress_skip_bytes(int pos, int num)
     }
     error("compressed image is too short");
 	exit_failed(IMAGE_SHORT);
+	return 0;
 }
 
 
@@ -881,6 +905,10 @@ int local_write(int fd, char *buf, int count)
 
 /****************************************************************************/
  
+extern int tftpmain(int argc, char *argv[]);
+extern int tftpsetbinary(int argc, char *argv[]);
+extern int tftpget(int argc, char *argv[]);
+
 /*
  * Call to tftp. This will initialize tftp and do a get operation.
  * This will call the local_write() routine with the data that is
@@ -900,7 +928,7 @@ int tftpfetch(char *srvname, char *filename)
 	tftpargv[tftpmainargc++] = srcaddr;
 #endif
   tftpmain(tftpmainargc, tftpargv);
-  tftpsetbinary();
+  tftpsetbinary(1, tftpargv);
   
   notice("fetching file \"%s\" from %s\n", filename, srvname);
   tftpargv[0] = "get";
@@ -911,6 +939,11 @@ int tftpfetch(char *srvname, char *filename)
 
 /****************************************************************************/
  
+extern int ftpmain(int argc, char *argv[]);
+extern void setbinary(void);
+extern void get(int argc, char *argv[]);
+extern void quit(void);
+
 /*
  * Call to ftp. This will initialize ftp and do a get operation.
  * This will call the local_write() routine with the data that is
@@ -918,9 +951,9 @@ int tftpfetch(char *srvname, char *filename)
  */
 int ftpconnect(char *srvname)
 {
+#ifdef FTP
   char	*ftpargv[4];
 
-#ifdef FTP
   ftpverbose = 0;	/* Set to 1 for ftp trace info */
   notice("login to remote host %s", srvname);
 
@@ -937,9 +970,9 @@ int ftpconnect(char *srvname)
 
 int ftpfetch(char *srvname, char *filename)
 {
+#ifdef FTP
   char	*ftpargv[4];
 
-#ifdef FTP
   ftpverbose = 0;	/* Set to 1 for ftp trace info */
   notice("ftping file \"%s\" from %s", filename, srvname);
   setbinary(); /* make sure we are in binary mode */
@@ -958,6 +991,8 @@ int ftpfetch(char *srvname, char *filename)
 }
 
 /****************************************************************************/
+
+extern int openhttp(char *url);
 
 /*
  *	When fetching file we need to even number of bytes in write
@@ -1173,8 +1208,11 @@ static const char *kill_partial[] = {
 #ifdef CONFIG_USER_SQUID_SQUID
 	"squid",
 #endif
-#ifdef CONFIG_USER_FREESWAN
+#if defined(CONFIG_USER_FREESWAN) || defined(CONFIG_USER_OPENSWAN)
 	"pluto",
+#endif
+#ifdef CONFIG_USER_CLAMAV_CLAMD
+	"clamd",
 #endif
 	NULL
 };
@@ -1230,7 +1268,7 @@ void kill_processes(char *console)
 	if (ttyfd >= 0) {
 		if (tcgetattr(ttyfd, &tio) >= 0) {
 			tio.c_cflag |= CLOCAL;
-			tcsetattr(ttyfd, TCSAFLUSH, &tio);
+			tcsetattr(ttyfd, TCSANOW, &tio);
 		}
 		close(ttyfd);
 	}
@@ -1253,6 +1291,8 @@ void kill_processes(char *console)
 	signal(SIGHUP, SIG_IGN);	/* Don't die if our parent dies due to
 					 * a closed controlling terminal */
 	
+	killprocpid("/var/run/ifmond.pid", SIGKILL);
+
 	/*Don't take down network interfaces that use dhcpcd*/
 	dir = opendir(PID_DIR);
 	if (dir) {
@@ -1277,6 +1317,10 @@ void kill_processes(char *console)
 
 	if (console)
 		freopen(console, "w", stdout);
+#if CONFIG_USER_NETFLASH_WATCHDOG
+	if (watchdog)
+		watchdog_fd = open("/dev/watchdog", O_WRONLY);
+#endif
 }
 
 /****************************************************************************/
@@ -1294,16 +1338,11 @@ void umount_all(void)
 	localargv[localargc++] = "-a";
 	localargv[localargc++] = "-r";
 	localargv[localargc++] = NULL;
-#ifdef __uClinux__
 	pid = vfork();
-#else
-	pid = fork();
-#endif
-	if (pid < 0) {
-		error("vfork() failed");
+	if (pid == -1) {
+		error("vfork() failed %m");
 		exit_failed(VFORK_FAIL);
-	}
-	else if (pid == 0) {
+	} else if (pid == 0) {
 		execvp("/bin/umount", localargv);
 		_exit(1);
 	}
@@ -1491,7 +1530,11 @@ static void program_mtd_segment(int rd, char *sgdata,
 			JFFS2_MAGIC_BITMASK,
 			JFFS2_NODETYPE_CLEANMARKER,
 			sizeof(struct jffs2_unknown_node),
+#if __BYTE_ORDER == __BIG_ENDIAN
+			0xf060dc98
+#else
 			0xe41eb0b1
+#endif
 		};
 
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
@@ -1561,6 +1604,7 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 		char *check_buf)
 {
 	int sgpos, sglength;
+	unsigned long total;
 #ifdef CONFIG_LEDMAN
 	int ledmancount = 0;
 #endif
@@ -1570,13 +1614,22 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 	ledman_cmd(LEDMAN_CMD_ALT_ON, LEDMAN_NVRAM_2);
 #endif
 
+	/* Round the image size up to the segment size */
+	if (stop_early) {
+		total = (image_length + sgsize - 1) & ~(sgsize - 1);
+	}
+	else {
+		total = devsize;
+	}
+
 	/* Write the data one segment at a time */
 	sgpos = offset - (offset % sgsize);
 	for (; sgpos < devsize; sgpos += sgsize) {
 		sglength = get_segment(rd, sgdata, sgpos, sgsize);
 
-		if (stop_early && sglength <= 0)
+		if (stop_early && sglength <= 0) {
 			break;
+		}
 
 		if (checkimage) {
 			check_segment(rd, sgdata, sgpos, sglength, check_buf);
@@ -1587,7 +1640,6 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 #endif
 			program_segment(rd, sgdata, sgpos, sglength, sgsize);
 
-			printf("."); fflush(stdout);
 #ifdef CONFIG_LEDMAN
 			ledman_cmd(LEDMAN_CMD_OFF | LEDMAN_CMD_ALTBIT,
 					ledmancount ? LEDMAN_NVRAM_1 : LEDMAN_NVRAM_2);
@@ -1595,10 +1647,16 @@ static void program_flash(int rd, int devsize, char *sgdata, int sgsize,
 					ledmancount ? LEDMAN_NVRAM_2 : LEDMAN_NVRAM_1);
 			ledmancount = (ledmancount + 1) & 1;
 #endif
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+			if (watchdog)
+				write(watchdog_fd, "\0", 1); 
+#endif
 
 #if defined(CONFIG_MTD_NETtel)
 		} /* if (!preserveconfig || ...) */
 #endif
+		printf("\r%5dK %3d%%", (sgpos + sgsize) / 1024, (sgpos + sgsize) * 100L / total);
+		fflush(stdout);
 	}
 
 	printf("\n"); fflush(stdout);
@@ -1648,9 +1706,13 @@ int usage(int rc)
   	"\t-n\tfile with no checksum at end (implies no version information)\n"
 	"\t-p\tpreserve portions of flash segments not actually written.\n"
   	"\t-s\tstop erasing/programming at end of input data\n"
+  	"\t-S\tdo not stop erasing/programming at end of input data\n"
 	"\t-t\tcheck the image and then throw it away \n"
 	"\t-u\tunlock flash segments before programming\n"
   	"\t-v\tdisplay version number\n"
+#if CONFIG_USER_NETFLASH_WATCHDOG
+  	"\t-w\tdon't tickle hardware watchdog\n"
+#endif
 #ifdef CONFIG_USER_NETFLASH_DECOMPRESS
 	"\t-z\tdecompress image before writing\n"
 #endif
@@ -1679,13 +1741,13 @@ int netflashmain(int argc, char *argv[])
 	int delay;
 	int dochecksum, dokill, dokillpartial, doreboot, doftp;
 	int dopreserve, doversion, doremoveversion, dohardwareversion;
-	int devsize, sgsize;
+	int devsize = 0, sgsize = 0;
 	struct fileblock_t *fb;
 
 #ifdef CONFIG_USER_NETFLASH_HMACMD5
 	char *hmacmd5key = NULL;
 #endif
-#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 	char options[64];
 	char *new_argv[10];
 #endif
@@ -1720,7 +1782,7 @@ int netflashmain(int argc, char *argv[])
 	doinflate = 0;
 #endif
 
-#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 	if (argc == 2 && strncmp(argv[1], "cgi://", 6) == 0) {
 		char *pt;
 		char *sep;
@@ -1774,6 +1836,9 @@ int netflashmain(int argc, char *argv[])
 		case 's':
 			stop_early = 1;
 			break;
+		case 'S':
+			nostop_early = 1;
+			break;
 		case 'b':
 			doreboot = 0;
 			break;
@@ -1800,6 +1865,7 @@ int netflashmain(int argc, char *argv[])
 			break;
 		case 'j':
 			dojffs2 = 1;
+			nostop_early = 1;
 			break;
 		case 'k':
 			dokill = 0;
@@ -1845,11 +1911,27 @@ int netflashmain(int argc, char *argv[])
 			srcaddr = optarg;
 			break;
 #endif
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+		case 'w':
+			watchdog = 0;
+			break;
+#endif
 		case 'h':
 		case '?':
 			usage(0);
 			break;
 		}
+	}
+
+	/*
+	 * for /dev/flash/image we want to stop early unless the user
+	 * has told us not to (-S).  This allows us to preserve logd info
+	 *
+	 * So we override the default of not stopping early for /dev/flash/image
+	 */
+	if (strcmp(rdev, "/dev/flash/image") == 0) {
+		if (nostop_early == 0)
+			stop_early = 1;
 	}
 
 	if ((nfd = fopen("/dev/null", "rw")) == NULL) {
@@ -1927,8 +2009,10 @@ int netflashmain(int argc, char *argv[])
 		}
 #endif
 #ifdef CONFIG_IDE
-		if (major(stat_rdev.st_rdev) == IDE0_MAJOR ||
-				major(stat_rdev.st_rdev) == IDE1_MAJOR) {
+		if ((major(stat_rdev.st_rdev) == IDE0_MAJOR) ||
+		    (major(stat_rdev.st_rdev) == IDE1_MAJOR) ||
+		    (major(stat_rdev.st_rdev) == IDE2_MAJOR) ||
+		    (major(stat_rdev.st_rdev) == IDE3_MAJOR)) {
 			struct hd_geometry geo;
 
 			program_segment = program_generic_segment;
@@ -2082,7 +2166,7 @@ int netflashmain(int argc, char *argv[])
 	 * and if so, removes it, since it doesn't need to get written to flash.
 	 */
 	if (doversion || doremoveversion)
-		rc = check_vendor(vendor_name, product_name, image_version);
+		rc = check_vendor();
 
 #ifdef CONFIG_USER_NETFLASH_VERSION
 	if (doversion || dohardwareversion) {
@@ -2155,7 +2239,7 @@ int netflashmain(int argc, char *argv[])
 		notice("the image is good.");
 		exit(IMAGE_GOOD);
 	}
-#ifdef CONFIG_USER_NETFLASH_WITH_CGI
+#if defined(CONFIG_USER_NETFLASH_WITH_CGI) && !defined(RECOVER_PROGRAM)
 	if (docgi) {
 		// let's let our parent know it's ok.
 		kill(getppid(),SIGUSR1);
@@ -2209,14 +2293,21 @@ int netflashmain(int argc, char *argv[])
 	program_flash(rd, devsize, sgdata, sgsize, check_buf);
 #endif /* TEST_NO_DEVICE */
 
-	if (doreboot)
+	if (doreboot) {
+		/* Wait half a second */
+		usleep(500000);
+
 		raw_reboot(0xfee1dead, 672274793, 0x01234567);
+	}
 
 	return exitstatus;
 }
 
 static void exit_failed(int rc)
 {
+#ifdef CONFIG_USER_NETFLASH_WATCHDOG
+	close(watchdog_fd);
+#endif
 	exit(rc);
 }
 /****************************************************************************/

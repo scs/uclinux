@@ -115,7 +115,8 @@ CCFLAGS	= $(PROFILE_FLAGS) $(SYSTEM_FLAGS) $(LOCAL_DEFS) \
 	  $(DEFS) $(LOCAL_CFLAGS) $(CPPFLAGS) $(INCLUDES) $(CFLAGS)
 CCFLAGS_FOR_BUILD = $(SYSTEM_FLAGS) $(LOCAL_DEFS) $(DEFS) $(INCLUDES)
 
-INCLUDES = -I.  -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC) -I$(includedir)
+#INCLUDES = -I.  -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC) -I$(includedir)
+INCLUDES = -I.  -I$(srcdir) -I$(BASHINCDIR) -I$(LIBSRC)
 
 GCC_LINT_FLAGS = -ansi -Wall -Wshadow -Wpointer-arith -Wcast-qual \
 		 -Wwrite-strings -Werror -Wstrict-prototypes \
@@ -131,7 +132,8 @@ dot = .
 LIBSUBDIR = lib
 LIBSRC = $(srcdir)/$(LIBSUBDIR)
 
-SUBDIR_INCLUDES = -I.  -I$(topdir) -I$(topdir)/$(LIBSUBDIR) -I$(includedir)
+#SUBDIR_INCLUDES = -I.  -I$(topdir) -I$(topdir)/$(LIBSUBDIR) -I$(includedir)
+SUBDIR_INCLUDES = -I.  -I$(topdir) -I$(topdir)/$(LIBSUBDIR)
 
 # the bash library
 # the library is a mix of functions that the C library does not provide on
@@ -596,7 +598,7 @@ TAGS:	$(SOURCES) $(BUILTIN_C_SRC) $(LIBRARY_SOURCE)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_BASH_BASH bash /bin/sh
-	$(ROMFSINST) -e CONFIG_USER_BASH_BASH -l $(ROMFSDIR)/bin/sh /bin/bash
+	$(ROMFSINST) -e CONFIG_USER_BASH_BASH -l /bin/sh /bin/bash
 
 installdirs:
 	@${SHELL} $(SUPPORT_SRC)mkdirs $(bindir)

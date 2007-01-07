@@ -21,6 +21,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <getopt.h>
+#include <unistd.h>
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,23 +40,27 @@
 #include "netflash.h"
 #include "versioning.h"
 
-#define MAX_VENDOR_SIZE			64
-#define MAX_PRODUCT_SIZE		64
+#define MAX_VENDOR_SIZE			256
+#define MAX_PRODUCT_SIZE		256
 #define MAX_VERSION_SIZE		12
 #define MAX_LANG_SIZE			8
 
-#ifdef VERSIONTEST
+#ifndef VENDOR
 #define VENDOR "Vendor"
+#endif
+#ifndef PRODUCT
 #define PRODUCT "Product"
+#endif
+#ifndef VERSION
 #define VERSION "1.0.0"
 #endif
 
 /****************************************************************************/
 extern struct blkmem_program_t * prog;
 
-char vendor_name[] = VENDOR;
-char product_name[] = PRODUCT;
-char image_version[] = VERSION;
+static const char our_vendor_name[] = VENDOR;
+static const char our_product_name[] = PRODUCT;
+static char our_image_version[] = VERSION;
 #ifdef CONFIG_PROP_LOGD_LOGD
 static char new_image_version[MAX_VERSION_SIZE+1];
 #endif
@@ -68,6 +74,30 @@ static int get_version_bits(char *version, char *ver_long, char *letter,
 		int *num, char *lang);
 static int minor_to_int(char letter, int num);
 
+/**
+ * name is a simple product or vendor name.
+ * namelist is either a comma separated list of names (may just be one)
+ * 
+ * Returns true if the name exists in the list or false if not.
+ *
+ * e.g. check_match("SG550", "SG530,SME530,SG550,SME550") returns true
+ *  */
+static int check_match(const char *name, const char *namelist)
+{
+	char *checklist = strdup(namelist);
+	int ret = 0;
+
+	const char *token = strtok(checklist, ",");
+	while (token) {
+		if (strcmp(name, token) == 0) {
+			ret = 1;
+			break;
+		}
+		token = strtok(0, ",");
+	}
+	free(checklist);
+	return ret;
+}
 
 /****************************************************************************/
 
@@ -96,8 +126,10 @@ static int minor_to_int(char letter, int num);
  * version is w.x.y[nz], where n is ubpi, and w, x, y and z are 1 or 2 digit
  * numbers.
  *
+ * vendorName and productName may be a comma separated list of names
+ * which are acceptable
  */
-int check_vendor(char *vendorName, char *productName, char *version)
+int check_vendor(void)
 {
 	struct fileblock_t *currBlock;
 	int versionInfo;
@@ -139,21 +171,23 @@ int check_vendor(char *vendorName, char *productName, char *version)
 	remove_data(strlen(imageProductName) + strlen(imageVendorName) + strlen(imageVersion) + 3);
 
 	/*
-	 * Check the product name.
+	 * Check the product name. Our product name may be a comma separated list of names.
 	 */
-	if (strcmp(productName, imageProductName) != 0)
+	if (!check_match(imageProductName, our_product_name)) {
 		return 1;
+	}
 
 	/*
-	 * Check the vendor name.
+	 * Check the vendor name. Our vendor name may be a comma separated list of names.
 	 */
-	if (strcmp(vendorName, imageVendorName) != 0)
+	if (!check_match(imageVendorName, our_vendor_name)) {
 		return 2;
+	}
 
 	/*
 	 * Check the version number.
 	 */
-	versionInfo = check_version_info(version, imageVersion);
+	versionInfo = check_version_info(our_image_version, imageVersion);
 
 	return versionInfo;
 }
@@ -479,14 +513,14 @@ void log_upgrade(void) {
 
 	av[ac++] = "logd";
 	av[ac++] = "firmware";
-	av[ac++] = image_version;
+	av[ac++] = our_image_version;
 	av[ac++] = new_image_version;
 	av[ac++] = NULL;
 
 	pid = vfork();
 	if (pid == 0) {
 		execv("/bin/logd", av);
-		return -1;
+		_exit(1);
 	}
 	if (pid != -1)
 		while (waitpid(pid, NULL, 0) == -1 && errno == EINTR);

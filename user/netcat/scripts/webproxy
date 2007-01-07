@@ -120,8 +120,7 @@ if test "$x3" ; then
     echo "${xx}" >> $LFILE
     test "${xx}" || break
 # eew, buried returns, gross but necessary for DOS stupidity:
-    test "${xx}" = "
-" && break
+    test "${xx}" = "" && break
   done
 fi
 # check for non-GET *after* we log the query...

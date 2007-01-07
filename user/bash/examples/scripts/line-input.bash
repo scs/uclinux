@@ -134,8 +134,7 @@ function getline
 				line="${line%?}"
 			done
 			;;
-		 |  |  |  |  |  |  |  |  |  |  | 
- )
+		 |  |  |  |  |  |  |  |  |  |  |  )
 			echo -n 	# ignore various control characters
 			;;		# with an annoying beep
 		 |  |  |  |  |  |  |  |  |  |  |  |  )

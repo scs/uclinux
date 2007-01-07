@@ -17,16 +17,24 @@ EXEC += hmacmd5
 OBJS += md5.o hmacmd5.o
 endif
 
+ifdef HW_COMPAT_VENDOR
+CFLAGS += -DVENDOR=\"$(HW_COMPAT_VENDOR)\"
+else
 ifdef HW_VENDOR
 CFLAGS += -DVENDOR=\"$(HW_VENDOR)\"
 else
 CFLAGS += -DVENDOR=\"$(CONFIG_VENDOR)\"
 endif
+endif
 
+ifdef HW_COMPAT_PRODUCT
+CFLAGS += -DPRODUCT=\"$(HW_COMPAT_PRODUCT)\"
+else
 ifdef HW_PRODUCT
 CFLAGS += -DPRODUCT=\"$(HW_PRODUCT)\"
 else
 CFLAGS += -DPRODUCT=\"$(CONFIG_PRODUCT)\"
+endif
 endif
 
 CFLAGS += -DVERSION=\"$(VERSIONPKG)\"
@@ -41,6 +49,7 @@ CFLAGS += -DSETSRC
 endif
 
 ifdef CONFIG_USER_NETFLASH_CRYPTO
+CFLAGS += -I$(ROOTDIR)/include/aes
 ADD_LIBZ += $(LIBAES) $(LIBCRYPTO)
 endif
 
@@ -48,22 +57,17 @@ CFLAGS += -Dnetflashmain=main
 # CFLAGS += -DDEBUG_CGI
 
 
-CFLAGS +=  -I.
-
 all: $(EXEC)
 
-mtd:
-	ln -sf $(ROOTDIR)/$(LINUXDIR)/include/mtd mtd
-
-netflash: $(OBJS) $(COBJS)
+netflash: $(OBJS) build_netflash build_versioning
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(COBJS) $(ADD_LIBZ) $(LDLIBS$(LDLIBS_$@))
 
-netflash.o: netflash.c $(ROOTDIR)/config.arch mtd
-	echo $(COBJS)
-	$(CC) -c -o $@ netflash.c $(CFLAGS)
 
-versioning.o: versioning.c $(ROOTDIR)/config.arch
-	$(CC) -c -o $@ versioning.c $(CFLAGS)
+build_netflash:
+	$(CC) -c -o netflash.o netflash.c $(CFLAGS)
+
+build_versioning:
+	$(CC) -c -o versioning.o versioning.c $(CFLAGS)
 
 hmacmd5: hmacmd5main.c hmacmd5.c md5.c
 	gcc -o $@ $^
@@ -75,5 +79,5 @@ romfs:
 	$(ROMFSINST) /bin/netflash
 
 clean:
-	-rm -f netflash hmacmd5 *.elf *.gdb *.o mtd
+	-rm -f netflash hmacmd5 *.elf *.gdb *.o
 
