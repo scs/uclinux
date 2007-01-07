@@ -33,7 +33,9 @@
 #include "client.h"
 #include "signals.h"
 
+/* This is useless on blackfin and breaks with sanitized headers
 #include <linux/config.h>
+*/
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
 #endif
