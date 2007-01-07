@@ -1,25 +1,17 @@
-.EXPORT_ALL_VARIABLES:
+CONFOPTS=--bindir=/bin --datadir=/etc 
 
-CONFIGURE_TARGET := $(strip $(subst -, ,$(CROSS)))
-CONFIGURE_TARGET := $(word 1,$(CONFIGURE_TARGET))-$(word 2,$(CONFIGURE_TARGET))
-CONFIGURE_SETTINGS := --prefix= --exec-prefix=/bin			\
-		--includedir=$(ROOTDIR)/$(LINUXDIR)/include		\
-		--bindir=/bin --datadir=/etc				\
-		--build=i386-redhat-linux --host=$(CONFIGURE_TARGET)	\
-		--cache-file=config.cache
+all: build/build
+	$(MAKE) -C build
 
-silly_first_rule_thingy: Makefile
-	make -f Makefile
+build/build: makefile
+	rm -rf build
+	mkdir build
+	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	touch build/build
 
-Makefile:
-	unset CC CFLAGS LDFLAGS && ./configure $(CONFIGURE_SETTINGS)
+clean:
+	rm -rf build
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_HTTPTUNNEL_CLIENT /bin/htc
-	$(ROMFSINST) -e CONFIG_USER_HTTPTUNNEL_SERVER /bin/hts
-
-clean: Makefile
-	make -f Makefile distclean
-
-%: Makefile
-	make -f Makefile $@
+	$(ROMFSINST) -e CONFIG_USER_HTTPTUNNEL_CLIENT build/htc /bin/htc
+	$(ROMFSINST) -e CONFIG_USER_HTTPTUNNEL_SERVER build/hts /bin/hts
