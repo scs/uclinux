@@ -9,7 +9,7 @@ cd $uclinux_path/testsuites
 
 step "Make config."
 
-source  make_default_config.exp
+source make_default_config.exp
 
 # Following make specific configuration for this case.
 
@@ -45,12 +45,12 @@ while 1 {
       }
 
            -re "Sound card support.*SOUND.*\\\[.*]" {
-             send "Y\r"
+             send "y\r"
       }
    
           -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
              
-             send "Y\r"
+             send "y\r"
              
       }
       
@@ -62,7 +62,7 @@ while 1 {
       
           -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
              
-             send "Y\r"
+             send "y\r"
              
       }
 
@@ -107,7 +107,7 @@ while 1 {
       }
 
       -re  "\\\(.*\\\) \\\[.*]" {
-	   
+	     sleep .01
 	     send "\r"
       }
 

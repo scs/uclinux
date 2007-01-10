@@ -4,13 +4,14 @@ source  ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
+set set_config_file 0
 
 cd $uclinux_path/testsuites
 
 step "Make config."
 
 source  make_default_config.exp
-
+if { $set_config_file == 1 } {
 # Following make specific configuration for this case.
 
 step "Apply ppifcd config patch."
@@ -49,7 +50,7 @@ sleep 3
       send "wq\r"
       expect eof
 
-
+} else {
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -74,17 +75,99 @@ while 1 {
              send "y\r"
       }
         
- #          -re "PFBUTTONS test program.*CONFIG_USER_BLACKFIN_PFBUTTONS.*\\\[.*]" {
- #            send "y\r"
- #            
- #     }
-
-
-       "\\\(*) \\\[*]" {
+   	
+	  -re "Mouse interface.*INPUT_MOUSEDEV.*\\\[.*]" {
+             
+               send "y\r"
+      }
+    	
+	-re "Provide legacy /dev/psaux device.*INPUT_MOUSEDEV_PSAUX.*\\\[.*]" {
             
+		send "y\r"
+     }
+   
+	 -re "Horizontal screen resolution.*INPUT_MOUSEDEV_SCREEN_X.*\\\[.*]" {
+           
+		send "1024\r"
+     }
+     
+	-re "Vertical screen resolution.*INPUT_MOUSEDEV_SCREEN_Y.*\\\[.*]" {
+          
+		send "768\r"
+     }
+      
+	-re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+          
+		send "y\r"
+     }
+   	
+	-re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+
+		send "y\r"
+	}
+	
+	-re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	
+	-re "Mouse.*INPUT_MOUSE.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "PS/2 mouse.*MOUSE_PS2.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "PF buttons input device.*BF53X_PFBUTTONS.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
+	
+		send "n\r"
+	}
+
+	-re "Serial I/O support.*SERIO.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "Serial port line discipline.*SERIO_SERPORT.*\\\[.*]" {
+
+		send "y\r"
+	}
+
+	-re "PS/2 driver library.*SERIO_LIBPS2.*\\\[.*]" {
+
+		send "y\r"
+	}
+       
+	-re "PFBUTTONS test program.*CONFIG_USER_BLACKFIN_PFBUTTONS.*\\\[.*]" {
+
+		send "y\r"
+	}
+	
+
+      -re  "\\\(.*\\\) \\\[.*]" {
+             sleep .01
              send "\r"
       }
-   
+ 
 
       -re "\[cC]hoice\\\[.*]:" {
              send "\r"
@@ -100,7 +183,7 @@ while 1 {
       }
    }
 }
-
+}
 cd $uclinux_path/testsuites
 
 step "Make"

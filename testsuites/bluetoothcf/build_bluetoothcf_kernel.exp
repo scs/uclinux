@@ -110,8 +110,13 @@ while 1 {
       -re "HCI BlueCard \\\(PC Card\\\) driver \\\(BT_HCIBLUECARD\\\).*\\\[./././.]" {
          send "y\r"
       }
+      
+	-re "Bluez lib and utils.*CONFIG_USER_BLUEZ.*\\\[.*].*" {
 
+	send "y\r"
+	}
       "\\\(*) \\\[*]" {
+         sleep .01
          send "\r"
       }
 
