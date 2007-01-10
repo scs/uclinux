@@ -365,6 +365,9 @@ dir_$(CONFIG_USER_ZEBRA_ZEBRA_ZEBRA)        += zebra
 dir_$(CONFIG_USER_NET_AUDIO)		    +=net_audio
 dir_$(CONFIG_USER_NET_AUDIO)		    +=musicpd
 
+dir_y                                       += blkfin-apps
+dir_y                                       += blkfin-test
+
 dir_y += games
 
 all: config
