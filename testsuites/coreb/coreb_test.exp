@@ -35,6 +35,25 @@ sleep 2
 
 set spawn_id $kermit_spawn_id
 
+incr case_num
+set timeout 2
+send "cat /sys/class/misc/coreb/coreb_status\r"
+while 1 {
+   expect {
+      -re "Base Address" {
+         send_log "Get coreb information from /sys\n"
+         send_user "Get coreb information from /sys\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_log "Get coreb information from /sys\n"
+         send_user "Get coreb information from /sys\n"
+         case_fail $case_num
+      }
+   }
+}
+
 
 incr case_num
 set timeout 2
