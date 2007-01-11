@@ -615,10 +615,6 @@ domapwrite(unsigned offset, unsigned size)
 		report_failure(202);
 	}
 	memcpy(p + pg_offset, good_buf + offset, size);
-	if (msync(p, map_size, 0) != 0) {
-		prterr("domapwrite: msync");
-		report_failure(203);
-	}
 	if (munmap(p, map_size) != 0) {
 		prterr("domapwrite: munmap");
 		report_failure(204);
