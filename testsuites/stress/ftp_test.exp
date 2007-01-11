@@ -165,4 +165,4 @@ while (1) {
 	send -s "bye\r"
 	sleep 2
 }
-logfile
+log_file
