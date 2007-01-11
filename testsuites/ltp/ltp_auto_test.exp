@@ -1204,17 +1204,6 @@ set result_matrix {
        { flock05     	     {flock05}                     	 notrun } 
        { flock06     	     {flock06}                     	 notrun } 
        { fmtmsg01     	     {fmtmsg01}                     	 notrun } 
-       { fork01     	     {fork01}                     	 notrun } 
-       { fork02     	     {fork02}                     	 notrun } 
-       { fork03     	     {fork03}                     	 notrun } 
-       { fork04     	     {fork04}                     	 notrun } 
-       { fork05     	     {fork05}                     	 notrun } 
-       { fork06     	     {fork06}                     	 notrun } 
-       { fork07     	     {fork07}                     	 notrun } 
-       { fork08     	     {fork08}                     	 notrun } 
-       { fork09     	     {fork09}                     	 notrun } 
-       { fork10     	     {fork10}                     	 notrun } 
-       { fork11     	     {fork11}                     	 notrun } 
        { fpathconf01     	     {fpathconf01}                     	 notrun } 
        { fstat01     	     {fstat01}                     	 notrun } 
        { fstat02     	     {fstat02}                     	 notrun } 
@@ -1230,7 +1219,6 @@ set result_matrix {
        { ftruncate02     	     {ftruncate02}                     	 notrun } 
        { ftruncate03     	     {ftruncate03}                     	 notrun } 
        { ftruncate04     	     {ftruncate04}                     	 notrun } 
-       { getcontext01     	     {getcontext01}                     	 notrun } 
        { getcwd01     	     {getcwd01}                     	 notrun } 
        { getcwd02     	     {getcwd02}                     	 notrun } 
        { getcwd03     	     {getcwd03}                     	 notrun } 
@@ -1326,7 +1314,6 @@ set result_matrix {
        { lstat01     	     {lstat01}                     	 notrun } 
        { lstat02     	     {lstat02}                     	 notrun } 
        { lstat03     	     {lstat03}                     	 notrun } 
-       { mallopt01     	     {mallopt01}                     	 notrun } 
        { memset01     	     {memset01}                     	 notrun } 
        { memcmp01     	     {memcmp01}                     	 notrun } 
        { memcpy01     	     {memcpy01}                     	 notrun } 
@@ -1367,10 +1354,6 @@ set result_matrix {
        { mprotect01     	     {mprotect01}                     	 notrun } 
        { mprotect02     	     {mprotect02}                     	 notrun } 
        { mprotect03     	     {mprotect03}                     	 notrun } 
-       { mremap01     	     {mremap01}                     	 notrun } 
-       { mremap02     	     {mremap02}                     	 notrun } 
-       { mremap03     	     {mremap03}                     	 notrun } 
-       { mremap04     	     {mremap04}                     	 notrun } 
        { munlock01     	     {munlock01}                     	 notrun } 
        { munlock02     	     {munlock02}                     	 notrun } 
        { munlockall01     	     {munlockall01}                     	 notrun } 
@@ -1401,8 +1384,6 @@ set result_matrix {
        { open09     	     {open09}                     	 notrun } 
        { open10     	     {open10}                     	 notrun } 
        { mincore01     	     {mincore01}                     	 notrun } 
-       { madvise01     	     {madvise01}                     	 notrun } 
-       { madvise02     	     {madvise02}                     	 notrun } 
        { pathconf01     	     {pathconf01}                     	 notrun } 
        { pause01     	     {pause01}                     	 notrun } 
        { pause02     	     {pause02}                     	 notrun } 
@@ -1424,7 +1405,6 @@ set result_matrix {
        { pread01     	     {pread01}                     	 notrun } 
        { pread02     	     {pread02}                     	 notrun } 
        { pread03     	     {pread03}                     	 notrun } 
-       { profil01     	     {profil01}                     	 notrun } 
        { pselect01     	     {pselect01}                     	 notrun } 
        { ptrace01     	     {ptrace01}                     	 notrun } 
        { ptrace02     	     {ptrace02}                     	 notrun } 
@@ -1562,8 +1542,6 @@ set result_matrix {
        { setuid03     	     {setuid03}                     	 notrun } 
        { sigaction01     	     {sigaction01}                     	 notrun } 
        { sigaction02     	     {sigaction02}                     	 notrun } 
-       { sigaltstack01     	     {sigaltstack01}                     	 notrun } 
-       { sigaltstack02     	     {sigaltstack02}                     	 notrun } 
        { sighold02     	     {sighold02}                     	 notrun } 
        { signal01     	     {signal01}                     	 notrun } 
        { signal02     	     {signal02}                     	 notrun } 
@@ -1591,10 +1569,6 @@ set result_matrix {
        { statfs02     	     {statfs02}                     	 notrun } 
        { statfs03     	     {statfs03}                     	 notrun } 
        { string01     	     {string01}                     	 notrun } 
-       { swapoff01     	     {swapoff01}                     	 notrun } 
-       { swapoff02     	     {swapoff02}                     	 notrun } 
-       { swapon01     	     {swapon01}                     	 notrun } 
-       { swapon02     	     {swapon02}                     	 notrun } 
        { symlink01     	     {symlink01}                     	 notrun } 
        { symlink02     	     {symlink02}                     	 notrun } 
        { symlink03     	     {symlink03}                     	 notrun } 
@@ -1608,12 +1582,6 @@ set result_matrix {
        { sysctl03     	     {sysctl03}                     	 notrun } 
        { sysctl04     	     {sysctl04}                     	 notrun } 
        { sysctl05     	     {sysctl05}                     	 notrun } 
-       { sysfs01     	     {sysfs01}                     	 notrun } 
-       { sysfs02     	     {sysfs02}                     	 notrun } 
-       { sysfs03     	     {sysfs03}                     	 notrun } 
-       { sysfs04     	     {sysfs04}                     	 notrun } 
-       { sysfs05     	     {sysfs05}                     	 notrun } 
-       { sysfs06     	     {sysfs06}                     	 notrun } 
        { sysinfo01     	     {sysinfo01}                     	 notrun } 
        { sysinfo02     	     {sysinfo02}                     	 notrun } 
        { syslog01     	     {syslog01}                     	 notrun } 
