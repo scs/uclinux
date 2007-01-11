@@ -96,6 +96,7 @@ $(LIBNAME): subdirs ar-target
 shared: $(TOPDIR)lib/$(LIBNAME)
 	$(LD) $(LDFLAGS) -soname=libc.so.0 \
 		$(VERSION_SCRIPT) -e ___libc_main \
+		-init ___uClibc_init \
 		-o $(SHARED_FULLNAME) \
 		$(TOPDIR)lib/crti.o $(LIBGCC_DIR)crtbeginS.o \
 		--whole-archive $(LIBNAME) $(LIBGCC) --no-whole-archive \
