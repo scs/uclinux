@@ -37,7 +37,8 @@ rm -f test_log_with_result
 grep "T[Ee][Ss][Tt] \.\.\.\." *log |  sed 's/.*log:/ /' > result_summary
 grep "T[Ee][Ss][Tt] \.\.\.\.*\[PASS]" *log |  sed 's/.*log:/ /' > result_pass_summary
 grep "T[Ee][Ss][Tt] \.\.\.\.*\[FAIL]" *log |  sed 's/.*log:/ /' > result_fail_summary
-
+rm -f ../result_summary
+ln -s `pwd`/result_summary ../result_summary
 
 num=`grep -nrc "T[Ee][Ss][Tt] \.*\[PASS\]" result_pass_summary`
 echo -e "\n############ Pass Num is: $num.#############\n"
