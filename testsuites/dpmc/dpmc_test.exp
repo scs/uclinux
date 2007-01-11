@@ -151,7 +151,7 @@ while 1 {
          break
       }
       timeout {
-	 case_fail $case_fail
+	 case_fail $case_num
       }
    }
 }
