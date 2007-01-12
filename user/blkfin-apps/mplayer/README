@@ -1,0 +1,125 @@
+The README describe steps to build MPlayer-1.0rc1 on Blackfin, and use the
+mplayer to play vedio files on BF537-STAMP board.
+
+Build kernel and toolchain
+-----------------------------
+1. Check out uclinux-dist and kernel
+ 
+svn checkout --username anonymous http://blackfin.uclinux.org/svn/uclinux-dist/trunk uclinux-dist
+svn checkout --username anonymous http://blackfin.uclinux.org/svn/linux-kernel/trunk linux-kernel
+
+2. Check out toolchain
+
+svn checkout --username anonymous http://blackfin.uclinux.org/svn/toolchain/trunk toolchain
+
+3. Build toolchain
+
+http://docs.blackfin.uclinux.org/doku.php?id=toolchain_build_script
+
+4. patch uClinux-dist/lib/libmad/Makefile with the patch: libmad.Makefile.patch.
+This patch build libmad in FDPIC format.
+
+5. Build kernel with the newly built toolchain. Configure the kernel as bellow:
+
+a. Enable support for LCD LQ-035
+
+	Follow instruction in: http://docs.blackfin.uclinux.org/doku.php?id=tft-lcd_card
+
+b. Enable support for AD1981B
+
+	CONFIG_SND_BLACKFIN_AD1981B=m
+
+c. Enable support for USB flash disk
+
+For kernel setting, please see: http://docs.blackfin.uclinux.org/doku.php?id=usb_add-on_card
+
+	CONFIG_USB_SL811_HCD=y
+	CONFIG_USB_SL811_BFIN_IRQ=55
+
+Note: We only enable SL811HS. We don't use ISP1362 here. 
+Here we use GPIO PF5, please make sure setting jumper 15-16 on the USB-addon card.
+
+d. Change CCLK to 525 MHz, SCLK to 131 MHz
+
+#
+# Clock Settings
+#
+CONFIG_BFIN_KERNEL_CLOCK=y
+CONFIG_VCO_MULT=21
+CONFIG_CCLK_DIV=1
+CONFIG_SCLK_DIV=4
+# CONFIG_CLKIN_HALF is not set
+# CONFIG_PLL_BYPASS is not set
+
+e. Enable cache Write Back
+
+#
+# Cache Support
+#
+CONFIG_BLKFIN_CACHE=y
+CONFIG_BLKFIN_DCACHE=y
+# CONFIG_BLKFIN_CACHE_LOCK is not set
+CONFIG_BLKFIN_WB=y
+# CONFIG_BLKFIN_WT is not set
+CONFIG_L1_MAX_PIECE=16
+
+
+Build MPlayer
+-------------------
+1. Download MPlayer-1.0rc1 source from:
+
+http://www.mplayerhq.hu/design7/dload.html
+
+2. Patch the mplayer with bfin_mplayer.patch 
+
+3. Edit build-bfin.sh, set UCLINUX_PATH to correct uClinux-dist path.
+The mplayer will need to link with the libmad library in uClinux-dist.
+
+4. Build Mplayer, run the build script
+# ./build-bfin.sh
+
+Setup the Hardware
+--------------------
+1. Connect LCD card to PPI and TIMERS port on BF537-STAMP
+2. Connect AD1981B sound card to SPORT0
+3. Connect USB-add-on  card to extension slot
+4. Set SW5 to all off
+5. Set SW6 to 1,2 on, 3,4 off
+5. Connect USB card SL811 Jumper 15,16, corresponding to kernel setting (GPIO PF5)
+
+
+Play movie
+-----------------
+1. Prepare media file, you can use bellow command to convert an media file to QVGA size.
+
+#!/bin/sh 
+
+INPUT_FILE=$1
+WIDTH=214
+HEIGHT=160
+mencoder ${INPUT_FILE} -ovc lavc -lavcopts vcodec=mpeg4 -vf scale=${WIDTH}:${HEIGHT} -sws 2 -oac copy -o new_${INPUT_FILE}
+
+2. Copy bellow files to usb-disk
+
+MPlayer built in FDPIC format: mplayer
+Media files: 
+mplayer test script: mplayer_tst.sh
+
+2. Plug usb-disk to USB-add-on card and mount it
+
+# mount -t vfat /dev/sda1 /mnt
+
+3. Play it:
+
+# ./mplayer_tst.sh test.avi
+
+This scrip install LCD and Sound Card driver module:
+
+# modprobe bf537-lq035 landscape=1
+# modprobe snd-ad1981b
+
+then it starts mplayer:
+
+# ./mplayer -vo fbdev -ao oss -quiet -fs -framedrop ${MOVIE_NAME}
+
+
