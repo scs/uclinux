@@ -241,6 +241,7 @@ CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/zaptel
 LIBS+= -L$(ROOTDIR)/lib/libtool/build/libltdl/.libs/
 LIBS+= -L$(ROOTDIR)/lib/libssl
 LIBS+= -L$(ROOTDIR)/lib/ncurses/lib
+LIBS+= -L$(ROOTDIR)/lib/zlib
 LIBS+= -L$(ROOTDIR)/lib
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
 LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib
