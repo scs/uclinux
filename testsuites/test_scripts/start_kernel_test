@@ -50,9 +50,10 @@ fi
   rm -rf $CHECKOUT/kernel_bak/*
   cd $CHECKOUT/kernel_bak
   echo -n "Checking out kernel     " ; date
-  cvs -d :pserver:anonymous@$CVS_SERVER:$CVS_ROOT/uclinux533 checkout -P uClinux-dist  1>/dev/null 2>/dev/null
+  #cvs -d :pserver:anonymous@$CVS_SERVER:$CVS_ROOT/uclinux533 checkout -P uClinux-dist  1>/dev/null 2>/dev/null
+  svn -q co svn://10.99.22.20/uclinux-dist/trunk uclinux-dist
 
-  cp  $KERNEL_PATH_BAK/uClinux-dist/testsuites/kernel_test $KERNEL_SCRIPTS
+  cp  $KERNEL_PATH_BAK/uclinux-dist/testsuites/kernel_test $KERNEL_SCRIPTS
 
   cd $KERNEL_SCRIPTS
   #./kernel_test  $BOARD_CONFIG $CPU $KERNEL_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG
