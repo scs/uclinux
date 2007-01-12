@@ -12,8 +12,8 @@ set case_num 0
 
 # Build module
 incr case_num
-catch {exec make -C $uclinux_path/linux-2.6.x SUBDIRS=$uclinux_path/user/blkfin-apps/corebld modules}
-if [file exists $uclinux_path/user/blkfin-apps/corebld/dualcore_test.ko] {
+catch {exec make -C $uclinux_path/linux-2.6.x SUBDIRS=$uclinux_path/user/blkfin-apps/corebld/test_module modules}
+if [file exists $uclinux_path/user/blkfin-apps/corebld/test_module/dualcore_test.ko] {
    send_user "\nKernel module build successful\n"
    case_pass $case_num
 } else {
@@ -30,7 +30,7 @@ source ../reboot_kernel.exp
 send "ifconfig eth0 $targetip\r"
 sleep 5
 
-spawn rcp $uclinux_path/user/blkfin-apps/corebld/dualcore_test.ko root@$targetip:/.
+spawn rcp $uclinux_path/user/blkfin-apps/corebld/test_module/dualcore_test.ko root@$targetip:/.
 sleep 2
 
 set spawn_id $kermit_spawn_id
