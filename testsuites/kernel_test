@@ -53,8 +53,8 @@ fi
 fi
 
   KERNEL_PATH_BAK="$KERNEL_PATH""_bak"  
-  KERNEL_SOURCE=$KERNEL_PATH/uClinux-dist
-  KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uClinux-dist  
+  KERNEL_SOURCE=$KERNEL_PATH/uclinux-dist
+  KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uclinux-dist  
   KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites  
   
 if [ $# -gt 3 ] ; then
