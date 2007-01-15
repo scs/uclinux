@@ -1,3 +1,0 @@
-charset.o: charset.c ../../../config.h
-
-../../../config.h:
