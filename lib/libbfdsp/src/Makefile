@@ -10,29 +10,19 @@
 
 # Libraries
 
-LIBDSP       = libbfdsp${PART}${CSYNC}.a
-LIBDSP_M3RES = libbfdspm3res${PART}${CSYNC}.a
+LIBDSP       = libbfdsp$(PART)$(CSYNC).a
+LIBDSP_M3RES = libbfdspm3res$(PART)$(CSYNC).a
 
 # Utilities
 
-COMPILER = bfin-uclinux-gcc 
-ASM      = $(COMPILER) -c
-ARCHIVER = bfin-uclinux-ar
+CROSS_COMPILE = bfin-uclinux-
+CC            = $(CROSS_COMPILE)gcc
+AR            = $(CROSS_COMPILE)ar
 
-# Search Paths for Header Files
-INCLUDE_DIRS = -I ../../include
-
-MAKE=make
-MAKEFILE=Makefile
-
-UCLINUX_OPTS = -Wall -D__ADSPBLACKFIN__
-
-# Compilation Options (DONT check this in without -O)
-
-ASM_OPTS     = $(CSYNC_OPT) $(UCLINUX_OPTS)
-C_BASIC_OPTS = ${PART_OPT} $(CSYNC_OPT) $(UCLINUX_OPTS)
-C_OPTS       = $(C_BASIC_OPTS) $(INCLUDE_DIRS) 
-C_M3RES_OPTS = $(C_OPTS) -ffixed-M3
+ARFLAGS   = rc
+CFLAGS   += -Wall
+CPPFLAGS += -I../include -D__ADSPBLACKFIN__
+CFLAGS_M3RES = -ffixed-M3
 
 # Source Path
 
@@ -53,7 +43,7 @@ COMPLEX_C_SRC = \
    polar.c      \
    polar16.c    \
    cartesian16.c \
-   norm.c 	\
+   norm.c \
    cartesian.c 
 
 COMPLEX_ASM_SRC = \
@@ -224,7 +214,7 @@ TRIG_16_M3RES_OBJS = $(TRIG_16_C_M3RES_OBJS) $(TRIG_16_ASM_M3RES_OBJS)
 TRIG_NSTDFLT_C_SRC = \
    alogf.c           \
    alog10f.c         \
-   rsqrt.c	\
+   rsqrt.c           \
    cot.c
 
 TRIG_NSTDFLT_ASM_SRC =
@@ -380,13 +370,13 @@ MISC_ASM_SRC =    \
    sdiv32.asm     \
    sign_fr16.asm  \
    srem32.asm     \
-	f32toi32z.asm	\
-	f32tou32z.asm	\
+   f32toi32z.asm  \
+   f32tou32z.asm  \
    udiv32.asm     \
    urem32.asm     \
    isinf.asm      \
    isnan.asm      \
-   ashfti64.asm	  \
+   ashfti64.asm   \
    lshfti64.asm   \
    muli64.asm     \
    mulu64.asm     \
@@ -468,102 +458,46 @@ LIBDSP_M3RES_LIST = $(COMPLEX_M3RES_OBJS)      \
 
 # Suffix Rules
 
-.SUFFIXES:
 .SUFFIXES: .asm .c .o _m3res.o .S
 
+%.a:
+	$(AR) $(ARFLAGS) $@ $^
+
 .asm.o:
-	@echo "Assembling $<"
-	$(ASM) $(ASM_OPTS) -x assembler-with-cpp -o $@ $<
-
-.S.o:
-	@echo "Assembling $<"
-	$(ASM) $(ASM_OPTS) -o $@ $<
-
-.c.o:
-	@echo "Compiling $<"
-	$(COMPILER) -c $(C_OPTS) -o $@ $<
+	$(COMPILE.S) -x assembler-with-cpp $< -o $@
 
 .c_m3res.o:
-	@echo "Compiling M3 reserved $<"
-	$(COMPILER) -c $(C_M3RES_OPTS) -o $@ $<
+	$(COMPILE.c) $(CFLAGS_M3RES) $< -o $@
 
 # Targets
 #
-#   default     : rebuild libdsp.dlb and libdspm3res.dlb and copies them
+#   all         : rebuild libdsp.a and libdspm3res.a and copies them
 #                 into the parent directory
-#   libdsp      : rebuild libdsp.dlb only
-#   libdspm3res : rebuild libdspm3res.dlb only
-#   clean       : remove all object files
-#   clobber     : remove all object files, libdsp.dlb and libdspm3res.dlb
+#   libdsp      : rebuild libdsp.a only
+#   libdspm3res : rebuild libdspm3res.a only
+#   clean       : remove all object files and libraries
 
-all: libdsp_532
+all: $(LIBDSP) $(LIBDSP_M3RES)
 
-libdsp_532:
-	mkdir -p ${BUILDDIR}_532
-	cd ${BUILDDIR}_532 ; \
-	${MAKE} -f ../${MAKEFILE} \
-		PART=532 PART_OPT=-Os \
-		CSYNC= CSYNC_OPT= \
-		default
+libdsp: $(LIBDSP)
 
-default:	$(LIBDSP) $(LIBDSP_M3RES)
-	cp $(LIBDSP) $(LIBDSP_M3RES) ..
+libdspm3res: $(LIBDSP_M3RES)
 
-libdsp:		$(LIBDSP)
+$(LIBDSP): $(LIBDSP_LIST)
 
-libdspm3res:	$(LIBDSP_M3RES)
-
-$(LIBDSP):	$(LIBDSP_LIST)
-	@echo "Linking $(LIBDSP) ..."
-	$(ARCHIVER) r $(LIBDSP) $(LIBDSP_LIST)
-
-$(LIBDSP_M3RES):	$(LIBDSP_M3RES_LIST)
-	@echo "Linking $(LIBDSP_M3RES) ..."
-	$(ARCHIVER) r $(LIBDSP_M3RES) $(LIBDSP_M3RES_LIST)
+$(LIBDSP_M3RES): $(LIBDSP_M3RES_LIST)
 
 clean:
-	@echo "Cleaning Object Files ..."
-	-rm -f $(LIBDSP_LIST)
+	rm -f $(LIBDSP_LIST) $(LIBDSP_M3RES_LIST)
 	rm -f *.a
-	rm -rf _53*
 
-clobber: clean
-	@echo "Cleaning Libraries ..."
+.PHONY: all clean libdsp libdspm3res
 
 # Special Rules
 
-cadd16.o:
-	$(COMPILER) -c $(C_OPTS) -fno-builtin \
-		    -o cadd16.o            \
-                    ../cadd16.c
-
-cadd16_m3res.o:
-	$(COMPILER) -c $(C_M3RES_OPTS) -fno-builtin \
-		    -o cadd16_m3res.o            \
-                    ../cadd16.c
-
-cmlt16.o:
-	$(COMPILER) -c $(C_OPTS) -fno-builtin \
-		    -o cmlt16.o            \
-                    ../cmlt16.c
-
-cmlt16_m3res.o:
-	$(COMPILER) -c $(C_M3RES_OPTS) -fno-builtin \
-		    -o cmlt16_m3res.o            \
-                    ../cmlt16.c
-
-csub16.o:
-	$(COMPILER) -c $(C_OPTS) -fno-builtin \
-		    -o csub16.o            \
-                    ../csub16.c
-
-csub16_m3res.o:
-	$(COMPILER) -c $(C_M3RES_OPTS) -fno-builtin \
-		    -o csub16_m3res.o            \
-                    ../csub16.c
-
-
-# Special Rule to build the version file (uses the double-colon rule
-# and is always re-compiled)
-
-# end of file
+cadd16.o:       CFLAGS += -fno-builtin
+cadd16_m3res.o: CFLAGS += -fno-builtin
+cmlt16.o:       CFLAGS += -fno-builtin
+cmlt16_m3res.o: CFLAGS += -fno-builtin
+csub16.o:       CFLAGS += -fno-builtin
+csub16_m3res.o: CFLAGS += -fno-builtin

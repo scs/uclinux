@@ -17,13 +17,14 @@
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 
-
 all: 
-	$(MAKE) -C src 
-	cp src/libbfdsp532.a libbfdsp.a
+	$(MAKE) -C src
+	cp src/libbfdsp.a libbfdsp.a
 
 romfs:
 
 clean:
-	$(MAKE) -C src clean
+	$(MAKE) -C src $@
 	rm -f libbfdsp.a 
+
+.PHONY: all clean romfs
