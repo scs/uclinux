@@ -75,12 +75,19 @@ odb_index_t odb_hash_add_node(odb_t * odb)
 
 		if (ftruncate(data->fd, new_file_size))
 			return ODB_NODE_NR_INVALID;
-
+		
+		/*
+		 * ugly workaround
+		 */
+#ifndef __uClinux__
 		new_map = mremap(data->base_memory,
 				old_file_size, new_file_size, MREMAP_MAYMOVE);
 
 		if (new_map == MAP_FAILED)
 			return ODB_NODE_NR_INVALID;
+#else
+		return ODB_NODE_NR_INVALID;
+#endif
 
 		data->base_memory = new_map;
 		data->descr = odb_to_descr(data);
@@ -311,5 +318,10 @@ void odb_sync(odb_t const * odb)
 		return;
 
 	size = tables_size(data, data->descr->size);
+	/*
+	 * ugly workaround 
+	 */
+#ifndef __uClinux__
 	msync(data->base_memory, size, MS_ASYNC);
+#endif
 }
