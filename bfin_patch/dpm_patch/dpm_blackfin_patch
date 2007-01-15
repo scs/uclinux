@@ -1,17 +1,19 @@
-diff -Nur linux-2.6.x-orig/arch/blackfin/Kconfig linux-2.6.x/arch/blackfin/Kconfig
---- linux-2.6.x-orig/arch/blackfin/Kconfig	2005-12-08 13:57:13.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/Kconfig	2005-12-14 17:29:59.000000000 +0800
-@@ -590,6 +590,7 @@
+Index: linux-2.6/arch/blackfin/Kconfig
+===================================================================
+--- linux-2.6.orig/arch/blackfin/Kconfig	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/Kconfig	2007-01-11 10:59:34.000000000 +0800
+@@ -540,6 +540,7 @@
  
- endif
+ menu "Clock Settings"
  
 +source "drivers/dpm/Kconfig"
  
- source "drivers/base/Kconfig"
- 
-diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf533/dpm.c linux-2.6.x/arch/blackfin/mach-bf533/dpm.c
---- linux-2.6.x-orig/arch/blackfin/mach-bf533/dpm.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf533/dpm.c	2005-12-14 17:26:41.000000000 +0800
+ config BFIN_KERNEL_CLOCK
+ 	bool "Re-program Clocks while Kernel boots?"
+Index: linux-2.6/arch/blackfin/mach-bf533/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/arch/blackfin/mach-bf533/dpm.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,259 @@
 +/*
 +* arch/arm/mach-bf533/pxa_dpm.c
@@ -272,17 +274,19 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf533/dpm.c linux-2.6.x/arch/black
 +
 +__initcall(dpm_bf533_init);
 +
-diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf533/Makefile linux-2.6.x/arch/blackfin/mach-bf533/Makefile
---- linux-2.6.x-orig/arch/blackfin/mach-bf533/Makefile	2005-11-03 12:25:36.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf533/Makefile	2005-12-14 17:26:49.000000000 +0800
-@@ -6,3 +6,4 @@
+Index: linux-2.6/arch/blackfin/mach-bf533/Makefile
+===================================================================
+--- linux-2.6.orig/arch/blackfin/mach-bf533/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/mach-bf533/Makefile	2007-01-11 11:00:21.000000000 +0800
+@@ -7,3 +7,4 @@
+ obj-y := ints-priority.o
  
  obj-$(CONFIG_CPU_FREQ_BF533) += cpu.o
- obj-$(CONFIG_PM)             += pm.o
 +obj-$(CONFIG_DPM)            += dpm.o
-diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf537/dpm.c linux-2.6.x/arch/blackfin/mach-bf537/dpm.c
---- linux-2.6.x-orig/arch/blackfin/mach-bf537/dpm.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf537/dpm.c	2005-12-14 17:26:25.000000000 +0800
+Index: linux-2.6/arch/blackfin/mach-bf537/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/arch/blackfin/mach-bf537/dpm.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,259 @@
 +/*
 +* arch/arm/mach-bf533/pxa_dpm.c
@@ -543,17 +547,10 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf537/dpm.c linux-2.6.x/arch/black
 +
 +__initcall(dpm_bf533_init);
 +
-diff -Nur linux-2.6.x-orig/arch/blackfin/mach-bf537/Makefile linux-2.6.x/arch/blackfin/mach-bf537/Makefile
---- linux-2.6.x-orig/arch/blackfin/mach-bf537/Makefile	2005-12-07 15:35:36.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf537/Makefile	2005-12-14 17:26:30.000000000 +0800
-@@ -6,3 +6,4 @@
- 
- obj-$(CONFIG_CPU_FREQ)   += cpu.o
- obj-$(CONFIG_PM)         += pm.o
-+obj-$(CONFIG_DPM)        += dpm.o
-diff -Nur linux-2.6.x-orig/drivers/dpm/dpm.c linux-2.6.x/drivers/dpm/dpm.c
---- linux-2.6.x-orig/drivers/dpm/dpm.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/dpm.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/dpm.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,1169 @@
 +/*
 + * drivers/dpm/policy.c  Dynamic Power Management Policies
@@ -1724,9 +1721,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/dpm.c linux-2.6.x/drivers/dpm/dpm.c
 + * c-basic-offset: 8
 + * End:
 + */
-diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-idle.c linux-2.6.x/drivers/dpm/dpm-idle.c
---- linux-2.6.x-orig/drivers/dpm/dpm-idle.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/dpm-idle.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/dpm-idle.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-idle.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,168 @@
 +/*
 + *
@@ -1896,9 +1894,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-idle.c linux-2.6.x/drivers/dpm/dpm-id
 +	local_irq_restore(flags);
 +}
 +
-diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-stats.c linux-2.6.x/drivers/dpm/dpm-stats.c
---- linux-2.6.x-orig/drivers/dpm/dpm-stats.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/dpm-stats.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/dpm-stats.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-stats.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,158 @@
 +/*
 + * drivers/dpm/policy.c  Dynamic Power Management Policies
@@ -2058,9 +2057,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-stats.c linux-2.6.x/drivers/dpm/dpm-s
 +}
 +#endif	
 +
-diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-sysfs.c linux-2.6.x/drivers/dpm/dpm-sysfs.c
---- linux-2.6.x-orig/drivers/dpm/dpm-sysfs.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/dpm-sysfs.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/dpm-sysfs.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/dpm-sysfs.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,782 @@
 +/*
 + * drivers/dpm/sysfs.c - sysfs entries for Dynamic Power Management
@@ -2844,9 +2844,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/dpm-sysfs.c linux-2.6.x/drivers/dpm/dpm-s
 +}
 +
 +__initcall(dpm_sysfs_init);
-diff -Nur linux-2.6.x-orig/drivers/dpm/Kconfig linux-2.6.x/drivers/dpm/Kconfig
---- linux-2.6.x-orig/drivers/dpm/Kconfig	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/Kconfig	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/Kconfig
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/Kconfig	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,18 @@
 +#
 +# Dynamic Power Management
@@ -2866,9 +2867,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/Kconfig linux-2.6.x/drivers/dpm/Kconfig
 +
 +endmenu
 +
-diff -Nur linux-2.6.x-orig/drivers/dpm/main.c linux-2.6.x/drivers/dpm/main.c
---- linux-2.6.x-orig/drivers/dpm/main.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/main.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/main.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/main.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,10 @@
 +#include<stdio.h>
 +#include"test.c"
@@ -2880,9 +2882,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/main.c linux-2.6.x/drivers/dpm/main.c
 +	test();
 +	return 0;
 +}
-diff -Nur linux-2.6.x-orig/drivers/dpm/Makefile linux-2.6.x/drivers/dpm/Makefile
---- linux-2.6.x-orig/drivers/dpm/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/Makefile	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/Makefile
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/Makefile	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,8 @@
 +#
 +# Makefile for the kernel DPM driver.
@@ -2892,9 +2895,10 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/Makefile linux-2.6.x/drivers/dpm/Makefile
 +obj-$(CONFIG_PROC_FS)	+= proc.o
 +obj-$(CONFIG_DPM_STATS)	+= dpm-stats.o
 +
-diff -Nur linux-2.6.x-orig/drivers/dpm/proc.c linux-2.6.x/drivers/dpm/proc.c
---- linux-2.6.x-orig/drivers/dpm/proc.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/drivers/dpm/proc.c	2005-12-14 16:21:27.000000000 +0800
+Index: linux-2.6/drivers/dpm/proc.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/drivers/dpm/proc.c	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,641 @@
 +/*
 + * drivers/dpm/proc.c  Dynamic Power Management /proc
@@ -3537,18 +3541,22 @@ diff -Nur linux-2.6.x-orig/drivers/dpm/proc.c linux-2.6.x/drivers/dpm/proc.c
 + * End:
 + */
 +
-diff -Nur linux-2.6.x-orig/drivers/Makefile linux-2.6.x/drivers/Makefile
---- linux-2.6.x-orig/drivers/Makefile	2005-08-12 13:13:46.000000000 +0800
-+++ linux-2.6.x/drivers/Makefile	2005-12-14 17:34:21.000000000 +0800
-@@ -72,4 +72,5 @@
+Index: linux-2.6/drivers/Makefile
+===================================================================
+--- linux-2.6.orig/drivers/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/drivers/Makefile	2007-01-11 10:59:34.000000000 +0800
+@@ -74,6 +74,7 @@
  obj-$(CONFIG_SGI_SN)		+= sn/
  obj-y				+= firmware/
  obj-$(CONFIG_CRYPTO)		+= crypto/
 +obj-$(CONFIG_DPM)		+= dpm/
  obj-$(CONFIG_SUPERH)		+= sh/
-diff -Nur linux-2.6.x-orig/include/asm-blackfin/mach-bf533/dpm.h linux-2.6.x/include/asm-blackfin/mach-bf533/dpm.h
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf533/dpm.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf533/dpm.h	2005-12-14 17:28:13.000000000 +0800
+ obj-$(CONFIG_GENERIC_TIME)	+= clocksource/
+ obj-$(CONFIG_DMA_ENGINE)	+= dma/
+Index: linux-2.6/include/asm-blackfin/mach-bf533/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/asm-blackfin/mach-bf533/dpm.h	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,98 @@
 +/*
 +*include/asm-arm/arch-pxa/pxa_dpm.h
@@ -3648,9 +3656,10 @@ diff -Nur linux-2.6.x-orig/include/asm-blackfin/mach-bf533/dpm.h linux-2.6.x/inc
 +#endif	/*end of __ASSEMMBLER*/
 +#endif	/*end of __KERNEL__*/
 +#endif	/*end of __ASM_PXA_DPM_H__*/
-diff -Nur linux-2.6.x-orig/include/asm-blackfin/mach-bf537/dpm.h linux-2.6.x/include/asm-blackfin/mach-bf537/dpm.h
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf537/dpm.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf537/dpm.h	2005-12-14 17:28:22.000000000 +0800
+Index: linux-2.6/include/asm-blackfin/mach-bf537/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/asm-blackfin/mach-bf537/dpm.h	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,98 @@
 +/*
 +*include/asm-arm/arch-pxa/pxa_dpm.h
@@ -3750,9 +3759,10 @@ diff -Nur linux-2.6.x-orig/include/asm-blackfin/mach-bf537/dpm.h linux-2.6.x/inc
 +#endif	/*end of __ASSEMMBLER*/
 +#endif	/*end of __KERNEL__*/
 +#endif	/*end of __ASM_PXA_DPM_H__*/
-diff -Nur linux-2.6.x-orig/include/linux/dpm.h linux-2.6.x/include/linux/dpm.h
---- linux-2.6.x-orig/include/linux/dpm.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/dpm.h	2005-12-14 17:32:04.000000000 +0800
+Index: linux-2.6/include/linux/dpm.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm.h	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,402 @@
 +/*
 + * include/linux/dpm.h  DPM policy management
@@ -4156,9 +4166,10 @@ diff -Nur linux-2.6.x-orig/include/linux/dpm.h linux-2.6.x/include/linux/dpm.h
 +
 +#endif /* CONFIG_DPM */
 +#endif /*__DPM_H__*/
-diff -Nur linux-2.6.x-orig/include/linux/dpm-stats.h linux-2.6.x/include/linux/dpm-stats.h
---- linux-2.6.x-orig/include/linux/dpm-stats.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/dpm-stats.h	2005-12-14 17:32:04.000000000 +0800
+Index: linux-2.6/include/linux/dpm-stats.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm-stats.h	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,113 @@
 +/*
 + * include/linux/dpm.h  DPM policy management
@@ -4273,9 +4284,10 @@ diff -Nur linux-2.6.x-orig/include/linux/dpm-stats.h linux-2.6.x/include/linux/d
 +
 +#endif /*__KERNEL__*/
 +#endif /*__DPM_STATS_H__*/
-diff -Nur linux-2.6.x-orig/include/linux/dpm-trace.h linux-2.6.x/include/linux/dpm-trace.h
---- linux-2.6.x-orig/include/linux/dpm-trace.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/linux/dpm-trace.h	2005-12-14 17:32:04.000000000 +0800
+Index: linux-2.6/include/linux/dpm-trace.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6/include/linux/dpm-trace.h	2007-01-11 10:59:34.000000000 +0800
 @@ -0,0 +1,65 @@
 +/*
 + * include/linux/dpm.h  DPM policy management
@@ -4342,16 +4354,26 @@ diff -Nur linux-2.6.x-orig/include/linux/dpm-trace.h linux-2.6.x/include/linux/d
 +#endif /* CONFIG_DPM_TRACE */
 +
 +#endif /*__DPM_TRACE_H_*/
-diff -Nur linux-2.6.x-orig/include/linux/sched.h linux-2.6.x/include/linux/sched.h
---- linux-2.6.x-orig/include/linux/sched.h	2005-08-12 11:36:44.000000000 +0800
-+++ linux-2.6.x/include/linux/sched.h	2005-12-14 17:32:19.000000000 +0800
-@@ -871,6 +871,9 @@
+Index: linux-2.6/include/linux/sched.h
+===================================================================
+--- linux-2.6.orig/include/linux/sched.h	2006-11-30 05:57:37.000000000 +0800
++++ linux-2.6/include/linux/sched.h	2007-01-11 10:59:34.000000000 +0800
+@@ -1015,6 +1015,9 @@
  
  	atomic_t fs_excl;	/* holding fs exclusive resources */
  	struct rcu_head rcu;
 +#ifdef CONFIG_DPM
 +	int     dpm_state; /* DPM operating state to use for this task */
 +#endif
-
-        /*
-         * cache last used pipe for splice
+ 
+ 	/*
+ 	 * cache last used pipe for splice
+Index: linux-2.6/arch/blackfin/mach-bf537/Makefile
+===================================================================
+--- linux-2.6.orig/arch/blackfin/mach-bf537/Makefile	2007-01-11 10:21:08.000000000 +0800
++++ linux-2.6/arch/blackfin/mach-bf537/Makefile	2007-01-11 11:00:44.000000000 +0800
+@@ -7,3 +7,4 @@
+ obj-y := ints-priority.o
+ 
+ obj-$(CONFIG_CPU_FREQ)   += cpu.o
++obj-$(CONFIG_DPM)            += dpm.o
