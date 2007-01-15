@@ -82,7 +82,9 @@ export VERSIONPKG VERSIONSTR ROMFSINST PATH IMAGEDIR RELDIR RELFILES TFTPDIR
 .PHONY: config.tk config.in
 
 config.in:
-	config/mkconfig > config.in
+	@if [ ! -f config.in ]; then \
+		config/mkconfig > config.in; \
+	 fi
 
 config.tk: config.in
 	$(MAKE) -C $(SCRIPTSDIR) tkparse
