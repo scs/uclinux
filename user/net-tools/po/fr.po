@@ -1,4 +1,4 @@
-# $Id$
+# $Id: fr.po 1015 2005-07-25 04:49:33Z magicyang $
 # French translation for net-tools 1.51
 # Copyright (C) 1999 J.M.Vansteene <vanstee@worldnet.fr>
 msgid ""
