@@ -61,8 +61,8 @@ bool 'cron'			CONFIG_USER_CRON_CRON
 
 comment 'Real Time Clock'
 bool 'hwclock'			CONFIG_USER_HWCLOCK_HWCLOCK
-bool 'rtc m41t11'		CONFIG_USER_RTC_M41T11
-bool 'rtc ds1302'		CONFIG_USER_RTC_DS1302
+#!bfin bool 'rtc m41t11'		CONFIG_USER_RTC_M41T11
+#!bfin bool 'rtc ds1302'		CONFIG_USER_RTC_DS1302
 
 comment 'Vixie-cron'
 bool 'cron'			CONFIG_USER_VIXIECRON_CRON
@@ -184,12 +184,12 @@ if [ "$CONFIG_USER_RECOVER_RECOVER" = "y" ]; then
 fi
 
 bool 'setmac'			CONFIG_USER_SETMAC_SETMAC
-comment 'uCbootloader utils'
-bool 'flashloader / ramloader'  CONFIG_USER_BOOTTOOLS_LOADER
-bool 'himemloader'              CONFIG_USER_BOOTTOOLS_HIMEMLOADER
-bool 'printbenv'                CONFIG_USER_BOOTTOOLS_PRINTBENV
-bool 'setbenv'                  CONFIG_USER_BOOTTOOLS_SETBENV
-bool 'reset'                    CONFIG_USER_BOOTTOOLS_RESET
+#!bfin comment 'uCbootloader utils'
+#!bfin bool 'flashloader / ramloader'  CONFIG_USER_BOOTTOOLS_LOADER
+#!bfin bool 'himemloader'              CONFIG_USER_BOOTTOOLS_HIMEMLOADER
+#!bfin bool 'printbenv'                CONFIG_USER_BOOTTOOLS_PRINTBENV
+#!bfin bool 'setbenv'                  CONFIG_USER_BOOTTOOLS_SETBENV
+#!bfin bool 'reset'                    CONFIG_USER_BOOTTOOLS_RESET
 
 comment 'MTD utils'
 bool 'mtd-utils'		CONFIG_USER_MTDUTILS
