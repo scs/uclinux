@@ -9,9 +9,9 @@ fi
 
 # check with build kernel log to see if kernel is built out
 
-ls build*kernel_log  > all_build_log_list
+ls build*kernel_log*  > all_build_log_list
 
-grep -r "Leaving directory.*\/home\/test\/checkouts\/kernel\/uclinux-dist\/vendors\/AnalogDevices" -m 2 -A 3 build*kernel_log | grep "STEP .*" | sed 's/\-/ /'| awk '{print$1}' > build_kernel_pass_log
+grep -r "Leaving directory.*\/home\/test\/checkouts\/kernel\/uclinux-dist\/vendors\/AnalogDevices" -m 2 -A 3 build*kernel_log* | grep "STEP .*" | sed 's/\-/ /'| awk '{print$1}' > build_kernel_pass_log
 
 echo -e "\n######The following build kernel fails:#######\n" > result_summary
 comm -3 all_build_log_list build_kernel_pass_log > build_kernel_fail_log
@@ -23,14 +23,14 @@ rm -f build_kernel_pass_log
 
 # check with test log to see if test result is given out
 
-ls *log | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log > all_test_log_list
+ls *log* | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log | grep -v .*detailed.* | grep -v .*summary.* > all_test_log_list
 
-grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
+grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log* | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
 
 comm -3 all_test_log_list test_log_with_result > test_log_without_result
 
-grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log |  sed 's/.*log:/ /' > result_pass_summary
-grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log |  sed 's/.*log:/ /' > result_fail_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log* |  sed 's/.*log:/ /' > result_pass_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log* |  sed 's/.*log:/ /' > result_fail_summary
 cat test_log_without_result >> result_fail_summary
 
 rm -f all_test_log_list
