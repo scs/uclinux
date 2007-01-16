@@ -13,9 +13,9 @@ ls build*kernel_log  > all_build_log_list
 
 grep -r "Leaving directory.*\/home\/test\/checkouts\/kernel\/uclinux-dist\/vendors\/AnalogDevices" -m 2 -A 3 build*kernel_log | grep "STEP .*" | sed 's/\-/ /'| awk '{print$1}' > build_kernel_pass_log
 
-echo -e "\n######The following build kernel fails:#######\n"
+echo -e "\n######The following build kernel fails:#######\n" > result_summary
 comm -3 all_build_log_list build_kernel_pass_log > build_kernel_fail_log
-cat build_kernel_fail_log
+cat build_kernel_fail_log  >> result_summary
 
 rm -f all_build_log_list
 rm -f build_kernel_pass_log
@@ -25,29 +25,29 @@ rm -f build_kernel_pass_log
 
 ls *log | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log > all_test_log_list
 
-grep -r "T[Ee][Ss][Tt] \.\.\.\.*\[[PF]A[SI][SL]]" -m 1 *log | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
+grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
 
-echo -e "\n######The following tests have no result given out:#######\n"
 comm -3 all_test_log_list test_log_with_result > test_log_without_result
-cat test_log_without_result
+
+grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log |  sed 's/.*log:/ /' > result_pass_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log |  sed 's/.*log:/ /' > result_fail_summary
+cat test_log_without_result >> result_fail_summary
 
 rm -f all_test_log_list
 rm -f test_log_with_result
+rm -f test_log_without_result
 
-grep "T[Ee][Ss][Tt] \.\.\.\." *log |  sed 's/.*log:/ /' > result_summary
-grep "T[Ee][Ss][Tt] \.\.\.\.*\[PASS]" *log |  sed 's/.*log:/ /' > result_pass_summary
-grep "T[Ee][Ss][Tt] \.\.\.\.*\[FAIL]" *log |  sed 's/.*log:/ /' > result_fail_summary
+
+num=`cat result_pass_summary | wc -l`
+echo -e "\n############ Pass Num is: $num.#############\n" >> result_summary
+cat result_pass_summary   >> result_summary
+
+num=`cat result_fail_summary | wc -l`
+echo -e "\n############ Fail Num is: $num.#############\n" >> result_summary
+cat result_fail_summary  >> result_summary
+
 rm -f ../result_summary
 ln -s `pwd`/result_summary ../result_summary
-
-num=`grep -nrc "T[Ee][Ss][Tt] \.*\[PASS\]" result_pass_summary`
-echo -e "\n############ Pass Num is: $num.#############\n"
-cat result_pass_summary
-
-num=`grep -nrc "T[Ee][Ss][Tt] \.*\[FAIL\]" result_fail_summary`
-echo -e "\n############ Fail Num is: $num.#############\n"
-cat result_fail_summary
-
 
 if [ ! -s result_fail_summary ] && [ -s result_pass_summary ] ; then
 #echo "success" > test_result
