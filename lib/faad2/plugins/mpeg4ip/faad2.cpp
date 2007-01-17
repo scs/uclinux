@@ -76,8 +76,8 @@ static codec_data_t *aac_codec_create (const char *compressor,
   }
 
   aac->m_info = faacDecOpen();
-  unsigned long srate;
-  unsigned char chan;
+  uint32_t srate;
+  uint8_t chan;
   if ((userdata == NULL && fmtp == NULL) ||
       (faacDecInit2(aac->m_info,
              (uint8_t *)userdata,
@@ -156,7 +156,7 @@ static int aac_decode (codec_data_t *ptr,
                void *userdata)
 {
   aac_codec_t *aac = (aac_codec_t *)ptr;
-  unsigned long bytes_consummed;
+  uint32_t bytes_consummed;
   int bits = -1;
   //  struct timezone tz;
 
@@ -188,8 +188,8 @@ static int aac_decode (codec_data_t *ptr,
      * If not initialized, do so.
      */
     abort();
-    unsigned long freq;
-    unsigned char chans;
+    uint32_t freq;
+    uint8_t chans;
 
     faacDecInit(aac->m_info,
         (unsigned char *)buffer,
@@ -202,7 +202,7 @@ static int aac_decode (codec_data_t *ptr,
   }
 
   uint8_t *buff;
-  unsigned long samples;
+  uint32_t samples;
   bytes_consummed = buflen;
   //aa_message(LOG_DEBUG, aaclib, "decoding %d bits", buflen * 8);
   faacDecFrameInfo frame_info;
@@ -237,7 +237,7 @@ static int aac_decode (codec_data_t *ptr,
       aac->m_vft->audio_configure(aac->m_ifptr,
                   aac->m_freq,
                   aac->m_chans,
-                  AUDIO_S16SYS,
+                  AUDIO_FMT_S16,
                   aac->m_output_frame_size);
       uint8_t *now = aac->m_vft->audio_get_buffer(aac->m_ifptr);
       aac->m_audio_inited = 1;

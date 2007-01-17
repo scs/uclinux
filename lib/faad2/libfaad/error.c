@@ -28,7 +28,7 @@
 #include "common.h"
 #include "error.h"
 
-int8_t *err_msg[] = {
+char *err_msg[] = {
     "No error",
     "Gain control not yet implemented",
     "Pulse coding not allowed in short blocks",

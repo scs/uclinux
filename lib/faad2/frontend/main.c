@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <getopt.h>
 
 #include <faad.h>
@@ -377,8 +378,8 @@ int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_stdout,
                   float *song_length)
 {
     int tagsize;
-    unsigned long samplerate;
-    unsigned char channels;
+    uint32_t samplerate;
+    uint8_t channels;
     void *sample_buffer;
 
     audio_file *aufile;
@@ -403,8 +404,7 @@ int decodeAACfile(char *aacfile, char *sndfile, char *adts_fn, int to_stdout,
     aac_buffer b;
 
     memset(&b, 0, sizeof(aac_buffer));
-    
-	fprintf(stderr,"In acc decode function :\n");
+
     if (adts_out)
     {
         adtsFile = fopen(adts_fn, "wb");
@@ -657,7 +657,7 @@ int GetAACTrack(mp4ff_t *infile)
     for (i = 0; i < numTracks; i++)
     {
         unsigned char *buff = NULL;
-        int buff_size = 0;
+        uint32_t buff_size = 0;
         mp4AudioSpecificConfig mp4ASC;
 
         mp4ff_get_decoder_config(infile, i, &buff, &buff_size);
@@ -688,8 +688,8 @@ int decodeMP4file(char *mp4file, char *sndfile, char *adts_fn, int to_stdout,
                   int infoOnly, int adts_out, float *song_length)
 {
     int track;
-    unsigned long samplerate;
-    unsigned char channels;
+    uint32_t samplerate;
+    uint8_t channels;
     void *sample_buffer;
 
     mp4ff_t *infile;
@@ -708,7 +708,7 @@ int decodeMP4file(char *mp4file, char *sndfile, char *adts_fn, int to_stdout,
     mp4AudioSpecificConfig mp4ASC;
 
     unsigned char *buffer;
-    int buffer_size;
+    uint32_t buffer_size;
 
     char percents[200];
     int percent, old_percent = -1;
@@ -1053,7 +1053,8 @@ int main(int argc, char *argv[])
             { "info",       0, 0, 'i' },
             { "stdio",      0, 0, 'w' },
             { "stdio",      0, 0, 'g' },
-            { "help",       0, 0, 'h' }
+            { "help",       0, 0, 'h' },
+            { 0,            0, 0,  0  }
         };
 
         c = getopt_long(argc, argv, "o:a:s:f:b:l:wgdhit",
@@ -1198,12 +1199,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error opening file: %s\n", aacFileName);
         return 1;
     }
-	fprintf(stderr,"Opening a file in the AAC decoder: %s \r\n",aacFileName);
-
     fread(header, 1, 8, hMP4File);
     fclose(hMP4File);
-	fprintf(stderr,"The header which has htyp: %s\n",header);
-
     if (header[4] == 'f' && header[5] == 't' && header[6] == 'y' && header[7] == 'p')
         mp4file = 1;
 

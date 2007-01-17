@@ -35,8 +35,8 @@ public:
 		return m_pPacket;
 	}
 
-	virtual u_int16_t GetDataSize() = NULL;
-	virtual void GetData(u_int8_t* pDest) = NULL;
+	virtual u_int16_t GetDataSize() = 0;
+	virtual void GetData(u_int8_t* pDest) = 0;
 
 	MP4Track* FindTrackFromRefIndex(u_int8_t refIndex);
 
@@ -210,7 +210,7 @@ public:
 
 	MP4RtpPacket* GetCurrentPacket() {
 		if (m_rtpPackets.Size() == 0) {
-			return NULL;
+			return 0;
 		}
 		return m_rtpPackets[m_rtpPackets.Size() - 1];
 	}
@@ -250,10 +250,10 @@ public:
 	}
 
 	void GetPayload(
-		char** ppPayloadName = NULL,
-		u_int8_t* pPayloadNumber = NULL,
-		u_int16_t* pMaxPayloadSize = NULL,
-		char **ppEncodingParams = NULL);
+		char** ppPayloadName = 0,
+		u_int8_t* pPayloadNumber = 0,
+		u_int16_t* pMaxPayloadSize = 0,
+		char **ppEncodingParams = 0);
 
 	void SetPayload(
 		const char* payloadName,
@@ -265,7 +265,7 @@ public:
 
 	void ReadHint(
 		MP4SampleId hintSampleId,
-		u_int16_t* pNumPackets = NULL);
+		u_int16_t* pNumPackets = 0);
 
 	u_int16_t GetHintNumberOfPackets();
 

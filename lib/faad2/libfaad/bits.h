@@ -38,7 +38,6 @@ extern "C" {
 #endif
 
 #define BYTE_NUMBIT 8
-//#define NULL
 #define bit2byte(a) ((a+7)/BYTE_NUMBIT)
 
 typedef struct _bitfile

@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,15 +47,23 @@ int valid_idchar(char c)
   return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 }
 
+/*
+ * NAME:	frame->validid()
+ * DESCRIPTION:	return true if the parameter string is a legal frame ID
+ */
 int id3_frame_validid(char const *id)
 {
-  return
+  return id &&
     valid_idchar(id[0]) &&
     valid_idchar(id[1]) &&
     valid_idchar(id[2]) &&
     valid_idchar(id[3]);
 }
 
+/*
+ * NAME:	frame->new()
+ * DESCRIPTION:	allocate and return a new frame
+ */
 struct id3_frame *id3_frame_new(char const *id)
 {
   struct id3_frametype const *frametype;
@@ -118,6 +126,8 @@ struct id3_frame *id3_frame_new(char const *id)
 
 void id3_frame_delete(struct id3_frame *frame)
 {
+  assert(frame);
+
   if (frame->refcount == 0) {
     unsigned int i;
 
@@ -137,6 +147,8 @@ void id3_frame_delete(struct id3_frame *frame)
  */
 void id3_frame_addref(struct id3_frame *frame)
 {
+  assert(frame);
+
   ++frame->refcount;
 }
 
@@ -146,9 +158,21 @@ void id3_frame_addref(struct id3_frame *frame)
  */
 void id3_frame_delref(struct id3_frame *frame)
 {
-  assert(frame->refcount > 0);
+  assert(frame && frame->refcount > 0);
 
   --frame->refcount;
+}
+
+/*
+ * NAME:	frame->field()
+ * DESCRIPTION:	return a pointer to a field in a frame
+ */
+union id3_field *id3_frame_field(struct id3_frame const *frame,
+				 unsigned int index)
+{
+  assert(frame);
+
+  return (index < frame->nfields) ? &frame->fields[index] : 0;
 }
 
 static
@@ -232,6 +256,10 @@ int parse_data(struct id3_frame *frame,
   return 0;
 }
 
+/*
+ * NAME:	frame->parse()
+ * DESCRIPTION:	parse raw frame data according to the specified ID3 tag version
+ */
 struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
 				  unsigned int version)
 {
@@ -316,6 +344,23 @@ struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
     default:
       goto fail;
     }
+
+    /* canonicalize frame ID for ID3v2.4 */
+
+    if (compat && compat->equiv)
+      id = compat->equiv;
+    else if (ID3_TAG_VERSION_MAJOR(version) == 2) {
+      xid[0] = 'Y';
+      xid[1] = id[0];
+      xid[2] = id[1];
+      xid[3] = id[2];
+
+      id = xid;
+
+      flags |=
+	ID3_FRAME_FLAG_TAGALTERPRESERVATION |
+	ID3_FRAME_FLAG_FILEALTERPRESERVATION;
+    }
   }
   else {  /* ID3v2.4 */
     if (length < 10)
@@ -361,9 +406,6 @@ struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
     }
   }
 
-  if (compat && compat->equiv && !compat->translate)
-    id = compat->equiv;
-
   data = *ptr;
   *ptr = end;
 
@@ -400,28 +442,11 @@ struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
     end  = data + decoded_length;
   }
 
-  /* handle compatibility */
+  /* check for obsolescence */
 
-  if (ID3_TAG_VERSION_MAJOR(version) == 2) {
-    xid[0] = 'Y';
-    xid[1] = id[0];
-    xid[2] = id[1];
-    xid[3] = id[2];
-
-    id = xid;
-
-    flags |=
-      ID3_FRAME_FLAG_TAGALTERPRESERVATION |
-      ID3_FRAME_FLAG_FILEALTERPRESERVATION;
-  }
-
-  if (compat) {
-    if (compat->equiv)
-      id = compat->equiv;
-    else {
-      frame = obsolete(id, data, end - data);
-      goto done;
-    }
+  if (compat && !compat->equiv) {
+    frame = obsolete(id, data, end - data);
+    goto done;
   }
 
   /* generate the internal frame structure */
@@ -482,6 +507,8 @@ id3_length_t id3_frame_render(struct id3_frame const *frame,
   id3_length_t size = 0, decoded_length, datalen;
   id3_byte_t *size_ptr = 0, *flags_ptr = 0, *data = 0;
   int flags;
+
+  assert(frame);
 
   if ((frame->flags & ID3_FRAME_FLAG_TAGALTERPRESERVATION) ||
       ((options & ID3_TAG_OPTION_FILEALTERED) &&
@@ -562,7 +589,7 @@ id3_length_t id3_frame_render(struct id3_frame const *frame,
 	  *ptr = data;
 	  datalen = id3_render_binary(ptr, comp, complen);
 
-	  free (comp);
+	  free(comp);
 	}
       }
     }

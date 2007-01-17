@@ -830,7 +830,6 @@ bool MP4File::SetMetadataFreeForm(char *name, u_int8_t* pValue, u_int32_t valueS
     MP4BytesProperty *pMetadataProperty = NULL;
     char s[256];
     int i = 0;
-    bool nameExists = false;
 
     while (1)
     {

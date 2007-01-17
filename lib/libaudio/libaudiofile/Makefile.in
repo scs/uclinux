@@ -58,6 +58,7 @@ POST_UNINSTALL = :
 host_alias = @host_alias@
 host_triplet = @host@
 AMTAR = @AMTAR@
+AR = @AR@
 AS = @AS@
 AUDIOFILE_MAJOR_VERSION = @AUDIOFILE_MAJOR_VERSION@
 AUDIOFILE_MICRO_VERSION = @AUDIOFILE_MICRO_VERSION@
@@ -67,10 +68,16 @@ AUDIOFILE_VERSION_INFO = @AUDIOFILE_VERSION_INFO@
 AUDIO_LIB = @AUDIO_LIB@
 AWK = @AWK@
 CC = @CC@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
 ECHO = @ECHO@
+EGREP = @EGREP@
 EXEEXT = @EXEEXT@
+F77 = @F77@
+GCJ = @GCJ@
+GCJFLAGS = @GCJFLAGS@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LIBTOOL = @LIBTOOL@
 LN_S = @LN_S@
@@ -78,6 +85,7 @@ OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
+RC = @RC@
 STRIP = @STRIP@
 TEST_BIN = @TEST_BIN@
 VERSION = @VERSION@
@@ -115,7 +123,7 @@ libaudiofile_la_SOURCES = \
 libaudiofile_la_LIBADD = modules/libmodules.la
 
 libaudiofile_la_LDFLAGS = -version-info 0:2:0 -no-undefined \
-	-export-symbols audiofile.exports
+	-export-symbols $(srcdir)/audiofile.exports
 
 
 include_HEADERS = audiofile.h aupvlist.h af_vfs.h

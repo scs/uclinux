@@ -1,5 +1,5 @@
 all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
+	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
 
 build/Makefile:
 	touch * */*
@@ -8,20 +8,13 @@ build/Makefile:
 	mkdir build ; \
 	cd build ; \
 	../configure \
-		--host=$(CONFIGURE_HOST) \
-		--prefix=/usr \
+		$(CONFIGURE_OPTS) \
 		--disable-aso \
 		--enable-fpm=no
 
 clean:
-	rm -rf build DESTDIR
-
-%::
-	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
+	rm -rf build
 
 romfs:
-ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
-	mv DESTDIR/usr/lib/libmad.so* $(ROMFSDIR)/lib/
-endif
 
-.PHONY: all clean distclean romfs
+.PHONY: all clean romfs

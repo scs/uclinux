@@ -19,8 +19,6 @@ AC_ARG_WITH( xmms,   [  --with-xmms             compile XMMS plugins],WITHXMMS=$
 
 AC_ARG_WITH( drm,    [  --with-drm              compile libfaad with DRM support],WITHDRM=$withval, WITHDRM=no)
 
-AC_ARG_WITH( mp4v2,  [  --with-mp4v2            compile libmp4v2],WITHMP4V2=$withval, WITHMP4V2=no)
-
 dnl Checks for header files required for mp4.h
 AC_HEADER_STDC
 AC_CHECK_HEADERS(stdint.h inttypes.h)
@@ -49,6 +47,43 @@ AC_DEFUN(MY_CHECK_TYPEDEF_FROM_INCLUDE,
 fi
 ])
 
+dnl @synopsis AC_C99_FUNC_LRINTF
+dnl
+dnl Check whether C99's lrintf function is available.
+dnl @version 1.3        Feb 12 2002
+dnl @author Erik de Castro Lopo <erikd AT mega-nerd DOT com>
+dnl
+dnl Permission to use, copy, modify, distribute, and sell this file for any
+dnl purpose is hereby granted without fee, provided that the above copyright
+dnl and this permission notice appear in all copies.  No representations are
+dnl made about the suitability of this software for any purpose.  It is
+dnl provided "as is" without express or implied warranty.
+dnl
+AC_DEFUN([AC_C99_FUNC_LRINTF],
+[AC_CACHE_CHECK(for lrintf,
+  ac_cv_c99_lrintf,
+[
+lrintf_save_CFLAGS=$CFLAGS
+CFLAGS="-O -lm"
+AC_TRY_LINK([
+#define         _ISOC9X_SOURCE  1
+#define         _ISOC99_SOURCE  1
+#define         __USE_ISOC99    1
+#define         __USE_ISOC9X    1
+
+#include <math.h>
+], if (!lrintf(3.14159)) lrintf(2.7183);, ac_cv_c99_lrintf=yes, ac_cv_c99_lrintf=no)
+
+CFLAGS=$lrintf_save_CFLAGS
+
+])
+
+if test "$ac_cv_c99_lrintf" = yes; then
+  AC_DEFINE(HAVE_LRINTF, 1,
+            [Define if you have C99's lrintf function.])
+fi
+])# AC_C99_FUNC_LRINTF
+AC_C99_FUNC_LRINTF
 
 MY_CHECK_TYPEDEF_FROM_INCLUDE([float32_t temp],
         [#include <sys/types.h>,
@@ -66,26 +101,8 @@ MY_CHECK_TYPEDEF_FROM_INCLUDE([fpos_t foo; foo.__pos = 0;],
         [#include <stdio.h>],
         [HAVE_FPOS_T_POS])
 
-
-external_mp4v2=yes
-AC_CHECK_LIB(mp4v2, MP4Create, , external_mp4v2=no, -lstdc++)
-AC_CHECK_LIB(mp4v2, MP4MetadataDelete, , external_mp4v2=no, -lstdc++)
-AC_CHECK_HEADER(mp4.h, , external_mp4v2=no)
-
 AM_CONDITIONAL(WITH_MP4V2, false)
-
-if test x$external_mp4v2 = xyes; then
-  AM_CONDITIONAL(HAVE_MPEG4IP, true)
-  MPEG4IP_PLAYER_PLUGIN_DIR=`mpeg4ip-config --player-plugin-dir`  
-  AC_SUBST(MPEG4IP_PLAYER_PLUGIN_DIR)
-  AC_MSG_NOTICE([*** Building with external mp4v2 ***])
-else
-  AC_MSG_NOTICE([*** Building with internal mp4v2 ***])
-  AM_CONDITIONAL(HAVE_MPEG4IP, false)
-  if test x$WITHMP4V2 = xyes; then
-     AM_CONDITIONAL(WITH_MP4V2, true)
-  fi
-fi
+AM_CONDITIONAL(HAVE_MPEG4IP, false)
 
 if test x$WITHXMMS = xyes; then
   AC_CHECK_PROGS(XMMS_CONFIG, xmms-config,"not_found")
@@ -102,8 +119,6 @@ if test x$WITHXMMS = xyes; then
   fi
 
   AM_CONDITIONAL(HAVE_XMMS, true)
-  AC_MSG_NOTICE("xmms plugin requires libmp4v2 to be build")
-  AM_CONDITIONAL(WITH_MP4V2, true)
   AC_CONFIG_FILES(plugins/xmms/Makefile plugins/xmms/src/Makefile)
 else
  AC_MSG_NOTICE(no xmms build configured)

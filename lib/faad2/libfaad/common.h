@@ -51,7 +51,7 @@ extern "C" {
 /* use double precision */
 /* #define USE_DOUBLE_PRECISION */
 /* use fixed point reals */
-#define FIXED_POINT  
+//#define FIXED_POINT
 
 #ifdef _WIN32_WCE
 #define FIXED_POINT
@@ -197,8 +197,16 @@ typedef float float32_t;
 #else
 # if HAVE_STDINT_H
 #  include <stdint.h>
-# else
-/* we need these... */
+# elif defined(__x86_64__)
+typedef unsigned long uint64_t;
+typedef unsigned int uint32_t;
+typedef unsigned short uint16_t;
+typedef unsigned char uint8_t;
+typedef long int64_t;
+typedef int int32_t;
+typedef short int16_t;
+typedef char int8_t;
+#else
 typedef unsigned long long uint64_t;
 typedef unsigned long uint32_t;
 typedef unsigned short uint16_t;
@@ -308,6 +316,7 @@ char *strchr(), *strrchr();
         return i;
     }
   #elif (defined(__i386__) && defined(__GNUC__))
+    #ifndef HAVE_LRINTF
     #define HAS_LRINTF
     // from http://www.stereopsis.com/FPU.html
     static INLINE int lrintf(float f)
@@ -320,6 +329,7 @@ char *strchr(), *strrchr();
             : "m" (f));
         return i;
     }
+    #endif /* HAVE_LRINTF */
   #endif
 
 

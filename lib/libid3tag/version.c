@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,13 +33,13 @@ char const id3_copyright[] = "Copyright (C) " ID3_PUBLISHYEAR " " ID3_AUTHOR;
 char const id3_author[]    = ID3_AUTHOR " <" ID3_EMAIL ">";
 
 char const id3_build[] = ""
-# if defined(EXPERIMENTAL)
-  "EXPERIMENTAL "
-# endif
-
 # if defined(DEBUG)
   "DEBUG "
 # elif defined(NDEBUG)
   "NDEBUG "
+# endif
+
+# if defined(EXPERIMENTAL)
+  "EXPERIMENTAL "
 # endif
 ;

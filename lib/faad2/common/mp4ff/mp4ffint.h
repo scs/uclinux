@@ -226,8 +226,8 @@ typedef struct
 
 
 /* mp4util.c */
-int32_t mp4ff_read_data(mp4ff_t *f, int8_t *data, uint32_t size);
-int32_t mp4ff_write_data(mp4ff_t *f, int8_t *data, uint32_t size);
+int32_t mp4ff_read_data(mp4ff_t *f, uint8_t *data, uint32_t size);
+int32_t mp4ff_write_data(mp4ff_t *f, uint8_t *data, uint32_t size);
 uint64_t mp4ff_read_int64(mp4ff_t *f);
 uint32_t mp4ff_read_int32(mp4ff_t *f);
 uint32_t mp4ff_read_int24(mp4ff_t *f);
@@ -241,7 +241,7 @@ int32_t mp4ff_truncate(mp4ff_t * f);
 char * mp4ff_read_string(mp4ff_t * f,uint32_t length);
 
 /* mp4atom.c */
-static int32_t mp4ff_atom_get_size(const int8_t *data);
+static int32_t mp4ff_atom_get_size(const uint8_t *data);
 static int32_t mp4ff_atom_compare(const int8_t a1, const int8_t b1, const int8_t c1, const int8_t d1,
                                   const int8_t a2, const int8_t b2, const int8_t c2, const int8_t d2);
 static uint8_t mp4ff_atom_name_to_type(const int8_t a, const int8_t b, const int8_t c, const int8_t d);

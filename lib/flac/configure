@@ -8160,18 +8160,12 @@ fi;
     OGG_LIBS="-L$ogg_libraries"
   elif test "x$ogg_prefix" != "x" ; then
     OGG_LIBS="-L$ogg_prefix/lib"
-  elif test "x$prefix" != "xNONE" ; then
-    OGG_LIBS="-L$prefix/lib"
   fi
-
-  OGG_LIBS="$OGG_LIBS -logg"
 
   if test "x$ogg_includes" != "x" ; then
     OGG_CFLAGS="-I$ogg_includes"
   elif test "x$ogg_prefix" != "x" ; then
     OGG_CFLAGS="-I$ogg_prefix/include"
-  elif test "$prefix" != "xNONE"; then
-    OGG_CFLAGS="-I$prefix/include"
   fi
 
   echo "$as_me:$LINENO: checking for Ogg" >&5
@@ -8306,7 +8300,7 @@ echo "$as_me: WARNING: *** Ogg development enviroment not installed - Ogg suppor
   rm -f conf.oggtest
 
 
-
+have_ogg=no
 if test x$have_ogg = xyes; then
   FLaC__HAS_OGG_TRUE=
   FLaC__HAS_OGG_FALSE='#'
@@ -11247,11 +11241,11 @@ fi
 
 
 
-OUR_CFLAGS_HEAD='-I$(top_builddir) -I$(srcdir)/include -I$(top_srcdir)/include'
+OUR_CFLAGS_HEAD='-I$(top_builddir) -I$(top_builddir)/include -I$(top_builddir)/include/FLAC -I$(srcdir)/include -I$(top_srcdir)/include'
 if test x$debug = xtrue; then
-	OUR_CFLAGS_HEAD="$OUR_CFLAGS_HEAD -g -O0 -DDEBUG"
+	OUR_CFLAGS_HEAD="$OUR_CFLAGS_HEAD -DDEBUG"
 else
-	OUR_CFLAGS_HEAD="$OUR_CFLAGS_HEAD -O3 -DNDEBUG"
+	OUR_CFLAGS_HEAD="$OUR_CFLAGS_HEAD -DNDEBUG"
 	if test x$GCC = xyes; then
 		OUR_CFLAGS_HEAD="$OUR_CFLAGS_HEAD -fomit-frame-pointer -funroll-loops -finline-functions -Wall -W -Winline -DFLaC__INLINE=__inline__"
 	fi

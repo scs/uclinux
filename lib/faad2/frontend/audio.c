@@ -48,8 +48,7 @@ audio_file *open_audio_file(char *infile, int samplerate, int channels,
     aufile->total_samples = 0;
     aufile->fileType = fileType;
     aufile->channelMask = channelMask;
-	
-fprintf(stderr,"in the open _audio_file function: %d\n",outputFormat);
+
     switch (outputFormat)
     {
     case FAAD_FMT_16BIT:
@@ -458,7 +457,7 @@ static int write_audio_float(audio_file *aufile, void *sample_buffer,
 
     for (i = 0; i < samples; i++)
     {
-        int exponent=0, mantissa, negative = 0 ;
+        int exponent, mantissa, negative = 0 ;
         float in = sample_buffer_f[i];
 
         data[i*4] = 0; data[i*4+1] = 0; data[i*4+2] = 0; data[i*4+3] = 0;
@@ -470,7 +469,7 @@ static int write_audio_float(audio_file *aufile, void *sample_buffer,
             in *= -1.0;
             negative = 1;
         }
-        //in = (float)frexp(in, &exponent);
+        in = (float)frexp(in, &exponent);
         exponent += 126;
         in *= (float)0x1000000;
         mantissa = (((int)in) & 0x7FFFFF);

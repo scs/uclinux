@@ -448,7 +448,7 @@ void raw_data_block(faacDecHandle hDecoder, faacDecFrameInfo *hInfo,
 #ifdef COUPLING_DEC
                 hInfo->error = coupling_channel_element(hDecoder, ld);
 #else
-                hInfo->error = 0;
+                hInfo->error = 6;
 #endif
                 if (hInfo->error > 0)
                     return;

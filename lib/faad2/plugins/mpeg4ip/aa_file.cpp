@@ -56,8 +56,8 @@ codec_data_t *aac_file_check (lib_message_func_t message,
                  aac->m_buffer_size_max,
                  aac->m_ifile);
 
-  unsigned long freq;
-  unsigned char chans;
+  uint32_t freq;
+  uint8_t chans;
 
   faacDecInit(aac->m_info, (unsigned char *)aac->m_buffer,
           aac->m_buffer_size, &freq, &chans);

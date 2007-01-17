@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,8 +25,7 @@
 # include <stdlib.h>
 
 void *id3_debug_malloc(size_t, char const *, unsigned int);
-void *id3_debug_calloc(size_t, size_t,
-		       char const *file, unsigned int line);
+void *id3_debug_calloc(size_t, size_t, char const *, unsigned int);
 void *id3_debug_realloc(void *, size_t, char const *, unsigned int);
 void id3_debug_free(void *, char const *, unsigned int);
 

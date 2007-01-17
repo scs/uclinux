@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -77,6 +77,21 @@ id3_latin1_t *id3_latin1_duplicate(id3_latin1_t const *src)
     id3_latin1_copy(latin1, src);
 
   return latin1;
+}
+
+/*
+ * NAME:	latin1->ucs4duplicate()
+ * DESCRIPTION:	duplicate and decode a latin1 string into ucs4
+ */
+id3_ucs4_t *id3_latin1_ucs4duplicate(id3_latin1_t const *latin1)
+{
+  id3_ucs4_t *ucs4;
+
+  ucs4 = malloc((id3_latin1_length(latin1) + 1) * sizeof(*ucs4));
+  if (ucs4)
+    id3_latin1_decode(latin1, ucs4);
+
+  return release(ucs4);
 }
 
 /*
@@ -159,10 +174,8 @@ id3_length_t id3_latin1_serialize(id3_byte_t **ptr, id3_ucs4_t const *ucs4,
 
   while (*ucs4) {
     switch (id3_latin1_encodechar(out = latin1, *ucs4++)) {
-    case 1:
-      size += id3_latin1_put(ptr, *out++);
-    case 0:
-      break;
+    case 1: size += id3_latin1_put(ptr, *out++);
+    case 0: break;
     }
   }
 

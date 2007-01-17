@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@
 
 signed long id3_parse_int(id3_byte_t const **ptr, unsigned int bytes)
 {
-  unsigned long value = 0;
+  signed long value = 0;
 
   assert(bytes >= 1 && bytes <= 4);
 
@@ -48,14 +48,10 @@ signed long id3_parse_int(id3_byte_t const **ptr, unsigned int bytes)
     value = ~0;
 
   switch (bytes) {
-  case 4:
-    value = (value << 8) | *(*ptr)++;
-  case 3:
-    value = (value << 8) | *(*ptr)++;
-  case 2:
-    value = (value << 8) | *(*ptr)++;
-  case 1:
-    value = (value << 8) | *(*ptr)++;
+  case 4: value = (value << 8) | *(*ptr)++;
+  case 3: value = (value << 8) | *(*ptr)++;
+  case 2: value = (value << 8) | *(*ptr)++;
+  case 1: value = (value << 8) | *(*ptr)++;
   }
 
   return value;
@@ -68,14 +64,10 @@ unsigned long id3_parse_uint(id3_byte_t const **ptr, unsigned int bytes)
   assert(bytes >= 1 && bytes <= 4);
 
   switch (bytes) {
-  case 4:
-    value = (value << 8) | *(*ptr)++;
-  case 3:
-    value = (value << 8) | *(*ptr)++;
-  case 2:
-    value = (value << 8) | *(*ptr)++;
-  case 1:
-    value = (value << 8) | *(*ptr)++;
+  case 4: value = (value << 8) | *(*ptr)++;
+  case 3: value = (value << 8) | *(*ptr)++;
+  case 2: value = (value << 8) | *(*ptr)++;
+  case 1: value = (value << 8) | *(*ptr)++;
   }
 
   return value;
@@ -88,13 +80,11 @@ unsigned long id3_parse_syncsafe(id3_byte_t const **ptr, unsigned int bytes)
   assert(bytes == 4 || bytes == 5);
 
   switch (bytes) {
-  case 5:
-    value = (value << 4) | (*(*ptr)++ & 0x0f);
-  case 4:
-    value = (value << 7) | (*(*ptr)++ & 0x7f);
-    value = (value << 7) | (*(*ptr)++ & 0x7f);
-    value = (value << 7) | (*(*ptr)++ & 0x7f);
-    value = (value << 7) | (*(*ptr)++ & 0x7f);
+  case 5: value = (value << 4) | (*(*ptr)++ & 0x0f);
+  case 4: value = (value << 7) | (*(*ptr)++ & 0x7f);
+          value = (value << 7) | (*(*ptr)++ & 0x7f);
+	  value = (value << 7) | (*(*ptr)++ & 0x7f);
+	  value = (value << 7) | (*(*ptr)++ & 0x7f);
   }
 
   return value;
@@ -107,17 +97,14 @@ void id3_parse_immediate(id3_byte_t const **ptr, unsigned int bytes,
   assert(bytes == 8 || bytes == 4 || bytes == 3);
 
   switch (bytes) {
-  case 8:
-    *value++ = *(*ptr)++;
-    *value++ = *(*ptr)++;
-    *value++ = *(*ptr)++;
-    *value++ = *(*ptr)++;
-  case 4:
-    *value++ = *(*ptr)++;
-  case 3:
-    *value++ = *(*ptr)++;
-    *value++ = *(*ptr)++;
-    *value++ = *(*ptr)++;
+  case 8: *value++ = *(*ptr)++;
+          *value++ = *(*ptr)++;
+	  *value++ = *(*ptr)++;
+	  *value++ = *(*ptr)++;
+  case 4: *value++ = *(*ptr)++;
+  case 3: *value++ = *(*ptr)++;
+          *value++ = *(*ptr)++;
+	  *value++ = *(*ptr)++;
   }
 
   *value = 0;

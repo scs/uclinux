@@ -136,10 +136,15 @@ TROBJECTS= jpegtran.$(O) rdswitch.$(O) cdjpeg.$(O) transupp.$(O)
 OBJSDLL = $(LIBOBJECTS:.o=.pic.o)
 
 #all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
-ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 all:  libjpeg.$(A) libjpeg.so
+	install -d $(STAGEDIR)/usr/lib
+	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
+	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib
 else
 all:  libjpeg.$(A)
+	install -d $(STAGEDIR)/usr/lib
+	install libjpeg.$(A) libjpeg.so $(STAGEDIR)/usr/lib
 endif
 
 # Special compilation rules to support ansi2knr and libtool.
@@ -182,7 +187,7 @@ libjpeg.la:  $(LIBOBJECTS)
 		-rpath $(libdir) -version-info $(JPEG_LIB_VERSION)
 
 # libjpeg.so
-ifeq ($(CONFIG_BLACKFIN_USE_FDPIC),y)
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 libjpeg.so: $(OBJSDLL)
 	$(CC) $(CFLAGS) -shared -Wl,-soname,libjpeg.so -o libjpeg.so \
 	$(OBJSDLL) -lm -lc
@@ -229,7 +234,7 @@ install-headers: jconfig.h
 	$(INSTALL_DATA) $(srcdir)/jerror.h $(includedir)/jerror.h
 
 romfs:
-	if [ "$(CONFIG_BLACKFIN_USE_FDPIC)" = "y" ]; then \
+	if [ "$(CONFIG_FMT_USE_FDPIC_ELF)" = "y" ]; then \
 		$(ROMFSINST) libjpeg.so /lib/libjpeg.so ; \
 	fi
 

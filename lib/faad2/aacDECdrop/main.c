@@ -67,7 +67,6 @@ WriteIniFile ( const char* Filename )
 {
 	FILE* fp;
 
-			fprintf(stderr,"In faaad2 main.c:\r\n");
 	if ( (fp = fopen (Filename, "w")) == NULL )
 		return EOF;                             // could not open file
 

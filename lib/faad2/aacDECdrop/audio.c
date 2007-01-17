@@ -49,7 +49,6 @@ audio_file *open_audio_file(char *infile, int samplerate, int channels,
     aufile->fileType = fileType;
     aufile->channelMask = channelMask;
 
-			fprintf(stderr,"In audio.c audio_file: \r\n");
     switch (outputFormat)
     {
     case FAAD_FMT_16BIT:

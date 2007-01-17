@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,17 +47,14 @@ id3_length_t id3_render_immediate(id3_byte_t **ptr,
 
   if (ptr) {
     switch (bytes) {
-    case 8:
-      *(*ptr)++ = *value++;
-      *(*ptr)++ = *value++;
-      *(*ptr)++ = *value++;
-      *(*ptr)++ = *value++;
-    case 4:
-      *(*ptr)++ = *value++;
-    case 3:
-      *(*ptr)++ = *value++;
-      *(*ptr)++ = *value++;
-      *(*ptr)++ = *value++;
+    case 8: *(*ptr)++ = *value++;
+            *(*ptr)++ = *value++;
+	    *(*ptr)++ = *value++;
+	    *(*ptr)++ = *value++;
+    case 4: *(*ptr)++ = *value++;
+    case 3: *(*ptr)++ = *value++;
+            *(*ptr)++ = *value++;
+	    *(*ptr)++ = *value++;
     }
   }
 
@@ -71,13 +68,11 @@ id3_length_t id3_render_syncsafe(id3_byte_t **ptr,
 
   if (ptr) {
     switch (bytes) {
-    case 5:
-      *(*ptr)++ = (num >> 28) & 0x0f;
-    case 4:
-      *(*ptr)++ = (num >> 21) & 0x7f;
-      *(*ptr)++ = (num >> 14) & 0x7f;
-      *(*ptr)++ = (num >>  7) & 0x7f;
-      *(*ptr)++ = (num >>  0) & 0x7f;
+    case 5: *(*ptr)++ = (num >> 28) & 0x0f;
+    case 4: *(*ptr)++ = (num >> 21) & 0x7f;
+            *(*ptr)++ = (num >> 14) & 0x7f;
+	    *(*ptr)++ = (num >>  7) & 0x7f;
+	    *(*ptr)++ = (num >>  0) & 0x7f;
     }
   }
 
@@ -91,14 +86,10 @@ id3_length_t id3_render_int(id3_byte_t **ptr,
 
   if (ptr) {
     switch (bytes) {
-    case 4:
-      *(*ptr)++ = num >> 24;
-    case 3:
-      *(*ptr)++ = num >> 16;
-    case 2:
-      *(*ptr)++ = num >>  8;
-    case 1:
-      *(*ptr)++ = num >>  0;
+    case 4: *(*ptr)++ = num >> 24;
+    case 3: *(*ptr)++ = num >> 16;
+    case 2: *(*ptr)++ = num >>  8;
+    case 1: *(*ptr)++ = num >>  0;
     }
   }
 
@@ -106,17 +97,17 @@ id3_length_t id3_render_int(id3_byte_t **ptr,
 }
 
 id3_length_t id3_render_binary(id3_byte_t **ptr,
-			       id3_byte_t const *data, id3_length_t size)
+			       id3_byte_t const *data, id3_length_t length)
 {
   if (data == 0)
     return 0;
 
   if (ptr) {
-    memcpy(*ptr, data, size);
-    *ptr += size;
+    memcpy(*ptr, data, length);
+    *ptr += length;
   }
 
-  return size;
+  return length;
 }
 
 id3_length_t id3_render_latin1(id3_byte_t **ptr,
@@ -165,14 +156,14 @@ id3_length_t id3_render_string(id3_byte_t **ptr, id3_ucs4_t const *ucs4,
 }
 
 id3_length_t id3_render_padding(id3_byte_t **ptr, id3_byte_t value,
-				id3_length_t size)
+				id3_length_t length)
 {
   if (ptr) {
-    memset(*ptr, value, size);
-    *ptr += size;
+    memset(*ptr, value, length);
+    *ptr += length;
   }
 
-  return size;
+  return length;
 }
 
 /*
@@ -182,16 +173,17 @@ id3_length_t id3_render_padding(id3_byte_t **ptr, id3_byte_t value,
 id3_length_t id3_render_paddedstring(id3_byte_t **ptr, id3_ucs4_t const *ucs4,
 				     id3_length_t length)
 {
-  id3_ucs4_t padded[31], *data;
+  id3_ucs4_t padded[31], *data, *end;
 
   /* latin1 encoding only (this is used for ID3v1 fields) */
 
   assert(length <= 30);
 
   data = padded;
+  end  = data + length;
 
   if (ucs4) {
-    while (*ucs4 && length--) {
+    while (*ucs4 && end - data > 0) {
       *data++ = *ucs4++;
 
       if (data[-1] == '\n')
@@ -199,7 +191,7 @@ id3_length_t id3_render_paddedstring(id3_byte_t **ptr, id3_ucs4_t const *ucs4,
     }
   }
 
-  while (length--)
+  while (end - data > 0)
     *data++ = ' ';
 
   *data = 0;

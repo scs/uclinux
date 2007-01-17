@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,17 +26,7 @@
 # include "global.h"
 
 # include <stdlib.h>
-
-# ifdef HAVE_ZLIB_H
-#  include <zlib.h>
-# else
-int compress2(unsigned char *, unsigned long *,
-	      unsigned char const *, unsigned long, int);
-int uncompress(unsigned char *, unsigned long *,
-	       unsigned char const *, unsigned long);
-#  define Z_BEST_COMPRESSION  9
-#  define Z_OK                0
-# endif
+# include <zlib.h>
 
 # include "id3tag.h"
 # include "util.h"
@@ -118,6 +108,13 @@ id3_byte_t *id3_util_compress(id3_byte_t const *data, id3_length_t length,
 	*newlength >= length) {
       free(compressed);
       compressed = 0;
+    }
+    else {
+      id3_byte_t *resized;
+
+      resized = realloc(compressed, *newlength ? *newlength : 1);
+      if (resized)
+	compressed = resized;
     }
   }
 

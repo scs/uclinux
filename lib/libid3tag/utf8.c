@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -110,6 +110,21 @@ id3_length_t id3_utf8_size(id3_utf8_t const *utf8)
     ++ptr;
 
   return ptr - utf8 + 1;
+}
+
+/*
+ * NAME:	utf8->ucs4duplicate()
+ * DESCRIPTION:	duplicate and decode a utf8 string into ucs4
+ */
+id3_ucs4_t *id3_utf8_ucs4duplicate(id3_utf8_t const *utf8)
+{
+  id3_ucs4_t *ucs4;
+
+  ucs4 = malloc((id3_utf8_length(utf8) + 1) * sizeof(*ucs4));
+  if (ucs4)
+    id3_utf8_decode(utf8, ucs4);
+
+  return release(ucs4);
 }
 
 /*
@@ -302,20 +317,13 @@ id3_length_t id3_utf8_serialize(id3_byte_t **ptr, id3_ucs4_t const *ucs4,
 
   while (*ucs4) {
     switch (id3_utf8_encodechar(out = utf8, *ucs4++)) {
-    case 6:
-      size += id3_utf8_put(ptr, *out++);
-    case 5:
-      size += id3_utf8_put(ptr, *out++);
-    case 4:
-      size += id3_utf8_put(ptr, *out++);
-    case 3:
-      size += id3_utf8_put(ptr, *out++);
-    case 2:
-      size += id3_utf8_put(ptr, *out++);
-    case 1:
-      size += id3_utf8_put(ptr, *out++);
-    case 0:
-      break;
+    case 6: size += id3_utf8_put(ptr, *out++);
+    case 5: size += id3_utf8_put(ptr, *out++);
+    case 4: size += id3_utf8_put(ptr, *out++);
+    case 3: size += id3_utf8_put(ptr, *out++);
+    case 2: size += id3_utf8_put(ptr, *out++);
+    case 1: size += id3_utf8_put(ptr, *out++);
+    case 0: break;
     }
   }
 

@@ -22,8 +22,8 @@
 /* Define if needed */
 #undef HAVE_IN_PORT_T
 
-/* Define to 1 if you have the `mp4v2' library (-lmp4v2). */
-#undef HAVE_LIBMP4V2
+/* Define if you have C99's lrintf function. */
+#undef HAVE_LRINTF
 
 /* Define to 1 if you have the <mathf.h> header file. */
 #undef HAVE_MATHF_H
@@ -98,9 +98,11 @@
    first (like Motorola and SPARC, unlike Intel and VAX). */
 #undef WORDS_BIGENDIAN
 
-/* Define as `__inline' if that's what the C compiler calls it, or to nothing
-   if it is not supported. */
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
 #undef inline
+#endif
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t

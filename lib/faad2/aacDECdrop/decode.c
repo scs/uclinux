@@ -176,8 +176,7 @@ int decodeAACfile(char *sndfile, int def_srate, aac_dec_opt *opt)
 
     /* declare variables for buffering */
     DEC_BUFF_VARS
-	
-	fprintf(stderr,"In faaad2 decode.c:\r\n");
+
     infile = fopen(opt->filename, "rb");
     if (infile == NULL)
     {
@@ -271,11 +270,8 @@ int decodeAACfile(char *sndfile, int def_srate, aac_dec_opt *opt)
             if(opt->decode_mode == 0)
                 WIN_Play_Samples((short*)sample_buffer, frameInfo.channels*frameInfo.samples);
             else
-				{
-			fprintf(stderr,"Write_audio_file In faaad2 decode.c:\r\n");
                 write_audio_file(aufile, sample_buffer, frameInfo.samples, 0);
-        		}
-		}
+        }
 
         if (buffer_index >= fileread)
             sample_buffer = NULL; /* to make sure it stops now */

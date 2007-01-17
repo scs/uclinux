@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <gtk/gtk.h>
 #include "faad.h"
-#include "mp4.h"
+#include <mp4.h>
 
 #include <xmms/plugin.h>
 #include <xmms/util.h>
@@ -22,6 +22,9 @@
 #define MP4_ABOUT	"Written by ciberfred"
 #define BUFFER_SIZE	FAAD_MIN_STREAMSIZE*64
 
+extern void     getMP4info(char* file);
+extern int      getAACTrack(MP4FileHandle file);
+
 static void	mp4_init(void);
 static void	mp4_about(void);
 static void	mp4_play(char *);
@@ -33,6 +36,9 @@ static void	mp4_cleanup(void);
 static void	mp4_getSongInfo(char *);
 static int	mp4_isFile(char *);
 static void*	mp4Decode(void *);
+
+void getMP4info(char* file);
+int getAACTrack(MP4FileHandle file);
 
 InputPlugin mp4_ip =
   {
@@ -112,13 +118,13 @@ static int	mp4_isFile(char *filename)
     gchar*	extention;
 
     extention = strrchr(filename, '.');
-    if (extention &&
-	!strcasecmp(extention, ".mp4") ||	// official extention
-	!strcasecmp(extention, ".m4a") ||	// Apple mp4 extention
-	!strcasecmp(extention, ".aac")		// old MPEG2/4-AAC extention
-	){
-      return (1);
-    }
+
+    if (extention)
+      if( (!strcasecmp(extention, ".mp4") ||	// official extention
+           !strcasecmp(extention, ".m4a") ||	// Apple mp4 extention
+           !strcasecmp(extention, ".aac")	// old MPEG2/4-AAC extention
+        ))
+        return (1);
   }
   return(0);
 }

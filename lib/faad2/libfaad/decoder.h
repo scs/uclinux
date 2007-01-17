@@ -76,7 +76,7 @@ extern "C" {
 #define LFE_CHANNEL          (9)
 #define UNKNOWN_CHANNEL      (0)
 
-int8_t* FAADAPI faacDecGetErrorMessage(uint8_t errcode);
+char* FAADAPI faacDecGetErrorMessage(uint8_t errcode);
 
 uint32_t FAADAPI faacDecGetCapabilities(void);
 

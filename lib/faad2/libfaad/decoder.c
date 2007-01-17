@@ -50,7 +50,7 @@
 uint16_t dbg_count;
 #endif
 
-int8_t* FAADAPI faacDecGetErrorMessage(uint8_t errcode)
+char* FAADAPI faacDecGetErrorMessage(uint8_t errcode)
 {
     if (errcode >= NUM_ERROR_MESSAGES)
         return NULL;

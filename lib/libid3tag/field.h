@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@
 
 void id3_field_init(union id3_field *, enum id3_field_type);
 void id3_field_finish(union id3_field *);
-
-enum id3_field_type id3_field_type(union id3_field const *);
 
 int id3_field_parse(union id3_field *, id3_byte_t const **,
 		    id3_length_t, enum id3_field_textencoding *);

@@ -57,13 +57,13 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* The size of a `long', as computed by sizeof. */
+/* The size of `long', as computed by sizeof. */
 #undef SIZEOF_LONG
 
-/* The size of a `off_t', as computed by sizeof. */
+/* The size of `off_t', as computed by sizeof. */
 #undef SIZEOF_OFF_T
 
-/* The size of a `size_t', as computed by sizeof. */
+/* The size of `size_t', as computed by sizeof. */
 #undef SIZEOF_SIZE_T
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -94,10 +94,10 @@
 /* Define to `signed char' if <sys/types.h> does not define. */
 #undef int8_t
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
 /* Define to `unsigned short' if <sys/types.h> does not define. */

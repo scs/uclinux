@@ -1,6 +1,6 @@
 /*
  * libid3tag - ID3 tag manipulation library
- * Copyright (C) 2000-2001 Robert Leslie
+ * Copyright (C) 2000-2004 Underbit Technologies, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,13 +34,20 @@
 
 # include "id3tag.h"
 # include "field.h"
+# include "frame.h"
 # include "render.h"
 # include "ucs4.h"
 # include "latin1.h"
 # include "parse.h"
 
+/*
+ * NAME:	field->init()
+ * DESCRIPTION:	initialize a field to a default value for the given type
+ */
 void id3_field_init(union id3_field *field, enum id3_field_type type)
 {
+  assert(field);
+
   switch (field->type = type) {
   case ID3_FIELD_TYPE_TEXTENCODING:
   case ID3_FIELD_TYPE_INT8:
@@ -89,9 +96,15 @@ void id3_field_init(union id3_field *field, enum id3_field_type type)
   }
 }
 
+/*
+ * NAME:	field->finish()
+ * DESCRIPTION:	reset a field, deallocating memory if necessary
+ */
 void id3_field_finish(union id3_field *field)
 {
   unsigned int i;
+
+  assert(field);
 
   switch (field->type) {
   case ID3_FIELD_TYPE_TEXTENCODING:
@@ -148,16 +161,20 @@ void id3_field_finish(union id3_field *field)
  */
 enum id3_field_type id3_field_type(union id3_field const *field)
 {
+  assert(field);
+
   return field->type;
 }
 
 /*
  * NAME:	field->parse()
- * DESCRIPTION:	parse a field
+ * DESCRIPTION:	parse a field value
  */
 int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 		    id3_length_t length, enum id3_field_textencoding *encoding)
 {
+  assert(field);
+
   id3_field_finish(field);
 
   switch (field->type) {
@@ -315,7 +332,7 @@ int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 
 /*
  * NAME:	field->render()
- * DESCRIPTION:	render a field
+ * DESCRIPTION:	render a field value
  */
 id3_length_t id3_field_render(union id3_field const *field, id3_byte_t **ptr,
 			      enum id3_field_textencoding *encoding,
@@ -323,6 +340,8 @@ id3_length_t id3_field_render(union id3_field const *field, id3_byte_t **ptr,
 {
   id3_length_t size;
   unsigned int i;
+
+  assert(field && encoding);
 
   switch (field->type) {
   case ID3_FIELD_TYPE_INT32:
@@ -388,6 +407,8 @@ id3_length_t id3_field_render(union id3_field const *field, id3_byte_t **ptr,
  */
 int id3_field_setint(union id3_field *field, signed long number)
 {
+  assert(field);
+
   switch (field->type) {
   case ID3_FIELD_TYPE_INT8:
     if (number > 0x7f || number < -0x80)
@@ -413,6 +434,8 @@ int id3_field_setint(union id3_field *field, signed long number)
     return -1;
   }
 
+  id3_field_finish(field);
+
   field->number.value = number;
 
   return 0;
@@ -425,6 +448,8 @@ int id3_field_setint(union id3_field *field, signed long number)
 int id3_field_settextencoding(union id3_field *field,
 			      enum id3_field_textencoding encoding)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_TEXTENCODING)
     return -1;
 
@@ -459,6 +484,8 @@ int set_latin1(union id3_field *field, id3_latin1_t const *latin1)
  */
 int id3_field_setlatin1(union id3_field *field, id3_latin1_t const *latin1)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_LATIN1)
     return -1;
 
@@ -482,6 +509,8 @@ int id3_field_setlatin1(union id3_field *field, id3_latin1_t const *latin1)
  */
 int id3_field_setfulllatin1(union id3_field *field, id3_latin1_t const *latin1)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_LATIN1FULL)
     return -1;
 
@@ -514,6 +543,8 @@ int set_string(union id3_field *field, id3_ucs4_t const *string)
  */
 int id3_field_setstring(union id3_field *field, id3_ucs4_t const *string)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRING)
     return -1;
 
@@ -537,6 +568,8 @@ int id3_field_setstring(union id3_field *field, id3_ucs4_t const *string)
  */
 int id3_field_setfullstring(union id3_field *field, id3_ucs4_t const *string)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRINGFULL)
     return -1;
 
@@ -554,6 +587,8 @@ int id3_field_setstrings(union id3_field *field,
 {
   id3_ucs4_t **strings;
   unsigned int i;
+
+  assert(field);
 
   if (field->type != ID3_FIELD_TYPE_STRINGLIST)
     return -1;
@@ -592,8 +627,13 @@ int id3_field_addstring(union id3_field *field, id3_ucs4_t const *string)
 {
   id3_ucs4_t *new, **strings;
 
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRINGLIST)
     return -1;
+
+  if (string == 0)
+    string = id3_ucs4_empty;
 
   new = id3_ucs4_duplicate(string);
   if (new == 0)
@@ -618,15 +658,19 @@ int id3_field_addstring(union id3_field *field, id3_ucs4_t const *string)
  */
 int id3_field_setlanguage(union id3_field *field, char const *language)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_LANGUAGE)
     return -1;
 
   id3_field_finish(field);
 
-  if (language == 0 || strlen(language) != 3)
-    return -1;
+  if (language) {
+    if (strlen(language) != 3)
+      return -1;
 
-  strcpy(field->immediate.value, language);
+    strcpy(field->immediate.value, language);
+  }
 
   return 0;
 }
@@ -637,7 +681,10 @@ int id3_field_setlanguage(union id3_field *field, char const *language)
  */
 int id3_field_setframeid(union id3_field *field, char const *id)
 {
-  if (field->type != ID3_FIELD_TYPE_FRAMEID)
+  assert(field);
+
+  if (field->type != ID3_FIELD_TYPE_FRAMEID ||
+      !id3_frame_validid(id))
     return -1;
 
   id3_field_finish(field);
@@ -660,6 +707,8 @@ int id3_field_setbinarydata(union id3_field *field,
 {
   id3_byte_t *mem;
 
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_BINARYDATA)
     return -1;
 
@@ -671,6 +720,8 @@ int id3_field_setbinarydata(union id3_field *field,
     mem = malloc(length);
     if (mem == 0)
       return -1;
+
+    assert(data);
 
     memcpy(mem, data, length);
   }
@@ -687,6 +738,8 @@ int id3_field_setbinarydata(union id3_field *field,
  */
 signed long id3_field_getint(union id3_field const *field)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_INT8 &&
       field->type != ID3_FIELD_TYPE_INT16 &&
       field->type != ID3_FIELD_TYPE_INT24 &&
@@ -697,11 +750,56 @@ signed long id3_field_getint(union id3_field const *field)
 }
 
 /*
+ * NAME:	field->gettextencoding()
+ * DESCRIPTION:	return the value of a text encoding field
+ */
+enum id3_field_textencoding
+id3_field_gettextencoding(union id3_field const *field)
+{
+  assert(field);
+
+  if (field->type != ID3_FIELD_TYPE_TEXTENCODING)
+    return -1;
+
+  return field->number.value;
+}
+
+/*
+ * NAME:	field->getlatin1()
+ * DESCRIPTION:	return the value of a latin1 field
+ */
+id3_latin1_t const *id3_field_getlatin1(union id3_field const *field)
+{
+  assert(field);
+
+  if (field->type != ID3_FIELD_TYPE_LATIN1)
+    return 0;
+
+  return field->latin1.ptr ? field->latin1.ptr : (id3_latin1_t const *) "";
+}
+
+/*
+ * NAME:	field->getfulllatin1()
+ * DESCRIPTION:	return the value of a full latin1 field
+ */
+id3_latin1_t const *id3_field_getfulllatin1(union id3_field const *field)
+{
+  assert(field);
+
+  if (field->type != ID3_FIELD_TYPE_LATIN1FULL)
+    return 0;
+
+  return field->latin1.ptr ? field->latin1.ptr : (id3_latin1_t const *) "";
+}
+
+/*
  * NAME:	field->getstring()
  * DESCRIPTION:	return the value of a string field
  */
 id3_ucs4_t const *id3_field_getstring(union id3_field const *field)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRING)
     return 0;
 
@@ -714,6 +812,8 @@ id3_ucs4_t const *id3_field_getstring(union id3_field const *field)
  */
 id3_ucs4_t const *id3_field_getfullstring(union id3_field const *field)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRINGFULL)
     return 0;
 
@@ -726,6 +826,8 @@ id3_ucs4_t const *id3_field_getfullstring(union id3_field const *field)
  */
 unsigned int id3_field_getnstrings(union id3_field const *field)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRINGLIST)
     return 0;
 
@@ -741,15 +843,15 @@ id3_ucs4_t const *id3_field_getstrings(union id3_field const *field,
 {
   id3_ucs4_t const *string;
 
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_STRINGLIST ||
       index >= field->stringlist.nstrings)
     return 0;
 
   string = field->stringlist.strings[index];
-  if (string == 0)
-    string = id3_ucs4_empty;
 
-  return string;
+  return string ? string : id3_ucs4_empty;
 }
 
 /*
@@ -758,6 +860,8 @@ id3_ucs4_t const *id3_field_getstrings(union id3_field const *field,
  */
 char const *id3_field_getframeid(union id3_field const *field)
 {
+  assert(field);
+
   if (field->type != ID3_FIELD_TYPE_FRAMEID)
     return 0;
 
@@ -772,6 +876,8 @@ id3_byte_t const *id3_field_getbinarydata(union id3_field const *field,
 					  id3_length_t *length)
 {
   static id3_byte_t const empty;
+
+  assert(field && length);
 
   if (field->type != ID3_FIELD_TYPE_BINARYDATA)
     return 0;
