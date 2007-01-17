@@ -36,6 +36,7 @@ HOSTCC   = cc
 IMAGEDIR = $(ROOTDIR)/images
 RELDIR   = $(ROOTDIR)/release
 ROMFSDIR = $(ROOTDIR)/romfs
+STAGEDIR = $(ROOTDIR)/stage
 ROMFSINST= romfs-inst.sh
 SCRIPTSDIR = $(ROOTDIR)/config/scripts
 TFTPDIR    = /tftpboot
@@ -364,6 +365,7 @@ clean: modules_clean
 	for dir in $(LINUXDIR) $(DIRS) $(VENDDIR) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
 	rm -rf $(IMAGEDIR)/*
+	rm -rf $(STAGEDIR)/*
 	rm -f config.tk
 	rm -f $(LINUXDIR)/linux
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
