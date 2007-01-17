@@ -5,7 +5,7 @@ top_srcdir = ..
 top_builddir = ..
 MPD_CFLAGS = -Wall
 
-MPD_LIBS =   -lm  -lmad -lidtag -lz -lflac -lfaad -lmp4ff -lmodules -laudiofile -lmodules -laudiofile -lm -ltremor  
+MPD_LIBS = -lmad -lid3tag -lz -lFLAC -lfaad -lmp4ff -laudiofile -lvorbisidec -lm
 
 mpd_inputPlugins = \
 	inputPlugins/aac_plugin.c \
@@ -64,7 +64,7 @@ DEFS = -DHAVE_CONFIG_H
 
 #DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir) -I$(ROOTDIR)/uClibc/flac/include -I$(ROOTDIR)/uClibc/faad2/include -I$(ROOTDIR)/uClibc/libaudio/libaudiofile -I$(ROOTDIR)/uClibc/tremor -I$(ROOTDIR)/uClibc/libid3tag  -I$(ROOTDIR)/uClibc/libmad -I/usr/lib/local/include  -I$(ROOTDIR)/uClibc/libao-0.8.6 -I$(ROOTDIR)/uClibc/libao-0.8.6/include -I$(ROOTDIR)/glibc/debug
 
-DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir) -I$(ROOTDIR)/lib/flac/include -I$(ROOTDIR)/lib/faad2/include -I$(ROOTDIR)/lib/libaudio/libaudiofile -I$(ROOTDIR)/lib/tremor -I$(ROOTDIR)/lib/libid3tag  -I$(ROOTDIR)/lib/libmad -I/usr/lib/local/include  -I$(ROOTDIR)/lib/libao-0.8.6 -I$(ROOTDIR)/lib/libao-0.8.6/include -I$(ROOTDIR)/glibc/debug
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir) -I$(STAGEDIR)/usr/include/tremor
 
 OBJS=$(patsubst %.c,%.o, $(CSRC))
 
@@ -73,8 +73,6 @@ EXTRALIBS = $(MPD_LIBS)
 
 
 CFLAGS += $(MPD_CFLAGS)
-
-LDLIBS += -L$(ROOTDIR)/lib/lib
 
 all: $(EXEC)
 
