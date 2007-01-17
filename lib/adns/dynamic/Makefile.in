@@ -25,7 +25,7 @@ srcdir=		@srcdir@
 VPATH=		@srcdir@
 
 TARGETS=	$(SHLIBFILE) $(SHLIBSONAME) $(SHLIBFORLINK)
-include		$(srcdir)/../settings.make
+include		../settings.make
 include		$(srcdir)/../src/adns.make
 
 ALLOBJS=	$(addsuffix _p.o, $(basename $(LIBOBJS)))
@@ -48,7 +48,7 @@ $(SHLIBFILE):	$(ALLOBJS)
 		$(MKSHLIB_1) $@ $(MKSHLIB_2) $(ALLOBJS) $(LDLIBS) $(MKSHLIB_3)
 
 %_p.o:		$(srcdir)/../src/%.c $(srcdir)/../src/adns.h \
-			$(srcdir)/../src/internal.h $(srcdir)/../src/config.h
-		$(SHLIBCC) -I$(srcdir)/../src -c -o $@ $<
+			$(srcdir)/../src/internal.h ../src/config.h
+		$(SHLIBCC) -I../src -c -o $@ $<
 
 $(LIBOBJS):	

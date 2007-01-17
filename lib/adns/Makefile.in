@@ -28,12 +28,12 @@ DISTVERSION=	1.1
 srcdir=		@srcdir@
 VPATH=		@srcdir@
 
-#ENABLE_DYNAMIC=	@ENABLE_DYNAMIC@
-#ifeq ($(ENABLE_DYNAMIC),elf)
-#SUBDIRS_DYNAMIC=dynamic
-#else
+ENABLE_DYNAMIC=	@ENABLE_DYNAMIC@
+ifeq ($(ENABLE_DYNAMIC),elf)
+SUBDIRS_DYNAMIC=dynamic
+else
 SUBDIRS_DYNAMIC=
-#endif
+endif
 
 SUBDIRS= src $(SUBDIRS_DYNAMIC) 
 #client regress
@@ -73,12 +73,6 @@ check:			all
 README:			README.html
 	lynx -dump -number_links -cfg=/dev/null ./README.html >README.tmp
 	mv -f README.tmp README
-
-romfs:
-	$(ROMFSINST) client/adnshost /bin/adnshost
-	$(ROMFSINST) dynamic/libadns.so.1.0 /lib/libadns.so.1.0
-	$(ROMFSINST) -s /lib/libadns.so.1.0 /lib/libadns.so.1
-	$(ROMFSINST) -s /lib/libadns.so.1.0 /lib/libadns.so
 
 TAGS info dvi:
 	# do nothing
