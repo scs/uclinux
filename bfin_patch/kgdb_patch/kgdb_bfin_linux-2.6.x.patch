@@ -1190,7 +1190,18 @@ diff -urN trunk.bak/drivers/serial/Makefile trunk/drivers/serial/Makefile
 diff -urN trunk.bak/drivers/serial/bfin_5xx.c trunk/drivers/serial/bfin_5xx.c
 --- trunk.bak/drivers/serial/bfin_5xx.c	2007-01-16 14:58:10.000000000 +0800
 +++ trunk/drivers/serial/bfin_5xx.c	2007-01-16 16:13:05.000000000 +0800
-@@ -161,6 +161,53 @@
+@@ -52,6 +52,10 @@
+ #include <asm/cacheflush.h>
+ #endif
+ 
++#ifdef CONFIG_KGDB_UART
++#include <asm/irq_regs.h>
++#endif
++
+ /* We've been assigned a range on the "Low-density serial ports" major */
+ #define SERIAL_BFIN_MAJOR	TTY_MAJOR
+ #define MINOR_START		64
+@@ -161,6 +165,51 @@
  	local_irq_restore(flags);
  }
  
@@ -1201,40 +1212,38 @@ diff -urN trunk.bak/drivers/serial/bfin_5xx.c trunk/drivers/serial/bfin_5xx.c
 +
 +void kgdb_put_debug_char(char chr)
 +{
-+	struct bfin_serial_port *port;
++	struct bfin_serial_port *uart;
 +	
 +	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
-+		port = &bfin_serial_ports[0];
++		uart = &bfin_serial_ports[0];
 +	else
-+		port = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
++		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
 +	
-+	while (!(bfin_read16((port.membase + OFFSET_LSR) & THRE)) {
-+		CSYNC;
++	while (!(UART_GET_LSR(uart) & THRE)) {
++		__builtin_bfin_ssync();
 +	}
-+	bfin_write16(port.membase + OFFSET_LCR, 
-+		bfin_read16(port.membase + OFFSET_LCR)&(~DLAB));
++	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
 +	__builtin_bfin_ssync();
-+	bfin_write16(port.membase + OFFSET_THR, chr);
++	UART_PUT_CHAR(uart, chr);
 +	__builtin_bfin_ssync();
 +}
 +
 +int kgdb_get_debug_char(void)
 +{
-+	struct bfin_serial_port *port;
++	struct bfin_serial_port *uart;
 +	unsigned char chr;
 +
 +	if (CONFIG_KGDB_UART_PORT<0 || CONFIG_KGDB_UART_PORT>=NR_PORTS)
-+		port = &bfin_serial_ports[0];
++		uart = &bfin_serial_ports[0];
 +	else
-+		port = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
++		uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
 +	
-+	while(!(bfin_read16(port.membase + OFFSET_LSR) & DR)) {
++	while(!(UART_GET_LSR(uart) & DR)) {
 +		__builtin_bfin_ssync();
 +	}
-+	bfin_write16(port.membase + OFFSET_LCR, 
-+		bfin_read16(port.membase + OFFSET_LCR)&(~DLAB));
++	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
 +	__builtin_bfin_ssync();
-+	chr = bfin_read16(port.membase + OFFSET_RBR);
++	chr = UART_GET_CHAR(uart);
 +	__builtin_bfin_ssync();
 +
 +	return chr;
@@ -1244,18 +1253,26 @@ diff -urN trunk.bak/drivers/serial/bfin_5xx.c trunk/drivers/serial/bfin_5xx.c
  static void
  bfin_serial_rx_chars(struct bfin_serial_port *uart)
  {
-@@ -174,6 +221,27 @@
+@@ -169,11 +218,35 @@
+ #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
+ 	static int in_break = 0;
+ #endif
++#ifdef CONFIG_KGDB_UART
++	struct pt_regs *regs = get_irq_regs();
++#endif
+ 
+ 	status = UART_GET_LSR(uart);
   	ch = UART_GET_CHAR(uart);
   	uart->port.icount.rx++;
  
 +#ifdef CONFIG_KGDB_UART
 +	if (uart->port.line == CONFIG_KGDB_UART_PORT) {
-+		if (uart->port.cons && ch == 0x1) { /* Ctrl + A */
++		if (uart->port.cons->index == CONFIG_KGDB_UART_PORT && ch == 0x1) { /* Ctrl + A */
 +			kgdb_breakkey_pressed(regs);
 +			return;
 +		} else if (kgdb_entry_state == 0 && ch == 0x2b) {/* connection from KGDB */
 +			kgdb_entry_state = 1;
-+		} else if (kgdb_entry_state == 1 && ch == 0x24) {
++		} else if (kgdb_entry_state == 1 && ch == 0x30) {
 +			kgdb_entry_state = 0;
 +			kgdb_breakkey_pressed(regs);
 +			return;
@@ -1272,16 +1289,47 @@ diff -urN trunk.bak/drivers/serial/bfin_5xx.c trunk/drivers/serial/bfin_5xx.c
  #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
  	if (in_break) {
  		if (ch != 0) {
-@@ -943,6 +1011,9 @@
+@@ -844,8 +917,15 @@
+ 
+ static int __init bfin_serial_rs_console_init(void)
+ {
++#ifdef CONFIG_KGDB_UART
++	struct bfin_serial_port *uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
++#endif
+ 	bfin_serial_init_ports();
+ 	register_console(&bfin_serial_console);
++#ifdef CONFIG_KGDB_UART
++	kgdb_entry_state = 0;
++	init_kgdb_blackfin_uart();
++#endif
+ 	return 0;
+ }
+ console_initcall(bfin_serial_rs_console_init);
+@@ -932,6 +1012,9 @@
+ static int __init bfin_serial_init(void)
+ {
+ 	int ret;
++#ifdef CONFIG_KGDB_UART
++	struct bfin_serial_port *uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
++#endif
+ 
+ 	pr_info("Serial: Blackfin serial driver\n");
+ 
+@@ -945,6 +1028,15 @@
  			uart_unregister_driver(&bfin_serial_reg);
  		}
  	}
 +#ifdef CONFIG_KGDB_UART
-+	kgdb_entry_state = 0;
++	if (uart->port.cons->index != CONFIG_KGDB_UART_PORT) {
++		request_irq(uart->port.irq, bfin_serial_int,
++			SA_INTERRUPT | SA_SHIRQ,"BFIN_UART_RX", uart);
++		pr_info("Request irq for kgdb uart port\n");
++		UART_PUT_IER(uart, UART_GET_IER(uart) | ERBFI);
++		__builtin_bfin_ssync();
++	}
 +#endif
  	return ret;
  }
- 
 diff -urN trunk.bak/drivers/serial/kgdb_bfin_uart.c trunk/drivers/serial/kgdb_bfin_uart.c
 --- trunk.bak/drivers/serial/kgdb_bfin_uart.c	1970-01-01 08:00:00.000000000 +0800
 +++ trunk/drivers/serial/kgdb_bfin_uart.c	2007-01-16 15:01:49.000000000 +0800
