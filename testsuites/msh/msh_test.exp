@@ -33,6 +33,7 @@ while 1 {
      }
 }
 
+sleep 10
 set timeout 10
 set case_num 0
 

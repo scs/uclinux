@@ -7,6 +7,8 @@ if { $argc >= 1} {
    set targetip           [lindex $argv 0]
 }
 
+set timeout 30
+
 spawn /bin/sh
 
 while (1) {
