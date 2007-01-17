@@ -69,10 +69,14 @@ while 1 {
 expect ">"
 send -s "set bootargs $bootargs\r"
 expect ">"
+send -s "set serverip $serverip\r"
+expect ">"
+send -s "set ipaddr $targetip\r"
+expect ">"
 send -s "save\r"
 expect ">"
 
-send -s "tftpboot 0x2000000 linux\r"
+send -s "tftpboot $bootaddr_high linux\r"
 while 1 {
 	expect {	
 	    -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
@@ -83,7 +87,21 @@ while 1 {
 
             timeout {
                 send_user "Fail to tftp download linux image."
-                exit
+		# if tftpboot from high bootaddr failed, try to reload image from low bootaddr
+                send -s "tftpboot $bootaddr_low linux\r"
+                while 1 {
+	           expect {	
+	              -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
+			 set image_size $expect_out(1,string)
+			 send_user "Image size is $image_size\n"
+		         break
+		      }
+                      timeout {
+                         send_user "Fail to tftp download linux image."
+                         exit 
+                      }
+                   }
+                }
             }	
 	}
 }
