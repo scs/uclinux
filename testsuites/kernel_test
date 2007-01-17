@@ -327,7 +327,7 @@ do
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
   else
  	sleep 30
-	if [ ${AUTO_TESTCASE[$i]} == "jffs2" ] ; then	
+	if [ ${AUTO_TESTCASE[$i]} == "jffs2" ] || [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then	
 	  ./flash_images.exp >/dev/null  2>&1
 	  sleep 30 
 	fi
@@ -363,6 +363,7 @@ do
   cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}  
   
   cd $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}
+  sleep 30
   ./boot_kernel_only_uimage_test.exp  >/dev/null  2>&1
   cp $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}/boot_kernel_only_uimage_test_log $THIS_LOG
 

@@ -9,6 +9,7 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
+set bootargs  $bootargs_param1
 source ../reboot_kernel.exp
 
 step "Starting test."
@@ -16,25 +17,6 @@ step "Starting test."
 set case_num 0
 
 incr case_num
-
-set timeout 8
-set flag 0
-send "ifconfig eth0 $targetip\r"
-while 1 {
-   sleep 3
-   expect {
-      ">" {
-         set flag 1
-         puts "ifconfig set success.\n"
-         break
-      }
-
-      timeout {
-            puts "Fail ifconfig. "
-            break
-         }
-     }
-}
 
 send "cd /bin\r"
 while 1 {
