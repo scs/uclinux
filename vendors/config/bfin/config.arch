@@ -75,7 +75,7 @@ ifdef UCLINUX_BUILD_LIB
 	CFLAGS  :=  -O2
   endif
 	CFLAGS  += -pipe
-	CFLAGS  += -fno-common -fno-builtin -Wall #-Werror
+	CFLAGS  += -fno-builtin -Wall #-fno-common -Werror
 	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
   ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
 	CFLAGS  += -mstack-check-l1
