@@ -105,6 +105,7 @@
 /dev/rtc	c	664	0	0	10	135	0	0	-
 /dev/spi	c	664	0	0	252	0	0	0	-
 /dev/pf		c	664	0	0	253	0	0	1	16
+/dev/pg		c	664	0	0	253	16	0	1	16
 /dev/input/event c	664	0	0	13	64	0	1	1
 /dev/usb/mouse c	664	0	0	180	16	0	1	1
 /dev/ppi	c	664	0	0	241	0	0	1	1
