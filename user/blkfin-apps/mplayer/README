@@ -1,6 +1,10 @@
 The README describe steps to build MPlayer-1.0rc1 on Blackfin, and use the
 mplayer to play vedio files on BF537-STAMP board.
 
+Tested Media files: AVI, QuickTime-MOV
+Tested video decoder: ffmpeg mpeg4, ffmpeg h264
+Tested audio decoder: libmad(mp3), faad(AAC) 
+
 Build kernel and toolchain
 -----------------------------
 1. Check out uclinux-dist and kernel
@@ -90,7 +94,7 @@ Setup the Hardware
 
 Play movie
 -----------------
-1. Prepare media file, you can use bellow command to convert an media file to QVGA size.
+1. Prepare media file, you can use bellow command to convert an media file to proper size.
 
 #!/bin/sh 
 
