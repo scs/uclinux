@@ -144,11 +144,10 @@ if { $board_type == "BF537-STAMP" } {
 
 	if { $TransRate > 4000 && $Throughput > 85 } {
 	
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	
 	} else {
-		send_log "\nCase $case_num ...FAIL\n"		
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 	
@@ -156,11 +155,10 @@ if { $board_type == "BF537-STAMP" } {
 
 	if { $TransRate > 4000 && $Throughput > 55 } {
 	
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	
 	} else {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 		
 	}

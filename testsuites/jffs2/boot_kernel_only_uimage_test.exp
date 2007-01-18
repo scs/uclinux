@@ -41,14 +41,13 @@ incr case_num
   	expect {
             "root:~>" {
 	    send_user "\nEnding boot_kernel_only_uimage.exp \n"  
-	    send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	    break
 	    }	      
 	     
              timeout {
 	     send_user "failed tftp_boot attempt\n"
-	     send_log "\nCase $case_num ...FAIL\n"
-	     send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	     exit
 	     }
 	   }   

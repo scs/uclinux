@@ -32,7 +32,7 @@ while 1 {
 
 	"mtd2" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	}
 
 	 "root:~>" {
@@ -41,8 +41,7 @@ while 1 {
 
 
 	timeout {
-	    	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -64,13 +63,12 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 
 	timeout {
-	   	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -104,13 +102,12 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 	
 	timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -131,13 +128,12 @@ while 1 {
                                                                                                                                                              
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -156,20 +152,18 @@ while 1 {
     expect {
 	
 	"differ" {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 
 	"No such file or directory" {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 
 	timeout {
 		set mtd_results $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
     }

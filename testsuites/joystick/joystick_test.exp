@@ -25,13 +25,12 @@ expect {
 -re "ad7142_js_attach" {
 
 	puts "\nmodule insert success.\n"
-	send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	break
 }
 
 timeout {
-	send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
 	}
 }
@@ -46,13 +45,12 @@ expect {
 "ad7142" {
 
 	puts "\nmodule ls success.\n"
-	send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	break
 }
 
 timeout {
-	send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
 	}
 }
@@ -81,12 +79,11 @@ while 1 {
          puts "\nPlease touch the Joystick board...\n"	 
 	 expect {
 		-re "Event: time .* type .* code .* value " { 
-		 	send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 			}
 		
 		timeout {                           
-			send_log "\nCase $case_num ...FAIL\n"
-			send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 			exit
 			}
 		}
@@ -96,8 +93,7 @@ while 1 {
       }
 
       timeout {                           
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -112,13 +108,12 @@ send -s "rmmod ad7142\r"
 while 1 {
    expect {
       "root:/bin>" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -130,13 +125,12 @@ send -s "lsmod\r"
 while 1 {
    expect {
       "root:/bin>" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }

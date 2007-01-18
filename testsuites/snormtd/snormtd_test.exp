@@ -32,13 +32,12 @@ while 1 {
 	"mtd3" {
 		set mtd_temp_result $TEST_PASS
 		expect "root:~>"
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 
 	timeout {
-	    	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -54,13 +53,12 @@ while 1 {
     expect {    
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -75,13 +73,12 @@ while 1 {
     expect {    
         "home" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -99,13 +96,12 @@ while 1 {
     expect {    
         ">" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -127,13 +123,12 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 
 	timeout {
-	   	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -166,13 +161,12 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 	
 	timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -192,13 +186,12 @@ while 1 {
     expect {    
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -216,13 +209,12 @@ send -s "cmp /rootfs/test /mnt/test\r"
 while 1 {
     expect {
 	"differ" {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 	timeout {
 		set mtd_results $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
     }

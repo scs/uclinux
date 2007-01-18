@@ -43,13 +43,12 @@ while 1 {
    expect {
       "join b succeeded 0" {         
          send_log "Run ex1 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -62,13 +61,12 @@ while 1 {
    expect {
       "> 9999" {         
          send_log "Run ex2 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -81,13 +79,12 @@ while 1 {
    expect {
     -re  "It took .*tries to find the number" {         
          send_log "Run ex3 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -100,13 +97,12 @@ while 1 {
    expect {
      -re "Thread .* freeing buffer at .*" {         
          send_log "Run ex4 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -119,13 +115,12 @@ while 1 {
    expect {
       "> 9999" {         
          send_log "Run ex5 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -138,13 +133,12 @@ while 1 {
    expect {
       "count = 1999" {         
          send_log "Run ex6 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -157,13 +151,12 @@ while 1 {
    expect {
      -re "waiting .*count = 19" {         
          send_log "Run ex7 finished.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }

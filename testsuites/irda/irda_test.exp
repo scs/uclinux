@@ -43,7 +43,7 @@ while 1 {
 
          timeout {
 		send_log "Fail to boot into uClinux.\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -60,7 +60,7 @@ while 1 {
 
          timeout {
 		send_log "Fail to spawn sh.\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -87,8 +87,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -103,7 +102,7 @@ while 1 {
 
          timeout {
 		send_log "Fail to enable irda on host.\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -117,7 +116,7 @@ while 1 {
 
          timeout {
 		send_log "Fail to enable irda on host.\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -132,8 +131,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
 	}
   }
@@ -146,8 +144,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -160,8 +157,7 @@ send -s "irattach $target_irdadev -s -b&\r\n"
 while 1 {
    expect {
 	"> Invalid" {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
 	}
 	"> " {
@@ -170,8 +166,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -182,13 +177,12 @@ send -s "ifconfig\r\n"
 while 1 {
    expect {
 	"irda0" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
 	}
   }
@@ -201,8 +195,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -217,8 +210,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -233,8 +225,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -247,8 +238,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -263,8 +253,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -277,8 +266,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -290,8 +278,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -299,13 +286,12 @@ while 1 {
 while 1 {
    expect {
 	-re "> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -322,8 +308,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -338,8 +323,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -349,13 +333,12 @@ set spawn_id $shell_spawn_id
 while 1 {
    expect {
 	"slabinfo" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -364,13 +347,12 @@ while 1 {
 while 1 {
    expect {
 	"size" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -383,7 +365,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -400,8 +382,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -415,8 +396,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -425,13 +405,12 @@ send -s "stty -F $target_irdadev\r\n"
 while 1 {
    expect {
 	"speed" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }

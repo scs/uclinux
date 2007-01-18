@@ -25,13 +25,12 @@ send "dmesg\r"
 while 1 {
    expect {
      -re "hda.*CD/DVD-ROM drive" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -44,13 +43,12 @@ send "mount -t iso9660 /dev/hda /mnt\r"
 while 1 {
    expect {
       ">" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -62,13 +60,12 @@ send "ls -al /mnt\r"
 while 1 {
    expect {
       ">" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -79,13 +76,12 @@ send "time cat /mnt/setup.exe > /dev/null\r"
 while 1 {
    expect {
      -re "real.*user.*sys" {
-                send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
                 break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit
          }
      }
@@ -98,13 +94,12 @@ while 1 {
    expect {
      -re "Model=.*Config=.*AdvancedPM.*" {
                 sleep 1
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -115,13 +110,12 @@ send "cat /proc/filesystems\r"
 while 1 {
    expect {
      -re "msdos.*vfat.*iso9660" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -132,13 +126,12 @@ send "df\r"
 while 1 {
    expect {
       "/dev/hda" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -151,13 +144,12 @@ while 1 {
       -re "\[0-9a-z]+  /mnt/setup.exe" {
                 sleep 3
                 send "\3"
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }
@@ -168,13 +160,12 @@ send "umount /mnt\r"
 while 1 {
    expect {
       ">" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
       }
 
       timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit      
          }
      }

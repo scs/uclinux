@@ -90,7 +90,7 @@ set timeout 10
 send "cat /proc/driver/pflags\r" 
 while 1 {
    expect {
-      "root:~>" {
+      "root:/bin>" {
          set flag 1
          send_log "\npflags test success.\n"
          break

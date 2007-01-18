@@ -91,13 +91,12 @@ send -s "$STRDATA\r"
 while 1 {
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -109,13 +108,12 @@ while 1 {
    send -s "\3"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -127,13 +125,12 @@ while 1 {
    send -s "ls\r"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -152,8 +149,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -162,12 +158,11 @@ while 1 {
 while 1 {
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -183,8 +178,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -195,12 +189,11 @@ while 1 {
    send -s "\3"
    expect {
 	"> " {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -217,13 +210,12 @@ send -s "====================================\r"
 while 1 {
    expect {
 	"=========: not found" {
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -239,8 +231,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -262,8 +253,7 @@ while 1 {
 	"x" {
 	}
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
       }
@@ -291,13 +281,12 @@ while 1 {
 		send -s ":q!\r"
 		sleep 2
 		send -s "\r"
-		send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rCase $case_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }

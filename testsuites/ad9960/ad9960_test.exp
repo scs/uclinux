@@ -57,8 +57,7 @@ while 1 {
 				
 			}
 			 timeout {				
-				send_log "\nCase $case_num ...FAIL\n"
-				send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 				exit
 				}
 			}			
@@ -75,7 +74,7 @@ while 1 {
 			
 		if { $num == 1000 } {
 		puts "\nad9960 test success.\n"
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 		}
 	 
@@ -83,14 +82,12 @@ while 1 {
       }    
 
      "ERROR" {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
 	 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }

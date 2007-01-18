@@ -58,13 +58,12 @@ while 1 {
       -re "\[0-9]+" {
          set flag 1
          puts "\nportmap run success.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -77,13 +76,12 @@ send -s "mount -o nolock,rsize=1024,wsize=1024 -t nfs $serverip:$uclinux_path/ro
 while 1 {
    expect {
        "root:~>" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -96,13 +94,12 @@ while 1 {
    expect {
        "home" {         
          puts "******* nfs mount  success.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -116,13 +113,12 @@ while 1 {
    expect {
        ">" {         
          puts "nfs umount.\n"
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -135,13 +131,12 @@ send -s "ls /mnt\r"
 while 1 {
    expect {
        "home" {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
       }
 
       timeout {
-        send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
         break
          }
      }

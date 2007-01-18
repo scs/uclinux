@@ -163,13 +163,13 @@ spawn fl-run-test test_Simple.py
 while 1 {
    expect {
       "rcp ok! Start webserver test" {
-	 send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
             send_log "pound test fail to exit. "
-            send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
             exit
          }
      }
@@ -179,12 +179,12 @@ incr case_num
 while 1 {
          expect {
          -re "Ran .* test in .*s.*OK" {
-	   send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
            break 
          }
          timeout {
            send_log "pound test fail to exit. "
-           send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
            exit
          }
       } 

@@ -26,13 +26,12 @@ while 1 {
 expect {
         -re "ioctl.*time" {
                 expect "exit(0)"
-                send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
                 break
 
         }
         timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit
         }
  }
@@ -44,13 +43,12 @@ while 1 {
 expect {
         -re "ioctl.*getcwd" {
                 expect "exit(0)"
-                send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
                 break
 
         }
         timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit
         }
   }
@@ -62,12 +60,11 @@ while 1 {
 expect {
         -re "ioctl.*lstat" {
                 expect "exit(0)"
-                send_log "\rCase $case_num ...PASS\r"
+                case_pass $case_num
                 break
         }
         timeout {
-                send_log "\rCase $case_num ...FAIL\r"
-                send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
                 exit
         }
   }

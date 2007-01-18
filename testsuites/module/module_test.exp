@@ -29,14 +29,13 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			-re ".* registered" {
-				send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 				puts "\nmodule insert success.\n"
 				break
 			}
 			
 			timeout {
-				send_log "\nCase $case_num ...FAIL\n"
-				send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 				exit
 				}
 			}
@@ -49,14 +48,13 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			"bfin_mac" {
-				send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 				puts "\nmodule ls success.\n"
 				break
 			}
 			
 			timeout {
-				send_log "\nCase $case_num ...FAIL\n"
-				send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 				exit
 				}
 			}
@@ -70,14 +68,13 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			"eth0: Ethernet addr" {
-				send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 				puts "\nmodule insert success.\n"
 				break
 			}
 			
 			timeout {
-				send_log "\nCase $case_num ...FAIL\n"
-				send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 				exit
 				}
 			}
@@ -90,14 +87,13 @@ if { $board_type == "BF537-STAMP" } {
 			while 1 {
 			expect {
 			"smc91x" {
-				send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 				puts "\nmodule ls success.\n"
 				break
 			}
 			
 			timeout {
-				send_log "\nCase $case_num ...FAIL\n"
-				send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 				exit
 				}
 			}
@@ -112,13 +108,12 @@ while 1 {
    sleep 3
    expect {
       "~>" { 
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {                           
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -147,13 +142,12 @@ while 1 {
       "icmp_seq" { 
        sleep 10
        send "\003"
-       send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {                           
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -170,13 +164,12 @@ if { $board_type == "BF537-STAMP" } {
 	while 1 {
 	expect {
 	"root:~>" {
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 	
 	timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 		}
 	}
@@ -188,13 +181,12 @@ if { $board_type == "BF537-STAMP" } {
 	while 1 {
 	expect {
 	"root:~>" {    
-		send_log "\nCase $case_num ...PASS\n"   
+                case_pass $case_num
 		break
 	}
 	
 	timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 		}
 	}
@@ -210,19 +202,17 @@ while 1 {
    expect {
    
       "bfin_mac" { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
 	 
       "root:~>" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
       
       timeout { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -234,19 +224,17 @@ while 1 {
    expect {
    
       "smc91x" { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
 	 
       "root:~>" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout { 
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }

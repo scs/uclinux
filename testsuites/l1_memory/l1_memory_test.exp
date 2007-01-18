@@ -28,13 +28,12 @@ while 1 {
 	   ]*bss  variable addr = 0xff80\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0*\[
 	   ]*data variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], data value is 2*\[
 	   ]*bss  variable addr = 0xff90\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f], bss value is 0" {
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	 }
 	  
 	  timeout {
-	   send_log "\nCase $case_num ...FAIL\n"
-	   send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	   exit
 	 }
 	 }
@@ -48,13 +47,12 @@ while 1 {
    expect {
      -re "hello" {
         
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -72,13 +70,12 @@ while 1 {
    expect {
    
       "hello" {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
 	 
      timeout {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
      

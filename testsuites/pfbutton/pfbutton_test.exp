@@ -47,8 +47,7 @@ while 1 {
       }
 
       timeout {
-          send_log "\nCase $case_num ...FAIL\n"
-          send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
           exit
          }
      }
@@ -60,13 +59,12 @@ set timeout 3600
 while 1 {
    expect {
      -re  "Event. Type.*Take a look LED_MUTE .* on.* off.*Event. Type" {
-           send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
            break
       }
 
       timeout {            
-	  send_log "\nCase $case_num ...FAIL\n"
-          send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
           exit
 
          }
@@ -81,13 +79,12 @@ set timeout 3600
 while 1 {
    expect {
      -re  "Event. Type.*Hear SND_BELL .* on.* off.*Event. Type" {
-           send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
            break
       }
 
       timeout {            
-	  send_log "\nCase $case_num ...FAIL\n"
-          send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
           exit
 
          }
@@ -102,13 +99,12 @@ set timeout 3600
 while 1 {
    expect {
      -re  "Event. Type.*Take a look LED_MISC .* on.* off.*Event. Type" {
-           send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
            break
       }
 
       timeout {            
-	  send_log "\nCase $case_num ...FAIL\n"
-          send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
           exit
 
          }
@@ -125,13 +121,12 @@ set timeout 3600
 while 1 {
    expect {
      -re  "Event. Type.*Take a look LED_SUSPEND .* on.* off.*Event. Type" {
-           send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
            break
       }
 
       timeout {            
-	  send_log "\nCase $case_num ...FAIL\n"
-          send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
           exit
 
          }
@@ -149,7 +144,7 @@ while 1 {
 
       timeout {
             send_log "pfbutton test fail to exit. "
-	    send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
             exit
          }
      }

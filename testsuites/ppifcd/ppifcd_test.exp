@@ -59,13 +59,12 @@ send "./ppifcd_test -b $board_num \r"
 while 1 {
    expect {
       "Total Frame Capture Time" {         
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -79,13 +78,12 @@ while 1 {
    expect {
      -re "Total Frame Capture Time.*Total Frame Capture Time.*Total Frame Capture Time" {
         
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -98,13 +96,12 @@ send "ppifcd_test -b $board_num -c3 /var/img.bmp\r"
 while 1 {
    expect {
      -re "Saved" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }
@@ -117,13 +114,12 @@ send "time ppifcd_test -b $board_num -c100 \r"
 while 1 {
    expect {
      -re "real.*user.*sys" {
-         send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
          break
       }
 
       timeout {
-        send_log "\nCase $case_num ...FAIL\n"
-	send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 	exit
          }
      }

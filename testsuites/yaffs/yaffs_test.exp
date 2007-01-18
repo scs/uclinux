@@ -341,13 +341,12 @@ send -s "modprobe yaffs\r"
 while 1 {
     expect {
         -re "yaffs.*Installing" {
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
                 break;
         }
 
         timeout {
-            	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -361,13 +360,12 @@ send -s "modprobe mtdchar\r"
 while 1 {
     expect {
         -re ">" {
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
                 break;
         }
 
         timeout {
-            	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -381,13 +379,12 @@ while 1 {
     expect {
         -re "NAND device.*Creating .* MTD partitions" {
 		expect ">"
-                send_log "\nCase $case_num ...PASS\n"	
+                case_pass $case_num
                 break;
         }
 
         timeout {
-            	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -401,14 +398,13 @@ while 1 {
     expect {
 
         -re "yaffs" {
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		expect ">"
                 break;
         }
 
         timeout {
-            	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -428,7 +424,7 @@ while 1 {
 
 	"mtd2" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 	}
 
 	 "root:~>" {
@@ -437,8 +433,7 @@ while 1 {
 
 
 	timeout {
-	    	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -457,13 +452,12 @@ while 1 {
 	
 	"root:~>" {
 		set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
 
 	timeout {
-	   	send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
     }
@@ -489,13 +483,12 @@ while 1 {
                                                                                                                                                              
         "root:~>" {
                 set mtd_temp_result $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
         }
                                                                                                                                                              
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -510,13 +503,12 @@ send -s "cp /bin/pwd /mnt\r"
 while 1 {
     expect {
         "root:~>" {
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
                 break
         }
 
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -535,13 +527,12 @@ while 1 {
       -re "\[0-9a-z]+  /mnt/pwd" {
                 sleep 3
                 send "\3"
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
                 break
       }
 
       timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
      }
@@ -556,13 +547,12 @@ while 1 {
     expect {
 
         ">" {
-                send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
                 break
         }
 
         timeout {
-                send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
         }
     }
@@ -577,13 +567,12 @@ while 1 {
     expect {
 	
 	"differ" {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 	timeout {
 		set mtd_results $TEST_PASS
-		send_log "\nCase $case_num ...PASS\n"
+                case_pass $case_num
 		break
 	}
     }

@@ -39,7 +39,7 @@ while 1 {
 	}
 
          timeout {
-	 	send_log "$TITLE ............FAIL\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -50,8 +50,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -62,8 +61,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -74,8 +72,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -86,8 +83,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -98,8 +94,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -110,8 +105,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -122,8 +116,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -134,8 +127,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -146,8 +138,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -158,8 +149,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -170,8 +160,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -182,8 +171,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -194,8 +182,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -206,8 +193,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -218,8 +204,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -230,8 +215,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -242,8 +226,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -265,8 +248,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -279,8 +261,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -293,8 +274,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -307,8 +287,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -321,8 +300,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -335,8 +313,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -349,8 +326,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -360,8 +336,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -372,8 +347,7 @@ while 1 {
 	}
 
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -383,8 +357,7 @@ while 1 {
 	}
 	
          timeout {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
          }
    }
@@ -392,8 +365,7 @@ while 1 {
    sleep 5
    expect {
 	"Input/output error" {
-		send_log "\nCase $case_num ...FAIL\n"
-		send_log "$TITLE ............\[FAIL\]\n"
+                case_fail $case_num
 		exit
 	}
 	

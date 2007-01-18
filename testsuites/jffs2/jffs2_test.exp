@@ -20,7 +20,7 @@ send_log "*********************************\r"
 
 send -s "reset\r"
 
-for {set reboot_num 0} {$reboot_num < $count} {incr reboot_num} {
+for {set case_num 0} {$case_num < $count} {incr case_num} {
 
 
 set timeout 5
@@ -41,8 +41,7 @@ while 1 {
          break
       }
 	timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
 	}
    }
@@ -63,12 +62,12 @@ set timeout 30
 while 1 {
    expect {
 	"> " {
+                case_pass $case_num
 		break
 	}
 
          timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
@@ -82,13 +81,11 @@ send -s "\r\r"
 while 1 {
    expect {
 	">" {
-		send_log "\rReboot $reboot_num ...PASS\r"
 		break
 	}
 
          timeout {
-		send_log "\rReboot $reboot_num ...FAIL\r"
-		send_log "$TITLE ............\[FAIL\]\r"
+                case_fail $case_num
 		exit
          }
    }
