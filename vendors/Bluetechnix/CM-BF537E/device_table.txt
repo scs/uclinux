@@ -71,6 +71,8 @@
 /dev/ttyS0	c	755	0	0	4	64	0	0	-
 /dev/ttyS1	c	755	0	0	4	65	0	0	-
 /dev/ttyUSB c	664	0	0	188	0	0	1	1
+/dev/ttySS0	c	664	0	0	204	84	0	0	-
+/dev/ttySS1	c	664	0	0	204	85	0	0	-
 /dev/psaux	c	640	0	0	10	1	0	0	-
 /dev/rtc	c	640	0	0	10	135	0	0	-
 /dev/dpmc	c	640	0	0	10	254	0	0	-
@@ -79,6 +81,7 @@
 /dev/can	c	666	0	0	91	0	0	1	1
 #/dev/coreb	c	640	0	0	10	229	0	0	-
 /dev/ircomm	c	666	0	0	161	0	0	1	2
+/dev/ts		c	666	0	0	13	128	0	0	0
 
 # Adjust permissions on some normal files
 #/etc/shadow	f	600	0	0	-	-	-	-	-
@@ -114,6 +117,7 @@
 /dev/mmc	b	660	0	0	36	1	1	1	4
 /dev/sport0	c	660	0	0	237	0	0	0	-
 /dev/sport1	c	660	0	0	237	1	0	0	-
+/dev/timer	c	660	0	0	238	0	0	1	8
 
 # IDE Devices
 /dev/hda	b	640	0	0	3	0	0	0	-
