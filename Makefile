@@ -398,12 +398,12 @@ distclean: mrproper
 		echo "vendors/$(@:_config=)/config.device must exist first"; \
 		exit 1; \
 	fi
-	if [ `grep CONFIG_VENDOR .config | awk -F = '{print $$2}'` == `grep CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F = '{print $$2}'` -a \
-	`grep CONFIG_LINUXDIR .config | awk -F = '{print $$2}'` == `grep CONFIG_LINUXDIR  vendors/$(@:_config=)/config.device | awk -F = '{print $$2}'` -a \
-	`grep -e "TARGET_.*=y" ./uClibc/.config` == ` grep -e  "TARGET_.*=y" vendors/$(@:_config=)/config.uClibc` ] ; then \
-		make -C linux-2.6.x distclean > /dev/null 2>&1 ; \
-	else  \
-		make distclean > /dev/null 2>&1 ; \
+	if [ "`grep -s CONFIG_VENDOR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
+	   [ "`grep -s CONFIG_LINUXDIR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_LINUXDIR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
+	   [ "`grep -s -e 'TARGET_.*=y' ./uClibc/.config`" = "`grep -s -e 'TARGET_.*=y' vendors/$(@:_config=)/config.uClibc`" ] ; then \
+		make -s -C linux-2.6.x distclean ; \
+	else \
+		make -s distclean ; \
 	fi
 	cp vendors/$(@:_config=)/config.device .config
 	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
