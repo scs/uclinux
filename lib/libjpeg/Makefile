@@ -144,7 +144,7 @@ all:  libjpeg.$(A) libjpeg.so
 else
 all:  libjpeg.$(A)
 	install -d $(STAGEDIR)/usr/lib
-	install libjpeg.$(A) libjpeg.so $(STAGEDIR)/usr/lib
+	install libjpeg.$(A) $(STAGEDIR)/usr/lib
 endif
 
 # Special compilation rules to support ansi2knr and libtool.
