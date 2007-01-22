@@ -149,6 +149,9 @@ python$(EXE):		$(LIBRARY) buildno Modules/python.o
 			prefix="$(prefix)" exec_prefix="$(exec_prefix)" \
 			LIBRARY=../$(LDLIBRARY) link
 
+romfs:
+	$(ROMFSINST) /bin/python
+
 Modules/python.o: $(srcdir)/Modules/python.c
 		cd Modules; $(MAKE) OPT="$(OPT)" python.o
 
@@ -549,6 +552,10 @@ smelly: all
 		nm -p $$i/lib$$i.a | \
 		sed -n "/ [TDB] /s/.* //p" | grep -v "^_*Py" | sort -u; \
 	done
+
+# If we're installing python the add the libraries to allow cgis.
+build-romfs:
+	cp Lib/coldfire/* $(ROMFS)/home/httpd/cgi-bin/.
 
 # Find files with funny names
 funny:

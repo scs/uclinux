@@ -532,7 +532,7 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if you have the <fcntl.h> header file.  */
-/* #undef HAVE_FCNTL_H */
+#define HAVE_FCNTL_H 1
 
 /* Define if you have the <gdbm/ndbm.h> header file.  */
 /* #undef HAVE_GDBM_NDBM_H */
@@ -636,20 +636,5 @@
 /* Changes made in porting to the Motorola Coldfire */
 #define WITHOUT_COMPLEX 1
 /* #undef  HAVE_DYNAMIC_LOADING */
-#define Py_LONGOBJECT_H
-#define Py_LONGINTREPR_H   
 #define WITH_COMPILE 0
 #define WITH_GETPATH 0
-#define PyLong_Type
-#define PyLong_AsLong
-#define PyLong_FromLong
-#define PyLong_FromString
-#define PyLong_AsLongLong
-#define PyLong_Type
-#define _PyLong_New
-#define PyLong_FromLongLong
-#define PyLong_FromDouble
-#define PyLong_FromUnicode
-#define PyLong_FromVoidPtr
-#define PyLong_Check
-#define PyLongObject

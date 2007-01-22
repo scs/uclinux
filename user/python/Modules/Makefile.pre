@@ -29,7 +29,7 @@ SGI_ABI=
 FLTFLAGS+= 	-s 50000
 
 DEFS=		-DHAVE_CONFIG_H
-LIBS=		
+#LIBS=		-lpthread -ldl  -lutil
 #LIBM=		-lm
 LIBC=		
 

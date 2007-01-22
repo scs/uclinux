@@ -30,7 +30,7 @@ SGI_ABI=
 FLTFLAGS+= 	-s 50000
 
 DEFS=		-DHAVE_CONFIG_H
-LIBS=		
+#LIBS=		-lpthread -ldl  -lutil
 #LIBM=		-lm
 LIBC=		
 
@@ -143,7 +143,7 @@ link:		$(MAINOBJ)
 		$(LDLIBRARY) $(MODLIBS) $(LIBS) $(SYSLIBS) $(LDLAST) $(LDLIBS)
 		: $(CONVERT)
 		mv $@ ../python$(EXE)
-		mv $@.gdb ../python$(EXE).gdb
+		[ -f $@.gdb ] && mv $@.gdb ../python$(EXE).gdb
 #$(LINKCC) $(LDFLAGS) $(LINKFORSHARED) $(MAINOBJ) \
 #$(LDLIBRARY) $(MODLIBS) $(LIBS) $(SYSLIBS) -o python$(EXE) $(LDLAST)
 #mv python$(EXE) ../python$(EXE)

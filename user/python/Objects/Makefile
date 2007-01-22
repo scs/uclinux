@@ -28,20 +28,18 @@ SHELL=		/bin/sh
 
 # === Fixed definitions ===
 #		classobject.o cobject.o complexobject.o \
-#		longobject.o dictobject.o methodobject.o \
 
 OBJS=		abstract.o bufferobject.o \
 		classobject.o cobject.o \
 		fileobject.o floatobject.o \
 		frameobject.o funcobject.o intobject.o listobject.o \
-		dictobject.o methodobject.o \
+		longobject.o dictobject.o methodobject.o \
 		moduleobject.o object.o rangeobject.o \
 		sliceobject.o stringobject.o \
 		tupleobject.o typeobject.o \
 		unicodeobject.o unicodectype.o
 
 #		classobject.c cobject.c complexobject.c \
-#		longobject.c dictobject.c methodobject.c \
 
 SRCS=		abstract.c bufferobject.c \
 		classobject.c cobject.c \
@@ -91,7 +89,7 @@ frameobject.o: frameobject.c
 funcobject.o: funcobject.c
 intobject.o: intobject.c
 listobject.o: listobject.c
-#longobject.o: longobject.c
+longobject.o: longobject.c
 dictobject.o: dictobject.c
 methodobject.o: methodobject.c
 moduleobject.o: moduleobject.c
