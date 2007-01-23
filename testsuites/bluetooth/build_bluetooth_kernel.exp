@@ -79,22 +79,32 @@ while 1 {
       -re "HIDP protocol support.*BT_HIDP.*\\\[.*]" {
          send "y\r"
       }
-
-      -re "HCI UART driver.*BT_HCIUART.*\\\[.*]" {
+      -re "HCI USB driver.*BT_HCIUSB.*\\\[.*]" {
+         send "y\r"
+      }
+      -re "SCO.*voice.*support.*BT_HCIUSB_SCO.*\\\[.*]" {
          send "y\r"
       }
 
-      -re "UART (H4) protocol support.*BT_HCIUART_H4.*\\\[.*]" {
-         send "y\r"
-      }
 
-      -re "BCSP protocol support.*BT_HCIUART_BCSP.*\\\[.*]" {
-         send "y\r"
-      }
 
-      -re "HCI VHCI (Virtual HCI device) driver.*BT_HCIVHCI.*\\\[.*]" {
-         send "y\r"
-      }
+#      -re "HCI UART driver.*BT_HCIUART.*\\\[.*]" {
+#         send "y\r"
+#      }
+
+#      -re "UART.*H4.*protocol support.*BT_HCIUART_H4.*\\\[.*]" {
+#        send "y\r"
+#    }
+#
+#     -re "BCSP protocol support.*BT_HCIUART_BCSP.*\\\[.*]" {
+#       send "y\r"
+#   }
+
+#  -re "HCI VHCI.*Virtual HCI device.*driver.*BT_HCIVHCI.*\\\[.*]" {
+
+#    send "y\r"
+
+#    }
 
       -re "Support for Host-side USB.*USB.*\\\[.*]" {
          send "y\r"
@@ -110,7 +120,7 @@ while 1 {
       }
 
        "\\\(*) \\\[*]" {
-	sleep .01
+	sleep .04
          send "\r"
       }
 

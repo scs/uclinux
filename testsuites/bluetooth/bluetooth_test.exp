@@ -15,7 +15,7 @@ source ../reboot_kernel.exp
 step "Start testing."
 
 set MST_BD_ADDR			"00:10:60:D0:8C:41"	
-set SLV_BD_ADDR			"11:11:11:11:11:11"
+set SLV_BD_ADDR			"10:11:11:11:11:11"
 
 set case_num		0
 

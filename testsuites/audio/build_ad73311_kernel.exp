@@ -13,10 +13,10 @@ source  make_default_config.exp
 
 # Following make specific configuration for this case.
 
-step "Apply ad73311 config patch."
+#step "Apply ad73311 config patch."
 
-cd $uclinux_path/linux-2.6.x
-exec patch -p1 < ../testsuites/audio/ad73311_config_patch
+#cd $uclinux_path/linux-2.6.x
+#exec patch -p1 < ../testsuites/audio/ad73311_config_patch
 
 sleep 3
 
@@ -44,47 +44,62 @@ while 1 {
              send "y\r"
       }
 
-#           -re "Sound card support.*SOUND.*\\\[.*]" {
-#             send "Y\r"
-#             
-#      }
-#   
-#          -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-#             
-#             send "Y\r"
-#             
-#      }
-#      
-#          -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
-#             
-#             send "Y\r"
-#             
-#      }
-#      
-#          -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-#             
-#             send "Y\r"
-#             
-#      }
-#
-#          -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS.*\\\[.*]" {
-#             
-#             send "Y\r"
-#             
-#      }
-#      
-#          -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-#             
-#             send "N\r"
-#             
-#      }
-#
-#          -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-#
-#             send "Y\r"
-#      }
+      -re "Sound card support.*SOUND.*\\\[.*]" {
+             send "Y\r"
+             
+      }
+   
+          -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+             
+             send "Y\r"
+             
+      }
+      
+          -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+             
+             send "Y\r"
+             
+      }
+       
+	-re "Sequencer dummy client.*SND_SEQ_DUMMY.*\\\[.*]" {
 
-          -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+             send "N\r"
+
+      }
+
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+
+             send "Y\r"
+
+      }
+
+          -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+
+             send "Y\r"
+
+      }
+          -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+
+             send "N\r"
+
+      }
+#     -re "TDM interface.*SND_BLACKFIN_AD1836_TDM.*\\\[.*]" {
+#
+#            send "N\r"
+#
+#     }
+#        -re "3 Stereos.*SND_BLACKFIN_AD1836_MULSUB.*\\\[.*]" {
+#
+#            send "1\r"
+#
+#     }
+          -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+
+             send "Y\r"
+
+      }
+          
+	-re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
              
              send "Y\r"
              
@@ -102,7 +117,7 @@ while 1 {
       }
 
        "\\\(*) \\\[*]" {
-	   
+	   sleep .01
 	     send "\r"
       }
 
