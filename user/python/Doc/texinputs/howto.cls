@@ -6,11 +6,13 @@
 \ProvidesClass{howto}
              [1998/02/25 Document class (Python HOWTO)]
 
+\RequirePackage{pypaper}
+\RequirePackage{fancybox}
 
 % Change the options here to get a different set of basic options,  This
 % is where to add things like "a4paper" or "10pt".
 %
-\LoadClass[twoside]{article}
+\LoadClass[\py@paper,\py@ptsize,twoside]{article}
 
 \setcounter{secnumdepth}{1}
 
@@ -48,7 +50,8 @@
 %
 \renewcommand{\maketitle}{
   \py@doHorizontalRule
-  \@ifundefined{pdfinfo}{}{{
+  \ifpdf
+    \begingroup
     % This \def is required to deal with multi-line authors; it
     % changes \\ to ', ' (comma-space), making it pass muster for
     % generating document info in the PDF file.
@@ -57,10 +60,11 @@
       /Author (\@author)
       /Title (\@title)
     }
-  }}
+    \endgroup
+  \fi
   \begin{flushright}
     {\rm\Huge\py@HeaderFamily \@title} \par
-    {\em\large\py@HeaderFamily \py@release} \par
+    {\em\large\py@HeaderFamily \py@release\releaseinfo} \par
     \vspace{25pt}
     {\Large\py@HeaderFamily \@author} \par
     \vspace{25pt}

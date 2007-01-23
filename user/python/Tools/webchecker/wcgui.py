@@ -10,17 +10,17 @@ Checkpoints are not (yet???  ever???) supported.
 
 User interface:
 
-Enter a root to check in the text entry box.  To enter more than one root, 
+Enter a root to check in the text entry box.  To enter more than one root,
 enter them one at a time and press <Return> for each one.
 
-Command buttons Start, Stop and "Check one" govern the checking process in 
-the obvious way.  Start and "Check one" also enter the root from the text 
+Command buttons Start, Stop and "Check one" govern the checking process in
+the obvious way.  Start and "Check one" also enter the root from the text
 entry box if one is present.  There's also a check box (enabled by default)
 to decide whether actually to follow external links (since this can slow
 the checking down considerably).  Finally there's a Quit button.
 
-A series of checkbuttons determines whether the corresponding output panel 
-is shown.  List panels are also automatically shown or hidden when their 
+A series of checkbuttons determines whether the corresponding output panel
+is shown.  List panels are also automatically shown or hidden when their
 status changes between empty to non-empty.  There are six panels:
 
 Log        -- raw output from the checker (-v, -q affect this)
@@ -60,7 +60,6 @@ XXX The multipanel user interface is clumsy.
 
 import sys
 import getopt
-import string
 from Tkinter import *
 import tktools
 import webchecker
@@ -86,7 +85,7 @@ def main():
     extra_roots = []
     for o, a in opts:
         if o == '-m':
-            webchecker.maxpage = string.atoi(a)
+            webchecker.maxpage = int(a)
         if o == '-q':
             webchecker.verbose = 0
         if o == '-v':
@@ -169,7 +168,7 @@ class CheckerWindow(webchecker.Checker):
         self.root_seed = None
         webchecker.Checker.__init__(self)
         if root:
-            root = string.strip(str(root))
+            root = str(root).strip()
             if root:
                 self.suggestroot(root)
         self.newstatus()
@@ -189,7 +188,7 @@ class CheckerWindow(webchecker.Checker):
 
     def enterroot(self, event=None):
         root = self.__rootentry.get()
-        root = string.strip(root)
+        root = root.strip()
         if root:
             self.__checking.config(text="Adding root "+root)
             self.__checking.update_idletasks()
@@ -353,7 +352,7 @@ class ListPanel:
     def selectedindices(self):
         l = self.list.curselection()
         if not l: return []
-        return map(string.atoi, l)
+        return map(int, l)
 
     def insert(self, url):
         if url not in self.items:

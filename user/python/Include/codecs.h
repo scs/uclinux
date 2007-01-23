@@ -23,7 +23,7 @@ Copyright (c) Corporation for National Research Initiatives.
 
    The search_function's refcount is incremented by this function. */
 
-extern DL_IMPORT(int) PyCodec_Register(
+PyAPI_FUNC(int) PyCodec_Register(
        PyObject *search_function
        );
 
@@ -45,7 +45,7 @@ extern DL_IMPORT(int) PyCodec_Register(
 
  */
 
-extern DL_IMPORT(PyObject *) _PyCodec_Lookup(
+PyAPI_FUNC(PyObject *) _PyCodec_Lookup(
        const char *encoding
        );
 
@@ -59,7 +59,7 @@ extern DL_IMPORT(PyObject *) _PyCodec_Lookup(
 
  */
 
-extern DL_IMPORT(PyObject *) PyCodec_Encode(
+PyAPI_FUNC(PyObject *) PyCodec_Encode(
        PyObject *object,
        const char *encoding,
        const char *errors
@@ -75,7 +75,7 @@ extern DL_IMPORT(PyObject *) PyCodec_Encode(
 
  */
 
-extern DL_IMPORT(PyObject *) PyCodec_Decode(
+PyAPI_FUNC(PyObject *) PyCodec_Decode(
        PyObject *object,
        const char *encoding,
        const char *errors
@@ -91,19 +91,19 @@ extern DL_IMPORT(PyObject *) PyCodec_Decode(
 
 /* Get an encoder function for the given encoding. */
 
-extern DL_IMPORT(PyObject *) PyCodec_Encoder(
+PyAPI_FUNC(PyObject *) PyCodec_Encoder(
        const char *encoding
        );
 
 /* Get a decoder function for the given encoding. */
 
-extern DL_IMPORT(PyObject *) PyCodec_Decoder(
+PyAPI_FUNC(PyObject *) PyCodec_Decoder(
        const char *encoding
        );
 
 /* Get a StreamReader factory function for the given encoding. */
 
-extern DL_IMPORT(PyObject *) PyCodec_StreamReader(
+PyAPI_FUNC(PyObject *) PyCodec_StreamReader(
        const char *encoding,
        PyObject *stream,
        const char *errors
@@ -111,11 +111,41 @@ extern DL_IMPORT(PyObject *) PyCodec_StreamReader(
 
 /* Get a StreamWriter factory function for the given encoding. */
 
-extern DL_IMPORT(PyObject *) PyCodec_StreamWriter(
+PyAPI_FUNC(PyObject *) PyCodec_StreamWriter(
        const char *encoding,
        PyObject *stream,
        const char *errors
        );
+
+/* Unicode encoding error handling callback registry API */
+
+/* Register the error handling callback function error under the name
+   name. This function will be called by the codec when it encounters
+   unencodable characters/undecodable bytes and doesn't know the
+   callback name, when name is specified as the error parameter
+   in the call to the encode/decode function.
+   Return 0 on success, -1 on error */
+PyAPI_FUNC(int) PyCodec_RegisterError(const char *name, PyObject *error);
+
+/* Lookup the error handling callback function registered under the
+   name error. As a special case NULL can be passed, in which case
+   the error handling callback for "strict" will be returned. */
+PyAPI_FUNC(PyObject *) PyCodec_LookupError(const char *name);
+
+/* raise exc as an exception */
+PyAPI_FUNC(PyObject *) PyCodec_StrictErrors(PyObject *exc);
+
+/* ignore the unicode error, skipping the faulty input */
+PyAPI_FUNC(PyObject *) PyCodec_IgnoreErrors(PyObject *exc);
+
+/* replace the unicode error with ? or U+FFFD */
+PyAPI_FUNC(PyObject *) PyCodec_ReplaceErrors(PyObject *exc);
+
+/* replace the unicode encode error with XML character references */
+PyAPI_FUNC(PyObject *) PyCodec_XMLCharRefReplaceErrors(PyObject *exc);
+
+/* replace the unicode encode error with backslash escapes (\x, \u and \U) */
+PyAPI_FUNC(PyObject *) PyCodec_BackslashReplaceErrors(PyObject *exc);
 
 #ifdef __cplusplus
 }

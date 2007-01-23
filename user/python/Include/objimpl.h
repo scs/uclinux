@@ -1,3 +1,6 @@
+/* The PyObject_ memory family:  high-level object memory interfaces.
+   See pymem.h for the low-level PyMem_ family.
+*/
 
 #ifndef Py_OBJIMPL_H
 #define Py_OBJIMPL_H
@@ -8,135 +11,132 @@
 extern "C" {
 #endif
 
+/* BEWARE:
+
+   Each interface exports both functions and macros.  Extension modules should
+   use the functions, to ensure binary compatibility across Python versions.
+   Because the Python implementation is free to change internal details, and
+   the macros may (or may not) expose details for speed, if you do use the
+   macros you must recompile your extensions with each Python release.
+
+   Never mix calls to PyObject_ memory functions with calls to the platform
+   malloc/realloc/ calloc/free, or with calls to PyMem_.
+*/
+
 /*
 Functions and macros for modules that implement new object types.
-You must first include "object.h".
 
- - PyObject_New(type, typeobj) allocates memory for a new object of
-   the given type; here 'type' must be the C structure type used to
-   represent the object and 'typeobj' the address of the corresponding
-   type object.  Reference count and type pointer are filled in; the
-   rest of the bytes of the object are *undefined*!  The resulting
-   expression type is 'type *'.  The size of the object is actually
-   determined by the tp_basicsize field of the type object.
+ - PyObject_New(type, typeobj) allocates memory for a new object of the given
+   type, and initializes part of it.  'type' must be the C structure type used
+   to represent the object, and 'typeobj' the address of the corresponding
+   type object.  Reference count and type pointer are filled in; the rest of
+   the bytes of the object are *undefined*!  The resulting expression type is
+   'type *'.  The size of the object is determined by the tp_basicsize field
+   of the type object.
 
- - PyObject_NewVar(type, typeobj, n) is similar but allocates a
-   variable-size object with n extra items.  The size is computed as
-   tp_basicsize plus n * tp_itemsize.  This fills in the ob_size field
-   as well.
+ - PyObject_NewVar(type, typeobj, n) is similar but allocates a variable-size
+   object with room for n items.  In addition to the refcount and type pointer
+   fields, this also fills in the ob_size field.
 
- - PyObject_Del(op) releases the memory allocated for an object.
+ - PyObject_Del(op) releases the memory allocated for an object.  It does not
+   run a destructor -- it only frees the memory.  PyObject_Free is identical.
 
- - PyObject_Init(op, typeobj) and PyObject_InitVar(op, typeobj, n) are
-   similar to PyObject_{New, NewVar} except that they don't allocate
-   the memory needed for an object. Instead of the 'type' parameter,
-   they accept the pointer of a new object (allocated by an arbitrary
-   allocator) and initialize its object header fields.
+ - PyObject_Init(op, typeobj) and PyObject_InitVar(op, typeobj, n) don't
+   allocate memory.  Instead of a 'type' parameter, they take a pointer to a
+   new object (allocated by an arbitrary allocator), and initialize its object
+   header fields.
 
-Note that objects created with PyObject_{New, NewVar} are allocated
-within the Python heap by an object allocator, the latter being
-implemented (by default) on top of the Python raw memory
-allocator. This ensures that Python keeps control on the user's
-objects regarding their memory management; for instance, they may be
-subject to automatic garbage collection.
+Note that objects created with PyObject_{New, NewVar} are allocated using the
+specialized Python allocator (implemented in obmalloc.c), if WITH_PYMALLOC is
+enabled.  In addition, a special debugging allocator is used if PYMALLOC_DEBUG
+is also #defined.
 
-In case a specific form of memory management is needed, implying that
-the objects would not reside in the Python heap (for example standard
-malloc heap(s) are mandatory, use of shared memory, C++ local storage
-or operator new), you must first allocate the object with your custom
-allocator, then pass its pointer to PyObject_{Init, InitVar} for
-filling in its Python-specific fields: reference count, type pointer,
-possibly others. You should be aware that Python has very limited
-control over these objects because they don't cooperate with the
-Python memory manager. Such objects may not be eligible for automatic
-garbage collection and you have to make sure that they are released
-accordingly whenever their destructor gets called (cf. the specific
+In case a specific form of memory management is needed (for example, if you
+must use the platform malloc heap(s), or shared memory, or C++ local storage or
+operator new), you must first allocate the object with your custom allocator,
+then pass its pointer to PyObject_{Init, InitVar} for filling in its Python-
+specific fields:  reference count, type pointer, possibly others.  You should
+be aware that Python no control over these objects because they don't
+cooperate with the Python memory manager.  Such objects may not be eligible
+for automatic garbage collection and you have to make sure that they are
+released accordingly whenever their destructor gets called (cf. the specific
 form of memory management you're using).
 
-Unless you have specific memory management requirements, it is
-recommended to use PyObject_{New, NewVar, Del}. */
-
-/* 
- * Core object memory allocator
- * ============================
- */
-
-/* The purpose of the object allocator is to make the distinction
-   between "object memory" and the rest within the Python heap.
-   
-   Object memory is the one allocated by PyObject_{New, NewVar}, i.e.
-   the one that holds the object's representation defined by its C
-   type structure, *excluding* any object-specific memory buffers that
-   might be referenced by the structure (for type structures that have
-   pointer fields).  By default, the object memory allocator is
-   implemented on top of the raw memory allocator.
-
-   The PyCore_* macros can be defined to make the interpreter use a
-   custom object memory allocator. They are reserved for internal
-   memory management purposes exclusively. Both the core and extension
-   modules should use the PyObject_* API. */
-
-#ifndef PyCore_OBJECT_MALLOC_FUNC
-#undef PyCore_OBJECT_REALLOC_FUNC
-#undef PyCore_OBJECT_FREE_FUNC
-#define PyCore_OBJECT_MALLOC_FUNC    PyCore_MALLOC_FUNC
-#define PyCore_OBJECT_REALLOC_FUNC   PyCore_REALLOC_FUNC
-#define PyCore_OBJECT_FREE_FUNC      PyCore_FREE_FUNC
-#endif
-
-#ifndef PyCore_OBJECT_MALLOC_PROTO
-#undef PyCore_OBJECT_REALLOC_PROTO
-#undef PyCore_OBJECT_FREE_PROTO
-#define PyCore_OBJECT_MALLOC_PROTO   PyCore_MALLOC_PROTO
-#define PyCore_OBJECT_REALLOC_PROTO  PyCore_REALLOC_PROTO
-#define PyCore_OBJECT_FREE_PROTO     PyCore_FREE_PROTO
-#endif
-
-#ifdef NEED_TO_DECLARE_OBJECT_MALLOC_AND_FRIEND
-extern void *PyCore_OBJECT_MALLOC_FUNC PyCore_OBJECT_MALLOC_PROTO;
-extern void *PyCore_OBJECT_REALLOC_FUNC PyCore_OBJECT_REALLOC_PROTO;
-extern void PyCore_OBJECT_FREE_FUNC PyCore_OBJECT_FREE_PROTO;
-#endif
-
-#ifndef PyCore_OBJECT_MALLOC
-#undef PyCore_OBJECT_REALLOC
-#undef PyCore_OBJECT_FREE
-#define PyCore_OBJECT_MALLOC(n)      PyCore_OBJECT_MALLOC_FUNC(n)
-#define PyCore_OBJECT_REALLOC(p, n)  PyCore_OBJECT_REALLOC_FUNC((p), (n))
-#define PyCore_OBJECT_FREE(p)        PyCore_OBJECT_FREE_FUNC(p)
-#endif
+Unless you have specific memory management requirements, use
+PyObject_{New, NewVar, Del}.
+*/
 
 /*
  * Raw object memory interface
  * ===========================
  */
 
-/* The use of this API should be avoided, unless a builtin object
-   constructor inlines PyObject_{New, NewVar}, either because the
-   latter functions cannot allocate the exact amount of needed memory,
-   either for speed. This situation is exceptional, but occurs for
-   some object constructors (PyBuffer_New, PyList_New...).  Inlining
-   PyObject_{New, NewVar} for objects that are supposed to belong to
-   the Python heap is discouraged. If you really have to, make sure
-   the object is initialized with PyObject_{Init, InitVar}. Do *not*
-   inline PyObject_{Init, InitVar} for user-extension types or you
-   might seriously interfere with Python's memory management. */
+/* Functions to call the same malloc/realloc/free as used by Python's
+   object allocator.  If WITH_PYMALLOC is enabled, these may differ from
+   the platform malloc/realloc/free.  The Python object allocator is
+   designed for fast, cache-conscious allocation of many "small" objects,
+   and with low hidden memory overhead.
 
-/* Functions */
+   PyObject_Malloc(0) returns a unique non-NULL pointer if possible.
 
-/* Wrappers around PyCore_OBJECT_MALLOC and friends; useful if you
-   need to be sure that you are using the same object memory allocator
-   as Python. These wrappers *do not* make sure that allocating 0
-   bytes returns a non-NULL pointer. Returned pointers must be checked
-   for NULL explicitly; no action is performed on failure. */
-extern DL_IMPORT(void *) PyObject_Malloc(size_t);
-extern DL_IMPORT(void *) PyObject_Realloc(void *, size_t);
-extern DL_IMPORT(void) PyObject_Free(void *);
+   PyObject_Realloc(NULL, n) acts like PyObject_Malloc(n).
+   PyObject_Realloc(p != NULL, 0) does not return  NULL, or free the memory
+   at p.
+
+   Returned pointers must be checked for NULL explicitly; no action is
+   performed on failure other than to return NULL (no warning it printed, no
+   exception is set, etc).
+
+   For allocating objects, use PyObject_{New, NewVar} instead whenever
+   possible.  The PyObject_{Malloc, Realloc, Free} family is exposed
+   so that you can exploit Python's small-block allocator for non-object
+   uses.  If you must use these routines to allocate object memory, make sure
+   the object gets initialized via PyObject_{Init, InitVar} after obtaining
+   the raw memory.
+*/
+PyAPI_FUNC(void *) PyObject_Malloc(size_t);
+PyAPI_FUNC(void *) PyObject_Realloc(void *, size_t);
+PyAPI_FUNC(void) PyObject_Free(void *);
+
 
 /* Macros */
-#define PyObject_MALLOC(n)           PyCore_OBJECT_MALLOC(n)
-#define PyObject_REALLOC(op, n)      PyCore_OBJECT_REALLOC((void *)(op), (n))
-#define PyObject_FREE(op)            PyCore_OBJECT_FREE((void *)(op))
+#ifdef WITH_PYMALLOC
+#ifdef PYMALLOC_DEBUG
+PyAPI_FUNC(void *) _PyObject_DebugMalloc(size_t nbytes);
+PyAPI_FUNC(void *) _PyObject_DebugRealloc(void *p, size_t nbytes);
+PyAPI_FUNC(void) _PyObject_DebugFree(void *p);
+PyAPI_FUNC(void) _PyObject_DebugDumpAddress(const void *p);
+PyAPI_FUNC(void) _PyObject_DebugCheckAddress(const void *p);
+PyAPI_FUNC(void) _PyObject_DebugMallocStats(void);
+#define PyObject_MALLOC		_PyObject_DebugMalloc
+#define PyObject_Malloc		_PyObject_DebugMalloc
+#define PyObject_REALLOC	_PyObject_DebugRealloc
+#define PyObject_Realloc	_PyObject_DebugRealloc
+#define PyObject_FREE		_PyObject_DebugFree
+#define PyObject_Free		_PyObject_DebugFree
+
+#else	/* WITH_PYMALLOC && ! PYMALLOC_DEBUG */
+#define PyObject_MALLOC		PyObject_Malloc
+#define PyObject_REALLOC	PyObject_Realloc
+#define PyObject_FREE		PyObject_Free
+#endif
+
+#else	/* ! WITH_PYMALLOC */
+#define PyObject_MALLOC		PyMem_MALLOC
+#define PyObject_REALLOC	PyMem_REALLOC
+/* This is an odd one!  For backward compatibility with old extensions, the
+   PyMem "release memory" functions have to invoke the object allocator's
+   free() function.  When pymalloc isn't enabled, that leaves us using
+   the platform free(). */
+#define PyObject_FREE		free
+
+#endif	/* WITH_PYMALLOC */
+
+#define PyObject_Del		PyObject_Free
+#define PyObject_DEL		PyObject_FREE
+
+/* for source compatibility with 2.2 */
+#define _PyObject_Del		PyObject_Free
 
 /*
  * Generic object allocator interface
@@ -144,18 +144,16 @@ extern DL_IMPORT(void) PyObject_Free(void *);
  */
 
 /* Functions */
-extern DL_IMPORT(PyObject *) PyObject_Init(PyObject *, PyTypeObject *);
-extern DL_IMPORT(PyVarObject *) PyObject_InitVar(PyVarObject *,
+PyAPI_FUNC(PyObject *) PyObject_Init(PyObject *, PyTypeObject *);
+PyAPI_FUNC(PyVarObject *) PyObject_InitVar(PyVarObject *,
                                                  PyTypeObject *, int);
-extern DL_IMPORT(PyObject *) _PyObject_New(PyTypeObject *);
-extern DL_IMPORT(PyVarObject *) _PyObject_NewVar(PyTypeObject *, int);
-extern DL_IMPORT(void) _PyObject_Del(PyObject *);
+PyAPI_FUNC(PyObject *) _PyObject_New(PyTypeObject *);
+PyAPI_FUNC(PyVarObject *) _PyObject_NewVar(PyTypeObject *, int);
 
 #define PyObject_New(type, typeobj) \
 		( (type *) _PyObject_New(typeobj) )
 #define PyObject_NewVar(type, typeobj, n) \
 		( (type *) _PyObject_NewVar((typeobj), (n)) )
-#define PyObject_Del(op) _PyObject_Del((PyObject *)(op))
 
 /* Macros trading binary compatibility for speed. See also pymem.h.
    Note that these macros expect non-NULL object pointers.*/
@@ -165,18 +163,37 @@ extern DL_IMPORT(void) _PyObject_Del(PyObject *);
 	( (op)->ob_size = (size), PyObject_INIT((op), (typeobj)) )
 
 #define _PyObject_SIZE(typeobj) ( (typeobj)->tp_basicsize )
-#define _PyObject_VAR_SIZE(typeobj, n) \
-	( (typeobj)->tp_basicsize + (n) * (typeobj)->tp_itemsize )
+
+/* _PyObject_VAR_SIZE returns the number of bytes (as size_t) allocated for a
+   vrbl-size object with nitems items, exclusive of gc overhead (if any).  The
+   value is rounded up to the closest multiple of sizeof(void *), in order to
+   ensure that pointer fields at the end of the object are correctly aligned
+   for the platform (this is of special importance for subclasses of, e.g.,
+   str or long, so that pointers can be stored after the embedded data).
+
+   Note that there's no memory wastage in doing this, as malloc has to
+   return (at worst) pointer-aligned memory anyway.
+*/
+#if ((SIZEOF_VOID_P - 1) & SIZEOF_VOID_P) != 0
+#   error "_PyObject_VAR_SIZE requires SIZEOF_VOID_P be a power of 2"
+#endif
+
+#define _PyObject_VAR_SIZE(typeobj, nitems)	\
+	(size_t)				\
+	( ( (typeobj)->tp_basicsize +		\
+	    (nitems)*(typeobj)->tp_itemsize +	\
+	    (SIZEOF_VOID_P - 1)			\
+	  ) & ~(SIZEOF_VOID_P - 1)		\
+	)
 
 #define PyObject_NEW(type, typeobj) \
 ( (type *) PyObject_Init( \
 	(PyObject *) PyObject_MALLOC( _PyObject_SIZE(typeobj) ), (typeobj)) )
+
 #define PyObject_NEW_VAR(type, typeobj, n) \
 ( (type *) PyObject_InitVar( \
-	(PyVarObject *) PyObject_MALLOC( _PyObject_VAR_SIZE((typeobj),(n)) ),\
-	(typeobj), (n)) )
-
-#define PyObject_DEL(op) PyObject_FREE(op)
+      (PyVarObject *) PyObject_MALLOC(_PyObject_VAR_SIZE((typeobj),(n)) ),\
+      (typeobj), (n)) )
 
 /* This example code implements an object constructor with a custom
    allocator, where PyObject_New is inlined, and shows the important
@@ -194,9 +211,7 @@ extern DL_IMPORT(void) _PyObject_Del(PyObject *);
        if (op == NULL)
            return PyErr_NoMemory();
 
-       op = PyObject_Init(op, &YourTypeStruct);
-       if (op == NULL)
-           return NULL;
+       PyObject_Init(op, &YourTypeStruct);
 
        op->ob_field = value;
        ...
@@ -205,64 +220,119 @@ extern DL_IMPORT(void) _PyObject_Del(PyObject *);
 
    Note that in C++, the use of the new operator usually implies that
    the 1st step is performed automatically for you, so in a C++ class
-   constructor you would start directly with PyObject_Init/InitVar. */
+   constructor you would start directly with PyObject_Init/InitVar
+*/
 
 /*
  * Garbage Collection Support
  * ==========================
  */
 
-/* To make a new object participate in garbage collection use
-   PyObject_{New, VarNew, Del} to manage the memory.  Set the type flag
-   Py_TPFLAGS_GC and define the type method tp_recurse.  You should also
-   add the method tp_clear if your object is mutable.  Include
-   PyGC_HEAD_SIZE in the calculation of tp_basicsize.  Call
-   PyObject_GC_Init after the pointers followed by tp_recurse become
-   valid (usually just before returning the object from the allocation
-   method.  Call PyObject_GC_Fini before those pointers become invalid
-   (usually at the top of the deallocation method).  */
+/* C equivalent of gc.collect(). */
+PyAPI_FUNC(long) PyGC_Collect(void);
 
-#ifndef WITH_CYCLE_GC
+/* Test if a type has a GC head */
+#define PyType_IS_GC(t) PyType_HasFeature((t), Py_TPFLAGS_HAVE_GC)
 
+/* Test if an object has a GC head */
+#define PyObject_IS_GC(o) (PyType_IS_GC((o)->ob_type) && \
+	((o)->ob_type->tp_is_gc == NULL || (o)->ob_type->tp_is_gc(o)))
+
+PyAPI_FUNC(PyVarObject *) _PyObject_GC_Resize(PyVarObject *, int);
+#define PyObject_GC_Resize(type, op, n) \
+		( (type *) _PyObject_GC_Resize((PyVarObject *)(op), (n)) )
+
+/* for source compatibility with 2.2 */
+#define _PyObject_GC_Del PyObject_GC_Del
+
+/* GC information is stored BEFORE the object structure. */
+typedef union _gc_head {
+	struct {
+		union _gc_head *gc_next;
+		union _gc_head *gc_prev;
+		int gc_refs;
+	} gc;
+	long double dummy;  /* force worst-case alignment */
+} PyGC_Head;
+
+extern PyGC_Head *_PyGC_generation0;
+
+#define _Py_AS_GC(o) ((PyGC_Head *)(o)-1)
+
+#define _PyGC_REFS_UNTRACKED			(-2)
+#define _PyGC_REFS_REACHABLE			(-3)
+#define _PyGC_REFS_TENTATIVELY_UNREACHABLE	(-4)
+
+/* Tell the GC to track this object.  NB: While the object is tracked the
+ * collector it must be safe to call the ob_traverse method. */
+#define _PyObject_GC_TRACK(o) do { \
+	PyGC_Head *g = _Py_AS_GC(o); \
+	if (g->gc.gc_refs != _PyGC_REFS_UNTRACKED) \
+		Py_FatalError("GC object already tracked"); \
+	g->gc.gc_refs = _PyGC_REFS_REACHABLE; \
+	g->gc.gc_next = _PyGC_generation0; \
+	g->gc.gc_prev = _PyGC_generation0->gc.gc_prev; \
+	g->gc.gc_prev->gc.gc_next = g; \
+	_PyGC_generation0->gc.gc_prev = g; \
+    } while (0);
+
+/* Tell the GC to stop tracking this object.
+ * gc_next doesn't need to be set to NULL, but doing so is a good
+ * way to provoke memory errors if calling code is confused.
+ */
+#define _PyObject_GC_UNTRACK(o) do { \
+	PyGC_Head *g = _Py_AS_GC(o); \
+	assert(g->gc.gc_refs != _PyGC_REFS_UNTRACKED); \
+	g->gc.gc_refs = _PyGC_REFS_UNTRACKED; \
+	g->gc.gc_prev->gc.gc_next = g->gc.gc_next; \
+	g->gc.gc_next->gc.gc_prev = g->gc.gc_prev; \
+	g->gc.gc_next = NULL; \
+    } while (0);
+
+PyAPI_FUNC(PyObject *) _PyObject_GC_Malloc(size_t);
+PyAPI_FUNC(PyObject *) _PyObject_GC_New(PyTypeObject *);
+PyAPI_FUNC(PyVarObject *) _PyObject_GC_NewVar(PyTypeObject *, int);
+PyAPI_FUNC(void) PyObject_GC_Track(void *);
+PyAPI_FUNC(void) PyObject_GC_UnTrack(void *);
+PyAPI_FUNC(void) PyObject_GC_Del(void *);
+
+#define PyObject_GC_New(type, typeobj) \
+		( (type *) _PyObject_GC_New(typeobj) )
+#define PyObject_GC_NewVar(type, typeobj, n) \
+		( (type *) _PyObject_GC_NewVar((typeobj), (n)) )
+
+
+/* Utility macro to help write tp_traverse functions.
+ * To use this macro, the tp_traverse function must name its arguments
+ * "visit" and "arg".  This is intended to keep tp_traverse functions
+ * looking as much alike as possible.
+ */
+#define Py_VISIT(op)					\
+        do { 						\
+                if (op) {				\
+                        int vret = visit((op), arg);	\
+                        if (vret)			\
+                                return vret;		\
+                }					\
+        } while (0)
+
+/* This is here for the sake of backwards compatibility.  Extensions that
+ * use the old GC API will still compile but the objects will not be
+ * tracked by the GC. */
 #define PyGC_HEAD_SIZE 0
 #define PyObject_GC_Init(op)
 #define PyObject_GC_Fini(op)
 #define PyObject_AS_GC(op) (op)
 #define PyObject_FROM_GC(op) (op)
- 
-#else
 
-/* Add the object into the container set */
-extern DL_IMPORT(void) _PyGC_Insert(PyObject *);
 
-/* Remove the object from the container set */
-extern DL_IMPORT(void) _PyGC_Remove(PyObject *);
+/* Test if a type supports weak references */
+#define PyType_SUPPORTS_WEAKREFS(t) \
+        (PyType_HasFeature((t), Py_TPFLAGS_HAVE_WEAKREFS) \
+         && ((t)->tp_weaklistoffset > 0))
 
-#define PyObject_GC_Init(op) _PyGC_Insert((PyObject *)op)
-#define PyObject_GC_Fini(op) _PyGC_Remove((PyObject *)op)
-
-/* Structure *prefixed* to container objects participating in GC */ 
-typedef struct _gc_head {
-	struct _gc_head *gc_next;
-	struct _gc_head *gc_prev;
-	int gc_refs;
-} PyGC_Head;
-
-#define PyGC_HEAD_SIZE sizeof(PyGC_Head)
-
-/* Test if a type has a GC head */
-#define PyType_IS_GC(t) PyType_HasFeature((t), Py_TPFLAGS_GC)
-
-/* Test if an object has a GC head */
-#define PyObject_IS_GC(o) PyType_IS_GC((o)->ob_type)
-
-/* Get an object's GC head */
-#define PyObject_AS_GC(o) ((PyGC_Head *)(o)-1)
-
-/* Get the object given the PyGC_Head */
-#define PyObject_FROM_GC(g) ((PyObject *)(((PyGC_Head *)g)+1))
-
-#endif /* WITH_CYCLE_GC */
+#define PyObject_GET_WEAKREFS_LISTPTR(o) \
+	((PyObject **) (((char *) (o)) + (o)->ob_type->tp_weaklistoffset))
 
 #ifdef __cplusplus
 }

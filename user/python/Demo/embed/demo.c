@@ -46,15 +46,14 @@ main(int argc, char **argv)
 
 /* 'self' is not used */
 static PyObject *
-xyzzy_foo(PyObject *self, PyObjecT *args)
+xyzzy_foo(PyObject *self, PyObject* args)
 {
-	if (!PyArg_ParseTuple(args, ""))
-		return NULL;
 	return PyInt_FromLong(42L);
 }
 
 static PyMethodDef xyzzy_methods[] = {
-	{"foo",		xyzzy_foo,	1},
+	{"foo",		xyzzy_foo,	METH_NOARGS,
+	 "Return the meaning of everything."},
 	{NULL,		NULL}		/* sentinel */
 };
 

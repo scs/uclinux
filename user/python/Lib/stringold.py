@@ -98,7 +98,6 @@ def rstrip(s):
 
 
 # Split a string into a list of space/tab-separated words
-# NB: split(s) is NOT the same as splitfields(s, ' ')!
 def split(s, sep=None, maxsplit=0):
     """split(str [,sep [,maxsplit]]) -> list of strings
 
@@ -313,7 +312,7 @@ def zfill(x, width):
 
     """
     if type(x) == type(''): s = x
-    else: s = `x`
+    else: s = repr(x)
     n = len(s)
     if n >= width: return s
     sign = ''
@@ -395,7 +394,7 @@ def maketrans(fromstr, tostr):
     fromstr = map(ord, fromstr)
     for i in range(len(fromstr)):
         L[fromstr[i]] = tostr[i]
-    return joinfields(L, "")
+    return join(L, "")
 
 # Substring replacement (global)
 def replace(s, old, new, maxsplit=0):

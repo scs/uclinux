@@ -38,24 +38,56 @@
     <attribute name="href" optional="yes"/>
     <content/>
     </macro>
+  <macro name="pep">
+    <attribute name="num"/>
+    </macro>
   <macro name="rfc">
     <attribute name="num"/>
     </macro>
-  <macro name="sectionauthor">
+  <macro name="sectionauthor" outputname="author">
     <attribute name="name"/>
     <attribute name="email"/>
     </macro>
+  <macro name="author">
+    <attribute name="name"/>
+    </macro>
+  <macro name="authoraddress">
+    <content/>
+    </macro>
+  <macro name="shortversion"/>
+  <macro name="note">
+    <content/>
+    </macro>
+  <macro name="warning">
+    <content/>
+    </macro>
+  <environment name="notice">
+    <attribute name="role" optional="yes"/>
+    </environment>
+
+  <macro name="menuselection">
+    <content/>
+    </macro>
+  <macro name="sub"/>
+
+  <!-- These are broken:  we need to re-order the optional and required
+       parameters, making the optional parameter the content for the
+       element.  latex2esis.py is not powerful enough to handle this.
+    -->
   <macro name="versionadded">
+    <attribute name="info" optional="yes"/>
     <attribute name="version"/>
     </macro>
   <macro name="versionchanged">
+    <attribute name="info" optional="yes"/>
     <attribute name="version"/>
     </macro>
 
   <!-- Module referencing. -->
   <macro name="refmodule" outputname="module">
+    <!-- this causes the optional parameter to \refmodule to be
+         discarded -->
     <attribute name="" optional="yes"/>
-    <attribute name="link">yes</attribute>
     <content/>
     </macro>
 
@@ -66,7 +98,11 @@
     <attribute name="name"/>
     <child name="args"/>
     </environment>
+  <environment name="csimplemacrodesc">
+    <attribute name="name"/>
+    </environment>
   <environment name="ctypedesc">
+    <attribute name="tag" optional="yes"/>
     <attribute name="name"/>
     </environment>
   <environment name="cvardesc">
@@ -78,12 +114,28 @@
   <macro name="optional">
     <content/>
     </macro>
+  <macro name="unspecified"/>
+  <macro name="moreargs"/>
   <environment name="classdesc">
     <attribute name="name"/>
     <child name="args"/>
     </environment>
+  <environment name="classdesc*" outputname="classdesc">
+    <attribute name="name"/>
+    </environment>
   <environment name="datadesc">
     <attribute name="name"/>
+    </environment>
+  <environment name="datadescni" outputname="datadesc">
+    <attribute name="index">no</attribute>
+    <attribute name="name"/>
+    </environment>
+  <macro name="dataline">
+    <attribute name="name"/>
+    </macro>
+  <environment name="excclassdesc">
+    <attribute name="name"/>
+    <child name="args"/>
     </environment>
   <environment name="excdesc">
     <attribute name="name"/>
@@ -117,6 +169,9 @@
     <attribute name="class" optional="yes"/>
     <attribute name="name"/>
     </environment>
+  <macro name="memberline">
+    <attribute name="name"/>
+    </macro>
 
   <environment name="methoddesc">
     <attribute name="class" optional="yes"/>
@@ -147,13 +202,37 @@
     </environment>
 
   <!-- "See also:" sections. -->
+  <environment name="seealso*" outputname="seealso">
+    <attribute name="sidebar">no</attribute>
+    </environment>
   <macro name="seemodule">
-    <attribute name="ref" optional="yes"/>
+    <!-- this causes the optional parameter to \seemodule to be
+         discarded -->
+    <attribute name="" optional="yes"/>
     <attribute name="name"/>
-    <content/>
+    <child name="description"/>
+    </macro>
+  <macro name="seepep">
+    <attribute name="number"/>
+    <child name="title"/>
+    <child name="description"/>
+    </macro>
+  <macro name="seerfc">
+    <attribute name="number"/>
+    <child name="title"/>
+    <child name="description"/>
     </macro>
   <macro name="seetext">
-    <content/>
+    <child name="description"/>
+    </macro>
+  <macro name="seetitle">
+    <attribute name="href" optional="yes"/>
+    <child name="title"/>
+    <child name="description"/>
+    </macro>
+  <macro name="seeurl">
+    <attribute name="href"/>
+    <child name="description"/>
     </macro>
 
   <!-- Index-generating markup. -->
@@ -224,11 +303,11 @@
     </macro>
 
   <!-- Entity management. -->
-  <macro name="include">
-    <attribute name="source"/>
+  <macro name="include" outputname="xi:include">
+    <attribute name="href"/>
     </macro>
-  <macro name="input">
-    <attribute name="source"/>
+  <macro name="input" outputname="xi:include">
+    <attribute name="href"/>
     </macro>
 
   <!-- Large-scale document structure. -->
@@ -236,11 +315,20 @@
     <attribute name="classname"/>
     </macro>
 
+  <macro name="usepackage">
+    <attribute name="options" optional="yes"/>
+    <attribute name="pkg"/>
+    </macro>
+
   <environment name="document"
                endcloses="chapter chapter* section section*
                           subsection subsection*
                           subsubsection subsubsection*
-                          paragraph paragraph* subparagraph subparagraph*"/>
+                          paragraph paragraph* subparagraph
+                          subparagraph*">
+    <attribute name="xmlns:xi"
+      >http://www.w3.org/2001/XInclude</attribute>
+    </environment>
 
   <macro name="chapter"
          closes="chapter chapter* section section* subsection subsection*
@@ -391,16 +479,30 @@
     <child name="definition" implied="yes"/>
     </macro>
 
+  <environment name="alltt" outputname="verbatim"/>
   <environment name="comment" verbatim="yes"/>
   <environment name="verbatim" verbatim="yes"/>
   <environment name="verbatim*" verbatim="yes">
     <!-- not used anywhere, but it's a standard LaTeXism -->
     <attribute name="spaces">visible</attribute>
     </environment>
+  <macro name="verbatiminput" ouptutname="xi:include">
+    <attribute name="parse">text</attribute>
+    <attribute name="href"/>
+    </macro>
 
   <!-- Table markup. -->
   <macro name="hline"/>
   <environment name="tableii" outputname="table">
+    <attribute name="cols">2</attribute>
+    <attribute name="colspec"/>
+    <attribute name="style"/>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </environment>
+  <environment name="longtableii" outputname="table">
     <attribute name="cols">2</attribute>
     <attribute name="colspec"/>
     <attribute name="style"/>
@@ -417,6 +519,18 @@
     </macro>
 
   <environment name="tableiii" outputname="table">
+    <attribute name="cols">3</attribute>
+    <attribute name="colspec"/>
+    <attribute name="style"/>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </environment>
+  <environment name="longtableiii" outputname="table">
     <attribute name="cols">3</attribute>
     <attribute name="colspec"/>
     <attribute name="style"/>
@@ -453,7 +567,71 @@
          </text>
     <child name="entry"/>
     </environment>
+  <environment name="longtableiv" outputname="table">
+    <attribute name="cols">4</attribute>
+    <attribute name="colspec"/>
+    <attribute name="style"/>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </environment>
   <macro name="lineiv" outputname="row">
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </macro>
+
+  <environment name="tablev" outputname="table">
+    <attribute name="cols">4</attribute>
+    <attribute name="colspec"/>
+    <attribute name="style"/>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </environment>
+  <environment name="longtablev" outputname="table">
+    <attribute name="cols">4</attribute>
+    <attribute name="colspec"/>
+    <attribute name="style"/>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    <text>
+         </text>
+    <child name="entry"/>
+    </environment>
+  <macro name="linev" outputname="row">
+    <child name="entry"/>
+    <text>
+         </text>
     <child name="entry"/>
     <text>
          </text>
@@ -473,6 +651,9 @@
   <macro name="geq" outputname="">
     <entityref name="geq"/>
     </macro>
+  <macro name="infinity" outputname="">
+    <entityref name="infin"/>
+    </macro>
   <macro name="LaTeX" outputname="">
     <text>LaTeX</text>
     </macro>
@@ -482,10 +663,45 @@
   <macro name="leq" outputname="">
     <entityref name="leq"/>
     </macro>
+  <macro name="plusminus" outputname="">
+    <entityref name="plusmn"/>
+    </macro>
   <macro name="TeX" outputname="">
     <text>TeX</text>
     </macro>
   <macro name="version"/>
+
+  <!-- Distutils things. -->
+  <macro name="command">
+    <content/>
+    </macro>
+  <macro name="option">
+    <content/>
+    </macro>
+  <macro name="filevar" outputname="var">
+    <content/>
+    </macro>
+  <macro name="XXX" outputname="editorial-comment">
+    <content/>
+    </macro>
+
+  <!-- Grammar production lists -->
+  <environment name="productionlist">
+    <attribute name="grammar" optional="yes"/>
+    </environment>
+  <macro name="production">
+    <attribute name="token"/>
+    <content/>
+    </macro>
+  <macro name="productioncont">
+    <content/>
+    </macro>
+  <macro name="token" outputname="grammartoken">
+    <content/>
+    </macro>
+  <macro name="grammartoken">
+    <content/>
+    </macro>
 
   <!-- Misc. -->
   <macro name="emph">
@@ -521,6 +737,9 @@
   <macro name="cfunction">
     <content/>
     </macro>
+  <macro name="csimplemacro">
+    <content/>
+    </macro>
   <macro name="ctype">
     <content/>
     </macro>
@@ -546,7 +765,10 @@
   <macro name="function">
     <content/>
     </macro>
-  <macro name="kbd">
+  <macro name="kbd" outputname="keysym">
+    <content/>
+    </macro>
+  <macro name="mailheader">
     <content/>
     </macro>
   <macro name="makevar">
@@ -570,6 +792,9 @@
   <macro name="programopt" outputname="option">
     <content/>
     </macro>
+  <macro name="longprogramopt" outputname="longoption">
+    <content/>
+    </macro>
   <macro name="regexp">
     <content/>
     </macro>
@@ -578,6 +803,14 @@
     </macro>
   <macro name="email">
     <content/>
+    </macro>
+  <macro name="ulink">
+    <!-- order of the parameters makes this difficult;
+         we'll need to fix it up to <ulink href="...">...</ulink>
+         in docfixer.py.
+      -->
+    <child name="text"/>
+    <child name="href"/>
     </macro>
   <macro name="url">
     <content/>
@@ -603,6 +836,10 @@
     <child name="denominator"/>
     </macro>
   <macro name="sum">
+    <content/>
+    </macro>
+
+  <macro name="leftline" outputname="">
     <content/>
     </macro>
 
@@ -632,6 +869,24 @@
   <macro name="UNIX" outputname="">
     <text>Unix</text>
     </macro>
+  <macro name="textasciicircum" outputname="">
+    <text>^</text>
+    </macro>
+  <macro name="textasciitilde" outputname="">
+    <text>~</text>
+    </macro>
+  <macro name="textbackslash" outputname="">
+    <text>\</text>
+    </macro>
+  <macro name="textbar" outputname="">
+    <text>|</text>
+    </macro>
+  <macro name="textgreater" outputname="">
+    <text>&gt;</text>
+    </macro>
+  <macro name="textless" outputname="">
+    <text>&lt;</text>
+    </macro>
 
   <!-- These will end up disappearing as well! -->
   <macro name="catcode" outputname=""/>
@@ -646,6 +901,7 @@
   <macro name="maketitle" outputname=""/>
   <macro name="noindent" outputname=""/>
   <macro name="protect" outputname=""/>
+  <macro name="textwidth"/>
   <macro name="renewcommand">
     <attribute name="macro"/>
     <attribute name="nargs" optional="yes"/>

@@ -2,22 +2,38 @@
 
 __version__ = '$Revision$'
 
-import os
+import os.path
 import re
 import string
 import sys
 
+from xml.sax.saxutils import quoteattr
+
+
+bang_join = "!".join
+null_join = "".join
+
+REPLACEMENTS = [
+    # Hackish way to deal with macros replaced with simple text
+    (re.compile(r"\\ABC\b"), "ABC"),
+    (re.compile(r"\\ASCII\b"), "ASCII"),
+    (re.compile(r"\\Cpp\b"), "C++"),
+    (re.compile(r"\\EOF\b"), "EOF"),
+    (re.compile(r"\\NULL\b"), "NULL"),
+    (re.compile(r"\\POSIX\b"), "POSIX"),
+    (re.compile(r"\\UNIX\b"), "Unix"),
+    # deal with turds left over from LaTeX2HTML
+    (re.compile(r"<#\d+#>"), ""),
+    ]
 
 class Node:
-    __rmjunk = re.compile("<#\d+#>")
-
     continuation = 0
 
     def __init__(self, link, str, seqno):
         self.links = [link]
         self.seqno = seqno
-        # remove <#\d+#> left in by moving the data out of LaTeX2HTML
-        str = self.__rmjunk.sub('', str)
+        for pattern, replacement in REPLACEMENTS:
+            str = pattern.sub(replacement, str)
         # build up the text
         self.text = split_entry_text(str)
         self.key = split_entry_key(str)
@@ -38,15 +54,15 @@ class Node:
         return c or cmp(self.key, other.key) or cmp(self.text, other.text)
 
     def __repr__(self):
-        return "<Node for %s (%s)>" % (string.join(self.text, '!'), self.seqno)
+        return "<Node for %s (%s)>" % (bang_join(self.text), self.seqno)
 
     def __str__(self):
-        return string.join(self.key, '!')
+        return bang_join(self.key)
 
     def dump(self):
         return "%s\1%s###%s\n" \
-               % (string.join(self.links, "\1"),
-                  string.join(self.text, '!'),
+               % ("\1".join(self.links),
+                  bang_join(self.text),
                   self.seqno)
 
 
@@ -54,8 +70,8 @@ def cmp_part(s1, s2):
     result = cmp(s1, s2)
     if result == 0:
         return 0
-    l1 = string.lower(s1)
-    l2 = string.lower(s2)
+    l1 = s1.lower()
+    l2 = s2.lower()
     minlen = min(len(s1), len(s2))
     if len(s1) < len(s2) and l1 == l2[:len(s1)]:
         result = -1
@@ -68,8 +84,8 @@ def cmp_part(s1, s2):
 
 def split_entry(str, which):
     stuff = []
-    parts = string.split(str, '!')
-    parts = map(string.split, parts, ['@'] * len(parts))
+    parts = str.split('!')
+    parts = [part.split('@') for part in parts]
     for entry in parts:
         if len(entry) != 1:
             key = entry[which]
@@ -88,9 +104,9 @@ def split_entry_key(str):
     for i in range(len(parts)):
         m = _rmtt.match(parts[i])
         if m:
-            parts[i] = string.join(m.group(1, 2, 3), '')
+            parts[i] = null_join(m.group(1, 2, 3))
         else:
-            parts[i] = string.lower(parts[i])
+            parts[i] = parts[i].lower()
         # remove '()' from the key:
         parts[i] = _rmparens.sub('', parts[i])
     return map(trim_ignored_letters, parts)
@@ -100,7 +116,7 @@ def split_entry_text(str):
     if '<' in str:
         m = _rmtt.match(str)
         if m:
-            str = string.join(m.group(1, 2, 3), '')
+            str = null_join(m.group(1, 2, 3))
     return split_entry(str, 1)
 
 
@@ -121,14 +137,16 @@ def load(fp):
 def trim_ignored_letters(s):
     # ignore $ to keep environment variables with the
     # leading letter from the name
-    s = string.lower(s)
-    if s[0] == "$":
-        return s[1:]
+    if s.startswith("$"):
+        return s[1:].lower()
     else:
-        return s
+        return s.lower()
 
 def get_first_letter(s):
-    return string.lower(trim_ignored_letters(s)[0])
+    if s.startswith("<tex2html_percent_mark>"):
+        return "%"
+    else:
+        return trim_ignored_letters(s)[0]
 
 
 def split_letters(nodes):
@@ -149,14 +167,24 @@ def split_letters(nodes):
     return letter_groups
 
 
+def group_symbols(groups):
+    entries = []
+    ident_letters = string.ascii_letters + "_"
+    while groups[0][0] not in ident_letters:
+        entries += groups[0][1]
+        del groups[0]
+    if entries:
+        groups.insert(0, ("Symbols", entries))
+
+
 # need a function to separate the nodes into columns...
 def split_columns(nodes, columns=1):
     if columns <= 1:
         return [nodes]
     # This is a rough height; we may have to increase to avoid breaks before
     # a subitem.
-    colheight = len(nodes) / columns
-    numlong = len(nodes) % columns
+    colheight = int(len(nodes) / columns)
+    numlong = int(len(nodes) % columns)
     if numlong:
         colheight = colheight + 1
     else:
@@ -169,7 +197,7 @@ def split_columns(nodes, columns=1):
     del nodes[:end]
     colheight = colheight - 1
     try:
-        numshort = len(nodes) / colheight
+        numshort = int(len(nodes) / colheight)
     except ZeroDivisionError:
         cols = cols + (columns - len(cols)) * [[]]
     else:
@@ -199,7 +227,7 @@ def split_columns(nodes, columns=1):
 DL_LEVEL_INDENT = "  "
 
 def format_column(nodes):
-    strings = ["<dl compact>"]
+    strings = ["<dl compact='compact'>"]
     append = strings.append
     level = 0
     previous = []
@@ -211,7 +239,7 @@ def format_column(nodes):
                 break
             count = i + 1
         if count > level:
-            append("<dl compact>" * (count - level) + "\n")
+            append("<dl compact='compact'>" * (count - level) + "\n")
             level = count
         elif level > count:
             append("\n")
@@ -226,7 +254,7 @@ def format_column(nodes):
                 extra = " (continued)"
             else:
                 extra = ""
-            append("\n<dt>%s%s\n<dd>\n%s<dl compact>"
+            append("\n<dt>%s%s\n<dd>\n%s<dl compact='compact'>"
                    % (term, extra, level * DL_LEVEL_INDENT))
         append("\n%s<dt>%s%s</a>"
                % (level * DL_LEVEL_INDENT, node.links[0], node.text[-1]))
@@ -235,7 +263,7 @@ def format_column(nodes):
         previous = current
     append("\n")
     append("</dl>" * (level + 1))
-    return string.join(strings, '')
+    return null_join(strings)
 
 
 def format_nodes(nodes, columns=1):
@@ -243,10 +271,10 @@ def format_nodes(nodes, columns=1):
     append = strings.append
     if columns > 1:
         colnos = range(columns)
-        colheight = len(nodes) / columns
+        colheight = int(len(nodes) / columns)
         if len(nodes) % columns:
             colheight = colheight + 1
-        colwidth = 100 / columns
+        colwidth = int(100 / columns)
         append('<table width="100%"><tr valign="top">')
         for col in split_columns(nodes, columns):
             append('<td width="%d%%">\n' % colwidth)
@@ -255,8 +283,7 @@ def format_nodes(nodes, columns=1):
         append("\n</tr></table>")
     else:
         append(format_column(nodes))
-    append("\n<p>\n")
-    return string.join(strings, '')
+    return null_join(strings)
 
 
 def format_letter(letter):
@@ -265,22 +292,24 @@ def format_letter(letter):
     elif letter == '_':
         lettername = "_ (underscore)"
     else:
-        lettername = string.upper(letter)
-    return "\n<hr>\n<h2><a name=\"letter-%s\">%s</a></h2>\n\n" \
-           % (letter, lettername)
+        lettername = letter.capitalize()
+    return "\n<hr />\n<h2 id=%s>%s</h2>\n\n" \
+           % (quoteattr("letter-" + letter), lettername)
 
 
-def format_html_letters(nodes, columns=1):
+def format_html_letters(nodes, columns, group_symbol_nodes):
     letter_groups = split_letters(nodes)
+    if group_symbol_nodes:
+        group_symbols(letter_groups)
     items = []
     for letter, nodes in letter_groups:
         s = "<b><a href=\"#letter-%s\">%s</a></b>" % (letter, letter)
         items.append(s)
-    s = ["<hr><center>\n%s</center>\n" % string.join(items, " |\n")]
+    s = ["<hr /><center>\n%s</center>\n" % " |\n".join(items)]
     for letter, nodes in letter_groups:
         s.append(format_letter(letter))
         s.append(format_nodes(nodes, columns))
-    return string.join(s, '')
+    return null_join(s)
 
 def format_html(nodes, columns):
     return format_nodes(nodes, columns)
@@ -308,11 +337,11 @@ def dump(nodes, fp):
         fp.write(node.dump())
 
 
-def process_nodes(nodes, columns, letters):
+def process_nodes(nodes, columns, letters=0, group_symbol_nodes=0):
     nodes.sort()
     collapse(nodes)
     if letters:
-        return format_html_letters(nodes, columns)
+        return format_html_letters(nodes, columns, group_symbol_nodes)
     else:
         return format_html(nodes, columns)
 
@@ -323,22 +352,28 @@ def main():
     ofn = "-"
     columns = 1
     letters = 0
+    group_symbol_nodes = 1
     opts, args = getopt.getopt(sys.argv[1:], "c:lo:",
-                               ["columns=", "letters", "output="])
+                               ["columns=", "dont-group-symbols",
+                                "group-symbols", "letters", "output="])
     for opt, val in opts:
         if opt in ("-o", "--output"):
             ofn = val
         elif opt in ("-c", "--columns"):
-            columns = string.atoi(val)
+            columns = int(val, 10)
         elif opt in ("-l", "--letters"):
             letters = 1
+        elif opt == "--group-symbols":
+            group_symbol_nodes = 1
+        elif opt == "--dont-group-symbols":
+            group_symbol_nodes = 0
     if not args:
         args = [ifn]
     nodes = []
     for fn in args:
         nodes = nodes + load(open(fn))
     num_nodes = len(nodes)
-    html = process_nodes(nodes, columns, letters)
+    html = process_nodes(nodes, columns, letters, group_symbol_nodes)
     program = os.path.basename(sys.argv[0])
     if ofn == "-":
         sys.stdout.write(html)

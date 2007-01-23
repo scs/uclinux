@@ -6,8 +6,9 @@
 # Usage: makesetup [-s dir] [-c file] [-m file] [Setup] ... [-n [Setup] ...]
 #
 # Options:
-# -s directory: alternative source directory (default derived from $0)
-# -c file:      alternative config.c template (default $srcdir/config.c.in)
+# -s directory: alternative source directory (default .)
+# -l directory: library source directory (default derived from $0)
+# -c file:      alternative config.c template (default $libdir/config.c.in)
 # -c -:         don't write config.c
 # -m file:      alternative Makefile template (default ./Makefile.pre)
 # -m -:         don't write Makefile
@@ -16,7 +17,7 @@
 # Setup files after a -n option are used for their variables, modules
 # and libraries but not for their .o files.
 #
-# See Setup.in for a description of the format of the Setup file.
+# See Setup.dist for a description of the format of the Setup file.
 #
 # The following edits are made:
 #
@@ -40,9 +41,10 @@
 
 # Loop over command line options
 usage='
-usage: makesetup [-s srcdir] [-c config.c.in] [-m Makefile.pre]
+usage: makesetup [-s srcdir] [-l libdir] [-c config.c.in] [-m Makefile.pre]
                  [Setup] ... [-n [Setup] ...]'
-srcdir=''
+srcdir='.'
+libdir=''
 config=''
 makepre=''
 noobjects=''
@@ -51,6 +53,7 @@ while :
 do
 	case $1 in
 	-s)	shift; srcdir=$1; shift;;
+	-l)	shift; libdir=$1; shift;;
 	-c)	shift; config=$1; shift;;
 	-m)	shift; makepre=$1; shift;;
 	--)	shift; break;;
@@ -60,16 +63,16 @@ do
 	esac
 done
 
-# Set default srcdir and config if not set by command line
+# Set default libdir and config if not set by command line
 # (Not all systems have dirname)
-case $srcdir in
+case $libdir in
 '')	case $0 in
-	*/*)	srcdir=`echo $0 | sed 's,/[^/]*$,,'`;;
-	*)	srcdir=.;;
+	*/*)	libdir=`echo $0 | sed 's,/[^/]*$,,'`;;
+	*)	libdir=.;;
 	esac;;
 esac
 case $config in
-'')	config=$srcdir/config.c.in;;
+'')	config=$libdir/config.c.in;;
 esac
 case $makepre in
 '')	makepre=Makefile.pre;;
@@ -78,6 +81,18 @@ esac
 # Newline for sed i and a commands
 NL='\
 '
+
+# Setup to link with extra libraries when makeing shared extensions.
+# Currently, only Cygwin needs this baggage.
+case `uname -s` in
+CYGWIN*) if test $libdir = .
+	 then
+	 	ExtraLibDir=.
+	 else
+	 	ExtraLibDir='$(LIBPL)'
+	 fi
+	 ExtraLibs="-L$ExtraLibDir -lpython\$(VERSION)";;
+esac
 
 # Main loop
 for i in ${*-Setup}
@@ -140,7 +155,11 @@ sed -e 's/[ 	]*#.*//' -e '/^[ 	]*$/d' |
 			srcs)	srcs="$srcs $arg"; skip=; continue;;
 			esac
 			case $arg in
-			-[IDUCf]*)	cpps="$cpps $arg";;
+			-framework)	libs="$libs $arg"; skip=libs;
+				        # OSX/OSXS/Darwin framework link cmd
+					;;
+			-[IDUCfF]*)	cpps="$cpps $arg";;
+			-Xcompiler)	skip=cpps;;
 			-Xlinker)	libs="$libs $arg"; skip=libs;;
 			-rpath)		libs="$libs $arg"; skip=libs;;
 			--rpath)	libs="$libs $arg"; skip=libs;;
@@ -149,8 +168,10 @@ sed -e 's/[ 	]*#.*//' -e '/^[ 	]*$/d' |
 			*.so)		libs="$libs $arg";;
 			*.sl)		libs="$libs $arg";;
 			/*.o)		libs="$libs $arg";;
+			*.def)		libs="$libs $arg";;
 			*.o)		srcs="$srcs `basename $arg .o`.c";;
 			*.[cC])		srcs="$srcs $arg";;
+			*.m)		srcs="$srcs $arg";; # Objective-C src
 			*.cc)		srcs="$srcs $arg";;
 			*.c++)		srcs="$srcs $arg";;
 			*.cxx)		srcs="$srcs $arg";;
@@ -179,24 +200,28 @@ sed -e 's/[ 	]*#.*//' -e '/^[ 	]*$/d' |
 		do
 			case $src in
 			*.c)   obj=`basename $src .c`.o; cc='$(CC)';;
-			*.cc)  obj=`basename $src .cc`.o; cc='$(CCC)';;
-			*.c++) obj=`basename $src .c++`.o; cc='$(CCC)';;
-			*.C)   obj=`basename $src .C`.o; cc='$(CCC)';;
-			*.cxx) obj=`basename $src .cxx`.o; cc='$(CCC)';;
-			*.cpp) obj=`basename $src .cpp`.o; cc='$(CCC)';;
+			*.cc)  obj=`basename $src .cc`.o; cc='$(CXX)';;
+			*.c++) obj=`basename $src .c++`.o; cc='$(CXX)';;
+			*.C)   obj=`basename $src .C`.o; cc='$(CXX)';;
+			*.cxx) obj=`basename $src .cxx`.o; cc='$(CXX)';;
+			*.cpp) obj=`basename $src .cpp`.o; cc='$(CXX)';;
+			*.m)   obj=`basename $src .m`.o; cc='$(CC)';; # Obj-C
 			*)     continue;;
 			esac
+			obj="$srcdir/$obj"
 			objs="$objs $obj"
 			case $src in
 			glmodule.c) ;;
 			/*) ;;
 			\$*) ;;
-			*) src='$(srcdir)/'$src;;
+			*) src='$(srcdir)/'"$srcdir/$src";;
 			esac
 			case $doconfig in
-			no)	cc="$cc \$(CCSHARED)";;
+			no)	cc="$cc \$(CCSHARED) \$(CFLAGS) \$(CPPFLAGS)";;
+			*)
+				cc="$cc \$(PY_CFLAGS)";;
 			esac
-			rule="$obj: $src; $cc $cpps \$(CFLAGS) -c $src"
+			rule="$obj: $src; $cc $cpps -c $src -o $obj"
 			echo "$rule" >>$rulesf
 		done
 		case $doconfig in
@@ -208,12 +233,12 @@ sed -e 's/[ 	]*#.*//' -e '/^[ 	]*$/d' |
 			*$mod.o*)	base=$mod;;
 			*)		base=${mod}module;;
 			esac
-			file="$base\$(SO)"
+			file="$srcdir/$base\$(SO)"
 			case $doconfig in
 			no)	SHAREDMODS="$SHAREDMODS $file";;
 			esac
 			rule="$file: $objs"
-			rule="$rule; \$(LDSHARED) $objs $libs -o $file"
+			rule="$rule; \$(LDSHARED) $objs $libs $ExtraLibs -o $file"
 			echo "$rule" >>$rulesf
 		done
 	done

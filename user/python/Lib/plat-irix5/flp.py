@@ -36,7 +36,7 @@ def parse_form(filename, formname):
 #
 def parse_forms(filename):
     forms = checkcache(filename)
-    if forms != None: return forms
+    if forms is not None: return forms
     fp = _open_formfile(filename)
     nforms = _parse_fd_header(fp)
     forms = {}
@@ -80,18 +80,18 @@ def checkcache(filename):
         fp.close()
 
 def _unpack_cache(altforms):
-        forms = {}
-        for name in altforms.keys():
-            altobj, altlist = altforms[name]
-            obj = _newobj()
-            obj.make(altobj)
-            list = []
-            for altobj in altlist:
-                nobj = _newobj()
-                nobj.make(altobj)
-                list.append(nobj)
-            forms[name] = obj, list
-        return forms
+    forms = {}
+    for name in altforms.keys():
+        altobj, altlist = altforms[name]
+        obj = _newobj()
+        obj.make(altobj)
+        list = []
+        for altobj in altlist:
+            nobj = _newobj()
+            nobj.make(altobj)
+            list.append(nobj)
+        forms[name] = obj, list
+    return forms
 
 def rdlong(fp):
     s = fp.read(4)
@@ -146,7 +146,7 @@ def freeze(filename):
     forms = parse_forms(filename)
     altforms = _pack_cache(forms)
     print 'import flp'
-    print 'flp._internal_cache[', `filename`, '] =', altforms
+    print 'flp._internal_cache[', repr(filename), '] =', altforms
 
 #
 # Internal: create the data structure to be placed in the cache
@@ -168,7 +168,7 @@ def _open_formfile(filename):
     return _open_formfile2(filename)[0]
 
 def _open_formfile2(filename):
-    if filename[-3:] <> '.fd':
+    if filename[-3:] != '.fd':
         filename = filename + '.fd'
     if filename[0] == '/':
         try:
@@ -184,7 +184,7 @@ def _open_formfile2(filename):
                 break
             except IOError:
                 fp = None
-    if fp == None:
+    if fp is None:
         raise error, 'Cannot find forms file ' + filename
     return fp, filename
 
@@ -194,7 +194,7 @@ def _open_formfile2(filename):
 def _parse_fd_header(file):
     # First read the magic header line
     datum = _parse_1_line(file)
-    if datum <> ('Magic', 12321):
+    if datum != ('Magic', 12321):
         raise error, 'Not a forms definition file'
     # Now skip until we know number of forms
     while 1:
@@ -208,10 +208,10 @@ def _parse_fd_header(file):
 #
 def _parse_fd_form(file, name):
     datum = _parse_1_line(file)
-    if datum <> FORMLINE:
+    if datum != FORMLINE:
         raise error, 'Missing === FORM === line'
     form = _parse_object(file)
-    if form.Name == name or name == None:
+    if form.Name == name or name is None:
         objs = []
         for j in range(form.Numberofobjects):
             obj = _parse_object(file)
@@ -277,8 +277,8 @@ def _parse_line(line):
         return line
     name, value = match.group(1, 2)
     if name[0] == 'N':
-            name = string.join(string.split(name),'')
-            name = string.lower(name)
+        name = string.join(string.split(name),'')
+        name = string.lower(name)
     name = string.capitalize(name)
     try:
         pf = _parse_func[name]
@@ -292,7 +292,7 @@ def _readline(file):
     if not line:
         raise EOFError
     return line[:-1]
-        
+
 def _parse_1_line(file):
     line = _readline(file)
     while line == '':
@@ -316,7 +316,7 @@ def _parse_object(file):
             if datum == FORMLINE:
                 file.seek(pos)
             return obj
-        if type(datum) <> type(()) or len(datum) <> 2:
+        if type(datum) is not type(()) or len(datum) != 2:
             raise error, 'Parse error, illegal line in object: '+datum
         obj.add(datum[0], datum[1])
 
@@ -339,7 +339,7 @@ def create_full_form(inst, (fdata, odatalist)):
 #
 def merge_full_form(inst, form, (fdata, odatalist)):
     exec 'inst.'+fdata.Name+' = form\n'
-    if odatalist[0].Class <> FL.BOX:
+    if odatalist[0].Class != FL.BOX:
         raise error, 'merge_full_form() expects FL.BOX as first obj'
     for odata in odatalist[1:]:
         create_object_instance(inst, form, odata)
@@ -417,7 +417,7 @@ def _select_crfunc(fm, cl):
     elif cl == FL.TEXT: return fm.add_text
     elif cl == FL.TIMER: return fm.add_timer
     else:
-        raise error, 'Unknown object type: ' + `cl`
+        raise error, 'Unknown object type: %r' % (cl,)
 
 
 def test():

@@ -2,14 +2,14 @@
 
 Utility functions for manipulating directories and directory trees."""
 
-# created 2000/04/03, Greg Ward (extracted from util.py)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
-import os
+import os, sys
 from types import *
 from distutils.errors import DistutilsFileError, DistutilsInternalError
-
+from distutils import log
 
 # cache for by mkpath() -- in addition to cheapening redundant calls,
 # eliminates redundant "creating /foo/bar/baz" messages in dry-run mode
@@ -31,9 +31,9 @@ def mkpath (name, mode=0777, verbose=0, dry_run=0):
     global _path_created
 
     # Detect a common bug -- name is None
-    if type(name) is not StringType:
+    if not isinstance(name, StringTypes):
         raise DistutilsInternalError, \
-              "mkpath: 'name' must be a string (got %s)" % `name`
+              "mkpath: 'name' must be a string (got %r)" % (name,)
 
     # XXX what's the better way to handle verbosity? print as we create
     # each directory in the path (the current behaviour), or only announce
@@ -49,7 +49,7 @@ def mkpath (name, mode=0777, verbose=0, dry_run=0):
 
     (head, tail) = os.path.split(name)
     tails = [tail]                      # stack of lone dirs to create
-    
+
     while head and tail and not os.path.isdir(head):
         #print "splitting '%s': " % head,
         (head, tail) = os.path.split(head)
@@ -69,8 +69,7 @@ def mkpath (name, mode=0777, verbose=0, dry_run=0):
         if _path_created.get(abs_head):
             continue
 
-        if verbose:
-            print "creating", head
+        log.info("creating %s", head)
 
         if not dry_run:
             try:
@@ -105,7 +104,7 @@ def create_tree (base_dir, files, mode=0777, verbose=0, dry_run=0):
 
     # Now create them
     for dir in need_dirs:
-        mkpath(dir, mode, verbose, dry_run)
+        mkpath(dir, mode, dry_run=dry_run)
 
 # create_tree ()
 
@@ -140,7 +139,7 @@ def copy_tree (src, dst,
 
     if not dry_run and not os.path.isdir(src):
         raise DistutilsFileError, \
-              "cannot copy tree '%s': not a directory" % src    
+              "cannot copy tree '%s': not a directory" % src
     try:
         names = os.listdir(src)
     except os.error, (errno, errstr):
@@ -151,7 +150,7 @@ def copy_tree (src, dst,
                   "error listing files in '%s': %s" % (src, errstr)
 
     if not dry_run:
-        mkpath(dst, verbose=verbose)
+        mkpath(dst)
 
     outputs = []
 
@@ -161,21 +160,19 @@ def copy_tree (src, dst,
 
         if preserve_symlinks and os.path.islink(src_name):
             link_dest = os.readlink(src_name)
-            if verbose:
-                print "linking %s -> %s" % (dst_name, link_dest)
+            log.info("linking %s -> %s", dst_name, link_dest)
             if not dry_run:
                 os.symlink(link_dest, dst_name)
             outputs.append(dst_name)
-            
+
         elif os.path.isdir(src_name):
             outputs.extend(
-                copy_tree(src_name, dst_name,
-                          preserve_mode, preserve_times, preserve_symlinks,
-                          update, verbose, dry_run))
+                copy_tree(src_name, dst_name, preserve_mode,
+                          preserve_times, preserve_symlinks, update,
+                          dry_run=dry_run))
         else:
-            copy_file(src_name, dst_name,
-                      preserve_mode, preserve_times,
-                      update, None, verbose, dry_run)
+            copy_file(src_name, dst_name, preserve_mode,
+                      preserve_times, update, dry_run=dry_run)
             outputs.append(dst_name)
 
     return outputs
@@ -200,8 +197,7 @@ def remove_tree (directory, verbose=0, dry_run=0):
     from distutils.util import grok_environment_error
     global _path_created
 
-    if verbose:
-        print "removing '%s' (and everything under it)" % directory
+    log.info("removing '%s' (and everything under it)", directory)
     if dry_run:
         return
     cmdtuples = []
@@ -214,6 +210,18 @@ def remove_tree (directory, verbose=0, dry_run=0):
             if _path_created.has_key(abspath):
                 del _path_created[abspath]
         except (IOError, OSError), exc:
-            if verbose:
-                print grok_environment_error(
-                    exc, "error removing %s: " % directory)
+            log.warn(grok_environment_error(
+                    exc, "error removing %s: " % directory))
+
+
+def ensure_relative (path):
+    """Take the full path 'path', and make it a relative path so
+    it can be the second argument to os.path.join().
+    """
+    drive, path = os.path.splitdrive(path)
+    if sys.platform == 'mac':
+        return os.sep + path
+    else:
+        if path[0:1] == os.sep:
+            path = drive + path[1:]
+        return path

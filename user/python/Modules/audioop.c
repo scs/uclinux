@@ -902,6 +902,7 @@ audioop_ratecv(PyObject *self, PyObject *args)
 	int len, size, nchannels, inrate, outrate, weightA, weightB;
 	int chan, d, *prev_i, *cur_i, cur_o;
 	PyObject *state, *samps, *str, *rv = NULL;
+	int bytes_per_frame;
 
 	weightA = 1;
 	weightB = 0;
@@ -916,12 +917,21 @@ audioop_ratecv(PyObject *self, PyObject *args)
 		PyErr_SetString(AudioopError, "# of channels should be >= 1");
 		return NULL;
 	}
+	bytes_per_frame = size * nchannels;
+	if (bytes_per_frame / nchannels != size) {
+		/* This overflow test is rigorously correct because
+		   both multiplicands are >= 1.  Use the argument names
+		   from the docs for the error msg. */
+		PyErr_SetString(PyExc_OverflowError,
+		                "width * nchannels too big for a C int");
+		return NULL;
+	}
 	if (weightA < 1 || weightB < 0) {
 		PyErr_SetString(AudioopError,
 			"weightA should be >= 1, weightB should be >= 0");
 		return NULL;
 	}
-	if (len % (size * nchannels) != 0) {
+	if (len % bytes_per_frame != 0) {
 		PyErr_SetString(AudioopError, "not a whole number of frames");
 		return NULL;
 	}
@@ -936,17 +946,19 @@ audioop_ratecv(PyObject *self, PyObject *args)
 
 	prev_i = (int *) malloc(nchannels * sizeof(int));
 	cur_i = (int *) malloc(nchannels * sizeof(int));
-	len /= size * nchannels;	/* # of frames */
 	if (prev_i == NULL || cur_i == NULL) {
 		(void) PyErr_NoMemory();
 		goto exit;
 	}
 
+	len /= bytes_per_frame;	/* # of frames */
+
 	if (state == Py_None) {
 		d = -outrate;
 		for (chan = 0; chan < nchannels; chan++)
 			prev_i[chan] = cur_i[chan] = 0;
-	} else {
+	}
+	else {
 		if (!PyArg_ParseTuple(state,
 				"iO!;audioop.ratecv: illegal state argument",
 				&d, &PyTuple_Type, &samps))
@@ -962,16 +974,47 @@ audioop_ratecv(PyObject *self, PyObject *args)
 				goto exit;
 		}
 	}
-	str = PyString_FromStringAndSize(
-	      NULL, size * nchannels * (len * outrate + inrate - 1) / inrate);
-	if (str == NULL)
-		goto exit;
+
+	/* str <- Space for the output buffer. */
+	{
+		/* There are len input frames, so we need (mathematically)
+		   ceiling(len*outrate/inrate) output frames, and each frame
+		   requires bytes_per_frame bytes.  Computing this
+		   without spurious overflow is the challenge; we can
+		   settle for a reasonable upper bound, though. */
+		int ceiling;   /* the number of output frames */
+		int nbytes;    /* the number of output bytes needed */
+		int q = len / inrate;
+		/* Now len = q * inrate + r exactly (with r = len % inrate),
+		   and this is less than q * inrate + inrate = (q+1)*inrate.
+		   So a reasonable upper bound on len*outrate/inrate is
+		   ((q+1)*inrate)*outrate/inrate =
+		   (q+1)*outrate.
+		*/
+		ceiling = (q+1) * outrate;
+		nbytes = ceiling * bytes_per_frame;
+		/* See whether anything overflowed; if not, get the space. */
+		if (q+1 < 0 ||
+		    ceiling / outrate != q+1 ||
+		    nbytes / bytes_per_frame != ceiling)
+			str = NULL;
+		else
+			str = PyString_FromStringAndSize(NULL, nbytes);
+
+		if (str == NULL) {
+			PyErr_SetString(PyExc_MemoryError,
+				"not enough memory for output buffer");
+			goto exit;
+		}
+	}
 	ncp = PyString_AsString(str);
 
 	for (;;) {
 		while (d < 0) {
 			if (len == 0) {
 				samps = PyTuple_New(nchannels);
+				if (samps == NULL)
+					goto exit;
 				for (chan = 0; chan < nchannels; chan++)
 					PyTuple_SetItem(samps, chan,
 						Py_BuildValue("(ii)",
@@ -1302,37 +1345,39 @@ audioop_adpcm2lin(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef audioop_methods[] = {
-	{ "max", audioop_max },
-	{ "minmax", audioop_minmax },
-	{ "avg", audioop_avg },
-	{ "maxpp", audioop_maxpp },
-	{ "avgpp", audioop_avgpp },
-	{ "rms", audioop_rms },
-	{ "findfit", audioop_findfit },
-	{ "findmax", audioop_findmax },
-	{ "findfactor", audioop_findfactor },
-	{ "cross", audioop_cross },
-	{ "mul", audioop_mul },
-	{ "add", audioop_add },
-	{ "bias", audioop_bias },
-	{ "ulaw2lin", audioop_ulaw2lin },
-	{ "lin2ulaw", audioop_lin2ulaw },
-	{ "lin2lin", audioop_lin2lin },
-	{ "adpcm2lin", audioop_adpcm2lin },
-	{ "lin2adpcm", audioop_lin2adpcm },
-	{ "tomono", audioop_tomono },
-	{ "tostereo", audioop_tostereo },
-	{ "getsample", audioop_getsample },
-	{ "reverse", audioop_reverse },
-	{ "ratecv", audioop_ratecv, 1 },
+	{ "max", audioop_max, METH_OLDARGS },
+	{ "minmax", audioop_minmax, METH_OLDARGS },
+	{ "avg", audioop_avg, METH_OLDARGS },
+	{ "maxpp", audioop_maxpp, METH_OLDARGS },
+	{ "avgpp", audioop_avgpp, METH_OLDARGS },
+	{ "rms", audioop_rms, METH_OLDARGS },
+	{ "findfit", audioop_findfit, METH_OLDARGS },
+	{ "findmax", audioop_findmax, METH_OLDARGS },
+	{ "findfactor", audioop_findfactor, METH_OLDARGS },
+	{ "cross", audioop_cross, METH_OLDARGS },
+	{ "mul", audioop_mul, METH_OLDARGS },
+	{ "add", audioop_add, METH_OLDARGS },
+	{ "bias", audioop_bias, METH_OLDARGS },
+	{ "ulaw2lin", audioop_ulaw2lin, METH_OLDARGS },
+	{ "lin2ulaw", audioop_lin2ulaw, METH_OLDARGS },
+	{ "lin2lin", audioop_lin2lin, METH_OLDARGS },
+	{ "adpcm2lin", audioop_adpcm2lin, METH_OLDARGS },
+	{ "lin2adpcm", audioop_lin2adpcm, METH_OLDARGS },
+	{ "tomono", audioop_tomono, METH_OLDARGS },
+	{ "tostereo", audioop_tostereo, METH_OLDARGS },
+	{ "getsample", audioop_getsample, METH_OLDARGS },
+	{ "reverse", audioop_reverse, METH_OLDARGS },
+	{ "ratecv", audioop_ratecv, METH_VARARGS },
 	{ 0,          0 }
 };
 
-DL_EXPORT(void)
+PyMODINIT_FUNC
 initaudioop(void)
 {
 	PyObject *m, *d;
 	m = Py_InitModule("audioop", audioop_methods);
+	if (m == NULL)
+		return;
 	d = PyModule_GetDict(m);
 	AudioopError = PyErr_NewException("audioop.error", NULL, NULL);
 	if (AudioopError != NULL)

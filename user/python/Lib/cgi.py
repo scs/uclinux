@@ -1,5 +1,14 @@
 #! /usr/local/bin/python
 
+# NOTE: the above "/usr/local/bin/python" is NOT a mistake.  It is
+# intentionally NOT "/usr/bin/env python".  On many systems
+# (e.g. Solaris), /usr/local/bin is not in $PATH as passed to CGI
+# scripts, and /usr/local/bin is the default directory where Python is
+# installed, so /usr/bin/env would be unable to find python.  Granted,
+# binary installations by Linux vendors often install Python in
+# /usr/bin.  So let those vendors patch cgi.py to match their choice
+# of installation.
+
 """Support module for CGI (Common Gateway Interface) scripts.
 
 This module defines a number of utilities for use by CGI scripts
@@ -11,21 +20,20 @@ written in Python.
 
 # History
 # -------
-# 
+#
 # Michael McLay started this module.  Steve Majewski changed the
 # interface to SvFormContentDict and FormContentDict.  The multipart
 # parsing was inspired by code submitted by Andreas Paepcke.  Guido van
 # Rossum rewrote, reformatted and documented the module and is currently
 # responsible for its maintenance.
-# 
+#
 
-__version__ = "2.4"
+__version__ = "2.6"
 
 
 # Imports
 # =======
 
-import string
 import sys
 import os
 import urllib
@@ -34,6 +42,12 @@ import rfc822
 import UserDict
 from StringIO import StringIO
 
+__all__ = ["MiniFieldStorage", "FieldStorage", "FormContentDict",
+           "SvFormContentDict", "InterpFormContentDict", "FormContent",
+           "parse", "parse_qs", "parse_qsl", "parse_multipart",
+           "parse_header", "print_exception", "print_environ",
+           "print_form", "print_directory", "print_arguments",
+           "print_environ_usage", "escape"]
 
 # Logging support
 # ===============
@@ -74,7 +88,7 @@ def initlog(*allargs):
         log = nolog
     else:
         log = dolog
-    apply(log, allargs)
+    log(*allargs)
 
 def dolog(fmt, *args):
     """Write a log message to the log file.  See initlog() for docs."""
@@ -104,8 +118,8 @@ def parse(fp=None, environ=os.environ, keep_blank_values=0, strict_parsing=0):
         environ         : environment dictionary; default: os.environ
 
         keep_blank_values: flag indicating whether blank values in
-            URL encoded forms should be treated as blank strings.  
-            A true value indicates that blanks should be retained as 
+            URL encoded forms should be treated as blank strings.
+            A true value indicates that blanks should be retained as
             blank strings.  The default false value indicates that
             blank values are to be ignored and treated as if they were
             not included.
@@ -114,29 +128,29 @@ def parse(fp=None, environ=os.environ, keep_blank_values=0, strict_parsing=0):
             If false (the default), errors are silently ignored.
             If true, errors raise a ValueError exception.
     """
-    if not fp:
+    if fp is None:
         fp = sys.stdin
-    if not environ.has_key('REQUEST_METHOD'):
+    if not 'REQUEST_METHOD' in environ:
         environ['REQUEST_METHOD'] = 'GET'       # For testing stand-alone
     if environ['REQUEST_METHOD'] == 'POST':
         ctype, pdict = parse_header(environ['CONTENT_TYPE'])
         if ctype == 'multipart/form-data':
             return parse_multipart(fp, pdict)
         elif ctype == 'application/x-www-form-urlencoded':
-            clength = string.atoi(environ['CONTENT_LENGTH'])
+            clength = int(environ['CONTENT_LENGTH'])
             if maxlen and clength > maxlen:
                 raise ValueError, 'Maximum content length exceeded'
             qs = fp.read(clength)
         else:
             qs = ''                     # Unknown content-type
-        if environ.has_key('QUERY_STRING'): 
+        if 'QUERY_STRING' in environ:
             if qs: qs = qs + '&'
             qs = qs + environ['QUERY_STRING']
-        elif sys.argv[1:]: 
+        elif sys.argv[1:]:
             if qs: qs = qs + '&'
             qs = qs + sys.argv[1]
         environ['QUERY_STRING'] = qs    # XXX Shouldn't, really
-    elif environ.has_key('QUERY_STRING'):
+    elif 'QUERY_STRING' in environ:
         qs = environ['QUERY_STRING']
     else:
         if sys.argv[1:]:
@@ -155,8 +169,8 @@ def parse_qs(qs, keep_blank_values=0, strict_parsing=0):
         qs: URL-encoded query string to be parsed
 
         keep_blank_values: flag indicating whether blank values in
-            URL encoded queries should be treated as blank strings.  
-            A true value indicates that blanks should be retained as 
+            URL encoded queries should be treated as blank strings.
+            A true value indicates that blanks should be retained as
             blank strings.  The default false value indicates that
             blank values are to be ignored and treated as if they were
             not included.
@@ -167,7 +181,7 @@ def parse_qs(qs, keep_blank_values=0, strict_parsing=0):
     """
     dict = {}
     for name, value in parse_qsl(qs, keep_blank_values, strict_parsing):
-        if dict.has_key(name):
+        if name in dict:
             dict[name].append(value)
         else:
             dict[name] = [value]
@@ -188,21 +202,27 @@ def parse_qsl(qs, keep_blank_values=0, strict_parsing=0):
 
     strict_parsing: flag indicating what to do with parsing errors. If
         false (the default), errors are silently ignored. If true,
-        errors raise a ValueError exception. 
+        errors raise a ValueError exception.
 
     Returns a list, as G-d intended.
     """
     pairs = [s2 for s1 in qs.split('&') for s2 in s1.split(';')]
     r = []
     for name_value in pairs:
+        if not name_value and not strict_parsing:
+            continue
         nv = name_value.split('=', 1)
         if len(nv) != 2:
             if strict_parsing:
-                raise ValueError, "bad query field: %s" % `name_value`
-            continue
+                raise ValueError, "bad query field: %r" % (name_value,)
+            # Handle case of a control-name with no equal sign
+            if keep_blank_values:
+                nv.append('')
+            else:
+                continue
         if len(nv[1]) or keep_blank_values:
-            name = urllib.unquote(string.replace(nv[0], '+', ' '))
-            value = urllib.unquote(string.replace(nv[1], '+', ' '))
+            name = urllib.unquote(nv[0].replace('+', ' '))
+            value = urllib.unquote(nv[1].replace('+', ' '))
             r.append((name, value))
 
     return r
@@ -215,24 +235,31 @@ def parse_multipart(fp, pdict):
     fp   : input file
     pdict: dictionary containing other parameters of conten-type header
 
-    Returns a dictionary just like parse_qs(): keys are the field names, each 
-    value is a list of values for that field.  This is easy to use but not 
-    much good if you are expecting megabytes to be uploaded -- in that case, 
-    use the FieldStorage class instead which is much more flexible.  Note 
-    that content-type is the raw, unparsed contents of the content-type 
+    Returns a dictionary just like parse_qs(): keys are the field names, each
+    value is a list of values for that field.  This is easy to use but not
+    much good if you are expecting megabytes to be uploaded -- in that case,
+    use the FieldStorage class instead which is much more flexible.  Note
+    that content-type is the raw, unparsed contents of the content-type
     header.
-    
-    XXX This does not parse nested multipart parts -- use FieldStorage for 
+
+    XXX This does not parse nested multipart parts -- use FieldStorage for
     that.
-    
-    XXX This should really be subsumed by FieldStorage altogether -- no 
+
+    XXX This should really be subsumed by FieldStorage altogether -- no
     point in having two implementations of the same parsing algorithm.
+    Also, FieldStorage protects itself better against certain DoS attacks
+    by limiting the size of the data read in one chunk.  The API here
+    does not support that kind of protection.  This also affects parse()
+    since it can call parse_multipart().
 
     """
-    if pdict.has_key('boundary'):
+    boundary = ""
+    if 'boundary' in pdict:
         boundary = pdict['boundary']
-    else:
-        boundary = ""
+    if not valid_boundary(boundary):
+        raise ValueError,  ('Invalid boundary in multipart form: %r'
+                            % (boundary,))
+
     nextpart = "--" + boundary
     lastpart = "--" + boundary + "--"
     partdict = {}
@@ -247,8 +274,8 @@ def parse_multipart(fp, pdict):
             clength = headers.getheader('content-length')
             if clength:
                 try:
-                    bytes = string.atoi(clength)
-                except string.atoi_error:
+                    bytes = int(clength)
+                except ValueError:
                     pass
             if bytes > 0:
                 if maxlen and bytes > maxlen:
@@ -264,7 +291,7 @@ def parse_multipart(fp, pdict):
                 terminator = lastpart # End outer loop
                 break
             if line[:2] == "--":
-                terminator = string.strip(line)
+                terminator = line.strip()
                 if terminator in (nextpart, lastpart):
                     break
             lines.append(line)
@@ -280,18 +307,18 @@ def parse_multipart(fp, pdict):
                 elif line[-1:] == "\n":
                     line = line[:-1]
                 lines[-1] = line
-                data = string.joinfields(lines, "")
+                data = "".join(lines)
         line = headers['content-disposition']
         if not line:
             continue
         key, params = parse_header(line)
         if key != 'form-data':
             continue
-        if params.has_key('name'):
+        if 'name' in params:
             name = params['name']
         else:
             continue
-        if partdict.has_key(name):
+        if name in partdict:
             partdict[name].append(data)
         else:
             partdict[name] = [data]
@@ -305,17 +332,17 @@ def parse_header(line):
     Return the main content-type and a dictionary of options.
 
     """
-    plist = map(string.strip, string.splitfields(line, ';'))
-    key = string.lower(plist[0])
-    del plist[0]
+    plist = map(lambda x: x.strip(), line.split(';'))
+    key = plist.pop(0).lower()
     pdict = {}
     for p in plist:
-        i = string.find(p, '=')
+        i = p.find('=')
         if i >= 0:
-            name = string.lower(string.strip(p[:i]))
-            value = string.strip(p[i+1:])
+            name = p[:i].strip().lower()
+            value = p[i+1:].strip()
             if len(value) >= 2 and value[0] == value[-1] == '"':
                 value = value[1:-1]
+                value = value.replace('\\\\', '\\').replace('\\"', '"')
             pdict[name] = value
     return key, pdict
 
@@ -345,7 +372,7 @@ class MiniFieldStorage:
 
     def __repr__(self):
         """Return printable representation."""
-        return "MiniFieldStorage(%s, %s)" % (`self.name`, `self.value`)
+        return "MiniFieldStorage(%r, %r)" % (self.name, self.value)
 
 
 class FieldStorage:
@@ -409,8 +436,8 @@ class FieldStorage:
         environ         : environment dictionary; default: os.environ
 
         keep_blank_values: flag indicating whether blank values in
-            URL encoded forms should be treated as blank strings.  
-            A true value indicates that blanks should be retained as 
+            URL encoded forms should be treated as blank strings.
+            A true value indicates that blanks should be retained as
             blank strings.  The default false value indicates that
             blank values are to be ignored and treated as if they were
             not included.
@@ -423,10 +450,10 @@ class FieldStorage:
         method = 'GET'
         self.keep_blank_values = keep_blank_values
         self.strict_parsing = strict_parsing
-        if environ.has_key('REQUEST_METHOD'):
-            method = string.upper(environ['REQUEST_METHOD'])
+        if 'REQUEST_METHOD' in environ:
+            method = environ['REQUEST_METHOD'].upper()
         if method == 'GET' or method == 'HEAD':
-            if environ.has_key('QUERY_STRING'):
+            if 'QUERY_STRING' in environ:
                 qs = environ['QUERY_STRING']
             elif sys.argv[1:]:
                 qs = sys.argv[1]
@@ -441,9 +468,9 @@ class FieldStorage:
             if method == 'POST':
                 # Set default content-type for POST to what's traditional
                 headers['content-type'] = "application/x-www-form-urlencoded"
-            if environ.has_key('CONTENT_TYPE'):
+            if 'CONTENT_TYPE' in environ:
                 headers['content-type'] = environ['CONTENT_TYPE']
-            if environ.has_key('CONTENT_LENGTH'):
+            if 'CONTENT_LENGTH' in environ:
                 headers['content-length'] = environ['CONTENT_LENGTH']
         self.fp = fp or sys.stdin
         self.headers = headers
@@ -451,15 +478,15 @@ class FieldStorage:
 
         # Process content-disposition header
         cdisp, pdict = "", {}
-        if self.headers.has_key('content-disposition'):
+        if 'content-disposition' in self.headers:
             cdisp, pdict = parse_header(self.headers['content-disposition'])
         self.disposition = cdisp
         self.disposition_options = pdict
         self.name = None
-        if pdict.has_key('name'):
+        if 'name' in pdict:
             self.name = pdict['name']
         self.filename = None
-        if pdict.has_key('filename'):
+        if 'filename' in pdict:
             self.filename = pdict['filename']
 
         # Process content-type header
@@ -474,7 +501,7 @@ class FieldStorage:
         #
         # See below for what we do if there does exist a content-type header,
         # but it happens to be something we don't understand.
-        if self.headers.has_key('content-type'):
+        if 'content-type' in self.headers:
             ctype, pdict = parse_header(self.headers['content-type'])
         elif self.outerboundary or method != 'POST':
             ctype, pdict = "text/plain", {}
@@ -483,13 +510,13 @@ class FieldStorage:
         self.type = ctype
         self.type_options = pdict
         self.innerboundary = ""
-        if pdict.has_key('boundary'):
+        if 'boundary' in pdict:
             self.innerboundary = pdict['boundary']
         clen = -1
-        if self.headers.has_key('content-length'):
+        if 'content-length' in self.headers:
             try:
-                clen = string.atoi(self.headers['content-length'])
-            except:
+                clen = int(self.headers['content-length'])
+            except ValueError:
                 pass
             if maxlen and clen > maxlen:
                 raise ValueError, 'Maximum content length exceeded'
@@ -497,7 +524,6 @@ class FieldStorage:
 
         self.list = self.file = None
         self.done = 0
-        self.lines = []
         if ctype == 'application/x-www-form-urlencoded':
             self.read_urlencoded()
         elif ctype[:10] == 'multipart/':
@@ -507,8 +533,11 @@ class FieldStorage:
 
     def __repr__(self):
         """Return a printable representation."""
-        return "FieldStorage(%s, %s, %s)" % (
-                `self.name`, `self.filename`, `self.value`)
+        return "FieldStorage(%r, %r, %r)" % (
+                self.name, self.filename, self.value)
+
+    def __iter__(self):
+        return iter(self.keys())
 
     def __getattr__(self, name):
         if name != 'value':
@@ -539,7 +568,7 @@ class FieldStorage:
 
     def getvalue(self, key, default=None):
         """Dictionary style get() method, including 'value' lookup."""
-        if self.has_key(key):
+        if key in self:
             value = self[key]
             if type(value) is type([]):
                 return map(lambda v: v.value, value)
@@ -547,6 +576,28 @@ class FieldStorage:
                 return value.value
         else:
             return default
+
+    def getfirst(self, key, default=None):
+        """ Return the first value received."""
+        if key in self:
+            value = self[key]
+            if type(value) is type([]):
+                return value[0].value
+            else:
+                return value.value
+        else:
+            return default
+
+    def getlist(self, key):
+        """ Return list of received values."""
+        if key in self:
+            value = self[key]
+            if type(value) is type([]):
+                return map(lambda v: v.value, value)
+            else:
+                return [value.value]
+        else:
+            return []
 
     def keys(self):
         """Dictionary style keys() method."""
@@ -562,8 +613,16 @@ class FieldStorage:
         if self.list is None:
             raise TypeError, "not indexable"
         for item in self.list:
-            if item.name == key: return 1
-        return 0
+            if item.name == key: return True
+        return False
+
+    def __contains__(self, key):
+        """Dictionary style __contains__ method."""
+        if self.list is None:
+            raise TypeError, "not indexable"
+        for item in self.list:
+            if item.name == key: return True
+        return False
 
     def __len__(self):
         """Dictionary style len(x) support."""
@@ -582,14 +641,17 @@ class FieldStorage:
 
     def read_multi(self, environ, keep_blank_values, strict_parsing):
         """Internal: read a part that is itself multipart."""
+        ib = self.innerboundary
+        if not valid_boundary(ib):
+            raise ValueError, 'Invalid boundary in multipart form: %r' % (ib,)
         self.list = []
         klass = self.FieldStorageClass or self.__class__
-        part = klass(self.fp, {}, self.innerboundary,
+        part = klass(self.fp, {}, ib,
                      environ, keep_blank_values, strict_parsing)
         # Throw first part away
         while not part.done:
             headers = rfc822.Message(self.fp)
-            part = klass(self.fp, headers, self.innerboundary,
+            part = klass(self.fp, headers, ib,
                          environ, keep_blank_values, strict_parsing)
             self.list.append(part)
         self.skip_lines()
@@ -620,35 +682,42 @@ class FieldStorage:
 
     def read_lines(self):
         """Internal: read lines until EOF or outerboundary."""
-        self.file = self.make_file('')
+        self.file = self.__file = StringIO()
         if self.outerboundary:
             self.read_lines_to_outerboundary()
         else:
             self.read_lines_to_eof()
 
+    def __write(self, line):
+        if self.__file is not None:
+            if self.__file.tell() + len(line) > 1000:
+                self.file = self.make_file('')
+                self.file.write(self.__file.getvalue())
+                self.__file = None
+        self.file.write(line)
+
     def read_lines_to_eof(self):
         """Internal: read lines until EOF."""
         while 1:
-            line = self.fp.readline()
+            line = self.fp.readline(1<<16)
             if not line:
                 self.done = -1
                 break
-            self.lines.append(line)
-            self.file.write(line)
+            self.__write(line)
 
     def read_lines_to_outerboundary(self):
         """Internal: read lines until outerboundary."""
         next = "--" + self.outerboundary
         last = next + "--"
         delim = ""
+        last_line_lfend = True
         while 1:
-            line = self.fp.readline()
+            line = self.fp.readline(1<<16)
             if not line:
                 self.done = -1
                 break
-            self.lines.append(line)
-            if line[:2] == "--":
-                strippedline = string.strip(line)
+            if line[:2] == "--" and last_line_lfend:
+                strippedline = line.strip()
                 if strippedline == next:
                     break
                 if strippedline == last:
@@ -658,12 +727,15 @@ class FieldStorage:
             if line[-2:] == "\r\n":
                 delim = "\r\n"
                 line = line[:-2]
+                last_line_lfend = True
             elif line[-1] == "\n":
                 delim = "\n"
                 line = line[:-1]
+                last_line_lfend = True
             else:
                 delim = ""
-            self.file.write(odelim + line)
+                last_line_lfend = False
+            self.__write(odelim + line)
 
     def skip_lines(self):
         """Internal: skip lines until outer boundary if defined."""
@@ -671,19 +743,20 @@ class FieldStorage:
             return
         next = "--" + self.outerboundary
         last = next + "--"
+        last_line_lfend = True
         while 1:
-            line = self.fp.readline()
+            line = self.fp.readline(1<<16)
             if not line:
                 self.done = -1
                 break
-            self.lines.append(line)
-            if line[:2] == "--":
-                strippedline = string.strip(line)
+            if line[:2] == "--" and last_line_lfend:
+                strippedline = line.strip()
                 if strippedline == next:
                     break
                 if strippedline == last:
                     self.done = 1
                     break
+            last_line_lfend = line.endswith('\n')
 
     def make_file(self, binary=None):
         """Overridable: return a readable & writable file.
@@ -711,7 +784,7 @@ class FieldStorage:
         """
         import tempfile
         return tempfile.TemporaryFile("w+b")
-        
+
 
 
 # Backwards Compatibility Classes
@@ -723,7 +796,7 @@ class FormContentDict(UserDict.UserDict):
     form = FormContentDict()
 
     form[key] -> [value, value, ...]
-    form.has_key(key) -> Boolean
+    key in form -> Boolean
     form.keys() -> [key, key, ...]
     form.values() -> [[val, val, ...], [val, val, ...], ...]
     form.items() ->  [(key, [val, val, ...]), (key, [val, val, ...]), ...]
@@ -748,8 +821,8 @@ class SvFormContentDict(FormContentDict):
 
     """
     def __getitem__(self, key):
-        if len(self.dict[key]) > 1: 
-            raise IndexError, 'expecting a single value' 
+        if len(self.dict[key]) > 1:
+            raise IndexError, 'expecting a single value'
         return self.dict[key][0]
     def getlist(self, key):
         return self.dict[key]
@@ -770,15 +843,15 @@ class SvFormContentDict(FormContentDict):
 
 
 class InterpFormContentDict(SvFormContentDict):
-    """This class is present for backwards compatibility only.""" 
+    """This class is present for backwards compatibility only."""
     def __getitem__(self, key):
         v = SvFormContentDict.__getitem__(self, key)
-        if v[0] in string.digits + '+-.':
-            try: return string.atoi(v)
+        if v[0] in '0123456789+-.':
+            try: return int(v)
             except ValueError:
-                try: return string.atof(v)
+                try: return float(v)
                 except ValueError: pass
-        return string.strip(v)
+        return v.strip()
     def values(self):
         result = []
         for key in self.keys():
@@ -798,23 +871,23 @@ class InterpFormContentDict(SvFormContentDict):
 
 
 class FormContent(FormContentDict):
-    """This class is present for backwards compatibility only.""" 
+    """This class is present for backwards compatibility only."""
     def values(self, key):
-        if self.dict.has_key(key) :return self.dict[key]
+        if key in self.dict :return self.dict[key]
         else: return None
     def indexed_value(self, key, location):
-        if self.dict.has_key(key):
+        if key in self.dict:
             if len(self.dict[key]) > location:
                 return self.dict[key][location]
             else: return None
         else: return None
     def value(self, key):
-        if self.dict.has_key(key): return self.dict[key][0]
+        if key in self.dict: return self.dict[key][0]
         else: return None
     def length(self, key):
         return len(self.dict[key])
     def stripped(self, key):
-        if self.dict.has_key(key): return string.strip(self.dict[key][0])
+        if key in self.dict: return self.dict[key][0].strip()
         else: return None
     def pars(self):
         return self.dict
@@ -830,7 +903,6 @@ def test(environ=os.environ):
     the script in HTML form.
 
     """
-    import traceback
     print "Content-type: text/html"
     print
     sys.stderr = sys.stdout
@@ -868,11 +940,11 @@ def print_exception(type=None, value=None, tb=None, limit=None):
         type, value, tb = sys.exc_info()
     import traceback
     print
-    print "<H3>Traceback (innermost last):</H3>"
+    print "<H3>Traceback (most recent call last):</H3>"
     list = traceback.format_tb(tb, limit) + \
            traceback.format_exception_only(type, value)
     print "<PRE>%s<B>%s</B></PRE>" % (
-        escape(string.join(list[:-1], "")),
+        escape("".join(list[:-1])),
         escape(list[-1]),
         )
     del tb
@@ -886,7 +958,7 @@ def print_environ(environ=os.environ):
     print "<DL>"
     for key in keys:
         print "<DT>", escape(key), "<DD>", escape(environ[key])
-    print "</DL>" 
+    print "</DL>"
     print
 
 def print_form(form):
@@ -901,8 +973,8 @@ def print_form(form):
     for key in keys:
         print "<DT>" + escape(key) + ":",
         value = form[key]
-        print "<i>" + escape(`type(value)`) + "</i>"
-        print "<DD>" + escape(`value`)
+        print "<i>" + escape(repr(type(value))) + "</i>"
+        print "<DD>" + escape(repr(value))
     print "</DL>"
     print
 
@@ -974,17 +1046,20 @@ environment as well.  Here are some common variable names:
 
 def escape(s, quote=None):
     """Replace special characters '&', '<' and '>' by SGML entities."""
-    s = string.replace(s, "&", "&amp;") # Must be done first!
-    s = string.replace(s, "<", "&lt;")
-    s = string.replace(s, ">", "&gt;",)
+    s = s.replace("&", "&amp;") # Must be done first!
+    s = s.replace("<", "&lt;")
+    s = s.replace(">", "&gt;")
     if quote:
-        s = string.replace(s, '"', "&quot;")
+        s = s.replace('"', "&quot;")
     return s
 
+def valid_boundary(s, _vb_pattern="^[ -~]{0,200}[!-~]$"):
+    import re
+    return re.match(_vb_pattern, s)
 
 # Invoke mainline
 # ===============
 
 # Call test() when this file is run as a script (not imported as a module)
-if __name__ == '__main__': 
+if __name__ == '__main__':
     test()

@@ -3,7 +3,7 @@
 
 \declaremodule{builtin}{posix}
   \platform{Unix}
-\modulesynopsis{The most common \POSIX{} system calls (normally used
+\modulesynopsis{The most common \POSIX\ system calls (normally used
                 via module \refmodule{os}).}
 
 
@@ -13,7 +13,7 @@ disguised \UNIX{} interface).
 
 \strong{Do not import this module directly.}  Instead, import the
 module \refmodule{os}, which provides a \emph{portable} version of this
-interface.  On \UNIX{}, the \refmodule{os} module provides a superset of
+interface.  On \UNIX, the \refmodule{os} module provides a superset of
 the \module{posix} interface.  On non-\UNIX{} operating systems the
 \module{posix} module is not available, but a subset is always
 available through the \refmodule{os} interface.  Once \refmodule{os} is
@@ -56,7 +56,14 @@ of Irix, but with Solaris 2.6 and 2.7 you need to do something like:
 
 \begin{verbatim}
 CFLAGS="`getconf LFS_CFLAGS`" OPT="-g -O2 $CFLAGS" \
-        configure
+        ./configure
+\end{verbatim} % $ <-- bow to font-lock
+
+On large-file-capable Linux systems, this might work:
+
+\begin{verbatim}
+CFLAGS='-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64' OPT="-g -O2 $CFLAGS" \
+        ./configure
 \end{verbatim} % $ <-- bow to font-lock
 
 
@@ -78,11 +85,11 @@ passed on by \function{execv()}, \function{popen()} or
 export statements to the command string for \function{system()} or
 \function{popen()}.
 
-\strong{Note:} The \refmodule{os} module provides an alternate
+\note{The \refmodule{os} module provides an alternate
 implementation of \code{environ} which updates the environment on
 modification.  Note also that updating \code{os.environ} will render
-this dictionary obsolete.  Use of the \refmodule{os} for this is
-recommended over direct access to the \module{posix} module.
+this dictionary obsolete.  Use of the \refmodule{os} module version of
+this is recommended over direct access to the \module{posix} module.}
 \end{datadesc}
 
 Additional contents of this module should only be accessed via the

@@ -11,17 +11,20 @@ for the Borland C++ compiler.
 # someone should sit down and factor out the common code as
 # WindowsCCompiler!  --GPW
 
+# This module should be kept compatible with Python 2.1.
+
 __revision__ = "$Id$"
 
 
-import sys, os, string
+import sys, os
 from distutils.errors import \
      DistutilsExecError, DistutilsPlatformError, \
-     CompileError, LibError, LinkError
+     CompileError, LibError, LinkError, UnknownFileError
 from distutils.ccompiler import \
      CCompiler, gen_preprocess_options, gen_lib_options
 from distutils.file_util import write_file
-
+from distutils.dep_util import newer
+from distutils import log
 
 class BCPPCompiler(CCompiler) :
     """Concrete class that implements an interface to the Borland C/C++
@@ -79,74 +82,65 @@ class BCPPCompiler(CCompiler) :
 
     # -- Worker methods ------------------------------------------------
 
-    def compile (self,
-                 sources,
-                 output_dir=None,
-                 macros=None,
-                 include_dirs=None,
-                 debug=0,
-                 extra_preargs=None,
-                 extra_postargs=None):
+    def compile(self, sources,
+                output_dir=None, macros=None, include_dirs=None, debug=0,
+                extra_preargs=None, extra_postargs=None, depends=None):
 
-        (output_dir, macros, include_dirs) = \
-            self._fix_compile_args (output_dir, macros, include_dirs)
-        (objects, skip_sources) = self._prep_compile (sources, output_dir)
-
-        if extra_postargs is None:
-            extra_postargs = []
-
-        pp_opts = gen_preprocess_options (macros, include_dirs)
+        macros, objects, extra_postargs, pp_opts, build = \
+                self._setup_compile(output_dir, macros, include_dirs, sources,
+                                    depends, extra_postargs)
         compile_opts = extra_preargs or []
         compile_opts.append ('-c')
         if debug:
             compile_opts.extend (self.compile_options_debug)
         else:
             compile_opts.extend (self.compile_options)
-        
-        for i in range (len (sources)):
-            src = sources[i] ; obj = objects[i]
-            ext = (os.path.splitext (src))[1]
 
-            if skip_sources[src]:
-                self.announce ("skipping %s (%s up-to-date)" % (src, obj))
-            else:
-                src = os.path.normpath(src)
-                obj = os.path.normpath(obj)
-                self.mkpath(os.path.dirname(obj))
+        for obj in objects:
+            try:
+                src, ext = build[obj]
+            except KeyError:
+                continue
+            # XXX why do the normpath here?
+            src = os.path.normpath(src)
+            obj = os.path.normpath(obj)
+            # XXX _setup_compile() did a mkpath() too but before the normpath.
+            # Is it possible to skip the normpath?
+            self.mkpath(os.path.dirname(obj))
 
-                if ext == '.res':
-                    # This is already a binary file -- skip it.
-                    continue # the 'for' loop
-                if ext == '.rc':
-                    # This needs to be compiled to a .res file -- do it now.
-                    try:
-                        self.spawn (["brcc32", "-fo", obj, src])
-                    except DistutilsExecError, msg:
-                        raise CompileError, msg
-                    continue # the 'for' loop
-
-                # The next two are both for the real compiler.
-                if ext in self._c_extensions:
-                    input_opt = ""
-                elif ext in self._cpp_extensions:
-                    input_opt = "-P"
-                else: 
-                    # Unknown file type -- no extra options.  The compiler
-                    # will probably fail, but let it just in case this is a
-                    # file the compiler recognizes even if we don't.
-                    input_opt = ""                              
-
-                output_opt = "-o" + obj
-
-                # Compiler command line syntax is: "bcc32 [options] file(s)".
-                # Note that the source file names must appear at the end of
-                # the command line.
+            if ext == '.res':
+                # This is already a binary file -- skip it.
+                continue # the 'for' loop
+            if ext == '.rc':
+                # This needs to be compiled to a .res file -- do it now.
                 try:
-                    self.spawn ([self.cc] + compile_opts + pp_opts +
-                                [input_opt, output_opt] +
-                                extra_postargs + [src])
+                    self.spawn (["brcc32", "-fo", obj, src])
                 except DistutilsExecError, msg:
                     raise CompileError, msg
+                continue # the 'for' loop
+
+            # The next two are both for the real compiler.
+            if ext in self._c_extensions:
+                input_opt = ""
+            elif ext in self._cpp_extensions:
+                input_opt = "-P"
+            else:
+                # Unknown file type -- no extra options.  The compiler
+                # will probably fail, but let it just in case this is a
+                # file the compiler recognizes even if we don't.
+                input_opt = ""
+
+            output_opt = "-o" + obj
+
+            # Compiler command line syntax is: "bcc32 [options] file(s)".
+            # Note that the source file names must appear at the end of
+            # the command line.
+            try:
+                self.spawn ([self.cc] + compile_opts + pp_opts +
+                            [input_opt, output_opt] +
+                            extra_postargs + [src])
+            except DistutilsExecError, msg:
+                raise CompileError, msg
 
         return objects
 
@@ -158,8 +152,7 @@ class BCPPCompiler(CCompiler) :
                            output_libname,
                            output_dir=None,
                            debug=0,
-                           extra_preargs=None,
-                           extra_postargs=None):
+                           target_lang=None):
 
         (objects, output_dir) = self._fix_object_args (objects, output_dir)
         output_filename = \
@@ -169,22 +162,18 @@ class BCPPCompiler(CCompiler) :
             lib_args = [output_filename, '/u'] + objects
             if debug:
                 pass                    # XXX what goes here?
-            if extra_preargs:
-                lib_args[:0] = extra_preargs
-            if extra_postargs:
-                lib_args.extend (extra_postargs)
             try:
-               self.spawn ([self.lib] + lib_args)
+                self.spawn ([self.lib] + lib_args)
             except DistutilsExecError, msg:
-               raise LibError, msg
+                raise LibError, msg
         else:
-            self.announce ("skipping %s (up-to-date)" % output_filename)
+            log.debug("skipping %s (up-to-date)", output_filename)
 
     # create_static_lib ()
-    
-    
+
+
     def link (self,
-              target_desc,        
+              target_desc,
               objects,
               output_filename,
               output_dir=None,
@@ -195,7 +184,8 @@ class BCPPCompiler(CCompiler) :
               debug=0,
               extra_preargs=None,
               extra_postargs=None,
-              build_temp=None):
+              build_temp=None,
+              target_lang=None):
 
         # XXX this ignores 'build_temp'!  should follow the lead of
         # msvccompiler.py
@@ -205,8 +195,8 @@ class BCPPCompiler(CCompiler) :
             self._fix_lib_args (libraries, library_dirs, runtime_library_dirs)
 
         if runtime_library_dirs:
-            self.warn ("I don't know what to do with 'runtime_library_dirs': "
-                       + str (runtime_library_dirs))
+            log.warn("I don't know what to do with 'runtime_library_dirs': %s",
+                     str(runtime_library_dirs))
 
         if output_dir is not None:
             output_filename = os.path.join (output_dir, output_filename)
@@ -254,14 +244,14 @@ class BCPPCompiler(CCompiler) :
                     resources.append(file)
                 else:
                     objects.append(file)
-            
-            
+
+
             for l in library_dirs:
-                ld_args.append("/L%s" % os.path.normpath(l)) 
+                ld_args.append("/L%s" % os.path.normpath(l))
             ld_args.append("/L.") # we sometimes use relative paths
 
-            # list of object files                
-            ld_args.extend(objects)     
+            # list of object files
+            ld_args.extend(objects)
 
             # XXX the command-line syntax for Borland C++ is a bit wonky;
             # certain filenames are jammed together in one big string, but
@@ -275,17 +265,16 @@ class BCPPCompiler(CCompiler) :
 
             # name of dll/exe file
             ld_args.extend([',',output_filename])
-            # no map file and start libraries 
+            # no map file and start libraries
             ld_args.append(',,')
 
             for lib in libraries:
-                # see if we find it and if there is a bcpp specific lib 
+                # see if we find it and if there is a bcpp specific lib
                 # (xxx_bcpp.lib)
                 libfile = self.find_library_file(library_dirs, lib, debug)
                 if libfile is None:
                     ld_args.append(lib)
                     # probably a BCPP internal library -- don't warn
-                    #    self.warn('library %s not found.' % lib)
                 else:
                     # full name which prefers bcpp_xxx.lib over xxx.lib
                     ld_args.append(libfile)
@@ -300,7 +289,7 @@ class BCPPCompiler(CCompiler) :
             ld_args.append(',')
             ld_args.extend(resources)
 
-            
+
             if extra_preargs:
                 ld_args[:0] = extra_preargs
             if extra_postargs:
@@ -313,7 +302,7 @@ class BCPPCompiler(CCompiler) :
                 raise LinkError, msg
 
         else:
-            self.announce ("skipping %s (up-to-date)" % output_filename)
+            log.debug("skipping %s (up-to-date)", output_filename)
 
     # link ()
 
@@ -373,3 +362,37 @@ class BCPPCompiler(CCompiler) :
         return obj_names
 
     # object_filenames ()
+
+    def preprocess (self,
+                    source,
+                    output_file=None,
+                    macros=None,
+                    include_dirs=None,
+                    extra_preargs=None,
+                    extra_postargs=None):
+
+        (_, macros, include_dirs) = \
+            self._fix_compile_args(None, macros, include_dirs)
+        pp_opts = gen_preprocess_options(macros, include_dirs)
+        pp_args = ['cpp32.exe'] + pp_opts
+        if output_file is not None:
+            pp_args.append('-o' + output_file)
+        if extra_preargs:
+            pp_args[:0] = extra_preargs
+        if extra_postargs:
+            pp_args.extend(extra_postargs)
+        pp_args.append(source)
+
+        # We need to preprocess: either we're being forced to, or the
+        # source file is newer than the target (or the target doesn't
+        # exist).
+        if self.force or output_file is None or newer(source, output_file):
+            if output_file:
+                self.mkpath(os.path.dirname(output_file))
+            try:
+                self.spawn(pp_args)
+            except DistutilsExecError, msg:
+                print msg
+                raise CompileError, msg
+
+    # preprocess()

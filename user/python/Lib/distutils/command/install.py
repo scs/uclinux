@@ -2,18 +2,39 @@
 
 Implements the Distutils 'install' command."""
 
-# created 1999/03/13, Greg Ward
+from distutils import log
+
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
 import sys, os, string
 from types import *
-from distutils.core import Command, DEBUG
+from distutils.core import Command
+from distutils.debug import DEBUG
 from distutils.sysconfig import get_config_vars
+from distutils.errors import DistutilsPlatformError
 from distutils.file_util import write_file
 from distutils.util import convert_path, subst_vars, change_root
 from distutils.errors import DistutilsOptionError
 from glob import glob
+
+if sys.version < "2.2":
+    WINDOWS_SCHEME = {
+        'purelib': '$base',
+        'platlib': '$base',
+        'headers': '$base/Include/$dist_name',
+        'scripts': '$base/Scripts',
+        'data'   : '$base',
+    }
+else:
+    WINDOWS_SCHEME = {
+        'purelib': '$base/Lib/site-packages',
+        'platlib': '$base/Lib/site-packages',
+        'headers': '$base/Include/$dist_name',
+        'scripts': '$base/Scripts',
+        'data'   : '$base',
+    }
 
 INSTALL_SCHEMES = {
     'unix_prefix': {
@@ -30,14 +51,15 @@ INSTALL_SCHEMES = {
         'scripts': '$base/bin',
         'data'   : '$base',
         },
-    'nt': {
-        'purelib': '$base',
-        'platlib': '$base',
+    'nt': WINDOWS_SCHEME,
+    'mac': {
+        'purelib': '$base/Lib/site-packages',
+        'platlib': '$base/Lib/site-packages',
         'headers': '$base/Include/$dist_name',
         'scripts': '$base/Scripts',
         'data'   : '$base',
         },
-    'mac': {
+    'os2': {
         'purelib': '$base/Lib/site-packages',
         'platlib': '$base/Lib/site-packages',
         'headers': '$base/Include/$dist_name',
@@ -98,7 +120,7 @@ class install (Command):
         ('optimize=', 'O',
          "also compile with optimization: -O1 for \"python -O\", "
          "-O2 for \"python -OO\", and -O0 to disable [default: -O0]"),
-         
+
         # Miscellaneous control options
         ('force', 'f',
          "force installation (overwrite any existing files)"),
@@ -115,7 +137,7 @@ class install (Command):
          "filename in which to record list of installed files"),
         ]
 
-    boolean_options = ['force', 'skip-build']
+    boolean_options = ['compile', 'force', 'skip-build']
     negative_opt = {'no-compile' : 'compile'}
 
 
@@ -215,19 +237,15 @@ class install (Command):
                   ("must supply either prefix/exec-prefix/home or " +
                    "install-base/install-platbase -- not both")
 
+        if self.home and (self.prefix or self.exec_prefix):
+            raise DistutilsOptionError, \
+                  "must supply either home or prefix/exec-prefix -- not both"
+
         # Next, stuff that's wrong (or dubious) only on certain platforms.
-        if os.name == 'posix':
-            if self.home and (self.prefix or self.exec_prefix):
-                raise DistutilsOptionError, \
-                      ("must supply either home or prefix/exec-prefix -- " +
-                       "not both")
-        else:
+        if os.name != "posix":
             if self.exec_prefix:
                 self.warn("exec-prefix option ignored on this platform")
                 self.exec_prefix = None
-            if self.home:
-                self.warn("home option ignored on this platform")
-                self.home = None
 
         # Now the interesting logic -- so interesting that we farm it out
         # to other methods.  The goal of these methods is to set the final
@@ -292,7 +310,7 @@ class install (Command):
                 self.install_lib = self.install_platlib
             else:
                 self.install_lib = self.install_purelib
-                    
+
 
         # Convert directories from Unix /-separated syntax to the local
         # convention.
@@ -334,13 +352,18 @@ class install (Command):
                 opt_name = opt[0]
                 if opt_name[-1] == "=":
                     opt_name = opt_name[0:-1]
-                opt_name = string.translate(opt_name, longopt_xlate)
-                val = getattr(self, opt_name)
+                if self.negative_opt.has_key(opt_name):
+                    opt_name = string.translate(self.negative_opt[opt_name],
+                                                longopt_xlate)
+                    val = not getattr(self, opt_name)
+                else:
+                    opt_name = string.translate(opt_name, longopt_xlate)
+                    val = getattr(self, opt_name)
                 print "  %s: %s" % (opt_name, val)
 
 
     def finalize_unix (self):
-        
+
         if self.install_base is not None or self.install_platbase is not None:
             if ((self.install_lib is None and
                  self.install_purelib is None and
@@ -349,8 +372,8 @@ class install (Command):
                 self.install_scripts is None or
                 self.install_data is None):
                 raise DistutilsOptionError, \
-                      "install-base or install-platbase supplied, but " + \
-                      "installation scheme is incomplete"
+                      ("install-base or install-platbase supplied, but "
+                      "installation scheme is incomplete")
             return
 
         if self.home is not None:
@@ -378,15 +401,19 @@ class install (Command):
 
     def finalize_other (self):          # Windows and Mac OS for now
 
-        if self.prefix is None:
-            self.prefix = os.path.normpath(sys.prefix)
+        if self.home is not None:
+            self.install_base = self.install_platbase = self.home
+            self.select_scheme("unix_home")
+        else:
+            if self.prefix is None:
+                self.prefix = os.path.normpath(sys.prefix)
 
-        self.install_base = self.install_platbase = self.prefix
-        try:
-            self.select_scheme(os.name)
-        except KeyError:
-            raise DistutilsPlatformError, \
-                  "I don't know how to install stuff on '%s'" % os.name
+            self.install_base = self.install_platbase = self.prefix
+            try:
+                self.select_scheme(os.name)
+            except KeyError:
+                raise DistutilsPlatformError, \
+                      "I don't know how to install stuff on '%s'" % os.name
 
     # finalize_other ()
 
@@ -413,7 +440,7 @@ class install (Command):
     def expand_basedirs (self):
         self._expand_attrs(['install_base',
                             'install_platbase',
-                            'root'])        
+                            'root'])
 
     def expand_dirs (self):
         self._expand_attrs(['install_purelib',
@@ -445,8 +472,8 @@ class install (Command):
                 (path_file, extra_dirs) = self.extra_path
             else:
                 raise DistutilsOptionError, \
-                      "'extra_path' option must be a list, tuple, or " + \
-                      "comma-separated string with 1 or 2 elements"
+                      ("'extra_path' option must be a list, tuple, or "
+                      "comma-separated string with 1 or 2 elements")
 
             # convert to local form in case Unix notation used (as it
             # should be in setup scripts)
@@ -503,10 +530,10 @@ class install (Command):
         if (self.warn_dir and
             not (self.path_file and self.install_path_file) and
             install_lib not in sys_path):
-            self.warn(("modules installed to '%s', which is not in " +
-                       "Python's module search path (sys.path) -- " +
-                       "you'll have to change the search path yourself") %
-                      self.install_lib)
+            log.debug(("modules installed to '%s', which is not in "
+                       "Python's module search path (sys.path) -- "
+                       "you'll have to change the search path yourself"),
+                       self.install_lib)
 
     # run ()
 
@@ -524,12 +551,19 @@ class install (Command):
     # -- Reporting methods ---------------------------------------------
 
     def get_outputs (self):
-        # This command doesn't have any outputs of its own, so just
-        # get the outputs of all its sub-commands.
+        # Assemble the outputs of all the sub-commands.
         outputs = []
         for cmd_name in self.get_sub_commands():
             cmd = self.get_finalized_command(cmd_name)
-            outputs.extend(cmd.get_outputs())
+            # Add the contents of cmd.get_outputs(), ensuring
+            # that outputs doesn't contain duplicate entries
+            for filename in cmd.get_outputs():
+                if filename not in outputs:
+                    outputs.append(filename)
+
+        if self.path_file and self.install_path_file:
+            outputs.append(os.path.join(self.install_libbase,
+                                        self.path_file + ".pth"))
 
         return outputs
 

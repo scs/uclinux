@@ -4,15 +4,13 @@ Miscellaneous utility functions -- anything that doesn't fit into
 one of the other *util.py modules.
 """
 
-# created 1999/03/08, Greg Ward
-
 __revision__ = "$Id$"
 
 import sys, os, string, re
 from distutils.errors import DistutilsPlatformError
 from distutils.dep_util import newer
 from distutils.spawn import spawn
-
+from distutils import log
 
 def get_platform ():
     """Return a string that identifies the current platform.  This is used
@@ -30,7 +28,7 @@ def get_platform ():
        solaris-2.6-sun4u
        irix-5.3
        irix64-6.2
-       
+
     For non-POSIX platforms, currently just returns 'sys.platform'.
     """
     if os.name != "posix" or not hasattr(os, 'uname'):
@@ -41,7 +39,14 @@ def get_platform ():
     # Try to distinguish various flavours of Unix
 
     (osname, host, release, version, machine) = os.uname()
+
+    # Convert the OS name to lowercase, remove '/' characters
+    # (to accommodate BSD/OS), and translate spaces (for "Power Macintosh")
     osname = string.lower(osname)
+    osname = string.replace(osname, '/', '')
+    machine = string.replace(machine, ' ', '_')
+    machine = string.replace(machine, '/', '-')
+
     if osname[:5] == "linux":
         # At least on Linux/Intel, 'machine' is the processor --
         # i386, etc.
@@ -54,7 +59,64 @@ def get_platform ():
         # fall through to standard osname-release-machine representation
     elif osname[:4] == "irix":              # could be "irix64"!
         return "%s-%s" % (osname, release)
+    elif osname[:3] == "aix":
+        return "%s-%s.%s" % (osname, version, release)
+    elif osname[:6] == "cygwin":
+        osname = "cygwin"
+        rel_re = re.compile (r'[\d.]+')
+        m = rel_re.match(release)
+        if m:
+            release = m.group()
+    elif osname[:6] == "darwin":
+        # 
+        # For our purposes, we'll assume that the system version from 
+        # distutils' perspective is what MACOSX_DEPLOYMENT_TARGET is set
+        # to. This makes the compatibility story a bit more sane because the
+        # machine is going to compile and link as if it were
+        # MACOSX_DEPLOYMENT_TARGET.
+        from distutils.sysconfig import get_config_vars
+        cfgvars = get_config_vars()
+                
+        macver = os.environ.get('MACOSX_DEPLOYMENT_TARGET')
+        if not macver:
+            macver = cfgvars.get('MACOSX_DEPLOYMENT_TARGET')
+
+        if not macver:
+            # Get the system version. Reading this plist is a documented
+            # way to get the system version (see the documentation for
+            # the Gestalt Manager)
+            try:
+               f = open('/System/Library/CoreServices/SystemVersion.plist')
+            except IOError:
+                # We're on a plain darwin box, fall back to the default
+                # behaviour.
+                pass
+            else:
+                m = re.search(
+                        r'<key>ProductUserVisibleVersion</key>\s*' +
+                        r'<string>(.*?)</string>', f.read())
+                f.close()
+                if m is not None:
+                    macver = '.'.join(m.group(1).split('.')[:2])
+                # else: fall back to the default behaviour
+    
+        if macver:
+            from distutils.sysconfig import get_config_vars
+            release = macver
+            osname = 'macosx'
+            platver = os.uname()[2]
+            osmajor = int(platver.split('.')[0])
             
+            if osmajor >= 8 and \
+                    get_config_vars().get('UNIVERSALSDK', '').strip():
+                # The universal build will build fat binaries, but not on
+                # systems before 10.4
+                machine = 'fat'
+        
+            elif machine in ('PowerPC', 'Power_Macintosh'):
+                # Pick a sane name for the PPC architecture
+                machine = 'ppc'
+
     return "%s-%s-%s" % (osname, release, machine)
 
 # get_platform ()
@@ -71,12 +133,18 @@ def convert_path (pathname):
     """
     if os.sep == '/':
         return pathname
+    if not pathname:
+        return pathname
     if pathname[0] == '/':
         raise ValueError, "path '%s' cannot be absolute" % pathname
     if pathname[-1] == '/':
         raise ValueError, "path '%s' cannot end with '/'" % pathname
 
     paths = string.split(pathname, '/')
+    while '.' in paths:
+        paths.remove('.')
+    if not paths:
+        return os.curdir
     return apply(os.path.join, paths)
 
 # convert_path ()
@@ -97,6 +165,12 @@ def change_root (new_root, pathname):
     elif os.name == 'nt':
         (drive, path) = os.path.splitdrive(pathname)
         if path[0] == '\\':
+            path = path[1:]
+        return os.path.join(new_root, path)
+
+    elif os.name == 'os2':
+        (drive, path) = os.path.splitdrive(pathname)
+        if path[0] == os.sep:
             path = path[1:]
         return os.path.join(new_root, path)
 
@@ -137,7 +211,7 @@ def check_environ ():
     _environ_checked = 1
 
 
-def subst_vars (str, local_vars):
+def subst_vars (s, local_vars):
     """Perform shell/Perl-style variable substitution on 'string'.  Every
     occurrence of '$' followed by a name is considered a variable, and
     variable is substituted by the value found in the 'local_vars'
@@ -155,7 +229,7 @@ def subst_vars (str, local_vars):
             return os.environ[var_name]
 
     try:
-        return re.sub(r'\$([a-zA-Z_][a-zA-Z_0-9]*)', _subst, str)
+        return re.sub(r'\$([a-zA-Z_][a-zA-Z_0-9]*)', _subst, s)
     except KeyError, var:
         raise ValueError, "invalid variable '$%s'" % var
 
@@ -185,9 +259,12 @@ def grok_environment_error (exc, prefix="error: "):
 
 
 # Needed by 'split_quoted()'
-_wordchars_re = re.compile(r'[^\\\'\"%s ]*' % string.whitespace)
-_squote_re = re.compile(r"'(?:[^'\\]|\\.)*'")
-_dquote_re = re.compile(r'"(?:[^"\\]|\\.)*"')
+_wordchars_re = _squote_re = _dquote_re = None
+def _init_regex():
+    global _wordchars_re, _squote_re, _dquote_re
+    _wordchars_re = re.compile(r'[^\\\'\"%s ]*' % string.whitespace)
+    _squote_re = re.compile(r"'(?:[^'\\]|\\.)*'")
+    _dquote_re = re.compile(r'"(?:[^"\\]|\\.)*"')
 
 def split_quoted (s):
     """Split a string up according to Unix shell-like rules for quotes and
@@ -203,6 +280,7 @@ def split_quoted (s):
     # This is a nice algorithm for splitting up a single string, since it
     # doesn't require character-by-character examination.  It was a little
     # bit of a brain-bender to get it working right, though...
+    if _wordchars_re is None: _init_regex()
 
     s = string.strip(s)
     words = []
@@ -252,33 +330,27 @@ def split_quoted (s):
 
 
 def execute (func, args, msg=None, verbose=0, dry_run=0):
-    """Perform some action that affects the outside world (eg.  by writing
-    to the filesystem).  Such actions are special because they are disabled
-    by the 'dry_run' flag, and announce themselves if 'verbose' is true.
-    This method takes care of all that bureaucracy for you; all you have to
-    do is supply the function to call and an argument tuple for it (to
-    embody the "external action" being performed), and an optional message
-    to print.
+    """Perform some action that affects the outside world (eg.  by
+    writing to the filesystem).  Such actions are special because they
+    are disabled by the 'dry_run' flag.  This method takes care of all
+    that bureaucracy for you; all you have to do is supply the
+    function to call and an argument tuple for it (to embody the
+    "external action" being performed), and an optional message to
+    print.
     """
-    # Generate a message if we weren't passed one
     if msg is None:
-        msg = "%s%s" % (func.__name__, `args`)
-        if msg[-2:] == ',)':        # correct for singleton tuple 
+        msg = "%s%r" % (func.__name__, args)
+        if msg[-2:] == ',)':        # correct for singleton tuple
             msg = msg[0:-2] + ')'
 
-    # Print it if verbosity level is high enough
-    if verbose:
-        print msg
-
-    # And do it, as long as we're not in dry-run mode
+    log.info(msg)
     if not dry_run:
         apply(func, args)
-
-# execute()
 
 
 def strtobool (val):
     """Convert a string representation of truth to true (1) or false (0).
+
     True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
     are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
     'val' is anything else.
@@ -289,7 +361,7 @@ def strtobool (val):
     elif val in ('n', 'no', 'f', 'false', 'off', '0'):
         return 0
     else:
-        raise ValueError, "invalid truth value %s" % `val`
+        raise ValueError, "invalid truth value %r" % (val,)
 
 
 def byte_compile (py_files,
@@ -314,8 +386,8 @@ def byte_compile (py_files,
     prepended (after 'prefix' is stripped).  You can supply either or both
     (or neither) of 'prefix' and 'base_dir', as you wish.
 
-    If 'verbose' is true, prints out a report of each file.  If 'dry_run'
-    is true, doesn't actually do anything that would affect the filesystem.
+    If 'dry_run' is true, doesn't actually do anything that would
+    affect the filesystem.
 
     Byte-compilation is either done directly in this interpreter process
     with the standard py_compile module, or indirectly by writing a
@@ -342,12 +414,18 @@ def byte_compile (py_files,
     # "Indirect" byte-compilation: write a temporary script and then
     # run it with the appropriate flags.
     if not direct:
-        from tempfile import mktemp
-        script_name = mktemp(".py")
-        if verbose:
-            print "writing byte-compilation script '%s'" % script_name
+        try:
+            from tempfile import mkstemp
+            (script_fd, script_name) = mkstemp(".py")
+        except ImportError:
+            from tempfile import mktemp
+            (script_fd, script_name) = None, mktemp(".py")
+        log.info("writing byte-compilation script '%s'", script_name)
         if not dry_run:
-            script = open(script_name, "w")
+            if script_fd is not None:
+                script = os.fdopen(script_fd, "w")
+            else:
+                script = open(script_name, "w")
 
             script.write("""\
 from distutils.util import byte_compile
@@ -370,11 +448,11 @@ files = [
 
             script.write(string.join(map(repr, py_files), ",\n") + "]\n")
             script.write("""
-byte_compile(files, optimize=%s, force=%s,
-             prefix=%s, base_dir=%s,
-             verbose=%s, dry_run=0,
+byte_compile(files, optimize=%r, force=%r,
+             prefix=%r, base_dir=%r,
+             verbose=%r, dry_run=0,
              direct=1)
-""" % (`optimize`, `force`, `prefix`, `base_dir`, `verbose`))
+""" % (optimize, force, prefix, base_dir, verbose))
 
             script.close()
 
@@ -383,10 +461,10 @@ byte_compile(files, optimize=%s, force=%s,
             cmd.insert(1, "-O")
         elif optimize == 2:
             cmd.insert(1, "-OO")
-        spawn(cmd, verbose=verbose, dry_run=dry_run)
+        spawn(cmd, dry_run=dry_run)
         execute(os.remove, (script_name,), "removing %s" % script_name,
-                verbose=verbose, dry_run=dry_run)
-        
+                dry_run=dry_run)
+
     # "Direct" byte-compilation: use the py_compile module to compile
     # right here, right now.  Note that the script generated in indirect
     # mode simply calls 'byte_compile()' in direct mode, a weird sort of
@@ -408,8 +486,8 @@ byte_compile(files, optimize=%s, force=%s,
             if prefix:
                 if file[:len(prefix)] != prefix:
                     raise ValueError, \
-                          ("invalid prefix: filename %s doesn't start with %s"
-                           % (`file`, `prefix`))
+                          ("invalid prefix: filename %r doesn't start with %r"
+                           % (file, prefix))
                 dfile = dfile[len(prefix):]
             if base_dir:
                 dfile = os.path.join(base_dir, dfile)
@@ -417,13 +495,20 @@ byte_compile(files, optimize=%s, force=%s,
             cfile_base = os.path.basename(cfile)
             if direct:
                 if force or newer(file, cfile):
-                    if verbose:
-                        print "byte-compiling %s to %s" % (file, cfile_base)
+                    log.info("byte-compiling %s to %s", file, cfile_base)
                     if not dry_run:
                         compile(file, cfile, dfile)
                 else:
-                    if verbose:
-                        print "skipping byte-compilation of %s to %s" % \
-                              (file, cfile_base)
+                    log.debug("skipping byte-compilation of %s to %s",
+                              file, cfile_base)
 
 # byte_compile ()
+
+def rfc822_escape (header):
+    """Return a version of the string escaped for inclusion in an
+    RFC-822 header, by ensuring there are 8 spaces space after each newline.
+    """
+    lines = string.split(header, '\n')
+    lines = map(string.strip, lines)
+    header = string.join(lines, '\n' + 8*' ')
+    return header

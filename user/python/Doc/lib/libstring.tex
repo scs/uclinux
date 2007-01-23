@@ -4,13 +4,30 @@
 \declaremodule{standard}{string}
 \modulesynopsis{Common string operations.}
 
+The \module{string} module contains a number of useful constants and classes,
+as well as some deprecated legacy functions that are also available as methods
+on strings.  See the module \refmodule{re}\refstmodindex{re} for string
+functions based on regular expressions.
 
-This module defines some constants useful for checking character
-classes and some useful string functions.  See the module
-\refmodule{re}\refstmodindex{re} for string functions based on regular
-expressions.
+\subsection{String constants}
 
-The constants defined in this module are are:
+The constants defined in this module are:
+
+\begin{datadesc}{ascii_letters}
+  The concatenation of the \constant{ascii_lowercase} and
+  \constant{ascii_uppercase} constants described below.  This value is
+  not locale-dependent.
+\end{datadesc}
+
+\begin{datadesc}{ascii_lowercase}
+  The lowercase letters \code{'abcdefghijklmnopqrstuvwxyz'}.  This
+  value is not locale-dependent and will not change.
+\end{datadesc}
+
+\begin{datadesc}{ascii_uppercase}
+  The uppercase letters \code{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}.  This
+  value is not locale-dependent and will not change.
+\end{datadesc}
 
 \begin{datadesc}{digits}
   The string \code{'0123456789'}.
@@ -22,7 +39,9 @@ The constants defined in this module are are:
 
 \begin{datadesc}{letters}
   The concatenation of the strings \constant{lowercase} and
-  \constant{uppercase} described below.
+  \constant{uppercase} described below.  The specific value is
+  locale-dependent, and will be updated when
+  \function{locale.setlocale()} is called.
 \end{datadesc}
 
 \begin{datadesc}{lowercase}
@@ -30,7 +49,9 @@ The constants defined in this module are are:
   letters.  On most systems this is the string
   \code{'abcdefghijklmnopqrstuvwxyz'}.  Do not change its definition ---
   the effect on the routines \function{upper()} and
-  \function{swapcase()} is undefined.
+  \function{swapcase()} is undefined.  The specific value is
+  locale-dependent, and will be updated when
+  \function{locale.setlocale()} is called.
 \end{datadesc}
 
 \begin{datadesc}{octdigits}
@@ -53,7 +74,9 @@ The constants defined in this module are are:
   letters.  On most systems this is the string
   \code{'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}.  Do not change its definition ---
   the effect on the routines \function{lower()} and
-  \function{swapcase()} is undefined.
+  \function{swapcase()} is undefined.  The specific value is
+  locale-dependent, and will be updated when
+  \function{locale.setlocale()} is called.
 \end{datadesc}
 
 \begin{datadesc}{whitespace}
@@ -64,11 +87,156 @@ The constants defined in this module are are:
   is undefined.
 \end{datadesc}
 
+\subsection{Template strings}
 
-Many of the functions provided by this module are also defined as
-methods of string and Unicode objects; see ``String Methods'' (section
-\ref{string-methods}) for more information on those.
-The functions defined in this module are:
+Templates provide simpler string substitutions as described in \pep{292}.
+Instead of the normal \samp{\%}-based substitutions, Templates support
+\samp{\$}-based substitutions, using the following rules:
+
+\begin{itemize}
+\item \samp{\$\$} is an escape; it is replaced with a single \samp{\$}.
+
+\item \samp{\$identifier} names a substitution placeholder matching a mapping
+       key of "identifier".  By default, "identifier" must spell a Python
+       identifier.  The first non-identifier character after the \samp{\$}
+       character terminates this placeholder specification.
+
+\item \samp{\$\{identifier\}} is equivalent to \samp{\$identifier}.  It is
+      required when valid identifier characters follow the placeholder but are
+      not part of the placeholder, such as "\$\{noun\}ification".
+\end{itemize}
+
+Any other appearance of \samp{\$} in the string will result in a
+\exception{ValueError} being raised.
+
+\versionadded{2.4}
+
+The \module{string} module provides a \class{Template} class that implements
+these rules.  The methods of \class{Template} are:
+
+\begin{classdesc}{Template}{template}
+The constructor takes a single argument which is the template string.
+\end{classdesc}
+
+\begin{methoddesc}[Template]{substitute}{mapping\optional{, **kws}}
+Performs the template substitution, returning a new string.  \var{mapping} is
+any dictionary-like object with keys that match the placeholders in the
+template.  Alternatively, you can provide keyword arguments, where the
+keywords are the placeholders.  When both \var{mapping} and \var{kws} are
+given and there are duplicates, the placeholders from \var{kws} take
+precedence.
+\end{methoddesc}
+
+\begin{methoddesc}[Template]{safe_substitute}{mapping\optional{, **kws}}
+Like \method{substitute()}, except that if placeholders are missing from
+\var{mapping} and \var{kws}, instead of raising a \exception{KeyError}
+exception, the original placeholder will appear in the resulting string
+intact.  Also, unlike with \method{substitute()}, any other appearances of the
+\samp{\$} will simply return \samp{\$} instead of raising
+\exception{ValueError}.
+
+While other exceptions may still occur, this method is called ``safe'' because
+substitutions always tries to return a usable string instead of raising an
+exception.  In another sense, \method{safe_substitute()} may be anything other
+than safe, since it will silently ignore malformed templates containing
+dangling delimiters, unmatched braces, or placeholders that are not valid
+Python identifiers.
+\end{methoddesc}
+
+\class{Template} instances also provide one public data attribute:
+
+\begin{memberdesc}[string]{template}
+This is the object passed to the constructor's \var{template} argument.  In
+general, you shouldn't change it, but read-only access is not enforced.
+\end{memberdesc}
+
+Here is an example of how to use a Template:
+
+\begin{verbatim}
+>>> from string import Template
+>>> s = Template('$who likes $what')
+>>> s.substitute(who='tim', what='kung pao')
+'tim likes kung pao'
+>>> d = dict(who='tim')
+>>> Template('Give $who $100').substitute(d)
+Traceback (most recent call last):
+[...]
+ValueError: Invalid placeholder in string: line 1, col 10
+>>> Template('$who likes $what').substitute(d)
+Traceback (most recent call last):
+[...]
+KeyError: 'what'
+>>> Template('$who likes $what').safe_substitute(d)
+'tim likes $what'
+\end{verbatim}
+
+Advanced usage: you can derive subclasses of \class{Template} to customize the
+placeholder syntax, delimiter character, or the entire regular expression used
+to parse template strings.  To do this, you can override these class
+attributes:
+
+\begin{itemize}
+\item \var{delimiter} -- This is the literal string describing a placeholder
+      introducing delimiter.  The default value \samp{\$}.  Note that this
+      should \emph{not} be a regular expression, as the implementation will
+      call \method{re.escape()} on this string as needed.
+\item \var{idpattern} -- This is the regular expression describing the pattern
+      for non-braced placeholders (the braces will be added automatically as
+      appropriate).  The default value is the regular expression
+      \samp{[_a-z][_a-z0-9]*}.
+\end{itemize}
+
+Alternatively, you can provide the entire regular expression pattern by
+overriding the class attribute \var{pattern}.  If you do this, the value must
+be a regular expression object with four named capturing groups.  The
+capturing groups correspond to the rules given above, along with the invalid
+placeholder rule:
+
+\begin{itemize}
+\item \var{escaped} -- This group matches the escape sequence,
+      e.g. \samp{\$\$}, in the default pattern.
+\item \var{named} -- This group matches the unbraced placeholder name; it
+      should not include the delimiter in capturing group.
+\item \var{braced} -- This group matches the brace enclosed placeholder name;
+      it should not include either the delimiter or braces in the capturing
+      group.
+\item \var{invalid} -- This group matches any other delimiter pattern (usually
+      a single delimiter), and it should appear last in the regular
+      expression.
+\end{itemize}
+
+\subsection{String functions}
+
+The following functions are available to operate on string and Unicode
+objects.  They are not available as string methods.
+
+\begin{funcdesc}{capwords}{s}
+  Split the argument into words using \function{split()}, capitalize
+  each word using \function{capitalize()}, and join the capitalized
+  words using \function{join()}.  Note that this replaces runs of
+  whitespace characters by a single space, and removes leading and
+  trailing whitespace.
+\end{funcdesc}
+
+\begin{funcdesc}{maketrans}{from, to}
+  Return a translation table suitable for passing to
+  \function{translate()} or \function{regex.compile()}, that will map
+  each character in \var{from} into the character at the same position
+  in \var{to}; \var{from} and \var{to} must have the same length.
+
+  \warning{Don't use strings derived from \constant{lowercase}
+  and \constant{uppercase} as arguments; in some locales, these don't have
+  the same length.  For case conversions, always use
+  \function{lower()} and \function{upper()}.}
+\end{funcdesc}
+
+\subsection{Deprecated string functions}
+
+The following list of functions are also defined as methods of string and
+Unicode objects; see ``String Methods'' (section
+\ref{string-methods}) for more information on those.  You should consider
+these functions as deprecated, although they will not be removed until Python
+3.0.  The functions defined in this module are:
 
 \begin{funcdesc}{atof}{s}
   \deprecated{2.0}{Use the \function{float()} built-in function.}
@@ -78,11 +246,11 @@ The functions defined in this module are:
   this behaves identical to the built-in function
   \function{float()}\bifuncindex{float} when passed a string.
 
-  \strong{Note:} When passing in a string, values for NaN\index{NaN}
+  \note{When passing in a string, values for NaN\index{NaN}
   and Infinity\index{Infinity} may be returned, depending on the
   underlying C library.  The specific set of strings accepted which
   cause these values to be returned depends entirely on the C library
-  and is known to vary.
+  and is known to vary.}
 \end{funcdesc}
 
 \begin{funcdesc}{atoi}{s\optional{, base}}
@@ -113,19 +281,11 @@ The functions defined in this module are:
 \end{funcdesc}
 
 \begin{funcdesc}{capitalize}{word}
-  Capitalize the first character of the argument.
-\end{funcdesc}
-
-\begin{funcdesc}{capwords}{s}
-  Split the argument into words using \function{split()}, capitalize
-  each word using \function{capitalize()}, and join the capitalized
-  words using \function{join()}.  Note that this replaces runs of
-  whitespace characters by a single space, and removes leading and
-  trailing whitespace.
+  Return a copy of \var{word} with only its first character capitalized.
 \end{funcdesc}
 
 \begin{funcdesc}{expandtabs}{s\optional{, tabsize}}
-  Expand tabs in a string, i.e.\ replace them by one or more spaces,
+  Expand tabs in a string replacing them by one or more spaces,
   depending on the current column and the given tab size.  The column
   number is reset to zero after each newline occurring in the string.
   This doesn't understand other non-printing characters or escape
@@ -166,18 +326,6 @@ The functions defined in this module are:
   lower case.
 \end{funcdesc}
 
-\begin{funcdesc}{maketrans}{from, to}
-  Return a translation table suitable for passing to
-  \function{translate()} or \function{regex.compile()}, that will map
-  each character in \var{from} into the character at the same position
-  in \var{to}; \var{from} and \var{to} must have the same length.
-
-  \strong{Warning:} don't use strings derived from \constant{lowercase}
-  and \constant{uppercase} as arguments; in some locales, these don't have
-  the same length.  For case conversions, always use
-  \function{lower()} and \function{upper()}.
-\end{funcdesc}
-
 \begin{funcdesc}{split}{s\optional{, sep\optional{, maxsplit}}}
   Return a list of the words of the string \var{s}.  If the optional
   second argument \var{sep} is absent or \code{None}, the words are
@@ -191,6 +339,23 @@ The functions defined in this module are:
   and the remainder of the string is returned as the final element of
   the list (thus, the list will have at most \code{\var{maxsplit}+1}
   elements).
+
+  The behavior of split on an empty string depends on the value of \var{sep}.
+  If \var{sep} is not specified, or specified as \code{None}, the result will
+  be an empty list.  If \var{sep} is specified as any string, the result will
+  be a list containing one element which is an empty string.
+\end{funcdesc}
+
+\begin{funcdesc}{rsplit}{s\optional{, sep\optional{, maxsplit}}}
+  Return a list of the words of the string \var{s}, scanning \var{s}
+  from the end.  To all intents and purposes, the resulting list of
+  words is the same as returned by \function{split()}, except when the
+  optional third argument \var{maxsplit} is explicitly specified and
+  nonzero.  When \var{maxsplit} is nonzero, at most \var{maxsplit}
+  number of splits -- the \emph{rightmost} ones -- occur, and the remainder
+  of the string is returned as the first element of the list (thus, the
+  list will have at most \code{\var{maxsplit}+1} elements).
+  \versionadded{2.4}
 \end{funcdesc}
 
 \begin{funcdesc}{splitfields}{s\optional{, sep\optional{, maxsplit}}}
@@ -208,22 +373,41 @@ The functions defined in this module are:
 \end{funcdesc}
 
 \begin{funcdesc}{joinfields}{words\optional{, sep}}
-  This function behaves identical to \function{join()}.  (In the past, 
+  This function behaves identically to \function{join()}.  (In the past, 
   \function{join()} was only used with one argument, while
   \function{joinfields()} was only used with two arguments.)
+  Note that there is no \method{joinfields()} method on string
+  objects; use the \method{join()} method instead.
 \end{funcdesc}
 
-\begin{funcdesc}{lstrip}{s}
-  Return a copy of \var{s} but without leading whitespace characters.
+\begin{funcdesc}{lstrip}{s\optional{, chars}}
+Return a copy of the string with leading characters removed.  If
+\var{chars} is omitted or \code{None}, whitespace characters are
+removed.  If given and not \code{None}, \var{chars} must be a string;
+the characters in the string will be stripped from the beginning of
+the string this method is called on.
+\versionchanged[The \var{chars} parameter was added.  The \var{chars}
+parameter cannot be passed in earlier 2.2 versions]{2.2.3}
 \end{funcdesc}
 
-\begin{funcdesc}{rstrip}{s}
-  Return a copy of \var{s} but without trailing whitespace
-  characters.
+\begin{funcdesc}{rstrip}{s\optional{, chars}}
+Return a copy of the string with trailing characters removed.  If
+\var{chars} is omitted or \code{None}, whitespace characters are
+removed.  If given and not \code{None}, \var{chars} must be a string;
+the characters in the string will be stripped from the end of the
+string this method is called on.
+\versionchanged[The \var{chars} parameter was added.  The \var{chars}
+parameter cannot be passed in earlier 2.2 versions]{2.2.3}
 \end{funcdesc}
 
-\begin{funcdesc}{strip}{s}
-  Return a copy of \var{s} without leading or trailing whitespace.
+\begin{funcdesc}{strip}{s\optional{, chars}}
+Return a copy of the string with leading and trailing characters
+removed.  If \var{chars} is omitted or \code{None}, whitespace
+characters are removed.  If given and not \code{None}, \var{chars}
+must be a string; the characters in the string will be stripped from
+the both ends of the string this method is called on.
+\versionchanged[The \var{chars} parameter was added.  The \var{chars}
+parameter cannot be passed in earlier 2.2 versions]{2.2.3}
 \end{funcdesc}
 
 \begin{funcdesc}{swapcase}{s}
@@ -235,7 +419,7 @@ The functions defined in this module are:
   Delete all characters from \var{s} that are in \var{deletechars} (if 
   present), and then translate the characters using \var{table}, which 
   must be a 256-character string giving the translation for each
-  character value, indexed by its ordinal.  
+  character value, indexed by its ordinal.
 \end{funcdesc}
 
 \begin{funcdesc}{upper}{s}
@@ -259,18 +443,9 @@ The functions defined in this module are:
   correctly.
 \end{funcdesc}
 
-\begin{funcdesc}{replace}{str, old, new\optional{, maxsplit}}
+\begin{funcdesc}{replace}{str, old, new\optional{, maxreplace}}
   Return a copy of string \var{str} with all occurrences of substring
   \var{old} replaced by \var{new}.  If the optional argument
-  \var{maxsplit} is given, the first \var{maxsplit} occurrences are
+  \var{maxreplace} is given, the first \var{maxreplace} occurrences are
   replaced.
 \end{funcdesc}
-
-This module is implemented in Python.  Much of its functionality has
-been reimplemented in the built-in module
-\module{strop}\refbimodindex{strop}.  However, you
-should \emph{never} import the latter module directly.  When
-\module{string} discovers that \module{strop} exists, it transparently
-replaces parts of itself with the implementation from \module{strop}.
-After initialization, there is \emph{no} overhead in using
-\module{string} instead of \module{strop}.

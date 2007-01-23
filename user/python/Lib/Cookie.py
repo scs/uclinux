@@ -3,9 +3,9 @@
 
 ####
 # Copyright 2000 by Timothy O'Malley <timo@alum.mit.edu>
-# 
+#
 #                All Rights Reserved
-# 
+#
 # Permission to use, copy, modify, and distribute this software
 # and its documentation for any purpose and without fee is hereby
 # granted, provided that the above copyright notice appear in all
@@ -13,8 +13,8 @@
 # notice appear in supporting documentation, and that the name of
 # Timothy O'Malley  not be used in advertising or publicity
 # pertaining to distribution of the software without specific, written
-# prior permission. 
-# 
+# prior permission.
+#
 # Timothy O'Malley DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS
 # SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
 # AND FITNESS, IN NO EVENT SHALL Timothy O'Malley BE LIABLE FOR
@@ -22,11 +22,11 @@
 # WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 # WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-# PERFORMANCE OF THIS SOFTWARE. 
+# PERFORMANCE OF THIS SOFTWARE.
 #
 ####
-# 
-# Id: Cookie.py,v 2.29 2000/08/23 05:28:49 timo Exp 
+#
+# Id: Cookie.py,v 2.29 2000/08/23 05:28:49 timo Exp
 #   by Timothy O'Malley <timo@alum.mit.edu>
 #
 #  Cookie.py is a Python module for the handling of HTTP
@@ -39,7 +39,7 @@
 #
 ####
 
-"""
+r"""
 Here's a sample session to show how to use this module.
 At the moment, this is the only documentation.
 
@@ -51,7 +51,7 @@ Importing is easy..
    >>> import Cookie
 
 Most of the time you start by creating a cookie.  Cookies come in
-three flavors, each with slighly different encoding semanitcs, but
+three flavors, each with slightly different encoding semantics, but
 more on that later.
 
    >>> C = Cookie.SimpleCookie()
@@ -70,13 +70,13 @@ a dictionary.
    >>> C["fig"] = "newton"
    >>> C["sugar"] = "wafer"
    >>> print C
-   Set-Cookie: sugar=wafer;
    Set-Cookie: fig=newton;
+   Set-Cookie: sugar=wafer;
 
 Notice that the printable representation of a Cookie is the
 appropriate format for a Set-Cookie: header.  This is the
 default behavior.  You can change the header and printed
-attributes by using the the .output() function
+attributes by using the .output() function
 
    >>> C = Cookie.SmartCookie()
    >>> C["rocky"] = "road"
@@ -93,8 +93,8 @@ HTTP_COOKIE environment variable.
    >>> C = Cookie.SmartCookie()
    >>> C.load("chips=ahoy; vienna=finger")
    >>> print C
-   Set-Cookie: vienna=finger;
    Set-Cookie: chips=ahoy;
+   Set-Cookie: vienna=finger;
 
 The load() method is darn-tootin smart about identifying cookies
 within a string.  Escaped quotation marks, nested semicolons, and other
@@ -113,10 +113,10 @@ attribute.
    >>> C["oreo"] = "doublestuff"
    >>> C["oreo"]["path"] = "/"
    >>> print C
-   Set-Cookie: oreo="doublestuff"; Path=/;
+   Set-Cookie: oreo=doublestuff; Path=/;
 
 Each dictionary element has a 'value' attribute, which gives you
-back the value associated with the key. 
+back the value associated with the key.
 
    >>> C = Cookie.SmartCookie()
    >>> C["twix"] = "none for you"
@@ -148,7 +148,7 @@ the value to a string, when the values are set dictionary-style.
    Set-Cookie: number=7;
    Set-Cookie: string=seven;
 
- 
+
 SerialCookie
 
 The SerialCookie expects that all values should be serialized using
@@ -203,8 +203,8 @@ it is still possible to use Cookie.Cookie() to create a Cookie.  In
 fact, this simply returns a SmartCookie.
 
    >>> C = Cookie.Cookie()
-   >>> C.__class__
-   <class Cookie.SmartCookie at 99f88>
+   >>> print C.__class__.__name__
+   SmartCookie
 
 
 Finis.
@@ -214,20 +214,21 @@ Finis.
 
 #
 # Import our required modules
-# 
-import string, sys
-from UserDict import UserDict
+#
+import string
 
 try:
     from cPickle import dumps, loads
 except ImportError:
     from pickle import dumps, loads
 
-try:
-    import re
-except ImportError:
-    raise ImportError, "Cookie.py requires 're' from Python 1.5 or later"
+import re, warnings
 
+__all__ = ["CookieError","BaseCookie","SimpleCookie","SerialCookie",
+           "SmartCookie","Cookie"]
+
+_nulljoin = ''.join
+_spacejoin = ' '.join
 
 #
 # Define an exception visible to External modules
@@ -242,12 +243,12 @@ class CookieError(Exception):
 # into a 4 character sequence: a forward-slash followed by the
 # three-digit octal equivalent of the character.  Any '\' or '"' is
 # quoted with a preceeding '\' slash.
-# 
+#
 # These are taken from RFC2068 and RFC2109.
 #       _LegalChars       is the list of chars which don't require "'s
 #       _Translator       hash-table for fast quoting
 #
-_LegalChars       = string.letters + string.digits + "!#$%&'*+-.^_`|~"
+_LegalChars       = string.ascii_letters + string.digits + "!#$%&'*+-.^_`|~"
 _Translator       = {
     '\000' : '\\000',  '\001' : '\\001',  '\002' : '\\002',
     '\003' : '\\003',  '\004' : '\\004',  '\005' : '\\005',
@@ -309,7 +310,7 @@ _Translator       = {
     }
 
 def _quote(str, LegalChars=_LegalChars,
-    join=string.join, idmap=string._idmap, translate=string.translate):
+           idmap=string._idmap, translate=string.translate):
     #
     # If the string does not need to be double-quoted,
     # then just return the string.  Otherwise, surround
@@ -319,14 +320,14 @@ def _quote(str, LegalChars=_LegalChars,
     if "" == translate(str, idmap, LegalChars):
         return str
     else:
-        return '"' + join( map(_Translator.get, str, str), "" ) + '"'    
+        return '"' + _nulljoin( map(_Translator.get, str, str) ) + '"'
 # end _quote
 
 
 _OctalPatt = re.compile(r"\\[0-3][0-7][0-7]")
 _QuotePatt = re.compile(r"[\\].")
 
-def _unquote(str, join=string.join, atoi=string.atoi):
+def _unquote(str):
     # If there aren't any doublequotes,
     # then there can't be any special characters.  See RFC 2109.
     if  len(str) < 2:
@@ -363,14 +364,14 @@ def _unquote(str, join=string.join, atoi=string.atoi):
             i = k+2
         else:                                      # OctalPatt matched
             res.append(str[i:j])
-            res.append( chr( atoi(str[j+1:j+4], 8) ) )
+            res.append( chr( int(str[j+1:j+4], 8) ) )
             i = j+4
-    return join(res, "")
+    return _nulljoin(res)
 # end _unquote
 
 # The _getdate() routine is used to set the expiration time in
 # the cookie's HTTP header.      By default, _getdate() returns the
-# current time in the appropriate "expires" format for a 
+# current time in the appropriate "expires" format for a
 # Set-Cookie header.     The one optional argument is an offset from
 # now, in seconds.      For example, an offset of -3600 means "one hour ago".
 # The offset may be a floating point number.
@@ -401,11 +402,11 @@ def _getdate(future=0, weekdayname=_weekdayname, monthname=_monthname):
 #       pickled for network transit.
 #
 
-class Morsel(UserDict):
+class Morsel(dict):
     # RFC 2109 lists these attributes as reserved:
     #   path       comment         domain
     #   max-age    secure      version
-    # 
+    #
     # For historical reasons, these attributes are also reserved:
     #   expires
     #
@@ -420,27 +421,25 @@ class Morsel(UserDict):
                    "secure"      : "secure",
                    "version" : "Version",
                    }
-    _reserved_keys = _reserved.keys()
 
     def __init__(self):
         # Set defaults
         self.key = self.value = self.coded_value = None
-        UserDict.__init__(self)
 
         # Set default attributes
-        for K in self._reserved_keys:
-            UserDict.__setitem__(self, K, "")
+        for K in self._reserved:
+            dict.__setitem__(self, K, "")
     # end __init__
 
     def __setitem__(self, K, V):
-        K = string.lower(K)
-        if not K in self._reserved_keys:
+        K = K.lower()
+        if not K in self._reserved:
             raise CookieError("Invalid Attribute %s" % K)
-        UserDict.__setitem__(self, K, V)
+        dict.__setitem__(self, K, V)
     # end __setitem__
 
     def isReservedKey(self, K):
-        return string.lower(K) in self._reserved_keys
+        return K.lower() in self._reserved
     # end isReservedKey
 
     def set(self, key, val, coded_val,
@@ -448,7 +447,7 @@ class Morsel(UserDict):
             idmap=string._idmap, translate=string.translate ):
         # First we verify that the key isn't a reserved word
         # Second we make sure it only contains legal characters
-        if string.lower(key) in self._reserved_keys:
+        if key.lower() in self._reserved:
             raise CookieError("Attempt to set a reserved key: %s" % key)
         if "" != translate(key, idmap, LegalChars):
             raise CookieError("Illegal key value: %s" % key)
@@ -489,9 +488,11 @@ class Morsel(UserDict):
         RA("%s=%s;" % (self.key, self.coded_value))
 
         # Now add any defined attributes
-        if attrs == None:
-            attrs = self._reserved_keys
-        for K,V in self.items():
+        if attrs is None:
+            attrs = self._reserved
+        items = self.items()
+        items.sort()
+        for K,V in items:
             if V == "": continue
             if K not in attrs: continue
             if K == "expires" and type(V) == type(1):
@@ -504,7 +505,7 @@ class Morsel(UserDict):
                 RA("%s=%s;" % (self._reserved[K], V))
 
         # Return the result
-        return string.join(result, " ")
+        return _spacejoin(result)
     # end OutputString
 # end Morsel class
 
@@ -519,11 +520,11 @@ class Morsel(UserDict):
 # result, the parsing rules here are less strict.
 #
 
-_LegalCharsPatt  = r"[\w\d!#%&'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{]"
+_LegalCharsPatt  = r"[\w\d!#%&'~_`><@,:/\$\*\+\-\.\^\|\)\(\?\}\{\=]"
 _CookiePattern = re.compile(
     r"(?x)"                       # This is a Verbose pattern
     r"(?P<key>"                   # Start of group 'key'
-    ""+ _LegalCharsPatt +"+"        # Any word of at least one letter
+    ""+ _LegalCharsPatt +"+?"     # Any word of at least one letter, nongreedy
     r")"                          # End of group 'key'
     r"\s*=\s*"                    # Equal Sign
     r"(?P<val>"                   # Start of group 'val'
@@ -539,7 +540,7 @@ _CookiePattern = re.compile(
 #   Using this class is almost just like using a dictionary.
 # See this module's docstring for example usage.
 #
-class BaseCookie(UserDict):
+class BaseCookie(dict):
     # A container class for a set of Morsels
     #
 
@@ -564,7 +565,6 @@ class BaseCookie(UserDict):
     # end value_encode
 
     def __init__(self, input=None):
-        UserDict.__init__(self)
         if input: self.load(input)
     # end __init__
 
@@ -572,7 +572,7 @@ class BaseCookie(UserDict):
         """Private method for setting a cookie's value"""
         M = self.get(key, Morsel())
         M.set(key, real_value, coded_value)
-        UserDict.__setitem__(self, key, M)
+        dict.__setitem__(self, key, M)
     # end __set
 
     def __setitem__(self, key, value):
@@ -584,25 +584,31 @@ class BaseCookie(UserDict):
     def output(self, attrs=None, header="Set-Cookie:", sep="\n"):
         """Return a string suitable for HTTP."""
         result = []
-        for K,V in self.items():
+        items = self.items()
+        items.sort()
+        for K,V in items:
             result.append( V.output(attrs, header) )
-        return string.join(result, sep)
+        return sep.join(result)
     # end output
 
     __str__ = output
 
     def __repr__(self):
         L = []
-        for K,V in self.items():
+        items = self.items()
+        items.sort()
+        for K,V in items:
             L.append( '%s=%s' % (K,repr(V.value) ) )
-        return '<%s: %s>' % (self.__class__.__name__, string.join(L))
+        return '<%s: %s>' % (self.__class__.__name__, _spacejoin(L))
 
     def js_output(self, attrs=None):
         """Return a string suitable for JavaScript."""
         result = []
-        for K,V in self.items():
+        items = self.items()
+        items.sort()
+        for K,V in items:
             result.append( V.js_output(attrs) )
-        return string.join(result, "")
+        return _nulljoin(result)
     # end js_output
 
     def load(self, rawdata):
@@ -638,7 +644,7 @@ class BaseCookie(UserDict):
                 # (Does anyone care?)
                 if M:
                     M[ K[1:] ] = V
-            elif string.lower(K) in Morsel._reserved_keys:
+            elif K.lower() in Morsel._reserved:
                 if M:
                     M[ K ] = _unquote(V)
             else:
@@ -676,6 +682,11 @@ class SerialCookie(BaseCookie):
     Note: HTTP has a 2k limit on the size of a cookie.  This class
     does not check for this limit, so be careful!!!
     """
+    def __init__(self, input=None):
+        warnings.warn("SerialCookie class is insecure; do not use it",
+                      DeprecationWarning)
+        BaseCookie.__init__(self, input)
+    # end __init__
     def value_decode(self, val):
         # This could raise an exception!
         return loads( _unquote(val) ), val
@@ -696,6 +707,11 @@ class SmartCookie(BaseCookie):
     Note: HTTP has a 2k limit on the size of a cookie.  This class
     does not check for this limit, so be careful!!!
     """
+    def __init__(self, input=None):
+        warnings.warn("Cookie/SmartCookie class is insecure; do not use it",
+                      DeprecationWarning)
+        BaseCookie.__init__(self, input)
+    # end __init__
     def value_decode(self, val):
         strval = _unquote(val)
         try:
@@ -719,6 +735,12 @@ Cookie = SmartCookie
 #
 ###########################################################
 
+def _test():
+    import doctest, Cookie
+    return doctest.testmod(Cookie)
+
+if __name__ == "__main__":
+    _test()
 
 
 #Local Variables:

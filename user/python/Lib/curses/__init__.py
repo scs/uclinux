@@ -7,7 +7,7 @@ the package, and perhaps a particular module inside it.
    from curses import textpad
    curses.initwin()
    ...
-   
+
 """
 
 __revision__ = "$Id$"
@@ -29,8 +29,21 @@ def initscr():
     for key, value in _curses.__dict__.items():
         if key[0:4] == 'ACS_' or key in ('LINES', 'COLS'):
             setattr(curses, key, value)
-    
+
     return stdscr
+
+# This is a similar wrapper for start_color(), which adds the COLORS and
+# COLOR_PAIRS variables which are only available after start_color() is
+# called.
+
+def start_color():
+    import _curses, curses
+    retval = _curses.start_color()
+    if hasattr(_curses, 'COLORS'):
+        curses.COLORS = _curses.COLORS
+    if hasattr(_curses, 'COLOR_PAIRS'):
+        curses.COLOR_PAIRS = _curses.COLOR_PAIRS
+    return retval
 
 # Import Python has_key() implementation if _curses doesn't contain has_key()
 
@@ -38,4 +51,3 @@ try:
     has_key
 except NameError:
     from has_key import has_key
-

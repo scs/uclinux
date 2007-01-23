@@ -1,4 +1,4 @@
-# Simple makefile to control SGML generation for the entire document tree.
+# Simple makefile to control XML generation for the entire document tree.
 # This should be used from the top-level directory (Doc/), not the directory
 # that actually contains this file:
 #
@@ -10,51 +10,58 @@ TOPDIR=.
 TOOLSDIR=tools
 
 SGMLRULES=../$(TOOLSDIR)/sgmlconv/make.rules
-SUBDIRS=api ext lib mac ref tut
+# The 'inst' and 'tut' directories break the conversion, so skip them for now.
+SUBDIRS=api dist ext lib mac ref
 SUBMAKE=$(MAKE) -f $(SGMLRULES) TOOLSDIR=../$(TOOLSDIR)
 
 all:	xml
 
-.PHONY: sgml xml
+.PHONY: esis xml
 .PHONY: $(SUBDIRS)
-
-sgml:
-	for DIR in $(SUBDIRS) ; do \
-	    (cd $$DIR; $(SUBMAKE) sgml) || exit $$? ; done
 
 xml:
 	for DIR in $(SUBDIRS) ; do \
-	    (cd $$DIR; $(SUBMAKE) xml) || exit $$? ; done
+	    (cd $$DIR && $(SUBMAKE) xml) || exit $$? ; done
 
 esis:
 	for DIR in $(SUBDIRS) ; do \
-	    (cd $$DIR; $(SUBMAKE) esis) || exit $$? ; done
+	    (cd $$DIR && $(SUBMAKE) esis) || exit $$? ; done
 
-tarball:  sgml
-	tar cf - sgml tools/sgmlconv */*.sgml | gzip -9 >sgml-1.5.2b2.tgz
+esis1:
+	for DIR in $(SUBDIRS) ; do \
+	    (cd $$DIR && $(SUBMAKE) esis1) || exit $$? ; done
+
+tarball:  xml
+	tar cf - tools/sgmlconv */*.xml | gzip -9 >xml-1.5.2b2.tgz
 
 api:
-	cd api; $(SUBMAKE)
+	cd api && $(SUBMAKE)
+
+dist:
+	cd dist && $(SUBMAKE)
 
 ext:
-	cd ext; $(SUBMAKE)
+	cd ext && $(SUBMAKE)
+
+inst:
+	cd inst && $(SUBMAKE)
 
 lib:
-	cd lib; $(SUBMAKE)
+	cd lib && $(SUBMAKE)
 
 mac:
-	cd mac; $(SUBMAKE)
+	cd mac && $(SUBMAKE)
 
 ref:
-	cd ref; $(SUBMAKE)
+	cd ref && $(SUBMAKE)
 
 tut:
-	cd tut; $(SUBMAKE)
+	cd tut && $(SUBMAKE)
 
 clean:
 	for DIR in $(SUBDIRS) ; do \
-	    (cd $$DIR; $(SUBMAKE) clean) ; done
+	    (cd $$DIR && $(SUBMAKE) clean) || exit $$? ; done
 
 clobber:
 	for DIR in $(SUBDIRS) ; do \
-	    (cd $$DIR; $(SUBMAKE) clobber) ; done
+	    (cd $$DIR && $(SUBMAKE) clobber) || exit $$? ; done

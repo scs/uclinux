@@ -4,7 +4,7 @@
   \platform{IRIX, Linux}
 \modulesynopsis{Pseudo-Terminal Handling for SGI and Linux.}
 \moduleauthor{Steen Lumholt}{}
-\sectionauthor{Moshe Zadka}{mzadka@geocities.com}
+\sectionauthor{Moshe Zadka}{moshez@zadka.site.co.il}
 
 
 The \module{pty} module defines operations for handling the
@@ -23,7 +23,7 @@ Return value is \code{(\var{pid}, \var{fd})}. Note that the child
 gets \var{pid} 0, and the \var{fd} is \emph{invalid}. The parent's
 return value is the \var{pid} of the child, and \var{fd} is a file
 descriptor connected to the child's controlling terminal (and also
-to the child's standard input and output.
+to the child's standard input and output).
 \end{funcdesc}
 
 \begin{funcdesc}{openpty}{}

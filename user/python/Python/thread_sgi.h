@@ -1,8 +1,4 @@
 
-#ifdef WITH_SGI_DL
-#define USE_DL
-#endif
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
@@ -168,7 +164,7 @@ static void clean_threads(void)
 	}
 }
 
-int PyThread_start_new_thread(void (*func)(void *), void *arg)
+long PyThread_start_new_thread(void (*func)(void *), void *arg)
 {
 #ifdef USE_DL
 	long addr, size;
@@ -223,7 +219,7 @@ int PyThread_start_new_thread(void (*func)(void *), void *arg)
 	}
 	if (usunsetlock(count_lock) < 0)
 		perror("usunsetlock (count_lock)");
-	return success < 0 ? 0 : 1;
+	return success;
 }
 
 long PyThread_get_thread_ident(void)
@@ -376,128 +372,4 @@ void PyThread_release_lock(PyThread_type_lock lock)
 	dprintf(("PyThread_release_lock(%p) called\n", lock));
 	if (usunsetlock((ulock_t) lock) < 0)
 		perror("usunsetlock");
-}
-
-/*
- * Semaphore support.
- */
-PyThread_type_sema PyThread_allocate_sema(int value)
-{
-	usema_t *sema;
-	dprintf(("PyThread_allocate_sema called\n"));
-	if (!initialized)
-		PyThread_init_thread();
-
-	if ((sema = usnewsema(shared_arena, value)) == NULL)
-		perror("usnewsema");
-	dprintf(("PyThread_allocate_sema() -> %p\n",  sema));
-	return (PyThread_type_sema) sema;
-}
-
-void PyThread_free_sema(PyThread_type_sema sema)
-{
-	dprintf(("PyThread_free_sema(%p) called\n",  sema));
-	usfreesema((usema_t *) sema, shared_arena);
-}
-
-int PyThread_down_sema(PyThread_type_sema sema, int waitflag)
-{
-	int success;
-
-	dprintf(("PyThread_down_sema(%p) called\n",  sema));
-	if (waitflag)
-		success = uspsema((usema_t *) sema);
-	else
-		success = uscpsema((usema_t *) sema);
-	if (success < 0)
-		perror(waitflag ? "uspsema" : "uscpsema");
-	dprintf(("PyThread_down_sema(%p) return\n",  sema));
-	return success;
-}
-
-void PyThread_up_sema(PyThread_type_sema sema)
-{
-	dprintf(("PyThread_up_sema(%p)\n",  sema));
-	if (usvsema((usema_t *) sema) < 0)
-		perror("usvsema");
-}
-
-/*
- * Per-thread data ("key") support.
- */
-
-struct key {
-	struct key *next;
-	long id;
-	int key;
-	void *value;
-};
-
-static struct key *keyhead = NULL;
-static int nkeys = 0;
-static PyThread_type_lock keymutex = NULL;
-
-static struct key *find_key(int key, void *value)
-{
-	struct key *p;
-	long id = PyThread_get_thread_ident();
-	for (p = keyhead; p != NULL; p = p->next) {
-		if (p->id == id && p->key == key)
-			return p;
-	}
-	if (value == NULL)
-		return NULL;
-	p = (struct key *)malloc(sizeof(struct key));
-	if (p != NULL) {
-		p->id = id;
-		p->key = key;
-		p->value = value;
-		PyThread_acquire_lock(keymutex, 1);
-		p->next = keyhead;
-		keyhead = p;
-		PyThread_release_lock(keymutex);
-	}
-	return p;
-}
-
-int PyThread_create_key(void)
-{
-	if (keymutex == NULL)
-		keymutex = PyThread_allocate_lock();
-	return ++nkeys;
-}
-
-void PyThread_delete_key(int key)
-{
-	struct key *p, **q;
-	PyThread_acquire_lock(keymutex, 1);
-	q = &keyhead;
-	while ((p = *q) != NULL) {
-		if (p->key == key) {
-			*q = p->next;
-			free((void *)p);
-			/* NB This does *not* free p->value! */
-		}
-		else
-			q = &p->next;
-	}
-	PyThread_release_lock(keymutex);
-}
-
-int PyThread_set_key_value(int key, void *value)
-{
-	struct key *p = find_key(key, value);
-	if (p == NULL)
-		return -1;
-	else
-		return 0;
-}
-
-void *PyThread_get_key_value(int key)
-{
-	struct key *p = find_key(key, NULL);
-	if (p == NULL)
-		return NULL;
-	else
-		return p->value;
 }

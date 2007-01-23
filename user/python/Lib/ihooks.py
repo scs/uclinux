@@ -18,7 +18,7 @@ One hooks class is defined (Hooks), which uses the interface provided
 by standard modules os and os.path.  It should be used as the base
 class for other hooks classes.
 
-2) A "module loader" class provides an interface to to search for a
+2) A "module loader" class provides an interface to search for a
 module in a search path and to load it.  It defines a method which
 searches for a module in a single directory; by overriding this method
 one can redefine the details of the search.  If the directory is None,
@@ -42,7 +42,7 @@ instantiated).
 The classes defined here should be used as base classes for extended
 functionality along those lines.
 
-If a module mporter class supports dotted names, its import_module()
+If a module importer class supports dotted names, its import_module()
 must return a different value depending on whether it is called on
 behalf of a "from ... import ..." statement or not.  (This is caused
 by the way the __import__ hook is used by the Python interpreter.)  It
@@ -55,8 +55,9 @@ import __builtin__
 import imp
 import os
 import sys
-import string
 
+__all__ = ["BasicModuleLoader","Hooks","ModuleLoader","FancyModuleLoader",
+           "BasicModuleImporter","ModuleImporter","install","uninstall"]
 
 VERBOSE = 0
 
@@ -82,7 +83,7 @@ class _Verbose:
 
     def note(self, *args):
         if self.verbose:
-            apply(self.message, args)
+            self.message(*args)
 
     def message(self, format, *args):
         if args:
@@ -109,7 +110,7 @@ class BasicModuleLoader(_Verbose):
     """
 
     def find_module(self, name, path = None):
-        if path is None: 
+        if path is None:
             path = [None] + self.default_path()
         for dir in path:
             stuff = self.find_module_in_dir(name, dir)
@@ -174,7 +175,7 @@ class Hooks(_Verbose):
 
     def add_module(self, name):
         d = self.modules_dict()
-        if d.has_key(name): return d[name]
+        if name in d: return d[name]
         d[name] = m = self.new_module(name)
         return m
 
@@ -193,7 +194,7 @@ class Hooks(_Verbose):
     def path_islink(self, x): return os.path.islink(x)
     # etc.
 
-    def openfile(self, *x): return apply(open, x)
+    def openfile(self, *x): return open(*x)
     openfile_error = IOError
     def listdir(self, x): return os.listdir(x)
     listdir_error = os.error
@@ -272,8 +273,8 @@ class ModuleLoader(BasicModuleLoader):
             elif type == PKG_DIRECTORY:
                 m = self.hooks.load_package(name, filename, file)
             else:
-                raise ImportError, "Unrecognized module type (%s) for %s" % \
-                      (`type`, name)
+                raise ImportError, "Unrecognized module type (%r) for %s" % \
+                      (type, name)
         finally:
             if file: file.close()
         m.__file__ = filename
@@ -298,8 +299,8 @@ class FancyModuleLoader(ModuleLoader):
             if inittype not in (PY_COMPILED, PY_SOURCE):
                 if initfile: initfile.close()
                 raise ImportError, \
-                    "Bad type (%s) for __init__ module in package %s" % (
-                    `inittype`, name)
+                    "Bad type (%r) for __init__ module in package %s" % (
+                    inittype, name)
             path = [filename]
             file = initfile
             realfilename = initfilename
@@ -321,7 +322,13 @@ class FancyModuleLoader(ModuleLoader):
         if path:
             m.__path__ = path
         m.__file__ = filename
-        exec code in m.__dict__
+        try:
+            exec code in m.__dict__
+        except:
+            d = self.hooks.modules_dict()
+            if name in d:
+                del d[name]
+            raise
         return m
 
 
@@ -351,7 +358,8 @@ class BasicModuleImporter(_Verbose):
         return self.loader.set_hooks(hooks)
 
     def import_module(self, name, globals={}, locals={}, fromlist=[]):
-        if self.modules.has_key(name):
+        name = str(name)
+        if name in self.modules:
             return self.modules[name] # Fast path
         stuff = self.loader.find_module(name)
         if not stuff:
@@ -359,14 +367,14 @@ class BasicModuleImporter(_Verbose):
         return self.loader.load_module(name, stuff)
 
     def reload(self, module, path = None):
-        name = module.__name__
+        name = str(module.__name__)
         stuff = self.loader.find_module(name, path)
         if not stuff:
             raise ImportError, "Module %s not found for reload" % name
         return self.loader.load_module(name, stuff)
 
     def unload(self, module):
-        del self.modules[module.__name__]
+        del self.modules[str(module.__name__)]
         # XXX Should this try to clear the module's namespace?
 
     def install(self):
@@ -390,10 +398,10 @@ class BasicModuleImporter(_Verbose):
 class ModuleImporter(BasicModuleImporter):
 
     """A module importer that supports packages."""
-    
+
     def import_module(self, name, globals=None, locals=None, fromlist=None):
         parent = self.determine_parent(globals)
-        q, tail = self.find_head_package(parent, name)
+        q, tail = self.find_head_package(parent, str(name))
         m = self.load_tail(q, tail)
         if not fromlist:
             return q
@@ -402,15 +410,15 @@ class ModuleImporter(BasicModuleImporter):
         return m
 
     def determine_parent(self, globals):
-        if not globals or not globals.has_key("__name__"):
+        if not globals or not "__name__" in globals:
             return None
         pname = globals['__name__']
-        if globals.has_key("__path__"):
+        if "__path__" in globals:
             parent = self.modules[pname]
             assert globals is parent.__dict__
             return parent
         if '.' in pname:
-            i = string.rfind(pname, '.')
+            i = pname.rfind('.')
             pname = pname[:i]
             parent = self.modules[pname]
             assert parent.__name__ == pname
@@ -419,7 +427,7 @@ class ModuleImporter(BasicModuleImporter):
 
     def find_head_package(self, parent, name):
         if '.' in name:
-            i = string.find(name, '.')
+            i = name.find('.')
             head = name[:i]
             tail = name[i+1:]
         else:
@@ -441,7 +449,7 @@ class ModuleImporter(BasicModuleImporter):
     def load_tail(self, q, tail):
         m = q
         while tail:
-            i = string.find(tail, '.')
+            i = tail.find('.')
             if i < 0: i = len(tail)
             head, tail = tail[:i], tail[i+1:]
             mname = "%s.%s" % (m.__name__, head)
@@ -479,19 +487,21 @@ class ModuleImporter(BasicModuleImporter):
             path = parent and parent.__path__
         except AttributeError:
             return None
+        partname = str(partname)
         stuff = self.loader.find_module(partname, path)
         if not stuff:
             return None
+        fqname = str(fqname)
         m = self.loader.load_module(fqname, stuff)
         if parent:
             setattr(parent, partname, m)
         return m
 
     def reload(self, module):
-        name = module.__name__
+        name = str(module.__name__)
         if '.' not in name:
             return self.import_it(name, name, None, force_load=1)
-        i = string.rfind(name, '.')
+        i = name.rfind('.')
         pname = name[:i]
         parent = self.modules[pname]
         return self.import_it(name[i+1:], name, parent, force_load=1)

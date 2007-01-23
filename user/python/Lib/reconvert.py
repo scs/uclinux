@@ -1,4 +1,4 @@
-#! /usr/bin/env python1.5
+#! /usr/bin/env python
 
 r"""Convert old ("regex") regular expressions to new syntax ("re").
 
@@ -60,8 +60,14 @@ XXX To be done...
 """
 
 
+import warnings
+warnings.filterwarnings("ignore", ".* regex .*", DeprecationWarning, __name__,
+                        append=1)
+
 import regex
-from regex_syntax import * # RE_* 
+from regex_syntax import * # RE_*
+
+__all__ = ["convert","quote"]
 
 # Default translation table
 mastertable = {

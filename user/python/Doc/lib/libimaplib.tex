@@ -3,21 +3,30 @@
 
 \declaremodule{standard}{imaplib}
 \modulesynopsis{IMAP4 protocol client (requires sockets).}
-\moduleauthor{Piers Lauder}{piers@staff.cs.usyd.edu.au}
-\sectionauthor{Piers Lauder}{piers@staff.cs.usyd.edu.au}
+\moduleauthor{Piers Lauder}{piers@communitysolutions.com.au}
+\sectionauthor{Piers Lauder}{piers@communitysolutions.com.au}
 
-% Based on HTML documentation by Piers Lauder <piers@staff.cs.usyd.edu.au>;
+% Based on HTML documentation by Piers Lauder
+% <piers@communitysolutions.com.au>;
 % converted by Fred L. Drake, Jr. <fdrake@acm.org>.
+% Revised by ESR, January 2000.
+% Changes for IMAP4_SSL by Tino Lange <Tino.Lange@isg.de>, March 2002 
+% Changes for IMAP4_stream by Piers Lauder
+% <piers@communitysolutions.com.au>, November 2002
 
 \indexii{IMAP4}{protocol}
+\indexii{IMAP4_SSL}{protocol}
+\indexii{IMAP4_stream}{protocol}
 
-This module defines a class, \class{IMAP4}, which encapsulates a
-connection to an IMAP4 server and implements the IMAP4rev1 client
-protocol as defined in \rfc{2060}. It is backward compatible with
-IMAP4 (\rfc{1730}) servers, but note that the \samp{STATUS} command is
-not supported in IMAP4.
+This module defines three classes, \class{IMAP4}, \class{IMAP4_SSL}
+and \class{IMAP4_stream}, which encapsulate a
+connection to an IMAP4 server and implement a large subset of the
+IMAP4rev1 client protocol as defined in \rfc{2060}. It is backward
+compatible with IMAP4 (\rfc{1730}) servers, but note that the
+\samp{STATUS} command is not supported in IMAP4.
 
-A single class is provided by the \module{imaplib} module:
+Three classes are provided by the \module{imaplib} module,
+\class{IMAP4} is the base class:
 
 \begin{classdesc}{IMAP4}{\optional{host\optional{, port}}}
 This class implements the actual IMAP4 protocol.  The connection is
@@ -27,7 +36,7 @@ If \var{host} is not specified, \code{''} (the local host) is used.
 If \var{port} is omitted, the standard IMAP4 port (143) is used.
 \end{classdesc}
 
-Two exceptions are defined as attributes of the \class{IMAP4} class:
+Three exceptions are defined as attributes of the \class{IMAP4} class:
 
 \begin{excdesc}{IMAP4.error}
 Exception raised on any errors.  The reason for the exception is
@@ -42,10 +51,34 @@ exception.
 \end{excdesc}
 
 \begin{excdesc}{IMAP4.readonly}
-This exception is raised when a writable mailbox has its status changed by the server.  This is a
-sub-class of \exception{IMAP4.error}.  Some other client now has write permission,
-and the mailbox will need to be re-opened to re-obtain write permission.
+This exception is raised when a writable mailbox has its status
+changed by the server.  This is a sub-class of
+\exception{IMAP4.error}.  Some other client now has write permission,
+and the mailbox will need to be re-opened to re-obtain write
+permission.
 \end{excdesc}
+
+There's also a subclass for secure connections:
+
+\begin{classdesc}{IMAP4_SSL}{\optional{host\optional{, port\optional{,
+                             keyfile\optional{, certfile}}}}}
+This is a subclass derived from \class{IMAP4} that connects over an
+SSL encrypted socket (to use this class you need a socket module that
+was compiled with SSL support).  If \var{host} is not specified,
+\code{''} (the local host) is used.  If \var{port} is omitted, the
+standard IMAP4-over-SSL port (993) is used.  \var{keyfile} and
+\var{certfile} are also optional - they can contain a PEM formatted
+private key and certificate chain file for the SSL connection.
+\end{classdesc}
+
+The second subclass allows for connections created by a child process:
+
+\begin{classdesc}{IMAP4_stream}{command}
+This is a subclass derived from \class{IMAP4} that connects
+to the \code{stdin/stdout} file descriptors created by passing
+\var{command} to \code{os.popen2()}.
+\versionadded{2.3}
+\end{classdesc}
 
 The following utility functions are defined:
 
@@ -71,8 +104,10 @@ The following utility functions are defined:
 \end{funcdesc}
 
 
-Note that IMAP4 message numbers change as the mailbox changes, so it
-is highly advisable to use UIDs instead, with the UID command.
+Note that IMAP4 message numbers change as the mailbox changes; in
+particular, after an \samp{EXPUNGE} command performs deletions the
+remaining messages are renumbered. So it is highly advisable to use
+UIDs instead, with the UID command.
 
 At the end of the module, there is a test section that contains a more
 extensive example of usage.
@@ -103,18 +138,42 @@ parentheses (eg: \code{r'(\e Deleted)'}).
 Each command returns a tuple: \code{(\var{type}, [\var{data},
 ...])} where \var{type} is usually \code{'OK'} or \code{'NO'},
 and \var{data} is either the text from the command response, or
-mandated results from the command.
+mandated results from the command. Each \var{data}
+is either a string, or a tuple. If a tuple, then the first part
+is the header of the response, and the second part contains
+the data (ie: 'literal' value).
+
+The \var{message_set} options to commands below is a string specifying one
+or more messages to be acted upon.  It may be a simple message number
+(\code{'1'}), a range of message numbers (\code{'2:4'}), or a group of
+non-contiguous ranges separated by commas (\code{'1:3,6:9'}).  A range
+can contain an asterisk to indicate an infinite upper bound
+(\code{'3:*'}).
 
 An \class{IMAP4} instance has the following methods:
 
 
 \begin{methoddesc}{append}{mailbox, flags, date_time, message}
-  Append message to named mailbox. 
+  Append \var{message} to named mailbox. 
 \end{methoddesc}
 
-\begin{methoddesc}{authenticate}{func}
-  Authenticate command --- requires response processing. This is
-  currently unimplemented, and raises an exception. 
+\begin{methoddesc}{authenticate}{mechanism, authobject}
+  Authenticate command --- requires response processing.
+
+  \var{mechanism} specifies which authentication mechanism is to be
+  used - it should appear in the instance variable \code{capabilities}
+  in the form \code{AUTH=mechanism}.
+
+  \var{authobject} must be a callable object:
+
+\begin{verbatim}
+data = authobject(response)
+\end{verbatim}
+
+  It will be called to process server continuation responses.
+  It should return \code{data} that will be encoded and sent to server.
+  It should return \code{None} if the client abort response \samp{*} should
+  be sent instead.
 \end{methoddesc}
 
 \begin{methoddesc}{check}{}
@@ -139,6 +198,11 @@ An \class{IMAP4} instance has the following methods:
   Delete old mailbox named \var{mailbox}.
 \end{methoddesc}
 
+\begin{methoddesc}{deleteacl}{mailbox, who}
+  Delete the ACLs (remove any rights) set for who on mailbox.
+\versionadded{2.4}
+\end{methoddesc}
+
 \begin{methoddesc}{expunge}{}
   Permanently remove deleted items from selected mailbox. Generates an
   \samp{EXPUNGE} response for each deleted message. Returned data
@@ -153,6 +217,23 @@ An \class{IMAP4} instance has the following methods:
   of message part envelope and data.
 \end{methoddesc}
 
+\begin{methoddesc}{getacl}{mailbox}
+  Get the \samp{ACL}s for \var{mailbox}.
+  The method is non-standard, but is supported by the \samp{Cyrus} server.
+\end{methoddesc}
+
+\begin{methoddesc}{getquota}{root}
+  Get the \samp{quota} \var{root}'s resource usage and limits.
+  This method is part of the IMAP4 QUOTA extension defined in rfc2087.
+\versionadded{2.3}
+\end{methoddesc}
+
+\begin{methoddesc}{getquotaroot}{mailbox}
+  Get the list of \samp{quota} \samp{roots} for the named \var{mailbox}.
+  This method is part of the IMAP4 QUOTA extension defined in rfc2087.
+\versionadded{2.3}
+\end{methoddesc}
+
 \begin{methoddesc}{list}{\optional{directory\optional{, pattern}}}
   List mailbox names in \var{directory} matching
   \var{pattern}.  \var{directory} defaults to the top-level mail
@@ -163,6 +244,13 @@ An \class{IMAP4} instance has the following methods:
 \begin{methoddesc}{login}{user, password}
   Identify the client using a plaintext password.
   The \var{password} will be quoted.
+\end{methoddesc}
+
+\begin{methoddesc}{login_cram_md5}{user, password}
+  Force use of \samp{CRAM-MD5} authentication when identifying the
+  client to protect the password.  Will only work if the server
+  \samp{CAPABILITY} response includes the phrase \samp{AUTH=CRAM-MD5}.
+\versionadded{2.3}
 \end{methoddesc}
 
 \begin{methoddesc}{logout}{}
@@ -176,18 +264,47 @@ An \class{IMAP4} instance has the following methods:
   Returned data are tuples of message part envelope and data.
 \end{methoddesc}
 
+\begin{methoddesc}{myrights}{mailbox}
+  Show my ACLs for a mailbox (i.e. the rights that I have on mailbox).
+\versionadded{2.4}
+\end{methoddesc}
+
+\begin{methoddesc}{namespace}{}
+  Returns IMAP namespaces as defined in RFC2342.
+\versionadded{2.3}
+\end{methoddesc}
+
 \begin{methoddesc}{noop}{}
   Send \samp{NOOP} to server.
 \end{methoddesc}
 
 \begin{methoddesc}{open}{host, port}
   Opens socket to \var{port} at \var{host}.
+  The connection objects established by this method
+  will be used in the \code{read}, \code{readline}, \code{send}, and
+  \code{shutdown} methods.
   You may override this method.
 \end{methoddesc}
 
 \begin{methoddesc}{partial}{message_num, message_part, start, length}
   Fetch truncated part of a message.
   Returned data is a tuple of message part envelope and data.
+\end{methoddesc}
+
+\begin{methoddesc}{proxyauth}{user}
+  Assume authentication as \var{user}.
+  Allows an authorised administrator to proxy into any user's mailbox.
+\versionadded{2.3}
+\end{methoddesc}
+
+\begin{methoddesc}{read}{size}
+  Reads \var{size} bytes from the remote server.
+  You may override this method.
+\end{methoddesc}
+
+\begin{methoddesc}{readline}{}
+  Reads one line from the remote server.
+  You may override this method.
 \end{methoddesc}
 
 \begin{methoddesc}{recent}{}
@@ -204,22 +321,21 @@ An \class{IMAP4} instance has the following methods:
   \code{None}. Returns the given code, instead of the usual type.
 \end{methoddesc}
 
-\begin{methoddesc}{search}{charset, criterium\optional{, ...}}
-  Search mailbox for matching messages.  Returned data contains a space
-  separated list of matching message numbers.  \var{charset} may be
+\begin{methoddesc}{search}{charset, criterion\optional{, ...}}
+  Search mailbox for matching messages.  \var{charset} may be
   \code{None}, in which case no \samp{CHARSET} will be specified in the
   request to the server.  The IMAP protocol requires that at least one
-  criterium be specified; an exception will be raised when the server
+  criterion be specified; an exception will be raised when the server
   returns an error.
 
   Example:
 
 \begin{verbatim}
 # M is a connected IMAP4 instance...
-msgnums = M.search(None, 'FROM', '"LDJ"')
+typ, msgnums = M.search(None, 'FROM', '"LDJ"')
 
 # or:
-msgnums = M.search(None, '(FROM "LDJ")')
+typ, msgnums = M.search(None, '(FROM "LDJ")')
 \end{verbatim}
 \end{methoddesc}
 
@@ -230,8 +346,48 @@ msgnums = M.search(None, '(FROM "LDJ")')
   to the mailbox are not allowed.
 \end{methoddesc}
 
+\begin{methoddesc}{send}{data}
+  Sends \code{data} to the remote server.
+  You may override this method.
+\end{methoddesc}
+
+\begin{methoddesc}{setacl}{mailbox, who, what}
+  Set an \samp{ACL} for \var{mailbox}.
+  The method is non-standard, but is supported by the \samp{Cyrus} server.
+\end{methoddesc}
+
+\begin{methoddesc}{setquota}{root, limits}
+  Set the \samp{quota} \var{root}'s resource \var{limits}.
+  This method is part of the IMAP4 QUOTA extension defined in rfc2087.
+\versionadded{2.3}
+\end{methoddesc}
+
+\begin{methoddesc}{shutdown}{}
+  Close connection established in \code{open}.
+  You may override this method.
+\end{methoddesc}
+
 \begin{methoddesc}{socket}{}
-  Returns socket instance used to connect to server. 
+  Returns socket instance used to connect to server.
+\end{methoddesc}
+
+\begin{methoddesc}{sort}{sort_criteria, charset, search_criterion\optional{, ...}}
+  The \code{sort} command is a variant of \code{search} with sorting
+  semantics for the results.  Returned data contains a space separated
+  list of matching message numbers.
+
+  Sort has two arguments before the \var{search_criterion}
+  argument(s); a parenthesized list of \var{sort_criteria}, and the
+  searching \var{charset}.  Note that unlike \code{search}, the
+  searching \var{charset} argument is mandatory.  There is also a
+  \code{uid sort} command which corresponds to \code{sort} the way
+  that \code{uid search} corresponds to \code{search}.  The
+  \code{sort} command first searches the mailbox for messages that
+  match the given searching criteria using the charset argument for
+  the interpretation of strings in the searching criteria.  It then
+  returns the numbers of matching messages.
+
+  This is an \samp{IMAP4rev1} extension command.
 \end{methoddesc}
 
 \begin{methoddesc}{status}{mailbox, names}
@@ -239,11 +395,45 @@ msgnums = M.search(None, '(FROM "LDJ")')
 \end{methoddesc}
 
 \begin{methoddesc}{store}{message_set, command, flag_list}
-  Alters flag dispositions for messages in mailbox.
+  Alters flag dispositions for messages in mailbox.  \var{command} is
+  specified by section 6.4.6 of \rfc{2060} as being one of "FLAGS", "+FLAGS",
+  or "-FLAGS", optionally with a suffix of ".SILENT".
+
+  For example, to set the delete flag on all messages:
+
+\begin{verbatim}
+typ, data = M.search(None, 'ALL')
+for num in data[0].split():
+   M.store(num, '+FLAGS', '\\Deleted')
+M.expunge()
+\end{verbatim}
 \end{methoddesc}
 
 \begin{methoddesc}{subscribe}{mailbox}
   Subscribe to new mailbox.
+\end{methoddesc}
+
+\begin{methoddesc}{thread}{threading_algorithm, charset,
+                           search_criterion\optional{, ...}}
+  The \code{thread} command is a variant of \code{search} with
+  threading semantics for the results.  Returned data contains a space
+  separated list of thread members.
+
+  Thread members consist of zero or more messages numbers, delimited
+  by spaces, indicating successive parent and child.
+
+  Thread has two arguments before the \var{search_criterion}
+  argument(s); a \var{threading_algorithm}, and the searching
+  \var{charset}.  Note that unlike \code{search}, the searching
+  \var{charset} argument is mandatory.  There is also a \code{uid
+  thread} command which corresponds to \code{thread} the way that
+  \code{uid search} corresponds to \code{search}.  The \code{thread}
+  command first searches the mailbox for messages that match the given
+  searching criteria using the charset argument for the interpretation
+  of strings in the searching criteria. It then returns the matching
+  messages threaded according to the specified threading algorithm.
+
+  This is an \samp{IMAP4rev1} extension command. \versionadded{2.4}
 \end{methoddesc}
 
 \begin{methoddesc}{uid}{command, arg\optional{, ...}}
@@ -260,6 +450,13 @@ msgnums = M.search(None, '(FROM "LDJ")')
 \begin{methoddesc}{xatom}{name\optional{, arg\optional{, ...}}}
   Allow simple extension commands notified by server in
   \samp{CAPABILITY} response.
+\end{methoddesc}
+
+
+Instances of \class{IMAP4_SSL} have just one additional method:
+
+\begin{methoddesc}{ssl}{}
+  Returns SSLObject instance used for the secure connection with the server.
 \end{methoddesc}
 
 
@@ -284,14 +481,15 @@ Here is a minimal example (without error checking) that opens a
 mailbox and retrieves and prints all messages:
 
 \begin{verbatim}
-import getpass, imaplib, string
+import getpass, imaplib
 
 M = imaplib.IMAP4()
 M.login(getpass.getuser(), getpass.getpass())
 M.select()
 typ, data = M.search(None, 'ALL')
-for num in string.split(data[0]):
+for num in data[0].split():
     typ, data = M.fetch(num, '(RFC822)')
     print 'Message %s\n%s\n' % (num, data[0][1])
+M.close()
 M.logout()
 \end{verbatim}

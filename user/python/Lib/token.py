@@ -58,9 +58,12 @@ CIRCUMFLEXEQUAL = 44
 LEFTSHIFTEQUAL = 45
 RIGHTSHIFTEQUAL = 46
 DOUBLESTAREQUAL = 47
-OP = 48
-ERRORTOKEN = 49
-N_TOKENS = 50
+DOUBLESLASH = 48
+DOUBLESLASHEQUAL = 49
+AT = 50
+OP = 51
+ERRORTOKEN = 52
+N_TOKENS = 53
 NT_OFFSET = 256
 #--end constants--
 
@@ -82,7 +85,6 @@ def ISEOF(x):
 
 def main():
     import re
-    import string
     import sys
     args = sys.argv[1:]
     inFileName = args and args[0] or "Include/token.h"
@@ -94,17 +96,17 @@ def main():
     except IOError, err:
         sys.stdout.write("I/O error: %s\n" % str(err))
         sys.exit(1)
-    lines = string.splitfields(fp.read(), "\n")
+    lines = fp.read().split("\n")
     fp.close()
     prog = re.compile(
-        "#define[ \t][ \t]*([A-Z][A-Z_]*)[ \t][ \t]*([0-9][0-9]*)",
+        "#define[ \t][ \t]*([A-Z0-9][A-Z0-9_]*)[ \t][ \t]*([0-9][0-9]*)",
         re.IGNORECASE)
     tokens = {}
     for line in lines:
         match = prog.match(line)
         if match:
             name, val = match.group(1, 2)
-            val = string.atoi(val)
+            val = int(val)
             tokens[val] = name          # reverse so we can sort them...
     keys = tokens.keys()
     keys.sort()
@@ -114,7 +116,7 @@ def main():
     except IOError, err:
         sys.stderr.write("I/O error: %s\n" % str(err))
         sys.exit(2)
-    format = string.splitfields(fp.read(), "\n")
+    format = fp.read().split("\n")
     fp.close()
     try:
         start = format.index("#--start constants--") + 1
@@ -131,7 +133,7 @@ def main():
     except IOError, err:
         sys.stderr.write("I/O error: %s\n" % str(err))
         sys.exit(4)
-    fp.write(string.joinfields(format, "\n"))
+    fp.write("\n".join(format))
     fp.close()
 
 

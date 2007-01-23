@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 
+#include "object.h"
 
 /* Tokenizer interface */
 
@@ -33,14 +34,27 @@ struct tok_state {
 	int level;	/* () [] {} Parentheses nesting level */
 			/* Used to allow free continuations inside them */
 	/* Stuff for checking on different tab sizes */
-	char *filename;	/* For error messages */
+	const char *filename;	/* For error messages */
 	int altwarning;	/* Issue warning if alternate tabs don't match */
 	int alterror;	/* Issue error if alternate tabs don't match */
 	int alttabsize;	/* Alternate tab spacing */
 	int altindstack[MAXINDENT];	/* Stack of alternate indents */
+	/* Stuff for PEP 0263 */
+	int decoding_state;	/* -1:decoding, 0:init, 1:raw */
+	int decoding_erred;	/* whether erred in decoding  */
+	int read_coding_spec;	/* whether 'coding:...' has been read  */
+	int issued_encoding_warning; /* whether non-ASCII warning was issued */
+	char *encoding;
+	int cont_line;          /* whether we are in a continuation line. */
+#ifndef PGEN
+	PyObject *decoding_readline; /* codecs.open(...).readline */
+	PyObject *decoding_buffer;
+#endif
+	const char* enc;
+	const char* str;
 };
 
-extern struct tok_state *PyTokenizer_FromString(char *);
+extern struct tok_state *PyTokenizer_FromString(const char *);
 extern struct tok_state *PyTokenizer_FromFile(FILE *, char *, char *);
 extern void PyTokenizer_Free(struct tok_state *);
 extern int PyTokenizer_Get(struct tok_state *, char **, char **);

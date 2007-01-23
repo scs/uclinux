@@ -21,8 +21,8 @@ extern dl_funcptr _PyImport_GetDynLoadFunc(const char *name,
 PyObject *
 _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
 {
-	PyObject *m, *d, *s;
-	char *lastdot, *shortname, *packagecontext;
+	PyObject *m;
+	char *lastdot, *shortname, *packagecontext, *oldcontext;
 	dl_funcptr p;
 
 	if ((m = _PyImport_FindExtension(name, pathname)) != NULL) {
@@ -48,12 +48,11 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
 			     shortname);
 		return NULL;
 	}
+        oldcontext = _Py_PackageContext;
 	_Py_PackageContext = packagecontext;
 	(*p)();
-	_Py_PackageContext = NULL;
+	_Py_PackageContext = oldcontext;
 	if (PyErr_Occurred())
-		return NULL;
-	if (_PyImport_FixupExtension(name, pathname) == NULL)
 		return NULL;
 
 	m = PyDict_GetItemString(PyImport_GetModuleDict(), name);
@@ -63,11 +62,11 @@ _PyImport_LoadDynamicModule(char *name, char *pathname, FILE *fp)
 		return NULL;
 	}
 	/* Remember the filename as the __file__ attribute */
-	d = PyModule_GetDict(m);
-	s = PyString_FromString(pathname);
-	if (s == NULL || PyDict_SetItemString(d, "__file__", s) != 0)
+	if (PyModule_AddStringConstant(m, "__file__", pathname) < 0)
 		PyErr_Clear(); /* Not important enough to report */
-	Py_XDECREF(s);
+
+	if (_PyImport_FixupExtension(name, pathname) == NULL)
+		return NULL;
 	if (Py_VerboseFlag)
 		PySys_WriteStderr(
 			"import %s # dynamically loaded from %s\n",

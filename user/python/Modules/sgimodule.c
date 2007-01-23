@@ -5,14 +5,13 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <fcntl.h>
 
 static PyObject *
 sgi_nap(PyObject *self, PyObject *args)
 {
 	long ticks;
-	if (!PyArg_Parse(args, "l", &ticks))
+	if (!PyArg_ParseTuple(args, "l:nap", &ticks))
 		return NULL;
 	Py_BEGIN_ALLOW_THREADS
 	sginap(ticks);
@@ -31,7 +30,7 @@ sgi__getpty(PyObject *self, PyObject *args)
 	int nofork;
 	char *name;
 	int fildes;
-	if (!PyArg_Parse(args, "(iii)", &oflag, &mode, &nofork))
+	if (!PyArg_ParseTuple(args, "iii:_getpty", &oflag, &mode, &nofork))
 		return NULL;
 	errno = 0;
 	name = _getpty(&fildes, oflag, (mode_t)mode, nofork);
@@ -43,8 +42,8 @@ sgi__getpty(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef sgi_methods[] = {
-	{"nap",		sgi_nap},
-	{"_getpty",	sgi__getpty},
+	{"nap",		sgi_nap,	METH_VARARGS},
+	{"_getpty",	sgi__getpty,	METH_VARARGS},
 	{NULL,		NULL}		/* sentinel */
 };
 

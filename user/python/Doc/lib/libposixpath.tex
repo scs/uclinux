@@ -7,6 +7,10 @@
 This module implements some useful functions on pathnames.
 \index{path!operations}
 
+\warning{On Windows, many of these functions do not properly
+support UNC pathnames.  \function{splitunc()} and \function{ismount()}
+do handle them correctly.}
+
 
 \begin{funcdesc}{abspath}{path}
 Return a normalized absolutized version of the pathname \var{path}.
@@ -17,7 +21,11 @@ On most platforms, this is equivalent to
 
 \begin{funcdesc}{basename}{path}
 Return the base name of pathname \var{path}.  This is the second half
-of the pair returned by \code{split(\var{path})}.
+of the pair returned by \code{split(\var{path})}.  Note that the
+result of this function is different from the
+\UNIX{} \program{basename} program; where \program{basename} for
+\code{'/foo/bar/'} returns \code{'bar'}, the \function{basename()}
+function returns an empty string (\code{''}).
 \end{funcdesc}
 
 \begin{funcdesc}{commonprefix}{list}
@@ -34,18 +42,37 @@ half of the pair returned by \code{split(\var{path})}.
 \end{funcdesc}
 
 \begin{funcdesc}{exists}{path}
-Return true if \var{path} refers to an existing path.
+Return \code{True} if \var{path} refers to an existing path.  Returns
+\code{False} for broken symbolic links. On some platforms, this
+function may return \code{False} if permission is not granted to
+execute \function{os.stat()} on the requested file, even if the
+\var{path} physically exists.
+\end{funcdesc}
+
+\begin{funcdesc}{lexists}{path}
+Return \code{True} if \var{path} refers to an existing path.
+Returns \code{True} for broken symbolic links.  
+Equivalent to \function{exists()} on platforms lacking
+\function{os.lstat()}.
+\versionadded{2.4}
 \end{funcdesc}
 
 \begin{funcdesc}{expanduser}{path}
-Return the argument with an initial component of \samp{\~} or
-\samp{\~\var{user}} replaced by that \var{user}'s home directory.  An
-initial \samp{\~{}} is replaced by the environment variable
-\envvar{HOME}; an initial \samp{\~\var{user}} is looked up in the
-password directory through the built-in module
-\refmodule{pwd}\refbimodindex{pwd}.  If the expansion fails, or if the
-path does not begin with a tilde, the path is returned unchanged.  On
-the Macintosh, this always returns \var{path} unchanged.
+On \UNIX, return the argument with an initial component of \samp{\~} or
+\samp{\~\var{user}} replaced by that \var{user}'s home directory.
+An initial \samp{\~} is replaced by the environment variable
+\envvar{HOME} if it is set; otherwise the current user's home directory
+is looked up in the password directory through the built-in module
+\refmodule{pwd}\refbimodindex{pwd}.
+An initial \samp{\~\var{user}} is looked up directly in the
+password directory.
+
+On Windows, only \samp{\~} is supported; it is replaced by the
+environment variable \envvar{HOME} or by a combination of
+\envvar{HOMEDRIVE} and \envvar{HOMEPATH}.
+
+If the expansion fails or if the
+path does not begin with a tilde, the path is returned unchanged.
 \end{funcdesc}
 
 \begin{funcdesc}{expandvars}{path}
@@ -53,56 +80,67 @@ Return the argument with environment variables expanded.  Substrings
 of the form \samp{\$\var{name}} or \samp{\$\{\var{name}\}} are
 replaced by the value of environment variable \var{name}.  Malformed
 variable names and references to non-existing variables are left
-unchanged.  On the Macintosh, this always returns \var{path}
 unchanged.
 \end{funcdesc}
 
 \begin{funcdesc}{getatime}{path}
-Return the time of last access of \var{filename}.  The return
-value is integer giving the number of seconds since the epoch (see the 
+Return the time of last access of \var{path}.  The return
+value is a number giving the number of seconds since the epoch (see the 
 \refmodule{time} module).  Raise \exception{os.error} if the file does
 not exist or is inaccessible.
 \versionadded{1.5.2}
+\versionchanged[If \function{os.stat_float_times()} returns True, the result is a floating point number]{2.3}
 \end{funcdesc}
 
 \begin{funcdesc}{getmtime}{path}
-Return the time of last modification of \var{filename}.  The return
-value is integer giving the number of seconds since the epoch (see the 
+Return the time of last modification of \var{path}.  The return
+value is a number giving the number of seconds since the epoch (see the 
 \refmodule{time} module).  Raise \exception{os.error} if the file does
 not exist or is inaccessible.
 \versionadded{1.5.2}
+\versionchanged[If \function{os.stat_float_times()} returns True, the result is a floating point number]{2.3}
+\end{funcdesc}
+
+\begin{funcdesc}{getctime}{path}
+Return the system's ctime which, on some systems (like \UNIX) is the
+time of the last change, and, on others (like Windows), is the
+creation time for \var{path}.  The return
+value is a number giving the number of seconds since the epoch (see the 
+\refmodule{time} module).  Raise \exception{os.error} if the file does
+not exist or is inaccessible.
+\versionadded{2.3}
 \end{funcdesc}
 
 \begin{funcdesc}{getsize}{path}
-Return the size, in bytes, of \var{filename}.  Raise
+Return the size, in bytes, of \var{path}.  Raise
 \exception{os.error} if the file does not exist or is inaccessible.
 \versionadded{1.5.2}
 \end{funcdesc}
 
 \begin{funcdesc}{isabs}{path}
-Return true if \var{path} is an absolute pathname (begins with a
+Return \code{True} if \var{path} is an absolute pathname (begins with a
 slash).
 \end{funcdesc}
 
 \begin{funcdesc}{isfile}{path}
-Return true if \var{path} is an existing regular file.  This follows
+Return \code{True} if \var{path} is an existing regular file.  This follows
 symbolic links, so both \function{islink()} and \function{isfile()}
 can be true for the same path.
 \end{funcdesc}
 
 \begin{funcdesc}{isdir}{path}
-Return true if \var{path} is an existing directory.  This follows
+Return \code{True} if \var{path} is an existing directory.  This follows
 symbolic links, so both \function{islink()} and \function{isdir()} can
 be true for the same path.
 \end{funcdesc}
 
 \begin{funcdesc}{islink}{path}
-Return true if \var{path} refers to a directory entry that is a
-symbolic link.  Always false if symbolic links are not supported.
+Return \code{True} if \var{path} refers to a directory entry that is a
+symbolic link.  Always \code{False} if symbolic links are not supported.
 \end{funcdesc}
 
 \begin{funcdesc}{ismount}{path}
-Return true if pathname \var{path} is a \dfn{mount point}: a point in
+Return \code{True} if pathname \var{path} is a \dfn{mount point}: a point in
 a file system where a different file system has been mounted.  The
 function checks whether \var{path}'s parent, \file{\var{path}/..}, is
 on a different device than \var{path}, or whether \file{\var{path}/..}
@@ -111,15 +149,20 @@ should detect mount points for all \UNIX{} and \POSIX{} variants.
 \end{funcdesc}
 
 \begin{funcdesc}{join}{path1\optional{, path2\optional{, ...}}}
-Joins one or more path components intelligently.  If any component is
-an absolute path, all previous components are thrown away, and joining
+Join one or more path components intelligently.  If any component is
+an absolute path, all previous components (on Windows, including the
+previous drive letter, if there was one) are thrown away, and joining
 continues.  The return value is the concatenation of \var{path1}, and
-optionally \var{path2}, etc., with exactly one slash (\code{'/'})
-inserted between components, unless \var{path} is empty.
+optionally \var{path2}, etc., with exactly one directory separator
+(\code{os.sep}) inserted between components, unless \var{path2} is
+empty.  Note that on Windows, since there is a current directory for
+each drive, \function{os.path.join("c:", "foo")} represents a path
+relative to the current directory on drive \file{C:} (\file{c:foo}), not
+\file{c:\textbackslash\textbackslash foo}.
 \end{funcdesc}
 
 \begin{funcdesc}{normcase}{path}
-Normalize the case of a pathname.  On \UNIX{}, this returns the path
+Normalize the case of a pathname.  On \UNIX, this returns the path
 unchanged; on case-insensitive filesystems, it converts the path to
 lowercase.  On Windows, it also converts forward slashes to backward
 slashes.
@@ -127,34 +170,41 @@ slashes.
 
 \begin{funcdesc}{normpath}{path}
 Normalize a pathname.  This collapses redundant separators and
-up-level references, e.g. \code{A//B}, \code{A/./B} and
+up-level references so that \code{A//B}, \code{A/./B} and
 \code{A/foo/../B} all become \code{A/B}.  It does not normalize the
 case (use \function{normcase()} for that).  On Windows, it converts
-forward slashes to backward slashes.
+forward slashes to backward slashes. It should be understood that this may
+change the meaning of the path if it contains symbolic links! 
+\end{funcdesc}
+
+\begin{funcdesc}{realpath}{path}
+Return the canonical path of the specified filename, eliminating any
+symbolic links encountered in the path (if they are supported by the
+operating system).
+\versionadded{2.2}
 \end{funcdesc}
 
 \begin{funcdesc}{samefile}{path1, path2}
-Return true if both pathname arguments refer to the same file or
+Return \code{True} if both pathname arguments refer to the same file or
 directory (as indicated by device number and i-node number).
 Raise an exception if a \function{os.stat()} call on either pathname
 fails.
-Availability:  Macintosh, \UNIX{}.
+Availability:  Macintosh, \UNIX.
 \end{funcdesc}
 
 \begin{funcdesc}{sameopenfile}{fp1, fp2}
-Return true if the file objects \var{fp1} and \var{fp2} refer to the
-same file.  The two file objects may represent different file
-descriptors.
-Availability:  Macintosh, \UNIX{}.
+Return \code{True} if the file descriptors \var{fp1} and \var{fp2} refer
+to the same file.
+Availability:  Macintosh, \UNIX.
 \end{funcdesc}
 
 \begin{funcdesc}{samestat}{stat1, stat2}
-Return true if the stat tuples \var{stat1} and \var{stat2} refer to
+Return \code{True} if the stat tuples \var{stat1} and \var{stat2} refer to
 the same file.  These structures may have been returned by
 \function{fstat()}, \function{lstat()}, or \function{stat()}.  This
 function implements the underlying comparison used by
 \function{samefile()} and \function{sameopenfile()}.
-Availability:  Macintosh, \UNIX{}.
+Availability:  Macintosh, \UNIX.
 \end{funcdesc}
 
 \begin{funcdesc}{split}{path}
@@ -177,6 +227,7 @@ Split the pathname \var{path} into a pair \code{(\var{drive},
 empty string.  On systems which do not use drive specifications,
 \var{drive} will always be the empty string.  In all cases,
 \code{\var{drive} + \var{tail}} will be the same as \var{path}.
+\versionadded{1.3}
 \end{funcdesc}
 
 \begin{funcdesc}{splitext}{path}
@@ -184,6 +235,15 @@ Split the pathname \var{path} into a pair \code{(\var{root}, \var{ext})}
 such that \code{\var{root} + \var{ext} == \var{path}},
 and \var{ext} is empty or begins with a period and contains
 at most one period.
+\end{funcdesc}
+
+\begin{funcdesc}{splitunc}{path}
+Split the pathname \var{path} into a pair \code{(\var{unc}, \var{rest})}
+so that \var{unc} is the UNC mount point (such as \code{r'\e\e host\e mount'}),
+if present, and \var{rest} the rest of the path (such as 
+\code{r'\e path\e file.ext'}).  For paths containing drive letters, \var{unc}
+will always be the empty string.
+Availability:  Windows.
 \end{funcdesc}
 
 \begin{funcdesc}{walk}{path, visit, arg}
@@ -194,8 +254,28 @@ is a directory).  The argument \var{dirname} specifies the visited
 directory, the argument \var{names} lists the files in the directory
 (gotten from \code{os.listdir(\var{dirname})}).
 The \var{visit} function may modify \var{names} to
-influence the set of directories visited below \var{dirname}, e.g., to
+influence the set of directories visited below \var{dirname}, e.g. to
 avoid visiting certain parts of the tree.  (The object referred to by
 \var{names} must be modified in place, using \keyword{del} or slice
 assignment.)
+
+\begin{notice}
+Symbolic links to directories are not treated as subdirectories, and
+that \function{walk()} therefore will not visit them. To visit linked
+directories you must identify them with
+\code{os.path.islink(\var{file})} and
+\code{os.path.isdir(\var{file})}, and invoke \function{walk()} as
+necessary.
+\end{notice}
+
+\note{The newer \function{\refmodule{os}.walk()} generator supplies
+      similar functionality and can be easier to use.}
 \end{funcdesc}
+
+\begin{datadesc}{supports_unicode_filenames}
+True if arbitrary Unicode strings can be used as file names (within
+limitations imposed by the file system), and if
+\function{os.listdir()} returns Unicode strings for a Unicode
+argument.
+\versionadded{2.3}
+\end{datadesc}

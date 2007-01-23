@@ -33,7 +33,7 @@ class RCS:
     """
 
     # Characters allowed in work file names
-    okchars = string.letters + string.digits + '-_=+.'
+    okchars = string.ascii_letters + string.digits + '-_=+'
 
     def __init__(self):
         """Constructor."""
@@ -83,7 +83,7 @@ class RCS:
             if line[0] == '\t':
                 # XXX could be a lock or symbolic name
                 # Anything else?
-                continue 
+                continue
             i = string.find(line, ':')
             if i > 0:
                 key, value = line[:i], string.strip(line[i+1:])
@@ -143,22 +143,17 @@ class RCS:
         if message and message[-1] != '\n':
             message = message + '\n'
         lockflag = "-u"
-        textfile = None
-        try:
-            if new:
-                textfile = tempfile.mktemp()
-                f = open(textfile, 'w')
-                f.write(message)
-                f.close()
-                cmd = 'ci %s%s -t%s %s %s' % \
-                      (lockflag, rev, textfile, otherflags, name)
-            else:
-                message = regsub.gsub('\([\\"$`]\)', '\\\\\\1', message)
-                cmd = 'ci %s%s -m"%s" %s %s' % \
-                      (lockflag, rev, message, otherflags, name)
-            return self._system(cmd)
-        finally:
-            if textfile: self._remove(textfile)
+        if new:
+            f = tempfile.NamedTemporaryFile()
+            f.write(message)
+            f.flush()
+            cmd = 'ci %s%s -t%s %s %s' % \
+                  (lockflag, rev, f.name, otherflags, name)
+        else:
+            message = regsub.gsub('\([\\"$`]\)', '\\\\\\1', message)
+            cmd = 'ci %s%s -m"%s" %s %s' % \
+                  (lockflag, rev, message, otherflags, name)
+        return self._system(cmd)
 
     # --- Exported support methods ---
 
@@ -237,7 +232,7 @@ class RCS:
         """
         name, rev = self._unmangle(name_rev)
         if not self.isvalid(name):
-            raise os.error, 'not an rcs file %s' % `name`
+            raise os.error, 'not an rcs file %r' % (name,)
         return name, rev
 
     # --- Internal methods ---
@@ -257,7 +252,7 @@ class RCS:
         namev = self.rcsname(name)
         if rev:
             cmd = cmd + ' ' + rflag + rev
-        return os.popen("%s %s" % (cmd, `namev`))
+        return os.popen("%s %r" % (cmd, namev))
 
     def _unmangle(self, name_rev):
         """INTERNAL: Normalize NAME_REV argument to (NAME, REV) tuple.
@@ -292,7 +287,7 @@ class RCS:
         if reason&0x80:
             code = code + '(coredump)'
         return code, signal
- 
+
     def _system(self, cmd):
         """INTERNAL: run COMMAND in a subshell.
 
@@ -316,7 +311,7 @@ class RCS:
 
         If a second PATTERN argument is given, only files matching it
         are kept.  No check for valid filenames is made.
-        
+
         """
         if pat:
             def keep(name, pat = pat):

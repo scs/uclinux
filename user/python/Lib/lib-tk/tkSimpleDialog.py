@@ -61,6 +61,7 @@ class Dialog(Toplevel):
 
         self.buttonbox()
 
+        self.wait_visibility() # window needs to be visible for the grab
         self.grab_set()
 
         if not self.initial_focus:
@@ -68,8 +69,9 @@ class Dialog(Toplevel):
 
         self.protocol("WM_DELETE_WINDOW", self.cancel)
 
-        self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
-                                  parent.winfo_rooty()+50))
+        if self.parent is not None:
+            self.geometry("+%d+%d" % (parent.winfo_rootx()+50,
+                                      parent.winfo_rooty()+50))
 
         self.initial_focus.focus_set()
 
@@ -86,18 +88,18 @@ class Dialog(Toplevel):
     def body(self, master):
         '''create dialog body.
 
-        return widget that should have initial focus. 
+        return widget that should have initial focus.
         This method should be overridden, and is called
         by the __init__ method.
         '''
         pass
 
     def buttonbox(self):
-        '''add standard button box. 
+        '''add standard button box.
 
-        override if you don't want the standard buttons
+        override if you do not want the standard buttons
         '''
-        
+
         box = Frame(self)
 
         w = Button(box, text="OK", width=10, command=self.ok, default=ACTIVE)
@@ -129,7 +131,8 @@ class Dialog(Toplevel):
     def cancel(self, event=None):
 
         # put focus back to the parent window
-        self.parent.focus_set()
+        if self.parent is not None:
+            self.parent.focus_set()
         self.destroy()
 
     #
@@ -138,7 +141,7 @@ class Dialog(Toplevel):
     def validate(self):
         '''validate the data
 
-        This method is called automatically to validate the data before the 
+        This method is called automatically to validate the data before the
         dialog is destroyed. By default, it always validates OK.
         '''
 
@@ -156,8 +159,6 @@ class Dialog(Toplevel):
 
 # --------------------------------------------------------------------
 # convenience dialogues
-
-import string
 
 class _QueryDialog(Dialog):
 
@@ -227,7 +228,7 @@ class _QueryDialog(Dialog):
                 parent = self
             )
             return 0
-                
+
         self.result = result
 
         return 1
@@ -236,7 +237,7 @@ class _QueryDialog(Dialog):
 class _QueryInteger(_QueryDialog):
     errormessage = "Not an integer."
     def getresult(self):
-        return string.atoi(self.entry.get())
+        return int(self.entry.get())
 
 def askinteger(title, prompt, **kw):
     '''get an integer from the user
@@ -249,13 +250,13 @@ def askinteger(title, prompt, **kw):
 
     Return value is an integer
     '''
-    d = apply(_QueryInteger, (title, prompt), kw)
+    d = _QueryInteger(title, prompt, **kw)
     return d.result
 
 class _QueryFloat(_QueryDialog):
     errormessage = "Not a floating point value."
     def getresult(self):
-        return string.atof(self.entry.get())
+        return float(self.entry.get())
 
 def askfloat(title, prompt, **kw):
     '''get a float from the user
@@ -268,10 +269,24 @@ def askfloat(title, prompt, **kw):
 
     Return value is a float
     '''
-    d = apply(_QueryFloat, (title, prompt), kw)
+    d = _QueryFloat(title, prompt, **kw)
     return d.result
 
 class _QueryString(_QueryDialog):
+    def __init__(self, *args, **kw):
+        if kw.has_key("show"):
+            self.__show = kw["show"]
+            del kw["show"]
+        else:
+            self.__show = None
+        _QueryDialog.__init__(self, *args, **kw)
+
+    def body(self, master):
+        entry = _QueryDialog.body(self, master)
+        if self.__show is not None:
+            entry.configure(show=self.__show)
+        return entry
+
     def getresult(self):
         return self.entry.get()
 
@@ -286,10 +301,10 @@ def askstring(title, prompt, **kw):
 
     Return value is a string
     '''
-    d = apply(_QueryString, (title, prompt), kw)
+    d = _QueryString(title, prompt, **kw)
     return d.result
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
 
     root = Tk()
     root.update()
@@ -297,4 +312,3 @@ if __name__ == "__main__":
     print askinteger("Spam", "Egg count", initialvalue=12*12)
     print askfloat("Spam", "Egg weight\n(in tons)", minvalue=1, maxvalue=100)
     print askstring("Spam", "Egg label")
-

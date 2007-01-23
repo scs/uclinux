@@ -1,20 +1,22 @@
-
 /* struct module -- pack values into and (out of) strings */
 
 /* New version supporting byte order, alignment and size options,
    character strings, and unsigned numbers */
 
-static char struct__doc__[] = "\
-Functions to convert between Python values and C structs.\n\
+#include "Python.h"
+#include <ctype.h>
+
+PyDoc_STRVAR(struct__doc__,
+"Functions to convert between Python values and C structs.\n\
 Python strings are used to hold the data representing the C struct\n\
 and also as format strings to describe the layout of data in the C struct.\n\
 \n\
-The optional first format char indicates byte ordering and alignment:\n\
- @: native w/native alignment(default)\n\
- =: native w/standard alignment\n\
- <: little-endian, std. alignment\n\
- >: big-endian, std. alignment\n\
- !: network, std (same as >)\n\
+The optional first format char indicates byte order, size and alignment:\n\
+ @: native order, size & alignment (default)\n\
+ =: native order, std. size & alignment\n\
+ <: little-endian, std. size & alignment\n\
+ >: big-endian, std. size & alignment\n\
+ !: same as >\n\
 \n\
 The remaining chars indicate types of args and must match exactly;\n\
 these can be preceded by a decimal repeat count:\n\
@@ -22,16 +24,14 @@ these can be preceded by a decimal repeat count:\n\
  h:short; H:unsigned short; i:int; I:unsigned int;\n\
  l:long; L:unsigned long; f:float; d:double.\n\
 Special cases (preceding decimal count indicates length):\n\
- s:string (array of char); p: pascal string (w. count byte).\n\
+ s:string (array of char); p: pascal string (with count byte).\n\
 Special case (only available in native format):\n\
  P:an integer type that is wide enough to hold a pointer.\n\
+Special case (not in native mode unless 'long long' in platform C):\n\
+ q:long long; Q:unsigned long long\n\
 Whitespace between formats is ignored.\n\
 \n\
-The variable struct.error is an exception raised on errors.";
-
-#include "Python.h"
-
-#include <ctype.h>
+The variable struct.error is an exception raised on errors.");
 
 
 /* Exception */
@@ -41,35 +41,61 @@ static PyObject *StructError;
 
 /* Define various structs to figure out the alignments of types */
 
-#ifdef __MWERKS__
-/*
-** XXXX We have a problem here. There are no unique alignment rules
-** on the PowerPC mac. 
-*/
-#ifdef __powerc
-#pragma options align=mac68k
+
+typedef struct { char c; short x; } st_short;
+typedef struct { char c; int x; } st_int;
+typedef struct { char c; long x; } st_long;
+typedef struct { char c; float x; } st_float;
+typedef struct { char c; double x; } st_double;
+typedef struct { char c; void *x; } st_void_p;
+
+#define SHORT_ALIGN (sizeof(st_short) - sizeof(short))
+#define INT_ALIGN (sizeof(st_int) - sizeof(int))
+#define LONG_ALIGN (sizeof(st_long) - sizeof(long))
+#define FLOAT_ALIGN (sizeof(st_float) - sizeof(float))
+#define DOUBLE_ALIGN (sizeof(st_double) - sizeof(double))
+#define VOID_P_ALIGN (sizeof(st_void_p) - sizeof(void *))
+
+/* We can't support q and Q in native mode unless the compiler does;
+   in std mode, they're 8 bytes on all platforms. */
+#ifdef HAVE_LONG_LONG
+typedef struct { char c; PY_LONG_LONG x; } s_long_long;
+#define LONG_LONG_ALIGN (sizeof(s_long_long) - sizeof(PY_LONG_LONG))
 #endif
-#endif /* __MWERKS__ */
-
-typedef struct { char c; short x; } s_short;
-typedef struct { char c; int x; } s_int;
-typedef struct { char c; long x; } s_long;
-typedef struct { char c; float x; } s_float;
-typedef struct { char c; double x; } s_double;
-typedef struct { char c; void *x; } s_void_p;
-
-#define SHORT_ALIGN (sizeof(s_short) - sizeof(short))
-#define INT_ALIGN (sizeof(s_int) - sizeof(int))
-#define LONG_ALIGN (sizeof(s_long) - sizeof(long))
-#define FLOAT_ALIGN (sizeof(s_float) - sizeof(float))
-#define DOUBLE_ALIGN (sizeof(s_double) - sizeof(double))
-#define VOID_P_ALIGN (sizeof(s_void_p) - sizeof(void *))
 
 #define STRINGIFY(x)    #x
 
 #ifdef __powerc
 #pragma options align=reset
 #endif
+
+/* Helper to get a PyLongObject by hook or by crook.  Caller should decref. */
+
+static PyObject *
+get_pylong(PyObject *v)
+{
+	PyNumberMethods *m;
+
+	assert(v != NULL);
+	if (PyInt_Check(v))
+		return PyLong_FromLong(PyInt_AS_LONG(v));
+	if (PyLong_Check(v)) {
+		Py_INCREF(v);
+		return v;
+	}
+	m = v->ob_type->tp_as_number;
+	if (m != NULL && m->nb_long != NULL) {
+		v = m->nb_long(v);
+		if (v == NULL)
+			return NULL;
+		if (PyLong_Check(v))
+			return v;
+		Py_DECREF(v);
+	}
+	PyErr_SetString(StructError,
+			"cannot convert argument to long");
+	return NULL;
+}
 
 /* Helper routine to get a Python integer and raise the appropriate error
    if it isn't one */
@@ -106,279 +132,71 @@ get_ulong(PyObject *v, unsigned long *p)
 	}
 }
 
+#ifdef HAVE_LONG_LONG
+
+/* Same, but handling native long long. */
+
+static int
+get_longlong(PyObject *v, PY_LONG_LONG *p)
+{
+	PY_LONG_LONG x;
+
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	assert(PyLong_Check(v));
+	x = PyLong_AsLongLong(v);
+	Py_DECREF(v);
+	if (x == (PY_LONG_LONG)-1 && PyErr_Occurred())
+		return -1;
+	*p = x;
+	return 0;
+}
+
+/* Same, but handling native unsigned long long. */
+
+static int
+get_ulonglong(PyObject *v, unsigned PY_LONG_LONG *p)
+{
+	unsigned PY_LONG_LONG x;
+
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	assert(PyLong_Check(v));
+	x = PyLong_AsUnsignedLongLong(v);
+	Py_DECREF(v);
+	if (x == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())
+		return -1;
+	*p = x;
+	return 0;
+}
+
+#endif
 
 /* Floating point helpers */
 
-/* These use ANSI/IEEE Standard 754-1985 (Standard for Binary Floating
-   Point Arithmetic).  See the following URL:
-   http://www.psc.edu/general/software/packages/ieee/ieee.html */
-
-/* XXX Inf/NaN are not handled quite right (but underflow is!) */
-
-static int
-pack_float(double x, /* The number to pack */
-           char *p,  /* Where to pack the high order byte */
-           int incr) /* 1 for big-endian; -1 for little-endian */
-{
-	int s;
-	int e;
-	double f;
-	long fbits;
-
-	if (x < 0) {
-		s = 1;
-		x = -x;
-	}
-	else
-		s = 0;
-
-	f = frexp(x, &e);
-
-	/* Normalize f to be in the range [1.0, 2.0) */
-	if (0.5 <= f && f < 1.0) {
-		f *= 2.0;
-		e--;
-	}
-	else if (f == 0.0) {
-		e = 0;
-	}
-	else {
-		PyErr_SetString(PyExc_SystemError,
-				"frexp() result out of range");
-		return -1;
-	}
-
-	if (e >= 128) {
-		/* XXX 128 itself is reserved for Inf/NaN */
-		PyErr_SetString(PyExc_OverflowError,
-				"float too large to pack with f format");
-		return -1;
-	}
-	else if (e < -126) {
-		/* Gradual underflow */
-		f = ldexp(f, 126 + e);
-		e = 0;
-	}
-	else if (!(e == 0 && f == 0.0)) {
-		e += 127;
-		f -= 1.0; /* Get rid of leading 1 */
-	}
-
-	f *= 8388608.0; /* 2**23 */
-	fbits = (long) floor(f + 0.5); /* Round */
-
-	/* First byte */
-	*p = (s<<7) | (e>>1);
-	p += incr;
-
-	/* Second byte */
-	*p = (char) (((e&1)<<7) | (fbits>>16));
-	p += incr;
-
-	/* Third byte */
-	*p = (fbits>>8) & 0xFF;
-	p += incr;
-
-	/* Fourth byte */
-	*p = fbits&0xFF;
-
-	/* Done */
-	return 0;
-}
-
-static int
-pack_double(double x, /* The number to pack */
-            char *p,  /* Where to pack the high order byte */
-            int incr) /* 1 for big-endian; -1 for little-endian */
-{
-	int s;
-	int e;
-	double f;
-	long fhi, flo;
-
-	if (x < 0) {
-		s = 1;
-		x = -x;
-	}
-	else
-		s = 0;
-
-	f = frexp(x, &e);
-
-	/* Normalize f to be in the range [1.0, 2.0) */
-	if (0.5 <= f && f < 1.0) {
-		f *= 2.0;
-		e--;
-	}
-	else if (f == 0.0) {
-		e = 0;
-	}
-	else {
-		PyErr_SetString(PyExc_SystemError,
-				"frexp() result out of range");
-		return -1;
-	}
-
-	if (e >= 1024) {
-		/* XXX 1024 itself is reserved for Inf/NaN */
-		PyErr_SetString(PyExc_OverflowError,
-				"float too large to pack with d format");
-		return -1;
-	}
-	else if (e < -1022) {
-		/* Gradual underflow */
-		f = ldexp(f, 1022 + e);
-		e = 0;
-	}
-	else if (!(e == 0 && f == 0.0)) {
-		e += 1023;
-		f -= 1.0; /* Get rid of leading 1 */
-	}
-
-	/* fhi receives the high 28 bits; flo the low 24 bits (== 52 bits) */
-	f *= 268435456.0; /* 2**28 */
-	fhi = (long) floor(f); /* Truncate */
-	f -= (double)fhi;
-	f *= 16777216.0; /* 2**24 */
-	flo = (long) floor(f + 0.5); /* Round */
-
-	/* First byte */
-	*p = (s<<7) | (e>>4);
-	p += incr;
-
-	/* Second byte */
-	*p = (char) (((e&0xF)<<4) | (fhi>>24));
-	p += incr;
-
-	/* Third byte */
-	*p = (fhi>>16) & 0xFF;
-	p += incr;
-
-	/* Fourth byte */
-	*p = (fhi>>8) & 0xFF;
-	p += incr;
-
-	/* Fifth byte */
-	*p = fhi & 0xFF;
-	p += incr;
-
-	/* Sixth byte */
-	*p = (flo>>16) & 0xFF;
-	p += incr;
-
-	/* Seventh byte */
-	*p = (flo>>8) & 0xFF;
-	p += incr;
-
-	/* Eighth byte */
-	*p = flo & 0xFF;
-	p += incr;
-
-	/* Done */
-	return 0;
-}
-
 static PyObject *
-unpack_float(const char *p,  /* Where the high order byte is */
-             int incr)       /* 1 for big-endian; -1 for little-endian */
+unpack_float(const char *p,  /* start of 4-byte string */
+             int le)	     /* true for little-endian, false for big-endian */
 {
-	int s;
-	int e;
-	long f;
 	double x;
 
-	/* First byte */
-	s = (*p>>7) & 1;
-	e = (*p & 0x7F) << 1;
-	p += incr;
-
-	/* Second byte */
-	e |= (*p>>7) & 1;
-	f = (*p & 0x7F) << 16;
-	p += incr;
-
-	/* Third byte */
-	f |= (*p & 0xFF) << 8;
-	p += incr;
-
-	/* Fourth byte */
-	f |= *p & 0xFF;
-
-	x = (double)f / 8388608.0;
-
-	/* XXX This sadly ignores Inf/NaN issues */
-	if (e == 0)
-		e = -126;
-	else {
-		x += 1.0;
-		e -= 127;
-	}
-	x = ldexp(x, e);
-
-	if (s)
-		x = -x;
-
+	x = _PyFloat_Unpack4((unsigned char *)p, le);
+	if (x == -1.0 && PyErr_Occurred())
+		return NULL;
 	return PyFloat_FromDouble(x);
 }
 
 static PyObject *
-unpack_double(const char *p,  /* Where the high order byte is */
-              int incr)       /* 1 for big-endian; -1 for little-endian */
+unpack_double(const char *p,  /* start of 8-byte string */
+              int le)         /* true for little-endian, false for big-endian */
 {
-	int s;
-	int e;
-	long fhi, flo;
 	double x;
 
-	/* First byte */
-	s = (*p>>7) & 1;
-	e = (*p & 0x7F) << 4;
-	p += incr;
-
-	/* Second byte */
-	e |= (*p>>4) & 0xF;
-	fhi = (*p & 0xF) << 24;
-	p += incr;
-
-	/* Third byte */
-	fhi |= (*p & 0xFF) << 16;
-	p += incr;
-
-	/* Fourth byte */
-	fhi |= (*p & 0xFF) << 8;
-	p += incr;
-
-	/* Fifth byte */
-	fhi |= *p & 0xFF;
-	p += incr;
-
-	/* Sixth byte */
-	flo = (*p & 0xFF) << 16;
-	p += incr;
-
-	/* Seventh byte */
-	flo |= (*p & 0xFF) << 8;
-	p += incr;
-
-	/* Eighth byte */
-	flo |= *p & 0xFF;
-	p += incr;
-
-	x = (double)fhi + (double)flo / 16777216.0; /* 2**24 */
-	x /= 268435456.0; /* 2**28 */
-
-	/* XXX This sadly ignores Inf/NaN */
-	if (e == 0)
-		e = -1022;
-	else {
-		x += 1.0;
-		e -= 1023;
-	}
-	x = ldexp(x, e);
-
-	if (s)
-		x = -x;
-
+	x = _PyFloat_Unpack8((unsigned char *)p, le);
+	if (x == -1.0 && PyErr_Occurred())
+		return NULL;
 	return PyFloat_FromDouble(x);
 }
 
@@ -394,6 +212,25 @@ typedef struct _formatdef {
 	int (*pack)(char *, PyObject *,
 		    const struct _formatdef *);
 } formatdef;
+
+/* A large number of small routines follow, with names of the form
+
+	[bln][up]_TYPE
+
+   [bln] distiguishes among big-endian, little-endian and native.
+   [pu] distiguishes between pack (to struct) and unpack (from struct).
+   TYPE is one of char, byte, ubyte, etc.
+*/
+
+/* Native mode routines. ****************************************************/
+/* NOTE:
+   In all n[up]_<type> routines handling types larger than 1 byte, there is
+   *no* guarantee that the p pointer is properly aligned for each type,
+   therefore memcpy is called.  An intermediate variable is used to
+   compensate for big-endian architectures.
+   Normally both the intermediate variable and the memcpy call will be
+   skipped by C optimisation in little-endian architectures (gcc >= 2.91
+   does this). */
 
 static PyObject *
 nu_char(const char *p, const formatdef *f)
@@ -416,45 +253,79 @@ nu_ubyte(const char *p, const formatdef *f)
 static PyObject *
 nu_short(const char *p, const formatdef *f)
 {
-	return PyInt_FromLong((long) *(short *)p);
+	short x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyInt_FromLong((long)x);
 }
 
 static PyObject *
 nu_ushort(const char *p, const formatdef *f)
 {
-	return PyInt_FromLong((long) *(unsigned short *)p);
+	unsigned short x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyInt_FromLong((long)x);
 }
 
 static PyObject *
 nu_int(const char *p, const formatdef *f)
 {
-	return PyInt_FromLong((long) *(int *)p);
+	int x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyInt_FromLong((long)x);
 }
 
 static PyObject *
 nu_uint(const char *p, const formatdef *f)
 {
-	unsigned int x = *(unsigned int *)p;
+	unsigned int x;
+	memcpy((char *)&x, p, sizeof x);
 	return PyLong_FromUnsignedLong((unsigned long)x);
 }
 
 static PyObject *
 nu_long(const char *p, const formatdef *f)
 {
-	return PyInt_FromLong(*(long *)p);
+	long x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyInt_FromLong(x);
 }
 
 static PyObject *
 nu_ulong(const char *p, const formatdef *f)
 {
-	return PyLong_FromUnsignedLong(*(unsigned long *)p);
+	unsigned long x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyLong_FromUnsignedLong(x);
 }
+
+/* Native mode doesn't support q or Q unless the platform C supports
+   long long (or, on Windows, __int64). */
+
+#ifdef HAVE_LONG_LONG
+
+static PyObject *
+nu_longlong(const char *p, const formatdef *f)
+{
+	PY_LONG_LONG x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyLong_FromLongLong(x);
+}
+
+static PyObject *
+nu_ulonglong(const char *p, const formatdef *f)
+{
+	unsigned PY_LONG_LONG x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyLong_FromUnsignedLongLong(x);
+}
+
+#endif
 
 static PyObject *
 nu_float(const char *p, const formatdef *f)
 {
 	float x;
-	memcpy((char *)&x, p, sizeof(float));
+	memcpy((char *)&x, p, sizeof x);
 	return PyFloat_FromDouble((double)x);
 }
 
@@ -462,14 +333,16 @@ static PyObject *
 nu_double(const char *p, const formatdef *f)
 {
 	double x;
-	memcpy((char *)&x, p, sizeof(double));
+	memcpy((char *)&x, p, sizeof x);
 	return PyFloat_FromDouble(x);
 }
 
 static PyObject *
 nu_void_p(const char *p, const formatdef *f)
 {
-	return PyLong_FromVoidPtr(*(void **)p);
+	void *x;
+	memcpy((char *)&x, p, sizeof x);
+	return PyLong_FromVoidPtr(x);
 }
 
 static int
@@ -518,15 +391,17 @@ static int
 np_short(char *p, PyObject *v, const formatdef *f)
 {
 	long x;
+	short y;
 	if (get_long(v, &x) < 0)
 		return -1;
 	if (x < SHRT_MIN || x > SHRT_MAX){
 		PyErr_SetString(StructError,
 				"short format requires " STRINGIFY(SHRT_MIN)
-                                "<=number<=" STRINGIFY(SHRT_MAX));
+				"<=number<=" STRINGIFY(SHRT_MAX));
 		return -1;
 	}
-	* (short *)p = (short)x;
+	y = (short)x;
+	memcpy(p, (char *)&y, sizeof y);
 	return 0;
 }
 
@@ -534,6 +409,7 @@ static int
 np_ushort(char *p, PyObject *v, const formatdef *f)
 {
 	long x;
+	unsigned short y;
 	if (get_long(v, &x) < 0)
 		return -1;
 	if (x < 0 || x > USHRT_MAX){
@@ -541,7 +417,8 @@ np_ushort(char *p, PyObject *v, const formatdef *f)
 				"short format requires 0<=number<=" STRINGIFY(USHRT_MAX));
 		return -1;
 	}
-	* (unsigned short *)p = (unsigned short)x;
+	y = (unsigned short)x;
+	memcpy(p, (char *)&y, sizeof y);
 	return 0;
 }
 
@@ -549,9 +426,11 @@ static int
 np_int(char *p, PyObject *v, const formatdef *f)
 {
 	long x;
+	int y;
 	if (get_long(v, &x) < 0)
 		return -1;
-	* (int *)p = x;
+	y = (int)x;
+	memcpy(p, (char *)&y, sizeof y);
 	return 0;
 }
 
@@ -559,9 +438,11 @@ static int
 np_uint(char *p, PyObject *v, const formatdef *f)
 {
 	unsigned long x;
+	unsigned int y;
 	if (get_ulong(v, &x) < 0)
 		return -1;
-	* (unsigned int *)p = x;
+	y = (unsigned int)x;
+	memcpy(p, (char *)&y, sizeof y);
 	return 0;
 }
 
@@ -571,7 +452,7 @@ np_long(char *p, PyObject *v, const formatdef *f)
 	long x;
 	if (get_long(v, &x) < 0)
 		return -1;
-	* (long *)p = x;
+	memcpy(p, (char *)&x, sizeof x);
 	return 0;
 }
 
@@ -581,9 +462,32 @@ np_ulong(char *p, PyObject *v, const formatdef *f)
 	unsigned long x;
 	if (get_ulong(v, &x) < 0)
 		return -1;
-	* (unsigned long *)p = x;
+	memcpy(p, (char *)&x, sizeof x);
 	return 0;
 }
+
+#ifdef HAVE_LONG_LONG
+
+static int
+np_longlong(char *p, PyObject *v, const formatdef *f)
+{
+	PY_LONG_LONG x;
+	if (get_longlong(v, &x) < 0)
+		return -1;
+	memcpy(p, (char *)&x, sizeof x);
+	return 0;
+}
+
+static int
+np_ulonglong(char *p, PyObject *v, const formatdef *f)
+{
+	unsigned PY_LONG_LONG x;
+	if (get_ulonglong(v, &x) < 0)
+		return -1;
+	memcpy(p, (char *)&x, sizeof x);
+	return 0;
+}
+#endif
 
 static int
 np_float(char *p, PyObject *v, const formatdef *f)
@@ -594,7 +498,7 @@ np_float(char *p, PyObject *v, const formatdef *f)
 				"required argument is not a float");
 		return -1;
 	}
-	memcpy(p, (char *)&x, sizeof(float));
+	memcpy(p, (char *)&x, sizeof x);
 	return 0;
 }
 
@@ -614,15 +518,17 @@ np_double(char *p, PyObject *v, const formatdef *f)
 static int
 np_void_p(char *p, PyObject *v, const formatdef *f)
 {
-	void *x = PyLong_AsVoidPtr(v);
-	if (x == NULL && PyErr_Occurred()) {
-		/* ### hrm. PyLong_AsVoidPtr raises SystemError */
-		if (PyErr_ExceptionMatches(PyExc_TypeError))
-			PyErr_SetString(StructError,
-					"required argument is not an integer");
+	void *x;
+
+	v = get_pylong(v);
+	if (v == NULL)
 		return -1;
-	}
-	*(void **)p = x;
+	assert(PyLong_Check(v));
+	x = PyLong_AsVoidPtr(v);
+	Py_DECREF(v);
+	if (x == NULL && PyErr_Occurred())
+		return -1;
+	memcpy(p, (char *)&x, sizeof x);
 	return 0;
 }
 
@@ -642,8 +548,14 @@ static formatdef native_table[] = {
 	{'f',	sizeof(float),	FLOAT_ALIGN,	nu_float,	np_float},
 	{'d',	sizeof(double),	DOUBLE_ALIGN,	nu_double,	np_double},
 	{'P',	sizeof(void *),	VOID_P_ALIGN,	nu_void_p,	np_void_p},
+#ifdef HAVE_LONG_LONG
+	{'q',	sizeof(PY_LONG_LONG), LONG_LONG_ALIGN, nu_longlong, np_longlong},
+	{'Q',	sizeof(PY_LONG_LONG), LONG_LONG_ALIGN, nu_ulonglong,np_ulonglong},
+#endif
 	{0}
 };
+
+/* Big-endian routines. *****************************************************/
 
 static PyObject *
 bu_int(const char *p, const formatdef *f)
@@ -653,11 +565,9 @@ bu_int(const char *p, const formatdef *f)
 	do {
 		x = (x<<8) | (*p++ & 0xFF);
 	} while (--i > 0);
-	i = 8*(sizeof(long) - f->size);
-	if (i) {
-		x <<= i;
-		x >>= i;
-	}
+	/* Extend the sign bit. */
+	if (SIZEOF_LONG > f->size)
+		x |= -(x & (1L << (8*f->size - 1)));
 	return PyInt_FromLong(x);
 }
 
@@ -676,15 +586,33 @@ bu_uint(const char *p, const formatdef *f)
 }
 
 static PyObject *
+bu_longlong(const char *p, const formatdef *f)
+{
+	return _PyLong_FromByteArray((const unsigned char *)p,
+				      8,
+				      0, /* little-endian */
+				      1  /* signed */);
+}
+
+static PyObject *
+bu_ulonglong(const char *p, const formatdef *f)
+{
+	return _PyLong_FromByteArray((const unsigned char *)p,
+				      8,
+				      0, /* little-endian */
+				      0  /* signed */);
+}
+
+static PyObject *
 bu_float(const char *p, const formatdef *f)
 {
-	return unpack_float(p, 1);
+	return unpack_float(p, 0);
 }
 
 static PyObject *
 bu_double(const char *p, const formatdef *f)
 {
-	return unpack_double(p, 1);
+	return unpack_double(p, 0);
 }
 
 static int
@@ -718,6 +646,38 @@ bp_uint(char *p, PyObject *v, const formatdef *f)
 }
 
 static int
+bp_longlong(char *p, PyObject *v, const formatdef *f)
+{
+	int res;
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	res = _PyLong_AsByteArray((PyLongObject *)v,
+			   	  (unsigned char *)p,
+				  8,
+				  0, /* little_endian */
+				  1  /* signed */);
+	Py_DECREF(v);
+	return res;
+}
+
+static int
+bp_ulonglong(char *p, PyObject *v, const formatdef *f)
+{
+	int res;
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	res = _PyLong_AsByteArray((PyLongObject *)v,
+			   	  (unsigned char *)p,
+				  8,
+				  0, /* little_endian */
+				  0  /* signed */);
+	Py_DECREF(v);
+	return res;
+}
+
+static int
 bp_float(char *p, PyObject *v, const formatdef *f)
 {
 	double x = PyFloat_AsDouble(v);
@@ -726,7 +686,7 @@ bp_float(char *p, PyObject *v, const formatdef *f)
 				"required argument is not a float");
 		return -1;
 	}
-	return pack_float(x, p, 1);
+	return _PyFloat_Pack4(x, (unsigned char *)p, 0);
 }
 
 static int
@@ -738,7 +698,7 @@ bp_double(char *p, PyObject *v, const formatdef *f)
 				"required argument is not a float");
 		return -1;
 	}
-	return pack_double(x, p, 1);
+	return _PyFloat_Pack8(x, (unsigned char *)p, 0);
 }
 
 static formatdef bigendian_table[] = {
@@ -754,10 +714,14 @@ static formatdef bigendian_table[] = {
 	{'I',	4,		0,		bu_uint,	bp_uint},
 	{'l',	4,		0,		bu_int,		bp_int},
 	{'L',	4,		0,		bu_uint,	bp_uint},
+	{'q',	8,		0,		bu_longlong,	bp_longlong},
+	{'Q',	8,		0,		bu_ulonglong,	bp_ulonglong},
 	{'f',	4,		0,		bu_float,	bp_float},
 	{'d',	8,		0,		bu_double,	bp_double},
 	{0}
 };
+
+/* Little-endian routines. *****************************************************/
 
 static PyObject *
 lu_int(const char *p, const formatdef *f)
@@ -767,11 +731,9 @@ lu_int(const char *p, const formatdef *f)
 	do {
 		x = (x<<8) | (p[--i] & 0xFF);
 	} while (i > 0);
-	i = 8*(sizeof(long) - f->size);
-	if (i) {
-		x <<= i;
-		x >>= i;
-	}
+	/* Extend the sign bit. */
+	if (SIZEOF_LONG > f->size)
+		x |= -(x & (1L << (8*f->size - 1)));
 	return PyInt_FromLong(x);
 }
 
@@ -790,15 +752,33 @@ lu_uint(const char *p, const formatdef *f)
 }
 
 static PyObject *
+lu_longlong(const char *p, const formatdef *f)
+{
+	return _PyLong_FromByteArray((const unsigned char *)p,
+				      8,
+				      1, /* little-endian */
+				      1  /* signed */);
+}
+
+static PyObject *
+lu_ulonglong(const char *p, const formatdef *f)
+{
+	return _PyLong_FromByteArray((const unsigned char *)p,
+				      8,
+				      1, /* little-endian */
+				      0  /* signed */);
+}
+
+static PyObject *
 lu_float(const char *p, const formatdef *f)
 {
-	return unpack_float(p+3, -1);
+	return unpack_float(p, 1);
 }
 
 static PyObject *
 lu_double(const char *p, const formatdef *f)
 {
-	return unpack_double(p+7, -1);
+	return unpack_double(p, 1);
 }
 
 static int
@@ -832,6 +812,38 @@ lp_uint(char *p, PyObject *v, const formatdef *f)
 }
 
 static int
+lp_longlong(char *p, PyObject *v, const formatdef *f)
+{
+	int res;
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	res = _PyLong_AsByteArray((PyLongObject*)v,
+			   	  (unsigned char *)p,
+				  8,
+				  1, /* little_endian */
+				  1  /* signed */);
+	Py_DECREF(v);
+	return res;
+}
+
+static int
+lp_ulonglong(char *p, PyObject *v, const formatdef *f)
+{
+	int res;
+	v = get_pylong(v);
+	if (v == NULL)
+		return -1;
+	res = _PyLong_AsByteArray((PyLongObject*)v,
+			   	  (unsigned char *)p,
+				  8,
+				  1, /* little_endian */
+				  0  /* signed */);
+	Py_DECREF(v);
+	return res;
+}
+
+static int
 lp_float(char *p, PyObject *v, const formatdef *f)
 {
 	double x = PyFloat_AsDouble(v);
@@ -840,7 +852,7 @@ lp_float(char *p, PyObject *v, const formatdef *f)
 				"required argument is not a float");
 		return -1;
 	}
-	return pack_float(x, p+3, -1);
+	return _PyFloat_Pack4(x, (unsigned char *)p, 1);
 }
 
 static int
@@ -852,7 +864,7 @@ lp_double(char *p, PyObject *v, const formatdef *f)
 				"required argument is not a float");
 		return -1;
 	}
-	return pack_double(x, p+7, -1);
+	return _PyFloat_Pack8(x, (unsigned char *)p, 1);
 }
 
 static formatdef lilendian_table[] = {
@@ -868,6 +880,8 @@ static formatdef lilendian_table[] = {
 	{'I',	4,		0,		lu_uint,	lp_uint},
 	{'l',	4,		0,		lu_int,		lp_int},
 	{'L',	4,		0,		lu_uint,	lp_uint},
+	{'q',	8,		0,		lu_longlong,	lp_longlong},
+	{'Q',	8,		0,		lu_ulonglong,	lp_ulonglong},
 	{'f',	4,		0,		lu_float,	lp_float},
 	{'d',	8,		0,		lu_double,	lp_double},
 	{0}
@@ -945,7 +959,7 @@ calcsize(const char *fmt, const formatdef *f)
 	s = fmt;
 	size = 0;
 	while ((c = *s++) != '\0') {
-		if (isspace((int)c))
+		if (isspace(Py_CHARMASK(c)))
 			continue;
 		if ('0' <= c && c <= '9') {
 			num = c - '0';
@@ -964,7 +978,7 @@ calcsize(const char *fmt, const formatdef *f)
 		}
 		else
 			num = 1;
-		
+
 		e = getentry(c, f);
 		if (e == NULL)
 			return -1;
@@ -974,7 +988,7 @@ calcsize(const char *fmt, const formatdef *f)
 		size += x;
 		if (x/itemsize != num || size < 0) {
 			PyErr_SetString(StructError,
-                                        "total struct size too long");
+					"total struct size too long");
 			return -1;
 		}
 	}
@@ -983,10 +997,10 @@ calcsize(const char *fmt, const formatdef *f)
 }
 
 
-static char calcsize__doc__[] = "\
-calcsize(fmt) -> int\n\
+PyDoc_STRVAR(calcsize__doc__,
+"calcsize(fmt) -> int\n\
 Return size of C struct described by format string fmt.\n\
-See struct.__doc__ for more on format strings.";
+See struct.__doc__ for more on format strings.");
 
 static PyObject *
 struct_calcsize(PyObject *self, PyObject *args)
@@ -1005,10 +1019,10 @@ struct_calcsize(PyObject *self, PyObject *args)
 }
 
 
-static char pack__doc__[] = "\
-pack(fmt, v1, v2, ...) -> string\n\
+PyDoc_STRVAR(pack__doc__,
+"pack(fmt, v1, v2, ...) -> string\n\
 Return string containing values v1, v2, ... packed according to fmt.\n\
-See struct.__doc__ for more on format strings.";
+See struct.__doc__ for more on format strings.");
 
 static PyObject *
 struct_pack(PyObject *self, PyObject *args)
@@ -1023,13 +1037,14 @@ struct_pack(PyObject *self, PyObject *args)
 
 	if (args == NULL || !PyTuple_Check(args) ||
 	    (n = PyTuple_Size(args)) < 1)
-        {
-		PyErr_SetString(PyExc_TypeError, 
+	{
+		PyErr_SetString(PyExc_TypeError,
 			"struct.pack requires at least one argument");
 		return NULL;
 	}
 	format = PyTuple_GetItem(args, 0);
-	if (!PyArg_Parse(format, "s", &fmt))
+	fmt = PyString_AsString(format);
+	if (!fmt)
 		return NULL;
 	f = whichtable(&fmt);
 	size = calcsize(fmt, f);
@@ -1044,7 +1059,7 @@ struct_pack(PyObject *self, PyObject *args)
 	res = restart = PyString_AsString(result);
 
 	while ((c = *s++) != '\0') {
-		if (isspace((int)c))
+		if (isspace(Py_CHARMASK(c)))
 			continue;
 		if ('0' <= c && c <= '9') {
 			num = c - '0';
@@ -1116,6 +1131,8 @@ struct_pack(PyObject *self, PyObject *args)
 				if (n < num)
 					/* no real need, just to be nice */
 					memset(res+1+n, '\0', num-n);
+				if (n > 255)
+					n = 255;
 				*res++ = n; /* store the length byte */
 				res += num;
 				break;
@@ -1142,11 +1159,11 @@ struct_pack(PyObject *self, PyObject *args)
 }
 
 
-static char unpack__doc__[] = "\
-unpack(fmt, string) -> (v1, v2, ...)\n\
+PyDoc_STRVAR(unpack__doc__,
+"unpack(fmt, string) -> (v1, v2, ...)\n\
 Unpack the string, containing packed C structure data, according\n\
 to fmt.  Requires len(string)==calcsize(fmt).\n\
-See struct.__doc__ for more on format strings.";
+See struct.__doc__ for more on format strings.");
 
 static PyObject *
 struct_unpack(PyObject *self, PyObject *args)
@@ -1174,7 +1191,7 @@ struct_unpack(PyObject *self, PyObject *args)
 	str = start;
 	s = fmt;
 	while ((c = *s++) != '\0') {
-		if (isspace((int)c))
+		if (isspace(Py_CHARMASK(c)))
 			continue;
 		if ('0' <= c && c <= '9') {
 			num = c - '0';
@@ -1253,19 +1270,23 @@ static PyMethodDef struct_methods[] = {
 
 /* Module initialization */
 
-DL_EXPORT(void)
+PyMODINIT_FUNC
 initstruct(void)
 {
-	PyObject *m, *d;
+	PyObject *m;
 
 	/* Create the module and add the functions */
 	m = Py_InitModule4("struct", struct_methods, struct__doc__,
 			   (PyObject*)NULL, PYTHON_API_VERSION);
+	if (m == NULL)
+		return;
 
 	/* Add some symbolic constants to the module */
-	d = PyModule_GetDict(m);
-	StructError = PyErr_NewException("struct.error", NULL, NULL);
-	if (StructError == NULL)
-		return;
-	PyDict_SetItemString(d, "error", StructError);
+	if (StructError == NULL) {
+		StructError = PyErr_NewException("struct.error", NULL, NULL);
+		if (StructError == NULL)
+			return;
+	}
+	Py_INCREF(StructError);
+	PyModule_AddObject(m, "error", StructError);
 }

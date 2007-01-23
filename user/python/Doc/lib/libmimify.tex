@@ -4,8 +4,12 @@
 \declaremodule{standard}{mimify}
 \modulesynopsis{Mimification and unmimification of mail messages.}
 
+\deprecated{2.3}{The \refmodule{email} package should be used in
+                 preference to the \module{mimify} module.  This
+                 module is present only to maintain backward
+                 compatibility.}
 
-The mimify module defines two functions to convert mail messages to
+The \module{mimify} module defines two functions to convert mail messages to
 and from MIME format.  The mail message can be either a simple message
 or a so-called multipart message.  Each part is treated separately.
 Mimifying (a part of) a message entails encoding the message as
@@ -48,6 +52,7 @@ parts that are coded in the base64 encoding are decoded as well.
 
 \begin{funcdesc}{mime_decode_header}{line}
 Return a decoded version of the encoded header line in \var{line}.
+This only supports the ISO 8859-1 charset (Latin-1).
 \end{funcdesc}
 
 \begin{funcdesc}{mime_encode_header}{line}
@@ -56,7 +61,7 @@ Return a MIME-encoded version of the header line in \var{line}.
 
 \begin{datadesc}{MAXLEN}
 By default, a part will be encoded as quoted-printable when it
-contains any non-\ASCII{} characters (i.e., characters with the 8th bit
+contains any non-\ASCII{} characters (characters with the 8th bit
 set), or if there are any lines longer than \constant{MAXLEN} characters
 (default value 200).  
 \end{datadesc}

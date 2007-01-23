@@ -6,7 +6,7 @@
 \moduleauthor{Guido van Rossum}{guido@python.org}
 \modulesynopsis{An environment for turtle graphics.}
 
-\sectionauthor{Moshe Zadka}{mzadka@geocities.com}
+\sectionauthor{Moshe Zadka}{moshez@zadka.site.co.il}
 
 
 The \module{turtle} module provides turtle graphics primitives, in both an
@@ -65,7 +65,7 @@ Move the pen up --- stop drawing.
 \end{funcdesc}
 
 \begin{funcdesc}{down}{}
-Move the pen up --- draw when moving.
+Move the pen down --- draw when moving.
 \end{funcdesc}
 
 \begin{funcdesc}{width}{width}
@@ -73,15 +73,13 @@ Set the line width to \var{width}.
 \end{funcdesc}
 
 \begin{funcdesc}{color}{s}
-Set the color by giving a Tk color string.
-\end{funcdesc}
-
-\begin{funcdesc}{color}{(r, g, b)}
-Set the color by giving a RGB tuple, each between 0 and 1.
-\end{funcdesc}
-
-\begin{funcdesc}{color}{r, g, b}
-Set the color by giving the RGB components, each between 0 and 1.
+\funclineni{color}{(r, g, b)}
+\funclineni{color}{r, g, b}
+Set the pen color.  In the first form, the color is specified as a
+Tk color specification as a string.  The second form specifies the
+color as a tuple of the RGB values, each in the range [0..1].  For the
+third form, the color is specified giving the RGB values as three
+separate parameters (each in the range [0..1]).
 \end{funcdesc}
 
 \begin{funcdesc}{write}{text\optional{, move}}
@@ -97,24 +95,22 @@ and call \code{fill(0)} when you finish to draw the path.
 \end{funcdesc}
 
 \begin{funcdesc}{circle}{radius\optional{, extent}}
-Draw a circle with radius \var{radius} whose center-point is where the 
-pen would be if a \code{forward(\var{radius})} were
-called. \var{extent} determines which part of a circle is drawn: if
+Draw a circle with radius \var{radius} whose center-point is
+\var{radius} units left of the turtle.
+\var{extent} determines which part of a circle is drawn: if
 not given it defaults to a full circle.
 
 If \var{extent} is not a full circle, one endpoint of the arc is the
 current pen position. The arc is drawn in a counter clockwise
 direction if \var{radius} is positive, otherwise in a clockwise
-direction.
+direction.  In the process, the direction of the turtle is changed
+by the amount of the \var{extent}.
 \end{funcdesc}
 
 \begin{funcdesc}{goto}{x, y}
-Go to co-ordinates (\var{x}, \var{y}).
-\end{funcdesc}
-
-\begin{funcdesc}{goto}{(x, y)}
-Go to co-ordinates (\var{x}, \var{y}) (specified as a tuple instead of 
-individually).
+\funclineni{goto}{(x, y)}
+Go to co-ordinates \var{x}, \var{y}.  The co-ordinates may be
+specified either as two separate arguments or as a 2-tuple.
 \end{funcdesc}
 
 This module also does \code{from math import *}, so see the

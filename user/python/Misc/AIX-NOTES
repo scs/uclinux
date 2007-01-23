@@ -88,7 +88,7 @@ AIX shared library support was added to Python in the 1.4 release by Manus
 Hand (mhand@csn.net) and Vladimir Marangozov (Vladimir.Marangozov@imag.fr).
 
 Python modules may now be built as shared libraries on AIX using the normal
-process of uncommenting the "*shared*" line in Modules/Setup.in before the
+process of uncommenting the "*shared*" line in Modules/Setup before the
 build.
 
 AIX shared libraries require that an "export" and "import" file be provided
@@ -136,5 +136,20 @@ NOTE:  If the extension module is written in C++ and contains templates,
        http://www.cs.utah.edu/~beazley/SWIG/swig.html]).  However, it is not
        known whether makeC++SharedLib can be used as a complete substitute
        for ld_so_aix.
+
+According to Gary Hook from IBM, the format of the export file changed
+in AIX 4.2.  For AIX 4.2 and later, a period "." is required on the
+first line after "#!".  If python crashes while importing a shared
+library, you can try modifying the LINKCC variable in the Makefile.
+It probably looks like this:
+
+	LINKCC=     $(srcdir)/Modules/makexp_aix Modules/python.exp \"\" $(LIBRARY); $(PURIFY) $(CXX)
+
+You should modify the \"\" to be a period:
+
+	LINKCC=     $(srcdir)/Modules/makexp_aix Modules/python.exp . $(LIBRARY); $(PURIFY) $(CXX)
+
+Using a period fixed the problem in the snake farm.  YMMV.
+This fix has been incorporated into Python 2.3.
 
 ==============================================================================

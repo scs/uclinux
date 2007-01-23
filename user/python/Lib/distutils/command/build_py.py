@@ -2,7 +2,7 @@
 
 Implements the Distutils 'build_py' command."""
 
-# created 1999/03/08, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -12,7 +12,8 @@ from glob import glob
 
 from distutils.core import Command
 from distutils.errors import *
-
+from distutils.util import convert_path
+from distutils import log
 
 class build_py (Command):
 
@@ -36,6 +37,7 @@ class build_py (Command):
         self.build_lib = None
         self.py_modules = None
         self.package = None
+        self.package_data = None
         self.package_dir = None
         self.compile = 0
         self.optimize = 0
@@ -50,7 +52,12 @@ class build_py (Command):
         # options -- list of packages and list of modules.
         self.packages = self.distribution.packages
         self.py_modules = self.distribution.py_modules
-        self.package_dir = self.distribution.package_dir
+        self.package_data = self.distribution.package_data
+        self.package_dir = {}
+        if self.distribution.package_dir:
+            for name, path in self.distribution.package_dir.items():
+                self.package_dir[name] = convert_path(path)
+        self.data_files = self.get_data_files()
 
         # Ick, copied straight from install_lib.py (fancy_getopt needs a
         # type system!  Hell, *everything* needs a type system!!!)
@@ -82,31 +89,61 @@ class build_py (Command):
         # Two options control which modules will be installed: 'packages'
         # and 'py_modules'.  The former lets us work with whole packages, not
         # specifying individual modules at all; the latter is for
-        # specifying modules one-at-a-time.  Currently they are mutually
-        # exclusive: you can define one or the other (or neither), but not
-        # both.  It remains to be seen how limiting this is.
+        # specifying modules one-at-a-time.
 
-        # Dispose of the two "unusual" cases first: no pure Python modules
-        # at all (no problem, just return silently), and over-specified
-        # 'packages' and 'py_modules' options.
-
-        if not self.py_modules and not self.packages:
-            return
-        if self.py_modules and self.packages:
-            raise DistutilsOptionError, \
-                  "build_py: supplying both 'packages' and 'py_modules' " + \
-                  "options is not allowed"
-
-        # Now we're down to two cases: 'py_modules' only and 'packages' only.
         if self.py_modules:
             self.build_modules()
-        else:
+        if self.packages:
             self.build_packages()
+            self.build_package_data()
 
         self.byte_compile(self.get_outputs(include_bytecode=0))
 
     # run ()
-        
+
+    def get_data_files (self):
+        """Generate list of '(package,src_dir,build_dir,filenames)' tuples"""
+        data = []
+        if not self.packages:
+            return data
+        for package in self.packages:
+            # Locate package source directory
+            src_dir = self.get_package_dir(package)
+
+            # Compute package build directory
+            build_dir = os.path.join(*([self.build_lib] + package.split('.')))
+
+            # Length of path to strip from found files
+            plen = len(src_dir)+1
+
+            # Strip directory from globbed filenames
+            filenames = [
+                file[plen:] for file in self.find_data_files(package, src_dir)
+                ]
+            data.append((package, src_dir, build_dir, filenames))
+        return data
+
+    def find_data_files (self, package, src_dir):
+        """Return filenames for package's data files in 'src_dir'"""
+        globs = (self.package_data.get('', [])
+                 + self.package_data.get(package, []))
+        files = []
+        for pattern in globs:
+            # Each pattern has to be converted to a platform-specific path
+            filelist = glob(os.path.join(src_dir, convert_path(pattern)))
+            # Files that match more than one pattern are only added once
+            files.extend([fn for fn in filelist if fn not in files])
+        return files
+
+    def build_package_data (self):
+        """Copy data files into build directory"""
+        lastdir = None
+        for package, src_dir, build_dir, filenames in self.data_files:
+            for filename in filenames:
+                target = os.path.join(build_dir, filename)
+                self.mkpath(os.path.dirname(target))
+                self.copy_file(os.path.join(src_dir, filename), target,
+                               preserve_mode=False)
 
     def get_package_dir (self, package):
         """Return the directory, relative to the top of the source
@@ -172,20 +209,19 @@ class build_py (Command):
             if os.path.isfile(init_py):
                 return init_py
             else:
-                self.warn(("package init file '%s' not found " +
-                           "(or not a regular file)") % init_py)
+                log.warn(("package init file '%s' not found " +
+                          "(or not a regular file)"), init_py)
 
         # Either not in a package at all (__init__.py not expected), or
         # __init__.py doesn't exist -- so don't return the filename.
-        return
-                
+        return None
+
     # check_package ()
 
 
     def check_module (self, module, module_file):
         if not os.path.isfile(module_file):
-            self.warn("file %s (for module %s) not found" % 
-                      (module_file, module))
+            log.warn("file %s (for module %s) not found", module_file, module)
             return 0
         else:
             return 1
@@ -273,10 +309,10 @@ class build_py (Command):
         (package, module, module_file), just like 'find_modules()' and
         'find_package_modules()' do."""
 
+        modules = []
         if self.py_modules:
-            modules = self.find_modules()
-        else:
-            modules = []
+            modules.extend(self.find_modules())
+        if self.packages:
             for package in self.packages:
                 package_dir = self.get_package_dir(package)
                 m = self.find_package_modules(package, package_dir)
@@ -314,6 +350,12 @@ class build_py (Command):
                     outputs.append(filename + "c")
                 if self.optimize > 0:
                     outputs.append(filename + "o")
+
+        outputs += [
+            os.path.join(build_dir, filename)
+            for package, src_dir, build_dir, filenames in self.data_files
+            for filename in filenames
+            ]
 
         return outputs
 
@@ -385,13 +427,9 @@ class build_py (Command):
 
         if self.compile:
             byte_compile(files, optimize=0,
-                         force=self.force,
-                         prefix=prefix,
-                         verbose=self.verbose, dry_run=self.dry_run)
+                         force=self.force, prefix=prefix, dry_run=self.dry_run)
         if self.optimize > 0:
             byte_compile(files, optimize=self.optimize,
-                         force=self.force,
-                         prefix=prefix,
-                         verbose=self.verbose, dry_run=self.dry_run)
+                         force=self.force, prefix=prefix, dry_run=self.dry_run)
 
 # class build_py

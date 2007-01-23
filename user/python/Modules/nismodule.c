@@ -68,7 +68,11 @@ nis_mapname (char *map, int *pfix)
 	return map;
 }
 
+#ifdef __APPLE__
+typedef int (*foreachfunc)(unsigned long, char *, int, char *, int, void *);
+#else
 typedef int (*foreachfunc)(int, char *, int, char *, int, char *);
+#endif
 
 struct ypcallback_data {
 	PyObject	*dict;
@@ -85,8 +89,10 @@ nis_foreach (int instatus, char *inkey, int inkeylen, char *inval,
 		int err;
 
 		if (indata->fix) {
-		    inkeylen--;
-		    invallen--;
+		    if (inkeylen > 0 && inkey[inkeylen-1] == '\0')
+			inkeylen--;
+		    if (invallen > 0 && inval[invallen-1] == '\0')
+			invallen--;
 		}
 		key = PyString_FromStringAndSize(inkey, inkeylen);
 		val = PyString_FromStringAndSize(inval, invallen);
@@ -120,7 +126,7 @@ nis_match (PyObject *self, PyObject *args)
 	PyObject *res;
 	int fix;
 
-	if (!PyArg_Parse(args, "(t#s)", &key, &keylen, &map))
+	if (!PyArg_ParseTuple(args, "t#s:match", &key, &keylen, &map))
 		return NULL;
 	if ((err = yp_get_default_domain(&domain)) != 0)
 		return nis_error(err);
@@ -149,7 +155,7 @@ nis_cat (PyObject *self, PyObject *args)
 	PyObject *dict;
 	int err;
 
-	if (!PyArg_Parse(args, "s", &map))
+	if (!PyArg_ParseTuple(args, "s:cat", &map))
 		return NULL;
 	if ((err = yp_get_default_domain(&domain)) != 0)
 		return nis_error(err);
@@ -299,7 +305,7 @@ nis_maplist (void)
 {
 	nisresp_maplist *list;
 	char *dom;
-	CLIENT *cl, *clnt_create();
+	CLIENT *cl;
 	char *server = NULL;
 	int mapi = 0;
         int err;
@@ -338,13 +344,11 @@ nis_maplist (void)
 }
 
 static PyObject *
-nis_maps (PyObject *self, PyObject *args)
+nis_maps (PyObject *self)
 {
 	nismaplist *maps;
 	PyObject *list;
 
-        if (!PyArg_NoArgs(args))
-		return NULL;
 	if ((maps = nis_maplist ()) == NULL)
 		return NULL;
 	if ((list = PyList_New(0)) == NULL)
@@ -364,9 +368,9 @@ nis_maps (PyObject *self, PyObject *args)
 }
 
 static PyMethodDef nis_methods[] = {
-	{"match",	nis_match},
-	{"cat",		nis_cat},
-	{"maps",	nis_maps},
+	{"match",	nis_match, METH_VARARGS},
+	{"cat",		nis_cat, METH_VARARGS},
+	{"maps",	(PyCFunction)nis_maps, METH_NOARGS},
 	{NULL,		NULL}		 /* Sentinel */
 };
 
@@ -375,6 +379,8 @@ initnis (void)
 {
 	PyObject *m, *d;
 	m = Py_InitModule("nis", nis_methods);
+	if (m == NULL)
+		return;
 	d = PyModule_GetDict(m);
 	NisError = PyErr_NewException("nis.error", NULL, NULL);
 	if (NisError != NULL)

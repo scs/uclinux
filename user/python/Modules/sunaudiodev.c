@@ -8,10 +8,6 @@
 #define SOLARIS
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -40,8 +36,8 @@ typedef struct {
 	audio_info_t ai;
 } sadstatusobject;
 
-staticforward PyTypeObject Sadtype;
-staticforward PyTypeObject Sadstatustype;
+static PyTypeObject Sadtype;
+static PyTypeObject Sadstatustype;
 static sadstatusobject *sads_alloc(void);	/* Forward */
 
 static PyObject *SunAudioError;
@@ -62,7 +58,7 @@ newsadobject(PyObject *args)
 	char* opendev;
 
 	/* Check arg for r/w/rw */
-	if (!PyArg_Parse(args, "s", &mode))
+	if (!PyArg_ParseTuple(args, "s", &mode))
 		return NULL;
 	if (strcmp(mode, "r") == 0)
 		imode = 0;
@@ -103,6 +99,7 @@ newsadobject(PyObject *args)
 	}
 	if (fd < 0) {
 		PyErr_SetFromErrnoWithFilename(SunAudioError, opendev);
+		PyMem_DEL(ctldev);
 		return NULL;
 	}
 	PyMem_DEL(ctldev);
@@ -136,7 +133,7 @@ sad_read(sadobject *self, PyObject *args)
 	char *cp;
 	PyObject *rv;
 	
-        if (!PyArg_Parse(args, "i", &size))
+        if (!PyArg_ParseTuple(args, "i:read", &size))
 		return NULL;
 	rv = PyString_FromStringAndSize(NULL, size);
 	if (rv == NULL)
@@ -172,7 +169,7 @@ sad_write(sadobject *self, PyObject *args)
         char *cp;
 	int count, size;
 	
-        if (!PyArg_Parse(args, "s#", &cp, &size))
+        if (!PyArg_ParseTuple(args, "s#:write", &cp, &size))
 		return NULL;
 
 	count = write(self->x_fd, cp, size);
@@ -191,12 +188,10 @@ sad_write(sadobject *self, PyObject *args)
 }
 
 static PyObject *
-sad_getinfo(sadobject *self, PyObject *args)
+sad_getinfo(sadobject *self)
 {
 	sadstatusobject *rv;
 
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (!(rv = sads_alloc()))
 		return NULL;
 
@@ -225,12 +220,10 @@ sad_setinfo(sadobject *self, sadstatusobject *arg)
 }
 
 static PyObject *
-sad_ibufcount(sadobject *self, PyObject *args)
+sad_ibufcount(sadobject *self)
 {
 	audio_info_t ai;
     
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (ioctl(self->x_fd, AUDIO_GETINFO, &ai) < 0) {
 		PyErr_SetFromErrno(SunAudioError);
 		return NULL;
@@ -239,12 +232,10 @@ sad_ibufcount(sadobject *self, PyObject *args)
 }
 
 static PyObject *
-sad_obufcount(sadobject *self, PyObject *args)
+sad_obufcount(sadobject *self)
 {
 	audio_info_t ai;
     
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (ioctl(self->x_fd, AUDIO_GETINFO, &ai) < 0) {
 		PyErr_SetFromErrno(SunAudioError);
 		return NULL;
@@ -257,11 +248,8 @@ sad_obufcount(sadobject *self, PyObject *args)
 }
 
 static PyObject *
-sad_drain(sadobject *self, PyObject *args)
+sad_drain(sadobject *self)
 {
-    
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (ioctl(self->x_fd, AUDIO_DRAIN, 0) < 0) {
 		PyErr_SetFromErrno(SunAudioError);
 		return NULL;
@@ -272,12 +260,10 @@ sad_drain(sadobject *self, PyObject *args)
 
 #ifdef SOLARIS
 static PyObject *
-sad_getdev(sadobject *self, PyObject *args)
+sad_getdev(sadobject *self)
 {
 	struct audio_device ad;
 
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (ioctl(self->x_fd, AUDIO_GETDEV, &ad) < 0) {
 		PyErr_SetFromErrno(SunAudioError);
 		return NULL;
@@ -287,11 +273,8 @@ sad_getdev(sadobject *self, PyObject *args)
 #endif
 
 static PyObject *
-sad_flush(sadobject *self, PyObject *args)
+sad_flush(sadobject *self)
 {
-    
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (ioctl(self->x_fd, I_FLUSH, FLUSHW) < 0) {
 		PyErr_SetFromErrno(SunAudioError);
 		return NULL;
@@ -301,11 +284,9 @@ sad_flush(sadobject *self, PyObject *args)
 }
 
 static PyObject *
-sad_close(sadobject *self, PyObject *args)
+sad_close(sadobject *self)
 {
     
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (self->x_fd >= 0) {
 		close(self->x_fd);
 		self->x_fd = -1;
@@ -315,30 +296,27 @@ sad_close(sadobject *self, PyObject *args)
 }
 
 static PyObject *
-sad_fileno(sadobject *self, PyObject *args)
+sad_fileno(sadobject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	return PyInt_FromLong(self->x_fd);
 }
 
 
 static PyMethodDef sad_methods[] = {
-        { "read",	(PyCFunction)sad_read },
-        { "write",	(PyCFunction)sad_write },
-        { "ibufcount",	(PyCFunction)sad_ibufcount },
-        { "obufcount",	(PyCFunction)sad_obufcount },
+        { "read",	(PyCFunction)sad_read, METH_VARARGS },
+        { "write",	(PyCFunction)sad_write, METH_VARARGS },
+        { "ibufcount",	(PyCFunction)sad_ibufcount, METH_NOARGS },
+        { "obufcount",	(PyCFunction)sad_obufcount, METH_NOARGS },
 #define CTL_METHODS 4
-        { "getinfo",	(PyCFunction)sad_getinfo },
-        { "setinfo",	(PyCFunction)sad_setinfo },
-        { "drain",	(PyCFunction)sad_drain },
-        { "flush",	(PyCFunction)sad_flush },
+        { "getinfo",	(PyCFunction)sad_getinfo, METH_NOARGS },
+        { "setinfo",	(PyCFunction)sad_setinfo, METH_O},
+        { "drain",	(PyCFunction)sad_drain, METH_NOARGS },
+        { "flush",	(PyCFunction)sad_flush, METH_NOARGS },
 #ifdef SOLARIS
-	{ "getdev",	(PyCFunction)sad_getdev },
+	{ "getdev",	(PyCFunction)sad_getdev, METH_NOARGS },
 #endif
-        { "close",	(PyCFunction)sad_close },
-	{ "fileno",     (PyCFunction)sad_fileno },
+        { "close",	(PyCFunction)sad_close, METH_NOARGS },
+	{ "fileno",     (PyCFunction)sad_fileno, METH_NOARGS },
 	{NULL,		NULL}		/* sentinel */
 };
 
@@ -433,7 +411,7 @@ sads_setattr(sadstatusobject *xp, char *name, PyObject *v)
 static PyTypeObject Sadtype = {
 	PyObject_HEAD_INIT(&PyType_Type)
 	0,				/*ob_size*/
-	"sun_audio_device",		/*tp_name*/
+	"sunaudiodev.sun_audio_device",	/*tp_name*/
 	sizeof(sadobject),		/*tp_size*/
 	0,				/*tp_itemsize*/
 	/* methods */
@@ -448,7 +426,7 @@ static PyTypeObject Sadtype = {
 static PyTypeObject Sadstatustype = {
 	PyObject_HEAD_INIT(&PyType_Type)
 	0,				/*ob_size*/
-	"sun_audio_device_status",	/*tp_name*/
+	"sunaudiodev.sun_audio_device_status", /*tp_name*/
 	sizeof(sadstatusobject),	/*tp_size*/
 	0,				/*tp_itemsize*/
 	/* methods */
@@ -468,7 +446,7 @@ sadopen(PyObject *self, PyObject *args)
 }
     
 static PyMethodDef sunaudiodev_methods[] = {
-    { "open", sadopen },
+    { "open", sadopen, METH_VARARGS },
     { 0, 0 },
 };
 
@@ -478,6 +456,8 @@ initsunaudiodev(void)
 	PyObject *m, *d;
 
 	m = Py_InitModule("sunaudiodev", sunaudiodev_methods);
+	if (m == NULL)
+		return;
 	d = PyModule_GetDict(m);
 	SunAudioError = PyErr_NewException("sunaudiodev.error", NULL, NULL);
 	if (SunAudioError)

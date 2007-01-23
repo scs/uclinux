@@ -10,7 +10,7 @@ spam
 ImportError
 spam
 IndexError
-spam
+'spam'
 KeyError
 spam
 KeyboardInterrupt
@@ -27,11 +27,7 @@ RuntimeError
 (not used any more?)
 spam
 SyntaxError
-'continue' not supported inside 'try' clause
-ok
-'continue' not supported inside 'try' clause
-ok
-'continue' not supported inside 'try' clause
+'continue' not supported inside 'finally' clause
 ok
 'continue' not properly in loop
 ok

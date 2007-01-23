@@ -1,14 +1,14 @@
 
 /* Support for dynamic loading of extension modules */
 
+#include "Python.h"
+#include "importdl.h"
+
 #include <ctype.h>	/*  for isdigit()	  */
 #include <errno.h>	/*  for global errno      */
 #include <string.h>	/*  for strerror()        */
 #include <stdlib.h>	/*  for malloc(), free()  */
 #include <sys/ldr.h>
-
-#include "Python.h"
-#include "importdl.h"
 
 
 #ifdef AIX_GENUINE_CPLUSPLUS
@@ -77,8 +77,7 @@ aix_getoldmodules(void **modlistptr)
 			-- "libpython[version].a" in case it's a shared lib).
 			*/
 			offset = (unsigned int)ldiptr->ldinfo_next;
-			ldiptr = (struct ld_info *)((unsigned int)
-						    ldiptr + offset);
+			ldiptr = (struct ld_info *)((char*)ldiptr + offset);
 			continue;
 		}
 		if ((modptr = (ModulePtr)malloc(sizeof(Module))) == NULL) {
@@ -98,25 +97,12 @@ aix_getoldmodules(void **modlistptr)
 			prevmodptr->next = modptr;
 		prevmodptr = modptr;
 		offset = (unsigned int)ldiptr->ldinfo_next;
-		ldiptr = (struct ld_info *)((unsigned int)ldiptr + offset);
+		ldiptr = (struct ld_info *)((char*)ldiptr + offset);
 	} while (offset);
 	free(ldibuf);
 	return 0;
 }
 
-static int
-aix_bindnewmodule(void *newmoduleptr, void *modlistptr)
-{
-	register ModulePtr modptr;
-
-	/*
-	-- Bind the new module with the list of loaded modules.
-	*/
-	for (modptr = (ModulePtr)modlistptr; modptr; modptr = modptr->next)
-		if (loadbind(0, modptr->entry, newmoduleptr) != 0)
-			return -1;
-	return 0;
-}
 
 static void
 aix_loaderror(const char *pathname)
@@ -146,7 +132,7 @@ aix_loaderror(const char *pathname)
 #define LOAD_ERRTAB_LEN	(sizeof(load_errtab)/sizeof(load_errtab[0]))
 #define ERRBUF_APPEND(s) strncat(errbuf, s, sizeof(errbuf)-strlen(errbuf)-1)
 
-	sprintf(errbuf, "from module %.200s ", pathname);
+	PyOS_snprintf(errbuf, sizeof(errbuf), "from module %.200s ", pathname);
 
 	if (!loadquery(L_GETMESSAGES, &message[0], sizeof(message))) {
 		ERRBUF_APPEND(strerror(errno));
@@ -189,10 +175,6 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 			return NULL;
 	p = (dl_funcptr) aix_load((char *)pathname, L_NOAUTODEFER, 0);
 	if (p == NULL) {
-		aix_loaderror(pathname);
-		return NULL;
-	}
-	if (aix_bindnewmodule((void *)p, staticmodlistptr) == -1) {
 		aix_loaderror(pathname);
 		return NULL;
 	}

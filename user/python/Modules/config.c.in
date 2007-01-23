@@ -22,15 +22,16 @@ redistribution of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 
 extern void PyMarshal_Init(void);
 extern void initimp(void);
+extern void initgc(void);
 
 struct _inittab _PyImport_Inittab[] = {
 
 /* -- ADDMODULE MARKER 2 -- */
 
-	/* This module "lives in" with marshal.c */
+	/* This module lives in marshal.c */
 	{"marshal", PyMarshal_Init},
 
-	/* This lives it with import.c */
+	/* This lives in import.c */
 	{"imp", initimp},
 
 	/* These entries are here for sys.builtin_module_names */
@@ -38,6 +39,9 @@ struct _inittab _PyImport_Inittab[] = {
 	{"__builtin__", NULL},
 	{"sys", NULL},
 	{"exceptions", NULL},
+
+	/* This lives in gcmodule.c */
+	{"gc", initgc},
 
 	/* Sentinel */
 	{0, 0}

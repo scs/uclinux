@@ -1,14 +1,14 @@
 """Mailcap file handling.  See RFC 1524."""
 
 import os
-import string
 
+__all__ = ["getcaps","findmatch"]
 
 # Part 1: top-level interface.
 
 def getcaps():
     """Return a dictionary containing the mailcap database.
-    
+
     The dictionary maps a MIME type (in all lowercase, e.g. 'text/plain')
     to a list of dictionaries corresponding to mailcap entries.  The list
     collects all the entries for that MIME type from all available mailcap
@@ -20,25 +20,25 @@ def getcaps():
     for mailcap in listmailcapfiles():
         try:
             fp = open(mailcap, 'r')
-        except:
+        except IOError:
             continue
         morecaps = readmailcapfile(fp)
         fp.close()
-        for key in morecaps.keys():
-            if not caps.has_key(key):
-                caps[key] = morecaps[key]
+        for key, value in morecaps.iteritems():
+            if not key in caps:
+                caps[key] = value
             else:
-                caps[key] = caps[key] + morecaps[key]
+                caps[key] = caps[key] + value
     return caps
 
 def listmailcapfiles():
     """Return a list of all mailcap files found on the system."""
     # XXX Actually, this is Unix-specific
-    if os.environ.has_key('MAILCAPS'):
+    if 'MAILCAPS' in os.environ:
         str = os.environ['MAILCAPS']
-        mailcaps = string.splitfields(str, ':')
+        mailcaps = str.split(':')
     else:
-        if os.environ.has_key('HOME'):
+        if 'HOME' in os.environ:
             home = os.environ['HOME']
         else:
             # Don't bother with getpwuid()
@@ -64,7 +64,7 @@ def readmailcapfile(fp):
         line = fp.readline()
         if not line: break
         # Ignore comments and blank lines
-        if line[0] == '#' or string.strip(line) == '':
+        if line[0] == '#' or line.strip() == '':
             continue
         nextline = line
         # Join continuation lines
@@ -77,12 +77,12 @@ def readmailcapfile(fp):
         if not (key and fields):
             continue
         # Normalize the key
-        types = string.splitfields(key, '/')
+        types = key.split('/')
         for j in range(len(types)):
-            types[j] = string.strip(types[j])
-        key = string.lower(string.joinfields(types, '/'))
+            types[j] = types[j].strip()
+        key = '/'.join(types).lower()
         # Update the database
-        if caps.has_key(key):
+        if key in caps:
             caps[key].append(fields)
         else:
             caps[key] = [fields]
@@ -105,14 +105,14 @@ def parseline(line):
     key, view, rest = fields[0], fields[1], fields[2:]
     fields = {'view': view}
     for field in rest:
-        i = string.find(field, '=')
+        i = field.find('=')
         if i < 0:
             fkey = field
             fvalue = ""
         else:
-            fkey = string.strip(field[:i])
-            fvalue = string.strip(field[i+1:])
-        if fields.has_key(fkey):
+            fkey = field[:i].strip()
+            fvalue = field[i+1:].strip()
+        if fkey in fields:
             # Ignore it
             pass
         else:
@@ -130,14 +130,14 @@ def parsefield(line, i, n):
             i = i+2
         else:
             i = i+1
-    return string.strip(line[start:i]), i
+    return line[start:i].strip(), i
 
 
 # Part 3: using the database.
 
 def findmatch(caps, MIMEtype, key='view', filename="/dev/null", plist=[]):
     """Find a match for a mailcap entry.
-    
+
     Return a tuple containing the command line, and the mailcap entry
     used; (None, None) if no match is found.  This may invoke the
     'test' command of several matching entries before deciding which
@@ -145,9 +145,9 @@ def findmatch(caps, MIMEtype, key='view', filename="/dev/null", plist=[]):
 
     """
     entries = lookup(caps, MIMEtype, key)
-    # XXX This code should somehow check for the needsterminal flag. 
+    # XXX This code should somehow check for the needsterminal flag.
     for e in entries:
-        if e.has_key('test'):
+        if 'test' in e:
             test = subst(e['test'], filename, plist)
             if test and os.system(test) != 0:
                 continue
@@ -157,14 +157,14 @@ def findmatch(caps, MIMEtype, key='view', filename="/dev/null", plist=[]):
 
 def lookup(caps, MIMEtype, key=None):
     entries = []
-    if caps.has_key(MIMEtype):
+    if MIMEtype in caps:
         entries = entries + caps[MIMEtype]
-    MIMEtypes = string.splitfields(MIMEtype, '/')
+    MIMEtypes = MIMEtype.split('/')
     MIMEtype = MIMEtypes[0] + '/*'
-    if caps.has_key(MIMEtype):
+    if MIMEtype in caps:
         entries = entries + caps[MIMEtype]
     if key is not None:
-        entries = filter(lambda e, key=key: e.has_key(key), entries)
+        entries = filter(lambda e, key=key: key in e, entries)
     return entries
 
 def subst(field, MIMEtype, filename, plist=[]):
@@ -173,7 +173,7 @@ def subst(field, MIMEtype, filename, plist=[]):
     i, n = 0, len(field)
     while i < n:
         c = field[i]; i = i+1
-        if c <> '%':
+        if c != '%':
             if c == '\\':
                 c = field[i:i+1]; i = i+1
             res = res + c
@@ -187,7 +187,7 @@ def subst(field, MIMEtype, filename, plist=[]):
                 res = res + MIMEtype
             elif c == '{':
                 start = i
-                while i < n and field[i] <> '}':
+                while i < n and field[i] != '}':
                     i = i+1
                 name = field[start:i]
                 i = i+1
@@ -200,10 +200,10 @@ def subst(field, MIMEtype, filename, plist=[]):
     return res
 
 def findparam(name, plist):
-    name = string.lower(name) + '='
+    name = name.lower() + '='
     n = len(name)
     for p in plist:
-        if string.lower(p[:n]) == name:
+        if p[:n].lower() == name:
             return p[n:]
     return ''
 

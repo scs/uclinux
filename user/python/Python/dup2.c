@@ -11,7 +11,6 @@
  * Return fd2 if all went well; return BADEXIT otherwise.
  */
 
-#include <unistd.h>
 #include <fcntl.h>
 
 #define BADEXIT -1

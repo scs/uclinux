@@ -44,7 +44,7 @@ regular expression represented as a string literal, you have to
 E.g.\  to extract \LaTeX\ \samp{\e section\{\textrm{\ldots}\}} headers
 from a document, you can use this pattern:
 \code{'[\e ]section\{\e (.*\e )\}'}.  \emph{Another exception:}
-the escape sequece \samp{\e b} is significant in string literals
+the escape sequence \samp{\e b} is significant in string literals
 (where it means the ASCII bell character) as well as in Emacs regular
 expressions (where it stands for a word boundary), so in order to
 search for a word boundary, you should use the pattern \code{'\e \e b'}.
@@ -247,7 +247,7 @@ expressions.)
   \code{match()} and \code{search()}.  (Already compiled expression
   objects are not affected.)  The argument is an integer which is the
   OR of several flag bits.  The return value is the previous value of
-  the syntax flags.  Names for the flags are defined in the standard 
+  the syntax flags.  Names for the flags are defined in the standard
   module \code{regex_syntax}\refstmodindex{regex_syntax}; read the
   file \file{regex_syntax.py} for more information.
 \end{funcdesc}
@@ -315,7 +315,7 @@ the result is a single string; if there are multiple arguments, the
 result is a tuple with one item per argument.  If the \var{index} is
 zero, the corresponding return value is the entire matching string; if
 it is in the inclusive range [1..99], it is the string matching the
-the corresponding parenthesized group (using the default syntax,
+corresponding parenthesized group (using the default syntax,
 groups are parenthesized using \code{{\e}(} and \code{{\e})}).  If no
 such group exists, the corresponding result is \code{None}.
 

@@ -1,6 +1,16 @@
 #! /usr/bin/env python
 
-"""The Tab Nanny despises ambiguous indentation.  She knows no mercy."""
+"""The Tab Nanny despises ambiguous indentation.  She knows no mercy.
+
+tabnanny -- Detection of ambiguous indentation
+
+For the time being this module is intended to be called as a script.
+However it is possible to import it into an IDE and use the function
+check() described below.
+
+Warning: The API provided by this module is likely to change in future
+releases; such changes may not be backward compatible.
+"""
 
 # Released to the public domain, by Tim Peters, 15 April 1998.
 
@@ -12,9 +22,12 @@ __version__ = "6"
 
 import os
 import sys
-import string
 import getopt
 import tokenize
+if not hasattr(tokenize, 'NL'):
+    raise ValueError("tokenize.NL doesn't exist -- tokenize module too old")
+
+__all__ = ["check", "NannyNag", "process_tokens"]
 
 verbose = 0
 filename_only = 0
@@ -44,7 +57,11 @@ def main():
     for arg in args:
         check(arg)
 
-class NannyNag:
+class NannyNag(Exception):
+    """
+    Raised by tokeneater() if detecting an ambiguous indent.
+    Captured and handled in check().
+    """
     def __init__(self, lineno, msg, line):
         self.lineno, self.msg, self.line = lineno, msg, line
     def get_lineno(self):
@@ -55,9 +72,18 @@ class NannyNag:
         return self.line
 
 def check(file):
+    """check(file_or_dir)
+
+    If file_or_dir is a directory and not a symbolic link, then recursively
+    descend the directory tree named by file_or_dir, checking all .py files
+    along the way. If file_or_dir is an ordinary Python source file, it is
+    checked for whitespace related problems. The diagnostic messages are
+    written to standard output using the print statement.
+    """
+
     if os.path.isdir(file) and not os.path.islink(file):
         if verbose:
-            print "%s: listing directory" % `file`
+            print "%r: listing directory" % (file,)
         names = os.listdir(file)
         for name in names:
             fullname = os.path.join(file, name)
@@ -70,36 +96,34 @@ def check(file):
     try:
         f = open(file)
     except IOError, msg:
-        errprint("%s: I/O Error: %s" % (`file`, str(msg)))
+        errprint("%r: I/O Error: %s" % (file, msg))
         return
 
     if verbose > 1:
-        print "checking", `file`, "..."
+        print "checking %r ..." % file
 
-    reset_globals()
     try:
-        tokenize.tokenize(f.readline, tokeneater)
+        process_tokens(tokenize.generate_tokens(f.readline))
 
     except tokenize.TokenError, msg:
-        errprint("%s: Token Error: %s" % (`file`, str(msg)))
+        errprint("%r: Token Error: %s" % (file, msg))
         return
 
     except NannyNag, nag:
         badline = nag.get_lineno()
         line = nag.get_line()
         if verbose:
-            print "%s: *** Line %d: trouble in tab city! ***" % (
-                `file`, badline)
-            print "offending line:", `line`
+            print "%r: *** Line %d: trouble in tab city! ***" % (file, badline)
+            print "offending line: %r" % (line,)
             print nag.get_msg()
         else:
             if ' ' in file: file = '"' + file + '"'
             if filename_only: print file
-            else: print file, badline, `line`
+            else: print file, badline, repr(line)
         return
 
     if verbose:
-        print "%s: Clean bill of health." % `file`
+        print "%r: Clean bill of health." % (file,)
 
 class Whitespace:
     # the characters used for space and tab
@@ -194,7 +218,7 @@ class Whitespace:
                            other.indent_level(ts)) )
         return a
 
-    # Return true iff self.indent_level(t) < other.indent_level(t)
+    # Return True iff self.indent_level(t) < other.indent_level(t)
     # for all t >= 1.
     # The algorithm is due to Vincent Broman.
     # Easy to prove it's correct.
@@ -209,7 +233,7 @@ class Whitespace:
     # Note that M is of the form (T*)(S*) iff len(M.norm[0]) <= 1.
     def less(self, other):
         if self.n >= other.n:
-            return 0
+            return False
         if self.is_simple and other.is_simple:
             return self.nt <= other.nt
         n = max(self.longest_run_of_spaces(),
@@ -217,8 +241,8 @@ class Whitespace:
         # the self.n >= other.n test already did it for ts=1
         for ts in range(2, n+1):
             if self.indent_level(ts) >= other.indent_level(ts):
-                return 0
-        return 1
+                return False
+        return True
 
     # return a list of tuples (ts, i1, i2) such that
     # i1 == self.indent_level(ts) >= other.indent_level(ts) == i2.
@@ -236,137 +260,66 @@ class Whitespace:
         return a
 
 def format_witnesses(w):
-    import string
     firsts = map(lambda tup: str(tup[0]), w)
     prefix = "at tab size"
     if len(w) > 1:
         prefix = prefix + "s"
-    return prefix + " " + string.join(firsts, ', ')
+    return prefix + " " + ', '.join(firsts)
 
-# The collection of globals, the reset_globals() function, and the
-# tokeneater() function, depend on which version of tokenize is
-# in use.
+def process_tokens(tokens):
+    INDENT = tokenize.INDENT
+    DEDENT = tokenize.DEDENT
+    NEWLINE = tokenize.NEWLINE
+    JUNK = tokenize.COMMENT, tokenize.NL
+    indents = [Whitespace("")]
+    check_equal = 0
 
-if hasattr(tokenize, 'NL'):
- # take advantage of Guido's patch!
+    for (type, token, start, end, line) in tokens:
+        if type == NEWLINE:
+            # a program statement, or ENDMARKER, will eventually follow,
+            # after some (possibly empty) run of tokens of the form
+            #     (NL | COMMENT)* (INDENT | DEDENT+)?
+            # If an INDENT appears, setting check_equal is wrong, and will
+            # be undone when we see the INDENT.
+            check_equal = 1
 
- indents = []
- check_equal = 0
+        elif type == INDENT:
+            check_equal = 0
+            thisguy = Whitespace(token)
+            if not indents[-1].less(thisguy):
+                witness = indents[-1].not_less_witness(thisguy)
+                msg = "indent not greater e.g. " + format_witnesses(witness)
+                raise NannyNag(start[0], msg, line)
+            indents.append(thisguy)
 
- def reset_globals():
-     global indents, check_equal
-     check_equal = 0
-     indents = [Whitespace("")]
+        elif type == DEDENT:
+            # there's nothing we need to check here!  what's important is
+            # that when the run of DEDENTs ends, the indentation of the
+            # program statement (or ENDMARKER) that triggered the run is
+            # equal to what's left at the top of the indents stack
 
- def tokeneater(type, token, start, end, line,
-                INDENT=tokenize.INDENT,
-                DEDENT=tokenize.DEDENT,
-                NEWLINE=tokenize.NEWLINE,
-                JUNK=(tokenize.COMMENT, tokenize.NL) ):
-     global indents, check_equal
+            # Ouch!  This assert triggers if the last line of the source
+            # is indented *and* lacks a newline -- then DEDENTs pop out
+            # of thin air.
+            # assert check_equal  # else no earlier NEWLINE, or an earlier INDENT
+            check_equal = 1
 
-     if type == NEWLINE:
-         # a program statement, or ENDMARKER, will eventually follow,
-         # after some (possibly empty) run of tokens of the form
-         #     (NL | COMMENT)* (INDENT | DEDENT+)?
-         # If an INDENT appears, setting check_equal is wrong, and will
-         # be undone when we see the INDENT.
-         check_equal = 1
+            del indents[-1]
 
-     elif type == INDENT:
-         check_equal = 0
-         thisguy = Whitespace(token)
-         if not indents[-1].less(thisguy):
-             witness = indents[-1].not_less_witness(thisguy)
-             msg = "indent not greater e.g. " + format_witnesses(witness)
-             raise NannyNag(start[0], msg, line)
-         indents.append(thisguy)
+        elif check_equal and type not in JUNK:
+            # this is the first "real token" following a NEWLINE, so it
+            # must be the first token of the next program statement, or an
+            # ENDMARKER; the "line" argument exposes the leading whitespace
+            # for this statement; in the case of ENDMARKER, line is an empty
+            # string, so will properly match the empty string with which the
+            # "indents" stack was seeded
+            check_equal = 0
+            thisguy = Whitespace(line)
+            if not indents[-1].equal(thisguy):
+                witness = indents[-1].not_equal_witness(thisguy)
+                msg = "indent not equal e.g. " + format_witnesses(witness)
+                raise NannyNag(start[0], msg, line)
 
-     elif type == DEDENT:
-         # there's nothing we need to check here!  what's important is
-         # that when the run of DEDENTs ends, the indentation of the
-         # program statement (or ENDMARKER) that triggered the run is
-         # equal to what's left at the top of the indents stack
-
-         # Ouch!  This assert triggers if the last line of the source
-         # is indented *and* lacks a newline -- then DEDENTs pop out
-         # of thin air.
-         # assert check_equal  # else no earlier NEWLINE, or an earlier INDENT
-         check_equal = 1
-
-         del indents[-1]
-
-     elif check_equal and type not in JUNK:
-         # this is the first "real token" following a NEWLINE, so it
-         # must be the first token of the next program statement, or an
-         # ENDMARKER; the "line" argument exposes the leading whitespace
-         # for this statement; in the case of ENDMARKER, line is an empty
-         # string, so will properly match the empty string with which the
-         # "indents" stack was seeded
-         check_equal = 0
-         thisguy = Whitespace(line)
-         if not indents[-1].equal(thisguy):
-             witness = indents[-1].not_equal_witness(thisguy)
-             msg = "indent not equal e.g. " + format_witnesses(witness)
-             raise NannyNag(start[0], msg, line)
-
-else:
- # unpatched version of tokenize
-
- nesting_level = 0
- indents = []
- check_equal = 0
-
- def reset_globals():
-     global nesting_level, indents, check_equal
-     nesting_level = check_equal = 0
-     indents = [Whitespace("")]
-
- def tokeneater(type, token, start, end, line,
-                INDENT=tokenize.INDENT,
-                DEDENT=tokenize.DEDENT,
-                NEWLINE=tokenize.NEWLINE,
-                COMMENT=tokenize.COMMENT,
-                OP=tokenize.OP):
-     global nesting_level, indents, check_equal
-
-     if type == INDENT:
-         check_equal = 0
-         thisguy = Whitespace(token)
-         if not indents[-1].less(thisguy):
-             witness = indents[-1].not_less_witness(thisguy)
-             msg = "indent not greater e.g. " + format_witnesses(witness)
-             raise NannyNag(start[0], msg, line)
-         indents.append(thisguy)
-
-     elif type == DEDENT:
-         del indents[-1]
-
-     elif type == NEWLINE:
-         if nesting_level == 0:
-             check_equal = 1
-
-     elif type == COMMENT:
-         pass
-
-     elif check_equal:
-         check_equal = 0
-         thisguy = Whitespace(line)
-         if not indents[-1].equal(thisguy):
-             witness = indents[-1].not_equal_witness(thisguy)
-             msg = "indent not equal e.g. " + format_witnesses(witness)
-             raise NannyNag(start[0], msg, line)
-
-     if type == OP and token in ('{', '[', '('):
-         nesting_level = nesting_level + 1
-
-     elif type == OP and token in ('}', ']', ')'):
-         if nesting_level == 0:
-             raise NannyNag(start[0],
-                            "unbalanced bracket '" + token + "'",
-                            line)
-         nesting_level = nesting_level - 1
 
 if __name__ == '__main__':
     main()
-

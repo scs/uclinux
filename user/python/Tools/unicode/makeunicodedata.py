@@ -1,24 +1,38 @@
 #
 # (re)generate unicode property and type databases
 #
-# this script converts a unicode 3.0 database file to
-# Modules/unicodedata_db.h and Objects/unicodetype_db.h
+# this script converts a unicode 3.2 database file to
+# Modules/unicodedata_db.h, Modules/unicodename_db.h,
+# and Objects/unicodetype_db.h
 #
 # history:
 # 2000-09-24 fl   created (based on bits and pieces from unidb)
 # 2000-09-25 fl   merged tim's splitbin fixes, separate decomposition table
 # 2000-09-25 fl   added character type table
-# 2000-09-26 fl   added LINEBREAK, DECIMAL, and DIGIT flags/fields
+# 2000-09-26 fl   added LINEBREAK, DECIMAL, and DIGIT flags/fields (2.0)
+# 2000-11-03 fl   expand first/last ranges
+# 2001-01-19 fl   added character name tables (2.1)
+# 2001-01-21 fl   added decomp compression; dynamic phrasebook threshold
+# 2002-09-11 wd   use string methods
+# 2002-10-18 mvl  update to Unicode 3.2
+# 2002-10-22 mvl  generate NFC tables
+# 2002-11-24 mvl  expand all ranges, sort names version-independently
+# 2002-11-25 mvl  add UNIDATA_VERSION
+# 2004-05-29 perky add east asian width information
 #
-# written by Fredrik Lundh (fredrik@pythonware.com), September 2000
+# written by Fredrik Lundh (fredrik@pythonware.com)
 #
 
 import sys
 
 SCRIPT = sys.argv[0]
-VERSION = "1.1"
+VERSION = "2.3"
 
-UNICODE_DATA = "UnicodeData-Latest.txt"
+# The Unicode Database
+UNIDATA_VERSION = "3.2.0"
+UNICODE_DATA = "UnicodeData.txt"
+COMPOSITION_EXCLUSIONS = "CompositionExclusions.txt"
+EASTASIAN_WIDTH = "EastAsianWidth.txt"
 
 CATEGORY_NAMES = [ "Cn", "Lu", "Ll", "Lt", "Mn", "Mc", "Me", "Nd",
     "Nl", "No", "Zs", "Zl", "Zp", "Cc", "Cf", "Cs", "Co", "Cn", "Lm",
@@ -28,6 +42,8 @@ CATEGORY_NAMES = [ "Cn", "Lu", "Ll", "Lt", "Mn", "Mc", "Me", "Nd",
 BIDIRECTIONAL_NAMES = [ "", "L", "LRE", "LRO", "R", "AL", "RLE", "RLO",
     "PDF", "EN", "ES", "ET", "AN", "CS", "NSM", "BN", "B", "S", "WS",
     "ON" ]
+
+EASTASIANWIDTH_NAMES = [ "F", "H", "W", "Na", "A", "N" ]
 
 # note: should match definitions in Objects/unicodectype.c
 ALPHA_MASK = 0x01
@@ -39,17 +55,35 @@ SPACE_MASK = 0x20
 TITLE_MASK = 0x40
 UPPER_MASK = 0x80
 
-def maketables():
+def maketables(trace=0):
 
-    unicode = UnicodeData(UNICODE_DATA)
+    print "--- Reading", UNICODE_DATA, "..."
 
-    # extract unicode properties
-    dummy = (0, 0, 0, 0)
+    unicode = UnicodeData(UNICODE_DATA, COMPOSITION_EXCLUSIONS,
+                          EASTASIAN_WIDTH)
+
+    print len(filter(None, unicode.table)), "characters"
+
+    makeunicodename(unicode, trace)
+    makeunicodedata(unicode, trace)
+    makeunicodetype(unicode, trace)
+
+# --------------------------------------------------------------------
+# unicode character properties
+
+def makeunicodedata(unicode, trace):
+
+    dummy = (0, 0, 0, 0, 0)
     table = [dummy]
     cache = {0: dummy}
     index = [0] * len(unicode.chars)
 
+    FILE = "Modules/unicodedata_db.h"
+
+    print "--- Preparing", FILE, "..."
+
     # 1) database properties
+
     for char in unicode.chars:
         record = unicode.table[char]
         if record:
@@ -58,8 +92,9 @@ def maketables():
             combining = int(record[3])
             bidirectional = BIDIRECTIONAL_NAMES.index(record[4])
             mirrored = record[9] == "Y"
+            eastasianwidth = EASTASIANWIDTH_NAMES.index(record[15])
             item = (
-                category, combining, bidirectional, mirrored
+                category, combining, bidirectional, mirrored, eastasianwidth
                 )
             # add entry to index and item tables
             i = cache.get(item)
@@ -70,80 +105,189 @@ def maketables():
 
     # 2) decomposition data
 
-    # FIXME: <fl> using the encoding stuff from unidb would save
-    # another 50k or so, but I'll leave that for 2.1...
-
-    decomp_data = [""]
+    decomp_data = [0]
+    decomp_prefix = [""]
     decomp_index = [0] * len(unicode.chars)
+    decomp_size = 0
+
+    comp_pairs = []
+    comp_first = [None] * len(unicode.chars)
+    comp_last = [None] * len(unicode.chars)
 
     for char in unicode.chars:
         record = unicode.table[char]
         if record:
             if record[5]:
+                decomp = record[5].split()
+                # prefix
+                if decomp[0][0] == "<":
+                    prefix = decomp.pop(0)
+                else:
+                    prefix = ""
                 try:
-                    i = decomp_data.index(record[5])
+                    i = decomp_prefix.index(prefix)
+                except ValueError:
+                    i = len(decomp_prefix)
+                    decomp_prefix.append(prefix)
+                prefix = i
+                assert prefix < 256
+                # content
+                decomp = [prefix + (len(decomp)<<8)] +\
+                         map(lambda s: int(s, 16), decomp)
+                # Collect NFC pairs
+                if not prefix and len(decomp) == 3 and \
+                   char not in unicode.exclusions and \
+                   unicode.table[decomp[1]][3] == "0":
+                    p, l, r = decomp
+                    comp_first[l] = 1
+                    comp_last[r] = 1
+                    comp_pairs.append((l,r,char))
+                try:
+                    i = decomp_data.index(decomp)
                 except ValueError:
                     i = len(decomp_data)
-                    decomp_data.append(record[5])
+                    decomp_data.extend(decomp)
+                    decomp_size = decomp_size + len(decomp) * 2
             else:
                 i = 0
             decomp_index[char] = i
 
-    FILE = "Modules/unicodedata_db.h"
+    f = l = 0
+    comp_first_ranges = []
+    comp_last_ranges = []
+    prev_f = prev_l = None
+    for i in unicode.chars:
+        if comp_first[i] is not None:
+            comp_first[i] = f
+            f += 1
+            if prev_f is None:
+                prev_f = (i,i)
+            elif prev_f[1]+1 == i:
+                prev_f = prev_f[0],i
+            else:
+                comp_first_ranges.append(prev_f)
+                prev_f = (i,i)
+        if comp_last[i] is not None:
+            comp_last[i] = l
+            l += 1
+            if prev_l is None:
+                prev_l = (i,i)
+            elif prev_l[1]+1 == i:
+                prev_l = prev_l[0],i
+            else:
+                comp_last_ranges.append(prev_l)
+                prev_l = (i,i)
+    comp_first_ranges.append(prev_f)
+    comp_last_ranges.append(prev_l)
+    total_first = f
+    total_last = l
 
-    sys.stdout = open(FILE, "w")
+    comp_data = [0]*(total_first*total_last)
+    for f,l,char in comp_pairs:
+        f = comp_first[f]
+        l = comp_last[l]
+        comp_data[f*total_last+l] = char
 
-    print "/* this file was generated by %s %s */" % (SCRIPT, VERSION)
-    print
-    print "/* a list of unique database records */"
-    print "const _PyUnicode_DatabaseRecord _PyUnicode_Database_Records[] = {"
+    print len(table), "unique properties"
+    print len(decomp_prefix), "unique decomposition prefixes"
+    print len(decomp_data), "unique decomposition entries:",
+    print decomp_size, "bytes"
+    print total_first, "first characters in NFC"
+    print total_last, "last characters in NFC"
+    print len(comp_pairs), "NFC pairs"
+
+    print "--- Writing", FILE, "..."
+
+    fp = open(FILE, "w")
+    print >>fp, "/* this file was generated by %s %s */" % (SCRIPT, VERSION)
+    print >>fp
+    print >>fp, '#define UNIDATA_VERSION "%s"' % UNIDATA_VERSION
+    print >>fp, "/* a list of unique database records */"
+    print >>fp, \
+          "const _PyUnicode_DatabaseRecord _PyUnicode_Database_Records[] = {"
     for item in table:
-        print "    {%d, %d, %d, %d}," % item
-    print "};"
-    print
+        print >>fp, "    {%d, %d, %d, %d, %d}," % item
+    print >>fp, "};"
+    print >>fp
 
-    # FIXME: the following tables should be made static, and
+    print >>fp, "/* Reindexing of NFC first characters. */"
+    print >>fp, "#define TOTAL_FIRST",total_first
+    print >>fp, "#define TOTAL_LAST",total_last
+    print >>fp, "struct reindex{int start;short count,index;};"
+    print >>fp, "struct reindex nfc_first[] = {"
+    for start,end in comp_first_ranges:
+        print >>fp,"  { %d, %d, %d}," % (start,end-start,comp_first[start])
+    print >>fp,"  {0,0,0}"
+    print >>fp,"};\n"
+    print >>fp, "struct reindex nfc_last[] = {"
+    for start,end in comp_last_ranges:
+        print >>fp,"  { %d, %d, %d}," % (start,end-start,comp_last[start])
+    print >>fp,"  {0,0,0}"
+    print >>fp,"};\n"
+
+    # FIXME: <fl> the following tables could be made static, and
     # the support code moved into unicodedatabase.c
 
-    print "/* string literals */"
-    print "const char *_PyUnicode_CategoryNames[] = {"
+    print >>fp, "/* string literals */"
+    print >>fp, "const char *_PyUnicode_CategoryNames[] = {"
     for name in CATEGORY_NAMES:
-        print "    \"%s\"," % name
-    print "    NULL"
-    print "};"
+        print >>fp, "    \"%s\"," % name
+    print >>fp, "    NULL"
+    print >>fp, "};"
 
-    print "const char *_PyUnicode_BidirectionalNames[] = {"
+    print >>fp, "const char *_PyUnicode_BidirectionalNames[] = {"
     for name in BIDIRECTIONAL_NAMES:
-        print "    \"%s\"," % name
-    print "    NULL"
-    print "};"
+        print >>fp, "    \"%s\"," % name
+    print >>fp, "    NULL"
+    print >>fp, "};"
 
-    print "static const char *decomp_data[] = {"
-    for name in decomp_data:
-        print "    \"%s\"," % name
-    print "    NULL"
-    print "};"
+    print >>fp, "const char *_PyUnicode_EastAsianWidthNames[] = {"
+    for name in EASTASIANWIDTH_NAMES:
+        print >>fp, "    \"%s\"," % name
+    print >>fp, "    NULL"
+    print >>fp, "};"
+
+    print >>fp, "static const char *decomp_prefix[] = {"
+    for name in decomp_prefix:
+        print >>fp, "    \"%s\"," % name
+    print >>fp, "    NULL"
+    print >>fp, "};"
 
     # split record index table
-    index1, index2, shift = splitbins(index)
+    index1, index2, shift = splitbins(index, trace)
 
-    print "/* index tables for the database records */"
-    print "#define SHIFT", shift
-    Array("index1", index1).dump(sys.stdout)
-    Array("index2", index2).dump(sys.stdout)
+    print >>fp, "/* index tables for the database records */"
+    print >>fp, "#define SHIFT", shift
+    Array("index1", index1).dump(fp, trace)
+    Array("index2", index2).dump(fp, trace)
 
     # split decomposition index table
-    index1, index2, shift = splitbins(decomp_index)
+    index1, index2, shift = splitbins(decomp_index, trace)
 
-    print "/* index tables for the decomposition data */"
-    print "#define DECOMP_SHIFT", shift
-    Array("decomp_index1", index1).dump(sys.stdout)
-    Array("decomp_index2", index2).dump(sys.stdout)
+    print >>fp, "/* decomposition data */"
+    Array("decomp_data", decomp_data).dump(fp, trace)
 
-    sys.stdout = sys.__stdout__
+    print >>fp, "/* index tables for the decomposition data */"
+    print >>fp, "#define DECOMP_SHIFT", shift
+    Array("decomp_index1", index1).dump(fp, trace)
+    Array("decomp_index2", index2).dump(fp, trace)
 
-    #
-    # 3) unicode type data
+    index, index2, shift = splitbins(comp_data, trace)
+    print >>fp, "/* NFC pairs */"
+    print >>fp, "#define COMP_SHIFT", shift
+    Array("comp_index", index).dump(fp, trace)
+    Array("comp_data", index2).dump(fp, trace)
+
+    fp.close()
+
+# --------------------------------------------------------------------
+# unicode character type tables
+
+def makeunicodetype(unicode, trace):
+
+    FILE = "Objects/unicodetype_db.h"
+
+    print "--- Preparing", FILE, "..."
 
     # extract unicode types
     dummy = (0, 0, 0, 0, 0, 0)
@@ -172,15 +316,21 @@ def maketables():
                 flags |= UPPER_MASK
             # use delta predictor for upper/lower/title
             if record[12]:
-                upper = (int(record[12], 16) - char) & 0xffff
+                upper = int(record[12], 16) - char
+                assert -32768 <= upper <= 32767
+                upper = upper & 0xffff
             else:
                 upper = 0
             if record[13]:
-                lower = (int(record[13], 16) - char) & 0xffff
+                lower = int(record[13], 16) - char
+                assert -32768 <= lower <= 32767
+                lower = lower & 0xffff
             else:
                 lower = 0
             if record[14]:
-                title = (int(record[14], 16) - char) & 0xffff
+                title = int(record[14], 16) - char
+                assert -32768 <= lower <= 32767
+                title = title & 0xffff
             else:
                 title = 0
             # decimal digit, integer digit
@@ -193,7 +343,7 @@ def maketables():
                 flags |= DIGIT_MASK
                 digit = int(record[7])
             item = (
-                flags, upper, lower, title, decimal, digit
+                upper, lower, title, decimal, digit, flags
                 )
             # add entry to index and item tables
             i = cache.get(item)
@@ -202,30 +352,193 @@ def maketables():
                 table.append(item)
             index[char] = i
 
-    print len(table), "ctype entries"
+    print len(table), "unique character type entries"
 
-    FILE = "Objects/unicodetype_db.h"
+    print "--- Writing", FILE, "..."
 
-    sys.stdout = open(FILE, "w")
-
-    print "/* this file was generated by %s %s */" % (SCRIPT, VERSION)
-    print
-    print "/* a list of unique character type descriptors */"
-    print "const _PyUnicode_TypeRecord _PyUnicode_TypeRecords[] = {"
+    fp = open(FILE, "w")
+    print >>fp, "/* this file was generated by %s %s */" % (SCRIPT, VERSION)
+    print >>fp
+    print >>fp, "/* a list of unique character type descriptors */"
+    print >>fp, "const _PyUnicode_TypeRecord _PyUnicode_TypeRecords[] = {"
     for item in table:
-        print "    {%d, %d, %d, %d, %d, %d}," % item
-    print "};"
-    print
+        print >>fp, "    {%d, %d, %d, %d, %d, %d}," % item
+    print >>fp, "};"
+    print >>fp
 
     # split decomposition index table
-    index1, index2, shift = splitbins(index)
+    index1, index2, shift = splitbins(index, trace)
 
-    print "/* type indexes */"
-    print "#define SHIFT", shift
-    Array("index1", index1).dump(sys.stdout)
-    Array("index2", index2).dump(sys.stdout)
+    print >>fp, "/* type indexes */"
+    print >>fp, "#define SHIFT", shift
+    Array("index1", index1).dump(fp, trace)
+    Array("index2", index2).dump(fp, trace)
 
-    sys.stdout = sys.__stdout__
+    fp.close()
+
+# --------------------------------------------------------------------
+# unicode name database
+
+def makeunicodename(unicode, trace):
+
+    FILE = "Modules/unicodename_db.h"
+
+    print "--- Preparing", FILE, "..."
+
+    # collect names
+    names = [None] * len(unicode.chars)
+
+    for char in unicode.chars:
+        record = unicode.table[char]
+        if record:
+            name = record[1].strip()
+            if name and name[0] != "<":
+                names[char] = name + chr(0)
+
+    print len(filter(lambda n: n is not None, names)), "distinct names"
+
+    # collect unique words from names (note that we differ between
+    # words inside a sentence, and words ending a sentence.  the
+    # latter includes the trailing null byte.
+
+    words = {}
+    n = b = 0
+    for char in unicode.chars:
+        name = names[char]
+        if name:
+            w = name.split()
+            b = b + len(name)
+            n = n + len(w)
+            for w in w:
+                l = words.get(w)
+                if l:
+                    l.append(None)
+                else:
+                    words[w] = [len(words)]
+
+    print n, "words in text;", b, "bytes"
+
+    wordlist = words.items()
+
+    # sort on falling frequency, then by name
+    def cmpwords((aword, alist),(bword, blist)):
+        r = -cmp(len(alist),len(blist))
+        if r:
+            return r
+        return cmp(aword, bword)
+    wordlist.sort(cmpwords)
+
+    # figure out how many phrasebook escapes we need
+    escapes = 0
+    while escapes * 256 < len(wordlist):
+        escapes = escapes + 1
+    print escapes, "escapes"
+
+    short = 256 - escapes
+
+    assert short > 0
+
+    print short, "short indexes in lexicon"
+
+    # statistics
+    n = 0
+    for i in range(short):
+        n = n + len(wordlist[i][1])
+    print n, "short indexes in phrasebook"
+
+    # pick the most commonly used words, and sort the rest on falling
+    # length (to maximize overlap)
+
+    wordlist, wordtail = wordlist[:short], wordlist[short:]
+    wordtail.sort(lambda a, b: len(b[0])-len(a[0]))
+    wordlist.extend(wordtail)
+
+    # generate lexicon from words
+
+    lexicon_offset = [0]
+    lexicon = ""
+    words = {}
+
+    # build a lexicon string
+    offset = 0
+    for w, x in wordlist:
+        # encoding: bit 7 indicates last character in word (chr(128)
+        # indicates the last character in an entire string)
+        ww = w[:-1] + chr(ord(w[-1])+128)
+        # reuse string tails, when possible
+        o = lexicon.find(ww)
+        if o < 0:
+            o = offset
+            lexicon = lexicon + ww
+            offset = offset + len(w)
+        words[w] = len(lexicon_offset)
+        lexicon_offset.append(o)
+
+    lexicon = map(ord, lexicon)
+
+    # generate phrasebook from names and lexicon
+    phrasebook = [0]
+    phrasebook_offset = [0] * len(unicode.chars)
+    for char in unicode.chars:
+        name = names[char]
+        if name:
+            w = name.split()
+            phrasebook_offset[char] = len(phrasebook)
+            for w in w:
+                i = words[w]
+                if i < short:
+                    phrasebook.append(i)
+                else:
+                    # store as two bytes
+                    phrasebook.append((i>>8) + short)
+                    phrasebook.append(i&255)
+
+    assert getsize(phrasebook) == 1
+
+    #
+    # unicode name hash table
+
+    # extract names
+    data = []
+    for char in unicode.chars:
+        record = unicode.table[char]
+        if record:
+            name = record[1].strip()
+            if name and name[0] != "<":
+                data.append((name, char))
+
+    # the magic number 47 was chosen to minimize the number of
+    # collisions on the current data set.  if you like, change it
+    # and see what happens...
+
+    codehash = Hash("code", data, 47)
+
+    print "--- Writing", FILE, "..."
+
+    fp = open(FILE, "w")
+    print >>fp, "/* this file was generated by %s %s */" % (SCRIPT, VERSION)
+    print >>fp
+    print >>fp, "#define NAME_MAXLEN", 256
+    print >>fp
+    print >>fp, "/* lexicon */"
+    Array("lexicon", lexicon).dump(fp, trace)
+    Array("lexicon_offset", lexicon_offset).dump(fp, trace)
+
+    # split decomposition index table
+    offset1, offset2, shift = splitbins(phrasebook_offset, trace)
+
+    print >>fp, "/* code->name phrasebook */"
+    print >>fp, "#define phrasebook_shift", shift
+    print >>fp, "#define phrasebook_short", short
+
+    Array("phrasebook", phrasebook).dump(fp, trace)
+    Array("phrasebook_offset1", offset1).dump(fp, trace)
+    Array("phrasebook_offset2", offset2).dump(fp, trace)
+
+    print >>fp, "/* name->code dictionary */"
+    codehash.dump(fp, trace)
+
+    fp.close()
 
 # --------------------------------------------------------------------
 # the following support code is taken from the unidb utilities
@@ -233,29 +546,161 @@ def maketables():
 
 # load a unicode-data file from disk
 
-import string, sys
+import sys
 
 class UnicodeData:
 
-    def __init__(self, filename):
+    def __init__(self, filename, exclusions, eastasianwidth, expand=1):
         file = open(filename)
-        table = [None] * 65536
+        table = [None] * 0x110000
         while 1:
             s = file.readline()
             if not s:
                 break
-            s = string.split(string.strip(s), ";")
-            char = string.atoi(s[0], 16)
+            s = s.strip().split(";")
+            char = int(s[0], 16)
             table[char] = s
+
+        # expand first-last ranges
+        if expand:
+            field = None
+            for i in range(0, 0x110000):
+                s = table[i]
+                if s:
+                    if s[1][-6:] == "First>":
+                        s[1] = ""
+                        field = s[:]
+                    elif s[1][-5:] == "Last>":
+                        s[1] = ""
+                        field = None
+                elif field:
+                    field[0] = hex(i)
+                    table[i] = field
 
         # public attributes
         self.filename = filename
         self.table = table
-        self.chars = range(65536) # unicode
+        self.chars = range(0x110000) # unicode 3.2
+
+        file = open(exclusions)
+        self.exclusions = {}
+        for s in file:
+            s = s.strip()
+            if not s:
+                continue
+            if s[0] == '#':
+                continue
+            char = int(s.split()[0],16)
+            self.exclusions[char] = 1
+
+        widths = [None] * 0x110000
+        for s in open(eastasianwidth):
+            s = s.strip()
+            if not s:
+                continue
+            if s[0] == '#':
+                continue
+            s = s.split()[0].split(';')
+            if '..' in s[0]:
+                first, last = [int(c, 16) for c in s[0].split('..')]
+                chars = range(first, last+1)
+            else:
+                chars = [int(s[0], 16)]
+            for char in chars:
+                widths[char] = s[1]
+        for i in range(0, 0x110000):
+            if table[i] is not None:
+                table[i].append(widths[i])
 
     def uselatin1(self):
         # restrict character range to ISO Latin 1
         self.chars = range(256)
+
+# hash table tools
+
+# this is a straight-forward reimplementation of Python's built-in
+# dictionary type, using a static data structure, and a custom string
+# hash algorithm.
+
+def myhash(s, magic):
+    h = 0
+    for c in map(ord, s.upper()):
+        h = (h * magic) + c
+        ix = h & 0xff000000L
+        if ix:
+            h = (h ^ ((ix>>24) & 0xff)) & 0x00ffffff
+    return h
+
+SIZES = [
+    (4,3), (8,3), (16,3), (32,5), (64,3), (128,3), (256,29), (512,17),
+    (1024,9), (2048,5), (4096,83), (8192,27), (16384,43), (32768,3),
+    (65536,45), (131072,9), (262144,39), (524288,39), (1048576,9),
+    (2097152,5), (4194304,3), (8388608,33), (16777216,27)
+]
+
+class Hash:
+    def __init__(self, name, data, magic):
+        # turn a (key, value) list into a static hash table structure
+
+        # determine table size
+        for size, poly in SIZES:
+            if size > len(data):
+                poly = size + poly
+                break
+        else:
+            raise AssertionError, "ran out of polynominals"
+
+        print size, "slots in hash table"
+
+        table = [None] * size
+
+        mask = size-1
+
+        n = 0
+
+        hash = myhash
+
+        # initialize hash table
+        for key, value in data:
+            h = hash(key, magic)
+            i = (~h) & mask
+            v = table[i]
+            if v is None:
+                table[i] = value
+                continue
+            incr = (h ^ (h >> 3)) & mask;
+            if not incr:
+                incr = mask
+            while 1:
+                n = n + 1
+                i = (i + incr) & mask
+                v = table[i]
+                if v is None:
+                    table[i] = value
+                    break
+                incr = incr << 1
+                if incr > mask:
+                    incr = incr ^ poly
+
+        print n, "collisions"
+        self.collisions = n
+
+        for i in range(len(table)):
+            if table[i] is None:
+                table[i] = 0
+
+        self.data = Array(name + "_hash", table)
+        self.magic = magic
+        self.name = name
+        self.size = size
+        self.poly = poly
+
+    def dump(self, file, trace):
+        # write data to file, as a C array
+        self.data.dump(file, trace)
+        file.write("#define %s_magic %d\n" % (self.name, self.magic))
+        file.write("#define %s_size %d\n" % (self.name, self.size))
+        file.write("#define %s_poly %d\n" % (self.name, self.poly))
 
 # stuff to deal with arrays of unsigned integers
 
@@ -265,10 +710,11 @@ class Array:
         self.name = name
         self.data = data
 
-    def dump(self, file):
+    def dump(self, file, trace=0):
         # write data to file, as a C array
         size = getsize(self.data)
-        # print >>sys.stderr, self.name+":", size*len(self.data), "bytes"
+        if trace:
+            print >>sys.stderr, self.name+":", size*len(self.data), "bytes"
         file.write("static ")
         if size == 1:
             file.write("unsigned char")
@@ -286,7 +732,7 @@ class Array:
                     s = "    " + i
                 else:
                     s = s + i
-            if string.strip(s):
+            if s.strip():
                 file.write(s + "\n")
         file.write("};\n\n")
 
@@ -310,8 +756,9 @@ def splitbins(t, trace=0):
         t[i] == t2[(t1[i >> shift] << shift) + (i & mask)]
     where mask is a bitmask isolating the last "shift" bits.
 
-    If optional arg trace is true (default false), progress info is
-    printed to sys.stderr.
+    If optional arg trace is non-zero (default zero), progress info
+    is printed to sys.stderr.  The higher the value, the more info
+    you'll get.
     """
 
     import sys
@@ -345,7 +792,7 @@ def splitbins(t, trace=0):
             t1.append(index >> shift)
         # determine memory size
         b = len(t1)*getsize(t1) + len(t2)*getsize(t2)
-        if trace:
+        if trace > 1:
             dump(t1, t2, shift, b)
         if b < bytes:
             best = t1, t2, shift
@@ -362,4 +809,4 @@ def splitbins(t, trace=0):
     return best
 
 if __name__ == "__main__":
-    maketables()
+    maketables(1)

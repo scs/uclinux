@@ -3,7 +3,7 @@
     taken mostly from the documentation.
     Roger E. Masse
 """
-from test_support import verbose, TestSkipped
+from test.test_support import verbose, TestSkipped
 import gl, GL, time
 
 glattrs = ['RGBcolor', 'RGBcursor', 'RGBmode', 'RGBrange', 'RGBwritemask',
@@ -146,5 +146,5 @@ def main():
     if verbose:
         print 'winclose'
     gl.winclose(w)
-    
+
 main()

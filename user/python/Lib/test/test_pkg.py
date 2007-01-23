@@ -1,16 +1,17 @@
 # Test packages (dotted-name import)
 
-import sys, os, string, tempfile, traceback
-from os import mkdir, rmdir             # Can't test if these fail
+import sys, os, tempfile, traceback
+from os import mkdir, rmdir, extsep          # Can't test if these fail
 del mkdir, rmdir
-from test_support import verbose, TestFailed
+from test.test_support import verify, verbose, TestFailed
 
 # Helpers to create and destroy hierarchies.
 
 def mkhier(root, descr):
-    mkdir(root)
+    if not os.path.isdir(root):
+        mkdir(root)
     for name, contents in descr:
-        comps = string.split(name)
+        comps = name.split()
         fullname = root
         for c in comps:
             fullname = os.path.join(fullname, c)
@@ -52,40 +53,39 @@ def fixdir(lst):
 # Helper to run a test
 
 def runtest(hier, code):
-    root = tempfile.mktemp()
+    root = tempfile.mkdtemp()
     mkhier(root, hier)
     savepath = sys.path[:]
-    codefile = tempfile.mktemp()
-    f = open(codefile, "w")
-    f.write(code)
-    f.close()
+    fd, fname = tempfile.mkstemp(text=True)
+    os.write(fd, code)
+    os.close(fd)
     try:
         sys.path.insert(0, root)
         if verbose: print "sys.path =", sys.path
         try:
-            execfile(codefile, globals(), {})
+            execfile(fname, globals(), {})
         except:
             traceback.print_exc(file=sys.stdout)
     finally:
         sys.path[:] = savepath
+        os.unlink(fname)
         try:
             cleanout(root)
         except (os.error, IOError):
             pass
-        os.remove(codefile)
 
 # Test descriptions
 
 tests = [
-    ("t1", [("t1", None), ("t1 __init__.py", "")], "import t1"),
-    
+    ("t1", [("t1", None), ("t1 __init__"+os.extsep+"py", "")], "import t1"),
+
     ("t2", [
     ("t2", None),
-    ("t2 __init__.py", "'doc for t2'; print __name__, 'loading'"),
+    ("t2 __init__"+os.extsep+"py", "'doc for t2'; print __name__, 'loading'"),
     ("t2 sub", None),
-    ("t2 sub __init__.py", ""),
+    ("t2 sub __init__"+os.extsep+"py", ""),
     ("t2 sub subsub", None),
-    ("t2 sub subsub __init__.py", "print __name__, 'loading'; spam = 1"),
+    ("t2 sub subsub __init__"+os.extsep+"py", "print __name__, 'loading'; spam = 1"),
     ],
 """
 import t2
@@ -108,14 +108,14 @@ print t2.__name__, t2.sub.__name__, t2.sub.subsub.__name__
 from t2 import *
 print dir()
 """),
-    
+
     ("t3", [
     ("t3", None),
-    ("t3 __init__.py", "print __name__, 'loading'"),
+    ("t3 __init__"+os.extsep+"py", "print __name__, 'loading'"),
     ("t3 sub", None),
-    ("t3 sub __init__.py", ""),
+    ("t3 sub __init__"+os.extsep+"py", ""),
     ("t3 sub subsub", None),
-    ("t3 sub subsub __init__.py", "print __name__, 'loading'; spam = 1"),
+    ("t3 sub subsub __init__"+os.extsep+"py", "print __name__, 'loading'; spam = 1"),
     ],
 """
 import t3.sub.subsub
@@ -124,17 +124,17 @@ reload(t3)
 reload(t3.sub)
 reload(t3.sub.subsub)
 """),
-    
+
     ("t4", [
-    ("t4.py", "print 'THIS SHOULD NOT BE PRINTED (t4.py)'"),
+    ("t4"+os.extsep+"py", "print 'THIS SHOULD NOT BE PRINTED (t4"+os.extsep+"py)'"),
     ("t4", None),
-    ("t4 __init__.py", "print __name__, 'loading'"),
-    ("t4 sub.py", "print 'THIS SHOULD NOT BE PRINTED (sub.py)'"),
+    ("t4 __init__"+os.extsep+"py", "print __name__, 'loading'"),
+    ("t4 sub"+os.extsep+"py", "print 'THIS SHOULD NOT BE PRINTED (sub"+os.extsep+"py)'"),
     ("t4 sub", None),
-    ("t4 sub __init__.py", ""),
-    ("t4 sub subsub.py", "print 'THIS SHOULD NOT BE PRINTED (subsub.py)'"),
+    ("t4 sub __init__"+os.extsep+"py", ""),
+    ("t4 sub subsub"+os.extsep+"py", "print 'THIS SHOULD NOT BE PRINTED (subsub"+os.extsep+"py)'"),
     ("t4 sub subsub", None),
-    ("t4 sub subsub __init__.py", "print __name__, 'loading'; spam = 1"),
+    ("t4 sub subsub __init__"+os.extsep+"py", "print __name__, 'loading'; spam = 1"),
     ],
 """
 from t4.sub.subsub import *
@@ -143,9 +143,9 @@ print "t4.sub.subsub.spam =", spam
 
     ("t5", [
     ("t5", None),
-    ("t5 __init__.py", "import t5.foo"),
-    ("t5 string.py", "print __name__, 'loading'; spam = 1"),
-    ("t5 foo.py",
+    ("t5 __init__"+os.extsep+"py", "import t5.foo"),
+    ("t5 string"+os.extsep+"py", "print __name__, 'loading'; spam = 1"),
+    ("t5 foo"+os.extsep+"py",
      "print __name__, 'loading'; import string; print string.spam"),
      ],
 """
@@ -160,10 +160,10 @@ print fixdir(dir(t5.string))
 
     ("t6", [
     ("t6", None),
-    ("t6 __init__.py", "__all__ = ['spam', 'ham', 'eggs']"),
-    ("t6 spam.py", "print __name__, 'loading'"),
-    ("t6 ham.py", "print __name__, 'loading'"),
-    ("t6 eggs.py", "print __name__, 'loading'"),
+    ("t6 __init__"+os.extsep+"py", "__all__ = ['spam', 'ham', 'eggs']"),
+    ("t6 spam"+os.extsep+"py", "print __name__, 'loading'"),
+    ("t6 ham"+os.extsep+"py", "print __name__, 'loading'"),
+    ("t6 eggs"+os.extsep+"py", "print __name__, 'loading'"),
     ],
 """
 import t6
@@ -172,32 +172,32 @@ from t6 import *
 print fixdir(dir(t6))
 print dir()
 """),
-    
+
     ("t7", [
-    ("t7.py", "print 'Importing t7.py'"),
+    ("t7"+os.extsep+"py", "print 'Importing t7"+os.extsep+"py'"),
     ("t7", None),
-    ("t7 __init__.py", "print __name__, 'loading'"),
-    ("t7 sub.py", "print 'THIS SHOULD NOT BE PRINTED (sub.py)'"),
+    ("t7 __init__"+os.extsep+"py", "print __name__, 'loading'"),
+    ("t7 sub"+os.extsep+"py", "print 'THIS SHOULD NOT BE PRINTED (sub"+os.extsep+"py)'"),
     ("t7 sub", None),
-    ("t7 sub __init__.py", ""),
-    ("t7 sub subsub.py", "print 'THIS SHOULD NOT BE PRINTED (subsub.py)'"),
+    ("t7 sub __init__"+os.extsep+"py", ""),
+    ("t7 sub subsub"+os.extsep+"py", "print 'THIS SHOULD NOT BE PRINTED (subsub"+os.extsep+"py)'"),
     ("t7 sub subsub", None),
-    ("t7 sub subsub __init__.py", "print __name__, 'loading'; spam = 1"),
+    ("t7 sub subsub __init__"+os.extsep+"py", "print __name__, 'loading'; spam = 1"),
     ],
 """
 t7, sub, subsub = None, None, None
 import t7 as tas
-print dir(tas)
-assert not t7
+print fixdir(dir(tas))
+verify(not t7)
 from t7 import sub as subpar
-print dir(subpar)
-assert not t7 and not sub
+print fixdir(dir(subpar))
+verify(not t7 and not sub)
 from t7.sub import subsub as subsubsub
-print dir(subsubsub)
-assert not t7 and not sub and not subsub
+print fixdir(dir(subsubsub))
+verify(not t7 and not sub and not subsub)
 from t7.sub.subsub import spam as ham
 print "t7.sub.subsub.spam =", ham
-assert not t7 and not sub and not subsub
+verify(not t7 and not sub and not subsub)
 """),
 
 ]

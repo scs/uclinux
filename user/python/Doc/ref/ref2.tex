@@ -7,14 +7,17 @@ chapter describes how the lexical analyzer breaks a file into tokens.
 \index{parser}
 \index{token}
 
-Python uses the 7-bit \ASCII{} character set for program text and string
-literals. 8-bit characters may be used in string literals and comments
-but their interpretation is platform dependent; the proper way to
-insert 8-bit characters in string literals is by using octal or
-hexadecimal escape sequences.
+Python uses the 7-bit \ASCII{} character set for program text.
+\versionadded[An encoding declaration can be used to indicate that 
+string literals and comments use an encoding different from ASCII]{2.3}
+For compatibility with older versions, Python only warns if it finds
+8-bit characters; those warnings should be corrected by either declaring
+an explicit encoding, or using escape sequences if those bytes are binary
+data, instead of characters.
+
 
 The run-time character set depends on the I/O devices connected to the
-program but is generally a superset of \ASCII{}.
+program but is generally a superset of \ASCII.
 
 \strong{Future compatibility note:} It may be tempting to assume that the
 character set for 8-bit characters is ISO Latin-1 (an \ASCII{}
@@ -28,10 +31,12 @@ though the current implementation appears to favor Latin-1.  This
 applies both to the source character set and the run-time character
 set.
 
+
 \section{Line structure\label{line-structure}}
 
 A Python program is divided into a number of \emph{logical lines}.
 \index{line structure}
+
 
 \subsection{Logical lines\label{logical}}
 
@@ -46,13 +51,22 @@ by following the explicit or implicit \emph{line joining} rules.
 \index{line joining}
 \index{NEWLINE token}
 
+
 \subsection{Physical lines\label{physical}}
 
-A physical line ends in whatever the current platform's convention is
-for terminating lines.  On \UNIX{}, this is the \ASCII{} LF (linefeed)
-character.  On DOS/Windows, it is the \ASCII{} sequence CR LF (return
-followed by linefeed).  On Macintosh, it is the \ASCII{} CR (return)
-character.
+A physical line is a sequence of characters terminated by an end-of-line
+sequence.  In source files, any of the standard platform line
+termination sequences can be used - the \UNIX{} form using \ASCII{} LF
+(linefeed), the Windows form using the \ASCII{} sequence CR LF (return
+followed by linefeed), or the Macintosh form using the \ASCII{} CR
+(return) character.  All of these forms can be used equally, regardless
+of platform.
+
+When embedding Python, source code strings should be passed to Python
+APIs using the standard C conventions for newline characters (the
+\code{\e n} character, representing \ASCII{} LF, is the line
+terminator).
+
 
 \subsection{Comments\label{comments}}
 
@@ -63,6 +77,40 @@ rules are invoked.
 Comments are ignored by the syntax; they are not tokens.
 \index{comment}
 \index{hash character}
+
+
+\subsection{Encoding declarations\label{encodings}}
+\index{source character set}
+\index{encodings}
+
+If a comment in the first or second line of the Python script matches
+the regular expression \regexp{coding[=:]\e s*([-\e w.]+)}, this comment is
+processed as an encoding declaration; the first group of this
+expression names the encoding of the source code file. The recommended
+forms of this expression are
+
+\begin{verbatim}
+# -*- coding: <encoding-name> -*-
+\end{verbatim}
+
+which is recognized also by GNU Emacs, and
+
+\begin{verbatim}
+# vim:fileencoding=<encoding-name>
+\end{verbatim}
+
+which is recognized by Bram Moolenaar's VIM. In addition, if the first
+bytes of the file are the UTF-8 byte-order mark
+(\code{'\e xef\e xbb\e xbf'}), the declared file encoding is UTF-8
+(this is supported, among others, by Microsoft's \program{notepad}).
+
+If an encoding is declared, the encoding name must be recognized by
+Python. % XXX there should be a list of supported encodings.
+The encoding is used for all lexical analysis, in particular to find
+the end of a string, and to interpret the contents of Unicode literals.
+String literals are converted to Unicode for syntactical analysis,
+then converted back to their original encoding before interpretation
+starts. The encoding declaration must appear on a line of its own.
 
 \subsection{Explicit line joining\label{explicit-joining}}
 
@@ -110,8 +158,9 @@ lines.  Implicitly continued lines can also occur within triple-quoted
 strings (see below); in that case they cannot carry comments.
 
 
-\subsection{Blank lines \index{blank line}\label{blank-lines}}
+\subsection{Blank lines \label{blank-lines}}
 
+\index{blank line}
 A logical line that contains only spaces, tabs, formfeeds and possibly
 a comment, is ignored (i.e., no NEWLINE token is generated).  During
 interactive input of statements, handling of a blank line may differ
@@ -137,7 +186,7 @@ turn is used to determine the grouping of statements.
 First, tabs are replaced (from left to right) by one to eight spaces
 such that the total number of characters up to and including the
 replacement is a multiple of
-eight (this is intended to be the same rule as used by \UNIX{}).  The
+eight (this is intended to be the same rule as used by \UNIX).  The
 total number of spaces preceding the first non-blank character then
 determines the line's indentation.  Indentation cannot be split over
 multiple physical lines using backslashes; the whitespace up to the
@@ -145,7 +194,9 @@ first backslash determines the indentation.
 
 \strong{Cross-platform compatibility note:} because of the nature of
 text editors on non-UNIX platforms, it is unwise to use a mixture of
-spaces and tabs for the indentation in a single source file.
+spaces and tabs for the indentation in a single source file.  It
+should also be noted that different platforms may explicitly limit the
+maximum indentation level.
 
 A formfeed character may be present at the start of the line; it will
 be ignored for the indentation calculations above.  Formfeed
@@ -190,18 +241,19 @@ def perm(l):
 The following example shows various indentation errors:
 
 \begin{verbatim}
-     def perm(l):                       # error: first line indented
-    for i in range(len(l)):             # error: not indented
-        s = l[:i] + l[i+1:]
-            p = perm(l[:i] + l[i+1:])   # error: unexpected indent
-            for x in p:
-                    r.append(l[i:i+1] + x)
-                return r                # error: inconsistent dedent
+ def perm(l):                       # error: first line indented
+for i in range(len(l)):             # error: not indented
+    s = l[:i] + l[i+1:]
+        p = perm(l[:i] + l[i+1:])   # error: unexpected indent
+        for x in p:
+                r.append(l[i:i+1] + x)
+            return r                # error: inconsistent dedent
 \end{verbatim}
 
 (Actually, the first three errors are detected by the parser; only the
 last error is found by the lexical analyzer --- the indentation of
 \code{return r} does not match a level popped off the stack.)
+
 
 \subsection{Whitespace between tokens\label{whitespace}}
 
@@ -210,6 +262,7 @@ whitespace characters space, tab and formfeed can be used
 interchangeably to separate tokens.  Whitespace is needed between two
 tokens only if their concatenation could otherwise be interpreted as a
 different token (e.g., ab is one token, but a b is two tokens).
+
 
 \section{Other tokens\label{other-tokens}}
 
@@ -222,6 +275,7 @@ Where
 ambiguity exists, a token comprises the longest possible string that
 forms a legal token, when read from left to right.
 
+
 \section{Identifiers and keywords\label{identifiers}}
 
 Identifiers (also referred to as \emph{names}) are described by the following
@@ -229,15 +283,21 @@ lexical definitions:
 \index{identifier}
 \index{name}
 
-\begin{verbatim}
-identifier:     (letter|"_") (letter|digit|"_")*
-letter:         lowercase | uppercase
-lowercase:      "a"..."z"
-uppercase:      "A"..."Z"
-digit:          "0"..."9"
-\end{verbatim}
+\begin{productionlist}
+  \production{identifier}
+             {(\token{letter}|"_") (\token{letter} | \token{digit} | "_")*}
+  \production{letter}
+             {\token{lowercase} | \token{uppercase}}
+  \production{lowercase}
+             {"a"..."z"}
+  \production{uppercase}
+             {"A"..."Z"}
+  \production{digit}
+             {"0"..."9"}
+\end{productionlist}
 
 Identifiers are unlimited in length.  Case is significant.
+
 
 \subsection{Keywords\label{keywords}}
 
@@ -252,32 +312,60 @@ and       del       for       is        raise
 assert    elif      from      lambda    return   
 break     else      global    not       try      
 class     except    if        or        while    
-continue  exec      import    pass               
+continue  exec      import    pass      yield    
 def       finally   in        print              
 \end{verbatim}
 
 % When adding keywords, use reswords.py for reformatting
 
+Note that although the identifier \code{as} can be used as part of the
+syntax of \keyword{import} statements, it is not currently a reserved
+word.
+
+In Python 2.6, the identifier \code{as} will become a keyword.
+
+\versionchanged[\constant{None} became a constant and is now
+recognized by the compiler as a name for the builtin object
+\constant{None}.  Although it is not a keyword, you cannot assign
+a different object to it]{2.4}
+
+
 \subsection{Reserved classes of identifiers\label{id-classes}}
 
 Certain classes of identifiers (besides keywords) have special
-meanings.  These are:
-
-\begin{tableiii}{l|l|l}{code}{Form}{Meaning}{Notes}
-\lineiii{_*}{Not imported by \samp{from \var{module} import *}}{(1)}
-\lineiii{__*__}{System-defined name}{}
-\lineiii{__*}{Class-private name mangling}{}
-\end{tableiii}
-
-(XXX need section references here.)
-
-Note:
+meanings.  These classes are identified by the patterns of leading and
+trailing underscore characters:
 
 \begin{description}
-\item[(1)] The special identifier \samp{_} is used in the interactive
-interpreter to store the result of the last evaluation; it is stored
-in the \module{__builtin__} module.  When not in interactive mode,
-\samp{_} has no special meaning and is not defined.
+
+\item[\code{_*}]
+  Not imported by \samp{from \var{module} import *}.  The special
+  identifier \samp{_} is used in the interactive interpreter to store
+  the result of the last evaluation; it is stored in the
+  \module{__builtin__} module.  When not in interactive mode, \samp{_}
+  has no special meaning and is not defined.
+  See section~\ref{import}, ``The \keyword{import} statement.''
+
+  \note{The name \samp{_} is often used in conjunction with
+  internationalization; refer to the documentation for the
+  \ulink{\module{gettext} module}{../lib/module-gettext.html} for more
+  information on this convention.}
+
+\item[\code{__*__}]
+  System-defined names.  These names are defined by the interpreter
+  and its implementation (including the standard library);
+  applications should not expect to define additional names using this
+  convention.  The set of names of this class defined by Python may be
+  extended in future versions.
+  See section~\ref{specialnames}, ``Special method names.''
+
+\item[\code{__*}]
+  Class-private names.  Names in this category, when used within the
+  context of a class definition, are re-written to use a mangled form
+  to help avoid name clashes between ``private'' attributes of base
+  and derived classes.
+  See section~\ref{atom-identifiers}, ``Identifiers (Names).''
+
 \end{description}
 
 
@@ -287,23 +375,45 @@ Literals are notations for constant values of some built-in types.
 \index{literal}
 \index{constant}
 
+
 \subsection{String literals\label{strings}}
 
 String literals are described by the following lexical definitions:
 \index{string literal}
 
-\begin{verbatim}
-stringliteral:   shortstring | longstring
-shortstring:     "'" shortstringitem* "'" | '"' shortstringitem* '"'
-longstring:      "'''" longstringitem* "'''" | '"""' longstringitem* '"""'
-shortstringitem: shortstringchar | escapeseq
-longstringitem:  longstringchar | escapeseq
-shortstringchar: <any ASCII character except "\" or newline or the quote>
-longstringchar:  <any ASCII character except "\">
-escapeseq:       "\" <any ASCII character>
-\end{verbatim}
-\index{ASCII@\ASCII{}}
+\index{ASCII@\ASCII}
+\begin{productionlist}
+  \production{stringliteral}
+             {[\token{stringprefix}](\token{shortstring} | \token{longstring})}
+  \production{stringprefix}
+             {"r" | "u" | "ur" | "R" | "U" | "UR" | "Ur" | "uR"}
+  \production{shortstring}
+             {"'" \token{shortstringitem}* "'"
+              | '"' \token{shortstringitem}* '"'}
+  \production{longstring}
+             {"'''" \token{longstringitem}* "'''"}
+  \productioncont{| '"""' \token{longstringitem}* '"""'}
+  \production{shortstringitem}
+             {\token{shortstringchar} | \token{escapeseq}}
+  \production{longstringitem}
+             {\token{longstringchar} | \token{escapeseq}}
+  \production{shortstringchar}
+             {<any source character except "\e" or newline or the quote>}
+  \production{longstringchar}
+             {<any source character except "\e">}
+  \production{escapeseq}
+             {"\e" <any ASCII character>}
+\end{productionlist}
 
+One syntactic restriction not indicated by these productions is that
+whitespace is not allowed between the \grammartoken{stringprefix} and
+the rest of the string literal. The source character set is defined
+by the encoding declaration; it is \ASCII{} if no encoding declaration
+is given in the source file; see section~\ref{encodings}.
+
+\index{triple-quoted string}
+\index{Unicode Consortium}
+\index{string!Unicode}
 In plain English: String literals can be enclosed in matching single
 quotes (\code{'}) or double quotes (\code{"}).  They can also be
 enclosed in matching groups of three single or double quotes (these
@@ -311,10 +421,14 @@ are generally referred to as \emph{triple-quoted strings}).  The
 backslash (\code{\e}) character is used to escape characters that
 otherwise have a special meaning, such as newline, backslash itself,
 or the quote character.  String literals may optionally be prefixed
-with a letter `r' or `R'; such strings are called raw strings and use
-different rules for backslash escape sequences.
-\index{triple-quoted string}
-\index{raw string}
+with a letter \character{r} or \character{R}; such strings are called
+\dfn{raw strings}\index{raw string} and use different rules for interpreting
+backslash escape sequences.  A prefix of \character{u} or \character{U}
+makes the string a Unicode string.  Unicode strings use the Unicode character
+set as defined by the Unicode Consortium and ISO~10646.  Some additional
+escape sequences, described below, are available in Unicode strings.
+The two prefix characters may be combined; in this case, \character{u} must
+appear before \character{r}.
 
 In triple-quoted strings,
 unescaped newlines and quotes are allowed (and are retained), except
@@ -322,56 +436,96 @@ that three unescaped quotes in a row terminate the string.  (A
 ``quote'' is the character used to open the string, i.e. either
 \code{'} or \code{"}.)
 
-Unless an `r' or `R' prefix is present, escape sequences in strings
-are interpreted according to rules similar
-to those used by Standard \C{}.  The recognized escape sequences are:
+Unless an \character{r} or \character{R} prefix is present, escape
+sequences in strings are interpreted according to rules similar
+to those used by Standard C.  The recognized escape sequences are:
 \index{physical line}
 \index{escape sequence}
 \index{Standard C}
 \index{C}
 
-\begin{tableii}{l|l}{code}{Escape Sequence}{Meaning}
-\lineii{\e\var{newline}} {Ignored}
-\lineii{\e\e}	{Backslash (\code{\e})}
-\lineii{\e'}	{Single quote (\code{'})}
-\lineii{\e"}	{Double quote (\code{"})}
-\lineii{\e a}	{\ASCII{} Bell (BEL)}
-\lineii{\e b}	{\ASCII{} Backspace (BS)}
-\lineii{\e f}	{\ASCII{} Formfeed (FF)}
-\lineii{\e n}	{\ASCII{} Linefeed (LF)}
-\lineii{\e r}	{\ASCII{} Carriage Return (CR)}
-\lineii{\e t}	{\ASCII{} Horizontal Tab (TAB)}
-\lineii{\e v}	{\ASCII{} Vertical Tab (VT)}
-\lineii{\e\var{ooo}} {\ASCII{} character with octal value \emph{ooo}}
-\lineii{\e x\var{hh...}} {\ASCII{} character with hex value \emph{hh...}}
-\end{tableii}
-\index{ASCII@\ASCII{}}
+\begin{tableiii}{l|l|c}{code}{Escape Sequence}{Meaning}{Notes}
+\lineiii{\e\var{newline}} {Ignored}{}
+\lineiii{\e\e}	{Backslash (\code{\e})}{}
+\lineiii{\e'}	{Single quote (\code{'})}{}
+\lineiii{\e"}	{Double quote (\code{"})}{}
+\lineiii{\e a}	{\ASCII{} Bell (BEL)}{}
+\lineiii{\e b}	{\ASCII{} Backspace (BS)}{}
+\lineiii{\e f}	{\ASCII{} Formfeed (FF)}{}
+\lineiii{\e n}	{\ASCII{} Linefeed (LF)}{}
+\lineiii{\e N\{\var{name}\}}
+        {Character named \var{name} in the Unicode database (Unicode only)}{}
+\lineiii{\e r}	{\ASCII{} Carriage Return (CR)}{}
+\lineiii{\e t}	{\ASCII{} Horizontal Tab (TAB)}{}
+\lineiii{\e u\var{xxxx}}
+        {Character with 16-bit hex value \var{xxxx} (Unicode only)}{(1)}
+\lineiii{\e U\var{xxxxxxxx}}
+        {Character with 32-bit hex value \var{xxxxxxxx} (Unicode only)}{(2)}
+\lineiii{\e v}	{\ASCII{} Vertical Tab (VT)}{}
+\lineiii{\e\var{ooo}} {Character with octal value \var{ooo}}{(3,5)}
+\lineiii{\e x\var{hh}} {Character with hex value \var{hh}}{(4,5)}
+\end{tableiii}
+\index{ASCII@\ASCII}
 
-In strict compatibility with Standard \C, up to three octal digits are
-accepted, but an unlimited number of hex digits is taken to be part of
-the hex escape (and then the lower 8 bits of the resulting hex number
-are used in 8-bit implementations).
+\noindent
+Notes:
 
-Unlike Standard \C{},
+\begin{itemize}
+\item[(1)]
+  Individual code units which form parts of a surrogate pair can be
+  encoded using this escape sequence.
+\item[(2)]
+  Any Unicode character can be encoded this way, but characters
+  outside the Basic Multilingual Plane (BMP) will be encoded using a
+  surrogate pair if Python is compiled to use 16-bit code units (the
+  default).  Individual code units which form parts of a surrogate
+  pair can be encoded using this escape sequence.
+\item[(3)]
+  As in Standard C, up to three octal digits are accepted.
+\item[(4)]
+  Unlike in Standard C, at most two hex digits are accepted.
+\item[(5)]
+  In a string literal, hexadecimal and octal escapes denote the
+  byte with the given value; it is not necessary that the byte
+  encodes a character in the source character set. In a Unicode
+  literal, these escapes denote a Unicode character with the given
+  value.
+\end{itemize}
+
+
+Unlike Standard \index{unrecognized escape sequence}C,
 all unrecognized escape sequences are left in the string unchanged,
-i.e., \emph{the backslash is left in the string.}  (This behavior is
+i.e., \emph{the backslash is left in the string}.  (This behavior is
 useful when debugging: if an escape sequence is mistyped, the
-resulting output is more easily recognized as broken.)
-\index{unrecognized escape sequence}
+resulting output is more easily recognized as broken.)  It is also
+important to note that the escape sequences marked as ``(Unicode
+only)'' in the table above fall into the category of unrecognized
+escapes for non-Unicode string literals.
 
-When an `r' or `R' prefix is present, backslashes are still used to
-quote the following character, but \emph{all backslashes are left in
-the string}.  For example, the string literal \code{r"\e n"} consists
-of two characters: a backslash and a lowercase `n'.  String quotes can
-be escaped with a backslash, but the backslash remains in the string;
-for example, \code{r"\e""} is a valid string literal consisting of two
-characters: a backslash and a double quote; \code{r"\e"} is not a value
-string literal (even a raw string cannot end in an odd number of
-backslashes).  Specifically, \emph{a raw string cannot end in a single
-backslash} (since the backslash would escape the following quote
-character).  Note also that a single backslash followed by a newline
-is interpreted as those two characters as part of the string,
-\emph{not} as a line continuation.
+When an \character{r} or \character{R} prefix is present, a character
+following a backslash is included in the string without change, and \emph{all
+backslashes are left in the string}.  For example, the string literal
+\code{r"\e n"} consists of two characters: a backslash and a lowercase
+\character{n}.  String quotes can be escaped with a backslash, but the
+backslash remains in the string; for example, \code{r"\e""} is a valid string
+literal consisting of two characters: a backslash and a double quote;
+\code{r"\e"} is not a valid string literal (even a raw string cannot
+end in an odd number of backslashes).  Specifically, \emph{a raw
+string cannot end in a single backslash} (since the backslash would
+escape the following quote character).  Note also that a single
+backslash followed by a newline is interpreted as those two characters
+as part of the string, \emph{not} as a line continuation.
+
+When an \character{r} or \character{R} prefix is used in conjunction
+with a \character{u} or \character{U} prefix, then the \code{\e uXXXX}
+and \code{\e UXXXXXXXX} escape sequences are processed while 
+\emph{all other backslashes are left in the string}.
+For example, the string literal
+\code{ur"\e{}u0062\e n"} consists of three Unicode characters: `LATIN
+SMALL LETTER B', `REVERSE SOLIDUS', and `LATIN SMALL LETTER N'.
+Backslashes can be escaped with a preceding backslash; however, both
+remain in the string.  As a result, \code{\e uXXXX} escape sequences
+are only recognized when there are an odd number of backslashes.
 
 \subsection{String literal concatenation\label{string-catenation}}
 
@@ -395,6 +549,7 @@ concatenate string expressions at run time.  Also note that literal
 concatenation can use different quoting styles for each component
 (even mixing raw strings and triple quoted strings).
 
+
 \subsection{Numeric literals\label{numbers}}
 
 There are four types of numeric literals: plain integers, long
@@ -411,83 +566,107 @@ number and an imaginary number).
 \index{octal literal}
 \index{decimal literal}
 \index{imaginary literal}
-\index{complex literal}
+\index{complex!literal}
 
 Note that numeric literals do not include a sign; a phrase like
 \code{-1} is actually an expression composed of the unary operator
 `\code{-}' and the literal \code{1}.
+
 
 \subsection{Integer and long integer literals\label{integers}}
 
 Integer and long integer literals are described by the following
 lexical definitions:
 
+\begin{productionlist}
+  \production{longinteger}
+             {\token{integer} ("l" | "L")}
+  \production{integer}
+             {\token{decimalinteger} | \token{octinteger} | \token{hexinteger}}
+  \production{decimalinteger}
+             {\token{nonzerodigit} \token{digit}* | "0"}
+  \production{octinteger}
+             {"0" \token{octdigit}+}
+  \production{hexinteger}
+             {"0" ("x" | "X") \token{hexdigit}+}
+  \production{nonzerodigit}
+             {"1"..."9"}
+  \production{octdigit}
+             {"0"..."7"}
+  \production{hexdigit}
+             {\token{digit} | "a"..."f" | "A"..."F"}
+\end{productionlist}
+
+Although both lower case \character{l} and upper case \character{L} are
+allowed as suffix for long integers, it is strongly recommended to always
+use \character{L}, since the letter \character{l} looks too much like the
+digit \character{1}.
+
+Plain integer literals that are above the largest representable plain
+integer (e.g., 2147483647 when using 32-bit arithmetic) are accepted
+as if they were long integers instead.\footnote{In versions of Python
+prior to 2.4, octal and hexadecimal literals in the range just above
+the largest representable plain integer but below the largest unsigned
+32-bit number (on a machine using 32-bit arithmetic), 4294967296, were
+taken as the negative plain integer obtained by subtracting 4294967296
+from their unsigned value.}  There is no limit for long integer
+literals apart from what can be stored in available memory.
+
+Some examples of plain integer literals (first row) and long integer
+literals (second and third rows):
+
 \begin{verbatim}
-longinteger:    integer ("l"|"L")
-integer:        decimalinteger | octinteger | hexinteger
-decimalinteger: nonzerodigit digit* | "0"
-octinteger:     "0" octdigit+
-hexinteger:     "0" ("x"|"X") hexdigit+
-nonzerodigit:   "1"..."9"
-octdigit:       "0"..."7"
-hexdigit:        digit|"a"..."f"|"A"..."F"
-\end{verbatim}
-
-Although both lower case `l' and upper case `L' are allowed as suffix
-for long integers, it is strongly recommended to always use `L', since
-the letter `l' looks too much like the digit `1'.
-
-Plain integer decimal literals must be at most 2147483647 (i.e., the
-largest positive integer, using 32-bit arithmetic).  Plain octal and
-hexadecimal literals may be as large as 4294967295, but values larger
-than 2147483647 are converted to a negative value by subtracting
-4294967296.  There is no limit for long integer literals apart from
-what can be stored in available memory.
-
-Some examples of plain and long integer literals:
-
-\begin{verbatim}
-7     2147483647                        0177    0x80000000
+7     2147483647                        0177
 3L    79228162514264337593543950336L    0377L   0x100000000L
+      79228162514264337593543950336             0xdeadbeef						    
 \end{verbatim}
+
 
 \subsection{Floating point literals\label{floating}}
 
 Floating point literals are described by the following lexical
 definitions:
 
-\begin{verbatim}
-floatnumber:    pointfloat | exponentfloat
-pointfloat:     [intpart] fraction | intpart "."
-exponentfloat:  (nonzerodigit digit* | pointfloat) exponent
-intpart:        nonzerodigit digit* | "0"
-fraction:       "." digit+
-exponent:       ("e"|"E") ["+"|"-"] digit+
-\end{verbatim}
+\begin{productionlist}
+  \production{floatnumber}
+             {\token{pointfloat} | \token{exponentfloat}}
+  \production{pointfloat}
+             {[\token{intpart}] \token{fraction} | \token{intpart} "."}
+  \production{exponentfloat}
+             {(\token{intpart} | \token{pointfloat})
+              \token{exponent}}
+  \production{intpart}
+             {\token{digit}+}
+  \production{fraction}
+             {"." \token{digit}+}
+  \production{exponent}
+             {("e" | "E") ["+" | "-"] \token{digit}+}
+\end{productionlist}
 
-Note that the integer part of a floating point number cannot look like
-an octal integer, though the exponent may look like an octal literal
-but will always be interpreted using radix 10.  For example,
-\samp{1e010} is legal, while \samp{07.1} is a syntax error.
+Note that the integer and exponent parts of floating point numbers
+can look like octal integers, but are interpreted using radix 10.  For
+example, \samp{077e010} is legal, and denotes the same number
+as \samp{77e10}.
 The allowed range of floating point literals is
 implementation-dependent.
 Some examples of floating point literals:
 
 \begin{verbatim}
-3.14    10.    .001    1e100    3.14e-10
+3.14    10.    .001    1e100    3.14e-10    0e0
 \end{verbatim}
 
 Note that numeric literals do not include a sign; a phrase like
-\code{-1} is actually an expression composed of the operator
+\code{-1} is actually an expression composed of the unary operator
 \code{-} and the literal \code{1}.
+
 
 \subsection{Imaginary literals\label{imaginary}}
 
 Imaginary literals are described by the following lexical definitions:
 
-\begin{verbatim}
-imagnumber:     (floatnumber | intpart) ("j"|"J")
-\end{verbatim}
+\begin{productionlist}
+  \production{imagnumber}{(\token{floatnumber} | \token{intpart}) ("j" | "J")}
+\end{productionlist}
 
 An imaginary literal yields a complex number with a real part of
 0.0.  Complex numbers are represented as a pair of floating point
@@ -506,7 +685,7 @@ The following tokens are operators:
 \index{operators}
 
 \begin{verbatim}
-+       -       *       **      /       %
++       -       *       **      /       //      %
 <<      >>      &       |       ^       ~
 <       >       <=      >=      ==      !=      <>
 \end{verbatim}
@@ -515,16 +694,17 @@ The comparison operators \code{<>} and \code{!=} are alternate
 spellings of the same operator.  \code{!=} is the preferred spelling;
 \code{<>} is obsolescent.
 
+
 \section{Delimiters\label{delimiters}}
 
 The following tokens serve as delimiters in the grammar:
 \index{delimiters}
 
 \begin{verbatim}
-(       )       [       ]       {       }
+(       )       [       ]       {       }      @
 ,       :       .       `       =       ;
-+=      -=      *=      /=      %=      **=
-&=      |=      ^=      >>=     <<=
++=      -=      *=      /=      //=     %=
+&=      |=      ^=      >>=     <<=     **=
 \end{verbatim}
 
 The period can also occur in floating-point and imaginary literals.  A
@@ -532,7 +712,7 @@ sequence of three periods has a special meaning as an ellipsis in slices.
 The second half of the list, the augmented assignment operators, serve
 lexically as delimiters, but also perform an operation.
 
-The following printing ASCII characters have special meaning as part
+The following printing \ASCII{} characters have special meaning as part
 of other tokens or are otherwise significant to the lexical analyzer:
 
 \begin{verbatim}
@@ -542,8 +722,8 @@ of other tokens or are otherwise significant to the lexical analyzer:
 The following printing \ASCII{} characters are not used in Python.  Their
 occurrence outside string literals and comments is an unconditional
 error:
-\index{ASCII@\ASCII{}}
+\index{ASCII@\ASCII}
 
 \begin{verbatim}
-@       $       ?
+$       ?
 \end{verbatim}

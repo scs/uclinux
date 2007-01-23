@@ -6,16 +6,18 @@ and HEAD requests in a fairly straightforward manner.
 """
 
 
-__version__ = "0.5"
+__version__ = "0.6"
 
+__all__ = ["SimpleHTTPRequestHandler"]
 
 import os
-import string
 import posixpath
 import BaseHTTPServer
 import urllib
+import urlparse
 import cgi
 import shutil
+import mimetypes
 from StringIO import StringIO
 
 
@@ -24,9 +26,8 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     """Simple HTTP request handler with GET and HEAD commands.
 
     This serves files from the current directory and any of its
-    subdirectories.  It assumes that all files are plain text files
-    unless they have the extension ".html" in which case it assumes
-    they are HTML files.
+    subdirectories.  The MIME type for files is determined by
+    calling the .guess_type() method.
 
     The GET and HEAD requests are identical except that the HEAD
     request omits the actual contents of the file.
@@ -70,17 +71,17 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             else:
                 return self.list_directory(path)
         ctype = self.guess_type(path)
-        if ctype.startswith('text/'):
-            mode = 'r'
-        else:
-            mode = 'rb'
         try:
-            f = open(path, mode)
+            # Always read in binary mode. Opening files in text mode may cause
+            # newline translations, making the actual size of the content
+            # transmitted *less* than the content-length!
+            f = open(path, 'rb')
         except IOError:
             self.send_error(404, "File not found")
             return None
         self.send_response(200)
         self.send_header("Content-type", ctype)
+        self.send_header("Content-Length", str(os.fstat(f.fileno())[6]))
         self.end_headers()
         return f
 
@@ -95,16 +96,17 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         try:
             list = os.listdir(path)
         except os.error:
-            self.send_error(404, "No permission to list directory");
+            self.send_error(404, "No permission to list directory")
             return None
-        list.sort(lambda a, b: cmp(a.lower(), b.lower()))
+        list.sort(key=lambda a: a.lower())
         f = StringIO()
-        f.write("<title>Directory listing for %s</title>\n" % self.path)
-        f.write("<h2>Directory listing for %s</h2>\n" % self.path)
+        displaypath = cgi.escape(urllib.unquote(self.path))
+        f.write("<title>Directory listing for %s</title>\n" % displaypath)
+        f.write("<h2>Directory listing for %s</h2>\n" % displaypath)
         f.write("<hr>\n<ul>\n")
         for name in list:
             fullname = os.path.join(path, name)
-            displayname = linkname = name = cgi.escape(name)
+            displayname = linkname = name
             # Append / for directories or @ for symbolic links
             if os.path.isdir(fullname):
                 displayname = name + "/"
@@ -112,11 +114,14 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             if os.path.islink(fullname):
                 displayname = name + "@"
                 # Note: a link to a directory displays with @ and links with /
-            f.write('<li><a href="%s">%s</a>\n' % (linkname, displayname))
+            f.write('<li><a href="%s">%s</a>\n'
+                    % (urllib.quote(linkname), cgi.escape(displayname)))
         f.write("</ul>\n<hr>\n")
+        length = f.tell()
         f.seek(0)
         self.send_response(200)
         self.send_header("Content-type", "text/html")
+        self.send_header("Content-Length", str(length))
         self.end_headers()
         return f
 
@@ -128,8 +133,10 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         probably be diagnosed.)
 
         """
+        # abandon query parameters
+        path = urlparse.urlparse(path)[2]
         path = posixpath.normpath(urllib.unquote(path))
-        words = string.splitfields(path, '/')
+        words = path.split('/')
         words = filter(None, words)
         path = os.getcwd()
         for word in words:
@@ -164,29 +171,30 @@ class SimpleHTTPRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         usable for a MIME Content-type header.
 
         The default implementation looks the file's extension
-        up in the table self.extensions_map, using text/plain
+        up in the table self.extensions_map, using application/octet-stream
         as a default; however it would be permissible (if
         slow) to look inside the data to make a better guess.
 
         """
 
         base, ext = posixpath.splitext(path)
-        if self.extensions_map.has_key(ext):
+        if ext in self.extensions_map:
             return self.extensions_map[ext]
-        ext = string.lower(ext)
-        if self.extensions_map.has_key(ext):
+        ext = ext.lower()
+        if ext in self.extensions_map:
             return self.extensions_map[ext]
         else:
             return self.extensions_map['']
-
-    extensions_map = {
-            '': 'text/plain',   # Default, *must* be present
-            '.html': 'text/html',
-            '.htm': 'text/html',
-            '.gif': 'image/gif',
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            }
+    
+    if not mimetypes.inited:
+        mimetypes.init() # try to read system mime.types
+    extensions_map = mimetypes.types_map.copy()
+    extensions_map.update({
+        '': 'application/octet-stream', # Default
+        '.py': 'text/plain',
+        '.c': 'text/plain',
+        '.h': 'text/plain',
+        })
 
 
 def test(HandlerClass = SimpleHTTPRequestHandler,

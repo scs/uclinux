@@ -12,6 +12,7 @@
    it explicitly, e.g. tkapp.eval("load {} Blt").
  */
 
+#include <string.h>
 #include <tcl.h>
 #include <tk.h>
 
@@ -19,14 +20,74 @@ int
 Tcl_AppInit(Tcl_Interp *interp)
 {
 	Tk_Window main_window;
+	const char * _tkinter_skip_tk_init;
 
+#ifdef TK_AQUA
+#ifndef MAX_PATH_LEN
+#define MAX_PATH_LEN 1024
+#endif
+	char tclLibPath[MAX_PATH_LEN], tkLibPath[MAX_PATH_LEN];
+	Tcl_Obj*	pathPtr;
+
+        /* pre- Tcl_Init code copied from tkMacOSXAppInit.c */
+	Tk_MacOSXOpenBundleResources (interp, "com.tcltk.tcllibrary",
+       	tclLibPath, MAX_PATH_LEN, 0);
+
+	if (tclLibPath[0] != '\0') {
+       	Tcl_SetVar(interp, "tcl_library", tclLibPath, TCL_GLOBAL_ONLY);
+		Tcl_SetVar(interp, "tclDefaultLibrary", tclLibPath, TCL_GLOBAL_ONLY);
+		Tcl_SetVar(interp, "tcl_pkgPath", tclLibPath, TCL_GLOBAL_ONLY);
+	}
+	
+   	if (tclLibPath[0] != '\0') {
+		Tcl_SetVar(interp, "tcl_library", tclLibPath, TCL_GLOBAL_ONLY);
+		Tcl_SetVar(interp, "tclDefaultLibrary", tclLibPath, TCL_GLOBAL_ONLY);
+		Tcl_SetVar(interp, "tcl_pkgPath", tclLibPath, TCL_GLOBAL_ONLY);
+	}
+#endif
 	if (Tcl_Init (interp) == TCL_ERROR)
 		return TCL_ERROR;
-	if (Tk_Init (interp) == TCL_ERROR)
+
+#ifdef TK_AQUA
+        /* pre- Tk_Init code copied from tkMacOSXAppInit.c */
+	Tk_MacOSXOpenBundleResources (interp, "com.tcltk.tklibrary",
+            tkLibPath, MAX_PATH_LEN, 1);
+
+	if (tclLibPath[0] != '\0') {
+		pathPtr = Tcl_NewStringObj(tclLibPath, -1);
+	} else {
+		Tcl_Obj *pathPtr = TclGetLibraryPath();
+	}
+
+	if (tkLibPath[0] != '\0') {
+		Tcl_Obj *objPtr;
+
+		Tcl_SetVar(interp, "tk_library", tkLibPath, TCL_GLOBAL_ONLY);
+		objPtr = Tcl_NewStringObj(tkLibPath, -1);
+		Tcl_ListObjAppendElement(NULL, pathPtr, objPtr);
+	}
+
+	TclSetLibraryPath(pathPtr);
+#endif
+
+#ifdef WITH_XXX
+		// Initialize modules that don't require Tk
+#endif
+
+	_tkinter_skip_tk_init =	Tcl_GetVar(interp, "_tkinter_skip_tk_init", TCL_GLOBAL_ONLY);
+	if (_tkinter_skip_tk_init != NULL && strcmp(_tkinter_skip_tk_init, "1")	== 0) {
+		return TCL_OK;
+	}
+	if (Tk_Init(interp) == TCL_ERROR)
 		return TCL_ERROR;
 
 	main_window = Tk_MainWindow(interp);
 
+#ifdef TK_AQUA
+	TkMacOSXInitAppleEvents(interp);
+	TkMacOSXInitMenus(interp);
+#endif
+    
 #ifdef WITH_MOREBUTTONS
 	{
 		extern Tcl_CmdProc studButtonCmd;

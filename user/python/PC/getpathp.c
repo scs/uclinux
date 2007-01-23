@@ -11,7 +11,7 @@
    * Python always adds an empty entry at the start, which corresponds
      to the current directory.
 
-   * If the PYTHONPATH env. var. exists, it's entries are added next.
+   * If the PYTHONPATH env. var. exists, its entries are added next.
 
    * We look in the registry for "application paths" - that is, sub-keys
      under the main PythonPath registry key.  These are added next (the
@@ -44,7 +44,7 @@
 
   * When Python is hosted in another exe (different directory, embedded via 
     COM, etc), the Python Home will not be deduced, so the core path from
-    the registry is used.  Other "application paths "in the registry are 
+    the registry is used.  Other "application paths" in the registry are 
     always read.
 
   * If Python can't find its home and there is no registry (eg, frozen
@@ -57,7 +57,7 @@
 #include "Python.h"
 #include "osdefs.h"
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 #include <windows.h>
 #include <tchar.h>
 #endif
@@ -65,10 +65,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
-
-#if HAVE_UNISTD_H
-#include <unistd.h>
-#endif /* HAVE_UNISTD_H */
 
 /* Search in some common locations for the associated Python libraries.
  *
@@ -85,6 +81,7 @@
 
 static char prefix[MAXPATHLEN+1];
 static char progpath[MAXPATHLEN+1];
+static char dllpath[MAXPATHLEN+1];
 static char *module_search_path = NULL;
 
 
@@ -136,7 +133,15 @@ ismodule(char *filename)	/* Is module -- check for .pyc/.pyo too */
 	return 0;
 }
 
-/* guarantees buffer will never overflow MAXPATHLEN+1 bytes */
+/* Add a path component, by appending stuff to buffer.
+   buffer must have at least MAXPATHLEN + 1 bytes allocated, and contain a
+   NUL-terminated string with no more than MAXPATHLEN characters (not counting
+   the trailing NUL).  It's a fatal error if it contains a string longer than
+   that (callers must be careful!).  If these requirements are met, it's
+   guaranteed that buffer will still be a NUL-terminated string with no more
+   than MAXPATHLEN characters at exit.  If stuff is too long, only as much of
+   stuff as fits will be appended.
+*/
 static void
 join(char *buffer, char *stuff)
 {
@@ -148,6 +153,8 @@ join(char *buffer, char *stuff)
 		if (n > 0 && !is_sep(buffer[n-1]) && n < MAXPATHLEN)
 			buffer[n++] = SEP;
 	}
+	if (n > MAXPATHLEN)
+		Py_FatalError("buffer overflow in getpathp.c's joinpath()");
 	k = strlen(stuff);
 	if (n + k > MAXPATHLEN)
 		k = MAXPATHLEN - n;
@@ -186,7 +193,7 @@ search_for_prefix(char *argv0_path, char *landmark)
 	return 0;
 }
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 
 /* a string loaded from the DLL at startup.*/
 extern const char *PyWin_DLLVersionString;
@@ -199,6 +206,10 @@ extern const char *PyWin_DLLVersionString;
    Ex family of functions so it also works with Windows CE.
 
    Returns NULL, or a pointer that should be freed.
+
+   XXX - this code is pretty strange, as it used to also
+   work on Win16, where the buffer sizes werent available
+   in advance.  It could be simplied now Win16/Win32s is dead!
 */
 
 static char *
@@ -279,6 +290,7 @@ getpythonregpath(HKEY keyBase, int skipcore)
 		}
 		RegCloseKey(subKey);
 	}
+	/* original datasize from RegQueryInfo doesn't include the \0 */
 	dataBuf = malloc((dataSize+1) * sizeof(TCHAR));
 	if (dataBuf) {
 		TCHAR *szCur = dataBuf;
@@ -299,8 +311,11 @@ getpythonregpath(HKEY keyBase, int skipcore)
 		if (skipcore)
 			*szCur = '\0';
 		else {
-			*(szCur++) = _T(';');
-			dataSize--;
+			/* If we have no values, we dont need a ';' */
+			if (numKeys) {
+				*(szCur++) = _T(';');
+				dataSize--;
+			}
 			/* Now append the core path entries - 
 			   this will include the NULL 
 			*/
@@ -316,7 +331,7 @@ getpythonregpath(HKEY keyBase, int skipcore)
 		if (retval)
 			WideCharToMultiByte(CP_ACP, 0, 
 					dataBuf, -1, /* source */ 
-					retval, dataSize+1, /* dest */
+					retval, reqdSize+1, /* dest */
 					NULL, NULL);
 		free(dataBuf);
 #else
@@ -336,7 +351,7 @@ done:
 		free(keyBuf);
 	return retval;
 }
-#endif /* MS_WIN32 */
+#endif /* MS_WINDOWS */
 
 static void
 get_progpath(void)
@@ -345,14 +360,23 @@ get_progpath(void)
 	char *path = getenv("PATH");
 	char *prog = Py_GetProgramName();
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
+	extern HANDLE PyWin_DLLhModule;
 #ifdef UNICODE
 	WCHAR wprogpath[MAXPATHLEN+1];
 	/* Windows documents that GetModuleFileName() will "truncate",
 	   but makes no mention of the null terminator.  Play it safe.
 	   PLUS Windows itself defines MAX_PATH as the same, but anyway...
 	*/
-	wprogpath[MAXPATHLEN]=_T('\0')';
+	wprogpath[MAXPATHLEN]=_T('\0');
+	if (PyWin_DLLhModule &&
+	    GetModuleFileName(PyWin_DLLhModule, wprogpath, MAXPATHLEN)) {
+		WideCharToMultiByte(CP_ACP, 0, 
+		                    wprogpath, -1, 
+		                    dllpath, MAXPATHLEN+1, 
+		                    NULL, NULL);
+	}
+	wprogpath[MAXPATHLEN]=_T('\0');
 	if (GetModuleFileName(NULL, wprogpath, MAXPATHLEN)) {
 		WideCharToMultiByte(CP_ACP, 0, 
 		                    wprogpath, -1, 
@@ -362,6 +386,9 @@ get_progpath(void)
 	}
 #else
 	/* static init of progpath ensures final char remains \0 */
+	if (PyWin_DLLhModule)
+		if (!GetModuleFileName(PyWin_DLLhModule, dllpath, MAXPATHLEN))
+			dllpath[0] = 0;
 	if (GetModuleFileName(NULL, progpath, MAXPATHLEN))
 		return;
 #endif
@@ -417,12 +444,14 @@ calculate_path(void)
 	char *buf;
 	size_t bufsz;
 	char *pythonhome = Py_GetPythonHome();
-	char *envpath = getenv("PYTHONPATH");
+	char *envpath = Py_GETENV("PYTHONPATH");
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 	int skiphome, skipdefault;
 	char *machinepath = NULL;
 	char *userpath = NULL;
+	char zip_path[MAXPATHLEN+1];
+	size_t len;
 #endif
 
 	get_progpath();
@@ -442,7 +471,23 @@ calculate_path(void)
 		envpath = NULL;
 
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
+	/* Calculate zip archive path */
+	if (dllpath[0])		/* use name of python DLL */
+		strncpy(zip_path, dllpath, MAXPATHLEN);
+	else			/* use name of executable program */
+		strncpy(zip_path, progpath, MAXPATHLEN);
+	zip_path[MAXPATHLEN] = '\0';
+	len = strlen(zip_path);
+	if (len > 4) {
+		zip_path[len-3] = 'z';	/* change ending to "zip" */
+		zip_path[len-2] = 'i';
+		zip_path[len-1] = 'p';
+	}
+	else {
+		zip_path[0] = 0;
+	}
+ 
 	skiphome = pythonhome==NULL ? 0 : 1;
 	machinepath = getpythonregpath(HKEY_LOCAL_MACHINE, skiphome);
 	userpath = getpythonregpath(HKEY_CURRENT_USER, skiphome);
@@ -454,14 +499,15 @@ calculate_path(void)
 
 	/* We need to construct a path from the following parts.
 	   (1) the PYTHONPATH environment variable, if set;
-	   (2) for Win32, the machinepath and userpath, if set;
-	   (3) the PYTHONPATH config macro, with the leading "."
+	   (2) for Win32, the zip archive file path;
+	   (3) for Win32, the machinepath and userpath, if set;
+	   (4) the PYTHONPATH config macro, with the leading "."
 	       of each component replaced with pythonhome, if set;
-	   (4) the directory containing the executable (argv0_path).
-	   The length calculation calculates #3 first.
+	   (5) the directory containing the executable (argv0_path).
+	   The length calculation calculates #4 first.
 	   Extra rules:
-	   - If PYTHONHOME is set (in any way) item (2) is ignored.
-	   - If registry values are used, (3) and (4) are ignored.
+	   - If PYTHONHOME is set (in any way) item (3) is ignored.
+	   - If registry values are used, (4) and (5) are ignored.
 	*/
 
 	/* Calculate size of return buffer */
@@ -478,11 +524,12 @@ calculate_path(void)
 		bufsz = 0;
 	bufsz += strlen(PYTHONPATH) + 1;
 	bufsz += strlen(argv0_path) + 1;
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 	if (userpath)
 		bufsz += strlen(userpath) + 1;
 	if (machinepath)
 		bufsz += strlen(machinepath) + 1;
+	bufsz += strlen(zip_path) + 1;
 #endif
 	if (envpath != NULL)
 		bufsz += strlen(envpath) + 1;
@@ -499,12 +546,12 @@ calculate_path(void)
 			fprintf(stderr, "Using default static path.\n");
 			module_search_path = PYTHONPATH;
 		}
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 		if (machinepath)
 			free(machinepath);
 		if (userpath)
 			free(userpath);
-#endif /* MS_WIN32 */
+#endif /* MS_WINDOWS */
 		return;
 	}
 
@@ -513,7 +560,12 @@ calculate_path(void)
 		buf = strchr(buf, '\0');
 		*buf++ = DELIM;
 	}
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
+	if (zip_path[0]) {
+		strcpy(buf, zip_path);
+		buf = strchr(buf, '\0');
+		*buf++ = DELIM;
+	}
 	if (userpath) {
 		strcpy(buf, userpath);
 		buf = strchr(buf, '\0');
@@ -537,7 +589,7 @@ calculate_path(void)
 		strcpy(buf, PYTHONPATH);
 		buf = strchr(buf, '\0');
 	}
-#endif /* MS_WIN32 */
+#endif /* MS_WINDOWS */
 	else {
 		char *p = PYTHONPATH;
 		char *q;
@@ -568,6 +620,40 @@ calculate_path(void)
 		buf = strchr(buf, '\0');
 	}
 	*buf = '\0';
+	/* Now to pull one last hack/trick.  If sys.prefix is
+	   empty, then try and find it somewhere on the paths
+	   we calculated.  We scan backwards, as our general policy
+	   is that Python core directories are at the *end* of
+	   sys.path.  We assume that our "lib" directory is
+	   on the path, and that our 'prefix' directory is
+	   the parent of that.
+	*/
+	if (*prefix=='\0') {
+		char lookBuf[MAXPATHLEN+1];
+		char *look = buf - 1; /* 'buf' is at the end of the buffer */
+		while (1) {
+			int nchars;
+			char *lookEnd = look;
+			/* 'look' will end up one character before the
+			   start of the path in question - even if this
+			   is one character before the start of the buffer
+			*/
+			while (*look != DELIM && look >= module_search_path)
+				look--;
+			nchars = lookEnd-look;
+			strncpy(lookBuf, look+1, nchars);
+			lookBuf[nchars] = '\0';
+			/* Up one level to the parent */
+			reduce(lookBuf);
+			if (search_for_prefix(lookBuf, LANDMARK)) {
+				break;
+			}
+			/* If we are out of paths to search - give up */
+			if (look < module_search_path)
+				break;
+			look--;
+		}
+	}
 }
 
 

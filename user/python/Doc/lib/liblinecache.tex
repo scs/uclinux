@@ -2,7 +2,7 @@
          Random access to text lines}
 
 \declaremodule{standard}{linecache}
-\sectionauthor{Moshe Zadka}{mzadka@geocities.com}
+\sectionauthor{Moshe Zadka}{moshez@zadka.site.co.il}
 \modulesynopsis{This module provides random access to individual lines
                 from text files.}
 
@@ -31,9 +31,10 @@ Clear the cache.  Use this function if you no longer need lines from
 files previously read using \function{getline()}.
 \end{funcdesc}
 
-\begin{funcdesc}{checkcache}{}
+\begin{funcdesc}{checkcache}{\optional{filename}}
 Check the cache for validity.  Use this function if files in the cache 
-may have changed on disk, and you require the updated version.
+may have changed on disk, and you require the updated version.  If
+\var{filename} is omitted, it will check all the entries in the cache.
 \end{funcdesc}
 
 Example:
@@ -41,5 +42,5 @@ Example:
 \begin{verbatim}
 >>> import linecache
 >>> linecache.getline('/etc/passwd', 4)
-'sys:x:3:3:sys:/dev:/bin/sh\012'
+'sys:x:3:3:sys:/dev:/bin/sh\n'
 \end{verbatim}

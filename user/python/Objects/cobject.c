@@ -46,9 +46,9 @@ PyCObject_FromVoidPtrAndDesc(void *cobj, void *desc,
     self = PyObject_NEW(PyCObject, &PyCObject_Type);
     if (self == NULL)
         return NULL;
-    self->cobject=cobj;
-    self->destructor=(destructor1)destr;
-    self->desc=desc;
+    self->cobject = cobj;
+    self->destructor = (destructor1)destr;
+    self->desc = desc;
 
     return (PyObject *)self;
 }
@@ -99,6 +99,20 @@ PyCObject_Import(char *module_name, char *name)
     return r;
 }
 
+int
+PyCObject_SetVoidPtr(PyObject *self, void *cobj)
+{
+    PyCObject* cself = (PyCObject*)self;
+    if (cself == NULL || !PyCObject_Check(cself) ||
+	cself->destructor != NULL) {
+	PyErr_SetString(PyExc_TypeError, 
+			"Invalid call to PyCObject_SetVoidPtr");
+	return 0;
+    }
+    cself->cobject = cobj;
+    return 1;
+}
+
 static void
 PyCObject_dealloc(PyCObject *self)
 {
@@ -112,13 +126,13 @@ PyCObject_dealloc(PyCObject *self)
 }
 
 
-static char PyCObject_Type__doc__[] = 
+PyDoc_STRVAR(PyCObject_Type__doc__,
 "C objects to be exported from one extension module to another\n\
 \n\
 C objects are used for communication between extension modules.  They\n\
 provide a way for an extension module to export a C interface to other\n\
 extension modules, so that extension modules can use the Python import\n\
-mechanism to link to one another.";
+mechanism to link to one another.");
 
 PyTypeObject PyCObject_Type = {
     PyObject_HEAD_INIT(&PyType_Type)

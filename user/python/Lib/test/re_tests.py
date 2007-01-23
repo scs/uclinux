@@ -548,6 +548,13 @@ tests = [
     ('a(?:b|(c|e){1,2}?|d)+?(.)', 'ace', SUCCEED, 'g1 + g2', 'ce'),
     ('^(.+)?B', 'AB', SUCCEED, 'g1', 'A'),
 
+    # lookbehind: split by : but not if it is escaped by -.
+    ('(?<!-):(.*?)(?<!-):', 'a:bc-:de:f', SUCCEED, 'g1', 'bc-:de' ),
+    # escaping with \ as we know it
+    ('(?<!\\\):(.*?)(?<!\\\):', 'a:bc\\:de:f', SUCCEED, 'g1', 'bc\\:de' ),
+    # terminating with ' and escaping with ? as in edifact
+    ("(?<!\\?)'(.*?)(?<!\\?)'", "a'bc?'de'f", SUCCEED, 'g1', "bc?'de" ),
+
     # Comments using the (?#...) syntax
 
     ('w(?# comment', 'w', SYNTAX_ERROR),
@@ -598,7 +605,7 @@ xyzabc
 
     (r'\xff', '\377', SUCCEED, 'found', chr(255)),
     # new \x semantics
-    (r'\x00ff', '\377', FAIL, 'found', chr(255)),
+    (r'\x00ff', '\377', FAIL),
     # (r'\x00ff', '\377', SUCCEED, 'found', chr(255)),
     (r'\t\n\v\r\f\a\g', '\t\n\v\r\f\ag', SUCCEED, 'found', '\t\n\v\r\f\ag'),
     ('\t\n\v\r\f\a\g', '\t\n\v\r\f\ag', SUCCEED, 'found', '\t\n\v\r\f\ag'),
@@ -610,11 +617,13 @@ xyzabc
 
     # xmllib problem
     (r'(([a-z]+):)?([a-z]+)$', 'smil', SUCCEED, 'g1+"-"+g2+"-"+g3', 'None-None-smil'),
-    # bug 111869 (PRE/PCRE fails on this one, SRE doesn't)
+    # bug 110866: reference to undefined group
+    (r'((.)\1+)', '', SYNTAX_ERROR),
+    # bug 111869: search (PRE/PCRE fails on this one, SRE doesn't)
     (r'.*d', 'abc\nabd', SUCCEED, 'found', 'abd'),
     # bug 112468: various expected syntax errors
-    ('(', '', SYNTAX_ERROR),
-    ('[\\41]', '!', SUCCEED, 'found', '!'),
+    (r'(', '', SYNTAX_ERROR),
+    (r'[\41]', '!', SUCCEED, 'found', '!'),
     # bug 114033: nothing to repeat
     (r'(x?)?', 'x', SUCCEED, 'found', 'x'),
     # bug 115040: rescan if flags are modified inside pattern
@@ -623,5 +632,43 @@ xyzabc
     (r'(?<!abc)(d.f)', 'abcdefdof', SUCCEED, 'found', 'dof'),
     # bug 116251: character class bug
     (r'[\w-]+', 'laser_beam', SUCCEED, 'found', 'laser_beam'),
-
+    # bug 123769+127259: non-greedy backtracking bug
+    (r'.*?\S *:', 'xx:', SUCCEED, 'found', 'xx:'),
+    (r'a[ ]*?\ (\d+).*', 'a   10', SUCCEED, 'found', 'a   10'),
+    (r'a[ ]*?\ (\d+).*', 'a    10', SUCCEED, 'found', 'a    10'),
+    # bug 127259: \Z shouldn't depend on multiline mode
+    (r'(?ms).*?x\s*\Z(.*)','xx\nx\n', SUCCEED, 'g1', ''),
+    # bug 128899: uppercase literals under the ignorecase flag
+    (r'(?i)M+', 'MMM', SUCCEED, 'found', 'MMM'),
+    (r'(?i)m+', 'MMM', SUCCEED, 'found', 'MMM'),
+    (r'(?i)[M]+', 'MMM', SUCCEED, 'found', 'MMM'),
+    (r'(?i)[m]+', 'MMM', SUCCEED, 'found', 'MMM'),
+    # bug 130748: ^* should be an error (nothing to repeat)
+    (r'^*', '', SYNTAX_ERROR),
+    # bug 133283: minimizing repeat problem
+    (r'"(?:\\"|[^"])*?"', r'"\""', SUCCEED, 'found', r'"\""'),
+    # bug 477728: minimizing repeat problem
+    (r'^.*?$', 'one\ntwo\nthree\n', FAIL),
+    # bug 483789: minimizing repeat problem
+    (r'a[^>]*?b', 'a>b', FAIL),
+    # bug 490573: minimizing repeat problem
+    (r'^a*?$', 'foo', FAIL),
+    # bug 470582: nested groups problem
+    (r'^((a)c)?(ab)$', 'ab', SUCCEED, 'g1+"-"+g2+"-"+g3', 'None-None-ab'),
+    # another minimizing repeat problem (capturing groups in assertions)
+    ('^([ab]*?)(?=(b)?)c', 'abc', SUCCEED, 'g1+"-"+g2', 'ab-None'),
+    ('^([ab]*?)(?!(b))c', 'abc', SUCCEED, 'g1+"-"+g2', 'ab-None'),
+    ('^([ab]*?)(?<!(a))c', 'abc', SUCCEED, 'g1+"-"+g2', 'ab-None'),
 ]
+
+try:
+    u = eval("u'\N{LATIN CAPITAL LETTER A WITH DIAERESIS}'")
+except SyntaxError:
+    pass
+else:
+    tests.extend([
+    # bug 410271: \b broken under locales
+    (r'\b.\b', 'a', SUCCEED, 'found', 'a'),
+    (r'(?u)\b.\b', u, SUCCEED, 'found', u),
+    (r'(?u)\w', u, SUCCEED, 'found', u),
+    ])

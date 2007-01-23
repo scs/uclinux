@@ -6,12 +6,8 @@
 #include "Python.h"
 #include "intrcheck.h"
 
-#ifdef MS_WIN32
+#ifdef MS_WINDOWS
 #include <process.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #include <signal.h>
@@ -20,7 +16,7 @@
 #define SIG_ERR ((PyOS_sighandler_t)(-1))
 #endif
 
-#if defined(PYOS_OS2)
+#if defined(PYOS_OS2) && !defined(PYCC_GCC)
 #define NSIG 12
 #include <process.h>
 #endif
@@ -85,6 +81,11 @@ static PyObject *DefaultHandler;
 static PyObject *IgnoreHandler;
 static PyObject *IntHandler;
 
+/* On Solaris 8, gcc will produce a warning that the function
+   declaration is not a prototype. This is caused by the definition of
+   SIG_DFL as (void (*)())0; the correct declaration would have been
+   (void (*)(int))0. */
+
 static PyOS_sighandler_t old_siginthandler = SIG_DFL;
 
 
@@ -95,11 +96,11 @@ signal_default_int_handler(PyObject *self, PyObject *args)
 	return NULL;
 }
 
-static char default_int_handler_doc[] =
+PyDoc_STRVAR(default_int_handler_doc,
 "default_int_handler(...)\n\
 \n\
-The default handler for SIGINT instated by Python.\n\
-It raises KeyboardInterrupt.";
+The default handler for SIGINT installed by Python.\n\
+It raises KeyboardInterrupt.");
 
 
 static int
@@ -136,9 +137,6 @@ signal_handler(int sig_num)
 		return;
 	}
 #endif
-#ifdef HAVE_SIGINTERRUPT
-	siginterrupt(sig_num, 1);
-#endif
 	PyOS_setsig(sig_num, signal_handler);
 }
 
@@ -148,25 +146,22 @@ static PyObject *
 signal_alarm(PyObject *self, PyObject *args)
 {
 	int t;
-	if (!PyArg_Parse(args, "i", &t))
+	if (!PyArg_ParseTuple(args, "i:alarm", &t))
 		return NULL;
 	/* alarm() returns the number of seconds remaining */
-	return PyInt_FromLong(alarm(t));
+	return PyInt_FromLong((long)alarm(t));
 }
 
-static char alarm_doc[] =
+PyDoc_STRVAR(alarm_doc,
 "alarm(seconds)\n\
 \n\
-Arrange for SIGALRM to arrive after the given number of seconds.";
+Arrange for SIGALRM to arrive after the given number of seconds.");
 #endif
 
 #ifdef HAVE_PAUSE
 static PyObject *
-signal_pause(PyObject *self, PyObject *args)
+signal_pause(PyObject *self)
 {
-	if (!PyArg_NoArgs(args))
-		return NULL;
-
 	Py_BEGIN_ALLOW_THREADS
 	(void)pause();
 	Py_END_ALLOW_THREADS
@@ -179,10 +174,10 @@ signal_pause(PyObject *self, PyObject *args)
 	Py_INCREF(Py_None);
 	return Py_None;
 }
-static char pause_doc[] =
+PyDoc_STRVAR(pause_doc,
 "pause()\n\
 \n\
-Wait until a signal arrives.";
+Wait until a signal arrives.");
 
 #endif
 
@@ -194,7 +189,7 @@ signal_signal(PyObject *self, PyObject *args)
 	int sig_num;
 	PyObject *old_handler;
 	void (*func)(int);
-	if (!PyArg_Parse(args, "(iO)", &sig_num, &obj))
+	if (!PyArg_ParseTuple(args, "iO:signal", &sig_num, &obj))
 		return NULL;
 #ifdef WITH_THREAD
 	if (PyThread_get_thread_ident() != main_thread) {
@@ -219,9 +214,6 @@ signal_signal(PyObject *self, PyObject *args)
 	}
 	else
 		func = signal_handler;
-#ifdef HAVE_SIGINTERRUPT
-	siginterrupt(sig_num, 1);
-#endif
 	if (PyOS_setsig(sig_num, func) == SIG_ERR) {
 		PyErr_SetFromErrno(PyExc_RuntimeError);
 		return NULL;
@@ -233,7 +225,7 @@ signal_signal(PyObject *self, PyObject *args)
 	return old_handler;
 }
 
-static char signal_doc[] =
+PyDoc_STRVAR(signal_doc,
 "signal(sig, action) -> action\n\
 \n\
 Set the action for the given signal.  The action can be SIG_DFL,\n\
@@ -242,7 +234,7 @@ returned.  See getsignal() for possible return values.\n\
 \n\
 *** IMPORTANT NOTICE ***\n\
 A signal handler function is called with two arguments:\n\
-the first is the signal number, the second is the interrupted stack frame.";
+the first is the signal number, the second is the interrupted stack frame.");
 
 
 static PyObject *
@@ -250,7 +242,7 @@ signal_getsignal(PyObject *self, PyObject *args)
 {
 	int sig_num;
 	PyObject *old_handler;
-	if (!PyArg_Parse(args, "i", &sig_num))
+	if (!PyArg_ParseTuple(args, "i:getsignal", &sig_num))
 		return NULL;
 	if (sig_num < 1 || sig_num >= NSIG) {
 		PyErr_SetString(PyExc_ValueError,
@@ -262,34 +254,34 @@ signal_getsignal(PyObject *self, PyObject *args)
 	return old_handler;
 }
 
-static char getsignal_doc[] =
+PyDoc_STRVAR(getsignal_doc,
 "getsignal(sig) -> action\n\
 \n\
 Return the current action for the given signal.  The return value can be:\n\
 SIG_IGN -- if the signal is being ignored\n\
 SIG_DFL -- if the default action for the signal is in effect\n\
 None -- if an unknown handler is in effect\n\
-anything else -- the callable Python object used as a handler\n\
-";
+anything else -- the callable Python object used as a handler");
 
 
 /* List of functions defined in the module */
 static PyMethodDef signal_methods[] = {
 #ifdef HAVE_ALARM
-	{"alarm",	        signal_alarm, METH_OLDARGS, alarm_doc},
+	{"alarm",	        signal_alarm, METH_VARARGS, alarm_doc},
 #endif
-	{"signal",	        signal_signal, METH_OLDARGS, signal_doc},
-	{"getsignal",	        signal_getsignal, METH_OLDARGS, getsignal_doc},
+	{"signal",	        signal_signal, METH_VARARGS, signal_doc},
+	{"getsignal",	        signal_getsignal, METH_VARARGS, getsignal_doc},
 #ifdef HAVE_PAUSE
-	{"pause",	        signal_pause, METH_OLDARGS, pause_doc},
+	{"pause",	        (PyCFunction)signal_pause,
+	 METH_NOARGS,pause_doc},
 #endif
 	{"default_int_handler", signal_default_int_handler, 
-	 METH_OLDARGS, default_int_handler_doc},
+	 METH_VARARGS, default_int_handler_doc},
 	{NULL,			NULL}		/* sentinel */
 };
 
 
-static char module_doc[] =
+PyDoc_STRVAR(module_doc,
 "This module provides mechanisms to use signal handlers in Python.\n\
 \n\
 Functions:\n\
@@ -310,9 +302,9 @@ SIGINT, SIGTERM, etc. -- signal numbers\n\
 \n\
 *** IMPORTANT NOTICE ***\n\
 A signal handler function is called with two arguments:\n\
-the first is the signal number, the second is the interrupted stack frame.";
+the first is the signal number, the second is the interrupted stack frame.");
 
-DL_EXPORT(void)
+PyMODINIT_FUNC
 initsignal(void)
 {
 	PyObject *m, *d, *x;
@@ -325,6 +317,8 @@ initsignal(void)
 
 	/* Create the module and add the functions */
 	m = Py_InitModule3("signal", signal_methods, module_doc);
+	if (m == NULL)
+		return;
 
 	/* Add some symbolic constants to the module */
 	d = PyModule_GetDict(m);
@@ -365,7 +359,7 @@ initsignal(void)
 		Py_INCREF(IntHandler);
 		Py_DECREF(Handlers[SIGINT].func);
 		Handlers[SIGINT].func = IntHandler;
-		old_siginthandler = PyOS_setsig(SIGINT, &signal_handler);
+		old_siginthandler = PyOS_setsig(SIGINT, signal_handler);
 	}
 
 #ifdef SIGHUP
@@ -376,6 +370,11 @@ initsignal(void)
 #ifdef SIGINT
 	x = PyInt_FromLong(SIGINT);
 	PyDict_SetItemString(d, "SIGINT", x);
+        Py_XDECREF(x);
+#endif
+#ifdef SIGBREAK
+	x = PyInt_FromLong(SIGBREAK);
+	PyDict_SetItemString(d, "SIGBREAK", x);
         Py_XDECREF(x);
 #endif
 #ifdef SIGQUIT
@@ -538,6 +537,21 @@ initsignal(void)
 	PyDict_SetItemString(d, "SIGXFSZ", x);
         Py_XDECREF(x);
 #endif
+#ifdef SIGRTMIN
+        x = PyInt_FromLong(SIGRTMIN);
+        PyDict_SetItemString(d, "SIGRTMIN", x);
+        Py_XDECREF(x);
+#endif
+#ifdef SIGRTMAX
+        x = PyInt_FromLong(SIGRTMAX);
+        PyDict_SetItemString(d, "SIGRTMAX", x);
+        Py_XDECREF(x);
+#endif
+#ifdef SIGINFO
+	x = PyInt_FromLong(SIGINFO);
+	PyDict_SetItemString(d, "SIGINFO", x);
+        Py_XDECREF(x);
+#endif
         if (!PyErr_Occurred())
                 return;
 
@@ -587,7 +601,7 @@ PyErr_CheckSignals(void)
 	if (PyThread_get_thread_ident() != main_thread)
 		return 0;
 #endif
-	if (!(f = PyEval_GetFrame()))
+	if (!(f = (PyObject *)PyEval_GetFrame()))
 		f = Py_None;
 	
 	for (i = 1; i < NSIG; i++) {
@@ -657,5 +671,6 @@ PyOS_AfterFork(void)
 	PyEval_ReInitThreads();
 	main_thread = PyThread_get_thread_ident();
 	main_pid = getpid();
+	_PyImport_ReInitLock();
 #endif
 }

@@ -24,7 +24,7 @@ import user
 
 The \module{user} module looks for a file \file{.pythonrc.py} in the user's
 home directory and if it can be opened, executes it (using
-\function{execfile()}\bifuncindex{execfile}) in its own (i.e. the
+\function{execfile()}\bifuncindex{execfile}) in its own (the
 module \module{user}'s) global namespace.  Errors during this phase
 are not caught; that's up to the program that imports the
 \module{user} module, if it wishes.  The home directory is assumed to
@@ -48,11 +48,13 @@ level can look for a variable \code{user.spam_verbose}, as follows:
 
 \begin{verbatim}
 import user
-try:
-    verbose = user.spam_verbose  # user's verbosity preference
-except AttributeError:
-    verbose = 0                  # default verbosity
+
+verbose = bool(getattr(user, "spam_verbose", 0))
 \end{verbatim}
+
+(The three-argument form of \function{getattr()} is used in case
+the user has not defined \code{spam_verbose} in their
+\file{.pythonrc.py} file.)
 
 Programs with extensive customization needs are better off reading a
 program-specific customization file.
@@ -65,6 +67,5 @@ Modules for general use should \emph{not} import this module; it may
 interfere with the operation of the importing program.
 
 \begin{seealso}
-\seemodule{site}{site-wide customization mechanism}
-\refstmodindex{site}
+  \seemodule{site}{Site-wide customization mechanism.}
 \end{seealso}

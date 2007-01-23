@@ -18,30 +18,34 @@ cygwin in no-cygwin mode).
 #
 #   see also http://starship.python.net/crew/kernr/mingw32/Notes.html
 #
-# * We put export_symbols in a def-file, and don't use 
+# * We put export_symbols in a def-file, and don't use
 #   --export-all-symbols because it doesn't worked reliable in some
 #   tested configurations. And because other windows compilers also
 #   need their symbols specified this no serious problem.
 #
 # tested configurations:
-#   
-# * cygwin gcc 2.91.57/ld 2.9.4/dllwrap 0.2.4 works 
+#
+# * cygwin gcc 2.91.57/ld 2.9.4/dllwrap 0.2.4 works
 #   (after patching python's config.h and for C++ some other include files)
 #   see also http://starship.python.net/crew/kernr/mingw32/Notes.html
-# * mingw32 gcc 2.95.2/ld 2.9.4/dllwrap 0.2.4 works 
-#   (ld doesn't support -shared, so we use dllwrap)   
+# * mingw32 gcc 2.95.2/ld 2.9.4/dllwrap 0.2.4 works
+#   (ld doesn't support -shared, so we use dllwrap)
 # * cygwin gcc 2.95.2/ld 2.10.90/dllwrap 2.10.90 works now
 #   - its dllwrap doesn't work, there is a bug in binutils 2.10.90
 #     see also http://sources.redhat.com/ml/cygwin/2000-06/msg01274.html
-#   - using gcc -mdll instead dllwrap doesn't work without -static because 
+#   - using gcc -mdll instead dllwrap doesn't work without -static because
 #     it tries to link against dlls instead their import libraries. (If
 #     it finds the dll first.)
-#     By specifying -static we force ld to link against the import libraries, 
-#     this is windows standard and there are normally not the necessary symbols 
+#     By specifying -static we force ld to link against the import libraries,
+#     this is windows standard and there are normally not the necessary symbols
 #     in the dlls.
-#   *** only the version of June 2000 shows these problems 
+#   *** only the version of June 2000 shows these problems
+# * cygwin gcc 3.2/ld 2.13.90 works
+#   (ld supports -shared)
+# * mingw gcc 3.2/ld 2.13 works
+#   (ld supports -shared)
 
-# created 2000/05/05, Rene Liebscher
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -50,6 +54,7 @@ from distutils.ccompiler import gen_preprocess_options, gen_lib_options
 from distutils.unixccompiler import UnixCCompiler
 from distutils.file_util import write_file
 from distutils.errors import DistutilsExecError, CompileError, UnknownFileError
+from distutils import log
 
 class CygwinCCompiler (UnixCCompiler):
 
@@ -60,11 +65,8 @@ class CygwinCCompiler (UnixCCompiler):
     static_lib_format = "lib%s%s"
     shared_lib_format = "%s%s"
     exe_extension = ".exe"
-   
-    def __init__ (self,
-                  verbose=0,
-                  dry_run=0,
-                  force=0):
+
+    def __init__ (self, verbose=0, dry_run=0, force=0):
 
         UnixCCompiler.__init__ (self, verbose, dry_run, force)
 
@@ -73,103 +75,81 @@ class CygwinCCompiler (UnixCCompiler):
                          (status, details))
         if status is not CONFIG_H_OK:
             self.warn(
-                "Python's config.h doesn't seem to support your compiler.  " +
-                ("Reason: %s." % details) +
-                "Compiling may fail because of undefined preprocessor macros.")
-        
-        (self.gcc_version, self.ld_version, self.dllwrap_version) = \
+                "Python's pyconfig.h doesn't seem to support your compiler. "
+                "Reason: %s. "
+                "Compiling may fail because of undefined preprocessor macros."
+                % details)
+
+        self.gcc_version, self.ld_version, self.dllwrap_version = \
             get_versions()
         self.debug_print(self.compiler_type + ": gcc %s, ld %s, dllwrap %s\n" %
-                         (self.gcc_version, 
-                          self.ld_version, 
+                         (self.gcc_version,
+                          self.ld_version,
                           self.dllwrap_version) )
 
-        # ld_version >= "2.10.90" should also be able to use 
+        # ld_version >= "2.10.90" and < "2.13" should also be able to use
         # gcc -mdll instead of dllwrap
-        # Older dllwraps had own version numbers, newer ones use the 
+        # Older dllwraps had own version numbers, newer ones use the
         # same as the rest of binutils ( also ld )
         # dllwrap 2.10.90 is buggy
-        if self.ld_version >= "2.10.90": 
+        if self.ld_version >= "2.10.90":
             self.linker_dll = "gcc"
         else:
             self.linker_dll = "dllwrap"
+
+        # ld_version >= "2.13" support -shared so use it instead of
+        # -mdll -static
+        if self.ld_version >= "2.13":
+            shared_option = "-shared"
+        else:
+            shared_option = "-mdll -static"
 
         # Hard-code GCC because that's what this is all about.
         # XXX optimization, warnings etc. should be customizable.
         self.set_executables(compiler='gcc -mcygwin -O -Wall',
                              compiler_so='gcc -mcygwin -mdll -O -Wall',
+                             compiler_cxx='g++ -mcygwin -O -Wall',
                              linker_exe='gcc -mcygwin',
-                             linker_so=('%s -mcygwin -mdll -static' %
-                                        self.linker_dll))
+                             linker_so=('%s -mcygwin %s' %
+                                        (self.linker_dll, shared_option)))
 
-        # cygwin and mingw32 need different sets of libraries 
+        # cygwin and mingw32 need different sets of libraries
         if self.gcc_version == "2.91.57":
             # cygwin shouldn't need msvcrt, but without the dlls will crash
             # (gcc version 2.91.57) -- perhaps something about initialization
             self.dll_libraries=["msvcrt"]
-            self.warn( 
+            self.warn(
                 "Consider upgrading to a newer version of gcc")
         else:
             self.dll_libraries=[]
-        
+            # Include the appropriate MSVC runtime library if Python was built
+            # with MSVC 7.0 or 7.1.
+            msc_pos = sys.version.find('MSC v.')
+            if msc_pos != -1:
+                msc_ver = sys.version[msc_pos+6:msc_pos+10]
+                if msc_ver == '1300':
+                    # MSVC 7.0
+                    self.dll_libraries = ['msvcr70']
+                elif msc_ver == '1310':
+                    # MSVC 7.1
+                    self.dll_libraries = ['msvcr71']
+
     # __init__ ()
 
-    # not much different of the compile method in UnixCCompiler,
-    # but we have to insert some lines in the middle of it, so
-    # we put here a adapted version of it.
-    # (If we would call compile() in the base class, it would do some 
-    # initializations a second time, this is why all is done here.)
-    def compile (self,
-                 sources,
-                 output_dir=None,
-                 macros=None,
-                 include_dirs=None,
-                 debug=0,
-                 extra_preargs=None,
-                 extra_postargs=None):
 
-        (output_dir, macros, include_dirs) = \
-            self._fix_compile_args (output_dir, macros, include_dirs)
-        (objects, skip_sources) = self._prep_compile (sources, output_dir)
-
-        # Figure out the options for the compiler command line.
-        pp_opts = gen_preprocess_options (macros, include_dirs)
-        cc_args = pp_opts + ['-c']
-        if debug:
-            cc_args[:0] = ['-g']
-        if extra_preargs:
-            cc_args[:0] = extra_preargs
-        if extra_postargs is None:
-            extra_postargs = []
-
-        # Compile all source files that weren't eliminated by
-        # '_prep_compile()'.        
-        for i in range (len (sources)):
-            src = sources[i] ; obj = objects[i]
-            ext = (os.path.splitext (src))[1]
-            if skip_sources[src]:
-                self.announce ("skipping %s (%s up-to-date)" % (src, obj))
-            else:
-                self.mkpath (os.path.dirname (obj))
-                if ext == '.rc' or ext == '.res':
-                    # gcc needs '.res' and '.rc' compiled to object files !!!
-                    try:
-                        self.spawn (["windres","-i",src,"-o",obj])
-                    except DistutilsExecError, msg:
-                        raise CompileError, msg
-                else: # for other files use the C-compiler 
-                    try:
-                        self.spawn (self.compiler_so + cc_args +
-                                [src, '-o', obj] +
-                                extra_postargs)
-                    except DistutilsExecError, msg:
-                        raise CompileError, msg
-
-        # Return *all* object filenames, not just the ones we just built.
-        return objects
-
-    # compile ()
-
+    def _compile(self, obj, src, ext, cc_args, extra_postargs, pp_opts):
+        if ext == '.rc' or ext == '.res':
+            # gcc needs '.res' and '.rc' compiled to object files !!!
+            try:
+                self.spawn(["windres", "-i", src, "-o", obj])
+            except DistutilsExecError, msg:
+                raise CompileError, msg
+        else: # for other files use the C-compiler
+            try:
+                self.spawn(self.compiler_so + cc_args + [src, '-o', obj] +
+                           extra_postargs)
+            except DistutilsExecError, msg:
+                raise CompileError, msg
 
     def link (self,
               target_desc,
@@ -183,13 +163,14 @@ class CygwinCCompiler (UnixCCompiler):
               debug=0,
               extra_preargs=None,
               extra_postargs=None,
-              build_temp=None):
-        
+              build_temp=None,
+              target_lang=None):
+
         # use separate copies, so we can modify the lists
         extra_preargs = copy.copy(extra_preargs or [])
         libraries = copy.copy(libraries or [])
         objects = copy.copy(objects or [])
-                
+
         # Additional libraries
         libraries.extend(self.dll_libraries)
 
@@ -199,10 +180,10 @@ class CygwinCCompiler (UnixCCompiler):
             (target_desc != self.EXECUTABLE or self.linker_dll == "gcc")):
             # (The linker doesn't do anything if output is up-to-date.
             # So it would probably better to check if we really need this,
-            # but for this we had to insert some unchanged parts of 
-            # UnixCCompiler, and this is not what we want.) 
+            # but for this we had to insert some unchanged parts of
+            # UnixCCompiler, and this is not what we want.)
 
-            # we want to put some files in the same directory as the 
+            # we want to put some files in the same directory as the
             # object files are, build_temp doesn't help much
             # where are the object files
             temp_dir = os.path.dirname(objects[0])
@@ -212,9 +193,8 @@ class CygwinCCompiler (UnixCCompiler):
 
             # generate the filenames for these files
             def_file = os.path.join(temp_dir, dll_name + ".def")
-            exp_file = os.path.join(temp_dir, dll_name + ".exp")
             lib_file = os.path.join(temp_dir, 'lib' + dll_name + ".a")
-       
+
             # Generate .def file
             contents = [
                 "LIBRARY %s" % os.path.basename(output_filename),
@@ -228,30 +208,28 @@ class CygwinCCompiler (UnixCCompiler):
 
             # dllwrap uses different options than gcc/ld
             if self.linker_dll == "dllwrap":
-                extra_preargs.extend([#"--output-exp",exp_file,
-                                       "--output-lib",lib_file,
-                                     ])
+                extra_preargs.extend(["--output-lib", lib_file])
                 # for dllwrap we have to use a special option
                 extra_preargs.extend(["--def", def_file])
             # we use gcc/ld here and can be sure ld is >= 2.9.10
             else:
                 # doesn't work: bfd_close build\...\libfoo.a: Invalid operation
                 #extra_preargs.extend(["-Wl,--out-implib,%s" % lib_file])
-                # for gcc/ld the def-file is specified as any other object files    
+                # for gcc/ld the def-file is specified as any object files
                 objects.append(def_file)
 
         #end: if ((export_symbols is not None) and
-        #        (target_desc <> self.EXECUTABLE or self.linker_dll == "gcc")):
-                                                 
+        #        (target_desc != self.EXECUTABLE or self.linker_dll == "gcc")):
+
         # who wants symbols and a many times larger output file
-        # should explicitly switch the debug mode on 
+        # should explicitly switch the debug mode on
         # otherwise we let dllwrap/ld strip the output file
-        # (On my machine: 10KB < stripped_file < ??100KB 
+        # (On my machine: 10KB < stripped_file < ??100KB
         #   unstripped_file = stripped_file + XXX KB
-        #  ( XXX=254 for a typical python extension)) 
-        if not debug: 
-            extra_preargs.append("-s") 
-        
+        #  ( XXX=254 for a typical python extension))
+        if not debug:
+            extra_preargs.append("-s")
+
         UnixCCompiler.link(self,
                            target_desc,
                            objects,
@@ -264,8 +242,9 @@ class CygwinCCompiler (UnixCCompiler):
                            debug,
                            extra_preargs,
                            extra_postargs,
-                           build_temp)
-        
+                           build_temp,
+                           target_lang)
+
     # link ()
 
     # -- Miscellaneous methods -----------------------------------------
@@ -288,7 +267,7 @@ class CygwinCCompiler (UnixCCompiler):
                 base = os.path.basename (base)
             if ext == '.res' or ext == '.rc':
                 # these need to be compiled to object files
-                obj_names.append (os.path.join (output_dir, 
+                obj_names.append (os.path.join (output_dir,
                                             base + ext + self.obj_extension))
             else:
                 obj_names.append (os.path.join (output_dir,
@@ -311,7 +290,14 @@ class Mingw32CCompiler (CygwinCCompiler):
                   force=0):
 
         CygwinCCompiler.__init__ (self, verbose, dry_run, force)
-        
+
+        # ld_version >= "2.13" support -shared so use it instead of
+        # -mdll -static
+        if self.ld_version >= "2.13":
+            shared_option = "-shared"
+        else:
+            shared_option = "-mdll -static"
+
         # A real mingw32 doesn't need to specify a different entry point,
         # but cygwin 2.91.57 in no-cygwin-mode needs it.
         if self.gcc_version <= "2.91.57":
@@ -321,21 +307,35 @@ class Mingw32CCompiler (CygwinCCompiler):
 
         self.set_executables(compiler='gcc -mno-cygwin -O -Wall',
                              compiler_so='gcc -mno-cygwin -mdll -O -Wall',
+                             compiler_cxx='g++ -mno-cygwin -O -Wall',
                              linker_exe='gcc -mno-cygwin',
-                             linker_so='%s -mno-cygwin -mdll -static %s' 
-                                        % (self.linker_dll, entry_point))
+                             linker_so='%s -mno-cygwin %s %s'
+                                        % (self.linker_dll, shared_option,
+                                           entry_point))
         # Maybe we should also append -mthreads, but then the finished
         # dlls need another dll (mingwm10.dll see Mingw32 docs)
-        # (-mthreads: Support thread-safe exception handling on `Mingw32')       
-        
-        # no additional libraries needed 
+        # (-mthreads: Support thread-safe exception handling on `Mingw32')
+
+        # no additional libraries needed
         self.dll_libraries=[]
-        
+
+        # Include the appropriate MSVC runtime library if Python was built
+        # with MSVC 7.0 or 7.1.
+        msc_pos = sys.version.find('MSC v.')
+        if msc_pos != -1:
+            msc_ver = sys.version[msc_pos+6:msc_pos+10]
+            if msc_ver == '1300':
+                # MSVC 7.0
+                self.dll_libraries = ['msvcr70']
+            elif msc_ver == '1310':
+                # MSVC 7.1
+                self.dll_libraries = ['msvcr71']
+
     # __init__ ()
 
 # class Mingw32CCompiler
 
-# Because these compilers aren't configured in Python's config.h file by
+# Because these compilers aren't configured in Python's pyconfig.h file by
 # default, we should at least warn the user if he is using a unmodified
 # version.
 
@@ -345,7 +345,7 @@ CONFIG_H_UNCERTAIN = "uncertain"
 
 def check_config_h():
 
-    """Check if the current Python installation (specifically, config.h)
+    """Check if the current Python installation (specifically, pyconfig.h)
     appears amenable to building extensions with GCC.  Returns a tuple
     (status, details), where 'status' is one of the following constants:
       CONFIG_H_OK
@@ -353,32 +353,32 @@ def check_config_h():
       CONFIG_H_NOTOK
         doesn't look good
       CONFIG_H_UNCERTAIN
-        not sure -- unable to read config.h
+        not sure -- unable to read pyconfig.h
     'details' is a human-readable string explaining the situation.
 
     Note there are two ways to conclude "OK": either 'sys.version' contains
     the string "GCC" (implying that this Python was built with GCC), or the
-    installed "config.h" contains the string "__GNUC__".
+    installed "pyconfig.h" contains the string "__GNUC__".
     """
 
     # XXX since this function also checks sys.version, it's not strictly a
-    # "config.h" check -- should probably be renamed...
+    # "pyconfig.h" check -- should probably be renamed...
 
     from distutils import sysconfig
-    import string,sys
+    import string
     # if sys.version contains GCC then python was compiled with
-    # GCC, and the config.h file should be OK
+    # GCC, and the pyconfig.h file should be OK
     if string.find(sys.version,"GCC") >= 0:
         return (CONFIG_H_OK, "sys.version mentions 'GCC'")
-    
+
     fn = sysconfig.get_config_h_filename()
     try:
         # It would probably better to read single lines to search.
-        # But we do this only once, and it is fast enough 
+        # But we do this only once, and it is fast enough
         f = open(fn)
         s = f.read()
         f.close()
-        
+
     except IOError, exc:
         # if we can't read this file, we cannot say it is wrong
         # the compiler will complain later about this file as missing
@@ -386,7 +386,7 @@ def check_config_h():
                 "couldn't read '%s': %s" % (fn, exc.strerror))
 
     else:
-        # "config.h" contains an "#ifdef __GNUC__" or something similar
+        # "pyconfig.h" contains an "#ifdef __GNUC__" or something similar
         if string.find(s,"__GNUC__") >= 0:
             return (CONFIG_H_OK, "'%s' mentions '__GNUC__'" % fn)
         else:
@@ -401,13 +401,13 @@ def get_versions():
     from distutils.version import StrictVersion
     from distutils.spawn import find_executable
     import re
-        
+
     gcc_exe = find_executable('gcc')
     if gcc_exe:
         out = os.popen(gcc_exe + ' -dumpversion','r')
         out_string = out.read()
         out.close()
-        result = re.search('(\d+\.\d+\.\d+)',out_string)
+        result = re.search('(\d+\.\d+(\.\d+)*)',out_string)
         if result:
             gcc_version = StrictVersion(result.group(1))
         else:
@@ -419,7 +419,7 @@ def get_versions():
         out = os.popen(ld_exe + ' -v','r')
         out_string = out.read()
         out.close()
-        result = re.search('(\d+\.\d+\.\d+)',out_string)
+        result = re.search('(\d+\.\d+(\.\d+)*)',out_string)
         if result:
             ld_version = StrictVersion(result.group(1))
         else:
@@ -431,7 +431,7 @@ def get_versions():
         out = os.popen(dllwrap_exe + ' --version','r')
         out_string = out.read()
         out.close()
-        result = re.search(' (\d+\.\d+\.\d+)',out_string)
+        result = re.search(' (\d+\.\d+(\.\d+)*)',out_string)
         if result:
             dllwrap_version = StrictVersion(result.group(1))
         else:
@@ -439,4 +439,3 @@ def get_versions():
     else:
         dllwrap_version = None
     return (gcc_version, ld_version, dllwrap_version)
-

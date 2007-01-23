@@ -3,7 +3,7 @@
 Utility functions for creating archive files (tarballs, zip files,
 that sort of thing)."""
 
-# created 2000/04/03, Greg Ward (extracted from util.py)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -11,6 +11,7 @@ import os
 from distutils.errors import DistutilsExecError
 from distutils.spawn import spawn
 from distutils.dir_util import mkpath
+from distutils import log
 
 def make_tarball (base_name, base_dir, compress="gzip",
                   verbose=0, dry_run=0):
@@ -31,7 +32,7 @@ def make_tarball (base_name, base_dir, compress="gzip",
     compress_ext = { 'gzip': ".gz",
                      'bzip2': '.bz2',
                      'compress': ".Z" }
-    
+
     # flags for compression program, each element of list will be an argument
     compress_flags = {'gzip': ["-f9"],
                       'compress': ["-f"],
@@ -42,13 +43,13 @@ def make_tarball (base_name, base_dir, compress="gzip",
               "bad value for 'compress': must be None, 'gzip', or 'compress'"
 
     archive_name = base_name + ".tar"
-    mkpath(os.path.dirname(archive_name), verbose=verbose, dry_run=dry_run)
+    mkpath(os.path.dirname(archive_name), dry_run=dry_run)
     cmd = ["tar", "-cf", archive_name, base_dir]
-    spawn(cmd, verbose=verbose, dry_run=dry_run)
+    spawn(cmd, dry_run=dry_run)
 
     if compress:
         spawn([compress] + compress_flags[compress] + [archive_name],
-              verbose=verbose, dry_run=dry_run)
+              dry_run=dry_run)
         return archive_name + compress_ext[compress]
     else:
         return archive_name
@@ -58,49 +59,51 @@ def make_tarball (base_name, base_dir, compress="gzip",
 
 def make_zipfile (base_name, base_dir, verbose=0, dry_run=0):
     """Create a zip file from all the files under 'base_dir'.  The output
-    zip file will be named 'base_dir' + ".zip".  Uses either the InfoZIP
-    "zip" utility (if installed and found on the default search path) or
-    the "zipfile" Python module (if available).  If neither tool is
-    available, raises DistutilsExecError.  Returns the name of the output
-    zip file.
+    zip file will be named 'base_dir' + ".zip".  Uses either the "zipfile"
+    Python module (if available) or the InfoZIP "zip" utility (if installed
+    and found on the default search path).  If neither tool is available,
+    raises DistutilsExecError.  Returns the name of the output zip file.
     """
-    # This initially assumed the Unix 'zip' utility -- but
-    # apparently InfoZIP's zip.exe works the same under Windows, so
-    # no changes needed!
+    try:
+        import zipfile
+    except ImportError:
+        zipfile = None
 
     zip_filename = base_name + ".zip"
-    mkpath(os.path.dirname(zip_filename), verbose=verbose, dry_run=dry_run)
-    try:
-        spawn(["zip", "-rq", zip_filename, base_dir],
-              verbose=verbose, dry_run=dry_run)
-    except DistutilsExecError:
+    mkpath(os.path.dirname(zip_filename), dry_run=dry_run)
 
-        # XXX really should distinguish between "couldn't find
-        # external 'zip' command" and "zip failed" -- shouldn't try
-        # again in the latter case.  (I think fixing this will
-        # require some cooperation from the spawn module -- perhaps
-        # a utility function to search the path, so we can fallback
-        # on zipfile.py without the failed spawn.)
-        try:
-            import zipfile
-        except ImportError:
-            raise DistutilsExecError, \
-                  ("unable to create zip file '%s': " + 
-                   "could neither find a standalone zip utility nor " +
-                   "import the 'zipfile' module") % zip_filename
-
+    # If zipfile module is not available, try spawning an external
+    # 'zip' command.
+    if zipfile is None:
         if verbose:
-            print "creating '%s' and adding '%s' to it" % \
-                  (zip_filename, base_dir)
+            zipoptions = "-r"
+        else:
+            zipoptions = "-rq"
+
+        try:
+            spawn(["zip", zipoptions, zip_filename, base_dir],
+                  dry_run=dry_run)
+        except DistutilsExecError:
+            # XXX really should distinguish between "couldn't find
+            # external 'zip' command" and "zip failed".
+            raise DistutilsExecError, \
+                  ("unable to create zip file '%s': "
+                   "could neither import the 'zipfile' module nor "
+                   "find a standalone zip utility") % zip_filename
+
+    else:
+        log.info("creating '%s' and adding '%s' to it",
+                 zip_filename, base_dir)
 
         def visit (z, dirname, names):
             for name in names:
                 path = os.path.normpath(os.path.join(dirname, name))
                 if os.path.isfile(path):
                     z.write(path, path)
+                    log.info("adding '%s'" % path)
 
         if not dry_run:
-            z = zipfile.ZipFile(zip_filename, "wb",
+            z = zipfile.ZipFile(zip_filename, "w",
                                 compression=zipfile.ZIP_DEFLATED)
 
             os.path.walk(base_dir, visit, z)
@@ -141,8 +144,7 @@ def make_archive (base_name, format,
     """
     save_cwd = os.getcwd()
     if root_dir is not None:
-        if verbose:
-            print "changing into '%s'" % root_dir
+        log.debug("changing into '%s'", root_dir)
         base_name = os.path.abspath(base_name)
         if not dry_run:
             os.chdir(root_dir)
@@ -150,9 +152,8 @@ def make_archive (base_name, format,
     if base_dir is None:
         base_dir = os.curdir
 
-    kwargs = { 'verbose': verbose,
-               'dry_run': dry_run }
-    
+    kwargs = { 'dry_run': dry_run }
+
     try:
         format_info = ARCHIVE_FORMATS[format]
     except KeyError:
@@ -164,8 +165,7 @@ def make_archive (base_name, format,
     filename = apply(func, (base_name, base_dir), kwargs)
 
     if root_dir is not None:
-        if verbose:
-            print "changing back to '%s'" % save_cwd
+        log.debug("changing back to '%s'", save_cwd)
         os.chdir(save_cwd)
 
     return filename

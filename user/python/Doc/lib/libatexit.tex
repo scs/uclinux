@@ -39,6 +39,11 @@ completes), all functions registered are called in last in, first out
 order.  The assumption is that lower level modules will normally be
 imported before higher level modules and thus must be cleaned up
 later.
+
+If an exception is raised during execution of the exit handlers, a
+traceback is printed (unless \exception{SystemExit} is raised) and the
+exception information is saved.  After all exit handlers have had a
+chance to run the last exception to be raised is re-raised.
 \end{funcdesc}
 
 
@@ -71,4 +76,19 @@ def savecounter():
 
 import atexit
 atexit.register(savecounter)
+\end{verbatim}
+
+Positional and keyword arguments may also be passed to
+\function{register()} to be passed along to the registered function
+when it is called:
+
+\begin{verbatim}
+def goodbye(name, adjective):
+    print 'Goodbye, %s, it was %s to meet you.' % (name, adjective)
+
+import atexit
+atexit.register(goodbye, 'Donny', 'nice')
+
+# or:
+atexit.register(goodbye, adjective='nice', name='Donny')
 \end{verbatim}

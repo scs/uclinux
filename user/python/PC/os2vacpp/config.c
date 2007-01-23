@@ -23,18 +23,15 @@ extern void initerrno(void);
 extern void initimageop(void);
 extern void initmath(void);
 extern void initmd5(void);
-extern void initnew(void);
 extern void initnt(void);
 extern void initos2(void);
 extern void initoperator(void);
 extern void initposix(void);
 extern void initregex(void);
 extern void initrgbimg(void);
-extern void initrotor(void);
 extern void initsignal(void);
 extern void initselect(void);
 extern void init_socket(void);
-extern void initsoundex(void);
 extern void initstrop(void);
 extern void initstruct(void);
 extern void inittime(void);
@@ -63,7 +60,6 @@ struct _inittab _PyImport_Inittab[] = {
 //        {"imageop", initimageop},
         {"math", initmath},
         {"md5", initmd5},
-        {"new", initnew},
 #if defined(MS_WINDOWS) || defined(__BORLANDC__) || defined(__WATCOMC__)
         {"nt", initnt}, /* Use the NT os functions, not posix */
 #else
@@ -76,13 +72,11 @@ struct _inittab _PyImport_Inittab[] = {
         {"operator", initoperator},
         {"regex", initregex},
 //        {"rgbimg", initrgbimg},
-//        {"rotor", initrotor},
         {"signal", initsignal},
 #ifdef USE_SOCKET
         {"_socket", init_socket},
         {"select", initselect},
 #endif
-        {"soundex", initsoundex},
         {"strop", initstrop},
         {"struct", initstruct},
         {"time", inittime},

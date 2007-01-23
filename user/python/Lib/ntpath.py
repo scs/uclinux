@@ -1,5 +1,5 @@
 # Module 'ntpath' -- common operations on WinNT/Win95 pathnames
-"""Common pathname manipulations, WindowsNT/95 version. 
+"""Common pathname manipulations, WindowsNT/95 version.
 
 Instead of importing this module directly, import os and refer to this
 module as os.path.
@@ -7,7 +7,29 @@ module as os.path.
 
 import os
 import stat
+import sys
 
+__all__ = ["normcase","isabs","join","splitdrive","split","splitext",
+           "basename","dirname","commonprefix","getsize","getmtime",
+           "getatime","getctime", "islink","exists","lexists","isdir","isfile",
+           "ismount","walk","expanduser","expandvars","normpath","abspath",
+           "splitunc","curdir","pardir","sep","pathsep","defpath","altsep",
+           "extsep","devnull","realpath","supports_unicode_filenames"]
+
+# strings representing various path-related bits and pieces
+curdir = '.'
+pardir = '..'
+extsep = '.'
+sep = '\\'
+pathsep = ';'
+altsep = '/'
+defpath = '.;C:\\bin'
+if 'ce' in sys.builtin_module_names:
+    defpath = '\\Windows'
+elif 'os2' in sys.builtin_module_names:
+    # OS/2 w/ VACPP
+    altsep = '/'
+devnull = 'nul'
 
 # Normalize the case of a pathname and map slashes to backslashes.
 # Other normalizations (such as optimizing '../' away) are not done
@@ -38,12 +60,53 @@ def join(a, *p):
     """Join two or more pathname components, inserting "\\" as needed"""
     path = a
     for b in p:
-        if isabs(b):
+        b_wins = 0  # set to 1 iff b makes path irrelevant
+        if path == "":
+            b_wins = 1
+
+        elif isabs(b):
+            # This probably wipes out path so far.  However, it's more
+            # complicated if path begins with a drive letter:
+            #     1. join('c:', '/a') == 'c:/a'
+            #     2. join('c:/', '/a') == 'c:/a'
+            # But
+            #     3. join('c:/a', '/b') == '/b'
+            #     4. join('c:', 'd:/') = 'd:/'
+            #     5. join('c:/', 'd:/') = 'd:/'
+            if path[1:2] != ":" or b[1:2] == ":":
+                # Path doesn't start with a drive letter, or cases 4 and 5.
+                b_wins = 1
+
+            # Else path has a drive letter, and b doesn't but is absolute.
+            elif len(path) > 3 or (len(path) == 3 and
+                                   path[-1] not in "/\\"):
+                # case 3
+                b_wins = 1
+
+        if b_wins:
             path = b
-        elif path == '' or path[-1:] in '/\\:':
-            path = path + b
         else:
-            path = path + "\\" + b
+            # Join, and ensure there's a separator.
+            assert len(path) > 0
+            if path[-1] in "/\\":
+                if b and b[0] in "/\\":
+                    path += b[1:]
+                else:
+                    path += b
+            elif path[-1] == ":":
+                path += b
+            elif b:
+                if b[0] in "/\\":
+                    path += b
+                else:
+                    path += "\\" + b
+            else:
+                # path is not empty and does not end with a backslash,
+                # but b is empty; since, e.g., split('a/') produces
+                # ('a', ''), it's best if join() adds a backslash in
+                # this case.
+                path += '\\'
+
     return path
 
 
@@ -122,20 +185,12 @@ def splitext(p):
 
     Extension is everything from the last dot to the end.
     Return (root, ext), either part may be empty."""
-    root, ext = '', ''
-    for c in p:
-        if c in ['/','\\']:
-            root, ext = root + ext + c, ''
-        elif c == '.':
-            if ext:
-                root, ext = root + ext, c
-            else:
-                ext = c
-        elif ext:
-            ext = ext + c
-        else:
-            root = root + c
-    return root, ext
+
+    i = p.rfind('.')
+    if i<=max(p.rfind('/'), p.rfind('\\')):
+        return p, ''
+    else:
+        return p[:i], p[i:]
 
 
 # Return the tail (basename) part of a path.
@@ -160,7 +215,7 @@ def commonprefix(m):
     prefix = m[0]
     for item in m:
         for i in range(len(prefix)):
-            if prefix[:i+1] <> item[:i+1]:
+            if prefix[:i+1] != item[:i+1]:
                 prefix = prefix[:i]
                 if i == 0: return ''
                 break
@@ -171,38 +226,39 @@ def commonprefix(m):
 
 def getsize(filename):
     """Return the size of a file, reported by os.stat()"""
-    st = os.stat(filename)
-    return st[stat.ST_SIZE]
+    return os.stat(filename).st_size
 
 def getmtime(filename):
     """Return the last modification time of a file, reported by os.stat()"""
-    st = os.stat(filename)
-    return st[stat.ST_MTIME]
+    return os.stat(filename).st_mtime
 
 def getatime(filename):
     """Return the last access time of a file, reported by os.stat()"""
-    st = os.stat(filename)
-    return st[stat.ST_ATIME]
+    return os.stat(filename).st_atime
 
+def getctime(filename):
+    """Return the creation time of a file, reported by os.stat()."""
+    return os.stat(filename).st_ctime
 
 # Is a path a symbolic link?
 # This will always return false on systems where posix.lstat doesn't exist.
 
 def islink(path):
     """Test for symbolic link.  On WindowsNT/95 always returns false"""
-    return 0
+    return False
 
 
 # Does a path exist?
-# This is false for dangling symbolic links.
 
 def exists(path):
     """Test whether a path exists"""
     try:
         st = os.stat(path)
     except os.error:
-        return 0
-    return 1
+        return False
+    return True
+
+lexists = exists
 
 
 # Is a path a dos directory?
@@ -214,8 +270,8 @@ def isdir(path):
     try:
         st = os.stat(path)
     except os.error:
-        return 0
-    return stat.S_ISDIR(st[stat.ST_MODE])
+        return False
+    return stat.S_ISDIR(st.st_mode)
 
 
 # Is a path a regular file?
@@ -227,8 +283,8 @@ def isfile(path):
     try:
         st = os.stat(path)
     except os.error:
-        return 0
-    return stat.S_ISREG(st[stat.ST_MODE])
+        return False
+    return stat.S_ISREG(st.st_mode)
 
 
 # Is a path a mount point?  Either a root (with or without drive letter)
@@ -247,16 +303,25 @@ def ismount(path):
 # For each directory under top (including top itself, but excluding
 # '.' and '..'), func(arg, dirname, filenames) is called, where
 # dirname is the name of the directory and filenames is the list
-# files files (and subdirectories etc.) in the directory.
+# of files (and subdirectories etc.) in the directory.
 # The func may modify the filenames list, to implement a filter,
 # or to impose a different order of visiting.
 
 def walk(top, func, arg):
-    """Directory tree walk whth callback function.
+    """Directory tree walk with callback function.
 
-    walk(top, func, arg) calls func(arg, d, files) for each directory d 
-    in the tree rooted at top (including top itself); files is a list
-    of all the files and subdirs in directory d."""
+    For each directory in the directory tree rooted at top (including top
+    itself, but excluding '.' and '..'), call func(arg, dirname, fnames).
+    dirname is the name of the directory, and fnames a list of the names of
+    the files and subdirectories in dirname (excluding '.' and '..').  func
+    may modify the fnames list in-place (e.g. via del or slice assignment),
+    and walk will only recurse into the subdirectories whose names remain in
+    fnames; this can be used to implement a filter, or to impose a specific
+    order of visiting.  No semantics are defined for, or required of, arg,
+    beyond that arg is always passed to func.  It can be used, e.g., to pass
+    a filename pattern, or a mutable object designed to accumulate
+    statistics.  Passing None for arg is common."""
+
     try:
         names = os.listdir(top)
     except os.error:
@@ -283,15 +348,15 @@ def expanduser(path):
     """Expand ~ and ~user constructs.
 
     If user or $HOME is unknown, do nothing."""
-    if path[:1] <> '~':
+    if path[:1] != '~':
         return path
     i, n = 1, len(path)
     while i < n and path[i] not in '/\\':
         i = i + 1
     if i == 1:
-        if os.environ.has_key('HOME'):
+        if 'HOME' in os.environ:
             userhome = os.environ['HOME']
-        elif not os.environ.has_key('HOMEPATH'):
+        elif not 'HOMEPATH' in os.environ:
             return path
         else:
             try:
@@ -313,14 +378,14 @@ def expanduser(path):
 # XXX With COMMAND.COM you can use any characters in a variable name,
 # XXX except '^|<>='.
 
-def expandvars(path):  
+def expandvars(path):
     """Expand shell variables of form $var and ${var}.
 
     Unknown variables are left unchanged."""
     if '$' not in path:
         return path
     import string
-    varchars = string.letters + string.digits + '_-'
+    varchars = string.ascii_letters + string.digits + '_-'
     res = ''
     index = 0
     pathlen = len(path)
@@ -345,7 +410,7 @@ def expandvars(path):
                 try:
                     index = path.index('}')
                     var = path[:index]
-                    if os.environ.has_key(var):
+                    if var in os.environ:
                         res = res + os.environ[var]
                 except ValueError:
                     res = res + path
@@ -358,7 +423,7 @@ def expandvars(path):
                     var = var + c
                     index = index + 1
                     c = path[index:index + 1]
-                if os.environ.has_key(var):
+                if var in os.environ:
                     res = res + os.environ[var]
                 if c != '':
                     res = res + c
@@ -368,7 +433,7 @@ def expandvars(path):
     return res
 
 
-# Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
+# Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A\B.
 # Previously, this function also truncated pathnames to 8+3 format,
 # but as this module is called "ntpath", that's obviously wrong!
 
@@ -376,21 +441,40 @@ def normpath(path):
     """Normalize path, eliminating double slashes, etc."""
     path = path.replace("/", "\\")
     prefix, path = splitdrive(path)
-    while path[:1] == "\\":
-        prefix = prefix + "\\"
-        path = path[1:]
+    # We need to be careful here. If the prefix is empty, and the path starts
+    # with a backslash, it could either be an absolute path on the current
+    # drive (\dir1\dir2\file) or a UNC filename (\\server\mount\dir1\file). It
+    # is therefore imperative NOT to collapse multiple backslashes blindly in
+    # that case.
+    # The code below preserves multiple backslashes when there is no drive
+    # letter. This means that the invalid filename \\\a\b is preserved
+    # unchanged, where a\\\b is normalised to a\b. It's not clear that there
+    # is any better behaviour for such edge cases.
+    if prefix == '':
+        # No drive letter - preserve initial backslashes
+        while path[:1] == "\\":
+            prefix = prefix + "\\"
+            path = path[1:]
+    else:
+        # We have a drive letter - collapse initial backslashes
+        if path.startswith("\\"):
+            prefix = prefix + "\\"
+            path = path.lstrip("\\")
     comps = path.split("\\")
     i = 0
     while i < len(comps):
-        if comps[i] == '.':
+        if comps[i] in ('.', ''):
             del comps[i]
-        elif comps[i] == '..' and i > 0 and comps[i-1] not in ('', '..'):
-            del comps[i-1:i+1]
-            i = i - 1
-        elif comps[i] == '' and i > 0 and comps[i-1] <> '':
-            del comps[i]
+        elif comps[i] == '..':
+            if i > 0 and comps[i-1] != '..':
+                del comps[i-1:i+1]
+                i -= 1
+            elif i == 0 and prefix.endswith("\\"):
+                del comps[i]
+            else:
+                i += 1
         else:
-            i = i + 1
+            i += 1
     # If the path is now empty, substitute '.'
     if not prefix and not comps:
         comps.append('.')
@@ -398,23 +482,31 @@ def normpath(path):
 
 
 # Return an absolute path.
-def abspath(path):
-    """Return the absolute version of a path"""
-    try:
-        import win32api
-    except ImportError:
-        global abspath
-        def _abspath(path):
-            if not isabs(path):
-                path = join(os.getcwd(), path)
-            return normpath(path)
-        abspath = _abspath
-        return _abspath(path)
-    if path: # Empty path must return current working directory.
-        try:
-            path = win32api.GetFullPathName(path)
-        except win32api.error:
-            pass # Bad path - return unchanged.
-    else:
-        path = os.getcwd()
-    return normpath(path)
+try:
+    from nt import _getfullpathname
+
+except ImportError: # not running on Windows - mock up something sensible
+    def abspath(path):
+        """Return the absolute version of a path."""
+        if not isabs(path):
+            path = join(os.getcwd(), path)
+        return normpath(path)
+
+else:  # use native Windows method on Windows
+    def abspath(path):
+        """Return the absolute version of a path."""
+
+        if path: # Empty path must return current working directory.
+            try:
+                path = _getfullpathname(path)
+            except WindowsError:
+                pass # Bad path - return unchanged.
+        else:
+            path = os.getcwd()
+        return normpath(path)
+
+# realpath is a no-op on systems without islink support
+realpath = abspath
+# Win9x family and earlier have no Unicode filename support.
+supports_unicode_filenames = (hasattr(sys, "getwindowsversion") and
+                              sys.getwindowsversion()[3] >= 2)

@@ -1,16 +1,16 @@
 /* hypot() replacement */
 
-#include "config.h"
+#include "pyconfig.h"
 #include "pyport.h"
 
-float hypot(float x, float y)
+double hypot(double x, double y)
 {
-	float yx;
+	double yx;
 
 	x = fabs(x);
 	y = fabs(y);
 	if (x < y) {
-		float temp = x;
+		double temp = x;
 		x = y;
 		y = temp;
 	}

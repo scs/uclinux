@@ -12,11 +12,17 @@ class UserList:
             else:
                 self.data = list(initlist)
     def __repr__(self): return repr(self.data)
+    def __lt__(self, other): return self.data <  self.__cast(other)
+    def __le__(self, other): return self.data <= self.__cast(other)
+    def __eq__(self, other): return self.data == self.__cast(other)
+    def __ne__(self, other): return self.data != self.__cast(other)
+    def __gt__(self, other): return self.data >  self.__cast(other)
+    def __ge__(self, other): return self.data >= self.__cast(other)
+    def __cast(self, other):
+        if isinstance(other, UserList): return other.data
+        else: return other
     def __cmp__(self, other):
-        if isinstance(other, UserList):
-            return cmp(self.data, other.data)
-        else:
-            return cmp(self.data, other)
+        return cmp(self.data, self.__cast(other))
     def __contains__(self, item): return item in self.data
     def __len__(self): return len(self.data)
     def __getitem__(self, i): return self.data[i]
@@ -69,9 +75,9 @@ class UserList:
     def pop(self, i=-1): return self.data.pop(i)
     def remove(self, item): self.data.remove(item)
     def count(self, item): return self.data.count(item)
-    def index(self, item): return self.data.index(item)
+    def index(self, item, *args): return self.data.index(item, *args)
     def reverse(self): self.data.reverse()
-    def sort(self, *args): apply(self.data.sort, args)
+    def sort(self, *args, **kwds): self.data.sort(*args, **kwds)
     def extend(self, other):
         if isinstance(other, UserList):
             self.data.extend(other.data)

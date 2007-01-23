@@ -7,51 +7,55 @@
 # Options -[amc] select atime, mtime (default) or ctime as age.
 
 import sys, os, time
-import string
 from stat import *
 
-# Use lstat() to stat files if it exists, else stat()
-try:
-	statfunc = os.lstat
-except AttributeError:
-	statfunc = os.stat
+def main():
 
-# Parse options
-if sys.argv[1] == '-m':
-	itime = ST_MTIME
-	del sys.argv[1]
-elif sys.argv[1] == '-c':
-	itime = ST_CTIME
-	del sys.argv[1]
-elif sys.argv[1] == '-a':
-	itime = ST_CTIME
-	del sys.argv[1]
-else:
-	itime = ST_MTIME
+    # Use lstat() to stat files if it exists, else stat()
+    try:
+        statfunc = os.lstat
+    except AttributeError:
+        statfunc = os.stat
 
-secs_per_year = 365.0 * 24.0 * 3600.0	# Scale factor
-now = time.time()			# Current time, for age computations
-status = 0				# Exit status, set to 1 on errors
+    # Parse options
+    if sys.argv[1] == '-m':
+        itime = ST_MTIME
+        del sys.argv[1]
+    elif sys.argv[1] == '-c':
+        itime = ST_CTIME
+        del sys.argv[1]
+    elif sys.argv[1] == '-a':
+        itime = ST_CTIME
+        del sys.argv[1]
+    else:
+        itime = ST_MTIME
 
-# Compute max file name length
-maxlen = 1
-for file in sys.argv[1:]:
-	if len(file) > maxlen: maxlen = len(file)
+    secs_per_year = 365.0 * 24.0 * 3600.0   # Scale factor
+    now = time.time()                       # Current time, for age computations
+    status = 0                              # Exit status, set to 1 on errors
 
-# Process each argument in turn
-for file in sys.argv[1:]:
-	try:
-		st = statfunc(file)
-	except os.error, msg:
-		sys.stderr.write('can\'t stat ' + `file` + ': ' + `msg` + '\n')
-		status = 1
-		st = ()
-	if st:
-		anytime = st[itime]
-		size = st[ST_SIZE]
-		age = now - anytime
-		byteyears = float(size) * float(age) / secs_per_year
-		print string.ljust(file, maxlen),
-		print string.rjust(`int(byteyears)`, 8)
+    # Compute max file name length
+    maxlen = 1
+    for filename in sys.argv[1:]:
+        maxlen = max(maxlen, len(filename))
 
-sys.exit(status)
+    # Process each argument in turn
+    for filename in sys.argv[1:]:
+        try:
+            st = statfunc(filename)
+        except os.error, msg:
+            sys.stderr.write("can't stat %r: %r\n" % (filename, msg))
+            status = 1
+            st = ()
+        if st:
+            anytime = st[itime]
+            size = st[ST_SIZE]
+            age = now - anytime
+            byteyears = float(size) * float(age) / secs_per_year
+            print filename.ljust(maxlen),
+            print repr(int(byteyears)).rjust(8)
+
+    sys.exit(status)
+
+if __name__ == '__main__':
+    main()

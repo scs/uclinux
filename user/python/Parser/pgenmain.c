@@ -13,6 +13,7 @@
    - check for duplicate definitions of names (instead of fatal err)
 */
 
+#include "Python.h"
 #include "pgenheaders.h"
 #include "grammar.h"
 #include "node.h"
@@ -21,13 +22,10 @@
 
 int Py_DebugFlag;
 int Py_VerboseFlag;
+int Py_IgnoreEnvironmentFlag;
 
 /* Forward */
 grammar *getgrammar(char *filename);
-#ifdef THINK_C
-int main(int, char **);
-char *askfile(void);
-#endif
 
 void
 Py_Exit(int sts)
@@ -40,32 +38,33 @@ main(int argc, char **argv)
 {
 	grammar *g;
 	FILE *fp;
-	char *filename;
+	char *filename, *graminit_h, *graminit_c;
 	
-#ifdef THINK_C
-	filename = askfile();
-#else
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s grammar\n", argv[0]);
+	if (argc != 4) {
+		fprintf(stderr,
+			"usage: %s grammar graminit.h graminit.c\n", argv[0]);
 		Py_Exit(2);
 	}
 	filename = argv[1];
-#endif
+	graminit_h = argv[2];
+	graminit_c = argv[3];
 	g = getgrammar(filename);
-	fp = fopen("graminit.c", "w");
+	fp = fopen(graminit_c, "w");
 	if (fp == NULL) {
-		perror("graminit.c");
+		perror(graminit_c);
 		Py_Exit(1);
 	}
-	printf("Writing graminit.c ...\n");
+	if (Py_DebugFlag)
+		printf("Writing %s ...\n", graminit_c);
 	printgrammar(g, fp);
 	fclose(fp);
-	fp = fopen("graminit.h", "w");
+	fp = fopen(graminit_h, "w");
 	if (fp == NULL) {
-		perror("graminit.h");
+		perror(graminit_h);
 		Py_Exit(1);
 	}
-	printf("Writing graminit.h ...\n");
+	if (Py_DebugFlag)
+		printf("Writing %s ...\n", graminit_h);
 	printnonterminals(g, fp);
 	fclose(fp);
 	Py_Exit(0);
@@ -117,46 +116,17 @@ getgrammar(char *filename)
 	return g;
 }
 
-#ifdef THINK_C
-char *
-askfile(void)
-{
-	char buf[256];
-	static char name[256];
-	printf("Input file name: ");
-	if (fgets(buf, sizeof buf, stdin) == NULL) {
-		printf("EOF\n");
-		Py_Exit(1);
-	}
-	/* XXX The (unsigned char *) case is needed by THINK C 3.0 */
-	if (sscanf(/*(unsigned char *)*/buf, " %s ", name) != 1) {
-		printf("No file\n");
-		Py_Exit(1);
-	}
-	return name;
-}
-#endif
-
 void
-Py_FatalError(char *msg)
+Py_FatalError(const char *msg)
 {
 	fprintf(stderr, "pgen: FATAL ERROR: %s\n", msg);
 	Py_Exit(1);
 }
 
-#ifdef macintosh
-/* ARGSUSED */
-int
-guesstabsize(char *path)
-{
-	return 4;
-}
-#endif
-
 /* No-nonsense my_readline() for tokenizer.c */
 
 char *
-PyOS_Readline(char *prompt)
+PyOS_Readline(FILE *sys_stdin, FILE *sys_stdout, char *prompt)
 {
 	size_t n = 1000;
 	char *p = PyMem_MALLOC(n);
@@ -164,7 +134,7 @@ PyOS_Readline(char *prompt)
 	if (p == NULL)
 		return NULL;
 	fprintf(stderr, "%s", prompt);
-	q = fgets(p, n, stdin);
+	q = fgets(p, n, sys_stdin);
 	if (q == NULL) {
 		*p = '\0';
 		return p;
@@ -174,6 +144,14 @@ PyOS_Readline(char *prompt)
 		p[n-1] = '\n';
 	return PyMem_REALLOC(p, n+1);
 }
+
+/* No-nonsense fgets */
+char *
+Py_UniversalNewlineFgets(char *buf, int n, FILE *stream, PyObject *fobj)
+{
+	return fgets(buf, n, stream);
+}
+
 
 #include <stdarg.h>
 

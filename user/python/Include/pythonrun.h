@@ -7,81 +7,123 @@
 extern "C" {
 #endif
 
-DL_IMPORT(void) Py_SetProgramName(char *);
-DL_IMPORT(char *) Py_GetProgramName(void);
+#define PyCF_MASK (CO_FUTURE_DIVISION)
+#define PyCF_MASK_OBSOLETE (CO_GENERATOR_ALLOWED | CO_NESTED)
+#define PyCF_SOURCE_IS_UTF8  0x0100
+#define PyCF_DONT_IMPLY_DEDENT 0x0200
 
-DL_IMPORT(void) Py_SetPythonHome(char *);
-DL_IMPORT(char *) Py_GetPythonHome(void);
+typedef struct {
+	int cf_flags;  /* bitmask of CO_xxx flags relevant to future */
+} PyCompilerFlags;
 
-DL_IMPORT(void) Py_Initialize(void);
-DL_IMPORT(void) Py_Finalize(void);
-DL_IMPORT(int) Py_IsInitialized(void);
-DL_IMPORT(PyThreadState *) Py_NewInterpreter(void);
-DL_IMPORT(void) Py_EndInterpreter(PyThreadState *);
+PyAPI_FUNC(void) Py_SetProgramName(char *);
+PyAPI_FUNC(char *) Py_GetProgramName(void);
 
-DL_IMPORT(int) PyRun_AnyFile(FILE *, char *);
-DL_IMPORT(int) PyRun_AnyFileEx(FILE *, char *, int);
+PyAPI_FUNC(void) Py_SetPythonHome(char *);
+PyAPI_FUNC(char *) Py_GetPythonHome(void);
 
-DL_IMPORT(int) PyRun_SimpleString(char *);
-DL_IMPORT(int) PyRun_SimpleFile(FILE *, char *);
-DL_IMPORT(int) PyRun_SimpleFileEx(FILE *, char *, int);
-DL_IMPORT(int) PyRun_InteractiveOne(FILE *, char *);
-DL_IMPORT(int) PyRun_InteractiveLoop(FILE *, char *);
+PyAPI_FUNC(void) Py_Initialize(void);
+PyAPI_FUNC(void) Py_InitializeEx(int);
+PyAPI_FUNC(void) Py_Finalize(void);
+PyAPI_FUNC(int) Py_IsInitialized(void);
+PyAPI_FUNC(PyThreadState *) Py_NewInterpreter(void);
+PyAPI_FUNC(void) Py_EndInterpreter(PyThreadState *);
 
-DL_IMPORT(struct _node *) PyParser_SimpleParseString(char *, int);
-DL_IMPORT(struct _node *) PyParser_SimpleParseFile(FILE *, char *, int);
+PyAPI_FUNC(int) PyRun_AnyFile(FILE *, const char *);
+PyAPI_FUNC(int) PyRun_AnyFileEx(FILE *, const char *, int);
 
-DL_IMPORT(PyObject *) PyRun_String(char *, int, PyObject *, PyObject *);
-DL_IMPORT(PyObject *) PyRun_File(FILE *, char *, int, PyObject *, PyObject *);
-DL_IMPORT(PyObject *) PyRun_FileEx(FILE *, char *, int,
+PyAPI_FUNC(int) PyRun_AnyFileFlags(FILE *, const char *, PyCompilerFlags *);
+PyAPI_FUNC(int) PyRun_AnyFileExFlags(FILE *, const char *, int, PyCompilerFlags *);
+
+PyAPI_FUNC(int) PyRun_SimpleString(const char *);
+PyAPI_FUNC(int) PyRun_SimpleStringFlags(const char *, PyCompilerFlags *);
+PyAPI_FUNC(int) PyRun_SimpleFile(FILE *, const char *);
+PyAPI_FUNC(int) PyRun_SimpleFileEx(FILE *, const char *, int);
+PyAPI_FUNC(int) PyRun_SimpleFileExFlags(FILE *, const char *, int, PyCompilerFlags *);
+PyAPI_FUNC(int) PyRun_InteractiveOne(FILE *, const char *);
+PyAPI_FUNC(int) PyRun_InteractiveOneFlags(FILE *, const char *, PyCompilerFlags *);
+PyAPI_FUNC(int) PyRun_InteractiveLoop(FILE *, const char *);
+PyAPI_FUNC(int) PyRun_InteractiveLoopFlags(FILE *, const char *, PyCompilerFlags *);
+
+PyAPI_FUNC(struct _node *) PyParser_SimpleParseString(const char *, int);
+PyAPI_FUNC(struct _node *) PyParser_SimpleParseFile(FILE *, const char *, int);
+PyAPI_FUNC(struct _node *) PyParser_SimpleParseStringFlags(const char *, int, int);
+PyAPI_FUNC(struct _node *) PyParser_SimpleParseStringFlagsFilename(const char *,
+								  const char *,
+								  int,
+								  int);
+PyAPI_FUNC(struct _node *) PyParser_SimpleParseFileFlags(FILE *, const char *,
+							int, int);
+
+PyAPI_FUNC(PyObject *) PyRun_String(const char *, int, PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) PyRun_File(FILE *, const char *, int, PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) PyRun_FileEx(FILE *, const char *, int,
 				   PyObject *, PyObject *, int);
+PyAPI_FUNC(PyObject *) PyRun_StringFlags(const char *, int, PyObject *, PyObject *,
+					PyCompilerFlags *);
+PyAPI_FUNC(PyObject *) PyRun_FileFlags(FILE *, const char *, int, PyObject *, 
+				      PyObject *, PyCompilerFlags *);
+PyAPI_FUNC(PyObject *) PyRun_FileExFlags(FILE *, const char *, int, PyObject *, 
+					PyObject *, int, PyCompilerFlags *);
 
-DL_IMPORT(PyObject *) Py_CompileString(char *, char *, int);
+PyAPI_FUNC(PyObject *) Py_CompileString(const char *, const char *, int);
+PyAPI_FUNC(PyObject *) Py_CompileStringFlags(const char *, const char *, int,
+					    PyCompilerFlags *);
+PyAPI_FUNC(struct symtable *) Py_SymtableString(const char *, const char *, int);
 
-DL_IMPORT(void) PyErr_Print(void);
-DL_IMPORT(void) PyErr_PrintEx(int);
+PyAPI_FUNC(void) PyErr_Print(void);
+PyAPI_FUNC(void) PyErr_PrintEx(int);
+PyAPI_FUNC(void) PyErr_Display(PyObject *, PyObject *, PyObject *);
 
-DL_IMPORT(int) Py_AtExit(void (*func)(void));
+PyAPI_FUNC(int) Py_AtExit(void (*func)(void));
 
-DL_IMPORT(void) Py_Exit(int);
+PyAPI_FUNC(void) Py_Exit(int);
 
-DL_IMPORT(int) Py_FdIsInteractive(FILE *, char *);
+PyAPI_FUNC(int) Py_FdIsInteractive(FILE *, const char *);
+
+/* Bootstrap */
+PyAPI_FUNC(int) Py_Main(int argc, char **argv);
 
 /* In getpath.c */
-DL_IMPORT(char *) Py_GetProgramFullPath(void);
-DL_IMPORT(char *) Py_GetPrefix(void);
-DL_IMPORT(char *) Py_GetExecPrefix(void);
-DL_IMPORT(char *) Py_GetPath(void);
+PyAPI_FUNC(char *) Py_GetProgramFullPath(void);
+PyAPI_FUNC(char *) Py_GetPrefix(void);
+PyAPI_FUNC(char *) Py_GetExecPrefix(void);
+PyAPI_FUNC(char *) Py_GetPath(void);
 
 /* In their own files */
-DL_IMPORT(const char *) Py_GetVersion(void);
-DL_IMPORT(const char *) Py_GetPlatform(void);
-DL_IMPORT(const char *) Py_GetCopyright(void);
-DL_IMPORT(const char *) Py_GetCompiler(void);
-DL_IMPORT(const char *) Py_GetBuildInfo(void);
+PyAPI_FUNC(const char *) Py_GetVersion(void);
+PyAPI_FUNC(const char *) Py_GetPlatform(void);
+PyAPI_FUNC(const char *) Py_GetCopyright(void);
+PyAPI_FUNC(const char *) Py_GetCompiler(void);
+PyAPI_FUNC(const char *) Py_GetBuildInfo(void);
 
 /* Internal -- various one-time initializations */
-DL_IMPORT(PyObject *) _PyBuiltin_Init(void);
-DL_IMPORT(PyObject *) _PySys_Init(void);
-DL_IMPORT(void) _PyImport_Init(void);
-DL_IMPORT(void) init_exceptions(void);
+PyAPI_FUNC(PyObject *) _PyBuiltin_Init(void);
+PyAPI_FUNC(PyObject *) _PySys_Init(void);
+PyAPI_FUNC(void) _PyImport_Init(void);
+PyAPI_FUNC(void) _PyExc_Init(void);
+PyAPI_FUNC(void) _PyImportHooks_Init(void);
+PyAPI_FUNC(int) _PyFrame_Init(void);
+PyAPI_FUNC(int) _PyInt_Init(void);
 
 /* Various internal finalizers */
-DL_IMPORT(void) fini_exceptions(void);
-DL_IMPORT(void) _PyImport_Fini(void);
-DL_IMPORT(void) PyMethod_Fini(void);
-DL_IMPORT(void) PyFrame_Fini(void);
-DL_IMPORT(void) PyCFunction_Fini(void);
-DL_IMPORT(void) PyTuple_Fini(void);
-DL_IMPORT(void) PyString_Fini(void);
-DL_IMPORT(void) PyInt_Fini(void);
-DL_IMPORT(void) PyFloat_Fini(void);
-DL_IMPORT(void) PyOS_FiniInterrupts(void);
+PyAPI_FUNC(void) _PyExc_Fini(void);
+PyAPI_FUNC(void) _PyImport_Fini(void);
+PyAPI_FUNC(void) PyMethod_Fini(void);
+PyAPI_FUNC(void) PyFrame_Fini(void);
+PyAPI_FUNC(void) PyCFunction_Fini(void);
+PyAPI_FUNC(void) PyTuple_Fini(void);
+PyAPI_FUNC(void) PyList_Fini(void);
+PyAPI_FUNC(void) PyString_Fini(void);
+PyAPI_FUNC(void) PyInt_Fini(void);
+PyAPI_FUNC(void) PyFloat_Fini(void);
+PyAPI_FUNC(void) PyOS_FiniInterrupts(void);
 
 /* Stuff with no proper home (yet) */
-DL_IMPORT(char *) PyOS_Readline(char *);
-extern DL_IMPORT(int) (*PyOS_InputHook)(void);
-extern DL_IMPORT(char) *(*PyOS_ReadlineFunctionPointer)(char *);
+PyAPI_FUNC(char *) PyOS_Readline(FILE *, FILE *, char *);
+PyAPI_DATA(int) (*PyOS_InputHook)(void);
+PyAPI_DATA(char) *(*PyOS_ReadlineFunctionPointer)(FILE *, FILE *, char *);
+PyAPI_DATA(PyThreadState*) _PyOS_ReadlineTState;
 
 /* Stack size, in "pointers" (so we get extra safety margins
    on 64-bit platforms).  On a 32-bit platform, this translates
@@ -95,13 +137,13 @@ extern DL_IMPORT(char) *(*PyOS_ReadlineFunctionPointer)(char *);
 
 #ifdef USE_STACKCHECK
 /* Check that we aren't overflowing our stack */
-DL_IMPORT(int) PyOS_CheckStack(void);
+PyAPI_FUNC(int) PyOS_CheckStack(void);
 #endif
 
 /* Signals */
 typedef void (*PyOS_sighandler_t)(int);
-DL_IMPORT(PyOS_sighandler_t) PyOS_getsig(int);
-DL_IMPORT(PyOS_sighandler_t) PyOS_setsig(int, PyOS_sighandler_t);
+PyAPI_FUNC(PyOS_sighandler_t) PyOS_getsig(int);
+PyAPI_FUNC(PyOS_sighandler_t) PyOS_setsig(int, PyOS_sighandler_t);
 
 
 #ifdef __cplusplus

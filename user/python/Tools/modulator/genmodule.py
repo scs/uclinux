@@ -20,7 +20,6 @@
 import sys
 import os
 import varsubst
-import string
 
 error = 'genmodule.error'
 
@@ -43,7 +42,7 @@ class writer:
         if not self._subst:
             if not self.__dict__.has_key('abbrev'):
                 self.abbrev = self.name
-            self.Abbrev = string.upper(self.abbrev[0])+self.abbrev[1:]
+            self.Abbrev = self.abbrev[0].upper()+self.abbrev[1:]
             subst = varsubst.Varsubst(self.__dict__)
             subst.useindent(1)
             self._subst = subst.subst
@@ -66,7 +65,7 @@ class writer:
                 return open(fn, 'r')
         raise error, 'Template '+name+' not found for '+self._type+' '+ \
                      self.name
-        
+
 class module(writer):
     _type = 'module'
 
@@ -117,7 +116,7 @@ class object(writer):
         # Add getattr if we have methods
         if self.methodlist and not 'tp_getattr' in self.funclist:
             self.funclist.insert(0, 'tp_getattr')
-            
+
         for fn in FUNCLIST:
             setattr(self, fn, '0')
 

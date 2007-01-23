@@ -8,58 +8,70 @@
 
 
 The \module{Cookie} module defines classes for abstracting the concept of 
-cookies, an HTTP state management mechanism. It supports both simplistic
+cookies, an HTTP state management mechanism. It supports both simple
 string-only cookies, and provides an abstraction for having any serializable
 data-type as cookie value.
 
-The module formerly strictly applied the parsing rules described in in
+The module formerly strictly applied the parsing rules described in
 the \rfc{2109} and \rfc{2068} specifications.  It has since been discovered
 that MSIE 3.0x doesn't follow the character rules outlined in those
 specs.  As a result, the parsing rules used are a bit less strict.
 
 \begin{excdesc}{CookieError}
 Exception failing because of \rfc{2109} invalidity: incorrect
-attributes, incorrect \code{Set-Cookie} header, etc.
+attributes, incorrect \mailheader{Set-Cookie} header, etc.
 \end{excdesc}
 
 \begin{classdesc}{BaseCookie}{\optional{input}}
 This class is a dictionary-like object whose keys are strings and
-whose values are \class{Morsel}s. Note that upon setting a key to
+whose values are \class{Morsel} instances. Note that upon setting a key to
 a value, the value is first converted to a \class{Morsel} containing
 the key and the value.
 
-If \var{input} is given, it is passed to the \method{load} method.
+If \var{input} is given, it is passed to the \method{load()} method.
 \end{classdesc}
 
 \begin{classdesc}{SimpleCookie}{\optional{input}}
-This class derives from \class{BaseCookie} and overrides \method{value_decode}
-and \method{value_encode} to be the identity and \function{str()} respectively.
+This class derives from \class{BaseCookie} and overrides
+\method{value_decode()} and \method{value_encode()} to be the identity
+and \function{str()} respectively.
 \end{classdesc}
 
 \begin{classdesc}{SerialCookie}{\optional{input}}
-This class derives from \class{BaseCookie} and overrides \method{value_decode}
-and \method{value_encode} to be the \function{pickle.loads()} and 
-\function{pickle.dumps}.  
+This class derives from \class{BaseCookie} and overrides
+\method{value_decode()} and \method{value_encode()} to be the
+\function{pickle.loads()} and \function{pickle.dumps()}.
 
-Do not use this class.  Reading pickled values from a cookie is a
-security hole, as arbitrary client-code can be run on
-\function{pickle.loads()}.  It is supported for backwards
-compatibility.
-
+\deprecated{2.3}{Reading pickled values from untrusted
+cookie data is a huge security hole, as pickle strings can be crafted
+to cause arbitrary code to execute on your server.  It is supported
+for backwards compatibility only, and may eventually go away.}
 \end{classdesc}
 
 \begin{classdesc}{SmartCookie}{\optional{input}}
-This class derives from \class{BaseCookie}. It overrides \method{value_decode}
-to be \function{pickle.loads()} if it is a valid pickle, and otherwise
-the value itself. It overrides \method{value_encode} to be 
-\function{pickle.dumps()} unless it is a string, in which case it returns
-the value itself.
+This class derives from \class{BaseCookie}. It overrides
+\method{value_decode()} to be \function{pickle.loads()} if it is a
+valid pickle, and otherwise the value itself. It overrides
+\method{value_encode()} to be \function{pickle.dumps()} unless it is a
+string, in which case it returns the value itself.
 
-The same security warning from \class{SerialCookie} applies here.
+\deprecated{2.3}{The same security warning from \class{SerialCookie}
+applies here.}
 \end{classdesc}
+
+A further security note is warranted.  For backwards compatibility,
+the \module{Cookie} module exports a class named \class{Cookie} which
+is just an alias for \class{SmartCookie}.  This is probably a mistake
+and will likely be removed in a future version.  You should not use
+the \class{Cookie} class in your applications, for the same reason why
+you should not use the \class{SerialCookie} class.
 
 
 \begin{seealso}
+  \seemodule{cookielib}{HTTP cookie handling for web
+    \emph{clients}.  The \module{cookielib} and \module{Cookie}
+    modules do not depend on each other.}
+
   \seerfc{2109}{HTTP State Management Mechanism}{This is the state
                 management specification implemented by this module.}
 \end{seealso}
@@ -78,15 +90,15 @@ Return an encoded value. \var{val} can be any type, but return value
 must be a string. This method does nothing in \class{BaseCookie} --- it exists
 so it can be overridden
 
-In general, it should be the case that \method{value_encode} and 
-\method{value_decode} are inverses on the range of \var{value_decode}.
-\end{methoddesc}.
+In general, it should be the case that \method{value_encode()} and 
+\method{value_decode()} are inverses on the range of \var{value_decode}.
+\end{methoddesc}
 
 \begin{methoddesc}[BaseCookie]{output}{\optional{attrs\optional{, header\optional{, sep}}}}
 Return a string representation suitable to be sent as HTTP headers.
-\var{attrs} and \var{header} are sent to each \class{Morsel}'s \method{output}
-method. \var{sep} is used to join the headers together, and is by default
-a newline.
+\var{attrs} and \var{header} are sent to each \class{Morsel}'s
+\method{output()} method. \var{sep} is used to join the headers
+together, and is by default a newline.
 \end{methoddesc}
 
 \begin{methoddesc}[BaseCookie]{js_output}{\optional{attrs}}
@@ -161,7 +173,7 @@ Return an embeddable JavaScript snippet, which, if run on a browser which
 supports JavaScript, will act the same as if the HTTP header was sent.
 
 The meaning for \var{attrs} is the same as in \method{output()}.
-\end{methoddesc}.
+\end{methoddesc}
 
 \begin{methoddesc}[Morsel]{OutputString}{\optional{attrs}}
 Return a string representing the Morsel, without any surrounding HTTP
@@ -173,19 +185,19 @@ The meaning for \var{attrs} is the same as in \method{output()}.
 
 \subsection{Example \label{cookie-example}}
 
-The following example demonstrates how to open a can of spam using the
-\module{spam} module.
+The following example demonstrates how to use the \module{Cookie} module.
 
 \begin{verbatim}
 >>> import Cookie
 >>> C = Cookie.SimpleCookie()
 >>> C = Cookie.SerialCookie()
 >>> C = Cookie.SmartCookie()
->>> C = Cookie.Cookie() # backwards compatible alias for SmartCookie
->>> C = Cookie.SmartCookie()
 >>> C["fig"] = "newton"
 >>> C["sugar"] = "wafer"
->>> C # generate HTTP headers
+>>> print C # generate HTTP headers
+Set-Cookie: sugar=wafer;
+Set-Cookie: fig=newton;
+>>> print C.output() # same thing
 Set-Cookie: sugar=wafer;
 Set-Cookie: fig=newton;
 >>> C = Cookie.SmartCookie()
@@ -197,18 +209,18 @@ Cookie: rocky=road; Path=/cookie;
 Cookie: rocky=road;
 >>> C = Cookie.SmartCookie()
 >>> C.load("chips=ahoy; vienna=finger") # load from a string (HTTP header)
->>> C
+>>> print C
 Set-Cookie: vienna=finger;
 Set-Cookie: chips=ahoy;
 >>> C = Cookie.SmartCookie()
->>> C.load('keebler="E=everybody; L=\"Loves\"; fudge=\012;";')
->>> C
+>>> C.load('keebler="E=everybody; L=\\"Loves\\"; fudge=\\012;";')
+>>> print C
 Set-Cookie: keebler="E=everybody; L=\"Loves\"; fudge=\012;";
 >>> C = Cookie.SmartCookie()
 >>> C["oreo"] = "doublestuff"
 >>> C["oreo"]["path"] = "/"
->>> C
-Set-Cookie: oreo="doublestuff"; Path=/;
+>>> print C
+Set-Cookie: oreo=doublestuff; Path=/;
 >>> C = Cookie.SmartCookie()
 >>> C["twix"] = "none for you"
 >>> C["twix"].value
@@ -220,7 +232,7 @@ Set-Cookie: oreo="doublestuff"; Path=/;
 '7'
 >>> C["string"].value
 'seven'
->>> C
+>>> print C
 Set-Cookie: number=7;
 Set-Cookie: string=seven;
 >>> C = Cookie.SerialCookie()
@@ -230,7 +242,7 @@ Set-Cookie: string=seven;
 7
 >>> C["string"].value
 'seven'
->>> C
+>>> print C
 Set-Cookie: number="I7\012.";
 Set-Cookie: string="S'seven'\012p1\012.";
 >>> C = Cookie.SmartCookie()
@@ -240,7 +252,7 @@ Set-Cookie: string="S'seven'\012p1\012.";
 7
 >>> C["string"].value
 'seven'
->>> C
+>>> print C
 Set-Cookie: number="I7\012.";
 Set-Cookie: string=seven;
 \end{verbatim}

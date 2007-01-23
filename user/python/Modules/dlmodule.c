@@ -15,7 +15,7 @@ typedef struct {
 	PyUnivPtr *dl_handle;
 } dlobject;
 
-staticforward PyTypeObject Dltype;
+static PyTypeObject Dltype;
 
 static PyObject *Dlerror;
 
@@ -39,10 +39,8 @@ dl_dealloc(dlobject *xp)
 }
 
 static PyObject *
-dl_close(dlobject *xp, PyObject *args)
+dl_close(dlobject *xp)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
 	if (xp->dl_handle != NULL) {
 		dlclose(xp->dl_handle);
 		xp->dl_handle = NULL;
@@ -56,8 +54,13 @@ dl_sym(dlobject *xp, PyObject *args)
 {
 	char *name;
 	PyUnivPtr *func;
-	if (!PyArg_Parse(args, "s", &name))
+	if (PyString_Check(args)) {
+		name = PyString_AS_STRING(args);
+	} else {
+		PyErr_Format(PyExc_TypeError, "expected string, found %.200s",
+			     args->ob_type->tp_name);
 		return NULL;
+	}
 	func = dlsym(xp->dl_handle, name);
 	if (func == NULL) {
 		Py_INCREF(Py_None);
@@ -86,7 +89,9 @@ dl_call(dlobject *xp, PyObject *args)
 				"function name must be a string");
 		return NULL;
 	}
-	func = dlsym(xp->dl_handle, PyString_AsString(name));
+	func = (long (*)(long, long, long, long, long, 
+                         long, long, long, long, long)) 
+          dlsym(xp->dl_handle, PyString_AsString(name));
 	if (func == NULL) {
 		PyErr_SetString(PyExc_ValueError, dlerror());
 		return NULL;
@@ -118,9 +123,9 @@ dl_call(dlobject *xp, PyObject *args)
 }
 
 static PyMethodDef dlobject_methods[] = {
-	{"call",	(PyCFunction)dl_call,	1 /* varargs */},
-	{"sym", 	(PyCFunction)dl_sym},
-	{"close",	(PyCFunction)dl_close},
+	{"call",	(PyCFunction)dl_call, METH_VARARGS},
+	{"sym", 	(PyCFunction)dl_sym, METH_O},
+	{"close",	(PyCFunction)dl_close, METH_NOARGS},
 	{NULL,  	NULL}			 /* Sentinel */
 };
 
@@ -132,9 +137,9 @@ dl_getattr(dlobject *xp, char *name)
 
 
 static PyTypeObject Dltype = {
-	PyObject_HEAD_INIT(&PyType_Type)
+	PyObject_HEAD_INIT(NULL)
 	0,			/*ob_size*/
-	"dl",			/*tp_name*/
+	"dl.dl",		/*tp_name*/
 	sizeof(dlobject),	/*tp_basicsize*/
 	0,			/*tp_itemsize*/
 	/* methods */
@@ -156,11 +161,18 @@ dl_open(PyObject *self, PyObject *args)
 	char *name;
 	int mode;
 	PyUnivPtr *handle;
-	if (PyArg_Parse(args, "z", &name))
+	if (sizeof(int) != sizeof(long) ||
+	    sizeof(long) != sizeof(char *)) {
+		PyErr_SetString(PyExc_SystemError,
+ "module dl requires sizeof(int) == sizeof(long) == sizeof(char*)");
+		return NULL;
+	}
+
+	if (PyArg_ParseTuple(args, "z:open", &name))
 		mode = RTLD_LAZY;
 	else {
 		PyErr_Clear();
-		if (!PyArg_Parse(args, "(zi)", &name, &mode))
+		if (!PyArg_ParseTuple(args, "zi:open", &name, &mode))
 			return NULL;
 #ifndef RTLD_NOW
 		if (mode != RTLD_LAZY) {
@@ -178,7 +190,7 @@ dl_open(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef dl_methods[] = {
-	{"open",	dl_open},
+	{"open",	dl_open, METH_VARARGS},
 	{NULL,		NULL}		/* sentinel */
 };
 
@@ -197,20 +209,18 @@ insint(PyObject *d, char *name, int value)
 	Py_XDECREF(v);
 }
 
-void
+PyMODINIT_FUNC
 initdl(void)
 {
 	PyObject *m, *d, *x;
 
-	if (sizeof(int) != sizeof(long) ||
-	    sizeof(long) != sizeof(char *)) {
-		PyErr_SetString(PyExc_SystemError,
- "module dl requires sizeof(int) == sizeof(long) == sizeof(char*)");
-		return;
-	}
+	/* Initialize object type */
+	Dltype.ob_type = &PyType_Type;
 
 	/* Create the module and add the functions */
 	m = Py_InitModule("dl", dl_methods);
+	if (m == NULL)
+		return;
 
 	/* Add some symbolic constants to the module */
 	d = PyModule_GetDict(m);

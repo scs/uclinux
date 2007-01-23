@@ -6,7 +6,6 @@ It is used to bring up other windows.
 
 import sys
 import os
-import string
 from Tkinter import *
 import tkMessageBox
 import tkFileDialog
@@ -76,7 +75,7 @@ class PyncheWidget:
         # Help menu
         #
         helpmenu = Menu(menubar, name='help', tearoff=0)
-	helpmenu.add_command(label='About Pynche...',
+        helpmenu.add_command(label='About Pynche...',
                              command=self.__popup_about,
                              underline=0)
         helpmenu.add_command(label='Help...',
@@ -203,7 +202,7 @@ Unrecognized color file type in file:
 
 class Helpwin:
     def __init__(self, master, quitfunc):
-        from Main import __version__, docstring
+        from Main import docstring
         self.__root = root = Toplevel(master, class_='Pynche')
         root.protocol('WM_DELETE_WINDOW', self.__withdraw)
         root.title('Pynche Help Window')
@@ -221,9 +220,9 @@ class Helpwin:
                 fp = open(readmefile)
                 contents = fp.read()
                 # wax the last page, it contains Emacs cruft
-                i = string.rfind(contents, '\f')
+                i = contents.rfind('\f')
                 if i > 0:
-                    contents = string.rstrip(contents[:i])
+                    contents = contents[:i].rstrip()
             finally:
                 if fp:
                     fp.close()
@@ -258,11 +257,11 @@ class PopupViewer:
         self.__root = root
         self.__menutext = module.ADDTOVIEW
         # find the underline character
-        underline = string.find(module.ADDTOVIEW, '%')
+        underline = module.ADDTOVIEW.find('%')
         if underline == -1:
             underline = 0
         else:
-            self.__menutext = string.replace(module.ADDTOVIEW, '%', '', 1)
+            self.__menutext = module.ADDTOVIEW.replace('%', '', 1)
         self.__underline = underline
         self.__window = None
 

@@ -8,68 +8,51 @@
 #include "timing.h"
 
 static PyObject *
-start_timing(PyObject *self, PyObject *args)
+start_timing(PyObject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	Py_INCREF(Py_None);
 	BEGINTIMING;
 	return Py_None;
 }
 
 static PyObject *
-finish_timing(PyObject *self, PyObject *args)
+finish_timing(PyObject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	ENDTIMING    
 	Py_INCREF(Py_None);
 	return Py_None;
 }
 
 static PyObject *
-seconds(PyObject *self, PyObject *args)
+seconds(PyObject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	return PyInt_FromLong(TIMINGS);
-
 }
 
 static PyObject *
-milli(PyObject *self, PyObject *args)
+milli(PyObject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	return PyInt_FromLong(TIMINGMS);
-
 }
+
 static PyObject *
-micro(PyObject *self, PyObject *args)
+micro(PyObject *self)
 {
-	if (!PyArg_Parse(args, ""))
-		return NULL;
-
 	return PyInt_FromLong(TIMINGUS);
-
 }
 
 
 static PyMethodDef timing_methods[] = {
-	{"start",   start_timing},
-	{"finish",  finish_timing},
-	{"seconds", seconds},
-	{"milli",   milli},
-	{"micro",   micro},
+	{"start",   (PyCFunction)start_timing, METH_NOARGS},
+	{"finish",  (PyCFunction)finish_timing, METH_NOARGS},
+	{"seconds", (PyCFunction)seconds, METH_NOARGS},
+	{"milli",   (PyCFunction)milli, METH_NOARGS},
+	{"micro",   (PyCFunction)micro, METH_NOARGS},
 	{NULL,      NULL}
 };
 
 
-DL_EXPORT(void) inittiming(void)
+PyMODINIT_FUNC inittiming(void)
 {
 	(void)Py_InitModule("timing", timing_methods);
 }

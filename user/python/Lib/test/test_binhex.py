@@ -2,45 +2,48 @@
 """Test script for the binhex C module
 
    Uses the mechanism of the python binhex module
-   Roger E. Masse
+   Based on an original test by Roger E. Masse.
 """
 import binhex
-import tempfile
-from test_support import verbose, TestSkipped
+import os
+import unittest
+from test import test_support
 
-def test():
 
-    try:
-        fname1 = tempfile.mktemp()
-        fname2 = tempfile.mktemp()
-        f = open(fname1, 'w')
-    except:
-        raise TestSkipped, "Cannot test binhex without a temp file"
+class BinHexTestCase(unittest.TestCase):
 
-    start = 'Jack is my hero'
-    f.write(start)
-    f.close()
-    
-    binhex.binhex(fname1, fname2)
-    if verbose:
-        print 'binhex'
+    def setUp(self):
+        self.fname1 = test_support.TESTFN + "1"
+        self.fname2 = test_support.TESTFN + "2"
 
-    binhex.hexbin(fname2, fname1)
-    if verbose:
-        print 'hexbin'
+    def tearDown(self):
+        try: os.unlink(self.fname1)
+        except OSError: pass
 
-    f = open(fname1, 'r')
-    finish = f.readline()
+        try: os.unlink(self.fname2)
+        except OSError: pass
 
-    if start <> finish:
-        print 'Error: binhex <> hexbin'
-    elif verbose:
-        print 'binhex == hexbin'
+    DATA = 'Jack is my hero'
 
-    try:
-        import os
-        os.unlink(fname1)
-        os.unlink(fname2)
-    except:
-        pass
-test()
+    def test_binhex(self):
+        f = open(self.fname1, 'w')
+        f.write(self.DATA)
+        f.close()
+
+        binhex.binhex(self.fname1, self.fname2)
+
+        binhex.hexbin(self.fname2, self.fname1)
+
+        f = open(self.fname1, 'r')
+        finish = f.readline()
+        f.close()
+
+        self.assertEqual(self.DATA, finish)
+
+
+def test_main():
+    test_support.run_unittest(BinHexTestCase)
+
+
+if __name__ == "__main__":
+    test_main()

@@ -1,5 +1,4 @@
 import marshal
-import string
 import bkfile
 
 
@@ -18,11 +17,9 @@ trailer = """\
 # if __debug__ == 0 (i.e. -O option given), set Py_OptimizeFlag in frozen app.
 default_entry_point = """
 int
-main(argc, argv)
-    int argc;
-    char **argv;
+main(int argc, char **argv)
 {
-	extern int Py_FrozenMain(int, char **);
+        extern int Py_FrozenMain(int, char **);
 """ + ((not __debug__ and """
         Py_OptimizeFlag++;
 """) or "")  + """
@@ -32,7 +29,7 @@ main(argc, argv)
 
 """
 
-def makefreeze(base, dict, debug=0, entry_point = None):
+def makefreeze(base, dict, debug=0, entry_point=None, fail_import=()):
     if entry_point is None: entry_point = default_entry_point
     done = []
     files = []
@@ -40,7 +37,7 @@ def makefreeze(base, dict, debug=0, entry_point = None):
     mods.sort()
     for mod in mods:
         m = dict[mod]
-        mangled = string.join(string.split(mod, "."), "__")
+        mangled = "__".join(mod.split("."))
         if m.__code__:
             file = 'M_' + mangled + '.c'
             outfp = bkfile.open(base + file, 'w')
@@ -63,6 +60,13 @@ def makefreeze(base, dict, debug=0, entry_point = None):
     outfp.write(header)
     for mod, mangled, size in done:
         outfp.write('\t{"%s", M_%s, %d},\n' % (mod, mangled, size))
+    outfp.write('\n')
+    # The following modules have a NULL code pointer, indicating
+    # that the prozen program should not search for them on the host
+    # system. Importing them will *always* raise an ImportError.
+    # The zero value size is never used.
+    for mod in fail_import:
+        outfp.write('\t{"%s", NULL, 0},\n' % (mod,))
     outfp.write(trailer)
     outfp.write(entry_point)
     outfp.close()
@@ -83,4 +87,4 @@ def writecode(outfp, mod, str):
 
 ## def writecode(outfp, mod, str):
 ##     outfp.write('unsigned char M_%s[%d] = "%s";\n' % (mod, len(str),
-##     string.join(map(lambda s: `s`[1:-1], string.split(str, '"')), '\\"')))
+##     '\\"'.join(map(lambda s: repr(s)[1:-1], str.split('"')))))

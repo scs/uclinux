@@ -2,13 +2,13 @@
 
 This class implements a pure input window which allows you to meticulously
 edit the current color.  You have both mouse control of the color (via the
-buttons along the bottom row), and there are keyboard bindings for each of the 
+buttons along the bottom row), and there are keyboard bindings for each of the
 increment/decrement buttons.
 
 The top three check buttons allow you to specify which of the three color
 variations are tied together when incrementing and decrementing.  Red, green,
 and blue are self evident.  By tying together red and green, you can modify
-the yellow level of the color.  By tying together red and blue, you can modify 
+the yellow level of the color.  By tying together red and blue, you can modify
 the magenta level of the color.  By tying together green and blue, you can
 modify the cyan level, and by tying all three together, you can modify the
 grey level.
@@ -210,17 +210,17 @@ class DetailsViewer:
                 red, green, blue = self.__red, self.__green, self.__blue
         elif atbound == WRAP or (atbound == RATIO and len(tie) < 2):
             if red < 0:
-                red = red + 256
+                red += 256
             if green < 0:
-                green = green + 256
+                green += 256
             if blue < 0:
-                blue = blue + 256
+                blue += 256
             if red > 255:
-                red = red - 256
+                red -= 256
             if green > 255:
-                green = green - 256
+                green -= 256
             if blue > 255:
-                blue = blue - 256
+                blue -= 256
         elif atbound == RATIO:
             # for when 2 or 3 colors are tied together
             dir = 0

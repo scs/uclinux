@@ -74,14 +74,13 @@ FOLDER_PROTECT = 0700
 
 import os
 import sys
-from stat import ST_NLINK
 import re
-import string
 import mimetools
 import multifile
 import shutil
 from bisect import bisect
 
+__all__ = ["MH","Error","Folder","Message"]
 
 # Exported constants
 
@@ -98,9 +97,9 @@ class MH:
 
     def __init__(self, path = None, profile = None):
         """Constructor."""
-        if not profile: profile = MH_PROFILE
+        if profile is None: profile = MH_PROFILE
         self.profile = os.path.expanduser(profile)
-        if not path: path = self.getprofile('Path')
+        if path is None: path = self.getprofile('Path')
         if not path: path = PATH
         if not os.path.isabs(path) and path[0] != '~':
             path = os.path.join('~', path)
@@ -110,7 +109,7 @@ class MH:
 
     def __repr__(self):
         """String representation."""
-        return 'MH(%s, %s)' % (`self.path`, `self.profile`)
+        return 'MH(%r, %r)' % (self.path, self.profile)
 
     def error(self, msg, *args):
         """Routine to print an error.  May be overridden by a derived class."""
@@ -155,8 +154,7 @@ class MH:
         fullname = os.path.join(self.path, name)
         # Get the link count so we can avoid listing folders
         # that have no subfolders.
-        st = os.stat(fullname)
-        nlinks = st[ST_NLINK]
+        nlinks = os.stat(fullname).st_nlink
         if nlinks <= 2:
             return []
         subfolders = []
@@ -183,8 +181,7 @@ class MH:
         fullname = os.path.join(self.path, name)
         # Get the link count so we can avoid listing folders
         # that have no subfolders.
-        st = os.stat(fullname)
-        nlinks = st[ST_NLINK]
+        nlinks = os.stat(fullname).st_nlink
         if nlinks <= 2:
             return []
         subfolders = []
@@ -215,7 +212,7 @@ class MH:
         """Create a new folder (or raise os.error if it cannot be created)."""
         protect = pickline(self.profile, 'Folder-Protect')
         if protect and isnumeric(protect):
-            mode = string.atoi(protect, 8)
+            mode = int(protect, 8)
         else:
             mode = FOLDER_PROTECT
         os.mkdir(os.path.join(self.getpath(), name), mode)
@@ -250,11 +247,11 @@ class Folder:
 
     def __repr__(self):
         """String representation."""
-        return 'Folder(%s, %s)' % (`self.mh`, `self.name`)
+        return 'Folder(%r, %r)' % (self.mh, self.name)
 
     def error(self, *args):
         """Error message handler."""
-        apply(self.mh.error, args)
+        self.mh.error(*args)
 
     def getfullname(self):
         """Return the full pathname of the folder."""
@@ -285,7 +282,7 @@ class Folder:
         for name in os.listdir(self.getfullname()):
             if match(name):
                 append(name)
-        messages = map(string.atoi, messages)
+        messages = map(int, messages)
         messages.sort()
         if messages:
             self.last = messages[-1]
@@ -304,12 +301,12 @@ class Folder:
         while 1:
             line = f.readline()
             if not line: break
-            fields = string.splitfields(line, ':')
-            if len(fields) <> 2:
+            fields = line.split(':')
+            if len(fields) != 2:
                 self.error('bad sequence in %s: %s' %
-                          (fullname, string.strip(line)))
-            key = string.strip(fields[0])
-            value = IntSet(string.strip(fields[1]), ' ').tolist()
+                          (fullname, line.strip()))
+            key = fields[0].strip()
+            value = IntSet(fields[1].strip(), ' ').tolist()
             sequences[key] = value
         return sequences
 
@@ -317,9 +314,9 @@ class Folder:
         """Write the set of sequences back to the folder."""
         fullname = self.getsequencesfilename()
         f = None
-        for key in sequences.keys():
+        for key, seq in sequences.iteritems():
             s = IntSet('', ' ')
-            s.fromlist(sequences[key])
+            s.fromlist(seq)
             if not f: f = open(fullname, 'w')
             f.write('%s: %s\n' % (key, s.tostring()))
         if not f:
@@ -359,7 +356,7 @@ class Folder:
         if seq == 'all':
             return all
         # Test for X:Y before X-Y because 'seq:-n' matches both
-        i = string.find(seq, ':')
+        i = seq.find(':')
         if i >= 0:
             head, dir, tail = seq[:i], '', seq[i+1:]
             if tail[:1] in '-+':
@@ -367,7 +364,7 @@ class Folder:
             if not isnumeric(tail):
                 raise Error, "bad message list %s" % seq
             try:
-                count = string.atoi(tail)
+                count = int(tail)
             except (ValueError, OverflowError):
                 # Can't use sys.maxint because of i+count below
                 count = len(all)
@@ -375,7 +372,7 @@ class Folder:
                 anchor = self._parseindex(head, all)
             except Error, msg:
                 seqs = self.getsequences()
-                if not seqs.has_key(head):
+                if not head in seqs:
                     if not msg:
                         msg = "bad message list %s" % seq
                     raise Error, msg, sys.exc_info()[2]
@@ -397,7 +394,7 @@ class Folder:
                     i = bisect(all, anchor-1)
                     return all[i:i+count]
         # Test for X-Y next
-        i = string.find(seq, '-')
+        i = seq.find('-')
         if i >= 0:
             begin = self._parseindex(seq[:i], all)
             end = self._parseindex(seq[i+1:], all)
@@ -412,7 +409,7 @@ class Folder:
             n = self._parseindex(seq, all)
         except Error, msg:
             seqs = self.getsequences()
-            if not seqs.has_key(seq):
+            if not seq in seqs:
                 if not msg:
                     msg = "bad message list %s" % seq
                 raise Error, msg
@@ -430,7 +427,7 @@ class Folder:
         """Internal: parse a message number (or cur, first, etc.)."""
         if isnumeric(seq):
             try:
-                return string.atoi(seq)
+                return int(seq)
             except (OverflowError, ValueError):
                 return sys.maxint
         if seq in ('cur', '.'):
@@ -530,7 +527,7 @@ class Folder:
             try:
                 toseq = tosequences[name]
                 new = 0
-            except:
+            except KeyError:
                 toseq = []
                 new = 1
             for fromn, ton in refileditems:
@@ -648,7 +645,7 @@ class Folder:
     def getlast(self):
         """Return the last message number."""
         if not hasattr(self, 'last'):
-            messages = self.listmessages()
+            self.listmessages() # Set self.last
         return self.last
 
     def setlast(self, last):
@@ -665,7 +662,7 @@ class Message(mimetools.Message):
         """Constructor."""
         self.folder = f
         self.number = n
-        if not fp:
+        if fp is None:
             path = f.getmessagefilename(n)
             fp = open(path, 'r')
         mimetools.Message.__init__(self, fp)
@@ -679,17 +676,17 @@ class Message(mimetools.Message):
         argument is specified, it is used as a filter predicate to
         decide which headers to return (its argument is the header
         name converted to lower case)."""
-        if not pred:
-            return string.joinfields(self.headers, '')
+        if pred is None:
+            return ''.join(self.headers)
         headers = []
         hit = 0
         for line in self.headers:
-            if line[0] not in string.whitespace:
-                i = string.find(line, ':')
+            if not line[0].isspace():
+                i = line.find(':')
                 if i > 0:
-                    hit = pred(string.lower(line[:i]))
+                    hit = pred(line[:i].lower())
             if hit: headers.append(line)
-        return string.joinfields(headers, '')
+        return ''.join(headers)
 
     def getbodytext(self, decode = 1):
         """Return the message's body text as string.  This undoes a
@@ -719,7 +716,7 @@ class Message(mimetools.Message):
         mf.push(bdry)
         parts = []
         while mf.next():
-            n = str(self.number) + '.' + `1 + len(parts)`
+            n = "%s.%r" % (self.number, 1 + len(parts))
             part = SubMessage(self.folder, n, mf)
             parts.append(part)
         mf.pop()
@@ -803,8 +800,7 @@ class IntSet:
         return hash(self.pairs)
 
     def __repr__(self):
-        return 'IntSet(%s, %s, %s)' % (`self.tostring()`,
-                  `self.sep`, `self.rng`)
+        return 'IntSet(%r, %r, %r)' % (self.tostring(), self.sep, self.rng)
 
     def normalize(self):
         self.pairs.sort()
@@ -820,8 +816,8 @@ class IntSet:
     def tostring(self):
         s = ''
         for lo, hi in self.pairs:
-            if lo == hi: t = `lo`
-            else: t = `lo` + self.rng + `hi`
+            if lo == hi: t = repr(lo)
+            else: t = repr(lo) + self.rng + repr(hi)
             if s: s = s + (self.sep + t)
             else: s = t
         return s
@@ -850,8 +846,8 @@ class IntSet:
 
     def contains(self, x):
         for lo, hi in self.pairs:
-            if lo <= x <= hi: return 1
-        return 0
+            if lo <= x <= hi: return True
+        return False
 
     def append(self, x):
         for i in range(len(self.pairs)):
@@ -884,13 +880,12 @@ class IntSet:
         self.normalize()
 
     def fromstring(self, data):
-        import string
         new = []
-        for part in string.splitfields(data, self.sep):
+        for part in data.split(self.sep):
             list = []
-            for subp in string.splitfields(part, self.rng):
-                s = string.strip(subp)
-                list.append(string.atoi(s))
+            for subp in part.split(self.rng):
+                s = subp.strip()
+                list.append(int(s))
             if len(list) == 1:
                 new.append((list[0], list[0]))
             elif len(list) == 2 and list[0] <= list[1]:
@@ -917,10 +912,10 @@ def pickline(file, key, casefold = 1):
             text = line[len(key)+1:]
             while 1:
                 line = f.readline()
-                if not line or line[0] not in string.whitespace:
+                if not line or not line[0].isspace():
                     break
                 text = text + line
-            return string.strip(text)
+            return text.strip()
     return None
 
 def updateline(file, key, value, casefold = 1):
@@ -967,7 +962,7 @@ def test():
     testfolders = ['@test', '@test/test1', '@test/test2',
                    '@test/test1/test11', '@test/test1/test12',
                    '@test/test1/test11/test111']
-    for t in testfolders: do('mh.makefolder(%s)' % `t`)
+    for t in testfolders: do('mh.makefolder(%r)' % (t,))
     do('mh.listsubfolders(\'@test\')')
     do('mh.listallsubfolders(\'@test\')')
     f = mh.openfolder('@test')
@@ -979,8 +974,7 @@ def test():
     print seqs
     f.putsequences(seqs)
     do('f.getsequences()')
-    testfolders.reverse()
-    for t in testfolders: do('mh.deletefolder(%s)' % `t`)
+    for t in reversed(testfolders): do('mh.deletefolder(%r)' % (t,))
     do('mh.getcontext()')
     context = mh.getcontext()
     f = mh.openfolder(context)
@@ -991,11 +985,11 @@ def test():
                 '1:3', '1:-3', '100:3', '100:-3', '10000:3', '10000:-3',
                 'all']:
         try:
-            do('f.parsesequence(%s)' % `seq`)
+            do('f.parsesequence(%r)' % (seq,))
         except Error, msg:
             print "Error:", msg
-        stuff = os.popen("pick %s 2>/dev/null" % `seq`).read()
-        list = map(string.atoi, string.split(stuff))
+        stuff = os.popen("pick %r 2>/dev/null" % (seq,)).read()
+        list = map(int, stuff.split())
         print list, "<-- pick"
     do('f.listmessages()')
 

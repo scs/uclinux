@@ -1,16 +1,21 @@
 \section{Built-in Exceptions}
 
 \declaremodule{standard}{exceptions}
-\modulesynopsis{Standard exceptions classes.}
+\modulesynopsis{Standard exception classes.}
 
 
-Exceptions can be class objects or string objects.  Though most
-exceptions have been string objects in past versions of Python, in
-Python 1.5 and newer versions, all standard exceptions have been
-converted to class objects, and users are encouraged to do the same.
+Exceptions should be class objects.  
 The exceptions are defined in the module \module{exceptions}.  This
 module never needs to be imported explicitly: the exceptions are
-provided in the built-in namespace.
+provided in the built-in namespace as well as the \module{exceptions}
+module.
+
+\begin{notice}
+In past versions of Python string exceptions were supported.  In
+Python 1.5 and newer versions, all standard exceptions have been
+converted to class objects and users are encouraged to do the same.
+String exceptions will raise a \code{PendingDeprecationWarning}.
+In future versions, support for string exceptions will be removed.
 
 Two distinct string objects with the same value are considered different
 exceptions.  This is done to force programmers to use exception names
@@ -18,6 +23,7 @@ rather than their string value when specifying exception handlers.
 The string value of all built-in exceptions is their name, but this is
 not a requirement for user-defined exceptions or exceptions defined by
 library modules.
+\end{notice}
 
 For class exceptions, in a \keyword{try}\stindex{try} statement with
 an \keyword{except}\stindex{except} clause that mentions a particular
@@ -47,6 +53,13 @@ situation in which the interpreter raises the same exception; but
 beware that there is nothing to prevent user code from raising an
 inappropriate error.
 
+The built-in exception classes can be sub-classed to define new
+exceptions; programmers are encouraged to at least derive new
+exceptions from the \exception{Exception} base class.  More
+information on defining exceptions is available in the
+\citetitle[../tut/tut.html]{Python Tutorial} under the heading
+``User-defined Exceptions.''
+
 \setindexsubitem{(built-in exception base class)}
 
 The following exceptions are only used as base classes for other
@@ -66,8 +79,8 @@ also available on the instance's \member{args} attribute, as a tuple.
 
 \begin{excdesc}{StandardError}
 The base class for all built-in exceptions except
-\exception{SystemExit}.  \exception{StandardError} itself is derived
-from the root class
+\exception{StopIteration} and \exception{SystemExit}.
+\exception{StandardError} itself is derived from the root class
 \exception{Exception}.
 \end{excdesc}
 
@@ -80,7 +93,8 @@ various arithmetic errors: \exception{OverflowError},
 \begin{excdesc}{LookupError}
 The base class for the exceptions that are raised when a key or
 index used on a mapping or sequence is invalid: \exception{IndexError},
-\exception{KeyError}.
+\exception{KeyError}.  This can be raised directly by
+\function{sys.setdefaultencoding()}.
 \end{excdesc}
 
 \begin{excdesc}{EnvironmentError}
@@ -127,11 +141,11 @@ Raised when an \keyword{assert} statement fails.
 \begin{excdesc}{EOFError}
 % XXXJH xrefs here
   Raised when one of the built-in functions (\function{input()} or
-  \function{raw_input()}) hits an end-of-file condition (\EOF{}) without
+  \function{raw_input()}) hits an end-of-file condition (\EOF) without
   reading any data.
 % XXXJH xrefs here
   (N.B.: the \method{read()} and \method{readline()} methods of file
-  objects return an empty string when they hit \EOF{}.)
+  objects return an empty string when they hit \EOF.)
 \end{excdesc}
 
 \begin{excdesc}{FloatingPointError}
@@ -139,7 +153,7 @@ Raised when an \keyword{assert} statement fails.
   always defined, but can only be raised when Python is configured
   with the \longprogramopt{with-fpectl} option, or the
   \constant{WANT_SIGFPE_HANDLER} symbol is defined in the
-  \file{config.h} file.
+  \file{pyconfig.h} file.
 \end{excdesc}
 
 \begin{excdesc}{IOError}
@@ -176,11 +190,11 @@ Raised when an \keyword{assert} statement fails.
 
 \begin{excdesc}{KeyboardInterrupt}
   Raised when the user hits the interrupt key (normally
-  \kbd{Control-C} or \kbd{DEL}).  During execution, a check for
+  \kbd{Control-C} or \kbd{Delete}).  During execution, a check for
   interrupts is made regularly.
 % XXXJH xrefs here
   Interrupts typed when a built-in function \function{input()} or
-  \function{raw_input()}) is waiting for input also raise this
+  \function{raw_input()} is waiting for input also raise this
   exception.
 \end{excdesc}
 
@@ -197,8 +211,8 @@ Raised when an \keyword{assert} statement fails.
 
 \begin{excdesc}{NameError}
   Raised when a local or global name is not found.  This applies only
-  to unqualified names.  The associated value is the name that could
-  not be found.
+  to unqualified names.  The associated value is an error message that
+  includes the name that could not be found.
 \end{excdesc}
 
 \begin{excdesc}{NotImplementedError}
@@ -228,12 +242,32 @@ Raised when an \keyword{assert} statement fails.
   typical applications prefer to drop bits than raise an exception.
 \end{excdesc}
 
+\begin{excdesc}{ReferenceError}
+  This exception is raised when a weak reference proxy, created by the
+  \function{\refmodule{weakref}.proxy()} function, is used to access
+  an attribute of the referent after it has been garbage collected.
+  For more information on weak references, see the \refmodule{weakref}
+  module.
+  \versionadded[Previously known as the
+                \exception{\refmodule{weakref}.ReferenceError}
+                exception]{2.2}
+\end{excdesc}
+
 \begin{excdesc}{RuntimeError}
   Raised when an error is detected that doesn't fall in any of the
   other categories.  The associated value is a string indicating what
   precisely went wrong.  (This exception is mostly a relic from a
   previous version of the interpreter; it is not used very much any
   more.)
+\end{excdesc}
+
+\begin{excdesc}{StopIteration}
+  Raised by an iterator's \method{next()} method to signal that there
+  are no further values.
+  This is derived from \exception{Exception} rather than
+  \exception{StandardError}, since this is not considered an error in
+  its normal application.
+  \versionadded{2.2}
 \end{excdesc}
 
 \begin{excdesc}{SyntaxError}
@@ -244,12 +278,10 @@ Raised when an \keyword{assert} statement fails.
   when reading the initial script or standard input (also
   interactively).
 
-When class exceptions are used, instances of this class have
-atttributes \member{filename}, \member{lineno}, \member{offset} and
-\member{text} for easier access to the details; for string exceptions,
-the associated value is usually a tuple of the form
-\code{(message, (filename, lineno, offset, text))}.
-For class exceptions, \function{str()} returns only the message.
+  Instances of this class have attributes \member{filename},
+  \member{lineno}, \member{offset} and \member{text} for easier access
+  to the details.  \function{str()} of the exception instance returns
+  only the message.
 \end{excdesc}
 
 \begin{excdesc}{SystemError}
@@ -259,7 +291,7 @@ For class exceptions, \function{str()} returns only the message.
   low-level terms).
   
   You should report this to the author or maintainer of your Python
-  interpreter.  Be sure to report the version string of the Python
+  interpreter.  Be sure to report the version of the Python
   interpreter (\code{sys.version}; it is also printed at the start of an
   interactive Python session), the exact error message (the exception's
   associated value) and if possible the source of the program that
@@ -285,11 +317,12 @@ For class exceptions, \function{str()} returns only the message.
   can be executed, and so that a debugger can execute a script without
   running the risk of losing control.  The \function{os._exit()} function
   can be used if it is absolutely positively necessary to exit
-  immediately (e.g., after a \function{fork()} in the child process).
+  immediately (for example, in the child process after a call to
+  \function{fork()}).
 \end{excdesc}
 
 \begin{excdesc}{TypeError}
-  Raised when a built-in operation or function is applied to an object
+  Raised when an operation or function is applied to an object
   of inappropriate type.  The associated value is a string giving
   details about the type mismatch.
 \end{excdesc}
@@ -305,6 +338,24 @@ For class exceptions, \function{str()} returns only the message.
   Raised when a Unicode-related encoding or decoding error occurs.  It
   is a subclass of \exception{ValueError}.
 \versionadded{2.0}
+\end{excdesc}
+
+\begin{excdesc}{UnicodeEncodeError}
+  Raised when a Unicode-related error occurs during encoding.  It
+  is a subclass of \exception{UnicodeError}.
+\versionadded{2.3}
+\end{excdesc}
+
+\begin{excdesc}{UnicodeDecodeError}
+  Raised when a Unicode-related error occurs during decoding.  It
+  is a subclass of \exception{UnicodeError}.
+\versionadded{2.3}
+\end{excdesc}
+
+\begin{excdesc}{UnicodeTranslateError}
+  Raised when a Unicode-related error occurs during translating.  It
+  is a subclass of \exception{UnicodeError}.
+\versionadded{2.3}
 \end{excdesc}
 
 \begin{excdesc}{ValueError}
@@ -329,3 +380,87 @@ For class exceptions, \function{str()} returns only the message.
   zero.  The associated value is a string indicating the type of the
   operands and the operation.
 \end{excdesc}
+
+
+\setindexsubitem{(built-in warning)}
+
+The following exceptions are used as warning categories; see the
+\refmodule{warnings} module for more information.
+
+\begin{excdesc}{Warning}
+Base class for warning categories.
+\end{excdesc}
+
+\begin{excdesc}{UserWarning}
+Base class for warnings generated by user code.
+\end{excdesc}
+
+\begin{excdesc}{DeprecationWarning}
+Base class for warnings about deprecated features.
+\end{excdesc}
+
+\begin{excdesc}{PendingDeprecationWarning}
+Base class for warnings about features which will be deprecated in the future.
+\end{excdesc}
+
+\begin{excdesc}{SyntaxWarning}
+Base class for warnings about dubious syntax
+\end{excdesc}
+
+\begin{excdesc}{RuntimeWarning}
+Base class for warnings about dubious runtime behavior.
+\end{excdesc}
+
+\begin{excdesc}{FutureWarning}
+Base class for warnings about constructs that will change semantically
+in the future.
+\end{excdesc}
+
+The class hierarchy for built-in exceptions is:
+
+\begin{verbatim}
+    Exception
+     +-- SystemExit
+     +-- StopIteration
+     +-- StandardError
+     |    +-- KeyboardInterrupt
+     |    +-- ImportError
+     |    +-- EnvironmentError
+     |    |    +-- IOError
+     |    |    +-- OSError
+     |    |         +-- WindowsError
+     |    +-- EOFError
+     |    +-- RuntimeError
+     |    |    +-- NotImplementedError
+     |    +-- NameError
+     |    |    +-- UnboundLocalError
+     |    +-- AttributeError
+     |    +-- SyntaxError
+     |    |    +-- IndentationError
+     |    |         +-- TabError
+     |    +-- TypeError
+     |    +-- AssertionError
+     |    +-- LookupError
+     |    |    +-- IndexError
+     |    |    +-- KeyError
+     |    +-- ArithmeticError
+     |    |    +-- OverflowError
+     |    |    +-- ZeroDivisionError
+     |    |    +-- FloatingPointError
+     |    +-- ValueError
+     |    |    +-- UnicodeError
+     |    |        +-- UnicodeEncodeError
+     |    |        +-- UnicodeDecodeError
+     |    |        +-- UnicodeTranslateError
+     |    +-- ReferenceError
+     |    +-- SystemError
+     |    +-- MemoryError
+     +---Warning
+	  +-- UserWarning
+	  +-- DeprecationWarning
+	  +-- PendingDeprecationWarning
+	  +-- SyntaxWarning
+	  +-- OverflowWarning (not generated in 2.4; won't exist in 2.5)
+	  +-- RuntimeWarning
+	  +-- FutureWarning
+\end{verbatim}

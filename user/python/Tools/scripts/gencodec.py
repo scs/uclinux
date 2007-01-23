@@ -1,9 +1,9 @@
 """ Unicode Mapping Parser and Codec Generator.
 
 This script parses Unicode mapping files as available from the Unicode
-site (ftp.unicode.org) and creates Python codec modules from them. The
-codecs use the standard character mapping codec to actually apply the
-mapping.
+site (ftp://ftp.unicode.org/Public/MAPPINGS/) and creates Python codec
+modules from them. The codecs use the standard character mapping codec
+to actually apply the mapping.
 
 Synopsis: gencodec.py dir codec_prefix
 
@@ -18,10 +18,11 @@ same location (with .mapping extension).
 Written by Marc-Andre Lemburg (mal@lemburg.com).
 
 (c) Copyright CNRI, All Rights Reserved. NO WARRANTY.
+(c) Copyright Guido van Rossum, 2000.
 
 """#"
 
-import string,re,os,time,marshal
+import re,os,time,marshal
 
 # Create numeric tables or character based ones ?
 numeric = 1
@@ -33,9 +34,7 @@ mapRE = re.compile('((?:0x[0-9a-fA-F]+\+?)+)'
                    '(#.+)?')
 
 def parsecodes(codes,
-
-               split=string.split,atoi=string.atoi,len=len,
-               filter=filter,range=range):
+               len=len, filter=filter,range=range):
 
     """ Converts code combinations to either a single code integer
         or a tuple of integers.
@@ -48,12 +47,12 @@ def parsecodes(codes,
     """
     if not codes:
         return None
-    l = split(codes,'+')
+    l = codes.split('+')
     if len(l) == 1:
-        return atoi(l[0],16)
+        return int(l[0],16)
     for i in range(len(l)):
         try:
-            l[i] = atoi(l[i],16)
+            l[i] = int(l[i],16)
         except ValueError:
             l[i] = None
     l = filter(lambda x: x is not None, l)
@@ -62,16 +61,18 @@ def parsecodes(codes,
     else:
         return tuple(l)
 
-def readmap(filename,
-
-            strip=string.strip):
+def readmap(filename):
 
     f = open(filename,'r')
     lines = f.readlines()
     f.close()
     enc2uni = {}
+    identity = []
+    unmapped = range(256)
+    for i in range(256):
+        unmapped[i] = i
     for line in lines:
-        line = strip(line)
+        line = line.strip()
         if not line or line[0] == '#':
             continue
         m = mapRE.match(line)
@@ -85,13 +86,25 @@ def readmap(filename,
             comment = ''
         else:
             comment = comment[1:]
-        if enc != uni:
+        if enc < 256:
+            unmapped.remove(enc)
+            if enc == uni:
+                identity.append(enc)
+            else:
+                enc2uni[enc] = (uni,comment)
+        else:
             enc2uni[enc] = (uni,comment)
+    # If there are more identity-mapped entries than unmapped entries,
+    # it pays to generate an identity dictionary first, and add explicit
+    # mappings to None for the rest
+    if len(identity)>=len(unmapped):
+        for enc in unmapped:
+            enc2uni[enc] = (None, "")
+        enc2uni['IDENTITY'] = 256
+
     return enc2uni
 
-def hexrepr(t,
-
-            join=string.join):
+def hexrepr(t):
 
     if t is None:
         return 'None'
@@ -99,11 +112,9 @@ def hexrepr(t,
         len(t)
     except:
         return '0x%04x' % t
-    return '(' + join(map(lambda t: '0x%04x' % t, t),', ') + ')'
+    return '(' + ', '.join(map(lambda t: '0x%04x' % t, t)) + ')'
 
-def unicoderepr(t,
-
-                join=string.join):
+def unicoderepr(t):
 
     if t is None:
         return 'None'
@@ -114,11 +125,9 @@ def unicoderepr(t,
             len(t)
         except:
             return repr(unichr(t))
-        return repr(join(map(unichr, t),''))
+        return repr(''.join(map(unichr, t)))
 
-def keyrepr(t,
-
-            join=string.join):
+def keyrepr(t):
 
     if t is None:
         return 'None'
@@ -132,7 +141,7 @@ def keyrepr(t,
                 return repr(chr(t))
             else:
                 return repr(unichr(t))
-        return repr(join(map(chr, t),''))
+        return repr(''.join(map(chr, t)))
 
 def codegen(name,map,comments=1):
 
@@ -143,11 +152,7 @@ def codegen(name,map,comments=1):
     """
     l = [
         '''\
-""" Python Character Mapping Codec generated from '%s'.
-
-Written by Marc-Andre Lemburg (mal@lemburg.com).
-
-(c) Copyright CNRI, All Rights Reserved. NO WARRANTY.
+""" Python Character Mapping Codec generated from '%s' with gencodec.py.
 
 """#"
 
@@ -160,14 +165,14 @@ class Codec(codecs.Codec):
     def encode(self,input,errors='strict'):
 
         return codecs.charmap_encode(input,errors,encoding_map)
-        
+
     def decode(self,input,errors='strict'):
 
         return codecs.charmap_decode(input,errors,decoding_map)
 
 class StreamWriter(Codec,codecs.StreamWriter):
     pass
-        
+
 class StreamReader(Codec,codecs.StreamReader):
     pass
 
@@ -178,15 +183,23 @@ def getregentry():
     return (Codec().encode,Codec().decode,StreamReader,StreamWriter)
 
 ### Decoding Map
-
-decoding_map = {
 ''' % name,
         ]
+
+    if map.has_key("IDENTITY"):
+        l.append("decoding_map = codecs.make_identity_dict(range(%d))"
+                 % map["IDENTITY"])
+        l.append("decoding_map.update({")
+        splits = 1
+        del map["IDENTITY"]
+    else:
+        l.append("decoding_map = {")
+        splits = 0
+
     mappings = map.items()
     mappings.sort()
     append = l.append
     i = 0
-    splits = 0
     for e,value in mappings:
         try:
             (u,c) = value
@@ -198,7 +211,7 @@ decoding_map = {
             append('\t%s: %s,\t# %s' % (key,unicoderepr(u),c))
         else:
             append('\t%s: %s,' % (key,unicoderepr(u)))
-        i = i + 1
+        i += 1
         if i == 4096:
             # Split the definition into parts to that the Python
             # parser doesn't dump core
@@ -206,7 +219,7 @@ decoding_map = {
                 append('}')
             else:
                 append('})')
-            append('map.update({')
+            append('decoding_map.update({')
             i = 0
             splits = splits + 1
     if splits == 0:
@@ -216,11 +229,9 @@ decoding_map = {
     append('''
 ### Encoding Map
 
-encoding_map = {}
-for k,v in decoding_map.items():
-    encoding_map[v] = k
+encoding_map = codecs.make_encoding_map(decoding_map)
 ''')
-    return string.join(l,'\n')
+    return '\n'.join(l)
 
 def pymap(name,map,pyfile,comments=1):
 
@@ -243,9 +254,9 @@ def convertdir(dir,prefix='',comments=1):
     mapnames = os.listdir(dir)
     for mapname in mapnames:
         name = os.path.split(mapname)[1]
-        name = string.replace(name,'-','_')
-        name = string.split(name, '.')[0]
-        name = string.lower(name)
+        name = name.replace('-','_')
+        name = name.split('.')[0]
+        name = name.lower()
         codefile = name + '.py'
         marshalfile = name + '.mapping'
         print 'converting %s to %s and %s' % (mapname,
@@ -262,10 +273,10 @@ def convertdir(dir,prefix='',comments=1):
             print '* conversion failed'
 
 def rewritepythondir(dir,prefix='',comments=1):
-    
+
     mapnames = os.listdir(dir)
     for mapname in mapnames:
-        if mapname[-len('.mapping'):] != '.mapping':
+        if not mapname.endswith('.mapping'):
             continue
         codefile = mapname[:-len('.mapping')] + '.py'
         print 'converting %s to %s' % (mapname,

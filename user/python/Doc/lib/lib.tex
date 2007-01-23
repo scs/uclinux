@@ -8,9 +8,9 @@
 
 \input{boilerplate}
 
-\makeindex			% tell \index to actually write the
-				% .idx file
-\makemodindex			% ... and the module index as well.
+\makeindex                      % tell \index to actually write the
+                                % .idx file
+\makemodindex                   % ... and the module index as well.
 
 
 \begin{document}
@@ -28,7 +28,7 @@
 \noindent
 Python is an extensible, interpreted, object-oriented programming
 language.  It supports a wide range of applications, from simple text
-processing scripts to interactive WWW browsers.
+processing scripts to interactive Web browsers.
 
 While the \citetitle[../ref/ref.html]{Python Reference Manual}
 describes the exact syntax and semantics of the language, it does not
@@ -62,31 +62,38 @@ and how to embed it in other applications.
 
 \tableofcontents
 
-				% Chapter title:
+                                % Chapter title:
 
-\input{libintro}		% Introduction
+\input{libintro}                % Introduction
 
-\input{libobjs}			% Built-in Types, Exceptions and Functions
+\input{libobjs}                 % Built-in Types, Exceptions and Functions
+\input{libfuncs}
 \input{libstdtypes}
 \input{libexcs}
-\input{libfuncs}
+\input{libconsts}
 
-\input{libpython}		% Python Runtime Services
+\input{libpython}               % Python Runtime Services
 \input{libsys}
 \input{libgc}
+\input{libweakref}
+\input{libfpectl}
 \input{libatexit}
 \input{libtypes}
 \input{libuserdict}
 \input{liboperator}
+\input{libinspect}
 \input{libtraceback}
 \input{liblinecache}
 \input{libpickle}
-\input{libcopyreg}		% really copy_reg
+\input{libcopyreg}              % really copy_reg
 \input{libshelve}
 \input{libcopy}
 \input{libmarshal}
+\input{libwarnings}
 \input{libimp}
-%\input{libni}
+\input{libzipimport}
+\input{libpkgutil}
+\input{libmodulefinder}
 \input{libcode}
 \input{libcodeop}
 \input{libpprint}
@@ -94,52 +101,64 @@ and how to embed it in other applications.
 \input{libnew}
 \input{libsite}
 \input{libuser}
-\input{libbltin}		% really __builtin__
-\input{libmain}			% really __main__
+\input{libbltin}                % really __builtin__
+\input{libmain}                 % really __main__
+\input{libfuture}               % really __future__
 
-\input{libstrings}		% String Services
+\input{libstrings}              % String Services
 \input{libstring}
 \input{libre}
-%\input{libregex}
-%\input{libregsub}
 \input{libstruct}
+\input{libdifflib}
 \input{libfpformat}
 \input{libstringio}
+\input{libtextwrap}
 \input{libcodecs}
 \input{libunicodedata}
-%\input{libsoundex}
+\input{libstringprep}
 
-\input{libmisc}			% Miscellaneous Services
+\input{libmisc}                 % Miscellaneous Services
+\input{libpydoc}
+\input{libdoctest}
+\input{libunittest}
+\input{libtest}
+\input{libdecimal}
 \input{libmath}
 \input{libcmath}
 \input{librandom}
 \input{libwhrandom}
-%\input{librand}
 \input{libbisect}
+\input{libcollections}
+\input{libheapq}
 \input{libarray}
+\input{libsets}
+\input{libitertools}
 \input{libcfgparser}
 \input{libfileinput}
 \input{libcalendar}
 \input{libcmd}
 \input{libshlex}
 
-\input{liballos}		% Generic Operating System Services
+\input{liballos}                % Generic Operating System Services
 \input{libos}
-\input{libposixpath}		% os.path
+\input{libposixpath}            % os.path
 \input{libdircache}
 \input{libstat}
 \input{libstatcache}
 \input{libstatvfs}
 \input{libfilecmp}
+\input{libsubprocess}
 \input{libpopen2}
-%\input{libcmp}
-%\input{libcmpcache}
+\input{libdatetime}
 \input{libtime}
 \input{libsched}
+\input{libmutex}
 \input{libgetpass}
 \input{libcurses}
-\input{libascii}		% curses.ascii
+\input{libascii}                % curses.ascii
+\input{libcursespanel}
 \input{libgetopt}
+\input{liboptparse}
 \input{libtempfile}
 \input{liberrno}
 \input{libglob}
@@ -147,27 +166,33 @@ and how to embed it in other applications.
 \input{libshutil}
 \input{liblocale}
 \input{libgettext}
+\input{liblogging}
+\input{libplatform}
 
-\input{libsomeos}		% Optional Operating System Services
+\input{libsomeos}               % Optional Operating System Services
 \input{libsignal}
 \input{libsocket}
 \input{libselect}
 \input{libthread}
 \input{libthreading}
-\input{libmutex}
+\input{libdummythread}
+\input{libdummythreading}
 \input{libqueue}
 \input{libmmap}
 \input{libanydbm}
 \input{libdbhash}
 \input{libwhichdb}
 \input{libbsddb}
+\input{libdumbdbm}
 \input{libzlib}
 \input{libgzip}
+\input{libbz2}
 \input{libzipfile}
+\input{libtarfile}
 \input{libreadline}
 \input{librlcompleter}
 
-\input{libunix}			% UNIX Specific Services
+\input{libunix}                 % UNIX Specific Services
 \input{libposix}
 \input{libpwd}
 \input{libgrp}
@@ -186,14 +211,18 @@ and how to embed it in other applications.
 \input{libsyslog}
 \input{libcommands}
 
-\input{libpdb}			% The Python Debugger
+\input{libpdb}                  % The Python Debugger
 
-\input{libprofile}		% The Python Profiler
+\input{libprofile}              % The Python Profiler
+\input{libhotshot}              % New profiler
+\input{libtimeit}
 
-\input{internet}		% Internet Protocols
+\input{internet}                % Internet Protocols
 \input{libwebbrowser}
 \input{libcgi}
+\input{libcgitb}
 \input{liburllib}
+\input{liburllib2}
 \input{libhttplib}
 \input{libftplib}
 \input{libgopherlib}
@@ -201,46 +230,64 @@ and how to embed it in other applications.
 \input{libimaplib}
 \input{libnntplib}
 \input{libsmtplib}
+\input{libsmtpd}
 \input{libtelnetlib}
 \input{liburlparse}
 \input{libsocksvr}
 \input{libbasehttp}
 \input{libsimplehttp}
 \input{libcgihttp}
+\input{libcookielib}
 \input{libcookie}
+\input{libxmlrpclib}
+\input{libsimplexmlrpc}
+\input{libdocxmlrpc}
 \input{libasyncore}
+\input{libasynchat}
 
-\input{netdata}			% Internet Data Handling
+\input{netdata}                 % Internet Data Handling
 \input{libformatter}
-\input{librfc822}
-\input{libmimetools}
-\input{libmimewriter}
-\input{libmultifile}
-\input{libbinhex}
-\input{libuu}
-\input{libbinascii}
-\input{libxdrlib}
+
+% MIME & email stuff
+\input{email}
 \input{libmailcap}
-\input{libmimetypes}
-\input{libbase64}
-\input{libquopri}
 \input{libmailbox}
 \input{libmhlib}
+\input{libmimetools}
+\input{libmimetypes}
+\input{libmimewriter}
 \input{libmimify}
+\input{libmultifile}
+\input{librfc822}
+
+% encoding stuff
+\input{libbase64}
+\input{libbinascii}
+\input{libbinhex}
+\input{libquopri}
+\input{libuu}
+\input{libxdrlib}
+
+% file formats
 \input{libnetrc}
 \input{librobotparser}
+\input{libcsv}
 
 \input{markup}                  % Structured Markup Processing Tools
+\input{libhtmlparser}
 \input{libsgmllib}
 \input{libhtmllib}
 \input{libpyexpat}
+\input{xmldom}
+\input{xmldomminidom}
+\input{xmldompulldom}
 \input{xmlsax}
 \input{xmlsaxhandler}
 \input{xmlsaxutils}
 \input{xmlsaxreader}
 \input{libxmllib}
 
-\input{libmm}			% Multimedia Services
+\input{libmm}                   % Multimedia Services
 \input{libaudioop}
 \input{libimageop}
 \input{libaifc}
@@ -251,18 +298,20 @@ and how to embed it in other applications.
 \input{librgbimg}
 \input{libimghdr}
 \input{libsndhdr}
+\input{libossaudiodev}
 
-\input{libcrypto}		% Cryptographic Services
+\input{libcrypto}               % Cryptographic Services
+\input{libhmac}
 \input{libmd5}
 \input{libsha}
-\input{libmpz}
-\input{librotor}
+
+\input{tkinter}
 
 \input{librestricted}           % Restricted Execution
 \input{librexec}
 \input{libbastion}
 
-\input{language}		% Python Language Services
+\input{language}                % Python Language Services
 \input{libparser}
 \input{libsymbol}
 \input{libtoken}
@@ -270,15 +319,19 @@ and how to embed it in other applications.
 \input{libtokenize}
 \input{libtabnanny}
 \input{libpyclbr}
-\input{libpycompile}		% really py_compile
+\input{libpycompile}            % really py_compile
 \input{libcompileall}
 \input{libdis}
+\input{libpickletools}
+\input{distutils}
 
-%\input{libamoeba}		% AMOEBA ONLY
+\input{compiler}                % compiler package
 
-%\input{libstdwin}		% STDWIN ONLY
+%\input{libamoeba}              % AMOEBA ONLY
 
-\input{libsgi}			% SGI IRIX ONLY
+%\input{libstdwin}              % STDWIN ONLY
+
+\input{libsgi}                  % SGI IRIX ONLY
 \input{libal}
 \input{libcd}
 \input{libfl}
@@ -288,18 +341,30 @@ and how to embed it in other applications.
 \input{libjpeg}
 %\input{libpanel}
 
-\input{libsun}			% SUNOS ONLY
+\input{libsun}                  % SUNOS ONLY
 \input{libsunaudio}
 
-\input{windows}			% MS Windows ONLY
+\input{windows}                 % MS Windows ONLY
 \input{libmsvcrt}
 \input{libwinreg}
 \input{libwinsound}
 
 \appendix
 \input{libundoc}
+
+%\chapter{Obsolete Modules}
+%\input{libcmpcache}
+%\input{libcmp}
+%\input{libni}
+%\input{librand}
+%\input{libregex}
+%\input{libregsub}
+
 \chapter{Reporting Bugs}
 \input{reportingbugs}
+
+\chapter{History and License}
+\input{license}
 
 %
 %  The ugly "%begin{latexonly}" pseudo-environments are really just to
@@ -310,11 +375,11 @@ and how to embed it in other applications.
 %begin{latexonly}
 \renewcommand{\indexname}{Module Index}
 %end{latexonly}
-\input{modlib.ind}		% Module Index
+\input{modlib.ind}              % Module Index
 
 %begin{latexonly}
 \renewcommand{\indexname}{Index}
 %end{latexonly}
-\input{lib.ind}			% Index
+\input{lib.ind}                 % Index
 
 \end{document}

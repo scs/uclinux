@@ -8,6 +8,7 @@ __version__ = '$Revision$'
 
 
 import getopt
+import os.path
 import sys
 
 
@@ -18,28 +19,49 @@ class Options:
         "columns=", "help", "output=",
 
         # content components
-        "address=", "iconserver=",
-        "title=", "uplink=", "uptitle="]
+        "address=", "iconserver=", "favicon=",
+        "title=", "uplink=", "uptitle=",
+        "image-type=",
+        ]
 
     outputfile = "-"
     columns = 1
     letters = 0
-    uplink = "./"
+    uplink = "index.html"
     uptitle = "Python Documentation Index"
+    favicon = None
+
+    # The "Aesop Meta Tag" is poorly described, and may only be used
+    # by the Aesop search engine (www.aesop.com), but doesn't hurt.
+    #
+    # There are a number of values this may take to roughly categorize
+    # a page.  A page should be marked according to its primary
+    # category.  Known values are:
+    #   'personal'    -- personal-info
+    #   'information' -- information
+    #   'interactive' -- interactive media
+    #   'multimedia'  -- multimedia presenetation (non-sales)
+    #   'sales'       -- sales material
+    #   'links'       -- links to other information pages
+    #
+    # Setting the aesop_type value to one of these strings will cause
+    # get_header() to add the appropriate <meta> tag to the <head>.
+    #
+    aesop_type = None
 
     def __init__(self):
         self.args = []
         self.variables = {"address": "",
                           "iconserver": "icons",
-                          "imgtype": "gif",
+                          "imgtype": "png",
                           "title": "Global Module Index",
                           }
 
     def add_args(self, short=None, long=None):
         if short:
-            self.__short_args += short
+            self.__short_args = self.__short_args + short
         if long:
-            self.__long_args += long
+            self.__long_args = self.__long_args + long
 
     def parse(self, args):
         try:
@@ -49,7 +71,7 @@ class Options:
             sys.stdout = sys.stderr
             self.usage()
             sys.exit(2)
-        self.args += args
+        self.args = self.args + args
         for opt, val in opts:
             if opt in ("-a", "--address"):
                 val = val.strip()
@@ -71,6 +93,10 @@ class Options:
                 self.uptitle = val.strip()
             elif opt == "--iconserver":
                 self.variables["iconserver"] = val.strip() or "."
+            elif opt == "--favicon":
+                self.favicon = val.strip()
+            elif opt == "--image-type":
+                self.variables["imgtype"] = val.strip()
             else:
                 self.handle_option(opt, val)
         if self.uplink and self.uptitle:
@@ -86,7 +112,35 @@ class Options:
         raise getopt.error("option %s not recognized" % opt)
 
     def get_header(self):
-        return HEAD % self.variables
+        s = HEAD % self.variables
+        if self.uplink:
+            if self.uptitle:
+                link = ('<link rel="up" href="%s" title="%s">\n  '
+                        '<link rel="start" href="%s" title="%s">'
+                        % (self.uplink, self.uptitle,
+                           self.uplink, self.uptitle))
+            else:
+                link = ('<link rel="up" href="%s">\n  '
+                        '<link rel="start" href="%s">'
+                        % (self.uplink, self.uplink))
+            repl = "  %s\n</head>" % link
+            s = s.replace("</head>", repl, 1)
+        if self.aesop_type:
+            meta = '<meta name="aesop" content="%s">\n  ' % self.aesop_type
+            # Insert this in the middle of the head that's been
+            # generated so far, keeping <meta> and <link> elements in
+            # neat groups:
+            s = s.replace("<link ", meta + "<link ", 1)
+        if self.favicon:
+            ext = os.path.splitext(self.favicon)[1]
+            if ext in (".gif", ".png"):
+                type = ' type="image/%s"' % ext[1:]
+            else:
+                type = ''
+            link = ('<link rel="SHORTCUT ICON" href="%s"%s>\n  '
+                    % (self.favicon, type))
+            s = s.replace("<link ", link + "<link ", 1)
+        return s
 
     def get_footer(self):
         return TAIL % self.variables

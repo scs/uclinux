@@ -13,6 +13,7 @@ file_input
 expr_input
 eval_input
 funcdef
+lambdef
 simple_stmt
 expr_stmt
 print_stmt
@@ -29,11 +30,16 @@ pass_stmt
 flow_stmt
 break_stmt
 continue_stmt
+continue + try/except ok
+continue + try/finally ok
+testing continue and break in try/except in loop
 return_stmt
 raise_stmt
-import_stmt
+import_name
+import_from
 global_stmt
 exec_stmt
+assert_stmt
 if_stmt
 while_stmt
 for_stmt
@@ -55,6 +61,7 @@ classdef
 [3, 4, 5]
 [(1, 'Apple'), (1, 'Banana'), (1, 'Coconut'), (2, 'Apple'), (2, 'Banana'), (2, 'Coconut'), (3, 'Apple'), (3, 'Banana'), (3, 'Coconut'), (4, 'Apple'), (4, 'Banana'), (4, 'Coconut'), (5, 'Apple'), (5, 'Banana'), (5, 'Coconut')]
 [(1, 'Banana'), (1, 'Coconut'), (2, 'Banana'), (2, 'Coconut'), (3, 'Banana'), (3, 'Coconut'), (4, 'Banana'), (4, 'Coconut'), (5, 'Banana'), (5, 'Coconut')]
-good: got a SyntaxError as expected
-good: got a SyntaxError as expected
+[[1], [1, 1], [1, 2, 4], [1, 3, 9, 27], [1, 4, 16, 64, 256]]
+[False, False, False]
+[[1, 2], [3, 4], [5, 6]]
 [('Boeing', 'Airliner'), ('Boeing', 'Engine'), ('Ford', 'Engine'), ('Macdonalds', 'Cheeseburger')]

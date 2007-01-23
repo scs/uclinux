@@ -1,7 +1,15 @@
 # Python test set -- part 1, grammar.
 # This just tests whether the parser accepts them all.
 
-from test_support import *
+# NOTE: When you run this test as a script from the command line, you
+# get warnings about certain hex/oct constants.  Since those are
+# issued by the parser, you can't suppress them by adding a
+# filterwarnings() call to this module.  Therefore, to shut up the
+# regression test, the filterwarnings() call has been added to
+# regrtest.py.
+
+from test.test_support import TestFailed, verify, check_syntax
+import sys
 
 print '1. Parser'
 
@@ -12,50 +20,47 @@ print '1.1.1 Backslashes'
 # Backslash means line continuation:
 x = 1 \
 + 1
-if x <> 2: raise TestFailed, 'backslash for line continuation'
+if x != 2: raise TestFailed, 'backslash for line continuation'
 
 # Backslash does not means continuation in comments :\
 x = 0
-if x <> 0: raise TestFailed, 'backslash ending comment'
+if x != 0: raise TestFailed, 'backslash ending comment'
 
 print '1.1.2 Numeric literals'
 
 print '1.1.2.1 Plain integers'
-if 0xff <> 255: raise TestFailed, 'hex int'
-if 0377 <> 255: raise TestFailed, 'octal int'
+if 0xff != 255: raise TestFailed, 'hex int'
+if 0377 != 255: raise TestFailed, 'octal int'
 if  2147483647   != 017777777777: raise TestFailed, 'large positive int'
 try:
-	from sys import maxint
+    from sys import maxint
 except ImportError:
-	maxint = 2147483647
+    maxint = 2147483647
 if maxint == 2147483647:
-	if -2147483647-1 != 020000000000: raise TestFailed, 'max negative int'
-	# XXX -2147483648
-	if 037777777777 != -1: raise TestFailed, 'oct -1'
-	if 0xffffffff != -1: raise TestFailed, 'hex -1'
-	for s in '2147483648', '040000000000', '0x100000000':
-		try:
-			x = eval(s)
-		except OverflowError:
-			continue
-##		raise TestFailed, \
-		print \
-			  'No OverflowError on huge integer literal ' + `s`
+    # The following test will start to fail in Python 2.4;
+    # change the 020000000000 to -020000000000
+    if -2147483647-1 != -020000000000: raise TestFailed, 'max negative int'
+    # XXX -2147483648
+    if 037777777777 < 0: raise TestFailed, 'large oct'
+    if 0xffffffff < 0: raise TestFailed, 'large hex'
+    for s in '2147483648', '040000000000', '0x100000000':
+        try:
+            x = eval(s)
+        except OverflowError:
+            print "OverflowError on huge integer literal " + repr(s)
 elif eval('maxint == 9223372036854775807'):
-	if eval('-9223372036854775807-1 != 01000000000000000000000'):
-		raise TestFailed, 'max negative int'
-	if eval('01777777777777777777777') != -1: raise TestFailed, 'oct -1'
-	if eval('0xffffffffffffffff') != -1: raise TestFailed, 'hex -1'
-	for s in '9223372036854775808', '02000000000000000000000', \
-		 '0x10000000000000000':
-		try:
-			x = eval(s)
-		except OverflowError:
-			continue
-		raise TestFailed, \
-			  'No OverflowError on huge integer literal ' + `s`
+    if eval('-9223372036854775807-1 != -01000000000000000000000'):
+        raise TestFailed, 'max negative int'
+    if eval('01777777777777777777777') < 0: raise TestFailed, 'large oct'
+    if eval('0xffffffffffffffff') < 0: raise TestFailed, 'large hex'
+    for s in '9223372036854775808', '02000000000000000000000', \
+             '0x10000000000000000':
+        try:
+            x = eval(s)
+        except OverflowError:
+            print "OverflowError on huge integer literal " + repr(s)
 else:
-	print 'Weird maxint value', maxint
+    print 'Weird maxint value', maxint
 
 print '1.1.2.2 Long integers'
 x = 0L
@@ -83,18 +88,15 @@ x = 3.1e4
 
 print '1.1.3 String literals'
 
-##def assert(s):
-##	if not s: raise TestFailed, 'see traceback'
-
-x = ''; y = ""; assert(len(x) == 0 and x == y)
-x = '\''; y = "'"; assert(len(x) == 1 and x == y and ord(x) == 39)
-x = '"'; y = "\""; assert(len(x) == 1 and x == y and ord(x) == 34)
+x = ''; y = ""; verify(len(x) == 0 and x == y)
+x = '\''; y = "'"; verify(len(x) == 1 and x == y and ord(x) == 39)
+x = '"'; y = "\""; verify(len(x) == 1 and x == y and ord(x) == 34)
 x = "doesn't \"shrink\" does it"
 y = 'doesn\'t "shrink" does it'
-assert(len(x) == 24 and x == y)
+verify(len(x) == 24 and x == y)
 x = "does \"shrink\" doesn't it"
 y = 'does "shrink" doesn\'t it'
-assert(len(x) == 24 and x == y)
+verify(len(x) == 24 and x == y)
 x = """
 The "quick"
 brown fox
@@ -102,25 +104,25 @@ jumps over
 the 'lazy' dog.
 """
 y = '\nThe "quick"\nbrown fox\njumps over\nthe \'lazy\' dog.\n'
-assert(x == y)
+verify(x == y)
 y = '''
 The "quick"
 brown fox
 jumps over
 the 'lazy' dog.
-'''; assert(x == y)
+'''; verify(x == y)
 y = "\n\
 The \"quick\"\n\
 brown fox\n\
 jumps over\n\
 the 'lazy' dog.\n\
-"; assert(x == y)
+"; verify(x == y)
 y = '\n\
 The \"quick\"\n\
 brown fox\n\
 jumps over\n\
 the \'lazy\' dog.\n\
-'; assert(x == y)
+'; verify(x == y)
 
 
 print '1.2 Grammar'
@@ -142,11 +144,11 @@ print 'funcdef'
 ### parameters: '(' [varargslist] ')'
 ### varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' ('**'|'*' '*') NAME]
 ###            | ('**'|'*' '*') NAME)
-###            | fpdef ['=' test] (',' fpdef ['=' test])* [',']  
+###            | fpdef ['=' test] (',' fpdef ['=' test])* [',']
 ### fpdef: NAME | '(' fplist ')'
 ### fplist: fpdef (',' fpdef)* [',']
 ### arglist: (argument ',')* (argument | *' test [',' '**' test] | '**' test)
-### argument: [test '='] test	# Really [keyword '='] test
+### argument: [test '='] test   # Really [keyword '='] test
 def f1(): pass
 f1()
 f1(*())
@@ -154,12 +156,30 @@ f1(*(), **{})
 def f2(one_argument): pass
 def f3(two, arguments): pass
 def f4(two, (compound, (argument, list))): pass
+def f5((compound, first), two): pass
+verify(f2.func_code.co_varnames == ('one_argument',))
+verify(f3.func_code.co_varnames == ('two', 'arguments'))
+if sys.platform.startswith('java'):
+    verify(f4.func_code.co_varnames ==
+           ('two', '(compound, (argument, list))', 'compound', 'argument',
+                        'list',))
+    verify(f5.func_code.co_varnames ==
+           ('(compound, first)', 'two', 'compound', 'first'))
+else:
+    verify(f4.func_code.co_varnames == ('two', '.2', 'compound',
+                                        'argument',  'list'))
+    verify(f5.func_code.co_varnames == ('.0', 'two', 'compound', 'first'))
 def a1(one_arg,): pass
 def a2(two, args,): pass
 def v0(*rest): pass
 def v1(a, *rest): pass
 def v2(a, b, *rest): pass
-def v3(a, (b, c), *rest): pass
+def v3(a, (b, c), *rest): return a, b, c, rest
+if sys.platform.startswith('java'):
+    verify(v3.func_code.co_varnames == ('a', '(b, c)', 'rest', 'b', 'c'))
+else:
+    verify(v3.func_code.co_varnames == ('a', '.2', 'rest', 'b', 'c'))
+verify(v3(1, (2, 3), 4) == (1, 2, 3, (4,)))
 def d01(a=1): pass
 d01()
 d01(1)
@@ -233,6 +253,20 @@ d22v(*(1, 2, 3, 4))
 d22v(1, 2, *(3, 4, 5))
 d22v(1, *(2, 3), **{'d': 4})
 
+### lambdef: 'lambda' [varargslist] ':' test
+print 'lambdef'
+l1 = lambda : 0
+verify(l1() == 0)
+l2 = lambda : a[d] # XXX just testing the expression
+l3 = lambda : [2 < x for x in [-1, 3, 0L]]
+verify(l3() == [0, 1, 0])
+l4 = lambda x = lambda y = lambda z=1 : z : y() : x()
+verify(l4() == 1)
+l5 = lambda x, y, z=2: x + y + z
+verify(l5(1, 2) == 5)
+verify(l5(1, 2, 3) == 6)
+check_syntax("lambda x: x = 2")
+
 ### stmt: simple_stmt | compound_stmt
 # Tested below
 
@@ -253,6 +287,9 @@ x, y, z = 1, 2, 3
 abc = a, b, c = x, y, z = xyz = 1, 2, (3, 4)
 # NB these variables are deleted below
 
+check_syntax("x + 1 = 1")
+check_syntax("a + 1 = b + 2")
+
 print 'print_stmt' # 'print' (test ',')* [test]
 print 1, 2, 3
 print 1, 2, 3,
@@ -270,7 +307,7 @@ print >> sys.stdout, 0 or 1
 
 # test printing to an instance
 class Gulp:
-	def write(self, msg): pass
+    def write(self, msg): pass
 
 gulp = Gulp()
 print >> gulp, 1, 2, 3
@@ -281,34 +318,27 @@ print >> gulp, 0 or 1
 
 # test print >> None
 def driver():
-	oldstdout = sys.stdout
-	sys.stdout = Gulp()
-	try:
-		tellme(Gulp())
-		tellme()
-	finally:
-		sys.stdout = oldstdout
+    oldstdout = sys.stdout
+    sys.stdout = Gulp()
+    try:
+        tellme(Gulp())
+        tellme()
+    finally:
+        sys.stdout = oldstdout
 
 # we should see this once
 def tellme(file=sys.stdout):
-	print >> file, 'hello world'
+    print >> file, 'hello world'
 
 driver()
 
 # we should not see this at all
 def tellme(file=None):
-	print >> file, 'goodbye universe'
+    print >> file, 'goodbye universe'
 
 driver()
 
 # syntax errors
-def check_syntax(statement):
-	try:
-		compile(statement, '<string>', 'exec')
-	except SyntaxError:
-		pass
-	else:
-		print 'Missing SyntaxError: "%s"' % statement
 check_syntax('print ,')
 check_syntax('print >> x,')
 
@@ -329,6 +359,52 @@ print 'continue_stmt' # 'continue'
 i = 1
 while i: i = 0; continue
 
+msg = ""
+while not msg:
+    msg = "continue + try/except ok"
+    try:
+        continue
+        msg = "continue failed to continue inside try"
+    except:
+        msg = "continue inside try called except block"
+print msg
+
+msg = ""
+while not msg:
+    msg = "finally block not called"
+    try:
+        continue
+    finally:
+        msg = "continue + try/finally ok"
+print msg
+
+
+# This test warrants an explanation. It is a test specifically for SF bugs
+# #463359 and #462937. The bug is that a 'break' statement executed or
+# exception raised inside a try/except inside a loop, *after* a continue
+# statement has been executed in that loop, will cause the wrong number of
+# arguments to be popped off the stack and the instruction pointer reset to
+# a very small number (usually 0.) Because of this, the following test
+# *must* written as a function, and the tracking vars *must* be function
+# arguments with default values. Otherwise, the test will loop and loop.
+
+print "testing continue and break in try/except in loop"
+def test_break_continue_loop(extra_burning_oil = 1, count=0):
+    big_hippo = 2
+    while big_hippo:
+        count += 1
+        try:
+            if extra_burning_oil and big_hippo == 1:
+                extra_burning_oil -= 1
+                break
+            big_hippo -= 1
+            continue
+        except:
+            raise
+    if count > 2 or big_hippo <> 1:
+        print "continue then break in try/except in loop broken!"
+test_break_continue_loop()
+
 print 'return_stmt' # 'return' [testlist]
 def g1(): return
 def g2(): return 1
@@ -341,47 +417,64 @@ except RuntimeError: pass
 try: raise KeyboardInterrupt
 except KeyboardInterrupt: pass
 
-print 'import_stmt' # 'import' NAME (',' NAME)* | 'from' NAME 'import' ('*' | NAME (',' NAME)*)
+print 'import_name' # 'import' dotted_as_names
 import sys
 import time, sys
+print 'import_from' # 'from' dotted_name 'import' ('*' | '(' import_as_names ')' | import_as_names)
 from time import time
+from time import (time)
 from sys import *
 from sys import path, argv
+from sys import (path, argv)
+from sys import (path, argv,)
 
 print 'global_stmt' # 'global' NAME (',' NAME)*
 def f():
-	global a
-	global a, b
-	global one, two, three, four, five, six, seven, eight, nine, ten
+    global a
+    global a, b
+    global one, two, three, four, five, six, seven, eight, nine, ten
 
 print 'exec_stmt' # 'exec' expr ['in' expr [',' expr]]
 def f():
-	z = None
-	del z
-	exec 'z=1+1\n'
-	if z <> 2: raise TestFailed, 'exec \'z=1+1\'\\n'
-	del z
-	exec 'z=1+1'
-	if z <> 2: raise TestFailed, 'exec \'z=1+1\''
-	z = None
-	del z
-	exec u'z=1+1\n'
-	if z <> 2: raise TestFailed, 'exec u\'z=1+1\'\\n'
-	del z
-	exec u'z=1+1'
-	if z <> 2: raise TestFailed, 'exec u\'z=1+1\''
+    z = None
+    del z
+    exec 'z=1+1\n'
+    if z != 2: raise TestFailed, 'exec \'z=1+1\'\\n'
+    del z
+    exec 'z=1+1'
+    if z != 2: raise TestFailed, 'exec \'z=1+1\''
+    z = None
+    del z
+    import types
+    if hasattr(types, "UnicodeType"):
+        exec r"""if 1:
+    exec u'z=1+1\n'
+    if z != 2: raise TestFailed, 'exec u\'z=1+1\'\\n'
+    del z
+    exec u'z=1+1'
+    if z != 2: raise TestFailed, 'exec u\'z=1+1\''
+"""
 f()
 g = {}
 exec 'z = 1' in g
 if g.has_key('__builtins__'): del g['__builtins__']
-if g <> {'z': 1}: raise TestFailed, 'exec \'z = 1\' in g'
+if g != {'z': 1}: raise TestFailed, 'exec \'z = 1\' in g'
 g = {}
 l = {}
+
+import warnings
+warnings.filterwarnings("ignore", "global statement", module="<string>")
 exec 'global a; a = 1; b = 2' in g, l
 if g.has_key('__builtins__'): del g['__builtins__']
 if l.has_key('__builtins__'): del l['__builtins__']
-if (g, l) <> ({'a':1}, {'b':2}): raise TestFailed, 'exec ... in g, l'
+if (g, l) != ({'a':1}, {'b':2}): raise TestFailed, 'exec ... in g (%s), l (%s)' %(g,l)
 
+
+print "assert_stmt" # assert_stmt: 'assert' test [',' test]
+assert 1
+assert 1, 1
+assert lambda x:x
+assert 1, lambda x:x+1
 
 ### compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | funcdef | classdef
 # Tested below
@@ -408,17 +501,17 @@ for i in 1, 2, 3: pass
 for i, j, k in (): pass
 else: pass
 class Squares:
-	def __init__(self, max):
-		self.max = max
-		self.sofar = []
-	def __len__(self): return len(self.sofar)
-	def __getitem__(self, i):
-		if not 0 <= i < self.max: raise IndexError
-		n = len(self.sofar)
-		while n <= i:
-			self.sofar.append(n*n)
-			n = n+1
-		return self.sofar[i]
+    def __init__(self, max):
+        self.max = max
+        self.sofar = []
+    def __len__(self): return len(self.sofar)
+    def __getitem__(self, i):
+        if not 0 <= i < self.max: raise IndexError
+        n = len(self.sofar)
+        while n <= i:
+            self.sofar.append(n*n)
+            n = n+1
+        return self.sofar[i]
 n = 0
 for x in Squares(10): n = n+x
 if n != 285: raise TestFailed, 'for over growing sequence'
@@ -428,11 +521,11 @@ print 'try_stmt'
 ###         | 'try' ':' suite 'finally' ':' suite
 ### except_clause: 'except' [expr [',' expr]]
 try:
-	1/0
+    1/0
 except ZeroDivisionError:
-	pass
+    pass
 else:
-	pass
+    pass
 try: 1/0
 except EOFError: pass
 except TypeError, msg: pass
@@ -449,16 +542,16 @@ finally: pass
 print 'suite' # simple_stmt | NEWLINE INDENT NEWLINE* (stmt NEWLINE*)+ DEDENT
 if 1: pass
 if 1:
-	pass
+    pass
 if 1:
-	#
-	#
-	#
-	pass
-	pass
-	#
-	pass
-	#
+    #
+    #
+    #
+    pass
+    pass
+    #
+    pass
+    #
 
 print 'test'
 ### and_test ('or' and_test)*
@@ -598,9 +691,9 @@ class C1(B): pass
 class C2(B): pass
 class D(C1, C2, B): pass
 class C:
-	def meth1(self): pass
-	def meth2(self, arg): pass
-	def meth3(self, a1, a2): pass
+    def meth1(self): pass
+    def meth2(self, arg): pass
+    def meth3(self, a1, a2): pass
 
 # list comprehension tests
 nums = [1, 2, 3, 4, 5]
@@ -612,17 +705,20 @@ print [3 * x for x in nums]
 print [x for x in nums if x > 2]
 print [(i, s) for i in nums for s in strs]
 print [(i, s) for i in nums for s in [f for f in strs if "n" in f]]
-try:
-    eval("[i, s for i in nums for s in strs]")
-    print "FAIL: should have raised a SyntaxError!"
-except SyntaxError:
-    print "good: got a SyntaxError as expected"
+print [(lambda a:[a**i for i in range(a+1)])(j) for j in range(5)]
 
-try:
-    eval("[x if y]")
-    print "FAIL: should have raised a SyntaxError!"
-except SyntaxError:
-        print "good: got a SyntaxError as expected"
+def test_in_func(l):
+    return [None < x < 3 for x in l if x > 2]
+
+print test_in_func(nums)
+
+def test_nested_front():
+    print [[y for y in [x, x + 1]] for x in [1,3,5]]
+
+test_nested_front()
+
+check_syntax("[i, s for i in nums for s in strs]")
+check_syntax("[x if y]")
 
 suppliers = [
   (1, "Boeing"),
@@ -647,3 +743,46 @@ print [
         for (sp_sno, sp_pno) in suppart
           if sno == sp_sno and pno == sp_pno
 ]
+
+# generator expression tests
+g = ([x for x in range(10)] for x in range(1))
+verify(g.next() == [x for x in range(10)])
+try:
+    g.next()
+    raise TestFailed, 'should produce StopIteration exception'
+except StopIteration:
+    pass
+
+a = 1
+try:
+    g = (a for d in a)
+    g.next()
+    raise TestFailed, 'should produce TypeError'
+except TypeError:
+    pass
+
+verify(list((x, y) for x in 'abcd' for y in 'abcd') == [(x, y) for x in 'abcd' for y in 'abcd'])
+verify(list((x, y) for x in 'ab' for y in 'xy') == [(x, y) for x in 'ab' for y in 'xy'])
+
+a = [x for x in range(10)]
+b = (x for x in (y for y in a))
+verify(sum(b) == sum([x for x in range(10)]))
+
+verify(sum(x**2 for x in range(10)) == sum([x**2 for x in range(10)]))
+verify(sum(x*x for x in range(10) if x%2) == sum([x*x for x in range(10) if x%2]))
+verify(sum(x for x in (y for y in range(10))) == sum([x for x in range(10)]))
+verify(sum(x for x in (y for y in (z for z in range(10)))) == sum([x for x in range(10)]))
+verify(sum(x for x in [y for y in (z for z in range(10))]) == sum([x for x in range(10)]))
+verify(sum(x for x in (y for y in (z for z in range(10) if True)) if True) == sum([x for x in range(10)]))
+verify(sum(x for x in (y for y in (z for z in range(10) if True) if False) if True) == 0)
+check_syntax("foo(x for x in range(10), 100)")
+check_syntax("foo(100, x for x in range(10))")
+
+# test for outmost iterable precomputation
+x = 10; g = (i for i in range(x)); x = 5
+verify(len(list(g)) == 10)
+
+# This should hold, since we're only precomputing outmost iterable.
+x = 10; t = False; g = ((i,j) for i in range(x) if t for j in range(x))
+x = 5; t = True;
+verify([(i,j) for i in range(10) for j in range(5)] == list(g))

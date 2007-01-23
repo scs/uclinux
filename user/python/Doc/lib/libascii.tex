@@ -3,7 +3,7 @@
 
 \declaremodule{standard}{curses.ascii}
 \modulesynopsis{Constants and set-membership functions for
-                \ASCII{} characters.}
+                \ASCII\ characters.}
 \moduleauthor{Eric S. Raymond}{esr@thyrsus.com}
 \sectionauthor{Eric S. Raymond}{esr@thyrsus.com}
 
@@ -53,7 +53,9 @@ control characters as follows:
   \lineii{DEL}{Delete}
 \end{tableii}
 
-Note that many of these have little practical use in modern usage.
+Note that many of these have little practical significance in modern
+usage.  The mnemonics derive from teleprinter conventions that predate
+digital computers.
 
 The module supplies the following functions, patterned on those in the
 standard C library:
@@ -104,7 +106,7 @@ alphanumeric character.
 \end{funcdesc}
 
 \begin{funcdesc}{isspace}{c}
-Checks for \ASCII{} white-space characters; space, tab, line feed,
+Checks for \ASCII{} white-space characters; space, line feed,
 carriage return, form feed, horizontal tab, vertical tab.
 \end{funcdesc}
 

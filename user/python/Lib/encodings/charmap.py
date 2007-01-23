@@ -2,7 +2,7 @@
 
     Use this codec directly rather than through the automatic
     conversion mechanisms supplied by unicode() and .encode().
-    
+
 
 Written by Marc-Andre Lemburg (mal@lemburg.com).
 
@@ -25,18 +25,18 @@ class StreamWriter(Codec,codecs.StreamWriter):
 
     def __init__(self,stream,errors='strict',mapping=None):
 
-        codecs.StreamWriter.__init__(self,strict,errors)
+        codecs.StreamWriter.__init__(self,stream,errors)
         self.mapping = mapping
 
     def encode(self,input,errors='strict'):
 
         return Codec.encode(input,errors,self.mapping)
-        
+
 class StreamReader(Codec,codecs.StreamReader):
 
     def __init__(self,stream,errors='strict',mapping=None):
 
-        codecs.StreamReader.__init__(self,strict,errors)
+        codecs.StreamReader.__init__(self,stream,errors)
         self.mapping = mapping
 
     def decode(self,input,errors='strict'):
@@ -48,4 +48,3 @@ class StreamReader(Codec,codecs.StreamReader):
 def getregentry():
 
     return (Codec.encode,Codec.decode,StreamReader,StreamWriter)
-

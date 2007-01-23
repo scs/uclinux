@@ -3,13 +3,13 @@
 Utility functions for operating on single files.
 """
 
-# created 2000/04/03, Greg Ward (extracted from util.py)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
 import os
 from distutils.errors import DistutilsFileError
-
+from distutils import log
 
 # for generating verbose output in 'copy_file()'
 _copy_action = { None:   'copying',
@@ -35,20 +35,27 @@ def _copy_file_contents (src, dst, buffer_size=16*1024):
         except os.error, (errno, errstr):
             raise DistutilsFileError, \
                   "could not open '%s': %s" % (src, errstr)
-        
+
+        if os.path.exists(dst):
+            try:
+                os.unlink(dst)
+            except os.error, (errno, errstr):
+                raise DistutilsFileError, \
+                      "could not delete '%s': %s" % (dst, errstr)
+
         try:
             fdst = open(dst, 'wb')
         except os.error, (errno, errstr):
             raise DistutilsFileError, \
                   "could not create '%s': %s" % (dst, errstr)
-        
+
         while 1:
             try:
                 buf = fsrc.read(buffer_size)
             except os.error, (errno, errstr):
                 raise DistutilsFileError, \
                       "could not read from '%s': %s" % (src, errstr)
-            
+
             if not buf:
                 break
 
@@ -57,7 +64,7 @@ def _copy_file_contents (src, dst, buffer_size=16*1024):
             except os.error, (errno, errstr):
                 raise DistutilsFileError, \
                       "could not write to '%s': %s" % (dst, errstr)
-            
+
     finally:
         if fdst:
             fdst.close()
@@ -65,7 +72,6 @@ def _copy_file_contents (src, dst, buffer_size=16*1024):
             fsrc.close()
 
 # _copy_file_contents()
-
 
 def copy_file (src, dst,
                preserve_mode=1,
@@ -83,8 +89,7 @@ def copy_file (src, dst,
     'preserve_times' is true (the default), the last-modified and
     last-access times are copied as well.  If 'update' is true, 'src' will
     only be copied if 'dst' does not exist, or if 'dst' does exist but is
-    older than 'src'.  If 'verbose' is true, then a one-line summary of the
-    copy will be printed to stdout.
+    older than 'src'.
 
     'link' allows you to make hard links (os.link) or symbolic links
     (os.symlink) instead of copying: set it to "hard" or "sym"; if it is
@@ -106,8 +111,8 @@ def copy_file (src, dst,
     # changing it (ie. it's not already a hard/soft link to src OR
     # (not update) and (src newer than dst).
 
-    from stat import *
     from distutils.dep_util import newer
+    from stat import ST_ATIME, ST_MTIME, ST_MODE, S_IMODE
 
     if not os.path.isfile(src):
         raise DistutilsFileError, \
@@ -120,21 +125,19 @@ def copy_file (src, dst,
         dir = os.path.dirname(dst)
 
     if update and not newer(src, dst):
-        if verbose:
-            print "not copying %s (output up-to-date)" % src
-        return (dst, 0)
+        log.debug("not copying %s (output up-to-date)", src)
+        return dst, 0
 
     try:
         action = _copy_action[link]
     except KeyError:
         raise ValueError, \
               "invalid value '%s' for 'link' argument" % link
-    if verbose:
-        if os.path.basename(dst) == os.path.basename(src):
-            print "%s %s -> %s" % (action, src, dir)
-        else:
-            print "%s %s -> %s" % (action, src, dst)
-            
+    if os.path.basename(dst) == os.path.basename(src):
+        log.info("%s %s -> %s", action, src, dir)
+    else:
+        log.info("%s %s -> %s", action, src, dst)
+
     if dry_run:
         return (dst, 1)
 
@@ -146,7 +149,7 @@ def copy_file (src, dst,
         except os.error, exc:
             raise DistutilsFileError, \
                   "could not copy '%s' to '%s': %s" % (src, dst, exc[-1])
-    
+
     # If linking (hard or symbolic), use the appropriate system call
     # (Unix only, of course, but that's the caller's responsibility)
     elif link == 'hard':
@@ -188,9 +191,9 @@ def move_file (src, dst,
     other systems???
     """
     from os.path import exists, isfile, isdir, basename, dirname
+    import errno
 
-    if verbose:
-        print "moving %s -> %s" % (src, dst)
+    log.info("moving %s -> %s", src, dst)
 
     if dry_run:
         return dst
@@ -231,7 +234,7 @@ def move_file (src, dst,
             except os.error:
                 pass
             raise DistutilsFileError, \
-                  ("couldn't move '%s' to '%s' by copy/delete: " + 
+                  ("couldn't move '%s' to '%s' by copy/delete: " +
                    "delete '%s' failed: %s") % \
                   (src, dst, src, msg)
 

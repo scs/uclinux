@@ -1,7 +1,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include </usr/include/thread.h>
 #undef _POSIX_THREADS
@@ -36,12 +35,11 @@ new_func(void *funcarg)
 }
 
 
-int 
+long
 PyThread_start_new_thread(void (*func)(void *), void *arg)
 {
+	thread_t tid;
 	struct func_arg *funcarg;
-	int success = 0;	/* init not needed when SOLARIS_THREADS and */
-				/* C_THREADS implemented properly */
 
 	dprintf(("PyThread_start_new_thread called\n"));
 	if (!initialized)
@@ -50,12 +48,12 @@ PyThread_start_new_thread(void (*func)(void *), void *arg)
 	funcarg->func = func;
 	funcarg->arg = arg;
 	if (thr_create(0, 0, new_func, funcarg,
-		       THR_DETACHED | THR_NEW_LWP, 0)) {
+		       THR_DETACHED | THR_NEW_LWP, &tid)) {
 		perror("thr_create");
 		free((void *) funcarg);
-		success = -1;
+		return -1;
 	}
-	return success < 0 ? 0 : 1;
+	return tid;
 }
 
 long
@@ -173,64 +171,4 @@ PyThread_release_lock(PyThread_type_lock lock)
 	dprintf(("PyThread_release_lock(%p) called\n", lock));
 	if (mutex_unlock((mutex_t *) lock))
 		perror("mutex_unlock");
-}
-
-/*
- * Semaphore support.
- */
-PyThread_type_sema 
-PyThread_allocate_sema(int value)
-{
-	sema_t *sema;
-	dprintf(("PyThread_allocate_sema called\n"));
-	if (!initialized)
-		PyThread_init_thread();
-
-	sema = (sema_t *) malloc(sizeof(sema_t));
-	if (sema_init(sema, value, USYNC_THREAD, 0)) {
-		perror("sema_init");
-		free((void *) sema);
-		sema = 0;
-	}
-	dprintf(("PyThread_allocate_sema() -> %p\n",  sema));
-	return (PyThread_type_sema) sema;
-}
-
-void 
-PyThread_free_sema(PyThread_type_sema sema)
-{
-	dprintf(("PyThread_free_sema(%p) called\n",  sema));
-	if (sema_destroy((sema_t *) sema))
-		perror("sema_destroy");
-	free((void *) sema);
-}
-
-int 
-PyThread_down_sema(PyThread_type_sema sema, int waitflag)
-{
-	int success;
-
-	dprintf(("PyThread_down_sema(%p) called\n",  sema));
-	if (waitflag)
-		success = sema_wait((sema_t *) sema);
-	else
-		success = sema_trywait((sema_t *) sema);
-	if (success < 0) {
-		if (errno == EBUSY)
-			success = 0;
-		else
-			perror("sema_wait");
-	}
-	else
-		success = !success;
-	dprintf(("PyThread_down_sema(%p) return %d\n",  sema, success));
-	return success;
-}
-
-void 
-PyThread_up_sema(PyThread_type_sema sema)
-{
-	dprintf(("PyThread_up_sema(%p)\n",  sema));
-	if (sema_post((sema_t *) sema))
-		perror("sema_post");
 }

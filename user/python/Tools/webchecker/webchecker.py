@@ -109,7 +109,6 @@ __version__ = "$Revision$"
 import sys
 import os
 from types import *
-import string
 import StringIO
 import getopt
 import pickle
@@ -117,13 +116,14 @@ import pickle
 import urllib
 import urlparse
 import sgmllib
+import cgi
 
 import mimetypes
 import robotparser
 
 # Extract real version number if necessary
 if __version__[0] == '$':
-    _v = string.split(__version__)
+    _v = __version__.split()
     if len(_v) == 3:
         __version__ = _v[1]
 
@@ -169,13 +169,13 @@ def main():
         if o == '-d':
             dumpfile = a
         if o == '-m':
-            maxpage = string.atoi(a)
+            maxpage = int(a)
         if o == '-n':
             norun = 1
         if o == '-q':
             verbose = 0
         if o == '-r':
-            roundsize = string.atoi(a)
+            roundsize = int(a)
         if o == '-t':
             extra_roots.append(a)
         if o == '-a':
@@ -247,7 +247,7 @@ def load_pickle(dumpfile=DUMPFILE, verbose=VERBOSE):
     f.close()
     if verbose > 0:
         print "Done."
-        print "Root:", string.join(c.roots, "\n      ")
+        print "Root:", "\n      ".join(c.roots)
     return c
 
 
@@ -297,7 +297,7 @@ class Checker:
     def message(self, format, *args):
         if args:
             format = format%args
-        print format 
+        print format
 
     def __getstate__(self):
         return (self.roots, self.todo, self.done, self.bad, self.round)
@@ -315,7 +315,7 @@ class Checker:
             troot = root
             scheme, netloc, path, params, query, fragment = \
                     urlparse.urlparse(root)
-            i = string.rfind(path, "/") + 1
+            i = path.rfind("/") + 1
             if 0 < i < len(path):
                 path = path[:i]
                 troot = urlparse.urlunparse((scheme, netloc, path,
@@ -335,7 +335,7 @@ class Checker:
         rp.set_url(url)
         try:
             rp.read()
-        except IOError, msg:
+        except (OSError, IOError), msg:
             self.note(1, "I/O error parsing %s: %s", url, msg)
 
     def run(self):
@@ -380,7 +380,7 @@ class Checker:
             # triples is now a (URL, fragment) pair. The value
             # of the "source" variable comes from the list of
             # origins, and is a URL, not a pair.
-            for url, rawlink, msg in triples:           
+            for url, rawlink, msg in triples:
                 if rawlink != self.format_url(url): s = " (%s)" % rawlink
                 else: s = ""
                 self.message("  HREF %s%s\n    msg %s",
@@ -400,7 +400,15 @@ class Checker:
         if local_fragment and self.nonames:
             self.markdone(url_pair)
             return
-        page = self.getpage(url_pair)
+        try:
+            page = self.getpage(url_pair)
+        except sgmllib.SGMLParseError, msg:
+            msg = self.sanitize(msg)
+            self.note(0, "Error parsing %s: %s",
+                          self.format_url(url_pair), msg)
+            # Dont actually mark the URL as bad - it exists, just
+            # we can't parse it!
+            page = None
         if page:
             # Store the page which corresponds to this URL.
             self.name_table[url] = page
@@ -454,7 +462,7 @@ class Checker:
             self.todo[url] = [origin]
             self.note(3, "  New todo link %s", self.format_url(url))
 
-    def format_url(self, url):  
+    def format_url(self, url):
         link, fragment = url
         if fragment: return link + "#" + fragment
         else: return link
@@ -481,8 +489,9 @@ class Checker:
         if self.name_table.has_key(url):
             return self.name_table[url]
 
-        if url[:7] == 'mailto:' or url[:5] == 'news:':
-            self.note(1, " Not checking mailto/news URL")
+        scheme, path = urllib.splittype(url)
+        if scheme in ('mailto', 'news', 'javascript', 'telnet'):
+            self.note(1, " Not checking %s URL" % scheme)
             return None
         isint = self.inroots(url)
 
@@ -532,7 +541,7 @@ class Checker:
         url, fragment = url_pair
         try:
             return self.urlopener.open(url)
-        except IOError, msg:
+        except (OSError, IOError), msg:
             msg = self.sanitize(msg)
             self.note(0, "Error %s", msg)
             if self.verbose > 0:
@@ -542,7 +551,10 @@ class Checker:
 
     def checkforhtml(self, info, url):
         if info.has_key('content-type'):
-            ctype = string.lower(info['content-type'])
+            ctype = cgi.parse_header(info['content-type'])[0].lower()
+            if ';' in ctype:
+                # handle content-type: text/html; charset=iso8859-1 :
+                ctype = ctype.split(';', 1)[0].strip()
         else:
             if url[-1:] == "/":
                 return 1
@@ -704,7 +716,7 @@ class Page:
             t = t[:-1] + ('',)
             rawlink = urlparse.urlunparse(t)
             link = urlparse.urljoin(base, rawlink)
-            infos.append((link, rawlink, fragment))     
+            infos.append((link, rawlink, fragment))
 
         return infos
 
@@ -772,46 +784,101 @@ class MyHTMLParser(sgmllib.SGMLParser):
         self.url = url
         sgmllib.SGMLParser.__init__(self)
 
-    def start_a(self, attributes):
-        self.link_attr(attributes, 'href')
-
-        # We must rescue the NAME
+    def check_name_id( self, attributes ):
+        """ Check the name or id attributes on an element.
+        """
+        # We must rescue the NAME or id (name is deprecated in XHTML)
         # attributes from the anchor, in order to
         # cache the internal anchors which are made
         # available in the page.
         for name, value in attributes:
-            if name == "name":
+            if name == "name" or name == "id":
                 if value in self.names:
-                    self.checker.message("WARNING: duplicate name %s in %s",
+                    self.checker.message("WARNING: duplicate ID name %s in %s",
                                          value, self.url)
                 else: self.names.append(value)
                 break
+
+    def unknown_starttag( self, tag, attributes ):
+        """ In XHTML, you can have id attributes on any element.
+        """
+        self.check_name_id(attributes)
+
+    def start_a(self, attributes):
+        self.link_attr(attributes, 'href')
+        self.check_name_id(attributes)
 
     def end_a(self): pass
 
     def do_area(self, attributes):
         self.link_attr(attributes, 'href')
+        self.check_name_id(attributes)
+
+    def do_body(self, attributes):
+        self.link_attr(attributes, 'background', 'bgsound')
+        self.check_name_id(attributes)
 
     def do_img(self, attributes):
         self.link_attr(attributes, 'src', 'lowsrc')
+        self.check_name_id(attributes)
 
     def do_frame(self, attributes):
+        self.link_attr(attributes, 'src', 'longdesc')
+        self.check_name_id(attributes)
+
+    def do_iframe(self, attributes):
+        self.link_attr(attributes, 'src', 'longdesc')
+        self.check_name_id(attributes)
+
+    def do_link(self, attributes):
+        for name, value in attributes:
+            if name == "rel":
+                parts = value.lower().split()
+                if (  parts == ["stylesheet"]
+                      or parts == ["alternate", "stylesheet"]):
+                    self.link_attr(attributes, "href")
+                    break
+        self.check_name_id(attributes)
+
+    def do_object(self, attributes):
+        self.link_attr(attributes, 'data', 'usemap')
+        self.check_name_id(attributes)
+
+    def do_script(self, attributes):
         self.link_attr(attributes, 'src')
+        self.check_name_id(attributes)
+
+    def do_table(self, attributes):
+        self.link_attr(attributes, 'background')
+        self.check_name_id(attributes)
+
+    def do_td(self, attributes):
+        self.link_attr(attributes, 'background')
+        self.check_name_id(attributes)
+
+    def do_th(self, attributes):
+        self.link_attr(attributes, 'background')
+        self.check_name_id(attributes)
+
+    def do_tr(self, attributes):
+        self.link_attr(attributes, 'background')
+        self.check_name_id(attributes)
 
     def link_attr(self, attributes, *args):
         for name, value in attributes:
             if name in args:
-                if value: value = string.strip(value)
+                if value: value = value.strip()
                 if value: self.links[value] = None
 
     def do_base(self, attributes):
         for name, value in attributes:
             if name == 'href':
-                if value: value = string.strip(value)
+                if value: value = value.strip()
                 if value:
                     if self.checker:
                         self.checker.note(1, "  Base %s", value)
                     self.base = value
+        self.check_name_id(attributes)
 
     def getlinks(self):
         return self.links.keys()

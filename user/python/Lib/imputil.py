@@ -1,21 +1,28 @@
-#
-# imputil.py: import utilities
-#
+"""
+Import utilities
 
-### docco needed here and in Docs/ ...
+Exported classes:
+    ImportManager   Manage the import process
+
+    Importer        Base class for replacing standard import functions
+    BuiltinImporter Emulate the import mechanism for builtin and frozen modules
+
+    DynLoadSuffixImporter
+"""
 
 # note: avoid importing non-builtin modules
-import imp			### not available in JPython?
+import imp                      ### not available in JPython?
 import sys
-import strop
 import __builtin__
 
 # for the DirectoryImporter
 import struct
 import marshal
 
+__all__ = ["ImportManager","Importer","BuiltinImporter"]
+
 _StringType = type('')
-_ModuleType = type(sys)		### doesn't work in JPython...
+_ModuleType = type(sys)         ### doesn't work in JPython...
 
 class ImportManager:
     "Manage the import process."
@@ -26,11 +33,19 @@ class ImportManager:
         if isinstance(namespace, _ModuleType):
             namespace = vars(namespace)
 
-        ### Note that we have no notion of "uninstall" or "chaining"
+        # Note: we have no notion of "chaining"
 
+        # Record the previous import hook, then install our own.
+        self.previous_importer = namespace['__import__']
+        self.namespace = namespace
         namespace['__import__'] = self._import_hook
+
         ### fix this
         #namespace['reload'] = self._reload_hook
+
+    def uninstall(self):
+        "Restore the previous import mechanism."
+        self.namespace['__import__'] = self.previous_importer
 
     def add_suffix(self, suffix, importFunc):
         assert callable(importFunc)
@@ -51,7 +66,7 @@ class ImportManager:
 
         # This is the Importer that we use for grabbing stuff from the
         # filesystem. It defines one more method (import_from_dir) for our use.
-        if not fs_imp:
+        if fs_imp is None:
             cls = self.clsFilesystemImporter or _FilesystemImporter
             fs_imp = cls()
         self.fs_imp = fs_imp
@@ -68,7 +83,7 @@ class ImportManager:
     def _import_hook(self, fqname, globals=None, locals=None, fromlist=None):
         """Python calls this hook to locate and import a module."""
 
-        parts = strop.split(fqname, '.')
+        parts = fqname.split('.')
 
         # determine the context of this import
         parent = self._determine_import_context(globals)
@@ -116,6 +131,13 @@ class ImportManager:
         if importer:
             return importer._finish_import(top_module, parts[1:], fromlist)
 
+        # Grrr, some people "import os.path" or do "from os.path import ..."
+        if len(parts) == 2 and hasattr(top_module, parts[1]):
+            if fromlist:
+                return getattr(top_module, parts[1])
+            else:
+                return top_module
+
         # If the importer does not exist, then we have to bail. A missing
         # importer means that something else imported the module, and we have
         # no knowledge of how to get sub-modules out of the thing.
@@ -147,7 +169,7 @@ class ImportManager:
             assert globals is parent.__dict__
             return parent
 
-        i = strop.rfind(parent_fqname, '.')
+        i = parent_fqname.rfind('.')
 
         # a module outside of a package has no particular import context
         if i == -1:
@@ -278,8 +300,18 @@ class Importer:
 
         # execute the code within the module's namespace
         if not is_module:
-            exec code in module.__dict__
+            try:
+                exec code in module.__dict__
+            except:
+                if fqname in sys.modules:
+                    del sys.modules[fqname]
+                raise
 
+        # fetch from sys.modules instead of returning module directly.
+        # also make module's __name__ agree with fqname, in case
+        # the "exec code in module.__dict__" played games on us.
+        module = sys.modules[fqname]
+        module.__name__ = fqname
         return module
 
     def _load_tail(self, m, parts):
@@ -386,7 +418,7 @@ def _compile(pathname, timestamp):
     saved back to the filesystem for future imports. The source file's
     modification timestamp must be provided as a Long value.
     """
-    codestring = open(pathname, 'r').read()
+    codestring = open(pathname, 'rU').read()
     if codestring and codestring[-1] != '\n':
         codestring = codestring + '\n'
     code = __builtin__.compile(codestring, pathname, 'exec')
@@ -431,10 +463,9 @@ def _os_bootstrap():
         def join(a, b):
             if a == '':
                 return b
-            path = s
             if ':' not in a:
                 a = ':' + a
-            if a[-1:] <> ':':
+            if a[-1:] != ':':
                 a = a + ':'
             return a + b
     else:
@@ -461,7 +492,7 @@ def _os_path_isdir(pathname):
         s = _os_stat(pathname)
     except OSError:
         return None
-    return (s[0] & 0170000) == 0040000
+    return (s.st_mode & 0170000) == 0040000
 
 def _timestamp(pathname):
     "Return the file modification time as a Long."
@@ -469,7 +500,7 @@ def _timestamp(pathname):
         s = _os_stat(pathname)
     except OSError:
         return None
-    return long(s[8])
+    return long(s.st_mtime)
 
 
 ######################################################################
@@ -601,7 +632,6 @@ def _test_revamp():
 # TODO
 #
 # from Finn Bock:
-#   remove use of "strop" -- not available in JPython
 #   type(sys) is not a module in JPython. what to use instead?
 #   imp.C_EXTENSION is not in JPython. same for get_suffixes and new_module
 #
@@ -627,7 +657,6 @@ def _test_revamp():
 #   need __path__ processing
 #   performance
 #   move chaining to a subclass [gjs: it's been nuked]
-#   avoid strop
 #   deinstall should be possible
 #   query mechanism needed: is a specific Importer installed?
 #   py/pyc/pyo piping hooks to filter/process these files
@@ -643,7 +672,7 @@ def _test_revamp():
 # from Guido:
 #   need to change sys.* references for rexec environs
 #   need hook for MAL's walk-me-up import strategy, or Tim's absolute strategy
-#   watch out for sys.modules[...] == None
+#   watch out for sys.modules[...] is None
 #   flag to force absolute imports? (speeds _determine_import_context and
 #       checking for a relative module)
 #   insert names of archives into sys.path  (see quote below)
@@ -663,7 +692,7 @@ def _test_revamp():
 #
 #
 # Guido's comments on sys.path caching:
-# 
+#
 # We could cache this in a dictionary: the ImportManager can have a
 # cache dict mapping pathnames to importer objects, and a separate
 # method for coming up with an importer given a pathname that's not yet
@@ -679,16 +708,16 @@ def _test_revamp():
 # My/Guido's comments on factoring ImportManager and Importer:
 #
 # > However, we still have a tension occurring here:
-# > 
+# >
 # > 1) implementing policy in ImportManager assists in single-point policy
 # >    changes for app/rexec situations
 # > 2) implementing policy in Importer assists in package-private policy
 # >    changes for normal, operating conditions
-# > 
+# >
 # > I'll see if I can sort out a way to do this. Maybe the Importer class will
 # > implement the methods (which can be overridden to change policy) by
 # > delegating to ImportManager.
-# 
+#
 # Maybe also think about what kind of policies an Importer would be
 # likely to want to change.  I have a feeling that a lot of the code
 # there is actually not so much policy but a *necessity* to get things

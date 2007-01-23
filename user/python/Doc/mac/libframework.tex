@@ -15,7 +15,8 @@ different levels, i.e. to handle clicks in a single dialog window in a
 non-standard way it is not necessary to override the complete event
 handling.
 
-The \module{FrameWork} is still very much work-in-progress, and the
+Work on the \module{FrameWork} has pretty much stopped, now that
+\module{PyObjC} is available for full Cocoa access from Python, and the
 documentation describes only the most important functionality, and not
 in the most logical manner at that. Examine the source or the examples
 for more details.  The following are some comments posted on the
@@ -56,7 +57,7 @@ at the end).
 
 \begin{funcdesc}{MenuItem}{menu, title\optional{, shortcut, callback}}
 Create a menu item object. The arguments are the menu to create, the
-item item title string and optionally the keyboard shortcut
+item title string and optionally the keyboard shortcut
 and a callback routine. The callback is called with the arguments
 menu-id, item number within menu (1-based), current front window and
 the event record.
@@ -151,7 +152,7 @@ to call the application event handler \var{async_dispatch} whenever events
 are available. This will cause FrameWork window updates and the user
 interface to remain working during long computations, but will slow the
 interpreter down and may cause surprising results in non-reentrant code
-(such as FrameWork itself). By default \var{async_dispatch} will immedeately
+(such as FrameWork itself). By default \var{async_dispatch} will immediately
 call \var{our_dispatch} but you may override this to handle only certain
 events asynchronously. Events you do not handle will be passed to Sioux
 and such.
@@ -174,7 +175,7 @@ application-wide handler if the window is frontmost.
 \begin{methoddesc}[Application]{do_dialogevent}{event}
 Called early in the event loop to handle modeless dialog events. The
 default method simply dispatches the event to the relevant dialog (not
-through the the \code{DialogWindow} object involved). Override if you
+through the \code{DialogWindow} object involved). Override if you
 need special handling of dialog events (keyboard shortcuts, etc).
 \end{methoddesc}
 

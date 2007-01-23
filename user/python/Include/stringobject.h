@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#include <stdarg.h>
+
 /*
 Type PyStringObject represents a character string.  An extra zero byte is
 reserved at the end to ensure it is zero-terminated, but a size is
@@ -22,64 +24,82 @@ variant that assumes a zero-terminated string.  Note that none of the
 functions should be applied to nil objects.
 */
 
-/* Two speedup hacks.  Caching the hash saves recalculation of a
-   string's hash value.  Interning strings (which requires hash
-   caching) tries to ensure that only one string object with a given
-   value exists, so equality tests are one pointer comparison.
-   Together, these can speed the interpreter up by as much as 20%.
-   Each costs the size of a long or pointer per string object.  In
-   addition, interned strings live until the end of times.  If you are
-   concerned about memory footprint, simply comment the #define out
-   here (and rebuild everything!). */
-#define CACHE_HASH
-#ifdef CACHE_HASH
-#define INTERN_STRINGS
-#endif
+/* Caching the hash (ob_shash) saves recalculation of a string's hash value.
+   Interning strings (ob_sstate) tries to ensure that only one string
+   object with a given value exists, so equality tests can be one pointer
+   comparison.  This is generally restricted to strings that "look like"
+   Python identifiers, although the intern() builtin can be used to force
+   interning of any string.
+   Together, these sped the interpreter by up to 20%. */
 
 typedef struct {
     PyObject_VAR_HEAD
-#ifdef CACHE_HASH
     long ob_shash;
-#endif
-#ifdef INTERN_STRINGS
-    PyObject *ob_sinterned;
-#endif
+    int ob_sstate;
     char ob_sval[1];
+
+    /* Invariants:
+     *     ob_sval contains space for 'ob_size+1' elements.
+     *     ob_sval[ob_size] == 0.
+     *     ob_shash is the hash of the string or -1 if not computed yet.
+     *     ob_sstate != 0 iff the string object is in stringobject.c's
+     *       'interned' dictionary; in this case the two references
+     *       from 'interned' to this object are *not counted* in ob_refcnt.
+     */
 } PyStringObject;
 
-extern DL_IMPORT(PyTypeObject) PyString_Type;
+#define SSTATE_NOT_INTERNED 0
+#define SSTATE_INTERNED_MORTAL 1
+#define SSTATE_INTERNED_IMMORTAL 2
 
-#define PyString_Check(op) ((op)->ob_type == &PyString_Type)
+PyAPI_DATA(PyTypeObject) PyBaseString_Type;
+PyAPI_DATA(PyTypeObject) PyString_Type;
 
-extern DL_IMPORT(PyObject *) PyString_FromStringAndSize(const char *, int);
-extern DL_IMPORT(PyObject *) PyString_FromString(const char *);
-extern DL_IMPORT(int) PyString_Size(PyObject *);
-extern DL_IMPORT(char *) PyString_AsString(PyObject *);
-extern DL_IMPORT(void) PyString_Concat(PyObject **, PyObject *);
-extern DL_IMPORT(void) PyString_ConcatAndDel(PyObject **, PyObject *);
-extern DL_IMPORT(int) _PyString_Resize(PyObject **, int);
-extern DL_IMPORT(PyObject *) PyString_Format(PyObject *, PyObject *);
-extern DL_IMPORT(PyObject *) _PyString_FormatLong(PyObject*, int, int,
+#define PyString_Check(op) PyObject_TypeCheck(op, &PyString_Type)
+#define PyString_CheckExact(op) ((op)->ob_type == &PyString_Type)
+
+PyAPI_FUNC(PyObject *) PyString_FromStringAndSize(const char *, int);
+PyAPI_FUNC(PyObject *) PyString_FromString(const char *);
+PyAPI_FUNC(PyObject *) PyString_FromFormatV(const char*, va_list)
+				Py_GCC_ATTRIBUTE((format(printf, 1, 0)));
+PyAPI_FUNC(PyObject *) PyString_FromFormat(const char*, ...)
+				Py_GCC_ATTRIBUTE((format(printf, 1, 2)));
+PyAPI_FUNC(int) PyString_Size(PyObject *);
+PyAPI_FUNC(char *) PyString_AsString(PyObject *);
+PyAPI_FUNC(PyObject *) PyString_Repr(PyObject *, int);
+PyAPI_FUNC(void) PyString_Concat(PyObject **, PyObject *);
+PyAPI_FUNC(void) PyString_ConcatAndDel(PyObject **, PyObject *);
+PyAPI_FUNC(int) _PyString_Resize(PyObject **, int);
+PyAPI_FUNC(int) _PyString_Eq(PyObject *, PyObject*);
+PyAPI_FUNC(PyObject *) PyString_Format(PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) _PyString_FormatLong(PyObject*, int, int,
 						  int, char**, int*);
+PyAPI_FUNC(PyObject *) PyString_DecodeEscape(const char *, int, 
+						   const char *, int,
+						   const char *);
 
-#ifdef INTERN_STRINGS
-extern DL_IMPORT(void) PyString_InternInPlace(PyObject **);
-extern DL_IMPORT(PyObject *) PyString_InternFromString(const char *);
-#else
-#define PyString_InternInPlace(p)
-#define PyString_InternFromString(cp) PyString_FromString(cp)
-#endif
+PyAPI_FUNC(void) PyString_InternInPlace(PyObject **);
+PyAPI_FUNC(void) PyString_InternImmortal(PyObject **);
+PyAPI_FUNC(PyObject *) PyString_InternFromString(const char *);
+PyAPI_FUNC(void) _Py_ReleaseInternedStrings(void);
+
+/* Use only if you know it's a string */
+#define PyString_CHECK_INTERNED(op) (((PyStringObject *)(op))->ob_sstate)
 
 /* Macro, trading safety for speed */
 #define PyString_AS_STRING(op) (((PyStringObject *)(op))->ob_sval)
 #define PyString_GET_SIZE(op)  (((PyStringObject *)(op))->ob_size)
 
+/* _PyString_Join(sep, x) is like sep.join(x).  sep must be PyStringObject*,
+   x must be an iterable object. */
+PyAPI_FUNC(PyObject *) _PyString_Join(PyObject *sep, PyObject *x);
+
 /* --- Generic Codecs ----------------------------------------------------- */
 
-/* Create a string object by decoding the encoded string s of the
+/* Create an object by decoding the encoded string s of the
    given size. */
 
-extern DL_IMPORT(PyObject*) PyString_Decode(
+PyAPI_FUNC(PyObject*) PyString_Decode(
     const char *s,              /* encoded string */
     int size,                   /* size of buffer */
     const char *encoding,       /* encoding */
@@ -87,19 +107,56 @@ extern DL_IMPORT(PyObject*) PyString_Decode(
     );
 
 /* Encodes a char buffer of the given size and returns a 
-   Python string object. */
+   Python object. */
 
-extern DL_IMPORT(PyObject*) PyString_Encode(
+PyAPI_FUNC(PyObject*) PyString_Encode(
     const char *s,              /* string char buffer */
     int size,                   /* number of chars to encode */
     const char *encoding,       /* encoding */
     const char *errors          /* error handling */
     );
 
-/* Encodes a string object and returns the result as Python string
+/* Encodes a string object and returns the result as Python 
    object. */
 
-extern DL_IMPORT(PyObject*) PyString_AsEncodedString(
+PyAPI_FUNC(PyObject*) PyString_AsEncodedObject(
+    PyObject *str,	 	/* string object */
+    const char *encoding,	/* encoding */
+    const char *errors		/* error handling */
+    );
+
+/* Encodes a string object and returns the result as Python string
+   object.   
+   
+   If the codec returns an Unicode object, the object is converted
+   back to a string using the default encoding.
+
+   DEPRECATED - use PyString_AsEncodedObject() instead. */
+
+PyAPI_FUNC(PyObject*) PyString_AsEncodedString(
+    PyObject *str,	 	/* string object */
+    const char *encoding,	/* encoding */
+    const char *errors		/* error handling */
+    );
+
+/* Decodes a string object and returns the result as Python 
+   object. */
+
+PyAPI_FUNC(PyObject*) PyString_AsDecodedObject(
+    PyObject *str,	 	/* string object */
+    const char *encoding,	/* encoding */
+    const char *errors		/* error handling */
+    );
+
+/* Decodes a string object and returns the result as Python string
+   object.  
+   
+   If the codec returns an Unicode object, the object is converted
+   back to a string using the default encoding.
+
+   DEPRECATED - use PyString_AsDecodedObject() instead. */
+
+PyAPI_FUNC(PyObject*) PyString_AsDecodedString(
     PyObject *str,	 	/* string object */
     const char *encoding,	/* encoding */
     const char *errors		/* error handling */
@@ -111,7 +168,7 @@ extern DL_IMPORT(PyObject*) PyString_AsEncodedString(
    0-terminated (passing a string with embedded NULL characters will
    cause an exception).  */
 
-extern DL_IMPORT(int) PyString_AsStringAndSize(
+PyAPI_FUNC(int) PyString_AsStringAndSize(
     register PyObject *obj,	/* string or Unicode object */
     register char **s,		/* pointer to buffer variable */
     register int *len		/* pointer to length variable or NULL

@@ -9,7 +9,12 @@ and popen3(cmd) which return two or three pipes to the spawned command.
 import os
 import sys
 
-MAXFD = 256     # Max number of file descriptors (os.getdtablesize()???)
+__all__ = ["popen2", "popen3", "popen4"]
+
+try:
+    MAXFD = os.sysconf('SC_OPEN_MAX')
+except (AttributeError, ValueError):
+    MAXFD = 256
 
 _active = []
 
@@ -23,12 +28,16 @@ class Popen3:
 
     sts = -1                    # Child not completed yet
 
-    def __init__(self, cmd, capturestderr=0, bufsize=-1):
+    def __init__(self, cmd, capturestderr=False, bufsize=-1):
         """The parameter 'cmd' is the shell command to execute in a
-        sub-process.  The 'capturestderr' flag, if true, specifies that
-        the object should capture standard error output of the child process.
-        The default is false.  If the 'bufsize' parameter is specified, it
-        specifies the size of the I/O buffers to/from the child process."""
+        sub-process.  On UNIX, 'cmd' may be a sequence, in which case arguments
+        will be passed directly to the program without shell intervention (as
+        with os.spawnv()).  If 'cmd' is a string it will be passed to the shell
+        (as with os.system()).   The 'capturestderr' flag, if true, specifies
+        that the object should capture standard error output of the child
+        process.  The default is false.  If the 'bufsize' parameter is
+        specified, it specifies the size of the I/O buffers to/from the child
+        process."""
         _cleanup()
         p2cread, p2cwrite = os.pipe()
         c2pread, c2pwrite = os.pipe()
@@ -54,12 +63,12 @@ class Popen3:
         _active.append(self)
 
     def _run_child(self, cmd):
-        if type(cmd) == type(''):
+        if isinstance(cmd, basestring):
             cmd = ['/bin/sh', '-c', cmd]
-        for i in range(3, MAXFD):
+        for i in xrange(3, MAXFD):
             try:
                 os.close(i)
-            except:
+            except OSError:
                 pass
         try:
             os.execvp(cmd[0], cmd)
@@ -81,10 +90,11 @@ class Popen3:
 
     def wait(self):
         """Wait for and return the exit status of the child process."""
-        pid, sts = os.waitpid(self.pid, 0)
-        if pid == self.pid:
-            self.sts = sts
-            _active.remove(self)
+        if self.sts < 0:
+            pid, sts = os.waitpid(self.pid, 0)
+            if pid == self.pid:
+                self.sts = sts
+                _active.remove(self)
         return self.sts
 
 
@@ -109,52 +119,71 @@ class Popen4(Popen3):
         _active.append(self)
 
 
-if sys.platform[:3] == "win":
+if sys.platform[:3] == "win" or sys.platform == "os2emx":
     # Some things don't make sense on non-Unix platforms.
     del Popen3, Popen4
 
     def popen2(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout, child_stdin) are returned."""
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout, child_stdin) are returned."""
         w, r = os.popen2(cmd, mode, bufsize)
         return r, w
 
     def popen3(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout, child_stdin, child_stderr) are returned."""
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout, child_stdin, child_stderr) are returned."""
         w, r, e = os.popen3(cmd, mode, bufsize)
         return r, w, e
 
     def popen4(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout_stderr, child_stdin) are returned."""
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout_stderr, child_stdin) are returned."""
         w, r = os.popen4(cmd, mode, bufsize)
         return r, w
 else:
     def popen2(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout, child_stdin) are returned."""
-        inst = Popen3(cmd, 0, bufsize)
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout, child_stdin) are returned."""
+        inst = Popen3(cmd, False, bufsize)
         return inst.fromchild, inst.tochild
 
     def popen3(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout, child_stdin, child_stderr) are returned."""
-        inst = Popen3(cmd, 1, bufsize)
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout, child_stdin, child_stderr) are returned."""
+        inst = Popen3(cmd, True, bufsize)
         return inst.fromchild, inst.tochild, inst.childerr
 
     def popen4(cmd, bufsize=-1, mode='t'):
-        """Execute the shell command 'cmd' in a sub-process.  If 'bufsize' is
-        specified, it sets the buffer size for the I/O pipes.  The file objects
-        (child_stdout_stderr, child_stdin) are returned."""
+        """Execute the shell command 'cmd' in a sub-process. On UNIX, 'cmd' may
+        be a sequence, in which case arguments will be passed directly to the
+        program without shell intervention (as with os.spawnv()). If 'cmd' is a
+        string it will be passed to the shell (as with os.system()). If
+        'bufsize' is specified, it sets the buffer size for the I/O pipes. The
+        file objects (child_stdout_stderr, child_stdin) are returned."""
         inst = Popen4(cmd, bufsize)
         return inst.fromchild, inst.tochild
 
+    __all__.extend(["Popen3", "Popen4"])
 
 def _test():
     cmd  = "cat"
@@ -171,7 +200,7 @@ def _test():
     w.close()
     got = r.read()
     if got.strip() != expected:
-        raise ValueError("wrote %s read %s" % (`teststr`, `got`))
+        raise ValueError("wrote %r read %r" % (teststr, got))
     print "testing popen3..."
     try:
         r, w, e = popen3([cmd])
@@ -181,10 +210,10 @@ def _test():
     w.close()
     got = r.read()
     if got.strip() != expected:
-        raise ValueError("wrote %s read %s" % (`teststr`, `got`))
+        raise ValueError("wrote %r read %r" % (teststr, got))
     got = e.read()
     if got:
-        raise ValueError("unexected %s on stderr" % `got`)
+        raise ValueError("unexpected %r on stderr" % (got,))
     for inst in _active[:]:
         inst.wait()
     if _active:

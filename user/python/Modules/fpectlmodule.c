@@ -86,13 +86,13 @@ static Sigfunc sigfpe_handler;
 static void fpe_reset(Sigfunc *);
 
 static PyObject *fpe_error;
-DL_EXPORT(void) initfpectl(void);
+PyMODINIT_FUNC initfpectl(void);
 static PyObject *turnon_sigfpe            (PyObject *self,PyObject *args);
 static PyObject *turnoff_sigfpe           (PyObject *self,PyObject *args);
 
 static PyMethodDef fpectl_methods[] = {
-    {"turnon_sigfpe",		 (PyCFunction) turnon_sigfpe,		 1},
-    {"turnoff_sigfpe",		 (PyCFunction) turnoff_sigfpe, 	         1},
+    {"turnon_sigfpe",		 (PyCFunction) turnon_sigfpe,		 METH_VARARGS},
+    {"turnoff_sigfpe",		 (PyCFunction) turnoff_sigfpe, 	         METH_VARARGS},
     {0,0}
 };
 
@@ -140,6 +140,12 @@ static void fpe_reset(Sigfunc *handler)
        ld -G -o fpectlmodule.so -L/opt/SUNWspro/lib fpectlmodule.o -lsunmath -lm
      */
 #include <math.h>
+#ifndef _SUNMATH_H
+    extern void nonstandard_arithmetic(void);
+    extern int ieee_flags(const char*, const char*, const char*, char **);
+    extern long ieee_handler(const char*, const char*, sigfpe_handler_type);
+#endif
+
     char *mode="exception", *in="all", *out;
     (void) nonstandard_arithmetic();
     (void) ieee_flags("clearall",mode,in,&out);
@@ -174,6 +180,18 @@ static void fpe_reset(Sigfunc *handler)
     ieee_set_fp_control(fp_control);
     PyOS_setsig(SIGFPE, handler);
 
+/*-- DEC ALPHA LINUX ------------------------------------------------------*/
+#elif defined(__alpha) && defined(linux)
+#include <asm/fpu.h>
+    unsigned long fp_control =
+    IEEE_TRAP_ENABLE_INV | IEEE_TRAP_ENABLE_DZE | IEEE_TRAP_ENABLE_OVF;
+    ieee_set_fp_control(fp_control);
+    PyOS_setsig(SIGFPE, handler);
+
+/*-- DEC ALPHA VMS --------------------------------------------------------*/
+#elif defined(__ALPHA) && defined(__VMS)
+    PyOS_setsig(SIGFPE, handler);
+
 /*-- Cray Unicos ----------------------------------------------------------*/
 #elif defined(cray)
     /* UNICOS delivers SIGFPE by default, but no matherr */
@@ -195,13 +213,14 @@ static void fpe_reset(Sigfunc *handler)
 #else
 #include <i386/fpu_control.h>
 #endif
+#ifdef _FPU_SETCW
+    {
+        fpu_control_t cw = 0x1372;
+        _FPU_SETCW(cw);
+    }
+#else
     __setfpucw(0x1372);
-    PyOS_setsig(SIGFPE, handler);
-
-/*-- NeXT -----------------------------------------------------------------*/
-#elif defined(NeXT) && defined(m68k) && defined(__GNUC__)
-    /* NeXT needs explicit csr set to generate SIGFPE */
-    asm("fmovel     #0x1400,fpcr");   /* set OVFL and ZD bits */
+#endif
     PyOS_setsig(SIGFPE, handler);
 
 /*-- Microsoft Windows, NT ------------------------------------------------*/
@@ -242,10 +261,12 @@ static void sigfpe_handler(int signo)
     }
 }
 
-DL_EXPORT(void) initfpectl(void)
+PyMODINIT_FUNC initfpectl(void)
 {
     PyObject *m, *d;
     m = Py_InitModule("fpectl", fpectl_methods);
+    if (m == NULL)
+    	return;
     d = PyModule_GetDict(m);
     fpe_error = PyErr_NewException("fpectl.error", NULL, NULL);
     if (fpe_error != NULL)

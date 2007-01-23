@@ -4,8 +4,7 @@ Provides the Command class, the base class for the command classes
 in the distutils.command package.
 """
 
-# created 2000/04/03, Greg Ward
-# (extricated from core.py; actually dates back to the beginning)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -13,7 +12,7 @@ import sys, os, string, re
 from types import *
 from distutils.errors import *
 from distutils import util, dir_util, file_util, archive_util, dep_util
-
+from distutils import log
 
 class Command:
     """Abstract base class for defining command classes, the "worker bees"
@@ -41,7 +40,7 @@ class Command:
     # current situation.  (Eg. we "install_headers" is only applicable if
     # we have any C header files to install.)  If 'predicate' is None,
     # that command is always applicable.
-    # 
+    #
     # 'sub_commands' is usually defined at the *end* of a class, because
     # predicates can be unbound methods, so they must already have been
     # defined.  The canonical example is the "install" command.
@@ -69,13 +68,17 @@ class Command:
 
         # Per-command versions of the global flags, so that the user can
         # customize Distutils' behaviour command-by-command and let some
-        # commands fallback on the Distribution's behaviour.  None means
+        # commands fall back on the Distribution's behaviour.  None means
         # "not defined, check self.distribution's copy", while 0 or 1 mean
         # false and true (duh).  Note that this means figuring out the real
-        # value of each flag is a touch complicated -- hence "self.verbose"
-        # (etc.) will be handled by __getattr__, below.
-        self._verbose = None
+        # value of each flag is a touch complicated -- hence "self._dry_run"
+        # will be handled by __getattr__, below.
+        # XXX This needs to be fixed.
         self._dry_run = None
+
+        # verbose is largely ignored, but needs to be set for
+        # backwards compatibility (I think)?
+        self.verbose = dist.verbose
 
         # Some commands define a 'self.force' option to ignore file
         # timestamps, but methods defined *here* assume that
@@ -96,8 +99,10 @@ class Command:
     # __init__ ()
 
 
+    # XXX A more explicit way to customize dry_run would be better.
+
     def __getattr__ (self, attr):
-        if attr in ('verbose', 'dry_run'):
+        if attr == 'dry_run':
             myval = getattr(self, "_" + attr)
             if myval is None:
                 return getattr(self.distribution, attr)
@@ -111,7 +116,7 @@ class Command:
         if not self.finalized:
             self.finalize_options()
         self.finalized = 1
-        
+
 
     # Subclasses must define:
     #   initialize_options()
@@ -133,17 +138,17 @@ class Command:
         command-line.  Thus, this is not the place to code dependencies
         between options; generally, 'initialize_options()' implementations
         are just a bunch of "self.foo = None" assignments.
-           
+
         This method must be implemented by all command classes.
         """
         raise RuntimeError, \
               "abstract method -- subclass %s must override" % self.__class__
-        
+
     def finalize_options (self):
         """Set final values for all the options that this command supports.
         This is always called as late as possible, ie.  after any option
         assignments from the command-line or from other commands have been
-        done.  Thus, this is the place to to code option dependencies: if
+        done.  Thus, this is the place to code option dependencies: if
         'foo' depends on 'bar', then it is safe to set 'foo' from 'bar' as
         long as 'foo' still has the same value it was assigned in
         'initialize_options()'.
@@ -186,22 +191,22 @@ class Command:
         """If the current verbosity level is of greater than or equal to
         'level' print 'msg' to stdout.
         """
-        if self.verbose >= level:
-            print msg
+        log.log(level, msg)
 
     def debug_print (self, msg):
         """Print 'msg' to stdout if the global DEBUG (taken from the
         DISTUTILS_DEBUG environment variable) flag is true.
         """
-        from distutils.core import DEBUG
+        from distutils.debug import DEBUG
         if DEBUG:
             print msg
-        
+            sys.stdout.flush()
+
 
 
     # -- Option validation methods -------------------------------------
     # (these are very handy in writing the 'finalize_options()' method)
-    # 
+    #
     # NB. the general philosophy here is to ensure that a particular option
     # value meets certain type and value constraints.  If not, we try to
     # force it into conformance (eg. if we expect a list but have a string,
@@ -248,9 +253,9 @@ class Command:
 
             if not ok:
                 raise DistutilsOptionError, \
-                      "'%s' must be a list of strings (got %s)" % \
-                      (option, `val`)
-        
+                      "'%s' must be a list of strings (got %r)" % \
+                      (option, val)
+
     def _ensure_tested_string (self, option, tester,
                                what, error_fmt, default=None):
         val = self._ensure_stringlike(option, what, default)
@@ -350,12 +355,11 @@ class Command:
 
 
     def execute (self, func, args, msg=None, level=1):
-        util.execute(func, args, msg, self.verbose >= level, self.dry_run)
+        util.execute(func, args, msg, dry_run=self.dry_run)
 
 
     def mkpath (self, name, mode=0777):
-        dir_util.mkpath(name, mode,
-                        self.verbose, self.dry_run)
+        dir_util.mkpath(name, mode, dry_run=self.dry_run)
 
 
     def copy_file (self, infile, outfile,
@@ -369,8 +373,7 @@ class Command:
             preserve_mode, preserve_times,
             not self.force,
             link,
-            self.verbose >= level,
-            self.dry_run)
+            dry_run=self.dry_run)
 
 
     def copy_tree (self, infile, outfile,
@@ -380,33 +383,24 @@ class Command:
         and force flags.
         """
         return dir_util.copy_tree(
-            infile, outfile, 
+            infile, outfile,
             preserve_mode,preserve_times,preserve_symlinks,
             not self.force,
-            self.verbose >= level,
-            self.dry_run)
-
+            dry_run=self.dry_run)
 
     def move_file (self, src, dst, level=1):
-        """Move a file respecting verbose and dry-run flags."""
-        return file_util.move_file(src, dst,
-                                   self.verbose >= level,
-                                   self.dry_run)
-
+        """Move a file respectin dry-run flag."""
+        return file_util.move_file(src, dst, dry_run = self.dry_run)
 
     def spawn (self, cmd, search_path=1, level=1):
-        """Spawn an external command respecting verbose and dry-run flags."""
+        """Spawn an external command respecting dry-run flag."""
         from distutils.spawn import spawn
-        spawn(cmd, search_path,
-              self.verbose >= level,
-              self.dry_run)
-
+        spawn(cmd, search_path, dry_run= self.dry_run)
 
     def make_archive (self, base_name, format,
                       root_dir=None, base_dir=None):
         return archive_util.make_archive(
-            base_name, format, root_dir, base_dir,
-            self.verbose, self.dry_run)
+            base_name, format, root_dir, base_dir, dry_run=self.dry_run)
 
 
     def make_file (self, infiles, outfile, func, args,
@@ -424,7 +418,7 @@ class Command:
                        (outfile, string.join(infiles, ', '))
         if skip_msg is None:
             skip_msg = "skipping %s (inputs unchanged)" % outfile
-        
+
 
         # Allow 'infiles' to be a single string
         if type(infiles) is StringType:
@@ -441,7 +435,7 @@ class Command:
 
         # Otherwise, print the "skip" message
         else:
-            self.announce(skip_msg, level)
+            log.debug(skip_msg)
 
     # make_file ()
 
@@ -457,7 +451,7 @@ class install_misc (Command):
     """Common base class for installing some files in a subdirectory.
     Currently used by install_data and install_scripts.
     """
-    
+
     user_options = [('install-dir=', 'd', "directory to install the files to")]
 
     def initialize_options (self):

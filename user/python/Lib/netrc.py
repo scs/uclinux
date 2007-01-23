@@ -1,58 +1,77 @@
 """An object-oriented interface to .netrc files."""
 
-# Module and documentation by Eric S. Raymond, 21 Dec 1998 
+# Module and documentation by Eric S. Raymond, 21 Dec 1998
 
 import os, shlex
 
+__all__ = ["netrc", "NetrcParseError"]
+
+
+class NetrcParseError(Exception):
+    """Exception raised on syntax errors in the .netrc file."""
+    def __init__(self, msg, filename=None, lineno=None):
+        self.filename = filename
+        self.lineno = lineno
+        self.msg = msg
+        Exception.__init__(self, msg)
+
+    def __str__(self):
+        return "%s (%s, line %s)" % (self.msg, self.filename, self.lineno)
+
+
 class netrc:
     def __init__(self, file=None):
-        if not file:
-            file = os.path.join(os.environ['HOME'], ".netrc")
+        if file is None:
+            try:
+                file = os.path.join(os.environ['HOME'], ".netrc")
+            except KeyError:
+                raise IOError("Could not find .netrc: $HOME is not set")
         fp = open(file)
         self.hosts = {}
         self.macros = {}
         lexer = shlex.shlex(fp)
-	# Allows @ in hostnames.  Not a big deal...
-        lexer.wordchars = lexer.wordchars + '.-@'
+        lexer.wordchars += r"""!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~"""
         while 1:
             # Look for a machine, default, or macdef top-level keyword
             toplevel = tt = lexer.get_token()
-            if tt == '' or tt == None:
+            if not tt:
                 break
             elif tt == 'machine':
                 entryname = lexer.get_token()
             elif tt == 'default':
                 entryname = 'default'
-            elif tt == 'macdef':		# Just skip to end of macdefs
+            elif tt == 'macdef':                # Just skip to end of macdefs
                 entryname = lexer.get_token()
                 self.macros[entryname] = []
-                lexer.whitepace = ' \t'
+                lexer.whitespace = ' \t'
                 while 1:
                     line = lexer.instream.readline()
-                    if not line or line == '\012' and tt == '\012':
-                        lexer.whitepace = ' \t\r\n'
+                    if not line or line == '\012':
+                        lexer.whitespace = ' \t\r\n'
                         break
-                    tt = line
                     self.macros[entryname].append(line)
+                continue
             else:
-                raise SyntaxError, "bad toplevel token %s, file %s, line %d" \
-            				% (tt, file, lexer.lineno) 
+                raise NetrcParseError(
+                    "bad toplevel token %r" % tt, file, lexer.lineno)
 
             # We're looking at start of an entry for a named machine or default.
-            if toplevel == 'machine':
-                login = account = password = None
-                self.hosts[entryname] = {}
+            login = ''
+            account = password = None
+            self.hosts[entryname] = {}
             while 1:
                 tt = lexer.get_token()
-                if tt=='' or tt == 'machine' or tt == 'default' or tt == 'macdef':
-                    if toplevel == 'macdef':
-                        break;
-                    elif login and password:
+                if (tt=='' or tt == 'machine' or
+                    tt == 'default' or tt =='macdef'):
+                    if password:
                         self.hosts[entryname] = (login, account, password)
                         lexer.push_token(tt)
                         break
                     else:
-                        raise SyntaxError, "malformed %s entry %s terminated by %s" % (toplevel, entryname, repr(tt))
+                        raise NetrcParseError(
+                            "malformed %s entry %s terminated by %s"
+                            % (toplevel, entryname, repr(tt)),
+                            file, lexer.lineno)
                 elif tt == 'login' or tt == 'user':
                     login = lexer.get_token()
                 elif tt == 'account':
@@ -60,13 +79,14 @@ class netrc:
                 elif tt == 'password':
                     password = lexer.get_token()
                 else:
-                    raise SyntaxError, "bad follower token %s, file %s, line %d"%(tt,file,lexer.lineno)
+                    raise NetrcParseError("bad follower token %r" % tt,
+                                          file, lexer.lineno)
 
     def authenticators(self, host):
         """Return a (user, account, password) tuple for given host."""
-        if self.hosts.has_key(host):
+        if host in self.hosts:
             return self.hosts[host]
-        elif self.hosts.has_key('default'):
+        elif 'default' in self.hosts:
             return self.hosts['default']
         else:
             return None
@@ -87,6 +107,5 @@ class netrc:
             rep = rep + "\n"
         return rep
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     print netrc()
-

@@ -70,6 +70,8 @@ ALL='all' # e.g. Canvas.delete(ALL)
 NORMAL='normal'
 DISABLED='disabled'
 ACTIVE='active'
+# Canvas state
+HIDDEN='hidden'
 
 # Menu item types
 CASCADE='cascade'
@@ -83,6 +85,11 @@ SINGLE='single'
 BROWSE='browse'
 MULTIPLE='multiple'
 EXTENDED='extended'
+
+# Activestyle for list boxes
+# NONE='none' is also valid
+DOTBOX='dotbox'
+UNDERLINE='underline'
 
 # Various canvas styles
 PIESLICE='pieslice'

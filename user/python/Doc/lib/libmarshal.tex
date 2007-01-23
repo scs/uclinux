@@ -1,5 +1,5 @@
 \section{\module{marshal} ---
-         Alternate Python object serialization}
+         Internal Python object serialization}
 
 \declaremodule{builtin}{marshal}
 \modulesynopsis{Convert Python objects to streams of bytes and back
@@ -23,10 +23,19 @@ This is not a general ``persistence'' module.  For general persistence
 and transfer of Python objects through RPC calls, see the modules
 \refmodule{pickle} and \refmodule{shelve}.  The \module{marshal} module exists
 mainly to support reading and writing the ``pseudo-compiled'' code for
-Python modules of \file{.pyc} files.
+Python modules of \file{.pyc} files.  Therefore, the Python
+maintainers reserve the right to modify the marshal format in backward
+incompatible ways should the need arise.  If you're serializing and
+de-serializing Python objects, use the \module{pickle} module instead.  
 \refstmodindex{pickle}
 \refstmodindex{shelve}
 \obindex{code}
+
+\begin{notice}[warning]
+The \module{marshal} module is not intended to be secure against
+erroneous or maliciously constructed data.  Never unmarshal data
+received from an untrusted or unauthenticated source.
+\end{notice}
 
 Not all Python object types are supported; in general, only objects
 whose value is independent from a particular invocation of Python can
@@ -39,26 +48,21 @@ therein are themselves supported; and recursive lists and dictionaries
 should not be written (they will cause infinite loops).
 
 \strong{Caveat:} On machines where C's \code{long int} type has more than
-32 bits (such as the DEC Alpha), it
-is possible to create plain Python integers that are longer than 32
-bits.  Since the current \module{marshal} module uses 32 bits to
-transfer plain Python integers, such values are silently truncated.
-This particularly affects the use of very long integer literals in
-Python modules --- these will be accepted by the parser on such
-machines, but will be silently be truncated when the module is read
-from the \file{.pyc} instead.\footnote{
-  A solution would be to refuse such literals in the parser,
-  since they are inherently non-portable.  Another solution would be to
-  let the \module{marshal} module raise an exception when an integer
-  value would be truncated.  At least one of these solutions will be
-  implemented in a future version.}
+32 bits (such as the DEC Alpha), it is possible to create plain Python
+integers that are longer than 32 bits.
+If such an integer is marshaled and read back in on a machine where
+C's \code{long int} type has only 32 bits, a Python long integer object
+is returned instead.  While of a different type, the numeric value is
+the same.  (This behavior is new in Python 2.2.  In earlier versions,
+all but the least-significant 32 bits of the value were lost, and a
+warning message was printed.)
 
 There are functions that read/write files as well as functions
 operating on strings.
 
 The module defines these functions:
 
-\begin{funcdesc}{dump}{value, file}
+\begin{funcdesc}{dump}{value, file\optional{, version}}
   Write the value on the open file.  The value must be a supported
   type.  The file must be an open file object such as
   \code{sys.stdout} or returned by \function{open()} or
@@ -69,6 +73,9 @@ The module defines these functions:
   a \exception{ValueError} exception is raised --- but garbage data
   will also be written to the file.  The object will not be properly
   read back by \function{load()}.
+
+  \versionadded[The \var{version} argument indicates the data
+  format that \code{dump} should use (see below)]{2.4}
 \end{funcdesc}
 
 \begin{funcdesc}{load}{file}
@@ -77,16 +84,19 @@ The module defines these functions:
   \exception{TypeError}.  The file must be an open file object opened
   in binary mode (\code{'rb'} or \code{'r+b'}).
 
-  \strong{Warning:} If an object containing an unsupported type was
+  \warning{If an object containing an unsupported type was
   marshalled with \function{dump()}, \function{load()} will substitute
-  \code{None} for the unmarshallable type.
+  \code{None} for the unmarshallable type.}
 \end{funcdesc}
 
-\begin{funcdesc}{dumps}{value}
+\begin{funcdesc}{dumps}{value\optional{, version}}
   Return the string that would be written to a file by
   \code{dump(\var{value}, \var{file})}.  The value must be a supported
   type.  Raise a \exception{ValueError} exception if value has (or
   contains an object that has) an unsupported type.
+
+  \versionadded[The \var{version} argument indicates the data
+  format that \code{dumps} should use (see below)]{2.4}
 \end{funcdesc}
 
 \begin{funcdesc}{loads}{string}
@@ -94,3 +104,13 @@ The module defines these functions:
   \exception{EOFError}, \exception{ValueError} or
   \exception{TypeError}.  Extra characters in the string are ignored.
 \end{funcdesc}
+
+In addition, the following constants are defined:
+
+\begin{datadesc}{version}
+  Indicates the format that the module uses. Version 0 is the
+  historical format, version 1 (added in Python 2.4) shares
+  interned strings. The current version is 1.
+
+  \versionadded{2.4}
+\end{datadesc}

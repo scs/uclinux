@@ -33,8 +33,8 @@ The module defines the following exception and functions:
   Unpack the string (presumably packed by \code{pack(\var{fmt},
   \textrm{\ldots})}) according to the given format.  The result is a
   tuple even if it contains exactly one item.  The string must contain
-  exactly the amount of data required by the format (i.e.
-  \code{len(\var{string})} must equal \code{calcsize(\var{fmt})}).
+  exactly the amount of data required by the format
+  (\code{len(\var{string})} must equal \code{calcsize(\var{fmt})}).
 \end{funcdesc}
 
 \begin{funcdesc}{calcsize}{fmt}
@@ -53,9 +53,11 @@ C and Python values should be obvious given their types:
   \lineiv{h}{\ctype{short}}{integer}{}
   \lineiv{H}{\ctype{unsigned short}}{integer}{}
   \lineiv{i}{\ctype{int}}{integer}{}
-  \lineiv{I}{\ctype{unsigned int}}{long}{(1)}
+  \lineiv{I}{\ctype{unsigned int}}{long}{}
   \lineiv{l}{\ctype{long}}{integer}{}
   \lineiv{L}{\ctype{unsigned long}}{long}{}
+  \lineiv{q}{\ctype{long long}}{long}{(1)}
+  \lineiv{Q}{\ctype{unsigned long long}}{long}{(1)}
   \lineiv{f}{\ctype{float}}{float}{}
   \lineiv{d}{\ctype{double}}{float}{}
   \lineiv{s}{\ctype{char[]}}{string}{}
@@ -68,15 +70,16 @@ Notes:
 
 \begin{description}
 \item[(1)]
-  The \character{I} conversion code will convert to a Python long if
-  the C \ctype{int} is the same size as a C \ctype{long}, which is
-  typical on most modern systems.  If a C \ctype{int} is smaller than
-  a C \ctype{long}, an Python integer will be created instead.
+  The \character{q} and \character{Q} conversion codes are available in
+  native mode only if the platform C compiler supports C \ctype{long long},
+  or, on Windows, \ctype{__int64}.  They are always available in standard
+  modes.
+  \versionadded{2.2}
 \end{description}
 
 
-A format character may be preceded by an integral repeat count;
-e.g.\ the format string \code{'4h'} means exactly the same as
+A format character may be preceded by an integral repeat count.  For
+example, the format string \code{'4h'} means exactly the same as
 \code{'hhhh'}.
 
 Whitespace characters between formats are ignored; a count and its
@@ -84,23 +87,27 @@ format must not contain whitespace though.
 
 For the \character{s} format character, the count is interpreted as the
 size of the string, not a repeat count like for the other format
-characters; e.g. \code{'10s'} means a single 10-byte string, while
+characters; for example, \code{'10s'} means a single 10-byte string, while
 \code{'10c'} means 10 characters.  For packing, the string is
 truncated or padded with null bytes as appropriate to make it fit.
 For unpacking, the resulting string always has exactly the specified
 number of bytes.  As a special case, \code{'0s'} means a single, empty
 string (while \code{'0c'} means 0 characters).
 
-The \character{p} format character can be used to encode a Pascal
-string.  The first byte is the length of the stored string, with the
-bytes of the string following.  If count is given, it is used as the
-total number of bytes used, including the length byte.  If the string
-passed in to \function{pack()} is too long, the stored representation
-is truncated.  If the string is too short, padding is used to ensure
-that exactly enough bytes are used to satisfy the count.
+The \character{p} format character encodes a "Pascal string", meaning
+a short variable-length string stored in a fixed number of bytes.
+The count is the total number of bytes stored.  The first byte stored is
+the length of the string, or 255, whichever is smaller.  The bytes
+of the string follow.  If the string passed in to \function{pack()} is too
+long (longer than the count minus 1), only the leading count-1 bytes of the
+string are stored.  If the string is shorter than count-1, it is padded
+with null bytes so that exactly count bytes in all are used.  Note that
+for \function{unpack()}, the \character{p} format character consumes count
+bytes, but that the string returned can never contain more than 255
+characters.
 
-For the \character{I} and \character{L} format characters, the return
-value is a Python long integer.
+For the \character{I}, \character{L}, \character{q} and \character{Q}
+format characters, the return value is a Python long integer.
 
 For the \character{P} format character, the return value is a Python
 integer or long integer, depending on the size needed to hold a
@@ -130,18 +137,20 @@ according to the following table:
 If the first character is not one of these, \character{@} is assumed.
 
 Native byte order is big-endian or little-endian, depending on the
-host system (e.g. Motorola and Sun are big-endian; Intel and DEC are
-little-endian).
+host system.  For example, Motorola and Sun processors are big-endian;
+Intel and DEC processors are little-endian.
 
 Native size and alignment are determined using the C compiler's
 \keyword{sizeof} expression.  This is always combined with native byte
 order.
 
 Standard size and alignment are as follows: no alignment is required
-for any type (so you have to use pad bytes); \ctype{short} is 2 bytes;
-\ctype{int} and \ctype{long} are 4 bytes.  \ctype{float} and
-\ctype{double} are 32-bit and 64-bit IEEE floating point numbers,
-respectively.
+for any type (so you have to use pad bytes);
+\ctype{short} is 2 bytes;
+\ctype{int} and \ctype{long} are 4 bytes;
+\ctype{long long} (\ctype{__int64} on Windows) is 8 bytes;
+\ctype{float} and \ctype{double} are 32-bit and 64-bit
+IEEE floating point numbers, respectively.
 
 Note the difference between \character{@} and \character{=}: both use
 native byte order, but the size and alignment of the latter is
@@ -151,7 +160,7 @@ The form \character{!} is available for those poor souls who claim they
 can't remember whether network byte order is big-endian or
 little-endian.
 
-There is no way to indicate non-native byte order (i.e. force
+There is no way to indicate non-native byte order (force
 byte-swapping); use the appropriate choice of \character{<} or
 \character{>}.
 
@@ -168,8 +177,8 @@ big-endian machine):
 \begin{verbatim}
 >>> from struct import *
 >>> pack('hhl', 1, 2, 3)
-'\000\001\000\002\000\000\000\003'
->>> unpack('hhl', '\000\001\000\002\000\000\000\003')
+'\x00\x01\x00\x02\x00\x00\x00\x03'
+>>> unpack('hhl', '\x00\x01\x00\x02\x00\x00\x00\x03')
 (1, 2, 3)
 >>> calcsize('hhl')
 8
@@ -177,10 +186,10 @@ big-endian machine):
 
 Hint: to align the end of a structure to the alignment requirement of
 a particular type, end the format with the code for that type with a
-repeat count of zero, e.g.\ the format \code{'llh0l'} specifies two
-pad bytes at the end, assuming longs are aligned on 4-byte boundaries.
-This only works when native size and alignment are in effect;
-standard size and alignment does not enforce any alignment.
+repeat count of zero.  For example, the format \code{'llh0l'}
+specifies two pad bytes at the end, assuming longs are aligned on
+4-byte boundaries.  This only works when native size and alignment are
+in effect; standard size and alignment does not enforce any alignment.
 
 \begin{seealso}
   \seemodule{array}{Packed binary storage of homogeneous data.}

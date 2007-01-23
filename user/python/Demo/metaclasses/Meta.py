@@ -30,7 +30,7 @@ class MetaHelper:
         except AttributeError:
             try:
                 ga = self.__formalclass__.__getattr__('__usergetattr__')
-            except KeyError:
+            except (KeyError, AttributeError):
                 raise AttributeError, name
             return ga(self, name)
         if type(raw) != types.FunctionType:
@@ -88,7 +88,7 @@ class MetaClass:
             init = lambda: None
         apply(init, args, kw)
         return inst
-    
+
 
 Meta = MetaClass('Meta', (), {})
 
@@ -98,7 +98,7 @@ def _test():
         def __init__(self, *args):
             print "__init__, args =", args
         def m1(self, x):
-            print "m1(x=%s)" %`x`
+            print "m1(x=%r)" % (x,)
     print C
     x = C()
     print x
@@ -116,5 +116,3 @@ def _test():
 
 if __name__ == '__main__':
     _test()
-
-    

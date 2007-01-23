@@ -12,40 +12,41 @@ Of course, no multi-threading is implied -- hence the funny interface
 for lock, where a function is called once the lock is aquired.
 """
 
+from collections import deque
+
 class mutex:
-	def __init__(self):
-		"""Create a new mutex -- initially unlocked."""
-		self.locked = 0
-		self.queue = []
+    def __init__(self):
+        """Create a new mutex -- initially unlocked."""
+        self.locked = 0
+        self.queue = deque()
 
-	def test(self):
-		"""Test the locked bit of the mutex."""
-		return self.locked
+    def test(self):
+        """Test the locked bit of the mutex."""
+        return self.locked
 
-	def testandset(self):
-		"""Atomic test-and-set -- grab the lock if it is not set,
-		return true if it succeeded."""
-		if not self.locked:
-			self.locked = 1
-			return 1
-		else:
-			return 0
+    def testandset(self):
+        """Atomic test-and-set -- grab the lock if it is not set,
+        return True if it succeeded."""
+        if not self.locked:
+            self.locked = 1
+            return True
+        else:
+            return False
 
-	def lock(self, function, argument):
-		"""Lock a mutex, call the function with supplied argument
-		when it is acquired.  If the mutex is already locked, place
-		function and argument in the queue."""
-		if self.testandset():
-			function(argument)
-		else:
-			self.queue.append((function, argument))
+    def lock(self, function, argument):
+        """Lock a mutex, call the function with supplied argument
+        when it is acquired.  If the mutex is already locked, place
+        function and argument in the queue."""
+        if self.testandset():
+            function(argument)
+        else:
+            self.queue.append((function, argument))
 
-	def unlock(self):
-		"""Unlock a mutex.  If the queue is not empty, call the next
-		function with its argument."""
-		if self.queue:
-			function, argument = self.queue[0]
-			del self.queue[0]
-			function(argument)
-		else:
-			self.locked = 0
+    def unlock(self):
+        """Unlock a mutex.  If the queue is not empty, call the next
+        function with its argument."""
+        if self.queue:
+            function, argument = self.queue.popleft()
+            function(argument)
+        else:
+            self.locked = 0

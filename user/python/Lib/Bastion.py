@@ -26,6 +26,7 @@ bastion is created.
 
 """
 
+__all__ = ["BastionClass", "Bastion"]
 
 from types import MethodType
 
@@ -96,6 +97,8 @@ def Bastion(object, filter = lambda name: name[:1] != '_',
 
     """
 
+    raise RuntimeError, "This code is not secure in Python 2.2 and 2.3"
+
     # Note: we define *two* ad-hoc functions here, get1 and get2.
     # Both are intended to be called in the same way: get(name).
     # It is clear that the real work (getting the attribute
@@ -121,7 +124,7 @@ def Bastion(object, filter = lambda name: name[:1] != '_',
         return get1(name)
 
     if name is None:
-        name = `object`
+        name = repr(object)
     return bastionclass(get2, name)
 
 
@@ -155,7 +158,7 @@ def _test():
     else:
         print "accessible"
     try:
-        print "b._get_.func_defaults =", b._get_.func_defaults,
+        print "b._get_.func_defaults =", map(type, b._get_.func_defaults),
     except:
         print "inaccessible"
     else:

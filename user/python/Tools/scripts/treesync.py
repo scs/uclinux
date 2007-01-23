@@ -17,13 +17,13 @@ entry in the master tree are synchronized.  This means:
                 copy the slave to the master
         else (the master is newer):
             copy the master to the slave
-    
+
     normalizing the slave means replacing CRLF with LF when the master
     doesn't use CRLF
 
 """
 
-import os, sys, stat, string, getopt
+import os, sys, stat, getopt
 
 # Interactivity options
 default_answer = "ask"
@@ -59,7 +59,7 @@ def main():
         print "slavedir masterdir"
         return
     process(slave, master)
-    
+
 def process(slave, master):
     cvsdir = os.path.join(master, "CVS")
     if not os.path.isdir(cvsdir):
@@ -97,7 +97,7 @@ def process(slave, master):
     if cvsdir:
         entries = os.path.join(cvsdir, "Entries")
         for e in open(entries).readlines():
-            words = string.split(e, '/')
+            words = e.split('/')
             if words[0] == '' and words[1:]:
                 name = words[1]
                 s = os.path.join(slave, name)
@@ -188,10 +188,10 @@ def copy(src, dst, rmode="rb", wmode="wb", answer='ask'):
     g.close()
 
 def okay(prompt, answer='ask'):
-    answer = string.lower(string.strip(answer))
+    answer = answer.strip().lower()
     if not answer or answer[0] not in 'ny':
         answer = raw_input(prompt)
-        answer = string.lower(string.strip(answer))
+        answer = answer.strip().lower()
         if not answer:
             answer = default_answer
     if answer[:1] == 'y':
@@ -201,4 +201,5 @@ def okay(prompt, answer='ask'):
     print "Yes or No please -- try again:"
     return okay(prompt)
 
-main()
+if __name__ == '__main__':
+    main()

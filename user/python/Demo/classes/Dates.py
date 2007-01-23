@@ -36,6 +36,9 @@
 # Adapted to Python 1.1 (where some hacks to overcome coercion are unnecessary)
 # by Guido van Rossum
 
+# Note that as of Python 2.3, a datetime module is included in the stardard
+# library.
+
 # vi:set tabsize=8:
 
 _MONTH_NAMES = [ 'January', 'February', 'March', 'April', 'May',
@@ -83,7 +86,7 @@ _DI400Y = _days_before_year( 400 )      # number of days in 400 years
 
 def _num2date( n ):             # return date with ordinal n
     if type(n) not in _INT_TYPES:
-        raise TypeError, 'argument must be integer: ' + `type(n)`
+        raise TypeError, 'argument must be integer: %r' % type(n)
 
     ans = Date(1,1,1)   # arguments irrelevant; just getting a Date obj
     del ans.ord, ans.month, ans.day, ans.year # un-initialize it
@@ -117,10 +120,10 @@ def _num2day( n ):      # return weekday name of day with ordinal n
 class Date:
     def __init__( self, month, day, year ):
         if not 1 <= month <= 12:
-            raise ValueError, 'month must be in 1..12: ' + `month`
+            raise ValueError, 'month must be in 1..12: %r' % (month,)
         dim = _days_in_month( month, year )
         if not 1 <= day <= dim:
-            raise ValueError, 'day must be in 1..' + `dim` + ': ' + `day`
+            raise ValueError, 'day must be in 1..%r: %r' % (dim, day)
         self.month, self.day, self.year = month, day, year
         self.ord = _date2num( self )
 
@@ -139,15 +142,16 @@ class Date:
 
     # print as, e.g., Mon 16 Aug 1993
     def __repr__( self ):
-        return '%.3s %2d %.3s ' % (
+        return '%.3s %2d %.3s %r' % (
               self.weekday(),
               self.day,
-              _MONTH_NAMES[self.month-1] ) + `self.year`
+              _MONTH_NAMES[self.month-1],
+              self.year)
 
     # Python 1.1 coerces neither int+date nor date+int
     def __add__( self, n ):
         if type(n) not in _INT_TYPES:
-            raise TypeError, 'can\'t add ' + `type(n)` + ' to date'
+            raise TypeError, 'can\'t add %r to date' % type(n)
         return _num2date( self.ord + n )
     __radd__ = __add__ # handle int+date
 
@@ -174,7 +178,7 @@ DateTestError = 'DateTestError'
 def test( firstyear, lastyear ):
     a = Date(9,30,1913)
     b = Date(9,30,1914)
-    if `a` != 'Tue 30 Sep 1913':
+    if repr(a) != 'Tue 30 Sep 1913':
         raise DateTestError, '__repr__ failure'
     if (not a < b) or a == b or a > b or b != b:
         raise DateTestError, '__cmp__ failure'

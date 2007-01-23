@@ -11,28 +11,19 @@ passed to the convert() function; changing this table can allow this
 tool to support additional LaTeX markups.
 
 The format of the table is largely undocumented; see the commented
-headers where the table is specified in main().  There is no provision 
+headers where the table is specified in main().  There is no provision
 to load an alternate table from an external file.
 """
-__version__ = '$Revision$'
 
-import copy
 import errno
 import getopt
 import os
 import re
-import string
-import StringIO
 import sys
-import UserList
+import xml.sax
+import xml.sax.saxutils
 
 from esistools import encode
-from types import ListType, StringType, TupleType
-
-try:
-    from xml.parsers.xmllib import XMLParser
-except ImportError:
-    from xmllib import XMLParser
 
 
 DEBUG = 0
@@ -55,8 +46,8 @@ _begin_env_rx = re.compile(r"[\\]begin{([^}]*)}")
 _end_env_rx = re.compile(r"[\\]end{([^}]*)}")
 _begin_macro_rx = re.compile(r"[\\]([a-zA-Z]+[*]?) ?({|\s*\n?)")
 _comment_rx = re.compile("%+ ?(.*)\n[ \t]*")
-_text_rx = re.compile(r"[^]%\\{}]+")
-_optional_rx = re.compile(r"\s*[[]([^]]*)[]]")
+_text_rx = re.compile(r"[^]~%\\{}]+")
+_optional_rx = re.compile(r"\s*[[]([^]]*)[]]", re.MULTILINE)
 # _parameter_rx is this complicated to allow {...} inside a parameter;
 # this is useful to match tabular layout specifications like {c|p{24pt}}
 _parameter_rx = re.compile("[ \n]*{(([^{}}]|{[^}]*})*)}")
@@ -79,29 +70,30 @@ def popping(name, point, depth):
     dbgmsg("popping </%s> at %s" % (name, point))
 
 
-class _Stack(UserList.UserList):
+class _Stack(list):
     def append(self, entry):
-        if type(entry) is not StringType:
-            raise LaTeXFormatError("cannot push non-string on stack: "
-                                   + `entry`)
-        sys.stderr.write("%s<%s>\n" % (" "*len(self.data), entry))
-        self.data.append(entry)
+        if not isinstance(entry, str):
+            raise LaTeXFormatError("cannot push non-string on stack: %r"
+                                   % (entry, ))
+        #dbgmsg("%s<%s>" % (" "*len(self.data), entry))
+        list.append(self, entry)
 
     def pop(self, index=-1):
-        entry = self.data[index]
-        del self.data[index]
-        sys.stderr.write("%s</%s>\n" % (" "*len(self.data), entry))
+        entry = self[index]
+        del self[index]
+        #dbgmsg("%s</%s>" % (" " * len(self), entry))
 
     def __delitem__(self, index):
-        entry = self.data[index]
-        del self.data[index]
-        sys.stderr.write("%s</%s>\n" % (" "*len(self.data), entry))
+        entry = self[index]
+        list.__delitem__(self, index)
+        #dbgmsg("%s</%s>" % (" " * len(self), entry))
 
 
 def new_stack():
     if DEBUG:
         return _Stack()
-    return []
+    else:
+        return []
 
 
 class Conversion:
@@ -109,12 +101,10 @@ class Conversion:
         self.write = ofp.write
         self.ofp = ofp
         self.table = table
-        self.line = string.join(map(string.rstrip, ifp.readlines()), "\n")
+        L = [s.rstrip() for s in ifp.readlines()]
+        L.append("")
+        self.line = "\n".join(L)
         self.preamble = 1
-
-    def err_write(self, msg):
-        if DEBUG:
-            sys.stderr.write(str(msg) + "\n")
 
     def convert(self):
         self.subconvert()
@@ -165,10 +155,16 @@ class Conversion:
             if m:
                 # start of macro
                 macroname = m.group(1)
+                if macroname == "c":
+                    # Ugh!  This is a combining character...
+                    endpos = m.end()
+                    self.combining_char("c", line[endpos])
+                    line = line[endpos + 1:]
+                    continue
                 entry = self.get_entry(macroname)
                 if entry.verbatim:
                     # magic case!
-                    pos = string.find(line, "\\end{%s}" % macroname)
+                    pos = line.find("\\end{%s}" % macroname)
                     text = line[m.end(1):pos]
                     stack.append(entry.name)
                     self.write("(%s\n" % entry.outputname)
@@ -183,11 +179,10 @@ class Conversion:
                     if topentry.outputname:
                         self.write(")%s\n-\\n\n" % topentry.outputname)
                 #
-                if entry.outputname:
-                    if entry.empty:
-                        self.write("e\n")
+                if entry.outputname and entry.empty:
+                    self.write("e\n")
                 #
-                params, optional, empty, environ = self.start_macro(macroname)
+                params, optional, empty = self.start_macro(macroname)
                 # rip off the macroname
                 if params:
                     line = line[m.end(1):]
@@ -213,8 +208,8 @@ class Conversion:
                             m = _parameter_rx.match(line)
                             if not m:
                                 raise LaTeXFormatError(
-                                    "could not extract parameter %s for %s: %s"
-                                    % (pentry.name, macroname, `line[:100]`))
+                                    "could not extract parameter %s for %s: %r"
+                                    % (pentry.name, macroname, line[:100]))
                             if entry.outputname:
                                 self.dump_attr(pentry, m.group(1))
                             line = line[m.end():]
@@ -264,7 +259,7 @@ class Conversion:
                             opened = 1
                             stack.append(entry.name)
                             self.write("(%s\n" % entry.outputname)
-                        self.err_write("--- text: %s\n" % `pentry.text`)
+                        #dbgmsg("--- text: %r" % pentry.text)
                         self.write("-%s\n" % encode(pentry.text))
                     elif pentry.type == "entityref":
                         self.write("&%s\n" % pentry.name)
@@ -283,12 +278,17 @@ class Conversion:
                 # end of macro or group
                 macroname = stack[-1]
                 if macroname:
-                    conversion = self.table.get(macroname)
+                    conversion = self.table[macroname]
                     if conversion.outputname:
                         # otherwise, it was just a bare group
                         self.write(")%s\n" % conversion.outputname)
                 del stack[-1]
                 line = line[1:]
+                continue
+            if line[0] == "~":
+                # don't worry about the "tie" aspect of this command
+                line = line[1:]
+                self.write("- \n")
                 continue
             if line[0] == "{":
                 stack.append("")
@@ -301,6 +301,14 @@ class Conversion:
             if line[:2] == r"\\":
                 self.write("(BREAK\n)BREAK\n")
                 line = line[2:]
+                continue
+            if line[:2] == r"\_":
+                line = "_" + line[2:]
+                continue
+            if line[:2] in (r"\'", r'\"'):
+                # combining characters...
+                self.combining_char(line[1], line[2])
+                line = line[3:]
                 continue
             m = _text_rx.match(line)
             if m:
@@ -318,8 +326,8 @@ class Conversion:
             extra = ""
             if len(line) > 100:
                 extra = "..."
-            raise LaTeXFormatError("could not identify markup: %s%s"
-                                   % (`line[:100]`, extra))
+            raise LaTeXFormatError("could not identify markup: %r%s"
+                                   % (line[:100], extra))
         while stack:
             entry = self.get_entry(stack[-1])
             if entry.closes:
@@ -329,20 +337,31 @@ class Conversion:
                 break
         if stack:
             raise LaTeXFormatError("elements remain on stack: "
-                                   + string.join(stack, ", "))
+                                   + ", ".join(stack))
         # otherwise we just ran out of input here...
+
+    # This is a really limited table of combinations, but it will have
+    # to do for now.
+    _combinations = {
+        ("c", "c"): 0x00E7,
+        ("'", "e"): 0x00E9,
+        ('"', "o"): 0x00F6,
+        }
+
+    def combining_char(self, prefix, char):
+        ordinal = self._combinations[(prefix, char)]
+        self.write("-\\%%%d;\n" % ordinal)
 
     def start_macro(self, name):
         conversion = self.get_entry(name)
         parameters = conversion.parameters
         optional = parameters and parameters[0].optional
-        return parameters, optional, conversion.empty, conversion.environment
+        return parameters, optional, conversion.empty
 
     def get_entry(self, name):
         entry = self.table.get(name)
         if entry is None:
-            self.err_write("get_entry(%s) failing; building default entry!"
-                           % `name`)
+            dbgmsg("get_entry(%r) failing; building default entry!" % (name, ))
             # not defined; build a default entry:
             entry = TableEntry(name)
             entry.has_content = 1
@@ -385,7 +404,7 @@ def convert(ifp, ofp, table):
 
 def skip_white(line):
     while line and line[0] in " %\n\t\r":
-        line = string.lstrip(line[1:])
+        line = line[1:].lstrip()
     return line
 
 
@@ -412,14 +431,11 @@ class Parameter:
         self.implied = 0
 
 
-class TableParser(XMLParser):
-    def __init__(self, table=None):
-        if table is None:
-            table = {}
-        self.__table = table
-        self.__current = None
+class TableHandler(xml.sax.handler.ContentHandler):
+    def __init__(self):
+        self.__table = {}
         self.__buffer = ''
-        XMLParser.__init__(self)
+        self.__methods = {}
 
     def get_table(self):
         for entry in self.__table.values():
@@ -430,24 +446,48 @@ class TableParser(XMLParser):
                 entry.has_content = 1
         return self.__table
 
+    def startElement(self, tag, attrs):
+        try:
+            start, end = self.__methods[tag]
+        except KeyError:
+            start = getattr(self, "start_" + tag, None)
+            end = getattr(self, "end_" + tag, None)
+            self.__methods[tag] = (start, end)
+        if start:
+            start(attrs)
+
+    def endElement(self, tag):
+        start, end = self.__methods[tag]
+        if end:
+            end()
+
+    def endDocument(self):
+        self.__methods.clear()
+
+    def characters(self, data):
+        self.__buffer += data
+
     def start_environment(self, attrs):
         name = attrs["name"]
         self.__current = TableEntry(name, environment=1)
         self.__current.verbatim = attrs.get("verbatim") == "yes"
         if attrs.has_key("outputname"):
             self.__current.outputname = attrs.get("outputname")
-        self.__current.endcloses = string.split(attrs.get("endcloses", ""))
+        self.__current.endcloses = attrs.get("endcloses", "").split()
     def end_environment(self):
         self.end_macro()
 
     def start_macro(self, attrs):
         name = attrs["name"]
         self.__current = TableEntry(name)
-        self.__current.closes = string.split(attrs.get("closes", ""))
+        self.__current.closes = attrs.get("closes", "").split()
         if attrs.has_key("outputname"):
             self.__current.outputname = attrs.get("outputname")
     def end_macro(self):
-        self.__table[self.__current.name] = self.__current
+        name = self.__current.name
+        if self.__table.has_key(name):
+            raise ValueError("name %r already in use" % (name,))
+        self.__table[name] = self.__current
         self.__current = None
 
     def start_attribute(self, attrs):
@@ -490,15 +530,11 @@ class TableParser(XMLParser):
         p.text = self.__buffer
         self.__current.parameters.append(p)
 
-    def handle_data(self, data):
-        self.__buffer = self.__buffer + data
 
-
-def load_table(fp, table=None):
-    parser = TableParser(table=table)
-    parser.feed(fp.read())
-    parser.close()
-    return parser.get_table()
+def load_table(fp):
+    ch = TableHandler()
+    xml.sax.parse(fp, ch)
+    return ch.get_table()
 
 
 def main():
@@ -507,12 +543,12 @@ def main():
     opts, args = getopt.getopt(sys.argv[1:], "D", ["debug"])
     for opt, arg in opts:
         if opt in ("-D", "--debug"):
-            DEBUG = DEBUG + 1
+            DEBUG += 1
     if len(args) == 0:
         ifp = sys.stdin
         ofp = sys.stdout
     elif len(args) == 1:
-        ifp = open(args)
+        ifp = open(args[0])
         ofp = sys.stdout
     elif len(args) == 2:
         ifp = open(args[0])

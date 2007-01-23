@@ -4,6 +4,8 @@
 """
 
 import os
+import sys
+from test.test_support import TestSkipped
 
 # popen2 contains its own testing routine
 # which is especially useful to see if open files
@@ -12,6 +14,12 @@ import os
 
 def main():
     print "Test popen2 module:"
+    if (sys.platform[:4] == 'beos' or sys.platform[:6] == 'atheos') \
+           and __name__ != '__main__':
+        #  Locks get messed up or something.  Generally we're supposed
+        #  to avoid mixing "posix" fork & exec with native threads, and
+        #  they may be right about that after all.
+        raise TestSkipped, "popen2() doesn't work during import on " + sys.platform
     try:
         from os import popen
     except ImportError:
@@ -41,7 +49,7 @@ def _test():
     w.close()
     got = r.read()
     if got.strip() != expected:
-        raise ValueError("wrote %s read %s" % (`teststr`, `got`))
+        raise ValueError("wrote %r read %r" % (teststr, got))
     print "testing popen3..."
     try:
         w, r, e = os.popen3([cmd])
@@ -51,10 +59,10 @@ def _test():
     w.close()
     got = r.read()
     if got.strip() != expected:
-        raise ValueError("wrote %s read %s" % (`teststr`, `got`))
+        raise ValueError("wrote %r read %r" % (teststr, got))
     got = e.read()
     if got:
-        raise ValueError("unexected %s on stderr" % `got`)
+        raise ValueError("unexpected %r on stderr" % (got,))
     for inst in popen2._active[:]:
         inst.wait()
     if popen2._active:

@@ -30,6 +30,8 @@ typedef struct {
 
 #define CHECK_STATUS(name)  if (status == -1) { printf("%d ", status); perror(name); error = 1; }
 
+pth_attr_t PyThread_attr;
+
 /*
  * Initialization.
  */
@@ -37,6 +39,9 @@ typedef struct {
 static void PyThread__init_thread(void)
 {
 	pth_init();
+	PyThread_attr = pth_attr_new();
+	pth_attr_set(PyThread_attr, PTH_ATTR_STACK_SIZE, 1<<18);
+	pth_attr_set(PyThread_attr, PTH_ATTR_JOINABLE, FALSE);
 }
 
 /*
@@ -44,19 +49,19 @@ static void PyThread__init_thread(void)
  */
 
 
-int PyThread_start_new_thread(void (*func)(void *), void *arg)
+long PyThread_start_new_thread(void (*func)(void *), void *arg)
 {
 	pth_t th;
 	dprintf(("PyThread_start_new_thread called\n"));
 	if (!initialized)
 		PyThread_init_thread();
 
-	th = pth_spawn(PTH_ATTR_DEFAULT,
+	th = pth_spawn(PyThread_attr,
 				 (void* (*)(void *))func,
 				 (void *)arg
 				 );
 
-	return th == NULL ? 0 : 1;
+	return th;
 }
 
 long PyThread_get_thread_ident(void)
@@ -205,91 +210,4 @@ void PyThread_release_lock(PyThread_type_lock lock)
         /* wake up someone (anyone, if any) waiting on the lock */
         status = pth_cond_notify( &thelock->lock_released, 0 );
         CHECK_STATUS("pth_cond_notify");
-}
-
-/*
- * Semaphore support.
- */
-
-struct semaphore {
-	pth_mutex_t mutex;
-	pth_cond_t cond;
-	int value;
-};
-
-PyThread_type_sema PyThread_allocate_sema(int value)
-{
-	struct semaphore *sema;
-	int status, error = 0;
-
-	dprintf(("PyThread_allocate_sema called\n"));
-	if (!initialized)
-		PyThread_init_thread();
-
-	sema = (struct semaphore *) malloc(sizeof(struct semaphore));
-	if (sema != NULL) {
-		sema->value = value;
-		status = pth_mutex_init(&sema->mutex);
-		CHECK_STATUS("pth_mutex_init");
-		status = pth_cond_init(&sema->cond);
-		CHECK_STATUS("pth_mutex_init");
-		if (error) {
-			free((void *) sema);
-			sema = NULL;
-		}
-	}
-	dprintf(("PyThread_allocate_sema() -> %p\n",  sema));
-	return (PyThread_type_sema) sema;
-}
-
-void PyThread_free_sema(PyThread_type_sema sema)
-{
-	struct semaphore *thesema = (struct semaphore *) sema;
-
-	dprintf(("PyThread_free_sema(%p) called\n",  sema));
-	free((void *) thesema);
-}
-
-int PyThread_down_sema(PyThread_type_sema sema, int waitflag)
-{
-	int status, error = 0, success;
-	struct semaphore *thesema = (struct semaphore *) sema;
-
-	dprintf(("PyThread_down_sema(%p, %d) called\n",  sema, waitflag));
-	status = pth_mutex_acquire(&thesema->mutex, !waitflag, NULL);
-	CHECK_STATUS("pth_mutex_acquire");
-	if (waitflag) {
-		while (!error && thesema->value <= 0) {
-			status = pth_cond_await(&thesema->cond,
-						&thesema->mutex, NULL);
-			CHECK_STATUS("pth_cond_await");
-		}
-	}
-	if (error)
-		success = 0;
-	else if (thesema->value > 0) {
-		thesema->value--;
-		success = 1;
-	}
-	else
-		success = 0;
-	status = pth_mutex_release(&thesema->mutex);
-	CHECK_STATUS("pth_mutex_release");
-	dprintf(("PyThread_down_sema(%p) return\n",  sema));
-	return success;
-}
-
-void PyThread_up_sema(PyThread_type_sema sema)
-{
-	int status, error = 0;
-	struct semaphore *thesema = (struct semaphore *) sema;
-
-	dprintf(("PyThread_up_sema(%p)\n",  sema));
-	status = pth_mutex_acquire(&thesema->mutex, 0, NULL);
-	CHECK_STATUS("pth_mutex_acquire");
-	thesema->value++;
-	status = pth_cond_notify(&thesema->cond, 1);
-	CHECK_STATUS("pth_cond_notify");
-	status = pth_mutex_release(&thesema->mutex);
-	CHECK_STATUS("pth_mutex_release");
 }

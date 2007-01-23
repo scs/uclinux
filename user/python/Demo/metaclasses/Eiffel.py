@@ -28,7 +28,7 @@ post-condition with that defined in the derived class', for example:
 
 class D(C):
     def m1(self, arg):
-        return whatever**2
+        return arg**2
     def m1_post(self, Result, arg):
         C.m1_post(self, Result, arg)
         assert Result < 100
@@ -87,7 +87,7 @@ class EiffelMethodWrapper(MetaMethodWrapper):
         if self.post:
             apply(self.post, (Result,) + args, kw)
         return Result
-    
+
 class EiffelHelper(MetaHelper):
     __methodwrapper__ = EiffelMethodWrapper
 

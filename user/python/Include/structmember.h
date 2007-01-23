@@ -7,9 +7,7 @@ extern "C" {
 
 /* Interface to map C struct members to Python object attributes */
 
-#ifdef HAVE_STDDEF_H
 #include <stddef.h> /* For offsetof */
-#endif
 
 /* The offsetof() macro calculates the offset of a structure member
    in its structure.  Unfortunately this cannot be written down
@@ -28,11 +26,21 @@ extern "C" {
    pointer is NULL. */
 
 struct memberlist {
+	/* Obsolete version, for binary backwards compatibility */
 	char *name;
 	int type;
 	int offset;
-	int readonly;
+	int flags;
 };
+
+typedef struct PyMemberDef {
+	/* Current version, use this */
+	char *name;
+	int type;
+	int offset;
+	int flags;
+	char *doc;
+} PyMemberDef;
 
 /* Types */
 #define T_SHORT		0
@@ -53,17 +61,27 @@ struct memberlist {
 
 /* Added by Jack: strings contained in the structure */
 #define T_STRING_INPLACE	13
-#ifdef macintosh
-#define T_PSTRING	14	/* macintosh pascal-style counted string */
-#define T_PSTRING_INPLACE	15
-#endif /* macintosh */
 
-/* Readonly flag */
+#define T_OBJECT_EX	16	/* Like T_OBJECT, but raises AttributeError
+				   when the value is NULL, instead of
+				   converting to None. */
+
+/* Flags */
 #define READONLY	1
 #define RO		READONLY		/* Shorthand */
+#define READ_RESTRICTED	2
+#define WRITE_RESTRICTED 4
+#define RESTRICTED	(READ_RESTRICTED | WRITE_RESTRICTED)
 
-DL_IMPORT(PyObject *) PyMember_Get(char *, struct memberlist *, char *);
-DL_IMPORT(int) PyMember_Set(char *, struct memberlist *, char *, PyObject *);
+
+/* Obsolete API, for binary backwards compatibility */
+PyAPI_FUNC(PyObject *) PyMember_Get(char *, struct memberlist *, char *);
+PyAPI_FUNC(int) PyMember_Set(char *, struct memberlist *, char *, PyObject *);
+
+/* Current API, use this */
+PyAPI_FUNC(PyObject *) PyMember_GetOne(char *, struct PyMemberDef *);
+PyAPI_FUNC(int) PyMember_SetOne(char *, struct PyMemberDef *, PyObject *);
+
 
 #ifdef __cplusplus
 }

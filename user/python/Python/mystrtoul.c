@@ -100,7 +100,6 @@ PyOS_strtoul(register char *str, char **ptr, int base)
 	}
 	temp = result;
 	result = result * base + c;
-#ifndef MPW
 	if(base == 10) {
 		if(((long)(result - c) / base != (long)temp))	/* overflow */
 			ovf = 1;
@@ -109,7 +108,6 @@ PyOS_strtoul(register char *str, char **ptr, int base)
 		if ((result - c) / base != temp)	/* overflow */
 			ovf = 1;
 	}
-#endif
 	str++;
     }
 
@@ -124,30 +122,38 @@ PyOS_strtoul(register char *str, char **ptr, int base)
     return result;
 }
 
+/* Checking for overflow in PyOS_strtol is a PITA; see comments
+ * about Py_ABS_LONG_MIN in longobject.c.
+ */
+#define Py_ABS_LONG_MIN		(0-(unsigned long)LONG_MIN)
+
 long
 PyOS_strtol(char *str, char **ptr, int base)
 {
 	long result;
+	unsigned long uresult;
 	char sign;
-	
+
 	while (*str && isspace(Py_CHARMASK(*str)))
 		str++;
-	
+
 	sign = *str;
 	if (sign == '+' || sign == '-')
 		str++;
-	
-	result = (long) PyOS_strtoul(str, ptr, base);
-	
-	/* Signal overflow if the result appears negative,
-	   except for the largest negative integer */
-	if (result < 0 && !(sign == '-' && result == -result)) {
+
+	uresult = PyOS_strtoul(str, ptr, base);
+
+	if (uresult <= (unsigned long)LONG_MAX) {
+		result = (long)uresult;
+		if (sign == '-')
+			result = -result;
+	}
+	else if (sign == '-' && uresult == Py_ABS_LONG_MIN) {
+		result = LONG_MIN;
+	}
+	else {
 		errno = ERANGE;
 		result = 0x7fffffff;
 	}
-	
-	if (sign == '-')
-		result = -result;
-	
 	return result;
 }

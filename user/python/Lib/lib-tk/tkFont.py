@@ -8,7 +8,7 @@
 #
 # FIXME: should add 'displayof' option where relevant (actual, families,
 #        measure, and metrics)
-# 
+#
 # Copyright (c) Secret Labs AB 1998.
 #
 # info@pythonware.com
@@ -18,12 +18,17 @@
 __version__ = "0.9"
 
 import Tkinter
-import string
 
 # weight/slant
 NORMAL = "normal"
+ROMAN = "roman"
 BOLD   = "bold"
 ITALIC = "italic"
+
+def nametofont(name):
+    """Given the name of a tk named font, returns a Font representation.
+    """
+    return Font(name=name, exists=True)
 
 class Font:
 
@@ -32,16 +37,20 @@ class Font:
     Constructor options are:
 
     font -- font specifier (name, system font, or (family, size, style)-tuple)
+    name -- name to use for this font configuration (defaults to a unique name)
+    exists -- does a named font by this name already exist?
+       Creates a new named font if False, points to the existing font if True.
+       Raises _tkinter.TclError if the assertion is false.
 
-       or any combination of
+       the following are ignored if font is specified:
 
     family -- font 'family', e.g. Courier, Times, Helvetica
     size -- font size in points
     weight -- font thickness: NORMAL, BOLD
-    slant -- font slant: NORMAL, ITALIC
+    slant -- font slant: ROMAN, ITALIC
     underline -- font underlining: false (0), true (1)
     overstrike -- font strikeout: false (0), true (1)
-    name -- name to use for this font configuration (defaults to a unique name)
+
     """
 
     def _set(self, kw):
@@ -52,10 +61,10 @@ class Font:
         return tuple(options)
 
     def _get(self, args):
-      options = []
-      for k in args:
-          options.append("-"+k)
-      return tuple(options)
+        options = []
+        for k in args:
+            options.append("-"+k)
+        return tuple(options)
 
     def _mkdict(self, args):
         options = {}
@@ -63,7 +72,7 @@ class Font:
             options[args[i][1:]] = args[i+1]
         return options
 
-    def __init__(self, root=None, font=None, name=None, **options):
+    def __init__(self, root=None, font=None, name=None, exists=False, **options):
         if not root:
             root = Tkinter._default_root
         if font:
@@ -74,7 +83,19 @@ class Font:
         if not name:
             name = "font" + str(id(self))
         self.name = name
-        apply(root.tk.call, ("font", "create", name) + font)
+
+        if exists:
+            self.delete_font = False
+            # confirm font exists
+            if self.name not in root.tk.call("font", "names"):
+                raise Tkinter._tkinter.TclError, "named font %s does not already exist" % (self.name,)
+            # if font config info supplied, apply it
+            if font:
+                root.tk.call("font", "configure", self.name, *font)
+        else:
+            # create new font (raises TclError if the font exists)
+            root.tk.call("font", "create", self.name, *font)
+            self.delete_font = True
         # backlinks!
         self._root  = root
         self._split = root.tk.splitlist
@@ -83,15 +104,27 @@ class Font:
     def __str__(self):
         return self.name
 
+    def __eq__(self, other):
+        return self.name == other.name and isinstance(other, Font)
+
+    def __getitem__(self, key):
+        return self.cget(key)
+
+    def __setitem__(self, key, value):
+        self.configure(**{key: value})
+
     def __del__(self):
         try:
-            self._call("font", "delete", self.name)
-        except (AttributeError, Tkinter.TclError):
+            if self.delete_font:
+                self._call("font", "delete", self.name)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:
             pass
 
     def copy(self):
         "Return a distinct copy of the current font"
-        return apply(Font, (self._root,), self.actual())
+        return Font(self._root, **self.actual())
 
     def actual(self, option=None):
         "Return actual font attributes"
@@ -109,18 +142,18 @@ class Font:
     def config(self, **options):
         "Modify font attributes"
         if options:
-            apply(self._call, ("font", "config", self.name) +
-                  self._set(options))
+            self._call("font", "config", self.name,
+                  *self._set(options))
         else:
             return self._mkdict(
                 self._split(self._call("font", "config", self.name))
                 )
 
     configure = config
-    
+
     def measure(self, text):
         "Return text width"
-        return string.atoi(self._call("font", "measure", self.name, text))
+        return int(self._call("font", "measure", self.name, text))
 
     def metrics(self, *options):
         """Return font metrics.
@@ -129,21 +162,21 @@ class Font:
         using this font before calling this method."""
 
         if options:
-            return string.atoi(
+            return int(
                 self._call("font", "metrics", self.name, self._get(options))
                 )
         else:
             res = self._split(self._call("font", "metrics", self.name))
             options = {}
             for i in range(0, len(res), 2):
-                options[res[i][1:]] = string.atoi(res[i+1])
+                options[res[i][1:]] = int(res[i+1])
             return options
 
 def families(root=None):
     "Get font families (as a tuple)"
     if not root:
         root = Tkinter._default_root
-    return root.tk.splitlist(root.tk.call("font", "families"))     
+    return root.tk.splitlist(root.tk.call("font", "families"))
 
 def names(root=None):
     "Get names of defined fonts (as a tuple)"
@@ -153,7 +186,7 @@ def names(root=None):
 
 # --------------------------------------------------------------------
 # test stuff
-    
+
 if __name__ == "__main__":
 
     root = Tkinter.Tk()
@@ -186,7 +219,7 @@ if __name__ == "__main__":
 
     fb = Font(font=w["font"]).copy()
     fb.config(weight=BOLD)
-    
+
     w.config(font=fb)
 
     Tkinter.mainloop()

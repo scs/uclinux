@@ -8,13 +8,14 @@ Python.
 BNF\index{BNF} notation will be used to describe syntax, not lexical
 analysis.  When (one alternative of) a syntax rule has the form
 
-\begin{verbatim}
-name:           othername
-\end{verbatim}
+\begin{productionlist}[*]
+  \production{name}{\token{othername}}
+\end{productionlist}
 
 and no semantics are given, the semantics of this form of \code{name}
 are the same as for \code{othername}.
 \index{syntax}
+
 
 \section{Arithmetic conversions\label{conversions}}
 \indexii{arithmetic}{conversion}
@@ -22,8 +23,8 @@ are the same as for \code{othername}.
 When a description of an arithmetic operator below uses the phrase
 ``the numeric arguments are converted to a common type,'' the
 arguments are coerced using the coercion rules listed at the end of
-chapter 3.  If both arguments are standard numeric types, the
-following coercions are applied:
+chapter \ref{datamodel}.  If both arguments are standard numeric
+types, the following coercions are applied:
 
 \begin{itemize}
 \item	If either argument is a complex number, the other is converted
@@ -49,38 +50,32 @@ are identifiers or literals.  Forms enclosed in
 reverse quotes or in parentheses, brackets or braces are also
 categorized syntactically as atoms.  The syntax for atoms is:
 
-\begin{verbatim}
-atom:      identifier | literal | enclosure
-enclosure: parenth_form|list_display|dict_display|string_conversion
-\end{verbatim}
+\begin{productionlist}
+  \production{atom}
+             {\token{identifier} | \token{literal} | \token{enclosure}}
+  \production{enclosure}
+             {\token{parenth_form} | \token{list_display}}
+  \productioncont{| \token{generator_expression} | \token{dict_display}}
+  \productioncont{| \token{string_conversion}}
+\end{productionlist}
+
 
 \subsection{Identifiers (Names)\label{atom-identifiers}}
 \index{name}
 \index{identifier}
 
-An identifier occurring as an atom is a reference to a local, global
-or built-in name binding.  If a name is assigned to anywhere in a code
-block (even in unreachable code), and is not mentioned in a
-\keyword{global} statement in that code block, then it refers to a local
-name throughout that code block.  When it is not assigned to anywhere
-in the block, or when it is assigned to but also explicitly listed in
-a \keyword{global} statement, it refers to a global name if one exists,
-else to a built-in name (and this binding may dynamically change).
-\indexii{name}{binding}
-\index{code block}
-\stindex{global}
-\indexii{built-in}{name}
-\indexii{global}{name}
+An identifier occurring as an atom is a name.  See
+section~\ref{naming} for documentation of naming and binding.
 
 When the name is bound to an object, evaluation of the atom yields
 that object.  When a name is not bound, an attempt to evaluate it
 raises a \exception{NameError} exception.
 \exindex{NameError}
 
-\strong{Private name mangling:}%
+\strong{Private name mangling:}
 \indexii{name}{mangling}%
 \indexii{private}{names}%
-when an identifier that textually occurs in a class definition begins
+When an identifier that textually occurs in a class definition begins
 with two or more underscore characters and does not end in two or more
 underscores, it is considered a \dfn{private name} of that class.
 Private names are transformed to a longer form before code is
@@ -94,14 +89,17 @@ transformed name is extremely long (longer than 255 characters),
 implementation defined truncation may happen.  If the class name
 consists only of underscores, no transformation is done.
 
+
 \subsection{Literals\label{atom-literals}}
 \index{literal}
 
 Python supports string literals and various numeric literals:
 
-\begin{verbatim}
-literal: stringliteral | integer | longinteger | floatnumber | imagnumber
-\end{verbatim}
+\begin{productionlist}
+  \production{literal}
+             {\token{stringliteral} | \token{integer} | \token{longinteger}}
+  \productioncont{| \token{floatnumber} | \token{imagnumber}}
+\end{productionlist}
 
 Evaluation of a literal yields an object of the given type (string,
 integer, long integer, floating point number, complex number) with the
@@ -117,15 +115,17 @@ the same object or a different object with the same value.
 \indexiii{immutable}{data}{type}
 \indexii{immutable}{object}
 
+
 \subsection{Parenthesized forms\label{parenthesized}}
 \index{parenthesized form}
 
 A parenthesized form is an optional expression list enclosed in
 parentheses:
 
-\begin{verbatim}
-parenth_form:      "(" [expression_list] ")"
-\end{verbatim}
+\begin{productionlist}
+  \production{parenth_form}
+             {"(" [\token{expression_list}] ")"}
+\end{productionlist}
 
 A parenthesized expression list yields whatever that expression list
 yields: if the list contains at least one comma, it yields a tuple;
@@ -145,6 +145,7 @@ pass uncaught.
 \index{comma}
 \indexii{tuple}{display}
 
+
 \subsection{List displays\label{lists}}
 \indexii{list}{display}
 \indexii{list}{comprehensions}
@@ -152,13 +153,25 @@ pass uncaught.
 A list display is a possibly empty series of expressions enclosed in
 square brackets:
 
-\begin{verbatim}
-list_display:   "[" [listmaker] "]"
-listmaker:   expression ( list_for | ( "," expression)* [","] )
-list_iter:   list_for | list_if
-list_for:    "for" expression_list "in" testlist [list_iter]
-list_if:     "if" test [list_iter]
-\end{verbatim}
+\begin{productionlist}
+  \production{test}
+             {\token{and_test} ( "or" \token{and_test} )*
+              | \token{lambda_form}}
+  \production{testlist}
+             {\token{test} ( "," \token{test} )* [ "," ]}
+  \production{list_display}
+             {"[" [\token{listmaker}] "]"}
+  \production{listmaker}
+             {\token{expression} ( \token{list_for}
+              | ( "," \token{expression} )* [","] )}
+  \production{list_iter}
+             {\token{list_for} | \token{list_if}}
+  \production{list_for}
+             {"for" \token{expression_list} "in" \token{testlist}
+              [\token{list_iter}]}
+  \production{list_if}
+             {"if" \token{test} [\token{list_iter}]}
+\end{productionlist}
 
 A list display yields a new list object.  Its contents are specified
 by providing either a list of expressions or a list comprehension.
@@ -167,14 +180,61 @@ When a comma-separated list of expressions is supplied, its elements are
 evaluated from left to right and placed into the list object in that
 order.  When a list comprehension is supplied, it consists of a
 single expression followed by at least one \keyword{for} clause and zero or
-more \keyword{for} or \keyword{if} clauses.  In this 
+more \keyword{for} or \keyword{if} clauses.  In this
 case, the elements of the new list are those that would be produced
 by considering each of the \keyword{for} or \keyword{if} clauses a block,
-nesting from 
+nesting from
 left to right, and evaluating the expression to produce a list element
-each time the innermost block is reached.
+each time the innermost block is reached\footnote{In Python 2.3, a
+list comprehension "leaks" the control variables of each
+\samp{for} it contains into the containing scope.  However, this
+behavior is deprecated, and relying on it will not work once this
+bug is fixed in a future release}.
 \obindex{list}
 \indexii{empty}{list}
+
+
+\subsection{Generator expressions\label{genexpr}}
+\indexii{generator}{expression}
+
+A generator expression is a compact generator notation in parentheses:
+
+\begin{productionlist}
+  \production{generator_expression}
+             {"(" \token{test} \token{genexpr_for} ")"}
+  \production{genexpr_for}
+             {"for" \token{expression_list} "in" \token{test}
+              [\token{genexpr_iter}]}
+  \production{genexpr_iter}
+             {\token{genexpr_for} | \token{genexpr_if}}
+  \production{genexpr_if}
+             {"if" \token{test} [\token{genexpr_iter}]}
+\end{productionlist}
+
+A generator expression yields a new generator object.
+\obindex{generator}
+\obindex{generator expression}
+It consists of a single expression followed by at least one
+\keyword{for} clause and zero or more \keyword{for} or \keyword{if}
+clauses.  The iterating values of the new generator are those that
+would be produced by considering each of the \keyword{for} or
+\keyword{if} clauses a block, nesting from left to right, and
+evaluating the expression to yield a value that is reached the
+innermost block for each iteration.
+
+Variables used in the generator expression are evaluated lazily
+when the \method{next()} method is called for generator object
+(in the same fashion as normal generators). However, the leftmost
+\keyword{for} clause is immediately evaluated so that error produced
+by it can be seen before any other possible error in the code that
+handles the generator expression.
+Subsequent \keyword{for} clauses cannot be evaluated immediately since
+they may depend on the previous \keyword{for} loop.
+For example: \samp{(x*y for x in range(10) for y in bar(x))}.
+
+The parentheses can be omitted on calls with only one argument.
+See section \ref{calls} for the detail.
+
 
 \subsection{Dictionary displays\label{dict}}
 \indexii{dictionary}{display}
@@ -185,11 +245,14 @@ enclosed in curly braces:
 \index{datum}
 \index{key/datum pair}
 
-\begin{verbatim}
-dict_display:   "{" [key_datum_list] "}"
-key_datum_list: key_datum ("," key_datum)* [","]
-key_datum:      expression ":" expression
-\end{verbatim}
+\begin{productionlist}
+  \production{dict_display}
+             {"\{" [\token{key_datum_list}] "\}"}
+  \production{key_datum_list}
+             {\token{key_datum} ("," \token{key_datum})* [","]}
+  \production{key_datum}
+             {\token{expression} ":" \token{expression}}
+\end{productionlist}
 
 A dictionary display yields a new dictionary object.
 \obindex{dictionary}
@@ -199,11 +262,12 @@ entries of the dictionary: each key object is used as a key into the
 dictionary to store the corresponding datum.
 
 Restrictions on the types of the key values are listed earlier in
-section \ref{types}.  (To summarize,the key type should be hashable,
+section \ref{types}.  (To summarize, the key type should be hashable,
 which excludes all mutable objects.)  Clashes between duplicate keys
 are not detected; the last datum (textually rightmost in the display)
 stored for a given key value prevails.
 \indexii{immutable}{object}
+
 
 \subsection{String conversions\label{string-conversions}}
 \indexii{string}{conversion}
@@ -214,9 +278,10 @@ stored for a given key value prevails.
 A string conversion is an expression list enclosed in reverse (a.k.a.
 backward) quotes:
 
-\begin{verbatim}
-string_conversion: "`" expression_list "`"
-\end{verbatim}
+\begin{productionlist}
+  \production{string_conversion}
+             {"`" \token{expression_list} "`"}
+\end{productionlist}
 
 A string conversion evaluates the contained expression list and
 converts the resulting object into a string according to rules
@@ -232,9 +297,11 @@ involved).
 (In particular, converting a string adds quotes around it and converts
 ``funny'' characters to escape sequences that are safe to print.)
 
-It is illegal to attempt to convert recursive objects (e.g., lists or
-dictionaries that contain a reference to themselves, directly or
-indirectly.)
+Recursive objects (for example, lists or dictionaries that contain a
+reference to themselves, directly or indirectly) use \samp{...} to
+indicate a recursive reference, and the result cannot be passed to
+\function{eval()} to get an equal value (\exception{SyntaxError} will
+be raised instead).
 \obindex{recursive}
 
 The built-in function \function{repr()} performs exactly the same
@@ -244,35 +311,41 @@ similar but more user-friendly conversion.
 \bifuncindex{repr}
 \bifuncindex{str}
 
+
 \section{Primaries\label{primaries}}
 \index{primary}
 
 Primaries represent the most tightly bound operations of the language.
 Their syntax is:
 
-\begin{verbatim}
-primary:        atom | attributeref | subscription | slicing | call
-\end{verbatim}
+\begin{productionlist}
+  \production{primary}
+             {\token{atom} | \token{attributeref}
+              | \token{subscription} | \token{slicing} | \token{call}}
+\end{productionlist}
+
 
 \subsection{Attribute references\label{attribute-references}}
 \indexii{attribute}{reference}
 
 An attribute reference is a primary followed by a period and a name:
 
-\begin{verbatim}
-attributeref:   primary "." identifier
-\end{verbatim}
+\begin{productionlist}
+  \production{attributeref}
+             {\token{primary} "." \token{identifier}}
+\end{productionlist}
 
 The primary must evaluate to an object of a type that supports
-attribute references, e.g., a module or a list.  This object is then
-asked to produce the attribute whose name is the identifier.  If this
-attribute is not available, the exception
+attribute references, e.g., a module, list, or an instance.  This
+object is then asked to produce the attribute whose name is the
+identifier.  If this attribute is not available, the exception
 \exception{AttributeError}\exindex{AttributeError} is raised.
 Otherwise, the type and value of the object produced is determined by
 the object.  Multiple evaluations of the same attribute reference may
 yield different objects.
 \obindex{module}
 \obindex{list}
+
 
 \subsection{Subscriptions\label{subscriptions}}
 \index{subscription}
@@ -287,9 +360,10 @@ or mapping (dictionary) object:
 \obindex{dictionary}
 \indexii{sequence}{item}
 
-\begin{verbatim}
-subscription:   primary "[" expression_list "]"
-\end{verbatim}
+\begin{productionlist}
+  \production{subscription}
+             {\token{primary} "[" \token{expression_list} "]"}
+\end{productionlist}
 
 The primary must evaluate to an object of a sequence or mapping type.
 
@@ -311,32 +385,46 @@ type but a string of exactly one character.
 \index{character}
 \indexii{string}{item}
 
+
 \subsection{Slicings\label{slicings}}
 \index{slicing}
 \index{slice}
 
 A slicing selects a range of items in a sequence object (e.g., a
 string, tuple or list).  Slicings may be used as expressions or as
-targets in assignment or del statements.  The syntax for a slicing:
+targets in assignment or \keyword{del} statements.  The syntax for a
+slicing:
 \obindex{sequence}
 \obindex{string}
 \obindex{tuple}
 \obindex{list}
 
-\begin{verbatim}
-slicing:          simple_slicing | extended_slicing
-simple_slicing:   primary "[" short_slice "]"
-extended_slicing: primary "[" slice_list "]" 
-slice_list:       slice_item ("," slice_item)* [","]
-slice_item:       expression | proper_slice | ellipsis
-proper_slice:     short_slice | long_slice
-short_slice:      [lower_bound] ":" [upper_bound]
-long_slice:       short_slice ":" [stride]
-lower_bound:      expression
-upper_bound:      expression
-stride:           expression
-ellipsis:         "..."
-\end{verbatim}
+\begin{productionlist}
+  \production{slicing}
+             {\token{simple_slicing} | \token{extended_slicing}}
+  \production{simple_slicing}
+             {\token{primary} "[" \token{short_slice} "]"}
+  \production{extended_slicing}
+             {\token{primary} "[" \token{slice_list} "]" }
+  \production{slice_list}
+             {\token{slice_item} ("," \token{slice_item})* [","]}
+  \production{slice_item}
+             {\token{expression} | \token{proper_slice} | \token{ellipsis}}
+  \production{proper_slice}
+             {\token{short_slice} | \token{long_slice}}
+  \production{short_slice}
+             {[\token{lower_bound}] ":" [\token{upper_bound}]}
+  \production{long_slice}
+             {\token{short_slice} ":" [\token{stride}]}
+  \production{lower_bound}
+             {\token{expression}}
+  \production{upper_bound}
+             {\token{expression}}
+  \production{stride}
+             {\token{expression}}
+  \production{ellipsis}
+             {"..."}
+\end{productionlist}
 
 There is ambiguity in the formal syntax here: anything that looks like
 an expression list also looks like a slice list, so any subscription
@@ -377,6 +465,7 @@ expressions.
 \withsubitem{(slice object attribute)}{\ttindex{start}
   \ttindex{stop}\ttindex{step}}
 
+
 \subsection{Calls\label{calls}}
 \index{call}
 
@@ -384,17 +473,29 @@ A call calls a callable object (e.g., a function) with a possibly empty
 series of arguments:
 \obindex{callable}
 
-\begin{verbatim}
-call:                   primary "(" [argument_list [","]] ")"
-argument_list:          positional_arguments ["," keyword_arguments]
-                      | keyword_arguments
-positional_arguments:   expression ("," expression)*
-keyword_arguments:      keyword_item ("," keyword_item)*
-keyword_item:           identifier "=" expression
-\end{verbatim}
+\begin{productionlist}
+  \production{call}
+             {\token{primary} "(" [\token{argument_list} [","]] ")"}
+             {\token{primary} "(" [\token{argument_list} [","] |
+	      \token{test} \token{genexpr_for} ] ")"}                                                   
+  \production{argument_list}
+             {\token{positional_arguments} ["," \token{keyword_arguments}]}
+  \productioncont{                     ["," "*" \token{expression}]}
+  \productioncont{                     ["," "**" \token{expression}]}
+  \productioncont{| \token{keyword_arguments} ["," "*" \token{expression}]}
+  \productioncont{                    ["," "**" \token{expression}]}
+  \productioncont{| "*" \token{expression} ["," "**" \token{expression}]}
+  \productioncont{| "**" \token{expression}}
+  \production{positional_arguments}
+             {\token{expression} ("," \token{expression})*}
+  \production{keyword_arguments}
+             {\token{keyword_item} ("," \token{keyword_item})*}
+  \production{keyword_item}
+             {\token{identifier} "=" \token{expression}}
+\end{productionlist}
 
-A trailing comma may be present after an argument list but does not
-affect the semantics.
+A trailing comma may be present after the positional and keyword
+arguments but does not affect the semantics.
 
 The primary must evaluate to a callable object (user-defined
 functions, built-in functions, methods of built-in objects, class
@@ -438,6 +539,44 @@ case, that formal parameter receives a dictionary containing the
 excess keyword arguments (using the keywords as keys and the argument
 values as corresponding values), or a (new) empty dictionary if there
 were no excess keyword arguments.
+
+If the syntax \samp{*expression} appears in the function call,
+\samp{expression} must evaluate to a sequence.  Elements from this
+sequence are treated as if they were additional positional arguments;
+if there are postional arguments \var{x1},...,\var{xN} , and
+\samp{expression} evaluates to a sequence \var{y1},...,\var{yM}, this
+is equivalent to a call with M+N positional arguments
+\var{x1},...,\var{xN},\var{y1},...,\var{yM}.
+
+A consequence of this is that although the \samp{*expression} syntax
+appears \emph{after} any keyword arguments, it is processed
+\emph{before} the keyword arguments (and the
+\samp{**expression} argument, if any -- see below).  So:
+
+\begin{verbatim}
+>>> def f(a, b):
+...  print a, b
+...
+>>> f(b=1, *(2,))
+2 1
+>>> f(a=1, *(2,))
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+TypeError: f() got multiple values for keyword argument 'a'
+>>> f(1, *(2,))
+1 2
+\end{verbatim}
+
+It is unusual for both keyword arguments and the
+\samp{*expression} syntax to be used in the same call, so in practice
+this confusion does not arise.
+
+If the syntax \samp{**expression} appears in the function call,
+\samp{expression} must evaluate to a (subclass of) dictionary, the
+contents of which are treated as additional keyword arguments.  In the
+case of a keyword appearing in both \samp{expression} and as an
+explicit keyword argument, a \exception{TypeError} exception is
+raised.
 
 Formal parameters using the syntax \samp{*identifier} or
 \samp{**identifier} cannot be used as positional argument slots or
@@ -504,9 +643,10 @@ The power operator binds more tightly than unary operators on its
 left; it binds less tightly than unary operators on its right.  The
 syntax is:
 
-\begin{verbatim}
-power:         primary ["**" u_expr]
-\end{verbatim}
+\begin{productionlist}
+  \production{power}
+             {\token{primary} ["**" \token{u_expr}]}
+\end{productionlist}
 
 Thus, in an unparenthesized sequence of power and unary operators, the
 operators are evaluated from right to left (this does not constrain
@@ -516,10 +656,20 @@ The power operator has the same semantics as the built-in
 \function{pow()} function, when called with two arguments: it yields
 its left argument raised to the power of its right argument.  The
 numeric arguments are first converted to a common type.  The result
-type is that of the arguments after coercion; if the result is not
-expressible in that type (as in raising an integer to a negative
-power, or a negative floating point number to a broken power), a
-\exception{TypeError} exception is raised.
+type is that of the arguments after coercion.
+
+With mixed operand types, the coercion rules for binary arithmetic
+operators apply. For int and long int operands, the result has the
+same type as the operands (after coercion) unless the second argument
+is negative; in that case, all arguments are converted to float and a
+float result is delivered. For example, \code{10**2} returns \code{100},
+but \code{10**-2} returns \code{0.01}. (This last feature was added in
+Python 2.2. In Python 2.1 and before, if both arguments were of integer
+types and the second argument was negative, an exception was raised).
+
+Raising \code{0.0} to a negative power results in a
+\exception{ZeroDivisionError}.  Raising a negative number to a
+fractional power results in a \exception{ValueError}.
 
 
 \section{Unary arithmetic operations \label{unary}}
@@ -528,9 +678,11 @@ power, or a negative floating point number to a broken power), a
 
 All unary arithmetic (and bit-wise) operations have the same priority:
 
-\begin{verbatim}
-u_expr:         power | "-" u_expr | "+" u_expr | "~" u_expr
-\end{verbatim}
+\begin{productionlist}
+  \production{u_expr}
+             {\token{power} | "-" \token{u_expr}
+              | "+" \token{u_expr} | "{\~}" \token{u_expr}}
+\end{productionlist}
 
 The unary \code{-} (minus) operator yields the negation of its
 numeric argument.
@@ -551,6 +703,7 @@ In all three cases, if the argument does not have the proper type,
 a \exception{TypeError} exception is raised.
 \exindex{TypeError}
 
+
 \section{Binary arithmetic operations\label{binary}}
 \indexiii{binary}{arithmetic}{operation}
 
@@ -560,25 +713,31 @@ non-numeric types.  Apart from the power operator, there are only two
 levels, one for multiplicative operators and one for additive
 operators:
 
-\begin{verbatim}
-m_expr:         u_expr | m_expr "*" u_expr
-              | m_expr "/" u_expr | m_expr "%" u_expr
-a_expr:         m_expr | aexpr "+" m_expr | aexpr "-" m_expr
-\end{verbatim}
+\begin{productionlist}
+  \production{m_expr}
+             {\token{u_expr} | \token{m_expr} "*" \token{u_expr}
+              | \token{m_expr} "//" \token{u_expr}
+              | \token{m_expr} "/" \token{u_expr}}
+  \productioncont{| \token{m_expr} "\%" \token{u_expr}}
+  \production{a_expr}
+             {\token{m_expr} | \token{a_expr} "+" \token{m_expr}
+              | \token{a_expr} "-" \token{m_expr}}
+\end{productionlist}
 
 The \code{*} (multiplication) operator yields the product of its
 arguments.  The arguments must either both be numbers, or one argument
-must be a plain integer and the other must be a sequence.  In the
-former case, the numbers are converted to a common type and then
-multiplied together.  In the latter case, sequence repetition is
+must be an integer (plain or long) and the other must be a sequence.
+In the former case, the numbers are converted to a common type and
+then multiplied together.  In the latter case, sequence repetition is
 performed; a negative repetition factor yields an empty sequence.
 \index{multiplication}
 
-The \code{/} (division) operator yields the quotient of its
-arguments.  The numeric arguments are first converted to a common
-type.  Plain or long integer division yields an integer of the same
-type; the result is that of mathematical division with the `floor'
-function applied to the result.  Division by zero raises the
+The \code{/} (division) and \code{//} (floor division) operators yield
+the quotient of their arguments.  The numeric arguments are first
+converted to a common type.  Plain or long integer division yields an
+integer of the same type; the result is that of mathematical division
+with the `floor' function applied to the result.  Division by zero
+raises the
 \exception{ZeroDivisionError} exception.
 \exindex{ZeroDivisionError}
 \index{division}
@@ -590,24 +749,46 @@ the \exception{ZeroDivisionError} exception.  The arguments may be floating
 point numbers, e.g., \code{3.14\%0.7} equals \code{0.34} (since
 \code{3.14} equals \code{4*0.7 + 0.34}.)  The modulo operator always
 yields a result with the same sign as its second operand (or zero);
-the absolute value of the result is strictly smaller than the second
-operand.
+the absolute value of the result is strictly smaller than the absolute
+value of the second operand\footnote{
+    While \code{abs(x\%y) < abs(y)} is true mathematically, for
+    floats it may not be true numerically due to roundoff.  For
+    example, and assuming a platform on which a Python float is an
+    IEEE 754 double-precision number, in order that \code{-1e-100 \% 1e100}
+    have the same sign as \code{1e100}, the computed result is
+    \code{-1e-100 + 1e100}, which is numerically exactly equal
+    to \code{1e100}.  Function \function{fmod()} in the \module{math}
+    module returns a result whose sign matches the sign of the
+    first argument instead, and so returns \code{-1e-100} in this case.
+    Which approach is more appropriate depends on the application.
+}.
 \index{modulo}
 
 The integer division and modulo operators are connected by the
 following identity: \code{x == (x/y)*y + (x\%y)}.  Integer division and
 modulo are also connected with the built-in function \function{divmod()}:
 \code{divmod(x, y) == (x/y, x\%y)}.  These identities don't hold for
-floating point and complex numbers; there similar identities hold
-approximately where \code{x/y} is replaced by \code{floor(x/y)}) or
-\code{floor(x/y) - 1} (for floats),\footnote{
+floating point numbers; there similar identities hold
+approximately where \code{x/y} is replaced by \code{floor(x/y)} or
+\code{floor(x/y) - 1}\footnote{
     If x is very close to an exact integer multiple of y, it's
     possible for \code{floor(x/y)} to be one larger than
     \code{(x-x\%y)/y} due to rounding.  In such cases, Python returns
     the latter result, in order to preserve that \code{divmod(x,y)[0]
     * y + x \%{} y} be very close to \code{x}.
-} or \code{floor((x/y).real)} (for
-complex).
+}.
+
+In addition to performing the modulo operation on numbers, the \code{\%}
+operator is also overloaded by string and unicode objects to perform
+string formatting (also known as interpolation). The syntax for string
+formatting is described in the
+\citetitle[../lib/typesseq-strings.html]{Python Library Reference},
+section ``Sequence Types''.
+
+\deprecated{2.3}{The floor division operator, the modulo operator,
+and the \function{divmod()} function are no longer defined for complex
+numbers.  Instead, convert to a floating point number using the
+\function{abs()} function if appropriate.}
 
 The \code{+} (addition) operator yields the sum of its arguments.
 The arguments must either both be numbers or both sequences of the
@@ -621,15 +802,19 @@ arguments.  The numeric arguments are first converted to a common
 type.
 \index{subtraction}
 
+
 \section{Shifting operations\label{shifting}}
 \indexii{shifting}{operation}
 
 The shifting operations have lower priority than the arithmetic
 operations:
 
-\begin{verbatim}
-shift_expr:     a_expr | shift_expr ( "<<" | ">>" ) a_expr
-\end{verbatim}
+\begin{productionlist}
+  % The empty groups below prevent conversion to guillemets.
+  \production{shift_expr}
+             {\token{a_expr}
+              | \token{shift_expr} ( "<{}<" | ">{}>" ) \token{a_expr}}
+\end{productionlist}
 
 These operators accept plain or long integers as arguments.  The
 arguments are converted to a common type.  They shift the first
@@ -645,16 +830,20 @@ value.  Negative shift counts raise a \exception{ValueError}
 exception.
 \exindex{ValueError}
 
+
 \section{Binary bit-wise operations\label{bitwise}}
 \indexiii{binary}{bit-wise}{operation}
 
 Each of the three bitwise operations has a different priority level:
 
-\begin{verbatim}
-and_expr:       shift_expr | and_expr "&" shift_expr
-xor_expr:       and_expr | xor_expr "^" and_expr
-or_expr:       xor_expr | or_expr "|" xor_expr
-\end{verbatim}
+\begin{productionlist}
+  \production{and_expr}
+             {\token{shift_expr} | \token{and_expr} "\&" \token{shift_expr}}
+  \production{xor_expr}
+             {\token{and_expr} | \token{xor_expr} "\textasciicircum" \token{and_expr}}
+  \production{or_expr}
+             {\token{xor_expr} | \token{or_expr} "|" \token{xor_expr}}
+\end{productionlist}
 
 The \code{\&} operator yields the bitwise AND of its arguments, which
 must be plain or long integers.  The arguments are converted to a
@@ -673,6 +862,7 @@ converted to a common type.
 \indexii{bit-wise}{or}
 \indexii{inclusive}{or}
 
+
 \section{Comparisons\label{comparisons}}
 \index{comparison}
 
@@ -682,12 +872,15 @@ operation.  Also unlike C, expressions like \code{a < b < c} have the
 interpretation that is conventional in mathematics:
 \indexii{C}{language}
 
-\begin{verbatim}
-comparison:     or_expr (comp_operator or_expr)*
-comp_operator:  "<"|">"|"=="|">="|"<="|"<>"|"!="|"is" ["not"]|["not"] "in"
-\end{verbatim}
+\begin{productionlist}
+  \production{comparison}
+             {\token{or_expr} ( \token{comp_operator} \token{or_expr} )*}
+  \production{comp_operator}
+             {"<" | ">" | "==" | ">=" | "<=" | "<>" | "!="}
+  \productioncont{| "is" ["not"] | ["not"] "in"}
+\end{productionlist}
 
-Comparisons yield integer values: \code{1} for true, \code{0} for false.
+Comparisons yield boolean values: \code{True} or \code{False}.
 
 Comparisons can be chained arbitrarily, e.g., \code{x < y <= z} is
 equivalent to \code{x < y and y <= z}, except that \code{y} is
@@ -713,9 +906,12 @@ obsolescent.
 The operators \code{<}, \code{>}, \code{==}, \code{>=}, \code{<=}, and
 \code{!=} compare
 the values of two objects.  The objects need not have the same type.
-If both are numbers, they are coverted to a common type.  Otherwise,
+If both are numbers, they are converted to a common type.  Otherwise,
 objects of different types \emph{always} compare unequal, and are
-ordered consistently but arbitrarily.
+ordered consistently but arbitrarily.  You can control comparison
+behavior of objects of non-builtin types by defining a \code{__cmp__}
+method or rich comparison methods like \code{__gt__}, described in
+section~\ref{specialnames}.
 
 (This unusual definition of comparison was used to simplify the
 definition of operations like sorting and the \keyword{in} and
@@ -737,19 +933,31 @@ behavior.
 
 \item
 Tuples and lists are compared lexicographically using comparison of
-corresponding items.
+corresponding elements.  This means that to compare equal, each
+element must compare equal and the two sequences must be of the same
+type and have the same length.
+
+If not equal, the sequences are ordered the same as their first
+differing elements.  For example, \code{cmp([1,2,x], [1,2,y])} returns
+the same as \code{cmp(x,y)}.  If the corresponding element does not
+exist, the shorter sequence is ordered first (for example,
+\code{[1,2] < [1,2,3]}).
 
 \item
-Mappings (dictionaries) are compared through lexicographic
-comparison of their sorted (key, value) lists.\footnote{
-This is expensive since it requires sorting the keys first,
-but it is about the only sensible definition.  An earlier version of
-Python compared dictionaries by identity only, but this caused
-surprises because people expected to be able to test a dictionary for
-emptiness by comparing it to \code{\{\}}.}
+Mappings (dictionaries) compare equal if and only if their sorted
+(key, value) lists compare equal.\footnote{The implementation computes
+   this efficiently, without constructing lists or sorting.}
+Outcomes other than equality are resolved consistently, but are not
+otherwise defined.\footnote{Earlier versions of Python used
+  lexicographic comparison of the sorted (key, value) lists, but this
+  was very expensive for the common case of comparing for equality.  An
+  even earlier version of Python compared dictionaries by identity only,
+  but this caused surprises because people expected to be able to test
+  a dictionary for emptiness by comparing it to \code{\{\}}.}
 
 \item
-Most other types compare unequal unless they are the same object;
+Most other objects of builtin types compare unequal unless they are
+the same object;
 the choice whether one object is considered smaller or larger than
 another one is made arbitrarily but consistently within one
 execution of a program.
@@ -757,20 +965,28 @@ execution of a program.
 \end{itemize}
 
 The operators \keyword{in} and \keyword{not in} test for set
-membership: every type can define membership in whatever way is
-appropriate.  Traditionally, this interface has been tightly bound
-the sequence interface, which is related in that presence in a sequence
-can be usefully interpreted as membership in a set.
+membership.  \code{\var{x} in \var{s}} evaluates to true if \var{x}
+is a member of the set \var{s}, and false otherwise.  \code{\var{x}
+not in \var{s}} returns the negation of \code{\var{x} in \var{s}}.
+The set membership test has traditionally been bound to sequences; an
+object is a member of a set if the set is a sequence and contains an
+element equal to that object.  However, it is possible for an object
+to support membership tests without being a sequence.  In particular,
+dictionaries support membership testing as a nicer way of spelling
+\code{\var{key} in \var{dict}}; other mapping types may follow suit.
 
-For the list, tuple types, \code{\var{x} in \var{y}} is true if and only
-if there exists such an index \var{i} such that
-\code{var{x} == \var{y}[\var{i}]} is true.
+For the list and tuple types, \code{\var{x} in \var{y}} is true if and
+only if there exists an index \var{i} such that
+\code{\var{x} == \var{y}[\var{i}]} is true.
 
 For the Unicode and string types, \code{\var{x} in \var{y}} is true if
-and only if there exists an index \var{i} such that \code{\var{x} ==
-\var{y}[\var{i}]} is true. If \code{\var{x}} is not a string or
-Unicode object of length \code{1}, a \exception{TypeError} exception
-is raised.
+and only if \var{x} is a substring of \var{y}.  An equivalent test is
+\code{y.find(x) != -1}.  Note, \var{x} and \var{y} need not be the
+same type; consequently, \code{u'ab' in 'abc'} will return \code{True}.
+Empty strings are always considered to be a substring of any other string,
+so \code{"" in "abc"} will return \code{True}.
+\versionchanged[Previously, \var{x} was required to be a string of
+length \code{1}]{2.3}
 
 For user-defined classes which define the \method{__contains__()} method,
 \code{\var{x} in \var{y}} is true if and only if
@@ -798,27 +1014,31 @@ truth value.
 \opindex{is not}
 \indexii{identity}{test}
 
+
 \section{Boolean operations\label{Booleans}}
 \indexii{Boolean}{operation}
 
 Boolean operations have the lowest priority of all Python operations:
 
-\begin{verbatim}
-expression:     or_test | lambda_form
-or_test:        and_test | or_test "or" and_test
-and_test:       not_test | and_test "and" not_test
-not_test:       comparison | "not" not_test
-lambda_form:	"lambda" [parameter_list]: expression
-\end{verbatim}
+\begin{productionlist}
+  \production{expression}
+             {\token{or_test} | \token{lambda_form}}
+  \production{or_test}
+             {\token{and_test} | \token{or_test} "or" \token{and_test}}
+  \production{and_test}
+             {\token{not_test} | \token{and_test} "and" \token{not_test}}
+  \production{not_test}
+             {\token{comparison} | "not" \token{not_test}}
+\end{productionlist}
 
 In the context of Boolean operations, and also when expressions are
 used by control flow statements, the following values are interpreted
-as false: \code{None}, numeric zero of all types, empty sequences
-(strings, tuples and lists), and empty mappings (dictionaries).  All
-other values are interpreted as true.
+as false: \code{False}, \code{None}, numeric zero of all types, and empty
+strings and containers (including strings, tuples, lists, dictionaries,
+sets and frozensets).  All other values are interpreted as true.
 
-The operator \keyword{not} yields \code{1} if its argument is false,
-\code{0} otherwise.
+The operator \keyword{not} yields \code{True} if its argument is false,
+\code{False} otherwise.
 \opindex{not}
 
 The expression \code{\var{x} and \var{y}} first evaluates \var{x}; if
@@ -832,20 +1052,30 @@ evaluated and the resulting value is returned.
 \opindex{or}
 
 (Note that neither \keyword{and} nor \keyword{or} restrict the value
-and type they return to \code{0} and \code{1}, but rather return the
+and type they return to \code{False} and \code{True}, but rather return the
 last evaluated argument.
 This is sometimes useful, e.g., if \code{s} is a string that should be
 replaced by a default value if it is empty, the expression
 \code{s or 'foo'} yields the desired value.  Because \keyword{not} has to
 invent a value anyway, it does not bother to return a value of the
-same type as its argument, so e.g., \code{not 'foo'} yields \code{0},
+same type as its argument, so e.g., \code{not 'foo'} yields \code{False},
 not \code{''}.)
+
+\section{Lambdas\label{lambdas}}
+\indexii{lambda}{expression}
+\indexii{lambda}{form}
+\indexii{anonymous}{function}
+
+\begin{productionlist}
+  \production{lambda_form}
+             {"lambda" [\token{parameter_list}]: \token{expression}}
+\end{productionlist}
 
 Lambda forms (lambda expressions) have the same syntactic position as
 expressions.  They are a shorthand to create anonymous functions; the
 expression \code{lambda \var{arguments}: \var{expression}}
-yields a function object that behaves virtually identical to one
-defined with
+yields a function object.  The unnamed object behaves like a function
+object defined with
 
 \begin{verbatim}
 def name(arguments):
@@ -855,27 +1085,14 @@ def name(arguments):
 See section \ref{function} for the syntax of parameter lists.  Note
 that functions created with lambda forms cannot contain statements.
 \label{lambda}
-\indexii{lambda}{expression}
-\indexii{lambda}{form}
-\indexii{anonmymous}{function}
-
-\strong{Programmer's note:} a lambda form defined inside a function
-has no access to names defined in the function's namespace.  This is
-because Python has only two scopes: local and global.  A common
-work-around is to use default argument values to pass selected
-variables into the lambda's namespace, e.g.:
-
-\begin{verbatim}
-def make_incrementor(increment):
-    return lambda x, n=increment: x+n
-\end{verbatim}
 
 \section{Expression lists\label{exprlists}}
 \indexii{expression}{list}
 
-\begin{verbatim}
-expression_list:      expression ("," expression)* [","]
-\end{verbatim}
+\begin{productionlist}
+  \production{expression_list}
+             {\token{expression} ( "," \token{expression} )* [","]}
+\end{productionlist}
 
 An expression list containing at least one comma yields a
 tuple.  The length of the tuple is the number of expressions in the
@@ -890,6 +1107,24 @@ tuple, but rather yields the value of that expression.
 \code{()}.)
 \indexii{trailing}{comma}
 
+\section{Evaluation order\label{evalorder}}
+\indexii{evaluation}{order}
+
+Python evaluates expressions from left to right. Notice that while
+evaluating an assignment, the right-hand side is evaluated before
+the left-hand side.
+
+In the following lines, expressions will be evaluated in the
+arithmetic order of their suffixes:
+
+\begin{verbatim}
+expr1, expr2, expr3, expr4
+(expr1, expr2, expr3, expr4)
+{expr1: expr2, expr3: expr4}
+expr1 + expr2 * (expr3 - expr4)
+func(expr1, expr2, *expr3, **expr4)
+expr3, expr4 = expr1, expr2
+\end{verbatim}
 
 \section{Summary\label{summary}}
 
@@ -898,8 +1133,9 @@ precedences\indexii{operator}{precedence} in Python, from lowest
 precedence (least binding) to highest precedence (most binding).
 Operators in the same box have the same precedence.  Unless the syntax
 is explicitly given, operators are binary.  Operators in the same box
-group left to right (except for comparisons, which chain from left to
-right --- see above).
+group left to right (except for comparisons, including tests, which all
+have the same precedence and chain from left to right --- see section
+\ref{comparisons} -- and exponentiation, which groups from right to left).
 
 \begin{tableii}{c|l}{textrm}{Operator}{Description}
     \lineii{\keyword{lambda}}			{Lambda expression}
@@ -922,17 +1158,17 @@ right --- see above).
   \hline
     \lineii{\code{\&}}				{Bitwise AND}
   \hline
-    \lineii{\code{<<}, \code{>>}}		{Shifts}
+    \lineii{\code{<}\code{<}, \code{>}\code{>}}	{Shifts}
   \hline
     \lineii{\code{+}, \code{-}}{Addition and subtraction}
   \hline
     \lineii{\code{*}, \code{/}, \code{\%}}
            {Multiplication, division, remainder}
   \hline
-    \lineii{\code{**}}				{Exponentiation}
-  \hline
     \lineii{\code{+\var{x}}, \code{-\var{x}}}	{Positive, negative}
     \lineii{\code{\~\var{x}}}			{Bitwise not}
+  \hline
+    \lineii{\code{**}}				{Exponentiation}
   \hline
     \lineii{\code{\var{x}.\var{attribute}}}	{Attribute reference}
     \lineii{\code{\var{x}[\var{index}]}}	{Subscription}

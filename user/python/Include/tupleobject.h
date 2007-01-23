@@ -8,9 +8,11 @@ extern "C" {
 #endif
 
 /*
-Another generally useful object type is an tuple of object pointers.
-This is a mutable type: the tuple items can be changed (but not their
-number).  Out-of-range indices or non-tuple objects are ignored.
+Another generally useful object type is a tuple of object pointers.
+For Python, this is an immutable type.  C code can change the tuple items
+(but not their number), and even use tuples are general-purpose arrays of
+object references, but in general only brand new tuples should be mutated,
+not ones that might already have been exposed to Python code.
 
 *** WARNING *** PyTuple_SetItem does not increment the new item's reference
 count, but does decrement the reference count of the item it replaces,
@@ -22,18 +24,25 @@ returned item's reference count.
 typedef struct {
     PyObject_VAR_HEAD
     PyObject *ob_item[1];
+
+    /* ob_item contains space for 'ob_size' elements.
+     * Items must normally not be NULL, except during construction when
+     * the tuple is not yet visible outside the function that builds it.
+     */
 } PyTupleObject;
 
-extern DL_IMPORT(PyTypeObject) PyTuple_Type;
+PyAPI_DATA(PyTypeObject) PyTuple_Type;
 
-#define PyTuple_Check(op) ((op)->ob_type == &PyTuple_Type)
+#define PyTuple_Check(op) PyObject_TypeCheck(op, &PyTuple_Type)
+#define PyTuple_CheckExact(op) ((op)->ob_type == &PyTuple_Type)
 
-extern DL_IMPORT(PyObject *) PyTuple_New(int size);
-extern DL_IMPORT(int) PyTuple_Size(PyObject *);
-extern DL_IMPORT(PyObject *) PyTuple_GetItem(PyObject *, int);
-extern DL_IMPORT(int) PyTuple_SetItem(PyObject *, int, PyObject *);
-extern DL_IMPORT(PyObject *) PyTuple_GetSlice(PyObject *, int, int);
-extern DL_IMPORT(int) _PyTuple_Resize(PyObject **, int, int);
+PyAPI_FUNC(PyObject *) PyTuple_New(int size);
+PyAPI_FUNC(int) PyTuple_Size(PyObject *);
+PyAPI_FUNC(PyObject *) PyTuple_GetItem(PyObject *, int);
+PyAPI_FUNC(int) PyTuple_SetItem(PyObject *, int, PyObject *);
+PyAPI_FUNC(PyObject *) PyTuple_GetSlice(PyObject *, int, int);
+PyAPI_FUNC(int) _PyTuple_Resize(PyObject **, int);
+PyAPI_FUNC(PyObject *) PyTuple_Pack(int, ...);
 
 /* Macro, trading safety for speed */
 #define PyTuple_GET_ITEM(op, i) (((PyTupleObject *)(op))->ob_item[i])

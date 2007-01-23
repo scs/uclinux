@@ -9,7 +9,7 @@ configure-like tasks: "try to compile this C code", or "figure out where
 this header file lives".
 """
 
-# created 2000/05/29, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -17,7 +17,8 @@ import sys, os, string, re
 from types import *
 from distutils.core import Command
 from distutils.errors import DistutilsExecError
-
+from distutils.sysconfig import customize_compiler
+from distutils import log
 
 LANG_EXT = {'c': '.c',
             'c++': '.cxx'}
@@ -103,9 +104,8 @@ class config (Command):
         from distutils.ccompiler import CCompiler, new_compiler
         if not isinstance(self.compiler, CCompiler):
             self.compiler = new_compiler(compiler=self.compiler,
-                                         verbose=self.noisy,
-                                         dry_run=self.dry_run,
-                                         force=1)
+                                         dry_run=self.dry_run, force=1)
+            customize_compiler(self.compiler)
             if self.include_dirs:
                 self.compiler.set_include_dirs(self.include_dirs)
             if self.libraries:
@@ -147,18 +147,23 @@ class config (Command):
                headers, include_dirs,
                libraries, library_dirs, lang):
         (src, obj) = self._compile(body, headers, include_dirs, lang)
-        prog = os.path.splitext(os.path.basename(src))[0] 
-        self.temp_files.append(prog)    # XXX should be prog + exe_ext
+        prog = os.path.splitext(os.path.basename(src))[0]
         self.compiler.link_executable([obj], prog,
                                       libraries=libraries,
-                                      library_dirs=library_dirs)
+                                      library_dirs=library_dirs,
+                                      target_lang=lang)
+
+        if self.compiler.exe_extension is not None:
+            prog = prog + self.compiler.exe_extension
+        self.temp_files.append(prog)
+
         return (src, obj, prog)
 
     def _clean (self, *filenames):
         if not filenames:
             filenames = self.temp_files
             self.temp_files = []
-        self.announce("removing: " + string.join(filenames))
+        log.info("removing: %s", string.join(filenames))
         for filename in filenames:
             try:
                 os.remove(filename)
@@ -187,7 +192,7 @@ class config (Command):
         self._check_compiler()
         ok = 1
         try:
-            self._preprocess(body, headers, lang)
+            self._preprocess(body, headers, include_dirs, lang)
         except CompileError:
             ok = 0
 
@@ -205,7 +210,7 @@ class config (Command):
         """
 
         self._check_compiler()
-        (src, out) = self._preprocess(body, headers, lang)
+        (src, out) = self._preprocess(body, headers, include_dirs, lang)
 
         if type(pattern) is StringType:
             pattern = re.compile(pattern)
@@ -216,7 +221,7 @@ class config (Command):
             line = file.readline()
             if line == '':
                 break
-            if pattern.search(pattern):
+            if pattern.search(line):
                 match = 1
                 break
 
@@ -231,12 +236,12 @@ class config (Command):
         from distutils.ccompiler import CompileError
         self._check_compiler()
         try:
-            self._compile(body, headers, lang)
+            self._compile(body, headers, include_dirs, lang)
             ok = 1
         except CompileError:
             ok = 0
 
-        self.announce(ok and "success!" or "failure.")
+        log.info(ok and "success!" or "failure.")
         self._clean()
         return ok
 
@@ -257,10 +262,10 @@ class config (Command):
         except (CompileError, LinkError):
             ok = 0
 
-        self.announce(ok and "success!" or "failure.")
+        log.info(ok and "success!" or "failure.")
         self._clean()
         return ok
-            
+
     def try_run (self, body,
                  headers=None, include_dirs=None,
                  libraries=None, library_dirs=None,
@@ -272,14 +277,14 @@ class config (Command):
         from distutils.ccompiler import CompileError, LinkError
         self._check_compiler()
         try:
-            self._link(body, headers, include_dirs,
-                       libraries, library_dirs, lang)
+            src, obj, exe = self._link(body, headers, include_dirs,
+                                       libraries, library_dirs, lang)
             self.spawn([exe])
             ok = 1
         except (CompileError, LinkError, DistutilsExecError):
             ok = 0
 
-        self.announce(ok and "success!" or "failure.")
+        log.info(ok and "success!" or "failure.")
         self._clean()
         return ok
 
@@ -345,7 +350,8 @@ class config (Command):
         exists and can be found by the preprocessor; return true if so,
         false otherwise.
         """
-        return self.try_cpp(headers=[header], include_dirs=include_dirs)
+        return self.try_cpp(body="/* No body */", headers=[header],
+                            include_dirs=include_dirs)
 
 
 # class config

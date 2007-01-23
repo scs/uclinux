@@ -5,7 +5,7 @@
 /* See below for information about the original code this module was
    based upon. Additional work performed by:
 
-   Andrew Kuchling (amk1@bigfoot.com)
+   Andrew Kuchling (amk@amk.ca)
    Greg Stein (gstein@lyra.org)
 */
 
@@ -330,7 +330,7 @@ sha_final(unsigned char digest[20], SHAobject *sha_info)
  * ------------------------------------------------------------------------
  */
 
-staticforward PyTypeObject SHAtype;
+static PyTypeObject SHAtype;
 
 
 static SHAobject *
@@ -350,8 +350,7 @@ SHA_dealloc(PyObject *ptr)
 
 /* External methods for a hashing object */
 
-static char SHA_copy__doc__[] = 
-"Return a copy of the hashing object.";
+PyDoc_STRVAR(SHA_copy__doc__, "Return a copy of the hashing object.");
 
 static PyObject *
 SHA_copy(SHAobject *self, PyObject *args)
@@ -368,8 +367,8 @@ SHA_copy(SHAobject *self, PyObject *args)
     return (PyObject *)newobj;
 }
 
-static char SHA_digest__doc__[] = 
-"Return the digest value as a string of binary data.";
+PyDoc_STRVAR(SHA_digest__doc__,
+"Return the digest value as a string of binary data.");
 
 static PyObject *
 SHA_digest(SHAobject *self, PyObject *args)
@@ -385,8 +384,8 @@ SHA_digest(SHAobject *self, PyObject *args)
     return PyString_FromStringAndSize((const char *)digest, sizeof(digest));
 }
 
-static char SHA_hexdigest__doc__[] = 
-"Return the digest value as a string of hexadecimal digits.";
+PyDoc_STRVAR(SHA_hexdigest__doc__,
+"Return the digest value as a string of hexadecimal digits.");
 
 static PyObject *
 SHA_hexdigest(SHAobject *self, PyObject *args)
@@ -427,8 +426,8 @@ SHA_hexdigest(SHAobject *self, PyObject *args)
     return retval;
 }
 
-static char SHA_update__doc__[] = 
-"Update this hashing object's state with the provided string.";
+PyDoc_STRVAR(SHA_update__doc__,
+"Update this hashing object's state with the provided string.");
 
 static PyObject *
 SHA_update(SHAobject *self, PyObject *args)
@@ -458,7 +457,7 @@ SHA_getattr(PyObject *self, char *name)
 {
     if (strcmp(name, "blocksize")==0)
         return PyInt_FromLong(1);
-    if (strcmp(name, "digestsize")==0)
+    if (strcmp(name, "digest_size")==0 || strcmp(name, "digestsize")==0)
         return PyInt_FromLong(20);
 
     return Py_FindMethod(SHA_methods, self, name);
@@ -467,7 +466,7 @@ SHA_getattr(PyObject *self, char *name)
 static PyTypeObject SHAtype = {
     PyObject_HEAD_INIT(NULL)
     0,			/*ob_size*/
-    "SHA",		/*tp_name*/
+    "sha.SHA",		/*tp_name*/
     sizeof(SHAobject),	/*tp_size*/
     0,			/*tp_itemsize*/
     /* methods */
@@ -479,10 +478,10 @@ static PyTypeObject SHAtype = {
 
 /* The single module-level function: new() */
 
-static char SHA_new__doc__[] =
- "Return a new SHA hashing object.  An optional string "
- "argument may be provided; if present, this string will be "
- " automatically hashed."; 
+PyDoc_STRVAR(SHA_new__doc__,
+"Return a new SHA hashing object.  An optional string argument\n\
+may be provided; if present, this string will be automatically\n\
+hashed.");
 
 static PyObject *
 SHA_new(PyObject *self, PyObject *args, PyObject *kwdict)
@@ -491,15 +490,14 @@ SHA_new(PyObject *self, PyObject *args, PyObject *kwdict)
     SHAobject *new;
     unsigned char *cp = NULL;
     int len;
-	
-    if ((new = newSHAobject()) == NULL)
-        return NULL;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwdict, "|s#:new", kwlist,
                                      &cp, &len)) {
-        Py_DECREF(new);
         return NULL;
     }
+
+    if ((new = newSHAobject()) == NULL)
+        return NULL;
 
     sha_init(new);
 
@@ -525,22 +523,22 @@ static struct PyMethodDef SHA_functions[] = {
 
 /* Initialize this module. */
 
-#define insint(n,v) { PyObject *o=PyInt_FromLong(v); \
-	if (o!=NULL) PyDict_SetItemString(d,n,o); \
-	Py_XDECREF(o); }
+#define insint(n,v) { PyModule_AddIntConstant(m,n,v); }
 
-void
+PyMODINIT_FUNC
 initsha(void)
 {
-    PyObject *d, *m;
+    PyObject *m;
 
     SHAtype.ob_type = &PyType_Type;
     m = Py_InitModule("sha", SHA_functions);
+    if (m == NULL)
+	return;
 
     /* Add some symbolic constants to the module */
-    d = PyModule_GetDict(m);
     insint("blocksize", 1);  /* For future use, in case some hash
                                 functions require an integral number of
                                 blocks */ 
     insint("digestsize", 20);
+    insint("digest_size", 20);
 }

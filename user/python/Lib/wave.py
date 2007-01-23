@@ -73,6 +73,8 @@ is destroyed.
 
 import __builtin__
 
+__all__ = ["open", "openfp", "Error"]
+
 class Error(Exception):
     pass
 
@@ -144,7 +146,7 @@ class Wave_read:
                 if not self._fmt_chunk_read:
                     raise Error, 'data chunk before fmt chunk'
                 self._data_chunk = chunk
-                self._nframes = chunk.chunksize / self._framesize
+                self._nframes = chunk.chunksize // self._framesize
                 self._data_seek_needed = 0
                 break
             chunk.skip()
@@ -153,7 +155,7 @@ class Wave_read:
 
     def __init__(self, f):
         self._i_opened_the_file = None
-        if type(f) == type(''):
+        if isinstance(f, basestring):
             f = __builtin__.open(f, 'rb')
             self._i_opened_the_file = f
         # else, assume it is an open file object already
@@ -246,7 +248,7 @@ class Wave_read:
             data = self._data_chunk.read(nframes * self._framesize)
         if self._convert and data:
             data = self._convert(data)
-        self._soundpos = self._soundpos + len(data) / (self._nchannels * self._sampwidth)
+        self._soundpos = self._soundpos + len(data) // (self._nchannels * self._sampwidth)
         return data
 
     #
@@ -257,9 +259,9 @@ class Wave_read:
         wFormatTag, self._nchannels, self._framerate, dwAvgBytesPerSec, wBlockAlign = struct.unpack('<hhllh', chunk.read(14))
         if wFormatTag == WAVE_FORMAT_PCM:
             sampwidth = struct.unpack('<h', chunk.read(2))[0]
-            self._sampwidth = (sampwidth + 7) / 8
+            self._sampwidth = (sampwidth + 7) // 8
         else:
-            raise Error, 'unknown format: ' + `wFormatTag`
+            raise Error, 'unknown format: %r' % (wFormatTag,)
         self._framesize = self._nchannels * self._sampwidth
         self._comptype = 'NONE'
         self._compname = 'not compressed'
@@ -292,7 +294,7 @@ class Wave_write:
 
     def __init__(self, f):
         self._i_opened_the_file = None
-        if type(f) == type(''):
+        if isinstance(f, basestring):
             f = __builtin__.open(f, 'wb')
             self._i_opened_the_file = f
         self.initfp(f)
@@ -395,13 +397,13 @@ class Wave_write:
 
     def getmarkers(self):
         return None
-                
+
     def tell(self):
         return self._nframeswritten
 
     def writeframesraw(self, data):
         self._ensure_header_written(len(data))
-        nframes = len(data) / (self._sampwidth * self._nchannels)
+        nframes = len(data) // (self._sampwidth * self._nchannels)
         if self._convert:
             data = self._convert(data)
         if self._sampwidth > 1 and big_endian:

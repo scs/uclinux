@@ -5,13 +5,26 @@
 \modulesynopsis{Telnet client class.}
 \sectionauthor{Skip Montanaro}{skip@mojam.com}
 
+\index{protocol!Telnet}
+
 The \module{telnetlib} module provides a \class{Telnet} class that
 implements the Telnet protocol.  See \rfc{854} for details about the
-protocol.
+protocol. In addition, it provides symbolic constants for the protocol
+characters (see below), and for the telnet options. The
+symbolic names of the telnet options follow the definitions in
+\code{arpa/telnet.h}, with the leading \code{TELOPT_} removed. For
+symbolic names of options which are traditionally not included in
+\code{arpa/telnet.h}, see the module source itself.
+
+The symbolic constants for the telnet commands are: IAC, DONT, DO,
+WONT, WILL, SE (Subnegotiation End), NOP (No Operation), DM (Data
+Mark), BRK (Break), IP (Interrupt process), AO (Abort output), AYT
+(Are You There), EC (Erase Character), EL (Erase Line), GA (Go Ahead),
+SB (Subnegotiation Begin).
 
 
 \begin{classdesc}{Telnet}{\optional{host\optional{, port}}}
-\class{Telnet} represents a connection to a telnet server. The
+\class{Telnet} represents a connection to a Telnet server. The
 instance is initially not connected by default; the \method{open()}
 method must be used to establish a connection.  Alternatively, the
 host name and optional port number can be passed to the constructor,
@@ -40,7 +53,8 @@ individual descriptions below.
 
 
 \begin{methoddesc}{read_until}{expected\optional{, timeout}}
-Read until a given string is encountered or until timeout.
+Read until a given string, \var{expected}, is encountered or until
+\var{timeout} seconds have passed.
 
 When no match is found, return whatever is available instead,
 possibly the empty string.  Raise \exception{EOFError} if the connection
@@ -48,7 +62,7 @@ is closed and no cooked data is available.
 \end{methoddesc}
 
 \begin{methoddesc}{read_all}{}
-Read all data until \EOF{}; block until connection closed.
+Read all data until \EOF; block until connection closed.
 \end{methoddesc}
 
 \begin{methoddesc}{read_some}{}
@@ -89,10 +103,18 @@ Return \code{''} if no cooked data available otherwise.  This method
 never blocks.
 \end{methoddesc}
 
+\begin{methoddesc}{read_sb_data}{}
+Return the data collected between a SB/SE pair (suboption begin/end).
+The callback should access these data when it was invoked with a
+\code{SE} command. This method never blocks.
+
+\versionadded{2.3}
+\end{methoddesc}
+
 \begin{methoddesc}{open}{host\optional{, port}}
 Connect to a host.
 The optional second argument is the port number, which
-defaults to the standard telnet port (23).
+defaults to the standard Telnet port (23).
 
 Do not try to reopen an already connected instance.
 \end{methoddesc}
@@ -127,7 +149,7 @@ This can block if the connection is blocked.  May raise
 \end{methoddesc}
 
 \begin{methoddesc}{interact}{}
-Interaction function, emulates a very dumb telnet client.
+Interaction function, emulates a very dumb Telnet client.
 \end{methoddesc}
 
 \begin{methoddesc}{mt_interact}{}
@@ -151,9 +173,16 @@ If end of file is found and no text was read, raise
 \code{(-1, None, \var{text})} where \var{text} is the text received so
 far (may be the empty string if a timeout happened).
 
-If a regular expression ends with a greedy match (e.g. \regexp{.*})
+If a regular expression ends with a greedy match (such as \regexp{.*})
 or if more than one expression can match the same input, the
 results are indeterministic, and may depend on the I/O timing.
+\end{methoddesc}
+
+\begin{methoddesc}{set_option_negotiation_callback}{callback}
+Each time a telnet option is read on the input flow, this
+\var{callback} (if set) is called with the following parameters :
+callback(telnet socket, command (DO/DONT/WILL/WONT), option).  No other
+action is done afterwards by telnetlib.
 \end{methoddesc}
 
 

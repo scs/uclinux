@@ -4,7 +4,7 @@ Utility functions for simple, timestamp-based dependency of files
 and groups of files; also, function based entirely on such
 timestamp dependency analysis."""
 
-# created 2000/04/03, Greg Ward (extracted from util.py)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -70,7 +70,7 @@ def newer_group (sources, target, missing='error'):
     # If the target doesn't even exist, then it's definitely out-of-date.
     if not os.path.exists(target):
         return 1
-   
+
     # Otherwise we have to find out the hard way: if *any* source file
     # is more recent than 'target', then 'target' is out-of-date and
     # we can immediately return true.  If we fall through to the end
@@ -80,12 +80,12 @@ def newer_group (sources, target, missing='error'):
     for source in sources:
         if not os.path.exists(source):
             if missing == 'error':      # blow up when we stat() the file
-                pass                    
-            elif missing == 'ignore':   # missing source dropped from 
+                pass
+            elif missing == 'ignore':   # missing source dropped from
                 continue                #  target's dependency list
             elif missing == 'newer':    # missing source means target is
                 return 1                #  out-of-date
-            
+
         source_mtime = os.stat(source)[ST_MTIME]
         if source_mtime > target_mtime:
             return 1
@@ -93,23 +93,3 @@ def newer_group (sources, target, missing='error'):
         return 0
 
 # newer_group ()
-
-
-# XXX this isn't used anywhere, and worse, it has the same name as a method
-# in Command with subtly different semantics.  (This one just has one
-# source -> one dest; that one has many sources -> one dest.)  Nuke it?
-def make_file (src, dst, func, args,
-               verbose=0, update_message=None, noupdate_message=None):
-    """Makes 'dst' from 'src' (both filenames) by calling 'func' with
-    'args', but only if it needs to: i.e. if 'dst' does not exist or 'src'
-    is newer than 'dst'.
-    """
-    if newer(src, dst):
-        if verbose and update_message:
-            print update_message
-        apply(func, args)
-    else:
-        if verbose and noupdate_message:
-            print noupdate_message
-
-# make_file ()

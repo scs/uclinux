@@ -13,7 +13,7 @@
 \deprecated{2.0}{Use \refmodule{xml.sax} instead.  The newer XML
                  package includes full support for XML 1.0.}
 
-\versionchanged{1.5.2}
+\versionchanged[Added namespace support]{1.5.2}
 
 This module defines a class \class{XMLParser} which serves as the basis 
 for parsing text files formatted in XML (Extensible Markup Language).
@@ -267,7 +267,7 @@ Namespaces proposed recommendation.
 
 Tag and attribute names that are defined in an XML namespace are
 handled as if the name of the tag or element consisted of the
-namespace (i.e. the URL that defines the namespace) followed by a
+namespace (the URL that defines the namespace) followed by a
 space and the name of the tag or attribute.  For instance, the tag
 \code{<html xmlns='http://www.w3.org/TR/REC-html40'>} is treated as if 
 the tag name was \code{'http://www.w3.org/TR/REC-html40 html'}, and
@@ -281,7 +281,7 @@ triggers a warning.
 
 \begin{seealso}
   \seetitle[http://www.w3.org/TR/REC-xml-names/]{Namespaces in XML}{
-           This World-Wide Web Consortium recommendation describes the
+           This World Wide Web Consortium recommendation describes the
            proper syntax and processing requirements for namespaces in
            XML.}
 \end{seealso}

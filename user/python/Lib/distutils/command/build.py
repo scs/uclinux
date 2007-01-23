@@ -2,7 +2,7 @@
 
 Implements the Distutils 'build' command."""
 
-# created 1999/03/08, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -40,6 +40,8 @@ class build (Command):
          "compile extensions and libraries with debugging information"),
         ('force', 'f',
          "forcibly build everything (ignore file timestamps)"),
+        ('executable=', 'e',
+         "specify final destination interpreter path (build.py)"),
         ]
 
     boolean_options = ['debug', 'force']
@@ -61,6 +63,7 @@ class build (Command):
         self.compiler = None
         self.debug = None
         self.force = 0
+        self.executable = None
 
     def finalize_options (self):
 
@@ -90,8 +93,11 @@ class build (Command):
             self.build_temp = os.path.join(self.build_base,
                                            'temp' + plat_specifier)
         if self.build_scripts is None:
-            self.build_scripts = os.path.join(self.build_base, 'scripts')
+            self.build_scripts = os.path.join(self.build_base,
+                                              'scripts-' + sys.version[0:3])
 
+        if self.executable is None:
+            self.executable = os.path.normpath(sys.executable)
     # finalize_options ()
 
 

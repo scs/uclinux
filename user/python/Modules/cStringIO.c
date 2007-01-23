@@ -1,57 +1,10 @@
-/*
- * cStringIO.c,v 1.29 1999/06/15 14:10:27 jim Exp
- * 
- * Copyright (c) 1996-1998, Digital Creations, Fredericksburg, VA, USA.  
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
- *   o Redistributions of source code must retain the above copyright
- *     notice, this list of conditions, and the disclaimer that follows.
- * 
- *   o Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions, and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- * 
- *   o All advertising materials mentioning features or use of this
- *     software must display the following acknowledgement:
- * 
- *       This product includes software developed by Digital Creations
- *       and its contributors.
- * 
- *   o Neither the name of Digital Creations nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- * 
- * 
- * THIS SOFTWARE IS PROVIDED BY DIGITAL CREATIONS AND CONTRIBUTORS *AS
- * IS* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- * PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL DIGITAL
- * CREATIONS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
- * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
- * TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
- * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
- * DAMAGE.
- * 
- # 
- # If you have questions regarding this software, contact:
- #
- #   Digital Creations, L.C.
- #   910 Princess Ann Street
- #   Fredericksburge, Virginia  22401
- #
- #   info@digicool.com
- #
- #   (540) 371-6909
- */
-static char cStringIO_module_documentation[] = 
+
+#include "Python.h"
+#include "import.h"
+#include "cStringIO.h"
+#include "structmember.h"
+
+PyDoc_STRVAR(cStringIO_module_documentation,
 "A simple fast partial StringIO replacement.\n"
 "\n"
 "This module provides a simple useful replacement for\n"
@@ -67,7 +20,7 @@ static char cStringIO_module_documentation[] =
 "  an_output_stream=StringIO()\n"
 "  an_output_stream.write(some_stuff)\n"
 "  ...\n"
-"  value=an_output_stream.getvalue() # str(an_output_stream) works too!\n"
+"  value=an_output_stream.getvalue()\n"
 "\n"
 "  an_input_stream=StringIO(a_string)\n"
 "  spam=an_input_stream.readline()\n"
@@ -78,12 +31,7 @@ static char cStringIO_module_documentation[] =
 "If someone else wants to provide a more complete implementation,\n"
 "go for it. :-)  \n"
 "\n"
-"cStringIO.c,v 1.29 1999/06/15 14:10:27 jim Exp\n"
-;
-
-#include "Python.h"
-#include "import.h"
-#include "cStringIO.h"
+"cStringIO.c,v 1.29 1999/06/15 14:10:27 jim Exp\n");
 
 #define UNLESS(E) if (!(E))
 
@@ -120,13 +68,14 @@ typedef struct { /* Subtype of IOobject */
   PyObject_HEAD
   char *buf;
   int pos, string_size;
-
+  /* We store a reference to the object here in order to keep
+     the buffer alive during the lifetime of the Iobject. */
   PyObject *pbuf;
 } Iobject;
 
 /* IOobject (common) methods */
 
-static char IO_flush__doc__[] = "flush(): does nothing.";
+PyDoc_STRVAR(IO_flush__doc__, "flush(): does nothing.");
 
 static int
 IO__opencheck(IOobject *self) {
@@ -139,21 +88,35 @@ IO__opencheck(IOobject *self) {
 }
 
 static PyObject *
-IO_flush(IOobject *self, PyObject *args) {
+IO_get_closed(IOobject *self, void *closure)
+{
+	PyObject *result = Py_False;
+
+	if (self->buf == NULL)
+		result = Py_True;
+	Py_INCREF(result);
+	return result;
+}
+
+static PyGetSetDef file_getsetlist[] = {
+	{"closed", (getter)IO_get_closed, NULL, "True if the file is closed"},
+	{0},
+};
+
+static PyObject *
+IO_flush(IOobject *self, PyObject *unused) {
 
         UNLESS (IO__opencheck(self)) return NULL;
-        UNLESS (PyArg_ParseTuple(args, ":flush")) return NULL;
 
         Py_INCREF(Py_None);
         return Py_None;
 }
 
-static char IO_getval__doc__[] = 
-   "getvalue([use_pos]) -- Get the string value."
-   "\n"
-   "If use_pos is specified and is a true value, then the string returned\n"
-   "will include only the text up to the current file position.\n"
-;
+PyDoc_STRVAR(IO_getval__doc__,
+"getvalue([use_pos]) -- Get the string value."
+"\n"
+"If use_pos is specified and is a true value, then the string returned\n"
+"will include only the text up to the current file position.\n");
 
 static PyObject *
 IO_cgetval(PyObject *self) {
@@ -168,7 +131,7 @@ IO_getval(IOobject *self, PyObject *args) {
         int s;
 
         UNLESS (IO__opencheck(self)) return NULL;
-        UNLESS (PyArg_ParseTuple(args,"|O:getval",&use_pos)) return NULL;
+        UNLESS (PyArg_UnpackTuple(args,"getval", 0, 1,&use_pos)) return NULL;
 
         if (PyObject_IsTrue(use_pos)) {
                   s=self->pos;
@@ -179,19 +142,16 @@ IO_getval(IOobject *self, PyObject *args) {
         return PyString_FromStringAndSize(self->buf, s);
 }
 
-static char IO_isatty__doc__[] = "isatty(): always returns 0";
+PyDoc_STRVAR(IO_isatty__doc__, "isatty(): always returns 0");
 
 static PyObject *
-IO_isatty(IOobject *self, PyObject *args) {
-
-        UNLESS (PyArg_ParseTuple(args, ":isatty")) return NULL;
-
-        return PyInt_FromLong(0);
+IO_isatty(IOobject *self, PyObject *unused) {
+	Py_INCREF(Py_False);
+        return Py_False;
 }
 
-static char IO_read__doc__[] = 
-"read([s]) -- Read s characters, or the rest of the string"
-;
+PyDoc_STRVAR(IO_read__doc__,
+"read([s]) -- Read s characters, or the rest of the string");
 
 static int
 IO_cread(PyObject *self, char **output, int  n) {
@@ -221,9 +181,7 @@ IO_read(IOobject *self, PyObject *args) {
         return PyString_FromStringAndSize(output, n);
 }
 
-static char IO_readline__doc__[] = 
-"readline() -- Read one line"
-;
+PyDoc_STRVAR(IO_readline__doc__, "readline() -- Read one line");
 
 static int
 IO_creadline(PyObject *self, char **output) {
@@ -248,7 +206,8 @@ IO_readline(IOobject *self, PyObject *args) {
         int n, m=-1;
         char *output;
 
-        UNLESS (PyArg_ParseTuple(args, "|i:readline", &m)) return NULL;
+        if (args)
+                UNLESS (PyArg_ParseTuple(args, "|i:readline", &m)) return NULL;
 
         if( (n=IO_creadline((PyObject*)self,&output)) < 0) return NULL;
         if (m >= 0 && m < n) {
@@ -259,9 +218,7 @@ IO_readline(IOobject *self, PyObject *args) {
         return PyString_FromStringAndSize(output, n);
 }
 
-static char IO_readlines__doc__[] = 
-"readlines() -- Read all lines"
-;
+PyDoc_STRVAR(IO_readlines__doc__, "readlines() -- Read all lines");
 
 static PyObject *
 IO_readlines(IOobject *self, PyObject *args) {
@@ -284,7 +241,10 @@ IO_readlines(IOobject *self, PyObject *args) {
 		line = PyString_FromStringAndSize (output, n);
 		if (!line) 
                         goto err;
-		PyList_Append (result, line);
+		if (PyList_Append (result, line) == -1) {
+			Py_DECREF (line);
+			goto err;
+		}
 		Py_DECREF (line);
                 length += n;
                 if (hint > 0 && length >= hint)
@@ -296,15 +256,13 @@ IO_readlines(IOobject *self, PyObject *args) {
         return NULL;
 }
 
-static char IO_reset__doc__[] = 
-"reset() -- Reset the file position to the beginning"
-;
+PyDoc_STRVAR(IO_reset__doc__,
+"reset() -- Reset the file position to the beginning");
 
 static PyObject *
-IO_reset(IOobject *self, PyObject *args) {
+IO_reset(IOobject *self, PyObject *unused) {
 
         UNLESS (IO__opencheck(self)) return NULL;
-        UNLESS (PyArg_ParseTuple(args, ":reset")) return NULL;
 
         self->pos = 0;
 
@@ -312,20 +270,18 @@ IO_reset(IOobject *self, PyObject *args) {
         return Py_None;
 }
 
-static char IO_tell__doc__[] =
-"tell() -- get the current position.";
+PyDoc_STRVAR(IO_tell__doc__, "tell() -- get the current position.");
 
 static PyObject *
-IO_tell(IOobject *self, PyObject *args) {
+IO_tell(IOobject *self, PyObject *unused) {
 
         UNLESS (IO__opencheck(self)) return NULL;
-        UNLESS (PyArg_ParseTuple(args, ":tell")) return NULL;
 
         return PyInt_FromLong(self->pos);
 }
 
-static char IO_truncate__doc__[] = 
-"truncate(): truncate the file at the current position.";
+PyDoc_STRVAR(IO_truncate__doc__,
+"truncate(): truncate the file at the current position.");
 
 static PyObject *
 IO_truncate(IOobject *self, PyObject *args) {
@@ -336,9 +292,25 @@ IO_truncate(IOobject *self, PyObject *args) {
         if (pos < 0) pos = self->pos;
 
         if (self->string_size > pos) self->string_size = pos;
+        self->pos = self->string_size;
 
         Py_INCREF(Py_None);
         return Py_None;
+}
+
+static PyObject *
+IO_iternext(Iobject *self)
+{
+	PyObject *next;
+	next = IO_readline((IOobject *)self, NULL);
+	if (!next)
+		return NULL;
+	if (!PyString_GET_SIZE(next)) {
+		Py_DECREF(next);
+		PyErr_SetNone(PyExc_StopIteration);
+		return NULL;
+	}
+	return next;
 }
 
 
@@ -346,9 +318,9 @@ IO_truncate(IOobject *self, PyObject *args) {
 
 /* Read-write object methods */
 
-static char O_seek__doc__[] =
+PyDoc_STRVAR(O_seek__doc__,
 "seek(position)       -- set the current position\n"
-"seek(position, mode) -- mode 0: absolute; 1: relative; 2: relative to EOF";
+"seek(position, mode) -- mode 0: absolute; 1: relative; 2: relative to EOF");
 
 static PyObject *
 O_seek(Oobject *self, PyObject *args) {
@@ -368,8 +340,8 @@ O_seek(Oobject *self, PyObject *args) {
         if (position > self->buf_size) {
                   self->buf_size*=2;
                   if (self->buf_size <= position) self->buf_size=position+1;
-                  UNLESS (self->buf=(char*)
-                          realloc(self->buf,self->buf_size*sizeof(char))) {
+                  UNLESS (self->buf = (char*)
+                          realloc(self->buf,self->buf_size)) {
                       self->buf_size=self->pos=0;
                       return PyErr_NoMemory();
                     }
@@ -384,67 +356,60 @@ O_seek(Oobject *self, PyObject *args) {
         return Py_None;
 }
 
-static char O_write__doc__[] = 
+PyDoc_STRVAR(O_write__doc__,
 "write(s) -- Write a string to the file"
-"\n\nNote (hack:) writing None resets the buffer"
-;
+"\n\nNote (hack:) writing None resets the buffer");
 
 
 static int
 O_cwrite(PyObject *self, char *c, int  l) {
         int newl;
+        Oobject *oself;
 
         UNLESS (IO__opencheck(IOOOBJECT(self))) return -1;
+        oself = (Oobject *)self;
 
-        newl=((Oobject*)self)->pos+l;
-        if (newl >= ((Oobject*)self)->buf_size) {
-            ((Oobject*)self)->buf_size*=2;
-            if (((Oobject*)self)->buf_size <= newl) 
-                    ((Oobject*)self)->buf_size=newl+1;
-            UNLESS (((Oobject*)self)->buf=
-                   (char*)realloc(
-                        ((Oobject*)self)->buf,
-                        (((Oobject*)self)->buf_size) *sizeof(char))) {
+        newl = oself->pos+l;
+        if (newl >= oself->buf_size) {
+            oself->buf_size *= 2;
+            if (oself->buf_size <= newl) 
+                    oself->buf_size = newl+1;
+            UNLESS (oself->buf = 
+                    (char*)realloc(oself->buf, oself->buf_size)) {
                     PyErr_SetString(PyExc_MemoryError,"out of memory");
-                    ((Oobject*)self)->buf_size=((Oobject*)self)->pos=0;
+                    oself->buf_size = oself->pos = 0;
                     return -1;
               }
           }
 
-        memcpy(((Oobject*)((Oobject*)self))->buf+((Oobject*)self)->pos,c,l);
+        memcpy(oself->buf+oself->pos,c,l);
 
-        ((Oobject*)self)->pos += l;
+        oself->pos += l;
 
-        if (((Oobject*)self)->string_size < ((Oobject*)self)->pos) {
-            ((Oobject*)self)->string_size = ((Oobject*)self)->pos;
-          }
+        if (oself->string_size < oself->pos) {
+            oself->string_size = oself->pos;
+        }
 
         return l;
 }
 
 static PyObject *
 O_write(Oobject *self, PyObject *args) {
-        PyObject *s;
         char *c;
         int l;
 
-        UNLESS (PyArg_ParseTuple(args, "O:write", &s)) return NULL;
+        UNLESS (PyArg_ParseTuple(args, "t#:write", &c, &l)) return NULL;
 
-        UNLESS (-1 != (l=PyString_Size(s))) return NULL;
-        UNLESS (c=PyString_AsString(s)) return NULL;
         if (O_cwrite((PyObject*)self,c,l) < 0) return NULL;
 
         Py_INCREF(Py_None);
         return Py_None;
 }
 
-static char O_close__doc__[] = "close(): explicitly release resources held.";
+PyDoc_STRVAR(O_close__doc__, "close(): explicitly release resources held.");
 
 static PyObject *
-O_close(Oobject *self, PyObject *args) {
-
-        UNLESS (PyArg_ParseTuple(args, ":close")) return NULL;
-
+O_close(Oobject *self, PyObject *unused) {
         if (self->buf != NULL) free(self->buf);
         self->buf = NULL;
 
@@ -454,55 +419,68 @@ O_close(Oobject *self, PyObject *args) {
         return Py_None;
 }
 
-
-static char O_writelines__doc__[] =
-"writelines(sequence_of_strings): write each string";
+PyDoc_STRVAR(O_writelines__doc__,
+"writelines(sequence_of_strings) -> None.  Write the strings to the file.\n"
+"\n"
+"Note that newlines are not added.  The sequence can be any iterable object\n"
+"producing strings. This is equivalent to calling write() for each string.");
 static PyObject *
 O_writelines(Oobject *self, PyObject *args) {
-        PyObject *tmp = 0;
-        static PyObject *string_joinfields = 0;
+	PyObject *it, *s;
+	
+	it = PyObject_GetIter(args);
+	if (it == NULL)
+		return NULL;
+	while ((s = PyIter_Next(it)) != NULL) {
+		int n;
+		char *c;
+		if (PyString_AsStringAndSize(s, &c, &n) == -1) {
+			Py_DECREF(it);
+			Py_DECREF(s);
+			return NULL;
+		}
+		if (O_cwrite((PyObject *)self, c, n) == -1) {
+			Py_DECREF(it);
+			Py_DECREF(s);
+			return NULL;
+               }
+               Py_DECREF(s);
+       }
 
-        UNLESS (PyArg_ParseTuple(args, "O:writelines", &args)) return NULL;
+       Py_DECREF(it);
 
-        if (!string_joinfields) {
-                UNLESS (tmp = PyImport_ImportModule("string")) return NULL;
-                string_joinfields=PyObject_GetAttrString(tmp, "joinfields");
-                Py_DECREF(tmp);
-                UNLESS (string_joinfields) return NULL;
-        }
+       /* See if PyIter_Next failed */
+       if (PyErr_Occurred())
+               return NULL;
 
-        if (PyObject_Size(args) < 0) return NULL;
-
-        tmp = PyObject_CallFunction(string_joinfields, "Os", args, "");
-        UNLESS (tmp) return NULL;
-
-        args = Py_BuildValue("(O)", tmp);
-        Py_DECREF(tmp);
-        UNLESS (args) return NULL;
-
-        tmp = O_write(self, args);
-        Py_DECREF(args);
-        return tmp;
+       Py_RETURN_NONE;
 }
 
 static struct PyMethodDef O_methods[] = {
   /* Common methods: */
-  {"flush",     (PyCFunction)IO_flush,    METH_VARARGS, IO_flush__doc__},
+  {"flush",     (PyCFunction)IO_flush,    METH_NOARGS,  IO_flush__doc__},
   {"getvalue",  (PyCFunction)IO_getval,   METH_VARARGS, IO_getval__doc__},
-  {"isatty",    (PyCFunction)IO_isatty,   METH_VARARGS, IO_isatty__doc__},
+  {"isatty",    (PyCFunction)IO_isatty,   METH_NOARGS,  IO_isatty__doc__},
   {"read",	(PyCFunction)IO_read,     METH_VARARGS, IO_read__doc__},
   {"readline",	(PyCFunction)IO_readline, METH_VARARGS, IO_readline__doc__},
   {"readlines",	(PyCFunction)IO_readlines,METH_VARARGS, IO_readlines__doc__},
-  {"reset",	(PyCFunction)IO_reset,	  METH_VARARGS, IO_reset__doc__},
-  {"tell",      (PyCFunction)IO_tell,     METH_VARARGS, IO_tell__doc__},
+  {"reset",	(PyCFunction)IO_reset,	  METH_NOARGS,  IO_reset__doc__},
+  {"tell",      (PyCFunction)IO_tell,     METH_NOARGS,  IO_tell__doc__},
   {"truncate",  (PyCFunction)IO_truncate, METH_VARARGS, IO_truncate__doc__},
 
   /* Read-write StringIO specific  methods: */
-  {"close",      (PyCFunction)O_close,      METH_VARARGS, O_close__doc__},
+  {"close",      (PyCFunction)O_close,      METH_NOARGS,  O_close__doc__},
   {"seek",       (PyCFunction)O_seek,       METH_VARARGS, O_seek__doc__},
   {"write",	 (PyCFunction)O_write,      METH_VARARGS, O_write__doc__},
-  {"writelines", (PyCFunction)O_writelines, METH_VARARGS, O_writelines__doc__},
+  {"writelines", (PyCFunction)O_writelines, METH_O,	  O_writelines__doc__},
   {NULL,	 NULL}		/* sentinel */
+};
+
+static PyMemberDef O_memberlist[] = {
+	{"softspace",	T_INT,	offsetof(Oobject, softspace),	0,
+	 "flag indicating that a space needs to be printed; used by print"},
+	 /* getattr(f, "closed") is implemented without this table */
+	{NULL} /* Sentinel */
 };
 
 static void
@@ -512,55 +490,41 @@ O_dealloc(Oobject *self) {
         PyObject_Del(self);
 }
 
-static PyObject *
-O_getattr(Oobject *self, char *name) {
-        if (strcmp(name, "softspace") == 0) {
-                return PyInt_FromLong(self->softspace);
-        }
-        return Py_FindMethod(O_methods, (PyObject *)self, name);
-}
-
-static int
-O_setattr(Oobject *self, char *name, PyObject *value) {
-	long x;
-	if (strcmp(name, "softspace") != 0) {
-		PyErr_SetString(PyExc_AttributeError, name);
-		return -1;
-	}
-	x = PyInt_AsLong(value);
-	if (x < 0 && PyErr_Occurred())
-		return -1;
-	self->softspace = x;
-	return 0;
-}
-
-static char Otype__doc__[] = 
-"Simple type for output to strings."
-;
+PyDoc_STRVAR(Otype__doc__, "Simple type for output to strings.");
 
 static PyTypeObject Otype = {
   PyObject_HEAD_INIT(NULL)
-  0,	       		/*ob_size*/
-  "StringO",     		/*tp_name*/
+  0,	       			/*ob_size*/
+  "cStringIO.StringO",   	/*tp_name*/
   sizeof(Oobject),       	/*tp_basicsize*/
-  0,	       		/*tp_itemsize*/
+  0,	       			/*tp_itemsize*/
   /* methods */
   (destructor)O_dealloc,	/*tp_dealloc*/
-  (printfunc)0,		/*tp_print*/
-  (getattrfunc)O_getattr,	/*tp_getattr*/
-  (setattrfunc)O_setattr,	/*tp_setattr*/
-  (cmpfunc)0,		/*tp_compare*/
-  (reprfunc)0,		/*tp_repr*/
-  0,			/*tp_as_number*/
-  0,			/*tp_as_sequence*/
-  0,			/*tp_as_mapping*/
-  (hashfunc)0,		/*tp_hash*/
+  (printfunc)0,			/*tp_print*/
+  0,		 		/*tp_getattr */
+  0,		 		/*tp_setattr */
+  (cmpfunc)0,			/*tp_compare*/
+  (reprfunc)0,			/*tp_repr*/
+  0,				/*tp_as_number*/
+  0,				/*tp_as_sequence*/
+  0,				/*tp_as_mapping*/
+  (hashfunc)0,			/*tp_hash*/
   (ternaryfunc)0,		/*tp_call*/
-  (reprfunc)0,		/*tp_str*/
-  
-  /* Space for future expansion */
-  0L,0L,0L,0L,
-  Otype__doc__ 		/* Documentation string */
+  (reprfunc)0,			/*tp_str*/
+  0,				/*tp_getattro */
+  0,				/*tp_setattro */
+  0,				/*tp_as_buffer */
+  Py_TPFLAGS_DEFAULT,		/*tp_flags*/
+  Otype__doc__, 		/*tp_doc */
+  0,				/*tp_traverse */
+  0,				/*tp_clear */
+  0,				/*tp_richcompare */
+  0,				/*tp_weaklistoffset */
+  PyObject_SelfIter,		/*tp_iter */
+  (iternextfunc)IO_iternext,	/*tp_iternext */
+  O_methods,			/*tp_methods */
+  O_memberlist,			/*tp_members */
+  file_getsetlist,		/*tp_getset */
 };
 
 static PyObject *
@@ -574,9 +538,10 @@ newOobject(int  size) {
         self->string_size = 0;
         self->softspace = 0;
 
-        UNLESS (self->buf=malloc(size*sizeof(char))) {
+        UNLESS (self->buf = (char *)malloc(size)) {
                   PyErr_SetString(PyExc_MemoryError,"out of memory");
                   self->buf_size = 0;
+                  Py_DECREF(self);
                   return NULL;
           }
 
@@ -588,10 +553,7 @@ newOobject(int  size) {
 /* -------------------------------------------------------- */
 
 static PyObject *
-I_close(Iobject *self, PyObject *args) {
-
-        UNLESS (PyArg_ParseTuple(args, ":close")) return NULL;
-
+I_close(Iobject *self, PyObject *unused) {
         Py_XDECREF(self->pbuf);
         self->pbuf = NULL;
         self->buf = NULL;
@@ -623,18 +585,18 @@ I_seek(Iobject *self, PyObject *args) {
 
 static struct PyMethodDef I_methods[] = {
   /* Common methods: */
-  {"flush",     (PyCFunction)IO_flush,    METH_VARARGS, IO_flush__doc__},
+  {"flush",     (PyCFunction)IO_flush,    METH_NOARGS,  IO_flush__doc__},
   {"getvalue",  (PyCFunction)IO_getval,   METH_VARARGS, IO_getval__doc__},
-  {"isatty",    (PyCFunction)IO_isatty,   METH_VARARGS, IO_isatty__doc__},
+  {"isatty",    (PyCFunction)IO_isatty,   METH_NOARGS,  IO_isatty__doc__},
   {"read",	(PyCFunction)IO_read,     METH_VARARGS, IO_read__doc__},
   {"readline",	(PyCFunction)IO_readline, METH_VARARGS, IO_readline__doc__},
   {"readlines",	(PyCFunction)IO_readlines,METH_VARARGS, IO_readlines__doc__},
-  {"reset",	(PyCFunction)IO_reset,	  METH_VARARGS, IO_reset__doc__},
-  {"tell",      (PyCFunction)IO_tell,     METH_VARARGS, IO_tell__doc__},
+  {"reset",	(PyCFunction)IO_reset,	  METH_NOARGS,  IO_reset__doc__},
+  {"tell",      (PyCFunction)IO_tell,     METH_NOARGS,  IO_tell__doc__},
   {"truncate",  (PyCFunction)IO_truncate, METH_VARARGS, IO_truncate__doc__},
 
   /* Read-only StringIO specific  methods: */
-  {"close",     (PyCFunction)I_close,    METH_VARARGS, O_close__doc__},
+  {"close",     (PyCFunction)I_close,    METH_NOARGS,  O_close__doc__},
   {"seek",      (PyCFunction)I_seek,     METH_VARARGS, O_seek__doc__},  
   {NULL,	NULL}
 };
@@ -645,38 +607,43 @@ I_dealloc(Iobject *self) {
   PyObject_Del(self);
 }
 
-static PyObject *
-I_getattr(Iobject *self, char *name) {
-  return Py_FindMethod(I_methods, (PyObject *)self, name);
-}
 
-static char Itype__doc__[] = 
-"Simple type for treating strings as input file streams"
-;
+PyDoc_STRVAR(Itype__doc__,
+"Simple type for treating strings as input file streams");
 
 static PyTypeObject Itype = {
   PyObject_HEAD_INIT(NULL)
-  0,		       	/*ob_size*/
-  "StringI",	       	/*tp_name*/
-  sizeof(Iobject),       	/*tp_basicsize*/
-  0,		       	/*tp_itemsize*/
+  0,					/*ob_size*/
+  "cStringIO.StringI",			/*tp_name*/
+  sizeof(Iobject),			/*tp_basicsize*/
+  0,					/*tp_itemsize*/
   /* methods */
-  (destructor)I_dealloc,	/*tp_dealloc*/
-  (printfunc)0,		/*tp_print*/
-  (getattrfunc)I_getattr,	/*tp_getattr*/
-  (setattrfunc)0,		/*tp_setattr*/
-  (cmpfunc)0,		/*tp_compare*/
-  (reprfunc)0,		/*tp_repr*/
-  0,			/*tp_as_number*/
-  0,			/*tp_as_sequence*/
-  0,			/*tp_as_mapping*/
-  (hashfunc)0,		/*tp_hash*/
-  (ternaryfunc)0,		/*tp_call*/
-  (reprfunc)0,		/*tp_str*/
-  
-  /* Space for future expansion */
-  0L,0L,0L,0L,
-  Itype__doc__ 		/* Documentation string */
+  (destructor)I_dealloc,		/*tp_dealloc*/
+  (printfunc)0,				/*tp_print*/
+  0,		 			/* tp_getattr */
+  (setattrfunc)0,			/*tp_setattr*/
+  (cmpfunc)0,				/*tp_compare*/
+  (reprfunc)0,				/*tp_repr*/
+  0,					/*tp_as_number*/
+  0,					/*tp_as_sequence*/
+  0,					/*tp_as_mapping*/
+  (hashfunc)0,				/*tp_hash*/
+  (ternaryfunc)0,			/*tp_call*/
+  (reprfunc)0,				/*tp_str*/
+  0,					/* tp_getattro */
+  0,					/* tp_setattro */
+  0,					/* tp_as_buffer */
+  Py_TPFLAGS_DEFAULT,			/* tp_flags */
+  Itype__doc__,				/* tp_doc */
+  0,					/* tp_traverse */
+  0,					/* tp_clear */
+  0,					/* tp_richcompare */
+  0,					/* tp_weaklistoffset */
+  PyObject_SelfIter,			/* tp_iter */
+  (iternextfunc)IO_iternext,		/* tp_iternext */
+  I_methods,				/* tp_methods */
+  0,					/* tp_members */
+  file_getsetlist,			/* tp_getset */
 };
 
 static PyObject *
@@ -685,13 +652,11 @@ newIobject(PyObject *s) {
   char *buf;
   int size;
 
-  if (!PyString_Check(s)) {
-      PyErr_Format(PyExc_TypeError, "expected string, %.200s found",
+  if (PyObject_AsReadBuffer(s, (const void **)&buf, &size)) {
+      PyErr_Format(PyExc_TypeError, "expected read buffer, %.200s found",
 		   s->ob_type->tp_name);
       return NULL;
   }
-  buf = PyString_AS_STRING(s);
-  size = PyString_GET_SIZE(s);
   UNLESS (self = PyObject_New(Iobject, &Itype)) return NULL;
   Py_INCREF(s);
   self->buf=buf;
@@ -706,15 +671,14 @@ newIobject(PyObject *s) {
 /* -------------------------------------------------------- */
 
 
-static char IO_StringIO__doc__[] =
-"StringIO([s]) -- Return a StringIO-like stream for reading or writing"
-;
+PyDoc_STRVAR(IO_StringIO__doc__,
+"StringIO([s]) -- Return a StringIO-like stream for reading or writing");
 
 static PyObject *
 IO_StringIO(PyObject *self, PyObject *args) {
   PyObject *s=0;
 
-  if (!PyArg_ParseTuple(args, "|O:StringIO", &s)) return NULL;
+  if (!PyArg_UnpackTuple(args, "StringIO", 0, 1, &s)) return NULL;
 
   if (s) return newIobject(s);
   return newOobject(128);
@@ -742,10 +706,10 @@ static struct PycStringIO_CAPI CAPI = {
   &Otype,
 };
 
-#ifndef DL_EXPORT	/* declarations for DLL import/export */
-#define DL_EXPORT(RTYPE) RTYPE
+#ifndef PyMODINIT_FUNC	/* declarations for DLL import/export */
+#define PyMODINIT_FUNC void
 #endif
-DL_EXPORT(void)
+PyMODINIT_FUNC
 initcStringIO(void) {
   PyObject *m, *d, *v;
 
@@ -754,6 +718,7 @@ initcStringIO(void) {
   m = Py_InitModule4("cStringIO", IO_methods,
 		     cStringIO_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
+  if (m == NULL) return;
 
   /* Add some symbolic constants to the module */
   d = PyModule_GetDict(m);
@@ -761,6 +726,8 @@ initcStringIO(void) {
   /* Export C API */
   Itype.ob_type=&PyType_Type;
   Otype.ob_type=&PyType_Type;
+  if (PyType_Ready(&Otype) < 0) return;
+  if (PyType_Ready(&Itype) < 0) return;
   PyDict_SetItemString(d,"cStringIO_CAPI",
 		       v = PyCObject_FromVoidPtr(&CAPI,NULL));
   Py_XDECREF(v);

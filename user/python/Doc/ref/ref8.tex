@@ -6,6 +6,7 @@ typed in interactively, from a module source file, etc.  This chapter
 gives the syntax used in these cases.
 \index{interpreter}
 
+
 \section{Complete Python programs\label{programs}}
 \index{program}
 
@@ -28,12 +29,12 @@ described in the next section.
 The interpreter may also be invoked in interactive mode; in this case,
 it does not read and execute a complete program but reads and executes
 one statement (possibly compound) at a time.  The initial environment
-is identical to that of a coplete program; each statement is executed
+is identical to that of a complete program; each statement is executed
 in the namespace of \module{__main__}.
 \index{interactive mode}
 \refbimodindex{__main__}
 
-Under {\UNIX}, a complete program can be passed to the interpreter in
+Under \UNIX, a complete program can be passed to the interpreter in
 three forms: with the \programopt{-c} \var{string} command line option, as a
 file passed as the first command line argument, or as standard input.
 If the file or standard input is a tty device, the interpreter enters
@@ -43,13 +44,15 @@ program.
 \index{command line}
 \index{standard input}
 
+
 \section{File input\label{file-input}}
 
 All input read from non-interactive files has the same form:
 
-\begin{verbatim}
-file_input:     (NEWLINE | statement)*
-\end{verbatim}
+\begin{productionlist}
+  \production{file_input}
+             {(NEWLINE | \token{statement})*}
+\end{productionlist}
 
 This syntax is used in the following situations:
 
@@ -63,17 +66,20 @@ This syntax is used in the following situations:
 
 \end{itemize}
 
+
 \section{Interactive input\label{interactive}}
 
 Input in interactive mode is parsed using the following grammar:
 
-\begin{verbatim}
-interactive_input: [stmt_list] NEWLINE | compound_stmt NEWLINE
-\end{verbatim}
+\begin{productionlist}
+  \production{interactive_input}
+             {[\token{stmt_list}] NEWLINE | \token{compound_stmt} NEWLINE}
+\end{productionlist}
 
 Note that a (top-level) compound statement must be followed by a blank
 line in interactive mode; this is needed to help the parser detect the
 end of the input.
+
 
 \section{Expression input\label{expression-input}}
 \index{input}
@@ -83,16 +89,18 @@ whitespace.
 The string argument to \function{eval()} must have the following form:
 \bifuncindex{eval}
 
-\begin{verbatim}
-eval_input:     expression_list NEWLINE*
-\end{verbatim}
+\begin{productionlist}
+  \production{eval_input}
+             {\token{expression_list} NEWLINE*}
+\end{productionlist}
 
 The input line read by \function{input()} must have the following form:
 \bifuncindex{input}
 
-\begin{verbatim}
-input_input:    expression_list NEWLINE
-\end{verbatim}
+\begin{productionlist}
+  \production{input_input}
+             {\token{expression_list} NEWLINE}
+\end{productionlist}
 
 Note: to read `raw' input line without interpretation, you can use the
 built-in function \function{raw_input()} or the \method{readline()} method

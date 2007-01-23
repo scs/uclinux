@@ -1,19 +1,13 @@
 # This file is transmogrified into Setup.config by config.status.
 
 # The purpose of this file is to conditionally enable certain modules
-# based on configure-time options.  Currently thread support and
-# garbage collection support are the only two modules so enabled.
+# based on configure-time options.
 
+# Threading
 @USE_THREAD_MODULE@thread threadmodule.c
 
-# Garbage collection enabled with --with-cycle-gc
-@USE_GC_MODULE@gc gcmodule.c
+# The signal module
+@USE_SIGNAL_MODULE@signal signalmodule.c
 
-# You may want this to be built as a dynamically loaded module; uncomment
-# the following line in that case:
-
-#*shared*
-
-# bsddb module enabled by --with-libdb or presence of db.h
-@USE_BSDDB_MODULE@bsddb bsddbmodule.c @HAVE_LIBDB@
-
+# The rest of the modules previously listed in this file are built
+# by the setup.py script in Python 2.1 and later.

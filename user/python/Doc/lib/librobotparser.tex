@@ -2,22 +2,20 @@
          Parser for robots.txt}
 
 \declaremodule{standard}{robotparser}
-\modulesynopsis{Accepts as input a list of lines or URL that refers to a
-                robots.txt file, parses the file, then builds a
-                set of rules from that list and answers questions
-                about fetchability of other URLs.}
+\modulesynopsis{Loads a \protect\file{robots.txt} file and
+                answers questions about fetchability of other URLs.}
 \sectionauthor{Skip Montanaro}{skip@mojam.com}
 
 \index{WWW}
-\index{World-Wide Web}
+\index{World Wide Web}
 \index{URL}
 \index{robots.txt}
 
 This module provides a single class, \class{RobotFileParser}, which answers
 questions about whether or not a particular user agent can fetch a URL on
-the web site that published the \file{robots.txt} file.  For more details on 
+the Web site that published the \file{robots.txt} file.  For more details on 
 the structure of \file{robots.txt} files, see
-\url{http://info.webcrawler.com/mak/projects/robots/norobots.html}. 
+\url{http://www.robotstxt.org/wc/norobots.html}. 
 
 \begin{classdesc}{RobotFileParser}{}
 
@@ -37,7 +35,7 @@ Parses the lines argument.
 \end{methoddesc}
 
 \begin{methoddesc}{can_fetch}{useragent, url}
-Returns true if the \var{useragent} is allowed to fetch the \var{url}
+Returns \code{True} if the \var{useragent} is allowed to fetch the \var{url}
 according to the rules contained in the parsed \file{robots.txt} file.
 \end{methoddesc}
 
@@ -62,7 +60,7 @@ The following example demonstrates basic use of the RobotFileParser class.
 >>> rp.set_url("http://www.musi-cal.com/robots.txt")
 >>> rp.read()
 >>> rp.can_fetch("*", "http://www.musi-cal.com/cgi-bin/search?city=San+Francisco")
-0
+False
 >>> rp.can_fetch("*", "http://www.musi-cal.com/")
-1
+True
 \end{verbatim}

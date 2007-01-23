@@ -6,18 +6,18 @@
 import rfc822
 import os
 
+__all__ = ["UnixMailbox","MmdfMailbox","MHMailbox","Maildir","BabylMailbox",
+           "PortableUnixMailbox"]
+
 class _Mailbox:
-    def __init__(self, fp):
+
+    def __init__(self, fp, factory=rfc822.Message):
         self.fp = fp
         self.seekp = 0
+        self.factory = factory
 
-    def seek(self, pos, whence=0):
-        if whence==1:           # Relative to current position
-            self.pos = self.pos + pos
-        if whence==2:           # Relative to file's end
-            self.pos = self.stop + pos
-        else:                   # Default - absolute position
-            self.pos = self.start + pos
+    def __iter__(self):
+        return iter(self.next, None)
 
     def next(self):
         while 1:
@@ -30,40 +30,36 @@ class _Mailbox:
             start = self.fp.tell()
             self._search_end()
             self.seekp = stop = self.fp.tell()
-            if start <> stop:
+            if start != stop:
                 break
-        return rfc822.Message(_Subfile(self.fp, start, stop))
+        return self.factory(_Subfile(self.fp, start, stop))
 
 
 class _Subfile:
+
     def __init__(self, fp, start, stop):
         self.fp = fp
         self.start = start
         self.stop = stop
         self.pos = self.start
 
-    def read(self, length = None):
+
+    def _read(self, length, read_function):
         if self.pos >= self.stop:
             return ''
         remaining = self.stop - self.pos
-        if length is None or length < 0:
-            length = remaining
-        elif length > remaining:
+        if length is None or length < 0 or length > remaining:
             length = remaining
         self.fp.seek(self.pos)
-        data = self.fp.read(length)
+        data = read_function(length)
         self.pos = self.fp.tell()
         return data
 
+    def read(self, length = None):
+        return self._read(length, self.fp.read)
+
     def readline(self, length = None):
-        if self.pos >= self.stop:
-            return ''
-        if length is None:
-            length = self.stop - self.pos
-        self.fp.seek(self.pos)
-        data = self.fp.readline(length)
-        self.pos = self.fp.tell()
-        return data
+        return self._read(length, self.fp.readline)
 
     def readlines(self, sizehint = -1):
         lines = []
@@ -93,7 +89,9 @@ class _Subfile:
         del self.fp
 
 
+# Recommended to use PortableUnixMailbox instead!
 class UnixMailbox(_Mailbox):
+
     def _search_start(self):
         while 1:
             pos = self.fp.tell()
@@ -115,24 +113,53 @@ class UnixMailbox(_Mailbox):
                 self.fp.seek(pos)
                 return
 
-    # An overridable mechanism to test for From-line-ness.
-    # You can either specify a different regular expression
-    # or define a whole new _isrealfromline() method.
-    # Note that this only gets called for lines starting with
-    # the 5 characters "From ".
+    # An overridable mechanism to test for From-line-ness.  You can either
+    # specify a different regular expression or define a whole new
+    # _isrealfromline() method.  Note that this only gets called for lines
+    # starting with the 5 characters "From ".
+    #
+    # BAW: According to
+    #http://home.netscape.com/eng/mozilla/2.0/relnotes/demo/content-length.html
+    # the only portable, reliable way to find message delimiters in a BSD (i.e
+    # Unix mailbox) style folder is to search for "\n\nFrom .*\n", or at the
+    # beginning of the file, "^From .*\n".  While _fromlinepattern below seems
+    # like a good idea, in practice, there are too many variations for more
+    # strict parsing of the line to be completely accurate.
+    #
+    # _strict_isrealfromline() is the old version which tries to do stricter
+    # parsing of the From_ line.  _portable_isrealfromline() simply returns
+    # true, since it's never called if the line doesn't already start with
+    # "From ".
+    #
+    # This algorithm, and the way it interacts with _search_start() and
+    # _search_end() may not be completely correct, because it doesn't check
+    # that the two characters preceding "From " are \n\n or the beginning of
+    # the file.  Fixing this would require a more extensive rewrite than is
+    # necessary.  For convenience, we've added a PortableUnixMailbox class
+    # which uses the more lenient _fromlinepattern regular expression.
 
     _fromlinepattern = r"From \s*[^\s]+\s+\w\w\w\s+\w\w\w\s+\d?\d\s+" \
                        r"\d?\d:\d\d(:\d\d)?(\s+[^\s]+)?\s+\d\d\d\d\s*$"
     _regexp = None
 
-    def _isrealfromline(self, line):
+    def _strict_isrealfromline(self, line):
         if not self._regexp:
             import re
             self._regexp = re.compile(self._fromlinepattern)
         return self._regexp.match(line)
 
+    def _portable_isrealfromline(self, line):
+        return True
+
+    _isrealfromline = _strict_isrealfromline
+
+
+class PortableUnixMailbox(UnixMailbox):
+    _isrealfromline = UnixMailbox._portable_isrealfromline
+
 
 class MmdfMailbox(_Mailbox):
+
     def _search_start(self):
         while 1:
             line = self.fp.readline()
@@ -153,7 +180,8 @@ class MmdfMailbox(_Mailbox):
 
 
 class MHMailbox:
-    def __init__(self, dirname):
+
+    def __init__(self, dirname, factory=rfc822.Message):
         import re
         pat = re.compile('^[1-9][0-9]*$')
         self.dirname = dirname
@@ -166,22 +194,31 @@ class MHMailbox:
         # This only works in Python 1.6 or later;
         # before that str() added 'L':
         self.boxes = map(str, list)
+        self.boxes.reverse()
+        self.factory = factory
+
+    def __iter__(self):
+        return iter(self.next, None)
 
     def next(self):
         if not self.boxes:
             return None
-        fn = self.boxes[0]
-        del self.boxes[0]
+        fn = self.boxes.pop()
         fp = open(os.path.join(self.dirname, fn))
-        return rfc822.Message(fp)
+        msg = self.factory(fp)
+        try:
+            msg._mh_msgno = fn
+        except (AttributeError, TypeError):
+            pass
+        return msg
 
 
 class Maildir:
     # Qmail directory mailbox
 
-    def __init__(self, dirname):
-        import string
+    def __init__(self, dirname, factory=rfc822.Message):
         self.dirname = dirname
+        self.factory = factory
 
         # check for new mail
         newdir = os.path.join(self.dirname, 'new')
@@ -192,17 +229,22 @@ class Maildir:
         curdir = os.path.join(self.dirname, 'cur')
         boxes += [os.path.join(curdir, f)
                   for f in os.listdir(curdir) if f[0] != '.']
+        boxes.reverse()
+        self.boxes = boxes
+
+    def __iter__(self):
+        return iter(self.next, None)
 
     def next(self):
         if not self.boxes:
             return None
-        fn = self.boxes[0]
-        del self.boxes[0]
+        fn = self.boxes.pop()
         fp = open(fn)
-        return rfc822.Message(fp)
+        return self.factory(fp)
 
 
 class BabylMailbox(_Mailbox):
+
     def _search_start(self):
         while 1:
             line = self.fp.readline()
@@ -217,21 +259,18 @@ class BabylMailbox(_Mailbox):
             line = self.fp.readline()
             if not line:
                 return
-            if line == '\037\014\n':
+            if line == '\037\014\n' or line == '\037':
                 self.fp.seek(pos)
                 return
 
 
 def _test():
-    import time
     import sys
-    import string
-    import os
 
     args = sys.argv[1:]
     if not args:
         for key in 'MAILDIR', 'MAIL', 'LOGNAME', 'USER':
-            if os.environ.has_key(key):
+            if key in os.environ:
                 mbox = os.environ[key]
                 break
         else:
@@ -242,7 +281,10 @@ def _test():
     if mbox[:1] == '+':
         mbox = os.environ['HOME'] + '/Mail/' + mbox[1:]
     elif not '/' in mbox:
-        mbox = '/usr/mail/' + mbox
+        if os.path.isfile('/var/mail/' + mbox):
+            mbox = '/var/mail/' + mbox
+        else:
+            mbox = '/usr/mail/' + mbox
     if os.path.isdir(mbox):
         if os.path.isdir(os.path.join(mbox, 'cur')):
             mb = Maildir(mbox)
@@ -250,7 +292,7 @@ def _test():
             mb = MHMailbox(mbox)
     else:
         fp = open(mbox, 'r')
-        mb = UnixMailbox(fp)
+        mb = PortableUnixMailbox(fp)
 
     msgs = []
     while 1:
@@ -261,7 +303,7 @@ def _test():
         if len(args) <= 1:
             msg.fp = None
     if len(args) > 1:
-        num = string.atoi(args[1])
+        num = int(args[1])
         print 'Message %d body:'%num
         msg = msgs[num-1]
         msg.rewindbody()

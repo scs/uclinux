@@ -1,7 +1,7 @@
 # Test case for the os.poll() function
-    
+
 import sys, os, select, random
-from test_support import verbose, TestSkipped, TESTFN
+from test.test_support import verify, verbose, TestSkipped, TESTFN
 
 try:
     select.poll
@@ -55,7 +55,7 @@ def test_poll1():
             raise RuntimeError, "no pipes ready for reading"
         rd = random.choice(ready_readers)
         buf = os.read(rd, MSG_LEN)
-        assert len(buf) == MSG_LEN
+        verify(len(buf) == MSG_LEN)
         print buf
         os.close(r2w[rd]) ; os.close( rd )
         p.unregister( r2w[rd] )
@@ -75,17 +75,17 @@ def poll_unit_tests():
     p = select.poll()
     p.register(FD)
     r = p.poll()
-    assert r[0] == (FD, select.POLLNVAL)
+    verify(r[0] == (FD, select.POLLNVAL))
 
     f = open(TESTFN, 'w')
     fd = f.fileno()
     p = select.poll()
     p.register(f)
     r = p.poll()
-    assert r[0][0] == fd
+    verify(r[0][0] == fd)
     f.close()
     r = p.poll()
-    assert r[0] == (fd, select.POLLNVAL)
+    verify(r[0] == (fd, select.POLLNVAL))
     os.unlink(TESTFN)
 
     # type error for invalid arguments
@@ -157,7 +157,7 @@ def test_poll2():
         elif flags & select.POLLIN:
             line = p.readline()
             if verbose:
-                print `line`
+                print repr(line)
             if not line:
                 if verbose:
                     print 'EOF'
@@ -168,5 +168,25 @@ def test_poll2():
     p.close()
     print 'Poll test 2 complete'
 
+def test_poll3():
+    # test int overflow
+    print 'Running poll test 3'
+    pollster = select.poll()
+    pollster.register(1)
+
+    try:
+        pollster.poll(1L << 64)
+    except OverflowError:
+        pass
+    else:
+        print 'Expected OverflowError with excessive timeout'
+
+    x = 2 + 3
+    if x != 5:
+        print 'Overflow must have occurred'
+    print 'Poll test 3 complete'
+
+
 test_poll1()
 test_poll2()
+test_poll3()

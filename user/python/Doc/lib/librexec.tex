@@ -3,8 +3,12 @@
 
 \declaremodule{standard}{rexec}
 \modulesynopsis{Basic restricted execution framework.}
+\versionchanged[Disabled module]{2.3}
 
-
+\begin{notice}[warning]
+  The documentation has been left in place to help in reading old code
+  that uses the module.
+\end{notice}
 
 This module contains the \class{RExec} class, which supports
 \method{r_eval()}, \method{r_execfile()}, \method{r_exec()}, and
@@ -15,10 +19,23 @@ Code executed in this restricted environment will
 only have access to modules and functions that are deemed safe; you
 can subclass \class{RExec} to add or remove capabilities as desired.
 
-\emph{Note:} The \class{RExec} class can prevent code from performing
-unsafe operations like reading or writing disk files, or using TCP/IP
-sockets.  However, it does not protect against code using extremely
-large amounts of memory or CPU time.  
+\begin{notice}[warning]
+  While the \module{rexec} module is designed to perform as described
+  below, it does have a few known vulnerabilities which could be
+  exploited by carefully written code.  Thus it should not be relied
+  upon in situations requiring ``production ready'' security.  In such
+  situations, execution via sub-processes or very careful
+  ``cleansing'' of both code and data to be processed may be
+  necessary.  Alternatively, help in patching known \module{rexec}
+  vulnerabilities would be welcomed.
+\end{notice}
+
+\begin{notice}
+  The \class{RExec} class can prevent code from performing unsafe
+  operations like reading or writing disk files, or using TCP/IP
+  sockets.  However, it does not protect against code using extremely
+  large amounts of memory or processor time.
+\end{notice}
 
 \begin{classdesc}{RExec}{\optional{hooks\optional{, verbose}}}
 Returns an instance of the \class{RExec} class.  
@@ -32,7 +49,8 @@ the file system itself.  Rather, it calls methods of an \class{RHooks}
 instance that was passed to or created by its constructor.  (Actually,
 the \class{RExec} object doesn't make these calls --- they are made by
 a module loader object that's part of the \class{RExec} object.  This
-allows another level of flexibility, e.g. using packages.)
+allows another level of flexibility, which can be useful when changing
+the mechanics of \keyword{import} within the restricted environment.)
 
 By providing an alternate \class{RHooks} object, we can control the
 file system accesses made to import a module, without changing the
@@ -46,62 +64,28 @@ If \var{verbose} is true, additional debugging output may be sent to
 standard output.
 \end{classdesc}
 
-The \class{RExec} class has the following class attributes, which are
-used by the \method{__init__()} method.  Changing them on an existing
-instance won't have any effect; instead, create a subclass of
-\class{RExec} and assign them new values in the class definition.
-Instances of the new class will then use those new values.  All these
-attributes are tuples of strings.
+It is important to be aware that code running in a restricted
+environment can still call the \function{sys.exit()} function.  To
+disallow restricted code from exiting the interpreter, always protect
+calls that cause restricted code to run with a
+\keyword{try}/\keyword{except} statement that catches the
+\exception{SystemExit} exception.  Removing the \function{sys.exit()}
+function from the restricted environment is not sufficient --- the
+restricted code could still use \code{raise SystemExit}.  Removing
+\exception{SystemExit} is not a reasonable option; some library code
+makes use of this and would break were it not available.
 
-\begin{memberdesc}{nok_builtin_names}
-Contains the names of built-in functions which will \emph{not} be
-available to programs running in the restricted environment.  The
-value for \class{RExec} is \code{('open',} \code{'reload',}
-\code{'__import__')}.  (This gives the exceptions, because by far the
-majority of built-in functions are harmless.  A subclass that wants to
-override this variable should probably start with the value from the
-base class and concatenate additional forbidden functions --- when new
-dangerous built-in functions are added to Python, they will also be
-added to this module.)
-\end{memberdesc}
 
-\begin{memberdesc}{ok_builtin_modules}
-Contains the names of built-in modules which can be safely imported.
-The value for \class{RExec} is \code{('audioop',} \code{'array',}
-\code{'binascii',} \code{'cmath',} \code{'errno',} \code{'imageop',}
-\code{'marshal',} \code{'math',} \code{'md5',} \code{'operator',}
-\code{'parser',} \code{'regex',} \code{'rotor',} \code{'select',}
-\code{'strop',} \code{'struct',} \code{'time')}.  A similar remark
-about overriding this variable applies --- use the value from the base
-class as a starting point.
-\end{memberdesc}
+\begin{seealso}
+  \seetitle[http://grail.sourceforge.net/]{Grail Home Page}{Grail is a
+            Web browser written entirely in Python.  It uses the
+            \module{rexec} module as a foundation for supporting
+            Python applets, and can be used as an example usage of
+            this module.}
+\end{seealso}
 
-\begin{memberdesc}{ok_path}
-Contains the directories which will be searched when an \keyword{import}
-is performed in the restricted environment.  
-The value for \class{RExec} is the same as \code{sys.path} (at the time
-the module is loaded) for unrestricted code.
-\end{memberdesc}
 
-\begin{memberdesc}{ok_posix_names}
-% Should this be called ok_os_names?
-Contains the names of the functions in the \refmodule{os} module which will be
-available to programs running in the restricted environment.  The
-value for \class{RExec} is \code{('error',} \code{'fstat',}
-\code{'listdir',} \code{'lstat',} \code{'readlink',} \code{'stat',}
-\code{'times',} \code{'uname',} \code{'getpid',} \code{'getppid',}
-\code{'getcwd',} \code{'getuid',} \code{'getgid',} \code{'geteuid',}
-\code{'getegid')}.
-\end{memberdesc}
-
-\begin{memberdesc}{ok_sys_names}
-Contains the names of the functions and variables in the \refmodule{sys}
-module which will be available to programs running in the restricted
-environment.  The value for \class{RExec} is \code{('ps1',}
-\code{'ps2',} \code{'copyright',} \code{'version',} \code{'platform',}
-\code{'exit',} \code{'maxint')}.
-\end{memberdesc}
-
+\subsection{RExec Objects \label{rexec-objects}}
 
 \class{RExec} instances support the following methods:
 
@@ -169,7 +153,7 @@ Reload the module object \var{module}, re-parsing and re-initializing it.
 \end{methoddesc}
 
 \begin{methoddesc}{r_unload}{module}
-Unload the module object \var{module} (i.e., remove it from the
+Unload the module object \var{module} (remove it from the
 restricted environment's \code{sys.modules} dictionary).
 \end{methoddesc}
 
@@ -189,6 +173,73 @@ Reload the module object \var{module}, re-parsing and re-initializing it.
 Unload the module object \var{module}.   
 % XXX what are the semantics of this?  
 \end{methoddesc}
+
+
+\subsection{Defining restricted environments \label{rexec-extension}}
+
+The \class{RExec} class has the following class attributes, which are
+used by the \method{__init__()} method.  Changing them on an existing
+instance won't have any effect; instead, create a subclass of
+\class{RExec} and assign them new values in the class definition.
+Instances of the new class will then use those new values.  All these
+attributes are tuples of strings.
+
+\begin{memberdesc}{nok_builtin_names}
+Contains the names of built-in functions which will \emph{not} be
+available to programs running in the restricted environment.  The
+value for \class{RExec} is \code{('open', 'reload', '__import__')}.
+(This gives the exceptions, because by far the majority of built-in
+functions are harmless.  A subclass that wants to override this
+variable should probably start with the value from the base class and
+concatenate additional forbidden functions --- when new dangerous
+built-in functions are added to Python, they will also be added to
+this module.)
+\end{memberdesc}
+
+\begin{memberdesc}{ok_builtin_modules}
+Contains the names of built-in modules which can be safely imported.
+The value for \class{RExec} is \code{('audioop', 'array', 'binascii',
+'cmath', 'errno', 'imageop', 'marshal', 'math', 'md5', 'operator',
+'parser', 'regex', 'select', 'sha', '_sre', 'strop',
+'struct', 'time')}.  A similar remark about overriding this variable
+applies --- use the value from the base class as a starting point.
+\end{memberdesc}
+
+\begin{memberdesc}{ok_path}
+Contains the directories which will be searched when an \keyword{import}
+is performed in the restricted environment.  
+The value for \class{RExec} is the same as \code{sys.path} (at the time
+the module is loaded) for unrestricted code.
+\end{memberdesc}
+
+\begin{memberdesc}{ok_posix_names}
+% Should this be called ok_os_names?
+Contains the names of the functions in the \refmodule{os} module which will be
+available to programs running in the restricted environment.  The
+value for \class{RExec} is \code{('error', 'fstat', 'listdir',
+'lstat', 'readlink', 'stat', 'times', 'uname', 'getpid', 'getppid',
+'getcwd', 'getuid', 'getgid', 'geteuid', 'getegid')}.
+\end{memberdesc}
+
+\begin{memberdesc}{ok_sys_names}
+Contains the names of the functions and variables in the \refmodule{sys}
+module which will be available to programs running in the restricted
+environment.  The value for \class{RExec} is \code{('ps1', 'ps2',
+'copyright', 'version', 'platform', 'exit', 'maxint')}.
+\end{memberdesc}
+
+\begin{memberdesc}{ok_file_types}
+Contains the file types from which modules are allowed to be loaded.
+Each file type is an integer constant defined in the \refmodule{imp} module.
+The meaningful values are \constant{PY_SOURCE}, \constant{PY_COMPILED}, and
+\constant{C_EXTENSION}.  The value for \class{RExec} is \code{(C_EXTENSION,
+PY_SOURCE)}.  Adding \constant{PY_COMPILED} in subclasses is not recommended;
+an attacker could exit the restricted execution mode by putting a forged
+byte-compiled file (\file{.pyc}) anywhere in your file system, for example
+by writing it to \file{/tmp} or uploading it to the \file{/incoming}
+directory of your public FTP server.
+\end{memberdesc}
+
 
 \subsection{An example}
 

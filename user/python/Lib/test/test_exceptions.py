@@ -1,10 +1,20 @@
 # Python test set -- part 5, built-in exceptions
 
-from test_support import *
+from test.test_support import TestFailed, TESTFN, unlink
 from types import ClassType
+import warnings
+import sys, traceback, os
 
 print '5. Built-in exceptions'
 # XXX This is not really enough, each *operation* should be tested!
+
+# Reloading the built-in exceptions module failed prior to Py2.2, while it
+# should act the same as reloading built-in sys.
+try:
+    import exceptions
+    reload(exceptions)
+except ImportError, e:
+    raise TestFailed, e
 
 def test_raise_catch(exc):
     try:
@@ -36,14 +46,14 @@ fp.close()
 fp = open(TESTFN, 'r')
 savestdin = sys.stdin
 try:
-        try:
-                sys.stdin = fp
-                x = raw_input()
-        except EOFError:
-                pass
+    try:
+        sys.stdin = fp
+        x = raw_input()
+    except EOFError:
+        pass
 finally:
-        sys.stdin = savestdin
-        fp.close()
+    sys.stdin = savestdin
+    fp.close()
 
 r(IOError)
 try: open('this file does not exist', 'r')
@@ -74,10 +84,17 @@ try: x = undefined_variable
 except NameError: pass
 
 r(OverflowError)
+# XXX
+# Obscure:  in 2.2 and 2.3, this test relied on changing OverflowWarning
+# into an error, in order to trigger OverflowError.  In 2.4, OverflowWarning
+# should no longer be generated, so the focus of the test shifts to showing
+# that OverflowError *isn't* generated.  OverflowWarning should be gone
+# in Python 2.5, and then the filterwarnings() call, and this comment,
+# should go away.
+warnings.filterwarnings("error", "", OverflowWarning, __name__)
 x = 1
-try:
-        while 1: x = x+x
-except OverflowError: pass
+for dummy in range(128):
+    x += x  # this simply shouldn't blow up
 
 r(RuntimeError)
 print '(not used any more?)'
@@ -104,28 +121,15 @@ def ckmsg(src, msg):
 s = '''\
 while 1:
     try:
-        continue
-    except:
         pass
-'''
-ckmsg(s, "'continue' not supported inside 'try' clause")
-s = '''\
-while 1:
-    try:
-        continue
     finally:
-        pass
+        continue
 '''
-ckmsg(s, "'continue' not supported inside 'try' clause")
-s = '''\
-while 1:
-    try:
-        if 1:
-            continue
-    finally:
-        pass
-'''
-ckmsg(s, "'continue' not supported inside 'try' clause")
+if sys.platform.startswith('java'):
+    print "'continue' not supported inside 'finally' clause"
+    print "ok"
+else:
+    ckmsg(s, "'continue' not supported inside 'finally' clause")
 s = '''\
 try:
     continue
@@ -167,4 +171,56 @@ r(Exception)
 try: x = 1/0
 except Exception, e: pass
 
+# test that setting an exception at the C level works even if the
+# exception object can't be constructed.
+
+class BadException:
+    def __init__(self):
+        raise RuntimeError, "can't instantiate BadException"
+
+def test_capi1():
+    import _testcapi
+    try:
+        _testcapi.raise_exception(BadException, 1)
+    except TypeError, err:
+        exc, err, tb = sys.exc_info()
+        co = tb.tb_frame.f_code
+        assert co.co_name == "test_capi1"
+        assert co.co_filename.endswith('test_exceptions'+os.extsep+'py')
+    else:
+        print "Expected exception"
+
+def test_capi2():
+    import _testcapi
+    try:
+        _testcapi.raise_exception(BadException, 0)
+    except RuntimeError, err:
+        exc, err, tb = sys.exc_info()
+        co = tb.tb_frame.f_code
+        assert co.co_name == "__init__"
+        assert co.co_filename.endswith('test_exceptions'+os.extsep+'py')
+        co2 = tb.tb_frame.f_back.f_code
+        assert co2.co_name == "test_capi2"
+    else:
+        print "Expected exception"
+
+if not sys.platform.startswith('java'):
+    test_capi1()
+    test_capi2()
+
 unlink(TESTFN)
+
+def test_infinite_recursion():
+    def g():
+        try:
+            return g()
+        except ValueError:
+            return -1
+    try:
+        g()
+    except RuntimeError:
+        pass
+    else:
+        print "Expected exception"
+
+test_infinite_recursion()

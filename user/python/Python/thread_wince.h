@@ -22,10 +22,10 @@ static void PyThread__init_thread(void)
 /*
  * Thread support.
  */
-int PyThread_start_new_thread(void (*func)(void *), void *arg)
+long PyThread_start_new_thread(void (*func)(void *), void *arg)
 {
 	long rv;
-	int success = 0;
+	int success = -1;
 
 	dprintf(("%ld: PyThread_start_new_thread called\n", PyThread_get_thread_ident()));
 	if (!initialized)
@@ -34,7 +34,7 @@ int PyThread_start_new_thread(void (*func)(void *), void *arg)
 	rv = _beginthread(func, 0, arg); /* use default stack size */
  
 	if (rv != -1) {
-		success = 1;
+		success = 0;
 		dprintf(("%ld: PyThread_start_new_thread succeeded:\n", PyThread_get_thread_ident()));
 	}
 
@@ -140,13 +140,13 @@ int PyThread_acquire_lock(PyThread_type_lock aLock, int waitflag)
     dprintf(("%ld: PyThread_acquire_lock(%p, %d) called\n", PyThread_get_thread_ident(),aLock, waitflag));
 
 #ifndef DEBUG
-    waitResult = WaitForSingleObject(aLock, (waitflag == 1 ? INFINITE : 0));
+    waitResult = WaitForSingleObject(aLock, (waitflag ? INFINITE : 0));
 #else
 	/* To aid in debugging, we regularly wake up.  This allows us to
 	break into the debugger */
 	while (TRUE) {
 		waitResult = WaitForSingleObject(aLock, waitflag ? 3000 : 0);
-		if (waitflag==0 || (waitflag==1 && waitResult == WAIT_OBJECT_0))
+		if (waitflag==0 || (waitflag && waitResult == WAIT_OBJECT_0))
 			break;
 	}
 #endif

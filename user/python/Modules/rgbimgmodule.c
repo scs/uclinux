@@ -28,9 +28,6 @@ typedef unsigned long Py_UInt32;
 #endif
 #endif
 
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <string.h>
 
 /*
@@ -239,7 +236,7 @@ sizeofimage(PyObject *self, PyObject *args)
 	IMAGE image;
 	FILE *inf;
 
-	if (!PyArg_Parse(args, "s", &name))
+	if (!PyArg_ParseTuple(args, "s:sizeofimage", &name))
 		return NULL;
 
 	inf = fopen(name, "rb");
@@ -278,7 +275,7 @@ longimagedata(PyObject *self, PyObject *args)
 	int rlebuflen;
 	PyObject *rv = NULL;
 
-	if (!PyArg_Parse(args, "s", &name))
+	if (!PyArg_ParseTuple(args, "s:longimagedata", &name))
 		return NULL;
 
 	inf = fopen(name,"rb");
@@ -413,6 +410,11 @@ longimagedata(PyObject *self, PyObject *args)
 		addlongimgtag(base, xsize, ysize);
 #endif
 		verdat = (unsigned char *)malloc(xsize);
+		if (!verdat) {
+			Py_CLEAR(rv);
+			goto finally;
+		}
+
 		fseek(inf, 512, SEEK_SET);
 		for (z = 0; z < zsize; z++) {
 			lptr = base;
@@ -434,10 +436,14 @@ longimagedata(PyObject *self, PyObject *args)
 			copybw((Py_Int32 *) base, xsize * ysize);
 	}
   finally:
-	free(starttab);
-	free(lengthtab);
-	free(rledat);
-	free(verdat);
+	if (starttab)
+		free(starttab);
+	if (lengthtab)
+		free(lengthtab);
+	if (rledat)
+		free(rledat);
+	if (verdat)
+		free(verdat);
 	fclose(inf);
 	return rv;
 }
@@ -573,8 +579,8 @@ longstoimage(PyObject *self, PyObject *args)
 	int rlebuflen, goodwrite;
 	PyObject *retval = NULL;
 
-	if (!PyArg_Parse(args, "(s#iiis)", &lptr, &len, &xsize, &ysize, &zsize,
-			 &name))
+	if (!PyArg_ParseTuple(args, "s#iiis:longstoimage", &lptr, &len,
+			      &xsize, &ysize, &zsize, &name))
 		return NULL;
 
 	goodwrite = 1;
@@ -737,7 +743,7 @@ ttob(PyObject *self, PyObject *args)
 {
 	int order, oldorder;
 
-	if (!PyArg_Parse(args, "i", &order))
+	if (!PyArg_ParseTuple(args, "i:ttob", &order))
 		return NULL;
 	oldorder = reverse_order;
 	reverse_order = order;
@@ -746,19 +752,21 @@ ttob(PyObject *self, PyObject *args)
 
 static PyMethodDef
 rgbimg_methods[] = {
-	{"sizeofimage",	   sizeofimage},
-	{"longimagedata",  longimagedata},
-	{"longstoimage",   longstoimage},
-	{"ttob",	   ttob},
+	{"sizeofimage",	   sizeofimage, METH_VARARGS},
+	{"longimagedata",  longimagedata, METH_VARARGS},
+	{"longstoimage",   longstoimage, METH_VARARGS},
+	{"ttob",	   ttob, METH_VARARGS},
 	{NULL,             NULL}	     /* sentinel */
 };
 
 
-DL_EXPORT(void)
+PyMODINIT_FUNC
 initrgbimg(void)
 {
 	PyObject *m, *d;
 	m = Py_InitModule("rgbimg", rgbimg_methods);
+	if (m == NULL)
+		return;
 	d = PyModule_GetDict(m);
 	ImgfileError = PyErr_NewException("rgbimg.error", NULL, NULL);
 	if (ImgfileError != NULL)

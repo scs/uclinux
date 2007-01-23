@@ -30,13 +30,16 @@ import string
 
 oops = 'oops'
 
+IDENTSTARTCHARS = string.letters + '_'
+IDENTCHARS = string.letters + string.digits + '_'
+
 # Check that string is a legal C identifier
 def checkid(str):
     if not str: return 0
-    if not str[0] in string.letters+'_':
+    if not str[0] in IDENTSTARTCHARS:
         return 0
     for c in str[1:]:
-        if not c in string.letters+string.digits+'_':
+        if not c in IDENTCHARS:
             return 0
     return 1
 
@@ -46,7 +49,7 @@ def getlistlist(list):
     for i in range(n):
         rv.append(list.get(i))
     return rv
-    
+
 class UI:
     def __init__(self):
         self.main = Frame()
@@ -94,7 +97,7 @@ class UI:
                 o.synchronize()
         except oops:
             pass
-        
+
     def cb_save(self, *args):
         try:
             pycode = self.module.gencode('m', self.objects)
@@ -174,12 +177,12 @@ class UI_module:
                                               'command':self.cb_newobj,
                                               Pack:{'side':'left',
                                                     'padx':'0.5m'}})
-        
+
     def cb_delmethod(self, *args):
         list = self.method_list.curselection()
         for i in list:
             self.method_list.delete(i)
-        
+
     def cb_newobj(self, *arg):
         self.parent.objects.append(UI_object(self.parent))
 
@@ -205,7 +208,7 @@ class UI_module:
             if not checkid(n):
                 message('Method name not an identifier:\n'+n)
                 raise oops
-            
+
     def gencode(self, name, objects):
         rv = ''
         self.synchronize()
@@ -213,17 +216,17 @@ class UI_module:
             o.synchronize()
         onames = []
         for i in range(len(objects)):
-            oname = 'o'+`i+1`
+            oname = 'o%d' % (i+1)
             rv = rv + objects[i].gencode(oname)
             onames.append(oname)
-        rv = rv + (name+' = genmodule.module()\n')
-        rv = rv + (name+'.name = '+`self.name_entry.get()`+'\n')
-        rv = rv + (name+'.abbrev = '+`self.abbrev_entry.get()`+'\n')
-        rv = rv + (name+'.methodlist = '+`getlistlist(self.method_list)`+'\n')
-        rv = rv + (name+'.objects = ['+string.joinfields(onames, ',')+']\n')
-        rv = rv + ('\n')
+        rv = rv + '%s = genmodule.module()\n' % (name,)
+        rv = rv + '%s.name = %r\n' % (name, self.name_entry.get())
+        rv = rv + '%s.abbrev = %r\n' % (name, self.abbrev_entry.get())
+        rv = rv + '%s.methodlist = %r\n' % (name, getlistlist(self.method_list))
+        rv = rv + '%s.objects = [%s]\n' % (name, ','.join(onames))
+        rv = rv + '\n'
         return rv
-        
+
 object_number = 0
 
 class UI_object:
@@ -232,7 +235,7 @@ class UI_object:
 
         object_number = object_number + 1
         self.num = object_number
-        self.vpref = 'o'+`self.num`+'_'
+        self.vpref = 'o%r_' % self.num
         self.frame = Toplevel(parent.objframe)
 #       self.frame.pack()
         self.frame.title('Modulator: object view')
@@ -247,7 +250,7 @@ class UI_object:
                                            'fill':'x'}})
         self.f4 = Frame(self.frame, {Pack:{'side':'top', 'pady':'0.5m',
                                            'fill':'x'}})
-        
+
 
         self.l1 = Label(self.f1, {'text':'Object:', Pack:{'side':'left',
                                                         'padx':'0.5m'}})
@@ -302,7 +305,7 @@ class UI_object:
                                       Pack:{'side':'top', 'pady':'0.5m',
                                             'anchor':'w'}})
             self.types[i] = b
-        
+
     def cb_method(self, *arg):
         name = self.method_entry.get()
         if not name:
@@ -314,7 +317,7 @@ class UI_object:
         list = self.method_list.curselection()
         for i in list:
             self.method_list.delete(i)
-        
+
     def synchronize(self):
         n = self.name_entry.get()
         if not n:
@@ -334,31 +337,31 @@ class UI_object:
         if m:
             self.f5.setvar(self.vpref+'tp_getattr', 1)
         pass
-        
+
     def gencode(self, name):
         rv = ''
-        rv = rv + (name+' = genmodule.object()\n')
-        rv = rv + (name+'.name = '+`self.name_entry.get()`+'\n')
-        rv = rv + (name+'.abbrev = '+`self.abbrev_entry.get()`+'\n')
-        rv = rv + (name+'.methodlist = '+`getlistlist(self.method_list)`+'\n')
+        rv = rv + '%s = genmodule.object()\n' % (name,)
+        rv = rv + '%s.name = %r\n' % (name, self.name_entry.get())
+        rv = rv + '%s.abbrev = %r\n' % (name, self.abbrev_entry.get())
+        rv = rv + '%s.methodlist = %r\n' % (name, getlistlist(self.method_list))
         fl = []
         for fn in genmodule.FUNCLIST:
             vname = self.vpref + fn
             if self.f5.getvar(vname) == '1':
                 fl.append(fn)
-        rv = rv + (name+'.funclist = '+`fl`+'\n')
+        rv = rv + '%s.funclist = %r\n' % (name, fl)
 
         fl = []
         for fn in genmodule.TYPELIST:
             vname = self.vpref + fn
             if self.f5.getvar(vname) == '1':
                 fl.append(fn)
-                
-        rv = rv + (name+'.typelist = '+`fl`+'\n')
 
-        rv = rv + ('\n')
+        rv = rv + '%s.typelist = %r\n' % (name, fl)
+
+        rv = rv + '\n'
         return rv
-        
+
 
 def main():
     if len(sys.argv) < 2:
@@ -376,5 +379,5 @@ def main():
     else:
         sys.stderr.write('Usage: modulator [file]\n')
         sys.exit(1)
-        
+
 main()

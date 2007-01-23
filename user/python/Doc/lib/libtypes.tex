@@ -1,13 +1,15 @@
 \section{\module{types} ---
-         Names for all built-in types}
+         Names for built-in types}
 
 \declaremodule{standard}{types}
-\modulesynopsis{Names for all built-in types.}
+\modulesynopsis{Names for built-in types.}
 
 
-This module defines names for all object types that are used by the
-standard Python interpreter, but not for the types defined by various
-extension modules.  It is safe to use \samp{from types import *} ---
+This module defines names for some object types that are used by
+the standard Python interpreter, but not for the types defined by various
+extension modules.  Also, it does not include some of the types that
+arise during processing such as the \code{listiterator} type.
+It is safe to use \samp{from types import *} ---
 the module does not export any names besides the ones listed here.
 New names exported by future versions of this module will all end in
 \samp{Type}.
@@ -17,11 +19,25 @@ their argument types, like the following:
 
 \begin{verbatim}
 from types import *
-def delete(list, item):
+def delete(mylist, item):
     if type(item) is IntType:
-       del list[item]
+       del mylist[item]
     else:
-       list.remove(item)
+       mylist.remove(item)
+\end{verbatim}
+
+Starting in Python 2.2, built-in factory functions such as
+\function{int()} and \function{str()} are also names for the
+corresponding types.  This is now the preferred way to access
+the type instead of using the \module{types} module.  Accordingly,
+the example above should be written as follows:
+
+\begin{verbatim}
+def delete(mylist, item):
+    if isinstance(item, int):
+       del mylist[item]
+    else:
+       mylist.remove(item)
 \end{verbatim}
 
 The module defines the following names:
@@ -33,6 +49,12 @@ The type of \code{None}.
 \begin{datadesc}{TypeType}
 The type of type objects (such as returned by
 \function{type()}\bifuncindex{type}).
+\end{datadesc}
+
+\begin{datadesc}{BooleanType}
+The type of the \class{bool} values \code{True} and \code{False}; this
+is an alias of the built-in \function{bool()} function.
+\versionadded{2.3}
 \end{datadesc}
 
 \begin{datadesc}{IntType}
@@ -48,7 +70,8 @@ The type of floating point numbers (e.g. \code{1.0}).
 \end{datadesc}
 
 \begin{datadesc}{ComplexType}
-The type of complex numbers (e.g. \code{1.0j}).
+The type of complex numbers (e.g. \code{1.0j}).  This is not defined
+if Python was built without complex number support.
 \end{datadesc}
 
 \begin{datadesc}{StringType}
@@ -56,7 +79,8 @@ The type of character strings (e.g. \code{'Spam'}).
 \end{datadesc}
 
 \begin{datadesc}{UnicodeType}
-The type of Unicode character strings (e.g. \code{u'Spam'}).
+The type of Unicode character strings (e.g. \code{u'Spam'}).  This is
+not defined if Python was built without Unicode support.
 \end{datadesc}
 
 \begin{datadesc}{TupleType}
@@ -81,6 +105,12 @@ The type of user-defined functions and lambdas.
 
 \begin{datadesc}{LambdaType}
 An alternate name for \code{FunctionType}.
+\end{datadesc}
+
+\begin{datadesc}{GeneratorType}
+The type of generator-iterator objects, produced by calling a
+generator function.
+\versionadded{2.2}
 \end{datadesc}
 
 \begin{datadesc}{CodeType}
@@ -148,4 +178,14 @@ The type of frame objects such as found in \code{tb.tb_frame} if
 \begin{datadesc}{BufferType}
 The type of buffer objects created by the
 \function{buffer()}\bifuncindex{buffer} function.
+\end{datadesc}
+
+\begin{datadesc}{StringTypes}
+A sequence containing \code{StringType} and \code{UnicodeType} used to
+facilitate easier checking for any string object.  Using this is more
+portable than using a sequence of the two string types constructed
+elsewhere since it only contains \code{UnicodeType} if it has been
+built in the running version of Python.  For example:
+\code{isinstance(s, types.StringTypes)}.
+\versionadded{2.2}
 \end{datadesc}

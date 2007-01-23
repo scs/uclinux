@@ -1,4 +1,8 @@
-.TH PYTHON "1" "5 September, 2000"
+.TH PYTHON "1" "$Date$"
+
+./" To view this file while editing, run it through groff:
+./"   groff -Tascii -man python.man | less
+
 .SH NAME
 python \- an interpreted, interactive, object-oriented programming language
 .SH SYNOPSIS
@@ -7,10 +11,25 @@ python \- an interpreted, interactive, object-oriented programming language
 .B \-d
 ]
 [
+.B \-E
+]
+[
+.B \-h
+]
+[
 .B \-i
 ]
 [
+.B \-m 
+.I module-name
+]
+[
 .B \-O
+]
+.br
+       [
+.B -Q
+.I argument
 ]
 [
 .B \-S
@@ -21,17 +40,19 @@ python \- an interpreted, interactive, object-oriented programming language
 [
 .B \-u
 ]
-[
+.br
+       [
 .B \-v
 ]
 [
-.B \-x
-]
-[
-.B \-h
-]
-[
 .B \-V
+]
+[
+.B \-W
+.I argument
+]
+[
+.B \-x
 ]
 .br
        [
@@ -64,11 +85,28 @@ On most systems such modules may be dynamically loaded.
 Python is also adaptable as an extension language for existing
 applications.
 See the internal documentation for hints.
+.PP
+Documentation for installed Python modules and packages can be 
+viewed by running the 
+.B pydoc
+program.  
 .SH COMMAND LINE OPTIONS
+.TP
+.BI "\-c " command
+Specify the command to execute (see next section).
+This terminates the option list (following options are passed as
+arguments to the command).
 .TP
 .B \-d
 Turn on parser debugging output (for wizards only, depending on
 compilation options).
+.TP
+.B \-E
+Ignore environment variables like PYTHONPATH and PYTHONHOME that modify
+the behavior of the interpreter.
+.TP
+.B \-h
+Prints the usage for the interpreter executable and exits.
 .TP
 .B \-i
 When a script is passed as first argument or the \fB\-c\fP option is
@@ -77,11 +115,27 @@ command.  It does not read the $PYTHONSTARTUP file.  This can be
 useful to inspect global variables or a stack trace when a script
 raises an exception.
 .TP
+.BI "\-m " module-name
+Searches 
+.I sys.path 
+for the named module and runs the corresponding 
+.I .py 
+file as a script.
+.TP
 .B \-O
 Turn on basic optimizations.  This changes the filename extension for
 compiled (bytecode) files from
 .I .pyc
 to \fI.pyo\fP.  Given twice, causes docstrings to be discarded.
+.TP
+.BI "\-Q " argument
+Division control; see PEP 238.  The argument must be one of "old" (the
+default, int/int and long/long return an int or long), "new" (new
+division semantics, i.e. int/int and long/long returns a float),
+"warn" (old division semantics with a warning for int/int and
+long/long), or "warnall" (old division semantics with a warning for
+all use of the division operator).  For a use of "warnall", see the
+Tools/scripts/fixdiv.py script.
 .TP
 .B \-S
 Disable the import of the module
@@ -96,7 +150,12 @@ indentation in a way that makes it depend on the worth of a tab
 expressed in spaces.  Issue an error when the option is given twice.
 .TP
 .B \-u
-Force stdin, stdout and stderr to be totally unbuffered.
+Force stdin, stdout and stderr to be totally unbuffered.  On systems
+where it matters, also put stdin, stdout and stderr in binary mode.
+Note that there is internal buffering in xreadlines(), readlines() and
+file-object iterators ("for line in sys.stdin") which is not
+influenced by this option.  To work around this, you will want to use
+"sys.stdin.readline()" inside a "while 1:" loop.
 .TP
 .B \-v
 Print a message each time a module is initialized, showing the place
@@ -105,21 +164,78 @@ twice, print a message for each file that is checked for when
 searching for a module.  Also provides information on module cleanup
 at exit.
 .TP
+.B \-V
+Prints the Python version number of the executable and exits.
+.TP
+.BI "\-W " argument
+Warning control.  Python sometimes prints warning message to
+.IR sys.stderr .
+A typical warning message has the following form:
+.IB file ":" line ": " category ": " message.
+By default, each warning is printed once for each source line where it
+occurs.  This option controls how often warnings are printed.
+Multiple
+.B \-W
+options may be given; when a warning matches more than one
+option, the action for the last matching option is performed.
+Invalid
+.B \-W
+options are ignored (a warning message is printed about invalid
+options when the first warning is issued).  Warnings can also be
+controlled from within a Python program using the
+.I warnings
+module.
+
+The simplest form of
+.I argument
+is one of the following
+.I action
+strings (or a unique abbreviation):
+.B ignore
+to ignore all warnings;
+.B default
+to explicitly request the default behavior (printing each warning once
+per source line);
+.B all
+to print a warning each time it occurs (this may generate many
+messages if a warning is triggered repeatedly for the same source
+line, such as inside a loop);
+.B module
+to print each warning only only the first time it occurs in each
+module;
+.B once
+to print each warning only the first time it occurs in the program; or
+.B error
+to raise an exception instead of printing a warning message.
+
+The full form of
+.I argument
+is
+.IB action : message : category : module : line.
+Here,
+.I action
+is as explained above but only applies to messages that match the
+remaining fields.  Empty fields match all values; trailing empty
+fields may be omitted.  The
+.I message
+field matches the start of the warning message printed; this match is
+case-insensitive.  The
+.I category
+field matches the warning category.  This must be a class name; the
+match test whether the actual warning category of the message is a
+subclass of the specified warning category.  The full class name must
+be given.  The
+.I module
+field matches the (fully-qualified) module name; this match is
+case-sensitive.  The
+.I line
+field matches the line number, where zero matches all line numbers and
+is thus equivalent to an omitted line number.
+.TP
 .B \-x
 Skip the first line of the source.  This is intended for a DOS
 specific hack only.  Warning: the line numbers in error messages will
 be off by one!
-.TP
-.B \-h
-Prints the usage for the interpreter executable and exits.
-.TP
-.B \-V
-Prints the Python version number of the executable and exits.
-.TP
-.BI "\-c " command
-Specify the command to execute (see next section).
-This terminates the option list (following options are passed as
-arguments to the command).
 .SH INTERPRETER INTERFACE
 The interpreter interface resembles that of the UNIX shell: when
 called with standard input connected to a tty device, it prompts for
@@ -137,7 +253,7 @@ Here
 .I command
 may contain multiple statements separated by newlines.
 Leading whitespace is significant in Python statements!
-In non-interactive mode, the entire input is parsed befored it is
+In non-interactive mode, the entire input is parsed before it is
 executed.
 .PP
 If available, the script name and additional arguments thereafter are
@@ -214,7 +330,7 @@ for these, set $PYTHONHOME to ${prefix}:${exec_prefix}.
 Augments the default search path for module files.
 The format is the same as the shell's $PATH: one or more directory
 pathnames separated by colons.
-Non-existant directories are silently ignored.
+Non-existent directories are silently ignored.
 The default search path is installation dependent, but generally
 begins with ${prefix}/lib/python<version> (see PYTHONHOME above).
 The default search path is always appended to $PYTHONPATH.
@@ -235,9 +351,19 @@ You can also change the prompts
 and
 .I sys.ps2
 in this file.
+.IP PYTHONY2K
+Set this to a non-empty string to cause the \fItime\fP module to
+require dates specified as strings to include 4-digit years, otherwise
+2-digit years are converted based on rules described in the \fItime\fP
+module documentation.
+.IP PYTHONOPTIMIZE
+If this is set to a non-empty string it is equivalent to specifying
+the \fB\-O\fP option. If set to an integer, it is equivalent to
+specifying \fB\-O\fP multiple times.
 .IP PYTHONDEBUG
 If this is set to a non-empty string it is equivalent to specifying
-the \fB\-d\fP option.
+the \fB\-d\fP option. If set to an integer, it is equivalent to
+specifying \fB\-d\fP multiple times.
 .IP PYTHONINSPECT
 If this is set to a non-empty string it is equivalent to specifying
 the \fB\-i\fP option.
@@ -246,35 +372,24 @@ If this is set to a non-empty string it is equivalent to specifying
 the \fB\-u\fP option.
 .IP PYTHONVERBOSE
 If this is set to a non-empty string it is equivalent to specifying
-the \fB\-v\fP option.
+the \fB\-v\fP option. If set to an integer, it is equivalent to
+specifying \fB\-v\fP multiple times. 
 .SH AUTHOR
-.nf
-Guido van Rossum
-BeOpen.com
-160 Saratoga Avenue
-Santa Clara, CA 95051
-USA
-.PP
-E-mail: guido@beopen.com, guido@python.org
-.fi
-.PP
-And a cast of thousands.
+The Python Software Foundation: http://www.python.org/psf
 .SH INTERNET RESOURCES
-Main website: http://www.python.org
+Main website:  http://www.python.org/
 .br
-BeOpen development team: http://pythonlabs.com
+Documentation:  http://docs.python.org/
 .br
-Community website: http://starship.python.net
+Community website:  http://starship.python.net/
 .br
-Developer resources:
+Developer resources:  http://www.python.org/dev/
 .br
-  http://sourceforge.net/project/?group_id=5470
+FTP:  ftp://ftp.python.org/pub/python/
 .br
-FTP: ftp://ftp.python.org/pub/python
+Module repository:  http://www.vex.net/parnassus/
 .br
-Module repository: http://www.vex.net/parnassus/
-.br
-Newsgroups: comp.lang.python, comp.lang.python.announce
+Newsgroups:  comp.lang.python, comp.lang.python.announce
 .SH LICENSING
 Python is distributed under an Open Source license.  See the file
 "LICENSE" in the Python source distribution for information on terms &

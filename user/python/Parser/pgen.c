@@ -1,11 +1,9 @@
-
 /* Parser generator */
-/* XXX This file is not yet fully PROTOized */
 
 /* For a description, see the comments at end of this file */
 
+#include "Python.h"
 #include "pgenheaders.h"
-#include "assert.h"
 #include "token.h"
 #include "node.h"
 #include "grammar.h"
@@ -13,6 +11,7 @@
 #include "pgen.h"
 
 extern int Py_DebugFlag;
+extern int Py_IgnoreEnvironmentFlag; /* needed by Py_GETENV */
 
 
 /* PART ONE -- CONSTRUCT NFA -- Cf. Algorithm 3.2 from [Aho&Ullman 77] */
@@ -149,8 +148,9 @@ metacompile(node *n)
 {
 	nfagrammar *gr;
 	int i;
-	
-	printf("Compiling (meta-) parse tree into NFA grammar\n");
+
+	if (Py_DebugFlag)
+		printf("Compiling (meta-) parse tree into NFA grammar\n");
 	gr = newnfagrammar();
 	REQ(n, MSTART);
 	i = n->n_nchildren - 1; /* Last child is ENDMARKER */
@@ -229,11 +229,6 @@ compile_alt(labellist *ll, nfa *nf, node *n, int *pa, int *pb)
 	--i;
 	n++;
 	for (; --i >= 0; n++) {
-		if (n->n_type == COMMA) { /* XXX Temporary */
-			REQN(i, 1);
-			--i;
-			n++;
-		}
 		REQ(n, ITEM);
 		compile_item(ll, nf, n, &a, &b);
 		addnfaarc(nf, *pb, a, EMPTY);
@@ -645,8 +640,8 @@ maketables(nfagrammar *gr)
 		if (Py_DebugFlag) {
 			printf("Dump of NFA for '%s' ...\n", nf->nf_name);
 			dumpnfa(&gr->gr_ll, nf);
+			printf("Making DFA for '%s' ...\n", nf->nf_name);
 		}
-		printf("Making DFA for '%s' ...\n", nf->nf_name);
 		d = adddfa(g, nf->nf_type, nf->nf_name);
 		makedfa(gr, gr->gr_nfa[i], d);
 	}
@@ -667,6 +662,11 @@ pgen(node *n)
 	return g;
 }
 
+grammar *
+Py_pgen(node *n)
+{
+  return pgen(n);
+}
 
 /*
 

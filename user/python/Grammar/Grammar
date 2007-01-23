@@ -28,7 +28,9 @@ single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
 file_input: (NEWLINE | stmt)* ENDMARKER
 eval_input: testlist NEWLINE* ENDMARKER
 
-funcdef: 'def' NAME parameters ':' suite
+decorator: '@' dotted_name [ '(' [arglist] ')' ] NEWLINE
+decorators: decorator+
+funcdef: [decorators] 'def' NAME parameters ':' suite
 parameters: '(' [varargslist] ')'
 varargslist: (fpdef ['=' test] ',')* ('*' NAME [',' '**' NAME] | '**' NAME) | fpdef ['=' test] (',' fpdef ['=' test])* [',']
 fpdef: NAME | '(' fplist ')'
@@ -36,28 +38,28 @@ fplist: fpdef (',' fpdef)* [',']
 
 stmt: simple_stmt | compound_stmt
 simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
-#small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt | import_stmt | global_stmt | access_stmt | exec_stmt
 small_stmt: expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt | import_stmt | global_stmt | exec_stmt | assert_stmt
 expr_stmt: testlist (augassign testlist | ('=' testlist)*)
-augassign: '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' | '<<=' | '>>=' | '**='
+augassign: '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' | '<<=' | '>>=' | '**=' | '//='
 # For normal assignments, additional restrictions enforced by the interpreter
 print_stmt: 'print' ( [ test (',' test)* [','] ] | '>>' test [ (',' test)+ [','] ] )
 del_stmt: 'del' exprlist
 pass_stmt: 'pass'
-flow_stmt: break_stmt | continue_stmt | return_stmt | raise_stmt
+flow_stmt: break_stmt | continue_stmt | return_stmt | raise_stmt | yield_stmt
 break_stmt: 'break'
 continue_stmt: 'continue'
 return_stmt: 'return' [testlist]
+yield_stmt: 'yield' testlist
 raise_stmt: 'raise' [test [',' test [',' test]]]
-import_stmt: 'import' dotted_as_name (',' dotted_as_name)* | 'from' dotted_name 'import' ('*' | import_as_name (',' import_as_name)*)
+import_stmt: import_name | import_from
+import_name: 'import' dotted_as_names
+import_from: 'from' dotted_name 'import' ('*' | '(' import_as_names ')' | import_as_names)
 import_as_name: NAME [NAME NAME]
 dotted_as_name: dotted_name [NAME NAME]
+import_as_names: import_as_name (',' import_as_name)* [',']
+dotted_as_names: dotted_as_name (',' dotted_as_name)*
 dotted_name: NAME ('.' NAME)*
 global_stmt: 'global' NAME (',' NAME)*
-#access_stmt: 'access' ('*' | NAME (',' NAME)*) ':' accesstype  (',' accesstype)*
-#accesstype: NAME+
-## accesstype should be ('public' | 'protected' | 'private') ['read'] ['write']
-## but can't be because that would create undesirable reserved words!
 exec_stmt: 'exec' expr ['in' test [',' test]]
 assert_stmt: 'assert' test [',' test]
 
@@ -81,11 +83,12 @@ xor_expr: and_expr ('^' and_expr)*
 and_expr: shift_expr ('&' shift_expr)*
 shift_expr: arith_expr (('<<'|'>>') arith_expr)*
 arith_expr: term (('+'|'-') term)*
-term: factor (('*'|'/'|'%') factor)*
+term: factor (('*'|'/'|'%'|'//') factor)*
 factor: ('+'|'-'|'~') factor | power
-power: atom trailer* ('**' factor)*
-atom: '(' [testlist] ')' | '[' [listmaker] ']' | '{' [dictmaker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
+power: atom trailer* ['**' factor]
+atom: '(' [testlist_gexp] ')' | '[' [listmaker] ']' | '{' [dictmaker] '}' | '`' testlist1 '`' | NAME | NUMBER | STRING+
 listmaker: test ( list_for | (',' test)* [','] )
+testlist_gexp: test ( gen_for | (',' test)* [','] )
 lambdef: 'lambda' [varargslist] ':' test
 trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 subscriptlist: subscript (',' subscript)* [',']
@@ -93,13 +96,23 @@ subscript: '.' '.' '.' | test | [test] ':' [test] [sliceop]
 sliceop: ':' [test]
 exprlist: expr (',' expr)* [',']
 testlist: test (',' test)* [',']
+testlist_safe: test [(',' test)+ [',']]
 dictmaker: test ':' test (',' test ':' test)* [',']
 
 classdef: 'class' NAME ['(' testlist ')'] ':' suite
 
 arglist: (argument ',')* (argument [',']| '*' test [',' '**' test] | '**' test)
-argument: [test '='] test	# Really [keyword '='] test
+argument: test [gen_for] | test '=' test ['(' gen_for ')'] # Really [keyword '='] test
 
 list_iter: list_for | list_if
-list_for: 'for' exprlist 'in' testlist [list_iter]
+list_for: 'for' exprlist 'in' testlist_safe [list_iter]
 list_if: 'if' test [list_iter]
+
+gen_iter: gen_for | gen_if
+gen_for: 'for' exprlist 'in' test [gen_iter]
+gen_if: 'if' test [gen_iter]
+
+testlist1: test (',' test)*
+
+# not used in grammar, but may appear in "node" passed from Parser to Compiler
+encoding_decl: NAME

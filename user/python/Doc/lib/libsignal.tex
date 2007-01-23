@@ -12,7 +12,7 @@ Some general rules for working with signals and their handlers:
 
 \item
 A handler for a particular signal, once set, remains installed until
-it is explicitly reset (i.e. Python emulates the BSD style interface
+it is explicitly reset (Python emulates the BSD style interface
 regardless of the underlying implementation), with the exception of
 the handler for \constant{SIGCHLD}, which follows the underlying
 implementation.
@@ -25,8 +25,8 @@ sections (since this is not supported by all \UNIX{} flavors).
 Although Python signal handlers are called asynchronously as far as
 the Python user is concerned, they can only occur between the
 ``atomic'' instructions of the Python interpreter.  This means that
-signals arriving during long calculations implemented purely in \C{}
-(e.g.\ regular expression matches on large bodies of text) may be
+signals arriving during long calculations implemented purely in C
+(such as regular expression matches on large bodies of text) may be
 delayed for an arbitrary amount of time.
 
 \item
@@ -97,14 +97,15 @@ The \module{signal} module defines the following functions:
 \begin{funcdesc}{alarm}{time}
   If \var{time} is non-zero, this function requests that a
   \constant{SIGALRM} signal be sent to the process in \var{time} seconds.
-  Any previously scheduled alarm is canceled (i.e.\ only one alarm can
+  Any previously scheduled alarm is canceled (only one alarm can
   be scheduled at any time).  The returned value is then the number of
   seconds before any previously set alarm was to have been delivered.
-  If \var{time} is zero, no alarm id scheduled, and any scheduled
+  If \var{time} is zero, no alarm is scheduled, and any scheduled
   alarm is canceled.  The return value is the number of seconds
   remaining before a previously scheduled alarm.  If the return value
   is zero, no alarm is currently scheduled.  (See the \UNIX{} man page
   \manpage{alarm}{2}.)
+  Availability: \UNIX.
 \end{funcdesc}
 
 \begin{funcdesc}{getsignal}{signalnum}
@@ -120,8 +121,8 @@ The \module{signal} module defines the following functions:
 
 \begin{funcdesc}{pause}{}
   Cause the process to sleep until a signal is received; the
-  appropriate handler will then be called.  Returns nothing.  (See the
-  \UNIX{} man page \manpage{signal}{2}.)
+  appropriate handler will then be called.  Returns nothing.  Not on
+  Windows. (See the \UNIX{} man page \manpage{signal}{2}.)
 \end{funcdesc}
 
 \begin{funcdesc}{signal}{signalnum, handler}
@@ -138,9 +139,10 @@ The \module{signal} module defines the following functions:
   \exception{ValueError} exception to be raised.
 
   The \var{handler} is called with two arguments: the signal number
-  and the current stack frame (\code{None} or a frame object; see the
-  reference manual for a description of frame objects).
-\obindex{frame}
+  and the current stack frame (\code{None} or a frame object;
+  for a description of frame objects, see the reference manual section
+  on the standard type hierarchy or see the attribute descriptions in
+  the \refmodule{inspect} module).
 \end{funcdesc}
 
 \subsection{Example}
@@ -155,7 +157,7 @@ the file; if the operation takes too long, the alarm signal will be
 sent, and the handler raises an exception.
 
 \begin{verbatim}
-import signal, os, FCNTL
+import signal, os
 
 def handler(signum, frame):
     print 'Signal handler called with signal', signum
@@ -166,7 +168,7 @@ signal.signal(signal.SIGALRM, handler)
 signal.alarm(5)
 
 # This open() may hang indefinitely
-fd = os.open('/dev/ttyS0', FCNTL.O_RDWR)  
+fd = os.open('/dev/ttyS0', os.O_RDWR)  
 
 signal.alarm(0)          # Disable the alarm
 \end{verbatim}

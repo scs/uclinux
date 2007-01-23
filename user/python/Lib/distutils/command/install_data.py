@@ -5,12 +5,14 @@ platform-independent data files."""
 
 # contributed by Bastian Kleineidam
 
+# This module should be kept compatible with Python 2.1.
+
 __revision__ = "$Id$"
 
 import os
 from types import StringType
 from distutils.core import Command
-from distutils.util import change_root
+from distutils.util import change_root, convert_path
 
 class install_data (Command):
 
@@ -46,8 +48,9 @@ class install_data (Command):
     def run (self):
         self.mkpath(self.install_dir)
         for f in self.data_files:
-            if type(f) == StringType:
+            if type(f) is StringType:
                 # it's a simple file, so copy it
+                f = convert_path(f)
                 if self.warn_dir:
                     self.warn("setup script did not provide a directory for "
                               "'%s' -- installing right in '%s'" %
@@ -56,15 +59,24 @@ class install_data (Command):
                 self.outfiles.append(out)
             else:
                 # it's a tuple with path to install to and a list of files
-                dir = f[0]
+                dir = convert_path(f[0])
                 if not os.path.isabs(dir):
                     dir = os.path.join(self.install_dir, dir)
                 elif self.root:
                     dir = change_root(self.root, dir)
                 self.mkpath(dir)
-                for data in f[1]:
-                    (out, _) = self.copy_file(data, dir)
-                    self.outfiles.append(out)
+
+                if f[1] == []:
+                    # If there are no files listed, the user must be
+                    # trying to create an empty directory, so add the
+                    # directory to the list of output files.
+                    self.outfiles.append(dir)
+                else:
+                    # Copy files, adding them to the list of output files.
+                    for data in f[1]:
+                        data = convert_path(data)
+                        (out, _) = self.copy_file(data, dir)
+                        self.outfiles.append(out)
 
     def get_inputs (self):
         return self.data_files or []

@@ -3,7 +3,7 @@
 Implements the Distutils 'bdist' command (create a built [binary]
 distribution)."""
 
-# created 2000/03/29, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -17,7 +17,7 @@ from distutils.util import get_platform
 def show_formats ():
     """Print list of available formats (arguments to "--format" option).
     """
-    from distutils.fancy_getopt import FancyGetopt 
+    from distutils.fancy_getopt import FancyGetopt
     formats=[]
     for format in bdist.format_commands:
         formats.append(("formats=" + format, None,
@@ -40,7 +40,11 @@ class bdist (Command):
                     ('dist-dir=', 'd',
                      "directory to put final built distributions in "
                      "[default: dist]"),
+                    ('skip-build', None,
+                     "skip rebuilding everything (for testing/debugging)"),
                    ]
+
+    boolean_options = ['skip-build']
 
     help_options = [
         ('help-formats', None,
@@ -48,19 +52,25 @@ class bdist (Command):
         ]
 
     # The following commands do not take a format option from bdist
-    no_format_option = ('bdist_rpm',)
+    no_format_option = ('bdist_rpm',
+                        #'bdist_sdux', 'bdist_pkgtool'
+                        )
 
     # This won't do in reality: will need to distinguish RPM-ish Linux,
     # Debian-ish Linux, Solaris, FreeBSD, ..., Windows, Mac OS.
     default_format = { 'posix': 'gztar',
-                       'nt': 'zip', }
+                       'nt': 'zip',
+                       'os2': 'zip', }
 
     # Establish the preferred order (for the --help-formats option).
     format_commands = ['rpm', 'gztar', 'bztar', 'ztar', 'tar',
-                       'wininst', 'zip']
+                       'wininst', 'zip',
+                       #'pkgtool', 'sdux'
+                       ]
 
     # And the real information.
     format_command = { 'rpm':   ('bdist_rpm',  "RPM distribution"),
+                       'zip':   ('bdist_dumb', "ZIP file"),
                        'gztar': ('bdist_dumb', "gzip'ed tar file"),
                        'bztar': ('bdist_dumb', "bzip2'ed tar file"),
                        'ztar':  ('bdist_dumb', "compressed tar file"),
@@ -68,7 +78,10 @@ class bdist (Command):
                        'wininst': ('bdist_wininst',
                                    "Windows executable installer"),
                        'zip':   ('bdist_dumb', "ZIP file"),
-                     }
+                       #'pkgtool': ('bdist_pkgtool',
+                       #            "Solaris pkgtool distribution"),
+                       #'sdux':  ('bdist_sdux', "HP-UX swinstall depot"),
+                      }
 
 
     def initialize_options (self):
@@ -76,6 +89,7 @@ class bdist (Command):
         self.plat_name = None
         self.formats = None
         self.dist_dir = None
+        self.skip_build = 0
 
     # initialize_options()
 
@@ -104,7 +118,7 @@ class bdist (Command):
 
         if self.dist_dir is None:
             self.dist_dir = "dist"
-            
+
     # finalize_options()
 
 
@@ -124,9 +138,6 @@ class bdist (Command):
             sub_cmd = self.reinitialize_command(cmd_name)
             if cmd_name not in self.no_format_option:
                 sub_cmd.format = self.formats[i]
-
-            print ("bdist.run: format=%s, command=%s, rest=%s" %
-                   (self.formats[i], cmd_name, commands[i+1:]))
 
             # If we're going to need to run this command again, tell it to
             # keep its temporary files around so subsequent runs go faster.

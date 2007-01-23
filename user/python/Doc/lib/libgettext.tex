@@ -3,8 +3,8 @@
 
 \declaremodule{standard}{gettext}
 \modulesynopsis{Multilingual internationalization services.}
-\moduleauthor{Barry A. Warsaw}{bwarsaw@beopen.com}
-\sectionauthor{Barry A. Warsaw}{bwarsaw@beopen.com}
+\moduleauthor{Barry A. Warsaw}{barry@zope.com}
+\sectionauthor{Barry A. Warsaw}{barry@zope.com}
 
 
 The \module{gettext} module provides internationalization (I18N) and
@@ -41,14 +41,22 @@ where \var{languages} is searched for in the environment variables
 
 If \var{localedir} is omitted or \code{None}, then the current binding
 for \var{domain} is returned.\footnote{
-        The default locale directory is system dependent; e.g.\ on
-        RedHat Linux it is \file{/usr/share/locale}, but on Solaris it
-        is \file{/usr/lib/locale}.  The \module{gettext} module does
-        not try to support these system dependent defaults; instead
-        its default is \file{\code{sys.prefix}/share/locale}.  For
-        this reason, it is always best to call
+        The default locale directory is system dependent; for example,
+        on RedHat Linux it is \file{/usr/share/locale}, but on Solaris
+        it is \file{/usr/lib/locale}.  The \module{gettext} module
+        does not try to support these system dependent defaults;
+        instead its default is \file{\code{sys.prefix}/share/locale}.
+        For this reason, it is always best to call
         \function{bindtextdomain()} with an explicit absolute path at
         the start of your application.}
+\end{funcdesc}
+
+\begin{funcdesc}{bind_textdomain_codeset}{domain\optional{, codeset}}
+Bind the \var{domain} to \var{codeset}, changing the encoding of
+strings returned by the \function{gettext()} family of functions.
+If \var{codeset} is omitted, then the current binding is returned.
+
+\versionadded{2.4}
 \end{funcdesc}
 
 \begin{funcdesc}{textdomain}{\optional{domain}}
@@ -64,10 +72,69 @@ is usually aliased as \function{_} in the local namespace (see
 examples below).
 \end{funcdesc}
 
+\begin{funcdesc}{lgettext}{message}
+Equivalent to \function{gettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \function{bind_textdomain_codeset()}.
+
+\versionadded{2.4}
+\end{funcdesc}
+
 \begin{funcdesc}{dgettext}{domain, message}
 Like \function{gettext()}, but look the message up in the specified
 \var{domain}.
 \end{funcdesc}
+
+\begin{funcdesc}{ldgettext}{domain, message}
+Equivalent to \function{dgettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \function{bind_textdomain_codeset()}.
+
+\versionadded{2.4}
+\end{funcdesc}
+
+\begin{funcdesc}{ngettext}{singular, plural, n}
+
+Like \function{gettext()}, but consider plural forms. If a translation
+is found, apply the plural formula to \var{n}, and return the
+resulting message (some languages have more than two plural forms).
+If no translation is found, return \var{singular} if \var{n} is 1;
+return \var{plural} otherwise.
+
+The Plural formula is taken from the catalog header. It is a C or
+Python expression that has a free variable n; the expression evaluates
+to the index of the plural in the catalog. See the GNU gettext
+documentation for the precise syntax to be used in .po files, and the
+formulas for a variety of languages.
+
+\versionadded{2.3}
+
+\end{funcdesc}
+
+\begin{funcdesc}{lngettext}{singular, plural, n}
+Equivalent to \function{ngettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \function{bind_textdomain_codeset()}.
+
+\versionadded{2.4}
+\end{funcdesc}
+
+\begin{funcdesc}{dngettext}{domain, singular, plural, n}
+Like \function{ngettext()}, but look the message up in the specified
+\var{domain}.
+
+\versionadded{2.3}
+\end{funcdesc}
+
+\begin{funcdesc}{ldngettext}{domain, singular, plural, n}
+Equivalent to \function{dngettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \function{bind_textdomain_codeset()}.
+
+\versionadded{2.4}
+\end{funcdesc}
+
+
 
 Note that GNU \program{gettext} also defines a \function{dcgettext()}
 method, but this was deemed not useful and so it is currently
@@ -92,15 +159,16 @@ API.  It is the recommended way of localizing your Python applications and
 modules.  \module{gettext} defines a ``translations'' class which
 implements the parsing of GNU \file{.mo} format files, and has methods
 for returning either standard 8-bit strings or Unicode strings.
-Translations instances can also install themselves in the built-in
-namespace as the function \function{_()}.
+Instances of this ``translations'' class can also install themselves 
+in the built-in namespace as the function \function{_()}.
 
-\begin{funcdesc}{find}{domain\optional{, localedir\optional{, languages}}}
+\begin{funcdesc}{find}{domain\optional{, localedir\optional{, 
+                        languages\optional{, all}}}}
 This function implements the standard \file{.mo} file search
 algorithm.  It takes a \var{domain}, identical to what
-\function{textdomain()} takes, and optionally a \var{localedir} (as in
-\function{bindtextdomain()}), and a list of languages.  All arguments
-are strings.
+\function{textdomain()} takes.  Optional \var{localedir} is as in
+\function{bindtextdomain()}  Optional \var{languages} is a list of
+strings, where each string is a language code.
 
 If \var{localedir} is not given, then the default system locale
 directory is used.\footnote{See the footnote for
@@ -108,8 +176,9 @@ directory is used.\footnote{See the footnote for
 then the following environment variables are searched: \envvar{LANGUAGE},
 \envvar{LC_ALL}, \envvar{LC_MESSAGES}, and \envvar{LANG}.  The first one
 returning a non-empty value is used for the \var{languages} variable.
-The environment variables can contain a colon separated list of
-languages, which will be split.
+The environment variables should contain a colon separated list of
+languages, which will be split on the colon to produce the expected
+list of language code strings.
 
 \function{find()} then expands and normalizes the languages, and then
 iterates through them, searching for an existing file built of these
@@ -118,31 +187,48 @@ components:
 \file{\var{localedir}/\var{language}/LC_MESSAGES/\var{domain}.mo}
 
 The first such file name that exists is returned by \function{find()}.
-If no such file is found, then \code{None} is returned.
+If no such file is found, then \code{None} is returned. If \var{all}
+is given, it returns a list of all file names, in the order in which
+they appear in the languages list or the environment variables.
 \end{funcdesc}
 
 \begin{funcdesc}{translation}{domain\optional{, localedir\optional{,
-                              languages\optional{, class_}}}}
+                              languages\optional{, class_\optional{,
+			      fallback\optional{, codeset}}}}}}
 Return a \class{Translations} instance based on the \var{domain},
 \var{localedir}, and \var{languages}, which are first passed to
-\function{find()} to get the
-associated \file{.mo} file path.  Instances with
+\function{find()} to get a list of the
+associated \file{.mo} file paths.  Instances with
 identical \file{.mo} file names are cached.  The actual class instantiated
 is either \var{class_} if provided, otherwise
 \class{GNUTranslations}.  The class's constructor must take a single
-file object argument.  If no \file{.mo} file is found, this
-function raises \exception{IOError}.
+file object argument. If provided, \var{codeset} will change the
+charset used to encode translated strings.
+
+If multiple files are found, later files are used as fallbacks for
+earlier ones. To allow setting the fallback, \function{copy.copy}
+is used to clone each translation object from the cache; the actual
+instance data is still shared with the cache.
+
+If no \file{.mo} file is found, this function raises
+\exception{IOError} if \var{fallback} is false (which is the default),
+and returns a \class{NullTranslations} instance if \var{fallback} is
+true.
+
+\versionchanged[Added the \var{codeset} parameter]{2.4}
 \end{funcdesc}
 
-\begin{funcdesc}{install}{domain\optional{, localedir\optional{, unicode}}}
+\begin{funcdesc}{install}{domain\optional{, localedir\optional{, unicode
+			  \optional{, codeset}}}}
 This installs the function \function{_} in Python's builtin namespace,
-based on \var{domain}, and \var{localedir} which are passed to the
-function \function{translation()}.  The \var{unicode} flag is passed to
-the resulting translation object's \method{install} method.
+based on \var{domain}, \var{localedir}, and \var{codeset} which are
+passed to the function \function{translation()}.  The \var{unicode}
+flag is passed to the resulting translation object's \method{install}
+method.
 
 As seen below, you usually mark the strings in your application that are
-candidates for translation, by wrapping them in a call to the function
-\function{_()}, e.g.
+candidates for translation, by wrapping them in a call to the
+\function{_()} function, like this:
 
 \begin{verbatim}
 print _('This string will be translated.')
@@ -151,6 +237,8 @@ print _('This string will be translated.')
 For convenience, you want the \function{_()} function to be installed in
 Python's builtin namespace, so it is easily accessible in all modules
 of your application.  
+
+\versionchanged[Added the \var{codeset} parameter]{2.4}
 \end{funcdesc}
 
 \subsubsection{The \class{NullTranslations} class}
@@ -164,7 +252,8 @@ methods of \class{NullTranslations}:
 \begin{methoddesc}[NullTranslations]{__init__}{\optional{fp}}
 Takes an optional file object \var{fp}, which is ignored by the base
 class.  Initializes ``protected'' instance variables \var{_info} and
-\var{_charset} which are set by derived classes.  It then calls
+\var{_charset} which are set by derived classes, as well as \var{_fallback},
+which is set through \method{add_fallback}.  It then calls
 \code{self._parse(fp)} if \var{fp} is not \code{None}.
 \end{methoddesc}
 
@@ -175,13 +264,50 @@ you have an unsupported message catalog file format, you should
 override this method to parse your format.
 \end{methoddesc}
 
+\begin{methoddesc}[NullTranslations]{add_fallback}{fallback}
+Add \var{fallback} as the fallback object for the current translation
+object. A translation object should consult the fallback if it cannot
+provide a translation for a given message.
+\end{methoddesc}
+
 \begin{methoddesc}[NullTranslations]{gettext}{message}
-Return the translated message.  Overridden in derived classes.
+If a fallback has been set, forward \method{gettext()} to the fallback.
+Otherwise, return the translated message.  Overridden in derived classes.
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{lgettext}{message}
+If a fallback has been set, forward \method{lgettext()} to the fallback.
+Otherwise, return the translated message.  Overridden in derived classes.
+
+\versionadded{2.4}
 \end{methoddesc}
 
 \begin{methoddesc}[NullTranslations]{ugettext}{message}
-Return the translated message as a Unicode string.  Overridden in
-derived classes.
+If a fallback has been set, forward \method{ugettext()} to the fallback.
+Otherwise, return the translated message as a Unicode string.
+Overridden in derived classes.
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{ngettext}{singular, plural, n}
+If a fallback has been set, forward \method{ngettext()} to the fallback.
+Otherwise, return the translated message.  Overridden in derived classes.
+
+\versionadded{2.3}
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{lngettext}{singular, plural, n}
+If a fallback has been set, forward \method{ngettext()} to the fallback.
+Otherwise, return the translated message.  Overridden in derived classes.
+
+\versionadded{2.4}
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{ungettext}{singular, plural, n}
+If a fallback has been set, forward \method{ungettext()} to the fallback.
+Otherwise, return the translated message as a Unicode string.
+Overridden in derived classes.
+
+\versionadded{2.3}
 \end{methoddesc}
 
 \begin{methoddesc}[NullTranslations]{info}{}
@@ -190,6 +316,20 @@ Return the ``protected'' \member{_info} variable.
 
 \begin{methoddesc}[NullTranslations]{charset}{}
 Return the ``protected'' \member{_charset} variable.
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{output_charset}{}
+Return the ``protected'' \member{_output_charset} variable, which
+defines the encoding used to return translated messages.
+
+\versionadded{2.4}
+\end{methoddesc}
+
+\begin{methoddesc}[NullTranslations]{set_output_charset}{charset}
+Change the ``protected'' \member{_output_charset} variable, which
+defines the encoding used to return translated messages.
+
+\versionadded{2.4}
 \end{methoddesc}
 
 \begin{methoddesc}[NullTranslations]{install}{\optional{unicode}}
@@ -221,24 +361,107 @@ The \module{gettext} module provides one additional class derived from
 \class{NullTranslations}: \class{GNUTranslations}.  This class
 overrides \method{_parse()} to enable reading GNU \program{gettext}
 format \file{.mo} files in both big-endian and little-endian format.
+It also coerces both message ids and message strings to Unicode.
 
-It also parses optional meta-data out of the translation catalog.  It
-is convention with GNU \program{gettext} to include meta-data as the
-translation for the empty string.  This meta-data is in \rfc{822}-style
-\code{key: value} pairs.  If the key \code{Content-Type} is found,
-then the \code{charset} property is used to initialize the
-``protected'' \member{_charset} instance variable.  The entire set of
-key/value pairs are placed into a dictionary and set as the
-``protected'' \member{_info} instance variable.
+\class{GNUTranslations} parses optional meta-data out of the
+translation catalog.  It is convention with GNU \program{gettext} to
+include meta-data as the translation for the empty string.  This
+meta-data is in \rfc{822}-style \code{key: value} pairs, and should
+contain the \code{Project-Id-Version} key.  If the key
+\code{Content-Type} is found, then the \code{charset} property is used
+to initialize the ``protected'' \member{_charset} instance variable,
+defaulting to \code{None} if not found.  If the charset encoding is
+specified, then all message ids and message strings read from the
+catalog are converted to Unicode using this encoding.  The
+\method{ugettext()} method always returns a Unicode, while the
+\method{gettext()} returns an encoded 8-bit string.  For the message
+id arguments of both methods, either Unicode strings or 8-bit strings
+containing only US-ASCII characters are acceptable.  Note that the
+Unicode version of the methods (i.e. \method{ugettext()} and
+\method{ungettext()}) are the recommended interface to use for
+internationalized Python programs.
+
+The entire set of key/value pairs are placed into a dictionary and set
+as the ``protected'' \member{_info} instance variable.
 
 If the \file{.mo} file's magic number is invalid, or if other problems
 occur while reading the file, instantiating a \class{GNUTranslations} class
 can raise \exception{IOError}.
 
-The other usefully overridden method is \method{ugettext()}, which
-returns a Unicode string by passing both the translated message string
-and the value of the ``protected'' \member{_charset} variable to the
-builtin \function{unicode()} function.
+The following methods are overridden from the base class implementation:
+
+\begin{methoddesc}[GNUTranslations]{gettext}{message}
+Look up the \var{message} id in the catalog and return the
+corresponding message string, as an 8-bit string encoded with the
+catalog's charset encoding, if known.  If there is no entry in the
+catalog for the \var{message} id, and a fallback has been set, the
+look up is forwarded to the fallback's \method{gettext()} method.
+Otherwise, the \var{message} id is returned.
+\end{methoddesc}
+
+\begin{methoddesc}[GNUTranslations]{lgettext}{message}
+Equivalent to \method{gettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \method{set_output_charset()}.
+
+\versionadded{2.4}
+\end{methoddesc}
+
+\begin{methoddesc}[GNUTranslations]{ugettext}{message}
+Look up the \var{message} id in the catalog and return the
+corresponding message string, as a Unicode string.  If there is no
+entry in the catalog for the \var{message} id, and a fallback has been
+set, the look up is forwarded to the fallback's \method{ugettext()}
+method.  Otherwise, the \var{message} id is returned.
+\end{methoddesc}
+
+\begin{methoddesc}[GNUTranslations]{ngettext}{singular, plural, n}
+Do a plural-forms lookup of a message id.  \var{singular} is used as
+the message id for purposes of lookup in the catalog, while \var{n} is
+used to determine which plural form to use.  The returned message
+string is an 8-bit string encoded with the catalog's charset encoding,
+if known.
+
+If the message id is not found in the catalog, and a fallback is
+specified, the request is forwarded to the fallback's
+\method{ngettext()} method.  Otherwise, when \var{n} is 1 \var{singular} is
+returned, and \var{plural} is returned in all other cases.
+
+\versionadded{2.3}
+\end{methoddesc}
+
+\begin{methoddesc}[GNUTranslations]{lngettext}{singular, plural, n}
+Equivalent to \method{gettext()}, but the translation is returned
+in the preferred system encoding, if no other encoding was explicitly
+set with \method{set_output_charset()}.
+
+\versionadded{2.4}
+\end{methoddesc}
+
+\begin{methoddesc}[GNUTranslations]{ungettext}{singular, plural, n}
+Do a plural-forms lookup of a message id.  \var{singular} is used as
+the message id for purposes of lookup in the catalog, while \var{n} is
+used to determine which plural form to use.  The returned message
+string is a Unicode string.
+
+If the message id is not found in the catalog, and a fallback is
+specified, the request is forwarded to the fallback's
+\method{ungettext()} method.  Otherwise, when \var{n} is 1 \var{singular} is
+returned, and \var{plural} is returned in all other cases.
+
+Here is an example:
+
+\begin{verbatim}
+n = len(os.listdir('.'))
+cat = GNUTranslations(somefile)
+message = cat.ungettext(
+    'There is %(num)d file in this directory',
+    'There are %(num)d files in this directory',
+    n) % {'num': n}
+\end{verbatim}
+
+\versionadded{2.3}
+\end{methoddesc}
 
 \subsubsection{Solaris message catalog support}
 
@@ -260,7 +483,7 @@ print _('hello world')
 \end{verbatim}
 
 For compatibility with this older module, the function
-\function{Catalog()} is an alias for the the \function{translation()}
+\function{Catalog()} is an alias for the \function{translation()}
 function described above.
 
 One difference between this module and Henstridge's: his catalog
@@ -287,8 +510,8 @@ steps:
 
 In order to prepare your code for I18N, you need to look at all the
 strings in your files.  Any string that needs to be translated
-should be marked by wrapping it in \code{_('...')} -- i.e. a call to
-the function \function{_()}.  For example:
+should be marked by wrapping it in \code{_('...')} --- that is, a call
+to the function \function{_()}.  For example:
 
 \begin{verbatim}
 filename = 'mylog.txt'
@@ -302,28 +525,49 @@ In this example, the string \code{'writing a log message'} is marked as
 a candidate for translation, while the strings \code{'mylog.txt'} and
 \code{'w'} are not.
 
-The GNU \code{gettext} package provides a tool, called
-\program{xgettext}, that scans C and \Cpp{} source code looking for these
-specially marked strings.  \program{xgettext} generates what are
-called \file{.pot} files, essentially structured human readable files
-which contain every marked string in the source code.  These
-\file{.pot} files are copied and handed over to human translators who write
-language-specific versions for every supported natural language.
+The Python distribution comes with two tools which help you generate
+the message catalogs once you've prepared your source code.  These may
+or may not be available from a binary distribution, but they can be
+found in a source distribution, in the \file{Tools/i18n} directory.
 
-For I18N Python programs however, \program{xgettext} won't work; it
-doesn't understand the myriad of string types support by Python.  The
-standard Python distribution provides a tool called
-\program{pygettext} that does though (found in the \file{Tools/i18n/}
-directory).\footnote{Fran\c cois Pinard has written a program called
+The \program{pygettext}\footnote{Fran\c cois Pinard has
+written a program called
 \program{xpot} which does a similar job.  It is available as part of
 his \program{po-utils} package at
-\url{http://www.iro.umontreal.ca/contrib/po-utils/HTML}.
-}  This is a command line script that
-supports a similar interface as \program{xgettext}; see its
-documentation for details.  Once you've used \program{pygettext} to
-create your \file{.pot} files, you can use the standard GNU
-\program{gettext} tools to generate your machine-readable \file{.mo}
-files, which are readable by the \class{GNUTranslations} class.
+\url{http://po-utils.progiciels-bpi.ca/}.} program
+scans all your Python source code looking for the strings you
+previously marked as translatable.  It is similar to the GNU
+\program{gettext} program except that it understands all the
+intricacies of Python source code, but knows nothing about C or \Cpp
+source code.  You don't need GNU \code{gettext} unless you're also
+going to be translating C code (such as C extension modules).
+
+\program{pygettext} generates textual Uniforum-style human readable
+message catalog \file{.pot} files, essentially structured human
+readable files which contain every marked string in the source code,
+along with a placeholder for the translation strings.
+\program{pygettext} is a command line script that supports a similar
+command line interface as \program{xgettext}; for details on its use,
+run:
+
+\begin{verbatim}
+pygettext.py --help
+\end{verbatim}
+
+Copies of these \file{.pot} files are then handed over to the
+individual human translators who write language-specific versions for
+every supported natural language.  They send you back the filled in
+language-specific versions as a \file{.po} file.  Using the
+\program{msgfmt.py}\footnote{\program{msgfmt.py} is binary
+compatible with GNU \program{msgfmt} except that it provides a
+simpler, all-Python implementation.  With this and
+\program{pygettext.py}, you generally won't need to install the GNU
+\program{gettext} package to internationalize your Python
+applications.} program (in the \file{Tools/i18n} directory), you take the
+\file{.po} files from your translators and generate the
+machine-readable \file{.mo} binary catalog files.  The \file{.mo}
+files are what the \module{gettext} module uses for the actual
+translation processing during run-time.
 
 How you use the \module{gettext} module in your code depends on
 whether you are internationalizing your entire application or a single
@@ -343,7 +587,7 @@ you would put at the top of your module:
 \begin{verbatim}
 import gettext
 t = gettext.translation('spam', '/usr/share/locale')
-_ = t.gettext
+_ = t.lgettext
 \end{verbatim}
 
 If your translators were providing you with Unicode strings in their
@@ -388,9 +632,9 @@ between them explicitly, like so:
 \begin{verbatim}
 import gettext
 
-lang1 = gettext.translation(languages=['en'])
-lang2 = gettext.translation(languages=['fr'])
-lang3 = gettext.translation(languages=['de'])
+lang1 = gettext.translation('myapplication', languages=['en'])
+lang2 = gettext.translation('myapplication', languages=['fr'])
+lang3 = gettext.translation('myapplication', languages=['de'])
 
 # start by using language1
 lang1.install()
@@ -404,7 +648,7 @@ lang3.install()
 
 \subsubsection{Deferred translations}
 
-In most coding situations, strings are translated were they are coded.
+In most coding situations, strings are translated where they are coded.
 Occasionally however, you need to mark strings for translation, but
 defer actual translation until later.  A classic example is:
 
@@ -481,6 +725,21 @@ program to look for translatable strings marked with \function{N_()}.
 \program{pygettext} and \program{xpot} both support this through the
 use of command line switches.
 
+\subsubsection{\function{gettext()} vs. \function{lgettext()}}
+In Python 2.4 the \function{lgettext()} family of functions were
+introduced. The intention of these functions is to provide an
+alternative which is more compliant with the current
+implementation of GNU gettext. Unlike \function{gettext()}, which
+returns strings encoded with the same codeset used in the
+translation file, \function{lgettext()} will return strings
+encoded with the preferred system encoding, as returned by
+\function{locale.getpreferredencoding()}. Also notice that
+Python 2.4 introduces new functions to explicitly choose
+the codeset used in translated strings. If a codeset is explicitly
+set, even \function{lgettext()} will return translated strings in
+the requested codeset, as would be expected in the GNU gettext
+implementation.
+
 \subsection{Acknowledgements}
 
 The following people contributed code, feedback, design suggestions,
@@ -490,8 +749,10 @@ this module:
 \begin{itemize}
     \item Peter Funk
     \item James Henstridge
+    \item Juan David Ib\'a\~nez Palomar
     \item Marc-Andr\'e Lemburg
     \item Martin von L\"owis
     \item Fran\c cois Pinard
     \item Barry Warsaw
+    \item Gustavo Niemeyer
 \end{itemize}

@@ -112,7 +112,7 @@ static void PyThread__init_thread( void )
 
 static int32 thread_count = 0;
 
-int PyThread_start_new_thread( void (*func)(void *), void *arg )
+long PyThread_start_new_thread( void (*func)(void *), void *arg )
 {
 	status_t success = 0;
 	thread_id tid;
@@ -123,7 +123,8 @@ int PyThread_start_new_thread( void (*func)(void *), void *arg )
 
 	/* We are so very thread-safe... */
 	this_thread = atomic_add( &thread_count, 1 );
-	sprintf( name, "python thread (%d)", this_thread );
+	PyOS_snprintf(name, sizeof(name),
+		      "python thread (%d)", this_thread );
 
 	tid = spawn_thread( (thread_func)func, name,
 	                    B_NORMAL_PRIORITY, arg );
@@ -131,7 +132,7 @@ int PyThread_start_new_thread( void (*func)(void *), void *arg )
 		success = resume_thread( tid );
 	}
 
-	return ( success == B_NO_ERROR ? 1 : 0 );
+	return ( success == B_NO_ERROR ? tid : -1 );
 }
 
 long PyThread_get_thread_ident( void )
@@ -222,7 +223,7 @@ PyThread_type_lock PyThread_allocate_lock( void )
 	}
 
 	this_lock = atomic_add( &lock_count, 1 );
-	sprintf( name, "python lock (%d)", this_lock );
+	PyOS_snprintf(name, sizeof(name), "python lock (%d)", this_lock);
 
 	retval = benaphore_create( name, lock );
 	if( retval != EOK ) {
@@ -280,76 +281,6 @@ void PyThread_release_lock( PyThread_type_lock lock )
 	
 	retval = benaphore_unlock( (benaphore_t *)lock );
 	if( retval != EOK ) {
-		/* TODO: that's bad, raise an exception */
-		return;
-	}
-}
-
-/* ----------------------------------------------------------------------
- * Semaphore support.
- *
- * Guido says not to implement this because it's not used anywhere;
- * I'll do it anyway, you never know when it might be handy, and it's
- * easy...
- */
-PyThread_type_sema PyThread_allocate_sema( int value )
-{
-	sem_id sema;
-	
-	dprintf(("PyThread_allocate_sema called\n"));
-
-	sema = create_sem( value, "python semaphore" );
-	if( sema < B_NO_ERROR ) {
-		/* TODO: that's bad, raise an exception */
-		return 0;
-	}
-
-	dprintf(("PyThread_allocate_sema() -> %p\n", sema));
-	return (PyThread_type_sema) sema;
-}
-
-void PyThread_free_sema( PyThread_type_sema sema )
-{
-	status_t retval;
-	
-	dprintf(("PyThread_free_sema(%p) called\n", sema));
-	
-	retval = delete_sem( (sem_id)sema );
-	if( retval != B_NO_ERROR ) {
-		/* TODO: that's bad, raise an exception */
-		return;
-	}
-}
-
-int PyThread_down_sema( PyThread_type_sema sema, int waitflag )
-{
-	status_t retval;
-
-	dprintf(("PyThread_down_sema(%p, %d) called\n", sema, waitflag));
-
-	if( waitflag ) {
-		retval = acquire_sem( (sem_id)sema );
-	} else {
-		retval = acquire_sem_etc( (sem_id)sema, 1, B_TIMEOUT, 0 );
-	}
-	
-	if( retval != B_NO_ERROR ) {
-		/* TODO: that's bad, raise an exception */
-		return 0;
-	}
-
-	dprintf(("PyThread_down_sema(%p) return\n", sema));
-	return -1;
-}
-
-void PyThread_up_sema( PyThread_type_sema sema )
-{
-	status_t retval;
-	
-	dprintf(("PyThread_up_sema(%p)\n", sema));
-	
-	retval = release_sem( (sem_id)sema );
-	if( retval != B_NO_ERROR ) {
 		/* TODO: that's bad, raise an exception */
 		return;
 	}

@@ -1,4 +1,4 @@
-# created 1999/03/13, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -6,7 +6,11 @@ import sys, os, string
 from types import IntType
 from distutils.core import Command
 from distutils.errors import DistutilsOptionError
-from distutils.dir_util import copy_tree
+
+
+# Extension for Python source files.
+PYTHON_SOURCE_EXTENSION = os.extsep + "py"
+
 
 class install_lib (Command):
 
@@ -20,7 +24,7 @@ class install_lib (Command):
     #   4) compile "level 1" .pyo only (--no-compile --optimize)
     #   5) compile .pyc and "level 2" .pyo (--compile --optimize-more)
     #   6) compile "level 2" .pyo only (--no-compile --optimize-more)
-    # 
+    #
     # The UI for this is two option, 'compile' and 'optimize'.
     # 'compile' is strictly boolean, and only decides whether to
     # generate .pyc files.  'optimize' is three-way (0, 1, or 2), and
@@ -38,7 +42,7 @@ class install_lib (Command):
          "-O2 for \"python -OO\", and -O0 to disable [default: -O0]"),
         ('skip-build', None, "skip the build steps"),
         ]
-               
+
     boolean_options = ['force', 'compile', 'skip-build']
     negative_opt = {'no-compile' : 'compile'}
 
@@ -82,7 +86,7 @@ class install_lib (Command):
 
         # Make sure we have built everything we need first
         self.build()
-        
+
         # Install everything: simply dump the entire contents of the build
         # directory to the installation directory (that's the beauty of
         # having a build directory!)
@@ -104,7 +108,7 @@ class install_lib (Command):
                 self.run_command('build_py')
             if self.distribution.has_ext_modules():
                 self.run_command('build_ext')
-        
+
     def install (self):
         if os.path.isdir(self.build_dir):
             outfiles = self.copy_tree(self.build_dir, self.install_dir)
@@ -125,13 +129,11 @@ class install_lib (Command):
 
         if self.compile:
             byte_compile(files, optimize=0,
-                         force=self.force,
-                         prefix=install_root,
-                         verbose=self.verbose, dry_run=self.dry_run)
+                         force=self.force, prefix=install_root,
+                         dry_run=self.dry_run)
         if self.optimize > 0:
             byte_compile(files, optimize=self.optimize,
-                         force=self.force,
-                         prefix=install_root,
+                         force=self.force, prefix=install_root,
                          verbose=self.verbose, dry_run=self.dry_run)
 
 
@@ -158,13 +160,19 @@ class install_lib (Command):
     def _bytecode_filenames (self, py_filenames):
         bytecode_files = []
         for py_file in py_filenames:
+            # Since build_py handles package data installation, the
+            # list of outputs can contain more than just .py files.
+            # Make sure we only report bytecode for the .py files.
+            ext = os.path.splitext(os.path.normcase(py_file))[1]
+            if ext != PYTHON_SOURCE_EXTENSION:
+                continue
             if self.compile:
                 bytecode_files.append(py_file + "c")
             if self.optimize > 0:
                 bytecode_files.append(py_file + "o")
 
         return bytecode_files
-        
+
 
     # -- External interface --------------------------------------------
     # (called by outsiders)
@@ -199,7 +207,7 @@ class install_lib (Command):
         filenames returned by 'get_outputs()'.
         """
         inputs = []
-        
+
         if self.distribution.has_pure_modules():
             build_py = self.get_finalized_command('build_py')
             inputs.extend(build_py.get_outputs())

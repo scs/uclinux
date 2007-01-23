@@ -4,8 +4,7 @@ Implements the Distutils 'build_clib' command, to build a C/C++ library
 that is included in the module distribution and needed by an extension
 module."""
 
-# created (an empty husk) 1999/12/18, Greg Ward
-# fleshed out 2000/02/03-04
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -24,7 +23,7 @@ from types import *
 from distutils.core import Command
 from distutils.errors import *
 from distutils.sysconfig import customize_compiler
-
+from distutils import log
 
 def show_compilers ():
     from distutils.ccompiler import show_compilers
@@ -111,7 +110,6 @@ class build_clib (Command):
         # Yech -- this is cut 'n pasted from build_ext.py!
         from distutils.ccompiler import new_compiler
         self.compiler = new_compiler(compiler=self.compiler,
-                                     verbose=self.verbose,
                                      dry_run=self.dry_run,
                                      force=self.force)
         customize_compiler(self.compiler)
@@ -156,7 +154,7 @@ class build_clib (Command):
                       "must be a string (the library name)"
             if '/' in lib[0] or (os.sep != '/' and os.sep in lib[0]):
                 raise DistutilsSetupError, \
-                      ("bad library name '%s': " + 
+                      ("bad library name '%s': " +
                        "may not contain directory separators") % \
                       lib[0]
 
@@ -184,9 +182,25 @@ class build_clib (Command):
     # get_library_names ()
 
 
-    def build_libraries (self, libraries):
+    def get_source_files (self):
+        self.check_library_list(self.libraries)
+        filenames = []
+        for (lib_name, build_info) in self.libraries:
+            sources = build_info.get('sources')
+            if (sources is None or
+                type(sources) not in (ListType, TupleType) ):
+                raise DistutilsSetupError, \
+                      ("in 'libraries' option (library '%s'), "
+                       "'sources' must be present and must be "
+                       "a list of source filenames") % lib_name
 
-        compiler = self.compiler
+            filenames.extend(sources)
+
+        return filenames
+    # get_source_files ()
+
+
+    def build_libraries (self, libraries):
 
         for (lib_name, build_info) in libraries:
             sources = build_info.get('sources')
@@ -197,7 +211,7 @@ class build_clib (Command):
                        "a list of source filenames") % lib_name
             sources = list(sources)
 
-            self.announce("building '%s' library" % lib_name)
+            log.info("building '%s' library", lib_name)
 
             # First, compile the source code to object files in the library
             # directory.  (This should probably change to putting object

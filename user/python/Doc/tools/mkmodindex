@@ -25,15 +25,19 @@ Supported options:
     --uptitle str   Set the upward link title.  The default is 'Python
                     Documentation Index'.
 """
-import buildindex
 import os
 import re
-import string
-import support
 import sys
+
+from xml.sax.saxutils import quoteattr
+
+import buildindex
+import support
 
 
 class IndexOptions(support.Options):
+    aesop_type = "links"
+
     def __init__(self):
         support.Options.__init__(self)
         self.add_args("l", ["letters"])
@@ -47,11 +51,47 @@ class IndexOptions(support.Options):
         program = os.path.basename(sys.argv[0])
         print __doc__ % {"program": program}
 
+    links = [
+        ('author', 'acks.html',  'Acknowledgements'),
+        ('help',   'about.html', 'About the Python Documentation'),
+        ]
+
+    def get_header(self):
+        header = support.Options.get_header(self)
+        s = ''
+        for rel, href, title in self.links:
+            s += '<link rel="%s" href="%s"' % (rel, href)
+            if title:
+                s += ' title=' + quoteattr(title)
+            s += '>\n  '
+        return header.replace("<link ", s + "<link ", 1)
+
+
+class Node(buildindex.Node):
+    def __init__(self, link, str, seqno, platinfo):
+        self.annotation = platinfo or None
+        if str[0][-5:] == "</tt>":
+            str = str[:-5]
+        self.modname = str
+        buildindex.Node.__init__(self, link, self.modname, seqno)
+        if platinfo:
+            s = '<tt class="module">%s</tt> %s' \
+                % (self.modname, self.annotation)
+        else:
+            s = '<tt class="module">%s</tt>' % str
+        self.text = [s]
+
+    def __str__(self):
+        if self.annotation:
+            return '<tt class="module">%s</tt> %s' \
+                   % (self.modname, self.annotation)
+        else:
+            return '<tt class="module">%s</tt>' % self.modname
 
 _rx = re.compile(
-    "<dt><a href='(module-.*\.html)#l2h-\d+'><tt class='module'>"
-    "([a-zA-Z_][a-zA-Z0-9_.]*</tt>(\s*<em>"
-    "\(<span class='platform'>.*</span>\)</em>)?)</a>")
+    "<dt><a href=['\"](module-.*\.html)(?:#l2h-\d+)?['\"]>"
+    "<tt class=['\"]module['\"]>([a-zA-Z_][a-zA-Z0-9_.]*)</tt>\s*(<em>"
+    "\(<span class=['\"]platform['\"]>.*</span>\)</em>)?</a>")
 
 def main():
     options = IndexOptions()
@@ -64,7 +104,6 @@ def main():
     # Collect the input data:
     #
     nodes = []
-    seqno = 0
     has_plat_flag = 0
     for ifn in args:
         if ifn == "-":
@@ -80,14 +119,11 @@ def main():
             m = _rx.match(line)
             if m:
                 # This line specifies a module!
-                basename, modname = m.group(1, 2)
-                has_plat_flag = has_plat_flag or m.group(3)
+                basename, modname, platinfo = m.group(1, 2, 3)
+                has_plat_flag = has_plat_flag or platinfo
                 linkfile = os.path.join(dirname, basename)
-                nodes.append(buildindex.Node(
-                    '<a href="%s">' % linkfile,
-                    "<tt class=module>%s</tt>" % modname,
-                    seqno))
-                seqno = seqno + 1
+                nodes.append(Node('<a href="%s">' % linkfile, modname,
+                                  len(nodes), platinfo))
         ifp.close()
     #
     # Generate all output:
@@ -100,12 +136,12 @@ def main():
              ]
     if has_plat_flag:
         parts.insert(1, PLAT_DISCUSS)
-    html = string.join(parts, '')
+    html = ''.join(parts)
     program = os.path.basename(sys.argv[0])
     fp = options.get_output_file()
-    print >>fp, html.rstrip()
+    fp.write(html.rstrip() + "\n")
     if options.outputfile == "-":
-        print >>sys.stderr, "%s: %d index nodes" % (program, num_nodes)
+        sys.stderr.write("%s: %d index nodes\n" % (program, num_nodes))
     else:
         print
         print "%s: %d index nodes" % (program, num_nodes)

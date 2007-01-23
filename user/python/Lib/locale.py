@@ -11,12 +11,17 @@
 
 """
 
-import string, sys
+import sys
 
 # Try importing the _locale module.
 #
 # If this fails, fall back on a basic 'C' locale emulation.
-#
+
+# Yuck:  LC_MESSAGES is non-standard:  can't tell whether it exists before
+# trying the import.  So __all__ is also fiddled at the end of the file.
+__all__ = ["setlocale","Error","localeconv","strcoll","strxfrm",
+           "format","str","atof","atoi","LC_CTYPE","LC_COLLATE",
+           "LC_TIME","LC_MONETARY","LC_NUMERIC", "LC_ALL","CHAR_MAX"]
 
 try:
 
@@ -64,8 +69,7 @@ except ImportError:
         """ setlocale(integer,string=None) -> string.
             Activates/queries locale processing.
         """
-        if value is not None and \
-           value is not 'C':
+        if value not in (None, '', 'C'):
             raise Error, '_locale emulation only supports "C" locale'
         return 'C'
 
@@ -89,8 +93,14 @@ except ImportError:
 def _group(s):
     conv=localeconv()
     grouping=conv['grouping']
-    if not grouping:return s
+    if not grouping:return (s, 0)
     result=""
+    seps = 0
+    spaces = ""
+    if s[-1] == ' ':
+        sp = s.find(' ')
+        spaces = s[sp:]
+        s = s[:sp]
     while s and grouping:
         # if grouping is -1, we are done
         if grouping[0]==CHAR_MAX:
@@ -102,52 +112,69 @@ def _group(s):
             grouping=grouping[1:]
         if result:
             result=s[-group:]+conv['thousands_sep']+result
+            seps += 1
         else:
             result=s[-group:]
         s=s[:-group]
+        if s and s[-1] not in "0123456789":
+            # the leading string is only spaces and signs
+            return s+result+spaces,seps
     if not result:
-        return s
+        return s+spaces,seps
     if s:
         result=s+conv['thousands_sep']+result
-    return result
+        seps += 1
+    return result+spaces,seps
 
 def format(f,val,grouping=0):
     """Formats a value in the same way that the % formatting would use,
     but takes the current locale into account.
     Grouping is applied if the third parameter is true."""
     result = f % val
-    fields = string.split(result, ".")
+    fields = result.split(".")
+    seps = 0
     if grouping:
-        fields[0]=_group(fields[0])
+        fields[0],seps=_group(fields[0])
     if len(fields)==2:
-        return fields[0]+localeconv()['decimal_point']+fields[1]
+        result = fields[0]+localeconv()['decimal_point']+fields[1]
     elif len(fields)==1:
-        return fields[0]
+        result = fields[0]
     else:
         raise Error, "Too many decimal points in result string"
+
+    while seps:
+        # If the number was formatted for a specific width, then it
+        # might have been filled with spaces to the left or right. If
+        # so, kill as much spaces as there where separators.
+        # Leading zeroes as fillers are not yet dealt with, as it is
+        # not clear how they should interact with grouping.
+        sp = result.find(" ")
+        if sp==-1:break
+        result = result[:sp]+result[sp+1:]
+        seps -= 1
+
+    return result
 
 def str(val):
     """Convert float to integer, taking the locale into account."""
     return format("%.12g",val)
 
-def atof(str,func=string.atof):
+def atof(string,func=float):
     "Parses a string as a float according to the locale settings."
     #First, get rid of the grouping
     ts = localeconv()['thousands_sep']
     if ts:
-        s=string.split(str,ts)
-        str=string.join(s, "")
+        string = string.replace(ts, '')
     #next, replace the decimal point with a dot
     dd = localeconv()['decimal_point']
     if dd:
-        s=string.split(str,dd)
-        str=string.join(s, '.')
+        string = string.replace(dd, '.')
     #finally, parse the string
-    return func(str)
+    return func(string)
 
 def atoi(str):
     "Converts a string to an integer according to the locale settings."
-    return atof(str,string.atoi)
+    return atof(str, int)
 
 def _test():
     setlocale(LC_ALL, "")
@@ -161,7 +188,7 @@ def _test():
 ### Locale name aliasing engine
 
 # Author: Marc-Andre Lemburg, mal@lemburg.com
-# Various tweaks by Fredrik Lundh <effbot@telia.com>
+# Various tweaks by Fredrik Lundh <fredrik@pythonware.com>
 
 # store away the low-level version of setlocale (it's
 # overridden below)
@@ -184,12 +211,12 @@ def normalize(localename):
 
     """
     # Normalize the locale name and extract the encoding
-    fullname = string.lower(localename)
+    fullname = localename.lower()
     if ':' in fullname:
         # ':' is sometimes used as encoding delimiter.
-        fullname = string.replace(fullname, ':', '.')
+        fullname = fullname.replace(':', '.')
     if '.' in fullname:
-        langname, encoding = string.split(fullname, '.')[:2]
+        langname, encoding = fullname.split('.')[:2]
         fullname = langname + '.' + encoding
     else:
         langname = fullname
@@ -204,7 +231,7 @@ def normalize(localename):
     code = locale_alias.get(langname, None)
     if code is not None:
         if '.' in code:
-            langname, defenc = string.split(code, '.')
+            langname, defenc = code.split('.')
         else:
             langname = code
             defenc = ''
@@ -235,13 +262,20 @@ def _parse_localename(localename):
 
     """
     code = normalize(localename)
+    if '@' in code:
+        # Deal with locale modifiers
+        code, modifier = code.split('@')
+        if modifier == 'euro' and '.' not in code:
+            # Assume Latin-9 for @euro locales. This is bogus,
+            # since some systems may use other encodings for these
+            # locales. Also, we ignore other modifiers.
+            return code, 'iso-8859-15'
+
     if '.' in code:
-        return string.split(code, '.')[:2]
+        return tuple(code.split('.')[:2])
     elif code == 'C':
         return None, None
-    else:
-        raise ValueError, 'unknown locale: %s' % localename
-    return l
+    raise ValueError, 'unknown locale: %s' % localename
 
 def _build_localename(localetuple):
 
@@ -259,7 +293,7 @@ def _build_localename(localetuple):
     else:
         return language + '.' + encoding
 
-def getdefaultlocale(envvars=('LANGUAGE', 'LC_ALL', 'LC_CTYPE', 'LANG')):
+def getdefaultlocale(envvars=('LC_ALL', 'LC_CTYPE', 'LANG', 'LANGUAGE')):
 
     """ Tries to determine the default locale settings and returns
         them as tuple (language code, encoding).
@@ -303,7 +337,9 @@ def getdefaultlocale(envvars=('LANGUAGE', 'LC_ALL', 'LC_CTYPE', 'LANG')):
     lookup = os.environ.get
     for variable in envvars:
         localename = lookup(variable,None)
-        if localename is not None:
+        if localename:
+            if variable == 'LANGUAGE':
+                localename = localename.split(':')[0]
             break
     else:
         localename = 'C'
@@ -353,6 +389,38 @@ def resetlocale(category=LC_ALL):
 
     """
     _setlocale(category, _build_localename(getdefaultlocale()))
+
+if sys.platform in ('win32', 'darwin', 'mac'):
+    # On Win32, this will return the ANSI code page
+    # On the Mac, it should return the system encoding;
+    # it might return "ascii" instead
+    def getpreferredencoding(do_setlocale = True):
+        """Return the charset that the user is likely using."""
+        import _locale
+        return _locale._getdefaultlocale()[1]
+else:
+    # On Unix, if CODESET is available, use that.
+    try:
+        CODESET
+    except NameError:
+        # Fall back to parsing environment variables :-(
+        def getpreferredencoding(do_setlocale = True):
+            """Return the charset that the user is likely using,
+            by looking at environment variables."""
+            return getdefaultlocale()[1]
+    else:
+        def getpreferredencoding(do_setlocale = True):
+            """Return the charset that the user is likely using,
+            according to the system configuration."""
+            if do_setlocale:
+                oldloc = setlocale(LC_CTYPE)
+                setlocale(LC_CTYPE, "")
+                result = nl_langinfo(CODESET)
+                setlocale(LC_CTYPE, oldloc)
+                return result
+            else:
+                return nl_langinfo(CODESET)
+
 
 ### Database
 #
@@ -593,43 +661,199 @@ locale_alias = {
 }
 
 #
-# this maps windows language identifiers (as used on Windows 95 and
-# earlier) to locale strings.
+# This maps Windows language identifiers to locale strings.
 #
-# NOTE: this mapping is incomplete.  If your language is missing, send
-# a note with the missing language identifier and the suggested locale
-# code to Fredrik Lundh <effbot@telia.com>.  Thanks /F
+# This list has been updated from
+# http://msdn.microsoft.com/library/default.asp?url=/library/en-us/intl/nls_238z.asp
+# to include every locale up to Windows XP.
+#
+# NOTE: this mapping is incomplete.  If your language is missing, please
+# submit a bug report to Python bug manager, which you can find via:
+#     http://www.python.org/dev/
+# Make sure you include the missing language identifier and the suggested
+# locale code.
+#
 
 windows_locale = {
-    0x0404: "zh_TW", # Chinese (Taiwan)
-    0x0804: "zh_CN", # Chinese (PRC)
+    0x0436: "af_ZA", # Afrikaans
+    0x041c: "sq_AL", # Albanian
+    0x0401: "ar_SA", # Arabic - Saudi Arabia
+    0x0801: "ar_IQ", # Arabic - Iraq
+    0x0c01: "ar_EG", # Arabic - Egypt
+    0x1001: "ar_LY", # Arabic - Libya
+    0x1401: "ar_DZ", # Arabic - Algeria
+    0x1801: "ar_MA", # Arabic - Morocco
+    0x1c01: "ar_TN", # Arabic - Tunisia
+    0x2001: "ar_OM", # Arabic - Oman
+    0x2401: "ar_YE", # Arabic - Yemen
+    0x2801: "ar_SY", # Arabic - Syria
+    0x2c01: "ar_JO", # Arabic - Jordan
+    0x3001: "ar_LB", # Arabic - Lebanon
+    0x3401: "ar_KW", # Arabic - Kuwait
+    0x3801: "ar_AE", # Arabic - United Arab Emirates
+    0x3c01: "ar_BH", # Arabic - Bahrain
+    0x4001: "ar_QA", # Arabic - Qatar
+    0x042b: "hy_AM", # Armenian
+    0x042c: "az_AZ", # Azeri Latin
+    0x082c: "az_AZ", # Azeri - Cyrillic
+    0x042d: "eu_ES", # Basque
+    0x0423: "be_BY", # Belarusian
+    0x0445: "bn_IN", # Begali
+    0x201a: "bs_BA", # Bosnian
+    0x141a: "bs_BA", # Bosnian - Cyrillic
+    0x047e: "br_FR", # Breton - France
+    0x0402: "bg_BG", # Bulgarian
+    0x0403: "ca_ES", # Catalan
+    0x0004: "zh_CHS",# Chinese - Simplified
+    0x0404: "zh_TW", # Chinese - Taiwan
+    0x0804: "zh_CN", # Chinese - PRC
+    0x0c04: "zh_HK", # Chinese - Hong Kong S.A.R.
+    0x1004: "zh_SG", # Chinese - Singapore
+    0x1404: "zh_MO", # Chinese - Macao S.A.R.
+    0x7c04: "zh_CHT",# Chinese - Traditional
+    0x041a: "hr_HR", # Croatian
+    0x101a: "hr_BA", # Croatian - Bosnia
+    0x0405: "cs_CZ", # Czech
     0x0406: "da_DK", # Danish
-    0x0413: "nl_NL", # Dutch (Netherlands)
-    0x0409: "en_US", # English (United States)
-    0x0809: "en_UK", # English (United Kingdom)
-    0x0c09: "en_AU", # English (Australian)
-    0x1009: "en_CA", # English (Canadian)
-    0x1409: "en_NZ", # English (New Zealand)
-    0x1809: "en_IE", # English (Ireland)
-    0x1c09: "en_ZA", # English (South Africa)
+    0x048c: "gbz_AF",# Dari - Afghanistan
+    0x0465: "div_MV",# Divehi - Maldives
+    0x0413: "nl_NL", # Dutch - The Netherlands
+    0x0813: "nl_BE", # Dutch - Belgium
+    0x0409: "en_US", # English - United States
+    0x0809: "en_GB", # English - United Kingdom
+    0x0c09: "en_AU", # English - Australia
+    0x1009: "en_CA", # English - Canada
+    0x1409: "en_NZ", # English - New Zealand
+    0x1809: "en_IE", # English - Ireland
+    0x1c09: "en_ZA", # English - South Africa
+    0x2009: "en_JA", # English - Jamaica
+    0x2409: "en_CB", # English - Carribbean
+    0x2809: "en_BZ", # English - Belize
+    0x2c09: "en_TT", # English - Trinidad
+    0x3009: "en_ZW", # English - Zimbabwe
+    0x3409: "en_PH", # English - Phillippines
+    0x0425: "et_EE", # Estonian
+    0x0438: "fo_FO", # Faroese
+    0x0464: "fil_PH",# Filipino
     0x040b: "fi_FI", # Finnish
-    0x040c: "fr_FR", # French (Standard)
-    0x080c: "fr_BE", # French (Belgian)
-    0x0c0c: "fr_CA", # French (Canadian)
-    0x100c: "fr_CH", # French (Switzerland)
-    0x0407: "de_DE", # German (Standard)
+    0x040c: "fr_FR", # French - France
+    0x080c: "fr_BE", # French - Belgium
+    0x0c0c: "fr_CA", # French - Canada
+    0x100c: "fr_CH", # French - Switzerland
+    0x140c: "fr_LU", # French - Luxembourg
+    0x180c: "fr_MC", # French - Monaco
+    0x0462: "fy_NL", # Frisian - Netherlands
+    0x0456: "gl_ES", # Galician
+    0x0437: "ka_GE", # Georgian
+    0x0407: "de_DE", # German - Germany
+    0x0807: "de_CH", # German - Switzerland
+    0x0c07: "de_AT", # German - Austria
+    0x1007: "de_LU", # German - Luxembourg
+    0x1407: "de_LI", # German - Liechtenstein
     0x0408: "el_GR", # Greek
-    0x040d: "iw_IL", # Hebrew
+    0x0447: "gu_IN", # Gujarati
+    0x040d: "he_IL", # Hebrew
+    0x0439: "hi_IN", # Hindi
+    0x040e: "hu_HU", # Hungarian
     0x040f: "is_IS", # Icelandic
-    0x0410: "it_IT", # Italian (Standard)
-    0x0411: "ja_JA", # Japanese
-    0x0414: "no_NO", # Norwegian (Bokmal)
-    0x0816: "pt_PT", # Portuguese (Standard)
-    0x0c0a: "es_ES", # Spanish (Modern Sort)
-    0x0441: "sw_KE", # Swahili (Kenya)
-    0x041d: "sv_SE", # Swedish
-    0x081d: "sv_FI", # Swedish (Finland)
+    0x0421: "id_ID", # Indonesian
+    0x045d: "iu_CA", # Inuktitut
+    0x085d: "iu_CA", # Inuktitut - Latin
+    0x083c: "ga_IE", # Irish - Ireland
+    0x0434: "xh_ZA", # Xhosa - South Africa
+    0x0435: "zu_ZA", # Zulu
+    0x0410: "it_IT", # Italian - Italy
+    0x0810: "it_CH", # Italian - Switzerland
+    0x0411: "ja_JP", # Japanese
+    0x044b: "kn_IN", # Kannada - India
+    0x043f: "kk_KZ", # Kazakh
+    0x0457: "kok_IN",# Konkani
+    0x0412: "ko_KR", # Korean
+    0x0440: "ky_KG", # Kyrgyz
+    0x0426: "lv_LV", # Latvian
+    0x0427: "lt_LT", # Lithuanian
+    0x046e: "lb_LU", # Luxembourgish
+    0x042f: "mk_MK", # FYRO Macedonian
+    0x043e: "ms_MY", # Malay - Malaysia
+    0x083e: "ms_BN", # Malay - Brunei
+    0x044c: "ml_IN", # Malayalam - India
+    0x043a: "mt_MT", # Maltese
+    0x0481: "mi_NZ", # Maori
+    0x047a: "arn_CL",# Mapudungun
+    0x044e: "mr_IN", # Marathi
+    0x047c: "moh_CA",# Mohawk - Canada
+    0x0450: "mn_MN", # Mongolian
+    0x0461: "ne_NP", # Nepali
+    0x0414: "nb_NO", # Norwegian - Bokmal
+    0x0814: "nn_NO", # Norwegian - Nynorsk
+    0x0482: "oc_FR", # Occitan - France
+    0x0448: "or_IN", # Oriya - India
+    0x0463: "ps_AF", # Pashto - Afghanistan
+    0x0429: "fa_IR", # Persian
+    0x0415: "pl_PL", # Polish
+    0x0416: "pt_BR", # Portuguese - Brazil
+    0x0816: "pt_PT", # Portuguese - Portugal
+    0x0446: "pa_IN", # Punjabi
+    0x046b: "quz_BO",# Quechua (Bolivia)
+    0x086b: "quz_EC",# Quechua (Ecuador)
+    0x0c6b: "quz_PE",# Quechua (Peru)
+    0x0418: "ro_RO", # Romanian - Romania
+    0x0417: "rm_CH", # Raeto-Romanese
+    0x0419: "ru_RU", # Russian
+    0x243b: "smn_FI",# Sami Finland
+    0x103b: "smj_NO",# Sami Norway
+    0x143b: "smj_SE",# Sami Sweden
+    0x043b: "se_NO", # Sami Northern Norway
+    0x083b: "se_SE", # Sami Northern Sweden
+    0x0c3b: "se_FI", # Sami Northern Finland
+    0x203b: "sms_FI",# Sami Skolt
+    0x183b: "sma_NO",# Sami Southern Norway
+    0x1c3b: "sma_SE",# Sami Southern Sweden
+    0x044f: "sa_IN", # Sanskrit
+    0x0c1a: "sr_SP", # Serbian - Cyrillic
+    0x1c1a: "sr_BA", # Serbian - Bosnia Cyrillic
+    0x081a: "sr_SP", # Serbian - Latin
+    0x181a: "sr_BA", # Serbian - Bosnia Latin
+    0x046c: "ns_ZA", # Northern Sotho
+    0x0432: "tn_ZA", # Setswana - Southern Africa
+    0x041b: "sk_SK", # Slovak
+    0x0424: "sl_SI", # Slovenian
+    0x040a: "es_ES", # Spanish - Spain
+    0x080a: "es_MX", # Spanish - Mexico
+    0x0c0a: "es_ES", # Spanish - Spain (Modern)
+    0x100a: "es_GT", # Spanish - Guatemala
+    0x140a: "es_CR", # Spanish - Costa Rica
+    0x180a: "es_PA", # Spanish - Panama
+    0x1c0a: "es_DO", # Spanish - Dominican Republic
+    0x200a: "es_VE", # Spanish - Venezuela
+    0x240a: "es_CO", # Spanish - Colombia
+    0x280a: "es_PE", # Spanish - Peru
+    0x2c0a: "es_AR", # Spanish - Argentina
+    0x300a: "es_EC", # Spanish - Ecuador
+    0x340a: "es_CL", # Spanish - Chile
+    0x380a: "es_UR", # Spanish - Uruguay
+    0x3c0a: "es_PY", # Spanish - Paraguay
+    0x400a: "es_BO", # Spanish - Bolivia
+    0x440a: "es_SV", # Spanish - El Salvador
+    0x480a: "es_HN", # Spanish - Honduras
+    0x4c0a: "es_NI", # Spanish - Nicaragua
+    0x500a: "es_PR", # Spanish - Puerto Rico
+    0x0441: "sw_KE", # Swahili
+    0x041d: "sv_SE", # Swedish - Sweden
+    0x081d: "sv_FI", # Swedish - Finland
+    0x045a: "syr_SY",# Syriac
+    0x0449: "ta_IN", # Tamil
+    0x0444: "tt_RU", # Tatar
+    0x044a: "te_IN", # Telugu
+    0x041e: "th_TH", # Thai
     0x041f: "tr_TR", # Turkish
+    0x0422: "uk_UA", # Ukrainian
+    0x0420: "ur_PK", # Urdu
+    0x0820: "ur_IN", # Urdu - India
+    0x0443: "uz_UZ", # Uzbek - Latin
+    0x0843: "uz_UZ", # Uzbek - Cyrillic
+    0x042a: "vi_VN", # Vietnamese
+    0x0452: "cy_GB", # Welsh
 }
 
 def _print_locale():
@@ -689,6 +913,13 @@ def _print_locale():
             print
 
 ###
+
+try:
+    LC_MESSAGES
+except NameError:
+    pass
+else:
+    __all__.append("LC_MESSAGES")
 
 if __name__=='__main__':
     print 'Locale aliasing:'

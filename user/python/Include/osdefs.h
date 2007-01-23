@@ -7,22 +7,28 @@ extern "C" {
 
 /* Operating system dependencies */
 
-#ifdef macintosh
-#define SEP ':'
-#define MAXPATHLEN 256
-/* Mod by Jack: newline is less likely to occur in filenames than space */
-#define DELIM '\n'
-#endif
-
 /* Mod by chrish: QNX has WATCOM, but isn't DOS */
 #if !defined(__QNX__)
 #if defined(MS_WINDOWS) || defined(__BORLANDC__) || defined(__WATCOMC__) || defined(__DJGPP__) || defined(PYOS_OS2)
+#if defined(PYOS_OS2) && defined(PYCC_GCC)
+#define MAXPATHLEN 260
+#define SEP '/'
+#define ALTSEP '\\'
+#else
 #define SEP '\\'
 #define ALTSEP '/'
 #define MAXPATHLEN 256
+#endif
 #define DELIM ';'
 #endif
 #endif
+
+#ifdef RISCOS
+#define SEP '.'
+#define MAXPATHLEN 256
+#define DELIM ','
+#endif
+
 
 /* Filename separator */
 #ifndef SEP
@@ -31,7 +37,11 @@ extern "C" {
 
 /* Max pathname length */
 #ifndef MAXPATHLEN
+#if defined(PATH_MAX) && PATH_MAX > 1024
+#define MAXPATHLEN PATH_MAX
+#else
 #define MAXPATHLEN 1024
+#endif
 #endif
 
 /* Search path entry delimiter */

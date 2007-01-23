@@ -18,10 +18,14 @@
 
 #include "Python.h"
 #include "malloc.h"
+#include <io.h>
+#include <conio.h>
+#include <sys/locking.h>
 
 // Force the malloc heap to clean itself up, and free unused blocks
 // back to the OS.  (According to the docs, only works on NT.)
-static PyObject *msvcrt_heapmin(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_heapmin(PyObject *self, PyObject *args)
 {
 	if (!PyArg_ParseTuple(args, ":heapmin"))
 		return NULL;
@@ -34,7 +38,8 @@ static PyObject *msvcrt_heapmin(PyObject *self, PyObject *args)
 }
 
 // Perform locking operations on a C runtime file descriptor.
-static PyObject *msvcrt_locking(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_locking(PyObject *self, PyObject *args)
 {
 	int fd;
 	int mode;
@@ -55,7 +60,8 @@ static PyObject *msvcrt_locking(PyObject *self, PyObject *args)
 }
 
 // Set the file translation mode for a C runtime file descriptor.
-static PyObject *msvcrt_setmode(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_setmode(PyObject *self, PyObject *args)
 {
 	int fd;
 	int flags;
@@ -70,7 +76,8 @@ static PyObject *msvcrt_setmode(PyObject *self, PyObject *args)
 }
 
 // Convert an OS file handle to a C runtime file descriptor.
-static PyObject *msvcrt_open_osfhandle(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_open_osfhandle(PyObject *self, PyObject *args)
 {
 	long handle;
 	int flags;
@@ -87,10 +94,11 @@ static PyObject *msvcrt_open_osfhandle(PyObject *self, PyObject *args)
 }
 
 // Convert a C runtime file descriptor to an OS file handle.
-static PyObject *msvcrt_get_osfhandle(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_get_osfhandle(PyObject *self, PyObject *args)
 {
 	int fd;
-	intptr_t handle;
+	Py_intptr_t handle;
 
 	if (!PyArg_ParseTuple(args,"i:get_osfhandle", &fd))
 		return NULL;
@@ -106,9 +114,9 @@ static PyObject *msvcrt_get_osfhandle(PyObject *self, PyObject *args)
 }
 
 /* Console I/O */
-#include <conio.h>
 
-static PyObject *msvcrt_kbhit(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_kbhit(PyObject *self, PyObject *args)
 {
 	int ok;
 
@@ -119,7 +127,8 @@ static PyObject *msvcrt_kbhit(PyObject *self, PyObject *args)
 	return PyInt_FromLong(ok);
 }
 
-static PyObject *msvcrt_getch(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_getch(PyObject *self, PyObject *args)
 {
 	int ch;
 	char s[1];
@@ -134,7 +143,8 @@ static PyObject *msvcrt_getch(PyObject *self, PyObject *args)
 	return PyString_FromStringAndSize(s, 1);
 }
 
-static PyObject *msvcrt_getche(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_getche(PyObject *self, PyObject *args)
 {
 	int ch;
 	char s[1];
@@ -149,7 +159,8 @@ static PyObject *msvcrt_getche(PyObject *self, PyObject *args)
 	return PyString_FromStringAndSize(s, 1);
 }
 
-static PyObject *msvcrt_putch(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_putch(PyObject *self, PyObject *args)
 {
 	char ch;
 
@@ -161,7 +172,8 @@ static PyObject *msvcrt_putch(PyObject *self, PyObject *args)
 	return Py_None;
 }
 
-static PyObject *msvcrt_ungetch(PyObject *self, PyObject *args)
+static PyObject *
+msvcrt_ungetch(PyObject *self, PyObject *args)
 {
 	char ch;
 
@@ -175,23 +187,49 @@ static PyObject *msvcrt_ungetch(PyObject *self, PyObject *args)
 }
 
 
+static void
+insertint(PyObject *d, char *name, int value)
+{
+	PyObject *v = PyInt_FromLong((long) value);
+	if (v == NULL) {
+		/* Don't bother reporting this error */
+		PyErr_Clear();
+	}
+	else {
+		PyDict_SetItemString(d, name, v);
+		Py_DECREF(v);
+	}
+}
+
+
 /* List of functions exported by this module */
 static struct PyMethodDef msvcrt_functions[] = {
-	{"heapmin",		msvcrt_heapmin, 1},
-	{"locking",             msvcrt_locking, 1},
-	{"setmode",		msvcrt_setmode, 1},
-	{"open_osfhandle",	msvcrt_open_osfhandle, 1},
-	{"get_osfhandle",	msvcrt_get_osfhandle, 1},
-	{"kbhit",		msvcrt_kbhit, 1},
-	{"getch",		msvcrt_getch, 1},
-	{"getche",		msvcrt_getche, 1},
-	{"putch",		msvcrt_putch, 1},
-	{"ungetch",		msvcrt_ungetch, 1},
+	{"heapmin",		msvcrt_heapmin, METH_VARARGS},
+	{"locking",             msvcrt_locking, METH_VARARGS},
+	{"setmode",		msvcrt_setmode, METH_VARARGS},
+	{"open_osfhandle",	msvcrt_open_osfhandle, METH_VARARGS},
+	{"get_osfhandle",	msvcrt_get_osfhandle, METH_VARARGS},
+	{"kbhit",		msvcrt_kbhit, METH_VARARGS},
+	{"getch",		msvcrt_getch, METH_VARARGS},
+	{"getche",		msvcrt_getche, METH_VARARGS},
+	{"putch",		msvcrt_putch, METH_VARARGS},
+	{"ungetch",		msvcrt_ungetch, METH_VARARGS},
 	{NULL,			NULL}
 };
 
-__declspec(dllexport) void
+PyMODINIT_FUNC
 initmsvcrt(void)
 {
-	Py_InitModule("msvcrt", msvcrt_functions);
+	PyObject *d;
+	PyObject *m = Py_InitModule("msvcrt", msvcrt_functions);
+	if (m == NULL)
+		return;
+	d = PyModule_GetDict(m);
+
+	/* constants for the locking() function's mode argument */
+	insertint(d, "LK_LOCK", _LK_LOCK);
+	insertint(d, "LK_NBLCK", _LK_NBLCK);
+	insertint(d, "LK_NBRLCK", _LK_NBRLCK);
+	insertint(d, "LK_RLCK", _LK_RLCK);
+	insertint(d, "LK_UNLCK", _LK_UNLCK);
 }

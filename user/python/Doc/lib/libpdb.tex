@@ -1,4 +1,4 @@
-\chapter{The Python Debugger}
+\chapter{The Python Debugger \label{debugger}}
 
 \declaremodule{standard}{pdb}
 \modulesynopsis{The Python debugger for interactive interpreters.}
@@ -39,8 +39,15 @@ NameError: 'spam'
 a script to debug other scripts.  For example:
 
 \begin{verbatim}
-python /usr/local/lib/python1.5/pdb.py myscript.py
+python -m pdb myscript.py
 \end{verbatim}
+
+When invoked as a script, pdb will automatically enter post-mortem debugging
+if the program being debugged exits abnormally. After post-mortem debugging
+(or after normal exit of the program), pdb will restart the program.
+Automatic restarting preserves pdb's state (such as breakpoints) and in most
+cases is more useful than quitting the debugger upon program's exit.
+\versionadded[Restarting post-mortem behavior added]{2.4}
 
 Typical usage to inspect a crashed program is:
 
@@ -48,7 +55,7 @@ Typical usage to inspect a crashed program is:
 >>> import pdb
 >>> import mymodule
 >>> mymodule.test()
-Traceback (innermost last):
+Traceback (most recent call last):
   File "<stdin>", line 1, in ?
   File "./mymodule.py", line 4, in test
     test2()
@@ -77,7 +84,7 @@ used.  (See the explanation of the \keyword{exec} statement or the
 \end{funcdesc}
 
 \begin{funcdesc}{runeval}{expression\optional{, globals\optional{, locals}}}
-Evaluate the \var{expression} (given as a a string) under debugger
+Evaluate the \var{expression} (given as a string) under debugger
 control.  When \function{runeval()} returns, it returns the value of the
 expression.  Otherwise this function is similar to
 \function{run()}.
@@ -171,12 +178,12 @@ most commands.
 \item[d(own)]
 
 Move the current frame one level down in the stack trace
-(to an newer frame).
+(to a newer frame).
 
 \item[u(p)]
 
 Move the current frame one level up in the stack trace
-(to a older frame).
+(to an older frame).
 
 \item[b(reak) \optional{\optional{\var{filename}:}\var{lineno}\code{\Large{|}}\var{function}\optional{, \var{condition}}}]
 
@@ -255,7 +262,17 @@ Continue execution until the current function returns.
 
 Continue execution, only stop when a breakpoint is encountered.
 
-\item[l(ist) \optional{\var{first\optional{, last}}}]
+\item[j(ump) \var{lineno}]
+
+Set the next line that will be executed.  Only available in the
+bottom-most frame.  This lets you jump back and execute code
+again, or jump forward to skip code that you don't want to run.
+
+It should be noted that not all jumps are allowed --- for instance it
+is not possible to jump into the middle of a \keyword{for} loop or out
+of a \keyword{finally} clause.
+
+\item[l(ist) \optional{\var{first}\optional{, \var{last}}}]
 
 List source code for the current file.  Without arguments, list 11
 lines around the current line or continue the previous listing.  With
@@ -270,8 +287,13 @@ Print the argument list of the current function.
 \item[p \var{expression}]
 
 Evaluate the \var{expression} in the current context and print its
-value.  (Note: \samp{print} can also be used, but is not a debugger
-command --- this executes the Python \keyword{print} statement.)
+value.  \note{\samp{print} can also be used, but is not a debugger
+command --- this executes the Python \keyword{print} statement.}
+
+\item[pp \var{expression}]
+
+Like the \samp{p} command, except the value of the expression is
+pretty-printed using the \module{pprint} module.
 
 \item[alias \optional{\var{name} \optional{command}}]
 
@@ -298,7 +320,7 @@ alias pi for k in %1.__dict__.keys(): print "%1.",k,"=",%1.__dict__[k]
 #Print instance variables in self
 alias ps pi self
 \end{verbatim}
-		
+                
 \item[unalias \var{name}]
 
 Deletes the specified alias.
@@ -324,7 +346,7 @@ The program being executed is aborted.
 
 \end{description}
 
-\section{How It Works}
+\section{How It Works \label{debugger-hooks}}
 
 Some changes were made to the interpreter:
 
@@ -335,8 +357,9 @@ Some changes were made to the interpreter:
 
 Trace functions have three arguments: \var{frame}, \var{event}, and
 \var{arg}. \var{frame} is the current stack frame.  \var{event} is a
-string: \code{'call'}, \code{'line'}, \code{'return'} or
-\code{'exception'}.  \var{arg} depends on the event type.
+string: \code{'call'}, \code{'line'}, \code{'return'}, \code{'exception'},
+ \code{'c_call'}, \code{'c_return'}, or \code{'c_exception'}. \var{arg}
+ depends on the event type.
 
 The global trace function is invoked (with \var{event} set to
 \code{'call'}) whenever a new local scope is entered; it should return
@@ -355,24 +378,35 @@ The events have the following meaning:
 
 \item[\code{'call'}]
 A function is called (or some other code block entered).  The global
-trace function is called; arg is the argument list to the function;
+trace function is called; \var{arg} is \code{None};
 the return value specifies the local trace function.
 
 \item[\code{'line'}]
 The interpreter is about to execute a new line of code (sometimes
 multiple line events on one line exist).  The local trace function is
-called; arg in None; the return value specifies the new local trace
-function.
+called; \var{arg} is \code{None}; the return value specifies the new
+local trace function.
 
 \item[\code{'return'}]
 A function (or other code block) is about to return.  The local trace
-function is called; arg is the value that will be returned.  The trace
-function's return value is ignored.
+function is called; \var{arg} is the value that will be returned.  The
+trace function's return value is ignored.
 
 \item[\code{'exception'}]
-An exception has occurred.  The local trace function is called; arg is
-a triple (exception, value, traceback); the return value specifies the
-new local trace function
+An exception has occurred.  The local trace function is called;
+\var{arg} is a triple \code{(\var{exception}, \var{value},
+\var{traceback})}; the return value specifies the new local trace
+function.
+
+\item[\code{'c_call'}]
+A C function is about to be called.  This may be an extension function
+or a builtin.  \var{arg} is the C function object.
+
+\item[\code{'c_return'}]
+A C function has returned. \var{arg} is \code{None}.
+
+\item[\code{'c_exception'}]
+A C function has thrown an exception.  \var{arg} is \code{None}.
 
 \end{description}
 

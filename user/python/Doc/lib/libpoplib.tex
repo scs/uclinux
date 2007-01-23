@@ -8,13 +8,23 @@
 %Even though I put it into LaTeX, I cannot really claim that I wrote
 %it since I just stole most of it from the poplib.py source code and
 %the imaplib ``chapter''.
+%Revised by ESR, January 2000
 
 \indexii{POP3}{protocol}
 
 This module defines a class, \class{POP3}, which encapsulates a
-connection to an POP3 server and implements protocol as defined in
+connection to a POP3 server and implements the protocol as defined in
 \rfc{1725}.  The \class{POP3} class supports both the minimal and
-optional command sets.
+optional command sets. Additionally, this module provides a class
+\class{POP3_SSL}, which provides support for connecting to POP3
+servers that use SSL as an underlying protocol layer.
+
+
+Note that POP3, though widely supported, is obsolescent.  The
+implementation quality of POP3 servers varies widely, and too many are
+quite poor. If your mailserver supports IMAP, you would be better off
+using the \code{\refmodule{imaplib}.\class{IMAP4}} class, as IMAP
+servers tend to be better implemented.
 
 A single class is provided by the \module{poplib} module:
 
@@ -24,12 +34,32 @@ created when the instance is initialized.
 If \var{port} is omitted, the standard POP3 port (110) is used.
 \end{classdesc}
 
+\begin{classdesc}{POP3_SSL}{host\optional{, port\optional{, keyfile\optional{, certfile}}}}
+This is a subclass of \class{POP3} that connects to the server over an
+SSL encrypted socket.  If \var{port} is not specified, 995, the
+standard POP3-over-SSL port is used.  \var{keyfile} and \var{certfile}
+are also optional - they can contain a PEM formatted private key and
+certificate chain file for the SSL connection.
+
+\versionadded{2.4}
+\end{classdesc}
+
 One exception is defined as an attribute of the \module{poplib} module:
 
 \begin{excdesc}{error_proto}
 Exception raised on any errors.  The reason for the exception is
 passed to the constructor as a string.
 \end{excdesc}
+
+\begin{seealso}
+  \seemodule{imaplib}{The standard Python IMAP module.}
+  \seetitle[http://www.catb.org/\~{}esr/fetchmail/fetchmail-FAQ.html]
+        {Frequently Asked Questions About Fetchmail}
+        {The FAQ for the \program{fetchmail} POP/IMAP client collects
+         information on POP3 server variations and RFC noncompliance
+         that may be useful if you need to write an application based
+         on the POP protocol.}
+\end{seealso}
 
 
 \subsection{POP3 Objects \label{pop3-objects}}
@@ -40,10 +70,18 @@ in lower-case; most return the response text sent by the server.
 An \class{POP3} instance has the following methods:
 
 
+\begin{methoddesc}{set_debuglevel}{level}
+Set the instance's debugging level.  This controls the amount of
+debugging output printed.  The default, \code{0}, produces no
+debugging output.  A value of \code{1} produces a moderate amount of
+debugging output, generally a single line per request.  A value of
+\code{2} or higher produces the maximum amount of debugging output,
+logging each line sent and received on the control connection.
+\end{methoddesc}
+
 \begin{methoddesc}{getwelcome}{}
 Returns the greeting string sent by the POP3 server.
 \end{methoddesc}
-
 
 \begin{methoddesc}{user}{username}
 Send user command, response should indicate that a password is required.
@@ -70,17 +108,20 @@ Get mailbox status.  The result is a tuple of 2 integers:
 
 \begin{methoddesc}{list}{\optional{which}}
 Request message list, result is in the form
-\code{(\var{response}, ['mesg_num octets', ...])}.  If \var{which} is
-set, it is the message to list.
+\code{(\var{response}, ['mesg_num octets', ...], \var{octets})}.
+If \var{which} is set, it is the message to list.
 \end{methoddesc}
 
 \begin{methoddesc}{retr}{which}
-Retrieve whole message number \var{which}.  Result is in form 
-\code{(\var{response}, ['line', ...], \var{octets})}.
+Retrieve whole message number \var{which}, and set its seen flag.
+Result is in form  \code{(\var{response}, ['line', ...], \var{octets})}.
 \end{methoddesc}
 
 \begin{methoddesc}{dele}{which}
-Delete message number \var{which}.
+Flag message number \var{which} for deletion.  On most servers
+deletions are not actually performed until QUIT (the major exception is
+Eudora QPOP, which deliberately violates the RFCs by doing pending
+deletes on any disconnect).
 \end{methoddesc}
 
 \begin{methoddesc}{rset}{}
@@ -97,8 +138,14 @@ Signoff:  commit changes, unlock mailbox, drop connection.
 
 \begin{methoddesc}{top}{which, howmuch}
 Retrieves the message header plus \var{howmuch} lines of the message
-after the header of message number \var{which}. Result is in form 
+after the header of message number \var{which}. Result is in form
 \code{(\var{response}, ['line', ...], \var{octets})}.
+
+The POP3 TOP command this method uses, unlike the RETR command,
+doesn't set the message's seen flag; unfortunately, TOP is poorly
+specified in the RFCs and is frequently broken in off-brand servers.
+Test this method by hand against the POP3 servers you will use before
+trusting it.
 \end{methoddesc}
 
 \begin{methoddesc}{uidl}{\optional{which}}
@@ -108,6 +155,9 @@ message in the form \code{'\var{response}\ \var{mesgnum}\ \var{uid}},
 otherwise result is list \code{(\var{response}, ['mesgnum uid', ...],
 \var{octets})}.
 \end{methoddesc}
+
+Instances of \class{POP3_SSL} have no additional methods. The
+interface of this subclass is identical to its parent.
 
 
 \subsection{POP3 Example \label{pop3-example}}

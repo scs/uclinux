@@ -1,4 +1,7 @@
-from test_support import verbose
+from test.test_support import verbose, sortdict
+import warnings
+warnings.filterwarnings("ignore", "the regex module is deprecated",
+                        DeprecationWarning, __name__)
 import regex
 from regex_syntax import *
 
@@ -37,7 +40,7 @@ print cre.group('one')
 print cre.group(1, 2)
 print cre.group('one', 'two')
 print 'realpat:', cre.realpat
-print 'groupindex:', cre.groupindex
+print 'groupindex:', sortdict(cre.groupindex)
 
 re = 'world'
 cre = regex.compile(re)
@@ -69,7 +72,7 @@ for t in tests:
     if len(t)==5:
         pattern, s, outcome, repl, expected = t
     elif len(t)==3:
-        pattern, s, outcome = t 
+        pattern, s, outcome = t
     else:
         raise ValueError, ('Test tuples should have 3 or 5 fields',t)
 
@@ -77,8 +80,8 @@ for t in tests:
         obj=regex.compile(pattern)
     except regex.error:
         if outcome==SYNTAX_ERROR: pass    # Expected a syntax error
-        else: 
-            # Regex syntax errors aren't yet reported, so for 
+        else:
+            # Regex syntax errors aren't yet reported, so for
             # the official test suite they'll be quietly ignored.
             pass
             #print '=== Syntax error:', t

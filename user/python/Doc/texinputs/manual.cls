@@ -7,6 +7,7 @@
              [1998/03/03 Document class (Python manual)]
 
 \RequirePackage{pypaper}
+\RequirePackage{fancybox}
 
 % Change the options here to get a different set of basic options, but only
 % if you have to.  Paper and font size should be adjusted in pypaper.sty.
@@ -63,7 +64,8 @@
     \let\footnotesize\small
     \let\footnoterule\relax
     \py@doHorizontalRule%
-    \@ifundefined{pdfinfo}{}{{
+    \ifpdf
+      \begingroup
       % This \def is required to deal with multi-line authors; it
       % changes \\ to ', ' (comma-space), making it pass muster for
       % generating document info in the PDF file.
@@ -72,10 +74,11 @@
         /Author (\@author)
         /Title (\@title)
       }
-    }}
+      \endgroup
+    \fi
     \begin{flushright}%
       {\rm\Huge\py@HeaderFamily \@title \par}%
-      {\em\LARGE\py@HeaderFamily \py@release \par}
+      {\em\LARGE\py@HeaderFamily \py@release\releaseinfo \par}
       \vfill
       {\LARGE\py@HeaderFamily \@author \par}
       \vfill\vfill

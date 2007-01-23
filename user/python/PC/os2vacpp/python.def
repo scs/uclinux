@@ -1,5 +1,5 @@
-LIBRARY        PYTHON15 INITINSTANCE TERMINSTANCE
-DESCRIPTION    'Python 1.5 Core DLL'
+LIBRARY        PYTHON24 INITINSTANCE TERMINSTANCE
+DESCRIPTION    'Python 2.4 Core DLL'
 PROTMODE
 DATA           MULTIPLE NONSHARED
 
@@ -69,7 +69,6 @@ EXPORTS
                _PyImport_Inittab
                _PyParser_Grammar
                _PyParser_TokenNames
-               _PyThread_Started
                _Py_EllipsisObject
                _Py_NoneStruct
                _Py_PackageContext
@@ -472,4 +471,9 @@ EXPORTS
                _Py_re_search
                _Py_re_set_syntax
 ;               _Py_samebitset
+               PyBuffer_Type
+               PyBuffer_FromObject
+               PyBuffer_FromMemory
+               PyBuffer_FromReadWriteMemory
+               PyBuffer_New
 

@@ -3,7 +3,7 @@
 Implements the Distutils 'install_headers' command, to install C/C++ header
 files to the Python include directory."""
 
-# created 2000/05/26, Greg Ward
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
@@ -32,7 +32,7 @@ class install_headers (Command):
         self.set_undefined_options('install',
                                    ('install_headers', 'install_dir'),
                                    ('force', 'force'))
-                                   
+
 
     def run (self):
         headers = self.distribution.headers

@@ -20,8 +20,6 @@ const struct filedescr _PyImport_DynLoadFiletab[] = {
 };
 
 
-#ifdef MS_WIN32
-
 /* Case insensitive string compare, to avoid any dependencies on particular
    C RTL implementations */
 
@@ -118,6 +116,10 @@ static char *GetPythonImport (HINSTANCE hModule)
 	   string constant holding the import name is located. */
 
 	if (DWORD_AT(dllbase + opt_offset + num_dict_off) >= 2) {
+		/* We have at least 2 tables - the import table is the second
+		   one.  But still it may be that the table size is zero */
+		if (0 == DWORD_AT(dllbase + opt_offset + import_off + sizeof(DWORD)))
+			return NULL;
 		import_data = dllbase + DWORD_AT(dllbase +
 						 opt_offset +
 						 import_off);
@@ -130,7 +132,11 @@ static char *GetPythonImport (HINSTANCE hModule)
 				/* Ensure python prefix is followed only
 				   by numbers to the end of the basename */
 				pch = import_name + 6;
+#ifdef _DEBUG
+				while (*pch && pch[0] != '_' && pch[1] != 'd' && pch[2] != '.') {
+#else
 				while (*pch && *pch != '.') {
+#endif
 					if (*pch >= '0' && *pch <= '9') {
 						pch++;
 					} else {
@@ -150,7 +156,6 @@ static char *GetPythonImport (HINSTANCE hModule)
 
 	return NULL;
 }
-#endif /* MS_WIN32 */
 
 
 dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
@@ -159,28 +164,24 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 	dl_funcptr p;
 	char funcname[258], *import_python;
 
-	sprintf(funcname, "init%.200s", shortname);
+	PyOS_snprintf(funcname, sizeof(funcname), "init%.200s", shortname);
 
-#ifdef MS_WIN32
 	{
-		HINSTANCE hDLL;
+		HINSTANCE hDLL = NULL;
 		char pathbuf[260];
-		if (strchr(pathname, '\\') == NULL &&
-		    strchr(pathname, '/') == NULL)
-		{
-			/* Prefix bare filename with ".\" */
-			char *p = pathbuf;
-			*p = '\0';
-			_getcwd(pathbuf, sizeof pathbuf);
-			if (*p != '\0' && p[1] == ':')
-				p += 2;
-			sprintf(p, ".\\%-.255s", pathname);
-			pathname = pathbuf;
-		}
-		/* Look for dependent DLLs in directory of pathname first */
-		/* XXX This call doesn't exist in Windows CE */
-		hDLL = LoadLibraryEx(pathname, NULL,
-				     LOAD_WITH_ALTERED_SEARCH_PATH);
+		LPTSTR dummy;
+		/* We use LoadLibraryEx so Windows looks for dependent DLLs 
+		    in directory of pathname first.  However, Windows95
+		    can sometimes not work correctly unless the absolute
+		    path is used.  If GetFullPathName() fails, the LoadLibrary
+		    will certainly fail too, so use its error code */
+		if (GetFullPathName(pathname,
+				    sizeof(pathbuf),
+				    pathbuf,
+				    &dummy))
+			/* XXX This call doesn't exist in Windows CE */
+			hDLL = LoadLibraryEx(pathname, NULL,
+					     LOAD_WITH_ALTERED_SEARCH_PATH);
 		if (hDLL==NULL){
 			char errBuf[256];
 			unsigned int errorCode;
@@ -204,9 +205,9 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 			/* Problem: could not get the error message.
 			   This should not happen if called correctly. */
 			if (theLength == 0) {
-				sprintf(errBuf,
-					"DLL load failed with error code %d",
-					errorCode);
+				PyOS_snprintf(errBuf, sizeof(errBuf),
+				      "DLL load failed with error code %d",
+					      errorCode);
 			} else {
 				size_t len;
 				/* For some reason a \r\n
@@ -224,20 +225,24 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 				errBuf[sizeof(errBuf)-1] = '\0';
 			}
 			PyErr_SetString(PyExc_ImportError, errBuf);
-		return NULL;
+			return NULL;
 		} else {
 			char buffer[256];
 
-			sprintf(buffer,"python%d%d.dll",
-				PY_MAJOR_VERSION,PY_MINOR_VERSION);
+#ifdef _DEBUG
+			PyOS_snprintf(buffer, sizeof(buffer), "python%d%d_d.dll",
+#else
+			PyOS_snprintf(buffer, sizeof(buffer), "python%d%d.dll",
+#endif
+				      PY_MAJOR_VERSION,PY_MINOR_VERSION);
 			import_python = GetPythonImport(hDLL);
 
 			if (import_python &&
 			    strcasecmp(buffer,import_python)) {
-				sprintf(buffer,
-					"Module use of %s conflicts "
-					"with this version of Python.",
-					import_python);
+				PyOS_snprintf(buffer, sizeof(buffer),
+					      "Module use of %.150s conflicts "
+					      "with this version of Python.",
+					      import_python);
 				PyErr_SetString(PyExc_ImportError,buffer);
 				FreeLibrary(hDLL);
 				return NULL;
@@ -245,29 +250,6 @@ dl_funcptr _PyImport_GetDynLoadFunc(const char *fqname, const char *shortname,
 		}
 		p = GetProcAddress(hDLL, funcname);
 	}
-#endif /* MS_WIN32 */
-#ifdef MS_WIN16
-	{
-		HINSTANCE hDLL;
-		char pathbuf[16];
-		if (strchr(pathname, '\\') == NULL &&
-		    strchr(pathname, '/') == NULL)
-		{
-			/* Prefix bare filename with ".\" */
-			sprintf(pathbuf, ".\\%-.13s", pathname);
-			pathname = pathbuf;
-		}
-		hDLL = LoadLibrary(pathname);
-		if (hDLL < HINSTANCE_ERROR){
-			char errBuf[256];
-			sprintf(errBuf,
-				"DLL load failed with error code %d", hDLL);
-			PyErr_SetString(PyExc_ImportError, errBuf);
-			return NULL;
-		}
-		p = GetProcAddress(hDLL, funcname);
-	}
-#endif /* MS_WIN16 */
 
 	return p;
 }

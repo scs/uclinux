@@ -24,29 +24,44 @@ typedef struct {
     PyObject_HEAD
     PyClassObject *in_class;	/* The class object */
     PyObject	  *in_dict;	/* A dictionary */
+    PyObject	  *in_weakreflist; /* List of weak references */
 } PyInstanceObject;
 
 typedef struct {
     PyObject_HEAD
     PyObject *im_func;   /* The callable object implementing the method */
     PyObject *im_self;   /* The instance it is bound to, or NULL */
-    PyObject *im_class;  /* The class that defined the method */
+    PyObject *im_class;  /* The class that asked for the method */
+    PyObject *im_weakreflist; /* List of weak references */
 } PyMethodObject;
 
-extern DL_IMPORT(PyTypeObject) PyClass_Type, PyInstance_Type, PyMethod_Type;
+PyAPI_DATA(PyTypeObject) PyClass_Type, PyInstance_Type, PyMethod_Type;
 
 #define PyClass_Check(op) ((op)->ob_type == &PyClass_Type)
 #define PyInstance_Check(op) ((op)->ob_type == &PyInstance_Type)
 #define PyMethod_Check(op) ((op)->ob_type == &PyMethod_Type)
 
-extern DL_IMPORT(PyObject *) PyClass_New(PyObject *, PyObject *, PyObject *);
-extern DL_IMPORT(PyObject *) PyInstance_New(PyObject *, PyObject *,
+PyAPI_FUNC(PyObject *) PyClass_New(PyObject *, PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) PyInstance_New(PyObject *, PyObject *,
                                             PyObject *);
-extern DL_IMPORT(PyObject *) PyMethod_New(PyObject *, PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) PyInstance_NewRaw(PyObject *, PyObject *);
+PyAPI_FUNC(PyObject *) PyMethod_New(PyObject *, PyObject *, PyObject *);
 
-extern DL_IMPORT(PyObject *) PyMethod_Function(PyObject *);
-extern DL_IMPORT(PyObject *) PyMethod_Self(PyObject *);
-extern DL_IMPORT(PyObject *) PyMethod_Class(PyObject *);
+PyAPI_FUNC(PyObject *) PyMethod_Function(PyObject *);
+PyAPI_FUNC(PyObject *) PyMethod_Self(PyObject *);
+PyAPI_FUNC(PyObject *) PyMethod_Class(PyObject *);
+
+/* Look up attribute with name (a string) on instance object pinst, using
+ * only the instance and base class dicts.  If a descriptor is found in
+ * a class dict, the descriptor is returned without calling it.
+ * Returns NULL if nothing found, else a borrowed reference to the
+ * value associated with name in the dict in which name was found.
+ * The point of this routine is that it never calls arbitrary Python
+ * code, so is always "safe":  all it does is dict lookups.  The function
+ * can't fail, never sets an exception, and NULL is not an error (it just
+ * means "not found").
+ */
+PyAPI_FUNC(PyObject *) _PyInstance_Lookup(PyObject *pinst, PyObject *name);
 
 /* Macros for direct access to these values. Type checks are *not*
    done, so use with care. */
@@ -57,16 +72,8 @@ extern DL_IMPORT(PyObject *) PyMethod_Class(PyObject *);
 #define PyMethod_GET_CLASS(meth) \
 	(((PyMethodObject *)meth) -> im_class)
 
-extern DL_IMPORT(int) PyClass_IsSubclass(PyObject *, PyObject *);
+PyAPI_FUNC(int) PyClass_IsSubclass(PyObject *, PyObject *);
 
-extern DL_IMPORT(PyObject *) PyInstance_DoBinOp(PyObject *, PyObject *,
-                                                char *, char *,
-                                                PyObject * (*)(PyObject *,
-                                                               PyObject *));
-
-extern DL_IMPORT(int)
-PyInstance_HalfBinOp(PyObject *, PyObject *, char *, PyObject **,
-			PyObject * (*)(PyObject *, PyObject *), int);
 
 #ifdef __cplusplus
 }

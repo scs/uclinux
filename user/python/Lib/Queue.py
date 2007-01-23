@@ -1,18 +1,17 @@
 """A multi-producer, multi-consumer queue."""
 
-# define this exception to be compatible with Python 1.5's class
-# exceptions, but also when -X option is used.
-try:
-    class Empty(Exception):
-        pass
-    class Full(Exception):
-        pass
-except TypeError:
-    # string based exceptions
-    # exception raised by get(block=0)/get_nowait()
-    Empty = 'Queue.Empty'
-    # exception raised by put(block=0)/put_nowait()
-    Full = 'Queue.Full'
+from time import time as _time
+from collections import deque
+
+__all__ = ['Empty', 'Full', 'Queue']
+
+class Empty(Exception):
+    "Exception raised by Queue.get(block=0)/get_nowait()."
+    pass
+
+class Full(Exception):
+    "Exception raised by Queue.put(block=0)/put_nowait()."
+    pass
 
 class Queue:
     def __init__(self, maxsize=0):
@@ -20,12 +19,22 @@ class Queue:
 
         If maxsize is <= 0, the queue size is infinite.
         """
-        import thread
+        try:
+            import threading
+        except ImportError:
+            import dummy_threading as threading
         self._init(maxsize)
-        self.mutex = thread.allocate_lock()
-        self.esema = thread.allocate_lock()
-        self.esema.acquire()
-        self.fsema = thread.allocate_lock()
+        # mutex must be held whenever the queue is mutating.  All methods
+        # that acquire mutex must release it before returning.  mutex
+        # is shared between the two conditions, so acquiring and
+        # releasing the conditions also acquires and releases mutex.
+        self.mutex = threading.Lock()
+        # Notify not_empty whenever an item is added to the queue; a
+        # thread waiting to get is notified then.
+        self.not_empty = threading.Condition(self.mutex)
+        # Notify not_full whenever an item is removed from the queue;
+        # a thread waiting to put is notified then.
+        self.not_full = threading.Condition(self.mutex)
 
     def qsize(self):
         """Return the approximate size of the queue (not reliable!)."""
@@ -35,39 +44,51 @@ class Queue:
         return n
 
     def empty(self):
-        """Return 1 if the queue is empty, 0 otherwise (not reliable!)."""
+        """Return True if the queue is empty, False otherwise (not reliable!)."""
         self.mutex.acquire()
         n = self._empty()
         self.mutex.release()
         return n
 
     def full(self):
-        """Return 1 if the queue is full, 0 otherwise (not reliable!)."""
+        """Return True if the queue is full, False otherwise (not reliable!)."""
         self.mutex.acquire()
         n = self._full()
         self.mutex.release()
         return n
 
-    def put(self, item, block=1):
+    def put(self, item, block=True, timeout=None):
         """Put an item into the queue.
 
-        If optional arg 'block' is 1 (the default), block if
-        necessary until a free slot is available.  Otherwise (block
-        is 0), put an item on the queue if a free slot is immediately
-        available, else raise the Full exception.
+        If optional args 'block' is true and 'timeout' is None (the default),
+        block if necessary until a free slot is available. If 'timeout' is
+        a positive number, it blocks at most 'timeout' seconds and raises
+        the Full exception if no free slot was available within that time.
+        Otherwise ('block' is false), put an item on the queue if a free slot
+        is immediately available, else raise the Full exception ('timeout'
+        is ignored in that case).
         """
-        if block:
-            self.fsema.acquire()
-        elif not self.fsema.acquire(0):
-            raise Full
-        self.mutex.acquire()
-        was_empty = self._empty()
-        self._put(item)
-        if was_empty:
-            self.esema.release()
-        if not self._full():
-            self.fsema.release()
-        self.mutex.release()
+        self.not_full.acquire()
+        try:
+            if not block:
+                if self._full():
+                    raise Full
+            elif timeout is None:
+                while self._full():
+                    self.not_full.wait()
+            else:
+                if timeout < 0:
+                    raise ValueError("'timeout' must be a positive number")
+                endtime = _time() + timeout
+                while self._full():
+                    remaining = endtime - _time()
+                    if remaining <= 0.0:
+                        raise Full
+                    self.not_full.wait(remaining)
+            self._put(item)
+            self.not_empty.notify()
+        finally:
+            self.not_full.release()
 
     def put_nowait(self, item):
         """Put an item into the queue without blocking.
@@ -75,37 +96,49 @@ class Queue:
         Only enqueue the item if a free slot is immediately available.
         Otherwise raise the Full exception.
         """
-        return self.put(item, 0)
+        return self.put(item, False)
 
-    def get(self, block=1):
+    def get(self, block=True, timeout=None):
         """Remove and return an item from the queue.
 
-        If optional arg 'block' is 1 (the default), block if
-        necessary until an item is available.  Otherwise (block is 0),
-        return an item if one is immediately available, else raise the
-        Empty exception.
+        If optional args 'block' is true and 'timeout' is None (the default),
+        block if necessary until an item is available. If 'timeout' is
+        a positive number, it blocks at most 'timeout' seconds and raises
+        the Empty exception if no item was available within that time.
+        Otherwise ('block' is false), return an item if one is immediately
+        available, else raise the Empty exception ('timeout' is ignored
+        in that case).
         """
-        if block:
-            self.esema.acquire()
-        elif not self.esema.acquire(0):
-            raise Empty
-        self.mutex.acquire()
-        was_full = self._full()
-        item = self._get()
-        if was_full:
-            self.fsema.release()
-        if not self._empty():
-            self.esema.release()
-        self.mutex.release()
-        return item
+        self.not_empty.acquire()
+        try:
+            if not block:
+                if self._empty():
+                    raise Empty
+            elif timeout is None:
+                while self._empty():
+                    self.not_empty.wait()
+            else:
+                if timeout < 0:
+                    raise ValueError("'timeout' must be a positive number")
+                endtime = _time() + timeout
+                while self._empty():
+                    remaining = endtime - _time()
+                    if remaining <= 0.0:
+                        raise Empty
+                    self.not_empty.wait(remaining)
+            item = self._get()
+            self.not_full.notify()
+            return item
+        finally:
+            self.not_empty.release()
 
     def get_nowait(self):
         """Remove and return an item from the queue without blocking.
 
-        Only get an item if one is immediately available.  Otherwise
+        Only get an item if one is immediately available. Otherwise
         raise the Empty exception.
         """
-        return self.get(0)
+        return self.get(False)
 
     # Override these methods to implement other queue organizations
     # (e.g. stack or priority queue).
@@ -114,7 +147,7 @@ class Queue:
     # Initialize the queue representation
     def _init(self, maxsize):
         self.maxsize = maxsize
-        self.queue = []
+        self.queue = deque()
 
     def _qsize(self):
         return len(self.queue)
@@ -133,6 +166,4 @@ class Queue:
 
     # Get an item from the queue
     def _get(self):
-        item = self.queue[0]
-        del self.queue[0]
-        return item
+        return self.queue.popleft()

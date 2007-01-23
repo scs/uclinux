@@ -12,12 +12,20 @@ from bgen import *
 # Simple types
 Boolean = Type("Boolean", "b")
 SignedByte = Type("SignedByte", "b")
-ScriptCode = Type("ScriptCode", "h")
 Size = Type("Size", "l")
 Style = Type("Style", "b")
 StyleParameter = Type("StyleParameter", "h")
 CharParameter = Type("CharParameter", "h")
 TextEncoding = Type("TextEncoding", "l")
+ByteCount = Type("ByteCount", "l")
+Duration = Type("Duration", "l")
+ByteOffset = Type("ByteOffset", "l")
+OptionBits = Type("OptionBits", "l")
+ItemCount = Type("ItemCount", "l")
+PBVersion = Type("PBVersion", "l")
+ScriptCode = Type("ScriptCode", "h")
+LangCode = Type("LangCode", "h")
+RegionCode = Type("RegionCode", "h")
 
 UInt8 = Type("UInt8", "b")
 SInt8 = Type("SInt8", "b")
@@ -25,20 +33,29 @@ UInt16 = Type("UInt16", "H")
 SInt16 = Type("SInt16", "h")
 UInt32 = Type("UInt32", "l")
 SInt32 = Type("SInt32", "l")
+Float32 = Type("Float32", "f")
+
+wide = OpaqueByValueType("wide", "PyMac_Buildwide", "PyMac_Getwide")
+wide_ptr = OpaqueType("wide", "PyMac_Buildwide", "PyMac_Getwide")
 
 # Pascal strings
 ConstStr255Param = OpaqueArrayType("Str255", "PyMac_BuildStr255", "PyMac_GetStr255")
 Str255 = OpaqueArrayType("Str255", "PyMac_BuildStr255", "PyMac_GetStr255")
+StringPtr = OpaqueByValueType("StringPtr", "PyMac_BuildStr255", "PyMac_GetStr255")
+ConstStringPtr = StringPtr
 
 # File System Specifications
 FSSpec_ptr = OpaqueType("FSSpec", "PyMac_BuildFSSpec", "PyMac_GetFSSpec")
-FSSpec = OpaqueByValueType("FSSpec", "PyMac_BuildFSSpec", "PyMac_GetFSSpec")
+FSSpec = OpaqueByValueStructType("FSSpec", "PyMac_BuildFSSpec", "PyMac_GetFSSpec")
+FSRef_ptr = OpaqueType("FSRef", "PyMac_BuildFSRef", "PyMac_GetFSRef")
+FSRef = OpaqueByValueStructType("FSRef", "PyMac_BuildFSRef", "PyMac_GetFSRef")
 
 # OSType and ResType: 4-byte character strings
 def OSTypeType(typename):
-	return OpaqueByValueType(typename, "PyMac_BuildOSType", "PyMac_GetOSType")
+    return OpaqueByValueType(typename, "PyMac_BuildOSType", "PyMac_GetOSType")
 OSType = OSTypeType("OSType")
 ResType = OSTypeType("ResType")
+FourCharCode = OSTypeType("FourCharCode")
 
 # Version numbers
 NumVersion = OpaqueByValueType("NumVersion", "PyMac_BuildNumVersion", "BUG")
@@ -56,7 +73,7 @@ WindowRef = WindowPtr
 DialogPtr = OpaqueByValueType("DialogPtr", "DlgObj")
 DialogRef = DialogPtr
 ExistingWindowPtr = OpaqueByValueType("WindowPtr", "WinObj_WhichWindow", "BUG")
-ExistingDialogPtr = OpaqueByValueType("DialogPtr", "WinObj_WhichWindow", "BUG")
+ExistingDialogPtr = OpaqueByValueType("DialogPtr", "DlgObj_WhichDialog", "BUG")
 
 # NULL pointer passed in as optional storage -- not present in Python version
 NullStorage = FakeType("(void *)0")
@@ -73,35 +90,67 @@ Point_ptr = OpaqueType("Point", "PyMac_BuildPoint", "PyMac_GetPoint")
 EventRecord = OpaqueType("EventRecord", "PyMac_BuildEventRecord", "PyMac_GetEventRecord")
 EventRecord_ptr = EventRecord
 
+# CoreFoundation datatypes
+CFTypeRef = OpaqueByValueType("CFTypeRef", "CFTypeRefObj")
+CFStringRef = OpaqueByValueType("CFStringRef", "CFStringRefObj")
+CFMutableStringRef = OpaqueByValueType("CFMutableStringRef", "CFMutableStringRefObj")
+CFArrayRef = OpaqueByValueType("CFArrayRef", "CFArrayRefObj")
+CFMutableArrayRef = OpaqueByValueType("CFMutableArrayRef", "CFMutableArrayRefObj")
+CFDictionaryRef = OpaqueByValueType("CFDictionaryRef", "CFDictionaryRefObj")
+CFMutableDictionaryRef = OpaqueByValueType("CFMutableDictionaryRef", "CFMutableDictionaryRefObj")
+CFURLRef = OpaqueByValueType("CFURLRef", "CFURLRefObj")
+OptionalCFURLRef = OpaqueByValueType("CFURLRef", "OptionalCFURLRefObj")
+
 # OSErr is special because it is turned into an exception
 # (Could do this with less code using a variant of mkvalue("O&")?)
 class OSErrType(Type):
-	def errorCheck(self, name):
-		Output("if (%s != noErr) return PyMac_Error(%s);", name, name)
-		self.used = 1
+    def errorCheck(self, name):
+        Output("if (%s != noErr) return PyMac_Error(%s);", name, name)
+        self.used = 1
 OSErr = OSErrType("OSErr", 'h')
 OSStatus = OSErrType("OSStatus", 'l')
 
 
 # Various buffer types
 
-InBuffer = VarInputBufferType('char', 'long', 'l')		# (buf, len)
-OptionalInBuffer = OptionalVarInputBufferType('char', 'long', 'l')		# (buf, len)
+InBuffer = VarInputBufferType('char', 'long', 'l')      # (buf, len)
+UcharInBuffer  = VarInputBufferType('unsigned char', 'long', 'l')       # (buf, len)
+OptionalInBuffer = OptionalVarInputBufferType('char', 'long', 'l')      # (buf, len)
 
-InOutBuffer = HeapInputOutputBufferType('char', 'long', 'l')	# (inbuf, outbuf, len)
+InOutBuffer = HeapInputOutputBufferType('char', 'long', 'l')    # (inbuf, outbuf, len)
 VarInOutBuffer = VarHeapInputOutputBufferType('char', 'long', 'l') # (inbuf, outbuf, &len)
 
-OutBuffer = HeapOutputBufferType('char', 'long', 'l')		# (buf, len)
-VarOutBuffer = VarHeapOutputBufferType('char', 'long', 'l')	# (buf, &len)
+OutBuffer = HeapOutputBufferType('char', 'long', 'l')       # (buf, len)
+VarOutBuffer = VarHeapOutputBufferType('char', 'long', 'l') # (buf, &len)
 VarVarOutBuffer = VarVarHeapOutputBufferType('char', 'long', 'l') # (buf, len, &len)
+
+# Unicode arguments sometimes have reversed len, buffer (don't understand why Apple did this...)
+class VarUnicodeInputBufferType(VarInputBufferType):
+
+    def getargsFormat(self):
+        return "u#"
+
+class VarUnicodeReverseInputBufferType(ReverseInputBufferMixin, VarUnicodeInputBufferType):
+    pass
+
+UnicodeInBuffer = VarUnicodeInputBufferType('UniChar', 'UniCharCount', 'l')
+UnicodeReverseInBuffer = VarUnicodeReverseInputBufferType('UniChar', 'UniCharCount', 'l')
+UniChar_ptr = InputOnlyType("UniCharPtr", "u")
 
 
 # Predefine various pieces of program text to be passed to Module() later:
 
 # Stuff added immediately after the system include files
 includestuff = """
-#include "macglue.h"
 #include "pymactoolbox.h"
+
+/* Macro to test whether a weak-loaded CFM function exists */
+#define PyMac_PRECHECK(rtn) do { if ( &rtn == NULL )  {\\
+        PyErr_SetString(PyExc_NotImplementedError, \\
+        "Not available in this shared library/OS version"); \\
+        return NULL; \\
+    }} while(0)
+
 """
 
 # Stuff added just before the module's init function
@@ -119,26 +168,30 @@ initstuff = """
 # This requires that the OSErr type (defined above) has a non-trivial
 # errorCheck method.
 class OSErrMixIn:
-	"Mix-in class to treat OSErr/OSStatus return values special"
-	def makereturnvar(self):
-		if self.returntype.__class__ == OSErrType:
-			return Variable(self.returntype, "_err", ErrorMode)
-		else:
-			return Variable(self.returntype, "_rv", OutMode)
+    "Mix-in class to treat OSErr/OSStatus return values special"
+    def makereturnvar(self):
+        if self.returntype.__class__ == OSErrType:
+            return Variable(self.returntype, "_err", ErrorMode)
+        else:
+            return Variable(self.returntype, "_rv", OutMode)
 
 class OSErrFunctionGenerator(OSErrMixIn, FunctionGenerator): pass
 class OSErrMethodGenerator(OSErrMixIn, MethodGenerator): pass
 
+class WeakLinkMixIn:
+    "Mix-in to test the function actually exists (!= NULL) before calling"
+
+    def precheck(self):
+        Output('#ifndef %s', self.name)
+        Output('PyMac_PRECHECK(%s);', self.name)
+        Output('#endif')
+
+class WeakLinkFunctionGenerator(WeakLinkMixIn, FunctionGenerator): pass
+class WeakLinkMethodGenerator(WeakLinkMixIn, MethodGenerator): pass
+class OSErrWeakLinkFunctionGenerator(OSErrMixIn, WeakLinkMixIn, FunctionGenerator): pass
+class OSErrWeakLinkMethodGenerator(OSErrMixIn, WeakLinkMixIn, MethodGenerator): pass
 
 class MacModule(Module):
-	"Subclass which gets the exception initializer from macglue.c"
-	def exceptionInitializer(self):
-		return "PyMac_GetOSErrException()"
-
-_SetOutputFileName = SetOutputFileName # Save original
-def SetOutputFileName(file = None):
-	"Set the output file name and set its creator&type to CWIE&TEXT"
-	_SetOutputFileName(file)
-	if file:
-		import MacOS
-		MacOS.SetCreatorAndType(file, 'CWIE', 'TEXT')
+    "Subclass which gets the exception initializer from macglue.c"
+    def exceptionInitializer(self):
+        return "PyMac_GetOSErrException()"

@@ -2,7 +2,7 @@
 
 Here's a quick listing of modules that are currently undocumented, but
 that should be documented.  Feel free to contribute documentation for
-them!  (Send via email to \email{python-docs@python.org}.)
+them!  (Send via email to \email{docs@python.org}.)
 
 The idea and original contents for this chapter were taken
 from a posting by Fredrik Lundh; the specific contents of this chapter
@@ -15,23 +15,7 @@ Frameworks tend to be harder to document, but are well worth the
 effort spent.
 
 \begin{description}
-\item[\module{Tkinter}]
---- Interface to Tcl/Tk for graphical user interfaces; Fredrik Lundh
-is working on this one!  See
-\citetitle[http://www.pythonware.com/library.htm]{An Introduction to
-Tkinter} at \url{http://www.pythonware.com/library.htm} for on-line
-reference material.
-
-\item[\module{Tkdnd}]
---- Drag-and-drop support for \module{Tkinter}.
-
-\item[\module{turtle}]
---- Turtle graphics in a Tk window.
-
-\item[\module{test}]
---- Regression testing framework.  This is used for the Python
-regression test, but is useful for other Python libraries as well.
-This is a package rather than a single module.
+\item None at this time.
 \end{description}
 
 
@@ -45,11 +29,8 @@ Some of these are very old and/or not very robust; marked with ``hmm.''
 
 \item[\module{ihooks}]
 --- Import hook support (for \refmodule{rexec}; may become obsolete).
-
-\item[\module{tzparse}]
---- Parse a timezone specification (unfinished; may disappear in the
-future).
 \end{description}
+
 
 
 \section{Platform specific modules}
@@ -59,15 +40,17 @@ and are not documented beyond this mention.  There's little need to
 document these.
 
 \begin{description}
-\item[\module{dospath}]
---- Implementation of \module{os.path} on MS-DOS.
-
 \item[\module{ntpath}]
---- Implementation on \module{os.path} on Win32, Win64, WinCE, and
+--- Implementation of \module{os.path} on Win32, Win64, WinCE, and
 OS/2 platforms.
 
 \item[\module{posixpath}]
---- Implementation on \module{os.path} on \POSIX.
+--- Implementation of \module{os.path} on \POSIX.
+
+\item[\module{bsddb185}]
+--- Backwards compatibility module for systems which still use the Berkeley
+DB 1.85 module.  It is normally only available on certain BSD Unix-based
+systems.  It should never be used directly.
 \end{description}
 
 
@@ -76,6 +59,10 @@ OS/2 platforms.
 \begin{description}
 \item[\module{audiodev}]
 --- Platform-independent API for playing audio data.
+
+\item[\module{linuxaudiodev}]
+--- Play audio data on the Linux audio device.  Replaced in Python 2.3
+by the \module{ossaudiodev} module.
 
 \item[\module{sunaudio}]
 --- Interpret Sun audio headers (may become obsolete or a tool/demo).
@@ -167,6 +154,11 @@ with \module{regex} (extension module).  Refer to the
 --- Measure time intervals to high resolution (use
 \function{time.clock()} instead).  (This is an extension module.)
 
+\item[\module{tzparse}]
+--- Parse a timezone specification (unfinished; may disappear in the
+future, and does not work when the \envvar{TZ} environment variable is
+not set).
+
 \item[\module{util}]
 --- Useful functions that don't fit elsewhere.
 
@@ -206,11 +198,6 @@ this module.
 
 \item[\module{rand}]
 --- Old interface to the random number generator.
-
-\item[\module{soundex}]
---- Algorithm for collapsing names which sound similar to a shared
-key.  The specific algorithm doesn't seem to match any published
-algorithm.  (This is an extension module.)
 \end{description}
 
 

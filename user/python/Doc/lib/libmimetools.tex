@@ -4,6 +4,10 @@
 \declaremodule{standard}{mimetools}
 \modulesynopsis{Tools for parsing MIME-style message bodies.}
 
+\deprecated{2.3}{The \refmodule{email} package should be used in
+                 preference to the \module{mimetools} module.  This
+                 module is present only to maintain backward
+                 compatibility.}
 
 This module defines a subclass of the
 \refmodule{rfc822}\refstmodindex{rfc822} module's
@@ -29,7 +33,10 @@ part boundary.  The string has the form
 Read data encoded using the allowed MIME \var{encoding} from open file
 object \var{input} and write the decoded data to open file object
 \var{output}.  Valid values for \var{encoding} include
-\code{'base64'}, \code{'quoted-printable'} and \code{'uuencode'}.
+\code{'base64'}, \code{'quoted-printable'}, \code{'uuencode'},
+\code{'x-uuencode'}, \code{'uue'}, \code{'x-uue'}, \code{'7bit'}, and 
+\code{'8bit'}.  Decoding messages encoded in \code{'7bit'} or \code{'8bit'}
+has no effect.  The input is simply copied to the output.
 \end{funcdesc}
 
 \begin{funcdesc}{encode}{input, output, encoding}
@@ -50,6 +57,8 @@ open file \var{output}.  The block size is currently fixed at 8192.
 
 
 \begin{seealso}
+  \seemodule{email}{Comprehensive email handling package; supersedes
+                    the \module{mimetools} module.}
   \seemodule{rfc822}{Provides the base class for
                      \class{mimetools.Message}.}
   \seemodule{multifile}{Support for reading files which contain
@@ -68,8 +77,8 @@ The \class{Message} class defines the following methods in
 addition to the \class{rfc822.Message} methods:
 
 \begin{methoddesc}{getplist}{}
-Return the parameter list of the \code{content-type} header.  This is
-a list of strings.  For parameters of the form
+Return the parameter list of the \mailheader{Content-Type} header.
+This is a list of strings.  For parameters of the form
 \samp{\var{key}=\var{value}}, \var{key} is converted to lower case but
 \var{value} is not.  For example, if the message contains the header
 \samp{Content-type: text/html; spam=1; Spam=2; Spam} then
@@ -79,32 +88,33 @@ a list of strings.  For parameters of the form
 
 \begin{methoddesc}{getparam}{name}
 Return the \var{value} of the first parameter (as returned by
-\method{getplist()} of the form \samp{\var{name}=\var{value}} for the
+\method{getplist()}) of the form \samp{\var{name}=\var{value}} for the
 given \var{name}.  If \var{value} is surrounded by quotes of the form
 `\code{<}...\code{>}' or `\code{"}...\code{"}', these are removed.
 \end{methoddesc}
 
 \begin{methoddesc}{getencoding}{}
-Return the encoding specified in the \code{content-transfer-encoding}
-message header.  If no such header exists, return \code{'7bit'}.  The
-encoding is converted to lower case.
+Return the encoding specified in the
+\mailheader{Content-Transfer-Encoding} message header.  If no such
+header exists, return \code{'7bit'}.  The encoding is converted to
+lower case.
 \end{methoddesc}
 
 \begin{methoddesc}{gettype}{}
 Return the message type (of the form \samp{\var{type}/\var{subtype}})
-as specified in the \code{content-type} header.  If no such header
-exists, return \code{'text/plain'}.  The type is converted to lower
-case.
+as specified in the \mailheader{Content-Type} header.  If no such
+header exists, return \code{'text/plain'}.  The type is converted to
+lower case.
 \end{methoddesc}
 
 \begin{methoddesc}{getmaintype}{}
-Return the main type as specified in the \code{content-type} header.
-If no such header exists, return \code{'text'}.  The main type is
-converted to lower case.
+Return the main type as specified in the \mailheader{Content-Type}
+header.  If no such header exists, return \code{'text'}.  The main
+type is converted to lower case.
 \end{methoddesc}
 
 \begin{methoddesc}{getsubtype}{}
-Return the subtype as specified in the \code{content-type} header.  If
-no such header exists, return \code{'plain'}.  The subtype is
-converted to lower case.
+Return the subtype as specified in the \mailheader{Content-Type}
+header.  If no such header exists, return \code{'plain'}.  The subtype
+is converted to lower case.
 \end{methoddesc}

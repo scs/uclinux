@@ -53,6 +53,13 @@ f.lock(mode [, len [, start [, whence]]])
               query only
 """
 
+import warnings
+warnings.warn(
+    "The posixfile module is obsolete and will disappear in the future",
+    DeprecationWarning)
+del warnings
+
+
 class _posixfile_:
     """File wrapper class that provides extra POSIX file routines."""
 
@@ -75,12 +82,16 @@ class _posixfile_:
         return self.fileopen(__builtin__.open(name, mode, bufsize))
 
     def fileopen(self, file):
-        if `type(file)` != "<type 'file'>":
+        import types
+        if repr(type(file)) != "<type 'file'>":
             raise TypeError, 'posixfile.fileopen() arg must be file object'
         self._file_  = file
         # Copy basic file methods
-        for method in file.__methods__:
-            setattr(self, method, getattr(file, method))
+        for maybemethod in dir(file):
+            if not maybemethod.startswith('_'):
+                attr = getattr(file, maybemethod)
+                if isinstance(attr, types.BuiltinMethodType):
+                    setattr(self, maybemethod, attr)
         return self
 
     #
@@ -92,22 +103,22 @@ class _posixfile_:
     def dup(self):
         import posix
 
-        try: ignore = posix.fdopen
-        except: raise AttributeError, 'dup() method unavailable'
+        if not hasattr(posix, 'fdopen'):
+            raise AttributeError, 'dup() method unavailable'
 
         return posix.fdopen(posix.dup(self._file_.fileno()), self._file_.mode)
 
     def dup2(self, fd):
         import posix
 
-        try: ignore = posix.fdopen
-        except: raise AttributeError, 'dup() method unavailable'
+        if not hasattr(posix, 'fdopen'):
+            raise AttributeError, 'dup() method unavailable'
 
         posix.dup2(self._file_.fileno(), fd)
         return posix.fdopen(fd, self._file_.mode)
 
     def flags(self, *which):
-        import fcntl, FCNTL
+        import fcntl, os
 
         if which:
             if len(which) > 1:
@@ -116,44 +127,44 @@ class _posixfile_:
         else: which = '?'
 
         l_flags = 0
-        if 'n' in which: l_flags = l_flags | FCNTL.O_NDELAY
-        if 'a' in which: l_flags = l_flags | FCNTL.O_APPEND
-        if 's' in which: l_flags = l_flags | FCNTL.O_SYNC
+        if 'n' in which: l_flags = l_flags | os.O_NDELAY
+        if 'a' in which: l_flags = l_flags | os.O_APPEND
+        if 's' in which: l_flags = l_flags | os.O_SYNC
 
         file = self._file_
 
         if '=' not in which:
-            cur_fl = fcntl.fcntl(file.fileno(), FCNTL.F_GETFL, 0)
+            cur_fl = fcntl.fcntl(file.fileno(), fcntl.F_GETFL, 0)
             if '!' in which: l_flags = cur_fl & ~ l_flags
             else: l_flags = cur_fl | l_flags
 
-        l_flags = fcntl.fcntl(file.fileno(), FCNTL.F_SETFL, l_flags)
+        l_flags = fcntl.fcntl(file.fileno(), fcntl.F_SETFL, l_flags)
 
-        if 'c' in which:        
+        if 'c' in which:
             arg = ('!' not in which)    # 0 is don't, 1 is do close on exec
-            l_flags = fcntl.fcntl(file.fileno(), FCNTL.F_SETFD, arg)
+            l_flags = fcntl.fcntl(file.fileno(), fcntl.F_SETFD, arg)
 
         if '?' in which:
             which = ''                  # Return current flags
-            l_flags = fcntl.fcntl(file.fileno(), FCNTL.F_GETFL, 0)
-            if FCNTL.O_APPEND & l_flags: which = which + 'a'
-            if fcntl.fcntl(file.fileno(), FCNTL.F_GETFD, 0) & 1:
+            l_flags = fcntl.fcntl(file.fileno(), fcntl.F_GETFL, 0)
+            if os.O_APPEND & l_flags: which = which + 'a'
+            if fcntl.fcntl(file.fileno(), fcntl.F_GETFD, 0) & 1:
                 which = which + 'c'
-            if FCNTL.O_NDELAY & l_flags: which = which + 'n'
-            if FCNTL.O_SYNC & l_flags: which = which + 's'
+            if os.O_NDELAY & l_flags: which = which + 'n'
+            if os.O_SYNC & l_flags: which = which + 's'
             return which
-        
-    def lock(self, how, *args):
-        import struct, fcntl, FCNTL
 
-        if 'w' in how: l_type = FCNTL.F_WRLCK
-        elif 'r' in how: l_type = FCNTL.F_RDLCK
-        elif 'u' in how: l_type = FCNTL.F_UNLCK
+    def lock(self, how, *args):
+        import struct, fcntl
+
+        if 'w' in how: l_type = fcntl.F_WRLCK
+        elif 'r' in how: l_type = fcntl.F_RDLCK
+        elif 'u' in how: l_type = fcntl.F_UNLCK
         else: raise TypeError, 'no type of lock specified'
 
-        if '|' in how: cmd = FCNTL.F_SETLKW
-        elif '?' in how: cmd = FCNTL.F_GETLK
-        else: cmd = FCNTL.F_SETLK
+        if '|' in how: cmd = fcntl.F_SETLKW
+        elif '?' in how: cmd = fcntl.F_GETLK
+        else: cmd = fcntl.F_SETLK
 
         l_whence = 0
         l_start = 0
@@ -174,9 +185,9 @@ class _posixfile_:
         if sys.platform in ('netbsd1',
                             'openbsd2',
                             'freebsd2', 'freebsd3', 'freebsd4', 'freebsd5',
-                            'bsdos2', 'bsdos3', 'bsdos4'):
+                            'freebsd6', 'bsdos2', 'bsdos3', 'bsdos4'):
             flock = struct.pack('lxxxxlxxxxlhh', \
-                  l_start, l_len, os.getpid(), l_type, l_whence) 
+                  l_start, l_len, os.getpid(), l_type, l_whence)
         elif sys.platform in ['aix3', 'aix4']:
             flock = struct.pack('hhlllii', \
                   l_type, l_whence, l_start, l_len, 0, 0, 0)
@@ -203,8 +214,8 @@ class _posixfile_:
                 l_type, l_whence, l_start, l_len, l_sysid, l_pid = \
                     struct.unpack('hhllhh', flock)
 
-            if l_type != FCNTL.F_UNLCK:
-                if l_type == FCNTL.F_RDLCK:
+            if l_type != fcntl.F_UNLCK:
+                if l_type == fcntl.F_RDLCK:
                     return 'r', l_len, l_start, l_whence, l_pid
                 else:
                     return 'w', l_len, l_start, l_whence, l_pid

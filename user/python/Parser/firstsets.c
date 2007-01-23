@@ -15,8 +15,9 @@ addfirstsets(grammar *g)
 {
 	int i;
 	dfa *d;
-	
-	printf("Adding FIRST sets ...\n");
+
+	if (Py_DebugFlag)
+		printf("Adding FIRST sets ...\n");
 	for (i = 0; i < g->g_ndfas; i++) {
 		d = &g->g_dfa[i];
 		if (d->d_first == NULL)
@@ -106,4 +107,6 @@ calcfirstset(grammar *g, dfa *d)
 		}
 		printf(" }\n");
 	}
+
+	PyMem_FREE(sym);
 }

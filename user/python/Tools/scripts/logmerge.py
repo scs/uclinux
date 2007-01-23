@@ -19,12 +19,22 @@ entry; this is useful when using something like the above cvs log
 command, which shows the revisions including the given tag, while you
 probably want everything *since* that tag.
 
+The -r option reverses the output (oldest first; the default is oldest
+last).
+
+The -b tag option restricts the output to *only* checkin messages
+belonging to the given branch tag.  The form -b HEAD restricts the
+output to checkin messages belonging to the CVS head (trunk).  (It
+produces some output if tag is a non-branch tag, but this output is
+not very useful.)
+
+-h prints this message and exits.
+
 XXX This code was created by reverse engineering CVS 1.9 and RCS 5.7
 from their output.
-
 """
 
-import os, sys, getopt, string, re
+import os, sys, errno, getopt, re
 
 sep1 = '='*77 + '\n'                    # file separator
 sep2 = '-'*28 + '\n'                    # revision separator
@@ -33,18 +43,24 @@ def main():
     """Main program"""
     truncate_last = 0
     reverse = 0
-    opts, args = getopt.getopt(sys.argv[1:], "tr")
+    branch = None
+    opts, args = getopt.getopt(sys.argv[1:], "trb:h")
     for o, a in opts:
         if o == '-t':
             truncate_last = 1
         elif o == '-r':
             reverse = 1
+        elif o == '-b':
+            branch = a
+        elif o == '-h':
+            print __doc__
+            sys.exit(0)
     database = []
     while 1:
         chunk = read_chunk(sys.stdin)
         if not chunk:
             break
-        records = digest_chunk(chunk)
+        records = digest_chunk(chunk, branch)
         if truncate_last:
             del records[-1]
         database[len(database):] = records
@@ -77,23 +93,48 @@ def read_chunk(fp):
             lines.append(line)
     return chunk
 
-def digest_chunk(chunk):
-    """Digest a chunk -- extrach working file name and revisions"""
+def digest_chunk(chunk, branch=None):
+    """Digest a chunk -- extract working file name and revisions"""
     lines = chunk[0]
     key = 'Working file:'
     keylen = len(key)
     for line in lines:
         if line[:keylen] == key:
-            working_file = string.strip(line[keylen:])
+            working_file = line[keylen:].strip()
             break
     else:
         working_file = None
+    if branch is None:
+        pass
+    elif branch == "HEAD":
+        branch = re.compile(r"^\d+\.\d+$")
+    else:
+        revisions = {}
+        key = 'symbolic names:\n'
+        found = 0
+        for line in lines:
+            if line == key:
+                found = 1
+            elif found:
+                if line[0] in '\t ':
+                    tag, rev = line.split()
+                    if tag[-1] == ':':
+                        tag = tag[:-1]
+                    revisions[tag] = rev
+                else:
+                    found = 0
+        rev = revisions.get(branch)
+        branch = re.compile(r"^<>$") # <> to force a mismatch by default
+        if rev:
+            if rev.find('.0.') >= 0:
+                rev = rev.replace('.0.', '.')
+                branch = re.compile(r"^" + re.escape(rev) + r"\.\d+$")
     records = []
     for lines in chunk[1:]:
         revline = lines[0]
         dateline = lines[1]
         text = lines[2:]
-        words = string.split(dateline)
+        words = dateline.split()
         author = None
         if len(words) >= 3 and words[0] == 'date:':
             dateword = words[1]
@@ -108,15 +149,19 @@ def digest_chunk(chunk):
         else:
             date = None
             text.insert(0, revline)
-        words = string.split(revline)
+        words = revline.split()
         if len(words) >= 2 and words[0] == 'revision':
             rev = words[1]
         else:
+            # No 'revision' line -- weird...
             rev = None
             text.insert(0, revline)
+        if branch:
+            if rev is None or not branch.match(rev):
+                continue
         records.append((date, working_file, rev, author, text))
     return records
-        
+
 def format_output(database):
     prevtext = None
     prev = []
@@ -126,10 +171,15 @@ def format_output(database):
             if prev:
                 print sep2,
                 for (p_date, p_working_file, p_rev, p_author) in prev:
-                    print p_date, p_author, p_working_file
+                    print p_date, p_author, p_working_file, p_rev
                 sys.stdout.writelines(prevtext)
             prev = []
         prev.append((date, working_file, rev, author))
         prevtext = text
 
-main()
+if __name__ == '__main__':
+    try:
+        main()
+    except IOError, e:
+        if e.errno != errno.EPIPE:
+            raise

@@ -1,82 +1,82 @@
 # Generate the Python "info" documentation.
 
-PAPER=letter
 TOPDIR=..
 TOOLSDIR=$(TOPDIR)/tools
-PAPERDIR=$(TOPDIR)/paper-$(PAPER)
 HTMLDIR=$(TOPDIR)/html
 
+# The emacs binary used to build the info docs. GNU Emacs 21 is required.
+EMACS=emacs
+
 MKINFO=$(TOOLSDIR)/mkinfo
-SCRIPTS=$(TOOLSDIR)/html2texi.pl $(TOOLSDIR)/checkargs.pm $(TOOLSDIR)/mkinfo \
-	$(TOOLSDIR)/fixinfo.el
+SCRIPTS=$(TOOLSDIR)/checkargs.pm $(TOOLSDIR)/mkinfo $(TOOLSDIR)/py2texi.el
 
-all:	python-api.info python-ext.info python-lib.info \
-	python-ref.info python-tut.info
+# set VERSION to code the VERSION number into the info file name
+# allowing installation of more than one set of python info docs
+# into the same directory
+VERSION=
 
+all:	check-emacs-version \
+	api dist ext mac ref tut whatsnew \
+	lib
+#	doc inst
 
-python-api.info:	$(HTMLDIR)/api/api.html $(SCRIPTS)
-	$(MKINFO) $<
+api:	python$(VERSION)-api.info
+dist:	python$(VERSION)-dist.info
+doc:	python$(VERSION)-doc.info
+ext:	python$(VERSION)-ext.info
+inst:	python$(VERSION)-inst.info
+lib:	python$(VERSION)-lib.info
+mac:	python$(VERSION)-mac.info
+ref:	python$(VERSION)-ref.info
+tut:	python$(VERSION)-tut.info
+whatsnew:	$(WHATSNEW)
+$(WHATSNEW):	python$(VERSION)-$(WHATSNEW).info
 
-python-ext.info:	$(HTMLDIR)/ext/ext.html $(SCRIPTS)
-	$(MKINFO) $<
+check-emacs-version:
+	@v="`$(EMACS) --version 2>&1 | egrep '^(GNU |X)Emacs [12]*'`"; \
+	if `echo "$$v" | grep '^GNU Emacs 21' >/dev/null 2>&1`; then \
+	  echo "Using $(EMACS) to build the info docs"; \
+	else \
+	  echo "GNU Emacs 21 is required to build the info docs"; \
+	  echo "Found $$v"; \
+	  false; \
+	fi
 
-python-lib.info:	$(HTMLDIR)/lib/lib.html $(SCRIPTS)
-	$(MKINFO) $<
+python$(VERSION)-api.info:	../api/api.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
 
-# Not built by default; the conversion doesn't really handle it well.
-python-mac.info:	$(HTMLDIR)/mac/mac.html $(SCRIPTS)
-	$(MKINFO) $<
+python$(VERSION)-ext.info:	../ext/ext.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
 
-python-ref.info:	$(HTMLDIR)/ref/ref.html $(SCRIPTS)
-	$(MKINFO) $<
+python$(VERSION)-lib.info:	../lib/lib.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
 
-python-tut.info:	$(HTMLDIR)/tut/tut.html $(SCRIPTS)
-	$(MKINFO) $<
+python$(VERSION)-mac.info:	../mac/mac.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
 
+python$(VERSION)-ref.info:	../ref/ref.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
+
+python$(VERSION)-tut.info:	../tut/tut.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
+
+# Not built by default; the conversion doesn't handle \p and \op
+python$(VERSION)-doc.info:	../doc/doc.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
+
+python$(VERSION)-dist.info:	../dist/dist.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
+
+# Not built by default; the conversion chokes on \installscheme
+python$(VERSION)-inst.info:	../inst/inst.tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
+
+# "whatsnew20" doesn't currently work
+python$(VERSION)-$(WHATSNEW).info:  ../whatsnew/$(WHATSNEW).tex $(SCRIPTS)
+	EMACS=$(EMACS) $(MKINFO) $< $*.texi $@
 
 clean:
 	rm -f *.texi~ *.texi
 
 clobber: clean
-	rm -f *.texi python-*.info python-*.info-[0-9]*
-
-
-# The HTML files are dependent on the .aux files, which are dependent on the
-# LaTeX source documents.  This makes sure we can build info files from a
-# "clean" tree:
-
-$(HTMLDIR)/api/api.html:  $(PAPERDIR)/api.aux $(BUILDINDEX)
-	(cd $(TOPDIR); $(MAKE) htmlapi)
-
-$(HTMLDIR)/ext/ext.html:  $(PAPERDIR)/ext.aux
-	(cd $(TOPDIR); $(MAKE) htmlext)
-
-$(HTMLDIR)/lib/lib.html:  $(PAPERDIR)/lib.aux $(BUILDINDEX)
-	(cd $(TOPDIR); $(MAKE) htmllib)
-
-$(HTMLDIR)/mac/mac.html:  $(MACFILES) $(BUILDINDEX)
-	(cd $(TOPDIR); $(MAKE) htmlmac)
-
-$(HTMLDIR)/ref/ref.html:  $(PAPERDIR)/ref.aux $(BUILDINDEX)
-	(cd $(TOPDIR); $(MAKE) htmlref)
-
-$(HTMLDIR)/tut/tut.html:  $(PAPERDIR)/tut.aux
-	(cd $(TOPDIR); $(MAKE) htmltut)
-
-
-include ../Makefile.deps
-
-$(PAPERDIR)/api.aux: $(APIFILES)
-	(cd $(PAPERDIR); $(MAKE) PAPER=$(PAPER) api.dvi)
-
-$(PAPERDIR)/ext.aux: $(EXTFILES)
-	(cd $(PAPERDIR); $(MAKE) PAPER=$(PAPER) ext.dvi)
-
-$(PAPERDIR)/lib.aux: $(LIBFILES)
-	(cd $(PAPERDIR); $(MAKE) PAPER=$(PAPER) lib.dvi)
-
-$(PAPERDIR)/ref.aux: $(REFFILES)
-	(cd $(PAPERDIR); $(MAKE) PAPER=$(PAPER) ref.dvi)
-
-$(PAPERDIR)/tut.aux: $(TUTFILES)
-	(cd $(PAPERDIR); $(MAKE) PAPER=$(PAPER) tut.dvi)
+	rm -f *.texi python*-*.info python*-*.info-[0-9]*

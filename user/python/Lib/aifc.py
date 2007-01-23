@@ -137,10 +137,12 @@ writeframesraw.
 import struct
 import __builtin__
 
+__all__ = ["Error","open","openfp"]
+
 class Error(Exception):
     pass
 
-_AIFC_version = 0xA2805140      # Version 1 of AIFF-C
+_AIFC_version = 0xA2805140L     # Version 1 of AIFF-C
 
 _skiplist = 'COMT', 'INST', 'MIDI', 'AESD', \
       'APPL', 'NAME', 'AUTH', '(c) ', 'ANNO'
@@ -176,7 +178,6 @@ def _read_string(file):
 _HUGE_VAL = 1.79769313486231e+308 # See <limits.h>
 
 def _read_float(f): # 10 bytes
-    import math
     expon = _read_short(f) # 2 bytes
     sign = 1
     if expon < 0:
@@ -308,7 +309,7 @@ class Aifc_read:
                 dummy = chunk.read(8)
                 self._ssnd_seek_needed = 0
             elif chunkname == 'FVER':
-                self._version = _read_long(chunk)
+                self._version = _read_ulong(chunk)
             elif chunkname == 'MARK':
                 self._readmark(chunk)
             elif chunkname in _skiplist:
@@ -391,7 +392,7 @@ class Aifc_read:
         for marker in self._markers:
             if id == marker[0]:
                 return marker
-        raise Error, 'marker ' + `id` + ' does not exist'
+        raise Error, 'marker %r does not exist' % (id,)
 
     def setpos(self, pos):
         if pos < 0 or pos > self._nframes:
@@ -696,13 +697,13 @@ class Aifc_write:
         for marker in self._markers:
             if id == marker[0]:
                 return marker
-        raise Error, 'marker ' + `id` + ' does not exist'
+        raise Error, 'marker %r does not exist' % (id,)
 
     def getmarkers(self):
         if len(self._markers) == 0:
             return None
         return self._markers
-                
+
     def tell(self):
         return self._nframeswritten
 
@@ -744,8 +745,8 @@ class Aifc_write:
 
     def _comp_data(self, data):
         import cl
-        dum = self._comp.SetParam(cl.FRAME_BUFFER_SIZE, len(data))
-        dum = self._comp.SetParam(cl.COMPRESSED_BUFFER_SIZE, len(data))
+        dummy = self._comp.SetParam(cl.FRAME_BUFFER_SIZE, len(data))
+        dummy = self._comp.SetParam(cl.COMPRESSED_BUFFER_SIZE, len(data))
         return self._comp.Compress(self._nframes, data)
 
     def _lin2ulaw(self, data):
@@ -782,7 +783,6 @@ class Aifc_write:
 
     def _init_compression(self):
         if self._comptype == 'G722':
-            import audioop
             self._convert = self._lin2adpcm
             return
         try:

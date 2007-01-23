@@ -90,7 +90,7 @@ class ListViewer:
             bboxes.append(boxid)
             if textend+3 > widest:
                 widest = textend+3
-            row = row + 1
+            row += 1
         canvheight = (row-1)*20 + 25
         canvas.config(scrollregion=(0, 0, 150, canvheight))
         for box in bboxes:
@@ -162,7 +162,6 @@ class ListViewer:
         if self.__dontcenter:
             self.__dontcenter = 0
         else:
-            height = canvas['height']
             ig, ig, ig, y1 = canvas.coords(colortag)
             ig, ig, ig, y2 = canvas.coords(self.__bboxes[-1])
             h = int(canvas['height']) * 0.5

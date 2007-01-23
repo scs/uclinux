@@ -4,19 +4,24 @@ Provides the Distribution class, which represents the module distribution
 being built/installed/distributed.
 """
 
-# created 2000/04/03, Greg Ward
-# (extricated from core.py; actually dates back to the beginning)
+# This module should be kept compatible with Python 2.1.
 
 __revision__ = "$Id$"
 
 import sys, os, string, re
 from types import *
 from copy import copy
-from distutils.errors import *
-from distutils import sysconfig
-from distutils.fancy_getopt import FancyGetopt, translate_longopt
-from distutils.util import check_environ, strtobool
 
+try:
+    import warnings
+except ImportError:
+    warnings = None
+
+from distutils.errors import *
+from distutils.fancy_getopt import FancyGetopt, translate_longopt
+from distutils.util import check_environ, strtobool, rfc822_escape
+from distutils import log
+from distutils.debug import DEBUG
 
 # Regex to define acceptable Distutils command names.  This is not *quite*
 # the same as a Python NAME -- I don't allow leading underscores.  The fact
@@ -47,7 +52,8 @@ class Distribution:
     # since every global option is also valid as a command option -- and we
     # don't want to pollute the commands with too many options that they
     # have minimal control over.
-    global_options = [('verbose', 'v', "run verbosely (default)"),
+    # The fourth entry for verbose means that it can be repeated.
+    global_options = [('verbose', 'v', "run verbosely (default)", 1),
                       ('quiet', 'q', "run quietly (turns verbosity off)"),
                       ('dry-run', 'n', "don't actually do anything"),
                       ('help', 'h', "show detailed help message"),
@@ -77,14 +83,20 @@ class Distribution:
          "print the maintainer's email address if known, else the author's"),
         ('url', None,
          "print the URL for this package"),
-        ('licence', None,
-         "print the licence of the package"),
         ('license', None,
-         "alias for --licence"),
+         "print the license of the package"),
+        ('licence', None,
+         "alias for --license"),
         ('description', None,
          "print the package description"),
         ('long-description', None,
          "print the long package description"),
+        ('platforms', None,
+         "print the list of platforms"),
+        ('classifiers', None,
+         "print the list of classifiers"),
+        ('keywords', None,
+         "print the list of keywords"),
         ]
     display_option_names = map(lambda x: translate_longopt(x[0]),
                                display_options)
@@ -94,7 +106,7 @@ class Distribution:
 
 
     # -- Creation/initialization methods -------------------------------
-    
+
     def __init__ (self, attrs=None):
         """Construct a new Distribution instance: initialize all the
         attributes of a Distribution, and then use 'attrs' (a dictionary
@@ -119,9 +131,7 @@ class Distribution:
         # worth it.  Also delegate 'get_XXX()' methods to the 'metadata'
         # object in a sneaky and underhanded (but efficient!) way.
         self.metadata = DistributionMetadata()
-        method_basenames = dir(self.metadata) + \
-                           ['fullname', 'contact', 'contact_email']
-        for basename in method_basenames:
+        for basename in self.metadata._METHOD_BASENAMES:
             method_name = "get_" + basename
             setattr(self, method_name, getattr(self.metadata, method_name))
 
@@ -130,6 +140,14 @@ class Distribution:
         # we need to create a new command object, and 2) have a way
         # for the setup script to override command classes
         self.cmdclass = {}
+
+        # 'command_packages' is a list of packages in which commands
+        # are searched for.  The factory for command 'foo' is expected
+        # to be named 'foo' in the module 'foo' in one of the packages
+        # named here.  This list is searched from the left; an error
+        # is raised if no named package provides the command being
+        # searched for.  (Always access using get_command_packages().)
+        self.command_packages = None
 
         # 'script_name' and 'script_args' are usually set to sys.argv[0]
         # and sys.argv[1:], but they can be overridden when the caller is
@@ -148,6 +166,7 @@ class Distribution:
         # than of the Distribution itself.  We provide aliases for them in
         # Distribution as a convenience to the developer.
         self.packages = None
+        self.package_data = {}
         self.package_dir = None
         self.py_modules = None
         self.libraries = None
@@ -195,6 +214,15 @@ class Distribution:
                     for (opt, val) in cmd_options.items():
                         opt_dict[opt] = ("setup script", val)
 
+            if attrs.has_key('licence'):
+                attrs['license'] = attrs['licence']
+                del attrs['licence']
+                msg = "'licence' distribution option is deprecated; use 'license'"
+                if warnings is not None:
+                    warnings.warn(msg)
+                else:
+                    sys.stderr.write(msg + "\n")
+
             # Now work on the rest of the attributes.  Any attribute that's
             # not already defined is invalid!
             for (key,val) in attrs.items():
@@ -203,8 +231,13 @@ class Distribution:
                 elif hasattr(self, key):
                     setattr(self, key, val)
                 else:
-                    raise DistutilsSetupError, \
-                          "invalid distribution option '%s'" % key
+                    msg = "Unknown distribution option: %s" % repr(key)
+                    if warnings is not None:
+                        warnings.warn(msg)
+                    else:
+                        sys.stderr.write(msg + "\n")
+
+        self.finalize_options()
 
     # __init__ ()
 
@@ -248,7 +281,7 @@ class Distribution:
                     print indent + "  " + line
 
     # dump_option_dicts ()
-            
+
 
 
     # -- Config file finding/parsing methods ---------------------------
@@ -259,14 +292,11 @@ class Distribution:
         should be parsed.  The filenames returned are guaranteed to exist
         (modulo nasty race conditions).
 
-        On Unix, there are three possible config files: pydistutils.cfg in
-        the Distutils installation directory (ie. where the top-level
-        Distutils __inst__.py file lives), .pydistutils.cfg in the user's
-        home directory, and setup.cfg in the current directory.
-
-        On Windows and Mac OS, there are two possible config files:
-        pydistutils.cfg in the Python installation directory (sys.prefix)
-        and setup.cfg in the current directory.
+        There are three possible config files: distutils.cfg in the
+        Distutils installation directory (ie. where the top-level
+        Distutils __inst__.py file lives), a file in the user's home
+        directory named .pydistutils.cfg on Unix and pydistutils.cfg
+        on Windows/Mac, and setup.cfg in the current directory.
         """
         files = []
         check_environ()
@@ -304,7 +334,6 @@ class Distribution:
     def parse_config_files (self, filenames=None):
 
         from ConfigParser import ConfigParser
-        from distutils.core import DEBUG
 
         if filenames is None:
             filenames = self.find_config_files()
@@ -326,9 +355,7 @@ class Distribution:
                         opt_dict[opt] = (filename, val)
 
             # Make the ConfigParser forget everything (so we retain
-            # the original filenames that options come from) -- gag,
-            # retch, puke -- another good reason for a distutils-
-            # specific config parser (sigh...)
+            # the original filenames that options come from)
             parser.__init__()
 
         # If there was a "global" section in the config file, use it
@@ -342,6 +369,8 @@ class Distribution:
                         setattr(self, alias, not strtobool(val))
                     elif opt in ('verbose', 'dry_run'): # ugh!
                         setattr(self, opt, strtobool(val))
+                    else:
+                        setattr(self, opt, val)
                 except ValueError, msg:
                     raise DistutilsOptionError, msg
 
@@ -369,6 +398,17 @@ class Distribution:
         execute commands (currently, this only happens if user asks for
         help).
         """
+        #
+        # We now have enough information to show the Macintosh dialog
+        # that allows the user to interactively specify the "command line".
+        #
+        toplevel_options = self._get_toplevel_options()
+        if sys.platform == 'mac':
+            import EasyDialogs
+            cmdlist = self.get_command_list()
+            self.script_args = EasyDialogs.GetArgv(
+                toplevel_options + self.display_options, cmdlist)
+
         # We have to parse the command line a bit at a time -- global
         # options, then the first command, then its options, and so on --
         # because each command will be handled by a different class, and
@@ -377,16 +417,17 @@ class Distribution:
         # until we know what the command is.
 
         self.commands = []
-        parser = FancyGetopt(self.global_options + self.display_options)
+        parser = FancyGetopt(toplevel_options + self.display_options)
         parser.set_negative_aliases(self.negative_opt)
-        parser.set_aliases({'license': 'licence'})
+        parser.set_aliases({'licence': 'license'})
         args = parser.getopt(args=self.script_args, object=self)
         option_order = parser.get_option_order()
+        log.set_verbosity(self.verbose)
 
         # for display options we return immediately
         if self.handle_display_options(option_order):
             return
-            
+
         while args:
             args = self._parse_command_opts(parser, args)
             if args is None:            # user asked for help (and got it)
@@ -412,6 +453,17 @@ class Distribution:
         return 1
 
     # parse_command_line()
+
+    def _get_toplevel_options (self):
+        """Return the non-display options recognized at the top level.
+
+        This includes options that are recognized *only* at the top
+        level as well as options recognized for commands.
+        """
+        return self.global_options + [
+            ("command-packages=", None,
+             "list of packages that provide distutils commands"),
+            ]
 
     def _parse_command_opts (self, parser, args):
         """Parse the command-line options for a single command.
@@ -493,12 +545,12 @@ class Distribution:
                     if callable(func):
                         func()
                     else:
-                        raise DistutilsClassError, \
-                            ("invalid help function %s for help option '%s': "
-                             "must be a callable object (function, etc.)") % \
-                            (`func`, help_option)
+                        raise DistutilsClassError(
+                            "invalid help function %r for help option '%s': "
+                            "must be a callable object (function, etc.)"
+                            % (func, help_option))
 
-            if help_option_found: 
+            if help_option_found:
                 return
 
         # Put the options from the command-line into their official
@@ -511,6 +563,23 @@ class Distribution:
 
     # _parse_command_opts ()
 
+    def finalize_options (self):
+        """Set final values for all the options on the Distribution
+        instance, analogous to the .finalize_options() method of Command
+        objects.
+        """
+
+        keywords = self.metadata.keywords
+        if keywords is not None:
+            if type(keywords) is StringType:
+                keywordlist = string.split(keywords, ',')
+                self.metadata.keywords = map(string.strip, keywordlist)
+
+        platforms = self.metadata.platforms
+        if platforms is not None:
+            if type(platforms) is StringType:
+                platformlist = string.split(platforms, ',')
+                self.metadata.platforms = map(string.strip, platformlist)
 
     def _show_help (self,
                     parser,
@@ -534,7 +603,11 @@ class Distribution:
         from distutils.cmd import Command
 
         if global_options:
-            parser.set_option_table(self.global_options)
+            if display_options:
+                options = self._get_toplevel_options()
+            else:
+                options = self.global_options
+            parser.set_option_table(options)
             parser.print_help("Global options:")
             print
 
@@ -546,7 +619,7 @@ class Distribution:
             print
 
         for command in self.commands:
-            if type(command) is ClassType and issubclass(klass, Command):
+            if type(command) is ClassType and issubclass(command, Command):
                 klass = command
             else:
                 klass = self.get_command_class(command)
@@ -593,7 +666,13 @@ class Distribution:
         for (opt, val) in option_order:
             if val and is_display_option.get(opt):
                 opt = translate_longopt(opt)
-                print getattr(self.metadata, "get_"+opt)()
+                value = getattr(self.metadata, "get_"+opt)()
+                if opt in ['keywords', 'platforms']:
+                    print string.join(value, ',')
+                elif opt == 'classifiers':
+                    print string.join(value, '\n')
+                else:
+                    print value
                 any_display_options = 1
 
         return any_display_options
@@ -657,8 +736,53 @@ class Distribution:
 
     # print_commands ()
 
+    def get_command_list (self):
+        """Get a list of (command, description) tuples.
+        The list is divided into "standard commands" (listed in
+        distutils.command.__all__) and "extra commands" (mentioned in
+        self.cmdclass, but not a standard command).  The descriptions come
+        from the command class attribute 'description'.
+        """
+        # Currently this is only used on Mac OS, for the Mac-only GUI
+        # Distutils interface (by Jack Jansen)
+
+        import distutils.command
+        std_commands = distutils.command.__all__
+        is_std = {}
+        for cmd in std_commands:
+            is_std[cmd] = 1
+
+        extra_commands = []
+        for cmd in self.cmdclass.keys():
+            if not is_std.get(cmd):
+                extra_commands.append(cmd)
+
+        rv = []
+        for cmd in (std_commands + extra_commands):
+            klass = self.cmdclass.get(cmd)
+            if not klass:
+                klass = self.get_command_class(cmd)
+            try:
+                description = klass.description
+            except AttributeError:
+                description = "(no description available)"
+            rv.append((cmd, description))
+        return rv
 
     # -- Command class/object methods ----------------------------------
+
+    def get_command_packages (self):
+        """Return a list of packages from which commands are loaded."""
+        pkgs = self.command_packages
+        if not isinstance(pkgs, type([])):
+            pkgs = string.split(pkgs or "", ",")
+            for i in range(len(pkgs)):
+                pkgs[i] = string.strip(pkgs[i])
+            pkgs = filter(None, pkgs)
+            if "distutils.command" not in pkgs:
+                pkgs.insert(0, "distutils.command")
+            self.command_packages = pkgs
+        return pkgs
 
     def get_command_class (self, command):
         """Return the class that implements the Distutils command named by
@@ -676,26 +800,28 @@ class Distribution:
         if klass:
             return klass
 
-        module_name = 'distutils.command.' + command
-        klass_name = command
+        for pkgname in self.get_command_packages():
+            module_name = "%s.%s" % (pkgname, command)
+            klass_name = command
 
-        try:
-            __import__ (module_name)
-            module = sys.modules[module_name]
-        except ImportError:
-            raise DistutilsModuleError, \
-                  "invalid command '%s' (no module named '%s')" % \
-                  (command, module_name)
+            try:
+                __import__ (module_name)
+                module = sys.modules[module_name]
+            except ImportError:
+                continue
 
-        try:
-            klass = getattr(module, klass_name)
-        except AttributeError:
-            raise DistutilsModuleError, \
-                  "invalid command '%s' (no class '%s' in module '%s')" \
-                  % (command, klass_name, module_name)
+            try:
+                klass = getattr(module, klass_name)
+            except AttributeError:
+                raise DistutilsModuleError, \
+                      "invalid command '%s' (no class '%s' in module '%s')" \
+                      % (command, klass_name, module_name)
 
-        self.cmdclass[command] = klass
-        return klass
+            self.cmdclass[command] = klass
+            return klass
+
+        raise DistutilsModuleError("invalid command '%s'" % command)
+
 
     # get_command_class ()
 
@@ -705,7 +831,6 @@ class Distribution:
         object for 'command' is in the cache, then we either create and
         return it (if 'create' is true) or return None.
         """
-        from distutils.core import DEBUG
         cmd_obj = self.command_obj.get(command)
         if not cmd_obj and create:
             if DEBUG:
@@ -736,8 +861,6 @@ class Distribution:
         supplied, uses the standard option dictionary for this command
         (from 'self.command_options').
         """
-        from distutils.core import DEBUG
-        
         command_name = command_obj.get_command_name()
         if option_dict is None:
             option_dict = self.get_option_dict(command_name)
@@ -777,7 +900,7 @@ class Distribution:
         user-supplied values from the config files and command line.
         You'll have to re-finalize the command object (by calling
         'finalize_options()' or 'ensure_finalized()') before using it for
-        real.  
+        real.
 
         'command' should be a command name (string) or command object.  If
         'reinit_subcommands' is true, also reinitializes the command's
@@ -804,21 +927,15 @@ class Distribution:
 
         if reinit_subcommands:
             for sub in command.get_sub_commands():
-                self.reinitialize_command(sub, reinit_subcommands)            
+                self.reinitialize_command(sub, reinit_subcommands)
 
         return command
 
-        
+
     # -- Methods that operate on the Distribution ----------------------
 
     def announce (self, msg, level=1):
-        """Print 'msg' if 'level' is greater than or equal to the verbosity
-        level recorded in the 'verbose' attribute (which, currently, can be
-        only 0 or 1).
-        """
-        if self.verbose >= level:
-            print msg
-
+        log.debug(msg)
 
     def run_commands (self):
         """Run each command that was seen on the setup script command line.
@@ -843,7 +960,7 @@ class Distribution:
         if self.have_run.get(command):
             return
 
-        self.announce("running " + command)
+        log.info("running %s", command)
         cmd_obj = self.get_command_obj(command)
         cmd_obj.ensure_finalized()
         cmd_obj.run()
@@ -893,6 +1010,13 @@ class DistributionMetadata:
     author, and so forth.
     """
 
+    _METHOD_BASENAMES = ("name", "version", "author", "author_email",
+                         "maintainer", "maintainer_email", "url",
+                         "license", "description", "long_description",
+                         "keywords", "platforms", "fullname", "contact",
+                         "contact_email", "license", "classifiers",
+                         "download_url")
+
     def __init__ (self):
         self.name = None
         self.version = None
@@ -901,17 +1025,55 @@ class DistributionMetadata:
         self.maintainer = None
         self.maintainer_email = None
         self.url = None
-        self.licence = None
+        self.license = None
         self.description = None
         self.long_description = None
-        
+        self.keywords = None
+        self.platforms = None
+        self.classifiers = None
+        self.download_url = None
+
+    def write_pkg_info (self, base_dir):
+        """Write the PKG-INFO file into the release tree.
+        """
+
+        pkg_info = open( os.path.join(base_dir, 'PKG-INFO'), 'w')
+
+        pkg_info.write('Metadata-Version: 1.0\n')
+        pkg_info.write('Name: %s\n' % self.get_name() )
+        pkg_info.write('Version: %s\n' % self.get_version() )
+        pkg_info.write('Summary: %s\n' % self.get_description() )
+        pkg_info.write('Home-page: %s\n' % self.get_url() )
+        pkg_info.write('Author: %s\n' % self.get_contact() )
+        pkg_info.write('Author-email: %s\n' % self.get_contact_email() )
+        pkg_info.write('License: %s\n' % self.get_license() )
+        if self.download_url:
+            pkg_info.write('Download-URL: %s\n' % self.download_url)
+
+        long_desc = rfc822_escape( self.get_long_description() )
+        pkg_info.write('Description: %s\n' % long_desc)
+
+        keywords = string.join( self.get_keywords(), ',')
+        if keywords:
+            pkg_info.write('Keywords: %s\n' % keywords )
+
+        for platform in self.get_platforms():
+            pkg_info.write('Platform: %s\n' % platform )
+
+        for classifier in self.get_classifiers():
+            pkg_info.write('Classifier: %s\n' % classifier )
+
+        pkg_info.close()
+
+    # write_pkg_info ()
+
     # -- Metadata query methods ----------------------------------------
 
     def get_name (self):
         return self.name or "UNKNOWN"
 
     def get_version(self):
-        return self.version or "???"
+        return self.version or "0.0.0"
 
     def get_fullname (self):
         return "%s-%s" % (self.get_name(), self.get_version())
@@ -941,14 +1103,27 @@ class DistributionMetadata:
     def get_url(self):
         return self.url or "UNKNOWN"
 
-    def get_licence(self):
-        return self.licence or "UNKNOWN"
+    def get_license(self):
+        return self.license or "UNKNOWN"
+    get_licence = get_license
 
     def get_description(self):
         return self.description or "UNKNOWN"
 
     def get_long_description(self):
         return self.long_description or "UNKNOWN"
+
+    def get_keywords(self):
+        return self.keywords or []
+
+    def get_platforms(self):
+        return self.platforms or ["UNKNOWN"]
+
+    def get_classifiers(self):
+        return self.classifiers or []
+
+    def get_download_url(self):
+        return self.download_url or "UNKNOWN"
 
 # class DistributionMetadata
 
