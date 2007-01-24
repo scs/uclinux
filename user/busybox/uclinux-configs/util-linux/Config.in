@@ -81,7 +81,7 @@ comment '--###-- LINUX SYSTEM UTILITIES --###--'
    bool '   Use termios to manipulate the screen' CONFIG_USER_BUSYBOX_FEATURE_USE_TERMIOS y
  fi
  bool ' mount' CONFIG_USER_BUSYBOX_MOUNT n
- if [ "$CONFIG_USER_BUSYBOX_MOUNT" = "y""$CONFIG_USER_BUSYBOX_FEATURE_HAVE_RPC" = "y" ]; then
+ if [ "$CONFIG_USER_BUSYBOX_MOUNT" = "y" -a "$CONFIG_USER_BUSYBOX_FEATURE_HAVE_RPC" = "y" ]; then
    bool '   Support mounting NFS file systems' CONFIG_USER_BUSYBOX_FEATURE_MOUNT_NFS n
    if [ "$CONFIG_USER_BUSYBOX_FEATURE_MOUNT_NFS" = "y" ]; then
      if [ "$CONFIG_USER_BUSYBOX_FEATURE_SYSLOG" != "y" ]; then

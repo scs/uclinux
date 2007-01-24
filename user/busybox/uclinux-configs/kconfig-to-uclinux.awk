@@ -17,6 +17,8 @@ function parse_depend(depend)
 				printf " -a "
 			} else if (d2[i2] == "||") {
 				printf " -o "
+			} else if (d2[i2] == "(") {
+				err("Unable to handle nested depends")
 			} else {
 				operation = "="
 				operand = d2[i2]
@@ -136,6 +138,8 @@ if ($1 ~ /^#/ || NF == 0) {
 		}
 
 		isdepend = (length(depend) > 1)
+		if (length(depend) > 2)
+			err("Too many depends lines")
 		if (isdepend) {
 			delete depend[0]
 			parse_depend(depend)

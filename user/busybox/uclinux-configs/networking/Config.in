@@ -130,7 +130,7 @@ comment '--###-- NETWORKING UTILITIES --###--'
  if [ "$CONFIG_USER_BUSYBOX_INETD" = "y" ]; then
    bool '   Support chargen service' CONFIG_USER_BUSYBOX_FEATURE_INETD_SUPPORT_BUILTIN_CHARGEN y
  fi
- if [ "$CONFIG_USER_BUSYBOX_INETD" = "y""$CONFIG_USER_BUSYBOX_FEATURE_HAVE_RPC" = "y" ]; then
+ if [ "$CONFIG_USER_BUSYBOX_INETD" = "y" -a "$CONFIG_USER_BUSYBOX_FEATURE_HAVE_RPC" = "y" ]; then
    bool '   Support RPC services' CONFIG_USER_BUSYBOX_FEATURE_INETD_RPC n
  fi
  bool ' ip' CONFIG_USER_BUSYBOX_IP n
