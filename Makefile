@@ -1,13 +1,12 @@
 ############################################################################
-
 #
 # Makefile -- Top level uClinux makefile.
 #
 # Copyright (c) 2001-2004, SnapGear (www.snapgear.com)
-# Copyright (c) 2001,  Lineo
+# Copyright (c) 2001, Lineo
 #
 
-VERSIONPKG = 3.1.0
+VERSIONPKG = 3.2.0
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################
@@ -18,7 +17,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 ifeq (.config,$(wildcard .config))
 include .config
 
-all: subdirs romfs modules modules_install image
+all: ucfront cksum subdirs romfs image
 else
 all: config_error
 endif
@@ -36,11 +35,16 @@ HOSTCC   = cc
 IMAGEDIR = $(ROOTDIR)/images
 RELDIR   = $(ROOTDIR)/release
 ROMFSDIR = $(ROOTDIR)/romfs
-STAGEDIR = $(ROOTDIR)/stage
 ROMFSINST= romfs-inst.sh
 SCRIPTSDIR = $(ROOTDIR)/config/scripts
+STAGEDIR = $(ROOTDIR)/staging
 TFTPDIR    = /tftpboot
-
+BUILD_START_STRING ?= $(shell date "+%a, %d %b %Y %T %z")
+ifndef NON_SMP_BUILD
+HOST_NCPU := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* 2; else echo $$n; fi; else echo 1; fi)
+else
+HOST_NCPU := 1
+endif
 
 LINUX_CONFIG  = $(ROOTDIR)/$(LINUXDIR)/.config
 CONFIG_CONFIG = $(ROOTDIR)/config/.config
@@ -52,26 +56,45 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else echo sh; fi ; fi)
 
 ifeq (config.arch,$(wildcard config.arch))
+ifeq ($(filter %_default, $(MAKECMDGOALS)),)
 include config.arch
 ARCH_CONFIG = $(ROOTDIR)/config.arch
 export ARCH_CONFIG
 endif
+endif
 
+# May use a different compiler for the kernel
+KERNEL_CROSS_COMPILE ?= $(CROSS_COMPILE)
 ifneq ($(SUBARCH),)
 # Using UML, so make the kernel and non-kernel with different ARCHs
 MAKEARCH = $(MAKE) ARCH=$(SUBARCH) CROSS_COMPILE=$(CROSS_COMPILE)
-MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) SUBARCH=$(SUBARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) SUBARCH=$(SUBARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 else
 MAKEARCH = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
-MAKEARCH_KERNEL = $(MAKEARCH)
+MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 endif
 
 DIRS    = $(VENDOR_TOPDIRS) lib user
-VENDDIR = $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/$(CONFIG_PRODUCT)/.
 
 export VENDOR PRODUCT ROOTDIR LINUXDIR HOSTCC CONFIG_SHELL
-export CONFIG_CONFIG LINUX_CONFIG ROMFSDIR SCRIPTSDIR
+export CONFIG_CONFIG LINUX_CONFIG MODULES_CONFIG ROMFSDIR SCRIPTSDIR
 export VERSIONPKG VERSIONSTR ROMFSINST PATH IMAGEDIR RELDIR RELFILES TFTPDIR
+export BUILD_START_STRING
+export HOST_NCPU
+
+.PHONY: ucfront
+ucfront: tools/ucfront/*.c
+no-ucfront-for-blackfin:
+	$(MAKE) -C tools/ucfront
+	ln -sf $(ROOTDIR)/tools/ucfront/ucfront tools/ucfront-gcc
+	ln -sf $(ROOTDIR)/tools/ucfront/ucfront tools/ucfront-g++
+	ln -sf $(ROOTDIR)/tools/ucfront/ucfront-ld tools/ucfront-ld
+
+.PHONY: cksum
+cksum: tools/cksum
+tools/cksum: tools/sg-cksum/*.c
+	$(MAKE) -C tools/sg-cksum
+	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
 ############################################################################
 
@@ -83,6 +106,7 @@ export VERSIONPKG VERSIONSTR ROMFSINST PATH IMAGEDIR RELDIR RELFILES TFTPDIR
 .PHONY: config.tk config.in
 
 config.in:
+	@chmod u+x config/mkconfig
 	config/mkconfig > config.in
 
 config.tk: config.in
@@ -110,6 +134,7 @@ xconfig: config.tk
 		echo; \
 		exit 1; \
 	 fi
+	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
 		$(MAKE) linux_xconfig; \
@@ -126,6 +151,7 @@ xconfig: config.tk
 config: config.in
 	@HELP_FILE=config/Configure.help \
 		$(CONFIG_SHELL) $(SCRIPTSDIR)/Configure config.in
+	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
 		$(MAKE) linux_config; \
@@ -149,6 +175,7 @@ menuconfig: config.in
 		echo; \
 		exit 1; \
 	 fi
+	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
 		$(MAKE) linux_menuconfig; \
@@ -162,11 +189,14 @@ menuconfig: config.in
 	@config/setconfig final
 
 .PHONY: oldconfig
-oldconfig:
+oldconfig: config.in
+	@HELP_FILE=config/Configure.help \
+		$(CONFIG_SHELL) $(SCRIPTSDIR)/Configure -d config.in
 	@$(MAKE) oldconfig_linux
 	@$(MAKE) oldconfig_modules
 	@$(MAKE) oldconfig_config
-#	@$(MAKE) oldconfig_uClibc
+#	@$(MAKE) oldconfig_uClibc     # we dont want this in blackfin world
+	@chmod u+x config/setconfig
 	@config/setconfig final
 
 .PHONY: modules
@@ -183,16 +213,17 @@ modules_install:
 		rm -f $(ROMFSDIR)/lib/modules/modules.dep; \
 		$(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) DEPMOD=true modules_install; \
 		rm -f $(ROMFSDIR)/lib/modules/*/build; \
-		find $(ROMFSDIR)/lib/modules -type f | xargs -r $(STRIP) -g; \
+		rm -f $(ROMFSDIR)/lib/modules/*/source; \
+		find $(ROMFSDIR)/lib/modules -type f -name "*o" | xargs -r $(STRIP) -R .comment -R .note -g --strip-unneeded; \
 		$(ROOTDIR)/user/busybox/examples/depmod.pl -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
 	fi
 
 linux_xconfig:
-	$(MAKEARCH_KERNEL) -C $(LINUXDIR) xconfig
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) xconfig
 linux_menuconfig:
-	$(MAKEARCH_KERNEL) -C $(LINUXDIR) menuconfig
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) menuconfig
 linux_config:
-	$(MAKEARCH_KERNEL) -C $(LINUXDIR) config
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) config
 modules_xconfig:
 	[ ! -d modules ] || $(MAKEARCH) -C modules xconfig
 modules_menuconfig:
@@ -212,9 +243,9 @@ oldconfig_config:
 oldconfig_modules:
 	[ ! -d modules ] || $(MAKEARCH) -C modules oldconfig
 oldconfig_linux:
-	$(MAKEARCH_KERNEL) -C $(LINUXDIR) oldconfig
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) oldconfig
 oldconfig_uClibc:
-	[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
+	#[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
 
 ############################################################################
 #
@@ -222,10 +253,18 @@ oldconfig_uClibc:
 #
 
 .PHONY: romfs
-romfs:
-	[ -e $(ROMFSDIR) ] || mkdir $(ROMFSDIR)
-	for dir in $(VENDDIR) $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
+romfs: romfs.subdirs modules_install romfs.shared.libs romfs.post
+
+.PHONY: romfs.subdirs
+romfs.subdirs:
+	for dir in vendors $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir romfs || exit 1 ; done
+
+.PHONY: romfs.post
+romfs.post:
+	$(MAKEARCH) -C vendors romfs.post
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
+
+romfs.shared.libs:
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
 		t=`$(CC) -print-file-name=libc.a`; \
 		t=`dirname $$t`/../runtime; \
@@ -311,18 +350,16 @@ romfs:
 .PHONY: image
 image:
 	[ -d $(IMAGEDIR) ] || mkdir $(IMAGEDIR)
-	$(MAKEARCH) -C $(VENDDIR) image
-
-.PHONY: netflash
-netflash netflash_only:
-	make -C prop/mstools CONFIG_PROP_MSTOOLS_NETFLASH_NETFLASH=y
+	$(MAKEARCH) -C vendors image
 
 .PHONY: release
 release:
 	make -C release release
 
 %_fullrelease:
-	make -C release $@
+	@echo "This target no longer works"
+	@echo "Do a make -C release $@"
+	exit 1
 #
 # fancy target that allows a vendor to have other top level
 # make targets,  for example "make vendor_flash" will run the
@@ -330,7 +367,7 @@ release:
 #
 
 vendor_%:
-	$(MAKEARCH) -C $(VENDDIR) $@
+	$(MAKEARCH) -C vendors $@
 
 .PHONY: linux
 linux linux%_only:
@@ -338,14 +375,22 @@ linux linux%_only:
 		echo "ERROR: you need to do a 'make dep' first" ; \
 		exit 1 ; \
 	fi
-	$(MAKEARCH_KERNEL) -C $(LINUXDIR) $(LINUXTARGET) || exit 1
+	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) $(LINUXTARGET) || exit 1
 	if [ -f $(LINUXDIR)/vmlinux ]; then \
 		ln -f $(LINUXDIR)/vmlinux $(LINUXDIR)/linux ; \
 	fi
 
+.PHONY: sparse
+sparse:
+	$(MAKEARCH_KERNEL) -C $(LINUXDIR) C=1 $(LINUXTARGET) || exit 1
+
+.PHONY: sparseall
+sparseall:
+	$(MAKEARCH_KERNEL) -C $(LINUXDIR) C=2 $(LINUXTARGET) || exit 1
+
 .PHONY: subdirs
-subdirs: linux
-	for dir in $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH_KERNEL) -C $$dir || exit 1 ; done
+subdirs: linux modules
+	for dir in $(DIRS) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir || exit 1 ; done
 
 dep:
 	@if [ ! -f $(LINUXDIR)/.config ] ; then \
@@ -357,17 +402,15 @@ dep:
 # This one removes all executables from the tree and forces their relinking
 .PHONY: relink
 relink:
-	find user -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
-	find prop -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
-	find $(VENDDIR) -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
+	find user prop vendors -type f -name '*.gdb' | sed 's/^\(.*\)\.gdb/\1 \1.gdb/' | xargs rm -f
 
 clean: modules_clean
-	for dir in $(LINUXDIR) $(DIRS) $(VENDDIR) ; do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
+	for dir in $(LINUXDIR) $(DIRS); do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
-	rm -rf $(IMAGEDIR)/*
-	rm -rf $(STAGEDIR)/*
+	rm -f $(IMAGEDIR)/*
 	rm -f config.tk
 	rm -f $(LINUXDIR)/linux
+	rm -f $(LINUXDIR)/include/asm
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
 
 real_clean mrproper: clean
@@ -384,10 +427,20 @@ distclean: mrproper
 	-rm -f user/tinylogin/applet_source_list user/tinylogin/config.h
 
 %_only:
-	[ ! -d "$(@:_only=)" ] || $(MAKEARCH) -C $(@:_only=)
+	@case "$(@)" in \
+	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
+	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
+	     $(MAKEARCH) -C $$d $$t;; \
+	*)   $(MAKEARCH) -C $(@:_only=);; \
+	esac
 
 %_clean:
-	[ ! -d "$(@:_clean=)" ] || $(MAKEARCH) -C $(@:_clean=) clean
+	@case "$(@)" in \
+	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
+	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
+	     $(MAKEARCH) -C $$d $$t;; \
+	*)   $(MAKEARCH) -C $(@:_clean=) clean;; \
+	esac
 
 %_config:
 	@if [ ! -d "vendors/$(@:_config=)" ]; then \
@@ -406,24 +459,22 @@ distclean: mrproper
 		make -s distclean ; \
 	fi
 	cp vendors/$(@:_config=)/config.device .config
-	cp vendors/$(@:_config=)/config.uClibc uClibc/.config
-	cp vendors/$(@:_config=)/config.vendor-2.6.x config/.config
-	cp vendors/$(@:_config=)/config.linux-2.6.x linux-2.6.x/.config
-	ln -sf vendors/$(@:_config=)/config.arch .
-	yes "" | make oldconfig > /dev/null 2>&1 
+	chmod u+x config/setconfig
+	yes "" | config/setconfig defaults
+	config/setconfig final
+	make dep
 
 %_default:
 	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
-	fi
-	make distclean > /dev/null 2>&1
+	 fi
+	-make clean > /dev/null 2>&1
 	cp vendors/$(@:_default=)/config.device .config
-	cp vendors/$(@:_default=)/config.uClibc uClibc/.config
-	cp vendors/$(@:_default=)/config.vendor-2.6.x config/.config
-	cp vendors/$(@:_default=)/config.linux-2.6.x linux-2.6.x/.config
-	ln -sf vendors/$(@:_default=)/config.arch .
-	yes "" | make oldconfig  > /dev/null 2>&1 
+	chmod u+x config/setconfig
+	yes "" | config/setconfig defaults
+	config/setconfig final
+	make dep
 	make
 
 config_error:
@@ -436,8 +487,13 @@ config_error:
 	@echo "*************************************************"
 	@exit 1
 
-prune:
+prune: ucfront
+	@for i in `ls -d linux-* | grep -v $(LINUXDIR)`; do \
+		rm -fr $$i; \
+	done
+	$(MAKE) -C lib prune
 	$(MAKE) -C user prune
+	$(MAKE) -C vendors prune
 
 dist-prep:
 	-find $(ROOTDIR) -name 'Makefile*.bin' | while read t; do \
