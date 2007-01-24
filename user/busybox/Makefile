@@ -673,7 +673,7 @@ busybox_unstripped: $(busybox-all) FORCE
 
 busybox: busybox_unstripped
 	$(Q)$(STRIP) -s --remove-section=.note --remove-section=.comment \
-		busybox_unstripped -o $@
+		busybox_unstripped -o $@ || cp $^ $@
 
 # The actual objects are generated when descending,
 # make sure no implicit rule kicks in
