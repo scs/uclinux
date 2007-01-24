@@ -1,0 +1,1063 @@
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chown.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chown.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/ln.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/ln.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/expr.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/expr.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mknod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mknod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/printf.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/printf.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cal.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cal.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cat.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cat.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/date.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/date.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/date/isofmt.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/df.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/df.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/human/readable.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/usleep.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/usleep.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mkdir.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mkdir.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/rmdir.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/rmdir.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chroot.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chroot.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/env.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/env.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/seq.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/seq.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sync.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sync.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/user/flatfsd/flatfsd.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/touch.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/touch.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/id.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/id.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/wc.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/wc.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uname.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uname.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/watch.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/watch.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/du.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/du.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/human/readable.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/du/defalt/blocksize/1k.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tr.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tr.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/od.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/od.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/pwd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/pwd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tty.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tty.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/stty.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/stty.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/rm.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/rm.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/ls.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/ls.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/timestamps.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/sortfiles.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/followlinks.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/human/readable.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/filetypes.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/color.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/autowidth.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/recursive.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ls/username.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/basename.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/basename.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uuencode.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uuencode.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uudecode.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uudecode.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mv.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mv.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/test.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/test.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/test/64.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mkfifo.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/mkfifo.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/length.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/length.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sort.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sort.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/true.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/true.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tail.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tail.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/tail.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/realpath.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/realpath.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chmod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chmod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cmp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cmp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/head.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/head.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/head.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chgrp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/chgrp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/false.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/false.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/echo.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/echo.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/echo.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/logname.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/logname.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/cp_mv_stat.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/cp_mv_stat.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/xgetoptfile_sort_uniq.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/xgetoptfile_sort_uniq.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/getopt_mk_fifo_nod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/libcoreutils/getopt_mk_fifo_nod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dos2unix.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dos2unix.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sleep.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/sleep.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/sleep.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cut.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/cut.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/md5_sha1_sum.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/md5_sha1_sum.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/md5/sha1/sum/check.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/md5sum.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/sha1sum.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/whoami.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/whoami.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/who.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/who.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/yes.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/yes.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dirname.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/dirname.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uniq.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/uniq.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/fold.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/fold.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/hostid.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/hostid.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/install.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/install.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tee.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/coreutils/tee.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tee/use/block/io.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/applets/applets.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/applets/applets.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/usage.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/usage.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/applets.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/applets.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/applets.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/applets.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/suid.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/suid/config.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/suid/config/quiet.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/file.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/applets/busybox.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/applets/busybox.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/installer.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/init.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/autowidth.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/ash.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/ash.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/job/control.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/alias.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/optimize/for/size.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/math/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/cmdcmd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/getopts.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/extra/quiet.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/mail.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/math/support/64.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash/random/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/savehistory.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/editing.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/standalone/shell.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/tab/completion.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/cmdedit.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/cmdedit.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/../shell/cmdedit.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/../shell/cmdedit.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/tab/completion.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/editing.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/username/completion.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/getusername/and/homedir.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/history.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/nonprintable/inverse/put.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ash.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/savehistory.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/msh.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/msh.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/editing.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/extra/quiet.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/standalone/shell.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/hush.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/hush.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/editing.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/standalone/shell.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/extra/quiet.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/lash.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/shell/lash.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/lash/pipe/n/redirects.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/fancy/prompt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/lash/job/control.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/command/editing.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/standalone/shell.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sh/extra/quiet.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/qmodule.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/qmodule.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/module_syscalls.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/module_syscalls.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/parse_number.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/parse_number.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/messages.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/messages.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/full_read.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/full_read.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/mtab.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/mtab.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_root_device.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_root_device.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/devfs.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/copyfd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/copyfd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/printf.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/printf.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/read_package_field.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/read_package_field.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/herror_msg_and_die.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/herror_msg_and_die.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_console.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_console.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xfuncs.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xfuncs.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/setup_environment.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/setup_environment.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_strncpy.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_strncpy.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/create_icmp_socket.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/create_icmp_socket.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/getopt_ulflags.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/getopt_ulflags.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_msg_and_die.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_msg_and_die.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/procps.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/procps.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/cpu/usage/percentage.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/dump.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/dump.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/device_open.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/device_open.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/process_escape_sequence.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/process_escape_sequence.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/login.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/login.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_read.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_read.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/error_msg_and_die.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/error_msg_and_die.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/human_readable.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/human_readable.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/correct_password.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/correct_password.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/bb_asprintf.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/bb_asprintf.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vdprintf.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vdprintf.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/simplify_path.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/simplify_path.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fclose_nonstdin.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fclose_nonstdin.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/speed_table.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/speed_table.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetcwd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetcwd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getgrnam.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getgrnam.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/herror_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/herror_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/default_error_retval.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/default_error_retval.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/last_char_is.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/last_char_is.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/run_parts.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/run_parts.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/copy_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/copy_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/preserve/hardlinks.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/wfopen_input.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/wfopen_input.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/trim.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/trim.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getpwuid.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getpwuid.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/recursive_action.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/recursive_action.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/error_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/error_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/change_identity.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/change_identity.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_mount_point.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_mount_point.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_strtol.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_strtol.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/remove_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/remove_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/verror_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/verror_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xreadlink.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xreadlink.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/interface.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/interface.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/restricted_shell.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/restricted_shell.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/hash_fd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/hash_fd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/sha1sum.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/md5sum.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/inet_common.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/inet_common.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_terminal_width_height.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_terminal_width_height.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/autowidth.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/wfopen.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/wfopen.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/obscure.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/obscure.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/chomp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/chomp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/mtab_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/mtab_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mtab/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mtab/filename.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fflush_stdout_and_exit.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fflush_stdout_and_exit.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/skip_whitespace.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/skip_whitespace.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/kernel_version.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/kernel_version.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgethostbyname2.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgethostbyname2.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vperror_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vperror_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/concat_subpath_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/concat_subpath_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgethostbyname.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgethostbyname.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/full_write.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/full_write.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/warn_ignoring_args.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/warn_ignoring_args.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xregcomp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xregcomp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_nomsg_and_die.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_nomsg_and_die.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/loop.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/loop.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/create_icmp6_socket.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/create_icmp6_socket.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/pw_encrypt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/pw_encrypt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sha1/passwords.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_write.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/safe_write.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/pwd2spwd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/pwd2spwd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/shadow_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/shadow_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getgrgid.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getgrgid.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_nomsg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/perror_nomsg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/make_directory.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/make_directory.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/llist_add_to.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/llist_add_to.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/isdirectory.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/isdirectory.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/run_shell.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/run_shell.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vherror_msg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vherror_msg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/parse_mode.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/parse_mode.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getug.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getug.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetlarg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetlarg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xconnect.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xconnect.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fgets_str.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/fgets_str.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/inode_hash.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/inode_hash.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vfork_daemon_rexec.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/vfork_daemon_rexec.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_pid_by_name.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/find_pid_by_name.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/syscalls.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/syscalls.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/print_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/print_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetularg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/xgetularg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_line_from_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/get_line_from_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/concat_path_file.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/concat_path_file.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/ask_confirmation.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/ask_confirmation.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getpwnam.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libbb/my_getpwnam.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/watchdog.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/watchdog.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/makedevs.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/makedevs.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/last.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/last.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/mt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/mt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/devfsd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/devfsd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/devfsd/modload.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/devfsd/verbose.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/debug.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/devfsd/fg/np.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/file.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/modules/devfs.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/time.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/time.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/crond.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/crond.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/crond/call/sendmail.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/adjtimex.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/adjtimex.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/dc.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/dc.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/strings.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/strings.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/rx.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/rx.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/hdparm.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/hdparm.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/get/identity.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/hdio/getset/dma.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/hdio/unregister/hwif.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/hdio/scan/hwif.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/hdio/tristate/hwif.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hdparm/hdio/drive/reset.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/crontab.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/miscutils/crontab.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/grep.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/grep.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/grep/context.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/grep/egrep/alias.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/find.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/find.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/type.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/perm.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/mtime.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/xdev.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/newer.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/find/inum.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/xargs.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/findutils/xargs.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/xargs/support/confirmation.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/xargs/support/quotes.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/xargs/support/termopt.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/xargs/support/zero/term.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/getty.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/getty.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/syslogd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/u/w/tmp.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/login.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/login.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/u/w/tmp.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/securetty.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/wheel/group.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/passwd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/passwd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/adduser.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/adduser.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/addgroup.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/delline.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/delline.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/su.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/su.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/u/w/tmp.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/sulogin.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/sulogin.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/vlock.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/vlock.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/deluser.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/deluser.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/addgroup.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/addgroup.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/adduser.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/delgroup.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/loginutils/delgroup.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/deluser.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/shadowpasswds.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/telnet.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/telnet.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/telnet/ttype.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/telnet/autologin.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/autowidth.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ifupdown.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ifupdown.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifupdown/mapping.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifupdown/ip.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifupdown/ipx.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifupdown/ipv6.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifupdown/ipv4.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nc.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nc.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/netstat.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/netstat.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/route.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nslookup.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nslookup.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/vconfig.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/vconfig.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ipaddr.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ipaddr.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iplink.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iplink.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/httpd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/httpd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/lfs.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/usage/from/inetd/only.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/basic/auth.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/cgi.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/config/with/mime/types.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/encode/url/str.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/set/remote/port/to/env.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/auth/md5.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/reload/config/sighup.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/httpd/setuid.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/traceroute.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/traceroute.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/traceroute/verbose.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/traceroute.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/traceroute/so/debug.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ipaddress.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ipaddress.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iplink.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iplink.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iproute.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iproute.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/utils.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/utils.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/libnetlink.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/libnetlink.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ip_parse_common_args.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ip_parse_common_args.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ll_addr.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/ll_addr.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iptunnel.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/libiproute/iptunnel.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ping.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ping.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/ping.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iproute.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iproute.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/arping.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/arping.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ifconfig.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ifconfig.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifconfig/slip.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifconfig/broadcast/plus.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifconfig/hw.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifconfig/memstart/ioaddr/irq.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ifconfig/status.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ip/address.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ip/route.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ip/link.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ip/tunnel.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ping6.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ping6.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/ping6.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fancy/ping.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iptunnel.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/iptunnel.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/telnetd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/telnetd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/login.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/telnetd/inetd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/devpts.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nameif.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/nameif.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/wget.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/wget.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/wget/statusbar.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/wget/authentication.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/wget/ip6/literal.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/tftp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/tftp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tftp/blocksize.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tftp/debug.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tftp/get.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tftp/put.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/hostname.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/hostname.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/inetd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/inetd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/inetd/support/biltin/echo.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/inetd/support/biltin/discard.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/inetd/support/biltin/time.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/inetd/support/biltin/daytime.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/inetd/support/biltin/chargen.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ipcalc.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ipcalc.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipcalc/fancy.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ftpgetput.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/ftpgetput.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ftpget.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/ftpput.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/route.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/networking/route.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/inet_common.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipv6.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/ps.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/ps.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/renice.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/renice.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/uptime.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/uptime.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/top.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/top.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/cpu/usage/percentage.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/use/termios.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/selinux.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/kill.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/kill.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/killall.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/free.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/free.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/sysctl.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/sysctl.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/pidof.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/procps/pidof.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/poweroff.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/poweroff.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/init.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/mesg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/mesg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/reboot.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/reboot.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/init.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/init_shared.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/init_shared.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/initrd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/init.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/halt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/halt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/init.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/init.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/init/init.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/syslogd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/init/coredumps.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/user/flatfsd/flatfsd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/extra/quiet.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/use/inittab.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/inittab.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/initrd.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/rmmod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/rmmod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/2/6/modules.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/query/module/interface.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/modprobe.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/modprobe.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/2/6/modules.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/lsmod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/lsmod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/check/tainted/module.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/query/module/interface.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/insmod.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/modutils/insmod.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/2/4/modules.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/2/6/modules.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/insmod/loadinkmem.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/insmod/version/checking.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/use/list.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/list/archtype.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/use/single.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/use/plt/entries.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/use/got/entries.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/use/plt/list.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/got/entry/size.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/plt/entry/size.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/check/tainted/module.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/insmod/ksymoops/symbols.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/insmod/load/map.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/insmod/load/map/full.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libpwdgrp/pwd_grp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/libpwdgrp/pwd_grp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/grp_.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/shadow_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/shadow_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/vi.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/vi.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/locale/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/optimize/cursor.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/use/signals.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/crashme.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/dot/cmd.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/yankmark.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/readonly.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/search.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/colon.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/win/resize.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/setopts.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/vi/set.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/patch.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/patch.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/awk.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/awk.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/awk/math.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/sed.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/editors/sed.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/which.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/which.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/run_parts.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/run_parts.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/pipe_progress.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/pipe_progress.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/readlink.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/readlink.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/mktemp.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/mktemp.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/start_stop_daemon.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/debianutils/start_stop_daemon.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/pwd_.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/umount.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/umount.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mount/force.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mount/loop.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mtab/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdflush.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdflush.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mount.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mount.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/nfsmount.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mount/loop.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/mtab/support.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mkswap.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mkswap.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/hexdump.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/hexdump.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/dump.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/rdate.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/rdate.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdformat.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdformat.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/nfsmount.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/nfsmount.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/getopt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/getopt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdisk.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fdisk.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sun/label.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/sgi/label.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/aix/label.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/osf/label.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fdisk/writable.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fdisk/advanced.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/weird/partition/types.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fdisk/blksize.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/losetup.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/losetup.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fsck_minix.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fsck_minix.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/minix2.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mkfs_minix.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/mkfs_minix.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/minix2.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/more.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/more.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/use/termios.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/swaponoff.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/swaponoff.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/hwclock.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/hwclock.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/hwclock/longoptions.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/freeramdisk.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/freeramdisk.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/pivot_root.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/pivot_root.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/dmesg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/dmesg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fbset.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/util-linux/fbset.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fbset/fancy.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/fbset/readmode.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/logread.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/logread.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/logread/reduced/locking.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/config.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/config.c \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/remote/log.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/user/smtp/smtpclient.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/klogd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/klogd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/logger.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/logger.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/syslogd.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/email.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/email.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/local.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/local.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipc/syslog.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipc/syslog/buffer/size.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/rotate/logfile.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/syslogd.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/syslogd.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/remote/log.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/user/smtp/smtpclient.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ipc/syslog.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/rotate/logfile.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/remote.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/sysklogd/remote.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/deallocvt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/deallocvt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/dumpkmap.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/dumpkmap.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/openvt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/openvt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/chvt.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/chvt.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/reset.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/reset.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/setkeycodes.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/setkeycodes.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/loadfont.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/loadfont.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/clear.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/clear.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/loadkmap.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/console-tools/loadkmap.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/cpio.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/cpio.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/bunzip2.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/bunzip2.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/ar.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/ar.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_list.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_list.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_cpio.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_cpio.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_all.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_all.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/init_handle.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/init_handle.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_list.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_list.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar_gz.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar_gz.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/archive_xread_all.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/archive_xread_all.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/seek_by_jump.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/seek_by_jump.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/unarchive/tape.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/unpack_ar_archive.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/unpack_ar_archive.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar_bz2.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar_bz2.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_unzip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_unzip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_align.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_align.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_all.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_all.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_skip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_skip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_verbose_list.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_verbose_list.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_reject_list.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_reject_list.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_skip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/header_skip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_to_stdout.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_to_stdout.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_to_buffer.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/data_extract_to_buffer.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_tar.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/gnu/extensions.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/oldgnu/compatability.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_ar.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/get_header_ar.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/ar/long/filenames.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_bunzip2.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_bunzip2.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_uncompress.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/decompress_uncompress.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/archive_xread_all_eof.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/archive_xread_all_eof.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/find_list_entry.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/find_list_entry.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/open_transformer.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/open_transformer.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_list_reassign.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/filter_accept_list_reassign.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/gz.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/bz2.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/seek_by_char.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/seek_by_char.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/check_header_gzip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/libunarchive/check_header_gzip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/dpkg_deb.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/dpkg_deb.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/gz.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/bz2.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/unzip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/unzip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/gzip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/gzip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/gunzip.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/rpm.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/rpm.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/tar.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/tar.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/create.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/from.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/gzip.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/compress.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/bzip2.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/tar/long/options.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/clean/up.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/rpm2cpio.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/rpm2cpio.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/gunzip.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/gunzip.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/gunzip/uncompress.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/dpkg.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/dpkg.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/busybox.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/gz.h) \
+   $(wildcard /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/config/feature/deb/tar/bz2.h)
+/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/uncompress.o: /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/archival/uncompress.c \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/libbb.h) \
+ /usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h $(dep_/usr/local/src/blackfin/svn/uclinux-dist/trunk/user/busybox/include/unarchive.h)

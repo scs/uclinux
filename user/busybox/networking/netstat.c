@@ -5,51 +5,30 @@
  *
  * Copyright (C) 2002 by Bart Visscher <magick@linux-fan.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  * 2002-04-20
  * IPV6 support added by Bart Visscher <magick@linux-fan.com>
+ *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <signal.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <unistd.h>
-#include "inet_common.h"
 #include "busybox.h"
-#include "pwd_.h"
+#include "inet_common.h"
 
 #ifdef CONFIG_ROUTE
 extern void displayroutes(int noresolve, int netstatfmt);
 #endif
 
-#define NETSTAT_CONNECTED	0x01
-#define NETSTAT_LISTENING	0x02
-#define NETSTAT_NUMERIC		0x04
-#define NETSTAT_TCP			0x10
-#define NETSTAT_UDP			0x20
-#define NETSTAT_RAW			0x40
-#define NETSTAT_UNIX		0x80
+#define NETSTAT_CONNECTED       0x01
+#define NETSTAT_LISTENING       0x02
+#define NETSTAT_NUMERIC         0x04
+/* Must match getopt32 option string */
+#define NETSTAT_TCP             0x10
+#define NETSTAT_UDP             0x20
+#define NETSTAT_RAW             0x40
+#define NETSTAT_UNIX            0x80
+#define NETSTAT_ALLPROTO (NETSTAT_TCP|NETSTAT_UDP|NETSTAT_RAW|NETSTAT_UNIX)
 
-static int flags = NETSTAT_CONNECTED |
-			NETSTAT_TCP | NETSTAT_UDP | NETSTAT_RAW | NETSTAT_UNIX;
+static int flags = NETSTAT_CONNECTED | NETSTAT_ALLPROTO;
 
 #define PROGNAME_WIDTHs PROGNAME_WIDTH1(PROGNAME_WIDTH)
 #define PROGNAME_WIDTH1(s) PROGNAME_WIDTH2(s)
@@ -98,19 +77,6 @@ typedef enum {
 #define SO_ACCEPTCON    (1<<16)	/* performed a listen           */
 #define SO_WAITDATA     (1<<17)	/* wait data to read            */
 #define SO_NOSPACE      (1<<18)	/* no space to write            */
-
-static char *itoa(unsigned int i)
-{
-	/* 21 digits plus null terminator, good for 64-bit or smaller ints */
-	static char local[22];
-	char *p = &local[21];
-	*p-- = '\0';
-	do {
-		*p-- = '0' + i % 10;
-		i /= 10;
-	} while (i > 0);
-	return p + 1;
-}
 
 static char *get_sname(int port, const char *proto, int num)
 {
@@ -200,7 +166,7 @@ static void tcp_do_one(int lnr, const char *line)
 	}
 
 	if (num < 10) {
-		bb_error_msg("warning, got bogus tcp line.");
+		bb_error_msg("warning, got bogus tcp line");
 		return;
 	}
 	state_str = tcp_state[state];
@@ -247,7 +213,7 @@ static void udp_do_one(int lnr, const char *line)
 
 	if (strlen(local_addr) > 8) {
 #ifdef CONFIG_FEATURE_IPV6
-        /* Demangle what the kernel gives us */
+	/* Demangle what the kernel gives us */
 		sscanf(local_addr, "%08X%08X%08X%08X",
 			   &in6.s6_addr32[0], &in6.s6_addr32[1],
 			   &in6.s6_addr32[2], &in6.s6_addr32[3]);
@@ -271,7 +237,7 @@ static void udp_do_one(int lnr, const char *line)
 	}
 
 	if (num < 10) {
-		bb_error_msg("warning, got bogus udp line.");
+		bb_error_msg("warning, got bogus udp line");
 		return;
 	}
 	switch (state) {
@@ -365,7 +331,7 @@ static void raw_do_one(int lnr, const char *line)
 	}
 
 	if (num < 10) {
-		bb_error_msg("warning, got bogus raw line.");
+		bb_error_msg("warning, got bogus raw line");
 		return;
 	}
 	state_str=itoa(state);
@@ -418,7 +384,7 @@ static void unix_do_one(int nr, const char *line)
 	num = sscanf(line, "%p: %lX %lX %lX %X %X %d %s",
 				 &d, &refcnt, &proto, &unix_flags, &type, &state, &inode, path);
 	if (num < 6) {
-		bb_error_msg("warning, got bogus unix line.");
+		bb_error_msg("warning, got bogus unix line");
 		return;
 	}
 	if (!(has & HAS_INODE))
@@ -530,7 +496,6 @@ static void unix_do_one(int nr, const char *line)
 
 static void do_info(const char *file, const char *name, void (*proc)(int, const char *))
 {
-	char buffer[8192];
 	int lnr = 0;
 	FILE *procinfo;
 
@@ -539,12 +504,15 @@ static void do_info(const char *file, const char *name, void (*proc)(int, const 
 		if (errno != ENOENT) {
 			perror(file);
 		} else {
-		bb_error_msg("no support for `%s' on this system.", name);
+			bb_error_msg("no support for '%s' on this system", name);
 		}
 	} else {
 		do {
-			if (fgets(buffer, sizeof(buffer), procinfo))
+			char *buffer = xmalloc_fgets(procinfo);
+			if (buffer) {
 				(proc)(lnr++, buffer);
+				free(buffer);
+			}
 		} while (!feof(procinfo));
 		fclose(procinfo);
 	}
@@ -556,74 +524,58 @@ static void do_info(const char *file, const char *name, void (*proc)(int, const 
 
 int netstat_main(int argc, char **argv)
 {
-	int opt;
-	int new_flags=0;
-	int showroute = 0, extended = 0;
+	enum {
+		OPT_extended = 0x4,
+		OPT_showroute = 0x100,
+	};
+	unsigned opt;
 #ifdef CONFIG_FEATURE_IPV6
-	int inet=1;
-	int inet6=1;
+	int inet = 1;
+	int inet6 = 1;
 #else
 # define inet 1
 # define inet6 0
 #endif
-	while ((opt = getopt(argc, argv, "laenrtuwx")) != -1)
-		switch (opt) {
-		case 'l':
-			flags &= ~NETSTAT_CONNECTED;
-			flags |= NETSTAT_LISTENING;
-			break;
-		case 'a':
-			flags |= NETSTAT_LISTENING | NETSTAT_CONNECTED;
-			break;
-		case 'n':
-			flags |= NETSTAT_NUMERIC;
-			break;
-		case 'r':
-			showroute = 1;
-			break;
-		case 'e':
-			extended = 1;
-			break;
-		case 't':
-			new_flags |= NETSTAT_TCP;
-			break;
-		case 'u':
-			new_flags |= NETSTAT_UDP;
-			break;
-		case 'w':
-			new_flags |= NETSTAT_RAW;
-			break;
-		case 'x':
-			new_flags |= NETSTAT_UNIX;
-			break;
-		default:
-			bb_show_usage();
-		}
-	if ( showroute ) {
+
+	/* Option string must match NETSTAT_xxx constants */
+	opt = getopt32(argc, argv, "laentuwxr");
+	if (opt & 0x1) { // -l
+		flags &= ~NETSTAT_CONNECTED;
+		flags |= NETSTAT_LISTENING;
+	}
+	if (opt & 0x2) flags |= NETSTAT_LISTENING | NETSTAT_CONNECTED; // -a
+	//if (opt & 0x4) // -e
+	if (opt & 0x8) flags |= NETSTAT_NUMERIC; // -n
+	//if (opt & 0x10) // -t: NETSTAT_TCP
+	//if (opt & 0x20) // -u: NETSTAT_UDP
+	//if (opt & 0x40) // -w: NETSTAT_RAW
+	//if (opt & 0x80) // -x: NETSTAT_UNIX
+	if (opt & OPT_showroute) { // -r
 #ifdef CONFIG_ROUTE
-		displayroutes ( flags & NETSTAT_NUMERIC, !extended );
+		displayroutes(flags & NETSTAT_NUMERIC, !(opt & OPT_extended));
 		return 0;
 #else
-		bb_error_msg_and_die( "-r (display routing table) is not compiled in." );
+		bb_error_msg_and_die("-r (display routing table) is not compiled in");
 #endif
 	}
 
-	if (new_flags) {
-		flags &= ~(NETSTAT_TCP|NETSTAT_UDP|NETSTAT_RAW|NETSTAT_UNIX);
-		flags |= new_flags;
+	opt &= NETSTAT_ALLPROTO;
+	if (opt) {
+		flags &= ~NETSTAT_ALLPROTO;
+		flags |= opt;
 	}
-	if (flags&(NETSTAT_TCP|NETSTAT_UDP|NETSTAT_RAW)) {
+	if (flags & (NETSTAT_TCP|NETSTAT_UDP|NETSTAT_RAW)) {
 		printf("Active Internet connections ");	/* xxx */
 
 		if ((flags&(NETSTAT_LISTENING|NETSTAT_CONNECTED))==(NETSTAT_LISTENING|NETSTAT_CONNECTED))
 			printf("(servers and established)");
 		else {
-			if (flags&NETSTAT_LISTENING)
+			if (flags & NETSTAT_LISTENING)
 				printf("(only servers)");
 			else
 				printf("(w/o servers)");
 		}
-		printf("\nProto Recv-Q Send-Q Local Address           Foreign Address         State      \n");
+		printf("\nProto Recv-Q Send-Q Local Address           Foreign Address         State\n");
 	}
 	if (inet && flags&NETSTAT_TCP)
 		do_info(_PATH_PROCNET_TCP,"AF INET (tcp)",tcp_do_one);

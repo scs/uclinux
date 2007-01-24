@@ -1,23 +1,11 @@
+/* vi: set sw=4 ts=4: */
 /*
  * Calendar implementation for busybox
  *
  * See original copyright at the end of this file
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
-*/
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
+ */
 
 /* BB_AUDIT SUSv3 compliant with -j and -y extensions (from util-linux). */
 /* BB_AUDIT BUG: The output of 'cal -j 1752' is incorrect.  The upstream
@@ -29,25 +17,13 @@
  * Major size reduction... over 50% (>1.5k) on i386.
  */
 
-#include <sys/types.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
 #include "busybox.h"
 
-#ifdef CONFIG_LOCALE_SUPPORT
-#include <locale.h>
-#endif
-
 #define	THURSDAY		4		/* for reformation */
-#define	SATURDAY 		6		/* 1 Jan 1 was a Saturday */
+#define	SATURDAY		6		/* 1 Jan 1 was a Saturday */
 
-#define	FIRST_MISSING_DAY 	639787		/* 3 Sep 1752 */
-#define	NUMBER_MISSING_DAYS 	11		/* 11 day correction */
+#define	FIRST_MISSING_DAY	639787		/* 3 Sep 1752 */
+#define	NUMBER_MISSING_DAYS	11		/* 11 day correction */
 
 #define	MAXDAYS			42		/* max slots in a month array */
 #define	SPACE			-1		/* used in day array */
@@ -57,7 +33,7 @@ static const char days_in_month[] = {
 };
 
 static const char sep1752[] = {
-	         1,	2,	14,	15,	16,
+		 1,	2,	14,	15,	16,
 	17,	18,	19,	20,	21,	22,	23,
 	24,	25,	26,	27,	28,	29,	30
 };
@@ -88,9 +64,9 @@ static int is_leap_year(int year)
 #define	leap_years_since_year_1(yr) \
 	((yr) / 4 - centuries_since_1700(yr) + quad_centuries_since_1700(yr))
 
-static void center __P((char *, int, int));
-static void day_array __P((int, int, int *));
-static void trim_trailing_spaces_and_print __P((char *));
+static void center (char *, int, int);
+static void day_array (int, int, int *);
+static void trim_trailing_spaces_and_print (char *);
 
 static void blank_string(char *buf, size_t buflen);
 static char *build_row(char *p, int *dp);
@@ -111,11 +87,7 @@ int cal_main(int argc, char **argv)
 	char day_headings[28];	/* 28 for julian, 21 for nonjulian */
 	char buf[40];
 
-#ifdef CONFIG_LOCALE_SUPPORT
-	setlocale(LC_TIME, "");
-#endif
-
-	flags = bb_getopt_ulflags(argc, argv, "jy");
+	flags = getopt32(argc, argv, "jy");
 
 	julian = flags & 1;
 
@@ -136,9 +108,9 @@ int cal_main(int argc, char **argv)
 		}
 	} else {
 		if (argc == 2) {
-			month = bb_xgetularg10_bnd(*argv++, 1, 12);
+			month = xatoul_range(*argv++, 1, 12);
 		}
-		year = bb_xgetularg10_bnd(*argv, 1, 9999);
+		year = xatoul_range(*argv, 1, 9999);
 	}
 
 	blank_string(day_headings, sizeof(day_headings) - 7 +  7*julian);
@@ -147,7 +119,7 @@ int cal_main(int argc, char **argv)
 	do {
 		zero_tm.tm_mon = i;
 		strftime(buf, sizeof(buf), "%B", &zero_tm);
-		month_names[i] = bb_xstrdup(buf);
+		month_names[i] = xstrdup(buf);
 
 		if (i < 7) {
 			zero_tm.tm_wday = i;
@@ -163,7 +135,7 @@ int cal_main(int argc, char **argv)
 
 		day_array(month, year, dp);
 		len = sprintf(lineout, "%s %d", month_names[month - 1], year);
-		bb_printf("%*s%s\n%s\n",
+		printf("%*s%s\n%s\n",
 			   ((7*julian + WEEK_LEN) - len) / 2, "",
 			   lineout, day_headings);
 		for (row = 0; row < 6; row++) {
@@ -194,9 +166,9 @@ int cal_main(int argc, char **argv)
 				center(month_names[month + 1], week_len, HEAD_SEP);
 			}
 			center(month_names[month + 2 - julian], week_len, 0);
-			bb_printf("\n%s%*s%s", day_headings, HEAD_SEP, "", day_headings);
+			printf("\n%s%*s%s", day_headings, HEAD_SEP, "", day_headings);
 			if (!julian) {
-				bb_printf("%*s%s", HEAD_SEP, "", day_headings);
+				printf("%*s%s", HEAD_SEP, "", day_headings);
 			}
 			putchar('\n');
 			for (row = 0; row < (6*7); row += 7) {
@@ -210,7 +182,7 @@ int cal_main(int argc, char **argv)
 		}
 	}
 
-	bb_fflush_stdout_and_exit(0);
+	fflush_stdout_and_exit(0);
 }
 
 /*
@@ -230,11 +202,12 @@ static void day_array(int month, int year, int *days)
 	memset(days, SPACE, MAXDAYS * sizeof(int));
 
 	if ((month == 9) && (year == 1752)) {
+		size_t oday = 0;
+
 		j_offset = julian * 244;
-		i = 0;
 		do {
-			days[i+2] = sep1752[i] + j_offset;
-		} while (++i < sizeof(sep1752));
+			days[oday+2] = sep1752[oday] + j_offset;
+		} while (++oday < sizeof(sep1752));
 
 		return;
 	}
@@ -304,7 +277,7 @@ static void center(char *str, int len, int separate)
 {
 	int n = strlen(str);
 	len -= n;
-	bb_printf("%*s%*s", (len/2) + n, str, (len/2) + (len % 2) + separate, "");
+	printf("%*s%*s", (len/2) + n, str, (len/2) + (len % 2) + separate, "");
 }
 
 static void blank_string(char *buf, size_t buflen)

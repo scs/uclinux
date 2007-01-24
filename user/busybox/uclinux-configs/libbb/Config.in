@@ -1,0 +1,3 @@
+comment '--###-- BUSYBOX LIBRARY TUNING --###--'
+ int ' Minimum password length' CONFIG_USER_BUSYBOX_PASSWORD_MINLEN 6
+ int '  MD5: Trade Bytes for Speed' CONFIG_USER_BUSYBOX_MD5_SIZE_VS_SPEED 2

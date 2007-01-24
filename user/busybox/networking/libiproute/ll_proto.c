@@ -1,3 +1,4 @@
+/* vi: set sw=4 ts=4: */
 /*
  * ll_proto.c
  *
@@ -9,12 +10,12 @@
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
 
-#include <stdio.h>
-#include <arpa/inet.h>
-#include <string.h>
+#include "libbb.h"
+
+#include "rt_names.h"
 #include "utils.h"
 
-#if __GLIBC__ >=2 && __GLIBC_MINOR >= 1
+#if defined(__GLIBC__) && __GLIBC__ >=2 && __GLIBC_MINOR__ >= 1
 #include <net/ethernet.h>
 #else
 #include <linux/if_ether.h>
@@ -90,25 +91,25 @@ __PF(ECONET,econet)
 #undef __PF
 
 
-char * ll_proto_n2a(unsigned short id, char *buf, int len)
+const char * ll_proto_n2a(unsigned short id, char *buf, int len)
 {
-        int i;
+	int i;
 
 	id = ntohs(id);
 
-        for (i=0; i<sizeof(llproto_names)/sizeof(llproto_names[0]); i++) {
-                 if (llproto_names[i].id == id)
+	for (i=0; i<sizeof(llproto_names)/sizeof(llproto_names[0]); i++) {
+		 if (llproto_names[i].id == id)
 			return llproto_names[i].name;
 	}
-        snprintf(buf, len, "[%d]", id);
-        return buf;
+	snprintf(buf, len, "[%d]", id);
+	return buf;
 }
 
 int ll_proto_a2n(unsigned short *id, char *buf)
 {
-        int i;
-        for (i=0; i<sizeof(llproto_names)/sizeof(llproto_names[0]); i++) {
-                 if (strcasecmp(llproto_names[i].name, buf) == 0) {
+	int i;
+	for (i=0; i<sizeof(llproto_names)/sizeof(llproto_names[0]); i++) {
+		 if (strcasecmp(llproto_names[i].name, buf) == 0) {
 			 *id = htons(llproto_names[i].id);
 			 return 0;
 		 }

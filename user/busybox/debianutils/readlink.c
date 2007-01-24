@@ -4,43 +4,48 @@
  *
  * Copyright (C) 2000,2001 Matt Kraai <kraai@alumni.carnegiemellon.edu>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPL v2 or later, see file LICENSE in this tarball for details.
  */
 
+#include "busybox.h"
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "busybox.h"
+#include <getopt.h>
 
 int readlink_main(int argc, char **argv)
 {
-	char *buf = NULL;
+	char *buf;
+	char *fname;
 
-	/* no options, no getopt */
+	USE_FEATURE_READLINK_FOLLOW(
+		unsigned opt;
+		/* We need exactly one non-option argument.  */
+		opt_complementary = "=1";
+		opt = getopt32(argc, argv, "f");
+		fname = argv[optind];
+	)
+	SKIP_FEATURE_READLINK_FOLLOW(
+		const unsigned opt = 0;
+		if (argc != 2) bb_show_usage();
+		fname = argv[1];
+	)
 
-	if (argc != 2)
-		bb_show_usage();
+	/* compat: coreutils readlink reports errors silently via exit code */
+	logmode = LOGMODE_NONE;
 
-	buf = xreadlink(argv[1]);
+	if (opt) {
+		buf = realpath(fname, bb_common_bufsiz1);
+	} else {
+		buf = xreadlink(fname);
+	}
+
 	if (!buf)
 		return EXIT_FAILURE;
 	puts(buf);
-#ifdef CONFIG_FEATURE_CLEAN_UP
-	free(buf);
-#endif
 
-	return EXIT_SUCCESS;
+	if (ENABLE_FEATURE_CLEAN_UP && buf != bb_common_bufsiz1)
+		free(buf);
+
+	fflush_stdout_and_exit(EXIT_SUCCESS);
 }

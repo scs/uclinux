@@ -1,54 +1,126 @@
+/* vi: set sw=4 ts=4: */
 /*
- * Mini renice implementation for busybox
+ * renice implementation for busybox
  *
+ * Copyright (C) 2005  Manuel Novoa III  <mjn3@codepoet.org>
  *
- * Copyright (C) 2000 Dave 'Kill a Cop' Cinege <dcinege@psychosis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under the GPL v2 or later, see the file LICENSE in this tarball.
  */
 
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <sys/resource.h>
+/* Notes:
+ *   Setting an absolute priority was obsoleted in SUSv2 and removed
+ *   in SUSv3.  However, the common linux version of renice does
+ *   absolute and not relative.  So we'll continue supporting absolute,
+ *   although the stdout logging has been removed since both SUSv2 and
+ *   SUSv3 specify that stdout isn't used.
+ *
+ *   This version is lenient in that it doesn't require any IDs.  The
+ *   options -p, -g, and -u are treated as mode switches for the
+ *   following IDs (if any).  Multiple switches are allowed.
+ */
+
 #include "busybox.h"
+#include <sys/resource.h>
 
+void BUG_bad_PRIO_PROCESS(void);
+void BUG_bad_PRIO_PGRP(void);
+void BUG_bad_PRIO_USER(void);
 
-extern int renice_main(int argc, char **argv)
+int renice_main(int argc, char **argv)
 {
-	int prio, status = EXIT_SUCCESS;
+	static const char Xetpriority_msg[] = "%cetpriority";
 
-	if (argc < 3)	bb_show_usage();
+	int retval = EXIT_SUCCESS;
+	int which = PRIO_PROCESS;	/* Default 'which' value. */
+	int use_relative = 0;
+	int adjustment, new_priority;
+	unsigned who;
+	char *arg;
 
-	prio = atoi(*++argv);
-	if (prio > 20)		prio = 20;
-	if (prio < -20)		prio = -20;
+	/* Yes, they are not #defines in glibc 2.4! #if won't work */
+	if (PRIO_PROCESS < CHAR_MIN || PRIO_PROCESS > CHAR_MAX)
+		BUG_bad_PRIO_PROCESS();
+	if (PRIO_PGRP < CHAR_MIN || PRIO_PGRP > CHAR_MAX)
+		BUG_bad_PRIO_PGRP();
+	if (PRIO_USER < CHAR_MIN || PRIO_USER > CHAR_MAX)
+		BUG_bad_PRIO_USER();
 
-	while (*++argv) {
-		int ps = atoi(*argv);
-		int oldp = getpriority(PRIO_PROCESS, ps);
+	arg = *++argv;
 
-		if (setpriority(PRIO_PROCESS, ps, prio) == 0) {
-			printf("%d: old priority %d, new priority %d\n", ps, oldp, prio );
-		} else {
-			bb_perror_msg("%d: setpriority", ps);
-			status = EXIT_FAILURE;
-		}
+	/* Check if we are using a relative adjustment. */
+	if (arg && arg[0] == '-' && arg[1] == 'n') {
+		use_relative = 1;
+		if (!arg[2])
+			arg = *++argv;
+		else
+			arg += 2;
 	}
 
-	return status;
+	if (!arg) {				/* No args?  Then show usage. */
+		bb_show_usage();
+	}
+
+	/* Get the priority adjustment (absolute or relative). */
+	adjustment = xatoi_range(arg, INT_MIN/2, INT_MAX/2);
+
+	while ((arg = *++argv) != NULL) {
+		/* Check for a mode switch. */
+		if (arg[0] == '-' && arg[1]) {
+			static const char opts[]
+				= { 'p', 'g', 'u', 0, PRIO_PROCESS, PRIO_PGRP, PRIO_USER };
+			const char *p = strchr(opts, arg[1]);
+			if (p) {
+				which = p[4];
+				if (!arg[2])
+					continue;
+				arg += 2;
+			}
+		}
+
+		/* Process an ID arg. */
+		if (which == PRIO_USER) {
+			struct passwd *p;
+			p = getpwnam(arg);
+			if (!p) {
+				bb_error_msg("unknown user: %s", arg);
+				goto HAD_ERROR;
+			}
+			who = p->pw_uid;
+		} else {
+			who = bb_strtou(arg, NULL, 10);
+			if (errno) {
+				bb_error_msg("bad value: %s", arg);
+				goto HAD_ERROR;
+			}
+		}
+
+		/* Get priority to use, and set it. */
+		if (use_relative) {
+			int old_priority;
+
+			errno = 0;	 /* Needed for getpriority error detection. */
+			old_priority = getpriority(which, who);
+			if (errno) {
+				bb_perror_msg(Xetpriority_msg, 'g');
+				goto HAD_ERROR;
+			}
+
+			new_priority = old_priority + adjustment;
+		} else {
+			new_priority = adjustment;
+		}
+
+		if (setpriority(which, who, new_priority) == 0) {
+			continue;
+		}
+
+		bb_perror_msg(Xetpriority_msg, 's');
+ HAD_ERROR:
+		retval = EXIT_FAILURE;
+	}
+
+	/* No need to check for errors outputing to stderr since, if it
+	 * was used, the HAD_ERROR label was reached and retval was set. */
+
+	return retval;
 }

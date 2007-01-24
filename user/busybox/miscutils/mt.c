@@ -1,10 +1,10 @@
 /* vi: set sw=4 ts=4: */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mtio.h>
-#include <sys/fcntl.h>
+/*
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
+ */
+
 #include "busybox.h"
+#include <sys/mtio.h>
 
 struct mt_opcodes {
 	char *name;
@@ -50,7 +50,7 @@ static const struct mt_opcodes opcodes[] = {
 	{0, 0}
 };
 
-extern int mt_main(int argc, char **argv)
+int mt_main(int argc, char **argv)
 {
 	const char *file = "/dev/tape";
 	const struct mt_opcodes *code = opcodes;
@@ -78,13 +78,13 @@ extern int mt_main(int argc, char **argv)
 	}
 
 	if (code->name == 0) {
-		bb_error_msg("unrecognized opcode %s.", argv[1]);
+		bb_error_msg("unrecognized opcode %s", argv[1]);
 		return EXIT_FAILURE;
 	}
 
 	op.mt_op = code->value;
 	if (argc >= 3)
-		op.mt_count = atoi(argv[2]);
+		op.mt_count = xatoi_u(argv[2]);
 	else
 		op.mt_count = 1;		/* One, not zero, right? */
 
@@ -101,14 +101,13 @@ extern int mt_main(int argc, char **argv)
 			break;
 	}
 
-	if ((fd = open(file, mode, 0)) < 0)
-		bb_perror_msg_and_die("%s", file);
+	fd = xopen(file, mode);
 
 	switch (code->value) {
 		case MTTELL:
 			if (ioctl(fd, MTIOCPOS, &position) < 0)
 				bb_perror_msg_and_die("%s", file);
-			printf ("At block %d.\n", (int) position.mt_blkno);
+			printf("At block %d.\n", (int) position.mt_blkno);
 			break;
 
 		default:

@@ -1,20 +1,9 @@
 /* vi: set sw=4 ts=4: */
 /* uname -- print system information
-   Copyright (C) 1989-1999 Free Software Foundation, Inc.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+ * Copyright (C) 1989-1999 Free Software Foundation, Inc.
+ *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
+ */
 
 /* BB_AUDIT SUSv3 compliant */
 /* http://www.opengroup.org/onlinepubs/007904975/utilities/uname.html */
@@ -74,7 +63,7 @@ int uname_main(int argc, char **argv)
 	const unsigned short int *delta;
 	char toprint;
 
-	toprint = bb_getopt_ulflags(argc, argv, options);
+	toprint = getopt32(argc, argv, options);
 
 	if (argc != optind) {
 		bb_show_usage();
@@ -93,7 +82,7 @@ int uname_main(int argc, char **argv)
 	}
 
 #if defined(__sparc__) && defined(__linux__)
- 	if ((fake_sparc != NULL)
+	if ((fake_sparc != NULL)
 		&& ((fake_sparc[0] == 'y')
 			|| (fake_sparc[0] == 'Y'))) {
 		strcpy(uname_info.name.machine, "sparc");
@@ -102,10 +91,10 @@ int uname_main(int argc, char **argv)
 
 	strcpy(uname_info.processor, "unknown");
 
-	delta=utsname_offset;
+	delta = utsname_offset;
 	do {
 		if (toprint & 1) {
-			bb_printf(((char *)(&uname_info)) + *delta);
+			printf(((char *)(&uname_info)) + *delta);
 			if (toprint > 1) {
 				putchar(' ');
 			}
@@ -114,5 +103,5 @@ int uname_main(int argc, char **argv)
 	} while (toprint >>= 1);
 	putchar('\n');
 
-	bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+	fflush_stdout_and_exit(EXIT_SUCCESS);
 }

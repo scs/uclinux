@@ -5,17 +5,25 @@
 
 menu "Miscellaneous Utilities"
 
-config CONFIG_ADJTIMEX
+config ADJTIMEX
 	bool "adjtimex"
 	default n
 	help
 	  Adjtimex reads and optionally sets adjustment parameters for
 	  the Linux clock adjustment algorithm.
 
-config CONFIG_CROND
+config BBCONFIG
+	bool "bbconfig"
+	default n
+	help
+	  The bbconfig applet will print the config file with which
+	  busybox was built.
+
+config CROND
 	bool "crond"
 	default n
-	select CONFIG_FEATURE_SUID
+	select FEATURE_SUID
+	select FEATURE_SYSLOG
 	help
 	  Crond is a background daemon that parses individual crontab
 	  files and executes commands on behalf of the users in question.
@@ -27,31 +35,42 @@ config CONFIG_CROND
 	  Note that Busybox binary must be setuid root for this applet to
 	  work properly.
 
-config CONFIG_FEATURE_CROND_CALL_SENDMAIL
-	bool "  Using /usr/sbin/sendmail?"
+config DEBUG_CROND_OPTION
+	bool "Support debug option -d"
+	depends on CROND
 	default n
-	depends on CONFIG_CROND
+	help
+	  Support option -d to enter debug mode.
+
+config FEATURE_CROND_CALL_SENDMAIL
+	bool "Using /usr/sbin/sendmail?"
+	default n
+	depends on CROND
 	help
 	  Support calling /usr/sbin/sendmail for send cmd outputs.
 
-config CONFIG_CRONTAB
+config CRONTAB
 	bool "crontab"
 	default n
+	select FEATURE_SUID
 	help
 	  Crontab manipulates the crontab for a particular user.  Only
 	  the superuser may specify a different user and/or crontab directory.
 
-config CONFIG_DC
+config DC
 	bool "dc"
 	default n
 	help
 	  Dc is a reverse-polish desk calculator which supports unlimited
 	  precision arithmetic.
 
-config CONFIG_DEVFSD
-	bool "devfsd"
+config DEVFSD
+	bool "devfsd (obsolete)"
 	default n
+	select FEATURE_SYSLOG
 	help
+	  This is deprecated, and will be removed at the end of 2008.
+
 	  Provides compatibility with old device names on a devfs systems.
 	  You should set it to true if you have devfs enabled.
 	  The following keywords in devsfd.conf are supported:
@@ -61,103 +80,202 @@ config CONFIG_DEVFSD
 
 	   But only if they are written UPPERCASE!!!!!!!!
 
-config CONFIG_DEVFSD_MODLOAD
+config DEVFSD_MODLOAD
 	bool "Adds support for MODLOAD keyword in devsfd.conf"
 	default n
-	depends on CONFIG_DEVFSD
+	depends on DEVFSD
 	help
-	  This actually doesn't work with busybox  modutils but needs the real modutils.
+	  This actually doesn't work with busybox modutils but needs
+	  the external modutils.
 
-config CONFIG_DEVFSD_FG_NP
+config DEVFSD_FG_NP
 	bool "Enables the -fg and -np options"
 	default n
-	depends on CONFIG_DEVFSD
+	depends on DEVFSD
 	help
-		-fg	Run the daemon in the foreground.
-		-np	Exit  after  parsing  the configuration file. Do not poll for events.
+	  -fg  Run the daemon in the foreground.
+	  -np  Exit after parsing the configuration file. Do not poll for events.
 
-config CONFIG_DEVFSD_VERBOSE
+config DEVFSD_VERBOSE
 	bool "Increases logging (and size)"
 	default n
-	depends on CONFIG_DEVFSD
+	depends on DEVFSD
 	help
 	  Increases logging to stderr or syslog.
 
-config CONFIG_LAST
+config FEATURE_DEVFS
+	bool "  Use devfs names for all devices (obsolete)"
+	default n
+	help
+	  This is obsolete and will be going away at the end of 2008..
+
+	  This tells busybox to look for names like /dev/loop/0 instead of
+	  /dev/loop0.  If your /dev directory has normal names instead of
+	  devfs names, you don't want this.
+
+config EJECT
+	bool "eject"
+	default n
+	help
+	  Used to eject cdroms.  (defaults to /dev/cdrom)
+
+config LAST
 	bool "last"
 	default n
-	select CONFIG_FEATURE_U_W_TMP
+	select FEATURE_WTMP
 	help
 	  'last' displays a list of the last users that logged into the system.
 
-config CONFIG_HDPARM
+config LESS
+	bool "less"
+	default n
+	help
+	  'less' is a pager, meaning that it displays text files. It possesses
+	  a wide array of features, and is an improvement over 'more'.
+
+config FEATURE_LESS_MAXLINES
+	int "Max number of input lines less will try to eat"
+	default 9999999
+	depends on LESS
+
+config FEATURE_LESS_BRACKETS
+	bool "Enable bracket searching"
+	default y
+	depends on LESS
+	help
+	  This option adds the capability to search for matching left and right
+	  brackets, facilitating programming.
+
+config FEATURE_LESS_FLAGS
+	bool "Enable extra flags"
+	default y
+	depends on LESS
+	help
+	  The extra flags provided do the following:
+
+	  The -M flag enables a more sophisticated status line.
+	  The -m flag enables a simpler status line with a percentage.
+
+config FEATURE_LESS_FLAGCS
+	bool "Enable flag changes"
+	default n
+	depends on LESS
+	help
+	  This enables the ability to change command-line flags within
+	  less itself.
+
+config FEATURE_LESS_MARKS
+	bool "Enable marks"
+	default n
+	depends on LESS
+	help
+	  Marks enable positions in a file to be stored for easy reference.
+
+config FEATURE_LESS_REGEXP
+	bool "Enable regular expressions"
+	default n
+	depends on LESS
+	help
+	  Enable regular expressions, allowing complex file searches.
+
+config HDPARM
 	bool "hdparm"
 	default n
 	help
 	  Get/Set hard drive parameters.  Primarily intended for ATA
 	  drives.  Adds about 13k (or around 30k if you enable the
-	  CONFIG_FEATURE_HDPARM_GET_IDENTITY option)....
+	  FEATURE_HDPARM_GET_IDENTITY option)....
 
-config CONFIG_FEATURE_HDPARM_GET_IDENTITY
-	bool "  Support obtaining detailed information directly from drives"
+config FEATURE_HDPARM_GET_IDENTITY
+	bool "Support obtaining detailed information directly from drives"
 	default y
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
-	  Enables the -I and -Istdin options to obtain detailed information
+	  Enables the -I and -i options to obtain detailed information
 	  directly from drives about their capabilities and supported ATA
-	  feature set.  Enabling this option will add about 16k...
+	  feature set. If no device name is specified, hdparm will read
+	  identify data from stdin. Enabling this option will add about 16k...
 
-config CONFIG_FEATURE_HDPARM_HDIO_SCAN_HWIF
-	bool "  Register an IDE interface (DANGEROUS)"
+config FEATURE_HDPARM_HDIO_SCAN_HWIF
+	bool "Register an IDE interface (DANGEROUS)"
 	default n
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
 	  Enables the 'hdparm -R' option to register an IDE interface.
 	  This is dangerous stuff, so you should probably say N.
 
-config CONFIG_FEATURE_HDPARM_HDIO_UNREGISTER_HWIF
-	bool "  Un-register an IDE interface (DANGEROUS)"
+config FEATURE_HDPARM_HDIO_UNREGISTER_HWIF
+	bool "Un-register an IDE interface (DANGEROUS)"
 	default n
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
 	  Enables the 'hdparm -U' option to un-register an IDE interface.
 	  This is dangerous stuff, so you should probably say N.
 
-config CONFIG_FEATURE_HDPARM_HDIO_DRIVE_RESET
-	bool "  perform device reset (DANGEROUS)"
+config FEATURE_HDPARM_HDIO_DRIVE_RESET
+	bool "perform device reset (DANGEROUS)"
 	default n
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
 	  Enables the 'hdparm -w' option to perform a device reset.
 	  This is dangerous stuff, so you should probably say N.
 
-config CONFIG_FEATURE_HDPARM_HDIO_TRISTATE_HWIF
-	bool "  tristate device for hotswap (DANGEROUS)"
+config FEATURE_HDPARM_HDIO_TRISTATE_HWIF
+	bool "tristate device for hotswap (DANGEROUS)"
 	default n
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
 	  Enables the 'hdparm -x' option to tristate device for hotswap,
 	  and the '-b' option to get/set bus state.  This is dangerous
 	  stuff, so you should probably say N.
 
-config CONFIG_FEATURE_HDPARM_HDIO_GETSET_DMA
-	bool "  get/set using_dma flag (DANGEROUS)"
+config FEATURE_HDPARM_HDIO_GETSET_DMA
+	bool "get/set using_dma flag (DANGEROUS)"
 	default n
-	depends on CONFIG_HDPARM
+	depends on HDPARM
 	help
 	  Enables the 'hdparm -d' option to get/set using_dma flag.
 	  This is dangerous stuff, so you should probably say N.
 
-config CONFIG_MAKEDEVS
+config MAKEDEVS
 	bool "makedevs"
 	default n
 	help
-	  'makedevs' is a utility used and created by the Linux Router Project.
-	  It creates a large number of device special files (/dev devices)
-	  rather quickly, and can be considerably faster then running mknod a
-	  zillion times.
+	  'makedevs' is a utility used to create a batch of devices with
+	  one command.
+	  .
+	  There are two choices for command line behaviour, the interface
+	  as used by LEAF/Linux Router Project, or a device table file.
+	  .
+	  'leaf' is traditionally what busybox follows, it allows multiple
+	  devices of a particluar type to be created per command.
+	  e.g. /dev/hda[0-9]
+	  Device properties are passed as command line arguments.
+	  .
+	  'table' reads device properties from a file or stdin, allowing
+	  a batch of unrelated devices to be made with one command.
+	  User/group names are allowed as an alternative to uid/gid.
 
-config CONFIG_MT
+choice
+	prompt "Choose makedevs behaviour"
+	depends on MAKEDEVS
+	default FEATURE_MAKEDEVS_TABLE
+
+config FEATURE_MAKEDEVS_LEAF
+	bool "leaf"
+
+config FEATURE_MAKEDEVS_TABLE
+	bool "table"
+
+endchoice
+
+config MOUNTPOINT
+	bool "mountpoint"
+	default n
+	help
+	  mountpoint checks if the directory is a mountpoint.
+
+config MT
 	bool "mt"
 	default n
 	help
@@ -165,20 +283,80 @@ config CONFIG_MT
 	  to advance or rewind a tape past a specified number of archive
 	  files on the tape.
 
-config CONFIG_RX
-        bool "rx"
+config NMETER
+	bool "nmeter"
 	default n
 	help
- 	  Receive files using the Xmodem protocol.
+	  nmeter prints various system parameters continuously.
 
-config CONFIG_STRINGS
+config RAIDAUTORUN
+	bool "raidautorun"
+	default n
+	help
+	  raidautorun tells the kernel md driver to
+	  search and start RAID arrays.
+
+config READAHEAD
+	bool "readahead"
+	default n
+	help
+	  Preload the files listed on the command line into RAM cache so that
+	  subsequent reads on these files will not block on disk I/O.
+
+	  This applet just calls the readahead(2) system call on each file.
+	  It is mainly useful in system startup scripts to preload files
+	  or executables before they are used.  When used at the right time
+	  (in particular when a CPU boundprocess is running) it can
+	  significantly speed up system startup.
+
+	  As readahead(2) blocks until each file has been read, it is best to
+	  run this applet as a background job.
+
+config RUNLEVEL
+	bool "runlevel"
+	default n
+	help
+	  find the current and previous system runlevel.
+
+	  This applet uses utmp but does not rely on busybox supporing
+	  utmp on purpose. It is used by e.g. emdebian via /etc/init.d/rc.
+
+config RX
+	bool "rx"
+	default n
+	help
+	  Receive files using the Xmodem protocol.
+
+config STRINGS
 	bool "strings"
 	default n
 	help
 	  strings prints the printable character sequences for each file
 	  specified.
 
-config CONFIG_TIME
+config SETSID
+	bool "setsid"
+	default n
+	help
+	  setsid runs a program in a new session
+
+config TASKSET
+	bool "taskset"
+	default n
+	help
+	  Retrieve or set a processes's CPU affinity.
+	  This requires sched_{g,s}etaffinity support in your libc.
+
+config FEATURE_TASKSET_FANCY
+	bool "fancy output"
+	default y
+	depends on TASKSET
+	help
+	  Add code for fancy output. This merely silences a compiler-warning
+	  and adds about 135 Bytes. May be needed for machines with alot
+	  of CPUs.
+
+config TIME
 	bool "time"
 	default n
 	help
@@ -186,7 +364,7 @@ config CONFIG_TIME
 	  When the command finishes, time writes a message to standard output
 	  giving timing statistics about this program run.
 
-config CONFIG_WATCHDOG
+config WATCHDOG
 	bool "watchdog"
 	default n
 	help

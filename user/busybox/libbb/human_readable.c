@@ -1,3 +1,4 @@
+/* vi: set sw=4 ts=4: */
 /*
  * June 30, 2001                 Manuel Novoa III
  *
@@ -33,8 +34,8 @@ const char *make_human_readable_str(unsigned long long size,
 {
 	/* The code will adjust for additional (appended) units. */
 	static const char zero_and_units[] = { '0', 0, 'k', 'M', 'G', 'T' };
-	static const char fmt[] = "%Lu";
-	static const char fmt_tenths[] = "%Lu.%d%c";
+	static const char fmt[] = "%llu";
+	static const char fmt_tenths[] = "%llu.%d%c";
 
 	static char str[21];		/* Sufficient for 64 bit unsigned integers. */
 
@@ -57,12 +58,13 @@ const char *make_human_readable_str(unsigned long long size,
 		val /= display_unit;	/* Don't combine with the line above!!! */
 	} else {
 		++u;
-		while ((val >= KILOBYTE)
-			   && (u < zero_and_units + sizeof(zero_and_units) - 1)) {
+		while ((val >= 1024)
+		 && (u < zero_and_units + sizeof(zero_and_units) - 1)
+		) {
 			f = fmt_tenths;
 			++u;
-			frac = ((((int)(val % KILOBYTE)) * 10) + (KILOBYTE/2)) / KILOBYTE;
-			val /= KILOBYTE;
+			frac = (((int)(val % 1024)) * 10 + 1024/2) / 1024;
+			val /= 1024;
 		}
 		if (frac >= 10) {		/* We need to round up here. */
 			++val;
@@ -74,7 +76,7 @@ const char *make_human_readable_str(unsigned long long size,
 			if ( frac >= 5 ) {
 				++val;
 			}
-			f = "%Lu%*c" /* fmt_no_tenths */ ;
+			f = "%llu%*c" /* fmt_no_tenths */ ;
 			frac = 1;
 		}
 #endif

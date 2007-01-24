@@ -4,113 +4,49 @@
  *
  * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
 #include <mntent.h>
 #include "libbb.h"
 
-#define MTAB_MAX_ENTRIES 40
-static const int MS_RDONLY = 1;	/* Mount read-only.  */
-
+#if ENABLE_FEATURE_MTAB_SUPPORT
 void erase_mtab(const char *name)
 {
-	struct mntent entries[MTAB_MAX_ENTRIES];
-	int count = 0;
-	FILE *mountTable = setmntent(bb_path_mtab_file, "r");
+	struct mntent *entries = NULL;
+	int i, count = 0;
+	FILE *mountTable;
 	struct mntent *m;
 
-	/* Check if reading the mtab file failed */
-	if (mountTable == 0
-			/* Bummer.  fall back on trying the /proc filesystem */
-			&& (mountTable = setmntent("/proc/mounts", "r")) == 0) {
+	mountTable = setmntent(bb_path_mtab_file, "r");
+	/* Bummer. Fall back on trying the /proc filesystem */
+	if (!mountTable) mountTable = setmntent("/proc/mounts", "r");
+	if (!mountTable) {
 		bb_perror_msg(bb_path_mtab_file);
 		return;
 	}
 
-	while (((m = getmntent(mountTable)) != 0) && (count < MTAB_MAX_ENTRIES))
-	{
-		entries[count].mnt_fsname = strdup(m->mnt_fsname);
-		entries[count].mnt_dir = strdup(m->mnt_dir);
-		entries[count].mnt_type = strdup(m->mnt_type);
-		entries[count].mnt_opts = strdup(m->mnt_opts);
-		entries[count].mnt_freq = m->mnt_freq;
-		entries[count].mnt_passno = m->mnt_passno;
-		count++;
+	while ((m = getmntent(mountTable)) != 0) {
+		i = count++;
+		entries = xrealloc(entries, count * sizeof(entries[0]));
+		entries[i].mnt_fsname = xstrdup(m->mnt_fsname);
+		entries[i].mnt_dir = xstrdup(m->mnt_dir);
+		entries[i].mnt_type = xstrdup(m->mnt_type);
+		entries[i].mnt_opts = xstrdup(m->mnt_opts);
+		entries[i].mnt_freq = m->mnt_freq;
+		entries[i].mnt_passno = m->mnt_passno;
 	}
 	endmntent(mountTable);
-	if ((mountTable = setmntent(bb_path_mtab_file, "w"))) {
-		int i;
 
+	mountTable = setmntent(bb_path_mtab_file, "w");
+	if (mountTable) {
 		for (i = 0; i < count; i++) {
-			int result = (strcmp(entries[i].mnt_fsname, name) == 0
-						  || strcmp(entries[i].mnt_dir, name) == 0);
-
-			if (result)
-				continue;
-			else
+			if (strcmp(entries[i].mnt_fsname, name) != 0
+			 && strcmp(entries[i].mnt_dir, name) != 0)
 				addmntent(mountTable, &entries[i]);
 		}
 		endmntent(mountTable);
 	} else if (errno != EROFS)
 		bb_perror_msg(bb_path_mtab_file);
 }
-
-void write_mtab(char *blockDevice, char *directory,
-				char *filesystemType, long flags, char *string_flags)
-{
-	FILE *mountTable = setmntent(bb_path_mtab_file, "a+");
-	struct mntent m;
-
-	if (mountTable == 0) {
-		bb_perror_msg(bb_path_mtab_file);
-		return;
-	}
-	if (mountTable) {
-		int length = strlen(directory);
-
-		if (length > 1 && directory[length - 1] == '/')
-			directory[length - 1] = '\0';
-
-		if (filesystemType == 0) {
-			struct mntent *p = find_mount_point(blockDevice, "/proc/mounts");
-
-			if (p && p->mnt_type)
-				filesystemType = p->mnt_type;
-		}
-		m.mnt_fsname = blockDevice;
-		m.mnt_dir = directory;
-		m.mnt_type = filesystemType ? filesystemType : "default";
-
-		if (*string_flags) {
-			m.mnt_opts = string_flags;
-		} else {
-			if ((flags | MS_RDONLY) == flags)
-				m.mnt_opts = "ro";
-			else
-				m.mnt_opts = "rw";
-		}
-
-		m.mnt_freq = 0;
-		m.mnt_passno = 0;
-		addmntent(mountTable, &m);
-		endmntent(mountTable);
-	}
-}
+#endif

@@ -8,19 +8,7 @@
  * Created: Thu Apr  7 13:29:41 1994 too
  * Last modified: Fri Jun  9 14:34:24 2000 too
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under the GPL v2 or later, see the file LICENSE in this tarball.
  *
  * HISTORY
  * Revision 3.1  1994/04/17  11:31:54  too
@@ -34,21 +22,9 @@
  */
 
 #include <termios.h>
-#include <unistd.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
-#include <signal.h>
 #include <arpa/telnet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include "busybox.h"
-
-#if 0
-static const int DOTRACE = 1;
-#endif
 
 #ifdef DOTRACE
 #include <arpa/inet.h> /* for inet_ntoa()... */
@@ -57,24 +33,17 @@ static const int DOTRACE = 1;
 #define TRACE(x, y)
 #endif
 
-#if 0
-#define USE_POLL
-#include <sys/poll.h>
-#else
-#include <sys/time.h>
-#endif
-
 #define DATABUFSIZE  128
 #define IACBUFSIZE   128
 
-static const int CHM_TRY = 0;
-static const int CHM_ON = 1;
-static const int CHM_OFF = 2;
-
-static const int UF_ECHO = 0x01;
-static const int UF_SGA = 0x02;
-
 enum {
+	CHM_TRY = 0,
+	CHM_ON = 1,
+	CHM_OFF = 2,
+
+	UF_ECHO = 0x01,
+	UF_SGA = 0x02,
+
 	TS_0 = 1,
 	TS_IAC = 2,
 	TS_OPT = 3,
@@ -96,6 +65,7 @@ static struct Globalvars {
 	byte    charmode;
 	byte    telflags;
 	byte	gotsig;
+	byte	do_termios;
 	/* buffer to handle telnet negotiations */
 	char    iacbuf[IACBUFSIZE];
 	short	iaclen; /* could even use byte */
@@ -110,7 +80,7 @@ struct Globalvars * Gptr;
 #define G (*Gptr)
 #endif
 
-static inline void iacflush(void)
+static void iacflush(void)
 {
 	write(G.netfd, G.iacbuf, G.iaclen);
 	G.iaclen = 0;
@@ -125,7 +95,7 @@ static void telopt(byte c);
 static int subneg(byte c);
 
 /* Some globals */
-static int one = 1;
+static const int one = 1;
 
 #ifdef CONFIG_FEATURE_TELNET_TTYPE
 static char *ttype;
@@ -207,15 +177,15 @@ static void handlenetoutput(int len)
 	 *	I don't agree.
 	 *	first - I cannot use programs like sz/rz
 	 *	second - the 0x0D is sent as one character and if the next
-	 *	         char is 0x0A then it's eaten by a server side.
+	 *		 char is 0x0A then it's eaten by a server side.
 	 *	third - whay doy you have to make 'many write()s'?
-	 *	        I don't understand.
+	 *		I don't understand.
 	 *	So I implemented it. It's realy useful for me. I hope that
 	 *	others people will find it interesting to.
 	 */
 
 	int i, j;
-	byte * p = G.buf;
+	byte * p = (byte*)G.buf;
 	byte outbuf[4*DATABUFSIZE];
 
 	for (i = len, j = 0; i > 0; i--, p++)
@@ -227,12 +197,12 @@ static void handlenetoutput(int len)
 		}
 		outbuf[j++] = *p;
 		if (*p == 0xff)
-		    outbuf[j++] = 0xff;
+			outbuf[j++] = 0xff;
 		else if (*p == 0x0d)
-		    outbuf[j++] = 0x00;
+			outbuf[j++] = 0x00;
 	}
 	if (j > 0 )
-	    write(G.netfd, outbuf, j);
+		write(G.netfd, outbuf, j);
 }
 
 
@@ -313,7 +283,7 @@ static void handlenetinput(int len)
 
 /* ******************************* */
 
-static inline void putiac(int c)
+static void putiac(int c)
 {
 	G.iacbuf[G.iaclen++] = c;
 }
@@ -329,17 +299,6 @@ static void putiac2(byte wwdd, byte c)
 	putiac(c);
 }
 
-#if 0
-static void putiac1(byte c)
-{
-	if (G.iaclen + 2 > IACBUFSIZE)
-		iacflush();
-
-	putiac(IAC);
-	putiac(c);
-}
-#endif
-
 #ifdef CONFIG_FEATURE_TELNET_TTYPE
 static void putiac_subopt(byte c, char *str)
 {
@@ -353,7 +312,7 @@ static void putiac_subopt(byte c, char *str)
 	putiac(c);
 	putiac(0);
 
-	while(*str)
+	while (*str)
 		putiac(*str++);
 
 	putiac(IAC);
@@ -376,12 +335,12 @@ static void putiac_subopt_autologin(void)
 	putiac(TELQUAL_IS);
 	putiac(NEW_ENV_VAR);
 
-	while(*user)
+	while (*user)
 		putiac(*user++);
 
 	putiac(NEW_ENV_VALUE);
 
-	while(*autologin)
+	while (*autologin)
 		putiac(*autologin++);
 
 	putiac(IAC);
@@ -461,13 +420,13 @@ static void do_linemode(void)
 
 /* ******************************* */
 
-static inline void to_notsup(char c)
+static void to_notsup(char c)
 {
 	if      (G.telwish == WILL)	putiac2(DONT, c);
 	else if (G.telwish == DO)	putiac2(WONT, c);
 }
 
-static inline void to_echo(void)
+static void to_echo(void)
 {
 	/* if server requests ECHO, don't agree */
 	if      (G.telwish == DO) {	putiac2(WONT, TELOPT_ECHO);	return; }
@@ -494,7 +453,7 @@ static inline void to_echo(void)
 	WriteCS(1, "\r\n");  /* sudden modec */
 }
 
-static inline void to_sga(void)
+static void to_sga(void)
 {
 	/* daemon always sends will/wont, client do/dont */
 
@@ -516,7 +475,7 @@ static inline void to_sga(void)
 }
 
 #ifdef CONFIG_FEATURE_TELNET_TTYPE
-static inline void to_ttype(void)
+static void to_ttype(void)
 {
 	/* Tell server we will (or won't) do TTYPE */
 
@@ -530,7 +489,7 @@ static inline void to_ttype(void)
 #endif
 
 #ifdef CONFIG_FEATURE_TELNET_AUTOLOGIN
-static inline void to_new_environ(void)
+static void to_new_environ(void)
 {
 	/* Tell server we will (or will not) do AUTOLOGIN */
 
@@ -544,7 +503,7 @@ static inline void to_new_environ(void)
 #endif
 
 #ifdef CONFIG_FEATURE_AUTOWIDTH
-static inline void to_naws(void)
+static void to_naws(void)
 {
 	/* Tell server we will do NAWS */
 	putiac2(WILL, TELOPT_NAWS);
@@ -616,18 +575,19 @@ static void fgotsig(int sig)
 
 static void rawmode(void)
 {
-	tcsetattr(0, TCSADRAIN, &G.termios_raw);
+	if (G.do_termios) tcsetattr(0, TCSADRAIN, &G.termios_raw);
 }
 
 static void cookmode(void)
 {
-	tcsetattr(0, TCSADRAIN, &G.termios_def);
+	if (G.do_termios) tcsetattr(0, TCSADRAIN, &G.termios_def);
 }
 
-extern int telnet_main(int argc, char** argv)
+int telnet_main(int argc, char** argv)
 {
+	char *host;
+	int port;
 	int len;
-	struct sockaddr_in s_in;
 #ifdef USE_POLL
 	struct pollfd ufds[2];
 #else
@@ -635,58 +595,40 @@ extern int telnet_main(int argc, char** argv)
 	int maxfd;
 #endif
 
-#ifdef CONFIG_FEATURE_TELNET_AUTOLOGIN
-	int opt;
-#endif
-
 #ifdef CONFIG_FEATURE_AUTOWIDTH
 	get_terminal_width_height(0, &win_width, &win_height);
 #endif
 
 #ifdef CONFIG_FEATURE_TELNET_TTYPE
-    ttype = getenv("TERM");
+	ttype = getenv("TERM");
 #endif
 
-	memset(&G, 0, sizeof G);
+	/* memset(&G, 0, sizeof G); - already is */
 
-	if (tcgetattr(0, &G.termios_def) < 0)
-		exit(1);
-
-	G.termios_raw = G.termios_def;
-	cfmakeraw(&G.termios_raw);
+	if (tcgetattr(0, &G.termios_def) >= 0) {
+		G.do_termios = 1;
+		G.termios_raw = G.termios_def;
+		cfmakeraw(&G.termios_raw);
+	}
 
 	if (argc < 2)
 		bb_show_usage();
 
 #ifdef CONFIG_FEATURE_TELNET_AUTOLOGIN
-	autologin = NULL;
-	while ((opt = getopt(argc, argv, "al:")) != EOF) {
-		switch (opt) {
-			case 'l':
-				autologin = optarg;
-				break;
-			case 'a':
-				autologin = getenv("USER");
-				break;
-			case '?':
-				bb_show_usage();
-				break;
-		}
-	}
-	if (optind < argc) {
-		bb_lookup_host(&s_in, argv[optind++]);
-		s_in.sin_port = bb_lookup_port((optind < argc) ? argv[optind++] :
-				"telnet", "tcp", 23);
-		if (optind < argc)
-			bb_show_usage();
-	} else
-		bb_show_usage();
+	if (1 & getopt32(argc, argv, "al:", &autologin))
+		autologin = getenv("USER");
+	argv += optind;
 #else
-	bb_lookup_host(&s_in, argv[1]);
-	s_in.sin_port = bb_lookup_port((argc == 3) ? argv[2] : "telnet", "tcp", 23);
+	argv++;
 #endif
+	if (!*argv)
+		bb_show_usage();
+	host = *argv++;
+	port = bb_lookup_port(*argv ? *argv++ : "telnet", "tcp", 23);
+	if (*argv) /* extra params?? */
+		bb_show_usage();
 
-	G.netfd = xconnect(&s_in);
+	G.netfd = create_and_connect_stream_or_die(host, port);
 
 	setsockopt(G.netfd, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof one);
 
@@ -702,8 +644,7 @@ extern int telnet_main(int argc, char** argv)
 	maxfd = G.netfd + 1;
 #endif
 
-	while (1)
-	{
+	while (1) {
 #ifndef USE_POLL
 		fd_set rfds = readfds;
 
@@ -747,8 +688,7 @@ extern int telnet_main(int argc, char** argv)
 			{
 				len = read(G.netfd, G.buf, DATABUFSIZE);
 
-				if (len <= 0)
-				{
+				if (len <= 0) {
 					WriteCS(1, "Connection closed by foreign host.\r\n");
 					doexit(1);
 				}
@@ -759,11 +699,3 @@ extern int telnet_main(int argc, char** argv)
 		}
 	}
 }
-
-/*
-Local Variables:
-c-file-style: "linux"
-c-basic-offset: 4
-tab-width: 4
-End:
-*/

@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# vi: set ts=4:
+# vi: set sw=4 ts=4:
 # Copyright (c) 2001 David Schleef <ds@schleef.org>
 # Copyright (c) 2001 Erik Andersen <andersen@codepoet.org>
 # Copyright (c) 2001 Stuart Hughes <seh@zee2.com>
@@ -25,6 +25,7 @@ my $kernelsyms="";
 my $stdout=0;
 my $verbose=0;
 my $help=0;
+my $nm = $ENV{'NM'} || "nm";
 
 # more globals
 my (@liblist) = ();
@@ -33,7 +34,7 @@ my $dep = {};
 my $mod = {};
 
 my $usage = <<TXT;
-$0 -b basedir { -k <vmlinux> | -F <System.map> } [options]... 
+$0 -b basedir { -k <vmlinux> | -F <System.map> } [options]...
   Where:
    -h --help         : Show this help screen
    -b --basedir      : Modules base directory (e.g /lib/modules/<2.x.y>)
@@ -104,7 +105,7 @@ foreach my $obj ( @liblist ){
     warn "\nMODULE = $tgtname\n" if $verbose;
 
     # get a list of symbols
-	my @output=`nm $obj`;
+	my @output=`$nm $obj`;
 
     build_ref_tables($tgtname, \@output, $exp, $dep);
 }
@@ -112,12 +113,12 @@ foreach my $obj ( @liblist ){
 
 # vmlinux is a special name that is only used to resolve symbols
 my $tgtname = 'vmlinux';
-my @output = $kernelsyms ? `cat $kernelsyms` : `nm $kernel`;
+my @output = $kernelsyms ? `cat $kernelsyms` : `$nm $kernel`;
 warn "\nMODULE = $tgtname\n" if $verbose;
 build_ref_tables($tgtname, \@output, $exp, $dep);
 
-# resolve the dependancies for each module
-# reduce dependancies: remove unresolvable and resolved from vmlinux/System.map
+# resolve the dependencies for each module
+# reduce dependencies: remove unresolvable and resolved from vmlinux/System.map
 # remove duplicates
 foreach my $module (keys %$dep) {
     warn "reducing module: $module\n" if $verbose;
@@ -181,11 +182,7 @@ sub build_ref_tables
 	}
 
     # this takes makes sure modules with no dependencies get listed
-    if($name eq 'vmlinux') {
-	$exp->{depmod_pl_dummy_symbol} = $name;
-    } else {
-        push @{$dep->{$name}}, 'depmod_pl_dummy_symbol';
-    }
+    push @{$dep->{$name}}, '_printk' unless $name eq 'vmlinux';
 
     # gather the unresolved symbols
     foreach ( @$sym_ar ) {
@@ -214,7 +211,7 @@ __END__
 
 depmod.pl - a cross platform script to generate kernel module
 dependency lists (modules.conf) which can then be used by modprobe
-on the target platform. 
+on the target platform.
 
 It supports Linux 2.4 and 2.6 styles of modules.conf (auto-detected)
 
@@ -229,7 +226,7 @@ Example:
 =head1 DESCRIPTION
 
 The purpose of this script is to automagically generate a list of of kernel
-module dependancies.  This script produces dependancy lists that should be
+module dependencies.  This script produces dependency lists that should be
 identical to the depmod program from the modutils package.  Unlike the depmod
 binary, however, depmod.pl is designed to be run on your host system, not
 on your target system.
@@ -248,7 +245,7 @@ This displays the help message.
 =item B<-b --basedir>
 
 The base directory uner which the target's modules will be found.  This
-defaults to the /lib/modules directory. 
+defaults to the /lib/modules directory.
 
 If you don't specify the kernel version, this script will search for
 one under the specified based directory and use the first thing that
@@ -290,6 +287,3 @@ under the same terms as Perl itself.
 David Schleef <ds@schleef.org>
 
 =cut
-
-# $Id$
-

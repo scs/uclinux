@@ -2,21 +2,9 @@
 /*
  * Utility routines.
  *
- * Copyright (C) 1999-2004 by Erik Andersen <andersen@codepoet.org>
+ * Copyright (C) 1999-2005 by Erik Andersen <andersen@codepoet.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
 #include <errno.h>
@@ -24,7 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "busybox.h"
+#include "libbb.h"
 
 
 #if BUFSIZ < 4096
@@ -33,58 +21,86 @@
 #endif
 
 
-/* If size is 0 copy until EOF */
-static size_t bb_full_fd_action(int src_fd, int dst_fd, const size_t size)
+static off_t bb_full_fd_action(int src_fd, int dst_fd, off_t size)
 {
-	size_t read_total = 0;
-	RESERVE_CONFIG_BUFFER(buffer,BUFSIZ);
+	int status = -1;
+	off_t total = 0;
+	RESERVE_CONFIG_BUFFER(buffer, BUFSIZ);
 
-	while ((size == 0) || (read_total < size)) {
-		size_t read_try;
-		ssize_t read_actual;
+	if (src_fd < 0) goto out;
 
- 		if ((size == 0) || (size - read_total > BUFSIZ)) {
-			read_try = BUFSIZ;
-		} else {
-			read_try = size - read_total;
+	if (!size) {
+		size = BUFSIZ;
+		status = 1; /* copy until eof */
+	}
+
+	while (1) {
+		ssize_t rd;
+
+		rd = safe_read(src_fd, buffer, size > BUFSIZ ? BUFSIZ : size);
+
+		if (!rd) { /* eof - all done */
+			status = 0;
+			break;
 		}
-
-		read_actual = safe_read(src_fd, buffer, read_try);
-		if (read_actual > 0) {
-			if ((dst_fd >= 0) && (bb_full_write(dst_fd, buffer, (size_t) read_actual) != read_actual)) {
-				bb_perror_msg(bb_msg_write_error);	/* match Read error below */
+		if (rd < 0) {
+			bb_perror_msg(bb_msg_read_error);
+			break;
+		}
+		/* dst_fd == -1 is a fake, else... */
+		if (dst_fd >= 0) {
+			ssize_t wr = full_write(dst_fd, buffer, rd);
+			if (wr < rd) {
+				bb_perror_msg(bb_msg_write_error);
 				break;
 			}
 		}
-		else if (read_actual == 0) {
-			if (size) {
-				bb_error_msg("Unable to read all data");
+		total += rd;
+		if (status < 0) { /* if we aren't copying till EOF... */
+			size -= rd;
+			if (!size) {
+				/* 'size' bytes copied - all done */
+				status = 0;
+				break;
 			}
-			break;
-		} else {
-			/* read_actual < 0 */
-			bb_perror_msg("Read error");
-			break;
 		}
-
-		read_total += read_actual;
 	}
-
+ out:
 	RELEASE_CONFIG_BUFFER(buffer);
-
-	return(read_total);
+	return status ? -1 : total;
 }
 
 
-extern int bb_copyfd_size(int fd1, int fd2, const off_t size)
+#if 0
+void complain_copyfd_and_die(off_t sz)
+{
+	if (sz != -1)
+		bb_error_msg_and_die("short read");
+	/* if sz == -1, bb_copyfd_XX already complained */
+	exit(xfunc_error_retval);
+}
+#endif
+
+off_t bb_copyfd_size(int fd1, int fd2, off_t size)
 {
 	if (size) {
-		return(bb_full_fd_action(fd1, fd2, size));
+		return bb_full_fd_action(fd1, fd2, size);
 	}
-	return(0);
+	return 0;
 }
 
-extern int bb_copyfd_eof(int fd1, int fd2)
+void bb_copyfd_exact_size(int fd1, int fd2, off_t size)
 {
-	return(bb_full_fd_action(fd1, fd2, 0));
+	off_t sz = bb_copyfd_size(fd1, fd2, size);
+	if (sz == size)
+		return;
+	if (sz != -1)
+		bb_error_msg_and_die("short read");
+	/* if sz == -1, bb_copyfd_XX already complained */
+	exit(xfunc_error_retval);
+}
+
+off_t bb_copyfd_eof(int fd1, int fd2)
+{
+	return bb_full_fd_action(fd1, fd2, 0);
 }

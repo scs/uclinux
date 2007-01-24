@@ -5,32 +5,15 @@
  * Copyright (C) many different people.
  * If you wrote this, please acknowledge your work.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
-
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "libbb.h"
 
 /* Read up to (and including) TERMINATING_STRING from FILE and return it.
  * Return NULL on EOF.  */
 
-char *fgets_str(FILE *file, const char *terminating_string)
+char *xmalloc_fgets_str(FILE *file, const char *terminating_string)
 {
 	char *linebuf = NULL;
 	const int term_length = strlen(terminating_string);
@@ -48,7 +31,8 @@ char *fgets_str(FILE *file, const char *terminating_string)
 
 		/* grow the line buffer as necessary */
 		while (idx > linebufsz - 2) {
-			linebuf = xrealloc(linebuf, linebufsz += 1000);
+			linebufsz += 200;
+			linebuf = xrealloc(linebuf, linebufsz);
 		}
 
 		linebuf[idx] = ch;
@@ -56,12 +40,14 @@ char *fgets_str(FILE *file, const char *terminating_string)
 
 		/* Check for terminating string */
 		end_string_offset = idx - term_length;
-		if ((end_string_offset > 0) && (memcmp(&linebuf[end_string_offset], terminating_string, term_length) == 0)) {
+		if (end_string_offset > 0
+		 && memcmp(&linebuf[end_string_offset], terminating_string, term_length) == 0
+		) {
 			idx -= term_length;
 			break;
 		}
 	}
+	linebuf = xrealloc(linebuf, idx + 1);
 	linebuf[idx] = '\0';
-	return(linebuf);
+	return linebuf;
 }
-

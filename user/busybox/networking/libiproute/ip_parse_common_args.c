@@ -1,3 +1,4 @@
+/* vi: set sw=4 ts=4: */
 /*
  * ip.c		"ip" utility frontend.
  *
@@ -16,10 +17,10 @@
 
 #include <string.h>
 
+#include "libbb.h"
 #include "utils.h"
 #include "ip_common.h"
 
-#include "busybox.h"
 
 int preferred_family = AF_UNSPEC;
 int oneline = 0;
@@ -34,7 +35,8 @@ void ip_parse_common_args(int *argcp, char ***argvp)
 		char *opt = argv[1];
 
 		if (strcmp(opt,"--") == 0) {
-			argc--; argv++;
+			argc--;
+			argv++;
 			break;
 		}
 
@@ -47,8 +49,8 @@ void ip_parse_common_args(int *argcp, char ***argvp)
 		if (matches(opt, "-family") == 0) {
 			argc--;
 			argv++;
-			if (! argv[1])
-			    bb_show_usage();
+			if (!argv[1])
+				bb_show_usage();
 			if (strcmp(argv[1], "inet") == 0)
 				preferred_family = AF_INET;
 			else if (strcmp(argv[1], "inet6") == 0)
@@ -56,7 +58,7 @@ void ip_parse_common_args(int *argcp, char ***argvp)
 			else if (strcmp(argv[1], "link") == 0)
 				preferred_family = AF_PACKET;
 			else
-				invarg(argv[1], "invalid protocol family");
+				invarg(argv[1], "protocol family");
 		} else if (strcmp(opt, "-4") == 0) {
 			preferred_family = AF_INET;
 		} else if (strcmp(opt, "-6") == 0) {
@@ -68,7 +70,8 @@ void ip_parse_common_args(int *argcp, char ***argvp)
 		} else {
 			bb_show_usage();
 		}
-		argc--;	argv++;
+		argc--;
+		argv++;
 	}
 	_SL_ = oneline ? "\\" : "\n" ;
 	*argcp = argc;

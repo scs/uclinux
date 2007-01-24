@@ -20,16 +20,14 @@
  *
  */
 
-#include <errno.h>
-#include <sys/stat.h>
 #include "libbb.h"
 #include "coreutils.h"
 
-extern int cp_mv_stat2(const char *fn, struct stat *fn_stat, stat_func sf)
+int cp_mv_stat2(const char *fn, struct stat *fn_stat, stat_func sf)
 {
 	if (sf(fn, fn_stat) < 0) {
 		if (errno != ENOENT) {
-			bb_perror_msg("unable to stat `%s'", fn);
+			bb_perror_msg("cannot stat '%s'", fn);
 			return -1;
 		}
 		return 0;
@@ -39,7 +37,7 @@ extern int cp_mv_stat2(const char *fn, struct stat *fn_stat, stat_func sf)
 	return 1;
 }
 
-extern int cp_mv_stat(const char *fn, struct stat *fn_stat)
+int cp_mv_stat(const char *fn, struct stat *fn_stat)
 {
 	return cp_mv_stat2(fn, fn_stat, stat);
 }

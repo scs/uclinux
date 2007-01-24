@@ -8,39 +8,14 @@
  * Nicolas Ferre <nicolas.ferre@alcove.fr> to support pre 2.1 kernels
  * (which lack the query_module() interface).
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stddef.h>
-#include <errno.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <ctype.h>
-#include <assert.h>
-#include <getopt.h>
-#include <sys/utsname.h>
-#include <sys/file.h>
 #include "busybox.h"
 
 
 #ifndef CONFIG_FEATURE_CHECK_TAINTED_MODULE
-static inline void check_tainted(void) { printf("\n"); }
+static void check_tainted(void) { puts(""); }
 #else
 #define TAINT_FILENAME                  "/proc/sys/kernel/tainted"
 #define TAINT_PROPRIETORY_MODULE        (1<<0)
@@ -82,35 +57,38 @@ struct module_info
 
 int query_module(const char *name, int which, void *buf, size_t bufsize, size_t *ret);
 
+enum {
 /* Values for query_module's which.  */
-static const int QM_MODULES = 1;
-static const int QM_DEPS = 2;
-static const int QM_REFS = 3;
-static const int QM_SYMBOLS = 4;
-static const int QM_INFO = 5;
+	QM_MODULES = 1,
+	QM_DEPS = 2,
+	QM_REFS = 3,
+	QM_SYMBOLS = 4,
+	QM_INFO = 5,
 
 /* Bits of module.flags.  */
-static const int NEW_MOD_RUNNING = 1;
-static const int NEW_MOD_DELETED = 2;
-static const int NEW_MOD_AUTOCLEAN = 4;
-static const int NEW_MOD_VISITED = 8;
-static const int NEW_MOD_USED_ONCE = 16;
-static const int NEW_MOD_INITIALIZING = 64;
+	NEW_MOD_RUNNING = 1,
+	NEW_MOD_DELETED = 2,
+	NEW_MOD_AUTOCLEAN = 4,
+	NEW_MOD_VISITED = 8,
+	NEW_MOD_USED_ONCE = 16,
+	NEW_MOD_INITIALIZING = 64
+};
 
-extern int lsmod_main(int argc, char **argv)
+int lsmod_main(int argc, char **argv)
 {
 	struct module_info info;
 	char *module_names, *mn, *deps, *dn;
 	size_t bufsize, depsize, nmod, count, i, j;
 
-	module_names = xmalloc(bufsize = 256);
-	if (my_query_module(NULL, QM_MODULES, (void **)&module_names, &bufsize,
-				&nmod)) {
-		bb_perror_msg_and_die("QM_MODULES");
+	module_names = deps = NULL;
+	bufsize = depsize = 0;
+	while (query_module(NULL, QM_MODULES, module_names, bufsize, &nmod)) {
+		if (errno != ENOSPC) bb_perror_msg_and_die("QM_MODULES");
+		module_names = xmalloc(bufsize = nmod);
 	}
 
 	deps = xmalloc(depsize = 256);
-	printf("Module                  Size  Used by");
+	printf("Module\t\t\tSize  Used by");
 	check_tainted();
 
 	for (i = 0, mn = module_names; i < nmod; mn += strlen(mn) + 1, i++) {
@@ -122,12 +100,13 @@ extern int lsmod_main(int argc, char **argv)
 			/* else choke */
 			bb_perror_msg_and_die("module %s: QM_INFO", mn);
 		}
-		if (my_query_module(mn, QM_REFS, (void **)&deps, &depsize, &count)) {
+		while (query_module(mn, QM_REFS, deps, depsize, &count)) {
 			if (errno == ENOENT) {
 				/* The module was removed out from underneath us. */
 				continue;
-			}
-			bb_perror_msg_and_die("module %s: QM_REFS", mn);
+			} else if (errno != ENOSPC)
+				bb_perror_msg_and_die("module %s: QM_REFS", mn);
+			deps = xrealloc(deps, count);
 		}
 		printf("%-20s%8lu%4ld", mn, info.size, info.usecount);
 		if (info.flags & NEW_MOD_DELETED)
@@ -148,27 +127,62 @@ extern int lsmod_main(int argc, char **argv)
 		}
 		if (count) printf("]");
 
-		printf("\n");
+		puts("");
 	}
 
 #ifdef CONFIG_FEATURE_CLEAN_UP
 	free(module_names);
 #endif
 
-	return( 0);
+	return 0;
 }
 
 #else /* CONFIG_FEATURE_QUERY_MODULE_INTERFACE */
 
-extern int lsmod_main(int argc, char **argv)
+int lsmod_main(int argc, char **argv)
 {
+	FILE *file = xfopen("/proc/modules", "r");
+
 	printf("Module                  Size  Used by");
 	check_tainted();
+#if defined(CONFIG_FEATURE_LSMOD_PRETTY_2_6_OUTPUT)
+	{
+		char *line;
+		while ((line = xmalloc_fgets(file)) != NULL) {
+			char *tok;
 
-	if (bb_xprint_file_by_name("/proc/modules") < 0) {
-		return 1;
+			tok = strtok(line, " \t");
+			printf("%-19s", tok);
+			tok = strtok(NULL, " \t\n");
+			printf(" %8s", tok);
+			tok = strtok(NULL, " \t\n");
+			/* Null if no module unloading support. */
+			if (tok) {
+				printf("  %s", tok);
+				tok = strtok(NULL, "\n");
+				if (!tok)
+					tok = "";
+				/* New-style has commas, or -.  If so,
+				truncate (other fields might follow). */
+				else if (strchr(tok, ',')) {
+					tok = strtok(tok, "\t ");
+					/* Strip trailing comma. */
+					if (tok[strlen(tok)-1] == ',')
+						tok[strlen(tok)-1] = '\0';
+				} else if (tok[0] == '-'
+						&& (tok[1] == '\0' || isspace(tok[1])))
+					tok = "";
+					printf(" %s", tok);
+			}
+			puts("");
+			free(line);
+		}
+		fclose(file);
 	}
-	return 0;
+#else
+	xprint_and_close_file(file);
+#endif  /*  CONFIG_FEATURE_2_6_MODULES  */
+	return EXIT_SUCCESS;
 }
 
 #endif /* CONFIG_FEATURE_QUERY_MODULE_INTERFACE */

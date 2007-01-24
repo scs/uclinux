@@ -5,19 +5,7 @@
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  *
  * Original copyright notice is retained at the end of this file.
  */
@@ -35,12 +23,13 @@
  *    The previous version version did not allow 4-digit octals.
  */
 
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "busybox.h"
 
-extern int echo_main(int argc, char** argv)
+int bb_echo(char **argv)
 {
 #ifndef CONFIG_FEATURE_FANCY_ECHO
 #define eflag '\\'
@@ -82,14 +71,14 @@ extern int echo_main(int argc, char** argv)
 just_echo:
 #endif
 	while (*argv) {
-		register int c;
+		int c;
 
 		while ((c = *(*argv)++)) {
 			if (c == eflag) {	/* Check for escape seq. */
 				if (**argv == 'c') {
 					/* '\c' means cancel newline and
 					 * ignore all subsequent chars. */
-					goto DONE;
+					return 0;
 				}
 #ifndef CONFIG_FEATURE_FANCY_ECHO
 				/* SUSv3 specifies that octal escapes must begin with '0'. */
@@ -120,9 +109,13 @@ just_echo:
 #else
 	putchar('\n');
 #endif
+	return 0;
+}
 
-DONE:
-	bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+int echo_main(int argc, char** argv)
+{
+	(void)bb_echo(argv);
+	fflush_stdout_and_exit(EXIT_SUCCESS);
 }
 
 /*-

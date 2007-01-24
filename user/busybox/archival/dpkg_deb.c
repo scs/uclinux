@@ -1,27 +1,11 @@
+/* vi: set sw=4 ts=4: */
 /*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
+ * dpkg-deb packs, unpacks and provides information about Debian archives.
  *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Library General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
-#include <fcntl.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <getopt.h>
-
-#include "unarchive.h"
 #include "busybox.h"
+#include "unarchive.h"
 
 #define DPKG_DEB_OPT_CONTENTS	1
 #define DPKG_DEB_OPT_CONTROL	2
@@ -29,12 +13,12 @@
 #define DPKG_DEB_OPT_EXTRACT	8
 #define DPKG_DEB_OPT_EXTRACT_VERBOSE	16
 
-extern int dpkg_deb_main(int argc, char **argv)
+int dpkg_deb_main(int argc, char **argv)
 {
 	archive_handle_t *ar_archive;
 	archive_handle_t *tar_archive;
 	llist_t *control_tar_llist = NULL;
-	unsigned long opt;
+	unsigned opt;
 	char *extract_dir = NULL;
 	short argcount = 1;
 
@@ -47,17 +31,17 @@ extern int dpkg_deb_main(int argc, char **argv)
 	ar_archive->filter = filter_accept_list_reassign;
 
 #ifdef CONFIG_FEATURE_DEB_TAR_GZ
-	ar_archive->accept = llist_add_to(NULL, "data.tar.gz");
-	control_tar_llist = llist_add_to(NULL, "control.tar.gz");
+	llist_add_to(&(ar_archive->accept), "data.tar.gz");
+	llist_add_to(&control_tar_llist, "control.tar.gz");
 #endif
 
 #ifdef CONFIG_FEATURE_DEB_TAR_BZ2
-	ar_archive->accept = llist_add_to(ar_archive->accept, "data.tar.bz2");
-	control_tar_llist = llist_add_to(control_tar_llist, "control.tar.bz2");
+	llist_add_to(&(ar_archive->accept), "data.tar.bz2");
+	llist_add_to(&control_tar_llist, "control.tar.bz2");
 #endif
 
-	bb_opt_complementaly = "c~efXx:e~cfXx:f~ceXx:X~cefx:x~cefX";
-	opt = bb_getopt_ulflags(argc, argv, "cefXx");
+	opt_complementary = "?c--efXx:e--cfXx:f--ceXx:X--cefx:x--cefX";
+	opt = getopt32(argc, argv, "cefXx");
 
 	if (opt & DPKG_DEB_OPT_CONTENTS) {
 		tar_archive->action_header = header_verbose_list;
@@ -76,7 +60,7 @@ extern int dpkg_deb_main(int argc, char **argv)
 		 * it should accept a second argument which specifies a
 		 * specific field to print */
 		ar_archive->accept = control_tar_llist;
-		tar_archive->accept = llist_add_to(NULL, "./control");;
+		llist_add_to(&(tar_archive->accept), "./control");
 		tar_archive->filter = filter_accept_list;
 		tar_archive->action_data = data_extract_to_stdout;
 	}
@@ -88,11 +72,11 @@ extern int dpkg_deb_main(int argc, char **argv)
 		argcount = 2;
 	}
 
-	if ((optind + argcount != argc) || (opt & 0x80000000UL)) {
+	if ((optind + argcount) != argc) {
 		bb_show_usage();
 	}
 
-	tar_archive->src_fd = ar_archive->src_fd = bb_xopen(argv[optind++], O_RDONLY);
+	tar_archive->src_fd = ar_archive->src_fd = xopen(argv[optind++], O_RDONLY);
 
 	/* Workout where to extract the files */
 	/* 2nd argument is a dir name */
@@ -100,13 +84,13 @@ extern int dpkg_deb_main(int argc, char **argv)
 		extract_dir = argv[optind];
 	}
 	if (extract_dir) {
-		mkdir(extract_dir, 0777);
-		chdir(extract_dir);
+		mkdir(extract_dir, 0777); /* bb_make_directory(extract_dir, 0777, 0) */
+		xchdir(extract_dir);
 	}
 	unpack_ar_archive(ar_archive);
 
 	/* Cleanup */
-	close (ar_archive->src_fd);
+	close(ar_archive->src_fd);
 
-	return(EXIT_SUCCESS);
+	return EXIT_SUCCESS;
 }

@@ -4,19 +4,7 @@
  *
  * Copyright (C) 2001 Matt Kraai <kraai@alumni.carnegiemellon.edu>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
 #include <stdio.h>
@@ -30,14 +18,14 @@
 #include <getopt.h>
 #include "libbb.h"
 
-extern int remove_file(const char *path, int flags)
+int remove_file(const char *path, int flags)
 {
 	struct stat path_stat;
 	int path_exists = 1;
 
 	if (lstat(path, &path_stat) < 0) {
 		if (errno != ENOENT) {
-			bb_perror_msg("unable to stat `%s'", path);
+			bb_perror_msg("cannot stat '%s'", path);
 			return -1;
 		}
 
@@ -46,7 +34,7 @@ extern int remove_file(const char *path, int flags)
 
 	if (!path_exists) {
 		if (!(flags & FILEUTILS_FORCE)) {
-			bb_perror_msg("cannot remove `%s'", path);
+			bb_perror_msg("cannot remove '%s'", path);
 			return -1;
 		}
 		return 0;
@@ -65,14 +53,13 @@ extern int remove_file(const char *path, int flags)
 		if ((!(flags & FILEUTILS_FORCE) && access(path, W_OK) < 0 &&
 					isatty(0)) ||
 				(flags & FILEUTILS_INTERACTIVE)) {
-			fprintf(stderr, "%s: descend into directory `%s'? ", bb_applet_name,
+			fprintf(stderr, "%s: descend into directory '%s'? ", applet_name,
 					path);
 			if (!bb_ask_confirmation())
 				return 0;
 		}
 
 		if ((dp = opendir(path)) == NULL) {
-			bb_perror_msg("unable to open `%s'", path);
 			return -1;
 		}
 
@@ -88,18 +75,18 @@ extern int remove_file(const char *path, int flags)
 		}
 
 		if (closedir(dp) < 0) {
-			bb_perror_msg("unable to close `%s'", path);
+			bb_perror_msg("cannot close '%s'", path);
 			return -1;
 		}
 
 		if (flags & FILEUTILS_INTERACTIVE) {
-			fprintf(stderr, "%s: remove directory `%s'? ", bb_applet_name, path);
+			fprintf(stderr, "%s: remove directory '%s'? ", applet_name, path);
 			if (!bb_ask_confirmation())
 				return status;
 		}
 
 		if (rmdir(path) < 0) {
-			bb_perror_msg("unable to remove `%s'", path);
+			bb_perror_msg("cannot remove '%s'", path);
 			return -1;
 		}
 
@@ -109,13 +96,13 @@ extern int remove_file(const char *path, int flags)
 					!S_ISLNK(path_stat.st_mode) &&
 					isatty(0)) ||
 				(flags & FILEUTILS_INTERACTIVE)) {
-			fprintf(stderr, "%s: remove `%s'? ", bb_applet_name, path);
+			fprintf(stderr, "%s: remove '%s'? ", applet_name, path);
 			if (!bb_ask_confirmation())
 				return 0;
 		}
 
 		if (unlink(path) < 0) {
-			bb_perror_msg("unable to remove `%s'", path);
+			bb_perror_msg("cannot remove '%s'", path);
 			return -1;
 		}
 

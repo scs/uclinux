@@ -1,23 +1,15 @@
+/* vi: set sw=4 ts=4: */
 /*
  * files.c -- DHCP server file manipulation *
  * Rewrite by Russ Dill <Russ.Dill@asu.edu> July 2001
  */
 
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <ctype.h>
-#include <netdb.h>
-
 #include <netinet/ether.h>
-#include "static_leases.h"
 
-#include "dhcpd.h"
-#include "files.h"
-#include "options.h"
 #include "common.h"
+#include "dhcpd.h"
+#include "options.h"
+
 
 /*
  * Domain names may have 254 chars, and string options can be 254
@@ -34,7 +26,8 @@ static int read_ip(const char *line, void *arg)
 	int retval = 1;
 
 	if (!inet_aton(line, addr)) {
-		if ((host = gethostbyname(line)))
+		host = gethostbyname(line);
+		if (host)
 			addr->s_addr = *((unsigned long *) host->h_addr_list[0]);
 		else retval = 0;
 	}
@@ -49,7 +42,7 @@ static int read_mac(const char *line, void *arg)
 
 	temp_ether_addr = ether_aton(line);
 
-	if(temp_ether_addr == NULL)
+	if (temp_ether_addr == NULL)
 		retval = 0;
 	else
 		memcpy(mac_bytes, temp_ether_addr, 6);
@@ -62,8 +55,8 @@ static int read_str(const char *line, void *arg)
 {
 	char **dest = arg;
 
-	if (*dest) free(*dest);
-	*dest = strdup(line);
+	free(*dest);
+	*dest = xstrdup(line);
 
 	return 1;
 }
@@ -71,10 +64,8 @@ static int read_str(const char *line, void *arg)
 
 static int read_u32(const char *line, void *arg)
 {
-	uint32_t *dest = arg;
-	char *endptr;
-	*dest = strtoul(line, &endptr, 0);
-	return endptr[0] == '\0';
+	*((uint32_t*)arg) = bb_strtou32(line, NULL, 10);
+	return errno == 0;
 }
 
 
@@ -93,12 +84,61 @@ static int read_yn(const char *line, void *arg)
 }
 
 
+/* find option 'code' in opt_list */
+struct option_set *find_option(struct option_set *opt_list, char code)
+{
+	while (opt_list && opt_list->data[OPT_CODE] < code)
+		opt_list = opt_list->next;
+
+	if (opt_list && opt_list->data[OPT_CODE] == code) return opt_list;
+	else return NULL;
+}
+
+
+/* add an option to the opt_list */
+static void attach_option(struct option_set **opt_list,
+		const struct dhcp_option *option, char *buffer, int length)
+{
+	struct option_set *existing, *new, **curr;
+
+	/* add it to an existing option */
+	existing = find_option(*opt_list, option->code);
+	if (existing) {
+		DEBUG("Attaching option %s to existing member of list", option->name);
+		if (option->flags & OPTION_LIST) {
+			if (existing->data[OPT_LEN] + length <= 255) {
+				existing->data = realloc(existing->data,
+						existing->data[OPT_LEN] + length + 2);
+				memcpy(existing->data + existing->data[OPT_LEN] + 2, buffer, length);
+				existing->data[OPT_LEN] += length;
+			} /* else, ignore the data, we could put this in a second option in the future */
+		} /* else, ignore the new data */
+	} else {
+		DEBUG("Attaching option %s to list", option->name);
+
+		/* make a new option */
+		new = xmalloc(sizeof(struct option_set));
+		new->data = xmalloc(length + 2);
+		new->data[OPT_CODE] = option->code;
+		new->data[OPT_LEN] = length;
+		memcpy(new->data + 2, buffer, length);
+
+		curr = opt_list;
+		while (*curr && (*curr)->data[OPT_CODE] < option->code)
+			curr = &(*curr)->next;
+
+		new->next = *curr;
+		*curr = new;
+	}
+}
+
+
 /* read a dhcp option and add it to opt_list */
 static int read_opt(const char *const_line, void *arg)
 {
 	struct option_set **opt_list = arg;
 	char *opt, *val, *endptr;
-	struct dhcp_option *option;
+	const struct dhcp_option *option;
 	int retval = 0, length;
 	char buffer[8];
 	char *line;
@@ -107,16 +147,21 @@ static int read_opt(const char *const_line, void *arg)
 
 	/* Cheat, the only const line we'll actually get is "" */
 	line = (char *) const_line;
-	if (!(opt = strtok(line, " \t="))) return 0;
+	opt = strtok(line, " \t=");
+	if (!opt) return 0;
 
-	for (option = dhcp_options; option->code; option++)
+	option = dhcp_options;
+	while (1) {
+		if (!option->code)
+			return 0;
 		if (!strcasecmp(option->name, opt))
 			break;
-
-	if (!option->code) return 0;
+		 option++;
+	}
 
 	do {
-		if (!(val = strtok(NULL, ", \t"))) break;
+		val = strtok(NULL, ", \t");
+		if (!val) break;
 		length = option_lengths[option->flags & TYPE_MASK];
 		retval = 0;
 		opt = buffer; /* new meaning for variable opt */
@@ -171,7 +216,6 @@ static int read_opt(const char *const_line, void *arg)
 
 static int read_staticlease(const char *const_line, void *arg)
 {
-
 	char *line;
 	char *mac_string;
 	char *ip_string;
@@ -194,12 +238,9 @@ static int read_staticlease(const char *const_line, void *arg)
 
 	addStaticLease(arg, mac_bytes, ip);
 
-#ifdef UDHCP_DEBUG
-	printStaticLeases(arg);
-#endif
+	if (ENABLE_FEATURE_UDHCP_DEBUG) printStaticLeases(arg);
 
 	return 1;
-
 }
 
 
@@ -225,7 +266,7 @@ static const struct config_keyword keywords[] = {
 	{"boot_file",	read_str, &(server_config.boot_file),	""},
 	{"static_lease",read_staticlease, &(server_config.static_leases),	""},
 	/*ADDME: static lease */
-	{"",		NULL, 	  NULL,				""}
+	{"",		NULL,	  NULL,				""}
 };
 
 
@@ -233,42 +274,45 @@ int read_config(const char *file)
 {
 	FILE *in;
 	char buffer[READ_CONFIG_BUF_SIZE], *token, *line;
-#ifdef UDHCP_DEBUG
-	char orig[READ_CONFIG_BUF_SIZE];
-#endif
 	int i, lm = 0;
 
 	for (i = 0; keywords[i].keyword[0]; i++)
 		if (keywords[i].def[0])
 			keywords[i].handler(keywords[i].def, keywords[i].var);
 
-	if (!(in = fopen(file, "r"))) {
-		LOG(LOG_ERR, "unable to open config file: %s", file);
+	in = fopen(file, "r");
+	if (!in) {
+		bb_error_msg("cannot open config file: %s", file);
 		return 0;
 	}
 
 	while (fgets(buffer, READ_CONFIG_BUF_SIZE, in)) {
+		char debug_orig[READ_CONFIG_BUF_SIZE];
+		char *p;
+
 		lm++;
-		if (strchr(buffer, '\n')) *(strchr(buffer, '\n')) = '\0';
-#ifdef UDHCP_DEBUG
-		strcpy(orig, buffer);
-#endif
-		if (strchr(buffer, '#')) *(strchr(buffer, '#')) = '\0';
+		p = strchr(buffer, '\n');
+		if (p) *p = '\0';
+		if (ENABLE_FEATURE_UDHCP_DEBUG) strcpy(debug_orig, buffer);
+		p = strchr(buffer, '#');
+		if (p) *p = '\0';
 
 		if (!(token = strtok(buffer, " \t"))) continue;
 		if (!(line = strtok(NULL, ""))) continue;
 
 		/* eat leading whitespace */
-		line = line + strspn(line, " \t=");
+		line = skip_whitespace(line);
 		/* eat trailing whitespace */
-		for (i = strlen(line); i > 0 && isspace(line[i - 1]); i--);
-		line[i] = '\0';
+		i = strlen(line) - 1;
+		while (i >= 0 && isspace(line[i]))
+			line[i--] = '\0';
 
 		for (i = 0; keywords[i].keyword[0]; i++)
 			if (!strcasecmp(token, keywords[i].keyword))
 				if (!keywords[i].handler(line, keywords[i].var)) {
-					LOG(LOG_ERR, "Failure parsing line %d of %s", lm, file);
-					DEBUG(LOG_ERR, "unable to parse '%s'", orig);
+					bb_error_msg("cannot parse line %d of %s", lm, file);
+					if (ENABLE_FEATURE_UDHCP_DEBUG)
+						bb_error_msg("cannot parse '%s'", debug_orig);
 					/* reset back to the default value */
 					keywords[i].handler(keywords[i].def, keywords[i].var);
 				}
@@ -280,14 +324,14 @@ int read_config(const char *file)
 
 void write_leases(void)
 {
-	FILE *fp;
-	unsigned int i;
-	char buf[255];
+	int fp;
+	unsigned i;
 	time_t curr = time(0);
 	unsigned long tmp_time;
 
-	if (!(fp = fopen(server_config.lease_file, "w"))) {
-		LOG(LOG_ERR, "Unable to open %s for writing", server_config.lease_file);
+	fp = open(server_config.lease_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+	if (fp < 0) {
+		bb_error_msg("cannot open %s for writing", server_config.lease_file);
 		return;
 	}
 
@@ -303,44 +347,49 @@ void write_leases(void)
 				else leases[i].expires -= curr;
 			} /* else stick with the time we got */
 			leases[i].expires = htonl(leases[i].expires);
-			fwrite(&leases[i], sizeof(struct dhcpOfferedAddr), 1, fp);
+			// FIXME: error check??
+			full_write(fp, &leases[i], sizeof(leases[i]));
 
-			/* Then restore it when done. */
+			/* then restore it when done */
 			leases[i].expires = tmp_time;
 		}
 	}
-	fclose(fp);
+	close(fp);
 
 	if (server_config.notify_file) {
-		sprintf(buf, "%s %s", server_config.notify_file, server_config.lease_file);
-		system(buf);
+		char *cmd = xasprintf("%s %s", server_config.notify_file, server_config.lease_file);
+		system(cmd);
+		free(cmd);
 	}
 }
 
 
 void read_leases(const char *file)
 {
-	FILE *fp;
+	int fp;
 	unsigned int i = 0;
 	struct dhcpOfferedAddr lease;
 
-	if (!(fp = fopen(file, "r"))) {
-		LOG(LOG_ERR, "Unable to open %s for reading", file);
+	fp = open(file, O_RDONLY);
+	if (fp < 0) {
+		bb_error_msg("cannot open %s for reading", file);
 		return;
 	}
 
-	while (i < server_config.max_leases && (fread(&lease, sizeof lease, 1, fp) == 1)) {
+	while (i < server_config.max_leases
+	 && full_read(fp, &lease, sizeof(lease)) == sizeof(lease)
+	) {
 		/* ADDME: is it a static lease */
 		if (lease.yiaddr >= server_config.start && lease.yiaddr <= server_config.end) {
 			lease.expires = ntohl(lease.expires);
 			if (!server_config.remaining) lease.expires -= time(0);
 			if (!(add_lease(lease.chaddr, lease.yiaddr, lease.expires))) {
-				LOG(LOG_WARNING, "Too many leases while loading %s\n", file);
+				bb_error_msg("too many leases while loading %s", file);
 				break;
 			}
 			i++;
 		}
 	}
-	DEBUG(LOG_INFO, "Read %d leases", i);
-	fclose(fp);
+	DEBUG("Read %d leases", i);
+	close(fp);
 }

@@ -1,22 +1,10 @@
+/* vi: set sw=4 ts=4: */
 /*
  * Mini losetup implementation for busybox
  *
  * Copyright (C) 2002  Matt Kraai.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
 #include <getopt.h>
@@ -24,36 +12,53 @@
 
 #include "busybox.h"
 
-int
-losetup_main (int argc, char **argv)
+int losetup_main(int argc, char **argv)
 {
-  int delete = 0;
-  int offset = 0;
-  int opt;
+	unsigned opt;
+	char *opt_o;
+	unsigned long long offset = 0;
 
-  while ((opt = getopt (argc, argv, "do:")) != -1)
-    switch (opt)
-      {
-      case 'd':
-	delete = 1;
-	break;
+	opt = getopt32(argc, argv, "do:", &opt_o);
+	argc -= optind;
+	argv += optind;
 
-      case 'o':
-	offset = bb_xparse_number (optarg, NULL);
-	break;
+	if (opt == 0x3) // -d + -o (illegal)
+		bb_show_usage();
 
-      default:
-	bb_show_usage();
-      }
+	if (opt == 0x1) { // -d
+		/* detach takes exactly one argument */
+		if (argc != 1)
+			bb_show_usage();
+		if (!del_loop(argv[0]))
+			return EXIT_SUCCESS;
+		bb_perror_nomsg_and_die();
+	}
 
-  if ((delete && (offset || optind + 1 != argc))
-      || (!delete && optind + 2 != argc))
-    bb_show_usage();
+	if (opt == 0x2) // -o
+		offset = xatoull(opt_o);
 
-  opt = 0;
-  if (delete)
-    return del_loop (argv[optind]) ? EXIT_SUCCESS : EXIT_FAILURE;
-  else
-    return set_loop (argv[optind], argv[optind + 1], offset, &opt)
-      ? EXIT_FAILURE : EXIT_SUCCESS;
+	/* -o or no option */
+
+	if (argc == 2) {
+		if (set_loop(&argv[0], argv[1], offset) < 0)
+			bb_perror_nomsg_and_die();
+	} else if (argc == 1) {
+		char *s = query_loop(argv[0]);
+		if (!s) bb_perror_nomsg_and_die();
+		printf("%s: %s\n", argv[0], s);
+		if (ENABLE_FEATURE_CLEAN_UP) free(s);
+	} else {
+		char dev[sizeof(LOOP_NAME"0")] = LOOP_NAME"0";
+		char c;
+		for (c = '0'; c <= '9'; ++c) {
+			char *s;
+			dev[sizeof(LOOP_NAME"0")-2] = c;
+			s = query_loop(dev);
+			if (s) {
+				printf("%s: %s\n", dev, s);
+				if (ENABLE_FEATURE_CLEAN_UP) free(s);
+			}
+		}
+	}
+	return EXIT_SUCCESS;
 }

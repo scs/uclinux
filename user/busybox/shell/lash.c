@@ -8,20 +8,7 @@
  * under the following liberal license: "We have placed this source code in the
  * public domain. Use it in any project, free or commercial."
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under the GPL v2 or later, see the file LICENSE in this tarball.
  */
 
 /* This shell's parsing engine is officially at a dead-end.  Future
@@ -34,24 +21,9 @@
 //#define DEBUG_SHELL
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <termios.h>
 #include "busybox.h"
+#include <getopt.h>
 #include "cmdedit.h"
-
-#ifdef CONFIG_LOCALE_SUPPORT
-#include <locale.h>
-#endif
 
 #include <glob.h>
 #define expand_t	glob_t
@@ -70,11 +42,16 @@ enum redir_type { REDIRECT_INPUT, REDIRECT_OVERWRITE,
 };
 #endif
 
-static const unsigned int DEFAULT_CONTEXT=0x1;
-static const unsigned int IF_TRUE_CONTEXT=0x2;
-static const unsigned int IF_FALSE_CONTEXT=0x4;
-static const unsigned int THEN_EXP_CONTEXT=0x8;
-static const unsigned int ELSE_EXP_CONTEXT=0x10;
+enum {
+	DEFAULT_CONTEXT = 0x1,
+	IF_TRUE_CONTEXT = 0x2,
+	IF_FALSE_CONTEXT = 0x4,
+	THEN_EXP_CONTEXT = 0x8,
+	ELSE_EXP_CONTEXT = 0x10
+};
+
+#define LASH_OPT_DONE (1)
+#define LASH_OPT_SAW_QUOTE (2)
 
 #ifdef CONFIG_LASH_PIPE_N_REDIRECTS
 struct redir_struct {
@@ -120,11 +97,6 @@ struct built_in_command {
 	int (*function) (struct child_prog *);	/* function ptr */
 };
 
-struct close_me {
-	int fd;
-	struct close_me *next;
-};
-
 /* function prototypes for builtins */
 static int builtin_cd(struct child_prog *cmd);
 static int builtin_exec(struct child_prog *cmd);
@@ -140,15 +112,12 @@ static int builtin_read(struct child_prog *cmd);
 
 
 /* function prototypes for shell stuff */
-static void mark_open(int fd);
-static void mark_closed(int fd);
-static void close_all(void);
 static void checkjobs(struct jobset *job_list);
 static void remove_job(struct jobset *j_list, struct job *job);
 static int get_command(FILE * source, char *command);
 static int parse_command(char **command_ptr, struct job *job, int *inbg);
 static int run_command(struct job *newjob, int inbg, int outpipe[2]);
-static int pseudo_exec(struct child_prog *cmd) __attribute__ ((noreturn));
+static int pseudo_exec(struct child_prog *cmd) ATTRIBUTE_NORETURN;
 static int busy_loop(FILE * input);
 
 
@@ -184,11 +153,11 @@ static int shell_context;  /* Type prompt trigger (PS1 or PS2) */
 
 /* Globals that are static to this file */
 static const char *cwd;
-static char *local_pending_command = NULL;
+static char *local_pending_command;
 static struct jobset job_list = { NULL, NULL };
 static int argc;
 static char **argv;
-static struct close_me *close_me_head;
+static llist_t *close_me_list;
 static int last_return_code;
 static int last_bg_pid;
 static unsigned int last_jobid;
@@ -206,7 +175,7 @@ static inline void debug_printf(const char *format, ...)
 	va_end(args);
 }
 #else
-static inline void debug_printf(const char *format, ...) { }
+static inline void debug_printf(const char ATTRIBUTE_UNUSED *format, ...) { }
 #endif
 
 /*
@@ -247,7 +216,7 @@ static int builtin_cd(struct child_prog *child)
 	else
 		newdir = child->argv[1];
 	if (chdir(newdir)) {
-		printf("cd: %s: %m\n", newdir);
+		bb_perror_msg("cd: %s", newdir);
 		return EXIT_FAILURE;
 	}
 	cwd = xgetcwd((char *)cwd);
@@ -262,7 +231,7 @@ static int builtin_exec(struct child_prog *child)
 	if (child->argv[1] == NULL)
 		return EXIT_SUCCESS;   /* Really? */
 	child->argv++;
-	close_all();
+	while(close_me_list) close((long)llist_pop(&close_me_list));
 	pseudo_exec(child);
 	/* never returns */
 }
@@ -295,7 +264,7 @@ static int builtin_fg_bg(struct child_prog *child)
 		}
 	} else {
 		if (sscanf(child->argv[1], "%%%d", &jobnum) != 1) {
-			bb_error_msg("%s: bad argument '%s'", child->argv[0], child->argv[1]);
+			bb_error_msg(bb_msg_invalid_arg, child->argv[1], child->argv[0]);
 			return EXIT_FAILURE;
 		}
 		for (job = child->family->job_list->head; job; job = job->next) {
@@ -334,12 +303,12 @@ static int builtin_fg_bg(struct child_prog *child)
 }
 
 /* built-in 'help' handler */
-static int builtin_help(struct child_prog *dummy)
+static int builtin_help(struct child_prog ATTRIBUTE_UNUSED *dummy)
 {
 	struct built_in_command *x;
 
-	printf("\nBuilt-in commands:\n");
-	printf("-------------------\n");
+	printf("\nBuilt-in commands:\n"
+		   "-------------------\n");
 	for (x = bltins; x->cmd; x++) {
 		if (x->descr==NULL)
 			continue;
@@ -350,7 +319,7 @@ static int builtin_help(struct child_prog *dummy)
 			continue;
 		printf("%s\t%s\n", x->cmd, x->descr);
 	}
-	printf("\n\n");
+	putchar('\n');
 	return EXIT_SUCCESS;
 }
 
@@ -373,7 +342,7 @@ static int builtin_jobs(struct child_prog *child)
 
 
 /* built-in 'pwd' handler */
-static int builtin_pwd(struct child_prog *dummy)
+static int builtin_pwd(struct child_prog ATTRIBUTE_UNUSED *dummy)
 {
 	cwd = xgetcwd((char *)cwd);
 	if (!cwd)
@@ -397,26 +366,27 @@ static int builtin_export(struct child_prog *child)
 	}
 	res = putenv(v);
 	if (res)
-		fprintf(stderr, "export: %m\n");
+		bb_perror_msg("export");
 #ifdef CONFIG_FEATURE_SH_FANCY_PROMPT
 	if (strncmp(v, "PS1=", 4)==0)
 		PS1 = getenv("PS1");
 #endif
 
 #ifdef CONFIG_LOCALE_SUPPORT
+	// TODO: why getenv? "" would be just as good...
 	if(strncmp(v, "LC_ALL=", 7)==0)
 		setlocale(LC_ALL, getenv("LC_ALL"));
 	if(strncmp(v, "LC_CTYPE=", 9)==0)
 		setlocale(LC_CTYPE, getenv("LC_CTYPE"));
 #endif
 
-	return (res);
+	return res;
 }
 
 /* built-in 'read VAR' handler */
 static int builtin_read(struct child_prog *child)
 {
-	int res = 0, len, newlen;
+	int res = 0, len;
 	char *s;
 	char string[MAX_READ];
 
@@ -427,24 +397,24 @@ static int builtin_read(struct child_prog *child)
 		string[len++] = '=';
 		string[len]   = '\0';
 		fgets(&string[len], sizeof(string) - len, stdin);	/* read string */
-		newlen = strlen(string);
-		if(newlen > len)
-			string[--newlen] = '\0';	/* chomp trailing newline */
+		res = strlen(string);
+		if (res > len)
+			string[--res] = '\0';	/* chomp trailing newline */
 		/*
 		** string should now contain "VAR=<value>"
 		** copy it (putenv() won't do that, so we must make sure
 		** the string resides in a static buffer!)
 		*/
 		res = -1;
-		if((s = strdup(string)))
+		if ((s = strdup(string)))
 			res = putenv(s);
 		if (res)
-			fprintf(stderr, "read: %m\n");
+			bb_perror_msg("read");
 	}
 	else
 		fgets(string, sizeof(string), stdin);
 
-	return (res);
+	return res;
 }
 
 /* Built-in '.' handler (read-in and execute commands from file) */
@@ -452,66 +422,30 @@ static int builtin_source(struct child_prog *child)
 {
 	FILE *input;
 	int status;
-	int fd;
 
-	if (child->argv[1] == NULL)
-		return EXIT_FAILURE;
-
-	input = fopen(child->argv[1], "r");
+	input = fopen_or_warn(child->argv[1], "r");
 	if (!input) {
-		printf( "Couldn't open file '%s'\n", child->argv[1]);
 		return EXIT_FAILURE;
 	}
 
-	fd=fileno(input);
-	mark_open(fd);
+	llist_add_to(&close_me_list, (void *)(long)fileno(input));
 	/* Now run the file */
 	status = busy_loop(input);
 	fclose(input);
-	mark_closed(fd);
-	return (status);
+	llist_pop(&close_me_list);
+	return status;
 }
 
 /* built-in 'unset VAR' handler */
 static int builtin_unset(struct child_prog *child)
 {
 	if (child->argv[1] == NULL) {
-		printf( "unset: parameter required.\n");
+		printf(bb_msg_requires_arg, "unset");
 		return EXIT_FAILURE;
 	}
 	unsetenv(child->argv[1]);
 	return EXIT_SUCCESS;
 }
-
-static void mark_open(int fd)
-{
-	struct close_me *new = xmalloc(sizeof(struct close_me));
-	new->fd = fd;
-	new->next = close_me_head;
-	close_me_head = new;
-}
-
-static void mark_closed(int fd)
-{
-	struct close_me *tmp;
-	if (close_me_head == NULL || close_me_head->fd != fd)
-		bb_error_msg_and_die("corrupt close_me");
-	tmp = close_me_head;
-	close_me_head = close_me_head->next;
-	free(tmp);
-}
-
-static void close_all()
-{
-	struct close_me *c, *tmp;
-	for (c=close_me_head; c; c=tmp) {
-		close(c->fd);
-		tmp=c->next;
-		free(c);
-	}
-	close_me_head = NULL;
-}
-
 
 #ifdef CONFIG_LASH_JOB_CONTROL
 /* free up all memory from a job */
@@ -594,16 +528,6 @@ static void checkjobs(struct jobset *j_list)
 			/* child stopped */
 			job->stopped_progs++;
 			job->progs[prognum].is_stopped = 1;
-
-#if 0
-			/* Printing this stuff is a pain, since it tends to
-			 * overwrite the prompt an inconveinient moments.  So
-			 * don't do that.  */
-			if (job->stopped_progs == job->num_progs) {
-				printf(JOB_STATUS_FORMAT, job->jobid, "Stopped",
-					   job->text);
-			}
-#endif
 		}
 	}
 
@@ -707,7 +631,7 @@ static inline void setup_prompt_string(char **prompt_str)
 	if (shell_context == 0) {
 		free(PS1);
 		PS1=xmalloc(strlen(cwd)+4);
-		sprintf(PS1, "%s %s", cwd, ( geteuid() != 0 ) ?  "$ ":"# ");
+		sprintf(PS1, "%s %c ", cwd, ( geteuid() != 0 ) ? '$': '#');
 		*prompt_str = PS1;
 	} else {
 		*prompt_str = PS2;
@@ -751,64 +675,36 @@ static int get_command(FILE * source, char *command)
 
 	if (!fgets(command, BUFSIZ - 2, source)) {
 		if (source == stdin)
-			printf("\n");
+			puts("");
 		return 1;
 	}
 
 	return 0;
 }
 
-static char* itoa(register int i)
+static char * strsep_space( char *string, int * ix)
 {
-	static char a[7]; /* Max 7 ints */
-	register char *b = a + sizeof(a) - 1;
-	int   sign = (i < 0);
-
-	if (sign)
-		i = -i;
-	*b = 0;
-	do
-	{
-		*--b = '0' + (i % 10);
-		i /= 10;
-	}
-	while (i);
-	if (sign)
-		*--b = '-';
-	return b;
-}
-
-char * strsep_space( char *string, int * ix)
-{
-	char *token, *begin;
-
-	begin = string;
-
 	/* Short circuit the trivial case */
 	if ( !string || ! string[*ix])
 		return NULL;
 
 	/* Find the end of the token. */
-	while( string && string[*ix] && !isspace(string[*ix]) ) {
+	while (string[*ix] && !isspace(string[*ix]) ) {
 		(*ix)++;
 	}
 
 	/* Find the end of any whitespace trailing behind
 	 * the token and let that be part of the token */
-	while( string && string[*ix] && isspace(string[*ix]) ) {
+	while (string[*ix] && (isspace)(string[*ix]) ) {
 		(*ix)++;
 	}
 
-	if (! string && *ix==0) {
+	if (!*ix) {
 		/* Nothing useful was found */
 		return NULL;
 	}
 
-	token = xmalloc(*ix+1);
-	token[*ix] = '\0';
-	strncpy(token, string,  *ix);
-
-	return token;
+	return xstrndup(string, *ix);
 }
 
 static int expand_arguments(char *command)
@@ -817,7 +713,7 @@ static int expand_arguments(char *command)
 	expand_t expand_result;
 	char *tmpcmd, *cmd, *cmd_copy;
 	char *src, *dst, *var;
-	const char *out_of_space = "out of space during expansion";
+	const char * const out_of_space = "out of space during expansion";
 	int flags = GLOB_NOCHECK
 #ifdef GLOB_BRACE
 		| GLOB_BRACE
@@ -847,7 +743,7 @@ static int expand_arguments(char *command)
 
 	/* We need a clean copy, so strsep can mess up the copy while
 	 * we write stuff into the original (in a minute) */
-	cmd = cmd_copy = bb_xstrdup(command);
+	cmd = cmd_copy = xstrdup(command);
 	*command = '\0';
 	for (ix = 0, tmpcmd = cmd;
 			(tmpcmd = strsep_space(cmd, &ix)) != NULL; cmd += ix, ix=0) {
@@ -893,7 +789,7 @@ static int expand_arguments(char *command)
 	src = command;
 	while((dst = strchr(src,'$')) != NULL){
 		var = NULL;
-		switch(*(dst+1)) {
+		switch (*(dst+1)) {
 			case '?':
 				var = itoa(last_return_code);
 				break;
@@ -942,7 +838,7 @@ static int expand_arguments(char *command)
 				num_skip_chars=1;
 			} else {
 				src=dst+1;
-				while(isalnum(*src) || *src=='_') src++;
+				while((isalnum)(*src) || *src=='_') src++;
 			}
 			if (src == NULL) {
 				src = dst+dstlen;
@@ -986,12 +882,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 	char *command;
 	char *return_command = NULL;
 	char *src, *buf;
-	int argc_l = 0;
-	int done = 0;
+	int argc_l;
+	int flag;
 	int argv_alloced;
-	int saw_quote = 0;
 	char quote = '\0';
-	int count;
 	struct child_prog *prog;
 #ifdef CONFIG_LASH_PIPE_N_REDIRECTS
 	int i;
@@ -999,8 +893,7 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 #endif
 
 	/* skip leading white space */
-	while (**command_ptr && isspace(**command_ptr))
-		(*command_ptr)++;
+	*command_ptr = skip_whitespace(*command_ptr);
 
 	/* this handles empty lines or leading '#' characters */
 	if (!**command_ptr || (**command_ptr == '#')) {
@@ -1019,7 +912,7 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 	   Getting clean memory relieves us of the task of NULL
 	   terminating things and makes the rest of this look a bit
 	   cleaner (though it is, admittedly, a tad less efficient) */
-	job->cmdbuf = command = xcalloc(2*strlen(*command_ptr) + 1, sizeof(char));
+	job->cmdbuf = command = xzalloc(2*strlen(*command_ptr) + 1);
 	job->text = NULL;
 
 	prog = job->progs;
@@ -1034,9 +927,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 	prog->argv = xmalloc(sizeof(*prog->argv) * argv_alloced);
 	prog->argv[0] = job->cmdbuf;
 
+	flag = argc_l = 0;
 	buf = command;
 	src = *command_ptr;
-	while (*src && !done) {
+	while (*src && !(flag & LASH_OPT_DONE)) {
 		if (quote == *src) {
 			quote = '\0';
 		} else if (quote) {
@@ -1057,7 +951,7 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 					   *src == ']') *buf++ = '\\';
 			*buf++ = *src;
 		} else if (isspace(*src)) {
-			if (*prog->argv[argc_l] || saw_quote) {
+			if (*prog->argv[argc_l] || flag & LASH_OPT_SAW_QUOTE) {
 				buf++, argc_l++;
 				/* +1 here leaves room for the NULL which ends argv */
 				if ((argc_l + 1) == argv_alloced) {
@@ -1067,21 +961,21 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 										  argv_alloced);
 				}
 				prog->argv[argc_l] = buf;
-				saw_quote = 0;
+				flag ^= LASH_OPT_SAW_QUOTE;
 			}
 		} else
 			switch (*src) {
 			case '"':
 			case '\'':
 				quote = *src;
-				saw_quote = 1;
+				flag |= LASH_OPT_SAW_QUOTE;
 				break;
 
 			case '#':			/* comment */
 				if (*(src-1)== '$')
 					*buf++ = *src;
 				else
-					done = 1;
+					flag |= LASH_OPT_DONE;
 				break;
 
 #ifdef CONFIG_LASH_PIPE_N_REDIRECTS
@@ -1124,8 +1018,7 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 
 				/* This isn't POSIX sh compliant. Oh well. */
 				chptr = src;
-				while (isspace(*chptr))
-					chptr++;
+				chptr = skip_whitespace(chptr);
 
 				if (!*chptr) {
 					bb_error_msg("file name expected after %c", *(src-1));
@@ -1144,13 +1037,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 
 			case '|':			/* pipe */
 				/* finish this command */
-				if (*prog->argv[argc_l] || saw_quote)
+				if (*prog->argv[argc_l] || flag & LASH_OPT_SAW_QUOTE)
 					argc_l++;
 				if (!argc_l) {
-					bb_error_msg("empty command in pipe");
-					free_job(job);
-					job->num_progs=0;
-					return 1;
+					goto empty_command_in_pipe;
 				}
 				prog->argv[argc_l] = NULL;
 
@@ -1170,10 +1060,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 				prog->argv[0] = ++buf;
 
 				src++;
-				while (*src && isspace(*src))
-					src++;
+				src = skip_whitespace(src);
 
 				if (!*src) {
+empty_command_in_pipe:
 					bb_error_msg("empty command in pipe");
 					free_job(job);
 					job->num_progs=0;
@@ -1187,9 +1077,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 #ifdef CONFIG_LASH_JOB_CONTROL
 			case '&':			/* background */
 				*inbg = 1;
+				/* fallthrough */
 #endif
 			case ';':			/* multiple commands */
-				done = 1;
+				flag |= LASH_OPT_DONE;
 				return_command = *command_ptr + (src - *command_ptr) + 1;
 				break;
 
@@ -1210,7 +1101,7 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 		src++;
 	}
 
-	if (*prog->argv[argc_l] || saw_quote) {
+	if (*prog->argv[argc_l] || flag & LASH_OPT_SAW_QUOTE) {
 		argc_l++;
 	}
 	if (!argc_l) {
@@ -1220,14 +1111,10 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 	prog->argv[argc_l] = NULL;
 
 	if (!return_command) {
-		job->text = xmalloc(strlen(*command_ptr) + 1);
-		strcpy(job->text, *command_ptr);
+		job->text = xstrdup(*command_ptr);
 	} else {
 		/* This leaves any trailing spaces, which is a bit sloppy */
-		count = return_command - *command_ptr;
-		job->text = xmalloc(count + 1);
-		strncpy(job->text, *command_ptr, count);
-		job->text[count] = '\0';
+		job->text = xstrndup(*command_ptr, return_command - *command_ptr);
 	}
 
 	*command_ptr = return_command;
@@ -1240,9 +1127,6 @@ static int parse_command(char **command_ptr, struct job *job, int *inbg)
 static int pseudo_exec(struct child_prog *child)
 {
 	struct built_in_command *x;
-#ifdef CONFIG_FEATURE_SH_STANDALONE_SHELL
-	char *name;
-#endif
 
 	/* Check if the command matches any of the non-forking builtins.
 	 * Depending on context, this might be redundant.  But it's
@@ -1258,11 +1142,11 @@ static int pseudo_exec(struct child_prog *child)
 	/* Check if the command matches any of the forking builtins. */
 	for (x = bltins_forking; x->cmd; x++) {
 		if (strcmp(child->argv[0], x->cmd) == 0) {
-			bb_applet_name=x->cmd;
+			applet_name=x->cmd;
 			_exit (x->function(child));
 		}
 	}
-#ifdef CONFIG_FEATURE_SH_STANDALONE_SHELL
+
 	/* Check if the command matches any busybox internal
 	 * commands ("applets") here.  Following discussions from
 	 * November 2000 on busybox@busybox.net, don't use
@@ -1274,22 +1158,21 @@ static int pseudo_exec(struct child_prog *child)
 	 * /bin/foo invocation will fork and exec /bin/foo, even if
 	 * /bin/foo is a symlink to busybox.
 	 */
-	name = child->argv[0];
 
-	{
-	    char** argv_l=child->argv;
-	    int argc_l;
-	    for(argc_l=0;*argv_l!=NULL; argv_l++, argc_l++);
-	    optind = 1;
-	    run_applet_by_name(name, argc_l, child->argv);
+	if (ENABLE_FEATURE_SH_STANDALONE_SHELL) {
+		char **argv_l = child->argv;
+		int argc_l;
+
+		for (argc_l=0; *argv_l; argv_l++, argc_l++);
+		optind = 1;
+		run_applet_by_name(child->argv[0], argc_l, child->argv);
 	}
-#endif
 
 	execvp(child->argv[0], child->argv);
 
 	/* Do not use bb_perror_msg_and_die() here, since we must not
 	 * call exit() but should call _exit() instead */
-	fprintf(stderr, "%s: %m\n", child->argv[0]);
+	bb_perror_msg("%s", child->argv[0]);
 	_exit(EXIT_FAILURE);
 }
 
@@ -1330,9 +1213,8 @@ static void insert_job(struct job *newjob, int inbg)
 		newjob->job_list->fg = thejob;
 
 		/* move the new process group into the foreground */
-		/* suppress messages when run from /linuxrc mag@sysgo.de */
-		if (tcsetpgrp(shell_terminal, newjob->pgrp) && errno != ENOTTY)
-			bb_perror_msg("tcsetpgrp");
+		/* Ignore errors since child could have already exited */
+		tcsetpgrp(shell_terminal, newjob->pgrp);
 	}
 #endif
 }
@@ -1369,6 +1251,12 @@ static int run_command(struct job *newjob, int inbg, int outpipe[2])
 		 * is doomed to failure, and doesn't work on bash, either.
 		 */
 		if (newjob->num_progs == 1) {
+			/* Check if the command sets an environment variable. */
+			if (strchr(child->argv[0], '=') != NULL) {
+				child->argv[1] = child->argv[0];
+				return builtin_export(child);
+			}
+
 			for (x = bltins; x->cmd; x++) {
 				if (strcmp(child->argv[0], x->cmd) == 0 ) {
 					int rcode;
@@ -1395,7 +1283,8 @@ static int run_command(struct job *newjob, int inbg, int outpipe[2])
 			signal(SIGTTOU, SIG_DFL);
 			signal(SIGCHLD, SIG_DFL);
 
-			close_all();
+			/* Close all open filehandles. */
+			while(close_me_list) close((long)llist_pop(&close_me_list));
 
 			if (outpipe[1]!=-1) {
 				close(outpipe[0]);
@@ -1447,7 +1336,7 @@ static int busy_loop(FILE * input)
 	char *next_command = NULL;
 	struct job newjob;
 	int i;
-	int inbg;
+	int inbg = 0;
 	int status;
 #ifdef CONFIG_LASH_JOB_CONTROL
 	pid_t  parent_pgrp;
@@ -1457,7 +1346,7 @@ static int busy_loop(FILE * input)
 	newjob.job_list = &job_list;
 	newjob.job_context = DEFAULT_CONTEXT;
 
-	command = (char *) xcalloc(BUFSIZ, sizeof(char));
+	command = xzalloc(BUFSIZ);
 
 	while (1) {
 		if (!job_list.fg) {
@@ -1474,7 +1363,7 @@ static int busy_loop(FILE * input)
 
 			if (! expand_arguments(next_command)) {
 				free(command);
-				command = (char *) xcalloc(BUFSIZ, sizeof(char));
+				command = xzalloc(BUFSIZ);
 				next_command = NULL;
 				continue;
 			}
@@ -1488,7 +1377,7 @@ static int busy_loop(FILE * input)
 			}
 			else {
 				free(command);
-				command = (char *) xcalloc(BUFSIZ, sizeof(char));
+				command = xzalloc(BUFSIZ);
 				next_command = NULL;
 			}
 		} else {
@@ -1554,7 +1443,7 @@ static int busy_loop(FILE * input)
 }
 
 #ifdef CONFIG_FEATURE_CLEAN_UP
-void free_memory(void)
+static void free_memory(void)
 {
 	if (cwd && cwd!=bb_msg_unknown) {
 		free((char*)cwd);
@@ -1566,6 +1455,8 @@ void free_memory(void)
 		remove_job(&job_list, job_list.fg);
 	}
 }
+#else
+void free_memory(void);
 #endif
 
 #ifdef CONFIG_LASH_JOB_CONTROL
@@ -1595,8 +1486,8 @@ static void setup_job_control(void)
 
 	/* Put ourselves in our own process group.  */
 	setsid();
-	shell_pgrp = getpid ();
-	setpgid (shell_pgrp, shell_pgrp);
+	shell_pgrp = getpid();
+	setpgid(shell_pgrp, shell_pgrp);
 
 	/* Grab control of the terminal.  */
 	tcsetpgrp(shell_terminal, shell_pgrp);
@@ -1609,15 +1500,14 @@ static inline void setup_job_control(void)
 
 int lash_main(int argc_l, char **argv_l)
 {
-	int opt, interactive=FALSE;
+	unsigned opt;
 	FILE *input = stdin;
 	argc = argc_l;
 	argv = argv_l;
 
 	/* These variables need re-initializing when recursing */
 	last_jobid = 0;
-	local_pending_command = NULL;
-	close_me_head = NULL;
+	close_me_list = NULL;
 	job_list.head = NULL;
 	job_list.fg = NULL;
 	last_return_code=1;
@@ -1626,31 +1516,21 @@ int lash_main(int argc_l, char **argv_l)
 		FILE *prof_input;
 		prof_input = fopen("/etc/profile", "r");
 		if (prof_input) {
-			int tmp_fd = fileno(prof_input);
-			mark_open(tmp_fd);
+			llist_add_to(&close_me_list, (void *)(long)fileno(prof_input));
 			/* Now run the file */
 			busy_loop(prof_input);
-			fclose(prof_input);
-			mark_closed(tmp_fd);
+			fclose_if_not_stdin(prof_input);
+			llist_pop(&close_me_list);
 		}
 	}
 
-	while ((opt = getopt(argc_l, argv_l, "cxi")) > 0) {
-		switch (opt) {
-			case 'c':
-				input = NULL;
-				if (local_pending_command != 0)
-					bb_error_msg_and_die("multiple -c arguments");
-				local_pending_command = bb_xstrdup(argv[optind]);
-				optind++;
-				argv = argv+optind;
-				break;
-			case 'i':
-				interactive = TRUE;
-				break;
-			default:
-				bb_show_usage();
-		}
+	opt = getopt32(argc_l, argv_l, "+ic:", &local_pending_command);
+#define LASH_OPT_i (1<<0)
+#define LASH_OPT_c (1<<2)
+	if (opt & LASH_OPT_c) {
+		input = NULL;
+		optind++;
+		argv += optind;
 	}
 	/* A shell is interactive if the `-i' flag was given, or if all of
 	 * the following conditions are met:
@@ -1660,21 +1540,23 @@ int lash_main(int argc_l, char **argv_l)
 	 *    standard output is a terminal
 	 *    Refer to Posix.2, the description of the `sh' utility. */
 	if (argv[optind]==NULL && input==stdin &&
-			isatty(STDIN_FILENO) && isatty(STDOUT_FILENO)) {
-		interactive=TRUE;
+			isatty(STDIN_FILENO) && isatty(STDOUT_FILENO))
+	{
+		opt |= LASH_OPT_i;
 	}
 	setup_job_control();
-	if (interactive==TRUE) {
-		//printf( "optind=%d  argv[optind]='%s'\n", optind, argv[optind]);
+	if (opt & LASH_OPT_i) {
 		/* Looks like they want an interactive shell */
-#ifndef CONFIG_FEATURE_SH_EXTRA_QUIET
-		printf( "\n\n" BB_BANNER " Built-in shell (lash)\n");
-		printf( "Enter 'help' for a list of built-in commands.\n\n");
-#endif
-	} else if (local_pending_command==NULL) {
+		if (!ENABLE_FEATURE_SH_EXTRA_QUIET) {
+			printf("\n\n%s Built-in shell (lash)\n"
+					"Enter 'help' for a list of built-in commands.\n\n",
+					BB_BANNER);
+		}
+	} else if (!local_pending_command && argv[optind]) {
 		//printf( "optind=%d  argv[optind]='%s'\n", optind, argv[optind]);
-		input = bb_xfopen(argv[optind], "r");
-		mark_open(fileno(input));  /* be lazy, never mark this closed */
+		input = xfopen(argv[optind], "r");
+		/* be lazy, never mark this closed */
+		llist_add_to(&close_me_list, (void *)(long)fileno(input));
 	}
 
 	/* initialize the cwd -- this is never freed...*/
@@ -1682,15 +1564,10 @@ int lash_main(int argc_l, char **argv_l)
 	if (!cwd)
 		cwd = bb_msg_unknown;
 
-#ifdef CONFIG_FEATURE_CLEAN_UP
-	atexit(free_memory);
-#endif
+	if (ENABLE_FEATURE_CLEAN_UP) atexit(free_memory);
 
-#ifdef CONFIG_FEATURE_COMMAND_EDITING
-	cmdedit_set_initial_prompt();
-#else
-	PS1 = NULL;
-#endif
+	if (ENABLE_FEATURE_COMMAND_EDITING) cmdedit_set_initial_prompt();
+	else PS1 = NULL;
 
 	return (busy_loop(input));
 }

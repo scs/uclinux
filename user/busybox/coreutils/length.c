@@ -7,13 +7,13 @@
 #include <stdio.h>
 #include "busybox.h"
 
-extern int length_main(int argc, char **argv)
+int length_main(int argc, char **argv)
 {
 	if ((argc != 2) ||  (**(++argv) == '-')) {
 	    bb_show_usage();
 	}
 
-	bb_printf("%lu\n", (unsigned long)strlen(*argv));
+	printf("%lu\n", (unsigned long)strlen(*argv));
 
-	bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+	fflush_stdout_and_exit(EXIT_SUCCESS);
 }

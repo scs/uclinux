@@ -1,22 +1,11 @@
+/* vi: set sw=4 ts=4: */
 /*
  * leases.c -- tools to manage DHCP leases
  * Russ Dill <Russ.Dill@asu.edu> July 2001
  */
 
-#include <time.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include "dhcpd.h"
-#include "files.h"
-#include "options.h"
-#include "leases.h"
-#include "arpping.h"
 #include "common.h"
-
-#include "static_leases.h"
+#include "dhcpd.h"
 
 
 uint8_t blank_chaddr[] = {[0 ... 15] = 0};
@@ -112,7 +101,7 @@ static int check_ip(uint32_t addr)
 
 	if (arpping(addr, server_config.server, server_config.arp, server_config.interface) == 0) {
 		temp.s_addr = addr;
-		LOG(LOG_INFO, "%s belongs to someone, reserving it for %ld seconds",
+		bb_info_msg("%s belongs to someone, reserving it for %ld seconds",
 			inet_ntoa(temp), server_config.conflict_time);
 		add_lease(blank_chaddr, addr, server_config.conflict_time);
 		return 1;
@@ -137,22 +126,20 @@ uint32_t find_address(int check_expired)
 		if ((addr & 0xFF) == 0xFF) continue;
 
 		/* Only do if it isn't an assigned as a static lease */
-		if(!reservedIp(server_config.static_leases, htonl(addr)))
-		{
+		if (!reservedIp(server_config.static_leases, htonl(addr))) {
 
-		/* lease is not taken */
-		ret = htonl(addr);
-		if ((!(lease = find_lease_by_yiaddr(ret)) ||
+			/* lease is not taken */
+			ret = htonl(addr);
+			lease = find_lease_by_yiaddr(ret);
 
-		     /* or it expired and we are checking for expired leases */
-		     (check_expired  && lease_expired(lease))) &&
-
-		     /* and it isn't on the network */
-	    	     !check_ip(ret)) {
-			return ret;
-			break;
+			/* no lease or it expired and we are checking for expired leases */
+			if ( (!lease || (check_expired && lease_expired(lease)))
+			 && /* and it isn't on the network */ !check_ip(ret)
+			) {
+				return ret;
+				break;
+			}
 		}
-	}
 	}
 	return 0;
 }

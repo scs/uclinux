@@ -1,3 +1,4 @@
+/* vi: set sw=4 ts=4: */
 /*
  * adjtimex.c - read, and possibly modify, the Linux kernel `timex' variables.
  *
@@ -5,49 +6,15 @@
  * Last hack: March 2001
  * Copyright 1997, 2000, 2001 Larry Doolittle <LRDoolittle@lbl.gov>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License (Version 2,
- *  June 1991) as published by the Free Software Foundation.  At the
- *  time of writing, that license was published by the FSF with the URL
- *  http://www.gnu.org/copyleft/gpl.html, and is incorporated herein by
- *  reference.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- * This adjtimex(1) is very similar in intent to adjtimex(8) by Steven
- * Dick <ssd@nevets.oau.org> and Jim Van Zandt <jrv@vanzandt.mv.com>
- * (see http://metalab.unc.edu/pub/Linux/system/admin/time/adjtimex*).
- * That version predates this one, and is _much_ bigger and more
- * featureful.  My independently written version was very similar to
- * Steven's from the start, because they both follow the kernel timex
- * structure.  I further tweaked this version to be equivalent to Steven's
- * where possible, but I don't like getopt_long, so the actual usage
- * syntax is incompatible.
- *
- * Amazingly enough, my Red Hat 5.2 sys/timex (and sub-includes)
- * don't actually give a prototype for adjtimex(2), so building
- * this code (with -Wall) gives a warning.  Later versions of
- * glibc fix this issue.
- *
- * This program is too simple for a Makefile, just build with:
- *  gcc -Wall -O adjtimex.c -o adjtimex
- *
  * busyboxed 20 March 2001, Larry Doolittle <ldoolitt@recycle.lbl.gov>
- * It will autosense if it is built in a busybox environment, based
- * on the BB_VER preprocessor macro.
+ *
+ * Licensed under GPLv2 or later, see file License in this tarball for details.
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/timex.h>
 #include "busybox.h"
+#include <sys/timex.h>
 
-static struct {int bit; char *name;} statlist[] = {
+static const struct {int bit; const char *name;} statlist[] = {
 	{ STA_PLL,       "PLL"       },
 	{ STA_PPSFREQ,   "PPSFREQ"   },
 	{ STA_PPSTIME,   "PPSTIME"   },
@@ -63,7 +30,7 @@ static struct {int bit; char *name;} statlist[] = {
 	{ STA_CLOCKERR,  "CLOCKERR"  },
 	{ 0, NULL } };
 
-static char *ret_code_descript[] = {
+static const char * const ret_code_descript[] = {
 	"clock synchronized",
 	"insert leap second",
 	"delete leap second",
@@ -71,63 +38,46 @@ static char *ret_code_descript[] = {
 	"leap second has occurred",
 	"clock not synchronized" };
 
-#ifdef BB_VER
-#define main adjtimex_main
-#else
-void usage(char *prog)
+int adjtimex_main(int argc, char **argv)
 {
-	fprintf(stderr,
-		"Usage: %s [ -q ] [ -o offset ] [ -f frequency ] [ -p timeconstant ] [ -t tick ]\n",
-		prog);
-}
-#define bb_show_usage() usage(argv[0])
-#endif
-
-int main(int argc, char ** argv)
-{
+	enum {
+		OPT_quiet = 0x1
+	};
+	unsigned opt;
+	char *opt_o, *opt_f, *opt_p, *opt_t;
 	struct timex txc;
-	int quiet=0;
-	int c, i, ret, sep;
-	char *descript;
+	int i, ret, sep;
+	const char *descript;
 	txc.modes=0;
-	for (;;) {
-		c = getopt( argc, argv, "qo:f:p:t:");
-		if (c == EOF) break;
-		switch (c) {
-			case 'q':
-				quiet=1;
-				break;
-			case 'o':
-				txc.offset = atoi(optarg);
-				txc.modes |= ADJ_OFFSET_SINGLESHOT;
-				break;
-			case 'f':
-				txc.freq = atoi(optarg);
-				txc.modes |= ADJ_FREQUENCY;
-				break;
-			case 'p':
-				txc.constant = atoi(optarg);
-				txc.modes |= ADJ_TIMECONST;
-				break;
-			case 't':
-				txc.tick = atoi(optarg);
-				txc.modes |= ADJ_TICK;
-				break;
-			default:
-				bb_show_usage();
-				exit(1);
-		}
+
+	opt = getopt32(argc, argv, "qo:f:p:t:",
+			&opt_o, &opt_f, &opt_p, &opt_t);
+	//if (opt & 0x1) // -q
+	if (opt & 0x2) { // -o
+		txc.offset = xatoi(opt_o);
+		txc.modes |= ADJ_OFFSET_SINGLESHOT;
+	}
+	if (opt & 0x4) { // -f
+		txc.freq = xatou(opt_f);
+		txc.modes |= ADJ_FREQUENCY;
+	}
+	if (opt & 0x8) { // -p
+		txc.constant = xatoi(opt_p);
+		txc.modes |= ADJ_TIMECONST;
+	}
+	if (opt & 0x10) { // -t
+		txc.tick = xatoi(opt_t);
+		txc.modes |= ADJ_TICK;
 	}
 	if (argc != optind) { /* no valid non-option parameters */
 		bb_show_usage();
-		exit(1);
 	}
 
 	ret = adjtimex(&txc);
 
 	if (ret < 0) perror("adjtimex");
 
-	if (!quiet && ret>=0) {
+	if (!(opt & OPT_quiet) && ret>=0) {
 		printf(
 			"    mode:         %d\n"
 			"-o  offset:       %ld\n"

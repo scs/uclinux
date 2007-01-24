@@ -6,20 +6,7 @@
  *
  * Adjusted for BusyBox by Erik Andersen <andersen@codepoet.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
 #include <stdio.h>
@@ -33,40 +20,34 @@
 struct kbkeycode {
 	unsigned int scancode, keycode;
 };
-static const int KDSETKEYCODE = 0x4B4D;  /* write kernel keycode table entry */
+enum {
+	KDSETKEYCODE = 0x4B4D  /* write kernel keycode table entry */
+};
 
 extern int
 setkeycodes_main(int argc, char** argv)
 {
-    char *ep;
-    int fd, sc;
-    struct kbkeycode a;
+	int fd, sc;
+	struct kbkeycode a;
 
-    if (argc % 2 != 1 || argc < 2) {
-      bb_show_usage();
+	if (argc % 2 != 1 || argc < 2) {
+		bb_show_usage();
 	}
-	
+
 	fd = get_console_fd();
 
-    while (argc > 2) {
-	a.keycode = atoi(argv[2]);
-	a.scancode = sc = strtol(argv[1], &ep, 16);
-	if (*ep) {
-      bb_error_msg_and_die("error reading SCANCODE: '%s'", argv[1]);
+	while (argc > 2) {
+		a.keycode = xatoul_range(argv[2], 0, 127);
+		a.scancode = sc = xstrtoul_range(argv[1], 16, 0, 255);
+		if (a.scancode > 127) {
+			a.scancode -= 0xe000;
+			a.scancode += 128;
+		}
+		if (ioctl(fd, KDSETKEYCODE, &a)) {
+			bb_perror_msg_and_die("failed to set SCANCODE %x to KEYCODE %d", sc, a.keycode);
+		}
+		argc -= 2;
+		argv += 2;
 	}
-	if (a.scancode > 127) {
-	    a.scancode -= 0xe000;
-	    a.scancode += 128;
-	}
-	if (a.scancode > 255 || a.keycode > 127) {
-      bb_error_msg_and_die("SCANCODE or KEYCODE outside bounds");
-	}
-	if (ioctl(fd,KDSETKEYCODE,&a)) {
-	    perror("KDSETKEYCODE");
-		bb_error_msg_and_die("failed to set SCANCODE %x to KEYCODE %d", sc, a.keycode);
-	}
-	argc -= 2;
-	argv += 2;
-    }
 	return EXIT_SUCCESS;
 }

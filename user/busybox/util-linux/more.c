@@ -11,36 +11,17 @@
  *
  * Termios corrects by Vladimir Oleynik <dzo@simtreas.ru>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPLv2 or later, see file License in this tarball for details.
  */
 
-#include <stdio.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
 #include "busybox.h"
 
 
-#ifdef CONFIG_FEATURE_USE_TERMIOS
+#if ENABLE_FEATURE_USE_TERMIOS
 static int cin_fileno;
 #include <termios.h>
-#define setTermSettings(fd,argp) tcsetattr(fd,TCSANOW,argp)
-#define getTermSettings(fd,argp) tcgetattr(fd, argp);
+#define setTermSettings(fd, argp) tcsetattr(fd, TCSANOW, argp)
+#define getTermSettings(fd, argp) tcgetattr(fd, argp);
 
 static struct termios initial_settings, new_settings;
 
@@ -54,10 +35,10 @@ static void gotsig(int sig)
 	putchar('\n');
 	exit(EXIT_FAILURE);
 }
-#endif /* CONFIG_FEATURE_USE_TERMIOS */
+#endif /* FEATURE_USE_TERMIOS */
 
 
-extern int more_main(int argc, char **argv)
+int more_main(int argc, char **argv)
 {
 	int c, lines, input = 0;
 	int please_display_more_prompt = 0;
@@ -67,22 +48,19 @@ extern int more_main(int argc, char **argv)
 	int len, page_height;
 	int terminal_width;
 	int terminal_height;
-#ifndef CONFIG_FEATURE_USE_TERMIOS
-	int cin_fileno;
-#endif
 
 	argc--;
 	argv++;
 
-
-	/* not use inputing from terminal if usage: more > outfile */
-	if(isatty(STDOUT_FILENO)) {
+	cin = stdin;
+	/* use input from terminal unless we do "more >outfile" */
+	if (isatty(STDOUT_FILENO)) {
 		cin = fopen(CURRENT_TTY, "r");
 		if (!cin)
-			cin = bb_xfopen(CONSOLE_DEV, "r");
-		cin_fileno = fileno(cin);
+			cin = xfopen(CONSOLE_DEV, "r");
 		please_display_more_prompt = 2;
-#ifdef CONFIG_FEATURE_USE_TERMIOS
+#if ENABLE_FEATURE_USE_TERMIOS
+		cin_fileno = fileno(cin);
 		getTermSettings(cin_fileno, &initial_settings);
 		new_settings = initial_settings;
 		new_settings.c_lflag &= ~ICANON;
@@ -91,34 +69,32 @@ extern int more_main(int argc, char **argv)
 		new_settings.c_cc[VTIME] = 0;
 		setTermSettings(cin_fileno, &new_settings);
 		atexit(set_tty_to_initial_mode);
-		(void) signal(SIGINT, gotsig);
-		(void) signal(SIGQUIT, gotsig);
-		(void) signal(SIGTERM, gotsig);
+		signal(SIGINT, gotsig);
+		signal(SIGQUIT, gotsig);
+		signal(SIGTERM, gotsig);
 #endif
-	} else {
-		cin = stdin;
 	}
 
 	do {
-		if (argc == 0) {
-			file = stdin;
-		} else
-			file = bb_wfopen(*argv, "r");
-		if(file==0)
-			goto loop;
+		file = stdin;
+		if (argc != 0) {
+			file = fopen_or_warn(*argv, "r");
+			if (!file)
+				goto loop;
+		}
 
 		st.st_size = 0;
 		fstat(fileno(file), &st);
 
 		please_display_more_prompt &= ~1;
 
-		get_terminal_width_height(cin_fileno, &terminal_width, &terminal_height);
+		get_terminal_width_height(fileno(cin), &terminal_width, &terminal_height);
 		if (terminal_height > 4)
 			terminal_height -= 2;
 		if (terminal_width > 0)
 			terminal_width -= 1;
 
-		len=0;
+		len = 0;
 		lines = 0;
 		page_height = terminal_height;
 		while ((c = getc(file)) != EOF) {
@@ -126,17 +102,10 @@ extern int more_main(int argc, char **argv)
 			if ((please_display_more_prompt & 3) == 3) {
 				len = printf("--More-- ");
 				if (file != stdin && st.st_size > 0) {
-#if _FILE_OFFSET_BITS == 64
-					len += printf("(%d%% of %lld bytes)",
-						   (int) (100 * ((double) ftell(file) /
-						   (double) st.st_size)), (long long)st.st_size);
-#else
-					len += printf("(%d%% of %ld bytes)",
-						   (int) (100 * ((double) ftell(file) /
-						   (double) st.st_size)), (long)st.st_size);
-#endif
+					len += printf("(%d%% of %"OFF_FMT"d bytes)",
+						(int) (ftello(file)*100 / st.st_size),
+						st.st_size);
 				}
-
 				fflush(stdout);
 
 				/*
@@ -144,15 +113,12 @@ extern int more_main(int argc, char **argv)
 				 * to get input from the user.
 				 */
 				input = getc(cin);
-#ifndef CONFIG_FEATURE_USE_TERMIOS
+#if !ENABLE_FEATURE_USE_TERMIOS
 				printf("\033[A"); /* up cursor */
 #endif
 				/* Erase the "More" message */
-				putc('\r', stdout);
-				while (--len >= 0)
-					putc(' ', stdout);
-				putc('\r', stdout);
-				len=0;
+				printf("\r%*s\r", len, "");
+				len = 0;
 				lines = 0;
 				page_height = terminal_height;
 				please_display_more_prompt &= ~1;
@@ -184,15 +150,15 @@ extern int more_main(int argc, char **argv)
 					rem  = len - (quot * terminal_width);
 					if (quot) {
 						if (rem)
-							page_height-=quot;
+							page_height -= quot;
 						else
-							page_height-=(quot-1);
+							page_height -= (quot - 1);
 					}
 				}
 				if (++lines >= page_height) {
 					please_display_more_prompt |= 1;
 				}
-				len=0;
+				len = 0;
 			}
 			/*
 			 * If we just read a newline from the file being 'mored' and any
@@ -203,9 +169,9 @@ extern int more_main(int argc, char **argv)
 		}
 		fclose(file);
 		fflush(stdout);
-loop:
+ loop:
 		argv++;
 	} while (--argc > 0);
-  end:
+ end:
 	return 0;
 }

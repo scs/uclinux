@@ -21,8 +21,13 @@ sub continuation {
 # regex && eval away unwanted strings from documentation
 sub beautify {
 	my $text = shift;
-	$text =~ s/USAGE_NOT\w+\(.*?"\s*\)//sxg;
-	$text =~ s/USAGE_\w+\(\s*?(.*?)"\s*\)/$1"/sxg;
+	for (;;) {
+		my $text2 = $text;
+		$text =~ s/SKIP_\w+\(.*?"\s*\)//sxg;
+		$text =~ s/USE_\w+\(\s*?(.*?)"\s*\)/$1"/sxg;
+		$text =~ s/USAGE_\w+\(\s*?(.*?)"\s*\)/$1"/sxg;
+		last if ( $text2 eq $text );
+	}
 	$text =~ s/"\s*"//sg;
 	my @line = split("\n", $text);
 	$text = join('',
@@ -51,10 +56,14 @@ sub pod_for_usage {
 
 	# make options bold
 	my $trivial = $usage->{trivial};
-	$trivial =~ s/(?<!\w)(-\w+)/B<$1>/sxg;
+	if (!defined $usage->{trivial}) {
+		$trivial = "";
+	} else {
+		$trivial =~ s/(?<!\w)(-\w+)/B<$1>/sxg;
+	}
 	my @f0 =
 		map { $_ !~ /^\s/ && s/(?<!\w)(-\w+)/B<$1>/g; $_ }
-		split("\n", $usage->{full});
+		split("\n", (defined $usage->{full} ? $usage->{full} : ""));
 
 	# add "\n" prior to certain lines to make indented
 	# lines look right
@@ -83,13 +92,19 @@ sub pod_for_usage {
 			split("\n", $usage->{example})) . "\n\n"
 		: "";
 
+	# Pad the name so that the applet name gets a line
+	# by itself in BusyBox.txt
+	my $spaces = 10 - length($name);
+	if ($spaces > 0) {
+		$name .= " " x $spaces;
+	}
+
 	return
 		"=item B<$name>".
 		"\n\n$name $trivial\n\n".
 		"$full\n\n"   .
 		"$notes"  .
 		"$example" .
-		"-------------------------------".
 		"\n\n"
 	;
 }
@@ -150,7 +165,22 @@ foreach (@ARGV) {
 # generate structured documentation
 
 my $generator = \&pod_for_usage;
-foreach my $applet (sort keys %docs) {
+
+my @names = sort keys %docs;
+my $line = "\t[, [[, ";
+for (my $i = 0; $i < $#names; $i++) {
+	if (length ($line.$names[$i]) >= 65) {
+		print "$line\n\t";
+		$line = "";
+	}
+	$line .= "$names[$i], ";
+}
+print $line . $names[-1];
+
+print "\n\n=head1 COMMAND DESCRIPTIONS\n";
+print "\n=over 4\n\n";
+
+foreach my $applet (@names) {
 	print $generator->($applet, $docs{$applet});
 }
 

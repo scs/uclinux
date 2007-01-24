@@ -7,27 +7,18 @@
  * Loads the console font, and possibly the corresponding screen map(s).
  * (Adapted for busybox by Matej Vela.)
  */
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <memory.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/kd.h>
-#include <endian.h>
 #include "busybox.h"
+#include <sys/kd.h>
 
-static const int PSF_MAGIC1 = 0x36;
-static const int PSF_MAGIC2 = 0x04;
+enum {
+	PSF_MAGIC1 = 0x36,
+	PSF_MAGIC2 = 0x04,
 
-static const int PSF_MODE512 = 0x01;
-static const int PSF_MODEHASTAB = 0x02;
-static const int PSF_MAXMODE = 0x03;
-static const int PSF_SEPARATOR = 0xFFFF;
+	PSF_MODE512 = 0x01,
+	PSF_MODEHASTAB = 0x02,
+	PSF_MAXMODE = 0x03,
+	PSF_SEPARATOR = 0xFFFF
+};
 
 struct psf_header {
 	unsigned char magic1, magic2;	/* Magic number */
@@ -39,20 +30,20 @@ struct psf_header {
 
 static void loadnewfont(int fd);
 
-extern int loadfont_main(int argc, char **argv)
+int loadfont_main(int argc, char **argv)
 {
 	int fd;
 
 	if (argc != 1)
 		bb_show_usage();
 
-	fd = bb_xopen(CURRENT_VC, O_RDWR);
+	fd = xopen(CURRENT_VC, O_RDWR);
 	loadnewfont(fd);
 
 	return EXIT_SUCCESS;
 }
 
-static void do_loadfont(int fd, char *inbuf, int unit, int fontsize)
+static void do_loadfont(int fd, unsigned char *inbuf, int unit, int fontsize)
 {
 	char buf[16384];
 	int i;
@@ -60,7 +51,7 @@ static void do_loadfont(int fd, char *inbuf, int unit, int fontsize)
 	memset(buf, 0, sizeof(buf));
 
 	if (unit < 1 || unit > 32)
-		bb_error_msg_and_die("Bad character size %d", unit);
+		bb_error_msg_and_die("bad character size %d", unit);
 
 	for (i = 0; i < fontsize; i++)
 		memcpy(buf + (32 * i), inbuf + (unit * i), unit);
@@ -90,14 +81,14 @@ do_loadtable(int fd, unsigned char *inbuf, int tailsz, int fontsize)
 	struct unipair *up;
 	int ct = 0, maxct;
 	int glyph;
-	u_short unicode;
+	uint16_t unicode;
 
 	maxct = tailsz;				/* more than enough */
-	up = (struct unipair *) xmalloc(maxct * sizeof(struct unipair));
+	up = xmalloc(maxct * sizeof(struct unipair));
 
 	for (glyph = 0; glyph < fontsize; glyph++) {
 		while (tailsz >= 2) {
-			unicode = (((u_short) inbuf[1]) << 8) + inbuf[0];
+			unicode = (((uint16_t) inbuf[1]) << 8) + inbuf[0];
 			tailsz -= 2;
 			inbuf += 2;
 			if (unicode == PSF_SEPARATOR)
@@ -117,8 +108,8 @@ do_loadtable(int fd, unsigned char *inbuf, int tailsz, int fontsize)
 	if (ioctl(fd, PIO_UNIMAPCLR, &advice)) {
 #ifdef ENOIOCTLCMD
 		if (errno == ENOIOCTLCMD) {
-			bb_error_msg("It seems this kernel is older than 1.1.92");
-			bb_error_msg_and_die("No Unicode mapping table loaded.");
+			bb_error_msg("it seems this kernel is older than 1.1.92");
+			bb_error_msg_and_die("no Unicode mapping table loaded");
 		} else
 #endif
 			bb_perror_msg_and_die("PIO_UNIMAPCLR");
@@ -126,11 +117,6 @@ do_loadtable(int fd, unsigned char *inbuf, int tailsz, int fontsize)
 	ud.entry_ct = ct;
 	ud.entries = up;
 	if (ioctl(fd, PIO_UNIMAP, &ud)) {
-#if 0
-		if (errno == ENOMEM) {
-			/* change advice parameters */
-		}
-#endif
 		bb_perror_msg_and_die("PIO_UNIMAP");
 	}
 }
@@ -138,7 +124,7 @@ do_loadtable(int fd, unsigned char *inbuf, int tailsz, int fontsize)
 static void loadnewfont(int fd)
 {
 	int unit;
-	char inbuf[32768];			/* primitive */
+	unsigned char inbuf[32768];			/* primitive */
 	unsigned int inputlth, offset;
 
 	/*
@@ -148,13 +134,13 @@ static void loadnewfont(int fd)
 	 */
 	inputlth = fread(inbuf, 1, sizeof(inbuf), stdin);
 	if (ferror(stdin))
-		bb_perror_msg_and_die("Error reading input font");
+		bb_perror_msg_and_die("error reading input font");
 	/* use malloc/realloc in case of giant files;
 	   maybe these do not occur: 16kB for the font,
 	   and 16kB for the map leaves 32 unicode values
 	   for each font position */
 	if (!feof(stdin))
-		bb_perror_msg_and_die("Font too large");
+		bb_perror_msg_and_die("font too large");
 
 	/* test for psf first */
 	{
@@ -172,11 +158,11 @@ static void loadnewfont(int fd)
 			goto no_psf;
 
 		if (psfhdr.mode > PSF_MAXMODE)
-			bb_error_msg_and_die("Unsupported psf file mode");
+			bb_error_msg_and_die("unsupported psf file mode");
 		fontsize = ((psfhdr.mode & PSF_MODE512) ? 512 : 256);
 #if !defined( PIO_FONTX ) || defined( __sparc__ )
 		if (fontsize != 256)
-			bb_error_msg_and_die("Only fontsize 256 supported");
+			bb_error_msg_and_die("only fontsize 256 supported");
 #endif
 		hastable = (psfhdr.mode & PSF_MODEHASTAB);
 		unit = psfhdr.charsize;
@@ -184,7 +170,7 @@ static void loadnewfont(int fd)
 
 		head = head0 + fontsize * unit;
 		if (head > inputlth || (!hastable && head != inputlth))
-			bb_error_msg_and_die("Input file: bad length");
+			bb_error_msg_and_die("input file: bad length");
 		do_loadfont(fd, inbuf + head0, unit, fontsize);
 		if (hastable)
 			do_loadtable(fd, inbuf + head, inputlth - head, fontsize);
@@ -199,7 +185,7 @@ static void loadnewfont(int fd)
 	} else {
 		/* bare font */
 		if (inputlth & 0377)
-			bb_error_msg_and_die("Bad input file size");
+			bb_error_msg_and_die("bad input file size");
 		offset = 0;
 		unit = inputlth / 256;
 	}

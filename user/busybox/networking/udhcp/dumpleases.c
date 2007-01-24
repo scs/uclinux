@@ -1,49 +1,21 @@
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/wait.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <sys/socket.h>
-#include <unistd.h>
+/* vi: set sw=4 ts=4: */
+/*
+ * Licensed under the GPL v2 or later, see the file LICENSE in this tarball.
+ */
 #include <getopt.h>
-#include <time.h>
 
+#include "common.h"
 #include "dhcpd.h"
-#include "leases.h"
-#include "libbb_udhcp.h"
+
 
 #define REMAINING 0
 #define ABSOLUTE 1
 
-
-#ifndef IN_BUSYBOX
-static void __attribute__ ((noreturn)) show_usage(void)
-{
-	printf(
-"Usage: dumpleases -f <file> -[r|a]\n\n"
-"  -f, --file=FILENAME             Leases file to load\n"
-"  -r, --remaining                 Interepret lease times as time remaing\n"
-"  -a, --absolute                  Interepret lease times as expire time\n");
-	exit(0);
-}
-#else
-#define show_usage bb_show_usage
-#endif
-
-
-#ifdef IN_BUSYBOX
 int dumpleases_main(int argc, char *argv[])
-#else
-int main(int argc, char *argv[])
-#endif
 {
-	FILE *fp;
+	int fp;
 	int i, c, mode = REMAINING;
-	long expires;
+	unsigned long expires;
 	const char *file = LEASES_FILE;
 	struct dhcpOfferedAddr lease;
 	struct in_addr addr;
@@ -67,44 +39,36 @@ int main(int argc, char *argv[])
 			file = optarg;
 			break;
 		default:
-			show_usage();
+			bb_show_usage();
 		}
 	}
 
-	fp = xfopen(file, "r");
+	fp = xopen(file, O_RDONLY);
 
 	printf("Mac Address       IP-Address      Expires %s\n", mode == REMAINING ? "in" : "at");
 	/*     "00:00:00:00:00:00 255.255.255.255 Wed Jun 30 21:49:08 1993" */
-	while (fread(&lease, sizeof(lease), 1, fp)) {
-
-		for (i = 0; i < 6; i++) {
-			printf("%02x", lease.chaddr[i]);
-			if (i != 5) printf(":");
+	while (full_read(fp, &lease, sizeof(lease)) == sizeof(lease)) {
+		printf(":%02x"+1, lease.chaddr[0]);
+		for (i = 1; i < 6; i++) {
+			printf(":%02x", lease.chaddr[i]);
 		}
 		addr.s_addr = lease.yiaddr;
-		printf(" %-15s", inet_ntoa(addr));
+		printf(" %-15s ", inet_ntoa(addr));
 		expires = ntohl(lease.expires);
-		printf(" ");
 		if (mode == REMAINING) {
-			if (!expires) printf("expired\n");
+			if (!expires)
+				printf("expired\n");
 			else {
-				if (expires > 60*60*24) {
-					printf("%ld days, ", expires / (60*60*24));
-					expires %= 60*60*24;
-				}
-				if (expires > 60*60) {
-					printf("%ld hours, ", expires / (60*60));
-					expires %= 60*60;
-				}
-				if (expires > 60) {
-					printf("%ld minutes, ", expires / 60);
-					expires %= 60;
-				}
-				printf("%ld seconds\n", expires);
+				unsigned d, h, m;
+				d = expires / (24*60*60); expires %= (24*60*60);
+				h = expires / (60*60); expires %= (60*60);
+				m = expires / 60; expires %= 60;
+				if (d) printf("%u days ", d);
+				printf("%02u:%02u:%02u\n", h, m, (unsigned)expires);
 			}
-		} else printf("%s", ctime(&expires));
+		} else fputs(ctime(&expires), stdout);
 	}
-	fclose(fp);
+	/* close(fp); */
 
 	return 0;
 }

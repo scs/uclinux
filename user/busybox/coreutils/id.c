@@ -4,36 +4,21 @@
  *
  * Copyright (C) 2000 by Randolph Chung <tausq@debian.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  */
 
 /* BB_AUDIT SUSv3 _NOT_ compliant -- option -G is not currently supported. */
 /* Hacked by Tito Ragusa (C) 2004 to handle usernames of whatever length and to
- * be more similar to GNU id. 
+ * be more similar to GNU id.
  */
 
 #include "busybox.h"
-#include "pwd_.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 
 #ifdef CONFIG_SELINUX
-#include <proc_secure.h>
-#include <flask_util.h>
+#include <selinux/selinux.h>          /* for is_selinux_enabled() */
 #endif
 
 #define PRINT_REAL        1
@@ -42,39 +27,31 @@
 #define JUST_GROUP        8
 
 static short printf_full(unsigned int id, const char *arg, const char prefix)
-{	
+{
 	const char *fmt = "%cid=%u";
-	short status=EXIT_FAILURE;
-	
-	if(arg) {
+	short status = EXIT_FAILURE;
+
+	if (arg) {
 		fmt = "%cid=%u(%s)";
-		status=EXIT_SUCCESS;
+		status = EXIT_SUCCESS;
 	}
-	bb_printf(fmt, prefix, id, arg);
+	printf(fmt, prefix, id, arg);
 	return status;
 }
 
-extern int id_main(int argc, char **argv)
+int id_main(int argc, char **argv)
 {
 	struct passwd *p;
 	uid_t uid;
 	gid_t gid;
 	unsigned long flags;
 	short status;
-#ifdef CONFIG_SELINUX
-	int is_flask_enabled_flag = is_flask_enabled();
-#endif
 
-	bb_opt_complementaly = "u~g:g~u";
-	flags = bb_getopt_ulflags(argc, argv, "rnug");
-
-	if ((flags & 0x80000000UL)
-	/* Don't allow -n -r -nr */
-	|| (flags <= 3 && flags > 0) 
+	/* Don't allow -n -r -nr -ug -rug -nug -rnug */
 	/* Don't allow more than one username */
-	|| (argc > optind + 1))
-		bb_show_usage();
-	
+	opt_complementary = "?1:?:u--g:g--u:r?ug:n?ug";
+	flags = getopt32(argc, argv, "rnug");
+
 	/* This values could be overwritten later */
 	uid = geteuid();
 	gid = getegid();
@@ -82,54 +59,50 @@ extern int id_main(int argc, char **argv)
 		uid = getuid();
 		gid = getgid();
 	}
-	
-	if(argv[optind]) {
-		p=getpwnam(argv[optind]);
-		/* my_getpwnam is needed because it exits on failure */
-		uid = my_getpwnam(argv[optind]);
+
+	if (argv[optind]) {
+		p = getpwnam(argv[optind]);
+		/* xuname2uid is needed because it exits on failure */
+		uid = xuname2uid(argv[optind]);
 		gid = p->pw_gid;
-		/* in this case PRINT_REAL is the same */ 
+		/* in this case PRINT_REAL is the same */
 	}
 
-	if(flags & (JUST_GROUP | JUST_USER)) {
+	if (flags & (JUST_GROUP | JUST_USER)) {
 		/* JUST_GROUP and JUST_USER are mutually exclusive */
-		if(flags & NAME_NOT_NUMBER) {
-			/* my_getpwuid and my_getgrgid exit on failure so puts cannot segfault */
-			puts((flags & JUST_USER) ? my_getpwuid(NULL, uid, -1 ) : my_getgrgid(NULL, gid, -1 ));
+		if (flags & NAME_NOT_NUMBER) {
+			/* bb_getpwuid and bb_getgrgid exit on failure so puts cannot segfault */
+			puts((flags & JUST_USER) ? bb_getpwuid(NULL, uid, -1 ) : bb_getgrgid(NULL, gid, -1 ));
 		} else {
-			bb_printf("%u\n",(flags & JUST_USER) ? uid : gid);
+			printf("%u\n", (flags & JUST_USER) ? uid : gid);
 		}
-		/* exit */ 
-		bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+		/* exit */
+		fflush_stdout_and_exit(EXIT_SUCCESS);
 	}
 
 	/* Print full info like GNU id */
-	/* my_getpwuid doesn't exit on failure here */
-	status=printf_full(uid, my_getpwuid(NULL, uid, 0), 'u');
+	/* bb_getpwuid doesn't exit on failure here */
+	status = printf_full(uid, bb_getpwuid(NULL, uid, 0), 'u');
 	putchar(' ');
-	/* my_getgrgid doesn't exit on failure here */
-	status|=printf_full(gid, my_getgrgid(NULL, gid, 0), 'g');
+	/* bb_getgrgid doesn't exit on failure here */
+	status |= printf_full(gid, bb_getgrgid(NULL, gid, 0), 'g');
+
 #ifdef CONFIG_SELINUX
-	if(is_flask_enabled_flag) {
-		security_id_t mysid = getsecsid();
-		char context[80];
-		int len = sizeof(context);
-		context[0] = '\0';
-		if(security_sid_to_context(mysid, context, &len))
-			strcpy(context, "unknown");
-		bb_printf(" context=%s", context);
+	if (is_selinux_enabled()) {
+		security_context_t mysid;
+		const char *context;
+
+		context = "unknown";
+		getcon(&mysid);
+		if (mysid) {
+			context = alloca(strlen(mysid) + 1);
+			strcpy((char*)context, mysid);
+			freecon(mysid);
+		}
+		printf(" context=%s", context);
 	}
 #endif
+
 	putchar('\n');
-	bb_fflush_stdout_and_exit(status);
+	fflush_stdout_and_exit(status);
 }
-
-/* END CODE */
-/*
-Local Variables:
-c-file-style: "linux"
-c-basic-offset: 4
-tab-width: 4
-End:
-*/
-

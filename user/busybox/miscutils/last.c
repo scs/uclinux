@@ -4,32 +4,11 @@
  *
  * Copyright (C) 2003-2004 by Erik Andersen <andersen@codepoet.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Licensed under the GPL version 2, see the file LICENSE in this tarball.
  */
 
-#include <sys/types.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <utmp.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <string.h>
-#include <time.h>
 #include "busybox.h"
+#include <utmp.h>
 
 #ifndef SHUTDOWN_TIME
 #  define SHUTDOWN_TIME 254
@@ -39,19 +18,24 @@
  * Do what we can while still keeping this reasonably small.
  * Note: We are assuming the ut_id[] size is fixed at 4. */
 
-#if (UT_LINESIZE != 32) || (UT_NAMESIZE != 32) || (UT_HOSTSIZE != 256)
+#if defined UT_LINESIZE \
+	&& ((UT_LINESIZE != 32) || (UT_NAMESIZE != 32) || (UT_HOSTSIZE != 256))
+#error struct utmp member char[] size(s) have changed!
+#elif defined __UT_LINESIZE \
+	&& ((__UT_LINESIZE != 32) || (__UT_NAMESIZE != 64) || (__UT_HOSTSIZE != 256))
 #error struct utmp member char[] size(s) have changed!
 #endif
 
-extern int last_main(int argc, char **argv)
+int last_main(int argc, char **argv)
 {
 	struct utmp ut;
 	int n, file = STDIN_FILENO;
+	time_t t_tmp;
 
 	if (argc > 1) {
 		bb_show_usage();
 	}
-	file = bb_xopen(_PATH_WTMP, O_RDONLY);
+	file = xopen(bb_path_wtmp_file, O_RDONLY);
 
 	printf("%-10s %-14s %-18s %-12.12s %s\n", "USER", "TTY", "HOST", "LOGIN", "TIME");
 	while ((n = safe_read(file, (void*)&ut, sizeof(struct utmp))) != 0) {
@@ -60,7 +44,7 @@ extern int last_main(int argc, char **argv)
 			bb_perror_msg_and_die("short read");
 		}
 
-		if (strncmp(ut.ut_line, "~", 1) == 0) {
+		if (ut.ut_line[0] == '~') {
 			if (strncmp(ut.ut_user, "shutdown", 8) == 0)
 				ut.ut_type = SHUTDOWN_TIME;
 			else if (strncmp(ut.ut_user, "reboot", 6) == 0)
@@ -98,10 +82,10 @@ extern int last_main(int argc, char **argv)
 					break;
 			}
 		}
-
+		t_tmp = (time_t)ut.ut_tv.tv_sec;
 		printf("%-10s %-14s %-18s %-12.12s\n", ut.ut_user, ut.ut_line, ut.ut_host,
-				ctime(&(ut.ut_tv.tv_sec)) + 4);
+				ctime(&t_tmp) + 4);
 	}
 
-	bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+	fflush_stdout_and_exit(EXIT_SUCCESS);
 }

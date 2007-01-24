@@ -2,11 +2,14 @@ List of the authors of code contained in BusyBox.
 
 If you have code in BusyBox, you should be listed here.  If you should be
 listed, or the description of what you have done needs more detail, or is
-incorect, _please_ let me know.
+incorrect, _please_ let me know.
 
  -Erik
 
 -----------
+
+Peter Willis <psyphreak@phreaker.net>
+    eject
 
 Emanuele Aina <emanuele.aina@tiscali.it>
     run-parts
@@ -23,11 +26,20 @@ Laurence Anderson <l.d.anderson@warwick.ac.uk>
 Jeff Angielski <jeff@theptrgroup.com>
     ftpput, ftpget
 
+Enrik Berkhan <Enrik.Berkhan@inka.de>
+    setconsole
+
+Jim Bauer <jfbauer@nfr.com>
+    modprobe shell dependency
+
 Edward Betts <edward@debian.org>
     expr, hostid, logname, whoami
 
 John Beppu <beppu@codepoet.org>
     du, nslookup, sort
+
+David Brownell <dbrownell@users.sourceforge.net>
+    zcip
 
 Brian Candler <B.Candler@pobox.com>
     tiny-ls(ls)
@@ -69,6 +81,14 @@ Daniel Jacobowitz <dan@debian.org>
 Matt Kraai <kraai@alumni.cmu.edu>
     documentation, bugfixes, test suite
 
+Rob Landley <rob@landley.net>
+    Became busybox maintainer in 2006.
+
+    sed (major rewrite in 2003, and I now maintain the thing)
+    bunzip2 (complete from-scratch rewrite, then mjn3 optimized the result)
+    sort (more or less from scratch rewrite in 2004, I now maintain it)
+    mount (rewrite in 2005, I maintain the new one)
+
 Stephan Linz <linz@li-pro.net>
     ipcalc, Red Hat equivalence
 
@@ -76,13 +96,14 @@ John Lombardo <john@deltanet.com>
     tr
 
 Glenn McGrath <bug1@iinet.net.au>
-    Common unarchving code and unarchiving applets, ifupdown, ftpgetput,
-    nameif, sed, patch, fold, install, uudecode. 
-    Various bugfixes, review and apply numerous patches. 
+    Common unarchiving code and unarchiving applets, ifupdown, ftpgetput,
+    nameif, sed, patch, fold, install, uudecode.
+    Various bugfixes, review and apply numerous patches.
 
 Manuel Novoa III <mjn3@codepoet.org>
     cat, head, mkfifo, mknod, rmdir, sleep, tee, tty, uniq, usleep, wc, yes,
-    mesg, vconfig, make_directory, parse_mode, dirname, mode_string,
+    mesg, vconfig, nice, renice,
+    make_directory, parse_mode, dirname, mode_string,
     get_last_path_component, simplify_path, and a number trivial libbb routines
 
     also bug fixes, partial rewrites, and size optimizations in
@@ -91,14 +112,18 @@ Manuel Novoa III <mjn3@codepoet.org>
     interface, dutmp, ifconfig, route
 
 Vladimir Oleynik <dzo@simtreas.ru>
-    cmdedit; xargs(current), httpd(current);
-    ports: ash, crond, fdisk, inetd, stty, traceroute, top;
+    cmdedit; bb_mkdep, xargs(current), httpd(current);
+    ports: ash, crond, fdisk (initial, unmaintained now), inetd, stty, traceroute,
+    top;
     locale, various fixes
     and irreconcilable critic of everything not perfect.
 
 Bruce Perens <bruce@pixar.com>
     Original author of BusyBox in 1995, 1996. Some of his code can
     still be found hiding here and there...
+
+Rodney Radford <rradford@mindspring.com>
+    ipcs, ipcrm
 
 Tim Riker <Tim@Rikers.org>
     bug fixes, member of fan club
@@ -115,7 +140,10 @@ Pavel Roskin <proski@gnu.org>
 Gyepi Sam <gyepi@praxis-sw.com>
     Remote logging feature for syslogd
 
-Linus Torvalds <torvalds@transmeta.com>
+Rob Sullivan <cogito.ergo.cogito@gmail.com>
+    comm
+
+Linus Torvalds
     mkswap, fsck.minix, mkfs.minix
 
 Mark Whitley <markw@codepoet.org>
@@ -129,5 +157,17 @@ Enrique Zanardi <ezanardi@ull.es>
     tarcat (since removed), loadkmap, various fixes, Debian maintenance
 
 Tito Ragusa <farmatito@tiscali.it>
-    devfsd and size optimizations in strings, openvt, chvt, deallocvt, hdparm and fdformat.
+    devfsd and size optimizations in strings, openvt, chvt, deallocvt, hdparm,
+    fdformat, lsattr, chattr, id and eject.
 
+Paul Fox <pgf@foxharp.boston.ma.us>
+    vi editing mode for ash, various other patches/fixes
+
+Roberto A. Foglietta <me@roberto.foglietta.name>
+    port: dnsd
+
+Bernhard Fischer <rep.nop@aon.at>
+    misc
+
+Mike Frysinger <vapier@gentoo.org>
+    initial e2fsprogs, printenv, setarch, sum, misc

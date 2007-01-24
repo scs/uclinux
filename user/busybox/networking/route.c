@@ -1,3 +1,4 @@
+/* vi: set sw=4 ts=4: */
 /* route
  *
  * Similar to the standard Unix route, but with only the necessary
@@ -9,11 +10,7 @@
  *              Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  *              (derived from FvK's 'route.c     1.70    01/04/94')
  *
- * This program is free software; you can redistribute it
- * and/or  modify it under  the terms of  the GNU General
- * Public  License as  published  by  the  Free  Software
- * Foundation;  either  version 2 of the License, or  (at
- * your option) any later version.
+ * Licensed under GPLv2 or later, see file LICENSE in this tarball for details.
  *
  * $Id$
  *
@@ -29,20 +26,12 @@
  * remove ridiculous amounts of bloat.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <getopt.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
-#include <net/route.h>
-#include <net/if.h>
 #include "busybox.h"
 #include "inet_common.h"
+#include <getopt.h>
+#include <net/route.h>
+#include <net/if.h>
+
 
 #ifndef RTF_UP
 /* Keep this in sync with /usr/src/linux/include/linux/route.h */
@@ -86,7 +75,7 @@
 /* We remap '-' to '#' to avoid problems with getopt. */
 static const char tbl_hash_net_host[] =
 	"\007\001#net\0"
-/* 	"\010\002#host\0" */
+/*	"\010\002#host\0" */
 	"\007\002#host"				/* Since last, we can save a byte. */
 ;
 
@@ -128,7 +117,7 @@ static const char tbl_ipvx[] =
 #endif
 	"\006\041mod\0"
 	"\006\042dyn\0"
-/* 	"\014\043reinstate\0" */
+/*	"\014\043reinstate\0" */
 	"\013\043reinstate"			/* Since last, we can save a byte. */
 ;
 
@@ -166,10 +155,8 @@ static int kw_lookup(const char *kwtbl, char ***pargs)
 static void INET_setroute(int action, char **args)
 {
 	struct rtentry rt;
-	const char *netmask;
+	const char *netmask = NULL;
 	int skfd, isnet, xflag;
-
-	assert((action == RTACTION_ADD) || (action == RTACTION_DEL));
 
 	/* Grab the -net or -host options.  Remember they were transformed. */
 	xflag = kw_lookup(tbl_hash_net_host, &args);
@@ -184,14 +171,33 @@ static void INET_setroute(int action, char **args)
 
 	{
 		const char *target = *args++;
+		char *prefix;
 
+		/* recognize x.x.x.x/mask format. */
+		prefix = strchr(target, '/');
+		if(prefix) {
+			int prefix_len;
+
+			prefix_len = xatoul_range(prefix+1, 0, 32);
+			mask_in_addr(rt) = htonl( ~ (0xffffffffUL >> prefix_len));
+			*prefix = '\0';
+#if HAVE_NEW_ADDRT
+			rt.rt_genmask.sa_family = AF_INET;
+#endif
+		} else {
+			/* Default netmask. */
+			netmask = bb_str_default;
+		}
 		/* Prefer hostname lookup is -host flag (xflag==1) was given. */
- 		isnet = INET_resolve(target, (struct sockaddr_in *) &rt.rt_dst,
+		isnet = INET_resolve(target, (struct sockaddr_in *) &rt.rt_dst,
 							 (xflag & HOST_FLAG));
 		if (isnet < 0) {
 			bb_error_msg_and_die("resolving %s", target);
 		}
-
+		if(prefix) {
+			/* do not destroy prefix for process args */
+			*prefix = '/';
+		}
 	}
 
 	if (xflag) {		/* Reinit isnet if -net or -host was specified. */
@@ -200,8 +206,6 @@ static void INET_setroute(int action, char **args)
 
 	/* Fill in the other fields. */
 	rt.rt_flags = ((isnet) ? RTF_UP : (RTF_UP | RTF_HOST));
-
-	netmask = bb_INET_default;
 
 	while (*args) {
 		int k = kw_lookup(tbl_ipvx, &args);
@@ -214,7 +218,7 @@ static void INET_setroute(int action, char **args)
 
 #if HAVE_NEW_ADDRT
 		if (k == KW_IPVx_METRIC) {
-			rt.rt_metric = bb_xgetularg10(args_m1) + 1;
+			rt.rt_metric = xatoul(args_m1) + 1;
 			continue;
 		}
 #endif
@@ -255,20 +259,20 @@ static void INET_setroute(int action, char **args)
 
 		if (k == KW_IPVx_MSS) {	/* Check valid MSS bounds. */
 			rt.rt_flags |= RTF_MSS;
-			rt.rt_mss = bb_xgetularg10_bnd(args_m1, 64, 32768);
+			rt.rt_mss = xatoul_range(args_m1, 64, 32768);
 			continue;
 		}
 
 		if (k == KW_IPVx_WINDOW) {	/* Check valid window bounds. */
 			rt.rt_flags |= RTF_WINDOW;
-			rt.rt_window = bb_xgetularg10_bnd(args_m1, 128, INT_MAX);
+			rt.rt_window = xatoul_range(args_m1, 128, INT_MAX);
 			continue;
 		}
 
 #ifdef RTF_IRTT
 		if (k == KW_IPVx_IRTT) {
 			rt.rt_flags |= RTF_IRTT;
-			rt.rt_irtt = bb_xgetularg10(args_m1);
+			rt.rt_irtt = xatoul(args_m1);
 			rt.rt_irtt *= (sysconf(_SC_CLK_TCK) / 100);	/* FIXME */
 #if 0					/* FIXME: do we need to check anything of this? */
 			if (rt.rt_irtt < 1 || rt.rt_irtt > (120 * HZ)) {
@@ -321,16 +325,13 @@ static void INET_setroute(int action, char **args)
 	}
 
 	/* Create a socket to the INET kernel. */
-	if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		bb_perror_msg_and_die("socket");
-	}
+	skfd = xsocket(AF_INET, SOCK_DGRAM, 0);
 
 	if (ioctl(skfd, ((action==RTACTION_ADD) ? SIOCADDRT : SIOCDELRT), &rt)<0) {
 		bb_perror_msg_and_die("SIOC[ADD|DEL]RT");
 	}
 
-	/* Don't bother closing, as we're exiting after we return anyway. */
-	/* close(skfd); */
+	if (ENABLE_FEATURE_CLEAN_UP) close(skfd);
 }
 
 #ifdef CONFIG_FEATURE_IPV6
@@ -342,20 +343,17 @@ static void INET6_setroute(int action, char **args)
 	int prefix_len, skfd;
 	const char *devname;
 
-	assert((action == RTACTION_ADD) || (action == RTACTION_DEL));
-
-	{
 		/* We know args isn't NULL from the check in route_main. */
 		const char *target = *args++;
 
-		if (strcmp(target, "default") == 0) {
+		if (strcmp(target, bb_str_default) == 0) {
 			prefix_len = 0;
 			memset(&sa6, 0, sizeof(sa6));
 		} else {
 			char *cp;
 			if ((cp = strchr(target, '/'))) { /* Yes... const to non is ok. */
 				*cp = 0;
-				prefix_len = bb_xgetularg10_bnd(cp+1, 0, 128);
+				prefix_len = xatoul_range(cp+1, 0, 128);
 			} else {
 				prefix_len = 128;
 			}
@@ -363,7 +361,6 @@ static void INET6_setroute(int action, char **args)
 				bb_error_msg_and_die("resolving %s", target);
 			}
 		}
-	}
 
 	/* Clean out the RTREQ structure. */
 	memset((char *) &rt, 0, sizeof(struct in6_rtmsg));
@@ -387,7 +384,7 @@ static void INET6_setroute(int action, char **args)
 		}
 
 		if (k == KW_IPVx_METRIC) {
-			rt.rtmsg_metric = bb_xgetularg10(args_m1);
+			rt.rtmsg_metric = xatoul(args_m1);
 			continue;
 		}
 
@@ -418,16 +415,14 @@ static void INET6_setroute(int action, char **args)
 	}
 
 	/* Create a socket to the INET6 kernel. */
-	if ((skfd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		bb_perror_msg_and_die("socket");
-	}
+	skfd = xsocket(AF_INET6, SOCK_DGRAM, 0);
 
 	rt.rtmsg_ifindex = 0;
 
 	if (devname) {
 		struct ifreq ifr;
 		memset(&ifr, 0, sizeof(ifr));
-		strcpy(ifr.ifr_name, devname);
+		strncpy(ifr.ifr_name, devname, sizeof(ifr.ifr_name));
 
 		if (ioctl(skfd, SIOGIFINDEX, &ifr) < 0) {
 			bb_perror_msg_and_die("SIOGIFINDEX");
@@ -440,8 +435,7 @@ static void INET6_setroute(int action, char **args)
 		bb_perror_msg_and_die("SIOC[ADD|DEL]RT");
 	}
 
-	/* Don't bother closing, as we're exiting after we return anyway. */
-	/* close(skfd); */
+	if (ENABLE_FEATURE_CLEAN_UP) close(skfd);
 }
 #endif
 
@@ -461,30 +455,27 @@ static const unsigned int flagvals[] = { /* Must agree with flagchars[]. */
 #define IPV4_MASK (RTF_GATEWAY|RTF_HOST|RTF_REINSTATE|RTF_DYNAMIC|RTF_MODIFIED)
 #define IPV6_MASK (RTF_GATEWAY|RTF_HOST|RTF_DEFAULT|RTF_ADDRCONF|RTF_CACHE)
 
-static const char flagchars[] = 		/* Must agree with flagvals[]. */
+static const char flagchars[] =		/* Must agree with flagvals[]. */
 	"GHRDM"
 #ifdef CONFIG_FEATURE_IPV6
 	"DAC"
 #endif
 ;
 
-static
-#ifndef CONFIG_FEATURE_IPV6
-__inline
-#endif
-void set_flags(char *flagstr, int flags)
+static void set_flags(char *flagstr, int flags)
 {
 	int i;
 
 	*flagstr++ = 'U';
 
-	for (i=0 ; (*flagstr = flagchars[i]) != 0 ; i++) {
+	for (i = 0; (*flagstr = flagchars[i]) != 0; i++) {
 		if (flags & flagvals[i]) {
 			++flagstr;
 		}
 	}
 }
 
+/* also used in netstat */
 void displayroutes(int noresolve, int netstatfmt)
 {
 	char devname[64], flags[16], sdest[16], sgw[16];
@@ -493,12 +484,11 @@ void displayroutes(int noresolve, int netstatfmt)
 	struct sockaddr_in s_addr;
 	struct in_addr mask;
 
-	FILE *fp = bb_xfopen("/proc/net/route", "r");
+	FILE *fp = xfopen("/proc/net/route", "r");
 
-	bb_printf("Kernel IP routing table\n"
-			  "Destination     Gateway         Genmask"
-			  "         Flags %s Iface\n",
-			  netstatfmt ? "  MSS Window  irtt" : "Metric Ref    Use");
+	printf("Kernel IP routing table\n"
+	       "Destination     Gateway         Genmask         Flags %s Iface\n",
+			netstatfmt ? "  MSS Window  irtt" : "Metric Ref    Use");
 
 	if (fscanf(fp, "%*[^\n]\n") < 0) { /* Skip the first line. */
 		goto ERROR;		   /* Empty or missing line, or read error. */
@@ -512,7 +502,7 @@ void displayroutes(int noresolve, int netstatfmt)
 			if ((r < 0) && feof(fp)) { /* EOF with no (nonspace) chars read. */
 				break;
 			}
-		ERROR:
+ ERROR:
 			bb_error_msg_and_die("fscanf");
 		}
 
@@ -538,11 +528,11 @@ void displayroutes(int noresolve, int netstatfmt)
 					  (noresolve | 0x4000), m);	/* Host instead of net. */
 
 		mask.s_addr = m;
-		bb_printf("%-16s%-16s%-16s%-6s", sdest, sgw, inet_ntoa(mask), flags);
+		printf("%-16s%-16s%-16s%-6s", sdest, sgw, inet_ntoa(mask), flags);
 		if (netstatfmt) {
-			bb_printf("%5d %-5d %6d %s\n", mtu, win, ir, devname);
+			printf("%5d %-5d %6d %s\n", mtu, win, ir, devname);
 		} else {
-			bb_printf("%-6d %-2d %7d %s\n", metric, ref, use, devname);
+			printf("%-6d %-2d %7d %s\n", metric, ref, use, devname);
 		}
 	}
 }
@@ -563,9 +553,9 @@ static void INET6_displayroutes(int noresolve)
 	int iflags, metric, refcnt, use, prefix_len, slen;
 	struct sockaddr_in6 snaddr6;
 
-	FILE *fp = bb_xfopen("/proc/net/ipv6_route", "r");
+	FILE *fp = xfopen("/proc/net/ipv6_route", "r");
 
-	bb_printf("Kernel IPv6 routing table\n%-44s%-40s"
+	printf("Kernel IPv6 routing table\n%-44s%-40s"
 			  "Flags Metric Ref    Use Iface\n",
 			  "Destination", "Next Hop");
 
@@ -578,7 +568,7 @@ static void INET6_displayroutes(int noresolve)
 			if ((r < 0) && feof(fp)) { /* EOF with no (nonspace) chars read. */
 				break;
 			}
-		ERROR:
+ ERROR:
 			bb_error_msg_and_die("fscanf");
 		}
 
@@ -618,11 +608,7 @@ static void INET6_displayroutes(int noresolve)
 			snaddr6.sin6_family = AF_INET6;
 			INET6_rresolve(naddr6, sizeof(naddr6),
 						   (struct sockaddr_in6 *) &snaddr6,
-#if 0
-						   (noresolve | 0x8000) /* Default instead of *. */
-#else
 						   0x0fff /* Apparently, upstream never resolves. */
-#endif
 						   );
 
 			if (!r) {			/* 1st pass */
@@ -630,7 +616,7 @@ static void INET6_displayroutes(int noresolve)
 				r += 40;
 			} else {			/* 2nd pass */
 				/* Print the info. */
-				bb_printf("%-43s %-39s %-5s %-6d %-2d %7d %-8s\n",
+				printf("%-43s %-39s %-5s %-6d %-2d %7d %-8s\n",
 						  addr6, naddr6, flags, metric, refcnt, use, iface);
 				break;
 			}
@@ -646,31 +632,29 @@ static void INET6_displayroutes(int noresolve)
 #define ROUTE_OPT_INET6		0x08 /* Not an actual option. See below. */
 
 /* 1st byte is offset to next entry offset.  2nd byte is return value. */
-static const char tbl_verb[] = 	/* 2nd byte matches RTACTION_* code */
+static const char tbl_verb[] =	/* 2nd byte matches RTACTION_* code */
 	"\006\001add\0"
 	"\006\002del\0"
-/* 	"\011\002delete\0" */
+/*	"\011\002delete\0" */
 	"\010\002delete"			/* Since last, we can save a byte. */
 ;
 
 int route_main(int argc, char **argv)
 {
-	unsigned long opt;
+	unsigned opt;
 	int what;
 	char *family;
+	char **p;
 
 	/* First, remap '-net' and '-host' to avoid getopt problems. */
-	{
-		char **p = argv;
-
-		while (*++p) {
-			if ((strcmp(*p, "-net") == 0) || (strcmp(*p, "-host") == 0)) {
-				p[0][0] = '#';
-			}
+	p = argv;
+	while (*++p) {
+		if ((strcmp(*p, "-net") == 0) || (strcmp(*p, "-host") == 0)) {
+			p[0][0] = '#';
 		}
 	}
 
-	opt = bb_getopt_ulflags(argc, argv, "A:ne", &family);
+	opt = getopt32(argc, argv, "A:ne", &family);
 
 	if ((opt & ROUTE_OPT_A) && strcmp(family, "inet")) {
 #ifdef CONFIG_FEATURE_IPV6
@@ -693,8 +677,7 @@ int route_main(int argc, char **argv)
 #endif
 			displayroutes(noresolve, opt & ROUTE_OPT_e);
 
-		bb_xferror_stdout();
-		bb_fflush_stdout_and_exit(EXIT_SUCCESS);
+		fflush_stdout_and_exit(EXIT_SUCCESS);
 	}
 
 	/* Check verb.  At the moment, must be add, del, or delete. */
