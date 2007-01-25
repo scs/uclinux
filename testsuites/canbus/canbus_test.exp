@@ -3,6 +3,7 @@
 source ../kernel_config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
 
 step "Start kermit."
 source ../spawn_kermit.exp
@@ -18,8 +19,8 @@ expect "root:~>"
 send -s "modprobe can\r" 
 while 1 {
    expect {
-     -re "ISA-BlackFin-CAN CAN Driver" {
-         
+     -re "BlackFin-CAN CAN Driver" {
+         incr flag
 	 puts "module insert success.\n"
          break
       }
@@ -35,7 +36,7 @@ send -s "lsmod\r"
 while 1 {
    expect {
       "can" {
-         
+         incr flag
 	 puts "module ls success.\n"
          break
       }
@@ -53,6 +54,7 @@ while 1 {
    sleep 3
    expect {
       "root:~>" { 
+         incr flag
          break
       }
 
@@ -68,6 +70,7 @@ while 1 {
    sleep 3
    expect {
       "root:~>" { 
+        incr flag
          break
       }
 
@@ -80,8 +83,9 @@ while 1 {
 send -s "receive\r" 
 while 1 {
    expect {
-     -re "Received with ret=1.*01 02 03 04 05 06 07.*Received with ret=1.*01 02 03 04 05 06 07" { 
-   
+     -re "Received with ret=1.*01 02 03 04 05 06 07.*" { 
+         incr flag
+         send -s "\3"
          break
       }
 
@@ -91,20 +95,32 @@ while 1 {
      }
 }
 
+#send -s "lsmod\r" 
+expect "root:~>"
 
-send -s "lsmod\r" 
+send -s "lsmod\r"
+
 while 1 {
    expect {
-      "root:~>" {
+      "can" {
+         incr flag
+         puts "module ls success.\n"
          break
       }
 
-      timeout { 
-         puts "module ls failed.\n"                  
+      timeout {
+         puts "module ls failed.\n"
          break
          }
      }
 }
+
+if { $flag == 6 } {
+   all_pass
+} else {
+   puts "canbus test failed.\n"
+}
+
 
 send_user "Ending $argv0\n"
 log_file
