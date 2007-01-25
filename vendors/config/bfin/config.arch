@@ -20,10 +20,33 @@ endif
 
 MACHINE        = bfin
 ARCH           = blackfin
-ENDIAN         = little 
-CROSS_COMPILE  = bfin-uclinux-
+ENDIAN         = little
+
+UCLINUX_BUILD_SET = 0		# have we set a special config below
+
+# Pull in common definitions
+include $(ROOTDIR)/vendors/config/common/config.arch
+
+ifndef DISABLE_SHARED_LIBS
+  ifeq ($(CONFIG_FMT_USE_SHARED_FLAT),y)
+	BUILD_SHARED = 1
+  endif
+
+  ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	BUILD_FDPIC_ELF = 1
+	CROSS_COMPILE = bfin-linux-uclibc-
+	CONFIGURE_HOST = bfin-linux-uclibc
+  else	
+	CROSS_COMPILE  = bfin-uclinux-
+	CONFIGURE_HOST = bfin-uclinux
+  endif
+
+  ifeq ($(CONFIG_FMT_USE_SEP_DATA),y)
+	BUILD_SEP_DATA = 1
+  endif
+endif
+
 CROSS          = $(CROSS_COMPILE)
-CONFIGURE_HOST = bfin-uclinux
 
 CONFIG_UCLINUX=y
 
@@ -39,18 +62,6 @@ STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
 
 UCLINUX_BUILD_SET = 0		# have we set a special config below
-
-# Pull in common definitions
-include $(ROOTDIR)/vendors/config/common/config.arch
-
-ifndef DISABLE_SHARED_LIBS
-  ifeq ($(CONFIG_FMT_USE_SHARED_FLAT),y)
-	BUILD_SHARED = 1
-  endif
-  ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	BUILD_FDPIC_ELF = 1
-  endif
-endif
 
 # These can be used by configure.
 # Either configure $(CONFIGURE_OPTS)
@@ -87,6 +98,11 @@ ifdef UCLINUX_BUILD_LIB
 	CFLAGS += -mfdpic
 	LDFLAGS += -mfdpic
   endif
+  ifdef BUILD_SEP_DATA
+	CFLAGS += -msep-data
+	LDFLAGS += -msep-data
+  endif
+
 	# don't want all the CFLAGS for uClibc/Config
 	ARCH_CFLAGS := $(CPUFLAGS) $(CFLAGS)
 	CFLAGS  += -D__uClinux__
@@ -131,6 +147,10 @@ ifdef UCLINUX_BUILD_USER
 	LDFLAGS = -mfdpic
   else
 	LDFLAGS = -Wl,-elf2flt
+  ifdef BUILD_SEP_DATA
+	CFLAGS += -msep-data
+	LDFLAGS += -msep-data
+  endif
   endif
 	CXXFLAGS := $(CFLAGS) $(INCCXX) -fno-exceptions
 	CFLAGS  += -I$(ROOTDIR)

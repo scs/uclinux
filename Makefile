@@ -70,7 +70,7 @@ ifneq ($(SUBARCH),)
 MAKEARCH = $(MAKE) ARCH=$(SUBARCH) CROSS_COMPILE=$(CROSS_COMPILE)
 MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) SUBARCH=$(SUBARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 else
-MAKEARCH = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+MAKEARCH = $(MAKE) ARCH=$(ARCH)
 MAKEARCH_KERNEL = $(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(KERNEL_CROSS_COMPILE)
 endif
 
@@ -266,7 +266,7 @@ romfs.post:
 
 romfs.shared.libs:
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`$(CC) -print-file-name=libc.a`; \
+		t=`bfin-linux-uclibc-gcc -print-file-name=libc.a`; \
 		t=`dirname $$t`/../runtime; \
 		for i in $$t/lib/*so*; do \
 			bn=`basename $$i`; \
@@ -287,7 +287,7 @@ romfs.shared.libs:
 				/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 				/lib/ld-linux.so.2; \
 		fi; \
-		t=`$(CC) -mfdpic -print-file-name=libstc++.so`; \
+		t=`bfin-linux-uclibc-gcc -print-file-name=libstc++.so`; \
 		t=`dirname $$t`; \
 		for i in $$t/libstdc++.so*; do \
 			if [ -f $$i -a ! -h $$i ] ; then \
@@ -302,49 +302,27 @@ romfs.shared.libs:
 					/lib/`basename $$i`; \
 			fi; \
 		done; \
-		t=`$(CC) -mfdpic -print-file-name=libgcc_s_mfdpic.so`; \
+		t=`bfin-linux-uclibc-gcc -print-file-name=libgcc_s.so`; \
 		t=`dirname $$t`; \
-		if [ $$t = "." ] ; then \
-			t=`$(CC) -mfdpic -print-file-name=libgcc_s.so`; \
-			t=`dirname $$t`; \
-			for i in $$t/libgcc_s.so*; do \
-				if [ -f $$i -a ! -h $$i ] ; then \
-					$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
-				fi; \
-			done; \
-			for i in $$t/libgcc_s.so*; do \
-				if [ -h $$i -a -e $$i ] ; then \
-					j=`readlink $$i`; \
-					$(ROMFSINST) -s \
-						/lib/`basename $$j` \
-						/lib/`basename $$i`; \
-				fi; \
-			done; \
-		else \
-			for i in $$t/libgcc_s_mfdpic.so*; do \
-				if [ -f $$i -a ! -h $$i ] ; then \
-					$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
-				fi; \
-			done; \
-			for i in $$t/libgcc_s_mfdpic.so*; do \
-				if [ -h $$i -a -e $$i ] ; then \
-					j=`readlink $$i`; \
-					$(ROMFSINST) -s \
-						/lib/`basename $$j` \
-						/lib/`basename $$i`; \
-				fi; \
-			done; \
-		fi; \
-	fi
-	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`$(CC) -print-file-name=libc.a`; \
-		t=`dirname $$t`/../runtime; \
-		for i in $$t/lib/lib?.so; do \
-			bn=`basename $$i`; \
+		for i in $$t/libgcc_s.so*; do \
 			if [ -f $$i -a ! -h $$i ] ; then \
-				$(ROMFSINST) -p 755 $$i /lib/$$bn; \
+				$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
 			fi; \
 		done; \
+		for i in $$t/libgcc_s.so*; do \
+			if [ -h $$i -a -e $$i ] ; then \
+				j=`readlink $$i`; \
+				$(ROMFSINST) -s \
+					/lib/`basename $$j` \
+					/lib/`basename $$i`; \
+			fi; \
+		done; \
+	fi
+	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
+		t=`$(CC) -mid-shared-library -print-file-name=libc`; \
+		if [ -f $$t -a ! -h $$t ] ; then \
+			$(ROMFSINST) -p 755 $$t /lib/lib1.so; \
+		fi; \
 	fi
 
 .PHONY: image
