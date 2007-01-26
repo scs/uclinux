@@ -1,3 +1,6 @@
+# This is a pretty "full" device table that is meant to be used with
+# a system that does not create device nodes on the fly.
+
 # When building a target filesystem, it is desirable to not have to
 # become root and then run 'mknod' a thousand times.  Using a device
 # table you can create device nodes and directories "on the fly".

@@ -54,6 +54,12 @@ BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '
 BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
 ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
 
+ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
+DEVICE_TABLE = device_table-min.txt
+else
+DEVICE_TABLE = device_table.txt
+endif
+
 image:
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
@@ -63,7 +69,7 @@ image:
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
 	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
-		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(ROMFSIMG).jffs2; \
+		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
 	set -e ; \
 	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
@@ -75,20 +81,20 @@ image:
 		fi ; \
 	fi ; \
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
-		bfin-uclinux-mkcramfs -z -r -D device_table.txt $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
+		bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ; \
 	fi ; \
 	if [ -n "$(CONFIG_EXT2_FS)" ]; then \
-		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG).ext2 ; \
+		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2 ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ; \
 	fi ; \
 	if [ -n "$(CONFIG_ROMFS_FS)" ]; then \
 		if  which genromfs >/dev/null 2>&1; then \
-			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) device_table.txt; \
+			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 			genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
 			$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
 			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \

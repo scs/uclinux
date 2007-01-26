@@ -1015,6 +1015,9 @@ endmenu
 mainmenu_option next_comment
 comment 'Miscellaneous Configuration'
 
+choice 'Device Nodes'	"Dynamic CONFIG_USER_DEV_DYNAMIC \
+			Static CONFIG_USER_DEV_STATIS \
+			" Dynamic
 choice 'RAMFS Image'	"None CONFIG_USER_RAMIMAGE_NONE \
 			64K CONFIG_USER_RAMIMAGE_RAMFS64 \
 			128K CONFIG_USER_RAMIMAGE_RAMFS128 \
