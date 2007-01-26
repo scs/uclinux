@@ -4,7 +4,7 @@
 ###
 
 comment '--###-- SHELLS --###--'
- choice 'Choose your default shell' "
+ choice 'Choose your default shell' " \
      ash  CONFIG_USER_BUSYBOX_FEATURE_SH_IS_ASH  \
      hush  CONFIG_USER_BUSYBOX_FEATURE_SH_IS_HUSH  \
      lash  CONFIG_USER_BUSYBOX_FEATURE_SH_IS_LASH  \
@@ -79,7 +79,7 @@ comment '--###-- SHELLS --###--'
    bool '   Optimize for size instead of speed' CONFIG_USER_BUSYBOX_ASH_OPTIMIZE_FOR_SIZE y
  fi
  if [ "$CONFIG_USER_BUSYBOX_ASH" = "y" ]; then
-   bool '   Pseudorandom generator and variable $RANDOM' CONFIG_USER_BUSYBOX_ASH_RANDOM_SUPPORT n
+   bool '   Pseudorandom generator and variable \$RANDOM' CONFIG_USER_BUSYBOX_ASH_RANDOM_SUPPORT n
  fi
  if [ "$CONFIG_USER_BUSYBOX_ASH" = "y" ]; then
    bool '   Expand prompt string' CONFIG_USER_BUSYBOX_ASH_EXPAND_PRMT n

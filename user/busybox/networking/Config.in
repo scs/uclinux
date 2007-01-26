@@ -59,7 +59,7 @@ config FTPPUT
 config FEATURE_FTPGETPUT_LONG_OPTIONS
 	bool "Enable long options in ftpget/ftpput"
 	default n
-	depends on GETOPT_LONG && (FTPGET || FTPPUT)
+	depends on GETOPT_LONG && FTPGET || GETOPT_LONG && FTPPUT
 	help
 	  Support long options for the ftpget/ftpput applet.
 

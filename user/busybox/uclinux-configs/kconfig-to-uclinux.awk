@@ -24,6 +24,8 @@ function parse_depend(depend)
 	printf leadspace "if [ "
 	for (idx=1; depend[idx] != ""; ++idx) {
 		delete d2
+		gsub(/\(/," ( ",depend[idx])
+		gsub(/\)/," ) ",depend[idx])
 		split(depend[idx], d2, " ")
 		for (i2=1; i2<=length(d2); ++i2) { #// in d2) {
 			if (d2[i2] == "&&") {
@@ -99,10 +101,11 @@ if ($1 ~ /^#/) {
 			type = $1
 			sub(/^\t(bool|int|string)[[:space:]]*['"]?/,"")
 			sub(/['"][[:space:]]*$/,"")
-			# uclinux-dist cant handle embedded quotes
+			# uclinux-dist cant handle embedded quotes or $
 			#gsub(/'/,"\\'")
 			gsub(/'/,"")
 			gsub(/\\"/,"\"")
+			gsub(/\$/,"\\$")
 			desc = $0
 			continue
 		} else if ($1 == "help") {
@@ -222,7 +225,7 @@ if ($1 ~ /^#/) {
 				err("Unknown choice config")
 			}
 		} else if ($1 == "endchoice") {
-			print leadspace "choice '" choice_desc "' \""
+			print leadspace "choice '" choice_desc "' \" \\"
 			for (idx=1; idx<length(choice_opts); ++idx) {
 				print leadspace "    " choice_descs[idx] "  " choice_opts[idx] "  \\"
 				if (choice_opts[idx] == choice_default)

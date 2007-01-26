@@ -17,7 +17,7 @@ comment '--###-- NETWORKING UTILITIES --###--'
  fi
  bool ' ftpget' CONFIG_USER_BUSYBOX_FTPGET n
  bool ' ftpput' CONFIG_USER_BUSYBOX_FTPPUT n
- if [ "$CONFIG_USER_BUSYBOX_GETOPT_LONG" = "y" -a "$CONFIG_USER_BUSYBOX_(FTPGET" = "y" -o "$CONFIG_USER_BUSYBOX_FTPPUT)" = "y" ]; then
+ if [ "$CONFIG_USER_BUSYBOX_GETOPT_LONG" = "y" -a "$CONFIG_USER_BUSYBOX_FTPGET" = "y" -o "$CONFIG_USER_BUSYBOX_GETOPT_LONG" = "y" -a "$CONFIG_USER_BUSYBOX_FTPPUT" = "y" ]; then
    bool '   Enable long options in ftpget/ftpput' CONFIG_USER_BUSYBOX_FEATURE_FTPGETPUT_LONG_OPTIONS n
  fi
  bool ' hostname' CONFIG_USER_BUSYBOX_HOSTNAME n

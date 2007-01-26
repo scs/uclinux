@@ -90,7 +90,7 @@ comment '--###-- MISCELLANEOUS UTILITIES --###--'
    bool '   get/set using_dma flag (DANGEROUS)' CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_GETSET_DMA n
  fi
  bool ' makedevs' CONFIG_USER_BUSYBOX_MAKEDEVS n
- choice 'Choose makedevs behaviour' "
+ choice 'Choose makedevs behaviour' " \
      leaf  CONFIG_USER_BUSYBOX_FEATURE_MAKEDEVS_LEAF  \
      table  CONFIG_USER_BUSYBOX_FEATURE_MAKEDEVS_TABLE  \
  " table

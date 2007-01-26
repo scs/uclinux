@@ -10,7 +10,7 @@ comment '--###-- BUSYBOX SETTINGS --###--'
  comment ' --- General Configuration'
   bool '  See lots more (probably unnecessary) configuration options.' CONFIG_USER_BUSYBOX_NITPICK n
   bool '  Enable options for full-blown desktop systems' CONFIG_USER_BUSYBOX_DESKTOP n
-  choice 'Buffer allocation policy' "
+  choice 'Buffer allocation policy' " \
       Allocate-with-Malloc  CONFIG_USER_BUSYBOX_FEATURE_BUFFERS_USE_MALLOC  \
       Allocate-on-the-Stack  CONFIG_USER_BUSYBOX_FEATURE_BUFFERS_GO_ON_STACK  \
       Allocate-in-the-.bss-section  CONFIG_USER_BUSYBOX_FEATURE_BUFFERS_GO_IN_BSS  \
@@ -64,7 +64,7 @@ comment '--###-- BUSYBOX SETTINGS --###--'
   if [ "$CONFIG_USER_BUSYBOX_DEBUG" = "y" ]; then
     bool '    Disable compiler optimizations.' CONFIG_USER_BUSYBOX_DEBUG_PESSIMIZE n
   fi
-  choice 'Additional debugging library' "
+  choice 'Additional debugging library' " \
       None  CONFIG_USER_BUSYBOX_NO_DEBUG_LIB  \
       Dmalloc  CONFIG_USER_BUSYBOX_DMALLOC  \
       Electric-fence  CONFIG_USER_BUSYBOX_EFENCE  \
@@ -72,7 +72,7 @@ comment '--###-- BUSYBOX SETTINGS --###--'
   bool '  Enable obsolete features removed before SUSv3?' CONFIG_USER_BUSYBOX_INCLUDE_SUSv2 y
  comment ' --- Installation Options'
   bool '  Dont use /usr' CONFIG_USER_BUSYBOX_INSTALL_NO_USR n
-  choice 'Applets links' "
+  choice 'Applets links' " \
       as-soft-links  CONFIG_USER_BUSYBOX_INSTALL_APPLET_SYMLINKS  \
       as-hard-links  CONFIG_USER_BUSYBOX_INSTALL_APPLET_HARDLINKS  \
       not-installed  CONFIG_USER_BUSYBOX_INSTALL_APPLET_DONT  \
