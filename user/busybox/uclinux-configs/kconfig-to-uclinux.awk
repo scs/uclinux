@@ -1,4 +1,15 @@
 #XXX: Multiple options parsing" if NITPICK
+#XXX: choice help is given before the actual choices so we cant see that help
+
+BEGIN {
+	cfgprefix = "CONFIG_USER_BUSYBOX_"
+
+	if (HELPFILE == "") {
+		print "No HELPFILE specified" > "/dev/stderr"
+		exit 1
+	} else
+		print > HELPFILE
+}
 
 function err(msg)
 {
@@ -34,12 +45,10 @@ function parse_depend(depend)
 }
 
 {
-cfgprefix = "CONFIG_USER_BUSYBOX_"
-
 if (inhelp && NF > 0 && $0 !~ /^\t/)
 	inhelp = 0
 
-if ($1 ~ /^#/ || NF == 0) {
+if ($1 ~ /^#/) {
 	next
 } else if ($1 == "mainmenu") {
 	# We dont actually care as the top level menu takes care of this
@@ -96,8 +105,10 @@ if ($1 ~ /^#/ || NF == 0) {
 			continue
 		} else if ($1 == "help") {
 			inhelp = 1
+			print option >> HELPFILE
 			while (1) {
 				getline
+				print >> HELPFILE
 				if ($0 ~ /^\t/)
 					continue
 				else
@@ -230,15 +241,20 @@ if ($1 ~ /^#/ || NF == 0) {
 			break
 		} else if ($1 == "help") {
 			inhelp = 1
+			print "NO_IDEA" >> HELPFILE
 			while (1) {
 				getline
+				print >> HELPFILE
 				if ($0 ~ /^\t/)
 					continue
 				else
 					break
 			}
-		} else if (NF > 0 && !inhelp) {
-			err("Unknown choice")
+		} else if (NF > 0) {
+			if (inhelp)
+				print >> HELPFILE
+			else
+				err("Unknown choice")
 		}
 	}
 } else if ($1 == "endchoice") {
@@ -246,10 +262,11 @@ if ($1 ~ /^#/ || NF == 0) {
 	sub(/^ /,"",leadspace)
 } else if ($1 == "source") {
 	print "source ../user/busybox/uclinux-configs/"$2
-} else if ($0 ~ /^\t/) {
-	if (!inhelp)
-		err("Unknown record?")
+	print "source ../user/busybox/uclinux-configs/"$2".help" >> HELPFILE
 } else {
-	err("Unknown record")
+	if (inhelp)
+		print >> HELPFILE
+	else if (NF > 0)
+		err("Unknown record")
 }
 }

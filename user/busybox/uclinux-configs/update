@@ -5,5 +5,5 @@ for c in $(find .. -name Config.in | grep -v uclinux-configs) ; do
 	dir=${c%/*}
 	[ "${dir}" != "${c}" ] && mkdir -p ${c%/*}
 	# uClinux build system is a meta system so we need to transform
-	gawk -f kconfig-to-uclinux.awk ../${c} > ${c}
+	gawk -v HELPFILE=${c}.help -f kconfig-to-uclinux.awk ../${c} > ${c}
 done
