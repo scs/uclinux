@@ -376,6 +376,13 @@ function choice () {
 function extract_help () {
   if [ -f ${HELP_FILE} ]
   then
+     # add support for "source" syntax
+     extra_help=""
+     new_extra_help=${HELP_FILE}
+     while [ -n "${new_extra_help}" ] ; do
+         new_extra_help=$(sed -n '/^[[:space:]]*source[[:space:]]/s:^[[:space:]]*source[[:space:]]*::p' ${new_extra_help})
+         extra_help="${extra_help} ${new_extra_help}"
+     done
      #first escape regexp special characters in the argument:
      var=$(echo "$1"|sed 's/[][\/.^$*]/\\&/g')
      #now pick out the right help text:
@@ -387,16 +394,20 @@ ${var}:\\
                         /^[^ 	]/q
                         s/^  //
                         p
-                    }" ${HELP_FILE})
+                    }" ${HELP_FILE} ${extra_help})
 
      if [ -z "$text" ]
      then
+          echo "$1:"
+          echo
           echo "There is no help available for this kernel option."
 	  return 1
      else
 	  echo "$text"
      fi
   else
+          echo "$1:"
+          echo
 	 echo "There is no help available for this kernel option."
          return 1
   fi
