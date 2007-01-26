@@ -15,8 +15,9 @@ romfs:
 	$(ROMFSINST) /bin/$(EXEC)
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o version.h clean.h .version
+	-rm -f $(EXEC) *.elf *.gdb *.o version.h clean.h compile.h
 
+.PHONY: .version
 .version:
 	@if [ ! -f .version ]; then \
 		echo 1 > .version; \
@@ -43,11 +44,10 @@ compile.h: $(CONFIGURATION) version.h .version
 	@echo \#define TOOLCHAIN_COMPILER \"`$(CC) -v 2>&1 | tail -1`\" >> .ver
 	@mv -f .ver $@
 
-version.h: ./Makefile id.mk
+version.h: ./Makefile id.mk $(ROOTDIR)/release_notes
 	@echo \#define TOOLCHAIN_BANNER \"$(BANNER)\" > .ver
 	@echo \#define TOOLCHAIN_NAME \"$(TOOLCHAIN)\" >> .ver
-	@echo \#define TOOLCHAIN_RELEASE \"$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)\" >> .ver
-	@echo \#define TOOLCHAIN_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
+	@echo \#define TOOLCHAIN_RELEASE \"$(VERSION)\" >> .ver
 	@mv -f .ver $@
 
 version.o: version.c compile.h
