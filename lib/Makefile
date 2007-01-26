@@ -120,7 +120,7 @@ dir_y += $(wildcard $(ROOTDIR)/prop)
 
 all:
 	for i in $(dir_y) ; do make -C $$i || exit $$? ; done
-	-sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib:" $(STAGEDIR)/usr/lib/*.la
+	-cd $(STAGEDIR) && sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/*.la
 
 ##############################################################################
 
