@@ -2,11 +2,11 @@ This is rluserman.info, produced by makeinfo version 4.7 from
 /Users/chet/src/bash/readline-src/doc/rluserman.texi.
 
    This manual describes the end user interface of the GNU Readline
-Library (version 5.1-beta1, 11 November 2005), a library which aids in
-the consistency of user interface across discrete programs which provide
-a command line interface.
+Library (version 5.2, 26 April 2006), a library which aids in the
+consistency of user interface across discrete programs which provide a
+command line interface.
 
-   Copyright (C) 1988-2005 Free Software Foundation, Inc.
+   Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -14,7 +14,7 @@ preserved on all copies.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
-     Version 1.1 or any later version published by the Free Software
+     Version 1.2 or any later version published by the Free Software
      Foundation; with no Invariant Sections, with the Front-Cover texts
      being "A GNU Manual," and with the Back-Cover Texts as in (a)
      below.  A copy of the license is included in the section entitled
@@ -330,7 +330,8 @@ of keybindings.  Any user can customize programs that use Readline by
 putting commands in an "inputrc" file, conventionally in his home
 directory.  The name of this file is taken from the value of the
 environment variable `INPUTRC'.  If that variable is unset, the default
-is `~/.inputrc'.
+is `~/.inputrc'.  If that file does not exist or cannot be read, the
+ultimate default is `/etc/inputrc'.
 
    When a program which uses the Readline library starts up, the init
 file is read, and the key bindings are set.
@@ -539,9 +540,10 @@ Key Bindings
 
      Once you know the name of the command, simply place on a line in
      the init file the name of the key you wish to bind the command to,
-     a colon, and then the name of the command.  The name of the key
-     can be expressed in different ways, depending on what you find most
-     comfortable.
+     a colon, and then the name of the command.  There can be no space
+     between the key name and the colon - that will be interpreted as
+     part of the key name.  The name of the key can be expressed in
+     different ways, depending on what you find most comfortable.
 
      In addition to command names, readline allows keys to be bound to
      a string that is inserted when the key is pressed (a MACRO).
@@ -1717,30 +1719,30 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top1382
-Node: Command Line Editing1814
-Node: Introduction and Notation2457
-Node: Readline Interaction4081
-Node: Readline Bare Essentials5274
-Node: Readline Movement Commands7065
-Node: Readline Killing Commands8032
-Node: Readline Arguments9954
-Node: Searching11000
-Node: Readline Init File13153
-Node: Readline Init File Syntax14220
-Node: Conditional Init Constructs26156
-Node: Sample Init File28691
-Node: Bindable Readline Commands31810
-Node: Commands For Moving32869
-Node: Commands For History33732
-Node: Commands For Text36858
-Node: Commands For Killing39586
-Node: Numeric Arguments41730
-Node: Commands For Completion42871
-Node: Keyboard Macros44417
-Node: Miscellaneous Commands44990
-Node: Readline vi Mode48353
-Node: Copying This Manual49274
-Node: GNU Free Documentation License49506
+Node: Top1373
+Node: Command Line Editing1805
+Node: Introduction and Notation2448
+Node: Readline Interaction4072
+Node: Readline Bare Essentials5265
+Node: Readline Movement Commands7056
+Node: Readline Killing Commands8023
+Node: Readline Arguments9945
+Node: Searching10991
+Node: Readline Init File13144
+Node: Readline Init File Syntax14299
+Node: Conditional Init Constructs26350
+Node: Sample Init File28885
+Node: Bindable Readline Commands32004
+Node: Commands For Moving33063
+Node: Commands For History33926
+Node: Commands For Text37052
+Node: Commands For Killing39780
+Node: Numeric Arguments41924
+Node: Commands For Completion43065
+Node: Keyboard Macros44611
+Node: Miscellaneous Commands45184
+Node: Readline vi Mode48547
+Node: Copying This Manual49468
+Node: GNU Free Documentation License49700
 
 End Tag Table

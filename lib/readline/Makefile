@@ -9,7 +9,7 @@ all: build/Makefile
 	rm -f $(STAGEDIR)/usr/lib/*.old
 
 build/Makefile:
-	touch * */*
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
@@ -20,8 +20,6 @@ clean:
 	rm -rf build
 
 romfs:
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	cp $(STAGEDIR)/usr/lib/libreadline.so* $(ROMFSDIR)/lib/
-endif
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libreadline.so.5 /lib/
 
 .PHONY: all clean romfs

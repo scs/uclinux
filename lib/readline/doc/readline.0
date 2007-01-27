@@ -64,13 +64,14 @@ IINNIITTIIAALLIIZZAATTIIOONN FFIILLEE
        Readline is customized by putting commands in  an  initialization  file
        (the  _i_n_p_u_t_r_c  file).  The name of this file is taken from the value of
        the IINNPPUUTTRRCC environment variable.   If  that  variable  is  unset,  the
-       default  is _~_/_._i_n_p_u_t_r_c.  When a program which uses the readline library
-       starts up, the init file is read, and the key  bindings  and  variables
-       are set.  There are only a few basic constructs allowed in the readline
-       init file.  Blank lines are ignored.  Lines beginning with a ## are com-
-       ments.   Lines  beginning  with  a  $$  indicate conditional constructs.
-       Other lines denote key bindings and variable  settings.   Each  program
-       using this library may add its own commands and bindings.
+       default is _~_/_._i_n_p_u_t_r_c.  If that file  does not exist or cannot be read,
+       the ultimate default is _/_e_t_c_/_i_n_p_u_t_r_c.  When a program  which  uses  the
+       readline library starts up, the init file is read, and the key bindings
+       and variables are set.  There are only a few basic  constructs  allowed
+       in  the  readline init file.  Blank lines are ignored.  Lines beginning
+       with a ## are comments.  Lines beginning with a $$  indicate  conditional
+       constructs.   Other  lines  denote  key bindings and variable settings.
+       Each program using this library may add its own commands and  bindings.
 
        For example, placing
 
@@ -94,7 +95,9 @@ IINNIITTIIAALLIIZZAATTIIOONN FFIILLEE
        All that is required is the name of the command or the text of a  macro
        and  a key sequence to which it should be bound. The name may be speci-
        fied in one of two ways: as a symbolic key name, possibly with _M_e_t_a_- or
-       _C_o_n_t_r_o_l_- prefixes, or as a key sequence.
+       _C_o_n_t_r_o_l_- prefixes, or as a key sequence.  The name and key sequence are
+       separated by a colon.  There can be no whitespace between the name  and
+       the colon.
 
        When using the form kkeeyynnaammee:_f_u_n_c_t_i_o_n_-_n_a_m_e or _m_a_c_r_o, _k_e_y_n_a_m_e is the name
        of a key spelled out in English.  For example:
@@ -923,4 +926,4 @@ BBUUGGSS
 
 
 
-GNU Readline 5.1-beta1            2005 Sep 13                      READLINE(3)
+GNU Readline 5.2                  2006 Apr 26                      READLINE(3)

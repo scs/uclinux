@@ -1,11 +1,11 @@
 This is history.info, produced by makeinfo version 4.7 from
 /Users/chet/src/bash/readline-src/doc/history.texi.
 
-   This document describes the GNU History library (version 5.1-beta1,
-11 November 2005), a programming tool that provides a consistent user
+   This document describes the GNU History library (version 5.2, 26
+April 2006), a programming tool that provides a consistent user
 interface for recalling lines of previously typed input.
 
-   Copyright (C) 1988-2004 Free Software Foundation, Inc.
+   Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
    Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -13,7 +13,7 @@ preserved on all copies.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
-     Version 1.1 or any later version published by the Free Software
+     Version 1.2 or any later version published by the Free Software
      Foundation; with no Invariant Sections, with the Front-Cover texts
      being "A GNU Manual," and with the Back-Cover Texts as in (a)
      below.  A copy of the license is included in the section entitled
@@ -1325,28 +1325,28 @@ Appendix C Function and Variable Index
 
 
 Tag Table:
-Node: Top1323
-Node: Using History Interactively1948
-Node: History Interaction2456
-Node: Event Designators3880
-Node: Word Designators4815
-Node: Modifiers6454
-Node: Programming with GNU History7681
-Node: Introduction to History8413
-Node: History Storage10103
-Node: History Functions11238
-Node: Initializing History and State Management12227
-Node: History List Management13039
-Node: Information About the History List15071
-Node: Moving Around the History List16568
-Node: Searching the History List17569
-Node: Managing the History File19501
-Node: History Expansion21321
-Node: History Variables23229
-Node: History Programming Example26035
-Node: Copying This Manual28712
-Node: GNU Free Documentation License28972
-Node: Concept Index51378
-Node: Function and Variable Index52218
+Node: Top1314
+Node: Using History Interactively1939
+Node: History Interaction2447
+Node: Event Designators3871
+Node: Word Designators4806
+Node: Modifiers6445
+Node: Programming with GNU History7672
+Node: Introduction to History8404
+Node: History Storage10094
+Node: History Functions11229
+Node: Initializing History and State Management12218
+Node: History List Management13030
+Node: Information About the History List15062
+Node: Moving Around the History List16559
+Node: Searching the History List17560
+Node: Managing the History File19492
+Node: History Expansion21312
+Node: History Variables23220
+Node: History Programming Example26026
+Node: Copying This Manual28703
+Node: GNU Free Documentation License28963
+Node: Concept Index51369
+Node: Function and Variable Index52209
 
 End Tag Table
