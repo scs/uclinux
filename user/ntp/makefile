@@ -39,7 +39,7 @@ CONFOPTIONS=								   \
 	--$(NTPDC)-ntpdc --$(NTPQ)-ntpq
 
 
-all: builddir
+all: builddir/Makefile
 	$(MAKE) -C builddir CFLAGS='$(CFLAGS) -DCONFIG_FILE=\"/etc/config/ntp.conf\"'
 
 romfs:
@@ -48,18 +48,17 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDC builddir/ntpdc/ntpdc /bin/ntpdc
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ builddir/ntpq/ntpq /bin/ntpq
 
-
-builddir: makefile
+builddir/Makefile: makefile
+	find . -type f -print0 | xargs -0 touch -r configure
 	rm -rf builddir
 	mkdir builddir
-	( \
-		cd builddir; \
-		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
-		MISSING="true" \
-			../configure --prefix= \
-			--with-headers=$(ROOTDIR)/$(LINUXDIR)/include \
-			$(CONFIGURE_OPTS) $(CONFOPTIONS) \
-	)
+	cd builddir && \
+	CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
+	MISSING="true" \
+	../configure \
+		$(CONFIGURE_OPTS) $(CONFOPTIONS)
 
 clean:
 	rm -rf builddir
+
+.PHONY: all clean romfs
