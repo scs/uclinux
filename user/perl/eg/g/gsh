@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: gsh,v $$Revision$$Date$
 
 # Do rsh globally--see man page
 

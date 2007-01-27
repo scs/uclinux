@@ -1,6 +1,6 @@
 #!/usr/bin/perl -P
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: changes,v $$Revision$$Date$
 
 ($dir, $days) = @ARGV;
 $dir = '/' if $dir eq '';

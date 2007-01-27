@@ -8,14 +8,11 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Date$
- * $Source$
+ * $Source: /home/rsanders/src/perl5alpha6/RCS/dld_dl.c,v $
  * $Revision$
- * $State$
+ * $State: Exp $
  *
- * $Log$
- * Revision 1.2  2005/07/25 04:55:43  magicyang
- * New user folder check in
- *
+ * $Log: dld_dl.c,v $
  * Removed implicit link against libc.  1994/09/14 William Setzer.
  *
  * Integrated other DynaLoader changes. 1994/06/08 Tim Bunce.

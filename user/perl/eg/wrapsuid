@@ -2,12 +2,9 @@
 'di';
 'ig00';
 #
-# $Header$
+# $Header: wrapsuid,v 1.1 90/08/11 13:51:29 lwall Locked $
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:43  magicyang
-# New user folder check in
-#
+# $Log:	wrapsuid,v $
 # Revision 1.1  90/08/11  13:51:29  lwall
 # Initial revision
 # 

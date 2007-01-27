@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: study.t,v $$Revision$$Date$
 
 print "1..24\n";
 

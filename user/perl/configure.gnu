@@ -15,10 +15,7 @@
 # The remaining of this leading shell comment may be removed if you
 # include this script in your own package.
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:42  magicyang
-# New user folder check in
-#
+# $Log: configure,v $
 # Revision 3.0.1.1  1995/07/25  14:16:21  ram
 # patch56: created
 #

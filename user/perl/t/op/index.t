@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: index.t,v $$Revision$$Date$
 
 print "1..20\n";
 

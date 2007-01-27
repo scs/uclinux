@@ -41,12 +41,9 @@ $Config{perlpath}
 
 print OUT <<'!NO!SUBS!';
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: s2p.SH,v $$Revision$$Date$
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:46  magicyang
-# New user folder check in
-#
+# $Log:	s2p.SH,v $
 
 =head1 NAME
 

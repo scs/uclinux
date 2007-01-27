@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: multiline.t,v $$Revision$$Date$
 
 print "1..5\n";
 

@@ -9,12 +9,9 @@
 #
 # Suggested alternative: Cwd
 #
-;# $RCSfile$$Revision$$Date$
+;# $RCSfile: pwd.pl,v $$Revision$$Date$
 ;#
-;# $Log$
-;# Revision 1.2  2005/07/25 04:55:44  magicyang
-;# New user folder check in
-;#
+;# $Log:	pwd.pl,v $
 ;#
 ;# Usage:
 ;#	require "pwd.pl";

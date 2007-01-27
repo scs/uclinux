@@ -27,12 +27,9 @@ esac
 echo "Extracting x2p/Makefile (with variable substitutions)"
 rm -f Makefile
 cat >Makefile <<!GROK!THIS!
-# $RCSfile$$Revision$$Date$
+# $RCSfile: Makefile.SH,v $$Revision$$Date$
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:46  magicyang
-# New user folder check in
-#
+# $Log:	Makefile.SH,v $
 
 CC = $cc
 BYACC = $byacc

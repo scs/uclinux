@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: scanner,v $$Revision$$Date$
 
 # This runs all the scan_* routines on all the machines in /etc/ghosts.
 # We run this every morning at about 6 am:

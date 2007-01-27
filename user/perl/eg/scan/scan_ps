@@ -1,6 +1,6 @@
 #!/usr/bin/perl -P
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: scan_ps,v $$Revision$$Date$
 
 # This looks for looping processes.
 

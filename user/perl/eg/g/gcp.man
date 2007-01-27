@@ -1,4 +1,4 @@
-.\" $RCSfile$$Revision$$Date$
+.\" $RCSfile: gcp.man,v $$Revision$$Date$
 .TH GCP 1C "13 May 1988"
 .SH NAME
 gcp \- global file copy

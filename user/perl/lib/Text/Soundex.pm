@@ -24,10 +24,7 @@ $VERSION = '1.0';
 # Lloyd, Ladd -> L300
 # Lukasiewicz, Lissajous -> L222
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:44  magicyang
-# New user folder check in
-#
+# $Log: soundex.pl,v $
 # Revision 1.2  1994/03/24  00:30:27  mike
 # Subtle bug (any excuse :-) spotted by Rich Pinder <rpinder@hsc.usc.edu>
 # in the way I handles leasing characters which were different but had

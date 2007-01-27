@@ -40,10 +40,7 @@ $header = "perl5db.pl version $VERSION";
 # (for subroutines defined outside of the package DB). In fact the same is
 # true if $deep is not defined.
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:44  magicyang
-# New user folder check in
-#
+# $Log:	perldb.pl,v $
 
 #
 # At start reads $rcfile that may set important options.  This file

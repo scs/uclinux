@@ -2,12 +2,9 @@
 'di';
 'ig00';
 #
-# $RCSfile$$Revision$$Date$
+# $RCSfile: relink,v $$Revision$$Date$
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:43  magicyang
-# New user folder check in
-#
+# $Log:	relink,v $
 
 ($op = shift) || die "Usage: relink perlexpr [filenames]\n";
 if (!@ARGV) {

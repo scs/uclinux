@@ -1,10 +1,7 @@
 #
 # syslog.pl
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:44  magicyang
-# New user folder check in
-#
+# $Log:	syslog.pl,v $
 # 
 # tom christiansen <tchrist@convex.com>
 # modified to use sockets by Larry Wall <lwall@jpl-devvax.jpl.nasa.gov>

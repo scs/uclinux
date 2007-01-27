@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: vanish,v $$Revision$$Date$
 
 sub it {
     if ($olddir ne '.') {

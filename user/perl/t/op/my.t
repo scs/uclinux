@@ -1,6 +1,6 @@
 #!./perl
 
-# $RCSfile$
+# $RCSfile: my.t,v $
 
 print "1..31\n";
 

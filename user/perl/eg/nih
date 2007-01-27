@@ -1,7 +1,7 @@
 eval 'exec /usr/bin/perl -Spi.bak $0 ${1+"$@"}'
 	if $running_under_some_shell;
 
-# $RCSfile$$Revision$$Date$
+# $RCSfile: nih,v $$Revision$$Date$
 
 # This script makes #! scripts directly executable on machines that don't
 # support #!.  It edits in place any scripts mentioned on the command line.

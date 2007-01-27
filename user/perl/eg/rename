@@ -2,12 +2,9 @@
 'di';
 'ig00';
 #
-# $RCSfile$$Revision$$Date$
+# $RCSfile: rename,v $$Revision$$Date$
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:55:43  magicyang
-# New user folder check in
-#
+# $Log:	rename,v $
 
 ($op = shift) || die "Usage: rename perlexpr [filenames]\n";
 if (!@ARGV) {

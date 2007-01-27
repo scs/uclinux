@@ -1,4 +1,4 @@
-.\" $RCSfile$$Revision$$Date$
+.\" $RCSfile: muck.man,v $$Revision$$Date$
 .TH MUCK 1 "10 Jan 1989"
 .SH NAME
 muck \- make usage checker

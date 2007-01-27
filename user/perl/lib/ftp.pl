@@ -14,11 +14,8 @@
 # based on original version by Alan R. Martello <al@ee.pitt.edu>
 # And by A.Macpherson@bnr.co.uk for multi-homed hosts
 #
-# $Header$
-# $Log$
-# Revision 1.2  2005/07/25 04:55:44  magicyang
-# New user folder check in
-#
+# $Header: /a/swan/home/swan/staff/csg/lmjm/src/perl/mirror/RCS/ftp.pl,v 1.17 1993/04/21 10:06:54 lmjm Exp lmjm $
+# $Log: ftp.pl,v $
 # Revision 1.17  1993/04/21  10:06:54  lmjm
 # Send all status reports to STDERR not to STDOUT (to allow use by ftpcat).
 # Allow target file to be '-' meaning STDOUT
