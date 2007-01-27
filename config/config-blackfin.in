@@ -55,6 +55,10 @@ bool    'IRQ Schedule latency test' 	CONFIG_USER_BLACKFIN_LATENCYTEST
 if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_LIBUPNP y
 fi
+bool    'NCurses Test apps'             CONFIG_USER_NCURSES_TESTS
+if [ "$CONFIG_USER_NCURSES_TESTS" = "y" ]; then
+	define_bool CONFIG_LIB_NCURSES y
+fi
 endmenu
 
 
