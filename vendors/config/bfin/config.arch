@@ -60,16 +60,13 @@ RANLIB    = $(CROSS_COMPILE)ranlib
 ELF2FLT   = $(CROSS_COMPILE)elf2flt
 STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
+CC_FOR_BUILD = gcc
 
 UCLINUX_BUILD_SET = 0		# have we set a special config below
 
 # These can be used by configure.
-# Either configure $(CONFIGURE_OPTS)
-# or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
-#
-TARGETARCH    := bfin-uclinux
-HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
-CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH) --prefix=/usr
+CONFIGURE_BUILD := $(shell sh $(ROOTDIR)/tools/config.guess)
+CONFIGURE_OPTS  := --host=$(CONFIGURE_HOST) --build=$(CONFIGURE_BUILD) --target=$(CONFIGURE_HOST) --prefix=/usr
 
 ############################################################################
 #
