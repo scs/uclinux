@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,9 @@
 #include "menu.priv.h"
 
 #if USE_WIDEC_SUPPORT
+#if HAVE_WCTYPE_H
 #include <wctype.h>
+#endif
 #endif
 
 MODULE_ID("$Id$")
@@ -66,13 +68,13 @@ Is_Printable_String(const char *s)
   assert(s);
 
   if (count > 0
-      && (temp = typeCalloc(wchar_t, (2 + count))) != 0)
+      && (temp = typeCalloc(wchar_t, (2 + (unsigned)count))) != 0)
     {
       int n;
 
       mbstowcs(temp, s, (unsigned)count);
       for (n = 0; n < count; ++n)
-	if (!iswprint(temp[n]))
+	if (!iswprint((wint_t) temp[n]))
 	  {
 	    result = FALSE;
 	    break;

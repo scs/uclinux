@@ -51,12 +51,6 @@
 #include "panel.h"
 #include <nc_panel.h>
 
-#if ( CC_HAS_INLINE_FUNCS && !defined(TRACE) )
-#  define INLINE inline
-#else
-#  define INLINE
-#endif
-
 #if USE_RCS_IDS
 #  define MODULE_ID(id) static const char Ident[] = id;
 #else

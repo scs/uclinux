@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -78,7 +78,7 @@ package body Sample.Form_Demo is
    procedure Demo
    is
 
-      Mft : My_Data := (Ch => 'X');
+      Mft : constant My_Data := (Ch => 'X');
 
       FA : Field_Array_Access := new Field_Array'
         (Make (0, 14, "Sample Entry Form"),

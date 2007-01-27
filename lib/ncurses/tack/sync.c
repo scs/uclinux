@@ -256,7 +256,7 @@ verify_time(void)
 **
 **	Baudrate test
 */
-void
+static void
 sync_home(
 	struct test_list *t,
 	int *state,

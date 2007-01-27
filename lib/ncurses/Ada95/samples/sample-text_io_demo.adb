@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -111,7 +111,7 @@ package body Sample.Text_IO_Demo is
       P : Panel := Create (Standard_Window);
       K : Real_Key_Code;
       Im : constant Complex := (0.0, 1.0);
-      Fx : constant Fix := 3.14;
+      Fx : constant Dec := 3.14;
       Dc : constant Dec := 2.72;
       L : Md;
 

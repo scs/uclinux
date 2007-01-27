@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2004,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -389,7 +389,6 @@ cardfile(char *fname)
     int y;
     int x;
     int ch = ERR;
-    int last_ch;
     int finished = FALSE;
 
     show_legend();
@@ -433,7 +432,6 @@ cardfile(char *fname)
 	update_panels();
 	doupdate();
 
-	last_ch = ch;
 	ch = form_virtualize(panel_window(top_card->panel));
 	switch (form_driver(top_card->form, ch)) {
 	case E_OK:

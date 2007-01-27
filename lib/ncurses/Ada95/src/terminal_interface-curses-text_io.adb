@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -128,7 +128,7 @@ package body Terminal_Interface.Curses.Text_IO is
    is
       P_Size : constant Count := Page_Length (Win);
    begin
-      if Spacing not in Positive_Count then
+      if not Spacing'Valid then
          raise Constraint_Error;
       end if;
 
@@ -166,7 +166,7 @@ package body Terminal_Interface.Curses.Text_IO is
       X2 : Column_Position;
       N  : Natural;
    begin
-      if To not in Positive_Count then
+      if not To'Valid then
          raise Constraint_Error;
       end if;
 
@@ -200,7 +200,7 @@ package body Terminal_Interface.Curses.Text_IO is
       X  : Column_Position;
       N  : Natural;
    begin
-      if To not in Positive_Count then
+      if not To'Valid then
          raise Constraint_Error;
       end if;
 

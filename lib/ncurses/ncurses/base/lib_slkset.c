@@ -39,7 +39,9 @@
 #include <ctype.h>
 
 #if USE_WIDEC_SUPPORT
+#if HAVE_WCTYPE_H
 #include <wctype.h>
+#endif
 #endif
 
 MODULE_ID("$Id$")

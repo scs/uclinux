@@ -159,7 +159,7 @@ charset_status(
 	ptextln(temp);
 
 	put_str("This line s");
-	s = tparm(to_status_line, 0);
+	s = TPARM_1(to_status_line, 0);
 	tc_putp(s);
 	for (i = 0; i < max; i++)
 		putchp(m[i]);
@@ -207,7 +207,7 @@ void
 put_mode(char *s)
 {				/* send the attribute string (with or without
 				   % execution) */
-	tc_putp(tparm(s));		/* allow % execution */
+	tc_putp(TPARM_0(s));		/* allow % execution */
 }
 
 
@@ -226,7 +226,7 @@ set_attr(int a)
 	for (i = 0; i < 31; i++) {
 		b[i] = (a >> i) & 1;
 	}
-	tc_putp(tparm(set_attributes, b[1], b[2], b[3], b[4], b[5],
+	tc_putp(TPARM_9(set_attributes, b[1], b[2], b[3], b[4], b[5],
 			b[6], b[7], b[8], b[9]));
 }
 

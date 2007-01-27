@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -56,37 +57,43 @@ restartterm(NCURSES_CONST char *termp, int filenum, int *errret)
     int savecbreak = SP->_cbreak;
     int saveraw = SP->_raw;
     int savenl = SP->_nl;
+    int result;
 
     T((T_CALLED("restartterm(%s,%d,%p)"), termp, filenum, errret));
 
-    if (setupterm(termp, filenum, errret) != OK)
-	returnCode(ERR);
-
-    if (saveecho)
-	echo();
-    else
-	noecho();
-
-    if (savecbreak) {
-	cbreak();
-	noraw();
-    } else if (saveraw) {
-	nocbreak();
-	raw();
+    _nc_handle_sigwinch(0);
+    if (setupterm(termp, filenum, errret) != OK) {
+	result = ERR;
     } else {
-	nocbreak();
-	noraw();
-    }
-    if (savenl)
-	nl();
-    else
-	nonl();
 
-    reset_prog_mode();
+	if (saveecho)
+	    echo();
+	else
+	    noecho();
+
+	if (savecbreak) {
+	    cbreak();
+	    noraw();
+	} else if (saveraw) {
+	    nocbreak();
+	    raw();
+	} else {
+	    nocbreak();
+	    noraw();
+	}
+	if (savenl)
+	    nl();
+	else
+	    nonl();
+
+	reset_prog_mode();
 
 #if USE_SIZECHANGE
-    _nc_update_screensize();
+	_nc_update_screensize();
 #endif
 
-    returnCode(OK);
+	result = OK;
+    }
+    _nc_handle_sigwinch(1);
+    returnCode(result);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2005 Free Software Foundation, Inc.                        *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,49 +27,22 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *  Author: Thomas E. Dickey                                                *
  ****************************************************************************/
 
-/* $Id$ */
+#include <curses.priv.h>
 
-#ifndef NCURSES_TERMCAP_H_incl
-#define NCURSES_TERMCAP_H_incl	1
+MODULE_ID("$Id: legacy_coding.c,v 1.2 2005/12/17 23:38:17 tom Exp $")
 
-#undef  NCURSES_VERSION
-#define NCURSES_VERSION "5.5"
-
-#include <ncurses_dll.h>
-
-#ifdef __cplusplus
-extern "C"
+NCURSES_EXPORT(int)
+use_legacy_coding(int level)
 {
-#endif /* __cplusplus */
+    int result = ERR;
 
-#include <sys/types.h>
-
-#undef  NCURSES_CONST 
-#define NCURSES_CONST /*nothing*/ 
-
-#undef  NCURSES_OSPEED 
-#define NCURSES_OSPEED short 
-
-extern NCURSES_EXPORT_VAR(char) PC;
-extern NCURSES_EXPORT_VAR(char *) UP;
-extern NCURSES_EXPORT_VAR(char *) BC;
-extern NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed; 
-
-#if !defined(NCURSES_TERM_H_incl)
-extern NCURSES_EXPORT(char *) tgetstr (NCURSES_CONST char *, char **);
-extern NCURSES_EXPORT(char *) tgoto (const char *, int, int);
-extern NCURSES_EXPORT(int) tgetent (char *, const char *);
-extern NCURSES_EXPORT(int) tgetflag (NCURSES_CONST char *);
-extern NCURSES_EXPORT(int) tgetnum (NCURSES_CONST char *);
-extern NCURSES_EXPORT(int) tputs (const char *, int, int (*)(int));
-#endif
-
-#ifdef __cplusplus
+    T((T_CALLED("use_legacy_coding(%d)"), level));
+    if (level >= 0 && level <= 2 && SP != 0) {
+	result = SP->_legacy_coding;
+	SP->_legacy_coding = level;
+    }
+    returnCode(result);
 }
-#endif
-
-#endif /* NCURSES_TERMCAP_H_incl */

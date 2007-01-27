@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -100,7 +100,7 @@ wnoutrefresh(WINDOW *win)
     begy = win->_begy;
 
     newscr->_nc_bkgd = win->_nc_bkgd;
-    newscr->_attrs = win->_attrs;
+    WINDOW_ATTRS(newscr) = WINDOW_ATTRS(win);
 
     /* merge in change information from all subwindows of this window */
     wsyncdown(win);

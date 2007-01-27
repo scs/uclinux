@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -129,6 +129,10 @@ wgetnstr_events(WINDOW *win,
 	if (ch == KEY_EVENT)
 	    break;
 #endif
+#ifdef KEY_RESIZE
+	if (ch == KEY_RESIZE)
+	    break;
+#endif
 	if (ch == erasec || ch == KEY_LEFT || ch == KEY_BACKSPACE) {
 	    if (str > oldstr) {
 		str = WipeOut(win, y, x, oldstr, str, oldecho);
@@ -193,12 +197,17 @@ wgetnstr_events(WINDOW *win,
     *str = '\0';
     if (ch == ERR)
 	returnCode(ch);
+
+    T(("wgetnstr returns %s", _nc_visbuf(oldstr)));
+
 #ifdef KEY_EVENT
     if (ch == KEY_EVENT)
 	returnCode(ch);
 #endif
-
-    T(("wgetnstr returns %s", _nc_visbuf(oldstr)));
+#ifdef KEY_RESIZE
+    if (ch == KEY_RESIZE)
+	returnCode(ch);
+#endif
 
     returnCode(OK);
 }

@@ -46,7 +46,7 @@ MODULE_ID("$Id$")
  * no match was found, otherwise allocating a string of the result.
  */
 NCURSES_EXPORT(char *)
-_nc_expand_try(struct tries *tree, unsigned short code, int *count, size_t len)
+_nc_expand_try(struct tries *tree, unsigned code, int *count, size_t len)
 {
     struct tries *ptr = tree;
     char *result = 0;
@@ -83,7 +83,7 @@ _nc_expand_try(struct tries *tree, unsigned short code, int *count, size_t len)
  * true if the code was found/removed.
  */
 NCURSES_EXPORT(int)
-_nc_remove_key(struct tries **tree, unsigned short code)
+_nc_remove_key(struct tries **tree, unsigned code)
 {
     T((T_CALLED("_nc_remove_key(%p,%d)"), tree, code));
 

@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2001,2004 Free Software Foundation, Inc.              --
+-- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -60,7 +60,6 @@ procedure ncurses2.attr_test is
                         fg, bg : in out Color_Number;
                         result : out Boolean);
 
-
    function subset (super, sub : Character_Attribute_Set) return Boolean is
    begin
       if
@@ -85,7 +84,6 @@ procedure ncurses2.attr_test is
          return False;
       end if;
    end subset;
-
 
    function intersect (b, a : Character_Attribute_Set) return Boolean is
    begin
@@ -264,8 +262,6 @@ procedure ncurses2.attr_test is
          result := False;
       end if;
    end attr_getc;
-
-
 
    --      pairs could be defined as array ( Color_Number(0) .. colors - 1) of
    --      array (Color_Number(0).. colors - 1) of Boolean;

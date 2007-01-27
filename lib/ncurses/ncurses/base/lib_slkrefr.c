@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -57,7 +57,7 @@ slk_intern_refresh(SLK * slk)
 		if (num_labels > 0 && SLK_STDFMT(fmt)) {
 		    if (i < num_labels) {
 			TPUTS_TRACE("plab_norm");
-			putp(tparm(plab_norm, i + 1, slk->ent[i].form_text));
+			putp(TPARM_2(plab_norm, i + 1, slk->ent[i].form_text));
 		    }
 		} else {
 		    wmove(slk->win, SLK_LINES(fmt) - 1, slk->ent[i].ent_x);
@@ -68,7 +68,7 @@ slk_intern_refresh(SLK * slk)
 		    /* if we simulate SLK's, it's looking much more
 		       natural to use the current ATTRIBUTE also
 		       for the label window */
-		    wattrset(slk->win, stdscr->_attrs);
+		    wattrset(slk->win, WINDOW_ATTRS(stdscr));
 		}
 	    }
 	    slk->ent[i].dirty = FALSE;

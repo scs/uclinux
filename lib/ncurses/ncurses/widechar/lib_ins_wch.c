@@ -117,7 +117,7 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 	    for (cp = wstr; *cp && ((cp - wstr) < n); cp++) {
 		int len = wcwidth(*cp);
 
-		if (len != 1) {
+		if (len != 1 || !is8bits(*cp)) {
 		    cchar_t tmp_cchar;
 		    wchar_t tmp_wchar = *cp;
 		    memset(&tmp_cchar, 0, sizeof(tmp_cchar));

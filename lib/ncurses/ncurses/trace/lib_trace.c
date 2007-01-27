@@ -34,6 +34,11 @@
 
 /*
  *	lib_trace.c - Tracing/Debugging routines
+ *
+ * The _tracef() function is originally from pcurses (by Pavel Curtis) in 1982. 
+ * pcurses allowed one to enable/disable tracing using traceon() and traceoff()
+ * functions.  ncurses provides a trace() function which allows one to
+ * selectively enable or disable several tracing features.
  */
 
 #include <curses.priv.h>

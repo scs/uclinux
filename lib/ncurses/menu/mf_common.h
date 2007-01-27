@@ -92,13 +92,4 @@ extern int errno;
 	(object)->status &= ~_IN_DRIVER;\
    }
 
-#define INLINE
-
-#ifndef TRACE
-#  if CC_HAS_INLINE_FUNCS
-#    undef INLINE
-#    define INLINE inline
-#  endif
-#endif
-
 #endif /* MF_COMMON_H_incl */

@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998 Free Software Foundation, Inc.                        --
+-- Copyright (c) 1998,2006 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -36,6 +36,7 @@
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control
 --  $Revision$
+--  $Date$
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 with Terminal_Interface.Curses; use Terminal_Interface.Curses;
@@ -217,4 +218,3 @@ package body Sample.Curses_Demo.Mouse is
    end Demo;
 
 end Sample.Curses_Demo.Mouse;
-

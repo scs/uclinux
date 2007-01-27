@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -54,8 +54,8 @@ wclrtobot(WINDOW *win)
 	NCURSES_SIZE_T startx = win->_curx;
 	NCURSES_CH_T blank = win->_nc_bkgd;
 
-	T(("clearing from y = %d to y = %d with maxx =  %d",
-	   win->_cury, win->_maxy, win->_maxx));
+	T(("clearing from y = %ld to y = %ld with maxx =  %ld",
+	   (long) win->_cury, (long) win->_maxy, (long) win->_maxx));
 
 	for (y = win->_cury; y <= win->_maxy; y++) {
 	    struct ldat *line = &(win->_line[y]);

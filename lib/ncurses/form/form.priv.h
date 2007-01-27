@@ -40,7 +40,10 @@
 
 #if USE_WIDEC_SUPPORT
 #include <wchar.h>
+
+#if HAVE_WCTYPE_H
 #include <wctype.h>
+#endif
 
 #ifndef MB_LEN_MAX
 #define MB_LEN_MAX 8 /* should be >= MB_CUR_MAX, but that may be a function */

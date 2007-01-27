@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -57,7 +57,8 @@ _nc_scroll_window(WINDOW *win,
     int j;
     size_t to_copy = (size_t) (sizeof(NCURSES_CH_T) * (win->_maxx + 1));
 
-    TR(TRACE_MOVE, ("_nc_scroll_window(%p, %d, %d, %d)", win, n, top, bottom));
+    TR(TRACE_MOVE, ("_nc_scroll_window(%p, %d, %ld, %ld)",
+		    win, n, (long) top, (long) bottom));
 
     if (top < 0
 	|| bottom < top

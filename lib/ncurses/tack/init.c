@@ -159,7 +159,7 @@ display_basic(void)
 	}
 	report_cap("      (clear)", clear_screen);
 	if (!cursor_home && cursor_address) {
-		report_cap("(cup) (home)", tparm(cursor_address, 0, 0));
+		report_cap("(cup) (home)", TPARM_2(cursor_address, 0, 0));
 	} else {
 		report_cap("      (home)", cursor_home);
 	}

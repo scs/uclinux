@@ -87,7 +87,7 @@ _nc_get_type(char *name)
 	strcpy(name, termtype != 0 ? termtype : "");
 }
 
-static inline void
+static NCURSES_INLINE void
 where_is_problem(void)
 {
     fprintf(stderr, "\"%s\"", sourcename);

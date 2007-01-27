@@ -68,7 +68,7 @@ assume_default_colors(int fg, int bg)
     if (SP->_color_pairs != 0) {
 	bool save = SP->_default_color;
 	SP->_default_color = TRUE;
-	init_pair(0, fg, bg);
+	init_pair(0, (short) fg, (short) bg);
 	SP->_default_color = save;
     }
     returnCode(OK);

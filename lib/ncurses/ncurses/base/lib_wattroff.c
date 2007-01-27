@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -49,12 +49,15 @@ wattr_off(WINDOW *win, attr_t at, void *opts GCC_UNUSED)
 {
     T((T_CALLED("wattr_off(%p,%s)"), win, _traceattr(at)));
     if (win) {
-	T(("... current %s (%d)", _traceattr(win->_attrs), GET_WINDOW_PAIR(win)));
+	T(("... current %s (%d)",
+	   _traceattr(WINDOW_ATTRS(win)),
+	   GET_WINDOW_PAIR(win)));
+
 	if_EXT_COLORS({
 	    if (at & A_COLOR)
 		win->_color = 0;
 	});
-	toggle_attr_off(win->_attrs, at);
+	toggle_attr_off(WINDOW_ATTRS(win), at);
 	returnCode(OK);
     } else
 	returnCode(ERR);

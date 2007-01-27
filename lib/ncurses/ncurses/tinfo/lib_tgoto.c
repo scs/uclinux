@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2000-2002,2003 Free Software Foundation, Inc.              *
+ * Copyright (c) 2000-2003,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -198,6 +198,6 @@ tgoto(const char *string, int x, int y)
 	result = tgoto_internal(string, x, y);
     else
 #endif
-	result = tparm((NCURSES_CONST char *) string, y, x);
+	result = TPARM_2((NCURSES_CONST char *) string, y, x);
     returnPtr(result);
 }

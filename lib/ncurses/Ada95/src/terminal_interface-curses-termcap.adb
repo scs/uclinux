@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -159,6 +159,5 @@ package body Terminal_Interface.Curses.Termcap is
       return Termcap_String (Fill_String
                              (tgoto (Txt, C_Int (Col), C_Int (Row))));
    end TGoto;
-
 
 end Terminal_Interface.Curses.Termcap;

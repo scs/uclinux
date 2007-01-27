@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -68,8 +68,8 @@ menu_pattern(const MENU * menu)
 |
 |   Return Values :  E_OK              - success
 |                    E_BAD_ARGUMENT    - invalid menu or pattern pointer
-|                    E_NOT_CONNECTED   - no items connected to menu
 |                    E_BAD_STATE       - menu in user hook routine
+|                    E_NOT_CONNECTED   - no items connected to menu
 |                    E_NO_MATCH        - no item matches pattern
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)

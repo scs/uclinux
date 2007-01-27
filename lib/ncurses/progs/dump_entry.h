@@ -67,11 +67,12 @@ typedef int PredIdx;
 typedef int (*PredFunc)(PredType, PredIdx);
 
 extern NCURSES_CONST char *nametrans(const char *);
-extern void dump_init(const char *, int, int, int, int, bool);
 extern int fmt_entry(TERMTYPE *, PredFunc, bool, bool, bool, int);
-extern int dump_entry(TERMTYPE *, bool, bool, int, int, PredFunc);
-extern int dump_uses(const char *, bool);
+extern int show_entry(void);
 extern void compare_entry(void (*)(PredType, PredIdx, const char *), TERMTYPE *, bool);
+extern void dump_entry(TERMTYPE *, bool, bool, int, PredFunc);
+extern void dump_init(const char *, int, int, int, int, bool);
+extern void dump_uses(const char *, bool);
 extern void repair_acsc(TERMTYPE * tp);
 
 #define FAIL	-1

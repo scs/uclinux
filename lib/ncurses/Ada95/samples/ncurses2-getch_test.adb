@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -83,7 +83,6 @@ procedure ncurses2.getch_test is
       Append (buf, Button_State'Image (State));
       return To_String (buf);
    end mouse_decode;
-
 
    buf : String (1 .. 1024); --  TODO was BUFSIZE
    n : Integer;

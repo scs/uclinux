@@ -9,7 +9,7 @@ include(M4MACRO)----------------------------------------------------------------
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -214,14 +214,14 @@ include(`ACS_Map')dnl
    procedure Init_Windows renames Init_Screen;
    --  AKA
    pragma Inline (Init_Screen);
-   pragma Inline (Init_Windows);
+   --  pragma Inline (Init_Windows);
 
    --  ANCHOR(`endwin()',`End_Windows')
    procedure End_Windows;
    --  AKA
    procedure End_Screen renames End_Windows;
    pragma Inline (End_Windows);
-   pragma Inline (End_Screen);
+   --  pragma Inline (End_Screen);
 
    --  ANCHOR(`isendwin()',`Is_End_Window')
    function Is_End_Window return Boolean;
@@ -301,7 +301,7 @@ include(`ACS_Map')dnl
       First_Line_Position   : Line_Position;
       First_Column_Position : Column_Position) return Window
      renames Create;
-   pragma Inline (New_Window);
+   --  pragma Inline (New_Window);
 
    --  ANCHOR(`delwin()',`Delete')
    procedure Delete (Win : in out Window);
@@ -1532,7 +1532,6 @@ include(`ACS_Map')dnl
 
    --  MANPAGE(`curs_scanw.3x')
    --  Not implemented: scanw, wscanw, mvscanw, mvwscanw, vwscanw, vw_scanw
-
 
    --  MANPAGE(`resizeterm.3x')
    --  Not Implemented: resizeterm

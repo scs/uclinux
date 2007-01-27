@@ -46,7 +46,7 @@
 
 #define CTRL(x) ((x) & 0x1f)
 
-#ifndef __EXT_QNX
+#ifndef _QNX_SOURCE
 #include <string.h>
 #endif
 

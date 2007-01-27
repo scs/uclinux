@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -284,7 +284,7 @@ end_of_stream(void)
 }
 
 /* Assume we may be looking at a termcap-style continuation */
-static inline int
+static NCURSES_INLINE int
 eat_escaped_newline(int ch)
 {
     if (ch == '\\')
@@ -908,6 +908,8 @@ _nc_panic_mode(char ch)
 NCURSES_EXPORT(void)
 _nc_comp_scan_leaks(void)
 {
-    FreeAndNull(pushname);
+    if (pushname != 0) {
+	FreeAndNull(pushname);
+    }
 }
 #endif

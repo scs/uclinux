@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2001,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -109,6 +109,7 @@ extern int optind;
 #include <curses.h>
 #include <term_entry.h>
 #include <tic.h>
+#include <nc_tparm.h>
 #include <nc_alloc.h>
 
 /* usually in <unistd.h> */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -90,7 +90,7 @@ _nc_init_keytry(void)
 	{
 	    TERMTYPE *tp = &(SP->_term->type);
 	    for (n = STRCOUNT; n < NUM_STRINGS(tp); ++n) {
-		char *name = ExtStrname(tp, n, strnames);
+		const char *name = ExtStrname(tp, n, strnames);
 		char *value = tp->Strings[n];
 		if (name != 0
 		    && *name == 'k'

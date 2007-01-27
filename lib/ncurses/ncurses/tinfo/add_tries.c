@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,7 +45,7 @@ MODULE_ID("$Id$")
 #define CMP_TRY(a,b) ((a)? (a == b) : (b == 128))
 
 NCURSES_EXPORT(void)
-_nc_add_to_try(struct tries **tree, const char *str, unsigned short code)
+_nc_add_to_try(struct tries **tree, const char *str, unsigned code)
 {
     static bool out_of_memory = FALSE;
     struct tries *ptr, *savedptr;

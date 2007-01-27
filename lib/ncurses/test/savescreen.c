@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2006 Free Software Foundation, Inc.                        *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -25,39 +25,24 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
-
-/****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- ****************************************************************************/
-
 /*
- * unctrl.h
+ * $Id: savescreen.c,v 1.2 2006/04/01 19:08:03 tom Exp $
  *
- * Display a printable version of a control character.
- * Control characters are displayed in caret notation (^x), DELETE is displayed
- * as ^?. Printable characters are displayed as is.
+ * Demonstrate save/restore functions from the curses library.
+ * Thomas Dickey - 2006/2/11
  */
+/*
+scr_dump			-
+scr_init			-
+scr_restore			-
+scr_set				-
+*/
 
-/* $Id$ */
+#include <test.priv.h>
 
-#ifndef NCURSES_UNCTRL_H_incl
-#define NCURSES_UNCTRL_H_incl	1
-
-#undef  NCURSES_VERSION
-#define NCURSES_VERSION "5.5"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <curses.h>
-
-#undef unctrl
-NCURSES_EXPORT(NCURSES_CONST char *) unctrl (chtype);
-
-#ifdef __cplusplus
+int
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+{
+    printf("Not implemented - demo for screen save/restore\n");
+    return EXIT_SUCCESS;
 }
-#endif
-
-#endif /* NCURSES_UNCTRL_H_incl */

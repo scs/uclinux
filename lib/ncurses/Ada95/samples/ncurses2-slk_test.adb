@@ -7,7 +7,7 @@
 --                                 B O D Y                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 2000,2004 Free Software Foundation, Inc.                   --
+-- Copyright (c) 2000-2004,2006 Free Software Foundation, Inc.              --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -75,7 +75,6 @@ procedure ncurses2.slk_test is
       end if;
       Str := To_Unbounded_String (To_Ada (Txt, True));
    end myGet;
-
 
    use Int_IO;
 

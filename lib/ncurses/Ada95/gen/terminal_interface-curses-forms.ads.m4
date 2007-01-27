@@ -10,7 +10,7 @@ include(M4MACRO)dnl
 --                                 S P E C                                  --
 --                                                                          --
 ------------------------------------------------------------------------------
--- Copyright (c) 1998 Free Software Foundation, Inc.                        --
+-- Copyright (c) 1998,2006 Free Software Foundation, Inc.                   --
 --                                                                          --
 -- Permission is hereby granted, free of charge, to any person obtaining a  --
 -- copy of this software and associated documentation files (the            --
@@ -39,6 +39,7 @@ include(M4MACRO)dnl
 --  Author:  Juergen Pfeifer, 1996
 --  Version Control:
 --  $Revision$
+--  $Date$
 --  Binding Version 01.00
 ------------------------------------------------------------------------------
 include(`Form_Base_Defs')
@@ -226,7 +227,6 @@ include(`Form_Opt_Rep')Dnl
    REQ_VALIDATION   : Form_Request_Code renames F_Validate_Field;
    REQ_NEXT_CHOICE  : Form_Request_Code renames F_Next_Choice;
    REQ_PREV_CHOICE  : Form_Request_Code renames F_Previous_Choice;
-
 
    procedure Request_Name (Key  : in Form_Request_Code;
                            Name : out String);
@@ -532,7 +532,7 @@ include(`Form_Opt_Rep')Dnl
    procedure Set_Fields (Frm  : in Form;
                          Flds : in Field_Array_Access) renames Redefine;
    --  AKA
-   pragma Inline (Set_Fields);
+   --  pragma Inline (Set_Fields);
 
    --  ANCHOR(`form_fields()',`Fields')
    function Fields (Frm   : Form;
@@ -563,7 +563,7 @@ include(`Form_Opt_Rep')Dnl
    function New_Form (Fields : Field_Array_Access) return Form
      renames Create;
    --  AKA
-   pragma Inline (New_Form);
+   --  pragma Inline (New_Form);
 
    --  ANCHOR(`free_form()',`Delete')
    procedure Delete (Frm : in out Form);

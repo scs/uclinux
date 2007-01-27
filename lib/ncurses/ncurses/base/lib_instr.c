@@ -99,7 +99,7 @@ winnstr(WINDOW *win, char *str, int n)
 		}
 	    }
 #else
-	    str[i++] = CharOf(win->_line[row].text[col]);
+	    str[i++] = (char) CharOf(win->_line[row].text[col]);
 #endif
 	    if (++col > win->_maxx) {
 		col = 0;

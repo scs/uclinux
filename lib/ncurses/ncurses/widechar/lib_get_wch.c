@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -78,7 +78,7 @@ wget_wch(WINDOW *win, wint_t *result)
      */
     for (;;) {
 	T(("reading %d of %d", count + 1, sizeof(buffer)));
-	code = _nc_wgetch(win, &value, TRUE);
+	code = _nc_wgetch(win, &value, TRUE EVENTLIST_2nd((_nc_eventlist *) 0));
 	if (code == ERR) {
 	    break;
 	} else if (code == KEY_CODE_YES) {
