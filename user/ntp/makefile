@@ -1,4 +1,23 @@
+ifdef CONFIG_USER_NTPD_NTPDATE
+NTPDATE := with
+else
+NTPDATE := without
+endif
+
+ifdef CONFIG_USER_NTPD_NTPDC
+NTPDC := with
+else
+NTPDC := without
+endif
+
+ifdef CONFIG_USER_NTPD_NTPQ
+NTPQ := with
+else
+NTPQ := without
+endif
+
 CONFOPTIONS=								   \
+	--disable-debugging	\
 	--disable-HOPFSERIAL --disable-HOPFPCI --disable-BANCOMM           \
 	--disable-GPSVME --disable-SHM --disable-all-clocks                \
 	--disable-ACTS --disable-ARBITER --disable-ARCRON-MSF              \
@@ -16,27 +35,31 @@ CONFOPTIONS=								   \
 	--disable-SCHMID --disable-TRIMTAIP --disable-TRIMTSIP             \
 	--disable-WHARTON --disable-VARITEXT --disable-kmem                \
 	--without-openssl-libdir --without-openssl-incdir --without-crypto \
-	--without-electricfence
+	--without-electricfence --without-sntp --$(NTPDATE)-ntpdate \
+	--$(NTPDC)-ntpdc --$(NTPQ)-ntpq
 
-.PHONY: all
-all:
-	if [ \! -f Makefile ]; then					   \
-		chmod 755 ./configure					  ;\
-		unset CC CFLAGS LDFLAGS && ./configure -C $(CONFOPTIONS)  ;\
-	fi
-	make -f Makefile
 
-.PHONY: romfs
+all: builddir
+	$(MAKE) -C builddir CFLAGS='$(CFLAGS) -DCONFIG_FILE=\"/etc/config/ntp.conf\"'
+
 romfs:
-	$(MAKE) -C ntpd romfs
-	$(MAKE) -C ntpdc romfs
-	$(MAKE) -C ntpdate romfs
-	$(MAKE) -C ntpq romfs
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPD builddir/ntpd/ntpd /bin/ntpd
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDATE builddir/ntpdate/ntpdate /bin/ntpdate
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDC builddir/ntpdc/ntpdc /bin/ntpdc
+	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ builddir/ntpq/ntpq /bin/ntpq
 
 
-%:
-	if [ \! -f Makefile ]; then					   \
-		chmod 755 ./configure					  ;\
-		unset CC CFLAGS LDFLAGS && ./configure -C $(CONFOPTIONS)  ;\
-	fi
-	make -f Makefile $@
+builddir: makefile
+	rm -rf builddir
+	mkdir builddir
+	( \
+		cd builddir; \
+		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
+		MISSING="true" \
+			../configure --prefix= \
+			--with-headers=$(ROOTDIR)/$(LINUXDIR)/include \
+			$(CONFIGURE_OPTS) $(CONFOPTIONS) \
+	)
+
+clean:
+	rm -rf builddir

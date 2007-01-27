@@ -8,6 +8,13 @@
  * 
  */
 
+/*
+ * Ignore nonstandard extension warning.
+ * This happens when including winioctl.h
+ */
+#pragma warning( disable : 4201)
+
+#include <config.h>
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,10 +53,6 @@ BOOL OpenHopfDevice()
 		OSVERSIONINFO			VersionInfo;
 		ULONG					deviceNumber;
 		CHAR					deviceName[255];
-
-	    typedef DWORD(WINAPI *OPENVXDHANDLE)(HANDLE);
-		OPENVXDHANDLE  OpenVxDHandle = (OPENVXDHANDLE) GetProcAddress(GetModuleHandle("KERNEL32"),"OpenVxDHandle");
-
 				
 		VersionInfo.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
 		GetVersionEx(&VersionInfo);

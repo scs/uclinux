@@ -3,9 +3,6 @@
  *
  * Revision History:
  * $Log$
- * Revision 1.2  2005/07/25 04:46:34  magicyang
- * New user folder check in
- *
  * Revision 1.9  2000/11/19 09:02:12  dietrich
  * From: Ron Thornton [rthornto@pictel.com]
  * Sent: Thu 11/16/00 8:51 AM
@@ -192,17 +189,35 @@ void init_winnt_time(void) {
 			(float) (units_per_tick / 10));
 	msyslog(LOG_INFO, "Adjustment rate %5.3f ppm/s", ppm_per_adjust_unit);
 #endif
+
+    /*++++ Gerhard Junker
+     * see Platform SDK for QueryPerformanceCounter
+     * On a multiprocessor machine, it should not matter which processor is called. 
+     * However, you can get different results on different processors due to bugs in the BIOS or the HAL. 
+     * To specify processor affinity for a thread, use the SetThreadAffinityMask function. 
+     * ... we will hope, the apc routine will run on the same processor
+     */
+
+    SetThreadAffinityMask(GetCurrentThread(), 1L);
+
+    /*---- Gerhard Junker */
+
 }
 
 
 void reset_winnt_time(void) {
 
 	/* restore the clock frequency back to its original value */
-	if (!SetSystemTimeAdjustment(initial_units_per_tick, FALSE)) {
-		msyslog(LOG_ERR, "Failed to reset clock frequency, SetSystemTimeAdjustment(): %m");
-	}
 	if (!SetSystemTimeAdjustment(0, TRUE)) {
 		msyslog(LOG_ERR, "Failed to reset clock state, SetSystemTimeAdjustment(): %m");
+	}
+        /************ Added back in 2003-01-26 *****************/
+	/* read the current system time, and write it back to
+           force CMOS update: */
+	{
+		SYSTEMTIME st;
+		GetSystemTime(&st);
+		SetSystemTime(&st);
 	}
 }
 

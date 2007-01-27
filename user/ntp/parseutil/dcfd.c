@@ -108,7 +108,9 @@
 #define dprintf(_x_)
 #endif
 
+#ifdef DECL_ERRNO
      extern int errno;
+#endif
 
 /*
  * display received data (avoids also detaching from tty)
@@ -175,7 +177,7 @@ static char skip_adjust  = 1;	/* discard first adjustment (bad samples) */
  */
 #define DCFB_ANNOUNCE           0x0001 /* switch time zone warning (DST switch) */
 #define DCFB_DST                0x0002 /* DST in effect */
-#define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurence) */
+#define DCFB_LEAP		0x0004 /* LEAP warning (1 hour prior to occurrence) */
 #define DCFB_ALTERNATE		0x0008 /* alternate antenna used */
 
 struct clocktime		/* clock time broken up from time code */
@@ -728,7 +730,7 @@ cvt_rawdcf(
  * convert a wall clock time description of DCF77 to a Unix time (seconds
  * since 1.1. 1970 UTC)
  */
-time_t
+static time_t
 dcf_to_unixtime(
 		clocktime_t   *clock_time,
 		unsigned *cvtrtc
@@ -1083,7 +1085,7 @@ periodic_adjust(
  */
 static void
 tick(
-     void
+     int signum
      )
 {
 	static unsigned long last_notice = 0;
@@ -1217,7 +1219,7 @@ usage(
  * check_y2k() - internal check of Y2K logic
  *	(a lot of this logic lifted from ../ntpd/check_y2k.c)
  */
-int
+static int
 check_y2k( void )
 { 
     int  year;			/* current working year */
@@ -1562,7 +1564,7 @@ main(
 		}
 
 		/*
-		 * loose terminal if in daemon operation
+		 * lose terminal if in daemon operation
 		 */
 		if (!interactive)
 		    detach();
@@ -1798,8 +1800,8 @@ main(
 					/*
 					 * output interpreted DCF77 data
 					 */
-					PRINTF(offsets ? "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s> (%c%d.%06ds)" :
-					       "%s, %2d:%02d:%02d, %d.%02d.%02d, <%s%s%s%s>",
+					PRINTF(offsets ? "%s, %2ld:%02ld:%02d, %ld.%02ld.%02ld, <%s%s%s%s> (%c%ld.%06lds)" :
+					       "%s, %2ld:%02ld:%02d, %ld.%02ld.%02ld, <%s%s%s%s>",
 					       wday[clock_time.wday],
 					       clock_time.hour, clock_time.minute, i, clock_time.day, clock_time.month,
 					       clock_time.year,

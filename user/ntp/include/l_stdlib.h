@@ -14,6 +14,12 @@
 # include <stdlib.h>
 #endif
 
+#if defined(__STDC__) || defined(HAVE_STDARG_H)
+# include <stdarg.h>
+#else
+# include <varargs.h>
+#endif
+
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -145,6 +151,11 @@ extern	int	sigvec		P((int, struct sigvec *, struct sigvec *));
 extern	int	snprintf	P((char *, size_t, const char *, ...));
 #endif
 
+/* HMS: does this need further protection? */
+#ifndef HAVE_VSNPRINTF
+extern	int	vsnprintf	P((char *, size_t, const char *, va_list));
+#endif
+
 #ifdef DECL_SRAND48_0
 extern	void	srand48		P((long));
 #endif
@@ -235,7 +246,7 @@ extern	int	toupper		P((int));
 extern	int	errno;
 #endif
 
-#ifdef DECL_H_ERRNO
+#if defined(DECL_H_ERRNO) && !defined(h_errno)
 extern	int	h_errno;
 #endif
 

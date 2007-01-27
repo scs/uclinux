@@ -207,7 +207,7 @@ io_completion_port_add_clock_io(
 	return 0;
 }
 
-/* Queue a receiver on a socket. Returns 0 if no buffer can be queud */
+/* Queue a receiver on a socket. Returns 0 if no buffer can be queued */
 
 static unsigned long QueueSocketRecv(SOCKET s) {
 	
@@ -223,7 +223,7 @@ static unsigned long QueueSocketRecv(SOCKET s) {
 
 		if (SOCKET_ERROR == WSARecvFrom(buff->fd, &buff->wsabuff, 1, 
 						&BytesReceived, &Flags, 
-						(struct sockaddr *) &buff->recv_srcadr, &buff->AddressLength, 
+						(struct sockaddr *) &buff->recv_srcadr, (LPINT) &buff->AddressLength, 
 						&buff->iocompletioninfo.overlapped, NULL)) {
 			DWORD Result = WSAGetLastError();
 			switch (Result) {
@@ -305,12 +305,15 @@ OnSocketRecv(DWORD i, struct IoCompletionInfo *Info, DWORD Bytes)
  *        ReadFile() is less efficient.
  */
 extern void
-io_completion_port_add_socket(struct interface *inter)
+io_completion_port_add_socket(SOCKET fd, struct interface *inter)
 {
-	if (NULL == CreateIoCompletionPort((HANDLE) inter->fd, hIoCompletionPort, (DWORD) inter, 0)) {
-		msyslog(LOG_ERR, "Can't add socket to i/o completion port: %m");
+	if (fd != INVALID_SOCKET) {
+		if (NULL == CreateIoCompletionPort((HANDLE) fd, hIoCompletionPort,
+						   (DWORD) inter, 0)) {
+			msyslog(LOG_ERR, "Can't add socket to i/o completion port: %m");
+		}
+		else QueueSocketRecv(fd);
 	}
-	else QueueSocketRecv(inter->fd);
 }
 
 
@@ -347,7 +350,7 @@ io_completion_port_sendto(
 	struct interface *inter,	
 	struct pkt *pkt,	
 	int len, 
-	struct sockaddr_in* dest)
+	struct sockaddr_storage* dest)
 {
 	transmitbuf *buff = NULL;
 	DWORD Result = ERROR_SUCCESS;
@@ -378,14 +381,14 @@ io_completion_port_sendto(
 			if (debug)
 			printf("No more transmit buffers left - data discarded\n");
 #endif
-		return ~ERROR_SUCCESS;
+		return ERROR_OUTOFMEMORY;
 		}
 	}
 	else {
 #ifdef DEBUG
 		if (debug) printf("Packet too large\n");
 #endif
-		return ~ERROR_SUCCESS;
+		return ERROR_INSUFFICIENT_BUFFER;
 	}
 	return Result;
 }
@@ -402,13 +405,11 @@ io_completion_port_write(
 {
 	transmitbuf *buff = NULL;
 	DWORD lpNumberOfBytesWritten;
-	DWORD Result = -1;
+	DWORD Result = ERROR_INSUFFICIENT_BUFFER;
 
 	if (len <= sizeof(buff->pkt)) {
 		buff = get_free_transmit_buffer();
 		if (buff != NULL) {
-			DWORD BytesSent = 0;
-			DWORD Flags = 0;
 
 			memcpy(&buff->pkt, pkt, len);
 			buff->iocompletioninfo.iofunction = OnWriteComplete;
