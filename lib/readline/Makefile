@@ -21,5 +21,6 @@ clean:
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libreadline.so.5 /lib/
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libhistory.so.5 /lib/
 
 .PHONY: all clean romfs
