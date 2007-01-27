@@ -300,6 +300,9 @@ CONFIG_USER_FLATFSD_HAS_RTC
   If the device does *not* have a real time clock, flatfsd helps keep time increasing
   by storing the time when it saves the config and restores it upon boot.
 
+CONFIG_USER_FLTHDR_FLTHDR
+  FLAT binary format header manipulation program.
+
 CONFIG_USER_GETTYD_GETTYD
   Another getty program.
   Approx. binary size: 16k
@@ -648,49 +651,11 @@ CONFIG_USER_DEBUG
   this option debug symbols are still included, however the optimisation
   level is increased and this can lead to problematic debugging.
 
-CONFIG_BLACKFIN_USE_FLAT
-  Build all libraries and applicaions to produce flat binaries.
-  FLAT binaries tend to be smaller. Their load time tend to be shorter.
-  This option must match the choice made for the C library; when configuring
-  uClibc, select the 'bfin' target.
-
-CONFIG_FMT_USE_SHARED_FLAT
-  Build all libraries and applicaions with -mid-shared-library.
-  This option must match the choice made for the C library; when configuring
-  uClibc, select the 'bfin' target.
-
-CONFIG_FMT_USE_FDPIC_ELF
-  Build all libraries and applicaions with -mfdpic to produce ELF binaries
-  rather than the default flat binaries.  ELF binaries tend to be larger,
-  but have more capabilities, such as support for dlopen.
-  This option must match the choice made for the C library; when configuring
-  uClibc, select either the 'bfin' target for flat binaries, or 'bfinfdpic'
-  for ELF.
-
-CONFIG_INSTALL_ELF_SHARED_LIBS
-  If you wish to use some ELF binaries on a system with mostly flat binaries,
-  enable this option to get the shared libraries from the toolchain
-  distribution installed in the romfs.
-
-CONFIG_INSTALL_FLAT_SHARED_LIBS
-  If the majority of binaries in your system uses either static flat or ELF
-  binaries, but there are some applications built against shared flat
-  libraries, enable this option to get the shared flat libraries from the
-  toolchain distribution installed in the romfs.
-
-CONFIG_BLACKFIN_CHECK_STACKFLOW
-  Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
-
 CONFIG_LIB_DEBUG
   Build all libraries with debug symbols and reduced optimisations.
   See also debug build option in core applications.  Without this option
   debug symbols are still included, however the optimisation level is
   increased and this can lead to problematic debugging.
-
-CONFIG_LIB_DMALLOC_FORCE
-  Debug Malloc Library.
-  To use dmalloc, build your applications with:
-  -IuClinux-dist/lib/dmalloc -LuClinux-dist/lib/dmalloc -ldmalloc
 
 CONFIG_LIB_LIBDES_FORCE
   DESLite library.
@@ -732,11 +697,6 @@ CONFIG_LIB_ZLIB_FORCE
   Data compression library.
   Only enable this if you want to force the library to be built.  The
   Config will make sure this library is built if it is needed.
-
-CONFIG_LIB_LIBBFDSP
-  libbfdsp is Blackfin DSP Library. It implements DSP funtions 
-  and Math funtions, making use of GCC arch dependent built-in 
-  funtions specially designed for Blackfin DSP instructions.
 
 CONFIG_LIB_LIBBZ2_FORCE
   Data compression library.
@@ -912,6 +872,12 @@ CONFIG_USER_CAL_CAL
 CONFIG_USER_CAL_DATE
   Print the date
   Approx. binary size: 5k
+
+CONFIG_USER_CAN_EXAMPLES
+  some example and test applications for the can4linux CAN driver
+
+CONFIG_USER_CAN_HORCH
+  advanced CAN bus analyzer
 
 CONFIG_USER_CAMSERV
   Webcam daemon & cgi for serving streaming images off a V4L webcam.
@@ -1099,6 +1065,9 @@ CONFIG_USER_IPREDIR_IPREDIR
   IP port redirector
   Approx. binary size: 23k
 
+CONFIG_USER_JPEGVIEW_JPEGVIEW
+  View jpegs on a frame buffer
+
 CONFIG_USER_LCD_LCD
   LCD program
   Approx. binary size: 7k
@@ -1202,9 +1171,6 @@ CONFIG_USER_MP3PLAY_MP3PLAY
 
 CONFIG_USER_MP3PLAY_SWAP_WD
   Swap the meaning of the -w and -d command line options.
-
-CONFIG_USER_DAGRAB_DAGRAB
-  Fixed point cd ripper
 
 CONFIG_USER_MUSICBOX_MUSICBOX
   Front-end for mp3play and mixer
@@ -2481,10 +2447,10 @@ CONFIG_USER_CGI_DISKTEL
   The SecureEdge/DISKtel product web configuration CGI.
   Approx. binary size: 150k
 
-CONFIG_USER_FIREWALL_ACCEPT_DHCP
-  Accept DHCP packets from the WAN interface by default.
-  Enable this if you expect that the LAN and WAN will be bridged,
-  and that LAN clients will request addresses from DHCP servers on the WAN.
+CONFIG_USER_FIREWALL_BRIDGE_LAN
+  Enable this if you expect that the firewall is a bridge between clients
+  and the rest of the LAN.  This will allow clients to request addresses
+  from DHCP servers, and access SMB shares.
 
 CONFIG_USER_FIREWALL_DEFAULT_FLOOD_DISABLE
   Disable the flood rate limiting rules by default.
@@ -2568,26 +2534,7 @@ CONFIG_PROP_IFMOND_IF_STATUS
   A tool for determining dev_t status for use in ipsec.secrets and other
   externally processed non-cgi environments.
 
-CONFIG_USER_INETUTILS_RCP
-  RCP utility. Part of the InetUtils package.
-  Approx. binary size: 49.5k
-
-CONFIG_USER_INETUTILS_RSH
-  RSH utility. Part of the InetUtils packge.
-  Approx. binary size: 43k
-
-CONFIG_USER_INETUTILS_RSHD
-  RSH server. Part of the InetUtils packge.
-  Approx. binary size: 53k
-
-CONFIG_USER_FLTHDR_FLTHDR
-  FLAT binary format header manipulation program.
-
-CONFIG_USER_CAN_EXAMPLES
-  some example and test applications for the can4linux CAN driver.
-
-CONFIG_USER_CAN_HORCH
-  advanced CAN bus analyzer
+source Configure-blackfin.help
 
 #
 # END of proprietary config help
