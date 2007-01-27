@@ -21,6 +21,9 @@
 # include <unistd.h>
 #endif /* HAVE_UNISTD_H */
 
+#define HAVE___ADJTIMEX
+#define __adjtimex adjtimex
+
 #ifdef HAVE___ADJTIMEX		/* Linux */
 
 #include <sys/timex.h>
