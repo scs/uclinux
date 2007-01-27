@@ -1,7 +1,7 @@
 /*
- * $Header$
- * $Source$
- * $Locker$
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/error_message.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/et/error_message.c,v $
+ * $Locker:  $
  *
  * Copyright 1987 by the Student Information Processing Board
  * of the Massachusetts Institute of Technology

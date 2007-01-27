@@ -1,8 +1,8 @@
 /*
  * prompt.c: Routines for retrieving and setting a prompt.
  *
- * $Header$
- * $Locker$
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/prompt.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Locker:  $
  *
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *

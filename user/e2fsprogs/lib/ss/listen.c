@@ -1,8 +1,8 @@
 /*
  * Listener loop for subsystem library libss.a.
  *
- *	$Header$
- *	$Locker$
+ *	$Header: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/listen.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ *	$Locker:  $
  * 
  * Copyright 1987, 1988 by MIT Student Information Processing Board
  *
@@ -27,7 +27,7 @@
 
 #ifndef	lint
 static char const rcs_id[] =
-    "$Header$";
+    "$Header: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/listen.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $";
 #endif
 
 typedef void sigret_t;

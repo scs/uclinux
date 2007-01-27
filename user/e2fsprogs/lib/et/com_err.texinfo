@@ -1,8 +1,8 @@
 \input texinfo @c -*-texinfo-*-
 
-@c $Header$
-@c $Source$
-@c $Locker$
+@c $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/com_err.texinfo,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+@c $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/et/com_err.texinfo,v $
+@c $Locker:  $
 
 @c Note that although this source file is in texinfo format (more
 @c or less), it is not yet suitable for turning into an ``info''

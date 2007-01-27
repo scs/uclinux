@@ -1,7 +1,7 @@
 /*
- * $Header$
- * $Source$
- * $Locker$
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/init_et.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/et/init_et.c,v $
+ * $Locker:  $
  *
  * Copyright 1986, 1987, 1988 by MIT Information Systems and
  *	the MIT Student Information Processing Board.

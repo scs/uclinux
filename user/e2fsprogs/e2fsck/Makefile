@@ -27,6 +27,8 @@ e2fsck: $(OBJS) $(DEPLIBS)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK /bin/e2fsck
+	rm -f $(ROMFSDIR)/bin/fsck.ext2
+	$(ROMFSINST) -e CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK -s e2fsck /bin/fsck.ext2
 
 clean:
 	$(RM) -f $(PROGS) \#* *\# *.gdb *.s *.o *.a *~ core e2fsck.static \
