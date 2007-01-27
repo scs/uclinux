@@ -1,5 +1,11 @@
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+READLINE_SHARED = install-shared
+else
+READLINE_SHARED =
+endif
+
 all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
+	$(MAKE) -C build install $(READLINE_SHARED) DESTDIR=$(STAGEDIR)
 	rm -f $(STAGEDIR)/usr/lib/*.old
 
 build/Makefile:
@@ -15,7 +21,7 @@ clean:
 
 romfs:
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	mv $(DESTDIR)/usr/lib/libreadline.so* $(ROMFSDIR)/lib/
+	cp $(STAGEDIR)/usr/lib/libreadline.so* $(ROMFSDIR)/lib/
 endif
 
 .PHONY: all clean romfs
