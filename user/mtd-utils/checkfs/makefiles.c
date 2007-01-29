@@ -12,7 +12,7 @@
  * limitations under the Licence.
 
  * $Id$
- 
+
 This program creates MAX_NUM_FILES files (file00001, file00002 etc) and
 fills them with random numbers till they are a random length. Then it checksums
 the files (with the checksum as the last two bytes) and closes the file.
@@ -85,7 +85,7 @@ void check_crc_ccitt(char *filename)
   int len;
   char dataByte;
   int retry;
-  
+
   fp =   fopen(filename,"rb");
   if(!fp){
     printf("Verify checksum:Error! Cannot open filename passed for verify checksum: %s\n",filename);
@@ -123,7 +123,7 @@ void check_crc_ccitt(char *filename)
 
 
 /*this routine opens a file 'filename' and checksumn's the entire
- contents, and then appends the checksum at the end of the file, 
+ contents, and then appends the checksum at the end of the file,
  closes the file and returns.
 */
 void checksum(char *filename){
@@ -133,7 +133,7 @@ void checksum(char *filename){
   int len;
   char dataByte;
   int retry;
-  
+
   fp =   fopen(filename,"rb");
   if(!fp){
     printf("Error! Cannot open filename passed for checksum: %s\n",filename);
@@ -156,7 +156,7 @@ void checksum(char *filename){
       printf("...bytes left to be read %i.\n\n",len);
       fclose(fp);
       exit(1);
-    } 
+    }
     crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ dataByte) & 0xff];
   }
   crc ^= 0xffff;
@@ -169,7 +169,7 @@ void checksum(char *filename){
   if(!fp){
     printf("Error! Cannot open filename to update checksum: %s\n",filename);
     exit(1);
-  } 
+  }
   if(fwrite(&crc, sizeof(crc), 1, fp) != 1){
     printf("error! unable to update the file for checksum.\n");
     fclose(fp);
@@ -177,14 +177,14 @@ void checksum(char *filename){
   }
   fflush(fp);
   fclose(fp);
-  
-  
+
+
 }/*end checksum()*/
 
 
 
 int main(void){
-    
+
   FILE *fp, *cyclefp;
   int cycleCount;
   int rand_data;
@@ -196,7 +196,7 @@ int main(void){
   unsigned short numberFiles;
 
   numberFiles = MAX_NUM_FILES;
-  
+
   for(counter=0;counter<numberFiles;counter++){
     /*create the filename in sequence*/
     sprintf(filename,"file%i",filenameCounter++);
@@ -236,7 +236,7 @@ int main(void){
     /*now calculate the file checksum and append it to the end*/
     checksum(filename);
     /*this is just a test. Check the CRC to amek sure that it is OK.*/
-    check_crc_ccitt(filename);    
+    check_crc_ccitt(filename);
   }
 
   /*now make a file called "cycleCnt" and put a binary (int)0 in it.

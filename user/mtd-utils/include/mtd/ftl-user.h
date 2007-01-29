@@ -1,6 +1,6 @@
 /*
- * $Id$
- * 
+ * $Id: ftl.h,v 1.7 2005/11/07 11:14:54 gleixner Exp $
+ *
  * Derived from (and probably identical to):
  * ftl.h 1.7 1999/10/25 20:23:17
  *
@@ -12,7 +12,7 @@
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
  * the License for the specific language governing rights and
- * limitations under the License. 
+ * limitations under the License.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -30,8 +30,8 @@
  * under either the MPL or the GPL.
  */
 
-#ifndef _LINUX_FTL_H
-#define _LINUX_FTL_H
+#ifndef __MTD_FTL_USER_H__
+#define __MTD_FTL_USER_H__
 
 typedef struct erase_unit_header_t {
     u_int8_t	LinkTargetTuple[5];
@@ -73,4 +73,4 @@ typedef struct erase_unit_header_t {
 #define BLOCK_REPLACEMENT	0x60
 #define BLOCK_BAD		0x70
 
-#endif /* _LINUX_FTL_H */
+#endif /* __MTD_FTL_USER_H__ */

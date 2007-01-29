@@ -44,16 +44,16 @@
 
 #define min(x,y) ((x)<(y)?(x):(y))
 
-	/* Plan: call deflate() with avail_in == *sourcelen, 
-		avail_out = *dstlen - 12 and flush == Z_FINISH. 
+	/* Plan: call deflate() with avail_in == *sourcelen,
+		avail_out = *dstlen - 12 and flush == Z_FINISH.
 		If it doesn't manage to finish,	call it again with
 		avail_in == 0 and avail_out set to the remaining 12
-		bytes for it to clean up. 
+		bytes for it to clean up.
 	   Q: Is 12 bytes sufficient?
 	*/
 #define STREAM_END_SPACE 12
 
-int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out, 
+int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 		   uint32_t *sourcelen, uint32_t *dstlen, void *model)
 {
 	z_stream strm;
@@ -70,7 +70,7 @@ int jffs2_zlib_compress(unsigned char *data_in, unsigned char *cpage_out,
 	}
 	strm.next_in = data_in;
 	strm.total_in = 0;
-	
+
 	strm.next_out = cpage_out;
 	strm.total_out = 0;
 
@@ -116,7 +116,7 @@ int jffs2_zlib_decompress(unsigned char *data_in, unsigned char *cpage_out,
 	strm.next_in = data_in;
 	strm.avail_in = srclen;
 	strm.total_in = 0;
-	
+
 	strm.next_out = cpage_out;
 	strm.avail_out = destlen;
 	strm.total_out = 0;

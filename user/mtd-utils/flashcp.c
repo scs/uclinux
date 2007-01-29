@@ -180,7 +180,7 @@ int main (int argc,char *argv[])
    (progname = strrchr (argv[0],'/')) ? progname++ : (progname = argv[0]);
 
    /*********************
-	* parse cmd-line 
+	* parse cmd-line
 	*****************/
 
    for (;;) {

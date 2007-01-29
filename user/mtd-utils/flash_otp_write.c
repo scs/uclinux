@@ -1,4 +1,4 @@
-/* 
+/*
  * flash_otp_write.c -- write One-Time-Program data
 */
 
@@ -15,9 +15,10 @@
 
 int main(int argc,char *argv[])
 {
-	int fd, val, ret, size, wrote;
+	int fd, val, ret, size, wrote, len;
+	mtd_info_t mtdInfo;
 	off_t offset;
-	char *p, buf[256];
+	char *p, buf[2048];
 
 	if (argc != 4 || strcmp(argv[1], "-u")) {
 		fprintf(stderr, "Usage: %s -u <device> <offset>\n", argv[0]);
@@ -25,7 +26,7 @@ int main(int argc,char *argv[])
 		fprintf(stderr, "CAUTION! ONCE SET TO 0, OTP DATA BITS CAN'T BE ERASED!\n");
 		return EINVAL;
 	}
-   
+
 	fd = open(argv[2], O_WRONLY);
 	if (fd < 0) {
 		perror(argv[2]);
@@ -36,6 +37,11 @@ int main(int argc,char *argv[])
 	ret = ioctl(fd, OTPSELECT, &val);
 	if (ret < 0) {
 		perror("OTPSELECT");
+		return errno;
+	}
+
+	if (ioctl(fd, MEMGETINFO, &mtdInfo)) {
+		perror("MEMGETINFO");
 		return errno;
 	}
 
@@ -52,14 +58,24 @@ int main(int argc,char *argv[])
 
 	printf("Writing OTP user data on %s at offset 0x%lx\n", argv[2], offset);
 
+	if (mtdInfo.type == MTD_NANDFLASH)
+		len = mtdInfo.oobblock;
+	else
+		len = 256;
+
 	wrote = 0;
-	while ((size = read(0, buf, sizeof(buf)))) {
+	while ((size = read(0, buf, len))) {
 		if (size < 0) {
 			perror("read()");
 			return errno;
 		}
 		p = buf;
 		while (size > 0) {
+			if (mtdInfo.type == MTD_NANDFLASH) {
+				/* Fill remain buffers with 0xff */
+				memset(buf + size, 0xff, mtdInfo.oobblock - size);
+				size = mtdInfo.oobblock;
+			}
 			ret = write(fd, p, size);
 			if (ret < 0) {
 				perror("write()");

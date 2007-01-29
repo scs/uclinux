@@ -51,17 +51,17 @@ unsigned char oobbuf[MAX_OOB_SIZE];
 unsigned char oobreadbuf[MAX_OOB_SIZE];
 
 // oob layouts to pass into the kernel as default
-struct nand_oobinfo none_oobinfo = { 
+struct nand_oobinfo none_oobinfo = {
 	.useecc = MTD_NANDECC_OFF,
 };
 
-struct nand_oobinfo jffs2_oobinfo = { 
+struct nand_oobinfo jffs2_oobinfo = {
 	.useecc = MTD_NANDECC_PLACE,
 	.eccbytes = 6,
 	.eccpos = { 0, 1, 2, 3, 6, 7 }
 };
 
-struct nand_oobinfo yaffs_oobinfo = { 
+struct nand_oobinfo yaffs_oobinfo = {
 	.useecc = MTD_NANDECC_PLACE,
 	.eccbytes = 6,
 	.eccpos = { 8, 9, 10, 13, 14, 15}
@@ -193,10 +193,10 @@ void process_options (int argc, char *argv[])
 			break;
 		}
 	}
-	
-	if ((argc - optind) != 2 || error) 
+
+	if ((argc - optind) != 2 || error)
 		display_help ();
-	
+
 	mtd_device = argv[optind++];
 	img = argv[optind];
 }
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* Fill in MTD device capability structure */  
+	/* Fill in MTD device capability structure */
 	if (ioctl(fd, MEMGETINFO, &meminfo) != 0) {
 		perror("MEMGETINFO");
 		close(fd);
@@ -238,10 +238,10 @@ int main(int argc, char **argv)
 
         /* Set erasesize to specified number of blocks - to match jffs2 (virtual) block size */
         meminfo.erasesize *= blockalign;
-     
+
 	/* Make sure device page sizes are valid */
 	if (!(meminfo.oobsize == 16 && meminfo.oobblock == 512) &&
-	    !(meminfo.oobsize == 8 && meminfo.oobblock == 256) && 
+	    !(meminfo.oobsize == 8 && meminfo.oobblock == 256) &&
 	    !(meminfo.oobsize == 64 && meminfo.oobblock == 2048)) {
 		fprintf(stderr, "Unknown flash (not normal NAND)\n");
 		close(fd);
@@ -253,8 +253,8 @@ int main(int argc, char **argv)
 		perror ("MEMGETOOBSEL");
 		close (fd);
 		exit (1);
-	} 
-	
+	}
+
 	// write without ecc ?
 	if (noecc) {
 		if (ioctl (fd, MEMSETOOBSEL, &none_oobinfo) != 0) {
@@ -272,14 +272,14 @@ int main(int argc, char **argv)
 			perror ("MEMSETOOBSEL");
 			close (fd);
 			exit (1);
-		} 
+		}
 		oobinfochanged = 1;
-	} 
+	}
 
-	/* 
+	/*
 	 * force oob layout for jffs2 or yaffs ?
-	 * Legacy support 
-	 */  
+	 * Legacy support
+	 */
 	if (forcejffs2 || forceyaffs) {
 		struct nand_oobinfo *oobsel = forcejffs2 ? &jffs2_oobinfo : &yaffs_oobinfo;
 
@@ -295,15 +295,15 @@ int main(int argc, char **argv)
     			if (forceyaffs) {
 				fprintf (stderr, "YAFSS cannot operate on 256 Byte page size");
 				goto restoreoob;
-			}	
-			/* Adjust number of ecc bytes */	
-			jffs2_oobinfo.eccbytes = 3;	
+			}
+			/* Adjust number of ecc bytes */
+			jffs2_oobinfo.eccbytes = 3;
 		}
-		
+
 		if (ioctl (fd, MEMSETOOBSEL, oobsel) != 0) {
 			perror ("MEMSETOOBSEL");
 			goto restoreoob;
-		} 
+		}
 	}
 
 	oob.length = meminfo.oobsize;
@@ -320,13 +320,13 @@ int main(int argc, char **argv)
 	lseek (ifd, 0, SEEK_SET);
 
 	pagelen = meminfo.oobblock + ((writeoob == 1) ? meminfo.oobsize : 0);
-	
+
 	// Check, if file is pagealigned
 	if ((!pad) && ((imglen % pagelen) != 0)) {
 		fprintf (stderr, "Input file is not page aligned\n");
 		goto closeall;
 	}
-	
+
 	// Check, if length fits into device
 	if ( ((imglen / pagelen) * meminfo.oobblock) > (meminfo.size - mtdoffset)) {
 		fprintf (stderr, "Image %d bytes, NAND page %d bytes, OOB area %u bytes, device size %u bytes\n",
@@ -334,14 +334,14 @@ int main(int argc, char **argv)
 		perror ("Input file does not fit into device");
 		goto closeall;
 	}
-	
+
 	/* Get data from input and write to the device */
 	while (imglen && (mtdoffset < meminfo.size)) {
 		// new eraseblock , check for bad block(s)
 		// Stay in the loop to be sure if the mtdoffset changes because
 		// of a bad block, that the next block that will be written to
-		// is also checked. Thus avoiding errors if the block(s) after the 
-		// skipped block(s) is also bad (number of blocks depending on 
+		// is also checked. Thus avoiding errors if the block(s) after the
+		// skipped block(s) is also bad (number of blocks depending on
 		// the blockalign
 		while (blockstart != (mtdoffset & (~meminfo.erasesize + 1))) {
 			blockstart = mtdoffset & (~meminfo.erasesize + 1);
@@ -349,7 +349,7 @@ int main(int argc, char **argv)
 		        baderaseblock = 0;
 			if (!quiet)
 				fprintf (stdout, "Writing data to block %x\n", blockstart);
-		   
+
 		        /* Check all the blocks in an erase block for bad blocks */
 			do {
 			   	if ((ret = ioctl(fd, MEMGETBADBLOCK, &offs)) < 0) {
@@ -361,13 +361,13 @@ int main(int argc, char **argv)
 				   	if (!quiet)
 						fprintf (stderr, "Bad block at %x, %u block(s) from %x will be skipped\n", (int) offs, blockalign, blockstart);
 					}
-			   
-				if (baderaseblock) {		   
+
+				if (baderaseblock) {
 					mtdoffset = blockstart + meminfo.erasesize;
 				}
 			        offs +=  meminfo.erasesize / blockalign ;
 			} while ( offs < blockstart + meminfo.erasesize );
- 
+
 		}
 
 		readlen = meminfo.oobblock;
@@ -393,13 +393,13 @@ int main(int argc, char **argv)
 			}
 			if (!noecc) {
 				int i, start, len;
-				/* 
+				/*
 				 *  We use autoplacement and have the oobinfo with the autoplacement
-				 * information from the kernel available 
+				 * information from the kernel available
 				 *
 				 * Modified to support out of order oobfree segments,
 				 * such as the layout used by diskonchip.c
-				 */  
+				 */
 				if (!oobinfochanged && (old_oobinfo.useecc == MTD_NANDECC_AUTOPLACE)) {
 					for (i = 0;old_oobinfo.oobfree[i][1]; i++) {
 						/* Set the reserved bytes to 0xff */
@@ -426,7 +426,7 @@ int main(int argc, char **argv)
 			}
 			imglen -= meminfo.oobsize;
 		}
-		
+
 		/* Write out the Page data */
 		if (pwrite(fd, writebuf, meminfo.oobblock, mtdoffset) != meminfo.oobblock) {
 			perror ("pwrite");
@@ -445,7 +445,7 @@ int main(int argc, char **argv)
 			perror ("MEMSETOOBSEL");
 			close (fd);
 			exit (1);
-		} 
+		}
 	}
 
 	close(fd);

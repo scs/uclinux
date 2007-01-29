@@ -1,4 +1,4 @@
-/* 
+/*
  * rfddump.c
  *
  * Copyright (C) 2005 Sean Young <sean@mess.org>
@@ -96,7 +96,7 @@ void process_options(int argc, char *argv[], struct rfd *rfd)
 			{ NULL, 0, 0, 0 }
 		};
 
-		int c = getopt_long(argc, argv, short_options, 
+		int c = getopt_long(argc, argv, short_options,
 				long_options, &option_index);
 		if (c == EOF)
 			break;
@@ -132,13 +132,13 @@ int build_block_map(struct rfd *rfd, int fd, int block)
 	int  i;
 	int sectors;
 
-	if (pread(fd, rfd->header, rfd->header_size, block * rfd->block_size) 
+	if (pread(fd, rfd->header, rfd->header_size, block * rfd->block_size)
 			!= rfd->header_size) {
 		return -1;
 	}
 
 	if (__le16_to_cpu(rfd->header[0]) != RFD_MAGIC) {
-		if (rfd->verbose) 
+		if (rfd->verbose)
 			printf("Block #%02d: Magic missing\n", block);
 
 		return 0;
@@ -166,7 +166,7 @@ int build_block_map(struct rfd *rfd, int fd, int block)
 			continue;
 		}
 
-		rfd->sector_map[entry] = rfd->block_size * block + 
+		rfd->sector_map[entry] = rfd->block_size * block +
 			(i + rfd->header_sectors) * SECTOR_SIZE;
 		sectors++;
 	}
@@ -221,13 +221,13 @@ int main(int argc, char *argv[])
 			return 1;
 		}
 
-		if (st.st_size % SECTOR_SIZE) 
+		if (st.st_size % SECTOR_SIZE)
 			fprintf(stderr, "%s: warning: not a multiple of sectors (512 bytes)\n", rfd.mtd_filename);
-		
+
 		sectors_per_block = rfd.block_size / SECTOR_SIZE;
 
-		if (st.st_size % rfd.block_size) 
-			fprintf(stderr, "%s: warning: not a multiple of block size\n", rfd.mtd_filename);			
+		if (st.st_size % rfd.block_size)
+			fprintf(stderr, "%s: warning: not a multiple of block size\n", rfd.mtd_filename);
 
 		rfd.block_count = st.st_size / rfd.block_size;
 
@@ -238,14 +238,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	rfd.header_sectors = 
+	rfd.header_sectors =
                 ((HEADER_MAP_OFFSET + sectors_per_block) *
                   sizeof(__u16) + SECTOR_SIZE - 1) / SECTOR_SIZE;
 	rfd.data_sectors = sectors_per_block - rfd.header_sectors;
-	cylinders = ((rfd.block_count - 1) * rfd.data_sectors - 1) 
+	cylinders = ((rfd.block_count - 1) * rfd.data_sectors - 1)
 		/ SECTORS_PER_TRACK;
 	rfd.sector_count = cylinders * SECTORS_PER_TRACK;
-	rfd.header_size = 
+	rfd.header_size =
 		(HEADER_MAP_OFFSET + rfd.data_sectors) * sizeof(__u16);
 
 	rfd.header = malloc(rfd.header_size);
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
 
 	for (blocks_found=i=0; i<rfd.block_count; i++) {
 		rc = build_block_map(&rfd, fd, i);
-		if (rc > 0) 
+		if (rc > 0)
 			blocks_found++;
 		if (rc < 0)
 			goto err;
@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (i=0; i<rfd.sector_count; i++) {
-		if (rfd.sector_map[i] != -1) 
+		if (rfd.sector_map[i] != -1)
 			break;
 	}
 
@@ -301,7 +301,7 @@ int main(int argc, char *argv[])
 		if (rfd.sector_map[i] == -1) {
 			memset(sector, 0, SECTOR_SIZE);
 			blank++;
-		} else { 
+		} else {
 			if (pread(fd, sector, SECTOR_SIZE, rfd.sector_map[i])
 					!= SECTOR_SIZE) {
 				perror(rfd.mtd_filename);
@@ -315,7 +315,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (rfd.verbose) 
+	if (rfd.verbose)
 		printf("Copied %d sectors (%d blank)\n", rfd.sector_count, blank);
 
 	close(out_fd);

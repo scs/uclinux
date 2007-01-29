@@ -1,7 +1,7 @@
 /*
- * $Id$
+ * $Id: mtd-abi.h,v 1.13 2005/11/07 11:14:56 gleixner Exp $
  *
- * Portions of MTD ABI definition which are shared by kernel and user space 
+ * Portions of MTD ABI definition which are shared by kernel and user space
  */
 
 #ifndef __MTD_ABI_H__
@@ -28,26 +28,18 @@ struct mtd_oob_buf {
 #define MTD_ROM			2
 #define MTD_NORFLASH		3
 #define MTD_NANDFLASH		4
-#define MTD_PEROM		5
 #define MTD_DATAFLASH		6
-#define MTD_OTHER		14
-#define MTD_UNKNOWN		15
 
 #define MTD_CLEAR_BITS		1       // Bits can be cleared (flash)
 #define MTD_SET_BITS		2       // Bits can be set
-#define MTD_ERASEABLE		4       // Has an erase function
-#define MTD_WRITEB_WRITEABLE	8       // Direct IO is possible
-#define MTD_VOLATILE		16      // Set for RAMs
-#define MTD_XIP			32	// eXecute-In-Place possible
-#define MTD_OOB			64	// Out-of-band data (NAND flash)
 #define MTD_ECC			128	// Device capable of automatic ECC
-#define MTD_NO_VIRTBLOCKS	256	// Virtual blocks not allowed
+#define MTD_PROGRAM_REGIONS	512	// Configurable Programming Regions
 
 // Some common devices / combinations of capabilities
 #define MTD_CAP_ROM		0
-#define MTD_CAP_RAM		(MTD_CLEAR_BITS|MTD_SET_BITS|MTD_WRITEB_WRITEABLE)
-#define MTD_CAP_NORFLASH        (MTD_CLEAR_BITS|MTD_ERASEABLE)
-#define MTD_CAP_NANDFLASH       (MTD_CLEAR_BITS|MTD_ERASEABLE|MTD_OOB)
+#define MTD_CAP_RAM		(MTD_CLEAR_BITS|MTD_SET_BITS)
+#define MTD_CAP_NORFLASH	(MTD_CLEAR_BITS)
+#define MTD_CAP_NANDFLASH	(MTD_CLEAR_BITS)
 #define MTD_WRITEABLE		(MTD_CLEAR_BITS|MTD_SET_BITS)
 
 
@@ -61,6 +53,7 @@ struct mtd_oob_buf {
 #define MTD_NANDECC_PLACE	1	// Use the given placement in the structure (YAFFS1 legacy mode)
 #define MTD_NANDECC_AUTOPLACE	2	// Use the default placement scheme
 #define MTD_NANDECC_PLACEONLY	3	// Use the given placement in the structure (Do not store ecc result on read)
+#define MTD_NANDECC_AUTOPL_USR 	4	// Use the given autoplacement scheme rather than using the default
 
 /* OTP mode selection */
 #define MTD_OTP_OFF		0
@@ -79,7 +72,7 @@ struct mtd_info_user {
 };
 
 struct region_info_user {
-	uint32_t offset;		/* At which this region starts, 
+	uint32_t offset;		/* At which this region starts,
 					 * from the beginning of the MTD */
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks in this region */

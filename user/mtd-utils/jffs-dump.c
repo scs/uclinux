@@ -178,7 +178,7 @@ jffs_print_raw_inode(struct jffs_raw_inode *raw_inode)
 	fprintf(stdout, "}\n");
 }
 
-static void write_val32(__u32 *adr, __u32 val) 
+static void write_val32(__u32 *adr, __u32 val)
 {
   switch(endian) {
   case ENDIAN_HOST:
@@ -193,7 +193,7 @@ static void write_val32(__u32 *adr, __u32 val)
   }
 }
 
-static void write_val16(__u16 *adr, __u16 val) 
+static void write_val16(__u16 *adr, __u16 val)
 {
   switch(endian) {
   case ENDIAN_HOST:
@@ -208,7 +208,7 @@ static void write_val16(__u16 *adr, __u16 val)
   }
 }
 
-static __u32 read_val32(__u32 *adr) 
+static __u32 read_val32(__u32 *adr)
 {
   __u32 val;
 
@@ -226,7 +226,7 @@ static __u32 read_val32(__u32 *adr)
   return val;
 }
 
-static __u16 read_val16(__u16 *adr) 
+static __u16 read_val16(__u16 *adr)
 {
   __u16 val;
 
@@ -323,7 +323,7 @@ main(int argc, char **argv)
 				if (wordbuf == JFFS_MAGIC_BITMASK)
 					break;
                         }
-			
+
 		case JFFS_MAGIC_BITMASK:
 			if (pread(fs, &ino, sizeof(ino), pos) < 0) {
 				perror("pread");
@@ -351,11 +351,11 @@ main(int argc, char **argv)
 				}
 			}
 			pos += (ino.nsize + 3) & ~3;
-			
+
 			pos += (ino.dsize + 3) & ~3;
 		}
 
-		
+
 
 	}
 }

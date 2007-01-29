@@ -1,4 +1,4 @@
-/* 
+/*
  * nftl_format.c: Creating a NFTL/INFTL partition on an MTD device
  *
  *
@@ -78,18 +78,18 @@ static unsigned char check_block_1(unsigned long block)
 {
 	unsigned char oobbuf[16];
 	struct mtd_oob_buf oob = { 0, 16, oobbuf };
-	
+
 	oob.start = block * meminfo.erasesize;
 	if (ioctl(fd, MEMREADOOB, &oob))
 		return ZONE_BAD_ORIGINAL;
-	
+
 	if(oobbuf[5] == 0)
 		return ZONE_BAD_ORIGINAL;
 
 	oob.start = block * meminfo.erasesize + 512 /* FIXME */;
 	if (ioctl(fd, MEMREADOOB, &oob))
 		return ZONE_BAD_ORIGINAL;
-	
+
 	if(oobbuf[5] == 0)
 		return ZONE_BAD_ORIGINAL;
 
@@ -160,7 +160,7 @@ static unsigned char erase_block(unsigned long block)
 
 	status = (do_oobcheck) ? check_block_1(block) : ZONE_GOOD;
 	erase.start = block * meminfo.erasesize;
-	
+
 	if (status != ZONE_GOOD) {
 		printf("\rSkipping bad zone (factory marked) #%ld @ 0x%x\n", block, erase.start);
 		fflush(stdout);
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 	case 0x8000:
 		break;
 	default:
-		printf("Unrecognized Erase size, 0x%x - I'm confused\n", 
+		printf("Unrecognized Erase size, 0x%x - I'm confused\n",
 			meminfo.erasesize);
 		close(fd);
 		return 1;
@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 	memset(BadUnitTable, ZONE_GOOD, MAX_ERASE_ZONES);
 
 	if (part_size == 0 || (part_size > meminfo.size - startofs))
-		/* the user doest not or incorrectly specify NFTL partition size */ 
+		/* the user doest not or incorrectly specify NFTL partition size */
 		part_size = meminfo.size - startofs;
 
 	erase.length = meminfo.erasesize;
@@ -383,9 +383,9 @@ int main(int argc, char **argv)
 		INFTLhdr->Partitions[0].spareUnits = cpu_to_le32(0);
 		INFTLhdr->Partitions[0].Reserved0 = INFTLhdr->Partitions[0].firstUnit;
 		INFTLhdr->Partitions[0].Reserved1 = cpu_to_le32(0);
-		
+
 	} else {
-	
+
 		NFTLhdr = (struct NFTLMediaHeader *) (writebuf[0]);
 		strcpy(NFTLhdr->DataOrgID, "ANAND");
 		NFTLhdr->NumEraseUnits = cpu_to_le16(part_size / meminfo.erasesize);

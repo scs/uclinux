@@ -1,6 +1,6 @@
 /* eraseall.c -- erase the whole of a MTD device
 
-   Copyright (C) 2000 Arcom Control System Ltd  
+   Copyright (C) 2000 Arcom Control System Ltd
 
     Renamed to flash_eraseall.c
 
@@ -8,15 +8,15 @@
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-  
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-  
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA  
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
    $Id$
 */
@@ -92,7 +92,7 @@ int main (int argc, char *argv[])
 				fprintf(stderr, "%s: %s: unable to get NAND oobinfo\n", exe_name, mtd_device);
 				exit(1);
 			}
-			
+
 			/* Check for autoplacement */
 			if (oobinfo.useecc == MTD_NANDECC_AUTOPLACE) {
 				/* Get the position of the free bytes */
@@ -152,7 +152,7 @@ int main (int argc, char *argv[])
 			printf
                            ("\rErasing %d Kibyte @ %x -- %2llu %% complete.",
 			     meminfo.erasesize / 1024, erase.start,
-			     (unsigned long long) 
+			     (unsigned long long)
 			     erase.start * 100 / meminfo.size);
 		}
 		fflush(stdout);
@@ -161,11 +161,11 @@ int main (int argc, char *argv[])
 			fprintf(stderr, "\n%s: %s: MTD Erase failure: %s\n", exe_name, mtd_device, strerror(errno));
 			continue;
 		}
-		
+
 		/* format for JFFS2 ? */
-		if (!jffs2) 
+		if (!jffs2)
 			continue;
-				
+
 		/* write cleanmarker */
 		if (isNAND) {
 			struct mtd_oob_buf oob;
@@ -180,7 +180,7 @@ int main (int argc, char *argv[])
 			if (lseek (fd, erase.start, SEEK_SET) < 0) {
 				fprintf(stderr, "\n%s: %s: MTD lseek failure: %s\n", exe_name, mtd_device, strerror(errno));
 				continue;
-			}	
+			}
 			if (write (fd , &cleanmarker, sizeof (cleanmarker)) != sizeof (cleanmarker)) {
 				fprintf(stderr, "\n%s: %s: MTD write failure: %s\n", exe_name, mtd_device, strerror(errno));
 				continue;

@@ -29,9 +29,9 @@
   COL1=UsedSpace COL2=Jitter
 
   $Id$
-  $Log$
-  Revision 1.3  2005/09/01 09:09:32  aubrey
-  Fix bug 848: mkfs.jffs2 don't work properly
+  $Log: plotJittervsFill.c,v $
+  Revision 1.6  2005/11/07 11:15:21  gleixner
+  [MTD / JFFS2] Clean up trailing white spaces
 
   Revision 1.5  2001/08/10 19:23:11  vipin
   Ready to be released under GPL! Added proper headers etc.
@@ -53,7 +53,7 @@
   and produces output suitable to be plotted.
   This output plot may be examined to see visually the relationship
   of the Jitter vs disk usage of the fs under test.
-  
+
  */
 
 #include <stdio.h>
@@ -93,20 +93,20 @@ void HandleCmdLineArgs(
     char *argv[])                   /* ptrs to command-line arguments   */
 {
     int argNum;                     /* argument number                  */
-    
+
     if (argc > (int) 1) {
-        
+
         for (argNum = (int) 1; argNum < argc; argNum++) {
-            
+
             /* The command line contains an argument. */
-            
+
             if ((strcmp(argv[argNum],"--version") == 0) ||
                 (strcmp(argv[argNum],"-v")        == 0)) {
                 /* Print version information and exit. */
                 printf("%s\n", Version_string);
                 exit(0);
             }
-            
+
             else if ((strcmp(argv[argNum],"--help") == 0) ||
                      (strcmp(argv[argNum],"-h")     == 0) ||
                      (strcmp(argv[argNum],"-?")     == 0)) {
@@ -127,14 +127,14 @@ void HandleCmdLineArgs(
                     exit(0);
                 }
             }
-            
+
             else if ((strcmp(argv[argNum],"--jitter_threshold") == 0) ||
                      (strcmp(argv[argNum],"-t") == 0)) {
                 /* Set the file to read*/
                 ++argNum;
-                
+
                 JitterThreshold_ms = atoi(argv[argNum]);
-                
+
                 if(JitterThreshold_ms < MIN_JITTER_THRESHOLD)
                 {
                     printf("A jitter threshold less than %i ms is not allowed. Bye.\n",
@@ -144,12 +144,12 @@ void HandleCmdLineArgs(
             }
 
             else if ((strcmp(argv[argNum],"-d") == 0))
-            {          
+            {
                 /* Increment debug level */
-                
+
                 Debug++;
             }
-                
+
             else {
                 /* Unknown argument. Print help information and exit. */
                 printf("Invalid option %s\n", argv[argNum]);
@@ -158,7 +158,7 @@ void HandleCmdLineArgs(
             }
         }
     }
-    
+
     return;
 }
 
@@ -190,13 +190,13 @@ int main(
                             we can o/p all these values.
                          */
     int dataLineNo[MAX_SAVE_BUFFER]; /* The saved line #'s for the above. Printed if debug specified. */
-     
+
     int saveJitterCnt = 0;
     int lookFor_df = FALSE;
     int dfPercent = -1; /* will be >= 0 if at least one found. The init value is a flag. */
-    
+
     char junkStr1[500], junkStr2[500];
-    
+
     HandleCmdLineArgs(argc, argv);
 
     if((fp = fopen(LogFile, "r")) == NULL)
@@ -205,9 +205,9 @@ int main(
         perror("Error:");
         exit(1);
     }
-    
 
-    
+
+
     while(fgets(lineBuf, sizeof(lineBuf), fp) != NULL)
     {
         lineNo++;
@@ -235,18 +235,18 @@ int main(
                                 dfPercent, (int)saveJitter[cnt]);
                     }else
                     {
-                        fprintf(stderr, "%i\t%i\n", dfPercent, (int)saveJitter[cnt]);                        
+                        fprintf(stderr, "%i\t%i\n", dfPercent, (int)saveJitter[cnt]);
                     }
-                    
-                    
+
+
                 }
 
                 saveJitterCnt = 0; /* all flushed. Reset for next saves. */
                 lookFor_df = FALSE;
             }
-            
+
         }
-        
+
 
         /* is there a "ms" in this line?*/
         if(strstr(lineBuf, "ms") == NULL)
@@ -263,7 +263,7 @@ int main(
             printf("1=%i, 2=%s.\n", junkInt1, junkStr1);
             continue; /* not our jitter line*/
         }
-        
+
         /* Is the jitter value > threshold value? */
         if(abs(jitter_ms) > JitterThreshold_ms)
         {
@@ -283,10 +283,10 @@ int main(
             {
                 printf("Oops! I've run out of buffer space before I found a %% use line. Dropping itter value. Increase MAX_SAVE_BUFFER and recompile.\n");
             }
-            
-            
+
+
         }
-        
+
     }
 
 
@@ -301,10 +301,10 @@ int main(
             fprintf(stderr, "%i\t%i\n", dfPercent, (int)saveJitter[cnt]);
         }
     }
-    
+
     return 0;
-    
-    
+
+
 }/* end main() */
 
 

@@ -3,7 +3,7 @@
  *
  * By default, builds an image that is of the same endianness as the
  * host.
- * The -a option can be used when building for a target system which 
+ * The -a option can be used when building for a target system which
  * has a different endianness than the host.
  */
 
@@ -202,7 +202,7 @@ jffs_print_raw_inode(struct jffs_raw_inode *raw_inode)
 	fprintf(stderr, "}\n");
 }
 
-static void write_val32(__u32 *adr, __u32 val) 
+static void write_val32(__u32 *adr, __u32 val)
 {
   switch(endian) {
   case ENDIAN_HOST:
@@ -217,7 +217,7 @@ static void write_val32(__u32 *adr, __u32 val)
   }
 }
 
-static void write_val16(__u16 *adr, __u16 val) 
+static void write_val16(__u16 *adr, __u16 val)
 {
   switch(endian) {
   case ENDIAN_HOST:
@@ -232,7 +232,7 @@ static void write_val16(__u16 *adr, __u16 val)
   }
 }
 
-static __u32 read_val32(__u32 *adr) 
+static __u32 read_val32(__u32 *adr)
 {
   __u32 val = 0;
 

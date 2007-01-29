@@ -14,9 +14,9 @@ function mknftl () {
 	done
 }
 function mkrfd () {
-	mknod /dev/rfd$1 b 95 $2
+	mknod /dev/rfd$1 b 256 $2
 	for a in `seq 1 15`; do
-		mknod /dev/rfd$1$a b 95 `expr $2 + $a`
+		mknod /dev/rfd$1$a b 256 `expr $2 + $a`
 	done
 }
 function mkinftl () {

@@ -1,31 +1,31 @@
 /* vi: set sw=4 ts=4: */
-/* 
- * jffs2reader v0.0.18 A jffs2 image reader 
+/*
+ * jffs2reader v0.0.18 A jffs2 image reader
  *
  * Copyright (c) 2001 Jari Kirma <Jari.Kirma@hut.fi>
- * 
+ *
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the author be held liable for any damages
  * arising from the use of this software.
- * 
+ *
  * Permission is granted to anyone to use this software for any
  * purpose, including commercial applications, and to alter it and
  * redistribute it freely, subject to the following restrictions:
- * 
+ *
  * 1. The origin of this software must not be misrepresented; you must
  * not claim that you wrote the original software. If you use this
  * software in a product, an acknowledgment in the product
  * documentation would be appreciated but is not required.
- * 
+ *
  * 2. Altered source versions must be plainly marked as such, and must
  * not be misrepresented as being the original software.
- * 
+ *
  * 3. This notice may not be removed or altered from any source
  * distribution.
  *
  *
  *********
- *  This code was altered September 2001 
+ *  This code was altered September 2001
  *  Changes are Copyright (c) Erik Andersen <andersen@codepoet.org>
  *
  * In compliance with (2) above, this is hereby marked as an altered
@@ -40,7 +40,7 @@
  *      *) Several twisty code paths have been fixed so I can understand them.
  *  -Erik, 1 September 2001
  *
- *      *) Made it show major/minor numbers for device nodes 
+ *      *) Made it show major/minor numbers for device nodes
  *      *) Made it show symlink targets
  *  -Erik, 13 September 2001
  *
@@ -83,7 +83,7 @@
 #define SCRATCH_SIZE (5*1024*1024)
 
 #ifndef MAJOR
-/* FIXME:  I am using illicit insider knowledge of 
+/* FIXME:  I am using illicit insider knowledge of
  * kernel major/minor representation...  */
 #define MAJOR(dev) (((dev)>>8)&0xff)
 #define MINOR(dev) ((dev)&0xff)

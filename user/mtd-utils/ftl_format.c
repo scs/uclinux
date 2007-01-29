@@ -48,7 +48,7 @@
 #include <sys/stat.h>
 
 #include <mtd/mtd-user.h>
-#include <linux/mtd/ftl.h>
+#include <mtd/ftl-user.h>
 
 #include <byteswap.h>
 #include <endian.h>
@@ -92,7 +92,7 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
 			 u_int BootSize)
 {
     u_int i, BootUnits, nbam, __FormattedSize;
-    
+
     /* Default everything to the erased state */
     memset(hdr, 0xff, sizeof(*hdr));
     memcpy(hdr->LinkTargetTuple, LinkTarget, 5);
@@ -100,7 +100,7 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
     hdr->EndTuple[0] = hdr->EndTuple[1] = 0xff;
     BootSize = (BootSize + (BlockSize-1)) & ~(BlockSize-1);
     BootUnits = BootSize / BlockSize;
-    
+
     /* We only support 512-byte blocks */
     hdr->BlockSize = 9;
     hdr->EraseUnitSize = 0;
@@ -120,7 +120,7 @@ static void build_header(erase_unit_header_t *hdr, u_int RegionSize,
     __FormattedSize -=
 	(FROM_LE16(hdr->NumEraseUnits) - Spare) * (nbam << hdr->BlockSize);
     __FormattedSize -= ((__FormattedSize * Reserve / 100) & ~0xfff);
-    
+
     hdr->FormattedSize = TO_LE32(__FormattedSize);
 
     /* hdr->FirstVMAddress defaults to erased state */
@@ -141,7 +141,7 @@ static int format_partition(int fd, int quiet, int interrogate,
     erase_info_t erase;
     erase_unit_header_t hdr;
     u_int step, lun, i, nbam, *bam;
-    
+
     /* Get partition size, block size */
     if (ioctl(fd, MEMGETINFO, &mtd) != 0) {
 	perror("get info failed");
@@ -157,7 +157,7 @@ static int format_partition(int fd, int quiet, int interrogate,
 	bootsize = 1;
     }
 #endif
-    
+
     /* Create header */
     build_header(&hdr, mtd.size, mtd.erasesize,
 		 spare, reserve, bootsize);
@@ -187,14 +187,14 @@ static int format_partition(int fd, int quiet, int interrogate,
 	if ((strcmp(str, "y\n") != 0) && (strcmp(str, "Y\n") != 0))
 	    return -1;
     }
-    
+
     /* Create basic block allocation table for control blocks */
     nbam = ((mtd.erasesize >> hdr.BlockSize) * sizeof(u_int)
 	    + FROM_LE32(hdr.BAMOffset) + (1 << hdr.BlockSize) - 1) >> hdr.BlockSize;
     bam = malloc(nbam * sizeof(u_int));
     for (i = 0; i < nbam; i++)
 	bam[i] = TO_LE32(BLOCK_CONTROL);
-    
+
     /* Erase partition */
     if (!quiet) {
 	printf("Erasing all blocks...\n");
@@ -287,7 +287,7 @@ int main(int argc, char *argv[])
     reserve = 5;
     errflg = 0;
     bootsize = 0;
-    
+
     while ((optch = getopt(argc, argv, "qir:s:b:")) != -1) {
 	switch (optch) {
 	case 'q':
@@ -337,7 +337,7 @@ int main(int argc, char *argv[])
 	    printf("format successful.\n");
     }
     close(fd);
-    
+
     exit((ret) ? EXIT_FAILURE : EXIT_SUCCESS);
     return 0;
 }

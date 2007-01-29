@@ -48,7 +48,7 @@
 #include <sys/stat.h>
 
 #include <mtd/mtd-user.h>
-#include <linux/mtd/ftl.h>
+#include <mtd/ftl-user.h>
 
 #include <byteswap.h>
 #include <endian.h>
@@ -86,7 +86,7 @@ static void check_partition(int fd, int verbose)
     erase_unit_header_t hdr, hdr2;
     u_int i, j, nbam, *bam;
     int control, data, free, deleted;
-    
+
     /* Get partition size, block size */
     if (ioctl(fd, MEMGETINFO, &mtd) != 0) {
 	perror("get info failed");
@@ -116,7 +116,7 @@ static void check_partition(int fd, int verbose)
 	fprintf(stderr, "No valid erase unit headers!\n");
 	return;
     }
-    
+
     printf("Partition header:\n");
     printf("  Formatted size = ");
     print_size(FROM_LE32(hdr.FormattedSize));
@@ -127,7 +127,7 @@ static void check_partition(int fd, int verbose)
     printf(", virtual block size = ");
     print_size(1 << hdr.BlockSize);
     printf("\n");
-    
+
     /* Create basic block allocation table for control blocks */
     nbam = (mtd.erasesize >> hdr.BlockSize);
     bam = malloc(nbam * sizeof(u_int));
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     int verbose;
     int optch, errflg, fd;
     struct stat buf;
-    
+
     errflg = 0;
     verbose = 0;
     while ((optch = getopt(argc, argv, "vh")) != -1) {
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
 
     check_partition(fd, verbose);
     close(fd);
-    
+
     exit(EXIT_SUCCESS);
     return 0;
 }

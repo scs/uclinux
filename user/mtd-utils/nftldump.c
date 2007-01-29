@@ -1,4 +1,4 @@
-/* 
+/*
  * nftldump.c: Dumping the content of NFTL partitions on a "Physical Disk"
  *
  *
@@ -140,7 +140,7 @@ static void dump_erase_units(void)
 	int i, j;
 	unsigned long ofs;
 
-	for (i = MedHead[0].FirstPhysicalEUN; i < MedHead[0].FirstPhysicalEUN + 
+	for (i = MedHead[0].FirstPhysicalEUN; i < MedHead[0].FirstPhysicalEUN +
 		     MedHead[0].NumEraseUnits; i++) {
 		/* For each Erase Unit */
 		ofs = i * meminfo.erasesize;
@@ -193,7 +193,7 @@ static void dump_erase_units(void)
 		if (UCItable[i][0].a.VirtUnitNum == 0xffff)
 			printf("Unit %d is free\n", i);
 		else
-			printf("Unit %d is in chain %d and %s a replacement\n", i, 
+			printf("Unit %d is in chain %d and %s a replacement\n", i,
 			       UCItable[i][0].a.VirtUnitNum & 0x7fff,
 			       UCItable[i][0].a.VirtUnitNum & 0x8000 ? "is" : "is not");
 	}
@@ -259,7 +259,7 @@ static void dump_virtual_units(void)
 
 				write(ofd, readbuf, 512);
 			}
-	
+
 		}
 	}
 }

@@ -1,4 +1,4 @@
-/* 
+/*
  * flash_erase.c -- erase parts of a MTD device
 */
 
@@ -120,7 +120,7 @@ int non_region_erase(int Fd, int start, int count, int unlock)
 			}
 
 			if (ioctl(Fd,MEMERASE,&erase) != 0)
-			{      
+			{
 				perror("\nMTD Erase failure");
 				close(Fd);
 				return 8;
@@ -139,7 +139,7 @@ int main(int argc,char *argv[])
 	int start;
 	int count;
 	int unlock;
-	int res = 0; 
+	int res = 0;
 
 	if (1 >= argc)
 	{
@@ -183,6 +183,6 @@ int main(int argc,char *argv[])
 			res = region_erase(Fd, start, count, unlock, regcount);
 		}
 	}
-			
+
 	return res;
 }

@@ -28,38 +28,38 @@ int main(int argc,char **argv)
 			" the source firmware file and the offset\n");
 	   return 1;
    }
-   
+
    // Open and size the device
    if ((ofd = open(argv[1],O_RDWR)) < 0) {
 	   perror("Open flash device");
 	   return 1;
    }
-   
+
    if ((ifd = open(argv[2], O_RDONLY)) < 0) {
 	   perror("Open firmware file\n");
 	   close(ofd);
 	   return 1;
    }
-   
+
    if (fstat(ifd, &statbuf) != 0) {
 	   perror("Stat firmware file");
 	   goto error;
    }
-   
+
 #if 0
    if (statbuf.st_size > 65536) {
 	   printf("Firmware too large (%ld bytes)\n",statbuf.st_size);
 	   goto error;
    }
-#endif   
-     
+#endif
+
    if (ioctl(ofd,MEMGETINFO,&meminfo) != 0) {
 	   perror("ioctl(MEMGETINFO)");
 	   goto error;
    }
 
    iplsize = (ipltailsize = 0);
-   if (argc >= 4) {	
+   if (argc >= 4) {
 	   /* DoC Millennium has IPL in the first 1K of flash memory */
 	   /* You may want to specify the offset 1024 to store
 	      the firmware next to IPL. */
@@ -91,14 +91,14 @@ int main(int argc,char **argv)
 
    erase.length = meminfo.erasesize;
 
-   for (ofs = iplsize - ipltailsize ; 
-	ofs < iplsize + statbuf.st_size ; 
+   for (ofs = iplsize - ipltailsize ;
+	ofs < iplsize + statbuf.st_size ;
 	ofs += meminfo.erasesize) {
 	   erase.start = ofs;
 	   printf("Performing Flash Erase of length %lu at offset %lu\n",
 		  (long unsigned) erase.length, (long unsigned) erase.start);
-	   
-	   if (ioctl(ofd,MEMERASE,&erase) != 0) {      
+
+	   if (ioctl(ofd,MEMERASE,&erase) != 0) {
 		   perror("ioctl(MEMERASE)");
 		   goto error;
 	   }
@@ -120,7 +120,7 @@ int main(int argc,char **argv)
 	   }
    }
 
-   printf("Writing the firmware of length %lu at %lu... ", 
+   printf("Writing the firmware of length %lu at %lu... ",
 		(unsigned long) statbuf.st_size,
 		(unsigned long) iplsize);
    do {

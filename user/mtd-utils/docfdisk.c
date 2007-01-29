@@ -1,4 +1,4 @@
-/* 
+/*
  * docfdisk.c: Modify INFTL partition tables
  *
  *

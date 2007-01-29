@@ -26,9 +26,9 @@
  *
  * Major architectural rewrite by Erik Andersen <andersen@codepoet.org>
  * to allow support for making hard links (though hard links support is
- * not yet implemented), and for munging file permissions and ownership 
+ * not yet implemented), and for munging file permissions and ownership
  * on the fly using --faketime, --squash, --devtable.   And I plugged a
- * few memory leaks, adjusted the error handling and fixed some little 
+ * few memory leaks, adjusted the error handling and fixed some little
  * nits here and there.
  *
  * I also added a sample device table file.  See device_table.txt
@@ -204,10 +204,10 @@ extern char *xstrdup(const char *s)
 #endif
 
 extern char *xreadlink(const char *path)
-{                       
+{
 	static const int GROWBY = 80; /* how large we will grow strings by */
 
-	char *buf = NULL;   
+	char *buf = NULL;
 	int bufsize = 0, readsize = 0;
 
 	do {
@@ -217,13 +217,13 @@ extern char *xreadlink(const char *path)
 		    perror_msg("%s:%s", app_name, path);
 		    return NULL;
 		}
-	}           
+	}
 	while (bufsize < readsize + 1);
 
 	buf[readsize] = '\0';
 
 	return buf;
-}       
+}
 static FILE *xfopen(const char *path, const char *mode)
 {
 	FILE *fp;
@@ -273,7 +273,7 @@ static struct filesystem_entry *find_filesystem_entry(
 }
 
 static struct filesystem_entry *add_host_filesystem_entry(
-		char *name, char *path, unsigned long uid, unsigned long gid, 
+		char *name, char *path, unsigned long uid, unsigned long gid,
 		unsigned long mode, dev_t rdev, struct filesystem_entry *parent)
 {
 	int status;
@@ -373,7 +373,7 @@ static struct filesystem_entry *recursive_add_host_directory(
 		perror_msg_and_die("%s", hostpath);
 	}
 
-	entry = add_host_filesystem_entry(targetpath, hostpath, 
+	entry = add_host_filesystem_entry(targetpath, hostpath,
 			sb.st_uid, sb.st_gid, sb.st_mode, 0, parent);
 
 	n = scandir(hostpath, &namelist, 0, alphasort);
@@ -381,11 +381,11 @@ static struct filesystem_entry *recursive_add_host_directory(
 		perror_msg_and_die("opening directory %s", hostpath);
 	}
 
-	for (i=0; i<n; i++) 
+	for (i=0; i<n; i++)
 	{
 		dp = namelist[i];
-		if (dp->d_name[0] == '.' && (dp->d_name[1] == 0 || 
-		   (dp->d_name[1] == '.' &&  dp->d_name[2] == 0))) 
+		if (dp->d_name[0] == '.' && (dp->d_name[1] == 0 ||
+		   (dp->d_name[1] == '.' &&  dp->d_name[2] == 0)))
 		{
 			free(dp);
 			continue;
@@ -412,7 +412,7 @@ static struct filesystem_entry *recursive_add_host_directory(
 			case S_IFLNK:
 			case S_IFCHR:
 			case S_IFBLK:
-				add_host_filesystem_entry(tpath, hpath, sb.st_uid, 
+				add_host_filesystem_entry(tpath, hpath, sb.st_uid,
 						sb.st_gid, sb.st_mode, sb.st_rdev, entry);
 				break;
 
@@ -429,7 +429,7 @@ static struct filesystem_entry *recursive_add_host_directory(
 }
 
 /* the GNU C library has a wonderful scanf("%as", string) which will
- allocate the string with the right size, good to avoid buffer overruns. 
+ allocate the string with the right size, good to avoid buffer overruns.
  the following macros use it if available or use a hacky workaround...
  */
 
@@ -457,7 +457,7 @@ inline int snprintf(char *str, size_t n, const char *fmt, ...)
     <path>	<type> <mode>	<uid>	<gid>	<major>	<minor>	<start>	<inc>	<count>
     /dev/mem     c    640       0       0         1       1       0     0         -
 
-    type can be one of: 
+    type can be one of:
 	f	A regular file
 	d	Directory
 	c	Character special device file
@@ -480,7 +480,7 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 
 	if (sscanf (line, "%" SCANF_PREFIX "s %c %lo %lu %lu %lu %lu %lu %lu %lu",
 		 SCANF_STRING(name), &type, &mode, &uid, &gid, &major, &minor,
-		 &start, &increment, &count) < 0) 
+		 &start, &increment, &count) < 0)
 	{
 		return 1;
 	}
@@ -513,7 +513,7 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 	}
 	entry = find_filesystem_entry(root, name, mode);
 	if (entry) {
-		/* Ok, we just need to fixup the existing entry 
+		/* Ok, we just need to fixup the existing entry
 		 * and we will be all done... */
 		entry->sb.st_uid = uid;
 		entry->sb.st_gid = gid;
@@ -522,7 +522,7 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 			entry->sb.st_rdev = makedev(major, minor);
 		}
 	} else {
-		/* If parent is NULL (happens with device table entries), 
+		/* If parent is NULL (happens with device table entries),
 		 * try and find our parent now) */
 		tmp = strdup(name);
 		dir = dirname(tmp);
@@ -556,14 +556,14 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 						asprintf(&dname, "%s%lu", name, i);
 						asprintf(&hpath, "%s/%s%lu", rootdir, name, i);
 						rdev = makedev(major, minor + (i * increment - start));
-						add_host_filesystem_entry(dname, hpath, uid, gid, 
+						add_host_filesystem_entry(dname, hpath, uid, gid,
 								mode, rdev, parent);
 						free(dname);
 						free(hpath);
 					}
 				} else {
 					dev_t rdev = makedev(major, minor);
-					add_host_filesystem_entry(name, hostpath, uid, gid, 
+					add_host_filesystem_entry(name, hostpath, uid, gid,
 							mode, rdev, parent);
 				}
 				break;
@@ -667,7 +667,7 @@ static unsigned char ffbuf[16] =
 	0xff, 0xff, 0xff, 0xff, 0xff
 };
 
-/* We default to 4096, per x86.  When building a fs for 
+/* We default to 4096, per x86.  When building a fs for
  * 64-bit arches and whatnot, use the --pagesize=SIZE option */
 int page_size = 4096;
 
@@ -695,7 +695,7 @@ static void full_write(int fd, const void *buf, int len)
 static void padblock(void)
 {
 	while (out_ofs % erase_block_size) {
-		full_write(out_fd, ffbuf, min(sizeof(ffbuf), 
+		full_write(out_fd, ffbuf, min(sizeof(ffbuf),
 					erase_block_size - (out_ofs % erase_block_size)));
 	}
 }
@@ -753,7 +753,7 @@ static void write_dirent(struct filesystem_entry *e)
 	rd.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	rd.nodetype = cpu_to_je16(JFFS2_NODETYPE_DIRENT);
 	rd.totlen = cpu_to_je32(sizeof(rd) + strlen(name));
-	rd.hdr_crc = cpu_to_je32(crc32(0, &rd, 
+	rd.hdr_crc = cpu_to_je32(crc32(0, &rd,
 				sizeof(struct jffs2_unknown_node) - 4));
 	rd.pino = cpu_to_je32((e->parent) ? e->parent->sb.st_ino : 1);
 	rd.version = cpu_to_je32(version++);
@@ -793,8 +793,8 @@ static void write_regular_file(struct filesystem_entry *e)
 	}
 
 	statbuf->st_ino = ++ino;
-	mkfs_debug_msg("writing file '%s'  ino=%lu  parent_ino=%lu", 
-			e->name, (unsigned long) statbuf->st_ino, 
+	mkfs_debug_msg("writing file '%s'  ino=%lu  parent_ino=%lu",
+			e->name, (unsigned long) statbuf->st_ino,
 			(unsigned long) e->parent->sb.st_ino);
 	write_dirent(e);
 
@@ -827,7 +827,7 @@ static void write_regular_file(struct filesystem_entry *e)
 		while (len) {
 			uint32_t dsize, space;
                         uint16_t compression;
-                        
+
 			pad_block_if_less_than(sizeof(ri) + JFFS2_MIN_DATA_LEN);
 
 			dsize = len;
@@ -848,7 +848,7 @@ static void write_regular_file(struct filesystem_entry *e)
 			}
 
 			ri.totlen = cpu_to_je32(sizeof(ri) + space);
-			ri.hdr_crc = cpu_to_je32(crc32(0, 
+			ri.hdr_crc = cpu_to_je32(crc32(0,
 						&ri, sizeof(struct jffs2_unknown_node) - 4));
 
 			ri.version = cpu_to_je32(++ver);
@@ -862,11 +862,15 @@ static void write_regular_file(struct filesystem_entry *e)
 			full_write(out_fd, wbuf, space);
 			padword();
 
+            if (tbuf!= cbuf) {
+				free(cbuf);
+				cbuf = NULL;
+			}
+
 			tbuf += dsize;
 			len -= dsize;
 			offset += dsize;
 
-                        if (tbuf!=cbuf) if (!cbuf) free(cbuf);
 		}
 	}
 	if (!je32_to_cpu(ri.version)) {
@@ -875,7 +879,7 @@ static void write_regular_file(struct filesystem_entry *e)
 
 		ri.version = cpu_to_je32(++ver);
 		ri.totlen = cpu_to_je32(sizeof(ri));
-		ri.hdr_crc = cpu_to_je32(crc32(0, 
+		ri.hdr_crc = cpu_to_je32(crc32(0,
 					&ri, sizeof(struct jffs2_unknown_node) - 4));
 		ri.csize = cpu_to_je32(0);
 		ri.dsize = cpu_to_je32(0);
@@ -896,14 +900,14 @@ static void write_symlink(struct filesystem_entry *e)
 
 	statbuf = &(e->sb);
 	statbuf->st_ino = ++ino;
-	mkfs_debug_msg("writing symlink '%s'  ino=%lu  parent_ino=%lu", 
-			e->name, (unsigned long) statbuf->st_ino, 
+	mkfs_debug_msg("writing symlink '%s'  ino=%lu  parent_ino=%lu",
+			e->name, (unsigned long) statbuf->st_ino,
 			(unsigned long) e->parent->sb.st_ino);
 	write_dirent(e);
 
 	len = strlen(e->link);
 	if (len > JFFS2_MAX_SYMLINK_LEN) {
-		error_msg("symlink too large. Truncated to %d chars.", 
+		error_msg("symlink too large. Truncated to %d chars.",
 				JFFS2_MAX_SYMLINK_LEN);
 		len = JFFS2_MAX_SYMLINK_LEN;
 	}
@@ -913,7 +917,7 @@ static void write_symlink(struct filesystem_entry *e)
 	ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri.nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
 	ri.totlen = cpu_to_je32(sizeof(ri) + len);
-	ri.hdr_crc = cpu_to_je32(crc32(0, 
+	ri.hdr_crc = cpu_to_je32(crc32(0,
 				&ri, sizeof(struct jffs2_unknown_node) - 4));
 
 	ri.ino = cpu_to_je32(statbuf->st_ino);
@@ -944,8 +948,8 @@ static void write_pipe(struct filesystem_entry *e)
 	statbuf = &(e->sb);
 	statbuf->st_ino = ++ino;
 	if (S_ISDIR(statbuf->st_mode)) {
-		mkfs_debug_msg("writing dir '%s'  ino=%lu  parent_ino=%lu", 
-				e->name, (unsigned long) statbuf->st_ino, 
+		mkfs_debug_msg("writing dir '%s'  ino=%lu  parent_ino=%lu",
+				e->name, (unsigned long) statbuf->st_ino,
 				(unsigned long) (e->parent) ? e->parent->sb.  st_ino : 1);
 	}
 	write_dirent(e);
@@ -955,7 +959,7 @@ static void write_pipe(struct filesystem_entry *e)
 	ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri.nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
 	ri.totlen = cpu_to_je32(sizeof(ri));
-	ri.hdr_crc = cpu_to_je32(crc32(0, 
+	ri.hdr_crc = cpu_to_je32(crc32(0,
 				&ri, sizeof(struct jffs2_unknown_node) - 4));
 
 	ri.ino = cpu_to_je32(statbuf->st_ino);
@@ -987,7 +991,7 @@ static void write_special_file(struct filesystem_entry *e)
 	statbuf->st_ino = ++ino;
 	write_dirent(e);
 
-	kdev = cpu_to_je16((major(statbuf->st_rdev) << 8) + 
+	kdev = cpu_to_je16((major(statbuf->st_rdev) << 8) +
 			minor(statbuf->st_rdev));
 
 	memset(&ri, 0, sizeof(ri));
@@ -995,7 +999,7 @@ static void write_special_file(struct filesystem_entry *e)
 	ri.magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
 	ri.nodetype = cpu_to_je16(JFFS2_NODETYPE_INODE);
 	ri.totlen = cpu_to_je32(sizeof(ri) + sizeof(kdev));
-	ri.hdr_crc = cpu_to_je32(crc32(0, 
+	ri.hdr_crc = cpu_to_je32(crc32(0,
 				&ri, sizeof(struct jffs2_unknown_node) - 4));
 
 	ri.ino = cpu_to_je32(statbuf->st_ino);
@@ -1119,7 +1123,7 @@ static void create_target_filesystem(struct filesystem_entry *root)
 
 	if (ino == 0)
 		ino = 1;
-	
+
 	root->sb.st_ino = 1;
 	recursive_populate_directory(root);
 
@@ -1205,13 +1209,13 @@ static char *helptext =
 static char *revtext = "$Revision$";
 
 int load_next_block() {
-	
+
 	int ret;
 	ret = read(in_fd, file_buffer, erase_block_size);
-		
+
 	if(verbose)
 		printf("Load next block : %d bytes read\n",ret);
-	
+
 	return ret;
 }
 
@@ -1221,122 +1225,122 @@ void process_buffer(int inp_size) {
 	uint16_t	type;
 	int		bitchbitmask = 0;
 	int		obsolete;
-	
+
 	char	name[256];
-	
+
 	while ( p < (file_buffer + inp_size)) {
-		
+
 		node = (union jffs2_node_union *) p;
-		
+
 		/* Skip empty space */
 		if (je16_to_cpu (node->u.magic) == 0xFFFF && je16_to_cpu (node->u.nodetype) == 0xFFFF) {
 			p += 4;
 			continue;
 		}
-		
+
 		if (je16_to_cpu (node->u.magic) != JFFS2_MAGIC_BITMASK)	{
 			if (!bitchbitmask++)
     			    printf ("Wrong bitmask  at  0x%08x, 0x%04x\n", p - file_buffer, je16_to_cpu (node->u.magic));
 			p += 4;
 			continue;
 		}
-		
+
 		bitchbitmask = 0;
-		
+
 		type = je16_to_cpu(node->u.nodetype);
 		if ((type & JFFS2_NODE_ACCURATE) != JFFS2_NODE_ACCURATE) {
 			obsolete = 1;
 			type |= JFFS2_NODE_ACCURATE;
 		} else
 			obsolete = 0;
-		
+
 		node->u.nodetype = cpu_to_je16(type);
-		
+
 		switch(je16_to_cpu(node->u.nodetype)) {
-		
+
 			case JFFS2_NODETYPE_INODE:
 				if(verbose)
 					printf ("%8s Inode      node at 0x%08x, totlen 0x%08x, #ino  %5d, version %5d, isize %8d, csize %8d, dsize %8d, offset %8d\n",
 						obsolete ? "Obsolete" : "",
 						p - file_buffer, je32_to_cpu (node->i.totlen), je32_to_cpu (node->i.ino),
-						je32_to_cpu ( node->i.version), je32_to_cpu (node->i.isize), 
+						je32_to_cpu ( node->i.version), je32_to_cpu (node->i.isize),
 						je32_to_cpu (node->i.csize), je32_to_cpu (node->i.dsize), je32_to_cpu (node->i.offset));
-				
+
 				if ( je32_to_cpu (node->i.ino) > ino )
 					ino = je32_to_cpu (node->i.ino);
-				
+
 				p += PAD(je32_to_cpu (node->i.totlen));
 				break;
-				
+
 			case JFFS2_NODETYPE_DIRENT:
 				memcpy (name, node->d.name, node->d.nsize);
 				name [node->d.nsize] = 0x0;
-			
+
 				if(verbose)
 					printf ("%8s Dirent     node at 0x%08x, totlen 0x%08x, #pino %5d, version %5d, #ino  %8d, nsize %8d, name %s\n",
 						obsolete ? "Obsolete" : "",
 						p - file_buffer, je32_to_cpu (node->d.totlen), je32_to_cpu (node->d.pino),
-						je32_to_cpu ( node->d.version), je32_to_cpu (node->d.ino), 
+						je32_to_cpu ( node->d.version), je32_to_cpu (node->d.ino),
 						node->d.nsize, name);
-				
-				p += PAD(je32_to_cpu (node->d.totlen));						
+
+				p += PAD(je32_to_cpu (node->d.totlen));
 				break;
-		
+
 			case JFFS2_NODETYPE_CLEANMARKER:
 				if (verbose) {
-					printf ("%8s Cleanmarker     at 0x%08x, totlen 0x%08x\n", 
+					printf ("%8s Cleanmarker     at 0x%08x, totlen 0x%08x\n",
 						obsolete ? "Obsolete" : "",
 						p - file_buffer, je32_to_cpu (node->u.totlen));
 				}
-				
-				p += PAD(je32_to_cpu (node->u.totlen));						
+
+				p += PAD(je32_to_cpu (node->u.totlen));
 				break;
-		
+
 			case JFFS2_NODETYPE_PADDING:
 				if (verbose) {
-					printf ("%8s Padding    node at 0x%08x, totlen 0x%08x\n", 
+					printf ("%8s Padding    node at 0x%08x, totlen 0x%08x\n",
 						obsolete ? "Obsolete" : "",
 						p - file_buffer, je32_to_cpu (node->u.totlen));
 				}
-				
-				p += PAD(je32_to_cpu (node->u.totlen));						
+
+				p += PAD(je32_to_cpu (node->u.totlen));
 				break;
-				
+
 			case 0xffff:
 				p += 4;
 				break;
-				
-			default:	
+
+			default:
 				if (verbose) {
-					printf ("%8s Unknown    node at 0x%08x, totlen 0x%08x\n", 
+					printf ("%8s Unknown    node at 0x%08x, totlen 0x%08x\n",
 						obsolete ? "Obsolete" : "",
 						p - file_buffer, je32_to_cpu (node->u.totlen));
 				}
-				
-				p += PAD(je32_to_cpu (node->u.totlen));						
-		}	
+
+				p += PAD(je32_to_cpu (node->u.totlen));
+		}
 	}
 }
 
 void parse_image(){
 	int ret;
-	
+
 	file_buffer = malloc(erase_block_size);
-	
+
 	if (!file_buffer) {
 		perror("out of memory");
 		close (in_fd);
 		close (out_fd);
 		exit(1);
 	}
-	
+
 	while ((ret = load_next_block())) {
-		process_buffer(ret);	
+		process_buffer(ret);
 	}
-	
+
 	if (file_buffer)
 		free(file_buffer);
-	
+
 	close(in_fd);
 }
 
@@ -1352,8 +1356,8 @@ int main(int argc, char **argv)
 
         jffs2_compressors_init();
 
-	while ((opt = getopt_long(argc, argv, 
-					"D:d:r:s:o:qUPfh?vVe:lbp::nc:m:x:X:Lty:i:", long_options, &c)) >= 0) 
+	while ((opt = getopt_long(argc, argv,
+					"D:d:r:s:o:qUPfh?vVe:lbp::nc:m:x:X:Lty:i:", long_options, &c)) >= 0)
 	{
 		switch (opt) {
 			case 'D':
@@ -1534,7 +1538,7 @@ int main(int argc, char **argv)
 
 	if(in_fd != -1)
 		parse_image();
-	
+
 	root = recursive_add_host_directory(NULL, "/", cwd);
 
 	if (devtable)

@@ -1,4 +1,4 @@
-/* 
+/*
  * flash_info.c -- print info about a MTD device
 */
 
@@ -22,7 +22,7 @@ int main(int argc,char *argv[])
 		fprintf(stderr,"Usage: flash_info device\n");
 		return 16;
 	}
-   
+
 	// Open and size the device
 	if ((Fd = open(argv[1],O_RDONLY)) < 0)
 	{

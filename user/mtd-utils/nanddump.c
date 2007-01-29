@@ -139,10 +139,10 @@ void process_options (int argc, char *argv[])
 			break;
 		}
 	}
-	
-	if ((argc - optind) != 1 || error) 
+
+	if ((argc - optind) != 1 || error)
 		display_help ();
-	
+
 	mtddev = argv[optind];
 }
 
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
 		exit (1);
 	}
 
-	/* Fill in MTD device capability structure */   
+	/* Fill in MTD device capability structure */
 	if (ioctl(fd, MEMGETINFO, &meminfo) != 0) {
 		perror("MEMGETINFO");
 		close(fd);
@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 				perror("pread");
 				goto closeall;
 			}
-		}	
+		}
 
 		/* Write out page data */
 		if (pretty_print) {
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
 
 		if (omitoob)
 			continue;
-			
+
 		if (badblock) {
 			memset (readbuf, 0xff, meminfo.oobsize);
 		} else {

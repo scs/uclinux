@@ -1,4 +1,4 @@
-/* 
+/*
  * rfdformat.c
  *
  * Copyright (C) 2005 Sean Young <sean@mess.org>
@@ -10,7 +10,7 @@
  *
  * $Id$
  *
- * This is very easy: just erase all the blocks and put the magic at 
+ * This is very easy: just erase all the blocks and put the magic at
  * the beginning of each block.
  */
 
@@ -64,7 +64,7 @@ void process_options(int argc, char *argv[], const char **mtd_filename)
 			{ NULL, 0, 0, 0 }
 		};
 
-		int c = getopt_long(argc, argv, short_options, 
+		int c = getopt_long(argc, argv, short_options,
 				long_options, &option_index);
 		if (c == EOF)
 			break;
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 			return 2;
 		}
 
-		if (pwrite(fd, magic, sizeof(magic), i * mtd_info.erasesize) 
+		if (pwrite(fd, magic, sizeof(magic), i * mtd_info.erasesize)
 				!= sizeof(magic)) {
 			snprintf(buf, sizeof(buf), "%s: write", mtd_filename);
 			perror(buf);

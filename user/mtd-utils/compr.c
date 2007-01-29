@@ -73,7 +73,7 @@ static LIST_HEAD(jffs2_compressor_list);
 /* Actual compression mode */
 static int jffs2_compression_mode = JFFS2_COMPR_MODE_PRIORITY;
 
-void jffs2_set_compression_mode(int mode) 
+void jffs2_set_compression_mode(int mode)
 {
         jffs2_compression_mode = mode;
 }
@@ -111,7 +111,7 @@ int jffs2_compression_check_errorcnt_get(void)
 
 #define JFFS2_BUFFER_FILL 0x55
 
-/* Called before compression (if compression_check is setted) to prepare 
+/* Called before compression (if compression_check is setted) to prepare
    the buffer for buffer overflow test */
 static void jffs2_decompression_test_prepare(unsigned char *buf, int size)
 {
@@ -129,7 +129,7 @@ static void jffs2_decompression_test(struct jffs2_compressor *compr,
         for (i=buf_size;i>cdatalen;i--) {
                 if (output_buf[i]!=JFFS2_BUFFER_FILL) {
                         fprintf(stderr,"COMPR_ERROR: buffer overflow at %s. "
-                                    "(bs=%d csize=%d b[%d]=%d)\n", compr->name, 
+                                    "(bs=%d csize=%d b[%d]=%d)\n", compr->name,
                                     buf_size, cdatalen, i, (int)(output_buf[i]));
                         jffs2_error_cnt++;
                         return;
@@ -162,7 +162,7 @@ static void jffs2_decompression_test(struct jffs2_compressor *compr,
                                 jffs2_error_cnt++;
                                 break;
                         }
-                }                
+                }
         }
 }
 
@@ -176,12 +176,12 @@ static void jffs2_decompression_test(struct jffs2_compressor *compr,
  *	data.
  *
  * Returns: Lower byte to be stored with data indicating compression type used.
- * Zero is used to show that the data could not be compressed - the 
+ * Zero is used to show that the data could not be compressed - the
  * compressed version was actually larger than the original.
  * Upper byte will be used later. (soon)
  *
  * If the cdata buffer isn't large enough to hold all the uncompressed data,
- * jffs2_compress should compress as much as will fit, and should set 
+ * jffs2_compress should compress as much as will fit, and should set
  * *datalen accordingly to show the amount of data which were compressed.
  */
 uint16_t jffs2_compress( unsigned char *data_in, unsigned char **cpage_out,
@@ -383,7 +383,7 @@ char *jffs2_stats(void)
         }
         act_buf += sprintf(act_buf,"\nCompressors:\n");
         act_buf += sprintf(act_buf,"%10s             ","none");
-        act_buf += sprintf(act_buf,"compr: %d blocks (%d)  decompr: %d blocks\n", none_stat_compr_blocks, 
+        act_buf += sprintf(act_buf,"compr: %d blocks (%d)  decompr: %d blocks\n", none_stat_compr_blocks,
                            none_stat_compr_size, none_stat_decompr_blocks);
         list_for_each_entry(this, &jffs2_compressor_list, list) {
                 act_buf += sprintf(act_buf,"%10s (prio:%d) ",this->name,this->priority);
@@ -391,15 +391,15 @@ char *jffs2_stats(void)
                         act_buf += sprintf(act_buf,"- ");
                 else
                         act_buf += sprintf(act_buf,"+ ");
-                act_buf += sprintf(act_buf,"compr: %d blocks (%d/%d)  decompr: %d blocks ", this->stat_compr_blocks, 
-                                   this->stat_compr_new_size, this->stat_compr_orig_size, 
+                act_buf += sprintf(act_buf,"compr: %d blocks (%d/%d)  decompr: %d blocks ", this->stat_compr_blocks,
+                                   this->stat_compr_new_size, this->stat_compr_orig_size,
                                    this->stat_decompr_blocks);
                 act_buf += sprintf(act_buf,"\n");
         }
         return buf;
 }
 
-int jffs2_set_compression_mode_name(const char *name) 
+int jffs2_set_compression_mode_name(const char *name)
 {
         if (!strcmp("none",name)) {
                 jffs2_compression_mode = JFFS2_COMPR_MODE_NONE;

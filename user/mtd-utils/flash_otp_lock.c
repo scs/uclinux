@@ -1,4 +1,4 @@
-/* 
+/*
  * flash_otp_lock.c -- lock area of One-Time-Program data
 */
 
@@ -23,7 +23,7 @@ int main(int argc,char *argv[])
 		fprintf(stderr, "CAUTION! ONCE LOCKED, OTP REGIONS CAN'T BE UNLOCKED!\n");
 		return EINVAL;
 	}
-   
+
 	fd = open(argv[2], O_WRONLY);
 	if (fd < 0) {
 		perror(argv[2]);

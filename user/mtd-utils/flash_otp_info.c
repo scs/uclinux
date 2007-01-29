@@ -1,4 +1,4 @@
-/* 
+/*
  * flash_otp_info.c -- print info about One-Time-Programm data
 */
 
@@ -19,7 +19,7 @@ int main(int argc,char *argv[])
 		fprintf(stderr,"Usage: %s [ -f | -u ] <device>\n", argv[0]);
 		return EINVAL;
 	}
-   
+
 	fd = open(argv[2], O_RDONLY);
 	if (fd < 0) {
 		perror(argv[2]);
