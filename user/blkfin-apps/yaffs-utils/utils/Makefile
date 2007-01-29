@@ -21,7 +21,7 @@ CFLAGS+=   -Wshadow -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Wmissin
 CFLAGS+=   -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Winline
 
 ## Change if you are using a cross-compiler
-MAKETOOLS = bfin-uclinux-
+MAKETOOLS = $(CROSS_COMPILE)
 
 CC=$(MAKETOOLS)gcc
 
