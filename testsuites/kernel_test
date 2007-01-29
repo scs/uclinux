@@ -272,7 +272,7 @@ fi
 
 #########################   Build and run the tests     #######################################
 
-export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:$PATH
+export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:/opt/uClinux/bfin-linux-uclibc/bin:$PATH
 echo "##### The Toolchain is:" 
 /opt/uClinux/bfin-uclinux/bin/bfin-uclinux-gcc -v
 echo 

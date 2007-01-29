@@ -186,43 +186,6 @@ while 1 {
    }
 }
 
-step "Make uclibc config\n"
-
-cd $uclinux_path/uClibc
-set timeout 300
-spawn make config
-
-#puts "Begin the interactive process of configuration"
-while 1 {
-   expect {
-   
-     -re "Target Architecture.*bfin.*TARGET_bfin.*bfinfdpic.*TARGET_bfinfdpic.*choice.*\\\[.*]" {
-              if { $binary_format == "flat" } {
-                       send "3\r"
-            } elseif { $binary_format == "elf" } {
-                       send "4\r"
-            }
-      }
-       
-     "\\\(*) \\\[*]" {
-         send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
-
-      eof {
-         puts "End of uClibc configuration"
-         break
-      }
-
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in uClibc make config"
-         }
-   }
-}
-
 cd $uclinux_path/testsuites
 
 step "Make"
