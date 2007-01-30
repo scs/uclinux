@@ -61,6 +61,8 @@ while 1 {
            -re "Use full SLAB allocator.*SLAB.*\\\[.*]" {
 	    if { $allocator == "slab\(p2\)" } {
                        send "Y\r"		       
+            } elseif { $allocator == "slab\(np2\)" } {
+                       send "Y\r"
             } elseif { $allocator == "slob\(p2\)" } {
                        send "N\r"
             } elseif { $allocator == "slob\(np2\)" } {
@@ -68,13 +70,15 @@ while 1 {
             }
       }
       
-           -re "Use non-power of 2 allocator.*NP2_ALLOC.*\\\[.*]" {
+           -re "Page frame management algorithm.*Buddy system algorithm.*Non-power of 2 algorithm.*choice.*\\\[.*]" {
  	    if { $allocator == "slab\(p2\)" } {
-                       send "\r"
+                       send "1\r"
+            } elseif { $allocator == "slab\(np2\)" } {
+                       send "2\r"
             } elseif { $allocator == "slob\(p2\)" } {
-                       send "N\r"
+                       send "1\r"
             } elseif { $allocator == "slob\(np2\)" } {
-                       send "Y\r"
+                       send "2\r"
             }
       }
             
@@ -120,13 +124,18 @@ while 1 {
       }
       
            -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
-
-             send  "N\r"
+                if { $binary_format == "elf" } {
+                        send  "Y\r"
+                } elseif { $binary_format == "flat" } {
+                        send  "\r"
+                } elseif { $binary_format == "shared-flat" } {
+                       send  "\r"
+            }
       }
 
            -re "Install FLAT shared libraries.*CONFIG_INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
 
-             send  "N\r"
+             send  "\r"
       }
  
            -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
@@ -167,7 +176,7 @@ while 1 {
       }
       
        "\\\(*) \\\[*]" {
-	    sleep .001 
+	    sleep .01 
 	     send "\r"
       }
 
