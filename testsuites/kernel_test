@@ -525,7 +525,7 @@ do
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad73311
   cp $KERNEL_SCRIPTS/audio/build_ad73311_kernel_log $THIS_LOG
   cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311 
-  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311
+  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad73311
   
   sleep 300
 
