@@ -8,13 +8,13 @@ send_user "Starting $argv0\n"
 
 set TITLE [title "$argv0"]
 
-#set argc [llength $argv]
-#if { $argc < 1} {
-#   puts "Usage:  $argv0 ping_ipaddr"
-#   puts ""
-#   exit
+set argc [llength $argv]
+if { $argc < 1} {
+   puts "Usage:  $argv0 ping_ipaddr"
+   puts ""
+   exit
 #}
-#set ping_ipaddr             [lindex $argv 0]
+set ping_ipaddr             [lindex $argv 0]
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
@@ -69,11 +69,11 @@ sleep 2
 while 1 {
    expect {
 
-#      -re ".*802\.11.*" {
-#         send_log "\niwconfig done\n"
-#         send_user "\niwconfig done\n"
-#         break
-#      }
+      -re ".*802\.11.*" {
+         send_log "\niwconfig done\n"
+         send_user "\niwconfig done\n"
+         break
+      }
 
       -re ".* ESSID:\"\".*" {
          send_log "\nNot reached WLAN\n"
@@ -85,12 +85,29 @@ while 1 {
    }
 }
 
-sleep 60
+sleep 10
 send_log "\nWaiting for network up\n"
 send_user "\nWaiting for network up\n"
 
 step "ifconfig"
 set timeout 10
+
+send "ifconfig eth1 192.168.1.2\r"
+while 1 {
+   expect {
+      -re "root:~>" {
+         send_log "\nSet IP address done\n"
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         send_log "\nifconfig timeout\n"
+         case_fail $case_num
+      }
+   }
+}
+
 send "ifconfig eth1\r"
 while 1 {
    expect {

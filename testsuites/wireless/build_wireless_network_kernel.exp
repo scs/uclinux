@@ -142,7 +142,7 @@ cd  $uclinux_path/testsuites/ethernet/
 exec tar zxvf netperf.tgz
 
 exec cp $user/test_scripts/kernel/netserver_x86 netserver_x86
-exec cp $user/checkouts/kernel/uClinux-dist/user/blkfin-test/netperf-bfin/src/netperf netperf_bfin
+exec cp $user/checkouts/kernel/uclinux-dist/user/blkfin-test/netperf-bfin/src/netperf netperf_bfin
 
 
 cd $uclinux_path/testsuites/ethernet/

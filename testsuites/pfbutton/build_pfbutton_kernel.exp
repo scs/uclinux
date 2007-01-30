@@ -101,26 +101,26 @@ while 1 {
 		send "y\r"
      }
    	
-	-re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
-
-		send "y\r"
-	}
-	
-	-re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
-
-		send "y\r"
-	}
-
-	
-	-re "Mouse.*INPUT_MOUSE.*\\\[.*]" {
-
-		send "y\r"
-	}
-
-	-re "PS/2 mouse.*MOUSE_PS2.*\\\[.*]" {
-
-		send "y\r"
-	}
+#	-re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
+#	
+#	-re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
+#
+#	
+#	-re "Mouse.*INPUT_MOUSE.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
+#
+#	-re "PS/2 mouse.*MOUSE_PS2.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
 
 	-re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {
 
@@ -136,26 +136,26 @@ while 1 {
 
 		send "y\r"
 	}
-
-	-re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
-	
-		send "n\r"
-	}
-
-	-re "Serial I/O support.*SERIO.*\\\[.*]" {
-
-		send "y\r"
-	}
-
-	-re "Serial port line discipline.*SERIO_SERPORT.*\\\[.*]" {
-
-		send "y\r"
-	}
-
-	-re "PS/2 driver library.*SERIO_LIBPS2.*\\\[.*]" {
-
-		send "y\r"
-	}
+#
+#	-re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
+#	
+#		send "n\r"
+#	}
+#
+#	-re "Serial I/O support.*SERIO.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
+#
+#	-re "Serial port line discipline.*SERIO_SERPORT.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
+#
+#	-re "PS/2 driver library.*SERIO_LIBPS2.*\\\[.*]" {
+#
+#		send "y\r"
+#	}
        
 	-re "PFBUTTONS test program.*CONFIG_USER_BLACKFIN_PFBUTTONS.*\\\[.*]" {
 
