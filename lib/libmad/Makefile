@@ -2,7 +2,7 @@ all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
 
 build/Makefile:
-	touch * */*
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
@@ -16,5 +16,8 @@ clean:
 	rm -rf build
 
 romfs:
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	$(ROMFSINST) $(STAGEDIR)/usr/lib/libmad.so.0 /lib/
+endif
 
 .PHONY: all clean romfs
