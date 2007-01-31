@@ -588,4 +588,4 @@
 
 	* libpamc/Makefile.am (EXTRA_DIST): Add License.
 
-See CHANGELOG for earlier changes.
+See ChangeLog.old for earlier changes.
