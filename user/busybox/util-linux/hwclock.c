@@ -42,7 +42,9 @@ static int xopen_rtc(int flags)
 	if (rtc < 0) {
 		rtc = open("/dev/misc/rtc", flags);
 		if (rtc < 0)
-			bb_perror_msg_and_die("cannot access RTC");
+			rtc = open("/dev/rtc0", flags);
+			if (rtc < 0)
+				bb_perror_msg_and_die("cannot access RTC");
 	}
 	return rtc;
 }
