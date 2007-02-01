@@ -81,9 +81,10 @@ CFLAGS += -DHAVE_OPEN64=1
 CFLAGS += -DHAVE_MALLINFO=1
 endif
 
-ifneq ($(findstring uClibc,$(LIBCDIR)),uClibc)
-CFLAGS += -DHAVE_SBRK=1
-endif
+#!bfin: we dont want this
+#ifneq ($(findstring uClibc,$(LIBCDIR)),uClibc)
+#CFLAGS += -DHAVE_SBRK=1
+#endif
 
 CFLAGS += -DHAVE_STRCASECMP=1
 CFLAGS += -DHAVE_SRANDOM=1
