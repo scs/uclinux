@@ -131,7 +131,7 @@ int llip_arpCheck(char* device_name, u_long test_addr, unsigned char *source_hw_
 			}
 
 			/* Receive response to our arp probe from a host configured with the IP  */
-			if(arp.operation == htons(ARPOP_REPLY) && bcmp(arp.tHaddr, source_hw_addr, 6) == 0 && *((u_int *)arp.sInaddr) == test_addr ) {
+			if(arp.operation == htons(ARPOP_REPLY) && memcmp(arp.tHaddr, source_hw_addr, 6) == 0 && *((u_int *)arp.sInaddr) == test_addr ) {
 				rv = 0; /* address used */
 				break;
 			}
@@ -141,7 +141,7 @@ int llip_arpCheck(char* device_name, u_long test_addr, unsigned char *source_hw_
 			   where two or more hosts by chance attempt to configure the same IP address.
 			   If we receive an ARP probe for the same IP address from another hardware address
 			   then we return the fact the address is used */
-			if(arp.operation == htons(ARPOP_REPLY) && bcmp(arp.ethhdr.h_dest, MAC_BCAST_ADDR, 6) == 0 && *((u_int *)arp.tInaddr) == test_addr && *((u_int *) arp.sInaddr) == 0 ) {
+			if(arp.operation == htons(ARPOP_REPLY) && memcmp(arp.ethhdr.h_dest, MAC_BCAST_ADDR, 6) == 0 && *((u_int *)arp.tInaddr) == test_addr && *((u_int *) arp.sInaddr) == 0 ) {
 				rv = 0;  /* address used - race condition caught */
 				break;
 			}
@@ -238,7 +238,7 @@ int llip_CheckCollision(int collision_socket)
 			}
 
 			/* Receive response to our arp probe from a host configured with the IP  */
-			if(arp.operation == htons(ARPOP_REPLY) && bcmp(arp.tHaddr, source_hw_addr, 6) == 0 && *((u_int *)arp.sInaddr) == test_addr ) {
+			if(arp.operation == htons(ARPOP_REPLY) && memcmp(arp.tHaddr, source_hw_addr, 6) == 0 && *((u_int *)arp.sInaddr) == test_addr ) {
 				rv = 0; /* address used */
 				break;
 			}
@@ -248,7 +248,7 @@ int llip_CheckCollision(int collision_socket)
 			   where two or more hosts by chance attempt to configure the same IP address.
 			   If we receive an ARP probe for the same IP address from another hardware address
 			   then we return the fact the address is used */
-			if(arp.operation == htons(ARPOP_REPLY) && bcmp(arp.ethhdr.h_dest, MAC_BCAST_ADDR, 6) == 0 && *((u_int *)arp.tInaddr) == test_addr && *((u_int *) arp.sInaddr) == 0 ) {
+			if(arp.operation == htons(ARPOP_REPLY) && memcmp(arp.ethhdr.h_dest, MAC_BCAST_ADDR, 6) == 0 && *((u_int *)arp.tInaddr) == test_addr && *((u_int *) arp.sInaddr) == 0 ) {
 				rv = 0;  /* address used - race condition caught */
 				break;
 			}

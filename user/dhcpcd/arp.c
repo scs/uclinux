@@ -77,7 +77,7 @@ arpCheck(u_long inaddr, struct ifinfo *ifbuf, long timeout)
 				rv = 0;
 			}
 			if ( arp.operation == htons(ARPOP_REPLY) &&
-				bcmp(arp.tHaddr, ifbuf->haddr, 6) == 0 &&
+				memcmp(arp.tHaddr, ifbuf->haddr, 6) == 0 &&
 				*((u_int *)arp.sInaddr) == inaddr ) {
 				rv = 0;
 				break;

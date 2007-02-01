@@ -156,7 +156,7 @@ parseDhcpMsg(u_char *optp[], dhcpMessage *msg)
 	if ( msg->xid != DhcpMsgSend.xid ) {
 		return 0;				/* NG */
 	}
-	if ( bcmp(msg->chaddr, DhcpMsgSend.chaddr, DhcpMsgSend.hlen) ) {
+	if ( memcmp(msg->chaddr, DhcpMsgSend.chaddr, DhcpMsgSend.hlen) ) {
 		return 0;				/* NG */
 	}
 	bzero((char *)opt, sizeof(opt));
