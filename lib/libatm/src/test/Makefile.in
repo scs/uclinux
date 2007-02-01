@@ -423,7 +423,8 @@ maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 isp.o: errnos.inc
 
 errnos.inc: mkerrnos.pl
-	@PERL@ ./mkerrnos.pl </usr/include/asm/errno.h \
+	echo '#include <asm/errno.h>' | $(CC) -E -dD - > mkerrnos.i
+	@PERL@ $(srcdir)/mkerrnos.pl < mkerrnos.i \
 		>errnos.inc || { rm -f errnos.inc; exit 1; }
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

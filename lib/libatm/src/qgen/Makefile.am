@@ -30,15 +30,15 @@ NLS = atm_ai_msg atm_ai_ie atm_loc atm_cv atm_pu atm_na atm_cond atm_ie \
 	atm_tdl atm_tni atm_nip atm_shi atm_oci atm_unfm atm_ofi atm_irs \
 	atm_it atm_lit atm_lsi atm_tcs atm_css atm_eqo atm_eqp atm_aap \
 	atm_asp atm_tor
-SYMFILES = uni.h $(shell @PERL@ incl.pl $(CFLAGS) linux/atmsap.h)
+SYMFILES = $(srcdir)/uni.h $(shell @PERL@ incl.pl $(CFLAGS) linux/atmsap.h)
 
 
 default.nl: mknl.pl $(SYMFILES)
-	cat $(SYMFILES) | @PERL@ mknl.pl $(NLS) >default.nl || \
+	cat $(SYMFILES) | @PERL@ $(srcdir)/mknl.pl $(NLS) >default.nl || \
 	{ rm -f default.nl; echo 1; }
 
 q.out.h q.out.c q.test.c: qgen msg.fmt default.nl
-	$(CPP) $(DEFS) - <msg.fmt | ./qgen
+	$(CPP) $(DEFS) - < $(srcdir)/msg.fmt | ./qgen
 
 #q40.out.h q40.out.c q40.test.c: qgen uni40 default.nl
 #	$(CPP) $(DEFS) - <uni40 | PREFIX=q40 ./qgen
