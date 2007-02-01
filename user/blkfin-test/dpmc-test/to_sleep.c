@@ -28,9 +28,9 @@ int main()
 		exit(1);
 	}
 
-	rtc_fd = open("/dev/rtc", O_RDONLY,0);
+	rtc_fd = open("/dev/rtc0", O_RDONLY,0);
 	if (rtc_fd == -1) {
-		fprintf(stderr, "/dev/rtc open error: %s\n", strerror(errno));	
+		fprintf(stderr, "/dev/rtc0 open error: %s\n", strerror(errno));	
 		exit(1);
 		
 	}

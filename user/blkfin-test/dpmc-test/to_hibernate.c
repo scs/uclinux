@@ -28,9 +28,9 @@ int main()
 	}
 	else printf("open success fd = %d \n",fd);
 
-	rtc_fd = open("/dev/rtc", O_RDONLY,0);
+	rtc_fd = open("/dev/rtc0", O_RDONLY,0);
 	if (rtc_fd == -1) {
-		printf("/dev/rtc open error %d\n",errno);
+		printf("/dev/rtc0 open error %d\n",errno);
 		exit(1);
 		
 	}

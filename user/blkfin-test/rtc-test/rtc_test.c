@@ -25,7 +25,7 @@ int main()
 	printf("0. open and release\n");
 	rtc_fd = open("/dev/rtc0", O_RDONLY,0);
 	if (rtc_fd == -1) {
-		printf("/dev/rtc open error\n");
+		printf("/dev/rtc0 open error\n");
 		exit(1);
 		
 	}
@@ -38,7 +38,7 @@ int main()
 	if (ret == -1) {
 		printf("rtc ioctl RTC_UIE_ON error\r\n");
 	}
-	printf("2. RTC read 6 times\r\n");
+	printf("2. RTC read 5 times\r\n");
 
 	for( i = 1; i <6; i++){
 	/* This read will block */
