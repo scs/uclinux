@@ -1,14 +1,14 @@
---- busybox/shell/msh.c
-+++ busybox/shell/msh.c
-@@ -54,10 +54,19 @@
+--- busybox/shell/msh.c.old	2007-02-01 18:04:39.000000000 +0800
++++ busybox/shell/msh.c	2007-02-01 18:27:20.000000000 +0800
+@@ -19,11 +19,19 @@
  
+ #include "cmdedit.h"
  
- /*#define MSHDEBUG 1*/
--
+-/*#define MSHDEBUG 1*/
 +#define MSHDEBUG 1
+ 
  #ifdef MSHDEBUG
-+
- int mshdbg = 0;
+ int mshdbg = MSHDEBUG;
  
 +#ifdef KSDBG
 +	#define WHERE fprintf(stderr,"in %s\n",__FUNCTION__) 
@@ -21,7 +21,7 @@
  #define DBGPRINTF(x)	if(mshdbg>0)printf x
  #define DBGPRINTF0(x)	if(mshdbg>0)printf x
  #define DBGPRINTF1(x)	if(mshdbg>1)printf x
-@@ -161,8 +170,13 @@
+@@ -136,6 +144,10 @@
  /* Added to support "." file expansion */
  #define	TDOT	17
  
@@ -30,24 +30,11 @@
 +#define TRETURN 19
 +
  /* Strings for names to make debug easier */
--char *T_CMD_NAMES[] = {
-+#ifdef MSHDEBUG
-+static char *T_CMD_NAMES[] = {
- 	"PLACEHOLDER",
- 	"TCOM",
- 	"TPAREN",
-@@ -182,7 +196,7 @@
- 	"TASYNC",
- 	"TDOT",
- };
--
-+#endif
- 
- /*
-  * actions determining the environment of a process
-@@ -282,6 +296,28 @@
+ #ifdef MSHDEBUG
+ static const char *const T_CMD_NAMES[] = {
+@@ -255,6 +267,27 @@
+ static char line[LINELIM];
  static char *elinep;
- 
  
 +static int func_finished;
 +struct func{
@@ -70,11 +57,10 @@
 +static void register_func(int begin,int end);
 +static struct func * find_func(char* name);
 +static  void exec_func(struct func* f);
-+
+ 
  /*
   * other functions
-  */
-@@ -373,6 +409,8 @@
+@@ -346,6 +379,8 @@
  #define	IN		272
  /* Added for "." file expansion */
  #define	DOT		273
@@ -83,72 +69,10 @@
  
  #define	YYERRCODE 300
  
-@@ -513,7 +551,7 @@
- static int readc(void);
- static void unget(int c);
- static void ioecho(int c);
--static void prs(char *s);
-+static void prs(const char *s);
- static void prn(unsigned u);
- static void closef(int i);
- static void closeall(void);
-@@ -621,7 +659,7 @@
- 	struct here *h_next;
- };
- 
--static char *signame[] = {
-+static const char * const signame[] = {
- 	"Signal 0",
- 	"Hangup",
- 	(char *) NULL,				/* interrupt */
-@@ -643,10 +681,10 @@
- #define	NSIGNAL (sizeof(signame)/sizeof(signame[0]))
- 
- struct res {
--	char *r_name;
-+	const char *r_name;
- 	int r_val;
- };
--static struct res restab[] = {
-+static const struct res restab[] = {
- 	{"for", FOR},
- 	{"case", CASE},
- 	{"esac", ESAC},
-@@ -698,7 +736,7 @@
- 	{0, 0}
- };
- 
--struct op *scantree(struct op *);
-+static struct op *scantree(struct op *);
- static struct op *dowholefile(int, int);
- 
- /* Globals */
-@@ -708,7 +746,7 @@
- static int dolc;
- static int exstat;
- static char gflg;
--static int interactive = 0;		/* Is this an interactive shell */
-+static int interactive;			/* Is this an interactive shell */
- static int execflg;
- static int multiline;			/* \n changed to ; */
- static struct op *outtree;		/* result from parser */
-@@ -874,9 +911,9 @@
- #ifdef CONFIG_FEATURE_SH_FANCY_PROMPT
- 	if (prompt->value == null)
- #endif
--		setval(prompt, "\\u:\\w$ ");
-+		setval(prompt, "$ ");
- 	if (geteuid() == 0) {
--		setval(prompt, "\\u:\\w> ");
-+		setval(prompt, "# ");
- 		prompt->status &= ~EXPORT;
- 	}
- 	cprompt = lookup("PS2");
-@@ -1920,7 +1959,40 @@
- 		case '>':
+@@ -1852,6 +1887,40 @@
  			(void) synio(0);
  			break;
--
+ 
 +		case FUNC:
 +		{
 +			int c;
@@ -186,32 +110,21 @@
  		case WORD:
  			if (t == NULL) {
  				t = newtp();
-@@ -2244,7 +2315,7 @@
- static int rlookup(n)
- REGISTER char *n;
- {
--	REGISTER struct res *rp;
-+	REGISTER const struct res *rp;
- 
- 	DBGPRINTF7(("RLOOKUP: enter, n is %s\n", n));
- 
-@@ -2465,8 +2536,14 @@
+@@ -2386,6 +2455,13 @@
  	case ')':
  		startl = 1;
- 		return (c);
+ 		return c;
 +	case '{':
 +		
 +		if ((c = collect(c, '}')) != '\0')
-+        	        return (c);
++        	        return c;
 +		break;
 +	case '}':
 +		return RETURN;
  	}
--
- 	unget(c);
  
-   pack:
-@@ -2490,10 +2567,169 @@
+ 	unget(c);
+@@ -2411,9 +2487,169 @@
  	}
  
  	yylval.cp = strsave(line, areanum);
@@ -242,7 +155,7 @@
 +	if(yylval.cp != NULL && !(strcmp(yylval.cp,"return"))){
 +		return RETURN;
 +	}
- 	return (WORD);
+ 	return WORD;
  }
  
 +static void register_func(int begin,int end){
@@ -315,7 +228,7 @@
 +			strcpy(temp_argv[temp_argc],yylval.cp);
 +			//fprintf(stderr,"ARG:%s\n",yylval.cp);
 +		}
- 
++
 +	}
 +	/*
 +	e.iop->argp->afpos--;
@@ -378,10 +291,10 @@
 +	if(cur_frame != 0)
 +		func_finished = 0;
 +}
- static int collect(c, c1)
- REGISTER int c, c1;
+ 
+ static int collect(int c, int c1)
  {
-@@ -2796,6 +3032,10 @@
+@@ -2703,6 +2939,10 @@
  		if (rv >= 0 && (t1 = t->left))
  			rv = execute(t1, pin, pout, 0);
  		break;
@@ -392,48 +305,3 @@
  
  	};
  
-@@ -4638,8 +4878,8 @@
- 	return (wd);
- }
- 
--int (*func) (char *, char *);
--int globv;
-+static int (*func) (char *, char *);
-+static int globv;
- 
- static void glob0(a0, a1, a2, a3)
- char *a0;
-@@ -5046,11 +5285,13 @@
- 	struct iobuf *bp = ap->afbuf;
- 
- 	if (ap->afid != AFID_NOBUF) {
-+	/*judge the bufp equals end of buf ,means we reach end of buf ,so we create new buf 
-+	  or (i = ap->afid != bp->id), we have to create new buf*/
- 		if ((i = ap->afid != bp->id) || bp->bufp == bp->ebufp) {
- 
--			if (i)
-+			if (i)/*first arrive the last read pos of file*/
- 				lseek(ap->afile, ap->afpos, 0);
--
-+			/*read from file to buf*/
- 			i = safe_read(ap->afile, bp->buf, sizeof(bp->buf));
- 
- 			if (i <= 0) {
-@@ -5061,7 +5302,7 @@
- 			bp->id = ap->afid;
- 			bp->ebufp = (bp->bufp = bp->buf) + i;
- 		}
--
-+		/* move the pos to the first pos of new buf */
- 		ap->afpos++;
- 		return *bp->bufp++ & 0177;
- 	}
-@@ -5165,7 +5406,7 @@
- }
- 
- static void prs(s)
--REGISTER char *s;
-+REGISTER const char *s;
- {
- 	if (*s)
- 		write(2, s, strlen(s));
