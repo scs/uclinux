@@ -465,6 +465,41 @@ do
 
   fi
 
+
+  ###############################################################################################
+  ########################## TEST COREB #########################################################
+  
+ if [ $coreb -eq 1  ] ; then
+  echo  "Testing coreb..."
+
+  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uclinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+
+  cd $KERNEL_SCRIPTS/coreb
+  ./build_coreb_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./coreb_test.exp >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb 
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.coreb
+  
+  cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
+  
+  sleep 30
+ 
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+
   
   #############################################################################################
   ########################## TEST AUDIO #########################################################
