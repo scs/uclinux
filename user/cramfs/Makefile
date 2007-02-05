@@ -1,3 +1,5 @@
+CFLAGS+=-I$(ROOTDIR)/lib/zlib
+LDLIBS+=-L$(ROOTDIR)/lib/zlib
 
 PROGS = mkcramfs cramfsck
 

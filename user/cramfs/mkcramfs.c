@@ -571,7 +571,7 @@ static unsigned int do_compress(char *base, unsigned int offset, char const *nam
 			exit(8);
 		}
 
-		*(u32 *) (base + offset) = curr;
+		*(__u32 *) (base + offset) = curr;
 		offset += 4;
 	} while (size);
 
@@ -666,7 +666,7 @@ int main(int argc, char **argv)
 	/* initial guess (upper-bound) of required filesystem size */
 	loff_t fslen_ub = sizeof(struct cramfs_super);
 	char const *dirname, *outfile;
-	u32 crc = crc32(0L, Z_NULL, 0);
+	__u32 crc = crc32(0L, Z_NULL, 0);
 	int c;			/* for getopt */
 
 	total_blocks = 0;
