@@ -185,5 +185,5 @@
 /* if we have u_int8_t */
 #undef u_int8_t
 
-#include <linux/config.h>
+#include <linux/autoconf.h>
 #include <config/autoconf.h>
