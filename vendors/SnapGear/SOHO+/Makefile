@@ -154,12 +154,7 @@ image:
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGE) /tftpboot
 	gzip -c -9 $(IMAGE) > $(IMAGEZ)
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(VERSIONPKG) >> $(IMAGEZ)
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGEZ)
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGEZ)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGEZ)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGEZ) >> $(IMAGEZ)
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGEZ) /tftpboot
 	BSS=`m68k-elf-objdump --headers $(ROOTDIR)/$(LINUXDIR)/linux | \

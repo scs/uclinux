@@ -207,6 +207,7 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # CONFIG_SERIAL is not set
 # CONFIG_SERIAL_EXTENDED is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
+# CONFIG_PC_KEYB is not set
 
 #
 # Serial drivers

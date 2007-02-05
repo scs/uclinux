@@ -38,7 +38,7 @@ image.mbr: $(MBRIMG)
 
 $(MBRIMG):
 	$(DD) if=/dev/zero of=$@ bs=512 count=1
-	echo -e "1,48575,L,*\n,,61,-" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
+	printf "1,48575,L,*\n,,61,-\n" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
 
 include $(ROOTDIR)/vendors/config/config.dev
 include ../vendor.mak

@@ -149,12 +149,7 @@ image: $(FSIMG)
 	gzip -9 $(FLASH)
 	mv $(FLASH).gz $(FLASH)
 ifdef CONFIG_USER_NETFLASH_VERSION
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(VERSIONPKG) >> $(FLASH)
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(CONFIG_VENDOR) >> $(FLASH)
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(CONFIG_PRODUCT) >> $(FLASH)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(FLASH)
 endif
 ifdef CONFIG_USER_NETFLASH_HMACMD5
 	$(ROOTDIR)/user/netflash/hmacmd5 $(CONFIG_USER_NETFLASH_HMACMD5_KEY) < $(FLASH) >> $(FLASH)

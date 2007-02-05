@@ -217,12 +217,7 @@ $(JFFS2IMG):
 .PHONY: image $(FSIMG)
 image: $(LINUXBIN) $(FSIMG)
 ifdef CONFIG_USER_NETFLASH_VERSION
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >>$(IMAGE)
 endif
 ifdef CONFIG_USER_NETFLASH_HMACMD5
 	$(ROOTDIR)/user/netflash/hmacmd5 $(CONFIG_USER_NETFLASH_HMACMD5_KEY) < $(IMAGE) >> $(IMAGE)

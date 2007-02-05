@@ -22,6 +22,7 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 
 image: image.configs image.dir image.linuz image.squashfs7z image.bin image.size image.tag image.copy image.flash 
 
@@ -37,11 +38,11 @@ vendor_flashbin:
 		MAC3="\000\320\317\000\000\004"; \
 		PAD0="\000\000\000\000\000\000"; \
 		MAG0="\253\272"; \
-		echo -en "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
+		printf "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
 		if [ "$(CONFIG_SH_CONSOLE_TTYSC0)" = "y" ]; then \
-			echo -en "mem=16M console=ttySC0,57600\000"; \
+			printf "mem=16M console=ttySC0,57600\000"; \
 		else \
-			echo -en "mem=16M console=ttySC1,57600\000"; \
+			printf "mem=16M console=ttySC1,57600\000"; \
 		fi; \
 	) | $(DD) conv=sync bs=80k >> $(FLASH)
 	@echo "Bad config filesystem" | $(DD) conv=sync bs=256k >> $(FLASH)

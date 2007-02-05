@@ -45,7 +45,6 @@ romfs: romfs_dev
 	$(ROMFSINST) ../network.init.std /etc/network.init
 	#
 	$(ROMFSINST) /etc/rc
-	[ ! -f rc-$(CONFIG_LANGUAGE) ] || $(ROMFSINST) rc-$(CONFIG_LANGUAGE) /etc/rc
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
 
 mkcramfs: $(ROOTDIR)/user/cramfs/mkcramfs.c
@@ -61,12 +60,7 @@ image: mkcramfs
 	cp $(RAMDISKZ) $(IMAGE)
 	cat $(KERNELZ) >> $(IMAGE)
 	
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(HW_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(HW_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(HW_VENDOR) $(HW_PRODUCT) >>$(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 
 	if [ -d /tftpboot -a -z "$(NO_BUILD_INTO_TFTPBOOT)" ]; then \

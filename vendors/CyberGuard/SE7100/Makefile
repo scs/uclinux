@@ -100,15 +100,10 @@ image: mkcramfs
 	gzip -c -9 < $(IMAGEDIR)/linux.bin > $(KERNELZ)
 	./mkcramfs -z -r $(ROMFSDIR) $(ROMFSIMG)
 	dd if=/dev/zero of=$(MBRIMG) bs=512 count=1
-	echo -e "1,48575,L,*\n,,61,-" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $(MBRIMG)
+	printf "1,48575,L,*\n,,61,-\n" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $(MBRIMG)
 	cat $(MBRIMG) $(ROMFSIMG) $(KERNELZ) > $(IMAGE)
 #	cat $(ROMFSIMG) $(KERNELZ) > $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGE) /tftpboot
 

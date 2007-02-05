@@ -8,15 +8,12 @@ endif
 BUILD_NETtel = 1
 LINUXTARGET = zImage
 
-#Get the version.
-include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 # To override the vendor-global version do something like:
 # VERSIONPKG = 2.3.5u1
 
 HW_VENDOR = SnapGear
 HW_PRODUCT = SnapGearLITE300
-include $(ROOTDIR)/vendors/config/config.languages
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 #DISABLE_SHARED_SSL = yes

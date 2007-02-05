@@ -44,6 +44,7 @@ romfs: romfs_dev
 	$(ROMFSINST) -s /var/tmp/log /dev/log
 	$(ROMFSINST) ../romfs /
 	$(ROMFSINST) network.init.ivpn /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 	$(ROMFSINST) -p 755 eth1_2_wifi /etc/default/eth1_2_wifi
 	$(ROMFSINST) -p 755 wifi_2_eth1 /etc/default/wifi_2_eth1
 	#
@@ -64,12 +65,7 @@ image: mksquashfs7z
 	    $$mksquashfs7z . $(RAMDISK) -all-root -noappend $(SQUASH_ENDIAN)
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(KERNELZ)
 	cat $(RAMDISK) $(KERNELZ) > $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 
 #

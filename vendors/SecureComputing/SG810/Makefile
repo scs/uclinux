@@ -66,6 +66,7 @@ romfs: romfs_dev
 	$(ROMFSINST) $(LINUXIMG) /boot/vmlinuz
 	$(ROMFSINST) ../romfs /
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 	$(ROMFSINST) -s /var/tmp /tmp
 	$(ROMFSINST) -s /var/mnt /mnt
 	$(ROMFSINST) -s /var/tmp/log /dev/log

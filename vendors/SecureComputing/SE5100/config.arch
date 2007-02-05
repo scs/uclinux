@@ -10,7 +10,6 @@ endif
 
 VERSIONPKG    := 2.0.2
 LINUXTARGET    = zImage
-include $(ROOTDIR)/vendors/config/config.languages
 
 VENDOR_CFLAGS := -DCONFIG_SNAPGEAR=1
 

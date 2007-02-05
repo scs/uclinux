@@ -8,7 +8,6 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-include $(ROOTDIR)/vendors/config/config.languages
 
 ############################################################################
 

@@ -139,11 +139,7 @@ romfs.recover:
 	$(ROMFSINST) ../romfs.recover /
 
 romfs.rc:
-	if [ -f rc-$(CONFIG_LANGUAGE) ]; then \
-		$(ROMFSINST) /etc/rc-$(CONFIG_LANGUAGE) /etc/rc; \
-	else \
-		$(ROMFSINST) /etc/rc; \
-	fi
+	$(ROMFSINST) /etc/rc; \
 	[ ! -f filesystems ] || $(ROMFSINST) /etc/filesystems
 
 romfs.no-ixp400-modules:
@@ -153,8 +149,8 @@ romfs.ixp425-microcode:
 	[ ! -f $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat ] || $(ROMFSINST) -d $(ROOTDIR)/modules/ixp425/ixp400-2.0/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
 
 romfs.ixp425-boot:
-	$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin
-	$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
+	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin
+	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
 
 romfs.version:
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version

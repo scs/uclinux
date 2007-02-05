@@ -104,6 +104,7 @@ ifdef UCLINUX_BUILD_USER
 	LIBSTDCPP   = -lstdc++
 
 	LDPATH = \
+		-L$(ROOTDIR)/lib \
 		-L$(ROOTDIR)/lib/libnet \
 		-L$(ROOTDIR)/lib/libdes \
 		-L$(ROOTDIR)/lib/libaes \
@@ -123,13 +124,15 @@ ifdef UCLINUX_BUILD_USER
   ifdef CONFIG_USER_DEBUG
 	CFLAGS  :=  -O1 -g
   else
-	CFLAGS  :=  -Os -g
+	CFLAGS  :=  -O2 -g
   endif
 	CFLAGS  += $(VENDOR_CFLAGS)
 	CFLAGS  += -Dlinux -D__linux__ -Dunix -D__uClinux__ -DEMBED
 	CFLAGS  += $(INCLIBC) $(INCLIBM)
 	CFLAGS  += -I$(ROOTDIR)
+	CFLAGS  += -I$(ROOTDIR)/include
 	CFLAGS  += -fno-builtin
+	CFLAGS  += -Dfork=vfork -D__adjtimex=adjtimex
 
 	CXXFLAGS = $(CFLAGS) $(INCCXX) -fname-mangling-version-0
 
@@ -138,7 +141,7 @@ ifdef UCLINUX_BUILD_USER
 	CXXLIBS  = $(LDPATH) $(LIBSTDCPP) $(LIBIOSTREAM) $(LIBIO) $(LIBIBERTY) \
 			$(LIBC) $(LIBGCC)
 	
-	FLTFLAGS :=
+	FLTFLAGS := -z
 	export FLTFLAGS
 
 	# for anyone still using it

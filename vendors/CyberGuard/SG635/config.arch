@@ -8,15 +8,12 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-#Get the version.
-include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 # To override the vendor-global version do something like:
 # VERSIONPKG = 2.3.5u1
 
 HW_VENDOR	= SnapGear
 HW_PRODUCT	= SnapGearPCI635
-include $(ROOTDIR)/vendors/config/config.languages
 
 ############################################################################
 

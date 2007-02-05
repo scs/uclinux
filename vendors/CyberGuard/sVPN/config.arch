@@ -11,7 +11,6 @@ endif
 VERSIONPKG  := 3.0.0p0
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
-include $(ROOTDIR)/vendors/config/config.languages
 
 ############################################################################
 

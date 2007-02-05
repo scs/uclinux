@@ -9,7 +9,6 @@ BUILD_NETtel = 1
 VENDOR_CFLAGS = -DCONFIG_SECUREEDGE -DCONFIG_NETtel -DCONFIG_X86
 RELFILES = images/CF-128MB.sgu images/CF-64MB.sgu images/CF-recover.bin images/image.iso
 
-#Get the version.
 include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 # To override the vendor-global version do something like:

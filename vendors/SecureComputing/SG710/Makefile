@@ -27,6 +27,7 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 
 romfs.post:: romfs.no-ixp400-modules romfs.ixp425-microcode romfs.ixp425-boot
 
@@ -38,7 +39,7 @@ image.mbr: $(MBRIMG)
 
 $(MBRIMG):
 	$(DD) if=/dev/zero of=$@ bs=512 count=1
-	echo -e "1,48575,L,*\n,,61,-" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
+	printf "1,48575,L,*\n,,61,-\n" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
 
 include $(ROOTDIR)/vendors/config/config.dev
 include ../vendor.mak

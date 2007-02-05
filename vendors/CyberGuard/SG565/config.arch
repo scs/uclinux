@@ -5,8 +5,6 @@ ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
 VENDOR_TOPDIRS = boot
 endif
 
-#Get the version.
-include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 
 # To override the vendor-global version do something like:
 # VERSIONPKG = 2.3.5u1
@@ -18,7 +16,6 @@ VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
 
 BUILD_NETtel = 1
 LINUXTARGET = zImage
-include $(ROOTDIR)/vendors/config/config.languages
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################

@@ -206,7 +206,7 @@ extimage-128MB:
 .PHONY: extimage
 extimage: lilo
 	dd if=/dev/zero of=mbr.img bs=512 count=1
-	echo -e "1,`expr $(CYLS) \\* $(HEADS) \\* $(SECTORS) - $(CONFIG) - 1`,L,*\n,,61,-" | sfdisk -uS -C $(CYLS) -H $(HEADS) -S $(SECTORS) mbr.img
+	printf "1,`expr $(CYLS) \\* $(HEADS) \\* $(SECTORS) - $(CONFIG) - 1`,L,*\n,,61,-\n" | sfdisk -uS -C $(CYLS) -H $(HEADS) -S $(SECTORS) mbr.img
 	dd if=/dev/zero of=ext3.img bs=512 \
 			count=`expr $(CYLS) \\* $(HEADS) \\* $(SECTORS) - 1 - $(CONFIG)`
 	/sbin/mke2fs -F -m0 -v ext3.img

@@ -62,12 +62,7 @@ image: mkcramfs
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(KERNELZ)
 	cat $(RAMDISK) $(KERNELZ) > $(IMAGE)
 
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 
 #

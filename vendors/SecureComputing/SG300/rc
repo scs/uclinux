@@ -1,10 +1,10 @@
 echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
 echo "Starting watchdog ..."
 watchdog /dev/watchdog
 hostname SG300
 echo "Mounting Filesystems ..."
-mount -t proc proc /proc
-echo 2 >/proc/cpu/alignment
 mount -t sysfs none /sys
 mount -t devpts devpts /dev/pts
 mount -t tmpfs -o size=256k tmpfs /var

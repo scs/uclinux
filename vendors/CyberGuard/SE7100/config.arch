@@ -9,7 +9,6 @@ VENDOR_TOPDIRS = boot
 endif
 
 VERSIONPKG  := 3.0.0p0
-include $(ROOTDIR)/vendors/config/config.languages
 
 ############################################################################
 

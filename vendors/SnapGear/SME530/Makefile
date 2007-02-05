@@ -160,12 +160,7 @@ image: mkcramfs
 	./mkcramfs -z -r $(ROMFSDIR) $(ROMFSIMG)
 	cat $(ROMFSIMG) $(IMAGEDIR)/linuz.bin > $(IMAGE)
 	# cat $(IMAGEDIR)/linux.bin $(ROMFSIMG) | gzip -c -9 > $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGE) /tftpboot
 	ADDR=`$(CROSS)nm $(ROOTDIR)/$(LINUXDIR)/vmlinux | \
@@ -197,8 +192,8 @@ vendor_flashbin:
 		MAC3="\000\320\317\000\000\004"; \
 		PAD0="\000\000\000\000\000\000"; \
 		MAG0="\253\272"; \
-		echo -en "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
-		echo -en "mem=16M console=ttySC1,57600\000"; \
+		printf "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
+		printf "mem=16M console=ttySC1,57600\000"; \
 	) | dd conv=sync bs=80k >> $(FLASH)
 	@echo "Bad config filesystem" | dd conv=sync bs=512k >> $(FLASH)
 	@cat $(IMAGE) >> $(FLASH)

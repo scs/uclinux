@@ -15,8 +15,8 @@ DEVICES += $(DEVICE_PTY_64)
 
 FLASH_DEVICES = \
 	boot,c,90,0 \
-	bootarg,c,90,0 \
-	ethmac,c,90,0 \
+	tags,c,90,2 \
+	log,c,90,4 \
 	image,b,3,0 \
 	config,b,3,2
 
@@ -26,7 +26,8 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
-	$(ROMFSINST) sensors.conf /etc/sensors.conf
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
+	$(ROMFSINST) -e CONFIG_USER_LM_SENSORS_SENSORS sensors.conf /etc/sensors.conf
 
 romfs.post:: romfs.no-ixp400-modules romfs.ixp425-microcode
 	$(ROMFSINST) /etc/lilo.conf
@@ -42,7 +43,7 @@ image.mbr: $(MBRIMG)
 
 $(MBRIMG):
 	$(DD) if=/dev/zero of=$@ bs=512 count=1
-	echo -e "1,48575,L,*\n,,61,-" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
+	printf "1,48575,L,*\n,,61,-\n" | /sbin/sfdisk  -uS -C 966 -H 16 -S 4 $@
 
 include $(ROOTDIR)/vendors/config/config.dev
 include ../vendor.mak

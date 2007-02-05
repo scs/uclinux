@@ -154,3 +154,10 @@ nod /dev/mtdblock2 640 0 0 b 31 2
 nod /dev/mtdblock3 640 0 0 b 31 3
 nod /dev/random 666 0 0 c 1 8
 nod /dev/urandom 666 0 0 c 1 9
+nod /dev/ttyJ0 666 0 0 c 232 16
+nod /dev/button 666 0 0 c 62 0
+nod /dev/spi 666 0 0 c 60 0
+nod /dev/i2c-0 666 0 0 c 89 0
+nod /dev/i2c-1 666 0 0 c 89 1
+nod /dev/video0 666 0 0 c 81 0
+nod /dev/video1 666 0 0 c 81 1

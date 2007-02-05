@@ -7,7 +7,6 @@
 CONSOLE_BAUD_RATE = 9600
 BUILD_NETtel = 1
 
-include $(ROOTDIR)/vendors/config/config.languages
 
 ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
   VENDOR_TOPDIRS = boot

@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.17-uc1
+# Linux kernel version: 2.6.19-uc1
 #
 CONFIG_M68K=y
 # CONFIG_MMU is not set
@@ -11,6 +11,7 @@ CONFIG_GENERIC_FIND_NEXT_BIT=y
 CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
 CONFIG_TIME_LOW_RES=y
+CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
 # Code maturity level options
@@ -27,14 +28,17 @@ CONFIG_LOCALVERSION_AUTO=y
 # CONFIG_SYSVIPC is not set
 # CONFIG_POSIX_MQUEUE is not set
 # CONFIG_BSD_PROCESS_ACCT is not set
-# CONFIG_SYSCTL is not set
+# CONFIG_TASKSTATS is not set
+# CONFIG_UTS_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
 # CONFIG_RELAY is not set
 CONFIG_INITRAMFS_SOURCE=""
-CONFIG_UID16=y
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+CONFIG_SYSCTL=y
 CONFIG_EMBEDDED=y
+CONFIG_UID16=y
+CONFIG_SYSCTL_SYSCALL=y
 # CONFIG_KALLSYMS is not set
 # CONFIG_HOTPLUG is not set
 CONFIG_PRINTK=y
@@ -44,10 +48,10 @@ CONFIG_BASE_FULL=y
 # CONFIG_FUTEX is not set
 # CONFIG_EPOLL is not set
 CONFIG_SLAB=y
+CONFIG_VM_EVENT_COUNTERS=y
 CONFIG_TINY_SHMEM=y
 CONFIG_BASE_SMALL=0
 # CONFIG_SLOB is not set
-CONFIG_OBSOLETE_INTERMODULE=y
 
 #
 # Loadable module support
@@ -57,6 +61,7 @@ CONFIG_OBSOLETE_INTERMODULE=y
 #
 # Block layer
 #
+CONFIG_BLOCK=y
 
 #
 # IO Schedulers
@@ -129,6 +134,7 @@ CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
+# CONFIG_RESOURCES_64BIT is not set
 CONFIG_ISA_DMA_API=y
 
 #
@@ -139,7 +145,6 @@ CONFIG_ISA_DMA_API=y
 #
 # PCCARD (PCMCIA/CardBus) support
 #
-# CONFIG_PCCARD is not set
 
 #
 # PCI Hotplug Support
@@ -167,11 +172,13 @@ CONFIG_NET=y
 #
 # Networking options
 #
-CONFIG_GENETLINK=y
 # CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
+CONFIG_XFRM=y
+# CONFIG_XFRM_USER is not set
+# CONFIG_XFRM_SUB_POLICY is not set
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -188,13 +195,18 @@ CONFIG_IP_FIB_HASH=y
 # CONFIG_INET_XFRM_TUNNEL is not set
 # CONFIG_INET_TUNNEL is not set
 # CONFIG_IPSEC_NAT_TRAVERSAL is not set
+CONFIG_INET_XFRM_MODE_TRANSPORT=y
+CONFIG_INET_XFRM_MODE_TUNNEL=y
+CONFIG_INET_XFRM_MODE_BEET=y
 CONFIG_INET_DIAG=y
 CONFIG_INET_TCP_DIAG=y
 # CONFIG_TCP_CONG_ADVANCED is not set
-CONFIG_TCP_CONG_BIC=y
+CONFIG_TCP_CONG_CUBIC=y
+CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_IPV6 is not set
 # CONFIG_INET6_XFRM_TUNNEL is not set
 # CONFIG_INET6_TUNNEL is not set
+# CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
 
 #
@@ -220,7 +232,6 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_ATALK is not set
 # CONFIG_X25 is not set
 # CONFIG_LAPB is not set
-# CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
 
@@ -248,7 +259,7 @@ CONFIG_TCP_CONG_BIC=y
 #
 CONFIG_STANDALONE=y
 CONFIG_PREVENT_FIRMWARE_BUILD=y
-# CONFIG_FW_LOADER is not set
+# CONFIG_SYS_HYPERVISOR is not set
 
 #
 # Connector - unified userspace <-> kernelspace linker
@@ -274,6 +285,7 @@ CONFIG_MTD_BLOCK=y
 # CONFIG_NFTL is not set
 # CONFIG_INFTL is not set
 # CONFIG_RFD_FTL is not set
+# CONFIG_SSFDC is not set
 
 #
 # RAM/ROM/Flash chip drivers
@@ -357,9 +369,15 @@ CONFIG_MTD_UCLINUX_EBSS=y
 CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
+CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
+
+#
+# Misc devices
+#
+# CONFIG_TIFM_CORE is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -371,6 +389,11 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 #
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
+# CONFIG_SCSI_NETLINK is not set
+
+#
+# Serial ATA (prod) and Parallel ATA (experimental) drivers
+#
 
 #
 # Multi-device support (RAID and LVM)
@@ -503,6 +526,7 @@ CONFIG_LEGACY_PTY_COUNT=256
 #
 # CONFIG_WATCHDOG is not set
 # CONFIG_MCFWATCHDOG is not set
+CONFIG_HW_RANDOM=y
 # CONFIG_GEN_RTC is not set
 # CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
@@ -518,7 +542,6 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_TCG_TPM is not set
 # CONFIG_MCF_QSPI is not set
 # CONFIG_M41T11M6 is not set
-# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -543,14 +566,9 @@ CONFIG_LEGACY_PTY_COUNT=256
 # CONFIG_HWMON_VID is not set
 
 #
-# Misc devices
-#
-
-#
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
-CONFIG_VIDEO_V4L2=y
 
 #
 # Digital Video Broadcasting Devices
@@ -560,6 +578,7 @@ CONFIG_VIDEO_V4L2=y
 #
 # Graphics support
 #
+CONFIG_FIRMWARE_EDID=y
 # CONFIG_FB is not set
 
 #
@@ -615,17 +634,30 @@ CONFIG_VIDEO_V4L2=y
 # CONFIG_RTC_CLASS is not set
 
 #
+# DMA Engine support
+#
+# CONFIG_DMA_ENGINE is not set
+
+#
+# DMA Clients
+#
+
+#
+# DMA Devices
+#
+
+#
 # File systems
 #
 CONFIG_EXT2_FS=y
 # CONFIG_EXT2_FS_XATTR is not set
-# CONFIG_EXT2_FS_XIP is not set
 # CONFIG_EXT3_FS is not set
+# CONFIG_EXT4DEV_FS is not set
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 # CONFIG_FS_POSIX_ACL is not set
 # CONFIG_XFS_FS is not set
-# CONFIG_OCFS2_FS is not set
+# CONFIG_GFS2_FS is not set
 # CONFIG_MINIX_FS is not set
 CONFIG_ROMFS_FS=y
 # CONFIG_INOTIFY is not set
@@ -653,6 +685,7 @@ CONFIG_DIRECTIO=y
 # Pseudo filesystems
 #
 CONFIG_PROC_FS=y
+CONFIG_PROC_SYSCTL=y
 # CONFIG_SYSFS is not set
 # CONFIG_TMPFS is not set
 # CONFIG_HUGETLB_PAGE is not set
@@ -710,11 +743,14 @@ CONFIG_MSDOS_PARTITION=y
 # Kernel hacking
 #
 # CONFIG_PRINTK_TIME is not set
+CONFIG_ENABLE_MUST_CHECK=y
 # CONFIG_MAGIC_SYSRQ is not set
+# CONFIG_UNUSED_SYMBOLS is not set
 # CONFIG_DEBUG_KERNEL is not set
 CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_UNWIND_INFO is not set
+# CONFIG_HEADERS_CHECK is not set
 CONFIG_FULLDEBUG=y
 # CONFIG_HIGHPROFILE is not set
 # CONFIG_BOOTPARAM is not set
@@ -731,10 +767,6 @@ CONFIG_FULLDEBUG=y
 # Cryptographic options
 #
 # CONFIG_CRYPTO is not set
-
-#
-# Hardware crypto devices
-#
 
 #
 # Library routines

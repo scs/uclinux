@@ -19,6 +19,7 @@ clean: image.clean
 
 romfs: romfs_dev romfs.dirs romfs.symlinks romfs.default romfs.rc romfs.version
 	$(ROMFSINST) ../network.init.std /etc/network.init
+	$(ROMFSINST) ../firewall.init.std /etc/firewall.init
 
 image: image.configs image.dir image.arm.zimage image.size.zimage image.squashfs7z image.bin image.size image.tag image.copy
 

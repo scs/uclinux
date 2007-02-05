@@ -46,6 +46,27 @@ DEVICE_CRYPTO=		-group=crypto	-mode=0666
 DEVICE_PTY=		-group=tty	-mode=0620
 DEVICE_TUN=		-group=root	-mode=0700
 
+
+ifdef CONFIG_DEFAULTS_KERNEL_2_0
+	DEVICES += $(DEVICE_CONS) console,c,4,0
+else
+	DEVICES += $(DEVICE_CONS) console,c,5,1
+endif
+
+ifdef CONFIG_IXP400_LIB
+	DEVICES += $(DEVICE_SYSTEM) \
+		ixNpe,c,241,0
+endif
+
+ifdef CONFIG_SNAPDOG
+	DEVICES += $(DEVICE_CRYPTO) watchdog,c,10,130
+endif
+
+ifdef CONFIG_LEDMAN
+	DEVICES += $(DEVICE_PRIVATE) ledman,c,126,0
+endif
+
+ifndef CONFIG_USER_UDEV
 # Devices that are always present.
 DEVICES += \
 	$(DEVICE_KMEM)		mem,c,1,1	kmem,c,1,2			\
@@ -83,16 +104,10 @@ ifdef CONFIG_VT
 		tty0,c,4,0	tty1,c,4,1	tty2,c,4,2	tty3,c,4,3
 endif
 
-ifneq ($(CONFIG_SERIAL)$(CONFIG_SERIAL_8250)$(CONFIG_SERIAL_KS8695),)
+ifneq ($(CONFIG_SERIAL)$(CONFIG_SERIAL_8250)$(CONFIG_SERIAL_KS8695)$(CONFIG_COLDFIRE_SERIAL),)
 	DEVICES += $(DEVICE_DIALOUT) \
 		ttyS0,c,4,64	ttyS1,c,4,65 \
 		cua0,c,5,64	cua1,c,5,65
-endif
-
-ifdef CONFIG_DEFAULTS_KERNEL_2_0
-	DEVICES += $(DEVICE_CONS) console,c,4,0
-else
-	DEVICES += $(DEVICE_CONS) console,c,5,1
 endif
 
 ifdef CONFIG_UNIX98_PTYS
@@ -119,12 +134,12 @@ ifdef CONFIG_OCF_OCF
 	DEVICES += $(DEVICE_CRYPTO) crypto,c,10,70
 endif
 
-ifdef CONFIG_SNAPDOG
-	DEVICES += $(DEVICE_CRYPTO) watchdog,c,10,130
-endif
-
+ifneq ($(CONFIG_RTC_DRV_SH)$(CONFIG_RTC_DRV_DS1302),)
+	DEVICES += $(DEVICE_PRIVATE) rtc,c,254,0
+else 
 ifneq ($(CONFIG_RTC)$(CONFIG_M41T11M6)$(CONFIG_SENSORS_M41T11)$(CONFIG_NVRAM)$(CONFIG_SH_RTC),)
 	DEVICES += $(DEVICE_CRYPTO) rtc,c,10,135
+endif
 endif
 
 ifdef CONFIG_TUN
@@ -208,8 +223,9 @@ ifdef CONFIG_MODULES_QTAB_SMARTREADER
 		cardpro0,c,125,0	cardpro1,c,125,1
 endif
 
-ifdef CONFIG_LEDMAN
-	DEVICES += $(DEVICE_PRIVATE) ledman,c,126,0
+ifdef CONFIG_MODULES_SGIO
+	DEVICES += $(DEVICE_SYSTEM) \
+		sgio,c,10,70
 endif
 
 ifdef CONFIG_XYMEM
@@ -257,11 +273,6 @@ else
 		cua0,c,204,8	cua1,c,204,9 \
 		ttySC0,c,204,8	ttySC1,c,204,9	ttySC2,c,204,10
 endif
-endif
-
-ifdef CONFIG_IXP400_LIB
-	DEVICES += $(DEVICE_SYSTEM) \
-		ixNpe,c,241,0
 endif
 
 ifdef CONFIG_I2C_CHARDEV
@@ -323,6 +334,10 @@ DEVICE_PTY_64 = $(DEVICE_PTY_32) \
 	ttys8,c,3,56   ttys9,c,3,57       ttysa,c,3,58     ttysb,c,3,59 \
 	ttysc,c,3,60   ttysd,c,3,61       ttyse,c,3,62     ttysf,c,3,63
 endif
+else #CONFIG_USER_UDEV
+DEVICES += \
+	$(DEVICE_PUBLIC)	null,c,1,3	zero,c,1,5
+endif #CONFIG_USER_UDEV
 
 DEVICES += -reset
 
@@ -331,6 +346,9 @@ DEVICES += -reset
 
 romfs_dev:
 	[ -d $(ROMFSDIR)/dev ] || mkdir -p $(ROMFSDIR)/dev
+ifdef CONFIG_USER_UDEV
+	[ -d $(ROMFSDIR)/lib/udev/devices ] || mkdir -p $(ROMFSDIR)/lib/udev/devices
+endif
 	for i in -reset $(DEVICES) $(DEVICE_SYSTEM) $(patsubst %,flash/%,$(FLASH_DEVICES));	\
 	do									\
 		case "$$i" in							\
@@ -344,8 +362,19 @@ romfs_dev:
 				fi;						\
 				node=$(ROMFSDIR)/dev/$$d/@`basename $$i` ;	\
 				rm -f $$node;					\
+				echo touching $$node; \
 				touch $$node;					\
 				chmod $$mode $$node;				\
+				if [ -d $(ROMFSDIR)/lib/udev ]; then \
+					if [ ! -d $(ROMFSDIR)/lib/udev/devices/$$d ]; then		\
+						mkdir $(ROMFSDIR)/lib/udev/devices/$$d;		\
+					fi;						\
+					node=$(ROMFSDIR)/lib/udev/devices/$$d/@`basename $$i` ;	\
+					rm -f $$node;					\
+					echo touching $$node; \
+					touch $$node;					\
+					chmod $$mode $$node;				\
+				fi;						\
 				;;						\
 		esac ;								\
 	done

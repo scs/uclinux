@@ -1,12 +1,14 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.16-uc0
+# Linux kernel version: 2.6.19-uc1
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
 CONFIG_UID16=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
 # CONFIG_RWSEM_XCHGADD_ALGORITHM is not set
+CONFIG_GENERIC_FIND_NEXT_BIT=y
+CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_CALIBRATE_DELAY=y
 
 #
@@ -25,14 +27,17 @@ CONFIG_LOCALVERSION_AUTO=y
 # CONFIG_SYSVIPC is not set
 # CONFIG_POSIX_MQUEUE is not set
 # CONFIG_BSD_PROCESS_ACCT is not set
-CONFIG_SYSCTL=y
+# CONFIG_TASKSTATS is not set
+# CONFIG_UTS_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
-CONFIG_INITRAMFS_SOURCE="~/uClinux-dist-test/romfs ~/uClinux-dist-test/vendors/Altera/nios2nommu/romfs_list"
+# CONFIG_RELAY is not set
+CONFIG_INITRAMFS_SOURCE="../romfs ../vendors/Altera/nios2nommu/romfs_list"
 CONFIG_INITRAMFS_ROOT_UID=500
 CONFIG_INITRAMFS_ROOT_GID=500
 CONFIG_CC_OPTIMIZE_FOR_SIZE=y
 CONFIG_EMBEDDED=y
+# CONFIG_SYSCTL_SYSCALL is not set
 # CONFIG_KALLSYMS is not set
 # CONFIG_HOTPLUG is not set
 CONFIG_PRINTK=y
@@ -41,11 +46,9 @@ CONFIG_BUG=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
 # CONFIG_EPOLL is not set
-CONFIG_CC_ALIGN_FUNCTIONS=0
-CONFIG_CC_ALIGN_LABELS=0
-CONFIG_CC_ALIGN_LOOPS=0
-CONFIG_CC_ALIGN_JUMPS=0
 CONFIG_SLAB=y
+# CONFIG_VM_EVENT_COUNTERS is not set
+CONFIG_RT_MUTEXES=y
 CONFIG_TINY_SHMEM=y
 CONFIG_BASE_SMALL=0
 # CONFIG_SLOB is not set
@@ -58,6 +61,8 @@ CONFIG_BASE_SMALL=0
 #
 # Block layer
 #
+CONFIG_BLOCK=y
+# CONFIG_BLK_DEV_IO_TRACE is not set
 
 #
 # IO Schedulers
@@ -89,15 +94,24 @@ CONFIG_ALTERA_STRATIX=y
 # CONFIG_ALTERA_STRATIX_II is not set
 # CONFIG_ALTERA_CYCLONE is not set
 # CONFIG_ALTERA_CYCLONE_1C12_EVAL is not set
+# CONFIG_ALTERA_DE2 is not set
 # CONFIG_NIOS2_HW_MUL_OFF is not set
 CONFIG_NIOS2_HW_MUL=y
 # CONFIG_NIOS2_HW_MULX is not set
 
 #
-# Miscellaneous Options
+# Platform drivers Options
 #
 # CONFIG_AVALON_DMA is not set
 # CONFIG_PIO_DEVICES is not set
+# CONFIG_PCI_ALTPCI is not set
+# CONFIG_FB_ALTERA is not set
+# CONFIG_SERIO_ALTPS2 is not set
+# CONFIG_I2C_GPIO is not set
+
+#
+# Miscellaneous Options
+#
 CONFIG_EXCALIBUR=y
 # CONFIG_BREAK_ON_START is not set
 CONFIG_LARGE_ALLOCS=y
@@ -105,6 +119,7 @@ CONFIG_RAMKERNEL=y
 CONFIG_PREEMPT=y
 # CONFIG_PREEMPT_TIMES is not set
 CONFIG_CMDLINE=""
+# CONFIG_PASS_CMDLINE is not set
 CONFIG_SELECT_MEMORY_MODEL=y
 CONFIG_FLATMEM_MANUAL=y
 # CONFIG_DISCONTIGMEM_MANUAL is not set
@@ -113,6 +128,7 @@ CONFIG_FLATMEM=y
 CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
+# CONFIG_RESOURCES_64BIT is not set
 CONFIG_BOOT_LINK_OFFSET=0x00500000
 
 #
@@ -123,7 +139,6 @@ CONFIG_BOOT_LINK_OFFSET=0x00500000
 #
 # PCCARD (PCMCIA/CardBus) support
 #
-# CONFIG_PCCARD is not set
 
 #
 # PCI Hotplug Support
@@ -135,7 +150,7 @@ CONFIG_BOOT_LINK_OFFSET=0x00500000
 CONFIG_KCORE_AOUT=y
 CONFIG_KCORE_ELF=y
 CONFIG_BINFMT_FLAT=y
-# CONFIG_BINFMT_ZFLAT is not set
+CONFIG_BINFMT_ZFLAT=y
 # CONFIG_BINFMT_SHARED_FLAT is not set
 # CONFIG_BINFMT_MISC is not set
 
@@ -152,7 +167,6 @@ CONFIG_NET=y
 #
 # Networking options
 #
-CONFIG_GENETLINK=y
 # CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
@@ -170,12 +184,20 @@ CONFIG_IP_FIB_HASH=y
 # CONFIG_INET_AH is not set
 # CONFIG_INET_ESP is not set
 # CONFIG_INET_IPCOMP is not set
+# CONFIG_INET_XFRM_TUNNEL is not set
 # CONFIG_INET_TUNNEL is not set
 # CONFIG_IPSEC_NAT_TRAVERSAL is not set
+# CONFIG_INET_XFRM_MODE_TRANSPORT is not set
+# CONFIG_INET_XFRM_MODE_TUNNEL is not set
+# CONFIG_INET_XFRM_MODE_BEET is not set
 # CONFIG_INET_DIAG is not set
 # CONFIG_TCP_CONG_ADVANCED is not set
-CONFIG_TCP_CONG_BIC=y
+CONFIG_TCP_CONG_CUBIC=y
+CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_IPV6 is not set
+# CONFIG_INET6_XFRM_TUNNEL is not set
+# CONFIG_INET6_TUNNEL is not set
+# CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
 
 #
@@ -201,7 +223,6 @@ CONFIG_TCP_CONG_BIC=y
 # CONFIG_ATALK is not set
 # CONFIG_X25 is not set
 # CONFIG_LAPB is not set
-# CONFIG_NET_DIVERT is not set
 # CONFIG_ECONET is not set
 # CONFIG_WAN_ROUTER is not set
 
@@ -229,7 +250,7 @@ CONFIG_TCP_CONG_BIC=y
 #
 CONFIG_STANDALONE=y
 CONFIG_PREVENT_FIRMWARE_BUILD=y
-# CONFIG_FW_LOADER is not set
+# CONFIG_SYS_HYPERVISOR is not set
 
 #
 # Connector - unified userspace <-> kernelspace linker
@@ -257,8 +278,14 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 # CONFIG_BLK_DEV_LOOP is not set
 # CONFIG_BLK_DEV_NBD is not set
 # CONFIG_BLK_DEV_RAM is not set
+# CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
+
+#
+# Misc devices
+#
+# CONFIG_TIFM_CORE is not set
 
 #
 # ATA/ATAPI/MFM/RLL support
@@ -270,6 +297,12 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 #
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
+# CONFIG_SCSI_NETLINK is not set
+
+#
+# Serial ATA (prod) and Parallel ATA (experimental) drivers
+#
+# CONFIG_ATA is not set
 
 #
 # Multi-device support (RAID and LVM)
@@ -293,7 +326,7 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 # Network device support
 #
 CONFIG_NETDEVICES=y
-CONFIG_DUMMY=y
+# CONFIG_DUMMY is not set
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
@@ -301,16 +334,18 @@ CONFIG_DUMMY=y
 #
 # PHY device support
 #
+# CONFIG_PHYLIB is not set
 
 #
 # Ethernet (10 or 100Mbit)
 #
-# CONFIG_NET_ETHERNET is not set
-# CONFIG_SMC91111 is not set
+CONFIG_NET_ETHERNET=y
+CONFIG_MII=y
+# CONFIG_NET_VENDOR_SMC is not set
 # CONFIG_OPEN_ETH is not set
 # CONFIG_MTIP1000_ETH is not set
-# CONFIG_DM9000_ETH is not set
 # CONFIG_NE2000 is not set
+# CONFIG_NET_PCI is not set
 
 #
 # Ethernet (1000 Mbit)
@@ -366,7 +401,7 @@ CONFIG_DUMMY=y
 #
 # CONFIG_VT is not set
 # CONFIG_SERIAL_NONSTANDARD is not set
-# CONFIG_NIOS_SPI is not set
+# CONFIG_NIOS_LCD_16207 is not set
 # CONFIG_NIOS_BUTTON is not set
 # CONFIG_LEDMAN is not set
 # CONFIG_SNAPDOG is not set
@@ -399,6 +434,7 @@ CONFIG_LEGACY_PTY_COUNT=10
 # Watchdog Cards
 #
 # CONFIG_WATCHDOG is not set
+# CONFIG_HW_RANDOM is not set
 # CONFIG_RTC is not set
 # CONFIG_GEN_RTC is not set
 # CONFIG_DTLK is not set
@@ -414,7 +450,6 @@ CONFIG_LEGACY_PTY_COUNT=10
 #
 # CONFIG_TCG_TPM is not set
 # CONFIG_M41T11M6 is not set
-# CONFIG_TELCLOCK is not set
 
 #
 # I2C support
@@ -437,16 +472,10 @@ CONFIG_LEGACY_PTY_COUNT=10
 #
 CONFIG_HWMON=y
 # CONFIG_HWMON_VID is not set
+# CONFIG_SENSORS_ABITUGURU is not set
 # CONFIG_SENSORS_F71805F is not set
+# CONFIG_SENSORS_VT1211 is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
-
-#
-# Misc devices
-#
-
-#
-# Multimedia Capabilities Port drivers
-#
 
 #
 # Multimedia devices
@@ -461,7 +490,9 @@ CONFIG_HWMON=y
 #
 # Graphics support
 #
+# CONFIG_FIRMWARE_EDID is not set
 # CONFIG_FB is not set
+# CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
 # Sound
@@ -471,9 +502,9 @@ CONFIG_HWMON=y
 #
 # USB support
 #
-CONFIG_USB_ARCH_HAS_HCD=y
-CONFIG_USB_ARCH_HAS_OHCI=y
-# CONFIG_USB is not set
+# CONFIG_USB_ARCH_HAS_HCD is not set
+# CONFIG_USB_ARCH_HAS_OHCI is not set
+# CONFIG_USB_ARCH_HAS_EHCI is not set
 
 #
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
@@ -490,6 +521,19 @@ CONFIG_USB_ARCH_HAS_OHCI=y
 # CONFIG_MMC is not set
 
 #
+# LED devices
+#
+# CONFIG_NEW_LEDS is not set
+
+#
+# LED drivers
+#
+
+#
+# LED Triggers
+#
+
+#
 # InfiniBand support
 #
 
@@ -498,14 +542,34 @@ CONFIG_USB_ARCH_HAS_OHCI=y
 #
 
 #
+# Real Time Clock
+#
+# CONFIG_RTC_CLASS is not set
+
+#
+# DMA Engine support
+#
+# CONFIG_DMA_ENGINE is not set
+
+#
+# DMA Clients
+#
+
+#
+# DMA Devices
+#
+
+#
 # File systems
 #
 # CONFIG_EXT2_FS is not set
 # CONFIG_EXT3_FS is not set
+# CONFIG_EXT4DEV_FS is not set
 # CONFIG_REISERFS_FS is not set
 # CONFIG_JFS_FS is not set
 # CONFIG_FS_POSIX_ACL is not set
 # CONFIG_XFS_FS is not set
+# CONFIG_GFS2_FS is not set
 # CONFIG_OCFS2_FS is not set
 # CONFIG_MINIX_FS is not set
 # CONFIG_ROMFS_FS is not set
@@ -534,11 +598,11 @@ CONFIG_USB_ARCH_HAS_OHCI=y
 # Pseudo filesystems
 #
 CONFIG_PROC_FS=y
+# CONFIG_PROC_SYSCTL is not set
 CONFIG_SYSFS=y
 # CONFIG_TMPFS is not set
 # CONFIG_HUGETLB_PAGE is not set
 CONFIG_RAMFS=y
-# CONFIG_RELAYFS_FS is not set
 # CONFIG_CONFIGFS_FS is not set
 
 #
@@ -562,8 +626,17 @@ CONFIG_RAMFS=y
 #
 # Network File Systems
 #
-# CONFIG_NFS_FS is not set
+CONFIG_NFS_FS=y
+CONFIG_NFS_V3=y
+# CONFIG_NFS_V3_ACL is not set
+# CONFIG_NFS_V4 is not set
 # CONFIG_NFSD is not set
+CONFIG_LOCKD=y
+CONFIG_LOCKD_V4=y
+CONFIG_NFS_COMMON=y
+CONFIG_SUNRPC=y
+# CONFIG_RPCSEC_GSS_KRB5 is not set
+# CONFIG_RPCSEC_GSS_SPKM3 is not set
 # CONFIG_SMB_FS is not set
 # CONFIG_CIFS is not set
 # CONFIG_NCP_FS is not set
@@ -608,13 +681,11 @@ CONFIG_LOG_BUF_SHIFT=14
 # CONFIG_CRYPTO is not set
 
 #
-# Hardware crypto devices
-#
-
-#
 # Library routines
 #
 # CONFIG_CRC_CCITT is not set
 # CONFIG_CRC16 is not set
-# CONFIG_CRC32 is not set
+CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
+CONFIG_ZLIB_INFLATE=y
+CONFIG_PLIST=y

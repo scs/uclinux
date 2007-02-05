@@ -154,7 +154,7 @@ lilo:
 .PHONY: extimage
 extimage: lilo
 	dd if=/dev/zero of=$(MBRIMG) bs=512 count=1
-	echo -e "1,121599,L,*\n,,61,-" | /sbin/sfdisk  -uS -C 977 -H 4 -S 32 $(MBRIMG)
+	printf "1,121599,L,*\n,,61,-\n" | /sbin/sfdisk  -uS -C 977 -H 4 -S 32 $(MBRIMG)
 	dd if=/dev/zero of=$(E2FSIMG) bs=512 count=44478
 	/sbin/mke2fs -F -m0 -v $(E2FSIMG)
 	/sbin/tune2fs -i 0 -j $(E2FSIMG)
@@ -178,12 +178,7 @@ extimage: lilo
 		cd $(ROOTDIR); \
 	)
 	cat $(MBRIMG) $(E2FSIMG) | gzip -9 > $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(VERSIONPKG) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGE)
-	echo -ne "\000" >> $(IMAGE)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGE)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGE)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGE) >> $(IMAGE)
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGE) /tftpboot/.
 	[ -n "$(NO_BUILD_INTO_TFTPBOOT)" ] || cp $(IMAGE) /tftpboot/flash.bin

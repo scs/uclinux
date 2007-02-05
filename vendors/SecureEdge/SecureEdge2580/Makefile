@@ -32,15 +32,12 @@ ROMFS_DIRS = \
 	usr usr/bin usr/sbin \
 	var
 
-ifdef CONFIG_ROMFS_FS
-FSIMG = $(ROMFSIMG)
-endif
-ifdef CONFIG_JFFS_FS
 ROMFS_DIRS += tmp var/run var/log var/tmp /var/lock var/empty
+
+ifdef CONFIG_JFFS_FS
 FSIMG = $(JFFSIMG)
 endif
 ifdef CONFIG_JFFS2_FS
-ROMFS_DIRS += tmp var/run var/log var/tmp /var/lock var/empty
 FSIMG = $(JFFS2IMG)
 endif
 
@@ -112,7 +109,6 @@ romfs:
 	done
 	dirs=$(DIRS) ; for i in $$dirs; do  make -C $$i romfs || exit $? ; done
 	$(ROMFSINST) ../romfs_x86 /
-
 	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-up /etc/default/ip-up
 	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/ip-down /etc/default/ip-down
 	$(ROMFSINST) -p 755 ../romfs_x86/etc/default/dhcpcd-eth0.exe \
@@ -124,12 +120,12 @@ ifdef CONFIG_ROMFS_FS
 	$(ROMFSINST) -s /var/tmp /tmp
 endif
 	$(ROMFSINST) -s /var/tmp/log /dev/log
-	echo "console::respawn:/sbin/getty 9600 -" >> $(ROMFSDIR)/etc/default/inittab
+	echo "ttyS0::respawn:/sbin/getty 9600 -" >> $(ROMFSDIR)/etc/default/inittab
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 	date '+%Y.%m.%d-%T' > $(ROMFSDIR)/etc/build-date
 
 $(JFFS2IMG):
-	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2 -o $(JFFS2IMG) -q -e 131072 -d $(ROMFSDIR)
+	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2 -o $(JFFS2IMG) -q -l -e 131072 -d $(ROMFSDIR)
 
 $(JFFSIMG):
 	$(ROOTDIR)/user/mtd-utils/build/mkfs.jffs -o $(JFFSIMG) -d $(ROMFSDIR)
@@ -138,22 +134,17 @@ $(ROMFSIMG):
 	genromfs -v -V "ROMdisk" -f $(ROMFSIMG) -d $(ROMFSDIR)
 	$(TOOLS)/cksum -b -o 2 $(ROMFSIMG) >> $(ROMFSIMG)
 
-.PHONY: image $(FSIMG)
-image: $(FSIMG)
+.PHONY: image $(FSIMG) $(ROMFSIMG)
+image: $(FSIMG) $(ROMFSIMG)
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/i386/boot/$(LINUXFILE) $(LINUXIMG)
 	$(TOOLS)/cksum -b -o 2 $(LINUXIMG) >> $(LINUXIMG)
-	mknbi-linux --rootdir=/dev/1f01 --output=$(NBIIMG) $(LINUXIMG)
 	(cd $(ROOTDIR); bin/make_flash)
+	mknbi-linux $(LINUXIMG) --output=$(NBIIMG) --rootdir=/dev/ram0 $(ROMFSIMG)
 	gzip -9 $(FLASH)
 	mv $(FLASH).gz $(FLASH)
 ifdef CONFIG_USER_NETFLASH_VERSION
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(VERSIONPKG) >> $(FLASH)
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(CONFIG_VENDOR) >> $(FLASH)
-	echo -ne "\000" >> $(FLASH)
-	echo -n $(CONFIG_PRODUCT) >> $(FLASH)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(FLASH)
 endif
 ifdef CONFIG_USER_NETFLASH_HMACMD5
 	$(ROOTDIR)/user/netflash/hmacmd5 $(CONFIG_USER_NETFLASH_HMACMD5_KEY) < $(FLASH) >> $(FLASH)

@@ -10,7 +10,6 @@ VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
 BUILD_NETtel = 1
 LINUXTARGET = zImage
 VERSIONPKG = 3.0.0p0
-include $(ROOTDIR)/vendors/config/config.languages
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################

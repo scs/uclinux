@@ -36,8 +36,8 @@ vendor_flashbin:
 		MAC3="\000\320\317\000\000\004"; \
 		PAD0="\000\000\000\000\000\000"; \
 		MAG0="\253\272"; \
-		echo -en "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
-		echo -en "mem=16M console=ttySC1,57600\000"; \
+		printf "$$MAC0$$MAC1$$MAC2$$MAC3$$PAD0$$MAG0"; \
+		printf "mem=16M console=ttySC1,57600\000"; \
 	) | $(DD) conv=sync bs=80k >> $(FLASH)
 	@echo "Bad config filesystem" | $(DD) conv=sync bs=512k >> $(FLASH)
 	@cat $(IMAGE) >> $(FLASH)

@@ -10,7 +10,7 @@
 .PHONY: romfs.dirs romfs.symlinks romfs.default romfs.recover romfs.rc romfs.version
 
 # Note: These must all be used only in romfs.post::
-.PHONY: romfs.no-ixp400-modules romfs.ixp425-microcode romfs.ixp425-boot
+.PHONY: romfs.no-ixp400-modules romfs.ixp425-microcode romfs.ixp425-boot romfs.nooom
 
 # Stop dd from being so noisy
 DD=dd 2>/dev/null
@@ -24,14 +24,26 @@ FLASH_DEVICES ?= \
 	image,c,90,4 \
 	all,c,90,6
 
-# You probably want to add this to ROMFS_DIRS
-DEFAULT_ROMFS_DIRS := bin sbin dev/flash dev/pts etc/config lib/modules proc var \
-             home/httpd/cgi-bin usr/bin usr/sbin
+COMMON_ROMFS_DIRS =
 ifdef CONFIG_SYSFS
-DEFAULT_ROMFS_DIRS += sys
+COMMON_ROMFS_DIRS += sys
+endif
+ifdef CONFIG_PROC_FS
+COMMON_ROMFS_DIRS += proc
+endif
+ifdef CONFIG_USER_UDEV
+COMMON_ROMFS_DIRS += lib/udev/devices/pts lib/udev/devices/flash
+else
+COMMON_ROMFS_DIRS += dev dev/pts dev/flash
 endif
 
-FACTORY_ROMFS_DIRS := bin dev dev/flash dev/pts etc lib mnt proc usr var
+# You probably want to add this to ROMFS_DIRS
+DEFAULT_ROMFS_DIRS := $(COMMON_ROMFS_DIRS) \
+	bin sbin etc/config lib/modules var \
+	home/httpd/cgi-bin usr/bin usr/sbin
+
+FACTORY_ROMFS_DIRS := $(COMMON_ROMFS_DIRS) \
+	bin etc lib mnt usr var
 
 image.clean:
 	rm -f mkcramfs mksquashfs mksquashfs7z
@@ -88,6 +100,16 @@ image.linuz:
 # Create ZIMAGE as arm/arm/boot/zImage
 image.arm.zimage:
 	cp $(ROOTDIR)/$(LINUXDIR)/arch/arm/boot/zImage $(ZIMAGE)
+
+image.i386.zimage:
+	cp $(ROOTDIR)/$(LINUXDIR)/arch/i386/boot/bzImage $(ZIMAGE)
+
+# Create a 16MB file for testing
+image.16mb:
+	dd if=/dev/zero of=$(ROMFSDIR)/16MB bs=1000000 count=16
+
+image.16mb.rm:
+	rm -f $(ROMFSDIR)/16MB
 
 image.cramfs: mkcramfs
 	./mkcramfs -z -r $(ROMFSDIR) $(ROMFSIMG)
@@ -150,15 +172,19 @@ romfs.symlinks:
 	$(ROMFSINST) -s /var/tmp/log /dev/log
 	[ -d $(ROMFSDIR)/sbin ] || $(ROMFSINST) -s bin /sbin
 
+# Override this if necessary
+VENDOR_ROMFS_DIR ?= ..
+
 romfs.default:
-	$(ROMFSINST) ../romfs /
-	chmod 755 $(ROMFSDIR)/etc/default/{dhcpcd-change,ip-*}
+	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/romfs /
+	chmod 755 $(ROMFSDIR)/etc/default/dhcpcd-change
+	chmod 755 $(ROMFSDIR)/etc/default/ip-*
 
 romfs.recover:
-	$(ROMFSINST) ../romfs.recover /
+	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/romfs.recover /
 
 romfs.factory:
-	$(ROMFSINST) ../romfs/etc/services /etc/services
+	$(ROMFSINST) $(VENDOR_ROMFS_DIR)/romfs/etc/services /etc/services
 
 # This is the old way. Just install the static rc file
 romfs.rc.static:
@@ -181,11 +207,7 @@ romfs.rc:
 		[ ! -f rc ] || echo "*** Warning: Static rc file exists, but using dynamic rc file" ; \
 		tclsh $(ROOTDIR)/prop/configdb/rcgen $(ROOTDIR) >$(ROMFSDIR)/etc/rc ; \
 	else \
-		if [ -f rc-$(CONFIG_LANGUAGE) ]; then \
-			$(ROMFSINST) /etc/rc-$(CONFIG_LANGUAGE) /etc/rc; \
-		else \
-			$(ROMFSINST) /etc/rc; \
-		fi ; \
+		$(ROMFSINST) /etc/rc; \
 	fi
 	[ ! -f filesystems ] || $(ROMFSINST) /etc/filesystems
 
@@ -201,8 +223,13 @@ romfs.ixp425-microcode:
 	$(ROMFSINST) -e CONFIG_IXP400_LIB_2_1 -d $(ROOTDIR)/modules/ixp425/ixp400-2.1/IxNpeMicrocode.dat /etc/IxNpeMicrocode.dat
 
 romfs.ixp425-boot:
-	$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin
-	$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
+	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/bios.bin /boot/biosplus.bin
+	-$(ROMFSINST) -d $(ROOTDIR)/boot/ixp425/boot.bin /boot/bootplus.bin
 
 romfs.version:
 	echo "$(VERSIONSTR) -- " $(BUILD_START_STRING) > $(ROMFSDIR)/etc/version
+
+romfs.nooom:
+	[ ! -x $(ROMFSDIR)/bin/no_oom ] || ( ( cd $(ROMFSDIR) && mkdir -p .no_oom ) && for i in `echo ${CONFIG_USER_NOOOM_BINARIES}` ; do [ -x $(ROMFSDIR)/$$i ] && [ x`readlink $(ROMFSDIR)/$$i` != x/bin/no_oom ] && mv $(ROMFSDIR)/$$i $(ROMFSDIR)/.no_oom/`basename $$i` && ln -s /bin/no_oom $(ROMFSDIR)/$$i || "NOTICE: $$i not present in romfs" ; done )
+
+romfs.post:: romfs.nooom

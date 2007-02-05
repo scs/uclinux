@@ -42,7 +42,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 endif
 
 ifndef RELFILES
-  RELFILES = boot/x86/sc520-bios.bin,.sgb images/bzImage images/flash.bin,.sgu
+  RELFILES = boot/x86/sc520-bios.bin,.sgb images/bzImage images/nbi,.sgr images/flash.bin,.sgu
 endif
 
 ifndef NFIMAGE

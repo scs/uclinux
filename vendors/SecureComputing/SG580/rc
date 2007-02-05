@@ -1,10 +1,10 @@
 echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
 echo "Starting watchdog ..."
 watchdog /dev/watchdog
 hostname SG580
 echo "Mounting Filesystems ..."
-mount -t proc proc /proc
-echo 2 >/proc/cpu/alignment
 mount -t sysfs none /sys
 mount -t devpts devpts /dev/pts
 mount -t tmpfs -o size=33m tmpfs /var
@@ -23,7 +23,7 @@ echo "Loading network drivers."
 modprobe ixp400
 cat /etc/IxNpeMicrocode.dat >/dev/ixNpe
 modprobe ixp400_eth
-setmac -o 0x1c000
+setmac -p
 echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
 echo "Loading crypto drivers."
 modprobe ocf

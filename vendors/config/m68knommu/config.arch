@@ -85,6 +85,14 @@ ifndef DISABLE_SHARED_LIBS
   endif
 endif
 
+# These can be used by configure.
+# Either configure $(CONFIGURE_OPTS)
+# or     configure --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+#
+TARGETARCH    := m68k-elf-linux
+HOSTARCH      := $(shell sh $(ROOTDIR)/tools/config.guess)
+CONFIGURE_OPTS := --host=$(TARGETARCH) --build=$(HOSTARCH) --target=$(TARGETARCH)
+
 ############################################################################
 #
 # General purpose lib building rules,  uClibc.config uses these when

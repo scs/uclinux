@@ -34,6 +34,22 @@
 # CONFIG_USER_WINSD_WS is not set
 
 #
+# Supported Languages
+#
+# CONFIG_LANG_ENGLISH is not set
+# CONFIG_LANG_ENGLISH_CONTROL4 is not set
+# CONFIG_LANG_ENGLISH_EICON is not set
+# CONFIG_LANG_ENGLISH_ONIETA is not set
+# CONFIG_LANG_ENGLISH_PROCERA is not set
+# CONFIG_LANG_ENGLISH_SERVGATE is not set
+# CONFIG_LANG_ENGLISH_TAMS is not set
+# CONFIG_LANG_ENGLISH_TELCOTECH is not set
+# CONFIG_LANG_ENGLISH_TELTRONICS is not set
+# CONFIG_LANG_CHINESE is not set
+# CONFIG_LANG_JAPANESE is not set
+# CONFIG_LANG_DEBUG is not set
+
+#
 # SnapGear Device Settings
 #
 CONFIG_SIZE_VAR_PART=0
@@ -90,6 +106,11 @@ CONFIG_USER_INIT_EXPAND=y
 # CONFIG_USER_AT_ATRUN is not set
 
 #
+# OOM killer tinkering
+#
+# CONFIG_USER_NOOOM_NOOOM is not set
+
+#
 # Library Configuration
 #
 
@@ -139,6 +160,7 @@ CONFIG_USER_INIT_EXPAND=y
 # CONFIG_USER_RECOVER_STATIC_TFTP is not set
 # CONFIG_USER_RECOVER_RECOVER is not set
 # CONFIG_USER_SETMAC_SETMAC is not set
+# CONFIG_USER_FCONFIG_FCONFIG is not set
 
 #
 # uCbootloader utils
@@ -235,6 +257,7 @@ CONFIG_USER_INIT_EXPAND=y
 #
 # CONFIG_USER_APPWEB_APPWEB is not set
 # CONFIG_USER_ASTERISK is not set
+# CONFIG_USER_BIND_BIND is not set
 # CONFIG_USER_FNORD_HTTPD is not set
 CONFIG_USER_BOA_SRC_BOA=y
 # CONFIG_USER_BOA_WITH_SSL is not set
@@ -511,6 +534,7 @@ CONFIG_USER_MP3PLAY_MP3PLAY=y
 # Video tools
 #
 # CONFIG_USER_CAMSERV is not set
+# CONFIG_USER_JPEGVIEW_JPEGVIEW is not set
 # CONFIG_USER_W3CAM_VIDCAT is not set
 # CONFIG_USER_W3CAM_W3CAMD is not set
 

@@ -132,12 +132,7 @@ image: mkcramfs
 	cat $(RAMDISKZ) >> $(IMAGE)
 	gzip -9 < $(IMAGE) > $(IMAGEZ)
 
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(VERSIONPKG) >> $(IMAGEZ)
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(CONFIG_VENDOR) >> $(IMAGEZ)
-	echo -ne "\000" >> $(IMAGEZ)
-	echo -n $(CONFIG_PRODUCT) >> $(IMAGEZ)
+	printf '\0%s\0%s\0%s' $(VERSIONPKG) $(CONFIG_VENDOR) $(CONFIG_PRODUCT) >> $(IMAGEZ)
 	$(ROOTDIR)/tools/cksum -b -o 2 $(IMAGEZ) >> $(IMAGEZ)
 
 	if [ -d /tftpboot ]; then \

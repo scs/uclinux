@@ -15,7 +15,7 @@ count=`expr $CYLS \\* $HEADS \\* $SECTORS - $CONFIG - 1`
 
 # First make an MBR with the appropriate partition table
 dd if=/dev/zero of=mbr.img bs=512 count=1
-echo -e "1,$count,L,*\n,,61,-" | /sbin/sfdisk -uS -C $CYLS -H $HEADS -S $SECTORS mbr.img
+printf "1,$count,L,*\n,,61,-\n" | /sbin/sfdisk -uS -C $CYLS -H $HEADS -S $SECTORS mbr.img
 
 # Create an empty ext3 image
 dd if=/dev/zero of=ext3.img bs=512 count=$count

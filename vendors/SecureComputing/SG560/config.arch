@@ -17,7 +17,6 @@ include $(ROOTDIR)/vendors/$(CONFIG_VENDOR)/config.version
 # VERSIONPKG = 2.3.5u1
 
 HW_VENDOR 	= CyberGuard
-include $(ROOTDIR)/vendors/config/config.languages
 VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 
 ############################################################################
