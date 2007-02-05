@@ -352,7 +352,7 @@ static status _afOpenFile (int access, AFvirtualfile *vf, const char *filename,
 				"unrecognized audio file format");
 		return AF_FAIL;
 	}
- //sivaraman
+
 	formatName = _af_units[fileFormat].name;
 
 	if (implemented == AF_FALSE)

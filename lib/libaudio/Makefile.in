@@ -58,7 +58,6 @@ POST_UNINSTALL = :
 host_alias = @host_alias@
 host_triplet = @host@
 AMTAR = @AMTAR@
-AR = @AR@
 AS = @AS@
 AUDIOFILE_MAJOR_VERSION = @AUDIOFILE_MAJOR_VERSION@
 AUDIOFILE_MICRO_VERSION = @AUDIOFILE_MICRO_VERSION@
@@ -68,16 +67,10 @@ AUDIOFILE_VERSION_INFO = @AUDIOFILE_VERSION_INFO@
 AUDIO_LIB = @AUDIO_LIB@
 AWK = @AWK@
 CC = @CC@
-CXX = @CXX@
-CXXCPP = @CXXCPP@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
 ECHO = @ECHO@
-EGREP = @EGREP@
 EXEEXT = @EXEEXT@
-F77 = @F77@
-GCJ = @GCJ@
-GCJFLAGS = @GCJFLAGS@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LIBTOOL = @LIBTOOL@
 LN_S = @LN_S@
@@ -85,7 +78,6 @@ OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
-RC = @RC@
 STRIP = @STRIP@
 TEST_BIN = @TEST_BIN@
 VERSION = @VERSION@
@@ -132,8 +124,8 @@ RECURSIVE_TARGETS = info-recursive dvi-recursive install-info-recursive \
 	uninstall-info-recursive all-recursive install-data-recursive \
 	install-exec-recursive installdirs-recursive install-recursive \
 	uninstall-recursive check-recursive installcheck-recursive
-DIST_COMMON = README ././stamp-h.in ./stamp-h.in AUTHORS COPYING \
-	ChangeLog INSTALL Makefile.am Makefile.in NEWS TODO aclocal.m4 \
+DIST_COMMON = README ./stamp-h.in AUTHORS COPYING ChangeLog INSTALL \
+	Makefile.am Makefile.in NEWS TODO aclocal.m4 \
 	audiofile-config.in audiofile.pc.in audiofile.spec.in \
 	config.guess config.h.in config.sub configure configure.in \
 	depcomp install-sh ltmain.sh missing mkinstalldirs
@@ -357,7 +349,7 @@ GZIP_ENV = --best
 distdir: $(DISTFILES)
 	-chmod -R a+w $(distdir) >/dev/null 2>&1; rm -rf $(distdir)
 	mkdir $(distdir)
-	$(mkinstalldirs) $(distdir)/. $(distdir)/./.
+	$(mkinstalldirs) $(distdir)/.
 	@for file in $(DISTFILES); do \
 	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
 	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \

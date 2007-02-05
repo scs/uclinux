@@ -132,7 +132,7 @@ int afReadFrames (AFfilehandle file, int trackid, void *samples,
 	AFframecount	nvframesleft, nvframes2read;
 	int		bytes_per_vframe;
 	AFframecount	vframe;
-//printf("data.c : inside libaudio afReadFrames \n");
+
 	if (!_af_filehandle_ok(file))
 		return -1;
 
@@ -162,7 +162,6 @@ int afReadFrames (AFfilehandle file, int trackid, void *samples,
 		nvframes2read = nvframeswanted;
 	else
 	{
-//	printf("calculating nvframes2read ,using nvframesleft\n");
 		nvframesleft = track->totalvframes - track->nextvframe;
 		nvframes2read = (nvframeswanted > nvframesleft) ?
 			nvframesleft : nvframeswanted;
@@ -175,11 +174,9 @@ int afReadFrames (AFfilehandle file, int trackid, void *samples,
 	track->filemodhappy = AF_TRUE;
 
 	vframe = 0;
-//printf("data.c entering if \n");
-//	printf("nvframeswanted=[ %d ], nvframes2read =[ %d ], nvframesleft = [%d]\n",nvframeswanted,nvframes2read,nvframesleft);
+
 	if (!track->ms.mustuseatomicnvframes)
 	{
-	printf("caught here, don't know what will happen\n");
 		assert(track->frames2ignore == 0);
 		userc->buf = samples;
 		userc->nframes = nvframes2read;
@@ -215,11 +212,9 @@ int afReadFrames (AFfilehandle file, int trackid, void *samples,
 			Now start reading useful frames, until EOF or
 			premature EOF.
 		*/
-//	printf("vframe=[ %d ], nvframes2read =[ %d ]\n",vframe,nvframes2read);
-//	printf("going to read frames, while() \n");
+
 		while (track->filemodhappy && !eof && vframe < nvframes2read)
 		{
-//	printf("!eof\n");
 			AFframecount	nvframes2pull;
 			userc->buf = (char *) samples + bytes_per_vframe * vframe;
 
