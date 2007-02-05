@@ -225,6 +225,7 @@ else {
 $genromfs = 0;
 $ar = 0;
 $mkcramfs = 0;
+$makewait = "";
 
 
 LINE: while (defined($_ = get_line($fh))) {
@@ -242,6 +243,11 @@ LINE: while (defined($_ = get_line($fh))) {
 		next LINE if /^\s*-?\d+\.\d+%/;
 		next LINE if /^Directory/;
 		$mkcramfs = 0;
+	}
+	if ($makewait ne "") {
+		@word = split;
+		next LINE if ($word[0] ne $makewait);
+		$makewait = "";
 	}
 
 	# Remove '[ ... ] || ' from start
@@ -522,6 +528,15 @@ LINE: while (defined($_ = get_line($fh))) {
 					hide_line();
 					next LINE;
 				}
+				elsif ($word[2] eq 'jobserver'|| $word[$#word-1] eq 'jobserver') {
+					hide_line();
+					next LINE;
+				}
+				elsif ($word[2] eq 'Waiting') {
+					$makewait = $word[0];
+					hide_line();
+					next LINE;
+				}
 			}
 			put_error($word[0], substr($allwords, length($word[0])));
 			next LINE;
@@ -637,10 +652,15 @@ LINE: while (defined($_ = get_line($fh))) {
 			next LINE;
 		};
 
+		/^\**$/ && do {
+			put_error($allwords, '');
+			next LINE;
+		};
+
 		/.+:$/ && do {
 			put_error($word[0], substr($allwords, length($word[0])));
 			next LINE;
-		}
+		};
 	}
 
 	put_raw();
