@@ -302,6 +302,10 @@ CONFIG_USER_FLATFSD_HAS_RTC
 
 CONFIG_USER_FLTHDR_FLTHDR
   FLAT binary format header manipulation program.
+ 
+CONFIG_USER_FCONFIG_FCONFIG
+  A program that lets you manipulate your RedBoot 
+  configuration from Linux. 
 
 CONFIG_USER_GETTYD_GETTYD
   Another getty program.
@@ -385,6 +389,9 @@ CONFIG_USER_QSPITEST_TEST
 
 CONFIG_USER_LEVEE_VI
   A small version of 'vi' for editing files.
+
+CONFIG_USER_BIND_BIND
+  ISC BIND DNS nameserver.
 
 CONFIG_USER_BOA_SRC_BOA
   A small webserver.
@@ -900,6 +907,9 @@ CONFIG_USER_DHCP_ISC_RELAY_DHCRELAY
 
 CONFIG_USER_DNSMASQ_DNSMASQ
   DNS masquerading
+
+CONFIG_USER_DNSMASQ2_DNSMASQ2
+  DNS masquerading (v2)
 
 CONFIG_USER_E2FSPROGS_MISC_BADBLOCKS
   A filesystem tool
@@ -1731,6 +1741,10 @@ CONFIG_USER_PORTMAP_PORTMAP
 CONFIG_USER_IPTABLES_IPTABLES
   Iptables is the IP firewall administration tool for 2.4 linux.
 
+CONFIG_USER_LAYER7_PROTOCOLS
+  Layer 7 Protocol patterns for iptables use
+  Approx. size: 160k
+
 CONFIG_USER_CKSUM_CKSUM
   Checksumming utility
 
@@ -1748,6 +1762,10 @@ CONFIG_USER_CLAMAV_CLAMDSCAN
 CONFIG_USER_CLAMAV_FRESHCLAM
   Build the clamav database update program which downloads the latest signature
   files from the Internet automatically.
+
+CONFIG_USER_CLAMAV_NODB
+  Enabling this option will stop the installation of clamav database files.
+  Without these files, clamav will be non-functional until they are downloaded.
 
 CONFIG_USER_CLAMAV_SIGTOOL
   Tool to help generate virus signatures.
@@ -2353,6 +2371,9 @@ CONFIG_PROP_TAMS_CONCENTRATOR
   Enable additional features for the TAMS Concentrator unit.  This unit acts
   as the hub of their (massive) VPN setup.
 
+CONFIG_PROP_TAMS_LEDMAN
+  Provides custom LED behaviour for the TAMS unit.
+
 CONFIG_PROP_WLAN_WLAN
   Utility for configuring wireless LAN connections.
 
@@ -2405,6 +2426,11 @@ CONFIG_PROP_USB_TOOLS
   A set of utilities to perform actions on usb devices based
   on configured settings. (i.e. mount usb storage devices)
   can be used with hotplug scripts or run manually.
+  (2.4.x kernels only, 2.6.x kernels should use udev solution)
+
+CONFIG_PROP_UDEV_TOOLS
+  scripts and rules used by udev to automatically enable, mount
+  and use USB and other hotplug devices.
 
 CONFIG_PROP_CLAMAV_HELPER
   A small utility that copies the clam virus database files to their
@@ -2534,8 +2560,65 @@ CONFIG_PROP_IFMOND_IF_STATUS
   A tool for determining dev_t status for use in ipsec.secrets and other
   externally processed non-cgi environments.
 
-source Configure-blackfin.help
+CONFIG_PROP_TEST
+  Configuration for various test services for use with the automated tests.
+
+CONFIG_LANG_ENGLISH
+  Include English as a supported language in the GUI and other SG
+  applications.  The first selected language becomes the default.
+
+CONFIG_LANG_CHINESE
+  Include Chinese as a supported language in the GUI and other SG
+  applications.  The first selected language becomes the default.
+
+CONFIG_LANG_JAPANESE
+  Include Japanese as a supported language in the GUI and other SG
+  applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_CONTROL4
+  Include Control 4's English as a supported language in the GUI and
+  other SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_EICON
+  Include Eico's Englishn as a supported language in the GUI and other
+  SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_ONIETA
+  Include Onieta's English as a supported language in the GUI and other
+  SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_PROCERA
+  Include Procer's Englisha as a supported language in the GUI and other
+  SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_SERVGATE
+  Include ServGate's English as a supported language in the GUI and
+  other SG applications.  The first selected language becomes the default.
+
+bool 'English TAMS'
+  Include Toshiba Medical System's English as a supported language in
+  the GUI and other SG applications.  The first selected language becomes
+  the default.
+
+CONFIG_LANG_ENGLISH_TELCOTECH
+  Include TelcoTec's English as a supported language in the GUI and
+  other SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_ENGLISH_TELTRONICS
+  Include Teltronics's English as a supported language in the GUI and
+  other SG applications.  The first selected language becomes the default.
+
+CONFIG_LANG_DEBUG
+  Language debug mode includes the names of the resource strings embedded
+  as a HTML comment within the string.  This method isn't perfect but
+  it can be an aid to determing which string is being used at a given
+  location.
+
+  This setting also enables the strike through and blinking language
+  definitions that simplify searching for untranslated strings.
 
 #
 # END of proprietary config help
 #
+
+source Configure-blackfin.help

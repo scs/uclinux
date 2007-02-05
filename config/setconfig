@@ -22,7 +22,6 @@ fi
 PASS="$1"
 VENDOR=""
 PRODUCT=""
-LANGUAGE=""
 LINUXDIR=""
 LIBCDIR=""
 LIBCBASEDIR=""
@@ -85,7 +84,6 @@ fix_conf_files()
 	replace_line CONFIG_PRODUCT= "CONFIG_PRODUCT=$PRODUCT"    .config
 	replace_line CONFIG_LINUXDIR= "CONFIG_LINUXDIR=$LINUXDIR" .config
 	replace_line CONFIG_LIBCDIR= "CONFIG_LIBCDIR=$LIBCDIR"    .config
-	replace_line CONFIG_LANGUAGE= "CONFIG_LANGUAGE=$LANGUAGE" .config
 
 	replace_line CONFIG_VENDOR "#define CONFIG_VENDOR \"$VENDOR\"" \
 			 config/autoconf.h
@@ -94,8 +92,6 @@ fix_conf_files()
 	replace_line CONFIG_LINUXDIR "#define CONFIG_LINUXDIR \"$LINUXDIR\"" \
 			 config/autoconf.h
 	replace_line CONFIG_LIBCDIR "#define CONFIG_LIBCDIR \"$LIBCDIR\"" \
-			 config/autoconf.h
-	replace_line CONFIG_LANGUAGE "#define CONFIG_LANGUAGE \"$LANGUAGE\"" \
 			 config/autoconf.h
 	replace_line VENDORS_AUTOCONF_INCLUDED \
 			 "#define VENDORS_AUTOCONF_INCLUDED" config/autoconf.h
@@ -106,7 +102,6 @@ fix_conf_files()
 	replace_line OLD_PRODUCT  "OLD_PRODUCT=\"$PRODUCT\"" ./.oldconfig
 	replace_line OLD_LINUXDIR "OLD_LINUXDIR=\"$LINUXDIR\"" ./.oldconfig
 	replace_line OLD_LIBCDIR  "OLD_LIBCDIR=\"$LIBCDIR\"" ./.oldconfig
-	replace_line OLD_LANGUAGE  "OLD_LANGUAGE=\"$LANGUAGE\"" ./.oldconfig
 }
 
 #############################################################################
@@ -126,7 +121,6 @@ do
 			then
 				VENDOR="$2"
 				PRODUCT="$3"
-				LANGUAGE="$j"
 				break 2
 			fi
 		done
@@ -195,8 +189,8 @@ if [ "$PASS" != "final" ]; then
 	# if the user touches any important settings then force a clean
 	# otherwise bad things can happen in the tree
 	#
-	if [ "$OLD_LANGUAGE$OLD_PRODUCT$OLD_VENDOR$OLD_LINUXDIR$OLD_LIBCDIR" != \
-			"$LANGUAGE$PRODUCT$VENDOR$LINUXDIR$LIBCDIR" ]; then
+	if [ "$OLD_PRODUCT$OLD_VENDOR$OLD_LINUXDIR$OLD_LIBCDIR" != \
+			"$PRODUCT$VENDOR$LINUXDIR$LIBCDIR" ]; then
 		if [ -f .oldconfig ]; then
 			cp .config .config.save
 			cp .oldconfig .config
