@@ -15,6 +15,10 @@
 #define _LINUX_FS_H             /* hack to avoid inclusion of <linux/fs.h> */
 #include <linux/msdos_fs.h>
 
+#ifndef MSDOS_FAT12
+#define	MSDOS_FAT12	4084	/* maximum number of clusters in a 12 bit FAT */
+#endif
+
 /* 2.1 kernels use le16_to_cpu() type functions for CF_LE_W & Co., but don't
  * export this macros, only __le16_to_cpu(). */
 #ifndef le16_to_cpu

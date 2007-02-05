@@ -66,13 +66,6 @@
 #include <time.h>
 #include <errno.h>
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-# define __KERNEL__
-# include <asm/types.h>
-# undef __KERNEL__
-#endif
-
 #if __BYTE_ORDER == __BIG_ENDIAN
 
 #include <asm/byteorder.h>
@@ -113,8 +106,12 @@ static loff_t llseek( int fd, loff_t offset, int whence )
 # ifndef __NR__llseek
 # error _llseek system call not present
 # endif
-static _syscall5( int, _llseek, uint, fd, ulong, hi, ulong, lo,
-		  loff_t *, res, uint, wh );
+static int _llseek( uint fd, ulong hi, ulong lo,
+		  loff_t *res, uint wh )
+{
+    return syscall(__NR__llseek, fd, hi, lo, res, wh);
+}
+
 static loff_t llseek( int fd, loff_t offset, int whence )
 {
     loff_t actual;

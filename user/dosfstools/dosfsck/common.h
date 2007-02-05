@@ -6,14 +6,6 @@
 #ifndef _COMMON_H
 #define _COMMON_H
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0)
-# define __KERNEL__
-# include <asm/types.h>
-# undef __KERNEL__
-# define MSDOS_FAT12 4084 /* maximum number of clusters in a 12 bit FAT */
-#endif
-
 void die(char *msg,...) __attribute((noreturn));
 
 /* Displays a prinf-style message and terminates the program. */
