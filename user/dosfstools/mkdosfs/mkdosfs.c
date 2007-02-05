@@ -50,6 +50,7 @@
 #include "../version.h"
 
 #include <fcntl.h>
+#include <linux/types.h>
 #include <linux/hdreg.h>
 #include <linux/fs.h>
 #include <linux/fd.h>
