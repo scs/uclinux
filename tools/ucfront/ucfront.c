@@ -68,6 +68,7 @@ static char *rootdir;
 static const char *argv0;
 static char *libc_libdir = 0;
 static char *libc_incdir = 0;
+static char *linux_includedir = 0;
 
 #if 0
 /* Print the given args */
@@ -333,6 +334,7 @@ const char *find_on_path(const char *prog, const char *path)
 static void find_lib_env(void)
 {
 	char *config_libcdir = getenv("CONFIG_LIBCDIR");
+	char *config_linuxdir = getenv("CONFIG_LINUXDIR");
 
 	rootdir = getenv("ROOTDIR");
 
@@ -405,8 +407,19 @@ static void find_lib_env(void)
 			x_asprintf(&libc_incdir, "%s/lib/%s/include", rootdir, config_libcdir);
 		}
 	}
+	else if (getenv("CONFIG_DEFAULTS_LIBC_NONE")) {
+		if (config_libcdir) {
+			libtype = LIBTYPE_NONE;
+			libc_libdir = 0;
+			libc_incdir = 0;
+		}
+	}
 	else {
 		fatal("Could not determine libc. Are $CONFIG_DEFAULTS_LIBC_... and $CONFIG_LIBCDIR set correctly?"); 
+	}
+
+	if (config_linuxdir) {
+		x_asprintf(&linux_includedir, "%s/%s/include", rootdir, config_linuxdir);
 	}
 }
 
@@ -598,7 +611,7 @@ static void process_args(int argc, char **argv)
 		}
 
 		if (!nostartfiles || !nodefaultlibs) {
-			if (stat(libc_libdir, &st) != 0 || !S_ISDIR(st.st_mode)) {
+			if (libc_libdir && (stat(libc_libdir, &st) != 0 || !S_ISDIR(st.st_mode))) {
 				fatal("ucfront: libc lib directory does not exist, %s", libc_libdir);
 			}
 		}
@@ -606,7 +619,9 @@ static void process_args(int argc, char **argv)
 		/* Now we need to work out where the compilers lib directory is, because we
 		 * still need some "standard" start files
 		 */
-		if (libtype == LIBTYPE_LIBC) {
+		if (libtype == LIBTYPE_NONE) {
+		}
+		else if (libtype == LIBTYPE_LIBC) {
 			/* This one always uses the compiler start files */
 			if (nostartfiles) {
 				/*args_add(stripped_args, "XX -nostartfiles XX");*/
@@ -635,7 +650,7 @@ static void process_args(int argc, char **argv)
 			args_add_prefix(stripped_args, "-nostdlib");
 		}
 
-		if (!nodefaultlibs) {
+		if (libtype != LIBTYPE_NONE && !nodefaultlibs) {
 			args_add_prefix(stripped_args, libc_libdir);
 			args_add_prefix(stripped_args, "-L");
 			libpaths[num_lib_paths++] = libc_libdir;
@@ -664,7 +679,7 @@ static void process_args(int argc, char **argv)
 			}
 		}
 
-		if (!nostartfiles && libtype != LIBTYPE_LIBC) {
+		if (!nostartfiles && libtype != LIBTYPE_LIBC && libtype != LIBTYPE_NONE) {
 #if 0
 			if (libtype == LIBTYPE_GLIBC) {
 				x_asprintf(&startfile, "%s/ld-linux.so.2", libc_libdir);
@@ -684,7 +699,7 @@ static void process_args(int argc, char **argv)
 		/*sh-linux-gcc -m4 -ml crt1.o crti.o <orig>/crtbegin.o -o discard discard.o <orig>/crtend.o crtn.o*/
 	}
 
-	if (!nostdinc) {
+	if (!nostdinc && libtype != LIBTYPE_NONE) {
 		/* Note that we ALWAYS add -isystem since we may be operating in combined compile/link mode */
 		if (stat(libc_incdir, &st) != 0 || !S_ISDIR(st.st_mode)) {
 			fprintf(stderr, "ucfront: libc include directory does not exist, %s\n", libc_incdir);
@@ -700,13 +715,27 @@ static void process_args(int argc, char **argv)
 		args_add_prefix(stripped_args, "-isystem");
 	}
 
+#if 0
+	if (linux_includedir && !nostdinc && libtype == LIBTYPE_NONE) {
+		/* for libtype==none, we need to explicitly pull in the linux include dirs first */
+		args_add_prefix(stripped_args, linux_includedir);
+		args_add_prefix(stripped_args, "-I");
+	}
+#endif
+
 	/* Do this in reverse order. We use -idirafter so that user-specified include paths come first */
 	x_asprintf(&e, "%s/include", rootdir);
 	args_add_prefix(stripped_args, e);
 	args_add_prefix(stripped_args, "-idirafter");
 
-	/* Don't add this option since we still need some compiler-specific includes */
-	args_add_prefix(stripped_args, "-nostdinc");
+	x_asprintf(&e, "%s/include/include-linux", rootdir);
+	args_add_prefix(stripped_args, e);
+	args_add_prefix(stripped_args, "-I");
+
+	if (libtype != LIBTYPE_NONE) {
+		/* Don't add this option since we still need some compiler-specific includes */
+		args_add_prefix(stripped_args, "-nostdinc");
+	}
 
 	/* Now add the compiler */
 	args_add_prefix(stripped_args, compiler);

@@ -22,7 +22,7 @@ $0: [options] [src] dst
     -S          : don't strip after installing
     -a text     : append text to dst.
     -A pattern  : only append text if pattern doesn't exist in file
-    -l link     : dst is a link to 'link'.
+    -l link     : dst is a hard link to 'link'.
     -s sym-link : dst is a sym-link to 'sym-link'.
 
     if "src" is not provided,  basename is run on dst to determine the
