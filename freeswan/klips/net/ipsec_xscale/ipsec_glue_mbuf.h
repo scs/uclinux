@@ -102,5 +102,24 @@ int ipsec_glue_mbuf_get (IX_MBUF **pMbufPtr);
 void ipsec_glue_mbuf_rel (IX_MBUF *pMbuf);
 
 
+#ifdef IX_OSAL_MBUF_PRIV
+/**
+ * mbuf_swap_skb : links/unlinks mbuf to skb
+ */
+static inline struct sk_buff *mbuf_swap_skb(IX_OSAL_MBUF *mbuf, struct sk_buff *skb)
+{
+    struct sk_buff *res = IX_OSAL_MBUF_PRIV(mbuf);
+
+    IX_OSAL_MBUF_PRIV(mbuf) = skb;
+
+    if (!skb)
+	return res;
+    
+    IX_OSAL_MBUF_MDATA(mbuf) = skb->data;
+    IX_OSAL_MBUF_MLEN(mbuf) = IX_OSAL_MBUF_PKT_LEN(mbuf) = skb->len;
+
+    return res;
+}
+#endif /* IX_OSAL_MBUF_PRIV */
 
 #endif /*_IPSEC_GLUE_MBUF_H */

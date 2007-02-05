@@ -241,7 +241,17 @@ ipsec_makeroute(struct sockaddr_encap *eaddr,
 	retrt->er_pid = pid;
 	retrt->er_count = 0;
 	retrt->er_lasttime = jiffies/HZ;
+#if 0
 	rd_key((&(retrt->er_rjt))) = &(retrt->er_eaddr);
+#else
+	{
+		/* this is because gcc 3. doesn't like cast's as lvalues */
+		struct rjtentry *rje = (struct rjtentry *)&(retrt->er_rjt);
+		caddr_t er = (caddr_t)&(retrt->er_eaddr);
+
+		rje->rd_nodes->rj_key= er;
+	}
+#endif
 	
 	if (ident_s && ident_s->type != SADB_IDENTTYPE_RESERVED) {
 		int data_len = ident_s->len * IPSEC_PFKEYv2_ALIGN - sizeof(struct sadb_ident);

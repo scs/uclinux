@@ -1731,7 +1731,8 @@ ipsec_rcv(struct sk_buff *skb, struct device *dev, struct options *opt,
 		skb_pull(skb, iphlen);
 
 #ifdef NET_21
-		ipp = (struct iphdr *)skb->nh.raw = skb->data;
+		skb->nh.raw = skb->data;
+		ipp = (struct iphdr *)skb->nh.raw;
 		skb->h.raw = skb->nh.raw + (skb->nh.iph->ihl << 2);
 		
 		memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));

@@ -54,7 +54,7 @@ MAKE=make -f Makefile
 
 EXTRA_CFLAGS += $(OPTS) $(CFLAG) # only ever add to CFLAGS
 CPP=$(CC) -E
-AS=as
+#AS=as
 
 # Assember version of des_encrypt*().
 DES_ENC=des_enc.o

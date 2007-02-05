@@ -144,6 +144,10 @@ ipsec_init(void)
 		    "KLIPS startup, FreeS/WAN IPSec version: %s\n",
 		    ipsec_version_code());
 
+#ifdef USE_IXP4XX_CRYPTO
+	(void) ixCryptoAccInit();
+#endif
+
 	error |= ipsec_proc_init();
 
 #ifndef SPINLOCK

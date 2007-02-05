@@ -507,6 +507,64 @@ UINT32 ipsec_compose_context(struct ipsec_sa *ips)
     return status;
 }
 
+#ifdef IX_OSAL_MBUF_PRIV
+/*
+ * emulate some changes we made to older CSR libs so
+ * we don;t need to keep modding them
+ */
+
+static struct CTXREG {
+	UINT32 cryptoCtxId;
+	struct ipsec_sa *ips;
+	struct CTXREG *next;
+} *ipsec_ctxips_list = NULL;
+
+static int
+ixCryptoAccSetUserCtx(UINT32 cryptoCtxId, struct ipsec_sa *ips)
+{
+    struct CTXREG *n = (struct CTXREG *) kmalloc(sizeof(*n), GFP_ATOMIC);
+    if (!n)
+	return IX_CRYPTO_ACC_STATUS_FAIL;
+    n->cryptoCtxId = cryptoCtxId;
+    n->ips = ips;
+    n->next = ipsec_ctxips_list;
+	ipsec_ctxips_list = n;
+    return IX_CRYPTO_ACC_STATUS_SUCCESS;
+}
+
+static int
+ixCryptoAccGetUserCtx(UINT32 cryptoCtxId, struct ipsec_sa **ips)
+{
+    struct CTXREG *p;
+
+    for (p = ipsec_ctxips_list; p; p = p->next) {
+	if (p->cryptoCtxId == cryptoCtxId) {
+	    *ips = p->ips;
+	    return IX_CRYPTO_ACC_STATUS_SUCCESS;
+	}
+    }
+    return IX_CRYPTO_ACC_STATUS_FAIL;
+}
+
+#define ixCryptoAccDelUserCtx _ixCryptoAccDelUserCtx
+static void
+_ixCryptoAccDelUserCtx(UINT32 cryptoCtxId)
+{
+    struct CTXREG *p, *last = NULL;
+
+    for (p = ipsec_ctxips_list; p; last = p, p = p->next) {
+	if (p->cryptoCtxId == cryptoCtxId) {
+	    if (last)
+		last->next = p->next;
+	    else
+		ipsec_ctxips_list = p->next;
+	    kfree(p);
+		break;
+	}
+    }
+}
+
+#endif /* IX_OSAL_MBUF_PRIV */
 
 UINT32
 ipsec_glue_crypto_context_put(struct ipsec_sa *ips)
@@ -660,13 +718,11 @@ void register_crypto_cb(UINT32 cryptoCtxId,IX_MBUF *empty_mbuf, IxCryptoAccStatu
 		"cryptoCtxId is %d\n",
 		cryptoCtxId);
 
+	spin_lock_irqsave(&tdb_lock, flags);
     status = ixCryptoAccGetUserCtx(cryptoCtxId, (void **)&sa);
     if (IX_CRYPTO_ACC_STATUS_SUCCESS == status)
-    {
-	spin_lock_irqsave(&tdb_lock, flags);
-	ipsec_glue_update_state(sa, state);
+		ipsec_glue_update_state(sa, state);
 	spin_unlock_irqrestore(&tdb_lock, flags);
-    }
 }
 
 
@@ -676,6 +732,15 @@ ipsec_glue_crypto_context_del (UINT32 crypto_context_id)
     UINT32 status = IPSEC_GLUE_STATUS_SUCCESS;
     IxCryptoAccStatus unregister_status;
     UINT32 tries = 0;
+
+#ifdef ixCryptoAccDelUserCtx
+{
+	unsigned long flags;
+	spin_lock_irqsave(&tdb_lock, flags);
+    ixCryptoAccDelUserCtx(crypto_context_id);
+	spin_unlock_irqrestore(&tdb_lock, flags);
+}
+#endif
 
     do
     {

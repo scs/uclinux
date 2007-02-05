@@ -55,8 +55,33 @@ EXTRA_CFLAGS += -DREDHAT_BOGOSITY
 endif
 
 ifdef CONFIG_IXP4XX_CRYPTO
-EXTRA_CFLAGS += 	-I$(ROOTDIR)/modules/ixp425/ixp400-1.4/ixp400_xscale_sw/src/include \
-			-I../../include/linux \
+ifdef CONFIG_CPU_IXP46X
+IX_XSCALE_SW = $(ROOTDIR)/modules/ixp425/ixp400-2.1/ixp400_xscale_sw
+OSAL_DIR     = $(ROOTDIR)/modules/ixp425/ixp400-2.1/ixp_osal
+EXTRA_CFLAGS += \
+	-I$(IX_XSCALE_SW)/src/include \
+	-I$(OSAL_DIR)/ \
+	-I$(OSAL_DIR)/os/linux/include/ \
+	-I$(OSAL_DIR)/os/linux/include/modules/ \
+	-I$(OSAL_DIR)/os/linux/include/modules/ioMem/ \
+	-I$(OSAL_DIR)/os/linux/include/modules/bufferMgt/ \
+	-I$(OSAL_DIR)/os/linux/include/core/  \
+	-I$(OSAL_DIR)/os/linux/include/platforms/ \
+	-I$(OSAL_DIR)/os/linux/include/platforms/ixp400/ \
+	-I$(OSAL_DIR)/os/linux/include/platforms/ixp400/ixp425 \
+	-I$(OSAL_DIR)/os/linux/include/platforms/ixp400/ixp465 \
+	-I$(OSAL_DIR)/os/linux/include/core/ \
+	-I$(OSAL_DIR)/include/ \
+	-I$(OSAL_DIR)/include/modules/ \
+	-I$(OSAL_DIR)/include/modules/bufferMgt/ \
+	-I$(OSAL_DIR)/include/modules/ioMem/ \
+	-I$(OSAL_DIR)/include/platforms/ \
+	-I$(OSAL_DIR)/include/platforms/ixp400/ \
+	-D__ixp46X
+else
+EXTRA_CFLAGS += 	-I$(ROOTDIR)/modules/ixp425/ixp400-1.4/ixp400_xscale_sw/src/include
+endif
+EXTRA_CFLAGS +=		-I../../include/linux \
 			-DUSE_IXP4XX_CRYPTO
 endif
 
