@@ -2,7 +2,7 @@ all: build/Makefile
 	$(MAKE) -C build -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 build/Makefile:
-	touch *
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \

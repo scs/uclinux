@@ -4,7 +4,7 @@ all: build/Makefile
 	rm -f DESTDIR/usr/lib/*.la
 
 build/Makefile:
-	touch *
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \

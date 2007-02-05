@@ -5,7 +5,7 @@ all: build/Makefile
 	sed -i "/^prefix=/s:=.*:=$$PWD/DESTDIR/usr:" DESTDIR/usr/lib/pkgconfig/speex.pc
 
 build/Makefile:
-	touch *
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
