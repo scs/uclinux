@@ -169,11 +169,6 @@ while 1 {
 		}
       }
 
-          -re "RTC class.*RTC_CLASS.*\\\[.*]" {
-
-                        send "N\r"
-      }
-     
  
        "\\\(*) \\\[*]" {
 	    sleep .01 
