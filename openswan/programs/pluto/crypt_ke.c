@@ -109,7 +109,7 @@ void calc_ke(struct pluto_crypto_req *r)
 #ifdef HAVE_OCF_AND_OPENSSL
     BN_free(&r0);
 #else
-    mpz_clear(&secret);
+    mpz_clear(&mp_g);
 #endif
     freeanychunk(gi);
 }

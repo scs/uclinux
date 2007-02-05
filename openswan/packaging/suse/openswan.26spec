@@ -1,6 +1,6 @@
 Summary: Openswan IPSEC implementation
 Name: openswan
-Version: 2.4.5
+Version: 2.4.6
 %define opensw_release 1suse9
 %define debug_package %{nil}
 Release: %{opensw_release}

@@ -19,9 +19,11 @@
  * for more details.
  */
 
-char ipsec_rcv_c_version[] = "RCSID $Id: ipsec_rcv.c,v 1.171.2.6 2005/12/07 06:07:04 paul Exp $";
+char ipsec_rcv_c_version[] = "RCSID $Id: ipsec_rcv.c,v 1.171.2.9 2006/07/30 02:09:33 paul Exp $";
 
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 
 #define __NO_VERSION__
@@ -200,6 +202,38 @@ struct auth_alg ipsec_rcv_sha1[]={
 };
 #endif /* CONFIG_KLIPS_AUTH_HMAC_MD5 */
 
+#ifdef CONFIG_KLIPS_DEBUG
+DEBUG_NO_STATIC char *
+ipsec_rcv_err(int err)
+{
+	static char tmp[32];
+	switch ((int) err) {
+	case IPSEC_RCV_PENDING:			return("IPSEC_RCV_PENDING");
+	case IPSEC_RCV_LASTPROTO:		return("IPSEC_RCV_LASTPROTO");
+	case IPSEC_RCV_OK:				return("IPSEC_RCV_OK");
+	case IPSEC_RCV_BADPROTO:		return("IPSEC_RCV_BADPROTO");
+	case IPSEC_RCV_BADLEN:			return("IPSEC_RCV_BADLEN");
+	case IPSEC_RCV_ESP_BADALG:		return("IPSEC_RCV_ESP_BADALG");
+	case IPSEC_RCV_3DES_BADBLOCKING:return("IPSEC_RCV_3DES_BADBLOCKING");
+	case IPSEC_RCV_ESP_DECAPFAIL:	return("IPSEC_RCV_ESP_DECAPFAIL");
+	case IPSEC_RCV_DECAPFAIL:		return("IPSEC_RCV_DECAPFAIL");
+	case IPSEC_RCV_SAIDNOTFOUND:	return("IPSEC_RCV_SAIDNOTFOUND");
+	case IPSEC_RCV_IPCOMPALONE:		return("IPSEC_RCV_IPCOMPALONE");
+	case IPSEC_RCV_IPCOMPFAILED:	return("IPSEC_RCV_IPCOMPFAILED");
+	case IPSEC_RCV_SAIDNOTLIVE:		return("IPSEC_RCV_SAIDNOTLIVE");
+	case IPSEC_RCV_FAILEDINBOUND:	return("IPSEC_RCV_FAILEDINBOUND");
+	case IPSEC_RCV_LIFETIMEFAILED:	return("IPSEC_RCV_LIFETIMEFAILED");
+	case IPSEC_RCV_BADAUTH:			return("IPSEC_RCV_BADAUTH");
+	case IPSEC_RCV_REPLAYFAILED:	return("IPSEC_RCV_REPLAYFAILED");
+	case IPSEC_RCV_AUTHFAILED:		return("IPSEC_RCV_AUTHFAILED");
+	case IPSEC_RCV_REPLAYROLLED:	return("IPSEC_RCV_REPLAYROLLED");
+	case IPSEC_RCV_BAD_DECRYPT:		return("IPSEC_RCV_BAD_DECRYPT");
+	case IPSEC_RCV_REALLYBAD:		return("IPSEC_RCV_REALLYBAD");
+	}
+	snprintf(tmp, sizeof(tmp), "%d", err);
+	return tmp;
+}
+#endif
 
 /*
  * here is a state machine to handle receiving ipsec packets.
@@ -464,7 +498,12 @@ ipsec_rcv_init(struct ipsec_rcv_state *irs)
 	   twice.
 	*/
 	if (skb_is_nonlinear(skb)) {
-		if (skb_linearize(skb, GFP_ATOMIC) != 0) {
+#ifdef HAVE_NEW_SKB_LINEARIZE
+		if (skb_linearize_cow(skb) != 0)
+#else
+		if (skb_linearize(skb, GFP_ATOMIC) != 0) 
+#endif
+		{
 			return IPSEC_RCV_REALLYBAD;
 		}
 	}
@@ -828,21 +867,23 @@ ipsec_rcv_auth_init(struct ipsec_rcv_state *irs)
 		}
 
 #ifdef CONFIG_IPSEC_NAT_TRAVERSAL
-		KLIPS_PRINT(debug_rcv,
-			"klips_debug:ipsec_rcv: "
-			"natt_type=%u tdbp->ips_natt_type=%u : %s\n",
-			irs->natt_type, newipsp->ips_natt_type,
-			(irs->natt_type==newipsp->ips_natt_type)?"ok":"bad");
-		if (irs->natt_type != newipsp->ips_natt_type) {
+		if (irs->proto == IPPROTO_ESP) {
 			KLIPS_PRINT(debug_rcv,
-				    "klips_debug:ipsec_rcv: "
-				    "SA:%s does not agree with expected NAT-T policy.\n",
-				    irs->sa_len ? irs->sa : " (error)");
-			if(irs->stats) {
-				irs->stats->rx_dropped++;
+				"klips_debug:ipsec_rcv: "
+				"natt_type=%u tdbp->ips_natt_type=%u : %s\n",
+				irs->natt_type, newipsp->ips_natt_type,
+				(irs->natt_type==newipsp->ips_natt_type)?"ok":"bad");
+			if (irs->natt_type != newipsp->ips_natt_type) {
+				KLIPS_PRINT(debug_rcv,
+						"klips_debug:ipsec_rcv: "
+						"SA:%s does not agree with expected NAT-T policy.\n",
+						irs->sa_len ? irs->sa : " (error)");
+				if(irs->stats) {
+					irs->stats->rx_dropped++;
+				}
+				ipsec_sa_put(newipsp);
+				return IPSEC_RCV_FAILEDINBOUND;
 			}
-			ipsec_sa_put(newipsp);
-			return IPSEC_RCV_FAILEDINBOUND;
 		}
 #endif		 
 	}
@@ -1736,7 +1777,8 @@ ipsec_rsm(struct ipsec_rcv_state *irs)
 			/* bad result, force state change to done */
 			KLIPS_PRINT(debug_rcv,
 					"klips_debug:ipsec_rsm: "
-					"processing completed due to error %d.\n", rc);
+					"processing completed due to %s.\n",
+					ipsec_rcv_err(rc));
 			irs->state = IPSEC_RSM_DONE;
 		}
 	}
@@ -1798,7 +1840,6 @@ ipsec_rcv(struct sk_buff *skb
 			    "Cannot allocate ipsec_rcv_state.\n");
 		goto rcvleave;
 	}
-	atomic_inc(&ipsec_irs_cnt);
 #if 0 /* optimised to only clear the essentials */
 	memset(irs, 0, sizeof(*irs));
 #else
@@ -1845,6 +1886,7 @@ ipsec_rcv(struct sk_buff *skb
 	 * we hand off real early to the state machine because we just cannot
 	 * know how much processing it is off-loading
 	 */
+	atomic_inc(&ipsec_irs_cnt);
 	ipsec_rsm(irs);
 
 	return(0);
@@ -1950,14 +1992,13 @@ int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 	  goto rcvleave;
 	}
 #endif
-	atomic_inc(&ipsec_irs_cnt);
-
 	irs->skb = skb;
 
 	/*
 	 * we hand off real early to the state machine because we just cannot
 	 * know how much processing it is off-loading
 	 */
+	atomic_inc(&ipsec_irs_cnt);
 	ipsec_rsm(irs);
 
 	return(0);
@@ -1975,6 +2016,24 @@ int klips26_rcv_encap(struct sk_buff *skb, __u16 encap_type)
 
 /*
  * $Log: ipsec_rcv.c,v $
+ * Revision 1.171.2.9  2006/07/30 02:09:33  paul
+ * Author: Bart Trojanowski <bart@xelerance.com>
+ * This fixes a NATT+ESP bug in rcv path.
+ *
+ *     We only want to test NATT policy on the ESP packet.  Doing so on the
+ *     bundled SA breaks because the next layer does not know anything about
+ *     NATT.
+ *
+ *     Fix just puts an if(proto == IPPROTO_ESP) around the NATT policy check.
+ *
+ * Revision 1.171.2.8  2006/07/29 05:03:04  paul
+ * Added check for new version of skb_linearize that only takes 1 argument,
+ * for 2.6.18+ kernels.
+ *
+ * Revision 1.171.2.7  2006/04/20 16:33:07  mcr
+ * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
+ * Fix in-kernel module compilation. Sub-makefiles do not work.
+ *
  * Revision 1.171.2.6  2005/12/07 06:07:04  paul
  * comment out KLIPS_DEC_USE in ipsec_rcv_decap. Likely an artifact from
  * refactoring. http://bugs.xelerance.com/view.php?id=454

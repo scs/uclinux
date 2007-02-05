@@ -43,7 +43,7 @@
 #include "kameipsec.h"
 #endif /* KLIPS */
 
-#include <linux/config.h>
+#include <linux/autoconf.h>
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
 #endif /* !CONFIG_LEDMAN */

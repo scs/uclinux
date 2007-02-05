@@ -27,14 +27,16 @@
  *   modprobe ipsec_cryptoapi aes=128,128                (force these keylens)
  *   modprobe ipsec_cryptoapi des_ede3=0                 (everything but 3DES)
  */
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 
 /*	
  *	special case: ipsec core modular with this static algo inside:
  *	must avoid MODULE magic for this file
  */
-#if CONFIG_KLIPS_MODULE && CONFIG_KLIPS_ENC_CRYPTOAPI
+#if defined(CONFIG_KLIPS_MODULE) && defined(CONFIG_KLIPS_ENC_CRYPTOAPI)
 #undef MODULE
 #endif
 
@@ -94,24 +96,26 @@ IPSEC_ALG_MODULE_INIT_STATIC( ipsec_cryptoapi_init )
 #define DIGESTNAME_MD5		"md5"
 #define DIGESTNAME_SHA1		"sha1"
 
-#ifdef module_param
-/*
- * As of 2.6.17 MODULE_PARM no longer exists, use module_param instead.
- */
-#undef MODULE_PARM
-#define	MODULE_PARM(a,b)	module_param(a,int,0)
-#endif
-
 MODULE_AUTHOR("Juanjo Ciarlante, Harpo MAxx, Luciano Ruete");
 static int debug_crypto=0;
-MODULE_PARM(debug_crypto, "i");
 static int test_crypto=0;
-MODULE_PARM(test_crypto, "i");
 static int excl_crypto=0;
-MODULE_PARM(excl_crypto, "i");
 
 static int noauto = 0;
+
+#ifdef module_param
+module_param(debug_crypto,int,0600)
+module_param(test_crypto,int,0600)
+module_param(excl_crypto,int,0600)
+
+module_param(noauto,int,0600)
+#else
+MODULE_PARM(debug_crypto, "i");
+MODULE_PARM(test_crypto, "i");
+MODULE_PARM(excl_crypto, "i");
+
 MODULE_PARM(noauto,"i");
+#endif
 MODULE_PARM_DESC(noauto, "Dont try all known algos, just setup enabled ones");
 
 #ifdef CONFIG_KLIPS_ENC_1DES
@@ -124,23 +128,28 @@ static int cast[] = {-1, -1};
 static int serpent[] = {-1, -1};
 static int twofish[] = {-1, -1};
 
-#ifdef module_param
-/*
- * As of 2.6.17 MODULE_PARM no longer exists, use module_param instead.
- */
-#undef MODULE_PARM
-#define	MODULE_PARM(a,b)	module_param_array(a,int,NULL,0)
-#endif
-
 #ifdef CONFIG_KLIPS_ENC_1DES
+#ifdef module_param
+module_param_array(des_ede1,int,NULL,0)
+#else
 MODULE_PARM(des_ede1,"1-2i");
 #endif
+#endif
+#ifdef module_param
+module_param_array(des_ede3,int,NULL,0)
+module_param_array(aes,int,NULL,0)
+module_param_array(blowfish,int,NULL,0)
+module_param_array(cast,int,NULL,0)
+module_param_array(serpent,int,NULL,0)
+module_param_array(twofish,int,NULL,0)
+#else
 MODULE_PARM(des_ede3,"1-2i");
 MODULE_PARM(aes,"1-2i");
 MODULE_PARM(blowfish,"1-2i");
 MODULE_PARM(cast,"1-2i");
 MODULE_PARM(serpent,"1-2i");
 MODULE_PARM(twofish,"1-2i");
+#endif
 MODULE_PARM_DESC(des_ede1, "0: disable | 1: force_enable | min,max: dontuse");
 MODULE_PARM_DESC(des_ede3, "0: disable | 1: force_enable | min,max: dontuse");
 MODULE_PARM_DESC(aes, "0: disable | 1: force_enable | min,max: keybitlens");

@@ -1648,6 +1648,7 @@ process_packet(struct msg_digest **mdp)
 #ifdef MODECFG	
 	    if(st->st_state == STATE_MODE_CFG_R2)   /* Have we just give an IP address to peer? */
 	    {
+		log_state_chg(st, STATE_MAIN_R3);
 		st->st_state = STATE_MAIN_R3;	    /* ISAKMP is up... */
 	    }
 #endif
@@ -1816,6 +1817,7 @@ process_packet(struct msg_digest **mdp)
 	       && IS_PHASE1(st->st_state))	/* Switch from Phase1 to Mode Config */
 	    {
 		openswan_log("We were in phase 1, with no state, so we went to XAUTH_R0");
+		log_state_chg(st, STATE_XAUTH_R0);
 		st->st_state = STATE_XAUTH_R0;
 	    }
 
@@ -2440,6 +2442,7 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
                  , enum_name(&state_names, from_state)
                  , enum_name(&state_names, smc->next_state));
 	    
+		log_state_chg(st, smc->next_state);
 	    st->st_state = smc->next_state;
 
 	    /* Delete previous retransmission event.
@@ -2822,6 +2825,7 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
 	       && !st->hidden_variables.st_modecfg_vars_set 
 	       && !(st->st_connection->policy & POLICY_MODECFG_PULL))
 	    {
+		    log_state_chg(st, STATE_MODE_CFG_R1);
 		    st->st_state = STATE_MODE_CFG_R1;
 		    set_cur_state(st);
 		    openswan_log("Sending MODE CONFIG set");
@@ -2835,6 +2839,7 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
 		&& IS_MODE_CFG_ESTABLISHED(st->st_state)
 		&& (st->st_seen_vendorid & LELEM(VID_NORTEL))) 
 	    {
+		log_state_chg(st, STATE_MAIN_R3);
 		st->st_state = STATE_MAIN_R3;	    /* ISAKMP is up... */
 	        set_cur_state(st);
 	        quick_outI1(st->st_whack_sock, st, st->st_connection, st->st_connection->policy, 1, SOS_NOBODY);

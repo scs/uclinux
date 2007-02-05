@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: dpd.c,v 1.29.2.6 2005/12/27 22:30:36 ken Exp $
+ * RCSID $Id: dpd.c,v 1.29.2.8 2006/07/21 02:27:20 ken Exp $
  */
 
 #include <stdio.h>
@@ -407,7 +407,7 @@ dpd_inI_outR(struct state *p1st
 
     seqno = ntohl(*(u_int32_t *)pbs->cur);
     if (p1st->st_dpd_peerseqno && seqno <= p1st->st_dpd_peerseqno) {
-        loglog(RC_LOG_SERIOUS, "DPD Warning: received old or duplicate R_U_THERE");
+        loglog(RC_LOG_SERIOUS, "DPD: Warning: received old or duplicate R_U_THERE");
         return STF_IGNORE;
     }
      
@@ -563,11 +563,19 @@ dpd_timeout(struct state *st)
 
     case DPD_ACTION_RESTART:
 	/** dpdaction=restart - immediate renegotiate the connection. */
-        openswan_log("DPD: Info: Restarting Connection");
-
-	/* we replace the SA so that we do it in a rational place */
-	delete_event(st);
-	event_schedule(EVENT_SA_REPLACE, 0, st);
+        /* Terminate connection if this is for a dynamic endpoint */
+        if (c->kind == CK_INSTANCE) {
+            openswan_log("DPD: Clearing Connection");
+            delete_states_by_connection(c, TRUE);
+            DBG(DBG_DPD, DBG_log("unrouting connection"));
+            unroute_connection(c); /* --unroute */
+        }
+        else {
+            openswan_log("DPD: Restarting Connection");
+            delete_states_by_connection(c, TRUE);
+            unroute_connection(c);
+            initiate_connection(c->name, 0, 0, 0);
+        }
 	break;
 
     case DPD_ACTION_RESTART_BY_PEER:

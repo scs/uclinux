@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile.inc,v 1.116.2.3 2006/01/11 02:02:59 mcr Exp $
+# RCSID $Id: Makefile.inc,v 1.116.2.6 2006/07/18 14:00:51 paul Exp $
 
 
 # snapgear specific defaults from build env.
@@ -29,6 +29,9 @@ endif
 ifneq ($(CONFIG_LIB_LIBPAM_FORCE)$(CONFIG_LIB_LIBPAM),)
 USE_XAUTHPAM := true
 HAVE_THREADS := true # the comments below about XAUTH say we need threads
+endif
+ifdef CONFIG_PROP_STATSD_STATSD
+EXTRA_DEFINES += -DEXTERNAL_STATE_LOGGING=1
 endif
 
 
@@ -307,7 +310,7 @@ USE_KERNEL26?=true
 USE_VENDORID?=true
 
 # Use /dev/hwrandom if available (EG: VIA Padlock)
-USE_HWRANDOM?=false
+USE_HWRANDOM?=true
 
 # include aggressive mode authentication system code - both Server and Client.
 # This is off by default, since aggressive mode leads to denial of service

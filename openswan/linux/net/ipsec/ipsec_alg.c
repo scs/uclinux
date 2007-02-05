@@ -272,9 +272,9 @@ int ipsec_alg_esp_encrypt(struct ipsec_sa *sa_p, __u8 * idat,
 		    "entering with encalg=%d, ixt_e=%p\n",
 		    sa_p->ips_encalg, ixt_e);
 	if (ixt_e == NULL) {
-	  KLIPS_PRINT(debug_flag,
-			    "klips_debug:ipsec_alg_esp_encrypt: "
-			    "NULL ipsec_alg_enc object\n");
+	  KLIPS_ERROR(debug_flag,
+		      "klips_debug:ipsec_alg_esp_encrypt: "
+		      "NULL ipsec_alg_enc object\n");
 		return -1;
 	}
 	KLIPS_PRINT(debug_flag,
@@ -1032,6 +1032,7 @@ ipsec_xform_get_info(char *buffer,
  *	symbol problems for old modutils.
  */
 
+#ifdef CONFIG_MODULES
 #ifndef NET_26
 #if 0
 #ifndef EXPORT_SYMBOL_GPL 
@@ -1042,4 +1043,5 @@ ipsec_xform_get_info(char *buffer,
 EXPORT_SYMBOL(register_ipsec_alg);
 EXPORT_SYMBOL(unregister_ipsec_alg);
 EXPORT_SYMBOL(ipsec_alg_test);
+#endif
 #endif

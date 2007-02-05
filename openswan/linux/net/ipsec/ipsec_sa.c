@@ -14,13 +14,15 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_sa.c,v 1.30 2005/05/24 01:02:35 mcr Exp $
+ * RCSID $Id: ipsec_sa.c,v 1.30.2.1 2006/04/20 16:33:07 mcr Exp $
  *
  * This is the file formerly known as "ipsec_xform.h"
  *
  */
 
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 #include <linux/kernel.h> /* printk() */
 
@@ -1515,6 +1517,10 @@ int ipsec_sa_init(struct ipsec_sa *ipsp)
 
 /*
  * $Log: ipsec_sa.c,v $
+ * Revision 1.30.2.1  2006/04/20 16:33:07  mcr
+ * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
+ * Fix in-kernel module compilation. Sub-makefiles do not work.
+ *
  * Revision 1.30  2005/05/24 01:02:35  mcr
  * 	some refactoring/simplification of situation where alg
  * 	is not found.

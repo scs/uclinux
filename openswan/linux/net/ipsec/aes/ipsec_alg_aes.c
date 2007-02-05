@@ -21,14 +21,16 @@
  * 	PK:	make XCBC comply with latest draft (keylength)
  *
  */
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 
 /*	
  *	special case: ipsec core modular with this static algo inside:
  *	must avoid MODULE magic for this file
  */
-#if CONFIG_KLIPS_MODULE && CONFIG_KLIPS_ENC_AES
+#if defined(CONFIG_KLIPS_MODULE) && defined(CONFIG_KLIPS_ENC_AES)
 #undef MODULE
 #endif
 
@@ -59,14 +61,19 @@ static int keyminbits=0;
 static int keymaxbits=0;
 #if defined(CONFIG_KLIPS_ENC_AES_MODULE)
 MODULE_AUTHOR("JuanJo Ciarlante <jjo-ipsec@mendoza.gov.ar>");
-#ifdef MODULE_PARM
-#define	module_param(a,b,c)	MODULE_PARM(a,"i")
+#ifdef module_param
+module_param(debug_aes,int,0600)
+module_param(test_aes,int,0600)
+module_param(excl_aes,int,0600)
+module_param(keyminbits,int,0600)
+module_param(keymaxbits,int,0600)
+#else
+MODULE_PARM(debug_aes, "i");
+MODULE_PARM(test_aes, "i");
+MODULE_PARM(excl_aes, "i");
+MODULE_PARM(keyminbits, "i");
+MODULE_PARM(keymaxbits, "i");
 #endif
-module_param(debug_aes, int, 0);
-module_param(test_aes, int, 0);
-module_param(excl_aes, int, 0);
-module_param(keyminbits, int, 0);
-module_param(keymaxbits, int, 0);
 #endif
 
 #if CONFIG_KLIPS_ENC_AES_MAC
@@ -82,7 +89,11 @@ static int auth_id=0;
 #else
 static int auth_id=9;
 #endif
+#ifdef module_param
+module_param(auth_id, int, 0600);
+#else
 MODULE_PARM(auth_id, "i");
+#endif
 #endif
 
 #define ESP_AES			12	/* truely _constant_  :)  */
@@ -148,7 +159,7 @@ static struct ipsec_alg_auth ipsec_alg_AES_MAC = {
 			ias_keymaxbits:	ESP_AES_MAC_KEY_SZ*8,
 		},
 	},
-#if defined(MODULE_KLIPS_ENC_AES_MODULE)
+#if defined(CONFIG_KLIPS_ENC_AES_MODULE)
 	ixt_module:	THIS_MODULE,
 #endif
 	ixt_a_keylen:	ESP_AES_MAC_KEY_SZ,
@@ -169,7 +180,7 @@ static struct ipsec_alg_enc ipsec_alg_AES = {
 			ias_keymaxbits:	ESP_AES_KEY_SZ_MAX*8,
 		},
 	},
-#if defined(MODULE_KLIPS_ENC_AES_MODULE)
+#if defined(CONFIG_KLIPS_ENC_AES_MODULE)
 	ixt_module:	THIS_MODULE,
 #endif
 	ixt_e_keylen:	ESP_AES_KEY_SZ_MAX,
@@ -253,7 +264,7 @@ IPSEC_ALG_MODULE_EXIT_STATIC( ipsec_aes_fini )
 MODULE_LICENSE("GPL");
 #endif
 
-#if 0+NOT_YET
+#if 0  /* +NOT_YET */
 #ifndef MODULE
 /*
  * 	This is intended for static module setups, currently

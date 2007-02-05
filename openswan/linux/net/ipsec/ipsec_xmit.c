@@ -19,11 +19,13 @@
  * for more details.
  */
 
-char ipsec_xmit_c_version[] = "RCSID $Id: ipsec_xmit.c,v 1.20.2.3 2005/11/29 21:52:57 ken Exp $";
+char ipsec_xmit_c_version[] = "RCSID $Id: ipsec_xmit.c,v 1.20.2.6 2006/07/07 22:09:49 paul Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>	/* for CONFIG_IP_FORWARD */
+#endif
 #include <linux/version.h>
 #include <linux/kernel.h> /* printk() */
 
@@ -288,6 +290,12 @@ ipsec_print_ip(struct iphdr *ip)
 		printk(" (TCP)");
 	if(ip->protocol == IPPROTO_ICMP)
 		printk(" (ICMP)");
+	if(ip->protocol == IPPROTO_ESP)
+		printk(" (ESP)");
+	if(ip->protocol == IPPROTO_AH)
+		printk(" (AH)");
+	if(ip->protocol == IPPROTO_COMP)
+		printk(" (COMP)");
 	printk(" chk:%d", ntohs(ip->check));
 	addrtoa(*((struct in_addr*)(&ip->saddr)), 0, buf, sizeof(buf));
 	printk(" saddr:%s", buf);
@@ -370,6 +378,50 @@ ipsec_adjust_mss(struct sk_buff *skb, struct tcphdr *tcph, u_int16_t mtu)
 	return 1;
 }
 #endif	/* MSS_HACK */
+
+#ifdef CONFIG_KLIPS_DEBUG
+DEBUG_NO_STATIC char *
+ipsec_xmit_err(int err)
+{
+	static char tmp[32];
+	switch ((int) err) {
+	case IPSEC_XMIT_STOLEN:			return("IPSEC_XMIT_STOLEN");
+	case IPSEC_XMIT_PASS:			return("IPSEC_XMIT_PASS");
+	case IPSEC_XMIT_OK:				return("IPSEC_XMIT_OK");
+	case IPSEC_XMIT_ERRMEMALLOC:	return("IPSEC_XMIT_ERRMEMALLOC");
+	case IPSEC_XMIT_ESP_BADALG:		return("IPSEC_XMIT_ESP_BADALG");
+	case IPSEC_XMIT_BADPROTO:		return("IPSEC_XMIT_BADPROTO");
+	case IPSEC_XMIT_ESP_PUSHPULLERR:return("IPSEC_XMIT_ESP_PUSHPULLERR");
+	case IPSEC_XMIT_BADLEN:			return("IPSEC_XMIT_BADLEN");
+	case IPSEC_XMIT_AH_BADALG:		return("IPSEC_XMIT_AH_BADALG");
+	case IPSEC_XMIT_SAIDNOTFOUND:	return("IPSEC_XMIT_SAIDNOTFOUND");
+	case IPSEC_XMIT_SAIDNOTLIVE:	return("IPSEC_XMIT_SAIDNOTLIVE");
+	case IPSEC_XMIT_REPLAYROLLED:	return("IPSEC_XMIT_REPLAYROLLED");
+	case IPSEC_XMIT_LIFETIMEFAILED:	return("IPSEC_XMIT_LIFETIMEFAILED");
+	case IPSEC_XMIT_CANNOTFRAG:		return("IPSEC_XMIT_CANNOTFRAG");
+	case IPSEC_XMIT_MSSERR:			return("IPSEC_XMIT_MSSERR");
+	case IPSEC_XMIT_ERRSKBALLOC:	return("IPSEC_XMIT_ERRSKBALLOC");
+	case IPSEC_XMIT_ENCAPFAIL:		return("IPSEC_XMIT_ENCAPFAIL");
+	case IPSEC_XMIT_NODEV:			return("IPSEC_XMIT_NODEV");
+	case IPSEC_XMIT_NOPRIVDEV:		return("IPSEC_XMIT_NOPRIVDEV");
+	case IPSEC_XMIT_NOPHYSDEV:		return("IPSEC_XMIT_NOPHYSDEV");
+	case IPSEC_XMIT_NOSKB:			return("IPSEC_XMIT_NOSKB");
+	case IPSEC_XMIT_NOIPV6:			return("IPSEC_XMIT_NOIPV6");
+	case IPSEC_XMIT_NOIPOPTIONS:	return("IPSEC_XMIT_NOIPOPTIONS");
+	case IPSEC_XMIT_TTLEXPIRED:		return("IPSEC_XMIT_TTLEXPIRED");
+	case IPSEC_XMIT_BADHHLEN:		return("IPSEC_XMIT_BADHHLEN");
+	case IPSEC_XMIT_PUSHPULLERR:	return("IPSEC_XMIT_PUSHPULLERR");
+	case IPSEC_XMIT_ROUTEERR:		return("IPSEC_XMIT_ROUTEERR");
+	case IPSEC_XMIT_RECURSDETECT:	return("IPSEC_XMIT_RECURSDETECT");
+	case IPSEC_XMIT_IPSENDFAILURE:	return("IPSEC_XMIT_IPSENDFAILURE");
+	case IPSEC_XMIT_ESPUDP:			return("IPSEC_XMIT_ESPUDP");
+	case IPSEC_XMIT_ESPUDP_BADTYPE:	return("IPSEC_XMIT_ESPUDP_BADTYPE");
+	case IPSEC_XMIT_PENDING:		return("IPSEC_XMIT_PENDING");
+	}
+	snprintf(tmp, sizeof(tmp), "%d", err);
+	return tmp;
+}
+#endif
                                                         
 /*
  * Sanity checks
@@ -1991,7 +2043,8 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 			/* bad result, force state change to done */
 			KLIPS_PRINT(debug_tunnel,
 					"klips_debug:ipsec_xsm: "
-					"processing completed due to error %d.\n", stat);
+					"processing completed due to %s.\n",
+					ipsec_xmit_err(stat));
 			ixs->state = IPSEC_XSM_DONE;
 		}
 	}
@@ -2016,6 +2069,18 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 
 /*
  * $Log: ipsec_xmit.c,v $
+ * Revision 1.20.2.6  2006/07/07 22:09:49  paul
+ * From: Bart Trojanowski <bart@xelerance.com>
+ * Removing a left over '#else' that split another '#if/#endif' block in two.
+ *
+ * Revision 1.20.2.5  2006/07/07 15:43:17  paul
+ * From: Bart Trojanowski <bart@xelerance.com>
+ * improved protocol detection in ipsec_print_ip() -- a debug aid.
+ *
+ * Revision 1.20.2.4  2006/04/20 16:33:07  mcr
+ * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
+ * Fix in-kernel module compilation. Sub-makefiles do not work.
+ *
  * Revision 1.20.2.3  2005/11/29 21:52:57  ken
  * Fix for #518 MTU issues
  *

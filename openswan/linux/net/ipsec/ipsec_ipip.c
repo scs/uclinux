@@ -14,7 +14,9 @@
  */
 
 char ipsec_ipip_c_version[] = "RCSID $Id: ipsec_ipip.c,v 1.3.2.2 2005/11/27 21:41:03 paul Exp $";
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 
 #define __NO_VERSION__

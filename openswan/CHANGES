@@ -1,5 +1,34 @@
 Please see docs/KNOWN_BUGS file for more information
 
+v2.4.6
+* Fix for VIA Nehemiah to use /dev/hw_random to generate new rsakey
+  (using /dev/random on these chips caused it to block too long)
+* Various CryptoAPI related fixes.
+* Removed support for HIPPI which broke compilation on 2.6.16.*
+* Pull up of fix for rightnexthop->leftnexthop
+* Added logging when we don't find the right hash bucket
+* Changed a few x509 log messages to make automatic parsing easier
+* Unload KLIPS at shutdown again to prevent lingering IPs on ipsecX,
+  also in case KLIPS is inline, and the ipsecX interfaces do not go away,
+  remove IP addresses from IP aliases bound to ipsecX devices.
+* Fixed typo in ipsec.conf's virtual_private example
+* Improved protocol detection in ipsec_print_ip() [bart]
+* Fixed minimum skb lenght requried for ipsec decompression [bart]
+  (This is probably bug #609)
+* Fix a 64bit bug in compression code [bart]
+* Removing a left over '#else' that split another '#if/#endif' block in two 
+  in ipsec_xmit.c [bart]
+* MODULE_PARM has been obsoleted for module_param on 2.6.17+ [paul]
+* skb_linearize API changed in 2.6.18+ [paul]
+* bugtracker bugs fixed:
+  #452: dpdaction=restart doesn't clear or restart quick mode SAs
+  #537: Compilation will fail with kernel 2.6.14 and klips and CONFIG_HIPPI=y
+  #636: KLIPS and vanilla-2.6.17 compilation error
+  #642: ipsec_xmit.c and CONFIG_KLIPS_DEBUG on 2.4 compile issue
+  #647: compile fails with version 2.4.6-rc2 + vanilla kernel linux-2.6.17.6	
+  #631: KLIPS module does not build with 2.6.17-rc6 kernel
+  #646: NATT + IPCOMP fails on rcv in KLIPS [bart]
+        (This is a generic NATT+ESP bug, not just an ipcomp bug)
 v2.4.5
 * Fix for prefering RFC3947 over OSX-workaround by Jacco de Leeuw
 * Fix for openswan as l2tp server behind NAT by Bernd Galonska
@@ -148,6 +177,7 @@ v2.3.0
 * Cisco VPN 3xxx client Interop (Experimental)
 * Cryptographic helpers framework
 * Fixes for NAT-T on 2.4.28+ kernels.
+* Fix for SIOCDEVPRIVATE use (aka the snmpd crasher)
 
 v2.2.0
 * Added RFC 3706 DPD support (see README.DPD)
@@ -173,4 +203,4 @@ v2.1.0
   while travelling.  This is based on Tuomo Soini's Advanced Routing
   patch.
 
-RCSID $Id: CHANGES,v 1.326.2.57 2006/04/04 22:26:34 paul Exp $
+RCSID $Id: CHANGES,v 1.326.2.72 2006/07/30 02:15:49 paul Exp $

@@ -91,13 +91,19 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	blob->ptr = alloc_bytes(blob->len, type);
 	bytes = fread(blob->ptr, 1, blob->len, fd);
 	fclose(fd);
+#ifndef SINGLE_CONF_DIR /* too verbose in single conf mode */
+#define	LF()
 	openswan_log("  loaded %s file '%s' (%d bytes)", type, filename, bytes);
+#else
+#define	LF() openswan_log("  loaded %s file '%s' (%d bytes)", type, filename, bytes)
+#endif
 
 	*pgp = FALSE;
 
 	/* try DER format */
 	if (is_asn1(*blob))
 	{
+		LF();
 	    DBG(DBG_PARSING,
 		DBG_log("  file coded in DER format");
 	    )
@@ -111,6 +117,7 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	{
 	    if (*pgp)
 	    {
+                LF();
                 DBG(DBG_PARSING,
                     DBG_log("  file coded in armored PGP format");
                 )
@@ -118,6 +125,7 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	    }
 	    if (is_asn1(*blob))
 	    {
+		LF();
 		DBG(DBG_PARSING,
 		    DBG_log("  file coded in PEM format");
 		)
@@ -126,8 +134,10 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	    ugh = "file coded in unknown format, discarded";
 	}
 
+#ifndef SINGLE_CONF_DIR /* too verbose in single conf mode */
 	/* a conversion error has occured */
 	openswan_log("  %s", ugh);
+#endif
 	pfree(blob->ptr);
 	*blob = empty_chunk;
     }
@@ -136,6 +146,9 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	openswan_log("  could not open %s file '%s'", type, filename);
     }
     return FALSE;
+#ifdef SINGLE_CONF_DIR
+#undef LF
+#endif
 }
 
 /*

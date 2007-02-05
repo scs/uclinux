@@ -13,16 +13,18 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_v2_ext_process.c,v 1.20 2005/04/29 05:10:22 mcr Exp $
+ * RCSID $Id: pfkey_v2_ext_process.c,v 1.20.2.1 2006/04/20 16:33:07 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_netlink.c.
  */
 
-char pfkey_v2_ext_process_c_version[] = "$Id: pfkey_v2_ext_process.c,v 1.20 2005/04/29 05:10:22 mcr Exp $";
+char pfkey_v2_ext_process_c_version[] = "$Id: pfkey_v2_ext_process.c,v 1.20.2.1 2006/04/20 16:33:07 mcr Exp $";
 
+#ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
+#endif
 #include <linux/version.h>
 #include <linux/kernel.h> /* printk() */
 
@@ -870,6 +872,10 @@ errlab:
 
 /*
  * $Log: pfkey_v2_ext_process.c,v $
+ * Revision 1.20.2.1  2006/04/20 16:33:07  mcr
+ * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
+ * Fix in-kernel module compilation. Sub-makefiles do not work.
+ *
  * Revision 1.20  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *
