@@ -58,12 +58,11 @@ extern long long llseek (int fd, long long offset, int origin);
 #endif
 
 #ifndef __i386__
-static int _llseek (unsigned int, unsigned long,
-		   unsigned long, ext2_loff_t *, unsigned int);
-
-static _syscall5(int,_llseek,unsigned int,fd,unsigned long,offset_high,
-		 unsigned long, offset_low,ext2_loff_t *,result,
-		 unsigned int, origin)
+static int _llseek(unsigned int fd, unsigned long hi, 
+	unsigned long lo, ext2_loff_t *res, unsigned int wh )
+{
+    return syscall(__NR__llseek, fd, hi, lo, res, wh);
+}
 #endif
 
 static ext2_loff_t my_llseek (int fd, ext2_loff_t offset, int origin)

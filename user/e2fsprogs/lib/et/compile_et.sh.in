@@ -2,8 +2,8 @@
 #
 #
 AWK=@AWK@
-DIR="${DIR-@datadir@/et}"
-ET_DIR="@ET_DIR@"
+#DIR="${DIR-@datadir@/et}"
+DIR="@ET_DIR@"
 
 if test "x$1" = x ; then
     echo "Usage: compile_et file"
