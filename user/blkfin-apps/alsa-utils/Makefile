@@ -12,8 +12,8 @@ build/Makefile:
 	../configure \
 		--host=bfin-uclinux \
 		--prefix=/usr \
-		--with-alsa-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/lib \
-		--with-alsa-inc-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/include
+		--with-alsa-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/local/lib \
+		--with-alsa-inc-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/local/include
 
 clean:
 	rm -rf build DESTDIR
