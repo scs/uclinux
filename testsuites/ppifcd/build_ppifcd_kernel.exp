@@ -144,7 +144,7 @@ while 1 {
              }
       }
       
-        -re "SDA is PF.*BFIN_SDA.*\\\[.*]" {
+        -re "SDA is GPIO Number.*BFIN_SDA.*\\\[.*]" {
               if { $board_type == "BF533-STAMP" } {
                         send "2\r"
              } else {
@@ -152,7 +152,7 @@ while 1 {
              }
       }
       
-        -re "SCL is PF.*BFIN_SCL.*\\\[.*]" {
+        -re "SDA is GPIO Number.*BFIN_SCL.*\\\[.*]" {
               if { $board_type == "BF533-STAMP" } {
                         send "1\r"
              } else {
