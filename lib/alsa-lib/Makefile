@@ -7,7 +7,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure --host=bfin-uclinux --prefix=/usr
+	../configure --host=bfin-uclinux --prefix=/usr/local
 
 clean:
 	rm -rf build DESTDIR
@@ -17,7 +17,11 @@ clean:
 
 romfs:
 	if [ "$(CONFIG_LIB_ALSA_LIB)" = "y" ] || [ "$(CONFIG_LIB_ALSA_LIB_FORCE)" = "y" ] ; then \
-		for conf in `cd DESTDIR ; find usr/share/alsa -type f` ; do \
+		for conf in `cd DESTDIR ; find usr/local/share/alsa -type f` ; do \
 			$(ROMFSINST) -d DESTDIR/$$conf /$$conf || exit $$? ; \
 		done ; \
 	fi
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	mv $$PWD/DESTDIR/usr/local/lib/libasound.so* $(ROMFSDIR)/lib/
+endif
+
