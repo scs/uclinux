@@ -1186,12 +1186,12 @@ set result_matrix {
        { chmod03     	     {chmod03}                     	 notrun		UCLINUX } 
        { chmod04     	     {chmod04}                     	 notrun		UCLINUX } 
        { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }                     	 notrun		UCLINUX } 
-       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun		UCLINUX } 
+       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun		NA } 
        { chmod07     	     {chmod07}                     	 notrun		UCLINUX } 
        { chown01     	     {chown01}                     	 notrun		UCLINUX } 
        { chown02     	     {chown02}                     	 notrun		UCLINUX } 
        { chown03     	     {export change_owner=/bin/change_owner;chown03}                     	 notrun		UCLINUX } 
-       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun		UCLINUX } 
+       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun		NA } 
        { chown05     	     {chown05}                     	 notrun		UCLINUX } 
        { chroot01     	     {chroot01}                     	 notrun		UCLINUX } 
        { chroot02     	     {chroot02}                     	 notrun		UCLINUX } 
@@ -1426,7 +1426,7 @@ set result_matrix {
        { mlockall01     	     {mlockall01}                     	 notrun		NA } 
        { mlockall02     	     {mlockall02}                     	 notrun		NA } 
        { mlockall03     	     {mlockall03}                     	 notrun		NA } 
-       { mkdir01     	     {mkdir01}                     	 notrun		UCLINUX } 
+       { mkdir01     	     {mkdir01}                     	 notrun		NA } 
        { mkdir02     	     {mkdir02}                     	 notrun		UCLINUX } 
        { mkdir03     	     {mkdir03}                     	 notrun		UCLINUX } 
        { mkdir04     	     {mkdir04}                     	 notrun		UCLINUX } 
