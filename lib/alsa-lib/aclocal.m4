@@ -1644,7 +1644,7 @@ linux*oldld* | linux*aout* | linux*coff*)
   ;;
 
 # This must be Linux ELF.
-linux*)
+linux*|uclinux*)
   version_type=linux
   need_lib_prefix=no
   need_version=no
@@ -2444,7 +2444,7 @@ irix5* | irix6* | nonstopux*)
   ;;
 
 # This must be Linux ELF.
-linux*)
+linux*|uclinux*)
   lt_cv_deplibs_check_method=pass_all
   ;;
 
@@ -3770,6 +3770,24 @@ case $host_os in
 	;;
     esac
     ;;
+  uclinux*)
+    case $LDFLAGS in
+      *-Wl,-elf2lft*)
+	_LT_AC_TAGVAR(ld_shlibs, $1)=no
+	;;
+      *)
+	case $host_cpu in
+	bfin)
+	  CFLAGS="$CFLAGS -mfdpic"
+	  ;;
+	*)
+	  _LT_AC_TAGVAR(ld_shlibs, $1)=no
+	  ;;
+	esac
+	;;
+    esac
+    ;;
+
   vxworks*)
     # FIXME: insert proper C++ library support
     _LT_AC_TAGVAR(ld_shlibs, $1)=no
@@ -4949,6 +4967,23 @@ AC_MSG_CHECKING([for $compiler option to produce PIC])
 	;;
       esac
       ;;
+    linux|uclinux*)
+      case $LDFLAGS in
+      *-Wl,-elf2lft*)
+	_LT_AC_TAGVAR(lt_prog_compiler_can_build_shared, $1)=no
+	;;
+      *)
+	case $host_cpu in
+	bfin)
+	  _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-mfdpic'
+	  ;;
+	*)
+	  _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
+	  ;;
+	esac
+	;;
+      esac
+      ;;
     *)
       _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
       ;;
@@ -5232,6 +5267,23 @@ AC_MSG_CHECKING([for $compiler option to produce PIC])
       esac
       ;;
 
+    linux|uclinux*)
+      case $LDFLAGS in
+      *-Wl,-elf2lft*)
+	_LT_AC_TAGVAR(lt_prog_compiler_can_build_shared, $1)=no
+	;;
+      *)
+	case $host_cpu in
+	bfin)
+	  _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-mfdpic'
+	  ;;
+	*)
+	  _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
+	  ;;
+	esac
+	;;
+      esac
+      ;;
     *)
       _LT_AC_TAGVAR(lt_prog_compiler_pic, $1)='-fPIC'
       ;;
