@@ -4,11 +4,7 @@
  
  #include "cmdedit.h"
  
--/*#define MSHDEBUG 1*/
-+#define MSHDEBUG 1
- 
- #ifdef MSHDEBUG
- int mshdbg = MSHDEBUG;
+ /*#define MSHDEBUG 1*/
  
 +#ifdef KSDBG
 +	#define WHERE fprintf(stderr,"in %s\n",__FUNCTION__) 
@@ -18,6 +14,9 @@
 +	#define DP(x)
 +#endif 
 +
+ #ifdef MSHDEBUG
+ int mshdbg = MSHDEBUG;
+ 
  #define DBGPRINTF(x)	if(mshdbg>0)printf x
  #define DBGPRINTF0(x)	if(mshdbg>0)printf x
  #define DBGPRINTF1(x)	if(mshdbg>1)printf x
