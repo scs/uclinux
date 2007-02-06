@@ -1,0 +1,9 @@
+August, 22 2006: ortp-0.11.0
+	- added rtp_session_set_dscp, rtp_session_send_rtcp_APP
+	- fixed statistics little bugs.
+
+May, 30 2006:	ortp-0.10.0
+	- new RTCP parser
+	- new event api
+	- stun helper routines
+	- permissive algorithm for video packet enqueueing
