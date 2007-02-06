@@ -24,4 +24,7 @@ clean:
 	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
 
 romfs:
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	mv $$PWD/DESTDIR/usr/lib/libspeex.so* $(ROMFSDIR)/lib/
+endif
 	@true
