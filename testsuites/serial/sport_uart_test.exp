@@ -1,0 +1,202 @@
+#!/usr/bin/expect
+
+#
+#Test program to test SPORT UART1.
+#Be sure the serial cable is connected to sport uart1 from the host ttyS0.
+#And  the kernel is booted up with eth0 enabled.
+#
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+set string "123456789"
+set file aaa
+send_log "\nStarting test for SPORT UART 1...\n"
+
+set ttydev1 /dev/ttySS0
+
+set argc [llength $argv]
+if { $argc > 0 } {
+set ttydev1             [lindex $argv 0]
+}
+
+send_log "*********************************\r"
+send_log "Start $TITLE\r"
+send_log "*********************************\r"
+
+set case_num 0
+incr case_num
+
+set timeout 3
+
+spawn  /bin/sh
+while 1 { 
+send -s "telnet $targetip\r"
+        expect {
+                ">" {  }
+                timeout { 
+                      send_user "Failed inital telnet\n"
+                      exit }
+        }
+send -s "cat $ttydev1  \r"
+        expect {
+                ">" { 
+                      break }
+                timeout { 
+                      break }
+        }
+
+}
+
+set telnet_id $spawn_id
+
+spawn /bin/sh
+expect  $sh_prompt
+while 1 {
+send -s " echo $string > $ttydev  \r"
+expect {
+        "$sh_prompt" { 
+          break }
+         timeout {
+          puts " send data failed...\n"
+          break
+         }
+}
+}
+set host_sh_id $spawn_id
+
+set spawn_id $telnet_id
+send "\r"
+while 1 {
+expect {
+        "$string" {
+          send_log "Echoed char get."
+          case_pass $case_num
+          send "\3"
+          break }
+          timeout {
+          case_fail $case_num
+          break
+         }
+}
+}
+
+incr case_num
+
+set spawn_id $host_sh_id
+while 1 {
+send -s "cat /dev/ttyS0 > $file \r"
+expect {
+        "$sh_prompt" {
+          puts "Fail to cat.\n"
+          break }
+         timeout {
+          puts "wait for receiving data...\n"
+          break
+         }
+}
+}
+set spawn_id $telnet_id
+while 1 {
+send -s "cat /etc/boa.conf > /dev/ttySS0 \r"
+        expect {
+                ">" {
+                      break }
+                timeout { send_user "Failed inital telnet\n"
+                        exit }
+        }
+
+}
+
+set spawn_id $host_sh_id
+while 1 {
+expect {
+        "$sh_prompt" {
+          puts "Fail to wait.\n"
+          break }
+         timeout {
+          puts "\nStill wait.\n"
+          break
+         }
+}
+}
+send -s "\3"
+while 1 {
+expect {
+        "$sh_prompt" {
+          break }
+         timeout {
+          puts "Failed to come out.\n"
+          break
+         }
+}
+}
+
+sleep 10
+send -s "cat $file \r"
+while 1 {
+expect {
+       "$sh_prompt" {
+         break}
+        timeout {
+         puts "Failed to cat file.\n"}
+}
+}
+
+send -s "dos2unix $file \r"
+while 1 {
+expect {
+       "converting file" {
+          puts "convert file.\n"
+         break}
+        timeout {
+         puts "Failed to convert file.\n"}
+}
+}
+expect {
+       "$sh_prompt" {
+          puts "finish dos2unix.\n"
+        }
+}
+
+send -s "rcp root@$targetip:/etc/boa.conf . \r"
+while 1 {
+expect {
+       "$sh_prompt" {
+         puts "Copy file.\n"
+         break}
+        timeout {
+         puts "Failed to copy file.\n"}
+}
+}
+
+send -s "diff -u $file boa.conf \r"
+while 1 {
+expect {
+         "\+\+\+*[
+          ]$sh_prompt" {
+                         puts "\nTwo files diffs. $expect_out(0,string)\n"
+                         case_fail $case_num
+                          }
+          "$sh_prompt" 
+                      {
+                        puts "Success case.\n"
+                        case_pass $case_num
+                        break
+                        }   
+          timeout 
+                      {
+                         puts "Fail to diff.\n"
+                         case_fail $case_num
+                        }   
+         }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
+

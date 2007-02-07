@@ -1,0 +1,132 @@
+#!/usr/bin/expect
+
+#
+#Test program to test GPIO.
+#
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+set sh_prompt "sh*$"
+
+send_log "*********************************\r"
+send_log "Start $TITLE\r"
+send_log "*********************************\r"
+
+set timeout 300
+
+set case_num 0
+
+incr case_num
+
+spawn  /bin/sh
+expect "$sh_prompt"
+send -s "cd $uclinux_path/linux-2.6.x/arch/ \r"
+expect "$sh_prompt"
+while 1 { 
+send -s "egrep -nr 'bfin_read_PORT|bfin_write_PORT'  * | grep -v svn\r"
+expect "\r"
+expect {
+        "bfin_write_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+
+         "bfin_read_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+
+         "$sh_prompt" 
+                      {
+                        puts "\nSuccess case.\n"
+                        case_pass $case_num
+                        break
+                        }   
+         timeout 
+                      {
+                         puts "Fail to diff.\n"
+                         case_fail $case_num
+                        }   
+                     
+}
+}
+
+incr case_num
+send -s "cd $uclinux_path/linux-2.6.x/drivers/ \r"
+expect "$sh_prompt"
+while 1 {
+send -s "egrep -nr 'bfin_read_PORT|bfin_write_PORT'  * | grep -v svn\r"
+expect "\r"
+expect {
+        "bfin_write_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+        "bfin_read_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+
+         "$sh_prompt"
+                      {
+                        puts "\nSuccess case.\n"
+                        case_pass $case_num
+                        break
+                        }
+         timeout
+                      {
+                         puts "Fail to diff.\n"
+                         case_fail $case_num
+                        }
+
+}
+}
+
+incr case_num
+send -s "cd $uclinux_path/linux-2.6.x/sound/ \r"
+expect "$sh_prompt"
+while 1 {
+send -s "egrep -nr 'bfin_read_PORT|bfin_write_PORT'  * | grep -v svn\r"
+expect "\r"
+expect {
+        "bfin_write_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+
+         "bfin_read_PORT*[
+           ]$sh_prompt" {
+                         puts "Still exists. \n"
+                         case_fail $case_num
+                          }
+
+         "$sh_prompt"
+                      {
+                        puts "\nSuccess case.\n"
+                        case_pass $case_num
+                        break
+                        }
+         timeout
+                      {
+                         puts "Fail to diff.\n"
+                         case_fail $case_num
+                        }
+
+}
+}
+
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
+

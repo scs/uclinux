@@ -11,6 +11,7 @@ set uclinux_path $user/checkouts/kernel/uclinux-dist
 
 set ttydev /dev/ttyS0
 set baud_rate   "57600"
+set sh_prompt "sh*$"
 
 set targetip 10.100.4.50
 set serverip 10.100.4.174
