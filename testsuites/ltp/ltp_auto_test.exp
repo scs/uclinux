@@ -616,7 +616,7 @@ proc test_cleanup { } {
    set x [timestamp]
    set flag 0
    report "sending marker"
-   #send "echo $x\r"
+   send "echo $x\r"
    set timeout 2
 
    while 1 {
@@ -627,7 +627,7 @@ proc test_cleanup { } {
             set flag 1
          }
 
-         "> " {
+         -re ".*>.*" {
             if { $flag==1} {
 	       report "got kernel prompt"
                break
@@ -685,6 +685,8 @@ proc run_LTP_test { filename command torun mode} {
    global LTP_TESTCASES_DIR
    global ipaddr
 
+   step "Start to test \[$filename\]"
+
    if { $torun == "NA" } {
       set result_flag $LTP_NA
       step "Test NA on uClinux"
@@ -697,10 +699,6 @@ proc run_LTP_test { filename command torun mode} {
 
    if { $filename == "chdir01A" } {
       catch {exec rcp $LTP_TESTCASES_DIR/chdir01 root@$ipaddr:/bin}
-      catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
-   }
-   if { $filename == "chmod01A" } {
-      catch {exec rcp $LTP_TESTCASES_DIR/chmod01 root@$ipaddr:/bin}
       catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
    }
    if { $filename == "chmod01A" } {
@@ -753,22 +751,23 @@ proc run_LTP_test { filename command torun mode} {
                 $filename == "fchown04" } {
       catch {exec rcp $LTP_TESTCASES_DIR/change_owner root@$ipaddr:/bin}
    }
-   if { $filename == "qmm01" } {
-      catch {exec rcp $LTP_TESTCASES_DIR/mmap001 root@$ipaddr:/bin}
-   }
- 
-
 
    step "get test case \[$filename\] from server"
    expect ">" 
+   set timeout 1
    send  "\r"
-   expect  ">"
+   expect ">"
+   expect ">"
+   expect ">"
+   #while 1 {
+   #   expect {
+   #      ">" {break}
+   #      timeout {break}
+   #   }
+   #}
    step "execute \[$command\] ..."
    send "$command\r"
-   #send "getgroups01\r"
    set timeout 60
-   #report "---sent $filename"
-   #send "echo $filename ......\r"
 
    
    while 1 {
@@ -782,6 +781,18 @@ proc run_LTP_test { filename command torun mode} {
             break
          }
        
+         $LTP_PASS {
+            if {$result_flag == $LTP_NOT_RUN} {
+               report "---pass"
+               set result_flag $LTP_PASS
+            }
+         }
+
+         $LTP_FAIL {
+            report "---fail"
+            set result_flag $LTP_FAIL
+         }
+
         "/bin> " {
             report "---done"
             sleep .5
@@ -795,13 +806,6 @@ proc run_LTP_test { filename command torun mode} {
             break
          }
 
-         $LTP_PASS {
-            if {$result_flag == $LTP_NOT_RUN} {
-               report "---pass"
-               set result_flag $LTP_PASS
-            }
-         }
-
          # Someone wrote sigprocmask2 with a non-standard passing response.
          "sigprocmask passed" {
             if {$result_flag == $LTP_NOT_RUN} {
@@ -810,177 +814,6 @@ proc run_LTP_test { filename command torun mode} {
             }
          }
 	 
-#	   "ftruncate03" {
-#	   		set timeout 10
-#	    		while 1 {
-#      				expect {
-#         			-re  "Test Passed.*Test Passed.*Test Passed" {	
-#				      if {$result_flag == $LTP_NOT_RUN} {
-#							report "---pass"
-#							set result_flag $LTP_PASS
-#							}				    
-#           		 	 	break	          			  
-#        			 }   
-#				 timeout {
-#				  report "---fail"
-#				  set result_flag $LTP_FAIL				 
-#           		 	  break				 
-#				}    
-#     			 	}
-#   			}
-#			break             
-#         	}
-     
-#	  "getgroups01" {
-#	       set timeout 1
-#	       while 1 {
-#                 expect { 
-#         	"Kernel panic " {
-#		 	report "---crash"
-#            		set result_flag $LTP_CRASH
-#           		 break          		 
-#        		 }
-#			 
-#		 "CURRENT PROCESS" {
-#               report "---crash"
-#               set result_flag $LTP_CRASH
-#               break
-#               }
-#	       
-#		 "Unknown relocation type" {
-#		 	report "---locks up"
-#            		set result_flag $LTP_CRASH
-#           		 break 
-#		 
-#		 }
-#		  $LTP_PASS {
-#          	  if {$result_flag == $LTP_NOT_RUN} {
-#           	    report "---pass"
-#           	    set result_flag $LTP_PASS
-#           	 }
-#        	 }
-#		   $LTP_FAIL {
-#           	 report "---fail"
-#            	set result_flag $LTP_FAIL
-#         	}
-#        	timeout { 
-#			
-#		        send "\r"
-#			set timeout 2
-#			 while 1 {
-#      				expect {       
-#
-#         			"> " {	
-#				     send "ls \r"
-#				     report "---locks up"
-#            			 	set result_flag $LTP_CRASH
-#					reset_board
-#           		 	 	break	  
-#          			    
-#          			  
-#        			 }   
-#				 timeout {
-#				 report "---locks up"
-#            			 set result_flag $LTP_CRASH
-#           		 	 break				 
-#				 }    
-#     			 	}
-#   			}         
-#             		break
-#         		}
-#      		}
-#   		}      
-#		break    
-#         }
-
-#	  -re "\[^o-q]read03" {
-#	 		
-#	   		set timeout 1
-#	    		while 1 {
-#      				expect {
-#         			  "succeded" {	
-#				      if {$result_flag == $LTP_NOT_RUN} {
-#							report "---pass"
-#							set result_flag $LTP_PASS
-#							}				    
-#           		 	 	break	          			  
-#        			 }   
-#				 timeout {
-#				  report "---fail"
-#				  set result_flag $LTP_FAIL				 
-#           		 	  break				 
-#				}    
-#     			 	}
-#   			}   
-#			break          
-#         	}
-		
-
-
-#	"setgroups03" {
-#	       set timeout 1
-#	       while 1 {
-#                 expect { 
-#         	"Kernel panic " {
-#		 	report "---crash"
-#            		set result_flag $LTP_CRASH
-#           		 break          		 
-#        		 }
-#			 
-#		 "CURRENT PROCESS" {
-#               report "---crash"
-#               set result_flag $LTP_CRASH
-#	       reset_board
-#               break
-#               }
-#	       
-#		 "Unknown relocation type" {
-#		 	report "---locks up"
-#            		set result_flag $LTP_CRASH
-#           		 break 
-#		 
-#		 }
-#		  $LTP_PASS {
-#          	  if {$result_flag == $LTP_NOT_RUN} {
-#           	    report "---pass"
-#           	    set result_flag $LTP_PASS
-#           	 }
-#        	 }
-#		   $LTP_FAIL {
-#           	 report "---fail"
-#            	set result_flag $LTP_FAIL
-#         	}
-#        	timeout { 
-#			
-#		        send "\r"
-#			set timeout 2
-#			 while 1 {
-#      				expect {       
-#
-#         			"> " {	
-#				     send "ls \r"
-#				     report "---locks up"
-#            			 	set result_flag $LTP_CRASH
-#					reset_board
-#           		 	 	break	  
-#          			    
-#          			  
-#        			 }   
-#				 timeout {
-#				 report "---locks up"
-#            			 set result_flag $LTP_CRASH
-#           		 	 break				 
-#				 }    
-#     			 	}
-#   			}         
-#             		break
-#         		}
-#      		}
-#   		}      
-#		break    
-#         }
-
-
 	 
          # Someone wrote signal with non-standard passing response.
          "No errors." {
@@ -1019,11 +852,6 @@ proc run_LTP_test { filename command torun mode} {
             }
          }
 
-         $LTP_FAIL {
-            report "---fail"
-            set result_flag $LTP_FAIL
-         }
-
          # Detect kernel painic message printed out
          "Kernel panic" {	
             report "---crash"
@@ -1053,13 +881,65 @@ proc run_LTP_test { filename command torun mode} {
    step "goto test_cleanup"
    sleep .5
    set x [test_cleanup]
-   sleep 2
+   #sleep 2
    if {$x!=0} {
       set result_flag $LTP_CRASH
    }
 
+   if { $filename == "chdir01A" } {
+      send "rm -f /bin/chdir01\r"
+      send "rm -f /bin/symlink01\r"
+   }
+   if { $filename == "chmod01A" } {
+      send "rm -f /bin/chmod01\r"
+      send "rm -f /bin/symlink01\r"
+   }
+   if { $filename == "execve02" || $filename == "execve04" || $filename == "execve05" } {
+      send "rm -f /bin/test3\r"
+   }
+   if { $filename == "lchown02" || $filename == "readlink04" } {
+      send "rm -f /bin/create_link\r"
+   }
+   if { $filename == "link01" || $filename == "open01A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/open01\r"
+   }
+   if { $filename == "lstat01A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/lstat01\r"
+   }
+   if { $filename == "mkdir05A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/mkdir05\r"
+   }
+   if { $filename == "readlink01A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/readlink01\r"
+   }
+   if { $filename == "rename01A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/rename01\r"
+   }
+   if { $filename == "rmdir03A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/rmdir03\r"
+   }
+   if { $filename == "utime01A" } {
+      send "rm -f /bin/symlink01\r"
+      send "rm -f /bin/utime01\r"
+   }
+   if { $filename == "chmod05" || \
+		$filename == "chmod06" || \
+		$filename == "chown03" || \
+		$filename == "chown04" || \
+		$filename == "fchmod05" || \
+		$filename == "fchmod06" || \
+                $filename == "fchown03" || \
+                $filename == "fchown04" } {
+      send "rm -f /bin/change_owner\r"
+   }
 
-   send "rm /bin/$filename\r"
+   send "rm -f /bin/$filename\r"
    step "remove testcase done"
 
   # Check if system is alive
@@ -1140,9 +1020,50 @@ set ULIMIT                ulimit
 set i 0
 set cpu_info_loc                        $i
 set result_matrix1 {
-       { abort01     	     {ulimit -c 1024;abort01}            notrun		NA} 
-       { accept01     	     {accept01}                     	 notrun		uClinux} 
-       { access03     	     {access03}                     	 notrun		NA} 
+       { abort01     	     {ulimit -c 1024;abort01}            notrun		NA } 
+       { accept01     	     {accept01}                     	 notrun		UCLINUX } 
+       { access01     	     {access01}                     	 notrun		UCLINUX } 
+       { access02     	     {access02}                     	 notrun		UCLINUX } 
+       { access03     	     {access03}                     	 notrun		NA } 
+       { access04     	     {access04}                     	 notrun		UCLINUX } 
+       { access05     	     {access05}                     	 notrun		UCLINUX } 
+       { acct01     	     {acct01}                     	 notrun		NA } 
+       { acct02     	     {acct02}                     	 notrun		NA } 
+       { adjtimex01     	     {adjtimex01}                     	 notrun		UCLINUX } 
+       { adjtimex02     	     {adjtimex02}                     	 notrun		UCLINUX } 
+       { alarm01     	     {alarm01}                     	 notrun		UCLINUX } 
+       { alarm02     	     {alarm02}                     	 notrun		UCLINUX } 
+       { alarm03     	     {alarm03}                     	 notrun		UCLINUX } 
+       { alarm04     	     {alarm04}                     	 notrun		UCLINUX } 
+       { alarm05     	     {alarm05}                     	 notrun		UCLINUX } 
+       { alarm06     	     {alarm06}                     	 notrun		UCLINUX } 
+       { alarm07     	     {alarm07}                     	 notrun		UCLINUX } 
+       { asyncio02     	     {asyncio02}                     	 notrun		UCLINUX } 
+       { bind01     	     {bind01}                     	 notrun		UCLINUX } 
+       { bind02     	     {bind02}                     	 notrun		UCLINUX } 
+       { brk01     	     {brk01}                     	 notrun		NA } 
+       { capget01     	     {capget01}                     	 notrun		UCLINUX } 
+       { capget02     	     {capget02}                     	 notrun		UCLINUX } 
+       { capset01     	     {capset01}                     	 notrun		UCLINUX } 
+       { capset02     	     {capset02}                     	 notrun		UCLINUX } 
+       { chdir01     	     {chdir01}                     	 notrun		UCLINUX } 
+       { chdir01A     	     {symlink01 -T chdir01}                     	 notrun		UCLINUX } 
+       { chdir02     	     {chdir02}                     	 notrun		UCLINUX } 
+       { chdir03     	     {chdir03}                     	 notrun		UCLINUX } 
+       { chdir04     	     {chdir04}                     	 notrun		UCLINUX } 
+       { chmod01     	     {chmod01}                     	 notrun		UCLINUX } 
+       { chmod01A     	     {symlink01 -T chmod01}                     	 notrun		UCLINUX } 
+       { chmod02     	     {chmod02}                     	 notrun		UCLINUX } 
+       { chmod03     	     {chmod03}                     	 notrun		UCLINUX } 
+       { chmod04     	     {chmod04}                     	 notrun		UCLINUX } 
+       { chmod05     	     {cp -p /bin/change_owner /tmp;chmod05 }                     	 notrun		UCLINUX } 
+       { chmod06     	     {cp -p /bin/change_owner /tmp;chmod06}                     	 notrun		NA } 
+       { chmod07     	     {chmod07}                     	 notrun		UCLINUX } 
+       { chown01     	     {chown01}                     	 notrun		UCLINUX } 
+       { chown02     	     {chown02}                     	 notrun		UCLINUX } 
+       { chown03     	     {export change_owner=/bin/change_owner;chown03}                     	 notrun		UCLINUX } 
+       { chown04     	     {cp -p /bin/change_owner /tmp;chown04}                     	 notrun		NA } 
+       { chown05     	     {chown05}                     	 notrun		UCLINUX } 
 }
 
 
@@ -1447,16 +1368,16 @@ set result_matrix {
        { mknodat01     	     {mknodat01}                     	 notrun		UCLINUX } 
        { mlock01     	     {mlock01}                     	 notrun		NA } 
        { mlock02     	     {mlock02}                     	 notrun		NA } 
-       { qmm01     	     {mmap001 -m 1}                     	 notrun		UCLINUX } 
-       { mmap01     	     {mmap01}                     	 notrun		UCLINUX } 
-       { mmap02     	     {mmap02}                     	 notrun		UCLINUX } 
-       { mmap03     	     {mmap03}                     	 notrun		UCLINUX } 
-       { mmap04     	     {mmap04}                     	 notrun		UCLINUX } 
-       { mmap05     	     {mmap05}                     	 notrun		UCLINUX } 
-       { mmap06     	     {mmap06}                     	 notrun		UCLINUX } 
-       { mmap07     	     {mmap07}                     	 notrun		UCLINUX } 
-       { mmap08     	     {mmap08}                     	 notrun		UCLINUX } 
-       { mmap09     	     {mmap09}                     	 notrun		UCLINUX } 
+       { qmm01     	     {mmap001 -m 1}                     	 notrun		NA } 
+       { mmap01     	     {mmap01}                     	 notrun		NA } 
+       { mmap02     	     {mmap02}                     	 notrun		NA } 
+       { mmap03     	     {mmap03}                     	 notrun		NA } 
+       { mmap04     	     {mmap04}                     	 notrun		NA } 
+       { mmap05     	     {mmap05}                     	 notrun		NA } 
+       { mmap06     	     {mmap06}                     	 notrun		NA } 
+       { mmap07     	     {mmap07}                     	 notrun		NA } 
+       { mmap08     	     {mmap08}                     	 notrun		NA } 
+       { mmap09     	     {mmap09}                     	 notrun		NA } 
        { modify_ldt01     	     {modify_ldt01}                     	 notrun		NA } 
        { modify_ldt02     	     {modify_ldt02}                     	 notrun		NA } 
        { mprotect01     	     {mprotect01}                     	 notrun		NA } 
@@ -2260,8 +2181,9 @@ test_cleanup
 #
 # Add network configuration.
 sleep 2
+set timeout 2
 send -s "ifconfig eth0 $ipaddr up\r"
-expect "/bin>"
+expect "root:~>"
 #sleep 5
  
 step "additional setup for tests"
@@ -2285,59 +2207,59 @@ send "export TMP=/tmp\r"
 expect "/bin>"
 send "echo \$PATH\r"
 expect "/bin>"
-send -s "chmod 777 /tmp\r"
-step "chmod /tmp done"
+#send -s "chmod 777 /tmp\r"
+#step "chmod /tmp done"
 
-set timeout 4
-set flag 0
-while 1 {
-   expect {
-
-      "No such file or directory" { 
-         set flag 1
-      }
-
-      "> " {
-         if { $flag==0} {
-            report "executed chmod 777 /tmp"
-	   # puts "1111111111"
-	    send "\r"
-         } else {
-            report "problem with chmod 777 /tmp"
-	    send "\r"
-         }
-         break
-      }
-
-      timeout {
-          report "timeout during chmod 777 /tmp"
-          recover
-          break
-      }
-   }
-}
+#set timeout 4
+#set flag 0
+#while 1 {
+#   expect {
+#
+#      "No such file or directory" { 
+#         set flag 1
+#      }
+#
+#      "> " {
+#         if { $flag==0} {
+#            report "executed chmod 777 /tmp"
+#	   # puts "1111111111"
+#	    send "\r"
+#         } else {
+#            report "problem with chmod 777 /tmp"
+#	    send "\r"
+#         }
+#         break
+#      }
+#
+#      timeout {
+#          report "timeout during chmod 777 /tmp"
+#          recover
+#          break
+#      }
+#   }
+#}
 #sleep 2
-send -s "ls -l /\r"
-set timeout 4
-set flag 0
-while 1 {
-   expect {
-       "tmp" {
-      # puts "2222222"
-       break
-       }
-      
-
-      timeout {
-          report "timeout during chmod 777 /tmp"
-         
-          break
-      }
-   }
-}
+#send -s "ls -l /\r"
+#set timeout 4
+#set flag 0
+#while 1 {
+#   expect {
+#       "tmp" {
+#      # puts "2222222"
+#       break
+#       }
+#      
+#
+#      timeout {
+#          report "timeout during chmod 777 /tmp"
+#         
+#          break
+#      }
+#   }
+#}
 
 # End of skip_manual if statement way above.
-}
+#}
 
 
 
@@ -2358,9 +2280,10 @@ for {set i 0} {$i < [llength $result_matrix]} {incr i} {
   
    
    # execute the command associated with that row: element 1
-   sleep 2
+   #sleep 2
+   sleep .5
    set result [run_LTP_test [lindex $x 0] [lindex $x 1] [lindex $x 3] 0]
-   sleep 2
+   #sleep 2
    record_test_result $i $result
 }
 
