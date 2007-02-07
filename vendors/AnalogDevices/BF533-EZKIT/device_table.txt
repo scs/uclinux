@@ -72,6 +72,7 @@
 /dev/ptmx	c	666	0	0	5	2	0	0	-
 /dev/ttyS0	c	755	0	0	4	64	0	0	-
 #/dev/ttyS1	c	755	0	0	4	65	0	0	-
+/dev/ttyBF0	c	755	0	0	204	64	0	0	-
 #/dev/ttyUSB c	664	0	0	188	0	0	1	1
 /dev/psaux	c	640	0	0	10	1	0	0	-
 /dev/rtc	c	640	0	0	10	135	0	0	-
