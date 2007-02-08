@@ -22,7 +22,7 @@
 
 #include "server.h"
 #include "linux-low.h"
-#include <asm/asm-offsets.h>
+#include <asm/ptrace.h>
  
 static int bfin_regmap[] =
 {
