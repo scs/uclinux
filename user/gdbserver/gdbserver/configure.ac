@@ -38,7 +38,9 @@ AC_HEADER_STDC
 
 AC_CHECK_HEADERS(sgtty.h termio.h termios.h sys/reg.h string.h dnl
 		 proc_service.h sys/procfs.h thread_db.h linux/elf.h dnl
-		 stdlib.h unistd.h)
+		 stdlib.h unistd.h dnl
+		 terminal.h sys/ioctl.h netinet/in.h sys/socket.h netdb.h dnl
+		 netinet/tcp.h arpa/inet.h sys/wait.h)
 
 AC_CHECK_DECLS(strerror)
 
@@ -47,6 +49,15 @@ AC_CHECK_TYPES(socklen_t, [], [],
 #include <sys/socket.h>
 ])
 . ${srcdir}/configure.srv
+
+if test "${srv_mingw}" = "yes"; then
+  LIBS="$LIBS -lwsock32"
+  AC_DEFINE(USE_WIN32API, 1,
+	    [Define if we should use the Windows API, instead of the
+	     POSIX API.  On Windows, we use the Windows API when
+	     building for MinGW, but the POSIX API when building
+	     for Cygwin.])
+fi
 
 if test "${srv_linux_usrregs}" = "yes"; then
   AC_DEFINE(HAVE_LINUX_USRREGS, 1,
@@ -104,6 +115,7 @@ if test "$srv_linux_thread_db" = "yes"; then
     srv_linux_thread_db=no
   else
     srv_libs="$srv_cv_thread_db"
+    SRV_CHECK_TLS_GET_ADDR
   fi
   old_LDFLAGS="$LDFLAGS"
   LDFLAGS="$LDFLAGS -rdynamic"
@@ -121,6 +133,10 @@ if test "$srv_linux_thread_db" = "yes"; then
                   [gdbsrv_cv_have_td_version=no])])
   if test $gdbsrv_cv_have_td_version = yes; then
     AC_DEFINE(HAVE_TD_VERSION, 1, [Define if TD_VERSION is available.])
+  fi
+
+  if test "$srv_cv_tls_get_addr" = yes; then
+    AC_DEFINE(HAVE_TD_THR_TLS_GET_ADDR, 1, [Define if td_thr_tls_get_addr is available.])
   fi
 fi
 

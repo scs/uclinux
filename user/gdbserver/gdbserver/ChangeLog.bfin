@@ -3,17 +3,6 @@
 	* linux-bfin-low.c: Don't include asm/asm-offsets.h, include
 	asm/ptrace.h instead.
 
-2006-09-12  Jie Zhang  <jie.zhang@analog.com>
-
-	Backport from FSF CVS
-	2006-08-08  Richard Sandiford  <richard@codesourcery.com>
-	* server.c (terminal_fd): New variable.
-	(old_foreground_pgrp): Likewise.
-	(restore_old_foreground_pgrp): New function.
-	(start_inferior): Record the terminal file descriptor in terminal_fd
-	and its original foreground group in old_foreground_pgrp.  Register
-	restore_old_foreground_pgrp with atexit().
-
 2006-09-04  Jie Zhang  <jie.zhang@analog.com>
 
 	* linux-bfin-low.c (bfin_regmap): Rename PT_EXTRA1 to PT_TEXT_ADDR,

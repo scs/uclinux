@@ -1,3 +1,156 @@
+2006-12-05  Markus Deuling  <deuling@de.ibm.com>
+
+	* README: Update supported targets.
+
+2006-11-24  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* configure.srv: Add target "spu*-*-*".
+	* Makefile.in (clean): Remove reg-spu.c.
+	(reg-spu.c, reg-spu.o, spu-low.o): Add dependencies.
+	* spu-low.c: New file.
+
+2006-11-21  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	Checked in by Joel Brobecker  <brobecker@adacore.com>
+	* configure.ac: Correct td_thr_tls_get_addr test.
+	* configure: Regenerated.
+
+2006-11-06  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* server.c (handle_query): Correct error handling for read_auxv.
+
+2005-10-19  Ulrich Weigand  <uweigand@de.ibm.com>
+
+	* configure.srv [s390-*-linux*, s390x-*-linux*]: Set srv_linux_regsets
+	and srv_linux_thread_db to yes.
+	* linux-s390-low.c (s390_fill_gregset): New function.
+	(target_regsets): Define data structure.
+
+2006-10-17  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* acinclude.m4 (SRV_CHECK_TLS_GET_ADDR): New.
+	* configure.ac: Use it.  Define HAVE_TD_THR_TLS_GET_ADDR.
+	* config.in, configure: Regenerated.
+	* inferiors.c (gdb_id_to_thread): New function.
+	(gdb_id_to_thread_id): Use it.
+	* linux-low.c (linux_target_ops): Use thread_db_get_tls_address.
+	* linux-low.h (struct process_info): Add th member.
+	(thread_db_get_tls_address): New prototype.
+	* remote-utils.c (decode_address): Make non-static.
+	* server.c (handle_query): Handle qGetTLSAddr.
+	* server.h (gdb_id_to_thread, decode_address): New prototypes.
+	* target.h (struct target_ops): Add get_tls_address.
+	* thread-db.c (maybe_attach_thread): Save the thread handle.
+	(thread_db_get_tls_address): New.
+
+2006-09-28  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* linux-low.c (PTRACE_GETSIGINFO, PTRACE_SETSIGINFO): Define.
+	(linux_resume_one_process): Take a siginfo_t *.  Update all
+	callers.  Queue it if necessary.  Use PTRACE_SETSIGINFO.
+	(struct pending_signals): Add a siginfo_t.
+	(linux_wait_for_process): Always set last_status.
+	(linux_wait_for_event): Use PTRACE_GETSIGINFO.
+	(linux_queue_one_thread): Use PTRACE_GETSIGINFO.
+	* linux-low.h (struct process_info): Add last_status.
+
+2006-09-21  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* remote-utils.c (try_rle): New function.
+	(putpkt_binary): Use it.
+
+2006-08-19  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* Makefile.in (clean): Clean reg-x86-64-linux.c.
+	(reg-x86-64-linux.o, reg-x86-64-linux.c): New.
+	* configure.srv (x86_64-*-linux*): Use reg-x86-64-linux.o.
+	* linux-x86-64-low.c (x86_64_regmap): Include ORIG_RAX.
+	(x86_64_fill_gregset, x86_64_store_gregset): Skip floating
+	point registers.
+
+2006-08-08  Richard Sandiford  <richard@codesourcery.com>
+
+	* server.c (terminal_fd): New variable.
+	(old_foreground_pgrp): Likewise.
+	(restore_old_foreground_pgrp): New function.
+	(start_inferior): Record the terminal file descriptor in terminal_fd
+	and its original foreground group in old_foreground_pgrp.  Register
+	restore_old_foreground_pgrp with atexit().
+
+2006-07-26  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* server.c (handle_query): Correct qPart to qXfer.
+
+2006-07-22  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* configure.ac: Check for more headers which are missing on
+	Windows.  Automatically supply -lwsock32 and USE_WIN32API.
+	* configure.srv: Add Cygwin and mingw32.
+	* remote-utils.c: Don't include headers unconditionally which
+	are missing on mingw32.  Include <winsock.h> for mingw32.
+	(remote_open): Adjust for mingw32 support.  Flush
+	standard error after writing to it.
+	(remote_close, putpkt_binary, input_interrupt, block_async_io)
+	(unblock_async_io, enable_async_io, disable_async_io)
+	(readchar, getpkt): Update for Winsock support.
+	(prepare_resume_reply): Expect a protocol signal number.
+	* server.c: Disable <sys/wait.h> on mingw32.
+	(start_inferior): Adjust for mingw32 support.  Flush
+	standard error after writing to it.
+	(attach_inferior): Likewise.  Use protocol signal
+	numbers.
+	(main): Skip 'D' packet on mingw32.  Use protocol signal numbers
+	and names.
+	* win32-i386-low.c: New file.
+	* Makefile.in (XM_CLIBS): Set.
+	(gdbserver, gdbreplay): Use $(INTERNAL_CFLAGS).
+	(win32-i386-low.o): New dependency rule.
+	* linux-low.c (linux_wait): Use target signal numbers.
+	* target.h (struct target_ops): Doc fix.
+	* server.h (target_signal_to_name): New prototype.
+	* gdbreplay.c: Don't include headers unconditionally which
+	are missing on mingw32.  Include <winsock.h> for mingw32.
+	(remote_close, remote_open): Adjust for Winsock support.
+	* configure, config.in: Regenerated.
+
+2006-07-12  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* server.c (decode_xfer_read, write_qxfer_response): New.
+	(handle_query): Take a packet length argument.  Handle
+	qXfer:auxv:read instead of qPart:auxv:read.  Mention it in
+	the qSupported response.
+	(main): Update call to handle_query.
+
+2006-06-22  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* remote-utils.c (remote_escape_output, remote_unescape_input): New.
+	(putpkt_binary): Renamed from putpkt and adjusted for binary
+	data.
+	(putpkt): New wrapper for putpkt_binary.
+	(readchar): Don't mask off the high bit.
+	(decode_X_packet): New function.
+	* server.c (main): Call putpkt_binary if a handler sets the packet
+	length.  Save the length of the incoming packet.  Handle 'X'.
+	* server.h (gdb_byte, remote_escape_output, decode_X_packet): New.
+
+2006-06-21  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* server.c (handle_query): Handle qSupported.
+
+2006-05-30  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* remote-utils.c (all_symbols_looked_up): New variable.
+	(look_up_one_symbol): Check it.
+	* server.h (look_up_one_symbol): New declaration.
+	* thread-db.c (thread_db_init): Set all_symbols_looked_up.
+
+2006-05-30  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* Makefile.in (linux-arm-low.o): Update dependencies.
+	* linux-arm-low.c: Include "gdb_proc_service.h".
+	(PTRACE_GET_THREAD_AREA): Define.
+	(ps_get_thread_area): New function.
+
 2006-05-09  Nathan Sidwell  <nathan@codesourcery.com>
 
 	* configure.srv (m68k*-*-uclinux*): New target.
