@@ -1634,7 +1634,7 @@ set result_matrix {
        { shmctl02     	     {shmctl02}                     	 notrun		UCLINUX } 
        { shmctl03     	     {shmctl03}                     	 notrun		UCLINUX } 
        { shmctl04     	     {shmctl04}                     	 notrun		UCLINUX } 
-       { shmdt01     	     {shmdt01}                     	 notrun		UCLINUX } 
+       { shmdt01     	     {shmdt01}                     	 notrun		NA } 
        { shmdt02     	     {shmdt02}                     	 notrun		UCLINUX } 
        { shmget01     	     {shmget01}                     	 notrun		UCLINUX } 
        { shmget02     	     {shmget02}                     	 notrun		UCLINUX } 
