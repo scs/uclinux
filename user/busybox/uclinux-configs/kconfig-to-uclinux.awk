@@ -113,11 +113,12 @@ if ($1 ~ /^#/) {
 			print option >> HELPFILE
 			while (1) {
 				getline
+				get_more_help = ($0 ~ /^\t/)
+				sub(/^\t/,"")
 				print >> HELPFILE
-				if ($0 ~ /^\t/)
+				if (get_more_help)
 					continue
-				else
-					break
+				break
 			}
 		} else if ($1 == "range") {
 			# XXX: hmm ... what to do ...
@@ -249,16 +250,19 @@ if ($1 ~ /^#/) {
 			print "NO_IDEA" >> HELPFILE
 			while (1) {
 				getline
+				get_more_help = ($0 ~ /^\t/)
+				sub(/^\t/,"")
 				print >> HELPFILE
-				if ($0 ~ /^\t/)
+				if (get_more_help)
 					continue
 				else
 					break
 			}
 		} else if (NF > 0) {
-			if (inhelp)
+			if (inhelp) {
+				sub(/^\t/,"")
 				print >> HELPFILE
-			else
+			} else
 				err("Unknown choice")
 		}
 	}
@@ -269,9 +273,10 @@ if ($1 ~ /^#/) {
 	print "source ../user/busybox/uclinux-configs/"$2
 	print "source ../user/busybox/uclinux-configs/"$2".help" >> HELPFILE
 } else {
-	if (inhelp)
+	if (inhelp) {
+		sub(/^\t/,"")
 		print >> HELPFILE
-	else if (NF > 0)
+	} else if (NF > 0)
 		err("Unknown record")
 }
 }
