@@ -21,6 +21,7 @@
  UART_MODE=dma
  THIS_LOG="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")""/THIS_LOG"
  
+ 
  ########################################### Please don't edit anything below this line.###################################
 
 if [ $# -lt 1 ] ; then
@@ -29,10 +30,10 @@ if [ $# -lt 1 ] ; then
   echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
   echo "The CPU :           BF533, BF537, BF561,etc."
   echo "The BINARY_FORMAT : flat, elf, shared-flat."
-  echo "The ALLOCATOR :     slab\(p2\), slob\(p2\), slob\(np2\)."
+  echo "The ALLOCATOR :     slab\(p2\), slab\(np2\), slob\(p2\), slob\(np2\)."
   echo "The ICACHE,DCACHE : on, off."
   echo "The POLICY :        write_through, write_back."
-  echo
+  echo "The UART_MODE :     dma, pio."
   echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma /home/test/test_scripts/kernel/logs/all_BF537_flat_slab(p2)_icache(on)_dcache(on,write_through)_UART(dma)/THIS_LOG."
   exit
 fi
@@ -112,7 +113,7 @@ fi
 ### set this value to 1 if your target board could be restarted from host machine parallel port.
 
 RESET_BOARD=1 
-
+n=50
      
 #################################    BOARD CONFIG DEFINITION    ###################################################### 
 
@@ -122,23 +123,16 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
+   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" )
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="1"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="1"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="1"  [$(( n + 7 ))]="1"   [$(( n + 8 ))]="0" )     
    
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
+
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
    
-   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"      [2]="1"       [3]="1"       [4]="1"     )
+   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1"   [$(( n + 1 ))]="1"  )
       
-     timer=1
-     ltp=1
-     audio_ad1836=1
-     audio_ad73311=1
-     snormtd=1
-     dpmc=1
-     serial_uart1=1
-     coreb=0
-	 
+
 fi
 
 #################################    BOARD CONFIG DEFINITION    ######################################################
@@ -148,125 +142,86 @@ if [ $BOARD_CONFIG = "BF537-STAMP-AD(73311)" ] ; then
    BOARD_TYPE=BF537-STAMP
 
    BUILD_POLICY=1
+   
+   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb")
+   
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="1"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="1"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" )     
+   
 
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
-
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )
-
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
-
-   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"      [2]="1"       [3]="1"       [4]="1"     )
-
-     timer=1
-     ltp=1
-     audio_ad1836=0
-     audio_ad73311=1
-     snormtd=1
-     dpmc=1
-     serial_uart1=1
-     coreb=0
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1"  )
+   
+   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1"   [$(( n + 1 ))]="1"  )
+      
 
 fi
 
 
 # Since the SW6 setting for jffs2(all on) and cf card(on on off off) are conflicting, disable jffs2 test here.
+if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 
-if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then   
-   
-   BOARD_TYPE=BF537-STAMP  
-    
+   BOARD_TYPE=BF537-STAMP
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
+  AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc" 
+[$(( n + 8 ))]="coreb")
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="0"   [11]="0"   [12]="0"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="1"   [24]="1" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="0"   [11]="0"   [12]="0"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="1"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="1"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="1"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" )     
    
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
+
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
    
-   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"      [2]="1"       [3]="1"       [4]="1"     )
+   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1"   [$(( n + 1 ))]="1"   )
       
-     timer=1
-     ltp=1
-     audio_ad1836=0
-     audio_ad73311=0
-     snormtd=1
-     dpmc=1
-     serial_uart1=1
-     coreb=0
 fi
 
-if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then   
-   
+if [ $BOARD_CONFIG = "BF533-STAMP-STD" ] ; then
+
    BOARD_TYPE=BF533-STAMP
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
+  AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" )
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="0"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="1"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="1"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="0")     
    
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
+
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1"  )
    
-   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"      [2]="1"       [3]="0"       [4]="0"     )
-      
-     timer=1
-     ltp=1
-     audio_ad1836=1
-     audio_ad73311=1
-     snormtd=1
-     dpmc=1
-     serial_uart1=1
-     coreb=0
+   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="0"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1"   [$(( n + 1 ))]="1"  )
 fi
- 
-if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then  
-   
+
+if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
+
    BOARD_TYPE=BF561-EZKIT
    
    BUILD_POLICY=1
    
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
+  AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc" [$(( n + 8 ))]="coreb")
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="0"  [2]="1" [3]="1"  [4]="0"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="0" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="1")     
    
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
+
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
    
-   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"      [2]="0"       [3]="0"       [4]="0"     )
+   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"   [$(( n + 1 ))]="0"  )
       
-     timer=1
-     ltp=1
-     audio_ad1836=0
-     audio_ad73311=0
-     snormtd=0
-     dpmc=1
-     serial_uart1=0
-     coreb=1
-          
 fi
 
-if [ $BOARD_CONFIG = "BF533-EZKIT-STD" ] ; then  
-   
+if [ $BOARD_CONFIG = "BF533-EZKIT-STD" ] ; then
+
    BOARD_TYPE=BF533-EZKIT
    
    BUILD_POLICY=1
 
-   AUTO_TESTCASE=(  [0]="ethernet"  [1]="ethernet_in_buffer"  [2]="serial"  [3]="stress"   [4]="watchdog" [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="nfs"     [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory" [18]="l1_app" [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom")
+ AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" )
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="0"  [2]="1" [3]="1"  [4]="0"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="1"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0" )      
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="0"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="0")     
    
-   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="ad9960" [4]="joystick")
+
+   MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
    
-   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"      [2]="0"       [3]="0"       [4]="0"     )
+   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"   [$(( n + 1 ))]="0" )
       
-     timer=1
-     ltp=1
-     audio_ad1836=0
-     audio_ad73311=0
-     snormtd=0
-     dpmc=1
-     serial_uart1=0
-     coreb=0
-          
 fi
 
 
@@ -279,10 +234,12 @@ echo
 
 cd  $KERNEL_SOURCE_BAK/testsuites
 chmod +x *.exp  */*.exp
+cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/decide_all_standard  $USER/test_scripts/kernel
+cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/test_runtime_control  $USER/test_scripts/kernel
 
   #############################################################################################
   ############################ BUILD POLICY KERNEL ############################################
-  if [ $BUILD_POLICY -eq 1  ] ; then
+if [ $BUILD_POLICY -eq 1  ] ; then
   echo  "Running build policy kernel... "
   
   rm -rf $KERNEL_PATH
@@ -320,13 +277,13 @@ chmod +x *.exp  */*.exp
   cp -a  $KERNEL_PATH_BAK/*  .
     
   sleep 10
-  fi
+fi
   
   #############################################################################################
   ####################            AUTOMATED TESTING             ###############################
   #############################################################################################
   
-for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30
 do
   if [ ${AUTO_RUN_STATUS[$i]} -eq 1  ] ; then
   
@@ -419,7 +376,7 @@ do
   ###############################################################################################
   ########################## TEST TIMER #########################################################
   
- if [ $timer -eq 1  ] ; then
+ if [ ${AUTO_RUN_STATUS[$(( n + 1 ))]} -eq 1  ] ; then
   echo  "Testing timer..."
 
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
@@ -451,8 +408,7 @@ do
   
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer1000
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer1000
-  cp $KERNEL_SCRIPTS/timer/build_timer_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/timer/timer_tick_test_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/timer/*_log $THIS_LOG
   
   sleep 30
 
@@ -466,45 +422,10 @@ do
   fi
 
 
-  ###############################################################################################
-  ########################## TEST COREB #########################################################
-  
- if [ $coreb -eq 1  ] ; then
-  echo  "Testing coreb..."
-
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
-
-  cd $KERNEL_SCRIPTS/coreb
-  ./build_coreb_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./coreb_test.exp >/dev/null  2>&1
-  
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb 
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.coreb
-  
-  cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
-  
-  sleep 30
- 
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-
-  fi
-
-  
   #############################################################################################
   ########################## TEST AUDIO #########################################################
   
-  if [ $audio_ad1836 -eq 1  ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
   
   echo  "Testing audio ad1836..."
   
@@ -539,7 +460,7 @@ do
 
   fi
   
-  if [ $audio_ad73311 -eq 1  ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
   
   echo  "Testing audio ad73311..."
   
@@ -576,7 +497,7 @@ do
    #############################################################################################
   ################# TEST BOOT KERNEL AND MOUNT JFFS2 FS FROM SPI FLASH ########################
 
-  if [ $snormtd -eq 1  ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 6 ))]} -eq 1  ] ; then
   echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
  # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
 
@@ -630,10 +551,65 @@ do
   fi
 
   
+  ##########################################################################################
+  ########################## TEST DPMC #####################################################
+  
+  if [ ${AUTO_RUN_STATUS[$(( n + 7 ))]} -eq 1  ] ; then
+  echo  "Testing dpmc..."
+  
+  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uclinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+  
+  cd $KERNEL_SCRIPTS/dpmc
+  ./build_dpmc_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
+  sleep 30
+  ./dpmc_test.exp 200000000 80000000 850 >/dev/null  2>&1
+   
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+  
+  cd $KERNEL_SCRIPTS/dpmc
+  sleep 30
+  ./dpmc_test.exp 300000000 100000000 1000 >/dev/null  2>&1
+    
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+  
+  cd $KERNEL_SCRIPTS/dpmc
+  sleep 30
+  ./dpmc_test.exp 500000000 100000000 1200 >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dpmc
+  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
+  
+  sleep 30 
+ 
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+
+
+
 #############################################################################################
 ########################## TEST LTP #########################################################
 
-if [ $ltp -eq 1 ] ; then
+if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   echo "Testing LTP..."
 
   ltp_args=( [0]="1 1" [1]="1 2 0" [2]="1 2 1" [3]="2 1" [4]="2 2 0" [5]="2 2 1" )
@@ -701,11 +677,45 @@ done
 fi
 
 
+  ###############################################################################################
+  ########################## TEST COREB #########################################################
+  
+ if [ ${AUTO_RUN_STATUS[$(( n + 8 ))]} -eq 1  ] ; then
+  echo  "Testing coreb..."
+
+  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uclinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+
+  cd $KERNEL_SCRIPTS/coreb
+  ./build_coreb_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./coreb_test.exp >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb 
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.coreb
+  
+  cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
+  
+  sleep 30
+ 
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+
   ################################################################################################
   ###########################          MANUAL TEST          ######################################
   ################################################################################################
     
-for i in 0 1 2 3 4 5 
+for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   do
   if [ ${MANUAL_RUN_STATUS[$i]} -eq 1  ] ; then
   
@@ -720,11 +730,20 @@ for i in 0 1 2 3 4 5
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
   cd $KERNEL_SCRIPTS/spiadc
+  elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
+  cd $KERNEL_SCRIPTS/serial
   else
   cd $KERNEL_SCRIPTS/${MANUAL_TESTCASE[$i]}    
   fi
   
+  if [ ${MANUAL_TESTCASE[$i]} == "i2ctwi" ] ; then
+  ./build_${MANUAL_TESTCASE[$i]}_keyboard_kernel.exp $BOARD_TYPE  >/dev/null  2>&1 
+  sleep 5
+  ./build_${MANUAL_TESTCASE[$i]}_lcd_kernel.exp $BOARD_TYPE  >/dev/null  2>&1 
+  else
   ./build_${MANUAL_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1  
+  fi
+
   if [ ! -f $KERNEL_SOURCE/images/linux ]
   then
         echo "$0:       Error, failed."
@@ -736,6 +755,8 @@ for i in 0 1 2 3 4 5
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
   cp $KERNEL_SCRIPTS/spiadc/*_log  $THIS_LOG
+  elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
+  cp $KERNEL_SCRIPTS/serial/*_log  $THIS_LOG
   else
   cp $KERNEL_SCRIPTS/${MANUAL_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
@@ -745,63 +766,11 @@ for i in 0 1 2 3 4 5
   done
   
    
-  ##########################################################################################
-  ########################## TEST DPMC #####################################################
-  
-  if [ $dpmc -eq 1  ] ; then
-  echo  "Testing dpmc..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
-  
-  cd $KERNEL_SCRIPTS/dpmc
-  ./build_dpmc_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
-  sleep 30
-  ./dpmc_test.exp 200000000 80000000 850 >/dev/null  2>&1
-   
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-  
-  cd $KERNEL_SCRIPTS/dpmc
-  sleep 30
-  ./dpmc_test.exp 300000000 100000000 1000 >/dev/null  2>&1
-    
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-  
-  cd $KERNEL_SCRIPTS/dpmc
-  sleep 30
-  ./dpmc_test.exp 500000000 100000000 1200 >/dev/null  2>&1
-  
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dpmc
-  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
-  
-  sleep 30 
  
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-
-  fi
-
   #############################################################################################
   ########################## TEST SERIAL UART1 ################################################  
   
-  if [ $serial_uart1 -eq 1  ] ; then
+  if [ ${MANUAL_RUN_STATUS[$(( n + 1 ))]} -eq 1  ] ; then
   echo  "Testing serial on uart1..."
        
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
