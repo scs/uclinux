@@ -708,7 +708,7 @@ proc run_LTP_test { filename command torun mode} {
    #if { $filename == "creat07" } {
    #   catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
    #}
-   if { $filename == "execve02" || $filename == "execve04" || $filename == "execve05" } {
+   if { $filename == "execve02" || $filename == "execve05" } {
       catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
    }
    if { $filename == "lchown02" || $filename == "readlink04" } {
@@ -894,7 +894,7 @@ proc run_LTP_test { filename command torun mode} {
       send "rm -f /bin/chmod01\r"
       send "rm -f /bin/symlink01\r"
    }
-   if { $filename == "execve02" || $filename == "execve04" || $filename == "execve05" } {
+   if { $filename == "execve02" || $filename == "execve05" } {
       send "rm -f /bin/test3\r"
    }
    if { $filename == "lchown02" || $filename == "readlink04" } {
@@ -1157,7 +1157,7 @@ set result_matrix {
        { execve01     	     {execve01}                     	 notrun		UCLINUX } 
        { execve02     	     {execve02 -F /bin/test3}                     	 notrun		UCLINUX } 
        { execve03     	     {execve03}                     	 notrun		UCLINUX } 
-       { execve04     	     {cp -f /bin/test3 /tmp; execve04 -F test3}                     	 notrun		UCLINUX } 
+       { execve04     	     {cp -f /bin/test3 /tmp; execve04 -F test3}                     	 notrun		NA } 
        { execve05     	     {execve05 -F /bin/test3}                     	 notrun		UCLINUX } 
        { execve06     	     {execve06 20 /bin/execve06 /bin/execve06 4}                     	 notrun		UCLINUX } 
        { execvp01     	     {execvp01}                     	 notrun		UCLINUX } 
@@ -1355,7 +1355,7 @@ set result_matrix {
        { mkdir05A     	     {symlink01 -T mkdir05}                     	 notrun		UCLINUX } 
        { mkdir08     	     {mkdir08}                     	 notrun		UCLINUX } 
        { mkdir09     	     {mkdir09}                     	 notrun		UCLINUX } 
-       { mkdirat01     	     {mkdir01}                     	 notrun		UCLINUX } 
+       { mkdirat01     	     {mkdir01}                     	 notrun		NA } 
        { mknod01     	     {mknod01}                     	 notrun		UCLINUX } 
        { mknod02     	     {mknod02}                     	 notrun		UCLINUX } 
        { mknod03     	     {mknod03}                     	 notrun		UCLINUX } 
@@ -1555,7 +1555,7 @@ set result_matrix {
        { semget01     	     {semget01}                     	 notrun		UCLINUX } 
        { semget02     	     {semget02}                     	 notrun		UCLINUX } 
        { semget03     	     {semget03}                     	 notrun		UCLINUX } 
-       { semget04     	     {semget04}                     	 notrun		UCLINUX } 
+       { semget04     	     {semget04}                     	 notrun		NA } 
        { semget05     	     {semget05}                     	 notrun		UCLINUX } 
        { semget06     	     {semget06}                     	 notrun		UCLINUX } 
        { semop01     	     {semop01}                     	 notrun		UCLINUX } 
@@ -1667,7 +1667,7 @@ set result_matrix {
        { stat01     	     {stat01}                     	 notrun		UCLINUX } 
        { stat02     	     {stat02}                     	 notrun		UCLINUX } 
        { stat03     	     {stat03}                     	 notrun		UCLINUX } 
-       { stat04     	     {symlink01 -T stat04}                     	 notrun		UCLINUX } 
+       { stat04     	     {symlink01 -T stat04}                     	 notrun		NA } 
        { stat05     	     {stat05}                     	 notrun		UCLINUX } 
        { stat06     	     {stat06}                     	 notrun		UCLINUX } 
        { statfs01     	     {statfs01}                     	 notrun		UCLINUX } 
@@ -1726,7 +1726,7 @@ set result_matrix {
        { uname01     	     {uname01}                     	 notrun		UCLINUX } 
        { uname02     	     {uname02}                     	 notrun		NA } 
        { uname03     	     {uname03}                     	 notrun		UCLINUX } 
-       { unlink01     	     {symlink01 -T unlink01}                     	 notrun		UCLINUX } 
+       { unlink01     	     {symlink01 -T unlink01}                     	 notrun		NA } 
        { unlink05     	     {unlink05}                     	 notrun		UCLINUX } 
        { unlink06     	     {unlink06}                     	 notrun		UCLINUX } 
        { unlink07     	     {unlink07}                     	 notrun		UCLINUX } 
@@ -1767,7 +1767,7 @@ set result_matrix {
        { write03     	     {write03}                     	 notrun		NA } 
        { write04     	     {write04}                     	 notrun		UCLINUX } 
        { write05     	     {write05}                     	 notrun		UCLINUX } 
-       { writev01     	     {writev01}                     	 notrun		UCLINUX } 
+       { writev01     	     {writev01}                     	 notrun		NA } 
        { writev02     	     {writev02}                     	 notrun		NA } 
        { writev03     	     {writev03}                     	 notrun		NA } 
        { writev04     	     {writev04}                     	 notrun		NA } 
