@@ -287,7 +287,7 @@ romfs.shared.libs:
 				/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 				/lib/ld-linux.so.2; \
 		fi; \
-		t=`bfin-linux-uclibc-gcc -print-file-name=libstc++.so`; \
+		t=`bfin-linux-uclibc-gcc -print-file-name=libstdc++.so`; \
 		t=`dirname $$t`; \
 		for i in $$t/libstdc++.so*; do \
 			if [ -f $$i -a ! -h $$i ] ; then \
