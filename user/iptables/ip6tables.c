@@ -83,8 +83,7 @@
 #define CMD_NEW_CHAIN		0x0100U
 #define CMD_DELETE_CHAIN	0x0200U
 #define CMD_SET_POLICY		0x0400U
-#define CMD_CHECK		0x0800U
-#define CMD_RENAME_CHAIN	0x1000U
+#define CMD_RENAME_CHAIN	0x0800U
 #define NUMBER_OF_CMD	13
 static const char cmdflags[] = { 'I', 'D', 'D', 'R', 'A', 'L', 'F', 'Z',
 				 'N', 'X', 'P', 'E' };
@@ -161,20 +160,20 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-	/*     -n  -s  -d  -p  -j  -v  -x  -i  -o  --line */
-/*INSERT*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x'},
-/*DELETE*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x'},
-/*DELETE_NUM*/{'x','x','x','x','x',' ','x','x','x','x'},
-/*REPLACE*/   {'x',' ',' ',' ',' ',' ','x',' ',' ','x'},
-/*APPEND*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x'},
-/*LIST*/      {' ','x','x','x','x',' ',' ','x','x',' '},
-/*FLUSH*/     {'x','x','x','x','x',' ','x','x','x','x'},
-/*ZERO*/      {'x','x','x','x','x',' ','x','x','x','x'},
-/*NEW_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x'},
-/*DEL_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x'},
-/*SET_POLICY*/{'x','x','x','x','x',' ','x','x','x','x'},
-/*CHECK*/     {'x','+','+','+','x',' ','x',' ',' ','x'},
-/*RENAME*/    {'x','x','x','x','x',' ','x','x','x','x'}
+	/*     -n  -s  -d  -p  -j  -v  -x  -i  -o  --line -c */
+/*INSERT*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x',' '},
+/*DELETE*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x','x'},
+/*DELETE_NUM*/{'x','x','x','x','x',' ','x','x','x','x','x'},
+/*REPLACE*/   {'x',' ',' ',' ',' ',' ','x',' ',' ','x',' '},
+/*APPEND*/    {'x',' ',' ',' ',' ',' ','x',' ',' ','x',' '},
+/*LIST*/      {' ','x','x','x','x',' ',' ','x','x',' ','x'},
+/*FLUSH*/     {'x','x','x','x','x',' ','x','x','x','x','x'},
+/*ZERO*/      {'x','x','x','x','x',' ','x','x','x','x','x'},
+/*NEW_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x'},
+/*DEL_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x'},
+/*SET_POLICY*/{'x','x','x','x','x',' ','x','x','x','x','x'},
+/*CHECK*/     {'x','+','+','+','x',' ','x',' ',' ','x','x'},
+/*RENAME*/    {'x','x','x','x','x',' ','x','x','x','x','x'}
 };
 
 static int inverse_for_options[NUMBER_OF_OPT] =
@@ -188,7 +187,8 @@ static int inverse_for_options[NUMBER_OF_OPT] =
 /* -x */ 0,
 /* -i */ IP6T_INV_VIA_IN,
 /* -o */ IP6T_INV_VIA_OUT,
-/*--line*/ 0
+/*--line*/ 0,
+/* -c */ 0,
 };
 
 const char *program_version;
@@ -224,9 +224,9 @@ static const struct pprot chain_protos[] = {
 	{ "tcp", IPPROTO_TCP },
 	{ "udp", IPPROTO_UDP },
 	{ "icmpv6", IPPROTO_ICMPV6 },
+	{ "ipv6-icmp", IPPROTO_ICMPV6 },
 	{ "esp", IPPROTO_ESP },
 	{ "ah", IPPROTO_AH },
-	{ "all", 0 },
 };
 
 static char *
@@ -245,6 +245,30 @@ proto_to_name(u_int8_t proto, int nolookup)
 			return chain_protos[i].name;
 
 	return NULL;
+}
+
+int
+service_to_port(const char *name, const char *proto)
+{
+	struct servent *service;
+
+	if ((service = getservbyname(name, proto)) != NULL)
+		return ntohs((unsigned short) service->s_port);
+
+	return -1;
+}
+
+u_int16_t
+parse_port(const char *port, const char *proto)
+{
+	unsigned int portnum;
+
+	if ((string_to_number(port, 0, 65535, &portnum)) != -1 ||
+	    (portnum = service_to_port(port, proto)) != -1)
+		return (u_int16_t)portnum;
+
+	exit_error(PARAMETER_PROBLEM,
+		   "invalid port/service `%s' specified", port);
 }
 
 static void
@@ -712,37 +736,46 @@ parse_hostnetworkmask(const char *name, struct in6_addr **addrpp,
 }
 
 struct ip6tables_match *
-find_match(const char *name, enum ip6t_tryload tryload, struct ip6tables_rule_match **matches)
+find_match(const char *match_name, enum ip6t_tryload tryload, struct ip6tables_rule_match **matches)
 {
 	struct ip6tables_match *ptr;
- 	int icmphack = 0;
+ 	const char *icmp6 = "icmp6";
+ 	const char *name;
   
 	/* This is ugly as hell. Nonetheless, there is no way of changing
 	 * this without hurting backwards compatibility */
- 	if ( (strcmp(name,"icmpv6") == 0) ||
- 	     (strcmp(name,"ipv6-icmp") == 0) ||
- 	     (strcmp(name,"icmp6") == 0) ) icmphack = 1;
+ 	if ( (strcmp(match_name,"icmpv6") == 0) ||
+ 	     (strcmp(match_name,"ipv6-icmp") == 0) ||
+ 	     (strcmp(match_name,"icmp6") == 0) )
+ 	     	name = icmp6;
+ 	else
+ 		name = match_name;
  
- 	if (!icmphack) {
- 		for (ptr = ip6tables_matches; ptr; ptr = ptr->next) {
- 			if (strcmp(name, ptr->name) == 0)
- 				break;
- 		}
- 	} else {
- 		for (ptr = ip6tables_matches; ptr; ptr = ptr->next) {
- 			if (strcmp("icmp6", ptr->name) == 0)
- 				break;
- 		}
-  	}
+	for (ptr = ip6tables_matches; ptr; ptr = ptr->next) {
+ 		if (strcmp(name, ptr->name) == 0) {
+			struct ip6tables_match *clone;
+			
+			/* First match of this type: */
+			if (ptr->m == NULL)
+				break;
+
+			/* Second and subsequent clones */
+			clone = fw_malloc(sizeof(struct ip6tables_match));
+			memcpy(clone, ptr, sizeof(struct ip6tables_match));
+			clone->mflags = 0;
+			/* This is a clone: */
+			clone->next = clone;
+
+			ptr = clone;
+			break;
+		}
+	}
 
 #ifndef NO_SHARED_LIBS
 	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
 		char path[strlen(lib_dir) + sizeof("/libip6t_.so")
 			 + strlen(name)];
-		if (!icmphack)
-			sprintf(path, "%s/libip6t_%s.so", lib_dir, name);
-		else
-			sprintf(path, "%s/libip6t_%s.so", lib_dir, "icmpv6");
+		sprintf(path, "%s/libip6t_%s.so", lib_dir, name);
 		if (dlopen(path, RTLD_NOW)) {
 			/* Found library.  If it didn't register itself,
 			   maybe they specified target as match. */
@@ -776,8 +809,12 @@ find_match(const char *name, enum ip6t_tryload tryload, struct ip6tables_rule_ma
 
 		newentry = fw_malloc(sizeof(struct ip6tables_rule_match));
 
-		for (i = matches; *i; i = &(*i)->next);
+		for (i = matches; *i; i = &(*i)->next) {
+			if (strcmp(name, (*i)->match->name) == 0)
+				(*i)->completed = 1;
+		}
 		newentry->match = ptr;
+		newentry->completed = 0;
 		newentry->next = NULL;
 		*i = newentry;
 	}
@@ -810,6 +847,13 @@ parse_protocol(const char *s)
 	if (string_to_number(s, 0, 255, &proto) == -1) {
 		struct protoent *pent;
 
+		/* first deal with the special case of 'all' to prevent
+		 * people from being able to redefine 'all' in nsswitch
+		 * and/or provoke expensive [not working] ldap/nis/... 
+		 * lookups */
+		if (!strcmp(s, "all"))
+			return 0;
+
 		if ((pent = getprotobyname(s)))
 			proto = pent->p_proto;
 		else {
@@ -830,6 +874,17 @@ parse_protocol(const char *s)
 	}
 
 	return (u_int16_t)proto;
+}
+
+/* proto means IPv6 extension header ? */
+static int is_exthdr(u_int16_t proto)
+{
+	return (proto == IPPROTO_HOPOPTS ||
+		proto == IPPROTO_ROUTING ||
+		proto == IPPROTO_FRAGMENT ||
+		proto == IPPROTO_ESP ||
+		proto == IPPROTO_AH ||
+		proto == IPPROTO_DSTOPTS);
 }
 
 void parse_interface(const char *arg, char *vianame, unsigned char *mask)
@@ -857,10 +912,10 @@ void parse_interface(const char *arg, char *vianame, unsigned char *mask)
 		memset(mask, 0xFF, vialen + 1);
 		memset(mask + vialen + 1, 0, IFNAMSIZ - vialen - 1);
 		for (i = 0; vianame[i]; i++) {
-			if (!isalnum(vianame[i]) 
-			    && vianame[i] != '_' 
-			    && vianame[i] != '.') {
-				printf("Warning: wierd character in interface"
+			if (vianame[i] == ':' ||
+			    vianame[i] == '!' ||
+			    vianame[i] == '*') {
+				printf("Warning: weird character in interface"
 				       " `%s' (No aliases, :, ! or *).\n",
 				       vianame);
 				break;
@@ -1693,8 +1748,14 @@ void clear_rule_matches(struct ip6tables_rule_match **matches)
 
 	for (matchp = *matches; matchp;) {
 		tmp = matchp->next;
-		if (matchp->match->m)
+		if (matchp->match->m) {
 			free(matchp->match->m);
+			matchp->match->m = NULL;
+		}
+		if (matchp->match == matchp->match->next) {
+			free(matchp->match);
+			matchp->match = NULL;
+		}
 		free(matchp);
 		matchp = tmp;
 	}
@@ -1725,7 +1786,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 	char *protocol = NULL;
 	const char *modprobe = NULL;
 	int proto_used = 0;
-	char icmp6p[] = "icmpv6";
 
 	memset(&fw, 0, sizeof(fw));
 
@@ -1894,8 +1954,6 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 				*protocol = tolower(*protocol);
 
 			protocol = argv[optind-1];
-			if ( strcmp(protocol,"ipv6-icmp") == 0)
-				protocol = icmp6p;
 			fw.ipv6.proto = parse_protocol(protocol);
 			fw.ipv6.flags |= IP6T_F_PROTO;
 
@@ -1903,6 +1961,11 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			    && (fw.ipv6.invflags & IP6T_INV_PROTO))
 				exit_error(PARAMETER_PROBLEM,
 					   "rule would never match protocol");
+			
+			if (fw.ipv6.proto != IPPROTO_ESP &&
+			    is_exthdr(fw.ipv6.proto))
+				printf("Warning: never matched protocol: %s. "
+				       "use exension match instead.", protocol);
 			break;
 
 		case 's':
@@ -1982,7 +2045,9 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			strcpy(m->m->u.user.name, m->name);
 			if (m->init != NULL)
 				m->init(m->m, &fw.nfcache);
-			opts = merge_options(opts, m->extra_opts, &m->option_offset);
+			if (m != m->next)
+				/* Merge options for non-cloned matches */
+				opts = merge_options(opts, m->extra_opts, &m->option_offset);
 		}
 		break;
 
@@ -2060,14 +2125,14 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 			exit_tryhelp(2);
 
 		default:
-			/* FIXME: This scheme doesn't allow two of the same
-			   matches --RR */
 			if (!target
 			    || !(target->parse(c - target->option_offset,
 					       argv, invert,
 					       &target->tflags,
 					       &fw, &target->t))) {
 				for (matchp = matches; matchp; matchp = matchp->next) {
+					if (matchp->completed) 
+						continue;
 					if (matchp->match->parse(c - matchp->match->option_offset,
 						     argv, invert,
 						     &matchp->match->mflags,
@@ -2082,7 +2147,7 @@ int do_command6(int argc, char *argv[], char **table, ip6tc_handle_t *handle)
 				   actually hear this code suck. */
 
 				/* some explanations (after four different bugs
-				 * in 3 different releases): If we encountere a
+				 * in 3 different releases): If we encounter a
 				 * parameter, that has not been parsed yet,
 				 * it's not an option of an explicitly loaded
 				 * match or a target.  However, we support

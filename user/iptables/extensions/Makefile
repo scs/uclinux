@@ -6,8 +6,13 @@
 # package (HW)
 #
 PF_EXT_SLIB:=ah addrtype comment connlimit connmark conntrack dscp ecn esp hashlimit helper icmp iprange length limit mac mark multiport owner physdev pkttype policy realm rpc sctp standard state tcp tcpmss tos ttl udp unclean CLASSIFY CONNMARK DNAT DSCP ECN LOG MARK MASQUERADE MIRROR NETMAP NFQUEUE NOTRACK REDIRECT REJECT SAME SNAT TARPIT TCPMSS TOS TRACE TTL ULOG
-PF_EXT_SLIB+=CONNLOG
-PF6_EXT_SLIB:=connmark eui64 hl icmpv6 length limit mac mark multiport owner physdev policy standard state tcp udp CONNMARK HL LOG NFQUEUE MARK TRACE
+PF_EXT_SLIB+=CONNLOG LED
+PF6_EXT_SLIB:=connmark eui64 hl icmp6 length limit mac mark multiport owner physdev policy standard state tcp udp CONNMARK HL LOG NFQUEUE MARK TRACE
+
+ifeq ($(DO_SELINUX), 1)
+PF_EXT_SE_SLIB:=SECMARK CONNSECMARK
+PF6_EXT_SE_SLIB:=SECMARK CONNSECMARK
+endif
 
 # Optionals
 PF_EXT_SLIB_OPTS:=$(foreach T,$(wildcard extensions/.*-test),$(shell KERNEL_DIR=$(KERNEL_DIR) $(T)))
@@ -57,7 +62,7 @@ PF_EXT_SLIB:=$(PF_EXT_SLIB_BASE)
 PF_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF,MATCH))
 PF_EXT_SLIB+=$(call TEST_CONFIG,$(PF_EXT_SLIB_CONFIG),IP_NF,TARGET)
 
-PF6_EXT_SLIB_BASE:=tcp udp icmpv6 standard
+PF6_EXT_SLIB_BASE:=tcp udp icmp6 standard
 PF6_EXT_SLIB_CONFIG:=$(sort $(call upper,$(filter-out $(PF6_EXT_SLIB_BASE),$(PF6_EXT_SLIB))))
 PF6_EXT_SLIB:=$(PF6_EXT_SLIB_BASE)
 PF6_EXT_SLIB+=$(call lower,$(call TEST_CONFIG,$(PF6_EXT_SLIB_CONFIG),IP6_NF,MATCH))
@@ -69,32 +74,42 @@ endif
 ifneq ($(CONFIG_IP_NF_MATCH_AH_ESP)$(CONFIG_IP_NF_MATCH_AH_ESP_MODULE),)
 PF_EXT_SLIB+=ah esp
 endif
+ifneq ($(CONFIG_MODULES_AUTHD_AUTHD),)
 PF_EXT_SLIB+=authd
+endif
 
 endif
 
 ifndef NO_SHARED_LIBS
 SHARED_LIBS+=$(foreach T,$(PF_EXT_SLIB),extensions/libipt_$(T).so)
+SHARED_SE_LIBS+=$(foreach T,$(PF_EXT_SE_SLIB),extensions/libipt_$(T).so)
 EXTRA_INSTALLS+=$(foreach T, $(PF_EXT_SLIB), $(DESTDIR)$(LIBDIR)/iptables/libipt_$(T).so)
+EXTRA_INSTALLS+=$(foreach T, $(PF_EXT_SE_SLIB), $(DESTDIR)$(LIBDIR)/iptables/libipt_$(T).so)
 
 ifeq ($(DO_IPV6), 1)
 SHARED_LIBS+=$(foreach T,$(PF6_EXT_SLIB),extensions/libip6t_$(T).so)
+SHARED_SE_LIBS+=$(foreach T,$(PF6_EXT_SE_SLIB),extensions/libip6t_$(T).so)
 EXTRA_INSTALLS+=$(foreach T, $(PF6_EXT_SLIB), $(DESTDIR)$(LIBDIR)/iptables/libip6t_$(T).so)
+EXTRA_INSTALLS+=$(foreach T, $(PF6_EXT_SE_SLIB), $(DESTDIR)$(LIBDIR)/iptables/libip6t_$(T).so)
 endif
 else 	# NO_SHARED_LIBS
 EXT_OBJS+=$(foreach T,$(PF_EXT_SLIB),extensions/libipt_$(T).o)
+EXT_OBJS+=$(foreach T,$(PF_EXT_SE_SLIB),extensions/libipt_$(T).o)
 EXT_FUNC+=$(foreach T,$(PF_EXT_SLIB),ipt_$(T))
+EXT_FUNC+=$(foreach T,$(PF_EXT_SE_SLIB),ipt_$(T))
 EXT_OBJS+= extensions/initext.o
 ifeq ($(DO_IPV6), 1)
 EXT6_OBJS+=$(foreach T,$(PF6_EXT_SLIB),extensions/libip6t_$(T).o)
+EXT6_OBJS+=$(foreach T,$(PF6_EXT_SE_SLIB),extensions/libip6t_$(T).o)
 EXT6_FUNC+=$(foreach T,$(PF6_EXT_SLIB),ip6t_$(T))
+EXT6_FUNC+=$(foreach T,$(PF6_EXT_SE_SLIB),ip6t_$(T))
 EXT6_OBJS+= extensions/initext6.o
 endif	# DO_IPV6
 endif	# NO_SHARED_LIBS
 
 ifndef TOPLEVEL_INCLUDED
 local:
-	cd .. && $(MAKE) $(SHARED_LIBS)
+	cd .. && $(MAKE) $(SHARED_LIBS) $(SHARED_SE_LIBS)
 endif
 
 ifdef NO_SHARED_LIBS
@@ -201,3 +216,10 @@ $(DESTDIR)$(LIBDIR)/iptables/libipt_%.so: extensions/libipt_%.so
 $(DESTDIR)$(LIBDIR)/iptables/libip6t_%.so: extensions/libip6t_%.so
 	@[ -d $(DESTDIR)$(LIBDIR)/iptables ] || mkdir -p $(DESTDIR)$(LIBDIR)/iptables
 	cp $< $@
+
+extensions/libipt_LED.o: extensions/libipt_LED_def.c
+
+LEDMAN = $(KERNEL_DIR)/include/linux/ledman.h
+extensions/libipt_LED_def.c: extensions/libipt_LED_def.pl $(LEDMAN)
+	perl $< <$(LEDMAN) >$@
+

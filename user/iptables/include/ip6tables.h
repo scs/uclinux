@@ -8,11 +8,22 @@
 #define IP6T_LIB_DIR "/usr/local/lib/iptables"
 #endif
 
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
+#ifndef IPPROTO_DCCP
+#define IPPROTO_DCCP 33
+#endif
+
 struct ip6tables_rule_match
 {
 	struct ip6tables_rule_match *next;
 
 	struct ip6tables_match *match;
+
+	/* Multiple matches of the same type: the ones before
+	   the current one are completed from parsing point of view */	
+	unsigned int completed;
 };
 
 /* Include file for additions: new matches and targets. */
@@ -122,6 +133,8 @@ extern int line;
 extern void register_match6(struct ip6tables_match *me);
 extern void register_target6(struct ip6tables_target *me);
 
+extern int service_to_port(const char *name, const char *proto);
+extern u_int16_t parse_port(const char *port, const char *proto);
 extern int do_command6(int argc, char *argv[], char **table,
 		       ip6tc_handle_t *handle);
 /* Keeping track of external matches and targets: linked lists. */

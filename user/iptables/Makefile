@@ -19,8 +19,8 @@ TOPLEVEL_INCLUDED=YES
 ifndef KERNEL_DIR
 KERNEL_DIR=$(ROOTDIR)/$(LINUXDIR)
 endif
-IPTABLES_VERSION:=1.3.5
-OLD_IPTABLES_VERSION:=1.3.4
+IPTABLES_VERSION:=1.3.6
+OLD_IPTABLES_VERSION:=1.3.5
 
 PREFIX:=/usr/local
 LIBDIR:=$(PREFIX)/lib
@@ -30,6 +30,11 @@ INCDIR:=$(PREFIX)/include
 
 # directory for new iptables releases
 RELEASE_DIR:=/tmp
+
+# Enable linking to libselinux via enviornment 'DO_SELINUX=1'
+ifndef DO_SELINUX
+DO_SELINUX=0
+endif
 
 #COPT_FLAGS:=-O2
 #CFLAGS:=$(COPT_FLAGS) -Wall -Wunused -I$(KERNEL_DIR)/include -Iinclude/ -DIPTABLES_VERSION=\"$(IPTABLES_VERSION)\" #-g -DDEBUG #-pg # -DIPTC_DEBUG
@@ -63,7 +68,7 @@ ifeq ($(shell uname -m),sparc64)
 		# The kernel is 64-bit, even though userspace is 32.
 		CFLAGS+=-DIPT_MIN_ALIGN=8 -DKERNEL_64_USERSPACE_32
 	else
-		EXT_LDFLAGS=-m elf64_sparc
+		EXT_LDFLAGS+=-Wl,-m,elf64_sparc
 	endif
 endif
 
@@ -75,7 +80,7 @@ endif
 # Generic test if arch wasn't found above
 ifneq ($(POINTERTEST),1)
 	# Try to determine if kernel is 64bit and we are compiling for 32bit
-	ifeq ($(shell [ -a $(KERNEL_DIR)/include/asm ] && echo YES), YES)
+	ifeq ($(shell [ -e $(KERNEL_DIR)/include/asm ] && echo YES), YES)
 		64bitkernel := $(shell echo -e "\#include <asm/types.h>\n\#if BITS_PER_LONG == 64\nkernel_is_64bits\n\#endif" | $(CC) $(CFLAGS) -D__KERNEL__ -E - | grep kernel_is_64bits)
 		ifdef 64bitkernel
 			32bituser := $(shell echo -e "\#include <stdio.h>\n\#if !defined(__arch64__) && !defined(_LP64)\nuserspace_is_32bit\n\#endif" | $(CC) $(CFLAGS) -E - | grep userspace_is_32bit)
@@ -94,18 +99,25 @@ endif
 
 ifndef NO_SHARED_LIBS
 DEPFILES = $(SHARED_LIBS:%.so=%.d)
+DEPFILES += $(SHARED_SE_LIBS:%.so=%.d)
 SH_CFLAGS:=$(CFLAGS) -fPIC
 STATIC_LIBS  =
 STATIC6_LIBS =
 LDFLAGS      += -rdynamic
 LDLIBS       += -ldl -lnsl
+ifeq ($(DO_SELINUX), 1)
+LDLIBS       += -lselinux
+endif
 else
 DEPFILES = $(EXT_OBJS:%.o=%.d)
 STATIC_LIBS  = extensions/libext.a
 STATIC6_LIBS = extensions/libext6.a
 ifdef NOT_DEFINED
 LDFLAGS      = -static
-LDLIBS       =
+LDLIBS	     =
+ifeq ($(DO_SELINUX), 1)
+LDLIBS       += -lselinux
+endif
 endif
 endif
 

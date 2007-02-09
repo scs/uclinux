@@ -85,8 +85,7 @@
 #define CMD_NEW_CHAIN		0x0100U
 #define CMD_DELETE_CHAIN	0x0200U
 #define CMD_SET_POLICY		0x0400U
-#define CMD_CHECK		0x0800U
-#define CMD_RENAME_CHAIN	0x1000U
+#define CMD_RENAME_CHAIN	0x0800U
 #define NUMBER_OF_CMD	13
 static const char cmdflags[] = { 'I', 'D', 'D', 'R', 'A', 'L', 'F', 'Z',
 				 'N', 'X', 'P', 'E' };
@@ -166,20 +165,20 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-	/*     -n  -s  -d  -p  -j  -v  -x  -i  -o  -f  --line */
-/*INSERT*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x'},
-/*DELETE*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x'},
-/*DELETE_NUM*/{'x','x','x','x','x',' ','x','x','x','x','x'},
-/*REPLACE*/   {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x'},
-/*APPEND*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x'},
-/*LIST*/      {' ','x','x','x','x',' ',' ','x','x','x',' '},
-/*FLUSH*/     {'x','x','x','x','x',' ','x','x','x','x','x'},
-/*ZERO*/      {'x','x','x','x','x',' ','x','x','x','x','x'},
-/*NEW_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x'},
-/*DEL_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x'},
-/*SET_POLICY*/{'x','x','x','x','x',' ','x','x','x','x','x'},
-/*CHECK*/     {'x','+','+','+','x',' ','x',' ',' ',' ','x'},
-/*RENAME*/    {'x','x','x','x','x',' ','x','x','x','x','x'}
+	/*     -n  -s  -d  -p  -j  -v  -x  -i  -o  -f  --line -c */
+/*INSERT*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x',' '},
+/*DELETE*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x','x'},
+/*DELETE_NUM*/{'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*REPLACE*/   {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x',' '},
+/*APPEND*/    {'x',' ',' ',' ',' ',' ','x',' ',' ',' ','x',' '},
+/*LIST*/      {' ','x','x','x','x',' ',' ','x','x','x',' ','x'},
+/*FLUSH*/     {'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*ZERO*/      {'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*NEW_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*DEL_CHAIN*/ {'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*SET_POLICY*/{'x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*CHECK*/     {'x','+','+','+','x',' ','x',' ',' ',' ','x','x'},
+/*RENAME*/    {'x','x','x','x','x',' ','x','x','x','x','x','x'}
 };
 
 static int inverse_for_options[NUMBER_OF_OPT] =
@@ -194,7 +193,8 @@ static int inverse_for_options[NUMBER_OF_OPT] =
 /* -i */ IPT_INV_VIA_IN,
 /* -o */ IPT_INV_VIA_OUT,
 /* -f */ IPT_INV_FRAG,
-/*--line*/ 0
+/*--line*/ 0,
+/* -c */ 0,
 };
 
 const char *program_version;
@@ -235,7 +235,6 @@ static const struct pprot chain_protos[] = {
 	{ "esp", IPPROTO_ESP },
 	{ "ah", IPPROTO_AH },
 	{ "sctp", IPPROTO_SCTP },
-	{ "all", 0 },
 };
 
 static char *
@@ -254,6 +253,30 @@ proto_to_name(u_int8_t proto, int nolookup)
 			return chain_protos[i].name;
 
 	return NULL;
+}
+
+int
+service_to_port(const char *name, const char *proto)
+{
+	struct servent *service;
+
+	if ((service = getservbyname(name, proto)) != NULL)
+		return ntohs((unsigned short) service->s_port);
+
+	return -1;
+}
+
+u_int16_t
+parse_port(const char *port, const char *proto)
+{
+	unsigned int portnum;
+
+	if ((string_to_number(port, 0, 65535, &portnum)) != -1 ||
+	    (portnum = service_to_port(port, proto)) != -1)
+		return (u_int16_t)portnum;
+
+	exit_error(PARAMETER_PROBLEM,
+		   "invalid port/service `%s' specified", port);
 }
 
 struct in_addr *
@@ -590,6 +613,34 @@ addr_to_host(const struct in_addr *addr)
 	return (char *) NULL;
 }
 
+static void 
+pad_cidr(char *cidr)
+{
+	char *p, *q;
+	unsigned int onebyte;
+	int i, j;
+	char buf[20];
+
+	/* copy dotted string, because we need to modify it */
+	strncpy(buf, cidr, sizeof(buf) - 1);
+	buf[sizeof(buf) - 1] = '\0';
+
+	p = buf;
+	for (i = 0; i <= 3; i++) {
+		if ((q = strchr(p, '.')) == NULL)
+			break;
+		*q = '\0';
+		if (string_to_number(p, 0, 255, &onebyte) == -1)
+			return;
+		p = q + 1;
+	}
+
+	/* pad remaining octets with zeros */
+	for (j = i; j < 3; j++) {
+		strcat(cidr, ".0");
+	}
+}
+
 /*
  *	All functions starting with "parse" should succeed, otherwise
  *	the program fails.
@@ -658,6 +709,8 @@ parse_hostnetworkmask(const char *name, struct in_addr **addrpp,
 	if ((p = strrchr(buf, '/')) != NULL) {
 		*p = '\0';
 		addrp = parse_mask(p + 1);
+		if (strrchr(p + 1, '.') == NULL)
+			pad_cidr(buf);
 	} else
 		addrp = parse_mask(NULL);
 	inaddrcpy(maskp, addrp);
@@ -686,9 +739,24 @@ find_match(const char *name, enum ipt_tryload tryload, struct iptables_rule_matc
 	struct iptables_match *ptr;
 
 	for (ptr = iptables_matches; ptr; ptr = ptr->next) {
-		if (strcmp(name, ptr->name) == 0)
+		if (strcmp(name, ptr->name) == 0) {
+			struct iptables_match *clone;
+			
+			/* First match of this type: */
+			if (ptr->m == NULL)
+				break;
+
+			/* Second and subsequent clones */
+			clone = fw_malloc(sizeof(struct iptables_match));
+			memcpy(clone, ptr, sizeof(struct iptables_match));
+			clone->mflags = 0;
+			/* This is a clone: */
+			clone->next = clone;
+
+			ptr = clone;
 			break;
-	}
+		}
+	}		
 
 #ifndef NO_SHARED_LIBS
 	if (!ptr && tryload != DONT_LOAD && tryload != DURING_LOAD) {
@@ -728,8 +796,12 @@ find_match(const char *name, enum ipt_tryload tryload, struct iptables_rule_matc
 
 		newentry = fw_malloc(sizeof(struct iptables_rule_match));
 
-		for (i = matches; *i; i = &(*i)->next);
+		for (i = matches; *i; i = &(*i)->next) {
+			if (strcmp(name, (*i)->match->name) == 0)
+				(*i)->completed = 1;
+		}
 		newentry->match = ptr;
+		newentry->completed = 0;
 		newentry->next = NULL;
 		*i = newentry;
 	}
@@ -761,6 +833,13 @@ parse_protocol(const char *s)
 
 	if (string_to_number(s, 0, 255, &proto) == -1) {
 		struct protoent *pent;
+
+		/* first deal with the special case of 'all' to prevent
+		 * people from being able to redefine 'all' in nsswitch
+		 * and/or provoke expensive [not working] ldap/nis/... 
+		 * lookups */
+		if (!strcmp(s, "all"))
+			return 0;
 
 		if ((pent = getprotobyname(s)))
 			proto = pent->p_proto;
@@ -809,9 +888,9 @@ void parse_interface(const char *arg, char *vianame, unsigned char *mask)
 		memset(mask, 0xFF, vialen + 1);
 		memset(mask + vialen + 1, 0, IFNAMSIZ - vialen - 1);
 		for (i = 0; vianame[i]; i++) {
-			if (!isalnum(vianame[i]) 
-			    && vianame[i] != '_' 
-			    && vianame[i] != '.') {
+			if (vianame[i] == ':' ||
+			    vianame[i] == '!' ||
+			    vianame[i] == '*') {
 				printf("Warning: wierd character in interface"
 				       " `%s' (No aliases, :, ! or *).\n",
 				       vianame);
@@ -1816,8 +1895,14 @@ void clear_rule_matches(struct iptables_rule_match **matches)
 
 	for (matchp = *matches; matchp;) {
 		tmp = matchp->next;
-		if (matchp->match->m)
+		if (matchp->match->m) {
 			free(matchp->match->m);
+			matchp->match->m = NULL;
+		}
+		if (matchp->match == matchp->match->next) {
+			free(matchp->match);
+			matchp->match = NULL;
+		}
 		free(matchp);
 		matchp = tmp;
 	}
@@ -2149,7 +2234,9 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			set_revision(m->m->u.user.name, m->revision);
 			if (m->init != NULL)
 				m->init(m->m, &fw.nfcache);
-			opts = merge_options(opts, m->extra_opts, &m->option_offset);
+			if (m != m->next)
+				/* Merge options for non-cloned matches */
+				opts = merge_options(opts, m->extra_opts, &m->option_offset);
 		}
 		break;
 
@@ -2227,14 +2314,14 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 			exit_tryhelp(2);
 
 		default:
-			/* FIXME: This scheme doesn't allow two of the same
-			   matches --RR */
 			if (!target
 			    || !(target->parse(c - target->option_offset,
 					       argv, invert,
 					       &target->tflags,
 					       &fw, &target->t))) {
 				for (matchp = matches; matchp; matchp = matchp->next) {
+					if (matchp->completed) 
+						continue;
 					if (matchp->match->parse(c - matchp->match->option_offset,
 						     argv, invert,
 						     &matchp->match->mflags,
@@ -2249,7 +2336,7 @@ int do_command(int argc, char *argv[], char **table, iptc_handle_t *handle)
 				   actually hear this code suck. */
 
 				/* some explanations (after four different bugs
-				 * in 3 different releases): If we encountere a
+				 * in 3 different releases): If we encounter a
 				 * parameter, that has not been parsed yet,
 				 * it's not an option of an explicitly loaded
 				 * match or a target.  However, we support
