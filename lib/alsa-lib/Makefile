@@ -22,6 +22,6 @@ romfs:
 		done ; \
 	fi
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	mv $$PWD/DESTDIR/usr/local/lib/libasound.so* $(ROMFSDIR)/lib/
+	cp -P $$PWD/DESTDIR/usr/local/lib/libasound.so* $(ROMFSDIR)/lib/
 endif
 
