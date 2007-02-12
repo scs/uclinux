@@ -1156,7 +1156,7 @@ set result_matrix {
        { execv01     	     {execv01}                     	 notrun		UCLINUX } 
        { execve01     	     {execve01}                     	 notrun		UCLINUX } 
        { execve02     	     {execve02 -F /bin/test3}                     	 notrun		UCLINUX } 
-       { execve03     	     {execve03}                     	 notrun		UCLINUX } 
+       { execve03     	     {execve03}                     	 notrun		NA } 
        { execve04     	     {cp -f /bin/test3 /tmp; execve04 -F test3}                     	 notrun		NA } 
        { execve05     	     {execve05 -F /bin/test3}                     	 notrun		UCLINUX } 
        { execve06     	     {execve06 20 /bin/execve06 /bin/execve06 4}                     	 notrun		UCLINUX } 
