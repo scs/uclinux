@@ -1,6 +1,9 @@
 The README describe steps to build MPlayer-1.0rc1 on Blackfin, and use the
 mplayer to play vedio files on BF537-STAMP board.
 
+Revise History:
+2007-02-12: Add support for playing streaming video from VLC
+
 Tested Media files: AVI, QuickTime-MOV
 Tested video decoder: ffmpeg mpeg4, ffmpeg h264
 Tested audio decoder: libmad(mp3), faad(AAC) 
@@ -67,6 +70,18 @@ CONFIG_BLKFIN_WB=y
 # CONFIG_BLKFIN_WT is not set
 CONFIG_L1_MAX_PIECE=16
 
+Build livedotcom library
+------------------------
+In order to player rtp stream (e.g, from VLC), we need to build MPlayer
+with the stream library livedotcom. If you don't want the streaming play
+feature, just ignore this section.
+
+1. Download the library souce from: http://www.live555.com/liveMedia.
+   I tested 2007-01-14 snapshot.
+2. patch the source with: bfin_liblive.patch.
+3. Create Makefile, then build:
+	#./getMakefile
+	#make
 
 Build MPlayer
 -------------------
@@ -79,7 +94,9 @@ http://www.mplayerhq.hu/design7/dload.html
 3. Edit build-bfin.sh, set UCLINUX_PATH to correct uClinux-dist path.
 The mplayer will need to link with the libmad library in uClinux-dist.
 
-4. Build Mplayer, run the build script
+4. Edit "LIBLIVE_PATH", set it to the path of libdotlive library.
+
+5. Build Mplayer, run the build script
 # ./build-bfin.sh
 
 Setup the Hardware
@@ -125,5 +142,29 @@ This scrip install LCD and Sound Card driver module:
 then it starts mplayer:
 
 # ./mplayer -vo fbdev -ao oss -quiet -fs -framedrop ${MOVIE_NAME}
+
+
+Play Stream from VLC
+--------------------
+Here we have VLC running on one BF-537 STAMP board as a streaming server.
+It captures vedio stream from camera sensor, encodes it and sends to the player.
+
+On another STAMP board MPlayer runs.
+
+1. Download kernel image with VLC from:
+	http://blackfin.uclinux.org/uimages/uImage.vlc
+
+2. Please refer to bellow links for board and VLC settup:
+	http://docs.blackfin.uclinux.org/doku.php?id=vlc
+	http://docs.blackfin.uclinux.org/doku.php?id=frame_capture_device
+
+3. Start VLC streaming server:
+
+root:> vlc v4l:/dev/video0:size=320x240:fps=15 --sout '#transcode{vcodec=mp4v}:rtp{dst=192.168.0.1,port=1234,sdp=rtsp://192.168.0.2:8080/test.sdp}' --no-audio --ttl 1
+
+4. Play the stream with MPlayer:
+
+root:> mplayer -fps 15 rtsp://192.168.0.2:8080/test.sdp
+
 
 
