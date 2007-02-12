@@ -7,6 +7,14 @@
 #include <fcntl.h>
 #include <string.h>
 
+/*
+ * SW4 status should be set to:
+ * 	pin1 - ON
+ *	pin2 - ON
+ *	pin3 - ON
+ *	pin4 - OFF
+ */
+
 int main(int argc, char* argv[])
 {
 	int rtscts = TIOCM_RTS;
@@ -15,14 +23,14 @@ int main(int argc, char* argv[])
        
 	if(argc<3 || argv[2][0]!='-' || 
 		!(argv[2][1]=='e' || argv[2][1]=='d' || argv[2][1]=='t' || argv[2][1]=='s')) {
-		printf("Usage: %s <ttySx> <-e|-d|-t|-s>\n\t-e Enable RTS\n\t-d Disable RTS\n\t-t Test RTS\n\t-s Status of RTS/CTS\n", argv[0]);
+		printf("Usage: %s <ttyBFx> <-e|-d|-t|-s>\n\t-e Enable RTS\n\t-d Disable RTS\n\t-t Test RTS\n\t-s Status of RTS/CTS\n", argv[0]);
 		return 0;
 	}
 	
 	strncat(devname, argv[1], 25);
 	f = open(devname, O_RDWR);
 	if(f<0) {
-		printf("Fail to open ttyS0\n");
+		printf("Fail to open %s\n", devname);
 		return 0;
 	}
 
