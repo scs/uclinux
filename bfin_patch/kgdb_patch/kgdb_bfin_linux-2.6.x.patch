@@ -1,6 +1,6 @@
-diff -urN linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x.kgdb/Documentation/blackfin/kgdb_bfin.txt
+diff -purN linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x.kgdb/Documentation/blackfin/kgdb_bfin.txt
 --- linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/Documentation/blackfin/kgdb_bfin.txt	2007-02-05 14:28:09.000000000 +0800
++++ linux-2.6.x.kgdb/Documentation/blackfin/kgdb_bfin.txt	2007-02-12 14:48:22.000000000 +0800
 @@ -0,0 +1,151 @@
 +			A Simple Guide to Configure KGDB
 +
@@ -153,10 +153,10 @@ diff -urN linux-2.6.x/Documentation/blackfin/kgdb_bfin.txt linux-2.6.x.kgdb/Docu
 +13. Then connect the gdb to target again. "(gdb) target remote /dev/ttyS0". Now you will find a breakpoint is hit. "Breakpoint 1: sys_open(..."
 +
 +14. All other operations are the same as that in KGDB over Ethernet. The only difference is that after continue command in GDB, please stop GDB connection by 2 "Ctrl+C"s and connect again after breakpoints are hit or Ctrl+A is entered.
-diff -urN linux-2.6.x/arch/blackfin/Kconfig linux-2.6.x.kgdb/arch/blackfin/Kconfig
---- linux-2.6.x/arch/blackfin/Kconfig	2007-02-05 13:44:05.000000000 +0800
-+++ linux-2.6.x.kgdb/arch/blackfin/Kconfig	2007-02-05 14:28:10.000000000 +0800
-@@ -814,6 +814,8 @@
+diff -purN linux-2.6.x/arch/blackfin/Kconfig linux-2.6.x.kgdb/arch/blackfin/Kconfig
+--- linux-2.6.x/arch/blackfin/Kconfig	2007-02-12 14:04:38.000000000 +0800
++++ linux-2.6.x.kgdb/arch/blackfin/Kconfig	2007-02-12 14:48:22.000000000 +0800
+@@ -814,6 +814,8 @@ config DEBUG_KERNEL_START
  	  replaces the bootloader exception handler. This will stop kernels
  	  from dieing at startup with no visible error messages.
  
@@ -165,19 +165,19 @@ diff -urN linux-2.6.x/arch/blackfin/Kconfig linux-2.6.x.kgdb/arch/blackfin/Kconf
  config DEBUG_SERIAL_EARLY_INIT
  	bool "Initialize serial driver early"
  	default n
-diff -urN linux-2.6.x/arch/blackfin/kernel/Makefile linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile
---- linux-2.6.x/arch/blackfin/kernel/Makefile	2007-02-05 13:44:05.000000000 +0800
-+++ linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile	2007-02-05 14:28:10.000000000 +0800
-@@ -11,3 +11,5 @@
+diff -purN linux-2.6.x/arch/blackfin/kernel/Makefile linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile
+--- linux-2.6.x/arch/blackfin/kernel/Makefile	2007-02-12 14:04:38.000000000 +0800
++++ linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile	2007-02-12 14:48:22.000000000 +0800
+@@ -11,3 +11,5 @@ obj-y := \
  obj-$(CONFIG_MODULES)                += module.o
  obj-$(CONFIG_BFIN_DMA_5XX)           += bfin_dma_5xx.o
  obj-$(CONFIG_DUAL_CORE_TEST_MODULE)  += dualcore_test.o
 +obj-$(CONFIG_KGDB)                   += kgdb.o
 +obj-$(CONFIG_KGDB_TEST)              += kgdb_test.o
-diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb.c linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb.c
+diff -purN linux-2.6.x/arch/blackfin/kernel/kgdb.c linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb.c
 --- linux-2.6.x/arch/blackfin/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb.c	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,452 @@
++++ linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb.c	2007-02-12 17:18:00.000000000 +0800
+@@ -0,0 +1,453 @@
 +/*
 + * File:         arch/blackfin/kernel/kgdb.c
 + * Based on:
@@ -630,10 +630,11 @@ diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb.c linux-2.6.x.kgdb/arch/blackfin
 +	.gdb_bpt_instr = {0xa1},
 +	.flags = KGDB_HW_BREAKPOINT,
 +};
-diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c
++
+diff -purN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c
 --- linux-2.6.x/arch/blackfin/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,113 @@
++++ linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c	2007-02-12 14:48:22.000000000 +0800
+@@ -0,0 +1,112 @@
 +/*
 + * File:         arch/blackfin/kernel/kgdb_test.c
 + * Based on:
@@ -665,7 +666,6 @@ diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/bla
 + * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 + */
 +
-+#include <linux/config.h>
 +#include <linux/module.h>
 +#include <linux/kernel.h>
 +#include <linux/init.h>
@@ -747,10 +747,10 @@ diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/bla
 +module_init(cplbtest_init);
 +module_exit(cplbtest_exit);
 +MODULE_LICENSE("GPL");
-diff -urN linux-2.6.x/drivers/net/Makefile linux-2.6.x.kgdb/drivers/net/Makefile
---- linux-2.6.x/drivers/net/Makefile	2007-02-05 13:44:24.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/net/Makefile	2007-02-05 14:28:10.000000000 +0800
-@@ -212,6 +212,7 @@
+diff -purN linux-2.6.x/drivers/net/Makefile linux-2.6.x.kgdb/drivers/net/Makefile
+--- linux-2.6.x/drivers/net/Makefile	2007-02-12 14:04:58.000000000 +0800
++++ linux-2.6.x.kgdb/drivers/net/Makefile	2007-02-12 14:48:22.000000000 +0800
+@@ -212,6 +212,7 @@ obj-$(CONFIG_ETRAX_ETHERNET) += cris/
  obj-$(CONFIG_ENP2611_MSF_NET) += ixp2000/
  
  obj-$(CONFIG_NETCONSOLE) += netconsole.o
@@ -758,9 +758,9 @@ diff -urN linux-2.6.x/drivers/net/Makefile linux-2.6.x.kgdb/drivers/net/Makefile
  
  obj-$(CONFIG_FS_ENET) += fs_enet/
  
-diff -urN linux-2.6.x/drivers/net/kgdb_eth.c linux-2.6.x.kgdb/drivers/net/kgdb_eth.c
+diff -purN linux-2.6.x/drivers/net/kgdb_eth.c linux-2.6.x.kgdb/drivers/net/kgdb_eth.c
 --- linux-2.6.x/drivers/net/kgdb_eth.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/net/kgdb_eth.c	2007-02-05 14:28:10.000000000 +0800
++++ linux-2.6.x.kgdb/drivers/net/kgdb_eth.c	2007-02-12 14:48:22.000000000 +0800
 @@ -0,0 +1,160 @@
 +/*
 + * drivers/net/kgdb_eth.c
@@ -858,8 +858,8 @@ diff -urN linux-2.6.x/drivers/net/kgdb_eth.c linux-2.6.x.kgdb/drivers/net/kgdb_e
 +	np->remote_port = port;
 +
 +	/* Is this gdb trying to attach? */
-+	if (!kgdb_connected && msg[0]=='$' && len==8) {
-+		if (strncmp(msg, "$Hc-1#09", 8)==0) {
++	if (!kgdb_connected && msg[0]=='$' && len==14) {
++		if (strncmp(msg, "$qSupported#37", 14)==0) {
 +			kgdb_schedule_breakpoint();
 +		}
 +	}
@@ -922,10 +922,10 @@ diff -urN linux-2.6.x/drivers/net/kgdb_eth.c linux-2.6.x.kgdb/drivers/net/kgdb_e
 +	return 0;
 +}
 +module_init(init_kgdboe);
-diff -urN linux-2.6.x/drivers/serial/Kconfig linux-2.6.x.kgdb/drivers/serial/Kconfig
---- linux-2.6.x/drivers/serial/Kconfig	2007-02-05 13:44:09.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/serial/Kconfig	2007-02-05 14:28:10.000000000 +0800
-@@ -514,7 +514,7 @@
+diff -purN linux-2.6.x/drivers/serial/Kconfig linux-2.6.x.kgdb/drivers/serial/Kconfig
+--- linux-2.6.x/drivers/serial/Kconfig	2007-02-12 14:04:43.000000000 +0800
++++ linux-2.6.x.kgdb/drivers/serial/Kconfig	2007-02-12 14:48:22.000000000 +0800
+@@ -514,7 +514,7 @@ choice
  
  config SERIAL_BFIN_DMA
  	bool "Blackfin UART DMA mode"
@@ -934,38 +934,47 @@ diff -urN linux-2.6.x/drivers/serial/Kconfig linux-2.6.x.kgdb/drivers/serial/Kco
  	help
  	  This driver works under DMA mode. If this option is selected, the
  	  blackfin simple dma driver is also enabled.
-diff -urN linux-2.6.x/drivers/serial/Makefile linux-2.6.x.kgdb/drivers/serial/Makefile
---- linux-2.6.x/drivers/serial/Makefile	2007-02-05 13:44:09.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/serial/Makefile	2007-02-05 14:28:10.000000000 +0800
-@@ -58,3 +58,4 @@
+diff -purN linux-2.6.x/drivers/serial/Makefile linux-2.6.x.kgdb/drivers/serial/Makefile
+--- linux-2.6.x/drivers/serial/Makefile	2007-02-12 14:04:43.000000000 +0800
++++ linux-2.6.x.kgdb/drivers/serial/Makefile	2007-02-12 14:48:22.000000000 +0800
+@@ -58,3 +58,4 @@ obj-$(CONFIG_SERIAL_SGI_IOC3) += ioc3_se
  obj-$(CONFIG_SERIAL_ATMEL) += atmel_serial.o
  obj-$(CONFIG_SERIAL_NETX) += netx-serial.o
  obj-$(CONFIG_SERIAL_BFIN_SPORT) += bfin_sport_uart.o
 +obj-$(CONFIG_KGDB_UART) += kgdb_bfin_uart.o
-diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/bfin_5xx.c
---- linux-2.6.x/drivers/serial/bfin_5xx.c	2007-02-05 13:44:09.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/serial/bfin_5xx.c	2007-02-05 14:28:10.000000000 +0800
-@@ -53,6 +53,10 @@
- #include <asm/cacheflush.h>
- #endif
+diff -purN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/bfin_5xx.c
+--- linux-2.6.x/drivers/serial/bfin_5xx.c	2007-02-12 14:04:43.000000000 +0800
++++ linux-2.6.x.kgdb/drivers/serial/bfin_5xx.c	2007-02-12 15:21:44.000000000 +0800
+@@ -43,6 +43,11 @@
+ #include <linux/tty_flip.h>
+ #include <linux/serial_core.h>
  
 +#ifdef CONFIG_KGDB_UART
++#include <linux/kgdb.h>
 +#include <asm/irq_regs.h>
 +#endif
 +
- /* We've been assigned a range on the "Low-density serial ports" major */
- #define SERIAL_BFIN_MAJOR	TTY_MAJOR
- #define MINOR_START		64
-@@ -162,6 +166,51 @@
- 	local_irq_restore(flags);
+ #include <asm/gpio.h>
+ #include <asm/mach/bfin_serial_5xx.h>
+ 
+@@ -121,6 +126,9 @@ static void bfin_serial_stop_rx(struct u
+ 	unsigned short ier;
+ 
+ 	ier = UART_GET_IER(uart);
++#ifdef	CONFIG_KGDB_UART
++	if (uart->port.line != CONFIG_KGDB_UART_PORT)
++#endif
+ 	ier &= ~ERBFI;
+ 	UART_PUT_IER(uart, ier);
+ }
+@@ -132,6 +140,49 @@ static void bfin_serial_enable_ms(struct
+ {
  }
  
 +#ifdef CONFIG_KGDB_UART
-+extern void kgdb_breakkey_pressed(struct pt_regs *regs);
-+extern void init_kgdb_blackfin_uart(void);
 +static int kgdb_entry_state;
 +
-+void kgdb_put_debug_char(char chr)
++void kgdb_put_debug_char(int chr)
 +{
 +	struct bfin_serial_port *uart;
 +	
@@ -979,7 +988,7 @@ diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/
 +	}
 +	UART_PUT_LCR(uart, UART_GET_LCR(uart)&(~DLAB));
 +	__builtin_bfin_ssync();
-+	UART_PUT_CHAR(uart, chr);
++	UART_PUT_CHAR(uart, (unsigned char)chr);
 +	__builtin_bfin_ssync();
 +}
 +
@@ -1005,18 +1014,20 @@ diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/
 +}
 +#endif
 +
- static void
- bfin_serial_rx_chars(struct bfin_serial_port *uart)
+ #ifdef CONFIG_SERIAL_BFIN_PIO
+ static void local_put_char(struct bfin_serial_port *uart, char ch)
  {
-@@ -170,11 +219,35 @@
- #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
- 	static int in_break = 0;
- #endif
+@@ -154,6 +205,9 @@ static void bfin_serial_rx_chars(struct 
+ {
+ 	struct tty_struct *tty = uart->port.info?uart->port.info->tty:0;
+ 	unsigned int status, ch, flg;
 +#ifdef CONFIG_KGDB_UART
 +	struct pt_regs *regs = get_irq_regs();
 +#endif
- 
- 	status = UART_GET_LSR(uart);
+ #ifdef BF533_FAMILY
+ 	static int in_break = 0;
+ #endif
+@@ -162,6 +216,27 @@ static void bfin_serial_rx_chars(struct 
   	ch = UART_GET_CHAR(uart);
   	uart->port.icount.rx++;
  
@@ -1025,9 +1036,9 @@ diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/
 +		if (uart->port.cons->index == CONFIG_KGDB_UART_PORT && ch == 0x1) { /* Ctrl + A */
 +			kgdb_breakkey_pressed(regs);
 +			return;
-+		} else if (kgdb_entry_state == 0 && ch == 0x2b) {/* connection from KGDB */
++		} else if (kgdb_entry_state == 0 && ch == '$') {/* connection from KGDB */
 +			kgdb_entry_state = 1;
-+		} else if (kgdb_entry_state == 1 && ch == 0x30) {
++		} else if (kgdb_entry_state == 1 && ch == 'q') {
 +			kgdb_entry_state = 0;
 +			kgdb_breakkey_pressed(regs);
 +			return;
@@ -1041,16 +1052,33 @@ diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/
 +	}
 +#endif
 + 
- #if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
- 	if (in_break) {
- 		if (ch != 0) {
-@@ -905,8 +978,15 @@
- 
- static int __init bfin_serial_rs_console_init(void)
- {
-+#ifdef CONFIG_KGDB_UART
-+	struct bfin_serial_port *uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
+ #ifdef BF533_FAMILY
+ 	/* The BF533 family of processors have a nice misbehavior where
+ 	 * they continuously generate characters for a "single" break.
+@@ -544,7 +619,11 @@ static int bfin_serial_startup(struct ua
+ 	uart->rx_dma_timer.expires = jiffies + DMA_RX_FLUSH_JIFFIES;
+ 	add_timer(&(uart->rx_dma_timer));
+ #else
++#ifdef	CONFIG_KGDB_UART
++	if (uart->port.line != CONFIG_KGDB_UART_PORT && request_irq
++#else
+ 	if (request_irq
 +#endif
+ 	    (uart->port.irq, bfin_serial_int, IRQF_DISABLED,
+ 	     "BFIN_UART_RX", uart)) {
+ 		printk(KERN_NOTICE "Unable to attach BlackFin UART RX interrupt\n");
+@@ -574,6 +653,9 @@ static void bfin_serial_shutdown(struct 
+ 	free_dma(uart->rx_dma_channel);
+ 	del_timer(&(uart->rx_dma_timer));
+ #else
++#ifdef	CONFIG_KGDB_UART
++	if (uart->port.line != CONFIG_KGDB_UART_PORT)
++#endif
+ 	free_irq(uart->port.irq, uart);
+ 	free_irq(uart->port.irq+1, uart);
+ #endif
+@@ -886,6 +968,10 @@ static int __init bfin_serial_rs_console
+ {
  	bfin_serial_init_ports();
  	register_console(&bfin_serial_console);
 +#ifdef CONFIG_KGDB_UART
@@ -1060,36 +1088,43 @@ diff -urN linux-2.6.x/drivers/serial/bfin_5xx.c linux-2.6.x.kgdb/drivers/serial/
  	return 0;
  }
  console_initcall(bfin_serial_rs_console_init);
-@@ -998,6 +1078,9 @@
+@@ -978,6 +1064,10 @@ static struct platform_driver bfin_seria
  static int __init bfin_serial_init(void)
  {
  	int ret;
 +#ifdef CONFIG_KGDB_UART
 +	struct bfin_serial_port *uart = &bfin_serial_ports[CONFIG_KGDB_UART_PORT];
++	struct termios t;
 +#endif
  
  	pr_info("Serial: Blackfin serial driver\n");
  
-@@ -1011,6 +1094,15 @@
+@@ -991,6 +1081,21 @@ static int __init bfin_serial_init(void)
  			uart_unregister_driver(&bfin_serial_reg);
  		}
  	}
 +#ifdef CONFIG_KGDB_UART
 +	if (uart->port.cons->index != CONFIG_KGDB_UART_PORT) {
 +		request_irq(uart->port.irq, bfin_serial_int,
-+			SA_INTERRUPT | SA_SHIRQ,"BFIN_UART_RX", uart);
++			IRQF_DISABLED, "BFIN_UART_RX", uart);
 +		pr_info("Request irq for kgdb uart port\n");
 +		UART_PUT_IER(uart, UART_GET_IER(uart) | ERBFI);
 +		__builtin_bfin_ssync();
++		t.c_cflag = CS8|B57600;
++		t.c_iflag = 0;
++		t.c_oflag = 0;
++		t.c_lflag = ICANON;
++		t.c_line = CONFIG_KGDB_UART_PORT;
++		bfin_serial_set_termios(&uart->port, &t, &t);
 +	}
 +#endif
  	return ret;
  }
  
-diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/serial/kgdb_bfin_uart.c
+diff -purN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/serial/kgdb_bfin_uart.c
 --- linux-2.6.x/drivers/serial/kgdb_bfin_uart.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/drivers/serial/kgdb_bfin_uart.c	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,96 @@
++++ linux-2.6.x.kgdb/drivers/serial/kgdb_bfin_uart.c	2007-02-12 15:05:22.000000000 +0800
+@@ -0,0 +1,92 @@
 +/*
 + * File:         drivers/serial/kgdb_bfin_uart.c
 + * Based on:
@@ -1121,7 +1156,6 @@ diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/s
 + * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 + */
 +
-+#include <linux/config.h>
 +#include <linux/kernel.h>
 +#include <linux/init.h>
 +#include <linux/kgdb.h>
@@ -1132,9 +1166,6 @@ diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/s
 +/*
 + * Wait until the interface can accept a char, then write it.
 + */
-+extern void kgdb_put_debug_char(int chr);
-+extern int kgdb_get_debug_char(void);
-+
 +void kgdb_print(const char *fmt, ...)
 +{
 +	va_list args;
@@ -1178,7 +1209,7 @@ diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/s
 +void init_kgdb_blackfin_uart(void)
 +{
 +	kgdb_serial = &kgdb_uart_driver;
-+	kgdb_print("Init kgdb uart on blackfin.\n");
++	printk("Init kgdb uart on blackfin.\n");
 +	initialized = 1;
 +
 +#ifdef CONFIG_KGDB_WAIT_IN_BOOT
@@ -1186,9 +1217,9 @@ diff -urN linux-2.6.x/drivers/serial/kgdb_bfin_uart.c linux-2.6.x.kgdb/drivers/s
 +	kgdb_schedule_breakpoint();
 +#endif
 +}
-diff -urN linux-2.6.x/include/asm-blackfin/kgdb.h linux-2.6.x.kgdb/include/asm-blackfin/kgdb.h
+diff -purN linux-2.6.x/include/asm-blackfin/kgdb.h linux-2.6.x.kgdb/include/asm-blackfin/kgdb.h
 --- linux-2.6.x/include/asm-blackfin/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/include/asm-blackfin/kgdb.h	2007-02-05 14:28:10.000000000 +0800
++++ linux-2.6.x.kgdb/include/asm-blackfin/kgdb.h	2007-02-12 14:48:22.000000000 +0800
 @@ -0,0 +1,183 @@
 +/*
 + * File:         include/asm-blackfin/kgdb.h
@@ -1373,9 +1404,9 @@ diff -urN linux-2.6.x/include/asm-blackfin/kgdb.h linux-2.6.x.kgdb/include/asm-b
 +extern void kgdb_print(const char *fmt, ...);
 +
 +#endif
-diff -urN linux-2.6.x/include/linux/debugger.h linux-2.6.x.kgdb/include/linux/debugger.h
+diff -purN linux-2.6.x/include/linux/debugger.h linux-2.6.x.kgdb/include/linux/debugger.h
 --- linux-2.6.x/include/linux/debugger.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/include/linux/debugger.h	2007-02-05 14:28:10.000000000 +0800
++++ linux-2.6.x.kgdb/include/linux/debugger.h	2007-02-12 14:48:22.000000000 +0800
 @@ -0,0 +1,59 @@
 +#ifndef _DEBUGGER_H_
 +#define _DEBUGGER_H_
@@ -1436,10 +1467,10 @@ diff -urN linux-2.6.x/include/linux/debugger.h linux-2.6.x.kgdb/include/linux/de
 +#endif
 +
 +#endif				/* _DEBUGGER_H_ */
-diff -urN linux-2.6.x/include/linux/kgdb.h linux-2.6.x.kgdb/include/linux/kgdb.h
+diff -purN linux-2.6.x/include/linux/kgdb.h linux-2.6.x.kgdb/include/linux/kgdb.h
 --- linux-2.6.x/include/linux/kgdb.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/include/linux/kgdb.h	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,180 @@
++++ linux-2.6.x.kgdb/include/linux/kgdb.h	2007-02-12 15:03:27.000000000 +0800
+@@ -0,0 +1,185 @@
 +#ifndef _KGDB_H_
 +#define _KGDB_H_
 +
@@ -1616,14 +1647,19 @@ diff -urN linux-2.6.x/include/linux/kgdb.h linux-2.6.x.kgdb/include/linux/kgdb.h
 +char *kgdb_hex2mem(char *buf, char *mem, int count);
 +int kgdb_get_mem(char *addr, unsigned char *buf, int count);
 +
++extern void kgdb_put_debug_char(int chr);
++extern int kgdb_get_debug_char(void);
++extern void kgdb_breakkey_pressed(struct pt_regs *regs);
++extern void init_kgdb_blackfin_uart(void);
++
 +#else
 +#define kgdb_process_breakpoint()      do {} while(0)
 +#endif /* KGDB && !__ASSEMBLY__ */
 +#endif				/* _KGDB_H_ */
-diff -urN linux-2.6.x/kernel/Kconfig.kgdb linux-2.6.x.kgdb/kernel/Kconfig.kgdb
+diff -purN linux-2.6.x/kernel/Kconfig.kgdb linux-2.6.x.kgdb/kernel/Kconfig.kgdb
 --- linux-2.6.x/kernel/Kconfig.kgdb	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/kernel/Kconfig.kgdb	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,66 @@
++++ linux-2.6.x.kgdb/kernel/Kconfig.kgdb	2007-02-12 14:48:22.000000000 +0800
+@@ -0,0 +1,70 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
 +	depends on DEBUG_KERNEL
@@ -1668,8 +1704,7 @@ diff -urN linux-2.6.x/kernel/Kconfig.kgdb linux-2.6.x.kgdb/kernel/Kconfig.kgdb
 +
 +config KGDB_UART
 +	bool "UART"
-+	select SERIAL_BLACKFIN
-+	select SERIAL_BLACKFIN_PIO
++	depends SERIAL_BFIN
 +	help
 +	  Uses UART in kgdb. 
 +
@@ -1684,16 +1719,21 @@ diff -urN linux-2.6.x/kernel/Kconfig.kgdb linux-2.6.x.kgdb/kernel/Kconfig.kgdb
 +
 +config KGDB_WAIT_IN_BOOT
 +	depends on KGDB && KGDB_UART
++	bool "KGDB: wait for gdb to connect at kernel boot"
++	default n
++	select DEBUG_SERIAL_EARLY_INIT
++	help
++	  Wait for gdb to connect on UART at kernel boot 
 +
 +config KGDB_TEST
 +	tristate "KGDB: test"
 +	depends on KGDB
 +	help
 +
-diff -urN linux-2.6.x/kernel/Makefile linux-2.6.x.kgdb/kernel/Makefile
---- linux-2.6.x/kernel/Makefile	2007-02-05 13:43:11.000000000 +0800
-+++ linux-2.6.x.kgdb/kernel/Makefile	2007-02-05 14:28:10.000000000 +0800
-@@ -46,6 +46,7 @@
+diff -purN linux-2.6.x/kernel/Makefile linux-2.6.x.kgdb/kernel/Makefile
+--- linux-2.6.x/kernel/Makefile	2007-02-12 14:03:55.000000000 +0800
++++ linux-2.6.x.kgdb/kernel/Makefile	2007-02-12 14:48:22.000000000 +0800
+@@ -46,6 +46,7 @@ obj-$(CONFIG_SYSFS) += ksysfs.o
  obj-$(CONFIG_DETECT_SOFTLOCKUP) += softlockup.o
  obj-$(CONFIG_GENERIC_HARDIRQS) += irq/
  obj-$(CONFIG_SECCOMP) += seccomp.o
@@ -1701,10 +1741,10 @@ diff -urN linux-2.6.x/kernel/Makefile linux-2.6.x.kgdb/kernel/Makefile
  obj-$(CONFIG_RCU_TORTURE_TEST) += rcutorture.o
  obj-$(CONFIG_RELAY) += relay.o
  obj-$(CONFIG_UTS_NS) += utsname.o
-diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
+diff -purN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 --- linux-2.6.x/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x.kgdb/kernel/kgdb.c	2007-02-05 14:28:10.000000000 +0800
-@@ -0,0 +1,1447 @@
++++ linux-2.6.x.kgdb/kernel/kgdb.c	2007-02-12 17:26:50.000000000 +0800
+@@ -0,0 +1,1519 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -1777,11 +1817,7 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +
 +/* Set to 1 to make kgdb allow access to user addresses. Can be set from gdb
 + * also at runtime. */
-+#ifdef CONFIG_BLACKFIN
 +int kgdb_useraccess = 1;
-+#else
-+int kgdb_useraccess = 0;
-+#endif
 +
 +struct kgdb_serial *kgdb_serial;
 +
@@ -2089,6 +2125,16 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +	return ret;
 +}
 +
++#ifdef CONFIG_BLACKFIN
++#include <asm/dma.h>
++
++#define INST_BUFSIZE	50
++
++static unsigned short mmr16;
++static unsigned long mmr32;
++static unsigned char inst_buf[INST_BUFSIZE];
++#endif
++
 +/*
 + * convert the memory pointed to by mem into hex, placing result in buf
 + * return a pointer to the last char put in buf (null). May return an error.
@@ -2100,16 +2146,14 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +	int error;
 +
 +#ifdef CONFIG_BLACKFIN
-+	unsigned short mmr16;
-+	unsigned long mmr32;
 +	unsigned char *pch;
++	unsigned int inst_count;
 +
-+	if ((unsigned int)mem > 0xffc00000) { /*workaround to access MMR registers*/
++	if ((unsigned int)mem >= 0xffc00000) { /*access MMR registers*/
 +		switch(count) {
 +		case 2:
 +			if ((unsigned int)mem % 2 == 0) {
-+				if (get_user(mmr16, (unsigned short *)mem) != 0)
-+					return ERR_PTR(-EFAULT);
++				mmr16 = *(unsigned short *)mem;
 +				pch = (unsigned char *)&mmr16;
 +				for (i = 0; i < count; i++) {
 +					*buf++ = hexchars[*pch >> 4];
@@ -2122,8 +2166,7 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +			break;
 +		case 4:
 +			if ((unsigned int)mem % 4 == 0) {
-+				if (get_user(mmr32, (unsigned long *)mem) != 0)
-+					return ERR_PTR(-EFAULT);
++				mmr32 = *(unsigned long *)mem;
 +				pch = (unsigned char *)&mmr32;
 +				for (i = 0; i < count; i++) {
 +					*buf++ = hexchars[*pch >> 4];
@@ -2136,6 +2179,27 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +			break;
 +		default:
 +			return ERR_PTR(-EFAULT);
++		}
++	}
++	else if ((unsigned int)mem >= 0xffA00000  /*access L1 instruction registers*/
++#ifdef CONFIG_BLKFIN_CACHE
++		&& (unsigned int)mem < 0xffA10000) {
++#else
++		&& (unsigned int)mem < 0xffA14000) {
++#endif
++		inst_count = INST_BUFSIZE;
++		while(count>0) {
++			if(inst_count > count)
++				inst_count = count;
++			if(dma_memcpy(inst_buf, mem, inst_count) == NULL)
++				return ERR_PTR(-EFAULT);
++			count -= inst_count;
++			mem += inst_count;
++			for (i = 0; i < inst_count; i++) {
++				
++				*buf++ = hexchars[inst_buf[i] >> 4];
++				*buf++ = hexchars[inst_buf[i] % 16];
++			}
 +		}
 +	}
 +	else if((unsigned int)mem < 0x1000) {
@@ -2170,10 +2234,9 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +	int error;
 +
 +#ifdef CONFIG_BLACKFIN
-+	unsigned short mmr16 = 0;
-+	unsigned long mmr32 = 0;
++	unsigned int inst_count;
 +
-+	if ((unsigned int)mem > 0xffc00000) { /*workaround to access MMR registers*/
++	if ((unsigned int)mem >= 0xffc00000) { /*access MMR registers*/
 +		switch(count) {
 +		case 2:
 +			if ((unsigned int)mem % 2 == 0) {
@@ -2184,8 +2247,7 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +					mmr16 += hex(*(buf+1));
 +					buf-=2;
 +				}
-+				if (put_user(mmr16, (unsigned short *)mem) != 0)
-+					return ERR_PTR(-EFAULT);
++				*(unsigned short *)mem = mmr16;
 +			}
 +			else
 +				return ERR_PTR(-EFAULT);
@@ -2199,14 +2261,34 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +					mmr32 += hex(*(buf+1));
 +					buf-=2;
 +				}
-+				if (put_user(mmr32, (unsigned long *)mem) != 0)
-+					return ERR_PTR(-EFAULT);
++				*(unsigned long *)mem = mmr32;
 +			}
 +			else
 +				return ERR_PTR(-EFAULT);
 +			break;
 +		default:
 +			return ERR_PTR(-EFAULT);
++		}
++	}
++	else if ((unsigned int)mem >= 0xffA00000  /*access L1 instruction registers*/
++#ifdef CONFIG_BLKFIN_CACHE
++		&& (unsigned int)mem < 0xffA10000) {
++#else
++		&& (unsigned int)mem < 0xffA14000) {
++#endif
++		inst_count = INST_BUFSIZE;
++		while(count>0) {
++			if(inst_count > count)
++				inst_count = count;
++			for (i = 0; i < inst_count; i++) {
++				
++				inst_buf[i] = hex(*buf++) << 4;
++				inst_buf[i] = inst_buf[i] + hex(*buf++);
++			}
++			if(dma_memcpy(mem, inst_buf, inst_count) == NULL)
++				return ERR_PTR(-EFAULT);
++			count -= inst_count;
++			mem += inst_count;
 +		}
 +	}
 +	else if((unsigned int)mem < 0x1000) {
@@ -2365,23 +2447,53 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +int kgdb_get_mem(char *addr, unsigned char *buf, int count)
 +{
 +	int error;
++#ifdef CONFIG_BLACKFIN
++	if ((unsigned int)addr >= 0xffA00000  /*access L1 instruction registers*/
++#ifdef CONFIG_BLKFIN_CACHE
++		&& (unsigned int)addr < 0xffA10000) {
++#else
++		&& (unsigned int)addr < 0xffA14000) {
++#endif
++		if(dma_memcpy(buf, addr, count) == NULL)
++			return -EFAULT;
++	}
++	else {
++#endif
 +	while (count) {
 +		if ((error = get_char(addr++, buf)) < 0)
 +			return error;
 +		buf++;
 +		count--;
 +	}
++#ifdef CONFIG_BLACKFIN
++	}
++#endif
 +	return 0;
 +}
 +
 +static int set_mem(char *addr, unsigned char *buf, int count)
 +{
 +	int error;
++#ifdef CONFIG_BLACKFIN
++	if ((unsigned int)addr >= 0xffA00000  /*access L1 instruction registers*/
++#ifdef CONFIG_BLKFIN_CACHE
++		&& (unsigned int)addr < 0xffA10000) {
++#else
++		&& (unsigned int)addr < 0xffA14000) {
++#endif
++		if(dma_memcpy(addr, buf, count) == NULL)
++			return -EFAULT;
++	}
++	else {
++#endif
 +	while (count) {
 +		if ((error = set_char(addr++, *buf++)) < 0)
 +			return error;
 +		count--;
 +	}
++#ifdef CONFIG_BLACKFIN
++	}
++#endif
 +	return 0;
 +}
 +
@@ -3152,9 +3264,9 @@ diff -urN linux-2.6.x/kernel/kgdb.c linux-2.6.x.kgdb/kernel/kgdb.c
 +#endif
 +__setup("gdb", opt_gdb);
 +__setup("kgdbwait", opt_kgdb_enter);
-diff -urN linux-2.6.x/kernel/sched.c linux-2.6.x.kgdb/kernel/sched.c
---- linux-2.6.x/kernel/sched.c	2007-02-05 13:43:11.000000000 +0800
-+++ linux-2.6.x.kgdb/kernel/sched.c	2007-02-05 14:28:10.000000000 +0800
+diff -purN linux-2.6.x/kernel/sched.c linux-2.6.x.kgdb/kernel/sched.c
+--- linux-2.6.x/kernel/sched.c	2007-02-12 14:03:55.000000000 +0800
++++ linux-2.6.x.kgdb/kernel/sched.c	2007-02-12 14:48:22.000000000 +0800
 @@ -46,6 +46,7 @@
  #include <linux/cpuset.h>
  #include <linux/percpu.h>
@@ -3163,7 +3275,7 @@ diff -urN linux-2.6.x/kernel/sched.c linux-2.6.x.kgdb/kernel/sched.c
  #include <linux/seq_file.h>
  #include <linux/syscalls.h>
  #include <linux/times.h>
-@@ -6858,6 +6859,9 @@
+@@ -6861,6 +6862,9 @@ void __might_sleep(char *file, int line)
  #ifdef in_atomic
  	static unsigned long prev_jiffy;	/* ratelimiting */
  
@@ -3173,10 +3285,10 @@ diff -urN linux-2.6.x/kernel/sched.c linux-2.6.x.kgdb/kernel/sched.c
  	if ((in_atomic() || irqs_disabled()) &&
  	    system_state == SYSTEM_RUNNING && !oops_in_progress) {
  		if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
-diff -urN linux-2.6.x/net/core/netpoll.c linux-2.6.x.kgdb/net/core/netpoll.c
---- linux-2.6.x/net/core/netpoll.c	2007-02-05 13:43:27.000000000 +0800
-+++ linux-2.6.x.kgdb/net/core/netpoll.c	2007-02-05 14:28:10.000000000 +0800
-@@ -332,6 +332,7 @@
+diff -purN linux-2.6.x/net/core/netpoll.c linux-2.6.x.kgdb/net/core/netpoll.c
+--- linux-2.6.x/net/core/netpoll.c	2007-02-12 14:04:10.000000000 +0800
++++ linux-2.6.x.kgdb/net/core/netpoll.c	2007-02-12 14:48:22.000000000 +0800
+@@ -332,6 +332,7 @@ void netpoll_send_udp(struct netpoll *np
  	if (!skb)
  		return;
  
