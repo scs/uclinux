@@ -1,5 +1,5 @@
 linphone_subdirs = libosip2
-linphone_subdirs += linphone-1.5.0
+linphone_subdirs += linphone-1.6.0
 export TEMPDIR=$(CURDIR)/temp
 
 

@@ -1,0 +1,7 @@
+mediastreamer-2.1.0: 23, January 2007
+	* add support for Video4Linux V2 cameras
+	* support for mpjeg cameras
+	* webcam support on windows operational
+	* video window display ok on windows
+	* fix bug with quickcam driver on linux
+	* bandwidth setting improvements.

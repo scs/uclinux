@@ -1,0 +1,29 @@
+                      about mediastreamer2
+                      --------------------
+
+What's that ?
+*************
+Mediastreamer2 is a GPL licensed library to make audio and video real-time streaming and processing. Written in pure C, it is based upon the ortp library.
+
+What are the design principles ?
+********************************
+Quite simple: 
+- each processing entity is contained within a MSFilter object. MSFilter(s) have inputs and/or outputs.
+For example MSRtpRecv is a MSFilter that receives RTP packets from the network, unpacketize them and post them on its only output.
+MSSpeexDec is a MSFilter that takes everything on its input assuming these are speex encoded packets, and decodes them and put the result on its output.
+MSFileRec is a MSFilter that takes everything on its input and write it to wav file (assuming the input is 16bit linear pcm).
+
+MSFilter can be connected together to become filter chain. If we assemble the three above examples, we obtain a processing chain that receives RTP packet, decode them and write the uncompressed result into a wav file. The primitive to connect filter is simple:
+ms_filter_link(first_filter, output_pin, second_filter, input_pin);
+
+Once connected, and in order to run, MSFilters have to be scheduled. This is the role of the MSTicker object:
+ms_ticker_attach(ticker,any_filter_of_the_chain);
+// and to stop:
+ms_ticker_detach(ticker,any_filter_of_the_chain);
+A single MSTicker object can schedule several different chains.
+
+What else ?
+***********
+Nothing more for the moment. I'm tired I need to go to bed.
+
+
