@@ -124,7 +124,13 @@ while 1 {
       }
       
            -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+            if { $binary_format == "flat" } {
+                       send  "N\r"
+            } elseif { $binary_format == "elf" } {
                        send  "\r"
+            } elseif { $binary_format == "shared-flat" } {
+                       send  "\r"
+            }
       }
 
            -re "Install FLAT shared libraries.*CONFIG_INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
@@ -169,6 +175,10 @@ while 1 {
 		}
       }
 
+           -re "Device Nodes.*Dynamic.*Static.*\\\[.*]" {
+
+                        send "Static\r"
+        }
  
        "\\\(*) \\\[*]" {
 	    sleep .01 
