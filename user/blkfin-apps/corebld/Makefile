@@ -1,15 +1,17 @@
 obj-m := dualcore_test.o
 
 CFLAGS += -Wall
-CPPFLAGS += -D__ASSEMBLY__
 
 all: corebld coreb coreb_get_testarg module
 
+.S.o:
+	bfin-elf-gcc -mcpu=bf561 $(CFLAGS) -c -o $@ $<
+
 coreb: coreb.o coreb.lds
-	$(LD) -N -M -T coreb.lds coreb.o -o coreb > coreb.map
+	bfin-elf-ld -N -M -T coreb.lds coreb.o -o coreb > coreb.map
 
 coreb_get_testarg: coreb_get_testarg.o coreb.lds
-	$(LD) -N -T coreb.lds coreb_get_testarg.o -o coreb_get_testarg
+	bfin-elf-ld -N -T coreb.lds coreb_get_testarg.o -o coreb_get_testarg
 
 module:
 	echo $(LDFLAGS)
