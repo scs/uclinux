@@ -517,7 +517,7 @@ linphone_core_init (LinphoneCore * lc, const LinphoneCoreVTable *vtable, const c
 	ortp_init();
 	rtp_profile_set_payload(&av_profile,115,&payload_type_lpc1015);
 	rtp_profile_set_payload(&av_profile,110,&payload_type_speex_nb);
-//	rtp_profile_set_payload(&av_profile,111,&payload_type_speex_wb);
+	rtp_profile_set_payload(&av_profile,111,&payload_type_speex_wb);
 	rtp_profile_set_payload(&av_profile,112,&payload_type_ilbc);
 	rtp_profile_set_payload(&av_profile,116,&payload_type_truespeech);
 	rtp_profile_set_payload(&av_profile,101,&payload_type_telephone_event);
