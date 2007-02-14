@@ -17,7 +17,7 @@
  * Linux critical section locking definitions
  */
 #if THREADSAFE_LINUX
-#define __USE_GNU		/* define _NP routines*/
+/* # define __USE_GNU */	 /* define _NP routines*/
 #include <pthread.h>
 typedef pthread_mutex_t	MWMUTEX;
 

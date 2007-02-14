@@ -32,7 +32,7 @@ INSTALL_BIN   = install -c -m 755 $(INSTALL_OWNER2)
 ##############################################################################
 
 # Defines
-DEFINES += -DMWPIXEL_FORMAT=$(SCREEN_PIXTYPE)
+DEFINES += -DMWPIXEL_FORMAT=$(SCREEN_PIXTYPE) -D_GNU_SOURCE
 
 # Includes
 INCLUDEDIRS += -I. -I$(MW_DIR_SRC)/include
@@ -227,7 +227,7 @@ endif
 
 ifeq ($(THREADSAFE), Y)
 DEFINES += -DTHREADSAFE=1
-#LDFLAGS += -lpthread
+LDFLAGS += -pthread
 endif
 
 # Driver-specific stuff
