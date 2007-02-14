@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 	fd = open("/dev/watchdog", O_WRONLY);
 
 	if (fd == -1) {
-		fprintf(stderr, "Watchdog device not enabled.\n");
+		perror("Watchdog device not enabled");
 		fflush(stderr);
 		exit(-1);
 	}
