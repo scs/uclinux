@@ -267,7 +267,7 @@ romfs.post:
 romfs.shared.libs:
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
 		t=`bfin-linux-uclibc-gcc -print-file-name=libc.a`; \
-		t=`dirname $$t`/../runtime; \
+		t=`dirname $$t`/../..; \
 		for i in $$t/lib/*so*; do \
 			bn=`basename $$i`; \
 			if [ -f $$i -a ! -h $$i -a $$bn != "lib1.so" -a $$bn != "lib2.so" ] ; then \
