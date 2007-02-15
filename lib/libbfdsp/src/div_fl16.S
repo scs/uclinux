@@ -11,7 +11,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _div_fl16:
 	P0 = R7;	// store for later

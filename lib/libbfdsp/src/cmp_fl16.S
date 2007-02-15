@@ -11,7 +11,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 
 _cmp_fl16:

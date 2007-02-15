@@ -17,7 +17,7 @@
 ** Normalise a 32-bit float.
 */
 
-.section program;
+.text;
 
 .align 2;
 _norm_fl32:

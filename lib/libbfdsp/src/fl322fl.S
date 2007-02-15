@@ -2,7 +2,7 @@
 ** Convert float32 to float.
 */
 
-.section program;
+.text;
 .align 2;
 
 _fl32_to_fl:

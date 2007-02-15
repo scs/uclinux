@@ -23,7 +23,7 @@
 #define OVERFLOW V
 #endif
 
-.section program;
+.text;
 .align 2;
 _mul_fl32:
    R3 = [SP+12];   // get mantissa of second input

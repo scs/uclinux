@@ -3,12 +3,11 @@ README for libbfdsp: port of Analog Devices' Visual DSP++ DSP library to Linux
 === What is libbfdsp ===
 
 The source code is taken from VDSP4.0. This library implements DSP functions.
-After built, libbfdsp.a put to romfs/lib/, and headers are installed to 
-/include/bfdsp/.
+After built, the library will be built as libbfdsp.a and headers  are put in include/.
 
 === Directory ===
 
-src/		Cource code of library, including .c, .asm, .S files
+src/		Source code of library, including .c, .asm, .S files
 include/	Headers
 test/		Test cases. Currently the test cases covers only a few functions.
 

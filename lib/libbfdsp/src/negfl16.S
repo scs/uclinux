@@ -10,7 +10,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _negate_fl16:
 	R1 = 0;

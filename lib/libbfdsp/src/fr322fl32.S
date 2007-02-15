@@ -17,7 +17,7 @@
 ** fract32 to 32-bit float.
 */
 
-.section program;
+.text;
 
 .align 2;
 _fr32_to_fl32:

@@ -9,18 +9,18 @@
 
 ** Non-LGPL License also available as part of VisualDSP++
 ** http://www.analog.com/processors/resources/crosscore/visualDspDevSoftware.html
-
 */
 
 #if defined(__ADSPBF535__) || defined(__AD6532__)
+/* __ADSPBF535__ core only */
 #define CARRY AC
 #else
 #define CARRY AC0
 #endif
 
-.section program;
+.text;
 .align 2;
-___float32_add:
+_add_fl16:
 	// Compare exponents
 	R2.L = R0.L - R1.L (NS);
 	R2 = R2.L (X);
@@ -39,7 +39,8 @@ ___float32_add:
 #endif
 	R1 >>>= R2;
 	R0.H = R0.H + R1.H (NS);
-#if defined(__ADSPBF535__) || defined(__AD6532__)
+#if defined(__ADSPBLACKFIN__) && !defined(__ADSPLPBLACKFIN__)
+/* __ADSPBF535__ core only */
 	CC = AV0;
 #else
 	CC = V;
@@ -68,6 +69,6 @@ overflow:
 	R2 += 1;		// increase exponent
 	R0.L = R2.L >> 0;	// put changed exponent back
 	RTS;
-.___float32_add.end:
-.global ___float32_add;
-.type ___float32_add, STT_FUNC;
+._add_fl16.end:
+.global _add_fl16;
+.type _add_fl16, STT_FUNC;

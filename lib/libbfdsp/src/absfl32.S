@@ -2,7 +2,7 @@
 ** Float32 abs
 */
 
-.section program;
+.text;
 .align 2;
 _abs_fl32:
 	R1 = ABS R1;

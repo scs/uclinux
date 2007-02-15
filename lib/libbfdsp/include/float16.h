@@ -1,7 +1,3 @@
-#pragma once
-#ifndef __NO_BUILTIN
-#pragma system_header /* float16.h */
-#endif
 /************************************************************************
  *
  * float16.h

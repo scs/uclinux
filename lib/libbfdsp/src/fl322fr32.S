@@ -2,7 +2,7 @@
 ** Convert Float32 to fract32.  This is a 64-bit float made up of a 32-bit exponent and 32-bit fractional mantissa
 */
 
-.section program;
+.text;
 .align 2;
 
 _fl32_to_fr32:

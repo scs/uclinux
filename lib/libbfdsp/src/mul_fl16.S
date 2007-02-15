@@ -11,7 +11,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _mul_fl16:
 	R2.L = R0.L + R1.L (NS);

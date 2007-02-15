@@ -11,7 +11,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 ___float32_mul:
 	R2.L = R0.L + R1.L (NS);

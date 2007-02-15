@@ -10,7 +10,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _fits_in_fl16:
 	R1 = R0.B (X);

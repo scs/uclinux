@@ -17,7 +17,7 @@
 #define CARRY AC0
 #endif
 
-.section program;
+.text;
 .align 2;
 
 ___float32_sub:

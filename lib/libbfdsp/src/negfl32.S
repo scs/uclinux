@@ -2,7 +2,7 @@
 ** Float32 negate
 */
 
-.section program;
+.text;
 .align 2;
 _negate_fl32:
 	R1 = -R1;

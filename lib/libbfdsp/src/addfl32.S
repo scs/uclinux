@@ -21,7 +21,7 @@
 #define OVERFLOW V
 #endif
 
-.section program;
+.text;
 .align 2;
 _add_fl32:
 	P0 = R6;

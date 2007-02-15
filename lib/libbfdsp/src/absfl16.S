@@ -10,7 +10,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _abs_fl16:
 	R1 = ABS R0 (V);

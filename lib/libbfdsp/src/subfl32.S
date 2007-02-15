@@ -25,7 +25,7 @@
 #define OVERFLOW V
 #endif
 
-.section program;
+.text;
 
 .align 2;
 

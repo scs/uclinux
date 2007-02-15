@@ -2,7 +2,7 @@
 ** Float32 compare.
 */
 
-.section program;
+.text;
 .align 2;
 
 _cmp_fl32:

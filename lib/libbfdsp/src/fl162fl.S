@@ -10,7 +10,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 
 _fl16_to_fl:

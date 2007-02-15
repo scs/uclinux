@@ -4,7 +4,7 @@
 ** XXX It's only here to give an estimate of the cycles required.
 */
 
-.section program;
+.text;
 .extern ___udiv32;
 .align 2;
 _div_fl32:

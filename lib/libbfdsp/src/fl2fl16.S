@@ -10,7 +10,7 @@
 
 */
 
-.section program;
+.text;
 .align 2;
 _fl_to_fl16:
 	R1 = R0 << 1;
