@@ -42,7 +42,7 @@ while 1 {
          send "m\r"
       }
 
-      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[././.]" {
+      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\[^_].*\\\[././.]" {
          send "m\r"
       }
 
@@ -111,6 +111,7 @@ while 1 {
       }
 
       "\\\(*) \\\[*]" {
+         sleep .01
          send "\r"
       }
 
