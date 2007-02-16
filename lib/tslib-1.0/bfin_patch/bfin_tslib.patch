@@ -1,0 +1,60 @@
+diff -Nur tslib-1.0/configure tslib-1.0-new/configure
+--- tslib-1.0/configure	2007-01-31 20:04:08.000000000 +0800
++++ tslib-1.0-new/configure	2007-01-31 20:03:29.000000000 +0800
+@@ -7172,7 +7172,7 @@
+       archive_expsym_cmds='sed "s,^,_," $export_symbols >$output_objdir/$soname.expsym~$CC -shared $pic_flag $libobjs $deplibs $compiler_flags ${wl}-h,$soname ${wl}--retain-symbols-file,$output_objdir/$soname.expsym ${wl}--image-base,`expr ${RANDOM-$$} % 4096 / 2 \* 262144 + 1342177280` -o $lib'
+       ;;
+ 
+-    linux*)
++    linux* | uclinux)
+       if $LD --help 2>&1 | grep ': supported targets:.* elf' > /dev/null; then
+ 	tmp_addflag=
+ 	case $cc_basename,$host_cpu in
+@@ -8394,7 +8394,7 @@
+   ;;
+ 
+ # This must be Linux ELF.
+-linux*)
++linux* | uclinux)
+   version_type=linux
+   need_lib_prefix=no
+   need_version=no
+@@ -10864,7 +10864,7 @@
+     hardcode_libdir_flag_spec_CXX='${wl}-rpath ${wl}$libdir'
+     hardcode_libdir_separator_CXX=:
+     ;;
+-  linux*)
++  linux* | uclinux)
+     case $cc_basename in
+       KCC*)
+ 	# Kuck and Associates, Inc. (KAI) C++ Compiler
+@@ -12350,7 +12350,7 @@
+   ;;
+ 
+ # This must be Linux ELF.
+-linux*)
++linux* | uclinux)
+   version_type=linux
+   need_lib_prefix=no
+   need_version=no
+@@ -17532,7 +17532,7 @@
+   ;;
+ 
+ # This must be Linux ELF.
+-linux*)
++linux* | uclinux)
+   version_type=linux
+   need_lib_prefix=no
+   need_version=no
+diff -Nur tslib-1.0/tests/fbutils.c tslib-1.0-new/tests/fbutils.c
+--- tslib-1.0/tests/fbutils.c	2006-08-25 05:02:55.000000000 +0800
++++ tslib-1.0-new/tests/fbutils.c	2007-01-31 20:02:30.000000000 +0800
+@@ -127,7 +127,7 @@
+ 	xres = var.xres;
+ 	yres = var.yres;
+ 
+-	fbuffer = mmap(NULL, fix.smem_len, PROT_READ | PROT_WRITE, MAP_FILE | MAP_SHARED, fb_fd, 0);
++	fbuffer = mmap(NULL, fix.smem_len, PROT_READ | PROT_WRITE, MAP_FILE | MAP_PRIVATE, fb_fd, 0);
+ 	if (fbuffer == (unsigned char *)-1) {
+ 		perror("mmap framebuffer");
+ 		close(fb_fd);

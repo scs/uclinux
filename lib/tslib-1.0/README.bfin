@@ -1,0 +1,35 @@
+Since tslib uses dlopen() to implement plugins, it can only be built in FDPIC format.
+
+Here the souce tree has been patched with special fixes for Blackfin uClinux.
+
+The bfin_patch/ directory contains the patch we used. And bellow are steps to apply
+the patch:
+
+Build tslib
+===========
+Tslib can read from "/dev/input/eventX" device, and handles the touchscreen
+raw event in user space.
+
+You may build tslib  by yourself as the steps bellow.
+
+1. Download tslib-1.0 from http://tslib.berlios.de or use the patched lib
+in the dist.
+
+2. Patch tslib with bfin_tslib_configure_ac.patch.
+
+3. Intialize the configuration files:
+        # autogen.sh
+
+4. Patch tslib with bfin_tslib.patch
+
+5. Set the install path and configure:
+
+# ./configure --host=bfin-uclinux --disable-h2200-linear --disable-ucb1x00 --disable-corgi --disable-collie --disable-h3600 --disable-mk712 --disable-arctic2 --prefix=$TS_INSTALL CFLAGS='-mfdpic -DUSE_INPUT_API'
+
+6. # make install
+Bellow are fils we need:
+./bin/ts_calibrate
+./etc/ts.conf
+./include/tslib.h
+./lib:
+dejitter.so  input.so  libts-0.0.so.0  libts.so  linear.so  pthres.so  variance.so
