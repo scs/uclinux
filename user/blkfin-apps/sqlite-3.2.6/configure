@@ -19215,7 +19215,6 @@ echo "$as_me: error: unable to find a compiler for building build tools" >&2;}
    { (exit 1); exit 1; }; }
   fi
   BUILD_CC=gcc
-  default_build_cflags=$CFLAGS
 else
   BUILD_CC=$config_BUILD_CC
   echo "$as_me:$LINENO: checking host compiler" >&5
@@ -19250,7 +19249,7 @@ echo $ECHO_N "checking target compiler... $ECHO_C" >&6
 if test "$config_TARGET_CC" != ""; then
   TARGET_CC=$config_TARGET_CC
 else
-  TARGET_CC=$BUILD_CC
+  TARGET_CC=$CC
 fi
 echo "$as_me:$LINENO: result: $TARGET_CC" >&5
 echo "${ECHO_T}$TARGET_CC" >&6
@@ -19259,14 +19258,14 @@ echo $ECHO_N "checking switches on the target compiler... $ECHO_C" >&6
 if test "$config_TARGET_CFLAGS" != ""; then
   TARGET_CFLAGS=$config_TARGET_CFLAGS
 else
-  TARGET_CFLAGS=$BUILD_CFLAGS
+  TARGET_CFLAGS=$CFLAGS
 fi
 echo "$as_me:$LINENO: result: $TARGET_CFLAGS" >&5
 echo "${ECHO_T}$TARGET_CFLAGS" >&6
 echo "$as_me:$LINENO: checking target linker" >&5
 echo $ECHO_N "checking target linker... $ECHO_C" >&6
 if test "$config_TARGET_LINK" = ""; then
-  TARGET_LINK=$TARGET_CC
+  TARGET_LINK=$CC
 else
   TARGET_LINK=$config_TARGET_LINK
 fi
@@ -19277,7 +19276,7 @@ echo $ECHO_N "checking switches on the target compiler... $ECHO_C" >&6
 if test "$config_TARGET_TFLAGS" != ""; then
   TARGET_TFLAGS=$config_TARGET_TFLAGS
 else
-  TARGET_TFLAGS=$BUILD_CFLAGS
+  TARGET_TFLAGS=$CFLAGS
 fi
 if test "$config_TARGET_RANLIB" != ""; then
   TARGET_RANLIB=$config_TARGET_RANLIB

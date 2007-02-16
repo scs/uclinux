@@ -220,14 +220,14 @@ AC_MSG_CHECKING([target compiler])
 if test "$config_TARGET_CC" != ""; then
   TARGET_CC=$config_TARGET_CC
 else
-  TARGET_CC=$BUILD_CC
+  TARGET_CC=$CC
 fi
 AC_MSG_RESULT($TARGET_CC)
 AC_MSG_CHECKING([switches on the target compiler])
 if test "$config_TARGET_CFLAGS" != ""; then
   TARGET_CFLAGS=$config_TARGET_CFLAGS
 else
-  TARGET_CFLAGS=$BUILD_CFLAGS
+  TARGET_CFLAGS=$CFLAGS
 fi
 AC_MSG_RESULT($TARGET_CFLAGS)
 AC_MSG_CHECKING([target linker])
@@ -241,7 +241,7 @@ AC_MSG_CHECKING([switches on the target compiler])
 if test "$config_TARGET_TFLAGS" != ""; then
   TARGET_TFLAGS=$config_TARGET_TFLAGS
 else
-  TARGET_TFLAGS=$BUILD_CFLAGS
+  TARGET_TFLAGS=$CFLAGS
 fi
 if test "$config_TARGET_RANLIB" != ""; then
   TARGET_RANLIB=$config_TARGET_RANLIB
