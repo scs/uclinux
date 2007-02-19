@@ -55,8 +55,7 @@ SAMPLES=lmbench/Results/aix/rs6000 lmbench/Results/hpux/snake \
 	lmbench/Results/irix/indigo2 lmbench/Results/linux/pentium \
 	lmbench/Results/osf1/alpha lmbench/Results/solaris/ss20* 
 
-LDFLAGS=-Wl,-elf2flt
-CFLAGS=-DCONFIG_NOMMU
+CFLAGS+=-DCONFIG_NOMMU
 
 COMPILE=$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 

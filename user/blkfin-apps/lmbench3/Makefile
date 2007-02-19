@@ -16,11 +16,8 @@
 
 SHELL=/bin/sh
 
-build: 
+all build: 
 	cd src && $(MAKE)
-
-clean:
-	cd src && $(MAKE) clean
 
 romfs:
 	cd src && $(MAKE) romfs
