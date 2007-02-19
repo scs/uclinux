@@ -298,7 +298,7 @@ romfs.shared.libs:
 			if [ -h $$i -a -e $$i ] ; then \
 				j=`readlink $$i`; \
 				$(ROMFSINST) -s \
-					/lib/`basename $$j` \
+					`basename $$j` \
 					/lib/`basename $$i`; \
 			fi; \
 		done; \
@@ -313,7 +313,7 @@ romfs.shared.libs:
 			if [ -h $$i -a -e $$i ] ; then \
 				j=`readlink $$i`; \
 				$(ROMFSINST) -s \
-					/lib/`basename $$j` \
+					`basename $$j` \
 					/lib/`basename $$i`; \
 			fi; \
 		done; \
