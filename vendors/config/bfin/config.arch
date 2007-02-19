@@ -72,7 +72,10 @@ CONFIGURE_OPTS  := \
 	--target=$(CONFIGURE_HOST) \
 	--prefix=/usr \
 	--sysconfdir=/etc \
-	--datadir=/usr/share
+	--datadir=/usr/share \
+	--mandir=/usr/share/man \
+	--infodir=/usr/share/info \
+	--localstatedir=/var/lib
 
 ############################################################################
 #
