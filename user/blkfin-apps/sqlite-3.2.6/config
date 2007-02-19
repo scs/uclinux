@@ -1,1 +1,0 @@
-LDFLAGS="-Wl,-elf2flt -L../readline-5.0 -I../readline-5.0" ./configure --host=bfin-uclinux --disable-tcl --libdir=/home/lukeyang/readline-5.0 --without-large-files --disable-lfs --disable-readline
