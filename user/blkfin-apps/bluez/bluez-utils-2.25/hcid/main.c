@@ -49,7 +49,7 @@
 #include "hcid.h"
 #include "lib.h"
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 static char cstack[STACK_SIZE];
 #endif
 
@@ -153,7 +153,7 @@ static struct device_opts *get_device_opts(int sock, int hdev)
 	return device_opts;
 }
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 int
 do_configure_device(int hdev)
 {
@@ -296,7 +296,7 @@ do_configure_device(int hdev)
 
 static void configure_device(int hdev)
 {
-#ifdef UCLINUX
+#ifdef __uClinux__
 	clone(do_configure_device, cstack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, hdev);	
 #else
 	struct device_opts *device_opts;
@@ -446,7 +446,7 @@ static void configure_device(int hdev)
 #endif
 }
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 
 int do_init_device(int hdev)
 {
@@ -516,7 +516,7 @@ int do_init_device(int hdev)
 
 static void init_device(int hdev)
 {
-#ifdef UCLINUX
+#ifdef __uClinux__
 	clone(do_init_device, cstack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, hdev);	
 #else
 	struct device_opts *device_opts;
@@ -795,7 +795,7 @@ int main(int argc, char *argv[], char *env[])
 		}
 	}
 
-	if (daemon & !UCLINUX) {
+	if (daemon & !__uClinux__) {
 		if (dofork && fork())
 			exit(0);
 

@@ -187,7 +187,7 @@ static inline int find_conn(int dd, int dev_id, long arg)
 	return 0;
 }
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 #include <sched.h>
 #define STACK_SIZE 4096
 #endif

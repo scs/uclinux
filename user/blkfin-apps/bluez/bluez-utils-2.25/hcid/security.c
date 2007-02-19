@@ -50,7 +50,7 @@
 #include "hcid.h"
 #include "lib.h"
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 static char cstack[STACK_SIZE];
 #endif
 
@@ -302,7 +302,7 @@ static int read_default_pin_code(void)
 	ERR		-	No PIN available
 */
 
-#ifdef UCLINUX
+#ifdef __uClinux__
 struct c_data_type {
 	int dev;
 	bdaddr_t *sba;
@@ -416,7 +416,7 @@ reject:
 
 static void call_pin_helper(int dev, bdaddr_t *sba, struct hci_conn_info *ci)
 {
-#ifdef UCLINUX
+#ifdef __uClinux__
 	cdata->dev = dev;
 	cdata->sba = sba;
 	cdata->ci = ci;
