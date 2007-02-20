@@ -123,6 +123,7 @@ bool 'Build libao'	CONFIG_LIB_LIBAO_FORCE
 bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
 bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
 bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
+bool 'Build bluez-lib'		CONFIG_LIB_BLUEZ_FORCE
 bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
 
 comment 'Library Configuration'

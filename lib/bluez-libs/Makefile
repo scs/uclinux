@@ -13,5 +13,6 @@ clean:
 	rm -rf build
 
 romfs:
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libbluetooth.so.1 /lib/
 
 .PHONY: all clean romfs
