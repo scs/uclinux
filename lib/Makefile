@@ -113,8 +113,8 @@ dir_$(CONFIG_LIB_LIBMAD)         +=libmad
 dir_$(CONFIG_LIB_LIBMAD_FORCE)   +=libmad
 dir_$(CONFIG_LIB_LIBID3TAG)      +=libid3tag
 dir_$(CONFIG_LIB_LIBID3TAG_FORCE)+=libid3tag
-dir_$(CONFIG_LIB_BLUEZ)          += bluez-lib
-dir_$(CONFIG_LIB_BLUEZ_FORCE)    += bluez-lib
+dir_$(CONFIG_LIB_BLUEZ)          += bluez-libs
+dir_$(CONFIG_LIB_BLUEZ_FORCE)    += bluez-libs
 
 # And build libraries in the prop directory last
 dir_y += $(wildcard $(ROOTDIR)/prop)
