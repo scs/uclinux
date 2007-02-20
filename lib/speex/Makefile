@@ -1,8 +1,5 @@
 all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
-	# keep libtool / pkg-config from breaking crap
-	rm -f DESTDIR/usr/lib/*.la
-	sed -i "/^prefix=/s:=.*:=$$PWD/DESTDIR/usr:" DESTDIR/usr/lib/pkgconfig/speex.pc
+	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
 
 build/Makefile:
 	find . -type f -print0 | xargs -0 touch -r configure
@@ -11,20 +8,15 @@ build/Makefile:
 	mkdir build ; \
 	cd build ; \
 	../configure \
-		--host=$(CONFIGURE_HOST) \
-		--prefix=/usr \
+		$(CONFIGURE_OPTS) \
 		--without-ogg \
 		--enable-blackfin-asm \
 		--enable-fixed-point
 
 clean:
-	rm -rf build DESTDIR
-
-%::
-	if [ -f build/Makefile ] ; then $(MAKE) -C build -f Makefile $@ || exit $$? ; fi
+	rm -rf build
 
 romfs:
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	mv $$PWD/DESTDIR/usr/lib/libspeex.so* $(ROMFSDIR)/lib/
-endif
-	@true
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libspeex.so.1 /lib/
+
+.PHONY: all clean romfs
