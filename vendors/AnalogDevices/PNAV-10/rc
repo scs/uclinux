@@ -20,9 +20,8 @@ inetd &
 #cat /etc/issue
 cat /etc/motd
 #Load PCF8575 First - otherwise the PCF8574 will grab the I2C Slave Address
-modprobe pcf8575
-modprobe pcf8574
+#modprobe pcf8575
+#modprobe pcf8574
 #Enable AD1981B and Mirror LCD
 echo 61399 > /sys/class/i2c-adapter/i2c-0/device/0-0021/write
-modprobe bf537-lq035
 modprobe snd-ad1981b
