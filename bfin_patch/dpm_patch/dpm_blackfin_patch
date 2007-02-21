@@ -39,7 +39,7 @@ Index: linux-2.6/arch/blackfin/mach-bf533/dpm.c
 +*
 +*/
 +
-+#include <linux/config.h>
++
 +#include <linux/dpm.h>
 +#include <linux/errno.h>
 +#include <linux/init.h>
@@ -312,7 +312,7 @@ Index: linux-2.6/arch/blackfin/mach-bf537/dpm.c
 +*
 +*/
 +
-+#include <linux/config.h>
++
 +#include <linux/dpm.h>
 +#include <linux/errno.h>
 +#include <linux/init.h>
@@ -1748,7 +1748,7 @@ Index: linux-2.6/drivers/dpm/dpm-idle.c
 + * International Business Machines Corporation.
 + */
 +
-+#include <linux/config.h>
++
 +#include <linux/dpm.h>
 +#include <linux/errno.h>
 +#include <linux/init.h>
@@ -3794,7 +3794,7 @@ Index: linux-2.6/include/linux/dpm.h
 +#ifndef __DPM_H__
 +#define __DPM_H__
 +
-+#include <linux/config.h>
++
 +#include <linux/device.h>
 +
 +#define DPM_NO_STATE   -1
@@ -4319,7 +4319,7 @@ Index: linux-2.6/include/linux/dpm-trace.h
 +#ifndef __DPM_TRACE_H_
 +#define __DPM_TRACE_H_
 +
-+#include <linux/config.h>
++
 +
 +#ifdef CONFIG_DPM_TRACE
 +
