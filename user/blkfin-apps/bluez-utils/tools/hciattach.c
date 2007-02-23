@@ -40,6 +40,7 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/select.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
@@ -93,14 +94,8 @@ static int uart_speed(int s)
 		return B576000;
 	case 921600:
 		return B921600;
-	case 1000000:
-		return B1000000;
-	case 1152000:
-		return B1152000;
-	case 1500000:
-		return B1500000;
 	default:
-		return B57600;
+		return B115200;
 	}
 }
 
@@ -123,6 +118,11 @@ static int read_hci_event(int fd, unsigned char* buf, int size)
 {
 	int remain, r;
 	int count = 0;
+	struct timeval tv = { 0, 100000 };
+	fd_set watch;
+
+	FD_ZERO(&watch);
+	FD_SET(fd,&watch);
 
 	if (size <= 0)
 		return -1;
@@ -130,9 +130,13 @@ static int read_hci_event(int fd, unsigned char* buf, int size)
 	/* The first byte identifies the packet type. For HCI event packets, it
 	 * should be 0x04, so we read until we get to the 0x04. */
 	while (1) {
+		tv.tv_sec = 1; tv.tv_usec = 100000;
+		if(select(fd+1, &watch, NULL, NULL, &tv) == 0) return -1; // timeout
 		r = read(fd, buf, 1);
 		if (r <= 0)
+		{
 			return -1;
+		}
 		if (buf[0] == 0x04)
 			break;
 	}
@@ -140,9 +144,13 @@ static int read_hci_event(int fd, unsigned char* buf, int size)
 
 	/* The next two bytes are the event code and parameter total length. */
 	while (count < 3) {
+		tv.tv_sec = 1; tv.tv_usec = 100000;
+		if(select(fd+1, &watch, NULL, NULL, &tv) == 0) return -1; // timeout
 		r = read(fd, buf + count, 3 - count);
 		if (r <= 0)
+		{
 			return -1;
+		}
 		count += r;
 	}
 
@@ -153,11 +161,16 @@ static int read_hci_event(int fd, unsigned char* buf, int size)
 		remain = size - 3;
 
 	while ((count - 3) < remain) {
+		tv.tv_sec = 1; tv.tv_usec = 100000;
+		if(select(fd+1, &watch, NULL, NULL, &tv) == 0) return -1; // timeout
 		r = read(fd, buf + count, remain - (count - 3));
 		if (r <= 0)
+		{
 			return -1;
+		}
 		count += r;
 	}
+
 	return count;
 }
 
@@ -202,6 +215,279 @@ static int ericsson(int fd, struct uart_t *u, struct termios *ti)
 		return -1;
 	}
 	nanosleep(&tm, NULL);
+	return 0;
+}
+
+/* 
+ * Infineon specific initialization
+ */
+
+static int infineon_manufacturer_mode(int fd, unsigned char enable)
+{
+	unsigned char cmd[10], resp[HCI_MAX_EVENT_SIZE];
+	struct timeval tv = { 1, 0 };
+	fd_set watch;
+	int retval, j;
+
+	cmd[0] = HCI_COMMAND_PKT;
+	cmd[1] = 0x11;
+	cmd[2] = 0xfc;
+	cmd[3] = 0x02;
+	cmd[4] = enable; // Enable
+	cmd[5] = 0x00; // No reset
+	if(write(fd, cmd, 6) != 6) {
+		perror("Failed to write command to enter manufacturer mode");
+		return -1;
+	}
+
+	FD_ZERO(&watch);
+	FD_SET(fd,&watch);
+	tv.tv_sec = 1; tv.tv_usec = 0;
+	retval = select(fd+1, &watch, NULL, NULL, &tv);
+
+	if(retval == -1)
+	{
+		perror("select() failed");
+		return -1;
+	} else if(retval == 0) {
+		printf("No response from BT module\n");
+		return -1;
+	} else {
+		retval = read_hci_event(fd, resp, HCI_MAX_EVENT_SIZE);
+		if (retval < 0) {
+			perror("Error reading response");
+			return -1;
+		} else if(retval == (1+6)) {
+			if((resp[1] == 0x0e) && (resp[4] == cmd[1]) && (resp[5] == cmd[2]) && (resp[6] == 0x0)) // Command completed OK
+			{
+				return 0;
+			} else {
+				perror("Manufacturer mode change failed");
+				for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+				return -1;
+			}
+		} else {
+			printf("Read wrong response size: %d\n", retval);
+			for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+			return -1;
+		}
+	}
+}
+
+static int pba31308(int fd, struct uart_t *u, struct termios *ti)
+{
+	unsigned char cmd[10], resp[HCI_MAX_EVENT_SIZE];
+	fd_set watch;
+	struct timeval tv = { 1, 0 };
+	int retval,j;
+
+	// PBA31308 implements Infineon_Set_UART_Baudrate as a manufacturer mode command
+	// So first we need to enter manufacturer mode, and then issue the command to
+	// change baud rate, then adjust out baud rate on this end, and then wait for the
+	// Infineon_Set_UART_Baudrate_Complete event
+	infineon_manufacturer_mode(fd,0x01);
+
+	cmd[0] = HCI_COMMAND_PKT;
+	cmd[1] = 0x06;
+	cmd[2] = 0xfc;
+	cmd[3] = 0x01;
+	switch(u->speed) {
+	case 9600:
+		cmd[4] = 0x00;
+		break;
+	case 19200:
+		cmd[4] = 0x01;
+		break;
+	case 38400:
+		cmd[4] = 0x02;
+		break;
+	case 57600:
+		cmd[4] = 0x03;
+		break;
+	case 115200:
+		cmd[4] = 0x04;
+		break;
+	case 230400:
+		cmd[4] = 0x05;
+		break;
+	case 460800:
+		cmd[4] = 0x06;
+		break;
+	case 921600:
+		cmd[4] = 0x07;
+		break;
+	case 1843200:
+		cmd[4] = 0x08; // not possible on bfin_unistone
+		printf("Speed too high: setting to 115200 instead\n");
+	default:
+		cmd[4] = 0x04;
+		u->speed = 115200;
+		break;
+	}
+
+	/* Send initialization command */
+	if(write(fd, cmd, 5) != 5) {
+		perror("Failed to write init command");
+		return -1;
+	}
+
+	FD_ZERO(&watch);
+	FD_SET(fd,&watch);
+	tv.tv_sec = 1; tv.tv_usec = 0;
+	retval = select(fd+1, &watch, NULL, NULL, &tv);
+
+	if(retval == -1)
+	{
+		perror("select() failed");
+		return -1;
+	} else if(retval == 0) {
+		printf("No response from BT module\n");
+		return -1;
+	} else {
+		retval = read_hci_event(fd, resp, HCI_MAX_EVENT_SIZE);
+		if (retval < 0) {
+			perror("Error reading response");
+			return -1;
+		} else if(retval == (1+6)) {
+			if((resp[1] == 0x0f) && (resp[3] == 0x00) && (resp[5] == cmd[1]) && (resp[6] == cmd[2])) // Command status OK
+			{
+				printf("Set_UART_Baudrate accepted\n");
+			} else {
+				printf("Set_UART_Baudrate rejected\n");
+				for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+				printf("\n");
+				return -1;
+			}
+		} else {
+			printf("Read wrong response size: %d\n", retval);
+			for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+			printf("\n");
+			return -1;
+		}
+	}
+
+	if(set_speed(fd, ti, u->speed) < 0)
+	{
+		perror("Can't change baud rate");
+		return -1;
+	}
+
+	FD_ZERO(&watch);
+	FD_SET(fd,&watch);
+	tv.tv_sec = 1; tv.tv_usec = 0;
+	retval = select(fd+1, &watch, NULL, NULL, &tv);
+
+	if(retval == -1)
+	{
+		perror("select() failed");
+		return -1;
+	} else if(retval == 0) {
+		printf("No response from BT module\n");
+		return -1;
+	} else {
+		retval = read_hci_event(fd, resp, HCI_MAX_EVENT_SIZE);
+		if (retval < 0) {
+			perror("Error reading response");
+			return -1;
+		} else if(retval == 5) {
+			if((resp[1] = 0xff) && (resp[3] == 0x12) && (resp[4] == 0x0)) // Command completed OK
+			{
+				printf("Set_UART_Baudrate completed\n");
+			} else {
+				perror("Set_UART_Baudrate failed");
+				for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+				printf("\n");
+				return -1;
+			}
+		} else {
+			printf("Read wrong response size: %d\n", retval);
+			for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+			printf("\n");
+			return -1;
+		}
+	}
+
+	infineon_manufacturer_mode(fd,0x00);
+	return 0;
+}
+
+
+static int infineon(int fd, struct uart_t *u, struct termios *ti)
+{
+	unsigned char cmd[10], resp[HCI_MAX_EVENT_SIZE];
+	fd_set watch;
+	struct timeval tv = { 1, 0 };
+	int retval,j;
+
+	if(u->speed != u->init_speed)
+	{
+		// First need to detect which kind of infineon module we're dealing with here...
+		// PBA31307 and PBA31308 both have a command OGF=0x3f,OCF=0x0005 which returns version info
+		// PBA31307 returns:				PBA31308 retunrs:
+		// Status		0x00	1 byte		Status	0x00
+		// LM-FW-Version	0x5nnn	2 bytes		HW-Platform, HW-Variant 0x37,0x03
+		// BB-FW-Version	0x05nn	2 bytes		Hw-Revision, FW-Variant 0xnn,0x03
+		// 				1 byte		FW-Revision 0xnn
+		// 				3 bytes		FW-Build	0xYMDDnn
+		// 				1 byte		FW-Patch	0xnn
+		//
+		// So the PBA31308 returns 10 bytes, PBA31307 returns only 5 bytes.  We can distinguish at byte #2 though,
+		// but need to continue reading to empty the buffer.
+
+		cmd[0] = HCI_COMMAND_PKT;
+		cmd[1] = 0x05;	// Infineon_Read_Version(PBA31308) or Infineon_Read_SW_Version(PBA31307)
+		cmd[2] = 0xfc;
+		cmd[3] = 0x00;
+
+		if(write(fd, cmd, 4) != 4) {
+			perror("Failed to write Infineon_Read(_SW)_Version command");
+			return -1;
+		}
+
+		FD_ZERO(&watch);
+		FD_SET(fd,&watch);
+		tv.tv_sec = 1; tv.tv_usec = 0;
+		retval = select(fd+1, &watch, NULL, NULL, &tv);
+
+		if(retval == -1)
+		{
+			perror("select() failed");
+			return -1;
+		} else if(retval == 0) {
+			printf("No response from BT module\n");
+			return -1;
+		} else {
+			retval = read_hci_event(fd, resp, HCI_MAX_EVENT_SIZE);
+			if (retval < 0) {
+				printf("Error (or timeout) reading response\n");
+				return -1;
+			} else if(retval == (10+6)) { // Possiby PBA31308
+				if(resp[6] == 0x0  && resp[7] == 0x37 && resp[8] == 0x03) // PBA31308 confirmed
+				{
+					// Now we can change baudrate
+					return pba31308(fd, u, ti);
+				} else {
+					printf("Not a PBA31308\n");
+					for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+					return -1;
+				}
+			} else if(retval == (5+6)) { // Possibly PBA31307
+				if(resp[6] == 0x0 && (resp[7]&0xf0) == 0x50 && resp[10] == 0x05) // PBA31307 confirmed
+				{
+					printf("Can't yet change speed for PBA31307 module.  Will stay at %d baud\n", u->init_speed);
+		u->speed = u->init_speed;
+				} else {
+					printf("Not a PBA31307\n");
+					for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+					return -1;
+				}
+			} else {
+				printf("Read wrong response size: %d\n", retval);
+				for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+				return -1;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -747,6 +1033,117 @@ static int swave(int fd, struct uart_t *u, struct termios *ti)
 	return 0;
 }
 
+void bfin_unistone_reset(int fd)
+{
+	struct timespec tm = { 0, 500000000 };
+	struct timeval tv = { 1, 0 };
+	fd_set watch;
+	int retval;
+
+	tcflush(fd, TCIOFLUSH);
+	system("echo 0 > /sys/devices/platform/i2c-0/0-0021/set_bit");
+	system("echo 0 > /sys/devices/platform/i2c-0/0-0021/clear_bit");
+	nanosleep(&tm, NULL);
+	FD_ZERO(&watch);
+	FD_SET(fd,&watch);
+	retval = select(fd+1, &watch, NULL, NULL, &tv);
+	if(retval == -1)
+	{
+		perror("Select after reset failed");
+	} else if(retval == 0) {
+		printf("No response after reset\n");
+	} else {
+		printf("Got response after reset... gobbling\n");
+		tcflush(fd, TCIOFLUSH);
+	}
+}
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+static int bfin_unistone(int fd, struct uart_t *u, struct termios *ti)
+{
+	fd_set watch;
+	struct timeval tv = { 1, 0 };
+
+	unsigned char cmd[10], resp[HCI_MAX_EVENT_SIZE];
+	int baudrates[] = { u->init_speed, 921600, 115200, 57600 };
+	int old_alarm = alarm(20); // Extend timeout
+	int i, j, retval;
+
+	bfin_unistone_reset(fd);
+
+	cmd[0] = HCI_COMMAND_PKT; // Determine what module we're talking to
+	cmd[1] = OCF_READ_LOCAL_VERSION;
+	cmd[2] = OGF_INFO_PARAM << 2;
+	cmd[3] = 0x00;
+
+	// Lock onto baud rate first
+	for(i=0; i < ARRAY_SIZE(baudrates); i++)
+	{
+		printf("Trying baud rate %d...\n",baudrates[i]);
+		if (set_speed(fd, ti, baudrates[i]) < 0) {
+			perror("Can't set default baud rate");
+			goto bfin_unistone_fail;
+		}
+		bfin_unistone_reset(fd);
+
+		/* Send READ_LOCAL_VERSION command */
+		if (write(fd, cmd, 4) != 4) {
+			perror("Can't write HCI_Read_Local_Version_Information cmd.");
+			goto bfin_unistone_fail;
+		}
+
+		FD_ZERO(&watch);
+		FD_SET(fd,&watch);
+		tv.tv_sec = 1; tv.tv_usec = 0;
+		retval = select(fd+1, &watch, NULL, NULL, &tv);
+
+		if(retval == -1)
+		{
+			perror("select() failed");
+			goto bfin_unistone_fail;
+		} else if(retval == 0) {
+			printf("No response from BT module\n");
+			continue;
+		} else {
+			retval = read_hci_event(fd, resp, HCI_MAX_EVENT_SIZE);
+			if (retval < 0) {
+				perror("Reading response");
+				continue;
+			} else if(retval == READ_LOCAL_VERSION_RP_SIZE + 6) { // The 6 is 0x04 0x0e 0xnn 0xmm 0x01 0x10
+				read_local_version_rp *vers = (read_local_version_rp *)&(resp[6]);
+				printf("Detected bluetooth module at %d baud\n",baudrates[i]);
+				printf("Got: status=0x%02x, hci_ver=0x%02x, hci_rev=0x%04x, lmp_ver=0x%02x, manuf=0x%04x, lmp_subver=0x%04x\n",
+					vers->status, vers->hci_ver, vers->hci_rev,
+					vers->lmp_ver, vers->manufacturer, vers->lmp_subver);
+				if(vers->manufacturer == 0x0000) // ericsson
+				{
+					u->init_speed = baudrates[i];
+					ericsson(fd,u,ti);
+				}
+				else if(vers->manufacturer == 0x0009) // infineon
+				{
+					u->init_speed = baudrates[i];
+					infineon(fd,u,ti);
+				} else {
+					printf("Unknown bluetooth module manufacturer!\n");
+					goto bfin_unistone_fail;
+				}
+				goto bfin_unistone_success;
+			} else {
+				printf("Read wrong response size: %d\n", retval);
+				for(j=0; j<retval; j++) printf("0x%02x ",resp[j]);
+				continue;
+			}
+		}
+	}
+bfin_unistone_fail:
+	alarm(old_alarm);
+	return -1;
+bfin_unistone_success:
+	alarm(old_alarm);
+	return 0;
+}
+
 /*
  * ST Microelectronics specific initialization
  * Marcel Holtmann <marcel@holtmann.org>
@@ -804,6 +1201,7 @@ static int st(int fd, struct uart_t *u, struct termios *ti)
 
 struct uart_t uart[] = {
 	{ "any",        0x0000, 0x0000, HCI_UART_H4,   115200, 115200, FLOW_CTL, NULL     },
+	{ "bfin-unistone",	0x0000,	0x0000,	HCI_UART_H4,   115200, 921600, 0, bfin_unistone },
 	{ "ericsson",   0x0000, 0x0000, HCI_UART_H4,   57600,  115200, FLOW_CTL, ericsson },
 	{ "digi",       0x0000, 0x0000, HCI_UART_H4,   9600,   115200, FLOW_CTL, digi     },
 	{ "texas",      0x0000, 0x0000, HCI_UART_H4,   115200, 115200, FLOW_CTL, texas    },
