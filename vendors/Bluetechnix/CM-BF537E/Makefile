@@ -13,6 +13,8 @@ MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
 MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
 MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
+LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
+
 # Blocks must be a multiple of 1024
 BLOCKS   = 4096
 INODES   = 1024
@@ -46,12 +48,17 @@ romfs:
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
 	$(ROMFSINST) /etc/modprobe.conf
-	$(ROMFSINST) -e CONFIG_LIB_ALSA_LIB_FORCE /etc/asound.conf
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
 BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
 ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
+
+ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
+DEVICE_TABLE = device_table-min.txt
+else
+DEVICE_TABLE = device_table.txt
+endif
 
 image:
 	mkdir -p $(IMAGEDIR)
@@ -62,7 +69,7 @@ image:
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
 	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
-		$(MKFS_JFFS2) -d $(ROMFSDIR) -D device_table.txt -o $(ROMFSIMG).jffs2; \
+		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
 	set -e ; \
 	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
@@ -74,20 +81,20 @@ image:
 		fi ; \
 	fi ; \
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
-		bfin-uclinux-mkcramfs -z -r -D device_table.txt $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
+		bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ; \
 	fi ; \
 	if [ -n "$(CONFIG_EXT2_FS)" ]; then \
-		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG).ext2 ; \
+		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2 ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ; \
 	fi ; \
 	if [ -n "$(CONFIG_ROMFS_FS)" ]; then \
 		if  which genromfs >/dev/null 2>&1; then \
-			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) device_table.txt; \
+			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 			genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
 			$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
 			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
@@ -108,22 +115,13 @@ image:
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
-			ln -sf $(IMAGEDIR)/linux.$$FS $(IMAGEDIR)/linux ; \
-			ln -sf $(IMAGEDIR)/uImage.$$FS $(IMAGEDIR)/uImage ; \
+			ln -sf linux.$$FS $(IMAGEDIR)/linux ; \
+			ln -sf uImage.$$FS $(IMAGEDIR)/uImage ; \
 		fi; \
 	done
 #
-# if we are not attaching a rootfs, make a standalone image
+# grab the standalone kernel image
 #
-	set -e ; \
-	if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
-		$(CROSS_COMPILE)objcopy -O binary -S $(ROOTDIR)/$(LINUXDIR)/vmlinux \
-			$(IMAGEDIR)/vmlinux.bin; \
-		gzip -f9 $(IMAGEDIR)/vmlinux.bin; \
-		$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-			-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel Only Image" \
-			-d $(IMAGEDIR)/vmlinux.bin.gz  $(IMAGEDIR)/vmImage; \
-		rm  $(IMAGEDIR)/vmlinux.bin.gz; \
-	fi
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 
 clean:

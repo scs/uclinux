@@ -1,8 +1,13 @@
 hostname blackfin
-#/bin/expand /etc/ramfs.img /dev/ram0
-mount -t proc none /proc
-mount -t ramfs /dev/ram0 /var
-mount -t sysfs none /sys
+mount -t proc proc /proc
+mount -t ramfs ramfs /var
+mount -t sysfs sysfs /sys
+mount -t devpts devpts /dev/pts
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+if [ -e /bin/mdev ] ; then
+	echo /bin/mdev 2>/dev/null > /proc/sys/kernel/hotplug
+	/bin/mdev -s 2> /dev/null
+fi
 mkdir /var/tmp
 mkdir /var/log
 mkdir /var/run
@@ -13,4 +18,3 @@ ifconfig lo 127.0.0.1
 inetd &
 #cat /etc/issue
 cat /etc/motd
-
