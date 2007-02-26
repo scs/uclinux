@@ -25,7 +25,7 @@
 $Revision$
 *******************************************************************************/
 #include <filter.h>
-#include <math.h>
+#include <math_bf.h>
 #include <math_const.h>
 
 

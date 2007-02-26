@@ -33,7 +33,7 @@
 */
 
 
-#include <math.h>
+#include <math_bf.h>
 #include <fract_typedef.h>
 #include "Lib_cos16_2PIx.h"
 

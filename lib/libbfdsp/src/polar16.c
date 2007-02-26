@@ -26,7 +26,7 @@
 
 ***************************************************************************/
 
-#include <math.h>
+#include <math_bf.h>
 #include <complex.h>
 #include <fract.h> 
 
