@@ -15,9 +15,9 @@ LIBDSP_M3RES = libbfdspm3res$(PART)$(CSYNC).a
 
 # Utilities
 
-CROSS_COMPILE = bfin-uclinux-
-CC            = $(CROSS_COMPILE)gcc
-AR            = $(CROSS_COMPILE)ar
+#CROSS_COMPILE = bfin-uclinux-
+#CC            = $(CROSS_COMPILE)gcc
+#AR            = $(CROSS_COMPILE)ar
 
 ARFLAGS   = rc
 CFLAGS   += -Wall
