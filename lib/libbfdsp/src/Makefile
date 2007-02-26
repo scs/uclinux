@@ -391,18 +391,18 @@ MISC_ASM_SRC =    \
 
 FLOAT16_ASM_SRC = \
    absfl16.S \
-   addfl16.S \
-   cmpfl16.S \
-   divfl16.S \
+   add_fl16.S \
+   cmp_fl16.S \
+   div_fl16.S \
    fitsfl16.S \
    fl162fl.S \
    fl162fr16.S \
    fl2fl16.S \
    fr162fl16.S \
-   mulfl16.S \
+   mul_fl16.S \
    negfl16.S \
    normfl16.S \
-   subfl16.S \
+   sub_fl16.S \
 
 FLOAT32_ASM_SRC = \
    absfl32.S \

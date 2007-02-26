@@ -20,7 +20,7 @@
 .text;
 .align 2;
 
-___float32_sub:
+_sub_fl16:
 	// Compare exponents
 	R2.L = R0.L - R1.L (NS);
 	R2 = R2.L (X);
@@ -86,6 +86,6 @@ overflow:
 	R0 += 1;		// increment exponent (may change mantissa)
 	R0.H = R2.H >> 0;	// but we overwrite with new mantissa anyway.
 	RTS;
-.___float32_sub.end:
-.global ___float32_sub;
-.type ___float32_sub, STT_FUNC;
+._sub_fl16.end:
+.global _sub_fl16;
+.type _sub_fl16, STT_FUNC;
