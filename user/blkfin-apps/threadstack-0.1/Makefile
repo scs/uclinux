@@ -10,7 +10,6 @@
 # 3/ LDFLAGS
 
 LIBPTHREAD_PATH  = $(ROOTDIR)/uClibc/libpthread/linuxthreads
-CC ?= bfin-uclinux-gcc
 
 CFLAGS += \
 	-I $(LIBPTHREAD_PATH) \
