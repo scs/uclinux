@@ -1,4 +1,3 @@
-CC       ?= bfin-uclinux-gcc
 CFLAGS   += -Wall
 TARGET    = 192.168.0.16
 
@@ -22,5 +21,8 @@ run: timer_test.ko
 clean:
 	$(KERNEL_MAKE) clean
 	rm -f *.o *.gdb *.ko Module.symvers
+
+romfs:
+
 
 .PHONY: all clean run

@@ -1,7 +1,6 @@
-CC = bfin-uclinux-gcc
 CFLAGS += -Wall
 LDFLAGS += -Wl,-elf2flt
-UCLINUX_DIR = $(PWD)/../../..
+UCLINUX_DIR = $(PWD)/../..
 TARGET = 192.168.0.16
 
 obj-m := cycles.o
@@ -21,5 +20,8 @@ run: cycles.ko
 
 clean:
 	rm -f *.o *.gdb cycles
+
+romfs:
+
 
 .PHONY: all clean run

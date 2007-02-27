@@ -20,7 +20,6 @@
 # name of file	: Makefile						  #
 # description	: make(1) description file for the send(2) tests.	  #
 ###########################################################################
-CC=bfin-uclinux-gcc
 CFLAGS+=	-I../../../../include -Wall
 LOADLIBES+=	-L../../../../lib -lc    
 
