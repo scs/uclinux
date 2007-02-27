@@ -9,13 +9,14 @@ PWD := $(shell pwd)
 
 CFLAGS :=
 LDFLAGS :=
-default: timerbench latency
+
+all: timerbench latency
 
 timerbench:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
 latency:
-	bfin-uclinux-gcc -Wall -mfdpic -o latency latency.c -lm -lpthread -lrt
+	$(CC) -Wall -mfdpic -o latency latency.c -lm -lpthread -lrt
 
 endif
 
