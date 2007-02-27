@@ -1,6 +1,8 @@
 Since tslib uses dlopen() to implement plugins, it can only be built in FDPIC format.
 
 Here the souce tree has been patched with special fixes for Blackfin uClinux.
+The source code in lib/tslib-1.0/ has already been patched. Steps bellow are 
+just used for reference.
 
 The bfin_patch/ directory contains the patch we used. And bellow are steps to apply
 the patch:

@@ -125,6 +125,7 @@ bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
 bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
 bool 'Build bluez-lib'		CONFIG_LIB_BLUEZ_FORCE
 bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
+bool 'Build tslib'		CONFIG_LIB_TSLIB
 
 comment 'Library Configuration'
 bool 'Support time zones'	CONFIG_LIB_UC_LIBC_TIMEZONE
