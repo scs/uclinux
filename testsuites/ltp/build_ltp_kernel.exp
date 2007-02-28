@@ -68,11 +68,15 @@ while 1 {
       }
 
       -re "Page frame management algorithm.*choice\\\[.*]" {
-         if { $buddy_np2 == 1 } {
+         if { $slab_slob == 1 } {
+            if { $buddy_np2 == 1 } {
+               send "1\r"
+            }
+            if { $buddy_np2 == 2 } {
+               send "2\r"
+            }
+         } else {
             send "1\r"
-         }
-         if { $buddy_np2 == 2 } {
-            send "2\r"
          }
       }
 
