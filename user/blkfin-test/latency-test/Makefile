@@ -1,5 +1,6 @@
 
 ifneq ($(KERNELRELEASE),)
+
 obj-m := timerbench.o
 
 else
@@ -9,7 +10,7 @@ KERNELDIR := $(ROOTDIR)/$(LINUXDIR)
 all: timerbench latency
 
 timerbench:
-	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
+	LDFLAGS="" $(MAKE) -C $(KERNELDIR) M=$$PWD modules
 
 latency: LDLIBS += -lm -lpthread -lrt
 
@@ -20,7 +21,6 @@ romfs:
 	$(ROMFSINST) -S /latency
 
 clean:
-	rm -f latency 
-	rm -f *.o 
-	rm -f *.ko 
-	rm -f *.mod.c 
+	rm -f latency latency.gdb *.o
+	rm -f Module.symvers *.ko *.mod.c .*.cmd
+	rm -rf .tmp_versions
