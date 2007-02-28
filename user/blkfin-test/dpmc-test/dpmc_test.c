@@ -12,7 +12,6 @@
 #include <errno.h>
 #include "dpmc.h"
 #include <linux/rtc.h>
-#include "blackfin_rtc.h"
 
 int main()
 {
@@ -129,25 +128,25 @@ int main()
 	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
 	printf("pll status got is 0x%x\n",pllstat);
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
+	ret = ioctl(rtc_fd, RTC_IRQP_SET, 50);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
-	}
-	
-	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 50);
-	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_SET error\r\n");
+		printf("ioctl RTC_IRQP_SET error\r\n");
 	}
 
+	ret = ioctl(rtc_fd, RTC_PIE_ON);
+	if (ret == -1) {
+		printf("ioctl RTC_PIE_ON error\r\n");
+	}
+	
 /********************************Fullon to Sleep Mode ********************************/
 	printf("IOCTL to CHANGE OPERATING MODE FROM FULLON TO SLEEP MODE\n");
 	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
 	printf("Out of Sleep mode set %d \n",ret);
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
+	ret = ioctl(rtc_fd, RTC_PIE_OFF, 0);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
+		printf("ioctl RTC_PIE_OFF error\r\n");
 	}
 
 /********************************Get the PLL Status***********************************/
@@ -166,24 +165,24 @@ int main()
 	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
 	printf("pll status got is 0x%x\n",pllstat);	
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
+	ret = ioctl(rtc_fd, RTC_IRQP_SET, 50);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
-	}
-	
-	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 50);
-	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_SET error\r\n");
+		printf("ioctl RTC_IRQP_SET error\r\n");
 	}
 
+	ret = ioctl(rtc_fd, RTC_PIE_ON, 0);
+	if (ret == -1) {
+		printf("ioctl RTC_PIE_ON error\r\n");
+	}
+	
 	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO SLEEP MODE\n");
 	printf("Entering Sleep Mode \n");
 	ret = ioctl(fd, IOCTL_SLEEP_MODE, NULL);
 	printf("Out of Sleep mode Back to active mode %d \n",ret);
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
+	ret = ioctl(rtc_fd, RTC_PIE_OFF, 0);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
+		printf("ioctl RTC_PIE_OFF error\r\n");
 	}
 
 	printf("IOCTL to CHANGE OPERATING MODE FROM ACTIVE TO FULLON MODE\n");
