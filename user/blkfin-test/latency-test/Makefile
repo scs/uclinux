@@ -4,19 +4,14 @@ obj-m := timerbench.o
 
 else
 
-KERNELDIR := $(ROOTDIR)/linux-2.6.x
-PWD := $(shell pwd)
-
-CFLAGS :=
-LDFLAGS :=
+KERNELDIR := $(ROOTDIR)/$(LINUXDIR)
 
 all: timerbench latency
 
 timerbench:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) modules
 
-latency:
-	$(CC) -Wall -mfdpic -o latency latency.c -lm -lpthread -lrt
+latency: LDLIBS += -lm -lpthread -lrt
 
 endif
 
