@@ -1,0 +1,6 @@
+This directory contains a simple demo for using touchscreen as
+input device in SDL, on Blackfin BF537 platform. Please refer to:
+
+http://docs.blackfin.uclinux.org/doku.php?id=touchscreen
+
+For details.
