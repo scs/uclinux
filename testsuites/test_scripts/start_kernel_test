@@ -11,7 +11,7 @@ CVS_SERVER=10.99.22.20
 CVS_ROOT=/cvsroot
 
 BOARD_CONFIG=BF533-EZKIT-STD
-CPU=BF533EZKIT
+CPU=BF533
 KERNEL_PATH=$USER/checkouts/kernel
 BINARY_FORMAT=flat
 ALLOCATOR=slab\(p2\)
@@ -57,7 +57,7 @@ fi
 
   cd $KERNEL_SCRIPTS
   #./kernel_test  $BOARD_CONFIG $CPU $KERNEL_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG
-  ./kernel_test BF533-EZKIT-STD BF533-EZKIT /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma $THIS_LOG
+  ./kernel_test BF533-EZKIT-STD BF533 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma $THIS_LOG
 
   cp $KERNEL_SCRIPTS/kernel_test_log $THIS_LOG
 
