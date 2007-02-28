@@ -1,6 +1,6 @@
+ROOTDIR ?= ../../..
+LINUXDIR ?= linux-2.6.x
 CFLAGS += -Wall
-LDFLAGS += -Wl,-elf2flt
-UCLINUX_DIR = $(PWD)/../..
 TARGET = 192.168.0.16
 
 obj-m := cycles.o
@@ -8,9 +8,10 @@ obj-m := cycles.o
 all: cycles.ko
 
 cycles.ko: cycles.c
+	LDFLAGS="" \
 	$(MAKE) \
-		-C $(UCLINUX_DIR)/linux-2.6.x \
-		SUBDIRS=$(PWD) \
+		-C $(ROOTDIR)/$(LINUXDIR) \
+		SUBDIRS=$$PWD \
 		modules
 
 run: cycles.ko
@@ -19,9 +20,8 @@ run: cycles.ko
 	rsh -l root $(TARGET) insmod /var/cycles.ko
 
 clean:
-	rm -f *.o *.gdb cycles
+	rm -f *.o *.gdb cycles *.ko
 
 romfs:
 
-
-.PHONY: all clean run
+.PHONY: all clean romfs run
