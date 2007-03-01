@@ -7,7 +7,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure --host=bfin-uclinux --prefix=/usr/local --with-softfloat
+	../configure --host=bfin-uclinux --prefix=/usr/local --with-softfloat --with-versioned=no
 
 clean:
 	rm -rf build DESTDIR
