@@ -2,18 +2,15 @@ all: build/Makefile
 	$(MAKE) -C build -f Makefile install DESTDIR=$$PWD/DESTDIR
 
 build/Makefile:
-	touch * */*
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	LDFLAGS="-L$(ROOTDIR)/lib/ncurses/lib $(LDFLAGS)" \
-	CPPFLAGS="-I$(ROOTDIR)/lib/ncurses/include $(CPPFLAGS)" \
 	../configure \
-		--host=bfin-uclinux \
-		--prefix=/usr \
-		--with-alsa-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/local/lib \
-		--with-alsa-inc-prefix=$(ROOTDIR)/lib/alsa-lib/DESTDIR/usr/local/include
+		$(CONFIGURE_OPTS) \
+		--with-alsa-prefix=$(STAGEDIR)/usr/local/lib \
+		--with-alsa-inc-prefix=$(STAGEDIR)/usr/local/include
 
 clean:
 	rm -rf build DESTDIR
@@ -26,3 +23,5 @@ romfs:
 			$(ROMFSINST) -d -e CONFIG_USER_ALSA_UTILS DESTDIR/$$bin /$$bin || exit $$? ; \
 		fi ; \
 	done
+
+.PHONY: all clean romfs
