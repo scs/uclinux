@@ -236,6 +236,8 @@ cd  $KERNEL_SOURCE_BAK/testsuites
 chmod +x *.exp  */*.exp
 cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/decide_all_standard  $USER/test_scripts/kernel
 cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/test_runtime_control  $USER/test_scripts/kernel
+cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/
+cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/ltp
 
   #############################################################################################
   ############################ BUILD POLICY KERNEL ############################################
