@@ -41,7 +41,7 @@ STAGEDIR = $(ROOTDIR)/staging
 TFTPDIR    = /tftpboot
 BUILD_START_STRING ?= $(shell date "+%a, %d %b %Y %T %z")
 ifndef NON_SMP_BUILD
-HOST_NCPU := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* 2; else echo $$n; fi; else echo 1; fi)
+HOST_NCPU := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c ^processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* 2; else echo $$n; fi; else echo 1; fi)
 else
 HOST_NCPU := 1
 endif
@@ -270,7 +270,7 @@ romfs.shared.libs:
 		t=`dirname $$t`/../..; \
 		for i in $$t/lib/*so*; do \
 			bn=`basename $$i`; \
-			if [ -f $$i -a ! -h $$i -a $$bn != "lib1.so" -a $$bn != "lib2.so" ] ; then \
+			if [ -f $$i -a $$bn != "lib1.so" -a $$bn != "lib2.so" ] ; then \
 				$(ROMFSINST) -p 755 $$i /lib/$$bn; \
 			fi; \
 		done; \
@@ -287,36 +287,6 @@ romfs.shared.libs:
 				/lib/ld-uClibc-$(UCLIBC_VERSION).so \
 				/lib/ld-linux.so.2; \
 		fi; \
-		t=`bfin-linux-uclibc-gcc -print-file-name=libstdc++.so`; \
-		t=`dirname $$t`; \
-		for i in $$t/libstdc++.so*; do \
-			if [ -f $$i -a ! -h $$i ] ; then \
-				$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
-			fi; \
-		done; \
-		for i in $$t/libstdc++.so*; do \
-			if [ -h $$i -a -e $$i ] ; then \
-				j=`readlink $$i`; \
-				$(ROMFSINST) -s \
-					`basename $$j` \
-					/lib/`basename $$i`; \
-			fi; \
-		done; \
-		t=`bfin-linux-uclibc-gcc -print-file-name=libgcc_s.so`; \
-		t=`dirname $$t`; \
-		for i in $$t/libgcc_s.so*; do \
-			if [ -f $$i -a ! -h $$i ] ; then \
-				$(ROMFSINST) -p 755 $$i /lib/`basename $$i`; \
-			fi; \
-		done; \
-		for i in $$t/libgcc_s.so*; do \
-			if [ -h $$i -a -e $$i ] ; then \
-				j=`readlink $$i`; \
-				$(ROMFSINST) -s \
-					`basename $$j` \
-					/lib/`basename $$i`; \
-			fi; \
-		done; \
 	fi
 	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
 		t=`$(CC) -mid-shared-library -print-file-name=libc`; \
