@@ -50,6 +50,9 @@ CFLAGS += -fPIC
 endif
 
 default:  buildlib 
+	mkdir -p $(STAGEDIR)/usr/include $(STAGEDIR)/usr/lib
+	cp lib/expat.h $(STAGEDIR)/usr/include
+	cp libexpat.so $(STAGEDIR)/usr/lib
 
 #xmlwf/xmlwf
 
