@@ -9,7 +9,7 @@ L1FLAGS:= -Wl,--sep-code -Wl,--code-in-l1 -Wl,-z -Wl,now -Wl,--data-in-l1
 all: test_helloworld test_helloworldcpp test_helloworld_stack
 
 test_helloworld: libhelloworld
-	$(CC) -o $@ $@.c -lhelloworld -L./ $(CFLAGS)
+	$(CC) -pie -o $@ $@.c -lhelloworld -L./ $(CFLAGS)
 
 test_helloworld_stack:
 	$(CCF) $(LDFLAGS) -o $@ $@.c
