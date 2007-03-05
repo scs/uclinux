@@ -198,7 +198,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
    
   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc" [$(( n + 8 ))]="coreb")
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="0" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="1")     
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="0" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="0"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="1")     
    
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
@@ -215,7 +215,7 @@ if [ $BOARD_CONFIG = "BF533-EZKIT-STD" ] ; then
 
  AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="sport_ad73311"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" )
    
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="0"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="1"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="0")     
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="0" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="0"   [22]="0" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="0"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1" [$(( n + 8 ))]="0")     
    
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio"  [$(( n + 1 ))]="serial_uart1" )
@@ -236,8 +236,6 @@ cd  $KERNEL_SOURCE_BAK/testsuites
 chmod +x *.exp  */*.exp
 cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/decide_all_standard  $USER/test_scripts/kernel
 cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/test_runtime_control  $USER/test_scripts/kernel
-cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/
-cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/ltp
 
   #############################################################################################
   ############################ BUILD POLICY KERNEL ############################################
