@@ -44,7 +44,7 @@ AUTOCONF = ${SHELL} ./missing --run autoconf
 AUTOHEADER = ${SHELL} ./missing --run autoheader
 AUTOMAKE = ${SHELL} ./missing --run automake-1.7
 AWK = gawk
-CC = bfin-uclinux-gcc
+#CC = bfin-uclinux-gcc
 CCDEPMODE = depmode=gcc3
 # CFLAGS = -g -O2
 CPP = bfin-uclinux-gcc -E
@@ -78,7 +78,7 @@ PACKAGE_VERSION = 2.4.0
 PATH_SEPARATOR = :
 SET_MAKE = 
 SHELL = /bin/sh
-STRIP = bfin-uclinux-strip
+#STRIP = bfin-uclinux-strip
 VERSION = 2.4.0
 ac_ct_CC = 
 ac_ct_STRIP = 
