@@ -116,6 +116,7 @@ bool	'Bluez-utils'		CONFIG_USER_BLUEZ
 if [ "$CONFIG_USER_BLUEZ" = "y" ]; then
 	define_bool CONFIG_LIB_BLUEZ y
 fi
+bool	'picocom'		CONFIG_USER_PICOCOM
 endmenu
 
 
