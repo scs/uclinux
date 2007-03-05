@@ -13,7 +13,6 @@
 #include <errno.h>
 #include "dpmc.h"
 #include <linux/rtc.h>
-#include "blackfin_rtc.h"
 
 int main()
 {

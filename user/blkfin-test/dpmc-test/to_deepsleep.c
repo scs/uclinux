@@ -12,7 +12,6 @@
 #include <errno.h>
 #include "dpmc.h"
 #include <linux/rtc.h>
-#include "blackfin_rtc.h"
 
 int main()
 {
@@ -41,23 +40,23 @@ int main()
 	ret = ioctl(fd, IOCTL_GET_PLLSTATUS, &pllstat);
 	printf("pll status got is 0x%x\n",pllstat);
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_ON, 0);
+/* Program the stop watch counter to value less than 65535 */	
+	ret = ioctl(rtc_fd, RTC_IRQP_SET, 50);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
+		printf("ioctl RTC__SET error\r\n");
 	}
 
-/* Program the stop watch counter to value less than 65535 */	
-	ret = ioctl(rtc_fd, RTC_SWCNT_SET, 50);
+	ret = ioctl(rtc_fd, RTC_PIE_ON, 0);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_SET error\r\n");
+		printf("ioctl RTC_PIE_ON error\r\n");
 	}
 
 	ret = ioctl(fd, IOCTL_DEEP_SLEEP_MODE, NULL);
 	printf("Out of Deep Sleep mode set %d \n",ret);
 
-	ret = ioctl(rtc_fd, RTC_SWCNT_OFF, 0);
+	ret = ioctl(rtc_fd, RTC_PIE_OFF, 0);
 	if (ret == -1) {
-		printf("ioctl RTC_SWCNT_ON error\r\n");
+		printf("ioctl RTC_PIE_ON error\r\n");
 	}
 
 /********************************Get the PLL Status***********************************/
