@@ -284,6 +284,18 @@ static __inline fract32 mult_fr1x32x32(fract32 _x, fract32 _y)
 static __inline fract32 mult_fr1x32x32NS(fract32 _x, fract32 _y)
   { return __builtin_bfin_mult_fr1x32x32NS(_x,_y); }
 
+
+/*   Function
+ *    long fract28_4mul_asm(fract32 A, fract32 B);
+ *
+ *   Description   : calculates 28.4 Fractional multiplication
+ *    fract32 A       : 28.4 fractional number
+ *    fract32 B       : 28.4 fractional number
+ *    return-value : 28.4 fractional number
+*/
+
+fract32 fract28_4mul_asm(fract32, fract32) asm("_fract28_4mul_asm");
+
 /* Returns the 32-bit value that is the absolute value of the input parameter.
  * Where the input is 0x80000000, saturation occurs and 0x7fffffff is returned.
  */

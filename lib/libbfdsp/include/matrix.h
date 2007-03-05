@@ -127,6 +127,10 @@
             {vecsmlt_fr16 (_matrix, _scalar, _product, _rows*_columns);}
 
 
+      void MatrixMultVec3x1Frac28_4(fract32 A[][Dim3],
+      					 fract32 B[], fract32 Res[])
+      					  asm("_MatrixMultVec3x1Frac28_4");
+
 
 
 /* * * *        matmadd      * * * *
