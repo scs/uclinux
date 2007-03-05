@@ -81,7 +81,7 @@ mainmenu_option next_comment
 comment 'Library Configuration'
 
 comment 'Force build (Normally built when required)'
-bool 'build ALSA lib'		CONFIG_LIB_ALSA_LIB_FORCE
+bool 'Build ALSA lib'		CONFIG_LIB_ALSA_LIB_FORCE
 bool 'Build dmalloc'		CONFIG_LIB_DMALLOC_FORCE
 bool 'Build flex'		CONFIG_LIB_FLEX_FORCE
 bool 'Build libAES'		CONFIG_LIB_LIBAES_FORCE
@@ -126,6 +126,7 @@ bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
 bool 'Build bluez-lib'		CONFIG_LIB_BLUEZ_FORCE
 bool 'Build libbfdsp'		CONFIG_LIB_LIBBFDSP
 bool 'Build tslib'		CONFIG_LIB_TSLIB
+bool 'Build libipod'		CONFIG_LIB_LIBIPOD_FORCE
 
 comment 'Library Configuration'
 bool 'Support time zones'	CONFIG_LIB_UC_LIBC_TIMEZONE

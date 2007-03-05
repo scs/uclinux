@@ -115,8 +115,10 @@ dir_$(CONFIG_LIB_LIBID3TAG)      +=libid3tag
 dir_$(CONFIG_LIB_LIBID3TAG_FORCE)+=libid3tag
 dir_$(CONFIG_LIB_BLUEZ)          += bluez-libs
 dir_$(CONFIG_LIB_BLUEZ_FORCE)    += bluez-libs
-dir_$(CONFIG_LIB_TSLIB)    	 += tslib-1.0
+dir_$(CONFIG_LIB_TSLIB)          += tslib-1.0
 dir_$(CONFIG_LIB_TSLIB_FORCE)    += tslib-1.0
+dir_$(CONFIG_LIB_LIBIPOD)        += libipod
+dir_$(CONFIG_LIB_LIBIPOD_FORCE)  += libipod
 
 # And build libraries in the prop directory last
 dir_y += $(wildcard $(ROOTDIR)/prop)

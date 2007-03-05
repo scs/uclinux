@@ -59,6 +59,10 @@ bool    'NCurses Test apps'             CONFIG_USER_NCURSES_TESTS
 if [ "$CONFIG_USER_NCURSES_TESTS" = "y" ]; then
 	define_bool CONFIG_LIB_NCURSES y
 fi
+bool	'libipod examples'	CONFIG_USER_LIBIPOD_EXAMPLES
+if [ "$CONFIG_USER_LIBIPOD_EXAMPLES" = "y" ]; then
+	define_bool CONFIG_LIB_LIBIPOD y
+fi
 endmenu
 
 

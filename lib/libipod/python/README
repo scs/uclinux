@@ -1,0 +1,10 @@
+To build the Python bindings for the ipod library, first build and install the library normally, with the
+C++ bindings enabled. This binding requires sip4, the tool used to create the bindings for PyQt and PyKDE.
+
+Then, in this directory, type:
+
+python configure.py
+make
+make install
+
+Now you should have a Python equivalents of the C++ classes in ipod/ipod_cpp.h

@@ -1,0 +1,33 @@
+Source: libipod
+Section: unknown
+Priority: optional
+Maintainer: Brian Thomason <brian.thomason@linspireinc.com>
+Build-Depends: debhelper (>= 4.0.0), python2.3, sip4, python2.3-sip4-dev, libexpat1-dev, automake1.7, doxygen
+Standards-Version: 3.6.1
+
+Package: libipod0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Recommends: libipod-doc
+Description: ipod library
+ libipod is a C library which provides full support for accessing the iTunes
+ database.
+ 
+Package: libipod-doc
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ipod library
+ libipod is a C library which provides full support for accessing the iTunes
+ database.
+ .
+ This package contains the documentation files, in HTMl format.
+ 
+Package: python2.3-ipod
+Architecture: any
+Depends: ${shlibs:Depends}, libipod0 (>= 0.1), python2.3
+Recommends: libipod-doc
+Description: ipod library
+ libipod is a C library which provides full support for accessing the iTunes
+ database.
+ .
+ This package contains the python bindings for the library.
