@@ -242,7 +242,7 @@ sleep 3
 
 exec chmod 777 netperf_script
 cd $uclinux_path
-exec cp  testsuites/ethernet/netperf_script  romfs
+exec cp  testsuites/ethernet/netperf_script  romfs/
 exec cp  romfs/bin/netperf  romfs/bin/netperf_bfin
 
 cd $uclinux_path/testsuites
