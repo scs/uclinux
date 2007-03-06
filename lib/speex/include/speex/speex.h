@@ -35,9 +35,13 @@
 
 #ifndef SPEEX_H
 #define SPEEX_H
+/** @defgroup Codec Speex encoder and decoder
+ *  This is the Speex codec itself.
+ *  @{
+ */
 
-#include "speex_bits.h"
-#include "speex_types.h"
+#include "speex/speex_bits.h"
+#include "speex/speex_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,20 +154,6 @@ extern "C" {
 #define SPEEX_SET_HIGHPASS 44
 /** Get status of input/output high-pass filtering */
 #define SPEEX_GET_HIGHPASS 45
-
-/* Used internally, NOT TO BE USED in applications */
-/** Used internally*/
-#define SPEEX_GET_PI_GAIN 100
-/** Used internally*/
-#define SPEEX_GET_EXC     101
-/** Used internally*/
-#define SPEEX_GET_INNOV   102
-/** Used internally*/
-#define SPEEX_GET_DTX_STATUS   103
-/** Used internally*/
-#define SPEEX_SET_INNOVATION_SAVE   104
-/** Used internally*/
-#define SPEEX_SET_WIDEBAND   105
 
 
 /* Preserving compatibility:*/
@@ -318,7 +308,9 @@ void speex_encoder_destroy(void *state);
 /** Uses an existing encoder state to encode one frame of speech pointed to by
     "in". The encoded bit-stream is saved in "bits".
  @param state Encoder state
- @param in Frame that will be encoded with a +-2^15 range
+ @param in Frame that will be encoded with a +-2^15 range. This data MAY be 
+        overwritten by the encoder and should be considered uninitialised 
+        after the call.
  @param bits Bit-stream where the data will be written
  @return 0 if frame needs not be transmitted (DTX only), 1 otherwise
  */
@@ -427,5 +419,5 @@ const SpeexMode * speex_lib_get_mode (int mode);
 }
 #endif
 
-
+/** @}*/
 #endif
