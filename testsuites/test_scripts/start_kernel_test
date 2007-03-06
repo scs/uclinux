@@ -12,6 +12,7 @@ CVS_ROOT=/cvsroot
 
 BOARD_CONFIG=BF533-EZKIT-STD
 CPU=BF533
+REVISION=0.2
 KERNEL_PATH=$USER/checkouts/kernel
 BINARY_FORMAT=flat
 ALLOCATOR=slab\(p2\)
@@ -19,7 +20,7 @@ ICACHE=on
 DCACHE=off
 POLICY=write_through
 UART_MODE=dma
-LOG_DIR="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")"
+LOG_DIR="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""(""$REVISION"")""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")"
 
 # End of variables list
 
@@ -56,8 +57,8 @@ fi
   cp  $KERNEL_PATH_BAK/uclinux-dist/testsuites/kernel_test $KERNEL_SCRIPTS
 
   cd $KERNEL_SCRIPTS
-  #./kernel_test  $BOARD_CONFIG $CPU $KERNEL_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG
-  ./kernel_test BF533-EZKIT-STD BF533 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma $THIS_LOG
+  #./kernel_test  $BOARD_CONFIG $CPU $REVISION $KERNEL_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG
+  ./kernel_test BF533-EZKIT-STD BF533 0.3 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma $THIS_LOG
 
   cp $KERNEL_SCRIPTS/kernel_test_log $THIS_LOG
 

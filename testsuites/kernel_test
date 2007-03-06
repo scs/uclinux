@@ -12,6 +12,7 @@
  USER=/home/test
  BOARD_CONFIG=BF537-STAMP-STD
  CPU=BF537
+ REVISION=0.2
  KERNEL_PATH=$USER/checkouts/kernel
  BINARY_FORMAT=flat
  ALLOCATOR=slab\(p2\)
@@ -19,16 +20,17 @@
  DCACHE=off
  POLICY=write_through
  UART_MODE=dma
- THIS_LOG="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")""/THIS_LOG"
+ THIS_LOG="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""(""$REVISION"")""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")""/THIS_LOG"
  
  
  ########################################### Please don't edit anything below this line.###################################
 
 if [ $# -lt 1 ] ; then
-  echo "Please input BOARD_CONFIG [ CPU KERNEL_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
+  echo "Please input BOARD_CONFIG [ CPU REVISION KERNEL_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
   echo
   echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
   echo "The CPU :           BF533, BF537, BF561,etc."
+  echo "The REVISION :      0.2, 0.3 ,etc."
   echo "The BINARY_FORMAT : flat, elf, shared-flat."
   echo "The ALLOCATOR :     slab\(p2\), slab\(np2\), slob\(p2\), slob\(np2\)."
   echo "The ICACHE,DCACHE : on, off."
@@ -48,8 +50,13 @@ if [ $# -gt 1 ] ; then
   echo "##### CPU: $CPU." 
 fi
 
-  if [ $# -gt 2 ] ; then 
-  KERNEL_PATH=$3
+if [ $# -gt 2 ] ; then
+  REVISION=$3
+  echo "##### REVISION: $REVISION."
+fi
+
+  if [ $# -gt 3 ] ; then 
+  KERNEL_PATH=$4
   echo "##### KERNEL_PATH: $KERNEL_PATH."  
 fi
 
@@ -58,37 +65,37 @@ fi
   KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uclinux-dist  
   KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites  
   
-if [ $# -gt 3 ] ; then
-  BINARY_FORMAT=$4  
+if [ $# -gt 4 ] ; then
+  BINARY_FORMAT=$5  
   echo "##### BINARY_FORMAT: $BINARY_FORMAT."
 fi
 
-if [ $# -gt 4 ] ; then
-  ALLOCATOR=$5
+if [ $# -gt 5 ] ; then
+  ALLOCATOR=$6
   echo "##### ALLOCATOR: $ALLOCATOR."
 fi
   
-if [ $# -gt 7 ] ; then
-  ICACHE=$6
-  DCACHE=$7
-  POLICY=$8  
+if [ $# -gt 6 ] ; then
+  ICACHE=$7
+  DCACHE=$8
+  POLICY=$9  
   echo "##### ICACHE: $ICACHE, DCACHE: $DCACHE, POLICY is $POLICY." 
 fi
   
-if [ $# -gt 8 ] ; then
-  UART_MODE=$9
+if [ $# -gt 9 ] ; then
+  UART_MODE=${10}
   echo "##### UART_MODE: $UART_MODE."
 fi
   
-if [ $# -gt 9 ] ; then
-  THIS_LOG=${10}
+if [ $# -gt 10 ] ; then
+  THIS_LOG=${11}
   echo "##### Test results are in folder: $THIS_LOG."
 fi
  
-if [ $# -gt 10 ] ; then
-  VCO_MULT=${11}
-  CCLK_DIV=${12}
-  SCLK_DIV=${13}
+if [ $# -gt 11 ] ; then
+  VCO_MULT=${12}
+  CCLK_DIV=${13}
+  SCLK_DIV=${14}
   echo "##### VCO_MULT: $VCO_MULT, CCLK_DIV: $CCLK_DIV, SCLK_DIV: $SCLK_DIV."
 fi
 
@@ -250,7 +257,7 @@ if [ $BUILD_POLICY -eq 1  ] ; then
      
   echo  "start building policy kernel..."
   cd $KERNEL_SCRIPTS/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $KERNEL_SOURCE $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
+  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $KERNEL_SOURCE $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
     
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.policy
@@ -356,7 +363,12 @@ do
   cp $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}/boot_kernel_only_uimage_test_log $THIS_LOG
 
   fi
-  
+ 
+  if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
+  cp $KERNEL_SOURCE/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
+  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
+  fi
+ 
   if [ ${AUTO_TESTCASE[$i]} == "msh" ] ; then
   rm -rf $KERNEL_PATH/uclinux-dist/user/busybox
   cd $KERNEL_PATH/uclinux-dist/user 

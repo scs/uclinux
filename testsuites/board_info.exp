@@ -26,7 +26,7 @@ if { $argc >= 2} {
 }
   send_log "\n#### cpu is $cpu\n"
 
-
+set revision       0.3
 set binary_format  flat
 set allocator      slab\(p2\)
 set icache         on
@@ -34,33 +34,36 @@ set dcache         on
 set policy         write_through
 set uart_mode      dma
 
-
 if { $argc >= 3} {
-   set uclinux_path        [lindex $argv 2]
-   send_log "\n#### uclinux_path is $uclinux_path\n"
+   set revision            [lindex $argv 2]
+   send_log "\n#### revision is $revision\n"
 }
 if { $argc >= 4} {
-   set binary_format       [lindex $argv 3]
-   send_log "\n### binary_format is $binary_format\n"
+   set uclinux_path        [lindex $argv 3]
+   send_log "\n#### uclinux_path is $uclinux_path\n"
 }
 if { $argc >= 5} {
-   set allocator           [lindex $argv 4]
-   send_log "\n#### allocator is $allocator\n"
+   set binary_format       [lindex $argv 4]
+   send_log "\n### binary_format is $binary_format\n"
 }
 if { $argc >= 6} {
-   set icache              [lindex $argv 5]
-   send_log "\n#### icache is $icache\n"
+   set allocator           [lindex $argv 5]
+   send_log "\n#### allocator is $allocator\n"
 }
 if { $argc >= 7} {
-   set dcache              [lindex $argv 6]
-   send_log "\n#### dcache is $dcache\n"
+   set icache              [lindex $argv 6]
+   send_log "\n#### icache is $icache\n"
 }
 if { $argc >= 8} {
-   set policy              [lindex $argv 7]
+   set dcache              [lindex $argv 7]
+   send_log "\n#### dcache is $dcache\n"
+}
+if { $argc >= 9} {
+   set policy              [lindex $argv 8]
    send_log "\n### policy is $policy\n"
 }
 
-if { $argc >= 9} {
-   set uart_mode           [lindex $argv 8]
+if { $argc >= 10} {
+   set uart_mode           [lindex $argv 9]
    send_log "\n#### uart_mode is $uart_mode\n"
 }
