@@ -33,10 +33,10 @@
 ==============================================================================
 =
 =   Function :
-=    void MatrixMultVec3x1Frac28_4(long A[][Dim3], long B[], long Res[]);
+=    void MatrixMultVec3x1Frac28_4(long A[][3], long B[], long Res[]);
 =
 =   Description     : calculates 28.4 Fractional multiplication
-=    long A[][Dim3] : 3*3*28.4 fractional number
+=    long A[][3] : 3*3*28.4 fractional number
 =    long B[]       : 3*28.4 fractional number
 =    long Res[]     : 3*28.4 fractional number
 =
@@ -80,7 +80,7 @@ _fract28_4mul_asm.end:
 
 /*==========================================================================*/
 
-// void MatrixMultVec3x1Frac28_4(long A[][Dim3], long B[], long Res[]);
+// void MatrixMultVec3x1Frac28_4(long A[][3], long B[], long Res[]);
 .global _MatrixMultVec3x1Frac28_4
 
 #if !defined (__GNUC__)
