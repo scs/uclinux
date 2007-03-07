@@ -575,15 +575,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/ipipe-root.c linux-2.6.x-ipipe/a
 diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/irqchip.c linux-2.6.x-ipipe/arch/blackfin/kernel/irqchip.c
 --- linux-2.6.x-orig/arch/blackfin/kernel/irqchip.c	2006-09-25 15:49:02.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/kernel/irqchip.c	2006-11-15 10:57:54.000000000 +0800
-@@ -6,7 +6,7 @@
-  * Created:
-  * Description:  This file contains the simple DMA Implementation for Blackfin
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               Copyright 2004-2006 Analog Devices Inc.
 @@ -53,6 +53,93 @@
  
  struct irqdesc irq_desc[NR_IRQS];
@@ -776,15 +767,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/Makefile linux-2.6.x-ipipe/arch/
 diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/process.c linux-2.6.x-ipipe/arch/blackfin/kernel/process.c
 --- linux-2.6.x-orig/arch/blackfin/kernel/process.c	2006-09-28 01:47:51.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/kernel/process.c	2006-11-15 10:57:54.000000000 +0800
-@@ -6,7 +6,7 @@
-  * Created:
-  * Description:  Blackfin architecture-dependent process handling.
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               Copyright 2004-2006 Analog Devices Inc.
 @@ -101,6 +101,7 @@
  {
  	while (!need_resched()) {
@@ -796,15 +778,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/process.c linux-2.6.x-ipipe/arch
 diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/time.c linux-2.6.x-ipipe/arch/blackfin/kernel/time.c
 --- linux-2.6.x-orig/arch/blackfin/kernel/time.c	2006-09-27 23:36:50.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/kernel/time.c	2006-11-15 10:57:54.000000000 +0800
-@@ -7,7 +7,7 @@
-  * Description:  This file contains the bfin-specific time handling details.
-  *               Most of the stuff is located in the machine specific files.
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               Copyright 2004-2006 Analog Devices Inc.
 @@ -139,6 +139,27 @@
  static void
  time_sched_init(irqreturn_t(*timer_routine) (int, void *, struct pt_regs *))
@@ -903,15 +876,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/kernel/traps.c linux-2.6.x-ipipe/arch/b
 diff -Nur linux-2.6.x-orig/arch/blackfin/lib/ins.S linux-2.6.x-ipipe/arch/blackfin/lib/ins.S
 --- linux-2.6.x-orig/arch/blackfin/lib/ins.S	2006-09-23 14:11:30.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/lib/ins.S	2006-11-15 10:57:54.000000000 +0800
-@@ -6,7 +6,7 @@
-  * Created:      Tue Mar 22 15:27:24 CEST 2005
-  * Description:  Implementation of ins{bwl} for BlackFin processors using zero overhead loops.
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               Copyright 2004-2006 Analog Devices Inc.
 @@ -38,7 +38,16 @@
  	P0 = R0;	/* P0 = port */
  	P1 = R1;	/* P1 = address */
@@ -1079,15 +1043,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-common/entry.S linux-2.6.x-ipipe/a
 diff -Nur linux-2.6.x-orig/arch/blackfin/mach-common/interrupt.S linux-2.6.x-ipipe/arch/blackfin/mach-common/interrupt.S
 --- linux-2.6.x-orig/arch/blackfin/mach-common/interrupt.S	2006-09-23 14:16:47.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/mach-common/interrupt.S	2006-11-15 11:03:42.000000000 +0800
-@@ -7,7 +7,7 @@
-  * Created:      ?
-  * Description:  Interrupt Entries
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               Copyright 2004-2006 Analog Devices Inc.
 @@ -148,8 +148,15 @@
  #endif
  	r1 =  sp;
@@ -1164,15 +1119,6 @@ diff -Nur linux-2.6.x-orig/arch/blackfin/mach-common/interrupt.S linux-2.6.x-ipi
 diff -Nur linux-2.6.x-orig/arch/blackfin/mach-common/ints-priority-sc.c linux-2.6.x-ipipe/arch/blackfin/mach-common/ints-priority-sc.c
 --- linux-2.6.x-orig/arch/blackfin/mach-common/ints-priority-sc.c	2006-09-26 19:05:35.000000000 +0800
 +++ linux-2.6.x-ipipe/arch/blackfin/mach-common/ints-priority-sc.c	2006-11-15 10:57:54.000000000 +0800
-@@ -6,7 +6,7 @@
-  * Created:      ?
-  * Description:  Set up the interupt priorities
-  *
-- * Rev:          $Id$
-+ * Rev:          $Id$
-  *
-  * Modified:
-  *               1996 Roman Zippel
 @@ -132,8 +132,8 @@
  static void bf533_core_mask_irq(unsigned int irq)
  {
