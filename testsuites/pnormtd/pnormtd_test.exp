@@ -172,7 +172,6 @@ while 1 {
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
-exit
+send_user "Ending $argv0\n"
 log_file
  
-send_user "\nEnding pnormtd_test.exp\n"
