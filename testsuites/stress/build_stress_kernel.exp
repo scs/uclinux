@@ -26,7 +26,7 @@ sleep 3
       expect ":"
       send "i\r"
       sleep .5
-      send "BLOCKS = 16384\r"
+      send "BLOCKS = 12288\r"
       sleep .5
       send ".\r"
       expect ":"
