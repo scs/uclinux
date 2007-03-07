@@ -1,5 +1,7 @@
 DESTDIR=$(TEMPDIR)
-CFLAGS += -fno-strict-aliasing
+CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp 
+CFLAGS += -I$(STAGEDIR)/usr/local/include
+LDFLAGS += -L$(STAGEDIR)/usr/local/lib
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
 LINPHONE_FLAGS+=--disable-video
@@ -28,10 +30,7 @@ build/Makefile:
 		--host=$(CONFIGURE_HOST) \
 		--prefix=/usr \
 		$(LINPHONE_FLAGS) \
-		CFLAGS="-ffast-math -mfast-fp $(CFLAGS)" \
-		LDFLAGS="$(LDFLAGS)" \
-		LIBS="$(LDLIBS)" \
-		CC="$(CC) "
+		LIBS="$(LDLIBS)"
 
 clean:
 	rm -rf build
