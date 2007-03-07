@@ -25,7 +25,7 @@ cd $uclinux_path
       expect ":"
       send "i\r"
       
-      send "BLOCKS = 16384\r"
+      send "BLOCKS = 12288\r"
       
       send ".\r"
       expect ":"
