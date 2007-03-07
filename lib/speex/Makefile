@@ -1,3 +1,7 @@
+ifndef CONFIG_FMT_USE_FDPIC_ELF
+CFLAGS="-Wl,-elf2flt=-s100000"
+endif
+
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
 
