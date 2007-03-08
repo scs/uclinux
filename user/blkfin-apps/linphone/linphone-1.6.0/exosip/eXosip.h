@@ -327,6 +327,14 @@ int   eXosip_retry_call  (int cid);
   int eXosip_transfer_call_out_of_dialog(char *refer_to, char *from, char *to, char *route);
 
 /**
+ * Set s_sdp_port
+ * 
+ * @param jid          dialog id of call.
+ * @param sdp_port     local sdp receive port
+ */
+  int eXosip_set_sdp_port (int jid, int sdp_port);
+/**
+
  * Set redirection url before a call to eXosip_answer_call.
  * 
  * @param jid          dialog id of call.
