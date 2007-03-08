@@ -215,7 +215,7 @@ modules_install:
 		rm -f $(ROMFSDIR)/lib/modules/*/build; \
 		rm -f $(ROMFSDIR)/lib/modules/*/source; \
 		find $(ROMFSDIR)/lib/modules -type f -name "*o" | xargs $(STRIP) -R .comment -R .note -g --strip-unneeded; \
-		$(ROOTDIR)/user/busybox/examples/depmod.pl -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
+		env NM=$(CROSS_COMPILE)nm $(ROOTDIR)/user/busybox/examples/depmod.pl -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
 	fi
 
 linux_xconfig:
