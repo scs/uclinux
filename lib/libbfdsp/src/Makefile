@@ -137,7 +137,8 @@ MATRIX_ASM_SRC =    \
    cmatmmlt_asm.asm \
    matmmlt_fr16.asm \
    transpm_fr16.asm \
-   fract28_4mul.asm
+   fract28_4mul.asm \
+   fract24_8mul.asm
 
 MATRIX_ASM_M3RES_SRC = \
    cmatmmlt_asm.asm    \

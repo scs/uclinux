@@ -37,7 +37,7 @@ extern "C" {
 /*                                      */
 /****************************************/
 
-/* Although the fract16 arithmetic looks like it takes fract16s and 
+/* Although the fract16 arithmetic looks like it takes fract16s and
    returns them, they're parallel operations, and actually take/return
    pairs, as ints. Therefore, the real intrinsics are 2x16,
    and the 1x16 functions cast params and results for the 2x16s. */
@@ -68,23 +68,23 @@ static __inline fract16 sub_fr1x16(fract16 _x, fract16 _y)
 static __inline fract2x16 mult_fr2x16(fract2x16 _x, fract2x16 _y)
   { return __builtin_bfin_mult_fr2x16(_x,_y); }
 
-/* Performs 16-bit multiplication of the input parameters (_x*_y). 
+/* Performs 16-bit multiplication of the input parameters (_x*_y).
  * The result is truncated to 16 bits. */
 static __inline fract16 mult_fr1x16(fract16 _x, fract16 _y)
   { return __builtin_bfin_mult_fr1x16(_x,_y); }
 
-/* Multiplies two packed fracts.  Rounds the result to 16 bits.  Whether the 
- * rounding is biased or unbiased depends on what the RND_MOD bit in the ASTAT 
+/* Multiplies two packed fracts.  Rounds the result to 16 bits.  Whether the
+ * rounding is biased or unbiased depends on what the RND_MOD bit in the ASTAT
  * register is set to.
  * Input: _x{a,b} _y{c,d}
  *  Returns: {round16{a*c},round16{b*d}} */
 static __inline fract2x16 multr_fr2x16(fract2x16 _x, fract2x16 _y)
   { return __builtin_bfin_multr_fr2x16(_x,_y); }
 
-/* Performs a 16-bit fractional multiplication (_x*_y) of the two input 
+/* Performs a 16-bit fractional multiplication (_x*_y) of the two input
  * parameters. The result is rounded to 16 bits. Whether the rounding is biased
  * or unbiased depends what the RND_MOD bit in the ASTAT register is set to. */
-static __inline fract16 multr_fr1x16(fract16 _x, fract16 _y) 
+static __inline fract16 multr_fr1x16(fract16 _x, fract16 _y)
   { return __builtin_bfin_multr_fr1x16(_x,_y); }
 
 /* Negates both 16 bit fracts in the packed fract.  If one of the fract16
@@ -94,15 +94,15 @@ static __inline fract16 multr_fr1x16(fract16 _x, fract16 _y)
 static __inline fract2x16 negate_fr2x16(fract2x16 _x)
   { return __builtin_bfin_negate_fr2x16(_x); }
 
-/* Returns the 16-bit result of the negation of the input parameter (-_x).  If 
+/* Returns the 16-bit result of the negation of the input parameter (-_x).  If
  * the input is 0x8000, saturation occurs and 0x7fff is returned. */
 static __inline fract16 negate_fr1x16(fract16 _x)
   { return __builtin_bfin_negate_fr1x16(_x); }
 
-/* Arithmetically shifts both fract16s in the fract2x16 left by _y places,and 
- * returns the packed result.  The empty bits are zero filled.  If shft is 
+/* Arithmetically shifts both fract16s in the fract2x16 left by _y places,and
+ * returns the packed result.  The empty bits are zero filled.  If shft is
  * negative, the shift is to the right by abs(shft) places with sign extension.
- * 
+ *
  * WARNING: All the bits except for the lowest 4 bits of
  * _y are ignored.  If you want to shift by numbers larger than 4 bit signed
  * ints, you should use shl_fr2x16_clip.
@@ -112,15 +112,15 @@ static __inline fract16 negate_fr1x16(fract16 _x)
 static __inline fract2x16 shl_fr2x16(fract2x16 _x, short _y)
   { return __builtin_bfin_shl_fr2x16(_x,_y); }
 
-/* Arithmetically shifts both fract16s in the fract2x16 left by _y places,and 
- * returns the packed result.  The empty bits are zero filled.  If shft is 
+/* Arithmetically shifts both fract16s in the fract2x16 left by _y places,and
+ * returns the packed result.  The empty bits are zero filled.  If shft is
  * negative, the shift is to the right by abs(_y) places with sign extension.
- * 
- * This avoids the limitation whereby all the bits 
+ *
+ * This avoids the limitation whereby all the bits
  * except the lowest 4 bits of _y are ignored.
  *
  * Inputs: _x{a,b} _y
- * Returns: {a<<_y,b<<_y} 
+ * Returns: {a<<_y,b<<_y}
  */
 static __inline fract2x16 shl_fr2x16_clip(fract2x16 _x, short _y)
 {
@@ -129,23 +129,23 @@ static __inline fract2x16 shl_fr2x16_clip(fract2x16 _x, short _y)
   return __builtin_bfin_shl_fr2x16(_x,_y);
 }
 
-/* Arithmetically shifts the src variable left by _y places.  The empty bits 
+/* Arithmetically shifts the src variable left by _y places.  The empty bits
  * are zero filled. If shft is negative, the shift is to the right by abs(_y)
  * places with sign extension.
  *
  * WARNING: All the bits except for the lowest 4 bits
  * of _y are ignored.  To shift by numbers larger than 4 bit signed
- * ints, shl_fr1x16_clip should be used. 
+ * ints, shl_fr1x16_clip should be used.
  */
 static __inline fract16 shl_fr1x16(fract16 _x, short _y)
   { return __builtin_bfin_shl_fr1x16(_x,_y); }
 
-/* Arithmetically shifts the src variable left by _y places.  The empty bits 
+/* Arithmetically shifts the src variable left by _y places.  The empty bits
  * are zero filled. If shft is negative, the shift is to the right by abs(shft)
  * places with sign extension.
  *
  * This clipping variant allows shifts of numbers that are too big to be
- * represended in 4 bits. 
+ * represended in 4 bits.
  */
 static __inline fract16 shl_fr1x16_clip(fract16 _x, short _y)
 {
@@ -154,9 +154,9 @@ static __inline fract16 shl_fr1x16_clip(fract16 _x, short _y)
   return __builtin_bfin_shl_fr1x16(_x,_y);
 }
 
-/* Arithmetically shifts both fract16s in the fract2x16 right by shft places 
- * with sign extension, and returns the packed result.  If shft is negative, 
- * the shift is to the left by abs(shft) places, and the empty bits are zero 
+/* Arithmetically shifts both fract16s in the fract2x16 right by shft places
+ * with sign extension, and returns the packed result.  If shft is negative,
+ * the shift is to the left by abs(shft) places, and the empty bits are zero
  * filled.
  *
  * WARNING: All the bits except for the lowest 4 bits of
@@ -164,18 +164,18 @@ static __inline fract16 shl_fr1x16_clip(fract16 _x, short _y)
  * ints, you should use shr_fr2x16_clip.
  *
  * Inputs: _x{a,b} _y
- * Returns: {a<<shft,b<<shft} 
+ * Returns: {a<<shft,b<<shft}
  */
 static __inline fract2x16 shr_fr2x16(fract2x16 _x, short _y)
   { return __builtin_bfin_shl_fr2x16(_x,-_y); }
 
-/* Arithmetically shifts both fract16s in the fract2x16 right by shft places 
- * with sign extension, and returns the packed result.  If shft is negative, 
- * the shift is to the left by abs(_y) places, and the empty bits are zero 
+/* Arithmetically shifts both fract16s in the fract2x16 right by shft places
+ * with sign extension, and returns the packed result.  If shft is negative,
+ * the shift is to the left by abs(_y) places, and the empty bits are zero
  * filled.
  *
  * This clipping variant allows shifts of numbers that are too big to be
- * represended in 4 bits. 
+ * represended in 4 bits.
  */
 static __inline fract2x16 shr_fr2x16_clip(fract2x16 _x, short _y)
 {
@@ -184,23 +184,23 @@ static __inline fract2x16 shr_fr2x16_clip(fract2x16 _x, short _y)
   return __builtin_bfin_shl_fr2x16 (_x,-_y);
 }
 
-/* Arithmetically shifts the src variable right by shft places with sign 
- * extension.  If shft is negative, the shift is to the left by abs(_y) places, 
+/* Arithmetically shifts the src variable right by shft places with sign
+ * extension.  If shft is negative, the shift is to the left by abs(_y) places,
  * and the empty bits are zero filled.
  *
  * WARNING: All the bits except for the lowest 4 bits of
- * _y are ignored.  If you want to shift by numbers larger than 4 bit signed 
+ * _y are ignored.  If you want to shift by numbers larger than 4 bit signed
  * ints, you should use shr_fr1x16_clip.
  */
 static __inline fract16 shr_fr1x16(fract16 _x, short _y)
   { return __builtin_bfin_shl_fr1x16(_x,-_y); }
 
-/* Arithmetically shifts the src variable right by shft places with sign 
- * extension.  If shft is negative, the shift is to the left by abs(_y) places, 
+/* Arithmetically shifts the src variable right by shft places with sign
+ * extension.  If shft is negative, the shift is to the left by abs(_y) places,
  * and the empty bits are zero filled.
  *
  * This clipping variant allows shifts of numbers that are too big to be
- * represended in 4 bits. 
+ * represended in 4 bits.
  */
 static __inline fract16 shr_fr1x16_clip(fract16 _x, short _y)
 {
@@ -223,7 +223,7 @@ static __inline fract2x16 shrl_fr2x16(fract2x16 _x, short _y)
  * is no sign extension and no saturation - the empty bits are zero filled.
  *
  * This clipping variant allows shifts of numbers that are too big to be
- * represended in 4 bits. 
+ * represended in 4 bits.
  */
 static __inline fract2x16 shrl_fr2x16_clip(fract2x16 _x, short _y)
 {
@@ -236,7 +236,7 @@ static __inline fract2x16 shrl_fr2x16_clip(fract2x16 _x, short _y)
  * and no saturation - the empty bits are zero filled.
  *
  * WARNING: All the bits except for the lowest 4 bits of
- * _y are ignored.  If you want to shift by numbers larger than 4 bit signed 
+ * _y are ignored.  If you want to shift by numbers larger than 4 bit signed
  * ints, you should use shrl_fr1x16_clip.
  */
 static __inline fract16 shrl_fr1x16(fract16 _x, short _y)
@@ -246,7 +246,7 @@ static __inline fract16 shrl_fr1x16(fract16 _x, short _y)
  * and no saturation - the empty bits are zero filled.
  *
  * This clipping variant allows shifts of numbers that are too big to be
- * represended in 4 bits. 
+ * represended in 4 bits.
  */
 static __inline fract16 shrl_fr1x16_clip(fract16 _x, short _y)
 {
@@ -271,18 +271,29 @@ static __inline fract32 add_fr1x32(fract32 _x, fract32 _y)
 static __inline fract32 sub_fr1x32(fract32 _x, fract32 _y)
   { return __builtin_bfin_sub_fr1x32(_x,_y); }
 
-/* Performs 32-bit multiplication of the input parameters (_x*_y).  
- * The result (which is calculated internally with an accuracy of 40 bits) 
+/* Performs 32-bit multiplication of the input parameters (_x*_y).
+ * The result (which is calculated internally with an accuracy of 40 bits)
  * is rounded (biased rounding) to 32 bits.  */
 static __inline fract32 mult_fr1x32x32(fract32 _x, fract32 _y)
   { return __builtin_bfin_mult_fr1x32x32(_x,_y); }
 
-/* Performs 32-bit non-saturating multiplication of the input parameters 
- * (_x*_y). This is somewhat faster than mult_fr1x32x32. The result (which is 
- * calculated internally with an accuracy of 40 bits) is rounded (biased 
+/* Performs 32-bit non-saturating multiplication of the input parameters
+ * (_x*_y). This is somewhat faster than mult_fr1x32x32. The result (which is
+ * calculated internally with an accuracy of 40 bits) is rounded (biased
  * rounding) to 32 bits.  */
 static __inline fract32 mult_fr1x32x32NS(fract32 _x, fract32 _y)
   { return __builtin_bfin_mult_fr1x32x32NS(_x,_y); }
+
+/*   Function
+ *    long fract24_8mul_asm(fract32 A, fract32 B);
+ *
+ *   Description   : calculates 24.8 Fractional multiplication
+ *    fract32 A       : 24.8 fractional number
+ *    fract32 B       : 24.8 fractional number
+ *    return-value : 24.8 fractional number
+*/
+
+fract32 fract24_8mul_asm(fract32, fract32) asm("_fract24_8mul_asm");
 
 
 /*   Function
@@ -320,7 +331,7 @@ static __inline fract32 min_fr1x32(fract32 _x, fract32 _y)
 static __inline fract32 max_fr1x32(fract32 _x, fract32 _y)
   { return __builtin_bfin_max_fr1x32(_x,_y); }
 
-/* Arithmetically shifts the src variable left by shft places.  The empty bits 
+/* Arithmetically shifts the src variable left by shft places.  The empty bits
  * are zero filled. If shft is negative, the shift is to the right by abs(shft)
  * places with sign extension.
  *
@@ -331,7 +342,7 @@ static __inline fract32 max_fr1x32(fract32 _x, fract32 _y)
 static __inline fract32 shl_fr1x32(fract32 _x, short _y)
   { return __builtin_bfin_shl_fr1x32(_x,_y); }
 
-/* Arithmetically shifts the src variable left by shft places.  The empty bits 
+/* Arithmetically shifts the src variable left by shft places.  The empty bits
  * are zero filled. If shft is negative, the shift is to the right by abs(_y)
  * places with sign extension.
  *
@@ -341,19 +352,19 @@ static __inline fract32 shl_fr1x32(fract32 _x, short _y)
 static __inline fract32 shl_fr1x32_clip(fract32 _x, short _y)
 	{ return __builtin_bfin_shl_fr1x32_clip(_x,_y); }
 
-/* Arithmetically shifts the src variable right by shft places with sign 
- * extension.  If shft is negative, the shift is to the left by abs(_y) places, 
+/* Arithmetically shifts the src variable right by shft places with sign
+ * extension.  If shft is negative, the shift is to the left by abs(_y) places,
  * and the empty bits are zero filled.
  *
  * WARNING: All the bits except for the lowest 6 bits of
- * _y are ignored.  If you want to shift by numbers larger than 6 bit signed 
+ * _y are ignored.  If you want to shift by numbers larger than 6 bit signed
  * ints, you should use shr_fr1x32_clip.
 */
 static __inline fract32 shr_fr1x32(fract32 _x, short _y)
   { return __builtin_bfin_shr_fr1x32(_x,_y); }
 
-/* Arithmetically shifts the src variable right by shft places with sign 
- * extension.  If shft is negative, the shift is to the left by abs(_y) places, 
+/* Arithmetically shifts the src variable right by shft places with sign
+ * extension.  If shft is negative, the shift is to the left by abs(_y) places,
  * and the empty bits are zero filled.
  *
  * This clipping variant allows shifts of numbers that are too big to bei
@@ -362,7 +373,7 @@ static __inline fract32 shr_fr1x32(fract32 _x, short _y)
 static __inline fract32 shr_fr1x32_clip(fract32 _x, short _y)
 	{ return __builtin_bfin_shr_fr1x32_clip(_x,_y); }
 
-/* Performs a fractional multiplication on two 16-bit fractions, returning the 
+/* Performs a fractional multiplication on two 16-bit fractions, returning the
  * 32-bit result. There will be loss of precision. */
 static __inline fract32 mult_fr1x32(fract16 _x, fract16 _y)
   { return __builtin_bfin_mult_fr1x32(_x,_y); }
@@ -374,7 +385,7 @@ static __inline fract32 mult_fr1x32(fract16 _x, fract16 _y)
 /*****************************/
 
 /* used by sat_fr1x32 */
-static __inline fract16 __builtin_bfin_sat_fr1x32(fract32 _x) 
+static __inline fract16 __builtin_bfin_sat_fr1x32(fract32 _x)
   { return shl_fr1x32(_x,16)>>16;}
 
 /* If _x>0x00007fff, returns 0x7fff. If _x<0xffff8000, returns 0x8000.
@@ -382,36 +393,36 @@ static __inline fract16 __builtin_bfin_sat_fr1x32(fract32 _x)
 static __inline fract16 sat_fr1x32(fract32 _x)
   { return shl_fr1x32(_x,16)>>16;}
 
-/* This function rounds the 32-bit fract to a 16-bit fract using biased 
+/* This function rounds the 32-bit fract to a 16-bit fract using biased
  * rounding.  */
 static __inline fract16 round_fr1x32(fract32 _x)
   { return __builtin_bfin_round_fr1x32(_x); }
 
-/* Returns the number of left shifts required to normalize the input variable 
- * so that it is either in the interval 0x40000000 to 0x7fffffff, or in the 
+/* Returns the number of left shifts required to normalize the input variable
+ * so that it is either in the interval 0x40000000 to 0x7fffffff, or in the
  * interval 0x80000000 to 0xc0000000.  In other words,
- *  
+ *
  *  fract32 x;
  *  shl_fr1x32(x,norm_fr1x32(x));
  *
- * will return a value in the range 0x40000000 to 0x7fffffff, or in the range 
+ * will return a value in the range 0x40000000 to 0x7fffffff, or in the range
  * 0x80000000 to 0xc0000000.
  */
 static __inline int norm_fr1x32(fract32 _x)
   { return __builtin_bfin_norm_fr1x32(_x); }
 
-/* Returns the number of left shifts required to normalize the input variable 
+/* Returns the number of left shifts required to normalize the input variable
  * so that it is either in the interval 0x4000 to 0x7fff, or in the interval
  * 0x8000 to 0xc000. In other words,
  *
  *  fract16 x;
  *  shl_fr1x16(x,norm_fr1x32(x));
  *
- * will return a value in the range 0x4000 to 0x7fff, or in the range 0x8000 
+ * will return a value in the range 0x4000 to 0x7fff, or in the range 0x8000
  * to 0xc000.
  */
 static __inline int norm_fr1x16(fract16 _x)
-  { return __builtin_bfin_norm_fr1x16(_x); } 
+  { return __builtin_bfin_norm_fr1x16(_x); }
 
 /* This function returns the top 16 bits of _x, i.e. it truncates _x to 16
  * bits.  */
@@ -510,17 +521,17 @@ static __inline fract32 Mpy_32_16(short _a, short _b, short _c) {
 static __inline void L_Extract(fract32 _a, fract16 *_b, fract16 *_c) {
   *_b=extract_h(_a);
   *_c=L_msu(L_shr(_a,1), *_b, 16384);
-}                         
+}
 
-/* Multiplies two fract32 numbers, and returns the result as a fract32.  The 
+/* Multiplies two fract32 numbers, and returns the result as a fract32.  The
  * input fracts have both been split up into two shorts. */
 static __inline fract32 Mpy_32(short _a, short _b, short _c, short _d) {
   int x = L_mult(_a, _c);
   x = L_mac(x, mult(_a, _d), 1);
   return L_mac(x, mult(_b, _c), 1);
-}                       
+}
 
-/* Produces a result which is the fractional division of f1 by f2. Not a builtin 
+/* Produces a result which is the fractional division of f1 by f2. Not a builtin
  * as written in C code. */
 static __inline fract16 div_s(fract16 _a, fract16 _b) {
   int x = (int)_a;
@@ -534,7 +545,7 @@ static __inline fract16 div_s(fract16 _a, fract16 _b) {
     x = __builtin_bfin_divq(x, y);
   }
   return x;
-} 
+}
 
 #endif /*  } NO_ETSI_BUILTINS */
 #include <libetsi.h>
