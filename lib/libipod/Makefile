@@ -15,7 +15,7 @@ clean:
 romfs:
 	set -e ; \
 	for x in dumptracks dumptracks_cpp readwritedb teststrings ; do \
-		$(ROMFSINST) -e CONFIG_USER_LIBIPOD_EXAMPLES $(STAGEDIR)/usr/bin/$$x /bin/$$x ; \
+		$(ROMFSINST) -e CONFIG_USER_LIBIPOD_EXAMPLES build/examples/.libs/$$x /bin/$$x ; \
 	done
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libipod.so.0 /lib/
 
