@@ -2,9 +2,8 @@ linphone_subdirs = libosip2
 linphone_subdirs += linphone-1.6.0
 export TEMPDIR=$(CURDIR)/temp
 
-
 all:
-	for i in $(linphone_subdirs) ; do  make -C $$i -f ucldist.mk  || exit $? ; done
+	for i in $(linphone_subdirs) ; do $(MAKE) -C $$i -f ucldist.mk $@ || exit $$? ; done
 
 romfs:
 	$(ROMFSINST) $(TEMPDIR)/usr/bin/linphonec /bin/linphonec
@@ -14,7 +13,6 @@ romfs:
 
 clean:
 	rm -Rf $(TEMPDIR)
-	-for i in $(linphone_subdirs) ; do \
-                [ ! -d $$i ] || make -C $$i -f ucldist.mk clean; \
-	done
+	for i in $(linphone_subdirs) ; do $(MAKE) -C $$i -f ucldist.mk $@ || exit $$? ; done
 
+.PHONY: all clean romfs
