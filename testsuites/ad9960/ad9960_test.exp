@@ -42,43 +42,11 @@ send -s  "./ad9960_test read 16\r"
 while 1 {
    expect {
    
-      "Found Q" {                  
+       -re  "Found Q.*Validate 16 samples OK" {                  
 	        
-	        for {set i 23} {$i < 1023} {incr i} {
-			
-			expect {
-			-re "$i: Q_hw:\[\x20\t]+(\[a-z0-9]+)\[ \t]+Q_sw:\[ \t]+(\[a-z0-9]+)\[\r\n]" {
-				set flag 1
-				
-			}
-			
-			-re "$i: I_hw:\[\x20\t]+(\[a-z0-9]+)\[ \t]+I_sw:\[ \t]+(\[a-z0-9]+)\[\r\n]" {
-				set flag 1
-				
-			}
-			 timeout {				
-                case_fail $case_num
-				exit
-				}
-			}			
-			
-			if { $flag == 1 } {				
-				if { $expect_out(1,string) == $expect_out(2,string)} {
-					set num [expr $num + 1]	
-				} else {
-				puts "\n FAIL: $i $expect_out(1,string) $expect_out(2,string).\n"
-				}
-				set flag 0
-			} 
-			}
-			
-		if { $num == 1000 } {
 		puts "\nad9960 test success.\n"
                 case_pass $case_num
 		break
-		}
-	 
-        
       }    
 
      "ERROR" {
