@@ -13,8 +13,10 @@ clean:
 	rm -rf build
 
 romfs:
-	cd $(STAGEDIR)/usr/bin && \
-		$(ROMFSINST) -e CONFIG_USER_LIBIPOD_EXAMPLES dumptracks dumptracks_cpp readwritedb teststrings /bin
+	set -e ; \
+	for x in dumptracks dumptracks_cpp readwritedb teststrings ; do \
+		$(ROMFSINST) -e CONFIG_USER_LIBIPOD_EXAMPLES $(STAGEDIR)/usr/bin/$$x /bin/$$x ; \
+	done
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libipod.so.0 /lib/
 
 .PHONY: all clean romfs
