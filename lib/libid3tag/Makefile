@@ -7,7 +7,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure $(CONFIGURE_OPTS)
+	"CFLAGS=$(CFLAGS) -L../../zlib/" ../configure $(CONFIGURE_OPTS)
 
 clean:
 	rm -rf build
