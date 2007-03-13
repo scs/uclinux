@@ -13,9 +13,6 @@ LINPHONE_FLAGS+=--enable-ipv6=no
 LINPHONE_FLAGS+=--with-osip=$(TEMPDIR)
 LINPHONE_FLAGS+=PKG_CONFIG_PATH=$(TEMPDIR)/lib/pkgconfig:$(STAGEDIR)/usr/lib/pkgconfig
 
-PKG_CONFIG=/usr/bin/pkg-config
-
-
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$(DESTDIR)
 
@@ -25,7 +22,6 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	PKG_CONFIG=$(PKG_CONFIG) \
 	../configure \
 		--host=$(CONFIGURE_HOST) \
 		--prefix=/usr \

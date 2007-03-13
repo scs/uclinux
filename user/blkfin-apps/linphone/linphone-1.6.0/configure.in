@@ -34,6 +34,7 @@ ifdef([IT_PROG_INTLTOOL],[IT_PROG_INTLTOOL],[AC_PROG_INTLTOOL])
 dnl Initialize libtool
 AC_PROG_LIBTOOL
 AM_PROG_LIBTOOL
+PKG_PROG_PKG_CONFIG
 AC_ENABLE_SHARED(yes)
 AC_ENABLE_STATIC(no)
 dnl Add the languages which your application supports here.
