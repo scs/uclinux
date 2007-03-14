@@ -122,6 +122,10 @@ image:
 #
 # grab the standalone kernel image
 #
-	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
+	if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
+		cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage ; \
+	else \
+		rm $(IMAGEDIR)/vmlinux; \
+	fi
 
 clean:
