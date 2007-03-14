@@ -378,10 +378,12 @@ static void * oss_thread(void *p){
 						/* drop the fragment if the buffer starts to fill up */
 						/* we got too much data: I prefer to empty the incoming buffer */
 						while (ms_bufferizer_get_avail(d->bufferizer)>bsize*4){
+							ms_mutex_lock(&d->mutex);
 							err=ms_bufferizer_read(d->bufferizer,wtmpbuff,bsize);
 							err=ms_bufferizer_read(d->bufferizer,wtmpbuff,bsize);
 							err=ms_bufferizer_read(d->bufferizer,wtmpbuff,bsize);
 							err=ms_bufferizer_read(d->bufferizer,wtmpbuff,bsize);
+							ms_mutex_unlock(&d->mutex);
 							c=c+err*4;
 							ms_warning("drop fragment when buffer gets too much data (%i - discarded:%i)", info.fragstotal - info.fragments, c);
 							if (err==0)
@@ -389,7 +391,9 @@ static void * oss_thread(void *p){
 						}
 
 					}else {
+						ms_mutex_lock(&d->mutex);
 						err=ms_bufferizer_read(d->bufferizer,wtmpbuff,bsize);
+						ms_mutex_unlock(&d->mutex);
 						err=write(d->pcmfd,wtmpbuff,bsize);
 						if (err<0){
 							ms_warning("Fail to write %i bytes from soundcard: %s",
