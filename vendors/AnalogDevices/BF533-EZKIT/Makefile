@@ -125,7 +125,8 @@ image:
 	if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
 		cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage ; \
 	else \
-		rm $(IMAGEDIR)/vmlinux; \
+		rm -f $(IMAGEDIR)/vmlinux; \
+		rm -f $(IMAGEDIR)/vmImage; \
 	fi
 
 clean:
