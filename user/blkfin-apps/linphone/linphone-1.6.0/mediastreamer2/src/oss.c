@@ -319,8 +319,10 @@ static void * oss_thread(void *p){
 	mblk_t *rm=NULL;
 	d->pcmfd=oss_open(d->pcmdev,d->bits,d->stereo,d->rate,&bsize);
 	if (d->pcmfd>=0){
-		rtmpbuff=(uint8_t*)alloca(bsize);
-		wtmpbuff=(uint8_t*)alloca(bsize);
+		rtmpbuff=(uint8_t*)malloc(bsize);
+		wtmpbuff=(uint8_t*)malloc(bsize);
+		if(rtmpbuff == NULL || wtmpbuff == NULL)
+			return NULL;
 	}
 	while(d->read_started || d->write_started){
 		if (d->pcmfd>=0){
@@ -414,6 +416,8 @@ static void * oss_thread(void *p){
 		close(d->pcmfd);
 		d->pcmfd=-1;
 	}
+	free(rtmpbuff);
+	free(wtmpbuff);
 	if (rm!=NULL) freemsg(rm);
 	/*reset to default parameters */
 	d->bits=16;
