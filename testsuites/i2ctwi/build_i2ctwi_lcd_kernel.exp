@@ -50,23 +50,23 @@ while 1 {
 	     		send "\r"
 	     }	     
       }
-      
-      	   -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "Y\r"
-	     } else {
-	     		send "\r"
-	     }	             
+
+           -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+             if { $board_type == "BF537-STAMP" } {
+                        send "Y\r"
+             } else {
+                        send "\r"
+             }
+      }
+
+           -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
+             if { $board_type == "BF537-STAMP" } {
+                        send "50\r"
+             } else {
+                        send "\r"
+             }
       }
       
-      	   -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "50\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-         
       	   -re "TWI/I2C LCD support for HD44780 based LCD modules.*TWI_LCD.*\\\[.*]" {            
              send "M\r"
       }

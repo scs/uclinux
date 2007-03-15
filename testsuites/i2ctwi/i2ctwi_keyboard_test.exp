@@ -304,7 +304,7 @@ while 1 {
      }
 }
 
-puts "Please input any character followed by 'D'."
+puts "\nPlease input any character followed by 'D'."
 while 1 {
    expect {
      -re "Entry was" {
@@ -317,7 +317,7 @@ while 1 {
      }
 }
 
-puts "Please input another character followed by 'D'."
+puts "\nPlease input another character followed by 'D'."
 while 1 {
    expect {
      -re "Entry was" {
