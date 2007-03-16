@@ -135,16 +135,15 @@ while 1 {
                        send "\r"
             }
       }
-
-       -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_GPIO.*\\\[.*]" {
-             if { $board_type == "BF533-STAMP" } {
+         -re "Blackfin GPIO based I2C interface.*I2C_BLACKFIN_GPIO.*\\\[.*]" {
+             if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {
                         send "Y\r"
              } else {
                         send "N\r"
              }
       }
-      
-        -re "SDA is GPIO Number.*BFIN_SDA.*\\\[.*]" {
+
+        -re "SDA GPIO pin number.*I2C_BLACKFIN_GPIO_SDA.*\\\[.*]" {
               if { $board_type == "BF533-STAMP" } {
                         send "2\r"
              } else {
@@ -152,15 +151,15 @@ while 1 {
              }
       }
       
-        -re "SDA is GPIO Number.*BFIN_SCL.*\\\[.*]" {
+        -re "SCL GPIO pin number.*I2C_BLACKFIN_GPIO_SCL.*\\\[.*]" {
               if { $board_type == "BF533-STAMP" } {
                         send "1\r"
              } else {
                         send "\r"
              }
       }
-      
-           -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {
+     
+           -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
              if { $board_type == "BF537-STAMP" } {
                         send "Y\r"
              } else {
@@ -168,7 +167,7 @@ while 1 {
              }
       }
 
-           -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {
+           -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
              if { $board_type == "BF537-STAMP" } {
                         send "50\r"
              } else {

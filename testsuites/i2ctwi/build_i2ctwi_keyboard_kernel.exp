@@ -50,8 +50,8 @@ while 1 {
       	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
              send "Y\r"
       }
-      
-     	   -re "Generic Blackfin and HHBF533/561 development board I2C support.*I2C_BFIN_GPIO.*\\\[.*]" {
+     	   
+           -re "Blackfin GPIO based I2C interface.*I2C_BLACKFIN_GPIO.*\\\[.*]" {
 	     if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {             
              		send "Y\r"
 	     } else {
