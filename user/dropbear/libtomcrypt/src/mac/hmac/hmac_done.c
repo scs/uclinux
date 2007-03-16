@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
   HMAC support, terminate stream, Tom St Denis/Dobes Vandermeer
 */
 
-#ifdef HMAC
+#ifdef LTC_HMAC
 
 #define HMAC_BLOCKSIZE hash_descriptor[hash].blocksize
 
@@ -104,6 +104,6 @@ LBL_ERR:
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/hmac/hmac_done.c,v $ */
 /* $Revision$ */
 /* $Date$ */

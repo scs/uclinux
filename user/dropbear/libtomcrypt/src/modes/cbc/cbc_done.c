@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
    CBC implementation, finish chain, Tom St Denis
 */
 
-#ifdef CBC
+#ifdef LTC_CBC_MODE
 
 /** Terminate the chain
   @param cbc    The CBC chain to terminate
@@ -37,6 +37,6 @@ int cbc_done(symmetric_CBC *cbc)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/modes/cbc/cbc_done.c,v $ */
 /* $Revision$ */
 /* $Date$ */

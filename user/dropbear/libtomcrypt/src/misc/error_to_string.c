@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 
 #include "tomcrypt.h"
@@ -69,6 +69,6 @@ const char *error_to_string(int err)
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/error_to_string.c,v $ */
 /* $Revision$ */
 /* $Date$ */

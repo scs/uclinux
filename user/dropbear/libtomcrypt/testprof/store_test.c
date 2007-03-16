@@ -73,6 +73,6 @@ int store_test(void)
   return 0;
 }
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/testprof/store_test.c,v $ */
 /* $Revision$ */
 /* $Date$ */

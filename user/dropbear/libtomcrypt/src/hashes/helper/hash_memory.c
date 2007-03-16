@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -38,6 +38,7 @@ int hash_memory(int hash, const unsigned char *in, unsigned long inlen, unsigned
     }
 
     if (*outlen < hash_descriptor[hash].hashsize) {
+       *outlen = hash_descriptor[hash].hashsize;
        return CRYPT_BUFFER_OVERFLOW;
     }
 
@@ -63,6 +64,6 @@ LBL_ERR:
     return err;
 }
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/hashes/helper/hash_memory.c,v $ */
 /* $Revision$ */
 /* $Date$ */

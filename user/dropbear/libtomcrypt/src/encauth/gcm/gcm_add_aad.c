@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 
 /**
@@ -57,7 +57,7 @@ int gcm_add_aad(gcm_state *gcm,
             gcm->totlen += gcm->buflen * CONST64(8);
             gcm_mult_h(gcm, gcm->X);
          }
- 
+
          /* mix in the length */
          zeromem(gcm->buf, 8);
          STORE64H(gcm->totlen, gcm->buf+8);
@@ -119,6 +119,6 @@ int gcm_add_aad(gcm_state *gcm,
 #endif
    
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_add_aad.c,v $ */
 /* $Revision$ */
 /* $Date$ */

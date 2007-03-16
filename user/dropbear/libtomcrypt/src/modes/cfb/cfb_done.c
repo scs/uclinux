@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
    CFB implementation, finish chain, Tom St Denis
 */
 
-#ifdef CFB
+#ifdef LTC_CFB_MODE
 
 /** Terminate the chain
   @param cfb    The CFB chain to terminate
@@ -37,6 +37,6 @@ int cfb_done(symmetric_CFB *cfb)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/modes/cfb/cfb_done.c,v $ */
 /* $Revision$ */
 /* $Date$ */

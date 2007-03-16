@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
    PMAC implementation, process a file, by Tom St Denis 
 */
 
-#ifdef PMAC
+#ifdef LTC_PMAC
 
 /**
    PMAC a file 
@@ -79,6 +79,6 @@ int pmac_file(int cipher,
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/pmac/pmac_file.c,v $ */
 /* $Revision$ */
 /* $Date$ */

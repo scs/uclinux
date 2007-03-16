@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -29,6 +29,6 @@ void burn_stack(unsigned long len)
 
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/burn_stack.c,v $ */
 /* $Revision$ */
 /* $Date$ */

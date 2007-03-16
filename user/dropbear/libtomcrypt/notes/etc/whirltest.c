@@ -14,6 +14,6 @@ int main(void)
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/notes/etc/whirltest.c,v $ */
 /* $Revision$ */
 /* $Date$ */

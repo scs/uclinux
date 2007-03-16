@@ -21,6 +21,6 @@ if ($ARGV[0] eq "HEADERS") { print "testprof/tomcrypt_test.h"; }
 
 print "\n\n";
 
-# $Source$   
+# $Source: /cvs/libtom/libtomcrypt/parsenames.pl,v $   
 # $Revision$   
 # $Date$ 

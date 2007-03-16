@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -131,6 +131,6 @@ int sprng_test(void)
 
  
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/prngs/sprng.c,v $ */
 /* $Revision$ */
 /* $Date$ */

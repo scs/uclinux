@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -24,7 +24,7 @@ int pelican_test(void)
 #else
    static const struct {
         unsigned char K[32], MSG[64], T[16];
-	int keylen, ptlen;
+   int keylen, ptlen;
    } tests[] = {
 /* K=16, M=0 */
 {
@@ -99,7 +99,7 @@ int pelican_test(void)
           return err;
        }
 
-       if (memcmp(out, tests[x].T, 16)) {
+       if (XMEMCMP(out, tests[x].T, 16)) {
 #if 0
            int y;
            printf("\nFailed test %d\n", x);
@@ -115,6 +115,6 @@ int pelican_test(void)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/pelican/pelican_test.c,v $ */
 /* $Revision$ */
 /* $Date$ */

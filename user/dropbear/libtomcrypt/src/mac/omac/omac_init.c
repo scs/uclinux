@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -16,7 +16,7 @@
 */
 
 
-#ifdef OMAC
+#ifdef LTC_OMAC
 
 /**
    Initialize an OMAC state
@@ -63,7 +63,9 @@ int omac_init(omac_state *omac, int cipher, const unsigned char *key, unsigned l
 
    /* first calc L which is Ek(0) */
    zeromem(omac->Lu[0], cipher_descriptor[cipher].block_length);
-   cipher_descriptor[cipher].ecb_encrypt(omac->Lu[0], omac->Lu[0], &omac->key);
+   if ((err = cipher_descriptor[cipher].ecb_encrypt(omac->Lu[0], omac->Lu[0], &omac->key)) != CRYPT_OK) {
+      return err;
+   }
 
    /* now do the mults, whoopy! */
    for (x = 0; x < 2; x++) {
@@ -94,6 +96,6 @@ int omac_init(omac_state *omac, int cipher, const unsigned char *key, unsigned l
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/omac/omac_init.c,v $ */
 /* $Revision$ */
 /* $Date$ */

@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
   HMAC support, self-test, Tom St Denis/Dobes Vandermeer
 */
 
-#ifdef HMAC
+#ifdef LTC_HMAC
 
 #define HMAC_BLOCKSIZE hash_descriptor[hash].blocksize
 
@@ -55,7 +55,7 @@ int hmac_test(void)
         3. Test Cases for HMAC-SHA-1
 
         test_case =     1
-        key =           0x0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
+        key =           0x0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c
         key_len =       20
         data =          "Hi Ther     20
         digest =        0x4c1a03424b55e07fe7f27be1d58bb9324a9a5a04
@@ -277,7 +277,7 @@ Key First"
             return err;
         }
 
-        if(memcmp(digest, cases[i].digest, (size_t)hash_descriptor[hash].hashsize) != 0)  {
+        if(XMEMCMP(digest, cases[i].digest, (size_t)hash_descriptor[hash].hashsize) != 0)  {
             failed++;
 #if 0
             unsigned int j;
@@ -311,6 +311,6 @@ Key First"
 #endif
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/hmac/hmac_test.c,v $ */
 /* $Revision$ */
 /* $Date$ */

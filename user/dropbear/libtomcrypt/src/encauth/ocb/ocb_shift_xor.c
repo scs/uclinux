@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 
 /** 
@@ -34,6 +34,6 @@ void ocb_shift_xor(ocb_state *ocb, unsigned char *Z)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/encauth/ocb/ocb_shift_xor.c,v $ */
 /* $Revision$ */
 /* $Date$ */

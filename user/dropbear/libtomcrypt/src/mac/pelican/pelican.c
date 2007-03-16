@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -18,8 +18,8 @@
 #ifdef PELICAN
 
 #define ENCRYPT_ONLY
+#define PELI_TAB
 #include "../../ciphers/aes/aes_tab.c"
-
 
 /**
    Initialize a Pelican state
@@ -160,6 +160,6 @@ int pelican_done(pelican_state *pelmac, unsigned char *out)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/pelican/pelican.c,v $ */
 /* $Revision$ */
 /* $Date$ */

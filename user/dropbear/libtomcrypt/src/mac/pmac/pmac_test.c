@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -16,7 +16,7 @@
 */
 
 
-#ifdef PMAC
+#ifdef LTC_PMAC
 
 /** 
    Test the OMAC implementation
@@ -138,7 +138,7 @@ int pmac_test(void)
            return err;
         }
         
-        if (memcmp(outtag, tests[x].tag, len)) {
+        if (XMEMCMP(outtag, tests[x].tag, len)) {
 #if 0
            unsigned long y;
            printf("\nTAG:\n");
@@ -160,6 +160,6 @@ int pmac_test(void)
 
  
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/pmac/pmac_test.c,v $ */
 /* $Revision$ */
 /* $Date$ */

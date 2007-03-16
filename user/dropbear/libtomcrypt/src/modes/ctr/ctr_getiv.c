@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
    CTR implementation, get IV, Tom St Denis
 */
 
-#ifdef CTR
+#ifdef LTC_CTR_MODE
 
 /**
    Get the current initial vector
@@ -30,6 +30,7 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
    LTC_ARGCHK(len != NULL);
    LTC_ARGCHK(ctr != NULL);
    if ((unsigned long)ctr->blocklen > *len) {
+      *len = ctr->blocklen;
       return CRYPT_BUFFER_OVERFLOW;
    }
    XMEMCPY(IV, ctr->ctr, ctr->blocklen);
@@ -40,6 +41,6 @@ int ctr_getiv(unsigned char *IV, unsigned long *len, symmetric_CTR *ctr)
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/modes/ctr/ctr_getiv.c,v $ */
 /* $Revision$ */
 /* $Date$ */

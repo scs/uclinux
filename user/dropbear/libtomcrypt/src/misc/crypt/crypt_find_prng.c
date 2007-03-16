@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -26,7 +26,7 @@ int find_prng(const char *name)
    LTC_ARGCHK(name != NULL);
    LTC_MUTEX_LOCK(&ltc_prng_mutex);
    for (x = 0; x < TAB_SIZE; x++) {
-       if ((prng_descriptor[x].name != NULL) && strcmp(prng_descriptor[x].name, name) == 0) {
+       if ((prng_descriptor[x].name != NULL) && XSTRCMP(prng_descriptor[x].name, name) == 0) {
           LTC_MUTEX_UNLOCK(&ltc_prng_mutex);
           return x;
        }
@@ -36,6 +36,6 @@ int find_prng(const char *name)
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/crypt/crypt_find_prng.c,v $ */
 /* $Revision$ */
 /* $Date$ */

@@ -12,7 +12,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@iahu.ca, http://math.libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://math.libtomcrypt.com
  */
 
 /* Miller-Rabin test of "a" to the base of "b" as described in 
@@ -97,3 +97,7 @@ LBL_N1:mp_clear (&n1);
   return err;
 }
 #endif
+
+/* $Source: /cvs/libtom/libtommath/bn_mp_prime_miller_rabin.c,v $ */
+/* $Revision$ */
+/* $Date$ */

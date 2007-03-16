@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -31,7 +31,8 @@ const struct ltc_hash_descriptor sha512_desc =
     &sha512_init,
     &sha512_process,
     &sha512_done,
-    &sha512_test
+    &sha512_test,
+    NULL
 };
 
 /* the K array */
@@ -296,7 +297,7 @@ int  sha512_test(void)
       sha512_init(&md);
       sha512_process(&md, (unsigned char *)tests[i].msg, (unsigned long)strlen(tests[i].msg));
       sha512_done(&md, tmp);
-      if (memcmp(tmp, tests[i].hash, 64) != 0) {
+      if (XMEMCMP(tmp, tests[i].hash, 64) != 0) {
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
@@ -313,6 +314,6 @@ int  sha512_test(void)
 
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/hashes/sha2/sha512.c,v $ */
 /* $Revision$ */
 /* $Date$ */

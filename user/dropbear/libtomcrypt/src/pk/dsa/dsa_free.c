@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -23,12 +23,12 @@
 */
 void dsa_free(dsa_key *key)
 {
-   LTC_ARGCHK(key != NULL);
-   mp_clear_multi(&key->g, &key->q, &key->p, &key->x, &key->y, NULL);
+   LTC_ARGCHKVD(key != NULL);
+   mp_clear_multi(key->g, key->q, key->p, key->x, key->y, NULL);
 }
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/pk/dsa/dsa_free.c,v $ */
 /* $Revision$ */
 /* $Date$ */

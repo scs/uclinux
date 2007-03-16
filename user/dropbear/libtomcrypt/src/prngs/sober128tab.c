@@ -157,6 +157,6 @@ static const ulong32 Sbox[256] = {
     0xf9e6053f, 0xa4b0d300, 0xd499cbcc, 0xb95e3d40,
 };
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/prngs/sober128tab.c,v $ */
 /* $Revision$ */
 /* $Date$ */

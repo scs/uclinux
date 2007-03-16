@@ -1,4 +1,4 @@
-// small demo app that just includes a cipher/hash/prng
+/* small demo app that just includes a cipher/hash/prng */
 #include <tomcrypt.h>
 
 int main(void)
@@ -9,6 +9,6 @@ int main(void)
    return 0;
 }
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/demos/small.c,v $ */
 /* $Revision$ */
 /* $Date$ */

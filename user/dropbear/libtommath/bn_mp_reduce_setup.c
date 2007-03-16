@@ -12,7 +12,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@iahu.ca, http://math.libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://math.libtomcrypt.com
  */
 
 /* pre-calculate the value required for Barrett reduction
@@ -28,3 +28,7 @@ int mp_reduce_setup (mp_int * a, mp_int * b)
   return mp_div (a, b, a, NULL);
 }
 #endif
+
+/* $Source: /cvs/libtom/libtommath/bn_mp_reduce_setup.c,v $ */
+/* $Revision$ */
+/* $Date$ */

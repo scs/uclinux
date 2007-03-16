@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -23,13 +23,12 @@
 */
 void rsa_free(rsa_key *key)
 {
-   LTC_ARGCHK(key != NULL);
-   mp_clear_multi(&key->e, &key->d, &key->N, &key->dQ, &key->dP,
-                  &key->qP, &key->p, &key->q, NULL);
+   LTC_ARGCHKVD(key != NULL);
+   mp_clear_multi(key->e, key->d, key->N, key->dQ, key->dP, key->qP, key->p, key->q, NULL);
 }
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/pk/rsa/rsa_free.c,v $ */
 /* $Revision$ */
 /* $Date$ */

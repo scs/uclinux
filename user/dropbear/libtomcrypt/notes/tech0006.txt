@@ -86,6 +86,6 @@ ECCEncrypted ::= SEQUENCE {
     skey        OCTET STRING         -- The encrypted text (which the hash was XOR'ed against)
 }
 
-% $Source$   
+% $Source: /cvs/libtom/libtomcrypt/notes/tech0006.txt,v $   
 % $Revision$   
 % $Date$ 

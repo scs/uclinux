@@ -90,6 +90,6 @@ int main(void)
 
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/notes/etc/whirlgen.c,v $ */
 /* $Revision$ */
 /* $Date$ */

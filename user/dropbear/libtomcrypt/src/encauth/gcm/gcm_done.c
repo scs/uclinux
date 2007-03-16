@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 
 /**
@@ -62,7 +62,9 @@ int gcm_done(gcm_state *gcm,
    gcm_mult_h(gcm, gcm->X);
 
    /* encrypt original counter */
-   cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y_0, gcm->buf, &gcm->K);
+   if ((err = cipher_descriptor[gcm->cipher].ecb_encrypt(gcm->Y_0, gcm->buf, &gcm->K)) != CRYPT_OK) {
+      return err;
+   }
    for (x = 0; x < 16 && x < *taglen; x++) {
        tag[x] = gcm->buf[x] ^ gcm->X[x];
    }
@@ -76,6 +78,6 @@ int gcm_done(gcm_state *gcm,
 #endif
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/encauth/gcm/gcm_done.c,v $ */
 /* $Revision$ */
 /* $Date$ */

@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -16,12 +16,12 @@
 */
 
 struct ltc_hash_descriptor hash_descriptor[TAB_SIZE] = {
-{ NULL, 0, 0, 0, { 0 }, 0, NULL, NULL, NULL, NULL }
+{ NULL, 0, 0, 0, { 0 }, 0, NULL, NULL, NULL, NULL, NULL }
 };
 
-LTC_MUTEX_GLOBAL(ltc_hash_mutex);
+LTC_MUTEX_GLOBAL(ltc_hash_mutex)
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/crypt/crypt_hash_descriptor.c,v $ */
 /* $Revision$ */
 /* $Date$ */

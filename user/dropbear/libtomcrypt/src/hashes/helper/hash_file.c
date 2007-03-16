@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -52,6 +52,6 @@ int hash_file(int hash, const char *fname, unsigned char *out, unsigned long *ou
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/hashes/helper/hash_file.c,v $ */
 /* $Revision$ */
 /* $Date$ */

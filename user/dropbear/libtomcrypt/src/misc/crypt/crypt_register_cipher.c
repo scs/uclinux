@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -49,6 +49,6 @@ int register_cipher(const struct ltc_cipher_descriptor *cipher)
    return -1;
 }
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/crypt/crypt_register_cipher.c,v $ */
 /* $Revision$ */
 /* $Date$ */

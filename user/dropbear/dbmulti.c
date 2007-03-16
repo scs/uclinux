@@ -60,7 +60,7 @@ int main(int argc, char ** argv) {
 		}
 #endif
 #ifdef DBMULTI_scp
-		if (strcmp(progname, "scp") == 0) {
+		if (strcmp(progname, "scp") == 0 || strcmp(progname, "dbscp") == 0) {
 			return scp_main(argc, argv);
 		}
 #endif

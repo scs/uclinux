@@ -12,7 +12,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@iahu.ca, http://math.libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://math.libtomcrypt.com
  */
 
 /* initialize and set a digit */
@@ -26,3 +26,7 @@ int mp_init_set (mp_int * a, mp_digit b)
   return err;
 }
 #endif
+
+/* $Source: /cvs/libtom/libtommath/bn_mp_init_set.c,v $ */
+/* $Revision$ */
+/* $Date$ */

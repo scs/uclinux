@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
   OFB implementation, decrypt data, Tom St Denis
 */
 
-#ifdef OFB
+#ifdef LTC_OFB_MODE
 
 /**
    OFB decrypt
@@ -38,6 +38,6 @@ int ofb_decrypt(const unsigned char *ct, unsigned char *pt, unsigned long len, s
 
  
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/modes/ofb/ofb_decrypt.c,v $ */
 /* $Revision$ */
 /* $Date$ */

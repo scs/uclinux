@@ -302,3 +302,7 @@ int main(void)
    fclose(rng);
    return 0;
 }
+
+/* $Source: /cvs/libtom/libtommath/mtest/mtest.c,v $ */
+/* $Revision$ */
+/* $Date$ */

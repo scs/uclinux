@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -64,6 +64,6 @@ int rng_make_prng(int bits, int wprng, prng_state *prng,
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/prngs/rng_make_prng.c,v $ */
 /* $Revision$ */
 /* $Date$ */

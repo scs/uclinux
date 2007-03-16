@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -15,7 +15,7 @@
   OMAC1 support, terminate a stream, Tom St Denis
 */
 
-#ifdef OMAC
+#ifdef LTC_OMAC
 
 /**
   Terminate an OMAC stream
@@ -61,7 +61,9 @@ int omac_done(omac_state *omac, unsigned char *out, unsigned long *outlen)
    }
 
    /* encrypt it */
-   cipher_descriptor[omac->cipher_idx].ecb_encrypt(omac->block, omac->block, &omac->key);
+   if ((err = cipher_descriptor[omac->cipher_idx].ecb_encrypt(omac->block, omac->block, &omac->key)) != CRYPT_OK) {
+      return err;
+   }
    cipher_descriptor[omac->cipher_idx].done(&omac->key);
  
    /* output it */
@@ -79,6 +81,6 @@ int omac_done(omac_state *omac, unsigned char *out, unsigned long *outlen)
 #endif
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/mac/omac/omac_done.c,v $ */
 /* $Revision$ */
 /* $Date$ */

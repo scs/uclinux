@@ -130,7 +130,11 @@ do_local_cmd(arglist *a)
 			fprintf(stderr, " %s", a->list[i]);
 		fprintf(stderr, "\n");
 	}
+#ifdef __uClinux__
+	if ((pid = vfork()) == -1)
+#else
 	if ((pid = fork()) == -1)
+#endif
 		fatal("do_local_cmd: fork: %s", strerror(errno));
 
 	if (pid == 0) {
@@ -200,7 +204,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 #endif /* __uClinux__ */
 
 	/* Fork a child to execute the command on the remote host using ssh. */
-#ifndef __uClinux__
+#ifdef __uClinux__
 	do_cmd_pid = vfork();
 #else
 	do_cmd_pid = fork();

@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -29,7 +29,7 @@ int unregister_hash(const struct ltc_hash_descriptor *hash)
    /* is it already registered? */
    LTC_MUTEX_LOCK(&ltc_hash_mutex);
    for (x = 0; x < TAB_SIZE; x++) {
-       if (memcmp(&hash_descriptor[x], hash, sizeof(struct ltc_hash_descriptor)) == 0) {
+       if (XMEMCMP(&hash_descriptor[x], hash, sizeof(struct ltc_hash_descriptor)) == 0) {
           hash_descriptor[x].name = NULL;
           LTC_MUTEX_UNLOCK(&ltc_hash_mutex);
           return CRYPT_OK;
@@ -39,6 +39,6 @@ int unregister_hash(const struct ltc_hash_descriptor *hash)
    return CRYPT_ERROR;
 }
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/misc/crypt/crypt_unregister_hash.c,v $ */
 /* $Revision$ */
 /* $Date$ */

@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 
 /**
@@ -84,7 +84,7 @@ int eax_decrypt_verify_memory(int cipher,
    }
 
    /* compare tags */
-   if (buflen >= taglen && memcmp(buf, tag, taglen) == 0) {
+   if (buflen >= taglen && XMEMCMP(buf, tag, taglen) == 0) {
       *stat = 1;
    }
    
@@ -103,6 +103,6 @@ LBL_ERR:
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/encauth/eax/eax_decrypt_verify_memory.c,v $ */
 /* $Revision$ */
 /* $Date$ */

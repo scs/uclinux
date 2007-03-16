@@ -313,3 +313,7 @@ int main(void)
 
    return 0;
 }
+
+/* $Source: /cvs/libtom/libtommath/demo/timing.c,v $ */
+/* $Revision$ */
+/* $Date$ */

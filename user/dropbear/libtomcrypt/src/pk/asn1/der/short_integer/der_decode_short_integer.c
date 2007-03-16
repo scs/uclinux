@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 #include "tomcrypt.h"
 
@@ -19,7 +19,7 @@
 #ifdef LTC_DER
 
 /**
-  Read a mp_int integer
+  Read a short integer
   @param in       The DER encoded data
   @param inlen    Size of data
   @param num      [out] The integer to decode
@@ -63,6 +63,6 @@ int der_decode_short_integer(const unsigned char *in, unsigned long inlen, unsig
 
 #endif
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/pk/asn1/der/short_integer/der_decode_short_integer.c,v $ */
 /* $Revision$ */
 /* $Date$ */

@@ -64,12 +64,12 @@ bindir=${exec_prefix}/bin
 sbindir=${exec_prefix}/sbin
 
 CC=@CC@
-LD=@LD@
 AR=@AR@
 RANLIB=@RANLIB@
 STRIP=@STRIP@
 INSTALL=@INSTALL@
-CFLAGS=-I$(srcdir) -I. -I$(srcdir)/libtomcrypt/src/headers/ @CFLAGS@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=-I. -I$(srcdir) -I$(srcdir)/libtomcrypt/src/headers/ $(CPPFLAGS) @CFLAGS@
 LIBS=$(LTC) $(LTM) @LIBS@
 LDFLAGS=@LDFLAGS@
 
@@ -185,6 +185,8 @@ $(LTC): options.h
 
 $(LTM): options.h
 	cd libtommath && $(MAKE)
+
+.PHONY : clean sizes thisclean distclean tidy ltc-clean ltm-clean
 
 ltc-clean:
 	cd libtomcrypt && $(MAKE) clean

@@ -12,7 +12,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@iahu.ca, http://math.libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://math.libtomcrypt.com
  */
 
 /* shift left by a certain bit count */
@@ -79,3 +79,7 @@ int mp_mul_2d (mp_int * a, int b, mp_int * c)
   return MP_OKAY;
 }
 #endif
+
+/* $Source: /cvs/libtom/libtommath/bn_mp_mul_2d.c,v $ */
+/* $Revision$ */
+/* $Date$ */

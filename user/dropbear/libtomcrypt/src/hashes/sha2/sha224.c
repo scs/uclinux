@@ -6,7 +6,7 @@
  * The library is free for all purposes without any express
  * guarantee it works.
  *
- * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.org
+ * Tom St Denis, tomstdenis@gmail.com, http://libtomcrypt.com
  */
 /**
    @param sha224.c
@@ -27,7 +27,8 @@ const struct ltc_hash_descriptor sha224_desc =
     &sha224_init,
     &sha256_process,
     &sha224_done,
-    &sha224_test
+    &sha224_test,
+    NULL
 };
 
 /* init the sha256 er... sha224 state ;-) */
@@ -110,7 +111,7 @@ int  sha224_test(void)
       sha224_init(&md);
       sha224_process(&md, (unsigned char*)tests[i].msg, (unsigned long)strlen(tests[i].msg));
       sha224_done(&md, tmp);
-      if (memcmp(tmp, tests[i].hash, 28) != 0) {
+      if (XMEMCMP(tmp, tests[i].hash, 28) != 0) {
          return CRYPT_FAIL_TESTVECTOR;
       }
   }
@@ -119,6 +120,6 @@ int  sha224_test(void)
 }
 
 
-/* $Source$ */
+/* $Source: /cvs/libtom/libtomcrypt/src/hashes/sha2/sha224.c,v $ */
 /* $Revision$ */
 /* $Date$ */
