@@ -132,9 +132,11 @@ fatal(char *s, ...) {
  * Note: we use 512-byte sectors here, irrespective of the hardware ss.
  */
 #if !defined (__alpha__) && !defined (__ia64__)
-static
-_syscall5(int,  _llseek,  uint,  fd, ulong, hi, ulong, lo,
-       loff_t *, res, uint, wh);
+static int _llseek(unsigned int fd, unsigned long hi,
+	unsigned long lo, struct ext2_loff_t *res, unsigned int wh)
+{
+    return syscall(__NR__llseek, fd, hi, lo, res, wh);
+}
 #endif
 
 static int
