@@ -321,8 +321,11 @@ static void * oss_thread(void *p){
 	if (d->pcmfd>=0){
 		rtmpbuff=(uint8_t*)malloc(bsize);
 		wtmpbuff=(uint8_t*)malloc(bsize);
-		if(rtmpbuff == NULL || wtmpbuff == NULL)
+		if(rtmpbuff == NULL || wtmpbuff == NULL) {
+			free(rtmpbuff);
+			free(wtmpbuff);
 			return NULL;
+		}
 	}
 	while(d->read_started || d->write_started){
 		if (d->pcmfd>=0){
