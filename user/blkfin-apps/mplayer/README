@@ -74,13 +74,15 @@ Build livedotcom library
 ------------------------
 In order to player rtp stream (e.g, from VLC), we need to build MPlayer
 with the stream library livedotcom. If you don't want the streaming play
-feature, just ignore this section.
+feature, just ignore this section. 
 
-1. Download the library souce from: http://www.live555.com/liveMedia.
-   I tested 2007-01-14 snapshot.
-2. patch the source with: bfin_liblive.patch.
-3. Create Makefile, then build:
-	#./getMakefile
+The patched library has been checked into the blackfin uclinux multimedia SVN:
+http://blackfin.uclinux.org/svn/multimedia/trunk/mplayer/lib/live555. 
+
+The library is downloaded from http://www.live555.com/liveMedia using 2007-01-14 snapshot.
+
+To use, create Makefile, then build:
+	#./genMakefile bfin_uclinux_fdpic (or ./genMakefile bfin_uclinux_flat)
 	#make
 
 Build MPlayer
