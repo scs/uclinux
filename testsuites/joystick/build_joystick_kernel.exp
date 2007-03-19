@@ -77,7 +77,7 @@ while 1 {
              send "Y\r"
       }
            	     
-      	   -re "Blackfin TWI I2C support.*I2C_BFIN_TWI.*\\\[.*]" {   
+      	   -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {   
 	     if { $board_type == "BF537-STAMP" } {             
              		send "Y\r"
 	     } else {
@@ -85,14 +85,13 @@ while 1 {
 	     }	             
       }
       
-      	   -re "TWI clock.*TWICLK_KHZ.*\\\[.*]" {   
+      	   -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {   
 	     if { $board_type == "BF537-STAMP" } {             
              		send "50\r"
 	     } else {
 	     		send "\r"
 	     }	             
       }
-      
       
       	   -re "Generic input layer.*\\\[.*]" {            
              send "Y\r"
@@ -130,6 +129,7 @@ while 1 {
       }
        
      -re  "\\\(.*\\\) \\\[.*]" { 
+             sleep .01
 	     send "\r"
       }
 
