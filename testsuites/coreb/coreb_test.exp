@@ -107,7 +107,7 @@ send "rmmod dualcore_test\r"
 while 1 {
    expect {
 
-      -re "testarg = \[2\]*" {
+      -re "testarg = \\\[2\]*" {
          case_pass $case_num
          break
       }
