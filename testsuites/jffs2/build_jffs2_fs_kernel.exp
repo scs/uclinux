@@ -66,20 +66,45 @@ while 1 {
       }
       
       
+        -re "Detect flash chips by Common Flash Interface \\\(CFI\\\) probe \\\(MTD_CFI\\\).*\\\[.*]" {
+
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "y\r"
+             } else {
+                send -s "n\r"
+             }
+      }
       
         -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
              
              send -s "Y\r"
       }
        
+        -re "Support for AMD/Fujitsu flash chips \\\(MTD_CFI_AMDSTD\\\).*\\\[.*]" {
+
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "y\r"
+             } else {
+                send -s "n\r"
+             }
+      }
+
          -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
-             
-             send -s "Y\r"
+            
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "n\r"
+             } else {
+                send -s "Y\r"
+             }
       }
            
          -re "ST MW320D compatible flash chip support.*MTD_MW320D.*\\\[.*]" {
              
-             send -s "Y\r"
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "n\r"
+             } else {
+                send -s "Y\r"
+             }
       }
       
          -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
@@ -96,12 +121,29 @@ while 1 {
       
         -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
              
-             send -s "Y\r"
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "n\r"
+             } else {
+                send -s "Y\r"
+             }
       }
       
+        -re "Blackfin BF561 EZKIT Flash Chip Support \\\(MTD_EZKIT561\\\).*\\\[.*]" {
+             
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "y\r"
+             } else {
+                send -s "n\r"
+             }
+      }
+
         -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
              
-             send -s "Y\r"
+             if { $board_type == "BF561-EZKIT" } {
+                send -s "n\r"
+             } else {
+                send -s "Y\r"
+             }
       }
  
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
