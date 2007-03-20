@@ -48,7 +48,7 @@ while 1 {
          send "m\r"
       }
 
-      -re "corebld.*\\\[.*]" {
+      -re "BF561 Core B support tools \\\(CONFIG_USER_BF561_COREBLD\\\).*\\\[.*]" {
          send "y\r"
       }
 
