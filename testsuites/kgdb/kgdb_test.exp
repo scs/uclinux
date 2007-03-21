@@ -19,6 +19,25 @@ step "Start $TITLE\r"
 set timeout 10
 set case_num 0
 
+set timeout 8
+set flag 0
+send "ifconfig eth0 $targetip\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         set flag 1
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
 incr case_num
 spawn bfin-uclinux-gdb $uclinux_path/linux-2.6.x/vmlinux
 set gdb_id $spawn_id
