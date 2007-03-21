@@ -981,7 +981,7 @@ set LTP_LOG_DIR                 "$cwd/test/logs"
 set LTP_SCRIPT_DIR              "$cwd"
 
 source $LTP_SCRIPT_DIR/config/config.exp
-cp /home/test/test_scripts/kernel/reset_board $LTP_SCRIPT_DIR/.
+catch {exec cp /home/test/test_scripts/kernel/reset_board $LTP_SCRIPT_DIR/.}
 
 # There are rational reasons for defining these things like this.
 # It avoids SUBTLE errors with misspelling in favor of big, obvious errors.
