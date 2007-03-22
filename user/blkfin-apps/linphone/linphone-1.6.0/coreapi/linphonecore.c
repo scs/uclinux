@@ -281,9 +281,9 @@ void sound_config_read(LinphoneCore *lc)
 	linphone_core_set_ring_level(lc,tmp);
 	tmp=lp_config_get_int(lc->config,"sound","rec_lev",80);
 	linphone_core_set_rec_level(lc,tmp);
+*/
 	tmpbuf=lp_config_get_string(lc->config,"sound","source","m");
 	linphone_core_set_sound_source(lc,tmpbuf[0]);
-*/
 	
 	tmpbuf=PACKAGE_SOUND_DIR "/" LOCAL_RING;
 	tmpbuf=lp_config_get_string(lc->config,"sound","local_ring",tmpbuf);
