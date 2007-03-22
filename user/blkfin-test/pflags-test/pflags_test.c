@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
 	ret = ioctl(fd1, SET_FIO_INEN, INPUT_ENABLE);
 	if(strncmp(argv[1], "bf533", 6)==0) 
 		ret = ioctl(fd1, SET_FIO_POLAR, ACTIVELOW_FALLINGEDGE);
+	ret = ioctl(fd1, SET_FIO_EDGE, LEVEL);
 
 	ret= 0;
 
