@@ -16,7 +16,7 @@
 
 #include <complex.h>
 
-complex_fract16 _csub_fr16( complex_fract16 a, complex_fract16 b)
+complex_fract16 csub_fr16( complex_fract16 a, complex_fract16 b)
 {
     complex_fract16 result;
     fract32 real, imag;

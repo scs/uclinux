@@ -17,7 +17,7 @@
 #include <math.h>
 #include <complex.h>
 
-float _cabsf(complex_float a)
+float cabsf(complex_float a)
 {
     float output,abs_re,abs_im;
     int *temp_re, *temp_im, *temp_out;

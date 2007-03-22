@@ -17,7 +17,7 @@
 #include <fract.h>
 #include <complex.h>
 
-complex_fract16 _cmlt_fr16 ( complex_fract16 a, complex_fract16 b )
+complex_fract16 cmlt_fr16 ( complex_fract16 a, complex_fract16 b )
 {
     complex_fract16 result;
     fract32 real, imag;

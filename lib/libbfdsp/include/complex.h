@@ -61,7 +61,7 @@
               return r;
          }
 #else
-        complex_fract16 cadd_fr16 (complex_fract16 _a, complex_fract16 _b);
+        complex_fract16 cadd_fr16 (complex_fract16 _a, complex_fract16 _b) asm ("__cadd_fr16");
 #endif
 
 
@@ -74,7 +74,7 @@
               return r;
          }
 #else
-        complex_fract16 csub_fr16 (complex_fract16 _a, complex_fract16 _b) asm("__csub_fr16");
+        complex_fract16 csub_fr16 (complex_fract16 _a, complex_fract16 _b) asm ("__csub_fr16");
 #endif
 
 
@@ -95,7 +95,7 @@
               return r;
          }
 #else
-        complex_fract16 cmlt_fr16 (complex_fract16 _a, complex_fract16 _b);
+        complex_fract16 cmlt_fr16 (complex_fract16 _a, complex_fract16 _b) asm ("__cmlt_fr16");
 #endif
 
 #if defined(__ADSPBLACKFIN__) && !defined(__NO_BUILTIN)

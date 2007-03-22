@@ -25,6 +25,8 @@
 typedef char  _raw8;
 typedef short _raw16;
 typedef int   _raw32;
-typedef int __v2hi __attribute__ ((__mode__ (__V2HI__)));
+#if !defined(__NO_BUILTIN)
+typedef short __v2hi __attribute__ ((vector_size (4)));
+#endif
 
 #endif /* _RAW_TYPEDEF_H */

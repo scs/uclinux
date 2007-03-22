@@ -26,7 +26,11 @@
 
 #include <raw_typedef.h>
 
-typedef __v2hi	raw2x16;
+#if !defined(__NO_BUILTIN)
+typedef __v2hi raw2x16;
+#else
+typedef _raw32 raw2x16;
+#endif
 
 #endif
 
