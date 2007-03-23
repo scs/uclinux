@@ -22,7 +22,6 @@ dir_$(CONFIG_USER_PNGVIEW)                       += pngview
 dir_$(CONFIG_USER_BLACKFIN_WATCHDOGD)            += watchdogd
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa-utils
 dir_$(CONFIG_USER_ZAPTEL)                        += zaptel
-dir_$(CONFIG_USER_THREADSTACK)                   += threadstack-0.1
 dir_$(CONFIG_USER_BLACKFIN_ASTERISK)             += asterisk
 dir_$(CONFIG_USER_USBUTILS)                      += usbutils
 dir_$(CONFIG_USER_BLUEZ)                         += bluez-utils

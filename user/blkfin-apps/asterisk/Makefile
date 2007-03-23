@@ -218,14 +218,14 @@ ASTLINK=-Wl,-dynamic
 SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
 # uCasterisk ASTLINK=-Wl,-E 
-# note adjust this line to change main thread stack
+# note adjust this line to change main thread
 ASTLINK= $(EXTRA_MODS)
 # uCasterisk SOLINK=-shared -Xlinker -x
 endif
 
 # uCasterisk CC=gcc (C compiler is passed in from top level makefile) 
 LIBS+=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone 
-LIBS+=-lpthread -lgsm -lspeex -lm -lthreadstack
+LIBS+=-lpthread -lgsm -lspeex -lm
 
 #uClinux libtool
 LIBTOOL=$(ROOTDIR)/lib/libtool/DESTDIR/usr/bin/libtool
@@ -233,7 +233,6 @@ CFLAGS+=-I$(ROOTDIR)/lib/libtool/DESTDIR/usr/include
 CFLAGS+=-I$(ROOTDIR)/lib/libssl/include
 CFLAGS+=-I$(ROOTDIR)/lib/ncurses/include
 CFLAGS+=-I$(ROOTDIR)/lib/zlib
-CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
 CFLAGS+=-I$(ROOTDIR)/lib/blackfin-gsm/gsm/inc
 CFLAGS+=-I$(ROOTDIR)/lib/speex/DESTDIR/usr/include/
 CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/zaptel
@@ -243,7 +242,6 @@ LIBS+= -L$(ROOTDIR)/lib/libssl
 LIBS+= -L$(ROOTDIR)/lib/ncurses/lib
 LIBS+= -L$(ROOTDIR)/lib/zlib
 LIBS+= -L$(ROOTDIR)/lib
-LIBS+= -L$(ROOTDIR)/user/blkfin-apps/threadstack-0.1
 LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib
 LIBS+= -L$(ROOTDIR)/lib/speex/build/libspeex/.libs/
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/zaptel 

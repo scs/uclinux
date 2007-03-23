@@ -1996,10 +1996,6 @@ static void *pbx_thread(void *data)
 	   additional threads) */
 	struct ast_channel *c = data;
 	ast_pbx_run(c);
-	{
-	  pthread_t thread = pthread_self();
-	  assert(threadstack_free(&thread) > 10*1024);
-	}
 	pthread_exit(NULL);
 	return NULL;
 }
