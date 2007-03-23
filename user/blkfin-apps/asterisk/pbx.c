@@ -38,7 +38,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include "asterisk.h"
-#include "threadstack.h"
 
 /*
  * I M P O R T A N T :
