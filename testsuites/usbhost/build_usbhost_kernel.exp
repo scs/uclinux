@@ -40,6 +40,18 @@ while 1 {
          send "0xAAC2\r"
       }
 
+      -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
+         send "y\r"
+      }
+
+      -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
+         send "y\r"
+      }
+
       -re "Support for Host-side USB.*USB.*\\\[./././.]" {
          send "y\r"
       }
@@ -61,14 +73,6 @@ while 1 {
       }
 
       -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
-         send "y\r"
-      }
-
-      -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
-         send "y\r"
-      }
-
-      -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
          send "y\r"
       }
 
