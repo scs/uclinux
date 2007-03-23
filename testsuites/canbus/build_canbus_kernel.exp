@@ -40,7 +40,7 @@ while 1 {
       }
 
           -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send "25\r"
+             send "20\r"
       }
 
           -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
@@ -48,7 +48,7 @@ while 1 {
       }
 
           -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send "5\r"
+             send "4\r"
       }
 
    

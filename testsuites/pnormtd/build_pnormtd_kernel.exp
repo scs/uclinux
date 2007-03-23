@@ -19,7 +19,6 @@ set baud_rate_done_flag 0
 spawn make config
 
 #puts "Begin the interactive process of configuration"
-if { $board_type == "BF561-EZKIT" } {
 while 1 {
    expect {
    
@@ -42,8 +41,6 @@ while 1 {
              send "N\r"
       }
   
-      
-      
         -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
              
              send -s "Y\r"
@@ -64,240 +61,79 @@ while 1 {
              send  -s "Y\r"
       }
       
-        -re "Detect flash chips by Common Flash Interface \\\(CFI\\\) probe \\\(MTD_CFI\\\).*\\\[.*]" {
-
-             send -s "y\r"
-      }
-      
         -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
              
              send  -s "Y\r"
       }
 
-        -re "Support for AMD/Fujitsu flash chips \\\(MTD_CFI_AMDSTD\\\).*\\\[.*]" {
-
-             send  -s "Y\r"
+       -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP"  || $board_type == "BF533-STAMP" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
       }
 
-         -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-         -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
- 
-        -re "Blackfin BF561 EZKIT Flash Chip Support \\\(MTD_EZKIT561\\\).*\\\[.*]" {
-             
-             send  -s "Y\r"
+         -re "Detect flash chips by Common Flash Interface.*CFI.*probe.*MTD_CFI.*\\\[.*]" {
+            if { $board_type == "BF561-EZKIT" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
       }
 
-####       
-       -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
-             
-             send -s "y\r"
-      }
-      
-       -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
-
-             send  -s "Y\r"
-      }
-
-         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-             send -s  "N\r"
-      }
-      
-       	   -re "Sound card support.*SOUND.*\\\[.*]" {
-             send  -s "N\r"
-      }
-      
-    ####################################################################
-    ####################################################################
-    
-      
-           -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-          -re "eraseall.*CONFIG_USER_MTDUTILS_ERASEALL.*\\\[.*]" {
-             
-             send  -s  "Y\r"
-      }
-      
-          -re "mkfs.jff2.*CONFIG_USER_MTDUTILS_MKFSJFFS2.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
- 	      
-           -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-       	  -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "Build libjpeg.*CONFIG_LIB_LIBJPEG_FORCE.*\\\[.*]" {
-             send "N\r"
-      }
-     
-      	  -re "Build ncurses.*CONFIG_LIB_NCURSES_FORCE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "Build libbfdsp.*CONFIG_LIB_LIBBFDSP.*\\\[.*]" {
-             send "N\r"
-      }
-  
-         -re "boa-new.*CONFIG_USER_BOA_SRC_BOA_NEW.*\\\[.*]" {
-             send "N\r"
-      }
-	  
-	  -re "dhrystone.*CONFIG_USER_DHRYSTONE_DHRYSTONE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "whetstone.*CONFIG_USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "Sqlite.*a light weight database.*CONFIG_USER_SQLITE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "VIDEO test program.*CONFIG_USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "TWI LCD test program.*CONFIG_USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
-             send "N\r"
-      }
-
-      	  -re "strace.*CONFIG_USER_BLACKFIN_STRACE.*\\\[.*]" {
-             send "N\r"
-      }
-      
-      	  -re "jpegview.*CONFIG_USER_JPEGVIEW.*\\\[.*]" {
-             send "N\r"
-      }
-           
-       "\\\(*) \\\[*]" {
-             sleep .001
-	     send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
-}
-} 
-
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-while 1 {
-   expect {
-   
-   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-	        
-	     send "$board_type\r"
-      } 
-   
-   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-             send "y\r"
-      }
-
-           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-             send "y\r"
-      }
-
-          
-       -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
-            
-             send "N\r"
-      }
-  
-      
-      
-        -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
-             
-             send -s "Y\r"
-      }
-      
-  #      -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
-  #           
-  #           send  -s "Y\r"
-  #    }
-      
-       -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-         -re "Caching block device access to MTD devices.*MTD_BLOCK.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-      
-      
-        -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-       
-         -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-           
          -re "ST MW320D compatible flash chip support.*MTD_MW320D.*\\\[.*]" {
-             
-             send  -s "Y\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
       }
-      
+
+         -re "Support for AMD/Fujitsu flash chips.*MTD_CFI_AMDSTD.*\\\[.*]" {
+            if { $board_type == "BF561-EZKIT" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
+      }
          -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-         -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
-             
-             send  -s "Y\r"
-      }
-      
-      
-      
-   #     -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
-   #          
-   #          send  -s "Y\r"
-   #   }
-      
-        -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
-             
+
              send -s "Y\r"
       }
- 
+
+         -re "Support for ROM chips in bus mapping.*MTD_ROM.*\\\[.*]" {
+
+             send -s "Y\r"
+      }
+
+         -re "Blackfin BF561 EZKIT Flash Chip Support.*MTD_EZKIT561.*\\\[.*]" {
+            if { $board_type == "BF561-EZKIT" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
+      }
+
+        -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP"  || $board_type == "BF533-STAMP" } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
+      }
+
+        -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP"  } {
+                       send "Y\r"
+            } else {
+                       send "N\r"
+            }
+      }
+
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              
-             send -s "Y\r"
+             send -s "y\r"
       }
       
        -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
@@ -408,7 +244,6 @@ while 1 {
            
       }
    }
-}
 }
 
 cd $uclinux_path/testsuites

@@ -79,6 +79,7 @@ while 1 {
                 exit
  }
 
+set timeout 500
 spawn ftp $targetip
 while 1 {
     expect {

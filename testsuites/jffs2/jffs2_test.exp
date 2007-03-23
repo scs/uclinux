@@ -4,6 +4,8 @@
 #Test program to test reboot.
 #
 source ../kernel_config.exp
+source ../board_info.exp
+
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
@@ -49,7 +51,11 @@ while 1 {
 
 
 set timeout 5
+if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
 send -s "bootm 0x20020000\r"
+} elseif { $board_type == "BF561-EZKIT" } {
+send -s "bootm 0x20040000\r"
+}
 while 1 {
    expect {
       "Linux version" {
