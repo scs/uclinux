@@ -57,7 +57,7 @@ static len_and_sockaddr* remoteAddr;
 #endif
 
 /* We are using bb_common_bufsiz1 for buffering: */
-enum { MAX_READ = (BUFSIZ/6) & ~0xf };
+enum { MAX_READ = 256 };
 /* We recv into RECVBUF... (size: MAX_READ ~== BUFSIZ/6) */
 #define RECVBUF  bb_common_bufsiz1
 /* ...then copy to PARSEBUF, escaping control chars */
