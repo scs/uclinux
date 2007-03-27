@@ -68,7 +68,21 @@ while 1 {
 set spawn_id $kermit_spawn_id
 
 send "ifconfig eth0 $targetip up\r"
-sleep 15
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
 
 set timeout 10
 step "Copy testcase to target board\n"
