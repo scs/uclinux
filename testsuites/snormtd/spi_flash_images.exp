@@ -24,6 +24,9 @@ expect ">"
 
 ###########################################################################################################
 
+set case_num 0
+
+incr case_num
   
 send -s "mw.b 0x1000000 0xff 0x6fffff\r"
 
@@ -200,21 +203,43 @@ while 1 {
 	expect {
 
 	    "root:~>" {
+                case_pass $case_num
 		send_user "Boot from spi flash success\n"
 		break
 	    }
     
 	    timeout {
-		send_user "ERROR: boot from spi flash error\n"
-		set temp_status_flag $TEST_FAIL
-	
-		break
+                case_fail $case_num
+                exit	
 	    }
 	}
     }
-    
-    
-     
+   
+incr case_num
+send -s "\r" 
+sleep 3
+send -s "reboot\r"
+set timeout 100
+while 1 {
+expect {
+        "Hit any key" {
+                send -s "\r"
+                expect ">"
+                break
+        }
+        "error" {
+                case_fail $case_num
+                exit
+        }
+        timeout {
+               exit 
+        }
+}
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
 log_file
 	  
-send_user "Ending spi_flash_images_test.exp\n"
+send_user "Ending $argv0\n" 
