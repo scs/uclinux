@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
         min = 0xFFFFFFFF;
         for (a = 0; a < 128 ; a ++ ) {
                 gettimeofday(&tim2, NULL);
-                j = (int *)malloc (i*1024 - sizeof (size_t));
+                j = (int *)malloc (i*1024 - (i == 0 ? 0 : sizeof (size_t)));
                 gettimeofday(&tim1, NULL);
                 free (j);
                 t1 =   (tim1.tv_sec-tim2.tv_sec) * 1000000 + tim1.tv_usec-tim2.tv_usec;
