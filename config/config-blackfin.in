@@ -53,6 +53,7 @@ bool    'UPNP samples'                  CONFIG_USER_UPNP_SAMPLES
 bool    'DCPLB Replacement Test'        CONFIG_USER_BLACKFIN_DCPLB
 bool    'IRQ Schedule latency test' 	CONFIG_USER_BLACKFIN_LATENCYTEST
 bool    'Malloc performance test' 	CONFIG_USER_BLACKFIN_MALLOCPERF
+bool    'sram_alloc/sram_free test' 	CONFIG_USER_BLACKFIN_SRAMALLOC_TEST
 if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_LIBUPNP y
 fi
