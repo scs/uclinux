@@ -28,6 +28,7 @@ dir_$(CONFIG_AD9960_TEST)                   += ad9960_test
 dir_$(CONFIG_FILE_OPERATION_TEST)           += file_operation-test
 dir_$(CONFIG_USER_BLACKFIN_SPORT)           += sport_test
 dir_$(CONFIG_USER_BLACKFIN_LATENCYTEST)     += latency-test
+dir_$(CONFIG_USER_BLACKFIN_MALLOCPERF)      += malloc-perf
 
 all romfs:
 	for i in $(dir_y)   ; do $(MAKE) -C $$i $@ || exit $$? ; done

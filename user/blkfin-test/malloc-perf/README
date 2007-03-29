@@ -1,0 +1,3 @@
+This test case is written by Robin Getz for bug[#1318].
+
+It checks if malloc takes about the same speed indepentant of malloc size.
