@@ -265,6 +265,7 @@ romfs.post:
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
 
 romfs.shared.libs:
+	set -e; \
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
 		t=`bfin-linux-uclibc-gcc -print-file-name=libc.a`; \
 		t=`dirname $$t`/../..; \
