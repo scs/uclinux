@@ -30,18 +30,18 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 
+set TransRate  0
+set Throughput  0
 set case_num 0
 
 incr case_num
 
 set timeout 8
-set flag 0
 send "ifconfig eth0 $targetip\r" 
 while 1 {
    sleep 3
    expect {
       ">" {
-         set flag 1
          puts "ifconfig set success.\n"
          break
       }
@@ -52,40 +52,43 @@ while 1 {
          }
      }
 }
-
-spawn sudo ./netserver_x86
+spawn /bin/sh
+expect sh_prompt
+send -s "sudo ./netserver_x86 \r"
 while 1 {
    expect {
       "Password:" {
+         send -s "$password\r" 
+         expect "Starting netserver"
          break
       }
 
       timeout {
-            puts "Fail . "
             break
          }
      }
 }
-send "$password\r" 
+
+expect sh_prompt 
+send -s  "ps aux| grep netserver_x86 | head -1 \r"
+expect "\r"
 while 1 {
    expect {
-      "Starting netserver" {
-         puts "netserver start success.\n"
+      "netserver" {
          break
       }
 
       timeout {
-            puts "Fail . "
             break
          }
      }
 }
-   set netserver_id $spawn_id
-  
+
+expect sh_prompt
+set netserver_id $spawn_id
+
 set spawn_id $kermit_spawn_id
 
-
-sleep 3
 send "cd /\r"
 expect   "root:~>"
 send "chmod 777 netperf_script\r"
@@ -105,6 +108,25 @@ while 1 {
          }
      }
 }
+
+set spawn_id $netserver_id
+set timeout 3
+send -s "sudo pkill netserver_x86 \r"
+while 1 {
+   expect {
+      "Password:" {
+	send -s "$password\r" 
+        expect sh_prompt
+         break
+      }
+
+      timeout {
+            break
+         }
+     }
+}
+
+set spawn_id $kermit_spawn_id
 
 send  "cat netperf_tcp_rr\r"
 set timeout 10
