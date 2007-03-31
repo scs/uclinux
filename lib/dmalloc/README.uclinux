@@ -1,8 +1,7 @@
 The following changes were made to have this work for uClinux
 
-Makefile:
+Makefile.in:
 	- add empty romfs target
-	- allow CFLAGS/LDFLAGS to be overridden by env
 
 settings.dist:
 	- change HAVE_MMAP to USE_MMAP for sbrk
