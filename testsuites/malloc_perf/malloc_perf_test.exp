@@ -19,7 +19,7 @@ step "Start testing."
 
 set case_num 0
 
-set timeout 2
+set timeout 500
 send "malloc-perf\r"
 while 1 {
    expect {
@@ -32,6 +32,7 @@ while 1 {
 
       -re "PASS" {
          case_pass $case_num 
+         break
       }
 
       timeout {
@@ -40,8 +41,7 @@ while 1 {
    }
 }
 
-send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n"
+all_pass
 
 send_user "Ending $argv0\n"
 

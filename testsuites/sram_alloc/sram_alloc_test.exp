@@ -18,8 +18,9 @@ source ../reboot_kernel.exp
 step "Start testing."
 
 set case_num 0
+set sram_alloc 0
 
-set timeout 2
+set timeout 20
 send "sram_alloc\r"
 while 1 {
    expect {
@@ -31,18 +32,19 @@ while 1 {
       }
 
       -re "PASS" {
-         case_pass $case_num 
+         case_pass $case_num
+         set sram_alloc 1
       }
 
       timeout {
-         exit
+      break
+         
       }
    }
 }
-
-send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n"
-
+if { $sram_alloc == 1 } { 
+all_pass
+}
 send_user "Ending $argv0\n"
 
 log_file

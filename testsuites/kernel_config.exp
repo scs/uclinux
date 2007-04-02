@@ -94,7 +94,7 @@ proc case_fail { casenum } {
 
   send_user "\nCase $casenum ...FAIL\n"
   send_log "\nCase $casenum ...FAIL\n"
-  send_user "\nTEST $TITLE FAIL\n"
+  send_user "\n$TITLE FAIL\n"
   send_log "$TITLE ............\[FAIL\]\n"
   exit
 }
@@ -102,6 +102,6 @@ proc case_fail { casenum } {
 proc all_pass {} {
   global TITLE
 
-  send_user "\nTEST $TITLE PASS\n"
+  send_user "\n$TITLE PASS\n"
   send_log "\n$TITLE ............\[PASS\]\n"
 }
