@@ -17,7 +17,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 ifeq (.config,$(wildcard .config))
 include .config
 
-all: ucfront cksum subdirs romfs image
+all: ucfront cksum pkg-config subdirs romfs image
 else
 all: config_error
 endif
@@ -49,7 +49,7 @@ endif
 LINUX_CONFIG  = $(ROOTDIR)/$(LINUXDIR)/.config
 CONFIG_CONFIG = $(ROOTDIR)/config/.config
 MODULES_CONFIG = $(ROOTDIR)/modules/.config
-
+include $(CONFIG_CONFIG)
 
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
@@ -95,6 +95,11 @@ cksum: tools/cksum
 tools/cksum: tools/sg-cksum/*.c
 	$(MAKE) -C tools/sg-cksum
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
+
+.PHONY: pkg-config
+pkg-config: tools/$(CROSS_COMPILE)pkg-config
+tools/$(CROSS_COMPILE)pkg-config:
+	./tools/pkg-config-make $(CROSS_COMPILE) $(STAGEDIR)
 
 ############################################################################
 
@@ -370,6 +375,7 @@ real_clean mrproper: clean
 	rm -rf romfs config.in config.arch config.tk images
 	rm -f modules/config.tk
 	rm -rf .config .config.old .oldconfig autoconf.h
+	rm -f tools/*-pkg-config
 
 distclean: mrproper
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) distclean

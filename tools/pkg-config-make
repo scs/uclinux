@@ -1,0 +1,23 @@
+#!/bin/sh
+
+prefix=$1
+stagedir=$2
+argv0=$(basename "$0")
+subdir=$(dirname "$0")
+[ -n "${subdir}" ] && subdir="${subdir}/"
+
+if [ -z "$prefix" ] || [ -z "$stagedir" ] ; then
+	echo "Usage: $argv0 <toolchain prefix> <staging dir>"
+	exit 1
+fi
+
+cat << EOF > ${subdir}${prefix}pkg-config
+#!/bin/sh
+export PKG_CONFIG_PATH="${stagedir}/usr/lib/pkgconfig"
+if [ -n "\${UCLINUX_PKG_CONFIG_PATH}" ] ; then
+	export PKG_CONFIG_PATH="\${UCLINUX_PKG_CONFIG_PATH}:\${PKG_CONFIG_PATH}"
+fi
+unset PKG_CONFIG_ALLOW_SYSTEM_CFLAGS PKG_CONFIG_ALLOW_SYSTEM_LIBS
+exec pkg-config "\$@"
+EOF
+chmod a+rx ${subdir}${prefix}pkg-config

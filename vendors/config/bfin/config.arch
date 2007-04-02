@@ -47,6 +47,7 @@ ifndef DISABLE_SHARED_LIBS
 endif
 
 CROSS          = $(CROSS_COMPILE)
+KERNEL_CROSS_COMPILE = bfin-uclinux-
 
 CONFIG_UCLINUX=y
 
