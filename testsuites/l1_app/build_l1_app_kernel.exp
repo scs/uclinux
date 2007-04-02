@@ -13,6 +13,50 @@ cd $uclinux_path/testsuites
 step "Make config."
 source  make_default_config.exp
 
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+   expect {
+
+           -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
+             send "$board_type\r"
+      }
+
+           -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+             send "y\r"
+      }
+
+           -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+                       send  "Y\r"
+      }
+
+       "\\\(*) \\\[*]" {
+             sleep .01
+             send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+             send "\r"
+      }
+
+      eof {
+             puts "End of configuration"
+             break
+      }
+      timeout {
+             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+
+      }
+   }
+}
+
 cd $uclinux_path/testsuites
 
 step "Make"
