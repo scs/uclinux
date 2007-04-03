@@ -7,7 +7,7 @@
  *
  * Tilghman Lesher <app_cut__v003@the-tilghman.com>
  *
- * $Id$
+ * $Id: app_cut.c 3701 2006-09-11 12:28:01Z jerry $
  *
  * This code is released by the author with no restrictions on usage.
  *

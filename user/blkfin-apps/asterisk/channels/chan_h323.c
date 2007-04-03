@@ -23,7 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
- * Version Info: $Id$
+ * Version Info: $Id: chan_h323.c 3701 2006-09-11 12:28:01Z jerry $
  */
 
 

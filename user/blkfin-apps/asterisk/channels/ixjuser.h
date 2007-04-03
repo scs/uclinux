@@ -1,5 +1,5 @@
 /******************************************************************************
-$Id$
+$Id: ixjuser.h 3701 2006-09-11 12:28:01Z jerry $
 $Log$
 Revision 1.1  2006/09/11 12:25:34  jerry
 Initial revision
@@ -130,7 +130,7 @@ Initial revision
 * reset the SRAM values before futher use.
 *
 ******************************************************************************/
-static char ixjuser_h_rcsid[] = "$Id$";
+static char ixjuser_h_rcsid[] = "$Id: ixjuser.h 3701 2006-09-11 12:28:01Z jerry $";
 
 #define IXJCTL_DSP_RESET 		_IO  ('q', 0x80)
 #define IXJCTL_RING                     _IO  ('q', 0x82)

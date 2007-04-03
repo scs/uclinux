@@ -101,7 +101,9 @@ image:
 			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ; \
 			rm -rf $(ROMFSDIR)/dev/*; \
 		fi; \
-	fi
+	fi ; \
+	cd $(ROMFSDIR) ; \
+	find . | cpio --quiet -c -o | gzip -9 -n > $(IMAGEDIR)/initrd.cpio.gz
 #
 # make a compressed image, link the first one to uImage
 #
