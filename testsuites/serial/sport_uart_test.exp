@@ -100,7 +100,7 @@ expect {
 }
 set spawn_id $telnet_id
 while 1 {
-send -s "cat /etc/boa.conf > /dev/ttySS0 \r"
+send -s "cat /etc/boa.conf > $ttydev1 \r"
         expect {
                 ">" {
                       break }
