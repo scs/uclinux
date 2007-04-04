@@ -6,14 +6,14 @@
 # 2007-02-08: Enable playing rtsp stream. 
 
 ARCH=bfin
-UCLINUX_PATH=/home/adam/workspace/multimedia/mplayer/uclinux-dist-0109
+UCLINUX_PATH=/home/adam/workspace/multimedia/mplayer/uclinux-dist
 
 PREFIX=${PWD}/../install
-LIBMAD_PATH=${UCLINUX_PATH}/lib/libmad/DESTDIR/usr
+LIBMAD_PATH=${UCLINUX_PATH}/staging/usr
 
-LIBLIVE_PATH=${PWD}/../live
+LIBLIVE_PATH=/home/adam/workspace/multimedia/svn_rw/mplayer/lib/live555
 
-TARGET=bfin-uclinux
+TARGET=bfin-linux-uclibc
 CPU=bfin
 
 OPTFLAGS="-O3 -mfdpic -mfast-fp -DNDEBUG=1"
