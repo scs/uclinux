@@ -25,6 +25,7 @@ struct mdev_globals
 static void make_device(char *path, int delete)
 {
 	char *device_name;
+	static char dev_path[255];
 	int major, minor, type, len;
 	int mode = 0660;
 	uid_t uid = 0;
@@ -48,6 +49,7 @@ static void make_device(char *path, int delete)
 
 	device_name = strrchr(path, '/') + 1;
 	type = path[5]=='c' ? S_IFCHR : S_IFBLK;
+	strcpy(dev_path, "/dev/");
 
 	/* If we have a config file, look up permissions for this device */
 
@@ -76,8 +78,8 @@ static void make_device(char *path, int delete)
 			for (end=pos; end-conf<len && *end!='\n'; end++)
 				;
 
-			/* Three fields: regex, uid:gid, mode */
-			for (field=0; field < (3 + ENABLE_FEATURE_MDEV_EXEC);
+			/* 4 fields: regex, uid:gid, mode, subdir */
+			for (field=0; field < (4 + ENABLE_FEATURE_MDEV_EXEC);
 					field++)
 			{
 				/* Skip whitespace */
@@ -90,19 +92,17 @@ static void make_device(char *path, int delete)
 				if (field == 0) {
 					/* Regex to match this device */
 
-					char *regex = strndupa(pos, end2-pos);
+					char *regex = strndupa(pos, end2-pos-1);
 					regex_t match;
 					regmatch_t off;
 					int result;
 
 					/* Is this it? */
 					xregcomp(&match,regex, REG_EXTENDED);
-					result = regexec(&match, device_name, 1, &off, 0);
+					result = regexec(&match, path, 1, &off, 0);
 					regfree(&match);
 
-					/* If not this device, skip rest of line */
-					if (result || off.rm_so
-							|| off.rm_eo != strlen(device_name))
+					if (result)
 						break;
 				}
 				if (field == 1) {
@@ -126,7 +126,7 @@ static void make_device(char *path, int delete)
 					s++;
 					/* parse GID */
 					gid = strtoul(s, &s2, 10);
-					if (end2 != s2) {
+					if (end2-1 != s2) {
 						struct group *grp;
 						grp = getgrnam(strndupa(s, end2-s));
 						if (!grp) break;
@@ -137,9 +137,16 @@ static void make_device(char *path, int delete)
 					/* mode */
 
 					mode = strtoul(pos, &pos, 8);
-					if (pos != end2) break;
+					if (pos != end2-1) break;
 				}
-				if (ENABLE_FEATURE_MDEV_EXEC && field == 3) {
+				if (field == 3) {
+					/* get subdir */
+
+					strncat(dev_path, strndupa(pos, end2-pos), 250);
+					strcat(dev_path, "/");
+
+				}
+				if (ENABLE_FEATURE_MDEV_EXEC && field == 4) {
 					// Command to run
 					char *s = "@$*", *s2;
 					s2 = strchr(s, *pos++);
@@ -157,7 +164,7 @@ static void make_device(char *path, int delete)
 
 			/* Did everything parse happily? */
 
-			if (field > 2) break;
+			if (field > 3) break;
 			if (field) bb_error_msg_and_die("bad line %d",line);
 
 			/* Next line */
@@ -170,7 +177,9 @@ static void make_device(char *path, int delete)
 	umask(0);
 	if (!delete) {
 		if (sscanf(temp, "%d:%d", &major, &minor) != 2) return;
-		if (mknod(device_name, mode | type, makedev(major, minor)) && errno != EEXIST)
+		mkdir(dev_path, 0644);
+		strcat(dev_path, device_name);
+		if (mknod(dev_path, mode | type, makedev(major, minor)) && errno != EEXIST)
 			bb_perror_msg_and_die("mknod %s", device_name);
 
 		if (major == bbg.root_major && minor == bbg.root_minor)
@@ -191,7 +200,7 @@ static void make_device(char *path, int delete)
 		free(command);
 		if (rc == -1) bb_perror_msg_and_die("cannot run %s", command);
 	}
-	if (delete) unlink(device_name);
+	if (delete) unlink(dev_path);
 }
 
 /* Recursive search of /sys/block or /sys/class.  path must be a writeable
