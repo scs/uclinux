@@ -36,12 +36,8 @@ while 1 {
          send "y\r"
       }
 
-      -re "Enable GPIO IRQ Demultiplexing.*IRQCHIP_DEMUX_GPI.*\\\[.*]" {
-         send "n\r"
-      }
-
       -re "Bank 3.*BANK_3.*\\\[0x99B3]" {
-         send "0xFFC3\r"
+         send "0xAAC2\r"
       }
 
       -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
@@ -86,27 +82,11 @@ while 1 {
          send "y\r"
       }
 
-
-
-#      -re "HCI UART driver.*BT_HCIUART.*\\\[.*]" {
-#         send "y\r"
-#      }
-
-#      -re "UART.*H4.*protocol support.*BT_HCIUART_H4.*\\\[.*]" {
-#        send "y\r"
-#    }
-#
-#     -re "BCSP protocol support.*BT_HCIUART_BCSP.*\\\[.*]" {
-#       send "y\r"
-#   }
-
-#  -re "HCI VHCI.*Virtual HCI device.*driver.*BT_HCIVHCI.*\\\[.*]" {
-
-#    send "y\r"
-
-#    }
-
       -re "Support for Host-side USB.*USB.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "USB verbose debug messages.*USB_DEBUG.*\\\[.*]" {
          send "y\r"
       }
 
@@ -124,7 +104,7 @@ while 1 {
       }
 
        "\\\(*) \\\[*]" {
-	sleep .04
+	sleep .01
          send "\r"
       }
 
