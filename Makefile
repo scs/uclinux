@@ -49,7 +49,7 @@ endif
 LINUX_CONFIG  = $(ROOTDIR)/$(LINUXDIR)/.config
 CONFIG_CONFIG = $(ROOTDIR)/config/.config
 MODULES_CONFIG = $(ROOTDIR)/modules/.config
-include $(CONFIG_CONFIG)
+-include $(CONFIG_CONFIG)
 
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
