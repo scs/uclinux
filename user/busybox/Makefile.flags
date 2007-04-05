@@ -29,3 +29,5 @@ ifeq ($(CONFIG_STATIC),y)
 LDFLAGS += -static
 endif
 #LDFLAGS += -nostdlib
+
+FLTFLAGS += -s 20000
