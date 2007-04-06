@@ -288,11 +288,6 @@ romfs.shared.libs:
 					/lib/`basename $$i`; \
 			fi; \
 		done; \
-		if [ -x $$t/lib/ld-uClibc-$(UCLIBC_VERSION).so ] ; then \
-			$(ROMFSINST) -s \
-				/lib/ld-uClibc-$(UCLIBC_VERSION).so \
-				/lib/ld-linux.so.2; \
-		fi; \
 	fi
 	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
 		t=`$(CC) -mid-shared-library -print-file-name=libc`; \
