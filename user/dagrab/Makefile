@@ -1,7 +1,7 @@
 ### UCLINUX CHANGES: START ###
 uclinux: dagrab
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_DAGRAB_DAGRAB /usr/bin/dagrab
+	$(ROMFSINST) -d -e CONFIG_USER_DAGRAB_DAGRAB /usr/bin/dagrab
 ### UCLINUX CHANGES:  END  ###
 
 # Makefile for dagrab
