@@ -497,9 +497,9 @@ clean:
 
 # Special Rules
 
-cadd16.o:       CFLAGS += -fno-builtin
-cadd16_m3res.o: CFLAGS += -fno-builtin
-cmlt16.o:       CFLAGS += -fno-builtin
-cmlt16_m3res.o: CFLAGS += -fno-builtin
-csub16.o:       CFLAGS += -fno-builtin
-csub16_m3res.o: CFLAGS += -fno-builtin
+cadd16.o:       CFLAGS += -fno-builtin -D__NO_BUILTIN
+cadd16_m3res.o: CFLAGS += -fno-builtin -D__NO_BUILTIN
+cmlt16.o:       CFLAGS += -fno-builtin -D__NO_BUILTIN
+cmlt16_m3res.o: CFLAGS += -fno-builtin -D__NO_BUILTIN
+csub16.o:       CFLAGS += -fno-builtin -D__NO_BUILTIN
+csub16_m3res.o: CFLAGS += -fno-builtin -D__NO_BUILTIN
