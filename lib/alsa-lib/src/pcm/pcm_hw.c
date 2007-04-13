@@ -1022,7 +1022,7 @@ static snd_pcm_sframes_t snd_pcm_hw_read_mmap(snd_pcm_t *pcm, snd_pcm_uframes_t 
 static snd_pcm_sframes_t snd_pcm_hw_avail_update(snd_pcm_t *pcm)
 {
 	snd_pcm_hw_t *hw = pcm->private_data;
-	snd_pcm_uframes_t avail;
+	snd_pcm_uframes_t avail, xfer_avail;
 
 	sync_ptr(hw, 0);
 	if (pcm->stream == SND_PCM_STREAM_PLAYBACK) {
@@ -1031,14 +1031,17 @@ static snd_pcm_sframes_t snd_pcm_hw_avail_update(snd_pcm_t *pcm)
 		avail = snd_pcm_mmap_capture_avail(pcm);
 		if (avail < pcm->avail_min && hw->mmap_shm) {
 			snd_pcm_sframes_t err;
-			avail = snd_pcm_hw_capture_avail(pcm);
-			hw->hw_ptr = hw->mmap_status->hw_ptr;
-			hw->avail_update_flag = 1;
-			err = snd_pcm_hw_read_mmap(pcm, avail);
-			hw->avail_update_flag = 0;
-			if (err < 0)
-				return err;
-			avail = snd_pcm_mmap_capture_avail(pcm);
+			xfer_avail = snd_pcm_hw_capture_avail(pcm);
+			xfer_avail -= xfer_avail % pcm->xfer_align;
+			if (xfer_avail > 0) {
+				hw->avail_update_flag = 1;
+				err = snd_pcm_hw_read_mmap(pcm, xfer_avail);
+				hw->avail_update_flag = 0;
+				if (err < 0)
+					return err;
+				hw->hw_ptr += err;
+				avail = snd_pcm_mmap_capture_avail(pcm);
+			}
 		} 
 	}
 	switch (FAST_PCM_STATE(hw)) {
