@@ -8,10 +8,7 @@ build/Makefile:
 	mkdir build ; \
 	cd build ; \
 	../configure \
-		--host=$(CONFIGURE_HOST) \
-		--build=$(CONFIGURE_BUILD) \
-		--target=$(CONFIGURE_HOST) \
-		--prefix=/usr/local \
+		$(CONFIGURE_OPTS) \
 		--with-softfloat \
 		--with-versioned=no
 
