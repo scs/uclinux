@@ -47,12 +47,13 @@ while 1 {
       -re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
          send "m\r"
       }
-
-      -re "BF561 Core B support tools \\\(CONFIG_USER_BF561_COREBLD\\\).*\\\[.*]" {
+      
+      -re "BF561 Core B support tools.*CONFIG_USER_BF561_COREBLD.*\\\[.*]" {
          send "y\r"
       }
 
       "\\\(*) \\\[*]" {
+         sleep .01
          send "\r"
       }
 

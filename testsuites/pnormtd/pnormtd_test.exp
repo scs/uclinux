@@ -10,7 +10,7 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-set bootargs  $bootargs_param2
+#set bootargs  $bootargs_param2
 source ../reboot_kernel.exp
 
 set TEST_PASS               "pass"
@@ -30,7 +30,7 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd2" {
+	"mtd3" {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 	}
@@ -57,7 +57,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "flash_eraseall /dev/mtd2\r"
+send -s "flash_eraseall /dev/mtd3\r"
 while 1 {
     expect {
 	
@@ -96,7 +96,7 @@ incr case_num
 step "Writing MTD"
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "cp mtd.img /dev/mtd2\r"
+send -s "cp mtd.img /dev/mtd3\r"
 while 1 {
     expect {
 	
@@ -122,7 +122,7 @@ incr case_num
 step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "mount -t jffs2 /dev/mtdblock2 /mnt\n"
+send -s "mount -t jffs2 /dev/mtdblock3 /mnt\n"
 while 1 {
     expect {
                                                                                                                                                              

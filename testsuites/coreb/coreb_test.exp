@@ -86,6 +86,7 @@ while 1 {
    }
 }
 
+set timeout 5
 incr case_num
 send "corebld /bin/coreb_get_testarg\r"
 while 1 {
@@ -94,7 +95,7 @@ while 1 {
          send_user "\nexecute application corebld failed\n"
          case_fail $case_num
       }
-      eof {
+      -re "wrote.*wrote" {
          send_user "\nexecuted application coreb_get_testarg on another core\n"
          case_pass $case_num
          break

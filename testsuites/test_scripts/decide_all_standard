@@ -25,12 +25,12 @@ rm -f build_kernel_pass_log
 
 ls *log* | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log | grep -v .*detailed.* | grep -v .*summary.* > all_test_log_list
 
-grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log* | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
+grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log* --binary-files=text | sed 's/:/ /'| awk '{print $1}' > test_log_with_result
 
 comm -3 all_test_log_list test_log_with_result > test_log_without_result
 
-grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log* |  sed 's/.*log:/ /' > result_pass_summary
-grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log* |  sed 's/.*log:/ /' > result_fail_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log* --binary-files=text |  sed 's/.*log:/ /' > result_pass_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log* --binary-files=text |  sed 's/.*log:/ /' > result_fail_summary
 cat test_log_without_result >> result_fail_summary
 
 rm -f all_test_log_list

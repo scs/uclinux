@@ -49,7 +49,7 @@ while 1 {
             } elseif { $timer_frequency == "250" } {
                        send "2\r"
             } elseif { $timer_frequency == "1000" } {
-                       send "3\r"
+                       send "4\r"
             }
       }
 

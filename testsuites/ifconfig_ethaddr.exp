@@ -1,0 +1,34 @@
+
+cd $uclinux_path
+set timeout 2
+      spawn ex vendors/AnalogDevices/$board_type/rc
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+            sleep 1
+         }
+      }
+      sleep 1
+      send "/dhcpcd\r"
+      expect "dhcpcd*"
+      send "d\r"
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "#dhcpcd &\r"
+      send ".\r"
+      expect ":"
+      send "/ifconfig eth0\r"
+      expect "ifconfig eth0*"
+      send "d\r"
+      expect ":"
+      send "i\r"
+      sleep .5
+      send "ifconfig eth0 10.100.4.50 up\r"
+      send ".\r"
+      expect ":"
+      send "wq\r"
+      expect eof
+

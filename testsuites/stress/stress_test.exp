@@ -15,8 +15,11 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
-   
 step "Start the stress testing."
+
+set case_num 0
+
+incr case_num
 
 send "ifconfig eth0 $targetip\r"
 while 1 {
@@ -78,17 +81,20 @@ while 1 {
 	}
       }
    }
-
+   
+   set timeout 5
    set found 0
    spawn ps a
    while 1 {
       expect {
 	"telnet_test" {
 		incr found
+                puts "telnet_test is running.\n"
 	}
 
 	"ftp_test" {
 		incr found
+                puts "ftp_test is running.\n"                
 	}
 	
 	"telnet_test <defunct>" {
@@ -101,7 +107,7 @@ while 1 {
 		break
 	}
 	
-        eof {
+        timeout {
 	 	break
         }
       }
@@ -112,12 +118,11 @@ while 1 {
 		send -s "\3"
 		set spawn_id $ftp_test_id
 		send -s "\3"
-		send_log "\n$TITLE ............\[PASS\]\n"
-		exit
+   } else {
+                case_fail $case_num
    }
 
-                case_fail $case_num
-
+send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
