@@ -56,7 +56,7 @@
 	"ENOANO", /* 55 */
 	"EBADRQC", /* 56 */
 	"EBADSLT", /* 57 */
-	"EDEADLOCK", /* 58 */
+	"ERRNO_58", /* 58 */
 	"EBFONT", /* 59 */
 	"ENOSTR", /* 60 */
 	"ENODATA", /* 61 */
